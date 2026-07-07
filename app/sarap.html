@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SARAP — оценка кандидатов · Демо</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23172033'/%3E%3Cpath d='M3 25 C9 25 10 8 16 8 C22 8 23 25 29 25' fill='none' stroke='%23e8ecf3' stroke-width='2'/%3E%3Cline x1='20' y1='6' x2='20' y2='27' stroke='%231e7d5f' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#172033;--ink2:#3d4a61;--mut:#6b7689;--faint:#9aa5b5;
+  --paper:#fcfcfa;--panel:#fff;--ln:#dfe3ea;--ln2:#eceef2;
+  --grn:#1e7d5f;--grn-l:#e7f2ee;--terra:#b4552e;--terra-l:#f7e9e2;--amb:#996c07;--amb-l:#f5eeda;--blu:#28527a;--blu-l:#e9eff5;
+  --mono:'JetBrains Mono',monospace;--serif:'Spectral',serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Onest',sans-serif;background:var(--paper);color:var(--ink);font-size:14.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select{font-family:inherit;font-size:13.5px;color:var(--ink)}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#c8cdd6;border-radius:0}
+.num{font-family:var(--mono);font-feature-settings:'tnum'}
+
+.demo-note{background:var(--ink);color:#c3cbd8;font-size:12px;padding:8px 16px;text-align:center}
+.demo-note b{color:#fff}
+
+/* ===== шапка-колонтитул ===== */
+.mast{background:var(--panel);border-bottom:1px solid var(--ink)}
+.mast .m1{max-width:1240px;margin:0 auto;padding:14px 24px 10px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .bm{width:40px;height:40px;background:var(--ink);flex:none;display:grid;place-items:center}
+.brand .bm svg{width:30px;height:30px}
+.brand .bt{font-family:var(--serif);font-weight:700;font-size:21px;letter-spacing:.12em}
+.brand .bs{font-size:11px;color:var(--mut);letter-spacing:.04em;margin-top:-2px}
+.mast .roles{margin-left:auto;display:flex;border:1px solid var(--ln);background:var(--paper)}
+.mast .roles button{padding:8px 14px;font-size:12.5px;font-weight:500;color:var(--mut);border-right:1px solid var(--ln)}
+.mast .roles button:last-child{border-right:none}
+.mast .roles button.on{background:var(--ink);color:#fff}
+.mast .act{background:var(--grn);color:#fff;font-weight:600;font-size:13px;padding:10px 18px}
+.mast .act:hover{background:#186а4f}
+.mnav{max-width:1240px;margin:0 auto;padding:0 24px;display:flex;gap:26px;overflow-x:auto}
+.mnav button{padding:11px 0 12px;font-size:14px;font-weight:500;color:var(--mut);border-bottom:3px solid transparent;white-space:nowrap}
+.mnav button.on{color:var(--ink);font-weight:600;border-bottom-color:var(--grn)}
+.mnav button .cnt{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:5px}
+
+.wrap{max-width:1240px;margin:0 auto;padding:22px 24px 80px}
+.screen{display:none}.screen.on{display:block;animation:fd .18s}
+@keyframes fd{from{opacity:0}to{opacity:1}}
+.ph-head{display:flex;align-items:baseline;gap:14px;margin-bottom:4px;flex-wrap:wrap}
+.ph-head h1{font-family:var(--serif);font-size:26px;font-weight:600}
+.ph-head .sub{font-size:13px;color:var(--mut)}
+
+/* строка показателей — линейка, не карточки */
+.meterline{display:flex;border-top:2px solid var(--ink);border-bottom:1px solid var(--ln);margin:14px 0 20px;flex-wrap:wrap}
+.mt{flex:1;min-width:150px;padding:12px 18px 12px 0}
+.mt+.mt{border-left:1px solid var(--ln);padding-left:18px}
+.mt .l{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);font-weight:600}
+.mt .v{font-family:var(--mono);font-size:24px;font-weight:700;letter-spacing:-.5px;margin-top:3px}
+.mt .v em{font-style:normal;font-size:13px;color:var(--faint);font-weight:400}
+.mt .v.g{color:var(--grn)}.mt .v.t{color:var(--terra)}
+.mt .d{font-size:11.5px;color:var(--mut)}
+
+.cols{display:grid;grid-template-columns:1.55fr 1fr;gap:22px;align-items:start}
+@media(max-width:1000px){.cols{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--ln);margin-bottom:18px}
+.panel .pt{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--ln2)}
+.panel .pt h3{font-family:var(--serif);font-size:15.5px;font-weight:600;flex:1}
+.panel .pt .lnk{font-size:12px;color:var(--blu);font-weight:500;cursor:pointer}
+.panel .pt .lnk:hover{text-decoration:underline}
+.panel .pb{padding:8px 16px 14px}
+.note{font-size:12px;color:var(--mut);line-height:1.6}
+
+/* точки-статусы */
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px}
+.dot.g{background:var(--grn)}.dot.t{background:var(--terra)}.dot.a{background:#c99a1b}.dot.b{background:var(--blu)}.dot.gy{background:#b9c0cb}
+.mark{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.04em}
+.mark.g{color:var(--grn)}.mark.t{color:var(--terra)}.mark.a{color:var(--amb)}.mark.b{color:var(--blu)}.mark.gy{color:var(--faint)}
+
+/* таблицы */
+table{width:100%;border-collapse:collapse}
+th{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--mut);text-align:left;font-weight:600;padding:9px 10px 7px 0;border-bottom:1.5px solid var(--ink)}
+th.r{text-align:right}
+td{padding:11px 10px 11px 0;border-bottom:1px solid var(--ln2);font-size:13.5px;vertical-align:middle}
+td.r{text-align:right;font-family:var(--mono);font-size:12.5px;font-weight:600;white-space:nowrap}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:#f6f7f4}
+.cn{font-weight:600;font-size:14px}
+.cs{font-size:12px;color:var(--mut);margin-top:1px}
+
+/* фильтры */
+.frow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.chip{padding:7px 14px;font-size:12.5px;font-weight:500;background:var(--panel);border:1px solid var(--ln);color:var(--mut)}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.frow input,.frow select{border:1px solid var(--ln);padding:8px 12px;outline:none;background:var(--panel)}
+
+/* канбан */
+.kan{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--ln);border:1px solid var(--ln);align-items:stretch}
+@media(max-width:1000px){.kan{grid-template-columns:repeat(2,1fr)}}
+.kcol{background:var(--paper);padding:10px}
+.kcol h4{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--mut);font-weight:600;padding:2px 2px 10px;display:flex;justify-content:space-between}
+.kcard{background:var(--panel);border:1px solid var(--ln);border-top:2px solid var(--ink);padding:11px 12px;margin-bottom:8px;cursor:pointer}
+.kcard:hover{border-color:var(--ink)}
+.kcard.pilot{border-top-color:var(--grn)}
+.kcard.risk{border-top-color:var(--terra)}
+.kcard .kt{font-size:13.5px;font-weight:600}
+.kcard .kc2{font-size:11.5px;color:var(--mut);margin-top:2px;line-height:1.5}
+.kcard .kf{display:flex;align-items:center;margin-top:8px;font-size:11px;color:var(--faint)}
+.kcard .kf .num{margin-left:auto;font-weight:600;color:var(--ink2)}
+
+/* методики */
+.cat{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+@media(max-width:1000px){.cat{grid-template-columns:1fr}}
+.mcard{background:var(--panel);border:1px solid var(--ln);padding:14px 16px;cursor:pointer}
+.mcard:hover{border-color:var(--ink)}
+.mcard .mg{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--grn);font-weight:600}
+.mcard h4{font-family:var(--serif);font-size:16px;font-weight:600;margin:4px 0 6px}
+.mcard .mrow{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);padding:3px 0;border-bottom:1px dotted var(--ln2)}
+.mcard .mrow b{color:var(--ink2);font-weight:600;font-family:var(--mono);font-size:11.5px}
+.mcard .own{margin-top:8px;font-size:11px;font-weight:600}
+
+/* гауссиана-шкала */
+.scale{padding:10px 0 4px;border-bottom:1px solid var(--ln2)}
+.scale:last-child{border-bottom:none}
+.scale .sh{display:flex;align-items:baseline;gap:10px}
+.scale .sn{font-weight:600;font-size:13.5px;flex:1}
+.scale .sten{font-family:var(--mono);font-size:12px;font-weight:700}
+.scale .pct{font-family:var(--mono);font-size:11px;color:var(--mut)}
+.gauss{position:relative;height:44px;margin-top:4px}
+.gauss svg{width:100%;height:100%;display:block}
+.gauss .bench{position:absolute;top:0;bottom:12px;background:rgba(40,82,122,.10);border-left:1px dashed var(--blu);border-right:1px dashed var(--blu)}
+.gauss .mk{position:absolute;top:-2px;bottom:10px;width:2px;background:var(--grn)}
+.gauss .mk.t{background:var(--terra)}
+.gauss .ax{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--faint)}
+.verdict{border:1.5px solid var(--grn);background:var(--grn-l);padding:13px 16px;margin:14px 0}
+.verdict .vt{font-family:var(--serif);font-size:16px;font-weight:700;color:var(--grn)}
+.verdict p{font-size:13px;color:var(--ink2);margin-top:4px}
+
+/* сравнение кандидатов */
+.rank{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--ln2)}
+.rank:last-child{border-bottom:none}
+.rank .rn{font-family:var(--mono);font-size:11px;color:var(--faint);width:18px}
+.rank .rname{flex:1;font-weight:600;font-size:13.5px}
+.rank .rname span{display:block;font-size:11.5px;color:var(--mut);font-weight:400}
+.rank .rbar{flex:1.2;height:10px;background:var(--ln2);position:relative}
+.rank .rbar i{position:absolute;left:0;top:0;bottom:0;background:var(--ink)}
+.rank .rv{font-family:var(--mono);font-weight:700;font-size:13px;width:44px;text-align:right}
+
+/* телефон */
+.phone{width:290px;max-width:100%;margin:0 auto;background:#fff;border:2px solid var(--ink);box-shadow:8px 8px 0 var(--ln)}
+.phone .pt2{background:var(--ink);color:#fff;padding:12px 14px}
+.phone .pt2 .pl{font-size:10px;letter-spacing:.12em;color:#9fb0c8}
+.phone .pt2 b{font-family:var(--serif);font-size:15px;display:block}
+.phone .pb2{padding:14px}
+.phone .prog{height:5px;background:var(--ln2);margin-bottom:5px}
+.phone .prog i{display:block;height:100%;width:44%;background:var(--grn)}
+.phone .pm{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--mut);margin-bottom:12px}
+.phone .q{font-size:13px;font-weight:600;line-height:1.5;margin-bottom:10px}
+.phone .opt{border:1px solid var(--ln);padding:9px 11px;font-size:12.5px;margin-bottom:7px;cursor:pointer}
+.phone .opt:hover{border-color:var(--grn)}
+.phone .opt.sel{border-color:var(--grn);background:var(--grn-l)}
+.phone .pfoot{font-size:10.5px;color:var(--faint);text-align:center;padding:4px 12px 12px}
+
+/* спарк-бары */
+.spark{display:flex;gap:5px;align-items:flex-end;height:64px;padding-top:6px}
+.spark .sb{flex:1;background:var(--blu-l);border-top:2px solid var(--blu);position:relative}
+.spark .sb span{position:absolute;left:0;right:0;top:100%;margin-top:3px;text-align:center;font-family:var(--mono);font-size:9px;color:var(--faint)}
+
+/* модал / тосты */
+.ovl{position:fixed;inset:0;background:rgba(23,32,51,.5);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:30px 16px;overflow-y:auto}
+.ovl.show{display:flex}
+.mod{background:#fff;border:1.5px solid var(--ink);max-width:720px;width:100%;animation:fd .15s}
+.mod .mh{padding:16px 20px;border-bottom:1px solid var(--ln);display:flex;gap:12px;align-items:baseline}
+.mod .mh h2{font-family:var(--serif);font-size:19px;font-weight:600}
+.mod .mh .mx{margin-left:auto;font-size:18px;color:var(--mut);cursor:pointer}
+.mod .mb{padding:14px 20px 20px;max-height:60vh;overflow-y:auto}
+.btn{background:var(--ink);color:#fff;font-weight:600;font-size:12.5px;padding:9px 16px;cursor:pointer}
+.btn.g{background:var(--grn)}
+.btn.o{background:#fff;color:var(--ink);border:1px solid var(--ln)}
+#toasts{position:fixed;right:18px;bottom:18px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:380px}
+.toast{background:var(--ink);color:#e6eaf1;padding:12px 16px;font-size:12.5px;line-height:1.55;box-shadow:6px 6px 0 rgba(23,32,51,.15);animation:tin .22s}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1}}
+.toast b{color:#8fd4bc}
+
+@media(max-width:860px){
+  .mnav{gap:18px}
+  .wrap{padding:16px 14px 90px}
+  .mobile-nav{display:flex!important}
+}
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--ink);z-index:50;justify-content:space-around;padding:9px 4px calc(9px + env(safe-area-inset-bottom))}
+.mobile-nav button{color:#8b99af;font-size:10.5px;font-weight:500;padding:3px 8px}
+.mobile-nav button.on{color:#fff;font-weight:700}
+</style>
+</head>
+<body>
+<div class="demo-note">Интерактивное демо · <b>SARAP — платформа продажи тестов для найма</b> · все данные вымышленные, всё прокликивается · <b>Pllato</b></div>
+
+<header class="mast">
+  <div class="m1">
+    <div class="brand">
+      <div class="bm"><svg viewBox="0 0 32 32"><path d="M3 25 C9 25 10 8 16 8 C22 8 23 25 29 25" fill="none" stroke="#e8ecf3" stroke-width="2"/><line x1="20" y1="6" x2="20" y2="27" stroke="#2ea882" stroke-width="2"/></svg></div>
+      <div><div class="bt">SARAP</div><div class="bs">оценка кандидатов · психометрика</div></div>
+    </div>
+    <div class="roles">
+      <button class="on" onclick="setRole(this,'dir')">Директор</button>
+      <button onclick="setRole(this,'man')">Менеджер продаж</button>
+      <button onclick="setRole(this,'hr')">HR клиента</button>
+    </div>
+    <button class="act" onclick="toast('Групповая выдача: список кандидатов → батарея тестов → ссылки уходят в WhatsApp и email каждому. 30 кандидатов — за минуту.')">+ Выдать тесты</button>
+  </div>
+  <nav class="mnav">
+    <button class="on" data-s="dash">Сводка</button>
+    <button data-s="deals">Продажи<span class="cnt">8</span></button>
+    <button data-s="clients">Клиенты<span class="cnt">6</span></button>
+    <button data-s="cat">Методики<span class="cnt">11</span></button>
+    <button data-s="sess">Тестирования<span class="cnt">31</span></button>
+    <button data-s="report">Отчёт кандидата</button>
+    <button data-s="hr">Кабинет HR</button>
+    <button data-s="fin">Финансы</button>
+  </nav>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== СВОДКА ===== -->
+  <section class="screen on" id="s-dash">
+    <div class="ph-head"><h1>Сводка</h1><span class="sub">вторник, 8 июля 2026 · директор</span></div>
+    <div class="meterline">
+      <div class="mt"><div class="l">Выручка · июль</div><div class="v">4 910 <em>тыс ₸</em></div><div class="d">план 5 400 · 91%</div></div>
+      <div class="mt"><div class="l">Активных клиентов</div><div class="v">23</div><div class="d">компании с живым пакетом</div></div>
+      <div class="mt"><div class="l">Прохождений · июль</div><div class="v">1 284</div><div class="d">+18% к июню</div></div>
+      <div class="mt"><div class="l">Пилот → договор</div><div class="v g">58%</div><div class="d">7 из 12 пилотов купили</div></div>
+      <div class="mt"><div class="l">Кредиты на исходе</div><div class="v t">3</div><div class="d">сигнал к допродаже</div></div>
+    </div>
+    <div class="cols">
+      <div>
+        <div class="panel">
+          <div class="pt"><h3>Требует внимания</h3></div>
+          <div class="pb" id="dashAtt"></div>
+        </div>
+        <div class="panel">
+          <div class="pt"><h3>Клиенты: остатки прохождений</h3><span class="lnk" onclick="nav('clients')">все клиенты →</span></div>
+          <div class="pb"><table>
+            <thead><tr><th>Компания</th><th>Пакет</th><th class="r">Остаток</th><th class="r">За июль</th><th>Состояние</th></tr></thead>
+            <tbody id="dashCli"></tbody>
+          </table></div>
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="pt"><h3>Прохождения по неделям</h3></div>
+          <div class="pb"><div class="spark" id="dashSpark"></div><div style="height:16px"></div>
+          <div class="note">Каждое прохождение — списание с пакета клиента. Рост недели = рост выручки без единого звонка.</div></div>
+        </div>
+        <div class="panel">
+          <div class="pt"><h3>Лента</h3></div>
+          <div class="pb note" style="line-height:2.1" id="dashFeed"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ПРОДАЖИ ===== -->
+  <section class="screen" id="s-deals">
+    <div class="ph-head"><h1>Продажи</h1><span class="sub">воронка B2B: от лида до активного клиента · пилот = 20 бесплатных прохождений</span></div>
+    <div style="height:12px"></div>
+    <div class="kan" id="dealKan"></div>
+    <div class="note" style="margin-top:12px">Пилот с дедлайном — двигатель воронки: HR пробует на реальной вакансии, менеджер получает задачу за 3 дня до конца пилота. Переписка WhatsApp и email — в карточке сделки.</div>
+  </section>
+
+  <!-- ===== КЛИЕНТЫ ===== -->
+  <section class="screen" id="s-clients">
+    <div class="ph-head"><h1>Клиенты</h1><span class="sub">компании с пакетами прохождений</span></div>
+    <div class="frow" style="margin-top:12px">
+      <input placeholder="Поиск компании…" style="width:220px">
+      <span class="chip on">Все</span><span class="chip" onclick="toast('Фильтр: клиенты, у которых пакет закончится в ближайшие 2 недели — готовый список для допродажи.')">Кредиты на исходе</span><span class="chip" onclick="toast('Пилоты: кто сейчас пробует бесплатные 20 прохождений.')">Пилоты</span>
+    </div>
+    <div class="panel"><div class="pb" style="padding-top:4px"><table>
+      <thead><tr><th>Компания</th><th>Пакет · договор</th><th class="r">Остаток</th><th class="r">Израсходовано · июль</th><th>Менеджер</th><th>Состояние</th></tr></thead>
+      <tbody id="cliBody"></tbody>
+    </table></div></div>
+    <div class="note">Порог 10%: остаток падает ниже — автоматически уходит счёт на пополнение и задача менеджеру. Пакет не кончается внезапно ни у клиента, ни у вас.</div>
+  </section>
+
+  <!-- ===== МЕТОДИКИ ===== -->
+  <section class="screen" id="s-cat">
+    <div class="ph-head"><h1>Методики</h1><span class="sub">каталог тестов: 11 методик · 3 языка · нормы РК обновлены 05.2026</span></div>
+    <div class="frow" style="margin-top:12px">
+      <span class="chip on">Все</span><span class="chip">Способности</span><span class="chip">Личность</span><span class="chip">Надёжность</span><span class="chip">SJT</span><span class="chip">Проф-навыки</span>
+    </div>
+    <div class="cat" id="catGrid"></div>
+  </section>
+
+  <!-- ===== ТЕСТИРОВАНИЯ ===== -->
+  <section class="screen" id="s-sess">
+    <div class="ph-head"><h1>Тестирования</h1><span class="sub">сессии кандидатов · ссылки, статусы, флаги честности</span></div>
+    <div class="cols" style="margin-top:12px">
+      <div>
+        <div class="frow">
+          <select><option>Все компании</option><option>Magnum Retail</option><option>Halyk Talent</option><option>BI Group HR</option></select>
+          <select><option>Вакансия: менеджер продаж</option><option>бухгалтер</option><option>оператор кол-центра</option></select>
+          <span class="chip" onclick="toast('Массовая выдача: вставили список из 30 кандидатов — каждому ушла персональная ссылка в WhatsApp и email, с автонапоминанием через 24 часа.')">+ выдать списком</span>
+        </div>
+        <div class="panel"><div class="pb" style="padding-top:4px"><table>
+          <thead><tr><th>Кандидат</th><th>Заказчик · вакансия</th><th>Батарея</th><th>Статус</th><th class="r">Честность</th></tr></thead>
+          <tbody id="sessBody"></tbody>
+        </table></div></div>
+        <div class="note">Флаги честности: переключения вкладок, подозрительно быстрые ответы, длинные паузы. Заказчик видит — «результату можно доверять».</div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="pt"><h3>Так тест видит кандидат</h3></div>
+          <div class="pb" style="display:flex;justify-content:center;padding:18px 16px 22px">
+            <div class="phone">
+              <div class="pt2"><div class="pl">MAGNUM RETAIL · ОЦЕНКА</div><b>Числовой анализ</b></div>
+              <div class="pb2">
+                <div class="prog"><i></i></div>
+                <div class="pm"><span>вопрос 8 / 18</span><span>осталось 14:20</span></div>
+                <div class="q">Выручка отдела выросла с 1,25 млн до 1,60 млн ₸. На сколько процентов выросла выручка?</div>
+                <div class="opt">на 22%</div>
+                <div class="opt sel">на 28%</div>
+                <div class="opt">на 35%</div>
+                <div class="opt">на 128%</div>
+              </div>
+              <div class="pfoot">камера не используется · ответы сохраняются автоматически</div>
+            </div>
+          </div>
+          <div class="pb note" style="padding-top:0">Открывается по ссылке с телефона, без установки. Лого заказчика в шапке — кандидат видит бренд работодателя.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ОТЧЁТ ===== -->
+  <section class="screen" id="s-report">
+    <div class="ph-head"><h1>Отчёт по кандидату</h1><span class="sub">Айдана Серикова · менеджер продаж · Magnum Retail · батарея: числовой + SJT продажи + Big Five + надёжность</span></div>
+    <div class="meterline">
+      <div class="mt"><div class="l">Соответствие профилю</div><div class="v g">87%</div><div class="d">1-е место из 5 кандидатов</div></div>
+      <div class="mt"><div class="l">Завершено</div><div class="v">07.07 · 61 мин</div><div class="d">в пределах нормы времени</div></div>
+      <div class="mt"><div class="l">Флаги честности</div><div class="v g">0</div><div class="d">результату можно доверять</div></div>
+      <div class="mt"><div class="l">Норма сравнения</div><div class="v">РК·2026</div><div class="d">специалисты продаж, n=2 140</div></div>
+    </div>
+    <div class="cols">
+      <div>
+        <div class="panel">
+          <div class="pt"><h3>Шкалы — где кандидат на кривой</h3><span class="lnk" onclick="toast('Серым — распределение нормы, пунктирная зона — профиль вакансии (бенчмарк), зелёная линия — кандидат. HR-у не нужно понимать психометрию, чтобы прочитать это.')">как читать →</span></div>
+          <div class="pb" id="scales"></div>
+        </div>
+        <div class="verdict">
+          <div class="vt">Рекомендована к найму</div>
+          <p><b>Сильные стороны:</b> быстрый числовой анализ (стэн 7), уверенные решения в ситуациях продаж (стэн 8), высокая добросовестность. <b>Зона внимания:</b> средняя эмоциональная устойчивость — рекомендуем уточнить на интервью работу с отказами.</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn g" onclick="toast('PDF-отчёт сформирован: полная версия для HR + короткая страница «вердикт и 3 вопроса для интервью» для нанимающего менеджера.')">PDF для заказчика</button>
+          <button class="btn o" onclick="toast('Короткий отчёт: вердикт, 3 сильных стороны, 3 вопроса для интервью — нанимающему менеджеру не нужны 12 страниц.')">Короткая версия</button>
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="pt"><h3>Кандидаты на вакансию · топ-5</h3></div>
+          <div class="pb" id="rankList"></div>
+        </div>
+        <div class="panel">
+          <div class="pt"><h3>Профиль вакансии</h3></div>
+          <div class="pb note" style="line-height:1.8">Бенчмарк «менеджер продаж Magnum» построен по 14 успешным сотрудникам заказчика: числовой 5–8, SJT 6–9, добросовестность 6–9. Кандидаты сравниваются не «вообще», а с теми, кто уже успешен в этой роли.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== КАБИНЕТ HR ===== -->
+  <section class="screen" id="s-hr">
+    <div class="ph-head"><h1>Кабинет HR-клиента</h1><span class="sub">так платформу видит ваш заказчик — Magnum Retail · HR Гульнара</span></div>
+    <div class="meterline">
+      <div class="mt"><div class="l">Остаток прохождений</div><div class="v">380 <em>из 500</em></div><div class="d">пакет до 12.2026</div></div>
+      <div class="mt"><div class="l">Активные вакансии</div><div class="v">3</div><div class="d">31 кандидат в оценке</div></div>
+      <div class="mt"><div class="l">Отчёты готовы</div><div class="v g">14</div><div class="d">за последние 7 дней</div></div>
+    </div>
+    <div class="cols">
+      <div class="panel">
+        <div class="pt"><h3>Мои вакансии</h3><span class="lnk" onclick="toast('HR заводит вакансию, выбирает батарею тестов и профиль — дальше только рассылает ссылки и читает отчёты.')">+ вакансия</span></div>
+        <div class="pb"><table>
+          <thead><tr><th>Вакансия</th><th>Батарея</th><th class="r">Кандидатов</th><th class="r">Отчётов</th><th>Лучший</th></tr></thead>
+          <tbody>
+            <tr onclick="nav('report')"><td><div class="cn">Менеджер продаж</div><div class="cs">Алматы · 2 места</div></td><td style="font-size:12.5px">числовой · SJT · Big Five</td><td class="r">18</td><td class="r">9</td><td><span class="dot g"></span>Айдана С. · 87%</td></tr>
+            <tr onclick="toast('По каждой вакансии — свой профиль и своё ранжирование кандидатов.')"><td><div class="cn">Бухгалтер</div><div class="cs">Алматы · 1 место</div></td><td style="font-size:12.5px">числовой · внимательность · 1С</td><td class="r">8</td><td class="r">4</td><td><span class="dot g"></span>Мадина Т. · 81%</td></tr>
+            <tr onclick="toast('Массовый найм: операторов удобно фильтровать порогом — «не показывать ниже стэна 4».')"><td><div class="cn">Оператор кол-центра</div><div class="cs">удалённо · 6 мест</div></td><td style="font-size:12.5px">вербальный · надёжность</td><td class="r">5</td><td class="r">1</td><td><span class="dot gy"></span>в процессе</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div class="panel">
+        <div class="pt"><h3>Что видит заказчик</h3></div>
+        <div class="pb note" style="line-height:2">
+          — только свои вакансии и своих кандидатов;<br>
+          — остаток пакета крупно + автосчёт при малом остатке;<br>
+          — кнопка «пригласить кандидатов» → ссылки в WhatsApp;<br>
+          — готовые отчёты и ранжирование;<br>
+          — никакой вендорской кухни: цен, других клиентов, методической начинки.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ФИНАНСЫ ===== -->
+  <section class="screen" id="s-fin">
+    <div class="ph-head"><h1>Финансы</h1><span class="sub">пакеты, списания, повторные закупки</span></div>
+    <div class="meterline">
+      <div class="mt"><div class="l">Продажи пакетов · июль</div><div class="v">4 910 <em>тыс ₸</em></div><div class="d">2×1000 · 3×500 · 5×100</div></div>
+      <div class="mt"><div class="l">Повторные закупки</div><div class="v g">71%</div><div class="d">клиенты возвращаются сами</div></div>
+      <div class="mt"><div class="l">Дебиторка</div><div class="v t">640 <em>тыс ₸</em></div><div class="d">2 счёта · напоминания ушли</div></div>
+      <div class="mt"><div class="l">Средний чек пакета</div><div class="v">491 <em>тыс ₸</em></div><div class="d">растёт: было 410</div></div>
+    </div>
+    <div class="cols">
+      <div class="panel">
+        <div class="pt"><h3>Списания по клиентам · июль</h3></div>
+        <div class="pb"><table>
+          <thead><tr><th>Компания</th><th class="r">Прохождений</th><th class="r">Сумма, ₸</th><th class="r">Доля</th></tr></thead>
+          <tbody>
+            <tr onclick="toast('Прозрачно для клиента: каждое списание — конкретный кандидат и конкретный тест.')"><td class="cn">Air Astana Recruiting</td><td class="r">340</td><td class="r">1 326 000</td><td class="r">27%</td></tr>
+            <tr onclick="toast('Прозрачно: каждое списание — кандидат и тест.')"><td class="cn">Halyk Talent</td><td class="r">296</td><td class="r">1 154 400</td><td class="r">24%</td></tr>
+            <tr onclick="toast('Прозрачно: каждое списание — кандидат и тест.')"><td class="cn">Magnum Retail</td><td class="r">204</td><td class="r">795 600</td><td class="r">16%</td></tr>
+            <tr onclick="toast('Kaspi Office почти выбрал пакет 500 — автосчёт на пополнение уже у них.')"><td class="cn">Kaspi Office</td><td class="r">188</td><td class="r">733 200</td><td class="r">15%</td></tr>
+            <tr onclick="toast('Остальные 12 клиентов — мелкие пакеты и кадровые агентства.')"><td class="cn">Прочие (12)</td><td class="r">256</td><td class="r">900 800</td><td class="r">18%</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div class="panel">
+        <div class="pt"><h3>Какие методики зарабатывают</h3></div>
+        <div class="pb" id="finMeth"></div>
+        <div class="pb note" style="padding-top:0">SJT «Менеджер продаж» — собственная разработка: маржа выше лицензионных. Видно, куда вкладываться в новые методики.</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="mobile-nav">
+  <button class="on" data-s="dash" onclick="nav('dash')">Сводка</button>
+  <button data-s="deals" onclick="nav('deals')">Продажи</button>
+  <button data-s="sess" onclick="nav('sess')">Тесты</button>
+  <button data-s="report" onclick="nav('report')">Отчёт</button>
+  <button data-s="fin" onclick="nav('fin')">Деньги</button>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+function toast(html){const t=document.createElement('div');t.className='toast';t.innerHTML=html;$('toasts').appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},5400)}
+
+const TITLES={dash:1,deals:1,clients:1,cat:1,sess:1,report:1,hr:1,fin:1};
+function nav(s){
+  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
+  $('s-'+s).classList.add('on');
+  document.querySelectorAll('.mnav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  document.querySelectorAll('.mobile-nav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  window.scrollTo({top:0});
+}
+document.querySelectorAll('.mnav button').forEach(b=>b.onclick=()=>nav(b.dataset.s));
+function setRole(el,r){
+  document.querySelectorAll('.roles button').forEach(b=>b.classList.toggle('on',b===el));
+  if(r==='hr'){nav('hr');toast('Вы смотрите глазами <b>HR-клиента</b>: только свои вакансии, кандидаты и остаток пакета. Вендорская кухня скрыта.');}
+  else if(r==='man'){nav('deals');toast('Роль <b>менеджера продаж</b>: воронка, клиенты и задачи по допродажам. Финансы и методология — только у директора.');}
+  else{nav('dash');toast('Роль <b>директора</b>: вся картина — продажи, деньги, методики, качество.');}
+}
+
+/* сводка */
+$('dashAtt').innerHTML=[
+  ['t','Kaspi Office: осталось 12 прохождений из 500','автосчёт на пополнение отправлен · задача менеджеру Асель — позвонить сегодня'],
+  ['a','Пилот BI Group HR заканчивается через 3 дня','израсходовано 14 из 20 · время предлагать пакет 500'],
+  ['b','Жалоба: опечатка в «Числовой анализ v2», вопрос 11','методолог проверяет · версия будет 2.1'],
+].map(r=>'<div style="display:flex;gap:11px;align-items:center;padding:10px 0;border-bottom:1px solid var(--ln2)">'+
+  '<span class="dot '+r[0]+'" style="margin:0"></span><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13.5px">'+r[1]+'</div><div class="note">'+r[2]+'</div></div>'+
+  '<button class="btn o" style="padding:7px 12px;font-size:11.5px" onclick="toast(\'По каждому сигналу — ответственный и срок. Допродажи не зависят от памяти менеджера.\')">Открыть</button></div>').join('');
+
+const CLI=[
+  ['Air Astana Recruiting','1000 · до 03.2027',640,340,'Асель','g','в работе'],
+  ['Halyk Talent','1000 · до 01.2027',210,296,'Асель','a','предложить пополнение'],
+  ['Magnum Retail','500 · до 12.2026',380,204,'Данияр','g','в работе'],
+  ['Kaspi Office','500 · до 11.2026',12,188,'Асель','t','кредиты на исходе'],
+  ['BI Group HR','пилот 20 · 3 дня',6,14,'Данияр','a','конверсия в договор'],
+  ['КА «Персонал+»','100 · до 09.2026',44,31,'Данияр','g','в работе'],
+];
+$('dashCli').innerHTML=CLI.slice(0,4).map(c=>rowCli(c)).join('');
+$('cliBody').innerHTML=CLI.map(c=>rowCli(c,true)).join('');
+function rowCli(c,full){
+  return '<tr onclick="toast(\'Карточка клиента: договор, пользователи-HR, любимые тесты, история закупок и счета. Остаток ниже 10% — автосчёт уходит сам.\')">'+
+  '<td><div class="cn">'+c[0]+'</div>'+(full?'':'')+'</td><td style="font-size:12.5px">'+c[1]+'</td>'+
+  '<td class="r" style="color:'+(c[2]<30?'var(--terra)':'inherit')+'">'+c[2]+'</td><td class="r">'+c[3]+'</td>'+
+  (full?'<td style="font-size:12.5px">'+c[4]+'</td>':'')+
+  '<td><span class="dot '+c[5]+'"></span><span class="mark '+c[5]+'">'+c[6].toUpperCase()+'</span></td></tr>';
+}
+
+$('dashSpark').innerHTML=[[248,'09.06'],[286,'16.06'],[301,'23.06'],[264,'30.06'],[312,'07.07']].map(w=>
+  '<div class="sb" style="height:'+Math.round(w[0]/312*100)+'%"><span>'+w[1]+'</span></div>').join('');
+$('dashFeed').innerHTML=[
+  '<b>Отчёт готов</b>: Айдана Серикова · Magnum · соответствие 87%',
+  '<b>Продажи</b>: «Береке Банк» запросил пилот — 20 прохождений выданы',
+  '<b>Флаг</b>: Ерлан О. — 4 переключения вкладки, отчёт помечен',
+  '<b>Финансы</b>: Halyk Talent оплатил пакет 1000 — 3 900 000 ₸',
+  '<b>Методики</b>: нормы «SJT Руководитель» обновлены по выборке n=890',
+].map(f=>'· '+f).join('<br>');
+
+/* продажи */
+const DSTAGES=['Лид','Демо / пилот','КП отправлено','Договор','Активный клиент'];
+const DEALS=[
+  ['Береке Банк','HR Айгерим · нанимают ~15/мес','интерес: способности + надёжность','LinkedIn',0,0],
+  ['Технодом HR','HR Марат · массовый найм консультантов','SJT продажи · вербальный','рекомендация',0,0],
+  ['BI Group HR','пилот: 14 из 20 израсходовано · до 11.07','вакансия: прораб','сайт',1,1],
+  ['Colibri Logistics','демо проведено · ждут доступ пилота','водители: надёжность','hh-рассылка',1,0],
+  ['Jusan Retail','КП №— · пакет 500 · 1 950 000 ₸','решение до пятницы','LinkedIn',2,0],
+  ['Береке Строй','КП: пилот прошёл, 9 из 12 наняты по тестам','пакет 1000',  'пилот',2,0],
+  ['Magnum Retail','договор продлён · пакет 500','вакансий в работе: 3','повторный',3,0],
+  ['Air Astana Recruiting','активный · 1000 · ответственная Асель','340 прохождений за июль','повторный',4,0],
+];
+$('dealKan').innerHTML=DSTAGES.map((st,i)=>{
+  const ds=DEALS.filter(d=>d[4]===i);
+  return '<div class="kcol"><h4>'+st+'<span class="num">'+ds.length+'</span></h4>'+ds.map(d=>
+    '<div class="kcard'+(d[5]?' pilot':'')+'" onclick="toast(\'Карточка сделки: контакт HR, объём найма, интересующие методики, переписка WhatsApp/email, задачи. Пилот заканчивается — задача менеджеру ставится сама.\')">'+
+    '<div class="kt">'+d[0]+'</div><div class="kc2">'+d[1]+'<br>'+d[2]+'</div>'+
+    '<div class="kf"><span>'+d[3]+'</span></div></div>').join('')+'</div>';
+}).join('');
+
+/* методики */
+const CAT=[
+  ['СПОСОБНОСТИ','Числовой анализ v2','24 мин','18','RU · KZ · EN','3 900','адаптивный','собственная разработка',1],
+  ['СПОСОБНОСТИ','Вербальный анализ','22 мин','20','RU · KZ','3 900','адаптивный','собственная разработка',1],
+  ['СПОСОБНОСТИ','Логический анализ','18 мин','16','RU · KZ · EN','3 900','фиксированный','собственная разработка',1],
+  ['ЛИЧНОСТЬ','Опросник Big Five KZ','32 мин','120','RU · KZ','4 500','фиксированный','лицензированная · нормы РК',0],
+  ['ЛИЧНОСТЬ','Мотивационный профиль','15 мин','48','RU · KZ','3 200','фиксированный','собственная разработка',1],
+  ['НАДЁЖНОСТЬ','Integrity: честность и риск','20 мин','64','RU · KZ','4 200','фиксированный','лицензированная',0],
+  ['SJT','SJT · Менеджер продаж','25 мин','14 кейсов','RU · KZ','5 500','фиксированный','собственная разработка',1],
+  ['SJT','SJT · Руководитель','30 мин','16 кейсов','RU','5 500','фиксированный','собственная разработка',1],
+  ['ПРОФ-НАВЫКИ','Excel: базовый + формулы','25 мин','22','RU','2 900','фиксированный','собственная разработка',1],
+  ['ПРОФ-НАВЫКИ','1С: первичка и проводки','20 мин','18','RU','2 900','собственная','собственная разработка',1],
+  ['ПРОФ-НАВЫКИ','Языки: казахский · английский','30 мин','40','KZ · EN','3 500','адаптивный','лицензированная',0],
+];
+$('catGrid').innerHTML=CAT.map(m=>
+  '<div class="mcard" onclick="toast(\'Карточка методики: версия, дата ревизии норм, выборка, надёжность (альфа Кронбаха), примеры вопросов. Прозрачная методология — главный аргумент против «тестов из интернета».\')">'+
+  '<div class="mg">'+m[0]+'</div><h4>'+m[1]+'</h4>'+
+  '<div class="mrow"><span>Длительность · вопросов</span><b>'+m[2]+' · '+m[3]+'</b></div>'+
+  '<div class="mrow"><span>Языки</span><b>'+m[4]+'</b></div>'+
+  '<div class="mrow"><span>Цена за прохождение</span><b>'+m[5]+' ₸</b></div>'+
+  '<div class="mrow"><span>Формат · нормы РК 2026</span><b>'+m[6]+'</b></div>'+
+  '<div class="own"><span class="dot '+(m[8]?'g':'b')+'"></span>'+m[7]+'</div></div>').join('');
+
+/* тестирования */
+const SESS=[
+  ['Айдана Серикова','Magnum Retail · менеджер продаж','числ + SJT + Big5 + integrity','g','ОТЧЁТ ГОТОВ','0 флагов','g'],
+  ['Ерлан Оспанов','Magnum Retail · менеджер продаж','числ + SJT + Big5','t','ОТЧЁТ ГОТОВ','4 переключения вкладки','t'],
+  ['Тимур Ахметов','Magnum Retail · менеджер продаж','числ + SJT','b','НАЧАЛ · 44%','—','gy'],
+  ['Дана Ержанова','Magnum Retail · менеджер продаж','числ + SJT + Big5','a','ПРИГЛАШЕНА · напомнили','—','gy'],
+  ['Мадина Турсынова','Halyk Talent · бухгалтер','числ + вниматbreak + 1С','g','ОТЧЁТ ГОТОВ','0 флагов','g'],
+  ['Диас Нурланов','BI Group HR · прораб (пилот)','логика + SJT рук.','b','НАЧАЛ · 71%','—','gy'],
+];
+$('sessBody').innerHTML=SESS.map(s=>
+  '<tr onclick="toast(\'Сессия: персональная ссылка, срок действия, автонапоминание через 24 ч, продление в один клик. Завершил — отчёт собирается сам.\')">'+
+  '<td><div class="cn">'+s[0]+'</div></td><td style="font-size:12.5px">'+s[1]+'</td><td style="font-size:12px">'+s[2].replace('вниматbreak','внимательность')+'</td>'+
+  '<td><span class="dot '+s[3]+'"></span><span class="mark '+s[3]+'">'+s[4]+'</span></td>'+
+  '<td class="r"><span class="mark '+s[6]+'">'+s[5]+'</span></td></tr>').join('');
+
+/* отчёт: гауссианы */
+const SCALES=[
+  ['Числовой анализ',7,76,45,85],
+  ['SJT · ситуации продаж',8,89,55,92],
+  ['Big Five · добросовестность',7,78,55,92],
+  ['Big Five · экстраверсия',8,86,45,90],
+  ['Big Five · эмоц. устойчивость',5,48,45,85,'a'],
+  ['Integrity · надёжность',6,66,40,90],
+];
+function gaussSvg(){return '<svg viewBox="0 0 100 30" preserveAspectRatio="none"><path d="M0 29 C20 29 26 4 50 4 C74 4 80 29 100 29" fill="#eef0f4" stroke="#c8cdd6" stroke-width=".6"/></svg>'}
+$('scales').innerHTML=SCALES.map(s=>
+  '<div class="scale"><div class="sh"><span class="sn">'+s[0]+'</span><span class="sten" style="color:'+(s[5]?'var(--amb)':'var(--grn)')+'">стэн '+s[1]+'</span><span class="pct">'+s[2]+' процентиль</span></div>'+
+  '<div class="gauss">'+gaussSvg()+
+  '<span class="bench" style="left:'+s[3]+'%;width:'+(s[4]-s[3])+'%"></span>'+
+  '<span class="mk'+(s[5]?' t':'')+'" style="left:'+s[2]+'%"></span>'+
+  '<div class="ax"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>'+
+  '</div></div>').join('');
+
+$('rankList').innerHTML=[
+  ['1','Айдана Серикова','0 флагов · отчёт готов',87,'g'],
+  ['2','Ерлан Оспанов','⚑ 4 переключения вкладки',74,'t'],
+  ['3','Мадина Касымова','отчёт готов',68,'g'],
+  ['4','Диас Абаев','отчёт готов',61,'g'],
+  ['5','Тимур Ахметов','проходит · 44%',0,'gy'],
+].map(r=>'<div class="rank" onclick="toast(\'Ранжирование по соответствию профилю вакансии, а не по «среднему баллу». Флаги честности видны прямо в списке.\')">'+
+  '<span class="rn">'+r[0]+'</span><div class="rname">'+r[1]+'<span>'+r[2]+'</span></div>'+
+  '<div class="rbar"><i style="width:'+r[3]+'%"></i></div><span class="rv num">'+(r[3]?r[3]+'%':'—')+'</span></div>').join('');
+
+/* финансы: методики */
+$('finMeth').innerHTML=[
+  ['SJT · Менеджер продаж',1420,100],
+  ['Числовой анализ v2',1180,83],
+  ['Big Five KZ',860,61],
+  ['Integrity',640,45],
+  ['Проф-навыки (Excel · 1С · языки)',810,57],
+].map(m=>'<div style="display:flex;align-items:center;gap:10px;padding:7px 0">'+
+  '<span style="width:210px;font-size:12.5px;font-weight:500">'+m[0]+'</span>'+
+  '<span style="flex:1;height:9px;background:var(--ln2);position:relative"><i style="position:absolute;left:0;top:0;bottom:0;width:'+m[2]+'%;background:var(--ink)"></i></span>'+
+  '<span class="num" style="width:78px;text-align:right;font-size:12px;font-weight:600">'+m[1]+' тыс</span></div>').join('');
+
+setTimeout(()=>toast('Здравствуйте! Это демо платформы <b>SARAP</b>: воронка продаж пакетов, каталог методик, выдача тестов кандидатам, отчёты с гауссианами и кабинет вашего HR-клиента. Нажимайте на всё — самое сильное на вкладке «Отчёт кандидата».'),700);
+const q=new URLSearchParams(location.search);if(q.get('s'))nav(q.get('s'));
+</script>
+</body>
+</html>
