@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Стилистики мокапов · выбор · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a1628'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Arial' font-weight='bold' font-size='15' fill='%23d4a978'%3ES%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=PT+Serif:wght@400;700&family=PT+Mono&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Golos+Text:wght@400;500;600;800&family=PT+Sans:wght@400;700&family=Lora:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=Unbounded:wght@500;700&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1c1e22;color:#e8e8e6;font-family:'Golos Text',sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:40px 24px 80px}
+.intro h1{font-size:30px;font-weight:800;letter-spacing:-.5px}
+.intro p{color:#a8aaa6;max-width:860px;margin-top:10px}
+.intro .tells{margin-top:14px;background:#26282e;border:1px solid #34373f;border-radius:10px;padding:14px 18px;font-size:13.5px;color:#c9cbc7;max-width:860px}
+.intro .tells b{color:#ffd27a}
+.pick{display:inline-block;margin-top:6px;background:#ffd27a;color:#1c1e22;font-weight:700;font-size:13px;padding:6px 14px;border-radius:8px}
+
+.style-sec{margin-top:46px}
+.s-head{display:flex;align-items:baseline;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+.s-head .n{font-size:34px;font-weight:800;color:#ffd27a;font-family:'JetBrains Mono',monospace}
+.s-head h2{font-size:22px;font-weight:800}
+.s-head .ff{font-size:12.5px;color:#8b8e94;font-family:'JetBrains Mono',monospace}
+.s-desc{color:#a8aaa6;font-size:13.5px;max-width:900px;margin-bottom:14px}
+.s-desc b{color:#e8e8e6}
+.frame{border-radius:12px;overflow:hidden;border:1px solid #34373f;box-shadow:0 20px 50px -20px rgba(0,0,0,.6)}
+
+/* ============ 1. ГРОССБУХ — editorial print ============ */
+.s1{font-family:'PT Serif',serif;background:#f7f5f0;color:#191713;padding:26px 34px 30px}
+.s1 .mast{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2.5px solid #191713;padding-bottom:8px}
+.s1 .mast .br{font-size:21px;font-weight:700;letter-spacing:.5px}
+.s1 .mast .nav{font-size:12.5px;display:flex;gap:18px}
+.s1 .mast .nav span{border-bottom:2px solid transparent;padding-bottom:9px;cursor:pointer}
+.s1 .mast .nav span.on{border-color:#b3231b;font-weight:700}
+.s1 .mast .dt{font-size:12px;font-style:italic;color:#6d675c}
+.s1 h3{font-size:26px;font-weight:700;margin:20px 0 2px;letter-spacing:-.3px}
+.s1 .sub{font-style:italic;color:#6d675c;font-size:13.5px}
+.s1 .kpis{display:flex;gap:0;margin:18px 0 4px;border-top:1px solid #191713;border-bottom:1px solid #c9c2b4}
+.s1 .kpi{flex:1;padding:12px 16px 12px 0}
+.s1 .kpi+.kpi{border-left:1px solid #c9c2b4;padding-left:16px}
+.s1 .kl{font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:#6d675c;font-family:'PT Mono',monospace}
+.s1 .kv{font-size:27px;font-weight:700;font-family:'PT Mono',monospace;letter-spacing:-1px;margin-top:3px}
+.s1 .kv.red{color:#b3231b}
+.s1 .kd{font-size:12px;font-style:italic;color:#6d675c}
+.s1 table{width:100%;border-collapse:collapse;margin-top:14px}
+.s1 th{font-family:'PT Mono',monospace;font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;text-align:left;color:#6d675c;padding:8px 10px 8px 0;border-bottom:1.5px solid #191713}
+.s1 th.r{text-align:right}
+.s1 td{padding:11px 10px 11px 0;border-bottom:1px solid #d9d2c2;font-size:14.5px;vertical-align:baseline}
+.s1 td .c2{font-size:12px;font-style:italic;color:#6d675c}
+.s1 td.r{text-align:right;font-family:'PT Mono',monospace;font-size:13.5px;font-weight:700}
+.s1 .st{font-family:'PT Mono',monospace;font-size:11px;letter-spacing:.6px}
+.s1 .st::before{content:'● ';font-size:9px}
+.s1 .st.g{color:#2c6e49}.s1 .st.r{color:#b3231b}.s1 .st.a{color:#a05e03}
+.s1 .foot-act{display:flex;gap:14px;margin-top:16px;align-items:center}
+.s1 .btn{background:#191713;color:#f7f5f0;font-family:'PT Mono',monospace;font-size:12px;letter-spacing:1px;padding:10px 20px;cursor:pointer}
+.s1 .lnk{font-style:italic;font-size:13px;border-bottom:1px solid #191713;cursor:pointer}
+
+/* ============ 2. ТЕРМИНАЛ — dense dark ============ */
+.s2{font-family:'Onest',sans-serif;background:#0e1116;color:#d5dae2;display:flex;min-height:520px}
+.s2 .rail{width:52px;background:#0a0d11;border-right:1px solid #1d232c;display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px}
+.s2 .rail .lg{width:30px;height:30px;border-radius:7px;background:#3ddc97;color:#0a0d11;display:grid;place-items:center;font-weight:800;font-size:13px;margin-bottom:10px}
+.s2 .rail .ri{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;color:#5b6675;font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer}
+.s2 .rail .ri.on{background:#1a2129;color:#3ddc97}
+.s2 .body{flex:1;min-width:0}
+.s2 .cmd{display:flex;align-items:center;gap:10px;border-bottom:1px solid #1d232c;padding:10px 16px;font-size:12.5px}
+.s2 .cmd .path{font-family:'JetBrains Mono',monospace;color:#5b6675}
+.s2 .cmd .path b{color:#d5dae2;font-weight:600}
+.s2 .cmd .k{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:11px;color:#5b6675;border:1px solid #1d232c;border-radius:5px;padding:3px 8px}
+.s2 .strip{display:flex;gap:26px;padding:14px 16px;border-bottom:1px solid #1d232c}
+.s2 .m{font-size:12px;color:#5b6675}
+.s2 .m b{display:block;font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:700;color:#d5dae2;letter-spacing:-.5px;margin-top:2px}
+.s2 .m b.gr{color:#3ddc97}.s2 .m b.rd{color:#ff5c5c}
+.s2 .lrow{display:grid;grid-template-columns:22px 1.6fr 1fr 90px 110px 90px;gap:10px;align-items:center;padding:9px 16px;border-bottom:1px solid #151a21;font-size:13px;cursor:pointer}
+.s2 .lrow:hover{background:#12161d}
+.s2 .lrow.hd{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#5b6675;cursor:default}
+.s2 .lrow .id{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#5b6675}
+.s2 .lrow .nm{font-weight:600}
+.s2 .lrow .cl{color:#8892a0;font-size:12px}
+.s2 .lrow .sm{font-family:'JetBrains Mono',monospace;font-weight:600;text-align:right}
+.s2 .prg{height:3px;background:#1d232c;border-radius:2px;overflow:hidden}
+.s2 .prg i{display:block;height:100%;background:#3ddc97}
+.s2 .tag{font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid;justify-self:start}
+.s2 .tag.g{color:#3ddc97;border-color:#1e4536}.s2 .tag.r{color:#ff5c5c;border-color:#4a2222}.s2 .tag.a{color:#ffb020;border-color:#4a3a12}.s2 .tag.b{color:#58a6ff;border-color:#1f3a5a}
+.s2 .foot{display:flex;gap:8px;padding:12px 16px}
+.s2 .btn{background:#3ddc97;color:#0a0d11;font-weight:700;font-size:12.5px;padding:8px 16px;border-radius:7px;cursor:pointer}
+.s2 .btn.gh{background:none;color:#8892a0;border:1px solid #1d232c}
+
+/* ============ 3. ШВЕЙЦАРСКАЯ СЕТКА ============ */
+.s3{font-family:'Golos Text',sans-serif;background:#fff;color:#0a0a0a;padding:0 0 26px}
+.s3 .bar{display:flex;align-items:center;border-bottom:3px solid #0a0a0a;padding:16px 30px}
+.s3 .bar .br{font-size:16px;font-weight:800;letter-spacing:-.2px}
+.s3 .bar .br i{font-style:normal;color:#ff4b1f}
+.s3 .bar nav{margin-left:44px;display:flex;gap:26px;font-size:13.5px;font-weight:500}
+.s3 .bar nav span{cursor:pointer;color:#6e6e6e}
+.s3 .bar nav span.on{color:#0a0a0a;font-weight:800}
+.s3 .bar .u{margin-left:auto;font-size:12px;color:#6e6e6e}
+.s3 .grid{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid #0a0a0a}
+.s3 .cell{padding:22px 30px;border-right:1px solid #0a0a0a}
+.s3 .cell:last-child{border-right:none}
+.s3 .cl{font-size:12px;font-weight:600;color:#6e6e6e}
+.s3 .cv{font-size:44px;font-weight:800;letter-spacing:-2.5px;line-height:1.1;font-feature-settings:'tnum'}
+.s3 .cv em{font-style:normal;font-size:17px;letter-spacing:0;color:#6e6e6e;font-weight:600}
+.s3 .cv.rd{color:#ff4b1f}
+.s3 .cd{font-size:12px;color:#6e6e6e;margin-top:2px}
+.s3 h3{font-size:14px;font-weight:800;padding:18px 30px 10px;text-transform:uppercase;letter-spacing:1px}
+.s3 table{width:calc(100% - 60px);margin:0 30px;border-collapse:collapse}
+.s3 th{text-align:left;font-size:11px;font-weight:600;color:#6e6e6e;border-bottom:2px solid #0a0a0a;padding:6px 8px 6px 0}
+.s3 th.r{text-align:right}
+.s3 td{padding:12px 8px 12px 0;border-bottom:1px solid #d9d9d9;font-size:14px;font-feature-settings:'tnum'}
+.s3 td b{font-weight:800}
+.s3 td .c2{font-size:12px;color:#6e6e6e}
+.s3 td.r{text-align:right;font-weight:600}
+.s3 .dot{display:inline-block;width:9px;height:9px;margin-right:7px}
+.s3 .dot.g{background:#0a0a0a}.s3 .dot.r{background:#ff4b1f}.s3 .dot.a{background:#b5b5b5}
+.s3 .btn{margin:18px 30px 0;display:inline-block;background:#0a0a0a;color:#fff;font-weight:700;font-size:13.5px;padding:12px 26px;cursor:pointer}
+
+/* ============ 4. ERP / НАСТОЯЩАЯ ПРОГРАММА ============ */
+.s4{font-family:'PT Sans',sans-serif;background:#eef0f2;color:#22262a;font-size:13px}
+.s4 .tb{background:linear-gradient(#fdfdfd,#eef0f1);border-bottom:1px solid #c8ccd2;display:flex;align-items:center;gap:2px;padding:6px 10px}
+.s4 .tb .app{font-weight:700;font-size:13px;padding:0 12px 0 4px;color:#1a3f66}
+.s4 .tb .ti{display:flex;align-items:center;gap:6px;padding:6px 11px;border:1px solid transparent;border-radius:4px;cursor:pointer;color:#3c4츠450;font-size:12.5px}
+.s4 .tb .ti:hover{background:#e2e6ea;border-color:#c8ccd2}
+.s4 .tb .ti .g{font-family:'PT Mono',monospace;font-size:12px;color:#1a3f66;font-weight:700}
+.s4 .win{display:flex;min-height:440px}
+.s4 .tree{width:210px;background:#f7f8f9;border-right:1px solid #c8ccd2;padding:10px 0}
+.s4 .tree .tg{font-size:11px;text-transform:uppercase;color:#7a828c;padding:8px 14px 4px;letter-spacing:.5px}
+.s4 .tree .tn{padding:6px 14px 6px 22px;cursor:pointer;position:relative}
+.s4 .tree .tn::before{content:'▸';position:absolute;left:9px;color:#9aa2ac;font-size:10px}
+.s4 .tree .tn.on{background:#dbe7f3;color:#1a3f66;font-weight:700}
+.s4 .tree .tn.on::before{content:'▾';color:#1a3f66}
+.s4 .tree .tn .cnt{float:right;color:#7a828c;font-size:11.5px}
+.s4 .pane{flex:1;min-width:0;display:flex;flex-direction:column}
+.s4 .ph{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #dfe3e8;background:#fff}
+.s4 .ph h3{font-size:15px;font-weight:700}
+.s4 .ph .flt{margin-left:auto;display:flex;gap:6px}
+.s4 .ph input{border:1px solid #c8ccd2;border-radius:3px;padding:5px 9px;font-size:12.5px;width:170px;background:#fff}
+.s4 .sumline{display:flex;gap:24px;background:#fff;padding:8px 14px;border-bottom:1px solid #dfe3e8;font-size:12px;color:#5a626c}
+.s4 .sumline b{color:#22262a;font-family:'PT Mono',monospace}
+.s4 .sumline .rd{color:#a52a21}.s4 .sumline .rd b{color:#a52a21}
+.s4 table{width:100%;border-collapse:collapse;background:#fff}
+.s4 th{background:#f2f4f6;border:1px solid #dfe3e8;border-width:0 1px 1px 0;font-size:11.5px;color:#5a626c;text-align:left;padding:7px 10px;font-weight:700}
+.s4 th.r{text-align:right}
+.s4 td{border:1px solid #eef0f2;border-width:0 1px 1px 0;padding:8px 10px;font-size:12.5px}
+.s4 tr:nth-child(even) td{background:#f8fafb}
+.s4 tr:hover td{background:#eaf2fa}
+.s4 td.r{text-align:right;font-family:'PT Mono',monospace;font-size:12px;font-weight:700}
+.s4 .ind{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:7px;vertical-align:1px}
+.s4 .ind.g{background:#2e7d43}.s4 .ind.r{background:#a52a21}.s4 .ind.a{background:#c07b00}.s4 .ind.b{background:#1a3f66}
+.s4 .statusbar{margin-top:auto;background:#f2f4f6;border-top:1px solid #c8ccd2;padding:5px 14px;font-size:11.5px;color:#7a828c;display:flex;gap:18px}
+
+/* ============ 5. ТЁПЛЫЙ ЖУРНАЛ ============ */
+.s5{font-family:'Source Sans 3',sans-serif;background:#fbf8f1;color:#2e2a24;padding:26px 36px 30px}
+.s5 .mast{display:flex;align-items:center;gap:26px;padding-bottom:16px;border-bottom:1px solid #d9d0bd}
+.s5 .mast .br{font-family:'Lora',serif;font-size:22px;font-weight:700}
+.s5 .mast .br span{color:#c46a4a}
+.s5 .mast nav{display:flex;gap:20px;font-size:13.5px;color:#7c7466}
+.s5 .mast nav b{color:#2e2a24;font-weight:600;border-bottom:2px solid #c46a4a;padding-bottom:14px;cursor:pointer}
+.s5 .mast .act{margin-left:auto;background:#c46a4a;color:#fff;font-weight:600;font-size:13px;padding:9px 18px;border-radius:4px;cursor:pointer}
+.s5 h3{font-family:'Lora',serif;font-size:24px;font-weight:600;margin:22px 0 2px}
+.s5 .sub{color:#7c7466;font-size:13.5px}
+.s5 .band{display:flex;gap:34px;margin:18px 0 20px;padding:16px 22px;background:#f3ecdd;border-radius:6px}
+.s5 .band .m .kl{font-size:12px;color:#7c7466}
+.s5 .band .m .kv{font-family:'Lora',serif;font-size:24px;font-weight:700;font-feature-settings:'lnum tnum';margin-top:1px}
+.s5 .band .m .kv.rd{color:#b0432c}
+.s5 table{width:100%;border-collapse:collapse}
+.s5 th{font-size:11.5px;text-transform:uppercase;letter-spacing:1px;color:#a09884;text-align:left;font-weight:600;padding:8px 10px 8px 0;border-bottom:1.5px solid #2e2a24}
+.s5 th.r{text-align:right}
+.s5 td{padding:13px 10px 13px 0;border-bottom:1px solid #e6ddc9;font-size:14.5px;vertical-align:baseline}
+.s5 td .num-i{font-family:'Lora',serif;color:#a09884;font-size:13px;margin-right:12px}
+.s5 td b{font-weight:600}
+.s5 td .c2{font-size:12.5px;color:#7c7466}
+.s5 td.r{text-align:right;font-feature-settings:'lnum tnum';font-weight:600}
+.s5 .pill{font-size:12px;font-weight:600;padding:3px 0;border-bottom:2px solid}
+.s5 .pill.g{color:#4a7c59;border-color:#a9c3b2}.s5 .pill.r{color:#b0432c;border-color:#dfb1a4}.s5 .pill.a{color:#946b00;border-color:#d9c68a}
+.s5 .note5{margin-top:16px;font-size:13px;font-style:italic;color:#7c7466}
+
+/* ============ 6. НЕОБРУТАЛИЗМ ============ */
+.s6{font-family:'Rubik',sans-serif;background:#f0efe9;color:#111;padding:26px 32px 32px}
+.s6 .mast{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.s6 .lg{font-family:'Unbounded',sans-serif;font-weight:700;font-size:17px;background:#111;color:#d8ff3e;padding:8px 14px;border:2.5px solid #111}
+.s6 nav{display:flex;gap:8px;flex-wrap:wrap}
+.s6 nav span{border:2.5px solid #111;background:#fff;font-weight:700;font-size:12.5px;padding:8px 14px;cursor:pointer}
+.s6 nav span.on{background:#d8ff3e;box-shadow:3px 3px 0 #111}
+.s6 .act{margin-left:auto;background:#111;color:#fff;font-weight:700;font-size:13px;padding:10px 18px;border:2.5px solid #111;box-shadow:4px 4px 0 #8f8dff;cursor:pointer}
+.s6 h3{font-family:'Unbounded',sans-serif;font-size:23px;font-weight:700;margin:24px 0 14px;letter-spacing:-.5px}
+.s6 .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.s6 .kc{border:2.5px solid #111;background:#fff;padding:14px 16px;box-shadow:5px 5px 0 #111}
+.s6 .kc.hi{background:#d8ff3e}
+.s6 .kc.rd{background:#ff8d78}
+.s6 .kl{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px}
+.s6 .kv{font-size:30px;font-weight:800;letter-spacing:-1px;margin-top:4px;font-feature-settings:'tnum'}
+.s6 .kd{font-size:12px;margin-top:2px;color:#444}
+.s6 table{width:100%;border-collapse:collapse;background:#fff;border:2.5px solid #111;box-shadow:6px 6px 0 #111}
+.s6 th{background:#111;color:#fff;font-size:11.5px;text-transform:uppercase;letter-spacing:.8px;text-align:left;padding:10px 12px}
+.s6 th.r{text-align:right}
+.s6 td{padding:12px;border-bottom:2px solid #111;font-size:14px}
+.s6 tr:last-child td{border-bottom:none}
+.s6 td b{font-weight:700}
+.s6 td .c2{font-size:12px;color:#555}
+.s6 td.r{text-align:right;font-weight:700;font-feature-settings:'tnum'}
+.s6 .bdg{display:inline-block;border:2px solid #111;font-size:11px;font-weight:700;padding:3px 9px;text-transform:uppercase}
+.s6 .bdg.g{background:#b7f5c0}.s6 .bdg.r{background:#ff8d78}.s6 .bdg.a{background:#ffe066}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="intro">
+    <h1>Стилистики мокапов — выбираем базовые</h1>
+    <p>Один и тот же экран «Объекты» собран в шести разных дизайн-системах: разные шрифты, разный костяк, разная иконографика. Всё с полной кириллицей и рассчитано на читаемость.</p>
+    <div class="tells">Что «палило ИИ» и что убрано во всех вариантах ниже: <b>шрифты Inter/Nunito</b> → у каждого стиля своя пара; <b>эмодзи вместо иконок</b> → глифы, точки-статусы, номера; <b>одинаковый каркас</b> «4 KPI-карточки + белые карточки со скруглениями и тенями» → у каждого стиля своя структура; <b>пилюли-бейджи и градиенты</b> → подчёркивания, рамки, маркеры.</div>
+    <div class="pick">Можно выбрать 1–2 как «домашние»: деловой + тёплый, и я закреплю их правилами</div>
+  </div>
+
+  <!-- 1 -->
+  <section class="style-sec">
+    <div class="s-head"><span class="n">01</span><h2>Гроссбух</h2><span class="ff">PT Serif + PT Mono · печатная вёрстка, линейки вместо карточек</span></div>
+    <div class="s-desc">Эстетика дорогого финансового отчёта: бумага, чернила, один красный акцент. Ни одной тени и скругления. Солидно для <b>финансов, юристов, бухгалтерии, недвижимости</b>.</div>
+    <div class="frame"><div class="s1">
+      <div class="mast">
+        <span class="br">Астана Инжиниринг</span>
+        <div class="nav"><span>Сводка</span><span class="on">Объекты</span><span>Склад</span><span>Деньги</span><span>Отчёты</span></div>
+        <span class="dt">вторник, 7 июля 2026 · директор</span>
+      </div>
+      <h3>Объекты в работе</h3>
+      <div class="sub">портфель по договорам · четыре объекта · два юрлица</div>
+      <div class="kpis">
+        <div class="kpi"><div class="kl">Портфель</div><div class="kv">191,3 млн</div><div class="kd">по договорам</div></div>
+        <div class="kpi"><div class="kl">Получено</div><div class="kv">78,4 млн</div><div class="kd">41% портфеля</div></div>
+        <div class="kpi"><div class="kl">Кассовый разрыв</div><div class="kv red">11.08</div><div class="kd">−6,4 млн · закуп раньше транша</div></div>
+      </div>
+      <table>
+        <thead><tr><th>Объект / заказчик</th><th>Готовность</th><th class="r">Договор, ₸</th><th class="r">Получено</th><th>Состояние</th></tr></thead>
+        <tbody>
+          <tr><td><b>ЖК «Аружан»</b><div class="c2">вентиляция · ТОО «Аружан Строй»</div></td><td>55%</td><td class="r">84 000 000</td><td class="r">46 200 000</td><td><span class="st g">В ГРАФИКЕ</span></td></tr>
+          <tr><td><b>БЦ «Самрук Plaza»</b><div class="c2">электромонтаж · ТОО «Самрук Инвест»</div></td><td>70%</td><td class="r">36 500 000</td><td class="r">18 300 000</td><td><span class="st r">ПРОСРОЧЕН ПЛАТЁЖ</span></td></tr>
+          <tr><td><b>Школа №147</b><div class="c2">слаботочные системы · ГУ отдел образования</div></td><td>92%</td><td class="r">12 800 000</td><td class="r">9 000 000</td><td><span class="st a">ЗАВЕРШАЕТСЯ</span></td></tr>
+          <tr><td><b>СК «Даулет»</b><div class="c2">отопление и ИТП · ТОО «Даулет Логистик»</div></td><td>15%</td><td class="r">58 000 000</td><td class="r">17 400 000</td><td><span class="st g">СТАРТ</span></td></tr>
+        </tbody>
+      </table>
+      <div class="foot-act"><span class="btn">+ НОВЫЙ ОБЪЕКТ</span><span class="lnk">выгрузить реестр…</span></div>
+    </div></div>
+  </section>
+
+  <!-- 2 -->
+  <section class="style-sec">
+    <div class="s-head"><span class="n">02</span><h2>Терминал</h2><span class="ff">Onest + JetBrains Mono · тёмный, плотный, list-first</span></div>
+    <div class="s-desc">Профессиональный софт уровня Linear/трейдинг-терминала: узкий рейл, командная строка, плотные списки, статусы кодами. Для <b>строителей, логистики, IT-грамотных собственников</b> — выглядит «дорого-технологично».</div>
+    <div class="frame"><div class="s2">
+      <div class="rail">
+        <div class="lg">АИ</div>
+        <div class="ri">СВ</div><div class="ri on">ОБ</div><div class="ri">СК</div><div class="ri">₸</div><div class="ri">ОТ</div>
+      </div>
+      <div class="body">
+        <div class="cmd"><span class="path">аи <b>/ объекты</b> / все</span><span class="k">⌘K — поиск</span><span class="k" style="color:#3ddc97;border-color:#1e4536">+ объект</span></div>
+        <div class="strip">
+          <div class="m">портфель<b>191,3M</b></div>
+          <div class="m">получено<b class="gr">78,4M</b></div>
+          <div class="m">ожидается 6 нед<b>36,9M</b></div>
+          <div class="m">разрыв 11.08<b class="rd">−6,4M</b></div>
+        </div>
+        <div class="lrow hd"><span></span><span>объект</span><span>заказчик</span><span>готовность</span><span style="text-align:right">договор</span><span>статус</span></div>
+        <div class="lrow"><span class="id">O-01</span><span class="nm">ЖК «Аружан»</span><span class="cl">Аружан Строй</span><span><div class="prg"><i style="width:55%"></i></div></span><span class="sm">84,0M</span><span class="tag g">график</span></div>
+        <div class="lrow"><span class="id">O-02</span><span class="nm">БЦ «Самрук Plaza»</span><span class="cl">Самрук Инвест</span><span><div class="prg"><i style="width:70%"></i></div></span><span class="sm">36,5M</span><span class="tag r">просрочка</span></div>
+        <div class="lrow"><span class="id">O-03</span><span class="nm">Школа №147</span><span class="cl">Отдел образования</span><span><div class="prg"><i style="width:92%"></i></div></span><span class="sm">12,8M</span><span class="tag a">финиш</span></div>
+        <div class="lrow"><span class="id">O-04</span><span class="nm">СК «Даулет»</span><span class="cl">Даулет Логистик</span><span><div class="prg"><i style="width:15%"></i></div></span><span class="sm">58,0M</span><span class="tag b">старт</span></div>
+        <div class="foot"><span class="btn">Открыть O-02 · просрочка 5 дней</span><span class="btn gh">Фильтры</span></div>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- 3 -->
+  <section class="style-sec">
+    <div class="s-head"><span class="n">03</span><h2>Швейцарская сетка</h2><span class="ff">Golos Text · модульная сетка 1px, огромные цифры, флэт</span></div>
+    <div class="s-desc">Плакатная типографика: жёсткая сетка, линии вместо теней, чёрный + один сигнальный цвет. Универсальный «взрослый» стиль — <b>производство, дистрибуция, сети</b>. Цифры читаются с другого конца комнаты.</div>
+    <div class="frame"><div class="s3">
+      <div class="bar">
+        <span class="br">АСТАНА<i>·</i>ИНЖ</span>
+        <nav><span>Сводка</span><span class="on">Объекты</span><span>Склад</span><span>Деньги</span><span>Отчёты</span></nav>
+        <span class="u">Мухтар · директор</span>
+      </div>
+      <div class="grid">
+        <div class="cell"><div class="cl">Портфель по договорам</div><div class="cv">191,3 <em>млн ₸</em></div><div class="cd">4 объекта · 2 юрлица</div></div>
+        <div class="cell"><div class="cl">Получено</div><div class="cv">78,4 <em>млн ₸</em></div><div class="cd">41% от портфеля</div></div>
+        <div class="cell"><div class="cl">Кассовый разрыв</div><div class="cv rd">11.08</div><div class="cd">−6,4 млн · есть 3 сценария</div></div>
+      </div>
+      <h3>Объекты в работе</h3>
+      <table>
+        <thead><tr><th>Объект</th><th>Заказчик</th><th>Готовность</th><th class="r">Договор</th><th class="r">Получено</th><th>Статус</th></tr></thead>
+        <tbody>
+          <tr><td><b>ЖК «Аружан»</b><div class="c2">вентиляция и кондиционирование</div></td><td>Аружан Строй</td><td>55%</td><td class="r">84,0 млн</td><td class="r">46,2 млн</td><td><span class="dot g"></span>в графике</td></tr>
+          <tr><td><b>БЦ «Самрук Plaza»</b><div class="c2">электромонтаж</div></td><td>Самрук Инвест</td><td>70%</td><td class="r">36,5 млн</td><td class="r">18,3 млн</td><td><span class="dot r"></span>просрочен платёж</td></tr>
+          <tr><td><b>Школа №147</b><div class="c2">слаботочные системы</div></td><td>Отдел образования</td><td>92%</td><td class="r">12,8 млн</td><td class="r">9,0 млн</td><td><span class="dot a"></span>завершается</td></tr>
+          <tr><td><b>СК «Даулет»</b><div class="c2">отопление и ИТП</div></td><td>Даулет Логистик</td><td>15%</td><td class="r">58,0 млн</td><td class="r">17,4 млн</td><td><span class="dot g"></span>старт</td></tr>
+        </tbody>
+      </table>
+      <span class="btn">+ Новый объект</span>
+    </div></div>
+  </section>
+
+  <!-- 4 -->
+  <section class="style-sec">
+    <div class="s-head"><span class="n">04</span><h2>Программа</h2><span class="ff">PT Sans + PT Mono · тулбар, дерево, зебра-таблица, статусбар</span></div>
+    <div class="s-desc">Выглядит как «настоящая установленная программа», а не сайт: панель инструментов, дерево слева, плотная таблица с зеброй. Родная эстетика для тех, кто вырос на 1С/Excel — <b>склады, производство, бухгалтерия</b>. Ноль вопросов «а это точно система?».</div>
+    <div class="frame"><div class="s4">
+      <div class="tb">
+        <span class="app">▤ Астана-Инжиниринг · Управление</span>
+        <span class="ti"><span class="g">+</span> Создать</span><span class="ti"><span class="g">⎙</span> Печать</span><span class="ti"><span class="g">⇩</span> Выгрузка</span><span class="ti"><span class="g">⟳</span> Обновить</span>
+      </div>
+      <div class="win">
+        <div class="tree">
+          <div class="tg">Разделы</div>
+          <div class="tn">Сводка</div>
+          <div class="tn on">Объекты <span class="cnt">4</span></div>
+          <div class="tn">Сделки <span class="cnt">9</span></div>
+          <div class="tn">Склад <span class="cnt">148</span></div>
+          <div class="tn">Деньги · ДДС</div>
+          <div class="tn">Отчёты</div>
+          <div class="tg">Справочники</div>
+          <div class="tn">Контрагенты</div>
+          <div class="tn">Номенклатура</div>
+        </div>
+        <div class="pane">
+          <div class="ph"><h3>Объекты в работе</h3><div class="flt"><input placeholder="Поиск: объект, заказчик…"></div></div>
+          <div class="sumline"><span>Портфель: <b>191 300 000</b></span><span>Получено: <b>78 400 000</b></span><span class="rd">Разрыв 11.08: <b>−6 400 000</b></span></div>
+          <table>
+            <thead><tr><th style="width:26px">№</th><th>Объект</th><th>Заказчик</th><th>Готовность</th><th class="r">Сумма договора</th><th class="r">Получено</th><th>Состояние</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td><b>ЖК «Аружан»</b> — вентиляция</td><td>ТОО «Аружан Строй»</td><td>55%</td><td class="r">84 000 000</td><td class="r">46 200 000</td><td><span class="ind g"></span>в графике</td></tr>
+              <tr><td>2</td><td><b>БЦ «Самрук Plaza»</b> — электромонтаж</td><td>ТОО «Самрук Инвест»</td><td>70%</td><td class="r">36 500 000</td><td class="r">18 300 000</td><td><span class="ind r"></span>просрочен платёж</td></tr>
+              <tr><td>3</td><td><b>Школа №147</b> — слаботочка</td><td>ГУ отдел образования</td><td>92%</td><td class="r">12 800 000</td><td class="r">9 000 000</td><td><span class="ind a"></span>завершается</td></tr>
+              <tr><td>4</td><td><b>СК «Даулет»</b> — отопление, ИТП</td><td>ТОО «Даулет Логистик»</td><td>15%</td><td class="r">58 000 000</td><td class="r">17 400 000</td><td><span class="ind b"></span>старт</td></tr>
+            </tbody>
+          </table>
+          <div class="statusbar"><span>Записей: 4</span><span>Обновлено: 07.07.2026 14:02</span><span>Пользователь: директор</span></div>
+        </div>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- 5 -->
+  <section class="style-sec">
+    <div class="s-head"><span class="n">05</span><h2>Тёплый журнал</h2><span class="ff">Lora + Source Sans 3 · крем, серифы, тонкие линии</span></div>
+    <div class="s-desc">Книжная типографика на кремовой бумаге: серифные заголовки, спокойные терракотовые акценты, подчёркивания вместо бейджей. Человечно и premium — <b>садики, клиники, образование, салоны</b>.</div>
+    <div class="frame"><div class="s5">
+      <div class="mast">
+        <span class="br">Астана<span>·</span>Инжиниринг</span>
+        <nav><span>Сводка</span><b>Объекты</b><span>Склад</span><span>Деньги</span><span>Отчёты</span></nav>
+        <span class="act">+ Новый объект</span>
+      </div>
+      <h3>Объекты в работе</h3>
+      <div class="sub">четыре объекта · портфель 191,3 млн тенге · вторник, 7 июля</div>
+      <div class="band">
+        <div class="m"><div class="kl">Портфель</div><div class="kv">191,3 млн</div></div>
+        <div class="m"><div class="kl">Получено</div><div class="kv">78,4 млн</div></div>
+        <div class="m"><div class="kl">Ожидается за 6 недель</div><div class="kv">36,9 млн</div></div>
+        <div class="m"><div class="kl">Кассовый разрыв</div><div class="kv rd">11 августа</div></div>
+      </div>
+      <table>
+        <thead><tr><th>Объект</th><th>Заказчик</th><th>Готовность</th><th class="r">Договор</th><th>Состояние</th></tr></thead>
+        <tbody>
+          <tr><td><span class="num-i">I</span><b>ЖК «Аружан»</b><div class="c2" style="margin-left:25px">вентиляция и кондиционирование</div></td><td>Аружан Строй</td><td>55%</td><td class="r">84,0 млн</td><td><span class="pill g">в графике</span></td></tr>
+          <tr><td><span class="num-i">II</span><b>БЦ «Самрук Plaza»</b><div class="c2" style="margin-left:25px">электромонтаж</div></td><td>Самрук Инвест</td><td>70%</td><td class="r">36,5 млн</td><td><span class="pill r">просрочен платёж</span></td></tr>
+          <tr><td><span class="num-i">III</span><b>Школа №147</b><div class="c2" style="margin-left:25px">слаботочные системы</div></td><td>Отдел образования</td><td>92%</td><td class="r">12,8 млн</td><td><span class="pill a">завершается</span></td></tr>
+          <tr><td><span class="num-i">IV</span><b>СК «Даулет»</b><div class="c2" style="margin-left:25px">отопление и ИТП</div></td><td>Даулет Логистик</td><td>15%</td><td class="r">58,0 млн</td><td><span class="pill g">старт</span></td></tr>
+        </tbody>
+      </table>
+      <div class="note5">Просроченный платёж по «Самрук Plaza» — напоминание заказчику отправлено вчера, звонок в задачах на сегодня.</div>
+    </div></div>
+  </section>
+
+  <!-- 6 -->
+  <section class="style-sec">
+    <div class="s-head"><span class="n">06</span><h2>Необрутализм</h2><span class="ff">Unbounded + Rubik · рамки 2.5px, офсет-тени, кислотный акцент</span></div>
+    <div class="s-desc">Дерзкий постер: жирные рамки, жёсткие тени-смещения, кислотный лайм. Молодёжно и очень запоминается — <b>фэшн, ивенты, HoReCa, креативные команды</b>. Для консервативного клиента не предлагать 🙂</div>
+    <div class="frame"><div class="s6">
+      <div class="mast">
+        <span class="lg">АСТ·ИНЖ</span>
+        <nav><span>Сводка</span><span class="on">Объекты</span><span>Склад</span><span>Деньги</span></nav>
+        <span class="act">+ Объект</span>
+      </div>
+      <h3>Объекты в работе</h3>
+      <div class="cards">
+        <div class="kc"><div class="kl">Портфель</div><div class="kv">191,3 млн</div><div class="kd">4 объекта · 2 юрлица</div></div>
+        <div class="kc hi"><div class="kl">Получено</div><div class="kv">78,4 млн</div><div class="kd">41% от портфеля</div></div>
+        <div class="kc rd"><div class="kl">Разрыв 11.08</div><div class="kv">−6,4 млн</div><div class="kd">закуп раньше транша</div></div>
+      </div>
+      <table>
+        <thead><tr><th>Объект</th><th>Заказчик</th><th class="r">Договор</th><th>Статус</th></tr></thead>
+        <tbody>
+          <tr><td><b>ЖК «Аружан»</b><div class="c2">вентиляция · готовность 55%</div></td><td>Аружан Строй</td><td class="r">84,0 млн</td><td><span class="bdg g">график</span></td></tr>
+          <tr><td><b>БЦ «Самрук Plaza»</b><div class="c2">электромонтаж · 70%</div></td><td>Самрук Инвест</td><td class="r">36,5 млн</td><td><span class="bdg r">просрочка</span></td></tr>
+          <tr><td><b>Школа №147</b><div class="c2">слаботочка · 92%</div></td><td>Отдел образования</td><td class="r">12,8 млн</td><td><span class="bdg a">финиш</span></td></tr>
+        </tbody>
+      </table>
+    </div></div>
+  </section>
+
+</div>
+</body>
+</html>
