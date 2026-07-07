@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MK Group — объекты, снабжение, деньги · Демо</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23131c28'/%3E%3Cpath d='M6 24 V9 l5 8 5-8 v15' fill='none' stroke='%23f0a326' stroke-width='2.6' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M22 9 v15 M22 16 l6-7 M22 16 l6 8' fill='none' stroke='%23e8edf4' stroke-width='2.6' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --side:#131c28;--side2:#1b2735;--sideln:#26374b;
+  --bg:#f2f4f7;--card:#fff;--line:#e2e7ee;--ink:#182230;--mut:#5b6878;--mut2:#93a0b0;
+  --amber:#f0a326;--amber-d:#c77f0a;--amber-l:#fdf3df;
+  --blue:#2f6fce;--blue-l:#e8f0fb;--grn:#218358;--grn-l:#e2f3ea;--red:#cc3d3d;--red-l:#fbe9e9;--vio:#7048b6;--vio-l:#f0eafa;
+  --mono:'IBM Plex Mono',monospace;
+  --sh:0 1px 3px rgba(24,34,48,.07),0 6px 18px -8px rgba(24,34,48,.09);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select{font-family:inherit;font-size:13.5px;color:var(--ink)}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#c6cfda;border-radius:8px}
+.num{font-family:var(--mono)}
+
+.app{display:flex;min-height:100vh}
+/* ===== сайдбар ===== */
+.side{width:232px;background:var(--side);color:#c6d2e0;flex-shrink:0;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow-y:auto;padding:16px 12px}
+.logo{display:flex;align-items:center;gap:10px;padding:4px 8px 16px;border-bottom:1px solid var(--sideln);margin-bottom:10px}
+.logo .lm{width:38px;height:38px;border-radius:9px;background:var(--side2);display:grid;place-items:center;flex:none;border:1px solid var(--sideln)}
+.logo b{font-size:17px;font-weight:700;color:#fff;display:block;line-height:1.2;letter-spacing:.2px}
+.logo span{font-size:10.5px;color:#7d8ea2;font-weight:500;letter-spacing:.4px}
+.ngroup{font-size:10px;color:#66788d;padding:12px 10px 5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase}
+.nitem{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 11px;border-radius:8px;font-size:13.5px;font-weight:600;color:#b4c2d3;transition:.12s;margin-bottom:2px;border-left:3px solid transparent}
+.nitem:hover{background:var(--side2);color:#fff}
+.nitem.on{background:var(--side2);color:#fff;border-left-color:var(--amber)}
+.nitem .ic{width:26px;height:26px;border-radius:7px;background:rgba(255,255,255,.05);display:grid;place-items:center;font-size:13px;flex:none}
+.nitem .bdg{margin-left:auto;background:var(--amber);color:#131c28;font-size:11px;font-weight:700;padding:0 7px;border-radius:12px;font-family:var(--mono)}
+.nitem .bdg.rd{background:var(--red);color:#fff}
+.side-user{border-top:1px solid var(--sideln);padding-top:12px;display:flex;align-items:center;gap:10px;padding-left:8px}
+.side-user .av{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;font-weight:700;font-size:12px;flex:none;background:var(--amber);color:#131c28}
+.side-user .un{font-size:13px;font-weight:700;color:#fff}
+.side-user .ut{font-size:11px;color:#7d8ea2}
+
+/* ===== main ===== */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:14px;padding:16px 26px 10px;flex-wrap:wrap}
+.top h1{font-size:21px;font-weight:700;letter-spacing:-.2px}
+.top .tsub{font-size:12.5px;color:var(--mut);margin-top:1px}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.role-sw{display:flex;background:#fff;border:1px solid var(--line);border-radius:9px;padding:3px}
+.role-sw button{padding:7px 13px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--mut)}
+.role-sw button.on{background:var(--side);color:#fff}
+.tbtn{background:var(--amber);color:#131c28;font-weight:700;font-size:13px;padding:10px 16px;border-radius:9px;box-shadow:var(--sh)}
+.tbtn:hover{background:#ffb63f}
+.content{padding:8px 26px 60px;flex:1}
+.screen{display:none}.screen.on{display:block;animation:fd .2s}
+@keyframes fd{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--sh);position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--line)}
+.kpi.am::before{background:var(--amber)}.kpi.bl::before{background:var(--blue)}.kpi.gr::before{background:var(--grn)}.kpi.rd::before{background:var(--red)}.kpi.vi::before{background:var(--vio)}
+.kpi .kl{font-size:11.5px;color:var(--mut);font-weight:600;letter-spacing:.2px}
+.kpi .kv{font-size:23px;font-weight:700;letter-spacing:-.5px;margin-top:4px;font-family:var(--mono)}
+.kpi .kv em{font-style:normal;font-size:13px;color:var(--mut2)}
+.kpi .kd{font-size:11.5px;color:var(--mut2);margin-top:2px}
+.kpi.am .kv{color:var(--amber-d)}.kpi.gr .kv{color:var(--grn)}.kpi.rd .kv{color:var(--red)}.kpi.bl .kv{color:var(--blue)}.kpi.vi .kv{color:var(--vio)}
+
+.grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;align-items:start}
+@media(max-width:1000px){.grid2{grid-template-columns:1fr}}
+.stack{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--sh);margin-bottom:14px}
+.card h3{font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card h3 .hl{margin-left:auto;font-size:12px;color:var(--blue);font-weight:600;cursor:pointer}
+.card h3 .hl:hover{text-decoration:underline}
+.note{font-size:12px;color:var(--mut);line-height:1.6}
+
+/* метки */
+.b{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;white-space:nowrap;letter-spacing:.2px}
+.b.gr{background:var(--grn-l);color:var(--grn)}
+.b.rd{background:var(--red-l);color:var(--red)}
+.b.am{background:var(--amber-l);color:var(--amber-d)}
+.b.bl{background:var(--blue-l);color:var(--blue)}
+.b.vi{background:var(--vio-l);color:var(--vio)}
+.b.gy{background:#eef1f5;color:var(--mut)}
+
+/* таблицы */
+table{width:100%;border-collapse:collapse}
+th{font-size:10.5px;color:var(--mut2);text-align:left;padding:8px 10px;border-bottom:2px solid var(--line);font-weight:700;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
+th.r,td.r{text-align:right}
+td{padding:10px;border-bottom:1px solid #edf0f4;font-size:13px;vertical-align:middle}
+td.r{font-family:var(--mono);font-weight:600;white-space:nowrap}
+tbody tr{cursor:pointer;transition:.1s}
+tbody tr:hover td{background:#f7f9fc}
+.cname{font-weight:700;font-size:13.5px}
+.csub{font-size:11.5px;color:var(--mut2);margin-top:1px}
+
+/* фильтры */
+.frow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.chip{padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:600;background:#fff;border:1px solid var(--line);color:var(--mut)}
+.chip.on{background:var(--side);border-color:var(--side);color:#fff}
+.frow select,.frow input{border:1px solid var(--line);border-radius:8px;padding:8px 12px;outline:none;background:#fff;font-weight:500}
+
+/* канбан */
+.kan{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:start}
+@media(max-width:1000px){.kan{grid-template-columns:repeat(2,1fr)}}
+.kcol{background:#e9edf2;border-radius:10px;padding:8px}
+.kcol h4{font-size:11px;color:var(--mut);padding:4px 8px 8px;font-weight:700;display:flex;justify-content:space-between;text-transform:uppercase;letter-spacing:.5px}
+.kcol h4 .num{color:var(--ink)}
+.kcard{background:#fff;border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-bottom:8px;cursor:pointer;transition:.12s;border-left:3px solid var(--line)}
+.kcard:hover{box-shadow:var(--sh);transform:translateY(-1px)}
+.kcard.hot{border-left-color:var(--amber)}
+.kcard .kt{font-size:13px;font-weight:700}
+.kcard .kc2{font-size:11.5px;color:var(--mut);margin-top:2px}
+.kcard .kf{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap}
+.kcard .ksum{margin-left:auto;font-family:var(--mono);font-weight:600;font-size:12px;color:var(--ink)}
+
+/* ДДС */
+.dds-bars{display:flex;gap:8px;align-items:flex-end;height:150px;padding:8px 4px 0}
+.dds-w{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.dds-w .bar{width:100%;max-width:54px;border-radius:5px 5px 0 0;position:relative}
+.dds-w .in{background:#9fc6ef}
+.dds-w .out{background:#f3c98a}
+.dds-w.neg .bal{color:var(--red)}
+.dds-w .wl{font-size:10px;color:var(--mut2);font-weight:600;white-space:nowrap}
+.dds-w .bal{font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--grn)}
+.enc{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #edf0f4}
+.enc:last-child{border:none}
+.enc .en{flex:1;font-size:12.5px;font-weight:600}
+.enc .en span{display:block;font-size:11px;color:var(--mut2);font-weight:500}
+.enc .ev{font-family:var(--mono);font-weight:600;font-size:12.5px;white-space:nowrap}
+
+/* объекты */
+.obj{border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:.12s;background:#fff}
+.obj:hover{box-shadow:var(--sh)}
+.obj .oh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.obj .on2{font-size:14px;font-weight:700}
+.obj .oc{font-size:12px;color:var(--mut)}
+.obj .osum{margin-left:auto;font-family:var(--mono);font-weight:700;font-size:14px}
+.obj .obar{height:7px;background:#edf0f4;border-radius:5px;overflow:hidden;margin:10px 0 6px}
+.obj .obar i{display:block;height:100%;border-radius:5px;background:var(--blue)}
+.obj .of{display:flex;gap:14px;font-size:11.5px;color:var(--mut);flex-wrap:wrap}
+.obj .of b{color:var(--ink);font-family:var(--mono)}
+
+/* КП конструктор */
+.kp-head{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.kp-head select{border:1px solid var(--line);border-radius:8px;padding:9px 12px;background:#fff;font-weight:600}
+.kp-tot{background:var(--side);color:#dfe7f1;border-radius:11px;padding:14px 18px;display:flex;gap:22px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.kp-tot .t1{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:#8fa2b8;font-weight:700}
+.kp-tot .t2{font-family:var(--mono);font-size:19px;font-weight:700;margin-top:2px}
+.kp-tot .t2.am{color:var(--amber)}
+.kp-tot .marj{margin-left:auto;display:flex;align-items:center;gap:9px}
+.kp-tot input[type=number]{width:64px;background:var(--side2);border:1px solid var(--sideln);color:#fff;border-radius:7px;padding:7px 9px;font-family:var(--mono);font-weight:600;text-align:right}
+
+/* модал */
+.ovl{position:fixed;inset:0;background:rgba(19,28,40,.5);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:30px 16px;overflow-y:auto}
+.ovl.show{display:flex}
+.mod{background:#fff;border-radius:14px;max-width:780px;width:100%;animation:fd .18s;overflow:hidden}
+.mhead{padding:20px 24px 0;display:flex;align-items:flex-start;gap:14px}
+.mhead h2{font-size:19px;font-weight:700}
+.mhead .msub{font-size:12.5px;color:var(--mut);margin-top:3px}
+.mx{font-size:20px;color:var(--mut2);padding:4px 8px;margin-left:auto}
+.mbody{padding:16px 24px 22px;max-height:62vh;overflow-y:auto}
+.mfoot{padding:14px 24px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap}
+.mbtn{background:var(--side);color:#fff;font-weight:600;font-size:12.5px;padding:10px 16px;border-radius:8px}
+.mbtn:hover{background:#22334a}
+.mbtn.gh{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.mbtn.gh:hover{border-color:var(--blue)}
+.mbtn.am{background:var(--amber);color:#131c28}
+
+#toasts{position:fixed;right:18px;bottom:18px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:380px}
+.toast{background:var(--side);color:#dfe7f1;padding:12px 16px;border-radius:10px;font-size:12.5px;line-height:1.55;box-shadow:0 12px 32px rgba(0,0,0,.3);animation:tin .25s}
+@keyframes tin{from{opacity:0;transform:translateX(20px)}to{opacity:1}}
+.toast b{color:var(--amber)}
+
+.demo-note{background:var(--side);color:#b4c2d3;font-size:12px;padding:8px 16px;text-align:center;font-weight:500}
+.demo-note b{color:var(--amber)}
+@media(max-width:860px){
+  .side{display:none}
+  .content{padding:8px 14px 84px}
+  .top{padding:12px 14px}
+  .mobile-nav{display:flex!important}
+}
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--side);z-index:50;justify-content:space-around;padding:8px 4px calc(8px + env(safe-area-inset-bottom))}
+.mobile-nav button{color:#8fa2b8;font-size:10px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 8px}
+.mobile-nav button.on{color:var(--amber)}
+.mobile-nav .mi2{font-size:16px}
+</style>
+</head>
+<body>
+<div class="demo-note">⚙ Интерактивное демо для <b>Мухтара</b> · объекты · снабжение · деньги · все данные вымышленные, всё прокликивается · <b>Pllato</b></div>
+<div class="app">
+  <aside class="side">
+    <div class="logo">
+      <div class="lm"><svg viewBox="0 0 32 32" width="24" height="24"><path d="M6 24 V9 l5 8 5-8 v15" fill="none" stroke="#f0a326" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/><path d="M22 9 v15 M22 16 l6-7 M22 16 l6 8" fill="none" stroke="#e8edf4" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/></svg></div>
+      <div><b>MK GROUP</b><span>ОБЪЕКТЫ · СНАБЖЕНИЕ</span></div>
+    </div>
+    <nav style="flex:1">
+      <div class="ngroup">Управление</div>
+      <button class="nitem on" data-s="dash"><span class="ic">◧</span>Дашборд</button>
+      <button class="nitem" data-s="dds"><span class="ic">₸</span>Деньги · ДДС<span class="bdg rd">!</span></button>
+      <button class="nitem" data-s="rep"><span class="ic">▤</span>Отчёты</button>
+      <div class="ngroup">Продажи</div>
+      <button class="nitem" data-s="deals"><span class="ic">◎</span>Сделки<span class="bdg">9</span></button>
+      <button class="nitem" data-s="kp"><span class="ic">✎</span>КП-конструктор</button>
+      <div class="ngroup">Производство</div>
+      <button class="nitem" data-s="obj"><span class="ic">▣</span>Объекты<span class="bdg">4</span></button>
+      <button class="nitem" data-s="sklad"><span class="ic">▥</span>Склад<span class="bdg">2</span></button>
+    </nav>
+    <div class="side-user"><div class="av" id="sAv">МК</div><div><div class="un" id="sName">Мухтар</div><div class="ut" id="sRole">Директор</div></div></div>
+  </aside>
+
+  <div class="main">
+    <div class="top">
+      <div><h1 id="tTitle">Дашборд</h1><div class="tsub" id="tSub">вторник, 7 июля 2026 · 4 объекта в работе · 2 юрлица</div></div>
+      <div class="top-right">
+        <div class="role-sw">
+          <button class="on" onclick="setRole(this,'Директор','Полный доступ: деньги, объекты, склад, отчёты — вся картина.')">Директор</button>
+          <button onclick="setRole(this,'Снабженец','Снабженец видит склад, заявки и объекты — без денег и отчётов. Права настраиваются под каждого сотрудника.')">Снабженец</button>
+          <button onclick="setRole(this,'Бухгалтер','Бухгалтер видит деньги, платежи и документы — без склада и сделок. Каждому своё.')">Бухгалтер</button>
+        </div>
+        <button class="tbtn" onclick="toast('Новая сделка заведена. Как только появится договор — превратится в объект с планом платежей и сметой.')">+ Сделка</button>
+      </div>
+    </div>
+    <div class="content">
+
+      <!-- DASH -->
+      <section class="screen on" id="s-dash">
+        <div class="kpis">
+          <div class="kpi bl"><div class="kl">На счетах сейчас</div><div class="kv">47,2 <em>млн</em></div><div class="kd">оба юрлица · Halyk + Kaspi</div></div>
+          <div class="kpi am"><div class="kl">Из них обременено</div><div class="kv">32,4 <em>млн</em></div><div class="kd">предоплаты под закуп и работы</div></div>
+          <div class="kpi gr"><div class="kl">Свободные деньги</div><div class="kv">14,8 <em>млн</em></div><div class="kd">можно распоряжаться</div></div>
+          <div class="kpi rd"><div class="kl">Кассовый разрыв</div><div class="kv">11.08</div><div class="kd">−6,4 млн · закуп «Даулет» раньше транша</div></div>
+          <div class="kpi vi"><div class="kl">Маржа · июнь</div><div class="kv">29%</div><div class="kd">прибыль 11,2 млн ₸</div></div>
+        </div>
+        <div class="grid2">
+          <div class="stack">
+            <div class="card">
+              <h3>▣ Объекты в работе <span class="hl" onclick="nav('obj')">все объекты →</span></h3>
+              <div id="dashObj"></div>
+            </div>
+            <div class="card">
+              <h3>⚠ Требует внимания</h3>
+              <div id="dashAtt"></div>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <h3>₸ Движение денег · 6 недель <span class="hl" onclick="nav('dds')">ДДС →</span></h3>
+              <div class="dds-bars" id="dashDds"></div>
+              <div class="note" style="margin-top:8px">Синее — поступления по планам платежей, жёлтое — расходы по сметам. Красная неделя — прогноз разрыва.</div>
+            </div>
+            <div class="card">
+              <h3>⚡ Лента</h3>
+              <div id="dashFeed" style="font-size:12.5px;line-height:2;color:var(--mut)"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- DEALS -->
+      <section class="screen" id="s-deals">
+        <div class="frow">
+          <span class="chip on" onclick="toast('Воронок может быть несколько: продажи, сервис, тендеры — переключаются здесь. Настраиваете сами.')">Продажи B2B</span>
+          <span class="chip" onclick="toast('Отдельная воронка под сервис и мелкие заявки — этапы свои. Добавление воронки — пара кликов, без программиста.')">Сервис</span>
+          <select onchange="toast('Фильтр по юрлицу: сделки и документы каждой фирмы отдельно, а картина — общая.')"><option>Оба юрлица</option><option>ТОО «MK Building»</option><option>ТОО «MK Service»</option></select>
+        </div>
+        <div class="kan" id="dealKan"></div>
+        <div class="note" style="margin-top:10px">Сделка выиграна → в один клик становится объектом: договор, план платежей и смета заводятся сразу. WhatsApp-переписка с заказчиком — в карточке сделки.</div>
+      </section>
+
+      <!-- KP -->
+      <section class="screen" id="s-kp">
+        <div class="kp-head">
+          <select onchange="toast('КП уходит от выбранного юрлица: шапка, реквизиты и подпись подставляются сами.')"><option>От: ТОО «MK Building»</option><option>От: ТОО «MK Service»</option></select>
+          <select onchange="toast('Заказчик из базы клиентов — реквизиты подставились.')"><option>Кому: ТОО «Алтын Курылыс»</option><option>Кому: БЦ «Самрук Plaza»</option><option>+ новый клиент</option></select>
+          <span class="b bl">КП № 214 · вентиляция офиса 1 200 м²</span>
+        </div>
+        <div class="card" style="padding:6px 14px">
+          <table>
+            <thead><tr><th>Позиция · из каталога</th><th class="r">Кол-во</th><th class="r">Себестоимость</th><th class="r">Сумма закупа</th><th class="r">Цена продажи</th><th class="r">Сумма КП</th></tr></thead>
+            <tbody id="kpBody"></tbody>
+          </table>
+        </div>
+        <div class="kp-tot">
+          <div><div class="t1">Себестоимость</div><div class="t2 num" id="kpCost">8 460 000 ₸</div></div>
+          <div><div class="t1">Маржа</div><div class="t2 am num" id="kpMarj">+2 368 800 ₸</div></div>
+          <div><div class="t1">Итого КП</div><div class="t2 num" id="kpTotal">10 828 800 ₸</div></div>
+          <div class="marj"><span style="font-size:12px;color:#8fa2b8;font-weight:600">Маржа, %</span><input type="number" id="marjIn" value="28" min="0" max="99" onchange="recalcKp()" oninput="recalcKp()"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="mbtn am" onclick="toast('<b>PDF сформирован</b> — фирменный бланк выбранного юрлица, позиции без себестоимости (только цены продажи), реквизиты и подпись. Можно отправить в WhatsApp прямо из системы.')">Сформировать PDF → WhatsApp</button>
+          <button class="mbtn gh" onclick="toast('КП сохранено в сделке. Когда заказчик согласует — превратится в договор и смету объекта без перебивки.')">Сохранить в сделку</button>
+        </div>
+        <div class="note" style="margin-top:10px">Себестоимость тянется со склада (последняя партия закупа) — как в вашем Excel, только цены всегда свежие и ничего не слетает. Наценку можно ставить общую или по позиции.</div>
+      </section>
+
+      <!-- OBJ -->
+      <section class="screen" id="s-obj">
+        <div class="kpis">
+          <div class="kpi bl"><div class="kl">Объектов в работе</div><div class="kv">4</div><div class="kd">портфель 191,3 млн ₸</div></div>
+          <div class="kpi gr"><div class="kl">Получено по договорам</div><div class="kv">78,4 <em>млн</em></div><div class="kd">41% от портфеля</div></div>
+          <div class="kpi am"><div class="kl">Ожидается · 6 недель</div><div class="kv">36,9 <em>млн</em></div><div class="kd">по планам платежей</div></div>
+          <div class="kpi rd"><div class="kl">Просрочен платёж</div><div class="kv">1</div><div class="kd">«Самрук Plaza» · этап 2 · 5 дней</div></div>
+        </div>
+        <div id="objList"></div>
+      </section>
+
+      <!-- SKLAD -->
+      <section class="screen" id="s-sklad">
+        <div class="kpis">
+          <div class="kpi bl"><div class="kl">Склад в закупочных</div><div class="kv">21,7 <em>млн</em></div><div class="kd">148 позиций · 2 склада</div></div>
+          <div class="kpi vi"><div class="kl">В резерве под объекты</div><div class="kv">9,3 <em>млн</em></div><div class="kd">«Аружан» и «Даулет»</div></div>
+          <div class="kpi rd"><div class="kl">Ниже минимума</div><div class="kv">2</div><div class="kd">в заявку на закуп</div></div>
+          <div class="kpi gr"><div class="kl">Средняя наценка</div><div class="kv">41%</div><div class="kd">закуп → продажа по каталогу</div></div>
+        </div>
+        <div class="frow">
+          <input placeholder="Поиск по каталогу…" style="width:220px" oninput="renderSklad(this.value)">
+          <span class="chip on">Все</span><span class="chip" onclick="toast('Фильтр по категориям: вентиляция, электрика, сантехника, расходники.')">Вентиляция</span><span class="chip" onclick="toast('Фильтр по категориям.')">Электрика</span>
+        </div>
+        <div class="card" style="padding:6px 14px">
+          <table>
+            <thead><tr><th>Товар</th><th class="r">Закуп</th><th class="r">Продажа</th><th class="r">Наценка</th><th class="r">Остаток</th><th>Статус</th></tr></thead>
+            <tbody id="skladBody"></tbody>
+          </table>
+        </div>
+        <div class="note" style="margin-top:4px">Каждая партия хранит свою закупочную цену — виден реальный заработок по каждому товару и объекту. Приход, расход, резерв под объект, инвентаризация.</div>
+      </section>
+
+      <!-- DDS -->
+      <section class="screen" id="s-dds">
+        <div class="kpis">
+          <div class="kpi bl"><div class="kl">На счетах</div><div class="kv">47,2 <em>млн</em></div><div class="kd">Halyk 38,1 + Kaspi 9,1</div></div>
+          <div class="kpi am"><div class="kl">Обременено</div><div class="kv">32,4 <em>млн</em></div><div class="kd">чужие деньги до сдачи работ</div></div>
+          <div class="kpi gr"><div class="kl">Свободно</div><div class="kv">14,8 <em>млн</em></div><div class="kd">реально ваши</div></div>
+          <div class="kpi rd"><div class="kl">Прогноз разрыва</div><div class="kv">−6,4 <em>млн</em></div><div class="kd">неделя 11–17 августа</div></div>
+        </div>
+        <div class="grid2">
+          <div class="stack">
+            <div class="card">
+              <h3>₸ План движения денег · 6 недель</h3>
+              <div class="dds-bars" id="ddsBars"></div>
+              <div class="note" style="margin-top:8px">Поступления — из планов платежей объектов, расходы — из смет со сроками. Разрыв виден <b>за месяц до того</b>, как он случится: успеваете передвинуть закуп или транш.</div>
+            </div>
+            <div class="card">
+              <h3>📅 Ближайшие движения</h3>
+              <div id="ddsMoves"></div>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <h3>🔒 Обременение — чьи деньги на счету</h3>
+              <div id="ddsEnc"></div>
+              <div class="note" style="margin-top:8px">Деньги на счету ≠ ваши деньги. Предоплата «Даулет» уже расписана под закуп оборудования — система не даст спутать её со свободными.</div>
+            </div>
+            <div class="card">
+              <h3>⚠ Как закрыть разрыв 11.08</h3>
+              <div style="font-size:12.5px;line-height:1.9;color:var(--mut)">
+                • Сдвинуть закуп вентустановок «Даулет» на 2 недели → разрыв исчезает<br>
+                • Или выставить «Самрук Plaza» этап 3 раньше на 10 дней<br>
+                • Или закрыть просрочку этапа 2 «Самрук» — 8,2 млн ₸
+              </div>
+              <button class="mbtn" style="margin-top:10px" onclick="toast('Сценарий пересчитан: закуп сдвинут в плане — прогноз разрыва снят. План платежей заказчику не трогали.')">Пересчитать сценарий</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- REP -->
+      <section class="screen" id="s-rep">
+        <div class="kpis">
+          <div class="kpi gr"><div class="kl">Прибыль · июнь</div><div class="kv">11,2 <em>млн</em></div><div class="kd">маржа 29% · план 10,0</div></div>
+          <div class="kpi bl"><div class="kl">Выручка · июнь</div><div class="kv">38,6 <em>млн</em></div><div class="kd">по актам выполненных работ</div></div>
+          <div class="kpi am"><div class="kl">Расходы · июнь</div><div class="kv">27,4 <em>млн</em></div><div class="kd">материалы 19,1 · ФОТ 5,6 · прочее 2,7</div></div>
+          <div class="kpi vi"><div class="kl">Бюджет июля</div><div class="kv">86%</div><div class="kd">израсходовано 23,5 из 27,4 план</div></div>
+        </div>
+        <div class="grid2">
+          <div class="card" style="padding:6px 14px">
+            <h3 style="padding:12px 4px 0">▤ Прибыль по объектам</h3>
+            <table>
+              <thead><tr><th>Объект</th><th class="r">Выручка</th><th class="r">Себестоимость</th><th class="r">Прибыль</th><th class="r">Маржа</th></tr></thead>
+              <tbody id="repBody"></tbody>
+            </table>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <h3>Расходы по категориям · июнь</h3>
+              <div id="repCat"></div>
+            </div>
+            <div class="card">
+              <h3>Планируемый бюджет</h3>
+              <div style="font-size:12.5px;line-height:1.9;color:var(--mut)">
+                Бюджет месяца задаётся по категориям — система сверяет факт с планом и подсвечивает перерасход <b style="color:var(--ink)">до</b> конца месяца, а не после.
+              </div>
+              <button class="mbtn gh" style="margin-top:10px" onclick="toast('Отчёт выгружен в Excel. Любой отчёт можно выгрузить — но скоро Excel вам не понадобится 🙂')">Выгрузить в Excel</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="mobile-nav">
+  <button class="on" data-s="dash" onclick="nav('dash')"><span class="mi2">◧</span>Дашборд</button>
+  <button data-s="deals" onclick="nav('deals')"><span class="mi2">◎</span>Сделки</button>
+  <button data-s="kp" onclick="nav('kp')"><span class="mi2">✎</span>КП</button>
+  <button data-s="obj" onclick="nav('obj')"><span class="mi2">▣</span>Объекты</button>
+  <button data-s="dds" onclick="nav('dds')"><span class="mi2">₸</span>Деньги</button>
+</div>
+
+<!-- модал объекта -->
+<div class="ovl" id="objOvl" onclick="if(event.target===this)closeObj()">
+  <div class="mod">
+    <div class="mhead"><div><h2 id="omName">—</h2><div class="msub" id="omSub">—</div></div><button class="mx" onclick="closeObj()">✕</button></div>
+    <div class="mbody" id="omBody"></div>
+    <div class="mfoot">
+      <button class="mbtn am" onclick="toast('Счёт по этапу сформирован от нужного юрлица и готов к отправке заказчику.')">Выставить счёт этапа</button>
+      <button class="mbtn gh" onclick="toast('Смета открыта: позиции, сроки, факт закупа против плана. Перерасход подсвечивается сразу.')">Открыть смету</button>
+      <button class="mbtn gh" onclick="toast('Работы: чек-лист по объекту — что выполнено, что осталось, кто ответственный, фотофиксация.')">Работы</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+/* ===== данные ===== */
+const OBJS=[
+  {id:1,n:'ЖК «Аружан»',c:'вентиляция и кондиционирование · ТОО «Аружан Строй»',sum:84.0,got:46.2,prog:55,st:['в графике','gr'],pay:[['Предоплата 30%','25,2 млн','оплачено 12.05','gr'],['Этап 2 · монтаж магистралей','21,0 млн','оплачено 26.06','gr'],['Этап 3 · пусконаладка','21,0 млн','ожидается 28.07','am'],['Финал · после сдачи','16,8 млн','по акту · сентябрь','gy']],work:'смонтировано 12 из 18 вентустановок · осталось: пусконаладка, автоматика'},
+  {id:2,n:'БЦ «Самрук Plaza»',c:'электромонтаж · ТОО «Самрук Инвест»',sum:36.5,got:18.3,prog:70,st:['платёж просрочен','rd'],pay:[['Предоплата','10,9 млн','оплачено 03.04','gr'],['Этап 2 · щитовые','8,2 млн','просрочен 5 дней ⚠','rd'],['Этап 3 · освещение','9,1 млн','план 15.08','gy'],['Финал','8,3 млн','по акту','gy']],work:'щитовые сданы · освещение этажей 4 из 9'},
+  {id:3,n:'Школа №147',c:'слаботочные системы · ГУ отдел образования',sum:12.8,got:9.0,prog:92,st:['завершается','bl'],pay:[['Аванс','3,8 млн','оплачено','gr'],['Этап 2','5,2 млн','оплачено','gr'],['Финал по акту','3,8 млн','подписание 18.07','am']],work:'осталось: исполнительная документация и обучение персонала'},
+  {id:4,n:'СК «Даулет»',c:'отопление и ИТП · ТОО «Даулет Логистик»',sum:58.0,got:17.4,prog:15,st:['старт','vi'],pay:[['Предоплата 30%','17,4 млн','оплачено 30.06 · обременено','am'],['Этап 2 · оборудование','23,2 млн','план 20.08','gy'],['Финал','17,4 млн','по акту · октябрь','gy']],work:'проект согласован · закуп ИТП и труб — на этой неделе'},
+];
+const DEALS=[
+  ['Завод «Berkut Metal»','вентиляция цеха · запрос из WhatsApp',0,'18,4 млн','MK Building',1],
+  ['Клиника «Densaulyk»','кондиционирование · 3 этажа',0,'9,7 млн','MK Service',0],
+  ['ЖК «Кок-Тobe Hills»','вентиляция паркинга',1,'26,0 млн','MK Building',1],
+  ['Офис «Nomad Insurance»','КП № 214 · отправлено вчера',1,'10,8 млн','MK Building',0],
+  ['ТРЦ «Alma Mall»','переговоры по смете · торг',2,'44,5 млн','MK Building',1],
+  ['Кафе сеть «Bao»','сервисное обслуживание · 6 точек',2,'2,9 млн/год','MK Service',0],
+  ['Гостиница «Altyn Adam»','договор на подписании',3,'31,2 млн','MK Building',0],
+  ['Цех «AgroPack»','подписан · передаём в объекты',4,'14,6 млн','MK Service',0],
+];
+const DSTAGES=['Лид','КП отправлено','Переговоры','Договор','В работу'];
+const KPPOS=[
+  ['Вентустановка Systemair TA-450','2','1 240 000','2 480 000'],
+  ['Кондиционер Midea 12k BTU','8','148 000','1 184 000'],
+  ['Воздуховод оцинк. 400×200, м','360','9 800','3 528 000'],
+  ['Автоматика + монтаж, компл.','1','1 268 000','1 268 000'],
+];
+const SKLAD=[
+  ['Вентустановка Systemair TA-450','вентиляция','1 240 000','1 680 000','+35%','3 шт',1,'2 в резерве «Аружан»'],
+  ['Кондиционер Midea 12k','вентиляция','148 000','215 000','+45%','14 шт',1,''],
+  ['Кабель ВВГнг 3×2,5, м','электрика','285','410','+44%','4 200 м',1,''],
+  ['Щит ЩРН-24','электрика','18 500','27 900','+51%','6 шт',0,'мин. 10 — в закуп'],
+  ['Труба PPR-25, м','сантехника','680','950','+40%','260 м',0,'мин. 500 — в закуп'],
+  ['Датчик дыма ИП-212','слаботочка','3 200','5 400','+69%','120 шт',1,''],
+];
+const DDS=[
+  ['14.07','+9,0','−4,2','47,2',0],
+  ['21.07','+21,0','−7,8','60,4',0],
+  ['28.07','+3,8','−12,1','52,1',0],
+  ['04.08','+0','−9,4','42,7',0],
+  ['11.08','+0','−18,6','−6,4',1],
+  ['18.08','+23,2','−3,1','13,7',0],
+];
+const MOVES=[
+  ['28.07','Этап 3 «Аружан» — пусконаладка','+21 000 000','in'],
+  ['30.07','Закуп ИТП «Даулет» (по смете)','−14 300 000','out'],
+  ['01.08','ФОТ монтажников · июль','−5 600 000','out'],
+  ['11.08','Закуп вентустановок «Даулет»','−18 600 000','out'],
+  ['18.08','Этап 2 «Даулет» — оборудование','+23 200 000','in'],
+];
+const ENC=[
+  ['Предоплата СК «Даулет»','закуп ИТП и оборудования до 20.08','17,4 млн'],
+  ['Этап 2 «Аружан»','материалы пусконаладки + ФОТ','9,8 млн'],
+  ['Гарантийные удержания','возврат после гарантийного срока','5,2 млн'],
+];
+const REP=[
+  ['ЖК «Аружан»','37,8','26,1','11,7','31%'],
+  ['БЦ «Самрук Plaza»','18,3','13,4','4,9','27%'],
+  ['Школа №147','9,0','6,6','2,4','27%'],
+  ['СК «Даулет»','—','2,1','—','старт'],
+];
+const CAT=[['Материалы и оборудование','19,1 млн',70,'#2f6fce'],['ФОТ монтажников','5,6 млн',20,'#f0a326'],['Транспорт и логистика','1,4 млн',5,'#7048b6'],['Субподряд','0,9 млн',3,'#218358'],['Прочее','0,4 млн',2,'#93a0b0']];
+const FEED=[
+  '<b>Сделки</b>: «Alma Mall» — заказчик запросил пересчёт сметы, торг',
+  '<b>Склад</b>: щиты ЩРН-24 ниже минимума — заявка на закуп создана',
+  '<b>Деньги</b>: прогноз разрыва 11.08 — есть 3 сценария закрытия',
+  '<b>Объекты</b>: «Школа №147» — финальный акт на подписании 18.07',
+  '<b>КП</b>: № 214 для «Nomad Insurance» открыто заказчиком 2 раза',
+];
+
+const $=id=>document.getElementById(id);
+function toast(html){const t=document.createElement('div');t.className='toast';t.innerHTML=html;$('toasts').appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},5200)}
+
+const TITLES={dash:['Дашборд','вторник, 7 июля 2026 · 4 объекта в работе · 2 юрлица'],
+  deals:['Сделки','воронка B2B · несколько воронок · фильтр по юрлицам'],
+  kp:['КП-конструктор','себестоимость со склада + маржа → PDF заказчику'],
+  obj:['Объекты','договор · план платежей · смета · работы'],
+  sklad:['Склад','закуп / продажа · партии · резервы под объекты'],
+  dds:['Деньги · ДДС','движение денежных средств, обременение, кассовые разрывы'],
+  rep:['Отчёты','прибыль по объектам · расходы · план/факт бюджета']};
+function nav(s){
+  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
+  $('s-'+s).classList.add('on');
+  document.querySelectorAll('.nitem').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  document.querySelectorAll('.mobile-nav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  $('tTitle').textContent=TITLES[s][0];$('tSub').textContent=TITLES[s][1];
+  window.scrollTo({top:0});
+}
+document.querySelectorAll('.nitem').forEach(b=>b.onclick=()=>nav(b.dataset.s));
+function setRole(el,name,msg){
+  document.querySelectorAll('.role-sw button').forEach(b=>b.classList.toggle('on',b===el));
+  $('sRole').textContent=name;$('sName').textContent=name==='Директор'?'Мухтар':name;
+  $('sAv').textContent=name.slice(0,2).toUpperCase();
+  toast('<b>'+name+'</b>: '+msg);
+}
+
+/* дашборд */
+function money(s){return s}
+function renderDash(){
+  $('dashObj').innerHTML=OBJS.map(o=>
+    '<div class="obj" onclick="openObj('+o.id+')"><div class="oh"><span class="on2">'+o.n+'</span><span class="oc">'+o.c+'</span><span class="osum num">'+o.sum.toFixed(1).replace('.',',')+' млн</span></div>'+
+    '<div class="obar"><i style="width:'+o.prog+'%"></i></div>'+
+    '<div class="of"><span>готовность <b>'+o.prog+'%</b></span><span>получено <b>'+o.got.toFixed(1).replace('.',',')+' млн</b></span><span style="margin-left:auto"><span class="b '+o.st[1]+'">'+o.st[0]+'</span></span></div></div>').join('');
+  $('dashAtt').innerHTML=[
+    ['🔴','«Самрук Plaza»: этап 2 просрочен на 5 дней — 8,2 млн ₸','напоминание заказчику ушло · звонок в задачах'],
+    ['⚠','Кассовый разрыв 11.08 — закуп «Даулет» раньше транша','3 сценария закрытия в разделе «Деньги»'],
+    ['▥','Склад: 2 позиции ниже минимума','заявка на закуп сформирована — подтвердить'],
+  ].map(r=>'<div style="display:flex;gap:11px;align-items:center;padding:10px 0;border-bottom:1px solid #edf0f4">'+
+    '<span style="font-size:15px">'+r[0]+'</span><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px">'+r[1]+'</div><div style="font-size:11.5px;color:var(--mut)">'+r[2]+'</div></div>'+
+    '<button class="mbtn gh" style="padding:7px 12px;font-size:11.5px" onclick="toast(\'По каждому сигналу — ответственный и срок. Управление по отклонениям, а не по памяти.\')">Открыть</button></div>').join('');
+  const bars=w=>'<div class="dds-w'+(w[4]?' neg':'')+'"><div class="bar in" style="height:'+Math.min(100,parseFloat(w[1].replace('+','').replace(',','.'))*3.4)+'px" title="поступления"></div><div class="bar out" style="height:'+Math.min(100,parseFloat(w[2].replace('−','').replace(',','.'))*3.4)+'px"></div><span class="bal num">'+w[3]+'</span><span class="wl">'+w[0]+'</span></div>';
+  $('dashDds').innerHTML=DDS.map(bars).join('');
+  $('ddsBars').innerHTML=DDS.map(bars).join('');
+  $('dashFeed').innerHTML=FEED.map(f=>'• '+f).join('<br>');
+}
+
+/* сделки */
+function renderDeals(){
+  $('dealKan').innerHTML=DSTAGES.map((st,i)=>{
+    const ds=DEALS.filter(d=>d[2]===i);
+    return '<div class="kcol"><h4>'+st+'<span class="num">'+ds.length+'</span></h4>'+ds.map(d=>
+      '<div class="kcard'+(d[5]?' hot':'')+'" onclick="toast(\'Карточка сделки: заказчик, КП, переписка WhatsApp, задачи, история. Выиграли — в один клик станет объектом.\')">'+
+      '<div class="kt">'+d[0]+'</div><div class="kc2">'+d[1]+'</div>'+
+      '<div class="kf"><span class="b gy">'+d[4]+'</span><span class="ksum num">'+d[3]+'</span></div></div>').join('')+'</div>';
+  }).join('');
+}
+
+/* КП */
+function renderKp(){
+  $('kpBody').innerHTML=KPPOS.map(p=>
+    '<tr onclick="toast(\'Позиция из единого каталога: себестоимость подтянулась из последней партии закупа на складе.\')">'+
+    '<td><div class="cname">'+p[0]+'</div></td><td class="r">'+p[1]+'</td><td class="r">'+p[2]+'</td><td class="r">'+p[3]+'</td>'+
+    '<td class="r kp-sell" data-base="'+p[3].replaceAll(' ','')+'">—</td><td class="r kp-sum">—</td></tr>').join('');
+  recalcKp();
+}
+function recalcKp(){
+  const m=Math.max(0,Math.min(99,parseFloat($('marjIn').value)||0));
+  let cost=0,total=0;
+  document.querySelectorAll('.kp-sell').forEach(td=>{
+    const base=parseInt(td.dataset.base);cost+=base;
+    const sell=Math.round(base*(1+m/100));total+=sell;
+    td.textContent=sell.toLocaleString('ru-RU');
+    td.nextElementSibling.textContent=sell.toLocaleString('ru-RU');
+  });
+  $('kpCost').textContent=cost.toLocaleString('ru-RU')+' ₸';
+  $('kpMarj').textContent='+'+(total-cost).toLocaleString('ru-RU')+' ₸';
+  $('kpTotal').textContent=total.toLocaleString('ru-RU')+' ₸';
+}
+
+/* объекты */
+function renderObj(){
+  $('objList').innerHTML=OBJS.map(o=>
+    '<div class="obj" onclick="openObj('+o.id+')"><div class="oh"><span class="on2">'+o.n+'</span><span class="oc">'+o.c+'</span><span class="osum num">'+o.sum.toFixed(1).replace('.',',')+' млн ₸</span></div>'+
+    '<div class="obar"><i style="width:'+o.prog+'%"></i></div>'+
+    '<div class="of"><span>готовность <b>'+o.prog+'%</b></span><span>получено <b>'+o.got.toFixed(1).replace('.',',')+' млн</b></span><span>остаток <b>'+(o.sum-o.got).toFixed(1).replace('.',',')+' млн</b></span><span style="margin-left:auto"><span class="b '+o.st[1]+'">'+o.st[0]+'</span></span></div></div>').join('');
+}
+function openObj(id){
+  const o=OBJS.find(x=>x.id===id);
+  $('omName').textContent=o.n;
+  $('omSub').textContent=o.c+' · договор '+o.sum.toFixed(1).replace('.',',')+' млн ₸';
+  $('omBody').innerHTML=
+    '<h3 style="font-size:11px;font-weight:700;color:var(--mut2);letter-spacing:.8px;margin-bottom:8px">ПЛАН ПЛАТЕЖЕЙ · СОГЛАСОВАН С ЗАКАЗЧИКОМ</h3>'+
+    o.pay.map(p=>'<div class="enc"><div class="en">'+p[0]+'<span>'+p[2]+'</span></div><span class="b '+p[3]+'" style="margin-right:10px">'+(p[3]==='gr'?'оплачено':p[3]==='rd'?'просрочен':p[3]==='am'?'ожидается':'план')+'</span><span class="ev num">'+p[1]+'</span></div>').join('')+
+    '<h3 style="font-size:11px;font-weight:700;color:var(--mut2);letter-spacing:.8px;margin:16px 0 8px">РАБОТЫ</h3>'+
+    '<div style="font-size:13px;line-height:1.7;color:var(--mut)">'+o.work+'</div>'+
+    '<div class="note" style="margin-top:12px;background:var(--amber-l);border-radius:9px;padding:10px 13px;color:var(--amber-d);font-weight:600">План платежей и смета этого объекта автоматически попадают в ДДС — вы заранее видите, как объект влияет на деньги компании.</div>';
+  $('objOvl').classList.add('show');
+}
+function closeObj(){$('objOvl').classList.remove('show')}
+
+/* склад */
+function renderSklad(q){
+  q=(q||'').toLowerCase();
+  $('skladBody').innerHTML=SKLAD.filter(s=>!q||s[0].toLowerCase().includes(q)).map(s=>
+    '<tr onclick="toast(\'Карточка товара: партии со своими закупочными ценами, движение, резервы под объекты, поставщики.\')">'+
+    '<td><div class="cname">'+s[0]+'</div><div class="csub">'+s[1]+(s[7]?' · '+s[7]:'')+'</div></td>'+
+    '<td class="r">'+s[2]+'</td><td class="r">'+s[3]+'</td><td class="r" style="color:var(--grn)">'+s[4]+'</td><td class="r">'+s[5]+'</td>'+
+    '<td>'+(s[6]?'<span class="b gr">в наличии</span>':'<span class="b rd">докупить</span>')+'</td></tr>').join('');
+}
+
+/* ДДС */
+function renderDds(){
+  $('ddsMoves').innerHTML=MOVES.map(m=>
+    '<div class="enc"><span class="b '+(m[3]==='in'?'bl':'am')+'" style="width:52px;justify-content:center">'+m[0]+'</span><div class="en" style="margin-left:8px">'+m[1]+'</div><span class="ev num" style="color:'+(m[3]==='in'?'var(--blue)':'var(--amber-d)')+'">'+m[2]+'</span></div>').join('');
+  $('ddsEnc').innerHTML=ENC.map(e=>
+    '<div class="enc"><div class="en">'+e[0]+'<span>'+e[1]+'</span></div><span class="ev num">'+e[2]+'</span></div>').join('');
+}
+
+/* отчёты */
+function renderRep(){
+  $('repBody').innerHTML=REP.map(r=>
+    '<tr onclick="toast(\'Провалиться можно до каждой накладной: из чего сложилась себестоимость объекта.\')">'+
+    '<td><div class="cname">'+r[0]+'</div></td><td class="r">'+r[1]+'</td><td class="r">'+r[2]+'</td><td class="r" style="color:var(--grn)">'+r[3]+'</td><td class="r">'+r[4]+'</td></tr>').join('');
+  $('repCat').innerHTML=CAT.map(c=>
+    '<div style="display:flex;align-items:center;gap:10px;padding:7px 0"><span style="width:170px;font-size:12.5px;font-weight:600">'+c[0]+'</span>'+
+    '<span style="flex:1;height:9px;background:#edf0f4;border-radius:5px;overflow:hidden"><i style="display:block;height:100%;width:'+c[2]+'%;background:'+c[3]+';border-radius:5px"></i></span>'+
+    '<span class="num" style="width:70px;text-align:right;font-size:12px;font-weight:600">'+c[1]+'</span></div>').join('');
+}
+
+renderDash();renderDeals();renderKp();renderObj();renderSklad('');renderDds();renderRep();
+setTimeout(()=>toast('Здравствуйте, <b>Мухтар</b>! Это пример вашего портала: сделки и КП с расчётом себестоимости, объекты с планами платежей, склад «закуп/продажа» и деньги с кассовыми разрывами. Нажимайте на всё.'),700);
+const q=new URLSearchParams(location.search);if(q.get('s'))nav(q.get('s'));
+</script>
+</body>
+</html>
