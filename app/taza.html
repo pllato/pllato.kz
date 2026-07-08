@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TAZA — контроль клининга · Демо</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d5c58'/%3E%3Cpath d='M16 5 C16 5 8 14 8 20 a8 8 0 0 0 16 0 C24 14 16 5 16 5 Z' fill='%23eafaf5'/%3E%3Cpath d='M12 19 a4.5 4.5 0 0 0 4 5' fill='none' stroke='%230d5c58' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400;500;600;700;800&family=Ubuntu+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --teal:#0d5c58;--teal-d:#083f3c;--teal-x:#0f6b66;
+  --bg:#f2f5f4;--panel:#fff;--ln:#dfe6e4;--ln2:#ecf0ef;
+  --ink:#132422;--mut:#546763;--faint:#8ba09b;
+  --aqua:#12a377;--aqua-l:#e2f5ee;--amb:#b07f10;--amb-l:#f8f0da;--cor:#cf4f35;--cor-l:#fae9e4;--sky:#2c6e8f;--sky-l:#e6f0f5;
+  --mono:'Ubuntu Mono',monospace;
+  --tile:repeating-linear-gradient(0deg,transparent,transparent 23px,rgba(255,255,255,.07) 23px,rgba(255,255,255,.07) 24px),repeating-linear-gradient(90deg,transparent,transparent 23px,rgba(255,255,255,.07) 23px,rgba(255,255,255,.07) 24px);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Commissioner',sans-serif;background:var(--bg);color:var(--ink);font-size:14.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select{font-family:inherit;font-size:13.5px;color:var(--ink)}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#c3cfcc;border-radius:6px}
+.num{font-family:var(--mono)}
+
+.demo-note{background:#0a1f1d;color:#9db8b3;font-size:12px;padding:8px 16px;text-align:center}
+.demo-note b{color:#fff}
+
+/* ===== шапка-панель ===== */
+.hd{background:var(--teal);background-image:var(--tile);color:#fff}
+.hd .h1r{max-width:1280px;margin:0 auto;padding:16px 24px 8px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}
+.brand .bm{width:42px;height:42px;border-radius:11px;background:#fff;display:grid;place-items:center;flex:none}
+.brand .bm svg{width:30px;height:30px}
+.brand .bt{font-weight:800;font-size:22px;letter-spacing:.06em}
+.brand .bs{font-size:11px;color:#9fd0c4;font-weight:500;margin-top:-3px;letter-spacing:.02em}
+.roles{margin-left:auto;display:flex;background:rgba(255,255,255,.1);border-radius:10px;padding:3px}
+.roles button{padding:7px 13px;font-size:12.5px;font-weight:600;color:#bcd8d1;border-radius:8px}
+.roles button.on{background:#fff;color:var(--teal-d)}
+.hd .act{background:#ffcf4d;color:#3c2f04;font-weight:700;font-size:13px;padding:10px 18px;border-radius:10px}
+.hd .act:hover{background:#ffd96e}
+.tabs{max-width:1280px;margin:0 auto;padding:6px 24px 0;display:flex;gap:4px;overflow-x:auto}
+.tabs button{padding:10px 15px 12px;font-size:13.5px;font-weight:600;color:#a7ccc4;border-radius:10px 10px 0 0;white-space:nowrap}
+.tabs button.on{background:var(--bg);color:var(--teal-d);font-weight:700}
+.tabs button .c{font-family:var(--mono);font-size:11px;margin-left:5px;opacity:.75}
+
+/* живая лента */
+.liveline{max-width:1280px;margin:0 auto;padding:12px 24px 0;display:flex;gap:22px;flex-wrap:wrap;font-size:12.5px;color:var(--mut)}
+.liveline b{color:var(--ink);font-family:var(--mono);font-size:13.5px}
+.pulse{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--aqua);margin-right:6px;animation:pl 1.6s infinite}
+@keyframes pl{0%{box-shadow:0 0 0 0 rgba(18,163,119,.5)}70%{box-shadow:0 0 0 7px rgba(18,163,119,0)}100%{box-shadow:0 0 0 0 rgba(18,163,119,0)}}
+.liveline .warn{color:var(--cor);font-weight:600}
+
+.wrap{max-width:1280px;margin:0 auto;padding:16px 24px 90px}
+.screen{display:none}.screen.on{display:block;animation:fd .18s}
+@keyframes fd{from{opacity:0;transform:translateY(3px)}to{opacity:1}}
+
+.cols{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;align-items:start}
+@media(max-width:1020px){.cols{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--ln);border-radius:14px;margin-bottom:16px;overflow:hidden}
+.card .ct{display:flex;align-items:center;gap:10px;padding:13px 17px;border-bottom:1px solid var(--ln2)}
+.card .ct h3{font-size:15px;font-weight:700;flex:1}
+.card .ct .lnk{font-size:12.5px;color:var(--teal-x);font-weight:600;cursor:pointer}
+.card .ct .lnk:hover{text-decoration:underline}
+.card .cb{padding:10px 17px 15px}
+.note{font-size:12px;color:var(--mut);line-height:1.6}
+
+/* статусы */
+.st{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;letter-spacing:.02em}
+.st::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor}
+.st.g{color:var(--aqua)}.st.a{color:var(--amb)}.st.r{color:var(--cor)}.st.b{color:var(--sky)}.st.gy{color:var(--faint)}
+
+/* объект-строка на пульте */
+.orow{border:1px solid var(--ln);border-radius:12px;padding:13px 15px;margin-bottom:10px;background:var(--panel);cursor:pointer;transition:.12s}
+.orow:hover{border-color:var(--teal-x);box-shadow:0 4px 14px -6px rgba(13,92,88,.18)}
+.orow .oh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.orow .onm{font-weight:700;font-size:14.5px}
+.orow .osub{font-size:12px;color:var(--mut)}
+.orow .oright{margin-left:auto;display:flex;align-items:center;gap:12px}
+.orow .chk{font-family:var(--mono);font-size:12px;color:var(--mut)}
+.orow .chk b{color:var(--ink)}
+.orow .obar{display:flex;align-items:center;gap:10px;margin-top:9px}
+.orow .pbar{flex:1;height:7px;background:var(--ln2);border-radius:5px;overflow:hidden}
+.orow .pbar i{display:block;height:100%;border-radius:5px;background:var(--aqua)}
+.orow .pbar i.a{background:var(--amb)}.orow .pbar i.r{background:var(--cor)}
+.orow .pct{font-family:var(--mono);font-size:12px;font-weight:700;width:52px;text-align:right}
+.orow .crew{display:flex;gap:5px;margin-top:9px;flex-wrap:wrap;align-items:center}
+.avs{display:flex}
+.av{width:26px;height:26px;border-radius:50%;background:var(--teal);color:#fff;display:grid;place-items:center;font-size:10px;font-weight:700;border:2px solid #fff;margin-left:-6px}
+.av:first-child{margin-left:0}
+.crew .cwt{font-size:11.5px;color:var(--mut);margin-left:4px}
+.fchip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--teal-d);background:var(--aqua-l);border-radius:7px;padding:3px 8px;margin-left:auto}
+.fchip svg{width:11px;height:11px}
+
+/* фото-заглушки */
+.ph{border-radius:9px;position:relative;overflow:hidden;background:linear-gradient(135deg,#cfdedb,#9fb8b3);display:grid;place-items:center}
+.ph::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 15px,rgba(255,255,255,.09) 15px,rgba(255,255,255,.09) 16px),repeating-linear-gradient(90deg,transparent,transparent 15px,rgba(255,255,255,.09) 15px,rgba(255,255,255,.09) 16px)}
+.ph svg{width:22px;height:22px;opacity:.55;z-index:1}
+.ph .cap{position:absolute;left:0;right:0;bottom:0;background:rgba(10,31,29,.72);color:#fff;font-size:10px;font-weight:600;padding:3px 7px;z-index:2;font-family:var(--mono)}
+.ph.after{background:linear-gradient(135deg,#d7efe7,#8fd0bd)}
+.pair{display:flex;gap:8px;align-items:center}
+.pair .ph{width:96px;height:68px}
+.pair .arr{color:var(--faint);font-size:15px}
+
+/* таблицы */
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);text-align:left;font-weight:700;padding:9px 10px 8px 0;border-bottom:1.5px solid var(--ln)}
+th.r{text-align:right}
+td{padding:11px 10px 11px 0;border-bottom:1px solid var(--ln2);font-size:13.5px;vertical-align:middle}
+td.r{text-align:right;font-family:var(--mono);font-size:13px;font-weight:700;white-space:nowrap}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:#f6faf9}
+.cn{font-weight:700;font-size:14px}
+.cs{font-size:12px;color:var(--mut);margin-top:1px}
+
+/* фильтры */
+.frow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.chip{padding:8px 15px;border-radius:9px;font-size:12.5px;font-weight:600;background:var(--panel);border:1px solid var(--ln);color:var(--mut)}
+.chip.on{background:var(--teal);border-color:var(--teal);color:#fff}
+.frow input,.frow select{border:1px solid var(--ln);border-radius:9px;padding:8px 12px;outline:none;background:var(--panel)}
+
+/* канбан заявок */
+.kan{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:start}
+@media(max-width:1020px){.kan{grid-template-columns:repeat(2,1fr)}}
+.kcol{background:#e7edeb;border-radius:12px;padding:9px}
+.kcol h4{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);font-weight:700;padding:3px 6px 9px;display:flex;justify-content:space-between}
+.kcard{background:var(--panel);border:1px solid var(--ln);border-radius:10px;padding:11px 12px;margin-bottom:8px;cursor:pointer}
+.kcard:hover{border-color:var(--teal-x)}
+.kcard .kt{font-size:13px;font-weight:700}
+.kcard .kc2{font-size:11.5px;color:var(--mut);margin-top:2px;line-height:1.5}
+.kcard .kf{display:flex;align-items:center;gap:7px;margin-top:8px;flex-wrap:wrap}
+.kcard .sla{margin-left:auto;font-family:var(--mono);font-size:11px;font-weight:700}
+.tag{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:6px}
+.tag.inc{background:var(--cor-l);color:var(--cor)}
+.tag.dop{background:var(--sky-l);color:var(--sky)}
+.tag.sup{background:var(--amb-l);color:var(--amb)}
+
+/* качество: чек-лист */
+.cl-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--ln2);font-size:13.5px}
+.cl-row:last-child{border-bottom:none}
+.cl-row .box{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--ln);display:grid;place-items:center;flex:none;font-size:12px;color:#fff}
+.cl-row.done .box{background:var(--aqua);border-color:var(--aqua)}
+.cl-row.done span.t{color:var(--mut)}
+.cl-row .tm{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+.score{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--ln2)}
+.score:last-child{border-bottom:none}
+.score .sn{flex:1;font-weight:600;font-size:13.5px}
+.score .sn span{display:block;font-size:11.5px;color:var(--mut);font-weight:400}
+.score .sb{flex:1;height:8px;background:var(--ln2);border-radius:5px;overflow:hidden}
+.score .sb i{display:block;height:100%;border-radius:5px;background:var(--aqua)}
+.score .sv{font-family:var(--mono);font-weight:700;font-size:13px;width:48px;text-align:right}
+
+/* телефоны */
+.phone{width:270px;max-width:100%;margin:0 auto;background:#fff;border-radius:26px;border:6px solid var(--teal-d);overflow:hidden;box-shadow:0 16px 34px -14px rgba(8,63,60,.4)}
+.phone .php{background:var(--teal);background-image:var(--tile);color:#fff;padding:12px 14px}
+.phone .php .l{font-size:9.5px;letter-spacing:.1em;color:#9fd0c4;font-weight:700}
+.phone .php b{font-size:14px}
+.phone .phb{padding:12px;background:#f6f9f8;max-height:400px;overflow:hidden}
+.phone .task{background:#fff;border:1px solid var(--ln);border-radius:11px;padding:10px 11px;margin-bottom:8px;font-size:12px}
+.phone .task b{font-size:12.5px}
+.phone .btn-cam{width:100%;background:var(--teal);color:#fff;border-radius:10px;padding:10px;font-weight:700;font-size:12.5px;margin-top:2px}
+.phone .qr{display:flex;align-items:center;gap:9px;background:var(--aqua-l);border-radius:10px;padding:9px 11px;font-size:11.5px;font-weight:600;color:var(--teal-d);margin-bottom:8px}
+
+/* модал / тосты */
+.ovl{position:fixed;inset:0;background:rgba(10,31,29,.5);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:30px 16px;overflow-y:auto}
+.ovl.show{display:flex}
+.mod{background:#fff;border-radius:16px;max-width:760px;width:100%;animation:fd .16s;overflow:hidden}
+.mod .mh{padding:18px 22px 0;display:flex;gap:12px;align-items:baseline}
+.mod .mh h2{font-size:19px;font-weight:800}
+.mod .mh .mx{margin-left:auto;font-size:19px;color:var(--faint);cursor:pointer}
+.mod .mb{padding:12px 22px 20px;max-height:62vh;overflow-y:auto}
+.btn{background:var(--teal);color:#fff;font-weight:700;font-size:12.5px;padding:10px 16px;border-radius:9px}
+.btn.y{background:#ffcf4d;color:#3c2f04}
+.btn.o{background:#fff;color:var(--ink);border:1px solid var(--ln)}
+#toasts{position:fixed;right:18px;bottom:18px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:380px}
+.toast{background:var(--teal-d);color:#dff0eb;padding:12px 16px;border-radius:12px;font-size:12.5px;line-height:1.55;box-shadow:0 14px 34px rgba(0,0,0,.3);animation:tin .22s}
+@keyframes tin{from{opacity:0;transform:translateX(16px)}to{opacity:1}}
+.toast b{color:#ffd96e}
+
+@media(max-width:860px){
+  .wrap{padding:12px 14px 96px}
+  .mobile-nav{display:flex!important}
+  .liveline{padding:10px 14px 0;gap:12px}
+}
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--teal-d);z-index:50;justify-content:space-around;padding:9px 4px calc(9px + env(safe-area-inset-bottom))}
+.mobile-nav button{color:#8fbcb2;font-size:10.5px;font-weight:600;padding:3px 8px}
+.mobile-nav button.on{color:#fff;font-weight:800}
+</style>
+</head>
+<body>
+<div class="demo-note">Интерактивное демо для <b>Дениса</b> · клининг и содержание зданий и территорий · Павлодар · все данные вымышленные, всё прокликивается · <b>Pllato</b></div>
+
+<header class="hd">
+  <div class="h1r">
+    <div class="brand">
+      <div class="bm"><svg viewBox="0 0 32 32"><path d="M16 5 C16 5 8 14 8 20 a8 8 0 0 0 16 0 C24 14 16 5 16 5 Z" fill="#0d5c58"/><path d="M12 19 a4.5 4.5 0 0 0 4 5" fill="none" stroke="#eafaf5" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">TAZA</div><div class="bs">контроль клининга · Павлодар</div></div>
+    </div>
+    <div class="roles">
+      <button class="on" onclick="setRole(this,'dir')">Директор</button>
+      <button onclick="setRole(this,'br')">Бригадир</button>
+      <button onclick="setRole(this,'cust')">Заказчик</button>
+    </div>
+    <button class="act" onclick="toast('Новая заявка: объект → тип (инцидент / доп-работа / моющие средства) → исполнитель. Заявки от заказчиков из WhatsApp и Telegram попадают сюда сами.')">+ Заявка</button>
+  </div>
+  <nav class="tabs">
+    <button class="on" data-s="pult">Пульт · сегодня</button>
+    <button data-s="obj">Объекты<span class="c">24</span></button>
+    <button data-s="req">Заявки<span class="c">7</span></button>
+    <button data-s="qc">Качество</button>
+    <button data-s="shift">Смены и табель</button>
+    <button data-s="stock">Склад<span class="c">3</span></button>
+    <button data-s="fin">Финансы</button>
+  </nav>
+</header>
+
+<div class="liveline">
+  <span><span class="pulse"></span>сейчас <b>14:02</b> · на объектах <b>47</b> человек</span>
+  <span>чек-инов вовремя <b>44/47</b></span>
+  <span>чек-листы дня <b>82%</b></span>
+  <span>открытых заявок <b>7</b></span>
+  <span class="warn">1 жалоба · SLA 26 мин</span>
+</div>
+
+<div class="wrap">
+
+  <!-- ===== ПУЛЬТ ===== -->
+  <section class="screen on" id="s-pult">
+    <div class="cols">
+      <div>
+        <div class="card">
+          <div class="ct"><h3>Объекты на сменах — живой статус</h3><span class="lnk" onclick="nav('obj')">все 24 →</span></div>
+          <div class="cb" id="pultObjs"></div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="ct"><h3>Требует внимания</h3></div>
+          <div class="cb" id="pultAtt"></div>
+        </div>
+        <div class="card">
+          <div class="ct"><h3>Фото-лента с объектов</h3><span class="lnk" onclick="nav('qc')">качество →</span></div>
+          <div class="cb">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px" id="pultPhotos"></div>
+            <div class="note" style="margin-top:10px">Каждое фото привязано к объекту, зоне чек-листа и сотруднику. Вы видите работу всех бригад, не выезжая из офиса.</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ct"><h3>Лента событий</h3></div>
+          <div class="cb note" style="line-height:2.05" id="pultFeed"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ОБЪЕКТЫ ===== -->
+  <section class="screen" id="s-obj">
+    <div class="frow">
+      <input placeholder="Поиск объекта или заказчика…" style="width:230px">
+      <span class="chip on">Все</span><span class="chip" onclick="toast('Фильтр по типам: ТРЦ, БЦ, производство, медицина, жильё, территория.')">ТРЦ / БЦ</span><span class="chip" onclick="toast('Фильтр по типам объектов.')">Производство</span><span class="chip" onclick="toast('Объекты, где SLA месяца ниже 95% — кандидаты на разбор с бригадиром.')">SLA &lt; 95%</span>
+    </div>
+    <div class="card"><div class="cb" style="padding-top:4px"><table>
+      <thead><tr><th>Объект</th><th>Заказчик</th><th>График</th><th>Бригада</th><th class="r">Договор, ₸/мес</th><th class="r">SLA · июнь</th></tr></thead>
+      <tbody id="objBody"></tbody>
+    </table></div></div>
+    <div class="note">Карточка объекта: договор и акты, зоны уборки с QR-кодами, чек-листы по графику, нормы расхода средств, история заявок и инспекций. QR на каждой зоне — уборщик отмечается и получает список задач именно этой зоны.</div>
+  </section>
+
+  <!-- ===== ЗАЯВКИ ===== -->
+  <section class="screen" id="s-req">
+    <div class="frow">
+      <span class="chip on">Все типы</span>
+      <span class="chip" onclick="toast('Инциденты: разлив, жалоба, срочная уборка. SLA — 60 минут на реакцию.')">Инциденты</span>
+      <span class="chip" onclick="toast('Доп-работы: мытьё окон, химчистка, послестрой — это продажи внутри действующих договоров. Заявка → смета → счёт.')">Доп-работы ₸</span>
+      <span class="chip" onclick="toast('Запросы на моющие средства с объектов — уборщик отправляет со смартфона, завхоз видит сразу.')">Моющие средства</span>
+    </div>
+    <div class="kan" id="reqKan"></div>
+    <div class="note" style="margin-top:12px">Это и есть «другая воронка»: не лиды, а запросы по действующим договорам. Заказчик пишет в WhatsApp/Telegram — заявка встаёт в доску с SLA-таймером; фото-отчёт закрывает её, и заказчик подтверждает кнопкой. Доп-работы превращаются в счета — деньги, которые сейчас теряются в переписках.</div>
+  </section>
+
+  <!-- ===== КАЧЕСТВО ===== -->
+  <section class="screen" id="s-qc">
+    <div class="cols">
+      <div>
+        <div class="card">
+          <div class="ct"><h3>Чек-лист смены — ТРЦ «Батыр», утро</h3><span class="st g">14 из 18 · идёт</span></div>
+          <div class="cb" id="qcCheck"></div>
+        </div>
+        <div class="card">
+          <div class="ct"><h3>Фото до / после — санузлы 2 этаж</h3></div>
+          <div class="cb">
+            <div style="display:flex;gap:18px;flex-wrap:wrap" id="qcPairs"></div>
+            <div class="note" style="margin-top:10px">Фото «до/после» делает уборщик со своего смартфона — по каждой зоне чек-листа. Спорить с заказчиком больше не о чем: вот время, вот фото.</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="ct"><h3>Оценки объектов · июль</h3></div>
+          <div class="cb" id="qcScores"></div>
+          <div class="cb note" style="padding-top:0">Оценка = чек-листы × инспекции × подтверждения заказчика. Видно, какая бригада тянет вниз — до того, как заказчик расторгнет договор.</div>
+        </div>
+        <div class="card">
+          <div class="ct"><h3>Инспекции супервайзера</h3></div>
+          <div class="cb" id="qcInsp"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== СМЕНЫ ===== -->
+  <section class="screen" id="s-shift">
+    <div class="cols">
+      <div>
+        <div class="card">
+          <div class="ct"><h3>Сегодня: чек-ин / чек-аут по QR</h3><span class="lnk" onclick="toast('QR висит на объекте: сотрудник сканирует при входе и выходе — время и геометка фиксируются. Опоздание видно через минуту, а не в конце месяца.')">как работает →</span></div>
+          <div class="cb" style="padding-top:4px"><table>
+            <thead><tr><th>Сотрудник</th><th>Объект · смена</th><th class="r">Пришёл</th><th class="r">Ушёл</th><th>Статус</th></tr></thead>
+            <tbody id="shiftBody"></tbody>
+          </table></div>
+        </div>
+        <div class="card">
+          <div class="ct"><h3>Замены и табель</h3></div>
+          <div class="cb note" style="line-height:1.9">
+            <b style="color:var(--ink)">Айгуль С. заболела</b> → система предложила свободных с нужным допуском → замена Салтанат К., бригадир подтвердил в 06:40, заказчик не заметил разницы.<br><br>
+            Табель собирается из чек-инов сам: смены, часы, опоздания, замены. Зарплата по факту отработанного — без тетрадей и споров.
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="ct"><h3>Телефон уборщицы</h3></div>
+          <div class="cb" style="display:flex;justify-content:center;padding:16px">
+            <div class="phone">
+              <div class="php"><div class="l">TAZA · СМЕНА 07:00–15:00</div><b>Гульнара А. · ТРЦ «Батыр»</b></div>
+              <div class="phb">
+                <div class="qr"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#0d5c58" stroke-width="1.6"><rect x="1" y="1" width="5" height="5"/><rect x="10" y="1" width="5" height="5"/><rect x="1" y="10" width="5" height="5"/><path d="M10 10h2v2h-2zM13 13h2v2h-2z"/></svg>Чек-ин 07:58 · зона: санузлы 2 эт.</div>
+                <div class="task"><b>1. Санузлы 2 этажа</b><br>влажная уборка, дезинфекция, расходники<br><button class="btn-cam" onclick="toast('Камера открывается прямо из задачи: фото «до» и «после» прикрепляются к зоне. Без фото задача не закрывается.')">Фото до / после</button></div>
+                <div class="task"><b>2. Холл — витрины</b><br>стёкла, полы под лестницей</div>
+                <div class="task" style="border-color:#f3c98a;background:#fffaf0"><b>Заканчивается гель для пола</b><br><button class="btn-cam" style="background:#b07f10" onclick="toast('Запрос на моющие средства уходит завхозу в один клик — с объектом и остатком. Завхоз собирает выдачу без звонков.')">Запросить у завхоза</button></div>
+              </div>
+            </div>
+          </div>
+          <div class="cb note" style="padding-top:0">Смартфон есть у каждого уборщика — ничего покупать не нужно. Интерфейс из трёх кнопок: отметился, сфотографировал, запросил средства.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== СКЛАД ===== -->
+  <section class="screen" id="s-stock">
+    <div class="cols">
+      <div>
+        <div class="card">
+          <div class="ct"><h3>Моющие средства и инвентарь</h3><span class="lnk" onclick="toast('Приход, выдача на объекты, остатки на центральном складе и по объектам. Инвентаризация со сканером.')">движение →</span></div>
+          <div class="cb" style="padding-top:4px"><table>
+            <thead><tr><th>Позиция</th><th class="r">Центр. склад</th><th class="r">На объектах</th><th class="r">Норма / мес</th><th>Статус</th></tr></thead>
+            <tbody id="stockBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="ct"><h3>Запросы с объектов</h3></div>
+          <div class="cb" id="stockReq"></div>
+        </div>
+        <div class="card">
+          <div class="ct"><h3>Контроль расхода</h3></div>
+          <div class="cb note" style="line-height:1.9">Нормы расхода привязаны к площади объекта. <b style="color:var(--cor)">БЦ «Иртыш»: расход геля ×1,8 от нормы</b> — система подсветила сама. Это либо перерасход, либо «усушка» — в обоих случаях вы узнаёте в этом месяце, а не при годовой инвентаризации.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ФИНАНСЫ ===== -->
+  <section class="screen" id="s-fin">
+    <div class="cols">
+      <div>
+        <div class="card">
+          <div class="ct"><h3>Маржа по объектам · июнь</h3></div>
+          <div class="cb" style="padding-top:4px"><table>
+            <thead><tr><th>Объект</th><th class="r">Договор</th><th class="r">ФОТ</th><th class="r">Средства</th><th class="r">Маржа</th></tr></thead>
+            <tbody id="finBody"></tbody>
+          </table></div>
+          <div class="cb note" style="padding-top:0">Себестоимость объекта = смены из табеля + реальный расход средств со склада. Убыточный договор виден цифрой, а не ощущением.</div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="ct"><h3>Доп-работы · июль</h3></div>
+          <div class="cb" id="finDop"></div>
+          <div class="cb note" style="padding-top:0">Доп-продажи по действующим договорам: +1,86 млн ₸ за июль. Раньше эти запросы жили в WhatsApp и половина терялась.</div>
+        </div>
+        <div class="card">
+          <div class="ct"><h3>Акты и оплаты</h3></div>
+          <div class="cb note" style="line-height:1.9">Акт за месяц формируется из чек-листов и заявок — с фото-приложением. Заказчику сложно «резать» акт, когда к нему приложены 214 фото выполненных работ. Просрочки оплат — с напоминаниями.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="mobile-nav">
+  <button class="on" data-s="pult" onclick="nav('pult')">Пульт</button>
+  <button data-s="req" onclick="nav('req')">Заявки</button>
+  <button data-s="qc" onclick="nav('qc')">Качество</button>
+  <button data-s="shift" onclick="nav('shift')">Смены</button>
+  <button data-s="stock" onclick="nav('stock')">Склад</button>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+function toast(html){const t=document.createElement('div');t.className='toast';t.innerHTML=html;$('toasts').appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},5400)}
+function nav(s){
+  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
+  $('s-'+s).classList.add('on');
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  document.querySelectorAll('.mobile-nav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  window.scrollTo({top:0});
+}
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>nav(b.dataset.s));
+function setRole(el,r){
+  document.querySelectorAll('.roles button').forEach(b=>b.classList.toggle('on',b===el));
+  if(r==='br'){toast('Роль <b>бригадира</b>: свои объекты, свои люди, чек-ины и чек-листы смен, заявки по своим объектам. Подтверждает замены и фото-отчёты.');}
+  else if(r==='cust'){toast('Роль <b>заказчика</b> (портал клиента): видит свои объекты, фото-отчёты и акты, отправляет заявки и подтверждает выполнение кнопкой. Это удержание договора.');}
+  else{toast('Роль <b>директора</b>: вся компания — объекты, люди, качество, склад, деньги.');}
+}
+
+const camSvg='<svg viewBox="0 0 24 24" fill="none" stroke="#0a1f1d" stroke-width="1.6"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.4"/></svg>';
+
+/* пульт: объекты */
+const OBJS=[
+  ['ТРЦ «Батыр»','утро 07:00–15:00 · Наталья В.',['ГА','СК','МЖ','+3'],'07:58 ✓ QR',78,'g','14/18'],
+  ['БЦ «Иртыш»','день 08:00–17:00 · Бауыржан Т.',['АС','ЕО'],'08:02 ✓ QR',64,'g','9/14'],
+  ['Завод «ПавлодарПром»','пересменка · Наталья В.',['МК','ДТ','АН'],'⚠ нет чек-ина к 08:00',35,'r','5/16'],
+  ['Клиника «Демалыс»','утро · Бауыржан Т.',['ЖС','ГК'],'07:45 ✓ QR',100,'g','12/12'],
+  ['ЖК «Набережный» · территория','день · Наталья В.',['РБ','СД'],'08:10 ✓ QR',52,'a','6/11'],
+];
+$('pultObjs').innerHTML=OBJS.map(o=>
+  '<div class="orow" onclick="toast(\'Карточка объекта в моменте: кто на смене, чек-лист по зонам, фото, заявки, связь с бригадиром. Всё то, ради чего раньше надо было ехать через весь город.\')">'+
+  '<div class="oh"><span class="onm">'+o[0]+'</span><span class="osub">'+o[1]+'</span>'+
+  '<span class="oright"><span class="chk">чек-ин <b>'+o[3]+'</b></span></span></div>'+
+  '<div class="obar"><div class="pbar"><i class="'+(o[5]==='g'?'':o[5])+'" style="width:'+o[4]+'%"></i></div><span class="pct">'+o[6]+'</span></div>'+
+  '<div class="crew"><span class="avs">'+o[2].map(a=>'<span class="av">'+a+'</span>').join('')+'</span><span class="cwt">'+o[2].length+' на смене</span>'+
+  '<span class="fchip">'+ '<svg viewBox="0 0 24 24" fill="none" stroke="#0d5c58" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.4"/></svg>'+(o[5]==='g'?'фото идут':'ждём фото')+'</span></div></div>').join('');
+
+$('pultAtt').innerHTML=[
+  ['r','Завод «ПавлодарПром»: Марат К. не отметился к 08:00','бригадиру ушёл звонок-задача · резерв: Даурен Т. в 20 мин от объекта'],
+  ['r','ТРЦ «Батыр»: жалоба заказчика — разлив у фудкорта','фото от управляющего · заявка №247 в работе · SLA 26 мин'],
+  ['a','БЦ «Иртыш»: расход геля ×1,8 от нормы','возможен перерасход или списание мимо — проверить выдачу'],
+].map(r=>'<div style="display:flex;gap:11px;align-items:center;padding:10px 0;border-bottom:1px solid var(--ln2)">'+
+  '<span class="st '+r[0]+'" style="flex:none"></span><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px">'+r[1]+'</div><div class="note">'+r[2]+'</div></div>'+
+  '<button class="btn o" style="padding:7px 12px;font-size:11.5px" onclick="toast(\'По каждому сигналу — ответственный и срок. Контроль по отклонениям вместо объезда всех объектов.\')">Открыть</button></div>').join('');
+
+$('pultPhotos').innerHTML=[['ТРЦ Батыр · 13:41','after'],['Иртыш · 13:22',''],['Демалыс · 12:58','after'],['Батыр · 12:31',''],['Набережный · 12:04','after'],['Демалыс · 11:47','after']]
+  .map(p=>'<div class="ph '+p[1]+'" style="height:64px" onclick="toast(\'Фото открывается с привязкой: объект, зона, сотрудник, время, до/после.\')">'+camSvg+'<span class="cap">'+p[0]+'</span></div>').join('');
+
+$('pultFeed').innerHTML=[
+  '<b>13:56</b> · заявка №249: запрос средств — ЖК «Набережный»',
+  '<b>13:41</b> · фото после: санузлы 2 эт., ТРЦ «Батыр» (Гульнара А.)',
+  '<b>13:36</b> · заказчик подтвердил заявку №244 — химчистка кресел ✓',
+  '<b>12:58</b> · инспекция: клиника «Демалыс» — 98/100 (супервайзер Олег)',
+  '<b>12:31</b> · доп-работа №246 согласована: мытьё витражей, 140 000 ₸',
+].map(f=>'· '+f).join('<br>');
+
+/* объекты */
+const OBJ2=[
+  ['ТРЦ «Батыр»','ТОО «Батыр Молл»','ежедневно · 2 смены','Наталья В. · 8 чел','2 400 000','98,2','g'],
+  ['БЦ «Иртыш»','УК «Иртыш Плаза»','ежедневно · 1 смена','Бауыржан Т. · 4 чел','1 150 000','96,4','g'],
+  ['Завод «ПавлодарПром»','АО «ПавлодарПром»','ежедневно · 3 смены','Наталья В. · 9 чел','2 900 000','93,1','a'],
+  ['Клиника «Демалыс»','ТОО «Демалыс Мед»','ежедневно · утро','Бауыржан Т. · 3 чел','680 000','99,0','g'],
+  ['ЖК «Набережный»','КСК «Набережный»','тер. + подъезды','Наталья В. · 6 чел','1 320 000','95,8','g'],
+  ['Сеть «Арай» · 3 магазина','ТОО «Арай Ритейл»','ежедневно · вечер','Бауыржан Т. · 5 чел','940 000','97,5','g'],
+];
+$('objBody').innerHTML=OBJ2.map(o=>
+  '<tr onclick="toast(\'Карточка объекта: договор, зоны с QR, графики и чек-листы, нормы средств, команда, история заявок и инспекций, акты.\')">'+
+  '<td><div class="cn">'+o[0]+'</div></td><td style="font-size:12.5px">'+o[1]+'</td><td style="font-size:12.5px">'+o[2]+'</td><td style="font-size:12.5px">'+o[3]+'</td>'+
+  '<td class="r">'+o[4]+'</td><td class="r"><span class="st '+o[6]+'" style="justify-content:flex-end">'+o[5]+'%</span></td></tr>').join('');
+
+/* заявки */
+const RSTAGES=['Новая','Назначена','В работе','Фото-отчёт','Подтверждена'];
+const REQS=[
+  ['№247 · Разлив у фудкорта','ТРЦ «Батыр» · от управляющего, WhatsApp + фото','inc','SLA 26 мин',2],
+  ['№249 · Гель для пола, перчатки','ЖК «Набережный» · запрос с телефона уборщицы','sup','сегодня',0],
+  ['№248 · Мытьё окон 4 этаж','БЦ «Иртыш» · доп-работа · смета 90 000 ₸','dop','согласование',1],
+  ['№246 · Витражи входной группы','ТРЦ «Батыр» · доп · 140 000 ₸ · согласована','dop','завтра 06:00',2],
+  ['№245 · Генуборка после ремонта','Клиника «Демалыс» · доп · 260 000 ₸','dop','фото загружены',3],
+  ['№244 · Химчистка кресел холла','БЦ «Иртыш» · доп · 120 000 ₸','dop','✓ заказчик принял',4],
+  ['№243 · Наледь у входа №3','ЖК «Набережный» · инцидент','inc','✓ 42 мин',4],
+];
+$('reqKan').innerHTML=RSTAGES.map((st,i)=>{
+  const rs=REQS.filter(r=>r[4]===i);
+  return '<div class="kcol"><h4>'+st+'<span class="num">'+rs.length+'</span></h4>'+rs.map(r=>
+    '<div class="kcard" onclick="toast(\'Заявка: источник (WhatsApp/Telegram/портал заказчика), фото, исполнитель, SLA-таймер, смета для доп-работ. Закрытие — фото-отчётом, подтверждение — кнопкой у заказчика.\')">'+
+    '<div class="kt">'+r[0]+'</div><div class="kc2">'+r[1]+'</div>'+
+    '<div class="kf"><span class="tag '+r[2]+'">'+(r[2]==='inc'?'инцидент':r[2]==='dop'?'доп-работа':'средства')+'</span><span class="sla" style="color:'+(r[2]==='inc'?'var(--cor)':'var(--mut)')+'">'+r[3]+'</span></div></div>').join('')+'</div>';
+}).join('');
+
+/* качество */
+$('qcCheck').innerHTML=[
+  ['Санузлы 2 этаж — уборка + дезинфекция',1,'09:15'],
+  ['Холл — полы, витрины',1,'10:02'],
+  ['Эскалаторы — поручни',1,'10:40'],
+  ['Фудкорт — столы, полы',1,'11:38'],
+  ['Паркинг — урны, разметка',0,''],
+  ['Санузлы 1 этаж — вечерний круг',0,''],
+].map(c=>'<div class="cl-row'+(c[1]?' done':'')+'"><span class="box">'+(c[1]?'✓':'')+'</span><span class="t" style="flex:1">'+c[0]+'</span>'+(c[1]?'<span class="fchip">'+ '<svg viewBox="0 0 24 24" fill="none" stroke="#0d5c58" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.4"/></svg>2 фото</span>':'')+'<span class="tm">'+c[2]+'</span></div>').join('');
+
+$('qcPairs').innerHTML=[['07:42','09:15'],['07:44','09:18']].map(p=>
+  '<div class="pair"><div class="ph" onclick="toast(\'Фото «до» — фиксирует состояние на приход смены.\')">'+camSvg+'<span class="cap">до · '+p[0]+'</span></div><span class="arr">→</span><div class="ph after" onclick="toast(\'Фото «после» — без него зона не закрывается в чек-листе.\')">'+camSvg+'<span class="cap">после · '+p[1]+'</span></div></div>').join('');
+
+$('qcScores').innerHTML=[
+  ['Клиника «Демалыс»','Бауыржан Т.',99],
+  ['ТРЦ «Батыр»','Наталья В.',98],
+  ['Сеть «Арай»','Бауыржан Т.',97],
+  ['ЖК «Набережный»','Наталья В.',96],
+  ['Завод «ПавлодарПром»','Наталья В.',93],
+].map(s=>'<div class="score" onclick="toast(\'Оценка раскладывается: чек-листы, инспекции, подтверждения заказчика, жалобы. Видно, что именно проседает.\')"><div class="sn">'+s[0]+'<span>'+s[1]+'</span></div><div class="sb"><i style="width:'+s[2]+'%;background:'+(s[2]<95?'var(--amb)':'var(--aqua)')+'"></i></div><span class="sv">'+s[2]+'</span></div>').join('');
+
+$('qcInsp').innerHTML=[
+  ['Клиника «Демалыс»','сегодня 12:58 · Олег С.','98/100','g'],
+  ['Завод «ПавлодарПром»','вчера 16:20 · Олег С.','88/100 · пыль на перилах','a'],
+  ['ТРЦ «Батыр»','04.07 · внезапная','96/100','g'],
+].map(i=>'<div class="score" onclick="toast(\'Инспекция: супервайзер проходит объект по чек-листу с фотофиксацией. Внезапные проверки держат качество без вашего личного присутствия.\')"><div class="sn">'+i[0]+'<span>'+i[1]+'</span></div><span class="sv" style="width:auto"><span class="st '+i[3]+'">'+i[2]+'</span></span></div>').join('');
+
+/* смены */
+$('shiftBody').innerHTML=[
+  ['Гульнара А.','ТРЦ «Батыр» · утро','07:58','—','g','на смене'],
+  ['Салтанат К.','ТРЦ «Батыр» · утро (замена)','07:52','—','b','замена ✓'],
+  ['Асем Е.','БЦ «Иртыш» · день','08:02','—','g','на смене'],
+  ['Марат К.','Завод «ППром» · день','—','—','r','нет чек-ина'],
+  ['Жанар С.','Клиника · утро','07:45','13:02','gy','смена закрыта'],
+  ['Ерлан О.','Сеть «Арай» · вечер','—','—','gy','смена в 18:00'],
+].map(s=>'<tr onclick="toast(\'Карточка сотрудника: смены, чек-ины с геометками, фото за смену, опоздания, допуски к объектам (медкнижка, пропуск на завод).\')">'+
+  '<td><div class="cn" style="font-size:13.5px">'+s[0]+'</div></td><td style="font-size:12.5px">'+s[1]+'</td>'+
+  '<td class="r">'+s[2]+'</td><td class="r">'+s[3]+'</td><td><span class="st '+s[4]+'">'+s[5]+'</span></td></tr>').join('');
+
+/* склад */
+$('stockBody').innerHTML=[
+  ['Гель для пола 5л, проф.','46 шт','31 шт','52 шт','g','в норме'],
+  ['Дезинфектор санузлов','12 шт','18 шт','36 шт','r','закупить'],
+  ['Перчатки нитрил (уп. 100)','58 уп','24 уп','60 уп','g','в норме'],
+  ['Мешки 120л (рул.)','9 рул','14 рул','30 рул','r','закупить'],
+  ['Салфетки микрофибра','120 шт','210 шт','240 шт','g','в норме'],
+  ['Средство для стёкол 1л','34 шт','12 шт','28 шт','g','в норме'],
+].map(s=>'<tr onclick="toast(\'Позиция: партии, цены закупа, выдачи по объектам, кто получил. Расход против нормы площади — автоматически.\')">'+
+  '<td><div class="cn" style="font-size:13.5px">'+s[0]+'</div></td><td class="r">'+s[1]+'</td><td class="r">'+s[2]+'</td><td class="r">'+s[3]+'</td>'+
+  '<td><span class="st '+s[4]+'">'+s[5]+'</span></td></tr>').join('');
+
+$('stockReq').innerHTML=[
+  ['ЖК «Набережный»','гель ×2, перчатки ×4','новая · 13:56','a'],
+  ['ТРЦ «Батыр»','дезинфектор ×3','собрана · выдача 16:00','b'],
+  ['Завод «ППром»','мешки 120л ×6','выдано вчера ✓','g'],
+].map(r=>'<div class="score" onclick="toast(\'Запрос уходит с телефона уборщицы в 1 клик. Завхоз собирает выдачу списком, водитель развозит по маршруту.\')"><div class="sn">'+r[0]+'<span>'+r[1]+'</span></div><span class="sv" style="width:auto"><span class="st '+r[3]+'">'+r[2]+'</span></span></div>').join('');
+
+/* финансы */
+$('finBody').innerHTML=[
+  ['Завод «ПавлодарПром»','2 900 000','1 890 000','214 000','27%'],
+  ['ТРЦ «Батыр»','2 400 000','1 460 000','168 000','32%'],
+  ['ЖК «Набережный»','1 320 000','842 000','96 000','29%'],
+  ['БЦ «Иртыш»','1 150 000','780 000','118 000','22% ⚠'],
+  ['Сеть «Арай»','940 000','562 000','64 000','33%'],
+  ['Клиника «Демалыс»','680 000','414 000','52 000','31%'],
+].map(f=>'<tr onclick="toast(\'Разложение маржи: смены из табеля × ставки + реальный расход средств. БЦ «Иртыш» проседает из-за перерасхода геля — уже в сигналах.\')">'+
+  '<td><div class="cn" style="font-size:13.5px">'+f[0]+'</div></td><td class="r">'+f[1]+'</td><td class="r">'+f[2]+'</td><td class="r">'+f[3]+'</td>'+
+  '<td class="r" style="color:'+(f[4].includes('⚠')?'var(--amb)':'var(--aqua)')+'">'+f[4]+'</td></tr>').join('');
+
+$('finDop').innerHTML=[
+  ['Генуборка после ремонта · Демалыс','260 000','фото-отчёт'],
+  ['Витражи · ТРЦ «Батыр»','140 000','в работе'],
+  ['Химчистка кресел · БЦ «Иртыш»','120 000','оплачено ✓'],
+  ['Мытьё окон 4 эт. · БЦ «Иртыш»','90 000','смета у заказчика'],
+  ['Ещё 9 заявок за июль','1 250 000','—'],
+].map(d=>'<div class="score"><div class="sn">'+d[0]+'<span>'+d[2]+'</span></div><span class="sv" style="width:86px" class="num">'+d[1]+'</span></div>').join('');
+
+setTimeout(()=>toast('Здравствуйте, <b>Денис</b>! Это демо-портал TAZA: живой пульт всех объектов, чек-ины по QR, фото «до/после» с телефонов уборщиц, заявки заказчиков с SLA и склад моющих средств. Начните с «Пульта» и вкладки «Заявки» — нажимайте на всё.'),700);
+const q=new URLSearchParams(location.search);if(q.get('s'))nav(q.get('s'));
+</script>
+</body>
+</html>
