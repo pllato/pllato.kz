@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Оценка кандидата — Pllato</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="../../pllato_favicon_64.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0a1628; --bronze:#b8895a; --bronze-deep:#8b6740; --bronze-tint:rgba(184,137,90,.08);
+  --bg:#fafaf6; --surface:#fff; --surface-2:#f3f0e8; --text:#0f1620; --text-2:#4a5163; --text-3:#8a8d96;
+  --line:#e8e2d4; --line-2:#ede9de; --green:#16a34a; --red:#c0392b; --amber:#d98324;
+  --r-md:10px; --r-lg:16px; --shadow:0 8px 30px -12px rgba(10,22,40,.18);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:16px;line-height:1.5}
+.wrap{max-width:720px;margin:0 auto;padding:16px 16px 80px}
+.top{position:sticky;top:0;z-index:20;background:var(--navy);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px}
+.top .brand{font-weight:800;letter-spacing:.3px}
+.top .tag{font-size:11px;font-family:'JetBrains Mono',monospace;background:var(--bronze);color:#1a1205;padding:3px 8px;border-radius:6px}
+.top .sp{flex:1}
+.top .timer{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;background:rgba(255,255,255,.1);padding:5px 10px;border-radius:8px}
+.top .timer.warn{background:var(--amber);color:#1a1205}
+.progress{height:4px;background:var(--line);border-radius:3px;overflow:hidden;margin:0 0 18px}
+.progress > i{display:block;height:100%;background:var(--bronze);transition:width .3s}
+h1{font-size:24px;font-weight:800;margin:6px 0 8px;letter-spacing:-.4px}
+h2{font-size:19px;font-weight:700;margin:4px 0 10px}
+p{color:var(--text-2);margin:0 0 12px}
+.muted{color:var(--text-3);font-size:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px;box-shadow:var(--shadow);margin-bottom:16px}
+.note{background:var(--bronze-tint);border:1px solid var(--line);border-radius:var(--r-md);padding:12px 14px;font-size:14px;color:var(--text-2)}
+.note.warn{background:#fff7ec;border-color:#f0d9b5}
+.btn{appearance:none;border:none;font-family:inherit;font-weight:700;font-size:16px;cursor:pointer;border-radius:12px;padding:14px 22px;transition:.12s;display:inline-flex;align-items:center;gap:8px}
+.btn.primary{background:var(--navy);color:#fff}
+.btn.primary:hover{background:#132339}
+.btn.primary:disabled{opacity:.4;cursor:default}
+.btn.ghost{background:var(--surface-2);color:var(--text)}
+.btn.block{display:flex;width:100%;justify-content:center}
+.foot{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(transparent,var(--bg) 26%);padding:16px;z-index:15}
+.foot .inner{max-width:720px;margin:0 auto;display:flex;gap:10px}
+.field{margin-bottom:14px}
+.field label{display:block;font-weight:600;font-size:14px;margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;font-family:inherit;font-size:16px;padding:12px;border:1px solid var(--line);border-radius:var(--r-md);background:#fff}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.seg button{flex:1;min-width:64px;border:1px solid var(--line);background:#fff;border-radius:var(--r-md);padding:12px 8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;color:var(--text-2)}
+.seg button.on{border-color:var(--navy);background:var(--navy);color:#fff}
+/* Likert */
+.likert{border:1px solid var(--line);border-radius:var(--r-md);padding:14px 14px 8px;margin-bottom:12px;background:#fff}
+.likert .q{font-weight:600;margin-bottom:12px}
+.scale5{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.scale5 button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:10px 4px 8px;cursor:pointer;font-family:inherit;font-weight:700;font-size:15px;color:var(--text-2);display:flex;flex-direction:column;align-items:center;gap:3px}
+.scale5 button small{font-size:9px;font-weight:600;color:var(--text-3);line-height:1.1;text-align:center}
+.scale5 button.on{border-color:var(--bronze);background:var(--bronze);color:#fff}
+.scale5 button.on small{color:rgba(255,255,255,.85)}
+/* options (SJT / cognitive / knowledge) */
+.opt{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:var(--r-md);padding:14px;margin-bottom:10px;cursor:pointer;background:#fff}
+.opt:hover{border-color:var(--bronze-deep)}
+.opt.on{border-color:var(--navy);background:var(--bronze-tint)}
+.opt .mk{width:26px;height:26px;border-radius:7px;border:1.5px solid var(--line);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--text-3)}
+.opt.on .mk{background:var(--navy);border-color:var(--navy);color:#fff}
+.opt.best.on{border-color:var(--green);background:#eafaf0}.opt.best.on .mk{background:var(--green);border-color:var(--green)}
+.opt.worst.on{border-color:var(--red);background:#fdeeec}.opt.worst.on .mk{background:var(--red);border-color:var(--red)}
+.bw{display:flex;gap:8px;margin-bottom:10px}
+.bw button{flex:1;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px;font-family:inherit;font-weight:700;cursor:pointer;font-size:13px}
+.bw button.on-best{border-color:var(--green);background:#eafaf0;color:var(--green)}
+.bw button.on-worst{border-color:var(--red);background:#fdeeec;color:var(--red)}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-width:340px;margin:0 auto 16px}
+.cell{aspect-ratio:1;border:1px solid var(--line);border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:center}
+.cell.q{background:var(--surface-2);border-style:dashed;font-size:30px;color:var(--text-3)}
+.optgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.optcell{aspect-ratio:1;border:1.5px solid var(--line);border-radius:9px;background:#fff;cursor:pointer;padding:5px}
+.optcell.on{border-color:var(--navy);background:var(--bronze-tint)}
+.codebox{font-family:'JetBrains Mono',monospace;font-size:12px;word-break:break-all;background:var(--navy);color:#cfe;padding:14px;border-radius:var(--r-md);max-height:150px;overflow:auto;user-select:all}
+.pairs{font-family:'JetBrains Mono',monospace;font-size:15px;text-align:center;margin:14px 0;line-height:2}
+.big-center{min-height:40vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+svg.shape{width:100%;height:100%;display:block}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="top">
+  <span class="brand">Pllato</span><span class="tag">ОЦЕНКА</span>
+  <span class="sp"></span>
+  <span id="timer" class="timer hidden">00:00</span>
+</div>
+<div class="wrap">
+  <div class="progress hidden" id="progressBar"><i style="width:0"></i></div>
+  <div id="app"></div>
+</div>
+<div class="foot hidden" id="foot"><div class="inner">
+  <button class="btn ghost hidden" id="prevBtn">Назад</button>
+  <button class="btn primary block" id="nextBtn">Далее</button>
+</div></div>
+
+<!-- данные -->
+<script src="data/positions.js"></script>
+<script src="data/personality.js"></script>
+<script src="data/cognitive.js"></script>
+<script src="data/abstract.js"></script>
+<script src="data/knowledge.js"></script>
+<script src="data/sjt.js"></script>
+<script src="data/integrity.js"></script>
+<script src="data/biodata.js"></script>
+<script src="core.js"></script>
+<script>
+/* ============ Утилиты ============ */
+const $ = s => document.querySelector(s);
+const app = $('#app'), foot = $('#foot'), nextBtn = $('#nextBtn'), prevBtn = $('#prevBtn');
+const timerEl = $('#timer'), progressBar = $('#progressBar');
+const qp = new URLSearchParams(location.search);
+function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function fmtTime(s){const m=Math.floor(s/60),x=s%60;return String(m).padStart(2,'0')+':'+String(x).padStart(2,'0')}
+function shuffle(a,seed){a=a.slice();let r=seed||1;for(let i=a.length-1;i>0;i--){r=(r*9301+49297)%233280;const j=Math.floor(r/233280*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+/* Рендер фигуры-примитива в SVG */
+function renderShapes(prims){
+  if(!prims||!prims.length) return '';
+  const sz={s:14,m:20,l:28};
+  let parts=[];
+  const spread = prims.length>1;
+  prims.forEach((p,i)=>{
+    const r=sz[p.size]||20;
+    const cx = spread ? (100/(prims.length+1))*(i+1) : 50;
+    const cy = 50;
+    const fill = p.fill? '#0f1620':'none';
+    const stroke='#0f1620', sw=3;
+    let el='';
+    if(p.shape==='circle') el=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+    else if(p.shape==='square') el=`<rect x="${cx-r}" y="${cy-r}" width="${2*r}" height="${2*r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" transform="rotate(${p.rot||0} ${cx} ${cy})"/>`;
+    else if(p.shape==='triangle'){const h=r*1.2;el=`<polygon points="${cx},${cy-h} ${cx-r},${cy+r*0.7} ${cx+r},${cy+r*0.7}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" transform="rotate(${p.rot||0} ${cx} ${cy})"/>`}
+    else if(p.shape==='arrow'){el=`<g transform="rotate(${p.rot||0} ${cx} ${cy})"><line x1="${cx}" y1="${cy+r}" x2="${cx}" y2="${cy-r}" stroke="${stroke}" stroke-width="${sw}"/><polyline points="${cx-r*0.5},${cy-r*0.4} ${cx},${cy-r} ${cx+r*0.5},${cy-r*0.4}" fill="none" stroke="${stroke}" stroke-width="${sw}"/></g>`}
+    parts.push(el);
+  });
+  return `<svg class="shape" viewBox="0 0 100 100">${parts.join('')}</svg>`;
+}
+
+/* ============ Состояние ============ */
+const POS = window.HR_POSITIONS;
+let state = {
+  fam:null, kp:null, cform:'A', cand:{name:'',sex:'m',age:'y'},
+  modules:[], mi:0, // module index
+  ans:{ personality:{}, fc:[], cognitive:[], sjt:[], integrity:{}, biodata:{}, knowledge:[], attention:null, cogTimes:{} },
+  telemetry:{blur:0,paste:0}, startTs:0
+};
+window.addEventListener('blur',()=>{ if(state.startTs) state.telemetry.blur++ });
+document.addEventListener('paste',()=>{ if(state.startTs) state.telemetry.paste++ });
+
+/* ============ Роутер экранов ============ */
+function setFoot(show,{next='Далее',prev=false,nextEnabled=true}={}){
+  foot.classList.toggle('hidden',!show);
+  nextBtn.textContent=next; nextBtn.disabled=!nextEnabled;
+  prevBtn.classList.toggle('hidden',!prev);
+}
+function setProgress(f){progressBar.classList.remove('hidden');progressBar.firstElementChild.style.width=(f*100)+'%'}
+
+/* ---- Старт ---- */
+function screenIntro(){
+  timerEl.classList.add('hidden'); progressBar.classList.add('hidden');
+  const preset = qp.get('pos');
+  let picker='';
+  if(!preset){
+    picker = `<div class="field"><label>Должность, на которую вы претендуете</label><div class="seg" id="posSeg">`+
+      Object.values(POS).map(p=>`<button data-p="${p.id}">${p.icon} ${p.short}</button>`).join('')+`</div></div>`;
+  }
+  app.innerHTML = `
+    <h1>Оценка кандидата</h1>
+    <p>Это профессиональный опросник для подбора персонала. Он занимает <b>${preset?POS[preset].time:'30–55 минут'}</b> в зависимости от должности. Отвечайте честно — «правильных» ответов в личностной части нет, а в тесте есть встроенные проверки достоверности.</p>
+    <div class="card">
+      <div class="field"><label>Ваше имя и фамилия</label><input id="fName" placeholder="Например, Ерлан Ахметов"></div>
+      <div class="field"><label>Пол</label><div class="seg" id="sexSeg"><button data-v="m" class="on">Мужской</button><button data-v="f">Женский</button></div></div>
+      <div class="field"><label>Возраст</label><div class="seg" id="ageSeg"><button data-v="y" class="on">18–35</button><button data-v="o">36 и старше</button></div></div>
+      ${picker}
+    </div>
+    <div class="note warn">Результат вы получите в виде кода в конце. Скопируйте его и отправьте работодателю (например, в WhatsApp) — по нему он увидит ваш профиль. Персональные данные обрабатываются с вашего согласия для оценки соответствия должности.</div>`;
+  let pick = preset||null;
+  app.querySelectorAll('#sexSeg button').forEach(b=>b.onclick=()=>{app.querySelectorAll('#sexSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');state.cand.sex=b.dataset.v});
+  app.querySelectorAll('#ageSeg button').forEach(b=>b.onclick=()=>{app.querySelectorAll('#ageSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');state.cand.age=b.dataset.v});
+  if(!preset) app.querySelectorAll('#posSeg button').forEach(b=>b.onclick=()=>{app.querySelectorAll('#posSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');pick=b.dataset.p;updateNext()});
+  function updateNext(){nextBtn.disabled=!pick}
+  setFoot(true,{next:'Начать',nextEnabled:!!preset});
+  nextBtn.onclick=()=>{
+    if(!pick) return;
+    state.fam=pick; const p=POS[pick];
+    state.cand.name = $('#fName').value.trim();
+    state.kp = qp.get('kp') || p.knowledgeProfile || null;
+    state.cform = p.cognitiveForm || qp.get('form') || 'A';
+    state.modules = p.modules.slice();
+    state.startTs=Date.now();
+    state.mi=0; runModule();
+  };
+}
+
+/* ---- Диспетчер модулей ---- */
+const MODULE_TITLES = {
+  personality:'Опросник о вас', cognitive:'Тест способностей', attention:'Внимательность',
+  sjt:'Рабочие ситуации', integrity:'Рабочие установки', biodata:'Опыт и результаты', knowledge:'Профессиональные знания'
+};
+function runModule(){
+  const m = state.modules[state.mi];
+  if(!m){ return screenFinish(); }
+  setProgress(state.mi/state.modules.length);
+  const runners={personality:runPersonality,cognitive:runCognitive,attention:runAttention,sjt:runSJT,integrity:runIntegrity,biodata:runBiodata,knowledge:runKnowledge};
+  runners[m]();
+}
+function nextModule(){ state.mi++; window.scrollTo(0,0); runModule(); }
+
+/* модульный интро-экран */
+function moduleIntro(title,desc,onStart,warn){
+  timerEl.classList.add('hidden');
+  app.innerHTML=`<div class="big-center"><h1>${title}</h1><p style="max-width:460px">${desc}</p>${warn?`<div class="note warn" style="max-width:460px;text-align:left">${warn}</div>`:''}</div>`;
+  setFoot(true,{next:'Начать раздел'}); nextBtn.onclick=onStart;
+}
+
+/* ============ Личность ============ */
+function runPersonality(){
+  const items = window.HR_PERSONALITY.items;
+  const perPage=12; const pages=[]; for(let i=0;i<items.length;i+=perPage) pages.push(items.slice(i,i+perPage));
+  let pg=0;
+  const scaleLabels=['совсем нет','скорее нет','средне','скорее да','точно да'];
+  moduleIntro(MODULE_TITLES.personality,
+    'Ниже — утверждения о том, как вы обычно думаете и действуете. Отметьте, насколько каждое похоже на вас. Здесь нет правильных ответов.',
+    ()=>render(),
+    'В опроснике есть скрытые проверки достоверности. Приукрашенные или невнимательные ответы будут помечены. Отвечайте честно.');
+  function render(){
+    const page=pages[pg];
+    app.innerHTML = page.map(it=>{
+      const cur=state.ans.personality[it.id];
+      return `<div class="likert"><div class="q">${esc(it.text)}</div><div class="scale5" data-id="${it.id}">`+
+        [1,2,3,4,5].map(v=>`<button data-v="${v}" class="${cur===v?'on':''}">${v}<small>${scaleLabels[v-1]}</small></button>`).join('')+
+      `</div></div>`;
+    }).join('');
+    app.querySelectorAll('.scale5').forEach(row=>row.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+      state.ans.personality[row.dataset.id]=+b.dataset.v;
+      row.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+      checkDone();
+    }));
+    setProgress((state.mi + (pg+1)/(pages.length+1))/state.modules.length);
+    setFoot(true,{next: pg<pages.length-1?'Далее':'К выбору',prev:pg>0}); checkDone();
+    prevBtn.onclick=()=>{pg--;window.scrollTo(0,0);render()};
+    nextBtn.onclick=()=>{ if(pg<pages.length-1){pg++;window.scrollTo(0,0);render()} else runFC(); };
+    window.scrollTo(0,0);
+  }
+  function checkDone(){ nextBtn.disabled = !pages[pg].every(it=>state.ans.personality[it.id]!=null); }
+}
+function runFC(){
+  const blocks=window.HR_PERSONALITY.forced_choice; let i=0; state.ans.fc=state.ans.fc||[];
+  render();
+  function render(){
+    const b=blocks[i]; const cur=state.ans.fc[i]||{};
+    app.innerHTML=`<h2>Что о вас в первую очередь?</h2><p class="muted">В каждой тройке отметьте, что <b>больше всего</b> и что <b>меньше всего</b> похоже на вас.</p>`+
+      b.statements.map((s,si)=>`<div class="fcrow" style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px">
+        <div style="margin-bottom:8px">${esc(s.text)}</div>
+        <div class="bw" data-si="${si}"><button data-t="best" class="${cur.best===si?'on-best':''}">Больше всего</button><button data-t="worst" class="${cur.worst===si?'on-worst':''}">Меньше всего</button></div></div>`).join('');
+    app.querySelectorAll('.bw').forEach(row=>row.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
+      const si=+row.dataset.si,t=btn.dataset.t; const o=state.ans.fc[i]||{};
+      if(t==='best'){ if(o.worst===si)o.worst=undefined; o.best=si } else { if(o.best===si)o.best=undefined; o.worst=si }
+      state.ans.fc[i]=o; render();
+    }));
+    setProgress((state.mi + 0.9)/state.modules.length);
+    const o=state.ans.fc[i]||{};
+    setFoot(true,{next:i<blocks.length-1?'Далее':'Готово',prev:i>0,nextEnabled:o.best!=null&&o.worst!=null});
+    prevBtn.onclick=()=>{i--;render()};
+    nextBtn.onclick=()=>{ if(i<blocks.length-1){i++;render()} else nextModule(); };
+  }
+}
+
+/* ============ Когнитивный (секции с таймером) ============ */
+let timerHandle=null;
+function startTimer(sec,onEnd){
+  stopTimer(); let left=sec; timerEl.classList.remove('hidden'); paint();
+  timerHandle=setInterval(()=>{ left--; paint(); if(left<=0){stopTimer();onEnd()} },1000);
+  function paint(){ timerEl.textContent=fmtTime(left); timerEl.classList.toggle('warn',left<=30) }
+}
+function stopTimer(){ if(timerHandle){clearInterval(timerHandle);timerHandle=null} timerEl.classList.add('hidden') }
+
+function cognitiveItemsFor(section){
+  const form=state.cform;
+  if(section==='A') return window.HR_ABSTRACT.items.filter(x=>x.form===form);
+  return window.HR_COGNITIVE.items.filter(x=>x.section===section && x.form===form);
+}
+function runCognitive(){
+  // секции: V (вербальная), N (числовая), A (абстрактная)
+  const budgets = state.cform==='C' ? {V:180,N:180,A:240} : {V:240,N:300,A:240};
+  const secs=[{k:'V',t:'Логика и слова',b:budgets.V},{k:'N',t:'Числа',b:budgets.N},{k:'A',t:'Фигуры и закономерности',b:budgets.A}];
+  let si=0;
+  moduleIntro(MODULE_TITLES.cognitive,
+    'Три коротких раздела с таймером: слова, числа, фигуры. Работайте быстро и точно. Калькулятор не нужен и не разрешён — часть ответов выборочно перепроверяется на собеседовании.',
+    ()=>runSec(),null);
+  function runSec(){
+    const sec=secs[si]; const items=cognitiveItemsFor(sec.k); let qi=0;
+    const answers=new Array(items.length).fill(null); const times=new Array(items.length).fill(0);
+    let itemStart=Date.now(); const secStart=Date.now(); let ended=false;
+    // интро раздела
+    app.innerHTML=`<div class="big-center"><h2>Раздел: ${sec.t}</h2><p>${items.length} заданий, ${Math.floor(sec.b/60)} мин. Отвечать можно только вперёд.</p></div>`;
+    timerEl.classList.add('hidden');
+    setFoot(true,{next:'Начать'});
+    nextBtn.onclick=()=>{ startTimer(sec.b,endSec); paint(); };
+    function paint(){
+      const it=items[qi]; itemStart=Date.now();
+      if(sec.k==='A') app.innerHTML=renderAbstract(it,answers[qi]);
+      else app.innerHTML=renderVN(it,answers[qi],qi,items.length);
+      if(sec.k==='A'){
+        app.querySelectorAll('.optcell').forEach((c,ci)=>c.onclick=()=>{answers[qi]=ci;app.querySelectorAll('.optcell').forEach(x=>x.classList.remove('on'));c.classList.add('on');nextBtn.disabled=false});
+      } else {
+        app.querySelectorAll('.opt').forEach((o,ci)=>o.onclick=()=>{answers[qi]=ci;app.querySelectorAll('.opt').forEach(x=>x.classList.remove('on'));o.classList.add('on');nextBtn.disabled=false});
+      }
+      setFoot(true,{next: qi<items.length-1?'Далее':'Завершить раздел',nextEnabled:answers[qi]!=null});
+      nextBtn.onclick=advance;
+      window.scrollTo(0,0);
+    }
+    function advance(){
+      times[qi]=Math.round((Date.now()-itemStart)/1000);
+      if(qi<items.length-1){qi++;paint()} else endSec();
+    }
+    function endSec(){
+      if(ended) return; ended=true; stopTimer();
+      if(!times[qi]) times[qi]=Math.round((Date.now()-itemStart)/1000);
+      items.forEach((it,i)=>state.ans.cognitive.push({id:it.id,a:answers[i],t:times[i]}));
+      state.ans.cogTimes[sec.k]=Math.round((Date.now()-secStart)/1000);
+      si++; if(si<secs.length) runSec(); else nextModule();
+    }
+  }
+}
+function renderVN(it,cur,idx,total){
+  return `<div class="muted" style="margin-bottom:8px">Задание ${idx+1} из ${total}</div><h2 style="font-size:18px">${esc(it.stem)}</h2>`+
+    it.options.map((o,i)=>`<div class="opt ${cur===i?'on':''}"><div class="mk">${'АБВГД'[i]}</div><div>${esc(o)}</div></div>`).join('');
+}
+function renderAbstract(it,cur){
+  const cells=it.grid.map(c=>c===null?`<div class="cell q">?</div>`:`<div class="cell">${renderShapes(c)}</div>`).join('');
+  const opts=it.options.map((o,i)=>`<div class="optcell ${cur===i?'on':''}">${renderShapes(o)}</div>`).join('');
+  return `<div class="muted" style="margin-bottom:8px">${esc(it.prompt||'Найдите недостающую фигуру')}</div>
+    <div class="grid3">${cells}</div><div class="muted" style="text-align:center;margin-bottom:6px">Выберите ответ:</div><div class="optgrid">${opts}</div>`;
+}
+
+/* ============ Внимательность (генерация пар) ============ */
+function genPairs(n,seed){
+  let r=seed||7; const rnd=(m)=>{r=(r*9301+49297)%233280;return Math.floor(r/233280*m)};
+  const kinds=['iin','contract','iban','too'];
+  const out=[];
+  for(let i=0;i<n;i++){
+    const k=kinds[rnd(kinds.length)]; let a='';
+    if(k==='iin') a=Array.from({length:12},()=>rnd(10)).join('');
+    else if(k==='contract') a='СМР-'+(2020+rnd(6))+'/'+(100+rnd(900))+'-'+'АБВГ'[rnd(4)];
+    else if(k==='iban') a='KZ'+(10+rnd(89))+'601A'+Array.from({length:10},()=>rnd(10)).join('');
+    else a='ТОО «'+['СтройМонтаж','КазСервис','АлашГрупп','ТемирБетон','ГрандБуд'][rnd(5)]+(rnd(2)?'Сервис':'Строй')+'»';
+    let b=a; const same=rnd(2)===0;
+    if(!same){ // внести отличие
+      const s=a.split(''); const pos=1+rnd(s.length-2);
+      if(/\d/.test(s[pos])) s[pos]=String((+s[pos]+1)%10); else s[pos]=s[pos]==='о'?'0':(s[pos]==='и'?'н':'х');
+      b=s.join('');
+    }
+    out.push({a,b,same});
+  }
+  return out;
+}
+function runAttention(){
+  const pairs=genPairs(24,Date.now()%9999); let qi=0; let correct=0,errors=0;
+  moduleIntro(MODULE_TITLES.attention,
+    'Быстро сравнивайте две записи. Нажмите «Одинаково», если они полностью совпадают, или «Различаются», если есть хоть одно отличие. У вас 90 секунд.',
+    ()=>{ startTimer(90,end); paint(); },null);
+  function paint(){
+    if(qi>=pairs.length){ return end(); }
+    const p=pairs[qi];
+    app.innerHTML=`<div class="muted" style="text-align:center">Пара ${qi+1}</div><div class="pairs">${esc(p.a)}<br>${esc(p.b)}</div>
+      <div class="seg"><button id="same">Одинаково</button><button id="diff">Различаются</button></div>`;
+    foot.classList.add('hidden');
+    $('#same').onclick=()=>ans(true); $('#diff').onclick=()=>ans(false);
+  }
+  function ans(v){ const p=pairs[qi]; if(v===p.same)correct++;else errors++; qi++; paint(); }
+  function end(){ stopTimer(); state.ans.attention={correct,errors,total:qi}; nextModule(); }
+}
+
+/* ============ SJT ============ */
+function runSJT(){
+  const scen=window.HR_SJT[POS[state.fam].sjtBank]; let i=0; state.ans.sjt=[];
+  moduleIntro(MODULE_TITLES.sjt,
+    'Рабочие ситуации. В каждой отметьте, как поступить <b>правильнее всего</b> и что делать <b>точно не стоит</b>.',
+    ()=>render(),null);
+  function render(){
+    const s=scen[i]; const cur=state.ans.sjt[i]||{};
+    app.innerHTML=`<div class="muted">Ситуация ${i+1} из ${scen.length}</div><h2 style="font-size:18px">${esc(s.title)}</h2><p>${esc(s.text)}</p>`+
+      s.options.map((o,oi)=>`<div class="opt" data-oi="${oi}"><div class="mk">${'АБВГ'[oi]}</div><div style="flex:1">${esc(o)}
+        <div class="bw" style="margin-top:8px"><button data-t="best" class="${cur.best===oi?'on-best':''}">👍 Правильнее</button><button data-t="worst" class="${cur.worst===oi?'on-worst':''}">👎 Не стоит</button></div></div></div>`).join('');
+    app.querySelectorAll('.opt').forEach(op=>op.querySelectorAll('.bw button').forEach(btn=>btn.onclick=(e)=>{
+      e.stopPropagation(); const oi=+op.dataset.oi,t=btn.dataset.t; const o=state.ans.sjt[i]||{};
+      if(t==='best'){ if(o.worst===oi)o.worst=undefined; o.best=oi } else { if(o.best===oi)o.best=undefined; o.worst=oi }
+      state.ans.sjt[i]=o; render();
+    }));
+    setProgress((state.mi+(i+1)/(scen.length+1))/state.modules.length);
+    const o=state.ans.sjt[i]||{};
+    setFoot(true,{next:i<scen.length-1?'Далее':'Готово',prev:i>0,nextEnabled:o.best!=null&&o.worst!=null});
+    prevBtn.onclick=()=>{i--;window.scrollTo(0,0);render()};
+    nextBtn.onclick=()=>{ if(i<scen.length-1){i++;window.scrollTo(0,0);render()} else nextModule(); };
+    window.scrollTo(0,0);
+  }
+}
+
+/* ============ Integrity ============ */
+function runIntegrity(){
+  const fam=state.fam; const items=window.HR_INTEGRITY.core.concat(window.HR_INTEGRITY[fam]||[]);
+  const likert=items.filter(x=>x.type!=='projection');
+  const proj=items.filter(x=>x.type==='projection');
+  const scaleLabels=['совсем нет','скорее нет','средне','скорее да','точно да'];
+  moduleIntro(MODULE_TITLES.integrity,
+    'Насколько вы согласны с каждым утверждением о работе? Здесь важна ваша честная позиция.',
+    ()=>render(),null);
+  function render(){
+    app.innerHTML = likert.map(it=>{
+      const cur=state.ans.integrity[it.id];
+      return `<div class="likert"><div class="q">${esc(it.text)}</div><div class="scale5" data-id="${it.id}">`+
+        [1,2,3,4,5].map(v=>`<button data-v="${v}" class="${cur===v?'on':''}">${v}<small>${scaleLabels[v-1]}</small></button>`).join('')+`</div></div>`;
+    }).join('') + proj.map(it=>{
+      const cur=state.ans.integrity[it.id];
+      return `<div class="likert"><div class="q">${esc(it.text)}</div><input type="range" min="0" max="100" value="${cur||0}" data-id="${it.id}" style="width:100%"><div class="muted" id="v_${it.id}" style="text-align:center">${cur||0}%</div></div>`;
+    }).join('');
+    app.querySelectorAll('.scale5').forEach(row=>row.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+      state.ans.integrity[row.dataset.id]=+b.dataset.v; row.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');check();
+    }));
+    app.querySelectorAll('input[type=range]').forEach(r=>r.oninput=()=>{state.ans.integrity[r.dataset.id]=+r.value;$('#v_'+r.dataset.id).textContent=r.value+'%';check()});
+    proj.forEach(it=>{ if(state.ans.integrity[it.id]==null) state.ans.integrity[it.id]=0; });
+    setFoot(true,{next:'Готово'}); check();
+    nextBtn.onclick=()=>nextModule();
+  }
+  function check(){ nextBtn.disabled=!likert.every(it=>state.ans.integrity[it.id]!=null) }
+}
+
+/* ============ Biodata ============ */
+function runBiodata(){
+  const fam=state.fam; const items=window.HR_BIODATA.core.concat(window.HR_BIODATA[fam]||[]);
+  moduleIntro(MODULE_TITLES.biodata,
+    'Несколько вопросов о вашем опыте и результатах. Указывайте реальные факты и цифры — их можно проверить, и это в ваших интересах.',
+    ()=>render(),null);
+  function render(){
+    app.innerHTML = items.map(it=>{
+      const cur=state.ans.biodata[it.id];
+      let ctrl='';
+      if(it.kind==='number') ctrl=`<input type="number" min="0" data-id="${it.id}" value="${cur??''}" inputmode="numeric">`;
+      else if(it.kind==='select') ctrl=`<div class="seg" data-id="${it.id}">`+it.options.map((o,oi)=>`<button data-v="${oi}" class="${cur===oi?'on':''}">${esc(o.label)}</button>`).join('')+`</div>`;
+      else if(it.kind==='text') ctrl=`<input type="text" data-id="${it.id}" value="${cur?esc(cur):''}">`;
+      else if(it.kind==='textlist'||it.kind==='refs'){ const arr=cur||[]; ctrl=Array.from({length:it.slots}).map((_,si)=>`<input type="text" data-id="${it.id}" data-si="${si}" value="${arr[si]?esc(arr[si]):''}" placeholder="${si+1}." style="margin-bottom:6px">`).join(''); }
+      return `<div class="field"><label>${esc(it.label)}</label>${ctrl}${it.help?`<div class="muted" style="margin-top:4px">${esc(it.help)}</div>`:''}</div>`;
+    }).join('');
+    app.querySelectorAll('input[type=number],input[type=text]').forEach(inp=>inp.oninput=()=>{
+      const id=inp.dataset.id;
+      if(inp.dataset.si!=null){ const arr=state.ans.biodata[id]||[]; arr[+inp.dataset.si]=inp.value; state.ans.biodata[id]=arr; }
+      else state.ans.biodata[id]= inp.type==='number'? (inp.value===''?null:+inp.value) : inp.value;
+      check();
+    });
+    app.querySelectorAll('.seg[data-id]').forEach(seg=>seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+      state.ans.biodata[seg.dataset.id]=+b.dataset.v; seg.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');check();
+    }));
+    setFoot(true,{next:'Готово'}); check();
+    nextBtn.onclick=()=>nextModule();
+  }
+  function check(){ // требуем заполнить select и number; тексты по желанию
+    const req=items.filter(it=>it.kind==='select'||it.kind==='number');
+    nextBtn.disabled=!req.every(it=>state.ans.biodata[it.id]!=null && state.ans.biodata[it.id]!=='');
+  }
+}
+
+/* ============ Knowledge ============ */
+function runKnowledge(){
+  const prof=state.kp; if(!prof){ return nextModule(); }
+  const items=window.HR_KNOWLEDGE.items.filter(x=>x.profile===prof); let i=0; state.ans.knowledge=[];
+  moduleIntro(MODULE_TITLES.knowledge,
+    'Вопросы по вашей специальности. Выберите один верный ответ. Если не знаете — выберите наиболее подходящий.',
+    ()=>render(),null);
+  function render(){
+    const it=items[i]; const cur=(state.ans.knowledge[i]||{}).a;
+    app.innerHTML=`<div class="muted">Вопрос ${i+1} из ${items.length}</div><h2 style="font-size:18px">${esc(it.stem)}</h2>`+
+      it.options.map((o,oi)=>`<div class="opt ${cur===oi?'on':''}" data-oi="${oi}"><div class="mk">${'АБВГ'[oi]}</div><div>${esc(o)}</div></div>`).join('');
+    app.querySelectorAll('.opt').forEach(op=>op.onclick=()=>{state.ans.knowledge[i]={id:it.id,a:+op.dataset.oi};render()});
+    setProgress((state.mi+(i+1)/(items.length+1))/state.modules.length);
+    setFoot(true,{next:i<items.length-1?'Далее':'Готово',prev:i>0,nextEnabled:cur!=null});
+    prevBtn.onclick=()=>{i--;render()};
+    nextBtn.onclick=()=>{ if(i<items.length-1){i++;render()} else nextModule(); };
+    window.scrollTo(0,0);
+  }
+}
+
+/* ============ Финиш: сборка и код ============ */
+function screenFinish(){
+  stopTimer(); setProgress(1);
+  const result={
+    v:1, ts:new Date().toISOString().slice(0,16), fam:state.fam, kp:state.kp, cform:state.cform,
+    cand:state.cand,
+    total:Math.round((Date.now()-state.startTs)/1000),
+    telemetry:state.telemetry,
+    ans:state.ans
+  };
+  const code=HR.encodeResult(result);
+  app.innerHTML=`
+    <div class="big-center">
+      <h1>Готово!</h1>
+      <p style="max-width:460px">Спасибо, ${esc(state.cand.name||'кандидат')}. Ваш результат зашифрован в код ниже. <b>Скопируйте его и отправьте работодателю</b> (WhatsApp, Telegram или почта).</p>
+    </div>
+    <div class="card">
+      <div class="muted" style="margin-bottom:8px">Код результата:</div>
+      <div class="codebox" id="code">${code}</div>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button class="btn primary" id="copyBtn">Скопировать код</button>
+        <button class="btn ghost" id="dlBtn">Скачать файлом</button>
+      </div>
+      <div class="muted" id="copyMsg" style="margin-top:8px"></div>
+    </div>
+    <div class="note">Код не содержит расшифровки — только ваши ответы. Баллы и профиль работодатель увидит в своей панели анализа. Персональные данные обработаны с вашего согласия.</div>`;
+  foot.classList.add('hidden');
+  $('#copyBtn').onclick=()=>{ navigator.clipboard.writeText(code).then(()=>$('#copyMsg').textContent='Скопировано ✓').catch(()=>$('#copyMsg').textContent='Выделите код вручную и скопируйте.'); };
+  $('#dlBtn').onclick=()=>{ const b=new Blob([code],{type:'text/plain'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download='result-'+(state.cand.name||'candidate').replace(/\s+/g,'_')+'.txt'; a.click(); URL.revokeObjectURL(u); };
+}
+
+/* ============ Старт ============ */
+screenIntro();
+</script>
+</body>
+</html>
