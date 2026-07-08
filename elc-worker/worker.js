@@ -4842,22 +4842,60 @@ async function checkChannelsHealth(env, ctx) {
     if (!down && prevDown) recovered.push(notif.display_name || 'Системный нотификатор');
   }
 
-  // 3) Пуш админам — только на переход в down (один раз на событие)
-  if (newlyDown.length) {
-    const admins = await getAdminUids(env);
-    const names = newlyDown.join(', ');
-    const payload = {
-      title: '⚠ WhatsApp-канал отключён',
-      body: `Канал «${names}» потерял связь — сообщения не приходят. Откройте Настройки → каналы и переподключите.`,
-      url: '/team.html',
-      tag: 'channel-down',
-    };
-    for (const uid of admins) {
-      const job = pushToUserDevices(env, uid, payload);
-      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(job); else await job;
-    }
-  }
+  // Пуш «на каждое падение» УБРАН по просьбе: админов дёргало слишком часто.
+  // Теперь — только состояние в БД (для Настройки → Каналы) + еженедельная
+  // сводка (maybeWeeklyChannelDigest). newlyDown/recovered оставляем в возврате
+  // для логов.
   return { checked: channels.length + (notif && notif.active ? 1 : 0), newlyDown: newlyDown.length, recovered: recovered.length };
+}
+
+// Раз в неделю: если есть отключённые WhatsApp-каналы — одно системное
+// уведомление админам (web push). Гейт по kv-таймстампу, чтобы не чаще недели.
+async function maybeWeeklyChannelDigest(env, ctx) {
+  let last = 0;
+  try {
+    const row = await env.DB.prepare("SELECT v FROM kv WHERE k = 'channel_health:last_weekly'").first();
+    if (row && row.v) { try { last = Date.parse(JSON.parse(row.v)); } catch { last = Date.parse(row.v) || 0; } }
+  } catch {}
+  const now = Date.now();
+  if (last && (now - last) < 7 * 864e5) return { sent: false, reason: 'not_due' };
+
+  // Собираем отключённые каналы из БД (без живых запросов — состояние уже
+  // обновил checkChannelsHealth).
+  const down = [];
+  try {
+    const { results } = await env.DB.prepare(
+      "SELECT display_name, id_instance FROM wa_channels WHERE active = 1 AND conn_state = 'down'"
+    ).all();
+    for (const c of (results || [])) down.push(c.display_name || c.id_instance || 'канал');
+  } catch {}
+  try {
+    const n = await env.DB.prepare("SELECT display_name, active, conn_state FROM wa_notifier WHERE id = 1").first();
+    if (n && n.active && n.conn_state === 'down') down.push((n.display_name || 'Системный нотификатор') + ' (системный)');
+  } catch {}
+
+  // Таймстамп обновляем в любом случае — чтобы следующая сводка была не раньше
+  // чем через неделю, даже если сейчас всё в порядке.
+  try {
+    await env.DB.prepare("INSERT INTO kv (k, v) VALUES ('channel_health:last_weekly', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v")
+      .bind(JSON.stringify(new Date(now).toISOString())).run();
+  } catch {}
+
+  if (!down.length) return { sent: false, reason: 'all_ok' };
+
+  const admins = await getAdminUids(env);
+  const names = down.join(', ');
+  const payload = {
+    title: '⚠ Проверьте WhatsApp-каналы',
+    body: `Не на связи: ${names}. Настройки → Каналы — переподключите (пересканируйте QR).`,
+    url: '/team.html',
+    tag: 'channel-weekly',
+  };
+  for (const uid of admins) {
+    const job = pushToUserDevices(env, uid, payload);
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(job); else await job;
+  }
+  return { sent: true, down: down.length, admins: admins.length };
 }
 
 // GET /api/wa/channels/health — состояние связи каналов (из БД, без живых
@@ -9249,6 +9287,12 @@ export default {
         }
       } catch (e) {
         console.error("[cron] checkChannelsHealth failed:", e.message);
+      }
+      try {
+        const w = await maybeWeeklyChannelDigest(env, ctx);
+        if (w && w.sent) console.log(`[cron] channel_health weekly digest sent down=${w.down} admins=${w.admins}`);
+      } catch (e) {
+        console.error("[cron] maybeWeeklyChannelDigest failed:", e.message);
       }
     })());
   },
