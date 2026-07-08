@@ -191,6 +191,50 @@ tbody tr:hover td{background:#f6f7f4}
 .mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--ink);z-index:50;justify-content:space-around;padding:9px 4px calc(9px + env(safe-area-inset-bottom))}
 .mobile-nav button{color:#8b99af;font-size:10.5px;font-weight:500;padding:3px 8px}
 .mobile-nav button.on{color:#fff;font-weight:700}
+
+/* читабельность+ и кликабельность */
+:root{--mut:#5a6577;--faint:#87919f}
+body{font-size:15px}
+.mt{cursor:pointer;transition:.12s}
+.mt:hover{background:#f4f6f3}
+.mt .l{font-size:11.5px}
+.mt .v{font-size:24px}
+.mt .d{font-size:12.5px}
+.kcol h4{font-size:11.5px;cursor:pointer}
+.kcol .ksum{font-size:12px}
+.kcard .kt{font-size:14.5px}
+.kcard .kc2{font-size:12.5px}
+.kcard .ksm{font-size:13.5px}
+.kcard .knext{font-size:12px}
+.kic .ic{width:24px;height:24px;cursor:pointer}
+.kic .ic:hover{border-color:var(--grn)}
+.kic .ic svg{width:13px;height:13px}
+.kic .src{font-size:11px;cursor:pointer}
+.kic .rb{font-size:11px;cursor:pointer}
+th{font-size:11.5px}
+td{font-size:14.5px}
+td.r{font-size:13.5px}
+.cn{font-size:15px}
+.cs{font-size:12.5px}
+.note{font-size:13px}
+.stepper button{font-size:11.5px;font-weight:700}
+.fld .fl{font-size:10.5px}
+.fld .fv{font-size:15px}
+.fld .fv.clk{cursor:pointer}
+.fld .fv.clk:hover{color:var(--grn)}
+.ev .et{font-size:11.5px}
+.ev .eb{font-size:14px}
+.ev .wamsg{font-size:13.5px}
+.task{font-size:13.5px;cursor:pointer}
+.act-c{cursor:pointer}
+.act-c:hover{border-color:var(--grn)}
+.act-c .at{font-size:14px}
+.act-c .ad{font-size:12.5px}
+.ph-head .sub{font-size:13.5px}
+.mnav button{font-size:14.5px}
+.panel .pt h3{font-size:16px}
+.conv-r{cursor:pointer}
+.conv-r:hover{background:#f4f6f3}
 </style>
 </head>
 <body>
@@ -221,11 +265,11 @@ tbody tr:hover td{background:#f6f7f4}
   <!-- ===== ВОРОНКА ===== -->
   <section class="screen on" id="s-fun">
     <div class="meterline">
-      <div class="mt"><div class="l">В воронке</div><div class="v">14 <em>сделок</em></div><div class="d">на 21,6 млн ₸</div></div>
-      <div class="mt"><div class="l">Новых · сегодня</div><div class="v">5</div><div class="d">взяты в работу за 8 минут</div></div>
-      <div class="mt"><div class="l">Оплат · июль</div><div class="v g">4 <em>· 6,1 млн</em></div><div class="d">конверсия из лида 12%</div></div>
-      <div class="mt"><div class="l">Просроченный шаг</div><div class="v t">2</div><div class="d">подсвечены в воронке</div></div>
-      <div class="mt"><div class="l">Роботы · сегодня</div><div class="v">17 <em>касаний</em></div><div class="d">рассылки по стадиям — сами</div></div>
+      <div class="mt" onclick="toast('21,6 млн ₸ живых денег в работе. Клик по любой цифре — расшифровка: какие сделки её составляют.')"><div class="l">В воронке</div><div class="v">14 <em>сделок</em></div><div class="d">на 21,6 млн ₸</div></div>
+      <div class="mt" onclick="toast('5 новых лидов: 2 WhatsApp, 1 звонок, 2 сайт. Среднее время «взят в работу» — 8 минут, робот следит.')"><div class="l">Новых · сегодня</div><div class="v">5</div><div class="d">взяты в работу за 8 минут</div></div>
+      <div class="mt" onclick="nav('rep')"><div class="l">Оплат · июль</div><div class="v g">4 <em>· 6,1 млн</em></div><div class="d">конверсия из лида 12%</div></div>
+      <div class="mt" onclick="toast('Две терракотовые карточки в воронке — по ним следующий шаг просрочен. РОП видит это первым.')"><div class="l">Просроченный шаг</div><div class="v t">2</div><div class="d">подсвечены в воронке</div></div>
+      <div class="mt" onclick="nav('robots')"><div class="l">Роботы · сегодня</div><div class="v">17 <em>касаний</em></div><div class="d">рассылки по стадиям — сами</div></div>
     </div>
     <div class="kan" id="funKan"></div>
     <div class="note" style="margin-top:12px">Карточка сделки — проще некуда: клиент, сумма, <b>следующий шаг с датой</b>. Просрочил шаг — карточка горит терракотовым, РОП видит. Клик по карточке — вся история: звонки с записями, WhatsApp, письма роботов. Нажмите на «Ерлан · BI Group».</div>
@@ -234,10 +278,10 @@ tbody tr:hover td{background:#f6f7f4}
   <!-- ===== ЗВОНКИ ===== -->
   <section class="screen" id="s-calls">
     <div class="meterline">
-      <div class="mt"><div class="l">Звонков сегодня</div><div class="v">31</div><div class="d">входящие 12 · исходящие 19</div></div>
-      <div class="mt"><div class="l">Дозвон</div><div class="v g">74%</div><div class="d">все разговоры с записью</div></div>
-      <div class="mt"><div class="l">Пропущенные</div><div class="v t">2</div><div class="d">задачи на перезвон стоят</div></div>
-      <div class="mt"><div class="l">Среднее время</div><div class="v">4:12</div><div class="d">на результативный звонок</div></div>
+      <div class="mt" onclick="toast('12 входящих + 19 исходящих. Клик по строке журнала — запись и сделка.')"><div class="l">Звонков сегодня</div><div class="v">31</div><div class="d">входящие 12 · исходящие 19</div></div>
+      <div class="mt" onclick="toast('Дозвон 74%: недозвоны получают WhatsApp «когда удобно поговорить?» — роботом.')"><div class="l">Дозвон</div><div class="v g">74%</div><div class="d">все разговоры с записью</div></div>
+      <div class="mt" onclick="toast('Каждый пропущенный — автосделка + задача с таймером. Потерять звонок невозможно.')"><div class="l">Пропущенные</div><div class="v t">2</div><div class="d">задачи на перезвон стоят</div></div>
+      <div class="mt" onclick="toast('Считается по записям. Слишком короткие «результативные» звонки — повод послушать запись.')"><div class="l">Среднее время</div><div class="v">4:12</div><div class="d">на результативный звонок</div></div>
     </div>
     <div class="cols">
       <div class="panel">
@@ -270,10 +314,10 @@ tbody tr:hover td{background:#f6f7f4}
   <!-- ===== ОТЧЁТ ===== -->
   <section class="screen" id="s-rep">
     <div class="meterline">
-      <div class="mt"><div class="l">Лидов · июль</div><div class="v">34</div><div class="d">WhatsApp 15 · звонки 10 · сайт 9</div></div>
-      <div class="mt"><div class="l">Дошло до КП</div><div class="v">18</div><div class="d">53% от лидов</div></div>
-      <div class="mt"><div class="l">Оплат</div><div class="v g">4</div><div class="d">12% из лида · средний чек 1,52 млн</div></div>
-      <div class="mt"><div class="l">Цикл сделки</div><div class="v">9 <em>дней</em></div><div class="d">от лида до оплаты</div></div>
+      <div class="mt" onclick="toast('Источники фиксируются автоматически — видно, какая реклама приводит платящих, а какая просто лидов.')"><div class="l">Лидов · июль</div><div class="v">34</div><div class="d">WhatsApp 15 · звонки 10 · сайт 9</div></div>
+      <div class="mt" onclick="toast('53% лидов получают расчёт. Ниже — вопрос квалификации, выше — вопрос дожима.')"><div class="l">Дошло до КП</div><div class="v">18</div><div class="d">53% от лидов</div></div>
+      <div class="mt" onclick="toast('12% из лида в деньги — честная сквозная конверсия, а не «по ощущениям».')"><div class="l">Оплат</div><div class="v g">4</div><div class="d">12% из лида · средний чек 1,52 млн</div></div>
+      <div class="mt" onclick="toast('9 дней от заявки до оплаты. Роботы сокращают цикл: клиент не ждёт, пока менеджер вспомнит.')"><div class="l">Цикл сделки</div><div class="v">9 <em>дней</em></div><div class="d">от лида до оплаты</div></div>
     </div>
     <div class="cols">
       <div class="panel">
@@ -306,48 +350,31 @@ tbody tr:hover td{background:#f6f7f4}
 <!-- сделка -->
 <div class="ovl" id="dealOvl" onclick="if(event.target===this)closeDeal()">
   <div class="deal">
-    <div class="dh"><h2>Ерлан · BI Group HR</h2><span class="dsum num">1 950 000 ₸</span><span class="mark gy">сделка #214 · 4 дня в работе</span><span class="mx" onclick="closeDeal()">✕</span></div>
-    <div class="stepper">
-      <button class="done" onclick="stgToast()">Новый лид</button>
-      <button class="done" onclick="stgToast()">В работе</button>
-      <button class="cur" onclick="stgToast()">КП отправлено</button>
-      <button onclick="stgToast()">Переговоры</button>
-      <button onclick="stgToast()">Оплата</button>
-    </div>
+    <div class="dh"><h2 id="dTitle">—</h2><span class="dsum num" id="dSum">—</span><span class="mark gy" id="dMeta">—</span><span class="mx" onclick="closeDeal()">✕</span></div>
+    <div class="stepper" id="dStep"></div>
     <div class="db">
       <div class="dleft">
-        <div class="fld"><div class="fl">Контакт</div><div class="fv">Ерлан Сатыбалды</div>
+        <div class="fld"><div class="fl">Контакт</div><div class="fv" id="dContact">—</div>
           <div class="cbtns">
             <span class="cbtn" onclick="toast('Звонок пошёл через IP-телефонию — из карточки, в один клик. Запись появится в ленте сделки сама.')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>Позвонить</span>
             <span class="cbtn" onclick="toast('Открылся диалог WhatsApp внутри карточки — вся переписка остаётся в сделке, даже если менеджер уволится.')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-4-7.5"/><path d="M8 12h8M8 9h5"/></svg>WhatsApp</span>
           </div>
         </div>
-        <div class="fld"><div class="fl">Телефон</div><div class="fv num" style="font-size:13px">+7 701 244 18 30</div></div>
-        <div class="fld"><div class="fl">Компания</div><div class="fv">BI Group HR</div></div>
-        <div class="fld"><div class="fl">Сумма</div><div class="fv num">1 950 000 ₸</div></div>
-        <div class="fld"><div class="fl">Источник</div><div class="fv">WhatsApp · реклама</div></div>
-        <div class="fld"><div class="fl">Следующий шаг</div><div class="fv" style="color:var(--terra)">Позвонить по КП · сегодня 15:00</div></div>
+        <div class="fld"><div class="fl">Телефон</div><div class="fv num clk" style="font-size:13px" id="dPhone" onclick="toast('Клик по номеру — звонок через IP-телефонию. Запись ляжет в ленту ниже.')">—</div></div>
+        <div class="fld"><div class="fl">Компания</div><div class="fv" id="dCompany">—</div></div>
+        <div class="fld"><div class="fl">Сумма</div><div class="fv num clk" id="dSumF" onclick="toast('Сумма меняется по ходу переговоров — история изменений сохраняется.')">—</div></div>
+        <div class="fld"><div class="fl">Источник</div><div class="fv clk" id="dSrc" onclick="toast('Источник проставлен автоматически. По нему строится отчёт «какая реклама приносит деньги».')">—</div></div>
+        <div class="fld"><div class="fl">Следующий шаг</div><div class="fv clk" style="color:var(--terra)" id="dNext" onclick="toast('Срок шага переносится в два клика — но история переносов видна РОПу: «двигали 3 раза» о многом говорит.')">—</div></div>
       </div>
-      <div class="dmid">
-        <div class="tl">
-          <div class="ev robot"><div class="et">сегодня 09:12 · робот</div><div class="eb"><b>КП открыто клиентом 2-й раз</b> — сигнал: звонить сейчас, пока тёплый.</div></div>
-          <div class="ev wa"><div class="et">вчера 16:40 · WhatsApp · робот стадии «КП отправлено»</div><div class="eb">Автосообщение через 24 часа тишины:</div><div class="wamsg">Ерлан, добрый день! Вчера отправили расчёт для BI Group. Подскажите, всё ли открылось? Если удобно — созвонимся завтра, отвечу на вопросы. Айгерим, HireBox</div></div>
-          <div class="ev call"><div class="et">2 дня назад 14:22 · звонок · 6:41</div><div class="eb"><b>Айгерим → Ерлан:</b> презентация, договорились о КП на 30 тестирований/мес.<span class="rec" onclick="toast('Запись воспроизводится прямо в карточке. РОП слушает лучшие звонки на планёрке — новички учатся на реальных примерах.')">▶ запись 6:41</span></div></div>
-          <div class="ev robot"><div class="et">2 дня назад 14:31 · робот стадии «КП отправлено»</div><div class="eb">Робот отправил КП (PDF) + презентацию компании в WhatsApp — сразу при переводе стадии.</div></div>
-          <div class="ev wa"><div class="et">4 дня назад 09:03 · WhatsApp · робот стадии «Новый лид»</div><div class="eb">Приветствие через 1 минуту после заявки:</div><div class="wamsg">Здравствуйте! Это HireBox — тесты для найма. Получили вашу заявку, менеджер Айгерим свяжется в течение 15 минут. Пока — короткое видео о том, как это работает (1 мин): hirebox.kz/v</div></div>
-          <div class="ev"><div class="et">4 дня назад 09:02 · заявка</div><div class="eb">Лид с рекламы WhatsApp · создан автоматически · распределён на Айгерим</div></div>
-        </div>
-      </div>
+      <div class="dmid"><div class="tl" id="dTl"></div></div>
       <div class="drgt">
         <div class="fld"><div class="fl">Задачи</div></div>
-        <div class="task"><b>Позвонить по КП</b><span>сегодня 15:00 · просрочка через 2 ч</span></div>
-        <div class="task don"><b>Отправить КП</b><span>сделано · робот</span></div>
-        <div class="task don"><b>Первый звонок за 15 мин</b><span>сделано · 09:14</span></div>
+        <div id="dTasks"></div>
         <button class="btn o" style="width:100%;margin-top:4px" onclick="toast('Задача добавлена. У менеджера всегда ровно один «следующий шаг» по каждой сделке — ничего не забывается.')">+ задача</button>
       </div>
     </div>
     <div class="dfoot">
-      <button class="btn g" onclick="toast('Сделка передвинута на «Переговоры» — робот этой стадии отправит клиенту кейс похожей компании через 2 часа.')">→ Переговоры</button>
+      <button class="btn g" id="dNextBtn" onclick="toast('Сделка передвинута на следующую стадию — роботы новой стадии отработают сами: отправят материалы и поставят задачи.')">→ далее</button>
       <button class="btn o" onclick="toast('Причина проигрыша фиксируется обязательно — из этого складывается честная статистика, почему уходят.')">Проиграна</button>
       <button class="btn o" onclick="closeDeal()">Закрыть</button>
     </div>
@@ -372,7 +399,39 @@ function setRole(el,name,msg){
   document.querySelectorAll('.roles button').forEach(b=>b.classList.toggle('on',b===el));
   toast('<b>'+name+'</b>: '+msg+'.');
 }
-function openDeal(){$('dealOvl').classList.add('show')}
+const SNAMES=['Новый лид','В работе','КП отправлено','Переговоры','Оплата'];
+function evH(cls,t,b){return '<div class="ev '+cls+'"><div class="et">'+t+'</div><div class="eb">'+b+'</div></div>'}
+function playRec(e){e.stopPropagation();toast('Запись воспроизводится прямо в карточке. Лучшие звонки — в библиотеку обучения новых менеджеров.')}
+function openDeal(si,ki){
+  const k=STAGES[si][2][ki];
+  const parts=k[0].split(' · ');const name=parts[0];const comp=parts[1]||'—';
+  $('dTitle').textContent=k[0];
+  $('dSum').textContent=k[2]!=='—'?k[2]+' ₸':'без суммы';
+  $('dMeta').textContent='сделка #2'+si+ki+' · стадия: '+STAGES[si][0].toLowerCase();
+  $('dStep').innerHTML=SNAMES.map((st,i)=>'<button class="'+(i<si?'done':i===si?'cur':'')+'" onclick="stgToast()">'+st+'</button>').join('');
+  $('dContact').textContent=name;
+  $('dPhone').textContent='+7 7'+(si+1)+ki+' 2'+(si+3)+'4 18 3'+ki;
+  $('dCompany').textContent=comp;
+  $('dSumF').textContent=k[2]!=='—'?k[2]+' ₸':'—';
+  $('dSrc').textContent=k[6];
+  $('dNext').textContent=k[3];
+  let tl='';
+  if(si>=4)tl+=evH('robot','сегодня 10:05 · робот стадии «Оплата»','Счёт сформирован из сделки и отправлен с реквизитами. Напоминание — за день до срока оплаты.');
+  if(si>=3)tl+=evH('wa','вчера 12:10 · WhatsApp · робот стадии «Переговоры»','Робот отправил кейс похожей компании с цифрами — продаёт, пока менеджер занят другим клиентом.');
+  if(si>=2){
+    tl+=evH('robot','сегодня 09:12 · робот','<b>КП открыто клиентом 2-й раз</b> — сигнал: звонить сейчас, пока тёплый.');
+    tl+=evH('wa','вчера 16:40 · WhatsApp · робот стадии «КП отправлено»','Автонапоминание через 24 часа тишины:<div class="wamsg">'+name+', добрый день! Вчера отправили расчёт. Подскажите, всё ли открылось? Если удобно — созвонимся, отвечу на вопросы. Айгерим, HireBox</div>');
+    tl+=evH('robot','2 дня назад 14:31 · робот стадии «КП отправлено»','Робот отправил КП (PDF) + презентацию компании в WhatsApp — сразу при переводе стадии.');
+  }
+  if(si>=1)tl+=evH('call','2 дня назад 14:22 · звонок · 6:41','<b>Айгерим → '+name+':</b> квалификация, договорились о расчёте.<span class="rec" onclick="playRec(event)">▶ запись 6:41</span>');
+  tl+=evH('wa','через 1 мин после заявки · робот стадии «Новый лид»','Приветствие + видео-визитка:<div class="wamsg">Здравствуйте! Это HireBox — тесты для найма. Получили вашу заявку, менеджер свяжется в течение 15 минут. Пока — короткое видео, как это работает (1 мин): hirebox.kz/v</div>');
+  tl+=evH('','при создании','Лид из «'+k[6]+'» · сделка создана автоматически · распределена на Айгерим');
+  $('dTl').innerHTML=tl;
+  $('dTasks').innerHTML='<div class="task" onclick="toast(\'Задача: срок, ответственный, кнопка «выполнено». Просрочка — сигнал РОПу.\')"><b>'+k[3].split(' · ')[0]+'</b><span>'+(k[4]==='lt'?'⚑ просрочен — виден РОПу':k[3].split(' · ')[1]||'в срок')+'</span></div>'+
+    '<div class="task don"><b>Первый звонок за 15 мин</b><span>сделано · робот поставил</span></div>';
+  $('dNextBtn').textContent=si<4?'→ '+SNAMES[si+1]:'✓ Успешно закрыта';
+  $('dealOvl').classList.add('show');
+}
 function closeDeal(){$('dealOvl').classList.remove('show')}
 function stgToast(){toast('Стадию можно переключить прямо здесь — роботы новой стадии отработают сами: отправят нужные материалы и поставят задачи.')}
 
@@ -406,12 +465,12 @@ const STAGES=[
     ['ТОО «Береке Строй»','предоплата получена ✓','2 700 000','запуск: выдать доступы','',0,'выставка','робот: welcome-инструкция'],
   ]],
 ];
-$('funKan').innerHTML=STAGES.map((s,si)=>'<div class="kcol"><h4>'+s[0]+'</h4><div class="ksum">'+s[1]+'</div>'+
-  s[2].map(k=>'<div class="kcard'+(k[4]==='lt'?' late':'')+'" onclick="'+(k[0].startsWith('Ерлан')?'openDeal()':'toast(\'Карточка сделки: контакт, сумма, следующий шаг, вся история звонков и переписки. Просто — потому что менеджеру нужно только «что дальше и когда».\')')+'">'+
+$('funKan').innerHTML=STAGES.map((s,si)=>'<div class="kcol"><h4 onclick="toast(\'Стадия «'+s[0]+'»: '+s[1]+'. Клик по сумме — список сделок стадии. Стадии переименовываются и добавляются вами.\')">'+s[0]+'</h4><div class="ksum" onclick="toast(\'Сумма стадии — живой прогноз выручки.\')">'+s[1]+'</div>'+
+  s[2].map((k,ki)=>'<div class="kcard'+(k[4]==='lt'?' late':'')+'" onclick="openDeal('+si+','+ki+')">'+
   '<div class="kt">'+k[0]+'</div><div class="kc2">'+k[1]+'</div>'+
   (k[2]!=='—'?'<div class="ksm num">'+k[2]+' ₸</div>':'')+
   '<div class="knext'+(k[4]==='lt'?' lt':'')+'">'+(k[4]==='lt'?'⚑ ':'')+k[3]+'</div>'+
-  '<div class="kic"><span class="ic">'+phoneIc+'</span><span class="ic">'+waIc+'</span>'+(k[7]?'<span class="rb">🄬 '+k[7].split(':')[0]+'</span>':'')+'<span class="src">'+k[6].toUpperCase()+'</span></div></div>').join('')+'</div>').join('');
+  '<div class="kic"><span class="ic" onclick="event.stopPropagation();toast(\'Звонок клиенту прямо из воронки — карточку открывать не обязательно.\')">'+phoneIc+'</span><span class="ic" onclick="event.stopPropagation();toast(\'WhatsApp из воронки: быстрый ответ шаблоном, переписка сохранится в сделке.\')">'+waIc+'</span>'+(k[7]?'<span class="rb" onclick="event.stopPropagation();toast(\'Робот уже коснулся этой сделки: '+k[7].split(': ')[1]+'.\')">🄬 '+k[7].split(':')[0]+'</span>':'')+'<span class="src" onclick="event.stopPropagation();toast(\'Источник: '+k[6]+' — проставлен автоматически по каналу входа.\')">'+k[6].toUpperCase()+'</span></div></div>').join('')+'</div>').join('');
 
 /* звонки */
 $('callBody').innerHTML=[
@@ -451,19 +510,19 @@ const FLOW=[
   ]],
 ];
 $('flow').innerHTML=FLOW.map(st=>'<div class="stage-r"><div class="st-l"><b>'+st[0]+'</b><span>'+st[1]+'</span></div><div class="mid"></div><div class="acts">'+
-  st[2].map(a=>'<div class="act-c '+a[0]+'"><span class="aic">'+a[1]+'</span><div class="ab"><div class="at">'+a[2]+'</div><div class="ad">'+a[3]+'</div></div>'+
-  '<span class="sw'+(a[4]?'':' off')+'" onclick="toast(\'Тумблер: сценарий включается/выключается без программиста. Тексты сообщений редактируете сами — они ваши, не шаблонные.\')"></span></div>').join('')+'</div></div>').join('');
+  st[2].map(a=>'<div class="act-c '+a[0]+'" onclick="toast(\'Клик по сценарию — редактор: текст с переменными {имя}, {менеджер}, вложения (PDF, видео), задержка отправки. Всё меняется без программиста.\')"><span class="aic">'+a[1]+'</span><div class="ab"><div class="at">'+a[2]+'</div><div class="ad">'+a[3]+'</div></div>'+
+  '<span class="sw'+(a[4]?'':' off')+'" onclick="event.stopPropagation();toast(\'Тумблер: сценарий включается/выключается без программиста. Тексты сообщений редактируете сами — они ваши, не шаблонные.\')"></span></div>').join('')+'</div></div>').join('');
 
 /* отчёт */
 $('convList').innerHTML=[
   ['Лид → В работе',88],['В работе → КП',72],['КП → Переговоры',61],['Переговоры → Оплата',54],
-].map(c=>'<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--ln2)">'+
+].map(c=>'<div class="conv-r" style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--ln2)" onclick="toast(\'Клик по этапу — сделки, застрявшие на нём, и сколько дней висят. Здесь ищутся деньги, которые уже пришли, но не закрыты.\')">'+
   '<span style="width:190px;font-size:13px;font-weight:600">'+c[0]+'</span>'+
   '<span style="flex:1;height:14px;background:var(--ln2);position:relative"><i style="position:absolute;left:0;top:0;bottom:0;width:'+c[1]+'%;background:var(--ink)"></i></span>'+
   '<span class="num" style="width:44px;text-align:right;font-weight:700;font-size:13px">'+c[1]+'%</span></div>').join('');
 
 setTimeout(()=>toast('Это <b>HireBox</b> — воронка под запуск отдела продаж: простые карточки со «следующим шагом», звонки с записями, WhatsApp внутри сделки и роботы по стадиям. Откройте сделку «Ерлан · BI Group» — там вся магия.'),700);
-const q=new URLSearchParams(location.search);if(q.get('s'))nav(q.get('s'));if(q.get('deal'))setTimeout(openDeal,300);
+const q=new URLSearchParams(location.search);if(q.get('s'))nav(q.get('s'));if(q.get('deal'))setTimeout(()=>openDeal(2,0),300);
 </script>
 </body>
 </html>
