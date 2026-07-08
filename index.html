@@ -1844,6 +1844,23 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 })(window,document,'script','dataLayer','GTM-M5N2WR2B');</script>
 <!-- End Google Tag Manager -->
 
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '893448113078273');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
 </head>
 <body>
 <!-- Google Tag Manager (noscript) -->
@@ -3418,21 +3435,20 @@ document.querySelectorAll('.lead-form input[name="phone"]').forEach(input => {
 });
 
 /* ============== LEAD MESSAGE BUILDERS ============== */
-/* ============== ATTRIBUTION: захват gclid/utm для сквозной аналитики (закрытый цикл) ============== */
+/* ============== ATTRIBUTION: захват utm/click-id для сквозной аналитики ==============
+   Последнее рекламное касание перезаписывает предыдущее (last non-direct):
+   таргетологу важно видеть, какой именно креатив привёл заявку. */
+const ATTR_FIELDS = ['gclid', 'gbraid', 'wbraid', 'fbclid', 'ysclid', 'ttclid',
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
 (function captureAdAttribution() {
   try {
     const p = new URLSearchParams(location.search);
-    const fields = ['gclid', 'gbraid', 'wbraid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term'];
     const found = {};
-    fields.forEach(k => { const v = p.get(k); if (v) found[k] = v; });
+    ATTR_FIELDS.forEach(k => { const v = p.get(k); if (v) found[k] = v; });
     if (Object.keys(found).length) {
       found._ts = new Date().toISOString();
-      // Храним первое касание 90 дней (если уже есть gclid — не перетираем)
-      const exists = /(?:^|;\s*)pllato_attr=/.test(document.cookie);
-      if (!exists || found.gclid || found.gbraid || found.wbraid) {
-        document.cookie = 'pllato_attr=' + encodeURIComponent(JSON.stringify(found)) +
-          ';path=/;max-age=' + (90 * 24 * 3600) + ';SameSite=Lax';
-      }
+      document.cookie = 'pllato_attr=' + encodeURIComponent(JSON.stringify(found)) +
+        ';path=/;max-age=' + (90 * 24 * 3600) + ';SameSite=Lax';
     }
   } catch (e) { /* no-op */ }
 })();
@@ -3440,15 +3456,16 @@ document.querySelectorAll('.lead-form input[name="phone"]').forEach(input => {
 function getAdAttribution() {
   try {
     const m = document.cookie.match(/(?:^|;\s*)pllato_attr=([^;]+)/);
-    if (!m) return [];
+    if (!m) return ['', '— Источник рекламы —', 'нет меток (прямой заход / SEO)'];
     const a = JSON.parse(decodeURIComponent(m[1]));
     const lines = [];
-    if (a.gclid)  lines.push('gclid: ' + a.gclid);
-    if (a.gbraid) lines.push('gbraid: ' + a.gbraid);
-    if (a.wbraid) lines.push('wbraid: ' + a.wbraid);
-    const utm = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term']
-      .map(k => a[k]).filter(Boolean);
-    if (utm.length) lines.push('UTM: ' + utm.join(' / '));
+    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].forEach(k => {
+      if (a[k]) lines.push(k + ': ' + a[k]);
+    });
+    ['gclid', 'gbraid', 'wbraid', 'fbclid', 'ysclid', 'ttclid'].forEach(k => {
+      if (a[k]) lines.push(k + ': ' + a[k]);
+    });
+    if (a._ts) lines.push('касание: ' + a._ts.slice(0, 16).replace('T', ' ') + ' UTC');
     return lines.length ? ['', '— Источник рекламы —', ...lines] : [];
   } catch (e) { return []; }
 }
@@ -3482,10 +3499,12 @@ async function sendToTelegram(text) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
     return { service: 'telegram', skipped: true, reason: 'not configured' };
   }
+  // keepalive — запрос доживёт до ответа даже после ухода на /thanks/
   const r = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text }),
+    keepalive: true,
   });
   if (!r.ok) {
     const err = await r.text();
@@ -3511,7 +3530,7 @@ async function sendToWhatsApp(text) {
     text: text,
     apikey: CALLMEBOT_APIKEY,
   });
-  await fetch(url, { method: 'GET', mode: 'no-cors' });
+  await fetch(url, { method: 'GET', mode: 'no-cors', keepalive: true });
   return { service: 'whatsapp', ok: true };
 }
 
@@ -3641,6 +3660,7 @@ function handleFormSubmit(form, isExtended) {
       next.style.display = 'none';
     }
     success.classList.add('show');
+    goToThanksPage();
     return;
   }
 
@@ -3749,6 +3769,14 @@ function handleFormSubmit(form, isExtended) {
       }
     });
   });
+
+  goToThanksPage();
+}
+
+// Thank You Page: конверсия в рекламе считается по визиту на /thanks/.
+// Отправка в Telegram/WhatsApp идёт с keepalive и не прервётся переходом.
+function goToThanksPage() {
+  setTimeout(() => { window.location.href = '/thanks/'; }, 400);
 }
 
 // === ИНИЦИАЛИЗАЦИЯ ФОРМ — добавление honeypot и времени загрузки ===
