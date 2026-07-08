@@ -21,20 +21,20 @@
   var TELEGRAM_BOT_TOKEN = '8719630290:AAHA0SwlavUEU_i3bWYLVMv5xwAQO3g1gos';
   var TELEGRAM_CHAT_ID   = '-5297917142'; // группа «Заявки с сайта pllato.kz»
 
-  /* ===== Attribution: захват gclid/utm для closed-loop ===== */
+  /* ===== Attribution: захват utm/click-id для closed-loop =====
+     Последнее рекламное касание перезаписывает предыдущее (last non-direct):
+     таргетологу важно видеть, какой именно креатив привёл заявку. */
+  var ATTR_FIELDS = ['gclid', 'gbraid', 'wbraid', 'fbclid', 'ysclid', 'ttclid',
+    'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
   (function captureAdAttribution() {
     try {
       var p = new URLSearchParams(location.search);
-      var fields = ['gclid', 'gbraid', 'wbraid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term'];
       var found = {};
-      fields.forEach(function (k) { var v = p.get(k); if (v) found[k] = v; });
+      ATTR_FIELDS.forEach(function (k) { var v = p.get(k); if (v) found[k] = v; });
       if (Object.keys(found).length) {
         found._ts = new Date().toISOString();
-        var exists = /(?:^|;\s*)pllato_attr=/.test(document.cookie);
-        if (!exists || found.gclid || found.gbraid || found.wbraid) {
-          document.cookie = 'pllato_attr=' + encodeURIComponent(JSON.stringify(found)) +
-            ';path=/;max-age=' + (90 * 24 * 3600) + ';SameSite=Lax';
-        }
+        document.cookie = 'pllato_attr=' + encodeURIComponent(JSON.stringify(found)) +
+          ';path=/;max-age=' + (90 * 24 * 3600) + ';SameSite=Lax';
       }
     } catch (e) { /* no-op */ }
   })();
@@ -42,15 +42,16 @@
   function getAdAttribution() {
     try {
       var m = document.cookie.match(/(?:^|;\s*)pllato_attr=([^;]+)/);
-      if (!m) return [];
+      if (!m) return ['', '— Источник рекламы —', 'нет меток (прямой заход / SEO)'];
       var a = JSON.parse(decodeURIComponent(m[1]));
       var lines = [];
-      if (a.gclid)  lines.push('gclid: ' + a.gclid);
-      if (a.gbraid) lines.push('gbraid: ' + a.gbraid);
-      if (a.wbraid) lines.push('wbraid: ' + a.wbraid);
-      var utm = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term']
-        .map(function (k) { return a[k]; }).filter(Boolean);
-      if (utm.length) lines.push('UTM: ' + utm.join(' / '));
+      ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].forEach(function (k) {
+        if (a[k]) lines.push(k + ': ' + a[k]);
+      });
+      ['gclid', 'gbraid', 'wbraid', 'fbclid', 'ysclid', 'ttclid'].forEach(function (k) {
+        if (a[k]) lines.push(k + ': ' + a[k]);
+      });
+      if (a._ts) lines.push('касание: ' + a._ts.slice(0, 16).replace('T', ' ') + ' UTC');
       return lines.length ? ['', '— Источник рекламы —'].concat(lines) : [];
     } catch (e) { return []; }
   }
@@ -64,31 +65,42 @@
   }
 
   /* ===== Текст заявки ===== */
-  function buildLeadText(phone, source) {
+  function buildLeadText(phone, source, name) {
     var digits = (phone || '').replace(/\D/g, '');
     if (digits.length < 7 || digits.length > 15) return null;
     var time = new Date().toLocaleString('ru-RU', { timeZone: 'Asia/Almaty' });
     var ref = document.referrer || 'Прямой заход';
     var device = navigator.userAgent.indexOf('Mobile') !== -1 ? 'Мобайл' : 'Десктоп';
-    return [
+    var lines = [
       '🆕 Новая заявка с pllato.kz',
-      '',
+      ''
+    ];
+    if (name) lines.push('Имя: ' + name);
+    lines.push(
       'Телефон: ' + phone,
       'Страница: ' + source,
       'URL: ' + location.pathname,
       'Время: ' + time + ' (Алматы)',
       'Источник: ' + ref,
       'Устройство: ' + device
-    ].join('\n');
+    );
+    return lines.join('\n');
   }
 
   function sendToTelegram(text) {
     if (!text || !TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return Promise.resolve();
+    // keepalive — запрос доживёт до ответа даже после ухода на /thanks/
     return fetch('https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/sendMessage', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: text })
+      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: text }),
+      keepalive: true
     });
+  }
+
+  /* ===== Thank You Page: конверсия считается по визиту на /thanks/ ===== */
+  function goToThanks() {
+    setTimeout(function () { window.location.href = '/thanks/'; }, 400);
   }
 
   function saveLeadBackup(phone, source) {
@@ -143,11 +155,6 @@
     var loaded = parseInt(form.dataset.loadedAt || '0', 10);
     if (loaded > 0 && (Date.now() - loaded) / 1000 < 3) return;
 
-    // Анти-дабл
-    if (form.dataset.submitting === '1') return;
-    form.dataset.submitting = '1';
-    setTimeout(function () { form.dataset.submitting = '0'; }, 5000);
-
     var phoneInput = form.querySelector('input[name="phone"]');
     var phone = phoneInput ? phoneInput.value.trim() : '';
     var digits = phone.replace(/\D/g, '');
@@ -158,14 +165,31 @@
       return;
     }
 
+    // Имя (если поле есть в форме): обязательное — не пускаем пустым
+    var nameInput = form.querySelector('input[name="name"]');
+    var name = nameInput ? nameInput.value.trim().slice(0, 60) : '';
+    if (nameInput && nameInput.required && !name) {
+      form.classList.add('error');
+      nameInput.focus();
+      setTimeout(function () { form.classList.remove('error'); }, 500);
+      return;
+    }
+
+    // Анти-дабл — после валидации, чтобы исправленную форму можно было
+    // отправить сразу, не выжидая 5 секунд
+    if (form.dataset.submitting === '1') return;
+    form.dataset.submitting = '1';
+    setTimeout(function () { form.dataset.submitting = '0'; }, 5000);
+
     var success = siblingFlag(form, '[data-lead-success]');
     var error = siblingFlag(form, '[data-lead-error]');
 
-    // Номер владельца — показываем успех, но не шлём
+    // Номер владельца — показываем успех и thank you page, но не шлём
     var ownerNumbers = ['77011239999', '7011239999'];
     if (ownerNumbers.indexOf(digits) !== -1) {
       form.style.display = 'none';
       if (success) success.classList.add('show');
+      goToThanks();
       return;
     }
 
@@ -179,12 +203,13 @@
     saveLeadBackup(phone, source);
     fireLeadEvents(source);
 
-    var text = buildLeadText(phone, source);
-    if (!text) return;
-    var attr = getAdAttribution();
-    if (attr.length) text = text + '\n' + attr.join('\n');
-
-    sendToTelegram(text).catch(function (e) { console.error('[Pllato] Telegram:', e); });
+    var text = buildLeadText(phone, source, name);
+    if (text) {
+      var attr = getAdAttribution();
+      if (attr.length) text = text + '\n' + attr.join('\n');
+      sendToTelegram(text).catch(function (e) { console.error('[Pllato] Telegram:', e); });
+    }
+    goToThanks();
   }
 
   /* ===== Привязка + клики WhatsApp/тел как контакт-конверсии ===== */
