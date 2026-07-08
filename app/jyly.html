@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>JYLY — продажи и производство · Демо</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%2323272b'/%3E%3Cpath d='M6 17 L16 8 L26 17' fill='none' stroke='%23d96a35' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M10 26 v-7 h12 v7' fill='none' stroke='%23f0ede8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M16 22 c-1.6-2 1.6-3 0-5' fill='none' stroke='%23d96a35' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --graf:#23272b;--graf2:#2e3339;--bg:#f5f3ef;--panel:#fff;--ln:#e3ded6;--ln2:#eeebe5;
+  --ink:#221f1b;--mut:#6b655c;--faint:#9d968b;
+  --brick:#c65a2e;--brick-d:#a34категория520;--brick-d2:#a34520;--brick-l:#f9e9e0;
+  --ok:#3a7d44;--ok-l:#e6f1e7;--warn:#a87b1289;--warn2:#a87b12;--warn-l:#f7efd9;--bad:#b03830;--bad-l:#f8e7e5;--night:#3d4a8a;--night-l:#e9ecf7;
+  --serif:'Bitter',serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Golos Text',sans-serif;background:var(--bg);color:var(--ink);font-size:14.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select{font-family:inherit;font-size:13.5px;color:var(--ink)}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#cfc8bd;border-radius:0}
+.num{font-feature-settings:'tnum';font-variant-numeric:tabular-nums}
+
+.demo-note{background:#17191c;color:#a8a29a;font-size:12px;padding:8px 16px;text-align:center}
+.demo-note b{color:#fff}
+
+/* шапка: графит + терракотовая навигация */
+.hd{background:var(--graf);color:#fff}
+.hd .h1{max-width:1280px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}
+.brand .bm{width:42px;height:42px;border-radius:4px;background:var(--graf2);border:1px solid #3c434b;display:grid;place-items:center;flex:none}
+.brand .bt{font-family:var(--serif);font-weight:800;font-size:22px;letter-spacing:.04em}
+.brand .bs{font-size:11px;color:#9aa2ab;margin-top:-3px}
+.roles{margin-left:auto;display:flex;border:1px solid #3c434b;border-radius:4px;overflow:hidden}
+.roles button{padding:8px 14px;font-size:12.5px;font-weight:600;color:#9aa2ab;border-right:1px solid #3c434b}
+.roles button:last-child{border-right:none}
+.roles button.on{background:var(--brick);color:#fff}
+.hd .act{background:#fff;color:var(--graf);font-weight:700;font-size:13px;padding:10px 18px;border-radius:4px}
+.nv{background:var(--brick)}
+.nv .n1{max-width:1280px;margin:0 auto;padding:0 24px;display:flex;gap:2px;overflow-x:auto}
+.nv button{padding:11px 16px 12px;font-size:13.5px;font-weight:600;color:#f4d3c2;white-space:nowrap;border-bottom:3px solid transparent}
+.nv button.on{color:#fff;border-bottom-color:#fff;background:rgba(0,0,0,.12)}
+.nv button .c{font-size:11px;opacity:.8;margin-left:5px}
+
+.wrap{max-width:1280px;margin:0 auto;padding:18px 24px 90px}
+.screen{display:none}.screen.on{display:block;animation:fd .18s}
+@keyframes fd{from{opacity:0}to{opacity:1}}
+h2.sc{font-family:var(--serif);font-size:21px;font-weight:700;margin-bottom:2px}
+.scsub{font-size:12.5px;color:var(--mut);margin-bottom:14px}
+
+/* KPI-кирпичи */
+.bricks{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:10px;margin-bottom:16px}
+.brk{background:var(--panel);border:1px solid var(--ln);border-left:4px solid var(--brick);border-radius:4px;padding:13px 15px}
+.brk.ok{border-left-color:var(--ok)}.brk.bad{border-left-color:var(--bad)}.brk.night{border-left-color:var(--night)}.brk.warn{border-left-color:var(--warn2)}
+.brk .l{font-size:11.5px;color:var(--mut);font-weight:600;letter-spacing:.02em}
+.brk .v{font-family:var(--serif);font-size:25px;font-weight:800;margin-top:2px;letter-spacing:-.5px}
+.brk .v em{font-style:normal;font-size:13px;color:var(--faint);font-family:'Golos Text',sans-serif;font-weight:600}
+.brk .d{font-size:11.5px;color:var(--faint);margin-top:1px}
+.brk.bad .v{color:var(--bad)}.brk.ok .v{color:var(--ok)}.brk.night .v{color:var(--night)}
+
+.cols{display:grid;grid-template-columns:1.55fr 1fr;gap:16px;align-items:start}
+@media(max-width:1020px){.cols{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--ln);border-radius:4px;margin-bottom:16px}
+.card .ct{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--ln2)}
+.card .ct h3{font-family:var(--serif);font-size:15px;font-weight:700;flex:1}
+.card .ct .lnk{font-size:12px;color:var(--brick);font-weight:600;cursor:pointer}
+.card .cb{padding:12px 16px 15px}
+.note{font-size:12px;color:var(--mut);line-height:1.6}
+
+/* статусы-квадраты */
+.sq{display:inline-block;width:9px;height:9px;margin-right:7px;vertical-align:0}
+.sq.ok{background:var(--ok)}.sq.warn{background:var(--warn2)}.sq.bad{background:var(--bad)}.sq.night{background:var(--night)}.sq.gy{background:#c6bfb4}
+.mk{font-size:11px;font-weight:700;letter-spacing:.03em}
+.mk.ok{color:var(--ok)}.mk.warn{color:var(--warn2)}.mk.bad{color:var(--bad)}.mk.night{color:var(--night)}.mk.gy{color:var(--faint)}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border:1px solid;border-radius:3px}
+.tag.hot{color:var(--bad);border-color:#e3b7b3;background:var(--bad-l)}
+.tag.warm{color:var(--brick-d2);border-color:#e8c2ad;background:var(--brick-l)}
+.tag.wait{color:var(--warn2);border-color:#e2cf9a;background:var(--warn-l)}
+.tag.night{color:var(--night);border-color:#b9c1e2;background:var(--night-l)}
+
+/* график лидов: столбики */
+.days{display:flex;gap:8px;align-items:flex-end;height:130px;padding-top:4px}
+.day{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;cursor:pointer}
+.day .b1{width:100%;max-width:46px;background:#e8b294;border-radius:2px 2px 0 0;position:relative}
+.day .b1 i{position:absolute;left:0;right:0;bottom:0;background:var(--brick);border-radius:2px 2px 0 0}
+.day .dv{font-family:var(--serif);font-size:12px;font-weight:700}
+.day .dl{font-size:10px;color:var(--faint)}
+
+/* тепловая карта часов */
+.heat{display:grid;grid-template-columns:38px repeat(12,1fr);gap:3px;font-size:9.5px;color:var(--faint)}
+.heat .hl{align-self:center;font-weight:600}
+.heat .hc{aspect-ratio:1.25;border-radius:2px;background:#f0ece5;cursor:pointer}
+.heat .h1x{background:#f3d8c6}.heat .h2x{background:#e8ab86}.heat .h3x{background:#d97b45}.heat .h4x{background:#c65a2e}
+.heat .hc.nt{outline:1.5px solid var(--night);outline-offset:-1.5px}
+.heat .hh{text-align:center}
+
+/* таблицы */
+table{width:100%;border-collapse:collapse}
+th{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);text-align:left;font-weight:700;padding:8px 10px 7px 0;border-bottom:2px solid var(--ink)}
+th.r{text-align:right}
+td{padding:10px 10px 10px 0;border-bottom:1px solid var(--ln2);font-size:13.5px;vertical-align:middle}
+td.r{text-align:right;font-weight:600;white-space:nowrap}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:#faf8f4}
+.cn{font-weight:600;font-size:14px}
+.cs{font-size:12px;color:var(--mut);margin-top:1px}
+
+/* фильтры */
+.frow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.chip{padding:8px 15px;border-radius:4px;font-size:12.5px;font-weight:600;background:var(--panel);border:1px solid var(--ln);color:var(--mut)}
+.chip.on{background:var(--graf);border-color:var(--graf);color:#fff}
+.frow input,.frow select{border:1px solid var(--ln);border-radius:4px;padding:8px 12px;outline:none;background:var(--panel)}
+
+/* воронка */
+.kan{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:start}
+@media(max-width:1020px){.kan{grid-template-columns:repeat(2,1fr)}}
+.kcol{background:#ebe7e0;border-radius:4px;padding:8px}
+.kcol h4{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--mut);font-weight:700;padding:3px 6px 8px;display:flex;justify-content:space-between}
+.kcol h4 .ksum{color:var(--ink)}
+.kcard{background:var(--panel);border:1px solid var(--ln);border-radius:4px;padding:10px 12px;margin-bottom:8px;cursor:pointer;border-top:3px solid var(--ln)}
+.kcard:hover{border-color:var(--brick)}
+.kcard.hot{border-top-color:var(--bad)}
+.kcard.warm{border-top-color:var(--brick)}
+.kcard.nt{border-top-color:var(--night)}
+.kcard .kt{font-size:13px;font-weight:600}
+.kcard .kc2{font-size:11.5px;color:var(--mut);margin-top:2px;line-height:1.5}
+.kcard .kf{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap}
+.kcard .ksm{margin-left:auto;font-weight:700;font-size:12px}
+.rem{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;color:var(--night)}
+.rem svg{width:11px;height:11px}
+
+/* заказ / прайс */
+.ord td{padding:9px 10px 9px 0}
+.ord .qty{width:56px;border:1px solid var(--ln);border-radius:4px;padding:5px 7px;text-align:right;font-weight:600}
+.ord-tot{background:var(--graf);color:#e8e4dd;border-radius:4px;padding:14px 18px;display:flex;gap:26px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.ord-tot .t1{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#9aa2ab;font-weight:700}
+.ord-tot .t2{font-family:var(--serif);font-size:20px;font-weight:800;margin-top:1px}
+.ord-tot .t2.br{color:#f0a377}
+
+/* автопилот */
+.robo{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--ln2)}
+.robo:last-child{border-bottom:none}
+.robo .ric{width:36px;height:36px;border-radius:4px;background:var(--brick-l);display:grid;place-items:center;flex:none}
+.robo .ric svg{width:18px;height:18px}
+.robo .rb{flex:1;min-width:0}
+.robo .rt{font-weight:600;font-size:13.5px}
+.robo .rd{font-size:12px;color:var(--mut);margin-top:2px;line-height:1.55}
+.robo .sw{margin-left:auto;flex:none;width:40px;height:22px;border-radius:12px;background:var(--ok);position:relative;cursor:pointer}
+.robo .sw::after{content:'';position:absolute;right:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff}
+.robo .sw.off{background:#cfc8bd}
+.robo .sw.off::after{right:auto;left:3px}
+
+/* модал / тосты */
+.ovl{position:fixed;inset:0;background:rgba(23,25,28,.55);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:30px 16px;overflow-y:auto}
+.ovl.show{display:flex}
+.mod{background:#fff;border-radius:6px;max-width:740px;width:100%;animation:fd .15s;overflow:hidden;border-top:4px solid var(--brick)}
+.mod .mh{padding:16px 20px 0;display:flex;gap:12px;align-items:baseline}
+.mod .mh h2{font-family:var(--serif);font-size:19px;font-weight:700}
+.mod .mh .mx{margin-left:auto;font-size:19px;color:var(--faint);cursor:pointer}
+.mod .mb{padding:12px 20px 20px;max-height:62vh;overflow-y:auto}
+.btn{background:var(--brick);color:#fff;font-weight:700;font-size:12.5px;padding:10px 16px;border-radius:4px}
+.btn:hover{background:var(--brick-d2)}
+.btn.gh{background:#fff;color:var(--ink);border:1px solid var(--ln)}
+.btn.dk{background:var(--graf)}
+#toasts{position:fixed;right:18px;bottom:18px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:380px}
+.toast{background:var(--graf);color:#e8e4dd;padding:12px 16px;border-radius:4px;font-size:12.5px;line-height:1.55;box-shadow:0 14px 34px rgba(0,0,0,.35);animation:tin .22s;border-left:3px solid var(--brick)}
+@keyframes tin{from{opacity:0;transform:translateX(16px)}to{opacity:1}}
+.toast b{color:#f0a377}
+
+@media(max-width:860px){
+  .wrap{padding:12px 14px 96px}
+  .mobile-nav{display:flex!important}
+}
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--graf);z-index:50;justify-content:space-around;padding:9px 4px calc(9px + env(safe-area-inset-bottom))}
+.mobile-nav button{color:#9aa2ab;font-size:10.5px;font-weight:600;padding:3px 8px}
+.mobile-nav button.on{color:#f0a377;font-weight:700}
+</style>
+</head>
+<body>
+<div class="demo-note">Интерактивное демо для <b>Бигайдара</b> · полистиролбетон и тёплые дома-комплекты · Алматы · все данные вымышленные, всё прокликивается · <b>Pllato</b></div>
+
+<header class="hd">
+  <div class="h1">
+    <div class="brand">
+      <div class="bm"><svg viewBox="0 0 32 32" width="28" height="28"><path d="M6 17 L16 8 L26 17" fill="none" stroke="#d96a35" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 26 v-7 h12 v7" fill="none" stroke="#f0ede8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 22 c-1.6-2 1.6-3 0-5" fill="none" stroke="#d96a35" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">JYLY</div><div class="bs">тёплые дома · полистиролбетон · Алматы</div></div>
+    </div>
+    <div class="roles">
+      <button class="on" onclick="setRole(this,'Владелец','вся картина: продажи, производство, деньги, аналитика')">Владелец</button>
+      <button onclick="setRole(this,'РОП','воронки, менеджеры, звонки с записями, конверсии, напоминания')">РОП</button>
+      <button onclick="setRole(this,'Менеджер','свои лиды, свои задачи и перезвоны — чужого не видит')">Менеджер</button>
+    </div>
+    <button class="act" onclick="toast('Новый лид заводится вручную или падает сам: WhatsApp, Instagram, звонок, сайт. Источник фиксируется автоматически.')">+ Лид</button>
+  </div>
+  <nav class="nv"><div class="n1">
+    <button class="on" data-s="dash">Аналитика</button>
+    <button data-s="fun">Воронка<span class="c">14</span></button>
+    <button data-s="cli">Клиенты<span class="c">146</span></button>
+    <button data-s="ord">Заказы и прайс</button>
+    <button data-s="stock">Склад · производство</button>
+    <button data-s="auto">Автопилот<span class="c">5</span></button>
+  </div></nav>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== АНАЛИТИКА ===== -->
+  <section class="screen on" id="s-dash">
+    <h2 class="sc">Аналитика продаж</h2>
+    <div class="scsub">среда, 8 июля 2026 · «пролистал — всё увидел»: день · неделя · месяц · по часам</div>
+    <div class="bricks">
+      <div class="brk"><div class="l">Лиды · сегодня</div><div class="v num">14</div><div class="d">вчера 9 · +56%</div></div>
+      <div class="brk ok"><div class="l">Договоры · июль</div><div class="v num">6 <em>на 41,8 млн ₸</em></div><div class="d">конверсия из лида 11%</div></div>
+      <div class="brk"><div class="l">Звонки · сегодня</div><div class="v num">31</div><div class="d">дозвон 74% · все с записью</div></div>
+      <div class="brk night"><div class="l">Ночные обращения · неделя</div><div class="v num">27</div><div class="d">31% всех лидов · автоответ ловит</div></div>
+      <div class="brk bad"><div class="l">Потеряно ночью · до системы</div><div class="v num">~9<em>/нед</em></div><div class="d">не дозвонились утром — ушли</div></div>
+    </div>
+    <div class="cols">
+      <div>
+        <div class="card">
+          <div class="ct"><h3>Лиды по дням · неделя</h3><span class="lnk" onclick="toast('Периоды: день, неделя, месяц. Тёмное — все лиды, оранжевое — дошли до расчёта. Клик по дню — список лидов этого дня.')">день · неделя · месяц</span></div>
+          <div class="cb">
+            <div class="days" id="days"></div>
+            <div class="note" style="margin-top:10px">Столбик целиком — лиды за день, оранжевая часть — дошли до расчёта. Сегодня 14 лидов: 5 с таргета, 4 Instagram, 3 WhatsApp, 2 ночных с автоответа.</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ct"><h3>Когда пишет ваша аудитория · тепловая карта часов</h3></div>
+          <div class="cb">
+            <div class="heat" id="heat"></div>
+            <div class="note" style="margin-top:10px"><b style="color:var(--night)">Синяя рамка — ночные часы (22:00–02:00): 31% обращений.</b> Раньше они ждали утра и терялись. Теперь автоответ отвечает сразу, фиксирует лид и ставит менеджеру перезвон на 09:00 — тёплыми.</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="ct"><h3>Менеджеры · сегодня</h3></div>
+          <div class="cb" style="padding-top:4px"><table>
+            <thead><tr><th>Менеджер</th><th class="r">Звонки</th><th class="r">Лиды</th><th class="r">Расчёты</th></tr></thead>
+            <tbody id="mgrBody"></tbody>
+          </table></div>
+          <div class="cb note" style="padding-top:0">Каждый звонок — с записью: слушаете, как разговаривают, и учите на реальных примерах. РОП видит своих, менеджер — только себя.</div>
+        </div>
+        <div class="card">
+          <div class="ct"><h3>Требует внимания</h3></div>
+          <div class="cb" id="attList"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ВОРОНКА ===== -->
+  <section class="screen" id="s-fun">
+    <h2 class="sc">Воронка продаж</h2>
+    <div class="scsub">этапы настраиваете сами · напоминалки не дают лиду «умереть» в списке</div>
+    <div class="frow">
+      <span class="chip on" onclick="toast('Направления — отдельными воронками со своими этапами: дома-комплекты, полистиролбетон, товарный бетон. Переключение в один клик.')">Дома-комплекты</span>
+      <span class="chip" onclick="toast('Воронка полистиролбетона: блоки и плиты, здесь другие этапы — расчёт объёма, доставка.')">Полистиролбетон</span>
+      <span class="chip" onclick="toast('Воронка товарного бетона — под неё свои этапы и свой прайс.')">Бетон</span>
+    </div>
+    <div class="kan" id="funKan"></div>
+    <div class="note" style="margin-top:12px">Классификация в карточке: горячий / тёплый / подождать — и напоминание с датой. «Подождать до осени» — карточка сама всплывёт в сентябре, а не потеряется. Вся переписка WhatsApp и записи звонков — внутри карточки.</div>
+  </section>
+
+  <!-- ===== КЛИЕНТЫ ===== -->
+  <section class="screen" id="s-cli">
+    <h2 class="sc">Клиенты и классификация</h2>
+    <div class="scsub">первый звонок · второй звонок · купит / не купит / подождать — и напоминалки по каждому</div>
+    <div class="frow">
+      <input placeholder="Поиск: имя, телефон…" style="width:220px">
+      <span class="chip on">Все</span>
+      <span class="chip" onclick="toast('Фильтр «горячие»: готовы к сделке — с ними работаем в первую очередь.')">Горячие</span>
+      <span class="chip" onclick="toast('«Подождать» — с датой напоминания: система сама вернёт клиента в работу.')">Подождать</span>
+      <span class="chip" onclick="toast('Ночные лиды, пойманные автоответом — перезвон в 09:00.')">Ночные</span>
+    </div>
+    <div class="card"><div class="cb" style="padding-top:4px"><table>
+      <thead><tr><th>Клиент</th><th>Интерес</th><th>Классификация</th><th>Следующий шаг</th><th class="r">Сумма</th></tr></thead>
+      <tbody id="cliBody"></tbody>
+    </table></div></div>
+    <div class="note">Карточка клиента: все звонки с записями, вся переписка WhatsApp, расчёты и КП, история изменений. Менеджер уволился — клиенты остались с полной историей.</div>
+  </section>
+
+  <!-- ===== ЗАКАЗЫ ===== -->
+  <section class="screen" id="s-ord">
+    <h2 class="sc">Заказ и прайс</h2>
+    <div class="scsub">заказ № 218 · Ерлан Т. · дом-комплект «Алатау» + блоки · PDF клиенту в WhatsApp</div>
+    <div class="cols">
+      <div>
+        <div class="card">
+          <div class="ct"><h3>Состав заказа — из прайса</h3><span class="lnk" onclick="toast('Прайс-листы по направлениям ведёте сами: позиции, цены, единицы. Менеджер не может «придумать» цену — только выбрать из прайса.')">прайсы →</span></div>
+          <div class="cb" style="padding-top:4px"><table class="ord">
+            <thead><tr><th>Позиция</th><th class="r">Кол-во</th><th class="r">Цена</th><th class="r">Сумма, ₸</th></tr></thead>
+            <tbody>
+              <tr><td><div class="cn">Дом-комплект «Алатау» 96 м²</div><div class="cs">полистиролбетон D400 · с проектом</div></td><td class="r"><input class="qty num" value="1"></td><td class="r num">6 900 000</td><td class="r num">6 900 000</td></tr>
+              <tr><td><div class="cn">Блок ПСБ D400 · 600×300×200</div><div class="cs">доп. объём на гараж</div></td><td class="r"><input class="qty num" value="14"></td><td class="r num">28 500 /м³</td><td class="r num">399 000</td></tr>
+              <tr><td><div class="cn">Доставка · Алматинская обл.</div><div class="cs">манипулятор, 2 рейса</div></td><td class="r"><input class="qty num" value="2"></td><td class="r num">45 000</td><td class="r num">90 000</td></tr>
+            </tbody>
+          </table>
+          <div class="ord-tot">
+            <div><div class="t1">Итого</div><div class="t2 num">7 389 000 ₸</div></div>
+            <div><div class="t1">Предоплата 30%</div><div class="t2 br num">2 216 700 ₸</div></div>
+            <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn" onclick="toast('<b>PDF сформирован</b>: фирменный бланк, состав, цены, сроки производства, реквизиты — и ушёл клиенту в WhatsApp прямо из карточки.')">PDF → WhatsApp</button>
+              <button class="btn dk" onclick="toast('Заказ подтверждён: производство видит его в очереди, склад резервирует блоки, менеджеру — задача на предоплату.')">Подтвердить заказ</button>
+            </div>
+          </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="ct"><h3>Статусы заказов</h3></div>
+          <div class="cb" id="ordList"></div>
+        </div>
+        <div class="card">
+          <div class="ct"><h3>Как это работает</h3></div>
+          <div class="cb note" style="line-height:1.8">Расчёт → PDF-КП клиенту → подтверждение → предоплата → в производство → отгрузка. Каждый шаг фиксируется, «висящие» расчёты видны РОПу — по ним ставятся перезвоны.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== СКЛАД ===== -->
+  <section class="screen" id="s-stock">
+    <h2 class="sc">Склад и производство</h2>
+    <div class="scsub">остатки по маркам · очередь производства · резервы под заказы</div>
+    <div class="bricks">
+      <div class="brk"><div class="l">Блоки на складе</div><div class="v num">412 <em>м³</em></div><div class="d">D300 · D400 · D500</div></div>
+      <div class="brk warn"><div class="l">В резерве под заказы</div><div class="v num">186 <em>м³</em></div><div class="d">5 подтверждённых заказов</div></div>
+      <div class="brk ok"><div class="l">Комплекты в производстве</div><div class="v num">3</div><div class="d">«Алатау» ×2 · «Медеу» ×1</div></div>
+      <div class="brk bad"><div class="l">Ниже минимума</div><div class="v num">1</div><div class="d">D500 — запустить замес</div></div>
+    </div>
+    <div class="cols">
+      <div class="card"><div class="cb" style="padding-top:4px"><table>
+        <thead><tr><th>Позиция</th><th class="r">Остаток</th><th class="r">Резерв</th><th class="r">Свободно</th><th>Статус</th></tr></thead>
+        <tbody id="stockBody"></tbody>
+      </table></div></div>
+      <div class="card">
+        <div class="ct"><h3>Очередь производства</h3></div>
+        <div class="cb" id="prodList"></div>
+        <div class="cb note" style="padding-top:0">Заказ подтверждён — автоматически встал в очередь. Продажи видят реальные сроки, а не «спрошу у цеха».</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== АВТОПИЛОТ ===== -->
+  <section class="screen" id="s-auto">
+    <h2 class="sc">Автопилот</h2>
+    <div class="scsub">роботы без «искусственного интеллекта, который сливает клиентов» — только честные сценарии, которые вы включаете сами</div>
+    <div class="cols">
+      <div class="card">
+        <div class="ct"><h3>Сценарии</h3></div>
+        <div class="cb" id="roboList"></div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="ct"><h3>Ночной приём — как это выглядит</h3></div>
+          <div class="cb">
+            <div style="background:#f0ece5;border-radius:4px;padding:12px">
+              <div style="background:#fff;border-radius:4px;padding:9px 12px;font-size:12.5px;max-width:85%"><b>Клиент · 23:47</b><br>Здравствуйте, сколько стоит дом 100 квадратов под ключ?</div>
+              <div style="background:var(--night-l);border-radius:4px;padding:9px 12px;font-size:12.5px;max-width:85%;margin:8px 0 0 auto"><b style="color:var(--night)">JYLY · автоответ · 23:47</b><br>Добрый вечер! Принял ваш вопрос. Менеджер Айгерим позвонит вам завтра в 9:00 с расчётом. Если удобнее другое время — напишите здесь.</div>
+            </div>
+            <div class="note" style="margin-top:10px">Лид зафиксирован, источник записан, менеджеру стоит задача «перезвон 09:00». <b>Без псевдо-ИИ:</b> честный автоответ, который не «переводит на салон красоты» — а утром продаёт живой человек.</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ct"><h3>Итог за неделю</h3></div>
+          <div class="cb note" style="line-height:1.9">Поймано ночью: <b style="color:var(--ink)">27 лидов</b> · дозвонились утром: <b style="color:var(--ink)">24</b> · дошло до расчёта: <b style="color:var(--ink)">11</b> · договор: <b style="color:var(--ok)">2 (14,1 млн ₸)</b>. Эти двое раньше ушли бы к тем, кто ответил первым.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="mobile-nav">
+  <button class="on" data-s="dash" onclick="nav('dash')">Аналитика</button>
+  <button data-s="fun" onclick="nav('fun')">Воронка</button>
+  <button data-s="cli" onclick="nav('cli')">Клиенты</button>
+  <button data-s="ord" onclick="nav('ord')">Заказы</button>
+  <button data-s="auto" onclick="nav('auto')">Автопилот</button>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+function toast(html){const t=document.createElement('div');t.className='toast';t.innerHTML=html;$('toasts').appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},5400)}
+function nav(s){
+  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
+  $('s-'+s).classList.add('on');
+  document.querySelectorAll('.nv button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  document.querySelectorAll('.mobile-nav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  window.scrollTo({top:0});
+}
+document.querySelectorAll('.nv button').forEach(b=>b.onclick=()=>nav(b.dataset.s));
+function setRole(el,name,msg){
+  document.querySelectorAll('.roles button').forEach(b=>b.classList.toggle('on',b===el));
+  toast('<b>'+name+'</b>: '+msg+'.');
+}
+
+/* аналитика */
+$('days').innerHTML=[['Чт',11,4],['Пт',9,3],['Сб',16,6],['Вс',12,4],['Пн',9,3],['Вт',9,4],['Ср',14,5]].map(d=>{
+  const h=Math.round(d[1]/16*100);
+  return '<div class="day" onclick="toast(\'Клик по дню — список лидов: кто, откуда, чем закончилось. Никакого «кажется, вчера было меньше» — только цифры.\')">'+
+  '<span class="dv num">'+d[1]+'</span><div class="b1" style="height:'+h+'%"><i style="height:'+Math.round(d[2]/d[1]*100)+'%"></i></div><span class="dl">'+d[0]+'</span></div>';
+}).join('');
+
+(function(){
+  const rows=[['Пн',[0,0,1,0,0,0,0,1,1,2,2,1]],['Вт',[1,0,0,0,0,0,1,2,1,1,2,0]],['Ср',[0,1,0,0,0,1,1,1,2,2,1,1]],['Чт',[1,0,0,0,0,0,2,1,1,2,3,1]],['Пт',[0,0,0,0,0,1,1,2,1,1,2,2]],['Сб',[1,1,0,0,1,2,2,2,1,1,3,2]],['Вс',[0,1,0,0,0,1,1,1,2,1,4,3]]];
+  let h='<span></span>'+[0,2,4,6,8,10,12,14,16,18,20,22].map(x=>'<span class="hh">'+x+'</span>').join('');
+  rows.forEach(r=>{
+    h+='<span class="hl">'+r[0]+'</span>'+r[1].map((v,i)=>{
+      const hr=i*2;const nt=(hr>=22||hr<2);
+      return '<span class="hc h'+v+'x'+(nt&&v>=2?' nt':'')+'" onclick="toast(\'Ячейка: день × два часа. Чем темнее — тем больше обращений. Ваша аудитория живёт вечером и ночью — теперь это видно, а не «кажется».\')"></span>';
+    }).join('');
+  });
+  $('heat').innerHTML=h;
+})();
+
+$('mgrBody').innerHTML=[
+  ['Айгерим','менеджер продаж',18,9,5],
+  ['Дана','менеджер (новая)',13,5,2],
+].map(m=>'<tr onclick="toast(\'Карточка менеджера: звонки с записями, лиды, конверсия, невыполненные перезвоны. Основа для KPI, когда решите их ввести.\')">'+
+  '<td><div class="cn">'+m[0]+'</div><div class="cs">'+m[1]+'</div></td><td class="r num">'+m[2]+'</td><td class="r num">'+m[3]+'</td><td class="r num">'+m[4]+'</td></tr>').join('');
+
+$('attList').innerHTML=[
+  ['bad','Лид «дом 120 м²» без звонка 3 часа','таргет · Айгерим на встрече — передать Дане?'],
+  ['night','2 ночных лида ждут перезвона к 09:00','автоответ отработал · задачи стоят'],
+  ['warn','Расчёт № 214 висит 4 дня без ответа','клиент Марат С. · напоминание менеджеру'],
+].map(r=>'<div style="display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--ln2)">'+
+  '<span class="sq '+r[0]+'" style="flex:none"></span><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px">'+r[1]+'</div><div class="note">'+r[2]+'</div></div>'+
+  '<button class="btn gh" style="padding:6px 11px;font-size:11.5px" onclick="toast(\'Сигналы — вместо утренних планёрок «а что у нас с лидами». Система сама говорит, где горит.\')">Открыть</button></div>').join('');
+
+/* воронка */
+const FUN=[['Новый лид',[['Дом 100 м² «под ключ»','ночной · автоответ · перезвон 09:00','nt','night','ночной',''],['Дом 120 м² + гараж','таргет · без звонка 3 часа ⚠','hot','hot','горячий','']]],
+['Первый звонок',[['Асель К. · дом 96 м²','просит расчёт с доставкой в Талгар','warm','warm','тёплый','6,9 млн'],['Бауыржан · блоки D400','стройка своими силами · объём 40 м³','warm','warm','тёплый','1,1 млн']]],
+['Расчёт / КП',[['Ерлан Т. · «Алатау» + блоки','КП №218 отправлено · открыл 2 раза','hot','hot','горячий','7,4 млн'],['Марат С. · дом 78 м²','расчёт висит 4 дня · напоминание','warm','wait','подождать','5,6 млн']]],
+['Думает · напоминалка',[['Гульнар · дом 110 м²','«после продажи квартиры» · напомнить 01.09','','wait','подождать','8,1 млн'],['Тимур · блоки D300','сравнивает с газоблоком · дожим-статья отправлена','','warm','тёплый','780 тыс']]],
+['Договор',[['Сакен Ж. · «Медеу» 124 м²','предоплата 30% получена · в производстве','','hot','в работе','9,6 млн'],['ТОО «АлатауСтрой» · блоки','рамочный договор · отгрузки по заявкам','','warm','опт','2,4 млн/мес']]]];
+$('funKan').innerHTML=FUN.map(c=>'<div class="kcol"><h4>'+c[0]+'<span class="ksum num">'+c[1].length+'</span></h4>'+
+  c[1].map(k=>'<div class="kcard '+k[2]+'" onclick="toast(\'Карточка лида: классификация, напоминалка с датой, записи звонков, переписка WhatsApp, расчёты. Этапы воронки вы меняете сами — без программиста.\')">'+
+  '<div class="kt">'+k[0]+'</div><div class="kc2">'+k[1]+'</div>'+
+  '<div class="kf"><span class="tag '+k[3]+'">'+k[4]+'</span>'+(k[5]?'<span class="ksm num">'+k[5]+'</span>':'')+'</div></div>').join('')+'</div>').join('');
+
+/* клиенты */
+$('cliBody').innerHTML=[
+  ['Ерлан Т.','+7 701 ···','дом «Алатау» 96 м² + блоки','hot','горячий · 2-й звонок','КП открыл дважды — звонить сегодня','7 389 000'],
+  ['Асель К.','+7 705 ···','дом 96 м², Талгар','warm','тёплый · 1-й звонок','расчёт с доставкой до пятницы','6 900 000'],
+  ['Гульнар','+7 777 ···','дом 110 м²','wait','подождать · до 01.09','автонапоминание 1 сентября','8 100 000'],
+  ['Ночной лид','+7 708 ···','дом 100 м² «под ключ»','night','ночной · пойман в 23:47','перезвон сегодня 09:00','—'],
+  ['Тимур','+7 747 ···','блоки D300 · 12 м³','warm','тёплый · сравнивает','отправлено сравнение с газоблоком','780 000'],
+  ['ТОО «АлатауСтрой»','опт','блоки D400 · ежемесячно','hot','оптовик · договор','заявка на август — подтвердить','2 400 000/мес'],
+].map(c=>'<tr onclick="toast(\'Карточка: звонки с записями, WhatsApp-переписка, расчёты, история классификаций. «Купит / не купит / подождать» — это поле, по которому потом строится вся аналитика.\')">'+
+  '<td><div class="cn">'+c[0]+'</div><div class="cs">'+c[1]+'</div></td><td style="font-size:12.5px">'+c[2]+'</td>'+
+  '<td><span class="tag '+c[3]+'">'+c[4]+'</span></td><td style="font-size:12.5px">'+c[5]+'</td><td class="r num">'+c[6]+'</td></tr>').join('');
+
+/* заказы */
+$('ordList').innerHTML=[
+  ['№218 · Ерлан Т. · 7,4 млн','КП отправлено · ждём подтверждения','warn'],
+  ['№217 · Сакен Ж. · 9,6 млн','предоплата получена · в производстве','ok'],
+  ['№216 · «АлатауСтрой» · 2,4 млн','отгрузка завтра · манипулятор заказан','ok'],
+  ['№214 · Марат С. · 5,6 млн','висит 4 дня · перезвон сегодня','bad'],
+].map(o=>'<div style="display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--ln2)">'+
+  '<span class="sq '+o[2]+'" style="flex:none"></span><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px">'+o[0]+'</div><div class="note">'+o[1]+'</div></div></div>').join('');
+
+/* склад */
+$('stockBody').innerHTML=[
+  ['Блок D300 · 600×300×200','168 м³','44 м³','124 м³','ok','в норме'],
+  ['Блок D400 · 600×300×200','196 м³','118 м³','78 м³','ok','в норме'],
+  ['Блок D500 · 600×300×200','48 м³','24 м³','24 м³','bad','запустить замес'],
+  ['Перемычки армированные','86 шт','30 шт','56 шт','ok','в норме'],
+  ['Клей кладочный, мешок','240','60','180','ok','в норме'],
+].map(s=>'<tr onclick="toast(\'Позиция: партии, себестоимость замеса, движение, резервы под заказы. Продажи видят «свободно», а не общий остаток.\')">'+
+  '<td><div class="cn" style="font-size:13.5px">'+s[0]+'</div></td><td class="r num">'+s[1]+'</td><td class="r num">'+s[2]+'</td><td class="r num">'+s[3]+'</td>'+
+  '<td><span class="sq '+s[4]+'"></span><span class="mk '+s[4]+'">'+s[5].toUpperCase()+'</span></td></tr>').join('');
+
+$('prodList').innerHTML=[
+  ['«Медеу» 124 м² · Сакен Ж.','резка и упаковка · готовность 18.07','ok'],
+  ['«Алатау» 96 м² · заказ 212','комплектация · готовность 24.07','ok'],
+  ['«Алатау» 96 м² · заказ 218','ждёт предоплату — в очередь не встал','warn'],
+  ['Замес D500 · 60 м³','к запуску — остаток ниже минимума','bad'],
+].map(p=>'<div style="display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--ln2)">'+
+  '<span class="sq '+p[2]+'" style="flex:none"></span><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px">'+p[0]+'</div><div class="note">'+p[1]+'</div></div></div>').join('');
+
+/* автопилот */
+const roboSvg='<svg viewBox="0 0 24 24" fill="none" stroke="#c65a2e" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>';
+$('roboList').innerHTML=[
+  ['Ночной автоответ · 22:00–08:00','отвечает сразу, фиксирует лид, ставит перезвон на 09:00. Тексты пишете сами — без псевдо-ИИ.',1],
+  ['Перезвон по расчёту','КП отправлено и 3 дня тишины → задача менеджеру + мягкое WhatsApp-напоминание клиенту.',1],
+  ['Напоминалка «подождать»','клиент сказал «после продажи квартиры» → карточка сама всплывает в назначенную дату.',1],
+  ['Не дозвонились','2 недозвона → клиенту уходит WhatsApp «когда удобно поговорить?» с кнопками времени.',1],
+  ['Брошенный лид','лид без звонка 2 часа в рабочее время → сигнал РОПу. Ни один лид не умирает молча.',1],
+  ['Голосовой ИИ-продавец','по опыту: пока сливает клиентов — «палится» и раздражает. Включим, когда технологии дозреют.',0],
+].map(r=>'<div class="robo"><span class="ric">'+roboSvg+'</span><div class="rb"><div class="rt">'+r[0]+'</div><div class="rd">'+r[1]+'</div></div>'+
+  '<span class="sw'+(r[2]?'':' off')+'" onclick="toast(\'Сценарии включаются и выключаются одним тумблером. Тексты сообщений редактируете сами.\')"></span></div>').join('');
+
+setTimeout(()=>toast('Здравствуйте, <b>Бигайдар</b>! Это пример вашей CRM: аналитика «пролистал — всё увидел» с почасовой картой (ваши ночные клиенты — на ней), воронки по направлениям, классификация с напоминалками, заказы с PDF и склад. Нажимайте на всё.'),700);
+const q=new URLSearchParams(location.search);if(q.get('s'))nav(q.get('s'));
+</script>
+</body>
+</html>
