@@ -3737,7 +3737,16 @@ const LAST_PAGE_LS_KEY = 'elc:lastPage'; // dashboard|contacts|deals|tasks|users
 // админам шлёт сам worker на момент обрыва.
 let _chHealthTimer = null;
 function renderChannelHealthBanner(data) {
+  // Верхний баннер о связи каналов убран по просьбе: он перекрывал интерфейс.
+  // Состояние каналов теперь смотрим в Настройки → Каналы, а админам раз в
+  // неделю приходит системное уведомление (cron на воркере). Здесь — только
+  // подчистка, если баннер откуда-то остался.
   const existing = document.getElementById('ch-health-banner');
+  if (existing) existing.remove();
+  document.body.classList.remove('has-ch-banner');
+  document.documentElement.style.removeProperty('--ch-banner-h');
+  return;
+  // eslint-disable-next-line no-unreachable
   if (!data || !data.anyDown) {
     if (existing) existing.remove();
     document.body.classList.remove('has-ch-banner');
@@ -3795,10 +3804,10 @@ async function pollChannelHealth() {
   } catch (e) { /* тихо — не мешаем работе при сетевых сбоях */ }
 }
 function startChannelHealthMonitor() {
-  if (window.currentUser?.role !== 'admin') return; // баннер — только админам
-  if (_chHealthTimer) return;                        // уже запущен
-  pollChannelHealth();
-  _chHealthTimer = setInterval(pollChannelHealth, 60000);
+  // Отключено: верхний баннер убран, поэтому фоновый опрос состояния каналов
+  // больше не нужен (экономим запросы). Состояние каналов — в Настройки → Каналы;
+  // проблемные каналы админам напоминает раз в неделю cron на воркере.
+  return;
 }
 
 // Экран для вошедшего, но ещё не привязанного к сотруднику аккаунта — чтобы он
@@ -23782,6 +23791,18 @@ async function pollNotifierConnect(ov) {
   }
 }
 
+// Человеческая причина по raw-состоянию Green-API (для Настройки → Каналы).
+function waHealthReason(raw) {
+  const r = String(raw || '').toLowerCase();
+  if (r === 'notauthorized' || r.includes('notauth')) return 'не авторизован — пересканируйте QR в Green-API';
+  if (r === 'starting') return 'запускается…';
+  if (r.includes('yellow') || r.includes('block')) return 'инстанс заблокирован';
+  if (r.startsWith('http_4') || r.includes('401') || r.includes('403')) return 'неверный токен/инстанс';
+  if (r === 'fetch_error' || r.startsWith('http_')) return 'инстанс недоступен (проверьте токен/URL или удалите лишний канал)';
+  if (r === 'unknown' || !r) return 'состояние неизвестно';
+  return r;
+}
+
 async function renderSettingsChannelsWa(el) {
   el.innerHTML = `
     <div class="card" style="padding:18px">
@@ -23813,13 +23834,30 @@ async function renderSettingsChannelsWa(el) {
       </div>`;
       return;
     }
+    // Состояние связи каналов (то, что раньше показывал верхний баннер).
+    let healthById = {}, notifierDown = null;
+    try {
+      const h = await fetch(`${WORKER_BASE_URL}/api/wa/channels/health`, { headers: { 'Authorization': 'Bearer ' + idToken } }).then(r => r.ok ? r.json() : null);
+      for (const c of (h?.channels || [])) healthById[c.id] = { down: c.down, raw: c.raw };
+      for (const d of (h?.down || [])) { if (d.id === 'notifier') notifierDown = d; }
+    } catch {}
     let html = '<div style="display:flex;flex-direction:column;gap:10px">';
+    if (notifierDown) {
+      html += `<div style="padding:10px 12px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#991b1b;font-size:12.5px">⚠ Системный нотификатор не на связи — ${escapeHtml(waHealthReason(notifierDown.raw))}</div>`;
+    }
     for (const c of items) {
       const pipeName = dealsState.pipelines?.[c.default_pipeline_id]?.name || '—';
+      const hb = healthById[c.id];
+      const healthLine = (c.active && hb)
+        ? (hb.down
+            ? `<div style="font-size:12px;color:#dc2626;margin-top:3px;font-weight:600">🔴 не на связи — ${escapeHtml(waHealthReason(hb.raw))}</div>`
+            : `<div style="font-size:12px;color:#16a34a;margin-top:3px">🟢 на связи</div>`)
+        : '';
       html += `<div style="border:1px solid var(--b1);border-radius:8px;padding:12px 14px;background:var(--bg2);display:flex;justify-content:space-between;align-items:center;gap:10px">
         <div style="flex:1;min-width:0">
           <div style="font-size:14px;font-weight:600;color:var(--t1)">${escapeHtml(c.display_name || 'Green-API ' + c.id_instance)}</div>
           <div style="font-size:12px;color:var(--t3);margin-top:3px">id: <code>${escapeHtml(c.id_instance)}</code> · воронка: ${escapeHtml(pipeName)} · ${c.active ? '🟢 активен' : '⏸ отключен'}</div>
+          ${healthLine}
         </div>
         <div style="display:flex;gap:6px">
           <button class="btn btn-sm" data-distribute-channel="${escapeHtml(c.id)}" title="Кто распределяет входящие (round-robin)">👥 Распределение</button>
