@@ -102,10 +102,10 @@ const LEVELS = [
   {n:1, name:'Beginner 1',             cefr:'A1',  lessons:'1–15',  desc:'Глагол to be, артикли a/an, this/that, множественное число, базовое have got.'},
   {n:2, name:'Beginner 2',             cefr:'A1',  lessons:'16–31', desc:'Present Simple (do/does), can, there is/are, was/were, Present Continuous.'},
   {n:3, name:'Elementary',             cefr:'A2',  lessons:'32–54', desc:'Past Simple, сравнительная и превосходная степень, going to, базовый Present Perfect.'},
-  {n:4, name:'Pre-Intermediate',       cefr:'B1',  lessons:'55–68', desc:'Present Perfect vs Past, will / going to, 1-й кондишн, Past Continuous, quantifiers.'},
+  {n:4, name:'Pre-Intermediate',       cefr:'B1',  lessons:'55–68', desc:'Present Perfect vs Past Simple, 1-й кондишн (will). Past Continuous и quantifiers — дальше в уровне.'},
   {n:5, name:'Intermediate',           cefr:'B1+', lessons:'69–81', desc:'2-й кондишн, Past Perfect, Present Perfect Continuous, used to.'},
-  {n:6, name:'Upper-Intermediate 2.0', cefr:'B2',  lessons:'82–86', desc:'3-й кондишн, пассивный залог, модальные предположения, относительные придаточные.'},
-  {n:7, name:'Upper-Intermediate 3.0', cefr:'B2+', lessons:'87–92', desc:'Смешанные кондишены, инверсия, продвинутый пассив и перфект, wish / regret.'},
+  {n:6, name:'Upper-Intermediate 2.0', cefr:'B2',  lessons:'82–86', desc:'3-й кондишн, модальные перфекты (must have done). Пассив и относительные придаточные — дальше в уровне.'},
+  {n:7, name:'Upper-Intermediate 3.0', cefr:'B2+', lessons:'87–92', desc:'Смешанные кондишены, инверсия, wish / regret.'},
 ];
 function levelByN(n){ return LEVELS.find(l=>l.n===n); }
 
@@ -165,26 +165,27 @@ const QUESTIONS = [
   {level:3, q:'She is ___ (tall) than her sister.', ru:'Она выше своей сестры.',      accept:['taller']},
   {level:3, q:'Listen! The baby ___ (cry).',   ru:'Послушай! Малыш плачет.',          accept:['is crying',"'s crying"]},
   {level:3, q:'I have ___ been to Paris.',     ru:'Я никогда не был в Париже.',       accept:['never']},
-  /* --- 4. Pre-Intermediate (B1) --- */
+  /* --- 4. Pre-Intermediate (B1) — фокус: Present Perfect + 1-й кондишн --- */
   {level:4, q:'If it rains, we ___ (stay) at home.', ru:'Если пойдёт дождь, мы останемся дома.', accept:['will stay',"'ll stay",'will remain',"'ll remain"]},
   {level:4, q:'I ___ (live) here since 2015.', ru:'Я живу здесь с 2015 года.',        accept:['have lived',"'ve lived"]},
-  {level:4, q:'While I ___ (cook), the phone rang.', ru:'Пока я готовил, зазвонил телефон.', accept:['was cooking']},
-  {level:4, q:"There isn't ___ milk in the fridge.", ru:'В холодильнике мало молока.', accept:['much']},
+  {level:4, q:'I ___ (already / finish) my homework.', ru:'Я уже сделал домашнюю работу.', accept:['have already finished',"'ve already finished",'have finished already',"'ve finished already"]},
+  {level:4, q:'If you study hard, you ___ (pass) the test.', ru:'Если будешь усердно учиться, сдашь тест.', accept:['will pass',"'ll pass"]},
   /* --- 5. Intermediate (B1+) --- */
   {level:5, q:'If I ___ (be) rich, I would travel a lot.', ru:'Если бы я был богат, я бы много путешествовал.', accept:['were','was']},
   {level:5, q:"I ___ (wait) for an hour and I'm still waiting.", ru:'Я жду уже час и всё ещё жду.', accept:['have been waiting',"'ve been waiting"]},
   {level:5, q:'When I arrived, the film ___ already started.', ru:'Когда я пришёл, фильм уже начался.', accept:['had',"'d"]},
   {level:5, q:'I ___ play tennis when I was young.', ru:'Раньше я играл в теннис, когда был молод.', accept:['used to']},
-  /* --- 6. Upper-Intermediate 2.0 (B2) --- */
+  /* --- 6. Upper-Intermediate 2.0 (B2) — фокус: 3-й кондишн + модальные перфекты
+     (обе структуры нельзя угадать/подсмотреть без реального B2) --- */
   {level:6, q:'If he had studied, he ___ (pass) the exam.', ru:'Если бы он учился, он бы сдал экзамен.', accept:['would have passed',"would've passed","'d have passed"]},
-  {level:6, q:'The bridge ___ (build) in 1995.', ru:'Мост был построен в 1995 году.', accept:['was built']},
-  {level:6, q:'You have worked all day — you ___ be tired.', ru:'Ты работал весь день — ты, должно быть, устал.', accept:['must']},
-  {level:6, q:'The woman ___ bag was stolen called the police.', ru:'Женщина, чью сумку украли, вызвала полицию.', accept:['whose']},
-  /* --- 7. Upper-Intermediate 3.0 (B2+) --- */
+  {level:6, q:'If they ___ (leave) earlier, they would have caught the train.', ru:'Если бы они вышли раньше, они бы успели на поезд.', accept:['had left',"'d left"]},
+  {level:6, q:"She isn't answering — she ___ (fall) asleep.", ru:'Она не отвечает — наверное, уснула.', accept:['must have fallen',"must've fallen"]},
+  {level:6, q:"I can't find my phone — I ___ (leave) it at work.", ru:'Не могу найти телефон — наверное, оставил на работе.', accept:['must have left',"must've left"]},
+  /* --- 7. Upper-Intermediate 3.0 (B2+) — фокус: смешанные кондишены, инверсия, wish --- */
   {level:7, q:'If I had taken that job, I ___ (live) in Paris now.', ru:'Если бы я взял ту работу, я бы сейчас жил в Париже.', accept:['would be living',"'d be living"]},
-  {level:7, q:'Never ___ (see) such a beautiful view.', ru:'Никогда я не видел такого красивого вида.', accept:['have i seen']},
   {level:7, q:'She wishes she ___ (study) harder at school.', ru:'Она жалеет, что не училась усерднее в школе.', accept:['had studied',"'d studied"]},
-  {level:7, q:'The report ___ (finish) by the time the boss arrived.', ru:'Отчёт был закончен к приходу начальника.', accept:['had been finished']},
+  {level:7, q:'Never ___ (see) such a beautiful view.', ru:'Никогда я не видел такого красивого вида.', accept:['have i seen']},
+  {level:7, q:'Had I known, I ___ (help) you.', ru:'Если бы я знал, я бы тебе помог.', accept:['would have helped',"would've helped","'d have helped"]},
 ];
 
 /* ===== Состояние ===== */
@@ -348,19 +349,30 @@ function levelAgg(){
   return m;
 }
 
-/* Обзорный тест по всем уровням: берём САМЫЙ ВЫСОКИЙ уровень, который студент освоил
-   (доля верных >= PASS), и рекомендуем следующий за ним. Так ошибки на лёгких вопросах
-   не занижают уровень, если на сложных студент справляется. Финальный уровень уточняет
-   преподаватель в разговоре. */
+/* Размещение по всем уровням. Берём самый высокий ОСВОЕННЫЙ уровень (доля
+   верных >= PASS), но НЕ выше первого «провала» снизу. То есть студент не может
+   быть размещён на верхний уровень, если он не прошёл базовые — даже если один
+   верхний вопрос угадан/подсмотрен. Это убирает аномалии вида «Beginner 2 — 2/4,
+   но Upper-Int 2.0 — 3/4» (тогда размещение = Beginner 2, а не Upper-Int).
+   Финальный уровень уточняет преподаватель в разговоре. */
 function computePlacement(){
   const m = levelAgg();
-  let highest = 0;
+  let highest = 0;      // самый высокий освоенный уровень
+  let firstFail = 0;    // первый (снизу) уровень, где НЕ пройден порог
   for(const l of LEVELS){
     const s = m[l.n];
-    if(s.total > 0 && s.ok / s.total >= PASS) highest = l.n;
+    if(s.total === 0) continue;
+    const passed = s.ok / s.total >= PASS;
+    if(passed) highest = l.n;
+    else if(firstFail === 0) firstFail = l.n;
   }
-  if(highest >= 7) return { rec:7, graduated:true };   // освоил всё — потолок программы
-  return { rec: Math.max(1, highest + 1), graduated:false }; // старт со следующего за освоенным
+  // Прошёл всё — потолок программы.
+  if(firstFail === 0 && highest >= 7) return { rec:7, graduated:true };
+  // Рекомендуем следующий за освоенным, но не выше первого провала.
+  let rec = highest + 1;
+  if(firstFail > 0) rec = Math.min(rec, firstFail);
+  rec = Math.max(1, Math.min(7, rec));
+  return { rec, graduated:false };
 }
 
 function renderResult(){
