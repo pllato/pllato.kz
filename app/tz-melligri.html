@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ТЗ · CRM MELLIGRI · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a1628'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Arial' font-weight='bold' font-size='14' fill='%23d4a978'%3EТЗ%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0a1628;--bronze:#b8895a;--bronze-d:#8b6740;--bronze-l:#d4a978;
+  --ink:#0f1620;--mut:#4a5163;--mut2:#8a8d96;--line:#e8e2d4;
+  --bg:#fafaf6;--surface:#fff;--surface2:#f3f0e8;
+  --mint:#16a34a;--mint-l:#e7f4ec;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.62;-webkit-font-smoothing:antialiased;border-top:6px solid var(--navy)}
+.page{max-width:880px;margin:0 auto;padding:0 28px 60px}
+h1{font-size:27px;font-weight:800;letter-spacing:-.4px;line-height:1.2}
+h2{font-size:19px;font-weight:800;letter-spacing:-.2px;display:flex;align-items:center;gap:11px}
+h2 .n{width:32px;height:32px;border-radius:9px;background:var(--bronze);color:#fff;display:grid;place-items:center;font-size:14px;font-weight:800;flex:none}
+h3{font-size:14.5px;font-weight:700;margin-bottom:5px}
+section{margin-top:30px}
+.hero{border-bottom:1px solid var(--line);padding:34px 0 22px;display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+.hero .meta{margin-left:auto;text-align:right;font-size:12.5px;color:var(--mut);font-weight:500;line-height:1.85}
+.hero .meta b{color:var(--ink);font-weight:700}
+.doc-num{display:inline-block;background:var(--navy);color:#fff;font-weight:700;font-size:12px;padding:4px 12px;border-radius:8px;letter-spacing:.3px}
+.hsub{font-size:14px;color:var(--mut);font-weight:500;margin-top:6px}
+p{color:var(--mut);font-weight:500;margin:8px 0}
+p b,li b{color:var(--ink);font-weight:700}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:15px 18px;margin-top:10px;box-shadow:0 1px 2px rgba(20,30,50,.04)}
+.card ul{margin:4px 0 2px 18px;color:var(--mut);font-weight:500}
+.card ul li{margin:4px 0}
+.mod-h{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.mod-h .mn{font-size:12px;font-weight:800;color:var(--bronze-d);letter-spacing:.4px;flex:none}
+.mod-h h3{font-size:15px}
+.mod-h .demo-b{margin-left:auto;background:var(--mint-l);color:var(--mint);font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:20px;flex:none}
+.tbl{width:100%;border-collapse:collapse;background:var(--surface);border-radius:12px;overflow:hidden;border:1px solid var(--line);margin-top:10px}
+.tbl th{background:var(--navy);color:#e6e9f0;font-size:12px;text-align:left;padding:10px 14px;font-weight:700}
+.tbl td{padding:11px 14px;border-bottom:1px solid var(--line);font-size:13px;font-weight:500;color:var(--mut);vertical-align:top}
+.tbl td:first-child{color:var(--ink);font-weight:700;white-space:nowrap}
+.tbl tr:last-child td{border-bottom:none}
+.warn{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:13px 17px;font-size:13px;color:var(--mut);font-weight:500;margin-top:10px}
+.warn b{color:var(--ink)}
+.foot{margin-top:44px;border-top:1px solid var(--line);padding-top:18px;display:flex;gap:20px;flex-wrap:wrap;font-size:12.5px;color:var(--mut);font-weight:500}
+.foot b{color:var(--ink);display:block;font-size:14px;font-weight:700}
+.foot .fr{margin-left:auto;text-align:right}
+.foot a{color:var(--bronze-d)}
+@media print{
+  body{background:#fff;font-size:12px;border-top-width:4px}
+  .page{max-width:100%;padding:0 4mm}
+  section{margin-top:16px}
+  .card,.tbl{break-inside:avoid}
+  body,.tbl th,h2 .n,.doc-num{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hero">
+    <div>
+      <h1>Техническое задание<br>CRM для дистрибуции косметологии «MELLIGRI»</h1>
+      <div class="hsub">Стандартная разработка «под ключ» · приложение к КП № MG-2026-01 и договору на разработку ПО</div>
+    </div>
+    <div class="meta">
+      <span class="doc-num">ТЗ № TZ-MG-2026-01</span><br>
+      Заказчик: <b>Маргарита</b> · MELLIGRI, дистрибуция косметологии<br>
+      Исполнитель: <b>ИП «STUDYSTORIES.APP»</b> (Pllato)<br>
+      Дата: <b>9 июля 2026</b> · версия 1.0
+    </div>
+  </div>
+
+  <section>
+    <h2><span class="n">1</span>Общие сведения</h2>
+    <p><b>1.1.</b> Предмет разработки — веб-система (CRM/ERP) для <b>B2B-дистрибуции профессиональной косметологии</b> (далее — Система): продажи препаратов врачам-косметологам через воронки с проверкой диплома, склад с сериями и сроками годности, мульти-прайс, план-факт и KPI-зарплата, каналы Instagram/WhatsApp/Telegram, триггеры, блогер-коды и двусторонняя интеграция с 1С — всё в одном портале.</p>
+    <p><b>1.2.</b> Ключевой принцип Заказчика — <b>реальная картина без ручных отчётов</b>: менеджеры вносят данные в одном месте, всё считается само, «не вырежешь, не приклеешь». Собственник видит контролируемые цифры, менеджеров не нужно «дёргать».</p>
+    <p><b>1.3.</b> Основание: договор на разработку ПО, КП № MG-2026-01 и настоящее ТЗ. Утверждённый интерактивный макет (демо) — <b>pllato.kz/app/kosmetika/</b> — является образцом интерфейсов и объёма разработки.</p>
+    <p><b>1.4.</b> Стоимость — <b>$2 700</b> (базовая $3 000 со скидкой 10% за подтверждение в течение 24 часов), срок — <b>4–6 недель</b>, первая версия ядра — ~7 дней. Оплата этапами: старт $300 → скелет $1 200 (принято) → финал $1 200. В собственность, на сервере Заказчика, без абонплаты за «коробку».</p>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span>Роли и права доступа</h2>
+    <table class="tbl">
+      <tr><th>Роль</th><th>Доступ</th></tr>
+      <tr><td>Владелец (Маргарита)</td><td>вся система: дашборд, все воронки и клиенты, склад, план-факт и зарплата, аналитика, настройка ролей, прайсов, триггеров, кодов, 1С</td></tr>
+      <tr><td>Менеджер</td><td>свои сделки: воронка, клиенты, заказы, инбокс, звонки, свой план-факт и % выполнения; цены видит только по клиентам с подтверждённым дипломом</td></tr>
+      <tr><td>Маркетолог</td><td>аналитика, каталог, клиенты, триггеры, блогеры и промокоды; без доступа к воронке и заказам</td></tr>
+      <tr><td>Косметолог (клиент)</td><td>отдельный кабинет: каталог с ценами (после диплома), история заказов, повторный заказ, статус доставки</td></tr>
+    </table>
+    <p>Каждое действие фиксируется в журнале (кто, что, когда); история не редактируется задним числом — «реальная картина».</p>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span>Функциональные требования — модули</h2>
+
+    <div class="card"><div class="mod-h"><span class="mn">М1</span><h3>Дашборд собственника</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Обращения по дням, выручка, план месяца, средний чек — в реальном времени, без ручных отчётов</li>
+        <li>Лиды Instagram/WhatsApp/Telegram считаются автоматически; топ препаратов и топ клиентов</li>
+        <li>Всё, что собственник хочет контролировать, — на одном экране</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М2</span><h3>Мульти-воронки</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Воронки: продажи, повторные клиенты, семинары — со своими этапами; этапы меняются без программиста</li>
+        <li>Перенос сделок между воронками, авто-этапы, канбан по стадиям</li>
+        <li>Обязательные поля — сделку нельзя двигать, пока не заполнено нужное</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М3</span><h3>Диплом-гейт</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Цены показываются <b>только врачам</b>: пока диплом не прикреплён — цены скрыты (🔒), сделку нельзя двигать</li>
+        <li>Документы (диплом, сертификаты) тянутся в карточку из Viber/Telegram/Instagram</li>
+        <li>Так конечным потребителям цены не показываются — защита B2B-модели</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М4</span><h3>Карточка клиента</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Последние покупки, обязательные поля, документы, статус диплома, канал, менеджер, оборот — всё видно при звонке</li>
+        <li>История заказов и переписки; импорт базы из Google Sheets / 1С</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М5</span><h3>Каналы и лиды (омни-инбокс)</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Instagram, WhatsApp и Telegram в одном инбоксе; переписка ведётся из CRM</li>
+        <li>Каждый новый диалог = лид, считается сам; видно, сколько пришло с каждого канала за день/неделю</li>
+        <li>Подключение каналов — около $20 за канал в месяц (оплачивается отдельно)</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М6</span><h3>Заказы и мульти-прайс</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Сборка заказа прямо в сделке; нужный прайс (дистрибьютор / опт / розница) подтягивается автоматически</li>
+        <li>На каждую позицию несколько цен — вручную цены не вводятся</li>
+        <li>Согласование и отгрузка заказа; расходная накладная уходит в 1С</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М7</span><h3>Склад дистрибьютора</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Номенклатура ~500 SKU; серии/лоты, сроки годности с подсветкой истекающих, остатки и резерв</li>
+        <li>Приходы (с указанием серии/лота и срока) и расходы по заказам; остатки в реальном времени</li>
+        <li>Инвентаризация с обязательными причинами расхождений; отгрузки со списанием серий/лотов</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М8</span><h3>План-факт и KPI → зарплата</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>План на месяц по каждому менеджеру; система сама считает % выполнения на текущую дату</li>
+        <li>Зарплата по тирам выполнения (до 70% — оклад, 70–90% +3%, 90–110% +6%, 110%+ +10%)</li>
+        <li>KPI: % плана, выручка, кол-во чеков, средний чек, звонки, новые и повторные клиенты — отдельные отчёты не нужны</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М9</span><h3>Триггеры</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Дни рождения (поздравление + спецпредложение), повторный заказ (30+ дней тишины → задача «позвонить»)</li>
+        <li>Заход в каталог по cookie без заявки → задача; праздники (авторассылка по сегментам); «диплом не подтверждён» → напоминание менеджеру</li>
+        <li>Триггеры включаются тумблером, тексты сообщений настраиваются под MELLIGRI</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М10</span><h3>Блогеры и промокоды</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Врачу/блогеру — персональный код; клиент с кодом получает скидку, заказ закрепляется за кодом</li>
+        <li>Атрибуция: привлечённые клиенты, оборот по коду, расчёт выплаты блогеру — считается само</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М11</span><h3>Звонки и телефония</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Журнал звонков, запись и транскрибация разговоров; звонок из карточки, входящий открывает карточку клиента</li>
+        <li>Контроль работы менеджера по скрипту (оценка соблюдения по транскрибации); пропущенный → задача «перезвонить»</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М12</span><h3>Аналитика</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>По менеджерам, воронкам и каналам; конверсия, LTV, повторные покупки, продажи по городам, топ препаратов</li>
+        <li>Instagram/WhatsApp/Telegram, телефония с записью, сайт с cookie-трекингом — подключаются под процессы</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М13</span><h3>Двусторонняя интеграция с 1С</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Работаете в портале — данные синхронны с 1С; в 1С заходить не нужно</li>
+        <li>Продажа = проведение: счёт-фактура и накладная создаются в 1С, остатки зеркалируются в обе стороны</li>
+        <li>Импорт номенклатуры и клиентов; настройка обмена под конфигурацию Заказчика</li>
+      </ul>
+    </div>
+
+    <div class="card"><div class="mod-h"><span class="mn">М14</span><h3>Кабинет косметолога</h3><span class="demo-b">в демо</span></div>
+      <ul>
+        <li>Отдельный портал клиента: каталог с ценами (после подтверждения диплома), история заказов, повторный заказ в один клик, статус доставки</li>
+        <li>Доступ по ссылке из WhatsApp, без установки приложения</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">4</span>Интеграции и миграция данных</h2>
+    <table class="tbl">
+      <tr><th>Что</th><th>Как</th></tr>
+      <tr><td>1С (двусторонняя)</td><td>обмен номенклатурой, ценами, клиентами, документами и остатками; настройка под конфигурацию Заказчика</td></tr>
+      <tr><td>Instagram / WhatsApp / Telegram</td><td>омни-инбокс, лиды по каналам; ~$20 за канал в месяц (отдельно)</td></tr>
+      <tr><td>WhatsApp-провайдер</td><td>через партнёра Исполнителя — около 10 000 ₸/мес вместо ~36 000 ₸ на рынке</td></tr>
+      <tr><td>Телефония</td><td>журнал, запись и транскрибация звонков; интеграция с оператором Заказчика</td></tr>
+      <tr><td>Google Sheets</td><td>импорт текущей базы клиентов и остатков со структурой</td></tr>
+      <tr><td>Сайт</td><td>cookie-трекинг заходов в каталог для триггеров и аналитики</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="n">5</span>Что оплачивается отдельно</h2>
+    <div class="warn">Не входит в стоимость разработки и оплачивается отдельно по факту: <b>подключение каналов</b> Instagram/WhatsApp/Telegram (~$20 за канал в месяц); <b>провайдер WhatsApp</b> (~10 000 ₸/мес через партнёра); <b>хостинг</b> — на старте бесплатные тарифы облака, платное — при росте нагрузки; <b>доработки после сдачи</b> — $20/час по согласованной оценке. Абонентской платы за «коробку» нет.</div>
+  </section>
+
+  <section>
+    <h2><span class="n">6</span>Нефункциональные требования</h2>
+    <div class="card"><ul>
+      <li>Веб-приложение, адаптивное под компьютер, планшет и телефон; современные браузеры</li>
+      <li>Доступ по ролям (раздел 2), журнал действий, защита персональных данных согласно законодательству</li>
+      <li>Резервное копирование; код и данные — собственность Заказчика, на его сервере; без абонплаты за пользователей и лицензий</li>
+      <li>Масштабирование: новые менеджеры, филиалы и каналы добавляются без переделок и лицензий</li>
+    </ul></div>
+  </section>
+
+  <section>
+    <h2><span class="n">7</span>Порядок сдачи и приёмки</h2>
+    <table class="tbl">
+      <tr><th>Шаг</th><th>Содержание</th></tr>
+      <tr><td>Шаг 0 · Старт</td><td>небольшая предоплата $300 — разворачиваем уже кликабельное ядро прототипа</td></tr>
+      <tr><td>Шаг 1 · Скелет</td><td>воронки, диплом-гейт, склад, заказы, план-факт, каналы — прокликиваем вместе, собираем правки; приёмка ядра — оплата $1 200</td></tr>
+      <tr><td>Шаг 2 · Финал</td><td>правки, 1С и каналы, аналитика, передача кода; полная приёмка по разделу 3 — оплата $1 200</td></tr>
+      <tr><td>Поддержка</td><td>ошибки (дефекты) — бесплатно всегда; новые доработки после сдачи — $20/час по согласованной оценке</td></tr>
+    </table>
+    <p>Постоплата этапами: каждый этап принимаете вы. Правки в пределах ТЗ по ходу работы (ориентировочно до 20–30% объёма) входят в стоимость и закладываются заранее — счета не перевыставляются.</p>
+  </section>
+
+  <div class="foot">
+    <div>
+      <b>Платон Цай</b>
+      Pllato · разработка CRM/ERP под процесс клиента
+    </div>
+    <div>
+      +7 701 123 99 99<br>
+      uurraa@gmail.com
+    </div>
+    <div class="fr">
+      ИП «STUDYSTORIES.APP»<br>
+      <a href="https://pllato.kz/offer">pllato.kz/offer</a> · демо: pllato.kz/app/kosmetika/
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

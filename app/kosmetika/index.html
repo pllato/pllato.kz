@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+<script src="/app/gate.js"></script>
 <meta charset="UTF-8">
+<meta name="robots" content="noindex,nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MELLIGRI CRM — Дистрибьюция косметики</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23203553'/%3E%3Ctext x='4' y='22' font-size='14' font-weight='900' fill='%235EE1E5' font-family='sans-serif'%3EMG%3C/text%3E%3C/svg%3E">
@@ -305,6 +307,41 @@ tbody tr:hover{background:var(--panel2)}
 .tag-amber{background:var(--amber-soft);color:var(--amber);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
 .tag-green{background:var(--green-soft);color:var(--green);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
 .tag-blue{background:#2563eb22;color:#60a5fa;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+
+/* ==== восстановленные экраны ==== */
+.onec-pill{display:inline-flex;align-items:center;gap:7px;padding:6px 13px;border-radius:20px;background:var(--green-soft);color:var(--green);font-size:12px;font-weight:700}
+.onec-pill .d{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(34,197,94,.5);animation:opl 2.2s infinite}
+@keyframes opl{0%{box-shadow:0 0 0 0 rgba(34,197,94,.5)}70%{box-shadow:0 0 0 7px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:960px){.two-col{grid-template-columns:1fr}}
+.panel-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:22px}
+.panel-card>h3{font-size:15px;font-weight:700;margin-bottom:18px}
+.pf-row{margin-bottom:20px}
+.pf-top{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;font-weight:600;margin-bottom:8px;color:var(--muted)}
+.pf-top b{font-size:16px;color:var(--txt)}
+.pf-track{height:10px;background:var(--panel2);border-radius:6px;overflow:hidden}
+.pf-track i{display:block;height:100%;border-radius:6px;transition:.4s}
+.tier-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);font-size:13.5px;color:var(--muted)}
+.tier-row:last-child{border-bottom:none}
+.tier-row b{font-weight:700;color:var(--txt)}
+.kpi-chip{display:inline-block;background:var(--panel2);border:1px solid var(--line2);color:var(--muted);font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:20px;margin:3px 4px 3px 0}
+.tgl{position:relative;width:46px;height:25px;border-radius:20px;background:#2a4068;flex:none;cursor:pointer;transition:.15s}
+.tgl.on{background:var(--green)}
+.tgl::after{content:"";position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:50%;background:#fff;transition:.15s}
+.tgl.on::after{left:24px}
+.trig-row{display:flex;align-items:center;gap:14px;padding:15px 18px;background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:11px}
+.trig-row .ti{flex:1}
+.trig-row .tn{font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:9px}
+.trig-row .td{font-size:12.5px;color:var(--muted);margin-top:3px}
+.info-list{list-style:none;padding:0;margin:0}
+.info-list li{font-size:13px;color:var(--muted);padding:8px 0 8px 24px;position:relative;line-height:1.5}
+.info-list li b{color:var(--txt)}
+.info-list li .in{position:absolute;left:0;top:8px;width:19px;height:19px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:800;display:grid;place-items:center}
+.callout{background:var(--green-soft);border:1px solid #22c55e55;border-radius:12px;padding:15px 18px;font-size:13.5px;color:var(--txt);margin-top:18px;line-height:1.55}
+.callout b{color:var(--green)}
+.price-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.num-td{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.hint-note{font-size:12.5px;color:var(--muted);margin-top:14px;line-height:1.55}
 </style>
 </head>
 <body>
@@ -365,41 +402,75 @@ tbody tr:hover{background:var(--panel2)}
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         Дашборд
       </button>
+      <div class="nav-group">Продажи</div>
       <button class="nav-item" onclick="showSection('funnel',this)" id="nav-funnel">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-        Воронка продаж
+        Воронки
       </button>
       <button class="nav-item" onclick="showSection('clients',this)" id="nav-clients">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Косметологи
-      </button>
-      <button class="nav-item" onclick="showSection('inbox',this)" id="nav-inbox">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        Входящие
-        <span class="badge">5</span>
+        Клиенты
       </button>
       <button class="nav-item" onclick="showSection('orders',this)" id="nav-orders">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
         Заказы
       </button>
-      <div class="nav-group">Продукты</div>
-      <button class="nav-item" onclick="showSection('catalog',this)" id="nav-catalog">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-        Каталог препаратов
+      <button class="nav-item" onclick="showSection('calls',this)" id="nav-calls">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        Звонки
       </button>
+      <div class="nav-group">Коммуникации</div>
+      <button class="nav-item" onclick="showSection('inbox',this)" id="nav-inbox">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Инбокс
+        <span class="badge">12</span>
+      </button>
+      <button class="nav-item" onclick="showSection('triggers',this)" id="nav-triggers">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Триггеры
+      </button>
+      <button class="nav-item" onclick="showSection('catalog',this)" id="nav-catalog">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Каталоги
+      </button>
+      <button class="nav-item" onclick="showSection('promo',this)" id="nav-promo">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6"/><rect x="2" y="7" width="20" height="5" rx="1"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+        Блогеры и коды
+      </button>
+      <div class="nav-group">Склад и закупки</div>
       <button class="nav-item" onclick="showSection('sklad',this)" id="nav-sklad">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
         Склад
       </button>
-      <div class="nav-group" id="nav-group-analytics">Аналитика</div>
+      <button class="nav-item" onclick="showSection('inventory',this)" id="nav-inventory">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Инвентаризация
+      </button>
+      <button class="nav-item" onclick="showSection('shipments',this)" id="nav-shipments">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        Отгрузки
+      </button>
+      <button class="nav-item" onclick="showSection('pricelists',this)" id="nav-pricelists">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Прайс-листы
+      </button>
+      <div class="nav-group" id="nav-group-analytics">Управление</div>
+      <button class="nav-item" onclick="showSection('planfact',this)" id="nav-planfact">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        План-факт и KPI
+      </button>
       <button class="nav-item" onclick="showSection('analytics',this)" id="nav-analytics">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         Аналитика
       </button>
       <button class="nav-item" onclick="showSection('integrations',this)" id="nav-integrations">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        Интеграции
+        1С и интеграции
       </button>
+      <a class="nav-item" href="mini.html" target="_blank">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 13L2 9z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/></svg>
+        Кабинет косметолога
+      </a>
     </nav>
     <div class="side-bottom">
       <div class="user-chip">
@@ -424,8 +495,9 @@ tbody tr:hover{background:var(--panel2)}
         <div class="page-sub" id="pageSub">Обзор за июнь 2026</div>
       </div>
       <div class="topbar-right">
+        <span class="onec-pill"><span class="d"></span>1С синхрон.</span>
         <a href="mini.html" class="portal-btn" target="_blank">
-          Портал косметологов →
+          ◆ Кабинет косметолога
         </a>
       </div>
     </div>
@@ -688,6 +760,165 @@ tbody tr:hover{background:var(--panel2)}
       <div class="integrations-grid" id="intGrid"></div>
     </div>
 
+    <!-- ===== ЗВОНКИ ===== -->
+    <div id="sec-calls" class="content hide">
+      <div class="kpi-grid" style="margin-bottom:20px">
+        <div class="kpi-card"><div class="kpi-label">Звонков сегодня</div><div class="kpi-value" style="color:var(--accent)">38</div><div class="kpi-delta up">входящие 14 · исходящие 24</div></div>
+        <div class="kpi-card"><div class="kpi-label">Дозвон</div><div class="kpi-value" style="color:#22c55e">71%</div><div class="kpi-delta up">все с записью</div></div>
+        <div class="kpi-card"><div class="kpi-label">Соблюдение скрипта</div><div class="kpi-value" style="color:#f59e0b">82%</div><div class="kpi-delta up">по транскрибации</div></div>
+        <div class="kpi-card"><div class="kpi-label">Средний разговор</div><div class="kpi-value">4:12</div><div class="kpi-delta up">результативный</div></div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Клиент</th><th>Менеджер</th><th>Тип</th><th>Время</th><th>Длит.</th><th>Скрипт</th><th>Запись</th></tr></thead>
+          <tbody>
+            <tr><td style="font-weight:600">Алина Нурмухамедова</td><td style="color:var(--muted)">Елена</td><td>исходящий</td><td>13:42</td><td>6:41</td><td><span class="tag-green">94%</span></td><td><span class="tag-cyan">▶ запись + текст</span></td></tr>
+            <tr><td style="font-weight:600">Данара Ким</td><td style="color:var(--muted)">Дана</td><td>входящий</td><td>13:10</td><td>3:05</td><td><span class="tag-green">88%</span></td><td><span class="tag-cyan">▶ запись + текст</span></td></tr>
+            <tr><td style="font-weight:600">+7 707 812 …</td><td style="color:var(--muted)">—</td><td>пропущенный</td><td>12:55</td><td>—</td><td><span class="tag-amber">задача · перезвон</span></td><td style="color:var(--muted)">—</td></tr>
+            <tr><td style="font-weight:600">Сауле Ахметова</td><td style="color:var(--muted)">Елена</td><td>исходящий</td><td>12:20</td><td>8:12</td><td><span class="tag-amber">71%</span></td><td><span class="tag-cyan">▶ запись + текст</span></td></tr>
+            <tr><td style="font-weight:600">Гульнара Ж.</td><td style="color:var(--muted)">Алия</td><td>исходящий · недозвон</td><td>11:40</td><td>—</td><td style="color:var(--muted)">—</td><td><span class="tag-blue">WA ушло</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint-note">IP-телефония: звонок из карточки в один клик, входящий сам открывает карточку клиента. Все разговоры — с записью и транскрибацией; система оценивает соблюдение скрипта. Пропущенный превращается в задачу «перезвонить».</div>
+    </div>
+
+    <!-- ===== ТРИГГЕРЫ ===== -->
+    <div id="sec-triggers" class="content hide">
+      <div class="panel-card">
+        <h3>Автоматические триггеры</h3>
+        <div class="trig-row"><div class="ti"><div class="tn">🎂 Дни рождения</div><div class="td">Поздравление в WhatsApp + спецпредложение</div></div><div class="tgl on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="trig-row"><div class="ti"><div class="tn">🔁 Повторный заказ</div><div class="td">Если покупал ежемесячно и 30+ дней нет заказа — задача «позвонить»</div></div><div class="tgl on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="trig-row"><div class="ti"><div class="tn">🔗 Заход в каталог</div><div class="td">Повторный заход на сайт по cookie без заявки → задача «позвонить»</div></div><div class="tgl on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="trig-row"><div class="ti"><div class="tn">🎁 Праздники</div><div class="td">Авторассылка по сегментам к 8 марта / Новому году</div></div><div class="tgl" onclick="this.classList.toggle('on')"></div></div>
+        <div class="trig-row"><div class="ti"><div class="tn">📋 Диплом не подтверждён</div><div class="td">Напомнить менеджеру запросить диплом до показа цен</div></div><div class="tgl on" onclick="this.classList.toggle('on')"></div></div>
+        <button class="btn-accent" style="margin-top:6px" onclick="alert('Демо: конструктор триггера — событие, условие, действие (задача или сообщение), сегмент.')">+ Добавить триггер</button>
+      </div>
+      <div class="hint-note">Триггеры срабатывают сами: создают задачу менеджеру или отправляют сообщение в WhatsApp/Telegram. Стиль сообщений настраивается под MELLIGRI.</div>
+    </div>
+
+    <!-- ===== БЛОГЕРЫ И КОДЫ ===== -->
+    <div id="sec-promo" class="content hide">
+      <div class="two-col">
+        <div class="panel-card">
+          <h3>Блогеры и промокоды</h3>
+          <div class="tbl-wrap" style="border:none;background:none">
+            <table>
+              <thead><tr><th>Код</th><th>Блогер / врач</th><th class="num-td">Скидка</th><th class="num-td">Привлёк</th><th class="num-td">Оборот</th></tr></thead>
+              <tbody>
+                <tr><td style="font-weight:800">ARU10</td><td style="color:var(--muted)">@aru_beauty</td><td class="num-td">10%</td><td class="num-td">23</td><td class="num-td">1,9 млн ₸</td></tr>
+                <tr><td style="font-weight:800">KIM7</td><td style="color:var(--muted)">Др. Ким</td><td class="num-td">7%</td><td class="num-td">11</td><td class="num-td">820 000 ₸</td></tr>
+                <tr><td style="font-weight:800">BEAUTY5</td><td style="color:var(--muted)">@beauty.blog.kz</td><td class="num-td">5%</td><td class="num-td">34</td><td class="num-td">2,6 млн ₸</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <button class="btn-accent" style="margin-top:14px" onclick="alert('Демо: выдача персонального кода блогеру/врачу — процент скидки, срок, тип выплаты.')">+ Выдать код</button>
+        </div>
+        <div class="panel-card">
+          <h3>Как работает</h3>
+          <ul class="info-list">
+            <li><span class="in">1</span>Врачу/блогеру выдаётся персональный код.</li>
+            <li><span class="in">2</span>Клиент приходит с кодом → автоматически получает скидку.</li>
+            <li><span class="in">3</span>Заказ закрепляется за этим кодом — видно, от кого и сколько пришло.</li>
+            <li><span class="in">4</span>Всё считается в системе: привлечённые клиенты, оборот, выплаты блогеру.</li>
+          </ul>
+          <div class="callout">Код <b>ARU10</b> привёл 23 клиента на 1,9 млн ₸. Выплата блогеру: <b>190 000 ₸</b>.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ИНВЕНТАРИЗАЦИЯ ===== -->
+    <div id="sec-inventory" class="content hide">
+      <div class="wh-bar" style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <div style="font-size:13px;color:var(--muted)">Последняя инвентаризация: <b style="color:var(--txt)">28.06.2026</b> · склад Алматы</div>
+        <button class="btn-accent" style="margin-left:auto" onclick="alert('Демо: запуск инвентаризации — сверка учётных остатков с фактом по каждой позиции, фиксация причин расхождений, проводка в 1С.')">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Начать инвентаризацию
+        </button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Препарат</th><th>Серия / лот</th><th class="num-td">Учёт</th><th class="num-td">Факт</th><th class="num-td">Разница</th><th>Причина</th></tr></thead>
+          <tbody>
+            <tr><td style="font-weight:600">Ботокс Dysport 500</td><td style="color:var(--muted)">DYS-0312 / L-114</td><td class="num-td">32</td><td class="num-td">30</td><td class="num-td" style="color:var(--red)">−2</td><td><span class="tag-amber">бой при доставке</span></td></tr>
+            <tr><td style="font-weight:600">Мезо NCTF 135</td><td style="color:var(--muted)">NCTF-1120</td><td class="num-td">19</td><td class="num-td">19</td><td class="num-td" style="color:var(--green)">0</td><td style="color:var(--muted)">сходится</td></tr>
+            <tr><td style="font-weight:600">IAL System</td><td style="color:var(--muted)">IAL-0926</td><td class="num-td">15</td><td class="num-td">16</td><td class="num-td" style="color:var(--green)">+1</td><td><span class="tag-blue">пересорт</span></td></tr>
+            <tr><td style="font-weight:600">Биоревитализант Profhilo</td><td style="color:var(--muted)">PRF-0825</td><td class="num-td">7</td><td class="num-td">5</td><td class="num-td" style="color:var(--red)">−2</td><td><span class="tag-amber">списание · срок</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint-note">Инвентаризация с обязательной причиной по каждому расхождению — «не вырежешь, не приклеешь». Итог проводится в 1С, остатки на складе обновляются автоматически.</div>
+    </div>
+
+    <!-- ===== ОТГРУЗКИ ===== -->
+    <div id="sec-shipments" class="content hide">
+      <div class="orders-filters">
+        <button class="filter-btn active">Все</button>
+        <button class="filter-btn">Собирается</button>
+        <button class="filter-btn">В пути</button>
+        <button class="filter-btn">Доставлена</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Косметолог</th><th>Город</th><th class="num-td">Позиций</th><th class="num-td">Сумма</th><th>Накладная 1С</th><th>Статус</th></tr></thead>
+          <tbody>
+            <tr><td style="font-weight:700">ОТГ-1042</td><td>Алина Нурмухамедова</td><td>Алматы</td><td class="num-td">6</td><td class="num-td">312 000 ₸</td><td><span class="tag-green">РН-880 ✓</span></td><td><span class="status-pill green">Доставлена</span></td></tr>
+            <tr><td style="font-weight:700">ОТГ-1043</td><td>Данара Ким</td><td>Астана</td><td class="num-td">3</td><td class="num-td">148 000 ₸</td><td><span class="tag-green">РН-881 ✓</span></td><td><span class="status-pill amber">В пути</span></td></tr>
+            <tr><td style="font-weight:700">ОТГ-1044</td><td>Сауле Ахметова</td><td>Алматы</td><td class="num-td">9</td><td class="num-td">540 000 ₸</td><td><span class="tag-cyan">формируется</span></td><td><span class="status-pill cyan">Собирается</span></td></tr>
+            <tr><td style="font-weight:700">ОТГ-1045</td><td>Гульнара Ж.</td><td>Шымкент</td><td class="num-td">2</td><td class="num-td">96 000 ₸</td><td><span class="tag-green">РН-882 ✓</span></td><td><span class="status-pill green">Доставлена</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint-note">Отгрузка формируется из подтверждённого заказа: резерв со склада, расходная накладная в 1С, трек клиенту в WhatsApp. Списание серий/лотов — по факту отгрузки.</div>
+    </div>
+
+    <!-- ===== ПРАЙС-ЛИСТЫ ===== -->
+    <div id="sec-pricelists" class="content hide">
+      <div class="price-tabs">
+        <button class="filter-btn active">Дистрибьютор</button>
+        <button class="filter-btn">Опт</button>
+        <button class="filter-btn">Розница</button>
+        <button class="filter-btn" onclick="alert('Демо: создание нового прайса — правило наценки от себестоимости или ручные цены по позициям.')">+ прайс</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Препарат</th><th class="num-td">Себестоимость</th><th class="num-td">Дистрибьютор</th><th class="num-td">Опт</th><th class="num-td">Розница</th></tr></thead>
+          <tbody>
+            <tr><td style="font-weight:600">Филлер Juvederm Ultra 3</td><td class="num-td" style="color:var(--muted)">62 000</td><td class="num-td">78 000</td><td class="num-td">85 000</td><td class="num-td">98 000</td></tr>
+            <tr><td style="font-weight:600">Ботокс Dysport 500</td><td class="num-td" style="color:var(--muted)">88 000</td><td class="num-td">105 000</td><td class="num-td">118 000</td><td class="num-td">135 000</td></tr>
+            <tr><td style="font-weight:600">Мезо NCTF 135</td><td class="num-td" style="color:var(--muted)">21 000</td><td class="num-td">27 000</td><td class="num-td">31 000</td><td class="num-td">38 000</td></tr>
+            <tr><td style="font-weight:600">IAL System</td><td class="num-td" style="color:var(--muted)">34 000</td><td class="num-td">42 000</td><td class="num-td">48 000</td><td class="num-td">56 000</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint-note">На каждую позицию несколько цен. При формировании заказа нужный прайс (дистрибьютор / опт / розница) подтягивается автоматически — вручную цены не вводить.</div>
+    </div>
+
+    <!-- ===== ПЛАН-ФАКТ И KPI ===== -->
+    <div id="sec-planfact" class="content hide">
+      <div class="two-col">
+        <div class="panel-card">
+          <h3>План-факт менеджеров · июнь</h3>
+          <div class="pf-row"><div class="pf-top"><span>Елена · план 7 млн ₸</span><b>86%</b></div><div class="pf-track"><i style="width:86%;background:#22c55e"></i></div></div>
+          <div class="pf-row"><div class="pf-top"><span>Дана · план 7 млн ₸</span><b>72%</b></div><div class="pf-track"><i style="width:72%;background:var(--accent)"></i></div></div>
+          <div class="pf-row" style="margin-bottom:0"><div class="pf-top"><span>Алия · план 7 млн ₸</span><b>58%</b></div><div class="pf-track"><i style="width:58%;background:var(--accent2)"></i></div></div>
+        </div>
+        <div class="panel-card">
+          <h3>KPI → зарплата</h3>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.55">Зарплата считается автоматически по выполнению плана. Менеджер в любой момент видит свой % и прогноз бонуса.</p>
+          <div class="tier-row"><span>до 70%</span><b>оклад</b></div>
+          <div class="tier-row"><span>70–90%</span><b>оклад + 3%</b></div>
+          <div class="tier-row"><span>90–110%</span><b>оклад + 6%</b></div>
+          <div class="tier-row"><span>110%+</span><span class="tag-green" style="font-size:12.5px">оклад + 10%</span></div>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted2);font-weight:700;margin:18px 0 8px">Показатели KPI</div>
+          <div>
+            <span class="kpi-chip">% плана</span><span class="kpi-chip">выручка</span><span class="kpi-chip">кол-во чеков</span><span class="kpi-chip">средний чек</span><span class="kpi-chip">звонки</span><span class="kpi-chip">новые клиенты</span><span class="kpi-chip">повторные</span>
+          </div>
+        </div>
+      </div>
+      <div class="hint-note">План ставится на месяц по каждому менеджеру (по звонкам, продажам, позициям). Система сама считает % выполнения на текущую дату — отдельные отчёты не нужны.</div>
+    </div>
+
     <div class="watermark">MELLIGRI CRM · Демо-версия · pllato.kz</div>
   </main>
 </div>
@@ -839,8 +1070,8 @@ function showSection(id, btn){
   document.getElementById('sec-'+id).classList.remove('hide');
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
   if(btn) btn.classList.add('active');
-  const titles = {dashboard:'Дашборд',funnel:'Воронка продаж',clients:'Косметологи-клиенты',inbox:'Входящие сообщения',orders:'Заказы',catalog:'Каталог препаратов',sklad:'Склад',analytics:'Аналитика',integrations:'Интеграции'};
-  const subs = {dashboard:'Обзор за июнь 2026',funnel:'Канбан по стадиям',clients:'База косметологов',inbox:'WhatsApp · Instagram · Telegram',orders:'История заказов',catalog:'Прайс и остатки',sklad:'Остатки · Приходы · Расходы',analytics:'Статистика и отчёты',integrations:'Каналы и внешние системы'};
+  const titles = {dashboard:'Дашборд',funnel:'Воронки и проверка диплома',clients:'Клиенты',inbox:'Инбокс',orders:'Заказы',calls:'Звонки',triggers:'Триггеры',catalog:'Каталоги',promo:'Блогеры и коды',sklad:'Склад',inventory:'Инвентаризация',shipments:'Отгрузки',pricelists:'Прайс-листы',planfact:'План-факт и KPI',analytics:'Аналитика',integrations:'1С и интеграции'};
+  const subs = {dashboard:'Реальная картина за июнь 2026',funnel:'Канбан · цены скрыты без диплома',clients:'База косметологов',inbox:'WhatsApp · Instagram · Telegram',orders:'История заказов · мульти-прайс',calls:'Журнал, запись и транскрибация',triggers:'Автоматические задачи и рассылки',catalog:'Препараты и остатки',promo:'Промокоды и атрибуция',sklad:'Остатки · Приходы · Расходы',inventory:'Сверка учёта с фактом',shipments:'Сборка, накладная 1С, доставка',pricelists:'Мульти-цена по позициям',planfact:'Планы и зарплата от показателей',analytics:'Статистика и отчёты',integrations:'Двусторонняя 1С и каналы'};
   document.getElementById('pageTitle').textContent = titles[id]||id;
   document.getElementById('pageSub').textContent = subs[id]||'';
 }
@@ -914,7 +1145,9 @@ function buildKanban(){
             <div class="k-name">${c.name}</div>
           </div>
           <div class="k-city">${c.spec} · ${c.city}</div>
-          ${c.amount>0?`<div class="k-amount">${(c.amount/1000).toFixed(0)} т₸/год</div>`:'<div style="font-size:11px;color:var(--muted)">Нет заказов</div>'}
+          ${['Новый контакт','Квалификация'].includes(c.stage)
+            ? `<div style="display:inline-flex;align-items:center;gap:6px;margin-top:7px;font-size:11px;font-weight:700;color:var(--amber);background:var(--amber-soft);padding:3px 9px;border-radius:20px">🔒 цены скрыты · нет диплома</div>`
+            : (c.amount>0?`<div class="k-amount">${(c.amount/1000).toFixed(0)} т₸/год</div>`:'<div style="font-size:11px;color:var(--muted)">Нет заказов</div>')}
           ${c.last!=='—'?`<div class="k-date">Последний: ${c.last}</div>`:''}
         </div>`).join('')}
     </div>`;
@@ -1546,6 +1779,16 @@ function toast(msg){
 const _style=document.createElement('style');
 _style.textContent='@keyframes fadeInUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}';
 document.head.appendChild(_style);
+
+// deep-link: ?role=owner&s=<section> — авто-вход и переход к экрану (для шаринга и превью)
+(function(){
+  const q=new URLSearchParams(location.search);
+  const role=q.get('role'); const s=q.get('s');
+  if(role && ['owner','manager','marketer'].includes(role)){
+    login(role);
+    if(s){ const btn=document.getElementById('nav-'+s); showSection(s, btn||null); }
+  }
+})();
 </script>
 </body>
 </html>
