@@ -4414,7 +4414,23 @@ function lcCard(it){
   if (Lc) {
     if (it.step === 'grammar' || it.step === 'grammar-test') {
       const g = Lc.grammar;
-      extra += matBox('Грамматика урока', `<div>${escapeHtml(g.title)}</div><div style="color:var(--t3);margin-top:4px">${escapeHtml(g.form)}</div><div style="margin-top:6px">Примеры: ${g.examples.map(e => escapeHtml(e)).join('; ')}</div>`);
+      // Мини-таблица-шпаргалка (если есть в контенте) — связывает темы урока.
+      const tableHtml = Array.isArray(g.table) && g.table.length
+        ? `<div style="overflow-x:auto;margin-top:6px"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
+             <thead><tr>
+               <th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--b1);color:var(--t3);font-weight:600">Правило</th>
+               <th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--b1);color:var(--t3);font-weight:600">Формула</th>
+               <th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--b1);color:var(--t3);font-weight:600">Пример</th>
+             </tr></thead><tbody>
+             ${g.table.map(r => `<tr>
+               <td style="padding:4px 6px;border-bottom:1px solid var(--b1);font-weight:600">${escapeHtml(r.rule)}</td>
+               <td style="padding:4px 6px;border-bottom:1px solid var(--b1);color:var(--t2)">${escapeHtml(r.form)}</td>
+               <td style="padding:4px 6px;border-bottom:1px solid var(--b1)">${escapeHtml(r.example)}</td>
+             </tr>`).join('')}
+           </tbody></table></div>`
+        : `<div style="color:var(--t3);margin-top:4px">${escapeHtml(g.form)}</div>`;
+      const examplesHtml = `<div style="margin-top:6px">Примеры:<ul style="margin:4px 0 0;padding-left:18px">${(g.examples || []).map(e => `<li>${escapeHtml(e)}</li>`).join('')}</ul></div>`;
+      extra += matBox('Грамматика урока', `<div style="font-weight:600">${escapeHtml(g.title)}</div>${tableHtml}${examplesHtml}`);
     } else if (it.step === 'reading') {
       const r = Lc.reading;
       extra += matBox('Текст для чтения', `<div>${escapeHtml(r.text)}</div><div style="color:var(--t3);margin-top:6px">Вопросы: ${r.q.map(q => escapeHtml(q)).join(' · ')}</div>`);
