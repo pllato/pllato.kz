@@ -324,6 +324,30 @@ body {
   margin: 28px 0 14px;
 }
 
+/* группы-вкладки проектов + избранное */
+.project-tabs { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0 4px; }
+.ptab {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 14px; border-radius:9px;
+  border:1px solid var(--line-2); background:var(--surface);
+  color:var(--text-2); font-size:13px; font-weight:600; font-family:inherit;
+  cursor:pointer; transition:.14s;
+}
+.ptab:hover { border-color:var(--bronze-tint-2); color:var(--text-1); }
+.ptab.on { background:var(--text-1); color:var(--surface); border-color:var(--text-1); }
+.ptab .pt-c { font-size:11px; font-weight:700; opacity:.6; font-variant-numeric:tabular-nums; }
+.ptab.fav.on { background:#e8a726; border-color:#e8a726; color:#1c1206; }
+.fav-star {
+  position:absolute; top:10px; right:11px;
+  width:28px; height:28px; border-radius:8px;
+  border:none; background:transparent; color:var(--text-3);
+  font-size:17px; line-height:1; cursor:pointer;
+  display:grid; place-items:center; z-index:3; opacity:.45; transition:.14s;
+}
+.tool-card:hover .fav-star { opacity:.85; }
+.fav-star:hover { background:var(--bronze-tint); color:#e8a726; opacity:1; }
+.fav-star.on { opacity:1; color:#e8a726; }
+
 .tools-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -394,7 +418,7 @@ body {
 
 .tool-badge {
   position: absolute;
-  top: 14px; right: 14px;
+  top: 14px; right: 47px;
   font-size: 9px; font-weight: 800;
   text-transform: uppercase; letter-spacing: 0.1em;
   padding: 3px 8px; border-radius: 100px;
@@ -504,6 +528,8 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
         style="width:100%;max-width:420px;padding:10px 14px 10px 38px;background:var(--surface);border:1px solid var(--line-2);border-radius:10px;font-size:14px;color:var(--text-1);outline:none;font-family:inherit;transition:.15s"
         onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--line-2)'">
     </div>
+
+    <div class="project-tabs" id="projectTabs"></div>
 
     <div class="section-title">Работа с клиентами</div>
     <div class="tools-grid">
@@ -1838,34 +1864,92 @@ async function syncAdminEmailsRegistry(users) {
 
 function applyPermissionsAndAdminUI() {
   if (!CURRENT) return;
-  // Фильтрация карточек
-  document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
-    const appId = card.dataset.appId;
-    const allowed = CURRENT.isAdmin || CURRENT.apps?.[appId];
-    card.style.display = allowed ? '' : 'none';
+  initProjectGroups();
+  applyProjectFilters();
+}
+
+/* ===== группы-вкладки проектов + избранное ===== */
+const FAV_KEY = 'pllato_fav_projects';
+let FAVS = new Set((()=>{ try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch(e){ return []; } })());
+let ACTIVE_TAB = 'all';
+let SEARCH_TERM = '';
+let GROUPS_INIT = false;
+
+function saveFavs(){ try { localStorage.setItem(FAV_KEY, JSON.stringify([...FAVS])); } catch(e){} }
+function cardAllowed(card){ const id = card.dataset.appId; return !!(CURRENT?.isAdmin || CURRENT?.apps?.[id]); }
+
+function initProjectGroups(){
+  if (GROUPS_INIT) return; GROUPS_INIT = true;
+  // группа карточки = ближайший заголовок секции над ней
+  let cur = '';
+  document.querySelectorAll('#main-content .section-title, #main-content .tool-card[data-app-id]').forEach(el => {
+    if (el.classList.contains('section-title')) cur = el.textContent.trim();
+    else el.dataset.group = cur;
   });
-  // Скрытие пустых секций
+  // звёзды «в избранное»
+  document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
+    if (card.querySelector('.fav-star')) return;
+    const id = card.dataset.appId;
+    const star = document.createElement('button');
+    star.type = 'button';
+    star.className = 'fav-star' + (FAVS.has(id) ? ' on' : '');
+    star.innerHTML = '★';
+    star.title = 'В избранное';
+    star.setAttribute('aria-label', 'В избранное');
+    star.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggleFav(id, star); });
+    card.appendChild(star);
+  });
+  buildProjectTabs();
+}
+
+function buildProjectTabs(){
+  const bar = document.getElementById('projectTabs');
+  if (!bar) return;
+  const groups = [...new Set([...document.querySelectorAll('.tool-card[data-app-id]')].map(c => c.dataset.group).filter(Boolean))];
+  const tab = (id, label, cls) => `<button class="ptab${cls||''}${id===ACTIVE_TAB?' on':''}" data-tab="${id}">${label}<span class="pt-c" data-c="${id}"></span></button>`;
+  bar.innerHTML = tab('all','Все') + tab('fav','★ Избранное',' fav') + groups.map(g => tab('g:'+g, g)).join('');
+  bar.querySelectorAll('.ptab').forEach(b => b.addEventListener('click', () => {
+    ACTIVE_TAB = b.dataset.tab;
+    bar.querySelectorAll('.ptab').forEach(x => x.classList.toggle('on', x === b));
+    applyProjectFilters();
+  }));
+}
+
+function toggleFav(id, star){
+  if (FAVS.has(id)) { FAVS.delete(id); star && star.classList.remove('on'); }
+  else { FAVS.add(id); star && star.classList.add('on'); }
+  saveFavs();
+  if (ACTIVE_TAB === 'fav') applyProjectFilters(); else updateTabCounts();
+}
+
+function applyProjectFilters(){
+  document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
+    let show = cardAllowed(card);
+    if (show && ACTIVE_TAB === 'fav') show = FAVS.has(card.dataset.appId);
+    else if (show && ACTIVE_TAB.startsWith('g:')) show = card.dataset.group === ACTIVE_TAB.slice(2);
+    if (show && SEARCH_TERM) show = card.textContent.toLowerCase().includes(SEARCH_TERM);
+    card.style.display = show ? '' : 'none';
+  });
   updateSectionVisibility();
+  updateTabCounts();
+}
+
+function updateTabCounts(){
+  const bar = document.getElementById('projectTabs');
+  if (!bar) return;
+  const cards = [...document.querySelectorAll('.tool-card[data-app-id]')].filter(cardAllowed);
+  bar.querySelectorAll('.pt-c').forEach(sp => {
+    const t = sp.dataset.c;
+    let n = t === 'all' ? cards.length
+      : t === 'fav' ? cards.filter(c => FAVS.has(c.dataset.appId)).length
+      : cards.filter(c => ('g:' + c.dataset.group) === t).length;
+    sp.textContent = n ? n : '';
+  });
 }
 
 function filterProjects(q){
-  const term = q.toLowerCase().trim();
-  document.querySelectorAll('.tool-card').forEach(card => {
-    const text = card.textContent.toLowerCase();
-    card.dataset.searchHidden = term && !text.includes(term) ? '1' : '';
-    if(!term) card.dataset.searchHidden = '';
-    // only hide if search says no AND access also says no (or just search)
-    const accessHidden = card.style.display === 'none';
-    if(term){
-      card.style.display = text.includes(term) ? '' : 'none';
-    } else {
-      // restore access-based visibility
-      const appId = card.dataset.appId;
-      const allowed = CURRENT?.isAdmin || CURRENT?.apps?.[appId];
-      card.style.display = allowed ? '' : 'none';
-    }
-  });
-  updateSectionVisibility();
+  SEARCH_TERM = (q || '').toLowerCase().trim();
+  applyProjectFilters();
 }
 
 function updateSectionVisibility(){
