@@ -1562,13 +1562,21 @@ function lkGroupByShield(rows,shields){
 }
 /* печатная сводка «Потребность кабелей и проводов» на листе: сечение → метры (для сверки «прочитано÷проект») */
 function lkParsePotreb(items){
-  const secs=items.filter(it=>/^\s*\d+\s*[хxХX×]\s*\d+(?:[,.]\d+)?\s*$/.test(it.str||''));
-  const nums=items.filter(it=>/^\s*\d{1,4}\s*$/.test((it.str||'').trim()));
+  const secs=items.filter(it=>/^\s*\d+\s*[хxХX×]\s*\d+(?:[,.]\d+)?\s*$/.test(it.str||'')).map(it=>({s:it.str,x:it.transform[4],y:it.transform[5]}));
+  const nums=items.filter(it=>/^\s*\d{1,4}\s*$/.test((it.str||'').trim())).map(it=>({v:+String(it.str).trim(),x:it.transform[4],y:it.transform[5],used:false}));
   const out={};
-  secs.forEach(s=>{const sx=s.transform[4],sy=s.transform[5];let best=null,bd=64;
-    nums.forEach(n=>{const d=Math.hypot(n.transform[4]-sx,n.transform[5]-sy);if(d<bd){bd=d;best=n;}});
-    if(best){const k=s.str.match(/(\d+)\s*[хxХX×]\s*(\d+(?:[,.]\d+)?)/);if(k){const key=k[1]+'x'+k[2].replace('.',',');out[key]=Math.max(out[key]||0,+String(best.str).trim());}}});
+  // сечение → ближайшее число (в печатной сводке число стоит вплотную к сечению)
+  secs.forEach(s=>{let best=null,bd=64;nums.forEach(n=>{const d=Math.hypot(n.x-s.x,n.y-s.y);if(d<bd){bd=d;best=n;}});
+    if(best){const k=s.s.match(/(\d+)\s*[хxХX×]\s*(\d+(?:[,.]\d+)?)/);if(k)out[k[1]+'x'+k[2].replace('.',',')]=best.v;}});
   return out;
+}
+/* имена групп из строки «Маркировка группы»: гр.1, гр.2 … — привяжем к линиям по X */
+function lkGroupLabels(items){
+  return items.filter(it=>/^\s*гр\.?\s*\d+\s*$/i.test(it.str||'')).map(it=>({name:'гр.'+(it.str.match(/\d+/)||[''])[0],x:it.transform[4],y:it.transform[5]}));
+}
+function lkAssignGroupNames(rows,labels){
+  if(!labels.length)return;
+  rows.forEach(r=>{if(r.group&&r.group!=='—')return;let best=null,bd=90;labels.forEach(l=>{const d=Math.abs((r.x||0)-l.x);if(d<bd){bd=d;best=l;}});if(best)r.group=best.name;});
 }
 async function lkRenderPage(page){
   const v0=page.getViewport({scale:1});const sc=Math.min(2.2,1700/Math.max(v0.width,v0.height));
@@ -1585,6 +1593,7 @@ async function lkExtract(data,onProgress){
     const {vitems,hlines}=lkLinesFromItems(tc.items);
     const rows=lkParseVertical(vitems).concat(lkParseOneLine(vitems)).concat(lkParseLines(hlines));
     if(!rows.length){page.cleanup&&page.cleanup();continue;}
+    lkAssignGroupNames(rows,lkGroupLabels(tc.items));
     const shields=lkDetectShields(tc.items);
     const groups=lkGroupByShield(rows,shields);
     pages.push({page:p,img:null,shields:shields.map(s=>s.name),groups,rows,potreb:lkParsePotreb(tc.items)});}
