@@ -236,6 +236,27 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-chip.small.tot{background:var(--steel);color:#fff;border-color:var(--steel);}
 .lk-chip.small.tot b{color:#fff;}
 @media(max-width:760px){.lk-nav{width:120px;}.lk-pg img{display:none;}}
+.lk-st{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle;background:var(--gray);}
+.lk-st.ok{background:var(--green);}.lk-st.warn{background:var(--amber);}.lk-st.none{background:#c2ccd6;}
+.lk-check{border-radius:11px;padding:11px 13px;margin-bottom:14px;border:1px solid var(--line);}
+.lk-check.ok{background:#eef7f1;border-color:#c7e2d1;}
+.lk-check.warn{background:#fff6e9;border-color:var(--amber);}
+.lk-check.none{background:var(--panel2);color:var(--gray);font-size:13px;line-height:1.5;}
+.lk-check-h{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:8px;display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;}
+.lk-check-sub{font-size:11.5px;font-weight:500;color:var(--gray);}
+.lk-crow{display:flex;align-items:center;gap:10px;font-size:13px;padding:4px 0;border-top:1px solid rgba(0,0,0,.05);}
+.lk-crow:first-of-type{border-top:none;}
+.lk-crow .cs{font-family:var(--mono);font-weight:700;color:var(--steel);min-width:56px;}
+.lk-crow .cv{flex:1;color:#3a4a56;}.lk-crow .cv b{font-family:var(--mono);}
+.lk-crow .ci{font-size:12px;font-weight:600;white-space:nowrap;}
+.lk-crow.ok .ci{color:var(--green);}.lk-crow.warn .ci{color:#8a5a00;}.lk-crow.extra .ci{color:var(--gray);}
+.lk-check.report{background:var(--panel2);border-color:var(--line);}
+.lk-rep-sec{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:9px;}
+.lk-rep-note{font-size:12.5px;line-height:1.5;color:#5a6b78;}
+.lk-rep-note b{color:var(--ink);}
+.lk-chip.small .pj{color:var(--gray);font-weight:600;}
+.lk-chip.small.okc{background:#eef7f1;border-color:#c7e2d1;}
+.lk-chip.small.okc .pj{color:var(--green);}
 /* ---- СПРАВКА для новичка ---- */
 .help-body{max-width:840px;margin:0 auto;padding:6px 4px 44px;}
 .help-lead{font-size:15.5px;line-height:1.6;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px 17px;box-shadow:var(--shadow);}
@@ -1539,6 +1560,16 @@ function lkGroupByShield(rows,shields){
   rows.forEach(r=>{let bi=0,bd=1e18;gs.forEach((g,i)=>{const d=Math.abs((r.x||0)-g.x);if(d<bd){bd=d;bi=i;}});gs[bi].rows.push(r);});
   return gs.filter(g=>g.rows.length).map(g=>({name:g.name,rows:g.rows}));
 }
+/* печатная сводка «Потребность кабелей и проводов» на листе: сечение → метры (для сверки «прочитано÷проект») */
+function lkParsePotreb(items){
+  const secs=items.filter(it=>/^\s*\d+\s*[хxХX×]\s*\d+(?:[,.]\d+)?\s*$/.test(it.str||''));
+  const nums=items.filter(it=>/^\s*\d{1,4}\s*$/.test((it.str||'').trim()));
+  const out={};
+  secs.forEach(s=>{const sx=s.transform[4],sy=s.transform[5];let best=null,bd=64;
+    nums.forEach(n=>{const d=Math.hypot(n.transform[4]-sx,n.transform[5]-sy);if(d<bd){bd=d;best=n;}});
+    if(best){const k=s.str.match(/(\d+)\s*[хxХX×]\s*(\d+(?:[,.]\d+)?)/);if(k){const key=k[1]+'x'+k[2].replace('.',',');out[key]=Math.max(out[key]||0,+String(best.str).trim());}}});
+  return out;
+}
 async function lkRenderPage(page){
   const v0=page.getViewport({scale:1});const sc=Math.min(2.2,1700/Math.max(v0.width,v0.height));
   const vp=page.getViewport({scale:sc});const c=document.createElement('canvas');
@@ -1556,7 +1587,7 @@ async function lkExtract(data,onProgress){
     if(!rows.length){page.cleanup&&page.cleanup();continue;}
     const shields=lkDetectShields(tc.items);
     const groups=lkGroupByShield(rows,shields);
-    pages.push({page:p,img:null,shields:shields.map(s=>s.name),groups,rows});}
+    pages.push({page:p,img:null,shields:shields.map(s=>s.name),groups,rows,potreb:lkParsePotreb(tc.items)});}
   return {pdf,pages};
 }
 async function lkEnsureImg(pg){if(pg.img||!LK.pdf)return pg.img;const page=await LK.pdf.getPage(pg.page);pg.img=await lkRenderPage(page);return pg.img;}
@@ -1576,6 +1607,17 @@ async function openLineyka(file){
 }
 function lkSum(rows){const s={},c={};let t=0;rows.forEach(r=>{const L=+r.len||0;s[r.section]=(s[r.section]||0)+L;t+=L;(r.conds||[]).forEach(k=>c[k.t]=(c[k.t]||0)+(+k.len||0));});return{s,c,t};}
 function lkAllRows(){const a=[];LK.pages.forEach(pg=>pg.rows.forEach(r=>a.push(r)));return a;}
+/* статус листа по сверке: 'ok' | 'warn' | 'none' (нет печатной сводки) */
+function lkPageStatus(pg){const proj=pg.potreb||{};if(!Object.keys(proj).length)return 'none';const read=lkSum(pg.rows).s;let ok=true;
+  Object.keys(proj).forEach(k=>{if(Math.abs((read[k]||0)-proj[k])>1)ok=false;});return ok?'ok':'warn';}
+function lkCheckHtml(pg){const st=lkSum(pg.rows);const proj=pg.potreb||{};
+  const secChips=Object.keys(st.s).sort().map(k=>{const p=proj[k];const ok=p!=null&&Math.abs((st.s[k]||0)-p)<=1;
+    return `<span class="lk-chip small${ok?' okc':''}">${esc(k)} <b>${Math.round(st.s[k])}м</b>${p!=null?` <span class="pj">${ok?'✓':'/ проект '+p}</span>`:''}</span>`;}).join('');
+  const empty=pg.rows.filter(r=>!r.group||r.group==='—').length;
+  const projTxt=Object.keys(proj).length?`Печатная сводка на схеме (черновая): ${Object.keys(proj).sort().map(k=>esc(k)+'='+proj[k]).join(', ')}. `:'';
+  return `<div class="lk-check report"><div class="lk-check-h">📋 Отчёт по листу ${pg.page}<span class="lk-check-sub">${pg.rows.length} линий · ${Math.round(st.t)} м всего</span></div>`
+    +`<div class="lk-rep-sec">${secChips}</div>`
+    +`<div class="lk-rep-note"><b>Как понять, всё ли прочитано:</b> сверь эти суммы с таблицей <b>«Потребность кабелей»</b> на схеме выше. Сходится по всем сечениям — лист прочитан полностью; где у сечения меньше — часть не распозналась, добавь строку кнопкой ниже. ${projTxt}${empty?`<br><b>${empty}</b> строк без имени группы (в этом формате имени нет в тексте — впиши вручную при необходимости).`:''}</div></div>`;}
 function renderLineyka(){
   const g=lkSum(lkAllRows());
   $('lkSum').innerHTML=Object.keys(g.s).sort().map(k=>`<span class="lk-chip">${esc(k)} <b>${Math.round(g.s[k])}</b></span>`).join('')
@@ -1584,7 +1626,7 @@ function renderLineyka(){
     return `<button class="lk-pg ${i===LK.sel?'on':''}" data-pg="${i}"><div class="lk-pgi"><div class="lk-pgt">Лист ${pg.page}</div><div class="lk-pgn">${pg.shields.length?esc(pg.shields.join(', ')):'линейка'}</div><div class="lk-pgm">${Math.round(pt)} м · ${pg.rows.length} лин.</div></div></button>`;}).join('');
   $('lkNav').querySelectorAll('.lk-pg').forEach(b=>b.onclick=()=>{LK.sel=+b.dataset.pg;renderLineyka();$('lkPage').scrollTop=0;});
   const pg=LK.pages[LK.sel];
-  let h=`<div class="lk-pgimg" id="lkPgImg">${pg.img?`<img src="${pg.img}" alt="Лист ${pg.page}">`:'<div class="lk-spin" style="padding:22px">рендерю лист…</div>'}</div><div class="lk-groups">`;
+  let h=`<div class="lk-pgimg" id="lkPgImg">${pg.img?`<img src="${pg.img}" alt="Лист ${pg.page}">`:'<div class="lk-spin" style="padding:22px">рендерю лист…</div>'}</div>`+lkCheckHtml(pg)+`<div class="lk-groups">`;
   pg.groups.forEach(grp=>{const st=lkSum(grp.rows);
     h+=`<div class="lk-grp"><div class="lk-grph"><span class="lk-grpn">${esc(grp.name)}</span>`
       +Object.keys(st.s).sort().map(k=>`<span class="lk-chip small">${esc(k)} <b>${Math.round(st.s[k])}м</b></span>`).join('')
