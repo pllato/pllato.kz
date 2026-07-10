@@ -233,6 +233,60 @@ input,select,textarea{font-family:inherit;font-size:13.5px;color:var(--ink)}
 .mobile-nav button{color:#93a096;font-size:10.5px;font-weight:600;padding:3px 6px}
 .mobile-nav button.on{color:#fff}
 @media(max-width:860px){.wrap{padding:14px 14px 96px}.mobile-nav{display:flex}.mnav{gap:18px}}
+
+/* ===== переключатель дизайна ===== */
+.mast .themesw{display:flex;border:1px solid var(--ln);background:var(--paper);border-radius:8px;overflow:hidden}
+.mast .themesw button{padding:8px 12px;font-size:12.5px;font-weight:600;color:var(--mut);border-right:1px solid var(--ln)}
+.mast .themesw button:last-child{border-right:none}
+.mast .themesw button.on{background:var(--grn);color:#fff}
+.mast .themesw .tl{font-size:10px;color:var(--faint);align-self:center;padding:0 8px 0 2px;text-transform:uppercase;letter-spacing:.06em}
+
+/* ===== дизайн «Чистый» — на читабельность ===== */
+body.t-clean{
+  --ink:#111c16;--ink2:#33403a;--mut:#546a5f;--faint:#86958c;
+  --paper:#f3f6f4;--panel:#ffffff;--ln:#d8e1db;--ln2:#eef2f0;
+  --grn:#1f7a4d;--grn-l:#e3f2ea;--rose:#bf1749;--rose-l:#fbe7ee;--gold:#946717;--gold-l:#f6edda;--blu:#1e5f80;--blu-l:#e6f0f5;
+  --serif:'Commissioner',sans-serif;font-size:15.5px;
+}
+body.t-clean .brand .bt{letter-spacing:.07em;font-weight:800}
+body.t-clean .brand .bm{border-radius:11px}
+body.t-clean .ph-head h1{font-weight:800;letter-spacing:-.01em}
+body.t-clean .mnav button{font-weight:700}
+body.t-clean .mnav button.on{border-bottom-color:var(--grn)}
+body.t-clean .panel,body.t-clean .kcard,body.t-clean .filcard{border-radius:12px}
+body.t-clean .kcard{border-left-width:4px}
+body.t-clean .demo-note{background:#12291d}
+body.t-clean .note{color:#4a5b51}
+body.t-clean .stocktbl td{font-size:13.5px}
+
+/* ===== клиенты ===== */
+.cltbl{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--ln);border-radius:10px;overflow:hidden}
+.cltbl th{background:var(--ink);color:#dbe4dd;font-size:11px;font-weight:600;padding:10px 14px;text-align:left;white-space:nowrap}
+.cltbl th.r{text-align:right}
+.cltbl td{padding:11px 14px;border-bottom:1px solid var(--ln2);font-size:13.5px;vertical-align:top}
+.cltbl td.r{text-align:right;font-family:var(--mono);font-weight:600}
+.cltbl tr:last-child td{border-bottom:none}
+.cltbl tbody tr{cursor:pointer}
+.cltbl tbody tr:hover td{background:#f6f2ea}
+.occ-item{display:flex;align-items:center;gap:11px;padding:10px 13px;border:1px solid var(--ln);border-radius:9px;cursor:pointer;margin-bottom:9px}
+.occ-item:hover{border-color:var(--rose)}
+.occ-d{width:46px;text-align:center;flex:none}
+.occ-d b{display:block;font-family:var(--mono);font-size:17px;font-weight:700;color:var(--rose)}
+.occ-d span{font-size:10px;color:var(--faint);text-transform:uppercase}
+.occ-i .on{font-size:13.5px;font-weight:600}
+.occ-i .os{font-size:11.5px;color:var(--mut)}
+
+/* ===== перемещения между филиалами ===== */
+.trf-card{background:var(--panel);border:1px solid var(--ln);border-left:3px solid var(--blu);border-radius:0 9px 9px 0;padding:13px 16px;cursor:pointer;transition:.1s;margin-bottom:11px}
+.trf-card:hover{box-shadow:0 5px 14px -8px rgba(26,42,32,.4)}
+.trf-card.done{border-left-color:var(--grn)}
+.trf-card.wait{border-left-color:var(--gold)}
+.trf-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.trf-route{font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px}
+.trf-route .arr{color:var(--blu);font-weight:700}
+.trf-st{margin-left:auto;font-size:11px;font-weight:700}
+.trf-body{font-size:12.5px;color:var(--mut);margin-top:5px}
+.trf-body b{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -244,7 +298,12 @@ input,select,textarea{font-family:inherit;font-size:13.5px;color:var(--ink)}
       <div class="bm"><svg viewBox="0 0 32 32"><path d="M16 6 C12.5 10.5 12.5 14 16 16.2 C19.5 14 19.5 10.5 16 6 Z" fill="#e7b3c2"/><path d="M16 16.2 C11.5 13.8 8 15 7 19.5 C11.6 20.6 15 19.4 16 16.2 Z" fill="#cf6a86"/><path d="M16 16.2 C20.5 13.8 24 15 25 19.5 C20.4 20.6 17 19.4 16 16.2 Z" fill="#cf6a86"/><path d="M16 16 v9" stroke="#7fbf9a" stroke-width="2" stroke-linecap="round"/></svg></div>
       <div><div class="bt">GÜLZAR</div><div class="bs">сеть цветочных бутиков · заказы · склад · 1С</div></div>
     </div>
-    <div class="roles">
+    <div class="themesw" style="margin-left:auto">
+      <span class="tl">дизайн</span>
+      <button class="on" onclick="setTheme('flora',this)">Флора</button>
+      <button onclick="setTheme('clean',this)">Чистый</button>
+    </div>
+    <div class="roles" style="margin-left:12px">
       <button class="on" onclick="setRole(this,'Управляющий','вся сеть: все филиалы, склад, продажи, дашборд, статистика, доступ в 1С-контур')">Управляющий</button>
       <button onclick="setRole(this,'Флорист / касса','свой филиал: заказы, наличие, создание заказа на кассе — без входа в 1С')">Флорист · касса</button>
     </div>
@@ -253,6 +312,8 @@ input,select,textarea{font-family:inherit;font-size:13.5px;color:var(--ink)}
   <nav class="mnav">
     <button class="on" data-s="fun">Заказы<span class="cnt">воронка</span></button>
     <button data-s="stock">Наличие по филиалам<span class="cnt">зеркало 1С</span></button>
+    <button data-s="transfers">Перемещения<span class="cnt">между филиалами</span></button>
+    <button data-s="clients">Клиенты<span class="cnt">поводы · повторные</span></button>
     <button data-s="cash">Касса</button>
     <button data-s="onec">1С</button>
     <button data-s="dash">Дашборд сети</button>
@@ -371,13 +432,54 @@ input,select,textarea{font-family:inherit;font-size:13.5px;color:var(--ink)}
     </div>
   </section>
 
+  <!-- ===== ПЕРЕМЕЩЕНИЯ ===== -->
+  <section class="screen" id="s-transfers">
+    <div class="ph-head"><h1>Перемещения между филиалами</h1><span class="sub">клиент хочет букет, а цветы — в другом филиале: одно нажатие вместо звонков</span></div>
+    <div class="cols">
+      <div>
+        <div id="trfList"></div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="pt"><h3>Как это закрывает логистику</h3></div>
+          <div class="pb note" style="line-height:1.9">
+            <div style="margin-bottom:8px"><span class="dot b"></span>Видно по <b onclick="nav('stock')" style="cursor:pointer;color:var(--grn)">Наличию</b>, в каком филиале есть нужные цветы.</div>
+            <div style="margin-bottom:8px"><span class="dot b"></span>Одним нажатием — <b>перемещение</b>: списание у отправителя, приход у получателя.</div>
+            <div style="margin-bottom:8px"><span class="dot g"></span>Всё зеркалится в <b onclick="nav('onec')" style="cursor:pointer;color:var(--grn)">1С</b> — накладная на перемещение создаётся сама.</div>
+            <div><span class="dot a"></span>Курьер и срок видны — «человеку, который распределяет заказы», не нужно писать в филиал.</div>
+          </div>
+        </div>
+        <button class="act" style="width:100%" onclick="toast('Демо: создание перемещения — откуда, куда, позиции и количество; система проверит остаток по 1С и назначит курьера между точками.')">+ Создать перемещение</button>
+      </div>
+    </div>
+    <div class="note" style="margin-top:12px">Это вторая ваша боль после наличия: <b>стыковка филиалов</b>. Заказ на букет, которого нет в «своём» филиале, больше не теряется — товар едет туда, где клиент, а остатки и документы сходятся сами.</div>
+  </section>
+
+  <!-- ===== КЛИЕНТЫ ===== -->
+  <section class="screen" id="s-clients">
+    <div class="ph-head"><h1>Клиенты и поводы</h1><span class="sub">цветы живут на повторных заказах — ДР, годовщины, праздники не теряются</span></div>
+    <div class="cols">
+      <div>
+        <div style="overflow-x:auto"><table class="cltbl" id="clTbl"></table></div>
+        <div class="note" style="margin-top:12px">Каждый заказ закрепляется за клиентом: история, любимые цветы, повод. Постоянные и корпоративные клиенты (банки, компании) — отдельный сегмент с регулярными заказами.</div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="pt"><h3>Поводы на неделе</h3><span class="lnk" onclick="toast('Поводы-триггеры: робот сам напомнит менеджеру и отправит клиенту тёплое сообщение с подборкой букетов. Продажи, которые иначе забылись бы.')">роботы →</span></div>
+          <div class="pb" id="occList"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
 </div>
 
 <div class="mobile-nav">
   <button class="on" data-s="fun" onclick="nav('fun')">Заказы</button>
   <button data-s="stock" onclick="nav('stock')">Наличие</button>
+  <button data-s="transfers" onclick="nav('transfers')">Переместить</button>
+  <button data-s="clients" onclick="nav('clients')">Клиенты</button>
   <button data-s="cash" onclick="nav('cash')">Касса</button>
-  <button data-s="onec" onclick="nav('onec')">1С</button>
   <button data-s="dash" onclick="nav('dash')">Дашборд</button>
 </div>
 
@@ -626,9 +728,62 @@ function renderDash(){
 }
 
 /* init */
-renderFun();renderStock();fillFilSelect();renderCatalog();renderCart();render1c();renderDash();
-setTimeout(()=>toast('Это <b>GÜLZAR</b> — портал под ваш цветочный бизнес: заказы из всех каналов в одной воронке, <b>наличие 7 филиалов зеркалом из 1С</b>, касса без входа в 1С и сценарий «запросить фото букета». Откройте вкладку <b>«Наличие по филиалам»</b> — это про вашу главную боль.'),800);
-const q=new URLSearchParams(location.search);if(q.get('s'))nav(q.get('s'));if(q.get('deal'))setTimeout(()=>openDeal(1,0),300);
+/* ===== перемещения между филиалами ===== */
+const TRF=[
+  [4,1,'Пионы · 15 шт','move','под заказ «Нурзат» · курьер в пути · ~40 мин'],
+  [0,5,'Роза Freedom · 40 шт','wait','Аламедин просит — подтвердить у Чуй проспект'],
+  [6,0,'Эустома · 30 вет','move','пополнение перед 8 марта · в пути'],
+  [2,3,'Гипсофила · 20 вет','done','принято · остатки обновлены в 1С'],
+];
+function renderTrf(){
+  const st={wait:['Ждёт подтверждения','var(--gold)'],move:['В пути','var(--blu)'],done:['Принято','var(--grn)']};
+  $('trfList').innerHTML=TRF.map(t=>{const s=st[t[3]];
+    return '<div class="trf-card '+(t[3]==='done'?'done':t[3]==='wait'?'wait':'')+'" onclick="toast(\'Перемещение '+t[2]+': «'+FIL[t[0]]+'» → «'+FIL[t[1]]+'». Списание у отправителя, приход у получателя, накладная в 1С — всё само.\')">'+
+    '<div class="trf-top"><div class="trf-route">«'+FIL[t[0]]+'» <span class="arr">→</span> «'+FIL[t[1]]+'»</div><div class="trf-st" style="color:'+s[1]+'">'+s[0]+'</div></div>'+
+    '<div class="trf-body"><b>'+t[2]+'</b> · '+t[4]+'</div></div>';
+  }).join('');
+}
+
+/* ===== клиенты и поводы ===== */
+const CLIENTS=[
+  ['Айгерим Т.','+996 555 12 …',0,'ДР 14.07','25 роз Freedom · 3 дня назад',86000],
+  ['ОсОО «Абди»','+996 700 44 …',0,'корпоратив','15 букетов на конференцию · неделю назад',240000],
+  ['Нурзат К.','+996 559 77 …',4,'годовщина 20.07','пионы · вчера',42000],
+  ['Сафия М.','+996 555 90 …',1,'ДР 09.07','тюльпаны 51 · сегодня',51000],
+  ['Bakai Bank','+996 312 61 …',0,'8 марта · регуляр','30 моно-букетов сотрудницам',270000],
+  ['Данияр С.','+996 707 33 …',1,'—','букет по фото · 5 дней назад',18500],
+];
+const OCC=[
+  ['09','ИЮЛ','Сафия М. · день рождения','напомнить за 2 дня → спецпредложение букета'],
+  ['14','ИЮЛ','Айгерим Т. · день рождения','робот отправит поздравление + подборку роз'],
+  ['20','ИЮЛ','Нурзат К. · годовщина','постоянный клиент — предложить премиум-букет'],
+  ['≈','8 МАР','Bakai Bank · корпоратив','регулярные 30 букетов — подтвердить заранее'],
+];
+function renderClients(){
+  $('clTbl').innerHTML='<thead><tr><th>Клиент</th><th>Осн. филиал</th><th>Повод</th><th>Последний заказ</th><th class="r">Оборот, год</th></tr></thead><tbody>'+
+  CLIENTS.map(c=>'<tr onclick="toast(\'Карточка клиента «'+c[0]+'»: история заказов, любимые цветы, поводы, оборот. Повторные и корпоративные — там, где основные деньги в цветах.\')">'+
+  '<td style="font-weight:600">'+c[0]+'<div style="font-size:11px;color:var(--faint)" class="num">'+c[1]+'</div></td>'+
+  '<td>«'+FIL[c[2]]+'»</td>'+
+  '<td>'+(c[3]==='—'?'<span style="color:var(--faint)">—</span>':'<span style="color:var(--rose);font-weight:600">◈ '+c[3]+'</span>')+'</td>'+
+  '<td style="color:var(--mut);font-size:12.5px">'+c[4]+'</td>'+
+  '<td class="r">'+fT(c[5])+' сом</td></tr>').join('')+'</tbody>';
+  $('occList').innerHTML=OCC.map(o=>'<div class="occ-item" onclick="toast(\'Повод-триггер: '+o[3]+'. Робот сам напомнит менеджеру и отправит клиенту тёплое сообщение — цветочный бизнес живёт на поводах.\')"><div class="occ-d"><b>'+o[0]+'</b><span>'+o[1]+'</span></div><div class="occ-i"><div class="on">'+o[2]+'</div><div class="os">'+o[3]+'</div></div></div>').join('');
+}
+
+/* ===== переключатель дизайна ===== */
+function setTheme(t,el){
+  document.body.classList.toggle('t-clean',t==='clean');
+  document.querySelectorAll('.themesw button').forEach(b=>b.classList.toggle('on',b===el));
+  toast(t==='clean'
+    ? 'Дизайн <b>«Чистый»</b> — на читабельность: без засечек, выше контраст, крупнее текст.'
+    : 'Дизайн <b>«Флора»</b> — фирменная эстетика цветочного бутика.');
+}
+
+renderFun();renderStock();fillFilSelect();renderCatalog();renderCart();render1c();renderDash();renderTrf();renderClients();
+setTimeout(()=>toast('Это <b>GÜLZAR</b> — портал под ваш цветочный бизнес: заказы из всех каналов, <b>наличие 7 филиалов зеркалом из 1С</b>, <b>перемещения между филиалами</b>, клиенты с поводами, касса без входа в 1С. Вверху справа — переключатель <b>дизайна</b> (Флора / Чистый).'),800);
+const q=new URLSearchParams(location.search);
+if(q.get('t')==='clean')setTheme('clean',document.querySelectorAll('.themesw button')[1]);
+if(q.get('s'))nav(q.get('s'));if(q.get('deal'))setTimeout(()=>openDeal(1,0),300);
 </script>
 </body>
 </html>
