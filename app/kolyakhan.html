@@ -4,7 +4,7 @@
 <script src="/app/gate.js"></script>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Kolyakhan — воронка продаж · Демо</title>
+<title>Kolyakhan — CRM для лид-менеджеров · Демо</title>
 <meta name="robots" content="noindex,nofollow"/>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23172033'/%3E%3Cpath d='M6 12 L16 7 L26 12 L16 17 Z' fill='%23e8ecf3'/%3E%3Cpath d='M6 12 v9 l10 5 v-9 Z' fill='%23aebacd'/%3E%3Cpath d='M26 12 v9 l-10 5 v-9 Z' fill='%23d3dbe7'/%3E%3Cpath d='M19 20 l3 3 6-7' fill='none' stroke='%232ea882' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,21 +26,21 @@ input,select,textarea{font-family:inherit;font-size:13.5px;color:var(--ink)}
 .demo-note{background:var(--ink);color:#c3cbd8;font-size:12px;padding:8px 16px;text-align:center}
 .demo-note b{color:#fff}
 
-/* шапка как в SARAP */
 .mast{background:var(--panel);border-bottom:1px solid var(--ink)}
-.mast .m1{max-width:1300px;margin:0 auto;padding:14px 24px 10px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.mast .m1{max-width:1300px;margin:0 auto;padding:14px 24px 10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:11px}
 .brand .bm{width:40px;height:40px;background:var(--ink);flex:none;display:grid;place-items:center}
 .brand .bm svg{width:28px;height:28px}
 .brand .bt{font-family:var(--serif);font-weight:700;font-size:21px;letter-spacing:.06em}
 .brand .bs{font-size:11px;color:var(--mut);margin-top:-2px}
 .mast .roles{margin-left:auto;display:flex;border:1px solid var(--ln);background:var(--paper)}
-.mast .roles button{padding:8px 14px;font-size:12.5px;font-weight:500;color:var(--mut);border-right:1px solid var(--ln)}
+.mast .roles button{padding:8px 13px;font-size:12.5px;font-weight:500;color:var(--mut);border-right:1px solid var(--ln)}
 .mast .roles button:last-child{border-right:none}
 .mast .roles button.on{background:var(--ink);color:#fff}
-.mast .act{background:var(--grn);color:#fff;font-weight:600;font-size:13px;padding:10px 18px}
+.mast .act{background:var(--grn);color:#fff;font-weight:600;font-size:13px;padding:9px 15px}
+.mast .act.dk{background:var(--ink)}
 .mnav{max-width:1300px;margin:0 auto;padding:0 24px;display:flex;gap:26px;overflow-x:auto}
-.mnav button{padding:11px 0 12px;font-size:14px;font-weight:500;color:var(--mut);border-bottom:3px solid transparent;white-space:nowrap}
+.mnav button{padding:11px 0 12px;font-size:14.5px;font-weight:500;color:var(--mut);border-bottom:3px solid transparent;white-space:nowrap}
 .mnav button.on{color:var(--ink);font-weight:600;border-bottom-color:var(--grn)}
 .mnav button .cnt{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:5px}
 
@@ -49,39 +49,48 @@ input,select,textarea{font-family:inherit;font-size:13.5px;color:var(--ink)}
 @keyframes fd{from{opacity:0}to{opacity:1}}
 .ph-head{display:flex;align-items:baseline;gap:14px;margin-bottom:12px;flex-wrap:wrap}
 .ph-head h1{font-family:var(--serif);font-size:24px;font-weight:600}
-.ph-head .sub{font-size:13px;color:var(--mut)}
+.ph-head .sub{font-size:13.5px;color:var(--mut)}
 
-/* линейка показателей */
 .meterline{display:flex;border-top:2px solid var(--ink);border-bottom:1px solid var(--ln);margin-bottom:18px;flex-wrap:wrap}
-.mt{flex:1;min-width:150px;padding:11px 18px 11px 0}
+.mt{flex:1;min-width:150px;padding:11px 18px 11px 0;cursor:pointer;transition:.12s}
+.mt:hover{background:#f4f6f3}
 .mt+.mt{border-left:1px solid var(--ln);padding-left:18px}
-.mt .l{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);font-weight:600}
-.mt .v{font-family:var(--mono);font-size:22px;font-weight:700;margin-top:2px}
+.mt .l{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);font-weight:600}
+.mt .v{font-family:var(--mono);font-size:24px;font-weight:700;margin-top:2px}
 .mt .v em{font-style:normal;font-size:13px;color:var(--faint);font-weight:400}
-.mt .v.g{color:var(--grn)}.mt .v.t{color:var(--terra)}
-.mt .d{font-size:11.5px;color:var(--faint)}
+.mt .v.g{color:var(--grn)}.mt .v.t{color:var(--terra)}.mt .v.b{color:var(--blu)}
+.mt .d{font-size:12.5px;color:var(--faint)}
 
 /* воронка */
-.kan{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:var(--ln);border:1px solid var(--ln);align-items:stretch}
-@media(max-width:1020px){.kan{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.kcol{background:var(--paper);padding:9px;min-height:340px}
-.kcol h4{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--mut);font-weight:700;padding:2px 3px 4px;display:flex;justify-content:space-between}
-.kcol .ksum{font-family:var(--mono);font-size:10.5px;color:var(--ink2);padding:0 3px 9px;border-bottom:1px solid var(--ln2);margin-bottom:9px}
-.kcard{background:var(--panel);border:1px solid var(--ln);border-top:2px solid var(--ink);padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:.1s}
+.kanwrap{overflow-x:auto}
+.kan{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(216px,1fr);gap:1px;background:var(--ln);border:1px solid var(--ln);align-items:stretch}
+.kcol{background:var(--paper);padding:9px;min-height:360px}
+.kcol h4{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);font-weight:700;padding:2px 3px 4px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.kcol h4 .num{color:var(--faint);font-weight:600;letter-spacing:0;font-family:var(--mono)}
+.kcol h4 .pencil{opacity:.35;font-size:11px;margin-left:5px}
+.kcol h4:hover .pencil{opacity:.9}
+.kcol .ksum{font-family:var(--mono);font-size:12px;color:var(--ink2);padding:0 3px 9px;border-bottom:1px solid var(--ln2);margin-bottom:9px}
+.kcol.dz{background:var(--grn-l);outline:2px dashed var(--grn);outline-offset:-4px}
+.kcard{background:var(--panel);border:1px solid var(--ln);border-top:2px solid var(--ink);padding:10px 12px;margin-bottom:8px;cursor:grab;transition:.1s}
 .kcard:hover{border-color:var(--grn);transform:translateY(-1px);box-shadow:0 4px 10px -6px rgba(23,32,51,.25)}
+.kcard:active{cursor:grabbing}
+.kcard.dragging{opacity:.35;border-style:dashed}
 .kcard.late{border-top-color:var(--terra)}
-.kcard .kt{font-size:13.5px;font-weight:600}
-.kcard .kc2{font-size:11.5px;color:var(--mut);margin-top:1px}
-.kcard .ksm{font-family:var(--mono);font-size:12.5px;font-weight:700;margin-top:6px}
-.kcard .knext{display:flex;align-items:center;gap:6px;margin-top:7px;font-size:11px;font-weight:600;color:var(--blu)}
+.kcard .kt{font-size:14.5px;font-weight:600}
+.kcard .kc2{font-size:12.5px;color:var(--mut);margin-top:1px}
+.kcard .kph{font-family:var(--mono);font-size:12px;color:var(--ink2);margin-top:5px}
+.kcard .knext{display:flex;align-items:center;gap:6px;margin-top:7px;font-size:12px;font-weight:600;color:var(--blu)}
 .kcard .knext.lt{color:var(--terra)}
-.kcard .kic{display:flex;gap:6px;margin-top:7px;align-items:center;flex-wrap:wrap;row-gap:4px}
-.kic .ic{width:20px;height:20px;border:1px solid var(--ln);display:grid;place-items:center}
-.kic .ic svg{width:11px;height:11px}
-.kic .src{margin-left:auto;font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.03em}
-.kic .rb{font-size:10px;color:var(--grn);font-weight:700}
+.kcard .kic{display:flex;gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap;row-gap:4px}
+.kic .avm{width:22px;height:22px;border-radius:50%;background:var(--blu-l);color:var(--blu);font-size:9.5px;font-weight:700;display:inline-grid;place-items:center;flex:none;cursor:pointer}
+.kic .src{font-size:10.5px;color:var(--faint);font-weight:600;letter-spacing:.03em}
+.kic .age{margin-left:auto;font-size:10.5px;color:var(--faint);font-family:var(--mono);font-weight:600}
+.mflag{font-size:10.5px;font-weight:700;padding:2px 7px;margin-top:6px;display:inline-block}
+.mflag.set{background:var(--blu-l);color:var(--blu)}
+.mflag.ok{background:var(--grn-l);color:var(--grn)}
+.addcol{background:var(--paper);border:2px dashed var(--ln);display:grid;place-items:center;min-height:360px;color:var(--faint);font-weight:600;font-size:12px;cursor:pointer;text-align:center;padding:10px}
+.addcol:hover{border-color:var(--grn);color:var(--grn)}
 
-/* точки-статусы */
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px}
 .dot.g{background:var(--grn)}.dot.t{background:var(--terra)}.dot.a{background:#c99a1b}.dot.b{background:var(--blu)}.dot.gy{background:#b9c0cb}
 .mark{font-family:var(--mono);font-size:11px;font-weight:600}
@@ -91,297 +100,254 @@ input,select,textarea{font-family:inherit;font-size:13.5px;color:var(--ink)}
 @media(max-width:1020px){.cols{grid-template-columns:1fr}}
 .panel{background:var(--panel);border:1px solid var(--ln);margin-bottom:18px}
 .panel .pt{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--ln2)}
-.panel .pt h3{font-family:var(--serif);font-size:15.5px;font-weight:600;flex:1}
+.panel .pt h3{font-family:var(--serif);font-size:16px;font-weight:600;flex:1}
 .panel .pt .lnk{font-size:12px;color:var(--blu);font-weight:500;cursor:pointer}
 .panel .pb{padding:8px 16px 14px}
-.note{font-size:12px;color:var(--mut);line-height:1.6}
+.note{font-size:13px;color:var(--mut);line-height:1.6}
+.note b{color:var(--ink)}
+.tznote{background:var(--amb-l);border:1px solid #e6d3a0;padding:10px 14px;font-size:12.5px;color:#7a5a12;margin-bottom:14px}
+.tznote b{color:#5e440b}
 
 table{width:100%;border-collapse:collapse}
-th{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--mut);text-align:left;font-weight:600;padding:9px 10px 7px 0;border-bottom:1.5px solid var(--ink)}
+th{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);text-align:left;font-weight:600;padding:9px 10px 7px 0;border-bottom:1.5px solid var(--ink)}
 th.r{text-align:right}
-td{padding:10px 10px 10px 0;border-bottom:1px solid var(--ln2);font-size:13.5px;vertical-align:middle}
-td.r{text-align:right;font-family:var(--mono);font-size:12.5px;font-weight:600;white-space:nowrap}
+td{padding:10px 10px 10px 0;border-bottom:1px solid var(--ln2);font-size:14.5px;vertical-align:middle}
+td.r{text-align:right;font-family:var(--mono);font-size:13.5px;font-weight:600;white-space:nowrap}
 tbody tr{cursor:pointer}
 tbody tr:hover td{background:#f6f7f4}
-.cn{font-weight:600;font-size:14px}
-.cs{font-size:12px;color:var(--mut);margin-top:1px}
+.cn{font-weight:600;font-size:15px}
+.cs{font-size:12.5px;color:var(--mut);margin-top:1px}
 .play{background:var(--ink);color:#8fd4bc;font-family:var(--mono);font-size:10.5px;font-weight:600;padding:5px 10px;cursor:pointer}
+.pchip{display:inline-flex;border:1px solid var(--ln);background:var(--panel)}
+.pchip button{padding:7px 13px;font-size:12.5px;font-weight:600;color:var(--mut);border-right:1px solid var(--ln)}
+.pchip button:last-child{border-right:none}
+.pchip button.on{background:var(--ink);color:#fff}
 
-/* роботы */
-.flow{display:flex;flex-direction:column;gap:0}
-.stage-r{display:flex;gap:14px;align-items:stretch;position:relative;padding:0 0 4px 0}
-.stage-r .st-l{width:170px;flex:none;display:flex;flex-direction:column;align-items:flex-end;text-align:right;padding:12px 0}
-.stage-r .st-l b{font-size:13px;font-weight:700}
-.stage-r .st-l span{font-size:11px;color:var(--faint)}
-.stage-r .mid{width:22px;flex:none;position:relative}
-.stage-r .mid::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--ln);transform:translateX(-50%)}
-.stage-r .mid::after{content:'';position:absolute;left:50%;top:18px;width:10px;height:10px;border-radius:50%;background:var(--grn);transform:translateX(-50%);box-shadow:0 0 0 3px var(--grn-l)}
-.stage-r .acts{flex:1;padding:8px 0 12px;display:flex;flex-direction:column;gap:8px}
-.act-c{background:var(--panel);border:1px solid var(--ln);border-left:3px solid var(--grn);padding:10px 13px;display:flex;gap:11px;align-items:flex-start}
-.act-c.wa{border-left-color:#1fa855}
-.act-c.tm{border-left-color:var(--amb)}
-.act-c .aic{width:30px;height:30px;border:1px solid var(--ln2);display:grid;place-items:center;flex:none;margin-top:1px}
-.act-c .aic svg{width:15px;height:15px}
-.act-c .ab{flex:1;min-width:0}
-.act-c .at{font-size:13px;font-weight:600}
-.act-c .ad{font-size:11.5px;color:var(--mut);margin-top:2px;line-height:1.5}
-.act-c .sw{flex:none;width:36px;height:20px;border-radius:11px;background:var(--grn);position:relative;cursor:pointer;margin-top:4px}
-.act-c .sw::after{content:'';position:absolute;right:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#fff}
-.act-c .sw.off{background:#c8cdd6}
-.act-c .sw.off::after{right:auto;left:3px}
+/* задачи */
+.tgroup{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);font-weight:700;margin:18px 0 8px}
+.trow{display:flex;align-items:center;gap:13px;background:var(--panel);border:1px solid var(--ln);padding:11px 14px;margin-bottom:8px;cursor:pointer;transition:.1s}
+.trow:hover{border-color:var(--grn)}
+.trow.late{border-left:3px solid var(--terra)}
+.trow .tw{width:88px;flex:none;font-family:var(--mono);font-size:12.5px;font-weight:700;color:var(--ink2)}
+.trow.late .tw{color:var(--terra)}
+.trow .ti{flex:1;min-width:0}
+.trow .tn2{font-weight:600;font-size:14px}
+.trow .td2{font-size:12.5px;color:var(--mut)}
+.trow .done{border:1px solid var(--grn);color:var(--grn);padding:6px 12px;font-size:11.5px;font-weight:700}
 
-/* сделка-модал */
+/* учёт рабочего времени */
+.wtlog{position:relative;padding-left:18px}
+.wtlog::before{content:'';position:absolute;left:4px;top:3px;bottom:3px;width:2px;background:var(--ln)}
+.wtl{position:relative;padding:0 0 12px}
+.wtl::before{content:'';position:absolute;left:-17px;top:4px;width:8px;height:8px;border-radius:50%;background:var(--grn)}
+.wtl .we{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+.wtl .wb{font-size:13.5px;margin-top:1px}
+
+/* модал лида */
 .ovl{position:fixed;inset:0;background:rgba(23,32,51,.55);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:26px 14px;overflow-y:auto}
 .ovl.show{display:flex}
-.deal{background:var(--paper);border:1.5px solid var(--ink);max-width:960px;width:100%;animation:fd .15s}
+.deal{background:var(--paper);border:1.5px solid var(--ink);max-width:1000px;width:100%;animation:fd .15s}
 .deal .dh{background:var(--panel);border-bottom:1px solid var(--ln);padding:14px 20px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
 .deal .dh h2{font-family:var(--serif);font-size:20px;font-weight:600}
-.deal .dh .dsum{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--grn)}
 .deal .dh .mx{margin-left:auto;font-size:20px;color:var(--mut);cursor:pointer}
-.stepper{display:flex;border-bottom:1px solid var(--ln);background:var(--panel)}
-.stepper button{flex:1;padding:9px 6px;font-size:11px;font-weight:600;color:var(--faint);border-bottom:3px solid transparent;letter-spacing:.03em;text-transform:uppercase}
+.stepper{display:flex;border-bottom:1px solid var(--ln);background:var(--panel);overflow-x:auto}
+.stepper button{flex:1;min-width:120px;padding:9px 6px;font-size:11.5px;font-weight:700;color:var(--faint);border-bottom:3px solid transparent;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
 .stepper button.done{color:var(--grn)}
 .stepper button.cur{color:var(--ink);border-bottom-color:var(--grn);background:var(--grn-l)}
-.deal .db{display:grid;grid-template-columns:250px 1fr 210px;gap:0;min-height:380px}
+.deal .db{display:grid;grid-template-columns:238px 1fr 216px;gap:0;min-height:400px}
 @media(max-width:900px){.deal .db{grid-template-columns:1fr}}
 .deal .dleft{border-right:1px solid var(--ln);padding:14px 16px;background:var(--panel)}
-.fld{margin-bottom:12px}
-.fld .fl{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700}
-.fld .fv{font-size:14px;font-weight:600;margin-top:2px}
-.fld .fv.num{font-size:13px}
+.fld{margin-bottom:11px}
+.fld .fl{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.fld .fv{font-size:14.5px;font-weight:600;margin-top:2px}
+.fld .fv.clk{cursor:pointer}.fld .fv.clk:hover{color:var(--grn)}
+.hhlink{color:var(--blu);font-weight:600;font-size:12.5px;text-decoration:underline;cursor:pointer}
 .cbtns{display:flex;gap:6px;margin-top:4px}
 .cbtn{flex:1;border:1px solid var(--ln);padding:8px 6px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;font-weight:600;cursor:pointer}
 .cbtn:hover{border-color:var(--grn);color:var(--grn)}
 .cbtn svg{width:13px;height:13px}
-.deal .dmid{padding:14px 18px;overflow-y:auto;max-height:56vh}
+.deal .dmid{padding:0;overflow:hidden;display:flex;flex-direction:column}
+.midtabs{display:flex;border-bottom:1px solid var(--ln);background:var(--panel)}
+.midtabs button{flex:1;padding:11px 6px;font-size:12.5px;font-weight:600;color:var(--mut);border-bottom:2px solid transparent}
+.midtabs button.on{color:var(--ink);border-bottom-color:var(--grn)}
+.midbody{padding:14px 18px;overflow-y:auto;max-height:52vh}
+.midpane{display:none}.midpane.on{display:block}
 .tl{position:relative;padding-left:20px}
 .tl::before{content:'';position:absolute;left:5px;top:4px;bottom:4px;width:2px;background:var(--ln)}
 .ev{position:relative;padding:0 0 14px}
 .ev::before{content:'';position:absolute;left:-19px;top:5px;width:8px;height:8px;border-radius:50%;background:var(--faint)}
-.ev.call::before{background:var(--blu)}
-.ev.wa::before{background:#1fa855}
-.ev.robot::before{background:var(--grn)}
-.ev .et{font-size:11px;color:var(--faint);font-family:var(--mono)}
-.ev .eb{font-size:13px;margin-top:2px;line-height:1.5}
+.ev.call::before{background:var(--blu)}.ev.wa::before{background:#1fa855}.ev.st::before{background:var(--amb)}.ev.note::before{background:var(--ink)}
+.ev .et{font-size:11.5px;color:var(--faint);font-family:var(--mono)}
+.ev .eb{font-size:14px;margin-top:2px;line-height:1.5}
 .ev .eb b{font-weight:600}
 .ev .rec{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--ln);padding:5px 10px;margin-top:5px;font-size:11px;font-family:var(--mono);cursor:pointer}
 .ev .rec:hover{border-color:var(--blu)}
-.ev .wamsg{background:#eaf6ef;border:1px solid #cbe7d6;padding:8px 11px;font-size:12.5px;margin-top:5px;max-width:400px}
+.chatwin{display:flex;flex-direction:column;gap:8px}
+.msg{max-width:80%;padding:8px 11px;font-size:13.5px;line-height:1.45}
+.msg.them{align-self:flex-start;background:var(--ln2)}
+.msg.me{align-self:flex-end;background:#eaf6ef;border:1px solid #cbe7d6}
+.msg .mt2{font-size:10px;color:var(--faint);font-family:var(--mono);margin-top:3px}
+.chatbar{display:flex;gap:6px;margin-top:12px}
+.chatbar input{flex:1;border:1px solid var(--ln);padding:9px 11px;font-size:13px}
+.chatbar button{background:var(--grn);color:#fff;font-weight:600;padding:0 16px;font-size:12.5px}
+.mailitem{border:1px solid var(--ln);padding:11px 13px;margin-bottom:9px}
+.mailitem .mh{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut);margin-bottom:5px}
+.mailitem .msubj{font-weight:700;font-size:13.5px}
+.mailitem .mbody{font-size:13px;color:var(--ink2);margin-top:4px;line-height:1.5}
 .deal .drgt{border-left:1px solid var(--ln);padding:14px 16px;background:var(--panel)}
-.task{border:1px solid var(--ln);padding:9px 11px;margin-bottom:8px;font-size:12.5px}
+.task{border:1px solid var(--ln);padding:9px 11px;margin-bottom:8px;font-size:13.5px;cursor:pointer}
 .task b{font-weight:600;display:block}
 .task span{font-size:11px;color:var(--terra);font-family:var(--mono);font-weight:600}
-.task.don{opacity:.55}
-.task.don span{color:var(--grn)}
+.task.don{opacity:.55}.task.don span{color:var(--grn)}
 .dfoot{border-top:1px solid var(--ln);background:var(--panel);padding:11px 20px;display:flex;gap:8px;flex-wrap:wrap}
 .btn{background:var(--ink);color:#fff;font-weight:600;font-size:12.5px;padding:9px 16px;cursor:pointer}
 .btn.g{background:var(--grn)}
 .btn.o{background:#fff;color:var(--ink);border:1px solid var(--ln)}
 
-#toasts{position:fixed;right:18px;bottom:18px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:380px}
+#toasts{position:fixed;right:18px;bottom:18px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:390px}
 .toast{background:var(--ink);color:#e6eaf1;padding:12px 16px;font-size:12.5px;line-height:1.55;box-shadow:6px 6px 0 rgba(23,32,51,.15);animation:tin .22s}
 @keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1}}
 .toast b{color:#8fd4bc}
-
-@media(max-width:860px){
-  .mnav{gap:18px}
-  .wrap{padding:14px 14px 96px}
-  .mobile-nav{display:flex!important}
-}
-.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--ink);z-index:50;justify-content:space-around;padding:9px 4px calc(9px + env(safe-area-inset-bottom))}
-.mobile-nav button{color:#8b99af;font-size:10.5px;font-weight:500;padding:3px 8px}
-.mobile-nav button.on{color:#fff;font-weight:700}
-
-/* читабельность+ и кликабельность */
-:root{--mut:#5a6577;--faint:#87919f}
-body{font-size:15px}
-.mt{cursor:pointer;transition:.12s}
-.mt:hover{background:#f4f6f3}
-.mt .l{font-size:11.5px}
-.mt .v{font-size:24px}
-.mt .d{font-size:12.5px}
-.kcol h4{font-size:11.5px;cursor:pointer}
-.kcol .ksum{font-size:12px}
-.kcard .kt{font-size:14.5px}
-.kcard .kc2{font-size:12.5px}
-.kcard .ksm{font-size:13.5px}
-.kcard .knext{font-size:12px}
-.kic .ic{width:24px;height:24px;cursor:pointer}
-.kic .ic:hover{border-color:var(--grn)}
-.kic .ic svg{width:13px;height:13px}
-.kic .src{font-size:11px;cursor:pointer}
-.kic .rb{font-size:11px;cursor:pointer}
-th{font-size:11.5px}
-td{font-size:14.5px}
-td.r{font-size:13.5px}
-.cn{font-size:15px}
-.cs{font-size:12.5px}
-.note{font-size:13px}
-.stepper button{font-size:11.5px;font-weight:700}
-.fld .fl{font-size:10.5px}
-.fld .fv{font-size:15px}
-.fld .fv.clk{cursor:pointer}
-.fld .fv.clk:hover{color:var(--grn)}
-.ev .et{font-size:11.5px}
-.ev .eb{font-size:14px}
-.ev .wamsg{font-size:13.5px}
-.task{font-size:13.5px;cursor:pointer}
-.act-c{cursor:pointer}
-.act-c:hover{border-color:var(--grn)}
-.act-c .at{font-size:14px}
-.act-c .ad{font-size:12.5px}
-.ph-head .sub{font-size:13.5px}
-.mnav button{font-size:14.5px}
-.panel .pt h3{font-size:16px}
-.conv-r{cursor:pointer}
-.conv-r:hover{background:#f4f6f3}
-
-/* международный функционал: drag&drop, поиск, фильтры, вид, возраст сделок */
-.toolfun{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
-.toolfun input{flex:1;min-width:220px;border:1px solid var(--ln);background:var(--panel);padding:9px 12px;font-size:13.5px}
-.toolfun input:focus{outline:none;border-color:var(--grn)}
-.fchips,.vsw{display:flex;border:1px solid var(--ln);background:var(--panel)}
-.fchips button,.vsw button{padding:8px 13px;font-size:12.5px;font-weight:600;color:var(--mut);border-right:1px solid var(--ln)}
-.fchips button:last-child,.vsw button:last-child{border-right:none}
-.fchips button.on,.vsw button.on{background:var(--ink);color:#fff}
-.toolfun .hint{font-size:11.5px;color:var(--faint)}
-@media(max-width:860px){.toolfun .hint{display:none}}
-.kcard{cursor:grab}
-.kcard:active{cursor:grabbing}
-.kcard.dragging{opacity:.35;border-style:dashed}
-.kcol.dz{background:var(--grn-l);outline:2px dashed var(--grn);outline-offset:-4px}
-.kcol h4 .num{color:var(--faint);font-weight:600;letter-spacing:0}
-.ksum .kfore{display:block;color:var(--faint);font-weight:400;font-size:10.5px;margin-top:1px}
-.kic .age{margin-left:auto;font-size:10.5px;color:var(--faint);font-family:var(--mono);font-weight:600;cursor:pointer;white-space:nowrap}
-.kic .age.rot{color:var(--terra)}
-.kic .avm{width:21px;height:21px;border-radius:50%;background:var(--blu-l);color:var(--blu);font-size:9px;font-weight:700;display:inline-grid;place-items:center;flex:none;cursor:pointer}
-.kic .src{margin-left:0}
-.dropbar{position:fixed;left:0;right:0;bottom:0;z-index:80;display:none;gap:1px;background:var(--ln)}
-.dropbar.show{display:flex}
-.dzone{flex:1;padding:20px;text-align:center;font-weight:800;font-size:14px;letter-spacing:.12em;background:var(--panel);border-top:2px solid var(--ink);transition:.12s}
-.dzone.win{color:var(--grn)}
-.dzone.lose{color:var(--terra)}
-.dzone.win.ov{background:var(--grn-l)}
-.dzone.lose.ov{background:var(--terra-l)}
 .toast .undo{margin-left:8px;border:1px solid #8fd4bc;color:#8fd4bc;font-weight:700;font-size:11.5px;padding:4px 10px;cursor:pointer;background:none}
+
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--ink);z-index:50;justify-content:space-around;padding:9px 4px calc(9px + env(safe-area-inset-bottom))}
+.mobile-nav button{color:#8b99af;font-size:10.5px;font-weight:600;padding:3px 6px}
+.mobile-nav button.on{color:#fff}
+@media(max-width:860px){.mnav{gap:16px}.wrap{padding:14px 14px 96px}.mobile-nav{display:flex}}
 </style>
 </head>
 <body>
-<div class="demo-note">Интерактивное демо · <b>Kolyakhan — воронка продаж под запуск отдела</b> · все данные вымышленные, всё прокликивается и перетаскивается · <b>Pllato</b></div>
+<div class="demo-note">Интерактивное демо · <b>Kolyakhan (HireBox) — CRM для лид-менеджеров · Этап 1</b> · данные вымышленные, всё прокликивается · <b>Pllato</b></div>
 
 <header class="mast">
   <div class="m1">
     <div class="brand">
       <div class="bm"><svg viewBox="0 0 32 32"><path d="M6 12 L16 7 L26 12 L16 17 Z" fill="#e8ecf3"/><path d="M6 12 v9 l10 5 v-9 Z" fill="#7d8ea6"/><path d="M26 12 v9 l-10 5 v-9 Z" fill="#b9c4d4"/><path d="M19 20 l3 3 6-7" fill="none" stroke="#2ea882" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-      <div><div class="bt">KOLYAKHAN</div><div class="bs">воронка продаж · телефония · WhatsApp · роботы</div></div>
+      <div><div class="bt">KOLYAKHAN</div><div class="bs">CRM для лид-менеджеров · телефония · WhatsApp · почта</div></div>
     </div>
     <div class="roles">
-      <button class="on" onclick="setRole(this,'РОП','весь отдел: все сделки, звонки с записями, конверсии, работа роботов')">РОП</button>
-      <button onclick="setRole(this,'Менеджер','только свои сделки и задачи — фокус на «следующем шаге», ничего лишнего')">Менеджер</button>
+      <button class="on" onclick="setRole('lead',this)">Лид-менеджер</button>
+      <button onclick="setRole('sales',this)">Ведущий менеджер</button>
+      <button onclick="setRole('boss',this)">Руководитель</button>
     </div>
-    <button class="act" onclick="toast('Лид заводится за 10 секунд: имя, телефон, откуда пришёл. Всё остальное карточка соберёт сама — звонки, переписку, письма роботов.')">+ Лид</button>
+    <button class="act" onclick="impExcel()">↥ Импорт Excel</button>
+    <button class="act dk" onclick="newLead()">+ Лид</button>
   </div>
   <nav class="mnav">
-    <button class="on" data-s="fun">Воронка<span class="cnt" id="navFunCnt">14 · 21,6M</span></button>
-    <button data-s="calls">Звонки<span class="cnt">31</span></button>
-    <button data-s="robots">Роботы<span class="cnt">6</span></button>
-    <button data-s="rep">Отчёт</button>
+    <button class="on" data-s="leads">Лиды<span class="cnt">лид-менеджеры</span></button>
+    <button data-s="sales">Отдел продаж<span class="cnt">воронка продаж</span></button>
+    <button data-s="tasks">Задачи<span class="cnt" id="navTasks">7</span></button>
+    <button data-s="calls">Звонки<span class="cnt">телефония</span></button>
+    <button data-s="stats">Статистика<span class="cnt">по менеджерам</span></button>
   </nav>
 </header>
 
 <div class="wrap">
 
-  <!-- ===== ВОРОНКА ===== -->
-  <section class="screen on" id="s-fun">
+  <!-- ===== ЛИДЫ (воронка лид-менеджеров) ===== -->
+  <section class="screen on" id="s-leads">
     <div class="meterline">
-      <div class="mt" onclick="toast('Живые деньги в работе + <b>взвешенный прогноз</b>: сумма каждой стадии умножается на её вероятность закрытия (10–90%) — так планируют выручку международные CRM.')"><div class="l">В воронке</div><div class="v" id="mtFunV">14 <em>сделок</em></div><div class="d" id="mtFunD">на 21,6 млн ₸</div></div>
-      <div class="mt" onclick="toast('5 новых лидов: 2 WhatsApp, 1 звонок, 2 сайт. Среднее время «взят в работу» — 8 минут, робот следит.')"><div class="l">Новых · сегодня</div><div class="v">5</div><div class="d">взяты в работу за 8 минут</div></div>
-      <div class="mt" onclick="nav('rep')"><div class="l">Оплат · июль</div><div class="v g">4 <em>· 6,1 млн</em></div><div class="d">конверсия из лида 12%</div></div>
-      <div class="mt" onclick="toast('Две терракотовые карточки в воронке — по ним следующий шаг просрочен. РОП видит это первым.')"><div class="l">Просроченный шаг</div><div class="v t">2</div><div class="d">подсвечены в воронке</div></div>
-      <div class="mt" onclick="nav('robots')"><div class="l">Роботы · сегодня</div><div class="v">17 <em>касаний</em></div><div class="d">рассылки по стадиям — сами</div></div>
+      <div class="mt" onclick="toast('Все лиды в работе у лид-менеджеров. Загружаются из Excel и заводятся вручную. Антидубли: при импорте и создании проверка по названию / телефону / БИН — один лид не попадёт дважды.')"><div class="l">Лидов в работе</div><div class="v" id="mtLeads">11</div><div class="d">импорт Excel + вручную</div></div>
+      <div class="mt" onclick="toast('Новые лиды за сегодня — упали из Excel-таблицы на этап «Новый лид».')"><div class="l">Новых · сегодня</div><div class="v b">3</div><div class="d">из Excel-импорта</div></div>
+      <div class="mt" onclick="toast('Встречи, назначенные лид-менеджерами. При отметке «встреча назначена / состоялась» лид передаётся в отдел продаж, а у лид-менеджера остаётся отметка — для статистики и оплаты за встречу.')"><div class="l">Встреч назначено</div><div class="v g">2</div><div class="d">→ передаются в продажи</div></div>
+      <div class="mt" onclick="toast('Лиды с просроченным следующим действием — не перезвонили вовремя. Руководитель видит это в статистике по менеджеру.')"><div class="l">Просрочен шаг</div><div class="v t">1</div><div class="d">подсвечен в воронке</div></div>
+      <div class="mt" onclick="nav('sales')"><div class="l">Передано в продажи</div><div class="v">4</div><div class="d">за неделю</div></div>
     </div>
-    <div class="toolfun">
-      <input type="search" placeholder="Поиск: клиент, компания, источник…" oninput="Q=this.value;renderFun()">
-      <div class="fchips">
-        <button class="on" onclick="setMgr(-1,this)">Все</button>
-        <button onclick="setMgr(1,this)">Айгерим</button>
-        <button onclick="setMgr(0,this)">Дана</button>
+    <div class="tznote">🧩 <b>Этапы воронки — черновик.</b> По ТЗ этапы пока не фиксируем: Эвилина добавит и переименует их по макету. В демо заложена возможность легко <b>добавлять / переименовывать этапы</b> (наведите на заголовок стадии — ✎, справа — «+ этап»).</div>
+    <div class="toolfun" style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <input type="search" placeholder="Поиск: компания, город, телефон, БИН…" oninput="LQ=this.value;renderLeads()" style="flex:1;min-width:220px;border:1px solid var(--ln);background:var(--panel);padding:9px 12px;font-size:13.5px">
+      <div class="pchip" id="lmgrChips">
+        <button class="on" onclick="setLMgr(-1,this)">Все менеджеры</button>
+        <button onclick="setLMgr(0,this)">Эвилина</button>
+        <button onclick="setLMgr(1,this)">Дамир</button>
+        <button onclick="setLMgr(2,this)">Санжар</button>
       </div>
-      <span class="hint">⠿ карточки перетаскиваются между стадиями</span>
-      <div class="vsw">
-        <button class="on" onclick="setView('kan',this)">Канбан</button>
-        <button onclick="setView('list',this)">Список</button>
-      </div>
+      <span class="note" style="font-size:11.5px">⠿ карточки перетаскиваются между этапами</span>
     </div>
-    <div class="kan" id="funKan"></div>
-    <div class="panel" id="funListWrap" style="display:none">
-      <div class="pb" style="padding-top:4px"><table>
-        <thead><tr><th>Сделка</th><th>Стадия</th><th>Менеджер</th><th class="r">Сумма</th><th>Следующий шаг</th><th class="r">В стадии</th></tr></thead>
-        <tbody id="funListBody"></tbody>
-      </table></div>
-    </div>
-    <div class="note" style="margin-top:12px">Карточка сделки — проще некуда: клиент, сумма, <b>следующий шаг с датой</b>. Просрочил шаг — карточка горит терракотовым, РОП видит. Карточки <b>перетаскиваются мышью</b> между стадиями — при переносе вниз появляются зоны «Выиграна / Проиграна». Клик по карточке — вся история: звонки с записями, WhatsApp, письма роботов. Нажмите на «Ерлан · BI Group».</div>
+    <div class="kanwrap"><div class="kan" id="leadKan"></div></div>
+  </section>
+
+  <!-- ===== ОТДЕЛ ПРОДАЖ ===== -->
+  <section class="screen" id="s-sales">
+    <div class="ph-head"><h1>Воронка «Отдел продаж»</h1><span class="sub">ведёт ведущий менеджер · сюда передаются лиды с назначенной/состоявшейся встречей</span></div>
+    <div class="tznote">↪ Лид передаётся из воронки лид-менеджеров и <b>назначается на ведущего менеджера</b>. У лид-менеджера остаётся отметка о встрече (для его статистики и оплаты за встречу). Этапы — тоже черновик, настраиваются.</div>
+    <div class="kanwrap"><div class="kan" id="salesKan"></div></div>
+  </section>
+
+  <!-- ===== ЗАДАЧИ ===== -->
+  <section class="screen" id="s-tasks">
+    <div class="ph-head"><h1>Задачи на день</h1><span class="sub">по каждому лиду — задача с датой; ни один лид не потеряется — по скрипту возвращаемся к контакту несколько раз</span></div>
+    <div id="taskList"></div>
   </section>
 
   <!-- ===== ЗВОНКИ ===== -->
   <section class="screen" id="s-calls">
     <div class="meterline">
-      <div class="mt" onclick="toast('12 входящих + 19 исходящих. Клик по строке журнала — запись и сделка.')"><div class="l">Звонков сегодня</div><div class="v">31</div><div class="d">входящие 12 · исходящие 19</div></div>
-      <div class="mt" onclick="toast('Дозвон 74%: недозвоны получают WhatsApp «когда удобно поговорить?» — роботом.')"><div class="l">Дозвон</div><div class="v g">74%</div><div class="d">все разговоры с записью</div></div>
-      <div class="mt" onclick="toast('Каждый пропущенный — автосделка + задача с таймером. Потерять звонок невозможно.')"><div class="l">Пропущенные</div><div class="v t">2</div><div class="d">задачи на перезвон стоят</div></div>
-      <div class="mt" onclick="toast('Считается по записям. Слишком короткие «результативные» звонки — повод послушать запись.')"><div class="l">Среднее время</div><div class="v">4:12</div><div class="d">на результативный звонок</div></div>
+      <div class="mt" onclick="toast('Все звонки за сегодня из журнала телефонии — кто, кому, когда, длительность, результат. Запись прикреплена к лиду.')"><div class="l">Звонков сегодня</div><div class="v" id="mtCalls">31</div><div class="d">по всем менеджерам</div></div>
+      <div class="mt" onclick="toast('Результативные — звонки от 1 минуты, где реально поговорили. Считаются отдельно от недозвонов: по ним оценивается работа менеджера.')"><div class="l">Результативных ≥1 мин</div><div class="v g" id="mtOk">—</div><div class="d">реально поговорили</div></div>
+      <div class="mt" onclick="toast('Недозвоны — 0 секунд или сброс. По скрипту лид возвращается в задачи на повторный дозвон.')"><div class="l">Недозвонов</div><div class="v t" id="mtMiss">—</div><div class="d">→ задача «перезвонить»</div></div>
+      <div class="mt" onclick="toast('Эфирное время — суммарное время в разговоре. Главный показатель активности лид-менеджера.')"><div class="l">Эфирное время</div><div class="v b">4ч 32м</div><div class="d">суммарно в разговоре</div></div>
+    </div>
+    <div class="toolfun" style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <div class="pchip">
+        <button class="on" onclick="setCFilt(this)">Все</button>
+        <button onclick="setCFilt(this)">Эвилина</button>
+        <button onclick="setCFilt(this)">Дамир</button>
+        <button onclick="setCFilt(this)">Санжар</button>
+      </div>
+      <div class="pchip">
+        <button class="on" onclick="setCFilt(this)">Сегодня</button>
+        <button onclick="setCFilt(this)">Неделя</button>
+        <button onclick="setCFilt(this)">Месяц</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="pt"><h3>Журнал звонков</h3><span class="lnk" onclick="toast('IP-телефония: звонок из карточки лида в один клик по номеру, входящий сам открывает карточку. Записи хранятся у лида.')">как подключается →</span></div>
+      <div class="pb" style="padding-top:4px"><table>
+        <thead><tr><th>Менеджер</th><th>Лид</th><th class="r">Время</th><th class="r">Длит.</th><th>Результат</th><th></th></tr></thead>
+        <tbody id="callBody"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ===== СТАТИСТИКА ===== -->
+  <section class="screen" id="s-stats">
+    <div class="ph-head"><h1>Статистика по менеджерам</h1><span class="sub">руководитель видит по каждому менеджеру за день / неделю / месяц</span>
+      <div class="pchip" style="margin-left:auto">
+        <button class="on" onclick="setPeriod(this)">День</button>
+        <button onclick="setPeriod(this)">Неделя</button>
+        <button onclick="setPeriod(this)">Месяц</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="pb" style="padding-top:6px;overflow-x:auto"><table>
+        <thead><tr><th>Менеджер</th><th class="r">Звонков</th><th class="r">Результ. ≥1мин</th><th class="r">Эфир</th><th class="r">Лидов</th><th class="r">Встреч назн.</th><th class="r">Состоялось</th><th class="r">В продажи</th></tr></thead>
+        <tbody id="statBody"></tbody>
+      </table></div>
     </div>
     <div class="cols">
       <div class="panel">
-        <div class="pt"><h3>Журнал звонков</h3><span class="lnk" onclick="toast('IP-телефония: звонок из карточки в один клик, входящий сам открывает карточку клиента. Записи хранятся в сделках.')">как подключается →</span></div>
-        <div class="pb" style="padding-top:4px"><table>
-          <thead><tr><th>Клиент</th><th>Менеджер</th><th class="r">Время</th><th class="r">Длит.</th><th></th></tr></thead>
-          <tbody id="callBody"></tbody>
-        </table></div>
+        <div class="pt"><h3>Рабочее время · Эвилина</h3><span class="lnk" onclick="toast('Активное время считается по журналу событий (звонки, смена статусов, заметки, сообщения), а не по «CRM открыта». Видно, что менеджер реально делал.')">как считается →</span></div>
+        <div class="pb">
+          <div style="display:flex;gap:24px;margin-bottom:12px;flex-wrap:wrap">
+            <div><div class="l" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);font-weight:600">Активное время</div><div class="num" style="font-size:24px;font-weight:700;color:var(--grn)">6ч 05м</div></div>
+            <div><div class="l" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);font-weight:600">В CRM открыта</div><div class="num" style="font-size:24px;font-weight:700">8ч 12м</div></div>
+            <div><div class="l" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);font-weight:600">Событий</div><div class="num" style="font-size:24px;font-weight:700">64</div></div>
+          </div>
+          <div class="wtlog" id="wtLog"></div>
+        </div>
       </div>
       <div>
         <div class="panel">
-          <div class="pt"><h3>Зачем записи</h3></div>
-          <div class="pb note" style="line-height:1.9">Вы запускаете отдел с нуля — записи решают три задачи: <b style="color:var(--ink)">обучение</b> новых менеджеров на реальных разговорах, <b style="color:var(--ink)">контроль</b> без присутствия, <b style="color:var(--ink)">споры</b> «мне обещали другое» закрываются за минуту.</div>
+          <div class="pt"><h3>Что входит в активность</h3></div>
+          <div class="pb note" style="line-height:1.9">
+            <div><span class="dot g"></span>Звонки (эфирное время)</div>
+            <div><span class="dot a"></span>Смена статусов лидов</div>
+            <div><span class="dot b"></span>Сообщения WhatsApp и почта</div>
+            <div><span class="dot t"></span>Заметки и задачи</div>
+            <div style="margin-top:6px;color:var(--ink)">Простой без событий в активное время не идёт.</div>
+          </div>
         </div>
-        <div class="panel">
-          <div class="pt"><h3>Пропущенный — не потерянный</h3></div>
-          <div class="pb note" style="line-height:1.9">Пропущенный звонок автоматически создаёт сделку (если номер новый) и задачу «перезвонить» с таймером. Клиенту тут же уходит WhatsApp: «Видим ваш звонок, перезвоним в течение 15 минут».</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===== РОБОТЫ ===== -->
-  <section class="screen" id="s-robots">
-    <div class="ph-head"><h1>Роботы-рассыльщики</h1><span class="sub">сделка перешла на стадию — робот отработал. Тексты ваши, включение тумблером</span></div>
-    <div class="flow" id="flow"></div>
-    <div class="note" style="margin-top:8px">Каждое письмо робота видно в карточке сделки — менеджер всегда знает, что уже получил клиент. Открытия отслеживаются: «КП открыто 2 раза» — сигнал звонить.</div>
-  </section>
-
-  <!-- ===== ОТЧЁТ ===== -->
-  <section class="screen" id="s-rep">
-    <div class="meterline">
-      <div class="mt" onclick="toast('Источники фиксируются автоматически — видно, какая реклама приводит платящих, а какая просто лидов.')"><div class="l">Лидов · июль</div><div class="v">34</div><div class="d">WhatsApp 15 · звонки 10 · сайт 9</div></div>
-      <div class="mt" onclick="toast('53% лидов получают расчёт. Ниже — вопрос квалификации, выше — вопрос дожима.')"><div class="l">Дошло до КП</div><div class="v">18</div><div class="d">53% от лидов</div></div>
-      <div class="mt" onclick="toast('12% из лида в деньги — честная сквозная конверсия, а не «по ощущениям».')"><div class="l">Оплат</div><div class="v g">4</div><div class="d">12% из лида · средний чек 1,52 млн</div></div>
-      <div class="mt" onclick="toast('9 дней от заявки до оплаты. Роботы сокращают цикл: клиент не ждёт, пока менеджер вспомнит.')"><div class="l">Цикл сделки</div><div class="v">9 <em>дней</em></div><div class="d">от лида до оплаты</div></div>
-    </div>
-    <div class="cols">
-      <div class="panel">
-        <div class="pt"><h3>Конверсия по стадиям</h3></div>
-        <div class="pb" id="convList"></div>
-        <div class="pb note" style="padding-top:0">Видно, где воронка «протекает»: из КП в переговоры доходит 61% — значит, работаем над дожимом после КП (робот-напоминание уже включён).</div>
-      </div>
-      <div class="panel">
-        <div class="pt"><h3>Менеджеры</h3></div>
-        <div class="pb" style="padding-top:4px"><table>
-          <thead><tr><th>Менеджер</th><th class="r">Сделки</th><th class="r">Звонки</th><th class="r">Оплаты</th></tr></thead>
-          <tbody>
-            <tr onclick="toast('Карточка менеджера: сделки, звонки с записями, просроченные шаги. База для KPI и планёрок.')"><td><div class="cn">Айгерим</div></td><td class="r">8</td><td class="r">126</td><td class="r">3</td></tr>
-            <tr onclick="toast('Новый менеджер выходит на цифры быстрее, когда слушает записи лучших звонков.')"><td><div class="cn">Дана</div><div class="cs">новая · 2-я неделя</div></td><td class="r">6</td><td class="r">98</td><td class="r">1</td></tr>
-          </tbody>
-        </table></div>
       </div>
     </div>
   </section>
@@ -389,49 +355,62 @@ td.r{font-size:13.5px}
 </div>
 
 <div class="mobile-nav">
-  <button class="on" data-s="fun" onclick="nav('fun')">Воронка</button>
+  <button class="on" data-s="leads" onclick="nav('leads')">Лиды</button>
+  <button data-s="sales" onclick="nav('sales')">Продажи</button>
+  <button data-s="tasks" onclick="nav('tasks')">Задачи</button>
   <button data-s="calls" onclick="nav('calls')">Звонки</button>
-  <button data-s="robots" onclick="nav('robots')">Роботы</button>
-  <button data-s="rep" onclick="nav('rep')">Отчёт</button>
+  <button data-s="stats" onclick="nav('stats')">Статы</button>
 </div>
 
-<!-- сделка -->
+<!-- карточка лида -->
 <div class="ovl" id="dealOvl" onclick="if(event.target===this)closeDeal()">
   <div class="deal">
-    <div class="dh"><h2 id="dTitle">—</h2><span class="dsum num" id="dSum">—</span><span class="mark gy" id="dMeta">—</span><span class="mx" onclick="closeDeal()">✕</span></div>
+    <div class="dh"><h2 id="dTitle">—</h2><span class="mark gy" id="dMeta">—</span><span class="mx" onclick="closeDeal()">✕</span></div>
     <div class="stepper" id="dStep"></div>
     <div class="db">
       <div class="dleft">
-        <div class="fld"><div class="fl">Контакт</div><div class="fv" id="dContact">—</div>
+        <div class="fld"><div class="fl">Компания</div><div class="fv" id="dComp">—</div>
           <div class="cbtns">
-            <span class="cbtn" onclick="toast('Звонок пошёл через IP-телефонию — из карточки, в один клик. Запись появится в ленте сделки сама.')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>Позвонить</span>
-            <span class="cbtn" onclick="toast('Открылся диалог WhatsApp внутри карточки — вся переписка остаётся в сделке, даже если менеджер уволится.')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-4-7.5"/><path d="M8 12h8M8 9h5"/></svg>WhatsApp</span>
+            <span class="cbtn" onclick="toast('Звонок пошёл через IP-телефонию — из карточки, в один клик по номеру. Запись ляжет в историю лида.')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>Позвонить</span>
+            <span class="cbtn" onclick="dmid('wa')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-4-7.5"/><path d="M8 12h8M8 9h5"/></svg>WhatsApp</span>
           </div>
         </div>
-        <div class="fld"><div class="fl">Телефон</div><div class="fv num clk" style="font-size:13px" id="dPhone" onclick="toast('Клик по номеру — звонок через IP-телефонию. Запись ляжет в ленту ниже.')">—</div></div>
-        <div class="fld"><div class="fl">Компания</div><div class="fv" id="dCompany">—</div></div>
-        <div class="fld"><div class="fl">Сумма</div><div class="fv num clk" id="dSumF" onclick="toast('Сумма меняется по ходу переговоров — история изменений сохраняется.')">—</div></div>
-        <div class="fld"><div class="fl">Источник</div><div class="fv clk" id="dSrc" onclick="toast('Источник проставлен автоматически. По нему строится отчёт «какая реклама приносит деньги».')">—</div></div>
-        <div class="fld"><div class="fl">Следующий шаг</div><div class="fv clk" style="color:var(--terra)" id="dNext" onclick="toast('Срок шага переносится в два клика — но история переносов видна РОПу: «двигали 3 раза» о многом говорит.')">—</div></div>
+        <div class="fld"><div class="fl">Город · сегмент</div><div class="fv" id="dSeg">—</div></div>
+        <div class="fld"><div class="fl">Телефон</div><div class="fv num clk" style="font-size:13.5px" id="dPhone" onclick="toast('Клик по номеру — звонок через IP-телефонию. Запись и лог (длительность, результат) прикрепятся к лиду.')">—</div></div>
+        <div class="fld"><div class="fl">Ссылка hh</div><div class="fv"><span class="hhlink" id="dHh" onclick="toast('Прямая ссылка на страницу работодателя на hh.kz — из импортированной таблицы.')">—</span></div></div>
+        <div class="fld"><div class="fl">БИН · источник</div><div class="fv" id="dBin" style="font-size:13px">—</div></div>
+        <div class="fld"><div class="fl">Ответственный</div><div class="fv" id="dMgr">—</div></div>
+        <div class="fld"><div class="fl">Встреча</div><div class="fv clk" id="dMeet" onclick="toast('Дата и время встречи + флаг «состоялась / не состоялась». Отметка «назначена» передаёт лид в отдел продаж и остаётся у лид-менеджера для оплаты за встречу.')">—</div></div>
+        <div class="fld"><div class="fl">Следующее действие</div><div class="fv clk" style="color:var(--terra)" id="dNext" onclick="toast('Задача-напоминание с датой: «перезвонить завтра», «встреча в четверг». Попадает в список задач на день.')">—</div></div>
       </div>
-      <div class="dmid"><div class="tl" id="dTl"></div></div>
+      <div class="dmid">
+        <div class="midtabs">
+          <button class="on" data-m="hist" onclick="dmid('hist')">История</button>
+          <button data-m="wa" onclick="dmid('wa')">WhatsApp</button>
+          <button data-m="mail" onclick="dmid('mail')">Почта</button>
+        </div>
+        <div class="midbody">
+          <div class="midpane on" id="mp-hist"><div class="tl" id="dTl"></div></div>
+          <div class="midpane" id="mp-wa">
+            <div class="chatwin" id="dWa"></div>
+            <div class="chatbar"><input placeholder="Сообщение в WhatsApp…" onkeydown="if(event.key==='Enter')waSend(this)"><button onclick="waSend(this.previousElementSibling)">Отпр.</button></div>
+          </div>
+          <div class="midpane" id="mp-mail"><div id="dMail"></div></div>
+        </div>
+      </div>
       <div class="drgt">
-        <div class="fld"><div class="fl">Задачи</div></div>
+        <div class="fld"><div class="fl">Задачи по лиду</div></div>
         <div id="dTasks"></div>
-        <button class="btn o" style="width:100%;margin-top:4px" onclick="toast('Задача добавлена. У менеджера всегда ровно один «следующий шаг» по каждой сделке — ничего не забывается.')">+ задача</button>
+        <button class="btn o" style="width:100%;margin-top:2px" onclick="toast('Задача добавлена: действие + дата + ответственный. По скрипту к лиду возвращаемся несколько раз, пока не будет результата.')">+ задача</button>
+        <div class="fld" style="margin-top:14px"><div class="fl">Заметки</div><div class="note" id="dNote" style="margin-top:4px">—</div></div>
       </div>
     </div>
     <div class="dfoot">
-      <button class="btn g" id="dNextBtn" onclick="toast('Сделка передвинута на следующую стадию — роботы новой стадии отработают сами: отправят материалы и поставят задачи.')">→ далее</button>
-      <button class="btn o" onclick="toast('Причина проигрыша фиксируется обязательно — из этого складывается честная статистика, почему уходят.')">Проиграна</button>
+      <button class="btn g" id="dNextBtn" onclick="toast('Лид передвинут на следующий этап. Смена статуса пишется в журнал событий (для рабочего времени и статистики менеджера).')">→ следующий этап</button>
+      <button class="btn" id="dTransfer" onclick="transferLead()">↪ Передать в отдел продаж</button>
       <button class="btn o" onclick="closeDeal()">Закрыть</button>
     </div>
   </div>
-</div>
-
-<div class="dropbar" id="dropbar">
-  <div class="dzone win" ondragover="event.preventDefault();this.classList.add('ov')" ondragleave="this.classList.remove('ov')" ondrop="this.classList.remove('ov');dropEnd(event,1)">✓ ВЫИГРАНА</div>
-  <div class="dzone lose" ondragover="event.preventDefault();this.classList.add('ov')" ondragleave="this.classList.remove('ov')" ondrop="this.classList.remove('ov');dropEnd(event,0)">✕ ПРОИГРАНА</div>
 </div>
 
 <div id="toasts"></div>
@@ -439,7 +418,7 @@ td.r{font-size:13.5px}
 <script>
 const $=id=>document.getElementById(id);
 function toast(html){const t=document.createElement('div');t.className='toast';t.innerHTML=html;$('toasts').appendChild(t);
-  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},5400)}
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},6000)}
 function nav(s){
   document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
   $('s-'+s).classList.add('on');
@@ -448,194 +427,239 @@ function nav(s){
   window.scrollTo({top:0});
 }
 document.querySelectorAll('.mnav button').forEach(b=>b.onclick=()=>nav(b.dataset.s));
-function setRole(el,name,msg){
+const LMGRS=['Эвилина','Дамир','Санжар'];
+const AV=n=>n.slice(0,2).toUpperCase();
+function setRole(r,el){
   document.querySelectorAll('.roles button').forEach(b=>b.classList.toggle('on',b===el));
-  toast('<b>'+name+'</b>: '+msg+'.');
+  if(r==='lead'){setLMgrIdx(0);nav('leads');toast('<b>Лид-менеджер</b>: видит только своих лидов и свою статистику, работает в воронке «Лид-менеджеры». Показаны лиды Эвилины.');}
+  if(r==='sales'){nav('sales');toast('<b>Ведущий менеджер</b>: видит лидов, переданных в отдел продаж, ведёт закрытие сделки.');}
+  if(r==='boss'){setLMgrIdx(-1);nav('stats');toast('<b>Руководитель / админ</b>: видит всех, все воронки, всю статистику; управляет пользователями и импортом.');}
 }
-const SNAMES=['Новый лид','В работе','КП отправлено','Переговоры','Оплата'];
+function impExcel(){toast('<b>Импорт из Excel/CSV.</b> Загружаете подготовленную таблицу — лиды падают на этап «Новый лид». <b>Антидубли:</b> проверка по названию / телефону / БИН, чтобы один лид не попал дважды и двое менеджеров не звонили одному. Сейчас источник — только Excel; другие подключим позже.');}
+function newLead(){toast('<b>Ручное создание лида</b> прямо в CRM: компания, город, сегмент, телефон, ссылка hh, БИН, источник. При сохранении — та же проверка на дубли по названию/телефону/БИН.');}
+
+/* ===== ДАННЫЕ ===== */
+let LSTAGES=[
+  {n:'Новый лид',ls:[
+    {c:'BI Group',city:'Алматы',seg:'Строительство',ph:'+7 701 234 55 67',hh:'hh.kz/employer/1840',bin:'150240001234',src:'Excel-импорт',m:0,next:'первый звонок',nd:'сегодня 12:00',lt:false,meet:'',note:'Крупный найм: прорабы, инженеры. Ищут поток кандидатов.',age:0},
+    {c:'Magnum Retail',city:'Астана',seg:'Ритейл',ph:'+7 705 118 22 04',hh:'hh.kz/employer/2213',bin:'',src:'Excel-импорт',m:1,next:'первый звонок',nd:'сегодня 12:30',lt:false,meet:'',note:'Массовый найм линейного персонала.',age:0},
+    {c:'AsiaCredit',city:'Алматы',seg:'Финансы',ph:'+7 702 900 71 15',hh:'hh.kz/employer/771',bin:'',src:'вручную',m:2,next:'первый звонок',nd:'сегодня',lt:false,meet:'',note:'Заведён вручную с выставки.',age:0},
+  ]},
+  {n:'Прозвон',ls:[
+    {c:'Halyk Bank',city:'Алматы',seg:'Банк',ph:'+7 727 259 00 00',hh:'hh.kz/employer/1177',bin:'940140000385',src:'Excel-импорт',m:0,next:'дозвониться — не берут ×2',nd:'сегодня 15:00',lt:true,meet:'',note:'Секретарь просит перезвонить после 15:00.',age:1},
+    {c:'Technodom',city:'Шымкент',seg:'Электроника',ph:'+7 705 333 12 90',hh:'hh.kz/employer/553',bin:'',src:'Excel-импорт',m:1,next:'перезвон (недозвон ×2)',nd:'завтра 10:00',lt:false,meet:'',note:'',age:2},
+  ]},
+  {n:'Квалификация',ls:[
+    {c:'Air Astana',city:'Алматы',seg:'Авиа',ph:'+7 702 702 47 47',hh:'hh.kz/employer/990',bin:'',src:'Excel-импорт',m:0,next:'выяснить ЛПР и объём найма',nd:'сегодня 16:00',lt:false,meet:'',note:'Интерес есть, нужен рук. HR.',age:1},
+    {c:'Chocofamily',city:'Алматы',seg:'IT / e-com',ph:'+7 727 356 21 00',hh:'hh.kz/employer/4410',bin:'',src:'вручную',m:2,next:'выслать презентацию',nd:'завтра',lt:false,meet:'',note:'Просят презентацию на почту.',age:3},
+  ]},
+  {n:'Встреча назначена',ls:[
+    {c:'Kaspi.kz',city:'Алматы',seg:'Финтех',ph:'+7 727 250 08 82',hh:'hh.kz/employer/230',bin:'',src:'Excel-импорт',m:0,next:'подтвердить встречу',nd:'чт 11:00',lt:false,meet:'назначена · чт 11:00',note:'Встреча с рук. подбора. Подтвердить накануне.',age:2},
+  ]},
+  {n:'Встреча состоялась',ls:[
+    {c:'Colibri Group',city:'Алматы',seg:'HoReCa',ph:'+7 701 555 90 12',hh:'hh.kz/employer/3390',bin:'',src:'вручную',m:1,next:'передать в отдел продаж',nd:'сегодня',lt:false,meet:'состоялась ✓',note:'Встреча прошла, интерес подтверждён — на закрытие.',age:1},
+  ]},
+];
+let SSTAGES=[
+  {n:'Передан',ls:[
+    {c:'Jusan Retail',city:'Алматы',seg:'Ритейл',ph:'+7 707 111 22 33',hh:'hh.kz/employer/8120',bin:'',src:'от Эвилины',m:0,next:'связаться, презентация',nd:'сегодня',lt:false,meet:'состоялась ✓',note:'Передан после встречи. Отметка у Эвилины.',age:0,from:'Эвилина'},
+  ]},
+  {n:'Презентация',ls:[
+    {c:'Береке Банк',city:'Астана',seg:'Банк',ph:'+7 717 200 10 10',hh:'hh.kz/employer/612',bin:'',src:'от Дамира',m:0,next:'демо HireBox',nd:'завтра 14:00',lt:false,meet:'состоялась ✓',note:'',age:2,from:'Дамир'},
+  ]},
+  {n:'Договор',ls:[
+    {c:'Магнит HR',city:'Алматы',seg:'HR-агентство',ph:'+7 701 800 44 55',hh:'hh.kz/employer/9001',bin:'',src:'от Эвилины',m:0,next:'согласовать договор',nd:'пт',lt:false,meet:'состоялась ✓',note:'',age:4,from:'Эвилина'},
+  ]},
+  {n:'Оплата',ls:[]},
+];
+const SMGRS=['Айдос'];
+
+/* ===== РЕНДЕР ВОРОНОК ===== */
+let LQ='',LMGR=-1,DRAG=null,SNAP=null;
+function setLMgr(i,el){LMGR=i;document.querySelectorAll('#lmgrChips button').forEach(b=>b.classList.toggle('on',b===el));renderLeads()}
+function setLMgrIdx(i){LMGR=i;const b=document.querySelectorAll('#lmgrChips button')[i<0?0:i+1];document.querySelectorAll('#lmgrChips button').forEach(x=>x.classList.toggle('on',x===b));renderLeads()}
+function leadCard(fn,si,ki,l){
+  const mgr = fn==='lead'?LMGRS[l.m]:SMGRS[l.m];
+  return '<div class="kcard'+(l.lt?' late':'')+'" draggable="true" ondragstart="dragS(event,\''+fn+'\','+si+','+ki+')" ondragend="dragE()" onclick="openLead(\''+fn+'\','+si+','+ki+')">'+
+    '<div class="kt">'+l.c+'</div><div class="kc2">'+l.city+' · '+l.seg+'</div>'+
+    '<div class="kph">'+l.ph+'</div>'+
+    (l.meet?'<div class="mflag '+(l.meet.indexOf('состоялась')>=0?'ok':'set')+'">📅 '+l.meet+'</div>':'')+
+    '<div class="knext'+(l.lt?' lt':'')+'">'+(l.lt?'⚑ ':'▸ ')+l.next+' · '+l.nd+'</div>'+
+    '<div class="kic"><span class="avm" onclick="event.stopPropagation();toast(\'Ответственный: '+mgr+'. Лид-менеджер видит только своих лидов.\')">'+AV(mgr)+'</span>'+
+    '<span class="src">'+l.src.toUpperCase()+'</span>'+
+    '<span class="age">'+(l.age?l.age+' дн':'сегодня')+'</span></div></div>';
+}
+function fltLead(l){return (LMGR<0||l.m===LMGR) && (!LQ || (l.c+' '+l.city+' '+l.ph+' '+(l.bin||'')+' '+l.seg).toLowerCase().includes(LQ.toLowerCase()))}
+function renderLeads(){
+  let cnt=0;
+  $('leadKan').innerHTML=LSTAGES.map((s,si)=>{
+    const cards=s.ls.map((l,ki)=>[l,ki]).filter(p=>fltLead(p[0]));cnt+=cards.length;
+    return '<div class="kcol" ondragover="dragOver(event,this)" ondragleave="this.classList.remove(\'dz\')" ondrop="dropCol(event,\'lead\','+si+')">'+
+      '<h4 onclick="toast(\'Этап «'+s.n+'». Переименовать / удалить / добавить этап — по ТЗ настраивается без программиста (Эвилина сделает по макету).\')">'+s.n+' <span><span class="num">'+cards.length+'</span><span class="pencil">✎</span></span></h4>'+
+      '<div class="ksum" style="color:var(--faint);font-weight:400">лидов: '+cards.length+'</div>'+
+      cards.map(p=>leadCard('lead',si,p[1],p[0])).join('')+'</div>';
+  }).join('') + '<div class="addcol" onclick="toast(\'+ Этап. Этапы воронки добавляются и переименовываются в настройках — Эвилина задаст финальный набор по макету. Каркас это уже поддерживает.\')">+ этап</div>';
+  $('mtLeads').textContent=cnt;
+}
+function renderSales(){
+  $('salesKan').innerHTML=SSTAGES.map((s,si)=>{
+    return '<div class="kcol" ondragover="dragOver(event,this)" ondragleave="this.classList.remove(\'dz\')" ondrop="dropCol(event,\'sales\','+si+')">'+
+      '<h4 onclick="toast(\'Этап «'+s.n+'» воронки продаж. Ведёт ведущий менеджер Айдос. Этапы настраиваются.\')">'+s.n+' <span><span class="num">'+s.ls.length+'</span><span class="pencil">✎</span></span></h4>'+
+      '<div class="ksum" style="color:var(--faint);font-weight:400">ведущий: Айдос</div>'+
+      s.ls.map((l,ki)=>leadCard('sales',si,ki,l)).join('')+'</div>';
+  }).join('') + '<div class="addcol" onclick="toast(\'+ Этап воронки продаж.\')">+ этап</div>';
+}
+/* drag&drop */
+function dragS(e,fn,si,ki){DRAG={fn,si,ki};e.dataTransfer.effectAllowed='move';e.target.classList.add('dragging')}
+function dragE(){document.querySelectorAll('.kcard.dragging').forEach(x=>x.classList.remove('dragging'));document.querySelectorAll('.kcol.dz').forEach(x=>x.classList.remove('dz'));DRAG=null}
+function dragOver(e,el){if(!DRAG)return;e.preventDefault();el.classList.add('dz')}
+function dropCol(e,fn,si){e.preventDefault();if(!DRAG||DRAG.fn!==fn)return;const src=(fn==='lead'?LSTAGES:SSTAGES);const from=DRAG.si,fk=DRAG.ki;dragE();if(from===si)return;
+  const arr=(fn==='lead'?LSTAGES:SSTAGES);const l=arr[from].ls.splice(fk,1)[0];l.age=0;arr[si].ls.push(l);
+  if(fn==='lead'){renderLeads();
+    const st=LSTAGES[si].n;
+    if(st.indexOf('Встреча')>=0){toast('<b>'+l.c+'</b> → «'+st+'». Смена статуса записана в журнал событий. Похоже, лид готов к передаче в отдел продаж — откройте карточку и нажмите «Передать в продажи».');}
+    else toast('<b>'+l.c+'</b> → «'+st+'». Статус изменён — событие ушло в рабочее время и статистику менеджера.');
+  } else {renderSales();toast('<b>'+l.c+'</b> → «'+SSTAGES[si].n+'» (отдел продаж).');}
+}
+
+/* ===== КАРТОЧКА ЛИДА ===== */
+let CUR=null;
 function evH(cls,t,b){return '<div class="ev '+cls+'"><div class="et">'+t+'</div><div class="eb">'+b+'</div></div>'}
-function playRec(e){e.stopPropagation();toast('Запись воспроизводится прямо в карточке. Лучшие звонки — в библиотеку обучения новых менеджеров.')}
-function openDeal(si,ki){
-  const k=STAGES[si][1][ki];
-  const parts=k[0].split(' · ');const name=parts[0];const comp=parts[1]||'—';
-  $('dTitle').textContent=k[0];
-  $('dSum').textContent=k[2]>0?fT(k[2])+' ₸':'без суммы';
-  $('dMeta').textContent='сделка #2'+si+ki+' · '+MGRS[k[5]]+' · в стадии '+(k[8]?k[8]+' дн':'< дня');
-  $('dStep').innerHTML=SNAMES.map((st,i)=>'<button class="'+(i<si?'done':i===si?'cur':'')+'" onclick="stgToast()">'+st+'</button>').join('');
-  $('dContact').textContent=name;
-  $('dPhone').textContent='+7 7'+(si+1)+ki+' 2'+(si+3)+'4 18 3'+ki;
-  $('dCompany').textContent=comp;
-  $('dSumF').textContent=k[2]>0?fT(k[2])+' ₸':'—';
-  $('dSrc').textContent=k[6];
-  $('dNext').textContent=k[3];
+function dmid(m){document.querySelectorAll('.midtabs button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));document.querySelectorAll('.midpane').forEach(p=>p.classList.remove('on'));$('mp-'+m).classList.add('on')}
+function openLead(fn,si,ki){
+  const arr=(fn==='lead'?LSTAGES:SSTAGES);const l=arr[si].ls[ki];CUR={fn,si,ki,l};
+  const mgr=fn==='lead'?LMGRS[l.m]:SMGRS[l.m];
+  $('dTitle').textContent=l.c;
+  $('dMeta').textContent=(fn==='lead'?'лид':'сделка')+' · '+mgr+' · '+l.city;
+  const stgs=arr.map(s=>s.n);
+  $('dStep').innerHTML=stgs.map((st,i)=>'<button class="'+(i<si?'done':i===si?'cur':'')+'" onclick="toast(\'Этап переключается здесь — смена статуса пишется в журнал событий (рабочее время + статистика).\')">'+st+'</button>').join('');
+  $('dComp').textContent=l.c;
+  $('dSeg').textContent=l.city+' · '+l.seg;
+  $('dPhone').textContent=l.ph;
+  $('dHh').textContent=l.hh||'—';
+  $('dBin').textContent=(l.bin?'БИН '+l.bin:'БИН —')+' · '+l.src;
+  $('dMgr').textContent=mgr+(fn==='sales'&&l.from?' (передал: '+l.from+')':'');
+  $('dMeet').textContent=l.meet||'не назначена';
+  $('dNext').textContent=l.next+' · '+l.nd;
+  $('dNote').textContent=l.note||'—';
+  // история
   let tl='';
-  if(si>=4)tl+=evH('robot','сегодня 10:05 · робот стадии «Оплата»','Счёт сформирован из сделки и отправлен с реквизитами. Напоминание — за день до срока оплаты.');
-  if(si>=3)tl+=evH('wa','вчера 12:10 · WhatsApp · робот стадии «Переговоры»','Робот отправил кейс похожей компании с цифрами — продаёт, пока менеджер занят другим клиентом.');
-  if(si>=2){
-    tl+=evH('robot','сегодня 09:12 · робот','<b>КП открыто клиентом 2-й раз</b> — сигнал: звонить сейчас, пока тёплый.');
-    tl+=evH('wa','вчера 16:40 · WhatsApp · робот стадии «КП отправлено»','Автонапоминание через 24 часа тишины:<div class="wamsg">'+name+', добрый день! Вчера отправили расчёт. Подскажите, всё ли открылось? Если удобно — созвонимся, отвечу на вопросы. Айгерим, Kolyakhan</div>');
-    tl+=evH('robot','2 дня назад 14:31 · робот стадии «КП отправлено»','Робот отправил КП (PDF) + презентацию компании в WhatsApp — сразу при переводе стадии.');
-  }
-  if(si>=1)tl+=evH('call','2 дня назад 14:22 · звонок · 6:41','<b>Айгерим → '+name+':</b> квалификация, договорились о расчёте.<span class="rec" onclick="playRec(event)">▶ запись 6:41</span>');
-  tl+=evH('wa','через 1 мин после заявки · робот стадии «Новый лид»','Приветствие + видео-визитка:<div class="wamsg">Здравствуйте! Это Kolyakhan — тесты для найма. Получили вашу заявку, менеджер свяжется в течение 15 минут. Пока — короткое видео, как это работает (1 мин): kolyakhan.kz/v</div>');
-  tl+=evH('','при создании','Лид из «'+k[6]+'» · сделка создана автоматически · распределена на Айгерим');
+  if(l.meet)tl+=evH('st','сегодня · статус','<b>Встреча '+l.meet+'</b> — отметка проставлена лид-менеджером. При «назначена/состоялась» лид уходит в отдел продаж, отметка остаётся у '+mgr+' (для оплаты за встречу).');
+  if(si>=2)tl+=evH('wa','вчера 16:40 · WhatsApp','Отправлена презентация HireBox:<div class="msg me" style="max-width:100%;margin-top:5px">'+l.c+', добрый день! Как договаривались — короткая презентация во вложении. Удобно созвониться завтра? Айгерим<div class="mt2">доставлено · прочитано</div></div>');
+  if(si>=1)tl+=evH('call','2 дня назад 14:22 · звонок · 6:41','<b>'+mgr+' → '+l.c+':</b> квалификация, интерес есть, договорились о следующем шаге.<span class="rec" onclick="event.stopPropagation();toast(\'Запись разговора воспроизводится в карточке лида.\')">▶ запись 6:41</span>');
+  tl+=evH('note','при создании · '+l.src,'Лид «'+l.c+'» ('+l.city+', '+l.seg+') заведён из «'+l.src+'» и распределён на '+mgr+'. Проверка на дубли по названию/телефону/БИН пройдена.');
   $('dTl').innerHTML=tl;
-  $('dTasks').innerHTML='<div class="task" onclick="toast(\'Задача: срок, ответственный, кнопка «выполнено». Просрочка — сигнал РОПу.\')"><b>'+k[3].split(' · ')[0]+'</b><span>'+(k[4]==='lt'?'⚑ просрочен — виден РОПу':k[3].split(' · ')[1]||'в срок')+'</span></div>'+
-    '<div class="task don"><b>Первый звонок за 15 мин</b><span>сделано · робот поставил</span></div>';
-  $('dNextBtn').textContent=si<4?'→ '+SNAMES[si+1]:'✓ Успешно закрыта';
+  // WhatsApp окно
+  $('dWa').innerHTML=
+    '<div class="msg me">Здравствуйте! Это HireBox — тесты для найма. Получили ваш контакт по '+l.seg+'. Подскажите, кто занимается подбором?<div class="mt2">10:14</div></div>'+
+    '<div class="msg them">Добрый день. Да, актуально, но нужна конкретика по цене.<div class="mt2">10:31</div></div>'+
+    '<div class="msg me">Отправлю расчёт и короткое видео (1 мин). Когда удобно созвониться?<div class="mt2">10:33</div></div>';
+  // Почта
+  $('dMail').innerHTML=
+    '<div class="mailitem"><div class="mh"><span>от hr@'+l.c.toLowerCase().replace(/[^a-z]/g,'')+'.kz</span><span>вчера 17:02</span></div><div class="msubj">Re: HireBox — тесты для найма</div><div class="mbody">Спасибо, презентацию получили. Пришлите, пожалуйста, прайс на пакет до 100 прохождений и условия пилота.</div></div>'+
+    '<div class="mailitem"><div class="mh"><span>Айгерим · HireBox → '+l.c+'</span><span>вчера 15:40</span></div><div class="msubj">HireBox — презентация и условия</div><div class="mbody">Добрый день! Во вложении презентация и описание. Готовы сделать пилот на 20 прохождений бесплатно.</div></div>';
+  // задачи
+  $('dTasks').innerHTML='<div class="task" onclick="toast(\'Задача: действие + дата + ответственный. Просрочка видна руководителю в статистике.\')"><b>'+l.next+'</b><span>'+(l.lt?'⚑ просрочено':l.nd)+'</span></div>'+
+    '<div class="task don"><b>Первый контакт</b><span>сделано</span></div>';
+  $('dNextBtn').textContent=si<stgs.length-1?'→ '+stgs[si+1]:'✓ Последний этап';
+  $('dTransfer').style.display=fn==='lead'?'':'none';
+  dmid('hist');
   $('dealOvl').classList.add('show');
 }
 function closeDeal(){$('dealOvl').classList.remove('show')}
-function stgToast(){toast('Стадию можно переключить прямо здесь — роботы новой стадии отработают сами: отправят нужные материалы и поставят задачи.')}
-
-const phoneIc='<svg viewBox="0 0 24 24" fill="none" stroke="#28527a" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>';
-const waIc='<svg viewBox="0 0 24 24" fill="none" stroke="#1fa855" stroke-width="2"><path d="M21 12a9 9 0 1 1-4-7.5"/><path d="M8 12h8M8 9h5"/></svg>';
-
-/* воронка — данные: [стадия, [сделки]]; сделка: [клиент, суть, сумма, след.шаг, просрочен, менеджер(1=Айгерим/0=Дана), источник, робот, дней в стадии] */
-const MGRS=['Дана','Айгерим'];
-const PROB=[10,30,55,75,90];
-const STAGES=[
-  ['Новый лид',[
-    ['Заявка с сайта','оценка кандидатов · 12 вакансий',0,'взять в работу · 8 мин','lt',0,'сайт','',0],
-    ['Пропущенный звонок','+7 708 … · автосделка',0,'перезвон до 12:15','',1,'звонок','робот: WA-извинение ушло',0],
-  ]],
-  ['В работе',[
-    ['Гульмира · Halyk Talent','квалификация: 500+ найм/год',2400000,'созвон завтра 11:00','',1,'WhatsApp','робот: визитка менеджера',2],
-    ['Марат · Береке Банк','нужны тесты для кол-центра',1100000,'выяснить объём · сегодня','',0,'реклама','',1],
-    ['Салтанат · КА «Персонал+»','агентство · мелкий пакет',600000,'отправить прайс · сегодня','',0,'рекомендация','',3],
-  ]],
-  ['КП отправлено',[
-    ['Ерлан · BI Group HR','КП открыто 2 раза — звонить!',1950000,'позвонить · сегодня 15:00','lt',1,'WhatsApp','робот: напоминание через 24ч',4],
-    ['Азамат · Magnum','пилот 20 прохождений идёт',2800000,'итоги пилота · 11.07','',1,'выставка','',6],
-    ['Динара · Air Astana','КП на 1000-пакет',1950000,'дожим-звонок · завтра','',0,'сайт','робот: кейс отправлен',2],
-    ['Тимур · Технодом','сравнивает с конкурентом',600000,'отработка возражений','',0,'звонок','',8],
-  ]],
-  ['Переговоры',[
-    ['Асель · Jusan Retail','согласуют бюджет с финдиром',1950000,'статус · 10.07','',1,'WhatsApp','робот: кейс похожей компании',5],
-    ['Бауыржан · Colibri','торг: просит −15%',2400000,'встреча в офисе · четверг','',0,'рекомендация','',3],
-    ['Жанна · Kaspi Office','пополнение пакета 500',1750000,'счёт готов — подтвердить','',0,'повторный','',1],
-  ]],
-  ['Оплата',[
-    ['Сакен · AgroPack','счёт выставлен · оплата до 10.07',1400000,'контроль оплаты','',1,'сайт','робот: реквизиты + счёт',2],
-    ['ТОО «Береке Строй»','предоплата получена ✓',2700000,'запуск: выдать доступы','',0,'выставка','робот: welcome-инструкция',1],
-  ]],
-];
-const ROBOTHINT=['приветствие в WhatsApp + задача «звонок за 15 мин»','визитка менеджера уйдёт в WhatsApp','КП + презентация уйдут в WhatsApp, напоминание — через 24 ч тишины','кейс похожей компании уйдёт через 2 часа','счёт с реквизитами сформируется и уйдёт сам'];
-const SDOT=['gy','b','a','t','g'];
-let Q='',MGR=-1,SNAP=null,DRAG=null;
-const fT=n=>n.toLocaleString('ru-RU').replace(/ /g,' ');
-const fM=n=>n>=1e6?(n/1e6).toLocaleString('ru-RU',{maximumFractionDigits:1})+'M':fT(n);
-const dcl=n=>{const m=n%10,h=n%100;return h>=11&&h<=14?'сделок':m===1?'сделка':m>=2&&m<=4?'сделки':'сделок'};
-function fltCards(s){return s[1].map((k,ki)=>[k,ki]).filter(p=>(MGR<0||p[0][5]===MGR)&&(!Q||(p[0][0]+' '+p[0][1]+' '+p[0][6]).toLowerCase().includes(Q.toLowerCase())))}
-function cardH(si,ki,k,sn){
-  return '<div class="kcard'+(k[4]==='lt'?' late':'')+'" draggable="true" ondragstart="dragS(event,'+si+','+ki+')" ondragend="dndReset()" onclick="openDeal('+si+','+ki+')">'+
-  '<div class="kt">'+k[0]+'</div><div class="kc2">'+k[1]+'</div>'+
-  (k[2]>0?'<div class="ksm num">'+fT(k[2])+' ₸</div>':'')+
-  '<div class="knext'+(k[4]==='lt'?' lt':'')+'">'+(k[4]==='lt'?'⚑ ':'')+k[3]+'</div>'+
-  '<div class="kic"><span class="ic" onclick="event.stopPropagation();toast(\'Звонок клиенту прямо из воронки — карточку открывать не обязательно.\')">'+phoneIc+'</span><span class="ic" onclick="event.stopPropagation();toast(\'WhatsApp из воронки: быстрый ответ шаблоном, переписка сохранится в сделке.\')">'+waIc+'</span>'+
-  (k[7]?'<span class="rb" onclick="event.stopPropagation();toast(\'Робот уже коснулся этой сделки: '+k[7].split(': ')[1]+'.\')">🄬 '+k[7].split(':')[0]+'</span>':'')+
-  '<span class="age'+(k[8]>=5?' rot':'')+'" onclick="event.stopPropagation();toast(\'В стадии «'+sn+'»: '+(k[8]?k[8]+' дн':'меньше дня')+'. Сделки, зависшие 5+ дней, подсвечиваются — РОП видит «протухшие» первым.\')">⏱ '+(k[8]?k[8]+' дн':'сегодня')+'</span>'+
-  '<span class="avm" onclick="event.stopPropagation();toast(\'Ответственный: '+MGRS[k[5]]+'. Фильтр по менеджеру — над воронкой.\')">'+(k[5]?'АГ':'ДН')+'</span>'+
-  '<span class="src" onclick="event.stopPropagation();toast(\'Источник: '+k[6]+' — проставлен автоматически по каналу входа.\')">'+k[6].toUpperCase()+'</span></div></div>';
+function waSend(inp){if(!inp.value.trim())return;$('dWa').insertAdjacentHTML('beforeend','<div class="msg me">'+inp.value.replace(/</g,'&lt;')+'<div class="mt2">сейчас · доставлено</div></div>');inp.value='';$('dWa').parentElement.scrollTop=9999;toast('Сообщение отправлено с единого рабочего номера WhatsApp — переписка привязана к лиду.')}
+function transferLead(){
+  if(!CUR||CUR.fn!=='lead')return;
+  const l=CUR.l;
+  LSTAGES[CUR.si].ls.splice(CUR.ki,1);
+  const s={...l,from:LMGRS[l.m],m:0,next:'связаться, презентация',nd:'сегодня',meet:l.meet||'состоялась ✓'};
+  SSTAGES[0].ls.unshift(s);
+  renderLeads();renderSales();closeDeal();
+  toast('<b>'+l.c+'</b> передан в отдел продаж и назначен на ведущего менеджера Айдоса. У '+LMGRS[l.m]+' осталась <b>отметка о встрече</b> — для её статистики и оплаты за встречу.');
 }
-function renderFun(){
-  let tot=0,cnt=0,fore=0;
-  $('funKan').innerHTML=STAGES.map((s,si)=>{
-    const cards=fltCards(s);
-    const sum=cards.reduce((a,p)=>a+p[0][2],0);tot+=sum;cnt+=cards.length;fore+=sum*PROB[si]/100;
-    return '<div class="kcol" ondragover="dragOver(event,this)" ondragleave="this.classList.remove(\'dz\')" ondrop="dropCol(event,'+si+')">'+
-    '<h4 onclick="toast(\'Стадия «'+s[0]+'»: вероятность закрытия '+PROB[si]+'% — из неё считается взвешенный прогноз. Стадии переименовываются и добавляются вами.\')">'+s[0]+'<span class="num">'+cards.length+'</span></h4>'+
-    '<div class="ksum" onclick="toast(\'Суммы стадий считаются сами и пересчитываются при каждом переносе карточки.\')">'+(sum?fT(sum)+' ₸':'—')+'<span class="kfore">'+(sum?'прогноз '+fM(Math.round(sum*PROB[si]/100))+' · '+PROB[si]+'%':'без сумм')+'</span></div>'+
-    cards.map(p=>cardH(si,p[1],p[0],s[0])).join('')+'</div>';
+
+/* ===== ЗАДАЧИ ===== */
+const TASKS=[
+  ['late','вчера','Halyk Bank','дозвониться — не берут ×2','Эвилина'],
+  ['today','12:00','BI Group','первый звонок (новый лид из Excel)','Эвилина'],
+  ['today','15:00','Halyk Bank','перезвонить после 15:00','Эвилина'],
+  ['today','16:00','Air Astana','выяснить ЛПР и объём найма','Эвилина'],
+  ['today','чт 11:00','Kaspi.kz','подтвердить встречу','Эвилина'],
+  ['tom','10:00','Technodom','перезвон (был недозвон ×2)','Дамир'],
+  ['tom','—','Colibri Group','передать в отдел продаж','Дамир'],
+];
+function renderTasks(){
+  const grp={late:['⚑ Просрочено',[]],today:['Сегодня',[]],tom:['Завтра',[]]};
+  TASKS.forEach(t=>grp[t[0]][1].push(t));
+  let h='';
+  ['late','today','tom'].forEach(g=>{const[title,arr]=grp[g];if(!arr.length)return;
+    h+='<div class="tgroup">'+title+' · '+arr.length+'</div>';
+    h+=arr.map(t=>'<div class="trow'+(g==='late'?' late':'')+'" onclick="toast(\'Задача по лиду «'+t[2]+'»: '+t[3]+'. Клик — карточка лида. Выполнено — задача закрывается, событие идёт в рабочее время.\')">'+
+      '<span class="tw">'+t[1]+'</span><div class="ti"><div class="tn2">'+t[2]+'</div><div class="td2">'+t[3]+' · '+t[4]+'</div></div>'+
+      '<button class="done" onclick="event.stopPropagation();this.closest(\'.trow\').style.opacity=.4;this.textContent=\'✓ готово\';toast(\'Задача закрыта. Следующее действие по лиду можно поставить тут же.\')">Выполнено</button></div>').join('');
+  });
+  $('taskList').innerHTML=h;
+  $('navTasks').textContent=TASKS.length;
+}
+
+/* ===== ЗВОНКИ ===== */
+const CALLS=[
+  ['Эвилина','Halyk Bank','09:12',412,'квалификация, интерес есть'],
+  ['Дамир','Technodom','09:31',0,'недозвон'],
+  ['Санжар','AsiaCredit','09:40',95,'договорились созвониться позже'],
+  ['Эвилина','Air Astana','10:05',530,'выясняет ЛПР'],
+  ['Дамир','Magnum Retail','10:22',38,'коротко, просят перезвонить'],
+  ['Санжар','Chocofamily','10:48',0,'недозвон'],
+  ['Эвилина','Kaspi.kz','11:14',360,'встреча назначена на чт 11:00'],
+  ['Дамир','Береке Банк','11:40',225,'договорились о демо'],
+];
+const fmtDur=s=>s===0?'—':Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+function renderCalls(){
+  let ok=0,miss=0;
+  $('callBody').innerHTML=CALLS.map(c=>{
+    const res=c[3]>=60?'ok':c[3]===0?'miss':'short';
+    if(res==='ok')ok++;if(res==='miss')miss++;
+    const badge=res==='ok'?'<span class="mark g">● ≥1 мин</span>':res==='miss'?'<span class="mark t">● недозвон</span>':'<span class="mark a">● &lt;1 мин</span>';
+    return '<tr onclick="toast(\'Звонок '+c[0]+' → '+c[1]+' ('+fmtDur(c[3])+'). Запись прикреплена к лиду; в логе — кто, кому, когда, длительность, результат.\')">'+
+      '<td><div class="cn" style="font-size:14px">'+c[0]+'</div></td>'+
+      '<td>'+c[1]+'</td><td class="r">'+c[2]+'</td><td class="r">'+fmtDur(c[3])+'</td>'+
+      '<td style="font-size:12.5px">'+badge+' <span style="color:var(--mut)">'+c[4]+'</span></td>'+
+      '<td style="text-align:right">'+(c[3]>0?'<span class="play" onclick="event.stopPropagation();toast(\'Запись играет. Результативные (≥1 мин) — отдельно от недозвонов.\')">▶ ЗАПИСЬ</span>':'<span class="mark t">перезвон</span>')+'</td></tr>';
   }).join('');
-  $('mtFunV').innerHTML=cnt+' <em>'+dcl(cnt)+'</em>';
-  $('mtFunD').textContent='на '+fM(tot)+' ₸ · прогноз '+fM(Math.round(fore))+' ₸';
-  $('navFunCnt').textContent=cnt+' · '+fM(tot);
-  renderList();
+  $('mtOk').textContent=ok;$('mtMiss').textContent=miss;$('mtCalls').textContent=CALLS.length;
 }
-function renderList(){
-  let rows='';
-  STAGES.forEach((s,si)=>{fltCards(s).forEach(p=>{const k=p[0];
-    rows+='<tr onclick="openDeal('+si+','+p[1]+')"><td><div class="cn" style="font-size:14px">'+k[0]+'</div><div class="cs">'+k[1]+'</div></td>'+
-    '<td style="font-size:12.5px;white-space:nowrap"><span class="dot '+SDOT[si]+'"></span>'+s[0]+'</td>'+
-    '<td style="font-size:12.5px">'+MGRS[k[5]]+'</td>'+
-    '<td class="r">'+(k[2]>0?fT(k[2])+' ₸':'—')+'</td>'+
-    '<td style="font-size:12.5px'+(k[4]==='lt'?';color:var(--terra);font-weight:600':'')+'">'+(k[4]==='lt'?'⚑ ':'')+k[3]+'</td>'+
-    '<td class="r"'+(k[8]>=5?' style="color:var(--terra)"':'')+'>'+(k[8]?k[8]+' дн':'—')+'</td></tr>';
-  })});
-  $('funListBody').innerHTML=rows||'<tr><td colspan="6" style="color:var(--faint)">Ничего не найдено — уточните поиск или фильтр.</td></tr>';
-}
-function setMgr(m,el){MGR=m;document.querySelectorAll('.fchips button').forEach(b=>b.classList.toggle('on',b===el));renderFun()}
-function setView(v,el){document.querySelectorAll('.vsw button').forEach(b=>b.classList.toggle('on',b===el));$('funKan').style.display=v==='kan'?'grid':'none';$('funListWrap').style.display=v==='list'?'block':'none'}
-/* drag & drop */
-function dragS(e,si,ki){DRAG=[si,ki];e.dataTransfer.setData('text/plain','');e.dataTransfer.effectAllowed='move';e.target.classList.add('dragging');$('dropbar').classList.add('show')}
-function dndReset(){DRAG=null;$('dropbar').classList.remove('show');document.querySelectorAll('.kcol.dz').forEach(x=>x.classList.remove('dz'));document.querySelectorAll('.kcard.dragging').forEach(x=>x.classList.remove('dragging'))}
-function dragOver(e,el){if(!DRAG)return;e.preventDefault();e.dataTransfer.dropEffect='move';el.classList.add('dz')}
-function snap(){SNAP=JSON.parse(JSON.stringify(STAGES))}
-function undoMove(){if(!SNAP)return;for(let i=0;i<STAGES.length;i++)STAGES[i][1]=SNAP[i][1];SNAP=null;renderFun();toast('Возвращено как было. Любой перенос отменяется в один клик.')}
-function toastU(html){const t=document.createElement('div');t.className='toast';t.innerHTML=html+'<button class="undo" onclick="undoMove();this.parentElement.remove()">← Отменить</button>';$('toasts').appendChild(t);
-  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},8000)}
-function dropCol(e,si){e.preventDefault();if(!DRAG)return;const fs=DRAG[0],fk=DRAG[1];dndReset();if(fs===si)return;
-  snap();const k=STAGES[fs][1].splice(fk,1)[0];k[8]=0;STAGES[si][1].push(k);renderFun();
-  toastU('<b>'+k[0]+'</b> → «'+STAGES[si][0]+'». Роботы стадии отработают сами: '+ROBOTHINT[si]+'.')}
-function dropEnd(e,win){e.preventDefault();if(!DRAG)return;const fs=DRAG[0],fk=DRAG[1];dndReset();
-  snap();const k=STAGES[fs][1].splice(fk,1)[0];renderFun();
-  if(win)toastU('<b>'+k[0]+'</b> — выиграна!'+(k[2]?' '+fT(k[2])+' ₸ в оплаты.':'')+' Робот отправит welcome-инструкцию.');
-  else toastU('<b>'+k[0]+'</b> — проиграна. CRM попросит причину — из причин строится честная статистика, почему уходят.')}
-renderFun();
 
-/* звонки */
-$('callBody').innerHTML=[
-  ['Ерлан · BI Group','входящий · вопрос по КП','Айгерим','13:42','6:41','g'],
-  ['Новый номер +7 708 …','пропущенный → сделка + задача','—','13:10','—','t'],
-  ['Гульмира · Halyk Talent','исходящий · квалификация','Айгерим','12:31','8:12','g'],
-  ['Асель · Jusan Retail','исходящий · статус бюджета','Дана','11:47','3:05','g'],
-  ['Тимур · Технодом','исходящий · недозвон ×2 → WA ушло','Дана','11:20','—','a'],
-].map(c=>'<tr onclick="toast(\'Звонок привязан к сделке: открыл сделку — слышишь всю историю разговоров по ней.\')">'+
-  '<td><div class="cn" style="font-size:13.5px">'+c[0]+'</div><div class="cs">'+c[1]+'</div></td>'+
-  '<td style="font-size:12.5px">'+c[2]+'</td><td class="r">'+c[3]+'</td><td class="r">'+c[4]+'</td>'+
-  '<td style="text-align:right">'+(c[4]!=='—'?'<span class="play" onclick="event.stopPropagation();toast(\'Запись играет прямо здесь. Лучшие звонки — в библиотеку обучения новых менеджеров.\')">▶ ЗАПИСЬ</span>':'<span class="mark '+c[5]+'">'+(c[5]==='t'?'ПЕРЕЗВОН 12:15':'WA УШЛО')+'</span>')+'</td></tr>').join('');
-
-/* роботы */
-const waSvg='<svg viewBox="0 0 24 24" fill="none" stroke="#1fa855" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-4-7.5"/><path d="M8 12h8M8 9h5"/></svg>';
-const mailSvg='<svg viewBox="0 0 24 24" fill="none" stroke="#1e7d5f" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 7l9 6 9-6"/></svg>';
-const tmSvg='<svg viewBox="0 0 24 24" fill="none" stroke="#996c07" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>';
-const FLOW=[
-  ['Новый лид','заявка упала',[
-    ['wa',waSvg,'Приветствие · через 1 минуту','WhatsApp: «получили заявку, менеджер свяжется за 15 минут» + видео-визитка 1 мин. Клиент не остывает, пока менеджер занят.',1],
-    ['tm',tmSvg,'Задача менеджеру · сразу','«Первый звонок за 15 минут» с таймером. Не позвонил за час — сигнал РОПу.',1],
-  ]],
-  ['В работе','квалификация',[
-    ['wa',waSvg,'Визитка менеджера','Фото, имя, прямой номер — клиент «знает в лицо», доверие с первого касания.',1],
-  ]],
-  ['КП отправлено','расчёт у клиента',[
-    ['',''+mailSvg,'КП + презентация · сразу','При переводе стадии робот шлёт PDF-КП и презентацию в WhatsApp. Открытия отслеживаются: «открыл 2 раза» = звонить.',1],
-    ['wa',waSvg,'Напоминание · через 24 ч тишины','Мягкое «всё ли открылось, есть вопросы?» от имени менеджера. Снимает 30% зависших КП.',1],
-  ]],
-  ['Переговоры','дожим',[
-    ['wa',waSvg,'Кейс похожей компании · через 2 ч','История клиента из той же отрасли с цифрами. Продаёт, пока менеджер молчит.',1],
-    ['tm',tmSvg,'Уснувшая сделка · 5 дней тишины','Задача «реанимировать» + вариант скидочного оффера на согласование РОПу.',0],
-  ]],
-  ['Оплата','закрытие',[
-    ['',''+mailSvg,'Счёт + реквизиты · сразу','Счёт формируется из сделки и уходит сам. Напоминание за день до срока оплаты.',1],
-    ['wa',waSvg,'Welcome после оплаты','Инструкция запуска и контакты поддержки. Клиент чувствует заботу — база для повторных продаж.',1],
-  ]],
+/* ===== СТАТИСТИКА ===== */
+const STAT=[
+  ['Эвилина',42,28,'3ч 48м',14,5,3,3],
+  ['Дамир',37,19,'2ч 30м',11,3,2,2],
+  ['Санжар',29,14,'1ч 52м',9,2,1,1],
 ];
-$('flow').innerHTML=FLOW.map(st=>'<div class="stage-r"><div class="st-l"><b>'+st[0]+'</b><span>'+st[1]+'</span></div><div class="mid"></div><div class="acts">'+
-  st[2].map(a=>'<div class="act-c '+a[0]+'" onclick="toast(\'Клик по сценарию — редактор: текст с переменными {имя}, {менеджер}, вложения (PDF, видео), задержка отправки. Всё меняется без программиста.\')"><span class="aic">'+a[1]+'</span><div class="ab"><div class="at">'+a[2]+'</div><div class="ad">'+a[3]+'</div></div>'+
-  '<span class="sw'+(a[4]?'':' off')+'" onclick="event.stopPropagation();toast(\'Тумблер: сценарий включается/выключается без программиста. Тексты сообщений редактируете сами — они ваши, не шаблонные.\')"></span></div>').join('')+'</div></div>').join('');
+function renderStat(){
+  $('statBody').innerHTML=STAT.map(s=>'<tr onclick="toast(\'Карточка менеджера '+s[0]+': звонки (всего и результативных ≥1 мин), эфирное время, лиды в работе, встречи назначенные и состоявшиеся, передано в продажи. Всё по журналу событий.\')">'+
+    '<td><div class="cn">'+s[0]+'</div></td>'+
+    '<td class="r">'+s[1]+'</td><td class="r" style="color:var(--grn)">'+s[2]+'</td><td class="r">'+s[3]+'</td>'+
+    '<td class="r">'+s[4]+'</td><td class="r">'+s[5]+'</td><td class="r" style="color:var(--grn)">'+s[6]+'</td><td class="r">'+s[7]+'</td></tr>').join('');
+}
+function setPeriod(el){el.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el));toast('Период переключён на «'+el.textContent+'». Все цифры по менеджеру пересчитываются за выбранный период.')}
+function setCFilt(el){el.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el));toast('Фильтр «'+el.textContent+'» — журнал и статистика звонков пересчитываются.')}
+const WLOG=[
+  ['09:02','вошла в CRM · открыла задачи на день'],
+  ['09:12','звонок → Halyk Bank · 6:52 · результативный'],
+  ['09:20','сменила статус: Halyk Bank → «Прозвон»'],
+  ['09:24','заметка по Halyk Bank: «ЛПР — рук. HR, созвон 15:00»'],
+  ['10:05','звонок → Air Astana · 8:50'],
+  ['10:18','WhatsApp → Air Astana: презентация'],
+  ['11:14','звонок → Kaspi.kz · 6:00 · встреча назначена чт 11:00'],
+  ['11:20','сменила статус: Kaspi.kz → «Встреча назначена»'],
+  ['11:22','поставила задачу: подтвердить встречу в чт'],
+];
+function renderWt(){$('wtLog').innerHTML=WLOG.map(w=>'<div class="wtl"><div class="we">'+w[0]+'</div><div class="wb">'+w[1]+'</div></div>').join('')}
 
-/* отчёт */
-$('convList').innerHTML=[
-  ['Лид → В работе',88],['В работе → КП',72],['КП → Переговоры',61],['Переговоры → Оплата',54],
-].map(c=>'<div class="conv-r" style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--ln2)" onclick="toast(\'Клик по этапу — сделки, застрявшие на нём, и сколько дней висят. Здесь ищутся деньги, которые уже пришли, но не закрыты.\')">'+
-  '<span style="width:190px;font-size:13px;font-weight:600">'+c[0]+'</span>'+
-  '<span style="flex:1;height:14px;background:var(--ln2);position:relative"><i style="position:absolute;left:0;top:0;bottom:0;width:'+c[1]+'%;background:var(--ink)"></i></span>'+
-  '<span class="num" style="width:44px;text-align:right;font-weight:700;font-size:13px">'+c[1]+'%</span></div>').join('');
-
-setTimeout(()=>toast('Это <b>Kolyakhan</b> — воронка под запуск отдела продаж: карточки <b>перетаскиваются мышью</b>, суммы и прогноз пересчитываются сами, звонки с записями, WhatsApp внутри сделки, роботы по стадиям. Откройте сделку «Ерлан · BI Group» — там вся магия.'),700);
-const q=new URLSearchParams(location.search);if(q.get('s'))nav(q.get('s'));if(q.get('deal'))setTimeout(()=>openDeal(2,0),300);
-if(q.get('view')==='list')setView('list',document.querySelectorAll('.vsw button')[1]);
+/* init */
+renderLeads();renderSales();renderTasks();renderCalls();renderStat();renderWt();
+setTimeout(()=>toast('Это <b>Kolyakhan</b> — CRM для лид-менеджеров (Этап 1): своя воронка лидов, звонки из карточки с записью, WhatsApp и почта прямо в лиде, задачи на день, статистика по менеджеру и учёт рабочего времени. При назначении встречи лид <b>передаётся в отдел продаж</b>. Откройте любой лид.'),800);
+const q=new URLSearchParams(location.search);if(q.get('s'))nav(q.get('s'));if(q.get('deal'))setTimeout(()=>openLead('lead',2,0),300);
 </script>
 </body>
 </html>
