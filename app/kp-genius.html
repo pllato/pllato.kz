@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>КП · Genius School — портал управления школой · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1b2340;--ink2:#3a4568;--indigo:#3d5af1;--indigoD:#2f45c4;--indigoL:#eaeeff;--amber:#f0972c;--amberL:#fdf0dc;--text:#252c44;--muted:#6a7290;--faint:#9aa2bd;--line:#e6e8f2;--off:#f6f7fc;--green:#1f9d6b;--greenL:#e4f4ec;--red:#e0523c;--redL:#fce9e5;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:11px;line-height:1.55;background:#e8eaf3}
+.page{width:210mm;min-height:297mm;position:relative;padding:16mm 16mm 18mm;margin:0 auto 8mm;background:#fff;display:flex;flex-direction:column}
+.runfoot{position:absolute;left:16mm;right:16mm;bottom:9mm;display:flex;justify-content:space-between;font-size:8px;color:var(--faint);border-top:1px solid var(--line);padding-top:6px}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:13px}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .bm{width:44px;height:44px;background:var(--ink);border-radius:11px;display:grid;place-items:center;flex:none}
+.brand .bt{font-size:21px;font-weight:800;letter-spacing:.02em;color:var(--ink)}
+.brand .bs{font-size:9px;color:var(--muted);letter-spacing:.03em;margin-top:1px}
+.hr{text-align:right}
+.hr .t{font-size:14px;font-weight:800;color:var(--ink)}
+.hr .dt{font-size:10px;color:var(--muted);margin-top:2px}
+.rule{height:2px;background:var(--indigo);margin-bottom:15px}
+h1{font-size:23px;font-weight:900;letter-spacing:-.02em;line-height:1.15;margin-bottom:9px;color:var(--ink)}
+h1 .a{color:var(--indigo)}
+.lead{font-size:12px;color:var(--ink2);margin-bottom:16px;line-height:1.6}
+.lead b{color:var(--ink)}
+.forwho{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.chip{background:var(--off);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:10px;font-weight:600;color:var(--ink2)}
+.chip b{color:var(--indigo)}
+.sec{font-size:9.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--indigo);margin:20px 0 10px;display:flex;align-items:center;gap:9px}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.sec.first{margin-top:4px}
+.pain{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:6px}
+.pain .row{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.pain .row+.row{border-top:1px solid var(--line)}
+.pain .c{padding:9px 13px;font-size:10.5px;line-height:1.5}
+.pain .c.p{background:#fdf1ef;color:#7c3327}
+.pain .c.s{border-left:1px solid var(--line);color:var(--ink2)}
+.pain .c.s b{color:var(--green)}
+.pain .c .h{font-size:8.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px;opacity:.7}
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mod{border:1px solid var(--line);border-radius:10px;padding:11px 13px;background:#fff}
+.mod .mt{font-weight:800;font-size:11.5px;color:var(--ink);margin-bottom:3px;display:flex;align-items:center;gap:7px}
+.mod .mt .n{width:19px;height:19px;border-radius:6px;background:var(--ink);color:#fff;font-size:9.5px;display:grid;place-items:center;flex:none}
+.mod .md{font-size:10px;color:var(--muted);line-height:1.5}
+.mod.key{border-color:#bcc6ff;background:linear-gradient(180deg,#f2f4ff,#fff)}
+.mod.key .mt .n{background:var(--indigo)}
+.bonus{border:1px dashed var(--indigo);border-radius:10px;background:var(--indigoL);padding:13px 15px;margin-bottom:4px}
+.bonus .bt2{font-weight:800;font-size:12px;color:#2a3690;margin-bottom:7px}
+.bonus .bl{display:flex;justify-content:space-between;font-size:10.5px;padding:4px 0;border-bottom:1px dashed #c3ccff;color:#2a3690}
+.bonus .bl:last-child{border-bottom:none}
+.bonus .bl s{color:#8e96c8}
+.bonus .bl b{color:var(--green)}
+.price{display:flex;gap:14px;align-items:stretch;margin-bottom:6px}
+.price .big{flex:1.1;background:var(--ink);color:#fff;border-radius:12px;padding:16px 18px}
+.price .big .l{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#a7b0d6;font-weight:700}
+.price .big .v{font-size:30px;font-weight:900;letter-spacing:-.02em;margin:2px 0}
+.price .big .v em{font-style:normal;font-size:13px;color:#a7b0d6}
+.price .big .n{font-size:10px;color:#c9cfe8;line-height:1.5;margin-top:5px}
+.price .steps{flex:1.3;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.price .st{display:flex;justify-content:space-between;align-items:center;padding:9px 13px;font-size:10.5px}
+.price .st+.st{border-top:1px solid var(--line)}
+.price .st .sn{color:var(--ink2)}.price .st .sn b{color:var(--ink)}
+.price .st .sv{font-weight:800;color:var(--indigoD);white-space:nowrap}
+.price .st.cur{background:var(--indigoL)}
+.tl{border:1px solid var(--line);border-radius:10px;padding:6px 14px}
+.tl .t{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--off)}
+.tl .t:last-child{border-bottom:none}
+.tl .t .w{width:118px;flex:none;font-size:10px;font-weight:800;color:var(--indigo)}
+.tl .t .d{font-size:10.5px;color:var(--ink2)}
+.tl .t .d b{color:var(--ink)}
+.terms{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.term{border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+.term .h{font-weight:800;font-size:10.5px;color:var(--ink);margin-bottom:2px}
+.term .b{font-size:10px;color:var(--muted);line-height:1.5}
+.why{background:var(--off);border:1px solid var(--line);border-radius:10px;padding:13px 15px;font-size:10.5px;color:var(--ink2);line-height:1.6}
+.why b{color:var(--ink)}
+.cta{margin-top:14px;background:var(--ink);color:#fff;border-radius:12px;padding:15px 18px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+.cta .l{font-size:11px;color:#c9cfe8;line-height:1.5}.cta .l b{color:#fff}
+.cta .r{text-align:right;font-size:10px;color:#a7b0d6;white-space:nowrap}
+.cta .r b{display:block;font-size:13px;color:var(--amber);font-weight:800}
+</style></head>
+<body>
+
+<!-- страница 1 -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg viewBox="0 0 32 32" width="26" height="26"><path d="M16 7 L27 12 L16 17 L5 12 Z" fill="#f0972c"/><path d="M9 14.5 V20 C9 22 12.5 23.5 16 23.5 C19.5 23.5 23 22 23 20 V14.5" fill="none" stroke="#eef1fb" stroke-width="1.8"/><line x1="27" y1="12" x2="27" y2="18" stroke="#eef1fb" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">Genius School</div><div class="bs">портал управления школой · набор · оплаты · родители · Pllato</div></div>
+    </div>
+    <div class="hr"><div class="t">КП № GS-2026-01</div><div class="dt">11 июля 2026 г.</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h1>Свой портал <span class="a">Genius School</span> — набор,<br>оплаты и родители в одной системе</h1>
+  <div class="lead">Коммерческое предложение для частной начальной школы <b>Genius School</b> (Астана, 0–4 классы, 90 мест). Мы разрабатываем <b>полностью под вашу школу</b> портал: воронка набора, чтобы <b>не терять лидов</b>, рекуррентные оплаты, посещаемость, кабинет родителя — и <b>передаём вам в собственность</b> на ваш сервер. Никакой ежемесячной аренды платформы. Код — <b>эксклюзивно ваш</b>, другим школам не передаётся.</div>
+  <div class="forwho">
+    <span class="chip"><b>Частная школа</b> · 0–4 классы</span>
+    <span class="chip">Астана · 90 мест</span>
+    <span class="chip"><b>Добрать ~50 учеников</b> к сезону</span>
+    <span class="chip">Набор — 2 сотрудника, лето</span>
+  </div>
+
+  <div class="sec first">Что болит сейчас → что даёт портал</div>
+  <div class="pain">
+    <div class="row">
+      <div class="c p"><div class="h">Сейчас</div>Лиды на набор ведутся в Excel и разрозненных чатах WhatsApp — часть <b>теряется</b>, а сезон набора всего ~3 месяца.</div>
+      <div class="c s"><div class="h">В системе</div><b>Воронка набора:</b> заявка → диагностика / пробный день → зачисление. Ни один лид не потерян, напоминания и фильтры — успеваете добрать класс.</div>
+    </div>
+    <div class="row">
+      <div class="c p"><div class="h">Страх №1</div>«Данные могут пропасть» — лиды и информация нигде надёжно не сохранены.</div>
+      <div class="c s"><div class="h">В системе</div><b>Ежедневные бэкапы и откат</b>, журнал действий (кто что менял). Данные не теряются даже при ошибке сотрудника.</div>
+    </div>
+    <div class="row">
+      <div class="c p"><div class="h">Сейчас</div>Оплаты вручную; не всегда видно, кто оплатил, кто должен; платежи ежемесячные.</div>
+      <div class="c s"><div class="h">В системе</div><b>Рекуррентные оплаты:</b> ежемесячные начисления, статус «оплатил / должен», напоминания родителям, эквайринг (Kaspi/банк), задолженности на дашборде.</div>
+    </div>
+    <div class="row">
+      <div class="c p"><div class="h">Сейчас</div>Общение с родителями — в «тупых» чатах WhatsApp, по 2 на класс; хаотично.</div>
+      <div class="c s"><div class="h">В системе</div><b>Кабинет родителя:</b> посещаемость, оплаты, фото, официальная связь с педагогом — вместо десятка чатов.</div>
+    </div>
+    <div class="row">
+      <div class="c p"><div class="h">Сейчас</div>Посещаемость и пропуски — на бумаге; родитель узнаёт поздно.</div>
+      <div class="c s"><div class="h">В системе</div><b>Табель посещаемости</b> по классам; при пропуске урока родителю <b>автоматически</b> уходит уведомление.</div>
+    </div>
+  </div>
+
+  <div class="sec">Что входит в разработку</div>
+  <div class="mods">
+    <div class="mod key"><div class="mt"><span class="n">1</span>Отдел набора (воронка лидов)</div><div class="md">Канбан заявок, диагностика/пробный день, напоминания, фильтры, источники. Топ-задача сезона — не терять лидов.</div></div>
+    <div class="mod key"><div class="mt"><span class="n">2</span>Оплаты и абонплаты</div><div class="md">Рекуррентные ежемесячные платежи, кто оплатил/должен, эквайринг, напоминания, задолженности.</div></div>
+    <div class="mod key"><div class="mt"><span class="n">3</span>Ученики и классы</div><div class="md">Карточки учеников по классам (0–4), зачисление из воронки, история и документы.</div></div>
+    <div class="mod key"><div class="mt"><span class="n">4</span>Посещаемость и табель</div><div class="md">Отметки по классам, авто-уведомление родителю о пропуске, графики посещений.</div></div>
+    <div class="mod"><div class="mt"><span class="n">5</span>Кабинет родителя</div><div class="md">Фото ребёнка, посещаемость, оплаты, официальная связь с педагогом, опрос после урока.</div></div>
+    <div class="mod"><div class="mt"><span class="n">6</span>Расписание</div><div class="md">Расписание по классам и нагрузка педагогов, кабинеты, замены.</div></div>
+    <div class="mod"><div class="mt"><span class="n">7</span>Роли и права</div><div class="md">Три кабинета: администрация, преподаватель, родитель — с настройкой доступа.</div></div>
+    <div class="mod"><div class="mt"><span class="n">8</span>Кружки и допзанятия</div><div class="md">Запись на кружки (в т.ч. онлайн), расписание и оплаты по ним.</div></div>
+    <div class="mod"><div class="mt"><span class="n">9</span>Кол-центр + телефония</div><div class="md">Звонки из портала с записью, вся история обращений в карточке лида.</div></div>
+    <div class="mod"><div class="mt"><span class="n">10</span>Аналитика и отчёты</div><div class="md">Конверсия набора, источники, загрузка классов, оплаты, отчётность для собственника.</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП GS-2026-01 · Genius School — портал управления школой</span><span>1 / 2</span></div>
+</section>
+
+<!-- страница 2 -->
+<section class="page">
+  <div class="sec first">Бесплатно в стандартном пакете</div>
+  <div class="bonus">
+    <div class="bt2">Обычно оплачивается отдельно — вам включено:</div>
+    <div class="bl"><span>Интеграция с 1С (бухгалтерия, оплаты)</span><span><s>обычно 800 000 ₸</s> → <b>0 ₸</b></span></div>
+    <div class="bl"><span>Настройка сервера и размещение портала</span><span><s>отдельно</s> → <b>0 ₸ (бесплатный хостинг до 10 ГБ)</b></span></div>
+    <div class="bl"><span>WhatsApp-канал: льготная цена</span><span><s>обычно ~$80/мес</s> → <b>≈$10/мес</b></span></div>
+    <div class="bl"><span>IP-телефония: льготная цена</span><span><s>обычно $60–80/мес</s> → <b>≈$40/мес</b></span></div>
+  </div>
+
+  <div class="sec">Стоимость и порядок оплаты</div>
+  <div class="price">
+    <div class="big">
+      <div class="l">Разработка «под ключ», разово</div>
+      <div class="v">1 500 000 <em>₸</em></div>
+      <div class="n">Портал остаётся <b style="color:#fff">у вас на вашем сервере</b>. Никакой ежемесячной аренды платформы. Код эксклюзивно ваш — другим школам не передаём.</div>
+    </div>
+    <div class="steps">
+      <div class="st cur"><span class="sn"><b>Этап 1 · старт</b> — предоплата (символическая, 10%)</span><span class="sv">150 000 ₸</span></div>
+      <div class="st"><span class="sn"><b>Этап 2</b> — после модуля набора и ядра портала</span><span class="sv">≈ 675 000 ₸</span></div>
+      <div class="st"><span class="sn"><b>Этап 3</b> — постоплата после полной сдачи и запуска</span><span class="sv">≈ 675 000 ₸</span></div>
+      <div class="st" style="background:var(--off)"><span class="sn">Итого</span><span class="sv">1 500 000 ₸</span></div>
+    </div>
+  </div>
+
+  <div class="sec">Сроки (с учётом сезона набора)</div>
+  <div class="tl">
+    <div class="t"><div class="w">Неделя–полторы</div><div class="d"><b>Модуль набора (отдел продаж) — в первую очередь.</b> Быстро ставим воронку лидов, пока идёт сезон и добираются классы.</div></div>
+    <div class="t"><div class="w">Через неделю</div><div class="d"><b>Первый кликабельный прототип</b> портала — смотрите и правите.</div></div>
+    <div class="t"><div class="w">Середина августа</div><div class="d"><b>Управление школой:</b> ученики, посещаемость, оплаты, расписание, кабинет родителя.</div></div>
+    <div class="t"><div class="w">Месяц–полтора</div><div class="d"><b>Полная сдача</b>, интеграции (1С, WhatsApp, телефония, эквайринг), передача и обучение.</div></div>
+  </div>
+
+  <div class="sec">Условия</div>
+  <div class="terms">
+    <div class="term"><div class="h">Полное владение и эксклюзив</div><div class="b">Портал на вашем сервере, в собственность. Репозитории и документация — вам. Код не передаём другим школам.</div></div>
+    <div class="term"><div class="h">Постоплата и низкий вход</div><div class="b">Старт с 10%, основная сумма — по факту сдачи этапов. Вы не платите вперёд за неготовое.</div></div>
+    <div class="term"><div class="h">Сохранность данных</div><div class="b">Ежедневные бэкапы, откат минимум на сутки, журнал действий — данные не теряются.</div></div>
+    <div class="term"><div class="h">NDA</div><div class="b">Двусторонний договор конфиденциальности. За нами — только право упоминать авторство.</div></div>
+  </div>
+
+  <div class="sec">Почему это выгоднее аренды платформы</div>
+  <div class="why">Готовые школьные платформы берут <b>ежемесячно 100 000–200 000 ₸</b>, и цена растёт каждый год — за пару лет это больше стоимости своей разработки, а платформа так и остаётся не вашей. Здесь вы платите <b>один раз</b>, получаете портал <b>в собственность и эксклюзивно</b>, собранный под вашу школу (сезонный набор, рекуррентные оплаты, кабинет родителя), плюс экономию на WhatsApp, телефонии и сервере. Нужное из платформ-аналогов (фиксация уроков, рекуррентные платежи и т.д.) — учтём и сделаем лучше.</div>
+
+  <div class="cta">
+    <div class="l">Чтобы начать — <b>предоплата 150 000 ₸</b>, и в первую очередь (за неделю–полторы) ставим <b>модуль набора</b>, пока идёт сезон. Далее — управление школой и полная сдача за месяц-полтора.</div>
+    <div class="r">К старту<b>150 000 ₸</b>предоплата (10%)</div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП GS-2026-01 · ИП «STUDYSTORIES.APP» · pllato.kz</span><span>2 / 2</span></div>
+</section>
+</body></html>

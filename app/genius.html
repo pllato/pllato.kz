@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Genius School — портал управления школой · Демо</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231b2340'/%3E%3Cpath d='M16 8 L26 12 L16 16 L6 12 Z' fill='%23f0972c'/%3E%3Cpath d='M10 14 v5 c0 1.8 3 3 6 3 s6-1.2 6-3 v-5' fill='none' stroke='%23eef1fb' stroke-width='1.7'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1b2340;--ink2:#3a4568;--mut:#6a7290;--faint:#98a1bd;
+  --paper:#f5f6fb;--panel:#fff;--ln:#e6e8f2;--ln2:#eef0f7;
+  --indigo:#3d5af1;--indigoD:#2f45c4;--indigoL:#ecefff;
+  --amber:#f0972c;--amberL:#fdf0dc;
+  --grn:#1f9d6b;--grnL:#e4f4ec;--red:#e0523c;--redL:#fce9e5;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Manrope',sans-serif;background:var(--paper);color:var(--ink);font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:13.5px;color:var(--ink)}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#cdd2e0;border-radius:5px}
+.num{font-variant-numeric:tabular-nums}
+.demo-note{background:var(--ink);color:#b7c0dd;font-size:12px;padding:7px 16px;text-align:center}
+.demo-note b{color:#fff}
+/* шапка */
+.mast{background:var(--panel);border-bottom:1px solid var(--ln)}
+.m1{max-width:1300px;margin:0 auto;padding:12px 22px 10px;display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .bm{width:42px;height:42px;background:var(--ink);border-radius:11px;flex:none;display:grid;place-items:center}
+.brand .bt{font-weight:800;font-size:19px;letter-spacing:.01em}
+.brand .bs{font-size:11px;color:var(--mut);margin-top:-2px}
+.roles{margin-left:auto;display:flex;border:1px solid var(--ln);border-radius:10px;overflow:hidden;background:var(--paper)}
+.roles button{padding:8px 13px;font-size:12.5px;font-weight:600;color:var(--mut);border-right:1px solid var(--ln)}
+.roles button:last-child{border-right:none}
+.roles button.on{background:var(--indigo);color:#fff}
+.act{background:var(--indigo);color:#fff;font-weight:700;font-size:13px;padding:9px 15px;border-radius:10px}
+.mnav{max-width:1300px;margin:0 auto;padding:0 22px;display:flex;gap:22px;overflow-x:auto}
+.mnav button{padding:11px 0 12px;font-size:14.5px;font-weight:600;color:var(--mut);border-bottom:3px solid transparent;white-space:nowrap;display:flex;align-items:center;gap:7px}
+.mnav button.on{color:var(--ink);border-bottom-color:var(--indigo)}
+.mnav button .b{font-size:10.5px;background:var(--indigoL);color:var(--indigoD);padding:1px 7px;border-radius:20px;font-weight:700}
+.mnav button .b.rd{background:var(--redL);color:var(--red)}
+.wrap{max-width:1300px;margin:0 auto;padding:20px 22px 90px}
+.screen{display:none}.screen.on{display:block;animation:fd .18s}
+@keyframes fd{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.ph{display:flex;align-items:baseline;gap:13px;margin-bottom:14px;flex-wrap:wrap}
+.ph h1{font-size:23px;font-weight:800;letter-spacing:-.01em}
+.ph .sub{font-size:13px;color:var(--mut)}
+.ph .rt{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:18px}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--panel);border:1px solid var(--ln);border-radius:14px;padding:15px 17px;cursor:pointer;transition:.12s;position:relative;overflow:hidden}
+.kpi:hover{border-color:var(--indigo);transform:translateY(-2px);box-shadow:0 12px 24px -16px rgba(27,35,64,.4)}
+.kpi .kl{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);font-weight:700}
+.kpi .kv{font-size:27px;font-weight:800;margin-top:4px;letter-spacing:-.02em}
+.kpi .kv em{font-style:normal;font-size:13px;color:var(--faint)}
+.kpi .kd{font-size:12px;color:var(--faint);margin-top:2px}
+.kpi.warn .kv{color:var(--amber)}.kpi.bad .kv{color:var(--red)}.kpi.ok .kv{color:var(--grn)}
+.grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;align-items:start}
+@media(max-width:980px){.grid2{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--ln);border-radius:14px;margin-bottom:18px;overflow:hidden}
+.card .ct{display:flex;align-items:center;gap:10px;padding:13px 17px;border-bottom:1px solid var(--ln2)}
+.card .ct h3{font-size:15.5px;font-weight:700;flex:1}
+.card .ct .lnk{font-size:12.5px;color:var(--indigo);font-weight:600;cursor:pointer}
+.card .cb{padding:7px 17px 15px}
+.pill{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap}
+.pill.g{background:var(--grnL);color:var(--grn)}.pill.a{background:var(--amberL);color:#b06d10}.pill.r{background:var(--redL);color:var(--red)}.pill.b{background:var(--indigoL);color:var(--indigoD)}.pill.gy{background:#eef0f6;color:var(--mut)}
+.alert{display:flex;align-items:center;gap:12px;padding:10px 13px;border:1px solid var(--redL);border-left:3px solid var(--red);border-radius:10px;background:#fffaf9;margin-bottom:8px;cursor:pointer}
+.alert:hover{border-color:var(--red)}
+.alert .ai{width:34px;height:34px;border-radius:9px;background:var(--redL);color:var(--red);display:grid;place-items:center;font-weight:800;flex:none}
+.alert .at{flex:1;min-width:0}.alert .an{font-weight:700}.alert .ad{font-size:12.5px;color:var(--mut)}
+.alert .asum{font-weight:800;color:var(--red);white-space:nowrap}
+/* воронка */
+.kanwrap{overflow-x:auto;padding-bottom:6px}
+.kan{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);gap:12px;align-items:start}
+.kcol{background:#eef0f7;border:1px solid var(--ln);border-radius:12px;padding:9px;min-height:120px}
+.kcol h4{font-size:12px;font-weight:800;padding:3px 5px 9px;display:flex;justify-content:space-between;align-items:center;color:var(--ink2)}
+.kcol h4 .n{font-size:11px;color:var(--mut);background:#fff;padding:1px 8px;border-radius:20px;border:1px solid var(--ln)}
+.kcol.dz{background:var(--indigoL);outline:2px dashed var(--indigo);outline-offset:-3px}
+.kc{background:#fff;border:1px solid var(--ln);border-radius:10px;padding:11px 12px;margin-bottom:9px;cursor:grab;transition:.1s;border-top:3px solid var(--indigo)}
+.kc:hover{border-color:var(--indigo);transform:translateY(-1px);box-shadow:0 6px 14px -9px rgba(27,35,64,.4)}
+.kc.dragging{opacity:.4;border-style:dashed}
+.kc .r1{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.kc .nm{font-weight:700;font-size:14.5px}
+.kc .cl{font-size:10.5px;color:var(--faint);font-weight:700}
+.kc .p{font-size:12.5px;color:var(--ink2);margin-top:3px}
+.kc .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center}
+.kc .src{font-size:10.5px;color:var(--mut);font-weight:600}
+.kc .age{margin-left:auto;font-size:10.5px;color:var(--faint);font-weight:700}
+/* таблицы */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--mut);text-align:left;font-weight:700;padding:10px 12px 8px;border-bottom:1.5px solid var(--ln)}
+.tbl th.r{text-align:right}
+.tbl td{padding:11px 12px;border-bottom:1px solid var(--ln2);font-size:14px;vertical-align:middle}
+.tbl td.r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tbl tbody tr{cursor:pointer}.tbl tbody tr:hover td{background:#f4f6fc}
+.av{width:32px;height:32px;border-radius:50%;background:var(--indigoL);color:var(--indigoD);font-size:12px;font-weight:800;display:inline-grid;place-items:center;flex:none}
+.who{display:flex;align-items:center;gap:10px}.who .nm{font-weight:700}.who .sub2{font-size:12px;color:var(--mut)}
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.search{flex:1;min-width:200px;border:1px solid var(--ln);background:var(--panel);padding:10px 13px;border-radius:10px;font-size:13.5px}
+.chips{display:inline-flex;border:1px solid var(--ln);border-radius:10px;overflow:hidden;background:var(--panel);flex-wrap:wrap}
+.chips button{padding:8px 12px;font-size:12.5px;font-weight:600;color:var(--mut);border-right:1px solid var(--ln)}
+.chips button:last-child{border-right:none}
+.chips button.on{background:var(--indigo);color:#fff}
+.tznote{background:var(--amberL);border:1px solid #f0d29a;border-radius:11px;padding:12px 15px;font-size:13px;color:#7a5510;margin-bottom:16px;line-height:1.6}
+.tznote b{color:#573b09}
+/* ученики grid */
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.scard{background:var(--panel);border:1px solid var(--ln);border-radius:13px;padding:14px;cursor:pointer;transition:.12s}
+.scard:hover{border-color:var(--indigo);transform:translateY(-2px);box-shadow:0 10px 22px -15px rgba(27,35,64,.4)}
+.scard .top{display:flex;gap:11px;align-items:center;margin-bottom:10px}
+.scard .nm{font-weight:800;font-size:15px}.scard .sub2{font-size:12px;color:var(--mut)}
+.scard .rows{border-top:1px solid var(--ln2);padding-top:9px}
+.scard .row{display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0}
+.scard .row .lb{color:var(--mut)}
+/* посещаемость */
+.attrow{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--ln);border-radius:11px;padding:9px 13px;margin-bottom:8px}
+.attrow .who{flex:1}
+.attbtns{display:flex;gap:6px}
+.attbtns button{border:1px solid var(--ln);border-radius:8px;padding:7px 13px;font-size:12.5px;font-weight:700;color:var(--mut)}
+.attbtns button.pon{background:var(--grn);color:#fff;border-color:var(--grn)}
+.attbtns button.aon{background:var(--red);color:#fff;border-color:var(--red)}
+/* расписание */
+.sched{width:100%;border-collapse:collapse}
+.sched th,.sched td{border:1px solid var(--ln);padding:8px 10px;font-size:12.5px;text-align:left}
+.sched th{background:var(--indigoL);color:var(--indigoD);font-weight:700}
+.sched td .les{font-weight:700}.sched td .tt{font-size:11px;color:var(--mut)}
+/* модал */
+.ovl{position:fixed;inset:0;background:rgba(27,35,64,.5);backdrop-filter:blur(2px);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:26px 14px;overflow-y:auto}
+.ovl.show{display:flex}
+.modal{background:var(--paper);border-radius:16px;max-width:560px;width:100%;animation:fd .16s;box-shadow:0 30px 60px -20px rgba(27,35,64,.5);overflow:hidden}
+.mh{background:var(--panel);border-bottom:1px solid var(--ln);padding:15px 20px;display:flex;gap:13px;align-items:center;flex-wrap:wrap}
+.mh h2{font-size:18px;font-weight:800}.mh .mx{margin-left:auto;font-size:20px;color:var(--mut);cursor:pointer}
+.mbody{padding:16px 20px;max-height:70vh;overflow-y:auto}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px 16px;margin-bottom:6px}
+.f .fl{font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.f .fv{font-size:14.5px;font-weight:600;margin-top:2px}
+.sect{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);font-weight:800;margin:15px 0 8px;display:flex;align-items:center;gap:8px}
+.sect .ln{flex:1;height:1px;background:var(--ln)}
+.ff{margin-bottom:11px}.ff2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.ff label{display:block;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-bottom:4px}
+.ff input,.ff select{width:100%;border:1px solid var(--ln);border-radius:9px;background:var(--panel);padding:10px 12px;font-size:13.5px;outline:none}
+.ff input:focus,.ff select:focus{border-color:var(--indigo)}
+.stepper{display:flex;background:var(--panel);border-bottom:1px solid var(--ln);overflow-x:auto}
+.stepper button{flex:1;min-width:100px;padding:9px 6px;font-size:10.5px;font-weight:700;color:var(--faint);border-bottom:3px solid transparent;text-transform:uppercase}
+.stepper button.done{color:var(--grn)}.stepper button.cur{color:var(--ink);border-bottom-color:var(--indigo);background:var(--indigoL)}
+.mfoot{border-top:1px solid var(--ln);background:var(--panel);padding:13px 20px;display:flex;gap:9px;flex-wrap:wrap}
+.btn{font-weight:700;font-size:13px;padding:10px 16px;border-radius:10px;cursor:pointer}
+.btn.pri{background:var(--indigo);color:#fff}.btn.grn{background:var(--grn);color:#fff}.btn.gh{background:#fff;color:var(--ink);border:1px solid var(--ln)}
+/* кабинет родителя */
+.parent{max-width:720px;margin:0 auto}
+.pcard{background:var(--panel);border:1px solid var(--ln);border-radius:16px;padding:20px;margin-bottom:16px}
+.phero{display:flex;gap:16px;align-items:center;margin-bottom:6px}
+.phero .pav{width:64px;height:64px;border-radius:16px;background:var(--indigoL);color:var(--indigoD);font-size:24px;font-weight:800;display:grid;place-items:center}
+.phero .pn{font-size:20px;font-weight:800}.phero .ps{font-size:13px;color:var(--mut)}
+.pstat{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.pstat .s{background:var(--paper);border:1px solid var(--ln);border-radius:12px;padding:12px;text-align:center}
+.pstat .s .v{font-size:22px;font-weight:800}.pstat .s .l{font-size:11px;color:var(--mut);margin-top:2px}
+.chat{display:flex;flex-direction:column;gap:7px;max-height:230px;overflow-y:auto;margin-bottom:10px}
+.msg{max-width:85%;padding:8px 12px;font-size:13px;border-radius:12px;line-height:1.4}
+.msg.me{align-self:flex-end;background:var(--indigoL)}
+.msg.them{align-self:flex-start;background:#eef0f6}
+.msg .tm{font-size:9.5px;color:var(--faint);margin-top:3px}
+.chatbar{display:flex;gap:6px}
+.chatbar input{flex:1;border:1px solid var(--ln);border-radius:9px;padding:9px 11px;font-size:13px}
+.chatbar button{background:var(--indigo);color:#fff;font-weight:700;padding:0 15px;border-radius:9px}
+#toasts{position:fixed;right:18px;bottom:18px;z-index:100;display:flex;flex-direction:column;gap:9px;max-width:400px}
+.toast{background:var(--ink);color:#e8ebf5;padding:13px 16px;font-size:13px;line-height:1.5;border-radius:11px;box-shadow:0 14px 30px -10px rgba(27,35,64,.6);animation:tin .22s;border-left:3px solid var(--indigo)}
+.toast.warn{border-left-color:var(--amber)}.toast.bad{border-left-color:var(--red)}.toast.ok{border-left-color:var(--grn)}
+.toast b{color:#fff}
+@keyframes tin{from{opacity:0;transform:translateX(12px)}to{opacity:1}}
+.mobnav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--ink);z-index:50;justify-content:space-around;padding:8px 4px calc(8px + env(safe-area-inset-bottom))}
+.mobnav button{color:#8790b5;font-size:10px;font-weight:700;padding:3px 5px}.mobnav button.on{color:#fff}
+@media(max-width:860px){.wrap{padding:15px 14px 92px}.mobnav{display:flex}.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="demo-note">Интерактивное демо · <b>Genius School — портал управления частной школой</b> · данные вымышленные, всё прокликивается и сохраняется · <b>Pllato</b></div>
+
+<header class="mast">
+  <div class="m1">
+    <div class="brand">
+      <div class="bm"><svg viewBox="0 0 32 32" width="26" height="26"><path d="M16 8 L26 12 L16 16 L6 12 Z" fill="#f0972c"/><path d="M10 14 v5 c0 1.8 3 3 6 3 s6-1.2 6-3 v-5" fill="none" stroke="#eef1fb" stroke-width="1.7"/><line x1="26" y1="12" x2="26" y2="17.5" stroke="#eef1fb" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">Genius School</div><div class="bs">набор · ученики · посещаемость · оплаты · родители</div></div>
+    </div>
+    <div class="roles">
+      <button class="on" onclick="setRole('admin',this)">Администрация</button>
+      <button onclick="setRole('teacher',this)">Преподаватель</button>
+      <button onclick="setRole('parent',this)">Родитель</button>
+    </div>
+    <button class="act" onclick="openLeadForm()">+ Заявка</button>
+  </div>
+  <nav class="mnav" id="mnav">
+    <button class="on" data-s="dash">Обзор</button>
+    <button data-s="leads">Набор<span class="b" id="nbLeads">0</span></button>
+    <button data-s="students">Ученики<span class="b" id="nbStud">0</span></button>
+    <button data-s="attend">Посещаемость</button>
+    <button data-s="pay">Оплаты<span class="b rd" id="nbDebt">0</span></button>
+    <button data-s="sched">Расписание</button>
+  </nav>
+</header>
+
+<div class="wrap">
+
+  <!-- ОБЗОР -->
+  <section class="screen on" id="s-dash">
+    <div class="ph"><h1>Обзор школы</h1><span class="sub">набор, оплаты, посещаемость — в одном месте</span>
+      <div class="rt"><span class="pill b" id="dashDate">учебный год</span></div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="grid2">
+      <div>
+        <div class="card">
+          <div class="ct"><span style="font-size:17px">💳</span><h3>Не оплатили за месяц</h3><span class="lnk" onclick="nav('pay')">Все оплаты →</span></div>
+          <div class="cb" id="debtList"></div>
+        </div>
+        <div class="card">
+          <div class="ct"><h3>Ученики по классам</h3><span class="lnk" onclick="nav('students')">Все ученики →</span></div>
+          <div class="cb" id="classBars" style="padding-top:12px"></div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="ct"><h3>Воронка набора</h3><span class="lnk" onclick="nav('leads')">Открыть →</span></div>
+          <div class="cb" id="leadFunnel" style="padding-top:12px"></div>
+        </div>
+        <div class="card">
+          <div class="ct"><h3>Посещаемость сегодня</h3><span class="lnk" onclick="nav('attend')">Отметить →</span></div>
+          <div class="cb" id="attToday" style="padding-top:10px"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- НАБОР -->
+  <section class="screen" id="s-leads">
+    <div class="ph"><h1>Набор — воронка лидов</h1><span class="sub">чтобы ни один ребёнок не потерялся в сезоне</span>
+      <div class="rt"><span class="sub">⠿ карточки перетаскиваются между этапами</span></div>
+    </div>
+    <div class="tznote">✅ <b>Главная задача сезона — не терять лидов.</b> Заявки на набор ведёте здесь: заявка → диагностика → пробный день → на зачисление → зачислен. Перетаскивайте карточки, ставьте напоминания. Когда ребёнок зачислен — он <b>переходит в «Ученики»</b> и в оплаты. Всё сохраняется.</div>
+    <div class="toolbar">
+      <input class="search" placeholder="Поиск: ребёнок, родитель, телефон…" oninput="LQ=this.value;renderLeads()">
+      <div class="chips" id="srcChips">
+        <button class="on" onclick="setSrc('',this)">Все источники</button>
+        <button onclick="setSrc('Instagram',this)">Instagram</button>
+        <button onclick="setSrc('Таргет',this)">Таргет</button>
+        <button onclick="setSrc('Рекомендация',this)">Сарафан</button>
+      </div>
+    </div>
+    <div class="kanwrap"><div class="kan" id="kan"></div></div>
+  </section>
+
+  <!-- УЧЕНИКИ -->
+  <section class="screen" id="s-students">
+    <div class="ph"><h1>Ученики</h1><span class="sub">карточки по классам · зачисление из воронки набора</span></div>
+    <div class="toolbar">
+      <input class="search" placeholder="Поиск по имени ученика или родителя…" oninput="SQ=this.value;renderStudents()">
+      <div class="chips" id="clsChips"></div>
+    </div>
+    <div class="sgrid" id="sgrid"></div>
+  </section>
+
+  <!-- ПОСЕЩАЕМОСТЬ -->
+  <section class="screen" id="s-attend">
+    <div class="ph"><h1>Посещаемость</h1><span class="sub">отметьте класс — родителю пропустившего уйдёт уведомление</span>
+      <div class="rt"><div class="chips" id="attClsChips"></div></div>
+    </div>
+    <div class="tznote">📋 Отметьте <b>присутствие / пропуск</b> по каждому ученику. При отметке «пропуск» родителю <b>автоматически уходит уведомление</b> в кабинет и WhatsApp. Внизу — процент посещаемости класса за сегодня.</div>
+    <div id="attList"></div>
+    <div class="card" style="margin-top:8px"><div class="cb" style="display:flex;justify-content:space-between;align-items:center;padding:14px 17px"><span style="font-weight:700">Посещаемость класса сегодня</span><span id="attPct" style="font-size:22px;font-weight:800;color:var(--grn)">—</span></div></div>
+  </section>
+
+  <!-- ОПЛАТЫ -->
+  <section class="screen" id="s-pay">
+    <div class="ph"><h1>Оплаты за месяц</h1><span class="sub">рекуррентные ежемесячные платежи · кто оплатил, кто должен</span></div>
+    <div class="tznote">💳 <b>Ежемесячная оплата</b> по каждому ученику. Видно статус «оплачено / долг», можно отметить оплату или отправить напоминание родителю. Реальные списания — через эквайринг (Kaspi / банк). Задолженности собраны сверху и на дашборде.</div>
+    <div class="toolbar">
+      <div class="chips" id="payChips">
+        <button class="on" onclick="setPayFilt('',this)">Все</button>
+        <button onclick="setPayFilt('debt',this)">Должники</button>
+        <button onclick="setPayFilt('paid',this)">Оплатившие</button>
+      </div>
+    </div>
+    <div class="card"><div class="cb" style="padding:4px 17px 8px;overflow-x:auto"><table class="tbl" id="payTbl"></table></div></div>
+  </section>
+
+  <!-- РАСПИСАНИЕ -->
+  <section class="screen" id="s-sched">
+    <div class="ph"><h1>Расписание</h1><span class="sub">по классам · нагрузка педагогов</span>
+      <div class="rt"><div class="chips" id="schChips"></div></div>
+    </div>
+    <div class="card"><div class="cb" style="padding:14px 17px;overflow-x:auto"><table class="sched" id="schTbl"></table></div></div>
+  </section>
+
+  <!-- КАБИНЕТ РОДИТЕЛЯ -->
+  <section class="screen" id="s-parent">
+    <div class="parent">
+      <div class="tznote">👨‍👩‍👧 <b>Кабинет родителя</b> — официальный канал вместо чатов WhatsApp: посещаемость и оценки ребёнка, оплата в один клик, связь с педагогом. Так это видит родитель на телефоне.</div>
+      <div class="pcard">
+        <div class="phero"><div class="pav" id="pAv">А</div><div><div class="pn" id="pName">—</div><div class="ps" id="pClass">—</div></div></div>
+        <div class="pstat">
+          <div class="s"><div class="v" id="pAtt" style="color:var(--grn)">—</div><div class="l">посещаемость</div></div>
+          <div class="s"><div class="v" id="pPayS">—</div><div class="l">оплата за месяц</div></div>
+          <div class="s"><div class="v" id="pClubs">—</div><div class="l">кружки</div></div>
+        </div>
+      </div>
+      <div class="pcard">
+        <div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:800;font-size:16px" id="pFeeT">Оплата за обучение</div><div class="ps" id="pFeeSub">—</div></div><button class="btn pri" id="pPayBtn" onclick="parentPay()">Оплатить</button></div>
+      </div>
+      <div class="pcard">
+        <div style="font-weight:800;font-size:16px;margin-bottom:10px">Связь с педагогом · <span id="pTeacher" style="color:var(--indigo)">—</span></div>
+        <div class="chat" id="pChat"></div>
+        <div class="chatbar"><input id="pMsg" placeholder="Сообщение педагогу…" onkeydown="if(event.key==='Enter')parentSend()"><button onclick="parentSend()">→</button></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="mobnav">
+  <button class="on" data-s="dash" onclick="nav('dash')">Обзор</button>
+  <button data-s="leads" onclick="nav('leads')">Набор</button>
+  <button data-s="students" onclick="nav('students')">Ученики</button>
+  <button data-s="pay" onclick="nav('pay')">Оплаты</button>
+  <button data-s="attend" onclick="nav('attend')">Табель</button>
+</div>
+
+<!-- модал лида -->
+<div class="ovl" id="leadOvl" onclick="if(event.target===this)closeModal('leadOvl')">
+  <div class="modal">
+    <div class="mh"><h2 id="lTitle">—</h2><span class="pill gy" id="lMeta">—</span><span class="mx" onclick="closeModal('leadOvl')">✕</span></div>
+    <div class="stepper" id="lStep"></div>
+    <div class="mbody">
+      <div class="fgrid">
+        <div class="f"><div class="fl">Ребёнок</div><div class="fv" id="lChild">—</div></div>
+        <div class="f"><div class="fl">Класс (набор)</div><div class="fv" id="lClass">—</div></div>
+        <div class="f"><div class="fl">Родитель</div><div class="fv" id="lParent">—</div></div>
+        <div class="f"><div class="fl">Телефон</div><div class="fv" id="lPhone">—</div></div>
+        <div class="f"><div class="fl">Источник</div><div class="fv" id="lSrc">—</div></div>
+        <div class="f"><div class="fl">Следующий шаг</div><div class="fv" id="lNext" style="color:var(--amber);cursor:pointer" onclick="editNext()">—</div></div>
+      </div>
+      <div class="sect">Заметка <span class="ln"></span></div>
+      <div class="fv" id="lNote" style="font-weight:400;font-size:13.5px;color:var(--ink2);cursor:pointer" onclick="editNote()">—</div>
+    </div>
+    <div class="mfoot">
+      <button class="btn grn" id="lAdv" onclick="advance()">→ следующий этап</button>
+      <button class="btn pri" id="lEnroll" onclick="enroll()">✓ Зачислить в класс</button>
+      <button class="btn gh" onclick="closeModal('leadOvl')" style="margin-left:auto">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- модал новой заявки -->
+<div class="ovl" id="formOvl" onclick="if(event.target===this)closeModal('formOvl')">
+  <div class="modal">
+    <div class="mh"><h2>Новая заявка на набор</h2><span class="mx" onclick="closeModal('formOvl')">✕</span></div>
+    <div class="mbody">
+      <div class="ff"><label>Имя ребёнка *</label><input id="fChild" placeholder="Напр. Алишер Н."></div>
+      <div class="ff2">
+        <div class="ff"><label>Класс (набор)</label><select id="fClass"></select></div>
+        <div class="ff"><label>Источник</label><select id="fSrc"><option>Instagram</option><option>Таргет</option><option>Рекомендация</option><option>Сайт</option><option>Звонок</option></select></div>
+      </div>
+      <div class="ff2">
+        <div class="ff"><label>Родитель</label><input id="fParent" placeholder="ФИО родителя"></div>
+        <div class="ff"><label>Телефон</label><input id="fPhone" placeholder="+7 701 000 00 00"></div>
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn pri" onclick="saveLead()">Создать заявку</button><button class="btn gh" onclick="closeModal('formOvl')">Отмена</button></div>
+  </div>
+</div>
+
+<!-- модал ученика -->
+<div class="ovl" id="studOvl" onclick="if(event.target===this)closeModal('studOvl')">
+  <div class="modal">
+    <div class="mh"><h2 id="sTitle">—</h2><span class="pill b" id="sMeta">—</span><span class="mx" onclick="closeModal('studOvl')">✕</span></div>
+    <div class="mbody">
+      <div class="fgrid">
+        <div class="f"><div class="fl">Класс</div><div class="fv" id="sCls">—</div></div>
+        <div class="f"><div class="fl">Посещаемость</div><div class="fv" id="sAtt">—</div></div>
+        <div class="f"><div class="fl">Родитель</div><div class="fv" id="sParent">—</div></div>
+        <div class="f"><div class="fl">Телефон</div><div class="fv" id="sPhone">—</div></div>
+        <div class="f"><div class="fl">Оплата за месяц</div><div class="fv" id="sPay">—</div></div>
+        <div class="f"><div class="fl">Зачислен</div><div class="fv" id="sSince">—</div></div>
+      </div>
+      <div class="sect">Кружки <span class="ln"></span></div>
+      <div id="sClubs" style="font-size:13.5px;color:var(--ink2)">—</div>
+    </div>
+    <div class="mfoot">
+      <button class="btn grn" id="sPayBtn" onclick="payStudent()">Отметить оплату</button>
+      <button class="btn gh" onclick="remindStudent()">Напомнить родителю</button>
+      <button class="btn gh" onclick="closeModal('studOvl')" style="margin-left:auto">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const jsq=s=>String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+const money=n=>String(Math.round(n||0)).replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' ₸';
+const AV=n=>(n||'?').trim().slice(0,1).toUpperCase();
+function nowHM(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function toast(html,cls){const t=document.createElement('div');t.className='toast'+(cls?' '+cls:'');t.innerHTML=html;$('toasts').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},6500)}
+
+const LSTAGES_N=['Новая заявка','Диагностика','Пробный день','На зачисление','Зачислен'];
+const CLASSES=[{id:'0',name:'0 (нулевой)',teacher:'Айгерим Сериковна'},{id:'1',name:'1 класс',teacher:'Динара Маратовна'},{id:'2',name:'2 класс',teacher:'Гульнара Ержановна'},{id:'3',name:'3 класс',teacher:'Асель Бахытовна'},{id:'4',name:'4 класс',teacher:'Жанна Кайратовна'}];
+const FEE=95000;
+const DAYS=['Пн','Вт','Ср','Чт','Пт'];
+const SCHED={'0':['Грамота','Математика','Развитие речи','Рисование','Физкультура'],'1':['Математика','Обучение грамоте','Английский','Познание мира','Физкультура'],'2':['Математика','Русский язык','Английский','Естествознание','Музыка'],'3':['Математика','Русский язык','Английский','Информатика','Физкультура'],'4':['Математика','Русский язык','Английский','Естествознание','Худ. труд']};
+
+const KEY='genius_state_v1';
+let LEADS,STUDENTS,SEQ=100;
+function save(){try{localStorage.setItem(KEY,JSON.stringify({LEADS,STUDENTS,SEQ}))}catch(e){}}
+function load(){let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}const d=defaults();
+  if(s&&s.STUDENTS&&s.STUDENTS.length){LEADS=s.LEADS||d.LEADS;STUDENTS=s.STUDENTS;SEQ=s.SEQ||300;}
+  else{LEADS=d.LEADS;STUDENTS=d.STUDENTS;SEQ=300;}}
+function resetDemo(){if(!confirm('Сбросить демо к исходным данным?'))return;localStorage.removeItem(KEY);load();renderAll();nav('dash');toast('Демо сброшено.','ok');}
+function renderAll(){renderDash();renderLeads();renderStudents();renderAttend();renderPay();renderSched();renderBadges();renderParent();}
+function renderBadges(){
+  $('nbLeads').textContent=LEADS.slice(0,4).reduce((a,s)=>a+s.ls.length,0);
+  $('nbStud').textContent=STUDENTS.length;
+  const debt=STUDENTS.filter(s=>!s.paid).length;$('nbDebt').textContent=debt;$('nbDebt').className='b'+(debt?' rd':'');
+}
+
+/* nav + roles */
+function nav(s){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));$('s-'+s).classList.add('on');
+  document.querySelectorAll('.mnav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  document.querySelectorAll('.mobnav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));window.scrollTo({top:0});}
+document.querySelectorAll('.mnav button').forEach(b=>b.onclick=()=>nav(b.dataset.s));
+function setRole(r,el){document.querySelectorAll('.roles button').forEach(b=>b.classList.toggle('on',b===el));
+  if(r==='parent'){$('mnav').style.display='none';nav('parent');toast('<b>Кабинет родителя.</b> Так портал видит родитель: посещаемость, оплата, связь с педагогом.','b');}
+  else{$('mnav').style.display='';if(r==='teacher'){nav('attend');toast('<b>Преподаватель:</b> посещаемость своего класса, расписание, связь с родителями.','b');}else{nav('dash');toast('<b>Администрация:</b> набор, ученики, оплаты, расписание, аналитика.','b');}}}
+
+/* ===== ОБЗОР ===== */
+function classCount(id){return STUDENTS.filter(s=>s.cls===id).length}
+function renderDash(){
+  const total=STUDENTS.length, cap=90, debtors=STUDENTS.filter(s=>!s.paid);
+  const collected=STUDENTS.filter(s=>s.paid).length*FEE, due=debtors.length*FEE;
+  const leadsN=LEADS.slice(0,4).reduce((a,s)=>a+s.ls.length,0);
+  $('kpis').innerHTML=[
+    ['ok','Учеников зачислено',total+'<em> / '+cap+'</em>',Math.round(total/cap*100)+'% загрузки','students'],
+    ['','Заявок в наборе',leadsN,'в воронке сейчас','leads'],
+    ['warn','Не оплатили',debtors.length,money(due)+' ожидается','pay'],
+    ['ok','Собрано за месяц',money(collected).replace(' ₸',''),'₸ поступило','pay'],
+  ].map(k=>'<div class="kpi '+k[0]+'" onclick="nav(\''+k[4]+'\')"><div class="kl">'+k[1]+'</div><div class="kv">'+k[2]+'</div><div class="kd">'+esc(k[3])+'</div></div>').join('');
+  $('debtList').innerHTML=debtors.length?debtors.slice(0,5).map(s=>'<div class="alert" onclick="openStudent('+s.id+')"><div class="ai">'+AV(s.name)+'</div><div class="at"><div class="an">'+esc(s.name)+' · '+clsName(s.cls)+'</div><div class="ad">родитель: '+esc(s.parent)+'</div></div><div class="asum">'+money(FEE)+'</div></div>').join(''):'<div style="padding:12px 2px;color:var(--grn)">✓ Все оплатили за этот месяц.</div>';
+  // классы
+  const mx=Math.max(1,...CLASSES.map(c=>classCount(c.id)));
+  $('classBars').innerHTML=CLASSES.map(c=>{const n=classCount(c.id);return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;cursor:pointer" onclick="setStudCls(\''+c.id+'\')"><div style="width:96px;font-size:12.5px;font-weight:600;color:var(--ink2)">'+esc(c.name)+'</div><div style="flex:1;height:20px;background:#eef0f7;border-radius:6px;overflow:hidden"><div style="height:100%;width:'+(n/mx*100)+'%;min-width:'+(n?'24px':'0')+';background:var(--indigo);border-radius:6px"></div></div><div style="width:24px;text-align:right;font-weight:700">'+n+'</div></div>';}).join('');
+  // воронка
+  const fmx=Math.max(1,...LSTAGES_N.map((_,i)=>LEADS[i].ls.length));
+  $('leadFunnel').innerHTML=LSTAGES_N.map((n,i)=>{const c=LEADS[i].ls.length;return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;cursor:pointer" onclick="nav(\'leads\')"><div style="width:118px;font-size:12.5px;font-weight:600;color:var(--ink2)">'+esc(n)+'</div><div style="flex:1;height:20px;background:#eef0f7;border-radius:6px;overflow:hidden"><div style="height:100%;width:'+(c/fmx*100)+'%;min-width:'+(c?'24px':'0')+';background:'+(i===4?'var(--grn)':'var(--amber)')+';border-radius:6px"></div></div><div style="width:24px;text-align:right;font-weight:700">'+c+'</div></div>';}).join('');
+  // посещаемость
+  const marked=STUDENTS.filter(s=>s.att!=='?').length, present=STUDENTS.filter(s=>s.att==='p').length;
+  const pct=marked?Math.round(present/marked*100):0;
+  $('attToday').innerHTML='<div style="display:flex;gap:20px;flex-wrap:wrap"><div><div style="font-size:26px;font-weight:800;color:var(--grn)">'+present+'</div><div style="font-size:12px;color:var(--mut)">на уроках</div></div><div><div style="font-size:26px;font-weight:800;color:var(--red)">'+STUDENTS.filter(s=>s.att==='a').length+'</div><div style="font-size:12px;color:var(--mut)">пропуск</div></div><div><div style="font-size:26px;font-weight:800">'+(STUDENTS.length-marked)+'</div><div style="font-size:12px;color:var(--mut)">не отмечено</div></div></div>';
+}
+function clsName(id){const c=CLASSES.find(x=>x.id===id);return c?c.name:id}
+
+/* ===== НАБОР ===== */
+let LQ='',SRC='',DRAG=null;
+function setSrc(v,el){SRC=v;el.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el));renderLeads()}
+function leadMatch(l){return (!SRC||l.src===SRC)&&(!LQ||(l.child+' '+l.parent+' '+l.phone).toLowerCase().includes(LQ.toLowerCase()))}
+function leadCard(l,si){
+  return '<div class="kc" draggable="true" ondragstart="dragS(event,'+l.id+')" ondragend="dragE()" onclick="openLead('+l.id+')">'+
+    '<div class="r1"><span class="nm">'+esc(l.child)+'</span><span class="cl">'+esc(l.cls)+' кл</span></div>'+
+    '<div class="p">'+esc(l.parent)+' · '+esc(l.phone)+'</div>'+
+    '<div class="meta"><span class="src">'+esc(l.src)+'</span><span class="age">'+(l.age?l.age+' дн':'сегодня')+'</span></div></div>';
+}
+function renderLeads(){
+  $('kan').innerHTML=LSTAGES_N.map((n,si)=>{
+    const cards=LEADS[si].ls.filter(leadMatch);
+    return '<div class="kcol" ondragover="dragOver(event,this)" ondragleave="this.classList.remove(\'dz\')" ondrop="dropCol(event,'+si+')"><h4><span>'+esc(n)+'</span><span class="n">'+cards.length+'</span></h4>'+cards.map(l=>leadCard(l,si)).join('')+'</div>';
+  }).join('');
+  renderBadges();
+}
+function dragS(e,id){DRAG=id;e.dataTransfer.effectAllowed='move';e.target.classList.add('dragging')}
+function dragE(){document.querySelectorAll('.kc.dragging').forEach(x=>x.classList.remove('dragging'));document.querySelectorAll('.kcol.dz').forEach(x=>x.classList.remove('dz'));DRAG=null}
+function dragOver(e,el){if(DRAG==null)return;e.preventDefault();el.classList.add('dz')}
+function locLead(id){for(let si=0;si<LEADS.length;si++){const ki=LEADS[si].ls.findIndex(l=>l.id===id);if(ki>=0)return{si,ki,l:LEADS[si].ls[ki]}}return null}
+function dropCol(e,si){e.preventDefault();const id=DRAG;dragE();const f=locLead(id);if(!f||f.si===si)return;moveLead(f.l,si);}
+function moveLead(l,si){const f=locLead(l.id);LEADS[f.si].ls.splice(f.ki,1);l.age=0;LEADS[si].ls.push(l);save();renderLeads();renderDash();
+  if(si===4)toast('<b>'+esc(l.child)+'</b> → «Зачислен». Откройте карточку и нажмите «Зачислить в класс», чтобы добавить в ученики.','ok');
+  else toast('«'+esc(l.child)+'» → «'+esc(LSTAGES_N[si])+'».');}
+
+/* карточка лида */
+let CURL=null;
+function openLead(id){const f=locLead(id);if(!f)return;CURL=f.l;const l=f.l;
+  $('lTitle').textContent=l.child;$('lMeta').textContent=l.cls+' класс · набор';
+  $('lStep').innerHTML=LSTAGES_N.map((n,i)=>'<button class="'+(i<f.si?'done':i===f.si?'cur':'')+'" onclick="jumpLead('+i+')">'+esc(n)+'</button>').join('');
+  $('lChild').textContent=l.child;$('lClass').textContent=l.cls+' класс';$('lParent').textContent=l.parent;$('lPhone').textContent=l.phone;$('lSrc').textContent=l.src;
+  $('lNext').textContent=l.next||'—';$('lNote').textContent=l.note||'—';
+  $('lAdv').textContent=f.si<4?'→ '+LSTAGES_N[f.si+1]:'✓ На зачисление завершено';
+  $('lEnroll').style.display=f.si>=3?'':'none';
+  $('leadOvl').classList.add('show');}
+function jumpLead(i){if(!CURL)return;moveLead(CURL,i);openLead(CURL.id);}
+function advance(){if(!CURL)return;const f=locLead(CURL.id);if(f.si>=4){toast('Лид на последнем этапе — зачислите в класс.','b');return}moveLead(CURL,f.si+1);openLead(CURL.id);}
+function editNext(){if(!CURL)return;const v=prompt('Следующий шаг:',CURL.next||'позвонить, пригласить на диагностику');if(v===null)return;CURL.next=v.trim();save();$('lNext').textContent=CURL.next||'—';toast('Шаг обновлён.','ok')}
+function editNote(){if(!CURL)return;const v=prompt('Заметка:',CURL.note||'');if(v===null)return;CURL.note=v.trim();save();$('lNote').textContent=CURL.note||'—';toast('Заметка сохранена.','ok')}
+function enroll(){if(!CURL)return;const l=CURL;if(!confirm('Зачислить «'+l.child+'» в '+l.cls+' класс?'))return;
+  const f=locLead(l.id);LEADS[f.si].ls.splice(f.ki,1);
+  STUDENTS.push({id:++SEQ,name:l.child,cls:l.cls,parent:l.parent,phone:l.phone,paid:false,att:'?',since:'сегодня',clubs:[]});
+  save();closeModal('leadOvl');renderAll();nav('students');toast('<b>'+esc(l.child)+'</b> зачислен в '+l.cls+' класс. Появился в «Ученики» и в «Оплаты» (ожидает оплату).','ok');}
+
+/* ===== УЧЕНИКИ ===== */
+let SQ='',STUDCLS='';
+function setStudCls(id){STUDCLS=id;nav('students');document.querySelectorAll('#clsChips button').forEach(b=>b.classList.toggle('on',b.dataset.c===id));renderStudents()}
+function renderStudents(){
+  if(!$('clsChips').innerHTML){$('clsChips').innerHTML='<button class="on" data-c="" onclick="STUDCLS=\'\';chipOn(this);renderStudents()">Все классы</button>'+CLASSES.map(c=>'<button data-c="'+c.id+'" onclick="STUDCLS=\''+c.id+'\';chipOn(this);renderStudents()">'+esc(c.name)+'</button>').join('');}
+  const f=STUDENTS.filter(s=>(!STUDCLS||s.cls===STUDCLS)&&(!SQ||(s.name+' '+s.parent).toLowerCase().includes(SQ.toLowerCase())));
+  $('sgrid').innerHTML=f.map(s=>'<div class="scard" onclick="openStudent('+s.id+')"><div class="top"><div class="av" style="width:42px;height:42px;font-size:16px">'+AV(s.name)+'</div><div><div class="nm">'+esc(s.name)+'</div><div class="sub2">'+clsName(s.cls)+'</div></div></div><div class="rows"><div class="row"><span class="lb">Оплата</span>'+(s.paid?'<span class="pill g">оплачено</span>':'<span class="pill r">долг</span>')+'</div><div class="row"><span class="lb">Родитель</span><span>'+esc(s.parent)+'</span></div></div></div>').join('')||'<div style="color:var(--mut);padding:16px">Учеников не найдено.</div>';
+  renderBadges();
+}
+function chipOn(el){el.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el))}
+let CURS=null;
+function openStudent(id){const s=STUDENTS.find(x=>x.id===id);if(!s)return;CURS=s;
+  $('sTitle').textContent=s.name;$('sMeta').textContent=clsName(s.cls);
+  const att=attPctFor(s);
+  $('sCls').textContent=clsName(s.cls)+' · '+teacherOf(s.cls);$('sAtt').textContent=att+'%';$('sParent').textContent=s.parent;$('sPhone').textContent=s.phone;
+  $('sPay').innerHTML=s.paid?'<span class="pill g">оплачено</span>':'<span class="pill r">долг '+money(FEE)+'</span>';$('sSince').textContent=s.since;
+  $('sClubs').textContent=(s.clubs&&s.clubs.length)?s.clubs.join(', '):'нет записей';
+  $('sPayBtn').style.display=s.paid?'none':'';
+  $('studOvl').classList.add('show');}
+function attPctFor(s){return s.att==='a'?86:s.att==='p'?100:94}
+function teacherOf(id){const c=CLASSES.find(x=>x.id===id);return c?c.teacher:''}
+function payStudent(){if(!CURS)return;CURS.paid=true;save();openStudent(CURS.id);renderAll();toast('✓ Оплата <b>'+esc(CURS.name)+'</b> за месяц зафиксирована.','ok')}
+function remindStudent(){if(!CURS)return;toast('Напоминание об оплате отправлено родителю ('+esc(CURS.parent)+') в кабинет и WhatsApp.','b')}
+
+/* ===== ПОСЕЩАЕМОСТЬ ===== */
+let ATTCLS='0';
+function renderAttend(){
+  if(!$('attClsChips').innerHTML){$('attClsChips').innerHTML=CLASSES.map((c,i)=>'<button class="'+(i===0?'on':'')+'" data-c="'+c.id+'" onclick="ATTCLS=\''+c.id+'\';chipOn(this);renderAttend()">'+esc(c.name)+'</button>').join('');}
+  const list=STUDENTS.filter(s=>s.cls===ATTCLS);
+  $('attList').innerHTML=list.map(s=>'<div class="attrow"><div class="av">'+AV(s.name)+'</div><div class="who"><div class="nm">'+esc(s.name)+'</div><div class="sub2">'+clsName(s.cls)+'</div></div><div class="attbtns"><button class="'+(s.att==='p'?'pon':'')+'" onclick="mark('+s.id+',\'p\')">На уроке</button><button class="'+(s.att==='a'?'aon':'')+'" onclick="mark('+s.id+',\'a\')">Пропуск</button></div></div>').join('')||'<div style="color:var(--mut);padding:16px">В классе пока нет учеников.</div>';
+  const marked=list.filter(s=>s.att!=='?').length,present=list.filter(s=>s.att==='p').length;
+  $('attPct').textContent=marked?Math.round(present/marked*100)+'%':'—';
+}
+function mark(id,v){const s=STUDENTS.find(x=>x.id===id);if(!s)return;s.att=v;save();renderAttend();renderDash();
+  if(v==='a')toast('Пропуск отмечен. Родителю <b>'+esc(s.parent)+'</b> ушло уведомление в кабинет и WhatsApp.','warn');}
+
+/* ===== ОПЛАТЫ ===== */
+let PAYF='';
+function setPayFilt(v,el){PAYF=v;el.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el));renderPay()}
+function renderPay(){
+  const f=STUDENTS.filter(s=>PAYF===''?true:PAYF==='debt'?!s.paid:s.paid);
+  $('payTbl').innerHTML='<thead><tr><th>Ученик</th><th>Класс</th><th>Родитель</th><th class="r">За месяц</th><th>Статус</th><th></th></tr></thead><tbody>'+
+    (f.map(s=>'<tr onclick="openStudent('+s.id+')"><td><div class="who"><div class="av">'+AV(s.name)+'</div><div class="nm">'+esc(s.name)+'</div></div></td><td>'+clsName(s.cls)+'</td><td class="sub2">'+esc(s.parent)+'</td><td class="r">'+money(FEE)+'</td><td>'+(s.paid?'<span class="pill g">оплачено</span>':'<span class="pill r">долг</span>')+'</td><td style="text-align:right">'+(s.paid?'<span class="pill gy">✓</span>':'<button class="btn grn" style="padding:6px 12px" onclick="event.stopPropagation();quickPay('+s.id+')">Оплата</button>')+'</td></tr>').join('')||'<tr><td colspan="6" style="color:var(--mut);padding:16px">Нет записей.</td></tr>')+'</tbody>';
+  renderBadges();
+}
+function quickPay(id){const s=STUDENTS.find(x=>x.id===id);if(!s)return;s.paid=true;save();renderAll();toast('✓ Оплата <b>'+esc(s.name)+'</b> зафиксирована.','ok')}
+
+/* ===== РАСПИСАНИЕ ===== */
+let SCHCLS='0';
+function renderSched(){
+  if(!$('schChips').innerHTML){$('schChips').innerHTML=CLASSES.map((c,i)=>'<button class="'+(i===0?'on':'')+'" data-c="'+c.id+'" onclick="SCHCLS=\''+c.id+'\';chipOn(this);renderSched()">'+esc(c.name)+'</button>').join('');}
+  const les=SCHED[SCHCLS]||[];const times=['08:30','09:25','10:20','11:15','12:10'];
+  let h='<thead><tr><th>Урок</th>'+DAYS.map(d=>'<th>'+d+'</th>').join('')+'</tr></thead><tbody>';
+  for(let r=0;r<5;r++){h+='<tr><td class="tt">'+times[r]+'</td>'+DAYS.map((d,di)=>{const idx=(r+di)%les.length;return '<td><div class="les">'+esc(les[idx])+'</div></td>';}).join('')+'</tr>';}
+  h+='</tbody>';$('schTbl').innerHTML=h;
+}
+
+/* ===== КАБИНЕТ РОДИТЕЛЯ ===== */
+function renderParent(){
+  const s=STUDENTS[0];if(!s)return;
+  $('pAv').textContent=AV(s.name);$('pName').textContent=s.name;$('pClass').textContent=clsName(s.cls)+' · «Genius School»';
+  $('pAtt').textContent=attPctFor(s)+'%';
+  $('pPayS').innerHTML=s.paid?'<span style="color:var(--grn)">оплачено</span>':'<span style="color:var(--red)">долг</span>';
+  $('pClubs').textContent=(s.clubs&&s.clubs.length)?s.clubs.length:'0';
+  $('pFeeT').textContent='Оплата за обучение — '+money(FEE)+'/мес';
+  $('pFeeSub').textContent=s.paid?'✓ оплачено за этот месяц':'ожидает оплату за этот месяц';
+  $('pPayBtn').textContent=s.paid?'Оплачено ✓':'Оплатить '+money(FEE);$('pPayBtn').disabled=false;
+  $('pTeacher').textContent=teacherOf(s.cls);
+  if(!s.chat)s.chat=[{me:false,t:'09:10',x:'Здравствуйте! '+s.name.split(' ')[0]+' сегодня активно работал на уроке математики 👍'}];
+  $('pChat').innerHTML=s.chat.map(m=>'<div class="msg '+(m.me?'me':'them')+'">'+esc(m.x)+'<div class="tm">'+esc(m.t)+'</div></div>').join('');
+}
+function parentPay(){const s=STUDENTS[0];if(!s||s.paid)return;s.paid=true;save();renderAll();toast('✓ Оплата принята (демо-эквайринг Kaspi). Спасибо! Статус обновлён.','ok')}
+function parentSend(){const s=STUDENTS[0];const inp=$('pMsg');if(!inp.value.trim())return;(s.chat=s.chat||[]).push({me:true,t:nowHM(),x:inp.value.trim()});inp.value='';save();renderParent();$('pChat').scrollTop=9999;}
+
+/* ===== формы ===== */
+function closeModal(id){$(id).classList.remove('show')}
+function openLeadForm(){['fChild','fParent','fPhone'].forEach(id=>$(id).value='');$('fClass').innerHTML=CLASSES.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');$('fSrc').value='Instagram';$('formOvl').classList.add('show');setTimeout(()=>$('fChild').focus(),40)}
+function saveLead(){const child=$('fChild').value.trim();if(!child){toast('Укажите имя ребёнка.','warn');return}
+  LEADS[0].ls.unshift({id:++SEQ,child,cls:$('fClass').value,parent:$('fParent').value.trim()||'—',phone:$('fPhone').value.trim()||'—',src:$('fSrc').value,next:'позвонить, пригласить на диагностику',note:'',age:0});
+  save();closeModal('formOvl');renderLeads();renderDash();nav('leads');toast('Заявка добавлена в воронку набора.','ok')}
+
+/* ===== данные ===== */
+function defaults(){
+  const L=(child,cls,parent,phone,src,age,next)=>({id:++SEQ,child,cls,parent,phone,src,age,next:next||'позвонить',note:''});
+  const st=(name,cls,parent,phone,paid,att,clubs)=>({id:++SEQ,name,cls,parent,phone,paid,att:att||'?',since:'01.09',clubs:clubs||[]});
+  return {
+    LEADS:[
+      {ls:[L('Амир Ж.','1','Жанна Т.','+7 701 233 44 55','Instagram',0,'позвонить, пригласить на диагностику'),L('Дана С.','0','Сауле К.','+7 705 118 22 04','Таргет',0),L('Тимур А.','1','Асхат М.','+7 702 900 71 15','Рекомендация',1)]},
+      {ls:[L('Аружан Б.','0','Ботагоз Е.','+7 727 356 21 00','Instagram',1,'назначить пробный день'),L('Ерасыл Н.','2','Нургуль А.','+7 701 555 90 12','Таргет',2)]},
+      {ls:[L('Алина Р.','1','Роза Ж.','+7 707 111 22 33','Рекомендация',2,'пробный день чт 10:00'),L('Санжар К.','0','Куаныш Б.','+7 717 200 10 10','Instagram',3)]},
+      {ls:[L('Мадина Т.','1','Толкын С.','+7 714 500 44 55','Instagram',4,'договор + оплата')]},
+      {ls:[]},
+    ],
+    STUDENTS:[
+      st('Айсултан Б.','1','Бахыт Н.','+7 701 111 00 11',true,'p',['Шахматы','Робототехника']),
+      st('Рамина К.','1','Куралай С.','+7 705 222 00 22',false,'p',['Английский+']),
+      st('Данияр О.','1','Олжас Т.','+7 702 333 00 33',true,'a',[]),
+      st('Аяна М.','0','Меруерт К.','+7 701 444 00 44',true,'p',['Рисование']),
+      st('Нурислам Ж.','0','Жанар А.','+7 707 555 00 55',false,'p',[]),
+      st('Сафия Д.','2','Динара Б.','+7 727 666 00 66',true,'p',['Танцы','Шахматы']),
+      st('Ерлан С.','2','Серик М.','+7 717 777 00 77',true,'a',[]),
+      st('Камила Р.','3','Роза Т.','+7 701 888 00 88',false,'p',['Английский+']),
+      st('Арсен Т.','3','Тимур К.','+7 705 999 00 99',true,'p',[]),
+      st('Диас Н.','4','Нургуль О.','+7 702 121 00 12',true,'p',['Робототехника']),
+      st('Аружан Е.','4','Ержан С.','+7 727 131 00 13',true,'a',['Танцы']),
+      st('Мирас А.','1','Асель Ж.','+7 701 141 00 14',false,'?',[]),
+    ],
+  };
+}
+
+/* ===== init ===== */
+load();renderAll();
+const q=new URLSearchParams(location.search);
+if(q.get('role')==='teacher')setRole('teacher',document.querySelectorAll('.roles button')[1]);
+else if(q.get('role')==='parent')setRole('parent',document.querySelectorAll('.roles button')[2]);
+if(q.get('s'))nav(q.get('s'));
+setTimeout(()=>toast('Это <b>Genius School</b> — портал школы (демо). <b>Набор</b> — воронка, чтобы не терять лидов; <b>Оплаты</b> — кто оплатил/должен; <b>Посещаемость</b> с уведомлением родителю; <b>Кабинет родителя</b> (переключите роль справа). Всё прокликивается и <b>сохраняется</b>.','b'),700);
+</script>
+</body>
+</html>
