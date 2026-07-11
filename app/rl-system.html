@@ -209,6 +209,10 @@
   .fc-bal{font-size:16px;font-weight:700;margin-top:5px;font-variant-numeric:tabular-nums}
   .fc-bal.pos{color:var(--green)}.fc-bal.neg{color:var(--red)}
   .fc-io{font-size:10.5px;color:var(--muted);margin-top:2px}
+  .fc-btns{display:flex;gap:6px;margin-top:8px}
+  .fc-btns span{font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;cursor:pointer;border:1px solid var(--line);color:var(--muted);background:#fbfaf7;white-space:nowrap}
+  .fc-btns span:first-child:hover{background:var(--green-bg);color:var(--green);border-color:var(--green)}
+  .fc-btns span:last-child:hover{background:var(--red-bg);color:var(--red);border-color:var(--red)}
   /* таймлайн и задачи в карточке */
   .tl-move{display:flex;gap:3px;flex-shrink:0;margin-left:6px}
   .tl-move button{border:1px solid var(--line);background:#fff;border-radius:5px;font-size:9px;padding:2px 6px;cursor:pointer;color:var(--muted)}
@@ -771,15 +775,49 @@ function computeFunds(S){
   const pct=o.fundPct||{};
   const spent={};
   TX.forEach(t=>{if(t.obj!==S.name||t.amt>=0)return;spent[artFund(t.art)]=(spent[artFund(t.art)]||0)-t.amt});
+  const adj={};FUND_ADJ.forEach(a=>{if(a.obj!==S.name)return;adj[a.fund]=(adj[a.fund]||0)+a.amt});
   return FUND_DEFS.map(f=>{const p=pct[f.key]!=null?pct[f.key]:f.pct;
-    const inn=Math.round(S.cin*p/100),out=spent[f.key]||0;
-    return {...f,pct:p,in:inn,out,bal:inn-out}});
+    const inn=Math.round(S.cin*p/100),out=spent[f.key]||0,ad=adj[f.key]||0;
+    return {...f,pct:p,in:inn,out,adj:ad,bal:inn-out+ad}});
 }
 function setFundPct(name,key,val){
   const o=OBJ.find(x=>x.name===name);if(!o)return;
   o.fundPct=o.fundPct||{};FUND_DEFS.forEach(f=>{if(o.fundPct[f.key]==null)o.fundPct[f.key]=f.pct});
   o.fundPct[key]=Math.max(0,Math.min(100,parseFloat(val)||0));
   openCard(name);
+}
+/* ручные движения по фондам: пополнить / снять (не проводка по кассе, а перекладка внутри проекта) */
+let FUND_ADJ=[];let _fadjId=1;
+function fundAdjPrefill(key,dir){
+  const f=document.getElementById('faFund'),d=document.getElementById('faDir');
+  if(!f||!d)return;f.value=key;d.value=dir;
+  const a=document.getElementById('faAmt');a.scrollIntoView({block:'center',behavior:'smooth'});a.focus();
+}
+function addFundAdj(name){
+  const fund=document.getElementById('faFund').value,dir=document.getElementById('faDir').value;
+  const amt=parseFloat(document.getElementById('faAmt').value);
+  if(!amt||amt<=0){toast('Укажи сумму','err');return}
+  const note=document.getElementById('faNote').value.trim();
+  FUND_ADJ.push({id:_fadjId++,obj:name,fund,amt:dir==='in'?Math.abs(amt):-Math.abs(amt),note,date:_todayDs()});
+  toast(dir==='in'?'Фонд пополнен ✓':'Снято из фонда ✓','ok');
+  openCard(name);
+}
+function delFundAdj(id,name){const i=FUND_ADJ.findIndex(x=>x.id===id);if(i>=0)FUND_ADJ.splice(i,1);toast('Движение удалено','ok');openCard(name);}
+function fundAdjFormHtml(S){
+  return `<div class="tl-add" style="grid-template-columns:1.3fr 140px 1fr 1.3fr auto;margin-top:12px">
+    <select id="faFund">${FUND_DEFS.map(f=>`<option value="${f.key}">${f.name}</option>`).join('')}</select>
+    <select id="faDir"><option value="in">+ пополнить</option><option value="out">− снять</option></select>
+    <input type="number" id="faAmt" placeholder="сумма ₸" inputmode="numeric">
+    <input id="faNote" placeholder="почему: перекинули с резерва…">
+    <button class="btn-add" onclick="addFundAdj('${escN(S.name)}')">Провести</button></div>
+  <div class="hint" style="margin-top:7px">Перекинуть между фондами — снять с одного и пополнить другой. Это внутренняя перекладка денег проекта, кассу она не меняет.</div>`;
+}
+function fundAdjHistHtml(S){
+  const list=FUND_ADJ.filter(a=>a.obj===S.name);
+  if(!list.length)return '';
+  const fname=k=>(FUND_DEFS.find(f=>f.key===k)||{name:k}).name;
+  return `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:12px 0 6px">Ручные движения по фондам</div>
+  <div class="feed-list" style="max-height:190px">${list.slice().reverse().map(a=>`<div class="frw"><div class="dt">${a.date}</div><div class="ds"><div class="p">${fname(a.fund)}</div><div class="c">${escH(a.note||'ручное движение')}</div></div><div class="am ${a.amt>0?'in':'out'}">${a.amt>0?'+':''}${fmt(a.amt)}</div><div style="width:24px;text-align:center;color:var(--muted);cursor:pointer" onclick="delFundAdj(${a.id},'${escN(S.name)}')" title="удалить">×</div></div>`).join('')}</div>`;
 }
 
 /* заявки на платежи: очередь → неделя → оплата */
@@ -1274,16 +1312,21 @@ function openCard(name){
 /* фонды в карточке */
 function fundsHtml(S){
   const funds=computeFunds(S);
-  const head=`<h2>Фонды проекта</h2><div class="explain" style="margin-bottom:12px">Каждый приход по проекту сразу расходится по фондам в заданных долях. Расходы списываются из своего фонда по статье платежа. Минус в фонде — фонд потратил больше, чем в него зашло: либо поправить доли, либо разбираться с расходами.</div>`;
-  if(!S.cin)return head+'<div class="cal-empty" style="padding:14px;background:var(--card);border:1px solid var(--line);border-radius:11px">поступлений пока нет — фонды наполнятся с первым приходом денег</div>';
+  const head=`<h2>Фонды проекта</h2><div class="explain" style="margin-bottom:12px">Каждый приход по проекту сразу расходится по фондам в заданных долях. Расходы списываются из своего фонда по статье платежа. Кнопками «пополнить / снять» деньги двигаются между фондами вручную. Минус в фонде — фонд потратил больше, чем в него зашло: поправить доли, снять с другого фонда или разбираться с расходами.</div>`;
+  const hasAdj=FUND_ADJ.some(a=>a.obj===S.name);
+  if(!S.cin&&!hasAdj)return head+'<div class="cal-empty" style="padding:14px;background:var(--card);border:1px solid var(--line);border-radius:11px">поступлений пока нет — фонды наполнятся с первым приходом денег. Можно положить деньги в фонд вручную:</div>'+fundAdjFormHtml(S);
   const fsum=funds.reduce((s,f)=>s+f.pct,0);
   const bar=`<div class="fund-bar">${funds.map(f=>`<div style="flex:${f.pct||0.001};background:${f.color}" title="${escH(f.name)} ${f.pct}%"></div>`).join('')}</div>`;
   const cards=funds.map(f=>`<div class="fund-card"><div class="fc-top"><span class="fc-dot" style="background:${f.color}"></span><b>${f.name}</b>
       <input type="number" value="${f.pct}" min="0" max="100" onchange="setFundPct('${escN(S.name)}','${f.key}',this.value)">%</div>
     <div class="fc-bal ${f.bal>=0?'pos':'neg'}">${fmt(f.bal)} ₸</div>
-    <div class="fc-io">зашло ${fmtM(f.in)} · ушло ${fmtM(f.out)}</div></div>`).join('');
+    <div class="fc-io">зашло ${fmtM(f.in)} · ушло ${fmtM(f.out)}${f.adj?` · корр. ${f.adj>0?'+':''}${fmtM(f.adj)}`:''}</div>
+    <div class="fc-btns"><span onclick="fundAdjPrefill('${f.key}','in')">+ пополнить</span><span onclick="fundAdjPrefill('${f.key}','out')">− снять</span></div></div>`).join('');
   const warn=Math.round(fsum)!==100?`<div class="fp-warn" style="display:block;margin-top:9px">Сумма долей ${fsum}% — приведи к 100%, иначе фонды не сходятся с кассой.</div>`:'';
-  return head+bar+`<div class="fund-grid">${cards}</div>`+warn;
+  const totF=funds.reduce((s,f)=>s+f.bal,0);
+  const totAdj=funds.reduce((s,f)=>s+f.adj,0);
+  const recon=`<div class="hint" style="margin-top:9px">Итого по фондам <b>${fmt(totF)} ₸</b> · денежное сальдо проекта <b>${fmt(S.cash)} ₸</b>${Math.round(totAdj)?` · разница ${fmt(totAdj)} ₸ — ручные пополнения/снятия`:''}</div>`;
+  return head+bar+`<div class="fund-grid">${cards}</div>`+warn+recon+fundAdjFormHtml(S)+fundAdjHistHtml(S);
 }
 /* платежи проекта по неделям, с движением */
 function timelineHtml(S){
