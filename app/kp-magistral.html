@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>КП · MAGISTRAL — CRM/ERP для ЖД-грузоперевозок · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#16202e;--ink2:#38455a;--rail:#1f5f9e;--railD:#184e83;--amber:#d9871a;--amberL:#fbf1dd;--text:#222c3a;--muted:#66748a;--faint:#9aa6b4;--line:#e4e8ee;--off:#f5f8fb;--green:#1c8a63;--greenL:#e4f2eb;--red:#cf4433;--redL:#fbe8e5;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:11px;line-height:1.55;background:#eceef2}
+.page{width:210mm;min-height:297mm;position:relative;padding:16mm 16mm 18mm;margin:0 auto 8mm;background:#fff;display:flex;flex-direction:column}
+.runfoot{position:absolute;left:16mm;right:16mm;bottom:9mm;display:flex;justify-content:space-between;font-size:8px;color:var(--faint);border-top:1px solid var(--line);padding-top:6px}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:13px}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .bm{width:44px;height:44px;background:var(--ink);border-radius:10px;display:grid;place-items:center;flex:none}
+.brand .bt{font-size:23px;font-weight:800;letter-spacing:.12em;color:var(--ink)}
+.brand .bs{font-size:9px;color:var(--muted);letter-spacing:.03em;margin-top:1px}
+.hr{text-align:right}
+.hr .t{font-size:14px;font-weight:800;color:var(--ink)}
+.hr .dt{font-size:10px;color:var(--muted);margin-top:2px}
+.rule{height:2px;background:var(--rail);margin-bottom:15px}
+h1{font-size:23px;font-weight:900;letter-spacing:-.02em;line-height:1.15;margin-bottom:9px;color:var(--ink)}
+h1 .a{color:var(--rail)}
+.lead{font-size:12px;color:var(--ink2);margin-bottom:16px;line-height:1.6}
+.lead b{color:var(--ink)}
+.forwho{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.chip{background:var(--off);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:10px;font-weight:600;color:var(--ink2)}
+.chip b{color:var(--rail)}
+.sec{font-size:9.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--rail);margin:20px 0 10px;display:flex;align-items:center;gap:9px}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.sec.first{margin-top:4px}
+/* боли→решения */
+.pain{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:6px}
+.pain .row{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.pain .row+.row{border-top:1px solid var(--line)}
+.pain .c{padding:9px 13px;font-size:10.5px;line-height:1.5}
+.pain .c.p{background:#fdf5f3;color:#7a2f22}
+.pain .c.s{border-left:1px solid var(--line);color:var(--ink2)}
+.pain .c.s b{color:var(--green)}
+.pain .c .h{font-size:8.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px;opacity:.7}
+/* модули */
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mod{border:1px solid var(--line);border-radius:10px;padding:11px 13px;background:#fff}
+.mod .mt{font-weight:800;font-size:11.5px;color:var(--ink);margin-bottom:3px;display:flex;align-items:center;gap:7px}
+.mod .mt .n{width:19px;height:19px;border-radius:6px;background:var(--ink);color:#fff;font-size:9.5px;display:grid;place-items:center;flex:none}
+.mod .md{font-size:10px;color:var(--muted);line-height:1.5}
+.mod.key{border-color:#eccf95;background:linear-gradient(180deg,#fdf7ea,#fff)}
+.mod.key .mt .n{background:var(--amber)}
+/* бонусы */
+.bonus{border:1px dashed var(--amber);border-radius:10px;background:var(--amberL);padding:13px 15px;margin-bottom:4px}
+.bonus .bt2{font-weight:800;font-size:12px;color:#6b4a0c;margin-bottom:7px}
+.bonus .bl{display:flex;justify-content:space-between;font-size:10.5px;padding:4px 0;border-bottom:1px dashed #e2c98f;color:#6b4a0c}
+.bonus .bl:last-child{border-bottom:none}
+.bonus .bl s{color:#a98a4e}
+.bonus .bl b{color:var(--green)}
+/* цена */
+.price{display:flex;gap:14px;align-items:stretch;margin-bottom:6px}
+.price .big{flex:1.1;background:var(--ink);color:#fff;border-radius:12px;padding:16px 18px}
+.price .big .l{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#9fb0c4;font-weight:700}
+.price .big .v{font-size:30px;font-weight:900;letter-spacing:-.02em;margin:2px 0}
+.price .big .v em{font-style:normal;font-size:13px;color:#9fb0c4}
+.price .big .n{font-size:10px;color:#c3cfdd;line-height:1.5;margin-top:5px}
+.price .steps{flex:1.3;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.price .st{display:flex;justify-content:space-between;align-items:center;padding:9px 13px;font-size:10.5px}
+.price .st+.st{border-top:1px solid var(--line)}
+.price .st .sn{color:var(--ink2)}.price .st .sn b{color:var(--ink)}
+.price .st .sv{font-weight:800;color:var(--railD);white-space:nowrap}
+.price .st.cur{background:#fdf4e6}
+/* сроки */
+.tl{border:1px solid var(--line);border-radius:10px;padding:6px 14px}
+.tl .t{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--off)}
+.tl .t:last-child{border-bottom:none}
+.tl .t .w{width:96px;flex:none;font-size:10px;font-weight:800;color:var(--rail)}
+.tl .t .d{font-size:10.5px;color:var(--ink2)}
+.tl .t .d b{color:var(--ink)}
+/* условия */
+.terms{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.term{border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+.term .h{font-weight:800;font-size:10.5px;color:var(--ink);margin-bottom:2px}
+.term .b{font-size:10px;color:var(--muted);line-height:1.5}
+.why{background:var(--off);border:1px solid var(--line);border-radius:10px;padding:13px 15px;font-size:10.5px;color:var(--ink2);line-height:1.6}
+.why b{color:var(--ink)}
+.cta{margin-top:14px;background:var(--ink);color:#fff;border-radius:12px;padding:15px 18px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+.cta .l{font-size:11px;color:#c3cfdd;line-height:1.5}.cta .l b{color:#fff}
+.cta .r{text-align:right;font-size:10px;color:#9fb0c4;white-space:nowrap}
+.cta .r b{display:block;font-size:13px;color:var(--amber);font-weight:800}
+</style></head>
+<body>
+
+<!-- страница 1 -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg viewBox="0 0 32 32" width="27" height="27"><path d="M6 24 L26 24 M9 24 L11.5 8 M23 24 L20.5 8 M11.5 8 L20.5 8" stroke="#d9871a" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M7 20 L25 20 M7.5 16 L24.5 16" stroke="#6f8095" stroke-width="1.5"/></svg></div>
+      <div><div class="bt">MAGISTRAL</div><div class="bs">CRM/ERP для ЖД-грузоперевозок · Pllato</div></div>
+    </div>
+    <div class="hr"><div class="t">КП № MG-2026-01</div><div class="dt">11 июля 2026 г.</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h1>Своя система <span class="a">MAGISTRAL</span> для ваших<br>ЖД-грузоперевозок — вместо Excel и тетрадей</h1>
+  <div class="lead">Коммерческое предложение для <b>ТОО «Миллиардер Gold»</b> (Алдияр). Мы разрабатываем <b>полностью под вас</b> единую систему учёта вагонов, расходов, маржи, оплат и склада — и <b>передаём вам насовсем</b>. Дальше платить за пользование не нужно. Это не аренда чужой CRM, а ваш «пульт управления бизнесом», которого для ЖД никто не делает.</div>
+  <div class="forwho">
+    <span class="chip"><b>ЖД-перевозки</b> · 8 лет</span>
+    <span class="chip">Павлодар · тупик + склад</span>
+    <span class="chip">6–15 человек</span>
+    <span class="chip"><b>Старт сейчас</b> · запуск к сентябрю</span>
+  </div>
+
+  <div class="sec first">Что болит сейчас → что даёт MAGISTRAL</div>
+  <div class="pain">
+    <div class="row">
+      <div class="c p"><div class="h">Сейчас</div>Всё в Excel и тетрадях: данные теряются, не видно маржу по вагону, каждый раз считаете вручную.</div>
+      <div class="c s"><div class="h">В системе</div>Единый учёт по каждому вагону: собственник, маршрут, клиент, <b>все расходы и чистая маржа</b> считаются автоматически.</div>
+    </div>
+    <div class="row">
+      <div class="c p"><div class="h">Реальный случай</div>Забыли выставить счёт на 4 вагона и потом долго доказывали клиенту.</div>
+      <div class="c s"><div class="h">В системе</div>Контроль <b>«к выставлению»</b>: доставленный, но не выставленный вагон подсвечивается — ни один счёт не потеряется.</div>
+    </div>
+    <div class="row">
+      <div class="c p"><div class="h">Сейчас</div>Не видно, кто сколько должен; оплаты приходят частями и в разное время.</div>
+      <div class="c s"><div class="h">В системе</div><b>Внутренний учёт оплат</b>: по каждому клиенту виден остаток долга, он уменьшается с каждой оплатой — открыл и сразу видно.</div>
+    </div>
+    <div class="row">
+      <div class="c p"><div class="h">Сейчас</div>Утепление вагонов и простой считаете руками; материалы со склада — на глаз.</div>
+      <div class="c s"><div class="h">В системе</div><b>Калькуляторы</b>: материалы утепления со справочником цен, подача-уборка, простой/демередж — считаются сами, прямо с телефона на погрузке.</div>
+    </div>
+    <div class="row">
+      <div class="c p"><div class="h">Сейчас</div>Две фирмы (официальная и наличная) мешаются в одной таблице.</div>
+      <div class="c s"><div class="h">В системе</div><b>Два юр. лица</b>: в каждой сделке выбираете, от какого лица работаете — учёт и деньги считаются раздельно.</div>
+    </div>
+    <div class="row">
+      <div class="c p"><div class="h">Сейчас</div>Где вагон — смотрите отдельно на сайте слежения, клиенту сообщаете вручную.</div>
+      <div class="c s"><div class="h">В системе</div><b>Дислокация подтягивается автоматически</b> (по вашему API), а клиенту каждый день сам уходит в WhatsApp — где его вагон.</div>
+    </div>
+  </div>
+
+  <div class="sec">Что входит в разработку</div>
+  <div class="mods">
+    <div class="mod key"><div class="mt"><span class="n">1</span>Воронка заявок и реестр вагонов</div><div class="md">Заявка → расчёт → вагоны поданы → в пути → выгрузка → закрыта. Все вагоны по номерам, поиск, статусы.</div></div>
+    <div class="mod key"><div class="mt"><span class="n">2</span>Учёт расходов и маржи по вагону</div><div class="md">Предоставление, ЖД-тариф, таможня, фито, тупик, диспетчер, подача-уборка, грузчики, доп.сборы — и чистая маржа автоматически.</div></div>
+    <div class="mod key"><div class="mt"><span class="n">3</span>Внутренний учёт оплат и долгов</div><div class="md">Оплаты частями и датами, остаток по каждому клиенту, дашборд «кто сколько должен».</div></div>
+    <div class="mod key"><div class="mt"><span class="n">4</span>Калькуляторы</div><div class="md">Материалы утепления (справочник цен, шаблоны), подача-уборка (1–5 / 5–10 вагонов), простой/демередж по датам.</div></div>
+    <div class="mod"><div class="mt"><span class="n">5</span>Два юр. лица</div><div class="md">Выбор юр. лица в каждой сделке, раздельный учёт официального и наличного направлений.</div></div>
+    <div class="mod"><div class="mt"><span class="n">6</span>Дислокация вагонов</div><div class="md">Автоматическое подтягивание местоположения и истории по вашему API слежения.</div></div>
+    <div class="mod"><div class="mt"><span class="n">7</span>WhatsApp клиенту</div><div class="md">Ежедневная авто-рассылка «где ваш вагон» и отправка расчёта одной кнопкой.</div></div>
+    <div class="mod"><div class="mt"><span class="n">8</span>Склад материалов</div><div class="md">Остатки материалов утепления, списание при расчёте, продажа с добавленной стоимостью.</div></div>
+    <div class="mod"><div class="mt"><span class="n">9</span>Клиенты и партнёры</div><div class="md">Клиенты с балансом и историей; собственники/партнёры вагонов со своими ставками.</div></div>
+    <div class="mod"><div class="mt"><span class="n">10</span>Дашборд-обзор</div><div class="md">Вагоны в пути, к выставлению счетов, кто должен, маржа и выручка — на одном экране.</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП MG-2026-01 · MAGISTRAL для ТОО «Миллиардер Gold»</span><span>1 / 2</span></div>
+</section>
+
+<!-- страница 2 -->
+<section class="page">
+  <div class="sec first">Бесплатно в стандартном пакете</div>
+  <div class="bonus">
+    <div class="bt2">Три вещи, которые обычно оплачиваются отдельно — вам в подарок:</div>
+    <div class="bl"><span>Интеграция с 1С (двусторонняя, зеркало данных)</span><span><s>обычно 800 000 ₸</s> → <b>0 ₸</b></span></div>
+    <div class="bl"><span>Калькулятор (утепление / подача-уборка / простой)</span><span><s>обычно 200 000 ₸</s> → <b>0 ₸</b></span></div>
+    <div class="bl"><span>Настройка сервера и размещение системы</span><span><s>отдельно</s> → <b>0 ₸</b></span></div>
+    <div class="bl" style="border-top:1px solid #e2c98f;margin-top:4px;padding-top:6px;font-weight:800"><span>Ценность бонусов</span><span><b>≈ 1 000 000 ₸ включено</b></span></div>
+  </div>
+
+  <div class="sec">Стоимость и порядок оплаты</div>
+  <div class="price">
+    <div class="big">
+      <div class="l">Разработка «под ключ», разово</div>
+      <div class="v">1 500 000 <em>₸</em></div>
+      <div class="n">Полная передача системы вам. Дальше за пользование платить не нужно — только сервер (≈10 000 ₸/мес или бесплатный вариант).</div>
+    </div>
+    <div class="steps">
+      <div class="st cur"><span class="sn"><b>Этап 1 · старт</b> — предоплата 10%</span><span class="sv">150 000 ₸</span></div>
+      <div class="st"><span class="sn"><b>Этап 2</b> — после согласования функционала (≈2 недели)</span><span class="sv">750 000 ₸</span></div>
+      <div class="st"><span class="sn"><b>Этап 3</b> — после полной сдачи и запуска</span><span class="sv">600 000 ₸</span></div>
+      <div class="st" style="background:var(--off)"><span class="sn">Итого</span><span class="sv">1 500 000 ₸</span></div>
+    </div>
+  </div>
+
+  <div class="sec">Сроки</div>
+  <div class="tl">
+    <div class="t"><div class="w">После оплаты</div><div class="d"><b>Старт работ.</b> Поднимаем систему, переносим ваши таблицы, настраиваем 1С и сервер.</div></div>
+    <div class="t"><div class="w">≈ 2 недели</div><div class="d"><b>Согласование функционала.</b> Проходим по каждому пункту в рабочей встрече, фиксируем детали калькуляторов и расходов, вносим правки.</div></div>
+    <div class="t"><div class="w">Начало августа</div><div class="d"><b>Готовность к сдаче.</b> Основной функционал собран, идёт поэтапная сдача и правки.</div></div>
+    <div class="t"><div class="w">К сентябрю</div><div class="d"><b>Запуск.</b> Система готова к вашему сезону — работаете в ней в полную силу.</div></div>
+  </div>
+
+  <div class="sec">Условия</div>
+  <div class="terms">
+    <div class="term"><div class="h">Полное владение</div><div class="b">Система разрабатывается под вас и передаётся вам насовсем. Никаких ежемесячных платежей за пользование.</div></div>
+    <div class="term"><div class="h">Сервер</div><div class="b">Работает в браузере, размещается на вашем сервере. Настроим бесплатный вариант или ≈10 000 ₸/мес.</div></div>
+    <div class="term"><div class="h">Сопровождение</div><div class="b">Ошибки по нашей вине — правим быстро и бесплатно. Система работает, пока вы её не меняете.</div></div>
+    <div class="term"><div class="h">Доработки после сдачи</div><div class="b">Новые пожелания — по часам: ≈$20/час. Заранее закладываем ≈10% объёма правок в проект бесплатно.</div></div>
+  </div>
+
+  <div class="sec">Почему это выгодно именно вам</div>
+  <div class="why">Такую систему <b>для ЖД-перевозок никто не делает</b> — вас, таких клиентов, немного, и готового продукта под ваши процессы (собственники вагонов, подача-уборка, утепление, два юр. лица, наличка) на рынке нет. Мы делаем <b>кастомно, от и до</b>, под ваш реальный учёт из ваших же таблиц. Вы получаете неповторимую систему в собственность — а не подписку, за которую платят вечно. При желании её же можно <b>перепродавать другим тупикам</b> — мы это организуем.</div>
+
+  <div class="cta">
+    <div class="l">Чтобы начать — оплачиваете <b>предоплату 150 000 ₸</b> (счёт № MG-С-2026-01), и мы поднимаем систему и переносим ваши данные. Далее — согласование функционала и поэтапная сдача.</div>
+    <div class="r">К старту<b>150 000 ₸</b>предоплата (10%)</div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП MG-2026-01 · ИП «STUDYSTORIES.APP» · pllato.kz</span><span>2 / 2</span></div>
+</section>
+</body></html>
