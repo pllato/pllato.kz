@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MAGISTRAL — CRM для ЖД-грузоперевозок · Демо</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2316202e'/%3E%3Cpath d='M5 24 L27 24 M8 24 L11 8 M24 24 L21 8 M11 8 L21 8' stroke='%23dd8a1a' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Cpath d='M6.5 20 L25.5 20 M7.5 16 L24.5 16' stroke='%236f8095' stroke-width='1.4'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#16202e;--ink2:#38455a;--mut:#68758a;--faint:#98a4b4;
+  --paper:#f5f7fa;--panel:#fff;--ln:#e2e7ee;--ln2:#eef1f6;
+  --rail:#1f5f9e;--rail-d:#184e83;--rail-l:#e9f1f9;
+  --amber:#d9871a;--amber-l:#fbf1dd;
+  --grn:#1c8a63;--grn-l:#e4f2eb;
+  --red:#cf4433;--red-l:#fbe8e5;
+  --mono:'IBM Plex Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Manrope',sans-serif;background:var(--paper);color:var(--ink);font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:13.5px;color:var(--ink)}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#cbd2dc;border-radius:5px}
+.mono{font-family:var(--mono);font-feature-settings:'tnum'}
+a{color:var(--rail)}
+
+.demo-note{background:var(--ink);color:#b9c4d3;font-size:12px;padding:7px 16px;text-align:center}
+.demo-note b{color:#fff}
+
+/* шапка */
+.mast{background:var(--ink);color:#eef2f7}
+.m1{max-width:1320px;margin:0 auto;padding:12px 22px 10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .bm{width:42px;height:42px;background:#1f2c3d;border:1px solid #2c3a4e;flex:none;display:grid;place-items:center;border-radius:9px}
+.brand .bt{font-weight:800;font-size:21px;letter-spacing:.14em}
+.brand .bs{font-size:11px;color:#8b98a9;margin-top:-2px;letter-spacing:.02em}
+.oneс{margin-left:6px;display:flex;align-items:center;gap:7px;background:#1c2a3b;border:1px solid #2c3a4e;padding:6px 11px;border-radius:8px;font-size:11.5px;color:#a9b6c6;cursor:pointer}
+.oneс .pip{width:7px;height:7px;border-radius:50%;background:var(--grn);box-shadow:0 0 0 3px rgba(28,138,99,.25)}
+.oneс b{color:#dce4ee;font-weight:600}
+.spacer{margin-left:auto}
+.roles{display:flex;border:1px solid #2c3a4e;border-radius:9px;overflow:hidden}
+.roles button{padding:8px 13px;font-size:12.5px;font-weight:600;color:#9aa7b8;border-right:1px solid #2c3a4e}
+.roles button:last-child{border-right:none}
+.roles button.on{background:var(--amber);color:#231603}
+.act{background:var(--rail);color:#fff;font-weight:700;font-size:13px;padding:9px 15px;border-radius:9px}
+.act.gh{background:#1f2c3d;border:1px solid #2c3a4e;color:#cdd7e3}
+.mnav{background:#101927;border-top:1px solid #23334a}
+.mnavin{max-width:1320px;margin:0 auto;padding:0 22px;display:flex;gap:4px;overflow-x:auto}
+.mnav button{padding:12px 15px;font-size:14px;font-weight:600;color:#8695a8;border-bottom:3px solid transparent;white-space:nowrap;display:flex;align-items:center;gap:8px}
+.mnav button.on{color:#fff;border-bottom-color:var(--amber)}
+.mnav button .b{font-family:var(--mono);font-size:10.5px;background:#22344c;color:#c4d0df;padding:1px 7px;border-radius:20px}
+.mnav button.on .b{background:var(--amber);color:#231603}
+.mnav button .b.rd{background:var(--red);color:#fff}
+
+.wrap{max-width:1320px;margin:0 auto;padding:20px 22px 90px}
+.screen{display:none}.screen.on{display:block;animation:fd .18s}
+@keyframes fd{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.ph{display:flex;align-items:baseline;gap:13px;margin-bottom:14px;flex-wrap:wrap}
+.ph h1{font-size:23px;font-weight:800;letter-spacing:-.01em}
+.ph .sub{font-size:13px;color:var(--mut)}
+.ph .rt{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:13px;margin-bottom:18px}
+@media(max-width:1000px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--panel);border:1px solid var(--ln);border-radius:13px;padding:14px 16px;cursor:pointer;transition:.12s;position:relative;overflow:hidden}
+.kpi:hover{border-color:var(--rail);transform:translateY(-2px);box-shadow:0 10px 22px -14px rgba(22,32,46,.4)}
+.kpi .kl{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);font-weight:700}
+.kpi .kv{font-family:var(--mono);font-size:26px;font-weight:600;margin-top:5px;letter-spacing:-.02em}
+.kpi .kv em{font-style:normal;font-size:13px;color:var(--faint)}
+.kpi .kd{font-size:12px;color:var(--faint);margin-top:2px}
+.kpi.warn{border-color:#eccf95;background:linear-gradient(180deg,#fdf6e8,#fff)}
+.kpi.warn .kv{color:var(--amber)}
+.kpi.bad{border-color:#eab8b0;background:linear-gradient(180deg,#fdeeeb,#fff)}
+.kpi.bad .kv{color:var(--red)}
+.kpi .strip{position:absolute;left:0;top:0;bottom:0;width:4px}
+.kpi.warn .strip{background:var(--amber)}.kpi.bad .strip{background:var(--red)}.kpi.ok .strip{background:var(--grn)}
+
+.grid2{display:grid;grid-template-columns:1.35fr 1fr;gap:18px;align-items:start}
+@media(max-width:980px){.grid2{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--ln);border-radius:13px;margin-bottom:18px;overflow:hidden}
+.card .ct{display:flex;align-items:center;gap:10px;padding:13px 17px;border-bottom:1px solid var(--ln2)}
+.card .ct h3{font-size:15.5px;font-weight:700;flex:1}
+.card .ct .lnk{font-size:12.5px;color:var(--rail);font-weight:600;cursor:pointer}
+.card .cb{padding:6px 17px 15px}
+.pill{font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;white-space:nowrap}
+.pill.g{background:var(--grn-l);color:var(--grn)}.pill.a{background:var(--amber-l);color:var(--amber)}.pill.r{background:var(--red-l);color:var(--red)}.pill.b{background:var(--rail-l);color:var(--rail)}.pill.gy{background:#eef1f5;color:var(--mut)}
+
+/* alert list — «к выставлению» */
+.alert{display:flex;align-items:center;gap:12px;padding:11px 14px;border:1px solid var(--red-l);border-left:3px solid var(--red);border-radius:10px;background:#fffaf9;margin-bottom:9px;cursor:pointer;transition:.1s}
+.alert:hover{border-color:var(--red);background:#fdeeeb}
+.alert .ai{width:34px;height:34px;border-radius:9px;background:var(--red-l);color:var(--red);display:grid;place-items:center;font-size:17px;flex:none}
+.alert .at{flex:1;min-width:0}
+.alert .an{font-weight:700;font-size:14px}
+.alert .ad{font-size:12.5px;color:var(--mut)}
+.alert .asum{font-family:var(--mono);font-weight:600;text-align:right;white-space:nowrap}
+.alert .asum b{color:var(--red)}
+.alert .btnv{background:var(--red);color:#fff;font-weight:700;font-size:11.5px;padding:7px 11px;border-radius:8px;flex:none}
+
+/* воронка */
+.kanwrap{overflow-x:auto;padding-bottom:6px}
+.kan{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(238px,1fr);gap:12px;align-items:start}
+.kcol{background:#eef2f7;border:1px solid var(--ln);border-radius:12px;padding:9px;min-height:120px}
+.kcol h4{font-size:12px;font-weight:800;letter-spacing:.01em;padding:3px 5px 9px;display:flex;justify-content:space-between;align-items:center;color:var(--ink2)}
+.kcol h4 .n{font-family:var(--mono);font-size:11px;color:var(--mut);background:#fff;padding:1px 8px;border-radius:20px;border:1px solid var(--ln)}
+.kcol.dz{background:var(--rail-l);outline:2px dashed var(--rail);outline-offset:-3px}
+.kc{background:#fff;border:1px solid var(--ln);border-radius:10px;padding:11px 12px;margin-bottom:9px;cursor:grab;transition:.1s;border-top:3px solid var(--rail)}
+.kc:hover{border-color:var(--rail);transform:translateY(-1px);box-shadow:0 6px 14px -9px rgba(22,32,46,.4)}
+.kc:active{cursor:grabbing}
+.kc.dragging{opacity:.4;border-style:dashed}
+.kc.noinv{border-top-color:var(--red)}
+.kc .r1{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.kc .cli{font-weight:700;font-size:14.5px}
+.kc .id{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.kc .route{font-size:12.5px;color:var(--ink2);margin-top:3px;display:flex;align-items:center;gap:5px}
+.kc .route .arr{color:var(--amber);font-weight:700}
+.kc .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center}
+.kc .wg{font-family:var(--mono);font-size:11px;background:var(--ink);color:#dbe4ee;padding:2px 8px;border-radius:6px;font-weight:500}
+.kc .sum{margin-left:auto;font-family:var(--mono);font-weight:600;font-size:13px}
+.kc .bar{margin-top:8px;display:flex;gap:6px;align-items:center}
+.addcol{border:2px dashed var(--ln);border-radius:12px;display:grid;place-items:center;min-height:120px;color:var(--faint);font-weight:700;font-size:12.5px;cursor:pointer;text-align:center;padding:12px}
+.addcol:hover{border-color:var(--rail);color:var(--rail)}
+
+/* таблицы */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);text-align:left;font-weight:700;padding:10px 12px 8px;border-bottom:1.5px solid var(--ln)}
+.tbl th.r{text-align:right}
+.tbl td{padding:11px 12px;border-bottom:1px solid var(--ln2);font-size:14px;vertical-align:middle}
+.tbl td.r{text-align:right;font-family:var(--mono);font-weight:500;white-space:nowrap}
+.tbl tbody tr{cursor:pointer}
+.tbl tbody tr:hover td{background:#f4f7fa}
+.wgn{font-family:var(--mono);font-weight:600;font-size:14px}
+.cn2{font-weight:700}
+.sub2{font-size:12px;color:var(--mut)}
+
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.search{flex:1;min-width:220px;border:1px solid var(--ln);background:var(--panel);padding:10px 13px;border-radius:10px;font-size:13.5px}
+.chips{display:inline-flex;border:1px solid var(--ln);border-radius:10px;overflow:hidden;background:var(--panel)}
+.chips button{padding:8px 13px;font-size:12.5px;font-weight:600;color:var(--mut);border-right:1px solid var(--ln)}
+.chips button:last-child{border-right:none}
+.chips button.on{background:var(--rail);color:#fff}
+
+/* клиенты / склад */
+.cgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:900px){.cgrid{grid-template-columns:1fr}}
+.clic{background:var(--panel);border:1px solid var(--ln);border-radius:13px;padding:16px;cursor:pointer;transition:.12s}
+.clic:hover{border-color:var(--rail);transform:translateY(-2px);box-shadow:0 10px 22px -15px rgba(22,32,46,.4)}
+.clic .cnm{font-weight:800;font-size:16px}
+.clic .cci{font-size:12.5px;color:var(--mut);margin-top:1px}
+.clic .row{display:flex;justify-content:space-between;margin-top:11px;padding-top:11px;border-top:1px solid var(--ln2);font-size:13px}
+.clic .row .lb{color:var(--mut)}
+.clic .bal{font-family:var(--mono);font-weight:600}
+
+.tznote{background:var(--amber-l);border:1px solid #eccf95;border-radius:11px;padding:12px 15px;font-size:13px;color:#7a5510;margin-bottom:16px;line-height:1.6}
+.tznote b{color:#573b09}
+
+/* модал */
+.ovl{position:fixed;inset:0;background:rgba(16,25,39,.55);backdrop-filter:blur(2px);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:24px 14px;overflow-y:auto}
+.ovl.show{display:flex}
+.modal{background:var(--paper);border-radius:16px;max-width:1000px;width:100%;animation:fd .16s;box-shadow:0 30px 60px -20px rgba(16,25,39,.5);overflow:hidden}
+.modal.sm{max-width:560px}
+.mh{background:var(--panel);border-bottom:1px solid var(--ln);padding:15px 20px;display:flex;gap:13px;align-items:center;flex-wrap:wrap}
+.mh h2{font-size:19px;font-weight:800}
+.mh .mid{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+.mh .mx{margin-left:auto;font-size:20px;color:var(--mut);cursor:pointer;line-height:1}
+.stepper{display:flex;background:var(--panel);border-bottom:1px solid var(--ln);overflow-x:auto}
+.stepper button{flex:1;min-width:118px;padding:10px 6px;font-size:11px;font-weight:700;color:var(--faint);border-bottom:3px solid transparent;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap}
+.stepper button.done{color:var(--grn)}
+.stepper button.cur{color:var(--ink);border-bottom-color:var(--rail);background:var(--rail-l)}
+.mbd{display:grid;grid-template-columns:1fr 320px;gap:0}
+@media(max-width:840px){.mbd{grid-template-columns:1fr}}
+.mL{padding:17px 20px}
+.mR{border-left:1px solid var(--ln);background:var(--panel);padding:17px 18px}
+@media(max-width:840px){.mR{border-left:none;border-top:1px solid var(--ln)}}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px 16px;margin-bottom:8px}
+.f .fl{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.f .fv{font-size:14.5px;font-weight:600;margin-top:2px}
+.f .fv.clk{cursor:pointer}.f .fv.clk:hover{color:var(--rail)}
+.f .edit{font-size:10px;color:var(--rail);cursor:pointer;font-weight:700;margin-left:6px}
+.sect{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);font-weight:800;margin:16px 0 8px;display:flex;align-items:center;gap:8px}
+.sect .ln{flex:1;height:1px;background:var(--ln)}
+/* вагоны в модале */
+.wglist{display:flex;flex-wrap:wrap;gap:7px}
+.wgtag{font-family:var(--mono);font-size:12.5px;background:var(--ink);color:#dbe4ee;padding:5px 10px;border-radius:8px;display:flex;align-items:center;gap:8px;font-weight:500}
+.wgtag .rm{cursor:pointer;color:#8fa0b3;font-weight:700}.wgtag .rm:hover{color:#ff9c8c}
+.wgadd{border:1.5px dashed var(--ln);background:none;color:var(--rail);font-family:var(--mono);font-size:12.5px;padding:5px 11px;border-radius:8px;font-weight:600}
+.wgadd:hover{border-color:var(--rail)}
+/* строки услуг/оплат */
+.lrow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--ln2);font-size:13.5px}
+.lrow .rm{color:var(--faint);cursor:pointer;font-size:12px;margin-left:8px}.lrow .rm:hover{color:var(--red)}
+.lrow b{font-family:var(--mono);font-weight:600}
+.addlnk{background:none;border:none;color:var(--rail);font-weight:700;font-size:12.5px;cursor:pointer;padding:6px 0}
+/* итог */
+.total{background:var(--panel);border:1px solid var(--ln);border-radius:11px;padding:13px 15px;margin-top:4px}
+.total .tr{display:flex;justify-content:space-between;font-size:13.5px;padding:3px 0}
+.total .tr.big{font-size:18px;font-weight:800;border-top:1px solid var(--ln);margin-top:6px;padding-top:9px}
+.total .tr .mono{font-weight:600}
+.total .due{color:var(--red)}.total .paid{color:var(--grn)}
+/* whatsapp */
+.chat{display:flex;flex-direction:column;gap:7px;max-height:220px;overflow-y:auto;padding:2px}
+.msg{max-width:85%;padding:8px 11px;font-size:13px;border-radius:11px;line-height:1.4}
+.msg.me{align-self:flex-end;background:var(--grn-l);border:1px solid #c4e6d3}
+.msg.them{align-self:flex-start;background:#eef1f5}
+.msg .tm{font-size:9.5px;color:var(--faint);font-family:var(--mono);margin-top:3px}
+.chatbar{display:flex;gap:6px;margin-top:9px}
+.chatbar input{flex:1;border:1px solid var(--ln);border-radius:9px;padding:9px 11px;font-size:13px}
+.chatbar button{background:var(--grn);color:#fff;font-weight:700;padding:0 15px;border-radius:9px;font-size:12.5px}
+
+.mfoot{border-top:1px solid var(--ln);background:var(--panel);padding:13px 20px;display:flex;gap:9px;flex-wrap:wrap}
+.btn{font-weight:700;font-size:13px;padding:10px 16px;border-radius:10px;cursor:pointer}
+.btn.pri{background:var(--rail);color:#fff}
+.btn.amber{background:var(--amber);color:#231603}
+.btn.grn{background:var(--grn);color:#fff}
+.btn.gh{background:#fff;color:var(--ink);border:1px solid var(--ln)}
+.btn.dang{background:#fff;color:var(--red);border:1px solid #eab8b0}
+
+/* формы */
+.fbody{padding:17px 20px;max-height:72vh;overflow-y:auto}
+.ff{margin-bottom:12px}.ff2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.ff label{display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-bottom:4px}
+.ff input,.ff select,.ff textarea{width:100%;border:1px solid var(--ln);border-radius:9px;background:var(--panel);padding:10px 12px;font-size:13.5px;outline:none}
+.ff input:focus,.ff select:focus,.ff textarea:focus{border-color:var(--rail)}
+.hint{font-size:12px;color:var(--mut);line-height:1.6;margin-bottom:12px}
+.hint b{color:var(--ink)}
+.impres{font-size:13px;margin-top:12px}
+.linklike{color:var(--rail);font-size:12px;font-weight:700;cursor:pointer;background:none;border:none;padding:0}
+.linklike:hover{text-decoration:underline}
+
+#toasts{position:fixed;right:18px;bottom:18px;z-index:100;display:flex;flex-direction:column;gap:9px;max-width:400px}
+.toast{background:var(--ink);color:#e7edf4;padding:13px 16px;font-size:13px;line-height:1.5;border-radius:11px;box-shadow:0 14px 30px -10px rgba(16,25,39,.6);animation:tin .22s;border-left:3px solid var(--rail)}
+.toast.warn{border-left-color:var(--amber)}.toast.bad{border-left-color:var(--red)}.toast.ok{border-left-color:var(--grn)}
+.toast b{color:#fff}
+@keyframes tin{from{opacity:0;transform:translateX(12px)}to{opacity:1}}
+
+.mobnav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--ink);z-index:50;justify-content:space-around;padding:8px 4px calc(8px + env(safe-area-inset-bottom))}
+.mobnav button{color:#8695a8;font-size:10px;font-weight:700;padding:3px 5px}
+.mobnav button.on{color:var(--amber)}
+@media(max-width:860px){.wrap{padding:15px 14px 92px}.mobnav{display:flex}.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="demo-note">Интерактивное демо · <b>MAGISTRAL — CRM/ERP для ЖД-грузоперевозок</b> · данные вымышленные, всё прокликивается и сохраняется · <b>Pllato</b></div>
+
+<header class="mast">
+  <div class="m1">
+    <div class="brand">
+      <div class="bm"><svg viewBox="0 0 32 32" width="26" height="26"><path d="M6 24 L26 24 M9 24 L11.5 8 M23 24 L20.5 8 M11.5 8 L20.5 8" stroke="#d9871a" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M7 20 L25 20 M7.5 16 L24.5 16" stroke="#6f8095" stroke-width="1.5"/></svg></div>
+      <div><div class="bt">MAGISTRAL</div><div class="bs">CRM для ЖД-грузоперевозок · вагоны · счета · склад</div></div>
+    </div>
+    <div class="oneс" onclick="sync1c()"><span class="pip"></span><span>1С <b>синхронизировано</b></span></div>
+    <div class="spacer"></div>
+    <div class="roles">
+      <button class="on" onclick="setRole('disp',this)">Диспетчер</button>
+      <button onclick="setRole('buh',this)">Бухгалтер</button>
+      <button onclick="setRole('boss',this)">Руководитель</button>
+    </div>
+    <button class="act gh" onclick="openImport()">↥ Импорт</button>
+    <button class="act" onclick="openOrderForm()">+ Заявка</button>
+  </div>
+  <nav class="mnav"><div class="mnavin">
+    <button class="on" data-s="dash">Обзор</button>
+    <button data-s="orders">Заявки<span class="b" id="nbOrders">0</span></button>
+    <button data-s="wagons">Вагоны<span class="b" id="nbWagons">0</span></button>
+    <button data-s="invoices">Счета<span class="b rd" id="nbInv">0</span></button>
+    <button data-s="clients">Клиенты<span class="b" id="nbCli">0</span></button>
+    <button data-s="stock">Склад<span class="b" id="nbStock">0</span></button>
+  </div></nav>
+</header>
+
+<div class="wrap">
+
+  <!-- ОБЗОР -->
+  <section class="screen on" id="s-dash">
+    <div class="ph"><h1>Обзор</h1><span class="sub">единая картина: вагоны, деньги, что не выставлено и не оплачено</span>
+      <div class="rt"><span class="pill b">Павлодар · склад</span><span class="pill gy" id="dashDate">сегодня</span></div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="grid2">
+      <div>
+        <div class="card">
+          <div class="ct"><span style="font-size:18px">⚠️</span><h3>Не выставлены счета — упущенные деньги</h3><span class="lnk" onclick="nav('invoices')">Все счета →</span></div>
+          <div class="cb" id="toInvoiceList"></div>
+        </div>
+        <div class="card">
+          <div class="ct"><h3>Вагоны в пути и под погрузкой</h3><span class="lnk" onclick="nav('wagons')">Реестр вагонов →</span></div>
+          <div class="cb" style="padding-bottom:6px"><table class="tbl" id="dashWagons"></table></div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="ct"><h3>Воронка заявок</h3><span class="lnk" onclick="nav('orders')">Открыть →</span></div>
+          <div class="cb" id="dashFunnel" style="padding-top:12px"></div>
+        </div>
+        <div class="card">
+          <div class="ct"><h3>Последние события</h3></div>
+          <div class="cb" id="feed" style="padding-top:10px"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ЗАЯВКИ -->
+  <section class="screen" id="s-orders">
+    <div class="ph"><h1>Заявки</h1><span class="sub">каждая заявка — клиент, маршрут, вагоны, услуги, счёт и оплаты</span>
+      <div class="rt"><span class="sub">⠿ карточки перетаскиваются между этапами</span></div>
+    </div>
+    <div class="tznote">✅ <b>Единая система вместо Excel и тетрадей.</b> Заводите заявку «<b>+ Заявка</b>», в карточке — <b>номера вагонов</b>, услуга, доп.услуги (погрузка), <b>оплаты разными суммами и датами</b>. Как только заявка доходит до «Прибытие / выгрузка», а счёт не выставлен — она <b>краснеет</b> и попадает в «К выставлению», чтобы <b>не забыть выставить счёт</b>. Всё сохраняется.</div>
+    <div class="toolbar">
+      <input class="search" placeholder="Поиск: клиент, вагон, станция, груз…" oninput="OQ=this.value;renderOrders()">
+      <div class="chips" id="payChips">
+        <button class="on" onclick="setPayFilt('',this)">Все</button>
+        <button onclick="setPayFilt('none',this)">Не оплачены</button>
+        <button onclick="setPayFilt('part',this)">Частично</button>
+        <button onclick="setPayFilt('noinv',this)">Без счёта</button>
+      </div>
+    </div>
+    <div class="kanwrap"><div class="kan" id="kan"></div></div>
+  </section>
+
+  <!-- ВАГОНЫ -->
+  <section class="screen" id="s-wagons">
+    <div class="ph"><h1>Реестр вагонов</h1><span class="sub">каждый вагон: номер, клиент, услуга, маршрут, статус, оплата</span>
+      <div class="rt"><button class="act" style="background:var(--rail)" onclick="openOrderForm()">+ Заявка с вагонами</button></div>
+    </div>
+    <div class="toolbar">
+      <input class="search" placeholder="Поиск по номеру вагона, клиенту, станции…" oninput="WQ=this.value;renderWagons()">
+      <div class="chips" id="wgChips">
+        <button class="on" onclick="setWgFilt('',this)">Все</button>
+        <button onclick="setWgFilt('Вагоны поданы',this)">Поданы</button>
+        <button onclick="setWgFilt('В пути',this)">В пути</button>
+        <button onclick="setWgFilt('Прибытие / выгрузка',this)">Выгрузка</button>
+      </div>
+    </div>
+    <div class="card"><div class="cb" style="padding:4px 17px 8px;overflow-x:auto"><table class="tbl" id="wagonsTbl"></table></div></div>
+  </section>
+
+  <!-- СЧЕТА -->
+  <section class="screen" id="s-invoices">
+    <div class="ph"><h1>Счета и оплаты</h1><span class="sub">контроль выставления и оплат — ни один вагон не потеряется</span></div>
+    <div class="tznote">💸 Реальный случай клиента: <b>забыли выставить счёт на 4 вагона</b> и потом долго доказывали. Здесь так не бывает — доставленные, но <b>не выставленные</b> заявки собраны сверху красным. Выставили счёт → он ждёт оплату; оплата может приходить <b>частями и в разное время</b> — видно остаток.</div>
+    <div id="invGroups"></div>
+  </section>
+
+  <!-- КЛИЕНТЫ -->
+  <section class="screen" id="s-clients">
+    <div class="ph"><h1>Клиенты</h1><span class="sub">баланс по каждому, история заявок, WhatsApp</span>
+      <div class="rt"><button class="act" style="background:var(--rail)" onclick="addClient()">+ Клиент</button></div>
+    </div>
+    <div class="cgrid" id="cliGrid"></div>
+  </section>
+
+  <!-- СКЛАД -->
+  <section class="screen" id="s-stock">
+    <div class="ph"><h1>Склад · остатки</h1><span class="sub">груз на хранении и погрузке — приход/отгрузка, зеркало 1С</span>
+      <div class="rt"><button class="act" style="background:var(--rail)" onclick="addStock()">+ Приход на склад</button></div>
+    </div>
+    <div class="card"><div class="cb" style="padding:4px 17px 8px;overflow-x:auto"><table class="tbl" id="stockTbl"></table></div></div>
+  </section>
+
+</div>
+
+<div class="mobnav">
+  <button class="on" data-s="dash" onclick="nav('dash')">Обзор</button>
+  <button data-s="orders" onclick="nav('orders')">Заявки</button>
+  <button data-s="wagons" onclick="nav('wagons')">Вагоны</button>
+  <button data-s="invoices" onclick="nav('invoices')">Счета</button>
+  <button data-s="stock" onclick="nav('stock')">Склад</button>
+</div>
+
+<!-- модал заявки -->
+<div class="ovl" id="ordOvl" onclick="if(event.target===this)closeModal('ordOvl')">
+  <div class="modal">
+    <div class="mh"><h2 id="oTitle">—</h2><span class="mid" id="oId">—</span><span class="pill" id="oPay">—</span><span class="mx" onclick="closeModal('ordOvl')">✕</span></div>
+    <div class="stepper" id="oStep"></div>
+    <div class="mbd">
+      <div class="mL">
+        <div class="fgrid">
+          <div class="f"><div class="fl">Клиент</div><div class="fv" id="oCli">—</div></div>
+          <div class="f"><div class="fl">Маршрут</div><div class="fv" id="oRoute">—</div></div>
+          <div class="f"><div class="fl">Груз</div><div class="fv" id="oCargo">—</div></div>
+          <div class="f"><div class="fl">Услуга</div><div class="fv" id="oServ">—</div></div>
+        </div>
+        <div class="sect">Вагоны <span class="ln"></span><span class="pill b" id="oWgCount">0</span></div>
+        <div class="wglist" id="oWagons"></div>
+        <div class="sect">Услуги и доп.услуги <span class="ln"></span></div>
+        <div id="oExtras"></div>
+        <button class="addlnk" onclick="addExtra()">+ доп.услуга (погрузка, хранение…)</button>
+        <div class="sect">Оплаты <span class="ln"></span><span class="sub2" style="text-transform:none;letter-spacing:0">разными суммами и датами</span></div>
+        <div id="oPayments"></div>
+        <button class="addlnk" onclick="addPayment()">+ оплата</button>
+      </div>
+      <div class="mR">
+        <div class="total" id="oTotal"></div>
+        <div style="margin-top:12px;display:flex;gap:7px">
+          <button class="btn amber" style="flex:1" id="oInvBtn" onclick="makeInvoice()">Выставить счёт</button>
+          <button class="btn gh" onclick="printInvoice()" title="Печать/PDF">🖶</button>
+        </div>
+        <div class="sect">WhatsApp клиенту <span class="ln"></span></div>
+        <div class="chat" id="oChat"></div>
+        <div class="chatbar"><input placeholder="Сообщение…" onkeydown="if(event.key==='Enter')waSend(this)"><button onclick="waSend(this.previousElementSibling)">→</button></div>
+        <div class="sect">Заметка <span class="ln"></span></div>
+        <div class="fv clk" id="oNote" style="font-weight:400;font-size:13.5px;color:var(--ink2)" onclick="editNote()">—</div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn grn" id="oAdvBtn" onclick="advance()">→ следующий этап</button>
+      <button class="btn gh" onclick="editRoute()">Маршрут / груз</button>
+      <button class="btn dang" onclick="delOrder()" style="margin-left:auto">Удалить</button>
+      <button class="btn gh" onclick="closeModal('ordOvl')">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- модал новой заявки -->
+<div class="ovl" id="formOvl" onclick="if(event.target===this)closeModal('formOvl')">
+  <div class="modal sm">
+    <div class="mh"><h2>Новая заявка</h2><span class="mid">клиент · маршрут · вагоны</span><span class="mx" onclick="closeModal('formOvl')">✕</span></div>
+    <div class="fbody">
+      <div class="ff"><label>Клиент *</label><input id="fCli" list="cliList" placeholder="ТОО «...»"><datalist id="cliList"></datalist></div>
+      <div class="ff2">
+        <div class="ff"><label>Станция отправления</label><input id="fFrom" list="stList" placeholder="Павлодар"></div>
+        <div class="ff"><label>Станция назначения</label><input id="fTo" list="stList" placeholder="Достык"></div>
+      </div>
+      <datalist id="stList"></datalist>
+      <div class="ff2">
+        <div class="ff"><label>Груз</label><input id="fCargo" placeholder="Уголь"></div>
+        <div class="ff"><label>Услуга</label><select id="fServ"></select></div>
+      </div>
+      <div class="ff2">
+        <div class="ff"><label>Номера вагонов (через запятую)</label><input id="fWg" class="mono" placeholder="58234567, 58234568"></div>
+        <div class="ff"><label>Ставка за вагон, ₸</label><input id="fRate" class="mono" placeholder="420000"></div>
+      </div>
+      <div class="hint">Дубли вагонов проверяются автоматически — один номер не попадёт в две заявки.</div>
+    </div>
+    <div class="mfoot"><button class="btn pri" onclick="saveOrder()">Создать заявку</button><button class="btn gh" onclick="closeModal('formOvl')">Отмена</button></div>
+  </div>
+</div>
+
+<!-- модал импорта -->
+<div class="ovl" id="impOvl" onclick="if(event.target===this)closeModal('impOvl')">
+  <div class="modal sm">
+    <div class="mh"><h2>Импорт из Excel / CSV</h2><span class="mid">антидубли по вагонам</span><span class="mx" onclick="closeModal('impOvl')">✕</span></div>
+    <div class="fbody">
+      <div class="hint">Колонки: <b>клиент, отправление, назначение, груз, вагоны (через ; ), ставка</b>. Разделитель строки — запятая/точка-с-запятой/таб. Заголовок распознаётся. Так переносится ваш текущий Excel.</div>
+      <div class="ff"><label>Файл .csv / .txt</label><input type="file" accept=".csv,.txt,.tsv" onchange="impFile(this)"></div>
+      <div class="ff"><label>…или вставьте таблицу</label><textarea id="impText" rows="7" class="mono" style="font-size:12px" placeholder="ТОО КазСтройГруз | Павлодар | Достык | Уголь | 58234567;58234568 | 420000"></textarea></div>
+      <button class="linklike" onclick="fillSample()">↳ вставить пример</button>
+      <div class="impres" id="impRes"></div>
+    </div>
+    <div class="mfoot"><button class="btn pri" onclick="runImport()">Импортировать</button><button class="btn gh" onclick="closeModal('impOvl')">Закрыть</button></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+/* ===== утилиты ===== */
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const jsq=s=>String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+const money=n=>String(Math.round(n||0)).replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' ₸';
+const moneyK=n=>{n=Math.round(n||0);return n>=1e6?(n/1e6).toFixed(1).replace('.0','')+' млн ₸':money(n);};
+function nowHM(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function today(){const d=new Date();return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0');}
+function toast(html,cls){const t=document.createElement('div');t.className='toast'+(cls?' '+cls:'');t.innerHTML=html;$('toasts').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},6500)}
+
+const SERVICES=['Перевозка (ЖД)','Экспедирование','Аренда вагона','Погрузка / выгрузка','Хранение','Взвешивание','Оформление документов'];
+const STATIONS=['Павлодар','Экибастуз','Астана','Караганда','Алматы','Шымкент','Достык','Актогай','порт Актау','Семей','Костанай','Атырау'];
+const STAGES_N=['Новая заявка','Расчёт / согласование','Вагоны поданы','В пути','Прибытие / выгрузка','Закрыта'];
+
+/* ===== состояние ===== */
+const KEY='magistral_state_v1';
+let ORD,CLIENTS,STOCK,FEED,SEQ=1000;
+function save(){try{localStorage.setItem(KEY,JSON.stringify({ORD,CLIENTS,STOCK,FEED,SEQ}))}catch(e){}}
+function load(){let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}const d=defaults();
+  if(s&&s.ORD&&s.ORD.length){ORD=s.ORD;CLIENTS=s.CLIENTS||d.CLIENTS;STOCK=s.STOCK||d.STOCK;FEED=s.FEED||d.FEED;SEQ=s.SEQ||1050;}
+  else{ORD=d.ORD;CLIENTS=d.CLIENTS;STOCK=d.STOCK;FEED=d.FEED;SEQ=1050;}}
+function resetDemo(){if(!confirm('Сбросить демо к исходным данным?'))return;localStorage.removeItem(KEY);load();renderAll();nav('dash');toast('Демо сброшено.','ok');}
+function feed(txt,cls){FEED.unshift({t:nowHM(),txt,cls:cls||'b'});if(FEED.length>40)FEED.pop();}
+
+/* ===== вычисления по заявке ===== */
+function base(o){return (o.wagons?o.wagons.length:0)*(o.rate||0);}
+function extrasSum(o){return (o.extras||[]).reduce((s,e)=>s+(+e.sum||0),0);}
+function total(o){return base(o)+extrasSum(o);}
+function paid(o){return (o.payments||[]).reduce((s,p)=>s+(+p.sum||0),0);}
+function due(o){return Math.max(0,total(o)-paid(o));}
+function payStatus(o){const t=total(o),p=paid(o);return p<=0?'none':p>=t?'full':'part';}
+function payLabel(o){const st=payStatus(o);return st==='full'?['Оплачен','g']:st==='part'?['Частично','a']:['Не оплачен','r'];}
+function needsInvoice(o){return !o.invoiced && (o.stage>=4);} /* доставлен/закрыт, но без счёта */
+function allOrders(){return ORD.slice();}
+function findOrder(id){return ORD.find(o=>o.id===id);}
+function stageName(i){return STAGES_N[i]||('Этап '+i);}
+
+/* ===== рендер ===== */
+function nav(s){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));$('s-'+s).classList.add('on');
+  document.querySelectorAll('.mnav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  document.querySelectorAll('.mobnav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));window.scrollTo({top:0});}
+document.querySelectorAll('.mnav button').forEach(b=>b.onclick=()=>nav(b.dataset.s));
+function renderAll(){renderDash();renderOrders();renderWagons();renderInvoices();renderClients();renderStock();renderBadges();}
+function renderBadges(){
+  $('nbOrders').textContent=ORD.filter(o=>o.stage<5).length;
+  $('nbWagons').textContent=ORD.reduce((s,o)=>s+(o.wagons?o.wagons.length:0),0);
+  const ni=ORD.filter(needsInvoice).length;$('nbInv').textContent=ni;$('nbInv').className='b'+(ni?' rd':'');
+  $('nbCli').textContent=CLIENTS.length;$('nbStock').textContent=STOCK.filter(s=>s.status!=='отгружено').length;
+}
+
+/* --- обзор --- */
+function renderDash(){
+  $('dashDate').textContent=today();
+  const inTransit=ORD.filter(o=>o.stage===3).reduce((s,o)=>s+o.wagons.length,0);
+  const active=ORD.filter(o=>o.stage<5).length;
+  const toInv=ORD.filter(needsInvoice);const toInvSum=toInv.reduce((s,o)=>s+total(o),0);
+  const unpaid=ORD.reduce((s,o)=>s+(o.invoiced?due(o):0),0);
+  const rev=ORD.reduce((s,o)=>s+paid(o),0);
+  $('kpis').innerHTML=[
+    ['ok','Вагонов в пути',inTransit,'сейчас на маршруте','wagons'],
+    ['','Заявок в работе',active,'от заявки до выгрузки','orders'],
+    ['warn','К выставлению',toInv.length,moneyK(toInvSum)+' не выставлено','invoices'],
+    ['bad','Не оплачено',moneyK(unpaid),'по выставленным счетам','invoices'],
+    ['ok','Получено',moneyK(rev),'оплаты по заявкам','invoices'],
+  ].map(k=>'<div class="kpi '+k[0]+'" onclick="nav(\''+k[4]+'\')"><span class="strip"></span><div class="kl">'+k[1]+'</div><div class="kv">'+(typeof k[2]==='number'?k[2]:esc(k[2]))+'</div><div class="kd">'+esc(k[3])+'</div></div>').join('');
+  // «к выставлению»
+  $('toInvoiceList').innerHTML=toInv.length?toInv.map(o=>'<div class="alert" onclick="openOrder('+o.id+')"><div class="ai">₸</div><div class="at"><div class="an">'+esc(o.client)+' · '+o.wagons.length+' ваг.</div><div class="ad">'+esc(o.from)+' → '+esc(o.to)+' · '+esc(o.cargo)+' · этап «'+esc(stageName(o.stage))+'»</div></div><div class="asum"><b>'+money(total(o))+'</b><div class="sub2">не выставлен</div></div><button class="btnv" onclick="event.stopPropagation();quickInvoice('+o.id+')">Выставить</button></div>').join(''):'<div class="sub2" style="padding:12px 2px;color:var(--grn)">✓ Все доставленные заявки выставлены. Ничего не забыто.</div>';
+  // вагоны в пути/погрузке
+  const rows=[];ORD.filter(o=>o.stage>=2&&o.stage<=4).forEach(o=>o.wagons.forEach(w=>rows.push([w,o])));
+  $('dashWagons').innerHTML='<thead><tr><th>Вагон</th><th>Клиент</th><th>Маршрут</th><th>Статус</th></tr></thead><tbody>'+
+    (rows.slice(0,7).map(([w,o])=>'<tr onclick="openOrder('+o.id+')"><td class="wgn">'+esc(w)+'</td><td>'+esc(o.client)+'</td><td class="sub2">'+esc(o.from)+' → '+esc(o.to)+'</td><td><span class="pill '+(o.stage===3?'b':o.stage===4?'a':'gy')+'">'+esc(stageName(o.stage))+'</span></td></tr>').join('')||'<tr><td colspan="4" class="sub2" style="padding:12px">Нет вагонов в пути.</td></tr>')+'</tbody>';
+  // воронка
+  $('dashFunnel').innerHTML=STAGES_N.map((n,i)=>{const c=ORD.filter(o=>o.stage===i).length;const mx=Math.max(1,...STAGES_N.map((_,j)=>ORD.filter(o=>o.stage===j).length));
+    return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;cursor:pointer" onclick="nav(\'orders\')"><div style="width:150px;font-size:12.5px;font-weight:600;color:var(--ink2)">'+esc(n)+'</div><div style="flex:1;height:22px;background:#eef2f7;border-radius:6px;overflow:hidden"><div style="height:100%;width:'+(c/mx*100)+'%;min-width:'+(c?'26px':'0')+';background:'+(i>=4?'var(--amber)':'var(--rail)')+';border-radius:6px"></div></div><div class="mono" style="width:24px;text-align:right;font-weight:600">'+c+'</div></div>';}).join('');
+  // события
+  $('feed').innerHTML=FEED.slice(0,8).map(f=>'<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--ln2)"><span class="mono" style="color:var(--faint);font-size:11.5px;flex:none">'+esc(f.t)+'</span><span style="font-size:13px">'+f.txt+'</span></div>').join('')||'<div class="sub2">Пока пусто.</div>';
+}
+
+/* --- заявки (kanban) --- */
+let OQ='',DRAG=null,PAYFILT='';
+function setPayFilt(v,el){PAYFILT=v;el.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el));renderOrders();}
+function ordMatch(o){
+  if(PAYFILT==='none'&&payStatus(o)!=='none')return false;
+  if(PAYFILT==='part'&&payStatus(o)!=='part')return false;
+  if(PAYFILT==='noinv'&&o.invoiced)return false;
+  if(!OQ)return true;const q=OQ.toLowerCase();
+  return (o.client+' '+o.from+' '+o.to+' '+o.cargo+' '+o.wagons.join(' ')).toLowerCase().includes(q);
+}
+function orderCard(o){
+  const [pl,pc]=payLabel(o);const noinv=needsInvoice(o);
+  return '<div class="kc'+(noinv?' noinv':'')+'" draggable="true" ondragstart="dragS(event,'+o.id+')" ondragend="dragE()" onclick="openOrder('+o.id+')">'+
+    '<div class="r1"><span class="cli">'+esc(o.client)+'</span><span class="id">#'+o.id+'</span></div>'+
+    '<div class="route">'+esc(o.from)+' <span class="arr">→</span> '+esc(o.to)+'</div>'+
+    '<div class="sub2" style="margin-top:2px">'+esc(o.cargo)+' · '+esc(o.service)+'</div>'+
+    '<div class="meta"><span class="wg">'+o.wagons.length+' ваг.</span>'+(o.extras&&o.extras.length?'<span class="pill gy">+'+o.extras.length+' усл.</span>':'')+'<span class="sum">'+moneyK(total(o))+'</span></div>'+
+    '<div class="bar"><span class="pill '+pc+'">'+pl+'</span>'+(noinv?'<span class="pill r">⚠ без счёта</span>':o.invoiced?'<span class="pill b">счёт '+esc(o.invNo)+'</span>':'')+'</div></div>';
+}
+function renderOrders(){
+  $('kan').innerHTML=STAGES_N.map((n,i)=>{
+    const cards=ORD.filter(o=>o.stage===i&&ordMatch(o));
+    return '<div class="kcol" ondragover="dragOver(event,this)" ondragleave="this.classList.remove(\'dz\')" ondrop="dropCol(event,'+i+')">'+
+      '<h4><span>'+esc(n)+'</span><span class="n">'+cards.length+'</span></h4>'+
+      cards.map(orderCard).join('')+'</div>';
+  }).join('');
+  renderBadges();
+}
+function dragS(e,id){DRAG=id;e.dataTransfer.effectAllowed='move';e.target.classList.add('dragging')}
+function dragE(){document.querySelectorAll('.kc.dragging').forEach(x=>x.classList.remove('dragging'));document.querySelectorAll('.kcol.dz').forEach(x=>x.classList.remove('dz'));DRAG=null}
+function dragOver(e,el){if(DRAG==null)return;e.preventDefault();el.classList.add('dz')}
+function dropCol(e,i){e.preventDefault();const id=DRAG;dragE();const o=findOrder(id);if(!o||o.stage===i)return;moveStage(o,i);}
+function moveStage(o,i){
+  o.stage=i;feed('<b>'+esc(o.client)+'</b> → «'+esc(stageName(i))+'»','b');save();renderOrders();renderDash();renderWagons();
+  if(needsInvoice(o))toast('⚠ <b>'+esc(o.client)+'</b> дошла до «'+esc(stageName(i))+'», а счёт на <b>'+o.wagons.length+' ваг.</b> ещё не выставлен! Она в «К выставлению».','bad');
+  else toast('«'+esc(o.client)+'» → «'+esc(stageName(i))+'».');
+}
+
+/* --- вагоны --- */
+let WQ='',WGFILT='';
+function setWgFilt(v,el){WGFILT=v;el.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el));renderWagons();}
+function renderWagons(){
+  const rows=[];ORD.forEach(o=>o.wagons.forEach(w=>rows.push([w,o])));
+  const q=WQ.toLowerCase();
+  const f=rows.filter(([w,o])=>(!WGFILT||stageName(o.stage)===WGFILT)&&(!q||(w+' '+o.client+' '+o.from+' '+o.to+' '+o.cargo).toLowerCase().includes(q)));
+  $('wagonsTbl').innerHTML='<thead><tr><th>Вагон</th><th>Клиент</th><th>Груз · услуга</th><th>Маршрут</th><th>Статус</th><th class="r">Ставка</th><th>Оплата</th></tr></thead><tbody>'+
+    (f.map(([w,o])=>{const[pl,pc]=payLabel(o);return '<tr onclick="openOrder('+o.id+')"><td class="wgn">'+esc(w)+'</td><td class="cn2">'+esc(o.client)+'</td><td>'+esc(o.cargo)+' <span class="sub2">· '+esc(o.service)+'</span></td><td class="sub2">'+esc(o.from)+' → '+esc(o.to)+'</td><td><span class="pill '+(o.stage===3?'b':o.stage>=4?'a':'gy')+'">'+esc(stageName(o.stage))+'</span></td><td class="r">'+money(o.rate)+'</td><td><span class="pill '+pc+'">'+pl+'</span></td></tr>';}).join('')||'<tr><td colspan="7" class="sub2" style="padding:16px">Вагоны не найдены.</td></tr>')+
+    '</tbody>';
+  renderBadges();
+}
+
+/* --- счета --- */
+function renderInvoices(){
+  const toInv=ORD.filter(needsInvoice);
+  const issued=ORD.filter(o=>o.invoiced&&due(o)>0);
+  const paidO=ORD.filter(o=>o.invoiced&&due(o)<=0);
+  const grp=(title,arr,cls,empty)=>{
+    return '<div class="card"><div class="ct">'+(cls==='r'?'<span style="font-size:17px">⚠️</span>':'')+'<h3>'+title+'</h3><span class="pill '+cls+'">'+arr.length+'</span><span style="flex:1"></span><span class="lnk mono">'+money(arr.reduce((s,o)=>s+(cls==='g'?paid(o):cls==='r'?total(o):due(o)),0))+'</span></div><div class="cb" style="padding:4px 17px 8px;overflow-x:auto"><table class="tbl"><tbody>'+
+      (arr.map(o=>{const[pl,pc]=payLabel(o);return '<tr onclick="openOrder('+o.id+')"><td class="cn2">'+esc(o.client)+'<div class="sub2">'+esc(o.from)+' → '+esc(o.to)+' · '+esc(o.cargo)+'</div></td><td class="wgn">'+o.wagons.length+' ваг.</td><td>'+(o.invoiced?'<span class="pill b">счёт '+esc(o.invNo)+'</span>':'<span class="pill r">не выставлен</span>')+'</td><td class="r">'+money(total(o))+'</td><td class="r '+(due(o)>0?'':'')+'" style="color:'+(due(o)>0?'var(--red)':'var(--grn)')+'">'+(due(o)>0?'−'+money(due(o)):'✓ '+pl)+'</td><td style="text-align:right">'+(needsInvoice(o)?'<button class="btn amber" style="padding:6px 12px" onclick="event.stopPropagation();quickInvoice('+o.id+')">Выставить</button>':due(o)>0?'<button class="btn grn" style="padding:6px 12px" onclick="event.stopPropagation();quickPay('+o.id+')">Оплата</button>':'<span class="pill g">оплачен</span>')+'</td></tr>';}).join('')||'<tr><td colspan="6" class="sub2" style="padding:14px">'+empty+'</td></tr>')+
+      '</tbody></table></div></div>';
+  };
+  $('invGroups').innerHTML=
+    grp('К выставлению — не забыть!',toInv,'r','Всё выставлено ✓')+
+    grp('Выставлены · ждут оплату',issued,'a','Нет ожидающих оплаты.')+
+    grp('Оплачены',paidO,'g','Пока нет.');
+  renderBadges();
+}
+
+/* --- клиенты --- */
+function clientBalance(name){return ORD.filter(o=>o.client===name).reduce((s,o)=>s+(o.invoiced?due(o):0),0);}
+function clientOrders(name){return ORD.filter(o=>o.client===name).length;}
+function renderClients(){
+  $('cliGrid').innerHTML=CLIENTS.map(c=>{const bal=clientBalance(c.name);return '<div class="clic" onclick="openClient(\''+jsq(c.name)+'\')"><div class="cnm">'+esc(c.name)+'</div><div class="cci">'+esc(c.city)+' · '+esc(c.contact||'—')+'</div><div class="row"><span class="lb">Заявок</span><b class="mono">'+clientOrders(c.name)+'</b></div><div class="row"><span class="lb">Долг по счетам</span><b class="bal" style="color:'+(bal>0?'var(--red)':'var(--grn)')+'">'+(bal>0?money(bal):'нет')+'</b></div><div class="row"><span class="lb">Телефон</span><span class="mono">'+esc(c.phone||'—')+'</span></div></div>';}).join('');
+  // datalists
+  $('cliList').innerHTML=CLIENTS.map(c=>'<option value="'+esc(c.name)+'">').join('');
+  $('stList').innerHTML=STATIONS.map(s=>'<option value="'+esc(s)+'">').join('');
+  renderBadges();
+}
+function openClient(name){const c=CLIENTS.find(x=>x.name===name);if(!c){nav('orders');return;}
+  const os=ORD.filter(o=>o.client===name);
+  toast('<b>'+esc(name)+'</b> · '+esc(c.city)+'<br>Заявок: '+os.length+' · Долг: '+money(clientBalance(name))+' · WhatsApp: '+esc(c.wa||c.phone||'—'),'b');
+}
+function addClient(){const n=prompt('Название клиента (ТОО «...»):');if(!n||!n.trim())return;if(CLIENTS.some(c=>c.name===n.trim())){toast('Такой клиент уже есть.','warn');return;}
+  const city=prompt('Город:','Павлодар')||'';const phone=prompt('Телефон / WhatsApp:','+7 ')||'';
+  CLIENTS.push({name:n.trim(),city,contact:'',phone,wa:phone,bin:''});feed('Добавлен клиент <b>'+esc(n.trim())+'</b>','g');save();renderClients();toast('Клиент добавлен.','ok');}
+
+/* --- склад --- */
+function renderStock(){
+  $('stockTbl').innerHTML='<thead><tr><th>Груз</th><th>Клиент</th><th>Вагон</th><th class="r">Кол-во</th><th>Принят</th><th>Статус</th><th></th></tr></thead><tbody>'+
+    (STOCK.map((s,i)=>'<tr><td class="cn2">'+esc(s.cargo)+'</td><td>'+esc(s.client)+'</td><td class="wgn">'+esc(s.wagon||'—')+'</td><td class="r">'+esc(s.qty)+' '+esc(s.unit)+'</td><td class="sub2">'+esc(s.in)+'</td><td><span class="pill '+(s.status==='отгружено'?'gy':'g')+'">'+esc(s.status)+'</span></td><td style="text-align:right">'+(s.status!=='отгружено'?'<button class="btn gh" style="padding:6px 12px" onclick="shipStock('+i+')">Отгрузить</button>':'')+'</td></tr>').join('')||'<tr><td colspan="7" class="sub2" style="padding:16px">Склад пуст.</td></tr>')+'</tbody>';
+  renderBadges();
+}
+function addStock(){const cargo=prompt('Груз на склад:','Щебень');if(!cargo)return;const client=prompt('Клиент:','ТОО «...»')||'';const wagon=prompt('Вагон (если есть):','')||'';const qty=prompt('Количество:','68')||'';const unit=prompt('Ед. изм.:','тонн')||'т';
+  STOCK.unshift({cargo:cargo.trim(),client,wagon:wagon.trim(),qty,unit,in:today(),status:'на складе'});feed('Приход на склад: <b>'+esc(cargo.trim())+'</b>','b');save();renderStock();toast('Груз принят на склад.','ok');}
+function shipStock(i){if(!STOCK[i])return;STOCK[i].status='отгружено';feed('Отгружено со склада: '+esc(STOCK[i].cargo),'a');save();renderStock();toast('Отгружено. Остаток обновлён (зеркало 1С).','ok');}
+
+/* ===== карточка заявки ===== */
+let CUR=null;
+function openOrder(id){const o=findOrder(id);if(!o)return;CUR=o;
+  $('oTitle').textContent=o.client;$('oId').textContent='заявка #'+o.id+' · '+(o.date||today());
+  const[pl,pc]=payLabel(o);$('oPay').textContent=pl;$('oPay').className='pill '+pc;
+  $('oStep').innerHTML=STAGES_N.map((n,i)=>'<button class="'+(i<o.stage?'done':i===o.stage?'cur':'')+'" onclick="jumpStage('+i+')">'+esc(n)+'</button>').join('');
+  $('oCli').textContent=o.client;$('oRoute').textContent=o.from+' → '+o.to;$('oCargo').textContent=o.cargo;$('oServ').textContent=o.service;
+  $('oNote').textContent=o.note||'—';
+  renderWg();renderExtras();renderPayments();renderTotal();renderChat();
+  $('oInvBtn').textContent=o.invoiced?'Счёт '+o.invNo+' ✓':'Выставить счёт';
+  $('oInvBtn').className='btn '+(o.invoiced?'gh':'amber');$('oInvBtn').style.flex='1';
+  $('oAdvBtn').textContent=o.stage<5?'→ '+STAGES_N[o.stage+1]:'✓ Заявка закрыта';
+  $('ordOvl').classList.add('show');
+}
+function renderWg(){const o=CUR;$('oWgCount').textContent=o.wagons.length+' ваг.';
+  $('oWagons').innerHTML=o.wagons.map((w,i)=>'<span class="wgtag">'+esc(w)+'<span class="rm" onclick="rmWagon('+i+')" title="Убрать">✕</span></span>').join('')+'<button class="wgadd" onclick="addWagon()">+ вагон</button>';}
+function addWagon(){const o=CUR;const raw=prompt('Номер(а) вагона через запятую:','');if(!raw)return;
+  const nums=raw.split(/[,\s;]+/).map(x=>x.trim()).filter(Boolean);let added=0,dup=0;
+  nums.forEach(n=>{if(wagonExists(n)){dup++;return;}o.wagons.push(n);added++;});
+  feed(added+' ваг. добавлено в заявку <b>'+esc(o.client)+'</b>','b');save();renderWg();renderTotal();openOrder(o.id);renderAll();
+  toast('Добавлено вагонов: '+added+(dup?', дублей пропущено: '+dup:''),'ok');}
+function rmWagon(i){const o=CUR;o.wagons.splice(i,1);save();renderWg();renderTotal();renderAll();}
+function wagonExists(n){return ORD.some(o=>o.wagons.includes(n));}
+function renderExtras(){const o=CUR;o.extras=o.extras||[];
+  let h='<div class="lrow"><span>Перевозка · '+o.wagons.length+' ваг. × '+money(o.rate)+'</span><b>'+money(base(o))+'</b></div>';
+  h+=o.extras.map((e,i)=>'<div class="lrow"><span>'+esc(e.name)+'</span><span><b>'+money(e.sum)+'</b><span class="rm" onclick="rmExtra('+i+')">убрать</span></span></div>').join('');
+  $('oExtras').innerHTML=h;}
+function addExtra(){const o=CUR;const name=prompt('Доп.услуга (погрузка, выгрузка, хранение, экспедирование…):','Погрузка');if(!name)return;
+  const sum=parseInt(prompt('Стоимость, ₸:','120000'))||0;o.extras.push({name:name.trim(),sum});feed('Доп.услуга «'+esc(name.trim())+'» +'+money(sum)+' → '+esc(o.client),'b');save();renderExtras();renderTotal();renderAll();toast('Доп.услуга добавлена.','ok');}
+function rmExtra(i){CUR.extras.splice(i,1);save();renderExtras();renderTotal();renderAll();}
+function renderPayments(){const o=CUR;o.payments=o.payments||[];
+  $('oPayments').innerHTML=o.payments.length?o.payments.map((p,i)=>'<div class="lrow"><span class="sub2">'+esc(p.date||today())+'</span><span><b class="paid" style="color:var(--grn)">+'+money(p.sum)+'</b><span class="rm" onclick="rmPay('+i+')">убрать</span></span></div>').join(''):'<div class="sub2" style="padding:6px 0">Оплат пока нет.</div>';}
+function addPayment(){const o=CUR;if(!o.invoiced&&!confirm('Счёт ещё не выставлен. Всё равно внести оплату?'))return;
+  const sum=parseInt(prompt('Сумма оплаты, ₸ (остаток '+money(due(o))+'):',String(due(o))))||0;if(sum<=0)return;
+  const date=prompt('Дата оплаты:',today())||today();o.payments.push({sum,date});feed('Оплата +'+money(sum)+' от <b>'+esc(o.client)+'</b>','g');save();renderPayments();renderTotal();openOrder(o.id);renderAll();
+  toast(due(o)<=0?'✓ Заявка полностью оплачена.':'Оплата внесена. Остаток: '+money(due(o)),'ok');}
+function rmPay(i){CUR.payments.splice(i,1);save();renderPayments();renderTotal();openOrder(CUR.id);renderAll();}
+function renderTotal(){const o=CUR;const[pl,pc]=payLabel(o);
+  $('oTotal').innerHTML='<div class="tr"><span>Перевозка ('+o.wagons.length+' ваг.)</span><span class="mono">'+money(base(o))+'</span></div>'+
+    (extrasSum(o)?'<div class="tr"><span>Доп.услуги</span><span class="mono">'+money(extrasSum(o))+'</span></div>':'')+
+    '<div class="tr big"><span>Итого</span><span class="mono">'+money(total(o))+'</span></div>'+
+    '<div class="tr paid"><span>Оплачено</span><span class="mono">'+money(paid(o))+'</span></div>'+
+    (due(o)>0?'<div class="tr due"><span>Остаток</span><span class="mono">'+money(due(o))+'</span></div>':'<div class="tr paid"><span>✓ '+pl+'</span><span></span></div>');
+  const[pl2,pc2]=payLabel(o);$('oPay').textContent=pl2;$('oPay').className='pill '+pc2;}
+function makeInvoice(){const o=CUR;if(o.invoiced){toast('Счёт '+o.invNo+' уже выставлен.','b');return;}
+  o.invoiced=true;o.invNo='СЧ-'+(++SEQ);feed('Выставлен счёт <b>'+esc(o.invNo)+'</b> · '+esc(o.client)+' · '+money(total(o)),'a');save();openOrder(o.id);renderAll();
+  toast('✓ Счёт <b>'+esc(o.invNo)+'</b> на '+money(total(o))+' выставлен. Больше не потеряется.','ok');}
+function quickInvoice(id){const o=findOrder(id);if(!o)return;o.invoiced=true;o.invNo='СЧ-'+(++SEQ);feed('Выставлен счёт <b>'+esc(o.invNo)+'</b> · '+esc(o.client),'a');save();renderAll();toast('✓ Счёт '+esc(o.invNo)+' на '+money(total(o))+' выставлен.','ok');}
+function quickPay(id){CUR=findOrder(id);if(!CUR)return;addPayment();}
+function printInvoice(){const o=CUR;if(!o.invoiced){toast('Сначала выставьте счёт.','warn');return;}
+  const w=window.open('','_blank');if(!w){toast('Разрешите всплывающие окна для печати.','warn');return;}
+  const rows='<tr><td>Перевозка ЖД, '+o.wagons.length+' ваг. ('+o.from+' → '+o.to+')</td><td style="text-align:right">'+money(base(o))+'</td></tr>'+(o.extras||[]).map(e=>'<tr><td>'+esc(e.name)+'</td><td style="text-align:right">'+money(e.sum)+'</td></tr>').join('');
+  w.document.write('<html><head><meta charset="utf-8"><title>'+o.invNo+'</title><style>body{font-family:Arial;padding:40px;color:#16202e}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin-top:16px}td,th{border:1px solid #ccc;padding:8px;font-size:14px}.tot{font-weight:bold;font-size:16px}</style></head><body><h1>Счёт '+o.invNo+' от '+today()+'</h1><p>Плательщик: '+esc(o.client)+'<br>Груз: '+esc(o.cargo)+' · Вагоны: '+o.wagons.map(esc).join(', ')+'</p><table><tr><th>Услуга</th><th style="text-align:right">Сумма</th></tr>'+rows+'<tr class="tot"><td>Итого к оплате</td><td style="text-align:right">'+money(total(o))+'</td></tr></table><p style="margin-top:30px;color:#888">Демо MAGISTRAL · Pllato</p></body></html>');w.document.close();toast('Счёт открыт для печати / сохранения в PDF.','b');}
+function renderChat(){const o=CUR;o.wa=o.wa||[
+    {me:false,text:'Здравствуйте! По нашим '+o.wagons.length+' вагонам ('+o.cargo+') — когда подача?',t:'09:20'},
+    {me:true,text:o.client.replace(/^ТОО\s*«?|»$/g,'')+', добрый день! Подача по плану, номера вагонов пришлю в WhatsApp.',t:'09:31'},
+  ];
+  $('oChat').innerHTML=o.wa.map(m=>'<div class="msg '+(m.me?'me':'them')+'">'+esc(m.text)+'<div class="tm">'+esc(m.t)+(m.me?' · доставлено':'')+'</div></div>').join('');}
+function waSend(inp){if(!inp.value.trim()||!CUR)return;CUR.wa.push({me:true,text:inp.value.trim(),t:nowHM()});inp.value='';save();renderChat();$('oChat').scrollTop=9999;}
+function jumpStage(i){if(!CUR)return;moveStage(CUR,i);openOrder(CUR.id);}
+function advance(){if(!CUR)return;if(CUR.stage>=5){toast('Заявка уже закрыта.','b');return;}moveStage(CUR,CUR.stage+1);openOrder(CUR.id);}
+function editNote(){if(!CUR)return;const n=prompt('Заметка по заявке:',CUR.note||'');if(n===null)return;CUR.note=n.trim();save();$('oNote').textContent=CUR.note||'—';toast('Заметка сохранена.','ok');}
+function editRoute(){if(!CUR)return;const f=prompt('Станция отправления:',CUR.from);if(f===null)return;const t=prompt('Станция назначения:',CUR.to);if(t===null)return;const cg=prompt('Груз:',CUR.cargo);
+  CUR.from=f.trim()||CUR.from;CUR.to=t.trim()||CUR.to;if(cg!==null)CUR.cargo=cg.trim()||CUR.cargo;save();openOrder(CUR.id);renderAll();toast('Маршрут обновлён.','ok');}
+function delOrder(){if(!CUR)return;if(!confirm('Удалить заявку «'+CUR.client+'» (#'+CUR.id+')?'))return;ORD=ORD.filter(o=>o.id!==CUR.id);feed('Удалена заявка #'+CUR.id,'r');save();closeModal('ordOvl');renderAll();toast('Заявка удалена.','warn');}
+function closeModal(id){$(id).classList.remove('show');}
+
+/* ===== новая заявка / импорт ===== */
+function openOrderForm(){['fCli','fFrom','fTo','fCargo','fWg','fRate'].forEach(id=>$(id).value='');$('fServ').innerHTML=SERVICES.map(s=>'<option>'+esc(s)+'</option>').join('');$('fRate').value='420000';$('formOvl').classList.add('show');setTimeout(()=>$('fCli').focus(),40);}
+function saveOrder(){const client=$('fCli').value.trim();if(!client){toast('Укажите клиента.','warn');$('fCli').focus();return;}
+  const wg=$('fWg').value.split(/[,\s;]+/).map(x=>x.trim()).filter(Boolean);
+  const dups=wg.filter(wagonExists);if(dups.length&&!confirm('Вагоны уже есть в системе: '+dups.join(', ')+'. Создать без них?'))return;
+  const wagons=wg.filter(w=>!wagonExists(w));
+  const o={id:++SEQ,client,from:$('fFrom').value.trim()||'Павлодар',to:$('fTo').value.trim()||'—',cargo:$('fCargo').value.trim()||'Груз',service:$('fServ').value,wagons,rate:parseInt($('fRate').value)||0,extras:[],payments:[],stage:0,invoiced:false,invNo:'',note:'',date:today()};
+  ORD.unshift(o);if(!CLIENTS.some(c=>c.name===client))CLIENTS.push({name:client,city:$('fFrom').value.trim()||'Павлодар',contact:'',phone:'',wa:'',bin:''});
+  feed('Новая заявка <b>'+esc(client)+'</b> · '+wagons.length+' ваг.','b');save();closeModal('formOvl');renderAll();nav('orders');
+  toast('Заявка создана: '+wagons.length+' ваг.'+(dups.length?', дублей пропущено: '+dups.length:''),'ok');setTimeout(()=>openOrder(o.id),150);}
+function openImport(){$('impRes').innerHTML='';$('impOvl').classList.add('show');}
+function impFile(inp){const f=inp.files&&inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{$('impText').value=e.target.result;};r.readAsText(f,'utf-8');}
+function fillSample(){$('impText').value=['клиент;отправление;назначение;груз;вагоны;ставка','ТОО «КазСтройГруз»;Павлодар;Достык;Уголь;58234567;58234568;62348811;420000','ТОО «Астана Агро»;Экибастуз;Астана;Зерно;61220034;61220035;380000','ИП Мухтаров;Караганда;порт Актау;Металлолом;55098120;450000'].join('\n');}
+function runImport(){const lines=String($('impText').value||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const rows=lines.map(l=>{const sep=l.indexOf('\t')>=0?'\t':l.indexOf('|')>=0?'|':';';return l.split(sep).map(x=>x.trim());});
+  if(rows.length&&/клиент|client|наимен/i.test(rows[0][0]||''))rows.shift();
+  let added=0,dup=0,wgn=0;
+  rows.forEach(r=>{const client=(r[0]||'').trim();if(!client)return;
+    // вагоны — все ячейки между грузом и ставкой, разбитые по ;
+    const rate=parseInt((r[r.length-1]||'').replace(/\D/g,''))||400000;
+    const wgCells=r.slice(4,r.length-1).join(';');const wg=wgCells.split(/[;,\s]+/).map(x=>x.trim()).filter(Boolean);
+    const wagons=wg.filter(w=>{if(wagonExists(w)){dup++;return false;}return true;});wgn+=wagons.length;
+    const o={id:++SEQ,client,from:(r[1]||'Павлодар').trim(),to:(r[2]||'—').trim(),cargo:(r[3]||'Груз').trim(),service:'Перевозка (ЖД)',wagons,rate,extras:[],payments:[],stage:0,invoiced:false,invNo:'',note:'',date:today()};
+    ORD.unshift(o);if(!CLIENTS.some(c=>c.name===client))CLIENTS.push({name:client,city:o.from,contact:'',phone:'',wa:'',bin:''});added++;});
+  feed('Импорт: '+added+' заявок, '+wgn+' вагонов','g');save();renderAll();
+  $('impRes').innerHTML='<b style="color:var(--grn)">Импортировано заявок: '+added+'</b> · вагонов: '+wgn+' · дублей пропущено: '+dup;
+  if(added)toast('Импорт завершён: '+added+' заявок, '+wgn+' ваг.','ok');}
+
+/* ===== роли / 1С ===== */
+function setRole(r,el){document.querySelectorAll('.roles button').forEach(b=>b.classList.toggle('on',b===el));
+  if(r==='disp'){nav('orders');toast('<b>Диспетчер</b>: заявки, вагоны, подача, статусы, WhatsApp клиентам.','b');}
+  if(r==='buh'){nav('invoices');toast('<b>Бухгалтер</b>: счета и оплаты, контроль «к выставлению», выгрузка в 1С.','b');}
+  if(r==='boss'){nav('dash');toast('<b>Руководитель</b>: обзор, деньги, что не выставлено и не оплачено, воронка.','b');}}
+function sync1c(){toast('🔄 <b>Синхронизация с 1С…</b> Счета, оплаты и остатки склада выгружены. Двусторонняя связь — как договаривались.','ok');feed('Синхронизация с 1С','b');}
+
+/* ===== исходные данные ===== */
+function defaults(){
+  const O=(id,client,from,to,cargo,service,wagons,rate,stage,extras,payments,inv)=>({id,client,from,to,cargo,service,wagons,rate,stage,extras:extras||[],payments:payments||[],invoiced:!!inv,invNo:inv||'',note:'',date:today()});
+  return {
+    ORD:[
+      O(1042,'ТОО «КазСтройГруз»','Павлодар','Достык','Уголь','Перевозка (ЖД)',['58234567','58234568','58234569','62348811'],420000,4,[{name:'Погрузка (4 ваг.)',sum:180000}],[],''),
+      O(1041,'ТОО «Астана Агро»','Экибастуз','Астана','Зерно','Перевозка (ЖД)',['61220034','61220035','61220036'],380000,3,[{name:'Взвешивание',sum:45000}],[{sum:600000,date:today()}],'СЧ-1039'),
+      O(1040,'ИП Мухтаров','Караганда','порт Актау','Металлолом','Экспедирование',['55098120','55098121'],450000,5,[],[{sum:900000,date:today()}],'СЧ-1038'),
+      O(1039,'ТОО «Иртыш Ресурс»','Павлодар','Алматы','Щебень','Перевозка (ЖД)',['57781200','57781201','57781202','57781203','57781204'],395000,2,[{name:'Хранение (склад, 3 сут.)',sum:90000}],[],''),
+      O(1038,'ТОО «Темир Логистик»','Семей','Шымкент','Цемент','Аренда вагона',['60112390','60112391'],410000,3,[],[{sum:410000,date:today()}],'СЧ-1035'),
+      O(1037,'ТОО «Павлодар Нефть»','Павлодар','Атырау','Нефтепродукты','Перевозка (ЖД)',['63400511','63400512','63400513'],520000,1,[],[],''),
+      O(1036,'ТОО «Степь Экспорт»','Костанай','Достык','Пшеница','Перевозка (ЖД)',['61990077','61990078','61990079','61990080'],385000,4,[{name:'Погрузка + фумигация',sum:210000}],[{sum:500000,date:today()}],''),
+      O(1035,'ИП Сагинтаев','Актогай','Караганда','Лес','Перевозка (ЖД)',['58800345'],360000,0,[],[],''),
+    ],
+    CLIENTS:[
+      {name:'ТОО «КазСтройГруз»',city:'Павлодар',contact:'Ерлан, логист',phone:'+7 701 234 55 67',wa:'+7 701 234 55 67',bin:'150240001234'},
+      {name:'ТОО «Астана Агро»',city:'Астана',contact:'Айгуль',phone:'+7 705 118 22 04',wa:'+7 705 118 22 04',bin:''},
+      {name:'ИП Мухтаров',city:'Караганда',contact:'Мухтаров Р.',phone:'+7 702 900 71 15',wa:'',bin:''},
+      {name:'ТОО «Иртыш Ресурс»',city:'Павлодар',contact:'Снабжение',phone:'+7 718 233 40 10',wa:'',bin:''},
+      {name:'ТОО «Темир Логистик»',city:'Семей',contact:'Дамир',phone:'+7 707 111 22 33',wa:'',bin:''},
+      {name:'ТОО «Павлодар Нефть»',city:'Павлодар',contact:'Отдел отгрузки',phone:'+7 718 200 10 10',wa:'',bin:''},
+      {name:'ТОО «Степь Экспорт»',city:'Костанай',contact:'Нурлан',phone:'+7 714 500 44 55',wa:'',bin:''},
+      {name:'ИП Сагинтаев',city:'Актогай',contact:'Сагинтаев',phone:'+7 701 800 90 12',wa:'',bin:''},
+    ],
+    STOCK:[
+      {cargo:'Щебень фр.20-40',client:'ТОО «Иртыш Ресурс»',wagon:'57781200',qty:'68',unit:'тонн',in:today(),status:'на складе'},
+      {cargo:'Пшеница 3 класс',client:'ТОО «Степь Экспорт»',wagon:'61990077',qty:'70',unit:'тонн',in:today(),status:'на складе'},
+      {cargo:'Цемент М400',client:'ТОО «Темир Логистик»',wagon:'',qty:'120',unit:'мешков',in:today(),status:'на складе'},
+      {cargo:'Металлолом 5А',client:'ИП Мухтаров',wagon:'55098120',qty:'62',unit:'тонн',in:today(),status:'отгружено'},
+    ],
+    FEED:[
+      {t:'09:02',txt:'Диспетчер открыл смену',cls:'b'},
+      {t:'09:14',txt:'Вагоны 58234567–69 поданы под погрузку',cls:'b'},
+      {t:'09:31',txt:'Оплата +600 000 ₸ от <b>ТОО «Астана Агро»</b>',cls:'g'},
+      {t:'10:05',txt:'Счёт <b>СЧ-1038</b> выставлен · ИП Мухтаров',cls:'a'},
+    ],
+  };
+}
+
+/* ===== init ===== */
+load();renderAll();
+const q=new URLSearchParams(location.search);
+if(q.get('role')==='buh')setRole('buh',document.querySelectorAll('.roles button')[1]);
+else if(q.get('role')==='boss')setRole('boss',document.querySelectorAll('.roles button')[2]);
+if(q.get('s'))nav(q.get('s'));
+if(q.get('order'))setTimeout(()=>openOrder(1042),300);
+setTimeout(()=>toast('Это <b>MAGISTRAL</b> — единая система для ЖД-грузоперевозок вместо Excel и тетрадей. Заявки, <b>номера вагонов</b>, счета с контролем «не забыть выставить», оплаты частями, склад, 1С, WhatsApp. Всё <b>прокликивается и сохраняется</b>. Начните с «Обзора» или откройте любую заявку.','b'),800);
+</script>
+</body>
+</html>
