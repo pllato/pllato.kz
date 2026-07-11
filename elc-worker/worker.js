@@ -1619,15 +1619,23 @@ async function handleList(request, env, entity) {
     // только когда явно запрошены (?includePublic=1), чтобы не засорять доски задач.
     await ensureEventPublicColumn(env);
     const includePublic = url.searchParams.get("includePublic") === "1";
-    const vuid = me.canonicalUid || '';
-    const orC = [];
-    if (vuid) {
-      for (const f of (cfg.mineFields || [])) { orC.push(`${f} = ?`); whereParams.push(vuid); }
-      for (const f of (cfg.mineJsonFields || [])) { orC.push(`${f} LIKE ?`); whereParams.push(`%"${vuid}"%`); }
+    // allEvents=1 — обзор ВСЕХ встреч/событий (для календаря). Разрешено только
+    // админам/директорам: они видят все задачи-события без ограничения «только свои».
+    const allEvents = url.searchParams.get("allEvents") === "1";
+    const isPrivileged = me.role === 'admin' || (me.orgPerms && me.orgPerms.isDirector);
+    if (allEvents && isPrivileged) {
+      // без фильтра видимости — показываем все задачи набора
+    } else {
+      const vuid = me.canonicalUid || '';
+      const orC = [];
+      if (vuid) {
+        for (const f of (cfg.mineFields || [])) { orC.push(`${f} = ?`); whereParams.push(vuid); }
+        for (const f of (cfg.mineJsonFields || [])) { orC.push(`${f} LIKE ?`); whereParams.push(`%"${vuid}"%`); }
+      }
+      if (includePublic) orC.push("event_public = 1");
+      if (orC.length) whereParts.push("(" + orC.join(" OR ") + ")");
+      else whereParts.push("1 = 0");
     }
-    if (includePublic) orC.push("event_public = 1");
-    if (orC.length) whereParts.push("(" + orC.join(" OR ") + ")");
-    else whereParts.push("1 = 0");
   }
 
   // archived фильтр (только для deals — у contacts/tasks колонки нет).
