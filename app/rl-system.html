@@ -176,6 +176,49 @@
   #fbPop .fp-go{background:var(--accent);color:#fff;border:none}
   #fbPop .fp-go:hover{background:#2b4d7a}
   #fbPop .fp-cancel{background:none;border:1px solid var(--line);color:var(--muted)}
+  /* заявки на платежи */
+  .prq-board{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:start}
+  @media(max-width:1100px){.prq-board{grid-template-columns:repeat(4,1fr)}}
+  @media(max-width:680px){.prq-board{grid-template-columns:repeat(2,1fr)}.prq-form-top,.prq-form-bot{grid-template-columns:1fr 1fr!important}}
+  .prq-col{background:#e9ebef;border:1px solid var(--line);border-radius:11px;padding:7px;min-height:130px}
+  .prq-col.drop-hot{outline:2.5px solid var(--accent);background:var(--blue-bg)}
+  .prq-head{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:3px 4px 7px;display:flex;justify-content:space-between;gap:4px;flex-wrap:wrap}
+  .prq-head span{color:var(--red);text-transform:none}
+  .prq-card{background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 9px;margin-bottom:6px;font-size:11.5px;cursor:grab;touch-action:none}
+  .prq-card:active{cursor:grabbing}
+  .prq-card.dragging{opacity:.45}
+  .prq-ghost{position:fixed;z-index:99;opacity:.9;pointer-events:none;box-shadow:0 10px 26px rgba(0,0,0,.25)}
+  .prq-obj{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prq-p{color:var(--muted);font-size:10.5px;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prq-meta{color:var(--muted);font-size:9.5px}
+  .prq-amt{font-weight:700;color:var(--red);margin-top:3px;font-variant-numeric:tabular-nums}
+  .prq-actions{display:flex;justify-content:space-between;margin-top:6px;align-items:center}
+  .prq-pay{font-size:10px;font-weight:700;color:var(--green);background:var(--green-bg);border-radius:6px;padding:3px 7px;cursor:pointer}
+  .prq-pay:hover{background:var(--green);color:#fff}
+  .prq-del{color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px}
+  .prq-del:hover{color:var(--red)}
+  .prq-empty{color:var(--muted);font-size:11px;font-style:italic;padding:6px}
+  /* фонды проекта */
+  .fund-bar{display:flex;height:14px;border-radius:7px;overflow:hidden;margin:4px 0 12px;border:1px solid var(--line)}
+  .fund-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:9px}
+  .fund-card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 13px;font-size:12px}
+  .fund-card .fc-top{display:flex;align-items:center;gap:6px;font-size:11.5px}
+  .fund-card .fc-top b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fund-card .fc-top input{width:44px;padding:2px 4px;border:1px solid var(--line);border-radius:5px;font-size:11px;text-align:right;background:#fbfaf7;font-family:inherit}
+  .fc-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+  .fc-bal{font-size:16px;font-weight:700;margin-top:5px;font-variant-numeric:tabular-nums}
+  .fc-bal.pos{color:var(--green)}.fc-bal.neg{color:var(--red)}
+  .fc-io{font-size:10.5px;color:var(--muted);margin-top:2px}
+  /* таймлайн и задачи в карточке */
+  .tl-move{display:flex;gap:3px;flex-shrink:0;margin-left:6px}
+  .tl-move button{border:1px solid var(--line);background:#fff;border-radius:5px;font-size:9px;padding:2px 6px;cursor:pointer;color:var(--muted)}
+  .tl-move button:hover{background:var(--blue-bg);color:var(--blue);border-color:var(--blue)}
+  .tl-add{display:grid;grid-template-columns:130px 135px 1fr 1.2fr auto;gap:7px;margin-top:10px;align-items:center}
+  .tl-add select,.tl-add input{padding:8px 9px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;background:#fbfaf7;font-family:inherit;color:var(--ink)}
+  @media(max-width:680px){.tl-add{grid-template-columns:1fr 1fr}}
+  .tk-add{display:grid;grid-template-columns:1.6fr 1fr 135px auto;gap:7px;margin-top:10px}
+  .tk-add input{padding:8px 9px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;background:#fbfaf7;font-family:inherit;color:var(--ink)}
+  @media(max-width:680px){.tk-add{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -188,6 +231,7 @@
       <button data-s="liquidity"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7h14M3 12h14" stroke-linecap="round"/><path d="M6 4.5c1.5 1.5 1.5 3 0 4.5M11 10.5c1.5 1.5 1.5 3 0 4.5" opacity=".55"/></svg></span>Ликвидность</button>
       <button data-s="sources"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4v7M6 11l-2.5-2.5M6 11l2.5-2.5M14 16V9M14 9l-2.5 2.5M14 9l2.5 2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Откуда взять</button>
       <button data-s="entry"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 4v12M4 10h12" stroke-linecap="round"/></svg></span>Ввести платёж</button>
+      <button data-s="payreq"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 5h9M4 9h9M4 13h5" stroke-linecap="round"/><path d="M12 14l2 2 3.5-4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Запросы на платежи</button>
       <button data-s="onboard"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 16V7l6-3 6 3v9" stroke-linejoin="round"/><path d="M8 16v-4h4v4" stroke-linejoin="round"/></svg></span>Заход проекта</button>
       <button data-s="recurring"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 10a6 6 0 0 1 10-4.5M16 5v3h-3M16 10a6 6 0 0 1-10 4.5M4 15v-3h3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Постоянные платежи</button>
       <div class="nav-group">Аналитика</div>
@@ -197,7 +241,7 @@
       <button data-s="feed"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 6h12M4 10h12M4 14h8"/></svg></span>Транзакции</button>
       <button data-s="reports"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 3h7l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M11 3v3h3M7 11h6M7 14h4" opacity=".6" stroke-linecap="round"/></svg></span>Отчёты</button>
     </nav>
-    <div class="foot">RL-System · управленческий учёт<br>© 2026 · v2.4</div>
+    <div class="foot">RL-System · управленческий учёт<br>© 2026 · v2.5</div>
   </aside>
 
   <main class="main">
@@ -225,6 +269,10 @@
           <div class="feed-list" id="cmdRecv"></div>
         </div>
       </div>
+
+      <h2>Задачи по проектам · на контроле</h2>
+      <div class="explain">Открытые задачи по всем проектам: собрать дебиторку, выпустить документацию, закрыть проект. Назначаются в карточке проекта. Клик — открыть проект.</div>
+      <div class="feed-list" id="cmdTasks"></div>
     </section>
 
     <!-- DASH -->
@@ -324,6 +372,31 @@
         <button class="submit" onclick="addTx()">Сохранить платёж</button>
         <div class="hint">Проводка отражается в реестре и отчётности после сохранения.</div>
       </div>
+    </section>
+
+    <!-- PAYREQ: запросы на платежи -->
+    <section class="screen" id="payreq">
+      <div class="head"><div><h1>Запросы на платежи</h1><div class="h-sub">Заявки по сметам → очередь → назначение на неделю → оплата</div></div></div>
+      <div class="explain">Каждый платёж по смете сначала попадает сюда заявкой. Ласкер или менеджер <b>перетаскивает заявку на нужную неделю</b> — так собирается платёжный календарь без сюрпризов. Кнопка «✓ оплатить» превращает заявку в реальную проводку. Назначенные заявки сразу видны в командном центре и в прогнозе по месяцам.</div>
+      <div class="kpis" id="prqKpis"></div>
+      <div class="formcard" style="max-width:100%;margin-bottom:18px">
+        <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:12px" class="prq-form-top">
+          <div class="frow"><label>Проект <span class="req">*</span></label><select id="prqObj"></select></div>
+          <div class="frow"><label>Сумма, ₸ <span class="req">*</span></label><input type="number" id="prqAmt" placeholder="0" inputmode="numeric"></div>
+          <div class="frow"><label>Статья</label><select id="prqArt"></select></div>
+          <div class="frow"><label>Желаемая дата</label><input type="date" id="prqDate"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1.4fr 1fr auto;gap:12px;align-items:end" class="prq-form-bot">
+          <div class="frow" style="margin-bottom:0"><label>Контрагент</label><input id="prqCp" placeholder="ТОО / ИП" list="cpList"></div>
+          <div class="frow" style="margin-bottom:0"><label>Назначение</label><input id="prqPurpose" placeholder="за что платёж"></div>
+          <div class="frow" style="margin-bottom:0"><label>Кто просит</label><input id="prqBy" placeholder="прораб / снабжение" list="empList"></div>
+          <button class="submit" style="width:auto;margin:0;padding:11px 22px" onclick="addPayReq()">Создать заявку</button>
+        </div>
+      </div>
+      <datalist id="empList"><option>Ласкер</option><option>менеджер проекта</option><option>прораб</option><option>бухгалтер</option><option>снабжение</option></datalist>
+      <h2>Доска платежей · перетащи заявку на неделю</h2>
+      <div class="prq-board" id="prqBoard"></div>
+      <div class="hint">Заявка без даты живёт в «Очереди». Перетащи её в колонку недели — платёж встанет в план на эту неделю и попадёт в календарь командного центра и прогноз. Вернуть в очередь — перетащить обратно. «✓ оплатить» — создаёт проводку и закрывает заявку.</div>
     </section>
 
     <!-- ONBOARD: заход проекта -->
@@ -506,6 +579,7 @@ function renderAll(){
   document.getElementById('dashAttn').innerHTML=danger.sort((a,b)=>a.margin_contract-b.margin_contract).slice(0,10).map(p=>`<tr onclick="openCard('${escN(p.name)}')">
     <td>${p.name}</td><td>${fmt(p.contract)}</td><td>${fmt(p.direct)}</td><td class="neg">${fmt(p.margin_contract)}</td><td><span class="zb ${p.zone}">${ZN[p.zone]}</span></td></tr>`).join('');
   renderRegistry(M);renderFeed();renderReports(M);renderLiquidity(M);renderCommand(M);renderSources(M);
+  if(typeof renderPayreq==='function')renderPayreq();
   if(document.getElementById('portfolio').classList.contains('on'))renderPortfolio();
 }
 
@@ -675,6 +749,154 @@ function renderFlowHistory(){
 }
 window.addEventListener('resize',()=>{if(document.getElementById('sources').classList.contains('on'))drawFlowLinks()});
 
+/* ---------- v2.5: ФОНДЫ / ЗАЯВКИ НА ПЛАТЕЖИ / ЗАДАЧИ ---------- */
+const _day=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+const _todayDs=()=>{const t=new Date();return String(t.getDate()).padStart(2,'0')+'.'+String(t.getMonth()+1).padStart(2,'0')+'.'+t.getFullYear()};
+
+/* фонды: входящие деньги проекта расходятся по фондам в заданных долях; расходы списываются из фонда по статье */
+const FUND_DEFS=[
+  {key:'materials',name:'Материалы и субподряд',pct:55,color:'#345b8f'},
+  {key:'fot',name:'ФОТ',pct:20,color:'#0f6f52'},
+  {key:'tax',name:'Налоги',pct:8,color:'#8a6f4a'},
+  {key:'overhead',name:'Накладные',pct:7,color:'#7c828e'},
+  {key:'profit',name:'Прибыль (резерв)',pct:10,color:'#1a2536'}];
+function artFund(a){a=(a||'').toLowerCase();
+  if(/фот/.test(a))return 'fot';
+  if(/налог/.test(a))return 'tax';
+  if(/тмц|расходник|материал|услуг|транспорт|субподряд|гсм|аренд|лизинг/.test(a))return 'materials';
+  if(/дивиден|перелив/.test(a))return 'profit';
+  return 'overhead'}
+function computeFunds(S){
+  const o=OBJ.find(x=>x.name===S.name)||{};
+  const pct=o.fundPct||{};
+  const spent={};
+  TX.forEach(t=>{if(t.obj!==S.name||t.amt>=0)return;spent[artFund(t.art)]=(spent[artFund(t.art)]||0)-t.amt});
+  return FUND_DEFS.map(f=>{const p=pct[f.key]!=null?pct[f.key]:f.pct;
+    const inn=Math.round(S.cin*p/100),out=spent[f.key]||0;
+    return {...f,pct:p,in:inn,out,bal:inn-out}});
+}
+function setFundPct(name,key,val){
+  const o=OBJ.find(x=>x.name===name);if(!o)return;
+  o.fundPct=o.fundPct||{};FUND_DEFS.forEach(f=>{if(o.fundPct[f.key]==null)o.fundPct[f.key]=f.pct});
+  o.fundPct[key]=Math.max(0,Math.min(100,parseFloat(val)||0));
+  openCard(name);
+}
+
+/* заявки на платежи: очередь → неделя → оплата */
+let PAYREQ=[
+  {id:1,obj:'Umai мерей НВК',amt:6400000,art:'ТМЦ',cp:'ТОО "ТПС Group"',purpose:'материалы по смете, этап 3',due:null,status:'queue',by:'снабжение'},
+  {id:2,obj:'Verdi ЭМР',amt:3200000,art:'ТМЦ',cp:'ТОО "KazGroupMetal"',purpose:'металл по смете, аванс поставщику',due:_day(6),status:'scheduled',by:'прораб'},
+  {id:3,obj:'Тарлан',amt:1800000,art:'Услуга',cp:'',purpose:'вывоз мусора, подряд',due:null,status:'queue',by:'менеджер проекта'},
+  {id:4,obj:'Сайран',amt:2400000,art:'ФОТ',cp:'',purpose:'премия бригаде за закрытый этап',due:_day(13),status:'scheduled',by:'Ласкер'}];
+let _prqId=5;
+function addPayReq(){
+  const obj=document.getElementById('prqObj').value,amt=parseFloat(document.getElementById('prqAmt').value);
+  if(!obj||!amt){toast('Укажи проект и сумму','err');return}
+  const due=document.getElementById('prqDate').value||null;
+  PAYREQ.push({id:_prqId++,obj,amt:Math.abs(amt),art:document.getElementById('prqArt').value||'ТМЦ',
+    cp:document.getElementById('prqCp').value,purpose:document.getElementById('prqPurpose').value,
+    due,status:due?'scheduled':'queue',by:document.getElementById('prqBy').value||'менеджер проекта'});
+  ['prqAmt','prqCp','prqPurpose'].forEach(i=>document.getElementById(i).value='');
+  toast(due?'Заявка создана и назначена ✓':'Заявка создана, в очереди ✓','ok');
+  renderPayreq();renderCommand(compute());renderCashflow();
+}
+function payReqPay(id){
+  const r=PAYREQ.find(x=>x.id===id);if(!r)return;
+  const wallet=DB.wallets.find(w=>w.includes('261'))||DB.wallets[0];
+  TX.push({date:_todayDs(),obj:r.obj,art:r.art||'ТМЦ',cp:r.cp||'',purpose:r.purpose||'оплата по заявке',amt:-Math.abs(r.amt),wallet});
+  r.status='paid';
+  toast('Оплачено: заявка стала проводкой ✓','ok');renderAll();renderPayreq();
+}
+function payReqDel(id){const i=PAYREQ.findIndex(x=>x.id===id);if(i>=0)PAYREQ.splice(i,1);renderPayreq();renderCommand(compute());renderCashflow();}
+function renderPayreq(){
+  const board=document.getElementById('prqBoard');if(!board)return;
+  const open=PAYREQ.filter(r=>r.status!=='paid');
+  const q=open.filter(r=>r.status==='queue'),sch=open.filter(r=>r.status==='scheduled');
+  const paid=PAYREQ.filter(r=>r.status==='paid');
+  document.getElementById('prqKpis').innerHTML=`
+    <div class="kpi"><div class="k">Заявок в работе</div><div class="v">${open.length}</div><div class="d">на ${fmtM(open.reduce((s,r)=>s+r.amt,0))} ₸</div></div>
+    <div class="kpi blue"><div class="k">В очереди</div><div class="v">${q.length}</div><div class="d">ждут назначения на неделю</div></div>
+    <div class="kpi"><div class="k">Назначено</div><div class="v">${sch.length}</div><div class="d">стоят в календаре</div></div>
+    <div class="kpi green"><div class="k">Оплачено</div><div class="v">${paid.length}</div><div class="d">превратились в проводки</div></div>`;
+  const today=new Date();today.setHours(0,0,0,0);
+  const weeks=[];for(let w=0;w<6;w++){const s=new Date(today);s.setDate(s.getDate()+w*7);const e=new Date(s);e.setDate(e.getDate()+6);e.setHours(23,59,59,0);weeks.push({s,e})}
+  const fmtD=d=>d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
+  const card=r=>`<div class="prq-card" data-id="${r.id}">
+    <div class="prq-obj">${escH(r.obj)}</div>
+    <div class="prq-p">${escH(r.purpose||r.cp||'—')}</div>
+    <div class="prq-meta">${escH(r.by||'')}${r.due?' · '+r.due.split('-').reverse().join('.'):''}</div>
+    <div class="prq-amt">−${fmt(r.amt)}</div>
+    <div class="prq-actions"><span class="prq-pay" onclick="payReqPay(${r.id})">✓ оплатить</span><span class="prq-del" onclick="payReqDel(${r.id})" title="удалить заявку">×</span></div></div>`;
+  const weekIdx=r=>{if(!r.due)return -1;const d=new Date(r.due);d.setHours(12,0,0,0);
+    if(d<weeks[0].s)return 0;for(let i=0;i<6;i++){if(d>=weeks[i].s&&d<=weeks[i].e)return i}return 5};
+  let html=`<div class="prq-col" data-w="-1"><div class="prq-head">Очередь заявок<span>${q.length?fmtM(q.reduce((s,r)=>s+r.amt,0)):''}</span></div>${q.map(card).join('')||'<div class="prq-empty">пусто</div>'}</div>`;
+  for(let i=0;i<6;i++){
+    const rs=sch.filter(r=>weekIdx(r)===i);
+    html+=`<div class="prq-col" data-w="${i}"><div class="prq-head">Нед ${i+1} · ${fmtD(weeks[i].s)}<span>${rs.length?fmtM(rs.reduce((s,r)=>s+r.amt,0)):''}</span></div>${rs.map(card).join('')||'<div class="prq-empty">—</div>'}</div>`;
+  }
+  board.innerHTML=html;
+  bindPrqDrag();
+}
+function bindPrqDrag(){
+  document.querySelectorAll('.prq-card').forEach(el=>{el.onpointerdown=ev=>{
+    if(ev.target.closest('.prq-actions'))return;
+    if(ev.button!==undefined&&ev.button!==0)return;
+    ev.preventDefault();
+    const id=+el.dataset.id;const st={moved:false,sx:ev.clientX,sy:ev.clientY,ghost:null,hot:null};
+    el.setPointerCapture(ev.pointerId);
+    const move=e=>{
+      if(!st.moved&&Math.abs(e.clientX-st.sx)+Math.abs(e.clientY-st.sy)<7)return;
+      if(!st.moved){st.moved=true;el.classList.add('dragging');
+        st.ghost=el.cloneNode(true);st.ghost.classList.add('prq-ghost');
+        st.ghost.style.width=el.offsetWidth+'px';document.body.appendChild(st.ghost);}
+      st.ghost.style.left=(e.clientX+10)+'px';st.ghost.style.top=(e.clientY+8)+'px';
+      const t=document.elementFromPoint(e.clientX,e.clientY);
+      const col=t&&t.closest?t.closest('.prq-col'):null;
+      if(st.hot&&st.hot!==col)st.hot.classList.remove('drop-hot');
+      st.hot=col;if(col)col.classList.add('drop-hot');
+    };
+    const up=()=>{
+      el.onpointermove=null;el.onpointerup=null;el.onpointercancel=null;
+      el.classList.remove('dragging');if(st.ghost)st.ghost.remove();
+      document.querySelectorAll('.prq-col').forEach(c=>c.classList.remove('drop-hot'));
+      if(!st.moved||!st.hot)return;
+      const w=+st.hot.dataset.w;const r=PAYREQ.find(x=>x.id===id);if(!r)return;
+      if(w<0){r.status='queue';r.due=null;toast('Заявка возвращена в очередь','ok')}
+      else{r.due=_day(w*7);r.status='scheduled';toast('Платёж назначен на неделю '+(w+1)+' ✓','ok')}
+      renderPayreq();renderCommand(compute());renderCashflow();
+    };
+    el.onpointermove=move;el.onpointerup=up;el.onpointercancel=up;
+  }});
+}
+
+/* задачи по проектам */
+let TASKS=[
+  {id:1,obj:'Арена',title:'Собрать дебиторку по подписанным актам',assignee:'Ласкер',due:_day(7),done:false},
+  {id:2,obj:'Umai мерей НВК',title:'Выпустить исполнительную документацию',assignee:'менеджер проекта',due:_day(14),done:false},
+  {id:3,obj:'Баганашил',title:'Согласовать допсоглашение на перерасход',assignee:'Ласкер',due:_day(5),done:false},
+  {id:4,obj:'Сайран',title:'Завершить проект: финальный акт и закрытие',assignee:'прораб',due:_day(21),done:false}];
+let _taskId=5;
+function addTask(name){
+  const t=document.getElementById('tkTitle').value.trim();
+  if(!t){toast('Напиши, что сделать','err');return}
+  TASKS.push({id:_taskId++,obj:name,title:t,assignee:document.getElementById('tkWho').value||'—',due:document.getElementById('tkDue').value||null,done:false});
+  toast('Задача назначена ✓','ok');openCard(name);renderCommand(compute());
+}
+function toggleTask(id,name){const t=TASKS.find(x=>x.id===id);if(t)t.done=!t.done;if(name)openCard(name);renderCommand(compute());}
+function delTask(id,name){const i=TASKS.findIndex(x=>x.id===id);if(i>=0)TASKS.splice(i,1);if(name)openCard(name);renderCommand(compute());}
+
+/* план платежей проекта из карточки */
+function addProjPlan(name){
+  const o=OBJ.find(x=>x.name===name);if(!o){toast('Проект не в реестре — сначала заведи его через «Заход проекта»','err');return}
+  const dir=document.getElementById('tlDir').value,dt=document.getElementById('tlDate').value,amt=parseFloat(document.getElementById('tlAmt').value);
+  if(!dt||!amt){toast('Укажи дату и сумму','err');return}
+  const note=document.getElementById('tlNote').value;
+  if(dir==='in'){o.schedule_in=o.schedule_in||[];o.schedule_in.push({date:dt,amt:Math.abs(amt),note:note||'план поступления'})}
+  else{o.schedule_out=o.schedule_out||[];o.schedule_out.push({date:dt,amt:-Math.abs(amt),note:note||'план расхода'})}
+  toast('Внесено в план проекта ✓','ok');
+  renderCommand(compute());renderCashflow();openCard(name);
+}
+
 /* ---------- COMMAND CENTER ---------- */
 function expandRecurring(weeksAhead){
   // разворачиваем постоянные платежи по месяцам на горизонт
@@ -699,6 +921,8 @@ function collectScheduledPayments(weeksAhead){
     (o.schedule_out||[]).forEach((s,si)=>out.push({id:'pout'+oi+'_'+si,date:s.date,amt:s.amt,obj:o.name,note:s.note||'оплата по смете',src:'proj'}));
   });
   CALPLAN.forEach((p,pi)=>out.push({id:'man'+pi,date:p.date,amt:p.amt,obj:p.obj,note:p.note,src:'manual'}));
+  // назначенные заявки на платежи
+  if(typeof PAYREQ!=='undefined')PAYREQ.forEach(r=>{if(r.status==='scheduled'&&r.due)out.push({id:'req'+r.id,date:r.due,amt:-Math.abs(r.amt),obj:r.obj,note:'заявка: '+(r.purpose||r.cp||'платёж'),src:'req'})});
   out.push(...expandRecurring(weeksAhead));
   // применяем сдвиги дат
   out.forEach(p=>{if(DATE_OVERRIDES[p.id])p.date=DATE_OVERRIDES[p.id]});
@@ -780,17 +1004,29 @@ function renderCommand(M){
   // receivables
   const recv=M.projects.filter(p=>p.recv>1e6).sort((a,b)=>b.recv-a.recv).slice(0,7);
   document.getElementById('cmdRecv').innerHTML=recv.length?recv.map(p=>`<div class="frw" onclick="openCard('${escN(p.name)}')" style="cursor:pointer"><div class="ds"><div class="p">${p.name}</div><div class="c">${p.customer||'заказчик не указан'}</div></div><div class="am" style="color:var(--blue)">${fmt(p.recv)}</div></div>`).join(''):'<div class="cal-empty" style="padding:16px">дебиторки нет</div>';
+  // задачи на контроле
+  const cmdT=document.getElementById('cmdTasks');
+  if(cmdT&&typeof TASKS!=='undefined'){
+    const openT=TASKS.filter(t=>!t.done).sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999')).slice(0,7);
+    const todayIso=new Date().toISOString().slice(0,10);
+    cmdT.innerHTML=openT.length?openT.map(t=>`<div class="frw" onclick="openCard('${escN(t.obj)}')" style="cursor:pointer"><div class="ob" style="width:150px">${escH(t.obj)}</div><div class="ds"><div class="p">${escH(t.title)}</div><div class="c">${escH(t.assignee||'—')}</div></div>${t.due?`<div class="dt" style="width:auto;${t.due<todayIso?'color:var(--red);font-weight:700':''}">до ${t.due.split('-').reverse().slice(0,2).join('.')}</div>`:''}</div>`).join(''):'<div class="cal-empty" style="padding:16px">открытых задач нет — назначаются в карточке проекта</div>';
+  }
+}
+function _applyPayDate(id,iso){
+  // заявки двигаем в самой заявке (иначе доска и календарь разойдутся), остальное — через overrides
+  if(id.startsWith('req')){const r=PAYREQ.find(x=>'req'+x.id===id);if(r){r.due=iso;renderPayreq()}}
+  else DATE_OVERRIDES[id]=iso;
+  renderCommand(compute());renderCashflow();
+  if(window._cardOpen)openCard(window._cardOpen);
 }
 function movePay(id,curDate,deltaDays){
   const d=new Date(curDate);d.setDate(d.getDate()+deltaDays);
-  DATE_OVERRIDES[id]=d.toISOString().slice(0,10);
-  renderCommand(compute());renderCashflow();
+  _applyPayDate(id,d.toISOString().slice(0,10));
   toast(deltaDays>0?'Платёж сдвинут вперёд ✓':'Платёж сдвинут раньше ✓','ok');
 }
 function setPayDate(id,val){
   if(!val)return;
-  DATE_OVERRIDES[id]=val;
-  renderCommand(compute());renderCashflow();
+  _applyPayDate(id,val);
   toast('Дата платежа изменена ✓','ok');
 }
 
@@ -1028,10 +1264,69 @@ function openCard(name){
       <div class="kpi"><div class="k">Освоено расходов</div><div class="v">${S.direct?fmtM(S.direct):'—'}</div><div class="d">прямые затраты</div></div>
     </div>
     <div class="explain" style="margin:2px 0 14px">Плановая маржа — сколько заработаем на проекте в целом (весь контракт минус расходы). Маржа на выполнено — заработок на уже принятой работе (по подписанным актам). Денежное сальдо — это про кассу, а не про прибыль: сколько денег осело на проекте (аванс минус траты).</div>${vd}
+    ${fundsHtml(S)}
+    ${timelineHtml(S)}
+    ${tasksHtml(S)}
     <h2>Лента транзакций · ${feed.length}</h2><div class="feed-list" style="max-height:340px">${fhtml}</div>`;
   document.getElementById('ov').classList.add('open');document.getElementById('drw').classList.add('open');
+  window._cardOpen=name;
 }
-function closeDrw(){document.getElementById('ov').classList.remove('open');document.getElementById('drw').classList.remove('open')}
+/* фонды в карточке */
+function fundsHtml(S){
+  const funds=computeFunds(S);
+  const head=`<h2>Фонды проекта</h2><div class="explain" style="margin-bottom:12px">Каждый приход по проекту сразу расходится по фондам в заданных долях. Расходы списываются из своего фонда по статье платежа. Минус в фонде — фонд потратил больше, чем в него зашло: либо поправить доли, либо разбираться с расходами.</div>`;
+  if(!S.cin)return head+'<div class="cal-empty" style="padding:14px;background:var(--card);border:1px solid var(--line);border-radius:11px">поступлений пока нет — фонды наполнятся с первым приходом денег</div>';
+  const fsum=funds.reduce((s,f)=>s+f.pct,0);
+  const bar=`<div class="fund-bar">${funds.map(f=>`<div style="flex:${f.pct||0.001};background:${f.color}" title="${escH(f.name)} ${f.pct}%"></div>`).join('')}</div>`;
+  const cards=funds.map(f=>`<div class="fund-card"><div class="fc-top"><span class="fc-dot" style="background:${f.color}"></span><b>${f.name}</b>
+      <input type="number" value="${f.pct}" min="0" max="100" onchange="setFundPct('${escN(S.name)}','${f.key}',this.value)">%</div>
+    <div class="fc-bal ${f.bal>=0?'pos':'neg'}">${fmt(f.bal)} ₸</div>
+    <div class="fc-io">зашло ${fmtM(f.in)} · ушло ${fmtM(f.out)}</div></div>`).join('');
+  const warn=Math.round(fsum)!==100?`<div class="fp-warn" style="display:block;margin-top:9px">Сумма долей ${fsum}% — приведи к 100%, иначе фонды не сходятся с кассой.</div>`:'';
+  return head+bar+`<div class="fund-grid">${cards}</div>`+warn;
+}
+/* платежи проекта по неделям, с движением */
+function timelineHtml(S){
+  const pays=collectScheduledPayments(8).filter(p=>p.obj===S.name);
+  const head=`<h2>Платежи по неделям · 8 недель вперёд</h2><div class="explain" style="margin-bottom:12px">План поступлений и расходов проекта во времени. Кнопками ◀ ▶ платёж двигается на неделю раньше/позже — сальдо внизу каждой недели сразу показывает, где проект уйдёт в минус. Красная неделя — денег проекта не хватит.</div>`;
+  const t0=new Date();t0.setHours(0,0,0,0);
+  const wks=[];for(let w=0;w<8;w++){const s=new Date(t0);s.setDate(s.getDate()+w*7);const e=new Date(s);e.setDate(e.getDate()+6);e.setHours(23,59,59,0);wks.push({s,e,items:[]})}
+  pays.forEach(p=>{const d=new Date(p.date);d.setHours(12,0,0,0);for(const wk of wks){if(d>=wk.s&&d<=wk.e){wk.items.push(p);break}}});
+  let run=S.cash;const fmtD=dt=>dt.toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
+  const rows=wks.map((wk,i)=>{
+    const inn=wk.items.filter(x=>x.amt>0).reduce((s,x)=>s+x.amt,0);
+    const out=wk.items.filter(x=>x.amt<0).reduce((s,x)=>s+x.amt,0);
+    run+=inn+out;
+    if(!wk.items.length&&i>3)return '';
+    const items=wk.items.sort((a,b)=>a.date.localeCompare(b.date)).map(p=>`<div class="cal-item"><span class="cal-note" style="min-width:0;flex:1">${escH(p.note||'')}</span>
+      <span class="cal-amt ${p.amt>0?'in':'out'}">${p.amt>0?'+':''}${fmt(p.amt)}</span>
+      <span class="tl-move"><button onclick="movePay('${p.id}','${p.date}',-7)" title="на неделю раньше">◀</button><button onclick="movePay('${p.id}','${p.date}',7)" title="на неделю позже">▶</button></span></div>`).join('');
+    return `<div class="cal-week ${run<0?'red':''}" style="margin-bottom:8px">
+      <div class="cal-head"><div class="cal-range"><b>Нед ${i+1}</b> · ${fmtD(wk.s)}–${fmtD(wk.e)}</div>
+      <div class="cal-sums">${inn?`<span class="in">+${fmtM(inn)}</span>`:''}${out?`<span class="out">${fmtM(out)}</span>`:''}<span class="cal-bal ${run<0?'neg':'pos'}">сальдо ${fmtM(run)}</span></div></div>
+      ${items?`<div class="cal-body">${items}</div>`:''}</div>`;
+  }).join('');
+  const form=`<div class="tl-add">
+    <select id="tlDir"><option value="in">+ поступление</option><option value="out">− расход</option></select>
+    <input type="date" id="tlDate"><input type="number" id="tlAmt" placeholder="сумма ₸" inputmode="numeric"><input id="tlNote" placeholder="комментарий: транш, материалы…">
+    <button class="btn-add" onclick="addProjPlan('${escN(S.name)}')">+ в план</button></div>`;
+  return head+(rows||'<div class="cal-empty" style="padding:14px;background:var(--card);border:1px solid var(--line);border-radius:11px">плановых платежей нет — добавь первую строку ниже</div>')+form;
+}
+/* задачи в карточке */
+function tasksHtml(S){
+  const list=TASKS.filter(t=>t.obj===S.name);
+  const todayIso=new Date().toISOString().slice(0,10);
+  const rows=list.map(t=>`<div class="frw" style="${t.done?'opacity:.5':''}">
+    <label style="display:flex;align-items:center;cursor:pointer"><input type="checkbox" ${t.done?'checked':''} onchange="toggleTask(${t.id},'${escN(S.name)}')" style="width:auto"></label>
+    <div class="ds"><div class="p" style="${t.done?'text-decoration:line-through':''}">${escH(t.title)}</div><div class="c">${escH(t.assignee||'—')}${t.due?' · до '+t.due.split('-').reverse().join('.'):''}</div></div>
+    ${t.due&&!t.done&&t.due<todayIso?'<span class="zb danger">просрочено</span>':''}
+    <div style="width:24px;text-align:center;color:var(--muted);cursor:pointer" onclick="delTask(${t.id},'${escN(S.name)}')">×</div></div>`).join('');
+  return `<h2>Задачи по проекту · ${list.filter(t=>!t.done).length} открытых</h2>
+    <div class="explain" style="margin-bottom:12px">Что нужно сделать по проекту и кто отвечает: собрать дебиторку, выпустить документацию, закрыть проект. Открытые задачи видны в командном центре.</div>
+    ${rows?`<div class="feed-list">${rows}</div>`:'<div class="cal-empty" style="padding:14px;background:var(--card);border:1px solid var(--line);border-radius:11px">задач нет</div>'}
+    <div class="tk-add"><input id="tkTitle" placeholder="что сделать"><input id="tkWho" placeholder="кто" list="empList"><input type="date" id="tkDue"><button class="btn-add" onclick="addTask('${escN(S.name)}')">+ задача</button></div>`;
+}
+function closeDrw(){document.getElementById('ov').classList.remove('open');document.getElementById('drw').classList.remove('open');window._cardOpen=null}
 
 /* ---------- ENTRY ---------- */
 function setDir(d){dir=d;document.getElementById('dirIn').classList.toggle('sel',d==='in');document.getElementById('dirOut').classList.toggle('sel',d==='out')}
@@ -1105,6 +1400,7 @@ document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{
   if(b.dataset.s==='cashflow')renderCashflow();
   if(b.dataset.s==='command')renderCommand(compute());
   if(b.dataset.s==='sources')renderSources(compute());
+  if(b.dataset.s==='payreq')renderPayreq();
   if(b.dataset.s==='recurring')renderRecurring();});
 document.getElementById('regSearch').oninput=e=>{regQ=e.target.value;renderRegistry(compute())};
 document.getElementById('feedSearch').oninput=e=>{feedQ=e.target.value;renderFeed()};
@@ -1118,6 +1414,8 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrw()});
   const nx=new Date();nx.setMonth(nx.getMonth()+1);document.getElementById('pMonth').value=nx.toISOString().slice(0,7);
   fillSelect('fObj2',OBJ.map(o=>o.name).sort(),'— получатель —');
   fillSelect('fArt',DB.articles);fillSelect('fWallet',DB.wallets);
+  fillSelect('prqObj',OBJ.map(o=>o.name).sort(),'— выберите проект —');
+  fillSelect('prqArt',DB.articles.filter(a=>!/поступлен/i.test(a)));
   document.getElementById('cpList').innerHTML=DB.counterparties.map(c=>`<option>${c}</option>`).join('');
   document.getElementById('fDate').value=new Date().toISOString().slice(0,10);
   addSchedRow('in');addSchedRow('in');addSchedRow('out');addSchedRow('out');
