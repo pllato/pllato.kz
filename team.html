@@ -16241,7 +16241,13 @@ const calendarState = {
   events: null,
   loading: false,
   loadingPromise: null,
+  // Обзор всех встреч (только админ/директор). По умолчанию вкл — чтобы админ
+  // сразу видел все события; можно переключить на «Мои».
+  showAll: (() => { try { return localStorage.getItem('cal-show-all') !== '0'; } catch { return true; } })(),
 };
+function calCanSeeAll() {
+  return window.currentUser?.role === 'admin' || !!window.currentUser?.orgPerms?.isDirector;
+}
 
 function ensureCalendarStylesInjected() {
   if (document.getElementById('cal-styles')) return;
@@ -16383,6 +16389,10 @@ async function renderCalendar(el) {
           <button class="cal-view-btn ${calendarState.view === 'week' ? 'active' : ''}" data-cal-view="week">Неделя</button>
           <button class="cal-view-btn ${calendarState.view === 'month' ? 'active' : ''}" data-cal-view="month">Месяц</button>
         </div>
+        ${calCanSeeAll() ? `<div class="cal-view-toggle" id="cal-scope-toggle" title="Показывать все встречи всех сотрудников или только свои">
+          <button class="cal-view-btn ${calendarState.showAll ? 'active' : ''}" data-cal-scope="all">Все встречи</button>
+          <button class="cal-view-btn ${!calendarState.showAll ? 'active' : ''}" data-cal-scope="mine">Мои</button>
+        </div>` : ''}
         <span id="cal-stats" style="margin-left:auto;font-size:11px;color:var(--t3);display:flex;gap:14px;align-items:center">
           <span><span style="display:inline-block;width:10px;height:10px;background:#2563eb;border-radius:2px;vertical-align:middle"></span> Zoom</span>
           <span><span style="display:inline-block;width:10px;height:10px;background:#a855f7;border-radius:2px;vertical-align:middle"></span> Задача</span>
@@ -16410,11 +16420,22 @@ async function renderCalendar(el) {
   };
   document.getElementById('cal-add-event').onclick = () => openCalEventForm(new Date());
   // Переключатель видов
-  el.querySelectorAll('.cal-view-btn').forEach(b => {
+  el.querySelectorAll('.cal-view-btn[data-cal-view]').forEach(b => {
     b.addEventListener('click', () => {
       calendarState.view = b.dataset.calView;
       try { localStorage.setItem(CAL_VIEW_LS_KEY, calendarState.view); } catch {}
       renderCalendar(el);  // полная пересборка тулбара для подсветки активной кнопки
+    });
+  });
+  // Переключатель охвата (Все встречи / Мои) — только админ/директор.
+  el.querySelectorAll('.cal-view-btn[data-cal-scope]').forEach(b => {
+    b.addEventListener('click', () => {
+      const wantAll = b.dataset.calScope === 'all';
+      if (calendarState.showAll === wantAll) return;
+      calendarState.showAll = wantAll;
+      try { localStorage.setItem('cal-show-all', wantAll ? '1' : '0'); } catch {}
+      calendarState.events = null;   // сбросить кеш → renderCalendar перезагрузит с новым охватом
+      renderCalendar(el);
     });
   });
   await loadCalendarEvents();
@@ -16517,7 +16538,8 @@ async function loadCalendarEvents(opts = {}) {
       const dlFrom = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() - 90);
       const dlTo = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + 90);
       const fmtDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      const tasksP = fetch(`${WORKER_LIST_URL}/tasks?page=1&pageSize=500&status=active&sort=deadline&deadlineFrom=${fmtDate(dlFrom)}&deadlineTo=${fmtDate(dlTo)}T23:59:59&scope=${effectiveScope()}&includePublic=1&auth=${idToken}`)
+      const allEventsParam = (calendarState.showAll && calCanSeeAll()) ? '&allEvents=1' : '';
+      const tasksP = fetch(`${WORKER_LIST_URL}/tasks?page=1&pageSize=500&status=active&sort=deadline&deadlineFrom=${fmtDate(dlFrom)}&deadlineTo=${fmtDate(dlTo)}T23:59:59&scope=${effectiveScope()}&includePublic=1${allEventsParam}&auth=${idToken}`)
         .then(r => r.ok ? r.json() : { items: [] })
         .catch(() => ({ items: [] }));
       // Сделки: ВСЕГДА тянем свежие данные из ВСЕХ воронок параллельно,
