@@ -266,13 +266,13 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-zoom{position:absolute;top:8px;right:8px;z-index:2;display:flex;gap:3px;background:rgba(16,21,28,.72);border-radius:8px;padding:3px;}
 .lk-zoom button{min-width:30px;height:28px;border:none;background:transparent;color:#fff;font-size:15px;font-weight:700;cursor:pointer;border-radius:6px;padding:0 6px;}
 .lk-zoom button:hover{background:rgba(255,255,255,.22);}
-.lk-pgimg{overflow:auto;max-height:64vh;margin-bottom:0;}
+.lk-pgimg{overflow:hidden;height:68vh;padding:0;margin-bottom:0;position:relative;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;}
 .lk-pgimg img{max-width:none;}
-.lk-imgbox{position:relative;display:block;width:100%;}
-.lk-imgbox img{display:block;width:100%;}
+.lk-imgbox{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform;}
+.lk-imgbox img{display:block;user-select:none;-webkit-user-drag:none;}
 .lk-overlay{position:absolute;inset:0;pointer-events:none;}
-.lk-mk{position:absolute;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;border-radius:50%;background:rgba(47,125,79,.5);border:2px solid #fff;box-shadow:0 0 0 1px rgba(47,125,79,.9);pointer-events:auto;cursor:pointer;transition:.1s;}
-.lk-mk:hover,.lk-mk.hl{background:var(--amber);box-shadow:0 0 0 2px #fff,0 0 0 5px rgba(217,131,36,.5);transform:scale(1.5);z-index:3;}
+.lk-mk{position:absolute;width:14px;height:14px;border-radius:50%;background:rgba(47,125,79,.55);border:2px solid #fff;box-shadow:0 0 0 1px rgba(47,125,79,.9);pointer-events:auto;cursor:pointer;transition:background .1s,box-shadow .1s;transform:translate(-50%,-50%) scale(var(--mks,1));transform-origin:center;}
+.lk-mk:hover,.lk-mk.hl{background:var(--amber);box-shadow:0 0 0 2px #fff,0 0 0 5px rgba(217,131,36,.5);transform:translate(-50%,-50%) scale(calc(var(--mks,1)*1.6));z-index:3;}
 .lg-row.hl{border-color:var(--amber)!important;box-shadow:0 0 0 2px rgba(217,131,36,.35);}
 .lk-mk-note{font-size:11.5px;color:var(--gray);line-height:1.45;margin:8px 0 12px;}
 .lk-split{display:flex;gap:16px;align-items:flex-start;}
@@ -1661,9 +1661,30 @@ function lkMarkersHtml(pg){
   return pg.rows.filter(r=>r.x&&r.y).map(r=>{const l=Math.max(0,Math.min(100,r.x/pg.wpt*100)),t=Math.max(0,Math.min(100,(1-r.y/pg.hpt)*100));
     return `<span class="lk-mk" data-id="${r._id}" title="${esc((r.group||'')+' '+r.section+' '+r.len+'м')}" style="left:${l.toFixed(2)}%;top:${t.toFixed(2)}%"></span>`;}).join('');
 }
-function lkImgBoxHtml(pg){const zw=Math.round((LK.imgZoom||1)*100);
+function lkImgBoxHtml(pg){
   if(!pg.img)return '<div class="lk-spin" style="padding:22px">рендерю лист…</div>';
-  return `<div class="lk-imgbox" id="lkImgBox" style="width:${zw}%"><img id="lkImg" src="${pg.img}" alt="Лист ${pg.page}"><div class="lk-overlay">${lkMarkersHtml(pg)}</div></div>`;
+  return `<div class="lk-imgbox" id="lkImgBox"><img id="lkImg" src="${pg.img}" alt="Лист ${pg.page}" draggable="false"><div class="lk-overlay">${lkMarkersHtml(pg)}</div></div>`;
+}
+/* фото-стиль зум/панорама схемы: колесо/пинч — зум к курсору, тяни — двигай, дв.клик — приблизить (Win/Mac) */
+function lkInitViewer(){
+  const vp=$('lkPgImg'),box=$('lkImgBox'),img=$('lkImg');
+  if(!vp||!box||!img)return;
+  const st={s:1,x:0,y:0,fit:1,w:0,h:0};
+  function apply(){box.style.transform='translate('+st.x+'px,'+st.y+'px) scale('+st.s+')';box.style.setProperty('--mks',1/st.s);}
+  function fit(){st.w=img.naturalWidth||img.width;st.h=img.naturalHeight||img.height;if(!st.w){return;}
+    const vw=vp.clientWidth,vh=vp.clientHeight;st.fit=Math.min(vw/st.w,vh/st.h)||1;st.s=st.fit;
+    st.x=(vw-st.w*st.s)/2;st.y=(vh-st.h*st.s)/2;apply();}
+  function zoomAt(cx,cy,f){const b=vp.getBoundingClientRect();const px=cx-b.left,py=cy-b.top;
+    const ox=(px-st.x)/st.s,oy=(py-st.y)/st.s;st.s=Math.max(st.fit*0.9,Math.min(st.fit*16,st.s*f));
+    st.x=px-ox*st.s;st.y=py-oy*st.s;apply();}
+  vp.onwheel=e=>{e.preventDefault();zoomAt(e.clientX,e.clientY,e.deltaY<0?1.12:0.893);};
+  let dg=false,lx,ly;
+  vp.onpointerdown=e=>{if(e.target&&e.target.classList&&e.target.classList.contains('lk-mk'))return;dg=true;lx=e.clientX;ly=e.clientY;try{vp.setPointerCapture(e.pointerId);}catch(_){}vp.style.cursor='grabbing';};
+  vp.onpointermove=e=>{if(!dg)return;st.x+=e.clientX-lx;st.y+=e.clientY-ly;lx=e.clientX;ly=e.clientY;apply();};
+  vp.onpointerup=vp.onpointercancel=()=>{dg=false;vp.style.cursor='grab';};
+  vp.ondblclick=e=>zoomAt(e.clientX,e.clientY,1.7);
+  LK._zoomBtn=z=>{const b=vp.getBoundingClientRect();if(z==='fit')fit();else zoomAt(b.left+b.width/2,b.top+b.height/2,z==='in'?1.35:0.74);};
+  if(img.complete&&img.naturalWidth)fit();else img.onload=fit;
 }
 async function lkEnsureImg(pg){if(pg.img||!LK.pdf)return pg.img;const page=await LK.pdf.getPage(pg.page);pg.img=await lkRenderPage(page);return pg.img;}
 $('btnLineyka').onclick=()=>$('lkFile').click();
@@ -1733,7 +1754,8 @@ function bindLineyka(){const P=$('lkPage');
   P.querySelectorAll('.lk-g').forEach(el=>el.onchange=()=>{LK.byId[el.dataset.id].group=el.value;});
   P.querySelectorAll('.lk-del').forEach(el=>el.onclick=()=>{lkDelRow(el.dataset.id);renderLineyka();});
   const add=$('lkAdd');if(add)add.onclick=()=>{const pg=LK.pages[LK.sel];const r={_id:'r'+id2(),group:'',section:'3x2,5',len:0,conds:[],x:0,page:pg.page};LK.byId[r._id]=r;pg.rows.push(r);(pg.groups[0]||(pg.groups[0]={name:'Линейка',rows:[]})).rows.push(r);renderLineyka();};
-  P.querySelectorAll('.lk-zoom button').forEach(b=>b.onclick=()=>{const z=b.dataset.z;LK.imgZoom=z==='fit'?1:z==='in'?Math.min(6,(LK.imgZoom||1)*1.4):Math.max(0.4,(LK.imgZoom||1)/1.4);const bx=$('lkImgBox');if(bx)bx.style.width=Math.round(LK.imgZoom*100)+'%';});
+  P.querySelectorAll('.lk-zoom button').forEach(b=>b.onclick=()=>{if(LK._zoomBtn)LK._zoomBtn(b.dataset.z);});
+  lkInitViewer();
   // #2 — наведение на строку ↔ отметка на схеме
   P.querySelectorAll('.lg-row').forEach(row=>{const id=row.dataset.id;
     row.addEventListener('mouseenter',()=>{const m=P.querySelector('.lk-mk[data-id="'+id+'"]');if(m)m.classList.add('hl');});
