@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ТЗ · Оранжерея — CRM/ERP для цветочной сети · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#2a2016;--ink2:#4a3c2c;--org:#e07a23;--orgD:#bd5f12;--orgL:#fdeede;--grn:#3f7d52;--text:#33291d;--muted:#7c6c58;--faint:#b3a58f;--line:#ece0cf;--off:#fbf6ee;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55;background:#eae2d5}
+.page{width:210mm;min-height:297mm;position:relative;padding:15mm 16mm 17mm;margin:0 auto 8mm;background:#fff;display:flex;flex-direction:column}
+.runfoot{position:absolute;left:16mm;right:16mm;bottom:9mm;display:flex;justify-content:space-between;font-size:8px;color:var(--faint);border-top:1px solid var(--line);padding-top:6px}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .bm{width:40px;height:40px;background:var(--ink);border-radius:11px;display:grid;place-items:center;flex:none}
+.brand .bt{font-size:19px;font-weight:800;color:var(--ink)}
+.brand .bs{font-size:8.5px;color:var(--muted);letter-spacing:.03em;margin-top:1px}
+.hr{text-align:right}.hr .t{font-size:13px;font-weight:800;color:var(--ink)}.hr .dt{font-size:9.5px;color:var(--muted);margin-top:2px}
+.rule{height:2px;background:var(--org);margin-bottom:14px}
+h1{font-size:20px;font-weight:900;letter-spacing:-.01em;line-height:1.15;margin-bottom:8px;color:var(--ink)}
+.lead{font-size:11px;color:var(--ink2);margin-bottom:14px;line-height:1.6}.lead b{color:var(--ink)}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.chip{background:var(--off);border:1px solid var(--line);border-radius:20px;padding:4px 11px;font-size:9px;font-weight:600;color:var(--ink2)}
+.sec{font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--org);margin:16px 0 9px;display:flex;align-items:center;gap:9px}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.sec.first{margin-top:2px}
+.mod{border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin-bottom:8px;break-inside:avoid}
+.mod .mt{font-weight:800;font-size:11.5px;color:var(--ink);margin-bottom:5px;display:flex;align-items:center;gap:8px}
+.mod .mt .n{width:20px;height:20px;border-radius:6px;background:var(--ink);color:#fff;font-size:10px;display:grid;place-items:center;flex:none;font-weight:700}
+.mod.key .mt .n{background:var(--org)}
+.mod ul{margin:0;padding-left:15px}
+.mod li{font-size:10px;color:var(--ink2);margin-bottom:2.5px;line-height:1.5}.mod li b{color:var(--ink)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.callout{background:var(--orgL);border:1px solid #f0cfa4;border-radius:9px;padding:10px 13px;font-size:10px;color:#7a4310;line-height:1.55;margin-bottom:8px}
+.callout b{color:#5c3208}
+.note{font-size:9.5px;color:var(--muted);font-style:italic;margin-top:4px}
+table.req{width:100%;border-collapse:collapse;margin-top:4px}
+table.req td{padding:6px 9px;font-size:9.5px;border-bottom:1px solid var(--line)}
+table.req td.k{width:22%;color:var(--muted)}
+table.req tr:nth-child(even){background:var(--off)}
+.accept{border:1px solid var(--line);border-radius:9px;padding:6px 14px}
+.accept .t{display:flex;gap:12px;padding:7px 0;border-bottom:1px solid var(--off)}
+.accept .t:last-child{border-bottom:none}
+.accept .t .w{width:110px;flex:none;font-size:9.5px;font-weight:800;color:var(--org)}
+.accept .t .d{font-size:10px;color:var(--ink2)}.accept .t .d b{color:var(--ink)}
+.signs{display:flex;gap:40px;margin-top:14px}
+.signs .s{flex:1}.signs .sl{font-size:9px;color:var(--muted);margin-bottom:12px}
+.signs .snm{font-weight:700;font-size:10.5px;margin-bottom:12px}.signs .ln{font-size:10px;color:#4a3c2c}.signs .ln u{display:inline-block;width:80px;border-bottom:1px solid #cdbfa8}
+</style></head>
+<body>
+
+<!-- страница 1 -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg viewBox="0 0 32 32" width="24" height="24"><path d="M16 17 C11 13 11 8 16 5 C21 8 21 13 16 17 Z" fill="#e07a23"/><path d="M16 17 C12 13 6 14 5 19 C10 20 15 19 16 17 Z" fill="#3f7d52"/><path d="M16 17 C20 13 26 14 27 19 C22 20 17 19 16 17 Z" fill="#3f7d52"/><path d="M16 17 v9" stroke="#8a6a3a" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">Оранжерея</div><div class="bs">CRM/ERP для цветочной сети · orangeree.kg · Pllato</div></div>
+    </div>
+    <div class="hr"><div class="t">ТЗ № TZ-OR-2026-01</div><div class="dt">13 июля 2026 г.</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h1>Техническое задание — CRM/ERP для цветочной сети «Оранжерея»</h1>
+  <div class="lead">Разработка единой системы управления для оптово-розничной цветочной компании <b>«Оранжерея»</b> (orangeree.kg, Бишкек): 7 розничных точек + оптовый склад. Заменяет аренду чужой CRM (amo/Bitrix/RetailCRM). Собирается <b>кастомно под бизнес-процессы</b>, размещается на <b>локальном сервере Заказчика</b>, передаётся в собственность. Двусторонний NDA, техническая реализация другим цветочникам не передаётся.</div>
+  <div class="meta">
+    <span class="chip">Платформа: веб, размещение на сервере Заказчика</span>
+    <span class="chip">Интеграции: 1С · Instagram · WhatsApp · Telegram · сайт · IP-телефония</span>
+    <span class="chip">ERP + CRM</span>
+    <span class="chip">Основа: демо GÜLZAR/«Оранжерея»</span>
+  </div>
+  <div class="callout"><b>Ядро проекта — работа с клиентом.</b> Главное в системе (2 года в планах Заказчика) — <b>база постоянных клиентов и система лояльности</b>: основная выручка идёт с ежедневной работы с клиентами, а не с 8 марта. 1С важна, но вторична (для бухгалтера). Точный состав формул (лояльность, KPI, прогноз), тексты рассылок и справочники уточняются на рабочих встречах; заложено ~30% часов на доработки Заказчика.</div>
+
+  <div class="sec first">1. База клиентов и система лояльности (ядро)</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">1</span>Постоянные клиенты, лояльность, повторные продажи</div>
+    <ul>
+      <li><b>База клиентов</b> с привязкой к номеру телефона (не Apple/Google Wallet — не у всех есть). Карточка, история покупок, LTV, каналы.</li>
+      <li><b>Даты и напоминания:</b> дни рождения близких, <b>годовщины покупок</b> («купил 5 мая → каждый год за день SMS»), регулярные покупки («каждую субботу → напоминание в субботу»), «вечерний букет».</li>
+      <li><b>Статусы клиентов</b> (напр. «супер-муж» — 4+ букета/мес) и <b>классические схемы</b> (купил 3 — 4-й в подарок).</li>
+      <li><b>Рассылки-роботы по воронке</b>: на каждый этап свой сценарий (давно не заходил / покупает часто), SMS + почта. Прямой рост повторных продаж и LTV.</li>
+    </ul>
+  </div>
+
+  <div class="sec">2–3. Воронка, каналы, наличие</div>
+  <div class="two">
+    <div class="mod key"><div class="mt"><span class="n">2</span>Воронка и все каналы</div><ul>
+      <li>Заказы и лиды из <b>Instagram, WhatsApp, Telegram, сайта</b> — в одной воронке.</li>
+      <li><b>Статистика каналов:</b> откуда пришёл лид, конверсия, эффективность рекламы.</li>
+    </ul></div>
+    <div class="mod key"><div class="mt"><span class="n">3</span>Наличие по филиалам + перемещения</div><ul>
+      <li>Остатки по каждой из 7 точек (зеркало 1С).</li>
+      <li><b>Быстрое перемещение</b> между точками — отдельной вкладкой.</li>
+    </ul></div>
+  </div>
+
+  <div class="sec">4. Оптовый склад и прогноз</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">4</span>Склад с прогнозом заказа</div>
+    <ul>
+      <li><b>Приход, расход, инвентаризация, каталог, отчёты по остаткам, списания</b> (списания важны для прогноза).</li>
+      <li>По каждой позиции — <b>история прихода/ухода</b>; остатки в реальном времени.</li>
+      <li><b>Динамика и прогноз по неделям:</b> интенсивность продаж (продалось за неделю → рекомендованный заказ на следующую), учёт пиков (праздники).</li>
+    </ul>
+  </div>
+
+  <div class="sec">5–6. Касса и 1С</div>
+  <div class="two">
+    <div class="mod"><div class="mt"><span class="n">5</span>Касса на точках</div><ul>
+      <li>Онлайн + офлайн, <b>в реальном времени</b>; эквайринг.</li>
+      <li>Синхронно с порталом и 1С.</li>
+    </ul></div>
+    <div class="mod key"><div class="mt"><span class="n">6</span>Интеграция 1С (двусторонняя)</div><ul>
+      <li>Одна база (рабочая), с которой ведётся учёт; изменения в 1С видны в портале и наоборот.</li>
+      <li>Задача-максимум: <b>не заходить в 1С</b> — всё видно в портале (1С — для бухгалтера).</li>
+    </ul></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · ТЗ TZ-OR-2026-01 · «Оранжерея»</span><span>1 / 3</span></div>
+</section>
+
+<!-- страница 2 -->
+<section class="page">
+  <div class="sec first">7–8. KPI флористов и апселлы</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">7</span>KPI и план-факт</div>
+    <ul>
+      <li>Зарплата флориста/менеджера от выручки (минималка + проценты без ограничений, выплаты 2 раза в месяц).</li>
+      <li><b>План-факт на период (2 недели)</b>, реалистичный план с нагрузкой, <b>бонусы за перевыполнение</b>.</li>
+      <li>Показатели: касса (ежедневно), <b>средний чек</b>, <b>количество позиций в чеке</b>, выполнение плана.</li>
+      <li>Мотивация вместо контроля камерами: прозрачный доход → воровство падает.</li>
+    </ul>
+  </div>
+  <div class="mod key">
+    <div class="mt"><span class="n">8</span>Апселлы и допродажи</div>
+    <ul>
+      <li><b>Заготовки корзин</b> под сегменты: средний клиент и <b>супер-дорогой</b> (готовая корзина от $500, супермаржа) — для клиентов, кому «без разницы по цене, надо срочно и лучшее».</li>
+      <li>Доп.товары к букету (шоколад, игрушки, открытки), подсказки менеджеру.</li>
+      <li>Бонусы флористам за апселлы.</li>
+    </ul>
+  </div>
+
+  <div class="sec">9. Каналы и интеграции</div>
+  <div class="mod">
+    <div class="mt"><span class="n">9</span>Instagram / WhatsApp / Telegram / сайт</div>
+    <ul>
+      <li><b>WhatsApp</b> — безлимит (≈$10/мес вместо ~$80); либо подключаем готовый сервис Заказчика (через QR).</li>
+      <li><b>Instagram</b> — своё приложение, публикация на Facebook (2–3 недели согласования), далее без платежей.</li>
+      <li><b>Telegram</b> — бот приёма заказов → заявка в CRM; довести до конца: оплата и адрес доставки прямо в боте.</li>
+      <li><b>Сайт</b> — интеграция, заявки зеркалом в CRM. Опция/этап: <b>онлайн-магазин с корзиной, checkout и эквайрингом</b> (потенциал роста продаж ×2).</li>
+    </ul>
+    <div class="note">Интеграции каналов настраиваем в рамках проекта, дальнейших платежей за них нет.</div>
+  </div>
+
+  <div class="sec">10–11. Телефония и дашборд</div>
+  <div class="two">
+    <div class="mod"><div class="mt"><span class="n">10</span>IP-телефония</div><ul>
+      <li>Звонки из системы (≈$50/мес по сети).</li>
+      <li>Отдельный продажник на телефоне по повседневным поводам; история в карточке клиента.</li>
+    </ul></div>
+    <div class="mod key"><div class="mt"><span class="n">11</span>Дашборд сети (ERP + CRM)</div><ul>
+      <li>Единый «пульт»: касса в реальном времени, наличие, лиды, клиенты, KPI, каналы.</li>
+      <li>Управление ресурсами всей сети (7 точек + склад) для собственников и управляющего.</li>
+    </ul></div>
+  </div>
+
+  <div class="sec">12. Опции и этапы развития</div>
+  <div class="mod">
+    <div class="mt"><span class="n">12</span>Дополнительно (по согласованию)</div>
+    <ul>
+      <li><b>Онлайн-магазин на сайте</b> (корзина/checkout/эквайринг) — как отдельный этап, большой потенциал продаж.</li>
+      <li><b>Воронка найма</b> флористов/менеджеров: объявление → тесты (IQ/психология) → собеседование → стажировка; мини-академия (видео-обучение).</li>
+      <li><b>Скрипты и регламенты</b> продаж (ответ ≤5 мин, стандартный скрипт разговора).</li>
+      <li><b>НЕ входит:</b> видеоаналитика с камер (контроль флористов) — отдельный крупный проект; по решению Заказчика сейчас не делаем.</li>
+    </ul>
+  </div>
+
+  <div class="runfoot"><span>Pllato · ТЗ TZ-OR-2026-01 · «Оранжерея»</span><span>2 / 3</span></div>
+</section>
+
+<!-- страница 3 -->
+<section class="page">
+  <div class="sec first">13. Инфраструктура, владение, эксклюзив</div>
+  <div class="mod">
+    <div class="mt"><span class="n">13</span>Размещение и передача</div>
+    <ul>
+      <li>Размещение на <b>локальном сервере Заказчика</b>; настройка — в пакете (бесплатный хостинг до 10 ГБ также возможен).</li>
+      <li>Передача в собственность: исходники и документация — Заказчику. Дальнейших платежей за пользование нет.</li>
+      <li><b>Эксклюзив:</b> техническую реализацию другим цветочникам не передаём. Двусторонний <b>NDA</b>. За Исполнителем — право упоминать авторство.</li>
+      <li>Доработки после сдачи — по часам ($20/час), накопительно.</li>
+      <li>Экономия: WhatsApp ≈$10/мес (вместо ~$80) → ~$800/год; интеграции каналов и 1С — без ежегодных платежей.</li>
+    </ul>
+  </div>
+
+  <div class="sec">Порядок разработки и приёмки</div>
+  <div class="accept">
+    <div class="t"><div class="w">Этап 0 · старт</div><div class="d"><b>Предоплата $270 (10%).</b> Разворачиваем ядро, настраиваем сервер и первые интеграции. Заказчик пока работает в текущем RetailCRM.</div></div>
+    <div class="t"><div class="w">≈ 1 неделя</div><div class="d"><b>Первый этап:</b> основной функционал собран и передан на сервер — можно прокликать и согласовать.</div></div>
+    <div class="t"><div class="w">4–6 недель</div><div class="d"><b>Полная разработка:</b> лояльность, склад с прогнозом, KPI, касса, 1С, каналы, телефония. Оплата этапа 2 — $1 215.</div></div>
+    <div class="t"><div class="w">Сдача</div><div class="d"><b>Полировка, правки, передача</b> на локальный сервер и обучение. Оплата остатка — $1 215.</div></div>
+  </div>
+
+  <div class="sec">Стоимость</div>
+  <div class="callout" style="margin-bottom:12px">Полная стоимость разработки — <b>$2 700</b> (со скидкой 10% от $3 000, разово, в собственность). Оплата: $270 (старт) + $1 215 (после сборки) + $1 215 (после сдачи). Интеграция 1С, система лояльности, каналы (Instagram/WhatsApp/Telegram/сайт) и настройка сервера — <b>бесплатно в стандартном пакете</b>. Заложено ~30% часов на доработки Заказчика. Детали — в КП № OR-2026-01, старт — счёт № OR-С-2026-01.</div>
+
+  <div class="sec">Стороны</div>
+  <table class="req">
+    <tr><td class="k">Исполнитель</td><td>ИП «STUDYSTORIES.APP», БИН 880607300110, директор Цай Платон · pllato.kz · uurraa@gmail.com</td></tr>
+    <tr><td class="k">Заказчик</td><td>Цветочная компания «Оранжерея» (orangeree.kg), г. Бишкек. Соучредители Юлия, Анна. Реквизиты — при заключении договора.</td></tr>
+  </table>
+
+  <div class="signs">
+    <div class="s"><div class="sl">Исполнитель</div><div class="snm">ИП «STUDYSTORIES.APP»</div><div class="ln"><u></u> / Цай П. / М.П.</div></div>
+    <div class="s"><div class="sl">Заказчик</div><div class="snm">«Оранжерея»</div><div class="ln"><u></u> / __________ / М.П.</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · ТЗ TZ-OR-2026-01 · ИП «STUDYSTORIES.APP» · pllato.kz</span><span>3 / 3</span></div>
+</section>
+</body></html>
