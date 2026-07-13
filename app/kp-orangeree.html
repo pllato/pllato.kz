@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>КП · Оранжерея — CRM/ERP для цветочной сети · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#2a2016;--ink2:#4a3c2c;--org:#e07a23;--orgD:#bd5f12;--orgL:#fdeede;--grn:#3f7d52;--grnL:#e7f1e8;--text:#33291d;--muted:#7c6c58;--faint:#b3a58f;--line:#ece0cf;--off:#fbf6ee;--red:#c14a2b;--redL:#f9e7df;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:11px;line-height:1.55;background:#eae2d5}
+.page{width:210mm;min-height:297mm;position:relative;padding:16mm 16mm 18mm;margin:0 auto 8mm;background:#fff;display:flex;flex-direction:column}
+.runfoot{position:absolute;left:16mm;right:16mm;bottom:9mm;display:flex;justify-content:space-between;font-size:8px;color:var(--faint);border-top:1px solid var(--line);padding-top:6px}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:13px}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .bm{width:44px;height:44px;background:var(--ink);border-radius:12px;display:grid;place-items:center;flex:none}
+.brand .bt{font-size:22px;font-weight:800;letter-spacing:.01em;color:var(--ink)}
+.brand .bs{font-size:9px;color:var(--muted);letter-spacing:.03em;margin-top:1px}
+.hr{text-align:right}.hr .t{font-size:14px;font-weight:800;color:var(--ink)}.hr .dt{font-size:10px;color:var(--muted);margin-top:2px}
+.rule{height:2px;background:var(--org);margin-bottom:15px}
+h1{font-size:23px;font-weight:900;letter-spacing:-.02em;line-height:1.15;margin-bottom:9px;color:var(--ink)}
+h1 .a{color:var(--org)}
+.lead{font-size:12px;color:var(--ink2);margin-bottom:16px;line-height:1.6}.lead b{color:var(--ink)}
+.forwho{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.chip{background:var(--off);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:10px;font-weight:600;color:var(--ink2)}
+.chip b{color:var(--org)}
+.sec{font-size:9.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--org);margin:20px 0 10px;display:flex;align-items:center;gap:9px}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.sec.first{margin-top:4px}
+.pain{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:6px}
+.pain .row{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.pain .row+.row{border-top:1px solid var(--line)}
+.pain .c{padding:9px 13px;font-size:10.5px;line-height:1.5}
+.pain .c.p{background:#fbf0ea;color:#7c3a22}
+.pain .c.s{border-left:1px solid var(--line);color:var(--ink2)}
+.pain .c.s b{color:var(--grn)}
+.pain .c .h{font-size:8.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px;opacity:.7}
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mod{border:1px solid var(--line);border-radius:10px;padding:11px 13px;background:#fff}
+.mod .mt{font-weight:800;font-size:11.5px;color:var(--ink);margin-bottom:3px;display:flex;align-items:center;gap:7px}
+.mod .mt .n{width:19px;height:19px;border-radius:6px;background:var(--ink);color:#fff;font-size:9.5px;display:grid;place-items:center;flex:none}
+.mod .md{font-size:10px;color:var(--muted);line-height:1.5}
+.mod.key{border-color:#f0cfa4;background:linear-gradient(180deg,#fdf5ea,#fff)}
+.mod.key .mt .n{background:var(--org)}
+.bonus{border:1px dashed var(--org);border-radius:10px;background:var(--orgL);padding:13px 15px;margin-bottom:4px}
+.bonus .bt2{font-weight:800;font-size:12px;color:#7a4310;margin-bottom:7px}
+.bonus .bl{display:flex;justify-content:space-between;font-size:10.5px;padding:4px 0;border-bottom:1px dashed #eecba0;color:#7a4310}
+.bonus .bl:last-child{border-bottom:none}
+.bonus .bl s{color:#b28a58}
+.bonus .bl b{color:var(--grn)}
+.price{display:flex;gap:14px;align-items:stretch;margin-bottom:6px}
+.price .big{flex:1.1;background:var(--ink);color:#fff;border-radius:12px;padding:16px 18px}
+.price .big .l{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#c9b79f;font-weight:700}
+.price .big .v{font-size:30px;font-weight:900;letter-spacing:-.02em;margin:2px 0}
+.price .big .v em{font-style:normal;font-size:13px;color:#c9b79f}
+.price .big .n{font-size:10px;color:#dccbb4;line-height:1.5;margin-top:5px}
+.price .steps{flex:1.3;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.price .st{display:flex;justify-content:space-between;align-items:center;padding:9px 13px;font-size:10.5px}
+.price .st+.st{border-top:1px solid var(--line)}
+.price .st .sn{color:var(--ink2)}.price .st .sn b{color:var(--ink)}
+.price .st .sv{font-weight:800;color:var(--orgD);white-space:nowrap}
+.price .st.cur{background:var(--orgL)}
+.tl{border:1px solid var(--line);border-radius:10px;padding:6px 14px}
+.tl .t{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--off)}
+.tl .t:last-child{border-bottom:none}
+.tl .t .w{width:104px;flex:none;font-size:10px;font-weight:800;color:var(--org)}
+.tl .t .d{font-size:10.5px;color:var(--ink2)}.tl .t .d b{color:var(--ink)}
+.terms{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.term{border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+.term .h{font-weight:800;font-size:10.5px;color:var(--ink);margin-bottom:2px}
+.term .b{font-size:10px;color:var(--muted);line-height:1.5}
+.why{background:var(--off);border:1px solid var(--line);border-radius:10px;padding:13px 15px;font-size:10.5px;color:var(--ink2);line-height:1.6}.why b{color:var(--ink)}
+.cta{margin-top:14px;background:var(--ink);color:#fff;border-radius:12px;padding:15px 18px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+.cta .l{font-size:11px;color:#dccbb4;line-height:1.5}.cta .l b{color:#fff}
+.cta .r{text-align:right;font-size:10px;color:#c9b79f;white-space:nowrap}
+.cta .r b{display:block;font-size:13px;color:#f2a95a;font-weight:800}
+</style></head>
+<body>
+
+<!-- страница 1 -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg viewBox="0 0 32 32" width="27" height="27"><path d="M16 17 C11 13 11 8 16 5 C21 8 21 13 16 17 Z" fill="#e07a23"/><path d="M16 17 C12 13 6 14 5 19 C10 20 15 19 16 17 Z" fill="#3f7d52"/><path d="M16 17 C20 13 26 14 27 19 C22 20 17 19 16 17 Z" fill="#3f7d52"/><path d="M16 17 v9" stroke="#8a6a3a" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">Оранжерея</div><div class="bs">CRM/ERP для цветочной сети · orangeree.kg · Pllato</div></div>
+    </div>
+    <div class="hr"><div class="t">КП № OR-2026-01</div><div class="dt">13 июля 2026 г.</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h1>Своя система <span class="a">Оранжерея</span> — вся сеть,<br>склад и постоянные клиенты в одном месте</h1>
+  <div class="lead">Коммерческое предложение для цветочной компании <b>«Оранжерея»</b> (orangeree.kg, Бишкек): 7 розничных точек + оптовый склад. Мы разрабатываем <b>полностью под вас</b> CRM/ERP: воронка и все каналы, склад с прогнозом, касса и 1С, и главное — <b>база постоянных клиентов с системой лояльности</b>. Собираем <b>один раз</b> на вашем сервере — и передаём в собственность. Никакой ежемесячной аренды чужой CRM.</div>
+  <div class="forwho">
+    <span class="chip"><b>Цветы</b> · опт + розница</span>
+    <span class="chip">Бишкек · 7 точек + склад</span>
+    <span class="chip">на вашем локальном сервере</span>
+    <span class="chip"><b>Без абонплаты</b> · передаём насовсем</span>
+  </div>
+
+  <div class="sec first">Что болит сейчас → что даёт «Оранжерея»</div>
+  <div class="pain">
+    <div class="row">
+      <div class="c p"><div class="h">Сейчас</div>Платите аренду за чужую CRM (amo/Bitrix/RetailCRM) + отдельно ~$1000–1500 за интеграцию 1С + подписки — и так каждый год, ~$2000+/год.</div>
+      <div class="c s"><div class="h">Ваша система</div><b>Один раз</b> собираем под вас на вашем сервере и передаём в собственность. Дальше <b>не платите</b>. За период выходит в разы дешевле.</div>
+    </div>
+    <div class="row">
+      <div class="c p"><div class="h">2 года хотите</div>Базу постоянных клиентов, дни рождения, чтобы вовремя слать напоминания — руки не доходят, всё в голове.</div>
+      <div class="c s"><div class="h">Ваша система</div><b>База клиентов + лояльность:</b> привязка к телефону, дни рождения и годовщины покупок, авто-SMS «за день», статусы, повторные продажи.</div>
+    </div>
+    <div class="row">
+      <div class="c p"><div class="h">Сейчас</div>Не видно остатки по филиалам и на складе; заказ прогнозируете «на глаз», списания не считаются.</div>
+      <div class="c s"><div class="h">Ваша система</div><b>Склад с прогнозом:</b> остатки по точкам, перемещения, приход/расход/инвентаризация, списания и <b>прогноз заказа по неделям</b>.</div>
+    </div>
+    <div class="row">
+      <div class="c p"><div class="h">Сейчас</div>Не видно, какой канал (Instagram/WhatsApp/Telegram/сайт) эффективнее — деньги на рекламу уходят вслепую.</div>
+      <div class="c s"><div class="h">Ваша система</div><b>Все каналы в одном месте + статистика:</b> откуда пришёл лид, конверсия, эффективность рекламы по каналам.</div>
+    </div>
+    <div class="row">
+      <div class="c p"><div class="h">Сейчас</div>Флористы/менеджеры на проценте от выручки, но нет план-факта, апселлов и прозрачности — есть потери.</div>
+      <div class="c s"><div class="h">Ваша система</div><b>KPI и план-факт</b> (2 недели, бонусы за перевыполнение), средний чек, позиции в чеке, <b>апселлы</b> (заготовки корзин) — доход растёт, воровство падает.</div>
+    </div>
+  </div>
+
+  <div class="sec">Что входит в разработку</div>
+  <div class="mods">
+    <div class="mod key"><div class="mt"><span class="n">1</span>База клиентов + лояльность</div><div class="md">Привязка к телефону, дни рождения/годовщины, авто-SMS, статусы клиентов, «вечерний букет», повторные продажи, рассылки-роботы по воронке.</div></div>
+    <div class="mod key"><div class="mt"><span class="n">2</span>Склад с прогнозом</div><div class="md">Остатки по точкам и складу, перемещения, приход/расход/инвентаризация, списания, каталог, отчёты, прогноз заказа по неделям.</div></div>
+    <div class="mod key"><div class="mt"><span class="n">3</span>Воронка и все каналы</div><div class="md">Заказы и лиды из Instagram, WhatsApp, Telegram, сайта — в одном месте; статистика эффективности каналов.</div></div>
+    <div class="mod key"><div class="mt"><span class="n">4</span>KPI и план-факт флористов</div><div class="md">Зарплата от выручки + план-факт (2 недели), бонусы, средний чек, позиции в чеке, апселлы (средний и супер-дорогой клиент).</div></div>
+    <div class="mod"><div class="mt"><span class="n">5</span>Касса на точках</div><div class="md">Онлайн + офлайн, в режиме реального времени, синхронно с порталом и 1С.</div></div>
+    <div class="mod"><div class="mt"><span class="n">6</span>Интеграция 1С</div><div class="md">Двусторонняя: то, что в 1С — видно в портале и наоборот. Не нужно заходить в 1С (это для бухгалтера).</div></div>
+    <div class="mod"><div class="mt"><span class="n">7</span>IP-телефония</div><div class="md">Звонки из системы, отдельный продажник на телефоне, история обращений в карточке клиента.</div></div>
+    <div class="mod"><div class="mt"><span class="n">8</span>Дашборд сети (ERP + CRM)</div><div class="md">Единый «пульт»: касса реального времени, наличие, лиды, клиенты, KPI — по всей сети.</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП OR-2026-01 · «Оранжерея» — CRM/ERP для цветочной сети</span><span>1 / 2</span></div>
+</section>
+
+<!-- страница 2 -->
+<section class="page">
+  <div class="sec first">Бесплатно в стандартном пакете</div>
+  <div class="bonus">
+    <div class="bt2">Обычно оплачивается отдельно — вам включено:</div>
+    <div class="bl"><span>Интеграция с 1С (двусторонняя, зеркало)</span><span><s>обычно $1000–1500</s> → <b>$0</b></span></div>
+    <div class="bl"><span>Система лояльности (кастомная, под вас)</span><span><s>отдельно не купить</s> → <b>$0</b></span></div>
+    <div class="bl"><span>Интеграция Instagram / WhatsApp / Telegram / сайт</span><span><s>отдельно</s> → <b>$0</b></span></div>
+    <div class="bl"><span>WhatsApp-канал (безлимит сообщений)</span><span><s>обычно $80/мес</s> → <b>≈$10/мес</b></span></div>
+    <div class="bl"><span>Настройка и размещение на вашем сервере</span><span><s>отдельно</s> → <b>$0</b></span></div>
+  </div>
+
+  <div class="sec">Стоимость и порядок оплаты</div>
+  <div class="price">
+    <div class="big">
+      <div class="l">Разработка «под ключ», разово</div>
+      <div class="v">$2 700</div>
+      <div class="n"><s style="color:#b28a58">$3 000</s> — со скидкой 10%. Полная передача на ваш сервер, в собственность. Дальше за пользование <b style="color:#fff">платить не нужно</b>.</div>
+    </div>
+    <div class="steps">
+      <div class="st cur"><span class="sn"><b>Этап 1 · старт</b> — предоплата 10%</span><span class="sv">$270</span></div>
+      <div class="st"><span class="sn"><b>Этап 2</b> — после сборки функционала (передаём на сервер)</span><span class="sv">$1 215</span></div>
+      <div class="st"><span class="sn"><b>Этап 3</b> — после полной сдачи и правок</span><span class="sv">$1 215</span></div>
+      <div class="st" style="background:var(--off)"><span class="sn">Итого</span><span class="sv">$2 700</span></div>
+    </div>
+  </div>
+
+  <div class="sec">Сроки</div>
+  <div class="tl">
+    <div class="t"><div class="w">≈ 1 неделя</div><div class="d"><b>Первый этап.</b> Поднимаем ядро и основной функционал, показываем — можно прокликать. Параллельно можете пользоваться текущим RetailCRM.</div></div>
+    <div class="t"><div class="w">4–6 недель</div><div class="d"><b>Полная разработка и сдача.</b> Все интеграции (1С, каналы, касса, телефония), лояльность, склад, KPI — под ваши процессы.</div></div>
+    <div class="t"><div class="w">Запас 30%</div><div class="d"><b>На ваши доработки.</b> В ходе согласования вы обязательно добавите пару пунктов — заложено.</div></div>
+    <div class="t"><div class="w">Передача</div><div class="d"><b>На ваш локальный сервер</b>, в собственность, с обучением.</div></div>
+  </div>
+
+  <div class="sec">Условия и операционные расходы (не входят в разработку)</div>
+  <div class="terms">
+    <div class="term"><div class="h">Полное владение + эксклюзив</div><div class="b">Система на вашем сервере, в собственность. Техническую реализацию другим цветочникам не передаём. Двусторонний NDA.</div></div>
+    <div class="term"><div class="h">Доработки после сдачи</div><div class="b">По часам — $20/час; мелкие правки быстро, накопительно. Крупных обязательных платежей больше нет.</div></div>
+    <div class="term"><div class="h">WhatsApp</div><div class="b">≈$10/мес (вместо ~$80). Если подключаем ваш готовый сервис — бесплатно.</div></div>
+    <div class="term"><div class="h">IP-телефония</div><div class="b">≈$50/мес (звонки по всей сети, безлимит минут).</div></div>
+  </div>
+
+  <div class="sec">Почему это выгоднее аренды чужой CRM</div>
+  <div class="why">В amoCRM / Bitrix / RetailCRM вы платите <b>каждый год</b>, они хранят вашу базу и бизнес-процессы, и вы «укореняетесь» в чужом ПО — за 5 лет это ~$15 000 и система так и не ваша. Здесь вы платите <b>один раз ~$2 700</b>, получаете систему <b>в собственность</b> на своём сервере, собранную под цветочную сеть: лояльность, склад с прогнозом, все каналы, касса, 1С. Плюс это <b>капитализация и безопасность</b> — своя система с базой внутри держит бизнес при франшизе, когда вы её запустите.</div>
+
+  <div class="cta">
+    <div class="l">Чтобы начать — <b>предоплата $270</b> (счёт № OR-С-2026-01, оплата Kaspi), и за ~неделю вы видите первый рабочий этап. Полная сдача — 4–6 недель, с передачей на ваш сервер.</div>
+    <div class="r">К старту<b>$270</b>предоплата (10%)</div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП OR-2026-01 · ИП «STUDYSTORIES.APP» · pllato.kz</span><span>2 / 2</span></div>
+</section>
+</body></html>
