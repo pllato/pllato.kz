@@ -1547,6 +1547,14 @@ function lkLinesFromItems(items){
 /* разбор вертикальных ячеек по пространственной близости (без склейки соседних ячеек) */
 const LK_COND_RX=/(п\.?г\.?|п\.?п\.?|п\.?н\.?|з\.?п\.?|т\.?[сc]\.?|г\.?т\.?)\s*(\d+)\s*-?\s*(\d+)\s*м/gi;
 function lkIsCond(s){return /п\.?г|з\.?п|т\.?[сc]|г\.?т|п\.?п/i.test(s);}
+/* длина кабеля ячейки = «-Nм» в ТОМ ЖЕ столбце (тот же X — вертикальный run), ближайшая по Y.
+   Так не путаем с трубой (X сдвинут на ~12) и с соседней колонкой (напр. ВР1-к1 60м vs безымянный 8м). */
+function lkColLen(nit,items){let best=null,bd=210;
+  items.forEach(it=>{if(it===nit)return;const s=it.s;if(LK_NAME.test(s)||lkIsCond(s)||LK_MARK.test(s))return;
+    if(Math.abs(it.x-nit.x)>8)return;
+    const mm=s.match(/-\s*(\d+(?:[,.]\d+)?)\s*м/)||s.match(/^\s*(\d+(?:[,.]\d+)?)\s*м/);
+    if(mm){const d=Math.abs(it.y-nit.y);if(d<bd){bd=d;best=mm[1];}}});
+  return best;}
 function lkParseVertical(items){
   const rows=[];const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   items.forEach(nit=>{
@@ -1555,9 +1563,7 @@ function lkParseVertical(items){
     let L=null;const dm=[...nit.s.matchAll(LK_LEN_DASH)];if(dm.length&&!lkIsCond(nit.s))L=dm[dm.length-1][1];
     let sect=null;if(LK_MARK.test(nit.s)){const s=nit.s.match(LK_SECT);if(s)sect=s[1]+'x'+s[2];}
     if(!sect)for(const it of near){if(LK_MARK.test(it.s)){const s=it.s.match(LK_SECT);if(s){sect=s[1]+'x'+s[2];break;}}}
-    if(L==null)for(const it of near){if(LK_NAME.test(it.s)||lkIsCond(it.s))continue;const mm=it.s.match(/(\d+(?:[,.]\d+)?)\s*м/);if(mm){L=mm[1];break;}}
-    // длина в отдельном элементе того же столбца (напр. ВР1-к1: «…4х1,5мм²» и «-60м» разнесены по Y)
-    if(L==null){let best=null,bd=180;items.forEach(it=>{if(it===nit||LK_NAME.test(it.s)||lkIsCond(it.s)||LK_MARK.test(it.s))return;if(Math.abs(it.x-nit.x)>16)return;const mm=it.s.match(/-\s*(\d+(?:[,.]\d+)?)\s*м/);if(mm){const d=Math.abs(it.y-nit.y);if(d<bd){bd=d;best=mm[1];}}});if(best)L=best;}
+    if(L==null)L=lkColLen(nit,items);   // длина в том же столбце (строго по X): ВР1-к1/В1-н2/безымянные отрезки
     const conds=[];[nit,...near.filter(it=>dist(it,nit)<30)].forEach(it=>{let m;LK_COND_RX.lastIndex=0;while((m=LK_COND_RX.exec(it.s)))conds.push({t:lkCondName(m[1])+m[2],len:+m[3]});});
     if(sect&&L!=null)rows.push({group:name,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:nit.x,y:nit.y});
   });
@@ -1593,7 +1599,7 @@ function lkParseOneLine(items){const rows=[];const dist=(a,b)=>Math.hypot(a.x-b.
     const near=items.filter(o=>o!==it&&dist(o,it)<44).sort((a,b)=>dist(a,it)-dist(b,it));
     if(near.some(o=>LK_NAME.test(o.s)))return;                 // это марка именованной ячейки — уже посчитана
     let L=null;const dm=[...s.matchAll(LK_LEN_DASH)];if(dm.length&&!lkIsCond(s))L=dm[dm.length-1][1];
-    if(L==null)for(const o of near){if(LK_NAME.test(o.s)||lkIsCond(o.s)||LK_MARK.test(o.s))continue;const mm=o.s.match(/-?\s*(\d+(?:[,.]\d+)?)\s*м/);if(mm){L=mm[1];break;}}
+    if(L==null)L=lkColLen(it,items);   // длина в том же столбце (строго по X) — безымянные отрезки не воруют длину у соседей
     if(L==null)return;
     const conds=[];[it,...near.filter(o=>dist(o,it)<30)].forEach(o=>{let cm;LK_COND_RX.lastIndex=0;while((cm=LK_COND_RX.exec(o.s)))conds.push({t:lkCondName(cm[1])+cm[2],len:+cm[3]});});
     rows.push({group:'—',section:sm[1]+'x'+sm[2],len:parseFloat(String(L).replace(',','.')),conds,x:it.x,y:it.y});});
