@@ -160,36 +160,47 @@
   };
 
   /* ---------- Biodata ----------
-     items: массив пунктов с рубрикой; answers: {id: value|array}; family для workerBands. */
-  HR.scoreBiodata = function (items, answers, family) {
-    let sum = 0, max = 0; const flags = []; const verify = []; let hasResults = false, hasRefs = false;
+     items: массив пунктов с рубрикой; answers: {id: value|array}; family для workerBands.
+     overrides: {id: 0|1|2} — ручная корректировка балла работодателем после проверки фактов. */
+  HR.scoreBiodata = function (items, answers, family, overrides) {
+    overrides = overrides || {};
+    let sum = 0, max = 0; const flags = []; const verify = []; const breakdown = []; let hasResults = false, hasRefs = false;
     items.forEach(it => {
       max += 2; const a = answers[it.id];
-      let s = 0;
+      let s = 0; let answerText = '';
       if (it.kind === 'number') {
         const v = parseFloat(a); const bands = (family === 'worker' && it.workerBands) ? it.workerBands : it.bands;
         if (!isNaN(v) && bands) { const b = bands.slice().sort((x, y) => y.min - x.min).find(b => v >= b.min); s = b ? b.score : 0; }
         if (it.redFlagAbove && v > it.redFlagAbove) flags.push({ level: 'red', code: it.id, text: it.label + ' — ' + v + ' (много).' });
+        answerText = (a == null || a === '') ? '—' : String(a);
       } else if (it.kind === 'select') {
         const opt = (it.options || [])[a]; s = opt ? opt.score : 0;
         if (opt && opt.flag) flags.push({ level: 'yellow', code: it.id, text: it.label + ' → ' + opt.label + ': ' + opt.flag });
+        answerText = opt ? opt.label : '—';
       } else if (it.kind === 'textlist') {
         const arr = a || []; const filled = arr.filter(x => x && x.trim()).length;
         const withNum = arr.filter(x => x && /\d/.test(x)).length;
         s = withNum >= 3 ? 2 : (withNum >= 1 || filled >= 3) ? 1 : 0;
         if (filled) { hasResults = true; arr.forEach(x => { if (x && x.trim()) verify.push('Результат: ' + x.trim()); }); }
+        answerText = arr.filter(x => x && x.trim()).join('; ') || '—';
       } else if (it.kind === 'refs') {
         const arr = a || []; const filled = arr.filter(x => x && x.trim()).length;
         s = filled >= 2 ? 2 : filled === 1 ? 1 : 0;
         if (filled) { hasRefs = true; arr.forEach(x => { if (x && x.trim()) verify.push('Рекомендатель: ' + x.trim()); }); }
+        answerText = arr.filter(x => x && x.trim()).join('; ') || '—';
       } else if (it.kind === 'text') {
         if (a && a.trim()) { s = it.scoreIfFilled || 0; if (it.verify) verify.push(it.label + ' ' + a.trim()); }
+        answerText = (a && a.trim()) ? a.trim() : '—';
       }
-      sum += s;
+      const auto = s;
+      const ov = overrides[it.id];
+      const eff = (ov === 0 || ov === 1 || ov === 2) ? ov : auto;
+      breakdown.push({ id: it.id, label: it.label, answer: answerText, auto: auto, score: eff, overridden: eff !== auto });
+      sum += eff;
     });
     if (hasResults && !hasRefs) flags.push({ level: 'red', code: 'BD-REF', text: 'Результаты заявлены, но подтвердить некому — проверить особенно тщательно.' });
     const score = max ? Math.round(sum / max * 100) : 0;
-    return { score: score, raw: sum, max: max, flags: flags, verify: verify };
+    return { score: score, raw: sum, max: max, flags: flags, verify: verify, breakdown: breakdown };
   };
 
   /* ---------- Внимательность (perceptual speed) ---------- */
@@ -243,6 +254,52 @@
       if (hash(json) !== parts[1]) return { error: 'Код повреждён или изменён вручную (не сходится контрольная сумма).' };
       return { data: JSON.parse(json) };
     } catch (e) { return { error: 'Не удалось прочитать код: ' + e.message }; }
+  };
+
+  /* ---------- Настройки (overrides дефолтов) ----------
+     settings = { positions:{fam:{moduleWeights,personalityWeights,cognitive}}, sjt:{scenarioId:{best,worst}}, combine:{interview,tests} } */
+  HR.effectivePosition = function (fam, settings) {
+    const base = window.HR_POSITIONS[fam];
+    const ov = settings && settings.positions && settings.positions[fam];
+    if (!ov) return base;
+    return Object.assign({}, base, {
+      moduleWeights: Object.assign({}, base.moduleWeights, ov.moduleWeights || {}),
+      personalityWeights: Object.assign({}, base.personalityWeights, ov.personalityWeights || {}),
+      cognitive: Object.assign({}, base.cognitive, ov.cognitive || {}),
+    });
+  };
+  // применяет override ключей SJT к банку (не мутируя оригинал)
+  HR.effectiveSJT = function (scenarios, settings) {
+    const ov = settings && settings.sjt;
+    if (!ov) return scenarios;
+    return scenarios.map(s => ov[s.id] ? Object.assign({}, s, { best: ov[s.id].best, worst: ov[s.id].worst }) : s);
+  };
+
+  /* ---------- Интервью (BARS) ----------
+     comps: [{c,B,S}]; scores: {"idx:B":1..5, "idx:S":1..5}. Возвращает total/max/pct/complete. */
+  HR.scoreInterview = function (comps, scores) {
+    scores = scores || {}; let total = 0, answered = 0; const max = comps.length * 2 * 5;
+    comps.forEach((c, i) => {
+      ['B', 'S'].forEach(t => { const v = scores[i + ':' + t]; if (v >= 1 && v <= 5) { total += v; answered++; } });
+    });
+    const maxAnswered = comps.length * 2;
+    return { total: total, max: max, answered: answered, maxAnswered: maxAnswered,
+      complete: answered === maxAnswered,
+      pct: answered ? Math.round(total / (answered * 5) * 100) : null };
+  };
+
+  /* ---------- Комбинированный вердикт (тесты + интервью) ----------
+     Интервью — предиктор №1 (.42), поэтому при полном интервью весит больше. */
+  HR.combineVerdict = function (fitScore, interview, settings) {
+    const w = (settings && settings.combine) || { interview: 55, tests: 45 };
+    if (!interview || interview.pct == null) {
+      const band = window.HR_BANDS.fit.find(b => fitScore >= b.min);
+      return { score: fitScore, verdict: band.verdict, tone: band.tone, note: band.note, hasInterview: false };
+    }
+    const wi = w.interview, wf = w.tests, sum = wi + wf;
+    const score = Math.round((wi * interview.pct + wf * fitScore) / sum);
+    const band = window.HR_BANDS.fit.find(b => score >= b.min);
+    return { score: score, verdict: band.verdict, tone: band.tone, note: band.note, hasInterview: true, complete: interview.complete };
   };
 
   window.HR = HR;
