@@ -476,23 +476,23 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
     <div class="lb-head">
       <img src="rl-logo.png" alt="RL SYSTEM" class="lb-logo">
       <div>
-        <div class="lb-title">План-Факт</div>
-        <div class="lb-sub">Исполнительные чертежи: правка ЭОМ по факту · расчёт кабеля · чистый PDF</div>
+        <div class="lb-title">Линейка · План-Факт</div>
+        <div class="lb-sub">Чтение однолинейных схем (ЭОМ): длины кабеля из PDF · расчёт · отчёт · Excel</div>
       </div>
     </div>
     <div class="lb-feats">
-      <div class="lb-feat"><b>PDF → активные трассы</b><span>сервер разбирает чертёж</span></div>
-      <div class="lb-feat"><b>Длина кабеля и спецификация</b><span>считаются сами</span></div>
-      <div class="lb-feat"><b>Чистый PDF</b><span>исполнительная схема</span></div>
+      <div class="lb-feat"><b>PDF схемы → длины кабеля</b><span>читает линейки сам</span></div>
+      <div class="lb-feat"><b>Расчёт и отчёт</b><span>по сечениям · по файлу</span></div>
+      <div class="lb-feat"><b>Экспорт в Excel</b><span>вся таблица</span></div>
     </div>
     <div class="lb-body">
       <div class="lb-open" id="lbOpen">
         <svg class="dropico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13l2 2 4-4" stroke="var(--amber)"/></svg>
-        <div class="lb-open-t">Откройте чертёж</div>
-        <div class="lb-open-d">Перетащите или выберите <b>PDF</b> — сервер разберёт его на активные трассы. Либо откройте сохранённый <b>проект</b> (.json).</div>
-        <button class="tbtn primary" id="btnOpen">Открыть PDF чертежа или проект</button>
+        <div class="lb-open-t">Откройте линейку (однолинейную схему)</div>
+        <div class="lb-open-d">Выберите <b>PDF</b> однолинейной схемы (ЩСР / ЩК / ЩО…) — программа сама прочитает длины кабеля по сечениям, посчитает и покажет отчёт. Открывается сразу.</div>
+        <button class="tbtn primary" id="btnOpenLk">Открыть схему (Линейка)</button>
         <input type="file" id="fileInput" accept=".json,application/json,.pdf,application/pdf" hidden>
-        <div class="lb-demo">или <a id="btnDemo" href="#">посмотреть демо-чертёж</a></div>
+        <div class="lb-demo">нужен графический редактор чертежа-плана? <a id="btnOpen" href="#">открыть план (PDF/проект)</a> · <a id="btnDemo" href="#">демо-план</a></div>
         <div class="spin" id="spin"><div class="sp-bar"><i></i></div><div class="sp-row"><span class="sp-ring"></span><span id="spinTxt">Загрузка…</span></div></div>
       </div>
       <div class="lb-arch">
@@ -642,6 +642,7 @@ function symRotate(ev,o){ev.stopPropagation();pushHistory();const mv=e=>{const p
 
 /* ---- load JSON package ---- */
 $('btnOpen').onclick=()=>$('fileInput').click();
+const _bol=$('btnOpenLk');if(_bol)_bol.onclick=()=>$('lkFile').click();  // главный вход — Линейка (клиентское чтение, без сервер-разбора)
 $('fileInput').onchange=e=>e.target.files[0]&&loadData(e.target.files[0]);
 const dbox=$('dropbox');
 ['dragenter','dragover'].forEach(ev=>dbox.addEventListener(ev,e=>{e.preventDefault();dbox.classList.add('over');}));
