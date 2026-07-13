@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SELLA — своя CRM для отдела продаж · Демо</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232f7ff0'/%3E%3Crect x='6' y='17' width='4.5' height='9' rx='1' fill='%23fff'/%3E%3Crect x='13.7' y='12' width='4.5' height='14' rx='1' fill='%23fff'/%3E%3Crect x='21.5' y='7' width='4.5' height='19' rx='1' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1a2236;--ink2:#39435c;--mut:#6b7488;--faint:#9aa3b6;
+  --bg:#eef1f6;--panel:#fff;--ln:#e4e8f0;--ln2:#eef1f6;
+  --acc:#2f7ff0;--accD:#1f5fc4;--accL:#e9f1fe;
+  --grn:#18a05c;--grnL:#e4f5ec;--amb:#e79a2b;--ambL:#fdf1dd;--red:#e2503d;--redL:#fce9e6;--viol:#7d6fe8;--violL:#eeecfd;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:13px;color:var(--ink)}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#c7cedb;border-radius:5px}
+.num{font-variant-numeric:tabular-nums}
+.app{display:grid;grid-template-columns:216px 1fr;height:100vh}
+/* левый сайдбар */
+.side{background:var(--panel);border-right:1px solid var(--ln);display:flex;flex-direction:column;overflow-y:auto}
+.side .logo{display:flex;align-items:center;gap:10px;padding:15px 16px 13px}
+.side .logo .lm{width:34px;height:34px;background:var(--acc);border-radius:9px;display:grid;place-items:center;flex:none}
+.side .logo .lt{font-weight:800;font-size:18px;letter-spacing:.02em}
+.side .logo .ls{font-size:9.5px;color:var(--faint);margin-top:-2px}
+.side .demo{font-size:10.5px;color:var(--mut);background:var(--accL);margin:0 12px 8px;padding:7px 10px;border-radius:8px;line-height:1.4}
+.side .demo b{color:var(--accD)}
+.nav{padding:4px 8px}
+.nav button{width:100%;display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;font-size:13.5px;font-weight:600;color:var(--ink2);margin-bottom:1px}
+.nav button:hover{background:var(--ln2)}
+.nav button.on{background:var(--accL);color:var(--accD)}
+.nav button svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9}
+.nav button .b{margin-left:auto;font-size:10.5px;font-weight:700;background:var(--redL);color:var(--red);padding:0 7px;border-radius:20px}
+.side .who{margin-top:auto;padding:12px 14px;border-top:1px solid var(--ln);display:flex;align-items:center;gap:10px}
+.side .who .av{width:32px;height:32px;border-radius:50%;background:var(--viol);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700}
+.side .who .wn{font-size:12.5px;font-weight:700}.side .who .ws{font-size:11px;color:var(--faint)}
+/* правая часть */
+.main{display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:var(--panel);border-bottom:1px solid var(--ln);padding:9px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ptabs{display:flex;gap:4px}
+.ptab{padding:7px 13px;border-radius:8px;font-size:13px;font-weight:600;color:var(--mut)}
+.ptab:hover{background:var(--ln2)}
+.ptab.on{background:var(--ink);color:#fff}
+.search{flex:1;min-width:160px;max-width:320px;border:1px solid var(--ln);background:var(--bg);border-radius:9px;padding:9px 12px;font-size:13px}
+.roles{display:flex;border:1px solid var(--ln);border-radius:9px;overflow:hidden}
+.roles button{padding:7px 11px;font-size:12px;font-weight:600;color:var(--mut);border-right:1px solid var(--ln)}
+.roles button:last-child{border-right:none}
+.roles button.on{background:var(--acc);color:#fff}
+.addbtn{background:var(--acc);color:#fff;font-weight:700;font-size:13px;padding:9px 15px;border-radius:9px}
+.body{flex:1;overflow:auto;padding:16px 18px 40px}
+.screen{display:none}.screen.on{display:block;animation:fd .16s}
+@keyframes fd{from{opacity:0}to{opacity:1}}
+.ph{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.ph h1{font-size:20px;font-weight:800}.ph .sub{font-size:12.5px;color:var(--mut)}
+.ph .rt{margin-left:auto}
+/* воронка (amo) */
+.pipe{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;align-items:flex-start}
+.pcol{flex:0 0 246px;background:#e7ebf2;border-radius:11px;min-height:120px}
+.pcol .ph2{padding:10px 12px 8px}
+.pcol .ph2 .bar{height:4px;border-radius:3px;margin-bottom:8px}
+.pcol .ph2 .r{display:flex;justify-content:space-between;align-items:baseline}
+.pcol .ph2 .nm{font-size:12.5px;font-weight:700}
+.pcol .ph2 .cnt{font-size:11px;color:var(--mut);font-weight:600}
+.pcol .ph2 .sum{font-size:11.5px;color:var(--ink2);font-weight:700;margin-top:1px}
+.pcol.dz{outline:2px dashed var(--acc);outline-offset:-3px;background:var(--accL)}
+.pcards{padding:0 8px 8px}
+.dcard{background:#fff;border:1px solid var(--ln);border-radius:9px;padding:10px 11px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(26,34,54,.05);transition:.1s;border-left:3px solid var(--acc)}
+.dcard:hover{box-shadow:0 5px 14px -6px rgba(26,34,54,.28);transform:translateY(-1px)}
+.dcard.dragging{opacity:.4}
+.dcard .dn{font-weight:700;font-size:13.5px;line-height:1.25}
+.dcard .db{font-family:inherit;font-weight:800;font-size:13px;margin-top:3px}
+.dcard .dtags{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.tag{font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;background:var(--ln2);color:var(--mut)}
+.tag.b{background:var(--accL);color:var(--accD)}.tag.g{background:var(--grnL);color:var(--grn)}.tag.v{background:var(--violL);color:var(--viol)}
+.dcard .dmeta{display:flex;align-items:center;gap:6px;margin-top:8px}
+.dcard .av{width:22px;height:22px;border-radius:50%;background:var(--violL);color:var(--viol);font-size:9.5px;font-weight:700;display:grid;place-items:center}
+.dcard .ch{font-size:10.5px;color:var(--faint);font-weight:600}
+.dcard .tk{margin-left:auto;font-size:10.5px;font-weight:700}
+.dcard .tk.due{color:var(--red)}.dcard .tk.ok{color:var(--grn)}
+/* таблицы / панели */
+.card{background:var(--panel);border:1px solid var(--ln);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.card .ct{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--ln2)}
+.card .ct h3{font-size:15px;font-weight:700;flex:1}
+.card .cb{padding:6px 16px 14px}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:11px;letter-spacing:.03em;text-transform:uppercase;color:var(--mut);text-align:left;font-weight:700;padding:10px 12px 8px;border-bottom:1.5px solid var(--ln)}
+.tbl th.r{text-align:right}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--ln2);font-size:13.5px;vertical-align:middle}
+.tbl td.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl tbody tr{cursor:pointer}.tbl tbody tr:hover td{background:#f5f8fd}
+.pill{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap}
+.pill.g{background:var(--grnL);color:var(--grn)}.pill.a{background:var(--ambL);color:#a06a10}.pill.r{background:var(--redL);color:var(--red)}.pill.b{background:var(--accL);color:var(--accD)}.pill.gy{background:var(--ln2);color:var(--mut)}.pill.v{background:var(--violL);color:var(--viol)}
+.who2{display:flex;align-items:center;gap:9px}.who2 .av{width:30px;height:30px;border-radius:50%;background:var(--violL);color:var(--viol);font-size:11px;font-weight:700;display:grid;place-items:center}
+.who2 .nm{font-weight:700}.who2 .s2{font-size:11.5px;color:var(--mut)}
+.tznote{background:var(--ambL);border:1px solid #f0d29a;border-radius:11px;padding:11px 14px;font-size:12.5px;color:#7a5510;margin-bottom:14px;line-height:1.55}
+.tznote b{color:#573b09}
+/* задачи */
+.tgrp{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);font-weight:700;margin:16px 0 8px}
+.trow{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--ln);border-radius:10px;padding:11px 14px;margin-bottom:8px;cursor:pointer}
+.trow:hover{border-color:var(--acc)}
+.trow.due{border-left:3px solid var(--red)}
+.trow .tw{width:92px;flex:none;font-size:12.5px;font-weight:700;color:var(--ink2)}
+.trow.due .tw{color:var(--red)}
+.trow .ti{flex:1;min-width:0}.trow .tn{font-weight:700}.trow .td{font-size:12px;color:var(--mut)}
+.trow .done{border:1px solid var(--grn);color:var(--grn);padding:6px 12px;border-radius:8px;font-size:11.5px;font-weight:700}
+/* чаты (inbox) */
+.inbox{display:grid;grid-template-columns:300px 1fr;gap:14px;height:calc(100vh - 150px)}
+.convlist{background:var(--panel);border:1px solid var(--ln);border-radius:12px;overflow-y:auto}
+.conv{display:flex;gap:10px;padding:12px 13px;border-bottom:1px solid var(--ln2);cursor:pointer}
+.conv:hover,.conv.on{background:var(--accL)}
+.conv .av{width:38px;height:38px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff}
+.conv .ci{flex:1;min-width:0}.conv .cn{font-weight:700;font-size:13.5px;display:flex;justify-content:space-between}
+.conv .cn .tm{font-size:10.5px;color:var(--faint);font-weight:500}
+.conv .cl{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conv .chn{font-size:10px;font-weight:700;padding:0 6px;border-radius:10px;margin-top:2px;display:inline-block}
+.chatwrap{background:var(--panel);border:1px solid var(--ln);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.chathead{padding:12px 16px;border-bottom:1px solid var(--ln2);display:flex;align-items:center;gap:11px}
+.chathead .nm{font-weight:700}.chathead .s2{font-size:11.5px;color:var(--mut)}
+.chatbody{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;background:#f7f9fc}
+.msg{max-width:72%;padding:9px 12px;font-size:13px;border-radius:12px;line-height:1.4}
+.msg.them{align-self:flex-start;background:#fff;border:1px solid var(--ln)}
+.msg.me{align-self:flex-end;background:var(--accL)}
+.msg .mt{font-size:9.5px;color:var(--faint);margin-top:3px}
+.chatbar{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--ln2)}
+.chatbar input{flex:1;border:1px solid var(--ln);border-radius:9px;padding:10px 12px}
+.chatbar .snd{background:var(--acc);color:#fff;font-weight:700;padding:0 16px;border-radius:9px}
+/* роботы (digital pipeline) */
+.robocol{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px}
+.robostage{flex:0 0 236px;background:var(--panel);border:1px solid var(--ln);border-radius:11px;overflow:hidden}
+.robostage .rh{padding:9px 12px;font-size:12.5px;font-weight:700;color:#fff}
+.robostage .rb{padding:10px 11px}
+.robo{border:1px solid var(--ln);border-radius:8px;padding:9px 10px;margin-bottom:8px;font-size:11.5px;cursor:pointer}
+.robo:hover{border-color:var(--acc)}
+.robo .rt{font-weight:700;display:flex;align-items:center;gap:7px}
+.robo .rd{color:var(--mut);margin-top:3px;line-height:1.4}
+.robo .sw{margin-left:auto;width:30px;height:17px;border-radius:20px;background:var(--grn);position:relative;flex:none}
+.robo .sw::after{content:"";position:absolute;right:2px;top:2px;width:13px;height:13px;border-radius:50%;background:#fff}
+.robo.off .sw{background:#cbd2de}.robo.off .sw::after{left:2px;right:auto}
+.addrobo{border:1.5px dashed var(--ln);border-radius:8px;padding:8px;text-align:center;font-size:11.5px;font-weight:700;color:var(--acc);cursor:pointer}
+/* модал сделки */
+.ovl{position:fixed;inset:0;background:rgba(26,34,54,.5);backdrop-filter:blur(2px);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:22px 14px;overflow-y:auto}
+.ovl.show{display:flex}
+.modal{background:var(--bg);border-radius:14px;max-width:1000px;width:100%;box-shadow:0 30px 60px -20px rgba(26,34,54,.5);overflow:hidden;animation:fd .15s}
+.modal.sm{max-width:520px}
+.mh{background:var(--panel);border-bottom:1px solid var(--ln);padding:14px 20px;display:flex;gap:13px;align-items:center;flex-wrap:wrap}
+.mh h2{font-size:18px;font-weight:800}.mh .bud{font-weight:800;color:var(--accD)}
+.mh .mx{margin-left:auto;font-size:20px;color:var(--mut);cursor:pointer}
+.stepper{display:flex;background:var(--panel);border-bottom:1px solid var(--ln);overflow-x:auto}
+.stepper button{flex:1;min-width:96px;padding:0;font-size:10.5px;font-weight:700;color:#fff;white-space:nowrap;position:relative;height:34px}
+.stepper button .lb{position:relative;z-index:1;display:block;padding:9px 6px;opacity:.9}
+.stepper button.cur .lb{opacity:1;text-decoration:underline}
+.mbd{display:grid;grid-template-columns:250px 1fr 220px;gap:0}
+@media(max-width:900px){.mbd{grid-template-columns:1fr}}
+.mL{padding:15px 17px;background:var(--panel);border-right:1px solid var(--ln)}
+.mC{display:flex;flex-direction:column;min-height:400px;max-height:66vh}
+.mR{padding:15px 16px;background:var(--panel);border-left:1px solid var(--ln)}
+.f{margin-bottom:11px}.f .fl{font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.f .fv{font-size:13.5px;font-weight:600;margin-top:2px}.f .fv.clk{cursor:pointer}.f .fv.clk:hover{color:var(--acc)}
+.cbtn{display:flex;gap:6px;margin-top:8px}
+.cbtn button{flex:1;border:1px solid var(--ln);border-radius:8px;padding:7px;font-size:11.5px;font-weight:700;color:var(--ink2);display:flex;align-items:center;justify-content:center;gap:5px}
+.cbtn button:hover{border-color:var(--acc);color:var(--acc)}
+.ftabs{display:flex;border-bottom:1px solid var(--ln);background:var(--panel)}
+.ftabs button{flex:1;padding:10px 6px;font-size:12px;font-weight:600;color:var(--mut);border-bottom:2px solid transparent}
+.ftabs button.on{color:var(--ink);border-bottom-color:var(--acc)}
+.feed{flex:1;overflow-y:auto;padding:14px 16px;background:#f7f9fc}
+.fpane{display:none}.fpane.on{display:block}
+.ev{display:flex;gap:10px;margin-bottom:12px}
+.ev .ei{width:26px;height:26px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:12px;background:var(--ln2)}
+.ev .eb{flex:1;font-size:12.5px}.ev .et{font-size:10.5px;color:var(--faint);margin-top:1px}
+.composer{display:flex;gap:8px;padding:11px 14px;border-top:1px solid var(--ln);background:var(--panel)}
+.composer input{flex:1;border:1px solid var(--ln);border-radius:9px;padding:9px 11px}
+.composer .snd{background:var(--acc);color:#fff;font-weight:700;padding:0 15px;border-radius:9px}
+.rtask{border:1px solid var(--ln);border-radius:8px;padding:8px 10px;margin-bottom:7px;font-size:12.5px}
+.rtask b{display:block}.rtask span{font-size:11px;color:var(--red);font-weight:600}.rtask.done{opacity:.5}.rtask.done span{color:var(--grn)}
+.mfoot{border-top:1px solid var(--ln);background:var(--panel);padding:11px 20px;display:flex;gap:8px;flex-wrap:wrap}
+.btn{font-weight:700;font-size:12.5px;padding:9px 15px;border-radius:9px;cursor:pointer}
+.btn.pri{background:var(--acc);color:#fff}.btn.grn{background:var(--grn);color:#fff}.btn.gh{background:#fff;color:var(--ink);border:1px solid var(--ln)}.btn.dang{background:#fff;color:var(--red);border:1px solid #eeb6ad}
+/* формы */
+.fbody{padding:16px 20px;max-height:72vh;overflow-y:auto}
+.ff{margin-bottom:11px}.ff2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.ff label{display:block;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-bottom:4px}
+.ff input,.ff select{width:100%;border:1px solid var(--ln);border-radius:9px;background:var(--panel);padding:10px 12px;outline:none}
+.ff input:focus,.ff select:focus{border-color:var(--acc)}
+#toasts{position:fixed;right:18px;bottom:18px;z-index:100;display:flex;flex-direction:column;gap:9px;max-width:380px}
+.toast{background:var(--ink);color:#e7ecf5;padding:12px 15px;font-size:12.5px;line-height:1.5;border-radius:10px;box-shadow:0 14px 30px -10px rgba(26,34,54,.6);animation:tin .2s;border-left:3px solid var(--acc)}
+.toast.ok{border-left-color:var(--grn)}.toast.warn{border-left-color:var(--amb)}.toast.bad{border-left-color:var(--red)}
+.toast b{color:#fff}
+@keyframes tin{from{opacity:0;transform:translateX(10px)}to{opacity:1}}
+@media(max-width:820px){.app{grid-template-columns:1fr}.side{display:none}.inbox{grid-template-columns:1fr;height:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- сайдбар -->
+  <aside class="side">
+    <div class="logo"><div class="lm"><svg viewBox="0 0 32 32" width="20" height="20"><rect x="6" y="17" width="4.5" height="9" rx="1" fill="#fff"/><rect x="13.7" y="12" width="4.5" height="14" rx="1" fill="#fff"/><rect x="21.5" y="7" width="4.5" height="19" rx="1" fill="#fff"/></svg></div><div><div class="lt">SELLA</div><div class="ls">своя CRM · отдел продаж</div></div></div>
+    <div class="demo">Демо · <b>как в amoCRM</b>, но ваше и на вашем сервере. Данные вымышленные, всё прокликивается и сохраняется.</div>
+    <nav class="nav" id="nav">
+      <button class="on" data-s="pipe"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Сделки</button>
+      <button data-s="tasks"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Задачи<span class="b" id="nbTasks">0</span></button>
+      <button data-s="inbox"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Чаты<span class="b" id="nbChats">0</span></button>
+      <button data-s="robots"><svg viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4M9 14h.01M15 14h.01"/></svg>Роботы</button>
+      <button data-s="calls"><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L16 18l5 2v3a16 16 0 0 1-16-16z"/></svg>Звонки</button>
+      <button data-s="contacts"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M11 7a4 4 0 1 0 0 8 4 4 0 0 0 0-8M21 21v-2a4 4 0 0 0-3-3.87"/></svg>Контакты</button>
+      <button data-s="stats"><svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>Аналитика</button>
+    </nav>
+    <div class="who"><div class="av" id="uAv">РП</div><div><div class="wn" id="uName">Руководитель</div><div class="ws">SELLA · демо</div></div></div>
+  </aside>
+
+  <!-- основная область -->
+  <div class="main">
+    <div class="topbar">
+      <div class="ptabs" id="ptabs"></div>
+      <input class="search" placeholder="Поиск: сделка, контакт, телефон…" oninput="DQ=this.value;renderPipe()">
+      <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+        <div class="roles">
+          <button class="on" onclick="setRole('boss',this)">Руководитель</button>
+          <button onclick="setRole('reg',this)">Регистратор</button>
+          <button onclick="setRole('mgr',this)">Менеджер</button>
+        </div>
+        <button class="addbtn" onclick="openDealForm()">+ Сделка</button>
+      </div>
+    </div>
+    <div class="body">
+
+      <!-- СДЕЛКИ -->
+      <section class="screen on" id="s-pipe">
+        <div class="tznote">✅ <b>Как в amoCRM — только ваше.</b> Перетаскивайте сделки по этапам, клик по сделке — карточка с <b>чатом прямо в сделке</b> (WhatsApp/Instagram/Telegram), задачами и историей. Сверху — <b>несколько воронок и бизнесов</b>. Всё сохраняется. Роботы (Salesbot) — в разделе «Роботы».</div>
+        <div class="pipe" id="pipe"></div>
+      </section>
+
+      <!-- ЗАДАЧИ -->
+      <section class="screen" id="s-tasks">
+        <div class="ph"><h1>Задачи</h1><span class="sub">дела и напоминалки по сделкам — ничего не забудется</span></div>
+        <div id="taskList"></div>
+      </section>
+
+      <!-- ЧАТЫ -->
+      <section class="screen" id="s-inbox">
+        <div class="ph"><h1>Чаты · Inbox</h1><span class="sub">все переписки со всех каналов в одном месте — как в amo</span></div>
+        <div class="inbox">
+          <div class="convlist" id="convList"></div>
+          <div class="chatwrap">
+            <div class="chathead" id="chatHead"><div class="av" style="background:var(--faint)">?</div><div><div class="nm">Выберите чат</div><div class="s2">—</div></div></div>
+            <div class="chatbody" id="chatBody"></div>
+            <div class="chatbar"><input id="ibMsg" placeholder="Сообщение…" onkeydown="if(event.key==='Enter')ibSend()"><button class="snd" onclick="ibSend()">→</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- РОБОТЫ -->
+      <section class="screen" id="s-robots">
+        <div class="ph"><h1>Роботы · Salesbot</h1><span class="sub">автоматизация по этапам воронки — как Digital Pipeline в amo</span></div>
+        <div class="tznote">🤖 Роботы на каждом этапе: <b>контроль дублей</b>, авто-перевод сделки (нет ответа 7 дней → вернуть на регистратора), смена ответственного, авто-сообщения, напоминания. Клик по роботу — включить/выключить. Настраиваем под ваши правила.</div>
+        <div class="robocol" id="robocol"></div>
+      </section>
+
+      <!-- ЗВОНКИ -->
+      <section class="screen" id="s-calls">
+        <div class="ph"><h1>Звонки · Binotel</h1><span class="sub">звонок из карточки, входящий открывает сделку, запись в истории</span></div>
+        <div class="card"><div class="cb" style="padding:4px 16px 8px;overflow-x:auto"><table class="tbl" id="callTbl"></table></div></div>
+      </section>
+
+      <!-- КОНТАКТЫ -->
+      <section class="screen" id="s-contacts">
+        <div class="ph"><h1>Контакты</h1><span class="sub">база ~32 000 контактов — перенесём из amo/Bitrix</span>
+          <div class="rt"><input class="search" placeholder="Поиск контакта…" oninput="CQ=this.value;renderContacts()"></div>
+        </div>
+        <div class="card"><div class="cb" style="padding:4px 16px 8px;overflow-x:auto"><table class="tbl" id="contactTbl"></table></div></div>
+        <div id="contactFoot"></div>
+      </section>
+
+      <!-- АНАЛИТИКА -->
+      <section class="screen" id="s-stats">
+        <div class="ph"><h1>Аналитика продаж</h1><span class="sub">воронка, конверсия, менеджеры — по выбранной воронке</span></div>
+        <div class="card"><div class="ct"><h3>Воронка по этапам</h3></div><div class="cb" id="statFunnel" style="padding-top:12px"></div></div>
+        <div class="card"><div class="ct"><h3>Менеджеры</h3></div><div class="cb" style="padding:4px 16px 8px;overflow-x:auto"><table class="tbl" id="mgrTbl"></table></div></div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- модал сделки -->
+<div class="ovl" id="dealOvl" onclick="if(event.target===this)closeModal('dealOvl')">
+  <div class="modal">
+    <div class="mh"><h2 id="dTitle">—</h2><span class="bud" id="dBud">—</span><span class="mx" onclick="closeModal('dealOvl')">✕</span></div>
+    <div class="stepper" id="dStep"></div>
+    <div class="mbd">
+      <div class="mL">
+        <div class="f"><div class="fl">Контакт</div><div class="fv" id="dContact">—</div></div>
+        <div class="f"><div class="fl">Телефон</div><div class="fv clk" id="dPhone" onclick="callDeal()">—</div>
+          <div class="cbtn"><button onclick="callDeal()">📞 Позвонить</button><button onclick="ftab('chat')">💬 Чат</button></div>
+        </div>
+        <div class="f"><div class="fl">Бюджет</div><div class="fv clk" id="dBudE" onclick="editBudget()">—</div></div>
+        <div class="f"><div class="fl">Источник</div><div class="fv" id="dSrc">—</div></div>
+        <div class="f"><div class="fl">Ответственный</div><div class="fv clk" id="dResp" onclick="changeResp()">—</div></div>
+        <div class="f"><div class="fl">Теги</div><div class="fv" id="dTags" style="display:flex;gap:4px;flex-wrap:wrap"></div></div>
+      </div>
+      <div class="mC">
+        <div class="ftabs">
+          <button class="on" data-f="chat" onclick="ftab('chat')">Чат</button>
+          <button data-f="note" onclick="ftab('note')">Примечания</button>
+          <button data-f="task" onclick="ftab('task')">Задачи</button>
+          <button data-f="hist" onclick="ftab('hist')">История</button>
+        </div>
+        <div class="feed" id="dFeed"></div>
+        <div class="composer"><input id="dMsg" placeholder="Написать в чат сделки…" onkeydown="if(event.key==='Enter')dealSend()"><button class="snd" onclick="dealSend()">→</button></div>
+      </div>
+      <div class="mR">
+        <div class="f"><div class="fl">Задачи по сделке</div></div>
+        <div id="dTasks"></div>
+        <button class="btn gh" style="width:100%;margin-top:4px" onclick="addDealTask()">+ Задача</button>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn grn" onclick="winDeal()">✓ Успешно реализовано</button>
+      <button class="btn dang" onclick="loseDeal()">Закрыто · не реализовано</button>
+      <button class="btn gh" onclick="delDeal()" style="margin-left:auto">Удалить</button>
+      <button class="btn gh" onclick="closeModal('dealOvl')">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- модал новой сделки -->
+<div class="ovl" id="formOvl" onclick="if(event.target===this)closeModal('formOvl')">
+  <div class="modal sm">
+    <div class="mh"><h2>Новая сделка</h2><span class="mx" onclick="closeModal('formOvl')">✕</span></div>
+    <div class="fbody">
+      <div class="ff"><label>Название сделки *</label><input id="fName" placeholder="Напр. Иван — английский, группа"></div>
+      <div class="ff2">
+        <div class="ff"><label>Контакт</label><input id="fContact" placeholder="Имя клиента"></div>
+        <div class="ff"><label>Телефон</label><input id="fPhone" placeholder="+7 701 000 00 00"></div>
+      </div>
+      <div class="ff2">
+        <div class="ff"><label>Бюджет, ₸</label><input id="fBud" class="num" placeholder="120000"></div>
+        <div class="ff"><label>Источник</label><select id="fSrc"><option>WhatsApp</option><option>Instagram</option><option>Telegram</option><option>Звонок</option><option>Сайт</option></select></div>
+      </div>
+      <div class="ff2">
+        <div class="ff"><label>Воронка</label><select id="fPipe"></select></div>
+        <div class="ff"><label>Ответственный</label><select id="fResp"></select></div>
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn pri" onclick="saveDeal()">Создать сделку</button><button class="btn gh" onclick="closeModal('formOvl')">Отмена</button></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const jsq=s=>String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+const money=n=>String(Math.round(n||0)).replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' ₸';
+const AV=n=>(n||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+function nowHM(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function toast(h,c){const t=document.createElement('div');t.className='toast'+(c?' '+c:'');t.innerHTML=h;$('toasts').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},6000)}
+const MGRS=['Айгерим','Дамир','Санжар','Асель'];
+const CHN={wa:['WhatsApp','#e4f5ec','#18a05c'],ig:['Instagram','#fdeaf3','#c2418a'],tg:['Telegram','#e6f2fc','#2f7ff0'],call:['Звонок','#eef1f6','#6b7488'],site:['Сайт','#eef1f6','#6b7488']};
+function chLabel(k){const c=CHN[k]||CHN.site;return '<span class="chn" style="background:'+c[1]+';color:'+c[2]+'">'+c[0]+'</span>';}
+
+/* ===== состояние ===== */
+const KEY='sella_state_v1';
+let PIPES,CURPIPE,CALLS,SEQ=1000;
+function save(){try{localStorage.setItem(KEY,JSON.stringify({PIPES,CALLS,SEQ}))}catch(e){}}
+function load(){let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}const d=defaults();
+  if(s&&s.PIPES){PIPES=s.PIPES;CALLS=s.CALLS||d.CALLS;SEQ=s.SEQ||1500;}else{PIPES=d.PIPES;CALLS=d.CALLS;SEQ=1500;}
+  CURPIPE=Object.keys(PIPES)[0];}
+function resetDemo(){if(!confirm('Сбросить демо?'))return;localStorage.removeItem(KEY);load();renderAll();toast('Демо сброшено.','ok');}
+function renderAll(){buildPtabs();renderPipe();renderTasks();renderInbox();renderRobots();renderCalls();renderContacts();renderStats();renderBadges();}
+function curP(){return PIPES[CURPIPE]}
+function allDeals(){return Object.values(PIPES).reduce((a,p)=>a.concat(p.deals),[]);}
+function renderBadges(){
+  const tasks=allDeals().reduce((a,d)=>a+(d.tasks||[]).filter(t=>!t.done).length,0);
+  $('nbTasks').textContent=tasks;$('nbTasks').style.display=tasks?'':'none';
+  const chats=allDeals().filter(d=>d.unread).length;$('nbChats').textContent=chats;$('nbChats').style.display=chats?'':'none';
+}
+
+/* nav */
+function nav(s){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));$('s-'+s).classList.add('on');
+  document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));window.scrollTo({top:0});}
+document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>nav(b.dataset.s));
+function setRole(r,el){document.querySelectorAll('.roles button').forEach(b=>b.classList.toggle('on',b===el));
+  const m={boss:['РП','Руководитель','видит все воронки, все сделки, аналитику и роботов'],reg:['РГ','Регистратор','распределяет входящие сделки и назначает менеджеров'],mgr:['МН','Менеджер','ведёт свои сделки, звонит и пишет клиентам']}[r];
+  $('uAv').textContent=m[0];$('uName').textContent=m[1];toast('<b>'+m[1]+'</b>: '+m[2]+'.');}
+
+/* ===== воронка (pipeline) ===== */
+let DQ='',DRAG=null;
+function buildPtabs(){$('ptabs').innerHTML=Object.entries(PIPES).map(([k,p])=>'<button class="ptab'+(k===CURPIPE?' on':'')+'" onclick="switchPipe(\''+k+'\')">'+esc(p.name)+'</button>').join('');}
+function switchPipe(k){CURPIPE=k;buildPtabs();renderPipe();renderRobots();renderStats();nav('pipe');}
+function dealMatch(d){return !DQ||(d.name+' '+d.contact+' '+d.phone).toLowerCase().includes(DQ.toLowerCase());}
+function dueTask(d){const t=(d.tasks||[]).filter(x=>!x.done);return t.length?t[0]:null;}
+function dealCard(d,pi,si){
+  const t=dueTask(d);const st=curP().stages[si];
+  return '<div class="dcard" draggable="true" ondragstart="dragS(event,'+d.id+')" ondragend="dragE()" onclick="openDeal('+d.id+')" style="border-left-color:'+st.c+'">'+
+    '<div class="dn">'+esc(d.name)+'</div>'+
+    '<div class="db">'+money(d.bud)+'</div>'+
+    (d.tags&&d.tags.length?'<div class="dtags">'+d.tags.map(tg=>'<span class="tag b">'+esc(tg)+'</span>').join('')+'</div>':'')+
+    '<div class="dmeta"><span class="av">'+AV(d.resp)+'</span>'+chLabel(d.src)+
+    (t?'<span class="tk '+(t.due?'due':'ok')+'">'+(t.due?'⏰ '+esc(t.when):'✓ '+esc(t.when))+'</span>':'<span class="tk" style="color:var(--faint)">нет задач</span>')+'</div></div>';
+}
+function renderPipe(){
+  const p=curP();
+  $('pipe').innerHTML=p.stages.map((st,si)=>{
+    const deals=p.deals.filter(d=>d.stage===si&&dealMatch(d));
+    const sum=deals.reduce((a,d)=>a+(+d.bud||0),0);
+    return '<div class="pcol" ondragover="dragOver(event,this)" ondragleave="this.classList.remove(\'dz\')" ondrop="dropCol(event,'+si+')">'+
+      '<div class="ph2"><div class="bar" style="background:'+st.c+'"></div><div class="r"><span class="nm">'+esc(st.n)+'</span><span class="cnt">'+deals.length+'</span></div><div class="sum">'+money(sum)+'</div></div>'+
+      '<div class="pcards">'+deals.map(d=>dealCard(d,CURPIPE,si)).join('')+'</div></div>';
+  }).join('');
+  renderBadges();
+}
+function dragS(e,id){DRAG=id;e.dataTransfer.effectAllowed='move';e.target.classList.add('dragging')}
+function dragE(){document.querySelectorAll('.dcard.dragging').forEach(x=>x.classList.remove('dragging'));document.querySelectorAll('.pcol.dz').forEach(x=>x.classList.remove('dz'));DRAG=null}
+function dragOver(e,el){if(DRAG==null)return;e.preventDefault();el.classList.add('dz')}
+function findDeal(id){for(const k in PIPES){const d=PIPES[k].deals.find(x=>x.id===id);if(d)return{p:k,d}}return null;}
+function dropCol(e,si){e.preventDefault();const f=findDeal(DRAG);dragE();if(!f||f.d.stage===si)return;moveDeal(f.d,si);}
+function moveDeal(d,si){const st=curP().stages[si];d.stage=si;logDeal(d,'st','Этап → «'+st.n+'»');
+  if(st.won){d.status='won';}else if(st.lost){d.status='lost';}else d.status='';
+  save();renderPipe();renderStats();
+  toast('«'+esc(d.name)+'» → «'+esc(st.n)+'»'+(st.won?' 🎉':''), st.won?'ok':st.lost?'bad':'');}
+
+/* ===== карточка сделки ===== */
+let CUR=null,FTAB='chat';
+function logDeal(d,cls,txt){(d.hist=d.hist||[]).unshift({cls,txt,t:nowHM()});}
+function openDeal(id){const f=findDeal(id);if(!f)return;CUR=f.d;const d=f.d;if(f.p!==CURPIPE){CURPIPE=f.p;buildPtabs();}
+  d.unread=false;
+  $('dTitle').textContent=d.name;$('dBud').textContent=money(d.bud);
+  const p=PIPES[f.p];
+  $('dStep').innerHTML=p.stages.map((s,i)=>'<button class="'+(i===d.stage?'cur':'')+'" style="background:'+s.c+'" onclick="jumpStage('+i+')"><span class="lb">'+esc(s.n)+'</span></button>').join('');
+  $('dContact').textContent=d.contact||'—';$('dPhone').textContent=d.phone||'—';$('dBudE').textContent=money(d.bud);
+  $('dSrc').innerHTML=chLabel(d.src);$('dResp').textContent=d.resp;
+  $('dTags').innerHTML=(d.tags||[]).map(t=>'<span class="tag b">'+esc(t)+'</span>').join('')||'<span style="color:var(--faint);font-size:12px">—</span>';
+  renderDealTasks();ftab(FTAB);
+  $('dealOvl').classList.add('show');
+}
+function ftab(f){FTAB=f;document.querySelectorAll('.ftabs button').forEach(b=>b.classList.toggle('on',b.dataset.f===f));renderFeed();}
+function renderFeed(){const d=CUR;if(!d)return;let h='';
+  if(FTAB==='chat'){if(!d.chat)d.chat=[{me:false,t:'10:12',x:'Здравствуйте! Интересует ваше предложение.'}];
+    h=d.chat.map(m=>'<div class="ev"><div class="ei" style="background:'+(m.me?'var(--accL)':'var(--ln2)')+'">'+(m.me?'Я':AV(d.contact))+'</div><div><div class="eb">'+esc(m.x)+'</div><div class="et">'+esc(m.t)+' · '+(CHN[d.src]?CHN[d.src][0]:'чат')+'</div></div></div>').join('');
+    $('dMsg').placeholder='Написать в '+(CHN[d.src]?CHN[d.src][0]:'чат')+'…';document.querySelector('.composer').style.display='';}
+  else if(FTAB==='note'){h=(d.notes||[]).map(n=>'<div class="ev"><div class="ei">📝</div><div><div class="eb">'+esc(n.x)+'</div><div class="et">'+esc(n.t)+'</div></div></div>').join('')||'<div style="color:var(--faint);font-size:12.5px">Примечаний нет. Напишите ниже.</div>';document.querySelector('.composer').style.display='';$('dMsg').placeholder='Добавить примечание…';}
+  else if(FTAB==='task'){const ts=(d.tasks||[]);h=ts.length?ts.map(t=>'<div class="ev"><div class="ei">'+(t.done?'✅':'⏰')+'</div><div><div class="eb">'+esc(t.text)+'</div><div class="et">'+esc(t.when)+' · '+(t.done?'выполнено':'открыта')+'</div></div></div>').join(''):'<div style="color:var(--faint);font-size:12.5px">Задач нет.</div>';document.querySelector('.composer').style.display='none';}
+  else {h=(d.hist||[]).map(e=>'<div class="ev"><div class="ei">'+(e.cls==='st'?'↗':e.cls==='call'?'📞':e.cls==='robot'?'🤖':'•')+'</div><div><div class="eb">'+e.txt+'</div><div class="et">'+esc(e.t)+'</div></div></div>').join('')||'<div style="color:var(--faint);font-size:12.5px">История пуста.</div>';document.querySelector('.composer').style.display='none';}
+  $('dFeed').innerHTML=h;$('dFeed').scrollTop=FTAB==='chat'?9999:0;
+}
+function dealSend(){const d=CUR;const v=$('dMsg').value.trim();if(!v)return;$('dMsg').value='';
+  if(FTAB==='note'){(d.notes=d.notes||[]).unshift({x:v,t:nowHM()});}
+  else{(d.chat=d.chat||[]).push({me:true,t:nowHM(),x:v});}
+  save();renderFeed();}
+function renderDealTasks(){const d=CUR;const ts=(d.tasks||[]);
+  $('dTasks').innerHTML=ts.length?ts.map((t,i)=>'<div class="rtask'+(t.done?' done':'')+'"><b>'+esc(t.text)+'</b><span>'+(t.done?'✓ выполнено':(t.due?'⏰ ':'')+esc(t.when))+'</span>'+(t.done?'':' <button class="btn gh" style="padding:4px 9px;font-size:11px;margin-top:5px" onclick="doneDealTask('+i+')">Выполнить</button>')+'</div>').join(''):'<div style="color:var(--faint);font-size:12.5px;margin-bottom:6px">Задач нет.</div>';}
+function addDealTask(){const d=CUR;const text=prompt('Задача по сделке:','Перезвонить');if(!text)return;const when=prompt('Когда? (сегодня 18:00, завтра…):','сегодня 18:00')||'сегодня';
+  (d.tasks=d.tasks||[]).push({text:text.trim(),when:when.trim(),due:/вчера|просроч/i.test(when),done:false});logDeal(d,'','Задача: '+text.trim());save();renderDealTasks();renderPipe();renderTasks();ftab('task');toast('Задача добавлена.','ok');}
+function doneDealTask(i){CUR.tasks[i].done=true;logDeal(CUR,'','Задача выполнена: '+CUR.tasks[i].text);save();renderDealTasks();if(FTAB==='task')renderFeed();renderPipe();renderTasks();toast('Задача выполнена.','ok');}
+function jumpStage(i){if(!CUR)return;moveDeal(CUR,i);openDeal(CUR.id);}
+function callDeal(){if(!CUR)return;const d=CUR;const dur=60+Math.floor(Math.random()*300);
+  CALLS.unshift([d.resp,d.contact||d.name,d.phone,nowHM(),dur,'исходящий']);logDeal(d,'call','Звонок '+Math.floor(dur/60)+':'+String(dur%60).padStart(2,'0')+' — запись в истории');save();renderCalls();if(FTAB==='hist')renderFeed();
+  toast('📞 Звонок через <b>Binotel</b> клиенту '+esc(d.contact||d.name)+'. Запись прикреплена к сделке.','ok');}
+function editBudget(){if(!CUR)return;const v=parseInt(prompt('Бюджет сделки, ₸:',CUR.bud));if(isNaN(v))return;CUR.bud=v;logDeal(CUR,'','Бюджет → '+money(v));save();openDeal(CUR.id);renderPipe();renderStats();}
+function changeResp(){if(!CUR)return;const i=MGRS.indexOf(CUR.resp);const n=MGRS[(i+1)%MGRS.length];CUR.resp=n;logDeal(CUR,'','Ответственный → '+n);save();openDeal(CUR.id);renderPipe();toast('Ответственный: '+n,'ok');}
+function winDeal(){if(!CUR)return;const p=PIPES[CURPIPE];const wi=p.stages.findIndex(s=>s.won);if(wi>=0)moveDeal(CUR,wi);openDeal(CUR.id);}
+function loseDeal(){if(!CUR)return;const p=PIPES[CURPIPE];const li=p.stages.findIndex(s=>s.lost);if(li>=0)moveDeal(CUR,li);openDeal(CUR.id);}
+function delDeal(){if(!CUR)return;if(!confirm('Удалить сделку «'+CUR.name+'»?'))return;const f=findDeal(CUR.id);PIPES[f.p].deals=PIPES[f.p].deals.filter(x=>x.id!==CUR.id);save();closeModal('dealOvl');renderAll();toast('Сделка удалена.','warn');}
+
+/* ===== задачи ===== */
+function renderTasks(){
+  const rows=[];allDeals().forEach(d=>(d.tasks||[]).filter(t=>!t.done).forEach(t=>rows.push({d,t})));
+  const grp={due:['⏰ Просроченные / сегодня',[]],next:['Предстоящие',[]]};
+  rows.forEach(r=>{(r.t.due||/сегодня/i.test(r.t.when)?grp.due:grp.next)[1].push(r)});
+  let h='';['due','next'].forEach(g=>{const[title,arr]=grp[g];if(!arr.length)return;
+    h+='<div class="tgrp">'+title+' · '+arr.length+'</div>';
+    h+=arr.map(r=>'<div class="trow'+(r.t.due?' due':'')+'" onclick="openDeal('+r.d.id+')"><span class="tw">'+esc(r.t.when)+'</span><div class="ti"><div class="tn">'+esc(r.t.text)+'</div><div class="td">сделка: '+esc(r.d.name)+' · '+esc(r.d.resp)+'</div></div><button class="done" onclick="event.stopPropagation();doneTask('+r.d.id+',\''+jsq(r.t.text)+'\')">Выполнить</button></div>').join('');
+  });
+  $('taskList').innerHTML=h||'<div style="color:var(--mut);padding:20px 0">Открытых задач нет 🎉</div>';
+  renderBadges();
+}
+function doneTask(id,text){const f=findDeal(id);if(!f)return;const t=(f.d.tasks||[]).find(x=>x.text===text&&!x.done);if(t){t.done=true;logDeal(f.d,'','Задача выполнена: '+text);}save();renderTasks();renderPipe();toast('Задача выполнена.','ok');}
+
+/* ===== чаты (inbox) ===== */
+let CURCONV=null;
+function renderInbox(){
+  const ds=allDeals().filter(d=>d.chat&&d.chat.length).sort((a,b)=>(b.unread?1:0)-(a.unread?1:0));
+  if(!CURCONV&&ds.length)CURCONV=ds[0].id;
+  $('convList').innerHTML=ds.map(d=>{const last=d.chat[d.chat.length-1];const c=CHN[d.src]||CHN.site;
+    return '<div class="conv'+(d.id===CURCONV?' on':'')+'" onclick="openConv('+d.id+')"><div class="av" style="background:'+c[2]+'">'+AV(d.contact||d.name)+'</div><div class="ci"><div class="cn">'+esc(d.contact||d.name)+(d.unread?' <span style="color:var(--red)">●</span>':'')+'<span class="tm">'+esc(last.t)+'</span></div><div class="cl">'+esc(last.x)+'</div>'+chLabel(d.src)+'</div></div>';}).join('')||'<div style="padding:16px;color:var(--faint)">Нет чатов.</div>';
+  renderConv();
+}
+function openConv(id){CURCONV=id;const f=findDeal(id);if(f)f.d.unread=false;save();renderInbox();}
+function renderConv(){const f=findDeal(CURCONV);if(!f){return;}const d=f.d;const c=CHN[d.src]||CHN.site;
+  $('chatHead').innerHTML='<div class="av" style="width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;background:'+c[2]+'">'+AV(d.contact||d.name)+'</div><div><div class="nm">'+esc(d.contact||d.name)+'</div><div class="s2">'+chLabel(d.src)+' · сделка «'+esc(d.name)+'» · <span class="pill b" onclick="openDeal('+d.id+')" style="cursor:pointer">открыть сделку</span></div></div>';
+  $('chatBody').innerHTML=d.chat.map(m=>'<div class="msg '+(m.me?'me':'them')+'">'+esc(m.x)+'<div class="mt">'+esc(m.t)+'</div></div>').join('');
+  $('chatBody').scrollTop=9999;
+}
+function ibSend(){const f=findDeal(CURCONV);if(!f)return;const v=$('ibMsg').value.trim();if(!v)return;$('ibMsg').value='';f.d.chat.push({me:true,t:nowHM(),x:v});save();renderConv();renderInbox();}
+
+/* ===== роботы (digital pipeline) ===== */
+function renderRobots(){const p=curP();
+  $('robocol').innerHTML=p.stages.filter(s=>!s.won&&!s.lost).map((st,si)=>{
+    const robots=st.robots||[];
+    return '<div class="robostage"><div class="rh" style="background:'+st.c+'">'+esc(st.n)+'</div><div class="rb">'+
+      robots.map((r,ri)=>'<div class="robo'+(r.on?'':' off')+'" onclick="toggleRobot('+si+','+ri+')"><div class="rt">'+esc(r.t)+'<span class="sw"></span></div><div class="rd">'+esc(r.d)+'</div></div>').join('')+
+      '<div class="addrobo" onclick="toast(\'Новый робот на этап «'+jsq(st.n)+'»: авто-сообщение, задача, смена ответственного, вебхук. Настраивается под вас.\')">+ робот</div></div></div>';
+  }).join('');
+}
+function toggleRobot(si,ri){const st=curP().stages.filter(s=>!s.won&&!s.lost)[si];const r=st.robots[ri];r.on=!r.on;save();renderRobots();toast('Робот «'+esc(r.t)+'» '+(r.on?'включён':'выключен')+'.',r.on?'ok':'warn');}
+
+/* ===== звонки ===== */
+const fmtDur=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+function renderCalls(){
+  $('callTbl').innerHTML='<thead><tr><th>Менеджер</th><th>Клиент</th><th>Телефон</th><th class="r">Время</th><th class="r">Длит.</th><th>Тип</th><th></th></tr></thead><tbody>'+
+    CALLS.map(c=>'<tr onclick="toast(\'Звонок '+esc(c[0])+' → '+esc(c[1])+' ('+fmtDur(c[4])+'). Через Binotel, запись прикреплена к сделке.\')"><td class="who2"><div class="av">'+AV(c[0])+'</div><span class="nm">'+esc(c[0])+'</span></td><td>'+esc(c[1])+'</td><td class="num" style="color:var(--accD)">'+esc(c[2])+'</td><td class="r">'+esc(c[3])+'</td><td class="r">'+fmtDur(c[4])+'</td><td>'+(c[5]==='входящий'?'<span class="pill b">входящий</span>':'<span class="pill gy">исходящий</span>')+'</td><td style="text-align:right"><span class="pill v">▶ запись</span></td></tr>').join('')+'</tbody>';
+}
+
+/* ===== контакты ===== */
+let CQ='';const CONTACTS=[];
+function buildContacts(){const names=['Иван Петров','Айсулу Ким','Данияр Ахметов','Мария Ли','Нурлан Ж.','Гульмира С.','Тимур Р.','Алина В.','Ерлан Т.','Сабина М.','Азамат К.','Диана О.'];
+  const co=['ТОО «Старт»','ИП','ТОО «Маркет»','—','ТОО «Производство»'];
+  for(let i=0;i<12;i++)CONTACTS.push([names[i],'+7 7'+(10+i)+' '+(100+i*7)+' '+(20+i)+' '+(30+i),co[i%co.length],MGRS[i%4],2+((i*3)%9)]);}
+function renderContacts(){if(!CONTACTS.length)buildContacts();const q=CQ.toLowerCase();
+  const f=CONTACTS.filter(c=>!q||(c[0]+' '+c[1]+' '+c[2]).toLowerCase().includes(q));
+  $('contactTbl').innerHTML='<thead><tr><th>Контакт</th><th>Компания</th><th>Телефон</th><th>Ответственный</th><th class="r">Сделок</th></tr></thead><tbody>'+
+    f.map(c=>'<tr onclick="toast(\'Карточка контакта «'+jsq(c[0])+'»: сделки, звонки, переписка, поля. База ~32 000 — перенесём из amo/Bitrix.\')"><td class="who2"><div class="av">'+AV(c[0])+'</div><span class="nm">'+esc(c[0])+'</span></td><td>'+esc(c[2])+'</td><td class="num" style="color:var(--accD)">'+esc(c[1])+'</td><td>'+esc(c[3])+'</td><td class="r">'+c[4]+'</td></tr>').join('')+'</tbody>';
+  $('contactFoot').innerHTML='<div style="padding:10px 4px;color:var(--mut);font-size:12.5px">Показаны '+f.length+' из ~32 000 контактов (демо-выборка).</div>';
+}
+
+/* ===== аналитика ===== */
+function renderStats(){const p=curP();
+  const mx=Math.max(1,...p.stages.map((_,i)=>p.deals.filter(d=>d.stage===i).length));
+  $('statFunnel').innerHTML=p.stages.map((s,i)=>{const c=p.deals.filter(d=>d.stage===i).length;const sum=p.deals.filter(d=>d.stage===i).reduce((a,d)=>a+(+d.bud||0),0);
+    return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px"><div style="width:150px;font-size:12.5px;font-weight:600">'+esc(s.n)+'</div><div style="flex:1;height:22px;background:#eef1f6;border-radius:6px;overflow:hidden"><div style="height:100%;width:'+(c/mx*100)+'%;min-width:'+(c?'26px':'0')+';background:'+s.c+';border-radius:6px"></div></div><div style="width:30px;text-align:right;font-weight:700">'+c+'</div><div class="num" style="width:100px;text-align:right;color:var(--mut);font-size:12px">'+money(sum)+'</div></div>';}).join('');
+  $('mgrTbl').innerHTML='<thead><tr><th>Менеджер</th><th class="r">Сделок</th><th class="r">В работе</th><th class="r">Выиграно</th><th class="r">Сумма выигр.</th></tr></thead><tbody>'+
+    MGRS.map(m=>{const ds=allDeals().filter(d=>d.resp===m);const won=ds.filter(d=>d.status==='won');
+      return '<tr><td class="who2"><div class="av">'+AV(m)+'</div><span class="nm">'+m+'</span></td><td class="r">'+ds.length+'</td><td class="r">'+ds.filter(d=>!d.status).length+'</td><td class="r" style="color:var(--grn)">'+won.length+'</td><td class="r">'+money(won.reduce((a,d)=>a+(+d.bud||0),0))+'</td></tr>';}).join('')+'</tbody>';
+}
+
+/* ===== формы ===== */
+function closeModal(id){$(id).classList.remove('show')}
+function openDealForm(){['fName','fContact','fPhone','fBud'].forEach(id=>$(id).value='');$('fSrc').value='WhatsApp';
+  $('fPipe').innerHTML=Object.entries(PIPES).map(([k,p])=>'<option value="'+k+'"'+(k===CURPIPE?' selected':'')+'>'+esc(p.name)+'</option>').join('');
+  $('fResp').innerHTML=MGRS.map(m=>'<option>'+m+'</option>').join('');
+  $('formOvl').classList.add('show');setTimeout(()=>$('fName').focus(),40);}
+function saveDeal(){const name=$('fName').value.trim();if(!name){toast('Укажите название сделки.','warn');return;}
+  const pk=$('fPipe').value;const d={id:++SEQ,name,contact:$('fContact').value.trim(),phone:$('fPhone').value.trim(),bud:parseInt($('fBud').value)||0,src:$('fSrc').value.toLowerCase().replace('whatsapp','wa').replace('instagram','ig').replace('telegram','tg').replace('звонок','call').replace('сайт','site'),resp:$('fResp').value,tags:[],stage:0,status:'',hist:[],tasks:[{text:'Первый контакт',when:'сегодня',due:false,done:false}]};
+  logDeal(d,'','Сделка создана из '+(CHN[d.src]?CHN[d.src][0]:d.src));PIPES[pk].deals.unshift(d);save();closeModal('formOvl');CURPIPE=pk;renderAll();nav('pipe');
+  toast('Сделка «'+esc(name)+'» создана в воронке «'+esc(PIPES[pk].name)+'».','ok');setTimeout(()=>openDeal(d.id),120);}
+
+/* ===== данные ===== */
+function defaults(){
+  const RB=(t,d,on)=>({t,d,on:on!==false});
+  const commonRobots=(extra)=>([RB('Контроль дублей','Новая сделка с тем же телефоном — объединить, не создавать дубль'),RB('Авто-приветствие','Отправить клиенту сообщение при попадании на этап')].concat(extra||[]));
+  const stages=(arr)=>arr.map(a=>({n:a[0],c:a[1],won:a[2]==='won',lost:a[2]==='lost',robots:a[3]||[]}));
+  const D=(id,name,contact,phone,bud,src,resp,stage,tags,tasks,chat,unread)=>({id,name,contact,phone,bud,src,resp,stage,status:'',tags:tags||[],tasks:tasks||[],hist:[{cls:'',txt:'Сделка создана',t:'09:10'}],chat:chat||null,unread:!!unread,notes:[]});
+  const M=(me,t,x)=>({me,t,x});
+  const engStages=stages([
+    ['Неразобранное','#8a94a6',null,commonRobots()],
+    ['Первичный контакт','#3b9ae1',null,commonRobots([RB('Нет ответа 7 дней','Вернуть сделку на регистратора и сменить ответственного',true)])],
+    ['Переговоры','#7d6fe8',null,commonRobots([RB('Поставить задачу','Автозадача «перезвонить» через 2 дня')])],
+    ['Пробный урок','#e79a2b',null,[RB('Напоминание за день','SMS/WhatsApp клиенту накануне пробного урока',true),RB('Задача менеджеру','Проверить, пришёл ли на пробный')]],
+    ['Оплата','#23a06d',null,[RB('Счёт на оплату','Отправить ссылку на оплату в чат'),RB('Нет оплаты 3 дня','Напомнить и вернуть на переговоры')]],
+    ['Успешно','#18a05c','won'],['Закрыто · не реализовано','#e2503d','lost'],
+  ]);
+  const prodStages=stages([['Заявка','#8a94a6'],['Расчёт / КП','#3b9ae1'],['Согласование','#7d6fe8'],['Производство','#e79a2b'],['Отгрузка','#23a06d'],['Успешно','#18a05c','won'],['Закрыто','#e2503d','lost']].map(a=>[a[0],a[1],a[2],commonRobots()]));
+  const mktStages=stages([['Новый лид','#8a94a6'],['Квалификация','#3b9ae1'],['Оффер','#7d6fe8'],['Оплата','#23a06d'],['Успешно','#18a05c','won'],['Закрыто','#e2503d','lost']].map(a=>[a[0],a[1],a[2],commonRobots()]));
+  const OUT={
+    PIPES:{
+      eng:{name:'Английский курс',stages:engStages,deals:[
+        D(1042,'Айгерим — англ., группа','Айгерим О.','+7 701 234 55 67',120000,'ig','Айгерим',1,['горячий'],[{text:'Перезвонить, пригласить на пробный',when:'сегодня 18:00',due:false,done:false}],[M(false,'10:12','Здравствуйте! Интересует групповой английский.'),M(true,'10:15','Здравствуйте! Да, есть группы 3 раза в неделю. Подскажите ваш уровень?'),M(false,'10:17','Примерно Intermediate. Сколько стоит в месяц?'),M(true,'10:18','120 000 ₸ за курс. Могу записать на бесплатный пробный урок — когда удобно?')],true),
+        D(1041,'Данияр — индивидуально','Данияр Ж.','+7 705 118 22 04',180000,'wa','Дамир',2,['ЛПР'],[{text:'Выслать программу',when:'вчера',due:true,done:false}],[M(false,'09:40','Добрый день, нужен индивидуальный преподаватель.'),M(true,'09:42','Здравствуйте! Подберём под ваш график. Цель — разговорный или экзамен?'),M(false,'09:44','Разговорный, для работы.')]),
+        D(1040,'Мария — intensive','Мария Ли','+7 702 900 71 15',95000,'tg','Санжар',3,[],[{text:'Подтвердить пробный урок',when:'завтра 10:00',due:false,done:false}],[M(false,'Вчера','Записалась на пробный, подтверждаю завтра в 10:00 👍')]),
+        D(1039,'Ерлан — корпоратив','ТОО «Старт»','+7 727 356 21 00',540000,'call','Асель',4,['корп'],[{text:'Согласовать счёт',when:'сегодня',due:false,done:false}]),
+        D(1038,'Сабина — разговорный','Сабина М.','+7 701 555 90 12',110000,'wa','Айгерим',1,[],[],[M(false,'11:02','Здравствуйте, можно узнать расписание разговорного клуба?'),M(true,'11:05','Конечно! Вт и Чт в 19:00. Записать вас на ближайший?')],true),
+        D(1037,'Тимур — подготовка IELTS','Тимур Р.','+7 717 200 10 10',160000,'ig','Дамир',0,['новый'],[{text:'Первый контакт',when:'сегодня',due:false,done:false}],[M(false,'08:55','Нужна подготовка к IELTS до 7.0, сроки горят 🙏')],true),
+        D(1036,'Алина — детский','Алина В.','+7 714 500 44 55',88000,'wa','Санжар',5,[],[]),
+      ]},
+      prod:{name:'Производство',stages:prodStages,deals:[
+        D(1035,'Заказ мебели — офис','ТОО «Маркет»','+7 727 111 22 33',1250000,'site','Асель',2,['B2B'],[{text:'Отправить КП',when:'сегодня',due:false,done:false}],[M(false,'12:30','Нужен расчёт на 20 рабочих мест, есть чертёж.'),M(true,'12:35','Принял, готовим КП сегодня до вечера.')],true),
+        D(1034,'Партия упаковки','ИП Ахметов','+7 705 222 00 22',430000,'wa','Дамир',3,[],[]),
+        D(1033,'Заказ №2481','ТОО «Старт»','+7 701 333 00 33',770000,'call','Айгерим',1,[],[{text:'Уточнить объём',when:'завтра',due:false,done:false}]),
+      ]},
+      mkt:{name:'Маркет',stages:mktStages,deals:[
+        D(1032,'Оптовый клиент — розница','Нурлан Ж.','+7 701 444 00 44',320000,'ig','Санжар',1,[],[],[M(false,'13:10','Здравствуйте, интересует опт. Какие условия?'),M(true,'13:14','Здравствуйте! От 50 шт — скидка 15%. Пришлю прайс.')],true),
+        D(1031,'Возврат клиента','Гульмира С.','+7 707 555 00 55',150000,'wa','Асель',2,['повторный'],[{text:'Позвонить',when:'сегодня 16:00',due:false,done:false}]),
+      ]},
+    },
+    CALLS:[
+      ['Айгерим','Данияр Ж.','+7 705 118 22 04','09:12',412,'исходящий'],
+      ['Дамир','ТОО «Старт»','+7 727 356 21 00','09:31',215,'входящий'],
+      ['Санжар','Мария Ли','+7 702 900 71 15','09:48',0,'исходящий'],
+      ['Асель','ТОО «Маркет»','+7 727 111 22 33','10:05',530,'входящий'],
+    ],
+  };
+  // приводим статус сделок к их этапу (сделка на этапе «Успешно/Закрыто» → won/lost)
+  Object.values(OUT.PIPES).forEach(p=>p.deals.forEach(d=>{const st=p.stages[d.stage];if(st){d.status=st.won?'won':st.lost?'lost':'';}}));
+  return OUT;
+}
+
+/* ===== init ===== */
+load();buildContacts();renderAll();
+const q=new URLSearchParams(location.search);
+if(q.get('s'))nav(q.get('s'));
+if(q.get('deal'))setTimeout(()=>openDeal(1041),300);
+setTimeout(()=>toast('Это <b>SELLA</b> — ваша CRM «как amoCRM», но на вашем сервере и без абонплаты. Воронки с перетаскиванием, <b>чат прямо в сделке</b>, роботы (Salesbot), звонки Binotel, задачи, аналитика. Несколько воронок/бизнесов — вкладки сверху. Всё прокликивается и сохраняется. Откройте любую сделку.'),700);
+</script>
+</body>
+</html>
