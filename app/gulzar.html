@@ -4,7 +4,7 @@
 <script src="/app/gate.js"></script>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>GÜLZAR — портал сети цветочных бутиков · Демо</title>
+<title>Оранжерея — портал сети цветочных магазинов · Демо</title>
 <meta name="robots" content="noindex,nofollow"/>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231a2a20'/%3E%3Cpath d='M16 7 C13 11 13 14 16 16 C19 14 19 11 16 7 Z' fill='%23e7b3c2'/%3E%3Cpath d='M16 16 C12 14 9 15 8 19 C12 20 15 19 16 16 Z' fill='%23cf6a86'/%3E%3Cpath d='M16 16 C20 14 23 15 24 19 C20 20 17 19 16 16 Z' fill='%23cf6a86'/%3E%3Cpath d='M16 16 v8' stroke='%234e9c6f' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -290,13 +290,13 @@ body.t-clean .stocktbl td{font-size:13.5px}
 </style>
 </head>
 <body>
-<div class="demo-note">Интерактивное демо · <b>GÜLZAR — портал сети цветочных бутиков</b> · 7 филиалов · Бишкек · все данные вымышленные, всё прокликивается · <b>Pllato</b></div>
+<div class="demo-note">Интерактивное демо · <b>Оранжерея — портал сети цветочных магазинов</b> · 7 точек + опт. склад · Бишкек · все данные вымышленные, всё прокликивается · <b>Pllato</b></div>
 
 <header class="mast">
   <div class="m1">
     <div class="brand">
       <div class="bm"><svg viewBox="0 0 32 32"><path d="M16 6 C12.5 10.5 12.5 14 16 16.2 C19.5 14 19.5 10.5 16 6 Z" fill="#e7b3c2"/><path d="M16 16.2 C11.5 13.8 8 15 7 19.5 C11.6 20.6 15 19.4 16 16.2 Z" fill="#cf6a86"/><path d="M16 16.2 C20.5 13.8 24 15 25 19.5 C20.4 20.6 17 19.4 16 16.2 Z" fill="#cf6a86"/><path d="M16 16 v9" stroke="#7fbf9a" stroke-width="2" stroke-linecap="round"/></svg></div>
-      <div><div class="bt">GÜLZAR</div><div class="bs">сеть цветочных бутиков · заказы · склад · 1С</div></div>
+      <div><div class="bt">Оранжерея</div><div class="bs">сеть цветочных магазинов · заказы · склад · 1С</div></div>
     </div>
     <div class="themesw" style="margin-left:auto">
       <span class="tl">дизайн</span>
@@ -314,6 +314,9 @@ body.t-clean .stocktbl td{font-size:13.5px}
     <button data-s="stock">Наличие по филиалам<span class="cnt">зеркало 1С</span></button>
     <button data-s="transfers">Перемещения<span class="cnt">между филиалами</span></button>
     <button data-s="clients">Клиенты<span class="cnt">поводы · повторные</span></button>
+    <button data-s="loyalty">Лояльность<span class="cnt">статусы · роботы</span></button>
+    <button data-s="kpi">KPI · план-факт<span class="cnt">флористы</span></button>
+    <button data-s="channels">Каналы<span class="cnt">реклама</span></button>
     <button data-s="cash">Касса</button>
     <button data-s="onec">1С</button>
     <button data-s="dash">Дашборд сети</button>
@@ -472,6 +475,71 @@ body.t-clean .stocktbl td{font-size:13.5px}
     </div>
   </section>
 
+  <!-- ===== ЛОЯЛЬНОСТЬ ===== -->
+  <section class="screen" id="s-loyalty">
+    <div class="ph-head"><h1>Лояльность и повторные продажи</h1><span class="sub">то, чего не хватало 2 года — база постоянных клиентов работает сама</span></div>
+    <div class="meterline">
+      <div class="mt" onclick="toast('База постоянных клиентов с привязкой к номеру телефона. Никаких пластиковых карт — SMS приходит на телефон. Основная выручка — с повторных продаж, а не с 8 марта.')"><div class="l">Постоянных клиентов</div><div class="v">1 840</div><div class="d">привязаны к телефону</div></div>
+      <div class="mt" onclick="toast('Роботы сами напомнят: годовщина покупки («год назад покупали букет жене»), дни рождения, «вечерний букет» по субботам. Продажи, которые иначе забылись бы.')"><div class="l">Поводов на неделе</div><div class="v r">37</div><div class="d">роботы напомнят и продадут</div></div>
+      <div class="mt" onclick="toast('Активные сценарии-роботы по воронке лояльности: на каждый этап своё сообщение. Настраиваются под вас на рабочей встрече.')"><div class="l">Роботов активно</div><div class="v g">6</div><div class="d">сценариев рассылок</div></div>
+      <div class="mt" onclick="toast('Повторные продажи с лояльности за месяц. Прямой рост выручки без затрат на рекламу.')"><div class="l">Повторных продаж · мес</div><div class="v g">412 <em>тыс сом</em></div><div class="d">с рассылок и статусов</div></div>
+    </div>
+    <div class="cols">
+      <div>
+        <div style="overflow-x:auto"><table class="cltbl" id="loyTbl"></table></div>
+        <div class="note" style="margin-top:12px">Статусы присваиваются автоматически по частоте покупок. «Супер-муж» — покупает 4+ букета в месяц; ему — отдельные условия и первым лучшие позиции. Классические схемы «купи 3 — 4-й букет в подарок» тоже здесь.</div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="pt"><h3>Роботы-сценарии</h3><span class="lnk" onclick="toast('Каждый сценарий настраивается: текст SMS/почты, за сколько дней, для какого статуса. Собираем прямо на рабочей встрече по всей воронке.')">настроить →</span></div>
+          <div class="pb" id="robotsList"></div>
+        </div>
+        <div class="panel">
+          <div class="pt"><h3>Статусы клиентов</h3></div>
+          <div class="pb" id="statusList"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== KPI / ПЛАН-ФАКТ ===== -->
+  <section class="screen" id="s-kpi">
+    <div class="ph-head"><h1>KPI и план-факт флористов</h1><span class="sub">зарплата от выручки + план-факт (2 недели) и бонусы — доход растёт, воровство падает</span></div>
+    <div class="meterline">
+      <div class="mt" onclick="toast('Средний чек по сети. Растёт за счёт апселлов (заготовки корзин: средний клиент и супер-дорогой от $500) и правильных подсказок менеджеру.')"><div class="l">Средний чек</div><div class="v">2 380 <em>сом</em></div><div class="d">цель по сети — рост</div></div>
+      <div class="mt" onclick="toast('Среднее количество позиций в чеке (цветы + допродажи: шоколад, игрушки, открытки). Тоже KPI флориста.')"><div class="l">Позиций в чеке</div><div class="v">3,4</div><div class="d">цветы + допродажи</div></div>
+      <div class="mt" onclick="toast('Выполнение плана по сети за текущий период (2 недели). План реалистичный, но с нагрузкой. Перевыполнил — получил бонус.')"><div class="l">Выполнение плана</div><div class="v g">86%</div><div class="d">период · 2 недели</div></div>
+      <div class="mt" onclick="toast('Бонусный фонд за перевыполнение плана. Выплаты 2 раза в месяц. Прозрачно и честно — флористы настроены на высокую кассу.')"><div class="l">Бонусный фонд</div><div class="v g">74 <em>тыс сом</em></div><div class="d">за перевыполнение</div></div>
+    </div>
+    <div class="panel">
+      <div class="pt"><h3>Флористы · план-факт за период</h3><span class="lnk" onclick="toast('Зарплата = минималка + процент от выручки (без потолка) + бонус за перевыполнение плана. Начисление считается системой автоматически.')">как считается →</span></div>
+      <div class="pb" style="padding-top:4px;overflow-x:auto"><table class="cltbl" id="kpiTbl"></table></div>
+    </div>
+  </section>
+
+  <!-- ===== КАНАЛЫ ===== -->
+  <section class="screen" id="s-channels">
+    <div class="ph-head"><h1>Каналы и реклама</h1><span class="sub">видно, где реклама эффективнее — Instagram, WhatsApp, Telegram, сайт</span></div>
+    <div class="meterline">
+      <div class="mt" onclick="toast('Все заявки со всех каналов падают в одну воронку. Здесь видно, откуда пришёл каждый лид, и какой канал приносит продажи.')"><div class="l">Заявок · неделя</div><div class="v">214</div><div class="d">со всех каналов</div></div>
+      <div class="mt" onclick="toast('Онлайн-магазин на сайте (корзина + оплата) — большой потенциал: у сетей 50%+ выручки уходит в онлайн. Делается отдельным этапом.')"><div class="l">Онлайн-потенциал</div><div class="v g">×2</div><div class="d">магазин на сайте</div></div>
+      <div class="mt" onclick="toast('WhatsApp — безлимит сообщений. Обычно $80/мес, у вас ≈$10/мес (или бесплатно через ваш сервис). Экономия ~$800/год.')"><div class="l">WhatsApp</div><div class="v">≈$10<em>/мес</em></div><div class="d">вместо $80 — экономия</div></div>
+      <div class="mt" onclick="nav('dash')"><div class="l">Выручка с каналов</div><div class="v g">1,2 <em>млн сом</em></div><div class="d">за месяц</div></div>
+    </div>
+    <div class="cols">
+      <div>
+        <div style="overflow-x:auto"><table class="cltbl" id="chTbl"></table></div>
+        <div class="note" style="margin-top:12px">Интеграция каналов входит в разработку и дальше не оплачивается. Telegram-бот доводим до конца: заказ + оплата + адрес доставки прямо в боте, готовый оплаченный заказ падает в воронку.</div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="pt"><h3>Эффективность рекламы</h3></div>
+          <div class="pb" id="chBars"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
 </div>
 
 <div class="mobile-nav">
@@ -612,7 +680,7 @@ function openDeal(si,ki){
   if(si>=3)tl+=evH('robot','сегодня 11:40 · робот стадии «Сборка»','Задача флористу филиала «'+FIL[+k[5]]+'»: собрать букет к сроку. Списание позиций уйдёт в 1С при отгрузке.');
   if(si>=2)tl+=evH('pay','сегодня 10:15 · оплата','<b>Счёт-фактура выставлена, ссылка на оплату отправлена.</b> При оплате документ проведётся в 1С автоматически.');
   if(k[4]==='photo')tl+=evH('photo','сегодня 09:50 · фото из филиала','Клиент попросил конкретный букет. Робот запросил фото у флориста «'+FIL[+k[5]]+'»:<div class="photobox">'+camIc+'Фото букета из наличия филиала → уходит клиенту в чат без пересылок вручную.</div>');
-  tl+=evH('wa','сегодня 09:30 · '+CHNAME[k[6]],'<b>Обращение клиента:</b> «'+k[1]+'». Заказ создан автоматически из '+CHNAME[k[6]]+' и распределён на филиал «'+FIL[+k[5]]+'».<div class="wamsg">Здравствуйте! Это GÜLZAR 🌷 Уточняю наличие и через пару минут пришлю варианты с фото и ценой.</div>');
+  tl+=evH('wa','сегодня 09:30 · '+CHNAME[k[6]],'<b>Обращение клиента:</b> «'+k[1]+'». Заказ создан автоматически из '+CHNAME[k[6]]+' и распределён на филиал «'+FIL[+k[5]]+'».<div class="wamsg">Здравствуйте! Это Оранжерея 🌷 Уточняю наличие и через пару минут пришлю варианты с фото и ценой.</div>');
   tl+=evH('','при создании','Лид из «'+CHNAME[k[6]]+'» · заказ #GЗ-'+si+ki+'8 · филиал «'+FIL[+k[5]]+'»');
   $('dTl').innerHTML=tl;
   $('dTasks').innerHTML='<div class="task"><b>'+k[3].split(' · ')[0]+'</b><span>'+(k[4]==='lt'?'⚑ просрочен — виден управляющему':k[3].split(' · ')[1]||'в срок')+'</span></div>'+
@@ -779,8 +847,40 @@ function setTheme(t,el){
     : 'Дизайн <b>«Флора»</b> — фирменная эстетика цветочного бутика.');
 }
 
-renderFun();renderStock();fillFilSelect();renderCatalog();renderCart();render1c();renderDash();renderTrf();renderClients();
-setTimeout(()=>toast('Это <b>GÜLZAR</b> — портал под ваш цветочный бизнес: заказы из всех каналов, <b>наличие 7 филиалов зеркалом из 1С</b>, <b>перемещения между филиалами</b>, клиенты с поводами, касса без входа в 1С. Вверху справа — переключатель <b>дизайна</b> (Флора / Чистый).'),800);
+/* ===== доработки по встрече 13.07: лояльность / KPI / каналы ===== */
+function badge(txt,bg,col){return '<span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;background:'+bg+';color:'+col+'">'+txt+'</span>';}
+function stB(s){return s==='Супер-муж'?badge(s,'#e7f2ee','#1e7d5f'):s==='Корпоратив'?badge(s,'#e9eff5','#28527a'):s==='Постоянный'?badge(s,'#f5eeda','#8a6a12'):badge(s,'#efe7d6','#7a6a4f');}
+const LOY=[
+  ['Айгерим Осмонова','+996 555 12 34 56','Супер-муж',6,'2 дня назад',148000],
+  ['Бекболот Т.','+996 555 33 22 11','Супер-муж',5,'вчера',132000],
+  ['Компания «Абди»','+996 312 90 00 00','Корпоратив',4,'3 дня назад',420000],
+  ['Данияр Ж.','+996 700 22 11 09','Постоянный',3,'неделю назад',67000],
+  ['Нурзат К.','+996 559 88 77 66','Постоянный',2,'вчера',54000],
+  ['Сафия М.','+996 770 45 45 45','Новый',1,'сегодня',5100],
+];
+function renderLoy(){
+  $('loyTbl').innerHTML='<thead><tr><th>Клиент</th><th>Телефон</th><th>Статус</th><th class="r">Покупок/мес</th><th>Последняя</th><th class="r">LTV</th></tr></thead><tbody>'+
+    LOY.map(c=>'<tr onclick="toast(\'Карточка клиента: история покупок, любимые цветы, поводы (ДР, годовщины), статус и LTV. Роботы шлют SMS по сценариям.\')"><td style="font-weight:600">'+c[0]+'</td><td class="num" style="color:#356a86;font-size:12px">'+c[1]+'</td><td>'+stB(c[2])+'</td><td class="r">'+c[3]+'</td><td style="color:var(--mut);font-size:12.5px">'+c[4]+'</td><td class="r">'+fT(c[5])+' сом</td></tr>').join('')+'</tbody>';
+  const robots=[['🎂','День рождения','за 1 день — SMS с подборкой букетов'],['💍','Годовщина покупки','«год назад покупали букет жене»'],['🌙','Вечерний букет','постоянным по будням и субботам'],['💤','Давно не заходил','30 дней тишины — тёплое сообщение + промо'],['🎁','Купи 3 — 4-й в подарок','автоматический учёт по клиенту'],['⭐','Смена статуса','достиг «Супер-муж» — спец-условия']];
+  $('robotsList').innerHTML=robots.map(r=>'<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #efe7d6;cursor:pointer" onclick="toast(\'Сценарий «'+r[1]+'»: '+r[2]+'. Текст и тайминг настраиваются под вас на рабочей встрече.\')"><span style="font-size:18px">'+r[0]+'</span><div style="flex:1"><b style="font-size:13.5px">'+r[1]+'</b><div style="font-size:11.5px;color:var(--mut)">'+r[2]+'</div></div>'+badge('вкл','#e7f2ee','#1e7d5f')+'</div>').join('');
+  const stat=[['Супер-муж','4+ букета/мес · спец-условия'],['Постоянный','регулярные покупки'],['Корпоратив','компании, регулярные счета'],['Новый','первая покупка']];
+  $('statusList').innerHTML=stat.map(s=>'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #efe7d6">'+stB(s[0])+'<div style="font-size:12.5px;color:var(--mut);flex:1">'+s[1]+'</div></div>').join('');
+}
+const KPI=[['Айдай','Чуй проспект',186000,180000,2540,3.6],['Салтанат','Ала-Тоо',142000,160000,2210,3.1],['Гүлнара','Ортосай',204000,180000,2880,4.0],['Нургиза','Джал',158000,160000,2300,3.3],['Азиза','Восток-5',171000,160000,2620,3.5]];
+function renderKpi(){
+  $('kpiTbl').innerHTML='<thead><tr><th>Флорист</th><th>Филиал</th><th class="r">Касса (период)</th><th class="r">План</th><th class="r">Факт</th><th class="r">Ср. чек</th><th class="r">Позиций</th><th class="r">Бонус</th></tr></thead><tbody>'+
+    KPI.map(k=>{const pct=Math.round(k[2]/k[3]*100),done=pct>=100,bonus=done?Math.round((k[2]-k[3])*0.1):0;
+      return '<tr onclick="toast(\'Зарплата '+k[0]+' = минималка + % от кассы (без потолка) + бонус за перевыполнение плана. Считается автоматически по кассе и плану.\')"><td style="font-weight:600">'+k[0]+'</td><td style="font-size:12.5px;color:var(--mut)">«'+k[1]+'»</td><td class="r">'+fT(k[2])+'</td><td class="r" style="color:var(--mut)">'+fT(k[3])+'</td><td class="r">'+badge(pct+'%',done?'#e7f2ee':'#f7e9e2',done?'#1e7d5f':'#b4552e')+'</td><td class="r">'+fT(k[4])+'</td><td class="r">'+k[5]+'</td><td class="r" style="font-weight:700;color:#1e7d5f">'+(bonus?'+'+fT(bonus):'—')+'</td></tr>';}).join('')+'</tbody>';
+}
+const CH=[['Instagram',86,42,540000],['WhatsApp',72,55,610000],['Telegram',38,29,240000],['Сайт',18,12,190000]];
+function renderChannels(){
+  $('chTbl').innerHTML='<thead><tr><th>Канал</th><th class="r">Заявок</th><th class="r">Заказов</th><th class="r">Конверсия</th><th class="r">Выручка</th></tr></thead><tbody>'+
+    CH.map(c=>{const conv=Math.round(c[2]/c[1]*100);return '<tr onclick="toast(\'Канал '+c[0]+': заявки, конверсия и выручка. Видно, где реклама эффективнее — куда вкладывать бюджет.\')"><td style="font-weight:600">'+c[0]+'</td><td class="r">'+c[1]+'</td><td class="r">'+c[2]+'</td><td class="r">'+conv+'%</td><td class="r">'+fT(c[3])+' сом</td></tr>';}).join('')+'</tbody>';
+  const mx=Math.max.apply(null,CH.map(c=>c[3]));
+  $('chBars').innerHTML=CH.map(c=>'<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px"><b>'+c[0]+'</b><span class="num">'+fT(c[3])+' сом</span></div><div style="height:10px;background:#efe7d6;border-radius:5px;overflow:hidden"><div style="height:100%;width:'+(c[3]/mx*100)+'%;background:var(--rose);border-radius:5px"></div></div></div>').join('');
+}
+renderFun();renderStock();fillFilSelect();renderCatalog();renderCart();render1c();renderDash();renderTrf();renderClients();renderLoy();renderKpi();renderChannels();
+setTimeout(()=>toast('Это <b>Оранжерея</b> — портал под вашу цветочную сеть: <b>база клиентов и лояльность</b> (роботы, статусы, повторные продажи), склад и наличие зеркалом из 1С, <b>KPI/план-факт флористов</b>, каналы и реклама, касса без входа в 1С. Вверху справа — переключатель <b>дизайна</b> (Флора / Чистый).'),800);
 const q=new URLSearchParams(location.search);
 if(q.get('t')==='clean')setTheme('clean',document.querySelectorAll('.themesw button')[1]);
 if(q.get('s'))nav(q.get('s'));if(q.get('deal'))setTimeout(()=>openDeal(1,0),300);
