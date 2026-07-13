@@ -275,6 +275,11 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-mk:hover,.lk-mk.hl{background:var(--amber);box-shadow:0 0 0 2px #fff,0 0 0 5px rgba(217,131,36,.5);transform:scale(1.5);z-index:3;}
 .lg-row.hl{border-color:var(--amber)!important;box-shadow:0 0 0 2px rgba(217,131,36,.35);}
 .lk-mk-note{font-size:11.5px;color:var(--gray);line-height:1.45;margin:8px 0 12px;}
+.lk-split{display:flex;gap:16px;align-items:flex-start;}
+.lk-imgcol{flex:1.15;min-width:0;position:sticky;top:0;align-self:flex-start;z-index:1;}
+.lk-datacol{flex:1;min-width:0;}
+.lk-mk{cursor:pointer;}
+@media(max-width:960px){.lk-split{flex-direction:column;}.lk-imgcol{position:static;width:100%;}}
 .lk-vru{font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--steel);text-transform:uppercase;letter-spacing:.5px;padding:9px 6px 3px;border-top:1px solid var(--line);margin-top:5px;}
 .lk-vru:first-child{border-top:none;margin-top:0;}
 .lk-rep{max-width:720px;}
@@ -1605,7 +1610,7 @@ function lkParsePotreb(items){
 }
 /* имена групп из строки «Маркировка группы»: гр.1, гр.2 … — привяжем к линиям по X */
 function lkGroupLabels(items){
-  return items.filter(it=>/^\s*гр\.?\s*\d+\s*$/i.test(it.str||'')).map(it=>({name:'гр.'+(it.str.match(/\d+/)||[''])[0],x:it.transform[4],y:it.transform[5]}));
+  return items.filter(it=>/^\s*гр\.?\s*\d+[А-Яа-яA-Za-z]?\s*$/i.test(it.str||'')).map(it=>{const m=(it.str||'').match(/гр\.?\s*(\d+[А-Яа-яA-Za-z]?)/i);return {name:'гр.'+(m?m[1]:''),x:it.transform[4],y:it.transform[5]};});
 }
 function lkAssignGroupNames(rows,labels){
   if(!labels.length)return;
@@ -1688,13 +1693,13 @@ function renderLineyka(){
   $('lkNav').querySelectorAll('.lk-pg').forEach(b=>b.onclick=()=>{LK.sel=+b.dataset.pg;LK.view='pages';renderLineyka();$('lkPage').scrollTop=0;});
   if(LK.view==='report'){$('lkPage').innerHTML=lkReportHtml();bindReport();return;}
   const pg=LK.pages[LK.sel];
-  let h=`<div class="lk-pgwrap"><div class="lk-zoom"><button data-z="out" title="Уменьшить">−</button><button data-z="fit" title="По ширине">↔</button><button data-z="in" title="Увеличить">+</button></div><div class="lk-pgimg" id="lkPgImg">${lkImgBoxHtml(pg)}</div></div><div class="lk-mk-note">🟢 Точки на схеме — то, что попало в подсчёт. Наведи на строку ниже — подсветит её место на схеме; где точки нет — там пропуск (напр. неучтённое ответвление), добавь строку.</div>`+lkCheckHtml(pg)+`<div class="lk-groups">`;
+  let h=`<div class="lk-split"><div class="lk-imgcol"><div class="lk-pgwrap"><div class="lk-zoom"><button data-z="out" title="Уменьшить">−</button><button data-z="fit" title="По ширине">↔</button><button data-z="in" title="Увеличить">+</button></div><div class="lk-pgimg" id="lkPgImg">${lkImgBoxHtml(pg)}</div></div><div class="lk-mk-note">🟢 Точки — то, что попало в подсчёт. Наведи на строку справа — подсветит её точку; клик по точке — перейти к строке. Где точки нет — там пропуск (неучтённое ответвление), добавь строку.</div></div><div class="lk-datacol">`+lkCheckHtml(pg)+`<div class="lk-groups">`;
   pg.groups.forEach(grp=>{const st=lkSum(grp.rows);
     h+=`<div class="lk-grp"><div class="lk-grph"><span class="lk-grpn">${esc(grp.name)}</span>`
       +Object.keys(st.s).sort().map(k=>`<span class="lk-chip small">${esc(k)} <b>${Math.round(st.s[k])}м</b></span>`).join('')
       +`<span class="lk-chip small tot">Σ ${Math.round(st.t)}м</span></div>`
       +grp.rows.map(r=>lkRow(r)).join('')+`</div>`;});
-  h+=`<div style="display:flex;gap:9px;align-items:center;margin-top:6px"><button class="lk-add" id="lkAdd">+ Строка на этот лист</button><span class="lk-note">Проверь по печатной сводке «Потребность кабелей» на листе — поправь/добавь, итоги пересчитаются.</span></div></div>`;
+  h+=`<div style="display:flex;gap:9px;align-items:center;margin-top:6px"><button class="lk-add" id="lkAdd">+ Строка на этот лист</button><span class="lk-note">Проверь по печатной сводке «Потребность кабелей» на листе — поправь/добавь, итоги пересчитаются.</span></div></div></div></div>`;
   $('lkPage').innerHTML=h;bindLineyka();
   if(!pg.img)lkEnsureImg(pg).then(img=>{if(LK.pages[LK.sel]===pg&&img)renderLineyka();}).catch(e=>{console.error('render lист',e);const el=$('lkPgImg');if(el&&LK.pages[LK.sel]===pg)el.innerHTML='<div class="lk-spin" style="padding:18px">Не удалось отрисовать картинку листа (данные всё равно прочитаны ниже). <button class="lk-tb" id="lkImgRetry" style="color:var(--steel);margin-top:8px">Обновить</button></div>';const rb=$('lkImgRetry');if(rb)rb.onclick=()=>{pg.img=null;renderLineyka();};});
 }
@@ -1719,8 +1724,9 @@ function bindLineyka(){const P=$('lkPage');
     row.addEventListener('mouseenter',()=>{const m=P.querySelector('.lk-mk[data-id="'+id+'"]');if(m)m.classList.add('hl');});
     row.addEventListener('mouseleave',()=>{const m=P.querySelector('.lk-mk[data-id="'+id+'"]');if(m)m.classList.remove('hl');});});
   P.querySelectorAll('.lk-mk').forEach(m=>{const id=m.dataset.id;
-    m.addEventListener('mouseenter',()=>{const row=P.querySelector('.lg-row[data-id="'+id+'"]');if(row){row.classList.add('hl');row.scrollIntoView({block:'nearest'});}});
-    m.addEventListener('mouseleave',()=>{const row=P.querySelector('.lg-row[data-id="'+id+'"]');if(row)row.classList.remove('hl');});});
+    m.addEventListener('mouseenter',()=>{const row=P.querySelector('.lg-row[data-id="'+id+'"]');if(row)row.classList.add('hl');});
+    m.addEventListener('mouseleave',()=>{const row=P.querySelector('.lg-row[data-id="'+id+'"]');if(row)row.classList.remove('hl');});
+    m.addEventListener('click',()=>{const row=P.querySelector('.lg-row[data-id="'+id+'"]');if(row)row.scrollIntoView({block:'center',behavior:'smooth'});});});
 }
 /* #7 общий отчёт по файлу + #8 копирование для Excel */
 function lkExcelRows(){const rows=[['Лист','Линейка','Группа','Сечение','Длина, м','Трубы']];
