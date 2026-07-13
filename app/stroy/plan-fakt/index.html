@@ -282,8 +282,20 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 @media(max-width:960px){.lk-split{flex-direction:column;}.lk-imgcol{position:static;width:100%;}}
 .lk-vru{font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--steel);text-transform:uppercase;letter-spacing:.5px;padding:9px 6px 3px;border-top:1px solid var(--line);margin-top:5px;}
 .lk-vru:first-child{border-top:none;margin-top:0;}
-.lk-rep{max-width:720px;}
-.lk-rep-top{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--ink);margin-bottom:6px;flex-wrap:wrap;}
+.lk-rep{max-width:940px;}
+.lk-rep-top{display:flex;align-items:center;gap:12px;font-size:16px;font-weight:700;color:var(--ink);margin-bottom:12px;flex-wrap:wrap;}
+.lk-rep-top>b{font-size:17px;}
+.lk-kpis{display:flex;gap:12px;flex-wrap:wrap;margin:2px 0 4px;}
+.lk-kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 18px;min-width:116px;box-shadow:var(--shadow);}
+.lk-kpi .v{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--steel);line-height:1;}
+.lk-kpi .l{font-size:11.5px;color:var(--gray);margin-top:5px;}
+.lk-sec-h{display:flex;align-items:center;gap:10px;margin:22px 0 8px;}
+.lk-sec-h h4{margin:0;}
+.lk-copybtn{margin-left:auto;border:1px solid var(--steel2);background:var(--panel2);color:var(--steel);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:5px;}
+.lk-copybtn:hover{background:#fff;}
+.lk-copybtn:active{transform:translateY(1px);}
+.lk-brk{font-size:11px!important;color:var(--gray);font-family:var(--sans)!important;}
+.lk-tblscroll{max-height:360px;overflow:auto;}
 .lk-rep-top .lk-tb{margin-left:auto;}
 .lk-rep h4{font-size:14px;color:var(--steel);margin:18px 0 7px;font-weight:700;}
 .lk-tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:9px;}
@@ -1733,22 +1745,34 @@ function bindLineyka(){const P=$('lkPage');
 function lkExcelRows(){const rows=[['Лист','Линейка','Группа','Сечение','Длина, м','Трубы']];
   LK.pages.forEach(pg=>pg.groups.forEach(g=>g.rows.forEach(r=>rows.push([pg.page,g.name,r.group||'',r.section,r.len,(r.conds||[]).map(c=>c.t+' '+c.len+'м').join('; ')]))));
   return rows;}
-function lkCopyExcel(){const tsv=lkExcelRows().map(r=>r.join('\t')).join('\n');
-  const done=()=>toast('Скопировано — вставь в Excel (Ctrl+V)');
+function lkCopyTsv(matrix,label){const tsv=matrix.map(r=>r.map(c=>String(c==null?'':c)).join('\t')).join('\n');
+  const done=()=>toast((label||'Таблица')+' скопирована — вставь в Excel (Ctrl+V)');
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(tsv).then(done).catch(()=>fb());}else fb();
   function fb(){const ta=document.createElement('textarea');ta.value=tsv;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand('copy');done();}catch(e){toast('Не удалось скопировать');}ta.remove();}}
-function lkReportHtml(){const g=lkSum(lkAllRows());
-  let h=`<div class="lk-rep"><div class="lk-rep-top"><b>Отчёт по всему файлу</b> · ${LK.pages.length} листов · ${lkAllRows().length} линий<button class="lk-tb" id="lkBackPages">← к листам</button></div>`;
-  h+=`<h4>Кабель по сечениям (весь файл)</h4><div class="lk-tblwrap"><table class="lk-tbl"><thead><tr><th>Сечение</th><th>Длина, м</th></tr></thead><tbody>`;
+function lkCopyExcel(){lkCopyTsv(lkExcelRows(),'Полная таблица');}
+function lkTsvSections(){const g=lkSum(lkAllRows());const rows=[['Сечение','Длина, м']];Object.keys(g.s).sort().forEach(k=>rows.push([k,Math.round(g.s[k])]));rows.push(['Всего кабеля',Math.round(g.t)]);return rows;}
+function lkTsvConduits(){const g=lkSum(lkAllRows());const rows=[['Труба','Длина, м']];Object.keys(g.c).sort().forEach(k=>rows.push([k,Math.round(g.c[k])]));return rows;}
+function lkTsvSheets(){const rows=[['Лист','Линейки','Линий','Длина, м']];LK.pages.forEach(pg=>{const pt=lkSum(pg.rows);rows.push([pg.page,pg.shields.join(', ')||'—',pg.rows.length,Math.round(pt.t)]);});return rows;}
+function lkSecHead(t,id){return `<div class="lk-sec-h"><h4>${esc(t)}</h4><button class="lk-copybtn" id="${id}">⧉ Копировать</button></div>`;}
+function lkReportHtml(){const all=lkAllRows();const g=lkSum(all);
+  let h=`<div class="lk-rep"><div class="lk-rep-top"><b>Отчёт по файлу</b><button class="lk-tb" id="lkBackPages">← к листам</button></div>`;
+  h+=`<div class="lk-kpis"><div class="lk-kpi"><div class="v">${Math.round(g.t)}</div><div class="l">метров кабеля</div></div><div class="lk-kpi"><div class="v">${LK.pages.length}</div><div class="l">листов</div></div><div class="lk-kpi"><div class="v">${all.length}</div><div class="l">линий</div></div></div>`;
+  h+=lkSecHead('Кабель по сечениям — весь файл','lkCopySec')+`<div class="lk-tblwrap"><table class="lk-tbl"><thead><tr><th>Сечение</th><th>Длина, м</th></tr></thead><tbody>`;
   Object.keys(g.s).sort().forEach(k=>h+=`<tr><td>${esc(k)}</td><td>${Math.round(g.s[k])}</td></tr>`);
   h+=`<tr class="tot"><td>Всего кабеля</td><td>${Math.round(g.t)}</td></tr></tbody></table></div>`;
-  if(Object.keys(g.c).length){h+=`<h4>Трубы (весь файл)</h4><div class="lk-tblwrap"><table class="lk-tbl"><thead><tr><th>Труба</th><th>Длина, м</th></tr></thead><tbody>`;
+  if(Object.keys(g.c).length){h+=lkSecHead('Трубы — весь файл','lkCopyCond')+`<div class="lk-tblwrap"><table class="lk-tbl"><thead><tr><th>Труба</th><th>Длина, м</th></tr></thead><tbody>`;
     Object.keys(g.c).sort().forEach(k=>h+=`<tr><td>${esc(k)}</td><td>${Math.round(g.c[k])}</td></tr>`);h+=`</tbody></table></div>`;}
-  h+=`<h4>По листам</h4><div class="lk-tblwrap"><table class="lk-tbl"><thead><tr><th>Лист</th><th>Линейки</th><th>Линий</th><th>Длина, м</th></tr></thead><tbody>`;
-  LK.pages.forEach(pg=>{const pt=lkSum(pg.rows);h+=`<tr><td>${pg.page}</td><td>${esc(pg.shields.join(', ')||'—')}</td><td>${pg.rows.length}</td><td>${Math.round(pt.t)}</td></tr>`;});
-  h+=`</tbody></table></div><div style="margin-top:14px"><button class="lk-tb" id="lkCopy2">⧉ Копировать всю таблицу для Excel</button></div></div>`;
+  h+=lkSecHead('По листам (по отдельности)','lkCopySheets')+`<div class="lk-tblwrap"><table class="lk-tbl"><thead><tr><th>Лист</th><th>Линейки</th><th>По сечениям</th><th>Линий</th><th>Длина, м</th></tr></thead><tbody>`;
+  LK.pages.forEach(pg=>{const pt=lkSum(pg.rows);const br=Object.keys(pt.s).sort().map(k=>k+': '+Math.round(pt.s[k])).join('   ');
+    h+=`<tr><td>${pg.page}</td><td>${esc(pg.shields.join(', ')||'—')}</td><td class="lk-brk">${esc(br)}</td><td>${pg.rows.length}</td><td>${Math.round(pt.t)}</td></tr>`;});
+  h+=`</tbody></table></div>`;
+  h+=lkSecHead('Полная таблица — все линии','lkCopyFull')+`<div class="lk-tblwrap lk-tblscroll"><table class="lk-tbl"><thead><tr><th>Лист</th><th>Линейка</th><th>Группа</th><th>Сечение</th><th>Длина</th><th>Трубы</th></tr></thead><tbody>`;
+  LK.pages.forEach(pg=>pg.groups.forEach(gr=>gr.rows.forEach(r=>{h+=`<tr><td>${pg.page}</td><td>${esc(gr.name)}</td><td>${esc(r.group||'')}</td><td>${esc(r.section)}</td><td>${r.len}</td><td class="lk-brk">${esc((r.conds||[]).map(c=>c.t+' '+c.len+'м').join('; '))}</td></tr>`;})));
+  h+=`</tbody></table></div></div>`;
   return h;}
-function bindReport(){const bk=$('lkBackPages');if(bk)bk.onclick=()=>{LK.view='pages';renderLineyka();};const c2=$('lkCopy2');if(c2)c2.onclick=lkCopyExcel;}
+function bindReport(){const bk=$('lkBackPages');if(bk)bk.onclick=()=>{LK.view='pages';renderLineyka();};
+  const w=(id,fn,lbl)=>{const b=$(id);if(b)b.onclick=()=>lkCopyTsv(fn(),lbl);};
+  w('lkCopySec',lkTsvSections,'Кабель по сечениям');w('lkCopyCond',lkTsvConduits,'Трубы');w('lkCopySheets',lkTsvSheets,'По листам');w('lkCopyFull',lkExcelRows,'Полная таблица');}
 let _lkId=100000;function id2(){return ++_lkId;}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 let tt;function toast(m){const el=$('toast');el.textContent=m;el.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('show'),2600);}
