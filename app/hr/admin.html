@@ -494,13 +494,98 @@ function renderSJT(fam){
 /* =============== ИНИЦИАЛИЗАЦИЯ =============== */
 $('#navHome').onclick=renderHome;
 $('#navSettings').onclick=()=>renderSettings();
-HRStore.init().then(()=>HRStore.getSettings()).then(s=>{
-  SETTINGS=s||{};
-  // применить сохранённые пороги вердикта
-  if(SETTINGS.bands){ SETTINGS.bands.forEach((b,i)=>{ if(window.HR_BANDS.fit[i]) window.HR_BANDS.fit[i].min=b.min; }); }
-  const u=HRStore.user(); $('#who').textContent=u?(u.name||u.email):'';
-  HRStore.onChange(()=>{ if(!D) renderList(); });
-  renderHome();
+// bootPanel вызывается либо после входа (командный режим), либо в локальном режиме.
+window.bootPanel=function(){
+  return HRStore.init().then(()=>HRStore.getSettings()).then(s=>{
+    SETTINGS=s||{};
+    if(SETTINGS.bands){ SETTINGS.bands.forEach((b,i)=>{ if(window.HR_BANDS.fit[i]) window.HR_BANDS.fit[i].min=b.min; }); }
+    const u=HRStore.user(); $('#who').textContent=u?(u.name||u.email):'';
+    HRStore.onChange(()=>{ if(!D) renderList(); });
+    renderHome();
+  });
+};
+// Экран входа (когда сервер требует авторизацию и пользователь не вошёл)
+window.renderGate=function(msg){
+  $('#who').textContent='';
+  app.innerHTML=`<div class="card" style="max-width:520px;margin:40px auto;text-align:center">
+    <div style="font-size:40px">🔒</div>
+    <h1>Панель найма</h1>
+    <p>${msg?esc(msg):'Войдите рабочим Google-аккаунтом, чтобы работать с кандидатами вместе с командой.'}</p>
+    <button class="btn" id="gsiBtn" style="margin-top:8px">Войти через Google</button>
+    <div style="margin-top:16px"><a href="#" id="localBtn" class="muted">Работать локально, без команды →</a></div>
+  </div>`;
+  $('#gsiBtn').onclick=()=>window.hrSignIn&&window.hrSignIn();
+  $('#localBtn').onclick=e=>{e.preventDefault(); window.startLocal&&window.startLocal();};
+};
+// Локальный режим (fallback): хранилище в браузере.
+window.startLocal=function(){ bootPanel(); };
+// Если модуль входа не загрузился за 2.5с — показать экран (с доступом к локальному режиму).
+setTimeout(()=>{ if(!app.children.length) renderGate('Не удалось подключиться к серверу входа. Можно работать локально.'); }, 2500);
+</script>
+
+<!-- Серверный режим: вход через Google (Firebase Auth) + хранилище в Cloudflare Worker + D1.
+     Пока воркер не развёрнут / вход не сделан — доступен локальный режим (кнопка на экране входа). -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc",
+  authDomain: "pllato-crm.firebaseapp.com",
+  databaseURL: "https://pllato-crm-default-rtdb.firebaseio.com",
+  projectId: "pllato-crm",
+  storageBucket: "pllato-crm.firebasestorage.app",
+  messagingSenderId: "690738857241",
+  appId: "1:690738857241:web:2356e97c435656890ab188"
+};
+const WORKER = 'https://pllato-hr-worker.uurraa.workers.dev';
+const auth = getAuth(initializeApp(firebaseConfig));
+let localChosen = false;
+
+window.hrSignIn = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e=>window.renderGate('Не удалось войти: '+e.message));
+window.hrSignOut = () => { localChosen=false; signOut(auth); };
+window.startLocal = () => { localChosen=true; document.getElementById('who').textContent='Локально (в этом браузере)'; bootPanel(); };
+
+// worker-бэкенд для HRStore — тот же интерфейс, что и локальный
+function workerStore(user){
+  async function api(path, opts){
+    const token = await user.getIdToken();
+    const r = await fetch(WORKER+path, { ...(opts||{}), headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+token, ...((opts&&opts.headers)||{}) } });
+    if(!r.ok){ let m; try{ m=(await r.json()).error }catch(e){} throw new Error(m||('HTTP '+r.status)); }
+    return r.json();
+  }
+  const listeners=[];
+  return {
+    mode:'firebase', backendLabel:'сервер команды',
+    init(){ return Promise.resolve(); },
+    user(){ return { email:user.email, name:user.email }; },
+    saveCandidate(rec){ return api('/api/hr/candidate/'+encodeURIComponent(rec.id), { method:'PUT', body:JSON.stringify(rec) }).then(d=>{ listeners.forEach(cb=>cb()); return d.item; }); },
+    getCandidate(id){ return api('/api/hr/candidate/'+encodeURIComponent(id)).then(d=>d.item); },
+    listCandidates(){ return api('/api/hr/candidates').then(d=>d.items||[]); },
+    deleteCandidate(id){ return api('/api/hr/candidate/'+encodeURIComponent(id), { method:'DELETE' }).then(()=>{ listeners.forEach(cb=>cb()); }); },
+    getSettings(){ return api('/api/hr/settings').then(d=>d.settings||{}); },
+    saveSettings(s){ return api('/api/hr/settings', { method:'PUT', body:JSON.stringify(s) }); },
+    onChange(cb){ listeners.push(cb); return ()=>{ const i=listeners.indexOf(cb); if(i>=0) listeners.splice(i,1); }; },
+  };
+}
+
+// небольшая кнопка «выйти» в шапке в командном режиме
+function addSignOut(email){
+  const bar=document.querySelector('.top'); let b=document.getElementById('signOutBtn');
+  if(!b){ b=document.createElement('button'); b.id='signOutBtn'; b.className='nav'; b.textContent='Выйти'; b.onclick=window.hrSignOut; bar.appendChild(b); }
+}
+
+onAuthStateChanged(auth, (user)=>{
+  if(localChosen) return;           // пользователь выбрал локальный режим — не перехватываем
+  if(user){
+    // проверим доступ и, если ок, переключим хранилище на сервер
+    window.HRStore = workerStore(user);
+    window.HRStore.listCandidates()
+      .then(()=>{ addSignOut(user.email); bootPanel(); })
+      .catch(err=>{ window.renderGate(err.message.indexOf('доступ')>=0?err.message:('Сервер недоступен: '+err.message+'. Можно работать локально.')); });
+  } else {
+    renderGate();
+  }
 });
 </script>
 </body>
