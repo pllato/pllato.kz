@@ -1649,6 +1649,8 @@ async function lkExtract(data,onProgress){
     lkAssignGroupNames(rows,lkGroupLabels(tc.items));
     const shields=lkDetectShields(tc.items);
     const groups=lkGroupByShield(rows,shields);
+    // если своей «группы» в тексте нет (питание щита ЩК-x.x) — подставим имя линейки/щита как группу
+    groups.forEach(gr=>{if(gr.name&&gr.name!=='Линейка')gr.rows.forEach(r=>{if(!r.group||r.group==='—')r.group=gr.name;});});
     const v0=page.getViewport({scale:1});
     pages.push({page:p,img:null,wpt:v0.width,hpt:v0.height,vru:lkDetectVru(tc.items),shields:shields.map(s=>s.name),groups,rows,potreb:lkParsePotreb(tc.items)});}
   return {pdf,pages};
