@@ -208,6 +208,8 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .cond-row{margin-top:5px}
 .lk-chip.tot{background:var(--steel);color:#fff;border-color:var(--steel);}
 .lk-chip.tot b{color:#fff;}
+.lk-chip.tot.cond{background:var(--gray);border-color:var(--gray);}
+.lk-break{flex-basis:100%;height:0;margin:0;padding:0;border:0;background:none;}
 .lk-spin{text-align:center;color:var(--gray);font-size:14px;line-height:1.7;padding:48px 16px;}
 .lk-spin b{color:var(--steel);font-size:15px;}
 .lk-l{width:78px;text-align:right;font-family:var(--mono);}
@@ -1755,9 +1757,10 @@ function lkCheckHtml(pg){const st=lkSum(pg.rows);const proj=pg.potreb||{};
     +(condChips?`<div class="lk-rep-sec cond-row"><span class="lk-rep-lbl">Трубы:</span> ${condChips}</div>`:`<div class="lk-rep-sec cond-row"><span class="lk-rep-lbl">Трубы:</span> <span class="lk-chip small cond">не распознаны</span></div>`)
     +`<div class="lk-rep-note"><b>Как понять, всё ли прочитано:</b> сверь эти суммы с таблицей <b>«Потребность кабелей»</b> на схеме выше. Сходится по всем сечениям — лист прочитан полностью; где у сечения меньше — часть не распозналась, добавь строку кнопкой ниже. ${projTxt}${empty?`<br><b>${empty}</b> строк без потребителя (в этом формате имени нет в тексте — впиши вручную при необходимости).`:''}</div></div>`;}
 function renderLineyka(){
-  const g=lkSum(lkAllRows());
+  const g=lkSum(lkAllRows());const ct=Object.values(g.c).reduce((a,x)=>a+(+x||0),0);
   $('lkSum').innerHTML=Object.keys(g.s).sort().map(k=>`<span class="lk-chip">${esc(k)} <b>${Math.round(g.s[k])}</b></span>`).join('')
-    +`<span class="lk-chip tot">Всего кабеля <b>${Math.round(g.t)} м</b></span>`;
+    +`<span class="lk-chip tot">Всего кабеля <b>${Math.round(g.t)} м</b></span>`
+    +(Object.keys(g.c).length?`<span class="lk-break"></span>`+Object.keys(g.c).sort().map(k=>`<span class="lk-chip cond">${esc(k)} <b>${Math.round(g.c[k])}</b></span>`).join('')+`<span class="lk-chip tot cond">Всего труб <b>${Math.round(ct)} м</b></span>`:'');
   // #5 — группировка листов по ВРУ → шкафам
   const byVru={},vorder=[];LK.pages.forEach((pg,i)=>{const v=pg.vru||'—';if(!byVru[v]){byVru[v]=[];vorder.push(v);}byVru[v].push(i);});
   let navH='';vorder.forEach(v=>{if(vorder.length>1||v!=='—')navH+=`<div class="lk-vru">${esc(v==='—'?'Прочие шкафы':v)}</div>`;
@@ -1771,7 +1774,8 @@ function renderLineyka(){
   pg.groups.forEach(grp=>{const st=lkSum(grp.rows);
     h+=`<div class="lk-grp"><div class="lk-grph"><span class="lk-grpn">${esc(grp.name)}</span>`
       +Object.keys(st.s).sort().map(k=>`<span class="lk-chip small">${esc(k)} <b>${Math.round(st.s[k])}м</b></span>`).join('')
-      +`<span class="lk-chip small tot">Σ ${Math.round(st.t)}м</span></div>`
+      +`<span class="lk-chip small tot">Σ ${Math.round(st.t)}м</span>`
+      +Object.keys(st.c).sort().map(k=>`<span class="lk-chip small cond">${esc(k)} <b>${Math.round(st.c[k])}м</b></span>`).join('')+`</div>`
       +grp.rows.map(r=>lkRow(r)).join('')+`</div>`;});
   h+=`<div style="display:flex;gap:9px;align-items:center;margin-top:6px"><button class="lk-add" id="lkAdd">+ Строка на этот лист</button><span class="lk-note">Проверь по печатной сводке «Потребность кабелей» на листе — поправь/добавь, итоги пересчитаются.</span></div></div></div></div>`;
   $('lkPage').innerHTML=h;bindLineyka();
@@ -1818,14 +1822,14 @@ function lkTsvSections(){const g=lkSum(lkAllRows());const rows=[['Сечение
 function lkTsvConduits(){const g=lkSum(lkAllRows());const rows=[['Труба','Длина, м']];Object.keys(g.c).sort().forEach(k=>rows.push([k,Math.round(g.c[k])]));return rows;}
 function lkTsvSheets(){const rows=[['Лист','Линейки','Линий','Длина, м']];LK.pages.forEach(pg=>{const pt=lkSum(pg.rows);rows.push([pg.page,pg.shields.join(', ')||'—',pg.rows.length,Math.round(pt.t)]);});return rows;}
 function lkSecHead(t,id){return `<div class="lk-sec-h"><h4>${esc(t)}</h4><button class="lk-copybtn" id="${id}">⧉ Копировать</button></div>`;}
-function lkReportHtml(){const all=lkAllRows();const g=lkSum(all);
+function lkReportHtml(){const all=lkAllRows();const g=lkSum(all);const ct=Object.values(g.c).reduce((a,x)=>a+(+x||0),0);
   let h=`<div class="lk-rep"><div class="lk-rep-top"><b>Отчёт по файлу</b><button class="lk-tb" id="lkBackPages">← к листам</button></div>`;
-  h+=`<div class="lk-kpis"><div class="lk-kpi"><div class="v">${Math.round(g.t)}</div><div class="l">метров кабеля</div></div><div class="lk-kpi"><div class="v">${LK.pages.length}</div><div class="l">листов</div></div><div class="lk-kpi"><div class="v">${all.length}</div><div class="l">линий</div></div></div>`;
+  h+=`<div class="lk-kpis"><div class="lk-kpi"><div class="v">${Math.round(g.t)}</div><div class="l">метров кабеля</div></div><div class="lk-kpi"><div class="v">${Math.round(ct)}</div><div class="l">метров труб</div></div><div class="lk-kpi"><div class="v">${LK.pages.length}</div><div class="l">листов</div></div><div class="lk-kpi"><div class="v">${all.length}</div><div class="l">линий</div></div></div>`;
   h+=lkSecHead('Кабель по сечениям — весь файл','lkCopySec')+`<div class="lk-tblwrap"><table class="lk-tbl"><thead><tr><th>Сечение</th><th>Длина, м</th></tr></thead><tbody>`;
   Object.keys(g.s).sort().forEach(k=>h+=`<tr><td>${esc(k)}</td><td>${Math.round(g.s[k])}</td></tr>`);
   h+=`<tr class="tot"><td>Всего кабеля</td><td>${Math.round(g.t)}</td></tr></tbody></table></div>`;
   if(Object.keys(g.c).length){h+=lkSecHead('Трубы — весь файл','lkCopyCond')+`<div class="lk-tblwrap"><table class="lk-tbl"><thead><tr><th>Труба</th><th>Длина, м</th></tr></thead><tbody>`;
-    Object.keys(g.c).sort().forEach(k=>h+=`<tr><td>${esc(k)}</td><td>${Math.round(g.c[k])}</td></tr>`);h+=`</tbody></table></div>`;}
+    Object.keys(g.c).sort().forEach(k=>h+=`<tr><td>${esc(k)}</td><td>${Math.round(g.c[k])}</td></tr>`);h+=`<tr class="tot"><td>Всего труб</td><td>${Math.round(ct)}</td></tr></tbody></table></div>`;}
   h+=lkSecHead('По листам (по отдельности)','lkCopySheets')+`<div class="lk-tblwrap"><table class="lk-tbl"><thead><tr><th>Лист</th><th>Линейки</th><th>По сечениям</th><th>Линий</th><th>Длина, м</th></tr></thead><tbody>`;
   LK.pages.forEach(pg=>{const pt=lkSum(pg.rows);const br=Object.keys(pt.s).sort().map(k=>k+': '+Math.round(pt.s[k])).join('   ');
     h+=`<tr><td>${pg.page}</td><td>${esc(pg.shields.join(', ')||'—')}</td><td class="lk-brk">${esc(br)}</td><td>${pg.rows.length}</td><td>${Math.round(pt.t)}</td></tr>`;});
