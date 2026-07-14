@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RL · Фонды проектов</title>
+<style>
+  :root{
+    --ink:#1a2230;--paper:#eef0f3;--line:#d5d9e0;--muted:#5d6472;--card:#fff;
+    --green:#0f6f52;--green-bg:#e4f0eb;--red:#b23b3b;--red-bg:#f6e6e6;
+    --blue:#345b8f;--blue-bg:#e7edf5;--amber:#8a6f4a;--amber-bg:#f0ebe3;--navy:#1a2536;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--paper);color:var(--ink);line-height:1.45;-webkit-font-smoothing:antialiased}
+  .top{background:var(--navy);color:#fff;padding:13px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+  .top b{font-size:16px;letter-spacing:-.3px}.top span.v{font-size:11px;color:#7d8aa3}
+  .top .sp{flex:1}
+  .tbtn{background:rgba(255,255,255,.1);border:none;color:#dfe6f0;font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit}
+  .tbtn:hover{background:rgba(255,255,255,.2)}
+  .tbtn.acc{background:#3f6ea8}.tbtn.acc:hover{background:#4c7fbd}
+  .wrap{max-width:1060px;margin:0 auto;padding:22px 18px 80px}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:26px 0 10px;font-weight:700}
+  .explain{font-size:12.5px;color:#41495a;background:#eef1f5;border:1px solid var(--line);border-left:3px solid var(--blue);padding:10px 14px;border-radius:8px;margin-bottom:12px;line-height:1.55}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:16px 18px;margin-bottom:12px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .kpi .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700}
+  .kpi .v{font-size:18px;font-weight:700;margin-top:4px;letter-spacing:-.4px;font-variant-numeric:tabular-nums}
+  .kpi .d{font-size:10.5px;color:var(--muted);margin-top:2px}
+  .pos{color:var(--green)}.neg{color:var(--red)}
+  input,select{padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:13.5px;background:#fbfaf7;color:var(--ink);font-family:inherit;width:100%}
+  input:focus,select:focus{outline:none;border-color:var(--blue);background:#fff}
+  label{display:block;font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+  .btn{background:var(--blue);color:#fff;border:none;border-radius:9px;font-size:13.5px;font-weight:700;padding:10px 18px;cursor:pointer;font-family:inherit}
+  .btn:hover{background:#2b4d7a}
+  .btn.grn{background:var(--green)}.btn.grn:hover{background:#0c5940}
+  .btn.red{background:var(--red)}.btn.red:hover{background:#943030}
+  .btn.ghost{background:none;border:1px dashed var(--line);color:var(--blue);font-weight:600}
+  .btn.ghost:hover{background:var(--blue-bg);border-color:var(--blue)}
+  .del{color:var(--muted);cursor:pointer;font-size:16px;padding:2px 8px;border-radius:6px;flex-shrink:0}
+  .del:hover{background:var(--red-bg);color:var(--red)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);text-align:right;padding:8px 9px;border-bottom:1px solid var(--line);font-weight:700;white-space:nowrap}
+  th:first-child{text-align:left}
+  td{padding:8px 9px;border-bottom:1px solid #eef0f3;text-align:right;font-variant-numeric:tabular-nums;vertical-align:middle}
+  td:first-child{text-align:left}tr:last-child td{border-bottom:none}
+  .plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+  .pcard{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:16px 18px;cursor:pointer;transition:box-shadow .15s}
+  .pcard:hover{box-shadow:0 4px 14px rgba(0,0,0,.08);border-color:var(--blue)}
+  .pcard .nm{font-weight:700;font-size:15px}.pcard .cu{font-size:11.5px;color:var(--muted);margin-bottom:8px}
+  .pcard .row{display:flex;justify-content:space-between;font-size:12px;padding:2px 0}
+  .pcard .row span:last-child{font-weight:600;font-variant-numeric:tabular-nums}
+  .gap-warn{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--red-bg);color:var(--red);margin-top:8px}
+  .gap-ok{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--green-bg);color:var(--green);margin-top:8px}
+  .fund-row{display:grid;grid-template-columns:14px 1.6fr 88px 1fr 1fr auto;gap:9px;align-items:center;padding:8px 0;border-bottom:1px solid #eef0f3}
+  .fund-row:last-child{border-bottom:none}
+  .fdot{width:11px;height:11px;border-radius:50%}
+  .fbal{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+  .fio{font-size:10.5px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+  .fund-bar{display:flex;height:13px;border-radius:7px;overflow:hidden;margin:6px 0 14px;border:1px solid var(--line)}
+  .forms{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  @media(max-width:760px){.forms{grid-template-columns:1fr}.fund-row{grid-template-columns:14px 1.2fr 70px 1fr auto}.fio{display:none}}
+  .fgrid{display:grid;grid-template-columns:120px 1fr;gap:8px;margin-bottom:8px}
+  .fgrid3{display:grid;grid-template-columns:120px 1fr 1fr;gap:8px;margin-bottom:8px}
+  .alloc{font-size:11.5px;color:var(--muted);background:var(--green-bg);border-radius:8px;padding:8px 11px;margin:8px 0;line-height:1.6;display:none}
+  .warn{font-size:11.5px;color:#7a5c1e;background:var(--amber-bg);border-radius:8px;padding:8px 11px;margin:8px 0;display:none}
+  .plan-row{display:grid;grid-template-columns:125px 1fr 1.3fr auto auto;gap:8px;align-items:center;margin-bottom:7px}
+  .mv{display:flex;gap:3px}
+  .mv button{border:1px solid var(--line);background:#fff;border-radius:5px;font-size:9px;padding:3px 7px;cursor:pointer;color:var(--muted)}
+  .mv button:hover{background:var(--blue-bg);color:var(--blue);border-color:var(--blue)}
+  .late{font-size:9.5px;font-weight:700;color:var(--red);background:var(--red-bg);border-radius:5px;padding:2px 6px;white-space:nowrap}
+  .oprow{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid #eef0f3;font-size:12.5px}
+  .oprow:last-child{border-bottom:none}
+  .oprow .dt{color:var(--muted);width:80px;flex-shrink:0;font-variant-numeric:tabular-nums;font-size:11.5px}
+  .oprow .ds{flex:1;min-width:0}.oprow .ds .p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .oprow .ds .c{font-size:10.5px;color:var(--muted)}
+  .oprow .am{font-weight:700;font-variant-numeric:tabular-nums;flex-shrink:0}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--green);color:#fff;padding:12px 22px;border-radius:11px;font-size:13.5px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.2);transition:.3s;z-index:99;opacity:0}
+  .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+  .month-red td{background:#fcf0ee}
+  .tag-plan{font-size:9px;font-weight:700;color:var(--blue);background:var(--blue-bg);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:1px}
+  .newgrid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:10px;margin-bottom:10px}
+  @media(max-width:760px){.newgrid{grid-template-columns:1fr}}
+  .back{font-size:12.5px;color:var(--blue);cursor:pointer;font-weight:600;margin-bottom:10px;display:inline-block}
+  .back:hover{text-decoration:underline}
+  .htitle{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .htitle h1{font-size:22px;letter-spacing:-.5px}
+  .htitle .cu{font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="top">
+  <b>RL · Фонды проектов</b><span class="v">учёт по проектам и фондам</span>
+  <div class="sp"></div>
+  <button class="tbtn acc" onclick="showNew()">+ Новый проект</button>
+  <button class="tbtn" onclick="exportData()">Скачать данные</button>
+  <button class="tbtn" onclick="document.getElementById('impFile').click()">Загрузить</button>
+  <input type="file" id="impFile" accept=".json" style="display:none" onchange="importData(this)">
+</div>
+<div class="wrap" id="main"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ ДАННЫЕ ============ */
+const LS='rl-fondy-v1';
+const FUND_COLORS=['#345b8f','#0f6f52','#8a6f4a','#7c828e','#1a2536','#6b4d8f','#b3691f','#2d7a7a'];
+// базовый набор фондов строительного проекта — редактируется в каждом проекте
+const DEFAULT_FUNDS=[
+  {name:'Материалы и субподряд',pct:55},
+  {name:'ФОТ рабочих',pct:20},
+  {name:'Налоги',pct:8},
+  {name:'Накладные (офис, техника, транспорт)',pct:7},
+  {name:'Прибыль (резерв)',pct:10}];
+let DB={projects:[],sel:null};
+let _id=1;
+const uid=()=>'x'+(_id++)+'_'+DB.projects.length;
+function save(){localStorage.setItem(LS,JSON.stringify({...DB,_id}))}
+function load(){
+  try{const raw=localStorage.getItem(LS);if(!raw)return false;
+    const d=JSON.parse(raw);DB={projects:d.projects||[],sel:d.sel||null};_id=d._id||1000;
+    DB.projects.forEach(p=>{p.tasks=p.tasks||[]});
+    return DB.projects.length>0;
+  }catch(e){return false}
+}
+const fmt=n=>(n||n===0)?new Intl.NumberFormat('ru-RU').format(Math.round(n)):'—';
+const fmtM=n=>(n<0?'−':'')+(Math.abs(n)/1e6).toFixed(Math.abs(n)<1e7?1:0).replace('.',',')+' млн';
+const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const todayIso=()=>new Date().toISOString().slice(0,10);
+const dRu=iso=>iso?iso.split('-').reverse().join('.'):'—';
+function toast(m,t){const e=document.getElementById('toast');e.textContent=m;e.style.background=t==='err'?'var(--red)':'var(--green)';e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2400)}
+const P=()=>DB.projects.find(p=>p.id===DB.sel);
+
+/* ============ РАСЧЁТЫ ============ */
+function fundBalances(p){
+  // баланс фонда = доли от фактических приходов − расходы из фонда ± перекладки
+  const b={};p.funds.forEach(f=>b[f.id]={in:0,out:0,mv:0});
+  p.ops.forEach(o=>{
+    if(o.type==='in'&&o.alloc)Object.entries(o.alloc).forEach(([fid,a])=>{if(b[fid])b[fid].in+=a});
+    if(o.type==='out'&&b[o.fund])b[o.fund].out+=Math.abs(o.amt);
+    if(o.type==='move'){if(b[o.from])b[o.from].mv-=o.amt;if(b[o.to])b[o.to].mv+=o.amt}
+  });
+  Object.values(b).forEach(x=>x.bal=x.in-x.out+x.mv);
+  return b;
+}
+function fundDebts(p){
+  // непогашенные перекладки: из какого фонда сколько взято и куда (сальдо по паре фондов)
+  const net={};
+  p.ops.forEach(o=>{if(o.type!=='move')return;
+    const [a,b]=[o.from,o.to].sort();const dir=o.from===a?1:-1;
+    const k=a+'¦'+b;net[k]=(net[k]||0)+dir*o.amt});
+  const out=[];
+  Object.entries(net).forEach(([k,v])=>{if(Math.round(v)===0)return;
+    const[a,b]=k.split('¦');
+    out.push(v>0?{from:a,to:b,amt:v}:{from:b,to:a,amt:-v})});
+  return out; // {from: фонд-донор, to: фонд-должник, amt: сколько вернуть}
+}
+function allocByPct(p,amt){
+  // распределение прихода по долям, без потери копеек
+  const total=p.funds.reduce((s,f)=>s+f.pct,0)||100;
+  const alloc={};let acc=0;
+  p.funds.forEach((f,i)=>{
+    let a=i===p.funds.length-1?amt-acc:Math.round(amt*f.pct/total);
+    acc+=a;alloc[f.id]=a;
+  });
+  return alloc;
+}
+function monthKey(iso){return (iso||'').slice(0,7)}
+function monthly(p){
+  // прошлое — фактом (операции), будущее — планом (строки плана с датой >= сегодня)
+  const t=todayIso();
+  const ev=[];
+  p.ops.forEach(o=>{if(o.type==='in')ev.push({m:monthKey(o.date),fin:o.amt});
+    if(o.type==='out')ev.push({m:monthKey(o.date),fout:-Math.abs(o.amt)})});
+  p.planIn.forEach(r=>{if(r.date>=t)ev.push({m:monthKey(r.date),pin:r.amt})});
+  p.planOut.forEach(r=>{if(r.date>=t)ev.push({m:monthKey(r.date),pout:-Math.abs(r.amt)})});
+  const keys=[...new Set(ev.map(e=>e.m))].filter(Boolean).sort();
+  if(!keys.length)return[];
+  // непрерывный диапазон месяцев
+  const months=[];let [y,m]=keys[0].split('-').map(Number);const [ey,em]=keys[keys.length-1].split('-').map(Number);
+  while(y<ey||(y===ey&&m<=em)){months.push(y+'-'+String(m).padStart(2,'0'));m++;if(m>12){m=1;y++}}
+  let run=0;
+  return months.map(k=>{
+    const r={m:k,fin:0,fout:0,pin:0,pout:0};
+    ev.forEach(e=>{if(e.m===k){r.fin+=e.fin||0;r.fout+=e.fout||0;r.pin+=e.pin||0;r.pout+=e.pout||0}});
+    r.net=r.fin+r.fout+r.pin+r.pout;run+=r.net;r.run=run;
+    return r;
+  });
+}
+function firstGap(p){const rows=monthly(p);const g=rows.find(r=>r.run<0);return g?{m:g.m,short:g.run}:null}
+const MR=['','янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+const mLabel=k=>{const[y,m]=k.split('-');return MR[+m]+' '+y.slice(2)};
+
+/* ============ ЭКРАНЫ ============ */
+function render(){
+  save();
+  const host=document.getElementById('main');
+  if(DB.sel==='__new')return renderNew(host);
+  if(DB.sel&&P())return renderProject(host,P());
+  renderList(host);
+}
+function renderList(host){
+  if(!DB.projects.length){
+    host.innerHTML=`<div class="card" style="text-align:center;padding:44px 20px">
+      <div style="font-size:17px;font-weight:700;margin-bottom:6px">Проектов пока нет</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:18px">Заведи первый: сумма договора, план поступлений и трат — и система покажет кассу по месяцам.</div>
+      <button class="btn" onclick="showNew()">+ Новый проект</button></div>`;return;
+  }
+  host.innerHTML=`<h2 style="margin-top:4px">Проекты · ${DB.projects.length}</h2><div class="plist">${DB.projects.map(p=>{
+    const fb=fundBalances(p);const cash=Object.values(fb).reduce((s,x)=>s+x.bal,0);
+    const got=p.ops.filter(o=>o.type==='in').reduce((s,o)=>s+o.amt,0);
+    const spent=p.ops.filter(o=>o.type==='out').reduce((s,o)=>s+Math.abs(o.amt),0);
+    const gap=firstGap(p);
+    return `<div class="pcard" onclick="openProject('${p.id}')">
+      <div class="nm">${esc(p.name)}</div><div class="cu">${esc(p.customer||'заказчик не указан')}</div>
+      <div class="row"><span>Договор</span><span>${fmt(p.contract)}</span></div>
+      <div class="row"><span>Поступило</span><span class="pos">${fmt(got)}</span></div>
+      <div class="row"><span>Потрачено</span><span class="neg">${fmt(spent)}</span></div>
+      <div class="row"><span>Касса проекта</span><span class="${cash>=0?'pos':'neg'}">${fmt(cash)}</span></div>
+      ${gap?`<span class="gap-warn">⚠ разрыв в ${mLabel(gap.m)}: не хватит ${fmtM(gap.short)}</span>`:`<span class="gap-ok">✓ разрывов не видно</span>`}
+    </div>`}).join('')}</div>`;
+}
+function showNew(){DB.sel='__new';render();setTimeout(()=>{addNewRow('in');addNewRow('out')},0)}
+function renderNew(host){
+  host.innerHTML=`<span class="back" onclick="goList()">← к списку проектов</span>
+  <div class="card">
+    <div style="font-size:17px;font-weight:700;margin-bottom:12px">Новый проект</div>
+    <div class="newgrid">
+      <div><label>Название проекта *</label><input id="npName" placeholder="например: ЖК Восход, электромонтаж"></div>
+      <div><label>Заказчик</label><input id="npCust" placeholder="ТОО / физлицо"></div>
+      <div><label>Сумма договора, ₸ * <span style="text-transform:none;letter-spacing:0">(плановый доход)</span></label><input type="number" id="npContract" placeholder="0" inputmode="numeric"></div>
+    </div>
+    <h2>План поступлений — какие деньги и когда зайдут</h2>
+    <div id="npIn"></div>
+    <button class="btn ghost" onclick="addNewRow('in')">+ строка поступления</button>
+    <h2>План трат — какие платежи и когда уйдут</h2>
+    <div id="npOut"></div>
+    <button class="btn ghost" onclick="addNewRow('out')">+ строка траты</button>
+    <div id="npSum" class="explain" style="margin-top:14px;display:none"></div>
+    <div style="margin-top:14px"><button class="btn grn" onclick="createProject()">Завести проект</button></div>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:8px">Проект создастся с базовым набором фондов (материалы, ФОТ, налоги, накладные, прибыль) — доли и состав можно поменять внутри.</div>
+  </div>`;
+}
+function addNewRow(kind){
+  const box=document.getElementById(kind==='in'?'npIn':'npOut');if(!box)return;
+  const div=document.createElement('div');div.className='plan-row';div.style.gridTemplateColumns='125px 1fr 1.3fr auto';
+  div.innerHTML=`<input type="date" class="nr-date"><input type="number" class="nr-amt" placeholder="сумма ₸" inputmode="numeric" oninput="newSum()">
+    <input class="nr-note" placeholder="${kind==='in'?'аванс / оплата этапа':'материалы / ФОТ / налоги'}">
+    <span class="del" onclick="this.parentNode.remove();newSum()">×</span>`;
+  box.appendChild(div);
+}
+function newSum(){
+  const s=(sel)=>[...document.querySelectorAll(sel+' .nr-amt')].reduce((a,i)=>a+(parseFloat(i.value)||0),0);
+  const contract=parseFloat(document.getElementById('npContract')?.value)||0;
+  const inn=s('#npIn'),out=s('#npOut');const el=document.getElementById('npSum');if(!el)return;
+  if(!contract&&!inn&&!out){el.style.display='none';return}
+  el.style.display='block';
+  const marg=contract-out;
+  el.innerHTML=`Договор <b>${fmt(contract)}</b> · план поступлений <b>${fmt(inn)}</b> · план трат <b>${fmt(out)}</b> · остаётся по плану <b class="${marg>=0?'pos':'neg'}">${fmt(marg)}</b>${inn&&contract&&inn<contract?` · поступлений меньше договора на ${fmt(contract-inn)} — добавь оставшиеся транши`:''}`;
+}
+function createProject(){
+  const name=document.getElementById('npName').value.trim();
+  const contract=parseFloat(document.getElementById('npContract').value)||0;
+  if(!name||!contract){toast('Укажи название и сумму договора','err');return}
+  const rows=(sel,sign)=>[...document.querySelectorAll(sel+' .plan-row')].map(r=>({
+    id:uid(),date:r.querySelector('.nr-date').value,amt:sign*Math.abs(parseFloat(r.querySelector('.nr-amt').value)||0),
+    note:r.querySelector('.nr-note').value})).filter(r=>r.date&&r.amt);
+  const p={id:uid(),name,customer:document.getElementById('npCust').value.trim(),contract,
+    funds:DEFAULT_FUNDS.map((f,i)=>({id:uid(),name:f.name,pct:f.pct,color:FUND_COLORS[i%FUND_COLORS.length]})),
+    planIn:rows('#npIn',1),planOut:rows('#npOut',-1),ops:[]};
+  DB.projects.push(p);DB.sel=p.id;
+  toast('Проект заведён ✓');render();
+}
+function goList(){DB.sel=null;render()}
+function openProject(id){DB.sel=id;render();window.scrollTo(0,0)}
+function delProject(){
+  const p=P();if(!p)return;
+  if(!confirm('Удалить проект «'+p.name+'» со всеми операциями?'))return;
+  DB.projects=DB.projects.filter(x=>x.id!==p.id);DB.sel=null;render();
+}
+
+/* ============ КАРТОЧКА ПРОЕКТА ============ */
+function renderProject(host,p){
+  const fb=fundBalances(p);
+  const cash=Object.values(fb).reduce((s,x)=>s+x.bal,0);
+  const got=p.ops.filter(o=>o.type==='in').reduce((s,o)=>s+o.amt,0);
+  const spent=p.ops.filter(o=>o.type==='out').reduce((s,o)=>s+Math.abs(o.amt),0);
+  const planOutLeft=p.planOut.filter(r=>r.date>=todayIso()).reduce((s,r)=>s+Math.abs(r.amt),0);
+  const marginPlan=p.contract-spent-planOutLeft;
+  const gap=firstGap(p);
+  const pctSum=p.funds.reduce((s,f)=>s+f.pct,0);
+  const t=todayIso();
+
+  const fundRows=p.funds.map(f=>{const b=fb[f.id];
+    return `<div class="fund-row">
+      <span class="fdot" style="background:${f.color}"></span>
+      <input value="${esc(f.name)}" onchange="updFund('${f.id}','name',this.value)">
+      <div style="display:flex;align-items:center;gap:4px"><input type="number" value="${f.pct}" min="0" max="100" style="text-align:right" onchange="updFund('${f.id}','pct',this.value)"><span style="font-size:11px;color:var(--muted)">%</span></div>
+      <div class="fbal ${b.bal>=0?'pos':'neg'}">${fmt(b.bal)} ₸</div>
+      <div class="fio">+${fmtM(b.in)} · −${fmtM(b.out)}${b.mv?` · перекл. ${b.mv>0?'+':''}${fmtM(b.mv)}`:''}</div>
+      <span class="del" onclick="delFund('${f.id}')" title="удалить фонд">×</span>
+    </div>`}).join('');
+
+  const fundOpts=p.funds.map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join('');
+
+  const planRow=(r,kind)=>{
+    const late=r.date<t;
+    return `<div class="plan-row">
+      <input type="date" value="${r.date}" onchange="updPlan('${kind}','${r.id}','date',this.value)">
+      <input type="number" value="${Math.abs(r.amt)}" style="text-align:right" onchange="updPlan('${kind}','${r.id}','amt',this.value)">
+      <input value="${esc(r.note)}" placeholder="комментарий" onchange="updPlan('${kind}','${r.id}','note',this.value)">
+      <span class="mv"><button onclick="movePlan('${kind}','${r.id}',-7)" title="на неделю раньше">◀</button><button onclick="movePlan('${kind}','${r.id}',7)" title="на неделю позже">▶</button>${late?`<span class="late" title="дата в прошлом — в расчёт не идёт">просрочен</span>`:''}</span>
+      <span class="del" onclick="delPlan('${kind}','${r.id}')">×</span>
+    </div>`};
+
+  const mrows=monthly(p);
+  const mtable=mrows.length?`<table><thead><tr><th>Месяц</th><th>Приход</th><th>Расход</th><th>Сальдо месяца</th><th>Остаток на конец</th><th></th></tr></thead><tbody>
+    ${mrows.map(r=>{const inn=r.fin+r.pin,out=r.fout+r.pout;const isPlan=r.pin||r.pout;
+      return `<tr class="${r.run<0?'month-red':''}">
+      <td><b>${mLabel(r.m)}</b>${isPlan?'<span class="tag-plan">план</span>':''}</td>
+      <td class="${inn?'pos':''}">${inn?'+'+fmt(inn):'—'}</td>
+      <td class="${out?'neg':''}">${out?fmt(out):'—'}</td>
+      <td class="${r.net>=0?'pos':'neg'}">${fmt(r.net)}</td>
+      <td style="font-weight:700" class="${r.run>=0?'pos':'neg'}">${fmt(r.run)}</td>
+      <td style="text-align:left">${r.run<0?`<span class="late">разрыв: не хватает ${fmtM(r.run)}</span>`:''}</td></tr>`}).join('')}
+  </tbody></table>`:'<div style="color:var(--muted);font-size:12.5px;padding:8px 0">Заполни план или внеси операции — здесь появится касса по месяцам.</div>';
+
+  const ops=[...p.ops].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const fname=id=>p.funds.find(f=>f.id===id)?.name||'—';
+  const opRows=ops.length?ops.map(o=>{
+    if(o.type==='in')return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'поступление')}</div><div class="c">разложено по фондам: ${p.funds.map(f=>o.alloc[f.id]?esc(f.name.split(' ')[0])+' '+fmtM(o.alloc[f.id]):'').filter(Boolean).join(' · ')}</div></div><div class="am pos">+${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
+    if(o.type==='out')return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'расход')}</div><div class="c">из фонда: ${esc(fname(o.fund))}</div></div><div class="am neg">−${fmt(Math.abs(o.amt))}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
+    return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'перекладка между фондами')}</div><div class="c">${esc(fname(o.from))} → ${esc(fname(o.to))}</div></div><div class="am" style="color:var(--amber)">${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
+  }).join(''):'<div style="color:var(--muted);font-size:12.5px;padding:8px 0">Операций пока нет.</div>';
+
+  host.innerHTML=`<span class="back" onclick="goList()">← к списку проектов</span>
+  <div class="htitle"><h1>${esc(p.name)}</h1><span class="cu">${esc(p.customer||'заказчик не указан')} · договор <b>${fmt(p.contract)} ₸</b></span>
+    <span style="flex:1"></span><button class="btn red" style="padding:7px 13px;font-size:12px" onclick="delProject()">удалить проект</button></div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="k">Поступило</div><div class="v pos">${fmtM(got)}</div><div class="d">факт, ${Math.round(got/p.contract*100)||0}% договора</div></div>
+    <div class="kpi"><div class="k">Потрачено</div><div class="v neg">${fmtM(spent)}</div><div class="d">факт из фондов</div></div>
+    <div class="kpi"><div class="k">Касса проекта</div><div class="v ${cash>=0?'pos':'neg'}">${fmtM(cash)}</div><div class="d">лежит на фондах сейчас</div></div>
+    <div class="kpi"><div class="k">Останется по плану</div><div class="v ${marginPlan>=0?'pos':'neg'}">${fmtM(marginPlan)}</div><div class="d">договор − траты (факт+план)</div></div>
+    <div class="kpi"><div class="k">Кассовый разрыв</div><div class="v ${gap?'neg':'pos'}">${gap?mLabel(gap.m):'не виден'}</div><div class="d">${gap?'не хватит '+fmtM(gap.short):'по текущему плану денег хватает'}</div>
+      ${gap?`<button class="btn ghost" style="padding:5px 10px;font-size:11px;margin-top:7px" onclick="quickTask('Найти ${fmtM(-gap.short)} ₸ к ${mLabel(gap.m)} — закрыть кассовый разрыв','${gap.m}-01')">+ задача на разрыв</button>`:''}
+    </div>
+  </div>
+
+  <h2>Касса по месяцам</h2>
+  <div class="explain">До сегодняшнего дня — факт по операциям, дальше — план. Красный месяц — денег проекта не хватит: видно, сколько именно. Лечится сдвигом трат (кнопки ◀ ▶ в плане) или ускорением поступления.</div>
+  <div class="card" style="overflow-x:auto">${mtable}</div>
+
+  <h2>Фонды проекта</h2>
+  <div class="explain">Каждое поступление сразу расходится по фондам в этих долях. Траты списываются из своего фонда. Название и долю можно менять, фонды — добавлять и удалять (сумма долей должна быть 100%).</div>
+  <div class="card">
+    <div class="fund-bar">${p.funds.map(f=>`<div style="flex:${f.pct||.001};background:${f.color}" title="${esc(f.name)} ${f.pct}%"></div>`).join('')}</div>
+    ${fundRows}
+    <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">
+      <button class="btn ghost" onclick="addFund()">+ добавить фонд</button>
+      <span style="font-size:11.5px;color:${Math.round(pctSum)===100?'var(--muted)':'var(--red)'};font-weight:${Math.round(pctSum)===100?'400':'700'}">сумма долей: ${pctSum}%${Math.round(pctSum)!==100?' — приведи к 100%':''}</span>
+      <span style="flex:1"></span>
+      <span style="font-size:12px;color:var(--muted)">итого на фондах: <b class="${cash>=0?'pos':'neg'}">${fmt(cash)} ₸</b></span>
+    </div>
+    ${(()=>{const debts=fundDebts(p);const fn=id=>p.funds.find(f=>f.id===id)?.name||'фонд удалён';
+      if(!debts.length)return '';
+      return `<div style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--amber);margin-bottom:8px">Взято из фондов — надо вернуть</div>
+        ${debts.map(d=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;font-size:12.5px;border-bottom:1px solid #f2efe8;flex-wrap:wrap">
+          <span>из <b>${esc(fn(d.from))}</b> взято в <b>${esc(fn(d.to))}</b></span>
+          <span style="flex:1"></span>
+          <b style="color:var(--amber);font-variant-numeric:tabular-nums">${fmt(d.amt)} ₸</b>
+          <button class="btn" style="background:var(--amber);padding:6px 12px;font-size:11.5px" onclick="returnDebt('${d.from}','${d.to}',${d.amt})">вернуть всё</button>
+          <button class="btn ghost" style="padding:6px 12px;font-size:11.5px" onclick="quickTask('Вернуть ${fmt(d.amt)} ₸ в фонд «${esc(fn(d.from))}»',null)">+ задача</button>
+        </div>`).join('')}
+        <div style="font-size:11px;color:var(--muted);margin-top:7px">Частичный возврат — через «⇄ Перекинуть» в обратную сторону: долг пересчитается сам.</div>
+      </div>`})()}
+  </div>
+
+  <div class="forms">
+    <div class="card">
+      <div style="font-weight:700;font-size:14px;margin-bottom:10px;color:var(--green)">+ Внести поступление</div>
+      <div class="fgrid"><div><label>Дата</label><input type="date" id="inDate" value="${t}"></div>
+        <div><label>Сумма, ₸</label><input type="number" id="inAmt" placeholder="0" inputmode="numeric" oninput="previewAlloc()"></div></div>
+      <label>Комментарий</label><input id="inNote" placeholder="аванс / оплата этапа" style="margin-bottom:8px">
+      <div class="alloc" id="allocPrev"></div>
+      <button class="btn grn" onclick="addIncome()">Провести — разложить по фондам</button>
+    </div>
+    <div class="card">
+      <div style="font-weight:700;font-size:14px;margin-bottom:10px;color:var(--red)">− Внести расход</div>
+      <div class="fgrid3"><div><label>Дата</label><input type="date" id="outDate" value="${t}"></div>
+        <div><label>Сумма, ₸</label><input type="number" id="outAmt" placeholder="0" inputmode="numeric" oninput="previewOut()"></div>
+        <div><label>Из фонда</label><select id="outFund" onchange="previewOut()">${fundOpts}</select></div></div>
+      <label>Комментарий</label><input id="outNote" placeholder="за что платёж" style="margin-bottom:8px">
+      <div class="warn" id="outWarn"></div>
+      <button class="btn red" onclick="addExpense()">Провести — списать из фонда</button>
+      <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px">
+        <div style="font-weight:700;font-size:12.5px;margin-bottom:8px;color:var(--amber)">⇄ Перекинуть между фондами</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 110px auto;gap:8px;align-items:end">
+          <div><label>Откуда</label><select id="mvFrom">${fundOpts}</select></div>
+          <div><label>Куда</label><select id="mvTo">${fundOpts}</select></div>
+          <div><label>Сумма</label><input type="number" id="mvAmt" inputmode="numeric"></div>
+          <button class="btn" style="background:var(--amber)" onclick="moveFund()">⇄</button>
+        </div>
+        <div style="margin-top:8px"><label>На что (комментарий)</label><input id="mvNote" placeholder="например: срочный закуп, вернуть с оплаты этапа"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Каждая перекладка запоминается: сверху в фондах будет видно, из какого фонда сколько взято и что вернуть.</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Задачи по деньгам · ${taskArr(p).filter(x=>!x.done).length} открытых</h2>
+  <div class="explain">Что сделать, чтобы деньги были: собрать дебиторку, найти недостающее к разрыву, вернуть взятое в фонд. Быстрые кнопки «+ задача» есть у разрыва и у долгов фондов.</div>
+  <div class="card">
+    ${taskArr(p).length?taskArr(p).map(tk=>{const od=tk.due&&!tk.done&&tk.due<t;
+      return `<div class="oprow" style="${tk.done?'opacity:.45':''}">
+      <input type="checkbox" ${tk.done?'checked':''} onchange="toggleTask('${tk.id}')" style="width:auto;flex-shrink:0">
+      <div class="ds"><div class="p" style="${tk.done?'text-decoration:line-through':''}">${esc(tk.title)}</div>${tk.due?`<div class="c">до ${dRu(tk.due)}</div>`:''}</div>
+      ${od?'<span class="late">просрочено</span>':''}
+      <span class="del" onclick="delTask('${tk.id}')">×</span></div>`}).join(''):'<div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">задач нет</div>'}
+    <div style="display:grid;grid-template-columns:1fr 140px auto;gap:8px;margin-top:10px">
+      <input id="tkTitle" placeholder="что сделать: собрать дебиторку, найти деньги…">
+      <input type="date" id="tkDue">
+      <button class="btn ghost" onclick="addTask()">+ задача</button>
+    </div>
+  </div>
+
+  <h2>План поступлений</h2>
+  <div class="card">${p.planIn.length?p.planIn.map(r=>planRow(r,'in')).join(''):'<div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">строк нет</div>'}
+    <button class="btn ghost" onclick="addPlan('in')">+ строка поступления</button></div>
+
+  <h2>План трат</h2>
+  <div class="card">${p.planOut.length?p.planOut.map(r=>planRow(r,'out')).join(''):'<div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">строк нет</div>'}
+    <button class="btn ghost" onclick="addPlan('out')">+ строка траты</button></div>
+
+  <h2>Журнал операций · ${p.ops.length}</h2>
+  <div class="card" style="max-height:420px;overflow:auto">${opRows}</div>`;
+}
+
+/* ============ ДЕЙСТВИЯ ============ */
+function updFund(id,key,val){const p=P();const f=p.funds.find(x=>x.id===id);if(!f)return;
+  if(key==='pct')f.pct=Math.max(0,Math.min(100,parseFloat(val)||0));else f.name=val.trim()||f.name;render()}
+function addFund(){const p=P();p.funds.push({id:uid(),name:'Новый фонд',pct:0,color:FUND_COLORS[p.funds.length%FUND_COLORS.length]});render()}
+function delFund(id){const p=P();const b=fundBalances(p)[id];
+  if(Math.round(b.bal)!==0){toast('На фонде '+fmt(b.bal)+' ₸ — сначала перекинь деньги в другой фонд','err');return}
+  const used=p.ops.some(o=>(o.type==='out'&&o.fund===id)||(o.type==='in'&&o.alloc&&o.alloc[id])||(o.type==='move'&&(o.from===id||o.to===id)));
+  if(used&&!confirm('По фонду были операции — история сохранится, но фонд исчезнет из списка. Удалить?'))return;
+  p.funds=p.funds.filter(f=>f.id!==id);render()}
+function previewAlloc(){const p=P();const amt=parseFloat(document.getElementById('inAmt').value)||0;
+  const el=document.getElementById('allocPrev');
+  if(!amt){el.style.display='none';return}
+  const a=allocByPct(p,amt);el.style.display='block';
+  el.innerHTML='<b>Разложится по фондам:</b><br>'+p.funds.map(f=>`${esc(f.name)} (${f.pct}%) → <b>${fmt(a[f.id])}</b>`).join('<br>')}
+function addIncome(){const p=P();
+  const date=document.getElementById('inDate').value,amt=parseFloat(document.getElementById('inAmt').value);
+  if(!date||!amt||amt<=0){toast('Укажи дату и сумму','err');return}
+  const pctSum=p.funds.reduce((s,f)=>s+f.pct,0);
+  if(Math.round(pctSum)!==100){toast('Сумма долей фондов '+pctSum+'% — сначала приведи к 100%','err');return}
+  p.ops.push({id:uid(),type:'in',date,amt:Math.abs(amt),note:document.getElementById('inNote').value.trim(),alloc:allocByPct(p,Math.abs(amt))});
+  toast('Поступление разложено по фондам ✓');render()}
+function previewOut(){const p=P();const amt=parseFloat(document.getElementById('outAmt').value)||0;
+  const fid=document.getElementById('outFund').value;const el=document.getElementById('outWarn');
+  const b=fundBalances(p)[fid];if(!amt||!b){el.style.display='none';return}
+  if(amt>b.bal){el.style.display='block';el.textContent='В фонде '+fmt(b.bal)+' ₸ — после списания уйдёт в минус на '+fmt(amt-b.bal)+' ₸. Либо перекинь из другого фонда.'}
+  else el.style.display='none'}
+function addExpense(){const p=P();
+  const date=document.getElementById('outDate').value,amt=parseFloat(document.getElementById('outAmt').value);
+  if(!date||!amt||amt<=0){toast('Укажи дату и сумму','err');return}
+  p.ops.push({id:uid(),type:'out',date,amt:-Math.abs(amt),fund:document.getElementById('outFund').value,note:document.getElementById('outNote').value.trim()});
+  toast('Расход списан из фонда ✓');render()}
+function moveFund(){const p=P();
+  const from=document.getElementById('mvFrom').value,to=document.getElementById('mvTo').value;
+  const amt=parseFloat(document.getElementById('mvAmt').value);
+  if(!amt||amt<=0){toast('Укажи сумму','err');return}
+  if(from===to){toast('Выбери разные фонды','err');return}
+  p.ops.push({id:uid(),type:'move',date:todayIso(),from,to,amt:Math.abs(amt),note:document.getElementById('mvNote')?.value.trim()||''});
+  toast('Перекинуто между фондами ✓');render()}
+function returnDebt(from,to,amt){const p=P();
+  const fn=id=>p.funds.find(f=>f.id===id)?.name||'—';
+  if(!confirm('Вернуть '+fmt(amt)+' ₸ из «'+fn(to)+'» обратно в «'+fn(from)+'»?'))return;
+  p.ops.push({id:uid(),type:'move',date:todayIso(),from:to,to:from,amt,note:'возврат в фонд'});
+  toast('Возвращено в фонд ✓');render()}
+
+/* ---- задачи по деньгам ---- */
+function taskArr(p){p.tasks=p.tasks||[];return p.tasks}
+function addTask(){const p=P();
+  const t=document.getElementById('tkTitle').value.trim();
+  if(!t){toast('Напиши, что сделать','err');return}
+  taskArr(p).push({id:uid(),title:t,due:document.getElementById('tkDue').value||null,done:false});
+  toast('Задача добавлена ✓');render()}
+function quickTask(title,due){const p=P();
+  if(taskArr(p).some(x=>x.title===title&&!x.done)){toast('Такая задача уже стоит','err');return}
+  taskArr(p).push({id:uid(),title,due:due||null,done:false});
+  toast('Задача добавлена ✓');render()}
+function toggleTask(id){const p=P();const t=taskArr(p).find(x=>x.id===id);if(t)t.done=!t.done;render()}
+function delTask(id){const p=P();p.tasks=taskArr(p).filter(x=>x.id!==id);render()}
+function delOp(id){const p=P();if(!confirm('Удалить операцию?'))return;p.ops=p.ops.filter(o=>o.id!==id);render()}
+function addPlan(kind){const p=P();
+  const arr=kind==='in'?p.planIn:p.planOut;
+  arr.push({id:uid(),date:todayIso(),amt:kind==='in'?0:-0,note:''});render()}
+function updPlan(kind,id,key,val){const p=P();const arr=kind==='in'?p.planIn:p.planOut;
+  const r=arr.find(x=>x.id===id);if(!r)return;
+  if(key==='amt')r.amt=(kind==='in'?1:-1)*Math.abs(parseFloat(val)||0);
+  else if(key==='date')r.date=val;else r.note=val;render()}
+function movePlan(kind,id,days){const p=P();const arr=kind==='in'?p.planIn:p.planOut;
+  const r=arr.find(x=>x.id===id);if(!r||!r.date)return;
+  const d=new Date(r.date);d.setDate(d.getDate()+days);r.date=d.toISOString().slice(0,10);
+  toast(days>0?'Сдвинуто на неделю позже ✓':'Сдвинуто на неделю раньше ✓');render()}
+function delPlan(kind,id){const p=P();
+  if(kind==='in')p.planIn=p.planIn.filter(x=>x.id!==id);else p.planOut=p.planOut.filter(x=>x.id!==id);render()}
+
+/* ============ ЭКСПОРТ / ИМПОРТ ============ */
+function exportData(){
+  const blob=new Blob([JSON.stringify({...DB,_id},null,1)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='rl-fondy-данные-'+todayIso()+'.json';a.click();
+  toast('Файл с данными скачан ✓')}
+function importData(inp){
+  const f=inp.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{try{const d=JSON.parse(rd.result);
+    if(!Array.isArray(d.projects))throw 0;
+    DB={projects:d.projects,sel:null};_id=d._id||9000;toast('Данные загружены ✓');render();
+  }catch(e){toast('Не получилось прочитать файл','err')}};
+  rd.readAsText(f);inp.value='';
+}
+
+/* ============ ДЕМО-ПРОЕКТ ПРИ ПЕРВОМ ЗАПУСКЕ ============ */
+function seedDemo(){
+  const fid={};const funds=DEFAULT_FUNDS.map((f,i)=>{const id=uid();fid[i]=id;return{id,name:f.name,pct:f.pct,color:FUND_COLORS[i]}});
+  funds[0].pct=62;funds[1].pct=17;funds[3].pct=3;
+  const alloc=(amt)=>{const total=100;const a={};let acc=0;
+    funds.forEach((f,i)=>{let x=i===funds.length-1?amt-acc:Math.round(amt*f.pct/total);acc+=x;a[f.id]=x});return a};
+  const p={id:uid(),name:'Демо · ЖК «Пример», электромонтаж',customer:'ТОО «Заказчик»',contract:350000000,
+    funds,
+    planIn:[
+      {id:uid(),date:'2026-08-10',amt:50400000,note:'этап 4: наружные сети, очередь 1 — 70% после акта'},
+      {id:uid(),date:'2026-08-17',amt:32900000,note:'этап 5: очередь 2 — 70% после акта'},
+      {id:uid(),date:'2026-08-25',amt:67900000,note:'этап 6: кабельные линии — 70% после акта'}],
+    planOut:[
+      {id:uid(),date:'2026-07-13',amt:-19500000,note:'материалы очередь 1, остаток закупа'},
+      {id:uid(),date:'2026-07-16',amt:-33000000,note:'материалы кабельные линии, транш 1'},
+      {id:uid(),date:'2026-07-20',amt:-14800000,note:'материалы очередь 2, остаток'},
+      {id:uid(),date:'2026-07-25',amt:-7500000,note:'ФОТ очередь 1, первая половина'},
+      {id:uid(),date:'2026-07-30',amt:-33000000,note:'материалы кабельные линии, транш 2'},
+      {id:uid(),date:'2026-07-31',amt:-4600000,note:'ФОТ кабельные линии, аванс бригаде'},
+      {id:uid(),date:'2026-08-01',amt:-3600000,note:'ФОТ очередь 2, первая часть'},
+      {id:uid(),date:'2026-08-03',amt:-2300000,note:'накладные, очередь 1'},
+      {id:uid(),date:'2026-08-10',amt:-7500000,note:'ФОТ очередь 1, финал'},
+      {id:uid(),date:'2026-08-10',amt:-1100000,note:'накладные, очередь 2'},
+      {id:uid(),date:'2026-08-14',amt:-4600000,note:'ФОТ кабельные линии, финал'},
+      {id:uid(),date:'2026-08-15',amt:-3600000,note:'ФОТ очередь 2, финал'},
+      {id:uid(),date:'2026-08-18',amt:-1400000,note:'накладные, кабельные линии'}],
+    ops:[],
+    tasks:[{id:uid(),title:'Выставить акт по этапу 4 и собрать оплату 50,4 млн',due:'2026-08-10',done:false}]};
+  const inc=(date,amt,note)=>p.ops.push({id:uid(),type:'in',date,amt,note,alloc:alloc(amt)});
+  const out=(date,amt,fi,note)=>p.ops.push({id:uid(),type:'out',date,amt:-Math.abs(amt),fund:fid[fi],note});
+  inc('2026-02-10',105000000,'аванс 30% по договору');
+  out('2026-02-15',27000000,0,'материалы, жилая часть — транш 1');
+  out('2026-02-25',8000000,0,'материалы, подготовительные работы');
+  out('2026-02-28',2500000,1,'зарплата бригады, февраль');
+  out('2026-03-05',5800000,1,'ФОТ, подготовительные работы');
+  out('2026-03-06',900000,3,'накладные, подготовительные');
+  out('2026-03-18',14000000,0,'материалы, паркинг');
+  inc('2026-03-19',13300000,'оплата этапа 1 (70%)');
+  out('2026-03-31',2500000,1,'зарплата бригады, март');
+  out('2026-04-05',27000000,0,'материалы, жилая часть — транш 2');
+  out('2026-04-15',3600000,1,'ФОТ паркинг, первая часть');
+  out('2026-04-30',2500000,1,'зарплата бригады, апрель');
+  out('2026-05-08',3600000,1,'ФОТ паркинг, финал');
+  out('2026-05-08',1100000,3,'накладные, паркинг');
+  inc('2026-05-23',20300000,'оплата этапа 3: паркинг (70%)');
+  out('2026-05-31',2500000,1,'зарплата бригады, май');
+  out('2026-06-09',2500000,1,'зарплата бригады, июнь');
+  out('2026-06-10',1900000,3,'накладные, жилая часть');
+  inc('2026-06-24',60200000,'оплата этапа 2: жилая часть (70%)');
+  out('2026-06-29',19500000,0,'материалы очередь 1, 50% закупа');
+  out('2026-07-06',14800000,0,'материалы очередь 2, 50% закупа');
+  DB.projects.push(p);
+}
+
+(function(){
+  if(!load()){seedDemo();}
+  render();
+})();
+</script>
+</body>
+</html>
