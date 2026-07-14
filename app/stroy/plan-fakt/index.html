@@ -1541,7 +1541,7 @@ function lkLinesFromItems(items){
   const vert=[],hby={};
   items.forEach(it=>{const s=(it.str||'').trim();if(!s)return;const t=it.transform;
     if(Math.abs(t[1])>Math.abs(t[0]))vert.push({x:t[4],y:t[5],s});
-    else{const y=Math.round(t[5]);(hby[y]=hby[y]||[]).push({x:t[4],w:it.width||0,s:it.str});}});
+    else{const y=Math.round(t[5]/2)*2;(hby[y]=hby[y]||[]).push({x:t[4],w:it.width||0,s:it.str});}});// допуск 2pt: надстрочный «мм²»/длина сливаются с базовой строкой
   const hlines=Object.keys(hby).map(Number).sort((a,b)=>b-a).map(y=>{
     const r=hby[y].sort((a,b)=>a.x-b.x);let s='',pe=null;
     r.forEach(o=>{if(pe!=null&&o.x-pe>2)s+=' ';s+=o.s;pe=o.x+o.w;});return s.replace(/\s+/g,' ').trim();});
@@ -1581,11 +1581,11 @@ function lkMarkName(s){const m=(s||'').match(LK_MARKNAME);return m?m[0].replace(
 const LK_LEN_DASH=/-\s*(\d+(?:[,.]\d+)?)\s*м/g;
 function lkCondName(t){t=t.replace(/[.\s]/g,'').toLowerCase().replace(/c/g,'с').replace(/g/g,'г').replace(/p/g,'п').replace(/n/g,'н').replace(/z/g,'з');return ({'пг':'п.г.','пп':'п.п.','пн':'п.н.','зп':'з.п.','тс':'т.с.','гт':'г.т.','нз':'н.з.'}[t]||t);}
 function lkParseLines(lines){
-  const rows=[];const isName=l=>LK_NAME.test(l);let i=0;
+  const rows=[],used=new Set();const isName=l=>LK_NAME.test(l);let i=0;
   while(i<lines.length){
     if(!isName(lines[i])){i++;continue;}
-    const cell=[lines[i]];let j=i+1;
-    while(j<lines.length&&!isName(lines[j])&&cell.length<5){cell.push(lines[j]);j++;}
+    const cell=[lines[i]];used.add(i);let j=i+1;
+    while(j<lines.length&&!isName(lines[j])&&cell.length<5){cell.push(lines[j]);used.add(j);j++;}
     const head=cell[0],nm=head.match(LK_NAME),name=lkName(nm),blob=cell.join('  ');
     let sect=null,mark='';for(const c of cell){if(LK_MARK.test(c)){const s=c.match(LK_SECT);if(s){sect=s[1]+'x'+s[2];mark=lkMarkName(c);break;}}}
     if(!sect){const s=blob.match(LK_SECT);if(s)sect=s[1]+'x'+s[2];}
@@ -1597,6 +1597,24 @@ function lkParseLines(lines){
     if(sect&&L!=null)rows.push({group:name,mark,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:0,y:0});
     i=j;
   }
+  return {rows,used};
+}
+/* безымянные ГОРИЗОНТАЛЬНЫЕ кабели (джемперы/перемычки вида «АсВВГнг(А)-LS 3х16мм²-2м»,
+   «... 1х16мм² - 2м»): у них нет имени-потребителя, поэтому lkParseLines их пропускает.
+   Ищем каждую спецификацию марка+сечение+длина в строке (в одной строке их может быть
+   несколько — соседние колонки) и считаем отдельной линией. used — индексы строк, уже
+   разобранных как именованные ячейки, чтобы не считать дважды. */
+const LK_SPEC_G=/(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ПВ\d)[а-яёА-ЯA-Za-z0-9()\-\s]*?(\d+)\s*[xхХ×]\s*(\d+(?:[,.]\d+)?)\s*мм[2²]?\s*\/?\s*-\s*(\d+(?:[,.]\d+)?)\s*м/gi;
+function lkParseHorizLoose(lines,used){
+  const rows=[];
+  lines.forEach((line,idx)=>{
+    if((used&&used.has(idx))||LK_NAME.test(line))return;
+    let m;LK_SPEC_G.lastIndex=0;
+    while((m=LK_SPEC_G.exec(line))){
+      const spec=m[0],mark=lkMarkName(spec);
+      rows.push({group:'—',mark,section:m[1]+'x'+m[2].replace('.',','),len:parseFloat(m[3].replace(',','.')),conds:[],x:0,y:0});
+    }
+  });
   return rows;
 }
 /* второй формат (квартирные щиты): марка+сечение без имени «X-н1;»; длину ищем рядом (nearest-neighbor) */
@@ -1660,7 +1678,8 @@ async function lkExtract(data,onProgress){
   for(let p=1;p<=N;p++){if(onProgress)onProgress(p,N);
     const page=await pdf.getPage(p);const tc=await page.getTextContent();
     const {vitems,hlines}=lkLinesFromItems(tc.items);
-    const rows=lkParseVertical(vitems).concat(lkParseOneLine(vitems)).concat(lkParseLines(hlines));
+    const hp=lkParseLines(hlines);
+    const rows=lkParseVertical(vitems).concat(lkParseOneLine(vitems)).concat(hp.rows).concat(lkParseHorizLoose(hlines,hp.used));
     if(!rows.length){page.cleanup&&page.cleanup();continue;}
     lkAssignGroupNames(rows,lkGroupLabels(tc.items));
     const shields=lkDetectShields(tc.items);
