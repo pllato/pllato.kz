@@ -1575,8 +1575,8 @@ function lkParseVertical(items){
 const LK_NAME=/^["“]?\s*(?:([A-Za-zА-Яа-яЁё0-9]+)\s*-\s*([нкНК]\d+)|([А-Яа-яA-Za-z]{1,4}\d[\d.]*))\s*[;,]/;
 function lkName(nm){return nm[2]?nm[1]+'-'+nm[2]:nm[3];}
 const LK_SECT=/(\d+)\s*[xхХ×]\s*(\d+(?:[,.]\d+)?)/;
-const LK_MARK=/(А[сcС]?\s*ВВГ|КВВГ|ВВГ)/;
-const LK_MARKNAME=/(?:А[сcС]?)?\s?(?:КВВГ|ВВГ)[а-яёА-ЯA-Za-z()\-\s]*?(?:FRLS|LS)/i;
+const LK_MARK=/(А[сcС]?\s*ВВГ|КВВГ|ВВГ|ШВВП|ПВ\d)/;
+const LK_MARKNAME=/(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ПВ\d)(?:[а-яёА-ЯA-Za-z0-9()\-\s]*?(?:FRLS|LS|HF))?/i;
 function lkMarkName(s){const m=(s||'').match(LK_MARKNAME);return m?m[0].replace(/\s+/g,'').replace(/^[-\s]+/,''):'';}
 const LK_LEN_DASH=/-\s*(\d+(?:[,.]\d+)?)\s*м/g;
 function lkCondName(t){t=t.replace(/[.\s]/g,'').toLowerCase().replace(/c/g,'с').replace(/g/g,'г').replace(/p/g,'п').replace(/n/g,'н').replace(/z/g,'з');return ({'пг':'п.г.','пп':'п.п.','пн':'п.н.','зп':'з.п.','тс':'т.с.','гт':'г.т.','нз':'н.з.'}[t]||t);}
