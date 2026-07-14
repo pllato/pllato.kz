@@ -1539,15 +1539,20 @@ const LK_SECTIONS=['3x1,5','3x2,5','4x1,5','4x2,5','3x4','4x4','3x6','5x4','5x6'
 /* строки из pdf.js text items. В однолинейных схемах текст потребителей ПОВЁРНУТ (вертикальный),
    и pdf.js отдаёт каждую такую строку целым элементом → берём как есть, упорядочиваем в порядок ячеек.
    Горизонтальный текст (заголовки, сводные таблицы) собираем по Y. */
+const LK_MARKSTART=/^["“]?\s*(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ПВ\d)/i;
 function lkLinesFromItems(items){
   const vert=[],hby={};
   items.forEach(it=>{const s=(it.str||'').trim();if(!s)return;const t=it.transform;
     if(Math.abs(t[1])>Math.abs(t[0]))vert.push({x:t[4],y:t[5],s});
-    else{const y=Math.round(t[5]/2)*2;(hby[y]=hby[y]||[]).push({x:t[4],w:it.width||0,s:it.str});}});// допуск 2pt: надстрочный «мм²»/длина сливаются с базовой строкой
-  const hlines=Object.keys(hby).map(Number).sort((a,b)=>b-a).map(y=>{
+    else{const y=Math.round(t[5]/2)*2;(hby[y]=hby[y]||[]).push({x:t[4],y:t[5],w:it.width||0,s:it.str});}});// допуск 2pt: надстрочный «мм²»/длина сливаются с базовой строкой
+  const hlines=[],hmeta=[];
+  Object.keys(hby).map(Number).sort((a,b)=>b-a).forEach(y=>{
     const r=hby[y].sort((a,b)=>a.x-b.x);let s='',pe=null;
-    r.forEach(o=>{if(pe!=null&&o.x-pe>2)s+=' ';s+=o.s;pe=o.x+o.w;});return s.replace(/\s+/g,' ').trim();});
-  return {vitems:vert,hlines};
+    r.forEach(o=>{if(pe!=null&&o.x-pe>2)s+=' ';s+=o.s;pe=o.x+o.w;});
+    hlines.push(s.replace(/\s+/g,' ').trim());
+    hmeta.push({starts:r.filter(o=>LK_MARKSTART.test((o.s||'').trim())).map(o=>({x:o.x,y:o.y}))});// x/y начал спецификаций для зелёных точек
+  });
+  return {vitems:vert,hlines,hmeta};
 }
 /* разбор вертикальных ячеек по пространственной близости (без склейки соседних ячеек) */
 const LK_COND_RX=/(п\.?г\.?|п\.?п\.?|п\.?н\.?|з\.?п\.?|т\.?[сc]\.?|г\.?т\.?|н\.?з\.?|n\.?z\.?)\s*(\d+)\s*-?\s*(\d+)\s*м/gi;
@@ -1607,14 +1612,15 @@ function lkParseLines(lines){
    несколько — соседние колонки) и считаем отдельной линией. used — индексы строк, уже
    разобранных как именованные ячейки, чтобы не считать дважды. */
 const LK_SPEC_G=/(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ПВ\d)[а-яёА-ЯA-Za-z0-9()\-\s]*?(\d+)\s*[xхХ×]\s*(\d+(?:[,.]\d+)?)\s*мм[2²]?\s*\/?\s*-\s*(\d+(?:[,.]\d+)?)\s*м/gi;
-function lkParseHorizLoose(lines,used){
+function lkParseHorizLoose(lines,used,hmeta){
   const rows=[];
   lines.forEach((line,idx)=>{
     if((used&&used.has(idx))||LK_NAME.test(line))return;
-    let m;LK_SPEC_G.lastIndex=0;
+    const starts=(hmeta&&hmeta[idx]&&hmeta[idx].starts)||[];
+    let m,n=0;LK_SPEC_G.lastIndex=0;
     while((m=LK_SPEC_G.exec(line))){
-      const spec=m[0],mark=lkMarkName(spec);
-      rows.push({group:'—',mark,section:m[1]+'x'+m[2].replace('.',','),len:parseFloat(m[3].replace(',','.')),conds:[],x:0,y:0});
+      const spec=m[0],mark=lkMarkName(spec),st=starts[n]||{};n++;
+      rows.push({group:'—',mark,section:m[1]+'x'+m[2].replace('.',','),len:parseFloat(m[3].replace(',','.')),conds:[],x:st.x||0,y:st.y||0});
     }
   });
   return rows;
@@ -1679,9 +1685,9 @@ async function lkExtract(data,onProgress){
   const pdf=await pdfjsLib.getDocument({data}).promise;const N=pdf.numPages;const pages=[];
   for(let p=1;p<=N;p++){if(onProgress)onProgress(p,N);
     const page=await pdf.getPage(p);const tc=await page.getTextContent();
-    const {vitems,hlines}=lkLinesFromItems(tc.items);
+    const {vitems,hlines,hmeta}=lkLinesFromItems(tc.items);
     const hp=lkParseLines(hlines);
-    const rows=lkParseVertical(vitems).concat(lkParseOneLine(vitems)).concat(hp.rows).concat(lkParseHorizLoose(hlines,hp.used));
+    const rows=lkParseVertical(vitems).concat(lkParseOneLine(vitems)).concat(hp.rows).concat(lkParseHorizLoose(hlines,hp.used,hmeta));
     if(!rows.length){page.cleanup&&page.cleanup();continue;}
     lkAssignGroupNames(rows,lkGroupLabels(tc.items));
     const shields=lkDetectShields(tc.items);
