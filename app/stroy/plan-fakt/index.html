@@ -204,6 +204,8 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-chip{font-family:var(--mono);font-size:12.5px;font-weight:600;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 11px;color:var(--ink);}
 .lk-chip b{color:var(--steel);font-weight:700;}
 .lk-chip.cond{color:var(--gray);background:var(--panel2);}
+.lk-rep-lbl{font-size:11px;color:var(--gray);font-weight:700;margin-right:4px}
+.cond-row{margin-top:5px}
 .lk-chip.tot{background:var(--steel);color:#fff;border-color:var(--steel);}
 .lk-chip.tot b{color:#fff;}
 .lk-spin{text-align:center;color:var(--gray);font-size:14px;line-height:1.7;padding:48px 16px;}
@@ -463,6 +465,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 </div>
 <div class="ledger" id="lineyka" style="display:none">
   <div class="lg-head">
+    <button class="lk-tb" id="lkBack" title="Назад">← Назад</button>
     <div class="lg-title">Линейка — чтение схемы<span class="lg-sub" id="lkName"></span></div>
     <button class="lk-tb" id="lkReport" style="margin-left:auto">📊 Отчёт по файлу</button>
     <button class="lk-tb" id="lkCopy">⧉ Копировать для Excel</button>
@@ -659,7 +662,7 @@ $('fileInput').onchange=e=>e.target.files[0]&&loadData(e.target.files[0]);
 const dbox=$('dropbox');
 ['dragenter','dragover'].forEach(ev=>dbox.addEventListener(ev,e=>{e.preventDefault();dbox.classList.add('over');}));
 ['dragleave','drop'].forEach(ev=>dbox.addEventListener(ev,e=>{e.preventDefault();dbox.classList.remove('over');}));
-dbox.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];f&&loadData(f);});
+dbox.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(!f)return;if(/\.pdf$/i.test(f.name||'')||f.type==='application/pdf')openLineyka(f);else loadData(f);});
 // Стартуем с окна загрузки (не авто-грузим демо). Демо — по кнопке.
 async function loadDemo(){
   $('spin').style.display='block';$('spinTxt').textContent='Загрузка демо…';
@@ -1546,7 +1549,7 @@ function lkLinesFromItems(items){
 }
 /* разбор вертикальных ячеек по пространственной близости (без склейки соседних ячеек) */
 const LK_COND_RX=/(п\.?г\.?|п\.?п\.?|п\.?н\.?|з\.?п\.?|т\.?[сc]\.?|г\.?т\.?)\s*(\d+)\s*-?\s*(\d+)\s*м/gi;
-function lkIsCond(s){return /п\.?г|з\.?п|т\.?[сc]|г\.?т|п\.?п/i.test(s);}
+function lkIsCond(s){return /п\.?г|з\.?п|т\.?[сc]|г\.?т|п\.?п|п\.?н|н\.?з|[а-яёa-z]{1,2}\.\s?[а-яёa-z]{1,2}\.\s?\d+\s*-\s*\d+\s*м/i.test(s);}
 /* длина кабеля ячейки = «-Nм» в ТОМ ЖЕ столбце (тот же X — вертикальный run), ближайшая по Y.
    Так не путаем с трубой (X сдвинут на ~12) и с соседней колонкой (напр. ВР1-к1 60м vs безымянный 8м). */
 function lkColLen(nit,items){let best=null,bd=210;
@@ -1558,20 +1561,23 @@ function lkColLen(nit,items){let best=null,bd=210;
 function lkParseVertical(items){
   const rows=[];const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   items.forEach(nit=>{
-    const nm=nit.s.match(LK_NAME);if(!nm)return;const name=nm[1]+'-'+nm[2];
+    const nm=nit.s.match(LK_NAME);if(!nm)return;const name=lkName(nm);
     const near=items.filter(it=>it!==nit&&dist(it,nit)<44).sort((a,b)=>dist(a,nit)-dist(b,nit));
     let L=null;const dm=[...nit.s.matchAll(LK_LEN_DASH)];if(dm.length&&!lkIsCond(nit.s))L=dm[dm.length-1][1];
-    let sect=null;if(LK_MARK.test(nit.s)){const s=nit.s.match(LK_SECT);if(s)sect=s[1]+'x'+s[2];}
-    if(!sect)for(const it of near){if(LK_MARK.test(it.s)){const s=it.s.match(LK_SECT);if(s){sect=s[1]+'x'+s[2];break;}}}
+    let sect=null,mark='';if(LK_MARK.test(nit.s)){const s=nit.s.match(LK_SECT);if(s){sect=s[1]+'x'+s[2];mark=lkMarkName(nit.s);}}
+    if(!sect)for(const it of near){if(LK_MARK.test(it.s)){const s=it.s.match(LK_SECT);if(s){sect=s[1]+'x'+s[2];mark=lkMarkName(it.s);break;}}}
     if(L==null)L=lkColLen(nit,items);   // длина в том же столбце (строго по X): ВР1-к1/В1-н2/безымянные отрезки
     const conds=[];[nit,...near.filter(it=>dist(it,nit)<30)].forEach(it=>{let m;LK_COND_RX.lastIndex=0;while((m=LK_COND_RX.exec(it.s)))conds.push({t:lkCondName(m[1])+m[2],len:+m[3]});});
-    if(sect&&L!=null)rows.push({group:name,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:nit.x,y:nit.y});
+    if(sect&&L!=null)rows.push({group:name,mark,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:nit.x,y:nit.y});
   });
   return rows;
 }
-const LK_NAME=/^["“]?\s*([A-Za-zА-Яа-яЁё0-9]+)\s*-\s*([нкНК]\d+)\s*[;,]/;
+const LK_NAME=/^["“]?\s*(?:([A-Za-zА-Яа-яЁё0-9]+)\s*-\s*([нкНК]\d+)|([А-Яа-яA-Za-z]{1,4}\d[\d.]*))\s*[;,]/;
+function lkName(nm){return nm[2]?nm[1]+'-'+nm[2]:nm[3];}
 const LK_SECT=/(\d+)\s*[xхХ×]\s*(\d+(?:[,.]\d+)?)/;
 const LK_MARK=/(А[сcС]?\s*ВВГ|КВВГ|ВВГ)/;
+const LK_MARKNAME=/(?:А[сcС]?)?\s?(?:КВВГ|ВВГ)[а-яёА-ЯA-Za-z()\-\s]*?(?:FRLS|LS)/i;
+function lkMarkName(s){const m=(s||'').match(LK_MARKNAME);return m?m[0].replace(/\s+/g,'').replace(/^[-\s]+/,''):'';}
 const LK_LEN_DASH=/-\s*(\d+(?:[,.]\d+)?)\s*м/g;
 function lkCondName(t){t=t.replace(/[.\s]/g,'').toLowerCase().replace(/c/g,'с').replace(/g/g,'г').replace(/p/g,'п');return ({'пг':'п.г.','пп':'п.п.','пн':'п.н.','зп':'з.п.','тс':'т.с.','гт':'г.т.'}[t]||t);}
 function lkParseLines(lines){
@@ -1580,14 +1586,15 @@ function lkParseLines(lines){
     if(!isName(lines[i])){i++;continue;}
     const cell=[lines[i]];let j=i+1;
     while(j<lines.length&&!isName(lines[j])&&cell.length<5){cell.push(lines[j]);j++;}
-    const head=cell[0],nm=head.match(LK_NAME),name=nm[1]+'-'+nm[2],blob=cell.join('  ');
-    let sect=null;for(const c of cell){if(LK_MARK.test(c)){const s=c.match(LK_SECT);if(s){sect=s[1]+'x'+s[2];break;}}}
+    const head=cell[0],nm=head.match(LK_NAME),name=lkName(nm),blob=cell.join('  ');
+    let sect=null,mark='';for(const c of cell){if(LK_MARK.test(c)){const s=c.match(LK_SECT);if(s){sect=s[1]+'x'+s[2];mark=lkMarkName(c);break;}}}
     if(!sect){const s=blob.match(LK_SECT);if(s)sect=s[1]+'x'+s[2];}
+    if(!mark)mark=lkMarkName(blob);
     let L=null;const dm=[...head.matchAll(LK_LEN_DASH)];if(dm.length)L=dm[dm.length-1][1];
     if(L==null){for(let k=1;k<cell.length;k++){if(/п\.?г|з\.?п|т\.?с|г\.?т|п\.?п/i.test(cell[k]))continue;const mm=cell[k].match(/(\d+(?:[,.]\d+)?)\s*м/);if(mm){L=mm[1];break;}}}
     const conds=[];const CR=/(п\.?г\.?|п\.?п\.?|з\.?п\.?|т\.?[сc]\.?|г\.?т\.?)\s*(\d+)\s*-?\s*(\d+)\s*м/gi;
     for(const c of cell){let m;while((m=CR.exec(c)))conds.push({t:lkCondName(m[1])+m[2],len:+m[3]});}
-    if(sect&&L!=null)rows.push({group:name,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:0,y:0});
+    if(sect&&L!=null)rows.push({group:name,mark,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:0,y:0});
     i=j;
   }
   return rows;
@@ -1601,8 +1608,9 @@ function lkParseOneLine(items){const rows=[];const dist=(a,b)=>Math.hypot(a.x-b.
     let L=null;const dm=[...s.matchAll(LK_LEN_DASH)];if(dm.length&&!lkIsCond(s))L=dm[dm.length-1][1];
     if(L==null)L=lkColLen(it,items);   // длина в том же столбце (строго по X) — безымянные отрезки не воруют длину у соседей
     if(L==null)return;
+    const mark=lkMarkName(s);
     const conds=[];[it,...near.filter(o=>dist(o,it)<30)].forEach(o=>{let cm;LK_COND_RX.lastIndex=0;while((cm=LK_COND_RX.exec(o.s)))conds.push({t:lkCondName(cm[1])+cm[2],len:+cm[3]});});
-    rows.push({group:'—',section:sm[1]+'x'+sm[2],len:parseFloat(String(L).replace(',','.')),conds,x:it.x,y:it.y});});
+    rows.push({group:'—',mark,section:sm[1]+'x'+sm[2],len:parseFloat(String(L).replace(',','.')),conds,x:it.x,y:it.y});});
   return rows;
 }
 /* названия линеек (щитов) на листе: ЩСР/ЩК/ЩО/ЩАО/ЩР (не ЩЭ — это источник) */
@@ -1638,12 +1646,12 @@ function lkAssignGroupNames(rows,labels){
   rows.forEach(r=>{if(r.group&&r.group!=='—')return;let best=null,bd=90;labels.forEach(l=>{const d=Math.abs((r.x||0)-l.x);if(d<bd){bd=d;best=l;}});if(best)r.group=best.name;});
 }
 async function lkRenderPage(page){
-  const v0=page.getViewport({scale:1});const sc=Math.min(4,3000/Math.max(v0.width,v0.height));
+  const v0=page.getViewport({scale:1});const sc=Math.min(5.5,4400/Math.max(v0.width,v0.height));
   const vp=page.getViewport({scale:sc});const c=document.createElement('canvas');
   c.width=Math.round(vp.width);c.height=Math.round(vp.height);const ctx=c.getContext('2d');
   ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
   await page.render({canvasContext:ctx,viewport:vp}).promise;
-  return c.toDataURL('image/jpeg',0.93);
+  return c.toDataURL('image/png');
 }
 /* ВРУ (вводно-распред. устройство), от которого запитан щит листа: «НЩО-4 от ВРУ-3» */
 function lkDetectVru(items){for(const it of items){const m=(it.str||'').match(/ВРУ\s*-?\s*(\d+[\.\d]*)/i);if(m)return 'ВРУ-'+m[1];}return '';}
@@ -1698,6 +1706,7 @@ async function lkEnsureImg(pg){if(pg.img||!LK.pdf)return pg.img;const page=await
 $('btnLineyka').onclick=()=>$('lkFile').click();
 $('lkFile').onchange=e=>{const f=e.target.files[0];if(f)openLineyka(f);e.target.value='';};
 $('lkClose').onclick=()=>$('lineyka').style.display='none';
+$('lkBack').onclick=()=>{if(LK.view==='report'){LK.view='pages';renderLineyka();}else{$('lineyka').style.display='none';}};
 $('lkReport').onclick=()=>{if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}LK.view=LK.view==='report'?'pages':'report';renderLineyka();};
 $('lkCopy').onclick=()=>{if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}lkCopyExcel();};
 async function openLineyka(file){
@@ -1719,10 +1728,12 @@ function lkPageStatus(pg){const proj=pg.potreb||{};if(!Object.keys(proj).length)
 function lkCheckHtml(pg){const st=lkSum(pg.rows);const proj=pg.potreb||{};
   const secChips=Object.keys(st.s).sort().map(k=>{const p=proj[k];const ok=p!=null&&Math.abs((st.s[k]||0)-p)<=1;
     return `<span class="lk-chip small${ok?' okc':''}">${esc(k)} <b>${Math.round(st.s[k])}м</b>${p!=null?` <span class="pj">${ok?'✓':'/ проект '+p}</span>`:''}</span>`;}).join('');
+  const condChips=Object.keys(st.c).sort().map(k=>`<span class="lk-chip small cond">${esc(k)} <b>${Math.round(st.c[k])}м</b></span>`).join('');
   const empty=pg.rows.filter(r=>!r.group||r.group==='—').length;
   const projTxt=Object.keys(proj).length?`Печатная сводка на схеме (черновая): ${Object.keys(proj).sort().map(k=>esc(k)+'='+proj[k]).join(', ')}. `:'';
   return `<div class="lk-check report"><div class="lk-check-h">📋 Отчёт по листу ${pg.page}<span class="lk-check-sub">${pg.rows.length} линий · ${Math.round(st.t)} м всего</span></div>`
     +`<div class="lk-rep-sec">${secChips}</div>`
+    +(condChips?`<div class="lk-rep-sec cond-row"><span class="lk-rep-lbl">Трубы:</span> ${condChips}</div>`:`<div class="lk-rep-sec cond-row"><span class="lk-rep-lbl">Трубы:</span> <span class="lk-chip small cond">не распознаны</span></div>`)
     +`<div class="lk-rep-note"><b>Как понять, всё ли прочитано:</b> сверь эти суммы с таблицей <b>«Потребность кабелей»</b> на схеме выше. Сходится по всем сечениям — лист прочитан полностью; где у сечения меньше — часть не распозналась, добавь строку кнопкой ниже. ${projTxt}${empty?`<br><b>${empty}</b> строк без потребителя (в этом формате имени нет в тексте — впиши вручную при необходимости).`:''}</div></div>`;}
 function renderLineyka(){
   const g=lkSum(lkAllRows());
@@ -1749,7 +1760,8 @@ function renderLineyka(){
 }
 function lkRow(r){const conds=(r.conds||[]).map(c=>c.t+' '+c.len+'м').join(', ');const opts=LK_SECTIONS.concat(r.section&&LK_SECTIONS.indexOf(r.section)<0?[r.section]:[]);
   return `<div class="lg-row" data-id="${r._id}">`
-    +`<div class="lg-cell"><label>Потребитель</label><input class="lk-g" data-id="${r._id}" value="${esc(r.group||'')}" style="width:110px"></div>`
+    +`<div class="lg-cell"><label>Потребитель</label><input class="lk-g" data-id="${r._id}" value="${esc(r.group||'')}" style="width:96px"></div>`
+    +`<div class="lg-cell"><label>Марка (кабель)</label><input class="lk-m" data-id="${r._id}" value="${esc(r.mark||'')}" style="width:132px" placeholder="—"></div>`
     +`<div class="lg-cell"><label>Сечение</label><select class="lk-s" data-id="${r._id}">${opts.map(s=>`<option ${s===r.section?'selected':''}>${esc(s)}</option>`).join('')}</select></div>`
     +`<div class="lg-cell"><label>Длина, м</label><input class="lk-l" data-id="${r._id}" type="number" step="0.1" min="0" value="${r.len}"></div>`
     +`<div class="lg-cell" style="flex:1;min-width:100px"><label>Трубы</label><span class="lk-cond">${esc(conds)||'—'}</span></div>`
@@ -1760,6 +1772,7 @@ function bindLineyka(){const P=$('lkPage');
   P.querySelectorAll('.lk-s').forEach(el=>el.onchange=()=>{LK.byId[el.dataset.id].section=el.value;renderLineyka();});
   P.querySelectorAll('.lk-l').forEach(el=>el.onchange=()=>{LK.byId[el.dataset.id].len=Math.max(0,parseFloat(el.value)||0);renderLineyka();});
   P.querySelectorAll('.lk-g').forEach(el=>el.onchange=()=>{LK.byId[el.dataset.id].group=el.value;});
+  P.querySelectorAll('.lk-m').forEach(el=>el.onchange=()=>{LK.byId[el.dataset.id].mark=el.value;});
   P.querySelectorAll('.lk-del').forEach(el=>el.onclick=()=>{lkDelRow(el.dataset.id);renderLineyka();});
   const add=$('lkAdd');if(add)add.onclick=()=>{const pg=LK.pages[LK.sel];const r={_id:'r'+id2(),group:'',section:'3x2,5',len:0,conds:[],x:0,page:pg.page};LK.byId[r._id]=r;pg.rows.push(r);(pg.groups[0]||(pg.groups[0]={name:'Линейка',rows:[]})).rows.push(r);renderLineyka();};
   P.querySelectorAll('.lk-zoom button').forEach(b=>b.onclick=()=>{if(LK._zoomBtn)LK._zoomBtn(b.dataset.z);});
@@ -1774,8 +1787,8 @@ function bindLineyka(){const P=$('lkPage');
     m.addEventListener('click',()=>{const row=P.querySelector('.lg-row[data-id="'+id+'"]');if(row)row.scrollIntoView({block:'center',behavior:'smooth'});});});
 }
 /* #7 общий отчёт по файлу + #8 копирование для Excel */
-function lkExcelRows(){const rows=[['Лист','Линейка','Потребитель','Сечение','Длина, м','Трубы']];
-  LK.pages.forEach(pg=>pg.groups.forEach(g=>g.rows.forEach(r=>rows.push([pg.page,g.name,r.group||'',r.section,r.len,(r.conds||[]).map(c=>c.t+' '+c.len+'м').join('; ')]))));
+function lkExcelRows(){const rows=[['Лист','Линейка','Потребитель','Марка','Сечение','Длина, м','Трубы']];
+  LK.pages.forEach(pg=>pg.groups.forEach(g=>g.rows.forEach(r=>rows.push([pg.page,g.name,r.group||'',r.mark||'',r.section,r.len,(r.conds||[]).map(c=>c.t+' '+c.len+'м').join('; ')]))));
   return rows;}
 function lkCopyTsv(matrix,label){const tsv=matrix.map(r=>r.map(c=>String(c==null?'':c)).join('\t')).join('\n');
   const done=()=>toast((label||'Таблица')+' скопирована — вставь в Excel (Ctrl+V)');
@@ -1798,8 +1811,8 @@ function lkReportHtml(){const all=lkAllRows();const g=lkSum(all);
   LK.pages.forEach(pg=>{const pt=lkSum(pg.rows);const br=Object.keys(pt.s).sort().map(k=>k+': '+Math.round(pt.s[k])).join('   ');
     h+=`<tr><td>${pg.page}</td><td>${esc(pg.shields.join(', ')||'—')}</td><td class="lk-brk">${esc(br)}</td><td>${pg.rows.length}</td><td>${Math.round(pt.t)}</td></tr>`;});
   h+=`</tbody></table></div>`;
-  h+=lkSecHead('Полная таблица — все линии','lkCopyFull')+`<div class="lk-tblwrap lk-tblscroll"><table class="lk-tbl"><thead><tr><th>Лист</th><th>Линейка</th><th>Потребитель</th><th>Сечение</th><th>Длина</th><th>Трубы</th></tr></thead><tbody>`;
-  LK.pages.forEach(pg=>pg.groups.forEach(gr=>gr.rows.forEach(r=>{h+=`<tr><td>${pg.page}</td><td>${esc(gr.name)}</td><td>${esc(r.group||'')}</td><td>${esc(r.section)}</td><td>${r.len}</td><td class="lk-brk">${esc((r.conds||[]).map(c=>c.t+' '+c.len+'м').join('; '))}</td></tr>`;})));
+  h+=lkSecHead('Полная таблица — все линии','lkCopyFull')+`<div class="lk-tblwrap lk-tblscroll"><table class="lk-tbl"><thead><tr><th>Лист</th><th>Линейка</th><th>Потребитель</th><th>Марка</th><th>Сечение</th><th>Длина</th><th>Трубы</th></tr></thead><tbody>`;
+  LK.pages.forEach(pg=>pg.groups.forEach(gr=>gr.rows.forEach(r=>{h+=`<tr><td>${pg.page}</td><td>${esc(gr.name)}</td><td>${esc(r.group||'')}</td><td class="lk-brk">${esc(r.mark||'')}</td><td>${esc(r.section)}</td><td>${r.len}</td><td class="lk-brk">${esc((r.conds||[]).map(c=>c.t+' '+c.len+'м').join('; '))}</td></tr>`;})));
   h+=`</tbody></table></div></div>`;
   return h;}
 function bindReport(){const bk=$('lkBackPages');if(bk)bk.onclick=()=>{LK.view='pages';renderLineyka();};
