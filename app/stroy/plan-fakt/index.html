@@ -1548,7 +1548,7 @@ function lkLinesFromItems(items){
   return {vitems:vert,hlines};
 }
 /* разбор вертикальных ячеек по пространственной близости (без склейки соседних ячеек) */
-const LK_COND_RX=/(п\.?г\.?|п\.?п\.?|п\.?н\.?|з\.?п\.?|т\.?[сc]\.?|г\.?т\.?)\s*(\d+)\s*-?\s*(\d+)\s*м/gi;
+const LK_COND_RX=/(п\.?г\.?|п\.?п\.?|п\.?н\.?|з\.?п\.?|т\.?[сc]\.?|г\.?т\.?|н\.?з\.?|n\.?z\.?)\s*(\d+)\s*-?\s*(\d+)\s*м/gi;
 function lkIsCond(s){return /п\.?г|з\.?п|т\.?[сc]|г\.?т|п\.?п|п\.?н|н\.?з|[а-яёa-z]{1,2}\.\s?[а-яёa-z]{1,2}\.\s?\d+\s*-\s*\d+\s*м/i.test(s);}
 /* длина кабеля ячейки = «-Nм» в ТОМ ЖЕ столбце (тот же X — вертикальный run), ближайшая по Y.
    Так не путаем с трубой (X сдвинут на ~12) и с соседней колонкой (напр. ВР1-к1 60м vs безымянный 8м). */
@@ -1579,7 +1579,7 @@ const LK_MARK=/(А[сcС]?\s*ВВГ|КВВГ|ВВГ)/;
 const LK_MARKNAME=/(?:А[сcС]?)?\s?(?:КВВГ|ВВГ)[а-яёА-ЯA-Za-z()\-\s]*?(?:FRLS|LS)/i;
 function lkMarkName(s){const m=(s||'').match(LK_MARKNAME);return m?m[0].replace(/\s+/g,'').replace(/^[-\s]+/,''):'';}
 const LK_LEN_DASH=/-\s*(\d+(?:[,.]\d+)?)\s*м/g;
-function lkCondName(t){t=t.replace(/[.\s]/g,'').toLowerCase().replace(/c/g,'с').replace(/g/g,'г').replace(/p/g,'п');return ({'пг':'п.г.','пп':'п.п.','пн':'п.н.','зп':'з.п.','тс':'т.с.','гт':'г.т.'}[t]||t);}
+function lkCondName(t){t=t.replace(/[.\s]/g,'').toLowerCase().replace(/c/g,'с').replace(/g/g,'г').replace(/p/g,'п').replace(/n/g,'н').replace(/z/g,'з');return ({'пг':'п.г.','пп':'п.п.','пн':'п.н.','зп':'з.п.','тс':'т.с.','гт':'г.т.','нз':'н.з.'}[t]||t);}
 function lkParseLines(lines){
   const rows=[];const isName=l=>LK_NAME.test(l);let i=0;
   while(i<lines.length){
@@ -1592,7 +1592,7 @@ function lkParseLines(lines){
     if(!mark)mark=lkMarkName(blob);
     let L=null;const dm=[...head.matchAll(LK_LEN_DASH)];if(dm.length)L=dm[dm.length-1][1];
     if(L==null){for(let k=1;k<cell.length;k++){if(/п\.?г|з\.?п|т\.?с|г\.?т|п\.?п/i.test(cell[k]))continue;const mm=cell[k].match(/(\d+(?:[,.]\d+)?)\s*м/);if(mm){L=mm[1];break;}}}
-    const conds=[];const CR=/(п\.?г\.?|п\.?п\.?|з\.?п\.?|т\.?[сc]\.?|г\.?т\.?)\s*(\d+)\s*-?\s*(\d+)\s*м/gi;
+    const conds=[];const CR=/(п\.?г\.?|п\.?п\.?|п\.?н\.?|з\.?п\.?|т\.?[сc]\.?|г\.?т\.?|н\.?з\.?|n\.?z\.?)\s*(\d+)\s*-?\s*(\d+)\s*м/gi;
     for(const c of cell){let m;while((m=CR.exec(c)))conds.push({t:lkCondName(m[1])+m[2],len:+m[3]});}
     if(sect&&L!=null)rows.push({group:name,mark,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:0,y:0});
     i=j;
