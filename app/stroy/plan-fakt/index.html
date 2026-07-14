@@ -1557,6 +1557,8 @@ function lkLinesFromItems(items){
 /* разбор вертикальных ячеек по пространственной близости (без склейки соседних ячеек) */
 const LK_COND_RX=/(п\.?г\.?|п\.?п\.?|п\.?н\.?|з\.?п\.?|т\.?[сc]\.?|г\.?т\.?|н\.?з\.?|n\.?z\.?)\s*(\d+)\s*-?\s*(\d+)\s*м/gi;
 function lkIsCond(s){return /п\.?г|з\.?п|т\.?[сc]|г\.?т|п\.?п|п\.?н|н\.?з|[а-яёa-z]{1,2}\.\s?[а-яёa-z]{1,2}\.\s?\d+\s*-\s*\d+\s*м/i.test(s);}
+/* множитель параллельных ниток: «2х(ВВГ…» / «3х[ВВГ…» → 2, 3 (кабель идёт в N ниток) */
+function lkMult(s){const m=(s||'').match(/(\d+)\s*[хx]\s*[\(\[]/);return m?Math.max(1,Math.min(9,+m[1])):1;}
 /* длина кабеля ячейки = «-Nм» в ТОМ ЖЕ столбце (тот же X — вертикальный run), ближайшая по Y.
    Так не путаем с трубой (X сдвинут на ~12) и с соседней колонкой (напр. ВР1-к1 60м vs безымянный 8м). */
 function lkColLen(nit,items){let best=null,bd=210;
@@ -1575,7 +1577,7 @@ function lkParseVertical(items){
     if(!sect)for(const it of near){if(LK_MARK.test(it.s)){const s=it.s.match(LK_SECT);if(s){sect=s[1]+'x'+s[2];mark=lkMarkName(it.s);break;}}}
     if(L==null)L=lkColLen(nit,items);   // длина в том же столбце (строго по X): ВР1-к1/В1-н2/безымянные отрезки
     const conds=[];[nit,...near.filter(it=>dist(it,nit)<30)].forEach(it=>{let m;LK_COND_RX.lastIndex=0;while((m=LK_COND_RX.exec(it.s)))conds.push({t:lkCondName(m[1])+m[2],len:+m[3]});});
-    if(sect&&L!=null)rows.push({group:name,mark,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:nit.x,y:nit.y});
+    if(sect&&L!=null)rows.push({group:name,mark,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:nit.x,y:nit.y,mult:lkMult(nit.s)});
   });
   return rows;
 }
@@ -1601,7 +1603,7 @@ function lkParseLines(lines){
     if(L==null){for(let k=1;k<cell.length;k++){if(/п\.?г|з\.?п|т\.?с|г\.?т|п\.?п/i.test(cell[k]))continue;const mm=cell[k].match(/(\d+(?:[,.]\d+)?)\s*м/);if(mm){L=mm[1];break;}}}
     const conds=[];const CR=/(п\.?г\.?|п\.?п\.?|п\.?н\.?|з\.?п\.?|т\.?[сc]\.?|г\.?т\.?|н\.?з\.?|n\.?z\.?)\s*(\d+)\s*-?\s*(\d+)\s*м/gi;
     for(const c of cell){let m;while((m=CR.exec(c)))conds.push({t:lkCondName(m[1])+m[2],len:+m[3]});}
-    if(sect&&L!=null)rows.push({group:name,mark,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:0,y:0});
+    if(sect&&L!=null)rows.push({group:name,mark,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:0,y:0,mult:lkMult(blob)});
     i=j;
   }
   return {rows,used};
@@ -1636,7 +1638,7 @@ function lkParseOneLine(items){const rows=[];const dist=(a,b)=>Math.hypot(a.x-b.
     if(L==null)return;
     const mark=lkMarkName(s);
     const conds=[];[it,...near.filter(o=>dist(o,it)<30)].forEach(o=>{let cm;LK_COND_RX.lastIndex=0;while((cm=LK_COND_RX.exec(o.s)))conds.push({t:lkCondName(cm[1])+cm[2],len:+cm[3]});});
-    rows.push({group:'—',mark,section:sm[1]+'x'+sm[2],len:parseFloat(String(L).replace(',','.')),conds,x:it.x,y:it.y});});
+    rows.push({group:'—',mark,section:sm[1]+'x'+sm[2],len:parseFloat(String(L).replace(',','.')),conds,x:it.x,y:it.y,mult:lkMult(s)});});
   return rows;
 }
 /* названия линеек (щитов) на листе: ЩСР/ЩК/ЩО/ЩАО/ЩР (не ЩЭ — это источник) */
@@ -1681,13 +1683,18 @@ async function lkRenderPage(page){
 }
 /* ВРУ (вводно-распред. устройство), от которого запитан щит листа: «НЩО-4 от ВРУ-3» */
 function lkDetectVru(items){for(const it of items){const m=(it.str||'').match(/ВРУ\s*-?\s*(\d+[\.\d]*)/i);if(m)return 'ВРУ-'+m[1];}return '';}
+/* множитель ниток (2х/3х): каждая нитка — отдельная линия. Кабель ×N; трубу оставляем один раз
+   (пользователь просил умножать кол-во кабеля), поэтому conds только у первой нитки. */
+function lkExpandMult(rows){const out=[];rows.forEach(r=>{const n=Math.max(1,r.mult||1);for(let i=0;i<n;i++)out.push(Object.assign({},r,{mult:1,conds:i===0?(r.conds||[]).map(c=>Object.assign({},c)):[]}));});return out;}
+/* «Изолированные шины комплектно» — сборная шина, всегда 5 м; отдельной строкой с отметкой на схеме */
+function lkParseBus(items){return items.filter(it=>/Изолированные\s+шины/i.test(it.str||'')).map(it=>({group:'—',mark:'Изолированные шины',section:'шина',len:5,conds:[],x:it.transform[4],y:it.transform[5],mult:1}));}
 async function lkExtract(data,onProgress){
   const pdf=await pdfjsLib.getDocument({data}).promise;const N=pdf.numPages;const pages=[];
   for(let p=1;p<=N;p++){if(onProgress)onProgress(p,N);
     const page=await pdf.getPage(p);const tc=await page.getTextContent();
     const {vitems,hlines,hmeta}=lkLinesFromItems(tc.items);
     const hp=lkParseLines(hlines);
-    const rows=lkParseVertical(vitems).concat(lkParseOneLine(vitems)).concat(hp.rows).concat(lkParseHorizLoose(hlines,hp.used,hmeta));
+    const rows=lkExpandMult(lkParseVertical(vitems).concat(lkParseOneLine(vitems)).concat(hp.rows).concat(lkParseHorizLoose(hlines,hp.used,hmeta))).concat(lkParseBus(tc.items));
     if(!rows.length){page.cleanup&&page.cleanup();continue;}
     lkAssignGroupNames(rows,lkGroupLabels(tc.items));
     const shields=lkDetectShields(tc.items);
@@ -1747,7 +1754,7 @@ async function openLineyka(file){
     LK.sel=0;LK.view='pages';LK.imgZoom=1;renderLineyka();toast('Листов с линейками: '+pages.length);
   }catch(err){console.error(err);$('lkPage').innerHTML='<div class="lk-spin">Не удалось прочитать PDF: '+esc(String(err))+'</div>';}
 }
-function lkSum(rows){const s={},c={};let t=0;rows.forEach(r=>{const L=+r.len||0;s[r.section]=(s[r.section]||0)+L;t+=L;(r.conds||[]).forEach(k=>c[k.t]=(c[k.t]||0)+(+k.len||0));});return{s,c,t};}
+function lkSum(rows){const s={},c={};let t=0;rows.forEach(r=>{const L=+r.len||0;s[r.section]=(s[r.section]||0)+L;if(r.section!=='шина')t+=L;(r.conds||[]).forEach(k=>c[k.t]=(c[k.t]||0)+(+k.len||0));});return{s,c,t};}
 function lkAllRows(){const a=[];LK.pages.forEach(pg=>pg.rows.forEach(r=>a.push(r)));return a;}
 /* статус листа по сверке: 'ok' | 'warn' | 'none' (нет печатной сводки) */
 function lkPageStatus(pg){const proj=pg.potreb||{};if(!Object.keys(proj).length)return 'none';const read=lkSum(pg.rows).s;let ok=true;
