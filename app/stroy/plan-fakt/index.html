@@ -1705,6 +1705,28 @@ function lkParsePotreb(items){
     if(best){const k=s.s.match(/(\d+)\s*[хxХX×]\s*(\d+(?:[,.]\d+)?)/);if(k)out[k[1]+'x'+k[2].replace('.',',')]=best.v;}});
   return out;
 }
+/* авторская сводка «Потребность в кабелях и проводах»: сечение | итог, м (под колонками марок).
+   На листах, где по-фидерно почти ничего не читается (голая длина без «м», векторные подписи),
+   берём эти итоги как источник подсчёта. Строго: сечения одной колонки + число под колонкой марки. */
+function lkParseCableTable(items){
+  const It=items.map(it=>({s:(it.str||'').trim(),x:it.transform[4],y:it.transform[5]})).filter(o=>o.s);
+  const hdr=It.find(o=>/ПОТРЕБНОСТ.{0,4}\s*В\s*КАБЕЛ/i.test(o.s));if(!hdr)return [];
+  const markCols=It.filter(o=>/ВВГ/i.test(o.s)&&o.y<hdr.y&&o.y>hdr.y-70).map(o=>({x:o.x,mark:lkMarkName(o.s)||o.s.replace(/[.\s]+$/,'')}));
+  if(!markCols.length)return [];
+  const secRe=/^(\d+)\s*[хx×]\s*(\d+(?:[.,]\d+)?)\s*(?:-\s*[\d.,]+)?$/i;
+  const minMarkX=Math.min(...markCols.map(c=>c.x));
+  const tots=sec=>It.filter(o=>o!==sec&&Math.abs(o.y-sec.y)<7&&/^\d+([.,]\d+)?$/.test(o.s)&&+o.s.replace(',','.')>=1&&markCols.some(c=>Math.abs(o.x-c.x)<55));
+  const cand=It.filter(o=>secRe.test(o.s)&&o.y<hdr.y-2&&o.y>hdr.y-150&&o.x<minMarkX-20&&tots(o).length);
+  if(!cand.length)return [];
+  const xs={};cand.forEach(s=>{const k=Math.round(s.x/8)*8;xs[k]=(xs[k]||0)+1;});
+  const domX=+Object.keys(xs).sort((a,b)=>xs[b]-xs[a])[0];
+  const rows=[],seen=new Set();
+  cand.filter(s=>Math.abs(s.x-domX)<12).forEach(sec=>{const m=sec.s.match(secRe);const section=m[1]+'x'+m[2].replace('.',',');
+    tots(sec).forEach(n=>{const key=Math.round(n.x)+'_'+Math.round(n.y);if(seen.has(key))return;seen.add(key);
+      let mk='',bd=1e9;markCols.forEach(c=>{const d=Math.abs(c.x-n.x);if(d<bd){bd=d;mk=c.mark;}});
+      rows.push({section,len:parseFloat(n.s.replace(',','.')),mark:mk});});});
+  return rows;
+}
 /* имена групп из строки «Маркировка группы»: гр.1, гр.2 … — привяжем к линиям по X */
 function lkGroupLabels(items){
   return items.filter(it=>/^\s*гр\.?\s*\d+[А-Яа-яA-Za-z]?\s*$/i.test(it.str||'')).map(it=>{const m=(it.str||'').match(/гр\.?\s*(\d+[А-Яа-яA-Za-z]?)/i);return {name:'гр.'+(m?m[1]:''),x:it.transform[4],y:it.transform[5]};});
@@ -1735,6 +1757,10 @@ async function lkExtract(data,onProgress){
     const {vitems,hlines,hmeta}=lkLinesFromItems(tc.items);
     const hp=lkParseLines(hlines,hmeta);
     const rows=lkExpandMult(lkParseVertical(vitems).concat(lkParseOneLine(vitems)).concat(hp.rows).concat(lkParseHorizLoose(hlines,hp.used,hmeta))).concat(lkParseBus(tc.items));
+    // если по-фидерно прочли явно меньше, чем в авторской таблице «Потребность в кабелях» — берём таблицу
+    const ctab=lkParseCableTable(tc.items);
+    if(ctab.length){const tabTot=ctab.reduce((a,r)=>a+r.len,0),perTot=rows.reduce((a,r)=>a+(+r.len||0),0);
+      if(tabTot>30&&tabTot>perTot*1.5){rows.length=0;ctab.forEach(r=>rows.push({group:'(таблица потребности)',mark:r.mark,section:r.section,len:r.len,conds:[],x:0,y:0,mult:1}));}}
     if(!rows.length){page.cleanup&&page.cleanup();continue;}
     lkAssignGroupNames(rows,lkGroupLabels(tc.items));
     const shields=lkDetectShields(tc.items);
