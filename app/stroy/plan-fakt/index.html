@@ -1591,8 +1591,10 @@ function lkParseVertical(items){
     const nm=nit.s.match(LK_NAME);if(!nm)return;const name=lkName(nm);
     const near=items.filter(it=>it!==nit&&dist(it,nit)<44).sort((a,b)=>dist(a,nit)-dist(b,nit));
     let L=null;const dm=[...nit.s.matchAll(LK_LEN_DASH)];if(dm.length&&!lkIsCond(nit.s))L=dm[dm.length-1][1];
-    let sect=null,mark='';if(LK_MARK.test(nit.s)){const s=nit.s.match(LK_SECT);if(s){sect=s[1]+'x'+s[2];mark=lkMarkName(nit.s);}}
-    if(!sect)for(const it of near){if(LK_MARK.test(it.s)){const s=it.s.match(LK_SECT);if(s){sect=s[1]+'x'+s[2];mark=lkMarkName(it.s);break;}}}
+    let sect=null,mark='';if(LK_MARK.test(nit.s)){mark=lkMarkName(nit.s);const s=nit.s.match(LK_SECT);if(s)sect=s[1]+'x'+s[2];}
+    if(!mark||!sect)for(const it of near){if(LK_MARK.test(it.s)){if(!mark)mark=lkMarkName(it.s);const s=it.s.match(LK_SECT);if(s&&!sect)sect=s[1]+'x'+s[2];if(mark&&sect)break;}}
+    // сечение бывает ОТДЕЛЬНЫМ элементом у линии кабеля — ищем в том же столбце строго по X
+    if(!sect){let best=null,bd=200;items.forEach(it=>{if(it===nit||Math.abs(it.x-nit.x)>16)return;const s=it.s.match(LK_SECT);if(s){const d=Math.abs(it.y-nit.y);if(d<bd){bd=d;best=s;}}});if(best)sect=best[1]+'x'+best[2];}
     if(L==null)L=lkColLen(nit,items);   // длина в том же столбце (строго по X): ВР1-к1/В1-н2/безымянные отрезки
     const conds=[];[nit,...near.filter(it=>dist(it,nit)<30)].forEach(it=>{let m;LK_COND_RX.lastIndex=0;while((m=LK_COND_RX.exec(it.s)))conds.push({t:lkCondName(m[1])+m[2],len:+m[3]});});
     if(sect&&L!=null)rows.push({group:name,mark,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:nit.x,y:nit.y,mult:lkMult(nit.s)});
