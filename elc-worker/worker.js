@@ -5,7 +5,7 @@
 import { jwtVerify, createRemoteJWKSet } from "jose";
 import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket, broadcastToUser, downloadFile as downloadChatFile, setWaNotifier } from "./chat-module.js";
 import { sendWebPush, VAPID_PUBLIC_KEY } from "./webpush.js";
-import { imapList, imapFetchMessage, smtpSend, mailTestConnection, imapFolders, imapUnreadCount } from "./mail.js";
+import { imapList, imapFetchMessage, imapFetchAttachment, smtpSend, mailTestConnection, imapFolders, imapUnreadCount } from "./mail.js";
 
 // ctx последнего fetch/scheduled — чтобы фоновую рассылку пушей (несколько
 // сетевых запросов к FCM/Mozilla/Apple) повесить на ctx.waitUntil и не держать
@@ -7126,6 +7126,36 @@ async function handleMailMessage(request, env, id, uid) {
   }
 }
 
+// GET /api/mail/:id/message/:uid/attachment/:index — скачать/просмотреть вложение.
+// Гибкая авторизация (?auth=token) — чтобы работать по прямой ссылке <a>/нового окна.
+async function handleMailAttachment(request, env, id, uid, index) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureMailTables(env);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const acc = await env.DB.prepare("SELECT * FROM mail_accounts WHERE id = ?").bind(id).first();
+  if (!acc) return json({ error: "mailbox not found" }, 404, request);
+  const allowed = me.role === 'admin' || mailParseAssigned(acc.assigned_uids).includes(me.canonicalUid);
+  if (!allowed) return json({ error: "forbidden" }, 403, request);
+  const url = new URL(request.url);
+  const folder = url.searchParams.get('folder') || 'INBOX';
+  try {
+    const att = await imapFetchAttachment(acc, uid, index, { folder });
+    const ct = att.mime || 'application/octet-stream';
+    // Картинки/PDF — inline (просмотр в браузере); остальное — attachment (скачивание).
+    const inline = /^image\//.test(ct) || ct === 'application/pdf' || url.searchParams.get('view') === '1';
+    const headers = new Headers(corsHeaders(request));
+    headers.set('Content-Type', ct);
+    headers.set('Content-Length', String(att.bytes.length));
+    const safeName = encodeURIComponent(att.filename || 'attachment');
+    headers.set('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${safeName}`);
+    headers.set('Cache-Control', 'private, max-age=600');
+    return new Response(att.bytes, { status: 200, headers });
+  } catch (e) {
+    return json({ ok: false, error: String(e && e.message || e) }, 502, request);
+  }
+}
+
 // POST /api/mail/:id/send { to, cc, subject, text, html, inReplyTo } — отправка.
 async function handleMailSend(request, env, id) {
   const g = await mailAccountForUser(request, env, id);
@@ -9214,6 +9244,10 @@ export default {
     const mailMsgsMatch = path.match(/^\/api\/mail\/([^/]+)\/messages$/);
     if (mailMsgsMatch && request.method === "GET") {
       return handleMailMessages(request, env, decodeURIComponent(mailMsgsMatch[1]));
+    }
+    const mailAttMatch = path.match(/^\/api\/mail\/([^/]+)\/message\/([^/]+)\/attachment\/([^/]+)$/);
+    if (mailAttMatch && request.method === "GET") {
+      return handleMailAttachment(request, env, decodeURIComponent(mailAttMatch[1]), decodeURIComponent(mailAttMatch[2]), decodeURIComponent(mailAttMatch[3]));
     }
     const mailMsgMatch = path.match(/^\/api\/mail\/([^/]+)\/message\/([^/]+)$/);
     if (mailMsgMatch && request.method === "GET") {
