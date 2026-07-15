@@ -23028,7 +23028,7 @@ async function openMailbox(id, acc, opts) {
         <div class="mail-rdate">${escapeHtml(mailShortDate(m.date))}</div>
       </div>`;
     }).join('');
-    list.querySelectorAll('.mail-row').forEach(row => row.onclick = () => openMailMessage(id, acc, row.dataset.uid, () => { const m = state.msgs.find(x => String(x.uid) === row.dataset.uid); if (m) { m.seen = true; renderList(); } }));
+    list.querySelectorAll('.mail-row').forEach(row => row.onclick = () => openMailMessage(id, acc, row.dataset.uid, () => { const m = state.msgs.find(x => String(x.uid) === row.dataset.uid); if (m) { m.seen = true; renderList(); } }, state.folder));
     // «показать ещё»
     const more = document.getElementById('mail-more');
     if (!state.q && state.oldestSeq && state.oldestSeq > 1) {
@@ -23085,7 +23085,8 @@ function mailShortDate(d) {
   return dt.toLocaleDateString('ru', { day: '2-digit', month: '2-digit' });
 }
 
-async function openMailMessage(id, acc, uid, onSeen) {
+async function openMailMessage(id, acc, uid, onSeen, folder) {
+  folder = folder || 'INBOX';
   if (typeof onSeen === 'function') { try { onSeen(); } catch {} }
   document.getElementById('_mail-msg-modal')?.remove();
   const ov = document.createElement('div');
@@ -23099,11 +23100,18 @@ async function openMailMessage(id, acc, uid, onSeen) {
   ov.querySelector('#mm-close').onclick = () => ov.remove();
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const r = await fetch(`${WORKER_BASE_URL}/api/mail/${encodeURIComponent(id)}/message/${encodeURIComponent(uid)}`, { headers: { Authorization: 'Bearer ' + idToken } });
+    const r = await fetch(`${WORKER_BASE_URL}/api/mail/${encodeURIComponent(id)}/message/${encodeURIComponent(uid)}?folder=${encodeURIComponent(folder)}`, { headers: { Authorization: 'Bearer ' + idToken } });
     const d = await r.json();
     if (!d.ok) throw new Error(d.error || 'ошибка');
     const m = d.message;
-    const atts = (m.attachments || []).map(a => `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--b1);border-radius:6px;padding:3px 8px;font-size:12px;margin:2px">📎 ${escapeHtml(a.filename)}</span>`).join('');
+    // Вложения — кликабельные: картинки/PDF откроются в браузере, остальное скачается.
+    const attUrl = (a) => `${WORKER_BASE_URL}/api/mail/${encodeURIComponent(id)}/message/${encodeURIComponent(uid)}/attachment/${a.index}?folder=${encodeURIComponent(folder)}&auth=${encodeURIComponent(idToken)}`;
+    const atts = (m.attachments || []).map((a, i) => {
+      const idx = (a.index != null ? a.index : i);
+      const url = attUrl({ index: idx });
+      const kb = a.size ? Math.max(1, Math.round(a.size * 0.75 / 1024)) : 0;
+      return `<a href="${url}" target="_blank" rel="noopener" title="Открыть или скачать" style="display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--b1);border-radius:6px;padding:4px 9px;font-size:12px;margin:2px;color:var(--t1);text-decoration:none">📎 ${escapeHtml(a.filename)}${kb ? ` <span style="color:var(--t3)">${kb} КБ</span>` : ''} <span style="color:var(--ac);font-weight:700">⤓</span></a>`;
+    }).join('');
     let bodyHtml;
     if (m.html) {
       bodyHtml = `<iframe id="mm-frame" style="width:100%;border:none;background:#fff;border-radius:8px;min-height:320px"></iframe>`;
