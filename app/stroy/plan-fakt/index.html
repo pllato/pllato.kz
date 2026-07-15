@@ -1548,7 +1548,7 @@ $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
 const LK={pages:[],name:''};
 const LK_SECTIONS=['3x1,5','3x2,5','4x1,5','4x2,5','3x4','4x4','3x6','5x4','5x6','3x10','5x10','5x16','5x25'];
-const LK_CONDS=['п.г.16','п.г.20','п.г.25','п.г.32','п.г.40','п.г.50','п.г.63','п.г.65','п.г.80','п.н.40','п.н.50','п.н.63','т.с.20','т.с.25','т.с.32','т.с.40','т.с.50','г.т.20','г.т.25','г.т.32','з.п.25','з.п.32'];
+const LK_CONDS=['п.г.16','п.г.20','п.г.25','п.г.32','п.г.40','п.г.50','п.г.63','п.г.65','п.г.80','п.н.40','п.н.50','п.н.63','т.с.20','т.с.25','т.с.32','т.с.40','т.с.50','г.т.20','г.т.25','г.т.32','з.п.25','з.п.32','т.г.16','т.г.20','т.г.25','т.г.32','ст.т.20','ст.т.25'];
 /* строки из pdf.js text items. В однолинейных схемах текст потребителей ПОВЁРНУТ (вертикальный),
    и pdf.js отдаёт каждую такую строку целым элементом → берём как есть, упорядочиваем в порядок ячеек.
    Горизонтальный текст (заголовки, сводные таблицы) собираем по Y. */
@@ -1614,7 +1614,8 @@ const LK_MARK=/(А[сcС]?\s*ВВГ|КВВГ|ВВГ|ШВВП|ПВ\d)/;
 const LK_MARKNAME=/(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ПВ\d)(?:[а-яёА-ЯA-Za-z0-9()\-\s]*?(?:FRLS|LS|HF))?/i;
 function lkMarkName(s){const m=(s||'').match(LK_MARKNAME);return m?m[0].replace(/\s+/g,'').replace(/^[-\s]+/,''):'';}
 const LK_LEN_DASH=/-\s*(\d+(?:[,.]\d+)?)\s*м/g;
-function lkCondName(t){t=t.replace(/[.\s]/g,'').toLowerCase().replace(/c/g,'с').replace(/g/g,'г').replace(/p/g,'п').replace(/n/g,'н').replace(/z/g,'з');return ({'пг':'п.г.','пп':'п.п.','пн':'п.н.','зп':'з.п.','тс':'т.с.','гт':'г.т.','нз':'н.з.'}[t]||t);}
+/* m→т: курсивная кириллическая «т» попадает в текстовый слой латинской «m» (022 л.10 «m.г.25») */
+function lkCondName(t){t=t.replace(/[.\s]/g,'').toLowerCase().replace(/c/g,'с').replace(/g/g,'г').replace(/p/g,'п').replace(/n/g,'н').replace(/z/g,'з').replace(/m/g,'т');return ({'пг':'п.г.','пп':'п.п.','пн':'п.н.','зп':'з.п.','тс':'т.с.','гт':'г.т.','нз':'н.з.','тг':'т.г.','мг':'м.г.','стт':'ст.т.'}[t]||t);}
 function lkParseLines(lines,hmeta){
   const rows=[],used=new Set();const isName=l=>LK_NAME.test(l);
   function pushCell(cell,x,y){
@@ -1730,6 +1731,20 @@ function lkParseCableTable(items){
       rows.push({section,len:parseFloat(n.s.replace(',','.')),mark:mk});});});
   return rows;
 }
+/* авторская таблица «ПОТРЕБНОСТЬ В ТРУБАХ, м»: обозначение (п.г.25 / т.г.20 / Ст.т.25 / m.г.25…) |
+   длина. При двух колонках длины («для 1-ой квартиры/этажа» и «для N…») берём ПЕРВУЮ — на одну
+   единицу, как и кабельные строки листа. Результат {имя: метры} → чипы труб листа. */
+function lkParsePipeTable(items){
+  const It=items.map(it=>({s:(it.str||'').trim(),x:it.transform[4],y:it.transform[5]})).filter(o=>o.s);
+  const hdr=It.find(o=>/ПОТРЕБНОСТ\S*\s*В\s*ТРУБ/i.test(o.s));if(!hdr)return {};
+  const out={};
+  It.filter(o=>o.y<hdr.y&&o.y>hdr.y-260&&o.x-hdr.x>-10&&o.x-hdr.x<150).forEach(lb=>{
+    const m=lb.s.replace(/\s+/g,'').match(/^([а-яa-zё]{1,2}(?:\.[а-яa-zё]{1,2})?)\.?(\d{1,3})$/i);if(!m)return;
+    const name=lkCondName(m[1])+m[2];
+    const num=It.filter(o=>Math.abs(o.y-lb.y)<7&&o.x>lb.x&&o.x<lb.x+120&&/^\d+([.,]\d+)?$/.test(o.s)).sort((a,b)=>a.x-b.x)[0];
+    if(num)out[name]=(out[name]||0)+parseFloat(num.s.replace(',','.'));});
+  return out;
+}
 /* марки-фидеры для листов с голой длиной: каждый вертикальный элемент марка+сечение = отдельный
    фидер (для точки на схеме). Длину берём как лучшее «N м» в колонке — НЕНАДЁЖНО, поэтому строка
    помечается needsCheck (красная точка + пометка «проверить длину»). */
@@ -1807,7 +1822,7 @@ async function lkExtract(data,onProgress){
     const v0=page.getViewport({scale:1});
     // нормализованные экранные координаты точки С УЧЁТОМ поворота страницы (page.rotate 90/270)
     rows.forEach(r=>{if(r.x&&r.y){const q=v0.convertToViewportPoint(r.x,r.y);r.mx=q[0]/v0.width;r.my=q[1]/v0.height;}});
-    pages.push({page:p,img:null,wpt:v0.width,hpt:v0.height,vru:lkDetectVru(tc.items),shields:shields.map(s=>s.name),groups,rows,potreb:potrebOv||lkParsePotreb(tc.items)});}
+    pages.push({page:p,img:null,wpt:v0.width,hpt:v0.height,vru:lkDetectVru(tc.items),shields:shields.map(s=>s.name),groups,rows,potreb:potrebOv||lkParsePotreb(tc.items),pipes:lkParsePipeTable(tc.items)});}
   return {pdf,pages};
 }
 /* отметки «что попало в подсчёт» на картинке листа (по координатам строк) */
@@ -1867,7 +1882,11 @@ function lkPageStatus(pg){const proj=pg.potreb||{};if(!Object.keys(proj).length)
 function lkCheckHtml(pg){const st=lkSum(pg.rows);const proj=pg.potreb||{};
   const secChips=Object.keys(st.s).sort().map(k=>{const p=proj[k];const ok=p!=null&&Math.abs((st.s[k]||0)-p)<=1;
     return `<span class="lk-chip small${ok?' okc':''}">${esc(k)} <b>${Math.round(st.s[k])}м</b>${p!=null?` <span class="pj">${ok?'✓':'/ проект '+p}</span>`:''}</span>`;}).join('');
-  const condChips=Object.keys(st.c).sort().map(k=>`<span class="lk-chip small cond">${esc(k)} <b>${Math.round(st.c[k])}м</b></span>`).join('');
+  // трубы: из строк (conds); если по строкам пусто — из авторской таблицы «Потребность в трубах»
+  const tblPipes=(!Object.keys(st.c).length&&pg.pipes&&Object.keys(pg.pipes).length)?pg.pipes:null;
+  const pc=tblPipes||st.c;
+  const condChips=Object.keys(pc).sort().map(k=>`<span class="lk-chip small cond">${esc(k)} <b>${Math.round(pc[k])}м</b></span>`).join('')
+    +(tblPipes?` <span class="lk-rep-lbl">— из таблицы «Потребность в трубах» листа</span>`:'');
   const empty=pg.rows.filter(r=>!r.group||r.group==='—').length;
   const projTxt=Object.keys(proj).length?`Печатная сводка на схеме (черновая): ${Object.keys(proj).sort().map(k=>esc(k)+'='+proj[k]).join(', ')}. `:'';
   return `<div class="lk-check report"><div class="lk-check-h">📋 Отчёт по листу ${pg.page}<span class="lk-check-sub">${pg.rows.length} линий · ${Math.round(st.t)} м всего</span></div>`
@@ -1875,7 +1894,10 @@ function lkCheckHtml(pg){const st=lkSum(pg.rows);const proj=pg.potreb||{};
     +(condChips?`<div class="lk-rep-sec cond-row"><span class="lk-rep-lbl">Трубы:</span> ${condChips}</div>`:`<div class="lk-rep-sec cond-row"><span class="lk-rep-lbl">Трубы:</span> <span class="lk-chip small cond">не распознаны</span></div>`)
     +`<div class="lk-rep-note"><b>Как понять, всё ли прочитано:</b> сверь эти суммы с таблицей <b>«Потребность кабелей»</b> на схеме выше. Сходится по всем сечениям — лист прочитан полностью; где у сечения меньше — часть не распозналась, добавь строку кнопкой ниже. ${projTxt}${empty?`<br><b>${empty}</b> строк без потребителя (в этом формате имени нет в тексте — впиши вручную при необходимости).`:''}</div></div>`;}
 function renderLineyka(){
-  const g=lkSum(lkAllRows());const ct=Object.values(g.c).reduce((a,x)=>a+(+x||0),0);
+  const g=lkSum(lkAllRows());
+  // трубы из авторских таблиц листов — только там, где по строкам труб нет (без двойного счёта)
+  LK.pages.forEach(pg=>{if(pg.pipes&&Object.keys(pg.pipes).length&&!Object.keys(lkSum(pg.rows).c).length)Object.keys(pg.pipes).forEach(k=>g.c[k]=(g.c[k]||0)+pg.pipes[k]);});
+  const ct=Object.values(g.c).reduce((a,x)=>a+(+x||0),0);
   $('lkSum').innerHTML=Object.keys(g.s).sort().map(k=>`<span class="lk-chip">${esc(k)} <b>${Math.round(g.s[k])}</b></span>`).join('')
     +`<span class="lk-chip tot">Всего кабеля <b>${Math.round(g.t)} м</b></span>`
     +(Object.keys(g.c).length?`<span class="lk-break"></span>`+Object.keys(g.c).sort().map(k=>`<span class="lk-chip cond">${esc(k)} <b>${Math.round(g.c[k])}</b></span>`).join('')+`<span class="lk-chip tot cond">Всего труб <b>${Math.round(ct)} м</b></span>`:'');
