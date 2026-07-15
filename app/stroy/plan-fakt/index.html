@@ -1556,8 +1556,20 @@ const LK_MARKSTART=/^["“]?\s*(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ПВ\d
 function lkLinesFromItems(items){
   const vert=[],hby={};
   items.forEach(it=>{const s=(it.str||'').trim();if(!s)return;const t=it.transform;
-    if(Math.abs(t[1])>Math.abs(t[0]))vert.push({x:t[4],y:t[5],s});
+    if(Math.abs(t[1])>Math.abs(t[0]))vert.push({x:t[4],y:t[5],w:it.width||0,s});
     else{const y=Math.round(t[5]/2)*2;(hby[y]=hby[y]||[]).push({x:t[4],y:t[5],w:it.width||0,s:it.str});}});// допуск 2pt: надстрочный «мм²»/длина сливаются с базовой строкой
+  // склейка марки с разорванным сечением: продолжение — ТА ЖЕ колонка (|Δx|<3) сразу за концом
+  // строки (y+width), «КВВГнг -LS-NS-2»+«х1L=10 м» (S10) или «…3х»+«4» (S9 л.14/15). Только для
+  // строк-марок и только стык «Nх|цифра» — по чистой геометрии клеились независимые числа в столбик
+  vert.sort((a,b)=>(a.x-b.x)||(a.y-b.y));
+  for(let i=0;i<vert.length;i++){const a=vert[i];if(!a)continue;let glued=true;
+    while(glued){glued=false;
+      if(!LK_MARK.test(a.s))break;
+      for(let j=0;j<vert.length;j++){const b=vert[j];if(!b||b===a)continue;
+        if(Math.abs(b.x-a.x)<3){const gap=b.y-(a.y+a.w);
+          if(gap>-4&&gap<12&&((/[хx]\s*$/.test(a.s)&&/^\d/.test(b.s))||(/\d\s*$/.test(a.s)&&/^\s*[хx]\d/.test(b.s)))){
+            a.s+=(gap>2?' ':'')+b.s;a.w=b.y+b.w-a.y;vert[j]=null;glued=true;}}}}}
+  const vjoined=vert.filter(Boolean);
   const hlines=[],hmeta=[];
   Object.keys(hby).map(Number).sort((a,b)=>b-a).forEach(y=>{
     const r=hby[y].sort((a,b)=>a.x-b.x);let s='',pe=null;
@@ -1573,7 +1585,7 @@ function lkLinesFromItems(items){
     hlines.push(s.replace(/\s+/g,' ').trim());
     hmeta.push({starts:r.filter(o=>LK_MARKSTART.test((o.s||'').trim())).map(o=>({x:o.x,y:o.y})),pos:{x:r[0].x,y:r[0].y},segs});// starts/pos для точек, segs — колонки
   });
-  return {vitems:vert,hlines,hmeta};
+  return {vitems:vjoined,hlines,hmeta};
 }
 /* разбор вертикальных ячеек по пространственной близости (без склейки соседних ячеек) */
 const LK_COND_RX=/(п\.?г\.?|п\.?п\.?|п\.?н\.?|з\.?п\.?|т\.?[сc]\.?|г\.?т\.?|н\.?з\.?|n\.?z\.?)\s*(\d+)\s*-?\s*(\d+)\s*м/gi;
@@ -1679,6 +1691,7 @@ function lkParseOneLine(items){const rows=[];const dist=(a,b)=>Math.hypot(a.x-b.
     if(near.some(o=>LK_NAME.test(o.s)))return;                 // это марка именованной ячейки — уже посчитана
     // длину «-Nм» берём после вырезания подстрок труб: булев lkIsCond ложно бил по марке «ПГ1-…» (022)
     let L=null;const dm=[...s.replace(LK_COND_RX,'').matchAll(LK_LEN_DASH)];if(dm.length)L=dm[dm.length-1][1];
+    if(L==null){const lm=s.match(/L\s*=\s*(\d+(?:[,.]\d+)?)\s*м(?!м)/i);if(lm)L=lm[1];}   // «L=10м» (S10 л.7)
     if(L==null)L=lkColLen(it,items);   // длина в том же столбце (строго по X) — безымянные отрезки не воруют длину у соседей
     if(L==null)return;
     const mark=lkMarkName(s);
@@ -1809,7 +1822,9 @@ async function lkExtract(data,onProgress){
     const _tj=tc.items.map(i=>i.str||'').join(' ');const isFeederSheet=/длина\s*участка/i.test(_tj)||(/№\s*группы/i.test(_tj)&&/Наименование\s*потребителя/i.test(_tj));
     // добираем непойманные вертикальные марки-фидеры (голая длина). Только на фидерных листах,
     // и только если их не меньше, чем уже прочитано (иначе лист прочитан полно) — с пометкой «проверить».
-    const mf=isFeederSheet?lkParseMarkFeeders(tc.items).filter(m=>!rows.some(r=>r.x&&Math.abs(r.x-m.x)<20)):[];
+    // дубль прочитанной строки: та же колонка (<8пт) — всегда; 8–20пт — только при том же сечении
+    // (на плотных листах соседние фидеры стоят в 12пт — не гасить чужую колонку, S10 л.4)
+    const mf=isFeederSheet?lkParseMarkFeeders(tc.items).filter(m=>!rows.some(r=>r.x&&(Math.abs(r.x-m.x)<8||(Math.abs(r.x-m.x)<20&&String(r.section).replace('.',',')===String(m.section).replace('.',','))))):[];
     if(mf.length>=2 && mf.length>=rows.length){
       mf.forEach(m=>rows.push({group:'',mark:m.mark,section:m.section,len:m.len,conds:[],x:m.x,y:m.y,mult:1,needsCheck:m.needsCheck}));
       if(ctab.length){potrebOv={};ctab.forEach(r=>{potrebOv[r.section]=(potrebOv[r.section]||0)+r.len;});}
@@ -1911,7 +1926,7 @@ function renderLineyka(){
   $('lkNav').querySelectorAll('.lk-pg').forEach(b=>b.onclick=()=>{LK.sel=+b.dataset.pg;LK.view='pages';renderLineyka();$('lkPage').scrollTop=0;});
   if(LK.view==='report'){$('lkPage').innerHTML=lkReportHtml();bindReport();return;}
   const pg=LK.pages[LK.sel];
-  let h=`<div class="lk-split"><div class="lk-imgcol"><div class="lk-pgwrap"><div class="lk-zoom"><button data-z="out" title="Уменьшить">−</button><button data-z="fit" title="По ширине">↔</button><button data-z="in" title="Увеличить">+</button></div><div class="lk-pgimg" id="lkPgImg">${lkImgBoxHtml(pg)}</div></div><div class="lk-mk-note">🟢 Точки — то, что попало в подсчёт. Наведи на строку справа — подсветит её точку; клик по точке — перейти к строке. Где точки нет — там пропуск (неучтённое ответвление), добавь строку.</div></div><div class="lk-datacol">`+lkCheckHtml(pg)+`<div class="lk-groups">`;
+  let h=`<div class="lk-split"><div class="lk-imgcol"><div class="lk-pgwrap"><div class="lk-zoom"><button data-z="out" title="Уменьшить">−</button><button data-z="fit" title="По ширине">↔</button><button data-z="in" title="Увеличить">+</button></div><div class="lk-pgimg" id="lkPgImg">${lkImgBoxHtml(pg)}</div></div><div class="lk-mk-note">🟢 Точки — то, что попало в подсчёт. Наведи на строку справа — подсветит её точку; клик по точке — перейти к строке. Где точки нет — там пропуск (неучтённое ответвление), добавь строку.<br>🔴 Красная точка — длина взята ненадёжно, строка помечена «проверить длину»: сверь с чертежом и поправь длину в строке — пометка снимется.</div></div><div class="lk-datacol">`+lkCheckHtml(pg)+`<div class="lk-groups">`;
   pg.groups.forEach(grp=>{const st=lkSum(grp.rows);
     h+=`<div class="lk-grp"><div class="lk-grph"><span class="lk-grpn">${esc(grp.name)}</span>`
       +Object.keys(st.s).sort().map(k=>`<span class="lk-chip small">${esc(k)} <b>${Math.round(st.s[k])}м</b></span>`).join('')
