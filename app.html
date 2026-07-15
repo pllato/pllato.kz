@@ -347,6 +347,33 @@ body {
 .tool-card:hover .fav-star { opacity:.85; }
 .fav-star:hover { background:var(--bronze-tint); color:#e8a726; opacity:1; }
 .fav-star.on { opacity:1; color:#e8a726; }
+.lnk-btn {
+  position:absolute; top:10px; right:41px;
+  width:28px; height:28px; border-radius:8px;
+  border:none; background:transparent; color:var(--text-3);
+  font-size:13px; line-height:1; cursor:pointer;
+  display:grid; place-items:center; z-index:3; opacity:0; transition:.14s;
+}
+.tool-card:hover .lnk-btn { opacity:.85; }
+.lnk-btn:hover { background:var(--bronze-tint); color:var(--bronze-deep); opacity:1; }
+.share-pop {
+  position:absolute; z-index:60; width:272px; background:var(--surface,#fff);
+  border:1px solid var(--line-2,#e7e5e4); border-radius:14px; padding:14px 15px;
+  box-shadow:0 14px 38px rgba(28,25,23,.18); font-size:12.5px; color:var(--text-1,#1c1917);
+}
+.share-pop .sp-t { font-weight:800; font-size:12px; margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.share-pop .sp-s { color:var(--text-3,#78716c); font-size:11px; margin-bottom:9px; }
+.share-pop .sp-days { display:flex; gap:5px; flex-wrap:wrap; }
+.share-pop .sp-days button {
+  flex:1; min-width:40px; border:1.5px solid var(--line-2,#e7e5e4); background:transparent;
+  border-radius:8px; padding:7px 2px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; color:inherit;
+}
+.share-pop .sp-days button:hover { border-color:#d97706; color:#d97706; }
+.share-pop .sp-link { display:none; background:#1c1917; color:#fbbf24; font-size:10.5px; padding:9px 10px; border-radius:8px; word-break:break-all; font-family:monospace; margin:9px 0 8px; max-height:64px; overflow:auto; }
+.share-pop .sp-row { display:none; gap:6px; }
+.share-pop .sp-row button { flex:1; border:1.5px solid var(--line-2,#e7e5e4); background:transparent; border-radius:8px; padding:7px 4px; font-size:11.5px; font-weight:700; cursor:pointer; font-family:inherit; color:inherit; }
+.share-pop .sp-row button:hover { border-color:#d97706; color:#d97706; }
+.share-pop .sp-note { font-size:10.5px; color:var(--text-3,#78716c); margin-top:8px; line-height:1.5; }
 
 .tools-grid {
   display: grid;
@@ -895,6 +922,16 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
           </div>
         </details>
         <span class="tool-badge new">Счёт</span>
+      </div>
+
+      <div class="tool-card" data-app-id="rl_fondy">
+        <div class="tool-icon color-green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/></svg>
+        </div>
+        <h3>RL · Фонды проектов</h3>
+        <p>Касса проекта в одном экране: план поступлений и трат, фонды с автораскладкой каждого прихода, расходы из фондов, касса по месяцам с кассовыми разрывами, долги между фондами и задачи по деньгам. Данные живут в браузере устройства.</p>
+        <a class="tool-cta as-link" href="app/rl-fondy.html">Открыть демо →</a>
+        <span class="tool-badge new">Новое</span>
       </div>
 
       <a href="crm/" class="tool-card" data-app-id="pllato_crm">
@@ -2044,6 +2081,21 @@ function initProjectGroups(){
     star.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggleFav(id, star); });
     card.appendChild(star);
   });
+  // кнопка «выдать доступ» на каждой плашке — временная ссылка без захода в генератор
+  document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
+    if (card.querySelector('.lnk-btn')) return;
+    const href = card.matches('a[href]') ? card.getAttribute('href')
+      : card.querySelector('a.tool-cta')?.getAttribute('href');
+    if (!href || href === '#' || href.startsWith('javascript:')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'lnk-btn';
+    btn.innerHTML = '🔗';
+    btn.title = 'Выдать временный доступ';
+    btn.setAttribute('aria-label', 'Выдать временный доступ');
+    btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openSharePop(card, btn, href); });
+    card.appendChild(btn);
+  });
   buildProjectTabs();
 }
 
@@ -2065,6 +2117,59 @@ function toggleFav(id, star){
   else { FAVS.add(id); star && star.classList.add('on'); }
   saveFavs();
   if (ACTIVE_TAB === 'fav') applyProjectFilters(); else updateTabCounts();
+}
+
+// ===== Выдача временного доступа прямо с плашки =====
+// Токен тот же, что в linkgen/gate.js: base64(exp + "." + hash(exp + SECRET)).
+let _spEl = null;
+function closeSharePop(){ if (_spEl) { _spEl.remove(); _spEl = null; } }
+document.addEventListener('click', (e) => { if (_spEl && !e.target.closest('.share-pop') && !e.target.closest('.lnk-btn')) closeSharePop(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSharePop(); });
+function shareToken(days){
+  const SECRET = 'pllato-nan-dan-2026';
+  const h = (s) => { let x = 7; for (let i = 0; i < s.length; i++) { x = ((x * 31) + s.charCodeAt(i)) >>> 0; } return x.toString(36); };
+  const exp = String(Date.now() + days * 86400000);
+  return btoa(exp + '.' + h(exp + SECRET)).replace(/=+$/, '');
+}
+function openSharePop(card, btn, href){
+  closeSharePop();
+  const name = (card.querySelector('h3')?.textContent || 'страница').trim();
+  let url; try { url = new URL(href, location.origin + '/').href; } catch(e) { return; }
+  const pop = document.createElement('div');
+  pop.className = 'share-pop';
+  const escT = (t) => t.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  pop.innerHTML = '<div class="sp-t">🔗 ' + escT(name) + '</div>'
+    + '<div class="sp-s">на сколько дней открыть доступ</div>'
+    + '<div class="sp-days">' + [1,3,7,14,30].map(d => '<button data-d="' + d + '">' + d + ' дн</button>').join('') + '</div>'
+    + '<div class="sp-link"></div>'
+    + '<div class="sp-row"><button class="sp-copy">📋 Скопировать</button><button class="sp-wa">💬 WhatsApp</button></div>'
+    + '<div class="sp-note"></div>';
+  document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect();
+  pop.style.left = Math.max(10, Math.min(r.right + window.scrollX - 272, document.documentElement.clientWidth - 282)) + 'px';
+  pop.style.top = (r.bottom + window.scrollY + 8) + 'px';
+  _spEl = pop;
+  let link = '';
+  pop.querySelectorAll('.sp-days button').forEach(b => b.addEventListener('click', () => {
+    const d = parseInt(b.dataset.d);
+    link = url + (url.includes('?') ? '&' : '?') + 'k=' + shareToken(d);
+    pop.querySelector('.sp-link').style.display = 'block';
+    pop.querySelector('.sp-link').textContent = link;
+    pop.querySelector('.sp-row').style.display = 'flex';
+    const until = new Date(Date.now() + d * 86400000).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+    pop.querySelector('.sp-note').textContent = 'Действует до ' + until + '. Ссылка уже в буфере — вставляй в чат.';
+    navigator.clipboard?.writeText(link).catch(() => {});
+    pop.querySelectorAll('.sp-days button').forEach(x => { x.style.borderColor = ''; x.style.color = ''; });
+    b.style.borderColor = '#d97706'; b.style.color = '#d97706';
+  }));
+  pop.querySelector('.sp-copy').addEventListener('click', () => {
+    if (!link) return;
+    navigator.clipboard.writeText(link).then(() => { pop.querySelector('.sp-note').textContent = 'Скопировано ✓'; });
+  });
+  pop.querySelector('.sp-wa').addEventListener('click', () => {
+    if (!link) return;
+    window.open('https://wa.me/?text=' + encodeURIComponent('Ссылка на демо (доступ временный): ' + link), '_blank');
+  });
 }
 
 function applyProjectFilters(){
