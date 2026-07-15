@@ -53,12 +53,12 @@
   .pcard .row span:last-child{font-weight:600;font-variant-numeric:tabular-nums}
   .gap-warn{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--red-bg);color:var(--red);margin-top:8px}
   .gap-ok{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--green-bg);color:var(--green);margin-top:8px}
-  .fund-row{display:grid;grid-template-columns:14px 1.5fr 84px 1fr 1fr auto auto;gap:9px;align-items:center;padding:8px 0;border-bottom:1px solid #eef0f3}
+  .fund-row{display:grid;grid-template-columns:14px 1.3fr 70px 118px 1fr 1.15fr auto auto;gap:9px;align-items:center;padding:8px 0;border-bottom:1px solid #eef0f3}
   .fbtns{display:flex;gap:5px}
   .fbtns span{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;cursor:pointer;border:1px solid var(--line);color:var(--muted);background:#fbfaf7;white-space:nowrap}
   .fbtns span:first-child:hover{background:var(--green-bg);color:var(--green);border-color:var(--green)}
   .fbtns span:last-child:hover{background:var(--red-bg);color:var(--red);border-color:var(--red)}
-  .nf-row{display:grid;grid-template-columns:1.6fr 90px 1.1fr auto;gap:8px;align-items:center;margin-bottom:7px}
+  .nf-row{display:grid;grid-template-columns:1.5fr 80px 1fr 1fr auto;gap:8px;align-items:center;margin-bottom:7px}
   .plan-row.with-fund{grid-template-columns:125px 1fr 1fr 1.1fr auto auto}
   .fund-row:last-child{border-bottom:none}
   .fdot{width:11px;height:11px;border-radius:50%}
@@ -66,7 +66,7 @@
   .fio{font-size:10.5px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
   .fund-bar{display:flex;height:13px;border-radius:7px;overflow:hidden;margin:6px 0 14px;border:1px solid var(--line)}
   .forms{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
-  @media(max-width:760px){.forms{grid-template-columns:1fr}.fund-row{grid-template-columns:14px 1.2fr 70px 1fr auto auto}.fio{display:none}}
+  @media(max-width:760px){.forms{grid-template-columns:1fr}.fund-row{grid-template-columns:14px 1.1fr 60px 95px 1fr auto auto}.fio{display:none}}
   .fgrid{display:grid;grid-template-columns:120px 1fr;gap:8px;margin-bottom:8px}
   .fgrid3{display:grid;grid-template-columns:120px 1fr 1fr;gap:8px;margin-bottom:8px}
   .alloc{font-size:11.5px;color:var(--muted);background:var(--green-bg);border-radius:8px;padding:8px 11px;margin:8px 0;line-height:1.6;display:none}
@@ -181,6 +181,10 @@ function fundDebts(p){
     const[a,b]=k.split('¦');
     out.push(v>0?{from:a,to:b,amt:v}:{from:b,to:a,amt:-v})});
   return out; // {from: фонд-донор, to: фонд-должник, amt: сколько вернуть}
+}
+function fundPlan(p,f){
+  // план фонда на весь проект: заданная сумма, иначе — доля от договора
+  return f.plan>0?f.plan:Math.round((p.contract||0)*(f.pct||0)/100);
 }
 function allocByPct(p,amt){
   // распределение прихода по долям, без потери копеек
@@ -323,6 +327,7 @@ function addNewFundRow(name,pct){
   const div=document.createElement('div');div.className='nf-row';
   div.innerHTML=`<input class="nf-name" value="${esc(name||'')}" placeholder="название фонда" oninput="refreshNewFundSelects();npFundSum()">
     <input type="number" class="nf-pct" value="${pct!=null?pct:''}" min="0" max="100" style="text-align:right" oninput="npFundSum()">
+    <input type="number" class="nf-plan" placeholder="авто: % × договор" inputmode="numeric" title="сколько всего будет положено/потрачено по этому фонду за проект; пусто — считается от доли">
     <input type="number" class="nf-start" placeholder="0" inputmode="numeric">
     <span class="del" onclick="this.parentNode.remove();refreshNewFundSelects();npFundSum()">×</span>`;
   box.appendChild(div);refreshNewFundSelects();npFundSum();
@@ -351,7 +356,7 @@ function renderNew(host){
     </div>
     <h2>Фонды проекта — как раскладывать деньги</h2>
     <div class="explain">Каждое поступление будет автоматически расходиться по этим фондам в указанных долях (сумма долей — 100%). Если какие-то деньги уже есть — впиши стартовую сумму, она ляжет в фонд сразу при создании проекта. Состав фондов свой для каждого проекта: переименовывай, удаляй, добавляй.</div>
-    <div class="nf-row" style="margin-bottom:2px"><label style="margin:0">Название фонда</label><label style="margin:0">Доля, %</label><label style="margin:0">Стартовая сумма, ₸</label><span></span></div>
+    <div class="nf-row" style="margin-bottom:2px"><label style="margin:0">Название фонда</label><label style="margin:0">Доля, %</label><label style="margin:0">План на весь проект, ₸</label><label style="margin:0">Стартовая сумма, ₸</label><span></span></div>
     <div id="npFunds"></div>
     <button class="btn ghost" onclick="addNewFundRow()">+ свой фонд</button>
     <span id="npFundSum" style="font-size:11.5px;color:var(--muted);margin-left:10px"></span>
@@ -401,12 +406,13 @@ function createProject(){
   const fundRows=[...document.querySelectorAll('#npFunds .nf-row')].map(r=>({
     name:r.querySelector('.nf-name').value.trim(),
     pct:parseFloat(r.querySelector('.nf-pct').value)||0,
+    plan:Math.abs(parseFloat(r.querySelector('.nf-plan')?.value)||0),
     start:Math.abs(parseFloat(r.querySelector('.nf-start').value)||0)
   })).filter(f=>f.name);
   if(!fundRows.length){toast('Добавь хотя бы один фонд','err');return}
   const psum=fundRows.reduce((s,f)=>s+f.pct,0);
   if(Math.round(psum)!==100&&!confirm('Доли фондов дают '+psum+'%, а не 100%. Так тоже можно — но авто-раскладка приходов по долям будет недоступна, поступления будешь раскладывать по фондам вручную суммами.\n\nСоздать проект?'))return;
-  const funds=fundRows.map((f,i)=>({id:uid(),name:f.name,pct:f.pct,color:FUND_COLORS[i%FUND_COLORS.length]}));
+  const funds=fundRows.map((f,i)=>({id:uid(),name:f.name,pct:f.pct,plan:f.plan||0,color:FUND_COLORS[i%FUND_COLORS.length]}));
   const rowsIn=[...document.querySelectorAll('#npIn .plan-row')].map(r=>({
     id:uid(),date:r.querySelector('.nr-date').value,amt:Math.abs(parseFloat(r.querySelector('.nr-amt').value)||0),
     note:r.querySelector('.nr-note').value})).filter(r=>r.date&&r.amt);
@@ -442,12 +448,15 @@ function renderProject(host,p){
   const t=todayIso();
 
   const fundRows=p.funds.map(f=>{const b=fb[f.id];
+    const plan=fundPlan(p,f);const left=plan-b.out;
     return `<div class="fund-row">
       <span class="fdot" style="background:${f.color}"></span>
       <input value="${esc(f.name)}" onchange="updFund('${f.id}','name',this.value)">
       <div style="display:flex;align-items:center;gap:4px"><input type="number" value="${f.pct}" min="0" max="100" style="text-align:right" onchange="updFund('${f.id}','pct',this.value)"><span style="font-size:11px;color:var(--muted)">%</span></div>
+      <input type="number" value="${f.plan||''}" placeholder="${plan?'≈'+fmt(plan):'план ₸'}" inputmode="numeric" style="text-align:right;font-size:12px" title="план на весь проект, ₸ (пусто — считается как ${f.pct}% от договора)" onchange="updFund('${f.id}','plan',this.value)">
       <div class="fbal ${b.bal>=0?'pos':'neg'}">${fmt(b.bal)} ₸</div>
-      <div class="fio">+${fmtM(b.in)} · −${fmtM(b.out)}${b.mv?` · перекл. ${b.mv>0?'+':''}${fmtM(b.mv)}`:''}${b.adj?` · ручн. ${b.adj>0?'+':''}${fmtM(b.adj)}`:''}</div>
+      <div class="fio"><div>факт: +${fmtM(b.in+Math.max(b.adj,0))} · −${fmtM(b.out)}${b.mv?` · перекл. ${b.mv>0?'+':''}${fmtM(b.mv)}`:''}</div>
+        <div>план ${fmtM(plan)} · <span style="${left<0?'color:var(--red);font-weight:700':''}">${left>=0?'осталось '+fmtM(left):'перерасход '+fmtM(-left)}</span></div></div>
       <div class="fbtns"><span onclick="fundAdjPrefill('${f.id}','in')" title="пополнить фонд">+</span><span onclick="fundAdjPrefill('${f.id}','out')" title="снять из фонда">−</span></div>
       <span class="del" onclick="delFund('${f.id}')" title="удалить фонд">×</span>
     </div>`}).join('');
@@ -509,7 +518,7 @@ function renderProject(host,p){
   <div class="card" style="overflow-x:auto">${mtable}</div>
 
   <h2>Фонды проекта</h2>
-  <div class="explain">Каждое поступление сразу расходится по фондам в этих долях. Траты списываются из своего фонда. Название и долю можно менять, фонды — добавлять и удалять (сумма долей должна быть 100%).</div>
+  <div class="explain">Каждое поступление расходится по фондам (по долям или вручную). Траты списываются из своего фонда. У каждого фонда есть <b>план на весь проект</b>: впиши сумму (ФОТ известен заранее) или оставь пусто — посчитается как % от договора (налоги, прибыль). В строке фонда видно факт и «потрачено из плана · осталось».</div>
   <div class="card">
     <div class="fund-bar">${p.funds.map(f=>`<div style="flex:${f.pct||.001};background:${f.color}" title="${esc(f.name)} ${f.pct}%"></div>`).join('')}</div>
     ${fundRows}
@@ -517,7 +526,7 @@ function renderProject(host,p){
       <button class="btn ghost" onclick="addFund()">+ добавить фонд</button>
       <span style="font-size:11.5px;color:${Math.round(pctSum)===100?'var(--muted)':'var(--red)'};font-weight:${Math.round(pctSum)===100?'400':'700'}">сумма долей: ${pctSum}%${Math.round(pctSum)!==100?' — приведи к 100%':''}</span>
       <span style="flex:1"></span>
-      <span style="font-size:12px;color:var(--muted)">итого на фондах: <b class="${cash>=0?'pos':'neg'}">${fmt(cash)} ₸</b></span>
+      <span style="font-size:12px;color:var(--muted)">итого на фондах: <b class="${cash>=0?'pos':'neg'}">${fmt(cash)} ₸</b> · план по фондам: <b>${fmt(p.funds.reduce((s,f)=>s+fundPlan(p,f),0))} ₸</b></span>
     </div>
     ${(()=>{const debts=fundDebts(p);const fn=id=>p.funds.find(f=>f.id===id)?.name||'фонд удалён';
       if(!debts.length)return '';
@@ -615,7 +624,9 @@ function renderProject(host,p){
 
 /* ============ ДЕЙСТВИЯ ============ */
 function updFund(id,key,val){const p=P();const f=p.funds.find(x=>x.id===id);if(!f)return;
-  if(key==='pct')f.pct=Math.max(0,Math.min(100,parseFloat(val)||0));else f.name=val.trim()||f.name;render()}
+  if(key==='pct')f.pct=Math.max(0,Math.min(100,parseFloat(val)||0));
+  else if(key==='plan')f.plan=Math.abs(parseFloat(val)||0);
+  else f.name=val.trim()||f.name;render()}
 function addFund(){const p=P();p.funds.push({id:uid(),name:'Новый фонд',pct:0,color:FUND_COLORS[p.funds.length%FUND_COLORS.length]});render()}
 function delFund(id){const p=P();const b=fundBalances(p)[id];
   if(Math.round(b.bal)!==0){toast('На фонде '+fmt(b.bal)+' ₸ — сначала перекинь деньги в другой фонд','err');return}
@@ -742,6 +753,7 @@ function importData(inp){
 function seedDemo(){
   const fid={};const funds=DEFAULT_FUNDS.map((f,i)=>{const id=uid();fid[i]=id;return{id,name:f.name,pct:f.pct,color:FUND_COLORS[i]}});
   funds[0].pct=62;funds[1].pct=17;funds[3].pct=3;
+  funds[1].plan=57000000;funds[3].plan=8700000;
   const alloc=(amt)=>{const total=100;const a={};let acc=0;
     funds.forEach((f,i)=>{let x=i===funds.length-1?amt-acc:Math.round(amt*f.pct/total);acc+=x;a[f.id]=x});return a};
   const p={id:uid(),name:'Демо · ЖК «Пример», электромонтаж',customer:'ТОО «Заказчик»',contract:350000000,
