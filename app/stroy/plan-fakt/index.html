@@ -1550,7 +1550,7 @@ function lkLinesFromItems(items){
     const r=hby[y].sort((a,b)=>a.x-b.x);let s='',pe=null;
     r.forEach(o=>{if(pe!=null&&o.x-pe>2)s+=' ';s+=o.s;pe=o.x+o.w;});
     hlines.push(s.replace(/\s+/g,' ').trim());
-    hmeta.push({starts:r.filter(o=>LK_MARKSTART.test((o.s||'').trim())).map(o=>({x:o.x,y:o.y}))});// x/y начал спецификаций для зелёных точек
+    hmeta.push({starts:r.filter(o=>LK_MARKSTART.test((o.s||'').trim())).map(o=>({x:o.x,y:o.y})),pos:{x:r[0].x,y:r[0].y}});// x/y начал спецификаций и позиция строки — для зелёных точек
   });
   return {vitems:vert,hlines,hmeta};
 }
@@ -1592,11 +1592,11 @@ const LK_MARKNAME=/(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ПВ\d)(?:[а-яё
 function lkMarkName(s){const m=(s||'').match(LK_MARKNAME);return m?m[0].replace(/\s+/g,'').replace(/^[-\s]+/,''):'';}
 const LK_LEN_DASH=/-\s*(\d+(?:[,.]\d+)?)\s*м/g;
 function lkCondName(t){t=t.replace(/[.\s]/g,'').toLowerCase().replace(/c/g,'с').replace(/g/g,'г').replace(/p/g,'п').replace(/n/g,'н').replace(/z/g,'з');return ({'пг':'п.г.','пп':'п.п.','пн':'п.н.','зп':'з.п.','тс':'т.с.','гт':'г.т.','нз':'н.з.'}[t]||t);}
-function lkParseLines(lines){
+function lkParseLines(lines,hmeta){
   const rows=[],used=new Set();const isName=l=>LK_NAME.test(l);let i=0;
   while(i<lines.length){
     if(!isName(lines[i])){i++;continue;}
-    const cell=[lines[i]];used.add(i);let j=i+1;
+    const ni=i;const cell=[lines[i]];used.add(i);let j=i+1;
     while(j<lines.length&&!isName(lines[j])&&cell.length<5){cell.push(lines[j]);used.add(j);j++;}
     const head=cell[0],nm=head.match(LK_NAME),name=lkName(nm),blob=cell.join('  ');
     let sect=null,mark='';for(const c of cell){if(LK_MARK.test(c)){const s=c.match(LK_SECT);if(s){sect=s[1]+'x'+s[2];mark=lkMarkName(c);break;}}}
@@ -1606,7 +1606,8 @@ function lkParseLines(lines){
     if(L==null){for(let k=1;k<cell.length;k++){if(/п\.?г|з\.?п|т\.?с|г\.?т|п\.?п/i.test(cell[k]))continue;const mm=cell[k].match(/(\d+(?:[,.]\d+)?)\s*м/);if(mm){L=mm[1];break;}}}
     const conds=[];const CR=/(п\.?г\.?|п\.?п\.?|п\.?н\.?|з\.?п\.?|т\.?[сc]\.?|г\.?т\.?|н\.?з\.?|n\.?z\.?)\s*(\d+)\s*-?\s*(\d+)\s*м/gi;
     for(const c of cell){let m;while((m=CR.exec(c)))conds.push({t:lkCondName(m[1])+m[2],len:+m[3]});}
-    if(sect&&L!=null)rows.push({group:name,mark,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:0,y:0,mult:lkMult(blob)});
+    const pos=(hmeta&&hmeta[ni]&&hmeta[ni].pos)||{};
+    if(sect&&L!=null)rows.push({group:name,mark,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:pos.x||0,y:pos.y||0,mult:lkMult(blob)});
     i=j;
   }
   return {rows,used};
@@ -1696,7 +1697,7 @@ async function lkExtract(data,onProgress){
   for(let p=1;p<=N;p++){if(onProgress)onProgress(p,N);
     const page=await pdf.getPage(p);const tc=await page.getTextContent();
     const {vitems,hlines,hmeta}=lkLinesFromItems(tc.items);
-    const hp=lkParseLines(hlines);
+    const hp=lkParseLines(hlines,hmeta);
     const rows=lkExpandMult(lkParseVertical(vitems).concat(lkParseOneLine(vitems)).concat(hp.rows).concat(lkParseHorizLoose(hlines,hp.used,hmeta))).concat(lkParseBus(tc.items));
     if(!rows.length){page.cleanup&&page.cleanup();continue;}
     lkAssignGroupNames(rows,lkGroupLabels(tc.items));
