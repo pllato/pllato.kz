@@ -136,6 +136,21 @@ input,select,textarea{font-family:inherit;font-size:13px;color:var(--ink)}
 .cell.free .cn{color:var(--faint)}
 .cell.free .cprod{color:var(--faint);font-weight:500}
 .cell.occ{border-color:transparent;box-shadow:inset 0 0 0 1.5px var(--ln)}
+.cell .cmoney{margin-top:6px;padding-top:6px;border-top:1px solid var(--ln2)}
+.cell .cmbar{height:4px;border-radius:3px;background:var(--ln2);overflow:hidden}
+.cell .cmbar i{display:block;height:100%;border-radius:3px}
+.cell .cmtx{display:flex;justify-content:space-between;font-size:9.5px;font-weight:800;margin-top:3px;color:var(--ink2)}
+.paywrap{border:1px solid var(--ln);border-radius:10px;overflow:hidden;margin-top:6px}
+.payr{display:flex;align-items:center;gap:10px;padding:9px 12px;font-size:12.5px;border-bottom:1px solid var(--ln2)}
+.payr:last-child{border-bottom:none}
+.payr .pd{font-weight:700;width:88px;flex:none;color:var(--ink2)}
+.payr .ps{margin-left:auto;font-weight:800;color:var(--accD);font-variant-numeric:tabular-nums}
+.payr.empty{color:var(--faint);justify-content:center;font-size:12px}
+.moneybox{display:flex;gap:10px;margin:12px 0}
+.moneybox .mb{flex:1;border:1px solid var(--ln);border-radius:10px;padding:9px 11px}
+.moneybox .mb .l{font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.moneybox .mb .v{font-size:15px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+.moneybox .mb.deal .v{color:var(--ink)}.moneybox .mb.recvd .v{color:var(--accD)}.moneybox .mb.debt .v{color:var(--red)}.moneybox .mb.debt.ok .v{color:var(--accD)}
 .cell.resv{background:var(--ambL)}
 .cell.ship{background:var(--bluL)}
 .legend2{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin-bottom:12px}
@@ -311,8 +326,12 @@ html,body{max-width:100%;overflow-x:hidden}
           <div class="panel"><div class="pth"><h3>Загрузка по контрагентам</h3><span class="mut">занятые ячейки</span></div><div class="pbody" id="dashOcc"></div></div>
         </div>
         <div class="dgrid">
-          <div class="panel"><div class="pth"><h3>Транзакции за сегодня</h3><span class="dot"></span><span class="mut">live</span></div><div class="pbody"><div class="feedx" id="dashFeed"></div></div></div>
+          <div class="panel"><div class="pth"><h3>💰 Поступления денег · по датам</h3><span class="dot"></span><span class="mut">что когда зашло</span></div><div class="pbody" id="dashMoney"></div></div>
           <div class="panel"><div class="pth"><h3>Требует внимания</h3></div><div class="pbody" id="dashAlerts"></div></div>
+        </div>
+        <div class="dgrid">
+          <div class="panel"><div class="pth"><h3>Транзакции за сегодня</h3><span class="dot"></span><span class="mut">live</span></div><div class="pbody"><div class="feedx" id="dashFeed"></div></div></div>
+          <div class="panel"><div class="pth"><h3>Долги по сделкам</h3><span class="mut">кто сколько должен</span></div><div class="pbody" id="dashDebts"></div></div>
         </div>
       </section>
 
@@ -535,6 +554,13 @@ function occCells(){return ST.cells.filter(c=>c.client)}
 function scopeCells(){return ROLE==='client'&&CURCLIENT?ST.cells.filter(c=>!c.client||c.client===CURCLIENT):ST.cells;}
 function clientCells(id){return ST.cells.filter(c=>c.client===id)}
 function totalL(){return occCells().reduce((a,c)=>a+(c.qty||0),0)}
+/* ===== деньги по сделкам (сумма / получено / платежи по датам) ===== */
+function recv(c){return (c.pays||[]).reduce((a,p)=>a+(+p.sum||0),0);}
+function dealDebt(c){return Math.max(0,(c.deal||0)-recv(c));}
+function shortMoney(n){n=Math.round(n||0);return n>=1e6?(n/1e6).toFixed(n>=1e7?0:1).replace('.',',')+' млн':n>=1000?Math.round(n/1000)+'к':String(n);}
+function pdate(s){const m=(s||'').match(/(\d+)\.(\d+)\.(\d+)/);return m?new Date(+m[3],+m[2]-1,+m[1]).getTime():0;}
+function today(){return expDate(0);}
+function allPays(scope){const out=[];occCells().forEach(c=>{if(scope&&c.client!==scope)return;(c.pays||[]).forEach(p=>out.push({d:p.d,sum:p.sum,client:c.client,cell:c.id,sku:c.sku}));});return out.sort((a,b)=>pdate(b.d)-pdate(a.d));}
 function log(icon,bg,txt){ST.txlog=ST.txlog||[];ST.txlog.unshift([icon,bg,txt,'только что']);if(ST.txlog.length>40)ST.txlog.pop();}
 function notify(cliId,txt){ST.notifs=ST.notifs||[];const c=cli(cliId);ST.notifs.unshift({cli:cliId,txt,t:'только что',ch:'WhatsApp'});}
 function toggleSide(){const s=document.querySelector('.side');s.classList.toggle('open');$('sideback').classList.toggle('show',s.classList.contains('open'));}
@@ -615,6 +641,15 @@ function renderDash(){
   if(debt)al.push(['💳','var(--redL)','<b>Задолженность за хранение: '+money(debt)+'</b> — по невыставленным/просроченным счетам. Раздел «Хранение · счета».']);
   al.push(['⚖️','var(--accL)','<b>Инвентаризация:</b> остатки в ячейках сходятся с учётом. Расхождений нет.']);
   $('dashAlerts').innerHTML=al.map(a=>'<div class="fx"><div class="ic" style="background:'+a[1]+'">'+a[0]+'</div><div class="fxt">'+a[2]+'</div></div>').join('');
+  // деньги по сделкам: поступления по датам + долги
+  const mscope=isC?CURCLIENT:null;
+  const pays=allPays(mscope);const recvTot=pays.reduce((a,p)=>a+p.sum,0);
+  $('dashMoney').innerHTML=(pays.length?pays.slice(0,7).map(p=>{const c=cli(p.client),pr=prod(p.sku);return '<div class="fx"><div class="ic" style="background:var(--accL)">💰</div><div style="flex:1"><div class="fxt"><b>+ '+money(p.sum)+'</b> · '+esc(c.name)+'</div><div class="fxm">'+esc(p.d)+' · '+esc(pr?pr.name:'')+' · ячейка '+esc(p.cell)+'</div></div></div>';}).join('')
+    +'<div style="margin-top:8px;padding-top:9px;border-top:1px solid var(--ln2);font-size:12.5px;color:var(--mut)">Всего поступило (показано): <b style="color:var(--accD)">'+money(recvTot)+'</b></div>'
+    :'<div style="color:var(--faint);padding:12px 0">Платежей пока нет — добавьте платёж в карточке ячейки (клик по ячейке → «+ Платёж»).</div>');
+  const debts=ST.clients.map(c=>({c,d:clientCells(c.id).reduce((a,x)=>a+dealDebt(x),0),deal:clientCells(c.id).reduce((a,x)=>a+(x.deal||0),0)})).filter(x=>(mscope?x.c.id===mscope:true)&&x.d>0).sort((a,b)=>b.d-a.d);
+  $('dashDebts').innerHTML=(debts.length?debts.map(x=>'<div class="occli"><div class="av" style="background:'+x.c.color+'">'+esc(x.c.short)+'</div><div class="oi"><div class="on"><span>'+esc(x.c.name)+'</span><span class="num" style="color:var(--red)">'+money(x.d)+'</span></div><div class="track"><i style="width:'+Math.round((1-x.d/(x.deal||1))*100)+'%;background:linear-gradient(90deg,#f2b34a,#e79a2b)"></i></div><div class="sub2">оплачено '+money(x.deal-x.d)+' из '+money(x.deal)+'</div></div></div>').join('')
+    :'<div style="color:var(--accD);padding:12px 0">Долгов по сделкам нет — всё оплачено ✓</div>');
 }
 
 /* ===== ячейки ===== */
@@ -625,7 +660,8 @@ function cellTile(c){const p=c.client?prod(c.sku):null;const cl=c.client?cli(c.c
   return '<div class="'+cls+'" onclick="openCell(\''+c.id+'\')" style="'+(c.client&&c.status!=='resv'&&c.status!=='ship'?'box-shadow:inset 0 0 0 1.6px '+cl.color:'')+'">'+
     (cl?'<span class="ctag" style="background:'+cl.color+'">'+esc(cl.short)+'</span>':'')+
     '<div class="cn"><span class="st" style="background:'+dot+'"></span>'+esc(c.id)+'</div>'+
-    (p?'<div class="cprod">'+esc(p.name)+'</div><div class="cfill"><i style="width:'+fillPct+'%;background:'+cl.color+'"></i></div><div class="cqty">'+litr(c.qty)+' · '+esc(c.tare||(vol+' л'))+'</div>'
+    (p?'<div class="cprod">'+esc(p.name)+'</div><div class="cfill"><i style="width:'+fillPct+'%;background:'+cl.color+'"></i></div><div class="cqty">'+litr(c.qty)+' · '+esc(c.tare||(vol+' л'))+'</div>'+
+       (c.deal?'<div class="cmoney"><div class="cmbar"><i style="width:'+Math.min(100,Math.round(recv(c)/c.deal*100))+'%;background:'+(dealDebt(c)?'var(--amb)':'var(--acc)')+'"></i></div><div class="cmtx"><span>💰 '+shortMoney(recv(c))+'/'+shortMoney(c.deal)+'</span>'+(dealDebt(c)?'<span style="color:var(--red)">−'+shortMoney(dealDebt(c))+'</span>':'<span style="color:var(--accD)">✓</span>')+'</div></div>':'')
        :'<div class="cprod">свободна</div><div class="cqty" style="color:var(--faint)">разместить приход</div>')+'</div>';
 }
 function buildClientFilter(){const sel=$('cellClientФ');const cur=sel.value;
@@ -662,7 +698,13 @@ function openCell(id){const c=ST.cells.find(x=>x.id===id);if(!c)return;const p=c
     '<div class="kv"><span class="k">Класс опасности</span><span class="v">'+hazPill(p.haz)+' '+esc(hazText(p.haz).split('·')[1]||'')+'</span></div>'+
     '<div class="kv"><span class="k">Режим хранения</span><span class="v">'+esc(p.temp)+' · зона '+esc(c.zone)+' '+(ZONES[c.zone]?ZONES[c.zone].cur+'°C':'')+'</span></div>'+
     '<div class="kv"><span class="k">Принято на склад</span><span class="v">'+esc(c.arrived||'—')+'</span></div>'+
-    '<div class="kv"><span class="k">Услуга хранения</span><span class="v">'+money(Math.round(c.qty*TARIFF))+' / мес</span></div></div>'+
+    '<div class="kv"><span class="k">Услуга хранения</span><span class="v">'+money(Math.round(c.qty*TARIFF))+' / мес</span></div>'+
+    '<div style="font-weight:800;font-size:13.5px;margin:14px 0 2px">💰 Финансы по сделке</div>'+
+    '<div class="moneybox"><div class="mb deal"><div class="l">Сумма сделки</div><div class="v" onclick="setCellDeal(\''+c.id+'\')" style="cursor:pointer">'+money(c.deal||0)+' <span style="font-size:11px;color:var(--acc)">✎</span></div></div>'+
+      '<div class="mb recvd"><div class="l">Получено</div><div class="v">'+money(recv(c))+'</div></div>'+
+      '<div class="mb debt'+(dealDebt(c)?'':' ok')+'"><div class="l">Остаток</div><div class="v">'+(dealDebt(c)?money(dealDebt(c)):'оплачено ✓')+'</div></div></div>'+
+    '<div style="display:flex;align-items:center;margin:2px 0 2px"><span style="font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700">Платежи · что когда зашло</span><button class="btn pri" style="padding:5px 11px;margin-left:auto" onclick="addCellPay(\''+c.id+'\')">＋ Платёж</button></div>'+
+    '<div class="paywrap">'+((c.pays&&c.pays.length)?c.pays.slice().sort((a,b)=>pdate(b.d)-pdate(a.d)).map(pp=>'<div class="payr"><span class="pd">'+esc(pp.d)+'</span><span>оплата поступила</span><span class="ps">+ '+money(pp.sum)+'</span></div>').join(''):'<div class="payr empty">Платежей ещё не было — добавьте первый.</div>')+'</div></div>'+
     (ROLE==='client'
       ?'<div class="mfoot"><button class="btn blu" onclick="orderShipFromCell(\''+c.id+'\')">📤 Заказать отгрузку</button><span style="align-self:center;font-size:11.5px;color:var(--mut)">это ваша ячейка — заявка уйдёт на склад</span><button class="btn gh" style="margin-left:auto" onclick="closeModal(\'cellOvl\')">Закрыть</button></div>'
       :'<div class="mfoot"><button class="btn blu" onclick="shipFromCell(\''+c.id+'\')">📤 Отгрузить</button><button class="btn gh" onclick="invCell(\''+c.id+'\')">⚖️ Инвентаризация</button><button class="btn gh" onclick="moveCell(\''+c.id+'\')">↔ Переместить</button><button class="btn gh" style="margin-left:auto" onclick="closeModal(\'cellOvl\')">Закрыть</button></div>');
@@ -686,16 +728,24 @@ function doShip(c,v){const p=prod(c.sku);const cl=cli(c.client);const cid=c.clie
   log('📤','var(--bluL)','Отгрузка '+litr(v)+' «'+esc(p.name)+'» из '+esc(c.id)+' — '+esc(cl.name));
   logMove('out',cid,c.sku,v,c.id,'ручная отгрузка из ячейки');
   notify(cid,'Заказ отгружен: '+p.name+' — '+litr(v)+'. Ячейка '+c.id+'.');
-  if(c.qty<=0){c.client=null;c.sku=null;c.qty=0;c.status='';c.tare=null;c.bc=null;c.arrived=null;c.batch=null;c.exp=null;log('🟢','var(--accL)','Ячейка '+esc(c.id)+' освободилась');}
+  if(c.qty<=0){c.client=null;c.sku=null;c.qty=0;c.status='';c.tare=null;c.bc=null;c.arrived=null;c.batch=null;c.exp=null;c.deal=0;c.pays=[];log('🟢','var(--accL)','Ячейка '+esc(c.id)+' освободилась');}
   save();renderAll();toast('📤 Отгружено <b>'+litr(v)+'</b> «'+esc(p.name)+'». Расход списан из '+esc(c.id)+(c.qty<=0?', ячейка освобождена':'')+'. Клиенту ушло уведомление в WhatsApp.','blu');}
 function invCell(id){const c=ST.cells.find(x=>x.id===id);if(c&&c.client)logMove('inv',c.client,c.sku,c.qty,c.id,'инвентаризация — сходится');save&&save();if($('s-ship').classList.contains('on'))renderMoves();toast('⚖️ Инвентаризация ячейки <b>'+esc(id)+'</b>: фактический остаток сверен с учётом — расхождений нет. Операция записана в движение. В реальной системе — скан штрихкодов канистр.','ok');}
 function moveCell(id){const c=ST.cells.find(x=>x.id===id);const dst=ST.cells.find(x=>!x.client&&x.id!==id);
   if(!dst){toast('Нет свободной ячейки для переноса.','warn');return;}
-  Object.assign(dst,{client:c.client,sku:c.sku,qty:c.qty,status:c.status,tare:c.tare,bc:c.bc,arrived:c.arrived,batch:c.batch,exp:c.exp});
+  Object.assign(dst,{client:c.client,sku:c.sku,qty:c.qty,status:c.status,tare:c.tare,bc:c.bc,arrived:c.arrived,batch:c.batch,exp:c.exp,deal:c.deal,pays:c.pays});
   log('↔','var(--violL)','Перемещение '+esc(c.id)+' → '+esc(dst.id));
   logMove('move',c.client,c.sku,c.qty,c.id+' → '+dst.id,'перемещение');
-  Object.assign(c,{client:null,sku:null,qty:0,status:'',tare:null,bc:null,arrived:null,batch:null,exp:null});
+  Object.assign(c,{client:null,sku:null,qty:0,status:'',tare:null,bc:null,arrived:null,batch:null,exp:null,deal:0,pays:[]});
   save();closeModal('cellOvl');renderAll();toast('↔ Товар перемещён в ячейку <b>'+esc(dst.id)+'</b>. Операция в истории движения.','ok');}
+function setCellDeal(id){const c=ST.cells.find(x=>x.id===id);if(!c||!c.client)return;const v=parseInt(prompt('Сумма сделки по ячейке '+id+' («'+prod(c.sku).name+'»), ₸:',c.deal||0));if(isNaN(v))return;c.deal=Math.max(0,v);save();openCell(id);renderAll();toast('Сумма сделки по '+esc(id)+' — '+money(c.deal)+'.','ok');}
+function addCellPay(id){const c=ST.cells.find(x=>x.id===id);if(!c||!c.client)return;const def=dealDebt(c)||Math.round((c.deal||0)/2)||0;
+  const v=parseInt(prompt('Сколько получено, ₸? (по сделке «'+prod(c.sku).name+'», остаток '+dealDebt(c)+' ₸)',def));if(isNaN(v)||v<=0)return;
+  const d=(prompt('Дата платежа (ДД.ММ.ГГГГ):',today())||today()).trim();
+  (c.pays=c.pays||[]).push({d,sum:v});
+  log('💰','var(--accL)','Оплата +'+money(v)+' по ячейке '+esc(id)+' — '+esc(cli(c.client).name));
+  notify(c.client,'Оплата принята: +'+money(v)+' по «'+prod(c.sku).name+'» (ячейка '+id+'). Остаток по сделке: '+money(dealDebt(c))+'.');
+  save();openCell(id);renderAll();toast('💰 Платёж +<b>'+money(v)+'</b> записан на '+esc(d)+'. Остаток по сделке: '+money(dealDebt(c))+'.','ok');}
 function addCells(){const z=prompt('В какую зону добавить ячейки? (A / B / C)','A');if(!z)return;const zone=z.trim().toUpperCase();if(!['A','B','C'].includes(zone)){toast('Зона A, B или C.','warn');return;}
   const n=parseInt(prompt('Сколько ячеек добавить?','6'));if(isNaN(n)||n<=0)return;
   const ex=ST.cells.filter(c=>c.zone===zone).length;
@@ -725,7 +775,7 @@ function saveArrival(){const client=$('aClient').value,sku=$('aSku').value,tare=
 function acceptArrival(id){const a=(ST.arrivals||[]).find(x=>x.id===id);if(!a)return;
   let free=ST.cells.filter(c=>!c.client);if(a.zone)free=free.filter(c=>c.zone===a.zone).concat(ST.cells.filter(c=>!c.client&&c.zone!==a.zone));
   const cell=free[0];if(!cell){toast('Нет свободных ячеек — добавьте ячейки.','warn');return;}
-  const p=prod(a.sku);const batch='П-'+String(2407+((ST.arrivals||[]).length%9)).slice(0);Object.assign(cell,{client:a.client,sku:a.sku,qty:a.qty,tare:a.tare,bc:p.bc,status:'',arrived:'сегодня '+nowHM(),batch:a.batch||batch,exp:(a.exp!=null?a.exp:640)});
+  const p=prod(a.sku);const batch='П-'+String(2407+((ST.arrivals||[]).length%9)).slice(0);Object.assign(cell,{client:a.client,sku:a.sku,qty:a.qty,tare:a.tare,bc:p.bc,status:'',arrived:'сегодня '+nowHM(),batch:a.batch||batch,exp:(a.exp!=null?a.exp:640),deal:Math.round(a.qty*3000/1000)*1000,pays:[]});
   a.status='размещено';a.cell=cell.id;
   log('✅','var(--accL)','Приход '+esc(a.id)+' размещён в ячейку '+esc(cell.id)+' — авто-встал на остаток');
   logMove('in',a.client,a.sku,a.qty,cell.id,'приход · размещён (лот '+cell.batch+')');
@@ -754,7 +804,7 @@ function saveShip(){const cid=$('sClient').value,sku=$('sSku').value;let v=parse
   const have=cells.reduce((a,c)=>a+c.qty,0);
   if(v>have){toast('Доступно к отгрузке '+have+' л (просроченные лоты не в счёт).','warn');return;}
   let left=v;const p=prod(sku),c=cli(cid);const usedCells=[];
-  for(const cell of cells){if(left<=0)break;const take=Math.min(cell.qty,left);cell.qty-=take;left-=take;usedCells.push(cell.id);if(cell.qty<=0){cell.client=null;cell.sku=null;cell.qty=0;cell.status='';cell.tare=null;cell.bc=null;cell.arrived=null;cell.batch=null;cell.exp=null;}}
+  for(const cell of cells){if(left<=0)break;const take=Math.min(cell.qty,left);cell.qty-=take;left-=take;usedCells.push(cell.id);if(cell.qty<=0){cell.client=null;cell.sku=null;cell.qty=0;cell.status='';cell.tare=null;cell.bc=null;cell.arrived=null;cell.batch=null;cell.exp=null;cell.deal=0;cell.pays=[];}}
   ST.shipments=ST.shipments||[];ST.shipments.unshift({id:'ОТГ-'+(4200+ST.shipments.length),client:cid,sku,qty:v,cell:usedCells.join(', '),date:'сегодня '+nowHM(),status:'отгружено'});
   logMove('out',cid,sku,v,usedCells.join(', '),STRATNAME[SHIPMODE]);
   log('📤','var(--bluL)','Отгрузка '+litr(v)+' «'+esc(p.name)+'» — '+esc(c.name)+' ('+STRATNAME[SHIPMODE]+', ячейки '+usedCells.join(', ')+')');
@@ -777,9 +827,9 @@ function renderCatalog(){const cat=ST.catalog;
 
 /* ===== контрагенты ===== */
 function renderClients(){
-  $('cliTbl').innerHTML='<thead><tr><th>Контрагент</th><th class="r">Ячеек</th><th class="r">На хранении</th><th class="r">Приходы</th><th class="r">Отгрузки</th><th class="r">Хранение / мес</th><th></th></tr></thead><tbody>'+
-    ST.clients.map(c=>{const cells=clientCells(c.id);const l=cells.reduce((a,x)=>a+x.qty,0);const arr=(ST.arrivals||[]).filter(a=>a.client===c.id).length;const sh=(ST.shipments||[]).filter(s=>s.client===c.id).length;
-      return '<tr onclick="openClientCab(\''+c.id+'\')"><td class="who2"><div class="av" style="background:'+c.color+'">'+esc(c.short)+'</div><span class="nm">'+esc(c.name)+'</span></td><td class="r">'+cells.length+'</td><td class="r" style="font-weight:800">'+litr(l)+'</td><td class="r">'+arr+'</td><td class="r">'+sh+'</td><td class="r">'+money(l*35)+'</td><td class="r"><span class="pill b">кабинет →</span></td></tr>';}).join('')+'</tbody>';
+  $('cliTbl').innerHTML='<thead><tr><th>Контрагент</th><th class="r">Ячеек</th><th class="r">На хранении</th><th class="r">Сумма сделок</th><th class="r">Получено</th><th class="r">Остаток</th><th></th></tr></thead><tbody>'+
+    ST.clients.map(c=>{const cells=clientCells(c.id);const l=cells.reduce((a,x)=>a+x.qty,0);const deal=cells.reduce((a,x)=>a+(x.deal||0),0);const got=cells.reduce((a,x)=>a+recv(x),0);const debt=cells.reduce((a,x)=>a+dealDebt(x),0);
+      return '<tr onclick="openClientCab(\''+c.id+'\')"><td class="who2"><div class="av" style="background:'+c.color+'">'+esc(c.short)+'</div><span class="nm">'+esc(c.name)+'</span></td><td class="r">'+cells.length+'</td><td class="r" style="font-weight:800">'+litr(l)+'</td><td class="r">'+money(deal)+'</td><td class="r" style="color:var(--accD)">'+money(got)+'</td><td class="r" style="font-weight:800;color:'+(debt?'var(--red)':'var(--accD)')+'">'+(debt?money(debt):'✓')+'</td><td class="r"><span class="pill b">кабинет →</span></td></tr>';}).join('')+'</tbody>';
 }
 function openClientCab(id){CURCLIENT=id;document.querySelectorAll('.roles button').forEach((b,i)=>b.classList.toggle('on',i===2));setRole('client',document.querySelectorAll('.roles button')[2]);nav('dash');}
 
@@ -1058,6 +1108,13 @@ function defaults(){
   // добить свободными до 18 в зоне
   zones.forEach(z=>{const have=cells.filter(c=>c.zone===z).length;for(let i=have;i<18;i++){const id=z+'-'+String(i+1).padStart(2,'0');if(filled.has(id))continue;cells.push({id,zone:z,client:null,sku:null,qty:0,status:''});}});
   cells.sort((a,b)=>a.id<b.id?-1:1);
+  // суммы сделок и платежи по датам (что когда заходит)
+  cells.forEach((c,i)=>{if(!c.client)return;
+    c.deal=Math.round((c.qty*(2400+(i%5)*400))/1000)*1000;c.pays=[];
+    const r=i%4;const k=x=>Math.round(c.deal*x/1000)*1000;
+    if(r===1)c.pays.push({d:'08.07.2026',sum:k(0.5)});
+    else if(r===2){c.pays.push({d:'03.07.2026',sum:k(0.3)});c.pays.push({d:'11.07.2026',sum:k(0.4)});}
+    else if(r===3){c.pays.push({d:'01.07.2026',sum:k(0.6)});c.pays.push({d:'09.07.2026',sum:c.deal-k(0.6)});}});
   const arrivals=[
     {id:'ПР-7101',client:'c2',sku:'СЗР-0356',tare:'5 л',qty:600,when:'сегодня, 14:00',status:'ожидается',self:true},
     {id:'ПР-7102',client:'c3',sku:'СЗР-0142',tare:'20 л',qty:400,when:'сегодня, 16:30',status:'ожидается',self:true},
