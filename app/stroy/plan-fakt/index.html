@@ -1610,8 +1610,8 @@ function lkParseVertical(items){
 const LK_NAME=/^["“]?\s*(?=[^;,\n]*[-\d])([A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё0-9.()]*(?:-[A-Za-zА-Яа-яЁёA-Za-z0-9.()]+)*)\s*[;,]/;
 function lkName(nm){return nm[1];}
 const LK_SECT=/(\d+)\s*[xхХ×]\s*(\d+(?:[,.]\d+)?)/;
-const LK_MARK=/(А[сcС]?\s*ВВГ|КВВГ|ВВГ|ШВВП|ПВ\d)/;
-const LK_MARKNAME=/(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ПВ\d)(?:[а-яёА-ЯA-Za-z0-9()\-\s]*?(?:FRLS|LS|HF))?/i;
+const LK_MARK=/(А[сcС]?\s*ВВГ|КВВГ|ВВГ|ШВВП|ПВ\d|ПГ\d)/;
+const LK_MARKNAME=/(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ПВ\d|ПГ\d)(?:[а-яёА-ЯA-Za-z0-9()\-\s]*?(?:FRLS|LS|HF))?/i;
 function lkMarkName(s){const m=(s||'').match(LK_MARKNAME);return m?m[0].replace(/\s+/g,'').replace(/^[-\s]+/,''):'';}
 const LK_LEN_DASH=/-\s*(\d+(?:[,.]\d+)?)\s*м/g;
 /* m→т: курсивная кириллическая «т» попадает в текстовый слой латинской «m» (022 л.10 «m.г.25») */
@@ -1677,7 +1677,8 @@ function lkParseOneLine(items){const rows=[];const dist=(a,b)=>Math.hypot(a.x-b.
     const sm=s.match(LK_SECT);if(!sm)return;
     const near=items.filter(o=>o!==it&&dist(o,it)<44).sort((a,b)=>dist(a,it)-dist(b,it));
     if(near.some(o=>LK_NAME.test(o.s)))return;                 // это марка именованной ячейки — уже посчитана
-    let L=null;const dm=[...s.matchAll(LK_LEN_DASH)];if(dm.length&&!lkIsCond(s))L=dm[dm.length-1][1];
+    // длину «-Nм» берём после вырезания подстрок труб: булев lkIsCond ложно бил по марке «ПГ1-…» (022)
+    let L=null;const dm=[...s.replace(LK_COND_RX,'').matchAll(LK_LEN_DASH)];if(dm.length)L=dm[dm.length-1][1];
     if(L==null)L=lkColLen(it,items);   // длина в том же столбце (строго по X) — безымянные отрезки не воруют длину у соседей
     if(L==null)return;
     const mark=lkMarkName(s);
@@ -1882,11 +1883,11 @@ function lkPageStatus(pg){const proj=pg.potreb||{};if(!Object.keys(proj).length)
 function lkCheckHtml(pg){const st=lkSum(pg.rows);const proj=pg.potreb||{};
   const secChips=Object.keys(st.s).sort().map(k=>{const p=proj[k];const ok=p!=null&&Math.abs((st.s[k]||0)-p)<=1;
     return `<span class="lk-chip small${ok?' okc':''}">${esc(k)} <b>${Math.round(st.s[k])}м</b>${p!=null?` <span class="pj">${ok?'✓':'/ проект '+p}</span>`:''}</span>`;}).join('');
-  // трубы: из строк (conds); если по строкам пусто — из авторской таблицы «Потребность в трубах»
-  const tblPipes=(!Object.keys(st.c).length&&pg.pipes&&Object.keys(pg.pipes).length)?pg.pipes:null;
-  const pc=tblPipes||st.c;
+  // трубы: из строк (conds), недостающие имена добираем из авторской таблицы «Потребность в трубах»
+  const fromTbl=Object.keys(pg.pipes||{}).filter(k=>st.c[k]==null);
+  const pc=Object.assign({},pg.pipes||{},st.c);
   const condChips=Object.keys(pc).sort().map(k=>`<span class="lk-chip small cond">${esc(k)} <b>${Math.round(pc[k])}м</b></span>`).join('')
-    +(tblPipes?` <span class="lk-rep-lbl">— из таблицы «Потребность в трубах» листа</span>`:'');
+    +(fromTbl.length?` <span class="lk-rep-lbl">— ${fromTbl.length===Object.keys(pc).length?'из':'частично из'} таблицы «Потребность в трубах» листа</span>`:'');
   const empty=pg.rows.filter(r=>!r.group||r.group==='—').length;
   const projTxt=Object.keys(proj).length?`Печатная сводка на схеме (черновая): ${Object.keys(proj).sort().map(k=>esc(k)+'='+proj[k]).join(', ')}. `:'';
   return `<div class="lk-check report"><div class="lk-check-h">📋 Отчёт по листу ${pg.page}<span class="lk-check-sub">${pg.rows.length} линий · ${Math.round(st.t)} м всего</span></div>`
@@ -1895,8 +1896,8 @@ function lkCheckHtml(pg){const st=lkSum(pg.rows);const proj=pg.potreb||{};
     +`<div class="lk-rep-note"><b>Как понять, всё ли прочитано:</b> сверь эти суммы с таблицей <b>«Потребность кабелей»</b> на схеме выше. Сходится по всем сечениям — лист прочитан полностью; где у сечения меньше — часть не распозналась, добавь строку кнопкой ниже. ${projTxt}${empty?`<br><b>${empty}</b> строк без потребителя (в этом формате имени нет в тексте — впиши вручную при необходимости).`:''}</div></div>`;}
 function renderLineyka(){
   const g=lkSum(lkAllRows());
-  // трубы из авторских таблиц листов — только там, где по строкам труб нет (без двойного счёта)
-  LK.pages.forEach(pg=>{if(pg.pipes&&Object.keys(pg.pipes).length&&!Object.keys(lkSum(pg.rows).c).length)Object.keys(pg.pipes).forEach(k=>g.c[k]=(g.c[k]||0)+pg.pipes[k]);});
+  // трубы из авторских таблиц листов — по-имённо, только имена, не пришедшие из строк листа (без двойного счёта)
+  LK.pages.forEach(pg=>{const pc=lkSum(pg.rows).c;Object.keys(pg.pipes||{}).forEach(k=>{if(pc[k]==null)g.c[k]=(g.c[k]||0)+pg.pipes[k];});});
   const ct=Object.values(g.c).reduce((a,x)=>a+(+x||0),0);
   $('lkSum').innerHTML=Object.keys(g.s).sort().map(k=>`<span class="lk-chip">${esc(k)} <b>${Math.round(g.s[k])}</b></span>`).join('')
     +`<span class="lk-chip tot">Всего кабеля <b>${Math.round(g.t)} м</b></span>`
