@@ -1742,7 +1742,9 @@ function lkParseMarkFeeders(items){
     // сечение: из самого элемента, иначе из колонки
     let section=null;const sm=mk.s.match(LK_SECT);
     if(sm)section=sm[1]+'x'+sm[2].replace('.',',');
-    else{const sc=col.find(o=>o!==mk&&LK_SECT.test(o.s));if(sc){const m2=sc.s.match(LK_SECT);section=m2[1]+'x'+m2[2].replace('.',',');}}
+    else{const sc=col.find(o=>o!==mk&&LK_SECT.test(o.s));
+      if(sc){const m2=sc.s.match(LK_SECT);section=m2[1]+'x'+m2[2].replace('.',',');}
+      else{const pm=mk.s.match(/(\d+)\s*[хx]\s*$/);if(pm){const DIAM=new Set(['0,5','0,75','1','1,5','2,5','4','6','10','16','25','35','50','70','95','120','150','185','240']);const num=col.filter(o=>o!==mk&&DIAM.has(o.s.replace('.',','))).sort((a,b)=>Math.abs(a.y-mk.y)-Math.abs(b.y-mk.y))[0];if(num)section=pm[1]+'x'+num.s.replace('.',',');}}}
     if(!section)return null;
     // длина: чистое «-Nм» в колонке (тогда зелёная), иначе верхнее число >5 (ненадёжно → красная)
     let len=0,clean=false;
