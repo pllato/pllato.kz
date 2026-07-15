@@ -1735,14 +1735,21 @@ function lkParseCableTable(items){
    помечается needsCheck (красная точка + пометка «проверить длину»). */
 function lkParseMarkFeeders(items){
   const It=items.map(it=>({s:(it.str||'').trim(),x:it.transform[4],y:it.transform[5],rot:Math.abs(it.transform[1])>Math.abs(it.transform[0])?'V':'H'})).filter(o=>o.s);
-  return It.filter(o=>o.rot==='V'&&LK_MARK.test(o.s)&&LK_SECT.test(o.s)).map(mk=>{
-    const sm=mk.s.match(LK_SECT);const section=sm[1]+'x'+sm[2].replace('.',',');
-    let len=0,bd=1e9;
-    It.filter(o=>Math.abs(o.x-mk.x)<15&&/^м$/.test(o.s)).forEach(mt=>{
-      const num=It.filter(o=>Math.abs(o.x-mk.x)<15&&/^\d+(?:[.,]\d+)?$/.test(o.s)&&Math.abs(o.y-mt.y)<15).sort((a,b)=>Math.abs(a.y-mt.y)-Math.abs(b.y-mt.y))[0];
-      if(num){const d=Math.abs(mt.y-mk.y);if(d<bd){bd=d;len=parseFloat(num.s.replace(',','.'));}}});
-    return {mark:lkMarkName(mk.s),section,len,x:mk.x,y:mk.y};
-  });
+  // все вертикальные элементы с маркой — по одному на колонку (X), даже если сечение в отдельном элементе
+  const byCol={};It.filter(o=>o.rot==='V'&&LK_MARK.test(o.s)).forEach(mk=>{const k=Math.round(mk.x/12);if(!byCol[k]||mk.s.length>byCol[k].s.length)byCol[k]=mk;});
+  return Object.values(byCol).map(mk=>{
+    const col=It.filter(o=>Math.abs(o.x-mk.x)<15);
+    // сечение: из самого элемента, иначе из колонки
+    let section=null;const sm=mk.s.match(LK_SECT);
+    if(sm)section=sm[1]+'x'+sm[2].replace('.',',');
+    else{const sc=col.find(o=>o!==mk&&LK_SECT.test(o.s));if(sc){const m2=sc.s.match(LK_SECT);section=m2[1]+'x'+m2[2].replace('.',',');}}
+    if(!section)return null;
+    // длина: чистое «-Nм» в колонке (тогда зелёная), иначе верхнее число >5 (ненадёжно → красная)
+    let len=0,clean=false;
+    for(const o of col){const dm=o.s.match(/-\s*(\d+(?:[,.]\d+)?)\s*м(?!м)/i);if(dm){len=parseFloat(dm[1].replace(',','.'));clean=true;break;}}
+    if(!clean){const nums=col.filter(o=>/^\d+(?:[.,]\d+)?$/.test(o.s)).sort((a,b)=>b.y-a.y);for(const n of nums){const v=parseFloat(n.s.replace(',','.'));if(v>5&&v<=300){len=v;break;}}}
+    return {mark:lkMarkName(mk.s),section,len,x:mk.x,y:mk.y,needsCheck:!clean};
+  }).filter(Boolean);
 }
 /* имена групп из строки «Маркировка группы»: гр.1, гр.2 … — привяжем к линиям по X */
 function lkGroupLabels(items){
@@ -1777,12 +1784,15 @@ async function lkExtract(data,onProgress){
     // по-фидерно неполно (голая длина/векторные подписи) + есть авторская таблица «Потребность в кабелях»:
     // добираем ВСЕ марки-фидеры отдельными строками с точками; длина ненадёжна → needsCheck (красная точка).
     const ctab=lkParseCableTable(tc.items);let potrebOv=null;
-    if(ctab.length){const tabTot=ctab.reduce((a,r)=>a+r.len,0),perTot=rows.reduce((a,r)=>a+(+r.len||0),0);
-      if(tabTot>30&&tabTot>perTot*1.5){
-        lkParseMarkFeeders(tc.items).forEach(m=>{if(rows.some(r=>r.x&&Math.abs(r.x-m.x)<20))return;
-          rows.push({group:'',mark:m.mark,section:m.section,len:m.len,conds:[],x:m.x,y:m.y,mult:1,needsCheck:true});});
-        potrebOv={};ctab.forEach(r=>{potrebOv[r.section]=(potrebOv[r.section]||0)+r.len;});
-      }}
+    // фидерный лист-таблица? (есть «длина участка» или «№ группы»+«Наименование потребителя»)
+    const _tj=tc.items.map(i=>i.str||'').join(' ');const isFeederSheet=/длина\s*участка/i.test(_tj)||(/№\s*группы/i.test(_tj)&&/Наименование\s*потребителя/i.test(_tj));
+    // добираем непойманные вертикальные марки-фидеры (голая длина). Только на фидерных листах,
+    // и только если их не меньше, чем уже прочитано (иначе лист прочитан полно) — с пометкой «проверить».
+    const mf=isFeederSheet?lkParseMarkFeeders(tc.items).filter(m=>!rows.some(r=>r.x&&Math.abs(r.x-m.x)<20)):[];
+    if(mf.length>=2 && mf.length>=rows.length){
+      mf.forEach(m=>rows.push({group:'',mark:m.mark,section:m.section,len:m.len,conds:[],x:m.x,y:m.y,mult:1,needsCheck:m.needsCheck}));
+      if(ctab.length){potrebOv={};ctab.forEach(r=>{potrebOv[r.section]=(potrebOv[r.section]||0)+r.len;});}
+    }
     if(!rows.length){page.cleanup&&page.cleanup();continue;}
     lkAssignGroupNames(rows,lkGroupLabels(tc.items));
     const shields=lkDetectShields(tc.items);
