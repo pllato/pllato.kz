@@ -1558,9 +1558,17 @@ function lkLinesFromItems(items){
   const hlines=[],hmeta=[];
   Object.keys(hby).map(Number).sort((a,b)=>b-a).forEach(y=>{
     const r=hby[y].sort((a,b)=>a.x-b.x);let s='',pe=null;
-    r.forEach(o=>{if(pe!=null&&o.x-pe>2)s+=' ';s+=o.s;pe=o.x+o.w;});
+    // segs: разбиваем строку на сегменты при большом X-зазоре (>55pt) — соседние колонки схемы
+    const segs=[];let cur=null,cpe=null;
+    r.forEach(o=>{
+      if(cur&&o.x-cpe>55){segs.push(cur);cur=null;}
+      if(!cur)cur={x:o.x,y:o.y,s:''};
+      if(cpe!=null&&o.x-cpe>2)cur.s+=' ';cur.s+=o.s;cpe=o.x+o.w;
+      if(pe!=null&&o.x-pe>2)s+=' ';s+=o.s;pe=o.x+o.w;
+    });
+    if(cur){cur.s=cur.s.replace(/\s+/g,' ').trim();segs.push(cur);}
     hlines.push(s.replace(/\s+/g,' ').trim());
-    hmeta.push({starts:r.filter(o=>LK_MARKSTART.test((o.s||'').trim())).map(o=>({x:o.x,y:o.y})),pos:{x:r[0].x,y:r[0].y}});// x/y начал спецификаций и позиция строки — для зелёных точек
+    hmeta.push({starts:r.filter(o=>LK_MARKSTART.test((o.s||'').trim())).map(o=>({x:o.x,y:o.y})),pos:{x:r[0].x,y:r[0].y},segs});// starts/pos для точек, segs — колонки
   });
   return {vitems:vert,hlines,hmeta};
 }
@@ -1603,22 +1611,38 @@ function lkMarkName(s){const m=(s||'').match(LK_MARKNAME);return m?m[0].replace(
 const LK_LEN_DASH=/-\s*(\d+(?:[,.]\d+)?)\s*м/g;
 function lkCondName(t){t=t.replace(/[.\s]/g,'').toLowerCase().replace(/c/g,'с').replace(/g/g,'г').replace(/p/g,'п').replace(/n/g,'н').replace(/z/g,'з');return ({'пг':'п.г.','пп':'п.п.','пн':'п.н.','зп':'з.п.','тс':'т.с.','гт':'г.т.','нз':'н.з.'}[t]||t);}
 function lkParseLines(lines,hmeta){
-  const rows=[],used=new Set();const isName=l=>LK_NAME.test(l);let i=0;
-  while(i<lines.length){
-    if(!isName(lines[i])){i++;continue;}
-    const ni=i;const cell=[lines[i]];used.add(i);let j=i+1;
-    while(j<lines.length&&!isName(lines[j])&&cell.length<5){cell.push(lines[j]);used.add(j);j++;}
-    const head=cell[0],nm=head.match(LK_NAME),name=lkName(nm),blob=cell.join('  ');
+  const rows=[],used=new Set();const isName=l=>LK_NAME.test(l);
+  function pushCell(cell,x,y){
+    const nm=cell[0].match(LK_NAME);if(!nm)return;const name=lkName(nm),blob=cell.join('  ');
     let sect=null,mark='';for(const c of cell){if(LK_MARK.test(c)){const s=c.match(LK_SECT);if(s){sect=s[1]+'x'+s[2];mark=lkMarkName(c);break;}}}
     if(!sect){const s=blob.match(LK_SECT);if(s)sect=s[1]+'x'+s[2];}
     if(!mark)mark=lkMarkName(blob);
-    let L=null;const dm=[...head.matchAll(LK_LEN_DASH)];if(dm.length)L=dm[dm.length-1][1];
+    let L=null;const dm=[...cell[0].matchAll(LK_LEN_DASH)];if(dm.length)L=dm[dm.length-1][1];
     if(L==null){for(let k=1;k<cell.length;k++){if(/п\.?г|з\.?п|т\.?с|г\.?т|п\.?п/i.test(cell[k]))continue;const mm=cell[k].match(/(\d+(?:[,.]\d+)?)\s*м/);if(mm){L=mm[1];break;}}}
     const conds=[];const CR=/(п\.?г\.?|п\.?п\.?|п\.?н\.?|з\.?п\.?|т\.?[сc]\.?|г\.?т\.?|н\.?з\.?|n\.?z\.?)\s*(\d+)\s*-?\s*(\d+)\s*м/gi;
-    for(const c of cell){let m;while((m=CR.exec(c)))conds.push({t:lkCondName(m[1])+m[2],len:+m[3]});}
-    const pos=(hmeta&&hmeta[ni]&&hmeta[ni].pos)||{};
-    if(sect&&L!=null)rows.push({group:name,mark,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:pos.x||0,y:pos.y||0,mult:lkMult(blob)});
-    i=j;
+    for(const c of cell){let m;CR.lastIndex=0;while((m=CR.exec(c)))conds.push({t:lkCondName(m[1])+m[2],len:+m[3]});}
+    if(sect&&L!=null)rows.push({group:name,mark,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:x||0,y:y||0,mult:lkMult(blob)});
+  }
+  let i=0;
+  while(i<lines.length){
+    if(!isName(lines[i])){i++;continue;}
+    const meta=hmeta&&hmeta[i];
+    const segs=(meta&&meta.segs&&meta.segs.length)?meta.segs:[{x:(meta&&meta.pos?meta.pos.x:0),y:(meta&&meta.pos?meta.pos.y:0),s:lines[i]}];
+    const nameSegs=segs.filter(sg=>isName(sg.s));
+    if(nameSegs.length>=2){
+      // колоночный ряд: несколько фидеров бок о бок в одной строке — разбить по колонкам
+      used.add(i);const body=[];let j=i+1;
+      while(j<lines.length&&!isName(lines[j])&&body.length<3){body.push((hmeta[j]&&hmeta[j].segs)||[{x:0,y:0,s:lines[j]}]);used.add(j);j++;}
+      nameSegs.forEach(ns=>{const cell=[ns.s];
+        body.forEach(bs=>{const m=bs.filter(sg=>Math.abs(sg.x-ns.x)<75).sort((a,b)=>Math.abs(a.x-ns.x)-Math.abs(b.x-ns.x))[0];if(m)cell.push(m.s);});
+        pushCell(cell,ns.x,ns.y);});
+      i=j;
+    } else {
+      const cell=[lines[i]];used.add(i);let j=i+1;
+      while(j<lines.length&&!isName(lines[j])&&cell.length<5){cell.push(lines[j]);used.add(j);j++;}
+      const pos=(meta&&meta.pos)||{};pushCell(cell,pos.x,pos.y);
+      i=j;
+    }
   }
   return {rows,used};
 }
