@@ -145,7 +145,7 @@ function save(){localStorage.setItem(LS,JSON.stringify({...DB,_id}))}
 function load(){
   try{const raw=localStorage.getItem(LS);if(!raw)return false;
     const d=JSON.parse(raw);DB={projects:d.projects||[],stages:d.stages||null,sel:d.sel||null};_id=d._id||1000;
-    DB.projects.forEach(p=>{p.tasks=p.tasks||[]});
+    DB.projects.forEach(p=>{p.tasks=p.tasks||[];p.finIn=p.finIn||[];p.finOut=p.finOut||[]});
     return DB.projects.length>0;
   }catch(e){return false}
 }
@@ -206,6 +206,8 @@ function monthly(p){
     if(o.type==='adj')ev.push(o.amt>0?{m:monthKey(o.date),fin:o.amt}:{m:monthKey(o.date),fout:o.amt})});
   p.planIn.forEach(r=>{if(r.date>=t)ev.push({m:monthKey(r.date),pin:r.amt})});
   p.planOut.forEach(r=>{if(r.date>=t)ev.push({m:monthKey(r.date),pout:-Math.abs(r.amt)})});
+  (p.finIn||[]).forEach(r=>{if(r.date>=t)ev.push({m:monthKey(r.date),pin:r.amt})});
+  (p.finOut||[]).forEach(r=>{if(r.date>=t)ev.push({m:monthKey(r.date),pout:-Math.abs(r.amt)})});
   const keys=[...new Set(ev.map(e=>e.m))].filter(Boolean).sort();
   if(!keys.length)return[];
   // непрерывный диапазон месяцев
@@ -439,8 +441,10 @@ function delProject(){
 function renderProject(host,p){
   const fb=fundBalances(p);
   const cash=Object.values(fb).reduce((s,x)=>s+x.bal,0);
-  const got=p.ops.filter(o=>o.type==='in').reduce((s,o)=>s+o.amt,0);
-  const spent=p.ops.filter(o=>o.type==='out').reduce((s,o)=>s+Math.abs(o.amt),0);
+  const got=p.ops.filter(o=>o.type==='in'&&o.src!=='fin').reduce((s,o)=>s+o.amt,0);
+  const finGot=p.ops.filter(o=>o.type==='in'&&o.src==='fin').reduce((s,o)=>s+o.amt,0);
+  const finRet=p.ops.filter(o=>o.type==='out'&&o.src==='fin').reduce((s,o)=>s+Math.abs(o.amt),0);
+  const spent=p.ops.filter(o=>o.type==='out'&&o.src!=='fin').reduce((s,o)=>s+Math.abs(o.amt),0);
   const planOutLeft=p.planOut.filter(r=>r.date>=todayIso()).reduce((s,r)=>s+Math.abs(r.amt),0);
   const marginPlan=p.contract-spent-planOutLeft;
   const gap=firstGap(p);
@@ -465,10 +469,11 @@ function renderProject(host,p){
 
   const planRow=(r,kind)=>{
     const late=r.date<t;
-    const fundSel=kind==='out'?`<select onchange="updPlan('out','${r.id}','fund',this.value)" title="из какого фонда возьмутся деньги">
+    const needFund=kind==='out'||kind==='finout';
+    const fundSel=needFund?`<select onchange="updPlan('${kind}','${r.id}','fund',this.value)" title="из какого фонда возьмутся деньги">
       ${p.funds.map(f=>`<option value="${f.id}"${r.fund===f.id?' selected':''}>${esc(f.name)}</option>`).join('')}
       ${!r.fund?'<option value="" selected>— фонд?</option>':''}</select>`:'';
-    return `<div class="plan-row${kind==='out'?' with-fund':''}">
+    return `<div class="plan-row${needFund?' with-fund':''}">
       <input type="date" value="${r.date}" onchange="updPlan('${kind}','${r.id}','date',this.value)">
       <input type="number" value="${Math.abs(r.amt)}" style="text-align:right" onchange="updPlan('${kind}','${r.id}','amt',this.value)">
       ${fundSel}
@@ -492,8 +497,8 @@ function renderProject(host,p){
   const ops=[...p.ops].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const fname=id=>p.funds.find(f=>f.id===id)?.name||'—';
   const opRows=ops.length?ops.map(o=>{
-    if(o.type==='in')return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'поступление')}</div><div class="c">разложено по фондам: ${p.funds.map(f=>o.alloc[f.id]?esc(f.name.split(' ')[0])+' '+fmtM(o.alloc[f.id]):'').filter(Boolean).join(' · ')}</div></div><div class="am pos">+${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
-    if(o.type==='out')return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'расход')}</div><div class="c">из фонда: ${esc(fname(o.fund))}</div></div><div class="am neg">−${fmt(Math.abs(o.amt))}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
+    if(o.type==='in')return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'поступление')}</div><div class="c">${o.src==='fin'?'<b style="color:var(--amber)">финансирование</b> · ':''}разложено по фондам: ${p.funds.map(f=>o.alloc[f.id]?esc(f.name.split(' ')[0])+' '+fmtM(o.alloc[f.id]):'').filter(Boolean).join(' · ')}</div></div><div class="am pos">+${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
+    if(o.type==='out')return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'расход')}</div><div class="c">из фонда: ${esc(fname(o.fund))}${o.src==='fin'?' · <b style="color:var(--amber)">возврат финансирования</b>':''}</div></div><div class="am neg">−${fmt(Math.abs(o.amt))}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
     if(o.type==='adj')return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||(o.amt>0?'пополнение фонда вручную':'снятие из фонда вручную'))}</div><div class="c">ручное движение · фонд: ${esc(fname(o.fund))}</div></div><div class="am ${o.amt>0?'pos':'neg'}">${o.amt>0?'+':''}${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
     return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'перекладка между фондами')}</div><div class="c">${esc(fname(o.from))} → ${esc(fname(o.to))}</div></div><div class="am" style="color:var(--amber)">${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
   }).join(''):'<div style="color:var(--muted);font-size:12.5px;padding:8px 0">Операций пока нет.</div>';
@@ -506,6 +511,7 @@ function renderProject(host,p){
   <div class="kpis">
     <div class="kpi"><div class="k">Поступило</div><div class="v pos">${fmtM(got)}</div><div class="d">факт, ${Math.round(got/p.contract*100)||0}% договора</div></div>
     <div class="kpi"><div class="k">Потрачено</div><div class="v neg">${fmtM(spent)}</div><div class="d">факт из фондов</div></div>
+    <div class="kpi"><div class="k">Финансирование · долг</div><div class="v" style="color:var(--amber)">${(finGot||finRet)?fmtM(finGot-finRet):'—'}</div><div class="d">${(finGot||finRet)?('получено '+fmtM(finGot)+' · возвращено '+fmtM(finRet)):'займы и инвестиции в проект'}</div></div>
     <div class="kpi"><div class="k">Касса проекта</div><div class="v ${cash>=0?'pos':'neg'}">${fmtM(cash)}</div><div class="d">лежит на фондах сейчас</div></div>
     <div class="kpi"><div class="k">Останется по плану</div><div class="v ${marginPlan>=0?'pos':'neg'}">${fmtM(marginPlan)}</div><div class="d">договор − траты (факт+план)</div></div>
     <div class="kpi"><div class="k">Кассовый разрыв</div><div class="v ${gap?'neg':'pos'}">${gap?mLabel(gap.m):'не виден'}</div><div class="d">${gap?'не хватит '+fmtM(gap.short):'по текущему плану денег хватает'}</div>
@@ -546,9 +552,10 @@ function renderProject(host,p){
   <div class="forms">
     <div class="card">
       <div style="font-weight:700;font-size:14px;margin-bottom:10px;color:var(--green)">+ Внести поступление</div>
-      <div class="fgrid"><div><label>Дата</label><input type="date" id="inDate" value="${t}"></div>
-        <div><label>Сумма, ₸</label><input type="number" id="inAmt" placeholder="0" inputmode="numeric" oninput="previewAlloc()"></div></div>
-      <label>Комментарий</label><input id="inNote" placeholder="аванс / оплата этапа" style="margin-bottom:10px">
+      <div class="fgrid3"><div><label>Дата</label><input type="date" id="inDate" value="${t}"></div>
+        <div><label>Сумма, ₸</label><input type="number" id="inAmt" placeholder="0" inputmode="numeric" oninput="previewAlloc()"></div>
+        <div><label>Источник</label><select id="inSrc"><option value="contract">оплата по договору</option><option value="fin">финансирование</option></select></div></div>
+      <label>Комментарий</label><input id="inNote" placeholder="аванс / оплата этапа / займ" style="margin-bottom:10px">
       <label>Раскладка по фондам</label>
       <div style="display:flex;gap:14px;margin-bottom:9px">
         <label style="display:flex;align-items:center;gap:5px;text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:600;cursor:pointer;margin:0"><input type="radio" name="amode" value="pct" style="width:auto" ${Math.round(pctSum)===100?'checked':'disabled'} onchange="allocModeUI()"> по долям %${Math.round(pctSum)!==100?' <span style="color:var(--red);font-weight:400">(доли дают '+pctSum+'%)</span>':''}</label>
@@ -578,6 +585,7 @@ function renderProject(host,p){
         <div><label>Сумма, ₸</label><input type="number" id="outAmt" placeholder="0" inputmode="numeric" oninput="previewOut()"></div>
         <div><label>Из фонда</label><select id="outFund" onchange="previewOut()">${fundOpts}</select></div></div>
       <label>Комментарий</label><input id="outNote" placeholder="за что платёж" style="margin-bottom:8px">
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:600;cursor:pointer;margin:0 0 8px"><input type="checkbox" id="outFin" style="width:auto"> это возврат финансирования (займа / инвестору)</label>
       <div class="warn" id="outWarn"></div>
       <button class="btn red" onclick="addExpense()">Провести — списать из фонда</button>
       <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px">
@@ -593,6 +601,16 @@ function renderProject(host,p){
       </div>
     </div>
   </div>
+
+  <h2>План финансирования · займы и инвестиции в проект</h2>
+  <div class="explain">Деньги, которые зайдут в проект не по договору: займ компании, инвестор, собственное вливание. В кассе по месяцам — приход. Факт вносится формой «Внести поступление» с источником «финансирование».</div>
+  <div class="card">${(p.finIn||[]).length?(p.finIn||[]).map(r=>planRow(r,'finin')).join(''):'<div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">строк нет</div>'}
+    <button class="btn ghost" onclick="addPlan('finin')">+ строка финансирования</button></div>
+
+  <h2>План возврата инвестиций</h2>
+  <div class="explain">Когда и сколько вернуть: возврат займа, выплата инвестору — и из какого фонда вернём (обычно прибыль/резерв). В кассе по месяцам — расход. Факт — формой «Внести расход» с галочкой «возврат финансирования».</div>
+  <div class="card">${(p.finOut||[]).length?(p.finOut||[]).map(r=>planRow(r,'finout')).join(''):'<div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">строк нет</div>'}
+    <button class="btn ghost" onclick="addPlan('finout')">+ строка возврата</button></div>
 
   <h2>Задачи по деньгам · ${taskArr(p).filter(x=>!x.done).length} открытых</h2>
   <div class="explain">Что сделать, чтобы деньги были: собрать дебиторку, найти недостающее к разрыву, вернуть взятое в фонд. Быстрые кнопки «+ задача» есть у разрыва и у долгов фондов.</div>
@@ -664,8 +682,9 @@ function addIncome(){const p=P();
     document.querySelectorAll('.ma-amt').forEach(i=>{const v=Math.abs(parseFloat(i.value))||0;if(v){alloc[i.dataset.fid]=v;s+=v}});
     if(Math.round(s)!==Math.round(Math.abs(amt))){toast('Разложи всю сумму: распределено '+fmt(s)+' из '+fmt(Math.abs(amt))+' ₸','err');return}
   }
-  p.ops.push({id:uid(),type:'in',date,amt:Math.abs(amt),note:document.getElementById('inNote').value.trim(),alloc});
-  toast('Поступление разложено по фондам ✓');render()}
+  const src=document.getElementById('inSrc')?.value==='fin'?'fin':undefined;
+  p.ops.push({id:uid(),type:'in',date,amt:Math.abs(amt),note:document.getElementById('inNote').value.trim(),alloc,src});
+  toast(src?'Финансирование разложено по фондам ✓':'Поступление разложено по фондам ✓');render()}
 function previewOut(){const p=P();const amt=parseFloat(document.getElementById('outAmt').value)||0;
   const fid=document.getElementById('outFund').value;const el=document.getElementById('outWarn');
   const b=fundBalances(p)[fid];if(!amt||!b){el.style.display='none';return}
@@ -674,8 +693,9 @@ function previewOut(){const p=P();const amt=parseFloat(document.getElementById('
 function addExpense(){const p=P();
   const date=document.getElementById('outDate').value,amt=parseFloat(document.getElementById('outAmt').value);
   if(!date||!amt||amt<=0){toast('Укажи дату и сумму','err');return}
-  p.ops.push({id:uid(),type:'out',date,amt:-Math.abs(amt),fund:document.getElementById('outFund').value,note:document.getElementById('outNote').value.trim()});
-  toast('Расход списан из фонда ✓');render()}
+  const oSrc=document.getElementById('outFin')?.checked?'fin':undefined;
+  p.ops.push({id:uid(),type:'out',date,amt:-Math.abs(amt),fund:document.getElementById('outFund').value,note:document.getElementById('outNote').value.trim(),src:oSrc});
+  toast(oSrc?'Возврат финансирования списан из фонда ✓':'Расход списан из фонда ✓');render()}
 function moveFund(){const p=P();
   const from=document.getElementById('mvFrom').value,to=document.getElementById('mvTo').value;
   const amt=parseFloat(document.getElementById('mvAmt').value);
@@ -703,12 +723,16 @@ function quickTask(title,due){const p=P();
 function toggleTask(id){const p=P();const t=taskArr(p).find(x=>x.id===id);if(t)t.done=!t.done;render()}
 function delTask(id){const p=P();p.tasks=taskArr(p).filter(x=>x.id!==id);render()}
 function delOp(id){const p=P();if(!confirm('Удалить операцию?'))return;p.ops=p.ops.filter(o=>o.id!==id);render()}
-function addPlan(kind){const p=P();
-  const arr=kind==='in'?p.planIn:p.planOut;
-  arr.push({id:uid(),date:todayIso(),amt:kind==='in'?0:-0,note:''});render()}
-function updPlan(kind,id,key,val){const p=P();const arr=kind==='in'?p.planIn:p.planOut;
-  const r=arr.find(x=>x.id===id);if(!r)return;
-  if(key==='amt')r.amt=(kind==='in'?1:-1)*Math.abs(parseFloat(val)||0);
+function planArr(p,kind){
+  if(kind==='in')return p.planIn;
+  if(kind==='out')return p.planOut;
+  if(kind==='finin')return p.finIn=p.finIn||[];
+  return p.finOut=p.finOut||[];
+}
+function addPlan(kind){const p=P();planArr(p,kind).push({id:uid(),date:todayIso(),amt:0,note:''});render()}
+function updPlan(kind,id,key,val){const p=P();const r=planArr(p,kind).find(x=>x.id===id);if(!r)return;
+  const sign=(kind==='in'||kind==='finin')?1:-1;
+  if(key==='amt')r.amt=sign*Math.abs(parseFloat(val)||0);
   else if(key==='date')r.date=val;
   else if(key==='fund')r.fund=val;
   else r.note=val;render()}
@@ -724,12 +748,10 @@ function fundAdjPrefill(fid,dir){
   const f=document.getElementById('faFund'),d=document.getElementById('faDir');
   if(!f||!d)return;f.value=fid;d.value=dir;
   const a=document.getElementById('faAmt');a.scrollIntoView({block:'center',behavior:'smooth'});a.focus()}
-function movePlan(kind,id,days){const p=P();const arr=kind==='in'?p.planIn:p.planOut;
-  const r=arr.find(x=>x.id===id);if(!r||!r.date)return;
+function movePlan(kind,id,days){const p=P();const r=planArr(p,kind).find(x=>x.id===id);if(!r||!r.date)return;
   const d=new Date(r.date);d.setDate(d.getDate()+days);r.date=d.toISOString().slice(0,10);
   toast(days>0?'Сдвинуто на неделю позже ✓':'Сдвинуто на неделю раньше ✓');render()}
-function delPlan(kind,id){const p=P();
-  if(kind==='in')p.planIn=p.planIn.filter(x=>x.id!==id);else p.planOut=p.planOut.filter(x=>x.id!==id);render()}
+function delPlan(kind,id){const p=P();const arr=planArr(p,kind);const i=arr.findIndex(x=>x.id===id);if(i>=0)arr.splice(i,1);render()}
 
 /* ============ ЭКСПОРТ / ИМПОРТ ============ */
 function exportData(){
@@ -743,7 +765,7 @@ function importData(inp){
   rd.onload=()=>{try{const d=JSON.parse(rd.result);
     if(!Array.isArray(d.projects))throw 0;
     DB={projects:d.projects,stages:d.stages||null,sel:null};_id=d._id||9000;
-    DB.projects.forEach(p=>{p.tasks=p.tasks||[]});
+    DB.projects.forEach(p=>{p.tasks=p.tasks||[];p.finIn=p.finIn||[];p.finOut=p.finOut||[]});
     ensureStages();toast('Данные загружены ✓');render();
   }catch(e){toast('Не получилось прочитать файл','err')}};
   rd.readAsText(f);inp.value='';
@@ -776,6 +798,8 @@ function seedDemo(){
       {id:uid(),date:'2026-08-14',amt:-4600000,note:'ФОТ кабельные линии, финал',fund:fid[1]},
       {id:uid(),date:'2026-08-15',amt:-3600000,note:'ФОТ очередь 2, финал',fund:fid[1]},
       {id:uid(),date:'2026-08-18',amt:-1400000,note:'накладные, кабельные линии',fund:fid[3]}],
+    finIn:[{id:uid(),date:'2026-07-22',amt:15000000,note:'займ учредителя на закуп материалов'}],
+    finOut:[{id:uid(),date:'2026-09-10',amt:-15000000,note:'возврат займа учредителю',fund:fid[4]}],
     ops:[],
     tasks:[{id:uid(),title:'Выставить акт по этапу 4 и собрать оплату 50,4 млн',due:'2026-08-10',done:false}]};
   const inc=(date,amt,note)=>p.ops.push({id:uid(),type:'in',date,amt,note,alloc:alloc(amt)});
