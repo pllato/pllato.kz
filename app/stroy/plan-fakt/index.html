@@ -1547,6 +1547,17 @@ $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
 const LK={pages:[],name:''};
+/* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
+   пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
+   не вернёт, поэтому дробные сечения дочиниваем по паттерну «…х2 5» отдельной заменой. */
+function lkFixEnc(s){
+  if(/[--ư-ȗ]/.test(s))
+    s=[...s].map(ch=>{const c=ch.charCodeAt(0);
+      if(c>=1&&c<=0x1f&&c!==9&&c!==10&&c!==13)return String.fromCharCode(c+0x20);
+      if(c>=0x1b0&&c<=0x217)return String.fromCharCode(c+0x247);
+      return ch;}).join('');
+  return s.replace(/([xхХX×]\s*)([012])\s+(5|75)(?!\d)/g,'$1$2,$3');
+}
 const LK_SECTIONS=['3x1,5','3x2,5','4x1,5','4x2,5','3x4','4x4','3x6','5x4','5x6','3x10','5x10','5x16','5x25'];
 const LK_CONDS=['п.г.16','п.г.20','п.г.25','п.г.32','п.г.40','п.г.50','п.г.63','п.г.65','п.г.80','п.н.40','п.н.50','п.н.63','т.с.20','т.с.25','т.с.32','т.с.40','т.с.50','г.т.20','г.т.25','г.т.32','з.п.25','з.п.32','т.г.16','т.г.20','т.г.25','т.г.32','ст.т.20','ст.т.25'];
 /* строки из pdf.js text items. В однолинейных схемах текст потребителей ПОВЁРНУТ (вертикальный),
@@ -1621,7 +1632,7 @@ function lkParseVertical(items){
    Ловит: В1-н2, ВР1-к1, М1.1, М0.1, ЩА5.1-н1, НЩСР-1, НЩО-5, НШУФО-5, ШУ-ХПж1, Вар-н1. */
 const LK_NAME=/^["“]?\s*(?=[^;,\n]*[-\d])([A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё0-9.()]*(?:-[A-Za-zА-Яа-яЁёA-Za-z0-9.()]+)*)\s*[;,]/;
 function lkName(nm){return nm[1];}
-const LK_SECT=/(\d+)\s*[xхХ×]\s*(\d+(?:[,.]\d+)?)/;
+const LK_SECT=/(\d+)\s*[xхХX×]\s*(\d+(?:[,.]\d+)?)/;
 const LK_MARK=/(А[сcС]?\s*ВВГ|КВВГ|ВВГ|ШВВП|ПВ\d|ПГ\d)/;
 const LK_MARKNAME=/(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ПВ\d|ПГ\d)(?:[а-яёА-ЯA-Za-z0-9()\-\s]*?(?:FRLS|LS|HF))?/i;
 function lkMarkName(s){const m=(s||'').match(LK_MARKNAME);return m?m[0].replace(/\s+/g,'').replace(/^[-\s]+/,''):'';}
@@ -1675,7 +1686,7 @@ function lkParseLines(lines,hmeta){
    Ищем каждую спецификацию марка+сечение+длина в строке (в одной строке их может быть
    несколько — соседние колонки) и считаем отдельной линией. used — индексы строк, уже
    разобранных как именованные ячейки, чтобы не считать дважды. */
-const LK_SPEC_G=/(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ПВ\d)[а-яёА-ЯA-Za-z0-9()\-\s]*?(\d+)\s*[xхХ×]\s*(\d+(?:[,.]\d+)?)\s*мм[2²]?\s*\/?\s*-\s*(\d+(?:[,.]\d+)?)\s*м/gi;
+const LK_SPEC_G=/(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ПВ\d)[а-яёА-ЯA-Za-z0-9()\-\s]*?(\d+)\s*[xхХX×]\s*(\d+(?:[,.]\d+)?)\s*мм[2²]?\s*\/?\s*-\s*(\d+(?:[,.]\d+)?)\s*м/gi;
 function lkParseHorizLoose(lines,used,hmeta){
   const rows=[];
   lines.forEach((line,idx)=>{
@@ -1815,10 +1826,35 @@ function lkParseMarkFeedersH(items){
     if(sm)section=sm[1]+'x'+sm[2].replace('.',',');
     if(!section)return null;
     let len=0,clean=false;
-    const lm=joined.replace(LK_COND_RX,'').match(/-\s*(\d+(?:[,.]\d+)?)\s*м(?!м)/i)||joined.match(/L\s*=\s*(\d+(?:[,.]\d+)?)\s*м(?!м)/i);
+    const jc=joined.replace(LK_COND_RX,'');
+    const lm=jc.match(/-\s*(\d+(?:[,.]\d+)?)\s*м(?!м)/i)||jc.match(/L\s*=\s*(\d+(?:[,.]\d+)?)\s*м(?!м)/i)
+      ||jc.match(/(?:^|\s)(\d+(?:[,.]\d+)?)\s*м(?![А-Яа-яЁёA-Za-z0-9])/);   // голое «55м» в строке фидера (2435 S1)
     if(lm){len=parseFloat(lm[1].replace(',','.'));clean=true;}
     if(!clean){let best=null,bd=1e9;It.forEach(n=>{if(Math.abs(n.y-mk.y)>=20||Math.abs(n.x-mk.x)>=180||!/^\d+(?:[.,]\d+)?$/.test(n.s))return;const v=parseFloat(n.s.replace(',','.'));if(v>5&&v<=300){const d=Math.hypot(n.x-mk.x,n.y-mk.y);if(d<bd){bd=d;best=v;}}});if(best!=null)len=best;}
-    return {mark:lkMarkName(mk.s),section,len,x:mk.x,y:mk.y,needsCheck:!clean,o:'H'};
+    // обозначение группы — ближайший «№…» слева в той же строке (2435 S1: «№ВН1(1»; бывает raw-V)
+    const gIt=It.filter(o=>Math.abs(o.y-mk.y)<15&&o.x<mk.x&&o.x>mk.x-120&&/№./.test(o.s)).sort((a,b)=>b.x-a.x)[0];
+    return {mark:lkMarkName(mk.s),section,len,x:mk.x,y:mk.y,needsCheck:!clean,group:gIt?gIt.s:'',o:'H'};
+  }).filter(Boolean);
+}
+/* «Кабельный журнал» (НЭС 2435): записи — колонки по X, полосы значений — по Y заголовков
+   («Дли»/«на м.» — длина кабеля, «до» — потребитель). Длина из журнала достоверная (зелёная).
+   Множитель ниток — «2хАВВГнг…» перед маркой. */
+function lkParseJournal(items){
+  const It=items.map(it=>({s:(it.str||'').trim(),x:it.transform[4],y:it.transform[5],rot:Math.abs(it.transform[1])>Math.abs(it.transform[0])?'V':'H'})).filter(o=>o.s);
+  if(!It.some(o=>/Кабельный\s*журнал/i.test(o.s)))return [];
+  const hd=re=>{const h=It.find(o=>re.test(o.s));return h?h.y:null;};
+  const yL=hd(/^Дли/)??hd(/^на\s*м\.?$/), yDo=hd(/^до$/);
+  if(yL==null)return [];
+  const marks=It.filter(o=>o.rot==='V'&&LK_MARK.test(o.s));
+  return marks.map(mk=>{
+    const sm=mk.s.match(LK_SECT);if(!sm)return null;
+    const col=It.filter(o=>o!==mk&&Math.abs(o.x-mk.x)<10);
+    const lenIt=col.filter(o=>Math.abs(o.y-yL)<18&&/^\d+(?:[ .,]\d+)?$/.test(o.s)).sort((a,b)=>Math.abs(a.y-yL)-Math.abs(b.y-yL))[0];
+    if(!lenIt)return null;
+    const doIt=yDo!=null?col.filter(o=>Math.abs(o.y-yDo)<20).sort((a,b)=>Math.abs(a.y-yDo)-Math.abs(b.y-yDo))[0]:null;
+    const mult=+((mk.s.match(/^(\d+)\s*[хxX]/)||[])[1]||1);
+    return {group:doIt?doIt.s:'—',mark:lkMarkName(mk.s),section:sm[1]+'x'+sm[2].replace('.',','),
+      len:parseFloat(lenIt.s.replace(/\s+/,'.').replace(',','.')),conds:[],x:mk.x,y:mk.y,mult:Math.max(1,Math.min(9,mult))};
   }).filter(Boolean);
 }
 /* зоны авторских таблиц «ПОТРЕБНОСТЬ …» — марки/сечения оттуда не фидеры (S8 л.5: 5x35 из таблицы) */
@@ -1853,9 +1889,10 @@ async function lkExtract(data,onProgress){
   const pdf=await pdfjsLib.getDocument({data}).promise;const N=pdf.numPages;const pages=[];
   for(let p=1;p<=N;p++){if(onProgress)onProgress(p,N);
     const page=await pdf.getPage(p);const tc=await page.getTextContent();
+    tc.items.forEach(it=>{if(it.str)it.str=lkFixEnc(it.str);});
     const {vitems,hlines,hmeta}=lkLinesFromItems(tc.items);
     const hp=lkParseLines(hlines,hmeta);
-    const rows=lkExpandMult(lkParseVertical(vitems).concat(lkParseOneLine(vitems)).concat(hp.rows).concat(lkParseHorizLoose(hlines,hp.used,hmeta))).concat(lkParseBus(tc.items));
+    const rows=lkExpandMult(lkParseVertical(vitems).concat(lkParseOneLine(vitems)).concat(hp.rows).concat(lkParseHorizLoose(hlines,hp.used,hmeta)).concat(lkParseJournal(tc.items))).concat(lkParseBus(tc.items));
     // по-фидерно неполно (голая длина/векторные подписи) + есть авторская таблица «Потребность в кабелях»:
     // добираем ВСЕ марки-фидеры отдельными строками с точками; длина ненадёжна → needsCheck (красная точка).
     const ctab=lkParseCableTable(tc.items);let potrebOv=null;
@@ -1875,7 +1912,7 @@ async function lkExtract(data,onProgress){
       mf=lkParseMarkFeeders(tc.items).filter(m=>!inBox(m)&&!dupV(m)).concat(lkParseMarkFeedersH(tc.items).filter(m=>!inBox(m)&&!dupH(m)));
     }
     if(mf.length>=2 && mf.length>=rows.length){
-      mf.forEach(m=>rows.push({group:'',mark:m.mark,section:m.section,len:m.len,conds:[],x:m.x,y:m.y,mult:1,needsCheck:m.needsCheck}));
+      mf.forEach(m=>rows.push({group:m.group||'',mark:m.mark,section:m.section,len:m.len,conds:[],x:m.x,y:m.y,mult:1,needsCheck:m.needsCheck}));
       if(ctab.length){potrebOv={};ctab.forEach(r=>{potrebOv[r.section]=(potrebOv[r.section]||0)+r.len;});}
     }
     if(!rows.length){page.cleanup&&page.cleanup();continue;}
