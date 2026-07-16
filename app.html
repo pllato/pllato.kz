@@ -454,6 +454,57 @@ body {
 .tool-badge.new { background: var(--green); color: #fff; }
 .tool-badge.external { background: var(--indigo); color: #fff; }
 
+/* ===== Деньги по сделке на плашке ===== */
+.money-strip { margin-top: 12px; border-top: 1px solid var(--line-2); padding-top: 10px; cursor: pointer; }
+.money-strip.empty { color: var(--text-3); }
+.money-strip .ms-add { font-size: 12px; font-weight: 700; color: var(--text-3); }
+.money-strip:hover .ms-add { color: var(--bronze-deep); }
+.money-strip .ms-bar { height: 6px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.money-strip .ms-bar i { display: block; height: 100%; border-radius: 4px; }
+.money-strip .ms-row { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 12px; font-weight: 800; }
+.money-strip .ms-l { color: var(--text); }
+.money-strip .ms-d { color: #dc2626; }
+.money-strip .ms-ok { color: var(--green); }
+.money-sum { background: var(--surface); border: 1px solid var(--line-2); border-radius: 14px; padding: 13px 18px; margin-bottom: 18px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+.money-sum .mtot .l { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-3); font-weight: 700; }
+.money-sum .mtot .v { font-size: 19px; font-weight: 800; letter-spacing: -0.01em; }
+.money-sum .mtot .v.g { color: var(--green); } .money-sum .mtot .v.r { color: #dc2626; }
+.money-sum .msp { margin-left: auto; font-size: 12.5px; color: var(--bronze-deep); font-weight: 700; cursor: pointer; user-select: none; }
+.money-feed { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--line-2); width: 100%; display: none; }
+.money-feed.show { display: block; }
+.money-feed .mf { display: flex; gap: 12px; padding: 7px 0; font-size: 12.5px; border-bottom: 1px solid var(--line-2); }
+.money-feed .mf:last-child { border-bottom: none; }
+.money-feed .mf .d { color: var(--text-3); width: 104px; flex: none; font-weight: 600; }
+.money-feed .mf .n { color: var(--text); flex: 1; }
+.money-feed .mf .s { font-weight: 800; color: var(--green); white-space: nowrap; }
+.money-ovl { position: fixed; inset: 0; background: rgba(20,20,25,0.5); display: none; align-items: flex-start; justify-content: center; z-index: 300; padding: 44px 16px; overflow-y: auto; }
+.money-ovl.show { display: flex; }
+.money-modal { background: var(--surface); border: 1px solid var(--line-2); border-radius: 16px; max-width: 520px; width: 100%; box-shadow: var(--shadow-md); overflow: hidden; }
+.money-modal .mm-h { padding: 16px 20px; border-bottom: 1px solid var(--line-2); display: flex; align-items: center; gap: 12px; }
+.money-modal .mm-h h3 { font-size: 16px; font-weight: 800; flex: 1; }
+.money-modal .mm-x { cursor: pointer; font-size: 20px; color: var(--text-3); line-height: 1; }
+.money-modal .mm-b { padding: 16px 20px; }
+.mm-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.mm-grid .c { border: 1px solid var(--line-2); border-radius: 10px; padding: 9px 11px; }
+.mm-grid .c .l { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-3); font-weight: 700; }
+.mm-grid .c .v { font-size: 15px; font-weight: 800; margin-top: 2px; }
+.mm-grid .c.g .v { color: var(--green); } .mm-grid .c.r .v { color: #dc2626; }
+.mm-b label { font-size: 11px; font-weight: 700; color: var(--text-2); display: block; margin-bottom: 4px; }
+.mm-b input { width: 100%; border: 1px solid var(--line-2); border-radius: 9px; padding: 9px 11px; font-size: 13.5px; background: var(--surface); color: var(--text); }
+.mm-pt { font-size: 11px; font-weight: 700; color: var(--text-2); margin: 14px 0 4px; }
+.mm-pays { border: 1px solid var(--line-2); border-radius: 10px; overflow: hidden; }
+.mm-pay { display: flex; align-items: center; gap: 10px; padding: 9px 12px; font-size: 13px; border-bottom: 1px solid var(--line-2); }
+.mm-pay:last-child { border-bottom: none; }
+.mm-pay .pd { color: var(--text-2); font-weight: 700; width: 108px; flex: none; }
+.mm-pay .psum { margin-left: auto; font-weight: 800; color: var(--green); }
+.mm-pay .pdel { cursor: pointer; color: var(--text-3); font-size: 16px; }
+.mm-pay.empty { color: var(--text-3); justify-content: center; }
+.mm-add { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.mm-add input { flex: 1; min-width: 108px; }
+.mm-add button { background: var(--green); color: #fff; font-weight: 700; font-size: 13px; padding: 9px 15px; border-radius: 9px; border: none; cursor: pointer; }
+.mm-f { padding: 12px 20px; border-top: 1px solid var(--line-2); display: flex; gap: 8px; justify-content: flex-end; }
+.mm-f button { font-weight: 700; font-size: 13px; padding: 9px 16px; border-radius: 9px; border: 1px solid var(--line-2); background: var(--surface); color: var(--text); cursor: pointer; }
+
 /* ===== Карточка с действиями + выпадающий список (сайт-лендинг) ===== */
 .tool-card .tool-cta.as-link { text-decoration: none; }
 .tool-dd {
@@ -2097,6 +2148,7 @@ function initProjectGroups(){
     card.appendChild(btn);
   });
   buildProjectTabs();
+  injectMoney();
 }
 
 function buildProjectTabs(){
@@ -2171,6 +2223,124 @@ function openSharePop(card, btn, href){
     window.open('https://wa.me/?text=' + encodeURIComponent('Ссылка на демо (доступ временный): ' + link), '_blank');
   });
 }
+
+// ===== Деньги по сделке на каждой плашке (сумма / получено / платежи по датам) =====
+const MONEY_KEY = 'pllato_money_v1';
+let MONEY = {};
+function saveMoney(){ try { localStorage.setItem(MONEY_KEY, JSON.stringify(MONEY)); } catch(e){} }
+(function(){
+  const raw = localStorage.getItem(MONEY_KEY);
+  if (raw) { try { MONEY = JSON.parse(raw) || {}; } catch(e){ MONEY = {}; } }
+  else {
+    const seed = { sella_crm:2100000, agrosklad_portal:1500000, magistral_rail:1500000, genius_school:1500000, rl_system:2000000, gulzar_flowers:1350000 };
+    Object.entries(seed).forEach(([id,d]) => { MONEY[id] = { deal:d, pays:[] }; });
+    saveMoney();
+  }
+})();
+function mEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function mDeal(id){ return (MONEY[id] && +MONEY[id].deal) || 0; }
+function mRecv(id){ return ((MONEY[id] && MONEY[id].pays) || []).reduce((a,p)=>a+(+p.sum||0),0); }
+function mDebt(id){ return Math.max(0, mDeal(id) - mRecv(id)); }
+function fmtT(n){ return Math.round(n||0).toLocaleString('ru-RU') + ' ₸'; }
+function shortT(n){ n=Math.round(n||0); return n>=1e6 ? (n/1e6).toFixed(n%1e6? 1:0).replace('.',',')+' млн' : n>=1000 ? Math.round(n/1000)+'к' : String(n); }
+function fmtD(iso){ if(!iso) return ''; const p=String(iso).split('-'); return p.length===3 ? p[2]+'.'+p[1]+'.'+p[0] : iso; }
+function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function mCard(id){ return document.querySelector('.tool-card[data-app-id="'+CSS.escape(id)+'"]'); }
+function projName(id){ const c=mCard(id); return ((c && c.querySelector('h3') && c.querySelector('h3').textContent) || id).trim(); }
+
+function injectMoney(){
+  document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
+    if (card.querySelector('.money-strip')) return;
+    if (card.dataset.group && card.dataset.group !== 'Работа с клиентами') return; // деньги — только по клиентским проектам
+    const id = card.dataset.appId;
+    const strip = document.createElement('div');
+    strip.className = 'money-strip';
+    strip.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openMoneyModal(id); });
+    card.appendChild(strip);
+    renderMoneyStrip(id);
+  });
+  ensureMoneySummary();
+  renderMoneySummary();
+}
+function renderMoneyStrip(id){
+  const card = mCard(id); const strip = card && card.querySelector('.money-strip');
+  if (!strip) return;
+  const deal=mDeal(id), got=mRecv(id), debt=mDebt(id);
+  if (!deal && !got){ strip.classList.add('empty'); strip.innerHTML='<span class="ms-add">＋ указать сумму сделки</span>'; return; }
+  strip.classList.remove('empty');
+  const pct = deal ? Math.min(100, Math.round(got/deal*100)) : 0;
+  strip.innerHTML = '<div class="ms-bar"><i style="width:'+pct+'%;background:'+(debt?'var(--orange)':'var(--green)')+'"></i></div>'
+    + '<div class="ms-row"><span class="ms-l">💰 '+shortT(got)+' / '+shortT(deal)+'</span>'
+    + (debt ? '<span class="ms-d">−'+shortT(debt)+'</span>' : '<span class="ms-ok">оплачено ✓</span>') + '</div>';
+}
+function ensureMoneySummary(){
+  if (document.getElementById('moneySum')) return;
+  const tabs = document.getElementById('projectTabs');
+  if (!tabs) return;
+  const el = document.createElement('div'); el.className='money-sum'; el.id='moneySum';
+  tabs.insertAdjacentElement('afterend', el);
+}
+function allPaysSorted(){
+  const out=[];
+  Object.keys(MONEY).forEach(id => (MONEY[id].pays||[]).forEach(p => out.push({ id, d:p.d, sum:p.sum })));
+  return out.sort((a,b)=> String(b.d||'').localeCompare(String(a.d||'')));
+}
+function renderMoneySummary(){
+  const el = document.getElementById('moneySum'); if (!el) return;
+  let deal=0, got=0;
+  Object.keys(MONEY).forEach(id => { deal+=mDeal(id); got+=mRecv(id); });
+  const debt = Math.max(0, deal-got);
+  const feed = allPaysSorted();
+  const wasOpen = el.querySelector('.money-feed.show');
+  el.innerHTML =
+    '<div class="mtot"><div class="l">Сумма сделок</div><div class="v">'+fmtT(deal)+'</div></div>'
+    + '<div class="mtot"><div class="l">Получено</div><div class="v g">'+fmtT(got)+'</div></div>'
+    + '<div class="mtot"><div class="l">Остаток</div><div class="v r">'+fmtT(debt)+'</div></div>'
+    + '<span class="msp" id="msToggle">'+(wasOpen?'▴ свернуть':'▾ поступления по датам ('+feed.length+')')+'</span>'
+    + '<div class="money-feed'+(wasOpen?' show':'')+'" id="moneyFeed">'
+    + (feed.length ? feed.slice(0,25).map(p=>'<div class="mf"><span class="d">'+fmtD(p.d)+'</span><span class="n">'+mEsc(projName(p.id))+'</span><span class="s">+ '+fmtT(p.sum)+'</span></div>').join('')
+        : '<div style="color:var(--text-3);font-size:12.5px;padding:6px 0">Платежей пока нет — добавьте на карточке проекта (клик по строке денег внизу плашки).</div>')
+    + '</div>';
+  const t=document.getElementById('msToggle'), f=document.getElementById('moneyFeed');
+  if (t && f) t.addEventListener('click', () => { f.classList.toggle('show'); t.textContent = f.classList.contains('show') ? '▴ свернуть' : ('▾ поступления по датам ('+feed.length+')'); });
+}
+
+let _mmId = null;
+function openMoneyModal(id){
+  _mmId = id;
+  MONEY[id] = MONEY[id] || { deal:0, pays:[] };
+  MONEY[id].pays = MONEY[id].pays || [];
+  let ovl = document.getElementById('moneyOvl');
+  if (!ovl){ ovl=document.createElement('div'); ovl.id='moneyOvl'; ovl.className='money-ovl'; ovl.addEventListener('click', e=>{ if(e.target===ovl) closeMoney(); }); document.body.appendChild(ovl); }
+  renderMoneyModal();
+  ovl.classList.add('show');
+}
+function closeMoney(){ const o=document.getElementById('moneyOvl'); if(o) o.classList.remove('show'); _mmId=null; }
+document.addEventListener('keydown', e => { if (e.key==='Escape') closeMoney(); });
+function renderMoneyModal(){
+  const id=_mmId, ovl=document.getElementById('moneyOvl'); if(!id||!ovl) return;
+  const pays=(MONEY[id].pays||[]).map((p,i)=>({d:p.d,sum:p.sum,i})).sort((a,b)=>String(b.d||'').localeCompare(String(a.d||'')));
+  ovl.innerHTML = '<div class="money-modal">'
+    + '<div class="mm-h"><h3>💰 '+mEsc(projName(id))+'</h3><span class="mm-x" onclick="closeMoney()">✕</span></div>'
+    + '<div class="mm-b">'
+    + '<div class="mm-grid" id="mmGrid">'+moneyGrid(id)+'</div>'
+    + '<label>Сумма сделки, ₸</label><input id="mmDeal" type="number" min="0" step="1000" value="'+mDeal(id)+'" oninput="setMoneyDeal(this.value)">'
+    + '<div class="mm-pt">Платежи · что когда зашло</div>'
+    + '<div class="mm-pays">'
+    + (pays.length ? pays.map(p=>'<div class="mm-pay"><span class="pd">'+fmtD(p.d)+'</span><span>оплата поступила</span><span class="psum">+ '+fmtT(p.sum)+'</span><span class="pdel" title="удалить" onclick="delMoneyPay('+p.i+')">✕</span></div>').join('')
+        : '<div class="mm-pay empty">Платежей ещё не было — добавьте первый.</div>')
+    + '</div>'
+    + '<div class="mm-add"><input id="mmPaySum" type="number" min="0" placeholder="сумма, ₸"><input id="mmPayDate" type="date" value="'+todayISO()+'"><button onclick="addMoneyPay()">＋ Платёж</button></div>'
+    + '</div><div class="mm-f"><button onclick="closeMoney()">Готово</button></div></div>';
+}
+function moneyGrid(id){ return '<div class="c"><div class="l">Сумма сделки</div><div class="v">'+fmtT(mDeal(id))+'</div></div>'
+  + '<div class="c g"><div class="l">Получено</div><div class="v">'+fmtT(mRecv(id))+'</div></div>'
+  + '<div class="c r"><div class="l">Остаток</div><div class="v">'+fmtT(mDebt(id))+'</div></div>'; }
+function setMoneyDeal(v){ if(!_mmId) return; MONEY[_mmId].deal=Math.max(0,parseInt(v)||0); saveMoney(); const g=document.getElementById('mmGrid'); if(g)g.innerHTML=moneyGrid(_mmId); renderMoneyStrip(_mmId); renderMoneySummary(); }
+function addMoneyPay(){ if(!_mmId) return; const sum=parseInt(document.getElementById('mmPaySum').value)||0; const d=document.getElementById('mmPayDate').value||todayISO(); if(sum<=0) return; MONEY[_mmId].pays.push({d,sum}); saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
+function delMoneyPay(i){ if(!_mmId) return; MONEY[_mmId].pays.splice(i,1); saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
+// модуль → выносим обработчики inline onclick в global-скоуп
+Object.assign(window, { openMoneyModal, closeMoney, setMoneyDeal, addMoneyPay, delMoneyPay });
 
 function applyProjectFilters(){
   document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
