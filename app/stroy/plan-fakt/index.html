@@ -1563,7 +1563,7 @@ const LK_CONDS=['п.г.16','п.г.20','п.г.25','п.г.32','п.г.40','п.г.50
 /* строки из pdf.js text items. В однолинейных схемах текст потребителей ПОВЁРНУТ (вертикальный),
    и pdf.js отдаёт каждую такую строку целым элементом → берём как есть, упорядочиваем в порядок ячеек.
    Горизонтальный текст (заголовки, сводные таблицы) собираем по Y. */
-const LK_MARKSTART=/^["“]?\s*(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ПВ\d)/i;
+const LK_MARKSTART=/^["“]?\s*(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ПВ\s?\d)/i;
 function lkLinesFromItems(items){
   const vert=[],hby={};
   items.forEach(it=>{const s=(it.str||'').trim();if(!s)return;const t=it.transform;
@@ -1633,8 +1633,8 @@ function lkParseVertical(items){
 const LK_NAME=/^["“]?\s*(?=[^;,\n]*[-\d])([A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё0-9.()]*(?:-[A-Za-zА-Яа-яЁёA-Za-z0-9.()]+)*)\s*[;,]/;
 function lkName(nm){return nm[1];}
 const LK_SECT=/(\d+)\s*[xхХX×]\s*(\d+(?:[,.]\d+)?)/;
-const LK_MARK=/(А[сcС]?\s*ВВГ|КВВГ|ВВГ|ШВВП|ПВ\d|ПГ\d)/;
-const LK_MARKNAME=/(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ПВ\d|ПГ\d)(?:[а-яёА-ЯA-Za-z0-9()\-\s]*?(?:FRLS|LS|HF))?/i;
+const LK_MARK=/(А[сcС]?\s*ВВГ|КВВГ|ВВГ|ШВВП|ПВ\s?\d|ПГ\d)/;
+const LK_MARKNAME=/(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ПВ\s?\d|ПГ\d)(?:[а-яёА-ЯA-Za-z0-9()\-\s]*?(?:FRLS|LS|HF))?/i;
 function lkMarkName(s){const m=(s||'').match(LK_MARKNAME);return m?m[0].replace(/\s+/g,'').replace(/^[-\s]+/,''):'';}
 const LK_LEN_DASH=/-\s*(\d+(?:[,.]\d+)?)\s*м/g;
 /* m→т: курсивная кириллическая «т» попадает в текстовый слой латинской «m» (022 л.10 «m.г.25») */
