@@ -1650,6 +1650,12 @@ function lkParseLines(lines,hmeta){
     if(nameSegs.length>=2){
       // колоночный ряд: несколько фидеров бок о бок в одной строке — разбить по колонкам
       used.add(i);const body=[];let j=i+1;
+      // осколок ТОГО ЖЕ ряда: имя-строка в ≤5пт по Y — y-бакеты (±2пт) разносят один физический ряд
+      // (S5 л.14: «ЩА5.1…» на y=809.8, остальные ячейки на 811.3); имена — в колонки, прочее — в тело
+      while(j<lines.length&&isName(lines[j])&&hmeta[j]&&hmeta[j].pos&&meta&&meta.pos&&Math.abs(hmeta[j].pos.y-meta.pos.y)<=5){
+        const fs=(hmeta[j].segs||[]);fs.filter(sg=>isName(sg.s)).forEach(sg=>nameSegs.push(sg));
+        const rest=fs.filter(sg=>!isName(sg.s));if(rest.length)body.push(rest);
+        used.add(j);j++;}
       while(j<lines.length&&!isName(lines[j])&&body.length<3){body.push((hmeta[j]&&hmeta[j].segs)||[{x:0,y:0,s:lines[j]}]);used.add(j);j++;}
       nameSegs.forEach(ns=>{const cell=[ns.s];
         body.forEach(bs=>{const m=bs.filter(sg=>Math.abs(sg.x-ns.x)<75).sort((a,b)=>Math.abs(a.x-ns.x)-Math.abs(b.x-ns.x))[0];if(m)cell.push(m.s);});
