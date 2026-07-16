@@ -465,6 +465,18 @@ body {
 .money-strip .ms-l { color: var(--text); }
 .money-strip .ms-d { color: #dc2626; }
 .money-strip .ms-ok { color: var(--green); }
+.money-strip .ms-cur { font-size: 9px; background: var(--surface-2); color: var(--text-2); padding: 0 4px; border-radius: 4px; font-weight: 800; }
+.money-sum .mrate { margin-left: auto; font-size: 12px; color: var(--text-2); font-weight: 700; cursor: pointer; user-select: none; border: 1px solid var(--line-2); border-radius: 8px; padding: 5px 10px; }
+.money-sum .mrate:hover { color: var(--bronze-deep); border-color: var(--bronze-deep); }
+.money-sum .msp { margin-left: 0; }
+.mm-cur { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.mm-cur .l { font-size: 11px; font-weight: 700; color: var(--text-2); }
+.mm-cur button { border: 1px solid var(--line-2); background: var(--surface); border-radius: 8px; padding: 6px 12px; font-size: 12.5px; font-weight: 700; color: var(--text-2); cursor: pointer; }
+.mm-cur button.on { background: var(--green); color: #fff; border-color: var(--green); }
+.mm-cur .cnote { font-size: 11.5px; color: var(--text-3); }
+.mm-cur .cnote a { color: var(--bronze-deep); cursor: pointer; text-decoration: underline; }
+.mm-grid .c .ke { font-size: 10.5px; color: var(--text-3); font-weight: 700; margin-top: 2px; }
+.mm-pay .ke2 { font-size: 10.5px; color: var(--text-3); font-weight: 600; margin-left: 4px; }
 .money-sum { background: var(--surface); border: 1px solid var(--line-2); border-radius: 14px; padding: 13px 18px; margin-bottom: 18px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
 .money-sum .mtot .l { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-3); font-weight: 700; }
 .money-sum .mtot .v { font-size: 19px; font-weight: 800; letter-spacing: -0.01em; }
@@ -2226,22 +2238,32 @@ function openSharePop(card, btn, href){
 
 // ===== Деньги по сделке на каждой плашке (сумма / получено / платежи по датам) =====
 const MONEY_KEY = 'pllato_money_v1';
+const RATE_KEY = 'pllato_usd_rate';
 let MONEY = {};
+let RATE = 530; // ₸ за $1 (редактируется)
 function saveMoney(){ try { localStorage.setItem(MONEY_KEY, JSON.stringify(MONEY)); } catch(e){} }
+function saveRate(){ try { localStorage.setItem(RATE_KEY, String(RATE)); } catch(e){} }
 (function(){
+  const r = parseFloat(localStorage.getItem(RATE_KEY)); if (r > 0) RATE = r;
   const raw = localStorage.getItem(MONEY_KEY);
   if (raw) { try { MONEY = JSON.parse(raw) || {}; } catch(e){ MONEY = {}; } }
   else {
-    const seed = { sella_crm:2100000, agrosklad_portal:1500000, magistral_rail:1500000, genius_school:1500000, rl_system:2000000, gulzar_flowers:1350000 };
-    Object.entries(seed).forEach(([id,d]) => { MONEY[id] = { deal:d, pays:[] }; });
+    const seed = { sella_crm:{deal:2100000}, agrosklad_portal:{deal:1500000}, magistral_rail:{deal:1500000}, genius_school:{deal:1500000}, rl_system:{deal:2000000}, gulzar_flowers:{deal:2700,cur:'USD'} };
+    Object.entries(seed).forEach(([id,o]) => { MONEY[id] = { deal:o.deal, pays:[], cur:o.cur||'KZT' }; });
     saveMoney();
   }
+  // мягкая миграция: Оранжерея считается в долларах ($2700)
+  if (MONEY.gulzar_flowers && !MONEY.gulzar_flowers.cur && MONEY.gulzar_flowers.deal === 1350000) { MONEY.gulzar_flowers.deal = 2700; MONEY.gulzar_flowers.cur = 'USD'; saveMoney(); }
 })();
 function mEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function curOf(id){ return (MONEY[id] && MONEY[id].cur) || 'KZT'; }
+function symOf(id){ return curOf(id)==='USD' ? '$' : '₸'; }
+function toKZT(id, amt){ return curOf(id)==='USD' ? (amt||0)*RATE : (amt||0); }
 function mDeal(id){ return (MONEY[id] && +MONEY[id].deal) || 0; }
 function mRecv(id){ return ((MONEY[id] && MONEY[id].pays) || []).reduce((a,p)=>a+(+p.sum||0),0); }
 function mDebt(id){ return Math.max(0, mDeal(id) - mRecv(id)); }
 function fmtT(n){ return Math.round(n||0).toLocaleString('ru-RU') + ' ₸'; }
+function fmtCur(id, n){ n=Math.round(n||0); return curOf(id)==='USD' ? '$' + n.toLocaleString('ru-RU') : n.toLocaleString('ru-RU') + ' ₸'; }
 function shortT(n){ n=Math.round(n||0); return n>=1e6 ? (n/1e6).toFixed(n%1e6? 1:0).replace('.',',')+' млн' : n>=1000 ? Math.round(n/1000)+'к' : String(n); }
 function fmtD(iso){ if(!iso) return ''; const p=String(iso).split('-'); return p.length===3 ? p[2]+'.'+p[1]+'.'+p[0] : iso; }
 function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -2265,13 +2287,15 @@ function injectMoney(){
 function renderMoneyStrip(id){
   const card = mCard(id); const strip = card && card.querySelector('.money-strip');
   if (!strip) return;
-  const deal=mDeal(id), got=mRecv(id), debt=mDebt(id);
-  if (!deal && !got){ strip.classList.add('empty'); strip.innerHTML='<span class="ms-add">＋ указать сумму сделки</span>'; return; }
+  const dealN=mDeal(id), gotN=mRecv(id);
+  if (!dealN && !gotN){ strip.classList.add('empty'); strip.innerHTML='<span class="ms-add">＋ указать сумму сделки</span>'; return; }
   strip.classList.remove('empty');
-  const pct = deal ? Math.min(100, Math.round(got/deal*100)) : 0;
-  strip.innerHTML = '<div class="ms-bar"><i style="width:'+pct+'%;background:'+(debt?'var(--orange)':'var(--green)')+'"></i></div>'
-    + '<div class="ms-row"><span class="ms-l">💰 '+shortT(got)+' / '+shortT(deal)+'</span>'
-    + (debt ? '<span class="ms-d">−'+shortT(debt)+'</span>' : '<span class="ms-ok">оплачено ✓</span>') + '</div>';
+  const dealK=toKZT(id,dealN), gotK=toKZT(id,gotN), debtK=Math.max(0,dealK-gotK);
+  const pct = dealK ? Math.min(100, Math.round(gotK/dealK*100)) : 0;
+  const usd = curOf(id)==='USD';
+  strip.innerHTML = '<div class="ms-bar"><i style="width:'+pct+'%;background:'+(debtK?'var(--orange)':'var(--green)')+'"></i></div>'
+    + '<div class="ms-row"><span class="ms-l">💰 '+shortT(gotK)+' / '+shortT(dealK)+' ₸'+(usd?' <span class="ms-cur">$</span>':'')+'</span>'
+    + (debtK ? '<span class="ms-d">−'+shortT(debtK)+'</span>' : '<span class="ms-ok">оплачено ✓</span>') + '</div>';
 }
 function ensureMoneySummary(){
   if (document.getElementById('moneySum')) return;
@@ -2288,7 +2312,7 @@ function allPaysSorted(){
 function renderMoneySummary(){
   const el = document.getElementById('moneySum'); if (!el) return;
   let deal=0, got=0;
-  Object.keys(MONEY).forEach(id => { deal+=mDeal(id); got+=mRecv(id); });
+  Object.keys(MONEY).forEach(id => { deal+=toKZT(id,mDeal(id)); got+=toKZT(id,mRecv(id)); });
   const debt = Math.max(0, deal-got);
   const feed = allPaysSorted();
   const wasOpen = el.querySelector('.money-feed.show');
@@ -2296,20 +2320,23 @@ function renderMoneySummary(){
     '<div class="mtot"><div class="l">Сумма сделок</div><div class="v">'+fmtT(deal)+'</div></div>'
     + '<div class="mtot"><div class="l">Получено</div><div class="v g">'+fmtT(got)+'</div></div>'
     + '<div class="mtot"><div class="l">Остаток</div><div class="v r">'+fmtT(debt)+'</div></div>'
+    + '<span class="mrate" onclick="editRate()">курс $ = '+RATE+' ₸ ✎</span>'
     + '<span class="msp" id="msToggle">'+(wasOpen?'▴ свернуть':'▾ поступления по датам ('+feed.length+')')+'</span>'
     + '<div class="money-feed'+(wasOpen?' show':'')+'" id="moneyFeed">'
-    + (feed.length ? feed.slice(0,25).map(p=>'<div class="mf"><span class="d">'+fmtD(p.d)+'</span><span class="n">'+mEsc(projName(p.id))+'</span><span class="s">+ '+fmtT(p.sum)+'</span></div>').join('')
+    + (feed.length ? feed.slice(0,25).map(p=>'<div class="mf"><span class="d">'+fmtD(p.d)+'</span><span class="n">'+mEsc(projName(p.id))+(curOf(p.id)==='USD'?' · $'+Math.round(p.sum).toLocaleString('ru-RU'):'')+'</span><span class="s">+ '+fmtT(toKZT(p.id,p.sum))+'</span></div>').join('')
         : '<div style="color:var(--text-3);font-size:12.5px;padding:6px 0">Платежей пока нет — добавьте на карточке проекта (клик по строке денег внизу плашки).</div>')
     + '</div>';
   const t=document.getElementById('msToggle'), f=document.getElementById('moneyFeed');
   if (t && f) t.addEventListener('click', () => { f.classList.toggle('show'); t.textContent = f.classList.contains('show') ? '▴ свернуть' : ('▾ поступления по датам ('+feed.length+')'); });
 }
+function editRate(){ const v=parseFloat(prompt('Курс доллара — сколько ₸ за $1:', RATE)); if(!v||v<=0) return; RATE=v; saveRate(); document.querySelectorAll('.tool-card[data-app-id]').forEach(c=>renderMoneyStrip(c.dataset.appId)); renderMoneySummary(); if(_mmId) renderMoneyModal(); }
 
 let _mmId = null;
 function openMoneyModal(id){
   _mmId = id;
-  MONEY[id] = MONEY[id] || { deal:0, pays:[] };
+  MONEY[id] = MONEY[id] || { deal:0, pays:[], cur:'KZT' };
   MONEY[id].pays = MONEY[id].pays || [];
+  MONEY[id].cur = MONEY[id].cur || 'KZT';
   let ovl = document.getElementById('moneyOvl');
   if (!ovl){ ovl=document.createElement('div'); ovl.id='moneyOvl'; ovl.className='money-ovl'; ovl.addEventListener('click', e=>{ if(e.target===ovl) closeMoney(); }); document.body.appendChild(ovl); }
   renderMoneyModal();
@@ -2319,28 +2346,36 @@ function closeMoney(){ const o=document.getElementById('moneyOvl'); if(o) o.clas
 document.addEventListener('keydown', e => { if (e.key==='Escape') closeMoney(); });
 function renderMoneyModal(){
   const id=_mmId, ovl=document.getElementById('moneyOvl'); if(!id||!ovl) return;
+  const usd = curOf(id)==='USD';
   const pays=(MONEY[id].pays||[]).map((p,i)=>({d:p.d,sum:p.sum,i})).sort((a,b)=>String(b.d||'').localeCompare(String(a.d||'')));
   ovl.innerHTML = '<div class="money-modal">'
     + '<div class="mm-h"><h3>💰 '+mEsc(projName(id))+'</h3><span class="mm-x" onclick="closeMoney()">✕</span></div>'
     + '<div class="mm-b">'
+    + '<div class="mm-cur"><span class="l">Валюта проекта</span>'
+      + '<button class="'+(!usd?'on':'')+'" onclick="setMoneyCur(\'KZT\')">₸ тенге</button>'
+      + '<button class="'+(usd?'on':'')+'" onclick="setMoneyCur(\'USD\')">$ доллар</button>'
+      + (usd?'<span class="cnote">курс $ = '+RATE+' ₸ · <a onclick="editRate()">изменить</a></span>':'') + '</div>'
     + '<div class="mm-grid" id="mmGrid">'+moneyGrid(id)+'</div>'
-    + '<label>Сумма сделки, ₸</label><input id="mmDeal" type="number" min="0" step="1000" value="'+mDeal(id)+'" oninput="setMoneyDeal(this.value)">'
+    + '<label>Сумма сделки, '+symOf(id)+'</label><input id="mmDeal" type="number" min="0" step="'+(usd?'50':'1000')+'" value="'+mDeal(id)+'" oninput="setMoneyDeal(this.value)">'
     + '<div class="mm-pt">Платежи · что когда зашло</div>'
     + '<div class="mm-pays">'
-    + (pays.length ? pays.map(p=>'<div class="mm-pay"><span class="pd">'+fmtD(p.d)+'</span><span>оплата поступила</span><span class="psum">+ '+fmtT(p.sum)+'</span><span class="pdel" title="удалить" onclick="delMoneyPay('+p.i+')">✕</span></div>').join('')
+    + (pays.length ? pays.map(p=>'<div class="mm-pay"><span class="pd">'+fmtD(p.d)+'</span><span class="psum">+ '+fmtCur(id,p.sum)+(usd?' <span class="ke2">≈ '+fmtT(toKZT(id,p.sum))+'</span>':'')+'</span><span class="pdel" title="удалить" onclick="delMoneyPay('+p.i+')">✕</span></div>').join('')
         : '<div class="mm-pay empty">Платежей ещё не было — добавьте первый.</div>')
     + '</div>'
-    + '<div class="mm-add"><input id="mmPaySum" type="number" min="0" placeholder="сумма, ₸"><input id="mmPayDate" type="date" value="'+todayISO()+'"><button onclick="addMoneyPay()">＋ Платёж</button></div>'
+    + '<div class="mm-add"><input id="mmPaySum" type="number" min="0" placeholder="сумма, '+symOf(id)+'"><input id="mmPayDate" type="date" value="'+todayISO()+'"><button onclick="addMoneyPay()">＋ Платёж</button></div>'
     + '</div><div class="mm-f"><button onclick="closeMoney()">Готово</button></div></div>';
 }
-function moneyGrid(id){ return '<div class="c"><div class="l">Сумма сделки</div><div class="v">'+fmtT(mDeal(id))+'</div></div>'
-  + '<div class="c g"><div class="l">Получено</div><div class="v">'+fmtT(mRecv(id))+'</div></div>'
-  + '<div class="c r"><div class="l">Остаток</div><div class="v">'+fmtT(mDebt(id))+'</div></div>'; }
+function moneyGrid(id){ const usd=curOf(id)==='USD';
+  const cell=(cls,label,nat,kzt)=>'<div class="c '+cls+'"><div class="l">'+label+'</div><div class="v">'+nat+'</div>'+(usd?'<div class="ke">≈ '+fmtT(kzt)+'</div>':'')+'</div>';
+  return cell('','Сумма сделки',fmtCur(id,mDeal(id)),toKZT(id,mDeal(id)))
+    + cell('g','Получено',fmtCur(id,mRecv(id)),toKZT(id,mRecv(id)))
+    + cell('r','Остаток',fmtCur(id,mDebt(id)),toKZT(id,mDebt(id))); }
+function setMoneyCur(c){ if(!_mmId) return; MONEY[_mmId].cur=c; saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
 function setMoneyDeal(v){ if(!_mmId) return; MONEY[_mmId].deal=Math.max(0,parseInt(v)||0); saveMoney(); const g=document.getElementById('mmGrid'); if(g)g.innerHTML=moneyGrid(_mmId); renderMoneyStrip(_mmId); renderMoneySummary(); }
 function addMoneyPay(){ if(!_mmId) return; const sum=parseInt(document.getElementById('mmPaySum').value)||0; const d=document.getElementById('mmPayDate').value||todayISO(); if(sum<=0) return; MONEY[_mmId].pays.push({d,sum}); saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
 function delMoneyPay(i){ if(!_mmId) return; MONEY[_mmId].pays.splice(i,1); saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openMoneyModal, closeMoney, setMoneyDeal, addMoneyPay, delMoneyPay });
+Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate });
 
 function applyProjectFilters(){
   document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
