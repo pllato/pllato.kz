@@ -4,16 +4,17 @@
 <script src="/app/gate.js"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>East Peak · портал управления фрирайд-турами</title>
+<title>EastPole · портал управления фрирайд-турами</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
  --bg:#eef2f8;--panel:#ffffff;--ink:#0e1b2e;--mut:#5b6b82;--faint:#93a1b5;
  --ln:#e3e9f1;--ln2:#f1f5fa;
- --acc:#2563eb;--accD:#1d4ed8;--accL:#e5edff;
- --cy:#0ea5e9;--cyL:#e0f4fe;
- --grn:#16a34a;--grnL:#e4f7ec;--grnD:#0f7a37;
- --amb:#e79a2b;--ambL:#fdf0da;
+ --acc:#066aab;--accD:#05537f;--accL:#e1eff8;
+ --cy:#0a86c9;--cyL:#e0f2fb;
+ --gold:#f5a800;--goldL:#fef2d3;
+ --grn:#008749;--grnL:#e2f4ec;--grnD:#0f7a37;
+ --amb:#f5a800;--ambL:#fef2d3;
  --red:#e2503d;--redL:#fdeae7;
  --viol:#7c3aed;--violL:#efe7fe;
  --tl:#0d9488;--tlL:#d9f3f0;
@@ -28,7 +29,7 @@ input,select{font-family:inherit;font-size:14px;color:inherit}
 /* ===== sidebar ===== */
 .side{background:#0e1b2e;color:#c7d3e6;display:flex;flex-direction:column;overflow-y:auto}
 .logo{display:flex;align-items:center;gap:11px;padding:18px 18px 14px}
-.logo .lm{width:40px;height:40px;border-radius:12px;background:linear-gradient(140deg,#0ea5e9,#2563eb);display:grid;place-items:center;flex:none}
+.logo .lm{width:40px;height:40px;border-radius:12px;background:linear-gradient(140deg,#0a86c9,#066aab);display:grid;place-items:center;flex:none}
 .logo .lt{font-size:17px;font-weight:800;color:#fff;letter-spacing:.02em}
 .logo .ls{font-size:10.5px;color:#7d8db0;margin-top:1px}
 .demo{margin:0 14px 12px;background:rgba(37,99,235,.14);border:1px solid rgba(37,99,235,.3);border-radius:11px;padding:10px 12px;font-size:11px;color:#aebfdd;line-height:1.5}
@@ -37,13 +38,13 @@ input,select{font-family:inherit;font-size:14px;color:inherit}
 .nav button{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;color:#b6c4dd;font-size:13.5px;font-weight:600;text-align:left;position:relative}
 .nav button svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.9;flex:none}
 .nav button:hover{background:rgba(255,255,255,.05);color:#fff}
-.nav button.on{background:linear-gradient(120deg,#1d4ed8,#2563eb);color:#fff;box-shadow:0 6px 16px -8px rgba(37,99,235,.8)}
+.nav button.on{background:linear-gradient(120deg,#05537f,#066aab);color:#fff;box-shadow:0 6px 16px -8px rgba(37,99,235,.8)}
 .nav button .b{margin-left:auto;background:#e2503d;color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:10px;display:grid;place-items:center;padding:0 5px}
 .nav button.on .b{background:rgba(255,255,255,.25)}
 .reset{margin:8px 14px;font-size:11.5px;color:#6b7ca0;cursor:pointer}
 .reset:hover{color:#c7d3e6}
 .who{margin-top:auto;padding:13px 16px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px}
-.who .av{width:34px;height:34px;border-radius:10px;background:linear-gradient(140deg,#0ea5e9,#2563eb);display:grid;place-items:center;font-weight:800;font-size:12px;color:#fff;flex:none}
+.who .av{width:34px;height:34px;border-radius:10px;background:linear-gradient(140deg,#0a86c9,#066aab);display:grid;place-items:center;font-weight:800;font-size:12px;color:#fff;flex:none}
 .who .wn{font-size:13px;font-weight:700;color:#fff}.who .ws{font-size:11px;color:#7d8db0}
 /* ===== main ===== */
 .main{display:flex;flex-direction:column;overflow:hidden}
@@ -65,7 +66,7 @@ input,select{font-family:inherit;font-size:14px;color:inherit}
 .pop .pi{display:flex;gap:11px;padding:11px 15px;border-bottom:1px solid var(--ln2)}
 .pop .pi .ic{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;font-size:14px;background:var(--accL)}
 .pop .pi .tx{font-size:12.5px;line-height:1.4}.pop .pi .tm{font-size:10.5px;color:var(--faint);margin-top:2px}
-.addbtn{background:linear-gradient(120deg,#1d4ed8,#2563eb);color:#fff;font-weight:800;font-size:13px;padding:11px 16px;border-radius:11px;white-space:nowrap;box-shadow:0 8px 18px -8px rgba(37,99,235,.7)}
+.addbtn{background:linear-gradient(120deg,#05537f,#066aab);color:#fff;font-weight:800;font-size:13px;padding:11px 16px;border-radius:11px;white-space:nowrap;box-shadow:0 8px 18px -8px rgba(37,99,235,.7)}
 .addbtn:hover{transform:translateY(-1px)}
 .body{flex:1;overflow-y:auto;padding:22px}
 .screen{display:none;max-width:1240px;margin:0 auto}.screen.on{display:block;animation:fd .18s}
@@ -77,7 +78,7 @@ input,select{font-family:inherit;font-size:14px;color:inherit}
 .note.b{background:var(--cyL);color:#0b5a80}.note.g{background:var(--grnL);color:var(--grnD)}.note.a{background:var(--ambL);color:#8a5a10}
 /* buttons */
 .btn{font-weight:700;font-size:13px;padding:9px 14px;border-radius:10px;display:inline-flex;align-items:center;gap:7px}
-.btn.pri{background:linear-gradient(120deg,#1d4ed8,#2563eb);color:#fff}
+.btn.pri{background:linear-gradient(120deg,#05537f,#066aab);color:#fff}
 .btn.grn{background:linear-gradient(120deg,#0f7a37,#16a34a);color:#fff}
 .btn.gh{background:var(--panel);color:var(--ink);border:1px solid var(--ln)}
 .btn.gh:hover{border-color:var(--acc);color:var(--accD)}
@@ -251,7 +252,7 @@ input,select{font-family:inherit;font-size:14px;color:inherit}
 /* payment page */
 .paycard{max-width:420px;margin:0 auto;text-align:center}
 .paycard .plogo{display:inline-flex;align-items:center;gap:9px;margin-bottom:14px}
-.paycard .plm{width:34px;height:34px;border-radius:10px;background:linear-gradient(140deg,#0ea5e9,#2563eb);display:grid;place-items:center}
+.paycard .plm{width:34px;height:34px;border-radius:10px;background:linear-gradient(140deg,#0a86c9,#066aab);display:grid;place-items:center}
 .paysum{background:var(--ln2);border-radius:14px;padding:16px;margin:14px 0;text-align:left}
 .paysum .row{display:flex;justify-content:space-between;padding:5px 0;font-size:13px}
 .paysum .tot{border-top:1px solid var(--ln);margin-top:6px;padding-top:10px;font-weight:800;font-size:17px}
@@ -264,7 +265,7 @@ input,select{font-family:inherit;font-size:14px;color:inherit}
 .siteurl{background:var(--ln2);border-bottom:1px solid var(--ln);padding:9px 15px;font-size:12px;color:var(--mut);display:flex;align-items:center;gap:9px}
 .siteurl .dots{display:flex;gap:5px}.siteurl .dots i{width:9px;height:9px;border-radius:50%;background:#d3dbe6}
 .sitebar{background:#fff;border-radius:7px;padding:5px 12px;font-size:12px;color:var(--mut);flex:1;border:1px solid var(--ln)}
-.sitehero{background:linear-gradient(150deg,#0e1b2e 30%,#1d4ed8);color:#fff;padding:34px 30px;position:relative;overflow:hidden}
+.sitehero{background:linear-gradient(150deg,#0e1b2e 25%,#066aab);color:#fff;padding:34px 30px;position:relative;overflow:hidden}
 .sitehero::after{content:"🏔️";position:absolute;right:22px;bottom:-6px;font-size:120px;opacity:.16}
 .sitehero .tag{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8fb4ff}
 .sitehero h2{font-size:30px;font-weight:900;margin:8px 0;max-width:520px;line-height:1.1}
@@ -285,7 +286,7 @@ input,select{font-family:inherit;font-size:14px;color:inherit}
 /* misc */
 .bars{display:flex;align-items:flex-end;gap:8px;height:130px;padding-top:8px}
 .bcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end}
-.bk2{width:100%;max-width:30px;border-radius:6px 6px 0 0;background:linear-gradient(180deg,#3b82f6,#1d4ed8)}
+.bk2{width:100%;max-width:30px;border-radius:6px 6px 0 0;background:linear-gradient(180deg,#2b9fd6,#066aab)}
 .bcol .bl{font-size:10px;color:var(--faint)}.bcol .bv{font-size:11px;font-weight:800}
 .spark{display:block}
 .empty{text-align:center;color:var(--faint);padding:30px}
@@ -318,8 +319,8 @@ input,select{font-family:inherit;font-size:14px;color:inherit}
 <div class="app">
   <aside class="side" id="side">
     <div class="logo">
-      <div class="lm"><svg viewBox="0 0 32 32" width="22" height="22"><path d="M3 26L12 9l5 9 3-5 6 13z" fill="#fff"/><circle cx="23" cy="8" r="3" fill="#bfe3ff"/></svg></div>
-      <div><div class="lt">East&nbsp;Peak</div><div class="ls">фрирайд · заброска · гиды</div></div>
+      <div class="lm"><svg viewBox="0 0 32 32" width="23" height="23"><path d="M3 25L12 11l9 14z" fill="#fff"/><path d="M13 25L21 9l8 16z" fill="#fff" opacity=".78"/><path d="M9 3l.9 3.1 3.1.9-3.1.9L9 12l-.9-3.1L5 8l3.1-.9z" fill="#f5a800"/></svg></div>
+      <div><div class="lt">EastPole</div><div class="ls">outdoor company · фрирайд</div></div>
     </div>
     <div class="demo">Демо-портал управления. <b>Вместо таблиц и переписок</b> — всё в одном: календарь загрузки, брони с привязкой к транспорту, гиды, оплаты. Данные вымышленные, всё кликается и сохраняется.</div>
     <div class="ngrp">Операции</div>
@@ -341,7 +342,7 @@ input,select{font-family:inherit;font-size:14px;color:inherit}
       <button data-s="robots"><svg viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4M9 14h.01M15 14h.01M2 13v3M22 13v3"/></svg>Рассылки · роботы</button>
     </nav>
     <div class="reset" onclick="resetDemo()">↻ сбросить демо</div>
-    <div class="who"><div class="av" id="uAv">МН</div><div><div class="wn" id="uName">Менеджер</div><div class="ws">East Peak · демо</div></div></div>
+    <div class="who"><div class="av" id="uAv">МН</div><div><div class="wn" id="uName">Менеджер</div><div class="ws">EastPole · демо</div></div></div>
   </aside>
 
   <div class="main">
@@ -460,17 +461,21 @@ input,select{font-family:inherit;font-size:14px;color:inherit}
 
       <!-- САЙТ -->
       <section class="screen" id="s-site">
-        <div class="ph"><h1>Сайт · бронирование</h1><span class="sub">пример виджета для eastpeak.kz — заявки падают прямо в портал</span></div>
+        <div class="ph"><h1>Сайт · бронирование</h1><span class="sub">пример виджета для eastpole.kz — заявки падают прямо в портал</span></div>
         <div class="note b">🌐 <b>Витрина для клиента.</b> Гость выбирает даты в календаре (занятые — недоступны), оставляет заявку — и она сразу появляется в «Бронях» со статусом «заявка». Дальше менеджер подтверждает и высылает ссылку на оплату. Ниже — рабочий пример.</div>
         <div class="siteframe">
-          <div class="siteurl"><div class="dots"><i></i><i></i><i></i></div><div class="sitebar">🔒 eastpeak.kz / бронирование</div></div>
+          <div class="siteurl"><div class="dots"><i></i><i></i><i></i></div><div class="sitebar">🔒 eastpole.kz / бронирование</div></div>
           <div class="sitehero">
-            <div class="sitelang"><button class="on">RU</button><button>KZ</button><button>EN</button><button>中文</button></div>
-            <div class="tag">East Peak · Восточный Казахстан</div>
-            <h2>Фрирайд там, где ещё дикие склоны</h2>
-            <p>Заброска ратраком, снегоходом или вертолётом. Горные гиды, проживание на базе в горах. Сезон — декабрь–март.</p>
+            <div class="sitelang"><button class="on">RU</button><button>EN</button><button>KZ</button><button>中文</button></div>
+            <div class="tag">EastPole · Западный Алтай, Казахстан</div>
+            <h2>Первый фрирайд-кэтскиинг проект в Казахстане</h2>
+            <p>Кэтскиинг, хели-ски и ски-тур по нетронутым склонам. Горные гиды, заброска ратраком, снегоходом и вертолётом, проживание на базе в горах. Сезон — декабрь–март.</p>
           </div>
           <div class="bookwidget" id="siteWidget"></div>
+          <div style="background:#0e1b2e;color:#aebfdd;padding:16px 26px;display:flex;gap:20px;flex-wrap:wrap;align-items:center;font-size:12.5px">
+            <div style="display:flex;align-items:center;gap:8px"><span style="width:26px;height:26px;border-radius:8px;background:linear-gradient(140deg,#0a86c9,#066aab);display:grid;place-items:center"><svg viewBox="0 0 32 32" width="15" height="15"><path d="M3 25L12 11l9 14z" fill="#fff"/><path d="M13 25L21 9l8 16z" fill="#fff" opacity=".78"/><path d="M9 3l.9 3.1 3.1.9-3.1.9L9 12l-.9-3.1L5 8l3.1-.9z" fill="#f5a800"/></svg></span><b style="color:#fff">EastPole</b> · outdoor company</div>
+            <span>📞 +7 777 135 44 45</span><span>✉️ eastpole365@gmail.com</span><span>📍 Западный Алтай, ВКО</span><span>📷 @eastpolekz</span>
+          </div>
         </div>
       </section>
 
@@ -521,7 +526,7 @@ function daysBetween(a,b){return range(a,b).length;}
 function addDays(s,n){const d=parseD(s);d.setDate(d.getDate()+n);return ds(d.getFullYear(),d.getMonth(),d.getDate());}
 
 /* ===== состояние ===== */
-const KEY='eastpeak_state_v1';
+const KEY='eastpole_state_v1';
 let ST,ROLE='mgr',CALM={y:2027,m:1},BFILT='all',SITESEL={from:null,to:null};
 function save(){localStorage.setItem(KEY,JSON.stringify(ST));}
 function load(){try{ST=JSON.parse(localStorage.getItem(KEY));}catch(e){}if(!ST||!ST.bookings)ST=defaults();}
@@ -591,11 +596,11 @@ function renderDash(){
     kpiTile('v','🎿','Выходов гидов',ST.guides.reduce((a,g)=>a+guideOuts(g.id),0),'фонд ЗП '+shortM(payrollTotal()));
   // загрузка по неделям (доля мест-дней)
   const weeks=['52','1','2','3','4','5','6','7'];const load=[38,52,61,58,70,66,74,63];
-  $('dashLoad').innerHTML=sparkline(load,'#2563eb')+'<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin-top:4px">'+weeks.map(w=>'<span>нед '+w+'</span>').join('')+'</div>';
+  $('dashLoad').innerHTML=sparkline(load,'#066aab')+'<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin-top:4px">'+weeks.map(w=>'<span>нед '+w+'</span>').join('')+'</div>';
   // воронки
   const nw=now.filter(b=>cli(b.clientId).funnel==='new'),rp=now.filter(b=>cli(b.clientId).funnel==='repeat');
   $('dashFunnel').innerHTML=
-    funBar('Новые клиенты','#0ea5e9',nw.length,now.length)+
+    funBar('Новые клиенты','#0a86c9',nw.length,now.length)+
     funBar('Повторные','#16a34a',rp.length,now.length)+
     '<div style="margin-top:9px;font-size:12px;color:var(--mut)">Повторных <b style="color:var(--ink)">'+Math.round(rp.length/now.length*100)+'%</b> — костяк базы приезжает из года в год.</div>';
   // ближайшие заезды
@@ -734,7 +739,7 @@ function advanceStatus(id){const b=ST.bookings.find(x=>x.id===id);const i=STATUS
 function openPay(id){const b=ST.bookings.find(x=>x.id===id);if(!b)return;const c=cli(b.clientId);const debt=b.price-b.paid;
   const prepay=b.status==='заявка'||b.status==='бронь'?Math.round(debt*0.3):debt;
   let h='<div class="mh"><h2>Ссылка на оплату</h2><span class="mx" onclick="closeM(\'payOvl\')">✕</span></div><div class="mbody"><div class="paycard">';
-  h+='<div class="plogo"><div class="plm"><svg viewBox="0 0 32 32" width="20" height="20"><path d="M3 26L12 9l5 9 3-5 6 13z" fill="#fff"/></svg></div><b style="font-size:16px">East Peak · оплата</b></div>';
+  h+='<div class="plogo"><div class="plm"><svg viewBox="0 0 32 32" width="20" height="20"><path d="M3 25L12 11l9 14z" fill="#fff"/><path d="M13 25L21 9l8 16z" fill="#fff" opacity=".78"/><path d="M9 3l.9 3.1 3.1.9-3.1.9L9 12l-.9-3.1L5 8l3.1-.9z" fill="#f5a800"/></svg></div><b style="font-size:16px">EastPole · оплата</b></div>';
   h+='<div style="font-size:13px;color:var(--mut)">Бронь '+esc(b.id)+' · '+esc(c.name)+' '+flag(c.country)+'</div>';
   h+='<div class="paysum"><div class="row"><span>Тур '+dfmt(b.from)+'–'+dfmt(b.to)+' ('+b.days+' дн.)</span><span>'+fmtCur(b.price,b.cur)+'</span></div>'+
      '<div class="row"><span>'+transLabel(b)+'</span><span></span></div>'+
@@ -844,7 +849,7 @@ function renderFinance(){
   $('finRev').innerHTML='<div class="bars">'+months.map((m,i)=>'<div class="bcol"><div class="bv">'+shortM(vals[i])+'</div><div class="bk2" style="height:'+Math.round(vals[i]/mx*100)+'%"></div><div class="bl">'+MONN[m].slice(0,3)+'</div></div>').join('')+'</div>';
   // по услугам
   const svc={ratrak:0,snow:0,heli:0,room:0};bs.forEach(b=>{(b.transport||[]).forEach(t=>{const T=tr(t.tId);svc[T.kind]+=t.seats*b.days*(T.kind==='ratrak'?(b.cur==='EUR'?200*EURKZT:90000):T.kind==='snow'?60000:1000000)/1;});if(b.roomId)svc.room+=b.days*b.pax*35000;});
-  const svcRows=[['🚜 Ратраки',svc.ratrak,'#2563eb'],['🛷 Снегоходы',svc.snow,'#0ea5e9'],['🚁 Вертолёт',svc.heli,'#7c3aed'],['🏠 Проживание',svc.room,'#16a34a']];
+  const svcRows=[['🚜 Ратраки (кэтскиинг)',svc.ratrak,'#066aab'],['🛷 Снегоходы',svc.snow,'#0a86c9'],['🚁 Вертолёт',svc.heli,'#7c3aed'],['🏠 Проживание',svc.room,'#16a34a']];
   const svcMax=Math.max(...svcRows.map(r=>r[1]),1);
   $('finBySvc').innerHTML=svcRows.map(r=>'<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px"><span style="font-weight:700">'+r[0]+'</span><span>'+shortM(r[1])+' ₸</span></div><div style="height:8px;background:var(--ln2);border-radius:5px;overflow:hidden"><i style="display:block;height:100%;width:'+Math.round(r[1]/svcMax*100)+'%;background:'+r[2]+';border-radius:5px"></i></div></div>').join('');
   // payroll table
@@ -869,7 +874,7 @@ function renderAnalytics(){
   // конверсия воронки
   const stages=[['заявка',bs.filter(b=>STATUS_ORDER.indexOf(b.status)>=0).length],['бронь',bs.filter(b=>STATUS_ORDER.indexOf(b.status)>=1).length],['предоплата',bs.filter(b=>STATUS_ORDER.indexOf(b.status)>=2).length],['оплачено',bs.filter(b=>STATUS_ORDER.indexOf(b.status)>=3).length],['завершён',bs.filter(b=>b.status==='завершён').length]];
   const smax=stages[0][1]||1;
-  $('anFunnel').innerHTML=stages.map((s,i)=>'<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="font-weight:700">'+s[0]+'</span><span>'+s[1]+' · '+Math.round(s[1]/smax*100)+'%</span></div><div style="height:22px;background:var(--ln2);border-radius:6px;overflow:hidden"><i style="display:block;height:100%;width:'+Math.round(s[1]/smax*100)+'%;background:linear-gradient(90deg,#1d4ed8,#0ea5e9);border-radius:6px"></i></div></div>').join('');
+  $('anFunnel').innerHTML=stages.map((s,i)=>'<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="font-weight:700">'+s[0]+'</span><span>'+s[1]+' · '+Math.round(s[1]/smax*100)+'%</span></div><div style="height:22px;background:var(--ln2);border-radius:6px;overflow:hidden"><i style="display:block;height:100%;width:'+Math.round(s[1]/smax*100)+'%;background:linear-gradient(90deg,#066aab,#0a86c9);border-radius:6px"></i></div></div>').join('');
   // повторные
   const rep=ST.clients.filter(c=>c.funnel==='repeat').length,tot=ST.clients.length;
   $('anRepeat').innerHTML=donutSvg(Math.round(rep/tot*100),'#16a34a')+'<div style="text-align:center;font-size:13px;color:var(--mut);margin-top:6px"><b style="color:var(--ink);font-size:15px">'+rep+' из '+tot+'</b> клиентов — повторные.<br>Бронируют одними и теми же гидами из года в год.</div>';
@@ -917,7 +922,7 @@ function siteSubmit(){if(!SITESEL.from||!SITESEL.to){toast('Выберите д�
 /* ===== РОБОТЫ ===== */
 function renderRobots(){
   const rows=[
-    ['🆕','Новая заявка','сразу','«Спасибо за заявку в East Peak! Проверяем свободные даты и вернёмся в течение часа.»'],
+    ['🆕','Новая заявка','сразу','«Спасибо за заявку в EastPole! Проверяем свободные даты и вернёмся в течение часа.»'],
     ['✓','Бронь подтверждена','при подтверждении','«Забронировали! Даты, транспорт и условия — во вложении. Для закрепления брони внесите предоплату 30% по ссылке.»'],
     ['💳','Ссылка на оплату','по кнопке','«Оплата брони EP-… по защищённой ссылке. Карта / Apple Pay. Комиссия эквайринга включена.»'],
     ['🎫','За 2 дня до заезда','автоматически','«Ждём вас '+'! Чек-ин утром по QR из Wallet. Список снаряжения и погода — в кабинете.»'],
@@ -977,10 +982,10 @@ function defaults(){
   for(let i=1;i<=11;i++)rooms.push({id:'r'+i,name:'Номер '+i,cap:2});
   rooms.push({id:'rg',name:'Гидовский',cap:6});
   const transport=[
-    {id:'rt1',kind:'ratrak',name:'Ратрак 1',cap:14,color:'#2563eb'},
-    {id:'rt2',kind:'ratrak',name:'Ратрак 2',cap:14,color:'#1d4ed8'},
+    {id:'rt1',kind:'ratrak',name:'Ратрак 1',cap:14,color:'#066aab'},
+    {id:'rt2',kind:'ratrak',name:'Ратрак 2',cap:14,color:'#05537f'},
     {id:'rt3',kind:'ratrak',name:'Ратрак 3',cap:14,color:'#0ea5e9'},
-    {id:'rt4',kind:'ratrak',name:'Ратрак 4 (группы)',cap:14,color:'#3b82f6'},
+    {id:'rt4',kind:'ratrak',name:'Ратрак 4 (группы)',cap:14,color:'#2b9fd6'},
     {id:'sn',kind:'snow',name:'Снегоходы',cap:5,color:'#7c3aed'},
     {id:'heli',kind:'heli',name:'Вертолёт',cap:1,color:'#0d9488'},
   ];
@@ -1058,7 +1063,7 @@ load();renderAll();
 (function(){const RD=['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];const dt=new Date();const s=RD[dt.getDay()]+', '+dt.getDate()+' '+MON[dt.getMonth()];$('dashDate').textContent=s.charAt(0).toUpperCase()+s.slice(1);})();
 const q=new URLSearchParams(location.search);
 if(q.get('s'))nav(q.get('s'));
-setTimeout(()=>toast('Это <b>East Peak</b> — демо-портал управления фрирайд-турами. <b>Календарь загрузки</b> (номера + транспорт по датам), брони с привязкой к ратракам и гидам, чек-ин по QR, ссылки на оплату и <b>форма заявки с сайта</b>. Всё кликается и сохраняется. Роли — сверху справа.'),800);
+setTimeout(()=>toast('Это <b>EastPole</b> — демо-портал управления фрирайд-турами. <b>Календарь загрузки</b> (номера + транспорт по датам), брони с привязкой к ратракам и гидам, чек-ин по QR, ссылки на оплату и <b>форма заявки с сайта</b>. Всё кликается и сохраняется. Роли — сверху справа.'),800);
 </script>
 </body>
 </html>
