@@ -265,6 +265,112 @@ input,select,textarea{font-family:inherit;font-size:13px;color:var(--ink)}
 }
 html,body{max-width:100%;overflow-x:hidden}
 .main{min-width:0}
+/* ===== выбор роли (вход) ===== */
+.rolegate{position:fixed;inset:0;z-index:200;background:linear-gradient(140deg,#0f2b1c,#1b6440 55%,#1f9d55);display:none;align-items:center;justify-content:center;padding:24px;overflow-y:auto}
+.rolegate.show{display:flex;animation:fd .22s}
+.rg-box{width:100%;max-width:940px;text-align:center;color:#fff}
+.rg-logo{display:inline-flex;align-items:center;gap:11px;margin-bottom:24px}
+.rg-logo .lm{width:42px;height:42px;background:rgba(255,255,255,.16);border-radius:12px;display:grid;place-items:center}
+.rg-logo .lt{font-size:22px;font-weight:900}
+.rg-box h2{font-size:27px;font-weight:800;margin-bottom:7px}
+.rg-box .sub{opacity:.85;font-size:14px;margin-bottom:28px;max-width:560px;margin-left:auto;margin-right:auto;line-height:1.5}
+.rg-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:760px){.rg-cards{grid-template-columns:1fr}}
+.rg-card{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:18px;padding:26px 22px;text-align:left;color:#fff;cursor:pointer;transition:.16s}
+.rg-card:hover{background:#fff;color:var(--ink);transform:translateY(-5px);box-shadow:0 26px 50px -18px rgba(0,0,0,.45)}
+.rg-card .ic{width:56px;height:56px;border-radius:15px;background:rgba(255,255,255,.18);display:grid;place-items:center;font-size:28px;margin-bottom:16px}
+.rg-card:hover .ic{background:var(--accL)}
+.rg-card h3{font-size:19px;font-weight:800;margin-bottom:7px}
+.rg-card p{font-size:12.5px;line-height:1.55;opacity:.9}
+.rg-card:hover p{color:var(--mut);opacity:1}
+.rg-card .go{margin-top:16px;font-weight:800;font-size:13px;opacity:.9}
+.rg-card.cli{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.35)}
+.rg-note{margin-top:26px;font-size:12px;opacity:.72}
+/* ===== кабинет Контр Агента (отдельный интерфейс) ===== */
+#clientApp{display:none;flex-direction:column;height:100vh;background:var(--bg)}
+.chead{background:linear-gradient(120deg,var(--accD),var(--acc));color:#fff;flex:none}
+.chead .ctop{display:flex;align-items:center;gap:13px;padding:14px 20px}
+.chead .cav{width:44px;height:44px;border-radius:13px;background:rgba(255,255,255,.22);display:grid;place-items:center;font-weight:800;font-size:16px;flex:none}
+.chead .cn{font-size:17px;font-weight:800;line-height:1.15}
+.chead .cs{font-size:12px;opacity:.85}
+.chead .cactw{margin-left:auto;display:flex;gap:9px;align-items:center}
+.chead .cbell{position:relative;width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.16);display:grid;place-items:center;cursor:pointer}
+.chead .cbell svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:1.9}
+.chead .cbell .bd{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;background:#fff;color:var(--accD);font-size:9.5px;font-weight:800;border-radius:10px;display:grid;place-items:center;padding:0 4px}
+.chead .crole{background:rgba(255,255,255,.16);color:#fff;font-weight:700;font-size:12.5px;padding:9px 13px;border-radius:11px;cursor:pointer;white-space:nowrap}
+.chead .crole:hover{background:#fff;color:var(--accD)}
+.chead #cNotifPop{color:var(--ink)}
+.ctabs{display:flex;gap:2px;padding:0 14px;overflow-x:auto}
+.ctabs button{color:rgba(255,255,255,.78);font-weight:700;font-size:13.5px;padding:12px 15px;border-bottom:3px solid transparent;white-space:nowrap;background:none}
+.ctabs button.on{color:#fff;border-bottom-color:#fff}
+.cbody{flex:1;overflow-y:auto;padding:18px 20px 40px}
+.cbody-in{max-width:1080px;margin:0 auto}
+.cscreen{display:none}.cscreen.on{display:block;animation:fd .16s}
+.chero{background:var(--panel);border:1px solid var(--ln);border-radius:18px;padding:20px 22px;margin-bottom:16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.chero .htxt{flex:1;min-width:210px}
+.chero h1{font-size:22px;font-weight:800;margin-bottom:3px}
+.chero .hs{font-size:13px;color:var(--mut)}
+.chero .hact{display:flex;gap:10px;flex-wrap:wrap}
+.cbtn{font-weight:800;font-size:13.5px;padding:12px 17px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;border:none;transition:.14s}
+.cbtn.in{background:linear-gradient(120deg,#1f9d55,#2fbd6d);color:#fff;box-shadow:0 8px 18px -8px rgba(31,157,85,.6)}
+.cbtn.out{background:linear-gradient(120deg,#2f7ff0,#5b96f8);color:#fff;box-shadow:0 8px 18px -8px rgba(47,127,240,.6)}
+.cbtn.gh{background:var(--panel);color:var(--ink);border:1px solid var(--ln)}
+.cbtn:hover{transform:translateY(-2px)}
+.ckpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:16px}
+@media(max-width:860px){.ckpis{grid-template-columns:repeat(2,1fr)}}
+.ckpi{background:var(--panel);border:1px solid var(--ln);border-radius:16px;padding:15px 16px}
+.ckpi .kic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:18px;margin-bottom:9px;background:var(--ln2)}
+.ckpi.g .kic{background:var(--accL)}.ckpi.b .kic{background:var(--bluL)}.ckpi.a .kic{background:var(--ambL)}.ckpi.r .kic{background:var(--redL)}
+.ckpi .kv{font-size:21px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.ckpi .kl{font-size:12px;color:var(--mut);margin-top:2px}
+.cgrid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:900px){.cgrid{grid-template-columns:1fr}}
+.cpanel{background:var(--panel);border:1px solid var(--ln);border-radius:16px;overflow:hidden;margin-bottom:16px}
+.cpanel .cph{display:flex;align-items:center;gap:10px;padding:15px 18px 8px}
+.cpanel .cph h3{font-size:15px;font-weight:800;flex:1}
+.cpanel .cph a{font-size:12.5px;color:var(--accD);font-weight:700;cursor:pointer}
+.cpanel .cpb{padding:6px 18px 16px}
+.cprods{display:grid;grid-template-columns:repeat(auto-fill,minmax(212px,1fr));gap:14px}
+.cprod{border:1px solid var(--ln);border-radius:15px;padding:15px;background:var(--panel);transition:.14s}
+.cprod:hover{box-shadow:0 14px 28px -16px rgba(21,42,30,.4);transform:translateY(-2px)}
+.cprod .pnm{font-weight:800;font-size:14px;line-height:1.25}
+.cprod .psku{font-size:11px;color:var(--faint);font-family:monospace;margin-top:2px}
+.cprod .pqty{font-size:21px;font-weight:800;margin:9px 0 2px}
+.cprod .pbar{height:5px;background:var(--ln2);border-radius:4px;overflow:hidden;margin:8px 0 10px}
+.cprod .pbar i{display:block;height:100%;border-radius:4px}
+.cprod .prow{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);padding:2px 0}
+.cprod .pact{width:100%;margin-top:11px;background:var(--bluL);color:#1a4f9c;font-weight:800;font-size:12.5px;padding:10px;border-radius:11px;border:none;cursor:pointer}
+.cprod .pact:hover{background:var(--blu);color:#fff}
+.clist .cr{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--ln2)}
+.clist .cr:last-child{border-bottom:none}
+.clist .cr .cic{width:36px;height:36px;border-radius:11px;flex:none;display:grid;place-items:center;font-size:16px}
+.clist .cr .ci{flex:1;min-width:0}
+.clist .cr .ct{font-weight:700;font-size:13.5px}
+.clist .cr .cd{font-size:11.5px;color:var(--mut);margin-top:1px}
+.clist .cr .cx{text-align:right;font-weight:800;font-size:13px;white-space:nowrap}
+.ctl{position:relative;padding-left:26px}
+.ctl::before{content:"";position:absolute;left:9px;top:6px;bottom:14px;width:2px;background:var(--ln)}
+.ctli{position:relative;padding:0 0 18px}
+.ctli:last-child{padding-bottom:2px}
+.ctli .dot{position:absolute;left:-26px;top:0;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:10px;color:#fff}
+.ctli .th{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ctli .tt{font-weight:800;font-size:14px}
+.ctli .td{font-size:12px;color:var(--mut);margin-top:2px}
+.cbadge{font-size:10.5px;font-weight:800;padding:2px 9px;border-radius:20px}
+.cempty{text-align:center;color:var(--faint);padding:32px 20px}
+.cempty .em{font-size:38px;margin-bottom:8px}
+.cempty .et{font-weight:700;color:var(--mut);font-size:14px}
+.cempty .es{font-size:12.5px;margin-top:4px}
+.cbnav{display:none}
+@media(max-width:760px){
+  .chero{align-items:stretch}.chero .hact .cbtn{flex:1;justify-content:center}
+  .cbody{padding:14px 14px 78px}
+  .cbnav{display:flex;position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--ln);z-index:50}
+  .cbnav button{flex:1;padding:8px 0 7px;font-size:10px;font-weight:700;color:var(--mut);display:flex;flex-direction:column;align-items:center;gap:3px;background:none}
+  .cbnav button svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2}
+  .cbnav button.on{color:var(--accD)}
+  .ctabs{display:none}
+}
 </style>
 </head>
 <body>
@@ -302,9 +408,9 @@ html,body{max-width:100%;overflow-x:hidden}
       <div class="qchips" id="qchips"></div>
       <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
         <div class="roles">
-          <button class="on" onclick="setRole('sklad',this)">Склад</button>
-          <button onclick="setRole('boss',this)">Руководитель</button>
-          <button onclick="setRole('client',this)">Кабинет <span class="rl-long">контрагента</span></button>
+          <button class="on" onclick="chooseRole('sklad')">Менеджер</button>
+          <button onclick="chooseRole('boss')">Руководитель</button>
+          <button onclick="chooseRole('client')">Контр<span class="rl-long">агент</span></button>
         </div>
         <div class="wrapb">
           <button class="tbtn" onclick="togPop('notifPop')" title="Уведомления"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="bd" id="notifBd">0</span></button>
@@ -447,6 +553,82 @@ html,body{max-width:100%;overflow-x:hidden}
   </div>
 </div>
 
+<!-- ЭКРАН ВЫБОРА РОЛИ (вход) -->
+<div class="rolegate" id="roleGate">
+  <div class="rg-box">
+    <div class="rg-logo"><div class="lm"><svg viewBox="0 0 32 32" width="24" height="24"><path d="M8 13h16v12H8z" fill="none" stroke="#fff" stroke-width="2"/><path d="M8 13l8-5 8 5M14 25v-6h4v6" stroke="#fff" stroke-width="2" fill="none"/></svg></div><div class="lt">АгроСклад</div></div>
+    <h2>Добро пожаловать. Выберите роль входа</h2>
+    <p class="sub">Один портал ответственного хранения СЗР — три интерфейса под разные задачи. Демо: данные вымышленные, всё прокликивается и сохраняется.</p>
+    <div class="rg-cards">
+      <div class="rg-card" onclick="chooseRole('boss')">
+        <div class="ic">📊</div>
+        <h3>Руководитель</h3>
+        <p>Пульт, аналитика, деньги и долги, все контрагенты и движение по складу. Полная картина бизнеса.</p>
+        <div class="go">Войти →</div>
+      </div>
+      <div class="rg-card" onclick="chooseRole('sklad')">
+        <div class="ic">📦</div>
+        <h3>Менеджер склада</h3>
+        <p>Карта ячеек, приём и отгрузка, исполнение заявок контрагентов, партии и сроки, счета за хранение.</p>
+        <div class="go">Войти →</div>
+      </div>
+      <div class="rg-card cli" onclick="chooseRole('client')">
+        <div class="ic">🧑‍🌾</div>
+        <h3>Контрагент</h3>
+        <p>Личный кабинет клиента: свой остаток и ячейки, заявки на приход и уход, движение и счета — удалённо.</p>
+        <div class="go">Войти в кабинет →</div>
+      </div>
+    </div>
+    <div class="rg-note">Роль можно сменить в любой момент — кнопкой сверху справа.</div>
+  </div>
+</div>
+
+<!-- ОТДЕЛЬНЫЙ ИНТЕРФЕЙС КОНТР АГЕНТА -->
+<div id="clientApp">
+  <header class="chead">
+    <div class="ctop">
+      <div class="cav" id="cCavAv">АТ</div>
+      <div>
+        <div class="cn" id="cCavName">Контрагент</div>
+        <div class="cs">Личный кабинет на складе · АгроСклад</div>
+      </div>
+      <div class="cactw">
+        <div class="wrapb">
+          <div class="cbell" onclick="togPop('cNotifPop')" title="Уведомления">
+            <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+            <span class="bd" id="cBellBd">0</span>
+          </div>
+          <div class="pop" id="cNotifPop"><div class="pt">🔔 Уведомления от склада</div><div id="cNotifList"></div></div>
+        </div>
+        <button class="crole" onclick="openRoleGate()">Сменить роль</button>
+      </div>
+    </div>
+    <div class="ctabs" id="cTabs">
+      <button class="on" onclick="cliNav('dash')">Обзор</button>
+      <button onclick="cliNav('stock')">Мой остаток</button>
+      <button onclick="cliNav('reqs')">Заявки</button>
+      <button onclick="cliNav('moves')">Движение</button>
+      <button onclick="cliNav('bills')">Счета</button>
+    </div>
+  </header>
+  <div class="cbody">
+    <div class="cbody-in">
+      <section class="cscreen on" id="c-dash"></section>
+      <section class="cscreen" id="c-stock"></section>
+      <section class="cscreen" id="c-reqs"></section>
+      <section class="cscreen" id="c-moves"></section>
+      <section class="cscreen" id="c-bills"></section>
+    </div>
+  </div>
+  <nav class="cbnav" id="cBnav">
+    <button class="on" onclick="cliNav('dash')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Обзор</button>
+    <button onclick="cliNav('stock')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Остаток</button>
+    <button onclick="cliNav('reqs')"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>Заявки</button>
+    <button onclick="cliNav('moves')"><svg viewBox="0 0 24 24"><path d="M12 8v8M8 12h8M4 4h16v16H4z"/></svg>Движение</button>
+    <button onclick="cliNav('bills')"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h5M8 17h8"/></svg>Счета</button>
+  </nav>
+</div>
+
 <!-- модал ячейки -->
 <div class="ovl" id="cellOvl" onclick="if(event.target===this)closeModal('cellOvl')"><div class="modal" id="cellModal"></div></div>
 <!-- модал прихода -->
@@ -528,7 +710,7 @@ function togPop(id){const el=$(id);const open=el.classList.contains('show');docu
 document.addEventListener('click',e=>{if(!e.target.closest('.wrapb'))document.querySelectorAll('.pop').forEach(p=>p.classList.remove('show'));});
 
 /* ===== состояние ===== */
-const KEY='agrosklad_state_v1';
+const KEY='agrosklad_state_v2';
 let ST,ROLE='sklad',CURCLIENT=null,SQ='';
 let SHIPMODE='fefo',REQFILT='all',REQTYPE='in',MVFILT={type:'all',prod:'',client:'',cell:''};
 const MO=['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
@@ -546,7 +728,7 @@ function batchCells(){return occCells().filter(c=>c.exp!=null||c.batch);}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(ST))}catch(e){}}
 function load(){let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}ST=(s&&s.cells)?s:defaults();}
 function resetDemo(){if(!confirm('Сбросить демо?'))return;localStorage.removeItem(KEY);load();renderAll();nav('dash');toast('Демо сброшено.','ok');}
-function renderAll(){renderQchips();renderNotifPop();renderDash();renderCells();renderRequests();renderMoves();renderBatches();renderSafety();renderBilling();renderCatalog();renderClients();renderStock();renderNotifyTbl();renderAnalytics();renderBadges();buildClientFilter();}
+function renderAll(){renderQchips();renderNotifPop();renderDash();renderCells();renderRequests();renderMoves();renderBatches();renderSafety();renderBilling();renderCatalog();renderClients();renderStock();renderNotifyTbl();renderAnalytics();renderBadges();buildClientFilter();if(ROLE==='client'&&typeof renderClientApp==='function')renderClientApp();}
 /* helpers */
 function cli(id){return ST.clients.find(c=>c.id===id)}
 function prod(sku){return ST.catalog.find(p=>p.sku===sku)}
@@ -585,11 +767,135 @@ function nav(s){document.querySelectorAll('.screen').forEach(x=>x.classList.remo
   document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));window.scrollTo({top:0});
   document.querySelector('.side').classList.remove('open');$('sideback').classList.remove('show');}
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>nav(b.dataset.s));
-function setRole(r,el){ROLE=r;document.querySelectorAll('.roles button').forEach(b=>b.classList.toggle('on',b===el));
-  if(r==='client'){CURCLIENT=CURCLIENT||ST.clients[0].id;const c=cli(CURCLIENT);$('uAv').textContent=c.short;$('uAv').style.background=c.color;$('uName').textContent=c.name;
-    renderAll();nav('dash');toast('<b>Кабинет контрагента</b> — «'+esc(c.name)+'». Видит только свои ячейки и остаток, <b>подаёт заявки на приход и уход</b>, следит за их статусом. Клик по своей ячейке — «заказать отгрузку».','blu');return;}
-  const m={sklad:['СК','Оператор склада','видит все ячейки, принимает заявки, отгружает'],boss:['РК','Руководитель','пульт, аналитика, все контрагенты и движение']}[r];$('uAv').textContent=m[0];$('uAv').style.background='var(--acc)';$('uName').textContent=m[1];toast('<b>'+m[1]+'</b>: '+m[2]+'.');
-  renderAll();}
+function chooseRole(r,cid){
+  ROLE=r;if(cid)CURCLIENT=cid;
+  const idx={sklad:0,boss:1,client:2}[r];
+  document.querySelectorAll('.roles button').forEach((b,i)=>b.classList.toggle('on',i===idx));
+  const rg=$('roleGate');if(rg)rg.classList.remove('show');
+  document.querySelectorAll('.pop').forEach(p=>p.classList.remove('show'));
+  applyRoleUI();
+}
+function setRole(r){chooseRole(r);} // совместимость со старыми вызовами
+function openRoleGate(){const rg=$('roleGate');if(rg)rg.classList.add('show');document.querySelectorAll('.pop').forEach(p=>p.classList.remove('show'));}
+function applyRoleUI(){
+  const app=document.querySelector('.app'),ca=$('clientApp');
+  if(ROLE==='client'){
+    CURCLIENT=CURCLIENT||ST.clients[0].id;
+    app.style.display='none';ca.style.display='flex';
+    renderClientApp();
+  }else{
+    ca.style.display='none';app.style.display='';
+    const m={sklad:['СК','Оператор склада'],boss:['РК','Руководитель']}[ROLE]||['СК','Оператор склада'];
+    $('uAv').textContent=m[0];$('uAv').style.background='var(--acc)';$('uName').textContent=m[1];
+    renderAll();nav('dash');
+    toast(ROLE==='boss'?'<b>Руководитель.</b> Пульт, аналитика, деньги и долги, все контрагенты и движение по складу.':'<b>Менеджер склада.</b> Карта ячеек, приём и отгрузка, исполнение заявок, партии и счета.');
+  }
+}
+
+/* ===== отдельный интерфейс Контр Агента ===== */
+let CTAB='dash';
+const CTABS=['dash','stock','reqs','moves','bills'];
+function cliNav(t){CTAB=t;
+  document.querySelectorAll('#clientApp .cscreen').forEach(s=>s.classList.toggle('on',s.id==='c-'+t));
+  document.querySelectorAll('#cTabs button').forEach((b,i)=>b.classList.toggle('on',CTABS[i]===t));
+  document.querySelectorAll('#cBnav button').forEach((b,i)=>b.classList.toggle('on',CTABS[i]===t));
+  const cb=document.querySelector('.cbody');if(cb)cb.scrollTop=0;
+}
+function renderClientApp(){
+  const c=cli(CURCLIENT);if(!c)return;
+  $('cCavAv').textContent=c.short;$('cCavAv').style.background=c.color;
+  $('cCavName').textContent=c.name;
+  cliNotif();cliDash();cliStock();cliReqs();cliMoves();cliBills();
+  cliNav(CTAB);
+}
+/* мелкие помощники интерфейса */
+function ckpi(cls,ic,v,l){return '<div class="ckpi '+cls+'"><div class="kic">'+ic+'</div><div class="kv">'+v+'</div><div class="kl">'+l+'</div></div>';}
+function cEmpty(em,t,s){return '<div class="cempty"><div class="em">'+em+'</div><div class="et">'+t+'</div>'+(s?'<div class="es">'+s+'</div>':'')+'</div>';}
+function cbadge(txt,tone){const m={g:['var(--accL)','var(--accD)'],a:['var(--ambL)','#a06a10'],b:['var(--bluL)','#1a4f9c'],r:['var(--redL)','var(--red)'],v:['var(--violL)','var(--viol)'],gy:['var(--ln2)','var(--mut)']}[tone]||['var(--ln2)','var(--mut)'];return '<span class="cbadge" style="background:'+m[0]+';color:'+m[1]+'">'+esc(txt)+'</span>';}
+function reqTone(st){return st==='выполнена'?'g':st==='отклонена'?'r':st==='в работе'?'b':'a';}
+function reqDot(st){return {'новая':['var(--amb)','•'],'в работе':['var(--blu)','⚙'],'выполнена':['var(--acc)','✓'],'отклонена':['var(--red)','✕']}[st]||['var(--mut)','•'];}
+function cliInvoices(){return (ST.invoices||[]).filter(i=>i.client===CURCLIENT);}
+function cliDebt(){return cliInvoices().filter(i=>i.status!=='оплачен').reduce((a,i)=>a+i.sum,0);}
+function cliSkuGroups(){const bySku={};clientCells(CURCLIENT).forEach(c=>{const g=bySku[c.sku]=bySku[c.sku]||{sku:c.sku,qty:0,cells:[],exp:null};g.qty+=c.qty;g.cells.push(c);if(c.exp!=null&&(g.exp==null||c.exp<g.exp))g.exp=c.exp;});return Object.values(bySku).sort((a,b)=>b.qty-a.qty);}
+function cliReqTimeline(rows){if(!rows.length)return '';
+  return '<div class="ctl">'+rows.map(r=>{const p=prod(r.sku),d=reqDot(r.status);
+    return '<div class="ctli"><span class="dot" style="background:'+d[0]+'">'+d[1]+'</span><div class="th"><span class="tt">'+(r.type==='in'?'📥 Приход':'📤 Уход')+' · '+esc(p?p.name:r.sku)+'</span>'+cbadge(r.status,reqTone(r.status))+'</div><div class="td">'+litr(r.qty)+' · '+esc(r.when||'')+' · <span style="font-family:monospace">'+esc(r.id)+'</span></div></div>';}).join('')+'</div>';}
+/* — Обзор — */
+function cliDash(){
+  const c=cli(CURCLIENT);
+  const myCells=clientCells(CURCLIENT),myL=myCells.reduce((a,x)=>a+x.qty,0);
+  const reqs=reqRows(CURCLIENT);
+  const active=reqs.filter(r=>r.status==='новая'||r.status==='в работе');
+  const debt=cliDebt();
+  const groups=cliSkuGroups(),mx=Math.max(...groups.map(g=>g.qty),1);
+  const risky=myCells.filter(c=>c.exp!=null&&c.exp<=30).length;
+  let h='<div class="chero"><div class="htxt"><h1>Здравствуйте, '+esc(c.name)+' 👋</h1><div class="hs">Ваш товар на ответственном хранении «АгроСклад». Подавайте заявки на приход и уход — склад видит их сразу и исполняет, вы следите за статусом.</div></div><div class="hact"><button class="cbtn in" onclick="cliNewReq(\'in\')">📥 Заявка на приход</button><button class="cbtn out" onclick="cliNewReq(\'out\')">📤 Заявка на уход</button></div></div>';
+  h+='<div class="ckpis">'+ckpi('g','📦',myCells.length,'моих ячеек')+ckpi('b','🧪',litr(myL),'на хранении')+ckpi('a','📋',active.length,'заявок в работе')+ckpi(debt?'r':'g',debt?'💳':'✓',debt?money(debt):'нет долга','к оплате')+'</div>';
+  if(risky)h+='<div class="cpanel" style="border-color:var(--amb)"><div class="cpb" style="padding:14px 18px;display:flex;gap:10px;align-items:center"><span style="font-size:20px">⚠️</span><div style="font-size:13px"><b>'+risky+'</b> '+(risky===1?'позиция с истекающим сроком':'позиций с истекающим сроком')+' — рекомендуем отгрузить в первую очередь. Подробнее на вкладке «Мой остаток».</div></div></div>';
+  const prodCards=groups.length?'<div class="cprods">'+groups.slice(0,6).map(g=>{const pr=prod(g.sku),es=expStatus(g.exp);
+    return '<div class="cprod"><div class="pnm">'+esc(pr.name)+'</div><div class="psku">'+esc(g.sku)+' · '+g.cells.length+' яч.</div><div class="pqty">'+litr(g.qty)+'</div><div class="pbar"><i style="width:'+Math.round(g.qty/mx*100)+'%;background:'+(es.k==='bad'?'var(--red)':es.k==='soon'?'var(--amb)':'var(--acc)')+'"></i></div><div class="prow"><span>Годен до</span><span>'+expDate(g.exp)+'</span></div><button class="pact" onclick="cliOrderShip(\''+jsq(g.sku)+'\')">Заказать отгрузку</button></div>';}).join('')+'</div>':cEmpty('📦','Пока нет товара на хранении','Подайте заявку на приход — товар появится здесь после приёмки.');
+  const actHTML=active.length?cliReqTimeline(active.slice(0,6)):cEmpty('✅','Активных заявок нет','Все заявки исполнены. Новую можно подать в один клик.');
+  h+='<div class="cgrid"><div class="cpanel"><div class="cph"><h3>Мои товары на складе</h3><a onclick="cliNav(\'stock\')">весь остаток →</a></div><div class="cpb">'+prodCards+'</div></div>'+
+     '<div class="cpanel"><div class="cph"><h3>Заявки в работе</h3><a onclick="cliNav(\'reqs\')">все →</a></div><div class="cpb">'+actHTML+'</div></div></div>';
+  const mv=(ST.moves||[]).filter(m=>m.client===CURCLIENT).slice(0,5);
+  h+='<div class="cpanel"><div class="cph"><h3>Последнее движение</h3><a onclick="cliNav(\'moves\')">вся история →</a></div><div class="cpb">'+(mv.length?cliMovesList(mv):cEmpty('🕓','Движения пока нет','Приходы и отгрузки будут отражаться здесь по датам.'))+'</div></div>';
+  $('c-dash').innerHTML=h;
+}
+/* — Мой остаток — */
+function cliStock(){
+  const groups=cliSkuGroups();const myCells=clientCells(CURCLIENT);const myL=myCells.reduce((a,x)=>a+x.qty,0);
+  let h='<div class="chero"><div class="htxt"><h1>Мой остаток и ячейки</h1><div class="hs">'+myCells.length+' ячеек · '+litr(myL)+' на ответственном хранении. Каждая позиция — партия со сроком годности; отгрузка по FEFO (сначала ближний срок).</div></div><div class="hact"><button class="cbtn in" onclick="cliNewReq(\'in\')">📥 Приход</button><button class="cbtn out" onclick="cliNewReq(\'out\')">📤 Уход</button></div></div>';
+  if(!groups.length){$('c-stock').innerHTML=h+cEmpty('📦','На хранении пока пусто','Подайте заявку на приход — после приёмки товар встанет на остаток.');return;}
+  h+=groups.map(g=>{const pr=prod(g.sku),es=expStatus(g.exp);
+    const cellsRows=g.cells.slice().sort((a,b)=>(a.exp==null?9999:a.exp)-(b.exp==null?9999:b.exp)).map(c=>{const e=expStatus(c.exp);
+      return '<div class="cr"><div class="cic" style="background:var(--ln2)">🗄️</div><div class="ci"><div class="ct">Ячейка '+esc(c.id)+' <span style="color:var(--faint);font-weight:600;font-size:11px">партия '+esc(c.batch||'—')+'</span></div><div class="cd">тара '+esc(c.tare||'—')+' · принято '+esc(c.arrived||'—')+' · годен до '+expDate(c.exp)+'</div></div><div class="cx">'+litr(c.qty)+'<div style="margin-top:3px">'+cbadge(e.t,e.pill)+'</div></div></div>';}).join('');
+    return '<div class="cpanel"><div class="cph"><div style="width:34px;height:34px;border-radius:10px;background:var(--accL);display:grid;place-items:center;font-size:16px">🧪</div><h3>'+esc(pr.name)+' <span style="color:var(--faint);font-weight:600;font-size:12px">'+esc(g.sku)+'</span></h3><span style="font-weight:800;font-size:15px">'+litr(g.qty)+'</span> '+cbadge(es.t,es.pill)+' <a onclick="cliOrderShip(\''+jsq(g.sku)+'\')" style="margin-left:6px">заказать отгрузку →</a></div><div class="cpb"><div class="clist">'+cellsRows+'</div></div></div>';}).join('');
+  $('c-stock').innerHTML=h;
+}
+/* — Заявки — */
+function cliReqs(){
+  const reqs=reqRows(CURCLIENT);
+  const open=reqs.filter(r=>r.status==='новая'||r.status==='в работе');
+  const done=reqs.filter(r=>r.status==='выполнена'||r.status==='отклонена');
+  let h='<div class="chero"><div class="htxt"><h1>Мои заявки</h1><div class="hs">Подавайте заявки на приход и уход удалённо — склад видит их мгновенно, берёт в работу и отчитывается по статусу. '+open.length+' в работе, '+done.length+' в истории.</div></div><div class="hact"><button class="cbtn in" onclick="cliNewReq(\'in\')">📥 Заявка на приход</button><button class="cbtn out" onclick="cliNewReq(\'out\')">📤 Заявка на уход</button></div></div>';
+  h+='<div class="cpanel"><div class="cph"><h3>В работе</h3><span style="color:var(--mut);font-size:12.5px">'+open.length+'</span></div><div class="cpb">'+(open.length?cliReqTimeline(open):cEmpty('✅','Активных заявок нет','Новая заявка попадёт на склад мгновенно.'))+'</div></div>';
+  h+='<div class="cpanel"><div class="cph"><h3>История</h3><span style="color:var(--mut);font-size:12.5px">'+done.length+'</span></div><div class="cpb">'+(done.length?cliReqTimeline(done):cEmpty('🗂️','История пуста','Здесь будут выполненные и отклонённые заявки.'))+'</div></div>';
+  $('c-reqs').innerHTML=h;
+}
+/* — Движение — */
+function cliMovesList(mv){const ic={in:['📥','var(--accL)','g','+','mvin'],out:['📤','var(--bluL)','b','−','mvout'],move:['↔','var(--violL)','v','','mvmove'],inv:['⚖️','var(--ambL)','a','','mvinv']};
+  return '<div class="clist">'+mv.map(m=>{const p=prod(m.sku),k=ic[m.type]||ic.in;const col=m.type==='in'?'var(--accD)':m.type==='out'?'#1a4f9c':'var(--ink)';
+    return '<div class="cr"><div class="cic" style="background:'+k[1]+'">'+k[0]+'</div><div class="ci"><div class="ct">'+esc(p?p.name:m.sku)+'</div><div class="cd">ячейка '+esc(m.cell||'—')+(m.note?' · '+esc(m.note):'')+'</div></div><div class="cx" style="color:'+col+'">'+k[3]+litr(m.qty)+'<div style="color:var(--faint);font-weight:600;font-size:11px;margin-top:2px">'+esc(m.d)+'</div></div></div>';}).join('')+'</div>';}
+function cliMoves(){
+  const mv=(ST.moves||[]).filter(m=>m.client===CURCLIENT);
+  const inL=mv.filter(m=>m.type==='in').reduce((a,m)=>a+m.qty,0),outL=mv.filter(m=>m.type==='out').reduce((a,m)=>a+m.qty,0);
+  let h='<div class="chero"><div class="htxt"><h1>Движение моего товара</h1><div class="hs">Полная история приходов, отгрузок, перемещений и инвентаризаций — с датами. Готовая выписка на случай спора.</div></div></div>';
+  h+='<div class="ckpis">'+ckpi('','🧾',mv.length,'операций')+ckpi('g','📥',litr(inL),'принято, Σ')+ckpi('b','📤',litr(outL),'отгружено, Σ')+ckpi('a','↔',mv.filter(m=>m.type==='move').length,'перемещений')+'</div>';
+  h+='<div class="cpanel"><div class="cpb">'+(mv.length?cliMovesList(mv):cEmpty('🕓','Движения пока нет','Как только пойдёт приход или отгрузка — всё окажется здесь.'))+'</div></div>';
+  $('c-moves').innerHTML=h;
+}
+/* — Счета — */
+function cliBills(){
+  const inv=cliInvoices();const debt=cliDebt();const paid=inv.filter(i=>i.status==='оплачен').reduce((a,i)=>a+i.sum,0);
+  const myL=clientCells(CURCLIENT).reduce((a,x)=>a+x.qty,0);const est=myL*TARIFF;
+  let h='<div class="chero"><div class="htxt"><h1>Счета за хранение</h1><div class="hs">Тариф ответственного хранения — '+money(TARIFF)+'/л в месяц. Оценка следующего счёта по текущему остатку ('+litr(myL)+') — <b>'+money(est)+'</b>/мес.</div></div></div>';
+  h+='<div class="ckpis">'+ckpi(debt?'r':'g',debt?'💳':'✓',debt?money(debt):'0 ₸','к оплате')+ckpi('g','✅',money(paid),'оплачено')+ckpi('b','🧾',inv.length,'счетов')+ckpi('a','📅',money(est),'прогноз/мес')+'</div>';
+  const rows=inv.slice().sort((a,b)=>pdate(b.date)-pdate(a.date));
+  const list=rows.length?'<div class="clist">'+rows.map(i=>{const tone=i.status==='оплачен'?'g':i.status==='просрочен'?'r':'a';
+    return '<div class="cr"><div class="cic" style="background:'+(tone==='g'?'var(--accL)':tone==='r'?'var(--redL)':'var(--ambL)')+'">🧾</div><div class="ci"><div class="ct">'+esc(i.id)+' · '+esc(i.period)+'</div><div class="cd">'+litr(i.liters)+' · '+money(TARIFF)+'/л · выставлен '+esc(i.date)+'</div></div><div class="cx"><div style="margin-bottom:4px">'+money(i.sum)+'</div>'+(i.status==='оплачен'?cbadge('оплачен','g'):'<button class="pact" style="padding:7px 12px;width:auto;background:linear-gradient(120deg,#1f9d55,#2fbd6d);color:#fff" onclick="cliPayBill(\''+jsq(i.id)+'\')">Оплатить</button>')+'</div></div>';}).join('')+'</div>':cEmpty('🧾','Счетов пока нет','Счёт за хранение формируется в конце периода.');
+  h+='<div class="cpanel"><div class="cph"><h3>Мои счета</h3></div><div class="cpb">'+list+'</div></div>';
+  $('c-bills').innerHTML=h;
+}
+/* — уведомления в шапке кабинета — */
+function cliNotif(){
+  const ns=(ST.notifs||[]).filter(n=>n.cli===CURCLIENT);
+  $('cBellBd').textContent=ns.length;$('cBellBd').style.display=ns.length?'':'none';
+  $('cNotifList').innerHTML=ns.length?ns.slice(0,8).map(n=>'<div class="pi"><div class="ic" style="background:var(--accL)">💬</div><div><div class="tx">'+esc(n.txt)+'</div><div class="tm">'+esc(n.ch||'WhatsApp')+' · '+esc(n.t||'')+'</div></div></div>').join(''):'<div class="pi"><div class="tx" style="color:var(--faint)">Уведомлений пока нет.</div></div>';
+}
+/* — действия контрагента — */
+function cliNewReq(type,sku){openReqForm();setReqType(type||'in');if(sku){$('rSku').value=sku;if(typeof reqUpd==='function')reqUpd();}}
+function cliOrderShip(sku){cliNewReq('out',sku);}
+function cliPayBill(id){const inv=(ST.invoices||[]).find(i=>i.id===id);if(!inv)return;if(!confirm('Оплатить счёт '+id+' на '+money(inv.sum)+'? (демо)'))return;inv.status='оплачен';log('💳','var(--accL)','Оплата счёта '+id+' — '+cli(CURCLIENT).name+' ('+money(inv.sum)+')');notify(CURCLIENT,'Оплата счёта '+id+' получена. Спасибо!');save();renderClientApp();toast('💳 Счёт <b>'+esc(id)+'</b> оплачен. Квитанция ушла на склад.','ok');}
 
 /* ===== пульт ===== */
 function statTile(cls,label,val,delta,dn,spark){return '<div class="kpi '+cls+'"><div class="kl">'+label+'</div><div class="kv">'+val+'</div>'+(delta?'<div class="kr"><span class="delta '+(dn?'dn':'')+'">'+(dn?'▼ ':'▲ ')+delta+'</span></div>':'')+(spark||'')+'</div>';}
@@ -831,7 +1137,7 @@ function renderClients(){
     ST.clients.map(c=>{const cells=clientCells(c.id);const l=cells.reduce((a,x)=>a+x.qty,0);const deal=cells.reduce((a,x)=>a+(x.deal||0),0);const got=cells.reduce((a,x)=>a+recv(x),0);const debt=cells.reduce((a,x)=>a+dealDebt(x),0);
       return '<tr onclick="openClientCab(\''+c.id+'\')"><td class="who2"><div class="av" style="background:'+c.color+'">'+esc(c.short)+'</div><span class="nm">'+esc(c.name)+'</span></td><td class="r">'+cells.length+'</td><td class="r" style="font-weight:800">'+litr(l)+'</td><td class="r">'+money(deal)+'</td><td class="r" style="color:var(--accD)">'+money(got)+'</td><td class="r" style="font-weight:800;color:'+(debt?'var(--red)':'var(--accD)')+'">'+(debt?money(debt):'✓')+'</td><td class="r"><span class="pill b">кабинет →</span></td></tr>';}).join('')+'</tbody>';
 }
-function openClientCab(id){CURCLIENT=id;document.querySelectorAll('.roles button').forEach((b,i)=>b.classList.toggle('on',i===2));setRole('client',document.querySelectorAll('.roles button')[2]);nav('dash');}
+function openClientCab(id){chooseRole('client',id);}
 
 /* ===== остатки ===== */
 function renderStock(){const map={};occCells().forEach(c=>{const k=c.client+'|'+c.sku;map[k]=map[k]||{client:c.client,sku:c.sku,qty:0,cells:0};map[k].qty+=c.qty;map[k].cells++;});
@@ -1071,6 +1377,9 @@ function defaults(){
     {id:'c4',name:'КХ «Заря»',short:'ЗА',color:'#12a05c'},
     {id:'c5',name:'ТОО «Северное зерно»',short:'СЗ',color:'#e2503d'},
     {id:'c6',name:'ТОО «АгроХимСервис»',short:'ХС',color:'#0ea5a5'},
+    {id:'c7',name:'ТОО «Кызылорда-Агро»',short:'КА',color:'#c2410c'},
+    {id:'c8',name:'КХ «Меркенское»',short:'МК',color:'#6d28d9'},
+    {id:'c9',name:'ТОО «Тараз Химопт»',short:'ТХ',color:'#0369a1'},
   ];
   const catalog=[
     {sku:'СЗР-0142',name:'Гербицид «Раундап» (глифосат)',cat:'Гербицид',pc:'g',vol:20,bc:'4870201145621',haz:3,temp:'+5…+30°C'},
@@ -1092,15 +1401,18 @@ function defaults(){
     ['A-01','c1','СЗР-0142',560,'20 л','2 дня назад','','П-2405',420],['A-02','c1','СЗР-0612',380,'10 л','2 дня назад','','П-2403',180],['A-03','c1','СЗР-0311',180,'1 л','вчера','','П-2404',25],
     ['A-04','c3','СЗР-0207',420,'5 л','вчера','','П-2402',320],['A-05','c3','СЗР-0428',300,'10 л','3 дня назад','','П-2312',-8],['A-06','c1','СЗР-0142',300,'20 л','25 дней назад','','П-2312',250],['A-07','c2','СЗР-0356',480,'5 л','сегодня','','П-2406',540],
     ['A-08','c2','СЗР-0463',260,'5 л','сегодня','','П-2405',260],['A-09','c1','СЗР-0142',240,'20 л','сегодня','','П-2501',180],['A-10','c5','СЗР-0142',600,'20 л','4 дня назад','','П-2404',400],['A-11','c5','СЗР-0587',540,'20 л','4 дня назад','','П-2401',28],
-    ['A-12',null,null,0,null,null,'resv'],
+    ['A-12','c1','СЗР-0356',300,'5 л','вчера','','П-2405',270],
+    ['A-13','c7','СЗР-0142',480,'20 л','3 дня назад','','П-2404',390],['A-14','c9','СЗР-0463',210,'5 л','вчера','','П-2405',240],['A-15','c8','СЗР-0207',360,'5 л','сегодня','','П-2406',330],
     // zone B
     ['B-01','c4','СЗР-0510',220,'5 л','вчера','','П-2403',210],['B-02','c4','СЗР-0704',900,'100 л','5 дней назад','','П-2312',600],['B-03','c6','СЗР-0428',340,'10 л','2 дня назад','','П-2405',300],
-    ['B-04','c6','СЗР-0311',95,'1 л','сегодня','','П-2406',480],['B-05',null],['B-06','c1','СЗР-0463',180,'5 л','3 дня назад','','П-2402',12],['B-07','c3','СЗР-0142',480,'20 л','вчера','','П-2404',350],
-    ['B-08',null],['B-09','c2','СЗР-0612',260,'10 л','2 дня назад','','П-2403',220],['B-10','c5','СЗР-0207',150,'5 л','сегодня','','П-2406',500],
+    ['B-04','c6','СЗР-0311',95,'1 л','сегодня','','П-2406',480],['B-05','c7','СЗР-0587',540,'20 л','4 дня назад','','П-2401',35],['B-06','c1','СЗР-0463',180,'5 л','3 дня назад','','П-2402',12],['B-07','c3','СЗР-0142',480,'20 л','вчера','','П-2404',350],
+    ['B-08','c8','СЗР-0612',300,'10 л','2 дня назад','','П-2403',225],['B-09','c2','СЗР-0612',260,'10 л','2 дня назад','','П-2403',220],['B-10','c5','СЗР-0207',150,'5 л','сегодня','','П-2406',500],
+    ['B-11','c9','СЗР-0356',420,'5 л','3 дня назад','','П-2404',280],['B-12','c7','СЗР-0428',260,'10 л','вчера','','П-2405',260],
     // zone C
     ['C-01','c4','СЗР-0142',520,'20 л','неделю назад','','П-2311',-18],['C-02','c6','СЗР-0587',600,'20 л','3 дня назад','','П-2404',330],['C-03','c1','СЗР-0704',700,'100 л','неделю назад','','П-2401',560],
-    ['C-04',null],['C-05','c3','СЗР-0356',360,'5 л','вчера','','П-2405',290],['C-06','c2','СЗР-0142',540,'20 л','2 дня назад','','П-2404',380],['C-07',null,null,0,null,null,'ship'],
+    ['C-04','c8','СЗР-0510',180,'5 л','сегодня','','П-2406',460],['C-05','c3','СЗР-0356',360,'5 л','вчера','','П-2405',290],['C-06','c2','СЗР-0142',540,'20 л','2 дня назад','','П-2404',380],['C-07',null,null,0,null,null,'ship'],
     ['C-08','c5','СЗР-0510',140,'5 л','сегодня','','П-2406',450],['C-09','c6','СЗР-0612',300,'10 л','вчера','','П-2403',200],['C-10','c4','СЗР-0428',260,'10 л','3 дня назад','','П-2405',270],
+    ['C-11','c9','СЗР-0704',600,'100 л','неделю назад','','П-2401',520],['C-12','c8','СЗР-0142',440,'20 л','2 дня назад','','П-2404',360],
   ];
   const filled=new Set();
   occPlan.forEach(r=>{const [id,client,sku,qty,tare,arrived,status,batch,exp]=r;const zone=id[0];const p=client?catalog.find(x=>x.sku===sku):null;
@@ -1119,19 +1431,31 @@ function defaults(){
     {id:'ПР-7101',client:'c2',sku:'СЗР-0356',tare:'5 л',qty:600,when:'сегодня, 14:00',status:'ожидается',self:true},
     {id:'ПР-7102',client:'c3',sku:'СЗР-0142',tare:'20 л',qty:400,when:'сегодня, 16:30',status:'ожидается',self:true},
     {id:'ПР-7103',client:'c1',sku:'СЗР-0311',tare:'1 л',qty:120,when:'завтра утром',status:'ожидается',self:false},
+    {id:'ПР-7107',client:'c7',sku:'СЗР-0142',tare:'20 л',qty:480,when:'завтра днём',status:'ожидается',self:true},
+    {id:'ПР-7106',client:'c1',sku:'СЗР-0704',tare:'100 л',qty:300,when:'послезавтра',status:'ожидается',self:true},
     {id:'ПР-7104',client:'c5',sku:'СЗР-0587',tare:'20 л',qty:540,when:'вчера',status:'принято',self:true},
+    {id:'ПР-7105',client:'c8',sku:'СЗР-0207',tare:'5 л',qty:360,when:'сегодня',status:'принято',self:true},
     {id:'ПР-7099',client:'c4',sku:'СЗР-0704',tare:'100 л',qty:900,when:'5 дней назад',status:'размещено',self:true,cell:'B-02'},
+    {id:'ПР-7098',client:'c1',sku:'СЗР-0463',tare:'5 л',qty:180,when:'3 дня назад',status:'размещено',self:true,cell:'B-06'},
   ];
   const shipments=[
     {id:'ОТГ-4201',client:'c1',sku:'СЗР-0142',qty:200,cell:'A-01',date:'сегодня 09:40',status:'отгружено'},
     {id:'ОТГ-4200',client:'c3',sku:'СЗР-0428',qty:150,cell:'A-05',date:'сегодня 08:55',status:'отгружено'},
     {id:'ОТГ-4199',client:'c5',sku:'СЗР-0142',qty:300,cell:'A-10',date:'вчера 17:20',status:'отгружено'},
+    {id:'ОТГ-4198',client:'c1',sku:'СЗР-0704',qty:180,cell:'C-03',date:'вчера 11:30',status:'отгружено'},
+    {id:'ОТГ-4197',client:'c7',sku:'СЗР-0428',qty:120,cell:'B-12',date:'2 дня назад 15:05',status:'отгружено'},
+    {id:'ОТГ-4196',client:'c6',sku:'СЗР-0612',qty:200,cell:'C-09',date:'2 дня назад 10:40',status:'отгружено'},
   ];
   const notifs=[
     {cli:'c2',txt:'Приход зарегистрирован: Инсектицид «Каратэ Зеон» — 600 л. Ждём сегодня 14:00.',t:'12 мин назад',ch:'WhatsApp'},
     {cli:'c1',txt:'Заказ отгружен: Гербицид «Раундап» — 200 л. Ячейка A-01.',t:'34 мин назад',ch:'WhatsApp'},
+    {cli:'c1',txt:'Заявка на уход ЗАЯ-3012 принята в работу. Скомплектуем сегодня.',t:'50 мин назад',ch:'WhatsApp'},
+    {cli:'c7',txt:'Товар принят и размещён: Гербицид «Раундап» — ячейка A-13.',t:'1 ч назад',ch:'WhatsApp'},
     {cli:'c4',txt:'Товар принят и размещён: Адъювант «Тренд 90» — ячейка B-02.',t:'1 ч назад',ch:'WhatsApp'},
+    {cli:'c1',txt:'Внимание: партия П-2402 (Ридомил Голд, B-06) — срок годности истекает через 12 дней.',t:'2 ч назад',ch:'WhatsApp'},
     {cli:'c3',txt:'Заказ отгружен: Фунгицид «Тилт» — 150 л.',t:'1 ч назад',ch:'WhatsApp'},
+    {cli:'c1',txt:'Счёт СЧ-0620 за июль на 88 900 ₸ выставлен. Оплата до 05.08.',t:'3 ч назад',ch:'WhatsApp'},
+    {cli:'c8',txt:'Приход принят: Гербицид «Прима» — 360 л, ячейка A-15.',t:'4 ч назад',ch:'WhatsApp'},
   ];
   const txlog=[
     ['📤','var(--bluL)','Отгрузка 200 л «Раундап» из A-01 — ТОО «АгроТрейд»','09:40'],
@@ -1142,17 +1466,28 @@ function defaults(){
     ['📥','var(--accL)','Приход 480 л «Каратэ Зеон» — ТОО «КазАгро Химия»','вчера 15:10'],
   ];
   const invoices=[
+    {id:'СЧ-0620',client:'c1',period:'Июль 2026',liters:2540,sum:88900,status:'выставлен',date:'05.07.2026'},
+    {id:'СЧ-0621',client:'c3',period:'Июль 2026',liters:1200,sum:42000,status:'выставлен',date:'05.07.2026'},
+    {id:'СЧ-0622',client:'c7',period:'Июль 2026',liters:1220,sum:42700,status:'выставлен',date:'05.07.2026'},
     {id:'СЧ-0612',client:'c1',period:'Июнь 2026',liters:1600,sum:56000,status:'оплачен',date:'01.07.2026'},
     {id:'СЧ-0613',client:'c3',period:'Июнь 2026',liters:1560,sum:54600,status:'оплачен',date:'01.07.2026'},
     {id:'СЧ-0614',client:'c2',period:'Июнь 2026',liters:1540,sum:53900,status:'просрочен',date:'01.07.2026'},
     {id:'СЧ-0615',client:'c4',period:'Июнь 2026',liters:1900,sum:66500,status:'выставлен',date:'05.07.2026'},
     {id:'СЧ-0616',client:'c5',period:'Июнь 2026',liters:1430,sum:50050,status:'выставлен',date:'05.07.2026'},
+    {id:'СЧ-0617',client:'c6',period:'Июнь 2026',liters:1240,sum:43400,status:'оплачен',date:'01.07.2026'},
+    {id:'СЧ-0618',client:'c8',period:'Июнь 2026',liters:1140,sum:39900,status:'выставлен',date:'05.07.2026'},
+    {id:'СЧ-0619',client:'c9',period:'Июнь 2026',liters:1230,sum:43050,status:'оплачен',date:'01.07.2026'},
+    {id:'СЧ-0608',client:'c1',period:'Май 2026',liters:1480,sum:51800,status:'оплачен',date:'01.06.2026'},
   ];
   // заявки на уход/расход, поданные контрагентами из кабинета (приход-заявки — в arrivals)
   const requests=[
     {id:'ЗАЯ-3012',type:'out',client:'c1',sku:'СЗР-0142',qty:200,when:'сегодня',status:'новая',created:'20 мин назад',self:true},
     {id:'ЗАЯ-3011',type:'out',client:'c3',sku:'СЗР-0207',qty:120,when:'завтра утром',status:'новая',created:'1 ч назад',self:true},
+    {id:'ЗАЯ-3009',type:'out',client:'c7',sku:'СЗР-0142',qty:180,when:'сегодня',status:'в работе',created:'2 ч назад',self:true},
+    {id:'ЗАЯ-3008',type:'out',client:'c1',sku:'СЗР-0704',qty:180,when:'вчера',status:'выполнена',created:'вчера',self:true,cell:'C-03'},
+    {id:'ЗАЯ-3007',type:'out',client:'c1',sku:'СЗР-0463',qty:60,when:'позавчера',status:'отклонена',created:'2 дня назад',self:true},
     {id:'ЗАЯ-3010',type:'out',client:'c5',sku:'СЗР-0142',qty:300,when:'вчера',status:'выполнена',created:'вчера',self:true,cell:'A-10'},
+    {id:'ЗАЯ-3006',type:'out',client:'c6',sku:'СЗР-0612',qty:200,when:'2 дня назад',status:'выполнена',created:'2 дня назад',self:true,cell:'C-09'},
   ];
   const moves=[
     {d:'сегодня 09:40',day:'сегодня',type:'out',client:'c1',sku:'СЗР-0142',qty:200,cell:'A-01',note:'FEFO'},
@@ -1164,7 +1499,17 @@ function defaults(){
     {d:'вчера 15:10',day:'вчера',type:'in',client:'c2',sku:'СЗР-0356',qty:480,cell:'A-07',note:'приход'},
     {d:'вчера 11:05',day:'вчера',type:'inv',client:'c1',sku:'СЗР-0142',qty:560,cell:'A-01',note:'инвентаризация — сходится'},
     {d:'2 дня назад 16:40',day:'2 дня назад',type:'in',client:'c6',sku:'СЗР-0428',qty:340,cell:'B-03',note:'приход'},
+    {d:'2 дня назад 15:05',day:'2 дня назад',type:'out',client:'c7',sku:'СЗР-0428',qty:120,cell:'B-12',note:'FEFO'},
+    {d:'2 дня назад 11:20',day:'2 дня назад',type:'in',client:'c8',sku:'СЗР-0612',qty:300,cell:'B-08',note:'приход (внёс клиент)'},
     {d:'2 дня назад 10:15',day:'2 дня назад',type:'out',client:'c4',sku:'СЗР-0510',qty:80,cell:'B-01',note:'LIFO'},
+    {d:'3 дня назад 14:30',day:'3 дня назад',type:'in',client:'c7',sku:'СЗР-0142',qty:480,cell:'A-13',note:'приход'},
+    {d:'3 дня назад 09:50',day:'3 дня назад',type:'in',client:'c1',sku:'СЗР-0463',qty:180,cell:'B-06',note:'приход (внёс клиент)'},
+    {d:'3 дня назад 09:05',day:'3 дня назад',type:'move',client:'c9',sku:'СЗР-0356',qty:420,cell:'B-11 → B-11',note:'ротация партии'},
+    {d:'неделю назад 16:10',day:'неделю назад',type:'in',client:'c1',sku:'СЗР-0704',qty:700,cell:'C-03',note:'приход'},
+    {d:'неделю назад 12:40',day:'неделю назад',type:'in',client:'c9',sku:'СЗР-0704',qty:600,cell:'C-11',note:'приход (внёс клиент)'},
+    {d:'неделю назад 10:00',day:'неделю назад',type:'inv',client:'c4',sku:'СЗР-0142',qty:520,cell:'C-01',note:'инвентаризация — сходится'},
+    {d:'8 дней назад 15:20',day:'8 дней назад',type:'out',client:'c1',sku:'СЗР-0142',qty:150,cell:'A-06',note:'FEFO'},
+    {d:'10 дней назад 11:30',day:'10 дней назад',type:'in',client:'c8',sku:'СЗР-0142',qty:440,cell:'C-12',note:'приход'},
   ];
   return {clients,catalog,cells,arrivals,shipments,notifs,txlog,invoices,requests,moves};
 }
@@ -1174,7 +1519,10 @@ load();renderAll();
 (function(){const RM=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];const RD=['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];const dt=new Date();const s=RD[dt.getDay()]+', '+dt.getDate()+' '+RM[dt.getMonth()];$('dashDate').textContent=s.charAt(0).toUpperCase()+s.slice(1);})();
 const q=new URLSearchParams(location.search);
 if(q.get('s'))nav(q.get('s'));
-setTimeout(()=>toast('Это <b>АгроСклад</b> — ваш портал ответственного хранения СЗР вместо 1С. <b>Ячеечное хранение</b> (карта склада), приход <b>клиент вносит сам</b>, расход <b>списывается автоматически</b>, уведомления в WhatsApp. Роли: склад / руководитель / кабинет клиента — сверху справа. Всё прокликивается и сохраняется.'),700);
+(function(){const role=q.get('role'),cid=q.get('client');
+  if(cid){chooseRole('client',cid);return;}
+  if(role==='boss'||role==='sklad'||role==='client'){chooseRole(role);return;}
+  openRoleGate();})();
 </script>
 </body>
 </html>
