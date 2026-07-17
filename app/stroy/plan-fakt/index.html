@@ -1578,7 +1578,8 @@ function lkLinesFromItems(items){
       if(!LK_MARK.test(a.s))break;
       for(let j=0;j<vert.length;j++){const b=vert[j];if(!b||b===a)continue;
         if(Math.abs(b.x-a.x)<3){const gap=b.y-(a.y+a.w);
-          if(gap>-4&&gap<12&&((/[хx]\s*$/.test(a.s)&&/^\d/.test(b.s))||(/\d\s*$/.test(a.s)&&/^\s*[хx]\d/.test(b.s)))){
+          if(gap>-4&&gap<12&&((/[хx]\s*$/.test(a.s)&&/^\d/.test(b.s))||(/\d\s*$/.test(a.s)&&/^\s*[хx]\d/.test(b.s))
+            ||!LK_SECT.test(a.s))){   // марка ещё без сечения — продолжение рана клеим по геометрии («АсВВГнг»+«(А)-LS 4X2,5», P9 л.7)
             a.s+=(gap>2?' ':'')+b.s;a.w=b.y+b.w-a.y;vert[j]=null;glued=true;}}}}}
   const vjoined=vert.filter(Boolean);
   const hlines=[],hmeta=[];
@@ -1703,12 +1704,18 @@ function lkParseHorizLoose(lines,used,hmeta){
 /* второй формат (квартирные щиты): марка+сечение без имени «X-н1;»; длину ищем рядом (nearest-neighbor) */
 function lkParseOneLine(items){const rows=[];const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   items.forEach(it=>{const s=it.s;if(LK_NAME.test(s)||!LK_MARK.test(s))return;
-    const sm=s.match(LK_SECT);if(!sm)return;
+    let sm=s.match(LK_SECT),carrier=it;
+    if(!sm){ // перенос подписи: сечение во ВТОРОЙ строке рядом (±20 по X), ближайшей по Y (P9 л.12: «ВВГнг-FRLS»+«4х1,5 - 12м»)
+      const sc=items.filter(o=>o!==it&&Math.abs(o.x-it.x)<20&&!LK_MARK.test(o.s)&&LK_SECT.test(o.s)).sort((a,b)=>Math.abs(a.y-it.y)-Math.abs(b.y-it.y))[0];
+      if(sc){sm=sc.s.match(LK_SECT);carrier=sc;}}
+    if(!sm)return;
     const near=items.filter(o=>o!==it&&dist(o,it)<44).sort((a,b)=>dist(a,it)-dist(b,it));
     if(near.some(o=>LK_NAME.test(o.s)))return;                 // это марка именованной ячейки — уже посчитана
     // длину «-Nм» берём после вырезания подстрок труб: булев lkIsCond ложно бил по марке «ПГ1-…» (022)
-    let L=null;const dm=[...s.replace(LK_COND_RX,'').matchAll(LK_LEN_DASH)];if(dm.length)L=dm[dm.length-1][1];
+    let L=null;const dm=[...(s+' '+(carrier!==it?carrier.s:'')).replace(LK_COND_RX,'').matchAll(LK_LEN_DASH)];if(dm.length)L=dm[dm.length-1][1];
     if(L==null){const lm=s.match(/L\s*=\s*(\d+(?:[,.]\d+)?)\s*м(?!м)/i);if(lm)L=lm[1];}   // «L=10м» (S10 л.7)
+    if(L==null){const bm=(s+' '+(carrier!==it?carrier.s:'')).replace(LK_COND_RX,'').match(/(?:^|\s)(\d+(?:[,.]\d+)?)\s*м(?![А-Яа-яЁёA-Za-z0-9])/);if(bm)L=bm[1];}   // голое «18м» в конце подписи (P9 л.13)
+    if(L==null&&carrier!==it)L=lkColLen(carrier,items);   // длина в столбце ПЕРЕНОСА — она относится к этой же подписи
     if(L==null)L=lkColLen(it,items);   // длина в том же столбце (строго по X) — безымянные отрезки не воруют длину у соседей
     if(L==null)return;
     const mark=lkMarkName(s);
