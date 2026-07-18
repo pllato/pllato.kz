@@ -119,8 +119,9 @@ button{font-family:inherit;cursor:pointer}
 .badge{position:absolute;top:-5px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--red);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
 
 .room-body{flex:1;display:flex;min-height:0}
-.stage{flex:1;padding:14px;overflow:auto;min-width:0}
-.grid{display:grid;gap:10px;height:100%;grid-auto-rows:1fr}
+.stage{flex:1;padding:14px;overflow:hidden;min-width:0;display:flex;flex-direction:column;gap:10px;position:relative}
+.grid{display:grid;gap:10px;flex:1;min-height:0;grid-auto-rows:1fr}
+.screen-area{display:none;min-height:0}
 .tile{position:relative;background:#0d1322;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);min-height:120px}
 .tile video{width:100%;height:100%;object-fit:cover}
 .tile.local video{transform:scaleX(-1)}
@@ -186,8 +187,7 @@ button{font-family:inherit;cursor:pointer}
 .alert{background:#3a1212;border:1px solid #7f1d1d;color:#fecaca;border-radius:11px;padding:12px 14px;font-size:13px;line-height:1.5;margin-top:14px}
 .host-banner{display:flex;align-items:center;gap:10px;justify-content:space-between;background:var(--surface-2);border:1px solid var(--bronze);border-radius:11px;padding:10px 14px;margin:0 14px 10px}
 .host-banner .txt{font-size:12.5px;color:var(--text-2)}
-.stage{position:relative}
-#caption-bar{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);max-width:80%;display:none;
+#caption-bar{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);max-width:80%;display:none;z-index:9;
   background:rgba(0,0,0,.72);backdrop-filter:blur(6px);border-radius:10px;padding:9px 16px;font-size:15px;line-height:1.4;text-align:center;pointer-events:none}
 #caption-bar.show{display:block}
 #caption-bar .cap-who{color:var(--bronze);font-weight:700;margin-right:6px}
@@ -199,15 +199,14 @@ button{font-family:inherit;cursor:pointer}
 .bg-opt:hover{border-color:var(--bronze)}
 .bg-opt.active{background:var(--bronze);border-color:var(--bronze);color:#1a1206}
 
-/* presentation layout (screen share): big screen + small face thumbs */
-.grid.presenting{display:block;position:relative}
-.grid.presenting .tile{position:static}
-.grid.presenting .tile.screen{position:absolute;inset:0;width:100%;height:100%;border:none;background:#000}
-.grid.presenting .tile.screen video{object-fit:contain;background:#000}
-#thumbs{position:absolute;right:14px;top:14px;display:flex;gap:8px;max-width:72%;flex-wrap:wrap;justify-content:flex-end;z-index:8;padding:2px}
-#thumbs:empty{display:none}
-#thumbs .tile{width:148px;height:100px;flex:0 0 auto;box-shadow:0 6px 18px rgba(0,0,0,.5)}
-@media(max-width:560px){#thumbs .tile{width:96px;height:66px}}
+/* презентация (показ экрана): экран крупно сверху + лица полосой снизу, БЕЗ наложения.
+   Лица видны всегда; при большом числе — горизонтальная прокрутка полосы. */
+.stage.presenting .screen-area{display:flex;flex:1;gap:8px;min-height:0;min-width:0}
+/* display:block перебивает .screen{display:none} — имя класса .screen конфликтует с секциями страницы */
+.screen-area .tile.screen{display:block;flex:1 1 0;min-height:0;min-width:0;border:none;background:#000}
+.screen-area .tile.screen video{object-fit:contain;background:#000}
+.stage.presenting .grid{flex:0 0 auto;height:150px;grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:210px;grid-auto-rows:100%;overflow-x:auto;overflow-y:hidden}
+@media(max-width:560px){.stage.presenting .grid{height:100px;grid-auto-columns:140px}}
 .tile.screen .tile-name{background:rgba(184,137,90,.85);color:#1a1206}
 
 /* settings menu (devices) */
@@ -369,8 +368,8 @@ button{font-family:inherit;cursor:pointer}
 
   <div class="room-body">
     <div class="stage">
+      <div class="screen-area" id="screen-area"></div>
       <div class="grid" id="video-grid"></div>
-      <div id="thumbs"></div>
       <div id="caption-bar"></div>
     </div>
 
@@ -415,7 +414,6 @@ button{font-family:inherit;cursor:pointer}
     <button class="cb" id="cb-cam"><span id="cb-cam-ic"></span><span>Видео</span></button>
     <button class="cb" id="cb-blur"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20" opacity=".4"/></svg><span>Фон</span></button>
     <button class="cb" id="cb-share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Экран</span></button>
-    <button class="cb" id="cb-pip" title="Лица плавающим окном поверх всех приложений"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="12" width="8" height="6" rx="1" fill="currentColor"/></svg><span>Поверх</span></button>
     <button class="cb" id="cb-cc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M7 12h2M11 12h2M15 12h2M7 15h4M13 15h4" stroke-linecap="round"/></svg><span>Субтитры</span></button>
     <button class="cb" id="cb-rec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg><span>Запись</span></button>
     <button class="cb" id="cb-settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Настр.</span></button>
@@ -494,7 +492,7 @@ const state = {
   isHost: false,
   hostKey: null,
   name: localStorage.getItem(LS.name) || '',
-  micOn: true, camOn: true, bgMode: localStorage.getItem(LS.bg) || 'none', // none | blur | logo
+  micOn: true, camOn: true, bgMode: localStorage.getItem(LS.bg) || 'logo', // none | blur | logo — по умолчанию логотип Pllato
   sharing: false, captioning: false, recording: false, locked: false,
   rawStream: null,        // camera+mic from getUserMedia
   outStream: null,        // what we send (processed video + mic audio)
@@ -1093,21 +1091,26 @@ function setLocalTileStream(){
   }else if(localScreenTile){ localScreenTile.remove(); localScreenTile=null; }
   relayoutGrid();
 }
-// раскладка: обычная сетка, либо «презентация» (экран крупно + лица мелко)
+// раскладка: обычная сетка лиц, либо «презентация» (экран крупно сверху + лица полосой снизу).
+// Экран всегда живёт в #screen-area, лица — всегда в #video-grid. Никаких наложений и плавающих окон.
 function relayoutGrid(){
-  const grid=$('video-grid'), thumbs=$('thumbs');
-  const all=[...grid.children, ...thumbs.children];
+  const stage=document.querySelector('.stage');
+  const grid=$('video-grid'), area=$('screen-area');
+  if(!stage||!grid||!area) return;
+  const all=[...grid.children, ...area.children];
   const screens=all.filter(t=>t.dataset.kind==='screen');
   const cams=all.filter(t=>t.dataset.kind!=='screen');
-  if(screens.length){
-    grid.classList.add('presenting'); grid.style.display='block';
-    screens.forEach(t=>{ t.classList.add('screen'); if(t.parentNode!==grid) grid.appendChild(t); });
-    cams.forEach(t=>{ t.classList.remove('screen'); if(t.parentNode!==thumbs) thumbs.appendChild(t); });
-    if(screens.length>1){ grid.style.display='grid'; grid.style.gridTemplateColumns=`repeat(${screens.length},1fr)`; grid.classList.remove('presenting'); }
+  // экраны -> #screen-area, лица -> #video-grid
+  screens.forEach(t=>{ t.classList.add('screen'); if(t.parentNode!==area) area.appendChild(t); });
+  cams.forEach(t=>{ t.classList.remove('screen'); if(t.parentNode!==grid) grid.appendChild(t); });
+  const presenting = screens.length>0;
+  stage.classList.toggle('presenting', presenting);
+  if(presenting){
+    // несколько экранов делят область поровну; лица идут полосой (управляется CSS)
+    area.style.gridTemplateColumns = screens.length>1 ? `repeat(${screens.length},1fr)` : '1fr';
+    grid.style.gridTemplateColumns=''; // полоса задаётся CSS (.stage.presenting .grid)
   }else{
-    grid.classList.remove('presenting'); grid.style.display='grid';
-    cams.forEach(t=>{ t.classList.remove('screen'); if(t.parentNode!==grid) grid.appendChild(t); });
-    const n=cams.length||1; const cols=Math.ceil(Math.sqrt(n));
+    const n=cams.length||1, cols=Math.ceil(Math.sqrt(n));
     grid.style.gridTemplateColumns=`repeat(${cols}, 1fr)`;
   }
 }
@@ -1136,7 +1139,6 @@ function initControls(){
   $('cb-cam').onclick=toggleCam;
   $('cb-blur').onclick=cycleBackground;
   $('cb-share').onclick=toggleShare;
-  $('cb-pip').onclick=()=>togglePiP(false);
   $('cb-cc').onclick=toggleCaptions;
   $('cb-rec').onclick=toggleRecording;
   $('cb-leave').onclick=leaveRoom;
@@ -1229,38 +1231,8 @@ async function toggleShare(){
     setLocalTileStream();
   }
   refreshControlIcons();
-  if(state.sharing){ toast('Показ экрана включён. Нажмите «Поверх», чтобы видеть лица плавающим окном над другими приложениями'); togglePiP(true); }
+  if(state.sharing) toast('Показ экрана включён — экран крупно, лица видны полосой снизу');
   else toast('Показ экрана выключен');
-}
-
-/* ---- Картинка-в-картинке: лица участников плавающим окном поверх всех окон ---- */
-let facesCanvas=null, facesRAF=null, pipVideo=null;
-function buildFacesCanvas(){
-  if(facesCanvas) return facesCanvas;
-  facesCanvas=document.createElement('canvas'); facesCanvas.width=480; facesCanvas.height=320;
-  const ctx=facesCanvas.getContext('2d');
-  const draw=()=>{
-    const cams=[...document.querySelectorAll('#video-grid .tile, #thumbs .tile')].filter(t=>t.dataset.kind!=='screen');
-    const n=Math.max(cams.length,1); const cols=Math.ceil(Math.sqrt(n)); const rows=Math.ceil(n/cols);
-    const cw=240, chh=160; facesCanvas.width=cols*cw; facesCanvas.height=rows*chh;
-    ctx.fillStyle='#0b0f1a'; ctx.fillRect(0,0,facesCanvas.width,facesCanvas.height);
-    cams.forEach((t,i)=> drawRecTile(ctx, t, (i%cols)*cw, Math.floor(i/cols)*chh, cw, chh, false));
-    facesRAF=requestAnimationFrame(draw);
-  };
-  draw();
-  return facesCanvas;
-}
-async function togglePiP(silent){
-  try{
-    if(document.pictureInPictureElement){ await document.exitPictureInPicture(); $('cb-pip').classList.remove('on'); return; }
-    if(!document.pictureInPictureEnabled){ if(!silent) toast('Плавающее окно поддерживается в Chrome/Edge на компьютере'); return; }
-    buildFacesCanvas();
-    if(!pipVideo){ pipVideo=document.createElement('video'); pipVideo.muted=true; pipVideo.playsInline=true; pipVideo.srcObject=facesCanvas.captureStream(15); }
-    await pipVideo.play().catch(()=>{});
-    await pipVideo.requestPictureInPicture();
-    $('cb-pip').classList.add('on');
-    pipVideo.addEventListener('leavepictureinpicture',()=>$('cb-pip').classList.remove('on'),{once:true});
-  }catch(e){ if(!silent) toast('Не удалось открыть плавающее окно: '+(e.message||'')); }
 }
 
 /* ---- таймер встречи ---- */
@@ -1431,7 +1403,7 @@ function startRecording(){
     const ctx=recCanvas.getContext('2d');
     const draw=()=>{
       ctx.fillStyle='#0b0f1a'; ctx.fillRect(0,0,1280,720);
-      const tiles=[...document.querySelectorAll('#video-grid .tile, #thumbs .tile')];
+      const tiles=[...document.querySelectorAll('#screen-area .tile, #video-grid .tile')];
       const screens=tiles.filter(t=>t.dataset.kind==='screen');
       const cams=tiles.filter(t=>t.dataset.kind!=='screen');
       if(screens.length){ // презентация: экран крупно + лица снизу
