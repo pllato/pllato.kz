@@ -231,13 +231,16 @@ button{font-family:inherit;cursor:pointer}
 /* в оверлее показываем только живые видео-портреты; камера выключена — прячем (в списке участников всё равно виден) */
 .stage.presenting .grid .tile.cam-off{display:none}
 
-/* settings menu (devices) */
+/* settings menu (devices + действия) */
 .menu{position:absolute;bottom:78px;left:50%;transform:translateX(-50%);background:var(--surface-2);
-  border:1px solid var(--line-2);border-radius:14px;padding:14px;width:300px;max-width:92vw;z-index:50;
-  box-shadow:0 18px 50px rgba(0,0,0,.55);display:none}
+  border:1px solid var(--line-2);border-radius:14px;padding:14px;width:320px;max-width:92vw;z-index:50;
+  box-shadow:0 18px 50px rgba(0,0,0,.55);display:none;max-height:min(72vh,560px);overflow-y:auto}
 .menu.show{display:block}
 .menu .label{margin-top:10px}
-.menu .label:first-child{margin-top:0}
+.menu-actions{display:flex;flex-direction:column;gap:7px}
+.menu-actions .btn{width:100%;justify-content:flex-start;position:relative}
+.menu-actions .btn .badge{position:static;margin-left:auto}
+.menu-hint{font-size:11.5px;color:var(--text-3);margin:9px 2px 2px;line-height:1.4}
 .req-banner{background:var(--bronze-tint,rgba(184,137,90,.12));border:1px solid var(--bronze);color:var(--text);
   font-size:12px;padding:7px 12px;border-radius:9px;margin:0 14px 8px;display:flex;align-items:center;gap:8px}
 
@@ -363,19 +366,10 @@ button{font-family:inherit;cursor:pointer}
       <span class="rec-dot hidden" id="rec-indicator"><span class="dot"></span>Запись</span>
     </div>
     <div class="tools">
-      <button class="icon-btn" id="btn-copy-invite" title="Скопировать ссылку-приглашение">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-      </button>
+      <!-- только «Участники» (для впуска гостей ведущим); ссылка/чат/транскрипция — в «Настройках» -->
       <button class="icon-btn" id="btn-people" title="Участники">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span class="badge hidden" id="people-badge">0</span>
-      </button>
-      <button class="icon-btn" id="btn-chat" title="Чат">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span class="badge hidden" id="chat-badge">0</span>
-      </button>
-      <button class="icon-btn" id="btn-transcript" title="Транскрипция">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>
       </button>
     </div>
   </div>
@@ -427,12 +421,18 @@ button{font-family:inherit;cursor:pointer}
     <button class="cb" id="cb-mic"><span id="cb-mic-ic"></span><span>Звук</span></button>
     <button class="cb" id="cb-cam"><span id="cb-cam-ic"></span><span>Видео</span></button>
     <button class="cb hidden" id="cb-share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Экран</span></button>
-    <button class="cb" id="cb-settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Настр.</span></button>
+    <button class="cb" id="cb-settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Настр.</span><span class="badge hidden" id="settings-badge">0</span></button>
     <button class="cb btn-danger" id="cb-leave" style="background:var(--red);border-color:var(--red);color:#fff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>Выйти</span></button>
   </div>
 
   <div class="menu" id="settings-menu">
-    <button class="btn" id="s-share" style="width:100%;margin-bottom:12px">Показать экран</button>
+    <div class="menu-actions">
+      <button class="btn" id="s-share">🖥 Показать экран</button>
+      <button class="btn" id="s-invite">🔗 Пригласить (ссылка)</button>
+      <button class="btn" id="s-chat">💬 Чат <span class="badge hidden" id="chat-badge">0</span></button>
+      <button class="btn" id="s-transcript">📝 Транскрипция</button>
+    </div>
+    <div class="menu-hint">Показывать экран может любой участник</div>
     <label class="label">Камера</label>
     <select class="select" id="r-cam"></select>
     <label class="label">Микрофон</label>
@@ -441,7 +441,7 @@ button{font-family:inherit;cursor:pointer}
     <div class="bg-options" id="r-bg-options">
       <button class="bg-opt" data-bg="none">Нет</button>
       <button class="bg-opt" data-bg="blur">Размытие</button>
-      <button class="bg-opt" data-bg="logo">Лого</button>
+      <button class="bg-opt" data-bg="logo">Лого Pllato</button>
     </div>
   </div>
 </section>
@@ -459,7 +459,7 @@ import { getSession } from './pllato-kz-shared/pllato-api.js';
 // Адрес сигналинг-воркера (Cloudflare). Разверни meet-worker/ командой `wrangler deploy`.
 const MEET_WS = 'wss://pllato-meet.uurraa.workers.dev';
 const MEET_API = 'https://pllato-meet.uurraa.workers.dev';
-const LOGO_URL = '/pllato_logo_transparent_white.svg'; // светлый логотип Pllato для фона
+const LOGO_URL = '/pllato_logo_transparent_navy.svg'; // тёмный логотип Pllato на СВЕТЛОМ фоне
 
 const ICE_SERVERS = [
   { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
@@ -713,11 +713,13 @@ class BgPipeline{
     //    срезая светлый ободок фона).
     // сильнее сглаживаем и понижаем контраст — край становится мягким градиентом,
     // ореол не «пикселит» и визуально не выпирает; brightness<1 слегка сужает силуэт.
-    const feather = Math.max(5, Math.round(w/110));
+    const feather = Math.max(5, Math.round(w/120));
     mctx.save();
     mctx.clearRect(0,0,w,h);
     mctx.imageSmoothingEnabled=true; mctx.imageSmoothingQuality='high';
-    mctx.filter=`blur(${feather}px) brightness(0.9) contrast(1.7)`;
+    // brightness 0.82 сильнее сужает силуэт (срезает кромку реального фона),
+    // contrast 2.0 держит края мягкими, но без «пикселей»
+    mctx.filter=`blur(${feather}px) brightness(0.82) contrast(2)`;
     mctx.drawImage(results.segmentationMask,0,0,w,h);
     mctx.restore();
     // 2) человек по маске
@@ -730,20 +732,21 @@ class BgPipeline{
     ctx.globalCompositeOperation='destination-over';
     if(this.mode==='logo'){
       ctx.filter='none';
-      // фирменный градиент Pllato + светлый логотип по центру
-      const g=ctx.createLinearGradient(0,0,0,h); g.addColorStop(0,'#0e1d33'); g.addColorStop(1,'#0a1628');
+      // СВЕТЛЫЙ фон (белый с лёгким градиентом) + тёмный логотип Pllato по центру.
+      // Светлый фон прячет ореол: светлая кромка сливается с белым.
+      const g=ctx.createLinearGradient(0,0,0,h); g.addColorStop(0,'#ffffff'); g.addColorStop(1,'#e9edf3');
       ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
       if(logoImg && logoImg.complete && logoImg.naturalWidth){
         const ar=logoImg.naturalWidth/logoImg.naturalHeight||3;
-        const lw=Math.min(w*0.62, 520), lh=lw/ar;
-        ctx.globalAlpha=0.95; ctx.drawImage(logoImg,(w-lw)/2,(h-lh)/2,lw,lh); ctx.globalAlpha=1;
+        const lw=Math.min(w*0.55, 460), lh=lw/ar;
+        ctx.globalAlpha=0.9; ctx.drawImage(logoImg,(w-lw)/2,(h-lh)/2,lw,lh); ctx.globalAlpha=1;
       }
     }else{ // blur
       ctx.filter='blur(16px)'; ctx.drawImage(results.image,0,0,w,h); ctx.filter='none';
     }
     ctx.restore();
   }
-  getStream(fps=24){ if(!this._cs) this._cs=this.canvas.captureStream(fps); return this._cs; }
+  getStream(fps=30){ if(!this._cs) this._cs=this.canvas.captureStream(fps); return this._cs; }
   stop(){ this.running=false; try{this.seg?.close();}catch{} try{this.video.srcObject=null;}catch{} }
 }
 
@@ -759,7 +762,7 @@ async function buildOutStream(){
     if(!outBg){ outBg=new BgPipeline(state.rawStream, outCanvas, state.bgMode); }
     else { outBg.setMode(state.bgMode); outBg.update(state.rawStream); }
     await new Promise(r=>setTimeout(r,500));
-    videoTrack=outBg.getStream(24).getVideoTracks()[0];
+    videoTrack=outBg.getStream(30).getVideoTracks()[0];
   }else{
     if(outBg){ outBg.stop(); outBg=null; }
     videoTrack=state.rawStream.getVideoTracks()[0];
@@ -771,7 +774,7 @@ async function buildOutStream(){
 
 // текущий исходящий видео-трек камеры (с учётом фона)
 function currentCamVideoTrack(){
-  return (state.bgMode!=='none' && outBg) ? outBg.getStream(24).getVideoTracks()[0] : state.rawStream.getVideoTracks()[0];
+  return (state.bgMode!=='none' && outBg) ? outBg.getStream(30).getVideoTracks()[0] : state.rawStream.getVideoTracks()[0];
 }
 
 // сменить фон во время встречи
@@ -1115,9 +1118,9 @@ function setLocalTileStream(){
   if(!localTile) return;
   const v=localTile.querySelector('video');
   const ms=new MediaStream();
-  // своё видео показываем НАПРЯМУЮ с камеры (без обработки фона) — без задержки.
-  // Обработанный (с лого) поток уходит только собеседникам.
-  const vt=state.rawStream?.getVideoTracks()[0];
+  // своё видео показываем С ФОНОМ (как видят собеседники). Канвас крутится на 30 fps,
+  // задержка минимальна. Если фон выключен — идёт сырая камера напрямую.
+  const vt=currentCamVideoTrack();
   if(vt && state.camOn) ms.addTrack(vt);
   v.srcObject=ms;
   localTile.querySelector('.tile-noimg').style.display=state.camOn?'none':'flex';
@@ -1182,28 +1185,28 @@ function initControls(){
   $('cb-share').onclick=toggleShare;
   $('cb-leave').onclick=leaveRoom;
   $('cb-settings').onclick=toggleSettings;
-  // «Экран» на панели — только у ведущего; остальные шарят из «Настроек»
+  // «Экран» на панели — только у ведущего; остальные шарят из «Настроек» (доступно всем)
   $('cb-share').classList.toggle('hidden', !state.isHost);
 
-  $('btn-copy-invite').onclick=copyInvite;
   $('btn-people').onclick=()=>openPane('people');
-  $('btn-chat').onclick=()=>openPane('chat');
-  $('btn-transcript').onclick=()=>openPane('transcript');
   document.querySelectorAll('.side-tab').forEach(t=> t.onclick=()=>openPane(t.dataset.pane));
   $('chat-send').onclick=sendChat;
   $('chat-input').addEventListener('keydown',e=>{ if(e.key==='Enter') sendChat(); });
   $('trn-download').onclick=downloadTranscript;
   $('trn-lang').value=recogLang; $('trn-lang').onchange=e=>{ recogLang=e.target.value; if(state.captioning){ stopRecognition(); startRecognition(); } };
 
-  // settings menu: показ экрана + устройства + фон
-  $('s-share').onclick=()=>{ toggleShare(); toggleSettings(); };
+  // settings menu: показ экрана (всем) + ссылка + чат + транскрипция + устройства + фон
+  $('s-share').onclick=()=>{ toggleSettings(); toggleShare(); };
+  $('s-invite').onclick=()=>{ toggleSettings(); copyInvite(); };
+  $('s-chat').onclick=()=>{ toggleSettings(); openPane('chat'); };
+  $('s-transcript').onclick=()=>{ toggleSettings(); openPane('transcript'); };
   $('r-cam').onchange = async (e)=>{ state.selCam=e.target.value; await changeDevicesRuntime(); toast('Камера переключена'); };
   $('r-mic').onchange = async (e)=>{ state.selMic=e.target.value; await changeDevicesRuntime(); toast('Микрофон переключён'); };
   document.querySelectorAll('#r-bg-options .bg-opt').forEach(b=> b.onclick=()=>{ setBgRuntime(b.dataset.bg); });
   applyBgUI();
 }
-// метка «Показать экран / Остановить показ» в настройках
-function refreshShareLabel(){ const b=$('s-share'); if(b) b.textContent = state.sharing?'Остановить показ экрана':'Показать экран'; }
+// метка «Показать экран / Остановить показ» в настройках (с иконкой)
+function refreshShareLabel(){ const b=$('s-share'); if(b) b.textContent = (state.sharing?'🛑 Остановить показ':'🖥 Показать экран'); }
 
 function toggleSettings(){ const m=$('settings-menu'); m.classList.toggle('show'); $('cb-settings').classList.toggle('on', m.classList.contains('show')); if(m.classList.contains('show')) populateDevices(); }
 
@@ -1309,7 +1312,7 @@ function openPane(name){
   panel.classList.remove('hidden'); activePane=name;
   document.querySelectorAll('.side-tab').forEach(t=>t.classList.toggle('active',t.dataset.pane===name));
   ['people','chat','transcript'].forEach(p=>{ const el=$('pane-'+p); el.style.display = p===name?'flex':'none'; });
-  if(name==='chat'){ $('chat-badge').classList.add('hidden'); unreadChat=0; $('chat-input').focus(); }
+  if(name==='chat'){ $('chat-badge')?.classList.add('hidden'); $('settings-badge')?.classList.add('hidden'); unreadChat=0; $('chat-input').focus(); }
 }
 
 /* invite link */
@@ -1338,7 +1341,11 @@ function onChatMessage(m){
   const el=document.createElement('div'); el.className='chat-msg';
   el.innerHTML=`<div class="who">${escapeHtml(m.name)}</div><div class="tx">${escapeHtml(m.text)}</div>`;
   const list=$('chat-list'); list.appendChild(el); list.scrollTop=list.scrollHeight;
-  if(activePane!=='chat' || $('side-panel').classList.contains('hidden')){ unreadChat++; const b=$('chat-badge'); b.classList.remove('hidden'); b.textContent=unreadChat; }
+  if(activePane!=='chat' || $('side-panel').classList.contains('hidden')){
+    unreadChat++;
+    // бейдж и в «Настройках» (кнопка Чат), и на шестерёнке — чтобы новое сообщение было видно
+    for(const id of ['chat-badge','settings-badge']){ const b=$(id); if(b){ b.classList.remove('hidden'); b.textContent=unreadChat; } }
+  }
 }
 function sendChat(){
   const inp=$('chat-input'); const t=inp.value.trim(); if(!t) return;
