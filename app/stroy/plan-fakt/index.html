@@ -1641,6 +1641,7 @@ function lkLinesFromItems(items){
       for(let j=0;j<vert.length;j++){const b=vert[j];if(!b||b===a)continue;
         if(Math.abs(b.x-a.x)<3){const gap=b.y-(a.y+a.w);
           if(gap>-4&&gap<12&&((/[хx]\s*$/.test(a.s)&&/^\d/.test(b.s))||(/\d\s*$/.test(a.s)&&/^\s*[хx]\d/.test(b.s))
+            ||(/\d\s*$/.test(a.s)&&/^м$/.test(b.s))   // «…48»+«м» → «…48м» — оторванная единица длины (S8 л.5)
             ||!LK_SECT.test(a.s))){   // марка ещё без сечения — продолжение рана клеим по геометрии («АсВВГнг»+«(А)-LS 4X2,5», P9 л.7)
             a.s+=(gap>2?' ':'')+b.s;a.w=b.y+b.w-a.y;vert[j]=null;glued=true;}}}}}
   const vjoined=vert.filter(Boolean);
@@ -1779,10 +1780,22 @@ function lkParseOneLine(items){const rows=[];const dist=(a,b)=>Math.hypot(a.x-b.
     if(L==null){const bm=(s+' '+(carrier!==it?carrier.s:'')).replace(LK_COND_RX,'').match(/(?:^|\s)(\d+(?:[,.]\d+)?)\s*м(?![А-Яа-яЁёA-Za-z0-9])/);if(bm)L=bm[1];}   // голое «18м» в конце подписи (P9 л.13)
     if(L==null&&carrier!==it)L=lkColLen(carrier,items);   // длина в столбце ПЕРЕНОСА — она относится к этой же подписи
     if(L==null)L=lkColLen(it,items);   // длина в том же столбце (строго по X) — безымянные отрезки не воруют длину у соседей
+    let ncFlag=false;
+    if(L==null){ // длина в СОСЕДНЕЙ строке переноса той же подписи (магистрали S7/S5 л.7: марка и «35м» в 8–12пт).
+      // Только СЛИТНАЯ форма «35м» — «6.7 м» с пробелом это расчётный ток из колонки параметров (022 л.7)
+      let best=null,bd=1e9;items.forEach(o=>{if(o===it||o===carrier)return;const dx=Math.abs(o.x-it.x);if(dx<2||dx>20)return;
+        if(LK_NAME.test(o.s)||LK_MARK.test(o.s))return;const t=o.s.replace(LK_COND_RX,'').trim();
+        const mm=t.match(/(?:^|[\s-])(\d+(?:[,.]\d+)?)м(?![А-Яа-яЁёA-Za-z0-9])/);if(!mm)return;
+        const d=Math.hypot(o.x-it.x,o.y-it.y);if(d<bd){bd=d;best=mm[1];}});
+      if(best!=null)L=best;}
+    if(L==null){ // совсем нет своей длины — берём длину ТРУБЫ этой линии («пг40 - 10м») с пометкой «проверить»
+      let best=null,bd=1e9;items.forEach(o=>{if(o===it)return;const dx=Math.abs(o.x-it.x);if(dx>20)return;
+        let cm;LK_COND_RX.lastIndex=0;while((cm=LK_COND_RX.exec(o.s))){const d=Math.hypot(o.x-it.x,o.y-it.y);if(d<bd){bd=d;best=cm[3];}}});
+      if(best!=null){L=best;ncFlag=true;}}
     if(L==null)return;
     const mark=lkMarkName(s);
     const conds=[];[it,...near.filter(o=>dist(o,it)<30)].forEach(o=>{let cm;LK_COND_RX.lastIndex=0;while((cm=LK_COND_RX.exec(o.s)))conds.push({t:lkCondName(cm[1])+cm[2],len:+cm[3]});});
-    rows.push({group:'—',mark,section:sm[1]+'x'+sm[2],len:parseFloat(String(L).replace(',','.')),conds,x:it.x,y:it.y,mult:lkMult(s)});});
+    rows.push({group:'—',mark,section:sm[1]+'x'+sm[2],len:parseFloat(String(L).replace(',','.')),conds,x:it.x,y:it.y,mult:lkMult(s),needsCheck:ncFlag});});
   return rows;
 }
 /* названия линеек (щитов) на листе: ЩСР/ЩК/ЩО/ЩАО/ЩР (не ЩЭ — это источник) */
@@ -1899,6 +1912,11 @@ function lkParseMarkFeedersH(items){
     const lm=jc.match(/-\s*(\d+(?:[,.]\d+)?)\s*м(?!м)/i)||jc.match(/L\s*=\s*(\d+(?:[,.]\d+)?)\s*м(?!м)/i)
       ||jc.match(/(?:^|\s)(\d+(?:[,.]\d+)?)\s*м(?![А-Яа-яЁёA-Za-z0-9])/);   // голое «55м» в строке фидера (2435 S1)
     if(lm){len=parseFloat(lm[1].replace(',','.'));clean=true;}
+    if(!clean){ // длина в строке-ПЕРЕНОСЕ той же подписи (S5-2435 л.7: «пг40 10м» строкой ниже марки); только слитное «10м»
+      const cand=It.filter(o=>o.rot==='H'&&o!==mk&&Math.abs(o.x-mk.x)<150&&Math.abs(o.y-mk.y)>=6&&Math.abs(o.y-mk.y)<=16
+        &&/^-?\d+(?:[,.]\d+)?м$/.test(o.s.replace(LK_COND_RX,'').trim()))
+        .sort((a,b)=>Math.hypot(a.x-mk.x,a.y-mk.y)-Math.hypot(b.x-mk.x,b.y-mk.y))[0];
+      if(cand){len=parseFloat(cand.s.replace(LK_COND_RX,'').replace(/[^\d.,]/g,'').replace(',','.'));clean=true;}}
     if(!clean){let best=null,bd=1e9;It.forEach(n=>{if(Math.abs(n.y-mk.y)>=20||Math.abs(n.x-mk.x)>=180||!/^\d+(?:[.,]\d+)?$/.test(n.s))return;const v=parseFloat(n.s.replace(',','.'));if(v>5&&v<=300){const d=Math.hypot(n.x-mk.x,n.y-mk.y);if(d<bd){bd=d;best=v;}}});if(best!=null)len=best;}
     // обозначение группы — ближайший «№…» слева в той же строке (2435 S1: «№ВН1(1»; бывает raw-V)
     const gIt=It.filter(o=>Math.abs(o.y-mk.y)<15&&o.x<mk.x&&o.x>mk.x-120&&/№./.test(o.s)).sort((a,b)=>b.x-a.x)[0];
@@ -1972,8 +1990,12 @@ async function lkExtract(data,onProgress){
     // дубль прочитанной строки: та же колонка (<8пт) — всегда; 8–20пт — только при том же сечении
     // (на плотных листах соседние фидеры стоят в 12пт — не гасить чужую колонку, S10 л.4).
     // Для горизонтальных фидеров близость считаем по обеим осям. Марки из зон таблиц — не фидеры.
+    // Добор пробуем и на листах, где обычные парсеры почти ничего не дали (магистрали ВРУ на
+    // повёрнутых листах — S5-2435 л.7: марки горизонтальны, фидерных заголовков нет).
+    // Пустой лист добираем только если это однолинейная схема (по штампу) — на планах этажей
+    // марки легенд давали бы двойной счёт (022 л.18–29).
     let mf=[];
-    if(isFeederSheet){
+    if(isFeederSheet||(rows.length<=1&&/однолинейн/i.test(_tj))){
       const boxes=lkPotrebBoxes(tc.items);const inBox=m=>boxes.some(b=>m.x>b.x0&&m.x<b.x1&&m.y>b.y0&&m.y<b.y1);
       const sameSec=(r,m)=>String(r.section).replace('.',',')===String(m.section).replace('.',',');
       const dupV=m=>rows.some(r=>r.x&&(Math.abs(r.x-m.x)<8||(Math.abs(r.x-m.x)<20&&sameSec(r,m))));
@@ -1989,7 +2011,7 @@ async function lkExtract(data,onProgress){
     // марку/сечение/длину юзер впишет сам. Одиночный «№…» вне ряда групп — не линия (примечания).
     if(isFeederSheet){
       const anchors=tc.items.map(it=>({s:(it.str||'').trim(),x:it.transform[4],y:it.transform[5],rot:Math.abs(it.transform[1])>Math.abs(it.transform[0])?'V':'H'}))
-        .filter(o=>/^№[А-Яа-яЁёA-Za-z0-9.,()\/-]{1,12}$/.test(o.s));
+        .filter(o=>/^№[А-Яа-яЁёA-Za-z0-9.,()\/-]{1,12}(?:\s[А-Яа-яЁёA-Za-z0-9.,()\/-]*\d[А-Яа-яЁёA-Za-z0-9.,()\/-]*)?$/.test(o.s));   // и «№К 6.1» с пробелом (S7 л.10)
       const inRow=(a,b)=>a.rot===b.rot&&(a.rot==='H'?Math.abs(a.y-b.y)<15:Math.abs(a.x-b.x)<15);
       anchors.forEach(a=>{
         if(rows.some(r=>(r.group&&r.group===a.s)||(r.x&&Math.abs(r.x-a.x)<25)))return;   // группа уже прочитана
