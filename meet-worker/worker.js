@@ -116,7 +116,8 @@ async function handleArchive(request, env, { aRec, aMeta, aList, aDel, aRecInit,
       return new Response(obj.body, { headers: { 'Content-Type': 'video/webm', 'Access-Control-Allow-Origin': '*' } });
     }
   }
-  if (aMeta && request.method === 'PUT') {
+  if (aMeta && (request.method === 'PUT' || request.method === 'POST')) {
+    // POST — чтобы navigator.sendBeacon (только POST) мог сохранить метаданные при закрытии вкладки
     const [, owner, id] = aMeta; if (!SAFE.test(owner) || !SAFE.test(id)) return json({ error: 'bad key' }, 400);
     await env.ARCHIVE.put(`meta/${owner}/${id}.json`, request.body, { httpMetadata: { contentType: 'application/json' } });
     return json({ ok: true });

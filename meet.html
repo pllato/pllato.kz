@@ -1296,16 +1296,32 @@ async function leaveRoom(){
   clearInterval(timerInt);
   try{ if(document.pictureInPictureElement) document.exitPictureInPicture(); }catch{}
   const wasRecording=state.recording;
-  if(wasRecording){ stopRecording(); toast('Сохраняю запись в облако…', 4000); }
+  let recDone=Promise.resolve();
+  if(wasRecording){ recDone=stopRecording(); toast('Сохраняю запись в облако…', 6000); }
   wsClosedByUser=true; try{ wsSend({t:'bye'}); ws?.close(); }catch{}
   for(const {pc} of peers.values()){ try{pc.close();}catch{} }
   state.rawStream?.getTracks().forEach(t=>t.stop());
   state.screenStream?.getTracks().forEach(t=>t.stop());
-  // дать записи дозалиться (последняя часть + complete + метаданные), затем уйти
-  if(wasRecording){ try{ await Promise.race([Promise.all([recFlushChain, recFinalizePromise]), new Promise(r=>setTimeout(r,8000))]); }catch{} }
+  // ДОЖИДАЕМСЯ финализации записи (последняя часть + complete + метаданные), затем уходим
+  if(wasRecording){ try{ await Promise.race([recDone, new Promise(r=>setTimeout(r,12000))]); }catch{} }
   location.href=location.pathname;
 }
-window.addEventListener('beforeunload',()=>{ wsClosedByUser=true; try{ ws?.close(); }catch{} });
+// страховка на закрытие вкладки: пытаемся завершить multipart и сохранить метаданные через sendBeacon
+window.addEventListener('pagehide', ()=>{
+  wsClosedByUser=true; try{ ws?.close(); }catch{}
+  try{
+    if(state.recording && recUpload && recUpload.parts.length && navigator.sendBeacon){
+      const j=(o)=>new Blob([JSON.stringify(o)],{type:'application/json'});
+      navigator.sendBeacon(`${MEET_API}/archive/rec-complete/${recUpload.owner}/${encodeURIComponent(recUpload.id)}/${encodeURIComponent(recUpload.uploadId)}`, j(recUpload.parts));
+      const owner=archiveOwner();
+      const names=[...new Set([state.name, ...[...presenceCache.values()].map(i=>i.name).filter(Boolean)])];
+      const meta={ id:recUpload.id, room:state.roomId, date:Date.now(),
+        durationSec: Math.round((Date.now()-(recStartTs||state.startedAt||Date.now()))/1000),
+        participants:names, transcript: transcriptLog.map(m=>({name:m.name,text:m.text})), mime:recMime };
+      navigator.sendBeacon(`${MEET_API}/archive/meta/${owner}/${encodeURIComponent(recUpload.id)}`, j(meta));
+    }
+  }catch{}
+});
 
 /* side panel */
 let activePane=null;
@@ -1429,7 +1445,7 @@ let mediaRecorder=null, recCanvas=null, recRAF=null, recStartTs=0, recMime='vide
 // потоковая выгрузка: в памяти держим только текущий буфер (~до 5 МБ), не всю запись
 const REC_PART_MIN = 5*1024*1024;
 let recUpload=null;        // {owner,id,uploadId,partNumber,parts:[]} — активная multipart-загрузка
-let recBuf=[], recBufBytes=0, recFlushChain=Promise.resolve(), recFallbackChunks=null, recFinalizePromise=null;
+let recBuf=[], recBufBytes=0, recFlushChain=Promise.resolve(), recFallbackChunks=null, recDoneResolve=null;
 function toggleRecording(){ if(!state.recording) startRecording(); else stopRecording(); }
 
 // инициализируем multipart-загрузку в R2 (если доступно)
@@ -1526,15 +1542,24 @@ async function startRecording(){
         recFallbackChunks.push(e.data);
       }
     };
-    mediaRecorder.onstop=()=>{ recFinalizePromise=finalizeRecording(); };
+    mediaRecorder.onstop=async ()=>{
+      try{ await finalizeRecording(); }
+      finally{ if(recDoneResolve){ recDoneResolve(); recDoneResolve=null; } }
+    };
     mediaRecorder.start(2000); state.recording=true;
     $('rec-indicator').classList.remove('hidden'); refreshControlIcons();
     toast(recUpload?'Идёт запись (сразу в облако)':'Идёт запись');
   }catch(e){ toast('Не удалось начать запись: '+(e.message||'')); }
 }
+// возвращает промис, который резолвится ПОСЛЕ финализации (complete+meta)
 function stopRecording(){
-  state.recording=false; try{mediaRecorder?.stop();}catch{} if(recRAF)cancelAnimationFrame(recRAF);
+  if(!state.recording) return Promise.resolve();
+  state.recording=false;
+  const done=new Promise(r=>{ recDoneResolve=r; });
+  try{ mediaRecorder?.stop(); }catch{ if(recDoneResolve){ recDoneResolve(); recDoneResolve=null; } }
+  if(recRAF)cancelAnimationFrame(recRAF);
   $('rec-indicator').classList.add('hidden'); refreshControlIcons();
+  return done;
 }
 // финализация: дослать остаток, завершить multipart и сохранить метаданные
 async function finalizeRecording(){
