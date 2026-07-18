@@ -237,6 +237,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-doc-add{border:1px dashed rgba(255,255,255,.4);background:transparent;color:#dfe7f2;border-radius:8px;padding:4px 9px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
 .lk-doc-add:hover{background:rgba(255,255,255,.12);}
 #lkIssN:not(:empty){display:inline-block;background:var(--amber);color:#fff;border-radius:9px;padding:0 6px;margin-left:5px;font-size:11px;}
+.lk-verchip{display:inline-block;margin-left:8px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);color:#cfd9e6;border-radius:7px;padding:1px 7px;font-size:10.5px;font-weight:800;vertical-align:2px;}
 .lk-iss-modal{position:fixed;inset:0;background:rgba(20,28,40,.45);z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:60px 16px 16px;}
 .lk-iss-box{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);width:640px;max-width:96vw;max-height:84vh;display:flex;flex-direction:column;padding:16px;gap:10px;}
 .lk-iss-head{display:flex;align-items:center;gap:10px;font-size:15px;}
@@ -517,7 +518,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 <div class="ledger" id="lineyka" style="display:none">
   <div class="lg-head">
     <button class="lk-tb" id="lkBack" title="Назад">← Назад</button>
-    <div class="lg-title">Линейка — чтение схемы<span class="lg-sub" id="lkName"></span></div>
+    <div class="lg-title">Линейка — чтение схемы<span class="lk-verchip" id="lkVer" title="Версия парсера Линейки. Если Claude говорит про более новую — обнови страницу с Cmd+Shift+R и нажми «Перечитать файл»"></span><span class="lg-sub" id="lkName"></span></div>
     <div class="lk-docs" id="lkDocs"></div>
     <button class="lk-tb" id="lkIssues" style="margin-left:auto" title="Пометки «что исправить» с привязкой к файлу и листу">⚑ Правки<span id="lkIssN"></span></button>
     <button class="lk-tb" id="lkReport">📊 Отчёт по файлу</button>
@@ -1608,6 +1609,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
+const LK_VER='v350';   // ПОДНИМАТЬ при каждой правке парсера — виден в шапке, уходит в «Правки для Claude»
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2065,6 +2067,7 @@ function lkInitViewer(){
   if(img.complete&&img.naturalWidth)fit();else img.onload=fit;
 }
 async function lkEnsureImg(pg){if(pg.img||!LK.pdf)return pg.img;const page=await LK.pdf.getPage(pg.page);pg.img=await lkRenderPage(page);return pg.img;}
+{const _vch=$('lkVer');if(_vch)_vch.textContent=LK_VER;}
 $('btnLineyka').onclick=()=>{
   // Линейка уже жила в этой сессии или есть сохранённые документы — вернуться, а не сразу в выбор файла
   if(LK.pages&&LK.pages.length){$('lineyka').style.display='flex';if(LK.docId)localStorage.setItem('lkLast',LK.docId);return;}
@@ -2220,7 +2223,7 @@ $('lkIssCopy').onclick=()=>{
   const open=(LK.issues||[]).filter(i=>!i.done);
   if(!open.length){toast('Нет открытых пометок');return;}
   const area=i=>i.rect?` [область листа: x ${(i.rect.x0*100).toFixed(0)}–${(i.rect.x1*100).toFixed(0)}%, y ${(i.rect.y0*100).toFixed(0)}–${(i.rect.y1*100).toFixed(0)}% сверху]`:'';
-  const txt='Файл: '+name+'\n'+open.map(i=>'— Лист '+i.page+area(i)+': '+i.text).join('\n')
+  const txt='Файл: '+name+' (сборка Линейки '+LK_VER+')\n'+open.map(i=>'— Лист '+i.page+area(i)+': '+i.text).join('\n')
     +'\n(приложи к сообщению сам PDF и PNG-вырезки, если скачивал)';
   lkCopyTsv([[txt]],'Правки для Claude');};
 $('lkIssReparse').onclick=async()=>{
