@@ -284,6 +284,11 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-pgimg{text-align:center;background:#596270;border-radius:10px;padding:10px;margin-bottom:14px;}
 .lk-pgimg img{max-width:100%;border-radius:4px;box-shadow:0 4px 18px rgba(0,0,0,.3);}
 .lk-groups{display:flex;flex-direction:column;gap:12px;}
+.lk-rtabs{display:flex;gap:7px;margin:0 0 4px;}
+.lk-rtab{padding:8px 18px;border:1px solid var(--line);border-radius:9px;background:#fff;font-weight:700;font-size:13px;cursor:pointer;color:var(--steel);}
+.lk-rtab.on{background:var(--steel);color:#fff;border-color:var(--steel);}
+.lk-rtab .n{opacity:.65;font-weight:600;margin-left:4px;}
+.lk-pipe-cab{font-size:12px;color:var(--steel);opacity:.8;white-space:nowrap;}
 .lk-grp{border:1px solid var(--line);border-radius:11px;background:#fff;padding:10px 12px;}
 .lk-grph{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line);}
 .lk-grpn{font-size:14.5px;font-weight:700;color:var(--steel);}
@@ -1615,7 +1620,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v358';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v359';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v356';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2384,29 +2389,47 @@ function renderLineyka(){
   $('lkNav').querySelectorAll('.lk-pg').forEach(b=>b.onclick=()=>{LK.sel=+b.dataset.pg;LK.view='pages';renderLineyka();$('lkPage').scrollTop=0;});
   if(LK.view==='report'){$('lkPage').innerHTML=lkReportHtml();bindReport();return;}
   const pg=LK.pages[LK.sel];
-  let h=`<div class="lk-split"><div class="lk-imgcol"><div class="lk-pgwrap"><div class="lk-zoom"><button data-z="out" title="Уменьшить">−</button><button data-z="fit" title="По ширине">↔</button><button data-z="in" title="Увеличить">+</button></div><div class="lk-pgimg" id="lkPgImg">${lkImgBoxHtml(pg)}</div></div><div class="lk-mk-note">🟢 точка — попало в подсчёт · 🔴 точка — длина взята ненадёжно («проверить длину»): поправь длину в строке — пометка снимется. Наведи на строку справа — подсветит её точку; клик по точке — перейти к строке. Где точки нет — пропуск (неучтённое ответвление), добавь строку.</div></div><div class="lk-datacol">`+lkCheckHtml(pg)+`<div class="lk-groups">`;
+  let h=`<div class="lk-split"><div class="lk-imgcol"><div class="lk-pgwrap"><div class="lk-zoom"><button data-z="out" title="Уменьшить">−</button><button data-z="fit" title="По ширине">↔</button><button data-z="in" title="Увеличить">+</button></div><div class="lk-pgimg" id="lkPgImg">${lkImgBoxHtml(pg)}</div></div><div class="lk-mk-note">🟢 точка — попало в подсчёт · 🔴 точка — длина взята ненадёжно («проверить длину»): поправь длину в строке — пометка снимется. Наведи на строку справа — подсветит её точку; клик по точке — перейти к строке. Где точки нет — пропуск (неучтённое ответвление), добавь строку.</div></div><div class="lk-datacol">`+lkCheckHtml(pg);
+  // #v359 вкладки «Кабели / Трубы»: трубы правятся в своей вкладке — строки кабелей компактнее
+  const pipesTab=LK.rtab==='pipes';
+  const condN=pg.rows.reduce((a,r)=>a+(r.conds||[]).length,0);
+  h+=`<div class="lk-rtabs"><button class="lk-rtab ${pipesTab?'':'on'}" data-t="cables">Кабели<span class="n">${pg.rows.length}</span></button><button class="lk-rtab ${pipesTab?'on':''}" data-t="pipes">Трубы<span class="n">${condN}</span></button></div><div class="lk-groups">`;
   pg.groups.forEach(grp=>{const st=lkSum(grp.rows);
     h+=`<div class="lk-grp"><div class="lk-grph"><span class="lk-grpn">${esc(grp.name)}</span>`
       +Object.keys(st.s).sort().map(k=>`<span class="lk-chip small">${esc(k)} <b>${Math.round(st.s[k])}м</b></span>`).join('')
       +`<span class="lk-chip small tot">Σ ${Math.round(st.t)}м</span>`
       +Object.keys(st.c).sort().map(k=>`<span class="lk-chip small cond">${esc(k)} <b>${Math.round(st.c[k])}м</b></span>`).join('')+`</div>`
-      +grp.rows.map(r=>lkRow(r)).join('')+`</div>`;});
-  h+=`<div style="display:flex;gap:9px;align-items:center;margin-top:6px"><button class="lk-add" id="lkAdd">+ Строка на этот лист</button><span class="lk-note">Проверь по печатной сводке «Потребность кабелей» на листе — поправь/добавь, итоги пересчитаются.</span></div></div></div></div>`;
+      +grp.rows.map(r=>pipesTab?lkPipeRow(r):lkRow(r,true)).join('')+`</div>`;});
+  h+=(pipesTab
+    ?`<div style="display:flex;gap:9px;align-items:center;margin-top:6px"><span class="lk-note">Труба добавляется к своей линии кнопкой «+ труба»; итоги труб пересчитаются сами.</span></div>`
+    :`<div style="display:flex;gap:9px;align-items:center;margin-top:6px"><button class="lk-add" id="lkAdd">+ Строка на этот лист</button><span class="lk-note">Проверь по печатной сводке «Потребность кабелей» на листе — поправь/добавь, итоги пересчитаются.</span></div>`)
+    +`</div></div></div>`;
   $('lkPage').innerHTML=h;bindLineyka();lkPersist();
   if(!pg.img)lkEnsureImg(pg).then(img=>{if(LK.pages[LK.sel]===pg&&img)renderLineyka();}).catch(e=>{console.error('render lист',e);const el=$('lkPgImg');if(el&&LK.pages[LK.sel]===pg)el.innerHTML='<div class="lk-spin" style="padding:18px">Не удалось отрисовать картинку листа (данные всё равно прочитаны ниже). <button class="lk-tb" id="lkImgRetry" style="color:var(--steel);margin-top:8px">Обновить</button></div>';const rb=$('lkImgRetry');if(rb)rb.onclick=()=>{pg.img=null;renderLineyka();};});
 }
-function lkRow(r){const conds=(r.conds||[]).map(c=>c.t+' '+c.len+'м').join(', ');const opts=(r.section?[]:['']).concat(LK_SECTIONS).concat(r.section&&LK_SECTIONS.indexOf(r.section)<0?[r.section]:[]);
+function lkCondsHtml(r){return (r.conds||[]).map((c,i)=>{const co=LK_CONDS.concat(c.t&&LK_CONDS.indexOf(c.t)<0?[c.t]:[]);
+    return `<span class="lk-cd"><select class="lk-ct" data-id="${r._id}" data-i="${i}">${co.map(t=>`<option ${t===c.t?'selected':''}>${esc(t)}</option>`).join('')}</select><input class="lk-cl" data-id="${r._id}" data-i="${i}" type="number" step="0.1" min="0" value="${c.len}"><span class="lk-cu">м</span><button class="lk-cx" data-id="${r._id}" data-i="${i}" title="Убрать трубу">×</button></span>`;}).join('')
+  +`<button class="lk-cadd" data-id="${r._id}">+ труба</button>`;}
+function lkRow(r,noConds){const opts=(r.section?[]:['']).concat(LK_SECTIONS).concat(r.section&&LK_SECTIONS.indexOf(r.section)<0?[r.section]:[]);
+  const condsTxt=(r.conds||[]).map(c=>c.t+' '+c.len+'м').join(', ');
   return `<div class="lg-row${r.needsCheck?' warn':''}" data-id="${r._id}">`
     +`<div class="lg-cell"><label>Потребитель</label><input class="lk-g" data-id="${r._id}" value="${esc(r.group||'')}" style="width:96px"></div>`
     +`<div class="lg-cell"><label>Марка (кабель)</label><input class="lk-m" data-id="${r._id}" value="${esc(r.mark||'')}" style="width:132px" placeholder="—"></div>`
     +`<div class="lg-cell"><label>Сечение</label><select class="lk-s" data-id="${r._id}">${opts.map(s=>`<option ${s===r.section?'selected':''}>${esc(s)}</option>`).join('')}</select></div>`
     +`<div class="lg-cell"><label>Длина, м</label><input class="lk-l" data-id="${r._id}" type="number" step="0.1" min="0" value="${r.len}"></div>`
     +(r.needsCheck?`<div class="lg-cell" style="justify-content:flex-end"><span class="lk-recheck" title="Длину не удалось прочитать точно (голое число на схеме) — сверь со схемой и поправь">⚠ проверить длину</span></div>`:'')
-    +`<div class="lg-cell" style="flex:1;min-width:190px"><label>Трубы</label><div class="lk-conds">`
-      +(r.conds||[]).map((c,i)=>{const co=LK_CONDS.concat(c.t&&LK_CONDS.indexOf(c.t)<0?[c.t]:[]);
-        return `<span class="lk-cd"><select class="lk-ct" data-id="${r._id}" data-i="${i}">${co.map(t=>`<option ${t===c.t?'selected':''}>${esc(t)}</option>`).join('')}</select><input class="lk-cl" data-id="${r._id}" data-i="${i}" type="number" step="0.1" min="0" value="${c.len}"><span class="lk-cu">м</span><button class="lk-cx" data-id="${r._id}" data-i="${i}" title="Убрать трубу">×</button></span>`;}).join('')
-      +`<button class="lk-cadd" data-id="${r._id}">+ труба</button></div></div>`
+    +(noConds
+      ?(condsTxt?`<div class="lg-cell"><label>Трубы</label><span class="lk-pipe-cab" title="Трубы правятся во вкладке «Трубы»">${esc(condsTxt)}</span></div>`:'')
+      :`<div class="lg-cell" style="flex:1;min-width:190px"><label>Трубы</label><div class="lk-conds">`+lkCondsHtml(r)+`</div></div>`)
     +`<button class="lk-del" data-id="${r._id}" title="Удалить">✕</button></div>`;
+}
+/* строка вкладки «Трубы»: кабель — только подпись, редактируются трубы */
+function lkPipeRow(r){
+  return `<div class="lg-row" data-id="${r._id}">`
+    +`<div class="lg-cell"><label>Потребитель</label><b style="font-size:13px">${esc(r.group||'—')}</b></div>`
+    +`<div class="lg-cell"><label>Кабель</label><span class="lk-pipe-cab">${esc(((r.mark||'')+' '+(r.section||'')).trim()||'—')} · ${r.len}м</span></div>`
+    +`<div class="lg-cell" style="flex:1;min-width:230px"><label>Трубы</label><div class="lk-conds">`+lkCondsHtml(r)+`</div></div>`
+    +`</div>`;
 }
 function lkDelRow(id){LK.pages.forEach(pg=>{pg.rows=pg.rows.filter(r=>r._id!==id);pg.groups.forEach(g=>g.rows=g.rows.filter(r=>r._id!==id));});delete LK.byId[id];}
 function bindLineyka(){const P=$('lkPage');
@@ -2420,6 +2443,7 @@ function bindLineyka(){const P=$('lkPage');
   P.querySelectorAll('.lk-cx').forEach(el=>el.onclick=()=>{const r=LK.byId[el.dataset.id];if(r&&r.conds){r.conds.splice(+el.dataset.i,1);renderLineyka();}});
   P.querySelectorAll('.lk-cadd').forEach(el=>el.onclick=()=>{const r=LK.byId[el.dataset.id];if(r){(r.conds=r.conds||[]).push({t:'п.г.25',len:0});renderLineyka();}});
   const cs=$('lkCopySheet');if(cs)cs.onclick=()=>{const pg=LK.pages[LK.sel];lkCopyTsv(lkSheetRows(pg),'Лист '+pg.page);};
+  P.querySelectorAll('.lk-rtab').forEach(b=>b.onclick=()=>{LK.rtab=b.dataset.t;renderLineyka();});
   const add=$('lkAdd');if(add)add.onclick=()=>{const pg=LK.pages[LK.sel];const r={_id:'r'+id2(),group:'',section:'3x2,5',len:0,conds:[],x:0,page:pg.page};LK.byId[r._id]=r;pg.rows.push(r);(pg.groups[0]||(pg.groups[0]={name:'Линейка',rows:[]})).rows.push(r);renderLineyka();};
   P.querySelectorAll('.lk-zoom button').forEach(b=>b.onclick=()=>{if(LK._zoomBtn)LK._zoomBtn(b.dataset.z);});
   lkInitViewer();
