@@ -1613,7 +1613,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v351';   // ПОДНИМАТЬ при каждой правке парсера — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v352';   // ПОДНИМАТЬ при каждой правке парсера — виден в шапке, уходит в «Правки для Claude»
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -1906,7 +1906,10 @@ function lkParseMarkFeedersH(items){
     // строкой выше марки; имя проверяем по склейке каждой соседней строки БЕЗ пробелов)
     const nearAll=It.filter(o=>o.rot==='H'&&Math.abs(o.y-mk.y)<16&&o.x>mk.x-260&&o.x<mk.x+260);
     const byY={};nearAll.forEach(o=>{const k=Math.round(o.y/4);(byY[k]=byY[k]||[]).push(o);});
-    if(Object.values(byY).some(arr=>LK_NAME.test(joinRow(arr))))return null;
+    // имя ищем БЕЗ якоря начала строки: в склейку ряда может затесаться «м» от соседней ячейки
+    // («м ЩА1.2-н1; …», S1 л.10) — с ^ такой ряд проходил фильтр и марка давала строку-дубль
+    const NAME_IN=new RegExp(LK_NAME.source.replace(/^\^/,''));
+    if(Object.values(byY).some(arr=>NAME_IN.test(joinRow(arr))))return null;
     // склейка строго ОДНОЙ строки (±6пт): шире — соседняя строка вклинивается по X внутрь сечения
     const cl=It.filter(o=>o.rot==='H'&&Math.abs(o.y-mk.y)<6&&o.x>mk.x-150&&o.x<mk.x+150);
     const joined=cl.slice().sort((a,b)=>a.x-b.x).map(o=>o.s).join(' ');
@@ -2001,7 +2004,7 @@ async function lkExtract(data,onProgress){
     // Пустой лист добираем только если это однолинейная схема (по штампу) — на планах этажей
     // марки легенд давали бы двойной счёт (022 л.18–29).
     let mf=[];
-    if(isFeederSheet||(rows.length<=1&&/однолинейн/i.test(_tj))){
+    if(isFeederSheet||/однолинейн/i.test(_tj)){   // любой лист-однолинейка (по штампу); планы этажей — нет (двойной счёт)
       const boxes=lkPotrebBoxes(tc.items);const inBox=m=>boxes.some(b=>m.x>b.x0&&m.x<b.x1&&m.y>b.y0&&m.y<b.y1);
       const sameSec=(r,m)=>String(r.section).replace('.',',')===String(m.section).replace('.',',');
       const dupV=m=>rows.some(r=>r.x&&(Math.abs(r.x-m.x)<8||(Math.abs(r.x-m.x)<20&&sameSec(r,m))));
@@ -2011,6 +2014,11 @@ async function lkExtract(data,onProgress){
     if(mf.length>=2 && mf.length>=rows.length){
       mf.forEach(m=>rows.push({group:m.group||'',mark:m.mark,section:m.section,len:m.len,conds:[],x:m.x,y:m.y,mult:1,needsCheck:m.needsCheck}));
       if(ctab.length){potrebOv={};ctab.forEach(r=>{potrebOv[r.section]=(potrebOv[r.section]||0)+r.len;});}
+    } else if(mf.length){
+      // хвост ряда: кандидат стоит в одном ряду (±25пт) с ≥2 уже прочитанными фидерами — линия без
+      // длины на чертеже (S7 л.7 ЩСНТ-А(8): у соседей «П40-42м», у него нет). Красная, длину впишут.
+      mf.filter(m=>rows.filter(r=>r.x&&Math.abs((r.y||0)-m.y)<25).length>=2)
+        .forEach(m=>rows.push({group:m.group||'',mark:m.mark,section:m.section,len:m.len,conds:[],x:m.x,y:m.y,mult:1,needsCheck:true}));
     }
     // линия-отсылка без данных на листе («от фотореле см. л. ЭОМ-6», P9): у якоря группы «№кА4»
     // нет своей строки — создаём заглушку с красной точкой: известное (группа) заполнено,
