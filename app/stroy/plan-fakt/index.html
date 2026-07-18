@@ -227,6 +227,15 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-del:hover{color:var(--red);border-color:var(--red);}
 .lk-add{border:1px solid var(--steel2);background:var(--panel2);color:var(--steel);border-radius:9px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;}
 .lk-add:hover{background:#fff;}
+.lk-docs{display:flex;gap:6px;align-items:center;margin-left:14px;overflow-x:auto;max-width:44%;scrollbar-width:thin;}
+.lk-doc{display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.08);color:#dfe7f2;border-radius:8px;padding:4px 8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;max-width:200px;}
+.lk-doc span{overflow:hidden;text-overflow:ellipsis;}
+.lk-doc:hover{background:rgba(255,255,255,.16);}
+.lk-doc.on{background:#fff;color:var(--ink);border-color:#fff;}
+.lk-doc .x{opacity:.55;font-weight:800;padding:0 1px;}
+.lk-doc .x:hover{opacity:1;color:#c0392b;}
+.lk-doc-add{border:1px dashed rgba(255,255,255,.4);background:transparent;color:#dfe7f2;border-radius:8px;padding:4px 9px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.lk-doc-add:hover{background:rgba(255,255,255,.12);}
 .lk-note{font-size:12px;color:var(--gray);line-height:1.45;align-self:center;flex:1;min-width:180px;}
 /* постраничный вид линейки */
 .lk-main{display:flex;flex:1;min-height:0;}
@@ -357,7 +366,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
   <button class="tbtn" id="btnUndo" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>Отменить</button>
   <button class="tbtn" id="btnLedger" title="Ведомость: список всех объектов — выставить свойства каждого, привязать линии к щитам, довести до 100%"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Ведомость</button>
   <button class="tbtn" id="btnLineyka" title="Линейка: авто-чтение длин кабеля из однолинейной схемы (.pdf)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/><circle cx="19" cy="19" r="2.4"/></svg>Линейка</button>
-  <input type="file" id="lkFile" accept=".pdf,application/pdf" hidden>
+  <input type="file" id="lkFile" accept=".pdf,application/pdf" multiple hidden>
   <button class="tbtn" id="btnSpec" title="PDF-смета: длина кабеля по типам, розетки, итоги"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17V7m4 10V11m4 6V9M5 21h14a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1z"/></svg>Смета</button>
   <button class="tbtn primary" id="btnExport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>Чистый PDF</button>
 </div>
@@ -481,6 +490,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
   <div class="lg-head">
     <button class="lk-tb" id="lkBack" title="Назад">← Назад</button>
     <div class="lg-title">Линейка — чтение схемы<span class="lg-sub" id="lkName"></span></div>
+    <div class="lk-docs" id="lkDocs"></div>
     <button class="lk-tb" id="lkReport" style="margin-left:auto">📊 Отчёт по файлу</button>
     <button class="lk-tb" id="lkCopy">⧉ Копировать для Excel</button>
     <button class="lg-x" id="lkClose">✕ Закрыть</button>
@@ -676,7 +686,11 @@ $('fileInput').onchange=e=>e.target.files[0]&&loadData(e.target.files[0]);
 const dbox=$('dropbox');
 ['dragenter','dragover'].forEach(ev=>dbox.addEventListener(ev,e=>{e.preventDefault();dbox.classList.add('over');}));
 ['dragleave','drop'].forEach(ev=>dbox.addEventListener(ev,e=>{e.preventDefault();dbox.classList.remove('over');}));
-dbox.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(!f)return;if(/\.pdf$/i.test(f.name||'')||f.type==='application/pdf')openLineyka(f);else loadData(f);});
+dbox.addEventListener('drop',async e=>{const fs=[...e.dataTransfer.files];if(!fs.length)return;
+  const pdfs=fs.filter(f=>/\.pdf$/i.test(f.name||'')||f.type==='application/pdf');
+  if(!pdfs.length){loadData(fs[0]);return;}
+  for(let i=1;i<pdfs.length;i++){try{const b=await pdfs[i].arrayBuffer();await archPut({id:'lk_'+(pdfs[i].name||('схема'+i)),_lk:1,name:pdfs[i].name||('схема'+i),date:Date.now()-i,buf:b});}catch(err){console.warn('lk store',err);}}
+  openLineyka(pdfs[0]);});
 // Стартуем с окна загрузки (не авто-грузим демо). Демо — по кнопке.
 async function loadDemo(){
   $('spin').style.display='block';$('spinTxt').textContent='Загрузка демо…';
@@ -777,7 +791,7 @@ async function archGetAny(id,src){let r=null;try{r=src==='cloud'?await cloudGet(
 async function renderArchive(){const list=$('archList');if(!list)return;
   let cloud=[],local=[];
   try{cloud=await cloudList();}catch(e){}
-  try{local=await archAll();}catch(e){}
+  try{local=(await archAll()).filter(r=>!r._lk);}catch(e){}   // документы Линейки — не проекты плана
   const byId={};
   local.forEach(r=>byId[r.id]={id:r.id,name:r.name,date:r.date,thumb:r.thumb,src:'local'});
   cloud.forEach(r=>byId[r.id]={id:r.id,name:r.name,date:r.date,thumb:r.thumb,src:'cloud'});
@@ -1966,23 +1980,82 @@ function lkInitViewer(){
   if(img.complete&&img.naturalWidth)fit();else img.onload=fit;
 }
 async function lkEnsureImg(pg){if(pg.img||!LK.pdf)return pg.img;const page=await LK.pdf.getPage(pg.page);pg.img=await lkRenderPage(page);return pg.img;}
-$('btnLineyka').onclick=()=>$('lkFile').click();
-$('lkFile').onchange=e=>{const f=e.target.files[0];if(f)openLineyka(f);e.target.value='';};
-$('lkClose').onclick=()=>$('lineyka').style.display='none';
-$('lkBack').onclick=()=>{if(LK.view==='report'){LK.view='pages';renderLineyka();}else{$('lineyka').style.display='none';}};
+$('btnLineyka').onclick=()=>{
+  // Линейка уже жила в этой сессии или есть сохранённые документы — вернуться, а не сразу в выбор файла
+  if(LK.pages&&LK.pages.length){$('lineyka').style.display='flex';if(LK.docId)localStorage.setItem('lkLast',LK.docId);return;}
+  lkRefreshDocs().then(()=>{if(LK.docs.length)return lkSwitchDoc(LK.docs[0].id);$('lkFile').click();});
+};
+$('lkFile').onchange=async e=>{const fs=[...e.target.files];e.target.value='';if(!fs.length)return;
+  // несколько PDF сразу: остальные — в реестр документов (распарсятся при переключении), первый открываем
+  for(let i=1;i<fs.length;i++){try{const b=await fs[i].arrayBuffer();await archPut({id:'lk_'+(fs[i].name||('схема'+i)),_lk:1,name:fs[i].name||('схема'+i),date:Date.now()-i,buf:b});}catch(err){console.warn('lk store',err);}}
+  openLineyka(fs[0]);
+};
+$('lkClose').onclick=()=>{$('lineyka').style.display='none';localStorage.removeItem('lkLast');};
+$('lkBack').onclick=()=>{if(LK.view==='report'){LK.view='pages';renderLineyka();}else{$('lineyka').style.display='none';localStorage.removeItem('lkLast');}};
 $('lkReport').onclick=()=>{if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}LK.view=LK.view==='report'?'pages':'report';renderLineyka();};
 $('lkCopy').onclick=()=>{if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}lkCopyExcel();};
-async function openLineyka(file){
-  $('lineyka').style.display='flex';$('lkName').textContent=' · '+(file.name||'схема');$('lkSum').innerHTML='';$('lkNav').innerHTML='';
+/* ---- несколько документов + автосохранение правок (IndexedDB) + восстановление после перезагрузки ---- */
+LK.docId=null;LK.docs=[];
+function lkSerialize(){return {sel:LK.sel,view:LK.view,pages:LK.pages.map(pg=>({page:pg.page,wpt:pg.wpt,hpt:pg.hpt,vru:pg.vru,shields:pg.shields,potreb:pg.potreb,pipes:pg.pipes,
+  rows:pg.rows.map(r=>({group:r.group,mark:r.mark,section:r.section,len:r.len,mult:r.mult,needsCheck:!!r.needsCheck,x:r.x,y:r.y,mx:r.mx,my:r.my,_id:r._id,page:r.page,conds:(r.conds||[]).map(c=>({t:c.t,len:c.len}))})),
+  groups:pg.groups.map(g=>({name:g.name,ids:g.rows.map(r=>r._id)}))}))};}
+function lkRevive(state){LK.byId={};
+  LK.pages=state.pages.map(pg=>{const by={};pg.rows.forEach(r=>{by[r._id]=r;LK.byId[r._id]=r;});
+    return Object.assign({},pg,{img:null,groups:pg.groups.map(g=>({name:g.name,rows:g.ids.map(i=>by[i]).filter(Boolean)}))});});
+  LK.sel=Math.max(0,Math.min(state.sel||0,LK.pages.length-1));LK.view=state.view==='report'?'report':'pages';LK.imgZoom=1;}
+let _lkSaveT=null;
+function lkPersistNow(){if(!LK.docId||!LK.pages||!LK.pages.length)return Promise.resolve();
+  return archGet(LK.docId).then(rec=>{if(!rec)return;rec.state=lkSerialize();rec.date=Date.now();return archPut(rec);}).catch(e=>console.warn('lk save',e));}
+function lkPersist(){clearTimeout(_lkSaveT);_lkSaveT=setTimeout(lkPersistNow,700);}
+function lkRefreshDocs(){return archAll().then(a=>{LK.docs=a.filter(r=>r._lk).map(r=>({id:r.id,name:r.name,date:r.date})).sort((a,b)=>b.date-a.date);lkDocsBar();}).catch(()=>{LK.docs=[];});}
+function lkDocsBar(){const el=$('lkDocs');if(!el)return;
+  el.innerHTML=LK.docs.map(d=>`<div class="lk-doc ${d.id===LK.docId?'on':''}" data-doc="${esc(d.id)}" title="${esc(d.name)}"><span>${esc(d.name.replace(/\.pdf$/i,''))}</span><b class="x" data-del="${esc(d.id)}" title="Убрать из списка">×</b></div>`).join('')
+    +`<button class="lk-doc-add" id="lkDocAdd" title="Добавить PDF (можно несколько сразу)">+ PDF</button>`;
+  el.querySelectorAll('.lk-doc').forEach(b=>b.onclick=e=>{if(e.target.dataset.del)return;lkSwitchDoc(b.dataset.doc);});
+  el.querySelectorAll('.x').forEach(x=>x.onclick=e=>{e.stopPropagation();lkDelDoc(x.dataset.del);});
+  const add=$('lkDocAdd');if(add)add.onclick=()=>$('lkFile').click();}
+async function lkSwitchDoc(id){
+  if(id===LK.docId&&LK.pages.length){$('lineyka').style.display='flex';return;}
+  clearTimeout(_lkSaveT);if(LK.docId&&LK.pages&&LK.pages.length)await lkPersistNow();
+  let rec=null;try{rec=await archGet(id);}catch(e){}
+  if(!rec){toast('Документ не найден в хранилище');lkRefreshDocs();return;}
+  await lkOpenBuf(rec.id,rec.name,rec.buf.slice(0),rec.state);
+}
+async function lkDelDoc(id){try{await archDel(id);}catch(e){}
+  if(localStorage.getItem('lkLast')===id)localStorage.removeItem('lkLast');
+  if(LK.docId===id)LK.docId=null;   // открытый остаётся в памяти, но больше не сохраняется
+  lkRefreshDocs();toast('Документ убран из списка');}
+async function lkOpenBuf(id,name,buf,state){
+  $('lineyka').style.display='flex';$('lkName').textContent=' · '+name;
+  LK.docId=id;localStorage.setItem('lkLast',id);
+  if(state&&state.pages&&state.pages.length){
+    $('lkPage').innerHTML='<div class="lk-spin"><b>Открываю…</b></div>';
+    try{LK.pdf=await pdfjsLib.getDocument({data:buf}).promise;}catch(e){LK.pdf=null;console.warn('lk pdf',e);}
+    lkRevive(state);renderLineyka();lkDocsBar();return;
+  }
+  $('lkSum').innerHTML='';$('lkNav').innerHTML='';
   $('lkPage').innerHTML='<div class="lk-spin"><b>Читаю схему…</b><br><span id="lkProg">готовлю…</span></div>';
-  try{const buf=await file.arrayBuffer();
+  try{
     const {pdf,pages}=await lkExtract(buf,(p,n)=>{const e=$('lkProg');if(e)e.textContent='страница '+p+' из '+n;});
-    LK.pdf=pdf;LK.pages=pages;LK.byId={};let id=0;
-    pages.forEach(pg=>pg.rows.forEach(r=>{r._id='r'+(id++);LK.byId[r._id]=r;r.page=pg.page;}));
+    LK.pdf=pdf;LK.pages=pages;LK.byId={};let id0=0;
+    pages.forEach(pg=>pg.rows.forEach(r=>{r._id='r'+(id0++);LK.byId[r._id]=r;r.page=pg.page;}));
     if(!pages.length){$('lkPage').innerHTML='<div class="lk-spin">Не нашёл кабельных данных. Возможно, это скан без текстового слоя или другой формат линейки — пришли файл, настрою парсер.</div>';return;}
-    LK.sel=0;LK.view='pages';LK.imgZoom=1;renderLineyka();toast('Листов с линейками: '+pages.length);
+    LK.sel=0;LK.view='pages';LK.imgZoom=1;renderLineyka();lkPersist();lkDocsBar();toast('Листов с линейками: '+pages.length);
   }catch(err){console.error(err);$('lkPage').innerHTML='<div class="lk-spin">Не удалось прочитать PDF: '+esc(String(err))+'</div>';}
 }
+async function openLineyka(file){
+  const name=file.name||'схема';const id='lk_'+name;
+  let buf;try{buf=await file.arrayBuffer();}catch(e){toast('Не удалось прочитать файл');return;}
+  try{await archPut({id,_lk:1,name,date:Date.now(),buf:buf.slice(0)});}catch(e){console.warn('lk store',e);}
+  await lkOpenBuf(id,name,buf,null);
+  lkRefreshDocs();
+}
+/* восстановление после перезагрузки: тот же документ, тот же лист */
+window.addEventListener('load',()=>{(async()=>{try{
+  await lkRefreshDocs();
+  const last=localStorage.getItem('lkLast');if(!last)return;
+  const rec=await archGet(last);if(rec&&rec._lk)await lkOpenBuf(rec.id,rec.name,rec.buf.slice(0),rec.state);
+}catch(e){console.warn('lk restore',e);}})();});
 function lkSum(rows){const s={},c={};let t=0;rows.forEach(r=>{const L=+r.len||0;s[r.section]=(s[r.section]||0)+L;if(r.section!=='шина')t+=L;(r.conds||[]).forEach(k=>c[k.t]=(c[k.t]||0)+(+k.len||0));});return{s,c,t};}
 function lkAllRows(){const a=[];LK.pages.forEach(pg=>pg.rows.forEach(r=>a.push(r)));return a;}
 /* статус листа по сверке: 'ok' | 'warn' | 'none' (нет печатной сводки) */
@@ -2027,7 +2100,7 @@ function renderLineyka(){
       +Object.keys(st.c).sort().map(k=>`<span class="lk-chip small cond">${esc(k)} <b>${Math.round(st.c[k])}м</b></span>`).join('')+`</div>`
       +grp.rows.map(r=>lkRow(r)).join('')+`</div>`;});
   h+=`<div style="display:flex;gap:9px;align-items:center;margin-top:6px"><button class="lk-add" id="lkAdd">+ Строка на этот лист</button><span class="lk-note">Проверь по печатной сводке «Потребность кабелей» на листе — поправь/добавь, итоги пересчитаются.</span></div></div></div></div>`;
-  $('lkPage').innerHTML=h;bindLineyka();
+  $('lkPage').innerHTML=h;bindLineyka();lkPersist();
   if(!pg.img)lkEnsureImg(pg).then(img=>{if(LK.pages[LK.sel]===pg&&img)renderLineyka();}).catch(e=>{console.error('render lист',e);const el=$('lkPgImg');if(el&&LK.pages[LK.sel]===pg)el.innerHTML='<div class="lk-spin" style="padding:18px">Не удалось отрисовать картинку листа (данные всё равно прочитаны ниже). <button class="lk-tb" id="lkImgRetry" style="color:var(--steel);margin-top:8px">Обновить</button></div>';const rb=$('lkImgRetry');if(rb)rb.onclick=()=>{pg.img=null;renderLineyka();};});
 }
 function lkRow(r){const conds=(r.conds||[]).map(c=>c.t+' '+c.len+'м').join(', ');const opts=LK_SECTIONS.concat(r.section&&LK_SECTIONS.indexOf(r.section)<0?[r.section]:[]);
@@ -2047,8 +2120,8 @@ function lkDelRow(id){LK.pages.forEach(pg=>{pg.rows=pg.rows.filter(r=>r._id!==id
 function bindLineyka(){const P=$('lkPage');
   P.querySelectorAll('.lk-s').forEach(el=>el.onchange=()=>{LK.byId[el.dataset.id].section=el.value;renderLineyka();});
   P.querySelectorAll('.lk-l').forEach(el=>el.onchange=()=>{const r=LK.byId[el.dataset.id];r.len=Math.max(0,parseFloat(el.value)||0);r.needsCheck=false;renderLineyka();});
-  P.querySelectorAll('.lk-g').forEach(el=>el.onchange=()=>{LK.byId[el.dataset.id].group=el.value;});
-  P.querySelectorAll('.lk-m').forEach(el=>el.onchange=()=>{LK.byId[el.dataset.id].mark=el.value;});
+  P.querySelectorAll('.lk-g').forEach(el=>el.onchange=()=>{LK.byId[el.dataset.id].group=el.value;lkPersist();});
+  P.querySelectorAll('.lk-m').forEach(el=>el.onchange=()=>{LK.byId[el.dataset.id].mark=el.value;lkPersist();});
   P.querySelectorAll('.lk-del').forEach(el=>el.onclick=()=>{lkDelRow(el.dataset.id);renderLineyka();});
   P.querySelectorAll('.lk-ct').forEach(el=>el.onchange=()=>{const r=LK.byId[el.dataset.id];if(r&&r.conds[+el.dataset.i]){r.conds[+el.dataset.i].t=el.value;renderLineyka();}});
   P.querySelectorAll('.lk-cl').forEach(el=>el.onchange=()=>{const r=LK.byId[el.dataset.id];if(r&&r.conds[+el.dataset.i]){r.conds[+el.dataset.i].len=Math.max(0,parseFloat(el.value)||0);renderLineyka();}});
