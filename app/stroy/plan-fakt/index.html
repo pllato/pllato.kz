@@ -1613,7 +1613,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v353';   // ПОДНИМАТЬ при каждой правке парсера — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v354';   // ПОДНИМАТЬ при каждой правке парсера — виден в шапке, уходит в «Правки для Claude»
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -1900,8 +1900,9 @@ function lkParseMarkFeedersH(items){
   const It=items.map(it=>({s:(it.str||'').trim(),x:it.transform[4],y:it.transform[5],w:it.width||0,rot:Math.abs(it.transform[1])>Math.abs(it.transform[0])?'V':'H'})).filter(o=>o.s);
   // склейка ряда как в hlines: встык при зазоре ≤2пт, иначе пробел (сплошной join ловил «0,91» как «имя,»)
   const joinRow=arr=>{let s='',pe=null;arr.slice().sort((a,b)=>a.x-b.x).forEach(o=>{if(pe!=null&&o.x-pe>2)s+=' ';s+=o.s;pe=o.x+o.w;});return s;};
-  const byRow={};It.filter(o=>o.rot==='H'&&LK_MARK.test(o.s)&&!LK_NAME.test(o.s)).forEach(mk=>{const k=Math.round(mk.y/12)+'_'+Math.round(mk.x/200);if(!byRow[k]||mk.s.length>byRow[k].s.length)byRow[k]=mk;});
-  return Object.values(byRow).map(mk=>{
+  // бакет по y/6: стопка кабелей одной группы идёт с шагом ~8пт — при /12 марки съедали друг друга (S2 л.11)
+  const byRow={};It.filter(o=>o.rot==='H'&&LK_MARK.test(o.s)&&!LK_NAME.test(o.s)).forEach(mk=>{const k=Math.round(mk.y/6)+'_'+Math.round(mk.x/200);if(!byRow[k]||mk.s.length>byRow[k].s.length)byRow[k]=mk;});
+  const out=Object.values(byRow).map(mk=>{
     // марка именованной ячейки — уже посчитана lkParseLines (S1 л.10: «ЩА1.1-н»+«1; …-40 м» кусками
     // строкой выше марки; имя проверяем по склейке каждой соседней строки БЕЗ пробелов)
     const nearAll=It.filter(o=>o.rot==='H'&&Math.abs(o.y-mk.y)<16&&o.x>mk.x-260&&o.x<mk.x+260);
@@ -1930,8 +1931,13 @@ function lkParseMarkFeedersH(items){
     if(!clean){let best=null,bd=1e9;It.forEach(n=>{if(Math.abs(n.y-mk.y)>=20||Math.abs(n.x-mk.x)>=180||!/^\d+(?:[.,]\d+)?$/.test(n.s))return;const v=parseFloat(n.s.replace(',','.'));if(v>5&&v<=300){const d=Math.hypot(n.x-mk.x,n.y-mk.y);if(d<bd){bd=d;best=v;}}});if(best!=null)len=best;}
     // обозначение группы — ближайший «№…» слева в той же строке (2435 S1: «№ВН1(1»; бывает raw-V)
     const gIt=It.filter(o=>Math.abs(o.y-mk.y)<15&&o.x<mk.x&&o.x>mk.x-120&&/№./.test(o.s)).sort((a,b)=>b.x-a.x)[0];
-    return {mark:lkMarkName(mk.s),section,len,x:mk.x,y:mk.y,needsCheck:!clean,group:gIt?gIt.s:'',o:'H'};
+    return {mark:lkMarkName(mk.s),section,len,x:mk.x,y:mk.y,needsCheck:!clean,group:gIt?gIt.s:'',conds:[],o:'H'};
   }).filter(Boolean);
+  // трубы: цельные «п.г.25 140м» в кластере колонки — к БЛИЖАЙШЕЙ строке группы (S2 л.10/11)
+  const condIt=It.filter(o=>{if(o.rot!=='H'||LK_MARK.test(o.s))return false;LK_COND_RX.lastIndex=0;return LK_COND_RX.test(o.s);});
+  condIt.forEach(c=>{let best=null,bd=1e9;out.forEach(m=>{const dx=Math.abs(c.x-m.x),dy=Math.abs(c.y-m.y);if(dx>60||dy>40)return;const d=Math.hypot(dx,dy);if(d<bd){bd=d;best=m;}});
+    if(best){let cm;LK_COND_RX.lastIndex=0;while((cm=LK_COND_RX.exec(c.s)))best.conds.push({t:lkCondName(cm[1])+cm[2],len:+cm[3]});}});
+  return out;
 }
 /* «Кабельный журнал» (НЭС 2435): записи — колонки по X, полосы значений — по Y заголовков
    («Дли»/«на м.» — длина кабеля, «до» — потребитель). Длина из журнала достоверная (зелёная).
@@ -2013,13 +2019,13 @@ async function lkExtract(data,onProgress){
       mf=lkParseMarkFeeders(tc.items).filter(m=>!inBox(m)&&!dupV(m)).concat(lkParseMarkFeedersH(tc.items).filter(m=>!inBox(m)&&!dupH(m)));
     }
     if(mf.length>=2 && mf.length>=rows.length){
-      mf.forEach(m=>rows.push({group:m.group||'',mark:m.mark,section:m.section,len:m.len,conds:[],x:m.x,y:m.y,mult:1,needsCheck:m.needsCheck}));
+      mf.forEach(m=>rows.push({group:m.group||'',mark:m.mark,section:m.section,len:m.len,conds:m.conds||[],x:m.x,y:m.y,mult:1,needsCheck:m.needsCheck}));
       if(ctab.length){potrebOv={};ctab.forEach(r=>{potrebOv[r.section]=(potrebOv[r.section]||0)+r.len;});}
     } else if(mf.length){
       // хвост ряда: кандидат стоит в одном ряду (±25пт) с ≥2 уже прочитанными фидерами — линия без
       // длины на чертеже (S7 л.7 ЩСНТ-А(8): у соседей «П40-42м», у него нет). Красная, длину впишут.
       mf.filter(m=>rows.filter(r=>r.x&&Math.abs((r.y||0)-m.y)<25).length>=2)
-        .forEach(m=>rows.push({group:m.group||'',mark:m.mark,section:m.section,len:m.len,conds:[],x:m.x,y:m.y,mult:1,needsCheck:true}));
+        .forEach(m=>rows.push({group:m.group||'',mark:m.mark,section:m.section,len:m.len,conds:m.conds||[],x:m.x,y:m.y,mult:1,needsCheck:true}));
     }
     // линия-отсылка без данных на листе («от фотореле см. л. ЭОМ-6», P9): у якоря группы «№кА4»
     // нет своей строки — создаём заглушку с красной точкой: известное (группа) заполнено,
