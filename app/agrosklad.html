@@ -482,7 +482,10 @@ html,body{max-width:100%;overflow-x:hidden}
 
       <!-- ТОВАРЫ -->
       <section class="screen" id="s-catalog">
-        <div class="ph"><h1>Товары · СЗР</h1><span class="sub">каталог с SKU, тарой и штрихкодом — учитывается по каждой канистре</span></div>
+        <div class="ph"><h1>Товары · СЗР</h1><span class="sub">каталог с SKU, тарой и штрихкодом — учитывается по каждой канистре</span>
+          <div class="rt"><button class="btn gh" onclick="printInventoryDoc()">🖨 Инвентаризация</button><button class="btn pri" onclick="addProduct()">＋ Товар</button></div>
+        </div>
+        <div class="note b">📇 <b>Каталог — свой, редактируемый.</b> Подтягиваем ваш текущий каталог, а новое наименование заводите сами кнопкой <b>«＋ Товар»</b> — сразу можно принимать по нему приход. Инвентаризационную опись и приёмочные листы <b>печатаете/сохраняете в PDF</b>.</div>
         <div class="statgrid" id="catKpis"></div>
         <div class="card"><div class="cb"><table class="tbl" id="catTbl"></table></div></div>
       </section>
@@ -505,6 +508,7 @@ html,body{max-width:100%;overflow-x:hidden}
       <section class="screen" id="s-safety">
         <div class="ph"><h1>Безопасность · режим хранения</h1><span class="sub">класс опасности, температура зон, совместимость — для СЗР это критично</span></div>
         <div class="note b">🛡️ <b>Хранение химии по правилам.</b> У каждого товара — класс опасности и температурный режим. Система следит за <b>температурой зон</b>, проверяет <b>совместимость</b> хранения и не даёт разместить несовместимые классы рядом. Готовый журнал для проверяющих.</div>
+        <div class="note a">🌱 <b>Хранение семян (в планах) — заготовка.</b> Под будущее хранение семенного материала заложен контроль <b>температуры и влажности</b> помещения: задаёте норму (напр. <b>+10…+15°C, влажность ≤60%</b>), система пишет журнал показаний и подсвечивает выход за норму. Подключение датчиков и точные пороги — на этапе, когда запустите направление.</div>
         <div class="statgrid" id="safeKpis"></div>
         <div class="dgrid2">
           <div class="panel"><div class="pth"><h3>Зоны и температурный режим</h3><span class="mut">датчик vs норма</span></div><div class="pbody" id="safeZones"></div></div>
@@ -1063,7 +1067,7 @@ function renderArrivals(){const arr=(ST.arrivals||[]);const scope=ROLE==='client
   const rows=scope?arr.filter(a=>a.client===scope):arr;
   $('arrTbl').innerHTML='<thead><tr><th>№</th><th>Контрагент</th><th>Товар</th><th>Тара</th><th class="r">Кол-во</th><th>Привоз</th><th>Статус</th><th></th></tr></thead><tbody>'+
     (rows.length?rows.map(a=>{const p=prod(a.sku);const c=cli(a.client);
-      return '<tr><td class="bc">'+esc(a.id)+'</td><td class="who2"><div class="av" style="background:'+c.color+'">'+esc(c.short)+'</div><span class="nm">'+esc(c.name)+'</span></td><td><b>'+esc(p.name)+'</b><div class="bc">'+esc(p.sku)+'</div></td><td>'+esc(a.tare)+'</td><td class="r">'+litr(a.qty)+'</td><td>'+esc(a.when)+(a.self?' <span class="pill v" style="font-size:9px">клиент внёс</span>':'')+'</td><td><span class="pill '+(a.status==='размещено'?'g':a.status==='принято'?'b':'a')+'">'+esc(a.status)+'</span></td><td class="r">'+(a.status!=='размещено'?'<button class="btn pri" style="padding:6px 11px" onclick="acceptArrival(\''+a.id+'\')">Принять и разместить</button>':'<span class="pill g">✓ ячейка '+esc(a.cell||'')+'</span>')+'</td></tr>';}).join('')
+      return '<tr><td class="bc">'+esc(a.id)+'</td><td class="who2"><div class="av" style="background:'+c.color+'">'+esc(c.short)+'</div><span class="nm">'+esc(c.name)+'</span></td><td><b>'+esc(p.name)+'</b><div class="bc">'+esc(p.sku)+'</div></td><td>'+esc(a.tare)+'</td><td class="r">'+litr(a.qty)+'</td><td>'+esc(a.when)+(a.self?' <span class="pill v" style="font-size:9px">клиент внёс</span>':'')+'</td><td><span class="pill '+(a.status==='размещено'?'g':a.status==='принято'?'b':'a')+'">'+esc(a.status)+'</span></td><td class="r" style="white-space:nowrap"><button class="btn gh" style="padding:6px 9px" onclick="printReceiving(\''+a.id+'\')" title="Приёмочный лист (печать/PDF)">🖨</button> '+(a.status!=='размещено'?'<button class="btn pri" style="padding:6px 11px" onclick="acceptArrival(\''+a.id+'\')">Принять и разместить</button>':'<span class="pill g">✓ ячейка '+esc(a.cell||'')+'</span>')+'</td></tr>';}).join('')
       :'<tr><td colspan="8" style="color:var(--faint);padding:18px">Приходов нет.</td></tr>')+'</tbody>';
 }
 function openArrivalForm(){$('aClient').innerHTML=ST.clients.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
@@ -1130,6 +1134,50 @@ function renderCatalog(){const cat=ST.catalog;
   $('catTbl').innerHTML='<thead><tr><th>Наименование</th><th>Категория</th><th>SKU</th><th>Тара</th><th>Класс опасности</th><th>Режим</th><th class="r">На хранении</th></tr></thead><tbody>'+
     cat.map(p=>'<tr onclick="toast(\'Товар «'+jsq(p.name)+'» ('+jsq(p.sku)+'): класс опасности '+p.haz+', режим хранения '+jsq(p.temp)+', штрихкод '+jsq(p.bc)+'. Тара '+p.vol+' л.\')"><td><b>'+esc(p.name)+'</b><div class="bc">'+esc(p.bc)+'</div></td><td><span class="pill '+p.pc+'">'+esc(p.cat)+'</span></td><td class="bc">'+esc(p.sku)+'</td><td>'+p.vol+' л</td><td>'+hazPill(p.haz)+'</td><td style="font-size:12.5px;color:var(--mut)">'+esc(p.temp)+'</td><td class="r" style="font-weight:800">'+litr(onHand(p.sku))+'</td></tr>').join('')+'</tbody>';
 }
+/* ручное заведение товара (наименования) — из встречи */
+function addProduct(){const name=(prompt('Новое наименование товара (СЗР/семена):','')||'').trim();if(!name)return;
+  const cat=(prompt('Категория: Гербицид / Инсектицид / Фунгицид / Протравитель / Десикант / Адъювант / Семена','Гербицид')||'СЗР').trim();
+  const vol=parseInt(prompt('Тара, л (напр. 20):','20'),10)||20;
+  const pcMap={'Гербицид':'g','Инсектицид':'a','Фунгицид':'b','Протравитель':'v','Десикант':'t','Адъювант':'gy','Семена':'g'};
+  const sku='СЗР-'+(700+ST.catalog.length);const bc='48702'+String(100000+ST.catalog.length*731).slice(0,8);
+  ST.catalog.push({sku,name,cat,pc:pcMap[cat]||'gy',vol,bc,haz:cat==='Семена'?4:3,temp:cat==='Семена'?'+10…+15°C, влажн. ≤60%':'+5…+30°C'});
+  save();renderAll();nav('catalog');toast('➕ Товар «'+esc(name)+'» ('+sku+') заведён в каталог. Теперь по нему можно принимать приход и отгружать.','ok');
+}
+/* печатные документы (приход / расход / инвентаризация / счёт) — из встречи */
+function docWindow(title,inner){const w=window.open('','_blank','width=820,height=920');if(!w){toast('Разрешите всплывающие окна, чтобы напечатать документ.','warn');return;}
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>body{font-family:Arial,Helvetica,sans-serif;color:#152a1e;font-size:12px;padding:22px;max-width:720px;margin:0 auto}h1{font-size:17px;margin:0}.sub{color:#63756b;font-size:11px;margin:2px 0 0}.hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1f9d55;padding-bottom:10px;margin-bottom:14px}.br{font-weight:800;font-size:18px}.br span{color:#1f9d55}table{width:100%;border-collapse:collapse;margin:10px 0}th,td{border:1px solid #cdd8d0;padding:7px 9px;text-align:left;font-size:11.5px}th{background:#eef6f0}.r{text-align:right}.chk{width:46px;text-align:center}.sign{margin-top:26px;font-size:11.5px}.sign u{display:inline-block;width:150px;border-bottom:1px solid #333;text-decoration:none}.pbtn{margin:0 0 16px;padding:10px 18px;background:#1f9d55;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer}.hint{font-size:11px;color:#63756b;margin-top:6px}@media print{.pbtn{display:none}}</style></head><body>'+
+    '<button class="pbtn" onclick="window.print()">🖨 Печать / Сохранить PDF</button>'+
+    '<div class="hd"><div><div class="br">Агро<span>Склад</span></div><div class="sub">ответственное хранение СЗР · портал вместо 1С</div></div><div style="text-align:right"><h1>'+esc(title)+'</h1><div class="sub">'+esc(today())+'</div></div></div>'+inner+'</body></html>');
+  w.document.close();
+}
+function printReceiving(id){const a=(ST.arrivals||[]).find(x=>x.id===id);if(!a)return;const p=prod(a.sku),c=cli(a.client);
+  const inner='<div class="sub" style="font-size:12px;margin-bottom:10px">Контрагент: <b>'+esc(c.name)+'</b> · Приход № '+esc(a.id)+' · когда: '+esc(a.when||'—')+'</div>'+
+    '<table><thead><tr><th style="width:34px">№</th><th>Наименование (СЗР)</th><th>Тара</th><th class="r">Кол-во, л</th><th class="chk">Факт ✓</th></tr></thead><tbody>'+
+    '<tr><td>1</td><td><b>'+esc(p.name)+'</b><div style="color:#888;font-size:10px">'+esc(a.sku)+' · '+esc(p.bc||'')+'</div></td><td>'+esc(a.tare||'—')+'</td><td class="r">'+litr(a.qty)+'</td><td class="chk"></td></tr>'+
+    '<tr><td colspan="3" style="text-align:right;font-weight:700">Итого</td><td class="r" style="font-weight:800">'+litr(a.qty)+'</td><td class="chk"></td></tr></tbody></table>'+
+    '<div class="hint">Приёмочный лист: сверьте фактически выгруженное с машины, отметьте «Факт ✓», затем в системе нажмите «Принять» — товар встанет на остаток и в ячейку.</div>'+
+    '<div class="sign">Сдал: <u></u> &nbsp;&nbsp; Принял (склад): <u></u> &nbsp;&nbsp; Дата: <u></u></div>';
+  docWindow('Приёмочный лист · приход '+a.id,inner);
+}
+function printInventoryDoc(){const map={};occCells().forEach(c=>{const k=c.client+'|'+c.sku;map[k]=map[k]||{client:c.client,sku:c.sku,qty:0,cells:[]};map[k].qty+=c.qty;map[k].cells.push(c.id);});
+  const rows=Object.values(map).sort((a,b)=>b.qty-a.qty);const tot=rows.reduce((a,r)=>a+r.qty,0);
+  const inner='<div class="sub" style="font-size:12px;margin-bottom:10px">Инвентаризационная опись остатков ответственного хранения на '+today()+'</div>'+
+    '<table><thead><tr><th style="width:30px">№</th><th>Контрагент</th><th>Товар (СЗР)</th><th>Ячейки</th><th class="r">Учёт, л</th><th class="chk">Факт</th></tr></thead><tbody>'+
+    rows.map((r,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(cli(r.client).name)+'</td><td>'+esc(prod(r.sku).name)+'</td><td style="font-size:10.5px">'+esc(r.cells.join(', '))+'</td><td class="r">'+litr(r.qty)+'</td><td class="chk"></td></tr>').join('')+
+    '<tr><td colspan="4" style="text-align:right;font-weight:700">Итого по складу</td><td class="r" style="font-weight:800">'+litr(tot)+'</td><td></td></tr></tbody></table>'+
+    '<div class="hint">Заполните столбец «Факт» при пересчёте; расхождения фиксируются актом.</div>'+
+    '<div class="sign">Комиссия: <u></u> &nbsp; <u></u> &nbsp;&nbsp; Дата: <u></u></div>';
+  docWindow('Инвентаризационная опись',inner);
+}
+function printInvoiceDoc(id){const i=(ST.invoices||[]).find(x=>x.id===id);if(!i)return;const c=cli(i.client);
+  const inner='<div class="sub" style="font-size:12px;margin-bottom:10px">Счёт № '+esc(i.id)+' за ответственное хранение · период '+esc(i.period)+'<br>Плательщик: <b>'+esc(c.name)+'</b></div>'+
+    '<table><thead><tr><th>Наименование услуги</th><th class="r">Кол-во, л</th><th class="r">Тариф, ₸/л·мес</th><th class="r">Сумма, ₸</th></tr></thead><tbody>'+
+    '<tr><td>Ответственное хранение СЗР</td><td class="r">'+litr(i.liters||0)+'</td><td class="r">'+TARIFF+'</td><td class="r">'+money(i.sum)+'</td></tr>'+
+    '<tr><td colspan="3" style="text-align:right;font-weight:700">Итого к оплате</td><td class="r" style="font-weight:800">'+money(i.sum)+'</td></tr></tbody></table>'+
+    '<div class="hint">Оплата — Kaspi / банковским переводом. Ссылка на оплату отправляется контрагенту в WhatsApp.</div>';
+  docWindow('Счёт '+i.id+' за хранение',inner);
+}
+function sendInvoiceWA(id){const i=(ST.invoices||[]).find(x=>x.id===id);if(!i)return;notify(i.client,'Счёт '+id+' за хранение на '+money(i.sum)+'. Ссылка на оплату (Kaspi/картой) — по кнопке. Спасибо!');save();renderAll();toast('📲 Ссылка на оплату счёта <b>'+esc(id)+'</b> отправлена контрагенту в WhatsApp.','blu');}
 
 /* ===== контрагенты ===== */
 function renderClients(){
@@ -1256,7 +1304,7 @@ function renderBilling(){const inv=ST.invoices||[];const scope=ROLE==='client'&&
     (acc.length?acc.map(x=>'<tr><td class="who2"><div class="av" style="background:'+x.c.color+'">'+esc(x.c.short)+'</div><span class="nm">'+esc(x.c.name)+'</span></td><td class="r">'+litr(x.l)+'</td><td class="r" style="font-weight:800">'+money(x.sum)+'</td><td class="r"><button class="btn pri" style="padding:5px 11px" onclick="issueInvoice(\''+x.c.id+'\')">Выставить счёт</button></td></tr>').join(''):'<tr><td colspan="4" style="color:var(--faint);padding:16px">Нет данных.</td></tr>')+'</tbody>';
   $('invTbl').innerHTML='<thead><tr><th>№</th><th>Контрагент</th><th>Период</th><th class="r">Сумма</th><th>Статус</th><th></th></tr></thead><tbody>'+
     (shownInv.length?shownInv.map(i=>{const c=cli(i.client);const st=i.status==='оплачен'?'g':i.status==='просрочен'?'r':'a';
-      return '<tr><td class="bc">'+esc(i.id)+'</td><td class="who2"><div class="av" style="background:'+c.color+'">'+esc(c.short)+'</div><span class="nm">'+esc(c.name)+'</span></td><td>'+esc(i.period)+'</td><td class="r" style="font-weight:800">'+money(i.sum)+'</td><td><span class="pill '+st+'">'+esc(i.status)+'</span></td><td class="r">'+(i.status!=='оплачен'?'<button class="btn gh" style="padding:5px 10px" onclick="markPaid(\''+i.id+'\')">Оплата пришла</button>':'<span class="pill g">✓</span>')+'</td></tr>';}).join('')
+      return '<tr><td class="bc">'+esc(i.id)+'</td><td class="who2"><div class="av" style="background:'+c.color+'">'+esc(c.short)+'</div><span class="nm">'+esc(c.name)+'</span></td><td>'+esc(i.period)+'</td><td class="r" style="font-weight:800">'+money(i.sum)+'</td><td><span class="pill '+st+'">'+esc(i.status)+'</span></td><td class="r" style="white-space:nowrap"><button class="btn gh" style="padding:5px 9px" onclick="event.stopPropagation();printInvoiceDoc(\''+i.id+'\')" title="Печать счёта">🖨</button> '+(i.status!=='оплачен'?'<button class="btn blu" style="padding:5px 9px" onclick="event.stopPropagation();sendInvoiceWA(\''+i.id+'\')" title="Ссылка на оплату в WhatsApp">📲</button> <button class="btn gh" style="padding:5px 10px" onclick="event.stopPropagation();markPaid(\''+i.id+'\')">Оплата пришла</button>':'<span class="pill g">✓</span>')+'</td></tr>';}).join('')
       :'<tr><td colspan="6" style="color:var(--faint);padding:16px">Счетов нет.</td></tr>')+'</tbody>';
 }
 function issueInvoice(cid){const c=cli(cid);const l=clientCells(cid).reduce((a,x)=>a+x.qty,0);const sum=l*TARIFF;if(!l){toast('У контрагента нет товара на хранении.','warn');return;}
