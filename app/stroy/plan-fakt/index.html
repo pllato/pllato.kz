@@ -238,6 +238,10 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-doc-add:hover{background:rgba(255,255,255,.12);}
 #lkIssN:not(:empty){display:inline-block;background:var(--amber);color:#fff;border-radius:9px;padding:0 6px;margin-left:5px;font-size:11px;}
 .lk-verchip{display:inline-block;margin-left:8px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);color:#cfd9e6;border-radius:7px;padding:1px 7px;font-size:10.5px;font-weight:800;vertical-align:2px;}
+.lk-stale{background:#fff3e2;border:1.5px solid var(--amber);border-radius:11px;padding:11px 12px;margin:0 0 10px;font-size:12.5px;line-height:1.45;color:#7a4c12;}
+.lk-stale .lk-add{display:block;width:100%;margin-top:8px;background:var(--amber);border-color:var(--amber);color:#fff;}
+.lk-stale .lk-add:hover{filter:brightness(1.07);background:var(--amber);}
+.lk-stale-sub{margin-top:6px;font-size:11px;color:#9a6c2e;}
 .lk-iss-modal{position:fixed;inset:0;background:rgba(20,28,40,.45);z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:60px 16px 16px;}
 .lk-iss-box{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);width:640px;max-width:96vw;max-height:84vh;display:flex;flex-direction:column;padding:16px;gap:10px;}
 .lk-iss-head{display:flex;align-items:center;gap:10px;font-size:15px;}
@@ -1609,7 +1613,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v350';   // ПОДНИМАТЬ при каждой правке парсера — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v351';   // ПОДНИМАТЬ при каждой правке парсера — виден в шапке, уходит в «Правки для Claude»
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2107,18 +2111,19 @@ async function lkSwitchDoc(id){
   clearTimeout(_lkSaveT);if(LK.docId&&LK.pages&&LK.pages.length)await lkPersistNow();
   let rec=null;try{rec=await archGet(id);}catch(e){}
   if(!rec){toast('Документ не найден в хранилище');lkRefreshDocs();return;}
-  await lkOpenBuf(rec.id,rec.name,rec.buf.slice(0),rec.state,rec.issues);
+  await lkOpenBuf(rec.id,rec.name,rec.buf.slice(0),rec.state,rec.issues,rec.ver);
 }
 async function lkDelDoc(id){try{await archDel(id);}catch(e){}
   if(localStorage.getItem('lkLast')===id)localStorage.removeItem('lkLast');
   if(LK.docId===id)LK.docId=null;   // открытый остаётся в памяти, но больше не сохраняется
   lkRefreshDocs();toast('Документ убран из списка');}
-async function lkOpenBuf(id,name,buf,state,issues){
+async function lkOpenBuf(id,name,buf,state,issues,ver){
   $('lineyka').style.display='flex';$('lkName').textContent=' · '+name;
   LK.docId=id;LK.issues=Array.isArray(issues)?issues:[];lkIssBadge();localStorage.setItem('lkLast',id);
   if(state&&state.pages&&state.pages.length){
     $('lkPage').innerHTML='<div class="lk-spin"><b>Открываю…</b></div>';
     try{LK.pdf=await pdfjsLib.getDocument({data:buf}).promise;}catch(e){LK.pdf=null;console.warn('lk pdf',e);}
+    LK.stale=(ver||'')!==LK_VER;   // разбор сделан старым парсером — предложить перечитать
     lkRevive(state);renderLineyka();lkDocsBar();return;
   }
   $('lkSum').innerHTML='';$('lkNav').innerHTML='';
@@ -2128,13 +2133,23 @@ async function lkOpenBuf(id,name,buf,state,issues){
     LK.pdf=pdf;LK.pages=pages;LK.byId={};let id0=0;
     pages.forEach(pg=>pg.rows.forEach(r=>{r._id='r'+(id0++);LK.byId[r._id]=r;r.page=pg.page;}));
     if(!pages.length){$('lkPage').innerHTML='<div class="lk-spin">Не нашёл кабельных данных. Возможно, это скан без текстового слоя или другой формат линейки — пришли файл, настрою парсер.</div>';return;}
+    LK.stale=false;
+    try{const rec=await archGet(id);if(rec){rec.ver=LK_VER;await archPut(rec);}}catch(e){}
     LK.sel=0;LK.view='pages';LK.imgZoom=1;renderLineyka();lkPersist();lkDocsBar();toast('Листов с линейками: '+pages.length);
   }catch(err){console.error(err);$('lkPage').innerHTML='<div class="lk-spin">Не удалось прочитать PDF: '+esc(String(err))+'</div>';}
+}
+/* перечитать текущий документ заново текущим парсером (пометки-правки живут отдельно и сохраняются) */
+async function lkReparse(){
+  if(!LK.docId){toast('Нет открытого документа');return;}
+  let rec=null;try{rec=await archGet(LK.docId);}catch(e){}
+  if(!rec){toast('Файл не найден в хранилище — загрузите PDF заново');return;}
+  rec.state=null;try{await archPut(rec);}catch(e){}
+  await lkOpenBuf(rec.id,rec.name,rec.buf.slice(0),null,rec.issues);
 }
 async function openLineyka(file){
   const name=file.name||'схема';const id='lk_'+name;
   let buf;try{buf=await file.arrayBuffer();}catch(e){toast('Не удалось прочитать файл');return;}
-  try{await archPut({id,_lk:1,name,date:Date.now(),buf:buf.slice(0)});}catch(e){console.warn('lk store',e);}
+  try{await archPut({id,_lk:1,name,date:Date.now(),ver:LK_VER,buf:buf.slice(0)});}catch(e){console.warn('lk store',e);}
   await lkOpenBuf(id,name,buf,null);
   lkRefreshDocs();
 }
@@ -2142,7 +2157,7 @@ async function openLineyka(file){
 window.addEventListener('load',()=>{(async()=>{try{
   await lkRefreshDocs();
   const last=localStorage.getItem('lkLast');if(!last)return;
-  const rec=await archGet(last);if(rec&&rec._lk)await lkOpenBuf(rec.id,rec.name,rec.buf.slice(0),rec.state,rec.issues);
+  const rec=await archGet(last);if(rec&&rec._lk)await lkOpenBuf(rec.id,rec.name,rec.buf.slice(0),rec.state,rec.issues,rec.ver);
 }catch(e){console.warn('lk restore',e);}})();});
 /* ---- «Правки»: пометки «что исправить» с привязкой к файлу и листу; экспорт для Claude; перечитка ---- */
 function lkIssBadge(){const n=(LK.issues||[]).filter(i=>!i.done).length;const el=$('lkIssN');if(el)el.textContent=n?String(n):'';}
@@ -2229,11 +2244,8 @@ $('lkIssCopy').onclick=()=>{
 $('lkIssReparse').onclick=async()=>{
   if(!LK.docId){toast('Нет открытого документа');return;}
   if(!confirm('Перечитать файл заново текущим парсером? Ручные правки строк будут заменены свежим разбором. Пометки-правки останутся.'))return;
-  let rec=null;try{rec=await archGet(LK.docId);}catch(e){}
-  if(!rec){toast('Файл не найден в хранилище — загрузите PDF заново');return;}
   $('lkIssModal').style.display='none';
-  rec.state=null;try{await archPut(rec);}catch(e){}
-  await lkOpenBuf(rec.id,rec.name,rec.buf.slice(0),null,rec.issues);
+  await lkReparse();
 };
 function lkSum(rows){const s={},c={};let t=0;rows.forEach(r=>{const L=+r.len||0;if(r.section)s[r.section]=(s[r.section]||0)+L;if(r.section!=='шина')t+=L;(r.conds||[]).forEach(k=>c[k.t]=(c[k.t]||0)+(+k.len||0));});return{s,c,t};}
 function lkAllRows(){const a=[];LK.pages.forEach(pg=>pg.rows.forEach(r=>a.push(r)));return a;}
@@ -2267,7 +2279,9 @@ function renderLineyka(){
   let navH='';vorder.forEach(v=>{if(vorder.length>1||v!=='—')navH+=`<div class="lk-vru">${esc(v==='—'?'Прочие шкафы':v)}</div>`;
     byVru[v].forEach(i=>{const pg=LK.pages[i],pt=lkSum(pg.rows).t;
       navH+=`<button class="lk-pg ${i===LK.sel?'on':''}" data-pg="${i}"><div class="lk-pgi"><div class="lk-pgt">Лист ${pg.page}</div><div class="lk-pgn">${pg.shields.length?esc(pg.shields.join(', ')):'линейка'}</div><div class="lk-pgm">${Math.round(pt)} м · ${pg.rows.length} лин.</div></div></button>`;});});
+  if(LK.stale)navH=`<div class="lk-stale">⚠ Разбор сделан <b>старой версией</b> парсера. Сейчас — <b>${LK_VER}</b>: исправления не видны, пока файл не перечитан.<button class="lk-add" id="lkStaleRe">⟳ Перечитать файл сейчас</button><div class="lk-stale-sub">Ручные правки строк будут заменены свежим разбором; пометки ⚑ останутся.</div></div>`+navH;
   $('lkNav').innerHTML=navH;
+  const _sre=$('lkStaleRe');if(_sre)_sre.onclick=()=>lkReparse();
   $('lkNav').querySelectorAll('.lk-pg').forEach(b=>b.onclick=()=>{LK.sel=+b.dataset.pg;LK.view='pages';renderLineyka();$('lkPage').scrollTop=0;});
   if(LK.view==='report'){$('lkPage').innerHTML=lkReportHtml();bindReport();return;}
   const pg=LK.pages[LK.sel];
