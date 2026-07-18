@@ -601,31 +601,67 @@ let previewBg = null;
 async function startPreview(){
   $('pre-name').value = state.name;
   applyBgUI();
+  const info = await getLocalMedia();   // никогда не бросает
+  try{ await populateDevices(); }catch{}
   updatePreMicCam();
-  try{
-    await getLocalMedia();
-    await populateDevices();
-    renderPreview();
-  }catch(e){
-    $('pre-error').innerHTML = '<div class="alert">Не удалось получить доступ к камере/микрофону. Разрешите доступ в браузере и обновите страницу.<br><small>'+escapeHtml(e.message||'')+'</small></div>';
-  }
+  renderPreview();
+  showMediaStatus(info);                 // предупреждение, но вход НЕ блокируем
 }
 
+// Устойчивый захват: пробуем оба устройства сразу, при сбое — по отдельности,
+// чтобы отсутствие/занятость микрофона НЕ мешала камере (и наоборот). Никогда не бросает.
 async function getLocalMedia(){
   if(state.rawStream){ state.rawStream.getTracks().forEach(t=>t.stop()); }
-  // 720p@30 — чёткий baseline для 2–4 участников в mesh; резкость держим битрейтом ниже
   const vBase = { width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30} };
-  const constraints = {
-    video: state.selCam ? { deviceId:{exact:state.selCam}, ...vBase } : vBase,
-    audio: state.selMic ? { deviceId:{exact:state.selMic}, echoCancellation:true, noiseSuppression:true, autoGainControl:true } : { echoCancellation:true, noiseSuppression:true, autoGainControl:true },
-  };
-  state.rawStream = await navigator.mediaDevices.getUserMedia(constraints);
+  const vc = state.selCam ? { deviceId:{exact:state.selCam}, ...vBase } : vBase;
+  const ac = state.selMic ? { deviceId:{exact:state.selMic}, echoCancellation:true, noiseSuppression:true, autoGainControl:true } : { echoCancellation:true, noiseSuppression:true, autoGainControl:true };
+  let stream=null, camErr=null, micErr=null;
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ video:vc, audio:ac });
+  }catch(e){
+    // разбираем по отдельности — какое устройство подвело
+    stream = new MediaStream();
+    try{ const v=await navigator.mediaDevices.getUserMedia({ video:vc }); v.getVideoTracks().forEach(t=>stream.addTrack(t)); }catch(e2){ camErr=e2; }
+    try{ const a=await navigator.mediaDevices.getUserMedia({ audio:ac }); a.getAudioTracks().forEach(t=>stream.addTrack(t)); }catch(e2){ micErr=e2; }
+  }
+  state.rawStream = stream || new MediaStream();
+  const hasAudio = state.rawStream.getAudioTracks().length>0;
+  const hasVideo = state.rawStream.getVideoTracks().length>0;
+  state.hasMic = hasAudio; state.hasCam = hasVideo;
+  if(!hasAudio) state.micOn=false;      // нет устройства — кнопка выключена
+  if(!hasVideo) state.camOn=false;
   state.rawStream.getAudioTracks().forEach(t=> t.enabled = state.micOn);
   state.rawStream.getVideoTracks().forEach(t=> t.enabled = state.camOn);
-  // запомнить фактически выбранные устройства (важно при автоподборе)
   const vt=state.rawStream.getVideoTracks()[0], at=state.rawStream.getAudioTracks()[0];
   if(vt?.getSettings().deviceId) state.selCam=vt.getSettings().deviceId;
   if(at?.getSettings().deviceId) state.selMic=at.getSettings().deviceId;
+  return { hasAudio, hasVideo, camErr, micErr };
+}
+
+function mediaErrText(e){
+  const n=e&&e.name||'';
+  if(n==='NotAllowedError'||n==='SecurityError') return 'доступ запрещён в браузере';
+  if(n==='NotFoundError'||n==='DevicesNotFoundError'||n==='OverconstrainedError') return 'устройство не найдено';
+  if(n==='NotReadableError'||n==='TrackStartError'||n==='AbortError') return 'устройство занято другим приложением';
+  return (e&&e.message)||'ошибка доступа';
+}
+// Предупреждение о недоступных устройствах — но войти по-прежнему МОЖНО (как слушатель/без камеры)
+function showMediaStatus(info){
+  const box=$('pre-error'); if(!box) return;
+  if(info && info.hasAudio && info.hasVideo){ box.innerHTML=''; return; }
+  const miss=[];
+  if(!info.hasAudio) miss.push('микрофон ('+mediaErrText(info.micErr)+')');
+  if(!info.hasVideo) miss.push('камера ('+mediaErrText(info.camErr)+')');
+  const denied = (info.micErr&&/NotAllowed|Security/.test(info.micErr.name))||(info.camErr&&/NotAllowed|Security/.test(info.camErr.name));
+  const busy = (info.micErr&&/NotReadable|TrackStart|Abort/.test(info.micErr.name))||(info.camErr&&/NotReadable|TrackStart|Abort/.test(info.camErr.name));
+  let tip='';
+  if(denied) tip='Нажмите на значок 🔒/камеры слева в адресной строке и разрешите доступ, затем «Повторить».';
+  else if(busy) tip='Закройте Zoom и другие приложения/вкладки, которые используют микрофон или камеру, затем «Повторить».';
+  else tip='Проверьте, что устройство подключено. Можно войти и без него — включите позже в «Настройках».';
+  box.innerHTML=`<div class="alert">Недоступно: ${miss.join(', ')}.<br>${tip}<br>
+    <button class="btn btn-ghost" id="btn-retry-media" style="margin-top:8px;padding:7px 12px;font-size:12.5px">↻ Повторить</button>
+    <span style="font-size:12px;color:var(--text-2);margin-left:8px">Войти всё равно можно — кнопкой ниже.</span></div>`;
+  const rb=$('btn-retry-media'); if(rb) rb.onclick=()=> startPreview();
 }
 
 async function populateDevices(){
@@ -638,8 +674,8 @@ async function populateDevices(){
   if(!state.selMic && mics[0]) state.selMic=mics[0].deviceId;
 }
 // смена устройства в зале ожидания/превью
-$('sel-cam').onchange = async (e)=>{ state.selCam=e.target.value; await getLocalMedia(); renderPreview(); };
-$('sel-mic').onchange = async (e)=>{ state.selMic=e.target.value; await getLocalMedia(); renderPreview(); };
+$('sel-cam').onchange = async (e)=>{ state.selCam=e.target.value; const info=await getLocalMedia(); updatePreMicCam(); renderPreview(); showMediaStatus(info); };
+$('sel-mic').onchange = async (e)=>{ state.selMic=e.target.value; const info=await getLocalMedia(); updatePreMicCam(); renderPreview(); showMediaStatus(info); };
 // устройства подключили/отключили (например, надели наушники) — обновляем списки
 navigator.mediaDevices.addEventListener?.('devicechange', async ()=>{
   try{ await populateDevices(); }catch{}
@@ -650,8 +686,15 @@ function updatePreMicCam(){
   $('pre-mic').className='round-btn'+(state.micOn?'':' off'); $('pre-mic').innerHTML=state.micOn?MIC_ON:MIC_OFF;
   $('pre-cam').className='round-btn'+(state.camOn?'':' off'); $('pre-cam').innerHTML=state.camOn?CAM_ON:CAM_OFF;
 }
-$('pre-mic').onclick=()=>{ state.micOn=!state.micOn; state.rawStream?.getAudioTracks().forEach(t=>t.enabled=state.micOn); updatePreMicCam(); };
-$('pre-cam').onclick=()=>{ state.camOn=!state.camOn; state.rawStream?.getVideoTracks().forEach(t=>t.enabled=state.camOn); updatePreMicCam(); renderPreview(); };
+$('pre-mic').onclick=async ()=>{
+  // нет микрофона, но пробуем включить — повторяем захват (вдруг закрыли Zoom/выдали доступ)
+  if(!state.hasMic){ state.micOn=true; state.selMic=null; const info=await getLocalMedia(); updatePreMicCam(); renderPreview(); showMediaStatus(info); return; }
+  state.micOn=!state.micOn; state.rawStream?.getAudioTracks().forEach(t=>t.enabled=state.micOn); updatePreMicCam();
+};
+$('pre-cam').onclick=async ()=>{
+  if(!state.hasCam){ state.camOn=true; state.selCam=null; const info=await getLocalMedia(); updatePreMicCam(); renderPreview(); showMediaStatus(info); return; }
+  state.camOn=!state.camOn; state.rawStream?.getVideoTracks().forEach(t=>t.enabled=state.camOn); updatePreMicCam(); renderPreview();
+};
 $('pre-name').oninput = (e)=>{ state.name=e.target.value; };
 
 // background mode UI (используется и в превью, и в комнате)
@@ -798,8 +841,9 @@ class BgPipeline{
 let outBg=null, outCanvas=null;
 async function buildOutStream(){
   const audio = state.rawStream.getAudioTracks();
+  const hasCam = state.rawStream.getVideoTracks().length>0;
   let videoTrack;
-  if(state.bgMode!=='none'){
+  if(hasCam && state.bgMode!=='none'){
     if(!outCanvas){ outCanvas=document.createElement('canvas'); }
     if(!outBg){ outBg=new BgPipeline(state.rawStream, outCanvas, state.bgMode); }
     else { outBg.setMode(state.bgMode); outBg.update(state.rawStream); }
@@ -807,7 +851,7 @@ async function buildOutStream(){
     videoTrack=outBg.getStream(30).getVideoTracks()[0];
   }else{
     if(outBg){ outBg.stop(); outBg=null; }
-    videoTrack=state.rawStream.getVideoTracks()[0];
+    videoTrack=state.rawStream.getVideoTracks()[0]; // может быть undefined — тогда входим без камеры
   }
   state.outStream = new MediaStream();
   if(videoTrack) state.outStream.addTrack(videoTrack);
