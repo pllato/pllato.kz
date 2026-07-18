@@ -253,6 +253,13 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-iss button:hover{background:var(--panel2);}
 .lk-iss-new{display:flex;gap:8px;align-items:flex-end;}
 .lk-iss-new textarea{flex:1;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:inherit;font-size:13px;resize:vertical;}
+.lk-iss-newbtns{display:flex;flex-direction:column;gap:6px;}
+.lk-iss-newbtns .lk-add{white-space:nowrap;}
+#lkPickLayer{position:absolute;inset:0;z-index:8;cursor:crosshair;touch-action:none;}
+.lk-pick-hint{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(30,40,55,.88);color:#fff;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:9px;pointer-events:none;white-space:nowrap;}
+.lk-pick-rect{position:absolute;border:2px dashed var(--amber);background:rgba(217,131,36,.14);pointer-events:none;}
+.lk-iss-rect{position:absolute;border:2px dashed var(--amber);background:rgba(217,131,36,.08);pointer-events:none;border-radius:3px;}
+.lk-iss-rect b{position:absolute;top:-1px;left:-1px;background:var(--amber);color:#fff;font-size:10px;font-weight:800;padding:1px 5px;border-radius:3px 0 6px 0;transform:scale(var(--mks,1));transform-origin:0 0;}
 .lk-iss-actions{display:flex;gap:8px;}
 .lk-iss-actions .lk-tb.dark{border:1px solid var(--steel2);color:var(--steel);background:var(--panel2);border-radius:9px;padding:8px 12px;}
 .lk-iss-note{font-size:11.5px;color:var(--gray);line-height:1.45;}
@@ -523,13 +530,17 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
       <div class="lk-iss-list" id="lkIssList"></div>
       <div class="lk-iss-new">
         <textarea id="lkIssText" rows="2" placeholder="Что не так на текущем листе? Например: «справа кабель на насос не посчитан», «длина у ЩК-2.4 должна быть 25 м»…"></textarea>
-        <button class="lk-add" id="lkIssAdd">⚑ Пометить на лист <span id="lkIssPage"></span></button>
+        <div class="lk-iss-newbtns">
+          <button class="lk-add" id="lkIssPick" title="Закроет окно — обведи рамкой место на листе, пометка привяжется к области">⌖ Обвести место на листе <span id="lkIssPage"></span></button>
+          <button class="lk-add" id="lkIssAdd" title="Пометка на весь лист, без области">⚑ На весь лист</button>
+        </div>
       </div>
       <div class="lk-iss-actions">
         <button class="lk-tb dark" id="lkIssCopy">⧉ Скопировать для Claude</button>
+        <button class="lk-tb dark" id="lkIssShots" title="Скачать PNG-вырезки помеченных областей — приложи их к сообщению вместе с PDF">⤓ Вырезки PNG</button>
         <button class="lk-tb dark" id="lkIssReparse" title="Разобрать PDF заново текущим парсером — для проверки исправлений. Ручные правки строк будут заменены свежим разбором, пометки останутся.">⟳ Перечитать файл</button>
       </div>
-      <div class="lk-iss-note">Как это работает: помечай проблемы по ходу проверки → «Скопировать для Claude» и отправь текст в чат → после исправления вернись, нажми «Перечитать файл» и пройди по пометкам (клик — откроет нужный лист), отмечая ✓.</div>
+      <div class="lk-iss-note">Как это работает: опиши проблему → «Обвести место» и выдели область на листе (рамка ⚑ останется на схеме) → «Скопировать для Claude» + «Вырезки PNG» → отправь текст, вырезки и PDF в чат → после исправления «Перечитать файл» и пройди по пометкам (клик — откроет лист), отмечая ✓.</div>
     </div>
   </div>
   <div class="lk-sum" id="lkSum"></div>
@@ -2000,7 +2011,10 @@ async function lkExtract(data,onProgress){
 /* отметки «что попало в подсчёт» на картинке листа (по координатам строк) */
 function lkMarkersHtml(pg){
   if(!pg.wpt||!pg.hpt)return '';
-  return pg.rows.filter(r=>r.mx!=null&&r.my!=null).map(r=>{const l=Math.max(0,Math.min(100,r.mx*100)),t=Math.max(0,Math.min(100,r.my*100));
+  // рамки открытых пометок-«правок» с областью на этом листе
+  const issR=((LK&&LK.issues)||[]).filter(i=>!i.done&&i.page===pg.page&&i.rect).map((i,k)=>
+    `<span class="lk-iss-rect" style="left:${(i.rect.x0*100).toFixed(2)}%;top:${(i.rect.y0*100).toFixed(2)}%;width:${((i.rect.x1-i.rect.x0)*100).toFixed(2)}%;height:${((i.rect.y1-i.rect.y0)*100).toFixed(2)}%"><b>⚑ ${esc(i.text.slice(0,28))}</b></span>`).join('');
+  return issR+pg.rows.filter(r=>r.mx!=null&&r.my!=null).map(r=>{const l=Math.max(0,Math.min(100,r.mx*100)),t=Math.max(0,Math.min(100,r.my*100));
     return `<span class="lk-mk${r.needsCheck?' warn':''}" data-id="${r._id}" title="${esc((r.group||'')+' '+r.section+' '+r.len+'м'+(r.needsCheck?' — ПРОВЕРИТЬ длину вручную':''))}" style="left:${l.toFixed(2)}%;top:${t.toFixed(2)}%"></span>`;}).join('');
 }
 function lkImgBoxHtml(pg){
@@ -2112,7 +2126,7 @@ function lkIssRender(){
   const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||$('lkName').textContent.replace(/^ · /,'');
   $('lkIssFile').textContent=name;
   const pg=LK.pages[LK.sel];$('lkIssPage').textContent=pg?pg.page:'—';
-  box.innerHTML=(LK.issues||[]).length?LK.issues.map((it,i)=>`<div class="lk-iss ${it.done?'done':''}" data-i="${i}" title="Открыть лист ${it.page}"><span class="pg">Лист ${it.page}</span><span class="tx">${esc(it.text)}</span><button data-ok="${i}" title="Исправлено / вернуть">${it.done?'↺':'✓'}</button><button data-del="${i}" title="Удалить пометку">×</button></div>`).join('')
+  box.innerHTML=(LK.issues||[]).length?LK.issues.map((it,i)=>`<div class="lk-iss ${it.done?'done':''}" data-i="${i}" title="Открыть лист ${it.page}"><span class="pg">Лист ${it.page}${it.rect?' ⌖':''}</span><span class="tx">${esc(it.text)}</span><button data-ok="${i}" title="Исправлено / вернуть">${it.done?'↺':'✓'}</button><button data-del="${i}" title="Удалить пометку">×</button></div>`).join('')
     :'<div class="lk-iss-empty">Пока пометок нет. Нашёл ошибку на листе — опиши её ниже, файл и лист запишутся сами.</div>';
   box.querySelectorAll('.lk-iss').forEach(el=>el.onclick=e=>{
     if(e.target.dataset.ok!=null||e.target.dataset.del!=null)return;
@@ -2130,11 +2144,62 @@ $('lkIssAdd').onclick=()=>{const t=($('lkIssText').value||'').trim();if(!t){toas
   const pg=LK.pages[LK.sel];if(!pg)return;
   LK.issues.push({page:pg.page,text:t,done:false,ts:Date.now()});
   $('lkIssText').value='';lkIssBadge();lkIssRender();lkPersist();};
+/* «Обвести место»: модал прячется, юзер тянет рамку по листу — пометка с областью (норм. коорд. картинки) */
+$('lkIssPick').onclick=()=>{const t=($('lkIssText').value||'').trim();if(!t){toast('Сначала опиши, что не так');return;}
+  const pg=LK.pages[LK.sel];if(!pg){toast('Нет листа');return;}
+  if(LK.view!=='pages'){LK.view='pages';renderLineyka();}
+  $('lkIssModal').style.display='none';
+  lkPickArea(rect=>{LK.issues.push({page:pg.page,text:t,rect,done:false,ts:Date.now()});
+    $('lkIssText').value='';lkIssBadge();lkPersist();renderLineyka();toast('Пометка ⚑ с областью добавлена');});};
+function lkPickArea(cb){
+  const vp=$('lkPgImg');const ib=$('lkImgBox');
+  if(!vp||!ib){toast('Лист ещё не отрисован — подожди картинку');return;}
+  const lay=document.createElement('div');lay.id='lkPickLayer';
+  lay.innerHTML='<div class="lk-pick-hint">Обведи рамкой место на листе · Esc — отмена</div><div class="lk-pick-rect" style="display:none"></div>';
+  vp.appendChild(lay);
+  const rectEl=lay.querySelector('.lk-pick-rect');let st=null;
+  const norm=e=>{const b=ib.getBoundingClientRect();return {x:Math.max(0,Math.min(1,(e.clientX-b.left)/b.width)),y:Math.max(0,Math.min(1,(e.clientY-b.top)/b.height))};};
+  const off=()=>{lay.remove();document.removeEventListener('keydown',esc);};
+  const esc=e=>{if(e.key==='Escape')off();};
+  document.addEventListener('keydown',esc);
+  lay.onpointerdown=e=>{e.preventDefault();e.stopPropagation();st=norm(e);try{lay.setPointerCapture(e.pointerId);}catch(_){}rectEl.style.display='block';draw(st,st);};
+  lay.onpointermove=e=>{if(!st)return;draw(st,norm(e));};
+  lay.onpointerup=e=>{if(!st)return;const c=norm(e);
+    let r={x0:Math.min(st.x,c.x),y0:Math.min(st.y,c.y),x1:Math.max(st.x,c.x),y1:Math.max(st.y,c.y)};
+    if(r.x1-r.x0<0.004&&r.y1-r.y0<0.004)r={x0:Math.max(0,r.x0-0.02),y0:Math.max(0,r.y0-0.02),x1:Math.min(1,r.x1+0.02),y1:Math.min(1,r.y1+0.02)}; // клик — небольшая область вокруг точки
+    off();cb(r);};
+  function draw(a,c){const b=ib.getBoundingClientRect(),vb=vp.getBoundingClientRect();
+    const x0=Math.min(a.x,c.x),y0=Math.min(a.y,c.y),x1=Math.max(a.x,c.x),y1=Math.max(a.y,c.y);
+    rectEl.style.left=(b.left-vb.left+x0*b.width)+'px';rectEl.style.top=(b.top-vb.top+y0*b.height)+'px';
+    rectEl.style.width=((x1-x0)*b.width)+'px';rectEl.style.height=((y1-y0)*b.height)+'px';}
+}
+/* PNG-вырезки помеченных областей — для передачи Claude вместе с текстом и PDF */
+$('lkIssShots').onclick=async()=>{
+  const open=(LK.issues||[]).filter(i=>!i.done&&i.rect);
+  if(!open.length){toast('Нет пометок с областью — используй «Обвести место»');return;}
+  let n=0;
+  for(const it of open){
+    const pg=LK.pages.find(p=>p.page===it.page);if(!pg)continue;
+    const img=await lkEnsureImg(pg);if(!img)continue;
+    const im=new Image();await new Promise((res,rej)=>{im.onload=res;im.onerror=rej;im.src=img;}).catch(()=>null);
+    if(!im.width)continue;
+    const pad=0.012;
+    const sx=Math.max(0,it.rect.x0-pad)*im.width, sy=Math.max(0,it.rect.y0-pad)*im.height;
+    const sw=Math.min(1,it.rect.x1+pad)*im.width-sx, sh=Math.min(1,it.rect.y1+pad)*im.height-sy;
+    if(sw<4||sh<4)continue;
+    const c=document.createElement('canvas');c.width=Math.round(sw);c.height=Math.round(sh);
+    c.getContext('2d').drawImage(im,sx,sy,sw,sh,0,0,c.width,c.height);
+    n++;const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download='Лист'+it.page+'_правка'+n+'.png';document.body.appendChild(a);a.click();a.remove();
+    await new Promise(r=>setTimeout(r,250));
+  }
+  toast(n?('Скачано вырезок: '+n+' — приложи их к сообщению вместе с PDF'):'Не удалось сделать вырезки');};
 $('lkIssCopy').onclick=()=>{
   const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||'схема';
   const open=(LK.issues||[]).filter(i=>!i.done);
   if(!open.length){toast('Нет открытых пометок');return;}
-  const txt='Файл: '+name+'\n'+open.map(i=>'— Лист '+i.page+': '+i.text).join('\n');
+  const area=i=>i.rect?` [область листа: x ${(i.rect.x0*100).toFixed(0)}–${(i.rect.x1*100).toFixed(0)}%, y ${(i.rect.y0*100).toFixed(0)}–${(i.rect.y1*100).toFixed(0)}% сверху]`:'';
+  const txt='Файл: '+name+'\n'+open.map(i=>'— Лист '+i.page+area(i)+': '+i.text).join('\n')
+    +'\n(приложи к сообщению сам PDF и PNG-вырезки, если скачивал)';
   lkCopyTsv([[txt]],'Правки для Claude');};
 $('lkIssReparse').onclick=async()=>{
   if(!LK.docId){toast('Нет открытого документа');return;}
