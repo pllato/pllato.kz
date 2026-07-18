@@ -1973,6 +1973,18 @@ async function lkExtract(data,onProgress){
       mf.forEach(m=>rows.push({group:m.group||'',mark:m.mark,section:m.section,len:m.len,conds:[],x:m.x,y:m.y,mult:1,needsCheck:m.needsCheck}));
       if(ctab.length){potrebOv={};ctab.forEach(r=>{potrebOv[r.section]=(potrebOv[r.section]||0)+r.len;});}
     }
+    // линия-отсылка без данных на листе («от фотореле см. л. ЭОМ-6», P9): у якоря группы «№кА4»
+    // нет своей строки — создаём заглушку с красной точкой: известное (группа) заполнено,
+    // марку/сечение/длину юзер впишет сам. Одиночный «№…» вне ряда групп — не линия (примечания).
+    if(isFeederSheet){
+      const anchors=tc.items.map(it=>({s:(it.str||'').trim(),x:it.transform[4],y:it.transform[5],rot:Math.abs(it.transform[1])>Math.abs(it.transform[0])?'V':'H'}))
+        .filter(o=>/^№[А-Яа-яЁёA-Za-z0-9.,()\/-]{1,12}$/.test(o.s));
+      const inRow=(a,b)=>a.rot===b.rot&&(a.rot==='H'?Math.abs(a.y-b.y)<15:Math.abs(a.x-b.x)<15);
+      anchors.forEach(a=>{
+        if(rows.some(r=>(r.group&&r.group===a.s)||(r.x&&Math.abs(r.x-a.x)<25)))return;   // группа уже прочитана
+        if(!anchors.some(b=>b!==a&&inRow(a,b)))return;          // не в ряду групп
+        rows.push({group:a.s,mark:'',section:'',len:0,conds:[],x:a.x,y:a.y,mult:1,needsCheck:true});});
+    }
     if(!rows.length){page.cleanup&&page.cleanup();continue;}
     lkAssignGroupNames(rows,lkGroupLabels(tc.items));
     const shields=lkDetectShields(tc.items);
@@ -2133,7 +2145,7 @@ $('lkIssReparse').onclick=async()=>{
   rec.state=null;try{await archPut(rec);}catch(e){}
   await lkOpenBuf(rec.id,rec.name,rec.buf.slice(0),null,rec.issues);
 };
-function lkSum(rows){const s={},c={};let t=0;rows.forEach(r=>{const L=+r.len||0;s[r.section]=(s[r.section]||0)+L;if(r.section!=='шина')t+=L;(r.conds||[]).forEach(k=>c[k.t]=(c[k.t]||0)+(+k.len||0));});return{s,c,t};}
+function lkSum(rows){const s={},c={};let t=0;rows.forEach(r=>{const L=+r.len||0;if(r.section)s[r.section]=(s[r.section]||0)+L;if(r.section!=='шина')t+=L;(r.conds||[]).forEach(k=>c[k.t]=(c[k.t]||0)+(+k.len||0));});return{s,c,t};}
 function lkAllRows(){const a=[];LK.pages.forEach(pg=>pg.rows.forEach(r=>a.push(r)));return a;}
 /* статус листа по сверке: 'ok' | 'warn' | 'none' (нет печатной сводки) */
 function lkPageStatus(pg){const proj=pg.potreb||{};if(!Object.keys(proj).length)return 'none';const read=lkSum(pg.rows).s;let ok=true;
@@ -2180,7 +2192,7 @@ function renderLineyka(){
   $('lkPage').innerHTML=h;bindLineyka();lkPersist();
   if(!pg.img)lkEnsureImg(pg).then(img=>{if(LK.pages[LK.sel]===pg&&img)renderLineyka();}).catch(e=>{console.error('render lист',e);const el=$('lkPgImg');if(el&&LK.pages[LK.sel]===pg)el.innerHTML='<div class="lk-spin" style="padding:18px">Не удалось отрисовать картинку листа (данные всё равно прочитаны ниже). <button class="lk-tb" id="lkImgRetry" style="color:var(--steel);margin-top:8px">Обновить</button></div>';const rb=$('lkImgRetry');if(rb)rb.onclick=()=>{pg.img=null;renderLineyka();};});
 }
-function lkRow(r){const conds=(r.conds||[]).map(c=>c.t+' '+c.len+'м').join(', ');const opts=LK_SECTIONS.concat(r.section&&LK_SECTIONS.indexOf(r.section)<0?[r.section]:[]);
+function lkRow(r){const conds=(r.conds||[]).map(c=>c.t+' '+c.len+'м').join(', ');const opts=(r.section?[]:['']).concat(LK_SECTIONS).concat(r.section&&LK_SECTIONS.indexOf(r.section)<0?[r.section]:[]);
   return `<div class="lg-row${r.needsCheck?' warn':''}" data-id="${r._id}">`
     +`<div class="lg-cell"><label>Потребитель</label><input class="lk-g" data-id="${r._id}" value="${esc(r.group||'')}" style="width:96px"></div>`
     +`<div class="lg-cell"><label>Марка (кабель)</label><input class="lk-m" data-id="${r._id}" value="${esc(r.mark||'')}" style="width:132px" placeholder="—"></div>`
