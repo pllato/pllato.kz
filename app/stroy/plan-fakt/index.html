@@ -541,11 +541,11 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
         </div>
       </div>
       <div class="lk-iss-actions">
-        <button class="lk-tb dark" id="lkIssCopy">⧉ Скопировать для Claude</button>
+        <button class="lk-tb dark" id="lkIssCopy">⧉ Скопировать</button>
         <button class="lk-tb dark" id="lkIssShots" title="Скачать PNG-вырезки помеченных областей — приложи их к сообщению вместе с PDF">⤓ Вырезки PNG</button>
         <button class="lk-tb dark" id="lkIssReparse" title="Разобрать PDF заново текущим парсером — для проверки исправлений. Ручные правки строк будут заменены свежим разбором, пометки останутся.">⟳ Перечитать файл</button>
       </div>
-      <div class="lk-iss-note">Как это работает: опиши проблему → «Обвести место» и выдели область на листе (рамка ⚑ останется на схеме) → «Скопировать для Claude» + «Вырезки PNG» → отправь текст, вырезки и PDF в чат → после исправления «Перечитать файл» и пройди по пометкам (клик — откроет лист), отмечая ✓.</div>
+      <div class="lk-iss-note">Как это работает: опиши проблему → «Обвести место» и выдели область на листе (рамка ⚑ останется на схеме) → «Скопировать» + «Вырезки PNG» → отправь текст, вырезки и PDF в чат Claude → после исправления «Перечитать файл» и пройди по пометкам (клик — откроет лист), отмечая ✓.</div>
     </div>
   </div>
   <div class="lk-sum" id="lkSum"></div>
@@ -2254,7 +2254,7 @@ $('lkIssCopy').onclick=()=>{
   if(!open.length){toast('Нет открытых пометок');return;}
   const area=i=>i.rect?` [область листа: x ${(i.rect.x0*100).toFixed(0)}–${(i.rect.x1*100).toFixed(0)}%, y ${(i.rect.y0*100).toFixed(0)}–${(i.rect.y1*100).toFixed(0)}% сверху]`:'';
   const txt='Файл: '+name+' (сборка Линейки '+LK_VER+')\n'+open.map(i=>'— Лист '+i.page+area(i)+': '+i.text).join('\n');
-  lkCopyTsv([[txt]],'Правки для Claude');};
+  lkCopyTsv([[txt]],'Список правок');};
 $('lkIssReparse').onclick=async()=>{
   if(!LK.docId){toast('Нет открытого документа');return;}
   if(!confirm('Перечитать файл заново текущим парсером? Ручные правки строк будут заменены свежим разбором. Пометки-правки останутся.'))return;
