@@ -244,7 +244,14 @@ button{font-family:inherit;cursor:pointer}
 .req-banner{background:var(--bronze-tint,rgba(184,137,90,.12));border:1px solid var(--bronze);color:var(--text);
   font-size:12px;padding:7px 12px;border-radius:9px;margin:0 14px 8px;display:flex;align-items:center;gap:8px}
 
+/* личный видеокабинет на лендинге */
+.cabinet{border:1px solid var(--bronze);background:rgba(184,137,90,.08);border-radius:14px;padding:14px;margin-bottom:14px}
+.cab-h{font-size:13.5px;font-weight:700;margin-bottom:9px}
+.cab-note{font-size:11.5px;color:var(--text-3);margin-top:9px;line-height:1.45}
+.cab-guest{color:var(--text-2);font-size:13px;line-height:1.5}
+
 /* archive list */
+.arch-group-h{font-size:13px;font-weight:800;color:var(--bronze);margin:16px 2px 8px;text-transform:uppercase;letter-spacing:.03em}
 .arch-item{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:12px;border:1px solid var(--line-2);
   border-radius:11px;margin-bottom:8px;background:var(--surface-2)}
 .arch-main{min-width:0;flex:1}
@@ -266,24 +273,25 @@ button{font-family:inherit;cursor:pointer}
       </div>
       <div class="card">
         <h1>Видеовстречи Pllato</h1>
-        <p class="sub">Запись, живая транскрипция, размытие фона и зал ожидания. Работает прямо в браузере — гостям не нужен аккаунт.</p>
-        <button class="btn btn-primary" style="width:100%" id="btn-new-meeting">Новая встреча</button>
+        <p class="sub">Запись, живая транскрипция и зал ожидания. Работает прямо в браузере — клиентам не нужен аккаунт.</p>
 
-        <div class="divider">моя постоянная комната</div>
-        <label class="label">Короткий адрес (буквы/цифры) — ссылка не меняется никогда</label>
-        <div class="join-row">
-          <span style="display:flex;align-items:center;color:var(--text-3);font-size:13px;white-space:nowrap">…/m/</span>
-          <input class="input" id="my-slug" placeholder="например urra" maxlength="24">
-          <button class="btn btn-primary" id="btn-my-room">Войти</button>
-        </div>
-        <div id="my-room-link"></div>
+        <!-- Личный видеокабинет менеджера (заполняется из Gmail-сессии) -->
+        <div id="cabinet-block"></div>
 
-        <div class="divider">или войти по чужой ссылке</div>
+        <button class="btn btn-primary" style="width:100%;margin-top:6px" id="btn-new-meeting">Новая встреча</button>
+
+        <div class="divider">войти по ссылке</div>
         <div class="join-row">
           <input class="input" id="join-code" placeholder="Код или ссылка комнаты">
           <button class="btn" id="btn-join-code">Войти</button>
         </div>
         <button class="btn btn-ghost" style="width:100%;margin-top:14px" id="btn-archive">📁 Архив встреч</button>
+
+        <!-- легаси: ручной адрес персональной комнаты (скрыто, обработчики сохранены) -->
+        <div id="myroom-manual" class="hidden">
+          <div class="join-row"><input class="input" id="my-slug" maxlength="24"><button class="btn" id="btn-my-room">Войти</button></div>
+          <div id="my-room-link"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -538,6 +546,12 @@ function gotoPrejoin(roomId){
 function slugify(v){ return String(v||'').toLowerCase().replace(/[^a-z0-9\-]/g,'').slice(0,24); }
 function shortLink(slug){ return location.origin+'/m/'+slug; }
 function ensureHostKey(room){ let k=localStorage.getItem(LS.hostKeyPrefix+room); if(!k){ k='hk_'+Math.random().toString(36).slice(2); localStorage.setItem(LS.hostKeyPrefix+room,k); } return k; }
+// личный видеокабинет менеджера из email — тот же алгоритм, что в meet-worker
+function meetSlug(email){ return 'u-'+String(email||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40); }
+function sessionUser(){ try{ return getSession()?.user || null; }catch{ return null; } }
+function sessionToken(){ try{ return getSession()?.token || null; }catch{ return null; } }
+// личный slug текущего залогиненного менеджера (или null для гостя)
+function myMeetSlug(){ const u=sessionUser(); return u?.email ? meetSlug(u.email) : null; }
 
 $('btn-new-meeting').onclick = ()=>{ const r=rndRoom(); ensureHostKey(r); gotoPrejoin(r); };
 $('btn-my-room').onclick = ()=>{
@@ -559,6 +573,25 @@ function renderMyRoomLink(){
 }
 $('btn-join-code').onclick = ()=>{ const r=parseRoomFromInput($('join-code').value); if(r) gotoPrejoin(r); else toast('Введите код комнаты'); };
 $('join-code').addEventListener('keydown',e=>{ if(e.key==='Enter') $('btn-join-code').click(); });
+
+// Личный видеокабинет менеджера на лендинге (постоянная ссылка из Gmail)
+function renderCabinet(){
+  const box=$('cabinet-block'); if(!box) return;
+  const u=sessionUser();
+  if(u && u.email){
+    const slug=meetSlug(u.email), link=shortLink(slug);
+    box.innerHTML=`<div class="cabinet">
+      <div class="cab-h">🎥 Ваш видеокабинет · ${escapeHtml(u.name||u.email)}</div>
+      <div class="copy-link"><span class="lnk">${escapeHtml(link)}</span><button class="btn btn-ghost" id="cab-copy" style="padding:6px 10px;font-size:12px">Пригласить</button></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px" id="cab-enter">Войти как ведущий</button>
+      <div class="cab-note">Отправьте эту ссылку клиенту — он войдёт как участник (впишет имя). Вы по ней — всегда ведущий.</div>
+    </div>`;
+    $('cab-enter').onclick=()=> gotoPrejoin(slug);
+    $('cab-copy').onclick=()=> shareInvite(link, u.name||'');
+  }else{
+    box.innerHTML=`<div class="cabinet cab-guest">Войдите под своим Google-аккаунтом Pllato, чтобы получить постоянный личный видеокабинет. Либо создайте разовую встречу ниже.</div>`;
+  }
+}
 
 /* ============================================================
    PRE-JOIN: device preview + background
@@ -643,11 +676,20 @@ function renderPreview(){
 }
 
 $('btn-enter').onclick = async ()=>{
-  state.name = $('pre-name').value.trim() || ('Гость-'+peerId.slice(2,5));
+  const u=sessionUser();
+  const typed=$('pre-name').value.trim();
+  // клиент (без Gmail-сессии) ОБЯЗАН вписать имя
+  if(!u && !typed){
+    const inp=$('pre-name'); inp.focus(); inp.style.borderColor='var(--red)';
+    toast('Впишите ваше имя, чтобы войти');
+    return;
+  }
+  state.name = typed || u?.name || ('Гость-'+peerId.slice(2,5));
   localStorage.setItem(LS.name, state.name);
   await buildOutStream();
   enterRoom();
 };
+$('pre-name').addEventListener('input', e=>{ e.target.style.borderColor=''; });
 
 /* ============================================================
    BACKGROUND (MediaPipe Selfie Segmentation) — blur / logo
@@ -848,7 +890,7 @@ function connectWS(){
   try{ ws=new WebSocket(`${MEET_WS}/room/${encodeURIComponent(rid)}`); }
   catch(e){ showSignalError(); return; }
 
-  ws.onopen=()=>{ wsSend({ t:'join', peer:peerId, name:state.name, hostKey, micOn:state.micOn, camOn:state.camOn,
+  ws.onopen=()=>{ wsSend({ t:'join', peer:peerId, name:state.name, hostKey, token: sessionToken(), micOn:state.micOn, camOn:state.camOn,
     camStreamId: state.outStream?.id||null, sharing: state.sharing||false,
     screenStreamId: state.sharing? state.screenStream?.id : null }); };
   ws.onmessage=(ev)=>{ let m; try{m=JSON.parse(ev.data);}catch{return;} handleWsMessage(m); };
@@ -1314,11 +1356,7 @@ window.addEventListener('pagehide', ()=>{
       const j=(o)=>new Blob([JSON.stringify(o)],{type:'application/json'});
       navigator.sendBeacon(`${MEET_API}/archive/rec-complete/${recUpload.owner}/${encodeURIComponent(recUpload.id)}/${encodeURIComponent(recUpload.uploadId)}`, j(recUpload.parts));
       const owner=archiveOwner();
-      const names=[...new Set([state.name, ...[...presenceCache.values()].map(i=>i.name).filter(Boolean)])];
-      const meta={ id:recUpload.id, room:state.roomId, date:Date.now(),
-        durationSec: Math.round((Date.now()-(recStartTs||state.startedAt||Date.now()))/1000),
-        participants:names, transcript: transcriptLog.map(m=>({name:m.name,text:m.text})), mime:recMime };
-      navigator.sendBeacon(`${MEET_API}/archive/meta/${owner}/${encodeURIComponent(recUpload.id)}`, j(meta));
+      navigator.sendBeacon(`${MEET_API}/archive/meta/${owner}/${encodeURIComponent(recUpload.id)}`, j(buildMeta(recUpload.id)));
     }
   }catch{}
 });
@@ -1581,14 +1619,19 @@ async function finalizeRecording(){
     recFallbackChunks=null;
   }
 }
+// собрать метаданные встречи (+ владелец-менеджер для командного архива)
+function buildMeta(id, extra){
+  const u=sessionUser();
+  const names=[...new Set([state.name, ...[...presenceCache.values()].map(i=>i.name).filter(Boolean)])];
+  return { id, room:state.roomId, date:Date.now(),
+    durationSec: Math.round((Date.now()-(recStartTs||state.startedAt||Date.now()))/1000),
+    participants:names, transcript: transcriptLog.map(m=>({name:m.name,text:m.text})), mime:recMime,
+    owner: archiveOwner(), ownerEmail: u?.email||'', ownerName: u?.name||state.name||'', ...(extra||{}) };
+}
 // сохранить только метаданные+транскрипт (видео уже стримнулось в R2)
 async function saveMeetingMeta(id){
   const owner=archiveOwner();
-  const names=[...new Set([state.name, ...[...presenceCache.values()].map(i=>i.name).filter(Boolean)])];
-  const meta={ id, room:state.roomId, date:Date.now(),
-    durationSec: Math.round((Date.now()-(recStartTs||state.startedAt||Date.now()))/1000),
-    participants:names, transcript: transcriptLog.map(m=>({name:m.name,text:m.text})), mime:recMime };
-  try{ await fetch(`${MEET_API}/archive/meta/${owner}/${encodeURIComponent(id)}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(meta) }); }
+  try{ await fetch(`${MEET_API}/archive/meta/${owner}/${encodeURIComponent(id)}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(buildMeta(id)) }); }
   catch{ toast('Не удалось сохранить сведения о встрече'); }
 }
 
@@ -1599,11 +1642,7 @@ async function saveMeetingMeta(id){
 async function saveMeeting(blob){
   const owner=archiveOwner();
   const id=state.roomId+'-'+Date.now();
-  const names=[...new Set([state.name, ...[...presenceCache.values()].map(i=>i.name).filter(Boolean)])];
-  const meta={ id, room:state.roomId, date:Date.now(),
-    durationSec: Math.round((Date.now()-(recStartTs||state.startedAt||Date.now()))/1000),
-    participants:names, transcript: transcriptLog.map(m=>({name:m.name,text:m.text})),
-    size: blob.size, mime:recMime };
+  const meta=buildMeta(id, { size: blob.size });
   try{
     const r1=await fetch(`${MEET_API}/archive/rec/${owner}/${encodeURIComponent(id)}`, { method:'PUT', headers:{'Content-Type':recMime}, body:blob });
     if(!r1.ok) throw new Error('rec '+r1.status);
@@ -1630,30 +1669,56 @@ $('btn-archive').onclick=()=>{ showScreen('screen-archive'); loadArchive(); };
 $('btn-archive-back').onclick=()=>{ showScreen('screen-landing'); };
 async function loadArchive(){
   const box=$('archive-list'); box.innerHTML='<div class="trn-empty">Загрузка…</div>';
+  const u=sessionUser(); const admin=!!(u && (u.isAdmin||u.isSuperAdmin));
   try{
-    const r=await fetch(`${MEET_API}/archive/list/${archiveOwner()}`);
-    const items=await r.json();
-    if(!Array.isArray(items) || !items.length){ box.innerHTML='<div class="trn-empty">Пока нет сохранённых встреч.<br>Проведите встречу как организатор — запись попадёт сюда.</div>'; return; }
+    let items=[], team=false;
+    if(admin){ // командный вид: все встречи всех менеджеров
+      try{ const r=await fetch(`${MEET_API}/archive/all`, { headers:{ Authorization:'Bearer '+(sessionToken()||'') } });
+        if(r.ok){ items=await r.json(); team=true; } }catch{}
+    }
+    if(!team){ const r=await fetch(`${MEET_API}/archive/list/${archiveOwner()}`); items=await r.json(); }
+    if(!Array.isArray(items) || !items.length){ box.innerHTML='<div class="trn-empty">Пока нет сохранённых встреч.<br>Проведите встречу как ведущий — запись попадёт сюда.</div>'; return; }
     items.sort((a,b)=>(b.date||0)-(a.date||0));
     box.innerHTML='';
-    for(const it of items){
-      const d=new Date(it.date||0).toLocaleString('ru-RU');
-      const dur = it.durationSec ? Math.floor(it.durationSec/60)+' мин' : '';
-      const who = (it.participants||[]).join(', ');
-      const el=document.createElement('div'); el.className='arch-item';
-      el.innerHTML=`<div class="arch-main"><div class="arch-title">${escapeHtml(it.room||'Встреча')}</div>
-        <div class="arch-meta">${d}${dur?' · '+dur:''}${who?' · '+escapeHtml(who):''}</div></div>
-        <div class="arch-actions">
-          <button class="btn btn-ghost arch-play" style="padding:7px 12px;font-size:12.5px">▶ Видео</button>
-          <button class="btn btn-ghost arch-txt" style="padding:7px 12px;font-size:12.5px">📝 Текст</button>
-          <button class="btn btn-ghost arch-del" style="padding:7px 10px;font-size:12.5px">✕</button>
-        </div>`;
-      el.querySelector('.arch-play').onclick=()=> window.open(`${MEET_API}/archive/rec/${archiveOwner()}/${it.id}`,'_blank');
-      el.querySelector('.arch-txt').onclick=()=> showTranscriptModal(it);
-      el.querySelector('.arch-del').onclick=async ()=>{ if(confirm('Удалить запись встречи?')){ await fetch(`${MEET_API}/archive/${archiveOwner()}/${it.id}`,{method:'DELETE'}); loadArchive(); } };
-      box.appendChild(el);
+    if(team){
+      const groups=new Map();
+      for(const it of items){ const k=it.ownerName||it.ownerEmail||it.owner||'—'; (groups.get(k)||groups.set(k,[]).get(k)).push(it); }
+      for(const [mgr,list] of groups){
+        const h=document.createElement('div'); h.className='arch-group-h'; h.textContent=`${mgr} · ${list.length}`; box.appendChild(h);
+        list.forEach(it=> box.appendChild(archItem(it)));
+      }
+    }else{
+      items.forEach(it=> box.appendChild(archItem(it)));
     }
   }catch(e){ box.innerHTML='<div class="trn-empty">Не удалось загрузить архив. Проверьте, что воркер развёрнут с R2-хранилищем.</div>'; }
+}
+function archItem(it){
+  const owner=it.owner||archiveOwner();
+  const d=new Date(it.date||0).toLocaleString('ru-RU');
+  const dur = it.durationSec ? Math.floor(it.durationSec/60)+' мин' : '';
+  const who = (it.participants||[]).join(', ');
+  const el=document.createElement('div'); el.className='arch-item';
+  el.innerHTML=`<div class="arch-main"><div class="arch-title">${escapeHtml(it.room||'Встреча')}</div>
+    <div class="arch-meta">${d}${dur?' · '+dur:''}${who?' · '+escapeHtml(who):''}</div></div>
+    <div class="arch-actions">
+      <button class="btn btn-ghost arch-play" style="padding:7px 12px;font-size:12.5px">▶ Видео</button>
+      <button class="btn btn-ghost arch-copy" style="padding:7px 12px;font-size:12.5px">⧉ Транскрипт</button>
+      <button class="btn btn-ghost arch-txt" style="padding:7px 10px;font-size:12.5px">📝</button>
+      <button class="btn btn-ghost arch-del" style="padding:7px 10px;font-size:12.5px">✕</button>
+    </div>`;
+  el.querySelector('.arch-play').onclick=()=> window.open(`${MEET_API}/archive/rec/${owner}/${it.id}`,'_blank');
+  el.querySelector('.arch-copy').onclick=()=> copyTranscript(it);
+  el.querySelector('.arch-txt').onclick=()=> showTranscriptModal(it);
+  el.querySelector('.arch-del').onclick=async ()=>{ if(confirm('Удалить запись встречи?')){ await fetch(`${MEET_API}/archive/${owner}/${it.id}`,{method:'DELETE'}); loadArchive(); } };
+  return el;
+}
+function copyTranscript(it){
+  const lines=(it.transcript||[]).map(m=>`${m.name}: ${m.text}`).join('\n');
+  if(!lines){ toast('Транскрипт пуст'); return; }
+  const head=`Pllato Meet — ${it.room||''} · ${new Date(it.date||0).toLocaleString('ru-RU')}\n\n`;
+  const text=head+lines;
+  if(navigator.clipboard?.writeText){ navigator.clipboard.writeText(text).then(()=>toast('Транскрипт скопирован в буфер'), ()=>toast(text,6000)); }
+  else toast(text,6000);
 }
 function showTranscriptModal(it){
   const lines=(it.transcript||[]).map(m=>`${m.name}: ${m.text}`).join('\n')||'(транскрипт пуст)';
@@ -1673,8 +1738,11 @@ function showTranscriptModal(it){
       const email=String(sess.user.email||'');
       if(!state.name){ state.name = sess.user.name || email.split('@')[0] || ''; localStorage.setItem(LS.name, state.name); }
       if(email){
-        localStorage.setItem(LS.archiveOwner, slugify(email.replace('@','-')) || archiveOwner());
-        if(!localStorage.getItem(LS.myroom)){ const slug=slugify(email.split('@')[0]); if(slug){ localStorage.setItem(LS.myroom, slug); ensureHostKey(slug); } }
+        // персональный видеокабинет и владелец архива — детерминированы из email (u-<slug>).
+        // Хост определяется по личности на сервере, поэтому hostKey для персональной комнаты НЕ ставим.
+        const mslug = meetSlug(email);
+        localStorage.setItem(LS.archiveOwner, mslug);
+        localStorage.setItem(LS.myroom, mslug);
       }
     }
   }catch{}
@@ -1684,6 +1752,7 @@ function showTranscriptModal(it){
   if(room){ gotoPrejoin(room.replace(/[^a-z0-9\-]/gi,'').toLowerCase()); }
   else{
     showScreen('screen-landing');
+    renderCabinet();
     const my=localStorage.getItem(LS.myroom);
     if(my){ $('my-slug').value=my; renderMyRoomLink(); }
   }
