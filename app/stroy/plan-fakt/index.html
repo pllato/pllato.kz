@@ -1615,7 +1615,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v355';   // ПОДНИМАТЬ при каждой правке парсера — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v356';   // ПОДНИМАТЬ при каждой правке парсера — виден в шапке, уходит в «Правки для Claude»
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -1812,6 +1812,13 @@ function lkParseOneLine(items){const rows=[];const dist=(a,b)=>Math.hypot(a.x-b.
       const dx=Math.abs(o.x-it.x);if(dx<6||dx>30)return;if(Math.abs(o.y-it.y)>90)return;const t=o.s.trim();
       if(t.length<4||/\d/.test(t)||!/[а-яё]{3}/i.test(t)||LK_MARK.test(t)||/^в\s/i.test(t)||/щит|секция|см\.|раздел|комплект|шин[ыа]/i.test(t))return;
       const d=Math.hypot(o.x-it.x,o.y-it.y);if(d<bnd){bnd=d;bn=t;}});if(bn)gname=bn;}
+    // имени-текста нет — берём НИЖНИЙ токен паспортной подколонки («тШ.Р.1(1», «тЛ1.1(1»):
+    // короткое «буквы+цифра» (пробел внутри — битый шрифт), не число, не марка; латинская M → «т»
+    if(gname==='—'){const cand=items.filter(o=>{if(o===it||o===carrier)return false;if(o.rot&&it.rot&&o.rot!==it.rot)return false;
+        const dx=Math.abs(o.x-it.x);if(dx<6||dx>18)return false;const t=o.s.trim();
+        return t.length<=12&&!/^\d+(?:[.,]\d+)?$/.test(t)&&!LK_MARK.test(t)&&/^[№А-ЯЁA-Z][А-ЯЁа-яёA-Za-z.\s]{0,5}\d/.test(t);})
+      .sort((a,b)=>a.y-b.y)[0];
+      if(cand){gname=cand.s;if(/^M\s?[А-ЯЁ]/.test(gname))gname='т'+gname.replace(/^M\s?/,'');}}
     rows.push({group:gname,mark,section:sm[1]+'x'+sm[2],len:parseFloat(String(L).replace(',','.')),conds,x:it.x,y:it.y,mult:lkMult(s),needsCheck:ncFlag});});
   return rows;
 }
@@ -1866,7 +1873,7 @@ function lkParseCableTable(items){
    единицу, как и кабельные строки листа. Результат {имя: метры} → чипы труб листа. */
 function lkParsePipeTable(items){
   const It=items.map(it=>({s:(it.str||'').trim(),x:it.transform[4],y:it.transform[5]})).filter(o=>o.s);
-  const hdr=It.find(o=>/ПОТРЕБНОСТ\S*\s*В\s*ТРУБ/i.test(o.s));if(!hdr)return {};
+  const hdr=It.find(o=>/ПОТРЕБНОСТ\S*\s*(?:В\s*)?ТРУБ/i.test(o.s));if(!hdr)return {};   // бывает «Потребность труб, м» без «в» (S2 л.5)
   const out={};
   It.filter(o=>o.y<hdr.y&&o.y>hdr.y-260&&o.x-hdr.x>-10&&o.x-hdr.x<150).forEach(lb=>{
     const m=lb.s.replace(/\s+/g,'').match(/^([а-яa-zё]{1,2}(?:\.[а-яa-zё]{1,2})?)\.?(\d{1,3})$/i);if(!m)return;
