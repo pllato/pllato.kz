@@ -2246,8 +2246,7 @@ $('lkIssCopy').onclick=()=>{
   const open=(LK.issues||[]).filter(i=>!i.done);
   if(!open.length){toast('Нет открытых пометок');return;}
   const area=i=>i.rect?` [область листа: x ${(i.rect.x0*100).toFixed(0)}–${(i.rect.x1*100).toFixed(0)}%, y ${(i.rect.y0*100).toFixed(0)}–${(i.rect.y1*100).toFixed(0)}% сверху]`:'';
-  const txt='Файл: '+name+' (сборка Линейки '+LK_VER+')\n'+open.map(i=>'— Лист '+i.page+area(i)+': '+i.text).join('\n')
-    +'\n(приложи к сообщению сам PDF и PNG-вырезки, если скачивал)';
+  const txt='Файл: '+name+' (сборка Линейки '+LK_VER+')\n'+open.map(i=>'— Лист '+i.page+area(i)+': '+i.text).join('\n');
   lkCopyTsv([[txt]],'Правки для Claude');};
 $('lkIssReparse').onclick=async()=>{
   if(!LK.docId){toast('Нет открытого документа');return;}
