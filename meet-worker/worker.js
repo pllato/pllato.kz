@@ -18,7 +18,7 @@
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, PUT, POST, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Max-Age': '86400',
 };
@@ -41,9 +41,13 @@ export default {
     const aMeta = url.pathname.match(/^\/archive\/meta\/([^/]+)\/([^/]+)$/);
     const aList = url.pathname.match(/^\/archive\/list\/([^/]+)$/);
     const aDel = url.pathname.match(/^\/archive\/([^/]+)\/([^/]+)$/);
-    if (aRec || aMeta || aList || (aDel && request.method === 'DELETE')) {
+    // потоковая запись (R2 multipart) — чтобы в браузере не копилась вся запись в памяти
+    const aRecInit = url.pathname.match(/^\/archive\/rec-init\/([^/]+)\/([^/]+)$/);
+    const aRecPart = url.pathname.match(/^\/archive\/rec-part\/([^/]+)\/([^/]+)\/([^/]+)\/(\d+)$/);
+    const aRecDone = url.pathname.match(/^\/archive\/rec-complete\/([^/]+)\/([^/]+)\/([^/]+)$/);
+    if (aRec || aMeta || aList || aRecInit || aRecPart || aRecDone || (aDel && request.method === 'DELETE')) {
       if (!env.ARCHIVE) return json({ error: 'R2 не подключён. Создай бакет и добавь binding ARCHIVE.' }, 501);
-      try { return await handleArchive(request, env, { aRec, aMeta, aList, aDel }); }
+      try { return await handleArchive(request, env, { aRec, aMeta, aList, aDel, aRecInit, aRecPart, aRecDone }); }
       catch (e) { return json({ error: String(e && e.message || e) }, 500); }
     }
 
@@ -67,7 +71,28 @@ function json(data, status = 200) {
 }
 
 // Архив в R2: rec/<owner>/<id>.webm  +  meta/<owner>/<id>.json
-async function handleArchive(request, env, { aRec, aMeta, aList, aDel }) {
+async function handleArchive(request, env, { aRec, aMeta, aList, aDel, aRecInit, aRecPart, aRecDone }) {
+  // ---- потоковая запись через R2 multipart ----
+  if (aRecInit && request.method === 'POST') {
+    const [, owner, id] = aRecInit; if (!SAFE.test(owner) || !SAFE.test(id)) return json({ error: 'bad key' }, 400);
+    const up = await env.ARCHIVE.createMultipartUpload(`rec/${owner}/${id}.webm`, { httpMetadata: { contentType: 'video/webm' } });
+    return json({ uploadId: up.uploadId });
+  }
+  if (aRecPart && request.method === 'PUT') {
+    const [, owner, id, uploadId, pn] = aRecPart; if (!SAFE.test(owner) || !SAFE.test(id)) return json({ error: 'bad key' }, 400);
+    const up = env.ARCHIVE.resumeMultipartUpload(`rec/${owner}/${id}.webm`, uploadId);
+    const body = await request.arrayBuffer(); // одна часть ~5 МБ — держим в памяти воркера кратко
+    const part = await up.uploadPart(Number(pn), body);
+    return json({ partNumber: part.partNumber, etag: part.etag });
+  }
+  if (aRecDone && request.method === 'POST') {
+    const [, owner, id, uploadId] = aRecDone; if (!SAFE.test(owner) || !SAFE.test(id)) return json({ error: 'bad key' }, 400);
+    const parts = await request.json(); // [{partNumber, etag}]
+    if (!Array.isArray(parts) || !parts.length) return json({ error: 'no parts' }, 400);
+    const up = env.ARCHIVE.resumeMultipartUpload(`rec/${owner}/${id}.webm`, uploadId);
+    const obj = await up.complete(parts);
+    return json({ ok: true, size: obj.size });
+  }
   if (aList && request.method === 'GET') {
     const owner = aList[1]; if (!SAFE.test(owner)) return json({ error: 'bad owner' }, 400);
     const listed = await env.ARCHIVE.list({ prefix: `meta/${owner}/`, limit: 1000 });

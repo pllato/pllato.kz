@@ -1292,14 +1292,17 @@ function startTimer(){
   },1000);
 }
 
-function leaveRoom(){
+async function leaveRoom(){
   clearInterval(timerInt);
   try{ if(document.pictureInPictureElement) document.exitPictureInPicture(); }catch{}
+  const wasRecording=state.recording;
+  if(wasRecording){ stopRecording(); toast('Сохраняю запись в облако…', 4000); }
   wsClosedByUser=true; try{ wsSend({t:'bye'}); ws?.close(); }catch{}
   for(const {pc} of peers.values()){ try{pc.close();}catch{} }
   state.rawStream?.getTracks().forEach(t=>t.stop());
   state.screenStream?.getTracks().forEach(t=>t.stop());
-  if(state.recording) stopRecording();
+  // дать записи дозалиться (последняя часть + complete + метаданные), затем уйти
+  if(wasRecording){ try{ await Promise.race([Promise.all([recFlushChain, recFinalizePromise]), new Promise(r=>setTimeout(r,8000))]); }catch{} }
   location.href=location.pathname;
 }
 window.addEventListener('beforeunload',()=>{ wsClosedByUser=true; try{ ws?.close(); }catch{} });
@@ -1422,8 +1425,35 @@ function downloadTranscript(){
    ============================================================ */
 let mixAC=null, recDest=null;
 function getMixAudioContext(){ if(!mixAC) mixAC=new (window.AudioContext||window.webkitAudioContext)(); return mixAC; }
-let mediaRecorder=null, recChunks=[], recCanvas=null, recRAF=null, recStartTs=0, recMime='video/webm';
+let mediaRecorder=null, recCanvas=null, recRAF=null, recStartTs=0, recMime='video/webm';
+// потоковая выгрузка: в памяти держим только текущий буфер (~до 5 МБ), не всю запись
+const REC_PART_MIN = 5*1024*1024;
+let recUpload=null;        // {owner,id,uploadId,partNumber,parts:[]} — активная multipart-загрузка
+let recBuf=[], recBufBytes=0, recFlushChain=Promise.resolve(), recFallbackChunks=null, recFinalizePromise=null;
 function toggleRecording(){ if(!state.recording) startRecording(); else stopRecording(); }
+
+// инициализируем multipart-загрузку в R2 (если доступно)
+async function recInit(){
+  const owner=archiveOwner(); const id=state.roomId+'-'+Date.now();
+  try{
+    const r=await fetch(`${MEET_API}/archive/rec-init/${owner}/${encodeURIComponent(id)}`, { method:'POST' });
+    if(!r.ok) throw 0;
+    const j=await r.json(); if(!j.uploadId) throw 0;
+    recUpload={ owner, id, uploadId:j.uploadId, partNumber:0, parts:[] };
+  }catch{ recUpload=null; } // нет multipart → fallback (буфер в памяти, один PUT в конце)
+}
+// отправить накопленный буфер как очередную часть (вызовы сериализуются через recFlushChain)
+function queueFlush(){ recFlushChain=recFlushChain.then(flushPart).catch(()=>{}); return recFlushChain; }
+async function flushPart(){
+  if(!recUpload || !recBuf.length) return;
+  const blob=new Blob(recBuf, {type:recMime}); recBuf=[]; recBufBytes=0;
+  const pn=++recUpload.partNumber;
+  try{
+    const r=await fetch(`${MEET_API}/archive/rec-part/${recUpload.owner}/${encodeURIComponent(recUpload.id)}/${encodeURIComponent(recUpload.uploadId)}/${pn}`, { method:'PUT', body:blob });
+    if(!r.ok) throw new Error('part '+r.status);
+    const j=await r.json(); recUpload.parts.push({ partNumber:pn, etag:j.etag });
+  }catch(e){ /* часть потеряна — продолжаем, память не растёт */ }
+}
 
 function drawRecTile(ctx, tile, x,y,w,h, contain){
   const v=tile.querySelector('video'); const name=tile.querySelector('.nm')?.textContent||'';
@@ -1446,7 +1476,7 @@ function drawRecTile(ctx, tile, x,y,w,h, contain){
     ctx.fillStyle='#fff'; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(name,x+15,y+h-17); ctx.restore(); }
 }
 
-function startRecording(){
+async function startRecording(){
   if(state.recording) return;
   try{
     recCanvas=document.createElement('canvas'); recCanvas.width=1280; recCanvas.height=720;
@@ -1481,22 +1511,66 @@ function startRecording(){
 
     const mixed=new MediaStream([...canvasStream.getVideoTracks(), ...recDest.stream.getAudioTracks()]);
     recMime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'video/webm';
-    mediaRecorder=new MediaRecorder(mixed,{mimeType:recMime}); recChunks=[];
-    mediaRecorder.ondataavailable=e=>{ if(e.data.size) recChunks.push(e.data); };
-    mediaRecorder.onstop=()=>{ const blob=new Blob(recChunks,{type:recMime}); saveMeeting(blob); };
-    mediaRecorder.start(2000); state.recording=true; recStartTs=Date.now();
+
+    recStartTs=Date.now();
+    await recInit(); // включаем потоковую выгрузку (или fallback)
+    recBuf=[]; recBufBytes=0; recFallbackChunks=recUpload?null:[];
+
+    mediaRecorder=new MediaRecorder(mixed,{mimeType:recMime});
+    mediaRecorder.ondataavailable=e=>{
+      if(!e.data.size) return;
+      if(recUpload){ // стриминг: копим до ~5 МБ и отправляем частью, память не растёт
+        recBuf.push(e.data); recBufBytes+=e.data.size;
+        if(recBufBytes>=REC_PART_MIN) queueFlush();
+      }else{ // fallback: держим в памяти, один PUT в конце
+        recFallbackChunks.push(e.data);
+      }
+    };
+    mediaRecorder.onstop=()=>{ recFinalizePromise=finalizeRecording(); };
+    mediaRecorder.start(2000); state.recording=true;
     $('rec-indicator').classList.remove('hidden'); refreshControlIcons();
-    toast('Запись началась');
+    toast(recUpload?'Идёт запись (сразу в облако)':'Идёт запись');
   }catch(e){ toast('Не удалось начать запись: '+(e.message||'')); }
 }
 function stopRecording(){
   state.recording=false; try{mediaRecorder?.stop();}catch{} if(recRAF)cancelAnimationFrame(recRAF);
   $('rec-indicator').classList.add('hidden'); refreshControlIcons();
 }
+// финализация: дослать остаток, завершить multipart и сохранить метаданные
+async function finalizeRecording(){
+  if(recRAF){ cancelAnimationFrame(recRAF); recRAF=null; }
+  if(recUpload){
+    await queueFlush();          // остаток буфера — последняя часть (любого размера)
+    await recFlushChain;
+    try{
+      if(recUpload.parts.length){
+        await fetch(`${MEET_API}/archive/rec-complete/${recUpload.owner}/${encodeURIComponent(recUpload.id)}/${encodeURIComponent(recUpload.uploadId)}`,
+          { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(recUpload.parts) });
+      }
+    }catch{}
+    await saveMeetingMeta(recUpload.id);
+    toast('Встреча сохранена в облако ✅');
+    recUpload=null;
+  }else if(recFallbackChunks && recFallbackChunks.length){
+    await saveMeeting(new Blob(recFallbackChunks,{type:recMime})); // старый путь (без multipart)
+    recFallbackChunks=null;
+  }
+}
+// сохранить только метаданные+транскрипт (видео уже стримнулось в R2)
+async function saveMeetingMeta(id){
+  const owner=archiveOwner();
+  const names=[...new Set([state.name, ...[...presenceCache.values()].map(i=>i.name).filter(Boolean)])];
+  const meta={ id, room:state.roomId, date:Date.now(),
+    durationSec: Math.round((Date.now()-(recStartTs||state.startedAt||Date.now()))/1000),
+    participants:names, transcript: transcriptLog.map(m=>({name:m.name,text:m.text})), mime:recMime };
+  try{ await fetch(`${MEET_API}/archive/meta/${owner}/${encodeURIComponent(id)}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(meta) }); }
+  catch{ toast('Не удалось сохранить сведения о встрече'); }
+}
 
 /* ============================================================
    ARCHIVE — сохранение встречи в облако (Cloudflare R2 через воркер)
    ============================================================ */
+// fallback (когда multipart недоступен): один PUT видео + метаданные, сразу на сервер
 async function saveMeeting(blob){
   const owner=archiveOwner();
   const id=state.roomId+'-'+Date.now();
@@ -1505,17 +1579,16 @@ async function saveMeeting(blob){
     durationSec: Math.round((Date.now()-(recStartTs||state.startedAt||Date.now()))/1000),
     participants:names, transcript: transcriptLog.map(m=>({name:m.name,text:m.text})),
     size: blob.size, mime:recMime };
-  // 1) всегда сразу скачиваем запись и транскрипт на устройство
-  downloadBlob(blob, `pllato-meet-${state.roomId}-${new Date().toISOString().slice(0,10)}.webm`);
-  downloadTranscriptFile(`pllato-meet-${state.roomId}-${new Date().toISOString().slice(0,10)}`);
-  // 2) и сохраняем копию в облачный архив
-  toast('Запись и транскрипт скачаны. Сохраняю копию в облако…', 4000);
   try{
-    const r1=await fetch(`${MEET_API}/archive/rec/${owner}/${id}`, { method:'PUT', headers:{'Content-Type':recMime}, body:blob });
+    const r1=await fetch(`${MEET_API}/archive/rec/${owner}/${encodeURIComponent(id)}`, { method:'PUT', headers:{'Content-Type':recMime}, body:blob });
     if(!r1.ok) throw new Error('rec '+r1.status);
-    await fetch(`${MEET_API}/archive/meta/${owner}/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(meta) });
-    toast('Встреча сохранена в облачный архив ✅');
-  }catch(e){ toast('Облачный архив недоступен (запись и текст уже скачаны на устройство)'); }
+    await fetch(`${MEET_API}/archive/meta/${owner}/${encodeURIComponent(id)}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(meta) });
+    toast('Встреча сохранена в облако ✅');
+  }catch(e){
+    // облако недоступно — как крайняя мера скачиваем локально, чтобы запись не пропала
+    downloadBlob(blob, `pllato-meet-${state.roomId}-${new Date().toISOString().slice(0,10)}.webm`);
+    toast('Облако недоступно — запись скачана на устройство');
+  }
 }
 function downloadBlob(blob, filename){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click(); a.remove(); }
 function downloadTranscriptFile(base){
