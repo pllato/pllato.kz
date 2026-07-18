@@ -236,6 +236,27 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-doc .x:hover{opacity:1;color:#c0392b;}
 .lk-doc-add{border:1px dashed rgba(255,255,255,.4);background:transparent;color:#dfe7f2;border-radius:8px;padding:4px 9px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
 .lk-doc-add:hover{background:rgba(255,255,255,.12);}
+#lkIssN:not(:empty){display:inline-block;background:var(--amber);color:#fff;border-radius:9px;padding:0 6px;margin-left:5px;font-size:11px;}
+.lk-iss-modal{position:fixed;inset:0;background:rgba(20,28,40,.45);z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:60px 16px 16px;}
+.lk-iss-box{background:var(--panel);border-radius:14px;box-shadow:var(--shadow);width:640px;max-width:96vw;max-height:84vh;display:flex;flex-direction:column;padding:16px;gap:10px;}
+.lk-iss-head{display:flex;align-items:center;gap:10px;font-size:15px;}
+.lk-iss-head .lg-x{margin-left:auto;}
+.lk-iss-sub{color:var(--gray);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lk-iss-list{overflow-y:auto;display:flex;flex-direction:column;gap:6px;min-height:40px;}
+.lk-iss{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:9px;padding:8px 10px;cursor:pointer;background:#fffdf8;}
+.lk-iss:hover{border-color:var(--amber);}
+.lk-iss.done{border-left-color:var(--green);background:#f6fbf6;opacity:.72;}
+.lk-iss.done .tx{text-decoration:line-through;color:var(--gray);}
+.lk-iss .pg{font-weight:800;font-size:12px;color:var(--steel);white-space:nowrap;}
+.lk-iss .tx{font-size:13px;flex:1;}
+.lk-iss button{border:1px solid var(--line);background:#fff;border-radius:7px;padding:3px 8px;cursor:pointer;font-size:12px;}
+.lk-iss button:hover{background:var(--panel2);}
+.lk-iss-new{display:flex;gap:8px;align-items:flex-end;}
+.lk-iss-new textarea{flex:1;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:inherit;font-size:13px;resize:vertical;}
+.lk-iss-actions{display:flex;gap:8px;}
+.lk-iss-actions .lk-tb.dark{border:1px solid var(--steel2);color:var(--steel);background:var(--panel2);border-radius:9px;padding:8px 12px;}
+.lk-iss-note{font-size:11.5px;color:var(--gray);line-height:1.45;}
+.lk-iss-empty{color:var(--gray);font-size:13px;padding:8px 2px;}
 .lk-note{font-size:12px;color:var(--gray);line-height:1.45;align-self:center;flex:1;min-width:180px;}
 /* постраничный вид линейки */
 .lk-main{display:flex;flex:1;min-height:0;}
@@ -491,9 +512,25 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
     <button class="lk-tb" id="lkBack" title="Назад">← Назад</button>
     <div class="lg-title">Линейка — чтение схемы<span class="lg-sub" id="lkName"></span></div>
     <div class="lk-docs" id="lkDocs"></div>
-    <button class="lk-tb" id="lkReport" style="margin-left:auto">📊 Отчёт по файлу</button>
+    <button class="lk-tb" id="lkIssues" style="margin-left:auto" title="Пометки «что исправить» с привязкой к файлу и листу">⚑ Правки<span id="lkIssN"></span></button>
+    <button class="lk-tb" id="lkReport">📊 Отчёт по файлу</button>
     <button class="lk-tb" id="lkCopy">⧉ Копировать для Excel</button>
     <button class="lg-x" id="lkClose">✕ Закрыть</button>
+  </div>
+  <div class="lk-iss-modal" id="lkIssModal" style="display:none">
+    <div class="lk-iss-box">
+      <div class="lk-iss-head"><b>⚑ Правки по файлу</b><span class="lk-iss-sub" id="lkIssFile"></span><button class="lg-x" id="lkIssClose">✕</button></div>
+      <div class="lk-iss-list" id="lkIssList"></div>
+      <div class="lk-iss-new">
+        <textarea id="lkIssText" rows="2" placeholder="Что не так на текущем листе? Например: «справа кабель на насос не посчитан», «длина у ЩК-2.4 должна быть 25 м»…"></textarea>
+        <button class="lk-add" id="lkIssAdd">⚑ Пометить на лист <span id="lkIssPage"></span></button>
+      </div>
+      <div class="lk-iss-actions">
+        <button class="lk-tb dark" id="lkIssCopy">⧉ Скопировать для Claude</button>
+        <button class="lk-tb dark" id="lkIssReparse" title="Разобрать PDF заново текущим парсером — для проверки исправлений. Ручные правки строк будут заменены свежим разбором, пометки останутся.">⟳ Перечитать файл</button>
+      </div>
+      <div class="lk-iss-note">Как это работает: помечай проблемы по ходу проверки → «Скопировать для Claude» и отправь текст в чат → после исправления вернись, нажми «Перечитать файл» и пройди по пометкам (клик — откроет нужный лист), отмечая ✓.</div>
+    </div>
   </div>
   <div class="lk-sum" id="lkSum"></div>
   <div class="lk-main">
@@ -1995,7 +2032,7 @@ $('lkBack').onclick=()=>{if(LK.view==='report'){LK.view='pages';renderLineyka();
 $('lkReport').onclick=()=>{if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}LK.view=LK.view==='report'?'pages':'report';renderLineyka();};
 $('lkCopy').onclick=()=>{if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}lkCopyExcel();};
 /* ---- несколько документов + автосохранение правок (IndexedDB) + восстановление после перезагрузки ---- */
-LK.docId=null;LK.docs=[];
+LK.docId=null;LK.docs=[];LK.issues=[];
 function lkSerialize(){return {sel:LK.sel,view:LK.view,pages:LK.pages.map(pg=>({page:pg.page,wpt:pg.wpt,hpt:pg.hpt,vru:pg.vru,shields:pg.shields,potreb:pg.potreb,pipes:pg.pipes,
   rows:pg.rows.map(r=>({group:r.group,mark:r.mark,section:r.section,len:r.len,mult:r.mult,needsCheck:!!r.needsCheck,x:r.x,y:r.y,mx:r.mx,my:r.my,_id:r._id,page:r.page,conds:(r.conds||[]).map(c=>({t:c.t,len:c.len}))})),
   groups:pg.groups.map(g=>({name:g.name,ids:g.rows.map(r=>r._id)}))}))};}
@@ -2005,7 +2042,7 @@ function lkRevive(state){LK.byId={};
   LK.sel=Math.max(0,Math.min(state.sel||0,LK.pages.length-1));LK.view=state.view==='report'?'report':'pages';LK.imgZoom=1;}
 let _lkSaveT=null;
 function lkPersistNow(){if(!LK.docId||!LK.pages||!LK.pages.length)return Promise.resolve();
-  return archGet(LK.docId).then(rec=>{if(!rec)return;rec.state=lkSerialize();rec.date=Date.now();return archPut(rec);}).catch(e=>console.warn('lk save',e));}
+  return archGet(LK.docId).then(rec=>{if(!rec)return;rec.state=lkSerialize();rec.issues=LK.issues;rec.date=Date.now();return archPut(rec);}).catch(e=>console.warn('lk save',e));}
 function lkPersist(){clearTimeout(_lkSaveT);_lkSaveT=setTimeout(lkPersistNow,700);}
 function lkRefreshDocs(){return archAll().then(a=>{LK.docs=a.filter(r=>r._lk).map(r=>({id:r.id,name:r.name,date:r.date})).sort((a,b)=>b.date-a.date);lkDocsBar();}).catch(()=>{LK.docs=[];});}
 function lkDocsBar(){const el=$('lkDocs');if(!el)return;
@@ -2019,15 +2056,15 @@ async function lkSwitchDoc(id){
   clearTimeout(_lkSaveT);if(LK.docId&&LK.pages&&LK.pages.length)await lkPersistNow();
   let rec=null;try{rec=await archGet(id);}catch(e){}
   if(!rec){toast('Документ не найден в хранилище');lkRefreshDocs();return;}
-  await lkOpenBuf(rec.id,rec.name,rec.buf.slice(0),rec.state);
+  await lkOpenBuf(rec.id,rec.name,rec.buf.slice(0),rec.state,rec.issues);
 }
 async function lkDelDoc(id){try{await archDel(id);}catch(e){}
   if(localStorage.getItem('lkLast')===id)localStorage.removeItem('lkLast');
   if(LK.docId===id)LK.docId=null;   // открытый остаётся в памяти, но больше не сохраняется
   lkRefreshDocs();toast('Документ убран из списка');}
-async function lkOpenBuf(id,name,buf,state){
+async function lkOpenBuf(id,name,buf,state,issues){
   $('lineyka').style.display='flex';$('lkName').textContent=' · '+name;
-  LK.docId=id;localStorage.setItem('lkLast',id);
+  LK.docId=id;LK.issues=Array.isArray(issues)?issues:[];lkIssBadge();localStorage.setItem('lkLast',id);
   if(state&&state.pages&&state.pages.length){
     $('lkPage').innerHTML='<div class="lk-spin"><b>Открываю…</b></div>';
     try{LK.pdf=await pdfjsLib.getDocument({data:buf}).promise;}catch(e){LK.pdf=null;console.warn('lk pdf',e);}
@@ -2054,8 +2091,48 @@ async function openLineyka(file){
 window.addEventListener('load',()=>{(async()=>{try{
   await lkRefreshDocs();
   const last=localStorage.getItem('lkLast');if(!last)return;
-  const rec=await archGet(last);if(rec&&rec._lk)await lkOpenBuf(rec.id,rec.name,rec.buf.slice(0),rec.state);
+  const rec=await archGet(last);if(rec&&rec._lk)await lkOpenBuf(rec.id,rec.name,rec.buf.slice(0),rec.state,rec.issues);
 }catch(e){console.warn('lk restore',e);}})();});
+/* ---- «Правки»: пометки «что исправить» с привязкой к файлу и листу; экспорт для Claude; перечитка ---- */
+function lkIssBadge(){const n=(LK.issues||[]).filter(i=>!i.done).length;const el=$('lkIssN');if(el)el.textContent=n?String(n):'';}
+function lkIssRender(){
+  const box=$('lkIssList');if(!box)return;
+  const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||$('lkName').textContent.replace(/^ · /,'');
+  $('lkIssFile').textContent=name;
+  const pg=LK.pages[LK.sel];$('lkIssPage').textContent=pg?pg.page:'—';
+  box.innerHTML=(LK.issues||[]).length?LK.issues.map((it,i)=>`<div class="lk-iss ${it.done?'done':''}" data-i="${i}" title="Открыть лист ${it.page}"><span class="pg">Лист ${it.page}</span><span class="tx">${esc(it.text)}</span><button data-ok="${i}" title="Исправлено / вернуть">${it.done?'↺':'✓'}</button><button data-del="${i}" title="Удалить пометку">×</button></div>`).join('')
+    :'<div class="lk-iss-empty">Пока пометок нет. Нашёл ошибку на листе — опиши её ниже, файл и лист запишутся сами.</div>';
+  box.querySelectorAll('.lk-iss').forEach(el=>el.onclick=e=>{
+    if(e.target.dataset.ok!=null||e.target.dataset.del!=null)return;
+    const it=LK.issues[+el.dataset.i];if(!it)return;
+    const idx=LK.pages.findIndex(p=>p.page===it.page);
+    if(idx<0){toast('Листа '+it.page+' нет в текущем разборе');return;}
+    LK.sel=idx;LK.view='pages';$('lkIssModal').style.display='none';renderLineyka();$('lkPage').scrollTop=0;});
+  box.querySelectorAll('[data-ok]').forEach(b=>b.onclick=e=>{e.stopPropagation();const it=LK.issues[+b.dataset.ok];if(it){it.done=!it.done;lkIssBadge();lkIssRender();lkPersist();}});
+  box.querySelectorAll('[data-del]').forEach(b=>b.onclick=e=>{e.stopPropagation();LK.issues.splice(+b.dataset.del,1);lkIssBadge();lkIssRender();lkPersist();});
+}
+$('lkIssues').onclick=()=>{if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}lkIssRender();$('lkIssModal').style.display='flex';};
+$('lkIssClose').onclick=()=>$('lkIssModal').style.display='none';
+$('lkIssModal').onclick=e=>{if(e.target===$('lkIssModal'))$('lkIssModal').style.display='none';};
+$('lkIssAdd').onclick=()=>{const t=($('lkIssText').value||'').trim();if(!t){toast('Опиши, что исправить');return;}
+  const pg=LK.pages[LK.sel];if(!pg)return;
+  LK.issues.push({page:pg.page,text:t,done:false,ts:Date.now()});
+  $('lkIssText').value='';lkIssBadge();lkIssRender();lkPersist();};
+$('lkIssCopy').onclick=()=>{
+  const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||'схема';
+  const open=(LK.issues||[]).filter(i=>!i.done);
+  if(!open.length){toast('Нет открытых пометок');return;}
+  const txt='Файл: '+name+'\n'+open.map(i=>'— Лист '+i.page+': '+i.text).join('\n');
+  lkCopyTsv([[txt]],'Правки для Claude');};
+$('lkIssReparse').onclick=async()=>{
+  if(!LK.docId){toast('Нет открытого документа');return;}
+  if(!confirm('Перечитать файл заново текущим парсером? Ручные правки строк будут заменены свежим разбором. Пометки-правки останутся.'))return;
+  let rec=null;try{rec=await archGet(LK.docId);}catch(e){}
+  if(!rec){toast('Файл не найден в хранилище — загрузите PDF заново');return;}
+  $('lkIssModal').style.display='none';
+  rec.state=null;try{await archPut(rec);}catch(e){}
+  await lkOpenBuf(rec.id,rec.name,rec.buf.slice(0),null,rec.issues);
+};
 function lkSum(rows){const s={},c={};let t=0;rows.forEach(r=>{const L=+r.len||0;s[r.section]=(s[r.section]||0)+L;if(r.section!=='шина')t+=L;(r.conds||[]).forEach(k=>c[k.t]=(c[k.t]||0)+(+k.len||0));});return{s,c,t};}
 function lkAllRows(){const a=[];LK.pages.forEach(pg=>pg.rows.forEach(r=>a.push(r)));return a;}
 /* статус листа по сверке: 'ok' | 'warn' | 'none' (нет печатной сводки) */
