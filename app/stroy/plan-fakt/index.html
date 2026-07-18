@@ -328,6 +328,8 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-overlay{position:absolute;inset:0;pointer-events:none;}
 .lk-mk{position:absolute;width:14px;height:14px;border-radius:50%;background:rgba(47,125,79,.55);border:2px solid #fff;box-shadow:0 0 0 1px rgba(47,125,79,.9);pointer-events:auto;cursor:pointer;transition:background .1s,box-shadow .1s;transform:translate(-50%,-50%) scale(var(--mks,1));transform-origin:center;}
 .lk-mk:hover,.lk-mk.hl{background:var(--amber);box-shadow:0 0 0 2px #fff,0 0 0 5px rgba(217,131,36,.5);transform:translate(-50%,-50%) scale(calc(var(--mks,1)*1.6));z-index:3;}
+.lk-mk.flash{animation:lkFlash 1.6s ease;z-index:3;}
+@keyframes lkFlash{0%,100%{box-shadow:0 0 0 1px rgba(47,125,79,.9);}20%,60%{box-shadow:0 0 0 12px rgba(217,131,36,.6);}40%,80%{box-shadow:0 0 0 4px rgba(217,131,36,.95);}}
 .lk-mk.warn{background:rgba(192,57,43,.7);box-shadow:0 0 0 1px rgba(192,57,43,.95);}
 .lg-row.warn{border-color:#e0b0a8!important;box-shadow:inset 3px 0 0 #c0392b;}
 .lk-recheck{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:#c0392b;background:#fdecea;border:1px solid #f5c6c0;border-radius:6px;padding:2px 7px;white-space:nowrap;}
@@ -2083,6 +2085,13 @@ function lkInitViewer(){
   vp.onpointerup=vp.onpointercancel=()=>{dg=false;vp.style.cursor='grab';};
   vp.ondblclick=e=>zoomAt(e.clientX,e.clientY,1.7);
   LK._zoomBtn=z=>{const b=vp.getBoundingClientRect();if(z==='fit')fit();else zoomAt(b.left+b.width/2,b.top+b.height/2,z==='in'?1.35:0.74);};
+  // навести экран на точку (mx,my — нормализованные координаты картинки): центр + читаемый зум.
+  // fit пересчитываем на месте — сохранённый мог посчитаться при скрытой/узкой панели
+  LK._focusPoint=(mx,my)=>{if(!st.w)fit();if(!st.w)return;
+    const vw=vp.clientWidth,vh=vp.clientHeight;
+    const f=Math.min(vw/st.w,vh/st.h)||st.fit||1;
+    st.s=Math.min(f*16,Math.max(st.s,f*3));
+    st.x=vw/2-mx*st.w*st.s;st.y=vh/2-my*st.h*st.s;apply();};
   if(img.complete&&img.naturalWidth)fit();else img.onload=fit;
 }
 async function lkEnsureImg(pg){if(pg.img||!LK.pdf)return pg.img;const page=await LK.pdf.getPage(pg.page);pg.img=await lkRenderPage(page);return pg.img;}
@@ -2337,10 +2346,15 @@ function bindLineyka(){const P=$('lkPage');
   const add=$('lkAdd');if(add)add.onclick=()=>{const pg=LK.pages[LK.sel];const r={_id:'r'+id2(),group:'',section:'3x2,5',len:0,conds:[],x:0,page:pg.page};LK.byId[r._id]=r;pg.rows.push(r);(pg.groups[0]||(pg.groups[0]={name:'Линейка',rows:[]})).rows.push(r);renderLineyka();};
   P.querySelectorAll('.lk-zoom button').forEach(b=>b.onclick=()=>{if(LK._zoomBtn)LK._zoomBtn(b.dataset.z);});
   lkInitViewer();
-  // #2 — наведение на строку ↔ отметка на схеме
+  // #2 — наведение на строку ↔ отметка на схеме; клик по строке — навести экран на место кабеля
   P.querySelectorAll('.lg-row').forEach(row=>{const id=row.dataset.id;
     row.addEventListener('mouseenter',()=>{const m=P.querySelector('.lk-mk[data-id="'+id+'"]');if(m)m.classList.add('hl');});
-    row.addEventListener('mouseleave',()=>{const m=P.querySelector('.lk-mk[data-id="'+id+'"]');if(m)m.classList.remove('hl');});});
+    row.addEventListener('mouseleave',()=>{const m=P.querySelector('.lk-mk[data-id="'+id+'"]');if(m)m.classList.remove('hl');});
+    row.addEventListener('click',e=>{if(e.target.closest('button'))return;   // × строки и «+ труба» не наводят
+      const r=LK.byId[id];if(!r||r.mx==null||r.my==null)return;
+      if(LK._focusPoint)LK._focusPoint(r.mx,r.my);
+      const m=P.querySelector('.lk-mk[data-id="'+id+'"]');
+      if(m){m.classList.remove('flash');void m.offsetWidth;m.classList.add('flash');}});});
   P.querySelectorAll('.lk-mk').forEach(m=>{const id=m.dataset.id;
     m.addEventListener('mouseenter',()=>{const row=P.querySelector('.lg-row[data-id="'+id+'"]');if(row)row.classList.add('hl');});
     m.addEventListener('mouseleave',()=>{const row=P.querySelector('.lg-row[data-id="'+id+'"]');if(row)row.classList.remove('hl');});
