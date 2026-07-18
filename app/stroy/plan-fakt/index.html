@@ -1615,7 +1615,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v357';   // ПОДНИМАТЬ при каждой правке парсера — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v358';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v356';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2218,7 +2219,7 @@ async function lkOpenBuf(id,name,buf,state,issues,ver){
   if(state&&state.pages&&state.pages.length){
     $('lkPage').innerHTML='<div class="lk-spin"><b>Открываю…</b></div>';
     try{LK.pdf=await pdfjsLib.getDocument({data:buf}).promise;}catch(e){LK.pdf=null;console.warn('lk pdf',e);}
-    LK.stale=(ver||'')!==LK_VER;   // разбор сделан старым парсером — предложить перечитать
+    LK.stale=(ver||'')!==LK_PARSER_VER;   // разбор сделан старым ПАРСЕРОМ — предложить перечитать (UI-сборки не в счёт)
     lkRevive(state);renderLineyka();lkDocsBar();return;
   }
   $('lkSum').innerHTML='';$('lkNav').innerHTML='';
@@ -2229,7 +2230,7 @@ async function lkOpenBuf(id,name,buf,state,issues,ver){
     pages.forEach(pg=>pg.rows.forEach(r=>{r._id='r'+(id0++);LK.byId[r._id]=r;r.page=pg.page;}));
     if(!pages.length){$('lkPage').innerHTML='<div class="lk-spin">Не нашёл кабельных данных. Возможно, это скан без текстового слоя или другой формат линейки — пришли файл, настрою парсер.</div>';return;}
     LK.stale=false;
-    try{const rec=await archGet(id);if(rec){rec.ver=LK_VER;await archPut(rec);}}catch(e){}
+    try{const rec=await archGet(id);if(rec){rec.ver=LK_PARSER_VER;await archPut(rec);}}catch(e){}
     LK.sel=0;LK.view='pages';LK.imgZoom=1;renderLineyka();lkPersist();lkDocsBar();toast('Листов с линейками: '+pages.length);
   }catch(err){console.error(err);$('lkPage').innerHTML='<div class="lk-spin">Не удалось прочитать PDF: '+esc(String(err))+'</div>';}
 }
@@ -2244,7 +2245,7 @@ async function lkReparse(){
 async function openLineyka(file){
   const name=file.name||'схема';const id='lk_'+name;
   let buf;try{buf=await file.arrayBuffer();}catch(e){toast('Не удалось прочитать файл');return;}
-  try{await archPut({id,_lk:1,name,date:Date.now(),ver:LK_VER,buf:buf.slice(0)});}catch(e){console.warn('lk store',e);}
+  try{await archPut({id,_lk:1,name,date:Date.now(),ver:LK_PARSER_VER,buf:buf.slice(0)});}catch(e){console.warn('lk store',e);}
   await lkOpenBuf(id,name,buf,null);
   lkRefreshDocs();
 }
@@ -2377,7 +2378,7 @@ function renderLineyka(){
   let navH='';vorder.forEach(v=>{if(vorder.length>1||v!=='—')navH+=`<div class="lk-vru">${esc(v==='—'?'Прочие шкафы':v)}</div>`;
     byVru[v].forEach(i=>{const pg=LK.pages[i],pt=lkSum(pg.rows).t;
       navH+=`<button class="lk-pg ${i===LK.sel?'on':''}" data-pg="${i}"><div class="lk-pgi"><div class="lk-pgt">Лист ${pg.page}</div><div class="lk-pgn">${pg.shields.length?esc(pg.shields.join(', ')):'линейка'}</div><div class="lk-pgm">${Math.round(pt)} м · ${pg.rows.length} лин.</div></div></button>`;});});
-  if(LK.stale)navH=`<div class="lk-stale">⚠ Разбор сделан <b>старой версией</b> парсера. Сейчас — <b>${LK_VER}</b>: исправления не видны, пока файл не перечитан.<button class="lk-add" id="lkStaleRe">⟳ Перечитать файл сейчас</button><div class="lk-stale-sub">Ручные правки строк будут заменены свежим разбором; пометки ⚑ останутся.</div></div>`+navH;
+  if(LK.stale)navH=`<div class="lk-stale">⚠ Разбор сделан <b>старой версией</b> парсера. Сейчас — <b>${LK_PARSER_VER}</b>: исправления не видны, пока файл не перечитан.<button class="lk-add" id="lkStaleRe">⟳ Перечитать файл сейчас</button><div class="lk-stale-sub">Ручные правки строк будут заменены свежим разбором; пометки ⚑ останутся.</div></div>`+navH;
   $('lkNav').innerHTML=navH;
   const _sre=$('lkStaleRe');if(_sre)_sre.onclick=()=>lkReparse();
   $('lkNav').querySelectorAll('.lk-pg').forEach(b=>b.onclick=()=>{LK.sel=+b.dataset.pg;LK.view='pages';renderLineyka();$('lkPage').scrollTop=0;});
