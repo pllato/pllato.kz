@@ -202,15 +202,34 @@ button{font-family:inherit;cursor:pointer}
 .bg-opt:hover{border-color:var(--bronze)}
 .bg-opt.active{background:var(--bronze);border-color:var(--bronze);color:#1a1206}
 
-/* презентация (показ экрана): экран крупно сверху + лица полосой снизу, БЕЗ наложения.
-   Лица видны всегда; при большом числе — горизонтальная прокрутка полосы. */
-.stage.presenting .screen-area{display:flex;flex:1;gap:8px;min-height:0;min-width:0}
+/* презентация (показ экрана): экран занимает ВСЮ область, портреты — компактной
+   полупрозрачной плашкой поверх снизу (как в Meet). Экран максимально крупный. */
+.stage.presenting .screen-area{position:absolute;inset:0;display:flex;gap:8px;min-height:0;min-width:0}
 /* display:block перебивает .screen{display:none} — имя класса .screen конфликтует с секциями страницы */
 .screen-area .tile.screen{display:block;flex:1 1 0;min-height:0;min-width:0;border:none;background:#000}
 .screen-area .tile.screen video{object-fit:contain;background:#000}
-.stage.presenting .grid{flex:0 0 auto;height:150px;grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:210px;grid-auto-rows:100%;overflow-x:auto;overflow-y:hidden}
-@media(max-width:560px){.stage.presenting .grid{height:100px;grid-auto-columns:140px}}
+.stage.presenting .grid{
+  position:absolute;left:50%;transform:translateX(-50%);bottom:10px;
+  display:flex;flex-wrap:nowrap;gap:6px;height:auto;max-width:94%;
+  grid-template-columns:none;overflow-x:auto;overflow-y:hidden;
+  padding:6px;border-radius:14px;background:rgba(10,15,26,.5);backdrop-filter:blur(10px);z-index:6;
+}
+.stage.presenting .grid::-webkit-scrollbar{height:6px}
+.stage.presenting .grid::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:3px}
+.stage.presenting .grid .tile{width:150px;height:86px;flex:0 0 auto;min-height:0;border-radius:9px;box-shadow:0 4px 14px rgba(0,0,0,.45)}
+.stage.presenting #caption-bar{bottom:112px}
+@media(max-width:560px){
+  .stage.presenting .grid{bottom:8px;gap:5px;padding:5px}
+  .stage.presenting .grid .tile{width:106px;height:64px}
+  .stage.presenting #caption-bar{bottom:86px}
+}
 .tile.screen .tile-name{background:rgba(184,137,90,.85);color:#1a1206}
+/* в плашке-оверлее имя мельче */
+.stage.presenting .grid .tile-name{font-size:11px;padding:2px 7px;left:6px;bottom:6px}
+.stage.presenting .grid .host-tag{display:none} /* в оверлее ведущего показывает бронзовая рамка, текст лишний */
+.stage.presenting .grid .tile .avatar{width:44px!important;height:44px!important;font-size:18px!important}
+/* в оверлее показываем только живые видео-портреты; камера выключена — прячем (в списке участников всё равно виден) */
+.stage.presenting .grid .tile.cam-off{display:none}
 
 /* settings menu (devices) */
 .menu{position:absolute;bottom:78px;left:50%;transform:translateX(-50%);background:var(--surface-2);
@@ -1030,8 +1049,9 @@ function createPeerTile(id, peer, info){
 function attachPeerTile(id, peer){
   if(!peer.tile) return;
   peer.videoEl.srcObject=peer.camStream;
-  const hasVid=peer.camStream.getVideoTracks().length>0;
-  peer.tile.querySelector('.tile-noimg').style.display=hasVid?'none':'flex';
+  const camActive = (peer.info?.camOn!==false) && peer.camStream.getVideoTracks().length>0;
+  peer.tile.querySelector('.tile-noimg').style.display=camActive?'none':'flex';
+  peer.tile.classList.toggle('cam-off', !camActive); // в оверлее презентации прячем «без видео»
   monitorAudioLevel(peer);
 }
 // плитка демонстрации экрана участника
@@ -1059,7 +1079,9 @@ function updatePeerTileInfo(id, info){
   peer.tile.querySelector('.mic-off').classList.toggle('hidden', info.micOn!==false);
   peer.tile.classList.toggle('host', info.role==='host');
   peer.tile.querySelector('.host-tag')?.classList.toggle('hidden', info.role!=='host');
-  peer.tile.querySelector('.tile-noimg').style.display=(info.camOn===false)?'flex':(peer.camStream.getVideoTracks().length?'none':'flex');
+  const camActive=(info.camOn!==false) && peer.camStream.getVideoTracks().length>0;
+  peer.tile.querySelector('.tile-noimg').style.display=camActive?'none':'flex';
+  peer.tile.classList.toggle('cam-off', !camActive);
   if(peer.screenTile) peer.screenTile.querySelector('.nm').textContent=(info.name||'Участник')+' — экран';
 }
 
@@ -1099,6 +1121,7 @@ function setLocalTileStream(){
   if(vt && state.camOn) ms.addTrack(vt);
   v.srcObject=ms;
   localTile.querySelector('.tile-noimg').style.display=state.camOn?'none':'flex';
+  localTile.classList.toggle('cam-off', !state.camOn);
   // локальная плитка экрана
   if(state.sharing && state.screenStream){
     if(!localScreenTile){
