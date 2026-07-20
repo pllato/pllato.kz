@@ -1624,8 +1624,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v365';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v361';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v366';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v366';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2079,8 +2079,14 @@ async function lkRenderPage(page){
   try{await task.promise;}finally{clearTimeout(to);}
   return c.toDataURL('image/png');
 }
-/* ВРУ (вводно-распред. устройство), от которого запитан щит листа: «НЩО-4 от ВРУ-3» */
-function lkDetectVru(items){for(const it of items){const m=(it.str||'').match(/ВРУ\s*-?\s*(\d+[\.\d]*)/i);if(m)return 'ВРУ-'+m[1];}return '';}
+/* ВРУ (вводно-распред. устройство), от которого запитан щит листа: «НЩО-4 от ВРУ-3».
+   Сперва ловим ПОЛНОЕ имя с блоком в скобках — «ВРУ-Ар(1)» (2717): цифра в скобках = № блока */
+function lkDetectVru(items){
+  // строго: дефис перед именной частью и ЗАКРЫТАЯ скобка — битые обрезки «ВРУА(1» (2435) не имя
+  for(const it of items){const f=(it.str||'').match(/ВРУ(?:\s*[-–]\s*[А-Яа-яЁёA-Za-z0-9.]{1,8})?\(\s*\d+\s*\)/);
+    if(f)return f[0].replace(/\s+/g,'');}
+  for(const it of items){const m=(it.str||'').match(/ВРУ\s*-?\s*(\d+[\.\d]*)/i);if(m)return 'ВРУ-'+m[1];}
+  return '';}
 /* множитель ниток (2х/3х): каждая нитка — отдельная линия. Кабель ×N; трубу оставляем один раз
    (пользователь просил умножать кол-во кабеля), поэтому conds только у первой нитки. */
 function lkExpandMult(rows){const out=[];rows.forEach(r=>{const n=Math.max(1,r.mult||1);for(let i=0;i<n;i++)out.push(Object.assign({},r,{mult:1,conds:i===0?(r.conds||[]).map(c=>Object.assign({},c)):[]}));});return out;}
@@ -2164,6 +2170,8 @@ async function lkExtract(data,onProgress){
     pages.push({page:p,img:null,wpt:v0.width,hpt:v0.height,vru:lkDetectVru(tc.items),shields:shields.map(s=>s.name),groups,rows,potreb:potrebOv||lkParsePotreb(tc.items),pipes:lkParsePipeTable(tc.items),_blk,_blkHome});}
   // блоки (пятна) проекта: суффикс «(N» в группе («№Р1(2», «MЛ1(1») или колонка под заголовком
   // «Блок N»; без упоминания — «Весь проект». Группировка листа перестраивается по блокам.
+  // Источник вида «ВРУ-Ар(1)» тоже задаёт блок — всем строкам своего листа (шаблон Данияра, 2717)
+  if(pages.some(pg=>/\(\s*\d\s*\)?$/.test(pg.vru||'')))docBlocks=true;
   if(docBlocks)pages.forEach(pg=>{
     pg.rows.forEach(r=>{
       const g=String(r.group||'');
@@ -2174,7 +2182,10 @@ async function lkExtract(data,onProgress){
       // заголовок колонки действует только на строки прямо под ним (±60 по y):
       // без гейта вводы ВРУ в 800пт ниже цеплялись за чужую колонку (S2 л.5 МА1)
       let best=null,bd=130;(pg._blk||[]).forEach(l=>{if(Math.abs(l.y-(r.y||0))>60)return;const d=Math.abs((r.x||0)-l.x);if(d<bd){bd=d;best=l;}});
-      if(best)r.block=best.n;});
+      if(best){r.block=best.n;return;}
+      // источник листа «ВРУ-Ар(1)» — блок 1 для всех строк листа (шаблон Данияра, 2717 л.5)
+      const vm=(pg.vru||'').match(/\(\s*(\d)\s*\)?$/);
+      if(vm)r.block=vm[1];});
     // блок расположения щитовой: остальные строки листа (магистрали ЩО/ЩРС, вводы, шины) — к нему
     if(pg._blkHome&&pg.rows.some(r=>r.block))pg.rows.forEach(r=>{if(!r.block)r.block=pg._blkHome;});
     if(pg.rows.some(r=>r.block)){
