@@ -1620,7 +1620,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v361';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v362';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v361';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2428,11 +2428,10 @@ function renderLineyka(){
     +`<span class="lk-chip tot">Всего кабеля <b>${Math.round(g.t)} м</b></span>`
     +(Object.keys(g.c).length?`<span class="lk-break"></span>`+Object.keys(g.c).sort().map(k=>`<span class="lk-chip cond">${esc(k)} <b>${Math.round(g.c[k])}</b></span>`).join('')+`<span class="lk-chip tot cond">Всего труб <b>${Math.round(ct)} м</b></span>`:'')
     +blkChips;
-  // #5 — группировка листов по ВРУ → шкафам
-  const byVru={},vorder=[];LK.pages.forEach((pg,i)=>{const v=pg.vru||'—';if(!byVru[v]){byVru[v]=[];vorder.push(v);}byVru[v].push(i);});
-  let navH='';vorder.forEach(v=>{if(vorder.length>1||v!=='—')navH+=`<div class="lk-vru">${esc(v==='—'?'Прочие шкафы':v)}</div>`;
-    byVru[v].forEach(i=>{const pg=LK.pages[i],pt=lkSum(pg.rows).t;
-      navH+=`<button class="lk-pg ${i===LK.sel?'on':''}" data-pg="${i}"><div class="lk-pgi"><div class="lk-pgt">Лист ${pg.page}</div><div class="lk-pgn">${pg.shields.length?esc(pg.shields.join(', ')):'линейка'}</div><div class="lk-pgm">${Math.round(pt)} м · ${pg.rows.length} лин.</div></div></button>`;});});
+  // листы строго ПО ПОРЯДКУ (1..N), как в PDF: группировка по ВРУ вырывала листы из
+  // последовательности («нет всех страниц») — ВРУ показываем подписью на самом листе
+  let navH='';LK.pages.forEach((pg,i)=>{const pt=lkSum(pg.rows).t;
+    navH+=`<button class="lk-pg ${i===LK.sel?'on':''}" data-pg="${i}"><div class="lk-pgi"><div class="lk-pgt">Лист ${pg.page}${pg.vru?` <span style="font-weight:600;opacity:.65">· ${esc(pg.vru)}</span>`:''}</div><div class="lk-pgn">${pg.shields.length?esc(pg.shields.join(', ')):'линейка'}</div><div class="lk-pgm">${Math.round(pt)} м · ${pg.rows.length} лин.</div></div></button>`;});
   if(LK.stale)navH=`<div class="lk-stale">⚠ Разбор сделан <b>старой версией</b> парсера. Сейчас — <b>${LK_PARSER_VER}</b>: исправления не видны, пока файл не перечитан.<button class="lk-add" id="lkStaleRe">⟳ Перечитать файл сейчас</button><div class="lk-stale-sub">Ручные правки строк будут заменены свежим разбором; пометки ⚑ останутся.</div></div>`+navH;
   $('lkNav').innerHTML=navH;
   const _sre=$('lkStaleRe');if(_sre)_sre.onclick=()=>lkReparse();
