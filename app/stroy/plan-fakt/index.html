@@ -331,6 +331,10 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-imgbox{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform;}
 .lk-imgbox img{display:block;user-select:none;-webkit-user-drag:none;}
 .lk-overlay{position:absolute;inset:0;pointer-events:none;}
+/* текстовый слой поверх картинки листа: прозрачный текст PDF — выделяется и копируется как в PDF */
+.lk-text{position:absolute;inset:0;}
+.lk-text span{position:absolute;color:transparent;white-space:pre;cursor:text;transform-origin:0 0;line-height:1;user-select:text;font-family:sans-serif;}
+.lk-text span::selection{background:rgba(46,110,255,.4);}
 .lk-mk{position:absolute;width:14px;height:14px;border-radius:50%;background:rgba(47,125,79,.55);border:2px solid #fff;box-shadow:0 0 0 1px rgba(47,125,79,.9);pointer-events:auto;cursor:pointer;transition:background .1s,box-shadow .1s;transform:translate(-50%,-50%) scale(var(--mks,1));transform-origin:center;}
 .lk-mk:hover,.lk-mk.hl{background:var(--amber);box-shadow:0 0 0 2px #fff,0 0 0 5px rgba(217,131,36,.5);transform:translate(-50%,-50%) scale(calc(var(--mks,1)*1.6));z-index:3;}
 .lk-mk.flash{animation:lkFlash 1.6s ease;z-index:3;}
@@ -1620,7 +1624,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v363';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v364';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v361';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2068,7 +2072,11 @@ async function lkRenderPage(page){
   const vp=page.getViewport({scale:sc});const c=document.createElement('canvas');
   c.width=Math.round(vp.width);c.height=Math.round(vp.height);const ctx=c.getContext('2d');
   ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
-  await page.render({canvasContext:ctx,viewport:vp}).promise;
+  // таймаут: титульники САПР с тысячами глифов рендерятся минутами и вешают очередь —
+  // отменяем и показываем заглушку (кнопка «Обновить» перезапустит, «PDF ⤢» откроет оригинал)
+  const task=page.render({canvasContext:ctx,viewport:vp});
+  const to=setTimeout(()=>{try{task.cancel();}catch(_){}},60000);
+  try{await task.promise;}finally{clearTimeout(to);}
   return c.toDataURL('image/png');
 }
 /* ВРУ (вводно-распред. устройство), от которого запитан щит листа: «НЩО-4 от ВРУ-3» */
@@ -2191,7 +2199,7 @@ function lkMarkersHtml(pg){
 }
 function lkImgBoxHtml(pg){
   if(!pg.img)return '<div class="lk-spin" style="padding:22px">рендерю лист…</div>';
-  return `<div class="lk-imgbox" id="lkImgBox"><img id="lkImg" src="${pg.img}" alt="Лист ${pg.page}" draggable="false"><div class="lk-overlay">${lkMarkersHtml(pg)}</div></div>`;
+  return `<div class="lk-imgbox" id="lkImgBox"><img id="lkImg" src="${pg.img}" alt="Лист ${pg.page}" draggable="false"><div class="lk-text" id="lkTextLayer"></div><div class="lk-overlay">${lkMarkersHtml(pg)}</div></div>`;
 }
 /* фото-стиль зум/панорама схемы: колесо/пинч — зум к курсору, тяни — двигай, дв.клик — приблизить (Win/Mac) */
 function lkInitViewer(){
@@ -2207,10 +2215,12 @@ function lkInitViewer(){
     st.x=px-ox*st.s;st.y=py-oy*st.s;apply();}
   vp.onwheel=e=>{e.preventDefault();zoomAt(e.clientX,e.clientY,e.deltaY<0?1.12:0.893);};
   let dg=false,lx,ly;
-  vp.onpointerdown=e=>{if(e.target&&e.target.classList&&e.target.classList.contains('lk-mk'))return;dg=true;lx=e.clientX;ly=e.clientY;try{vp.setPointerCapture(e.pointerId);}catch(_){}vp.style.cursor='grabbing';};
+  vp.onpointerdown=e=>{if(e.target&&e.target.classList&&e.target.classList.contains('lk-mk'))return;
+    if(e.target&&e.target.closest&&e.target.closest('.lk-text span'))return;   // старт на тексте — выделение, не панорама
+    dg=true;lx=e.clientX;ly=e.clientY;try{vp.setPointerCapture(e.pointerId);}catch(_){}vp.style.cursor='grabbing';};
   vp.onpointermove=e=>{if(!dg)return;st.x+=e.clientX-lx;st.y+=e.clientY-ly;lx=e.clientX;ly=e.clientY;apply();};
   vp.onpointerup=vp.onpointercancel=()=>{dg=false;vp.style.cursor='grab';};
-  vp.ondblclick=e=>zoomAt(e.clientX,e.clientY,1.7);
+  vp.ondblclick=e=>{if(e.target&&e.target.closest&&e.target.closest('.lk-text span'))return;zoomAt(e.clientX,e.clientY,1.7);};   // дв.клик по тексту — выделение слова
   LK._zoomBtn=z=>{const b=vp.getBoundingClientRect();if(z==='fit')fit();else zoomAt(b.left+b.width/2,b.top+b.height/2,z==='in'?1.35:0.74);};
   // навести экран на точку (mx,my — нормализованные координаты картинки): центр + читаемый зум.
   // fit пересчитываем на месте — сохранённый мог посчитаться при скрытой/узкой панели
@@ -2222,6 +2232,26 @@ function lkInitViewer(){
   if(img.complete&&img.naturalWidth)fit();else img.onload=fit;
 }
 async function lkEnsureImg(pg){if(pg.img||!LK.pdf)return pg.img;const page=await LK.pdf.getPage(pg.page);pg.img=await lkRenderPage(page);return pg.img;}
+/* текстовый слой листа: прозрачные span-ы по координатам текста PDF — выделение/копирование
+   прямо на листе. Координаты в px канвы (тот же sc, что в lkRenderPage), битый шрифт чинится lkFixEnc */
+async function lkBuildTextLayer(pg){
+  const el=$('lkTextLayer');if(!el||!LK.pdf)return;
+  if(pg._tl!=null){el.innerHTML=pg._tl;return;}
+  try{
+    const page=await LK.pdf.getPage(pg.page);
+    const v0=page.getViewport({scale:1});
+    const sc=Math.min(5.5,4400/Math.max(v0.width,v0.height));
+    const tc=await page.getTextContent();
+    let h='';
+    tc.items.forEach(it=>{const s=lkFixEnc(it.str||'');if(!s.trim())return;
+      const m=pdfjsLib.Util.transform(v0.transform,it.transform);
+      const fh=Math.hypot(m[2],m[3]);if(fh*sc<2)return;
+      const ang=Math.atan2(m[1],m[0]);
+      h+=`<span style="left:${(m[4]*sc).toFixed(1)}px;top:${(m[5]*sc).toFixed(1)}px;font-size:${(fh*sc).toFixed(1)}px;transform:rotate(${ang.toFixed(4)}rad) translateY(-0.85em)">${esc(s)}</span>`;});
+    pg._tl=h;
+    if($('lkTextLayer'))$('lkTextLayer').innerHTML=h;
+  }catch(e){console.warn('lk text layer',e);}
+}
 {const _vch=$('lkVer');if(_vch)_vch.textContent=LK_VER;}
 $('btnLineyka').onclick=()=>{
   // Линейка уже жила в этой сессии или есть сохранённые документы — вернуться, а не сразу в выбор файла
@@ -2286,7 +2316,10 @@ async function lkOpenBuf(id,name,buf,state,issues,ver){
     if(!pages.length){$('lkPage').innerHTML='<div class="lk-spin">Не нашёл кабельных данных. Возможно, это скан без текстового слоя или другой формат линейки — пришли файл, настрою парсер.</div>';return;}
     LK.stale=false;
     try{const rec=await archGet(id);if(rec){rec.ver=LK_PARSER_VER;await archPut(rec);}}catch(e){}
-    LK.sel=0;LK.view='pages';LK.imgZoom=1;renderLineyka();lkPersist();lkDocsBar();toast('Листов с линейками: '+pages.length);
+    // открываемся на ПЕРВОМ листе с данными: титульники «Общие данные» (тысячи глифов)
+    // рендерятся минутами — их юзер откроет сам при необходимости
+    LK.sel=Math.max(0,pages.findIndex(pg=>(pg.rows||[]).length>0));
+    LK.view='pages';LK.imgZoom=1;renderLineyka();lkPersist();lkDocsBar();toast('Листов: '+pages.length);
   }catch(err){console.error(err);$('lkPage').innerHTML='<div class="lk-spin">Не удалось прочитать PDF: '+esc(String(err))+'</div>';}
 }
 /* перечитать текущий документ заново текущим парсером (пометки-правки живут отдельно и сохраняются) */
@@ -2454,6 +2487,7 @@ function renderLineyka(){
     :`<div style="display:flex;gap:9px;align-items:center;margin-top:6px"><button class="lk-add" id="lkAdd">+ Строка на этот лист</button><span class="lk-note">Проверь по печатной сводке «Потребность кабелей» на листе — поправь/добавь, итоги пересчитаются.</span></div>`)
     +`</div></div></div>`;
   $('lkPage').innerHTML=h;bindLineyka();lkPersist();
+  if(pg.img)lkBuildTextLayer(pg);
   if(!pg.img)lkEnsureImg(pg).then(img=>{if(LK.pages[LK.sel]===pg&&img)renderLineyka();}).catch(e=>{console.error('render lист',e);const el=$('lkPgImg');if(el&&LK.pages[LK.sel]===pg)el.innerHTML='<div class="lk-spin" style="padding:18px">Не удалось отрисовать картинку листа (данные всё равно прочитаны ниже). <button class="lk-tb" id="lkImgRetry" style="color:var(--steel);margin-top:8px">Обновить</button></div>';const rb=$('lkImgRetry');if(rb)rb.onclick=()=>{pg.img=null;renderLineyka();};});
 }
 function lkCondsHtml(r){return (r.conds||[]).map((c,i)=>{const co=LK_CONDS.concat(c.t&&LK_CONDS.indexOf(c.t)<0?[c.t]:[]);
