@@ -7308,30 +7308,42 @@ async function handleOnboardingStatus(request, env) {
 // Данные: «новые сделки» (по дате создания) либо «вход в стадию» (по журналу).
 // ════════════════════════════════════════════════════════════════════════
 function _ymd(d) { return d.toISOString().slice(0, 10); }
+// Якорь недели: четверг 14:00 Алматы (UTC+5) = четверг 09:00 UTC.
+// Возвращает старт ТЕКУЩЕЙ (ещё не завершённой) недели — ближайший прошлый
+// четверг-09:00-UTC, не позже now.
+function weekAnchorThuUTC(now) {
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 9, 0, 0, 0));
+  const back = (d.getUTCDay() - 4 + 7) % 7; // 4 = четверг
+  d.setUTCDate(d.getUTCDate() - back);
+  if (d.getTime() > now.getTime()) d.setUTCDate(d.getUTCDate() - 7);
+  return d;
+}
 function buildChartBuckets(period, points) {
   const now = new Date();
   const RU_MON = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
   const buckets = [];
   if (period === 'week') {
-    const day = now.getUTCDay() || 7;
-    const monday = new Date(now); monday.setUTCDate(now.getUTCDate() - (day - 1));
+    // Неделя: четверг 14:00 → следующий четверг 14:00 (Алматы). Последний бакет —
+    // текущая незавершённая неделя (partial), её линией не соединяем на графике.
+    const anchor = weekAnchorThuUTC(now);
     for (let i = points - 1; i >= 0; i--) {
-      const ws = new Date(monday); ws.setUTCDate(monday.getUTCDate() - i * 7);
+      const ws = new Date(anchor); ws.setUTCDate(anchor.getUTCDate() - i * 7);
       const we = new Date(ws); we.setUTCDate(ws.getUTCDate() + 7);
-      const s = _ymd(ws), e = _ymd(we);
-      buckets.push({ key: s, start: s, end: e, label: s.slice(8, 10) + '.' + s.slice(5, 7) });
+      const wsAlm = new Date(ws.getTime() + 5 * 3600 * 1000); // подпись — дата по Алматы
+      const label = String(wsAlm.getUTCDate()).padStart(2, '0') + '.' + String(wsAlm.getUTCMonth() + 1).padStart(2, '0');
+      buckets.push({ key: ws.toISOString(), start: ws.toISOString().slice(0, 10), startMs: ws.getTime(), endMs: we.getTime(), label, partial: i === 0 });
     }
   } else if (period === 'month') {
     for (let i = points - 1; i >= 0; i--) {
       const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
       const key = d.toISOString().slice(0, 7);
-      buckets.push({ key, start: key + '-01', label: RU_MON[d.getUTCMonth()] });
+      buckets.push({ key, start: key + '-01', label: RU_MON[d.getUTCMonth()], partial: i === 0 });
     }
   } else {
     for (let i = points - 1; i >= 0; i--) {
       const d = new Date(now); d.setUTCDate(d.getUTCDate() - i);
       const key = _ymd(d);
-      buckets.push({ key, start: key, label: key.slice(8, 10) + '.' + key.slice(5, 7) });
+      buckets.push({ key, start: key, label: key.slice(8, 10) + '.' + key.slice(5, 7), partial: i === 0 });
     }
   }
   return buckets;
@@ -7342,11 +7354,13 @@ function countIntoBuckets(dates, buckets, period) {
     if (!ds) continue;
     let idx = -1;
     if (period === 'month') idx = buckets.findIndex(b => b.key === ds.slice(0, 7));
-    else if (period === 'week') idx = buckets.findIndex(b => ds >= b.start && ds < b.end);
-    else idx = buckets.findIndex(b => b.key === ds);
+    else if (period === 'week') {
+      const t = Date.parse(ds);
+      if (!isNaN(t)) idx = buckets.findIndex(b => t >= b.startMs && t < b.endMs);
+    } else idx = buckets.findIndex(b => b.key === ds.slice(0, 10));
     if (idx >= 0) counts[idx]++;
   }
-  return buckets.map((b, i) => ({ label: b.label, value: counts[i] }));
+  return buckets.map((b, i) => ({ label: b.label, value: counts[i], partial: !!b.partial }));
 }
 
 async function handleChartsConfigGet(request, env) {
@@ -7398,11 +7412,13 @@ async function handleChartsSeries(request, env) {
   const minDate = buckets[0].start;
   let rows = [];
   try {
+    // Полный таймстамп (не substr): для недельных бакетов нужна точность до
+    // времени (граница четверг 14:00). Для day/month countIntoBuckets режет сам.
     if (usesCreated) {
-      const r = await env.DB.prepare("SELECT substr(bitrix_date_create,1,10) AS d FROM deals WHERE pipeline_id = ? AND bitrix_date_create >= ?").bind(pipeline, minDate).all();
+      const r = await env.DB.prepare("SELECT bitrix_date_create AS d FROM deals WHERE pipeline_id = ? AND bitrix_date_create >= ?").bind(pipeline, minDate).all();
       rows = r.results || [];
     } else {
-      const r = await env.DB.prepare("SELECT substr(entered_at,1,10) AS d FROM deal_stage_events WHERE pipeline_id = ? AND stage_id = ? AND entered_at >= ?").bind(pipeline, stage, minDate).all();
+      const r = await env.DB.prepare("SELECT entered_at AS d FROM deal_stage_events WHERE pipeline_id = ? AND stage_id = ? AND entered_at >= ?").bind(pipeline, stage, minDate).all();
       rows = r.results || [];
     }
   } catch (e) { return json({ ok: false, error: String(e && e.message || e) }, 500, request); }
