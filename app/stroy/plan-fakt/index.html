@@ -1620,8 +1620,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v360';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v360';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v361';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v361';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2130,7 +2130,8 @@ async function lkExtract(data,onProgress){
         if(!anchors.some(b=>b!==a&&inRow(a,b)))return;          // не в ряду групп
         rows.push({group:a.s,mark:'',section:'',len:0,conds:[],x:a.x,y:a.y,mult:1,needsCheck:true});});
     }
-    if(!rows.length){page.cleanup&&page.cleanup();continue;}
+    // страницы БЕЗ строк тоже показываем (титульные, планы, пояснения): ребята листают файл
+    // целиком, как PDF; строку можно добавить вручную на любой лист
     lkAssignGroupNames(rows,lkGroupLabels(tc.items));
     const shields=lkDetectShields(tc.items);
     const groups=lkGroupByShield(rows,shields);
@@ -2411,7 +2412,7 @@ function lkCheckHtml(pg){const st=lkSum(pg.rows);const proj=pg.potreb||{};
     +(fromTbl.length?` <span class="lk-rep-lbl">— ${fromTbl.length===Object.keys(pc).length?'из':'частично из'} таблицы «Потребность в трубах» листа</span>`:'');
   const empty=pg.rows.filter(r=>!r.group||r.group==='—').length;
   const projTxt=Object.keys(proj).length?`Печатная сводка на схеме (черновая): ${Object.keys(proj).sort().map(k=>esc(k)+'='+proj[k]).join(', ')}. `:'';
-  return `<div class="lk-check report"><div class="lk-check-h">📋 Отчёт по листу ${pg.page}<span class="lk-check-sub">${pg.rows.length} линий · ${Math.round(st.t)} м всего</span><button class="lk-copybtn" id="lkCopySheet" title="Скопировать строки листа для Excel (Ctrl+V)">⧉ Скопировать лист</button></div>`
+  return `<div class="lk-check report"><div class="lk-check-h">📋 Отчёт по листу ${pg.page}<span class="lk-check-sub">${pg.rows.length} линий · ${Math.round(st.t)} м всего</span>${pg.vru?`<span class="lk-chip small" title="Источник питания листа (из текста схемы)">⚡ ${esc(pg.vru)}</span>`:''}<button class="lk-copybtn" id="lkCopySheet" title="Скопировать строки листа для Excel (Ctrl+V)">⧉ Скопировать лист</button></div>`
     +`<div class="lk-rep-sec">${secChips}</div>`
     +(condChips?`<div class="lk-rep-sec cond-row"><span class="lk-rep-lbl">Трубы:</span> ${condChips}</div>`:`<div class="lk-rep-sec cond-row"><span class="lk-rep-lbl">Трубы:</span> <span class="lk-chip small cond">не распознаны</span></div>`)
     +`<div class="lk-rep-note"><b>Как понять, всё ли прочитано:</b> сверь эти суммы с таблицей <b>«Потребность кабелей»</b> на схеме выше. Сходится по всем сечениям — лист прочитан полностью; где у сечения меньше — часть не распозналась, добавь строку кнопкой ниже. ${projTxt}${empty?`<br><b>${empty}</b> строк без потребителя (в этом формате имени нет в тексте — впиши вручную при необходимости).`:''}</div></div>`;}
@@ -2438,7 +2439,7 @@ function renderLineyka(){
   $('lkNav').querySelectorAll('.lk-pg').forEach(b=>b.onclick=()=>{LK.sel=+b.dataset.pg;LK.view='pages';renderLineyka();$('lkPage').scrollTop=0;});
   if(LK.view==='report'){$('lkPage').innerHTML=lkReportHtml();bindReport();return;}
   const pg=LK.pages[LK.sel];
-  let h=`<div class="lk-split"><div class="lk-imgcol"><div class="lk-pgwrap"><div class="lk-zoom"><button data-z="out" title="Уменьшить">−</button><button data-z="fit" title="По ширине">↔</button><button data-z="in" title="Увеличить">+</button></div><div class="lk-pgimg" id="lkPgImg">${lkImgBoxHtml(pg)}</div></div><div class="lk-mk-note">🟢 точка — попало в подсчёт · 🔴 точка — длина взята ненадёжно («проверить длину»): поправь длину в строке — пометка снимется. Наведи на строку справа — подсветит её точку; клик по точке — перейти к строке. Где точки нет — пропуск (неучтённое ответвление), добавь строку.</div></div><div class="lk-datacol">`+lkCheckHtml(pg);
+  let h=`<div class="lk-split"><div class="lk-imgcol"><div class="lk-pgwrap"><div class="lk-zoom"><button data-z="out" title="Уменьшить">−</button><button data-z="fit" title="По ширине">↔</button><button data-z="in" title="Увеличить">+</button><button id="lkOpenPdf" title="Открыть этот лист в PDF — текст можно выделять и копировать">PDF ⤢</button></div><div class="lk-pgimg" id="lkPgImg">${lkImgBoxHtml(pg)}</div></div><div class="lk-mk-note">🟢 точка — попало в подсчёт · 🔴 точка — длина взята ненадёжно («проверить длину»): поправь длину в строке — пометка снимется. Наведи на строку справа — подсветит её точку; клик по точке — перейти к строке. Где точки нет — пропуск (неучтённое ответвление), добавь строку.</div></div><div class="lk-datacol">`+lkCheckHtml(pg);
   // #v359 вкладки «Кабели / Трубы»: трубы правятся в своей вкладке — строки кабелей компактнее
   const pipesTab=LK.rtab==='pipes';
   const condN=pg.rows.reduce((a,r)=>a+(r.conds||[]).length,0);
@@ -2492,6 +2493,13 @@ function bindLineyka(){const P=$('lkPage');
   P.querySelectorAll('.lk-cx').forEach(el=>el.onclick=()=>{const r=LK.byId[el.dataset.id];if(r&&r.conds){r.conds.splice(+el.dataset.i,1);renderLineyka();}});
   P.querySelectorAll('.lk-cadd').forEach(el=>el.onclick=()=>{const r=LK.byId[el.dataset.id];if(r){(r.conds=r.conds||[]).push({t:'п.г.25',len:0});renderLineyka();}});
   const cs=$('lkCopySheet');if(cs)cs.onclick=()=>{const pg=LK.pages[LK.sel];lkCopyTsv(lkSheetRows(pg),'Лист '+pg.page);};
+  // открыть исходный PDF на текущем листе — нативный просмотрщик, текст выделяется как в PDF
+  const op=$('lkOpenPdf');if(op)op.onclick=async()=>{try{
+    const rec=LK.docId?await archGet(LK.docId):null;
+    if(!rec||!rec.buf){toast('PDF не найден в хранилище — загрузите файл заново');return;}
+    const url=URL.createObjectURL(new Blob([rec.buf.slice(0)],{type:'application/pdf'}));
+    window.open(url+'#page='+LK.pages[LK.sel].page,'_blank');
+  }catch(e){toast('Не удалось открыть PDF');}};
   P.querySelectorAll('.lk-rtab').forEach(b=>b.onclick=()=>{LK.rtab=b.dataset.t;renderLineyka();});
   const add=$('lkAdd');if(add)add.onclick=()=>{const pg=LK.pages[LK.sel];const r={_id:'r'+id2(),group:'',section:'3x2,5',len:0,conds:[],x:0,page:pg.page};LK.byId[r._id]=r;pg.rows.push(r);(pg.groups[0]||(pg.groups[0]={name:'Линейка',rows:[]})).rows.push(r);renderLineyka();};
   P.querySelectorAll('.lk-zoom button').forEach(b=>b.onclick=()=>{if(LK._zoomBtn)LK._zoomBtn(b.dataset.z);});
