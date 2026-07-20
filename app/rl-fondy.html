@@ -144,7 +144,7 @@ const uid=()=>'x'+(_id++)+'_'+DB.projects.length;
 function save(){localStorage.setItem(LS,JSON.stringify({...DB,_id}))}
 function load(){
   try{const raw=localStorage.getItem(LS);if(!raw)return false;
-    const d=JSON.parse(raw);DB={projects:d.projects||[],stages:d.stages||null,sel:d.sel||null};_id=d._id||1000;
+    const d=JSON.parse(raw);DB={projects:d.projects||[],stages:d.stages||null,sel:d.sel||null,impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null};_id=d._id||1000;
     DB.projects.forEach(p=>{p.tasks=p.tasks||[];p.finIn=p.finIn||[];p.finOut=p.finOut||[]});
     return DB.projects.length>0;
   }catch(e){return false}
@@ -326,7 +326,9 @@ function renderList(host){
     <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input id="impUrl" value="${esc(DB.impUrl||'')}" placeholder="https://docs.google.com/spreadsheets/d/…/gviz/tq?tqx=out:csv&sheet=ДДС-2" style="flex:1;min-width:240px"><button class="btn" onclick="impFetch()">Загрузить</button></div>
     <label>Или вставь скопированные строки (с шапкой «Дата … Сумма …»)</label>
     <textarea id="impText" rows="4" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:11.5px;font-family:monospace;background:#fbfaf7" placeholder="Мсц	Дата	Сумма	Кошелек	Направление	Статья	Контрагент	Назначение…"></textarea>
-    <div style="margin-top:10px;display:flex;gap:8px"><button class="btn ghost" onclick="impParse()">Разобрать</button></div>
+    <div style="margin-top:10px;display:flex;gap:14px;align-items:center;flex-wrap:wrap"><button class="btn ghost" onclick="impParse()">Разобрать</button>
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:600;cursor:pointer;margin:0"><input type="checkbox" ${DB.impAuto?'checked':''} onchange="impAutoToggle(this.checked)" style="width:auto"> подтягивать автоматически (при открытии + каждые 10 мин)</label>
+      ${DB.impLast?`<span style="font-size:11px;color:var(--muted)">последняя синхронизация: ${esc(DB.impLast.t)} · новых: ${DB.impLast.n}</span>`:''}</div>
     <div id="impPrev" style="margin-top:12px"></div>
   </div>`;
   bindKbDrag();
@@ -388,13 +390,9 @@ function impFetch(){
     impParse();
   }).catch(()=>toast('Не загрузилось: проверь доступ «всем, у кого есть ссылка» — или скопируй строки вручную','err'));
 }
-function impParse(){
-  const text=document.getElementById('impText').value;
-  const prev=document.getElementById('impPrev');
-  if(!text.trim()){toast('Вставь строки или загрузи по ссылке','err');return}
-  const rows=impTable(text);
+function impBuild(rows){
   const cols=impCols(rows);
-  if(!cols){prev.innerHTML='<div class="warn" style="display:block">Не нашёл строку заголовков: нужны колонки «Дата» и «Сумма». Скопируй вместе с шапкой таблицы.</div>';return}
+  if(!cols)return {err:true};
   const plan=[],skip={},missing=new Set();
   const addSkip=w=>{skip[w]=(skip[w]||0)+1};
   for(let i=cols.head+1;i<rows.length;i++){
@@ -419,6 +417,19 @@ function impParse(){
       plan.push({pid:p.id,op:{type:'out',date,amt:-Math.abs(amt),fund:fund.id,note,src:fin?'fin':undefined}});
     }
   }
+  return {plan,skip,missing};
+}
+function applyImpPlan(plan){
+  plan.forEach(x=>{const p=DB.projects.find(z=>z.id===x.pid);if(p)p.ops.push({id:uid(),...x.op})});
+  save();
+}
+function impParse(){
+  const text=document.getElementById('impText').value;
+  const prev=document.getElementById('impPrev');
+  if(!text.trim()){toast('Вставь строки или загрузи по ссылке','err');return}
+  const res=impBuild(impTable(text));
+  if(res.err){prev.innerHTML='<div class="warn" style="display:block">Не нашёл строку заголовков: нужны колонки «Дата» и «Сумма». Скопируй вместе с шапкой таблицы.</div>';return}
+  const {plan,skip,missing}=res;
   _impPlan=plan;
   const byProj={};plan.forEach(x=>{const p=DB.projects.find(z=>z.id===x.pid);
     const b=byProj[p.name]=byProj[p.name]||{in:0,out:0,n:0};b.n++;
@@ -432,12 +443,29 @@ function impParse(){
 }
 function impApply(){
   if(!_impPlan||!_impPlan.length)return;
-  _impPlan.forEach(x=>{const p=DB.projects.find(z=>z.id===x.pid);if(p)p.ops.push({id:uid(),...x.op})});
+  applyImpPlan(_impPlan);
   const n=_impPlan.length;_impPlan=null;
+  DB.impLast={t:todayIso()+' '+new Date().toTimeString().slice(0,5),n};
   toast('Импортировано '+n+' операций ✓');
   document.getElementById('impText').value='';
   render();
 }
+/* автоподтягивание: при открытии и каждые 10 минут, пока страница открыта */
+function impAutoSync(){
+  if(!DB.impAuto||!DB.impUrl)return;
+  fetch(DB.impUrl).then(r=>{if(!r.ok)throw 0;return r.text()}).then(text=>{
+    const res=impBuild(impTable(text));
+    if(res.err)return;
+    DB.impLast={t:todayIso()+' '+new Date().toTimeString().slice(0,5),n:res.plan.length};
+    if(res.plan.length){
+      applyImpPlan(res.plan);
+      toast('⇩ Из таблицы подтянуто '+res.plan.length+' новых операций ✓');
+    }
+    save();
+    if(!DB.sel)render(); // обновляем главную; открытую карточку не трогаем, чтобы не сбить ввод
+  }).catch(()=>{});
+}
+function impAutoToggle(v){DB.impAuto=!!v;save();if(v)impAutoSync();else render()}
 function showNew(){DB.sel='__new';render();setTimeout(()=>{
   DEFAULT_FUNDS.forEach(f=>addNewFundRow(f.name,f.pct));
   addNewRow('in');addNewRow('in');addNewRow('out');addNewRow('out')},0)}
@@ -881,7 +909,7 @@ function importData(inp){
   const rd=new FileReader();
   rd.onload=()=>{try{const d=JSON.parse(rd.result);
     if(!Array.isArray(d.projects))throw 0;
-    DB={projects:d.projects,stages:d.stages||null,sel:null};_id=d._id||9000;
+    DB={projects:d.projects,stages:d.stages||null,sel:null,impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null};_id=d._id||9000;
     DB.projects.forEach(p=>{p.tasks=p.tasks||[];p.finIn=p.finIn||[];p.finOut=p.finOut||[]});
     ensureStages();toast('Данные загружены ✓');render();
   }catch(e){toast('Не получилось прочитать файл','err')}};
@@ -949,6 +977,8 @@ function seedDemo(){
   if(!load()){seedDemo();}
   ensureStages();
   render();
+  setTimeout(impAutoSync,1500);
+  setInterval(impAutoSync,600000);
 })();
 </script>
 </body>
