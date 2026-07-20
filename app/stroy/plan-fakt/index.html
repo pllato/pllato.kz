@@ -1620,7 +1620,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v362';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v363';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v361';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2492,13 +2492,17 @@ function bindLineyka(){const P=$('lkPage');
   P.querySelectorAll('.lk-cx').forEach(el=>el.onclick=()=>{const r=LK.byId[el.dataset.id];if(r&&r.conds){r.conds.splice(+el.dataset.i,1);renderLineyka();}});
   P.querySelectorAll('.lk-cadd').forEach(el=>el.onclick=()=>{const r=LK.byId[el.dataset.id];if(r){(r.conds=r.conds||[]).push({t:'п.г.25',len:0});renderLineyka();}});
   const cs=$('lkCopySheet');if(cs)cs.onclick=()=>{const pg=LK.pages[LK.sel];lkCopyTsv(lkSheetRows(pg),'Лист '+pg.page);};
-  // открыть исходный PDF на текущем листе — нативный просмотрщик, текст выделяется как в PDF
-  const op=$('lkOpenPdf');if(op)op.onclick=async()=>{try{
-    const rec=LK.docId?await archGet(LK.docId):null;
-    if(!rec||!rec.buf){toast('PDF не найден в хранилище — загрузите файл заново');return;}
-    const url=URL.createObjectURL(new Blob([rec.buf.slice(0)],{type:'application/pdf'}));
-    window.open(url+'#page='+LK.pages[LK.sel].page,'_blank');
-  }catch(e){toast('Не удалось открыть PDF');}};
+  // открыть исходный PDF на текущем листе — нативный просмотрщик, текст выделяется как в PDF.
+  // Окно открываем СИНХРОННО в жесте клика: после await (IndexedDB) Chrome блокирует попап
+  const op=$('lkOpenPdf');if(op)op.onclick=()=>{
+    const win=window.open('','_blank');
+    (async()=>{try{
+      const rec=LK.docId?await archGet(LK.docId):null;
+      if(!rec||!rec.buf){if(win)win.close();toast('PDF не найден в хранилище — загрузите файл заново');return;}
+      const url=URL.createObjectURL(new Blob([rec.buf.slice(0)],{type:'application/pdf'}));
+      const target=url+'#page='+LK.pages[LK.sel].page;
+      if(win)win.location=target;else window.open(target,'_blank');
+    }catch(e){if(win)win.close();toast('Не удалось открыть PDF');}})();};
   P.querySelectorAll('.lk-rtab').forEach(b=>b.onclick=()=>{LK.rtab=b.dataset.t;renderLineyka();});
   const add=$('lkAdd');if(add)add.onclick=()=>{const pg=LK.pages[LK.sel];const r={_id:'r'+id2(),group:'',section:'3x2,5',len:0,conds:[],x:0,page:pg.page};LK.byId[r._id]=r;pg.rows.push(r);(pg.groups[0]||(pg.groups[0]={name:'Линейка',rows:[]})).rows.push(r);renderLineyka();};
   P.querySelectorAll('.lk-zoom button').forEach(b=>b.onclick=()=>{if(LK._zoomBtn)LK._zoomBtn(b.dataset.z);});
