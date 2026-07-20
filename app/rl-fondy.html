@@ -318,8 +318,125 @@ function renderList(host){
     ${_kbEdit?`<button class="btn ghost" onclick="addStage()">+ этап</button><button class="btn" style="padding:8px 16px;font-size:12.5px" onclick="_kbEdit=false;render()">Готово</button>`
       :`<button class="btn ghost" onclick="_kbEdit=true;render()">⚙ настроить этапы</button>`}</div>
   <div class="explain">Все проекты по этапам. <b>Перетащи карточку</b> в другую колонку — этап сменится. Клик — открыть проект. «Настроить этапы» — переименовать, поменять порядок (◀ ▶), удалить или добавить свой этап.</div>
-  <div class="kb">${cols}</div>`;
+  <div class="kb">${cols}</div>
+  <h2>Импорт операций из Google Таблицы (ДДС / ТМЦ)</h2>
+  <div class="explain">Два способа: <b>по ссылке</b> — вставь адрес вида <code style="font-size:11px">https://docs.google.com/spreadsheets/d/ID/gviz/tq?tqx=out:csv&sheet=ДДС-2</code> (доступ «всем, у кого есть ссылка») и жми «Загрузить»; или <b>копипастой</b> — выдели строки в таблице вместе с шапкой, скопируй и вставь в поле. Программа сама: приход/расход по знаку суммы, проект — по колонке «Направление», фонд — по «Статье» (или колонке «Фонд», если добавишь), финансирование — по статьям «займ/финансирование». Депозиты, переводы между счетами и комиссии пропускаются. Повторный импорт дублей не создаёт.</div>
+  <div class="card">
+    <label>Ссылка на CSV листа</label>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input id="impUrl" value="${esc(DB.impUrl||'')}" placeholder="https://docs.google.com/spreadsheets/d/…/gviz/tq?tqx=out:csv&sheet=ДДС-2" style="flex:1;min-width:240px"><button class="btn" onclick="impFetch()">Загрузить</button></div>
+    <label>Или вставь скопированные строки (с шапкой «Дата … Сумма …»)</label>
+    <textarea id="impText" rows="4" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:11.5px;font-family:monospace;background:#fbfaf7" placeholder="Мсц	Дата	Сумма	Кошелек	Направление	Статья	Контрагент	Назначение…"></textarea>
+    <div style="margin-top:10px;display:flex;gap:8px"><button class="btn ghost" onclick="impParse()">Разобрать</button></div>
+    <div id="impPrev" style="margin-top:12px"></div>
+  </div>`;
   bindKbDrag();
+}
+
+/* ============ ИМПОРТ ИЗ GOOGLE ТАБЛИЦЫ ============ */
+function impCSV(text){
+  const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){cur+='"';i++}else q=false}else cur+=c}
+    else{if(c==='"')q=true;
+      else if(c===','){row.push(cur);cur=''}
+      else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur=''}
+      else if(c!=='\r')cur+=c}}
+  if(cur||row.length){row.push(cur);rows.push(row)}
+  return rows.filter(r=>r.some(c=>c&&c.trim()));
+}
+function impTable(text){
+  if(text.includes('\t'))return text.split(/\r?\n/).filter(l=>l.trim()).map(l=>l.split('\t'));
+  return impCSV(text);
+}
+function impNum(s){if(s==null)return 0;s=String(s).replace(/[\s ₸]/g,'');
+  if(/,\d{1,2}$/.test(s)&&!s.includes('.'))s=s.replace(/,(\d{1,2})$/,'.$1');
+  s=s.replace(/,/g,'');
+  const v=parseFloat(s);return isNaN(v)?0:v}
+function impDate(s){s=(s||'').trim();
+  let m=s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})/);
+  if(m){const y=m[3].length===2?'20'+m[3]:m[3];return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0')}
+  if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
+  return null}
+function impCols(rows){
+  for(let i=0;i<Math.min(rows.length,6);i++){
+    const low=rows[i].map(c=>(c||'').toLowerCase());
+    const find=(...keys)=>low.findIndex(c=>keys.some(k=>c.includes(k)));
+    const date=find('дата'),amt=find('сумма');
+    if(date>=0&&amt>=0)return {head:i,date,amt,
+      proj:find('направ'),art:find('статья'),cp:find('контрагент','поставщик'),
+      note:find('назнач','наименование'),fund:find('фонд')};
+  }
+  return null}
+function impFundByArt(p,art){
+  const a=(art||'').toLowerCase();
+  const pick=re=>p.funds.find(f=>re.test(f.name.toLowerCase()));
+  let f=null;
+  if(/фот|зарплат|оклад/.test(a))f=pick(/фот|зарплат/);
+  else if(/налог/.test(a))f=pick(/налог/);
+  else if(/тмц|материал|смр|субподряд|услуг|транспорт|гсм|аренд|расходник/.test(a))f=pick(/матер|тмц|субподряд/);
+  else if(/дивиден|прибыл|финансир|займ|инвест/.test(a))f=pick(/прибыл|резерв/);
+  else f=pick(/накладн/);
+  return f||p.funds[0]}
+const IMP_SKIP=/депозит|перевод меж|комисси/i;
+let _impPlan=null;
+function impFetch(){
+  const url=document.getElementById('impUrl').value.trim();
+  if(!url){toast('Вставь ссылку на CSV','err');return}
+  DB.impUrl=url;save();
+  fetch(url).then(r=>{if(!r.ok)throw 0;return r.text()}).then(text=>{
+    document.getElementById('impText').value=text.length>2e6?text.slice(0,2e6):text;
+    impParse();
+  }).catch(()=>toast('Не загрузилось: проверь доступ «всем, у кого есть ссылка» — или скопируй строки вручную','err'));
+}
+function impParse(){
+  const text=document.getElementById('impText').value;
+  const prev=document.getElementById('impPrev');
+  if(!text.trim()){toast('Вставь строки или загрузи по ссылке','err');return}
+  const rows=impTable(text);
+  const cols=impCols(rows);
+  if(!cols){prev.innerHTML='<div class="warn" style="display:block">Не нашёл строку заголовков: нужны колонки «Дата» и «Сумма». Скопируй вместе с шапкой таблицы.</div>';return}
+  const plan=[],skip={},missing=new Set();
+  const addSkip=w=>{skip[w]=(skip[w]||0)+1};
+  for(let i=cols.head+1;i<rows.length;i++){
+    const r=rows[i];
+    const date=impDate(r[cols.date]),amt=impNum(r[cols.amt]);
+    if(!date||!amt)continue;
+    const art=(cols.art>=0?r[cols.art]:'')?.trim()||'';
+    if(IMP_SKIP.test(art)){addSkip('внутренние операции (депозиты, переводы, комиссии)');continue}
+    const projName=(cols.proj>=0?r[cols.proj]:'')?.trim()||'';
+    if(!projName){addSkip('без проекта (пустое «Направление»)');continue}
+    const p=DB.projects.find(x=>x.name.trim().toLowerCase()===projName.toLowerCase());
+    if(!p){missing.add(projName);addSkip('нет такого проекта в программе');continue}
+    const note=[(cols.note>=0?r[cols.note]:''),(cols.cp>=0?r[cols.cp]:'')].map(s=>(s||'').trim()).filter(Boolean).join(' · ')||art||'импорт';
+    if(p.ops.some(o=>(o.type==='in'||o.type==='out')&&o.date===date&&Math.round(Math.abs(o.amt))===Math.round(Math.abs(amt))&&(o.note||'')===note)){addSkip('уже импортировано (дубль)');continue}
+    const fin=/финансир|займ|инвест/i.test(art);
+    if(amt>0)plan.push({pid:p.id,op:{type:'in',date,amt,note,src:fin?'fin':undefined,alloc:allocByPct(p,amt)}});
+    else{
+      let fund=null;
+      const fn=(cols.fund>=0?r[cols.fund]:'')?.trim()||'';
+      if(fn)fund=p.funds.find(f=>f.name.toLowerCase().includes(fn.toLowerCase()));
+      if(!fund)fund=impFundByArt(p,art);
+      plan.push({pid:p.id,op:{type:'out',date,amt:-Math.abs(amt),fund:fund.id,note,src:fin?'fin':undefined}});
+    }
+  }
+  _impPlan=plan;
+  const byProj={};plan.forEach(x=>{const p=DB.projects.find(z=>z.id===x.pid);
+    const b=byProj[p.name]=byProj[p.name]||{in:0,out:0,n:0};b.n++;
+    if(x.op.type==='in')b.in+=x.op.amt;else b.out+=Math.abs(x.op.amt)});
+  prev.innerHTML=`
+    <div style="font-weight:700;font-size:13px;margin-bottom:6px">Готово к импорту: ${plan.length} операций</div>
+    ${Object.entries(byProj).map(([n,b])=>`<div style="font-size:12.5px;padding:3px 0">• <b>${esc(n)}</b>: ${b.n} оп. · приход <span class="pos">+${fmtM(b.in)}</span> · расход <span class="neg">−${fmtM(b.out)}</span></div>`).join('')||'<div style="font-size:12.5px;color:var(--muted)">нечего импортировать</div>'}
+    ${Object.keys(skip).length?`<div style="font-size:12px;color:var(--muted);margin-top:8px">Пропущено: ${Object.entries(skip).map(([w,n])=>n+' — '+w).join('; ')}</div>`:''}
+    ${missing.size?`<div class="warn" style="display:block;margin-top:8px">В программе нет проектов: <b>${[...missing].slice(0,10).map(esc).join('</b>, <b>')}</b>${missing.size>10?'…':''}. Заведи их с точно такими названиями (или переименуй) — и разбери ещё раз.</div>`:''}
+    ${plan.length?`<div style="margin-top:10px"><button class="btn grn" onclick="impApply()">Импортировать ${plan.length} операций</button></div>`:''}`;
+}
+function impApply(){
+  if(!_impPlan||!_impPlan.length)return;
+  _impPlan.forEach(x=>{const p=DB.projects.find(z=>z.id===x.pid);if(p)p.ops.push({id:uid(),...x.op})});
+  const n=_impPlan.length;_impPlan=null;
+  toast('Импортировано '+n+' операций ✓');
+  document.getElementById('impText').value='';
+  render();
 }
 function showNew(){DB.sel='__new';render();setTimeout(()=>{
   DEFAULT_FUNDS.forEach(f=>addNewFundRow(f.name,f.pct));
