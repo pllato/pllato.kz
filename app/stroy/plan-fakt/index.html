@@ -1620,8 +1620,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v359';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v356';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v360';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v360';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -1632,7 +1632,8 @@ function lkFixEnc(s){
       if(c>=1&&c<=0x1f&&c!==9&&c!==10&&c!==13)return String.fromCharCode(c+0x20);
       if(c>=0x1b0&&c<=0x217)return String.fromCharCode(c+0x247);
       return ch;}).join('');
-  return s.replace(/([xхХX×]\s*)([012])\s+(5|75)(?!\d)/g,'$1$2,$3');
+  return s.replace(/([xхХX×]\s*)([012])\s+(5|75)(?!\d)/g,'$1$2,$3')
+    .replace(/&R,S/g,'FRLS');   // «ВВГнг&R,S» = битое FRLS (F→&, L→«,» сдвигом −0x20; S2 л.5 МА1)
 }
 const LK_SECTIONS=['3x1,5','3x2,5','4x1,5','4x2,5','3x4','4x4','3x6','5x4','5x6','3x10','5x10','5x16','5x25'];
 const LK_CONDS=['п.г.16','п.г.20','п.г.25','п.г.32','п.г.40','п.г.50','п.г.63','п.г.65','п.г.80','п.н.40','п.н.50','п.н.63','т.с.20','т.с.25','т.с.32','т.с.40','т.с.50','г.т.20','г.т.25','г.т.32','з.п.25','з.п.32','т.г.16','т.г.20','т.г.25','т.г.32','ст.т.20','ст.т.25'];
@@ -1657,6 +1658,7 @@ function lkLinesFromItems(items){
           if(gap>-4&&gap<12&&((/[хx]\s*$/.test(a.s)&&/^\d/.test(b.s))||(/\d\s*$/.test(a.s)&&/^\s*[хx]\d/.test(b.s))
             ||(/\d\s*$/.test(a.s)&&/^м$/.test(b.s))   // «…48»+«м» → «…48м» — оторванная единица длины (S8 л.5)
             ||!LK_SECT.test(a.s))){   // марка ещё без сечения — продолжение рана клеим по геометрии («АсВВГнг»+«(А)-LS 4X2,5», P9 л.7)
+            if(/[хx]\s*$/.test(a.s)&&/^\d/.test(b.s))a.gx=true;   // цифра сечения приклеена к «…5х» — формат «паспортных колонок» (S2 л.5)
             a.s+=(gap>2?' ':'')+b.s;a.w=b.y+b.w-a.y;vert[j]=null;glued=true;}}}}}
   const vjoined=vert.filter(Boolean);
   const hlines=[],hmeta=[];
@@ -1683,6 +1685,22 @@ function lkIsCond(s){return /п\.?г|з\.?п|т\.?[сc]|г\.?т|п\.?п|п\.?н|
 function lkMult(s){const m=(s||'').match(/(\d+)\s*[хx]\s*[\(\[]/);return m?Math.max(1,Math.min(9,+m[1])):1;}
 /* длина кабеля ячейки = «-Nм» в ТОМ ЖЕ столбце (тот же X — вертикальный run), ближайшая по Y.
    Так не путаем с трубой (X сдвинут на ~12) и с соседней колонкой (напр. ВР1-к1 60м vs безымянный 8м). */
+/* верх ПАСПОРТНОЙ подколонки формата 2435: кластер (Δx<3) в 6..20пт от опоры, низ — имя-токен,
+   ≥2 полей с БИТОЙ запятой («53 5», «0 93» — сигнатура серии; на чертежах с целыми запятыми,
+   022 л.4, правило не применяется) → верхнее чистое число 5<v≤300 (длина: «тЩО1 … 65», S2 л.5) */
+function lkPassTop(pool,ref){
+  const cand=pool.filter(o=>{const dx=Math.abs(o.x-ref.x);return dx>=6&&dx<=20;}).sort((a,b)=>a.x-b.x);
+  const cls=[];let cc=null,px=null;
+  cand.forEach(o=>{if(cc&&o.x-px>3){cls.push(cc);cc=null;}if(!cc)cc=[];cc.push(o);px=o.x;});
+  if(cc)cls.push(cc);
+  for(const cl of cls){const c=cl.slice().sort((a,b)=>a.y-b.y);
+    if(c.length<3)continue;const bot=c[0].s.trim();
+    if(/^\d+(?:[.,]\d+)?$/.test(bot)||!/^[№MМА-ЯЁA-Z]/.test(bot))continue;
+    if(c.filter(o=>/^\d+\s\d+$/.test(o.s.trim())).length<2)continue;
+    for(let q=c.length-1;q>=0;q--){const t=c[q].s.trim();if(!/^\d+(?:[.,]\d+)?$/.test(t))continue;
+      const v=parseFloat(t.replace(',','.'));if(v>5&&v<=300)return v;}}
+  return null;
+}
 function lkColLen(nit,items){let best=null,bd=210;
   items.forEach(it=>{if(it===nit)return;const s=it.s;if(LK_NAME.test(s)||lkIsCond(s)||LK_MARK.test(s))return;
     if(Math.abs(it.x-nit.x)>8)return;
@@ -1793,9 +1811,14 @@ function lkParseOneLine(items){const rows=[];const dist=(a,b)=>Math.hypot(a.x-b.
     let L=null;const dm=[...(s+' '+(carrier!==it?carrier.s:'')).replace(LK_COND_RX,'').matchAll(LK_LEN_DASH)];if(dm.length)L=dm[dm.length-1][1];
     if(L==null){const lm=s.match(/L\s*=\s*(\d+(?:[,.]\d+)?)\s*м(?!м)/i);if(lm)L=lm[1];}   // «L=10м» (S10 л.7)
     if(L==null){const bm=(s+' '+(carrier!==it?carrier.s:'')).replace(LK_COND_RX,'').match(/(?:^|\s)(\d+(?:[,.]\d+)?)\s*м(?![А-Яа-яЁёA-Za-z0-9])/);if(bm)L=bm[1];}   // голое «18м» в конце подписи (P9 л.13)
+    let ncFlag=false;
+    if(L==null&&it.gx){ // формат «паспортных колонок» (цифра сечения приклеена к «…5х»): длина —
+      // верх паспортной подколонки («тШ.Р.1(1 … 70», S2 л.5); lkColLen здесь брал метраж
+      // ТРУБЫ «пг40/5м» как длину (5 вместо 70)
+      const pv=lkPassTop(items.filter(o=>o!==it&&o!==carrier),it);
+      if(pv!=null){L=String(pv);ncFlag=true;}}
     if(L==null&&carrier!==it)L=lkColLen(carrier,items);   // длина в столбце ПЕРЕНОСА — она относится к этой же подписи
     if(L==null)L=lkColLen(it,items);   // длина в том же столбце (строго по X) — безымянные отрезки не воруют длину у соседей
-    let ncFlag=false;
     if(L==null){ // длина в СОСЕДНЕЙ строке переноса той же подписи (магистрали S7/S5 л.7: марка и «35м» в 8–12пт).
       // Только СЛИТНАЯ форма «35м» — «6.7 м» с пробелом это расчётный ток из колонки параметров (022 л.7).
       // Δy ≤ 60: перенос стоит в паре строк текста (бывает 31пт — «П40/25м» S7 л.7); без потолка
@@ -1812,6 +1835,14 @@ function lkParseOneLine(items){const rows=[];const dist=(a,b)=>Math.hypot(a.x-b.
     if(L==null)return;
     const mark=lkMarkName(s);
     const conds=[];[it,...near.filter(o=>dist(o,it)<30)].forEach(o=>{let cm;LK_COND_RX.lastIndex=0;while((cm=LK_COND_RX.exec(o.s)))conds.push({t:lkCondName(cm[1])+cm[2],len:+cm[3]});});
+    // разорванная труба: метка «пг40»/«П40» и метраж «5м»/«25м» — отдельные элементы одной
+    // подколонки (S2 л.5 Ш.Р., S7 л.7) — собираем парой в трубы строки
+    items.forEach(o=>{if(Math.abs(o.x-it.x)>20)return;
+      const tm=o.s.trim().match(/^(п\.?г|п\.?п|п\.?н|з\.?п|т\.?[сc]|г\.?т|н\.?з|т\.?г|ст\.?т|[Пп])\.?\s?(\d{2})$/i);if(!tm)return;
+      const num=items.find(q=>q!==o&&Math.abs(q.x-o.x)<3&&Math.abs(q.y-o.y)<50&&/^\d+(?:[,.]\d+)?м$/.test(q.s.trim()));
+      if(!num)return;
+      const t=lkCondName(tm[1])+tm[2],ln=parseFloat(num.s.replace(',','.'));
+      if(!conds.some(c=>c.t===t&&c.len===ln))conds.push({t,len:ln});});
     // имя потребителя с самой однолинейки: параллельная подколонка той же подписи (Δx 6..30) —
     // текст без цифр («осв. лифт. шахты», S2 л.6); служебные пометки («в ЩЭ», этажи) не имя
     let gname='—';{let bn=null,bnd=1e9;items.forEach(o=>{if(o===it||o===carrier)return;if(o.rot&&it.rot&&o.rot!==it.rot)return;
@@ -1824,7 +1855,8 @@ function lkParseOneLine(items){const rows=[];const dist=(a,b)=>Math.hypot(a.x-b.
         const dx=Math.abs(o.x-it.x);if(dx<6||dx>18)return false;const t=o.s.trim();
         return t.length<=12&&!/^\d+(?:[.,]\d+)?$/.test(t)&&!LK_MARK.test(t)&&/^[№А-ЯЁA-Z][А-ЯЁа-яёA-Za-z.\s]{0,5}\d/.test(t);})
       .sort((a,b)=>a.y-b.y)[0];
-      if(cand){gname=cand.s;if(/^M\s?[А-ЯЁ]/.test(gname))gname='т'+gname.replace(/^M\s?/,'');}}
+      if(cand)gname=cand.s;}
+    if(/^M\s?[А-ЯЁ]/.test(gname))gname='т'+gname.replace(/^M\s?/,'');   // латинская M битого шрифта = «т» («MЩРС»→тЩРС)
     rows.push({group:gname,mark,section:sm[1]+'x'+sm[2],len:parseFloat(String(L).replace(',','.')),conds,x:it.x,y:it.y,mult:lkMult(s),needsCheck:ncFlag});});
   return rows;
 }
@@ -1897,6 +1929,7 @@ function lkParseMarkFeeders(items){
   const byCol={};It.filter(o=>o.rot==='V'&&LK_MARK.test(o.s)).forEach(mk=>{const k=Math.round(mk.x/12);if(!byCol[k]||mk.s.length>byCol[k].s.length)byCol[k]=mk;});
   return Object.values(byCol).map(mk=>{
     const col=It.filter(o=>Math.abs(o.x-mk.x)<15);
+    const colW=It.filter(o=>Math.abs(o.x-mk.x)<18);   // паспортная подколонка бывает в 15.7пт (ЩОФ-2,3, S2 л.5) — для длины/группы окно шире
     // сечение: из самого элемента, иначе из колонки
     let section=null,secIt=null;const sm=mk.s.match(LK_SECT);
     if(sm)section=sm[1]+'x'+sm[2].replace('.',',');
@@ -1915,10 +1948,15 @@ function lkParseMarkFeeders(items){
       const dm=o.s.match(/-\s*(\d+(?:[,.]\d+)?)\s*м(?!м)/i)||(Math.abs(o.x-mk.x)<8?o.s.match(/L\s*=\s*(\d+(?:[,.]\d+)?)\s*м(?!м)/i):null);if(dm){len=parseFloat(dm[1].replace(',','.'));clean=true;break;}}
     // цифра-продолжение сечения (secIt) — не длина: без исключения «АсВВГнгLS 5х»+«10» давал длину 10,
     // а настоящая длина — ВЕРХНЕЕ число соседней подколонки (65/15/56 — правило юзера, S2 л.5)
-    if(!clean){const nums=col.filter(o=>o!==secIt&&/^\d+(?:[.,]\d+)?$/.test(o.s)).sort((a,b)=>b.y-a.y);for(const n of nums){const v=parseFloat(n.s.replace(',','.'));if(v>5&&v<=300){len=v;break;}}}
+    if(!clean){
+      // сперва верх паспортной подколонки формата 2435 (в т.ч. на 15.7пт — ЩОФ-2,3, S2 л.5);
+      // иначе прежний топ чистых чисел колонки ±15 (022 л.4 — там паспорт не подходит по сигнатуре)
+      const pv=lkPassTop(It.filter(o=>o!==mk&&o!==secIt&&o.rot===mk.rot),mk);
+      if(pv!=null)len=pv;
+      else{const nums=col.filter(o=>o!==secIt&&/^\d+(?:[.,]\d+)?$/.test(o.s)).sort((a,b)=>b.y-a.y);for(const n of nums){const v=parseFloat(n.s.replace(',','.'));if(v>5&&v<=300){len=v;break;}}}}
     // группа = НИЖНИЙ текстовый элемент паспортной колонки («М2.1», «тЩО1», «MЛ1(1» — S2 л.5/6);
     // короткий токен «буквы+цифра», не чистое число; латинская M перед кириллицей = битый «№»
-    let group='';{const cand=col.filter(o=>o!==mk&&o!==secIt&&o.rot===mk.rot&&o.s.length<=12
+    let group='';{const cand=colW.filter(o=>o!==mk&&o!==secIt&&o.rot===mk.rot&&o.s.length<=12
       &&!/^\d+(?:[.,]\d+)?$/.test(o.s)&&/^[№А-ЯЁA-Z][А-ЯЁа-яёA-Za-z.]{0,4}\s?\d/.test(o.s)).sort((a,b)=>a.y-b.y)[0];
       if(cand){group=cand.s;if(/^M[А-ЯЁ]/.test(group))group='т'+group.slice(1);}}   // латинская M = курсивная «т» битого шрифта («MЩО1»=тЩО1)
     return {mark:lkMarkName(mk.s),section,len,x:mk.x,y:mk.y,needsCheck:!clean,group};
@@ -2107,7 +2145,14 @@ async function lkExtract(data,onProgress){
     const _blkAll=tc.items.map(it=>({s:lkFixEnc(it.str||'').trim(),x:it.transform[4],y:it.transform[5]}))
       .map(o=>{const m=o.s.match(/^Блок\s*[-–]?\s*(\d)$/i);return m?{n:m[1],x:o.x,y:o.y}:null;}).filter(Boolean);
     const _blk=_blkAll.filter(l=>_blkAll.some(o=>o!==l&&Math.abs(o.y-l.y)<8));
-    pages.push({page:p,img:null,wpt:v0.width,hpt:v0.height,vru:lkDetectVru(tc.items),shields:shields.map(s=>s.name),groups,rows,potreb:potrebOv||lkParsePotreb(tc.items),pipes:lkParsePipeTable(tc.items),_blk});}
+    // одиночная подпись «Блок N» у слова «щитовая»/«ВРУ» — блок РАСПОЛОЖЕНИЯ щитовой листа:
+    // строки без своего блока отнесём к нему (S2 л.5 «Блок-2 эл.щитовая (подвал)» — щиты ЩО/ЩРС)
+    let _blkHome='';
+    for(const l of _blkAll){if(_blk.includes(l))continue;
+      const near=tc.items.some(i2=>{const s2=lkFixEnc(i2.str||'');if(!/щитов|ВРУ/i.test(s2))return false;
+        return Math.abs(i2.transform[4]-l.x)<60&&Math.abs(i2.transform[5]-l.y)<40;});
+      if(near){_blkHome=l.n;break;}}
+    pages.push({page:p,img:null,wpt:v0.width,hpt:v0.height,vru:lkDetectVru(tc.items),shields:shields.map(s=>s.name),groups,rows,potreb:potrebOv||lkParsePotreb(tc.items),pipes:lkParsePipeTable(tc.items),_blk,_blkHome});}
   // блоки (пятна) проекта: суффикс «(N» в группе («№Р1(2», «MЛ1(1») или колонка под заголовком
   // «Блок N»; без упоминания — «Весь проект». Группировка листа перестраивается по блокам.
   if(docBlocks)pages.forEach(pg=>{
@@ -2121,13 +2166,17 @@ async function lkExtract(data,onProgress){
       // без гейта вводы ВРУ в 800пт ниже цеплялись за чужую колонку (S2 л.5 МА1)
       let best=null,bd=130;(pg._blk||[]).forEach(l=>{if(Math.abs(l.y-(r.y||0))>60)return;const d=Math.abs((r.x||0)-l.x);if(d<bd){bd=d;best=l;}});
       if(best)r.block=best.n;});
+    // блок расположения щитовой: остальные строки листа (магистрали ЩО/ЩРС, вводы, шины) — к нему
+    if(pg._blkHome&&pg.rows.some(r=>r.block))pg.rows.forEach(r=>{if(!r.block)r.block=pg._blkHome;});
     if(pg.rows.some(r=>r.block)){
-      const bs=[...new Set(pg.rows.filter(r=>r.block).map(r=>r.block))].sort();
-      pg.groups=bs.map(b=>({name:'Блок '+b,rows:pg.rows.filter(r=>r.block===b)}));
+      // порядок блоков и строк внутри — СЛЕВА НАПРАВО, как колонки на чертеже (не по номеру блока)
+      const minx={};pg.rows.forEach(r=>{if(!r.block)return;const x=r.x||0;if(minx[r.block]==null||x<minx[r.block])minx[r.block]=x;});
+      const bs=[...new Set(pg.rows.filter(r=>r.block).map(r=>r.block))].sort((a,b)=>(minx[a]||0)-(minx[b]||0));
+      pg.groups=bs.map(b=>({name:'Блок '+b,rows:pg.rows.filter(r=>r.block===b).sort((a,b2)=>(a.x||0)-(b2.x||0))}));
       const rest=pg.rows.filter(r=>!r.block);
-      if(rest.length)pg.groups.push({name:'Весь проект',rows:rest});}
-    delete pg._blk;});
-  pages.forEach(pg=>{delete pg._blk;});
+      if(rest.length)pg.groups.push({name:'Весь проект',rows:rest.slice().sort((a,b2)=>(a.x||0)-(b2.x||0))});}
+    delete pg._blk;delete pg._blkHome;});
+  pages.forEach(pg=>{delete pg._blk;delete pg._blkHome;});
   return {pdf,pages};
 }
 /* отметки «что попало в подсчёт» на картинке листа (по координатам строк) */
