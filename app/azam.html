@@ -1142,15 +1142,35 @@ function renderCehModal(){
   $('cehTitle').textContent=c.name;
   $('cehSub').textContent=c.desc+' · загрузка '+avg+'%';
   const clr=p=>p>=100?'':p>0?'warn':'bad';
-  $('cehBody').innerHTML=`<div class="hint" style="margin-top:0">Из чего складывается готовность цеха: изделия по контрактам. Кнопками ± ставьте готовность по каждому изделию — среднее даёт готовность цеха.</div>`+
+  $('cehBody').innerHTML=`<div class="hint" style="margin-top:0">Из чего складывается готовность цеха: изделия по контрактам. Кнопками ± ставьте готовность изделия. Разверните <b>«Комплектующие · штрихкоды»</b> — приём по декларации (растаможка) и списание деталей на изделие по штрихкоду: видно, какая деталь в какое изделие ушла.</div>`+
     (deals.length?deals.map(d=>{
       const its=cehItemsOf(d,id);
       return `<div class="card pad" style="margin-bottom:11px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><b style="font-size:13.5px">${esc(d.client)}</b><span class="mono" style="color:var(--mut);font-size:12px">${esc(d.no)}</span><span class="tag gr" style="margin-left:auto">цех: ${d.ceh[id]||0}%</span><span class="go" style="color:var(--gold);font-size:11.5px;font-weight:700;cursor:pointer" onclick="openDeal(${d.id})">карточка →</span></div>`+
-        its.map(({it,i})=>`<div style="margin-bottom:10px"><div style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:5px"><b>${esc(it.name)}</b><span style="color:var(--mut);font-size:11px">×${it.qty}</span><span style="margin-left:auto;display:inline-flex;align-items:center;gap:8px"><button class="qb" onclick="setItemProg(${d.id},${i},-25)">−</button><span class="mono" style="width:44px;text-align:center">${it.prog||0}%</span><button class="qb" onclick="setItemProg(${d.id},${i},25)">＋</button></span></div><div class="bar ${clr(it.prog||0)}"><i style="width:${it.prog||0}%"></i></div></div>`).join('')+
+        its.map(({it,i})=>`<div style="margin-bottom:12px;padding-bottom:11px;border-bottom:1px solid var(--gl)"><div style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:5px"><b>${esc(it.name)}</b><span style="color:var(--mut);font-size:11px">×${it.qty}</span><span style="margin-left:auto;display:inline-flex;align-items:center;gap:8px"><button class="qb" onclick="setItemProg(${d.id},${i},-25)">−</button><span class="mono" style="width:44px;text-align:center">${it.prog||0}%</span><button class="qb" onclick="setItemProg(${d.id},${i},25)">＋</button></span></div><div class="bar ${clr(it.prog||0)}"><i style="width:${it.prog||0}%"></i></div>${compPanel(d,i,it)}</div>`).join('')+
         `</div>`;
     }).join(''):`<div style="text-align:center;color:var(--mut);padding:20px">В этом цехе сейчас нет заказов в производстве.</div>`);
 }
 function setItemProg(dealId,itemIdx,delta){const d=DEALS.find(x=>x.id===dealId);const it=d.items[itemIdx];if(!it)return;it.prog=Math.max(0,Math.min(100,(it.prog||0)+delta));recomputeCeh(d,it.ceh);save();renderCehModal();renderAll();}
+/* --- штрихкод-прослеживаемость: комплектующие → изделие --- */
+const COMP_ST={'декларация':['✈️','по декларации','gold'],'склад':['📦','на складе','cy'],'изделие':['✅','на изделии','grn']};
+function bomFor(name){const n=name.toLowerCase();
+  if(n.includes('сушил'))return [['Горелка BG-400',1],['Теплообменник',2],['Вентилятор ВЦ-14',2],['Шкаф автоматики',1],['Метизы (компл.)',1]];
+  if(n.includes('силос'))return [['Стойки оцинк.',10],['Гофролист',420],['Кровля / конус',1],['Лестница, площадки',1],['Метизы (компл.)',6]];
+  if(n.includes('сепар')||n.includes('зав'))return [['Сито (набор)',4],['Аспирация',1],['Рама / корпус',1],['Метизы (компл.)',1]];
+  if(n.includes('нория'))return [['Ковши норийные',60],['Лента норийная',1],['Редуктор',1],['Электромотор',1]];
+  if(n.includes('конвейер'))return [['Цепь тяговая',1],['Редуктор',1],['Электромотор',1],['Скребки',20]];
+  if(n.includes('зернопровод')||n.includes('самот'))return [['Труба / отвод',12],['Хомуты',24]];
+  return [['Металл (лист)',1],['Метизы (компл.)',1]];}
+function bcode(seed){var x=7;for(var i=0;i<seed.length;i++){x=((x*33)+seed.charCodeAt(i))>>>0;}var s=(x%1e9).toString().padStart(9,'0');return '20'+s.slice(0,3)+' '+s.slice(3,6)+' '+s.slice(6);}
+function ensureComps(d,it){if(it.comps)return;it.comps=bomFor(it.name).map(([nm,q],k)=>({name:nm,qty:q,barcode:bcode(d.no+it.name+nm+k),status:(/горел|редукт|мотор/i.test(nm))?'декларация':'склад'}));}
+const EXPC=new Set();
+function toggleComp(dealId,itemIdx){const key=dealId+':'+itemIdx;EXPC.has(key)?EXPC.delete(key):EXPC.add(key);renderCehModal();}
+function compReceive(dealId,itemIdx,ci){const it=DEALS.find(x=>x.id===dealId).items[itemIdx];const c=it.comps[ci];if(c.status==='декларация'){c.status='склад';save();renderCehModal();toast('Приём по декларации: <b>'+esc(c.name)+'</b> ('+c.barcode+') → свободный склад','grn');}}
+function compIssue(dealId,itemIdx,ci){const it=DEALS.find(x=>x.id===dealId).items[itemIdx];const c=it.comps[ci];if(c.status==='декларация'){toast('Сначала примите по декларации.','red');return;}if(c.status==='склад'){c.status='изделие';save();renderCehModal();toast('Списано на изделие «'+esc(it.name)+'»: <b>'+esc(c.name)+'</b> ('+c.barcode+')','cy');}}
+function compPanel(d,i,it){const key=d.id+':'+i;const open=EXPC.has(key);ensureComps(d,it);const iss=it.comps.filter(c=>c.status==='изделие').length;
+  const bars='repeating-linear-gradient(90deg,var(--tx) 0 1px,transparent 1px 3px,var(--tx) 3px 4px,transparent 4px 6px,var(--tx) 6px 8px,transparent 8px 9px)';
+  return `<div style="margin-top:7px"><span style="font-size:11px;font-weight:700;color:var(--cy);cursor:pointer" onclick="toggleComp(${d.id},${i})">${open?'▾':'▸'} Комплектующие · штрихкоды <span style="color:var(--mut);font-weight:600">(${iss}/${it.comps.length} на изделии)</span></span>`+
+    (open?`<div style="margin-top:8px;border-top:1px dashed var(--gl);padding-top:6px">`+it.comps.map((c,ci)=>{const st=COMP_ST[c.status];return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0"><span style="height:24px;width:74px;flex:none;background:${bars};border-radius:2px;opacity:.85" title="${c.barcode}"></span><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600">${esc(c.name)} <span style="color:var(--mut);font-weight:400">×${c.qty}</span></div><div class="mono" style="font-size:10px;color:var(--mut)">${c.barcode}</div></div><span class="tag ${st[2]}">${st[0]} ${st[1]}</span>${c.status==='декларация'?`<button class="btn gh" style="padding:4px 9px;font-size:10.5px" onclick="compReceive(${d.id},${i},${ci})">Принять по декл.</button>`:c.status==='склад'?`<button class="btn gh" style="padding:4px 9px;font-size:10.5px" onclick="compIssue(${d.id},${i},${ci})">Списать на изделие</button>`:''}</div>`;}).join('')+`</div>`:'')+`</div>`;}
 
 /* ---- KPP ---- */
 function renderKpp(){
