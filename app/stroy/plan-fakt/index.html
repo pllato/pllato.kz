@@ -1624,7 +1624,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v366';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v367';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v366';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2567,33 +2567,32 @@ function bindLineyka(){const P=$('lkPage');
     m.addEventListener('click',()=>{const row=P.querySelector('.lg-row[data-id="'+id+'"]');if(row)row.scrollIntoView({block:'center',behavior:'smooth'});});});
 }
 /* #7 общий отчёт по файлу + #8 копирование для Excel.
-   Шаблон таблицы (Данияр): № бл. | Источник | Потребитель | № | Тип | сеч. | ед.изм. | ПР. дл. |
-   и СПРАВА отдельный раздел труб парами колонок «Труба | длина» (провода отдельно, трубы отдельно) */
-function lkTplHead(mx,withSheet){
-  const h=withSheet?['Лист']:[];h.push('№ бл.','Источник','Потребитель','№','Тип','сеч.','ед.изм.','ПР. дл.');
-  for(let i=0;i<mx;i++)h.push('Труба','длина');return h;}
-function lkTplRow(pg,r,n,withSheet){
-  const row=withSheet?[pg.page]:[];row.push(r.block||'',pg.vru||'',r.group||'',n,r.mark||'',r.section,'м',r.len);
-  (r.conds||[]).forEach(c=>row.push(c.t,c.len));return row;}
+   Шаблон таблицы (Данияр): № бл. | Источник | Потребитель | № | Тип | сеч./д. | ед.изм. | ПР. дл.
+   Труба — ОТДЕЛЬНОЙ строкой под своим кабелем: Тип=«п.г.»/«г.т.», в «сеч./д.» — диаметр
+   (при вставке в свод не нужно ничего перекладывать руками) */
+function lkTplHead(withSheet){
+  const h=withSheet?['Лист']:[];h.push('№ бл.','Источник','Потребитель','№','Тип','сеч./д.','ед.изм.','ПР. дл.');return h;}
+function lkTplRows(pg,r,n,withSheet){
+  const base=withSheet?[pg.page]:[];
+  const out=[base.concat([r.block||'',pg.vru||'',r.group||'',n,r.mark||'',r.section,'м',r.len])];
+  (r.conds||[]).forEach(c=>{const m=String(c.t).match(/^(\D+?)(\d+)$/);
+    let t=m?m[1]:String(c.t);if(!/\.$/.test(t))t+='.';
+    out.push(base.concat([r.block||'',pg.vru||'',r.group||'',n,t,m?m[2]:'','м',c.len]));});
+  return out;}
 function lkExcelRows(){
-  const mx=Math.max(2,...LK.pages.flatMap(p=>(p.rows||[]).map(r=>(r.conds||[]).length)));
-  const rows=[lkTplHead(mx,true)];
-  LK.pages.forEach(pg=>{let n=0;pg.groups.forEach(g=>g.rows.forEach(r=>{n++;rows.push(lkTplRow(pg,r,n,true));}));});
+  const rows=[lkTplHead(true)];
+  LK.pages.forEach(pg=>{let n=0;pg.groups.forEach(g=>g.rows.forEach(r=>{n++;lkTplRows(pg,r,n,true).forEach(x=>rows.push(x));}));});
   return rows;}
 function lkCopyTsv(matrix,label){const tsv=matrix.map(r=>r.map(c=>String(c==null?'':c)).join('\t')).join('\n');
   const done=()=>toast((label||'Таблица')+' скопирована — вставь в Excel (Ctrl+V)');
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(tsv).then(done).catch(()=>fb());}else fb();
   function fb(){const ta=document.createElement('textarea');ta.value=tsv;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand('copy');done();}catch(e){toast('Не удалось скопировать');}ta.remove();}}
 function lkCopyExcel(){lkCopyTsv(lkExcelRows(),'Полная таблица');}
-/* копия ОДНОГО листа — кнопка в шапке «Отчёт по листу» (без захода в общий отчёт) */
+/* копия ОДНОГО листа — кнопка в шапке «Отчёт по листу» (без захода в общий отчёт).
+   Без итоговых строк: их пришлось бы удалять руками при вставке в свод */
 function lkSheetRows(pg){
-  const mx=Math.max(2,...(pg.rows||[]).map(r=>(r.conds||[]).length));
-  const rows=[lkTplHead(mx,false)];let n=0;
-  pg.groups.forEach(g=>g.rows.forEach(r=>{n++;rows.push(lkTplRow(pg,r,n,false));}));
-  const st=lkSum(pg.rows);
-  const tot=['','','','','','Итого','м',Math.round(st.t*10)/10];
-  Object.keys(st.c).sort().forEach(k=>tot.push(k,Math.round(st.c[k])));
-  rows.push(tot);
+  const rows=[lkTplHead(false)];let n=0;
+  pg.groups.forEach(g=>g.rows.forEach(r=>{n++;lkTplRows(pg,r,n,false).forEach(x=>rows.push(x));}));
   return rows;}
 function lkTsvSections(){const g=lkSum(lkAllRows());const rows=[['Сечение','Длина, м']];Object.keys(g.s).sort().forEach(k=>rows.push([k,Math.round(g.s[k])]));rows.push(['Всего кабеля',Math.round(g.t)]);return rows;}
 function lkTsvConduits(){const g=lkSum(lkAllRows());const rows=[['Труба','Длина, м']];Object.keys(g.c).sort().forEach(k=>rows.push([k,Math.round(g.c[k])]));return rows;}
