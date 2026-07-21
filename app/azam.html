@@ -571,6 +571,15 @@ label.fld span{display:block;font-size:11px;color:var(--mut);font-weight:600;mar
   </div>
 </div>
 
+<!-- CEH DETAIL (drill-down) -->
+<div class="ovl" id="cehOvl" onclick="if(event.target===this)closeM('cehOvl')">
+  <div class="modal">
+    <div class="mh"><h2 id="cehTitle">Цех</h2><span class="mid" id="cehSub"></span><span class="mx" onclick="closeM('cehOvl')">✕</span></div>
+    <div class="mbody" id="cehBody"></div>
+    <div class="mfoot"><span style="font-size:11.5px;color:var(--mut)">Готовность цеха = среднее по изделиям. Меняете изделие — цех, поток и Гант пересчитываются.</span><button class="btn gh" style="margin-left:auto" onclick="closeM('cehOvl')">Закрыть</button></div>
+  </div>
+</div>
+
 <div id="toasts"></div>
 
 <script>
@@ -606,6 +615,13 @@ const TEMPLATES=[
  {name:'Силосный парк 6 000 т',desc:'2 силоса + транспорт + монтаж',items:[['Силос 3000 т',2],['Нория НЦ-100 (ковшовый элеватор)',3],['Конвейер цепной 20 м',2],['Зернопровод / самотёк (компл.)',1],['Шеф-монтаж и пуско-наладка',1]]},
 ];
 const catByName=n=>CATALOG.find(c=>c.name===n);
+const SCHED={'AZ-2601':[-3,3],'AZ-2602':[-5,1],'AZ-2603':[-7,0],'AZ-2604':[1,6],'AZ-2605':[3,8]}; // [старт, отгрузка], недели от сегодня
+function deriveSched(d){const start=-(Math.max(0,d.stage-2));return [start,start+6];} // запасное окно для сделок без явного расписания
+function schedOf(d){return d.sched||SCHED[d.no]||deriveSched(d);}
+// готовность цеха по изделиям (drill-down)
+function cehItemsOf(d,cehId){return d.items.map((it,i)=>({it,i})).filter(x=>x.it.ceh===cehId);}
+function ensureProg(d,cehId){cehItemsOf(d,cehId).forEach(x=>{if(x.it.prog==null)x.it.prog=d.ceh[cehId]||0;});}
+function recomputeCeh(d,cehId){const its=cehItemsOf(d,cehId);if(its.length)d.ceh[cehId]=Math.round(its.reduce((s,x)=>s+(x.it.prog||0),0)/its.length);}
 
 /* ===== STATE ===== */
 const KEY='azam_state_v1';
@@ -614,7 +630,8 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify({DEALS,SUPPLIERS,PO,
 function load(){let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
   const d=defaults();
   if(s&&s.DEALS&&s.DEALS.length){DEALS=s.DEALS;SUPPLIERS=s.SUPPLIERS||d.SUPPLIERS;PO=s.PO||d.PO;RAW=s.RAW||d.RAW;FIN=s.FIN||d.FIN;KPP=s.KPP||d.KPP;SEQ=s.SEQ||d.SEQ;}
-  else{DEALS=d.DEALS;SUPPLIERS=d.SUPPLIERS;PO=d.PO;RAW=d.RAW;FIN=d.FIN;KPP=d.KPP;SEQ=d.SEQ;}}
+  else{DEALS=d.DEALS;SUPPLIERS=d.SUPPLIERS;PO=d.PO;RAW=d.RAW;FIN=d.FIN;KPP=d.KPP;SEQ=d.SEQ;}
+  DEALS.forEach(dl=>{if(dl.sched==null&&SCHED[dl.no])dl.sched=SCHED[dl.no];if(!dl.ceh)dl.ceh={c1:0,c2:0,c3:0,c4:0};});}
 function resetDemo(){if(!confirm('Сбросить демо к исходным данным?'))return;localStorage.removeItem(KEY);load();renderAll();nav('dash');toast('Демо сброшено к исходным данным.','grn');}
 
 function itemsToObjs(arr){return arr.map(([n,q])=>{const c=catByName(n);return{name:n,qty:q,price:c?c.price:0,cat:c?c.cat:'',ceh:c?c.ceh:'c4'};});}
@@ -624,7 +641,6 @@ function payPlan(sum,preset){ // preset: array of [label, pct, offsetDays]
 const PRESET_STD=[['Аванс 30%',30,-40],['2-й платёж 20%',20,-12],['3-й платёж 30%',30,10],['Перед отгрузкой 10%',10,26],['Пуско-наладка 10%',10,48]];
 
 function defaults(){
-  const SCHED={'AZ-2601':[-3,3],'AZ-2602':[-5,1],'AZ-2603':[-7,0],'AZ-2604':[1,6],'AZ-2605':[3,8]}; // [старт, отгрузка] недели от сегодня
   const mk=(o)=>{
     const items=itemsToObjs(o.items);
     const sum=items.reduce((s,i)=>s+i.price*i.qty,0);
@@ -939,7 +955,7 @@ function markPaid(id,i){const d=DEALS.find(x=>x.id===id);d.pay[i].paid=true;save
 /* ---- PROD ---- */
 function renderProd(){
   $('cehGrid').innerHTML=CEHS.map(c=>{const ds=DEALS.filter(d=>d.stage===4);const avg=ds.length?Math.round(ds.reduce((s,d)=>s+(d.ceh[c.id]||0),0)/ds.length):0;const cls=avg>=80?'':avg>=40?'warn':'bad';
-    return `<div class="card pad"><div style="display:flex;justify-content:space-between;align-items:baseline"><div><div style="font-weight:700">${esc(c.name)}</div><div style="font-size:11px;color:var(--mut)">${esc(c.desc)}</div></div><div class="mono" style="font-weight:700;font-size:18px">${avg}%</div></div><div class="bar ${cls}" style="margin-top:11px"><i style="width:${avg}%"></i></div><div style="font-size:11px;color:var(--mut);margin-top:7px">${ds.length} заказ(ов) в работе</div></div>`;}).join('');
+    return `<div class="card pad" style="cursor:pointer" onclick="openCeh('${c.id}')"><div style="display:flex;justify-content:space-between;align-items:baseline"><div><div style="font-weight:700">${esc(c.name)}</div><div style="font-size:11px;color:var(--mut)">${esc(c.desc)}</div></div><div class="mono" style="font-weight:700;font-size:18px">${avg}%</div></div><div class="bar ${cls}" style="margin-top:11px"><i style="width:${avg}%"></i></div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mut);margin-top:7px"><span>${ds.length} заказ(ов) в работе</span><span style="color:var(--gold);font-weight:700">детализация →</span></div></div>`;}).join('');
   const kan=$('prodKan');kan.innerHTML='';
   const cols=[['Ожидает материалов',d=>prodPct(d)<15],['В цехах',d=>prodPct(d)>=15&&prodPct(d)<100],['Готово · ОТК',d=>prodPct(d)>=100]];
   const prod=DEALS.filter(d=>d.stage>=4&&d.stage<=5);
@@ -964,20 +980,20 @@ function renderPipeline(){
   const rawOk=RAW.filter(r=>r.qty>=r.min).length,rawTot=RAW.length;
   const otkN=DEALS.filter(d=>d.otk).length, finN=FIN.length, shipN=DEALS.filter(d=>d.ship).length;
   const st=[
-    {i:'📦',n:'Оборотный склад',v:rawOk+'/'+rawTot,pct:Math.round(rawOk/rawTot*100),sub:'позиций в норме',warn:rawShort().length>0},
-    {i:'🌀',n:'Цех 1 · Очистка',v:cehAvg('c1')+'%',pct:cehAvg('c1')},
-    {i:'🔥',n:'Цех 2 · Сушилки',v:cehAvg('c2')+'%',pct:cehAvg('c2')},
-    {i:'⛓️',n:'Цех 3 · Транспорт',v:cehAvg('c3')+'%',pct:cehAvg('c3')},
-    {i:'🛢️',n:'Цех 4 · Силосы',v:cehAvg('c4')+'%',pct:cehAvg('c4')},
+    {i:'📦',n:'Оборотный склад',v:rawOk+'/'+rawTot,pct:Math.round(rawOk/rawTot*100),sub:'позиций в норме',warn:rawShort().length>0,go:"nav('supply')"},
+    {i:'🌀',n:'Цех 1 · Очистка',v:cehAvg('c1')+'%',pct:cehAvg('c1'),go:"openCeh('c1')"},
+    {i:'🔥',n:'Цех 2 · Сушилки',v:cehAvg('c2')+'%',pct:cehAvg('c2'),go:"openCeh('c2')"},
+    {i:'⛓️',n:'Цех 3 · Транспорт',v:cehAvg('c3')+'%',pct:cehAvg('c3'),go:"openCeh('c3')"},
+    {i:'🛢️',n:'Цех 4 · Силосы',v:cehAvg('c4')+'%',pct:cehAvg('c4'),go:"openCeh('c4')"},
     {i:'🔎',n:'ОТК',v:otkN,pct:100},
-    {i:'🏬',n:'Склад готовой',v:finN,pct:100},
-    {i:'🚚',n:'Отгрузка',v:shipN,pct:shipN?60:0,warn:shipN>0},
+    {i:'🏬',n:'Склад готовой',v:finN,pct:100,go:"nav('ship')"},
+    {i:'🚚',n:'Отгрузка',v:shipN,pct:shipN?60:0,warn:shipN>0,go:"nav('ship')"},
   ];
   const color=p=>p>=80?'var(--grn)':p>=40?'var(--gold)':'var(--red)';
   let html='';
   st.forEach((s,i)=>{
     if(i>0)html+=`<div class="pconn ${st[i-1].warn?'warn':''}"></div>`;
-    html+=`<div class="station"><div class="si">${s.i}</div><div class="sn">${s.n}</div><div class="sv" style="color:${s.warn?'var(--red)':'var(--tx)'}">${s.v}</div><div class="sb"><i style="width:${s.pct}%;background:${s.warn?'var(--red)':color(s.pct)}"></i></div>${s.sub?`<div style="font-size:9.5px;color:var(--mut);margin-top:4px">${s.sub}</div>`:''}</div>`;
+    html+=`<div class="station" ${s.go?`onclick="${s.go}" style="cursor:pointer"`:''}><div class="si">${s.i}</div><div class="sn">${s.n}</div><div class="sv" style="color:${s.warn?'var(--red)':'var(--tx)'}">${s.v}</div><div class="sb"><i style="width:${s.pct}%;background:${s.warn?'var(--red)':color(s.pct)}"></i></div>${s.sub?`<div style="font-size:9.5px;color:var(--mut);margin-top:4px">${s.sub}</div>`:''}</div>`;
   });
   $('pipeFlow').innerHTML=html;
 }
@@ -986,24 +1002,24 @@ function renderPipeline(){
 function renderGantt(){
   const WK=10, back=3; // 10 недель, 3 позади
   const today=new Date();
-  const rows=DEALS.filter(d=>d.sched&&d.stage>=3&&d.stage<7).sort((a,b)=>a.sched[0]-b.sched[0]);
+  const rows=DEALS.filter(d=>d.stage>=3&&d.stage<7).map(d=>({d,sc:schedOf(d)})).filter(x=>x.sc).sort((a,b)=>a.sc[0]-b.sc[0]);
   let head='<div class="gtrow head"><div class="gtl"><b>Контракт</b><span>старт · отгрузка</span></div><div class="gthead">';
   for(let w=-back;w<WK-back;w++){const dt=addDays(today,w*7);head+=`<div class="gw">${dt.getDate()}.${String(dt.getMonth()+1).padStart(2,'0')}</div>`;}
   head+='</div></div>';
   const todayPct=back/WK*100;
-  const bars=rows.map(d=>{
-    const s=Math.max(-back,d.sched[0]),e=Math.min(WK-back,d.sched[1]);
+  const bars=rows.length?rows.map(({d,sc})=>{
+    const s=Math.max(-back,sc[0]),e=Math.min(WK-back,sc[1]);
     const left=(s+back)/WK*100, width=Math.max(3,(e-s)/WK*100);
     const pct=prodPct(d);const warn=pct<100&&d.stage>=4;
-    const shipLeft=(d.sched[1]+back)/WK*100;
-    const shipIn=d.sched[1]>=-back&&d.sched[1]<=WK-back;
-    return `<div class="gtrow"><div class="gtl"><b>${esc(d.client)}</b><span>${esc(d.no)} · ${mln(d.sum)} ₸</span></div><div class="gttrack">
+    const shipLeft=(sc[1]+back)/WK*100;
+    const shipIn=sc[1]>=-back&&sc[1]<=WK-back;
+    return `<div class="gtrow" style="cursor:pointer" onclick="openDeal(${d.id});dmTab('prod')"><div class="gtl"><b>${esc(d.client)}</b><span>${esc(d.no)} · ${mln(d.sum)} ₸</span></div><div class="gttrack">
       <div class="gttoday" style="left:${todayPct}%"></div>
-      <div class="gtbar ${warn?'warn':''}" style="left:${left}%;width:${width}%" title="${esc(d.client)} · готовность ${pct}%"><span class="gtf">${pct}%</span></div>
+      <div class="gtbar ${warn?'warn':''}" style="left:${left}%;width:${width}%" title="${esc(d.client)} · готовность ${pct}% · клик — детализация"><span class="gtf">${pct}%</span></div>
       ${shipIn?`<div class="gtdia" style="left:${shipLeft}%" title="Отгрузка"></div>`:''}
     </div></div>`;
-  }).join('');
-  $('ganttBox').innerHTML=head+bars+`<div style="padding:8px 12px;font-size:10.5px;color:var(--mut);border-top:1px solid var(--gl)"><span style="color:var(--vi)">◆</span> отгрузка · <span style="color:var(--red)">|</span> сегодня · полоса = производственное окно, заливка = готовность</div>`;
+  }).join(''):`<div style="padding:16px;text-align:center;color:var(--mut);font-size:12.5px">Нет заказов в производстве. Переведите сделку на этап «Производство» на доске «Сделки».</div>`;
+  $('ganttBox').innerHTML=head+bars+`<div style="padding:8px 12px;font-size:10.5px;color:var(--mut);border-top:1px solid var(--gl)"><span style="color:var(--vi)">◆</span> отгрузка · <span style="color:var(--red)">|</span> сегодня · полоса = производственное окно, заливка = готовность · <b>клик по строке — детализация по цехам</b></div>`;
 }
 
 /* ---- SUPPLY ---- */
@@ -1069,6 +1085,27 @@ function openNewSup(){$('spName').value='';$('spCountry').value='';$('spCat').va
 function saveNewSup(){const n=$('spName').value.trim();if(!n){toast('Укажите название','red');return;}
   SUPPLIERS.push({name:n,country:$('spCountry').value||'—',cat:$('spCat').value||'—'});
   save();closeM('supOvl');renderSupply();toast('Поставщик добавлен: <b>'+esc(n)+'</b>','grn');}
+
+/* ---- ДЕТАЛИЗАЦИЯ ЦЕХА (drill-down) ---- */
+let curCeh=null;
+function openCeh(id){curCeh=id;$('cehOvl').classList.add('on');document.body.style.overflow='hidden';renderCehModal();}
+function renderCehModal(){
+  const c=CEHS.find(x=>x.id===curCeh);const id=curCeh;
+  const deals=DEALS.filter(d=>d.stage>=4&&d.stage<=6&&cehItemsOf(d,id).length);
+  deals.forEach(d=>ensureProg(d,id));
+  const avg=deals.length?Math.round(deals.reduce((s,d)=>s+(d.ceh[id]||0),0)/deals.length):0;
+  $('cehTitle').textContent=c.name;
+  $('cehSub').textContent=c.desc+' · загрузка '+avg+'%';
+  const clr=p=>p>=100?'':p>0?'warn':'bad';
+  $('cehBody').innerHTML=`<div class="hint" style="margin-top:0">Из чего складывается готовность цеха: изделия по контрактам. Кнопками ± ставьте готовность по каждому изделию — среднее даёт готовность цеха.</div>`+
+    (deals.length?deals.map(d=>{
+      const its=cehItemsOf(d,id);
+      return `<div class="card pad" style="margin-bottom:11px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><b style="font-size:13.5px">${esc(d.client)}</b><span class="mono" style="color:var(--mut);font-size:12px">${esc(d.no)}</span><span class="tag gr" style="margin-left:auto">цех: ${d.ceh[id]||0}%</span><span class="go" style="color:var(--gold);font-size:11.5px;font-weight:700;cursor:pointer" onclick="openDeal(${d.id})">карточка →</span></div>`+
+        its.map(({it,i})=>`<div style="margin-bottom:10px"><div style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:5px"><b>${esc(it.name)}</b><span style="color:var(--mut);font-size:11px">×${it.qty}</span><span style="margin-left:auto;display:inline-flex;align-items:center;gap:8px"><button class="qb" onclick="setItemProg(${d.id},${i},-25)">−</button><span class="mono" style="width:44px;text-align:center">${it.prog||0}%</span><button class="qb" onclick="setItemProg(${d.id},${i},25)">＋</button></span></div><div class="bar ${clr(it.prog||0)}"><i style="width:${it.prog||0}%"></i></div></div>`).join('')+
+        `</div>`;
+    }).join(''):`<div style="text-align:center;color:var(--mut);padding:20px">В этом цехе сейчас нет заказов в производстве.</div>`);
+}
+function setItemProg(dealId,itemIdx,delta){const d=DEALS.find(x=>x.id===dealId);const it=d.items[itemIdx];if(!it)return;it.prog=Math.max(0,Math.min(100,(it.prog||0)+delta));recomputeCeh(d,it.ceh);save();renderCehModal();renderAll();}
 
 /* ---- KPP ---- */
 function renderKpp(){
