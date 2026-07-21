@@ -1625,8 +1625,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v370';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v368';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v371';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v371';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2198,11 +2198,19 @@ async function lkExtract(data,onProgress){
       if(rest.length)pg.groups.push({name:'Весь проект',rows:rest.slice().sort((a,b2)=>(a.x||0)-(b2.x||0))});}
     delete pg._blk;delete pg._blkHome;});
   pages.forEach(pg=>{delete pg._blk;delete pg._blkHome;});
-  // порядок строк — как ЧИТАЕТСЯ чертёж: сверху вниз полосами (~7% высоты листа), внутри
-  // полосы — слева направо (экранные mx/my уже с учётом поворота листа)
-  pages.forEach(pg=>pg.groups.forEach(g=>g.rows.sort((a,b)=>{
-    const ba=Math.round((a.my||0)*14),bb=Math.round((b.my||0)*14);
-    return ba-bb||((a.mx||0)-(b.mx||0));})));
+  // порядок строк — как ЧИТАЕТСЯ чертёж: РЯДЫ кластеризацией по высоте (новый ряд — когда
+  // разрыв по Y больше 12% листа), внутри ряда — строго слева направо. Жёсткая сетка полос
+  // резала ряд на границе (метки одного ряда фидеров стоят на чуть разной высоте) — строки
+  // «прыгали»; кластеры держат ряд целиком, клики по списку идут по схеме последовательно
+  pages.forEach(pg=>pg.groups.forEach(g=>{
+    const rs=g.rows.slice().sort((a,b)=>(a.my||0)-(b.my||0));
+    const bands=[];let cur=null,last=null;
+    rs.forEach(r=>{const y=r.my||0;
+      if(cur&&y-last>0.12){bands.push(cur);cur=null;}
+      if(!cur)cur=[];cur.push(r);last=y;});
+    if(cur)bands.push(cur);
+    g.rows=[];bands.forEach(b=>{b.sort((a,b2)=>(a.mx||0)-(b2.mx||0));b.forEach(r=>g.rows.push(r));});
+  }));
   return {pdf,pages};
 }
 /* отметки «что попало в подсчёт» на картинке листа (по координатам строк) */
