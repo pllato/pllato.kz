@@ -121,7 +121,9 @@
 <body>
 <div class="top">
   <b>RL · Фонды проектов</b><span class="v">учёт по проектам и фондам</span>
+  <span id="syncStatus" style="font-size:11px;margin-left:4px;color:#7d8aa3"></span>
   <div class="sp"></div>
+  <button class="tbtn" onclick="changeKey()" title="сменить ключ доступа">🔑</button>
   <button class="tbtn acc" onclick="showNew()">+ Новый проект</button>
   <button class="tbtn" onclick="exportData()">Скачать данные</button>
   <button class="tbtn" onclick="document.getElementById('impFile').click()">Загрузить</button>
@@ -143,8 +145,9 @@ const DEFAULT_FUNDS=[
   {name:'Прибыль (резерв)',pct:10}];
 let DB={projects:[],sel:null};
 let _id=1;
-const uid=()=>'x'+(_id++)+'_'+DB.projects.length;
-function save(){localStorage.setItem(LS,JSON.stringify({...DB,_id}))}
+const uid=()=>'x'+(_id++)+'_'+Math.random().toString(36).slice(2,6);
+function localSave(){localStorage.setItem(LS,JSON.stringify({...DB,_id}))}
+function save(){localSave();schedulePush()}
 function load(){
   try{const raw=localStorage.getItem(LS);if(!raw)return false;
     const d=JSON.parse(raw);DB={projects:d.projects||[],stages:d.stages||null,sel:d.sel||null,impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null,dictUrl:d.dictUrl||'',fundDict:d.fundDict||null,atlSeeded:!!d.atlSeeded};_id=d._id||1000;
@@ -152,6 +155,85 @@ function load(){
     return DB.projects.length>0;
   }catch(e){return false}
 }
+/* ============ СИНХРОНИЗАЦИЯ С СЕРВЕРОМ ============
+   Источник правды — сервер (Cloudflare Worker + D1). Клиент держит локальную
+   копию для мгновенного старта и офлайна. Оптимистическая блокировка версий:
+   при конфликте побеждает сервер (данные с другого устройства), клиент
+   перечитывает. Ключ доступа хранится только на устройстве. */
+const SYNC_URL='https://rl-fondy-api.uurraa.workers.dev/api/db?ws=rls';
+const KEY_LS='rl-fondy-key';
+let _srvVer=0,_dirty=false,_pushT=null,_noPush=true; // _noPush: не пушим, пока не забрали свежее с сервера
+const getKey=()=>localStorage.getItem(KEY_LS)||'';
+function setSyncMsg(m,color){const el=document.getElementById('syncStatus');if(el){el.textContent=m;el.style.color=color||'#7d8aa3'}}
+function syncBody(){const {sel,...rest}=DB;return {...rest,_id}}
+function _timeoutSignal(ms){const c=new AbortController();setTimeout(()=>c.abort(),ms);return c.signal}
+async function syncPull(initial){
+  if(!getKey())return;
+  try{
+    const r=await fetch(SYNC_URL,{headers:{Authorization:'Bearer '+getKey()},signal:_timeoutSignal(12000)});
+    if(r.status===401){localStorage.removeItem(KEY_LS);showKeyGate(true);return}
+    if(!r.ok)throw 0;
+    const j=await r.json();
+    if(j.data==null){ // сервер пуст — заливаем локальное состояние как первую версию
+      _srvVer=j.ver||0;_noPush=false;render();schedulePush(true);return}
+    if(j.ver===_srvVer&&!initial){_noPush=false;setSyncMsg('✓ синхронизировано','#9fd6b0');return}
+    const sel=DB.sel;
+    const srv=j.data;
+    _id=Math.max(_id||1,(srv._id||0)+1);
+    DB={...srv,sel};delete DB._id;
+    _srvVer=j.ver;_dirty=false;
+    localStorage.setItem(LS,JSON.stringify({...DB,_id}));
+    DB.projects.forEach(p=>{p.tasks=p.tasks||[];p.finIn=p.finIn||[];p.finOut=p.finOut||[]});
+    _noPush=true; // рендер серверных данных не должен пушить их обратно (эхо)
+    ensureStages();render();
+    _noPush=false;
+    setSyncMsg('✓ синхронизировано','#9fd6b0');
+  }catch(e){setSyncMsg('офлайн · данные локально','#e8c37f');if(initial){render();_noPush=false}}
+}
+async function syncPush(){
+  if(!getKey()){setSyncMsg('');return}
+  try{
+    setSyncMsg('⟳ сохраняю…');
+    const r=await fetch(SYNC_URL,{method:'PUT',
+      headers:{Authorization:'Bearer '+getKey(),'Content-Type':'application/json'},
+      body:JSON.stringify({baseVer:_srvVer,data:syncBody()}),signal:_timeoutSignal(15000)});
+    if(r.status===401){localStorage.removeItem(KEY_LS);showKeyGate(true);return}
+    if(r.status===409){toast('Данные обновлены с другого устройства — загружаю свежую версию','err');_dirty=false;await syncPull(true);return}
+    if(!r.ok)throw 0;
+    const j=await r.json();
+    _srvVer=j.ver;_dirty=false;
+    setSyncMsg('✓ синхронизировано','#9fd6b0');
+  }catch(e){setSyncMsg('офлайн · сохранено локально','#e8c37f')}
+}
+function schedulePush(force){
+  if(!getKey()||_noPush)return;
+  _dirty=true;clearTimeout(_pushT);
+  _pushT=setTimeout(syncPush,force?50:1200);
+}
+function showKeyGate(bad){
+  const host=document.getElementById('main');
+  host.innerHTML=`<div class="card" style="max-width:440px;margin:70px auto;text-align:center;padding:28px 26px">
+    <div style="font-size:18px;font-weight:700;margin-bottom:6px">🔑 Ключ доступа</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5">Данные хранятся на защищённом сервере. Введи ключ доступа — его выдаёт владелец системы.</div>
+    ${bad?'<div class="warn" style="display:block;margin-bottom:12px">Ключ не подошёл — проверь и попробуй ещё раз</div>':''}
+    <input id="keyInp" type="password" placeholder="ключ доступа" style="margin-bottom:12px;text-align:center" onkeydown="if(event.key==='Enter')saveKey()">
+    <button class="btn" style="width:100%" onclick="saveKey()">Войти</button>
+  </div>`;
+  setSyncMsg('');
+  setTimeout(()=>document.getElementById('keyInp')?.focus(),50);
+}
+function saveKey(){
+  const v=document.getElementById('keyInp').value.trim();
+  if(!v){toast('Введи ключ','err');return}
+  localStorage.setItem(KEY_LS,v);
+  setSyncMsg('⟳ проверяю ключ…');
+  syncPull(true);
+}
+function changeKey(){
+  if(!confirm('Сменить ключ доступа? Текущий ключ будет забыт на этом устройстве.'))return;
+  localStorage.removeItem(KEY_LS);showKeyGate(false);
+}
+
 const fmt=n=>(n||n===0)?new Intl.NumberFormat('ru-RU').format(Math.round(n)):'—';
 const fmtM=n=>(n<0?'−':'')+(Math.abs(n)/1e6).toFixed(Math.abs(n)<1e7?1:0).replace('.',',')+' млн';
 const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1090,49 +1172,15 @@ function importData(inp){
 }
 
 
-/* ---------- АТЛЕТИКО: завод проекта по смете НВК+ТС (данные Ласкера 21.07.2026) ----------
-   Договор 88 287 819 (MORROW Group), аванс 25 млн, ГУ 3%, работы субподрядом, срок 4 мес.
-   Себестоимость из «АтлетикоДан»: ТМЦ 38 073 852, СМР 38 941 817. Акты помесячно (допущение),
-   оплата акта = акт × (1 − зачёт аванса 28,3% − ГУ 3%), возврат ГУ ~через 6 мес после сдачи. */
-function seedAtletiko(){
-  if(DB.atlSeeded)return;
-  DB.atlSeeded=true;
-  const NAME='Атлетико (НВК и ТС)';
-  if(DB.projects.some(p=>p.name===NAME)){save();return}
-  const F=[['Материалы (ТМЦ)',43,38073852],['Субподряд (работы)',44,38941817],['Налоги',6,5297269],['Накладные',2,1765756],['Прибыль (резерв)',5,4209125]]
-    .map((f,i)=>({id:uid(),name:f[0],pct:f[1],plan:f[2],color:FUND_COLORS[i]}));
-  const stage=(DB.stages&&DB.stages.length)?DB.stages[Math.min(1,DB.stages.length-1)].id:null;
-  DB.projects.push({id:uid(),name:NAME,customer:'ТОО «MORROW Group»',contract:88287819,stage,
-    funds:F,
-    planIn:[
-      {id:uid(),date:'2026-08-01',amt:25000000,note:'аванс по договору'},
-      {id:uid(),date:'2026-09-15',amt:17170875,note:'оплата акта 1 (август: земляные, водопровод) − зачёт аванса − ГУ 3%'},
-      {id:uid(),date:'2026-10-15',amt:17170875,note:'оплата акта 2 (сентябрь: канализация)'},
-      {id:uid(),date:'2026-11-15',amt:15110370,note:'оплата акта 3 (октябрь: тепловые сети)'},
-      {id:uid(),date:'2026-12-15',amt:11187064,note:'оплата акта 4 (ноябрь: допработы, сдача)'},
-      {id:uid(),date:'2027-05-31',amt:2648635,note:'возврат гарантийного удержания 3% (дату уточнить)'}],
-    planOut:[
-      {id:uid(),date:'2026-08-04',amt:-22844311,note:'закуп ТМЦ, транш 1 — трубы, ЖБИ (60%)',fund:F[0].id},
-      {id:uid(),date:'2026-09-02',amt:-9518463,note:'закуп ТМЦ, транш 2 (25%)',fund:F[0].id},
-      {id:uid(),date:'2026-10-01',amt:-5711078,note:'закуп ТМЦ, остаток (15%)',fund:F[0].id},
-      {id:uid(),date:'2026-08-31',amt:-10000000,note:'субподряд: земляные, водопровод (август)',fund:F[1].id},
-      {id:uid(),date:'2026-09-30',amt:-12000000,note:'субподряд: канализация (сентябрь)',fund:F[1].id},
-      {id:uid(),date:'2026-10-31',amt:-10000000,note:'субподряд: тепловые сети (октябрь)',fund:F[1].id},
-      {id:uid(),date:'2026-11-30',amt:-6941817,note:'субподряд: финал, сдача (ноябрь)',fund:F[1].id}],
-    finIn:[],finOut:[],ops:[],
-    tasks:[
-      {id:uid(),title:'Получить аванс 25 млн от MORROW Group',due:'2026-08-01',done:false},
-      {id:uid(),title:'Уточнить порядок актирования и срок возврата ГУ 3%',due:'2026-07-28',done:false}]});
-  save();
-}
 
 (function(){
   load();
   ensureStages();
-  seedAtletiko();
-  render();
+  if(!getKey()){showKeyGate(false)}
+  else{render();syncPull(true)}
   setTimeout(impAutoSync,1500);
   setInterval(impAutoSync,600000);
+  setInterval(()=>{if(getKey()&&!_dirty)syncPull()},60000); // раз в минуту подтягиваем чужие изменения
 })();
 </script>
 </body>
