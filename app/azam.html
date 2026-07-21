@@ -245,6 +245,13 @@ label.fld span{display:block;font-size:11px;color:var(--mut);font-weight:600;mar
 .fbar .ft{flex:1;height:22px;border-radius:6px;background:var(--gl);overflow:hidden;position:relative}
 .fbar .ft i{display:block;height:100%;border-radius:6px}
 .fbar .fv{width:78px;flex:none;font:700 12px var(--mono);color:var(--tx)}
+.qb{width:22px;height:22px;border-radius:6px;border:1px solid var(--gl2);background:var(--panel);color:var(--tx2);cursor:pointer;font-weight:800;line-height:1;font-size:14px}
+.qb:hover{color:var(--gold);border-color:var(--gold)}
+.dx{color:var(--faint);cursor:pointer;font-size:13px;padding:0 3px}.dx:hover{color:var(--red)}
+.mini{background:var(--bg2);border:1px solid var(--gl2);color:var(--tx);border-radius:7px;padding:5px 7px;font:600 12px var(--mono);width:54px;text-align:center}
+.mini:focus{outline:none;border-color:var(--gold)}
+.preset{font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;border:1px solid var(--gl2);background:var(--panel);color:var(--tx2);cursor:pointer}
+.preset:hover{color:var(--gold);border-color:var(--gold)}
 /* ===== CALENDAR ===== */
 .calhead{display:flex;align-items:center;gap:12px;margin-bottom:12px}
 .calhead .mtitle{font-size:17px;font-weight:800;min-width:170px}
@@ -841,10 +848,12 @@ function renderDeals(){
 /* ---- CATALOG ---- */
 function renderCatalog(){
   $('catGrid').innerHTML=CATALOG.map(c=>`<div class="card pad"><div style="display:flex;align-items:center;gap:10px"><div style="font-size:22px">${c.ico}</div><div><div style="font-weight:700;font-size:13.5px">${esc(c.name)}</div><div style="font-size:11px;color:var(--mut)">${esc(c.cat)} · ${CEHS.find(x=>x.id===c.ceh).name}</div></div></div><div class="mono" style="color:var(--gold);font-weight:700;margin-top:10px;font-size:15px">${money(c.price)}<span style="color:var(--mut);font-weight:500;font-size:11px"> / ${c.unit}</span></div></div>`).join('');
-  $('tplGrid').innerHTML=TEMPLATES.map(t=>{const sum=t.items.reduce((s,[n,q])=>{const c=catByName(n);return s+(c?c.price*q:0);},0);
-    return `<div class="card pad"><div style="font-weight:700;font-size:14px">${esc(t.name)}</div><div style="font-size:11.5px;color:var(--mut);margin-top:3px">${esc(t.desc)}</div><div style="margin-top:9px;font-size:11.5px;color:var(--tx2)">${t.items.length} позиций · ${t.items.reduce((a,[,q])=>a+q,0)} ед.</div><div class="mono" style="color:var(--gold);font-weight:700;margin-top:9px;font-size:16px">${mln(sum)} ₸</div><button class="btn gh" style="margin-top:11px;width:100%" onclick="tplToDeal('${esc(t.name)}')">Собрать КП по шаблону</button></div>`;}).join('');
+  $('tplGrid').innerHTML=TEMPLATES.map((t,i)=>{const sum=t.items.reduce((s,[n,q])=>{const c=catByName(n);return s+(c?c.price*q:0);},0);
+    return `<div class="card pad"><div style="font-weight:700;font-size:14px">${esc(t.name)}</div><div style="font-size:11.5px;color:var(--mut);margin-top:3px">${esc(t.desc)}</div><div style="margin-top:9px;font-size:11.5px;color:var(--tx2)">${t.items.length} позиций · ${t.items.reduce((a,[,q])=>a+q,0)} ед.</div><div class="mono" style="color:var(--gold);font-weight:700;margin-top:9px;font-size:16px">${mln(sum)} ₸</div><button class="btn pri" style="margin-top:11px;width:100%" onclick="tplToDeal(${i})">Создать сделку по шаблону →</button></div>`;}).join('');
 }
-function tplToDeal(name){nav('deals');toast('Шаблон «'+esc(name)+'» — добавьте его в сделку через «Состав заказа» в карточке.','cy');}
+function tplToDeal(i){const t=TEMPLATES[i];const items=itemsToObjs(t.items);const sum=items.reduce((s,x)=>s+x.price*x.qty,0);SEQ++;
+  const d={id:Date.now(),no:'AZ-'+SEQ,client:'Новый клиент',region:'—',le:'AZAM (офиц., по банку)',stage:2,manager:'Отдел продаж',created:'сегодня',items,sum,contract:{no:null,signed:false,date:null},kp:true,pay:payPlan(sum,PRESET_STD),ceh:{c1:0,c2:0,c3:0,c4:0},otk:false,sched:null,ship:null,note:'Собрано по шаблону «'+t.name+'».',chat:[]};
+  DEALS.unshift(d);save();renderAll();openDeal(d.id);toast('Сделка по шаблону «'+esc(t.name)+'» создана — состав и КП готовы. Впишите клиента.','grn');}
 
 /* ---- PAY ---- */
 function renderPay(){
@@ -992,27 +1001,34 @@ function renderDealTabs(){const d=curDeal;
   $('mt-exec').innerHTML=`<div class="hint">Северная звезда — <b>исполнение договора</b>. Четыре нити должны дойти до 100%. Красная нить тормозит контракт.</div>`+
     threads.map(t=>`<div class="thread"><div class="ti" style="background:${t[1]}">${t[0]}</div><div class="tw"><div class="tn">${t[2]}</div><div class="ts">${esc(t[3])}</div><div class="bar ${t[5]?'bad':t[4]>=100?'':'warn'}" style="margin-top:7px;max-width:100%"><i style="width:${t[4]}%"></i></div></div><div class="tp" style="color:${t[5]?'var(--red)':t[4]>=100?'var(--grn)':'var(--tx)'}">${t[4]}%</div></div>`).join('')+
     (d.note?`<div style="margin-top:12px;font-size:12.5px;color:var(--tx2)"><b>Заметка:</b> ${esc(d.note)}</div>`:'');
-  // ORDER
-  $('mt-order').innerHTML=`<table class="tbl"><thead><tr><th>Позиция</th><th>Цех</th><th class="r">Кол-во</th><th class="r">Цена</th><th class="r">Сумма</th></tr></thead><tbody>`+
-    d.items.map(i=>`<tr style="cursor:default"><td><b>${esc(i.name)}</b></td><td style="color:var(--mut);font-size:11.5px">${CEHS.find(c=>c.id===i.ceh)?CEHS.find(c=>c.id===i.ceh).name:''}</td><td class="r">${i.qty}</td><td class="r">${money(i.price)}</td><td class="r" style="color:var(--gold)">${money(i.price*i.qty)}</td></tr>`).join('')+
-    `<tr style="cursor:default"><td colspan="4" style="text-align:right;font-weight:700">Итого контракт</td><td class="r" style="color:var(--gold);font-weight:800">${money(d.sum)}</td></tr></tbody></table>
-    <div class="hint">Это «инженерное решение» — комплекс из блоков. На его основе формируются КП и договор.</div>`;
+  // ORDER (редактируемый конструктор)
+  $('mt-order').innerHTML=`<table class="tbl"><thead><tr><th>Позиция</th><th>Цех</th><th class="r">Кол-во</th><th class="r">Цена</th><th class="r">Сумма</th><th></th></tr></thead><tbody>`+
+    (d.items.length?d.items.map((it,idx)=>`<tr style="cursor:default"><td><b>${esc(it.name)}</b></td><td style="color:var(--mut);font-size:11.5px">${CEHS.find(c=>c.id===it.ceh)?CEHS.find(c=>c.id===it.ceh).name:''}</td><td class="r"><span style="display:inline-flex;align-items:center;gap:8px"><button class="qb" onclick="dealQty(${idx},-1)">−</button><b style="min-width:16px;display:inline-block;text-align:center">${it.qty}</b><button class="qb" onclick="dealQty(${idx},1)">+</button></span></td><td class="r">${money(it.price)}</td><td class="r" style="color:var(--gold)">${money(it.price*it.qty)}</td><td class="r"><span class="dx" onclick="dealDelItem(${idx})">✕</span></td></tr>`).join(''):`<tr style="cursor:default"><td colspan="6" style="color:var(--mut);text-align:center;padding:14px">Состав пуст — добавьте блоки ниже или примените шаблон</td></tr>`)+
+    `<tr style="cursor:default"><td colspan="5" style="text-align:right;font-weight:700">Итого контракт</td><td class="r" style="color:var(--gold);font-weight:800">${money(d.sum)}</td></tr></tbody></table>
+    <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap">
+      <select class="inp" id="addItemSel" style="flex:1;min-width:220px">${CATALOG.map(c=>`<option value="${esc(c.name)}">${c.ico} ${esc(c.name)} — ${money(c.price)}</option>`).join('')}</select>
+      <button class="btn pri" onclick="dealAddItem($('addItemSel').value)">＋ Добавить блок</button>
+    </div>
+    <div style="margin-top:10px;font-size:11.5px;color:var(--mut)">Шаблоны: ${TEMPLATES.map((t,i)=>`<a onclick="dealApplyTpl(${i})" style="color:var(--cy);cursor:pointer;margin-right:14px">↳ ${esc(t.name)}</a>`).join('')}</div>
+    <div class="hint">Меняете состав — <b>сумма контракта и суммы траншей пересчитываются</b>, КП надо пересобрать (вкладка «Документы»). Это «инженерное решение» — комплекс из блоков.</div>`;
   // DOCS
   $('mt-docs').innerHTML=`
     <div class="row"><div><div class="nm">Коммерческое предложение</div><div class="ds">${d.kp?'сформировано на основе состава заказа':'ещё не сформировано'}</div></div><div class="rt">${d.kp?'<span class="tag grn">готово</span>':`<button class="btn gh" style="padding:6px 12px" onclick="genKP()">Сформировать КП</button>`}</div></div>
     <div class="row"><div><div class="nm">Договор</div><div class="ds">${d.contract.signed?('№ '+d.contract.no+' · подписан '+d.contract.date):'формируется автоматически из плана платежей'}</div></div><div class="rt">${d.contract.signed?'<span class="tag grn">подписан</span>':`<button class="btn gh" style="padding:6px 12px" onclick="genDog()">Сформировать договор</button>`}</div></div>
     <div class="row"><div><div class="nm">Счёт на оплату (аванс)</div><div class="ds">${d.pay.some(p=>p.paid)?'выставлен и оплачен':noInvoice(d)?'⚠️ не выставлен — деньги теряются':'к выставлению'}</div></div><div class="rt">${d.pay.some(p=>p.paid)?'<span class="tag grn">оплачен</span>':`<button class="btn pri" style="padding:6px 12px" onclick="genSchet()">Выставить счёт</button>`}</div></div>
     <div class="hint">Договор собирается автоматически: состав заказа + план платежей подшиваются в тело договора. Юрист/оператор только проверяет.</div>`;
-  // PAY
-  const preceived=paidSum(d);
-  $('mt-pay').innerHTML=`<div style="display:flex;gap:10px;margin-bottom:12px"><span class="chip">Получено: <b style="margin-left:5px;color:var(--grn)">${money(preceived)}</b></span><span class="chip">Остаток: <b style="margin-left:5px;color:var(--cy)">${money(dueSum(d))}</b></span></div>`+
-    d.pay.map((p,i)=>{const st=p.paid?'grn':(noInvoice(d)&&i===0?'red':p.due<0&&d.stage>=3?'red':p.due<=14&&d.stage>=3?'gold':'gr');const lab=p.paid?'оплачено':(noInvoice(d)&&i===0?'счёт не выставлен':p.due<0&&d.stage>=3?'просрочен':p.due<=14&&d.stage>=3?'скоро':'план');
-      return `<div class="checkline"><div class="ck ${p.paid?'on':''}">${p.paid?'✓':''}</div><div style="flex:1"><b style="font-size:12.5px">${esc(p.label)}</b> <span class="mono" style="color:var(--mut);font-size:11px">${money(p.amount)}</span></div><span class="tag ${st}">${lab}</span>${p.paid?'':`<button class="btn gh" style="padding:4px 10px;font-size:11px" onclick="markPaid(${d.id},${i});renderDealTabs()">Оплата</button>`}</div>`;}).join('')+
-    `<div class="hint">План платежей — часть договора. Бухгалтерия отмечает оплату → производство сразу видит, что можно стартовать.</div>`;
-  // PROD
-  $('mt-prod').innerHTML=CEHS.map(c=>{const v=d.ceh[c.id]||0;const cls=v>=100?'':v>0?'warn':'bad';
-    return `<div style="margin-bottom:13px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><b>${esc(c.name)}</b><span class="mono">${v}%</span></div><div class="bar ${cls}"><i style="width:${v}%"></i></div><div style="font-size:11px;color:var(--mut);margin-top:4px">${esc(c.desc)}</div></div>`;}).join('')+
-    `<div class="thread" style="margin-top:6px"><div class="ti" style="background:${d.otk?'var(--grnL)':'var(--gl)'}">🔎</div><div class="tw"><div class="tn">ОТК · контроль качества</div><div class="ts">${d.otk?'пройден, готово к отгрузке':'ожидает завершения производства'}</div></div><div class="tp">${d.otk?'<span class="tag grn">✓</span>':'<span class="tag gr">—</span>'}</div></div>`;
+  // PAY (редактируемый план платежей клиента)
+  const preceived=paidSum(d);const sumPct=d.pay.reduce((s,p)=>s+(+p.pct||0),0);
+  $('mt-pay').innerHTML=`<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap"><span class="chip">Получено: <b style="margin-left:5px;color:var(--grn)">${money(preceived)}</b></span><span class="chip">Остаток: <b style="margin-left:5px;color:var(--cy)">${money(dueSum(d))}</b></span><span style="margin-left:auto;font-size:11px;color:var(--mut)">Шаблон:</span><button class="preset" onclick="payPreset('50')">50 / 50</button><button class="preset" onclick="payPreset('std')">30·20·30·10·10</button><button class="preset" onclick="payPreset('30')">30 / 70</button></div>`+
+    d.pay.map((p,i)=>{const st=p.paid?'grn':(noInvoice(d)&&i===0?'red':p.due<0&&d.stage>=3?'red':p.due<=14&&d.stage>=3?'gold':'gr');const lab=p.paid?'оплачено':(noInvoice(d)&&i===0?'к выст.':p.due<0&&d.stage>=3?'просрочен':p.due<=14&&d.stage>=3?'скоро':'план');
+      return `<div class="checkline" style="flex-wrap:wrap;gap:7px"><div class="ck ${p.paid?'on':''}">${p.paid?'✓':''}</div><input class="mini" style="width:140px;text-align:left" value="${esc(p.label)}" onchange="paySetLabel(${i},this.value)"><input class="mini" type="number" min="0" value="${p.pct}" onchange="paySetPct(${i},this.value)" title="доля, %"><span style="color:var(--mut);font-size:11px">%</span><span class="mono" style="width:96px;text-align:right;font-weight:700">${money(p.amount)}</span><input class="mini" type="number" value="${p.due}" onchange="paySetDue(${i},this.value)" title="срок: дней от сегодня (− = в прошлом)"><span style="color:var(--mut);font-size:11px">дн</span><span class="tag ${st}">${lab}</span>${p.paid?'':`<button class="btn gh" style="padding:4px 9px;font-size:11px" onclick="markPaid(${d.id},${i});renderDealTabs()">Оплата</button>`}<span class="dx" onclick="payDelTranche(${i})">✕</span></div>`;}).join('')+
+    `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px"><button class="preset" onclick="payAddTranche()">＋ Добавить транш</button><span style="font-size:12px;font-weight:700;color:${sumPct===100?'var(--grn)':'var(--red)'}">Сумма долей: ${sumPct}%${sumPct===100?' ✓':' — норма 100%'}</span></div>
+    <div class="hint">Проценты, сроки и названия траншей <b>ставятся под клиента</b> (аванс 50%/30%, транши, пуско-наладка). Суммы считаются от контракта. План — часть договора; отметка оплаты уведомляет производство.</div>`;
+  // PROD (управление готовностью цехов + ОТК)
+  $('mt-prod').innerHTML=`<div class="hint" style="margin-top:0">ПДО ведёт готовность по каждому цеху. Кнопками ± задайте прогресс. 100% по всем цехам + ОТК → заказ уходит на склад готовой продукции.</div>`+CEHS.map(c=>{const v=d.ceh[c.id]||0;const cls=v>=100?'':v>0?'warn':'bad';
+    return `<div style="margin-bottom:13px"><div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:6px"><b>${esc(c.name)}</b><span style="display:inline-flex;align-items:center;gap:8px"><button class="qb" onclick="cehSet('${c.id}',-25)">−</button><span class="mono" style="width:44px;text-align:center">${v}%</span><button class="qb" onclick="cehSet('${c.id}',25)">+</button></span></div><div class="bar ${cls}"><i style="width:${v}%"></i></div><div style="font-size:11px;color:var(--mut);margin-top:4px">${esc(c.desc)}</div></div>`;}).join('')+
+    `<div class="thread" style="margin-top:6px"><div class="ti" style="background:${d.otk?'var(--grnL)':'var(--gl)'}">🔎</div><div class="tw"><div class="tn">ОТК · контроль качества</div><div class="ts">${d.otk?'пройден, готово к отгрузке':'ожидает завершения производства'}</div></div><button class="btn ${d.otk?'gh':'pri'}" style="padding:6px 12px" onclick="toggleOtk()">${d.otk?'Снять ОТК':'Отметить ОТК ✓'}</button></div>
+    <div class="hint">Управление <b>этапами сделки</b> (8 стадий воронки) — на доске «Сделки»: перетаскивайте карточку или жмите «Следующий этап» внизу.</div>`;
   // SHIP
   if(d.ship){const pct=shipPct(d);
     $('mt-ship').innerHTML=`<div style="display:flex;gap:10px;margin-bottom:12px"><span class="chip">${d.ship.trucks} машин</span><span class="chip">Комплектность: <b style="margin-left:5px;color:${pct>=100?'var(--grn)':'var(--red)'}">${pct}%</b></span></div>
@@ -1023,6 +1039,24 @@ function renderDealTabs(){const d=curDeal;
   }
 }
 function advanceDeal(){const d=curDeal;if(d.stage<7){d.stage++;if(d.stage>=5)d.otk=true;save();renderAll();openDeal(d.id);toast('«'+esc(d.client)+'» → <b>'+STAGES[d.stage]+'</b>','cy');}}
+/* --- редактирование состава заказа --- */
+function syncDealHeader(){const d=curDeal;$('dmF2').textContent=mln(d.sum)+' ₸';$('dmF3').textContent=STAGES[d.stage];}
+function recalcPay(d){d.pay.forEach(p=>p.amount=Math.round(d.sum*(+p.pct||0)/100));}
+function recalcDeal(){const d=curDeal;d.sum=d.items.reduce((s,i)=>s+i.price*i.qty,0);recalcPay(d);save();syncDealHeader();renderDealTabs();renderAll();}
+function dealAddItem(name){const c=catByName(name);if(!c)return;const ex=curDeal.items.find(i=>i.name===name);if(ex)ex.qty++;else curDeal.items.push({name,qty:1,price:c.price,cat:c.cat,ceh:c.ceh});curDeal.kp=false;recalcDeal();toast('Добавлено: '+esc(name),'cy');}
+function dealQty(idx,delta){const it=curDeal.items[idx];if(!it)return;it.qty+=delta;if(it.qty<=0)curDeal.items.splice(idx,1);curDeal.kp=false;recalcDeal();}
+function dealDelItem(idx){curDeal.items.splice(idx,1);curDeal.kp=false;recalcDeal();}
+function dealApplyTpl(i){const t=TEMPLATES[i];if(!t)return;curDeal.items=itemsToObjs(t.items);curDeal.kp=false;recalcDeal();toast('Шаблон «'+esc(t.name)+'» применён к составу','cy');}
+/* --- редактирование плана платежей --- */
+function paySetPct(i,v){curDeal.pay[i].pct=Math.max(0,Math.round(+v||0));recalcPay(curDeal);save();renderDealTabs();renderAll();}
+function paySetDue(i,v){curDeal.pay[i].due=parseInt(v)||0;save();renderDealTabs();renderAll();}
+function paySetLabel(i,v){curDeal.pay[i].label=v;save();}
+function payAddTranche(){curDeal.pay.push({label:'Транш '+(curDeal.pay.length+1),pct:0,amount:0,due:30,paid:false});save();renderDealTabs();}
+function payDelTranche(i){curDeal.pay.splice(i,1);save();renderDealTabs();renderAll();}
+function payPreset(k){const P={'50':[['Аванс 50%',50,-30],['После сдачи 50%',50,20]],'std':PRESET_STD,'30':[['Аванс 30%',30,-30],['Остаток 70%',70,25]]};const arr=P[k];if(!arr)return;curDeal.pay=arr.map(([label,pct,due])=>({label,pct,amount:Math.round(curDeal.sum*pct/100),due,paid:false}));save();renderDealTabs();renderAll();toast('План платежей: шаблон применён','cy');}
+/* --- управление производством --- */
+function cehSet(id,delta){const d=curDeal;d.ceh[id]=Math.max(0,Math.min(100,(d.ceh[id]||0)+delta));save();renderDealTabs();renderAll();}
+function toggleOtk(){curDeal.otk=!curDeal.otk;save();renderDealTabs();renderAll();}
 function genKP(){curDeal.kp=true;save();renderDealTabs();toast('КП сформировано на основе состава заказа · '+esc(curDeal.client),'grn');}
 function genDog(){curDeal.contract={no:'Д-2026-0'+curDeal.id+'X',signed:true,date:'сегодня'};save();renderAll();renderDealTabs();toast('Договор сформирован автоматически (состав + план платежей) → на подпись.','grn');}
 function genSchet(){curDeal.pay[0].paid=false;save();renderDealTabs();renderAll();toast('Счёт на аванс выставлен · '+esc(curDeal.client)+'. Отметьте оплату, когда придут деньги.','gold');}
