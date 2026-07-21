@@ -102,6 +102,9 @@
   .kb-card .row b{font-variant-numeric:tabular-nums}
   .kb-empty{color:var(--muted);font-size:11.5px;font-style:italic;padding:6px}
   .kb-bar{display:flex;align-items:center;gap:10px;margin:4px 0 12px;flex-wrap:wrap}
+  .tg{font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:4px;background:#eceef2;color:var(--muted);white-space:nowrap}
+  .txg{display:grid;gap:10px}
+  @media(max-width:760px){.txg{grid-template-columns:1fr 1fr!important}}
   .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--green);color:#fff;padding:12px 22px;border-radius:11px;font-size:13.5px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.2);transition:.3s;z-index:99;opacity:0}
   .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
   .month-red td{background:#fcf0ee}
@@ -319,6 +322,7 @@ function renderList(host){
       :`<button class="btn ghost" onclick="_kbEdit=true;render()">⚙ настроить этапы</button>`}</div>
   <div class="explain">Все проекты по этапам. <b>Перетащи карточку</b> в другую колонку — этап сменится. Клик — открыть проект. «Настроить этапы» — переименовать, поменять порядок (◀ ▶), удалить или добавить свой этап.</div>
   <div class="kb">${cols}</div>
+  ${txFormHtml()}
   <h2>Импорт операций из Google Таблицы (ДДС / ТМЦ)</h2>
   <div class="explain">Два способа: <b>по ссылке</b> — вставь адрес вида <code style="font-size:11px">https://docs.google.com/spreadsheets/d/ID/gviz/tq?tqx=out:csv&sheet=ДДС-2</code> (доступ «всем, у кого есть ссылка») и жми «Загрузить»; или <b>копипастой</b> — выдели строки в таблице вместе с шапкой, скопируй и вставь в поле. Программа сама: приход/расход по знаку суммы, проект — по колонке «Направление», фонд — по «Статье» (или колонке «Фонд», если добавишь), финансирование — по статьям «займ/финансирование». Депозиты, переводы между счетами и комиссии пропускаются. Повторный импорт дублей не создаёт.</div>
   <div class="card">
@@ -335,6 +339,99 @@ function renderList(host){
     <div id="impPrev" style="margin-top:12px"></div>
   </div>`;
   bindKbDrag();
+}
+
+/* ============ РУЧНОЙ ВВОД ТРАНЗАКЦИЙ (глобальная форма) ============ */
+function txArtsList(){
+  const s=new Set(['ТМЦ','ФОТ','Услуга','СМР','Налоги ФОТ','Налоги НДС','Транспортные услуги','АДМ расход','Аренда','ГСМ','Расходники']);
+  (DB.fundDict||[]).forEach(d=>(d.arts||[]).forEach(a=>s.add(a)));
+  DB.projects.forEach(p=>p.ops.forEach(o=>{if(o.art)s.add(o.art)}));
+  return [...s];
+}
+function txCpsList(){
+  const s=new Set();
+  DB.projects.forEach(p=>p.ops.forEach(o=>{if(o.cp)s.add(o.cp)}));
+  return [...s];
+}
+function txFormHtml(){
+  if(!DB.projects.length)return '';
+  const k=window._txKeep||{};
+  const projOpts=DB.projects.map(p=>`<option value="${p.id}"${k.proj===p.id?' selected':''}>${esc(p.name)}</option>`).join('');
+  const p0=DB.projects.find(x=>x.id===k.proj)||DB.projects[0];
+  const fundOpts=p0.funds.map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join('');
+  const dir=k.dir||'out';
+  return `<h2>Внести транзакцию вручную</h2>
+  <div class="explain">Полный ввод как в ДДС: проект, направление, дата, сумма, статья, контрагент, назначение. У расхода фонд подставляется автоматически по статье (справочник → правила) — можно поменять. После проведения форма не сбрасывает проект и дату — удобно вносить подряд. Точная перераскладка прихода по суммам — «⚙ раскладка» в журнале.</div>
+  <div class="card">
+    <div class="txg" style="grid-template-columns:1.5fr 1fr 135px 1fr">
+      <div><label>Проект *</label><select id="txProj" onchange="txProjChange()">${projOpts}</select></div>
+      <div><label>Направление</label><select id="txDir" onchange="txDirChange()"><option value="out"${dir==='out'?' selected':''}>− Расход</option><option value="in"${dir==='in'?' selected':''}>+ Приход</option></select></div>
+      <div><label>Дата *</label><input type="date" id="txDate" value="${k.date||todayIso()}"></div>
+      <div><label>Сумма, ₸ *</label><input type="number" id="txAmt" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <div class="txg" style="grid-template-columns:1fr 1fr 1.5fr;margin-top:2px">
+      <div><label>Статья</label><input id="txArt" list="txArtList" placeholder="ТМЦ / ФОТ / Услуга…" oninput="txArtChange()"><datalist id="txArtList">${txArtsList().map(a=>`<option>${esc(a)}</option>`).join('')}</datalist></div>
+      <div><label>Контрагент</label><input id="txCp" list="txCpList" placeholder="ТОО / ИП"><datalist id="txCpList">${txCpsList().map(c=>`<option>${esc(c)}</option>`).join('')}</datalist></div>
+      <div><label>Назначение платежа</label><input id="txNote" placeholder="за что платёж"></div>
+    </div>
+    <div id="txOutBlock" style="margin-top:10px;display:${dir==='out'?'block':'none'}">
+      <div class="txg" style="grid-template-columns:1.5fr auto;align-items:end">
+        <div><label>Из фонда (подставится по статье)</label><select id="txFund">${fundOpts}</select></div>
+        <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:600;cursor:pointer;margin:0 0 10px"><input type="checkbox" id="txFin" style="width:auto"> возврат финансирования</label>
+      </div>
+    </div>
+    <div id="txInBlock" style="margin-top:10px;display:${dir==='in'?'block':'none'}">
+      <div class="txg" style="grid-template-columns:1fr 1.4fr 1fr">
+        <div><label>Источник</label><select id="txSrc"><option value="contract">оплата по договору</option><option value="fin">финансирование</option></select></div>
+        <div><label>Раскладка по фондам</label><select id="txAlloc" onchange="txAllocChange()"><option value="pct">по долям %</option><option value="one">целиком в один фонд</option></select></div>
+        <div id="txOneFundBox" style="display:none"><label>Фонд</label><select id="txOneFund">${fundOpts}</select></div>
+      </div>
+    </div>
+    <div style="margin-top:12px"><button class="btn grn" onclick="addTxGlobal()">Провести транзакцию</button></div>
+  </div>`;
+}
+function txProjChange(){
+  const p=DB.projects.find(x=>x.id===document.getElementById('txProj')?.value);if(!p)return;
+  const opts=p.funds.map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join('');
+  document.getElementById('txFund').innerHTML=opts;
+  document.getElementById('txOneFund').innerHTML=opts;
+  txArtChange();
+}
+function txDirChange(){
+  const d=document.getElementById('txDir').value;
+  document.getElementById('txOutBlock').style.display=d==='out'?'block':'none';
+  document.getElementById('txInBlock').style.display=d==='in'?'block':'none';
+}
+function txAllocChange(){document.getElementById('txOneFundBox').style.display=document.getElementById('txAlloc').value==='one'?'block':'none'}
+function txArtChange(){
+  const p=DB.projects.find(x=>x.id===document.getElementById('txProj')?.value);if(!p)return;
+  const art=document.getElementById('txArt').value.trim();if(!art)return;
+  const f=dictFund(p,art)||impFundByArt(p,art);
+  if(f)document.getElementById('txFund').value=f.id;
+}
+function addTxGlobal(){
+  const p=DB.projects.find(x=>x.id===document.getElementById('txProj').value);
+  if(!p){toast('Выбери проект','err');return}
+  const date=document.getElementById('txDate').value,amt=parseFloat(document.getElementById('txAmt').value);
+  if(!date||!amt||amt<=0){toast('Укажи дату и сумму','err');return}
+  const art=document.getElementById('txArt').value.trim(),cp=document.getElementById('txCp').value.trim();
+  const note=document.getElementById('txNote').value.trim();
+  const dir=document.getElementById('txDir').value;
+  if(dir==='out'){
+    const fund=document.getElementById('txFund').value;
+    if(!fund){toast('Выбери фонд','err');return}
+    p.ops.push({id:uid(),type:'out',date,amt:-Math.abs(amt),fund,note,art:art||undefined,cp:cp||undefined,src:document.getElementById('txFin').checked?'fin':undefined});
+  }else{
+    const src=document.getElementById('txSrc').value==='fin'?'fin':undefined;
+    let alloc;
+    if(document.getElementById('txAlloc').value==='one')alloc={[document.getElementById('txOneFund').value]:Math.abs(amt)};
+    else alloc=allocByPct(p,Math.abs(amt));
+    p.ops.push({id:uid(),type:'in',date,amt:Math.abs(amt),note,art:art||undefined,cp:cp||undefined,src,alloc});
+  }
+  window._txKeep={proj:p.id,dir,date}; // форма не сбрасывает проект/направление/дату
+  toast((dir==='out'?'Расход':'Приход')+' проведён: '+p.name+' ✓');
+  save();render();
+  setTimeout(()=>{const a=document.getElementById('txAmt');if(a)a.focus()},50);
 }
 
 /* ============ ИМПОРТ ИЗ GOOGLE ТАБЛИЦЫ ============ */
@@ -392,7 +489,7 @@ function dictParse(rows){
     const ai=low.findIndex(c=>c.includes('стать'));
     const out=[];
     for(let j=i+1;j<rows.length;j++){const r=rows[j];const name=(r[fi]||'').trim();if(!name)continue;
-      out.push({name,pct:pi>=0?impNum(r[pi]):0,arts:ai>=0?(r[ai]||'').split(/[,;]/).map(s=>s.trim().toLowerCase()).filter(Boolean):[]})}
+      out.push({name,pct:pi>=0?impNum(r[pi]):0,arts:ai>=0?(r[ai]||'').split(/[,;]/).map(s=>s.trim()).filter(Boolean):[]})}
     if(out.length)return out;
   }
   return null;
@@ -412,7 +509,7 @@ function dictFund(p,art){
   // фонд по справочнику: статья входит в список статей фонда
   if(!DB.fundDict||!DB.fundDict.length||!art)return null;
   const a=art.toLowerCase().trim();
-  const d=DB.fundDict.find(d=>(d.arts||[]).some(x=>a===x||a.includes(x)||x.includes(a)));
+  const d=DB.fundDict.find(d=>(d.arts||[]).some(x=>{const xl=(x||'').toLowerCase();return a===xl||a.includes(xl)||xl.includes(a)}));
   if(!d)return null;
   return p.funds.find(f=>f.name.toLowerCase().includes(d.name.toLowerCase())||d.name.toLowerCase().includes(f.name.toLowerCase()))||null;
 }
@@ -685,7 +782,7 @@ function renderProject(host,p){
   const opRows=ops.length?ops.map(o=>{
     const fundSel=o=>`<select onchange="opSetFund('${o.id}',this.value)" style="width:auto;padding:2px 6px;font-size:10.5px;background:#fff" title="сменить фонд операции">${p.funds.map(f=>`<option value="${f.id}"${o.fund===f.id?' selected':''}>${esc(f.name)}</option>`).join('')}${!p.funds.some(f=>f.id===o.fund)?'<option selected>фонд удалён</option>':''}</select>`;
     if(o.type==='in'){
-      const row=`<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'поступление')}</div><div class="c">${o.src==='fin'?'<b style="color:var(--amber)">финансирование</b> · ':''}по фондам: ${p.funds.map(f=>o.alloc[f.id]?esc(f.name.split(' ')[0])+' '+fmtM(o.alloc[f.id]):'').filter(Boolean).join(' · ')} <span style="color:var(--blue);cursor:pointer;font-weight:700" onclick="raOpen('${o.id}')">⚙ раскладка</span></div></div><div class="am pos">+${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
+      const row=`<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'поступление')}${o.cp?' <span style="color:var(--muted);font-weight:400">· '+esc(o.cp)+'</span>':''}</div><div class="c">${o.art?'<span class="tg">'+esc(o.art)+'</span> ':''}${o.src==='fin'?'<b style="color:var(--amber)">финансирование</b> · ':''}по фондам: ${p.funds.map(f=>o.alloc[f.id]?esc(f.name.split(' ')[0])+' '+fmtM(o.alloc[f.id]):'').filter(Boolean).join(' · ')} <span style="color:var(--blue);cursor:pointer;font-weight:700" onclick="raOpen('${o.id}')">⚙ раскладка</span></div></div><div class="am pos">+${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
       if(window._reallocOp!==o.id)return row;
       return row+`<div style="background:#eef1f5;border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin:2px 0 8px">
         <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">Точная раскладка ${fmt(o.amt)} ₸ по фондам</div>
@@ -694,7 +791,7 @@ function renderProject(host,p){
         <div style="display:flex;gap:8px"><button class="btn grn" style="padding:7px 14px;font-size:12px" onclick="raSave('${o.id}')">Сохранить</button><button class="btn ghost" style="padding:7px 14px;font-size:12px" onclick="window._reallocOp=null;render()">Отмена</button></div>
       </div>`;
     }
-    if(o.type==='out')return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'расход')}</div><div class="c" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">из фонда: ${fundSel(o)}${o.src==='fin'?' <b style="color:var(--amber)">возврат финансирования</b>':''}</div></div><div class="am neg">−${fmt(Math.abs(o.amt))}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
+    if(o.type==='out')return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'расход')}${o.cp?' <span style="color:var(--muted);font-weight:400">· '+esc(o.cp)+'</span>':''}</div><div class="c" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">${o.art?'<span class="tg">'+esc(o.art)+'</span>':''}из фонда: ${fundSel(o)}${o.src==='fin'?' <b style="color:var(--amber)">возврат финансирования</b>':''}</div></div><div class="am neg">−${fmt(Math.abs(o.amt))}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
     if(o.type==='adj')return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||(o.amt>0?'пополнение фонда вручную':'снятие из фонда вручную'))}</div><div class="c" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">ручное движение · фонд: ${fundSel(o)}</div></div><div class="am ${o.amt>0?'pos':'neg'}">${o.amt>0?'+':''}${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
     return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'перекладка между фондами')}</div><div class="c">${esc(fname(o.from))} → ${esc(fname(o.to))}</div></div><div class="am" style="color:var(--amber)">${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
   }).join(''):'<div style="color:var(--muted);font-size:12.5px;padding:8px 0">Операций пока нет.</div>';
@@ -751,6 +848,8 @@ function renderProject(host,p){
       <div class="fgrid3"><div><label>Дата</label><input type="date" id="inDate" value="${t}"></div>
         <div><label>Сумма, ₸</label><input type="number" id="inAmt" placeholder="0" inputmode="numeric" oninput="previewAlloc()"></div>
         <div><label>Источник</label><select id="inSrc"><option value="contract">оплата по договору</option><option value="fin">финансирование</option></select></div></div>
+      <div class="fgrid"><div><label>Статья</label><input id="inArt" list="pArtList" placeholder="Поступления от клиентов"><datalist id="pArtList">${txArtsList().map(a=>`<option>${esc(a)}</option>`).join('')}</datalist></div>
+        <div><label>Контрагент</label><input id="inCp" list="pCpList" placeholder="ТОО / ИП"><datalist id="pCpList">${txCpsList().map(c=>`<option>${esc(c)}</option>`).join('')}</datalist></div></div>
       <label>Комментарий</label><input id="inNote" placeholder="аванс / оплата этапа / займ" style="margin-bottom:10px">
       <label>Раскладка по фондам</label>
       <div style="display:flex;gap:14px;margin-bottom:9px">
@@ -780,6 +879,8 @@ function renderProject(host,p){
       <div class="fgrid3"><div><label>Дата</label><input type="date" id="outDate" value="${t}"></div>
         <div><label>Сумма, ₸</label><input type="number" id="outAmt" placeholder="0" inputmode="numeric" oninput="previewOut()"></div>
         <div><label>Из фонда</label><select id="outFund" onchange="previewOut()">${fundOpts}</select></div></div>
+      <div class="fgrid"><div><label>Статья (подставит фонд)</label><input id="outArt" list="pArtList" placeholder="ТМЦ / ФОТ / Услуга" oninput="outArtChange()"></div>
+        <div><label>Контрагент</label><input id="outCp" list="pCpList" placeholder="ТОО / ИП"></div></div>
       <label>Комментарий</label><input id="outNote" placeholder="за что платёж" style="margin-bottom:8px">
       <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:600;cursor:pointer;margin:0 0 8px"><input type="checkbox" id="outFin" style="width:auto"> это возврат финансирования (займа / инвестору)</label>
       <div class="warn" id="outWarn"></div>
@@ -879,8 +980,15 @@ function addIncome(){const p=P();
     if(Math.round(s)!==Math.round(Math.abs(amt))){toast('Разложи всю сумму: распределено '+fmt(s)+' из '+fmt(Math.abs(amt))+' ₸','err');return}
   }
   const src=document.getElementById('inSrc')?.value==='fin'?'fin':undefined;
-  p.ops.push({id:uid(),type:'in',date,amt:Math.abs(amt),note:document.getElementById('inNote').value.trim(),alloc,src});
+  const inArt=document.getElementById('inArt')?.value.trim()||'',inCp=document.getElementById('inCp')?.value.trim()||'';
+  p.ops.push({id:uid(),type:'in',date,amt:Math.abs(amt),note:document.getElementById('inNote').value.trim(),alloc,src,art:inArt||undefined,cp:inCp||undefined});
   toast(src?'Финансирование разложено по фондам ✓':'Поступление разложено по фондам ✓');render()}
+function outArtChange(){
+  const p=P();if(!p)return;
+  const art=document.getElementById('outArt')?.value.trim();if(!art)return;
+  const f=dictFund(p,art)||impFundByArt(p,art);
+  if(f)document.getElementById('outFund').value=f.id;
+  previewOut();}
 function previewOut(){const p=P();const amt=parseFloat(document.getElementById('outAmt').value)||0;
   const fid=document.getElementById('outFund').value;const el=document.getElementById('outWarn');
   const b=fundBalances(p)[fid];if(!amt||!b){el.style.display='none';return}
@@ -890,7 +998,8 @@ function addExpense(){const p=P();
   const date=document.getElementById('outDate').value,amt=parseFloat(document.getElementById('outAmt').value);
   if(!date||!amt||amt<=0){toast('Укажи дату и сумму','err');return}
   const oSrc=document.getElementById('outFin')?.checked?'fin':undefined;
-  p.ops.push({id:uid(),type:'out',date,amt:-Math.abs(amt),fund:document.getElementById('outFund').value,note:document.getElementById('outNote').value.trim(),src:oSrc});
+  const oArt=document.getElementById('outArt')?.value.trim()||'',oCp=document.getElementById('outCp')?.value.trim()||'';
+  p.ops.push({id:uid(),type:'out',date,amt:-Math.abs(amt),fund:document.getElementById('outFund').value,note:document.getElementById('outNote').value.trim(),src:oSrc,art:oArt||undefined,cp:oCp||undefined});
   toast(oSrc?'Возврат финансирования списан из фонда ✓':'Расход списан из фонда ✓');render()}
 function moveFund(){const p=P();
   const from=document.getElementById('mvFrom').value,to=document.getElementById('mvTo').value;
