@@ -7329,8 +7329,10 @@ function buildChartBuckets(period, points) {
     for (let i = points - 1; i >= 0; i--) {
       const ws = new Date(anchor); ws.setUTCDate(anchor.getUTCDate() - i * 7);
       const we = new Date(ws); we.setUTCDate(ws.getUTCDate() + 7);
-      const wsAlm = new Date(ws.getTime() + 5 * 3600 * 1000); // подпись — дата по Алматы
-      const label = String(wsAlm.getUTCDate()).padStart(2, '0') + '.' + String(wsAlm.getUTCMonth() + 1).padStart(2, '0');
+      // Подпись — дата ОКОНЧАНИЯ недели (чт 14:00 Алматы). Так «16.07» = неделя,
+      // завершившаяся 16.07 (завершена, в линии), а текущая = «23.07» (точка).
+      const weAlm = new Date(we.getTime() + 5 * 3600 * 1000);
+      const label = String(weAlm.getUTCDate()).padStart(2, '0') + '.' + String(weAlm.getUTCMonth() + 1).padStart(2, '0');
       buckets.push({ key: ws.toISOString(), start: ws.toISOString().slice(0, 10), startMs: ws.getTime(), endMs: we.getTime(), label, partial: i === 0 });
     }
   } else if (period === 'month') {
