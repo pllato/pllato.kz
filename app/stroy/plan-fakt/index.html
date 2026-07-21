@@ -1625,7 +1625,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v369';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v370';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v368';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2471,7 +2471,7 @@ function lkCheckHtml(pg){const st=lkSum(pg.rows);const proj=pg.potreb||{};
     +(fromTbl.length?` <span class="lk-rep-lbl">— ${fromTbl.length===Object.keys(pc).length?'из':'частично из'} таблицы «Потребность в трубах» листа</span>`:'');
   const empty=pg.rows.filter(r=>!r.group||r.group==='—').length;
   const projTxt=Object.keys(proj).length?`Печатная сводка на схеме (черновая): ${Object.keys(proj).sort().map(k=>esc(k)+'='+proj[k]).join(', ')}. `:'';
-  return `<div class="lk-check report"><div class="lk-check-h">📋 Отчёт по листу ${pg.page}<span class="lk-check-sub">${pg.rows.length} линий · ${Math.round(st.t)} м всего</span>${pg.vru?`<span class="lk-chip small" title="Источник питания листа (из текста схемы)">⚡ ${esc(pg.vru)}</span>`:''}<button class="lk-copybtn" id="lkCopySheet" title="Скопировать строки листа для Excel (Ctrl+V)">⧉ Скопировать лист</button></div>`
+  return `<div class="lk-check report"><div class="lk-check-h">📋 Отчёт по листу ${pg.page}<span class="lk-check-sub">${pg.rows.length} линий · ${Math.round(st.t)} м всего</span><span class="lk-chip small" title="Источник питания листа (общий для всех строк листа) — можно поправить">⚡ <input id="lkVruEdit" value="${esc(pg.vru||'')}" placeholder="ВРУ-?" style="width:86px;border:none;background:transparent;font:inherit;color:inherit;outline:none;border-bottom:1px dashed var(--steel2)"></span><button class="lk-copybtn" id="lkCopySheet" title="Скопировать строки листа для Excel (Ctrl+V)">⧉ Скопировать лист</button></div>`
     +`<div class="lk-rep-sec">${secChips}</div>`
     +(condChips?`<div class="lk-rep-sec cond-row"><span class="lk-rep-lbl">Трубы:</span> ${condChips}</div>`:`<div class="lk-rep-sec cond-row"><span class="lk-rep-lbl">Трубы:</span> <span class="lk-chip small cond">не распознаны</span></div>`)
     +`<div class="lk-rep-note"><b>Как понять, всё ли прочитано:</b> сверь эти суммы с таблицей <b>«Потребность кабелей»</b> на схеме выше. Сходится по всем сечениям — лист прочитан полностью; где у сечения меньше — часть не распозналась, добавь строку кнопкой ниже. ${projTxt}${empty?`<br><b>${empty}</b> строк без потребителя (в этом формате имени нет в тексте — впиши вручную при необходимости).`:''}</div></div>`;}
@@ -2523,8 +2523,8 @@ function lkCondsHtml(r){return (r.conds||[]).map((c,i)=>{const co=LK_CONDS.conca
 function lkRow(r,noConds,idx,src){const opts=(r.section?[]:['']).concat(LK_SECTIONS).concat(r.section&&LK_SECTIONS.indexOf(r.section)<0?[r.section]:[]);
   const condsTxt=(r.conds||[]).map(c=>c.t+' '+c.len+'м').join(', ');
   return `<div class="lg-row${r.needsCheck?' warn':''}" data-id="${r._id}">`
-    +(idx?`<div class="lg-cell" style="min-width:34px"><label>№${r.block?' · бл.':''}</label><b style="font-size:12px;color:var(--steel)">${idx}${r.block?' · Б'+r.block:''}</b></div>`:'')
-    +(src?`<div class="lg-cell"><label>Источник</label><span class="lk-pipe-cab">${esc(src)}</span></div>`:'')
+    +(idx?`<div class="lg-cell" style="min-width:56px"><label>№ · бл.</label><span style="display:flex;align-items:center;gap:4px"><b style="font-size:12px;color:var(--steel)">${idx}</b><input class="lk-blk" data-id="${r._id}" value="${esc(r.block||'')}" maxlength="1" style="width:24px;text-align:center" title="№ блока (пятна) строки — можно поправить; пусто = весь проект" placeholder="–"></span></div>`:'')
+    +(src?`<div class="lg-cell"><label>Источник</label><span class="lk-pipe-cab" title="Источник листа — правится в шапке отчёта листа (⚡)">${esc(src)}</span></div>`:'')
     +`<div class="lg-cell"><label>Потребитель</label><input class="lk-g" data-id="${r._id}" value="${esc(r.group||'')}" style="width:96px"></div>`
     +`<div class="lg-cell"><label>Марка (кабель)</label><input class="lk-m" data-id="${r._id}" value="${esc(r.mark||'')}" style="width:132px" placeholder="—"></div>`
     +`<div class="lg-cell"><label>Сечение</label><select class="lk-s" data-id="${r._id}">${opts.map(s=>`<option ${s===r.section?'selected':''}>${esc(s)}</option>`).join('')}</select></div>`
@@ -2545,6 +2545,14 @@ function lkPipeRow(r,idx){
     +`</div>`;
 }
 function lkDelRow(id){LK.pages.forEach(pg=>{pg.rows=pg.rows.filter(r=>r._id!==id);pg.groups.forEach(g=>g.rows=g.rows.filter(r=>r._id!==id));});delete LK.byId[id];}
+/* пересборка групп листа после ручной правки № блока строки (порядок строк сохраняется) */
+function lkRegroup(pg){
+  const flat=[];pg.groups.forEach(g=>g.rows.forEach(r=>flat.push(r)));
+  if(!flat.some(r=>r.block))return;   // блоков на листе нет — прежняя группировка (по щитам) остаётся
+  const order=[],by={};
+  flat.forEach(r=>{const k=r.block||'';if(!(k in by)){by[k]=[];order.push(k);}by[k].push(r);});
+  pg.groups=order.map(k=>({name:k?'Блок '+k:'Весь проект',rows:by[k]}));
+}
 function bindLineyka(){const P=$('lkPage');
   P.querySelectorAll('.lk-s').forEach(el=>el.onchange=()=>{LK.byId[el.dataset.id].section=el.value;renderLineyka();});
   P.querySelectorAll('.lk-l').forEach(el=>el.onchange=()=>{const r=LK.byId[el.dataset.id];r.len=Math.max(0,parseFloat(el.value)||0);r.needsCheck=false;renderLineyka();});
@@ -2556,6 +2564,10 @@ function bindLineyka(){const P=$('lkPage');
   P.querySelectorAll('.lk-cx').forEach(el=>el.onclick=()=>{const r=LK.byId[el.dataset.id];if(r&&r.conds){r.conds.splice(+el.dataset.i,1);renderLineyka();}});
   P.querySelectorAll('.lk-cadd').forEach(el=>el.onclick=()=>{const r=LK.byId[el.dataset.id];if(r){(r.conds=r.conds||[]).push({t:'п.г.25',len:0});renderLineyka();}});
   const cs=$('lkCopySheet');if(cs)cs.onclick=()=>{const pg=LK.pages[LK.sel];lkCopyTsv(lkSheetRows(pg),'Лист '+pg.page);};
+  // правка источника листа (⚡ в шапке) и № блока строки — с пересборкой групп
+  const ve=$('lkVruEdit');if(ve)ve.onchange=()=>{LK.pages[LK.sel].vru=ve.value.trim();renderLineyka();};
+  P.querySelectorAll('.lk-blk').forEach(el=>el.onchange=()=>{const r=LK.byId[el.dataset.id];if(!r)return;
+    r.block=el.value.trim().replace(/[^1-9]/g,'');lkRegroup(LK.pages[LK.sel]);renderLineyka();});
   // открыть исходный PDF на текущем листе — нативный просмотрщик, текст выделяется как в PDF.
   // Окно открываем СИНХРОННО в жесте клика: после await (IndexedDB) Chrome блокирует попап
   const op=$('lkOpenPdf');if(op)op.onclick=()=>{
