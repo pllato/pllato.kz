@@ -1627,8 +1627,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v373';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v373';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v374';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v374';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2082,14 +2082,46 @@ async function lkRenderPage(page){
   try{await task.promise;}finally{clearTimeout(to);}
   return c.toDataURL('image/png');
 }
-/* ВРУ (вводно-распред. устройство), от которого запитан щит листа: «НЩО-4 от ВРУ-3».
-   Сперва ловим ПОЛНОЕ имя с блоком в скобках — «ВРУ-Ар(1)» (2717): цифра в скобках = № блока */
+/* Источник листа. Приоритет — имя из ШТАМПА («…однолинейная схема ЩО-2(1).» → ЩО-2(1)):
+   так источник есть и у щитовых листов, не только у ВРУ. Дальше — прежние правила ВРУ */
 function lkDetectVru(items){
+  // и по склейке всего текста: в штампе «…схема» и имя бывают РАЗНЫМИ элементами (2717 л.12)
+  const tj=items.map(i=>i.str||'').join(' ');
+  const re=/схема\s+([А-ЯЁA-Z][А-ЯЁа-яёA-Za-z0-9.,()\/…-]{1,18})/g;let m;
+  while((m=re.exec(tj)))if(/\d/.test(m[1]))return m[1].replace(/[.,]+$/,'');   // имя с цифрой («управления» — не имя)
   // строго: дефис перед именной частью и ЗАКРЫТАЯ скобка — битые обрезки «ВРУА(1» (2435) не имя
   for(const it of items){const f=(it.str||'').match(/ВРУ(?:\s*[-–]\s*[А-Яа-яЁёA-Za-z0-9.]{1,8})?\(\s*\d+\s*\)/);
     if(f)return f[0].replace(/\s+/g,'');}
   for(const it of items){const m=(it.str||'').match(/ВРУ\s*-?\s*(\d+[\.\d]*)/i);if(m)return 'ВРУ-'+m[1];}
   return '';}
+/* потребители из авторской таблицы листа: полоса «Маркировка группы» (метки колонок — «№1.1»,
+   «ЩК-п.1») и полоса «Наименование потребителя» (подписи, часто вертикальные). Заполняем только
+   ПЛОХИЕ группы: пустые, маркоподобный мусор или фоллбек именем щита (2717 л.9–17) */
+function lkTableNames(items,rows,shields){
+  const It=items.map(it=>{const s=(it.str||'').trim();return {s,x:it.transform[4],y:it.transform[5],rot:Math.abs(it.transform[1])>Math.abs(it.transform[0])?'V':'H'}}).filter(o=>o.s);
+  const mh=It.find(o=>/^Маркировка\s+груп/i.test(o.s));
+  const nh=It.find(o=>/^Наименовани/i.test(o.s));
+  if(!mh&&!nh)return;
+  const labels=mh?It.filter(o=>o!==mh&&Math.abs(o.y-mh.y)<12&&o.x>mh.x+40&&o.s.length<=16&&!/^[\d.,]+$/.test(o.s)).map(o=>({x:o.x,t:o.s})):[];
+  const rawNames=nh?It.filter(o=>{if(o.x<=nh.x+40)return false;if(LK_MARK.test(o.s))return false;
+      if(!/[а-яё]{4}/i.test(o.s.replace(/\s/g,'')))return false;if(o.s.length<4)return false;
+      return o.rot==='V'?(o.y>nh.y-70&&o.y<nh.y+20):Math.abs(o.y-nh.y)<40;}).sort((a,b)=>a.x-b.x):[];
+  // многострочная подпись = кластер строк по X (Δx<16): склеиваем в один текст («Освещение.
+  // Вестибюль» + «на отм. 0.000» — одна подпись, 2717 л.9)
+  const names=[];{let cl=null,px=null;
+    rawNames.forEach(o=>{if(cl&&o.x-px>16){names.push(cl);cl=null;}
+      if(!cl)cl={x:o.x,t:o.s};else cl.t+=' '+o.s;px=o.x;});
+    if(cl)names.push(cl);}
+  if(!labels.length&&!names.length)return;
+  const shieldSet=new Set((shields||[]).map(s=>s.name));
+  const bad=g=>!g||g==='—'||LK_MARK.test(g)||shieldSet.has(g);
+  rows.forEach(r=>{if(!bad(r.group))return;
+    const near=(arr,d)=>{let b=null,bd=d;arr.forEach(c=>{const dd=Math.abs((r.x||0)-c.x);if(dd<bd){bd=dd;b=c;}});return b;};
+    const lb=near(labels,28),nm=near(names,44);
+    if(lb&&nm)r.group=lb.t+' · '+nm.t;
+    else if(nm)r.group=nm.t;
+    else if(lb)r.group=lb.t;});
+}
 /* множитель ниток (2х/3х): каждая нитка — отдельная линия. Кабель ×N; трубу оставляем один раз
    (пользователь просил умножать кол-во кабеля), поэтому conds только у первой нитки. */
 function lkExpandMult(rows){const out=[];rows.forEach(r=>{const n=Math.max(1,r.mult||1);for(let i=0;i<n;i++)out.push(Object.assign({},r,{mult:1,conds:i===0?(r.conds||[]).map(c=>Object.assign({},c)):[]}));});return out;}
@@ -2154,6 +2186,8 @@ async function lkExtract(data,onProgress){
     const groups=lkGroupByShield(rows,shields);
     // если своей «группы» в тексте нет (питание щита ЩК-x.x) — подставим имя линейки/щита как группу
     groups.forEach(gr=>{if(gr.name&&gr.name!=='Линейка')gr.rows.forEach(r=>{if(!r.group||r.group==='—')r.group=gr.name;});});
+    // потребители из авторской таблицы листа (перекрывают мусор и щит-фоллбек — 2717 л.9–17)
+    lkTableNames(tc.items,rows,shields);
     const v0=page.getViewport({scale:1});
     // нормализованные экранные координаты точки С УЧЁТОМ поворота страницы (page.rotate 90/270)
     rows.forEach(r=>{if(r.x&&r.y){const q=v0.convertToViewportPoint(r.x,r.y);r.mx=q[0]/v0.width;r.my=q[1]/v0.height;}});
