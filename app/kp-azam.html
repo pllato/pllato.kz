@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>КП · AZAM — CRM/ERP для завода элеваторного оборудования · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#161d2b;--ink2:#33405a;--gold:#c8912f;--goldD:#a5761f;--goldL:#f7efdd;--cy:#1f5f9e;--text:#232c3c;--muted:#697588;--faint:#9aa5b5;--line:#e6e9f0;--off:#f6f8fb;--grn:#1c8a63;--grnL:#e5f2ec;--red:#cf4433;--redL:#fbe9e6;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55;background:#eceef2}
+.page{width:210mm;min-height:297mm;position:relative;padding:15mm 16mm 17mm;margin:0 auto 8mm;background:#fff;display:flex;flex-direction:column}
+.runfoot{position:absolute;left:16mm;right:16mm;bottom:9mm;display:flex;justify-content:space-between;font-size:8px;color:var(--faint);border-top:1px solid var(--line);padding-top:6px}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .bm{width:42px;height:42px;background:linear-gradient(145deg,#1a2233,#0e1626);border-radius:10px;display:grid;place-items:center;flex:none}
+.brand .bt{font-size:22px;font-weight:900;letter-spacing:.13em;color:var(--ink)}
+.brand .bt b{color:var(--gold)}
+.brand .bs{font-size:8.5px;color:var(--muted);letter-spacing:.02em;margin-top:2px}
+.hr{text-align:right}
+.hr .t{font-size:13px;font-weight:800;color:var(--ink)}
+.hr .dt{font-size:9.5px;color:var(--muted);margin-top:2px}
+.hr .st{font-size:8.5px;color:var(--faint);margin-top:1px}
+.rule{height:2px;background:linear-gradient(90deg,var(--gold),var(--ink));margin-bottom:14px}
+.badge{display:inline-block;background:var(--goldL);color:var(--goldD);font-size:8.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:20px;margin-bottom:9px}
+h1{font-size:20px;font-weight:900;letter-spacing:-.01em;line-height:1.15;margin-bottom:8px;color:var(--ink)}
+.lead{font-size:11px;color:var(--ink2);margin-bottom:14px;line-height:1.6}
+.lead b{color:var(--ink)}
+.sec{font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--gold);margin:16px 0 9px;display:flex;align-items:center;gap:9px}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.sec.first{margin-top:2px}
+/* pain table */
+table.pain{width:100%;border-collapse:collapse;margin-bottom:4px}
+table.pain td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:9.8px;vertical-align:top;width:50%}
+table.pain tr:nth-child(even) td{background:var(--off)}
+table.pain .was{color:var(--muted)}
+table.pain .was::before{content:"Сейчас · ";font-weight:700;color:var(--red)}
+table.pain .now b{color:var(--ink)}
+table.pain .now::before{content:"В системе · ";font-weight:700;color:var(--grn)}
+/* modules */
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mod{border:1px solid var(--line);border-radius:9px;padding:10px 12px;break-inside:avoid}
+.mod .mt{font-weight:800;font-size:11px;color:var(--ink);margin-bottom:3px;display:flex;align-items:center;gap:7px}
+.mod .mt .n{width:19px;height:19px;border-radius:6px;background:var(--ink);color:#fff;font-size:9.5px;display:grid;place-items:center;flex:none;font-weight:700}
+.mod.key .mt .n{background:var(--gold)}
+.mod .md{font-size:9.5px;color:var(--ink2);line-height:1.5}
+.mod .md b{color:var(--ink)}
+.callout{background:var(--goldL);border:1px solid #ecd9a8;border-radius:9px;padding:10px 13px;font-size:9.8px;color:#6b4e18;line-height:1.55;margin-bottom:8px}
+.callout b{color:#4d380f}
+/* price */
+.pricewrap{display:grid;grid-template-columns:1.15fr 1fr;gap:12px;margin-bottom:6px}
+.pricebox{border:1px solid var(--line);border-radius:11px;padding:14px 15px;background:linear-gradient(160deg,#fff,var(--off))}
+.pricebox .lbl{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.pricebox .big{font-size:30px;font-weight:900;color:var(--ink);letter-spacing:-.02em;margin:3px 0}
+.pricebox .big b{color:var(--gold)}
+.pricebox .note{font-size:9.3px;color:var(--muted);line-height:1.5}
+.steps{border:1px solid var(--line);border-radius:11px;overflow:hidden}
+.steps .st{display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid var(--line)}
+.steps .st:last-child{border-bottom:none}
+.steps .st.tot{background:var(--goldL)}
+.steps .sn{font-size:9.8px;color:var(--ink2)}
+.steps .sn b{color:var(--ink)}
+.steps .sv{margin-left:auto;font-weight:800;font-size:11px;color:var(--ink);white-space:nowrap}
+.steps .st.tot .sv{color:var(--goldD)}
+/* terms */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.term{border:1px solid var(--line);border-radius:9px;padding:9px 12px}
+.term .h{font-weight:800;font-size:10px;color:var(--ink);margin-bottom:2px}
+.term .b{font-size:9.3px;color:var(--ink2);line-height:1.5}
+table.req{width:100%;border-collapse:collapse;margin-top:4px}
+table.req td{padding:6px 9px;font-size:9.5px;border-bottom:1px solid var(--line)}
+table.req td.k{width:20%;color:var(--muted)}
+table.req tr:nth-child(even){background:var(--off)}
+.cta{background:var(--ink);color:#fff;border-radius:11px;padding:12px 15px;display:flex;align-items:center;gap:14px;margin-top:10px}
+.cta .x{flex:1;font-size:10px;line-height:1.55}
+.cta .x b{color:var(--gold)}
+.cta .amt{text-align:right}
+.cta .amt .v{font-size:20px;font-weight:900;color:var(--gold)}
+.cta .amt .s{font-size:8.5px;color:#aeb8c8}
+.signs{display:flex;gap:40px;margin-top:14px}
+.signs .s{flex:1}
+.signs .sl{font-size:9px;color:var(--muted);margin-bottom:12px}
+.signs .snm{font-weight:700;font-size:10.5px;margin-bottom:12px}
+.signs .ln{font-size:10px;color:#3a4453}
+.signs .ln u{display:inline-block;width:80px;border-bottom:1px solid #b9c0ca}
+</style></head>
+<body>
+
+<!-- страница 1 -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg width="26" height="26" viewBox="0 0 32 32"><path d="M16 4 C13 8 13 12 16 16 C19 12 19 8 16 4 Z M16 13 C13 17 13 21 16 25 C19 21 19 17 16 13 Z" fill="#e8b04b"/><path d="M16 22 C13 25 13 28 16 30 C19 28 19 25 16 22 Z" fill="#c8912f"/></svg></div>
+      <div><div class="bt"><b>AZAM</b> · Пульт завода</div><div class="bs">CRM/ERP для завода элеваторного оборудования · Pllato</div></div>
+    </div>
+    <div class="hr"><div class="t">КП № AZ-2026-01</div><div class="dt">21 июля 2026 г.</div><div class="st">коммерческое предложение</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <span class="badge">Своя система · на вашем сервере · в собственность</span>
+  <h1>Единая система завода AZAM — от клиента до отгрузки, под полным контролем</h1>
+  <div class="lead">Коммерческое предложение для <b>ТОО «AZAM»</b> (завод элеваторного оборудования: очистка, сушилки, нории, транспортёры, силосы — полный цикл, 100% собственное производство). Уходим от Excel и тетрадей к единому «пульту завода», где весь бизнес движется одной сущностью — <b>сделкой</b>. Северная звезда системы — <b>надлежащее и своевременное исполнение договора</b>: оплата, закуп, производство, отгрузка. Основа — схема-алгоритм Заказчика и демо AZAM, собранное по встрече.</div>
+
+  <div class="sec first">Что болит сейчас → что даёт AZAM</div>
+  <table class="pain">
+    <tr><td class="was">Всё в Excel и тетрадях, «ручное управление». Продажи, бухгалтерия и производство живут отдельно.</td><td class="now"><b>Единый пульт.</b> Все отделы — в одной системе, связанной сделкой: от клиента до склада готовой продукции.</td></tr>
+    <tr><td class="was">Забыли выставить счёт / «зависло» в бухгалтерии — по мелкому заказу потом доказывали и попадали на штрафы.</td><td class="now"><b>Контроль «к выставлению»</b> и календарь платежей: подписанный без счёта договор краснеет, транши на контроле.</td></tr>
+    <tr><td class="was">Деньги пришли в бухгалтерию — а производство не знает, что можно стартовать.</td><td class="now"><b>Оплата → авто-старт производства.</b> Отметил оплату — ПДО и цеха сразу видят заказ.</td></tr>
+    <tr><td class="was">Пересортица, недогруз, «где-то забыли отгрузить» — бригада на объекте простаивает.</td><td class="now"><b>Контроль комплектности.</b> Силос = 5 машин (стойки, гофролист, метизы…) — недогруз подсвечивается.</td></tr>
+    <tr><td class="was">Много комплектующих; надо вовремя закупить, принять и отгрузить.</td><td class="now"><b>Оборотный склад + план закупа</b>, приём по декларации (свободный склад), списание в производство.</td></tr>
+    <tr><td class="was">Что выезжает с завода — не всегда зафиксировано.</td><td class="now"><b>КПП / охрана</b> регистрирует каждый выезд по накладной — вывезти «мимо» нельзя.</td></tr>
+  </table>
+
+  <div class="sec">Что входит в разработку</div>
+  <div class="mods">
+    <div class="mod key"><div class="mt"><span class="n">1</span>Сделка — единая сущность</div><div class="md">Одна карточка ведёт клиента через все этапы: продажи → договор → деньги → производство → отгрузка. Центр общения и всей информации.</div></div>
+    <div class="mod key"><div class="mt"><span class="n">2</span>Воронка продаж + конструктор заказа</div><div class="md">Канбан: квалификация → ЛПР → КП → аванс → производство → отгрузка → расчёт. Внутри — <b>конструктор</b> инженерного решения (сушилка, силос, нории…).</div></div>
+    <div class="mod key"><div class="mt"><span class="n">3</span>Авто-КП и авто-договор</div><div class="md">КП формируется из состава заказа; договор собирается <b>автоматически</b> из плана платежей — юрист/оператор только проверяет.</div></div>
+    <div class="mod key"><div class="mt"><span class="n">4</span>Бухгалтерия · платежи и дебиторка</div><div class="md">Календарь платежей по каждому контракту (аванс/транши/пуско-наладка), остаток долга, контроль «к выставлению».</div></div>
+    <div class="mod key"><div class="mt"><span class="n">5</span>Производство · ПДО</div><div class="md">План производства, задания по <b>4 цехам</b> (очистка, сушилки, транспорт, силосы), готовность каждого, ОТК готовой продукции.</div></div>
+    <div class="mod key"><div class="mt"><span class="n">6</span>Закуп и оборотный склад</div><div class="md">План закупа → заявки поставщикам (металл, горелки, редукторы) → приём по декларации → остатки → списание. Нехватка сырья краснеет.</div></div>
+    <div class="mod key"><div class="mt"><span class="n">7</span>Склад готовой + отгрузка</div><div class="md">Готовая продукция с ОТК, отгрузка частями, <b>контроль комплектности</b>, накладные. Недогруз и пересортица видны сразу.</div></div>
+    <div class="mod"><div class="mt"><span class="n">8</span>КПП · пропускной пункт</div><div class="md">Журнал выезда: что, по какому контракту, какая машина (транспортная / свой гараж), отметка охраны. Отдельный доступ.</div></div>
+    <div class="mod"><div class="mt"><span class="n">9</span>Роли и кабинеты</div><div class="md">Гендиректор, оператор/юрист, продажи, бухгалтерия, ПДО, закуп, склад, КПП — каждый видит только своё, финансы скрыты от цехов.</div></div>
+    <div class="mod"><div class="mt"><span class="n">10</span>Дашборд директора + 1С</div><div class="md">Портфель контрактов, дебиторка, кассовые разрывы, загрузка цехов, отгрузки — на одном экране. Синхронизация с 1С (счета, оплаты, остатки).</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП AZ-2026-01 · AZAM для ТОО «AZAM»</span><span>1 / 2</span></div>
+</section>
+
+<!-- страница 2 -->
+<section class="page">
+  <div class="sec first">В пакете — без отдельной оплаты</div>
+  <div class="callout"><b>Синхронизация с 1С</b> (счета, оплаты, остатки склада — без ручного дублирования), <b>конструктор-калькулятор заказа</b> и <b>настройка сервера</b> — включены в стандартный пакет. Система размещается на вашем сервере и передаётся в собственность: исходники и доступы — ваши, дальнейших платежей за пользование нет (только хостинг).</div>
+
+  <div class="sec">Стоимость и порядок оплаты</div>
+  <div class="pricewrap">
+    <div class="pricebox">
+      <div class="lbl">Разработка «под ключ», разово</div>
+      <div class="big"><b>2 500 000 ₸</b></div>
+      <div class="note">Полная передача системы вам, на ваш сервер, в собственность. Без НДС. Без ежемесячной платы за пользование — только хостинг (бесплатный вариант или ≈10 000 ₸/мес).</div>
+    </div>
+    <div class="steps">
+      <div class="st"><div class="sn"><b>Предоплата · старт</b><br><span style="color:var(--muted)">поднимаем систему, переносим данные</span></div><div class="sv">500 000 ₸</div></div>
+      <div class="st"><div class="sn"><b>Этап 1 · сборка</b><br><span style="color:var(--muted)">основной функционал, равная доля при сдаче этапа</span></div><div class="sv">1 000 000 ₸</div></div>
+      <div class="st"><div class="sn"><b>Этап 2 · финальная сдача</b><br><span style="color:var(--muted)">запуск и передача, равная доля</span></div><div class="sv">1 000 000 ₸</div></div>
+      <div class="st tot"><div class="sn"><b>Итого</b></div><div class="sv">2 500 000 ₸</div></div>
+    </div>
+  </div>
+
+  <div class="sec">Сроки</div>
+  <div class="steps" style="margin-bottom:2px">
+    <div class="st"><div class="sn"><b>После предоплаты</b> — поднимаем систему, переносим таблицы Заказчика, настраиваем 1С и сервер.</div><div class="sv">старт</div></div>
+    <div class="st"><div class="sn"><b>≈2 недели</b> — согласование функционала: проходим по каждому блоку схемы, фиксируем этапы воронок, статьи, справочники.</div><div class="sv">этап 1</div></div>
+    <div class="st"><div class="sn"><b>4–6 недель</b> — сборка и поэтапная сдача, правки по ходу (≈10% объёма заложено). Запуск к сезону.</div><div class="sv">этап 2</div></div>
+  </div>
+
+  <div class="sec">Условия</div>
+  <div class="two">
+    <div class="term"><div class="h">Полное владение</div><div class="b">Система разрабатывается под вас, размещается на вашем сервере и передаётся насовсем. Исходники и доступы — ваши.</div></div>
+    <div class="term"><div class="h">Сервер</div><div class="b">Работает в браузере и с телефона. Настроим бесплатный вариант или ≈10 000 ₸/мес. Мобильный доступ на производстве.</div></div>
+    <div class="term"><div class="h">Сопровождение</div><div class="b">Ошибки по нашей вине — правим бесплатно. Система работает, пока вы её не меняете.</div></div>
+    <div class="term"><div class="h">Доработки после сдачи</div><div class="b">Новые пожелания — по часам (≈$20/час). ≈10% объёма правок заложено в проект бесплатно.</div></div>
+  </div>
+
+  <div class="sec">Стороны</div>
+  <table class="req">
+    <tr><td class="k">Исполнитель</td><td>ИП «STUDYSTORIES.APP», БИН 880607300110, директор Цай Платон · pllato.kz · uurraa@gmail.com</td></tr>
+    <tr><td class="k">Заказчик</td><td>ТОО «AZAM», директор Мусин Аязбек · Акмолинская обл., Астраханский р-н, с. Жалтырь · <span style="color:var(--muted)">реквизиты уточняются</span></td></tr>
+  </table>
+
+  <div class="cta">
+    <div class="x">Чтобы начать — согласуем КП и вносите <b>предоплату 500 000 ₸</b> (счёт № AZ-С-2026-01). Первый шаг — демо AZAM и согласование блоков по вашей схеме, затем сборка к сезону.</div>
+    <div class="amt"><div class="v">500 000 ₸</div><div class="s">старт · этап 1 из 3</div></div>
+  </div>
+
+  <div class="signs">
+    <div class="s"><div class="sl">Исполнитель</div><div class="snm">ИП «STUDYSTORIES.APP»</div><div class="ln"><u></u> / Цай П. / М.П.</div></div>
+    <div class="s"><div class="sl">Заказчик</div><div class="snm">ТОО «AZAM»</div><div class="ln"><u></u> / Мусин А. / М.П.</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП AZ-2026-01 · ИП «STUDYSTORIES.APP» · pllato.kz</span><span>2 / 2</span></div>
+</section>
+</body></html>
