@@ -552,6 +552,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
         </div>
       </div>
       <div class="lk-iss-actions">
+        <button class="lk-tb dark" id="lkIssLog" title="Единый журнал правок по всем файлам: кто прислал, что сделано и в какой сборке">📒 Журнал</button>
         <button class="lk-tb dark" id="lkIssCopy">⧉ Скопировать</button>
         <button class="lk-tb dark" id="lkIssShots" title="Скачать PNG-вырезки помеченных областей — приложи их к сообщению вместе с PDF">⤓ Вырезки PNG</button>
         <button class="lk-tb dark" id="lkIssReparse" title="Разобрать PDF заново текущим парсером — для проверки исправлений. Ручные правки строк будут заменены свежим разбором, пометки останутся.">⟳ Перечитать файл</button>
@@ -1624,7 +1625,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v368';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v369';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v368';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2378,6 +2379,15 @@ function lkIssRender(){
   box.querySelectorAll('[data-del]').forEach(b=>b.onclick=e=>{e.stopPropagation();LK.issues.splice(+b.dataset.del,1);lkIssBadge();lkIssRender();lkPersist();});
 }
 $('lkIssues').onclick=()=>{if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}lkIssRender();$('lkIssModal').style.display='flex';};
+/* единый журнал правок (fixlog.json в репо — один на всех, пополняется с каждой сборкой) */
+$('lkIssLog').onclick=async()=>{const box=$('lkIssList');if(!box)return;
+  try{
+    const r=await fetch('fixlog.json?'+LK_VER);const j=await r.json();
+    const st=s=>s==='done'?'✅ сделано':(s==='progress'?'🔄 в работе':'⏳ в очереди');
+    box.innerHTML=`<div class="lk-iss-empty" style="text-align:left"><b>📒 Единый журнал правок</b> — все файлы и люди, обновляется с каждой сборкой (сейчас ${esc(LK_VER)}, журнал от ${esc(j.updated)}) · <a href="#" id="lkIssBack">← к пометкам файла</a></div>`
+      +j.items.map(it=>`<div class="lk-iss ${it.status==='done'?'done':''}"><span class="pg">#${it.id} · ${esc(it.ver||'—')}</span><span class="tx"><b>${esc(it.file||'все файлы')}${it.sheet?' · л.'+it.sheet:''}</b> — ${esc(it.ask)}<br><span style="opacity:.72">${esc(it.date)} · прислал: ${esc(it.from)} · ${st(it.status)}${it.pr?' · PR #'+it.pr:''}</span></span></div>`).join('');
+    const bk=$('lkIssBack');if(bk)bk.onclick=e=>{e.preventDefault();lkIssRender();};
+  }catch(e){toast('Журнал не загрузился — обнови страницу');}};
 $('lkIssClose').onclick=()=>$('lkIssModal').style.display='none';
 $('lkIssModal').onclick=e=>{if(e.target===$('lkIssModal'))$('lkIssModal').style.display='none';};
 $('lkIssAdd').onclick=()=>{const t=($('lkIssText').value||'').trim();if(!t){toast('Опиши, что исправить');return;}
