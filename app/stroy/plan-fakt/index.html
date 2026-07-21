@@ -335,7 +335,9 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-text{position:absolute;inset:0;}
 .lk-text span{position:absolute;color:transparent;white-space:pre;cursor:text;transform-origin:0 0;line-height:1;user-select:text;font-family:sans-serif;}
 .lk-text span::selection{background:rgba(46,110,255,.4);}
-.lk-mk{position:absolute;width:14px;height:14px;border-radius:50%;background:rgba(47,125,79,.55);border:2px solid #fff;box-shadow:0 0 0 1px rgba(47,125,79,.9);pointer-events:auto;cursor:pointer;transition:background .1s,box-shadow .1s;transform:translate(-50%,-50%) scale(var(--mks,1));transform-origin:center;}
+.lk-mk{position:absolute;width:14px;height:14px;border-radius:50%;background:rgba(47,125,79,.55);border:2px solid #fff;box-shadow:0 0 0 1px rgba(47,125,79,.9);pointer-events:auto;cursor:pointer;transition:background .1s,box-shadow .1s;transform:translate(-50%,-50%) scale(var(--mks,1));transform-origin:center;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;text-shadow:0 0 2px rgba(0,0,0,.6);line-height:1;}
+.lk-seq{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+.lk-seq path{fill:none;stroke:rgba(37,99,235,.5);stroke-width:1.4px;stroke-dasharray:6 4;vector-effect:non-scaling-stroke;stroke-linejoin:round;}
 .lk-mk:hover,.lk-mk.hl{background:var(--amber);box-shadow:0 0 0 2px #fff,0 0 0 5px rgba(217,131,36,.5);transform:translate(-50%,-50%) scale(calc(var(--mks,1)*1.6));z-index:3;}
 .lk-mk.flash{animation:lkFlash 1.6s ease;z-index:3;}
 @keyframes lkFlash{0%,100%{box-shadow:0 0 0 1px rgba(47,125,79,.9);}20%,60%{box-shadow:0 0 0 12px rgba(217,131,36,.6);}40%,80%{box-shadow:0 0 0 4px rgba(217,131,36,.95);}}
@@ -1625,7 +1627,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v371';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v372';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v371';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2219,8 +2221,18 @@ function lkMarkersHtml(pg){
   // рамки открытых пометок-«правок» с областью на этом листе
   const issR=((LK&&LK.issues)||[]).filter(i=>!i.done&&i.page===pg.page&&i.rect).map((i,k)=>
     `<span class="lk-iss-rect" style="left:${(i.rect.x0*100).toFixed(2)}%;top:${(i.rect.y0*100).toFixed(2)}%;width:${((i.rect.x1-i.rect.x0)*100).toFixed(2)}%;height:${((i.rect.y1-i.rect.y0)*100).toFixed(2)}%"><b>⚑ ${esc(i.text.slice(0,28))}</b></span>`).join('');
-  return issR+pg.rows.filter(r=>r.mx!=null&&r.my!=null).map(r=>{const l=Math.max(0,Math.min(100,r.mx*100)),t=Math.max(0,Math.min(100,r.my*100));
-    return `<span class="lk-mk${r.needsCheck?' warn':''}" data-id="${r._id}" title="${esc((r.group||'')+' '+r.section+' '+r.len+'м'+(r.needsCheck?' — ПРОВЕРИТЬ длину вручную':''))}" style="left:${l.toFixed(2)}%;top:${t.toFixed(2)}%"></span>`;}).join('');
+  // № строки в точке — в том же порядке, что список справа и Excel-выгрузка
+  const num={};{let n=0;pg.groups.forEach(g=>g.rows.forEach(r=>{n++;num[r._id]=n;}));}
+  return lkSeqSvg(pg)+issR+pg.rows.filter(r=>r.mx!=null&&r.my!=null).map(r=>{const l=Math.max(0,Math.min(100,r.mx*100)),t=Math.max(0,Math.min(100,r.my*100));
+    return `<span class="lk-mk${r.needsCheck?' warn':''}" data-id="${r._id}" title="${esc('№'+(num[r._id]||'')+' · '+(r.group||'')+' '+r.section+' '+r.len+'м'+(r.needsCheck?' — ПРОВЕРИТЬ длину вручную':''))}" style="left:${l.toFixed(2)}%;top:${t.toFixed(2)}%">${num[r._id]||''}</span>`;}).join('');
+}
+/* линия последовательности: соединяет точки строк в порядке списка — видно, как идёт обход схемы */
+function lkSeqSvg(pg){
+  if(LK.seqLine===false)return '';
+  const pts=[];pg.groups.forEach(g=>g.rows.forEach(r=>{if(r.mx!=null&&r.my!=null)pts.push([r.mx*100,r.my*100]);}));
+  if(pts.length<2)return '';
+  const d=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(2)+' '+p[1].toFixed(2)).join('');
+  return `<svg class="lk-seq" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${d}"/></svg>`;
 }
 function lkImgBoxHtml(pg){
   if(!pg.img)return '<div class="lk-spin" style="padding:22px">рендерю лист…</div>';
@@ -2505,7 +2517,7 @@ function renderLineyka(){
   $('lkNav').querySelectorAll('.lk-pg').forEach(b=>b.onclick=()=>{LK.sel=+b.dataset.pg;LK.view='pages';renderLineyka();$('lkPage').scrollTop=0;});
   if(LK.view==='report'){$('lkPage').innerHTML=lkReportHtml();bindReport();return;}
   const pg=LK.pages[LK.sel];
-  let h=`<div class="lk-split"><div class="lk-imgcol"><div class="lk-pgwrap"><div class="lk-zoom"><button data-z="out" title="Уменьшить">−</button><button data-z="fit" title="По ширине">↔</button><button data-z="in" title="Увеличить">+</button><button id="lkOpenPdf" title="Открыть этот лист в PDF — текст можно выделять и копировать">PDF ⤢</button></div><div class="lk-pgimg" id="lkPgImg">${lkImgBoxHtml(pg)}</div></div><div class="lk-mk-note">🟢 точка — попало в подсчёт · 🔴 точка — длина взята ненадёжно («проверить длину»): поправь длину в строке — пометка снимется. Наведи на строку справа — подсветит её точку; клик по точке — перейти к строке. Где точки нет — пропуск (неучтённое ответвление), добавь строку.</div></div><div class="lk-datacol">`+lkCheckHtml(pg);
+  let h=`<div class="lk-split"><div class="lk-imgcol"><div class="lk-pgwrap"><div class="lk-zoom"><button data-z="out" title="Уменьшить">−</button><button data-z="fit" title="По ширине">↔</button><button data-z="in" title="Увеличить">+</button><button id="lkOpenPdf" title="Открыть этот лист в PDF — текст можно выделять и копировать">PDF ⤢</button><button id="lkSeqBtn" title="Линия последовательности: показывает, в каком порядке идут строки по схеме" style="${LK.seqLine===false?'opacity:.45':''}">①→②</button></div><div class="lk-pgimg" id="lkPgImg">${lkImgBoxHtml(pg)}</div></div><div class="lk-mk-note">🟢 точка — попало в подсчёт · 🔴 точка — длина взята ненадёжно («проверить длину»): поправь длину в строке — пометка снимется. Наведи на строку справа — подсветит её точку; клик по точке — перейти к строке. Где точки нет — пропуск (неучтённое ответвление), добавь строку.</div></div><div class="lk-datacol">`+lkCheckHtml(pg);
   // #v359 вкладки «Кабели / Трубы»: трубы правятся в своей вкладке — строки кабелей компактнее
   const pipesTab=LK.rtab==='pipes';
   const condN=pg.rows.reduce((a,r)=>a+(r.conds||[]).length,0);
@@ -2574,6 +2586,7 @@ function bindLineyka(){const P=$('lkPage');
   const cs=$('lkCopySheet');if(cs)cs.onclick=()=>{const pg=LK.pages[LK.sel];lkCopyTsv(lkSheetRows(pg),'Лист '+pg.page);};
   // правка источника листа (⚡ в шапке) и № блока строки — с пересборкой групп
   const ve=$('lkVruEdit');if(ve)ve.onchange=()=>{LK.pages[LK.sel].vru=ve.value.trim();renderLineyka();};
+  const sq=$('lkSeqBtn');if(sq)sq.onclick=()=>{LK.seqLine=(LK.seqLine!==false)?false:true;renderLineyka();};
   P.querySelectorAll('.lk-blk').forEach(el=>el.onchange=()=>{const r=LK.byId[el.dataset.id];if(!r)return;
     r.block=el.value.trim().replace(/[^1-9]/g,'');lkRegroup(LK.pages[LK.sel]);renderLineyka();});
   // открыть исходный PDF на текущем листе — нативный просмотрщик, текст выделяется как в PDF.
