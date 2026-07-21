@@ -231,9 +231,77 @@ label.fld span{display:block;font-size:11px;color:var(--mut);font-weight:600;mar
 .mfoot{padding:15px 20px;border-top:1px solid var(--gl);display:flex;gap:9px;align-items:center}
 /* mobile */
 .mobn{display:none}
+/* ===== CHARTS ===== */
+.leg{display:flex;gap:15px;flex-wrap:wrap;margin-top:10px}
+.leg span{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--tx2);font-weight:600}
+.leg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.chart svg{display:block;width:100%;overflow:visible}
+.chart .ax{font-size:9.5px;fill:var(--mut);font-family:'Manrope'}
+.chart .gl{stroke:var(--gl);stroke-width:1}
+.chart rect.hit{fill:transparent;cursor:pointer}
+.chart rect.hit:hover + rect,.chart g.bar:hover rect.val{filter:brightness(1.08)}
+.fbar{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.fbar .fl{width:120px;font-size:11.5px;color:var(--tx2);font-weight:600;flex:none;text-align:right}
+.fbar .ft{flex:1;height:22px;border-radius:6px;background:var(--gl);overflow:hidden;position:relative}
+.fbar .ft i{display:block;height:100%;border-radius:6px}
+.fbar .fv{width:78px;flex:none;font:700 12px var(--mono);color:var(--tx)}
+/* ===== CALENDAR ===== */
+.calhead{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.calhead .mtitle{font-size:17px;font-weight:800;min-width:170px}
+.calnav{width:32px;height:32px;border-radius:9px;border:1px solid var(--gl2);background:var(--panel);color:var(--tx2);cursor:pointer;font-size:15px}
+.calnav:hover{color:var(--tx)}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.caldow{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);text-align:center;padding:4px 0}
+.calcell{min-height:96px;border:1px solid var(--gl);border-radius:11px;padding:6px 7px;background:var(--panel);display:flex;flex-direction:column;gap:3px}
+.calcell.out{opacity:.4}
+.calcell.today{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.calday{font-size:11px;font-weight:700;color:var(--tx2)}
+.calcell.today .calday{color:var(--gold)}
+.calev{font-size:10px;font-weight:600;padding:2px 6px;border-radius:6px;display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.calev .d{width:6px;height:6px;border-radius:50%;flex:none}
+.calmore{font-size:9.5px;color:var(--mut);font-weight:600;padding-left:2px}
+.agrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--gl)}
+.agrow:last-child{border-bottom:none}
+.agrow .ad{width:44px;flex:none;text-align:center}
+.agrow .ad .dn{font:800 15px var(--mono);color:var(--tx)}
+.agrow .ad .dm{font-size:9px;color:var(--mut);text-transform:uppercase}
+.agrow .ai{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:14px;flex:none}
+.agrow .at{flex:1;min-width:0}
+.agrow .at .n{font-weight:700;font-size:12.5px}
+.agrow .at .s{font-size:11px;color:var(--mut)}
+.agrow .av{font:700 12px var(--mono);white-space:nowrap}
+/* ===== PIPELINE (производственный поток) ===== */
+.pipe{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:6px 2px 12px}
+.station{flex:1;min-width:118px;border:1px solid var(--gl);border-radius:13px;padding:12px 11px;background:var(--panel);text-align:center;position:relative}
+.station .si{font-size:20px}
+.station .sn{font-weight:700;font-size:11.5px;margin-top:4px;line-height:1.25}
+.station .sv{font:700 16px var(--mono);margin-top:6px}
+.station .sb{height:5px;border-radius:3px;background:var(--gl);margin-top:8px;overflow:hidden}
+.station .sb i{display:block;height:100%;border-radius:3px}
+.pconn{flex:0 0 30px;align-self:center;height:3px;position:relative;background:var(--gl);border-radius:2px;margin:0 -1px}
+.pconn::after{content:"";position:absolute;inset:0;border-radius:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);background-size:200% 100%;animation:flow 1.5s linear infinite;opacity:.9}
+@keyframes flow{to{background-position:-200% 0}}
+.pconn.warn::after{background:linear-gradient(90deg,transparent,var(--red),transparent);background-size:200% 100%}
+/* ===== GANTT ===== */
+.gantt{border:1px solid var(--gl);border-radius:13px;overflow:hidden;background:var(--panel)}
+.gtrow{display:flex;align-items:stretch;border-bottom:1px solid var(--gl)}
+.gtrow:last-child{border-bottom:none}
+.gtrow.head{background:var(--panel2)}
+.gtl{width:180px;flex:none;padding:9px 12px;font-size:11.5px;border-right:1px solid var(--gl);display:flex;flex-direction:column;justify-content:center}
+.gtl b{font-size:12.5px}.gtl span{font-size:10px;color:var(--mut)}
+.gttrack{flex:1;position:relative;min-height:38px;background-image:repeating-linear-gradient(90deg,transparent,transparent calc(10%),var(--gl) calc(10%),var(--gl) calc(10% + 1px))}
+.gthead{display:flex;flex:1}
+.gthead .gw{flex:1;text-align:center;font-size:9px;color:var(--mut);padding:6px 0;font-weight:600}
+.gtbar{position:absolute;top:50%;transform:translateY(-50%);height:15px;border-radius:8px;background:linear-gradient(90deg,var(--cy),var(--grn));display:flex;align-items:center;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.gtbar.warn{background:linear-gradient(90deg,var(--gold),var(--goldD))}
+.gtbar .gtf{font:700 9px var(--mono);color:#fff;padding-left:7px;white-space:nowrap}
+.gttoday{position:absolute;top:0;bottom:0;width:2px;background:var(--red);z-index:3}
+.gttoday::after{content:"сегодня";position:absolute;top:-1px;left:4px;font-size:8.5px;color:var(--red);font-weight:700;white-space:nowrap}
+.gtdia{position:absolute;top:50%;width:11px;height:11px;background:var(--vi);transform:translate(-50%,-50%) rotate(45deg);border:2px solid var(--bg2);z-index:2}
 @media(max-width:920px){
-  .kpis{grid-template-columns:1fr 1fr}.grid2,.grid3{grid-template-columns:1fr}.fgrid{grid-template-columns:1fr 1fr}
+  .kpis{grid-template-columns:1fr 1fr}.grid2,.grid3,.charts2{grid-template-columns:1fr}.fgrid{grid-template-columns:1fr 1fr}
   .wrap{padding:16px 13px 96px}
+  .calcell{min-height:70px}.calev .lb{display:none}
 }
 </style>
 </head>
@@ -265,6 +333,17 @@ label.fld span{display:block;font-size:11px;color:var(--mut);font-weight:600;mar
     <div class="h1">Пульт генерального директора <span class="sub" id="dashDate"></span></div>
     <div class="lead">Весь завод на одном экране: исполнение контрактов, деньги, производство, отгрузки. Красным — то, что тормозит исполнение договора. Всё связано одной сущностью — <b>сделка</b>.</div>
     <div class="kpis" id="kpis"></div>
+    <div class="charts2 grid2" style="margin-top:16px">
+      <div class="card pad chart">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px"><b style="font-size:13.5px">Поступления по месяцам</b><span style="font-size:11px;color:var(--mut)">план vs факт</span></div>
+        <div id="chMonths"></div>
+        <div class="leg"><span><i style="background:var(--gl2)"></i>План</span><span><i style="background:var(--gold)"></i>Факт (оплачено)</span></div>
+      </div>
+      <div class="card pad chart">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px"><b style="font-size:13.5px">Портфель по этапам</b><span style="font-size:11px;color:var(--mut)">сумма контрактов</span></div>
+        <div id="chFunnel"></div>
+      </div>
+    </div>
     <div class="grid2" style="margin-top:16px">
       <div>
         <div class="sect first">⚠️ Требует внимания <span class="ln"></span></div>
@@ -305,12 +384,39 @@ label.fld span{display:block;font-size:11px;color:var(--mut);font-weight:600;mar
     <div class="card" style="overflow:hidden"><table class="tbl" id="payTbl"></table></div>
   </section>
 
+  <!-- КАЛЕНДАРЬ -->
+  <section class="screen" id="s-plan">
+    <div class="h1">Календарь завода <span class="sub">платежи · ОТК · отгрузки в одном виде</span></div>
+    <div class="lead">Единый календарь: когда приходят деньги по траншам, когда готовность/ОТК, когда отгрузки. Цвет = тип события. Чтобы «второй платёж» и отгрузка не потерялись — всё видно на месяц вперёд.</div>
+    <div class="grid2" style="grid-template-columns:1.7fr 1fr;align-items:start">
+      <div class="card pad">
+        <div class="calhead">
+          <button class="calnav" onclick="calNav(-1)">‹</button>
+          <div class="mtitle" id="calTitle"></div>
+          <button class="calnav" onclick="calNav(1)">›</button>
+          <button class="calnav" style="width:auto;padding:0 12px;font-size:11px;font-weight:700" onclick="calToday()">Сегодня</button>
+          <div class="leg" style="margin-top:0;margin-left:auto"><span><i style="background:var(--grn)"></i>Оплачено</span><span><i style="background:var(--gold)"></i>Платёж</span><span><i style="background:var(--red)"></i>Просрочка</span><span><i style="background:var(--vi)"></i>ОТК</span><span><i style="background:var(--cy)"></i>Отгрузка</span></div>
+        </div>
+        <div class="calgrid" id="calDow"></div>
+        <div class="calgrid" id="calCells" style="margin-top:6px"></div>
+      </div>
+      <div>
+        <div class="sect first">Ближайшие события <span class="ln"></span></div>
+        <div class="card pad" id="agenda"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- ПРОИЗВОДСТВО (ПДО) -->
   <section class="screen" id="s-prod">
-    <div class="h1">Производство · ПДО <span class="sub">план — цеха — ОТК</span></div>
-    <div class="lead">Как только пришли деньги — заказ падает в производство. Планирование раскидывает по 4 цехам, видно готовность каждого и ОТК. Это отдельный канбан со своим доступом (главный инженер / цеха не видят финансы).</div>
-    <div class="sect first">Цеха завода <span class="ln"></span></div>
+    <div class="h1">Производство · ПДО <span class="sub">поток — цеха — план-график</span></div>
+    <div class="lead">Как только пришли деньги — заказ падает в производство. Ниже — живой производственный поток (сырьё → цеха → ОТК → отгрузка), загрузка цехов и план-график (Гант) по контрактам. Отдельный доступ: цеха не видят финансы.</div>
+    <div class="sect first">Производственный поток <span class="ln"></span></div>
+    <div class="card pad"><div class="pipe" id="pipeFlow"></div></div>
+    <div class="sect">Цеха завода <span class="ln"></span></div>
     <div class="grid2" id="cehGrid"></div>
+    <div class="sect">План-график производства и отгрузки <span class="ln"></span></div>
+    <div class="gantt" id="ganttBox"></div>
     <div class="sect">Заказы в производстве <span class="ln"></span></div>
     <div class="kanwrap" id="prodKan"></div>
   </section>
@@ -456,6 +562,7 @@ function payPlan(sum,preset){ // preset: array of [label, pct, offsetDays]
 const PRESET_STD=[['Аванс 30%',30,-40],['2-й платёж 20%',20,-12],['3-й платёж 30%',30,10],['Перед отгрузкой 10%',10,26],['Пуско-наладка 10%',10,48]];
 
 function defaults(){
+  const SCHED={'AZ-2601':[-3,3],'AZ-2602':[-5,1],'AZ-2603':[-7,0],'AZ-2604':[1,6],'AZ-2605':[3,8]}; // [старт, отгрузка] недели от сегодня
   const mk=(o)=>{
     const items=itemsToObjs(o.items);
     const sum=items.reduce((s,i)=>s+i.price*i.qty,0);
@@ -463,7 +570,7 @@ function defaults(){
     return {id:o.id,no:o.no,client:o.client,region:o.region,le:o.le||'AZAM (офиц., по банку)',
       stage:o.stage,manager:o.manager||'Отдел продаж',created:o.created,
       items,sum,contract:{no:o.cno||null,signed:o.signed||false,date:o.cdate||null},kp:o.kp||false,
-      pay, ceh:o.ceh||{c1:0,c2:0,c3:0,c4:0}, otk:o.otk||false,
+      pay, ceh:o.ceh||{c1:0,c2:0,c3:0,c4:0}, otk:o.otk||false, sched:o.sched||SCHED[o.no]||null,
       ship:o.ship||null, note:o.note||'', chat:o.chat||[]};
   };
   const DEALS=[
@@ -551,18 +658,18 @@ function thrClass(pct,bad){return bad?'bad':pct>=100?'ok':pct>0?'warn':'';}
 
 /* ===== ROLES ===== */
 const ROLES={
- 'Ген. директор':['dash','deals','pay','prod','supply','ship','kpp'],
- 'Оператор системы / Юрист':['dash','deals','pay','ship'],
+ 'Ген. директор':['dash','deals','pay','plan','prod','supply','ship','kpp'],
+ 'Оператор системы / Юрист':['dash','deals','pay','plan','ship'],
  'Отдел продаж':['deals','catalog'],
- 'Бухгалтерия':['pay','deals'],
- 'ПДО / Планирование':['prod','supply','deals'],
+ 'Бухгалтерия':['pay','plan','deals'],
+ 'ПДО / Планирование':['prod','plan','supply','deals'],
  'Отдел закупа':['supply'],
  'Склад и отгрузка':['ship','supply'],
  'Охрана · КПП':['kpp'],
 };
 const NAVMETA={
  dash:['Обзор',''],deals:['Сделки','deals'],catalog:['Конструктор',''],pay:['Платежи','pay'],
- prod:['Производство','prod'],supply:['Закуп · склад','supply'],ship:['Отгрузка','ship'],kpp:['КПП','kpp'],
+ plan:['Календарь','plan'],prod:['Производство','prod'],supply:['Закуп · склад','supply'],ship:['Отгрузка','ship'],kpp:['КПП','kpp'],
 };
 let ROLE='Ген. директор';
 function setRole(r){ROLE=r;buildNav();const allowed=ROLES[r];if(!allowed.includes(cur))nav(allowed[0]);toast('Роль: <b>'+esc(r)+'</b> — интерфейс показывает только её экраны.','cy');}
@@ -576,6 +683,7 @@ function buildNav(){
     if(badgeKey==='prod')badge='<span class="b">'+DEALS.filter(d=>d.stage===4).length+'</span>';
     if(badgeKey==='supply'){const n=rawShort().length;badge=n?'<span class="b rd">'+n+'</span>':'';}
     if(badgeKey==='ship')badge='<span class="b">'+DEALS.filter(d=>d.stage>=5&&d.stage<7).length+'</span>';
+    if(badgeKey==='plan'){const n=calEvents().filter(e=>{const dd=Math.round((e.dt-new Date())/864e5);return dd>=0&&dd<=7;}).length;badge=n?'<span class="b">'+n+'</span>':'';}
     if(badgeKey==='kpp')badge='<span class="b">'+KPP.length+'</span>';
     b.innerHTML=label+badge;b.onclick=()=>nav(s);nb.appendChild(b);});
 }
@@ -584,7 +692,7 @@ function nav(s){cur=s;document.querySelectorAll('.screen').forEach(x=>x.classLis
   document.querySelectorAll('#navin button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));window.scrollTo({top:0,behavior:'smooth'});}
 
 /* ===== RENDER ALL ===== */
-function renderAll(){buildNav();renderDash();renderDeals();renderCatalog();renderPay();renderProd();renderSupply();renderShip();renderKpp();}
+function renderAll(){buildNav();renderDash();renderDeals();renderCatalog();renderPay();renderPlan();renderProd();renderSupply();renderShip();renderKpp();}
 
 /* ---- DASHBOARD ---- */
 function renderDash(){
@@ -622,6 +730,86 @@ function renderDash(){
   $('cehLoad').innerHTML=cl;
 
   $('kppToday').innerHTML=KPP.map(k=>`<div class="checkline"><div class="ck ${k.ok?'on':'warn'}">${k.ok?'✓':'!'}</div><div style="flex:1"><b style="font-size:12.5px">${esc(k.what)}</b><div style="font-size:11px;color:var(--mut)">${esc(k.truck)} · ${esc(k.deal)}</div></div><span class="mono" style="color:var(--mut);font-size:11px">${k.time}</span></div>`).join('');
+  renderCharts();
+}
+
+/* ---- CHARTS ---- */
+const MONTHS=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+function addDays(base,d){const x=new Date(base);x.setDate(x.getDate()+d);return x;}
+function payDate(p){return addDays(new Date(),p.due);}
+function renderCharts(){
+  // поступления по месяцам: план = все транши, факт = оплаченные, по месяцу даты
+  const today=new Date();const curMK=today.getFullYear()*12+today.getMonth();
+  const buckets={};
+  for(let k=-2;k<=3;k++)buckets[curMK+k]={plan:0,fact:0};
+  DEALS.filter(d=>d.stage>=3).forEach(d=>d.pay.forEach(p=>{
+    const dt=payDate(p);const mk=dt.getFullYear()*12+dt.getMonth();
+    if(buckets[mk]){buckets[mk].plan+=p.amount;if(p.paid)buckets[mk].fact+=p.amount;}
+  }));
+  const keys=Object.keys(buckets).map(Number).sort((a,b)=>a-b);
+  const max=Math.max(1,...keys.map(k=>buckets[k].plan));
+  const cols=keys.map(k=>{
+    const b=buckets[k];const mo=MONTHS[((k%12)+12)%12];const isCur=k===curMK;
+    const ph=Math.round(b.plan/max*120), fh=Math.round(b.fact/max*120);
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px">
+      <div style="font:700 9.5px var(--mono);color:${b.fact>0?'var(--tx2)':'transparent'}">${b.fact>0?Math.round(b.fact/1e6):'·'}</div>
+      <div style="position:relative;width:60%;height:120px;display:flex;align-items:flex-end" title="${mo}: план ${money(b.plan)} · факт ${money(b.fact)}">
+        <div style="position:absolute;bottom:0;width:100%;height:${ph}px;background:var(--gl2);border-radius:4px"></div>
+        <div style="position:absolute;bottom:0;width:100%;height:${fh}px;background:linear-gradient(180deg,var(--gold),var(--goldD));border-radius:4px"></div>
+      </div>
+      <div style="font-size:10px;font-weight:${isCur?'700':'600'};color:${isCur?'var(--gold)':'var(--mut)'}">${mo}</div>
+    </div>`;
+  }).join('');
+  $('chMonths').innerHTML=`<div style="display:flex;align-items:flex-end;gap:6px;padding-top:6px">${cols}</div><div style="font-size:9.5px;color:var(--mut);text-align:right;margin-top:6px">млн ₸ · число над столбцом = факт</div>`;
+  // портфель по этапам (funnel)
+  const byStage=STAGES.map((s,i)=>({s,i,sum:DEALS.filter(d=>d.stage===i).reduce((a,d)=>a+d.sum,0),n:DEALS.filter(d=>d.stage===i).length})).filter(x=>x.sum>0);
+  const fmax=Math.max(1,...byStage.map(x=>x.sum));
+  $('chFunnel').innerHTML=byStage.map(x=>`<div class="fbar"><div class="fl">${esc(x.s)}</div><div class="ft"><i style="width:${Math.round(x.sum/fmax*100)}%;background:linear-gradient(90deg,var(--goldD),var(--gold))"></i></div><div class="fv">${mln(x.sum)}</div></div>`).join('')||'<div class="hint">Нет активных сделок.</div>';
+}
+
+/* ---- CALENDAR / EVENTS ---- */
+function calEvents(){
+  const today=new Date();const ev=[];
+  DEALS.filter(d=>d.stage>=3).forEach(d=>{
+    d.pay.forEach((p,i)=>{
+      const dt=payDate(p);const past=p.due<0;
+      const type=p.paid?'paid':(noInvoice(d)&&i===0?'over':past?'over':'plan');
+      ev.push({dt,kind:'pay',type,label:p.label,client:d.client,amount:p.amount,dealId:d.id});
+    });
+  });
+  DEALS.filter(d=>d.otk&&d.stage===5).forEach(d=>ev.push({dt:addDays(today,2),kind:'otk',type:'otk',label:'ОТК · '+d.no,client:d.client,dealId:d.id}));
+  DEALS.filter(d=>d.ship||d.stage>=6).forEach(d=>ev.push({dt:addDays(today,d.stage>=6?1:6),kind:'ship',type:'ship',label:'Отгрузка · '+d.no,client:d.client,dealId:d.id}));
+  return ev;
+}
+const EVCOLOR={paid:'var(--grn)',plan:'var(--gold)',over:'var(--red)',otk:'var(--vi)',ship:'var(--cy)'};
+const EVICON={pay:'💰',otk:'🔎',ship:'🚚'};
+let calOff=0;
+function calNav(n){calOff+=n;renderPlan();}
+function calToday(){calOff=0;renderPlan();}
+function renderPlan(){
+  const today=new Date();const base=new Date(today.getFullYear(),today.getMonth()+calOff,1);
+  const y=base.getFullYear(),m=base.getMonth();
+  const MFULL=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  $('calTitle').textContent=MFULL[m]+' '+y;
+  $('calDow').innerHTML=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d=>`<div class="caldow">${d}</div>`).join('');
+  const fw=(new Date(y,m,1).getDay()+6)%7;
+  const din=new Date(y,m+1,0).getDate();
+  const evs=calEvents().filter(e=>e.dt.getFullYear()===y&&e.dt.getMonth()===m);
+  const byDay={};evs.forEach(e=>{(byDay[e.dt.getDate()]=byDay[e.dt.getDate()]||[]).push(e);});
+  let cells='';
+  const totalCells=Math.ceil((fw+din)/7)*7;
+  for(let c=0;c<totalCells;c++){
+    const day=c-fw+1;const inMonth=day>=1&&day<=din;
+    const isToday=inMonth&&y===today.getFullYear()&&m===today.getMonth()&&day===today.getDate();
+    const list=inMonth?(byDay[day]||[]):[];
+    const chips=list.slice(0,3).map(e=>`<div class="calev" onclick="openDeal(${e.dealId})" style="background:${EVCOLOR[e.type]}22"><span class="d" style="background:${EVCOLOR[e.type]}"></span><span class="lb">${e.kind==='pay'?money(e.amount):esc(e.label)}</span></div>`).join('');
+    const more=list.length>3?`<div class="calmore">+${list.length-3} ещё</div>`:'';
+    cells+=`<div class="calcell ${inMonth?'':'out'} ${isToday?'today':''}"><div class="calday">${inMonth?day:''}</div>${chips}${more}</div>`;
+  }
+  $('calCells').innerHTML=cells;
+  // agenda
+  const up=calEvents().filter(e=>e.dt>=addDays(today,-1)).sort((a,b)=>a.dt-b.dt).slice(0,9);
+  $('agenda').innerHTML=up.map(e=>`<div class="agrow" onclick="openDeal(${e.dealId})" style="cursor:pointer"><div class="ad"><div class="dn">${e.dt.getDate()}</div><div class="dm">${MONTHS[e.dt.getMonth()]}</div></div><div class="ai" style="background:${EVCOLOR[e.type]}22">${EVICON[e.kind]}</div><div class="at"><div class="n">${esc(e.client)}</div><div class="s">${esc(e.label)}${e.type==='over'?' · <b style="color:var(--red)">просрочен/к выставлению</b>':''}</div></div><div class="av" style="color:${EVCOLOR[e.type]}">${e.kind==='pay'?money(e.amount):''}</div></div>`).join('')||'<div class="hint">Событий нет.</div>';
 }
 
 /* ---- DEALS KANBAN ---- */
@@ -702,6 +890,56 @@ function renderProd(){
       col.appendChild(c);});
     kan.appendChild(col);
   });
+  renderPipeline();renderGantt();
+}
+
+/* ---- PRODUCTION PIPELINE (поток) ---- */
+function renderPipeline(){
+  const dsP=DEALS.filter(d=>d.stage===4);
+  const cehAvg=id=>dsP.length?Math.round(dsP.reduce((s,d)=>s+(d.ceh[id]||0),0)/dsP.length):0;
+  const rawOk=RAW.filter(r=>r.qty>=r.min).length,rawTot=RAW.length;
+  const otkN=DEALS.filter(d=>d.otk).length, finN=FIN.length, shipN=DEALS.filter(d=>d.ship).length;
+  const st=[
+    {i:'📦',n:'Оборотный склад',v:rawOk+'/'+rawTot,pct:Math.round(rawOk/rawTot*100),sub:'позиций в норме',warn:rawShort().length>0},
+    {i:'🌀',n:'Цех 1 · Очистка',v:cehAvg('c1')+'%',pct:cehAvg('c1')},
+    {i:'🔥',n:'Цех 2 · Сушилки',v:cehAvg('c2')+'%',pct:cehAvg('c2')},
+    {i:'⛓️',n:'Цех 3 · Транспорт',v:cehAvg('c3')+'%',pct:cehAvg('c3')},
+    {i:'🛢️',n:'Цех 4 · Силосы',v:cehAvg('c4')+'%',pct:cehAvg('c4')},
+    {i:'🔎',n:'ОТК',v:otkN,pct:100},
+    {i:'🏬',n:'Склад готовой',v:finN,pct:100},
+    {i:'🚚',n:'Отгрузка',v:shipN,pct:shipN?60:0,warn:shipN>0},
+  ];
+  const color=p=>p>=80?'var(--grn)':p>=40?'var(--gold)':'var(--red)';
+  let html='';
+  st.forEach((s,i)=>{
+    if(i>0)html+=`<div class="pconn ${st[i-1].warn?'warn':''}"></div>`;
+    html+=`<div class="station"><div class="si">${s.i}</div><div class="sn">${s.n}</div><div class="sv" style="color:${s.warn?'var(--red)':'var(--tx)'}">${s.v}</div><div class="sb"><i style="width:${s.pct}%;background:${s.warn?'var(--red)':color(s.pct)}"></i></div>${s.sub?`<div style="font-size:9.5px;color:var(--mut);margin-top:4px">${s.sub}</div>`:''}</div>`;
+  });
+  $('pipeFlow').innerHTML=html;
+}
+
+/* ---- GANTT (план-график) ---- */
+function renderGantt(){
+  const WK=10, back=3; // 10 недель, 3 позади
+  const today=new Date();
+  const rows=DEALS.filter(d=>d.sched&&d.stage>=3&&d.stage<7).sort((a,b)=>a.sched[0]-b.sched[0]);
+  let head='<div class="gtrow head"><div class="gtl"><b>Контракт</b><span>старт · отгрузка</span></div><div class="gthead">';
+  for(let w=-back;w<WK-back;w++){const dt=addDays(today,w*7);head+=`<div class="gw">${dt.getDate()}.${String(dt.getMonth()+1).padStart(2,'0')}</div>`;}
+  head+='</div></div>';
+  const todayPct=back/WK*100;
+  const bars=rows.map(d=>{
+    const s=Math.max(-back,d.sched[0]),e=Math.min(WK-back,d.sched[1]);
+    const left=(s+back)/WK*100, width=Math.max(3,(e-s)/WK*100);
+    const pct=prodPct(d);const warn=pct<100&&d.stage>=4;
+    const shipLeft=(d.sched[1]+back)/WK*100;
+    const shipIn=d.sched[1]>=-back&&d.sched[1]<=WK-back;
+    return `<div class="gtrow"><div class="gtl"><b>${esc(d.client)}</b><span>${esc(d.no)} · ${mln(d.sum)} ₸</span></div><div class="gttrack">
+      <div class="gttoday" style="left:${todayPct}%"></div>
+      <div class="gtbar ${warn?'warn':''}" style="left:${left}%;width:${width}%" title="${esc(d.client)} · готовность ${pct}%"><span class="gtf">${pct}%</span></div>
+      ${shipIn?`<div class="gtdia" style="left:${shipLeft}%" title="Отгрузка"></div>`:''}
+    </div></div>`;
+  }).join('');
+  $('ganttBox').innerHTML=head+bars+`<div style="padding:8px 12px;font-size:10.5px;color:var(--mut);border-top:1px solid var(--gl)"><span style="color:var(--vi)">◆</span> отгрузка · <span style="color:var(--red)">|</span> сегодня · полоса = производственное окно, заливка = готовность</div>`;
 }
 
 /* ---- SUPPLY ---- */
