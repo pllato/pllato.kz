@@ -132,7 +132,7 @@
 
 <script>
 /* ============ ДАННЫЕ ============ */
-const LS='rl-fondy-v1';
+const LS='rl-fondy-v2'; // v2: чистый лист, только Атлетико (старые данные целы под ключом rl-fondy-v1)
 const FUND_COLORS=['#345b8f','#0f6f52','#8a6f4a','#7c828e','#1a2536','#6b4d8f','#b3691f','#2d7a7a'];
 // базовый набор фондов строительного проекта — редактируется в каждом проекте
 const DEFAULT_FUNDS=[
@@ -147,7 +147,7 @@ const uid=()=>'x'+(_id++)+'_'+DB.projects.length;
 function save(){localStorage.setItem(LS,JSON.stringify({...DB,_id}))}
 function load(){
   try{const raw=localStorage.getItem(LS);if(!raw)return false;
-    const d=JSON.parse(raw);DB={projects:d.projects||[],stages:d.stages||null,sel:d.sel||null,impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null,dictUrl:d.dictUrl||'',fundDict:d.fundDict||null};_id=d._id||1000;
+    const d=JSON.parse(raw);DB={projects:d.projects||[],stages:d.stages||null,sel:d.sel||null,impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null,dictUrl:d.dictUrl||'',fundDict:d.fundDict||null,atlSeeded:!!d.atlSeeded};_id=d._id||1000;
     DB.projects.forEach(p=>{p.tasks=p.tasks||[];p.finIn=p.finIn||[];p.finOut=p.finOut||[]});
     return DB.projects.length>0;
   }catch(e){return false}
@@ -1082,73 +1082,54 @@ function importData(inp){
   const rd=new FileReader();
   rd.onload=()=>{try{const d=JSON.parse(rd.result);
     if(!Array.isArray(d.projects))throw 0;
-    DB={projects:d.projects,stages:d.stages||null,sel:null,impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null,dictUrl:d.dictUrl||'',fundDict:d.fundDict||null};_id=d._id||9000;
+    DB={projects:d.projects,stages:d.stages||null,sel:null,impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null,dictUrl:d.dictUrl||'',fundDict:d.fundDict||null,atlSeeded:!!d.atlSeeded};_id=d._id||9000;
     DB.projects.forEach(p=>{p.tasks=p.tasks||[];p.finIn=p.finIn||[];p.finOut=p.finOut||[]});
     ensureStages();toast('Данные загружены ✓');render();
   }catch(e){toast('Не получилось прочитать файл','err')}};
   rd.readAsText(f);inp.value='';
 }
 
-/* ============ ДЕМО-ПРОЕКТ ПРИ ПЕРВОМ ЗАПУСКЕ ============ */
-function seedDemo(){
-  const fid={};const funds=DEFAULT_FUNDS.map((f,i)=>{const id=uid();fid[i]=id;return{id,name:f.name,pct:f.pct,color:FUND_COLORS[i]}});
-  funds[0].pct=62;funds[1].pct=17;funds[3].pct=3;
-  funds[1].plan=57000000;funds[3].plan=8700000;
-  const alloc=(amt)=>{const total=100;const a={};let acc=0;
-    funds.forEach((f,i)=>{let x=i===funds.length-1?amt-acc:Math.round(amt*f.pct/total);acc+=x;a[f.id]=x});return a};
-  const p={id:uid(),name:'Демо · ЖК «Пример», электромонтаж',customer:'ТОО «Заказчик»',contract:350000000,
-    funds,
+
+/* ---------- АТЛЕТИКО: завод проекта по смете НВК+ТС (данные Ласкера 21.07.2026) ----------
+   Договор 88 287 819 (MORROW Group), аванс 25 млн, ГУ 3%, работы субподрядом, срок 4 мес.
+   Себестоимость из «АтлетикоДан»: ТМЦ 38 073 852, СМР 38 941 817. Акты помесячно (допущение),
+   оплата акта = акт × (1 − зачёт аванса 28,3% − ГУ 3%), возврат ГУ ~через 6 мес после сдачи. */
+function seedAtletiko(){
+  if(DB.atlSeeded)return;
+  DB.atlSeeded=true;
+  const NAME='Атлетико (НВК и ТС)';
+  if(DB.projects.some(p=>p.name===NAME)){save();return}
+  const F=[['Материалы (ТМЦ)',43,38073852],['Субподряд (работы)',44,38941817],['Налоги',6,5297269],['Накладные',2,1765756],['Прибыль (резерв)',5,4209125]]
+    .map((f,i)=>({id:uid(),name:f[0],pct:f[1],plan:f[2],color:FUND_COLORS[i]}));
+  const stage=(DB.stages&&DB.stages.length)?DB.stages[Math.min(1,DB.stages.length-1)].id:null;
+  DB.projects.push({id:uid(),name:NAME,customer:'ТОО «MORROW Group»',contract:88287819,stage,
+    funds:F,
     planIn:[
-      {id:uid(),date:'2026-08-10',amt:50400000,note:'этап 4: наружные сети, очередь 1 — 70% после акта'},
-      {id:uid(),date:'2026-08-17',amt:32900000,note:'этап 5: очередь 2 — 70% после акта'},
-      {id:uid(),date:'2026-08-25',amt:67900000,note:'этап 6: кабельные линии — 70% после акта'}],
+      {id:uid(),date:'2026-08-01',amt:25000000,note:'аванс по договору'},
+      {id:uid(),date:'2026-09-15',amt:17170875,note:'оплата акта 1 (август: земляные, водопровод) − зачёт аванса − ГУ 3%'},
+      {id:uid(),date:'2026-10-15',amt:17170875,note:'оплата акта 2 (сентябрь: канализация)'},
+      {id:uid(),date:'2026-11-15',amt:15110370,note:'оплата акта 3 (октябрь: тепловые сети)'},
+      {id:uid(),date:'2026-12-15',amt:11187064,note:'оплата акта 4 (ноябрь: допработы, сдача)'},
+      {id:uid(),date:'2027-05-31',amt:2648635,note:'возврат гарантийного удержания 3% (дату уточнить)'}],
     planOut:[
-      {id:uid(),date:'2026-07-13',amt:-19500000,note:'материалы очередь 1, остаток закупа',fund:fid[0]},
-      {id:uid(),date:'2026-07-16',amt:-33000000,note:'материалы кабельные линии, транш 1',fund:fid[0]},
-      {id:uid(),date:'2026-07-20',amt:-14800000,note:'материалы очередь 2, остаток',fund:fid[0]},
-      {id:uid(),date:'2026-07-25',amt:-7500000,note:'ФОТ очередь 1, первая половина',fund:fid[1]},
-      {id:uid(),date:'2026-07-30',amt:-33000000,note:'материалы кабельные линии, транш 2',fund:fid[0]},
-      {id:uid(),date:'2026-07-31',amt:-4600000,note:'ФОТ кабельные линии, аванс бригаде',fund:fid[1]},
-      {id:uid(),date:'2026-08-01',amt:-3600000,note:'ФОТ очередь 2, первая часть',fund:fid[1]},
-      {id:uid(),date:'2026-08-03',amt:-2300000,note:'накладные, очередь 1',fund:fid[3]},
-      {id:uid(),date:'2026-08-10',amt:-7500000,note:'ФОТ очередь 1, финал',fund:fid[1]},
-      {id:uid(),date:'2026-08-10',amt:-1100000,note:'накладные, очередь 2',fund:fid[3]},
-      {id:uid(),date:'2026-08-14',amt:-4600000,note:'ФОТ кабельные линии, финал',fund:fid[1]},
-      {id:uid(),date:'2026-08-15',amt:-3600000,note:'ФОТ очередь 2, финал',fund:fid[1]},
-      {id:uid(),date:'2026-08-18',amt:-1400000,note:'накладные, кабельные линии',fund:fid[3]}],
-    finIn:[{id:uid(),date:'2026-07-22',amt:15000000,note:'займ учредителя на закуп материалов'}],
-    finOut:[{id:uid(),date:'2026-09-10',amt:-15000000,note:'возврат займа учредителю',fund:fid[4]}],
-    ops:[],
-    tasks:[{id:uid(),title:'Выставить акт по этапу 4 и собрать оплату 50,4 млн',due:'2026-08-10',done:false}]};
-  const inc=(date,amt,note)=>p.ops.push({id:uid(),type:'in',date,amt,note,alloc:alloc(amt)});
-  const out=(date,amt,fi,note)=>p.ops.push({id:uid(),type:'out',date,amt:-Math.abs(amt),fund:fid[fi],note});
-  inc('2026-02-10',105000000,'аванс 30% по договору');
-  out('2026-02-15',27000000,0,'материалы, жилая часть — транш 1');
-  out('2026-02-25',8000000,0,'материалы, подготовительные работы');
-  out('2026-02-28',2500000,1,'зарплата бригады, февраль');
-  out('2026-03-05',5800000,1,'ФОТ, подготовительные работы');
-  out('2026-03-06',900000,3,'накладные, подготовительные');
-  out('2026-03-18',14000000,0,'материалы, паркинг');
-  inc('2026-03-19',13300000,'оплата этапа 1 (70%)');
-  out('2026-03-31',2500000,1,'зарплата бригады, март');
-  out('2026-04-05',27000000,0,'материалы, жилая часть — транш 2');
-  out('2026-04-15',3600000,1,'ФОТ паркинг, первая часть');
-  out('2026-04-30',2500000,1,'зарплата бригады, апрель');
-  out('2026-05-08',3600000,1,'ФОТ паркинг, финал');
-  out('2026-05-08',1100000,3,'накладные, паркинг');
-  inc('2026-05-23',20300000,'оплата этапа 3: паркинг (70%)');
-  out('2026-05-31',2500000,1,'зарплата бригады, май');
-  out('2026-06-09',2500000,1,'зарплата бригады, июнь');
-  out('2026-06-10',1900000,3,'накладные, жилая часть');
-  inc('2026-06-24',60200000,'оплата этапа 2: жилая часть (70%)');
-  out('2026-06-29',19500000,0,'материалы очередь 1, 50% закупа');
-  out('2026-07-06',14800000,0,'материалы очередь 2, 50% закупа');
-  DB.projects.push(p);
+      {id:uid(),date:'2026-08-04',amt:-22844311,note:'закуп ТМЦ, транш 1 — трубы, ЖБИ (60%)',fund:F[0].id},
+      {id:uid(),date:'2026-09-02',amt:-9518463,note:'закуп ТМЦ, транш 2 (25%)',fund:F[0].id},
+      {id:uid(),date:'2026-10-01',amt:-5711078,note:'закуп ТМЦ, остаток (15%)',fund:F[0].id},
+      {id:uid(),date:'2026-08-31',amt:-10000000,note:'субподряд: земляные, водопровод (август)',fund:F[1].id},
+      {id:uid(),date:'2026-09-30',amt:-12000000,note:'субподряд: канализация (сентябрь)',fund:F[1].id},
+      {id:uid(),date:'2026-10-31',amt:-10000000,note:'субподряд: тепловые сети (октябрь)',fund:F[1].id},
+      {id:uid(),date:'2026-11-30',amt:-6941817,note:'субподряд: финал, сдача (ноябрь)',fund:F[1].id}],
+    finIn:[],finOut:[],ops:[],
+    tasks:[
+      {id:uid(),title:'Получить аванс 25 млн от MORROW Group',due:'2026-08-01',done:false},
+      {id:uid(),title:'Уточнить порядок актирования и срок возврата ГУ 3%',due:'2026-07-28',done:false}]});
+  save();
 }
 
 (function(){
-  if(!load()){seedDemo();}
+  load();
   ensureStages();
+  seedAtletiko();
   render();
   setTimeout(impAutoSync,1500);
   setInterval(impAutoSync,600000);
