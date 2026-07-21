@@ -1624,8 +1624,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v367';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v366';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v368';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v368';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2197,6 +2197,11 @@ async function lkExtract(data,onProgress){
       if(rest.length)pg.groups.push({name:'Весь проект',rows:rest.slice().sort((a,b2)=>(a.x||0)-(b2.x||0))});}
     delete pg._blk;delete pg._blkHome;});
   pages.forEach(pg=>{delete pg._blk;delete pg._blkHome;});
+  // порядок строк — как ЧИТАЕТСЯ чертёж: сверху вниз полосами (~7% высоты листа), внутри
+  // полосы — слева направо (экранные mx/my уже с учётом поворота листа)
+  pages.forEach(pg=>pg.groups.forEach(g=>g.rows.sort((a,b)=>{
+    const ba=Math.round((a.my||0)*14),bb=Math.round((b.my||0)*14);
+    return ba-bb||((a.mx||0)-(b.mx||0));})));
   return {pdf,pages};
 }
 /* отметки «что попало в подсчёт» на картинке листа (по координатам строк) */
@@ -2487,12 +2492,13 @@ function renderLineyka(){
   const pipesTab=LK.rtab==='pipes';
   const condN=pg.rows.reduce((a,r)=>a+(r.conds||[]).length,0);
   h+=`<div class="lk-rtabs"><button class="lk-rtab ${pipesTab?'':'on'}" data-t="cables">Кабели<span class="n">${pg.rows.length}</span></button><button class="lk-rtab ${pipesTab?'on':''}" data-t="pipes">Трубы<span class="n">${condN}</span></button></div><div class="lk-groups">`;
+  let _rn=0;   // сквозной № строки листа — тот же, что в Excel-выгрузке
   pg.groups.forEach(grp=>{const st=lkSum(grp.rows);
     h+=`<div class="lk-grp"><div class="lk-grph"><span class="lk-grpn">${esc(grp.name)}</span>`
       +Object.keys(st.s).sort().map(k=>`<span class="lk-chip small">${esc(k)} <b>${Math.round(st.s[k])}м</b></span>`).join('')
       +`<span class="lk-chip small tot">Σ ${Math.round(st.t)}м</span>`
       +Object.keys(st.c).sort().map(k=>`<span class="lk-chip small cond">${esc(k)} <b>${Math.round(st.c[k])}м</b></span>`).join('')+`</div>`
-      +grp.rows.map(r=>pipesTab?lkPipeRow(r):lkRow(r,true)).join('')+`</div>`;});
+      +grp.rows.map(r=>{_rn++;return pipesTab?lkPipeRow(r,_rn):lkRow(r,true,_rn,pg.vru);}).join('')+`</div>`;});
   h+=(pipesTab
     ?`<div style="display:flex;gap:9px;align-items:center;margin-top:6px"><span class="lk-note">Труба добавляется к своей линии кнопкой «+ труба»; итоги труб пересчитаются сами.</span></div>`
     :`<div style="display:flex;gap:9px;align-items:center;margin-top:6px"><button class="lk-add" id="lkAdd">+ Строка на этот лист</button><span class="lk-note">Проверь по печатной сводке «Потребность кабелей» на листе — поправь/добавь, итоги пересчитаются.</span></div>`)
@@ -2504,9 +2510,11 @@ function renderLineyka(){
 function lkCondsHtml(r){return (r.conds||[]).map((c,i)=>{const co=LK_CONDS.concat(c.t&&LK_CONDS.indexOf(c.t)<0?[c.t]:[]);
     return `<span class="lk-cd"><select class="lk-ct" data-id="${r._id}" data-i="${i}">${co.map(t=>`<option ${t===c.t?'selected':''}>${esc(t)}</option>`).join('')}</select><input class="lk-cl" data-id="${r._id}" data-i="${i}" type="number" step="0.1" min="0" value="${c.len}"><span class="lk-cu">м</span><button class="lk-cx" data-id="${r._id}" data-i="${i}" title="Убрать трубу">×</button></span>`;}).join('')
   +`<button class="lk-cadd" data-id="${r._id}">+ труба</button>`;}
-function lkRow(r,noConds){const opts=(r.section?[]:['']).concat(LK_SECTIONS).concat(r.section&&LK_SECTIONS.indexOf(r.section)<0?[r.section]:[]);
+function lkRow(r,noConds,idx,src){const opts=(r.section?[]:['']).concat(LK_SECTIONS).concat(r.section&&LK_SECTIONS.indexOf(r.section)<0?[r.section]:[]);
   const condsTxt=(r.conds||[]).map(c=>c.t+' '+c.len+'м').join(', ');
   return `<div class="lg-row${r.needsCheck?' warn':''}" data-id="${r._id}">`
+    +(idx?`<div class="lg-cell" style="min-width:34px"><label>№${r.block?' · бл.':''}</label><b style="font-size:12px;color:var(--steel)">${idx}${r.block?' · Б'+r.block:''}</b></div>`:'')
+    +(src?`<div class="lg-cell"><label>Источник</label><span class="lk-pipe-cab">${esc(src)}</span></div>`:'')
     +`<div class="lg-cell"><label>Потребитель</label><input class="lk-g" data-id="${r._id}" value="${esc(r.group||'')}" style="width:96px"></div>`
     +`<div class="lg-cell"><label>Марка (кабель)</label><input class="lk-m" data-id="${r._id}" value="${esc(r.mark||'')}" style="width:132px" placeholder="—"></div>`
     +`<div class="lg-cell"><label>Сечение</label><select class="lk-s" data-id="${r._id}">${opts.map(s=>`<option ${s===r.section?'selected':''}>${esc(s)}</option>`).join('')}</select></div>`
@@ -2518,8 +2526,9 @@ function lkRow(r,noConds){const opts=(r.section?[]:['']).concat(LK_SECTIONS).con
     +`<button class="lk-del" data-id="${r._id}" title="Удалить">✕</button></div>`;
 }
 /* строка вкладки «Трубы»: кабель — только подпись, редактируются трубы */
-function lkPipeRow(r){
+function lkPipeRow(r,idx){
   return `<div class="lg-row" data-id="${r._id}">`
+    +(idx?`<div class="lg-cell" style="min-width:34px"><label>№</label><b style="font-size:12px;color:var(--steel)">${idx}</b></div>`:'')
     +`<div class="lg-cell"><label>Потребитель</label><b style="font-size:13px">${esc(r.group||'—')}</b></div>`
     +`<div class="lg-cell"><label>Кабель</label><span class="lk-pipe-cab">${esc(((r.mark||'')+' '+(r.section||'')).trim()||'—')} · ${r.len}м</span></div>`
     +`<div class="lg-cell" style="flex:1;min-width:230px"><label>Трубы</label><div class="lk-conds">`+lkCondsHtml(r)+`</div></div>`
