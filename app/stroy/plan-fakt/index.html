@@ -1627,8 +1627,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v372';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v371';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v373';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v373';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2191,13 +2191,9 @@ async function lkExtract(data,onProgress){
       if(vm)r.block=vm[1];});
     // блок расположения щитовой: остальные строки листа (магистрали ЩО/ЩРС, вводы, шины) — к нему
     if(pg._blkHome&&pg.rows.some(r=>r.block))pg.rows.forEach(r=>{if(!r.block)r.block=pg._blkHome;});
-    if(pg.rows.some(r=>r.block)){
-      // порядок блоков и строк внутри — СЛЕВА НАПРАВО, как колонки на чертеже (не по номеру блока)
-      const minx={};pg.rows.forEach(r=>{if(!r.block)return;const x=r.x||0;if(minx[r.block]==null||x<minx[r.block])minx[r.block]=x;});
-      const bs=[...new Set(pg.rows.filter(r=>r.block).map(r=>r.block))].sort((a,b)=>(minx[a]||0)-(minx[b]||0));
-      pg.groups=bs.map(b=>({name:'Блок '+b,rows:pg.rows.filter(r=>r.block===b).sort((a,b2)=>(a.x||0)-(b2.x||0))}));
-      const rest=pg.rows.filter(r=>!r.block);
-      if(rest.length)pg.groups.push({name:'Весь проект',rows:rest.slice().sort((a,b2)=>(a.x||0)-(b2.x||0))});}
+    // блоки — КОЛОНКОЙ в строке, не секциями: секции по блокам рвали сквозную нумерацию
+    // (весь верхний ряд должен идти 1..5, средний 6..12 — независимо от блока)
+    if(pg.rows.some(r=>r.block))pg.groups=[{name:'Линейка',rows:pg.rows.slice()}];
     delete pg._blk;delete pg._blkHome;});
   pages.forEach(pg=>{delete pg._blk;delete pg._blkHome;});
   // порядок строк — как ЧИТАЕТСЯ чертёж: РЯДЫ кластеризацией по высоте (новый ряд — когда
@@ -2588,7 +2584,7 @@ function bindLineyka(){const P=$('lkPage');
   const ve=$('lkVruEdit');if(ve)ve.onchange=()=>{LK.pages[LK.sel].vru=ve.value.trim();renderLineyka();};
   const sq=$('lkSeqBtn');if(sq)sq.onclick=()=>{LK.seqLine=(LK.seqLine!==false)?false:true;renderLineyka();};
   P.querySelectorAll('.lk-blk').forEach(el=>el.onchange=()=>{const r=LK.byId[el.dataset.id];if(!r)return;
-    r.block=el.value.trim().replace(/[^1-9]/g,'');lkRegroup(LK.pages[LK.sel]);renderLineyka();});
+    r.block=el.value.trim().replace(/[^1-9]/g,'');renderLineyka();});   // блок — колонка строки; порядок и № не меняются
   // открыть исходный PDF на текущем листе — нативный просмотрщик, текст выделяется как в PDF.
   // Окно открываем СИНХРОННО в жесте клика: после await (IndexedDB) Chrome блокирует попап
   const op=$('lkOpenPdf');if(op)op.onclick=()=>{
