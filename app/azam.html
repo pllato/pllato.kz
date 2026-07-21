@@ -432,9 +432,10 @@ label.fld span{display:block;font-size:11px;color:var(--mut);font-weight:600;mar
   <section class="screen" id="s-supply">
     <div class="h1">Закуп и оборотный склад <span class="sub">поставщики · сырьё · декларации</span></div>
     <div class="lead">План закупа → заявки поставщикам (металл Северсталь, горелки Италия, редукторы/моторы Китай) → приём по декларации на свободный склад → списание в производство. Нехватка сырья краснеет — иначе цех встанет.</div>
+    <div style="display:flex;gap:9px;margin-bottom:14px;flex-wrap:wrap"><button class="btn pri" onclick="openNewPO()">＋ Новая заявка поставщику</button><button class="btn gh" onclick="openNewRaw()">＋ Позиция сырья</button><button class="btn gh" onclick="openNewSup()">＋ Поставщик</button></div>
     <div class="grid2">
       <div>
-        <div class="sect first">Оборотный склад · сырьё и комплектующие <span class="ln"></span></div>
+        <div class="sect first">Оборотный склад · сырьё и комплектующие <span class="ln"></span><span style="font-size:10px;color:var(--mut);font-weight:600;text-transform:none;letter-spacing:0">приход ＋ / списание в цех −</span></div>
         <div class="tiles" id="rawTiles"></div>
       </div>
       <div>
@@ -450,6 +451,7 @@ label.fld span{display:block;font-size:11px;color:var(--mut);font-weight:600;mar
   <section class="screen" id="s-ship">
     <div class="h1">Склад готовой продукции и отгрузка <span class="sub">комплектность · накладные · КПП</span></div>
     <div class="lead">Оборудование отгружается частями (силос №8 — это 5 машин: стойки, гофролист, метизы…). Система следит за <b>комплектностью</b>: недогруз или пересортица подсвечиваются, бригада на объекте не должна простаивать.</div>
+    <div id="shipStartBar" style="margin-bottom:14px"></div>
     <div class="sect first">Готовая продукция · ОТК пройден <span class="ln"></span></div>
     <div class="tiles" id="finTiles"></div>
     <div class="sect">Отгрузки · контроль комплектности <span class="ln"></span></div>
@@ -517,11 +519,64 @@ label.fld span{display:block;font-size:11px;color:var(--mut);font-weight:600;mar
   </div>
 </div>
 
+<!-- NEW PO (заявка поставщику) -->
+<div class="ovl" id="poOvl" onclick="if(event.target===this)closeM('poOvl')">
+  <div class="modal sm">
+    <div class="mh"><h2>Новая заявка поставщику</h2><span class="mx" onclick="closeM('poOvl')">✕</span></div>
+    <div class="mbody">
+      <label class="fld"><span>Поставщик</span><select class="inp" id="poSup"></select></label>
+      <div style="display:flex;gap:10px">
+        <label class="fld" style="flex:2"><span>Позиция / что закупаем</span><input class="inp" id="poItem" placeholder="Лист 3 мм оцинк."></label>
+        <label class="fld" style="flex:1"><span>Пополняет склад</span><select class="inp" id="poRaw"></select></label>
+      </div>
+      <div style="display:flex;gap:10px">
+        <label class="fld" style="flex:1"><span>Кол-во прихода</span><input class="inp mono" id="poQty" placeholder="80"></label>
+        <label class="fld" style="flex:1"><span>Сумма, ₸</span><input class="inp mono" id="poSum" placeholder="62000000"></label>
+        <label class="fld" style="flex:1"><span>Под сделку</span><select class="inp" id="poDeal"></select></label>
+      </div>
+      <div class="hint">Заявка появится со статусом «Заявка». Проводите её по цепочке: Заявка → Оплачен → В пути → <b>На складе</b> (приход по декларации на оборотный склад).</div>
+    </div>
+    <div class="mfoot"><button class="btn pri" onclick="saveNewPO()">Создать заявку</button><button class="btn gh" onclick="closeM('poOvl')">Отмена</button></div>
+  </div>
+</div>
+
+<!-- NEW RAW (позиция сырья) -->
+<div class="ovl" id="rawOvl" onclick="if(event.target===this)closeM('rawOvl')">
+  <div class="modal sm">
+    <div class="mh"><h2>Новая позиция сырья</h2><span class="mx" onclick="closeM('rawOvl')">✕</span></div>
+    <div class="mbody">
+      <label class="fld"><span>Наименование</span><input class="inp" id="rwName" placeholder="Лист 4 мм"></label>
+      <div style="display:flex;gap:10px">
+        <label class="fld" style="flex:1"><span>Остаток</span><input class="inp mono" id="rwQty" placeholder="0"></label>
+        <label class="fld" style="flex:1"><span>Ед.</span><select class="inp" id="rwUnit"><option>т</option><option>шт</option><option>лист</option><option>компл</option><option>кг</option><option>м</option></select></label>
+        <label class="fld" style="flex:1"><span>Норма (min)</span><input class="inp mono" id="rwMin" placeholder="10"></label>
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn pri" onclick="saveNewRaw()">Добавить</button><button class="btn gh" onclick="closeM('rawOvl')">Отмена</button></div>
+  </div>
+</div>
+
+<!-- NEW SUPPLIER -->
+<div class="ovl" id="supOvl" onclick="if(event.target===this)closeM('supOvl')">
+  <div class="modal sm">
+    <div class="mh"><h2>Новый поставщик</h2><span class="mx" onclick="closeM('supOvl')">✕</span></div>
+    <div class="mbody">
+      <label class="fld"><span>Название</span><input class="inp" id="spName" placeholder="ТОО «...» / завод"></label>
+      <div style="display:flex;gap:10px">
+        <label class="fld" style="flex:1"><span>Страна</span><input class="inp" id="spCountry" placeholder="Казахстан"></label>
+        <label class="fld" style="flex:2"><span>Что поставляет</span><input class="inp" id="spCat" placeholder="Металл, редукторы…"></label>
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn pri" onclick="saveNewSup()">Добавить</button><button class="btn gh" onclick="closeM('supOvl')">Отмена</button></div>
+  </div>
+</div>
+
 <div id="toasts"></div>
 
 <script>
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const jsq=s=>String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
 const fmt=n=>{n=Math.round(n||0);return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ');};
 const money=n=>fmt(n)+' ₸';
 const mln=n=>{n=n||0;return n>=1e9?(n/1e9).toFixed(n>=1e10?0:2).replace(/\.?0+$/,'')+' млрд':n>=1e6?fmt(Math.round(n/1e6))+' млн':fmt(n);};
@@ -612,10 +667,10 @@ function defaults(){
     {name:'ТОО «МетизСнаб»',country:'Казахстан',cat:'Метизы, крепёж'},
   ];
   const PO=[
-    {id:'P-341',sup:'ПАО «Северсталь»',item:'Лист 3 мм оцинк.',qty:'80 т',sum:62000000,status:'В пути',deal:'AZ-2601'},
-    {id:'P-342',sup:'Bentone / Riello',item:'Горелка BG-400 ×2',qty:'2 шт',sum:9800000,status:'Оплачен',deal:'AZ-2601'},
-    {id:'P-343',sup:'Shanghai Drive Co.',item:'Редукторы + моторы',qty:'14 компл',sum:11200000,status:'Заявка',deal:'AZ-2604'},
-    {id:'P-344',sup:'ТОО «МетизСнаб»',item:'Болты, гайки, метизы',qty:'партия',sum:2400000,status:'На складе',deal:'AZ-2603'},
+    {id:'P-341',sup:'ПАО «Северсталь»',item:'Лист 3 мм оцинк.',qty:'80 т',sum:62000000,status:'В пути',deal:'AZ-2601',raw:'Лист 3 мм оцинк.',addQty:80},
+    {id:'P-342',sup:'Bentone / Riello',item:'Горелка BG-400 ×2',qty:'2 шт',sum:9800000,status:'Оплачен',deal:'AZ-2601',raw:'Горелки (сушилки)',addQty:2},
+    {id:'P-343',sup:'Shanghai Drive Co.',item:'Редукторы + моторы',qty:'14 шт',sum:11200000,status:'Заявка',deal:'AZ-2604',raw:'Редукторы',addQty:14},
+    {id:'P-344',sup:'ТОО «МетизСнаб»',item:'Болты, гайки, метизы',qty:'40 компл',sum:2400000,status:'На складе',deal:'AZ-2603',raw:'Метизы (крепёж)',addQty:40},
   ];
   const RAW=[
     {name:'Лист 3 мм оцинк.',qty:52,unit:'т',min:30,note:'силосы, сушилки'},
@@ -952,24 +1007,68 @@ function renderGantt(){
 }
 
 /* ---- SUPPLY ---- */
+const PO_FLOW=['Заявка','Оплачен','В пути','На складе'];
+function rawStep(u){return {'т':4,'шт':5,'лист':50,'компл':5,'кг':50,'м':20}[u]||5;}
 function renderSupply(){
-  $('rawTiles').innerHTML=RAW.map(r=>{const short=r.qty<r.min;return `<div class="tile" style="${short?'border-color:rgba(255,107,107,.4)':''}"><div class="tn">${esc(r.name)}</div><div class="td">${r.note?esc(r.note):('норма '+r.min+' '+r.unit)}</div><div class="tq" style="color:${short?'var(--red)':'var(--tx)'}">${r.qty} <span style="font-size:11px;color:var(--mut)">${r.unit}</span></div>${short?'<span class="tag red" style="margin-top:6px;display:inline-block">нехватка</span>':'<span class="tag grn" style="margin-top:6px;display:inline-block">в норме</span>'}</div>`;}).join('');
-  $('poTbl').innerHTML=`<thead><tr><th>№</th><th>Поставщик / позиция</th><th class="r">Сумма</th><th>Статус</th></tr></thead><tbody>`+
-    PO.map(p=>{const st=p.status==='На складе'?'grn':p.status==='В пути'?'cy':p.status==='Оплачен'?'gold':'gr';return `<tr><td class="mono" style="color:var(--mut)">${esc(p.id)}</td><td><b>${esc(p.item)}</b><div style="font-size:11px;color:var(--mut)">${esc(p.sup)} · ${esc(p.deal)}</div></td><td class="r">${money(p.sum)}</td><td><span class="tag ${st}">${esc(p.status)}</span></td></tr>`;}).join('')+`</tbody>`;
-  $('supList').innerHTML=SUPPLIERS.map(s=>`<div class="row"><div><div class="nm">${esc(s.name)}</div><div class="ds">${esc(s.cat)}</div></div><span class="chip" style="margin-left:auto">${esc(s.country)}</span></div>`).join('');
+  $('rawTiles').innerHTML=RAW.map((r,idx)=>{const short=r.qty<r.min;const stp=rawStep(r.unit);return `<div class="tile" style="${short?'border-color:rgba(216,70,54,.4)':''}"><div class="tn">${esc(r.name)}</div><div class="td">${r.note?esc(r.note):('норма '+r.min+' '+r.unit)}</div><div class="tq" style="color:${short?'var(--red)':'var(--tx)'}">${r.qty} <span style="font-size:11px;color:var(--mut)">${r.unit}</span></div><div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px"><span class="tag ${short?'red':'grn'}">${short?'нехватка':'в норме'}</span><span style="display:inline-flex;gap:6px"><button class="qb" title="Списать в цех (−${stp})" onclick="rawIssue(${idx})">−</button><button class="qb" title="Приход (+${stp})" onclick="rawReceive(${idx})">＋</button></span></div></div>`;}).join('');
+  $('poTbl').innerHTML=`<thead><tr><th>№</th><th>Поставщик / позиция</th><th class="r">Сумма</th><th>Статус</th><th></th></tr></thead><tbody>`+
+    PO.map(p=>{const st=p.status==='На складе'?'grn':p.status==='В пути'?'cy':p.status==='Оплачен'?'gold':'gr';const next=PO_FLOW[PO_FLOW.indexOf(p.status)+1];
+      return `<tr><td class="mono" style="color:var(--mut)">${esc(p.id)}</td><td><b>${esc(p.item)}</b><div style="font-size:11px;color:var(--mut)">${esc(p.sup)} · ${esc(p.deal)} · ${esc(p.qty)}</div></td><td class="r">${money(p.sum)}</td><td><span class="tag ${st}">${esc(p.status)}</span></td><td class="r">${next?`<button class="btn gh" style="padding:5px 10px;font-size:11px" onclick="poAdvance('${p.id}')">${next==='На складе'?'Провести на склад':'→ '+next}</button>`:'<span style="color:var(--grn);font-size:11px;font-weight:700">оприходовано ✓</span>'}</td></tr>`;}).join('')+`</tbody>`;
+  $('supList').innerHTML=SUPPLIERS.map((s,i)=>`<div class="row"><div><div class="nm">${esc(s.name)}</div><div class="ds">${esc(s.cat)}</div></div><span class="chip">${esc(s.country)}</span><button class="btn gh" style="padding:5px 10px;font-size:11px;margin-left:6px" onclick="openNewPO('${jsq(s.name)}')">Заявка</button></div>`).join('');
 }
+function rawReceive(idx){const r=RAW[idx];r.qty+=rawStep(r.unit);save();renderSupply();renderDash();toast('Приход: <b>'+esc(r.name)+'</b> +'+rawStep(r.unit)+' '+r.unit,'grn');}
+function rawIssue(idx){const r=RAW[idx];r.qty=Math.max(0,r.qty-rawStep(r.unit));save();renderSupply();renderDash();renderProd();toast('Списано в производство: <b>'+esc(r.name)+'</b> −'+rawStep(r.unit)+' '+r.unit,'cy');}
+function poAdvance(id){const p=PO.find(x=>x.id===id);if(!p)return;const ni=PO_FLOW.indexOf(p.status)+1;if(ni>=PO_FLOW.length)return;p.status=PO_FLOW[ni];
+  if(p.status==='На складе'&&p.raw){const r=RAW.find(x=>x.name===p.raw);if(r){r.qty+=(p.addQty||0);toast('Приём по декларации: <b>'+esc(p.raw)+'</b> +'+(p.addQty||0)+' '+r.unit+' на оборотный склад.','grn');}else{RAW.push({name:p.raw,qty:p.addQty||0,unit:'шт',min:0,note:'из заявки '+p.id});toast('Приём по декларации: новая позиция <b>'+esc(p.raw)+'</b>.','grn');}}
+  else toast('Заявка '+id+' → <b>'+p.status+'</b>','cy');
+  save();renderSupply();renderDash();}
 
 /* ---- SHIP ---- */
+function nowHM(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
 function renderShip(){
+  // старт отгрузки для готовых заказов без отгрузки
+  const ready=DEALS.filter(d=>d.otk&&d.stage>=5&&d.stage<7&&!d.ship);
+  $('shipStartBar').innerHTML=ready.length?`<div class="card pad" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><b style="font-size:13px">Готовы к отгрузке (ОТК ✓):</b>${ready.map(d=>`<button class="btn pri" onclick="shipStart(${d.id})">Собрать отгрузку · ${esc(d.client)}</button>`).join('')}</div>`:'';
   $('finTiles').innerHTML=FIN.map(f=>`<div class="tile"><div class="tn">${esc(f.name)}</div><div class="td">${esc(f.deal)}</div><div class="tq">${f.qty} <span style="font-size:11px;color:var(--mut)">${f.unit}</span></div><span class="tag grn" style="margin-top:6px;display:inline-block">ОТК ✓ готово</span></div>`).join('');
   const ships=DEALS.filter(d=>d.ship);
   $('shipList').innerHTML=ships.length?ships.map(d=>{
-    const pct=shipPct(d);const cls=pct>=100?'':'bad';
-    return `<div class="card pad" style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:11px;margin-bottom:11px"><div style="flex:1"><b style="font-size:14px">${esc(d.client)}</b> <span class="mono" style="color:var(--mut);font-size:12px">${esc(d.no)}</span><div style="font-size:11.5px;color:var(--mut)">${d.ship.trucks} машин · комплектность ${pct}%</div></div><span class="tag ${pct>=100?'grn':'red'}">${pct>=100?'комплект собран':'недогруз '+pct+'%'}</span></div>
+    const pct=shipPct(d);const cls=pct>=100?'':'bad';const done=pct>=100;
+    return `<div class="card pad" style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:11px;margin-bottom:11px"><div style="flex:1"><b style="font-size:14px">${esc(d.client)}</b> <span class="mono" style="color:var(--mut);font-size:12px">${esc(d.no)}</span><div style="font-size:11.5px;color:var(--mut)">${d.ship.trucks} машин · комплектность ${pct}%</div></div><span class="tag ${done?'grn':'red'}">${done?'комплект собран':'недогруз '+pct+'%'}</span></div>
     <div class="bar ${cls}" style="margin-bottom:12px"><i style="width:${pct}%"></i></div>
-    <table class="tbl"><thead><tr><th>Позиция</th><th class="r">По договору</th><th class="r">Отгружено</th><th class="r">Остаток</th></tr></thead><tbody>${d.ship.items.map(it=>{const rem=it[1]-it[2];return `<tr style="cursor:default"><td>${esc(it[0])}</td><td class="r">${it[1]}</td><td class="r" style="color:${it[2]>=it[1]?'var(--grn)':'var(--gold)'}">${it[2]}</td><td class="r" style="color:${rem>0?'var(--red)':'var(--mut)'}">${rem>0?rem:'—'}</td></tr>`;}).join('')}</tbody></table></div>`;
-  }).join(''):'<div class="hint">Активных отгрузок нет.</div>';
+    <table class="tbl"><thead><tr><th>Позиция</th><th class="r">По договору</th><th class="r">Отгружено</th><th class="r">Остаток</th><th></th></tr></thead><tbody>${d.ship.items.map((it,li)=>{const rem=it[1]-it[2];return `<tr style="cursor:default"><td>${esc(it[0])}</td><td class="r">${it[1]}</td><td class="r" style="color:${it[2]>=it[1]?'var(--grn)':'var(--gold)'}">${it[2]}</td><td class="r" style="color:${rem>0?'var(--red)':'var(--mut)'}">${rem>0?rem:'—'}</td><td class="r">${rem>0?`<span style="display:inline-flex;gap:5px"><button class="btn gh" style="padding:3px 9px;font-size:11px" onclick="shipLine(${d.id},${li},0)">＋ партия</button><button class="btn gh" style="padding:3px 9px;font-size:11px" onclick="shipLine(${d.id},${li},1)">всё</button></span>`:'<span class="tag grn">✓</span>'}</td></tr>`;}).join('')}</tbody></table>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn cy" onclick="shipTruck(${d.id})">🚚 Отправить машину на КПП</button>${done?`<button class="btn pri" onclick="shipClose(${d.id})">Закрыть отгрузку ✓</button>`:''}</div></div>`;
+  }).join(''):'<div class="hint">Активных отгрузок нет. Соберите отгрузку по готовому заказу выше.</div>';
 }
+function shipLine(id,li,all){const d=DEALS.find(x=>x.id===id);const it=d.ship.items[li];const rem=it[1]-it[2];const batch=all?rem:Math.min(rem,Math.max(1,Math.ceil(it[1]/4)));it[2]=Math.min(it[1],it[2]+batch);save();renderShip();renderDash();toast('Отгружено: <b>'+esc(it[0])+'</b> +'+batch,'cy');}
+function shipStart(id){const d=DEALS.find(x=>x.id===id);d.ship={items:d.items.filter(i=>i.cat!=='Монтаж').map(i=>[i.name,i.qty,0]),trucks:0,kpp:false};save();renderShip();renderDash();toast('Отгрузка собрана по <b>'+esc(d.client)+'</b> — отгружайте по позициям.','grn');}
+function shipTruck(id){const d=DEALS.find(x=>x.id===id);const loaded=d.ship.items.filter(it=>it[2]>0);if(!loaded.length){toast('Сначала отгрузите хотя бы одну позицию.','red');return;}
+  d.ship.trucks++;KPP.unshift({time:nowHM(),what:esc(d.client)+' · машина №'+d.ship.trucks,deal:d.no,truck:'Назначить (гараж / транспортная)',ok:false});save();renderShip();renderKpp();renderDash();toast('🚚 Машина №'+d.ship.trucks+' отправлена на <b>КПП</b> — ждёт проверки охраны.','cy');}
+function shipClose(id){const d=DEALS.find(x=>x.id===id);if(shipPct(d)<100){toast('Комплект ещё не собран на 100%.','red');return;}d.stage=7;save();renderAll();toast('Отгрузка <b>'+esc(d.client)+'</b> закрыта — контракт исполнен ✓','grn');}
+
+/* ---- SUPPLY / SHIP MODALS ---- */
+function openNewPO(supName){
+  $('poSup').innerHTML=SUPPLIERS.map(s=>`<option>${esc(s.name)}</option>`).join('');
+  if(supName)$('poSup').value=supName;
+  $('poRaw').innerHTML='<option value="">— новая позиция —</option>'+RAW.map(r=>`<option>${esc(r.name)}</option>`).join('');
+  $('poDeal').innerHTML=DEALS.filter(d=>d.stage<7).map(d=>`<option>${esc(d.no)}</option>`).join('');
+  $('poItem').value='';$('poQty').value='';$('poSum').value='';
+  $('poOvl').classList.add('on');
+}
+function saveNewPO(){
+  const item=$('poItem').value.trim();if(!item){toast('Укажите позицию','red');return;}
+  const num=Math.max(340,...PO.map(p=>+((p.id||'P-0').split('-')[1])||0))+1;
+  const rawSel=$('poRaw').value||item;
+  PO.unshift({id:'P-'+num,sup:$('poSup').value,item,qty:($('poQty').value||'—')+' ед.',sum:+($('poSum').value||0)||0,status:'Заявка',deal:$('poDeal').value||'—',raw:rawSel,addQty:+($('poQty').value||0)||0});
+  save();closeM('poOvl');renderSupply();renderDash();toast('Заявка <b>P-'+num+'</b> создана · '+esc($('poSup').value),'grn');
+}
+function openNewRaw(){$('rwName').value='';$('rwQty').value='';$('rwMin').value='';$('rawOvl').classList.add('on');}
+function saveNewRaw(){const n=$('rwName').value.trim();if(!n){toast('Укажите наименование','red');return;}
+  RAW.push({name:n,qty:+($('rwQty').value||0)||0,unit:$('rwUnit').value,min:+($('rwMin').value||0)||0,note:''});
+  save();closeM('rawOvl');renderSupply();toast('Позиция сырья добавлена: <b>'+esc(n)+'</b>','grn');}
+function openNewSup(){$('spName').value='';$('spCountry').value='';$('spCat').value='';$('supOvl').classList.add('on');}
+function saveNewSup(){const n=$('spName').value.trim();if(!n){toast('Укажите название','red');return;}
+  SUPPLIERS.push({name:n,country:$('spCountry').value||'—',cat:$('spCat').value||'—'});
+  save();closeM('supOvl');renderSupply();toast('Поставщик добавлен: <b>'+esc(n)+'</b>','grn');}
 
 /* ---- KPP ---- */
 function renderKpp(){
