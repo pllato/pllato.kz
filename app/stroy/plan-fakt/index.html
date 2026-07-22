@@ -1627,7 +1627,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v374';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v375';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v374';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2405,6 +2405,17 @@ async function openLineyka(file){
   lkRefreshDocs();
 }
 /* восстановление после перезагрузки: тот же документ, тот же лист */
+/* автопроверка свежей сборки: страница с GitHub Pages живёт в кэше до 10 минут — люди видели
+   старые версии («ничего не изменилось», «нет потребителей»). Сравниваем с живым файлом. */
+setTimeout(async()=>{try{
+  const t=await (await fetch(location.pathname+'?cb='+Date.now(),{cache:'no-store'})).text();
+  const m=t.match(/LK_VER='v(\d+)'/);if(!m)return;
+  const cur=+LK_VER.replace(/\D/g,''),fresh=+m[1];
+  if(fresh>cur){const d=document.createElement('div');
+    d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#b45309;color:#fff;padding:10px 16px;font:600 14px/1.4 ui-monospace,monospace;display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap';
+    d.innerHTML='⬆ Вышла сборка v'+fresh+' — у вас v'+cur+' из кэша, правки не видны. <button style="border:none;border-radius:8px;padding:6px 14px;font:inherit;cursor:pointer" onclick="location.href=location.pathname+&quot;?v='+fresh+'&quot;">Обновить сейчас</button>';
+    document.body.appendChild(d);}
+}catch(e){}},3500);
 window.addEventListener('load',()=>{(async()=>{try{
   await lkRefreshDocs();
   const last=localStorage.getItem('lkLast');if(!last)return;
