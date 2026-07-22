@@ -211,6 +211,81 @@ export async function imapFetchMessage(acc, uid, { folder = "INBOX" } = {}) {
   }
 }
 
+// Скачать конкретное вложение письма (по индексу) — декодированные байты.
+export async function imapFetchAttachment(acc, uid, index, { folder = "INBOX" } = {}) {
+  const conn = await imapLogin(acc);
+  try {
+    const sel = await imapCmd(conn, conn._tag(), `SELECT ${imapQuote(folder)}`);
+    if (sel.status !== "OK") throw new Error("SELECT failed: " + sel.text);
+    const f = await imapCmd(conn, conn._tag(), `UID FETCH ${Number(uid)} (BODY.PEEK[])`);
+    const m = f.resp.match(/\{(\d+)\}\r\n/);
+    if (!m) throw new Error("message not found");
+    const litStart = f.resp.indexOf(m[0]) + m[0].length;
+    const raw = f.resp.slice(litStart, litStart + parseInt(m[1], 10));
+    const sepIdx = raw.indexOf("\r\n\r\n");
+    const body = sepIdx === -1 ? "" : raw.slice(sepIdx + 4);
+    const ct = parseContentType(parseHeaders(raw)["content-type"]);
+    const atts = [];
+    collectAttachments(body, ct, parseHeaders(raw), atts, 0);
+    const a = atts[Number(index)];
+    if (!a) throw new Error("attachment not found");
+    return { filename: a.filename, mime: a.mime, bytes: decodeAttachmentBytes(a.body, a.encoding) };
+  } finally {
+    try { await imapCmd(conn, conn._tag(), "LOGOUT"); } catch {}
+    await closeConn(conn);
+  }
+}
+
+// Обход MIME-дерева ТОЧНО как walkPart — собираем сырые тела вложений (порядок = индекс).
+function collectAttachments(body, ct, headers, out, depth) {
+  if (depth > 12) return;
+  if (ct.type.startsWith("multipart/")) {
+    const boundary = ct.params.boundary;
+    if (!boundary) return;
+    for (const p of splitMultipart(body, boundary)) {
+      const ph = parseHeaders(p);
+      const pct = parseContentType(ph["content-type"]);
+      const sep = p.indexOf("\r\n\r\n");
+      const pbody = sep === -1 ? "" : p.slice(sep + 4);
+      collectAttachments(pbody, pct, ph, out, depth + 1);
+    }
+    return;
+  }
+  const disp = (headers["content-disposition"] || "").toLowerCase();
+  const filename = (headers["content-disposition"] || "").match(/filename\*?=("?)([^";]+)\1/i);
+  const isAttach = disp.startsWith("attachment") || (filename && ct.type.indexOf("text/") !== 0);
+  if (isAttach) {
+    out.push({
+      filename: decodeWords(filename ? filename[2] : (ct.params.name || "file")),
+      mime: ct.type || "application/octet-stream",
+      encoding: (headers["content-transfer-encoding"] || "").toLowerCase().trim(),
+      body,
+    });
+  }
+}
+
+// Декодирование тела вложения в байты (base64 / quoted-printable / прочее).
+function decodeAttachmentBytes(body, encoding) {
+  const enc = (encoding || "").toLowerCase();
+  if (enc === "base64") {
+    const clean = body.replace(/[^A-Za-z0-9+/=]/g, "");
+    const bin = atob(clean);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i) & 0xff;
+    return out;
+  }
+  if (enc === "quoted-printable") {
+    const s = body.replace(/=\r\n/g, "").replace(/=([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+    const out = new Uint8Array(s.length);
+    for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i) & 0xff;
+    return out;
+  }
+  // 7bit / 8bit / binary / none — трактуем как байты latin1.
+  const out = new Uint8Array(body.length);
+  for (let i = 0; i < body.length; i++) out[i] = body.charCodeAt(i) & 0xff;
+  return out;
+}
+
 // ════════════════════════ MIME ════════════════════════
 function parseHeaders(raw) {
   const headers = {};
@@ -328,6 +403,7 @@ function walkPart(body, ct, headers, result, depth = 0) {
   const isAttach = disp.startsWith("attachment") || (filename && ct.type.indexOf("text/") !== 0);
   if (isAttach) {
     result.attachments.push({
+      index: result.attachments.length,   // порядок обхода = индекс для скачивания
       filename: decodeWords(filename ? filename[2] : (ct.params.name || "файл")),
       mime: ct.type,
       size: body.replace(/\s/g, "").length,

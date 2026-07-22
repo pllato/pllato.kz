@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Kolyakhan — CRM для лид-менеджеров · Демо</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23172033'/%3E%3Cpath d='M6 12 L16 7 L26 12 L16 17 Z' fill='%23e8ecf3'/%3E%3Cpath d='M6 12 v9 l10 5 v-9 Z' fill='%23aebacd'/%3E%3Cpath d='M26 12 v9 l-10 5 v-9 Z' fill='%23d3dbe7'/%3E%3Cpath d='M19 20 l3 3 6-7' fill='none' stroke='%232ea882' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#172033;--ink2:#3d4a61;--mut:#6b7689;--faint:#9aa5b5;
+  --paper:#fcfcfa;--panel:#fff;--ln:#dfe3ea;--ln2:#eceef2;
+  --grn:#1e7d5f;--grn-l:#e7f2ee;--terra:#b4552e;--terra-l:#f7e9e2;--amb:#996c07;--amb-l:#f5eeda;--blu:#28527a;--blu-l:#e9eff5;
+  --mono:'JetBrains Mono',monospace;--serif:'Spectral',serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Onest',sans-serif;background:var(--paper);color:var(--ink);font-size:14.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:13.5px;color:var(--ink)}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#c8cdd6}
+.num{font-family:var(--mono);font-feature-settings:'tnum'}
+
+.demo-note{background:var(--ink);color:#c3cbd8;font-size:12px;padding:8px 16px;text-align:center}
+.demo-note b{color:#fff}
+
+.mast{background:var(--panel);border-bottom:1px solid var(--ink)}
+.mast .m1{max-width:1300px;margin:0 auto;padding:14px 24px 10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .bm{width:40px;height:40px;background:var(--ink);flex:none;display:grid;place-items:center}
+.brand .bm svg{width:28px;height:28px}
+.brand .bt{font-family:var(--serif);font-weight:700;font-size:21px;letter-spacing:.06em}
+.brand .bs{font-size:11px;color:var(--mut);margin-top:-2px}
+.mast .roles{margin-left:auto;display:flex;border:1px solid var(--ln);background:var(--paper)}
+.mast .roles button{padding:8px 13px;font-size:12.5px;font-weight:500;color:var(--mut);border-right:1px solid var(--ln)}
+.mast .roles button:last-child{border-right:none}
+.mast .roles button.on{background:var(--ink);color:#fff}
+.mast .act{background:var(--grn);color:#fff;font-weight:600;font-size:13px;padding:9px 15px}
+.mast .act.dk{background:var(--ink)}
+.mnav{max-width:1300px;margin:0 auto;padding:0 24px;display:flex;gap:26px;overflow-x:auto}
+.mnav button{padding:11px 0 12px;font-size:14.5px;font-weight:500;color:var(--mut);border-bottom:3px solid transparent;white-space:nowrap}
+.mnav button.on{color:var(--ink);font-weight:600;border-bottom-color:var(--grn)}
+.mnav button .cnt{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:5px}
+
+.wrap{max-width:1300px;margin:0 auto;padding:18px 24px 90px}
+.screen{display:none}.screen.on{display:block;animation:fd .18s}
+@keyframes fd{from{opacity:0}to{opacity:1}}
+.ph-head{display:flex;align-items:baseline;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+.ph-head h1{font-family:var(--serif);font-size:24px;font-weight:600}
+.ph-head .sub{font-size:13.5px;color:var(--mut)}
+
+.meterline{display:flex;border-top:2px solid var(--ink);border-bottom:1px solid var(--ln);margin-bottom:18px;flex-wrap:wrap}
+.mt{flex:1;min-width:150px;padding:11px 18px 11px 0;cursor:pointer;transition:.12s}
+.mt:hover{background:#f4f6f3}
+.mt+.mt{border-left:1px solid var(--ln);padding-left:18px}
+.mt .l{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);font-weight:600}
+.mt .v{font-family:var(--mono);font-size:24px;font-weight:700;margin-top:2px}
+.mt .v em{font-style:normal;font-size:13px;color:var(--faint);font-weight:400}
+.mt .v.g{color:var(--grn)}.mt .v.t{color:var(--terra)}.mt .v.b{color:var(--blu)}
+.mt .d{font-size:12.5px;color:var(--faint)}
+
+/* воронка */
+.kanwrap{overflow-x:auto}
+.kan{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(216px,1fr);gap:1px;background:var(--ln);border:1px solid var(--ln);align-items:stretch}
+.kcol{background:var(--paper);padding:9px;min-height:360px}
+.kcol h4{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);font-weight:700;padding:2px 3px 4px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.kcol h4 .num{color:var(--faint);font-weight:600;letter-spacing:0;font-family:var(--mono)}
+.kcol h4 .pencil{opacity:.35;font-size:11px;margin-left:5px;cursor:pointer}
+.kcol h4:hover .pencil{opacity:.9}
+.kcol h4 .pencil:hover{opacity:1;color:var(--grn)}
+.kcol h4 .xdel:hover{color:var(--terra)}
+.kcol h4 .stitle{cursor:text}
+.kcol h4 .rt{display:flex;align-items:center;gap:6px;flex:none}
+.stage-edit{font-family:'Onest',sans-serif;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border:1.5px solid var(--grn);background:var(--panel);padding:3px 6px;width:100%;max-width:150px;outline:none;color:var(--ink)}
+.kcol .ksum{font-family:var(--mono);font-size:12px;color:var(--ink2);padding:0 3px 9px;border-bottom:1px solid var(--ln2);margin-bottom:9px}
+.kcol.dz{background:var(--grn-l);outline:2px dashed var(--grn);outline-offset:-4px}
+.kcard{background:var(--panel);border:1px solid var(--ln);border-top:2px solid var(--ink);padding:10px 12px;margin-bottom:8px;cursor:grab;transition:.1s}
+.kcard:hover{border-color:var(--grn);transform:translateY(-1px);box-shadow:0 4px 10px -6px rgba(23,32,51,.25)}
+.kcard:active{cursor:grabbing}
+.kcard.dragging{opacity:.35;border-style:dashed}
+.kcard.late{border-top-color:var(--terra)}
+.kcard .kt{font-size:14.5px;font-weight:600}
+.kcard .kc2{font-size:12.5px;color:var(--mut);margin-top:1px}
+.kcard .kph{font-family:var(--mono);font-size:12px;color:var(--ink2);margin-top:5px}
+.kcard .knext{display:flex;align-items:center;gap:6px;margin-top:7px;font-size:12px;font-weight:600;color:var(--blu)}
+.kcard .knext.lt{color:var(--terra)}
+.kcard .kic{display:flex;gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap;row-gap:4px}
+.kic .avm{width:22px;height:22px;border-radius:50%;background:var(--blu-l);color:var(--blu);font-size:9.5px;font-weight:700;display:inline-grid;place-items:center;flex:none;cursor:pointer}
+.kic .src{font-size:10.5px;color:var(--faint);font-weight:600;letter-spacing:.03em}
+.kic .age{margin-left:auto;font-size:10.5px;color:var(--faint);font-family:var(--mono);font-weight:600}
+.mflag{font-size:10.5px;font-weight:700;padding:2px 7px;margin-top:6px;display:inline-block}
+.mflag.set{background:var(--blu-l);color:var(--blu)}
+.mflag.ok{background:var(--grn-l);color:var(--grn)}
+.addcol{background:var(--paper);border:2px dashed var(--ln);display:grid;place-items:center;min-height:360px;color:var(--faint);font-weight:600;font-size:12px;cursor:pointer;text-align:center;padding:10px}
+.addcol:hover{border-color:var(--grn);color:var(--grn)}
+
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px}
+.dot.g{background:var(--grn)}.dot.t{background:var(--terra)}.dot.a{background:#c99a1b}.dot.b{background:var(--blu)}.dot.gy{background:#b9c0cb}
+.mark{font-family:var(--mono);font-size:11px;font-weight:600}
+.mark.g{color:var(--grn)}.mark.t{color:var(--terra)}.mark.a{color:var(--amb)}.mark.b{color:var(--blu)}.mark.gy{color:var(--faint)}
+
+.cols{display:grid;grid-template-columns:1.55fr 1fr;gap:20px;align-items:start}
+@media(max-width:1020px){.cols{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--ln);margin-bottom:18px}
+.panel .pt{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--ln2)}
+.panel .pt h3{font-family:var(--serif);font-size:16px;font-weight:600;flex:1}
+.panel .pt .lnk{font-size:12px;color:var(--blu);font-weight:500;cursor:pointer}
+.panel .pb{padding:8px 16px 14px}
+.note{font-size:13px;color:var(--mut);line-height:1.6}
+.note b{color:var(--ink)}
+.tznote{background:var(--amb-l);border:1px solid #e6d3a0;padding:10px 14px;font-size:12.5px;color:#7a5a12;margin-bottom:14px}
+.tznote b{color:#5e440b}
+
+table{width:100%;border-collapse:collapse}
+th{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);text-align:left;font-weight:600;padding:9px 10px 7px 0;border-bottom:1.5px solid var(--ink)}
+th.r{text-align:right}
+td{padding:10px 10px 10px 0;border-bottom:1px solid var(--ln2);font-size:14.5px;vertical-align:middle}
+td.r{text-align:right;font-family:var(--mono);font-size:13.5px;font-weight:600;white-space:nowrap}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:#f6f7f4}
+.cn{font-weight:600;font-size:15px}
+.cs{font-size:12.5px;color:var(--mut);margin-top:1px}
+.play{background:var(--ink);color:#8fd4bc;font-family:var(--mono);font-size:10.5px;font-weight:600;padding:5px 10px;cursor:pointer}
+.pchip{display:inline-flex;border:1px solid var(--ln);background:var(--panel)}
+.pchip button{padding:7px 13px;font-size:12.5px;font-weight:600;color:var(--mut);border-right:1px solid var(--ln)}
+.pchip button:last-child{border-right:none}
+.pchip button.on{background:var(--ink);color:#fff}
+
+/* задачи */
+.tgroup{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);font-weight:700;margin:18px 0 8px}
+.trow{display:flex;align-items:center;gap:13px;background:var(--panel);border:1px solid var(--ln);padding:11px 14px;margin-bottom:8px;cursor:pointer;transition:.1s}
+.trow:hover{border-color:var(--grn)}
+.trow.late{border-left:3px solid var(--terra)}
+.trow .tw{width:88px;flex:none;font-family:var(--mono);font-size:12.5px;font-weight:700;color:var(--ink2)}
+.trow.late .tw{color:var(--terra)}
+.trow .ti{flex:1;min-width:0}
+.trow .tn2{font-weight:600;font-size:14px}
+.trow .td2{font-size:12.5px;color:var(--mut)}
+.trow .done{border:1px solid var(--grn);color:var(--grn);padding:6px 12px;font-size:11.5px;font-weight:700}
+
+/* учёт рабочего времени */
+.wtlog{position:relative;padding-left:18px}
+.wtlog::before{content:'';position:absolute;left:4px;top:3px;bottom:3px;width:2px;background:var(--ln)}
+.wtl{position:relative;padding:0 0 12px}
+.wtl::before{content:'';position:absolute;left:-17px;top:4px;width:8px;height:8px;border-radius:50%;background:var(--grn)}
+.wtl .we{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+.wtl .wb{font-size:13.5px;margin-top:1px}
+
+/* модал лида */
+.ovl{position:fixed;inset:0;background:rgba(23,32,51,.55);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:26px 14px;overflow-y:auto}
+.ovl.show{display:flex}
+.deal{background:var(--paper);border:1.5px solid var(--ink);max-width:1000px;width:100%;animation:fd .15s}
+.deal .dh{background:var(--panel);border-bottom:1px solid var(--ln);padding:14px 20px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.deal .dh h2{font-family:var(--serif);font-size:20px;font-weight:600}
+.deal .dh .mx{margin-left:auto;font-size:20px;color:var(--mut);cursor:pointer}
+.stepper{display:flex;border-bottom:1px solid var(--ln);background:var(--panel);overflow-x:auto}
+.stepper button{flex:1;min-width:120px;padding:9px 6px;font-size:11.5px;font-weight:700;color:var(--faint);border-bottom:3px solid transparent;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
+.stepper button.done{color:var(--grn)}
+.stepper button.cur{color:var(--ink);border-bottom-color:var(--grn);background:var(--grn-l)}
+.deal .db{display:grid;grid-template-columns:238px 1fr 216px;gap:0;min-height:400px}
+@media(max-width:900px){.deal .db{grid-template-columns:1fr}}
+.deal .dleft{border-right:1px solid var(--ln);padding:14px 16px;background:var(--panel)}
+.fld{margin-bottom:11px}
+.fld .fl{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.fld .fv{font-size:14.5px;font-weight:600;margin-top:2px}
+.fld .fv.clk{cursor:pointer}.fld .fv.clk:hover{color:var(--grn)}
+.hhlink{color:var(--blu);font-weight:600;font-size:12.5px;text-decoration:underline;cursor:pointer}
+.cbtns{display:flex;gap:6px;margin-top:4px}
+.cbtn{flex:1;border:1px solid var(--ln);padding:8px 6px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;font-weight:600;cursor:pointer}
+.cbtn:hover{border-color:var(--grn);color:var(--grn)}
+.cbtn svg{width:13px;height:13px}
+.deal .dmid{padding:0;overflow:hidden;display:flex;flex-direction:column}
+.midtabs{display:flex;border-bottom:1px solid var(--ln);background:var(--panel)}
+.midtabs button{flex:1;padding:11px 6px;font-size:12.5px;font-weight:600;color:var(--mut);border-bottom:2px solid transparent}
+.midtabs button.on{color:var(--ink);border-bottom-color:var(--grn)}
+.midbody{padding:14px 18px;overflow-y:auto;max-height:52vh}
+.midpane{display:none}.midpane.on{display:block}
+.tl{position:relative;padding-left:20px}
+.tl::before{content:'';position:absolute;left:5px;top:4px;bottom:4px;width:2px;background:var(--ln)}
+.ev{position:relative;padding:0 0 14px}
+.ev::before{content:'';position:absolute;left:-19px;top:5px;width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.ev.call::before{background:var(--blu)}.ev.wa::before{background:#1fa855}.ev.st::before{background:var(--amb)}.ev.note::before{background:var(--ink)}
+.ev .et{font-size:11.5px;color:var(--faint);font-family:var(--mono)}
+.ev .eb{font-size:14px;margin-top:2px;line-height:1.5}
+.ev .eb b{font-weight:600}
+.ev .rec{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--ln);padding:5px 10px;margin-top:5px;font-size:11px;font-family:var(--mono);cursor:pointer}
+.ev .rec:hover{border-color:var(--blu)}
+.chatwin{display:flex;flex-direction:column;gap:8px}
+.msg{max-width:80%;padding:8px 11px;font-size:13.5px;line-height:1.45}
+.msg.them{align-self:flex-start;background:var(--ln2)}
+.msg.me{align-self:flex-end;background:#eaf6ef;border:1px solid #cbe7d6}
+.msg .mt2{font-size:10px;color:var(--faint);font-family:var(--mono);margin-top:3px}
+.chatbar{display:flex;gap:6px;margin-top:12px}
+.chatbar input{flex:1;border:1px solid var(--ln);padding:9px 11px;font-size:13px}
+.chatbar button{background:var(--grn);color:#fff;font-weight:600;padding:0 16px;font-size:12.5px}
+.mailitem{border:1px solid var(--ln);padding:11px 13px;margin-bottom:9px}
+.mailitem .mh{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut);margin-bottom:5px}
+.mailitem .msubj{font-weight:700;font-size:13.5px}
+.mailitem .mbody{font-size:13px;color:var(--ink2);margin-top:4px;line-height:1.5}
+.deal .drgt{border-left:1px solid var(--ln);padding:14px 16px;background:var(--panel)}
+.task{border:1px solid var(--ln);padding:9px 11px;margin-bottom:8px;font-size:13.5px;cursor:pointer}
+.task b{font-weight:600;display:block}
+.task span{font-size:11px;color:var(--terra);font-family:var(--mono);font-weight:600}
+.task.don{opacity:.55}.task.don span{color:var(--grn)}
+.dfoot{border-top:1px solid var(--ln);background:var(--panel);padding:11px 20px;display:flex;gap:8px;flex-wrap:wrap}
+.btn{background:var(--ink);color:#fff;font-weight:600;font-size:12.5px;padding:9px 16px;cursor:pointer}
+.btn.g{background:var(--grn)}
+.btn.o{background:#fff;color:var(--ink);border:1px solid var(--ln)}
+
+#toasts{position:fixed;right:18px;bottom:18px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:390px}
+.toast{background:var(--ink);color:#e6eaf1;padding:12px 16px;font-size:12.5px;line-height:1.55;box-shadow:6px 6px 0 rgba(23,32,51,.15);animation:tin .22s}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1}}
+.toast b{color:#8fd4bc}
+.toast .undo{margin-left:8px;border:1px solid #8fd4bc;color:#8fd4bc;font-weight:700;font-size:11.5px;padding:4px 10px;cursor:pointer;background:none}
+
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--ink);z-index:50;justify-content:space-around;padding:9px 4px calc(9px + env(safe-area-inset-bottom))}
+.mobile-nav button{color:#8b99af;font-size:10.5px;font-weight:600;padding:3px 6px}
+.mobile-nav button.on{color:#fff}
+@media(max-width:860px){.mnav{gap:16px}.wrap{padding:14px 14px 96px}.mobile-nav{display:flex}}
+
+/* формы: новый лид / импорт */
+.formbody{padding:16px 20px;max-height:70vh;overflow-y:auto}
+.ff{margin-bottom:12px}
+.ff2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ff label{display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-bottom:3px}
+.ff input,.ff select,.ff textarea{width:100%;border:1px solid var(--ln);background:var(--panel);padding:9px 11px;font-size:13.5px;outline:none;color:var(--ink)}
+.ff input:focus,.ff select:focus,.ff textarea:focus{border-color:var(--grn)}
+.ff textarea{resize:vertical;line-height:1.5}
+.dupwarn{background:var(--terra-l);border:1px solid #e3b9a5;color:#8a3a1a;font-size:12.5px;padding:8px 11px;margin-bottom:10px}
+.impinfo{font-size:12.5px;color:var(--mut);line-height:1.6;margin-bottom:12px}
+.impinfo b{color:var(--ink)}
+.impres{font-size:13px;margin-top:12px}
+.linklike{color:var(--blu);font-size:11.5px;font-weight:600;cursor:pointer;background:none;border:none;padding:0}
+.linklike:hover{text-decoration:underline}
+.fl .linklike{margin-left:6px;font-size:10px}
+</style>
+</head>
+<body>
+<div class="demo-note">Интерактивное демо · <b>Kolyakhan (HireBox) — CRM для лид-менеджеров · Этап 1</b> · данные вымышленные, всё прокликивается · <b>Pllato</b></div>
+
+<header class="mast">
+  <div class="m1">
+    <div class="brand">
+      <div class="bm"><svg viewBox="0 0 32 32"><path d="M6 12 L16 7 L26 12 L16 17 Z" fill="#e8ecf3"/><path d="M6 12 v9 l10 5 v-9 Z" fill="#7d8ea6"/><path d="M26 12 v9 l-10 5 v-9 Z" fill="#b9c4d4"/><path d="M19 20 l3 3 6-7" fill="none" stroke="#2ea882" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div><div class="bt">KOLYAKHAN</div><div class="bs">CRM для лид-менеджеров · телефония · WhatsApp · почта</div></div>
+    </div>
+    <div class="roles">
+      <button class="on" onclick="setRole('lead',this)">Лид-менеджер</button>
+      <button onclick="setRole('sales',this)">Ведущий менеджер</button>
+      <button onclick="setRole('boss',this)">Руководитель</button>
+    </div>
+    <button class="act" onclick="openImport()">↥ Импорт Excel</button>
+    <button class="act dk" onclick="openLeadForm()">+ Лид</button>
+  </div>
+  <nav class="mnav">
+    <button class="on" data-s="leads">Лиды<span class="cnt">лид-менеджеры</span></button>
+    <button data-s="sales">Отдел продаж<span class="cnt">воронка продаж</span></button>
+    <button data-s="tasks">Задачи<span class="cnt" id="navTasks">7</span></button>
+    <button data-s="calls">Звонки<span class="cnt">телефония</span></button>
+    <button data-s="stats">Статистика<span class="cnt">по менеджерам</span></button>
+  </nav>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== ЛИДЫ (воронка лид-менеджеров) ===== -->
+  <section class="screen on" id="s-leads">
+    <div class="meterline">
+      <div class="mt" onclick="toast('Все лиды в работе у лид-менеджеров. Загружаются из Excel и заводятся вручную. Антидубли: при импорте и создании проверка по названию / телефону / БИН — один лид не попадёт дважды.')"><div class="l">Лидов в работе</div><div class="v" id="mtLeads">11</div><div class="d">импорт Excel + вручную</div></div>
+      <div class="mt" onclick="toast('Новые лиды за сегодня — упали из Excel-таблицы на этап «Новый лид».')"><div class="l">Новых · сегодня</div><div class="v b" id="mtNew">3</div><div class="d">из Excel-импорта</div></div>
+      <div class="mt" onclick="toast('Встречи, назначенные лид-менеджерами. При отметке «встреча назначена / состоялась» лид передаётся в отдел продаж, а у лид-менеджера остаётся отметка — для статистики и оплаты за встречу.')"><div class="l">Встреч назначено</div><div class="v g" id="mtMeet">2</div><div class="d">→ передаются в продажи</div></div>
+      <div class="mt" onclick="toast('Лиды с просроченным следующим действием — не перезвонили вовремя. Руководитель видит это в статистике по менеджеру.')"><div class="l">Просрочен шаг</div><div class="v t" id="mtLate">1</div><div class="d">подсвечен в воронке</div></div>
+      <div class="mt" onclick="nav('sales')"><div class="l">Передано в продажи</div><div class="v" id="mtSales">4</div><div class="d">за неделю</div></div>
+    </div>
+    <div class="tznote">✅ <b>Демо рабочее — можно вести реальную работу.</b> Заводите лида <b>«+ Лид»</b>, грузите таблицу <b>«↥ Импорт Excel»</b> (с антидублями), двигайте карточки по этапам, из карточки — звоните (звонок пишется в статистику), ставьте задачи, пишите в WhatsApp, отмечайте встречу и передавайте в продажи. <b>Всё сохраняется в браузере.</b> Этапы — черновик и редактируются: клик по названию / ✎ — переименовать, «+ этап» — добавить, ✕ — удалить. «↺ Сбросить демо» вернёт исходные данные.</div>
+    <div class="toolfun" style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <input type="search" placeholder="Поиск: компания, город, телефон, БИН…" oninput="LQ=this.value;renderLeads()" style="flex:1;min-width:220px;border:1px solid var(--ln);background:var(--panel);padding:9px 12px;font-size:13.5px">
+      <div class="pchip" id="lmgrChips">
+        <button class="on" onclick="setLMgr(-1,this)">Все менеджеры</button>
+        <button onclick="setLMgr(0,this)">Эвилина</button>
+        <button onclick="setLMgr(1,this)">Дамир</button>
+        <button onclick="setLMgr(2,this)">Санжар</button>
+      </div>
+      <span class="note" style="font-size:11.5px">⠿ карточки перетаскиваются между этапами</span>
+      <button class="linklike" onclick="resetDemo()" style="white-space:nowrap;margin-left:auto">↺ Сбросить демо</button>
+    </div>
+    <div class="kanwrap"><div class="kan" id="leadKan"></div></div>
+  </section>
+
+  <!-- ===== ОТДЕЛ ПРОДАЖ ===== -->
+  <section class="screen" id="s-sales">
+    <div class="ph-head"><h1>Воронка «Отдел продаж»</h1><span class="sub">ведёт ведущий менеджер · сюда передаются лиды с назначенной/состоявшейся встречей</span></div>
+    <div class="tznote">↪ Лид передаётся из воронки лид-менеджеров и <b>назначается на ведущего менеджера</b>. У лид-менеджера остаётся отметка о встрече (для его статистики и оплаты за встречу). Этапы — тоже черновик, настраиваются.</div>
+    <div class="kanwrap"><div class="kan" id="salesKan"></div></div>
+  </section>
+
+  <!-- ===== ЗАДАЧИ ===== -->
+  <section class="screen" id="s-tasks">
+    <div class="ph-head"><h1>Задачи на день</h1><span class="sub">по каждому лиду — задача с датой; ни один лид не потеряется — по скрипту возвращаемся к контакту несколько раз</span></div>
+    <div id="taskList"></div>
+  </section>
+
+  <!-- ===== ЗВОНКИ ===== -->
+  <section class="screen" id="s-calls">
+    <div class="meterline">
+      <div class="mt" onclick="toast('Все звонки за сегодня из журнала телефонии — кто, кому, когда, длительность, результат. Запись прикреплена к лиду.')"><div class="l">Звонков сегодня</div><div class="v" id="mtCalls">31</div><div class="d">по всем менеджерам</div></div>
+      <div class="mt" onclick="toast('Результативные — звонки от 1 минуты, где реально поговорили. Считаются отдельно от недозвонов: по ним оценивается работа менеджера.')"><div class="l">Результативных ≥1 мин</div><div class="v g" id="mtOk">—</div><div class="d">реально поговорили</div></div>
+      <div class="mt" onclick="toast('Недозвоны — 0 секунд или сброс. По скрипту лид возвращается в задачи на повторный дозвон.')"><div class="l">Недозвонов</div><div class="v t" id="mtMiss">—</div><div class="d">→ задача «перезвонить»</div></div>
+      <div class="mt" onclick="toast('Эфирное время — суммарное время в разговоре. Главный показатель активности лид-менеджера.')"><div class="l">Эфирное время</div><div class="v b" id="mtAir">4ч 32м</div><div class="d">суммарно в разговоре</div></div>
+    </div>
+    <div class="toolfun" style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <div class="pchip" id="callMgrChips">
+        <button class="on" onclick="setCallMgr(null,this)">Все</button>
+        <button onclick="setCallMgr('Эвилина',this)">Эвилина</button>
+        <button onclick="setCallMgr('Дамир',this)">Дамир</button>
+        <button onclick="setCallMgr('Санжар',this)">Санжар</button>
+      </div>
+      <div class="pchip">
+        <button class="on" onclick="setCallPeriod(this)">Сегодня</button>
+        <button onclick="setCallPeriod(this)">Неделя</button>
+        <button onclick="setCallPeriod(this)">Месяц</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="pt"><h3>Журнал звонков</h3><span class="lnk" onclick="toast('IP-телефония: звонок из карточки лида в один клик по номеру, входящий сам открывает карточку. Записи хранятся у лида.')">как подключается →</span></div>
+      <div class="pb" style="padding-top:4px"><table>
+        <thead><tr><th>Менеджер</th><th>Лид</th><th class="r">Время</th><th class="r">Длит.</th><th>Результат</th><th></th></tr></thead>
+        <tbody id="callBody"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ===== СТАТИСТИКА ===== -->
+  <section class="screen" id="s-stats">
+    <div class="ph-head"><h1>Статистика по менеджерам</h1><span class="sub">руководитель видит по каждому менеджеру за день / неделю / месяц</span>
+      <div class="pchip" style="margin-left:auto">
+        <button class="on" onclick="setPeriod(this)">День</button>
+        <button onclick="setPeriod(this)">Неделя</button>
+        <button onclick="setPeriod(this)">Месяц</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="pb" style="padding-top:6px;overflow-x:auto"><table>
+        <thead><tr><th>Менеджер</th><th class="r">Звонков</th><th class="r">Результ. ≥1мин</th><th class="r">Эфир</th><th class="r">Лидов</th><th class="r">Встреч назн.</th><th class="r">Состоялось</th><th class="r">В продажи</th></tr></thead>
+        <tbody id="statBody"></tbody>
+      </table></div>
+    </div>
+    <div class="cols">
+      <div class="panel">
+        <div class="pt"><h3>Рабочее время · Эвилина</h3><span class="lnk" onclick="toast('Активное время считается по журналу событий (звонки, смена статусов, заметки, сообщения), а не по «CRM открыта». Видно, что менеджер реально делал.')">как считается →</span></div>
+        <div class="pb">
+          <div style="display:flex;gap:24px;margin-bottom:12px;flex-wrap:wrap">
+            <div><div class="l" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);font-weight:600">Активное время</div><div class="num" style="font-size:24px;font-weight:700;color:var(--grn)">6ч 05м</div></div>
+            <div><div class="l" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);font-weight:600">В CRM открыта</div><div class="num" style="font-size:24px;font-weight:700">8ч 12м</div></div>
+            <div><div class="l" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);font-weight:600">Событий</div><div class="num" style="font-size:24px;font-weight:700">64</div></div>
+          </div>
+          <div class="wtlog" id="wtLog"></div>
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="pt"><h3>Что входит в активность</h3></div>
+          <div class="pb note" style="line-height:1.9">
+            <div><span class="dot g"></span>Звонки (эфирное время)</div>
+            <div><span class="dot a"></span>Смена статусов лидов</div>
+            <div><span class="dot b"></span>Сообщения WhatsApp и почта</div>
+            <div><span class="dot t"></span>Заметки и задачи</div>
+            <div style="margin-top:6px;color:var(--ink)">Простой без событий в активное время не идёт.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="mobile-nav">
+  <button class="on" data-s="leads" onclick="nav('leads')">Лиды</button>
+  <button data-s="sales" onclick="nav('sales')">Продажи</button>
+  <button data-s="tasks" onclick="nav('tasks')">Задачи</button>
+  <button data-s="calls" onclick="nav('calls')">Звонки</button>
+  <button data-s="stats" onclick="nav('stats')">Статы</button>
+</div>
+
+<!-- карточка лида -->
+<div class="ovl" id="dealOvl" onclick="if(event.target===this)closeDeal()">
+  <div class="deal">
+    <div class="dh"><h2 id="dTitle">—</h2><span class="mark gy" id="dMeta">—</span><span class="mx" onclick="closeDeal()">✕</span></div>
+    <div class="stepper" id="dStep"></div>
+    <div class="db">
+      <div class="dleft">
+        <div class="fld"><div class="fl">Компания</div><div class="fv" id="dComp">—</div>
+          <div class="cbtns">
+            <span class="cbtn" onclick="callFromCard()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>Позвонить</span>
+            <span class="cbtn" onclick="dmid('wa')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-4-7.5"/><path d="M8 12h8M8 9h5"/></svg>WhatsApp</span>
+          </div>
+        </div>
+        <div class="fld"><div class="fl">Город · сегмент</div><div class="fv" id="dSeg">—</div></div>
+        <div class="fld"><div class="fl">Телефон</div><div class="fv num clk" style="font-size:13.5px" id="dPhone" onclick="callFromCard()">—</div></div>
+        <div class="fld"><div class="fl">Ссылка hh</div><div class="fv"><span class="hhlink" id="dHh" onclick="toast('Прямая ссылка на страницу работодателя на hh.kz — из импортированной таблицы.')">—</span></div></div>
+        <div class="fld"><div class="fl">БИН · источник</div><div class="fv" id="dBin" style="font-size:13px">—</div></div>
+        <div class="fld"><div class="fl">Ответственный</div><div class="fv" id="dMgr">—</div></div>
+        <div class="fld"><div class="fl">Встреча <span class="linklike" onclick="editMeet()">изменить</span></div><div class="fv clk" id="dMeet" onclick="editMeet()">—</div></div>
+        <div class="fld"><div class="fl">Следующее действие <span class="linklike" onclick="editNext()">изменить</span></div><div class="fv clk" style="color:var(--terra)" id="dNext" onclick="editNext()">—</div></div>
+      </div>
+      <div class="dmid">
+        <div class="midtabs">
+          <button class="on" data-m="hist" onclick="dmid('hist')">История</button>
+          <button data-m="wa" onclick="dmid('wa')">WhatsApp</button>
+          <button data-m="mail" onclick="dmid('mail')">Почта</button>
+        </div>
+        <div class="midbody">
+          <div class="midpane on" id="mp-hist"><div class="tl" id="dTl"></div></div>
+          <div class="midpane" id="mp-wa">
+            <div class="chatwin" id="dWa"></div>
+            <div class="chatbar"><input placeholder="Сообщение в WhatsApp…" onkeydown="if(event.key==='Enter')waSend(this)"><button onclick="waSend(this.previousElementSibling)">Отпр.</button></div>
+          </div>
+          <div class="midpane" id="mp-mail"><div id="dMail"></div></div>
+        </div>
+      </div>
+      <div class="drgt">
+        <div class="fld"><div class="fl">Задачи по лиду</div></div>
+        <div id="dTasks"></div>
+        <button class="btn o" style="width:100%;margin-top:2px" onclick="addCardTask()">+ задача</button>
+        <div class="fld" style="margin-top:14px"><div class="fl">Заметки <span class="linklike" onclick="editNote()">изменить</span></div><div class="note clk" id="dNote" style="margin-top:4px;cursor:pointer" onclick="editNote()">—</div></div>
+      </div>
+    </div>
+    <div class="dfoot">
+      <button class="btn g" id="dNextBtn" onclick="advanceStage()">→ следующий этап</button>
+      <button class="btn" id="dTransfer" onclick="transferLead()">↪ Передать в отдел продаж</button>
+      <button class="btn o" onclick="deleteLead()" style="color:var(--terra);border-color:#e3b9a5">Удалить</button>
+      <button class="btn o" onclick="closeDeal()" style="margin-left:auto">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- модал: новый лид -->
+<div class="ovl" id="leadOvl" onclick="if(event.target===this)closeForm('leadOvl')">
+  <div class="deal" style="max-width:560px">
+    <div class="dh"><h2>Новый лид</h2><span class="mark gy">ручное создание · антидубли</span><span class="mx" onclick="closeForm('leadOvl')">✕</span></div>
+    <div class="formbody">
+      <div id="nfDup"></div>
+      <div class="ff"><label>Компания *</label><input id="nfC" oninput="chkDup()" placeholder="ТОО «Компания»"></div>
+      <div class="ff2">
+        <div class="ff"><label>Город</label><input id="nfCity" placeholder="Алматы"></div>
+        <div class="ff"><label>Сегмент</label><input id="nfSeg" placeholder="Строительство"></div>
+      </div>
+      <div class="ff2">
+        <div class="ff"><label>Телефон</label><input id="nfPh" oninput="chkDup()" placeholder="+7 701 000 00 00"></div>
+        <div class="ff"><label>БИН</label><input id="nfBin" oninput="chkDup()" placeholder="000000000000"></div>
+      </div>
+      <div class="ff"><label>Ссылка hh.kz</label><input id="nfHh" placeholder="hh.kz/employer/0000"></div>
+      <div class="ff2">
+        <div class="ff"><label>Источник</label><select id="nfSrc"><option>вручную</option><option>Excel-импорт</option><option>сайт</option><option>выставка</option><option>рекомендация</option></select></div>
+        <div class="ff"><label>Ответственный</label><select id="nfMgr"><option value="0">Эвилина</option><option value="1">Дамир</option><option value="2">Санжар</option></select></div>
+      </div>
+      <div class="ff"><label>Этап воронки</label><select id="nfStage"></select></div>
+      <div class="ff"><label>Заметка</label><textarea id="nfNote" rows="2" placeholder="Комментарий по лиду…"></textarea></div>
+    </div>
+    <div class="dfoot"><button class="btn g" onclick="saveNewLead()">Создать лида</button><button class="btn o" onclick="closeForm('leadOvl')">Отмена</button></div>
+  </div>
+</div>
+
+<!-- модал: импорт -->
+<div class="ovl" id="impOvl" onclick="if(event.target===this)closeForm('impOvl')">
+  <div class="deal" style="max-width:660px">
+    <div class="dh"><h2>Импорт лидов · Excel / CSV</h2><span class="mark gy">антидубли по названию / телефону / БИН</span><span class="mx" onclick="closeForm('impOvl')">✕</span></div>
+    <div class="formbody">
+      <div class="impinfo">Колонки по порядку: <b>компания, город, сегмент, телефон, ссылка hh, БИН, источник</b>. Разделитель — запятая, точка с запятой или табуляция (можно вставить прямо из Excel). Строка-заголовок распознаётся автоматически. Дубли по названию / телефону / БИН пропускаются, лиды распределяются по менеджерам.</div>
+      <div class="ff"><label>Файл .csv / .txt</label><input type="file" accept=".csv,.txt,.tsv" onchange="impFile(this)"></div>
+      <div class="ff"><label>…или вставьте таблицу</label><textarea id="impText" rows="7" placeholder="BI Group, Алматы, Строительство, +7 701 234 55 67, hh.kz/employer/1840, 150240001234, Excel-импорт"></textarea></div>
+      <button class="linklike" onclick="fillSample()">↳ вставить пример (с одним дублем — увидите, как он отсеивается)</button>
+      <div class="impres" id="impRes"></div>
+    </div>
+    <div class="dfoot"><button class="btn g" onclick="runImport()">Импортировать</button><button class="btn o" onclick="closeForm('impOvl')">Закрыть</button></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+function toast(html){const t=document.createElement('div');t.className='toast';t.innerHTML=html;$('toasts').appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},6000)}
+function nav(s){
+  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
+  $('s-'+s).classList.add('on');
+  document.querySelectorAll('.mnav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  document.querySelectorAll('.mobile-nav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  window.scrollTo({top:0});
+}
+document.querySelectorAll('.mnav button').forEach(b=>b.onclick=()=>nav(b.dataset.s));
+const LMGRS=['Эвилина','Дамир','Санжар'];
+const SMGRS=['Айдос'];
+const AV=n=>n.slice(0,2).toUpperCase();
+
+/* ===== утилиты ===== */
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const jsq=s=>String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+const fmtDur=s=>s===0?'—':Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+function fmtHM(sec){const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60);return h?h+'ч '+String(m).padStart(2,'0')+'м':m+'м';}
+function nowHM(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+const normPh=p=>String(p||'').replace(/\D/g,'');
+function allLeads(){return LSTAGES.concat(SSTAGES).reduce((a,s)=>a.concat(s.ls),[]);}
+function isDup(c,ph,bin){const nc=(c||'').toLowerCase().trim(),np=normPh(ph);return allLeads().some(l=>(nc&&(l.c||'').toLowerCase().trim()===nc)||(np&&np.length>=6&&normPh(l.ph)===np)||(bin&&l.bin&&l.bin===bin));}
+function findLead(name){const n=(name||'').toLowerCase().trim();for(let si=0;si<LSTAGES.length;si++){const ki=LSTAGES[si].ls.findIndex(l=>(l.c||'').toLowerCase().trim()===n);if(ki>=0)return{fn:'lead',si,ki};}for(let si=0;si<SSTAGES.length;si++){const ki=SSTAGES[si].ls.findIndex(l=>(l.c||'').toLowerCase().trim()===n);if(ki>=0)return{fn:'sales',si,ki};}return null;}
+function locate(l){for(let si=0;si<LSTAGES.length;si++){const ki=LSTAGES[si].ls.indexOf(l);if(ki>=0)return{fn:'lead',si,ki};}for(let si=0;si<SSTAGES.length;si++){const ki=SSTAGES[si].ls.indexOf(l);if(ki>=0)return{fn:'sales',si,ki};}return null;}
+function logWt(t,text,mIdx){if(mIdx===0){WLOG.push([t,text]);if($('wtLog'))renderWt();}}
+function logEvent(l,cls,t,b){(l.log=l.log||[]).unshift({cls,t,b});}
+
+/* ===== состояние + сохранение (localStorage) ===== */
+const KEY='kolyakhan_state_v3';
+let LSTAGES,SSTAGES,TASKS,CALLS,WLOG,SEQ=0;
+function save(){try{localStorage.setItem(KEY,JSON.stringify({LSTAGES,SSTAGES,TASKS,CALLS,WLOG}))}catch(e){}}
+function load(){let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}const d=defaults();
+  if(s&&s.LSTAGES&&s.LSTAGES.length){LSTAGES=s.LSTAGES;SSTAGES=s.SSTAGES||d.SSTAGES;TASKS=s.TASKS||d.TASKS;CALLS=s.CALLS||d.CALLS;WLOG=s.WLOG||d.WLOG;}
+  else{LSTAGES=d.LSTAGES;SSTAGES=d.SSTAGES;TASKS=d.TASKS;CALLS=d.CALLS;WLOG=d.WLOG;}
+  SEQ=0;TASKS.forEach(t=>{if(!t.id)t.id=++SEQ;else SEQ=Math.max(SEQ,t.id);});}
+function resetDemo(){if(!confirm('Сбросить демо к исходным данным? Все внесённые изменения (лиды, задачи, звонки) удалятся.'))return;localStorage.removeItem(KEY);load();renderAll();nav('leads');toast('Демо сброшено к исходным данным.');}
+function renderAll(){renderLeads();renderSales();renderTasks();renderCalls();renderStat();renderWt();}
+function setRole(r,el){
+  document.querySelectorAll('.roles button').forEach(b=>b.classList.toggle('on',b===el));
+  if(r==='lead'){setLMgrIdx(0);nav('leads');toast('<b>Лид-менеджер</b>: видит только своих лидов и свою статистику, работает в воронке «Лид-менеджеры». Показаны лиды Эвилины.');}
+  if(r==='sales'){nav('sales');toast('<b>Ведущий менеджер</b>: видит лидов, переданных в отдел продаж, ведёт закрытие сделки.');}
+  if(r==='boss'){setLMgrIdx(-1);nav('stats');toast('<b>Руководитель / админ</b>: видит всех, все воронки, всю статистику; управляет пользователями и импортом.');}
+}
+
+/* ===== ДАННЫЕ (исходные) ===== */
+function defaults(){return{
+LSTAGES:[
+  {n:'Новый лид',ls:[
+    {c:'BI Group',city:'Алматы',seg:'Строительство',ph:'+7 701 234 55 67',hh:'hh.kz/employer/1840',bin:'150240001234',src:'Excel-импорт',m:0,next:'первый звонок',nd:'сегодня 12:00',lt:false,meet:'',note:'Крупный найм: прорабы, инженеры. Ищут поток кандидатов.',age:0},
+    {c:'Magnum Retail',city:'Астана',seg:'Ритейл',ph:'+7 705 118 22 04',hh:'hh.kz/employer/2213',bin:'',src:'Excel-импорт',m:1,next:'первый звонок',nd:'сегодня 12:30',lt:false,meet:'',note:'Массовый найм линейного персонала.',age:0},
+    {c:'AsiaCredit',city:'Алматы',seg:'Финансы',ph:'+7 702 900 71 15',hh:'hh.kz/employer/771',bin:'',src:'вручную',m:2,next:'первый звонок',nd:'сегодня',lt:false,meet:'',note:'Заведён вручную с выставки.',age:0},
+  ]},
+  {n:'Прозвон',ls:[
+    {c:'Halyk Bank',city:'Алматы',seg:'Банк',ph:'+7 727 259 00 00',hh:'hh.kz/employer/1177',bin:'940140000385',src:'Excel-импорт',m:0,next:'дозвониться — не берут ×2',nd:'сегодня 15:00',lt:true,meet:'',note:'Секретарь просит перезвонить после 15:00.',age:1},
+    {c:'Technodom',city:'Шымкент',seg:'Электроника',ph:'+7 705 333 12 90',hh:'hh.kz/employer/553',bin:'',src:'Excel-импорт',m:1,next:'перезвон (недозвон ×2)',nd:'завтра 10:00',lt:false,meet:'',note:'',age:2},
+  ]},
+  {n:'Квалификация',ls:[
+    {c:'Air Astana',city:'Алматы',seg:'Авиа',ph:'+7 702 702 47 47',hh:'hh.kz/employer/990',bin:'',src:'Excel-импорт',m:0,next:'выяснить ЛПР и объём найма',nd:'сегодня 16:00',lt:false,meet:'',note:'Интерес есть, нужен рук. HR.',age:1},
+    {c:'Chocofamily',city:'Алматы',seg:'IT / e-com',ph:'+7 727 356 21 00',hh:'hh.kz/employer/4410',bin:'',src:'вручную',m:2,next:'выслать презентацию',nd:'завтра',lt:false,meet:'',note:'Просят презентацию на почту.',age:3},
+  ]},
+  {n:'Встреча назначена',ls:[
+    {c:'Kaspi.kz',city:'Алматы',seg:'Финтех',ph:'+7 727 250 08 82',hh:'hh.kz/employer/230',bin:'',src:'Excel-импорт',m:0,next:'подтвердить встречу',nd:'чт 11:00',lt:false,meet:'назначена · чт 11:00',note:'Встреча с рук. подбора. Подтвердить накануне.',age:2},
+  ]},
+  {n:'Встреча состоялась',ls:[
+    {c:'Colibri Group',city:'Алматы',seg:'HoReCa',ph:'+7 701 555 90 12',hh:'hh.kz/employer/3390',bin:'',src:'вручную',m:1,next:'передать в отдел продаж',nd:'сегодня',lt:false,meet:'состоялась ✓',note:'Встреча прошла, интерес подтверждён — на закрытие.',age:1},
+  ]},
+],
+SSTAGES:[
+  {n:'Передан',ls:[
+    {c:'Jusan Retail',city:'Алматы',seg:'Ритейл',ph:'+7 707 111 22 33',hh:'hh.kz/employer/8120',bin:'',src:'от Эвилины',m:0,next:'связаться, презентация',nd:'сегодня',lt:false,meet:'состоялась ✓',note:'Передан после встречи. Отметка у Эвилины.',age:0,from:'Эвилина'},
+  ]},
+  {n:'Презентация',ls:[
+    {c:'Береке Банк',city:'Астана',seg:'Банк',ph:'+7 717 200 10 10',hh:'hh.kz/employer/612',bin:'',src:'от Дамира',m:0,next:'демо HireBox',nd:'завтра 14:00',lt:false,meet:'состоялась ✓',note:'',age:2,from:'Дамир'},
+  ]},
+  {n:'Договор',ls:[
+    {c:'Магнит HR',city:'Алматы',seg:'HR-агентство',ph:'+7 701 800 44 55',hh:'hh.kz/employer/9001',bin:'',src:'от Эвилины',m:0,next:'согласовать договор',nd:'пт',lt:false,meet:'состоялась ✓',note:'',age:4,from:'Эвилина'},
+  ]},
+  {n:'Оплата',ls:[]},
+],
+TASKS:[
+  {grp:'late',when:'вчера',lead:'Halyk Bank',action:'дозвониться — не берут ×2',mgr:'Эвилина'},
+  {grp:'today',when:'12:00',lead:'BI Group',action:'первый звонок (новый лид из Excel)',mgr:'Эвилина'},
+  {grp:'today',when:'15:00',lead:'Halyk Bank',action:'перезвонить после 15:00',mgr:'Эвилина'},
+  {grp:'today',when:'16:00',lead:'Air Astana',action:'выяснить ЛПР и объём найма',mgr:'Эвилина'},
+  {grp:'today',when:'чт 11:00',lead:'Kaspi.kz',action:'подтвердить встречу',mgr:'Эвилина'},
+  {grp:'tom',when:'10:00',lead:'Technodom',action:'перезвон (был недозвон ×2)',mgr:'Дамир'},
+  {grp:'tom',when:'—',lead:'Colibri Group',action:'передать в отдел продаж',mgr:'Дамир'},
+],
+CALLS:[
+  ['Эвилина','Halyk Bank','09:12',412,'квалификация, интерес есть'],
+  ['Дамир','Technodom','09:31',0,'недозвон'],
+  ['Санжар','AsiaCredit','09:40',95,'договорились созвониться позже'],
+  ['Эвилина','Air Astana','10:05',530,'выясняет ЛПР'],
+  ['Дамир','Magnum Retail','10:22',38,'коротко, просят перезвонить'],
+  ['Санжар','Chocofamily','10:48',0,'недозвон'],
+  ['Эвилина','Kaspi.kz','11:14',360,'встреча назначена на чт 11:00'],
+  ['Дамир','Береке Банк','11:40',225,'договорились о демо'],
+],
+WLOG:[
+  ['09:02','вошла в CRM · открыла задачи на день'],
+  ['09:12','звонок → Halyk Bank · 6:52 · результативный'],
+  ['09:20','сменила статус: Halyk Bank → «Прозвон»'],
+  ['09:24','заметка по Halyk Bank: «ЛПР — рук. HR, созвон 15:00»'],
+  ['10:05','звонок → Air Astana · 8:50'],
+  ['10:18','WhatsApp → Air Astana: презентация'],
+  ['11:14','звонок → Kaspi.kz · 6:00 · встреча назначена чт 11:00'],
+  ['11:20','сменила статус: Kaspi.kz → «Встреча назначена»'],
+  ['11:22','поставила задачу: подтвердить встречу в чт'],
+],
+};}
+
+/* ===== РЕНДЕР ВОРОНОК ===== */
+let LQ='',LMGR=-1,DRAG=null;
+function setLMgr(i,el){LMGR=i;document.querySelectorAll('#lmgrChips button').forEach(b=>b.classList.toggle('on',b===el));renderLeads()}
+function setLMgrIdx(i){LMGR=i;const b=document.querySelectorAll('#lmgrChips button')[i<0?0:i+1];document.querySelectorAll('#lmgrChips button').forEach(x=>x.classList.toggle('on',x===b));renderLeads()}
+function leadCard(fn,si,ki,l){
+  const mgr = fn==='lead'?LMGRS[l.m]:SMGRS[l.m];
+  return '<div class="kcard'+(l.lt?' late':'')+'" draggable="true" ondragstart="dragS(event,\''+fn+'\','+si+','+ki+')" ondragend="dragE()" onclick="openLead(\''+fn+'\','+si+','+ki+')">'+
+    '<div class="kt">'+esc(l.c)+'</div><div class="kc2">'+esc(l.city)+' · '+esc(l.seg)+'</div>'+
+    '<div class="kph">'+esc(l.ph)+'</div>'+
+    (l.meet?'<div class="mflag '+(l.meet.indexOf('состоял')>=0?'ok':'set')+'">📅 '+esc(l.meet)+'</div>':'')+
+    '<div class="knext'+(l.lt?' lt':'')+'">'+(l.lt?'⚑ ':'▸ ')+esc(l.next)+' · '+esc(l.nd)+'</div>'+
+    '<div class="kic"><span class="avm">'+AV(mgr||'—')+'</span>'+
+    '<span class="src">'+esc(l.src).toUpperCase()+'</span>'+
+    '<span class="age">'+(l.age?l.age+' дн':'сегодня')+'</span></div></div>';
+}
+function fltLead(l){return (LMGR<0||l.m===LMGR) && (!LQ || (l.c+' '+l.city+' '+l.ph+' '+(l.bin||'')+' '+l.seg).toLowerCase().includes(LQ.toLowerCase()))}
+function renderLeads(){
+  $('leadKan').innerHTML=LSTAGES.map((s,si)=>{
+    const cards=s.ls.map((l,ki)=>[l,ki]).filter(p=>fltLead(p[0]));
+    return '<div class="kcol" ondragover="dragOver(event,this)" ondragleave="this.classList.remove(\'dz\')" ondrop="dropCol(event,\'lead\','+si+')">'+
+      '<h4><span class="stitle" title="Переименовать" onclick="renameStage(\'lead\','+si+',event)">'+esc(s.n)+'</span><span class="rt"><span class="num">'+cards.length+'</span><span class="pencil" title="Переименовать" onclick="renameStage(\'lead\','+si+',event)">✎</span><span class="pencil xdel" title="Удалить этап" onclick="delStage(\'lead\','+si+',event)">✕</span></span></h4>'+
+      '<div class="ksum" style="color:var(--faint);font-weight:400">лидов: '+cards.length+'</div>'+
+      cards.map(p=>leadCard('lead',si,p[1],p[0])).join('')+'</div>';
+  }).join('') + '<div class="addcol" onclick="addStage(\'lead\')">+ этап</div>';
+  renderLeadMeters();
+}
+function renderLeadMeters(){
+  const L=LSTAGES.reduce((a,s)=>a.concat(s.ls),[]);
+  if($('mtLeads'))$('mtLeads').textContent=L.length;
+  if($('mtNew'))$('mtNew').textContent=L.filter(l=>!l.age).length;
+  if($('mtMeet'))$('mtMeet').textContent=L.filter(l=>l.meet&&l.meet.indexOf('назнач')>=0).length;
+  if($('mtLate'))$('mtLate').textContent=L.filter(l=>l.lt).length;
+  if($('mtSales'))$('mtSales').textContent=SSTAGES.reduce((a,s)=>a+s.ls.length,0);
+}
+function renderSales(){
+  $('salesKan').innerHTML=SSTAGES.map((s,si)=>{
+    return '<div class="kcol" ondragover="dragOver(event,this)" ondragleave="this.classList.remove(\'dz\')" ondrop="dropCol(event,\'sales\','+si+')">'+
+      '<h4><span class="stitle" title="Переименовать" onclick="renameStage(\'sales\','+si+',event)">'+esc(s.n)+'</span><span class="rt"><span class="num">'+s.ls.length+'</span><span class="pencil" title="Переименовать" onclick="renameStage(\'sales\','+si+',event)">✎</span><span class="pencil xdel" title="Удалить этап" onclick="delStage(\'sales\','+si+',event)">✕</span></span></h4>'+
+      '<div class="ksum" style="color:var(--faint);font-weight:400">ведущий: Айдос</div>'+
+      s.ls.map((l,ki)=>leadCard('sales',si,ki,l)).join('')+'</div>';
+  }).join('') + '<div class="addcol" onclick="addStage(\'sales\')">+ этап</div>';
+  renderLeadMeters();
+}
+/* редактирование этапов — по-настоящему */
+function stageArr(fn){return fn==='lead'?LSTAGES:SSTAGES}
+function reRender(fn){fn==='lead'?renderLeads():renderSales()}
+function renameStage(fn,si,e){
+  if(e)e.stopPropagation();
+  const kan=fn==='lead'?$('leadKan'):$('salesKan');
+  const h=kan.querySelectorAll('.kcol > h4')[si];if(!h)return;
+  const arr=stageArr(fn),old=arr[si].n;
+  h.innerHTML='<input class="stage-edit" maxlength="40" value="'+esc(old)+'">';
+  const inp=h.querySelector('input');inp.focus();inp.select();
+  let done=false;
+  const commit=(sv)=>{if(done)return;done=true;if(sv){const v=inp.value.trim();if(v){arr[si].n=v;save();}}reRender(fn);};
+  inp.addEventListener('blur',()=>commit(true));
+  inp.addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();commit(true)}else if(ev.key==='Escape'){commit(false)}});
+}
+function addStage(fn){
+  const arr=stageArr(fn);arr.push({n:'Новый этап',ls:[]});save();reRender(fn);
+  toast('Этап добавлен. Введите название и нажмите Enter. Так этапы воронки настраиваются под ваш процесс — без программиста.');
+  setTimeout(()=>renameStage(fn,arr.length-1),40);
+}
+function delStage(fn,si,e){
+  if(e)e.stopPropagation();
+  const arr=stageArr(fn);
+  if(arr.length<=1){toast('Нельзя удалить последний этап.');return}
+  const moved=arr[si].ls;
+  if(moved.length && !confirm('В этапе «'+arr[si].n+'» есть '+moved.length+' лид(ов). Удалить этап? Лиды перейдут на соседний этап.'))return;
+  arr.splice(si,1);
+  if(moved.length){const to=arr[si]||arr[si-1];if(to)to.ls.push(...moved);}
+  save();reRender(fn);
+  toast('Этап удалён'+(moved.length?', лиды перенесены на соседний этап.':'.'));
+}
+
+/* drag&drop */
+function dragS(e,fn,si,ki){DRAG={fn,si,ki};e.dataTransfer.effectAllowed='move';e.target.classList.add('dragging')}
+function dragE(){document.querySelectorAll('.kcard.dragging').forEach(x=>x.classList.remove('dragging'));document.querySelectorAll('.kcol.dz').forEach(x=>x.classList.remove('dz'));DRAG=null}
+function dragOver(e,el){if(!DRAG)return;e.preventDefault();el.classList.add('dz')}
+function dropCol(e,fn,si){e.preventDefault();if(!DRAG||DRAG.fn!==fn)return;const from=DRAG.si,fk=DRAG.ki;dragE();if(from===si)return;
+  const arr=(fn==='lead'?LSTAGES:SSTAGES);const l=arr[from].ls.splice(fk,1)[0];if(!l)return;l.age=0;arr[si].ls.push(l);
+  logWt(nowHM(),'сменила статус: '+l.c+' → «'+arr[si].n+'»',l.m);save();
+  if(fn==='lead'){renderLeads();renderStat();
+    const st=LSTAGES[si].n;
+    if(st.indexOf('Встреч')>=0){toast('<b>'+esc(l.c)+'</b> → «'+esc(st)+'». Смена статуса записана в журнал событий. Готов к передаче в отдел продаж — откройте карточку и нажмите «Передать в продажи».');}
+    else toast('<b>'+esc(l.c)+'</b> → «'+esc(st)+'». Статус изменён — событие ушло в рабочее время и статистику менеджера.');
+  } else {renderSales();renderStat();toast('<b>'+esc(l.c)+'</b> → «'+esc(SSTAGES[si].n)+'» (отдел продаж).');}
+}
+
+/* ===== КАРТОЧКА ЛИДА ===== */
+let CUR=null;
+function evH(cls,t,b){return '<div class="ev '+cls+'"><div class="et">'+t+'</div><div class="eb">'+b+'</div></div>'}
+function dmid(m){document.querySelectorAll('.midtabs button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));document.querySelectorAll('.midpane').forEach(p=>p.classList.remove('on'));$('mp-'+m).classList.add('on')}
+function openLead(fn,si,ki){
+  const arr=(fn==='lead'?LSTAGES:SSTAGES);const l=arr[si]&&arr[si].ls[ki];if(!l)return;CUR={fn,si,ki,l};
+  const mgr=fn==='lead'?LMGRS[l.m]:SMGRS[l.m];
+  $('dTitle').textContent=l.c;
+  $('dMeta').textContent=(fn==='lead'?'лид':'сделка')+' · '+mgr+' · '+l.city;
+  const stgs=arr.map(s=>s.n);
+  $('dStep').innerHTML=stgs.map((st,i)=>'<button class="'+(i<si?'done':i===si?'cur':'')+'" onclick="jumpStage('+i+')">'+esc(st)+'</button>').join('');
+  $('dComp').textContent=l.c;
+  $('dSeg').textContent=l.city+' · '+l.seg;
+  $('dPhone').textContent=l.ph;
+  $('dHh').textContent=l.hh||'—';
+  $('dBin').textContent=(l.bin?'БИН '+l.bin:'БИН —')+' · '+l.src;
+  $('dMgr').textContent=mgr+(fn==='sales'&&l.from?' (передал: '+l.from+')':'');
+  $('dMeet').textContent=l.meet||'не назначена';
+  $('dNext').textContent=l.next+' · '+l.nd;
+  $('dNote').textContent=l.note||'—';
+  renderHist(l);renderWa(l);renderCardTasks(l);
+  $('dMail').innerHTML=
+    '<div class="mailitem"><div class="mh"><span>от hr@'+esc(l.c.toLowerCase().replace(/[^a-zа-я0-9]/gi,''))+'.kz</span><span>вчера 17:02</span></div><div class="msubj">Re: HireBox — тесты для найма</div><div class="mbody">Спасибо, презентацию получили. Пришлите, пожалуйста, прайс на пакет до 100 прохождений и условия пилота.</div></div>'+
+    '<div class="mailitem"><div class="mh"><span>Айгерим · HireBox → '+esc(l.c)+'</span><span>вчера 15:40</span></div><div class="msubj">HireBox — презентация и условия</div><div class="mbody">Добрый день! Во вложении презентация и описание. Готовы сделать пилот на 20 прохождений бесплатно.</div></div>';
+  $('dNextBtn').textContent=si<stgs.length-1?'→ '+stgs[si+1]:'✓ Последний этап';
+  $('dTransfer').style.display=fn==='lead'?'':'none';
+  dmid('hist');
+  $('dealOvl').classList.add('show');
+}
+function openRef(l){const f=locate(l);if(f)openLead(f.fn,f.si,f.ki);}
+function openLeadByName(name){const f=findLead(name);if(f)openLead(f.fn,f.si,f.ki);else toast('Лид «'+esc(name)+'» не найден в воронке (возможно, удалён).');}
+function renderHist(l){
+  const loc=locate(l);const mgr=(loc&&loc.fn==='sales')?SMGRS[l.m]:LMGRS[l.m];
+  let tl='';
+  (l.log||[]).forEach(e=>tl+=evH(e.cls,e.t,e.b));
+  if(l.meet)tl+=evH('st','статус','<b>Встреча '+esc(l.meet)+'</b> — отметка лид-менеджера. При «назначена/состоялась» лид уходит в отдел продаж, отметка остаётся у '+mgr+' (для оплаты за встречу).');
+  tl+=evH('wa','WhatsApp','Отправлена презентация HireBox для '+esc(l.c)+'. Переписка — во вкладке WhatsApp.');
+  tl+=evH('call','звонок','<b>'+mgr+' → '+esc(l.c)+':</b> квалификация, интерес есть, договорились о следующем шаге.');
+  tl+=evH('note','создан · '+esc(l.src),'Лид «'+esc(l.c)+'» ('+esc(l.city)+', '+esc(l.seg)+') заведён из «'+esc(l.src)+'» и распределён на '+mgr+'. Антидубли по названию/телефону/БИН пройдены.');
+  $('dTl').innerHTML=tl;
+}
+function renderWa(l){
+  if(!l.wa)l.wa=[
+    {me:true,text:'Здравствуйте! Это HireBox — тесты для найма. Получили ваш контакт по сегменту «'+l.seg+'». Подскажите, кто занимается подбором?',t:'10:14'},
+    {me:false,text:'Добрый день. Да, актуально, но нужна конкретика по цене.',t:'10:31'},
+    {me:true,text:'Отправлю расчёт и короткое видео (1 мин). Когда удобно созвониться?',t:'10:33'},
+  ];
+  $('dWa').innerHTML=l.wa.map(m=>'<div class="msg '+(m.me?'me':'them')+'">'+esc(m.text)+'<div class="mt2">'+esc(m.t)+(m.me?' · доставлено':'')+'</div></div>').join('');
+}
+function renderCardTasks(l){
+  const open=TASKS.filter(t=>t.lead===l.c);
+  let h=open.length?open.map(t=>'<div class="task"><b>'+esc(t.action)+'</b><span>'+(t.grp==='late'?'⚑ просрочено':esc(t.when))+'</span> <button class="linklike" style="float:right" onclick="taskDone('+t.id+')">✓ выполнить</button></div>').join(''):'';
+  h+='<div class="task don"><b>Первый контакт</b><span>сделано</span></div>';
+  $('dTasks').innerHTML=h;
+}
+function closeDeal(){$('dealOvl').classList.remove('show')}
+function waSend(inp){if(!inp.value.trim()||!CUR)return;const l=CUR.l;(l.wa=l.wa||[]).push({me:true,text:inp.value,t:nowHM()});inp.value='';save();renderWa(l);logWt(nowHM(),'WhatsApp → '+l.c,l.m);const box=$('dWa');if(box&&box.parentElement)box.parentElement.scrollTop=9999;toast('Сообщение отправлено — переписка привязана к лиду и сохранена.');}
+function callFromCard(){
+  if(!CUR)return;const l=CUR.l;const mgr=CUR.fn==='lead'?LMGRS[l.m]:SMGRS[l.m];
+  const def=String(60+Math.floor(Math.random()*380));
+  const raw=prompt('Звонок → '+l.c+' ('+l.ph+')\nДлительность разговора в секундах (0 — недозвон):',def);
+  if(raw===null)return;const dur=Math.max(0,parseInt(raw)||0);
+  const res=dur>=60?'результативный разговор':dur>0?'коротко, <1 мин, просят перезвонить':'недозвон';
+  CALLS.unshift([mgr,l.c,nowHM(),dur,res]);
+  logEvent(l,'call',nowHM()+' · звонок · '+fmtDur(dur),'<b>'+mgr+' → '+esc(l.c)+':</b> '+res+(dur>0?'<span class="rec">▶ запись '+fmtDur(dur)+'</span>':''));
+  logWt(nowHM(),'звонок → '+l.c+' · '+fmtDur(dur)+(dur>=60?' · результативный':''),l.m);
+  if(dur===0){TASKS.push({id:++SEQ,grp:'today',when:nowHM(),lead:l.c,action:'перезвонить (был недозвон)',mgr});renderTasks();}
+  save();renderCalls();renderStat();renderHist(l);renderCardTasks(l);
+  toast(dur>=60?'<b>Звонок '+fmtDur(dur)+'</b> — результативный. Запись и лог прикреплены к лиду; статистика '+mgr+' обновлена.':dur>0?'Звонок '+fmtDur(dur)+' (меньше минуты) — в статистике отдельно от результативных.':'Недозвон. Автоматически создана задача «перезвонить».');
+}
+function editNext(){if(!CUR)return;const l=CUR.l;const a=prompt('Следующее действие:',l.next);if(a===null)return;const w=prompt('Срок (например: завтра 10:00, чт, сегодня):',l.nd);l.next=a.trim()||l.next;if(w!==null)l.nd=w.trim()||l.nd;l.lt=false;save();openRef(l);renderLeads();toast('Следующее действие обновлено — видно в карточке и в воронке.');}
+function editMeet(){if(!CUR)return;const l=CUR.l;const m=prompt('Встреча (например: «назначена · чт 11:00», «состоялась ✓», или очистить — оставьте пустым):',l.meet||'');if(m===null)return;l.meet=m.trim();logWt(nowHM(),'встреча · '+l.c+': '+(l.meet||'снята'),l.m);save();openRef(l);renderLeads();renderStat();if(l.meet&&/назнач|состоял/i.test(l.meet))toast('Встреча отмечена. Лид можно передать в отдел продаж — кнопка внизу карточки.');else toast('Отметка о встрече обновлена.');}
+function editNote(){if(!CUR)return;const l=CUR.l;const n=prompt('Заметка по лиду:',l.note||'');if(n===null)return;l.note=n.trim();save();$('dNote').textContent=l.note||'—';toast('Заметка сохранена.');}
+function addCardTask(){
+  if(!CUR)return;const l=CUR.l;
+  const action=prompt('Задача по лиду «'+l.c+'» — что сделать?','перезвонить');
+  if(action===null||!action.trim())return;
+  const when=prompt('Когда? (например: сегодня 16:00, завтра, чт 11:00)','сегодня');
+  const w=(when||'сегодня').trim();
+  const grp=/вчера|просроч/i.test(w)?'late':/завтра/i.test(w)?'tom':'today';
+  TASKS.push({id:++SEQ,grp,when:w,lead:l.c,action:action.trim(),mgr:LMGRS[l.m]});
+  logWt(nowHM(),'поставила задачу: '+action.trim()+' ('+l.c+')',l.m);
+  save();renderTasks();renderCardTasks(l);
+  toast('Задача добавлена в план дня: «'+esc(action.trim())+'» ('+esc(w)+').');
+}
+function jumpStage(i){
+  if(!CUR)return;const l=CUR.l;const loc=locate(l);if(!loc)return;const arr=loc.fn==='lead'?LSTAGES:SSTAGES;if(i===loc.si||i<0||i>=arr.length)return;
+  arr[loc.si].ls.splice(loc.ki,1);l.age=0;arr[i].ls.push(l);
+  logWt(nowHM(),'сменила статус: '+l.c+' → «'+arr[i].n+'»',l.m);save();renderLeads();renderSales();renderStat();openRef(l);
+  if(/встреч/i.test(arr[i].n))toast('«'+esc(l.c)+'» → «'+esc(arr[i].n)+'». Готов к передаче в отдел продаж.');else toast('«'+esc(l.c)+'» → «'+esc(arr[i].n)+'».');
+}
+function advanceStage(){if(!CUR)return;const loc=locate(CUR.l);if(!loc)return;const arr=loc.fn==='lead'?LSTAGES:SSTAGES;if(loc.si>=arr.length-1){toast('Лид уже на последнем этапе.');return}jumpStage(loc.si+1);}
+function deleteLead(){if(!CUR)return;const l=CUR.l;if(!confirm('Удалить лида «'+l.c+'»? В демо — до сброса данных.'))return;const loc=locate(l);if(loc){(loc.fn==='lead'?LSTAGES:SSTAGES)[loc.si].ls.splice(loc.ki,1);}TASKS=TASKS.filter(t=>t.lead!==l.c);save();renderLeads();renderSales();renderTasks();renderStat();closeDeal();toast('Лид «'+esc(l.c)+'» удалён.');}
+function transferLead(){
+  if(!CUR||CUR.fn!=='lead')return;
+  const l=CUR.l;const loc=locate(l);if(!loc)return;
+  LSTAGES[loc.si].ls.splice(loc.ki,1);
+  const s=Object.assign({},l,{from:LMGRS[l.m],m:0,next:'связаться, презентация',nd:'сегодня',meet:l.meet||'состоялась ✓'});
+  SSTAGES[0].ls.unshift(s);
+  logWt(nowHM(),'передала в отдел продаж: '+l.c,l.m);save();
+  renderLeads();renderSales();renderStat();closeDeal();
+  toast('<b>'+esc(l.c)+'</b> передан в отдел продаж и назначен на ведущего менеджера Айдоса. У '+LMGRS[l.m]+' осталась <b>отметка о встрече</b> — для её статистики и оплаты за встречу.');
+}
+
+/* ===== ЗАДАЧИ ===== */
+function taskDone(id){const i=TASKS.findIndex(t=>t.id===id);if(i<0)return;const t=TASKS[i];TASKS.splice(i,1);logWt(nowHM(),'закрыла задачу: '+t.action+' ('+t.lead+')',LMGRS.indexOf(t.mgr));save();renderTasks();if(CUR)renderCardTasks(CUR.l);toast('Задача закрыта: «'+esc(t.action)+'».');}
+function renderTasks(){
+  const titles={late:'⚑ Просрочено',today:'Сегодня',tom:'Завтра'};
+  let h='';
+  ['late','today','tom'].forEach(g=>{const arr=TASKS.filter(t=>t.grp===g);if(!arr.length)return;
+    h+='<div class="tgroup">'+titles[g]+' · '+arr.length+'</div>';
+    h+=arr.map(t=>'<div class="trow'+(g==='late'?' late':'')+'" onclick="openLeadByName(\''+jsq(t.lead)+'\')">'+
+      '<span class="tw">'+esc(t.when)+'</span><div class="ti"><div class="tn2">'+esc(t.lead)+'</div><div class="td2">'+esc(t.action)+' · '+esc(t.mgr)+'</div></div>'+
+      '<button class="done" onclick="event.stopPropagation();taskDone('+t.id+')">Выполнить</button></div>').join('');
+  });
+  if(!h)h='<div class="note" style="padding:20px 0">Все задачи закрыты 🎉 Новые появятся при звонках, встречах и импорте.</div>';
+  $('taskList').innerHTML=h;
+  if($('navTasks'))$('navTasks').textContent=TASKS.length;
+}
+
+/* ===== ЗВОНКИ ===== */
+let CALLFILT=null;
+function renderCalls(){
+  const C=CALLFILT?CALLS.filter(c=>c[0]===CALLFILT):CALLS;
+  $('callBody').innerHTML=C.map(c=>{
+    const res=c[3]>=60?'ok':c[3]===0?'miss':'short';
+    const badge=res==='ok'?'<span class="mark g">● ≥1 мин</span>':res==='miss'?'<span class="mark t">● недозвон</span>':'<span class="mark a">● &lt;1 мин</span>';
+    return '<tr onclick="openLeadByName(\''+jsq(c[1])+'\')">'+
+      '<td><div class="cn" style="font-size:14px">'+esc(c[0])+'</div></td>'+
+      '<td>'+esc(c[1])+'</td><td class="r">'+esc(c[2])+'</td><td class="r">'+fmtDur(c[3])+'</td>'+
+      '<td style="font-size:12.5px">'+badge+' <span style="color:var(--mut)">'+esc(c[4])+'</span></td>'+
+      '<td style="text-align:right">'+(c[3]>0?'<span class="play">▶ ЗАПИСЬ</span>':'<span class="mark t">перезвон</span>')+'</td></tr>';
+  }).join('')||'<tr><td colspan="6" class="note" style="padding:16px 0">Нет звонков по выбранному фильтру.</td></tr>';
+  const okN=C.filter(c=>c[3]>=60).length,missN=C.filter(c=>c[3]===0).length,air=C.reduce((s,c)=>s+c[3],0);
+  if($('mtOk'))$('mtOk').textContent=okN;if($('mtMiss'))$('mtMiss').textContent=missN;if($('mtCalls'))$('mtCalls').textContent=C.length;if($('mtAir'))$('mtAir').textContent=fmtHM(air);
+}
+function setCallMgr(nm,el){CALLFILT=nm;const g=$('callMgrChips');if(g){g.querySelectorAll('button').forEach(b=>b.classList.toggle('on',el?b===el:(nm?b.textContent===nm:b.textContent==='Все')));}renderCalls();}
+function setCallPeriod(el){el.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el));toast('Период: «'+el.textContent+'» (в демо показаны данные за сегодня).');}
+
+/* ===== СТАТИСТИКА (считается из живых данных) ===== */
+function statToCalls(nm){setCallMgr(nm,null);nav('calls');}
+function renderStat(){
+  $('statBody').innerHTML=LMGRS.map((nm,mi)=>{
+    const calls=CALLS.filter(c=>c[0]===nm);
+    const ok=calls.filter(c=>c[3]>=60).length;
+    const air=fmtHM(calls.reduce((s,c)=>s+c[3],0));
+    const leads=LSTAGES.reduce((s,st)=>s+st.ls.filter(l=>l.m===mi).length,0);
+    const mSet=LSTAGES.reduce((s,st)=>s+st.ls.filter(l=>l.m===mi&&l.meet&&l.meet.indexOf('назнач')>=0).length,0);
+    const sales=SSTAGES.reduce((s,st)=>s+st.ls.filter(l=>l.from===nm).length,0);
+    const mOk=LSTAGES.reduce((s,st)=>s+st.ls.filter(l=>l.m===mi&&l.meet&&l.meet.indexOf('состоял')>=0).length,0)+sales;
+    return '<tr onclick="statToCalls(\''+jsq(nm)+'\')">'+
+      '<td><div class="cn">'+esc(nm)+'</div></td>'+
+      '<td class="r">'+calls.length+'</td><td class="r" style="color:var(--grn)">'+ok+'</td><td class="r">'+air+'</td>'+
+      '<td class="r">'+leads+'</td><td class="r">'+mSet+'</td><td class="r" style="color:var(--grn)">'+mOk+'</td><td class="r">'+sales+'</td></tr>';
+  }).join('');
+}
+function setPeriod(el){el.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el));toast('Период: «'+el.textContent+'». В демо показаны данные за сегодня; статистика считается по журналу событий.')}
+function renderWt(){$('wtLog').innerHTML=WLOG.map(w=>'<div class="wtl"><div class="we">'+esc(w[0])+'</div><div class="wb">'+esc(w[1])+'</div></div>').join('')}
+
+/* ===== ФОРМЫ: новый лид / импорт ===== */
+function closeForm(id){$(id).classList.remove('show');}
+function openLeadForm(){
+  ['nfC','nfCity','nfSeg','nfPh','nfBin','nfHh','nfNote'].forEach(id=>$(id).value='');
+  $('nfSrc').value='вручную';$('nfMgr').value='0';$('nfDup').innerHTML='';
+  $('nfStage').innerHTML=LSTAGES.map((s,i)=>'<option value="'+i+'">'+esc(s.n)+'</option>').join('');
+  $('leadOvl').classList.add('show');setTimeout(()=>$('nfC').focus(),50);
+}
+function chkDup(){const c=$('nfC').value.trim(),ph=$('nfPh').value.trim(),bin=$('nfBin').value.trim();
+  $('nfDup').innerHTML=((c||ph||bin)&&isDup(c,ph,bin))?'<div class="dupwarn">⚠ Возможный дубль: лид с таким названием / телефоном / БИН уже есть в воронке.</div>':'';}
+function saveNewLead(){
+  const c=$('nfC').value.trim();if(!c){toast('Укажите название компании.');$('nfC').focus();return;}
+  const ph=$('nfPh').value.trim(),bin=$('nfBin').value.trim();
+  if(isDup(c,ph,bin)&&!confirm('Похоже, такой лид уже есть (совпадение по названию / телефону / БИН). Всё равно создать?'))return;
+  const si=parseInt($('nfStage').value)||0,m=parseInt($('nfMgr').value)||0;
+  const lead={c,city:$('nfCity').value.trim()||'—',seg:$('nfSeg').value.trim()||'—',ph:ph||'—',hh:$('nfHh').value.trim(),bin,src:$('nfSrc').value,m,next:'первый звонок',nd:'сегодня',lt:false,meet:'',note:$('nfNote').value.trim(),age:0};
+  (LSTAGES[si]||LSTAGES[0]).ls.unshift(lead);
+  TASKS.push({id:++SEQ,grp:'today',when:'сегодня',lead:c,action:'первый звонок (новый лид)',mgr:LMGRS[m]});
+  logWt(nowHM(),'создала лида: '+c,m);save();renderLeads();renderTasks();renderStat();closeForm('leadOvl');
+  toast('<b>'+esc(c)+'</b> добавлен на этап «'+esc((LSTAGES[si]||LSTAGES[0]).n)+'» и поставлена задача «первый звонок».');
+}
+function openImport(){$('impRes').innerHTML='';$('impOvl').classList.add('show');}
+function impFile(inp){const f=inp.files&&inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{$('impText').value=e.target.result;};r.readAsText(f,'utf-8');}
+function fillSample(){$('impText').value=['Компания;Город;Сегмент;Телефон;hh;БИН;Источник','ТОО «СтройКом»;Алматы;Строительство;+7 701 400 11 22;hh.kz/employer/5501;210340001111;Excel-импорт','Alser;Астана;Ритейл;+7 705 220 33 44;hh.kz/employer/6620;;Excel-импорт','DAR Group;Шымкент;Девелопмент;+7 702 900 55 66;;;Excel-импорт','Halyk Bank;Алматы;Банк;+7 727 259 00 00;;940140000385;Excel-импорт'].join('\n');}
+function parseRows(text){
+  const lines=String(text||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const rows=lines.map(l=>{const sep=l.indexOf('\t')>=0?'\t':l.indexOf(';')>=0?';':',';return l.split(sep).map(x=>x.trim());});
+  if(rows.length&&/компан|company|назв|наимен/i.test(rows[0][0]||''))rows.shift();
+  return rows;
+}
+function runImport(){
+  const rows=parseRows($('impText').value);
+  if(!rows.length){$('impRes').innerHTML='<span style="color:var(--terra)">Пусто — вставьте таблицу или выберите файл.</span>';return;}
+  let added=0,dup=0,mi=0;
+  rows.forEach(r=>{
+    const c=(r[0]||'').trim();if(!c)return;
+    const ph=(r[3]||'').trim(),bin=(r[5]||'').trim();
+    if(isDup(c,ph,bin)){dup++;return;}
+    const m=mi%LMGRS.length;mi++;
+    LSTAGES[0].ls.push({c,city:(r[1]||'—').trim(),seg:(r[2]||'—').trim(),ph:ph||'—',hh:(r[4]||'').trim(),bin,src:(r[6]||'Excel-импорт').trim(),m,next:'первый звонок',nd:'сегодня',lt:false,meet:'',note:'',age:0});
+    TASKS.push({id:++SEQ,grp:'today',when:'сегодня',lead:c,action:'первый звонок (импорт)',mgr:LMGRS[m]});
+    added++;
+  });
+  save();renderLeads();renderTasks();renderStat();
+  $('impRes').innerHTML='<b style="color:var(--grn)">Импортировано: '+added+'</b> · пропущено дублей: '+dup+(added?'<div class="note" style="margin-top:6px">Новые лиды — на этапе «'+esc(LSTAGES[0].n)+'», распределены по менеджерам, по каждому создана задача «первый звонок».</div>':'');
+  if(added)toast('Импорт: добавлено '+added+', пропущено дублей '+dup+'. Лиды на этапе «'+esc(LSTAGES[0].n)+'».');
+}
+
+/* ===== init ===== */
+load();renderAll();
+const q=new URLSearchParams(location.search);
+if(q.get('s'))nav(q.get('s'));
+if(q.get('deal'))setTimeout(()=>openLeadByName('Kaspi.kz'),300);
+setTimeout(()=>toast('Это <b>Kolyakhan</b> — рабочая CRM (демо). Всё <b>по-настоящему</b>: заводите и импортируйте лидов, двигайте по этапам, звоните, ставьте задачи, пишите в WhatsApp — и <b>данные сохраняются</b> в этом браузере. Кнопка «↺ Сбросить демо» вернёт исходные. Откройте любой лид.'),700);
+</script>
+</body>
+</html>

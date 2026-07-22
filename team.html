@@ -3126,8 +3126,34 @@ textarea.inline-edit-input.inline-edit-h2, .inline-edit-h2 textarea { min-width:
   .tl-chat-thread { padding: 10px; }
 }
 </style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-M5N2WR2B');</script>
+<!-- End Google Tag Manager -->
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '893448113078273');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
 </head>
 <body>
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-M5N2WR2B" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+
 
 <!-- ── Login Screen ───────────────────────────────────────────── -->
 <div id="login" class="login-wrap">
@@ -3737,7 +3763,16 @@ const LAST_PAGE_LS_KEY = 'elc:lastPage'; // dashboard|contacts|deals|tasks|users
 // админам шлёт сам worker на момент обрыва.
 let _chHealthTimer = null;
 function renderChannelHealthBanner(data) {
+  // Верхний баннер о связи каналов убран по просьбе: он перекрывал интерфейс.
+  // Состояние каналов теперь смотрим в Настройки → Каналы, а админам раз в
+  // неделю приходит системное уведомление (cron на воркере). Здесь — только
+  // подчистка, если баннер откуда-то остался.
   const existing = document.getElementById('ch-health-banner');
+  if (existing) existing.remove();
+  document.body.classList.remove('has-ch-banner');
+  document.documentElement.style.removeProperty('--ch-banner-h');
+  return;
+  // eslint-disable-next-line no-unreachable
   if (!data || !data.anyDown) {
     if (existing) existing.remove();
     document.body.classList.remove('has-ch-banner');
@@ -3795,10 +3830,10 @@ async function pollChannelHealth() {
   } catch (e) { /* тихо — не мешаем работе при сетевых сбоях */ }
 }
 function startChannelHealthMonitor() {
-  if (window.currentUser?.role !== 'admin') return; // баннер — только админам
-  if (_chHealthTimer) return;                        // уже запущен
-  pollChannelHealth();
-  _chHealthTimer = setInterval(pollChannelHealth, 60000);
+  // Отключено: верхний баннер убран, поэтому фоновый опрос состояния каналов
+  // больше не нужен (экономим запросы). Состояние каналов — в Настройки → Каналы;
+  // проблемные каналы админам напоминает раз в неделю cron на воркере.
+  return;
 }
 
 // Экран для вошедшего, но ещё не привязанного к сотруднику аккаунта — чтобы он
@@ -4379,7 +4414,23 @@ function lcCard(it){
   if (Lc) {
     if (it.step === 'grammar' || it.step === 'grammar-test') {
       const g = Lc.grammar;
-      extra += matBox('Грамматика урока', `<div>${escapeHtml(g.title)}</div><div style="color:var(--t3);margin-top:4px">${escapeHtml(g.form)}</div><div style="margin-top:6px">Примеры: ${g.examples.map(e => escapeHtml(e)).join('; ')}</div>`);
+      // Мини-таблица-шпаргалка (если есть в контенте) — связывает темы урока.
+      const tableHtml = Array.isArray(g.table) && g.table.length
+        ? `<div style="overflow-x:auto;margin-top:6px"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
+             <thead><tr>
+               <th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--b1);color:var(--t3);font-weight:600">Правило</th>
+               <th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--b1);color:var(--t3);font-weight:600">Формула</th>
+               <th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--b1);color:var(--t3);font-weight:600">Пример</th>
+             </tr></thead><tbody>
+             ${g.table.map(r => `<tr>
+               <td style="padding:4px 6px;border-bottom:1px solid var(--b1);font-weight:600">${escapeHtml(r.rule)}</td>
+               <td style="padding:4px 6px;border-bottom:1px solid var(--b1);color:var(--t2)">${escapeHtml(r.form)}</td>
+               <td style="padding:4px 6px;border-bottom:1px solid var(--b1)">${escapeHtml(r.example)}</td>
+             </tr>`).join('')}
+           </tbody></table></div>`
+        : `<div style="color:var(--t3);margin-top:4px">${escapeHtml(g.form)}</div>`;
+      const examplesHtml = `<div style="margin-top:6px">Примеры:<ul style="margin:4px 0 0;padding-left:18px">${(g.examples || []).map(e => `<li>${escapeHtml(e)}</li>`).join('')}</ul></div>`;
+      extra += matBox('Грамматика урока', `<div style="font-weight:600">${escapeHtml(g.title)}</div>${tableHtml}${examplesHtml}`);
     } else if (it.step === 'reading') {
       const r = Lc.reading;
       extra += matBox('Текст для чтения', `<div>${escapeHtml(r.text)}</div><div style="color:var(--t3);margin-top:6px">Вопросы: ${r.q.map(q => escapeHtml(q)).join(' · ')}</div>`);
@@ -6302,9 +6353,17 @@ async function loadChartSeries(c, card) {
     const usableH = VH - padT - padB;
     const x = (i) => (i + 0.5) * 100;
     const y = (v) => padT + (1 - (v / maxVal)) * usableH;
-    const pts = series.map((s, i) => `${x(i).toFixed(1)},${y(s.value).toFixed(1)}`).join(' ');
+    // Линию строим ТОЛЬКО по завершённым точкам — текущий (незавершённый) период
+    // не соединяем, он остаётся отдельной точкой (график показывает прошлые недели).
+    const pts = series.map((s, i) => s.partial ? null : `${x(i).toFixed(1)},${y(s.value).toFixed(1)}`).filter(Boolean).join(' ');
     // сетка: верх (max) и низ (0)
-    const dots = series.map((s, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(s.value).toFixed(1)}" r="5" fill="var(--ac)" stroke="var(--bg)" stroke-width="2" vector-effect="non-scaling-stroke"><title>${s.label}: ${s.value}</title></circle>`).join('');
+    const dots = series.map((s, i) => {
+      const p = !!s.partial;
+      const fill = p ? 'var(--bg)' : 'var(--ac)';       // незавершённая — полая точка
+      const stroke = p ? 'var(--ac)' : 'var(--bg)';
+      const title = p ? `${s.label}: ${s.value} · текущая неделя (ещё идёт)` : `${s.label}: ${s.value}`;
+      return `<circle cx="${x(i).toFixed(1)}" cy="${y(s.value).toFixed(1)}" r="5" fill="${fill}" stroke="${stroke}" stroke-width="2" vector-effect="non-scaling-stroke"><title>${title}</title></circle>`;
+    }).join('');
     plot.innerHTML = `<svg viewBox="0 0 ${VW} ${VH}" preserveAspectRatio="none" style="width:100%;height:100%;overflow:visible">
         <line x1="0" y1="${padT}" x2="${VW}" y2="${padT}" stroke="var(--b1)" stroke-width="1" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
         <line x1="0" y1="${VH - padB}" x2="${VW}" y2="${VH - padB}" stroke="var(--b1)" stroke-width="1" vector-effect="non-scaling-stroke"/>
@@ -16190,7 +16249,13 @@ const calendarState = {
   events: null,
   loading: false,
   loadingPromise: null,
+  // Обзор всех встреч (только админ/директор). По умолчанию вкл — чтобы админ
+  // сразу видел все события; можно переключить на «Мои».
+  showAll: (() => { try { return localStorage.getItem('cal-show-all') !== '0'; } catch { return true; } })(),
 };
+function calCanSeeAll() {
+  return window.currentUser?.role === 'admin' || !!window.currentUser?.orgPerms?.isDirector;
+}
 
 function ensureCalendarStylesInjected() {
   if (document.getElementById('cal-styles')) return;
@@ -16332,6 +16397,10 @@ async function renderCalendar(el) {
           <button class="cal-view-btn ${calendarState.view === 'week' ? 'active' : ''}" data-cal-view="week">Неделя</button>
           <button class="cal-view-btn ${calendarState.view === 'month' ? 'active' : ''}" data-cal-view="month">Месяц</button>
         </div>
+        ${calCanSeeAll() ? `<div class="cal-view-toggle" id="cal-scope-toggle" title="Показывать все встречи всех сотрудников или только свои">
+          <button class="cal-view-btn ${calendarState.showAll ? 'active' : ''}" data-cal-scope="all">Все встречи</button>
+          <button class="cal-view-btn ${!calendarState.showAll ? 'active' : ''}" data-cal-scope="mine">Мои</button>
+        </div>` : ''}
         <span id="cal-stats" style="margin-left:auto;font-size:11px;color:var(--t3);display:flex;gap:14px;align-items:center">
           <span><span style="display:inline-block;width:10px;height:10px;background:#2563eb;border-radius:2px;vertical-align:middle"></span> Zoom</span>
           <span><span style="display:inline-block;width:10px;height:10px;background:#a855f7;border-radius:2px;vertical-align:middle"></span> Задача</span>
@@ -16359,11 +16428,22 @@ async function renderCalendar(el) {
   };
   document.getElementById('cal-add-event').onclick = () => openCalEventForm(new Date());
   // Переключатель видов
-  el.querySelectorAll('.cal-view-btn').forEach(b => {
+  el.querySelectorAll('.cal-view-btn[data-cal-view]').forEach(b => {
     b.addEventListener('click', () => {
       calendarState.view = b.dataset.calView;
       try { localStorage.setItem(CAL_VIEW_LS_KEY, calendarState.view); } catch {}
       renderCalendar(el);  // полная пересборка тулбара для подсветки активной кнопки
+    });
+  });
+  // Переключатель охвата (Все встречи / Мои) — только админ/директор.
+  el.querySelectorAll('.cal-view-btn[data-cal-scope]').forEach(b => {
+    b.addEventListener('click', () => {
+      const wantAll = b.dataset.calScope === 'all';
+      if (calendarState.showAll === wantAll) return;
+      calendarState.showAll = wantAll;
+      try { localStorage.setItem('cal-show-all', wantAll ? '1' : '0'); } catch {}
+      calendarState.events = null;   // сбросить кеш → renderCalendar перезагрузит с новым охватом
+      renderCalendar(el);
     });
   });
   await loadCalendarEvents();
@@ -16466,7 +16546,8 @@ async function loadCalendarEvents(opts = {}) {
       const dlFrom = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() - 90);
       const dlTo = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + 90);
       const fmtDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      const tasksP = fetch(`${WORKER_LIST_URL}/tasks?page=1&pageSize=500&status=active&sort=deadline&deadlineFrom=${fmtDate(dlFrom)}&deadlineTo=${fmtDate(dlTo)}T23:59:59&scope=${effectiveScope()}&includePublic=1&auth=${idToken}`)
+      const allEventsParam = (calendarState.showAll && calCanSeeAll()) ? '&allEvents=1' : '';
+      const tasksP = fetch(`${WORKER_LIST_URL}/tasks?page=1&pageSize=500&status=active&sort=deadline&deadlineFrom=${fmtDate(dlFrom)}&deadlineTo=${fmtDate(dlTo)}T23:59:59&scope=${effectiveScope()}&includePublic=1${allEventsParam}&auth=${idToken}`)
         .then(r => r.ok ? r.json() : { items: [] })
         .catch(() => ({ items: [] }));
       // Сделки: ВСЕГДА тянем свежие данные из ВСЕХ воронок параллельно,
@@ -17065,9 +17146,9 @@ function openCalEventForm(prefillDate) {
       <div id="ce-deal-res" style="max-height:170px;overflow:auto;margin-top:6px"></div>
       <label style="font-size:12px;color:var(--t3);display:block;margin-top:12px">Кто видит событие</label>
       <select id="ce-vis" style="width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)">
-        <option value="me" selected>Только я</option>
+        <option value="me">Только я</option>
         <option value="people">Выбранные сотрудники</option>
-        <option value="all">Все (общий календарь)</option>
+        <option value="all" selected>Все (общий календарь)</option>
       </select>
       <select id="ce-people" multiple size="4" style="width:100%;margin-top:6px;padding:8px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);display:none">${evPeopleOpts}</select>
       <div id="ce-err" style="color:var(--rd);font-size:12px;min-height:16px;margin-top:8px"></div>
@@ -22981,7 +23062,7 @@ async function openMailbox(id, acc, opts) {
         <div class="mail-rdate">${escapeHtml(mailShortDate(m.date))}</div>
       </div>`;
     }).join('');
-    list.querySelectorAll('.mail-row').forEach(row => row.onclick = () => openMailMessage(id, acc, row.dataset.uid, () => { const m = state.msgs.find(x => String(x.uid) === row.dataset.uid); if (m) { m.seen = true; renderList(); } }));
+    list.querySelectorAll('.mail-row').forEach(row => row.onclick = () => openMailMessage(id, acc, row.dataset.uid, () => { const m = state.msgs.find(x => String(x.uid) === row.dataset.uid); if (m) { m.seen = true; renderList(); } }, state.folder));
     // «показать ещё»
     const more = document.getElementById('mail-more');
     if (!state.q && state.oldestSeq && state.oldestSeq > 1) {
@@ -23038,7 +23119,8 @@ function mailShortDate(d) {
   return dt.toLocaleDateString('ru', { day: '2-digit', month: '2-digit' });
 }
 
-async function openMailMessage(id, acc, uid, onSeen) {
+async function openMailMessage(id, acc, uid, onSeen, folder) {
+  folder = folder || 'INBOX';
   if (typeof onSeen === 'function') { try { onSeen(); } catch {} }
   document.getElementById('_mail-msg-modal')?.remove();
   const ov = document.createElement('div');
@@ -23052,11 +23134,18 @@ async function openMailMessage(id, acc, uid, onSeen) {
   ov.querySelector('#mm-close').onclick = () => ov.remove();
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const r = await fetch(`${WORKER_BASE_URL}/api/mail/${encodeURIComponent(id)}/message/${encodeURIComponent(uid)}`, { headers: { Authorization: 'Bearer ' + idToken } });
+    const r = await fetch(`${WORKER_BASE_URL}/api/mail/${encodeURIComponent(id)}/message/${encodeURIComponent(uid)}?folder=${encodeURIComponent(folder)}`, { headers: { Authorization: 'Bearer ' + idToken } });
     const d = await r.json();
     if (!d.ok) throw new Error(d.error || 'ошибка');
     const m = d.message;
-    const atts = (m.attachments || []).map(a => `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--b1);border-radius:6px;padding:3px 8px;font-size:12px;margin:2px">📎 ${escapeHtml(a.filename)}</span>`).join('');
+    // Вложения — кликабельные: картинки/PDF откроются в браузере, остальное скачается.
+    const attUrl = (a) => `${WORKER_BASE_URL}/api/mail/${encodeURIComponent(id)}/message/${encodeURIComponent(uid)}/attachment/${a.index}?folder=${encodeURIComponent(folder)}&auth=${encodeURIComponent(idToken)}`;
+    const atts = (m.attachments || []).map((a, i) => {
+      const idx = (a.index != null ? a.index : i);
+      const url = attUrl({ index: idx });
+      const kb = a.size ? Math.max(1, Math.round(a.size * 0.75 / 1024)) : 0;
+      return `<a href="${url}" target="_blank" rel="noopener" title="Открыть или скачать" style="display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--b1);border-radius:6px;padding:4px 9px;font-size:12px;margin:2px;color:var(--t1);text-decoration:none">📎 ${escapeHtml(a.filename)}${kb ? ` <span style="color:var(--t3)">${kb} КБ</span>` : ''} <span style="color:var(--ac);font-weight:700">⤓</span></a>`;
+    }).join('');
     let bodyHtml;
     if (m.html) {
       bodyHtml = `<iframe id="mm-frame" style="width:100%;border:none;background:#fff;border-radius:8px;min-height:320px"></iframe>`;
@@ -23782,6 +23871,18 @@ async function pollNotifierConnect(ov) {
   }
 }
 
+// Человеческая причина по raw-состоянию Green-API (для Настройки → Каналы).
+function waHealthReason(raw) {
+  const r = String(raw || '').toLowerCase();
+  if (r === 'notauthorized' || r.includes('notauth')) return 'не авторизован — пересканируйте QR в Green-API';
+  if (r === 'starting') return 'запускается…';
+  if (r.includes('yellow') || r.includes('block')) return 'инстанс заблокирован';
+  if (r.startsWith('http_4') || r.includes('401') || r.includes('403')) return 'неверный токен/инстанс';
+  if (r === 'fetch_error' || r.startsWith('http_')) return 'инстанс недоступен (проверьте токен/URL или удалите лишний канал)';
+  if (r === 'unknown' || !r) return 'состояние неизвестно';
+  return r;
+}
+
 async function renderSettingsChannelsWa(el) {
   el.innerHTML = `
     <div class="card" style="padding:18px">
@@ -23813,13 +23914,30 @@ async function renderSettingsChannelsWa(el) {
       </div>`;
       return;
     }
+    // Состояние связи каналов (то, что раньше показывал верхний баннер).
+    let healthById = {}, notifierDown = null;
+    try {
+      const h = await fetch(`${WORKER_BASE_URL}/api/wa/channels/health`, { headers: { 'Authorization': 'Bearer ' + idToken } }).then(r => r.ok ? r.json() : null);
+      for (const c of (h?.channels || [])) healthById[c.id] = { down: c.down, raw: c.raw };
+      for (const d of (h?.down || [])) { if (d.id === 'notifier') notifierDown = d; }
+    } catch {}
     let html = '<div style="display:flex;flex-direction:column;gap:10px">';
+    if (notifierDown) {
+      html += `<div style="padding:10px 12px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#991b1b;font-size:12.5px">⚠ Системный нотификатор не на связи — ${escapeHtml(waHealthReason(notifierDown.raw))}</div>`;
+    }
     for (const c of items) {
       const pipeName = dealsState.pipelines?.[c.default_pipeline_id]?.name || '—';
+      const hb = healthById[c.id];
+      const healthLine = (c.active && hb)
+        ? (hb.down
+            ? `<div style="font-size:12px;color:#dc2626;margin-top:3px;font-weight:600">🔴 не на связи — ${escapeHtml(waHealthReason(hb.raw))}</div>`
+            : `<div style="font-size:12px;color:#16a34a;margin-top:3px">🟢 на связи</div>`)
+        : '';
       html += `<div style="border:1px solid var(--b1);border-radius:8px;padding:12px 14px;background:var(--bg2);display:flex;justify-content:space-between;align-items:center;gap:10px">
         <div style="flex:1;min-width:0">
           <div style="font-size:14px;font-weight:600;color:var(--t1)">${escapeHtml(c.display_name || 'Green-API ' + c.id_instance)}</div>
           <div style="font-size:12px;color:var(--t3);margin-top:3px">id: <code>${escapeHtml(c.id_instance)}</code> · воронка: ${escapeHtml(pipeName)} · ${c.active ? '🟢 активен' : '⏸ отключен'}</div>
+          ${healthLine}
         </div>
         <div style="display:flex;gap:6px">
           <button class="btn btn-sm" data-distribute-channel="${escapeHtml(c.id)}" title="Кто распределяет входящие (round-robin)">👥 Распределение</button>

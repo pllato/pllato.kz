@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ТЗ · AZAM — CRM/ERP для завода элеваторного оборудования · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#161d2b;--ink2:#33405a;--gold:#c8912f;--goldD:#a5761f;--goldL:#f7efdd;--text:#232c3c;--muted:#697588;--faint:#9aa5b5;--line:#e6e9f0;--off:#f6f8fb;--grn:#1c8a63;--grnL:#e5f2ec;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55;background:#eceef2}
+.page{width:210mm;min-height:297mm;position:relative;padding:15mm 16mm 17mm;margin:0 auto 8mm;background:#fff;display:flex;flex-direction:column}
+.runfoot{position:absolute;left:16mm;right:16mm;bottom:9mm;display:flex;justify-content:space-between;font-size:8px;color:var(--faint);border-top:1px solid var(--line);padding-top:6px}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .bm{width:40px;height:40px;background:linear-gradient(145deg,#1a2233,#0e1626);border-radius:9px;display:grid;place-items:center;flex:none}
+.brand .bt{font-size:20px;font-weight:900;letter-spacing:.13em;color:var(--ink)}
+.brand .bt b{color:var(--gold)}
+.brand .bs{font-size:8.5px;color:var(--muted);letter-spacing:.02em;margin-top:1px}
+.hr{text-align:right}.hr .t{font-size:13px;font-weight:800;color:var(--ink)}.hr .dt{font-size:9.5px;color:var(--muted);margin-top:2px}
+.rule{height:2px;background:var(--gold);margin-bottom:14px}
+h1{font-size:19px;font-weight:900;letter-spacing:-.01em;line-height:1.15;margin-bottom:8px;color:var(--ink)}
+.lead{font-size:10.5px;color:var(--ink2);margin-bottom:12px;line-height:1.6}
+.lead b{color:var(--ink)}
+.meta{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:6px}
+.chip{background:var(--off);border:1px solid var(--line);border-radius:20px;padding:4px 11px;font-size:8.8px;font-weight:600;color:var(--ink2)}
+.sec{font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--gold);margin:15px 0 9px;display:flex;align-items:center;gap:9px}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.sec.first{margin-top:2px}
+.mod{border:1px solid var(--line);border-radius:9px;padding:10px 13px;margin-bottom:7px;break-inside:avoid}
+.mod .mt{font-weight:800;font-size:11px;color:var(--ink);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.mod .mt .n{width:19px;height:19px;border-radius:6px;background:var(--ink);color:#fff;font-size:9.5px;display:grid;place-items:center;flex:none;font-weight:700}
+.mod.key .mt .n{background:var(--gold)}
+.mod ul{margin:0;padding-left:15px}
+.mod li{font-size:9.7px;color:var(--ink2);margin-bottom:2px;line-height:1.5}
+.mod li b{color:var(--ink)}
+.mod .acc{font-size:9px;color:var(--grn);margin-top:5px;background:var(--grnL);border-radius:6px;padding:4px 8px}
+.mod .acc b{color:#0f6b4a}
+.callout{background:var(--goldL);border:1px solid #ecd9a8;border-radius:9px;padding:10px 13px;font-size:9.7px;color:#6b4e18;line-height:1.55;margin-bottom:8px}
+.callout b{color:#4d380f}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.accept{border:1px solid var(--line);border-radius:9px;padding:5px 14px}
+.accept .t{display:flex;gap:12px;padding:7px 0;border-bottom:1px solid var(--off)}
+.accept .t:last-child{border-bottom:none}
+.accept .t .w{width:120px;flex:none;font-size:9.3px;font-weight:800;color:var(--gold)}
+.accept .t .d{font-size:9.7px;color:var(--ink2)}
+.accept .t .d b{color:var(--ink)}
+table.req{width:100%;border-collapse:collapse;margin-top:4px}
+table.req td{padding:6px 9px;font-size:9.5px;border-bottom:1px solid var(--line)}
+table.req td.k{width:20%;color:var(--muted)}
+table.req tr:nth-child(even){background:var(--off)}
+.signs{display:flex;gap:40px;margin-top:14px}
+.signs .s{flex:1}.signs .sl{font-size:9px;color:var(--muted);margin-bottom:12px}
+.signs .snm{font-weight:700;font-size:10.5px;margin-bottom:12px}.signs .ln{font-size:10px;color:#3a4453}.signs .ln u{display:inline-block;width:80px;border-bottom:1px solid #b9c0ca}
+</style></head>
+<body>
+
+<!-- p1 -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg width="25" height="25" viewBox="0 0 32 32"><path d="M16 4 C13 8 13 12 16 16 C19 12 19 8 16 4 Z M16 13 C13 17 13 21 16 25 C19 21 19 17 16 13 Z" fill="#e8b04b"/><path d="M16 22 C13 25 13 28 16 30 C19 28 19 25 16 22 Z" fill="#c8912f"/></svg></div>
+      <div><div class="bt"><b>AZAM</b> · Пульт завода</div><div class="bs">CRM/ERP для завода элеваторного оборудования · Pllato</div></div>
+    </div>
+    <div class="hr"><div class="t">ТЗ № TZ-AZ-2026-01</div><div class="dt">21 июля 2026 г.</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h1>Техническое задание — система AZAM для завода элеваторного оборудования</h1>
+  <div class="lead">Разработка единой системы <b>«Пульт завода»</b> для <b>ТОО «AZAM-KC»</b> (Мусин Аязбек, с. Жалтырь, Акмолинская обл.) взамен Excel и тетрадей. Завод производит полный цикл элеваторного оборудования (очистка, сушка, транспорт, силосы) на собственном производстве. Система ведёт бизнес одной сущностью — <b>сделка</b> — от клиента до отгрузки. Работает в браузере и с телефона, размещается на сервере Заказчика, передаётся в собственность.</div>
+  <div class="meta">
+    <span class="chip">Платформа: веб + моб. адаптив</span>
+    <span class="chip">Размещение: сервер Заказчика</span>
+    <span class="chip">Интеграции: 1С</span>
+    <span class="chip">Основа: схема-алгоритм Заказчика + демо AZAM</span>
+  </div>
+  <div class="callout"><b>Приоритет №1.</b> Надлежащее и своевременное <b>исполнение договора</b>. На него влияют: несвоевременная оплата, несвоевременный закуп, несвоевременная отгрузка/логистика, «не довели информацию». Система делает эти четыре нити (оплата · закуп · производство · отгрузка) видимыми и связывает все отделы. Точные этапы воронок, статьи, справочники и формулы уточняются на рабочей встрече (≈2 недели после старта), затем — поэтапная сдача.</div>
+
+  <div class="sec first">1–3. Продажи, сделка и документы</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">1</span>Сделка — единая сущность и воронка продаж</div>
+    <ul>
+      <li>Канбан: <b>Квалификация → ЛПР/встреча → Просчёт·КП → Договор·аванс → Производство → Готово·ОТК → Отгрузка → Расчёт закрыт</b>. Этапы настраиваются, карточки перетаскиваются.</li>
+      <li>Карточка сделки — <b>центр общения и всей информации</b> по клиенту: состав заказа, документы, платежи, производство, отгрузка, заметки.</li>
+      <li>Внизу карточки — <b>4 нити исполнения</b> (оплата/закуп/производство/отгрузка); красная нить сигналит о срыве.</li>
+    </ul>
+    <div class="acc"><b>Приёмка:</b> контракт проходит все этапы; на дашборде видно, какая нить тормозит.</div>
+  </div>
+  <div class="mod key">
+    <div class="mt"><span class="n">2</span>Конструктор заказа (инженерное решение)</div>
+    <ul>
+      <li>Каталог оборудования блоками: <b>сушилки, очистка/сепараторы, силосы, нории, конвейеры, зернопроводы, шеф-монтаж</b> — с ценами.</li>
+      <li><b>Шаблоны типовых комплексов</b> (элеватор под ключ, сушильный комплекс, силосный парк): выбрал — сумма собралась.</li>
+      <li>Продаём проектное решение, а не отдельный мотор; итоговая сумма контракта — из состава.</li>
+    </ul>
+    <div class="acc"><b>Приёмка:</b> менеджер за минуты собирает комплекс, получает сумму и КП.</div>
+  </div>
+  <div class="mod key">
+    <div class="mt"><span class="n">3</span>Авто-КП и авто-договор</div>
+    <ul>
+      <li><b>КП</b> формируется из состава заказа одной кнопкой.</li>
+      <li><b>Договор</b> собирается <b>автоматически</b>: состав заказа + план платежей подшиваются в тело договора. Оператор системы/юрист проверяет и отправляет.</li>
+      <li>Маршрут документа фиксируется: продажи → оператор/юрист → гендиректор → заказчик подписывает → бухгалтерия.</li>
+    </ul>
+  </div>
+
+  <div class="runfoot"><span>Pllato · ТЗ TZ-AZ-2026-01 · AZAM для ТОО «AZAM-KC»</span><span>1 / 3</span></div>
+</section>
+
+<!-- p2 -->
+<section class="page">
+  <div class="sec first">4. Бухгалтерия · платежи и дебиторка (приоритет №1)</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">4</span>Календарь платежей и контроль «к выставлению»</div>
+    <ul>
+      <li>План платежей по каждому контракту: <b>аванс 30% → 2-й 20% → 3-й 30% → перед отгрузкой 10% → пуско-наладка 10%</b> (пресеты настраиваются: бывает 50% предоплата, бывает через банк).</li>
+      <li><b>Календарь платежей</b>: кто и когда должен платить; подходит срок «второго транша» — система напоминает.</li>
+      <li>Остаток долга по клиенту уменьшается с каждой оплатой; экран <b>дебиторки</b>.</li>
+      <li>Контроль <b>«к выставлению»</b>: подписан договор, но счёт не выставлен — краснеет (реальный кейс с зависшим счётом и штрафами).</li>
+      <li><b>Оплата → производство:</b> бухгалтер отметил оплату — ПДО и цеха сразу видят, что заказ можно запускать.</li>
+    </ul>
+    <div class="acc"><b>Приёмка:</b> отметил оплату → долг уменьшился, производство уведомлено; договор без счёта горит красным.</div>
+  </div>
+
+  <div class="sec">5. Производство · ПДО</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">5</span>План производства, цеха и ОТК</div>
+    <ul>
+      <li>Как только пришли деньги — заказ падает в производство. <b>Планирование (ПДО)</b> формирует план и раскидывает задания.</li>
+      <li>Задания по <b>4 цехам</b>: очистка (сепараторы, ЗАВ) · сушилки (горелки, автоматика) · транспорт (нории, конвейеры) · силосы (стойки, гофролист). Готовность каждого — в процентах.</li>
+      <li><b>ОТК</b> готовой продукции перед передачей на склад готовой продукции.</li>
+      <li>Отдельный доступ: цеха и главный инженер <b>не видят финансы</b>.</li>
+    </ul>
+    <div class="acc"><b>Приёмка:</b> заказ в производстве показывает готовность по каждому цеху и статус ОТК.</div>
+  </div>
+
+  <div class="sec">6. Закуп и оборотный склад</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">6</span>План закупа, поставщики, приём по декларации</div>
+    <ul>
+      <li><b>План закупа</b> от ПДО → заявки поставщикам (металл Северсталь, горелки Италия, редукторы/моторы Китай, метизы) — напрямую, без посредников.</li>
+      <li>Приём сырья на <b>оборотный / свободный склад по декларации</b>; остатки сырья и комплектующих.</li>
+      <li><b>Списание в производство</b> (что зашло — ушло в изделие, а не перепродано); нехватка сырья краснеет — иначе цех встанет.</li>
+    </ul>
+    <div class="acc"><b>Приёмка:</b> заявка → приход → остаток → списание в цех прослеживаются; дефицит подсвечен.</div>
+  </div>
+
+  <div class="sec">7. Склад готовой продукции и отгрузка</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">7</span>Комплектность отгрузки</div>
+    <ul>
+      <li>Готовая продукция с ОТК; отгрузка <b>частями</b> (силос = 5 машин: стойки, гофролист, метизы, секции норий…).</li>
+      <li><b>Контроль комплектности</b>: по договору / отгружено / остаток — недогруз и пересортица подсвечиваются, бригада на объекте не простаивает.</li>
+      <li>Накладные; транспорт — транспортная компания или <b>свой гараж</b>.</li>
+    </ul>
+    <div class="acc"><b>Приёмка:</b> пока комплект не собран на 100% — контракт не закрыт; недогруз виден в цифрах.</div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · ТЗ TZ-AZ-2026-01 · AZAM для ТОО «AZAM-KC»</span><span>2 / 3</span></div>
+</section>
+
+<!-- p3 -->
+<section class="page">
+  <div class="sec first">8–10. КПП, роли, дашборд и 1С</div>
+  <div class="two">
+    <div class="mod"><div class="mt"><span class="n">8</span>КПП · пропускной пункт</div><ul>
+      <li>Регистрация каждого выезда по накладной.</li>
+      <li>Что за груз, контракт, машина, отметка охраны.</li>
+      <li>Сверка с накладной склада — «мимо» не вывезти.</li>
+    </ul></div>
+    <div class="mod"><div class="mt"><span class="n">9</span>Роли и кабинеты</div><ul>
+      <li>Гендиректор, оператор/юрист, продажи, бухгалтерия, ПДО, закуп, склад, КПП.</li>
+      <li>Каждый видит только своё; финансы скрыты от цехов.</li>
+      <li>Веб + телефон (мобильно на производстве).</li>
+    </ul></div>
+    <div class="mod"><div class="mt"><span class="n">10</span>Дашборд директора</div><ul>
+      <li>Портфель контрактов, дебиторка, кассовые разрывы.</li>
+      <li>Загрузка цехов, отгрузки, красные флаги.</li>
+      <li>«Пролистал — всё увидел».</li>
+    </ul></div>
+    <div class="mod"><div class="mt"><span class="n">11</span>Интеграция 1С</div><ul>
+      <li>Синхронизация: счета, оплаты, остатки склада.</li>
+      <li>Без ручного дублирования данных.</li>
+      <li>Версия/конфигурация 1С — уточняется.</li>
+    </ul></div>
+  </div>
+
+  <div class="sec">Добавлено по встрече 21.07</div>
+  <div class="two">
+    <div class="mod key"><div class="mt"><span class="n">12</span>Штрихкод-прослеживаемость</div><ul>
+      <li>Приём комплектующих <b>по декларации</b> (растаможка) на свободный/оборотный склад.</li>
+      <li><b>Штрихкод</b> на каждую партию/деталь; списание на <b>конкретное изделие</b>.</li>
+      <li>Видно: <b>какая деталь в какое изделие ушла</b> — прослеживаемость и отчётность.</li>
+    </ul></div>
+    <div class="mod key"><div class="mt"><span class="n">13</span>Интеграции и замена amoCRM</div><ul>
+      <li>Заявки с сайта <b>azam.kz</b> — прямо в портал; WhatsApp; IP-телефония (по потребности).</li>
+      <li><b>Миграция из amoCRM</b> — продажи ведутся в этой же системе, отказ от абонплаты.</li>
+      <li>Всё в одной системе — без «зоопарка» программ.</li>
+    </ul></div>
+    <div class="mod"><div class="mt"><span class="n">14</span>Контроль оплат по этапам</div><ul>
+      <li>План платежей из договора; напоминание, когда подходит срок транша.</li>
+      <li>Правило: <b>этап не двигается дальше, пока оплата по нему не зашла</b> (защита от роста дебиторки).</li>
+    </ul></div>
+    <div class="mod"><div class="mt"><span class="n">15</span>Заполняемость без лишнего</div><ul>
+      <li>Внутри — только нужные отметки, без «полдня на документы».</li>
+      <li>Отметка приёмки этапа = «электронная фискализация» работы; оценка — по результату/продукту.</li>
+    </ul></div>
+  </div>
+
+  <div class="sec">Инфраструктура и передача</div>
+  <div class="mod">
+    <ul>
+      <li>Веб-приложение в браузере, <b>моб. адаптив</b>; размещается на <b>сервере Заказчика</b>.</li>
+      <li>Настройка сервера — в пакете (бесплатный вариант или ≈10 000 ₸/мес).</li>
+      <li>Передаётся <b>в собственность</b>: исходники и доступы — Заказчику. Дальнейших платежей за пользование нет.</li>
+      <li>Сопровождение: ошибки по вине Исполнителя — бесплатно; доработки после сдачи — по часам (≈$20/час), ≈10% объёма заложено.</li>
+    </ul>
+  </div>
+
+  <div class="sec">Порядок разработки и приёмки</div>
+  <div class="accept">
+    <div class="t"><div class="w">Этап 0 · старт</div><div class="d"><b>Предоплата 10% = 250 000 ₸</b> (символическая). Поднимаем систему, переносим данные, настраиваем 1С и сервер. Встречи 1–2 раза в неделю.</div></div>
+    <div class="t"><div class="w">Этап 1 · базовый функционал</div><div class="d"><b>Согласование и сборка базового функционала</b> по каждому блоку схемы (2–3 итерации на Zoom). Оплата <b>1 125 000 ₸</b> после утверждения этапа.</div></div>
+    <div class="t"><div class="w">Этап 2 · полировка · 4–6 недель</div><div class="d"><b>Полировка, финальная сдача и передача.</b> Оплата остатка — <b>1 125 000 ₸</b>.</div></div>
+  </div>
+
+  <div class="sec">Стоимость</div>
+  <div class="callout" style="margin-bottom:12px">Полная стоимость разработки — <b>2 500 000 ₸</b> (разово, с передачей в собственность, без НДС — Исполнитель не плательщик НДС). Оплата: <b>250 000 ₸</b> (предоплата 10%, старт) + <b>1 125 000 ₸</b> (этап 1) + <b>1 125 000 ₸</b> (этап 2, финал). Синхронизация 1С, конструктор-калькулятор, настройка сервера и интеграции (сайт, WhatsApp, IP-телефония, миграция amoCRM) — в стандартном пакете. Детали — в КП № AZ-2026-01 и договоре, оплата старта — счёт № AZ-С-2026-01.</div>
+
+  <div class="sec">Стороны</div>
+  <table class="req">
+    <tr><td class="k">Исполнитель</td><td>ИП «STUDYSTORIES.APP», БИН 880607300110, директор Цай Платон · pllato.kz · uurraa@gmail.com</td></tr>
+    <tr><td class="k">Заказчик</td><td>ТОО «AZAM-KC», БИН 120440007640, директор Мусин Аязбек Сеилбекович · 020300, Акмолинская обл., Астраханский р-н, с. Астраханка, ул. С. Сейфуллина, 17 · ИИК KZ04998JTB0001688651, АО «Jusan Bank» (Акмол. филиал, Кокшетау), БИК TSESKZKA, Кбе 17 · плательщик НДС (св-во 03001 №0002861 от 18.06.2013) · info@azam.kz · 8 (716 41) 2 39 31</td></tr>
+  </table>
+
+  <div class="signs">
+    <div class="s"><div class="sl">Исполнитель</div><div class="snm">ИП «STUDYSTORIES.APP»</div><div class="ln"><u></u> / Цай П. / М.П.</div></div>
+    <div class="s"><div class="sl">Заказчик</div><div class="snm">ТОО «AZAM-KC»</div><div class="ln"><u></u> / Мусин А. / М.П.</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · ТЗ TZ-AZ-2026-01 · ИП «STUDYSTORIES.APP» · pllato.kz</span><span>3 / 3</span></div>
+</section>
+</body></html>

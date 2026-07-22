@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ТЗ · MAGISTRAL — CRM/ERP для ЖД-грузоперевозок · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#16202e;--ink2:#38455a;--rail:#1f5f9e;--railD:#184e83;--amber:#d9871a;--amberL:#fbf1dd;--text:#222c3a;--muted:#66748a;--faint:#9aa6b4;--line:#e4e8ee;--off:#f5f8fb;--green:#1c8a63;--greenL:#e4f2eb;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55;background:#eceef2}
+.page{width:210mm;min-height:297mm;position:relative;padding:15mm 16mm 17mm;margin:0 auto 8mm;background:#fff;display:flex;flex-direction:column}
+.runfoot{position:absolute;left:16mm;right:16mm;bottom:9mm;display:flex;justify-content:space-between;font-size:8px;color:var(--faint);border-top:1px solid var(--line);padding-top:6px}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .bm{width:40px;height:40px;background:var(--ink);border-radius:9px;display:grid;place-items:center;flex:none}
+.brand .bt{font-size:21px;font-weight:800;letter-spacing:.12em;color:var(--ink)}
+.brand .bs{font-size:8.5px;color:var(--muted);letter-spacing:.03em;margin-top:1px}
+.hr{text-align:right}
+.hr .t{font-size:13px;font-weight:800;color:var(--ink)}
+.hr .dt{font-size:9.5px;color:var(--muted);margin-top:2px}
+.rule{height:2px;background:var(--rail);margin-bottom:14px}
+h1{font-size:20px;font-weight:900;letter-spacing:-.01em;line-height:1.15;margin-bottom:8px;color:var(--ink)}
+.lead{font-size:11px;color:var(--ink2);margin-bottom:14px;line-height:1.6}
+.lead b{color:var(--ink)}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.chip{background:var(--off);border:1px solid var(--line);border-radius:20px;padding:4px 11px;font-size:9px;font-weight:600;color:var(--ink2)}
+.sec{font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--rail);margin:16px 0 9px;display:flex;align-items:center;gap:9px}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.sec.first{margin-top:2px}
+.mod{border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin-bottom:8px;break-inside:avoid}
+.mod .mt{font-weight:800;font-size:11.5px;color:var(--ink);margin-bottom:5px;display:flex;align-items:center;gap:8px}
+.mod .mt .n{width:20px;height:20px;border-radius:6px;background:var(--ink);color:#fff;font-size:10px;display:grid;place-items:center;flex:none;font-weight:700}
+.mod.key .mt .n{background:var(--amber)}
+.mod ul{margin:0;padding-left:15px}
+.mod li{font-size:10px;color:var(--ink2);margin-bottom:2.5px;line-height:1.5}
+.mod li b{color:var(--ink)}
+.mod .note{font-size:9.5px;color:var(--muted);margin-top:5px;font-style:italic}
+/* таблица расходов */
+table.cost{width:100%;border-collapse:collapse;margin:6px 0 2px}
+table.cost th{background:var(--ink);color:#fff;font-size:8.5px;font-weight:700;text-align:left;padding:6px 9px;letter-spacing:.02em}
+table.cost th.r{text-align:right}
+table.cost td{padding:5px 9px;border-bottom:1px solid var(--line);font-size:9.5px}
+table.cost td.r{text-align:right;white-space:nowrap;color:var(--muted)}
+table.cost tr:nth-child(even) td{background:var(--off)}
+table.cost .grp{font-weight:800;color:var(--rail);background:#eef4fa!important}
+.callout{background:var(--amberL);border:1px solid #eccf95;border-radius:9px;padding:10px 13px;font-size:10px;color:#6b4a0c;line-height:1.55;margin-bottom:8px}
+.callout b{color:#573b09}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+table.req{width:100%;border-collapse:collapse;margin-top:4px}
+table.req td{padding:6px 9px;font-size:9.5px;border-bottom:1px solid var(--line)}
+table.req td.k{width:22%;color:var(--muted)}
+table.req tr:nth-child(even){background:var(--off)}
+.accept{border:1px solid var(--line);border-radius:9px;padding:6px 14px}
+.accept .t{display:flex;gap:12px;padding:7px 0;border-bottom:1px solid var(--off)}
+.accept .t:last-child{border-bottom:none}
+.accept .t .w{width:110px;flex:none;font-size:9.5px;font-weight:800;color:var(--rail)}
+.accept .t .d{font-size:10px;color:var(--ink2)}
+.accept .t .d b{color:var(--ink)}
+.signs{display:flex;gap:40px;margin-top:14px}
+.signs .s{flex:1}
+.signs .sl{font-size:9px;color:var(--muted);margin-bottom:12px}
+.signs .snm{font-weight:700;font-size:10.5px;margin-bottom:12px}
+.signs .ln{font-size:10px;color:#3a4453}
+.signs .ln u{display:inline-block;width:80px;border-bottom:1px solid #b9c0ca}
+</style></head>
+<body>
+
+<!-- страница 1 -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg viewBox="0 0 32 32" width="25" height="25"><path d="M6 24 L26 24 M9 24 L11.5 8 M23 24 L20.5 8 M11.5 8 L20.5 8" stroke="#d9871a" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M7 20 L25 20 M7.5 16 L24.5 16" stroke="#6f8095" stroke-width="1.5"/></svg></div>
+      <div><div class="bt">MAGISTRAL</div><div class="bs">CRM/ERP для ЖД-грузоперевозок · Pllato</div></div>
+    </div>
+    <div class="hr"><div class="t">ТЗ № TZ-MG-2026-01</div><div class="dt">11 июля 2026 г.</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h1>Техническое задание — система MAGISTRAL для ЖД-грузоперевозок</h1>
+  <div class="lead">Разработка единой системы учёта ЖД-грузоперевозок для <b>ТОО «Миллиардер Gold»</b> (Алдияр, г. Павлодар) взамен ведения в Excel и тетрадях. Система — «пульт управления бизнесом»: вагоны, расходы и маржа по каждому вагону, оплаты и долги, склад, дислокация, WhatsApp. Работает в браузере, размещается на сервере Заказчика, передаётся в собственность.</div>
+  <div class="meta">
+    <span class="chip">Платформа: веб (браузер), моб. адаптив</span>
+    <span class="chip">Размещение: сервер Заказчика</span>
+    <span class="chip">Интеграции: 1С · дислокация вагонов · WhatsApp</span>
+    <span class="chip">Основа: демо MAGISTRAL (согласовано на встрече)</span>
+  </div>
+  <div class="callout"><b>Важно.</b> Настоящее ТЗ фиксирует состав системы по итогам встречи. Точные формулы, тарифы, справочники и мелкие детали (шаг калькуляторов, ставки партнёров, статьи расходов) уточняются и утверждаются на рабочей встрече в течение ≈2 недель после старта, затем идёт поэтапная сдача. Приоритет №1 Заказчика: учёт по каждому вагону — кому отдан, по какой цене, все расходы, маржа и оплаты с остатком долга.</div>
+
+  <div class="sec first">1. Юридические лица и роли</div>
+  <div class="mod">
+    <div class="mt"><span class="n">1</span>Два юр. лица в одной системе</div>
+    <ul>
+      <li>Заказчик работает от <b>двух компаний</b>: официальная (расчёты по банку, счета) и вторая (наличный расчёт, напр. с партнёрами из Узбекистана — оплата наличными за вагон, без счетов).</li>
+      <li>В каждой заявке/сделке — <b>выбор юр. лица</b>, от которого ведётся работа. Учёт, суммы и отчёты считаются <b>раздельно по каждому юр. лицу</b> и сводно.</li>
+      <li>Контакт (заявки) единый — приходят на один телефон; разделение только внутри системы при оформлении сделки.</li>
+      <li>Роли и доступы: владелец (всё), сотрудники (ограниченный доступ) — состав ролей уточняется.</li>
+    </ul>
+  </div>
+
+  <div class="sec">2. Заявки и вагоны</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">2</span>Воронка заявок и реестр вагонов</div>
+    <ul>
+      <li>Воронка: <b>Новая заявка → Расчёт / согласование → Вагоны поданы → В пути → Прибытие / выгрузка → Закрыта</b>. Этапы настраиваются (добавить / переименовать), карточки перетаскиваются.</li>
+      <li>Реестр вагонов: все вагоны <b>по номерам</b>, поиск по номеру / клиенту / станции, фильтр по статусу.</li>
+      <li>В любой момент — <b>добавить вагон(ы) в заявку</b>; антидубли: один номер не попадёт в две активные сделки.</li>
+      <li>Собственные вагоны на постоянном слежении не заводятся заново — при новом рейсе меняется только клиент (учтём в логике).</li>
+    </ul>
+  </div>
+
+  <div class="sec">3. Карточка вагона / сделки — расходы и маржа (приоритет №1)</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">3</span>Полный учёт по каждому вагону</div>
+    <ul>
+      <li><b>Идентификация:</b> дата, собственник вагона (партнёр-поставщик), № вагона, откуда → куда, груз, клиент, юр. лицо.</li>
+      <li><b>Доход:</b> сумма (цена клиенту), возврат.</li>
+      <li><b>Расходы:</b> каждый пункт добавляется отдельно кнопкой «+» (иногда грузите на другом тупике — другая цена), см. таблицу ниже.</li>
+      <li><b>Маржа</b> по вагону = сумма − все расходы, считается <b>автоматически</b>. Видно чистую прибыль с одного вагона (напр. «остаётся 10 000 ₸»).</li>
+    </ul>
+    <table class="cost">
+      <tr><th>Статья</th><th>Что это</th><th class="r">Пример</th></tr>
+      <tr class="grp"><td colspan="3">Доход</td></tr>
+      <tr><td>Сумма</td><td>Цена клиенту за вагон (индивидуальная по клиенту)</td><td class="r">800 000 ₸</td></tr>
+      <tr class="grp"><td colspan="3">Расходы</td></tr>
+      <tr><td>Предоставление</td><td>Аренда вагона у собственника / партнёра, ставка своя у каждого (Бастау, Брутто, Нуралы, Грант транс…)</td><td class="r">540 000 ₸</td></tr>
+      <tr><td>ЖД-тариф / ТЭО</td><td>Тариф КТЖ / транспортно-экспедиционное обслуживание</td><td class="r">по факту</td></tr>
+      <tr><td>Таможня</td><td>Таможенное оформление</td><td class="r">12 000 ₸</td></tr>
+      <tr><td>Фито / ПИТО</td><td>Фитосанитарный контроль</td><td class="r">2 000 ₸</td></tr>
+      <tr><td>Тупик</td><td>Оплата тупика (аренда / свой)</td><td class="r">14 000 ₸</td></tr>
+      <tr><td>Подача-уборка</td><td>ЖД-подача/уборка (авто-расчёт, см. модуль 4)</td><td class="r">10 000 ₸/ваг.</td></tr>
+      <tr><td>Диспетчер</td><td>Услуги диспетчера</td><td class="r">2 000 ₸</td></tr>
+      <tr><td>Ускорение</td><td>Ускорение оформления / продвижения</td><td class="r">1 500 ₸</td></tr>
+      <tr><td>Грузчики</td><td>Погрузочные работы</td><td class="r">150 000 ₸</td></tr>
+      <tr><td>Касса / приём-сдатчик</td><td>Сборы кассы и приёмо-сдатчика</td><td class="r">1 000 ₸</td></tr>
+      <tr><td>Оформление / доп.сбор</td><td>Оформление документов и прочие сборы</td><td class="r">10 000 ₸</td></tr>
+      <tr><td>Непредвиденные («бастык»)</td><td>Срочный ремонт вагона, платежи «нужным людям», когда у клиента горит погрузка</td><td class="r">по факту</td></tr>
+      <tr class="grp"><td colspan="2">Итого маржа = Сумма − Расходы (авто)</td><td class="r">≈ 79 000 ₸</td></tr>
+    </table>
+    <div class="note">Пример из вашей таблицы «айдын 09» — состав статей переносим 1:1, названия и значения по умолчанию настроим на рабочей встрече.</div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · ТЗ TZ-MG-2026-01 · MAGISTRAL для ТОО «Миллиардер Gold»</span><span>1 / 3</span></div>
+</section>
+
+<!-- страница 2 -->
+<section class="page">
+  <div class="sec first">4–6. Калькуляторы</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">4</span>Калькулятор подачи-уборки</div>
+    <ul>
+      <li>Тариф зависит от числа одновременно поданных вагонов: <b>1–5 вагонов — 40 000 ₸</b>, <b>5–10 вагонов — 60 000 ₸</b> (значения настраиваются).</li>
+      <li>Система <b>сама делит на количество</b>: 5 вагонов → 10 000 ₸/вагон; 10 вагонов → 6 000 ₸/вагон — и подставляет в расходы каждого вагона.</li>
+    </ul>
+  </div>
+  <div class="mod key">
+    <div class="mt"><span class="n">5</span>Калькулятор простоя / демереджа</div>
+    <ul>
+      <li>Отсчёт от <b>даты прибытия вагона на станцию</b> (напр. 11-го). Первые <b>3 дня — бесплатно</b> (норма на погрузку).</li>
+      <li>Далее — <b>ставка за сутки простоя</b> (напр. 25 000 ₸/сутки, настраивается по собственнику вагона). Сумма считается автоматически.</li>
+      <li>Даты: подача на станцию, погрузка, прибытие — с авто-пересчётом при изменении даты (как в вашей таблице ДС — меняете дату, меняется сумма).</li>
+    </ul>
+  </div>
+  <div class="mod key">
+    <div class="mt"><span class="n">6</span>Калькулятор утепления вагона (мобильный, на объекте)</div>
+    <ul>
+      <li><b>Справочник материалов</b> с ценами: пенопласт тройка (2 000 ₸), пятёрка (3 000 ₸), Сафан Изол, пена, пломбы и т.д. — цены задаются один раз.</li>
+      <li><b>Шаблоны «постройки»</b> (типовые направления/утепления): выбираете шаблон и вводите количество (напр. 90 шт. пенопласта) — сумма считается <b>без повторного ввода цен</b>.</li>
+      <li><b>Индивидуальные цены и скидки по клиенту</b> (у кого-то скидка, у кого-то нет). Цена вагона (напр. 1,4–1,5 млн ₸) собирается вместе с материалами.</li>
+      <li>Работает <b>с телефона на погрузке</b>: стоите у вагона, считаете клиенту на месте.</li>
+      <li>Кнопка <b>«Отправить в WhatsApp»</b>: клиенту уходит состав — что поставили на вагон, какие материалы, по какой цене, итоговая сумма.</li>
+      <li>Материалы <b>списываются со склада</b> (модуль 11) и продаются с добавленной стоимостью.</li>
+    </ul>
+  </div>
+
+  <div class="sec">7. Внутренний учёт оплат и долгов (приоритет №1)</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">7</span>Кто сколько должен — и остаток</div>
+    <ul>
+      <li>По каждой сделке/клиенту: кому отдан вагон, по какой цене, <b>оплаты частями и в разное время</b> (11-го дали 1 млн — вбили 1 млн, чек не обязателен, учёт для себя).</li>
+      <li><b>Остаток долга уменьшается</b> с каждой оплатой автоматически. Зашёл в клиента — сразу видно: «должен 3 млн» / «ничего не должен».</li>
+      <li>Отдельный экран <b>«Долги клиентов»</b> + сводка в дашборде: кто и сколько должен, кому нужно выставить счёт.</li>
+      <li>Контроль <b>«к выставлению»</b>: доставленные, но не выставленные вагоны подсвечиваются — чтобы не забыть счёт (реальный случай с 4 вагонами).</li>
+    </ul>
+  </div>
+
+  <div class="sec">8. Клиенты и партнёры</div>
+  <div class="mod">
+    <div class="mt"><span class="n">8</span>Справочники</div>
+    <ul>
+      <li><b>Клиенты:</b> карточка, баланс/долг, история сделок; наличные клиенты с разными именами (Куси, Иса, Алиш и т.д.) — учитываются как есть.</li>
+      <li><b>Собственники / партнёры вагонов:</b> Бастау, Брутто, Нуралы, Грант транс сервис и др. — со <b>своими ставками предоставления</b>, которые подставляются в расходы.</li>
+    </ul>
+  </div>
+
+  <div class="sec">9–10. Дислокация вагонов и WhatsApp</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">9</span>Интеграция дислокации вагонов</div>
+    <ul>
+      <li>Подключение к сервису слежения по <b>вашему API</b> (railwagonlocation, аккаунт milliarder.gold): текущая локация, <b>история дислокации</b>, ремонты, станции отправления/назначения, остаток на счёте подписки.</li>
+      <li>Данные <b>подтягиваются автоматически</b> в карточку вагона (JSON-ответ сервиса), с фильтрами по дням/операциям.</li>
+    </ul>
+  </div>
+  <div class="mod key">
+    <div class="mt"><span class="n">10</span>WhatsApp клиенту</div>
+    <ul>
+      <li><b>Ежедневная авто-рассылка</b> клиенту: где сейчас его вагон (на основе дислокации).</li>
+      <li>Отправка <b>расчёта/КП по кнопке</b> (из калькулятора утепления) в WhatsApp клиента.</li>
+    </ul>
+  </div>
+
+  <div class="runfoot"><span>Pllato · ТЗ TZ-MG-2026-01 · MAGISTRAL для ТОО «Миллиардер Gold»</span><span>2 / 3</span></div>
+</section>
+
+<!-- страница 3 -->
+<section class="page">
+  <div class="sec first">11–14. Склад, счета, 1С, дашборд</div>
+  <div class="two">
+    <div class="mod"><div class="mt"><span class="n">11</span>Склад материалов</div><ul>
+      <li>Приход и <b>остатки</b> материалов утепления.</li>
+      <li>Списание при расчёте вагона (модуль 6).</li>
+      <li>Продажа с добавленной стоимостью, зеркало 1С.</li>
+    </ul></div>
+    <div class="mod"><div class="mt"><span class="n">12</span>Счета и оплаты</div><ul>
+      <li>Выставление счёта, оплата по банку / Каспи.</li>
+      <li>Оплата <b>частями</b>, остаток по счёту.</li>
+      <li>Контроль «к выставлению».</li>
+    </ul></div>
+    <div class="mod"><div class="mt"><span class="n">13</span>Интеграция 1С</div><ul>
+      <li><b>Двусторонняя</b> синхронизация (зеркало).</li>
+      <li>Счета, оплаты, остатки склада.</li>
+      <li>Без ручного дублирования данных.</li>
+    </ul></div>
+    <div class="mod"><div class="mt"><span class="n">14</span>Дашборд / обзор</div><ul>
+      <li>Вагоны в пути, заявки в работе.</li>
+      <li>К выставлению, кто должен, маржа, выручка.</li>
+      <li>Красиво отображается движение вагонов во времени.</li>
+    </ul></div>
+  </div>
+
+  <div class="sec">15. Инфраструктура и передача</div>
+  <div class="mod">
+    <div class="mt"><span class="n">15</span>Размещение и владение</div>
+    <ul>
+      <li>Веб-приложение в браузере, <b>моб. адаптив</b> (работа с телефона на погрузке); размещается на <b>сервере Заказчика</b>.</li>
+      <li>Настройка сервера — в стандартном пакете (бесплатный вариант или ≈10 000 ₸/мес).</li>
+      <li>Система <b>передаётся в собственность</b> Заказчику; исходники и доступы — Заказчику. Дальнейших платежей за пользование нет.</li>
+      <li>Сопровождение: ошибки по вине Исполнителя — бесплатно; доработки после сдачи — по часам (≈$20/час), ≈10% объёма правок заложено в проект.</li>
+    </ul>
+  </div>
+
+  <div class="sec">Порядок разработки и приёмки</div>
+  <div class="accept">
+    <div class="t"><div class="w">Этап 0 · старт</div><div class="d"><b>Предоплата 150 000 ₸.</b> Поднимаем систему, переносим таблицы Заказчика, настраиваем 1С и сервер.</div></div>
+    <div class="t"><div class="w">Этап 1 · ≈2 недели</div><div class="d"><b>Согласование функционала.</b> Проходим по каждому пункту, фиксируем формулы калькуляторов, статьи расходов, ставки партнёров, справочники. Оплата этапа 2 — 750 000 ₸.</div></div>
+    <div class="t"><div class="w">Этап 2 · нач. августа</div><div class="d"><b>Сборка и поэтапная сдача.</b> Основной функционал, правки по ходу (заложено ≈10%).</div></div>
+    <div class="t"><div class="w">Этап 3 · к сентябрю</div><div class="d"><b>Полная сдача и запуск</b> к сезону Заказчика. Оплата остатка — 600 000 ₸.</div></div>
+  </div>
+
+  <div class="sec">Стоимость</div>
+  <div class="callout" style="margin-bottom:12px">Полная стоимость разработки — <b>1 500 000 ₸</b> (разово, с передачей в собственность). Оплата: 150 000 ₸ (старт) + 750 000 ₸ (после согласования) + 600 000 ₸ (после сдачи). Интеграция 1С (обычно 800 000 ₸), калькулятор (обычно 200 000 ₸) и настройка сервера — <b>бесплатно в стандартном пакете</b>. Детали — в КП № MG-2026-01, оплата старта — счёт № MG-С-2026-01.</div>
+
+  <div class="sec">Стороны</div>
+  <table class="req">
+    <tr><td class="k">Исполнитель</td><td>ИП «STUDYSTORIES.APP», БИН 880607300110, директор Цай Платон · pllato.kz · uurraa@gmail.com</td></tr>
+    <tr><td class="k">Заказчик</td><td>ТОО «Миллиардер Gold», БИН 230440023971, директор Усентаева Тоғжан Досымбекқызы · г. Павлодар, ул. Северная пром. зона, стр. 929 · 8 7000 22 11 89</td></tr>
+  </table>
+
+  <div class="signs">
+    <div class="s"><div class="sl">Исполнитель</div><div class="snm">ИП «STUDYSTORIES.APP»</div><div class="ln"><u></u> / Цай П. / М.П.</div></div>
+    <div class="s"><div class="sl">Заказчик</div><div class="snm">ТОО «Миллиардер Gold»</div><div class="ln"><u></u> / Усентаева Т. / М.П.</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · ТЗ TZ-MG-2026-01 · ИП «STUDYSTORIES.APP» · pllato.kz</span><span>3 / 3</span></div>
+</section>
+</body></html>

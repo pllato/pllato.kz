@@ -1,0 +1,1576 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>АгроСклад — портал ответственного хранения СЗР · Демо</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f9d55'/%3E%3Cpath d='M8 12h16v13H8z' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Cpath d='M8 12l8-5 8 5M14 25v-6h4v6' stroke='%23fff' stroke-width='2' fill='none'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#152a1e;--ink2:#2f4438;--mut:#63756b;--faint:#9aa9a0;
+  --bg:#eef2ee;--panel:#fff;--ln:#e2e8e3;--ln2:#eef3ef;
+  --acc:#1f9d55;--accD:#157a42;--accL:#e6f5ec;
+  --blu:#2f7ff0;--bluL:#e9f1fe;--amb:#e79a2b;--ambL:#fdf1dd;--red:#e2503d;--redL:#fce9e6;--viol:#7d6fe8;--violL:#eeecfd;--tl:#0ea5a5;--tlL:#e3f6f6;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:13px;color:var(--ink)}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#c4d0c8;border-radius:5px}
+.num{font-variant-numeric:tabular-nums}
+.app{display:grid;grid-template-columns:224px 1fr;height:100vh}
+/* сайдбар */
+.side{background:var(--panel);border-right:1px solid var(--ln);display:flex;flex-direction:column;overflow-y:auto}
+.side .logo{display:flex;align-items:center;gap:10px;padding:15px 16px 12px}
+.side .logo .lm{width:36px;height:36px;background:var(--acc);border-radius:10px;display:grid;place-items:center;flex:none}
+.side .logo .lt{font-weight:800;font-size:18px;letter-spacing:.01em}
+.side .logo .ls{font-size:9.5px;color:var(--faint);margin-top:-2px}
+.side .demo{font-size:10.5px;color:var(--mut);background:var(--accL);margin:0 12px 8px;padding:7px 10px;border-radius:8px;line-height:1.4}
+.side .demo b{color:var(--accD)}
+.ngrp{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:800;padding:11px 14px 5px}
+.nav{padding:2px 8px}
+.nav button{width:100%;display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;font-size:13.5px;font-weight:600;color:var(--ink2);margin-bottom:1px}
+.nav button:hover{background:var(--ln2)}
+.nav button.on{background:var(--accL);color:var(--accD)}
+.nav button svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9}
+.nav button .b{margin-left:auto;font-size:10.5px;font-weight:700;background:var(--ambL);color:#a06a10;padding:0 7px;border-radius:20px}
+.side .reset{margin:6px 12px 10px;font-size:11px;color:var(--faint);text-align:center;cursor:pointer}
+.side .reset:hover{color:var(--acc)}
+.side .who{margin-top:auto;padding:12px 14px;border-top:1px solid var(--ln);display:flex;align-items:center;gap:10px}
+.side .who .av{width:32px;height:32px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700}
+.side .who .wn{font-size:12.5px;font-weight:700}.side .who .ws{font-size:11px;color:var(--faint)}
+/* main */
+.main{display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:var(--panel);border-bottom:1px solid var(--ln);padding:9px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.search{flex:1;min-width:150px;max-width:300px;border:1px solid var(--ln);background:var(--bg);border-radius:9px;padding:9px 12px;font-size:13px}
+.qchips{display:flex;gap:7px}
+.qchip{background:var(--bg);border:1px solid var(--ln);border-radius:9px;padding:5px 11px;line-height:1.15}
+.qchip .qv{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums}
+.qchip .ql{font-size:9.5px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+.qchip.g .qv{color:var(--accD)}.qchip.b .qv{color:var(--blu)}.qchip.a .qv{color:#b5790f}
+.roles{display:flex;border:1px solid var(--ln);border-radius:9px;overflow:hidden}
+.roles button{padding:7px 12px;font-size:12px;font-weight:600;color:var(--mut);border-right:1px solid var(--ln)}
+.roles button:last-child{border-right:none}
+.roles button.on{background:var(--acc);color:#fff}
+.addbtn{background:var(--acc);color:#fff;font-weight:700;font-size:13px;padding:9px 15px;border-radius:9px}
+.tbtn{position:relative;width:38px;height:38px;border-radius:10px;border:1px solid var(--ln);display:grid;place-items:center;color:var(--ink2)}
+.tbtn:hover{border-color:var(--acc);color:var(--acc)}.tbtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9}
+.tbtn .bd{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;background:var(--red);color:#fff;font-size:9.5px;font-weight:800;border-radius:10px;display:grid;place-items:center;padding:0 4px;border:2px solid var(--panel)}
+.wrapb{position:relative}
+.pop{position:absolute;top:52px;right:0;width:344px;background:var(--panel);border:1px solid var(--ln);border-radius:13px;box-shadow:0 22px 50px -18px rgba(21,42,30,.45);z-index:80;overflow:hidden;display:none}
+.pop.show{display:block;animation:fd .14s}
+.pop .pt{padding:12px 15px;border-bottom:1px solid var(--ln2);font-weight:800;font-size:13.5px}
+.pop .pi{display:flex;gap:11px;padding:11px 15px;border-bottom:1px solid var(--ln2);cursor:pointer}
+.pop .pi:hover{background:var(--ln2)}
+.pop .pi .ic{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;font-size:14px}
+.pop .pi .tx{font-size:12.5px;line-height:1.35}.pop .pi .tx b{font-weight:700}
+.pop .pi .tm{font-size:10.5px;color:var(--faint);margin-top:2px}
+.body{flex:1;overflow:auto;padding:16px 18px 44px}
+.screen{display:none}.screen.on{display:block;animation:fd .16s}
+@keyframes fd{from{opacity:0}to{opacity:1}}
+.ph{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.ph h1{font-size:20px;font-weight:800}.ph .sub{font-size:12.5px;color:var(--mut)}
+.ph .rt{margin-left:auto;display:flex;gap:8px;align-items:center}
+.note{border-radius:11px;padding:11px 14px;font-size:12.5px;margin-bottom:14px;line-height:1.55}
+.note.g{background:var(--accL);border:1px solid #bfe6cd;color:#1a5e37}
+.note.b{background:var(--bluL);border:1px solid #bcd8fb;color:#1a4f9c}
+.note.a{background:var(--ambL);border:1px solid #f0d29a;color:#7a5510}
+.note b{font-weight:800}
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:13px;margin-bottom:15px}
+@media(max-width:1150px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:14px}
+@media(max-width:1000px){.statgrid{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--panel);border:1px solid var(--ln);border-radius:14px;padding:14px 15px;position:relative;overflow:hidden}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--acc)}
+.kpi.b::before{background:var(--blu)}.kpi.v::before{background:var(--viol)}.kpi.a::before{background:var(--amb)}.kpi.r::before{background:var(--red)}.kpi.t::before{background:var(--tl)}
+.kpi .kl{font-size:11px;color:var(--mut);font-weight:600}
+.kpi .kv{font-size:22px;font-weight:800;margin-top:5px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.kpi .kr{margin-top:5px}.kpi .delta{font-size:11px;font-weight:800;padding:1px 6px;border-radius:6px;background:var(--accL);color:var(--accD)}
+.kpi .delta.dn{background:var(--redL);color:var(--red)}
+.kpi .spark{position:absolute;right:12px;bottom:12px;opacity:.9}
+.dgrid{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-bottom:14px}
+.dgrid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:1000px){.dgrid,.dgrid2{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--ln);border-radius:14px;overflow:hidden}
+.panel .pth{display:flex;align-items:center;gap:10px;padding:13px 16px 9px}
+.panel .pth h3{font-size:14.5px;font-weight:800;flex:1}
+.panel .pth .mut{font-size:11.5px;color:var(--mut);font-weight:600}
+.panel .pbody{padding:6px 16px 16px}
+.card{background:var(--panel);border:1px solid var(--ln);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.card .ct{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--ln2)}
+.card .ct h3{font-size:15px;font-weight:700;flex:1}
+.card .cb{padding:4px 16px 10px;overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:11px;letter-spacing:.03em;text-transform:uppercase;color:var(--mut);text-align:left;font-weight:700;padding:10px 12px 8px;border-bottom:1.5px solid var(--ln)}
+.tbl th.r{text-align:right}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--ln2);font-size:13.5px;vertical-align:middle}
+.tbl td.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl tbody tr{cursor:pointer}.tbl tbody tr:hover td{background:#f4f8f5}
+.pill{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap;display:inline-block}
+.pill.g{background:var(--accL);color:var(--accD)}.pill.a{background:var(--ambL);color:#a06a10}.pill.r{background:var(--redL);color:var(--red)}.pill.b{background:var(--bluL);color:#1a4f9c}.pill.gy{background:var(--ln2);color:var(--mut)}.pill.v{background:var(--violL);color:var(--viol)}.pill.t{background:var(--tlL);color:#0a7d7d}
+.who2{display:flex;align-items:center;gap:9px}.who2 .av{width:30px;height:30px;border-radius:8px;color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center;flex:none}
+.who2 .nm{font-weight:700}.who2 .s2{font-size:11.5px;color:var(--mut)}
+.bc{font-family:'Inter',monospace;font-size:11px;color:var(--mut);letter-spacing:.02em;font-variant-numeric:tabular-nums}
+/* ЯЧЕЙКИ — карта склада */
+.zonewrap{margin-bottom:18px}
+.zoneh{display:flex;align-items:center;gap:10px;margin:4px 0 10px}
+.zoneh .zt{font-size:15px;font-weight:800}
+.zoneh .zi{width:26px;height:26px;border-radius:7px;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px}
+.zoneh .zs{font-size:11.5px;color:var(--mut);font-weight:600}
+.cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:9px}
+.cell{border:1.5px solid var(--ln);border-radius:11px;padding:9px 10px;cursor:pointer;background:var(--panel);position:relative;transition:.12s;min-height:82px;display:flex;flex-direction:column}
+.cell:hover{transform:translateY(-2px);box-shadow:0 8px 18px -8px rgba(21,42,30,.3)}
+.cell .cn{font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:5px}
+.cell .cn .st{width:8px;height:8px;border-radius:50%;flex:none}
+.cell .cprod{font-size:11px;font-weight:600;margin-top:5px;line-height:1.25;color:var(--ink2)}
+.cell .cqty{font-size:11px;color:var(--mut);margin-top:auto;padding-top:5px;font-weight:700}
+.cell .ctag{position:absolute;top:8px;right:8px;font-size:9px;font-weight:800;padding:1px 6px;border-radius:6px;color:#fff}
+.cell .cfill{height:4px;border-radius:3px;background:var(--ln2);margin-top:6px;overflow:hidden}
+.cell .cfill i{display:block;height:100%;border-radius:3px}
+.cell.free{border-style:dashed;border-color:#c7d3ca;background:#f6faf7}
+.cell.free .cn{color:var(--faint)}
+.cell.free .cprod{color:var(--faint);font-weight:500}
+.cell.occ{border-color:transparent;box-shadow:inset 0 0 0 1.5px var(--ln)}
+.cell .cmoney{margin-top:6px;padding-top:6px;border-top:1px solid var(--ln2)}
+.cell .cmbar{height:4px;border-radius:3px;background:var(--ln2);overflow:hidden}
+.cell .cmbar i{display:block;height:100%;border-radius:3px}
+.cell .cmtx{display:flex;justify-content:space-between;font-size:9.5px;font-weight:800;margin-top:3px;color:var(--ink2)}
+.paywrap{border:1px solid var(--ln);border-radius:10px;overflow:hidden;margin-top:6px}
+.payr{display:flex;align-items:center;gap:10px;padding:9px 12px;font-size:12.5px;border-bottom:1px solid var(--ln2)}
+.payr:last-child{border-bottom:none}
+.payr .pd{font-weight:700;width:88px;flex:none;color:var(--ink2)}
+.payr .ps{margin-left:auto;font-weight:800;color:var(--accD);font-variant-numeric:tabular-nums}
+.payr.empty{color:var(--faint);justify-content:center;font-size:12px}
+.moneybox{display:flex;gap:10px;margin:12px 0}
+.moneybox .mb{flex:1;border:1px solid var(--ln);border-radius:10px;padding:9px 11px}
+.moneybox .mb .l{font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.moneybox .mb .v{font-size:15px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+.moneybox .mb.deal .v{color:var(--ink)}.moneybox .mb.recvd .v{color:var(--accD)}.moneybox .mb.debt .v{color:var(--red)}.moneybox .mb.debt.ok .v{color:var(--accD)}
+.cell.resv{background:var(--ambL)}
+.cell.ship{background:var(--bluL)}
+.legend2{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin-bottom:12px}
+.legend2 span{display:inline-flex;align-items:center;gap:6px}
+.legend2 i{width:11px;height:11px;border-radius:4px;display:inline-block}
+/* графики */
+.bars{display:flex;align-items:flex-end;gap:8px;height:150px;padding-top:10px}
+.bars .bcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.bars .bcol .bv{font-size:10px;font-weight:700;color:var(--mut)}
+.bars .bcol .bk{width:100%;max-width:30px;border-radius:6px 6px 0 0;background:linear-gradient(180deg,#3fbf75,#1f9d55);min-height:3px}
+.bars .bcol.hot .bk{background:linear-gradient(180deg,#f2b34a,#e79a2b)}
+.bars .bcol .bl{font-size:10px;color:var(--faint);font-weight:600}
+.legend{display:flex;flex-direction:column;gap:9px}
+.legend .lg{display:flex;align-items:center;gap:9px;font-size:12.5px}
+.legend .lg .sw2{width:11px;height:11px;border-radius:3px;flex:none}
+.legend .lg .lgn{flex:1;font-weight:600}.legend .lg .lgv{font-weight:800;font-variant-numeric:tabular-nums}
+.legend .lg .lgp{font-size:11px;color:var(--mut);width:40px;text-align:right}
+.occli{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--ln2)}
+.occli:last-child{border-bottom:none}
+.occli .av{width:32px;height:32px;border-radius:8px;color:#fff;font-weight:800;font-size:11px;display:grid;place-items:center;flex:none}
+.occli .oi{flex:1;min-width:0}
+.occli .on{font-weight:700;font-size:13px;display:flex;justify-content:space-between}
+.occli .track{height:7px;background:var(--ln2);border-radius:5px;margin-top:5px;overflow:hidden}
+.occli .track i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#3fbf75,#1f9d55)}
+.occli .sub2{font-size:11px;color:var(--mut);margin-top:3px}
+.feedx{max-height:340px;overflow-y:auto}
+.fx{display:flex;gap:11px;padding:9px 0;border-bottom:1px solid var(--ln2)}
+.fx:last-child{border-bottom:none}
+.fx .ic{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;font-size:14px}
+.fx .fxt{font-size:12.5px;line-height:1.4;flex:1}.fx .fxt b{font-weight:700}
+.fx .fxm{font-size:10.5px;color:var(--faint);margin-top:2px}
+/* модалы */
+.ovl{position:fixed;inset:0;background:rgba(21,42,30,.5);backdrop-filter:blur(2px);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:26px 14px;overflow-y:auto}
+.ovl.show{display:flex}
+.modal{background:var(--panel);border-radius:15px;max-width:560px;width:100%;box-shadow:0 30px 60px -20px rgba(21,42,30,.5);overflow:hidden;animation:fd .15s}
+.modal.lg{max-width:680px}
+.mh{padding:15px 20px;border-bottom:1px solid var(--ln);display:flex;gap:12px;align-items:center}
+.mh h2{font-size:17px;font-weight:800;flex:1}.mh .mx{font-size:20px;color:var(--mut);cursor:pointer}
+.mbody{padding:16px 20px;max-height:70vh;overflow-y:auto}
+.kv{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--ln2);font-size:13px}
+.kv .k{color:var(--mut)}.kv .v{font-weight:700;text-align:right}
+.cellhero{border-radius:12px;padding:14px 16px;margin-bottom:14px;color:#fff}
+.cellhero .h1{font-size:22px;font-weight:800}.cellhero .h2{font-size:12.5px;opacity:.9;margin-top:2px}
+.ff{margin-bottom:11px}.ff2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.ff label{display:block;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-bottom:4px}
+.ff input,.ff select{width:100%;border:1px solid var(--ln);border-radius:9px;background:var(--panel);padding:10px 12px;outline:none}
+.ff input:focus,.ff select:focus{border-color:var(--acc)}
+.mfoot{border-top:1px solid var(--ln);padding:12px 20px;display:flex;gap:8px;flex-wrap:wrap}
+.btn{font-weight:700;font-size:12.5px;padding:9px 15px;border-radius:9px;cursor:pointer}
+.btn.pri{background:var(--acc);color:#fff}.btn.blu{background:var(--blu);color:#fff}.btn.gh{background:var(--panel);color:var(--ink);border:1px solid var(--ln)}.btn.dang{background:var(--panel);color:var(--red);border:1px solid #eeb6ad}
+#toasts{position:fixed;right:18px;bottom:18px;z-index:100;display:flex;flex-direction:column;gap:9px;max-width:390px}
+.toast{background:var(--ink);color:#e7f0ea;padding:12px 15px;font-size:12.5px;line-height:1.5;border-radius:10px;box-shadow:0 14px 30px -10px rgba(21,42,30,.6);animation:tin .2s;border-left:3px solid var(--acc)}
+.toast.ok{border-left-color:var(--acc)}.toast.warn{border-left-color:var(--amb)}.toast.bad{border-left-color:var(--red)}.toast.blu{border-left-color:var(--blu)}
+.toast b{color:#fff}
+@keyframes tin{from{opacity:0;transform:translateX(10px)}to{opacity:1}}
+.hint{font-size:11px;color:var(--faint);margin-top:10px}
+/* заявки / тип */
+.rtype{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.rtype button{border:1.5px solid var(--ln);border-radius:11px;padding:12px;text-align:left;background:var(--panel)}
+.rtype button .rtt{font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px}
+.rtype button .rtd{font-size:11px;color:var(--mut);margin-top:2px}
+.rtype button.on{border-color:var(--acc);background:var(--accL)}
+.rtype button.on.out{border-color:var(--blu);background:var(--bluL)}
+.stratchips{display:flex;gap:7px;flex-wrap:wrap;margin:2px 0 4px}
+.stratchip{border:1px solid var(--ln);background:var(--panel);border-radius:9px;padding:7px 11px;font-size:12px;font-weight:700;color:var(--mut);line-height:1.15}
+.stratchip small{display:block;font-size:9.5px;font-weight:600;color:var(--faint)}
+.stratchip.on{background:var(--ink);color:#fff;border-color:var(--ink)}.stratchip.on small{color:#bcd}
+.filtchips{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.filtchips .fc{border:1px solid var(--ln);background:var(--panel);border-radius:20px;padding:6px 13px;font-size:12px;font-weight:700;color:var(--mut)}
+.filtchips .fc.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.filtchips select{border:1px solid var(--ln);background:var(--panel);border-radius:9px;padding:7px 10px;font-size:12.5px}
+.mvin{color:var(--accD)}.mvout{color:var(--blu)}.mvmove{color:var(--viol)}.mvinv{color:#a06a10}
+.cabcard{background:linear-gradient(120deg,var(--accD),var(--acc));color:#fff;border-radius:14px;padding:15px 17px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.cabcard .ci{width:44px;height:44px;border-radius:11px;background:rgba(255,255,255,.2);display:grid;place-items:center;font-weight:800;font-size:16px;flex:none}
+.cabcard .ct{font-weight:800;font-size:16px}.cabcard .cs{font-size:12px;opacity:.9;margin-top:1px}
+.cabcard .cact{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.cabcard .cbtn{background:#fff;color:var(--accD);font-weight:700;font-size:12.5px;padding:9px 14px;border-radius:9px}
+.cabcard .cbtn.o{background:rgba(255,255,255,.16);color:#fff}
+/* гамбургер / мобильный */
+.menotg{display:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--ln);color:var(--ink2);place-items:center}
+.menotg svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2}
+.sideback{display:none;position:fixed;inset:0;background:rgba(21,42,30,.4);z-index:70}
+.sideback.show{display:block}
+@media(max-width:1050px){.dgrid,.dgrid2{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}.statgrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){
+  .app{grid-template-columns:1fr}
+  .side{position:fixed;left:0;top:0;bottom:0;width:264px;z-index:80;transform:translateX(-100%);transition:transform .22s;box-shadow:0 0 40px rgba(21,42,30,.25)}
+  .side.open{transform:translateX(0)}
+  .menotg{display:grid}
+  .qchips{display:none}
+  .topbar{gap:8px}
+  .search{order:3;flex-basis:100%;max-width:none}
+  .roles button{padding:7px 8px;font-size:11px}
+  .ph h1{font-size:18px}
+}
+@media(max-width:560px){
+  .kpis,.statgrid{grid-template-columns:1fr}
+  .topbar>div:last-child{flex-wrap:wrap;justify-content:flex-end;gap:7px!important}
+  .topbar .wrapb{display:none}
+  .roles .rl-long{display:none}
+  .roles button{padding:6px 8px;font-size:10.5px}
+  .addbtn{padding:8px 11px;font-size:12px}
+  .body{padding:12px 12px 60px}
+  .cells{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
+  .cabcard{padding:13px;flex-direction:column;align-items:stretch}
+  .cabcard .cact{margin-left:0;width:100%;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .cabcard .cbtn{text-align:center;padding:9px 8px;font-size:11.5px}
+  .cabcard .cbtn:first-child{grid-column:1 / -1}
+  .filtchips select{flex:1 1 100%}
+  .ph h1{font-size:17px}
+  .modal .mfoot{gap:6px}.mfoot .btn{flex:1 1 auto}
+}
+html,body{max-width:100%;overflow-x:hidden}
+.main{min-width:0}
+/* ===== выбор роли (вход) ===== */
+.rolegate{position:fixed;inset:0;z-index:200;background:linear-gradient(140deg,#0f2b1c,#1b6440 55%,#1f9d55);display:none;align-items:center;justify-content:center;padding:24px;overflow-y:auto}
+.rolegate.show{display:flex;animation:fd .22s}
+.rg-box{width:100%;max-width:940px;text-align:center;color:#fff}
+.rg-logo{display:inline-flex;align-items:center;gap:11px;margin-bottom:24px}
+.rg-logo .lm{width:42px;height:42px;background:rgba(255,255,255,.16);border-radius:12px;display:grid;place-items:center}
+.rg-logo .lt{font-size:22px;font-weight:900}
+.rg-box h2{font-size:27px;font-weight:800;margin-bottom:7px}
+.rg-box .sub{opacity:.85;font-size:14px;margin-bottom:28px;max-width:560px;margin-left:auto;margin-right:auto;line-height:1.5}
+.rg-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:760px){.rg-cards{grid-template-columns:1fr}}
+.rg-card{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:18px;padding:26px 22px;text-align:left;color:#fff;cursor:pointer;transition:.16s}
+.rg-card:hover{background:#fff;color:var(--ink);transform:translateY(-5px);box-shadow:0 26px 50px -18px rgba(0,0,0,.45)}
+.rg-card .ic{width:56px;height:56px;border-radius:15px;background:rgba(255,255,255,.18);display:grid;place-items:center;font-size:28px;margin-bottom:16px}
+.rg-card:hover .ic{background:var(--accL)}
+.rg-card h3{font-size:19px;font-weight:800;margin-bottom:7px}
+.rg-card p{font-size:12.5px;line-height:1.55;opacity:.9}
+.rg-card:hover p{color:var(--mut);opacity:1}
+.rg-card .go{margin-top:16px;font-weight:800;font-size:13px;opacity:.9}
+.rg-card.cli{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.35)}
+.rg-note{margin-top:26px;font-size:12px;opacity:.72}
+/* ===== кабинет Контр Агента (отдельный интерфейс) ===== */
+#clientApp{display:none;flex-direction:column;height:100vh;background:var(--bg)}
+.chead{background:linear-gradient(120deg,var(--accD),var(--acc));color:#fff;flex:none}
+.chead .ctop{display:flex;align-items:center;gap:13px;padding:14px 20px}
+.chead .cav{width:44px;height:44px;border-radius:13px;background:rgba(255,255,255,.22);display:grid;place-items:center;font-weight:800;font-size:16px;flex:none}
+.chead .cn{font-size:17px;font-weight:800;line-height:1.15}
+.chead .cs{font-size:12px;opacity:.85}
+.chead .cactw{margin-left:auto;display:flex;gap:9px;align-items:center}
+.chead .cbell{position:relative;width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.16);display:grid;place-items:center;cursor:pointer}
+.chead .cbell svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:1.9}
+.chead .cbell .bd{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;background:#fff;color:var(--accD);font-size:9.5px;font-weight:800;border-radius:10px;display:grid;place-items:center;padding:0 4px}
+.chead .crole{background:rgba(255,255,255,.16);color:#fff;font-weight:700;font-size:12.5px;padding:9px 13px;border-radius:11px;cursor:pointer;white-space:nowrap}
+.chead .crole:hover{background:#fff;color:var(--accD)}
+.chead #cNotifPop{color:var(--ink)}
+.ctabs{display:flex;gap:2px;padding:0 14px;overflow-x:auto}
+.ctabs button{color:rgba(255,255,255,.78);font-weight:700;font-size:13.5px;padding:12px 15px;border-bottom:3px solid transparent;white-space:nowrap;background:none}
+.ctabs button.on{color:#fff;border-bottom-color:#fff}
+.cbody{flex:1;overflow-y:auto;padding:18px 20px 40px}
+.cbody-in{max-width:1080px;margin:0 auto}
+.cscreen{display:none}.cscreen.on{display:block;animation:fd .16s}
+.chero{background:var(--panel);border:1px solid var(--ln);border-radius:18px;padding:20px 22px;margin-bottom:16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.chero .htxt{flex:1;min-width:210px}
+.chero h1{font-size:22px;font-weight:800;margin-bottom:3px}
+.chero .hs{font-size:13px;color:var(--mut)}
+.chero .hact{display:flex;gap:10px;flex-wrap:wrap}
+.cbtn{font-weight:800;font-size:13.5px;padding:12px 17px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;border:none;transition:.14s}
+.cbtn.in{background:linear-gradient(120deg,#1f9d55,#2fbd6d);color:#fff;box-shadow:0 8px 18px -8px rgba(31,157,85,.6)}
+.cbtn.out{background:linear-gradient(120deg,#2f7ff0,#5b96f8);color:#fff;box-shadow:0 8px 18px -8px rgba(47,127,240,.6)}
+.cbtn.gh{background:var(--panel);color:var(--ink);border:1px solid var(--ln)}
+.cbtn:hover{transform:translateY(-2px)}
+.ckpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:16px}
+@media(max-width:860px){.ckpis{grid-template-columns:repeat(2,1fr)}}
+.ckpi{background:var(--panel);border:1px solid var(--ln);border-radius:16px;padding:15px 16px}
+.ckpi .kic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:18px;margin-bottom:9px;background:var(--ln2)}
+.ckpi.g .kic{background:var(--accL)}.ckpi.b .kic{background:var(--bluL)}.ckpi.a .kic{background:var(--ambL)}.ckpi.r .kic{background:var(--redL)}
+.ckpi .kv{font-size:21px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.ckpi .kl{font-size:12px;color:var(--mut);margin-top:2px}
+.cgrid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:900px){.cgrid{grid-template-columns:1fr}}
+.cpanel{background:var(--panel);border:1px solid var(--ln);border-radius:16px;overflow:hidden;margin-bottom:16px}
+.cpanel .cph{display:flex;align-items:center;gap:10px;padding:15px 18px 8px}
+.cpanel .cph h3{font-size:15px;font-weight:800;flex:1}
+.cpanel .cph a{font-size:12.5px;color:var(--accD);font-weight:700;cursor:pointer}
+.cpanel .cpb{padding:6px 18px 16px}
+.cprods{display:grid;grid-template-columns:repeat(auto-fill,minmax(212px,1fr));gap:14px}
+.cprod{border:1px solid var(--ln);border-radius:15px;padding:15px;background:var(--panel);transition:.14s}
+.cprod:hover{box-shadow:0 14px 28px -16px rgba(21,42,30,.4);transform:translateY(-2px)}
+.cprod .pnm{font-weight:800;font-size:14px;line-height:1.25}
+.cprod .psku{font-size:11px;color:var(--faint);font-family:monospace;margin-top:2px}
+.cprod .pqty{font-size:21px;font-weight:800;margin:9px 0 2px}
+.cprod .pbar{height:5px;background:var(--ln2);border-radius:4px;overflow:hidden;margin:8px 0 10px}
+.cprod .pbar i{display:block;height:100%;border-radius:4px}
+.cprod .prow{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);padding:2px 0}
+.cprod .pact{width:100%;margin-top:11px;background:var(--bluL);color:#1a4f9c;font-weight:800;font-size:12.5px;padding:10px;border-radius:11px;border:none;cursor:pointer}
+.cprod .pact:hover{background:var(--blu);color:#fff}
+.clist .cr{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--ln2)}
+.clist .cr:last-child{border-bottom:none}
+.clist .cr .cic{width:36px;height:36px;border-radius:11px;flex:none;display:grid;place-items:center;font-size:16px}
+.clist .cr .ci{flex:1;min-width:0}
+.clist .cr .ct{font-weight:700;font-size:13.5px}
+.clist .cr .cd{font-size:11.5px;color:var(--mut);margin-top:1px}
+.clist .cr .cx{text-align:right;font-weight:800;font-size:13px;white-space:nowrap}
+.ctl{position:relative;padding-left:26px}
+.ctl::before{content:"";position:absolute;left:9px;top:6px;bottom:14px;width:2px;background:var(--ln)}
+.ctli{position:relative;padding:0 0 18px}
+.ctli:last-child{padding-bottom:2px}
+.ctli .dot{position:absolute;left:-26px;top:0;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:10px;color:#fff}
+.ctli .th{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ctli .tt{font-weight:800;font-size:14px}
+.ctli .td{font-size:12px;color:var(--mut);margin-top:2px}
+.cbadge{font-size:10.5px;font-weight:800;padding:2px 9px;border-radius:20px}
+.cempty{text-align:center;color:var(--faint);padding:32px 20px}
+.cempty .em{font-size:38px;margin-bottom:8px}
+.cempty .et{font-weight:700;color:var(--mut);font-size:14px}
+.cempty .es{font-size:12.5px;margin-top:4px}
+.cbnav{display:none}
+@media(max-width:760px){
+  .chero{align-items:stretch}.chero .hact .cbtn{flex:1;justify-content:center}
+  .cbody{padding:14px 14px 78px}
+  .cbnav{display:flex;position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--ln);z-index:50}
+  .cbnav button{flex:1;padding:8px 0 7px;font-size:10px;font-weight:700;color:var(--mut);display:flex;flex-direction:column;align-items:center;gap:3px;background:none}
+  .cbnav button svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2}
+  .cbnav button.on{color:var(--accD)}
+  .ctabs{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="logo"><div class="lm"><svg viewBox="0 0 32 32" width="21" height="21"><path d="M8 13h16v12H8z" fill="none" stroke="#fff" stroke-width="2"/><path d="M8 13l8-5 8 5M14 25v-6h4v6" stroke="#fff" stroke-width="2" fill="none"/></svg></div><div><div class="lt">АгроСклад</div><div class="ls">ответственное хранение СЗР</div></div></div>
+    <div class="demo">Демо-портал · <b>ваш вместо 1С</b>, на вашем сервере, без ручного забивания. Данные вымышленные, всё прокликивается и сохраняется.</div>
+    <div class="ngrp">Управление складом</div>
+    <nav class="nav" id="nav">
+      <button class="on" data-s="dash"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Пульт склада</button>
+      <button data-s="cells"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Ячейки · карта склада</button>
+      <button data-s="arrivals"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>Заявки<span class="b" id="nbArr">0</span></button>
+      <button data-s="ship"><svg viewBox="0 0 24 24"><path d="M12 8v8M8 12h8M4 4h16v16H4z"/></svg>Движение · история</button>
+      <div class="ngrp">Партии и безопасность</div>
+      <button data-s="batches"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Партии · сроки<span class="b" id="nbExp">0</span></button>
+      <button data-s="safety"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Безопасность · режим</button>
+      <div class="ngrp">База</div>
+      <button data-s="catalog"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/></svg>Товары · СЗР</button>
+      <button data-s="clients"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M11 7a4 4 0 1 0 0 8 4 4 0 0 0 0-8M21 21v-2a4 4 0 0 0-3-3.87"/></svg>Контрагенты</button>
+      <button data-s="stock"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>Остатки · инвентаризация</button>
+      <div class="ngrp">Финансы</div>
+      <button data-s="billing"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h5M8 17h8"/></svg>Хранение · счета<span class="b" id="nbInv">0</span></button>
+      <div class="ngrp">Автоматизация</div>
+      <button data-s="notify"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>Уведомления</button>
+      <button data-s="analytics"><svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>Аналитика</button>
+    </nav>
+    <div class="reset" onclick="resetDemo()">↻ сбросить демо</div>
+    <div class="who"><div class="av" id="uAv">СК</div><div><div class="wn" id="uName">Оператор склада</div><div class="ws">АгроСклад · демо</div></div></div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="menotg" onclick="toggleSide()" title="Меню"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+      <input class="search" placeholder="Поиск: ячейка, товар, контрагент…" oninput="SQ=this.value;if(!$('s-cells').classList.contains('on'))nav('cells');renderCells()">
+      <div class="qchips" id="qchips"></div>
+      <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+        <div class="roles">
+          <button class="on" onclick="chooseRole('sklad')">Менеджер</button>
+          <button onclick="chooseRole('boss')">Руководитель</button>
+          <button onclick="chooseRole('client')">Контр<span class="rl-long">агент</span></button>
+        </div>
+        <div class="wrapb">
+          <button class="tbtn" onclick="togPop('notifPop')" title="Уведомления"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="bd" id="notifBd">0</span></button>
+          <div class="pop" id="notifPop"><div class="pt">🔔 Уведомления</div><div id="notifList"></div></div>
+        </div>
+        <button class="addbtn" onclick="openReqForm()">+ Заявка</button>
+      </div>
+    </div>
+    <div class="sideback" id="sideback" onclick="toggleSide()"></div>
+    <div class="body">
+
+      <!-- ПУЛЬТ -->
+      <section class="screen on" id="s-dash">
+        <div class="ph"><h1 id="dashTitle">Пульт склада</h1><span class="sub" id="dashSub">загрузка, потоки и транзакции в реальном времени</span><div class="rt"><span class="sub" id="dashDate"></span></div></div>
+        <div id="dashCab"></div>
+        <div class="kpis" id="kpis"></div>
+        <div class="dgrid">
+          <div class="panel"><div class="pth"><h3>Потоки склада</h3><span class="mut">приход / расход, литры по неделям</span></div><div class="pbody"><div id="dashFlow"></div><div class="legend2" style="margin:10px 0 0"><span><i style="background:#1f9d55"></i>приход</span><span><i style="background:#e79a2b"></i>расход</span></div></div></div>
+          <div class="panel"><div class="pth"><h3>Загрузка по контрагентам</h3><span class="mut">занятые ячейки</span></div><div class="pbody" id="dashOcc"></div></div>
+        </div>
+        <div class="dgrid">
+          <div class="panel"><div class="pth"><h3>💰 Поступления денег · по датам</h3><span class="dot"></span><span class="mut">что когда зашло</span></div><div class="pbody" id="dashMoney"></div></div>
+          <div class="panel"><div class="pth"><h3>Требует внимания</h3></div><div class="pbody" id="dashAlerts"></div></div>
+        </div>
+        <div class="dgrid">
+          <div class="panel"><div class="pth"><h3>Транзакции за сегодня</h3><span class="dot"></span><span class="mut">live</span></div><div class="pbody"><div class="feedx" id="dashFeed"></div></div></div>
+          <div class="panel"><div class="pth"><h3>Долги по сделкам</h3><span class="mut">кто сколько должен</span></div><div class="pbody" id="dashDebts"></div></div>
+        </div>
+      </section>
+
+      <!-- ЯЧЕЙКИ -->
+      <section class="screen" id="s-cells">
+        <div class="ph"><h1>Ячейки · карта склада</h1><span class="sub" id="cellsSub"></span>
+          <div class="rt">
+            <select class="search" id="cellClientФ" style="max-width:220px" onchange="renderCells()"></select>
+            <button class="btn gh" onclick="addCells()">＋ Добавить ячейки</button>
+          </div>
+        </div>
+        <div class="note b">🗺️ <b>Ячеечное хранение.</b> Каждый товар лежит в <b>пронумерованной ячейке</b> — видно, где и сколько. Клик по ячейке — что внутри, штрихкод, контрагент; можно <b>отгрузить</b> (расход спишется автоматически) или разместить приход. Ячейки «плавающие» — добавляйте новые на ходу.</div>
+        <div class="legend2">
+          <span><i style="background:var(--acc)"></i>занята</span>
+          <span><i style="background:#f6faf7;border:1.5px dashed #c7d3ca"></i>свободна</span>
+          <span><i style="background:var(--amb)"></i>бронь / ожидает приём</span>
+          <span><i style="background:var(--blu)"></i>на отгрузку</span>
+        </div>
+        <div id="cellMap"></div>
+      </section>
+
+      <!-- ЗАЯВКИ -->
+      <section class="screen" id="s-arrivals">
+        <div class="ph"><h1>Заявки на исполнение</h1><span class="sub" id="reqSub">контрагенты подают заявки на приход и уход удалённо — склад видит и выполняет</span>
+          <div class="rt"><button class="btn pri" onclick="openReqForm()">+ Новая заявка</button></div>
+        </div>
+        <div class="note g">📋 <b>Контрагент подаёт заявки сам — из своего кабинета.</b> На <b>приход</b> (что и когда привезёт) и на <b>уход/отгрузку</b> (что забрать со своего остатка). Заявки попадают в эту очередь со статусами — склад <b>принимает и выполняет</b>: приход размещает в ячейку, уход комплектует и отгружает.</div>
+        <div class="filtchips" id="reqFilt"></div>
+        <div class="card"><div class="cb"><table class="tbl" id="reqTbl"></table></div></div>
+      </section>
+
+      <!-- ДВИЖЕНИЕ · ИСТОРИЯ -->
+      <section class="screen" id="s-ship">
+        <div class="ph"><h1>Движение товара · история</h1><span class="sub">приход · расход · перемещение · инвентаризация — по датам, с фильтрами</span>
+          <div class="rt"><button class="btn blu" onclick="openShipForm()">+ Оформить отгрузку</button></div>
+        </div>
+        <div class="note b">🕓 <b>Вся история движения.</b> Каждая операция фиксируется с датой. Фильтруйте <b>по товару, контрагенту, ячейке</b> или смотрите всё по складу — видно, что, куда, сколько и когда двигалось. Готовая карточка движения для любого спора.</div>
+        <div class="filtchips" id="mvFilt"></div>
+        <div class="statgrid" id="mvKpis"></div>
+        <div class="card"><div class="cb"><table class="tbl" id="mvTbl"></table></div></div>
+      </section>
+
+      <!-- ТОВАРЫ -->
+      <section class="screen" id="s-catalog">
+        <div class="ph"><h1>Товары · СЗР</h1><span class="sub">каталог с SKU, тарой и штрихкодом — учитывается по каждой канистре</span>
+          <div class="rt"><button class="btn gh" onclick="printInventoryDoc()">🖨 Инвентаризация</button><button class="btn pri" onclick="addProduct()">＋ Товар</button></div>
+        </div>
+        <div class="note b">📇 <b>Каталог — свой, редактируемый.</b> Подтягиваем ваш текущий каталог, а новое наименование заводите сами кнопкой <b>«＋ Товар»</b> — сразу можно принимать по нему приход. Инвентаризационную опись и приёмочные листы <b>печатаете/сохраняете в PDF</b>.</div>
+        <div class="statgrid" id="catKpis"></div>
+        <div class="card"><div class="cb"><table class="tbl" id="catTbl"></table></div></div>
+      </section>
+
+      <!-- КОНТРАГЕНТЫ -->
+      <section class="screen" id="s-clients">
+        <div class="ph"><h1>Контрагенты</h1><span class="sub">~30 компаний на обслуживании — у каждого свой кабинет, ячейки, приходы и отгрузки</span></div>
+        <div class="card"><div class="cb"><table class="tbl" id="cliTbl"></table></div></div>
+      </section>
+
+      <!-- ПАРТИИ · СРОКИ -->
+      <section class="screen" id="s-batches">
+        <div class="ph"><h1>Партии · сроки годности</h1><span class="sub">по каждой партии — срок годности; просроченное СЗР в реализацию не уходит</span></div>
+        <div class="note a">⏳ <b>Разные лоты одного товара · контроль сроков.</b> Один и тот же СЗР лежит <b>разными лотами</b> (своя партия, дата приёмки и срок годности). Система подсвечивает <b>что истекает</b> и что <b>просрочено (в карантин)</b>, а при отгрузке списывает по выбранной стратегии — <b>FEFO</b> (ближайший срок), <b>FIFO</b> (сначала старые по дате приёмки), <b>LIFO</b> (сначала новые) или <b>вручную</b>. Просрочка в отгрузку не уходит.</div>
+        <div class="statgrid" id="batchKpis"></div>
+        <div class="card"><div class="ct"><h3>Партии на хранении</h3><span style="margin-left:auto;font-size:11.5px;color:var(--mut)">отсортировано по сроку — ближайшие сверху</span></div><div class="cb"><table class="tbl" id="batchTbl"></table></div></div>
+      </section>
+
+      <!-- БЕЗОПАСНОСТЬ · РЕЖИМ -->
+      <section class="screen" id="s-safety">
+        <div class="ph"><h1>Безопасность · режим хранения</h1><span class="sub">класс опасности, температура зон, совместимость — для СЗР это критично</span></div>
+        <div class="note b">🛡️ <b>Хранение химии по правилам.</b> У каждого товара — класс опасности и температурный режим. Система следит за <b>температурой зон</b>, проверяет <b>совместимость</b> хранения и не даёт разместить несовместимые классы рядом. Готовый журнал для проверяющих.</div>
+        <div class="note a">🌱 <b>Хранение семян (в планах) — заготовка.</b> Под будущее хранение семенного материала заложен контроль <b>температуры и влажности</b> помещения: задаёте норму (напр. <b>+10…+15°C, влажность ≤60%</b>), система пишет журнал показаний и подсвечивает выход за норму. Подключение датчиков и точные пороги — на этапе, когда запустите направление.</div>
+        <div class="statgrid" id="safeKpis"></div>
+        <div class="dgrid2">
+          <div class="panel"><div class="pth"><h3>Зоны и температурный режим</h3><span class="mut">датчик vs норма</span></div><div class="pbody" id="safeZones"></div></div>
+          <div class="panel"><div class="pth"><h3>Класс опасности · по литрам</h3><span class="mut">распределение</span></div><div class="pbody"><div class="dgrid2" style="grid-template-columns:auto 1fr;gap:16px;margin:0;align-items:center"><div id="safeDonut"></div><div class="legend" id="safeLeg"></div></div></div></div>
+        </div>
+        <div class="card"><div class="ct"><h3>Совместимость и контроль</h3></div><div class="cb" id="safeChecks" style="padding:12px 16px"></div></div>
+      </section>
+
+      <!-- ХРАНЕНИЕ · СЧЕТА -->
+      <section class="screen" id="s-billing">
+        <div class="ph"><h1>Хранение · счета контрагентам</h1><span class="sub">плата за ответственное хранение — начисление, счета, задолженность</span></div>
+        <div class="note g">💳 <b>Деньги за хранение — под контролем.</b> Тариф <b>35 ₸ / литр в месяц</b>. Система сама считает плату по объёму на хранении, формирует счёт контрагенту и показывает <b>задолженность</b>. Оплата — через Kaspi/перевод, статус подтягивается.</div>
+        <div class="statgrid" id="billKpis"></div>
+        <div class="dgrid2">
+          <div class="panel"><div class="pth"><h3>Начисление за текущий месяц</h3><span class="mut">по объёму в ячейках · тариф 35 ₸/л</span></div><div class="pbody"><div class="cb" style="padding:0"><table class="tbl" id="accrualTbl"></table></div></div></div>
+          <div class="panel"><div class="pth"><h3>Выставленные счета</h3><span class="mut">статусы оплаты</span></div><div class="pbody"><div class="cb" style="padding:0"><table class="tbl" id="invTbl"></table></div></div></div>
+        </div>
+      </section>
+
+      <!-- ОСТАТКИ -->
+      <section class="screen" id="s-stock">
+        <div class="ph"><h1>Остатки · инвентаризация</h1><span class="sub">приход · расход · остаток по товару и контрагенту — сходится с ячейками</span></div>
+        <div class="statgrid" id="stockKpis"></div>
+        <div class="card"><div class="cb"><table class="tbl" id="stockTbl"></table></div></div>
+      </section>
+
+      <!-- УВЕДОМЛЕНИЯ -->
+      <section class="screen" id="s-notify">
+        <div class="ph"><h1>Уведомления · WhatsApp</h1><span class="sub">клиент получает статус: приход принят, размещён, отгружен — автоматически</span></div>
+        <div class="note g">🤖 <b>Автоуведомления через нас.</b> При изменении статуса заказа или ячейки клиенту уходит сообщение в WhatsApp/SMS. Можно подключить пароль на ячейку при выдаче заказа.</div>
+        <div class="card"><div class="cb"><table class="tbl" id="notifyTbl"></table></div></div>
+      </section>
+
+      <!-- АНАЛИТИКА -->
+      <section class="screen" id="s-analytics">
+        <div class="ph"><h1>Аналитика склада</h1><span class="sub">оборот, сезонность, загрузка, топ контрагентов</span></div>
+        <div class="statgrid" id="anKpis"></div>
+        <div class="dgrid2">
+          <div class="panel"><div class="pth"><h3>Оборот по месяцам</h3><span class="mut">литры · видна сезонность (весна-лето)</span></div><div class="pbody"><div id="anSeason"></div></div></div>
+          <div class="panel"><div class="pth"><h3>Услуги хранения · выручка</h3><span class="mut">₸ по месяцам</span></div><div class="pbody"><div id="anRev"></div></div></div>
+        </div>
+        <div class="card"><div class="ct"><h3>Топ контрагентов по обороту</h3></div><div class="cb"><table class="tbl" id="anTopTbl"></table></div></div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- ЭКРАН ВЫБОРА РОЛИ (вход) -->
+<div class="rolegate" id="roleGate">
+  <div class="rg-box">
+    <div class="rg-logo"><div class="lm"><svg viewBox="0 0 32 32" width="24" height="24"><path d="M8 13h16v12H8z" fill="none" stroke="#fff" stroke-width="2"/><path d="M8 13l8-5 8 5M14 25v-6h4v6" stroke="#fff" stroke-width="2" fill="none"/></svg></div><div class="lt">АгроСклад</div></div>
+    <h2>Добро пожаловать. Выберите роль входа</h2>
+    <p class="sub">Один портал ответственного хранения СЗР — три интерфейса под разные задачи. Демо: данные вымышленные, всё прокликивается и сохраняется.</p>
+    <div class="rg-cards">
+      <div class="rg-card" onclick="chooseRole('boss')">
+        <div class="ic">📊</div>
+        <h3>Руководитель</h3>
+        <p>Пульт, аналитика, деньги и долги, все контрагенты и движение по складу. Полная картина бизнеса.</p>
+        <div class="go">Войти →</div>
+      </div>
+      <div class="rg-card" onclick="chooseRole('sklad')">
+        <div class="ic">📦</div>
+        <h3>Менеджер склада</h3>
+        <p>Карта ячеек, приём и отгрузка, исполнение заявок контрагентов, партии и сроки, счета за хранение.</p>
+        <div class="go">Войти →</div>
+      </div>
+      <div class="rg-card cli" onclick="chooseRole('client')">
+        <div class="ic">🧑‍🌾</div>
+        <h3>Контрагент</h3>
+        <p>Личный кабинет клиента: свой остаток и ячейки, заявки на приход и уход, движение и счета — удалённо.</p>
+        <div class="go">Войти в кабинет →</div>
+      </div>
+    </div>
+    <div class="rg-note">Роль можно сменить в любой момент — кнопкой сверху справа.</div>
+  </div>
+</div>
+
+<!-- ОТДЕЛЬНЫЙ ИНТЕРФЕЙС КОНТР АГЕНТА -->
+<div id="clientApp">
+  <header class="chead">
+    <div class="ctop">
+      <div class="cav" id="cCavAv">АТ</div>
+      <div>
+        <div class="cn" id="cCavName">Контрагент</div>
+        <div class="cs">Личный кабинет на складе · АгроСклад</div>
+      </div>
+      <div class="cactw">
+        <div class="wrapb">
+          <div class="cbell" onclick="togPop('cNotifPop')" title="Уведомления">
+            <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+            <span class="bd" id="cBellBd">0</span>
+          </div>
+          <div class="pop" id="cNotifPop"><div class="pt">🔔 Уведомления от склада</div><div id="cNotifList"></div></div>
+        </div>
+        <button class="crole" onclick="openRoleGate()">Сменить роль</button>
+      </div>
+    </div>
+    <div class="ctabs" id="cTabs">
+      <button class="on" onclick="cliNav('dash')">Обзор</button>
+      <button onclick="cliNav('stock')">Мой остаток</button>
+      <button onclick="cliNav('reqs')">Заявки</button>
+      <button onclick="cliNav('moves')">Движение</button>
+      <button onclick="cliNav('bills')">Счета</button>
+    </div>
+  </header>
+  <div class="cbody">
+    <div class="cbody-in">
+      <section class="cscreen on" id="c-dash"></section>
+      <section class="cscreen" id="c-stock"></section>
+      <section class="cscreen" id="c-reqs"></section>
+      <section class="cscreen" id="c-moves"></section>
+      <section class="cscreen" id="c-bills"></section>
+    </div>
+  </div>
+  <nav class="cbnav" id="cBnav">
+    <button class="on" onclick="cliNav('dash')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Обзор</button>
+    <button onclick="cliNav('stock')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Остаток</button>
+    <button onclick="cliNav('reqs')"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>Заявки</button>
+    <button onclick="cliNav('moves')"><svg viewBox="0 0 24 24"><path d="M12 8v8M8 12h8M4 4h16v16H4z"/></svg>Движение</button>
+    <button onclick="cliNav('bills')"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h5M8 17h8"/></svg>Счета</button>
+  </nav>
+</div>
+
+<!-- модал ячейки -->
+<div class="ovl" id="cellOvl" onclick="if(event.target===this)closeModal('cellOvl')"><div class="modal" id="cellModal"></div></div>
+<!-- модал прихода -->
+<div class="ovl" id="arrOvl" onclick="if(event.target===this)closeModal('arrOvl')">
+  <div class="modal">
+    <div class="mh"><h2>Новый приход</h2><span class="mx" onclick="closeModal('arrOvl')">✕</span></div>
+    <div class="mbody">
+      <div class="note g" style="margin-bottom:14px">Так это выглядит в <b>кабинете контрагента</b>: он сам указывает товар, тару, количество и время привоза.</div>
+      <div class="ff"><label>Контрагент</label><select id="aClient"></select></div>
+      <div class="ff"><label>Товар (СЗР)</label><select id="aSku"></select></div>
+      <div class="ff2">
+        <div class="ff"><label>Тара</label><select id="aTare"><option>1 л</option><option>5 л</option><option selected>10 л</option><option>20 л</option><option>100 л</option></select></div>
+        <div class="ff"><label>Количество, л</label><input id="aQty" class="num" placeholder="600"></div>
+      </div>
+      <div class="ff2">
+        <div class="ff"><label>Когда привезут</label><select id="aWhen"><option>сегодня</option><option>завтра утром</option><option>завтра днём</option><option>послезавтра</option></select></div>
+        <div class="ff"><label>Зона размещения</label><select id="aZone"><option value="">— авто (ближайшая свободная)</option><option>A</option><option>B</option><option>C</option></select></div>
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn pri" onclick="saveArrival()">Создать приход</button><button class="btn gh" onclick="closeModal('arrOvl')">Отмена</button></div>
+  </div>
+</div>
+<!-- модал отгрузки -->
+<div class="ovl" id="shipOvl" onclick="if(event.target===this)closeModal('shipOvl')">
+  <div class="modal">
+    <div class="mh"><h2>Оформить отгрузку · расход</h2><span class="mx" onclick="closeModal('shipOvl')">✕</span></div>
+    <div class="mbody">
+      <div class="ff"><label>Контрагент</label><select id="sClient" onchange="shipSkuList()"></select></div>
+      <div class="ff"><label>Товар на хранении</label><select id="sSku" onchange="shipUpd()"></select></div>
+      <div class="ff"><label>Количество к отгрузке, л</label><input id="sQty" class="num" placeholder="200" oninput="shipUpd()"></div>
+      <div class="ff"><label>Стратегия списания лотов</label>
+        <div class="stratchips" id="shipStrat">
+          <button class="stratchip on" data-m="fefo" onclick="setStrat('fefo')">FEFO<small>ближайший срок</small></button>
+          <button class="stratchip" data-m="fifo" onclick="setStrat('fifo')">FIFO<small>сначала старые</small></button>
+          <button class="stratchip" data-m="lifo" onclick="setStrat('lifo')">LIFO<small>сначала новые</small></button>
+          <button class="stratchip" data-m="manual" onclick="setStrat('manual')">Ручной<small>выбрать лоты</small></button>
+        </div>
+      </div>
+      <div id="shipManual" style="display:none"></div>
+      <div id="shipHint" class="hint"></div>
+    </div>
+    <div class="mfoot"><button class="btn blu" onclick="saveShip()">Отгрузить и уведомить</button><button class="btn gh" onclick="closeModal('shipOvl')">Отмена</button></div>
+  </div>
+</div>
+<!-- модал заявки (приход / уход) -->
+<div class="ovl" id="reqOvl" onclick="if(event.target===this)closeModal('reqOvl')">
+  <div class="modal">
+    <div class="mh"><h2 id="reqTitle">Новая заявка</h2><span class="mx" onclick="closeModal('reqOvl')">✕</span></div>
+    <div class="mbody">
+      <div id="reqCabNote" class="note g" style="margin-bottom:14px;display:none">Так это выглядит в <b>кабинете контрагента</b>: вы сами подаёте заявку — склад её увидит и выполнит.</div>
+      <div class="rtype">
+        <button id="rtIn" class="on" onclick="setReqType('in')"><div class="rtt">📥 Приход</div><div class="rtd">привезти товар на склад</div></button>
+        <button id="rtOut" class="out" onclick="setReqType('out')"><div class="rtt">📤 Уход</div><div class="rtd">забрать товар со склада</div></button>
+      </div>
+      <div class="ff"><label>Контрагент</label><select id="rClient" onchange="reqSkuList()"></select></div>
+      <div class="ff"><label id="rSkuLbl">Товар (СЗР)</label><select id="rSku" onchange="reqSkuList()"></select></div>
+      <div class="ff2">
+        <div class="ff" id="rTareWrap"><label>Тара</label><select id="rTare"><option>1 л</option><option>5 л</option><option selected>10 л</option><option>20 л</option><option>100 л</option></select></div>
+        <div class="ff"><label>Количество, л</label><input id="rQty" class="num" placeholder="600"></div>
+      </div>
+      <div class="ff"><label>Когда</label><select id="rWhen"><option>сегодня</option><option>завтра утром</option><option>завтра днём</option><option>послезавтра</option></select></div>
+      <div id="reqHint" class="hint"></div>
+    </div>
+    <div class="mfoot"><button class="btn pri" onclick="saveReq()">Подать заявку</button><button class="btn gh" onclick="closeModal('reqOvl')">Отмена</button></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const jsq=s=>String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+const money=n=>String(Math.round(n||0)).replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' ₸';
+const litr=n=>String(Math.round(n||0)).replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' л';
+function nowHM(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function toast(h,c){const t=document.createElement('div');t.className='toast'+(c?' '+c:'');t.innerHTML=h;$('toasts').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},6500)}
+function togPop(id){const el=$(id);const open=el.classList.contains('show');document.querySelectorAll('.pop').forEach(p=>p.classList.remove('show'));if(!open)el.classList.add('show');}
+document.addEventListener('click',e=>{if(!e.target.closest('.wrapb'))document.querySelectorAll('.pop').forEach(p=>p.classList.remove('show'));});
+
+/* ===== состояние ===== */
+const KEY='agrosklad_state_v2';
+let ST,ROLE='sklad',CURCLIENT=null,SQ='';
+let SHIPMODE='fefo',REQFILT='all',REQTYPE='in',MVFILT={type:'all',prod:'',client:'',cell:''};
+const MO=['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+const SEASON=[1200,1600,4200,9800,14200,15600,11800,9200,6400,3800,2100,1400]; // литры оборота по месяцам (сезонность)
+const REV=[820000,940000,2100000,3600000,4800000,5200000,4300000,3500000,2600000,1700000,1150000,900000];
+const TARIFF=35; // ₸ за литр в месяц (ответственное хранение)
+const ZONES={A:{temp:'+5…+30°C',lo:5,hi:30,cur:22,haz:3},B:{temp:'+5…+35°C',lo:5,hi:35,cur:24,haz:3},C:{temp:'0…+25°C',lo:0,hi:25,cur:16,haz:2}};
+// класс опасности: 2 — высокоопасные, 3 — умеренно, 4 — малоопасные
+function hazText(h){return {2:'2 · высокоопасное',3:'3 · умеренно опасное',4:'4 · малоопасное'}[h]||('—');}
+function hazPill(h){const c={2:'r',3:'a',4:'g'}[h]||'gy';return '<span class="pill '+c+'">класс '+h+'</span>';}
+/* сроки годности */
+function expStatus(days){if(days==null)return{k:'na',t:'—',pill:'gy'};if(days<0)return{k:'bad',t:'просрочено',pill:'r'};if(days<=30)return{k:'soon',t:'истекает',pill:'a'};return{k:'ok',t:'годен',pill:'g'};}
+function expDate(days){if(days==null)return'—';const d=new Date();d.setDate(d.getDate()+days);return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear();}
+function batchCells(){return occCells().filter(c=>c.exp!=null||c.batch);}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(ST))}catch(e){}}
+function load(){let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}ST=(s&&s.cells)?s:defaults();}
+function resetDemo(){if(!confirm('Сбросить демо?'))return;localStorage.removeItem(KEY);load();renderAll();nav('dash');toast('Демо сброшено.','ok');}
+function renderAll(){renderQchips();renderNotifPop();renderDash();renderCells();renderRequests();renderMoves();renderBatches();renderSafety();renderBilling();renderCatalog();renderClients();renderStock();renderNotifyTbl();renderAnalytics();renderBadges();buildClientFilter();if(ROLE==='client'&&typeof renderClientApp==='function')renderClientApp();}
+/* helpers */
+function cli(id){return ST.clients.find(c=>c.id===id)}
+function prod(sku){return ST.catalog.find(p=>p.sku===sku)}
+function occCells(){return ST.cells.filter(c=>c.client)}
+function scopeCells(){return ROLE==='client'&&CURCLIENT?ST.cells.filter(c=>!c.client||c.client===CURCLIENT):ST.cells;}
+function clientCells(id){return ST.cells.filter(c=>c.client===id)}
+function totalL(){return occCells().reduce((a,c)=>a+(c.qty||0),0)}
+/* ===== деньги по сделкам (сумма / получено / платежи по датам) ===== */
+function recv(c){return (c.pays||[]).reduce((a,p)=>a+(+p.sum||0),0);}
+function dealDebt(c){return Math.max(0,(c.deal||0)-recv(c));}
+function shortMoney(n){n=Math.round(n||0);return n>=1e6?(n/1e6).toFixed(n>=1e7?0:1).replace('.',',')+' млн':n>=1000?Math.round(n/1000)+'к':String(n);}
+function pdate(s){const m=(s||'').match(/(\d+)\.(\d+)\.(\d+)/);return m?new Date(+m[3],+m[2]-1,+m[1]).getTime():0;}
+function today(){return expDate(0);}
+function allPays(scope){const out=[];occCells().forEach(c=>{if(scope&&c.client!==scope)return;(c.pays||[]).forEach(p=>out.push({d:p.d,sum:p.sum,client:c.client,cell:c.id,sku:c.sku}));});return out.sort((a,b)=>pdate(b.d)-pdate(a.d));}
+function log(icon,bg,txt){ST.txlog=ST.txlog||[];ST.txlog.unshift([icon,bg,txt,'только что']);if(ST.txlog.length>40)ST.txlog.pop();}
+function notify(cliId,txt){ST.notifs=ST.notifs||[];const c=cli(cliId);ST.notifs.unshift({cli:cliId,txt,t:'только что',ch:'WhatsApp'});}
+function toggleSide(){const s=document.querySelector('.side');s.classList.toggle('open');$('sideback').classList.toggle('show',s.classList.contains('open'));}
+/* дата приёмки лота (для FIFO/LIFO) */
+function recvDays(c){const s=c.arrived||'';if(/сегодня/.test(s))return 0;if(/вчера/.test(s))return 1;const m=s.match(/(\d+)\s*дн/);if(m)return +m[1];if(/недел/.test(s))return 7;return 3;}
+/* лоты товара контрагента + стратегия списания */
+function lotsOf(cid,sku){return clientCells(cid).filter(c=>c.sku===sku);}
+function pickLots(cid,sku,mode,manual){
+  let cells=lotsOf(cid,sku).filter(c=>!(c.exp!=null&&c.exp<0)); // просрочку не списываем
+  if(mode==='manual'){const set=manual||[];return cells.filter(c=>set.includes(c.id)).sort((a,b)=>set.indexOf(a.id)-set.indexOf(b.id));}
+  if(mode==='fifo')cells.sort((a,b)=>recvDays(b)-recvDays(a));        // сначала старые (по дате приёмки)
+  else if(mode==='lifo')cells.sort((a,b)=>recvDays(a)-recvDays(b));   // сначала новые
+  else cells.sort((a,b)=>(a.exp==null?9999:a.exp)-(b.exp==null?9999:b.exp)); // FEFO — ближайший срок
+  return cells;
+}
+const STRATNAME={fefo:'FEFO · ближайший срок',fifo:'FIFO · сначала старые',lifo:'LIFO · сначала новые',manual:'ручной выбор лотов'};
+/* журнал движения товара */
+function logMove(type,client,sku,qty,cell,note){ST.moves=ST.moves||[];ST.moves.unshift({d:'сегодня '+nowHM(),day:'сегодня',type,client,sku,qty,cell:cell||'',note:note||''});if(ST.moves.length>400)ST.moves.pop();}
+
+/* ===== nav / роли ===== */
+function nav(s){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));$('s-'+s).classList.add('on');
+  document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));window.scrollTo({top:0});
+  document.querySelector('.side').classList.remove('open');$('sideback').classList.remove('show');}
+document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>nav(b.dataset.s));
+function chooseRole(r,cid){
+  ROLE=r;if(cid)CURCLIENT=cid;
+  const idx={sklad:0,boss:1,client:2}[r];
+  document.querySelectorAll('.roles button').forEach((b,i)=>b.classList.toggle('on',i===idx));
+  const rg=$('roleGate');if(rg)rg.classList.remove('show');
+  document.querySelectorAll('.pop').forEach(p=>p.classList.remove('show'));
+  applyRoleUI();
+}
+function setRole(r){chooseRole(r);} // совместимость со старыми вызовами
+function openRoleGate(){const rg=$('roleGate');if(rg)rg.classList.add('show');document.querySelectorAll('.pop').forEach(p=>p.classList.remove('show'));}
+function applyRoleUI(){
+  const app=document.querySelector('.app'),ca=$('clientApp');
+  if(ROLE==='client'){
+    CURCLIENT=CURCLIENT||ST.clients[0].id;
+    app.style.display='none';ca.style.display='flex';
+    renderClientApp();
+  }else{
+    ca.style.display='none';app.style.display='';
+    const m={sklad:['СК','Оператор склада'],boss:['РК','Руководитель']}[ROLE]||['СК','Оператор склада'];
+    $('uAv').textContent=m[0];$('uAv').style.background='var(--acc)';$('uName').textContent=m[1];
+    renderAll();nav('dash');
+    toast(ROLE==='boss'?'<b>Руководитель.</b> Пульт, аналитика, деньги и долги, все контрагенты и движение по складу.':'<b>Менеджер склада.</b> Карта ячеек, приём и отгрузка, исполнение заявок, партии и счета.');
+  }
+}
+
+/* ===== отдельный интерфейс Контр Агента ===== */
+let CTAB='dash';
+const CTABS=['dash','stock','reqs','moves','bills'];
+function cliNav(t){CTAB=t;
+  document.querySelectorAll('#clientApp .cscreen').forEach(s=>s.classList.toggle('on',s.id==='c-'+t));
+  document.querySelectorAll('#cTabs button').forEach((b,i)=>b.classList.toggle('on',CTABS[i]===t));
+  document.querySelectorAll('#cBnav button').forEach((b,i)=>b.classList.toggle('on',CTABS[i]===t));
+  const cb=document.querySelector('.cbody');if(cb)cb.scrollTop=0;
+}
+function renderClientApp(){
+  const c=cli(CURCLIENT);if(!c)return;
+  $('cCavAv').textContent=c.short;$('cCavAv').style.background=c.color;
+  $('cCavName').textContent=c.name;
+  cliNotif();cliDash();cliStock();cliReqs();cliMoves();cliBills();
+  cliNav(CTAB);
+}
+/* мелкие помощники интерфейса */
+function ckpi(cls,ic,v,l){return '<div class="ckpi '+cls+'"><div class="kic">'+ic+'</div><div class="kv">'+v+'</div><div class="kl">'+l+'</div></div>';}
+function cEmpty(em,t,s){return '<div class="cempty"><div class="em">'+em+'</div><div class="et">'+t+'</div>'+(s?'<div class="es">'+s+'</div>':'')+'</div>';}
+function cbadge(txt,tone){const m={g:['var(--accL)','var(--accD)'],a:['var(--ambL)','#a06a10'],b:['var(--bluL)','#1a4f9c'],r:['var(--redL)','var(--red)'],v:['var(--violL)','var(--viol)'],gy:['var(--ln2)','var(--mut)']}[tone]||['var(--ln2)','var(--mut)'];return '<span class="cbadge" style="background:'+m[0]+';color:'+m[1]+'">'+esc(txt)+'</span>';}
+function reqTone(st){return st==='выполнена'?'g':st==='отклонена'?'r':st==='в работе'?'b':'a';}
+function reqDot(st){return {'новая':['var(--amb)','•'],'в работе':['var(--blu)','⚙'],'выполнена':['var(--acc)','✓'],'отклонена':['var(--red)','✕']}[st]||['var(--mut)','•'];}
+function cliInvoices(){return (ST.invoices||[]).filter(i=>i.client===CURCLIENT);}
+function cliDebt(){return cliInvoices().filter(i=>i.status!=='оплачен').reduce((a,i)=>a+i.sum,0);}
+function cliSkuGroups(){const bySku={};clientCells(CURCLIENT).forEach(c=>{const g=bySku[c.sku]=bySku[c.sku]||{sku:c.sku,qty:0,cells:[],exp:null};g.qty+=c.qty;g.cells.push(c);if(c.exp!=null&&(g.exp==null||c.exp<g.exp))g.exp=c.exp;});return Object.values(bySku).sort((a,b)=>b.qty-a.qty);}
+function cliReqTimeline(rows){if(!rows.length)return '';
+  return '<div class="ctl">'+rows.map(r=>{const p=prod(r.sku),d=reqDot(r.status);
+    return '<div class="ctli"><span class="dot" style="background:'+d[0]+'">'+d[1]+'</span><div class="th"><span class="tt">'+(r.type==='in'?'📥 Приход':'📤 Уход')+' · '+esc(p?p.name:r.sku)+'</span>'+cbadge(r.status,reqTone(r.status))+'</div><div class="td">'+litr(r.qty)+' · '+esc(r.when||'')+' · <span style="font-family:monospace">'+esc(r.id)+'</span></div></div>';}).join('')+'</div>';}
+/* — Обзор — */
+function cliDash(){
+  const c=cli(CURCLIENT);
+  const myCells=clientCells(CURCLIENT),myL=myCells.reduce((a,x)=>a+x.qty,0);
+  const reqs=reqRows(CURCLIENT);
+  const active=reqs.filter(r=>r.status==='новая'||r.status==='в работе');
+  const debt=cliDebt();
+  const groups=cliSkuGroups(),mx=Math.max(...groups.map(g=>g.qty),1);
+  const risky=myCells.filter(c=>c.exp!=null&&c.exp<=30).length;
+  let h='<div class="chero"><div class="htxt"><h1>Здравствуйте, '+esc(c.name)+' 👋</h1><div class="hs">Ваш товар на ответственном хранении «АгроСклад». Подавайте заявки на приход и уход — склад видит их сразу и исполняет, вы следите за статусом.</div></div><div class="hact"><button class="cbtn in" onclick="cliNewReq(\'in\')">📥 Заявка на приход</button><button class="cbtn out" onclick="cliNewReq(\'out\')">📤 Заявка на уход</button></div></div>';
+  h+='<div class="ckpis">'+ckpi('g','📦',myCells.length,'моих ячеек')+ckpi('b','🧪',litr(myL),'на хранении')+ckpi('a','📋',active.length,'заявок в работе')+ckpi(debt?'r':'g',debt?'💳':'✓',debt?money(debt):'нет долга','к оплате')+'</div>';
+  if(risky)h+='<div class="cpanel" style="border-color:var(--amb)"><div class="cpb" style="padding:14px 18px;display:flex;gap:10px;align-items:center"><span style="font-size:20px">⚠️</span><div style="font-size:13px"><b>'+risky+'</b> '+(risky===1?'позиция с истекающим сроком':'позиций с истекающим сроком')+' — рекомендуем отгрузить в первую очередь. Подробнее на вкладке «Мой остаток».</div></div></div>';
+  const prodCards=groups.length?'<div class="cprods">'+groups.slice(0,6).map(g=>{const pr=prod(g.sku),es=expStatus(g.exp);
+    return '<div class="cprod"><div class="pnm">'+esc(pr.name)+'</div><div class="psku">'+esc(g.sku)+' · '+g.cells.length+' яч.</div><div class="pqty">'+litr(g.qty)+'</div><div class="pbar"><i style="width:'+Math.round(g.qty/mx*100)+'%;background:'+(es.k==='bad'?'var(--red)':es.k==='soon'?'var(--amb)':'var(--acc)')+'"></i></div><div class="prow"><span>Годен до</span><span>'+expDate(g.exp)+'</span></div><button class="pact" onclick="cliOrderShip(\''+jsq(g.sku)+'\')">Заказать отгрузку</button></div>';}).join('')+'</div>':cEmpty('📦','Пока нет товара на хранении','Подайте заявку на приход — товар появится здесь после приёмки.');
+  const actHTML=active.length?cliReqTimeline(active.slice(0,6)):cEmpty('✅','Активных заявок нет','Все заявки исполнены. Новую можно подать в один клик.');
+  h+='<div class="cgrid"><div class="cpanel"><div class="cph"><h3>Мои товары на складе</h3><a onclick="cliNav(\'stock\')">весь остаток →</a></div><div class="cpb">'+prodCards+'</div></div>'+
+     '<div class="cpanel"><div class="cph"><h3>Заявки в работе</h3><a onclick="cliNav(\'reqs\')">все →</a></div><div class="cpb">'+actHTML+'</div></div></div>';
+  const mv=(ST.moves||[]).filter(m=>m.client===CURCLIENT).slice(0,5);
+  h+='<div class="cpanel"><div class="cph"><h3>Последнее движение</h3><a onclick="cliNav(\'moves\')">вся история →</a></div><div class="cpb">'+(mv.length?cliMovesList(mv):cEmpty('🕓','Движения пока нет','Приходы и отгрузки будут отражаться здесь по датам.'))+'</div></div>';
+  $('c-dash').innerHTML=h;
+}
+/* — Мой остаток — */
+function cliStock(){
+  const groups=cliSkuGroups();const myCells=clientCells(CURCLIENT);const myL=myCells.reduce((a,x)=>a+x.qty,0);
+  let h='<div class="chero"><div class="htxt"><h1>Мой остаток и ячейки</h1><div class="hs">'+myCells.length+' ячеек · '+litr(myL)+' на ответственном хранении. Каждая позиция — партия со сроком годности; отгрузка по FEFO (сначала ближний срок).</div></div><div class="hact"><button class="cbtn in" onclick="cliNewReq(\'in\')">📥 Приход</button><button class="cbtn out" onclick="cliNewReq(\'out\')">📤 Уход</button></div></div>';
+  if(!groups.length){$('c-stock').innerHTML=h+cEmpty('📦','На хранении пока пусто','Подайте заявку на приход — после приёмки товар встанет на остаток.');return;}
+  h+=groups.map(g=>{const pr=prod(g.sku),es=expStatus(g.exp);
+    const cellsRows=g.cells.slice().sort((a,b)=>(a.exp==null?9999:a.exp)-(b.exp==null?9999:b.exp)).map(c=>{const e=expStatus(c.exp);
+      return '<div class="cr"><div class="cic" style="background:var(--ln2)">🗄️</div><div class="ci"><div class="ct">Ячейка '+esc(c.id)+' <span style="color:var(--faint);font-weight:600;font-size:11px">партия '+esc(c.batch||'—')+'</span></div><div class="cd">тара '+esc(c.tare||'—')+' · принято '+esc(c.arrived||'—')+' · годен до '+expDate(c.exp)+'</div></div><div class="cx">'+litr(c.qty)+'<div style="margin-top:3px">'+cbadge(e.t,e.pill)+'</div></div></div>';}).join('');
+    return '<div class="cpanel"><div class="cph"><div style="width:34px;height:34px;border-radius:10px;background:var(--accL);display:grid;place-items:center;font-size:16px">🧪</div><h3>'+esc(pr.name)+' <span style="color:var(--faint);font-weight:600;font-size:12px">'+esc(g.sku)+'</span></h3><span style="font-weight:800;font-size:15px">'+litr(g.qty)+'</span> '+cbadge(es.t,es.pill)+' <a onclick="cliOrderShip(\''+jsq(g.sku)+'\')" style="margin-left:6px">заказать отгрузку →</a></div><div class="cpb"><div class="clist">'+cellsRows+'</div></div></div>';}).join('');
+  $('c-stock').innerHTML=h;
+}
+/* — Заявки — */
+function cliReqs(){
+  const reqs=reqRows(CURCLIENT);
+  const open=reqs.filter(r=>r.status==='новая'||r.status==='в работе');
+  const done=reqs.filter(r=>r.status==='выполнена'||r.status==='отклонена');
+  let h='<div class="chero"><div class="htxt"><h1>Мои заявки</h1><div class="hs">Подавайте заявки на приход и уход удалённо — склад видит их мгновенно, берёт в работу и отчитывается по статусу. '+open.length+' в работе, '+done.length+' в истории.</div></div><div class="hact"><button class="cbtn in" onclick="cliNewReq(\'in\')">📥 Заявка на приход</button><button class="cbtn out" onclick="cliNewReq(\'out\')">📤 Заявка на уход</button></div></div>';
+  h+='<div class="cpanel"><div class="cph"><h3>В работе</h3><span style="color:var(--mut);font-size:12.5px">'+open.length+'</span></div><div class="cpb">'+(open.length?cliReqTimeline(open):cEmpty('✅','Активных заявок нет','Новая заявка попадёт на склад мгновенно.'))+'</div></div>';
+  h+='<div class="cpanel"><div class="cph"><h3>История</h3><span style="color:var(--mut);font-size:12.5px">'+done.length+'</span></div><div class="cpb">'+(done.length?cliReqTimeline(done):cEmpty('🗂️','История пуста','Здесь будут выполненные и отклонённые заявки.'))+'</div></div>';
+  $('c-reqs').innerHTML=h;
+}
+/* — Движение — */
+function cliMovesList(mv){const ic={in:['📥','var(--accL)','g','+','mvin'],out:['📤','var(--bluL)','b','−','mvout'],move:['↔','var(--violL)','v','','mvmove'],inv:['⚖️','var(--ambL)','a','','mvinv']};
+  return '<div class="clist">'+mv.map(m=>{const p=prod(m.sku),k=ic[m.type]||ic.in;const col=m.type==='in'?'var(--accD)':m.type==='out'?'#1a4f9c':'var(--ink)';
+    return '<div class="cr"><div class="cic" style="background:'+k[1]+'">'+k[0]+'</div><div class="ci"><div class="ct">'+esc(p?p.name:m.sku)+'</div><div class="cd">ячейка '+esc(m.cell||'—')+(m.note?' · '+esc(m.note):'')+'</div></div><div class="cx" style="color:'+col+'">'+k[3]+litr(m.qty)+'<div style="color:var(--faint);font-weight:600;font-size:11px;margin-top:2px">'+esc(m.d)+'</div></div></div>';}).join('')+'</div>';}
+function cliMoves(){
+  const mv=(ST.moves||[]).filter(m=>m.client===CURCLIENT);
+  const inL=mv.filter(m=>m.type==='in').reduce((a,m)=>a+m.qty,0),outL=mv.filter(m=>m.type==='out').reduce((a,m)=>a+m.qty,0);
+  let h='<div class="chero"><div class="htxt"><h1>Движение моего товара</h1><div class="hs">Полная история приходов, отгрузок, перемещений и инвентаризаций — с датами. Готовая выписка на случай спора.</div></div></div>';
+  h+='<div class="ckpis">'+ckpi('','🧾',mv.length,'операций')+ckpi('g','📥',litr(inL),'принято, Σ')+ckpi('b','📤',litr(outL),'отгружено, Σ')+ckpi('a','↔',mv.filter(m=>m.type==='move').length,'перемещений')+'</div>';
+  h+='<div class="cpanel"><div class="cpb">'+(mv.length?cliMovesList(mv):cEmpty('🕓','Движения пока нет','Как только пойдёт приход или отгрузка — всё окажется здесь.'))+'</div></div>';
+  $('c-moves').innerHTML=h;
+}
+/* — Счета — */
+function cliBills(){
+  const inv=cliInvoices();const debt=cliDebt();const paid=inv.filter(i=>i.status==='оплачен').reduce((a,i)=>a+i.sum,0);
+  const myL=clientCells(CURCLIENT).reduce((a,x)=>a+x.qty,0);const est=myL*TARIFF;
+  let h='<div class="chero"><div class="htxt"><h1>Счета за хранение</h1><div class="hs">Тариф ответственного хранения — '+money(TARIFF)+'/л в месяц. Оценка следующего счёта по текущему остатку ('+litr(myL)+') — <b>'+money(est)+'</b>/мес.</div></div></div>';
+  h+='<div class="ckpis">'+ckpi(debt?'r':'g',debt?'💳':'✓',debt?money(debt):'0 ₸','к оплате')+ckpi('g','✅',money(paid),'оплачено')+ckpi('b','🧾',inv.length,'счетов')+ckpi('a','📅',money(est),'прогноз/мес')+'</div>';
+  const rows=inv.slice().sort((a,b)=>pdate(b.date)-pdate(a.date));
+  const list=rows.length?'<div class="clist">'+rows.map(i=>{const tone=i.status==='оплачен'?'g':i.status==='просрочен'?'r':'a';
+    return '<div class="cr"><div class="cic" style="background:'+(tone==='g'?'var(--accL)':tone==='r'?'var(--redL)':'var(--ambL)')+'">🧾</div><div class="ci"><div class="ct">'+esc(i.id)+' · '+esc(i.period)+'</div><div class="cd">'+litr(i.liters)+' · '+money(TARIFF)+'/л · выставлен '+esc(i.date)+'</div></div><div class="cx"><div style="margin-bottom:4px">'+money(i.sum)+'</div>'+(i.status==='оплачен'?cbadge('оплачен','g'):'<button class="pact" style="padding:7px 12px;width:auto;background:linear-gradient(120deg,#1f9d55,#2fbd6d);color:#fff" onclick="cliPayBill(\''+jsq(i.id)+'\')">Оплатить</button>')+'</div></div>';}).join('')+'</div>':cEmpty('🧾','Счетов пока нет','Счёт за хранение формируется в конце периода.');
+  h+='<div class="cpanel"><div class="cph"><h3>Мои счета</h3></div><div class="cpb">'+list+'</div></div>';
+  $('c-bills').innerHTML=h;
+}
+/* — уведомления в шапке кабинета — */
+function cliNotif(){
+  const ns=(ST.notifs||[]).filter(n=>n.cli===CURCLIENT);
+  $('cBellBd').textContent=ns.length;$('cBellBd').style.display=ns.length?'':'none';
+  $('cNotifList').innerHTML=ns.length?ns.slice(0,8).map(n=>'<div class="pi"><div class="ic" style="background:var(--accL)">💬</div><div><div class="tx">'+esc(n.txt)+'</div><div class="tm">'+esc(n.ch||'WhatsApp')+' · '+esc(n.t||'')+'</div></div></div>').join(''):'<div class="pi"><div class="tx" style="color:var(--faint)">Уведомлений пока нет.</div></div>';
+}
+/* — действия контрагента — */
+function cliNewReq(type,sku){openReqForm();setReqType(type||'in');if(sku){$('rSku').value=sku;if(typeof reqUpd==='function')reqUpd();}}
+function cliOrderShip(sku){cliNewReq('out',sku);}
+function cliPayBill(id){const inv=(ST.invoices||[]).find(i=>i.id===id);if(!inv)return;if(!confirm('Оплатить счёт '+id+' на '+money(inv.sum)+'? (демо)'))return;inv.status='оплачен';log('💳','var(--accL)','Оплата счёта '+id+' — '+cli(CURCLIENT).name+' ('+money(inv.sum)+')');notify(CURCLIENT,'Оплата счёта '+id+' получена. Спасибо!');save();renderClientApp();toast('💳 Счёт <b>'+esc(id)+'</b> оплачен. Квитанция ушла на склад.','ok');}
+
+/* ===== пульт ===== */
+function statTile(cls,label,val,delta,dn,spark){return '<div class="kpi '+cls+'"><div class="kl">'+label+'</div><div class="kv">'+val+'</div>'+(delta?'<div class="kr"><span class="delta '+(dn?'dn':'')+'">'+(dn?'▼ ':'▲ ')+delta+'</span></div>':'')+(spark||'')+'</div>';}
+function sparkline(vals,color){const W=64,H=26,mx=Math.max(...vals),mn=Math.min(...vals);
+  const pts=vals.map((v,i)=>[(i/(vals.length-1))*W,H-2-((v-mn)/((mx-mn)||1))*(H-4)]);
+  const line=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  const area='M '+pts[0][0].toFixed(1)+' '+H+' '+pts.map(p=>'L '+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ')+' L '+pts[pts.length-1][0].toFixed(1)+' '+H+' Z';
+  return '<svg class="spark" width="'+W+'" height="'+H+'"><path d="'+area+'" fill="'+color+'" opacity=".12"/><path d="'+line+'" fill="none" stroke="'+color+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';}
+function dualBars(a,b,labels){const mx=Math.max(...a,...b)||1;
+  return '<div class="bars">'+a.map((v,i)=>'<div class="bcol" style="justify-content:flex-end"><div style="display:flex;gap:3px;align-items:flex-end;width:100%;height:100%;justify-content:center"><div class="bk" style="height:'+Math.round(v/mx*100)+'%;max-width:13px;background:linear-gradient(180deg,#3fbf75,#1f9d55)"></div><div class="bk" style="height:'+Math.round(b[i]/mx*100)+'%;max-width:13px;background:linear-gradient(180deg,#f2b34a,#e79a2b)"></div></div><div class="bl">'+esc(labels[i]||'')+'</div></div>').join('')+'</div>';}
+function barsHTML(vals,labels,fmt,hotIdx){const mx=Math.max(...vals)||1;
+  return '<div class="bars">'+vals.map((v,i)=>'<div class="bcol'+(hotIdx&&hotIdx.includes(i)?' hot':'')+'"><div class="bv">'+(fmt?fmt(v):v)+'</div><div class="bk" style="height:'+Math.round(v/mx*100)+'%"></div><div class="bl">'+esc(labels[i]||'')+'</div></div>').join('')+'</div>';}
+function renderDash(){
+  const cells=scopeCells();const occ=cells.filter(c=>c.client);const free=cells.filter(c=>!c.client);
+  const load=Math.round(occ.length/(cells.length||1)*100);
+  const arrToday=(ST.arrivals||[]).filter(a=>a.status!=='размещено').length;
+  const shipToday=(ST.shipments||[]).length;
+  const isC=ROLE==='client';
+  $('dashTitle').textContent=isC?('Кабинет контрагента · '+cli(CURCLIENT).name):'Пульт склада';
+  $('dashSub').textContent=isC?'ваши ячейки, остаток, заявки и движение — управляйте удалённо':'загрузка, потоки и транзакции в реальном времени';
+  if(isC){const c=cli(CURCLIENT);const myCells=clientCells(CURCLIENT);const myL=myCells.reduce((a,x)=>a+x.qty,0);const myReq=reqRows(CURCLIENT).filter(r=>r.status==='новая'||r.status==='в работе').length;
+    $('dashCab').innerHTML='<div class="cabcard"><div class="ci">'+esc(c.short)+'</div><div><div class="ct">Кабинет: '+esc(c.name)+'</div><div class="cs">'+myCells.length+' ячеек · '+litr(myL)+' на хранении · '+myReq+' активных заявок</div></div><div class="cact"><button class="cbtn" onclick="openReqForm()">📋 Подать заявку</button><button class="cbtn o" onclick="nav(\'cells\')">Мои ячейки</button><button class="cbtn o" onclick="nav(\'ship\')">Моё движение</button></div></div>';}
+  else $('dashCab').innerHTML='';
+  const litTot=occ.reduce((a,c)=>a+(c.qty||0),0);
+  $('kpis').innerHTML=
+    statTile('','Загрузка склада',load+'%','3%',false,sparkline([61,64,63,68,66,71,69,load],'#1f9d55'))+
+    statTile('b','Ячеек занято',occ.length+' / '+cells.length,'',false,'')+
+    statTile('t','Товара на хранении',litr(litTot),'8%',false,sparkline([42,48,45,52,50,58,55,60],'#0ea5a5'))+
+    statTile('a','Приходов в ожидании',arrToday+'','',false,'')+
+    statTile('v','Отгрузок сегодня',shipToday+'','',false,'');
+  // потоки приход/расход по неделям
+  const inW=[4200,5600,5100,6400,5900,7200,6800,8100],outW=[3600,4800,4400,5200,5000,6100,5800,6900];
+  $('dashFlow').innerHTML=dualBars(inW,outW,['н-7','н-6','н-5','н-4','н-3','н-2','пр.','тек.']);
+  // загрузка по контрагентам
+  const byC=ST.clients.map(c=>({c,n:clientCells(c.id).length,l:clientCells(c.id).reduce((a,x)=>a+(x.qty||0),0)})).filter(x=>x.n).sort((a,b)=>b.n-a.n);
+  const mxc=Math.max(1,...byC.map(x=>x.n));
+  $('dashOcc').innerHTML=byC.slice(0,6).map(x=>'<div class="occli"><div class="av" style="background:'+x.c.color+'">'+esc(x.c.short)+'</div><div class="oi"><div class="on"><span>'+esc(x.c.name)+'</span><span class="num">'+x.n+' яч.</span></div><div class="track"><i style="width:'+Math.round(x.n/mxc*100)+'%"></i></div><div class="sub2">'+litr(x.l)+' на хранении</div></div></div>').join('')||'<div style="color:var(--faint);padding:12px 0">Нет данных.</div>';
+  // транзакции
+  const feed=(ST.txlog||[]);
+  $('dashFeed').innerHTML=feed.map(f=>'<div class="fx"><div class="ic" style="background:'+f[1]+'">'+f[0]+'</div><div><div class="fxt">'+f[2]+'</div><div class="fxm">'+esc(f[3])+'</div></div></div>').join('')||'<div style="color:var(--faint);padding:12px 0">Пока пусто.</div>';
+  // алерты
+  const bc=batchCells();const expBad=bc.filter(c=>c.exp<0).length,expSoon=bc.filter(c=>c.exp>=0&&c.exp<=30).length;
+  const debt=(ST.invoices||[]).filter(i=>i.status!=='оплачен').reduce((a,i)=>a+i.sum,0);
+  const al=[];
+  if(expBad)al.push(['⛔','var(--redL)','<b>'+expBad+' партий просрочено</b> — в карантин, в отгрузку не пойдут. Раздел «Партии · сроки».']);
+  if(expSoon)al.push(['⏳','var(--ambL)','<b>'+expSoon+' партий истекает</b> в ближайшие 30 дней — уведомить контрагентов (FEFO).']);
+  if(free.length<8)al.push(['🟠','var(--ambL)','<b>Мало свободных ячеек</b> ('+free.length+'). Добавьте ячейки или организуйте отгрузку.']);
+  al.push(['🔁','var(--bluL)','<b>'+((ST.arrivals||[]).filter(a=>a.status==='ожидается').length)+' приходов ожидается</b> — контрагенты внесли, ждут приёмки на склад.']);
+  if(debt)al.push(['💳','var(--redL)','<b>Задолженность за хранение: '+money(debt)+'</b> — по невыставленным/просроченным счетам. Раздел «Хранение · счета».']);
+  al.push(['⚖️','var(--accL)','<b>Инвентаризация:</b> остатки в ячейках сходятся с учётом. Расхождений нет.']);
+  $('dashAlerts').innerHTML=al.map(a=>'<div class="fx"><div class="ic" style="background:'+a[1]+'">'+a[0]+'</div><div class="fxt">'+a[2]+'</div></div>').join('');
+  // деньги по сделкам: поступления по датам + долги
+  const mscope=isC?CURCLIENT:null;
+  const pays=allPays(mscope);const recvTot=pays.reduce((a,p)=>a+p.sum,0);
+  $('dashMoney').innerHTML=(pays.length?pays.slice(0,7).map(p=>{const c=cli(p.client),pr=prod(p.sku);return '<div class="fx"><div class="ic" style="background:var(--accL)">💰</div><div style="flex:1"><div class="fxt"><b>+ '+money(p.sum)+'</b> · '+esc(c.name)+'</div><div class="fxm">'+esc(p.d)+' · '+esc(pr?pr.name:'')+' · ячейка '+esc(p.cell)+'</div></div></div>';}).join('')
+    +'<div style="margin-top:8px;padding-top:9px;border-top:1px solid var(--ln2);font-size:12.5px;color:var(--mut)">Всего поступило (показано): <b style="color:var(--accD)">'+money(recvTot)+'</b></div>'
+    :'<div style="color:var(--faint);padding:12px 0">Платежей пока нет — добавьте платёж в карточке ячейки (клик по ячейке → «+ Платёж»).</div>');
+  const debts=ST.clients.map(c=>({c,d:clientCells(c.id).reduce((a,x)=>a+dealDebt(x),0),deal:clientCells(c.id).reduce((a,x)=>a+(x.deal||0),0)})).filter(x=>(mscope?x.c.id===mscope:true)&&x.d>0).sort((a,b)=>b.d-a.d);
+  $('dashDebts').innerHTML=(debts.length?debts.map(x=>'<div class="occli"><div class="av" style="background:'+x.c.color+'">'+esc(x.c.short)+'</div><div class="oi"><div class="on"><span>'+esc(x.c.name)+'</span><span class="num" style="color:var(--red)">'+money(x.d)+'</span></div><div class="track"><i style="width:'+Math.round((1-x.d/(x.deal||1))*100)+'%;background:linear-gradient(90deg,#f2b34a,#e79a2b)"></i></div><div class="sub2">оплачено '+money(x.deal-x.d)+' из '+money(x.deal)+'</div></div></div>').join('')
+    :'<div style="color:var(--accD);padding:12px 0">Долгов по сделкам нет — всё оплачено ✓</div>');
+}
+
+/* ===== ячейки ===== */
+function stColor(c){if(!c.client)return'#c7d3ca';if(c.status==='resv')return'var(--amb)';if(c.status==='ship')return'var(--blu)';return'var(--acc)';}
+function cellTile(c){const p=c.client?prod(c.sku):null;const cl=c.client?cli(c.client):null;const vol=p?p.vol:1;const fillPct=c.client?Math.min(100,Math.round(c.qty/(vol*40)*100)):0;
+  let cls='cell '+(c.client?(c.status==='resv'?'resv':c.status==='ship'?'ship':'occ'):'free');
+  const dot=stColor(c);
+  return '<div class="'+cls+'" onclick="openCell(\''+c.id+'\')" style="'+(c.client&&c.status!=='resv'&&c.status!=='ship'?'box-shadow:inset 0 0 0 1.6px '+cl.color:'')+'">'+
+    (cl?'<span class="ctag" style="background:'+cl.color+'">'+esc(cl.short)+'</span>':'')+
+    '<div class="cn"><span class="st" style="background:'+dot+'"></span>'+esc(c.id)+'</div>'+
+    (p?'<div class="cprod">'+esc(p.name)+'</div><div class="cfill"><i style="width:'+fillPct+'%;background:'+cl.color+'"></i></div><div class="cqty">'+litr(c.qty)+' · '+esc(c.tare||(vol+' л'))+'</div>'+
+       (c.deal?'<div class="cmoney"><div class="cmbar"><i style="width:'+Math.min(100,Math.round(recv(c)/c.deal*100))+'%;background:'+(dealDebt(c)?'var(--amb)':'var(--acc)')+'"></i></div><div class="cmtx"><span>💰 '+shortMoney(recv(c))+'/'+shortMoney(c.deal)+'</span>'+(dealDebt(c)?'<span style="color:var(--red)">−'+shortMoney(dealDebt(c))+'</span>':'<span style="color:var(--accD)">✓</span>')+'</div></div>':'')
+       :'<div class="cprod">свободна</div><div class="cqty" style="color:var(--faint)">разместить приход</div>')+'</div>';
+}
+function buildClientFilter(){const sel=$('cellClientФ');const cur=sel.value;
+  sel.innerHTML='<option value="">Все контрагенты · вся карта</option>'+ST.clients.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
+  if(ROLE==='client'&&CURCLIENT){sel.value=CURCLIENT;sel.disabled=true;}else{sel.disabled=false;sel.value=cur;}}
+function renderCells(){
+  const filt=$('cellClientФ')?$('cellClientФ').value:'';
+  const q=SQ.trim().toLowerCase();
+  const scope=ROLE==='client'&&CURCLIENT?CURCLIENT:filt;
+  const zones=['A','B','C'];
+  let occ=occCells().length,tot=ST.cells.length;
+  $('cellsSub').textContent='занято '+occ+' из '+tot+' ячеек · загрузка '+Math.round(occ/tot*100)+'%';
+  $('cellMap').innerHTML=zones.map(z=>{
+    let cells=ST.cells.filter(c=>c.zone===z);
+    if(scope)cells=cells.filter(c=>c.client===scope||!c.client);
+    if(q)cells=cells.filter(c=>{const p=c.client?prod(c.sku):null;return c.id.toLowerCase().includes(q)||(p&&p.name.toLowerCase().includes(q))||(c.client&&cli(c.client).name.toLowerCase().includes(q));});
+    if(!cells.length)return'';
+    const zocc=cells.filter(c=>c.client).length;
+    const zc=ZONES[z];const tin=zc&&zc.cur>=zc.lo&&zc.cur<=zc.hi;
+    return '<div class="zonewrap"><div class="zoneh"><div class="zi">'+z+'</div><div><div class="zt">Зона '+z+'</div><div class="zs">'+zocc+' занято · '+(cells.length-zocc)+' свободно'+(zc?' · <span style="color:'+(tin?'var(--accD)':'var(--red)')+';font-weight:700">'+zc.cur+'°C</span> <span style="color:var(--faint)">('+esc(zc.temp)+')</span>':'')+'</div></div></div><div class="cells">'+cells.map(cellTile).join('')+'</div></div>';
+  }).join('')||'<div style="color:var(--faint);padding:30px 0;text-align:center">Ничего не найдено.</div>';
+}
+function openCell(id){const c=ST.cells.find(x=>x.id===id);if(!c)return;const p=c.client?prod(c.sku):null;const cl=c.client?cli(c.client):null;
+  let h;
+  if(c.client){h='<div class="mh"><h2>Ячейка '+esc(c.id)+'</h2><span class="pill '+(c.status==='resv'?'a':c.status==='ship'?'b':'g')+'">'+(c.status==='resv'?'бронь / приём':c.status==='ship'?'на отгрузку':'занята')+'</span><span class="mx" onclick="closeModal(\'cellOvl\')">✕</span></div>'+
+    '<div class="mbody"><div class="cellhero" style="background:linear-gradient(120deg,'+cl.color+','+cl.color+'cc)"><div class="h1">'+esc(p.name)+'</div><div class="h2">'+esc(cl.name)+' · зона '+esc(c.zone)+'</div></div>'+
+    '<div class="kv"><span class="k">Количество</span><span class="v">'+litr(c.qty)+'</span></div>'+
+    '<div class="kv"><span class="k">Тара</span><span class="v">'+esc(c.tare||(p.vol+' л'))+'</span></div>'+
+    '<div class="kv"><span class="k">SKU</span><span class="v">'+esc(p.sku)+'</span></div>'+
+    '<div class="kv"><span class="k">Штрихкод канистры</span><span class="v bc">'+esc(c.bc||p.bc)+'</span></div>'+
+    '<div class="kv"><span class="k">Категория</span><span class="v">'+esc(p.cat)+'</span></div>'+
+    '<div class="kv"><span class="k">Партия</span><span class="v bc">'+esc(c.batch||'—')+'</span></div>'+
+    (c.exp!=null?'<div class="kv"><span class="k">Годен до</span><span class="v">'+expDate(c.exp)+' <span class="pill '+expStatus(c.exp).pill+'">'+expStatus(c.exp).t+'</span></span></div>':'')+
+    '<div class="kv"><span class="k">Класс опасности</span><span class="v">'+hazPill(p.haz)+' '+esc(hazText(p.haz).split('·')[1]||'')+'</span></div>'+
+    '<div class="kv"><span class="k">Режим хранения</span><span class="v">'+esc(p.temp)+' · зона '+esc(c.zone)+' '+(ZONES[c.zone]?ZONES[c.zone].cur+'°C':'')+'</span></div>'+
+    '<div class="kv"><span class="k">Принято на склад</span><span class="v">'+esc(c.arrived||'—')+'</span></div>'+
+    '<div class="kv"><span class="k">Услуга хранения</span><span class="v">'+money(Math.round(c.qty*TARIFF))+' / мес</span></div>'+
+    '<div style="font-weight:800;font-size:13.5px;margin:14px 0 2px">💰 Финансы по сделке</div>'+
+    '<div class="moneybox"><div class="mb deal"><div class="l">Сумма сделки</div><div class="v" onclick="setCellDeal(\''+c.id+'\')" style="cursor:pointer">'+money(c.deal||0)+' <span style="font-size:11px;color:var(--acc)">✎</span></div></div>'+
+      '<div class="mb recvd"><div class="l">Получено</div><div class="v">'+money(recv(c))+'</div></div>'+
+      '<div class="mb debt'+(dealDebt(c)?'':' ok')+'"><div class="l">Остаток</div><div class="v">'+(dealDebt(c)?money(dealDebt(c)):'оплачено ✓')+'</div></div></div>'+
+    '<div style="display:flex;align-items:center;margin:2px 0 2px"><span style="font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700">Платежи · что когда зашло</span><button class="btn pri" style="padding:5px 11px;margin-left:auto" onclick="addCellPay(\''+c.id+'\')">＋ Платёж</button></div>'+
+    '<div class="paywrap">'+((c.pays&&c.pays.length)?c.pays.slice().sort((a,b)=>pdate(b.d)-pdate(a.d)).map(pp=>'<div class="payr"><span class="pd">'+esc(pp.d)+'</span><span>оплата поступила</span><span class="ps">+ '+money(pp.sum)+'</span></div>').join(''):'<div class="payr empty">Платежей ещё не было — добавьте первый.</div>')+'</div></div>'+
+    (ROLE==='client'
+      ?'<div class="mfoot"><button class="btn blu" onclick="orderShipFromCell(\''+c.id+'\')">📤 Заказать отгрузку</button><span style="align-self:center;font-size:11.5px;color:var(--mut)">это ваша ячейка — заявка уйдёт на склад</span><button class="btn gh" style="margin-left:auto" onclick="closeModal(\'cellOvl\')">Закрыть</button></div>'
+      :'<div class="mfoot"><button class="btn blu" onclick="shipFromCell(\''+c.id+'\')">📤 Отгрузить</button><button class="btn gh" onclick="invCell(\''+c.id+'\')">⚖️ Инвентаризация</button><button class="btn gh" onclick="moveCell(\''+c.id+'\')">↔ Переместить</button><button class="btn gh" style="margin-left:auto" onclick="closeModal(\'cellOvl\')">Закрыть</button></div>');
+  } else {
+    h='<div class="mh"><h2>Ячейка '+esc(c.id)+'</h2><span class="pill gy">свободна</span><span class="mx" onclick="closeModal(\'cellOvl\')">✕</span></div>'+
+    '<div class="mbody"><div class="note g">Свободная ячейка в зоне '+esc(c.zone)+'. Разместите сюда ожидающий приход — товар встанет на остаток и появится у контрагента в кабинете.</div>'+
+    '<div class="kv"><span class="k">Зона</span><span class="v">'+esc(c.zone)+'</span></div><div class="kv"><span class="k">Статус</span><span class="v">свободна</span></div></div>'+
+    '<div class="mfoot"><button class="btn pri" onclick="closeModal(\'cellOvl\');nav(\'arrivals\')">Разместить приход</button><button class="btn gh" style="margin-left:auto" onclick="closeModal(\'cellOvl\')">Закрыть</button></div>';
+  }
+  $('cellModal').innerHTML=h;$('cellOvl').classList.add('show');
+}
+function orderShipFromCell(id){const c=ST.cells.find(x=>x.id===id);if(!c||!c.client)return;const p=prod(c.sku);const v=parseInt(prompt('Заказать отгрузку из ячейки '+id+' («'+p.name+'», в ячейке '+c.qty+' л). Сколько литров?',Math.min(200,c.qty)));if(isNaN(v)||v<=0)return;
+  const reqId='ЗАЯ-'+(3013+((ST.requests||[]).length));ST.requests=ST.requests||[];ST.requests.unshift({id:reqId,type:'out',client:c.client,sku:c.sku,qty:Math.min(v,c.qty),when:'сегодня',status:'новая',created:'только что',self:true});
+  log('📤','var(--bluL)','Заявка на уход '+litr(Math.min(v,c.qty))+' «'+esc(p.name)+'» из '+esc(id)+' — '+esc(cli(c.client).name)+' (от клиента)');
+  notify(c.client,'Заявка на отгрузку из ячейки '+id+' зарегистрирована: '+p.name+' — '+litr(Math.min(v,c.qty))+'.');
+  save();closeModal('cellOvl');renderAll();nav('arrivals');toast('📋 Заявка на отгрузку подана. Склад скомплектует и выполнит. Смотрите статус в «Заявках».','ok');}
+function shipFromCell(id){const c=ST.cells.find(x=>x.id===id);if(!c||!c.client)return;const v=parseInt(prompt('Сколько литров отгрузить из ячейки '+id+'? (в ячейке '+c.qty+' л)',Math.min(200,c.qty)));if(isNaN(v)||v<=0)return;
+  doShip(c,Math.min(v,c.qty));closeModal('cellOvl');}
+function doShip(c,v){const p=prod(c.sku);const cl=cli(c.client);const cid=c.client;c.qty-=v;
+  ST.shipments=ST.shipments||[];ST.shipments.unshift({id:'ОТГ-'+(4200+ (ST.shipments.length)),client:cid,sku:c.sku,qty:v,cell:c.id,date:'сегодня '+nowHM(),status:'отгружено'});
+  log('📤','var(--bluL)','Отгрузка '+litr(v)+' «'+esc(p.name)+'» из '+esc(c.id)+' — '+esc(cl.name));
+  logMove('out',cid,c.sku,v,c.id,'ручная отгрузка из ячейки');
+  notify(cid,'Заказ отгружен: '+p.name+' — '+litr(v)+'. Ячейка '+c.id+'.');
+  if(c.qty<=0){c.client=null;c.sku=null;c.qty=0;c.status='';c.tare=null;c.bc=null;c.arrived=null;c.batch=null;c.exp=null;c.deal=0;c.pays=[];log('🟢','var(--accL)','Ячейка '+esc(c.id)+' освободилась');}
+  save();renderAll();toast('📤 Отгружено <b>'+litr(v)+'</b> «'+esc(p.name)+'». Расход списан из '+esc(c.id)+(c.qty<=0?', ячейка освобождена':'')+'. Клиенту ушло уведомление в WhatsApp.','blu');}
+function invCell(id){const c=ST.cells.find(x=>x.id===id);if(c&&c.client)logMove('inv',c.client,c.sku,c.qty,c.id,'инвентаризация — сходится');save&&save();if($('s-ship').classList.contains('on'))renderMoves();toast('⚖️ Инвентаризация ячейки <b>'+esc(id)+'</b>: фактический остаток сверен с учётом — расхождений нет. Операция записана в движение. В реальной системе — скан штрихкодов канистр.','ok');}
+function moveCell(id){const c=ST.cells.find(x=>x.id===id);const dst=ST.cells.find(x=>!x.client&&x.id!==id);
+  if(!dst){toast('Нет свободной ячейки для переноса.','warn');return;}
+  Object.assign(dst,{client:c.client,sku:c.sku,qty:c.qty,status:c.status,tare:c.tare,bc:c.bc,arrived:c.arrived,batch:c.batch,exp:c.exp,deal:c.deal,pays:c.pays});
+  log('↔','var(--violL)','Перемещение '+esc(c.id)+' → '+esc(dst.id));
+  logMove('move',c.client,c.sku,c.qty,c.id+' → '+dst.id,'перемещение');
+  Object.assign(c,{client:null,sku:null,qty:0,status:'',tare:null,bc:null,arrived:null,batch:null,exp:null,deal:0,pays:[]});
+  save();closeModal('cellOvl');renderAll();toast('↔ Товар перемещён в ячейку <b>'+esc(dst.id)+'</b>. Операция в истории движения.','ok');}
+function setCellDeal(id){const c=ST.cells.find(x=>x.id===id);if(!c||!c.client)return;const v=parseInt(prompt('Сумма сделки по ячейке '+id+' («'+prod(c.sku).name+'»), ₸:',c.deal||0));if(isNaN(v))return;c.deal=Math.max(0,v);save();openCell(id);renderAll();toast('Сумма сделки по '+esc(id)+' — '+money(c.deal)+'.','ok');}
+function addCellPay(id){const c=ST.cells.find(x=>x.id===id);if(!c||!c.client)return;const def=dealDebt(c)||Math.round((c.deal||0)/2)||0;
+  const v=parseInt(prompt('Сколько получено, ₸? (по сделке «'+prod(c.sku).name+'», остаток '+dealDebt(c)+' ₸)',def));if(isNaN(v)||v<=0)return;
+  const d=(prompt('Дата платежа (ДД.ММ.ГГГГ):',today())||today()).trim();
+  (c.pays=c.pays||[]).push({d,sum:v});
+  log('💰','var(--accL)','Оплата +'+money(v)+' по ячейке '+esc(id)+' — '+esc(cli(c.client).name));
+  notify(c.client,'Оплата принята: +'+money(v)+' по «'+prod(c.sku).name+'» (ячейка '+id+'). Остаток по сделке: '+money(dealDebt(c))+'.');
+  save();openCell(id);renderAll();toast('💰 Платёж +<b>'+money(v)+'</b> записан на '+esc(d)+'. Остаток по сделке: '+money(dealDebt(c))+'.','ok');}
+function addCells(){const z=prompt('В какую зону добавить ячейки? (A / B / C)','A');if(!z)return;const zone=z.trim().toUpperCase();if(!['A','B','C'].includes(zone)){toast('Зона A, B или C.','warn');return;}
+  const n=parseInt(prompt('Сколько ячеек добавить?','6'));if(isNaN(n)||n<=0)return;
+  const ex=ST.cells.filter(c=>c.zone===zone).length;
+  for(let i=0;i<n;i++){const num=zone+'-'+String(ex+i+1).padStart(2,'0');ST.cells.push({id:num,zone,client:null,sku:null,qty:0,status:''});}
+  log('➕','var(--accL)',n+' «плавающих» ячеек добавлено в зону '+zone);save();renderAll();nav('cells');toast('➕ Добавлено <b>'+n+'</b> ячеек в зону '+zone+'. Каждая пронумерована и сразу доступна.','ok');}
+
+/* ===== приход ===== */
+function renderArrivals(){const arr=(ST.arrivals||[]);const scope=ROLE==='client'&&CURCLIENT?CURCLIENT:null;
+  const rows=scope?arr.filter(a=>a.client===scope):arr;
+  $('arrTbl').innerHTML='<thead><tr><th>№</th><th>Контрагент</th><th>Товар</th><th>Тара</th><th class="r">Кол-во</th><th>Привоз</th><th>Статус</th><th></th></tr></thead><tbody>'+
+    (rows.length?rows.map(a=>{const p=prod(a.sku);const c=cli(a.client);
+      return '<tr><td class="bc">'+esc(a.id)+'</td><td class="who2"><div class="av" style="background:'+c.color+'">'+esc(c.short)+'</div><span class="nm">'+esc(c.name)+'</span></td><td><b>'+esc(p.name)+'</b><div class="bc">'+esc(p.sku)+'</div></td><td>'+esc(a.tare)+'</td><td class="r">'+litr(a.qty)+'</td><td>'+esc(a.when)+(a.self?' <span class="pill v" style="font-size:9px">клиент внёс</span>':'')+'</td><td><span class="pill '+(a.status==='размещено'?'g':a.status==='принято'?'b':'a')+'">'+esc(a.status)+'</span></td><td class="r" style="white-space:nowrap"><button class="btn gh" style="padding:6px 9px" onclick="printReceiving(\''+a.id+'\')" title="Приёмочный лист (печать/PDF)">🖨</button> '+(a.status!=='размещено'?'<button class="btn pri" style="padding:6px 11px" onclick="acceptArrival(\''+a.id+'\')">Принять и разместить</button>':'<span class="pill g">✓ ячейка '+esc(a.cell||'')+'</span>')+'</td></tr>';}).join('')
+      :'<tr><td colspan="8" style="color:var(--faint);padding:18px">Приходов нет.</td></tr>')+'</tbody>';
+}
+function openArrivalForm(){$('aClient').innerHTML=ST.clients.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
+  if(ROLE==='client'&&CURCLIENT)$('aClient').value=CURCLIENT;
+  $('aSku').innerHTML=ST.catalog.map(p=>'<option value="'+p.sku+'">'+esc(p.name)+' ('+p.vol+' л)</option>').join('');
+  $('aQty').value='';$('arrOvl').classList.add('show');}
+function saveArrival(){const client=$('aClient').value,sku=$('aSku').value,tare=$('aTare').value,qty=parseInt($('aQty').value)||0,when=$('aWhen').value,zone=$('aZone').value;
+  if(!qty){toast('Укажите количество.','warn');return;}
+  const id='ПР-'+(7100+((ST.arrivals||[]).length));
+  ST.arrivals=ST.arrivals||[];ST.arrivals.unshift({id,client,sku,tare,qty,when,zone,status:'ожидается',self:ROLE==='client'});
+  const p=prod(sku),c=cli(client);
+  log('📥','var(--accL)','Новый приход '+litr(qty)+' «'+esc(p.name)+'» — '+esc(c.name)+(ROLE==='client'?' (внёс клиент)':''));
+  notify(client,'Приход зарегистрирован: '+p.name+' — '+litr(qty)+' ('+tare+'). Ждём на складе: '+when+'.');
+  save();closeModal('arrOvl');renderAll();nav('arrivals');toast('📥 Приход создан. '+(ROLE==='client'?'Так контрагент вносит приход сам — склад видит заранее.':'Склад увидит его заранее и разместит в ячейку.'),'ok');}
+function acceptArrival(id){const a=(ST.arrivals||[]).find(x=>x.id===id);if(!a)return;
+  let free=ST.cells.filter(c=>!c.client);if(a.zone)free=free.filter(c=>c.zone===a.zone).concat(ST.cells.filter(c=>!c.client&&c.zone!==a.zone));
+  const cell=free[0];if(!cell){toast('Нет свободных ячеек — добавьте ячейки.','warn');return;}
+  const p=prod(a.sku);const batch='П-'+String(2407+((ST.arrivals||[]).length%9)).slice(0);Object.assign(cell,{client:a.client,sku:a.sku,qty:a.qty,tare:a.tare,bc:p.bc,status:'',arrived:'сегодня '+nowHM(),batch:a.batch||batch,exp:(a.exp!=null?a.exp:640),deal:Math.round(a.qty*3000/1000)*1000,pays:[]});
+  a.status='размещено';a.cell=cell.id;
+  log('✅','var(--accL)','Приход '+esc(a.id)+' размещён в ячейку '+esc(cell.id)+' — авто-встал на остаток');
+  logMove('in',a.client,a.sku,a.qty,cell.id,'приход · размещён (лот '+cell.batch+')');
+  notify(a.client,'Товар принят и размещён: '+p.name+' — ячейка '+cell.id+'. Доступен в вашем кабинете.');
+  save();renderAll();toast('✅ Принято и размещено в ячейку <b>'+esc(cell.id)+'</b>. Остаток обновился, движение записано, клиенту ушло уведомление.','ok');}
+
+/* ===== отгрузка (со стратегией списания лотов) ===== */
+function openShipForm(prefClient,prefSku,prefQty,reqId){SHIPREQID=reqId||null;SHIPMODE='fefo';
+  document.querySelectorAll('#shipStrat .stratchip').forEach(b=>b.classList.toggle('on',b.dataset.m==='fefo'));$('shipManual').style.display='none';
+  $('sClient').innerHTML=ST.clients.filter(c=>clientCells(c.id).length).map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
+  if(prefClient)$('sClient').value=prefClient;else if(ROLE==='client'&&CURCLIENT)$('sClient').value=CURCLIENT;
+  shipSkuList();if(prefSku)$('sSku').value=prefSku;$('sQty').value=prefQty||'';shipUpd();$('shipOvl').classList.add('show');}
+function shipSkuList(){const cid=$('sClient').value;const bySku={};clientCells(cid).forEach(c=>{bySku[c.sku]=(bySku[c.sku]||0)+c.qty;});
+  $('sSku').innerHTML=Object.entries(bySku).map(([sku,q])=>'<option value="'+sku+'">'+esc(prod(sku).name)+' — на хранении '+q+' л</option>').join('')||'<option value="">нет товара на хранении</option>';
+  shipUpd();}
+function shipUpd(){const cid=$('sClient').value,sku=$('sSku').value;const lots=lotsOf(cid,sku);const good=lots.filter(c=>!(c.exp!=null&&c.exp<0));const have=good.reduce((a,c)=>a+c.qty,0);const expired=lots.filter(c=>c.exp!=null&&c.exp<0);
+  if(SHIPMODE==='manual'){$('shipManual').innerHTML='<label style="font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:700">Выберите лоты (в порядке списания)</label>'+(good.length?good.map(c=>'<label style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--ln2);font-size:12.5px"><input type="checkbox" value="'+c.id+'" onchange="shipUpd()" style="width:auto"><b>'+esc(c.id)+'</b> · лот '+esc(c.batch||'—')+' · '+litr(c.qty)+' · до '+expDate(c.exp)+' · приёмка '+recvDays(c)+' дн. назад</label>').join(''):'<div style="color:var(--faint);font-size:12px;padding:6px 0">Нет доступных лотов.</div>');}
+  const order=SHIPMODE==='manual'?manualSel().map(id=>good.find(c=>c.id===id)).filter(Boolean):pickLots(cid,sku,SHIPMODE);const first=order[0];
+  let h=sku?('Доступно: <b>'+have+' л</b> · стратегия <b>'+STRATNAME[SHIPMODE]+'</b>.'):'';
+  if(first)h+=' Первым спишется лот <b>'+esc(first.batch||first.id)+'</b> (ячейка '+esc(first.id)+', до '+expDate(first.exp)+').';
+  if(expired.length)h+=' <span style="color:var(--red)">Просроченные лоты ('+expired.length+') исключены.</span>';
+  $('shipHint').innerHTML=h;}
+function saveShip(){const cid=$('sClient').value,sku=$('sSku').value;let v=parseInt($('sQty').value)||0;if(!sku||!v){toast('Укажите товар и количество.','warn');return;}
+  let cells=SHIPMODE==='manual'?manualSel().map(id=>ST.cells.find(c=>c.id===id)).filter(c=>c&&c.client===cid&&c.sku===sku):pickLots(cid,sku,SHIPMODE);
+  if(SHIPMODE==='manual'&&!cells.length){toast('Отметьте лоты для списания.','warn');return;}
+  const have=cells.reduce((a,c)=>a+c.qty,0);
+  if(v>have){toast('Доступно к отгрузке '+have+' л (просроченные лоты не в счёт).','warn');return;}
+  let left=v;const p=prod(sku),c=cli(cid);const usedCells=[];
+  for(const cell of cells){if(left<=0)break;const take=Math.min(cell.qty,left);cell.qty-=take;left-=take;usedCells.push(cell.id);if(cell.qty<=0){cell.client=null;cell.sku=null;cell.qty=0;cell.status='';cell.tare=null;cell.bc=null;cell.arrived=null;cell.batch=null;cell.exp=null;cell.deal=0;cell.pays=[];}}
+  ST.shipments=ST.shipments||[];ST.shipments.unshift({id:'ОТГ-'+(4200+ST.shipments.length),client:cid,sku,qty:v,cell:usedCells.join(', '),date:'сегодня '+nowHM(),status:'отгружено'});
+  logMove('out',cid,sku,v,usedCells.join(', '),STRATNAME[SHIPMODE]);
+  log('📤','var(--bluL)','Отгрузка '+litr(v)+' «'+esc(p.name)+'» — '+esc(c.name)+' ('+STRATNAME[SHIPMODE]+', ячейки '+usedCells.join(', ')+')');
+  notify(cid,'Заказ отгружен: '+p.name+' — '+litr(v)+'. Списано по стратегии «'+STRATNAME[SHIPMODE]+'».');
+  if(SHIPREQID){const r=(ST.requests||[]).find(x=>x.id===SHIPREQID);if(r){r.status='выполнена';r.cell=usedCells.join(', ');}SHIPREQID=null;}
+  save();closeModal('shipOvl');renderAll();nav('ship');toast('📤 Отгружено <b>'+litr(v)+'</b> «'+esc(p.name)+'» ('+STRATNAME[SHIPMODE]+', ячейки '+esc(usedCells.join(', '))+'). Расход записан в движение, клиент уведомлён.','blu');}
+
+/* ===== товары ===== */
+function renderCatalog(){const cat=ST.catalog;
+  const onHand=sku=>occCells().filter(c=>c.sku===sku).reduce((a,c)=>a+c.qty,0);
+  const totL=cat.reduce((a,p)=>a+onHand(p.sku),0);
+  $('catKpis').innerHTML=
+    statTile('','Позиций в каталоге',cat.length+'','',false,'')+
+    statTile('b','На хранении',litr(totL),'',false,'')+
+    statTile('t','Тара',cat.length? '1–100 л':'—','',false,'')+
+    statTile('a','Штрихкод',' на каждой канистре','',false,'');
+  $('catTbl').innerHTML='<thead><tr><th>Наименование</th><th>Категория</th><th>SKU</th><th>Тара</th><th>Класс опасности</th><th>Режим</th><th class="r">На хранении</th></tr></thead><tbody>'+
+    cat.map(p=>'<tr onclick="toast(\'Товар «'+jsq(p.name)+'» ('+jsq(p.sku)+'): класс опасности '+p.haz+', режим хранения '+jsq(p.temp)+', штрихкод '+jsq(p.bc)+'. Тара '+p.vol+' л.\')"><td><b>'+esc(p.name)+'</b><div class="bc">'+esc(p.bc)+'</div></td><td><span class="pill '+p.pc+'">'+esc(p.cat)+'</span></td><td class="bc">'+esc(p.sku)+'</td><td>'+p.vol+' л</td><td>'+hazPill(p.haz)+'</td><td style="font-size:12.5px;color:var(--mut)">'+esc(p.temp)+'</td><td class="r" style="font-weight:800">'+litr(onHand(p.sku))+'</td></tr>').join('')+'</tbody>';
+}
+/* ручное заведение товара (наименования) — из встречи */
+function addProduct(){const name=(prompt('Новое наименование товара (СЗР/семена):','')||'').trim();if(!name)return;
+  const cat=(prompt('Категория: Гербицид / Инсектицид / Фунгицид / Протравитель / Десикант / Адъювант / Семена','Гербицид')||'СЗР').trim();
+  const vol=parseInt(prompt('Тара, л (напр. 20):','20'),10)||20;
+  const pcMap={'Гербицид':'g','Инсектицид':'a','Фунгицид':'b','Протравитель':'v','Десикант':'t','Адъювант':'gy','Семена':'g'};
+  const sku='СЗР-'+(700+ST.catalog.length);const bc='48702'+String(100000+ST.catalog.length*731).slice(0,8);
+  ST.catalog.push({sku,name,cat,pc:pcMap[cat]||'gy',vol,bc,haz:cat==='Семена'?4:3,temp:cat==='Семена'?'+10…+15°C, влажн. ≤60%':'+5…+30°C'});
+  save();renderAll();nav('catalog');toast('➕ Товар «'+esc(name)+'» ('+sku+') заведён в каталог. Теперь по нему можно принимать приход и отгружать.','ok');
+}
+/* печатные документы (приход / расход / инвентаризация / счёт) — из встречи */
+function docWindow(title,inner){const w=window.open('','_blank','width=820,height=920');if(!w){toast('Разрешите всплывающие окна, чтобы напечатать документ.','warn');return;}
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>body{font-family:Arial,Helvetica,sans-serif;color:#152a1e;font-size:12px;padding:22px;max-width:720px;margin:0 auto}h1{font-size:17px;margin:0}.sub{color:#63756b;font-size:11px;margin:2px 0 0}.hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1f9d55;padding-bottom:10px;margin-bottom:14px}.br{font-weight:800;font-size:18px}.br span{color:#1f9d55}table{width:100%;border-collapse:collapse;margin:10px 0}th,td{border:1px solid #cdd8d0;padding:7px 9px;text-align:left;font-size:11.5px}th{background:#eef6f0}.r{text-align:right}.chk{width:46px;text-align:center}.sign{margin-top:26px;font-size:11.5px}.sign u{display:inline-block;width:150px;border-bottom:1px solid #333;text-decoration:none}.pbtn{margin:0 0 16px;padding:10px 18px;background:#1f9d55;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer}.hint{font-size:11px;color:#63756b;margin-top:6px}@media print{.pbtn{display:none}}</style></head><body>'+
+    '<button class="pbtn" onclick="window.print()">🖨 Печать / Сохранить PDF</button>'+
+    '<div class="hd"><div><div class="br">Агро<span>Склад</span></div><div class="sub">ответственное хранение СЗР · портал вместо 1С</div></div><div style="text-align:right"><h1>'+esc(title)+'</h1><div class="sub">'+esc(today())+'</div></div></div>'+inner+'</body></html>');
+  w.document.close();
+}
+function printReceiving(id){const a=(ST.arrivals||[]).find(x=>x.id===id);if(!a)return;const p=prod(a.sku),c=cli(a.client);
+  const inner='<div class="sub" style="font-size:12px;margin-bottom:10px">Контрагент: <b>'+esc(c.name)+'</b> · Приход № '+esc(a.id)+' · когда: '+esc(a.when||'—')+'</div>'+
+    '<table><thead><tr><th style="width:34px">№</th><th>Наименование (СЗР)</th><th>Тара</th><th class="r">Кол-во, л</th><th class="chk">Факт ✓</th></tr></thead><tbody>'+
+    '<tr><td>1</td><td><b>'+esc(p.name)+'</b><div style="color:#888;font-size:10px">'+esc(a.sku)+' · '+esc(p.bc||'')+'</div></td><td>'+esc(a.tare||'—')+'</td><td class="r">'+litr(a.qty)+'</td><td class="chk"></td></tr>'+
+    '<tr><td colspan="3" style="text-align:right;font-weight:700">Итого</td><td class="r" style="font-weight:800">'+litr(a.qty)+'</td><td class="chk"></td></tr></tbody></table>'+
+    '<div class="hint">Приёмочный лист: сверьте фактически выгруженное с машины, отметьте «Факт ✓», затем в системе нажмите «Принять» — товар встанет на остаток и в ячейку.</div>'+
+    '<div class="sign">Сдал: <u></u> &nbsp;&nbsp; Принял (склад): <u></u> &nbsp;&nbsp; Дата: <u></u></div>';
+  docWindow('Приёмочный лист · приход '+a.id,inner);
+}
+function printInventoryDoc(){const map={};occCells().forEach(c=>{const k=c.client+'|'+c.sku;map[k]=map[k]||{client:c.client,sku:c.sku,qty:0,cells:[]};map[k].qty+=c.qty;map[k].cells.push(c.id);});
+  const rows=Object.values(map).sort((a,b)=>b.qty-a.qty);const tot=rows.reduce((a,r)=>a+r.qty,0);
+  const inner='<div class="sub" style="font-size:12px;margin-bottom:10px">Инвентаризационная опись остатков ответственного хранения на '+today()+'</div>'+
+    '<table><thead><tr><th style="width:30px">№</th><th>Контрагент</th><th>Товар (СЗР)</th><th>Ячейки</th><th class="r">Учёт, л</th><th class="chk">Факт</th></tr></thead><tbody>'+
+    rows.map((r,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(cli(r.client).name)+'</td><td>'+esc(prod(r.sku).name)+'</td><td style="font-size:10.5px">'+esc(r.cells.join(', '))+'</td><td class="r">'+litr(r.qty)+'</td><td class="chk"></td></tr>').join('')+
+    '<tr><td colspan="4" style="text-align:right;font-weight:700">Итого по складу</td><td class="r" style="font-weight:800">'+litr(tot)+'</td><td></td></tr></tbody></table>'+
+    '<div class="hint">Заполните столбец «Факт» при пересчёте; расхождения фиксируются актом.</div>'+
+    '<div class="sign">Комиссия: <u></u> &nbsp; <u></u> &nbsp;&nbsp; Дата: <u></u></div>';
+  docWindow('Инвентаризационная опись',inner);
+}
+function printInvoiceDoc(id){const i=(ST.invoices||[]).find(x=>x.id===id);if(!i)return;const c=cli(i.client);
+  const inner='<div class="sub" style="font-size:12px;margin-bottom:10px">Счёт № '+esc(i.id)+' за ответственное хранение · период '+esc(i.period)+'<br>Плательщик: <b>'+esc(c.name)+'</b></div>'+
+    '<table><thead><tr><th>Наименование услуги</th><th class="r">Кол-во, л</th><th class="r">Тариф, ₸/л·мес</th><th class="r">Сумма, ₸</th></tr></thead><tbody>'+
+    '<tr><td>Ответственное хранение СЗР</td><td class="r">'+litr(i.liters||0)+'</td><td class="r">'+TARIFF+'</td><td class="r">'+money(i.sum)+'</td></tr>'+
+    '<tr><td colspan="3" style="text-align:right;font-weight:700">Итого к оплате</td><td class="r" style="font-weight:800">'+money(i.sum)+'</td></tr></tbody></table>'+
+    '<div class="hint">Оплата — Kaspi / банковским переводом. Ссылка на оплату отправляется контрагенту в WhatsApp.</div>';
+  docWindow('Счёт '+i.id+' за хранение',inner);
+}
+function sendInvoiceWA(id){const i=(ST.invoices||[]).find(x=>x.id===id);if(!i)return;notify(i.client,'Счёт '+id+' за хранение на '+money(i.sum)+'. Ссылка на оплату (Kaspi/картой) — по кнопке. Спасибо!');save();renderAll();toast('📲 Ссылка на оплату счёта <b>'+esc(id)+'</b> отправлена контрагенту в WhatsApp.','blu');}
+
+/* ===== контрагенты ===== */
+function renderClients(){
+  $('cliTbl').innerHTML='<thead><tr><th>Контрагент</th><th class="r">Ячеек</th><th class="r">На хранении</th><th class="r">Сумма сделок</th><th class="r">Получено</th><th class="r">Остаток</th><th></th></tr></thead><tbody>'+
+    ST.clients.map(c=>{const cells=clientCells(c.id);const l=cells.reduce((a,x)=>a+x.qty,0);const deal=cells.reduce((a,x)=>a+(x.deal||0),0);const got=cells.reduce((a,x)=>a+recv(x),0);const debt=cells.reduce((a,x)=>a+dealDebt(x),0);
+      return '<tr onclick="openClientCab(\''+c.id+'\')"><td class="who2"><div class="av" style="background:'+c.color+'">'+esc(c.short)+'</div><span class="nm">'+esc(c.name)+'</span></td><td class="r">'+cells.length+'</td><td class="r" style="font-weight:800">'+litr(l)+'</td><td class="r">'+money(deal)+'</td><td class="r" style="color:var(--accD)">'+money(got)+'</td><td class="r" style="font-weight:800;color:'+(debt?'var(--red)':'var(--accD)')+'">'+(debt?money(debt):'✓')+'</td><td class="r"><span class="pill b">кабинет →</span></td></tr>';}).join('')+'</tbody>';
+}
+function openClientCab(id){chooseRole('client',id);}
+
+/* ===== остатки ===== */
+function renderStock(){const map={};occCells().forEach(c=>{const k=c.client+'|'+c.sku;map[k]=map[k]||{client:c.client,sku:c.sku,qty:0,cells:0};map[k].qty+=c.qty;map[k].cells++;});
+  const rows=Object.values(map).sort((a,b)=>b.qty-a.qty);
+  const scope=ROLE==='client'&&CURCLIENT?CURCLIENT:null;const rr=scope?rows.filter(r=>r.client===scope):rows;
+  const inTot=(ST.arrivals||[]).reduce((a,x)=>a+x.qty,0),outTot=(ST.shipments||[]).reduce((a,x)=>a+x.qty,0),rest=totalL();
+  $('stockKpis').innerHTML=
+    statTile('','Остаток на складе',litr(rest),'',false,'')+
+    statTile('b','Приход (период)',litr(inTot),'',false,'')+
+    statTile('a','Расход (период)',litr(outTot),'',false,'')+
+    statTile('t','Позиций хранения',rr.length+'','',false,'');
+  $('stockTbl').innerHTML='<thead><tr><th>Контрагент</th><th>Товар</th><th class="r">Ячеек</th><th class="r">Остаток</th><th>Статус</th></tr></thead><tbody>'+
+    rr.map(r=>{const c=cli(r.client),p=prod(r.sku);const low=r.qty<=p.vol;return '<tr onclick="nav(\'cells\')"><td class="who2"><div class="av" style="background:'+c.color+'">'+esc(c.short)+'</div><span class="nm">'+esc(c.name)+'</span></td><td><b>'+esc(p.name)+'</b> <span class="bc">'+esc(p.sku)+'</span></td><td class="r">'+r.cells+'</td><td class="r" style="font-weight:800">'+litr(r.qty)+'</td><td>'+(low?'<span class="pill a">заканчивается</span>':'<span class="pill g">в норме</span>')+'</td></tr>';}).join('')+'</tbody>';
+}
+
+/* ===== уведомления ===== */
+function renderNotifyTbl(){const ns=(ST.notifs||[]);const scope=ROLE==='client'&&CURCLIENT?CURCLIENT:null;const rows=scope?ns.filter(n=>n.cli===scope):ns;
+  $('notifyTbl').innerHTML='<thead><tr><th>Контрагент</th><th>Сообщение</th><th>Канал</th><th class="r">Когда</th></tr></thead><tbody>'+
+    (rows.length?rows.map(n=>{const c=cli(n.cli);return '<tr><td class="who2"><div class="av" style="background:'+c.color+'">'+esc(c.short)+'</div><span class="nm">'+esc(c.name)+'</span></td><td>'+esc(n.txt)+'</td><td><span class="pill g">'+esc(n.ch)+'</span></td><td class="r">'+esc(n.t)+'</td></tr>';}).join('')
+      :'<tr><td colspan="4" style="color:var(--faint);padding:18px">Уведомлений пока нет — они появляются при приёме и отгрузке.</td></tr>')+'</tbody>';
+}
+function renderNotifPop(){const ns=(ST.notifs||[]).slice(0,6);
+  $('notifList').innerHTML=ns.length?ns.map(n=>{const c=cli(n.cli);return '<div class="pi"><div class="ic" style="background:'+c.color+'22;color:'+c.color+';font-weight:800">'+esc(c.short)+'</div><div><div class="tx">'+esc(n.txt)+'</div><div class="tm">'+esc(c.name)+' · '+esc(n.t)+'</div></div></div>';}).join(''):'<div style="padding:16px;color:var(--faint);font-size:12.5px">Новых уведомлений нет.</div>';
+  $('notifBd').textContent=(ST.notifs||[]).length;$('notifBd').style.display=(ST.notifs||[]).length?'':'none';}
+
+/* ===== аналитика ===== */
+function renderAnalytics(){const occ=occCells().length,tot=ST.cells.length;
+  const turnover=SEASON.reduce((a,b)=>a+b,0);
+  $('anKpis').innerHTML=
+    statTile('','Оборот · год',litr(turnover*1000),'14%',false,'')+
+    statTile('b','Загрузка склада',Math.round(occ/tot*100)+'%','',false,'')+
+    statTile('t','Выручка хранение · год',(REV.reduce((a,b)=>a+b,0)/1e6).toFixed(1)+' млн ₸','18%',false,'')+
+    statTile('a','Контрагентов',ST.clients.length+' из ~80','',false,'');
+  $('anSeason').innerHTML=barsHTML(SEASON,MO,v=>(v/1000).toFixed(0)+'т',[3,4,5,6]);
+  $('anRev').innerHTML=barsHTML(REV,MO,v=>(v/1e6).toFixed(1),[3,4,5,6]);
+  const byC=ST.clients.map(c=>{const cells=clientCells(c.id);const sh=(ST.shipments||[]).filter(s=>s.client===c.id).reduce((a,s)=>a+s.qty,0);return{c,cells:cells.length,l:cells.reduce((a,x)=>a+x.qty,0),sh};}).sort((a,b)=>b.l-a.l);
+  $('anTopTbl').innerHTML='<thead><tr><th>Контрагент</th><th class="r">Ячеек</th><th class="r">На хранении</th><th class="r">Отгружено</th><th class="r">Выручка хранение/мес</th></tr></thead><tbody>'+
+    byC.map(x=>'<tr onclick="openClientCab(\''+x.c.id+'\')"><td class="who2"><div class="av" style="background:'+x.c.color+'">'+esc(x.c.short)+'</div><span class="nm">'+esc(x.c.name)+'</span></td><td class="r">'+x.cells+'</td><td class="r" style="font-weight:800">'+litr(x.l)+'</td><td class="r">'+litr(x.sh)+'</td><td class="r">'+money(x.l*35)+'</td></tr>').join('')+'</tbody>';
+}
+
+/* ===== donut (inline SVG) ===== */
+function donut(segs,size,center,sub){size=size||150;const r=size/2-15,cx=size/2,cy=size/2,C=2*Math.PI*r;
+  const tot=segs.reduce((a,s)=>a+s.v,0)||1;let a0=-90;
+  const rings=segs.map(s=>{const frac=s.v/tot,dash=frac*C;const el='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+s.color+'" stroke-width="15" stroke-dasharray="'+dash.toFixed(2)+' '+(C-dash).toFixed(2)+'" transform="rotate('+a0.toFixed(2)+' '+cx+' '+cy+')"/>';a0+=frac*360;return el;}).join('');
+  return '<svg width="'+size+'" height="'+size+'"><circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="#eef3ef" stroke-width="15"/>'+rings+'<text x="'+cx+'" y="'+(cy-1)+'" text-anchor="middle" font-size="19" font-weight="800" fill="#152a1e">'+(center!=null?center:tot)+'</text><text x="'+cx+'" y="'+(cy+15)+'" text-anchor="middle" font-size="9" fill="#63756b">'+(sub||'')+'</text></svg>';}
+
+/* ===== партии · сроки годности ===== */
+function renderBatches(){const scope=ROLE==='client'&&CURCLIENT?CURCLIENT:null;
+  let bc=batchCells();if(scope)bc=bc.filter(c=>c.client===scope);
+  bc=bc.slice().sort((a,b)=>(a.exp==null?9999:a.exp)-(b.exp==null?9999:b.exp));
+  const ok=bc.filter(c=>c.exp>30).length,soon=bc.filter(c=>c.exp>=0&&c.exp<=30).length,bad=bc.filter(c=>c.exp<0).length;
+  $('batchKpis').innerHTML=
+    statTile('','Партий на хранении',bc.length+'','',false,'')+
+    statTile('','Годны',ok+'','',false,'')+
+    statTile('a','Истекает ≤30 дней',soon+'','',false,'')+
+    statTile('r','Просрочено · карантин',bad+'','',false,'');
+  $('batchTbl').innerHTML='<thead><tr><th>Лот / партия</th><th>Товар</th><th>Контрагент</th><th>Ячейка</th><th class="r">Кол-во</th><th>Приёмка</th><th>Годен до</th><th>Статус</th><th></th></tr></thead><tbody>'+
+    (bc.length?bc.map(c=>{const p=prod(c.sku),cl=cli(c.client),st=expStatus(c.exp);
+      return '<tr onclick="openCell(\''+c.id+'\')"><td class="bc">'+esc(c.batch||'—')+'</td><td><b>'+esc(p.name)+'</b></td><td class="who2"><div class="av" style="background:'+cl.color+'">'+esc(cl.short)+'</div><span class="nm">'+esc(cl.name)+'</span></td><td><span class="pill gy">'+esc(c.id)+'</span></td><td class="r">'+litr(c.qty)+'</td><td style="color:var(--mut);font-size:12.5px">'+recvDays(c)+' дн. назад</td><td>'+expDate(c.exp)+(st.k==='soon'?' <span style="color:#b5790f;font-weight:700">· '+c.exp+' дн.</span>':st.k==='bad'?' <span style="color:var(--red);font-weight:700">· '+(-c.exp)+' дн. назад</span>':'')+'</td><td><span class="pill '+st.pill+'">'+st.t+'</span></td><td class="r">'+(st.k==='bad'?'<button class="btn dang" style="padding:5px 10px" onclick="event.stopPropagation();quarantine(\''+c.id+'\')">В карантин</button>':st.k==='soon'?'<button class="btn gh" style="padding:5px 10px" onclick="event.stopPropagation();notifyExp(\''+c.id+'\')">Уведомить</button>':'')+'</td></tr>';}).join('')
+      :'<tr><td colspan="9" style="color:var(--faint);padding:18px">Лотов нет.</td></tr>')+'</tbody>';
+}
+function quarantine(id){const c=ST.cells.find(x=>x.id===id);if(!c)return;const p=prod(c.sku),cl=cli(c.client);c.status='resv';
+  log('⛔','var(--redL)','Партия '+esc(c.batch)+' «'+esc(p.name)+'» ('+esc(c.id)+') — в карантин, срок истёк');
+  notify(c.client,'Внимание: партия '+c.batch+' ('+p.name+') просрочена и переведена в карантин. Свяжитесь со складом.');
+  save();renderAll();toast('⛔ Партия <b>'+esc(c.batch)+'</b> переведена в карантин, контрагент уведомлён. В отгрузку не попадёт.','bad');}
+function notifyExp(id){const c=ST.cells.find(x=>x.id===id);if(!c)return;const p=prod(c.sku);notify(c.client,'Срок партии '+c.batch+' ('+p.name+') истекает через '+c.exp+' дн. Рекомендуем забрать/использовать.');save();renderNotifPop();toast('📨 Контрагенту ушло напоминание о сроке партии <b>'+esc(c.batch)+'</b> (WhatsApp).','ok');}
+
+/* ===== безопасность · режим ===== */
+const HAZC={2:'#e2503d',3:'#e79a2b',4:'#12a05c'};
+function renderSafety(){
+  // зоны
+  const zoneRows=Object.entries(ZONES).map(([z,cfg])=>{const cells=occCells().filter(c=>c.zone===z);const l=cells.reduce((a,c)=>a+c.qty,0);
+    const classes=[...new Set(cells.map(c=>prod(c.sku).haz))].sort();const inNorm=cfg.cur>=cfg.lo&&cfg.cur<=cfg.hi;
+    const conflict=classes.includes(2)&&classes.includes(4);
+    return {z,cfg,cells:cells.length,l,classes,inNorm,conflict};});
+  const normOk=zoneRows.filter(x=>x.inNorm).length;
+  const conflicts=zoneRows.filter(x=>x.conflict);
+  const bc=batchCells();const risky=bc.filter(c=>c.exp<=30).length;
+  const maxHaz=Math.min(...occCells().map(c=>prod(c.sku).haz));
+  $('safeKpis').innerHTML=
+    statTile('r','Макс. класс опасности',maxHaz+'','',false,'')+
+    statTile('','Зон в норме по t°',normOk+' / '+zoneRows.length,'',false,'')+
+    statTile('a','Партий на контроле',risky+'','',false,'')+
+    statTile((conflicts.length?'r':''),'Совместимость',conflicts.length?'конфликт':'ОК','',false,'');
+  $('safeZones').innerHTML=zoneRows.map(x=>'<div class="occli"><div class="av" style="background:'+(x.inNorm?'var(--acc)':'var(--red)')+'">'+x.z+'</div><div class="oi"><div class="on"><span>Зона '+x.z+' · режим '+esc(x.cfg.temp)+'</span><span class="num" style="color:'+(x.inNorm?'var(--accD)':'var(--red)')+'">'+x.cfg.cur+'°C</span></div><div class="sub2">'+x.cells+' ячеек · '+litr(x.l)+' · классы: '+(x.classes.map(h=>'класс '+h).join(', ')||'—')+(x.conflict?' <span style="color:var(--red);font-weight:700">⚠ несовместимо</span>':'')+'</div></div></div>').join('');
+  // класс опасности по литрам
+  const byH={};occCells().forEach(c=>{const h=prod(c.sku).haz;byH[h]=(byH[h]||0)+c.qty;});
+  const segs=Object.entries(byH).map(([h,v])=>({v,color:HAZC[h]||'#8a94a6',label:'Класс '+h,h})).sort((a,b)=>a.h-b.h);
+  const totL=segs.reduce((a,s)=>a+s.v,0)||1;
+  $('safeDonut').innerHTML=donut(segs.map(s=>({v:s.v,color:s.color})),150,segs.length,'класса');
+  $('safeLeg').innerHTML=segs.map(s=>'<div class="lg"><span class="sw2" style="background:'+s.color+'"></span><span class="lgn">'+esc(s.label)+' ('+hazText(s.h).split('·')[1].trim()+')</span><span class="lgv">'+litr(s.v)+'</span><span class="lgp">'+Math.round(s.v/totL*100)+'%</span></div>').join('');
+  // проверки
+  const checks=[];
+  zoneRows.forEach(x=>{if(!x.inNorm)checks.push(['⚠','var(--redL)','<b>Зона '+x.z+':</b> температура '+x.cfg.cur+'°C вне нормы '+x.cfg.temp+' — проверьте климат.']);});
+  conflicts.forEach(x=>checks.push(['⚠','var(--ambL)','<b>Зона '+x.z+':</b> рядом класс 2 (высокоопасное) и класс 4 — рекомендуется развести по разным зонам.']));
+  if(risky)checks.push(['⏳','var(--ambL)','<b>'+risky+' партий</b> с истекающим/истёкшим сроком — см. раздел «Партии · сроки».']);
+  checks.push(['🧯','var(--accL)','Средства пожаротушения и СИЗ по зонам — в норме. Проливные поддоны под тарой.']);
+  checks.push(['📋','var(--accL)','Журнал температур и партий формируется автоматически — готов к проверке.']);
+  $('safeChecks').innerHTML=checks.map(c=>'<div class="fx"><div class="ic" style="background:'+c[1]+'">'+c[0]+'</div><div class="fxt">'+c[2]+'</div></div>').join('');
+}
+
+/* ===== хранение · счета ===== */
+function accrual(){return ST.clients.map(c=>{const l=clientCells(c.id).reduce((a,x)=>a+x.qty,0);return{c,l,sum:l*TARIFF};}).filter(x=>x.l);}
+function renderBilling(){const inv=ST.invoices||[];const scope=ROLE==='client'&&CURCLIENT?CURCLIENT:null;
+  const acc=accrual().filter(a=>!scope||a.c.id===scope);
+  const accTot=acc.reduce((a,x)=>a+x.sum,0);
+  const shownInv=scope?inv.filter(i=>i.client===scope):inv;
+  const paid=shownInv.filter(i=>i.status==='оплачен').reduce((a,i)=>a+i.sum,0);
+  const debt=shownInv.filter(i=>i.status!=='оплачен').reduce((a,i)=>a+i.sum,0);
+  $('billKpis').innerHTML=
+    statTile('g','Начислено · текущий мес',(accTot/1e6).toFixed(2)+' млн ₸','',false,'')+
+    statTile('','Оплачено (пред. мес)',money(paid),'',false,'')+
+    statTile('r','Задолженность',money(debt),'',false,'')+
+    statTile('b','Тариф хранения',TARIFF+' ₸/л·мес','',false,'');
+  $('accrualTbl').innerHTML='<thead><tr><th>Контрагент</th><th class="r">На хранении</th><th class="r">К оплате / мес</th><th></th></tr></thead><tbody>'+
+    (acc.length?acc.map(x=>'<tr><td class="who2"><div class="av" style="background:'+x.c.color+'">'+esc(x.c.short)+'</div><span class="nm">'+esc(x.c.name)+'</span></td><td class="r">'+litr(x.l)+'</td><td class="r" style="font-weight:800">'+money(x.sum)+'</td><td class="r"><button class="btn pri" style="padding:5px 11px" onclick="issueInvoice(\''+x.c.id+'\')">Выставить счёт</button></td></tr>').join(''):'<tr><td colspan="4" style="color:var(--faint);padding:16px">Нет данных.</td></tr>')+'</tbody>';
+  $('invTbl').innerHTML='<thead><tr><th>№</th><th>Контрагент</th><th>Период</th><th class="r">Сумма</th><th>Статус</th><th></th></tr></thead><tbody>'+
+    (shownInv.length?shownInv.map(i=>{const c=cli(i.client);const st=i.status==='оплачен'?'g':i.status==='просрочен'?'r':'a';
+      return '<tr><td class="bc">'+esc(i.id)+'</td><td class="who2"><div class="av" style="background:'+c.color+'">'+esc(c.short)+'</div><span class="nm">'+esc(c.name)+'</span></td><td>'+esc(i.period)+'</td><td class="r" style="font-weight:800">'+money(i.sum)+'</td><td><span class="pill '+st+'">'+esc(i.status)+'</span></td><td class="r" style="white-space:nowrap"><button class="btn gh" style="padding:5px 9px" onclick="event.stopPropagation();printInvoiceDoc(\''+i.id+'\')" title="Печать счёта">🖨</button> '+(i.status!=='оплачен'?'<button class="btn blu" style="padding:5px 9px" onclick="event.stopPropagation();sendInvoiceWA(\''+i.id+'\')" title="Ссылка на оплату в WhatsApp">📲</button> <button class="btn gh" style="padding:5px 10px" onclick="event.stopPropagation();markPaid(\''+i.id+'\')">Оплата пришла</button>':'<span class="pill g">✓</span>')+'</td></tr>';}).join('')
+      :'<tr><td colspan="6" style="color:var(--faint);padding:16px">Счетов нет.</td></tr>')+'</tbody>';
+}
+function issueInvoice(cid){const c=cli(cid);const l=clientCells(cid).reduce((a,x)=>a+x.qty,0);const sum=l*TARIFF;if(!l){toast('У контрагента нет товара на хранении.','warn');return;}
+  ST.invoices=ST.invoices||[];const id='СЧ-'+(617+ST.invoices.length);
+  ST.invoices.unshift({id,client:cid,period:'Июль 2026',liters:l,sum,status:'выставлен',date:expDate(0)});
+  notify(cid,'Счёт '+id+' за хранение (июль): '+litr(l)+' × '+TARIFF+' ₸ = '+money(sum)+'. Оплата Kaspi/переводом.');
+  save();renderAll();toast('💳 Счёт <b>'+id+'</b> на <b>'+money(sum)+'</b> выставлен «'+esc(c.name)+'» и отправлен в WhatsApp.','ok');}
+function markPaid(id){const i=(ST.invoices||[]).find(x=>x.id===id);if(!i)return;i.status='оплачен';
+  log('💰','var(--accL)','Оплата по счёту '+esc(id)+' — '+money(i.sum)+' ('+esc(cli(i.client).name)+')');
+  save();renderAll();toast('✅ Счёт <b>'+esc(id)+'</b> отмечен оплаченным. Задолженность пересчитана.','ok');}
+
+/* ===== заявки (приход/уход) ===== */
+function reqRows(scope){
+  const inR=(ST.arrivals||[]).map(a=>({id:a.id,type:'in',client:a.client,sku:a.sku,qty:a.qty,tare:a.tare,when:a.when,self:a.self,cell:a.cell,kind:'arr',
+    status:a.status==='размещено'?'выполнена':a.status==='принято'?'в работе':'новая'}));
+  const outR=(ST.requests||[]).map(r=>({id:r.id,type:'out',client:r.client,sku:r.sku,qty:r.qty,when:r.when,self:r.self,cell:r.cell,kind:'req',status:r.status}));
+  let rows=inR.concat(outR);if(scope)rows=rows.filter(r=>r.client===scope);return rows;
+}
+function renderRequests(){
+  const scope=ROLE==='client'&&CURCLIENT?CURCLIENT:null;
+  const full=reqRows(scope);
+  let rows=full.slice();
+  if(REQFILT==='in')rows=rows.filter(r=>r.type==='in');else if(REQFILT==='out')rows=rows.filter(r=>r.type==='out');else if(REQFILT==='new')rows=rows.filter(r=>r.status==='новая');
+  const openCnt=full.filter(r=>r.status==='новая'||r.status==='в работе').length;
+  $('reqSub').textContent=scope?('заявки контрагента «'+cli(scope).name+'» — подавайте приход и уход, склад выполнит'):('контрагенты подают заявки удалённо · '+openCnt+' в работе');
+  const chips=[['all','Все'],['in','Приход'],['out','Уход'],['new','Новые']];
+  $('reqFilt').innerHTML=chips.map(c=>{const n=c[0]==='all'?full.length:c[0]==='new'?full.filter(r=>r.status==='новая').length:full.filter(r=>r.type===c[0]).length;return '<button class="fc'+(REQFILT===c[0]?' on':'')+'" onclick="setReqFilt(\''+c[0]+'\')">'+c[1]+' <span style="opacity:.6">'+n+'</span></button>';}).join('');
+  $('reqTbl').innerHTML='<thead><tr><th>№</th><th>Тип</th><th>Контрагент</th><th>Товар</th><th class="r">Кол-во</th><th>Когда</th><th>Статус</th><th></th></tr></thead><tbody>'+
+    (rows.length?rows.map(r=>{const p=prod(r.sku),c=cli(r.client);const st=r.status==='выполнена'?'g':r.status==='отклонена'?'r':r.status==='в работе'?'b':'a';
+      const open=r.status==='новая'||r.status==='в работе';
+      const act=open?(ROLE==='client'?'<span class="pill a">ждёт склад</span>':'<button class="btn '+(r.type==='in'?'pri':'blu')+'" style="padding:6px 11px" onclick="executeReq(\''+r.kind+'\',\''+r.id+'\')">'+(r.type==='in'?'Принять':'Выполнить')+'</button> <button class="btn gh" style="padding:6px 9px" onclick="rejectReq(\''+r.kind+'\',\''+r.id+'\')">✕</button>'):(r.cell?'<span class="pill g">✓ '+esc(r.cell)+'</span>':'<span class="pill g">✓</span>');
+      return '<tr><td class="bc">'+esc(r.id)+'</td><td><span class="pill '+(r.type==='in'?'g':'b')+'">'+(r.type==='in'?'📥 приход':'📤 уход')+'</span></td><td class="who2"><div class="av" style="background:'+c.color+'">'+esc(c.short)+'</div><span class="nm">'+esc(c.name)+'</span></td><td><b>'+esc(p.name)+'</b>'+(r.tare?' <span class="bc">'+esc(r.tare)+'</span>':'')+'</td><td class="r">'+litr(r.qty)+'</td><td>'+esc(r.when)+(r.self?' <span class="pill v" style="font-size:9px">от клиента</span>':'')+'</td><td><span class="pill '+st+'">'+esc(r.status)+'</span></td><td class="r">'+act+'</td></tr>';}).join('')
+      :'<tr><td colspan="8" style="color:var(--faint);padding:18px">Заявок нет.</td></tr>')+'</tbody>';
+}
+function setReqFilt(f){REQFILT=f;renderRequests();}
+function executeReq(kind,id){if(kind==='arr'){acceptArrival(id);return;}const r=(ST.requests||[]).find(x=>x.id===id);if(!r)return;r.status='в работе';openShipForm(r.client,r.sku,r.qty,id);}
+function rejectReq(kind,id){
+  if(kind==='arr'){const a=(ST.arrivals||[]).find(x=>x.id===id);if(a){ST.arrivals=ST.arrivals.filter(x=>x.id!==id);notify(a.client,'Заявка на приход '+id+' отклонена складом.');}}
+  else{const r=(ST.requests||[]).find(x=>x.id===id);if(r){r.status='отклонена';notify(r.client,'Заявка на уход '+id+' отклонена. Свяжитесь со складом.');}}
+  save();renderAll();toast('Заявка '+esc(id)+' отклонена, контрагент уведомлён.','warn');}
+/* форма заявки */
+function openReqForm(){$('reqCabNote').style.display=ROLE==='client'?'':'none';
+  $('rClient').innerHTML=ST.clients.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
+  if(ROLE==='client'&&CURCLIENT){$('rClient').value=CURCLIENT;$('rClient').disabled=true;}else $('rClient').disabled=false;
+  $('rQty').value='';setReqType('in');$('reqOvl').classList.add('show');}
+function setReqType(t){REQTYPE=t;$('rtIn').classList.toggle('on',t==='in');$('rtOut').classList.toggle('on',t==='out');
+  $('reqTitle').textContent=t==='in'?'Заявка на приход':'Заявка на уход';$('rTareWrap').style.display=t==='in'?'':'none';$('rSkuLbl').textContent=t==='in'?'Товар (СЗР)':'Товар на вашем хранении';reqSkuList();}
+function reqSkuList(){const cid=$('rClient').value;
+  if(REQTYPE==='in'){$('rSku').innerHTML=ST.catalog.map(p=>'<option value="'+p.sku+'">'+esc(p.name)+' ('+p.vol+' л)</option>').join('');$('reqHint').textContent='';}
+  else{const bySku={};clientCells(cid).forEach(c=>{bySku[c.sku]=(bySku[c.sku]||0)+c.qty;});
+    $('rSku').innerHTML=Object.entries(bySku).map(([sku,q])=>'<option value="'+sku+'">'+esc(prod(sku).name)+' — на хранении '+q+' л</option>').join('')||'<option value="">нет товара на хранении</option>';
+    reqUpd();}}
+function reqUpd(){if(REQTYPE!=='out')return;const cid=$('rClient').value,sku=$('rSku').value;const have=clientCells(cid).filter(c=>c.sku===sku).reduce((a,c)=>a+c.qty,0);$('reqHint').textContent=sku?('Доступно к отгрузке: '+have+' л (по вашему остатку).'):'';}
+function saveReq(){const cid=$('rClient').value,sku=$('rSku').value,qty=parseInt($('rQty').value)||0,when=$('rWhen').value;
+  if(!sku||!qty){toast('Укажите товар и количество.','warn');return;}
+  const c=cli(cid),p=prod(sku);
+  if(REQTYPE==='in'){const tare=$('rTare').value;const id='ПР-'+(7100+((ST.arrivals||[]).length));
+    ST.arrivals=ST.arrivals||[];ST.arrivals.unshift({id,client:cid,sku,tare,qty,when,zone:'',status:'ожидается',self:ROLE==='client'});
+    log('📥','var(--accL)','Заявка на приход '+litr(qty)+' «'+esc(p.name)+'» — '+esc(c.name)+(ROLE==='client'?' (от клиента)':''));
+    notify(cid,'Заявка на приход принята: '+p.name+' — '+litr(qty)+'. Ждём: '+when+'.');}
+  else{const have=clientCells(cid).filter(x=>x.sku===sku).reduce((a,x)=>a+x.qty,0);
+    if(qty>have){toast('На хранении только '+have+' л.','warn');return;}
+    const id='ЗАЯ-'+(3013+((ST.requests||[]).length));
+    ST.requests=ST.requests||[];ST.requests.unshift({id,type:'out',client:cid,sku,qty,when,status:'новая',created:'только что',self:ROLE==='client'});
+    log('📤','var(--bluL)','Заявка на уход '+litr(qty)+' «'+esc(p.name)+'» — '+esc(c.name)+(ROLE==='client'?' (от клиента)':''));
+    notify(cid,'Заявка на уход зарегистрирована: '+p.name+' — '+litr(qty)+'. Склад скомплектует и отгрузит.');}
+  save();closeModal('reqOvl');renderAll();nav('arrivals');
+  toast('📋 Заявка подана'+(ROLE==='client'?' из кабинета контрагента':'')+'. '+(REQTYPE==='in'?'Склад примет и разместит в ячейку.':'Склад выполнит отгрузку по вашему остатку.'),'ok');}
+
+/* ===== стратегия списания + отгрузка ===== */
+let SHIPREQID=null;
+function manualSel(){return [...document.querySelectorAll('#shipManual input:checked')].map(i=>i.value);}
+function setStrat(m){SHIPMODE=m;document.querySelectorAll('#shipStrat .stratchip').forEach(b=>b.classList.toggle('on',b.dataset.m===m));$('shipManual').style.display=m==='manual'?'':'none';shipUpd();}
+function renderShip(){/* совместимость: журнал движения */renderMoves&&renderMoves();}
+
+/* ===== движение · история ===== */
+function renderMoves(){
+  const scope=ROLE==='client'&&CURCLIENT?CURCLIENT:null;
+  let mv=(ST.moves||[]).slice();
+  if(scope)mv=mv.filter(m=>m.client===scope);
+  let f=mv.slice();
+  if(MVFILT.type!=='all')f=f.filter(m=>m.type===MVFILT.type);
+  if(MVFILT.prod)f=f.filter(m=>m.sku===MVFILT.prod);
+  if(MVFILT.client&&!scope)f=f.filter(m=>m.client===MVFILT.client);
+  if(MVFILT.cell)f=f.filter(m=>(m.cell||'').includes(MVFILT.cell));
+  const types=[['all','Все'],['in','Приход'],['out','Расход'],['move','Перемещение'],['inv','Инвент.']];
+  const prodOpts='<option value="">Товар: все</option>'+ST.catalog.map(p=>'<option value="'+p.sku+'"'+(MVFILT.prod===p.sku?' selected':'')+'>'+esc(p.name)+'</option>').join('');
+  const cliOpts='<option value="">Контрагент: все</option>'+ST.clients.map(c=>'<option value="'+c.id+'"'+(MVFILT.client===c.id?' selected':'')+'>'+esc(c.name)+'</option>').join('');
+  const cellOpts='<option value="">Ячейка: все</option>'+ST.cells.map(c=>c.id).map(id=>'<option'+(MVFILT.cell===id?' selected':'')+'>'+id+'</option>').join('');
+  $('mvFilt').innerHTML=types.map(t=>'<button class="fc'+(MVFILT.type===t[0]?' on':'')+'" onclick="setMv(\'type\',\''+t[0]+'\')">'+t[1]+'</button>').join('')+
+    '<select onchange="setMv(\'prod\',this.value)">'+prodOpts+'</select>'+(scope?'':'<select onchange="setMv(\'client\',this.value)">'+cliOpts+'</select>')+'<select onchange="setMv(\'cell\',this.value)">'+cellOpts+'</select>'+
+    ((MVFILT.type!=='all'||MVFILT.prod||MVFILT.client||MVFILT.cell)?'<button class="fc" onclick="clearMv()">✕ сбросить</button>':'');
+  const inL=f.filter(m=>m.type==='in').reduce((a,m)=>a+m.qty,0),outL=f.filter(m=>m.type==='out').reduce((a,m)=>a+m.qty,0);
+  $('mvKpis').innerHTML=statTile('','Операций',f.length+'','',false,'')+statTile('','Приход · Σ',litr(inL),'',false,'')+statTile('b','Расход · Σ',litr(outL),'',false,'')+statTile('t','Перемещений',f.filter(m=>m.type==='move').length+'','',false,'');
+  const ic={in:['📥','g','приход','mvin','+'],out:['📤','b','расход','mvout','−'],move:['↔','v','перемещение','mvmove',''],inv:['⚖️','a','инвентаризация','mvinv','']};
+  $('mvTbl').innerHTML='<thead><tr><th>Когда</th><th>Операция</th><th>Товар</th><th>Контрагент</th><th>Ячейка</th><th class="r">Кол-во</th><th>Примечание</th></tr></thead><tbody>'+
+    (f.length?f.map(m=>{const p=prod(m.sku),c=cli(m.client),k=ic[m.type]||ic.in;
+      return '<tr><td style="white-space:nowrap">'+esc(m.d)+'</td><td><span class="pill '+k[1]+'">'+k[0]+' '+k[2]+'</span></td><td><b>'+esc(p?p.name:m.sku)+'</b></td><td class="who2"><div class="av" style="background:'+(c?c.color:'#999')+';width:26px;height:26px;font-size:10px">'+esc(c?c.short:'—')+'</div><span class="nm" style="font-size:12.5px">'+esc(c?c.name:'—')+'</span></td><td><span class="pill gy">'+esc(m.cell||'—')+'</span></td><td class="r '+k[3]+'" style="font-weight:800">'+k[4]+litr(m.qty)+'</td><td style="color:var(--mut);font-size:12.5px">'+esc(m.note||'')+'</td></tr>';}).join('')
+      :'<tr><td colspan="7" style="color:var(--faint);padding:18px">Нет операций по выбранному фильтру.</td></tr>')+'</tbody>';
+}
+function setMv(k,v){MVFILT[k]=v;renderMoves();}
+function clearMv(){MVFILT={type:'all',prod:'',client:'',cell:''};renderMoves();}
+
+/* ===== топбар / бейджи ===== */
+function renderQchips(){const occ=occCells().length,tot=ST.cells.length;const arrW=(ST.arrivals||[]).filter(a=>a.status!=='размещено').length;
+  $('qchips').innerHTML='<div class="qchip g"><div class="qv">'+Math.round(occ/tot*100)+'%</div><div class="ql">загрузка</div></div><div class="qchip b"><div class="qv">'+occ+'/'+tot+'</div><div class="ql">ячеек</div></div><div class="qchip a"><div class="qv">'+arrW+'</div><div class="ql">приходов ждут</div></div>';}
+function renderBadges(){const n=reqRows(ROLE==='client'&&CURCLIENT?CURCLIENT:null).filter(r=>r.status==='новая'||r.status==='в работе').length;$('nbArr').textContent=n;$('nbArr').style.display=n?'':'none';
+  const ex=batchCells().filter(c=>c.exp<=30).length;if($('nbExp')){$('nbExp').textContent=ex;$('nbExp').style.display=ex?'':'none';}
+  const iv=(ST.invoices||[]).filter(i=>i.status!=='оплачен').length;if($('nbInv')){$('nbInv').textContent=iv;$('nbInv').style.display=iv?'':'none';}}
+function closeModal(id){$(id).classList.remove('show')}
+
+/* ===== данные ===== */
+function defaults(){
+  const clients=[
+    {id:'c1',name:'ТОО «АгроТрейд»',short:'АТ',color:'#2f7ff0'},
+    {id:'c2',name:'ТОО «КазАгро Химия»',short:'КХ',color:'#7d6fe8'},
+    {id:'c3',name:'ТОО «Дала-Астык»',short:'ДА',color:'#e79a2b'},
+    {id:'c4',name:'КХ «Заря»',short:'ЗА',color:'#12a05c'},
+    {id:'c5',name:'ТОО «Северное зерно»',short:'СЗ',color:'#e2503d'},
+    {id:'c6',name:'ТОО «АгроХимСервис»',short:'ХС',color:'#0ea5a5'},
+    {id:'c7',name:'ТОО «Кызылорда-Агро»',short:'КА',color:'#c2410c'},
+    {id:'c8',name:'КХ «Меркенское»',short:'МК',color:'#6d28d9'},
+    {id:'c9',name:'ТОО «Тараз Химопт»',short:'ТХ',color:'#0369a1'},
+  ];
+  const catalog=[
+    {sku:'СЗР-0142',name:'Гербицид «Раундап» (глифосат)',cat:'Гербицид',pc:'g',vol:20,bc:'4870201145621',haz:3,temp:'+5…+30°C'},
+    {sku:'СЗР-0207',name:'Гербицид «Прима»',cat:'Гербицид',pc:'g',vol:5,bc:'4870201207845',haz:3,temp:'+5…+30°C'},
+    {sku:'СЗР-0311',name:'Инсектицид «Актара»',cat:'Инсектицид',pc:'a',vol:1,bc:'4870203110238',haz:2,temp:'0…+30°C'},
+    {sku:'СЗР-0356',name:'Инсектицид «Каратэ Зеон»',cat:'Инсектицид',pc:'a',vol:5,bc:'4870203560149',haz:2,temp:'0…+30°C'},
+    {sku:'СЗР-0428',name:'Фунгицид «Тилт»',cat:'Фунгицид',pc:'b',vol:10,bc:'4870204281067',haz:3,temp:'+5…+35°C'},
+    {sku:'СЗР-0463',name:'Фунгицид «Ридомил Голд»',cat:'Фунгицид',pc:'b',vol:5,bc:'4870204630582',haz:3,temp:'+5…+35°C'},
+    {sku:'СЗР-0510',name:'Протравитель «Максим»',cat:'Протравитель',pc:'v',vol:5,bc:'4870205104473',haz:2,temp:'+5…+30°C'},
+    {sku:'СЗР-0587',name:'Десикант «Реглон Форте»',cat:'Десикант',pc:'t',vol:20,bc:'4870205870916',haz:2,temp:'0…+30°C'},
+    {sku:'СЗР-0612',name:'Гербицид «Гезагард»',cat:'Гербицид',pc:'g',vol:10,bc:'4870206121350',haz:3,temp:'+5…+30°C'},
+    {sku:'СЗР-0704',name:'Адъювант «Тренд 90»',cat:'Адъювант',pc:'gy',vol:100,bc:'4870207041882',haz:4,temp:'+5…+40°C'},
+  ];
+  // ячейки: 3 зоны по 18 = 54; заполним ~34
+  const cells=[];const zones=['A','B','C'];
+  // формат: [id, client, sku, qty, tare, arrived, status, партия, дней до годности]
+  const occPlan=[
+    // zone A
+    ['A-01','c1','СЗР-0142',560,'20 л','2 дня назад','','П-2405',420],['A-02','c1','СЗР-0612',380,'10 л','2 дня назад','','П-2403',180],['A-03','c1','СЗР-0311',180,'1 л','вчера','','П-2404',25],
+    ['A-04','c3','СЗР-0207',420,'5 л','вчера','','П-2402',320],['A-05','c3','СЗР-0428',300,'10 л','3 дня назад','','П-2312',-8],['A-06','c1','СЗР-0142',300,'20 л','25 дней назад','','П-2312',250],['A-07','c2','СЗР-0356',480,'5 л','сегодня','','П-2406',540],
+    ['A-08','c2','СЗР-0463',260,'5 л','сегодня','','П-2405',260],['A-09','c1','СЗР-0142',240,'20 л','сегодня','','П-2501',180],['A-10','c5','СЗР-0142',600,'20 л','4 дня назад','','П-2404',400],['A-11','c5','СЗР-0587',540,'20 л','4 дня назад','','П-2401',28],
+    ['A-12','c1','СЗР-0356',300,'5 л','вчера','','П-2405',270],
+    ['A-13','c7','СЗР-0142',480,'20 л','3 дня назад','','П-2404',390],['A-14','c9','СЗР-0463',210,'5 л','вчера','','П-2405',240],['A-15','c8','СЗР-0207',360,'5 л','сегодня','','П-2406',330],
+    // zone B
+    ['B-01','c4','СЗР-0510',220,'5 л','вчера','','П-2403',210],['B-02','c4','СЗР-0704',900,'100 л','5 дней назад','','П-2312',600],['B-03','c6','СЗР-0428',340,'10 л','2 дня назад','','П-2405',300],
+    ['B-04','c6','СЗР-0311',95,'1 л','сегодня','','П-2406',480],['B-05','c7','СЗР-0587',540,'20 л','4 дня назад','','П-2401',35],['B-06','c1','СЗР-0463',180,'5 л','3 дня назад','','П-2402',12],['B-07','c3','СЗР-0142',480,'20 л','вчера','','П-2404',350],
+    ['B-08','c8','СЗР-0612',300,'10 л','2 дня назад','','П-2403',225],['B-09','c2','СЗР-0612',260,'10 л','2 дня назад','','П-2403',220],['B-10','c5','СЗР-0207',150,'5 л','сегодня','','П-2406',500],
+    ['B-11','c9','СЗР-0356',420,'5 л','3 дня назад','','П-2404',280],['B-12','c7','СЗР-0428',260,'10 л','вчера','','П-2405',260],
+    // zone C
+    ['C-01','c4','СЗР-0142',520,'20 л','неделю назад','','П-2311',-18],['C-02','c6','СЗР-0587',600,'20 л','3 дня назад','','П-2404',330],['C-03','c1','СЗР-0704',700,'100 л','неделю назад','','П-2401',560],
+    ['C-04','c8','СЗР-0510',180,'5 л','сегодня','','П-2406',460],['C-05','c3','СЗР-0356',360,'5 л','вчера','','П-2405',290],['C-06','c2','СЗР-0142',540,'20 л','2 дня назад','','П-2404',380],['C-07',null,null,0,null,null,'ship'],
+    ['C-08','c5','СЗР-0510',140,'5 л','сегодня','','П-2406',450],['C-09','c6','СЗР-0612',300,'10 л','вчера','','П-2403',200],['C-10','c4','СЗР-0428',260,'10 л','3 дня назад','','П-2405',270],
+    ['C-11','c9','СЗР-0704',600,'100 л','неделю назад','','П-2401',520],['C-12','c8','СЗР-0142',440,'20 л','2 дня назад','','П-2404',360],
+  ];
+  const filled=new Set();
+  occPlan.forEach(r=>{const [id,client,sku,qty,tare,arrived,status,batch,exp]=r;const zone=id[0];const p=client?catalog.find(x=>x.sku===sku):null;
+    cells.push({id,zone,client:client||null,sku:sku||null,qty:qty||0,tare:tare||null,bc:p?p.bc:null,arrived:arrived||null,status:status||'',batch:batch||null,exp:(exp==null?null:exp)});filled.add(id);});
+  // добить свободными до 18 в зоне
+  zones.forEach(z=>{const have=cells.filter(c=>c.zone===z).length;for(let i=have;i<18;i++){const id=z+'-'+String(i+1).padStart(2,'0');if(filled.has(id))continue;cells.push({id,zone:z,client:null,sku:null,qty:0,status:''});}});
+  cells.sort((a,b)=>a.id<b.id?-1:1);
+  // суммы сделок и платежи по датам (что когда заходит)
+  cells.forEach((c,i)=>{if(!c.client)return;
+    c.deal=Math.round((c.qty*(2400+(i%5)*400))/1000)*1000;c.pays=[];
+    const r=i%4;const k=x=>Math.round(c.deal*x/1000)*1000;
+    if(r===1)c.pays.push({d:'08.07.2026',sum:k(0.5)});
+    else if(r===2){c.pays.push({d:'03.07.2026',sum:k(0.3)});c.pays.push({d:'11.07.2026',sum:k(0.4)});}
+    else if(r===3){c.pays.push({d:'01.07.2026',sum:k(0.6)});c.pays.push({d:'09.07.2026',sum:c.deal-k(0.6)});}});
+  const arrivals=[
+    {id:'ПР-7101',client:'c2',sku:'СЗР-0356',tare:'5 л',qty:600,when:'сегодня, 14:00',status:'ожидается',self:true},
+    {id:'ПР-7102',client:'c3',sku:'СЗР-0142',tare:'20 л',qty:400,when:'сегодня, 16:30',status:'ожидается',self:true},
+    {id:'ПР-7103',client:'c1',sku:'СЗР-0311',tare:'1 л',qty:120,when:'завтра утром',status:'ожидается',self:false},
+    {id:'ПР-7107',client:'c7',sku:'СЗР-0142',tare:'20 л',qty:480,when:'завтра днём',status:'ожидается',self:true},
+    {id:'ПР-7106',client:'c1',sku:'СЗР-0704',tare:'100 л',qty:300,when:'послезавтра',status:'ожидается',self:true},
+    {id:'ПР-7104',client:'c5',sku:'СЗР-0587',tare:'20 л',qty:540,when:'вчера',status:'принято',self:true},
+    {id:'ПР-7105',client:'c8',sku:'СЗР-0207',tare:'5 л',qty:360,when:'сегодня',status:'принято',self:true},
+    {id:'ПР-7099',client:'c4',sku:'СЗР-0704',tare:'100 л',qty:900,when:'5 дней назад',status:'размещено',self:true,cell:'B-02'},
+    {id:'ПР-7098',client:'c1',sku:'СЗР-0463',tare:'5 л',qty:180,when:'3 дня назад',status:'размещено',self:true,cell:'B-06'},
+  ];
+  const shipments=[
+    {id:'ОТГ-4201',client:'c1',sku:'СЗР-0142',qty:200,cell:'A-01',date:'сегодня 09:40',status:'отгружено'},
+    {id:'ОТГ-4200',client:'c3',sku:'СЗР-0428',qty:150,cell:'A-05',date:'сегодня 08:55',status:'отгружено'},
+    {id:'ОТГ-4199',client:'c5',sku:'СЗР-0142',qty:300,cell:'A-10',date:'вчера 17:20',status:'отгружено'},
+    {id:'ОТГ-4198',client:'c1',sku:'СЗР-0704',qty:180,cell:'C-03',date:'вчера 11:30',status:'отгружено'},
+    {id:'ОТГ-4197',client:'c7',sku:'СЗР-0428',qty:120,cell:'B-12',date:'2 дня назад 15:05',status:'отгружено'},
+    {id:'ОТГ-4196',client:'c6',sku:'СЗР-0612',qty:200,cell:'C-09',date:'2 дня назад 10:40',status:'отгружено'},
+  ];
+  const notifs=[
+    {cli:'c2',txt:'Приход зарегистрирован: Инсектицид «Каратэ Зеон» — 600 л. Ждём сегодня 14:00.',t:'12 мин назад',ch:'WhatsApp'},
+    {cli:'c1',txt:'Заказ отгружен: Гербицид «Раундап» — 200 л. Ячейка A-01.',t:'34 мин назад',ch:'WhatsApp'},
+    {cli:'c1',txt:'Заявка на уход ЗАЯ-3012 принята в работу. Скомплектуем сегодня.',t:'50 мин назад',ch:'WhatsApp'},
+    {cli:'c7',txt:'Товар принят и размещён: Гербицид «Раундап» — ячейка A-13.',t:'1 ч назад',ch:'WhatsApp'},
+    {cli:'c4',txt:'Товар принят и размещён: Адъювант «Тренд 90» — ячейка B-02.',t:'1 ч назад',ch:'WhatsApp'},
+    {cli:'c1',txt:'Внимание: партия П-2402 (Ридомил Голд, B-06) — срок годности истекает через 12 дней.',t:'2 ч назад',ch:'WhatsApp'},
+    {cli:'c3',txt:'Заказ отгружен: Фунгицид «Тилт» — 150 л.',t:'1 ч назад',ch:'WhatsApp'},
+    {cli:'c1',txt:'Счёт СЧ-0620 за июль на 88 900 ₸ выставлен. Оплата до 05.08.',t:'3 ч назад',ch:'WhatsApp'},
+    {cli:'c8',txt:'Приход принят: Гербицид «Прима» — 360 л, ячейка A-15.',t:'4 ч назад',ch:'WhatsApp'},
+  ];
+  const txlog=[
+    ['📤','var(--bluL)','Отгрузка 200 л «Раундап» из A-01 — ТОО «АгроТрейд»','09:40'],
+    ['📥','var(--accL)','Приход 540 л «Реглон Форте» — ТОО «Северное зерно» (внёс клиент)','09:10'],
+    ['✅','var(--accL)','Приход ПР-7099 размещён в ячейку B-02 — авто-встал на остаток','08:30'],
+    ['📤','var(--bluL)','Отгрузка 150 л «Тилт» из A-05 — ТОО «Дала-Астык»','08:55'],
+    ['🟢','var(--accL)','Ячейка A-09 освободилась после отгрузки','вчера 17:25'],
+    ['📥','var(--accL)','Приход 480 л «Каратэ Зеон» — ТОО «КазАгро Химия»','вчера 15:10'],
+  ];
+  const invoices=[
+    {id:'СЧ-0620',client:'c1',period:'Июль 2026',liters:2540,sum:88900,status:'выставлен',date:'05.07.2026'},
+    {id:'СЧ-0621',client:'c3',period:'Июль 2026',liters:1200,sum:42000,status:'выставлен',date:'05.07.2026'},
+    {id:'СЧ-0622',client:'c7',period:'Июль 2026',liters:1220,sum:42700,status:'выставлен',date:'05.07.2026'},
+    {id:'СЧ-0612',client:'c1',period:'Июнь 2026',liters:1600,sum:56000,status:'оплачен',date:'01.07.2026'},
+    {id:'СЧ-0613',client:'c3',period:'Июнь 2026',liters:1560,sum:54600,status:'оплачен',date:'01.07.2026'},
+    {id:'СЧ-0614',client:'c2',period:'Июнь 2026',liters:1540,sum:53900,status:'просрочен',date:'01.07.2026'},
+    {id:'СЧ-0615',client:'c4',period:'Июнь 2026',liters:1900,sum:66500,status:'выставлен',date:'05.07.2026'},
+    {id:'СЧ-0616',client:'c5',period:'Июнь 2026',liters:1430,sum:50050,status:'выставлен',date:'05.07.2026'},
+    {id:'СЧ-0617',client:'c6',period:'Июнь 2026',liters:1240,sum:43400,status:'оплачен',date:'01.07.2026'},
+    {id:'СЧ-0618',client:'c8',period:'Июнь 2026',liters:1140,sum:39900,status:'выставлен',date:'05.07.2026'},
+    {id:'СЧ-0619',client:'c9',period:'Июнь 2026',liters:1230,sum:43050,status:'оплачен',date:'01.07.2026'},
+    {id:'СЧ-0608',client:'c1',period:'Май 2026',liters:1480,sum:51800,status:'оплачен',date:'01.06.2026'},
+  ];
+  // заявки на уход/расход, поданные контрагентами из кабинета (приход-заявки — в arrivals)
+  const requests=[
+    {id:'ЗАЯ-3012',type:'out',client:'c1',sku:'СЗР-0142',qty:200,when:'сегодня',status:'новая',created:'20 мин назад',self:true},
+    {id:'ЗАЯ-3011',type:'out',client:'c3',sku:'СЗР-0207',qty:120,when:'завтра утром',status:'новая',created:'1 ч назад',self:true},
+    {id:'ЗАЯ-3009',type:'out',client:'c7',sku:'СЗР-0142',qty:180,when:'сегодня',status:'в работе',created:'2 ч назад',self:true},
+    {id:'ЗАЯ-3008',type:'out',client:'c1',sku:'СЗР-0704',qty:180,when:'вчера',status:'выполнена',created:'вчера',self:true,cell:'C-03'},
+    {id:'ЗАЯ-3007',type:'out',client:'c1',sku:'СЗР-0463',qty:60,when:'позавчера',status:'отклонена',created:'2 дня назад',self:true},
+    {id:'ЗАЯ-3010',type:'out',client:'c5',sku:'СЗР-0142',qty:300,when:'вчера',status:'выполнена',created:'вчера',self:true,cell:'A-10'},
+    {id:'ЗАЯ-3006',type:'out',client:'c6',sku:'СЗР-0612',qty:200,when:'2 дня назад',status:'выполнена',created:'2 дня назад',self:true,cell:'C-09'},
+  ];
+  const moves=[
+    {d:'сегодня 09:40',day:'сегодня',type:'out',client:'c1',sku:'СЗР-0142',qty:200,cell:'A-01',note:'FEFO'},
+    {d:'сегодня 09:10',day:'сегодня',type:'in',client:'c5',sku:'СЗР-0587',qty:540,cell:'A-11',note:'приход (внёс клиент)'},
+    {d:'сегодня 08:55',day:'сегодня',type:'out',client:'c3',sku:'СЗР-0428',qty:150,cell:'A-05',note:'FEFO'},
+    {d:'сегодня 08:30',day:'сегодня',type:'in',client:'c4',sku:'СЗР-0704',qty:900,cell:'B-02',note:'размещён'},
+    {d:'вчера 17:25',day:'вчера',type:'move',client:'c2',sku:'СЗР-0612',qty:260,cell:'B-09 → C-04',note:'перемещение'},
+    {d:'вчера 17:20',day:'вчера',type:'out',client:'c5',sku:'СЗР-0142',qty:300,cell:'A-10',note:'FIFO'},
+    {d:'вчера 15:10',day:'вчера',type:'in',client:'c2',sku:'СЗР-0356',qty:480,cell:'A-07',note:'приход'},
+    {d:'вчера 11:05',day:'вчера',type:'inv',client:'c1',sku:'СЗР-0142',qty:560,cell:'A-01',note:'инвентаризация — сходится'},
+    {d:'2 дня назад 16:40',day:'2 дня назад',type:'in',client:'c6',sku:'СЗР-0428',qty:340,cell:'B-03',note:'приход'},
+    {d:'2 дня назад 15:05',day:'2 дня назад',type:'out',client:'c7',sku:'СЗР-0428',qty:120,cell:'B-12',note:'FEFO'},
+    {d:'2 дня назад 11:20',day:'2 дня назад',type:'in',client:'c8',sku:'СЗР-0612',qty:300,cell:'B-08',note:'приход (внёс клиент)'},
+    {d:'2 дня назад 10:15',day:'2 дня назад',type:'out',client:'c4',sku:'СЗР-0510',qty:80,cell:'B-01',note:'LIFO'},
+    {d:'3 дня назад 14:30',day:'3 дня назад',type:'in',client:'c7',sku:'СЗР-0142',qty:480,cell:'A-13',note:'приход'},
+    {d:'3 дня назад 09:50',day:'3 дня назад',type:'in',client:'c1',sku:'СЗР-0463',qty:180,cell:'B-06',note:'приход (внёс клиент)'},
+    {d:'3 дня назад 09:05',day:'3 дня назад',type:'move',client:'c9',sku:'СЗР-0356',qty:420,cell:'B-11 → B-11',note:'ротация партии'},
+    {d:'неделю назад 16:10',day:'неделю назад',type:'in',client:'c1',sku:'СЗР-0704',qty:700,cell:'C-03',note:'приход'},
+    {d:'неделю назад 12:40',day:'неделю назад',type:'in',client:'c9',sku:'СЗР-0704',qty:600,cell:'C-11',note:'приход (внёс клиент)'},
+    {d:'неделю назад 10:00',day:'неделю назад',type:'inv',client:'c4',sku:'СЗР-0142',qty:520,cell:'C-01',note:'инвентаризация — сходится'},
+    {d:'8 дней назад 15:20',day:'8 дней назад',type:'out',client:'c1',sku:'СЗР-0142',qty:150,cell:'A-06',note:'FEFO'},
+    {d:'10 дней назад 11:30',day:'10 дней назад',type:'in',client:'c8',sku:'СЗР-0142',qty:440,cell:'C-12',note:'приход'},
+  ];
+  return {clients,catalog,cells,arrivals,shipments,notifs,txlog,invoices,requests,moves};
+}
+
+/* ===== init ===== */
+load();renderAll();
+(function(){const RM=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];const RD=['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];const dt=new Date();const s=RD[dt.getDay()]+', '+dt.getDate()+' '+RM[dt.getMonth()];$('dashDate').textContent=s.charAt(0).toUpperCase()+s.slice(1);})();
+const q=new URLSearchParams(location.search);
+if(q.get('s'))nav(q.get('s'));
+(function(){const role=q.get('role'),cid=q.get('client');
+  if(cid){chooseRole('client',cid);return;}
+  if(role==='boss'||role==='sklad'||role==='client'){chooseRole(role);return;}
+  openRoleGate();})();
+</script>
+</body>
+</html>

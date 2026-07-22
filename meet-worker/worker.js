@@ -18,11 +18,33 @@
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, PUT, POST, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Max-Age': '86400',
 };
 const SAFE = /^[A-Za-z0-9_.-]{1,80}$/;
+
+// База auth-воркера (pllato-comm) — тот же аккаунт. Проверяем сессии через его GET /me.
+const AUTH_BASE = 'https://pllato-comm.uurraa.workers.dev';
+
+// slug личного видеокабинета менеджера из email — ДОЛЖЕН совпадать с клиентом (meet.html)
+function meetSlug(email) {
+  return 'u-' + String(email || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+}
+
+// Проверка Gmail-сессии по JWT: дергаем /me auth-воркера (server-to-server, без CORS).
+// Возвращает { email, name, isAdmin } или null.
+async function verifyUser(token) {
+  if (!token) return null;
+  try {
+    const r = await fetch(`${AUTH_BASE}/me`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const u = j && j.authPresent && j.user;
+    if (!u || !u.email) return null;
+    return { email: String(u.email), name: String(u.name || ''), isAdmin: !!(u.isAdmin || u.isSuperAdmin) };
+  } catch { return null; }
+}
 
 export default {
   async fetch(request, env) {
@@ -41,10 +63,32 @@ export default {
     const aMeta = url.pathname.match(/^\/archive\/meta\/([^/]+)\/([^/]+)$/);
     const aList = url.pathname.match(/^\/archive\/list\/([^/]+)$/);
     const aDel = url.pathname.match(/^\/archive\/([^/]+)\/([^/]+)$/);
-    if (aRec || aMeta || aList || (aDel && request.method === 'DELETE')) {
+    // потоковая запись (R2 multipart) — чтобы в браузере не копилась вся запись в памяти
+    const aRecInit = url.pathname.match(/^\/archive\/rec-init\/([^/]+)\/([^/]+)$/);
+    const aRecPart = url.pathname.match(/^\/archive\/rec-part\/([^/]+)\/([^/]+)\/([^/]+)\/(\d+)$/);
+    const aRecDone = url.pathname.match(/^\/archive\/rec-complete\/([^/]+)\/([^/]+)\/([^/]+)$/);
+    if (aRec || aMeta || aList || aRecInit || aRecPart || aRecDone || (aDel && request.method === 'DELETE')) {
       if (!env.ARCHIVE) return json({ error: 'R2 не подключён. Создай бакет и добавь binding ARCHIVE.' }, 501);
-      try { return await handleArchive(request, env, { aRec, aMeta, aList, aDel }); }
+      try { return await handleArchive(request, env, { aRec, aMeta, aList, aDel, aRecInit, aRecPart, aRecDone }); }
       catch (e) { return json({ error: String(e && e.message || e) }, 500); }
+    }
+
+    // Командный архив: все встречи всех менеджеров (только для админа) — группировка на клиенте
+    if (url.pathname === '/archive/all' && request.method === 'GET') {
+      if (!env.ARCHIVE) return json({ error: 'R2 не подключён' }, 501);
+      const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+      const me = await verifyUser(token);
+      if (!me) return json({ error: 'unauthorized' }, 401);
+      if (!me.isAdmin) return json({ error: 'forbidden' }, 403);
+      try {
+        const listed = await env.ARCHIVE.list({ prefix: 'meta/', limit: 1000 });
+        const items = [];
+        for (const o of listed.objects) {
+          const obj = await env.ARCHIVE.get(o.key);
+          if (obj) { try { items.push(JSON.parse(await obj.text())); } catch {} }
+        }
+        return json(items);
+      } catch (e) { return json({ error: String(e && e.message || e) }, 500); }
     }
 
     const m = url.pathname.match(/^\/room\/([A-Za-z0-9_-]{1,64})$/);
@@ -67,7 +111,28 @@ function json(data, status = 200) {
 }
 
 // Архив в R2: rec/<owner>/<id>.webm  +  meta/<owner>/<id>.json
-async function handleArchive(request, env, { aRec, aMeta, aList, aDel }) {
+async function handleArchive(request, env, { aRec, aMeta, aList, aDel, aRecInit, aRecPart, aRecDone }) {
+  // ---- потоковая запись через R2 multipart ----
+  if (aRecInit && request.method === 'POST') {
+    const [, owner, id] = aRecInit; if (!SAFE.test(owner) || !SAFE.test(id)) return json({ error: 'bad key' }, 400);
+    const up = await env.ARCHIVE.createMultipartUpload(`rec/${owner}/${id}.webm`, { httpMetadata: { contentType: 'video/webm' } });
+    return json({ uploadId: up.uploadId });
+  }
+  if (aRecPart && request.method === 'PUT') {
+    const [, owner, id, uploadId, pn] = aRecPart; if (!SAFE.test(owner) || !SAFE.test(id)) return json({ error: 'bad key' }, 400);
+    const up = env.ARCHIVE.resumeMultipartUpload(`rec/${owner}/${id}.webm`, uploadId);
+    const body = await request.arrayBuffer(); // одна часть ~5 МБ — держим в памяти воркера кратко
+    const part = await up.uploadPart(Number(pn), body);
+    return json({ partNumber: part.partNumber, etag: part.etag });
+  }
+  if (aRecDone && request.method === 'POST') {
+    const [, owner, id, uploadId] = aRecDone; if (!SAFE.test(owner) || !SAFE.test(id)) return json({ error: 'bad key' }, 400);
+    const parts = await request.json(); // [{partNumber, etag}]
+    if (!Array.isArray(parts) || !parts.length) return json({ error: 'no parts' }, 400);
+    const up = env.ARCHIVE.resumeMultipartUpload(`rec/${owner}/${id}.webm`, uploadId);
+    const obj = await up.complete(parts);
+    return json({ ok: true, size: obj.size });
+  }
   if (aList && request.method === 'GET') {
     const owner = aList[1]; if (!SAFE.test(owner)) return json({ error: 'bad owner' }, 400);
     const listed = await env.ARCHIVE.list({ prefix: `meta/${owner}/`, limit: 1000 });
@@ -91,7 +156,8 @@ async function handleArchive(request, env, { aRec, aMeta, aList, aDel }) {
       return new Response(obj.body, { headers: { 'Content-Type': 'video/webm', 'Access-Control-Allow-Origin': '*' } });
     }
   }
-  if (aMeta && request.method === 'PUT') {
+  if (aMeta && (request.method === 'PUT' || request.method === 'POST')) {
+    // POST — чтобы navigator.sendBeacon (только POST) мог сохранить метаданные при закрытии вкладки
     const [, owner, id] = aMeta; if (!SAFE.test(owner) || !SAFE.test(id)) return json({ error: 'bad key' }, 400);
     await env.ARCHIVE.put(`meta/${owner}/${id}.json`, request.body, { httpMetadata: { contentType: 'application/json' } });
     return json({ ok: true });
@@ -112,11 +178,15 @@ export class MeetRoom {
   }
 
   async fetch(request) {
+    // запоминаем roomId из URL (нужен для сверки личности хоста), переживает гибернацию
+    const rid = new URL(request.url).pathname.match(/\/room\/([A-Za-z0-9_-]{1,64})/)?.[1]?.toLowerCase();
+    if (rid) { this._roomId = rid; try { await this.ctx.storage.put('roomId', rid); } catch {} }
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server); // hibernatable
     return new Response(null, { status: 101, webSocket: client });
   }
+  async roomId() { return this._roomId || (this._roomId = await this.ctx.storage.get('roomId')) || null; }
 
   /* ---- room-level persistent state (survives hibernation/eviction) ---- */
   async getRoom() {
@@ -208,9 +278,16 @@ export class MeetRoom {
     const peer = String(m.peer || '').slice(0, 40);
     if (!peer) { this.send(ws, { t: 'error', msg: 'no peer id' }); return; }
 
-    // host claim: first valid hostKey owns the room
+    // 1) СТРОГО: хост по личности — Gmail-владелец персональной комнаты (u-<slug email>)
     let isHost = false;
-    if (m.hostKey) {
+    let verifiedName = '';
+    if (m.token) {
+      const me = await verifyUser(m.token);
+      const rid = await this.roomId();
+      if (me && rid && meetSlug(me.email) === rid) { isHost = true; verifiedName = me.name; }
+    }
+    // 2) fallback для ad-hoc комнат (Новая встреча): первый валидный hostKey владеет комнатой
+    if (!isHost && m.hostKey) {
       if (!room.hostKey) room.hostKey = String(m.hostKey).slice(0, 80);
       isHost = room.hostKey === String(m.hostKey);
     }
@@ -220,7 +297,7 @@ export class MeetRoom {
 
     const admitted = isHost || (room.status === 'open' && !room.locked);
     const info = {
-      name: String(m.name || 'Гость').slice(0, 60),
+      name: String((isHost && verifiedName) || m.name || 'Гость').slice(0, 60),
       role: isHost ? 'host' : 'guest',
       admitted,
       micOn: m.micOn !== false,

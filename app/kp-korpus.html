@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>КП · KORPUS — CRM для производства корпусной мебели · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#26201a;--ink2:#463c31;--oak:#a86a33;--oakD:#8a531f;--oakL:#f6ecdf;--text:#2a241e;--muted:#766b5e;--faint:#a89c8c;--line:#e8e1d6;--off:#faf7f1;--green:#3d6b4f;--greenL:#e6efe8;--red:#b4482e;--redL:#f7e9e2;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:11px;line-height:1.55;background:#e9e4db}
+.page{width:210mm;min-height:297mm;position:relative;padding:16mm 16mm 18mm;margin:0 auto 8mm;background:#fff;display:flex;flex-direction:column}
+.runfoot{position:absolute;left:16mm;right:16mm;bottom:9mm;display:flex;justify-content:space-between;font-size:8px;color:var(--faint);border-top:1px solid var(--line);padding-top:6px}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:13px}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .bm{width:44px;height:44px;background:var(--ink);border-radius:10px;display:grid;place-items:center;flex:none}
+.brand .bt{font-size:23px;font-weight:800;letter-spacing:.16em;color:var(--ink)}
+.brand .bs{font-size:9px;color:var(--muted);letter-spacing:.03em;margin-top:1px}
+.hr{text-align:right}
+.hr .t{font-size:14px;font-weight:800;color:var(--ink)}
+.hr .dt{font-size:10px;color:var(--muted);margin-top:2px}
+.rule{height:2px;background:var(--oak);margin-bottom:15px}
+h1{font-size:23px;font-weight:900;letter-spacing:-.02em;line-height:1.15;margin-bottom:9px;color:var(--ink)}
+h1 .a{color:var(--oak)}
+.lead{font-size:12px;color:var(--ink2);margin-bottom:16px;line-height:1.6}
+.lead b{color:var(--ink)}
+.forwho{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.chip{background:var(--off);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:10px;font-weight:600;color:var(--ink2)}
+.chip b{color:var(--oak)}
+.sec{font-size:9.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--oak);margin:20px 0 10px;display:flex;align-items:center;gap:9px}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.sec.first{margin-top:4px}
+.pain{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:6px}
+.pain .row{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.pain .row+.row{border-top:1px solid var(--line)}
+.pain .c{padding:9px 13px;font-size:10.5px;line-height:1.5}
+.pain .c.p{background:#fbf3ee;color:#7a3a24}
+.pain .c.s{border-left:1px solid var(--line);color:var(--ink2)}
+.pain .c.s b{color:var(--green)}
+.pain .c .h{font-size:8.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px;opacity:.7}
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mod{border:1px solid var(--line);border-radius:10px;padding:11px 13px;background:#fff}
+.mod .mt{font-weight:800;font-size:11.5px;color:var(--ink);margin-bottom:3px;display:flex;align-items:center;gap:7px}
+.mod .mt .n{width:19px;height:19px;border-radius:6px;background:var(--ink);color:#fff;font-size:9.5px;display:grid;place-items:center;flex:none}
+.mod .md{font-size:10px;color:var(--muted);line-height:1.5}
+.mod.key{border-color:#e3c79f;background:linear-gradient(180deg,#fbf4e9,#fff)}
+.mod.key .mt .n{background:var(--oak)}
+.bonus{border:1px dashed var(--oak);border-radius:10px;background:var(--oakL);padding:13px 15px;margin-bottom:4px}
+.bonus .bt2{font-weight:800;font-size:12px;color:#6e451a;margin-bottom:7px}
+.bonus .bl{display:flex;justify-content:space-between;font-size:10.5px;padding:4px 0;border-bottom:1px dashed #e0c396;color:#6e451a}
+.bonus .bl:last-child{border-bottom:none}
+.bonus .bl s{color:#a98a58}
+.bonus .bl b{color:var(--green)}
+.price{display:flex;gap:14px;align-items:stretch;margin-bottom:6px}
+.price .big{flex:1.1;background:var(--ink);color:#fff;border-radius:12px;padding:16px 18px}
+.price .big .l{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#c4b6a4;font-weight:700}
+.price .big .v{font-size:30px;font-weight:900;letter-spacing:-.02em;margin:2px 0}
+.price .big .v em{font-style:normal;font-size:13px;color:#c4b6a4}
+.price .big .n{font-size:10px;color:#d6cbbb;line-height:1.5;margin-top:5px}
+.price .steps{flex:1.3;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.price .st{display:flex;justify-content:space-between;align-items:center;padding:9px 13px;font-size:10.5px}
+.price .st+.st{border-top:1px solid var(--line)}
+.price .st .sn{color:var(--ink2)}.price .st .sn b{color:var(--ink)}
+.price .st .sv{font-weight:800;color:var(--oakD);white-space:nowrap}
+.price .st.cur{background:var(--oakL)}
+.tl{border:1px solid var(--line);border-radius:10px;padding:6px 14px}
+.tl .t{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--off)}
+.tl .t:last-child{border-bottom:none}
+.tl .t .w{width:104px;flex:none;font-size:10px;font-weight:800;color:var(--oak)}
+.tl .t .d{font-size:10.5px;color:var(--ink2)}
+.tl .t .d b{color:var(--ink)}
+.terms{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.term{border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+.term .h{font-weight:800;font-size:10.5px;color:var(--ink);margin-bottom:2px}
+.term .b{font-size:10px;color:var(--muted);line-height:1.5}
+.why{background:var(--off);border:1px solid var(--line);border-radius:10px;padding:13px 15px;font-size:10.5px;color:var(--ink2);line-height:1.6}
+.why b{color:var(--ink)}
+.cta{margin-top:14px;background:var(--ink);color:#fff;border-radius:12px;padding:15px 18px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+.cta .l{font-size:11px;color:#d6cbbb;line-height:1.5}.cta .l b{color:#fff}
+.cta .r{text-align:right;font-size:10px;color:#c4b6a4;white-space:nowrap}
+.cta .r b{display:block;font-size:13px;color:#e0a869;font-weight:800}
+</style></head>
+<body>
+
+<!-- страница 1 -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg viewBox="0 0 32 32" width="27" height="27"><rect x="6" y="6" width="20" height="20" rx="2" fill="none" stroke="#a86a33" stroke-width="2"/><line x1="16" y1="6" x2="16" y2="26" stroke="#a86a33" stroke-width="2"/><line x1="6" y1="16" x2="16" y2="16" stroke="#a86a33" stroke-width="2"/><circle cx="12.5" cy="11" r="1.1" fill="#e2e2dc"/><circle cx="19.5" cy="21" r="1.1" fill="#e2e2dc"/></svg></div>
+      <div><div class="bt">KORPUS</div><div class="bs">CRM для производства корпусной мебели · Pllato</div></div>
+    </div>
+    <div class="hr"><div class="t">КП № KR-2026-01</div><div class="dt">11 июля 2026 г.</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h1>Своя система <span class="a">KORPUS</span> для вашего<br>мебельного производства — вместо WhatsApp и папок</h1>
+  <div class="lead">Коммерческое предложение для мастерской корпусной мебели (Алматы, 18+ лет на рынке, 5 дизайнеров-конструкторов). Мы разрабатываем <b>полностью под вас</b> единую систему: поток заявок, единый архив проектов, рассылки, аналитика источников — и <b>передаём вам в собственность</b>. Без ежемесячной абонплаты. Это не аренда чужой CRM, а ваш инструмент, собранный под ваш реальный процесс.</div>
+  <div class="forwho">
+    <span class="chip"><b>Корпусная мебель</b> на заказ</span>
+    <span class="chip">Алматы · 18+ лет</span>
+    <span class="chip">5 дизайнеров-конструкторов</span>
+    <span class="chip"><b>~20 заявок/день</b> · база ~10 000</span>
+  </div>
+
+  <div class="sec first">Что болит сейчас → что даёт KORPUS</div>
+  <div class="pain">
+    <div class="row">
+      <div class="c p"><div class="h">Сейчас</div>20 заявок в день, ~600 в месяц. Дизайнеры успевают только «сливки» — остальные клиенты <b>теряются</b> и уходят к конкурентам.</div>
+      <div class="c s"><div class="h">В системе</div><b>Воронка заявок:</b> ни один лид не теряется — все на канбане с этапами, авто-распределение, напоминания. Видно, кто «завис».</div>
+    </div>
+    <div class="row">
+      <div class="c p"><div class="h">Сейчас</div>Единой библиотеки нет: чертежи в толстых папках, в переписке WhatsApp и у каждого дизайнера в AutoCAD. Проект 5-летней давности ищут вручную.</div>
+      <div class="c s"><div class="h">В системе</div><b>Единый архив проектов</b>: чертежи, файлы и история по каждому клиенту в одном месте. Проект прошлых лет — за секунды.</div>
+    </div>
+    <div class="row">
+      <div class="c p"><div class="h">Сейчас</div>О себе напоминать некогда; не видно, откуда пришла реклама и насколько качественно отработали входящие.</div>
+      <div class="c s"><div class="h">В системе</div><b>Рассылки</b> (авто при смене этапа + периодические напоминания) и <b>аналитика</b>: источник обращения, конверсия, качество обработки.</div>
+    </div>
+    <div class="row">
+      <div class="c p"><div class="h">Сейчас</div>База ~10 000 клиентов разрознена; знания — в голове и блокноте дизайнера. Уходит человек — уносит клиентов.</div>
+      <div class="c s"><div class="h">В системе</div><b>Миграция базы</b> в CRM: вся история — в системе, а не в людях. Процесс не рушится при смене сотрудника.</div>
+    </div>
+    <div class="row">
+      <div class="c p"><div class="h">Сомнение клиента</div>«Будут ли дизайнеры её заполнять — или CRM снова не заработает, как записная книжка?»</div>
+      <div class="c s"><div class="h">В системе</div><b>Этапы-«светофор» + IP-телефония:</b> не заполнил этап — не двигаешь сделку и KPI; звонки и переписка подтягиваются <b>сами</b>, без ручного ввода.</div>
+    </div>
+  </div>
+
+  <div class="sec">Что входит в разработку</div>
+  <div class="mods">
+    <div class="mod key"><div class="mt"><span class="n">1</span>Воронка заявок и клиентов</div><div class="md">Канбан с этапами (заявка → замер → расчёт → договор → цех → монтаж → сдача), ни один лид не потерян, авто-распределение и напоминания.</div></div>
+    <div class="mod key"><div class="mt"><span class="n">2</span>Единый архив проектов</div><div class="md">Библиотека чертежей и файлов по каждому клиенту, поиск проекта прошлых лет за секунды. Хранилище с бэкапами.</div></div>
+    <div class="mod key"><div class="mt"><span class="n">3</span>Рассылки и напоминания</div><div class="md">Авто-сообщения клиенту при смене этапа, периодические «напомнить о себе», запрос отзыва.</div></div>
+    <div class="mod key"><div class="mt"><span class="n">4</span>Аналитика источников</div><div class="md">Откуда пришла заявка (Instagram/таргет/сарафан), конверсия, качество обработки входящих, загрузка дизайнеров.</div></div>
+    <div class="mod"><div class="mt"><span class="n">5</span>Замер и расчёт</div><div class="md">Калькулятор для стандартных серий (справочник комплектующих) + гибкий ручной расчёт для нестандартных проектов.</div></div>
+    <div class="mod"><div class="mt"><span class="n">6</span>Договор и производство</div><div class="md">Договор из карточки, статусы по цеху (раскрой → кромка → сборка → монтаж), сроки и контроль.</div></div>
+    <div class="mod"><div class="mt"><span class="n">7</span>Склад материалов и фурнитуры</div><div class="md">Приход/расход ЛДСП, фурнитуры, комплектующих; контроль остатков, недостач и порчи.</div></div>
+    <div class="mod"><div class="mt"><span class="n">8</span>IP-телефония + WhatsApp</div><div class="md">Звонки из карточки с записью, вся переписка WhatsApp привязана к клиенту — без потерь.</div></div>
+    <div class="mod"><div class="mt"><span class="n">9</span>KPI и дисциплина по сделке</div><div class="md">Этапы-«светофор»: не заполнил — не двигаешь; KPI/сделка по закрытым этапам. Прозрачно для собственника.</div></div>
+    <div class="mod"><div class="mt"><span class="n">10</span>Собрать похожий проект за секунды</div><div class="md">Каталоги и все прошлые проекты под рукой — новый заказ собирается на базе похожего. Перспектива — 3D-сборка.</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП KR-2026-01 · KORPUS — CRM для корпусной мебели</span><span>1 / 2</span></div>
+</section>
+
+<!-- страница 2 -->
+<section class="page">
+  <div class="sec first">Бесплатно в стандартном пакете</div>
+  <div class="bonus">
+    <div class="bt2">Обычно оплачивается отдельно — вам включено:</div>
+    <div class="bl"><span>Интеграция с 1С (закуп, склад, финансы — зеркало)</span><span><s>обычно 800 000 ₸</s> → <b>0 ₸</b></span></div>
+    <div class="bl"><span>Калькулятор расчёта (стандартные серии)</span><span><s>обычно 200 000 ₸</s> → <b>0 ₸</b></span></div>
+    <div class="bl"><span>Миграция базы ~10 000 клиентов + настройка сервера</span><span><s>отдельно</s> → <b>0 ₸</b></span></div>
+    <div class="bl" style="border-top:1px solid #e0c396;margin-top:4px;padding-top:6px;font-weight:800"><span>Ценность бонусов</span><span><b>≈ 1 000 000 ₸ включено</b></span></div>
+  </div>
+
+  <div class="sec">Стоимость и порядок оплаты</div>
+  <div class="price">
+    <div class="big">
+      <div class="l">Разработка «под ключ», разово</div>
+      <div class="v">1 350 000 <em>₸</em></div>
+      <div class="n"><s style="color:#a2937f">1 500 000 ₸</s> — со скидкой 10%. Полная передача системы вам в собственность. Дальше за пользование <b style="color:#fff">платить не нужно</b> — никакой абонплаты.</div>
+    </div>
+    <div class="steps">
+      <div class="st cur"><span class="sn"><b>Этап 1 · старт</b> — предоплата (символическая, 10%)</span><span class="sv">135 000 ₸</span></div>
+      <div class="st"><span class="sn"><b>Этап 2</b> — после сборки кликабельного функционала и согласования</span><span class="sv">≈ 600 000 ₸</span></div>
+      <div class="st"><span class="sn"><b>Этап 3</b> — постоплата после полной сдачи, передачи и обучения</span><span class="sv">≈ 615 000 ₸</span></div>
+      <div class="st" style="background:var(--off)"><span class="sn">Итого</span><span class="sv">1 350 000 ₸</span></div>
+    </div>
+  </div>
+
+  <div class="sec">Сроки</div>
+  <div class="tl">
+    <div class="t"><div class="w">5–6 дней</div><div class="d"><b>Первые результаты.</b> Кликабельный прототип портала — смотрите и правите вместе с супругом.</div></div>
+    <div class="t"><div class="w">≈ 1 месяц</div><div class="d"><b>Полная разработка и сдача.</b> Собираем все модули под ваш процесс, мигрируем базу, подключаем 1С, WhatsApp, телефонию.</div></div>
+    <div class="t"><div class="w">Резерв 15–20%</div><div class="d"><b>Заложен на доработки</b> — в начале не всегда виден финальный объём; правки по ходу включены.</div></div>
+    <div class="t"><div class="w">Сдача</div><div class="d"><b>Передача в собственность</b> + обучение команды. Дальше пользуетесь без нас.</div></div>
+  </div>
+
+  <div class="sec">Условия и операционные расходы (не входят в разработку)</div>
+  <div class="terms">
+    <div class="term"><div class="h">Полное владение</div><div class="b">Система на вашем сервере, передаётся вам насовсем. Обновления — только по вашему желанию.</div></div>
+    <div class="term"><div class="h">Сервер</div><div class="b">Бесплатный хостинг до 10 ГБ; далее ≈$5 за 1 ТБ/мес (архив чертежей). Настройку берём на себя.</div></div>
+    <div class="term"><div class="h">WhatsApp</div><div class="b">≈$10/мес (обычно $80 — зафиксируем льготную цену на год).</div></div>
+    <div class="term"><div class="h">IP-телефония</div><div class="b">≈30 000 ₸/мес (виртуальная АТС + оператор, ~10 каналов, безлимит минут).</div></div>
+  </div>
+
+  <div class="sec">Почему это выгодно</div>
+  <div class="why">Готовые CRM берут <b>ежемесячно</b> — за год выходит 1–1,5 млн ₸ плюс лицензии, и платить нужно всегда. Здесь вы платите <b>один раз</b> и получаете систему <b>в собственность</b>, собранную под ваш реальный процесс: поток заявок, единый архив проектов, миграция базы 10 000 клиентов, аналитика источников. По калькулятору честно: <b>авторасчёт — для стандартных серий</b>, а для нестандартных конструкций остаётся гибкий ручной расчёт (комплектующие сильно меняют цену) — систему делаем под обе ситуации.</div>
+
+  <div class="cta">
+    <div class="l">Чтобы начать — <b>предоплата 135 000 ₸</b>, и за 5–6 дней вы видите первый кликабельный прототип. Полная сдача — ≈месяц, с передачей в собственность и обучением.</div>
+    <div class="r">К старту<b>135 000 ₸</b>предоплата (10%)</div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП KR-2026-01 · ИП «STUDYSTORIES.APP» · pllato.kz</span><span>2 / 2</span></div>
+</section>
+</body></html>

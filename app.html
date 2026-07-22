@@ -324,6 +324,57 @@ body {
   margin: 28px 0 14px;
 }
 
+/* группы-вкладки проектов + избранное */
+.project-tabs { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0 4px; }
+.ptab {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 14px; border-radius:9px;
+  border:1px solid var(--line-2); background:var(--surface);
+  color:var(--text-2); font-size:13px; font-weight:600; font-family:inherit;
+  cursor:pointer; transition:.14s;
+}
+.ptab:hover { border-color:var(--bronze-tint-2); color:var(--text-1); }
+.ptab.on { background:var(--text-1); color:var(--surface); border-color:var(--text-1); }
+.ptab .pt-c { font-size:11px; font-weight:700; opacity:.6; font-variant-numeric:tabular-nums; }
+.ptab.fav.on { background:#e8a726; border-color:#e8a726; color:#1c1206; }
+.fav-star {
+  position:absolute; top:10px; right:11px;
+  width:28px; height:28px; border-radius:8px;
+  border:none; background:transparent; color:var(--text-3);
+  font-size:17px; line-height:1; cursor:pointer;
+  display:grid; place-items:center; z-index:3; opacity:.45; transition:.14s;
+}
+.tool-card:hover .fav-star { opacity:.85; }
+.fav-star:hover { background:var(--bronze-tint); color:#e8a726; opacity:1; }
+.fav-star.on { opacity:1; color:#e8a726; }
+.lnk-btn {
+  position:absolute; top:10px; right:41px;
+  width:28px; height:28px; border-radius:8px;
+  border:none; background:transparent; color:var(--text-3);
+  font-size:13px; line-height:1; cursor:pointer;
+  display:grid; place-items:center; z-index:3; opacity:0; transition:.14s;
+}
+.tool-card:hover .lnk-btn { opacity:.85; }
+.lnk-btn:hover { background:var(--bronze-tint); color:var(--bronze-deep); opacity:1; }
+.share-pop {
+  position:absolute; z-index:60; width:272px; background:var(--surface,#fff);
+  border:1px solid var(--line-2,#e7e5e4); border-radius:14px; padding:14px 15px;
+  box-shadow:0 14px 38px rgba(28,25,23,.18); font-size:12.5px; color:var(--text-1,#1c1917);
+}
+.share-pop .sp-t { font-weight:800; font-size:12px; margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.share-pop .sp-s { color:var(--text-3,#78716c); font-size:11px; margin-bottom:9px; }
+.share-pop .sp-days { display:flex; gap:5px; flex-wrap:wrap; }
+.share-pop .sp-days button {
+  flex:1; min-width:40px; border:1.5px solid var(--line-2,#e7e5e4); background:transparent;
+  border-radius:8px; padding:7px 2px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; color:inherit;
+}
+.share-pop .sp-days button:hover { border-color:#d97706; color:#d97706; }
+.share-pop .sp-link { display:none; background:#1c1917; color:#fbbf24; font-size:10.5px; padding:9px 10px; border-radius:8px; word-break:break-all; font-family:monospace; margin:9px 0 8px; max-height:64px; overflow:auto; }
+.share-pop .sp-row { display:none; gap:6px; }
+.share-pop .sp-row button { flex:1; border:1.5px solid var(--line-2,#e7e5e4); background:transparent; border-radius:8px; padding:7px 4px; font-size:11.5px; font-weight:700; cursor:pointer; font-family:inherit; color:inherit; }
+.share-pop .sp-row button:hover { border-color:#d97706; color:#d97706; }
+.share-pop .sp-note { font-size:10.5px; color:var(--text-3,#78716c); margin-top:8px; line-height:1.5; }
+
 .tools-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -394,7 +445,7 @@ body {
 
 .tool-badge {
   position: absolute;
-  top: 14px; right: 14px;
+  top: 14px; right: 47px;
   font-size: 9px; font-weight: 800;
   text-transform: uppercase; letter-spacing: 0.1em;
   padding: 3px 8px; border-radius: 100px;
@@ -402,6 +453,69 @@ body {
 .tool-badge.coming { background: var(--surface-2); color: var(--text-3); }
 .tool-badge.new { background: var(--green); color: #fff; }
 .tool-badge.external { background: var(--indigo); color: #fff; }
+
+/* ===== Деньги по сделке на плашке ===== */
+.money-strip { margin-top: 12px; border-top: 1px solid var(--line-2); padding-top: 10px; cursor: pointer; }
+.money-strip.empty { color: var(--text-3); }
+.money-strip .ms-add { font-size: 12px; font-weight: 700; color: var(--text-3); }
+.money-strip:hover .ms-add { color: var(--bronze-deep); }
+.money-strip .ms-bar { height: 6px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.money-strip .ms-bar i { display: block; height: 100%; border-radius: 4px; }
+.money-strip .ms-row { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 12px; font-weight: 800; }
+.money-strip .ms-l { color: var(--text); }
+.money-strip .ms-d { color: #dc2626; }
+.money-strip .ms-ok { color: var(--green); }
+.money-strip .ms-cur { font-size: 9px; background: var(--surface-2); color: var(--text-2); padding: 0 4px; border-radius: 4px; font-weight: 800; }
+.money-sum .mrate { margin-left: auto; font-size: 12px; color: var(--text-2); font-weight: 700; cursor: pointer; user-select: none; border: 1px solid var(--line-2); border-radius: 8px; padding: 5px 10px; }
+.money-sum .mrate:hover { color: var(--bronze-deep); border-color: var(--bronze-deep); }
+.money-sum .msp { margin-left: 0; }
+.mm-cur { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.mm-cur .l { font-size: 11px; font-weight: 700; color: var(--text-2); }
+.mm-cur button { border: 1px solid var(--line-2); background: var(--surface); border-radius: 8px; padding: 6px 12px; font-size: 12.5px; font-weight: 700; color: var(--text-2); cursor: pointer; }
+.mm-cur button.on { background: var(--green); color: #fff; border-color: var(--green); }
+.mm-cur .cnote { font-size: 11.5px; color: var(--text-3); }
+.mm-cur .cnote a { color: var(--bronze-deep); cursor: pointer; text-decoration: underline; }
+.mm-grid .c .ke { font-size: 10.5px; color: var(--text-3); font-weight: 700; margin-top: 2px; }
+.mm-pay .ke2 { font-size: 10.5px; color: var(--text-3); font-weight: 600; margin-left: 4px; }
+.money-sum { background: var(--surface); border: 1px solid var(--line-2); border-radius: 14px; padding: 13px 18px; margin-bottom: 18px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+.money-sum .mtot .l { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-3); font-weight: 700; }
+.money-sum .mtot .v { font-size: 19px; font-weight: 800; letter-spacing: -0.01em; }
+.money-sum .mtot .v.g { color: var(--green); } .money-sum .mtot .v.r { color: #dc2626; }
+.money-sum .msp { margin-left: auto; font-size: 12.5px; color: var(--bronze-deep); font-weight: 700; cursor: pointer; user-select: none; }
+.money-feed { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--line-2); width: 100%; display: none; }
+.money-feed.show { display: block; }
+.money-feed .mf { display: flex; gap: 12px; padding: 7px 0; font-size: 12.5px; border-bottom: 1px solid var(--line-2); }
+.money-feed .mf:last-child { border-bottom: none; }
+.money-feed .mf .d { color: var(--text-3); width: 104px; flex: none; font-weight: 600; }
+.money-feed .mf .n { color: var(--text); flex: 1; }
+.money-feed .mf .s { font-weight: 800; color: var(--green); white-space: nowrap; }
+.money-ovl { position: fixed; inset: 0; background: rgba(20,20,25,0.5); display: none; align-items: flex-start; justify-content: center; z-index: 300; padding: 44px 16px; overflow-y: auto; }
+.money-ovl.show { display: flex; }
+.money-modal { background: var(--surface); border: 1px solid var(--line-2); border-radius: 16px; max-width: 520px; width: 100%; box-shadow: var(--shadow-md); overflow: hidden; }
+.money-modal .mm-h { padding: 16px 20px; border-bottom: 1px solid var(--line-2); display: flex; align-items: center; gap: 12px; }
+.money-modal .mm-h h3 { font-size: 16px; font-weight: 800; flex: 1; }
+.money-modal .mm-x { cursor: pointer; font-size: 20px; color: var(--text-3); line-height: 1; }
+.money-modal .mm-b { padding: 16px 20px; }
+.mm-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.mm-grid .c { border: 1px solid var(--line-2); border-radius: 10px; padding: 9px 11px; }
+.mm-grid .c .l { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-3); font-weight: 700; }
+.mm-grid .c .v { font-size: 15px; font-weight: 800; margin-top: 2px; }
+.mm-grid .c.g .v { color: var(--green); } .mm-grid .c.r .v { color: #dc2626; }
+.mm-b label { font-size: 11px; font-weight: 700; color: var(--text-2); display: block; margin-bottom: 4px; }
+.mm-b input { width: 100%; border: 1px solid var(--line-2); border-radius: 9px; padding: 9px 11px; font-size: 13.5px; background: var(--surface); color: var(--text); }
+.mm-pt { font-size: 11px; font-weight: 700; color: var(--text-2); margin: 14px 0 4px; }
+.mm-pays { border: 1px solid var(--line-2); border-radius: 10px; overflow: hidden; }
+.mm-pay { display: flex; align-items: center; gap: 10px; padding: 9px 12px; font-size: 13px; border-bottom: 1px solid var(--line-2); }
+.mm-pay:last-child { border-bottom: none; }
+.mm-pay .pd { color: var(--text-2); font-weight: 700; width: 108px; flex: none; }
+.mm-pay .psum { margin-left: auto; font-weight: 800; color: var(--green); }
+.mm-pay .pdel { cursor: pointer; color: var(--text-3); font-size: 16px; }
+.mm-pay.empty { color: var(--text-3); justify-content: center; }
+.mm-add { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.mm-add input { flex: 1; min-width: 108px; }
+.mm-add button { background: var(--green); color: #fff; font-weight: 700; font-size: 13px; padding: 9px 15px; border-radius: 9px; border: none; cursor: pointer; }
+.mm-f { padding: 12px 20px; border-top: 1px solid var(--line-2); display: flex; gap: 8px; justify-content: flex-end; }
+.mm-f button { font-weight: 700; font-size: 13px; padding: 9px 16px; border-radius: 9px; border: 1px solid var(--line-2); background: var(--surface); color: var(--text); cursor: pointer; }
 
 /* ===== Карточка с действиями + выпадающий список (сайт-лендинг) ===== */
 .tool-card .tool-cta.as-link { text-decoration: none; }
@@ -505,28 +619,328 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
         onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--line-2)'">
     </div>
 
+    <div class="project-tabs" id="projectTabs"></div>
+
     <div class="section-title">Работа с клиентами</div>
     <div class="tools-grid">
 
-      <a href="app/taza.html" class="tool-card" data-app-id="taza_clean">
+      <div class="tool-card" data-app-id="eastpole_freeride">
+        <div class="tool-icon" style="background:#0e1b2e">
+          <svg viewBox="0 0 32 32" width="22" height="22"><path d="M3 26L12 9l5 9 3-5 6 13z" fill="none" stroke="#4aa3ff" stroke-width="2" stroke-linejoin="round"/><circle cx="23" cy="8" r="1.8" fill="#8fd0ff"/></svg>
+        </div>
+        <h3>EastPole · портал фрирайд-туров (Дарья, ВКО)</h3>
+        <p>Демо по встрече: EastPole (eastpole.kz) — фрирайд-туры (заброска ратраком / снегоходом / вертолётом, горные гиды, база на 28 мест). Ядро — <b>календарь загрузки</b>: номера и транспорт по датам, выходные, цвет = группа (где живёт и катается). Брони с <b>привязкой к конкретному ратраку/снегоходу/вертолёту и гидам</b>, две воронки (новые/повторные) с карточками клиентов, <b>чек-ин по QR / Apple Wallet</b> «как на рейс», <b>ссылки на подтверждение и оплату</b> (эквайринг 4%), финансы и <b>ЗП гидов по выходам</b>, аналитика (загрузка, гео, конверсия). Плюс пример виджета для сайта: календарь свободных дат + форма заявки прямо в портал. Заказчик — <b>ТОО «Восточный Полюс»</b> (Михель Дарья). Портал — <b>1 500 000 ₸</b> (3 транша, старт 10% = 150 000), 4–6 недель, 3 итерации. Сайт с предварительной SEO — <b>470 000 ₸</b> (предоплата 50%) отдельным КП. По каждому: КП, ТЗ и счёт (см. документы).</p>
+        <a class="tool-cta as-link" href="app/kp-eastpole.html">Открыть КП →</a>
+        <details class="tool-dd">
+          <summary>▤ Документы и демо (EastPole · ТОО «Восточный Полюс»)<span class="chev">▾</span></summary>
+          <div class="tool-dd-menu">
+            <a href="app/kp-eastpole.html" target="_blank" rel="noopener"><span class="dot"></span>Портал · КП (1 500 000 ₸, 3 транша, старт 150 000)</a>
+            <a class="is-pdf" href="app/kp-eastpole.pdf" target="_blank" rel="noopener"><span class="dot"></span>Портал · КП — PDF</a>
+            <a href="app/tz-eastpole.html" target="_blank" rel="noopener"><span class="dot"></span>Портал · ТЗ (техническое задание)</a>
+            <a class="is-pdf" href="app/tz-eastpole.pdf" target="_blank" rel="noopener"><span class="dot"></span>Портал · ТЗ — PDF</a>
+            <a href="app/schet-eastpole-1.html" target="_blank" rel="noopener"><span class="dot"></span>Портал · Счёт — предоплата 10% (150 000 ₸)</a>
+            <a class="is-pdf" href="app/schet-eastpole-1.pdf" target="_blank" rel="noopener"><span class="dot"></span>Портал · Счёт — PDF</a>
+            <a href="app/kp-eastpole-site.html" target="_blank" rel="noopener"><span class="dot"></span>Сайт · КП (470 000 ₸, предоплата 50%)</a>
+            <a class="is-pdf" href="app/kp-eastpole-site.pdf" target="_blank" rel="noopener"><span class="dot"></span>Сайт · КП — PDF</a>
+            <a href="app/tz-eastpole-site.html" target="_blank" rel="noopener"><span class="dot"></span>Сайт · ТЗ (техническое задание)</a>
+            <a class="is-pdf" href="app/tz-eastpole-site.pdf" target="_blank" rel="noopener"><span class="dot"></span>Сайт · ТЗ — PDF</a>
+            <a href="app/schet-eastpole-site-1.html" target="_blank" rel="noopener"><span class="dot"></span>Сайт · Счёт — предоплата 50% (235 000 ₸)</a>
+            <a class="is-pdf" href="app/schet-eastpole-site-1.pdf" target="_blank" rel="noopener"><span class="dot"></span>Сайт · Счёт — PDF</a>
+            <a href="app/dogovor-eastpole.html" target="_blank" rel="noopener"><span class="dot"></span>Договор — портал + сайт (общий, 1 970 000 ₸)</a>
+            <a class="is-pdf" href="app/dogovor-eastpole.pdf" target="_blank" rel="noopener"><span class="dot"></span>Договор — PDF</a>
+            <a href="app/eastpole.html" target="_blank" rel="noopener"><span class="dot"></span>Демо — портал управления (врем. доступ)</a>
+            <a href="app/eastpole.html?s=cal" target="_blank" rel="noopener"><span class="dot"></span>Демо — «Календарь загрузки» (главная задача)</a>
+            <a href="app/eastpole.html?s=site" target="_blank" rel="noopener"><span class="dot"></span>Демо — «Заявка с сайта» (календарь + форма)</a>
+          </div>
+        </details>
+        <span class="tool-badge new">КП + ТЗ + Демо</span>
+      </div>
+
+      <div class="tool-card" data-app-id="skala_crm">
+        <div class="tool-icon" style="background:#1e2a33">
+          <svg viewBox="0 0 32 32" width="22" height="22"><path d="M3 26L12 9l5 9 3-5 8 13z" fill="none" stroke="#f2a25a" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="9" r="1.7" fill="#f2a25a"/></svg>
+        </div>
+        <h3>Скала · CRM для скалодрома (Ирина, Алматы)</h3>
+        <p>КП по встрече: скалодром «Скала» — <b>единая CRM вместо amoCRM и Altegio</b>. Две воронки (школа скалолазания + детские программы) с UTM-трекингом таргета, <b>абонементы</b> (с тренером/без, детский лагерь, до 150 дней, заморозка/продление/остаток посещений), <b>чек-ин по QR</b> на входе (списание посещения + автозачёт тренеру), расписание тренеров и <b>ЗП по факту посещений</b>, кабинет клиента (остаток в WhatsApp), касса и <b>3 кэшфлоу</b> по направлениям, книга для бухгалтера, роли, мобильный веб. Своё, на сервере клиента. <b>1 500 000 ₸</b> (−3% за 24 ч → <b>1 455 000 ₸</b>), старт 10% — 150 000 ₸, остаток 2 транша постоплатой; 4–6 недель. Рабочий бренд «Скала».</p>
+        <a class="tool-cta as-link" href="app/kp-skala.pdf" target="_blank" rel="noopener">Открыть КП (PDF) →</a>
+        <details class="tool-dd">
+          <summary>▤ Документы (Скала · Ирина)<span class="chev">▾</span></summary>
+          <div class="tool-dd-menu">
+            <a class="is-pdf" href="app/kp-skala.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП — PDF (1 455 000 ₸ со скидкой, старт 150 000)</a>
+          </div>
+        </details>
+        <span class="tool-badge new">КП</span>
+      </div>
+
+      <div class="tool-card" data-app-id="polisterol_beton">
+        <div class="tool-icon" style="background:#2a2622">
+          <svg viewBox="0 0 32 32" width="22" height="22"><path d="M5 12l11-6 11 6" fill="none" stroke="#c9a77a" stroke-width="2" stroke-linejoin="round"/><rect x="5" y="12" width="22" height="14" rx="1.5" fill="none" stroke="#c9a77a" stroke-width="2"/><path d="M5 19h22M12.3 12v14M19.7 12v14" stroke="#c9a77a" stroke-width="1.5"/></svg>
+        </div>
+        <h3>Полистиролбетон · Производство и дома (Алибек)</h3>
+        <p>Проект <b>Алибека</b> по полистиролбетону (производство блоков + строительство домов). Плашка-заготовка — наполним по встрече: воронки (дома / блоки / бетон), заказы из прайса с PDF в WhatsApp, склад и производство, аналитика и деньги. <b>Материалы (КП/демо) добавим следующими.</b> Похожая готовая система уже есть — <b>JYLY · Полистиролбетон</b> (Бигайдар), можно взять за основу.</p>
+        <span class="tool-cta">Материалы в работе</span>
+        <span class="tool-badge coming">В работе</span>
+      </div>
+
+      <div class="tool-card" data-app-id="rigel_doors">
+        <div class="tool-icon" style="background:#20262f">
+          <svg viewBox="0 0 32 32" width="22" height="22"><rect x="10" y="6" width="14" height="20" rx="1" fill="none" stroke="#d99845" stroke-width="2"/><circle cx="20" cy="16" r="1.5" fill="#d99845"/><rect x="4" y="14.5" width="10" height="3" rx="1.2" fill="#d99845"/></svg>
+        </div>
+        <h3>РИГЕЛЬ · Установка входных дверей (Алексей Борминцев)</h3>
+        <p>Демо и КП по встрече 09.07: у клиента нет CRM (всё «на словах и в WhatsApp»), растёт с 10 до ~30 человек, главная задача — процесс, устойчивый к текучке («ушёл один — пришёл другой, процесс работал»). Демо-портал: заявки в воронке (заявка→замер→расчёт→договор→монтаж→гарантия), <b>график бригад</b> (замеры/монтажи, взаимозаменяемость), объект от заявки до акта, склад дверей/фурнитуры зеркалом 1С, бригады и роли, дашборд с источниками. $3 000 разово вместо аренды, 4–6 недель, ядро 2–3 недели. Лого нет — рабочий бренд РИГЕЛЬ.</p>
+        <a class="tool-cta as-link" href="app/rigel.html">Открыть демо →</a>
+        <details class="tool-dd">
+          <summary>▤ Документы (РИГЕЛЬ · Алексей)<span class="chev">▾</span></summary>
+          <div class="tool-dd-menu">
+            <a href="app/rigel.html" target="_blank" rel="noopener"><span class="dot"></span>Демо — портал установки дверей (врем. доступ)</a>
+            <a href="app/rigel.html?s=sched" target="_blank" rel="noopener"><span class="dot"></span>Демо — сразу «График бригад» (главная задача)</a>
+            <a href="app/kp-rigel.html" target="_blank" rel="noopener"><span class="dot"></span>КП — $3 000, своя система против аренды (врем. доступ)</a>
+            <a class="is-pdf" href="app/kp-rigel.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП — PDF</a>
+          </div>
+        </details>
+        <span class="tool-badge new">КП + Демо</span>
+      </div>
+
+      <div class="tool-card" data-app-id="agrosklad_portal">
+        <div class="tool-icon" style="background:#123322">
+          <svg viewBox="0 0 32 32" width="22" height="22"><path d="M7 13h18v13H7z" fill="none" stroke="#4fd08a" stroke-width="2"/><path d="M7 13l9-6 9 6M13 26v-7h6v7" stroke="#4fd08a" stroke-width="2" fill="none" stroke-linejoin="round"/></svg>
+        </div>
+        <h3>АгроСклад · Ответственное хранение СЗР (Рустем)</h3>
+        <p>Встреча 13.07: склад <b>ответственного хранения химсредств защиты растений</b> (агрохимия, B2B), обслуживают ~30 из ~80 компаний рынка. Сейчас на <b>1С</b> — «много забиваем руками, ждём заявки, лагает». Хотят свой портал вместо 1С: <b>ячеечное хранение</b> (пронумерованные ячейки — где и сколько лежит, штрихкод канистры, «плавающие» ячейки), <b>кабинет контрагента</b> (клиент сам вносит приход — тара, кол-во, время привоза), приход/расход <b>с авто-списанием</b>, пульт склада, каталог СЗР (SKU/тара 1–100 л/штрихкод), остатки/инвентаризация, уведомления в WhatsApp, роли (склад/руководитель/клиент). До 100 отгрузок в день в сезон. Веб + телефон, на их сервере. <b>1 500 000 ₸</b> (клиентская часть ~500к — бонусом), предоплата 10% + 2 этапа по 45%, 4–6 недель. Рабочий бренд «АгроСклад» — забрендируем под клиента.</p>
+        <a class="tool-cta as-link" href="app/agrosklad.html">Открыть демо →</a>
+        <details class="tool-dd">
+          <summary>▤ Документы (АгроСклад · Рустем)<span class="chev">▾</span></summary>
+          <div class="tool-dd-menu">
+            <a href="app/agrosklad.html" target="_blank" rel="noopener"><span class="dot"></span>Демо — портал склада (врем. доступ)</a>
+            <a href="app/agrosklad.html?s=cells" target="_blank" rel="noopener"><span class="dot"></span>Демо — «Ячейки · карта склада» (ключевое)</a>
+            <a href="app/agrosklad.html?s=arrivals" target="_blank" rel="noopener"><span class="dot"></span>Демо — «Приход» (клиент вносит сам)</a>
+            <a href="app/agrosklad.html?s=analytics" target="_blank" rel="noopener"><span class="dot"></span>Демо — «Аналитика» (сезонность, топ)</a>
+            <a href="app/kp-agrosklad.html" target="_blank" rel="noopener"><span class="dot"></span>КП — 1 500 000 ₸, клиентская часть бонусом (врем. доступ)</a>
+            <a class="is-pdf" href="app/kp-agrosklad.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП — PDF</a>
+            <a href="app/schet-agrosklad-1.html" target="_blank" rel="noopener"><span class="dot"></span>Счёт на предоплату 10% — 150 000 ₸ (врем. доступ)</a>
+            <a class="is-pdf" href="app/schet-agrosklad-1.pdf" target="_blank" rel="noopener"><span class="dot"></span>Счёт — PDF</a>
+          </div>
+        </details>
+        <span class="tool-badge new">КП + Счёт + Демо</span>
+      </div>
+
+      <div class="tool-card" data-app-id="sella_crm">
+        <div class="tool-icon" style="background:#12224a">
+          <svg viewBox="0 0 32 32" width="22" height="22"><rect x="6" y="17" width="4.5" height="9" rx="1" fill="#7fb0ff"/><rect x="13.7" y="12" width="4.5" height="14" rx="1" fill="#4f8ef7"/><rect x="21.5" y="7" width="4.5" height="19" rx="1" fill="#2f7ff0"/></svg>
+        </div>
+        <h3>SELLA · Своя CRM для отдела продаж (Батырхан/Азамат)</h3>
+        <p>Встреча 13.07: отдел продаж на несколько бизнесов (английские курсы, производство, маркет), сейчас на amoCRM/Bitrix — <b>дорогая аренда и абонплата</b>, ~32 000 контактов. Хотят <b>свою CRM «как amoCRM», но на своём сервере и без ежемесячной платы</b>: воронки со сделками и перетаскиванием, <b>чат прямо в сделке</b> (WhatsApp/Instagram/Telegram через нас), роботы/Salesbot (контроль дублей, авто-сообщения, «нет ответа 7 дней → вернуть на регистратора»), телефония Binotel, задачи, аналитика, роли. Экономия ~<b>19 млн ₸ за 3 года</b> против amo+Bitrix, окупается за ~4 мес. <b>2 100 000 ₸</b> разово при согласовании за 24 ч (перенос данных 500к — бесплатно по акции), предоплата 30% + 2 этапа по 35% (ядро → полная передача). Кликабельная демо «как amoCRM» под брендом SELLA.</p>
+        <a class="tool-cta as-link" href="app/sella.html">Открыть демо →</a>
+        <details class="tool-dd">
+          <summary>▤ Документы (SELLA · Батырхан/Азамат)<span class="chev">▾</span></summary>
+          <div class="tool-dd-menu">
+            <a href="app/sella.html" target="_blank" rel="noopener"><span class="dot"></span>Демо — CRM «как amoCRM» (врем. доступ)</a>
+            <a href="app/sella.html?s=inbox" target="_blank" rel="noopener"><span class="dot"></span>Демо — «Чаты · Inbox» (переписка во всех каналах)</a>
+            <a href="app/sella.html?s=robots" target="_blank" rel="noopener"><span class="dot"></span>Демо — «Роботы · Salesbot» (Digital Pipeline)</a>
+            <a href="app/sella.html?deal=1" target="_blank" rel="noopener"><span class="dot"></span>Демо — карточка сделки (чат + задачи)</a>
+            <a href="app/sella.html?s=stats" target="_blank" rel="noopener"><span class="dot"></span>Демо — «Аналитика» (воронка, менеджеры)</a>
+            <a href="app/kp-sella.html" target="_blank" rel="noopener"><span class="dot"></span>КП — 2 100 000 ₸ (24ч), экономия ~19 млн ₸ (врем. доступ)</a>
+            <a class="is-pdf" href="app/kp-sella.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП — PDF</a>
+            <a href="app/schet-sella-1.html" target="_blank" rel="noopener"><span class="dot"></span>Счёт на предоплату 30% — 630 000 ₸ (врем. доступ)</a>
+            <a class="is-pdf" href="app/schet-sella-1.pdf" target="_blank" rel="noopener"><span class="dot"></span>Счёт — PDF</a>
+          </div>
+        </details>
+        <span class="tool-badge new">КП + Счёт + Демо</span>
+      </div>
+
+      <div class="tool-card" data-app-id="gulzar_flowers">
+        <div class="tool-icon" style="background:#1a2a20">
+          <svg viewBox="0 0 32 32" width="22" height="22"><path d="M16 6 C12.5 10.5 12.5 14 16 16.2 C19.5 14 19.5 10.5 16 6 Z" fill="#e7b3c2"/><path d="M16 16.2 C11.5 13.8 8 15 7 19.5 C11.6 20.6 15 19.4 16 16.2 Z" fill="#cf6a86"/><path d="M16 16.2 C20.5 13.8 24 15 25 19.5 C20.4 20.6 17 19.4 16 16.2 Z" fill="#cf6a86"/><path d="M16 16 v9" stroke="#7fbf9a" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <h3>Оранжерея · Сеть цветочных магазинов (Юлия/Александр, Бишкек)</h3>
+        <p>Встреча 13.07 с соучредителями «Оранжерея» (orangeree.kg): оптово-розничная сеть, 7 точек + оптовый склад. Реальные боли — 2 года хотят <b>базу постоянных клиентов с лояльностью</b> (дни рождения, авто-SMS, статусы, повторные продажи), склад с прогнозом заказа по неделям, KPI/план-факт флористов, статистика каналов (Instagram/WhatsApp/Telegram/сайт), касса + 1С. Своя система на их сервере вместо аренды amo/Bitrix/RetailCRM. $3 000 −10% = <b>$2 700</b> разово, предоплата <b>$270</b>, 4–6 недель, 1С+каналы+лояльность бонусом. Демо-портал под брендом «Оранжерея» — дополнен по встрече 13.07: <b>лояльность</b> (статусы, роботы-рассылки, повторные продажи), <b>KPI/план-факт</b> флористов, аналитика каналов.</p>
+        <a class="tool-cta as-link" href="app/gulzar.html">Открыть демо →</a>
+        <details class="tool-dd">
+          <summary>❀ Документы (Оранжерея · Юлия/Александр)<span class="chev">▾</span></summary>
+          <div class="tool-dd-menu">
+            <a href="app/kp-orangeree.html" target="_blank" rel="noopener"><span class="dot"></span>КП — $2 700 (−10%), лояльность+1С бонусом (врем. доступ)</a>
+            <a class="is-pdf" href="app/kp-orangeree.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП — PDF</a>
+            <a href="app/schet-orangeree-1.html" target="_blank" rel="noopener"><span class="dot"></span>Счёт на предоплату — $270 (врем. доступ)</a>
+            <a class="is-pdf" href="app/schet-orangeree-1.pdf" target="_blank" rel="noopener"><span class="dot"></span>Счёт — PDF</a>
+            <a href="app/tz-orangeree.html" target="_blank" rel="noopener"><span class="dot"></span>ТЗ — 13 модулей (лояльность, склад, KPI…) (врем. доступ)</a>
+            <a class="is-pdf" href="app/tz-orangeree.pdf" target="_blank" rel="noopener"><span class="dot"></span>ТЗ — PDF</a>
+            <a href="app/gulzar.html" target="_blank" rel="noopener"><span class="dot"></span>Демо — портал «Оранжерея» (врем. доступ)</a>
+            <a href="app/gulzar.html?s=loyalty" target="_blank" rel="noopener"><span class="dot"></span>Демо — «Лояльность» (ядро — постоянные клиенты)</a>
+            <a href="app/gulzar.html?s=kpi" target="_blank" rel="noopener"><span class="dot"></span>Демо — «KPI · план-факт флористов»</a>
+            <a href="app/gulzar.html?s=stock" target="_blank" rel="noopener"><span class="dot"></span>Демо — «Наличие по филиалам»</a>
+            <a href="app/kp-gulzar.html" target="_blank" rel="noopener"><span class="dot"></span>КП (старая версия $3 000)</a>
+          </div>
+        </details>
+        <span class="tool-badge new">КП + ТЗ + Счёт + Демо</span>
+      </div>
+
+      <div class="tool-card" data-app-id="magistral_rail">
+        <div class="tool-icon" style="background:#16202e">
+          <svg viewBox="0 0 32 32" width="22" height="22"><path d="M6 24 L26 24 M9 24 L11.5 8 M23 24 L20.5 8 M11.5 8 L20.5 8" stroke="#d9871a" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M7 20 L25 20 M7.5 16 L24.5 16" stroke="#8b98a9" stroke-width="1.5"/></svg>
+        </div>
+        <h3>MAGISTRAL · ЖД-грузоперевозки (Алдияр, Павлодар)</h3>
+        <p>Демо по брифу: компания 8 лет возит грузы по ЖД, ведут в Excel и тетрадях, «горит» — нужна единая система к концу августа. Главная боль — <b>забыли выставить счёт на 4 вагона</b> и долго доказывали. Демо-система: заявки в воронке (заявка→расчёт→подача вагонов→в пути→выгрузка→закрыта), <b>реестр вагонов по номерам</b>, карточка с услугами и доп.услугами (погрузка), <b>оплаты разными суммами и датами</b>, и ключевое — <b>контроль «К выставлению»</b>: доставленный, но не выставленный вагон краснеет, чтобы деньги не терялись. Склад/остатки зеркалом 1С, WhatsApp клиенту, дашборд с деньгами. Всё прокликивается и сохраняется. Рабочий бренд MAGISTRAL.</p>
+        <a class="tool-cta as-link" href="app/magistral.html">Открыть демо →</a>
+        <details class="tool-dd">
+          <summary>▤ Документы (MAGISTRAL · Алдияр)<span class="chev">▾</span></summary>
+          <div class="tool-dd-menu">
+            <a href="app/magistral.html" target="_blank" rel="noopener"><span class="dot"></span>Демо — система ЖД-грузоперевозок (врем. доступ)</a>
+            <a href="app/magistral.html?s=invoices" target="_blank" rel="noopener"><span class="dot"></span>Демо — сразу «Счета · К выставлению» (главная боль)</a>
+            <a href="app/magistral.html?s=wagons" target="_blank" rel="noopener"><span class="dot"></span>Демо — реестр вагонов по номерам</a>
+            <a href="app/kp-magistral.html" target="_blank" rel="noopener"><span class="dot"></span>КП — 1 500 000 ₸, 1С+калькулятор бонусом (врем. доступ)</a>
+            <a class="is-pdf" href="app/kp-magistral.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП — PDF</a>
+            <a href="app/tz-magistral.html" target="_blank" rel="noopener"><span class="dot"></span>ТЗ — 15 модулей, учёт по вагону (врем. доступ)</a>
+            <a class="is-pdf" href="app/tz-magistral.pdf" target="_blank" rel="noopener"><span class="dot"></span>ТЗ — PDF</a>
+            <a href="app/schet-magistral-1.html" target="_blank" rel="noopener"><span class="dot"></span>Счёт на предоплату — 150 000 ₸ (врем. доступ)</a>
+            <a class="is-pdf" href="app/schet-magistral-1.pdf" target="_blank" rel="noopener"><span class="dot"></span>Счёт — PDF</a>
+          </div>
+        </details>
+        <span class="tool-badge new">КП + ТЗ + Демо</span>
+      </div>
+
+      <div class="tool-card" data-app-id="azam_zavod">
+        <div class="tool-icon" style="background:#0d1524">
+          <svg viewBox="0 0 32 32" width="22" height="22"><path d="M16 5 C13 9 13 12 16 15 C19 12 19 9 16 5 Z M16 12 C13 16 13 19 16 22 C19 19 19 16 16 12 Z M16 19 C13 23 13 26 16 28 C19 26 19 23 16 19 Z" fill="#e8b04b"/></svg>
+        </div>
+        <h3>AZAM · Завод элеваторного оборудования (Аязбек, ТОО «AZAM-KC»)</h3>
+        <p>Супер-демо по двум встречам и схеме клиента: завод полного цикла (очистка, сушилки, нории, транспортёры, силосы), контракты 300 млн–1 млрд, сейчас всё в Excel и тетрадях. Единый <b>«пульт завода»</b>, где бизнес движется одной сущностью — <b>сделкой</b>. Северная звезда — <b>исполнение договора</b> по 4 нитям (оплата · закуп · производство · отгрузка). Внутри: <b>выбор роли на входе</b> (8 кабинетов), воронка продаж с <b>конструктором заказа</b>, авто-КП/договор, бухгалтерия с <b>календарём платежей</b>, <b>ПДО по 4 цехам</b> с ОТК и <b>drill-down по изделиям</b>, <b>штрихкод-прослеживаемость «деталь → изделие»</b> (приём по декларации → списание на изделие), закуп/оборотный склад (приход/списание, заявки), склад готовой + <b>контроль комплектности</b>, <b>КПП</b>, дашборд с графиками и <b>календарём</b>, план-график (Гант), интеграции (сайт azam.kz, WhatsApp, IP-телефония, замена amoCRM), 1С. Светлая/тёмная тема с аура-эффектом, всё прокликивается и редактируется. <b>2 500 000 ₸</b> (предоплата 10% = 250 000 + 2 этапа по 1 125 000), 4–6 недель, 2–3 итерации.</p>
+        <a class="tool-cta as-link" href="app/azam.html">Открыть демо →</a>
+        <details class="tool-dd">
+          <summary>▤ Документы (AZAM · ТОО «AZAM-KC»)<span class="chev">▾</span></summary>
+          <div class="tool-dd-menu">
+            <a href="app/azam.html" target="_blank" rel="noopener"><span class="dot"></span>Демо — пульт завода, выбор роли на входе (врем. доступ)</a>
+            <a href="app/azam.html?role=%D0%9F%D0%94%D0%9E%20%2F%20%D0%9F%D0%BB%D0%B0%D0%BD%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5" target="_blank" rel="noopener"><span class="dot"></span>Демо — сразу ПДО (цеха, штрихкоды, drill-down)</a>
+            <a href="app/azam.html?s=ship" target="_blank" rel="noopener"><span class="dot"></span>Демо — отгрузка · контроль комплектности</a>
+            <a href="app/kp-azam.html" target="_blank" rel="noopener"><span class="dot"></span>КП — 2 500 000 ₸, интеграции+сервер бонусом (врем. доступ)</a>
+            <a class="is-pdf" href="app/kp-azam.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП — PDF</a>
+            <a href="app/tz-azam.html" target="_blank" rel="noopener"><span class="dot"></span>ТЗ — 15 модулей, штрихкод-прослеживаемость (врем. доступ)</a>
+            <a class="is-pdf" href="app/tz-azam.pdf" target="_blank" rel="noopener"><span class="dot"></span>ТЗ — PDF</a>
+            <a href="app/dogovor-azam.html" target="_blank" rel="noopener"><span class="dot"></span>Договор № AZ-Д-2026-01 (врем. доступ)</a>
+            <a class="is-pdf" href="app/dogovor-azam.pdf" target="_blank" rel="noopener"><span class="dot"></span>Договор — PDF</a>
+            <a href="app/schet-azam-1.html" target="_blank" rel="noopener"><span class="dot"></span>Счёт на предоплату — 250 000 ₸ (10%) (врем. доступ)</a>
+            <a class="is-pdf" href="app/schet-azam-1.pdf" target="_blank" rel="noopener"><span class="dot"></span>Счёт — PDF</a>
+          </div>
+        </details>
+        <span class="tool-badge new">КП + ТЗ + Договор + Счёт + Демо</span>
+      </div>
+
+      <div class="tool-card" data-app-id="plombir_zavod">
+        <div class="tool-icon" style="background:#12a58a">
+          <svg viewBox="0 0 32 32" width="22" height="22"><path d="M11 13 a5 5 0 0 1 10 0 z" fill="#fff"/><path d="M11 13 h10 l-5 12 z" fill="#ffe6c7"/></svg>
+        </div>
+        <h3>PLOMBIR · Завод мороженого (B2B, дилеры)</h3>
+        <p>Демо по встрече: завод мороженого (~100 чел, оборот ~100 млн/мес), продажи оптовикам/дилерам по городам. Сейчас отдел продаж есть, но <b>воронки нет</b>, нет дисциплины. Единый <b>«пульт завода»</b>, где всё движется одной сущностью — <b>заказом</b>. Внутри: <b>выбор роли на входе</b> (6 кабинетов), <b>воронка продаж</b> (карточка заказа: состав, оплата 50/50, машина своя/наёмная), <b>производственная воронка</b> по циклам мороженого (пастеризация → фризер → закалка → фасовка → склад) с потоком и партиями, база <b>дилеров</b>, <b>склад с холодовой цепью</b> (партии, срок годности, температура камер), <b>логистика/автопарк</b> (свои+наёмные рейсы), <b>рецептура и калькулятор себестоимости</b>, <b>воронка найма</b> (~100 чел), дашборд с графиками. Свежая молочно-мятная тема, свет/тёмная, всё прокликивается. Рабочий бренд PLOMBIR. <b>2 500 000 ₸</b> (стандартный пакет), 1С и финансы — по часам сверху. Собственник вернётся ~27-го — предметная встреча.</p>
+        <a class="tool-cta as-link" href="app/plombir.html">Открыть демо →</a>
+        <details class="tool-dd">
+          <summary>▤ Документы (PLOMBIR · мороженое)<span class="chev">▾</span></summary>
+          <div class="tool-dd-menu">
+            <a href="app/plombir.html" target="_blank" rel="noopener"><span class="dot"></span>Демо — пульт завода, выбор роли на входе (врем. доступ)</a>
+            <a href="app/plombir.html?s=sales" target="_blank" rel="noopener"><span class="dot"></span>Демо — воронка продаж (дилеры)</a>
+            <a href="app/plombir.html?s=prod" target="_blank" rel="noopener"><span class="dot"></span>Демо — производство: партии, поток, рецептура</a>
+            <a href="app/kp-plombir.html" target="_blank" rel="noopener"><span class="dot"></span>КП — 2 500 000 ₸, стандартный пакет (врем. доступ)</a>
+            <a class="is-pdf" href="app/kp-plombir.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП — PDF</a>
+          </div>
+        </details>
+        <span class="tool-badge new">КП + Демо</span>
+      </div>
+
+      <div class="tool-card" data-app-id="genius_school">
+        <div class="tool-icon" style="background:#1b2340">
+          <svg viewBox="0 0 32 32" width="22" height="22"><path d="M16 7 L27 12 L16 17 L5 12 Z" fill="#f0972c"/><path d="M9 14.5 V20 C9 22 12.5 23.5 16 23.5 C19.5 23.5 23 22 23 20 V14.5" fill="none" stroke="#c9cfe8" stroke-width="1.8"/><line x1="27" y1="12" x2="27" y2="18" stroke="#c9cfe8" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </div>
+        <h3>Genius School · Частная начальная школа (Надира, Астана)</h3>
+        <p>Демо, КП и ТЗ по встрече 10.07: частная школа 0–4 классов, 90 мест, добрать ~50 учеников в сезон; сейчас лиды в Excel и хаотичных чатах WhatsApp, оплаты вручную. Главная боль — <b>не терять лидов</b> и не потерять данные. Демо-портал (углублён по встрече): воронка набора (заявка→диагностика→пробный день→зачисление), ученики по классам, посещаемость с авто-уведомлением родителю, <b>рекуррентные оплаты</b> с автосписанием и привязкой карты, кружки (в т.ч. онлайн), расписание + <b>нагрузка педагогов</b>, аналитика (конверсия, источники), IP-телефония, <b>кабинет родителя</b> (оплата, опрос после урока, связь с педагогом) и <b>кабинет преподавателя</b>, роли админ/учитель/родитель, ежедневные бэкапы. 1 500 000 ₸ разово (вместо аренды 100–200к/мес), эксклюзив + NDA, модуль набора за неделю. Бренд — сама школа Genius School.</p>
+        <a class="tool-cta as-link" href="app/genius.html">Открыть демо →</a>
+        <details class="tool-dd">
+          <summary>▤ Документы (Genius School · Надира)<span class="chev">▾</span></summary>
+          <div class="tool-dd-menu">
+            <a href="app/genius.html" target="_blank" rel="noopener"><span class="dot"></span>Демо — портал школы (врем. доступ)</a>
+            <a href="app/genius.html?s=leads" target="_blank" rel="noopener"><span class="dot"></span>Демо — «Набор» (не терять лидов)</a>
+            <a href="app/genius.html?s=pay" target="_blank" rel="noopener"><span class="dot"></span>Демо — «Оплаты» (рекуррент, автосписание)</a>
+            <a href="app/genius.html?s=analytics" target="_blank" rel="noopener"><span class="dot"></span>Демо — «Аналитика» (конверсия, источники)</a>
+            <a href="app/genius.html?s=clubs" target="_blank" rel="noopener"><span class="dot"></span>Демо — «Кружки»</a>
+            <a href="app/genius.html?role=parent" target="_blank" rel="noopener"><span class="dot"></span>Демо — кабинет родителя</a>
+            <a href="app/genius.html?role=teacher" target="_blank" rel="noopener"><span class="dot"></span>Демо — кабинет преподавателя</a>
+            <a href="app/kp-genius.html" target="_blank" rel="noopener"><span class="dot"></span>КП — 1 500 000 ₸, эксклюзив, постоплата (врем. доступ)</a>
+            <a class="is-pdf" href="app/kp-genius.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП — PDF</a>
+            <a href="app/tz-genius.html" target="_blank" rel="noopener"><span class="dot"></span>ТЗ — 16 модулей, приёмка по этапам (врем. доступ)</a>
+            <a class="is-pdf" href="app/tz-genius.pdf" target="_blank" rel="noopener"><span class="dot"></span>ТЗ — PDF</a>
+          </div>
+        </details>
+        <span class="tool-badge new">КП + ТЗ + Демо</span>
+      </div>
+
+      <div class="tool-card" data-app-id="korpus_mebel">
+        <div class="tool-icon" style="background:#26201a">
+          <svg viewBox="0 0 32 32" width="22" height="22"><rect x="7" y="6" width="18" height="20" rx="1.5" fill="none" stroke="#a86a33" stroke-width="2"/><line x1="16" y1="6" x2="16" y2="26" stroke="#a86a33" stroke-width="2"/><line x1="7" y1="16" x2="16" y2="16" stroke="#a86a33" stroke-width="2"/><circle cx="12.5" cy="11" r="1.1" fill="#d99845"/><circle cx="19.5" cy="21" r="1.1" fill="#d99845"/></svg>
+        </div>
+        <h3>KORPUS · Производство корпусной мебели (Майра, Алматы)</h3>
+        <p>КП по встрече 10.07: мастерская корпусной мебели, 18+ лет, 5 дизайнеров-конструкторов, ~20 заявок/день, база ~10 000, CRM нет — всё в WhatsApp, чертежи в папках и AutoCAD. Главные боли — <b>теряют лидов</b> из потока и нет единого архива проектов. КП: воронка заявок, <b>единый архив проектов</b> (найти чертёж прошлых лет за секунды), рассылки, аналитика источников, миграция базы 10к, IP-телефония + WhatsApp, склад, калькулятор для стандартных серий, KPI-«светофор». 1 350 000 ₸ (−10%) разово вместо аренды, предоплата 135к, срок ~1 месяц. Рабочий бренд KORPUS.</p>
+        <a class="tool-cta as-link" href="app/kp-korpus.html">Открыть КП →</a>
+        <details class="tool-dd">
+          <summary>▤ Документы (KORPUS · Майра)<span class="chev">▾</span></summary>
+          <div class="tool-dd-menu">
+            <a href="app/kp-korpus.html" target="_blank" rel="noopener"><span class="dot"></span>КП — 1 350 000 ₸, без абонплаты (врем. доступ)</a>
+            <a class="is-pdf" href="app/kp-korpus.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП — PDF</a>
+          </div>
+        </details>
+        <span class="tool-badge new">КП</span>
+      </div>
+
+      <div class="tool-card" data-app-id="jyly_beton">
+        <div class="tool-icon" style="background:#23272b">
+          <svg viewBox="0 0 32 32" width="22" height="22"><path d="M6 17 L16 8 L26 17" fill="none" stroke="#d96a35" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 26 v-7 h12 v7" fill="none" stroke="#f0ede8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 22 c-1.6-2 1.6-3 0-5" fill="none" stroke="#d96a35" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <h3>JYLY · Полистиролбетон и дома (Бигайдар, Алматы)</h3>
+        <p>Демо и КП по встрече 08.07: аналитика «пролистал — всё увидел» с почасовой тепловой картой (его ночные клиенты 23–01ч), воронки по направлениям дома/блоки/бетон, классификация купит/не купит/подождать с напоминалками, ночной автоответ без псевдо-ИИ, заказы из прайса с PDF в WhatsApp, склад/производство. amo отключил, конкурент — «CRM за % с продаж». 1,5 млн ₸, база за ~7 дней. Лого нет — рабочий бренд JYLY.</p>
+        <a class="tool-cta as-link" href="app/kp-jyly.html">Открыть КП →</a>
+        <details class="tool-dd">
+          <summary>⌂ Документы (JYLY · Бигайдар)<span class="chev">▾</span></summary>
+          <div class="tool-dd-menu">
+            <a href="app/kp-jyly.html" target="_blank" rel="noopener"><span class="dot"></span>КП — 1,5 млн ₸, база за 7 дней (врем. доступ)</a>
+            <a class="is-pdf" href="app/kp-jyly.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП — PDF</a>
+            <a href="app/jyly.html" target="_blank" rel="noopener"><span class="dot"></span>Демо — CRM JYLY (врем. доступ)</a>
+          </div>
+        </details>
+        <span class="tool-badge new">КП + Демо</span>
+      </div>
+
+      <div class="tool-card" data-app-id="taza_clean">
         <div class="tool-icon" style="background:#0d5c58">
           <svg viewBox="0 0 32 32" width="22" height="22"><path d="M16 5 C16 5 8 14 8 20 a8 8 0 0 0 16 0 C24 14 16 5 16 5 Z" fill="#eafaf5"/><path d="M12 19 a4.5 4.5 0 0 0 4 5" fill="none" stroke="#0d5c58" stroke-width="1.8" stroke-linecap="round"/></svg>
         </div>
-        <h3>TAZA · Клининг (Денис, Павлодар)</h3>
-        <p>Демо по брифу: живой пульт объектов (чек-ины по QR с гео, прогресс чек-листов, бригады), фото «до/после» с телефонов уборщиц, заявки заказчиков с SLA (инциденты / доп-работы ₸ / моющие средства), качество с инспекциями и оценками, смены и табель с заменами, склад средств с нормами расхода, маржа по объектам. Роли директор/бригадир/заказчик. Главная боль — контроль линейного персонала на удалённых объектах.</p>
-        <span class="tool-cta">Открыть демо →</span>
-        <span class="tool-badge new">Демо</span>
-      </a>
+        <h3>СОФИЯ · Клининг (Денис Ужеловский, Павлодар)</h3>
+        <p>Демо TAZA (показано на встрече 08.07) + КП по итогам: кабинет заказчика (проект→объект→адрес, обращения с фото), интерфейс уборщицы, пульт, заявки с SLA, склады на каждом объекте с инвентарём, двусторонние оценки, ФОТ/маржа, системный WhatsApp, эквайринг для мобильной группы. 1,5 млн ₸, −10% при ответе до 14.07 → 1 350 000 (135/607,5/607,5). Лого «Софии» пришлёт — перебрендируем.</p>
+        <a class="tool-cta as-link" href="app/kp-sofiya.html">Открыть КП →</a>
+        <details class="tool-dd">
+          <summary>✦ Документы (СОФИЯ · Денис)<span class="chev">▾</span></summary>
+          <div class="tool-dd-menu">
+            <a href="app/kp-sofiya.html" target="_blank" rel="noopener"><span class="dot"></span>КП — 1,35 млн ₸ до 14.07 (врем. доступ)</a>
+            <a class="is-pdf" href="app/kp-sofiya.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП — PDF</a>
+            <a href="app/taza.html" target="_blank" rel="noopener"><span class="dot"></span>Демо — портал TAZA (врем. доступ)</a>
+          </div>
+        </details>
+        <span class="tool-badge new">КП + Демо</span>
+      </div>
 
-      <a href="app/sarap.html" class="tool-card" data-app-id="sarap_hr">
+            <div class="tool-card" data-app-id="sarap_hr">
         <div class="tool-icon" style="background:#172033">
-          <svg viewBox="0 0 32 32" width="24" height="24"><path d="M3 25 C9 25 10 8 16 8 C22 8 23 25 29 25" fill="none" stroke="#e8ecf3" stroke-width="2"/><line x1="20" y1="6" x2="20" y2="27" stroke="#2ea882" stroke-width="2"/></svg>
+          <svg viewBox="0 0 32 32" width="22" height="22"><path d="M6 12 L16 7 L26 12 L16 17 Z" fill="#e8ecf3"/><path d="M6 12 v9 l10 5 v-9 Z" fill="#7d8ea6"/><path d="M26 12 v9 l-10 5 v-9 Z" fill="#b9c4d4"/><path d="M19 20 l3 3 6-7" fill="none" stroke="#2ea882" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
-        <h3>SARAP · Тесты для найма (вендор психометрики)</h3>
-        <p>Мокап по промту tools/prompts/hr-tests-portal.md: воронка продаж пакетов с пилотами, клиенты с остатками прохождений и автосчётом, каталог методик (нормы РК, языки), выдача тестов кандидатам с флагами честности, отчёт с гауссианами/стэнами/бенчмарком вакансии, кабинет HR-клиента, финансы. Стиль «психометрическая лаборатория»: Spectral+Onest, без эмодзи. Лого клиента ещё не приложено — перебрендируется.</p>
-        <span class="tool-cta">Открыть мокап →</span>
-        <span class="tool-badge new">Мокап</span>
-      </a>
+        <h3>Kolyakhan (HireBox) · CRM для лид-менеджеров</h3>
+        <p>Переделано под ТЗ Этап 1 (лид-менеджеры HireBox): <b>две воронки</b> «Лид-менеджеры» → «Отдел продаж» с передачей лида и отметкой встречи; роли (лид-менеджер / ведущий / руководитель); карточка лида (компания/город/сегмент/телефон/hh/БИН/источник + история звонков с записью + встреча с флагом состоялась + WhatsApp-окно + почта); импорт Excel + антидубли; задачи на день; статистика звонков (результативных ≥1 мин отдельно от недозвонов); статистика по менеджеру и учёт рабочего времени по журналу событий. Этапы воронок — черновик (Эвилина настроит по макету). ?deal=1 — открыть лид.</p>
+        <a class="tool-cta as-link" href="app/kolyakhan.html">Открыть CRM →</a>
+        <details class="tool-dd">
+          <summary>▣ Демо (Kolyakhan · Этап 1)<span class="chev">▾</span></summary>
+          <div class="tool-dd-menu">
+            <a href="app/kolyakhan.html" target="_blank" rel="noopener"><span class="dot"></span>CRM лид-менеджеров — воронка «Лиды» (врем. доступ)</a>
+            <a href="app/kolyakhan.html?deal=1" target="_blank" rel="noopener"><span class="dot"></span>Сразу с открытой карточкой лида</a>
+            <a href="app/kolyakhan.html?s=stats" target="_blank" rel="noopener"><span class="dot"></span>Статистика по менеджерам + рабочее время</a>
+            <a href="app/sarap.html" target="_blank" rel="noopener"><span class="dot"></span>Полный портал (референс SARAP, врем. доступ)</a>
+          </div>
+        </details>
+        <span class="tool-badge new">CRM · Этап 1</span>
+      </div>
 
       <div class="tool-card" data-app-id="mk_group">
         <div class="tool-icon" style="background:#131c28">
@@ -558,12 +972,14 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
           <div class="tool-dd-menu">
             <a href="app/kp-zaika.html" target="_blank" rel="noopener"><span class="dot"></span>КП — база 1,5 млн ₸ / доп. пакеты (врем. доступ)</a>
             <a class="is-pdf" href="app/kp-zaika.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП — PDF</a>
-            <a href="app/tz-zaika.html" target="_blank" rel="noopener"><span class="dot"></span>ТЗ — 13 модулей базы, приёмка (врем. доступ)</a>
+            <a href="app/tz-zaika.html" target="_blank" rel="noopener"><span class="dot"></span>ТЗ — весь портал: 16 модулей + педконтур (дополнение 09.07), приёмка (врем. доступ)</a>
             <a class="is-pdf" href="app/tz-zaika.pdf" target="_blank" rel="noopener"><span class="dot"></span>ТЗ — PDF</a>
-            <a href="app/dogovor-zaika.html" target="_blank" rel="noopener"><span class="dot"></span>Договор на разработку ПО № ZK-Д-2026-01 (врем. доступ)</a>
+            <a href="app/dogovor-zaika.html" target="_blank" rel="noopener"><span class="dot"></span>Договор № ZK-Д-2026-01 — 1 350 000 ₸, реквизиты ТОО «ЕЛАМАН» (врем. доступ)</a>
             <a class="is-pdf" href="app/dogovor-zaika.pdf" target="_blank" rel="noopener"><span class="dot"></span>Договор — PDF</a>
-            <a href="app/nda-zaika.html" target="_blank" rel="noopener"><span class="dot"></span>NDA — взаимное, для подписания (врем. доступ)</a>
+            <a href="app/nda-zaika.html" target="_blank" rel="noopener"><span class="dot"></span>NDA — взаимное, реквизиты ТОО «ЕЛАМАН» (врем. доступ)</a>
             <a class="is-pdf" href="app/nda-zaika.pdf" target="_blank" rel="noopener"><span class="dot"></span>NDA — PDF</a>
+            <a href="app/schet-zaika-1.html" target="_blank" rel="noopener"><span class="dot"></span>Счёт № ZK-С-2026-01 — предоплата 150 000 ₸ (врем. доступ)</a>
+            <a class="is-pdf" href="app/schet-zaika-1.pdf" target="_blank" rel="noopener"><span class="dot"></span>Счёт на предоплату — PDF</a>
             <a href="app/zaika.html" target="_blank" rel="noopener"><span class="dot"></span>Демо — портал сети «Зайка» (врем. доступ)</a>
           </div>
         </details>
@@ -673,6 +1089,16 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
           </div>
         </details>
         <span class="tool-badge new">Счёт</span>
+      </div>
+
+      <div class="tool-card" data-app-id="rl_fondy">
+        <div class="tool-icon color-green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/></svg>
+        </div>
+        <h3>RL · Фонды проектов</h3>
+        <p>Касса проекта в одном экране: план поступлений и трат, фонды с автораскладкой каждого прихода, расходы из фондов, касса по месяцам с кассовыми разрывами, долги между фондами и задачи по деньгам. Данные живут в браузере устройства.</p>
+        <a class="tool-cta as-link" href="app/rl-fondy.html">Открыть демо →</a>
+        <span class="tool-badge new">Новое</span>
       </div>
 
       <a href="crm/" class="tool-card" data-app-id="pllato_crm">
@@ -904,18 +1330,29 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
         <div class="tool-icon" style="background:linear-gradient(135deg,#203553,#1a4060)">
           <svg viewBox="0 0 24 24" fill="none" stroke="#5EE1E5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10"/><path d="M8 12s1-2 4-2 4 2 4 2"/><path d="M9 9h.01M15 9h.01"/><path d="M19 5v6M22 8h-6"/></svg>
         </div>
-        <h3>MELLIGRI · Косметика CRM</h3>
-        <p>CRM для дистрибьютора косметики: воронка косметологов-клиентов, входящие WhatsApp/Instagram/Telegram, каталог препаратов (филлеры, ботокс, мезотерапия), склад с сериями и сроками, план-факт и KPI, блогер-коды, диплом-гейт, 1С. Клиент: Маргарита.</p>
+        <h3>MELLIGRI · Косметика CRM (Маргарита)</h3>
+        <p>CRM для B2B-дистрибуции косметологии: 14 модулей — дашборд собственника, мульти-воронки, диплом-гейт (цены скрыты без диплома), омни-инбокс WhatsApp/Instagram/Telegram, заказы и мульти-прайс, склад с сериями/сроками/инвентаризацией, план-факт и KPI→ЗП по тирам, триггеры, блогер-коды с атрибуцией, звонки с транскрибацией, двусторонняя 1С, кабинет косметолога. Демо восстановлено до полного функционала из КП. $2 700 (−10% за 24ч), 4–6 недель.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-          <a class="tool-cta as-link" href="app/kosmetika/" style="flex:1;text-align:center">Открыть портал →</a>
+          <a class="tool-cta as-link" href="app/kosmetika/index.html" style="flex:1;text-align:center">Открыть портал →</a>
         </div>
         <details class="tool-dd">
-          <summary>📄 Документы (Маргарита)<span class="chev">▾</span></summary>
+          <summary>📄 Документы и демо (Маргарита)<span class="chev">▾</span></summary>
           <div class="tool-dd-menu">
-            <a class="is-pdf" href="app/kosmetika/Pllato_KP_MELLIGRI.pdf" target="_blank" rel="noopener"><span class="dot"></span>Коммерческое предложение — PDF</a>
+            <a href="app/kosmetika/index.html" target="_blank" rel="noopener"><span class="dot"></span>Демо — портал MELLIGRI (полный, врем. доступ)</a>
+            <a href="app/kosmetika/index.html?role=owner&s=sklad" target="_blank" rel="noopener"><span class="dot"></span>Демо — сразу «Склад» (серии/сроки)</a>
+            <a href="app/kosmetika/index.html?role=owner&s=pricelists" target="_blank" rel="noopener"><span class="dot"></span>Демо — сразу «Прайс-листы»</a>
+            <a href="app/kosmetika/index.html?role=owner&s=planfact" target="_blank" rel="noopener"><span class="dot"></span>Демо — сразу «План-факт и KPI»</a>
+            <a href="app/kosmetika/mini.html" target="_blank" rel="noopener"><span class="dot"></span>Демо — кабинет косметолога</a>
+            <a class="is-pdf" href="app/kosmetika/Pllato_KP_MELLIGRI.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП — PDF</a>
+            <a href="app/tz-melligri.html" target="_blank" rel="noopener"><span class="dot"></span>ТЗ — 14 модулей, приёмка (врем. доступ)</a>
+            <a class="is-pdf" href="app/tz-melligri.pdf" target="_blank" rel="noopener"><span class="dot"></span>ТЗ — PDF</a>
+            <a href="app/dogovor-melligri.html" target="_blank" rel="noopener"><span class="dot"></span>Договор на разработку ПО № MG-Д-2026-01 (врем. доступ)</a>
+            <a class="is-pdf" href="app/dogovor-melligri.pdf" target="_blank" rel="noopener"><span class="dot"></span>Договор — PDF</a>
+            <a href="app/nda-melligri.html" target="_blank" rel="noopener"><span class="dot"></span>NDA — взаимное (врем. доступ)</a>
+            <a class="is-pdf" href="app/nda-melligri.pdf" target="_blank" rel="noopener"><span class="dot"></span>NDA — PDF</a>
           </div>
         </details>
-        <span class="tool-badge new">Демо</span>
+        <span class="tool-badge new">Демо + Документы</span>
       </div>
 
       <a href="app/sewing.html" class="tool-card" data-app-id="sewing_crm">
@@ -973,7 +1410,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
         <details class="tool-dd">
           <summary>🔧 Инструменты<span class="chev">▾</span></summary>
           <div class="tool-dd-menu">
-            <a href="chv/"><span class="dot"></span>План-Факт — редактор исполнительных чертежей (любой PDF → активные линии, расчёт кабеля, чистый PDF)</a>
+            <a href="app/stroy/plan-fakt/"><span class="dot"></span>План-Факт · Линейка — открыть инструмент (чертежи + чтение однолинейных схем, расчёт кабеля)</a>
             <a href="app/stroy/plan-fakt/docs/kp.pdf" target="_blank" rel="noopener"><span class="dot"></span>Коммерческое предложение (КП) — PDF</a>
             <a href="app/stroy/plan-fakt/docs/tz.pdf" target="_blank" rel="noopener"><span class="dot"></span>Техническое задание (ТЗ, Приложение №1) — PDF</a>
             <a href="app/stroy/plan-fakt/docs/dogovor.pdf" target="_blank" rel="noopener"><span class="dot"></span>Договор на разработку — PDF</a>
@@ -981,6 +1418,24 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
           </div>
         </details>
         <span class="tool-badge new">Демо</span>
+      </div>
+
+      <div class="tool-card" data-app-id="stroy_planfakt">
+        <div class="tool-icon color-teal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+        </div>
+        <h3>План-Факт · Линейка</h3>
+        <p>Инструмент для электрики (ЭОМ): правка исполнительных чертежей по факту и <b>авто-чтение однолинейных схем (линеек)</b> — открываешь PDF, программа сама вытаскивает длины кабеля по сечениям, считает и выдаёт смету. Постранично, с отчётом по всему файлу и выгрузкой в Excel.</p>
+        <a class="tool-cta as-link" href="app/stroy/plan-fakt/">Открыть →</a>
+        <details class="tool-dd">
+          <summary>🔧 Что умеет<span class="chev">▾</span></summary>
+          <div class="tool-dd-menu">
+            <a href="app/stroy/plan-fakt/"><span class="dot"></span>Открыть инструмент (План · Линейка · Ведомость · Смета)</a>
+            <a href="app/stroy/plan-fakt/docs/kp.pdf" target="_blank" rel="noopener"><span class="dot"></span>Коммерческое предложение (КП) — PDF</a>
+            <a href="app/stroy/plan-fakt/docs/tz.pdf" target="_blank" rel="noopener"><span class="dot"></span>Техническое задание (ТЗ) — PDF</a>
+          </div>
+        </details>
+        <span class="tool-badge new">Рабочий</span>
       </div>
 
       <a href="interview-tiles.html" class="tool-card" data-app-id="interview_tiles">
@@ -1094,16 +1549,6 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
         <span class="tool-badge new">Новое</span>
       </a>
 
-      <a href="meet.html" class="tool-card" data-app-id="pllato_meet">
-        <div class="tool-icon color-indigo">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-        </div>
-        <h3>Видеовстречи</h3>
-        <p>Видеоконференции прямо в браузере: запись, живая транскрипция с подписью кто говорит, размытие фона, зал ожидания и короткая постоянная ссылка.</p>
-        <span class="tool-cta">Открыть видеовстречи →</span>
-        <span class="tool-badge new">Новое</span>
-      </a>
-
       <a href="app/linkgen.html" class="tool-card" data-app-id="linkgen">
         <div class="tool-icon color-orange">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
@@ -1111,6 +1556,21 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
         <h3>Генератор временных ссылок</h3>
         <p>Ссылка на любое демо, КП или мокап с ограниченным сроком: 1–30 дней или до даты, после — экран «Срок истёк». Все плашки портала в списке с поиском (подтягиваются автоматически) + произвольный путь; отправка в WhatsApp.</p>
         <span class="tool-cta">Открыть генератор →</span>
+        <span class="tool-badge new">Новое</span>
+      </a>
+
+    </div>
+
+    <div class="section-title">Видео встречи</div>
+    <div class="tools-grid">
+
+      <a href="meet.html" class="tool-card" data-app-id="pllato_meet">
+        <div class="tool-icon color-indigo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        </div>
+        <h3>Видеовстречи</h3>
+        <p>Ваш личный видеокабинет с постоянной ссылкой: отправляете клиенту — он входит как участник, вы всегда ведущий. Запись сразу в облако, живая транскрипция и командный архив встреч (по каждому менеджеру, с копированием транскрипта).</p>
+        <span class="tool-cta">Открыть видеокабинет →</span>
         <span class="tool-badge new">Новое</span>
       </a>
 
@@ -1165,14 +1625,27 @@ import { normalizeDocument } from './documents/registry.js';
 
 // ===== Каталог приложений (синхронизируй с data-app-id у карточек) =====
 const APPS_CATALOG = [
+  { id: "eastpole_freeride", label: "EastPole · портал фрирайд-туров (Дарья, ВКО)" },
   { id: "agent_crm",        label: "Мобильный Агент · Выпечка" },
   { id: "rl_system",        label: "RL-System · Учёт проектов" },
   { id: "buh_crm",          label: "PROFBUH · Аутсорсинг бухгалтерии" },
   { id: "boutique_crm",     label: "Giorgio · Бутик брендовой одежды" },
   { id: "floriana_mis",     label: "KHONA · Клиника (Флориана, Астана)" },
   { id: "mebel_almaty",     label: "Мебель · Алматы (Джамаскар)" },
-  { id: "taza_clean",       label: "TAZA · Клининг (Денис, Павлодар)" },
-  { id: "sarap_hr",         label: "SARAP · Тесты для найма (вендор психометрики)" },
+  { id: "skala_crm",        label: "Скала · CRM для скалодрома — абонементы/чек-ин QR (Ирина, Алматы)" },
+  { id: "polisterol_beton", label: "Полистиролбетон · Производство и дома (Алибек)" },
+  { id: "rigel_doors",      label: "РИГЕЛЬ · Установка входных дверей (Алексей Борминцев)" },
+  { id: "agrosklad_portal", label: "АгроСклад · Портал ответственного хранения СЗР — ячейки/кабинеты (Рустем)" },
+  { id: "sella_crm",        label: "SELLA · Своя CRM для отдела продаж «как amoCRM» (Батырхан/Азамат)" },
+  { id: "gulzar_flowers",   label: "Оранжерея (GÜLZAR) · Сеть цветочных магазинов + 1С (Юлия/Александр, Бишкек)" },
+  { id: "magistral_rail",   label: "MAGISTRAL · ЖД-грузоперевозки + счета/вагоны (Алдияр, Павлодар)" },
+  { id: "azam_zavod",       label: "AZAM · Завод элеваторного оборудования — пульт завода (Аязбек, с. Жалтырь)" },
+  { id: "plombir_zavod",    label: "PLOMBIR · Завод мороженого — пульт завода (B2B, дилеры)" },
+  { id: "genius_school",    label: "Genius School · Частная начальная школа + оплаты (Надира, Астана)" },
+  { id: "korpus_mebel",     label: "KORPUS · Производство корпусной мебели — КП (Майра, Алматы)" },
+  { id: "jyly_beton",       label: "JYLY · Полистиролбетон и дома (Бигайдар, Алматы)" },
+  { id: "taza_clean",       label: "СОФИЯ · Клининг (Денис Ужеловский, Павлодар)" },
+  { id: "sarap_hr",         label: "Kolyakhan (HireBox) · CRM для лид-менеджеров (Этап 1)" },
   { id: "mk_group",         label: "MK Group · Объекты и снабжение (Мухтар)" },
   { id: "balapan_net",      label: "Зайка · Сеть детских садов (Екатерина)" },
   { id: "pllato_crm",       label: "Aminamed CRM" },
@@ -1750,34 +2223,302 @@ async function syncAdminEmailsRegistry(users) {
 
 function applyPermissionsAndAdminUI() {
   if (!CURRENT) return;
-  // Фильтрация карточек
-  document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
-    const appId = card.dataset.appId;
-    const allowed = CURRENT.isAdmin || CURRENT.apps?.[appId];
-    card.style.display = allowed ? '' : 'none';
+  initProjectGroups();
+  applyProjectFilters();
+}
+
+/* ===== группы-вкладки проектов + избранное ===== */
+const FAV_KEY = 'pllato_fav_projects';
+let FAVS = new Set((()=>{ try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch(e){ return []; } })());
+let ACTIVE_TAB = 'all';
+let SEARCH_TERM = '';
+let GROUPS_INIT = false;
+
+function saveFavs(){ try { localStorage.setItem(FAV_KEY, JSON.stringify([...FAVS])); } catch(e){} }
+function cardAllowed(card){ const id = card.dataset.appId; return !!(CURRENT?.isAdmin || CURRENT?.apps?.[id]); }
+
+function initProjectGroups(){
+  if (GROUPS_INIT) return; GROUPS_INIT = true;
+  // группа карточки = ближайший заголовок секции над ней
+  let cur = '';
+  document.querySelectorAll('#main-content .section-title, #main-content .tool-card[data-app-id]').forEach(el => {
+    if (el.classList.contains('section-title')) cur = el.textContent.trim();
+    else el.dataset.group = cur;
   });
-  // Скрытие пустых секций
+  // звёзды «в избранное»
+  document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
+    if (card.querySelector('.fav-star')) return;
+    const id = card.dataset.appId;
+    const star = document.createElement('button');
+    star.type = 'button';
+    star.className = 'fav-star' + (FAVS.has(id) ? ' on' : '');
+    star.innerHTML = '★';
+    star.title = 'В избранное';
+    star.setAttribute('aria-label', 'В избранное');
+    star.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggleFav(id, star); });
+    card.appendChild(star);
+  });
+  // кнопка «выдать доступ» на каждой плашке — временная ссылка без захода в генератор
+  document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
+    if (card.querySelector('.lnk-btn')) return;
+    const href = card.matches('a[href]') ? card.getAttribute('href')
+      : card.querySelector('a.tool-cta')?.getAttribute('href');
+    if (!href || href === '#' || href.startsWith('javascript:')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'lnk-btn';
+    btn.innerHTML = '🔗';
+    btn.title = 'Выдать временный доступ';
+    btn.setAttribute('aria-label', 'Выдать временный доступ');
+    btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openSharePop(card, btn, href); });
+    card.appendChild(btn);
+  });
+  buildProjectTabs();
+  injectMoney();
+}
+
+function buildProjectTabs(){
+  const bar = document.getElementById('projectTabs');
+  if (!bar) return;
+  const groups = [...new Set([...document.querySelectorAll('.tool-card[data-app-id]')].map(c => c.dataset.group).filter(Boolean))];
+  const tab = (id, label, cls) => `<button class="ptab${cls||''}${id===ACTIVE_TAB?' on':''}" data-tab="${id}">${label}<span class="pt-c" data-c="${id}"></span></button>`;
+  bar.innerHTML = tab('all','Все') + tab('fav','★ Избранное',' fav') + groups.map(g => tab('g:'+g, g)).join('');
+  bar.querySelectorAll('.ptab').forEach(b => b.addEventListener('click', () => {
+    ACTIVE_TAB = b.dataset.tab;
+    bar.querySelectorAll('.ptab').forEach(x => x.classList.toggle('on', x === b));
+    applyProjectFilters();
+  }));
+}
+
+function toggleFav(id, star){
+  if (FAVS.has(id)) { FAVS.delete(id); star && star.classList.remove('on'); }
+  else { FAVS.add(id); star && star.classList.add('on'); }
+  saveFavs();
+  if (ACTIVE_TAB === 'fav') applyProjectFilters(); else updateTabCounts();
+}
+
+// ===== Выдача временного доступа прямо с плашки =====
+// Токен тот же, что в linkgen/gate.js: base64(exp + "." + hash(exp + SECRET)).
+let _spEl = null;
+function closeSharePop(){ if (_spEl) { _spEl.remove(); _spEl = null; } }
+document.addEventListener('click', (e) => { if (_spEl && !e.target.closest('.share-pop') && !e.target.closest('.lnk-btn')) closeSharePop(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSharePop(); });
+function shareToken(days){
+  const SECRET = 'pllato-nan-dan-2026';
+  const h = (s) => { let x = 7; for (let i = 0; i < s.length; i++) { x = ((x * 31) + s.charCodeAt(i)) >>> 0; } return x.toString(36); };
+  const exp = String(Date.now() + days * 86400000);
+  return btoa(exp + '.' + h(exp + SECRET)).replace(/=+$/, '');
+}
+function openSharePop(card, btn, href){
+  closeSharePop();
+  const name = (card.querySelector('h3')?.textContent || 'страница').trim();
+  let url; try { url = new URL(href, location.origin + '/').href; } catch(e) { return; }
+  const pop = document.createElement('div');
+  pop.className = 'share-pop';
+  const escT = (t) => t.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  pop.innerHTML = '<div class="sp-t">🔗 ' + escT(name) + '</div>'
+    + '<div class="sp-s">на сколько дней открыть доступ</div>'
+    + '<div class="sp-days">' + [1,3,7,14,30].map(d => '<button data-d="' + d + '">' + d + ' дн</button>').join('') + '</div>'
+    + '<div class="sp-link"></div>'
+    + '<div class="sp-row"><button class="sp-copy">📋 Скопировать</button><button class="sp-wa">💬 WhatsApp</button></div>'
+    + '<div class="sp-note"></div>';
+  document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect();
+  pop.style.left = Math.max(10, Math.min(r.right + window.scrollX - 272, document.documentElement.clientWidth - 282)) + 'px';
+  pop.style.top = (r.bottom + window.scrollY + 8) + 'px';
+  _spEl = pop;
+  let link = '';
+  pop.querySelectorAll('.sp-days button').forEach(b => b.addEventListener('click', () => {
+    const d = parseInt(b.dataset.d);
+    link = url + (url.includes('?') ? '&' : '?') + 'k=' + shareToken(d);
+    pop.querySelector('.sp-link').style.display = 'block';
+    pop.querySelector('.sp-link').textContent = link;
+    pop.querySelector('.sp-row').style.display = 'flex';
+    const until = new Date(Date.now() + d * 86400000).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+    pop.querySelector('.sp-note').textContent = 'Действует до ' + until + '. Ссылка уже в буфере — вставляй в чат.';
+    navigator.clipboard?.writeText(link).catch(() => {});
+    pop.querySelectorAll('.sp-days button').forEach(x => { x.style.borderColor = ''; x.style.color = ''; });
+    b.style.borderColor = '#d97706'; b.style.color = '#d97706';
+  }));
+  pop.querySelector('.sp-copy').addEventListener('click', () => {
+    if (!link) return;
+    navigator.clipboard.writeText(link).then(() => { pop.querySelector('.sp-note').textContent = 'Скопировано ✓'; });
+  });
+  pop.querySelector('.sp-wa').addEventListener('click', () => {
+    if (!link) return;
+    window.open('https://wa.me/?text=' + encodeURIComponent('Ссылка на демо (доступ временный): ' + link), '_blank');
+  });
+}
+
+// ===== Деньги по сделке на каждой плашке (сумма / получено / платежи по датам) =====
+const MONEY_KEY = 'pllato_money_v1';
+const RATE_KEY = 'pllato_usd_rate';
+let MONEY = {};
+let RATE = 530; // ₸ за $1 (редактируется)
+function saveMoney(){ try { localStorage.setItem(MONEY_KEY, JSON.stringify(MONEY)); } catch(e){} }
+function saveRate(){ try { localStorage.setItem(RATE_KEY, String(RATE)); } catch(e){} }
+(function(){
+  const r = parseFloat(localStorage.getItem(RATE_KEY)); if (r > 0) RATE = r;
+  const raw = localStorage.getItem(MONEY_KEY);
+  if (raw) { try { MONEY = JSON.parse(raw) || {}; } catch(e){ MONEY = {}; } }
+  else {
+    const seed = { eastpole_freeride:{deal:1500000}, skala_crm:{deal:1455000}, sella_crm:{deal:2100000}, agrosklad_portal:{deal:1500000}, magistral_rail:{deal:1500000}, azam_zavod:{deal:2500000}, plombir_zavod:{deal:2500000}, genius_school:{deal:1500000}, rl_system:{deal:2000000}, gulzar_flowers:{deal:2700,cur:'USD'} };
+    Object.entries(seed).forEach(([id,o]) => { MONEY[id] = { deal:o.deal, pays:[], cur:o.cur||'KZT' }; });
+    saveMoney();
+  }
+  // мягкая миграция: Оранжерея считается в долларах ($2700)
+  if (MONEY.gulzar_flowers && !MONEY.gulzar_flowers.cur && MONEY.gulzar_flowers.deal === 1350000) { MONEY.gulzar_flowers.deal = 2700; MONEY.gulzar_flowers.cur = 'USD'; saveMoney(); }
+})();
+function mEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function curOf(id){ return (MONEY[id] && MONEY[id].cur) || 'KZT'; }
+function symOf(id){ return curOf(id)==='USD' ? '$' : '₸'; }
+function toKZT(id, amt){ return curOf(id)==='USD' ? (amt||0)*RATE : (amt||0); }
+function mDeal(id){ return (MONEY[id] && +MONEY[id].deal) || 0; }
+function mRecv(id){ return ((MONEY[id] && MONEY[id].pays) || []).reduce((a,p)=>a+(+p.sum||0),0); }
+function mDebt(id){ return Math.max(0, mDeal(id) - mRecv(id)); }
+function fmtT(n){ return Math.round(n||0).toLocaleString('ru-RU') + ' ₸'; }
+function fmtCur(id, n){ n=Math.round(n||0); return curOf(id)==='USD' ? '$' + n.toLocaleString('ru-RU') : n.toLocaleString('ru-RU') + ' ₸'; }
+function shortT(n){ n=Math.round(n||0); return n>=1e6 ? (n/1e6).toFixed(n%1e6? 1:0).replace('.',',')+' млн' : n>=1000 ? Math.round(n/1000)+'к' : String(n); }
+function fmtD(iso){ if(!iso) return ''; const p=String(iso).split('-'); return p.length===3 ? p[2]+'.'+p[1]+'.'+p[0] : iso; }
+function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function mCard(id){ return document.querySelector('.tool-card[data-app-id="'+CSS.escape(id)+'"]'); }
+function projName(id){ const c=mCard(id); return ((c && c.querySelector('h3') && c.querySelector('h3').textContent) || id).trim(); }
+
+function injectMoney(){
+  document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
+    if (card.querySelector('.money-strip')) return;
+    if (card.dataset.group && card.dataset.group !== 'Работа с клиентами') return; // деньги — только по клиентским проектам
+    const id = card.dataset.appId;
+    const strip = document.createElement('div');
+    strip.className = 'money-strip';
+    strip.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openMoneyModal(id); });
+    card.appendChild(strip);
+    renderMoneyStrip(id);
+  });
+  ensureMoneySummary();
+  renderMoneySummary();
+}
+function renderMoneyStrip(id){
+  const card = mCard(id); const strip = card && card.querySelector('.money-strip');
+  if (!strip) return;
+  const dealN=mDeal(id), gotN=mRecv(id);
+  if (!dealN && !gotN){ strip.classList.add('empty'); strip.innerHTML='<span class="ms-add">＋ указать сумму сделки</span>'; return; }
+  strip.classList.remove('empty');
+  const dealK=toKZT(id,dealN), gotK=toKZT(id,gotN), debtK=Math.max(0,dealK-gotK);
+  const pct = dealK ? Math.min(100, Math.round(gotK/dealK*100)) : 0;
+  const usd = curOf(id)==='USD';
+  strip.innerHTML = '<div class="ms-bar"><i style="width:'+pct+'%;background:'+(debtK?'var(--orange)':'var(--green)')+'"></i></div>'
+    + '<div class="ms-row"><span class="ms-l">💰 '+shortT(gotK)+' / '+shortT(dealK)+' ₸'+(usd?' <span class="ms-cur">$</span>':'')+'</span>'
+    + (debtK ? '<span class="ms-d">−'+shortT(debtK)+'</span>' : '<span class="ms-ok">оплачено ✓</span>') + '</div>';
+}
+function ensureMoneySummary(){
+  if (document.getElementById('moneySum')) return;
+  const tabs = document.getElementById('projectTabs');
+  if (!tabs) return;
+  const el = document.createElement('div'); el.className='money-sum'; el.id='moneySum';
+  tabs.insertAdjacentElement('afterend', el);
+}
+function allPaysSorted(){
+  const out=[];
+  Object.keys(MONEY).forEach(id => (MONEY[id].pays||[]).forEach(p => out.push({ id, d:p.d, sum:p.sum })));
+  return out.sort((a,b)=> String(b.d||'').localeCompare(String(a.d||'')));
+}
+function renderMoneySummary(){
+  const el = document.getElementById('moneySum'); if (!el) return;
+  let deal=0, got=0;
+  Object.keys(MONEY).forEach(id => { deal+=toKZT(id,mDeal(id)); got+=toKZT(id,mRecv(id)); });
+  const debt = Math.max(0, deal-got);
+  const feed = allPaysSorted();
+  const wasOpen = el.querySelector('.money-feed.show');
+  el.innerHTML =
+    '<div class="mtot"><div class="l">Сумма сделок</div><div class="v">'+fmtT(deal)+'</div></div>'
+    + '<div class="mtot"><div class="l">Получено</div><div class="v g">'+fmtT(got)+'</div></div>'
+    + '<div class="mtot"><div class="l">Остаток</div><div class="v r">'+fmtT(debt)+'</div></div>'
+    + '<span class="mrate" onclick="editRate()">курс $ = '+RATE+' ₸ ✎</span>'
+    + '<span class="msp" id="msToggle">'+(wasOpen?'▴ свернуть':'▾ поступления по датам ('+feed.length+')')+'</span>'
+    + '<div class="money-feed'+(wasOpen?' show':'')+'" id="moneyFeed">'
+    + (feed.length ? feed.slice(0,25).map(p=>'<div class="mf"><span class="d">'+fmtD(p.d)+'</span><span class="n">'+mEsc(projName(p.id))+(curOf(p.id)==='USD'?' · $'+Math.round(p.sum).toLocaleString('ru-RU'):'')+'</span><span class="s">+ '+fmtT(toKZT(p.id,p.sum))+'</span></div>').join('')
+        : '<div style="color:var(--text-3);font-size:12.5px;padding:6px 0">Платежей пока нет — добавьте на карточке проекта (клик по строке денег внизу плашки).</div>')
+    + '</div>';
+  const t=document.getElementById('msToggle'), f=document.getElementById('moneyFeed');
+  if (t && f) t.addEventListener('click', () => { f.classList.toggle('show'); t.textContent = f.classList.contains('show') ? '▴ свернуть' : ('▾ поступления по датам ('+feed.length+')'); });
+}
+function editRate(){ const v=parseFloat(prompt('Курс доллара — сколько ₸ за $1:', RATE)); if(!v||v<=0) return; RATE=v; saveRate(); document.querySelectorAll('.tool-card[data-app-id]').forEach(c=>renderMoneyStrip(c.dataset.appId)); renderMoneySummary(); if(_mmId) renderMoneyModal(); }
+
+let _mmId = null;
+function openMoneyModal(id){
+  _mmId = id;
+  MONEY[id] = MONEY[id] || { deal:0, pays:[], cur:'KZT' };
+  MONEY[id].pays = MONEY[id].pays || [];
+  MONEY[id].cur = MONEY[id].cur || 'KZT';
+  let ovl = document.getElementById('moneyOvl');
+  if (!ovl){ ovl=document.createElement('div'); ovl.id='moneyOvl'; ovl.className='money-ovl'; ovl.addEventListener('click', e=>{ if(e.target===ovl) closeMoney(); }); document.body.appendChild(ovl); }
+  renderMoneyModal();
+  ovl.classList.add('show');
+}
+function closeMoney(){ const o=document.getElementById('moneyOvl'); if(o) o.classList.remove('show'); _mmId=null; }
+document.addEventListener('keydown', e => { if (e.key==='Escape') closeMoney(); });
+function renderMoneyModal(){
+  const id=_mmId, ovl=document.getElementById('moneyOvl'); if(!id||!ovl) return;
+  const usd = curOf(id)==='USD';
+  const pays=(MONEY[id].pays||[]).map((p,i)=>({d:p.d,sum:p.sum,i})).sort((a,b)=>String(b.d||'').localeCompare(String(a.d||'')));
+  ovl.innerHTML = '<div class="money-modal">'
+    + '<div class="mm-h"><h3>💰 '+mEsc(projName(id))+'</h3><span class="mm-x" onclick="closeMoney()">✕</span></div>'
+    + '<div class="mm-b">'
+    + '<div class="mm-cur"><span class="l">Валюта проекта</span>'
+      + '<button class="'+(!usd?'on':'')+'" onclick="setMoneyCur(\'KZT\')">₸ тенге</button>'
+      + '<button class="'+(usd?'on':'')+'" onclick="setMoneyCur(\'USD\')">$ доллар</button>'
+      + (usd?'<span class="cnote">курс $ = '+RATE+' ₸ · <a onclick="editRate()">изменить</a></span>':'') + '</div>'
+    + '<div class="mm-grid" id="mmGrid">'+moneyGrid(id)+'</div>'
+    + '<label>Сумма сделки, '+symOf(id)+'</label><input id="mmDeal" type="number" min="0" step="'+(usd?'50':'1000')+'" value="'+mDeal(id)+'" oninput="setMoneyDeal(this.value)">'
+    + '<div class="mm-pt">Платежи · что когда зашло</div>'
+    + '<div class="mm-pays">'
+    + (pays.length ? pays.map(p=>'<div class="mm-pay"><span class="pd">'+fmtD(p.d)+'</span><span class="psum">+ '+fmtCur(id,p.sum)+(usd?' <span class="ke2">≈ '+fmtT(toKZT(id,p.sum))+'</span>':'')+'</span><span class="pdel" title="удалить" onclick="delMoneyPay('+p.i+')">✕</span></div>').join('')
+        : '<div class="mm-pay empty">Платежей ещё не было — добавьте первый.</div>')
+    + '</div>'
+    + '<div class="mm-add"><input id="mmPaySum" type="number" min="0" placeholder="сумма, '+symOf(id)+'"><input id="mmPayDate" type="date" value="'+todayISO()+'"><button onclick="addMoneyPay()">＋ Платёж</button></div>'
+    + '</div><div class="mm-f"><button onclick="closeMoney()">Готово</button></div></div>';
+}
+function moneyGrid(id){ const usd=curOf(id)==='USD';
+  const cell=(cls,label,nat,kzt)=>'<div class="c '+cls+'"><div class="l">'+label+'</div><div class="v">'+nat+'</div>'+(usd?'<div class="ke">≈ '+fmtT(kzt)+'</div>':'')+'</div>';
+  return cell('','Сумма сделки',fmtCur(id,mDeal(id)),toKZT(id,mDeal(id)))
+    + cell('g','Получено',fmtCur(id,mRecv(id)),toKZT(id,mRecv(id)))
+    + cell('r','Остаток',fmtCur(id,mDebt(id)),toKZT(id,mDebt(id))); }
+function setMoneyCur(c){ if(!_mmId) return; MONEY[_mmId].cur=c; saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
+function setMoneyDeal(v){ if(!_mmId) return; MONEY[_mmId].deal=Math.max(0,parseInt(v)||0); saveMoney(); const g=document.getElementById('mmGrid'); if(g)g.innerHTML=moneyGrid(_mmId); renderMoneyStrip(_mmId); renderMoneySummary(); }
+function addMoneyPay(){ if(!_mmId) return; const sum=parseInt(document.getElementById('mmPaySum').value)||0; const d=document.getElementById('mmPayDate').value||todayISO(); if(sum<=0) return; MONEY[_mmId].pays.push({d,sum}); saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
+function delMoneyPay(i){ if(!_mmId) return; MONEY[_mmId].pays.splice(i,1); saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
+// модуль → выносим обработчики inline onclick в global-скоуп
+Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate });
+
+function applyProjectFilters(){
+  document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
+    let show = cardAllowed(card);
+    if (show && ACTIVE_TAB === 'fav') show = FAVS.has(card.dataset.appId);
+    else if (show && ACTIVE_TAB.startsWith('g:')) show = card.dataset.group === ACTIVE_TAB.slice(2);
+    if (show && SEARCH_TERM) show = card.textContent.toLowerCase().includes(SEARCH_TERM);
+    card.style.display = show ? '' : 'none';
+  });
   updateSectionVisibility();
+  updateTabCounts();
+}
+
+function updateTabCounts(){
+  const bar = document.getElementById('projectTabs');
+  if (!bar) return;
+  const cards = [...document.querySelectorAll('.tool-card[data-app-id]')].filter(cardAllowed);
+  bar.querySelectorAll('.pt-c').forEach(sp => {
+    const t = sp.dataset.c;
+    let n = t === 'all' ? cards.length
+      : t === 'fav' ? cards.filter(c => FAVS.has(c.dataset.appId)).length
+      : cards.filter(c => ('g:' + c.dataset.group) === t).length;
+    sp.textContent = n ? n : '';
+  });
 }
 
 function filterProjects(q){
-  const term = q.toLowerCase().trim();
-  document.querySelectorAll('.tool-card').forEach(card => {
-    const text = card.textContent.toLowerCase();
-    card.dataset.searchHidden = term && !text.includes(term) ? '1' : '';
-    if(!term) card.dataset.searchHidden = '';
-    // only hide if search says no AND access also says no (or just search)
-    const accessHidden = card.style.display === 'none';
-    if(term){
-      card.style.display = text.includes(term) ? '' : 'none';
-    } else {
-      // restore access-based visibility
-      const appId = card.dataset.appId;
-      const allowed = CURRENT?.isAdmin || CURRENT?.apps?.[appId];
-      card.style.display = allowed ? '' : 'none';
-    }
-  });
-  updateSectionVisibility();
+  SEARCH_TERM = (q || '').toLowerCase().trim();
+  applyProjectFilters();
 }
 
 function updateSectionVisibility(){

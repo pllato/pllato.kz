@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>КП · СОФИЯ — платформа контроля клининга · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a1628'/%3E%3Cpath d='M16 5 l2.6 7.4 L26 13 l-6 4.6 L22.4 26 L16 21.4 9.6 26 12 17.6 6 13 l7.4-.6 Z' fill='%23d4a978'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0a1628;--bronze:#b8895a;--bronze-d:#8b6740;--bronze-l:#d4a978;
+  --ink:#0f1620;--mut:#4a5163;--mut2:#8a8d96;--line:#e8e2d4;
+  --bg:#fafaf6;--surface:#fff;--surface2:#f3f0e8;
+  --mint:#16a34a;--mint-l:#e7f4ec;--red-d:#b91318;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;border-top:6px solid var(--navy)}
+h1,h2,h3{letter-spacing:-.3px}
+.page{max-width:900px;margin:0 auto;padding:0 28px 60px}
+.hero{border-bottom:1px solid var(--line);padding:36px 0 26px;display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.hero .lm{width:66px;height:66px;flex:none;border-radius:14px;background:var(--navy);display:grid;place-items:center;box-shadow:0 4px 12px rgba(10,22,40,.18)}
+.hero .lm svg{width:44px;height:44px}
+.hero h1{font-size:30px;font-weight:800;color:var(--ink);line-height:1.15}
+.hero .hsub{font-size:15px;color:var(--mut);font-weight:500;margin-top:5px}
+.hero .meta{margin-left:auto;text-align:right;font-size:13px;color:var(--mut);font-weight:500;line-height:1.9}
+.hero .meta b{color:var(--ink);font-weight:700}
+.kp-num{display:inline-block;background:var(--navy);color:#fff;font-weight:700;font-size:12.5px;padding:4px 13px;border-radius:8px;letter-spacing:.3px}
+section{margin-top:36px}
+.sec-h{display:flex;align-items:center;gap:13px;margin-bottom:16px}
+.sec-h .sn{width:36px;height:36px;border-radius:10px;background:var(--bronze);color:#fff;display:grid;place-items:center;font-weight:800;font-size:16px;flex:none}
+.sec-h h2{font-size:22px;font-weight:800}
+.sec-h .sh2{font-size:13px;color:var(--mut2);font-weight:500;margin-top:1px}
+.lead{font-size:15px;color:var(--mut);font-weight:500;margin-bottom:14px}
+.lead b{color:var(--ink);font-weight:700}
+.syn{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:720px){.syn{grid-template-columns:1fr}}
+.syn .si{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:13.5px;font-weight:500;color:var(--mut);box-shadow:0 1px 2px rgba(20,30,50,.04)}
+.syn .si b{color:var(--ink);display:block;font-size:14px;margin-bottom:3px;font-weight:700}
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:720px){.mods{grid-template-columns:1fr}}
+.mod{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;position:relative;box-shadow:0 1px 2px rgba(20,30,50,.04)}
+.mod b{display:block;font-size:15px;font-weight:700;margin:2px 0 4px}
+.mod p{font-size:13.5px;color:var(--mut);font-weight:500}
+.mod .demo-b{position:absolute;top:14px;right:14px;background:var(--mint-l);color:var(--mint);font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.2px}
+.base-total{margin-top:16px;background:var(--navy);color:#e6e9f0;border-radius:16px;padding:22px 26px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.base-total .bt1{font-size:14px;font-weight:700}
+.base-total .bt1 span{display:block;font-size:12.5px;color:#9aa3b5;font-weight:500;margin-top:3px}
+.base-total .btp{margin-left:auto;text-align:right}
+.base-total .btp .old{font-size:15px;color:#9aa3b5;text-decoration:line-through;font-weight:600}
+.base-total .btp .new{font-size:33px;font-weight:800;color:var(--bronze-l);letter-spacing:-.5px}
+.base-total .btp .new em{font-style:normal;font-size:16px;color:#9aa3b5;font-weight:600}
+.steps{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:720px){.steps{grid-template-columns:1fr}}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 1px 2px rgba(20,30,50,.04)}
+.step .st-n{font-size:11.5px;font-weight:800;color:var(--bronze-d);letter-spacing:.8px}
+.step b{display:block;font-size:15.5px;margin:6px 0 3px;font-weight:700}
+.step p{font-size:13px;color:var(--mut);font-weight:500}
+.step .st-sum{margin-top:12px;font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.4px}
+.step .st-sum span{font-size:12px;color:var(--mut2);font-weight:500;display:block;letter-spacing:0;margin-top:2px}
+.timeline{margin-top:14px;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:14px 18px;font-size:13.5px;font-weight:500;color:var(--mut)}
+.timeline b{color:var(--ink);font-weight:700}
+.addons .mod{background:#faf7f0;border-color:#e6d9c2}
+.addons .mod .price-hint{display:inline-block;margin-top:9px;background:#fff;border:1px solid #e0d0b6;color:var(--bronze-d);font-size:12px;font-weight:700;padding:3px 12px;border-radius:20px}
+.tbl{width:100%;border-collapse:collapse;background:var(--surface);border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+.tbl th{background:var(--navy);color:#e6e9f0;font-size:12.5px;text-align:left;padding:11px 16px;font-weight:700}
+.tbl td{padding:13px 16px;border-bottom:1px solid var(--line);font-size:14px;font-weight:500;vertical-align:top}
+.tbl tr:last-child td{border-bottom:none}
+.tbl td b{font-weight:700}
+.tbl .good{color:var(--mint);font-weight:700}
+.tbl .bad{color:var(--red-d);font-weight:700}
+.gar{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:720px){.gar{grid-template-columns:1fr}}
+.gar .gi{display:flex;gap:11px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:13.5px;font-weight:500;color:var(--mut);align-items:flex-start}
+.gar .gi .gic{width:30px;height:30px;border-radius:9px;background:var(--mint-l);color:var(--mint);display:grid;place-items:center;font-weight:800;flex:none}
+.gar .gi b{color:var(--ink);font-weight:700}
+.cta{margin-top:38px;background:var(--navy);border-radius:18px;padding:26px 30px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.cta .ct1{font-size:20px;font-weight:800;color:#fff;letter-spacing:-.3px}
+.cta .ct1 span{display:block;font-size:13.5px;font-weight:500;color:#9aa3b5;margin-top:4px;letter-spacing:0}
+.cta a{margin-left:auto;background:var(--bronze);color:#fff;font-weight:700;font-size:15px;padding:14px 26px;border-radius:12px;text-decoration:none}
+.cta a:hover{background:var(--bronze-d)}
+.foot{margin-top:40px;border-top:1px solid var(--line);padding-top:20px;display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--mut);font-weight:500}
+.foot b{color:var(--ink);display:block;font-size:14.5px;font-weight:700}
+.foot .fr{margin-left:auto;text-align:right}
+.foot a{color:var(--bronze-d)}
+@media print{
+  body{background:#fff;font-size:12.5px;border-top-width:4px}
+  .page{max-width:100%;padding:0 4mm}
+  .hero{padding-top:6mm}
+  section{margin-top:18px;break-inside:avoid}
+  body,.base-total,.tbl th,.cta,.sec-h .sn,.kp-num{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hero">
+    <div class="lm"><svg viewBox="0 0 32 32"><path d="M16 5 l2.6 7.4 L26 13 l-6 4.6 L22.4 26 L16 21.4 9.6 26 12 17.6 6 13 l7.4-.6 Z" fill="#d4a978"/></svg></div>
+    <div>
+      <h1>Платформа «СОФИЯ»:<br>контроль клининга на объектах</h1>
+      <div class="hsub">заказчик · супервайзер · уборщица — одна система вместо звонков, WhatsApp и «писем директору»</div>
+    </div>
+    <div class="meta">
+      <span class="kp-num">КП № SF-2026-01</span><br>
+      Для: <b>Дениса Ужеловского</b> · клининговая компания «София», Павлодар<br>
+      Дата: <b>8 июля 2026</b> · скидка 10% при ответе до <b>14 июля 2026</b>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-h"><span class="sn">1</span><div><h2>Что зафиксировали на встрече</h2><div class="sh2">созвон 8 июля · демо-портал показан на встрече, ссылка у вас</div></div></div>
+    <div class="syn">
+      <div class="si"><b>Структура: проекты → объекты → адреса</b>У каждого проекта — объекты, у объектов — адреса. Система строится ровно по вашей иерархии, объём считаем по объектам.</div>
+      <div class="si"><b>Заказчику некуда написать</b>Сейчас: телефон супервайзера, чей-то WhatsApp, официальные письма, «телефон директора». Сообщения теряются — «у вас тут неделю никто не убирается», а вы об этом не знали.</div>
+      <div class="si"><b>За каждым уборщиком не поставишь надзирателя</b>Физически обойти каждый угол нереально. Нужны чек-листы, фото с рабочего места и отчёты «до/после» — контроль в цифре.</div>
+      <div class="si"><b>Склад на каждом объекте</b>Выданные и списанные средства, расходники, инвентарь: поломоечные машины, диспенсеры, сушители. Не один склад — на каждом объекте свой.</div>
+      <div class="si"><b>Мобильная группа не может принять оплату</b>Выездные заявки: счёт ведётся, а деньги — переводы «кому-то». Нужна оплата картой по ссылке, без налички.</div>
+      <div class="si"><b>Дебиторка не нужна</b>Ведётся в других программах — не дублируем. Фокус: выполнение работ на объектах и коммуникация с заказчиком.</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-h"><span class="sn">2</span><div><h2>Что входит — стандартный пакет</h2><div class="sh2">всё, что помечено «в демо», уже можно прокликать в демо-портале</div></div></div>
+    <div class="lead">Платформа с интерфейсом для каждой роли: <b>вы — супервайзеры — уборщицы — заказчики</b>. Всё в режиме реального времени, «полная цифровизация» коммуникации во все стороны.</div>
+    <div class="mods">
+      <div class="mod"><span class="demo-b">в демо</span><b>Кабинет заказчика</b><p>Заказчик выбирает проект → объект → адрес и пишет обращение с фото («в туалете ТРЦ нет жидкого мыла»). Заявка прилетает супервайзеру и закреплённому уборщику, заказчик получает сообщение о выполнении и подтверждает. Связь в обе стороны — без звонков и писем директору.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><b>Интерфейс уборщицы (смартфон)</b><p>Чек-ин «я на рабочем месте» с фото, чек-лист по зонам с фото до/после, запрос средств у завхоза. Максимально просто, «на дурака» — тык-тык, сфотографировал, готово. Вечером — итог дня: «молодец, всё закрыла» или «чек-лист не закрыт».</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><b>Пульт руководителя</b><p>Все объекты на одном экране в реальном времени: кто отметился, прогресс чек-листов, фото-лента со всех объектов, сигналы «нет чек-ина», «заявка висит». Контроль без объезда города.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><b>Доска заявок с SLA</b><p>Все обращения заказчиков — карточками: новая → назначена → в работе → фото-отчёт → подтверждена. 10 заявок за день от одного заказчика — сигнал супервайзеру позвонить. Ничего не теряется.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><b>Контроль смен</b><p>Отметка на месте с фото и временем, опоздания и «не отметился» — отдельным фильтром: сразу видно, с кем говорить. Замены фиксируются, табель собирается сам.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><b>Двусторонние оценки и рейтинги</b><p>Заказчик оценивает работу, уборщица — свою смену. Уборщица «всё пятёрочки», заказчик — «единицы»? Вопрос супервайзеру до того, как заказчик потерян. Рейтинги — награждение лучших, разговор с худшими.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><b>Склады на каждом объекте</b><p>Выданные и списанные средства, расходники, инвентарь (машины, диспенсеры, сушители) — по каждому объекту отдельно + центральный склад. Запросы средств с телефона уборщицы, расход против нормы.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><b>ФОТ и маржинальность объекта</b><p>Смены из табеля + расход средств со склада = себестоимость объекта. Видно, какой контракт зарабатывает, а какой тянет вниз — в одной системе.</p></div>
+      <div class="mod"><b>Системный WhatsApp</b><p>Уборщица не заходит в приложение — ей в личный WhatsApp падает «зайди, тебе пишут». Заказчику — «есть новое сообщение на портале». Плюс системные рассылки. ~5 000 ₸/мес провайдеру (не нам).</p></div>
+      <div class="mod"><b>Оплата картой по ссылке</b><p>Для мобильной группы: заявка выполнена → клиенту уходит ссылка → оплата картой / Apple Pay через эквайринг (~3–5% комиссия банка, поставщика подскажем). Наличка и «переводы кому-то» уходят в прошлое.</p></div>
+      <div class="mod"><span class="demo-b">в демо</span><b>Роли и доступы</b><p>Директор — вся картина; супервайзер — свои объекты и заявки; уборщица — свои смены и чек-листы; заказчик — только свои объекты. Каждому — своё, и все в одной системе.</p></div>
+      <div class="mod"><b>Запуск под ключ</b><p>Берём вашу базу сотрудников, всем рассылаем логины и пароли с рабочего WhatsApp — команда заходит и работает в день передачи. Дизайн — с нуля под вас: пришлёте логотип «Софии», забрендируем; покажете референс — сделаем в нём.</p></div>
+    </div>
+    <div class="base-total">
+      <div class="bt1">Стандартный пакет · весь объём выше · код передаём на ваш сервер<span>это ваше ПО, не аренда и не «коробка»: без абонплаты и платы за пользователей · 10–20% правок по ходу — включено</span></div>
+      <div class="btp"><div class="old">1 500 000 ₸</div><div class="new">1 350 000 <em>₸ · при ответе до 14.07</em></div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-h"><span class="sn">3</span><div><h2>Сроки и оплата</h2><div class="sh2">постоплата этапами — платите за принятый результат</div></div></div>
+    <div class="steps">
+      <div class="step"><div class="st-n">СТАРТ</div><b>Предоплата 10%</b><p>Символическая — для начала работ. Мы сами пишем предварительное ТЗ (PDF, 10–15 страниц со всеми блоками) и согласуем с вами структуру.</p><div class="st-sum">135 000 ₸<span>единственный платёж до результата</span></div></div>
+      <div class="step"><div class="st-n">ЭТАП 1</div><b>ТЗ + макет утверждены</b><p>Продукт наглядно завершён: все экраны и роли согласованы с вами. Еженедельные созвоны, блоки передаём по мере готовности.</p><div class="st-sum">607 500 ₸<span>после приёмки этапа</span></div></div>
+      <div class="step"><div class="st-n">ЭТАП 2 · 4–6 НЕДЕЛЬ</div><b>Полировка и передача</b><p>Все правки-мелочи (2–3 созвона по 1–2 часа), перенос на ваш сервер, полная передача кода с ключами, рассылка доступов команде.</p><div class="st-sum">607 500 ₸<span>после полной сдачи</span></div></div>
+    </div>
+    <div class="timeline">⏱ Весь проект — <b>4–6 недель</b>, ориентир «за месяц поднимем и передадим». Встречаемся раз в неделю, сдаём блоками — работать в системе можно ещё до финала. Правки по ходу (10–20% объёма) — <b>уже включены</b>: невозможно прописать всё до запятой заранее, и мы не будем перевыставлять счета из-за правок.</div>
+  </section>
+
+  <section class="addons">
+    <div class="sec-h"><span class="sn">4</span><div><h2>Не входит в стандартный пакет</h2><div class="sh2">проговорено на встрече — чтобы не было сюрпризов</div></div></div>
+    <div class="mods">
+      <div class="mod"><b>Мобильное приложение (App Store / Google Play)</b><p>Веб-версия полностью закрывает функции с телефона через браузер. Нативное приложение имеет смысл как публичный канал притока клиентов; долгий цикл тестирования и модерации сторов.</p><span class="price-hint">от 1 500 000 ₸ · 6–8 недель · после базы</span></div>
+      <div class="mod"><b>Интеграция 1С</b><p>Дебиторку и бухгалтерию вы ведёте в других программах. Если решите связать — оценим отдельно, когда база заработает.</p><span class="price-hint">оценка отдельно</span></div>
+      <div class="mod"><b>Сопровождение внедрения на местах</b><p>Базовый инструктаж и рассылка доступов — включены. Полное внедрение (3–5 созвонов с супервайзерами и командами по городам, обучение) — отдельно, по объёму.</p><span class="price-hint">по желанию · оценим по объёму</span></div>
+      <div class="mod"><b>Совет из практики — бесплатно</b><p>Приказ «кто не отправляет фото-отчёты — зарплата не начисляется» + вечерние смс-итоги. За 2–3 дня команда сама разбирается, куда отправлять фото. Дисциплина — из системы, а не из скандалов.</p><span class="price-hint">входит в философию продукта</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-h"><span class="sn">5</span><div><h2>Экономика владения</h2><div class="sh2">ваш вопрос «коробка или облако» — честный ответ</div></div></div>
+    <table class="tbl">
+      <thead><tr><th>Вариант</th><th>Как устроено</th><th>Что с деньгами</th></tr></thead>
+      <tbody>
+        <tr><td><b>SaaS / облако</b></td><td class="bad">программа в аренде, не платите — права забирают</td><td class="bad">платёж каждый месяц, навсегда, за каждого пользователя</td></tr>
+        <tr><td><b>«Коробка»</b></td><td>ставите на свой сервер, но продукт не ваш — дорабатывать и распоряжаться нельзя</td><td>лицензия + платные доработки у вендора</td></tr>
+        <tr><td><b>Кастом от Pllato</b></td><td class="good">пишем под ваши процессы и передаём код полностью, с ключами, на ваш сервер — это ваше ПО</td><td class="good">один раз за разработку; содержание ~$50–100/год</td></tr>
+      </tbody>
+    </table>
+    <div class="timeline" style="margin-top:12px">Содержание после запуска: хостинг до 10 ГБ — бесплатно (свыше ~$5/ТБ), домен $10–15/год, системный WhatsApp ~5 000 ₸/мес, эквайринг ~3–5% с платежа (банку). Фото уборок храним 2–3 дня и чистим автоматически — место не растёт. <b>Абонплаты за само ПО нет.</b></div>
+  </section>
+
+  <section>
+    <div class="sec-h"><span class="sn">6</span><div><h2>Гарантии</h2><div class="sh2">как работаем после сдачи</div></div></div>
+    <div class="gar">
+      <div class="gi"><span class="gic">✓</span><div><b>Ошибки чиним бесплатно — всегда.</b> Новые доработки после сдачи — $20/час по согласованной оценке ($200 за ~10 часов — понятная арифметика).</div></div>
+      <div class="gi"><span class="gic">✓</span><div><b>Команда:</b> главный программист + 5 квалифицированных разработчиков в штате. ТЗ согласуем структурно по блокам — дальше делаем мы.</div></div>
+      <div class="gi"><span class="gic">✓</span><div><b>Веб с любого устройства.</b> Компьютер, планшет, смартфон уборщицы — мобильная адаптация входит.</div></div>
+      <div class="gi"><span class="gic">✓</span><div><b>Постоплата этапами.</b> Каждый этап принимаете вы; не нравится — не платите. Мы понимаем, что доверие сначала зарабатывают.</div></div>
+    </div>
+  </section>
+
+  <div class="cta">
+    <div class="ct1">Демо уже открыто для вас — покажите коллегам на планёрке<span>пульт объектов · кабинет заказчика · чек-листы с фото · склады объектов · оценки и рейтинги</span></div>
+    <a href="/app/taza.html">Открыть демо-портал →</a>
+  </div>
+
+  <div class="foot">
+    <div><b>Платон Цай</b>Pllato · разработка порталов и CRM<br>+7 701 123 99 99 · uurraa@gmail.com</div>
+    <div class="fr"><b>ИП «STUDYSTORIES.APP»</b>Публичная оферта: <a href="https://pllato.kz/offer">pllato.kz/offer</a><br>КП № SF-2026-01 · скидка 10% действует при ответе до 14 июля 2026 · созвон 14.07</div>
+  </div>
+
+</div>
+</body>
+</html>

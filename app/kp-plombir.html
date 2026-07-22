@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>КП · PLOMBIR — CRM/ERP для завода мороженого · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1a2230;--ink2:#37455a;--acc:#12a58a;--accD:#0d8770;--accL:#e2f4ef;--berry:#d94f7a;--berryL:#fbe7ee;--text:#232c3a;--muted:#6a768a;--faint:#9aa6b4;--line:#e6eaef;--off:#f6f9f8;--grn:#1c8a63;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55;background:#eceef2}
+.page{width:210mm;min-height:297mm;position:relative;padding:15mm 16mm 17mm;margin:0 auto 8mm;background:#fff;display:flex;flex-direction:column}
+.runfoot{position:absolute;left:16mm;right:16mm;bottom:9mm;display:flex;justify-content:space-between;font-size:8px;color:var(--faint);border-top:1px solid var(--line);padding-top:6px}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .bm{width:42px;height:42px;background:linear-gradient(145deg,#12a58a,#0d8770);border-radius:12px;display:grid;place-items:center;flex:none;font-size:22px}
+.brand .bt{font-size:22px;font-weight:900;letter-spacing:.1em;color:var(--ink)}
+.brand .bt b{color:var(--berry)}
+.brand .bs{font-size:8.5px;color:var(--muted);letter-spacing:.02em;margin-top:2px}
+.hr{text-align:right}
+.hr .t{font-size:13px;font-weight:800;color:var(--ink)}
+.hr .dt{font-size:9.5px;color:var(--muted);margin-top:2px}
+.hr .st{font-size:8.5px;color:var(--faint);margin-top:1px}
+.rule{height:2px;background:linear-gradient(90deg,var(--acc),var(--berry));margin-bottom:14px}
+.badge{display:inline-block;background:var(--accL);color:var(--accD);font-size:8.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:20px;margin-bottom:9px}
+h1{font-size:20px;font-weight:900;letter-spacing:-.01em;line-height:1.15;margin-bottom:8px;color:var(--ink)}
+.lead{font-size:11px;color:var(--ink2);margin-bottom:14px;line-height:1.6}
+.lead b{color:var(--ink)}
+.sec{font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--acc);margin:16px 0 9px;display:flex;align-items:center;gap:9px}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.sec.first{margin-top:2px}
+table.pain{width:100%;border-collapse:collapse;margin-bottom:4px}
+table.pain td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:9.8px;vertical-align:top;width:50%}
+table.pain tr:nth-child(even) td{background:var(--off)}
+table.pain .was::before{content:"Сейчас · ";font-weight:700;color:var(--berry)}
+table.pain .was{color:var(--muted)}
+table.pain .now b{color:var(--ink)}
+table.pain .now::before{content:"В системе · ";font-weight:700;color:var(--grn)}
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mod{border:1px solid var(--line);border-radius:9px;padding:10px 12px;break-inside:avoid}
+.mod .mt{font-weight:800;font-size:11px;color:var(--ink);margin-bottom:3px;display:flex;align-items:center;gap:7px}
+.mod .mt .n{width:19px;height:19px;border-radius:6px;background:var(--acc);color:#fff;font-size:9.5px;display:grid;place-items:center;flex:none;font-weight:700}
+.mod .md{font-size:9.5px;color:var(--ink2);line-height:1.5}
+.mod .md b{color:var(--ink)}
+.callout{background:var(--accL);border:1px solid #b7e3d8;border-radius:9px;padding:10px 13px;font-size:9.8px;color:#0c5f4f;line-height:1.55;margin-bottom:8px}
+.callout b{color:#0a4b3e}
+.pricewrap{display:grid;grid-template-columns:1.15fr 1fr;gap:12px;margin-bottom:6px}
+.pricebox{border:1px solid var(--line);border-radius:11px;padding:14px 15px;background:linear-gradient(160deg,#fff,var(--off))}
+.pricebox .lbl{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.pricebox .big{font-size:30px;font-weight:900;color:var(--ink);letter-spacing:-.02em;margin:3px 0}
+.pricebox .big b{color:var(--acc)}
+.pricebox .note{font-size:9.3px;color:var(--muted);line-height:1.5}
+.steps{border:1px solid var(--line);border-radius:11px;overflow:hidden}
+.steps .st{display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid var(--line)}
+.steps .st:last-child{border-bottom:none}
+.steps .st.tot{background:var(--accL)}
+.steps .sn{font-size:9.8px;color:var(--ink2)}
+.steps .sn b{color:var(--ink)}
+.steps .sv{margin-left:auto;font-weight:800;font-size:11px;color:var(--ink);white-space:nowrap}
+.steps .st.tot .sv{color:var(--accD)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.term{border:1px solid var(--line);border-radius:9px;padding:9px 12px}
+.term .h{font-weight:800;font-size:10px;color:var(--ink);margin-bottom:2px}
+.term .b{font-size:9.3px;color:var(--ink2);line-height:1.5}
+table.req{width:100%;border-collapse:collapse;margin-top:4px}
+table.req td{padding:6px 9px;font-size:9.5px;border-bottom:1px solid var(--line)}
+table.req td.k{width:20%;color:var(--muted)}
+table.req tr:nth-child(even){background:var(--off)}
+.cta{background:var(--ink);color:#fff;border-radius:11px;padding:12px 15px;display:flex;align-items:center;gap:14px;margin-top:10px}
+.cta .x{flex:1;font-size:10px;line-height:1.55}
+.cta .x b{color:#7fe6d0}
+.cta .amt{text-align:right}
+.cta .amt .v{font-size:20px;font-weight:900;color:#7fe6d0}
+.cta .amt .s{font-size:8.5px;color:#aeb8c8}
+.signs{display:flex;gap:40px;margin-top:14px}
+.signs .s{flex:1}
+.signs .sl{font-size:9px;color:var(--muted);margin-bottom:12px}
+.signs .snm{font-weight:700;font-size:10.5px;margin-bottom:12px}
+.signs .ln{font-size:10px;color:#3a4453}
+.signs .ln u{display:inline-block;width:80px;border-bottom:1px solid #b9c0ca}
+</style></head>
+<body>
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm">🍦</div>
+      <div><div class="bt"><b>PLOMBIR</b> · Пульт завода</div><div class="bs">CRM/ERP для завода мороженого · Pllato</div></div>
+    </div>
+    <div class="hr"><div class="t">КП № PL-2026-01</div><div class="dt">21 июля 2026 г.</div><div class="st">коммерческое предложение</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <span class="badge">Своя система · на вашем сервере · в собственность</span>
+  <h1>Единая система для завода мороженого — от заявки дилера до отгрузки</h1>
+  <div class="lead">Коммерческое предложение для <b>завода по производству мороженого</b> (B2B: продажи оптовикам и дилерам по городам, ~100 сотрудников в сезон, оборот ~100 млн/мес). Сейчас отдел продаж есть, но <b>воронки нет</b>, а бухгалтерия и производство идут «без дисциплины и чёткости». Мы соберём единый <b>«пульт завода»</b>, где всё движется одной сущностью — <b>сделкой/заказом</b>: от обращения до отгрузки и повторной продажи. Всё, что оцифровано — становится подконтрольным.</div>
+
+  <div class="sec first">Что болит сейчас → что даёт PLOMBIR</div>
+  <table class="pain">
+    <tr><td class="was">Воронки нет — заказы и клиенты «в голове» и тетрадях, нет точки опоры.</td><td class="now"><b>Воронка продаж</b> — точка входа и сбор всей информации: карточка заказа дилера с составом, оплатой, отгрузкой.</td></tr>
+    <tr><td class="was">Производство не оцифровано, «без чёткости», не видно на каком этапе партия.</td><td class="now"><b>Производственная воронка</b> по циклам мороженого (смесь → фризер → закалка → фасовка → склад), партии и люди.</td></tr>
+    <tr><td class="was">Кто из дилеров сколько должен — по памяти; дебиторка копится.</td><td class="now"><b>База дилеров</b> по городам, оборот и <b>дебиторка</b>, предоплата 50%, календарь платежей.</td></tr>
+    <tr><td class="was">Свои и наёмные машины считаются «на глаз».</td><td class="now"><b>Автопарк внутри заказа</b>: каталог своих и наёмных машин, стоимость рейса, отметка выезда.</td></tr>
+    <tr><td class="was">Срок годности продукта и холодовая цепь теряются.</td><td class="now"><b>Склад с партиями</b>, срок годности подсвечивается, температура камер под контролем, инвентаризация.</td></tr>
+    <tr><td class="was">100 человек, текучка — найм ведётся хаотично.</td><td class="now"><b>Воронка найма</b>: отклик → собеседование → стажировка → оформлен, по позициям цехов и продаж.</td></tr>
+  </table>
+
+  <div class="sec">Что входит в стандартный пакет</div>
+  <div class="mods">
+    <div class="mod"><div class="mt"><span class="n">1</span>Воронка продаж (ядро)</div><div class="md">Сделка/заказ = точка входа и центр всей информации. Канбан-этапы, карточка дилера, состав заказа (виды мороженого), авто-суммы.</div></div>
+    <div class="mod"><div class="mt"><span class="n">2</span>Производственная воронка</div><div class="md">Партии по циклам (пастеризация → фризеровка → закалка → фасовка → склад), поток, загрузка линий, смены и люди.</div></div>
+    <div class="mod"><div class="mt"><span class="n">3</span>База дилеров</div><div class="md">Оптовики по городам: оборот, дебиторка, история заказов, точки сбыта. Две логики — как производитель и как торговая компания.</div></div>
+    <div class="mod"><div class="mt"><span class="n">4</span>Склад и холодовая цепь</div><div class="md">Остатки по видам и партиям, срок годности (подсветка), температура камер, приход из производства, расход, инвентаризация.</div></div>
+    <div class="mod"><div class="mt"><span class="n">5</span>Логистика и автопарк</div><div class="md">Рейсы/отгрузки, каталог машин (свои + наёмные), стоимость рейса, отметка выезда с завода.</div></div>
+    <div class="mod"><div class="mt"><span class="n">6</span>Рецептура и себестоимость</div><div class="md">Калькулятор себестоимости по рецептуре (молоко, сливки, сахар, СОМО, стабилизатор, тара) → маржа по каждому виду.</div></div>
+    <div class="mod"><div class="mt"><span class="n">7</span>Оплаты и дебиторка</div><div class="md">Предоплата 50% и календарь платежей; отметка оплаты → старт производства; контроль «к выставлению».</div></div>
+    <div class="mod"><div class="mt"><span class="n">8</span>Воронка найма</div><div class="md">Подбор персонала (~100 чел): этапы найма, позиции по цехам и продажам.</div></div>
+    <div class="mod"><div class="mt"><span class="n">9</span>KPI и оплата труда</div><div class="md">Эффективность продажников по воронке, система оплаты труда — работа становится подконтрольной.</div></div>
+    <div class="mod"><div class="mt"><span class="n">10</span>Дашборд + роли</div><div class="md">Обзор директора (портфель, дебиторка, производство, отгрузки, флаги), 6 ролей-кабинетов — каждый видит только своё.</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП PL-2026-01 · PLOMBIR для завода мороженого</span><span>1 / 2</span></div>
+</section>
+
+<section class="page">
+  <div class="sec first">За рамками стандартного пакета</div>
+  <div class="callout"><b>Интеграция 1С</b> и <b>полноценный финансовый блок</b> (ДДС, бюджет компании, дебиторка/кредиторка, окупаемость и прогнозируемость проектов) выносятся за скобки стандартного пакета — их глубина сильно зависит от вашей 1С и структуры финансов. Считаем и подключаем <b>по часам</b> отдельно, когда база уже работает. В стандартном пакете автопарк, себестоимость и платежи — уже включены.</div>
+
+  <div class="sec">Стоимость и порядок оплаты</div>
+  <div class="pricewrap">
+    <div class="pricebox">
+      <div class="lbl">Стандартный пакет «под ключ», разово</div>
+      <div class="big"><b>2 500 000 ₸</b></div>
+      <div class="note">Полная передача системы вам, на ваш сервер, в собственность. Без ежемесячной платы за пользование — только хостинг. Диапазон подобных проектов — 2–3 млн ₸; ваш объём укладываем в стандартный пакет.</div>
+    </div>
+    <div class="steps">
+      <div class="st"><div class="sn"><b>Предоплата 10% · старт</b><br><span style="color:var(--muted)">символическая, начинаем работу</span></div><div class="sv">250 000 ₸</div></div>
+      <div class="st"><div class="sn"><b>Этап 1 · базовый функционал</b><br><span style="color:var(--muted)">после утверждения (пост-оплата)</span></div><div class="sv">1 125 000 ₸</div></div>
+      <div class="st"><div class="sn"><b>Этап 2 · полировка и передача</b><br><span style="color:var(--muted)">финальная сдача</span></div><div class="sv">1 125 000 ₸</div></div>
+      <div class="st tot"><div class="sn"><b>Итого</b></div><div class="sv">2 500 000 ₸</div></div>
+    </div>
+  </div>
+
+  <div class="sec">Как мы работаем</div>
+  <div class="steps" style="margin-bottom:2px">
+    <div class="st"><div class="sn"><b>Нулевой этап уже сделан</b> — это демо, от которого отталкиваемся. Садимся на Zoom, проходим по каждому блоку.</div><div class="sv">демо</div></div>
+    <div class="st"><div class="sn"><b>2–3 итерации</b> — выкатываем рабочие релизы, вы кликаете вживую и говорите, что оставить/убрать/добавить.</div><div class="sv">итерации</div></div>
+    <div class="st"><div class="sn"><b>4–6 недель</b> — сборка и поэтапная сдача, пост-оплатой. Встречи 1–2 раза в неделю.</div><div class="sv">срок</div></div>
+  </div>
+
+  <div class="sec">Условия</div>
+  <div class="two">
+    <div class="term"><div class="h">Полное владение</div><div class="b">Система разрабатывается под вас, размещается на вашем сервере и передаётся насовсем. Исходники и доступы — ваши.</div></div>
+    <div class="term"><div class="h">Сервер</div><div class="b">Работает в браузере и с телефона. Настроим бесплатный вариант или ≈10 000 ₸/мес.</div></div>
+    <div class="term"><div class="h">Сопровождение</div><div class="b">Ошибки по нашей вине — правим бесплатно. Система работает, пока вы её не меняете.</div></div>
+    <div class="term"><div class="h">Доработки после сдачи</div><div class="b">Новые пожелания (в т.ч. 1С и финансы) — по часам (≈$20/час). ≈10% правок заложено бесплатно.</div></div>
+  </div>
+
+  <div class="sec">Стороны</div>
+  <table class="req">
+    <tr><td class="k">Исполнитель</td><td>ИП «STUDYSTORIES.APP», БИН 880607300110, директор Цай Платон · pllato.kz · uurraa@gmail.com</td></tr>
+    <tr><td class="k">Заказчик</td><td>Завод по производству мороженого (рабочий бренд PLOMBIR) · <span style="color:var(--muted)">наименование и реквизиты уточняются с собственником</span></td></tr>
+  </table>
+
+  <div class="cta">
+    <div class="x">Демо готово — можно кликать вживую. Дальше согласуем с собственником и стартуем с <b>предоплаты 10% = 250 000 ₸</b>, поэтапной сборкой (4–6 недель, 2–3 итерации). Оцифруем весь процесс: продажи, производство, склад, логистику и найм в одной системе.</div>
+    <div class="amt"><div class="v">250 000 ₸</div><div class="s">старт · 10%</div></div>
+  </div>
+
+  <div class="signs">
+    <div class="s"><div class="sl">Исполнитель</div><div class="snm">ИП «STUDYSTORIES.APP»</div><div class="ln"><u></u> / Цай П. / М.П.</div></div>
+    <div class="s"><div class="sl">Заказчик</div><div class="snm">Завод мороженого (PLOMBIR)</div><div class="ln"><u></u> / __________ / М.П.</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП PL-2026-01 · ИП «STUDYSTORIES.APP» · pllato.kz</span><span>2 / 2</span></div>
+</section>
+</body></html>

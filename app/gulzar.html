@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Оранжерея — портал сети цветочных магазинов · Демо</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231a2a20'/%3E%3Cpath d='M16 7 C13 11 13 14 16 16 C19 14 19 11 16 7 Z' fill='%23e7b3c2'/%3E%3Cpath d='M16 16 C12 14 9 15 8 19 C12 20 15 19 16 16 Z' fill='%23cf6a86'/%3E%3Cpath d='M16 16 C20 14 23 15 24 19 C20 20 17 19 16 16 Z' fill='%23cf6a86'/%3E%3Cpath d='M16 16 v8' stroke='%234e9c6f' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Commissioner:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1a2a20;--ink2:#3b4a40;--mut:#5f6d62;--faint:#93a096;
+  --paper:#faf7f2;--panel:#fff;--ln:#e4ddd1;--ln2:#efe9df;
+  --grn:#256b46;--grn-l:#e6f0ea;--rose:#b8455f;--rose-l:#f7e6eb;--gold:#a9803f;--gold-l:#f3ead9;--blu:#356a86;--blu-l:#e8f0f3;
+  --mono:'JetBrains Mono',monospace;--serif:'Lora',Georgia,serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Commissioner',sans-serif;background:var(--paper);color:var(--ink);font-size:14.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:13.5px;color:var(--ink)}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#d3cabb;border-radius:6px}
+.num{font-family:var(--mono);font-feature-settings:'tnum'}
+
+.demo-note{background:var(--ink);color:#cdd8cf;font-size:12px;padding:8px 16px;text-align:center}
+.demo-note b{color:#fff}
+
+.mast{background:var(--panel);border-bottom:1px solid var(--ink)}
+.mast .m1{max-width:1320px;margin:0 auto;padding:14px 24px 10px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}
+.brand .bm{width:42px;height:42px;background:var(--ink);flex:none;display:grid;place-items:center;border-radius:50%}
+.brand .bm svg{width:26px;height:26px}
+.brand .bt{font-family:var(--serif);font-weight:700;font-size:23px;letter-spacing:.14em}
+.brand .bs{font-size:11px;color:var(--mut);margin-top:-1px;letter-spacing:.02em}
+.mast .roles{margin-left:auto;display:flex;border:1px solid var(--ln);background:var(--paper);border-radius:8px;overflow:hidden}
+.mast .roles button{padding:8px 14px;font-size:12.5px;font-weight:600;color:var(--mut);border-right:1px solid var(--ln)}
+.mast .roles button:last-child{border-right:none}
+.mast .roles button.on{background:var(--ink);color:#fff}
+.mast .act{background:var(--rose);color:#fff;font-weight:600;font-size:13px;padding:10px 18px;border-radius:8px}
+.mnav{max-width:1320px;margin:0 auto;padding:0 24px;display:flex;gap:28px;overflow-x:auto}
+.mnav button{padding:11px 0 12px;font-size:14.5px;font-weight:600;color:var(--mut);border-bottom:3px solid transparent;white-space:nowrap}
+.mnav button.on{color:var(--ink);border-bottom-color:var(--rose)}
+.mnav button .cnt{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:5px}
+
+.wrap{max-width:1320px;margin:0 auto;padding:18px 24px 90px}
+.screen{display:none}.screen.on{display:block;animation:fd .18s}
+@keyframes fd{from{opacity:0}to{opacity:1}}
+.ph-head{display:flex;align-items:baseline;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+.ph-head h1{font-family:var(--serif);font-size:25px;font-weight:600}
+.ph-head .sub{font-size:13.5px;color:var(--mut)}
+
+/* линейка показателей */
+.meterline{display:flex;border-top:2px solid var(--ink);border-bottom:1px solid var(--ln);margin-bottom:20px;flex-wrap:wrap}
+.mt{flex:1;min-width:155px;padding:12px 20px 12px 0;cursor:pointer;transition:.12s}
+.mt:hover{background:#f4efe6}
+.mt+.mt{border-left:1px solid var(--ln);padding-left:20px}
+.mt .l{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--mut);font-weight:700}
+.mt .v{font-family:var(--mono);font-size:23px;font-weight:700;margin-top:3px}
+.mt .v em{font-style:normal;font-size:13px;color:var(--faint);font-weight:400}
+.mt .v.g{color:var(--grn)}.mt .v.r{color:var(--rose)}
+.mt .d{font-size:12px;color:var(--faint);margin-top:1px}
+
+/* воронка */
+.kan{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:var(--ln);border:1px solid var(--ln);align-items:stretch;border-radius:10px;overflow:hidden}
+@media(max-width:1040px){.kan{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kcol{background:var(--paper);padding:10px 9px;min-height:360px}
+.kcol h4{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);font-weight:700;padding:2px 3px 5px;display:flex;justify-content:space-between}
+.kcol h4 .n{color:var(--faint)}
+.kcol .ksum{font-family:var(--mono);font-size:11px;color:var(--ink2);padding:0 3px 10px;border-bottom:1px solid var(--ln2);margin-bottom:10px}
+.kcard{background:var(--panel);border:1px solid var(--ln);border-left:3px solid var(--grn);padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:.1s;border-radius:0 7px 7px 0}
+.kcard:hover{box-shadow:0 5px 14px -8px rgba(26,42,32,.4);transform:translateY(-1px)}
+.kcard.late{border-left-color:var(--rose)}
+.kcard.photo{border-left-color:var(--gold)}
+.kcard .kt{font-size:14px;font-weight:600}
+.kcard .kc2{font-size:12px;color:var(--mut);margin-top:1px}
+.kcard .ksm{font-family:var(--mono);font-size:13px;font-weight:700;margin-top:6px}
+.kcard .knext{display:flex;align-items:center;gap:6px;margin-top:7px;font-size:11.5px;font-weight:600;color:var(--blu)}
+.kcard .knext.lt{color:var(--rose)}.kcard .knext.ph{color:var(--gold)}
+.kcard .kic{display:flex;gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap}
+.kic .ic{width:23px;height:23px;border:1px solid var(--ln);display:grid;place-items:center;border-radius:5px;cursor:pointer}
+.kic .ic:hover{border-color:var(--grn)}
+.kic .ic svg{width:13px;height:13px}
+.kic .fil{margin-left:auto;font-size:10.5px;color:var(--faint);font-weight:700;letter-spacing:.02em}
+.kic .ch{font-size:10.5px;font-weight:700}
+.ch.wa{color:#1fa855}.ch.tg{color:#2c9bd6}.ch.ig{color:#c13584}.ch.ks{color:var(--gold)}
+
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:middle}
+.dot.g{background:var(--grn)}.dot.r{background:var(--rose)}.dot.a{background:var(--gold)}.dot.gy{background:#bcc3ba}
+
+/* наличие */
+.tools{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.tools input{flex:1;min-width:220px;border:1px solid var(--ln);background:var(--panel);padding:10px 13px;border-radius:8px;font-size:14px}
+.tools input:focus{outline:none;border-color:var(--grn)}
+.tools .mirror{font-size:11.5px;color:var(--grn);font-weight:600;display:flex;align-items:center;gap:6px;background:var(--grn-l);padding:7px 12px;border-radius:20px}
+.tools .mirror .pulse{width:8px;height:8px;border-radius:50%;background:var(--grn);box-shadow:0 0 0 0 rgba(37,107,70,.5);animation:pl 2s infinite}
+@keyframes pl{0%{box-shadow:0 0 0 0 rgba(37,107,70,.5)}70%{box-shadow:0 0 0 7px rgba(37,107,70,0)}100%{box-shadow:0 0 0 0 rgba(37,107,70,0)}}
+.stocktbl{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--ln);border-radius:10px;overflow:hidden}
+.stocktbl th{background:var(--ink);color:#dbe4dd;font-size:11px;font-weight:600;padding:10px 8px;text-align:center;white-space:nowrap}
+.stocktbl th.l{text-align:left;padding-left:16px}
+.stocktbl td{padding:10px 8px;border-bottom:1px solid var(--ln2);font-size:13px;text-align:center;font-family:var(--mono);font-weight:600}
+.stocktbl td.l{text-align:left;font-family:'Commissioner';font-weight:600;padding-left:16px}
+.stocktbl td.l small{display:block;font-weight:400;color:var(--faint);font-size:11px}
+.stocktbl tr:last-child td{border-bottom:none}
+.stocktbl tr:hover td{background:#f6f2ea}
+.q0{color:#c9b8bd;background:var(--rose-l)!important}
+.qlow{color:var(--rose)}
+.qok{color:var(--ink2)}
+.rowsum{background:var(--grn-l)!important;color:var(--grn)!important}
+.hlfil{background:var(--gold-l)!important}
+
+.cols{display:grid;grid-template-columns:1.5fr 1fr;gap:22px;align-items:start}
+@media(max-width:1040px){.cols{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--ln);border-radius:10px;margin-bottom:20px}
+.panel .pt{display:flex;align-items:center;gap:9px;padding:13px 17px;border-bottom:1px solid var(--ln2)}
+.panel .pt h3{font-family:var(--serif);font-size:16px;font-weight:600;flex:1}
+.panel .pt .lnk{font-size:12px;color:var(--blu);font-weight:600;cursor:pointer}
+.panel .pb{padding:10px 17px 16px}
+.note{font-size:12.5px;color:var(--mut);line-height:1.65}
+
+/* касса / новый заказ */
+.cashgrid{display:grid;grid-template-columns:1fr 340px;gap:22px;align-items:start}
+@media(max-width:1040px){.cashgrid{grid-template-columns:1fr}}
+.fld{margin-bottom:14px}
+.fld label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);font-weight:700;display:block;margin-bottom:5px}
+.fld select,.fld input{width:100%;border:1px solid var(--ln);background:var(--panel);padding:10px 12px;border-radius:8px;font-size:14px}
+.chips{display:flex;gap:7px;flex-wrap:wrap}
+.chip{border:1px solid var(--ln);padding:7px 13px;border-radius:20px;font-size:12.5px;font-weight:600;color:var(--mut);cursor:pointer;background:var(--panel)}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.prodrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--ln2);cursor:pointer}
+.prodrow:hover{background:#f6f2ea}
+.prodrow .pn{flex:1;font-size:13.5px;font-weight:600}
+.prodrow .pn small{display:block;font-weight:400;color:var(--faint);font-size:11px}
+.prodrow .pq{font-family:var(--mono);font-size:12px;color:var(--faint);width:64px;text-align:right}
+.prodrow .add{border:1px solid var(--grn);color:var(--grn);border-radius:6px;padding:5px 11px;font-size:12px;font-weight:700}
+.cart{background:var(--panel);border:1px solid var(--ink);border-radius:10px;position:sticky;top:14px}
+.cart .ch{background:var(--ink);color:#fff;font-family:var(--serif);font-size:15px;font-weight:600;padding:12px 16px;border-radius:9px 9px 0 0}
+.cart .cbody{padding:8px 16px}
+.cartline{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px solid var(--ln2)}
+.cartline span:last-child{font-family:var(--mono);font-weight:600}
+.cart .ctot{display:flex;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--ln);font-family:var(--mono);font-weight:700;font-size:16px}
+.cart .cbtn{margin:0 16px 16px;background:var(--rose);color:#fff;font-weight:700;font-size:14px;padding:12px;border-radius:8px;width:calc(100% - 32px);text-align:center}
+.cart .cnote{padding:0 16px 14px;font-size:11.5px;color:var(--faint);line-height:1.5}
+
+/* 1С */
+.flow1c{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;margin-bottom:20px}
+.fstep{flex:1;min-width:150px;background:var(--panel);border:1px solid var(--ln);border-radius:10px;padding:14px 15px;position:relative}
+.fstep+.fstep{margin-left:26px}
+.fstep+.fstep::before{content:'→';position:absolute;left:-21px;top:50%;transform:translateY(-50%);color:var(--grn);font-size:18px;font-weight:700}
+.fstep .fi{width:30px;height:30px;border:1px solid var(--ln2);border-radius:7px;display:grid;place-items:center;margin-bottom:8px}
+.fstep .fi svg{width:16px;height:16px}
+.fstep b{font-size:13.5px;font-weight:700;display:block}
+.fstep span{font-size:11.5px;color:var(--mut);line-height:1.5;display:block;margin-top:3px}
+.synctbl{width:100%;border-collapse:collapse}
+.synctbl th{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);text-align:left;font-weight:700;padding:9px 12px 7px;border-bottom:1.5px solid var(--ink)}
+.synctbl th.r{text-align:right}
+.synctbl td{padding:11px 12px;border-bottom:1px solid var(--ln2);font-size:13px}
+.synctbl td.r{text-align:right;font-family:var(--mono)}
+.synctbl tr:hover td{background:#f6f2ea;cursor:pointer}
+.badge1c{font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--grn);background:var(--grn-l);padding:2px 8px;border-radius:5px}
+
+/* дашборд */
+.filgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.filcard{background:var(--panel);border:1px solid var(--ln);border-radius:10px;padding:13px 15px;cursor:pointer;transition:.12s}
+.filcard:hover{border-color:var(--grn);transform:translateY(-1px)}
+.filcard .fh{display:flex;justify-content:space-between;align-items:baseline}
+.filcard .fn{font-family:var(--serif);font-size:15px;font-weight:600}
+.filcard .fa{font-size:11px;color:var(--faint)}
+.filcard .fmet{display:flex;gap:14px;margin-top:9px}
+.filcard .fmet div{font-size:11px;color:var(--mut)}
+.filcard .fmet b{font-family:var(--mono);font-size:15px;color:var(--ink);display:block;font-weight:700}
+.filcard .bar{height:6px;background:var(--ln2);border-radius:4px;margin-top:9px;overflow:hidden}
+.filcard .bar i{display:block;height:100%;background:var(--grn)}
+
+.barrow{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--ln2);cursor:pointer}
+.barrow:hover{background:#f6f2ea}
+.barrow .bl{width:150px;font-size:13px;font-weight:600}
+.barrow .bt{flex:1;height:15px;background:var(--ln2);border-radius:4px;position:relative;overflow:hidden}
+.barrow .bt i{position:absolute;left:0;top:0;bottom:0;border-radius:4px}
+.barrow .bv{width:80px;text-align:right;font-family:var(--mono);font-size:12.5px;font-weight:700}
+
+/* заказ-модал */
+.ovl{position:fixed;inset:0;background:rgba(26,42,32,.5);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:26px 14px;overflow-y:auto}
+.ovl.show{display:flex}
+.deal{background:var(--paper);border:1.5px solid var(--ink);max-width:940px;width:100%;border-radius:12px;overflow:hidden;animation:fd .15s}
+.deal .dh{background:var(--panel);border-bottom:1px solid var(--ln);padding:15px 20px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.deal .dh h2{font-family:var(--serif);font-size:20px;font-weight:600}
+.deal .dh .dsum{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--rose)}
+.deal .dh .mx{margin-left:auto;font-size:20px;color:var(--mut);cursor:pointer}
+.stepper{display:flex;border-bottom:1px solid var(--ln);background:var(--panel)}
+.stepper button{flex:1;padding:9px 5px;font-size:10.5px;font-weight:700;color:var(--faint);border-bottom:3px solid transparent;letter-spacing:.02em;text-transform:uppercase}
+.stepper button.done{color:var(--grn)}
+.stepper button.cur{color:var(--ink);border-bottom-color:var(--rose);background:var(--rose-l)}
+.deal .db{display:grid;grid-template-columns:250px 1fr 220px;gap:0;min-height:360px}
+@media(max-width:900px){.deal .db{grid-template-columns:1fr}}
+.deal .dleft{border-right:1px solid var(--ln);padding:15px 17px;background:var(--panel)}
+.dfld{margin-bottom:12px}
+.dfld .fl{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.dfld .fv{font-size:14.5px;font-weight:600;margin-top:2px}
+.dfld .fv.clk{cursor:pointer}.dfld .fv.clk:hover{color:var(--grn)}
+.cbtns{display:flex;gap:6px;margin-top:5px}
+.cbtn{flex:1;border:1px solid var(--ln);padding:8px 6px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;font-weight:600;cursor:pointer;border-radius:7px}
+.cbtn:hover{border-color:var(--grn);color:var(--grn)}
+.cbtn svg{width:13px;height:13px}
+.deal .dmid{padding:15px 18px;overflow-y:auto;max-height:56vh}
+.tl{position:relative;padding-left:20px}
+.tl::before{content:'';position:absolute;left:5px;top:4px;bottom:4px;width:2px;background:var(--ln)}
+.ev{position:relative;padding:0 0 14px}
+.ev::before{content:'';position:absolute;left:-19px;top:5px;width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.ev.wa::before{background:#1fa855}.ev.robot::before{background:var(--grn)}.ev.photo::before{background:var(--gold)}.ev.pay::before{background:var(--rose)}
+.ev .et{font-size:11px;color:var(--faint);font-family:var(--mono)}
+.ev .eb{font-size:13.5px;margin-top:2px;line-height:1.5}
+.ev .eb b{font-weight:700}
+.ev .wamsg{background:#eaf6ef;border:1px solid #cbe7d6;padding:8px 11px;font-size:12.5px;margin-top:5px;max-width:400px;border-radius:7px}
+.ev .photobox{background:var(--gold-l);border:1px dashed var(--gold);border-radius:8px;padding:10px 12px;margin-top:6px;font-size:12.5px;color:#7a5a20;display:flex;align-items:center;gap:9px;max-width:360px}
+.ev .photobox svg{width:22px;height:22px;flex:none}
+.deal .drgt{border-left:1px solid var(--ln);padding:15px 17px;background:var(--panel)}
+.task{border:1px solid var(--ln);padding:9px 11px;margin-bottom:8px;font-size:12.5px;border-radius:7px}
+.task b{font-weight:700;display:block}
+.task span{font-size:11px;color:var(--rose);font-family:var(--mono);font-weight:600}
+.task.don{opacity:.55}.task.don span{color:var(--grn)}
+.dfoot{border-top:1px solid var(--ln);background:var(--panel);padding:12px 20px;display:flex;gap:8px;flex-wrap:wrap}
+.btn{background:var(--ink);color:#fff;font-weight:600;font-size:12.5px;padding:10px 16px;cursor:pointer;border-radius:7px}
+.btn.g{background:var(--grn)}
+.btn.o{background:#fff;color:var(--ink);border:1px solid var(--ln)}
+
+#toasts{position:fixed;right:18px;bottom:18px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:390px}
+.toast{background:var(--ink);color:#e7ede8;padding:12px 16px;font-size:12.5px;line-height:1.55;box-shadow:0 8px 24px -8px rgba(26,42,32,.5);border-radius:9px;animation:tin .22s}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1}}
+.toast b{color:#e7b3c2}
+
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--ink);z-index:50;justify-content:space-around;padding:9px 4px calc(9px + env(safe-area-inset-bottom))}
+.mobile-nav button{color:#93a096;font-size:10.5px;font-weight:600;padding:3px 6px}
+.mobile-nav button.on{color:#fff}
+@media(max-width:860px){.wrap{padding:14px 14px 96px}.mobile-nav{display:flex}.mnav{gap:18px}}
+
+/* ===== переключатель дизайна ===== */
+.mast .themesw{display:flex;border:1px solid var(--ln);background:var(--paper);border-radius:8px;overflow:hidden}
+.mast .themesw button{padding:8px 12px;font-size:12.5px;font-weight:600;color:var(--mut);border-right:1px solid var(--ln)}
+.mast .themesw button:last-child{border-right:none}
+.mast .themesw button.on{background:var(--grn);color:#fff}
+.mast .themesw .tl{font-size:10px;color:var(--faint);align-self:center;padding:0 8px 0 2px;text-transform:uppercase;letter-spacing:.06em}
+
+/* ===== дизайн «Чистый» — на читабельность ===== */
+body.t-clean{
+  --ink:#111c16;--ink2:#33403a;--mut:#546a5f;--faint:#86958c;
+  --paper:#f3f6f4;--panel:#ffffff;--ln:#d8e1db;--ln2:#eef2f0;
+  --grn:#1f7a4d;--grn-l:#e3f2ea;--rose:#bf1749;--rose-l:#fbe7ee;--gold:#946717;--gold-l:#f6edda;--blu:#1e5f80;--blu-l:#e6f0f5;
+  --serif:'Commissioner',sans-serif;font-size:15.5px;
+}
+body.t-clean .brand .bt{letter-spacing:.07em;font-weight:800}
+body.t-clean .brand .bm{border-radius:11px}
+body.t-clean .ph-head h1{font-weight:800;letter-spacing:-.01em}
+body.t-clean .mnav button{font-weight:700}
+body.t-clean .mnav button.on{border-bottom-color:var(--grn)}
+body.t-clean .panel,body.t-clean .kcard,body.t-clean .filcard{border-radius:12px}
+body.t-clean .kcard{border-left-width:4px}
+body.t-clean .demo-note{background:#12291d}
+body.t-clean .note{color:#4a5b51}
+body.t-clean .stocktbl td{font-size:13.5px}
+
+/* ===== клиенты ===== */
+.cltbl{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--ln);border-radius:10px;overflow:hidden}
+.cltbl th{background:var(--ink);color:#dbe4dd;font-size:11px;font-weight:600;padding:10px 14px;text-align:left;white-space:nowrap}
+.cltbl th.r{text-align:right}
+.cltbl td{padding:11px 14px;border-bottom:1px solid var(--ln2);font-size:13.5px;vertical-align:top}
+.cltbl td.r{text-align:right;font-family:var(--mono);font-weight:600}
+.cltbl tr:last-child td{border-bottom:none}
+.cltbl tbody tr{cursor:pointer}
+.cltbl tbody tr:hover td{background:#f6f2ea}
+.occ-item{display:flex;align-items:center;gap:11px;padding:10px 13px;border:1px solid var(--ln);border-radius:9px;cursor:pointer;margin-bottom:9px}
+.occ-item:hover{border-color:var(--rose)}
+.occ-d{width:46px;text-align:center;flex:none}
+.occ-d b{display:block;font-family:var(--mono);font-size:17px;font-weight:700;color:var(--rose)}
+.occ-d span{font-size:10px;color:var(--faint);text-transform:uppercase}
+.occ-i .on{font-size:13.5px;font-weight:600}
+.occ-i .os{font-size:11.5px;color:var(--mut)}
+
+/* ===== перемещения между филиалами ===== */
+.trf-card{background:var(--panel);border:1px solid var(--ln);border-left:3px solid var(--blu);border-radius:0 9px 9px 0;padding:13px 16px;cursor:pointer;transition:.1s;margin-bottom:11px}
+.trf-card:hover{box-shadow:0 5px 14px -8px rgba(26,42,32,.4)}
+.trf-card.done{border-left-color:var(--grn)}
+.trf-card.wait{border-left-color:var(--gold)}
+.trf-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.trf-route{font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px}
+.trf-route .arr{color:var(--blu);font-weight:700}
+.trf-st{margin-left:auto;font-size:11px;font-weight:700}
+.trf-body{font-size:12.5px;color:var(--mut);margin-top:5px}
+.trf-body b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="demo-note">Интерактивное демо · <b>Оранжерея — портал сети цветочных магазинов</b> · 7 точек + опт. склад · Бишкек · все данные вымышленные, всё прокликивается · <b>Pllato</b></div>
+
+<header class="mast">
+  <div class="m1">
+    <div class="brand">
+      <div class="bm"><svg viewBox="0 0 32 32"><path d="M16 6 C12.5 10.5 12.5 14 16 16.2 C19.5 14 19.5 10.5 16 6 Z" fill="#e7b3c2"/><path d="M16 16.2 C11.5 13.8 8 15 7 19.5 C11.6 20.6 15 19.4 16 16.2 Z" fill="#cf6a86"/><path d="M16 16.2 C20.5 13.8 24 15 25 19.5 C20.4 20.6 17 19.4 16 16.2 Z" fill="#cf6a86"/><path d="M16 16 v9" stroke="#7fbf9a" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">Оранжерея</div><div class="bs">сеть цветочных магазинов · заказы · склад · 1С</div></div>
+    </div>
+    <div class="themesw" style="margin-left:auto">
+      <span class="tl">дизайн</span>
+      <button class="on" onclick="setTheme('flora',this)">Флора</button>
+      <button onclick="setTheme('clean',this)">Чистый</button>
+    </div>
+    <div class="roles" style="margin-left:12px">
+      <button class="on" onclick="setRole(this,'Управляющий','вся сеть: все филиалы, склад, продажи, дашборд, статистика, доступ в 1С-контур')">Управляющий</button>
+      <button onclick="setRole(this,'Флорист / касса','свой филиал: заказы, наличие, создание заказа на кассе — без входа в 1С')">Флорист · касса</button>
+    </div>
+    <button class="act" onclick="nav('cash')">+ Новый заказ</button>
+  </div>
+  <nav class="mnav">
+    <button class="on" data-s="fun">Заказы<span class="cnt">воронка</span></button>
+    <button data-s="stock">Наличие по филиалам<span class="cnt">зеркало 1С</span></button>
+    <button data-s="transfers">Перемещения<span class="cnt">между филиалами</span></button>
+    <button data-s="clients">Клиенты<span class="cnt">поводы · повторные</span></button>
+    <button data-s="loyalty">Лояльность<span class="cnt">статусы · роботы</span></button>
+    <button data-s="kpi">KPI · план-факт<span class="cnt">флористы</span></button>
+    <button data-s="channels">Каналы<span class="cnt">реклама</span></button>
+    <button data-s="cash">Касса</button>
+    <button data-s="onec">1С</button>
+    <button data-s="dash">Дашборд сети</button>
+  </nav>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== ВОРОНКА ===== -->
+  <section class="screen on" id="s-fun">
+    <div class="meterline">
+      <div class="mt" onclick="toast('Все живые заказы сети в одном окне — из WhatsApp, Instagram, сайта и касс всех 7 филиалов. Клик по карточке — вся история заказа.')"><div class="l">Заказов в работе</div><div class="v">18 <em>шт</em></div><div class="d">на 342 400 сом</div></div>
+      <div class="mt" onclick="toast('Заказы, где клиент ждёт фото букета из филиала. Флорист снимает — заявка сама уходит клиенту в тот же чат. Это узкое место сейчас у вас — здесь оно решено.')"><div class="l">Ждут фото букета</div><div class="v r">4</div><div class="d">запрос фото у филиала</div></div>
+      <div class="mt" onclick="nav('stock')"><div class="l">Позиций мало</div><div class="v r">6</div><div class="d">остаток ниже минимума</div></div>
+      <div class="mt" onclick="nav('dash')"><div class="l">Выручка · сегодня</div><div class="v g">128 <em>тыс сом</em></div><div class="d">касса + онлайн, все филиалы</div></div>
+      <div class="mt" onclick="nav('onec')"><div class="l">Ушло в 1С</div><div class="v">31 <em>док</em></div><div class="d">счета-фактуры и накладные — сами</div></div>
+    </div>
+    <div class="kan" id="funKan"></div>
+    <div class="note" style="margin-top:12px">Заказ приходит из любого канала — WhatsApp, Instagram, сайт, звонок или касса филиала — и попадает в одну воронку. <b>«Ждут фото»</b> — стадия под ваш цветочный сценарий: клиент хочет конкретный букет, флорист филиала снимает наличие и фото уходит клиенту без пересылок вручную. Клик по заказу — вся переписка, оплата и отгрузка.</div>
+  </section>
+
+  <!-- ===== НАЛИЧИЕ ===== -->
+  <section class="screen" id="s-stock">
+    <div class="ph-head"><h1>Наличие по всем филиалам</h1><span class="sub">одна таблица вместо звонков и захода в 1С — где что есть прямо сейчас</span></div>
+    <div class="tools">
+      <input type="search" placeholder="Найти позицию: роза, тюльпан, пион, упаковка…" oninput="STQ=this.value;renderStock()">
+      <div class="mirror"><span class="pulse"></span>остатки зеркалируются из 1С · обновлено 2 мин назад</div>
+    </div>
+    <div style="overflow-x:auto"><table class="stocktbl" id="stockTbl"></table></div>
+    <div class="note" style="margin-top:12px">Это <b>та самая боль</b>, о которой вы говорили: сейчас, чтобы узнать наличие, менеджер лезет в 1С или пишет филиалу. Здесь остатки всех 7 филиалов <b>в одной таблице</b>, зеркалом из 1С. Красным — где закончилось, оранжевым подсвечивается филиал при поиске. Инвентаризация и списание — тоже здесь, изменения уходят обратно в 1С.</div>
+  </section>
+
+  <!-- ===== КАССА ===== -->
+  <section class="screen" id="s-cash">
+    <div class="ph-head"><h1>Новый заказ · касса</h1><span class="sub">флорист оформляет заказ на месте — в 1С заходить не нужно, документы создаются сами</span></div>
+    <div class="cashgrid">
+      <div>
+        <div class="fld"><label>Филиал</label>
+          <select id="cashFil" onchange="renderCatalog()"></select>
+        </div>
+        <div class="fld"><label>Канал заказа</label>
+          <div class="chips" id="cashCh">
+            <span class="chip on" onclick="pickChip(this)">Касса (офлайн)</span>
+            <span class="chip" onclick="pickChip(this)">WhatsApp</span>
+            <span class="chip" onclick="pickChip(this)">Instagram</span>
+            <span class="chip" onclick="pickChip(this)">Сайт</span>
+          </div>
+        </div>
+        <div class="fld"><label>Клиент</label><input type="text" placeholder="Имя · телефон (для доставки и повторных заказов)"></div>
+        <div class="panel" style="margin-top:4px">
+          <div class="pt"><h3>Каталог филиала</h3><span class="lnk" onclick="nav('stock')">наличие по всем →</span></div>
+          <div class="pb" id="catalog"></div>
+        </div>
+      </div>
+      <div class="cart">
+        <div class="ch">Заказ · корзина</div>
+        <div class="cbody" id="cart"></div>
+        <div class="ctot"><span>Итого</span><span id="cartTot" class="num">0 сом</span></div>
+        <button class="cbtn" onclick="checkout()">Оформить заказ</button>
+        <div class="cnote">При оформлении заказ встаёт в воронку, а в 1С автоматически создаются <b>счёт-фактура</b> и <b>расходная накладная</b>, остаток списывается. Флорист в 1С не заходит.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 1С ===== -->
+  <section class="screen" id="s-onec">
+    <div class="ph-head"><h1>Интеграция с 1С</h1><span class="sub">односторонняя работа в портале — 1С остаётся вашей бухгалтерией, но заходить в неё не нужно</span></div>
+    <div class="flow1c" id="flow1c"></div>
+    <div class="cols">
+      <div class="panel">
+        <div class="pt"><h3>Документы, ушедшие в 1С сегодня</h3><span class="lnk" onclick="toast('Каждый документ — со ссылкой на заказ. Расхождений «продали, но не провели» не бывает: проведение автоматическое.')">как работает →</span></div>
+        <div class="pb" style="padding-top:4px"><table class="synctbl">
+          <thead><tr><th>Заказ</th><th>Документ в 1С</th><th>Филиал</th><th class="r">Сумма</th><th class="r">Статус</th></tr></thead>
+          <tbody id="syncBody"></tbody>
+        </table></div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="pt"><h3>Что даёт связка</h3></div>
+          <div class="pb note" style="line-height:1.9">
+            <div style="margin-bottom:7px"><span class="dot g"></span><b style="color:var(--ink)">Остатки зеркалом</b> — наличие по филиалам подтягивается из 1С, менеджеру не нужно туда заходить.</div>
+            <div style="margin-bottom:7px"><span class="dot g"></span><b style="color:var(--ink)">Продажа = проведение</b> — оформили заказ, счёт-фактура и накладная создались в 1С сами.</div>
+            <div style="margin-bottom:7px"><span class="dot g"></span><b style="color:var(--ink)">Офлайн и онлайн вместе</b> — касса филиала и заказ из WhatsApp проводятся одинаково.</div>
+            <div><span class="dot a"></span><b style="color:var(--ink)">Бонусом бесплатно</b> — интеграция входит в стандартный пакет разработки, отдельно не оплачивается.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ДАШБОРД ===== -->
+  <section class="screen" id="s-dash">
+    <div class="meterline">
+      <div class="mt" onclick="toast('Выручка сети за сегодня — касса всех филиалов + онлайн-каналы, живьём. Клик по филиалу ниже — его цифры отдельно.')"><div class="l">Выручка · сегодня</div><div class="v g">128 400 <em>сом</em></div><div class="d">↑ 14% к среднему дню</div></div>
+      <div class="mt" onclick="toast('Заказов за день по всей сети. В сезон (8 марта, 14 февраля) портал держит поток без ручного распределения.')"><div class="l">Заказов · сегодня</div><div class="v">96</div><div class="d">онлайн 61 · касса 35</div></div>
+      <div class="mt" onclick="toast('Средний чек. Букеты-допродажи (открытка, ваза, доставка) робот предлагает менеджеру в карточке — чек растёт.')"><div class="l">Средний чек</div><div class="v">1 338 <em>сом</em></div><div class="d">↑ с допродажами</div></div>
+      <div class="mt" onclick="toast('Конверсия из обращения в заказ по всем каналам. Видно, какой филиал и канал «проседает».')"><div class="l">Конверсия</div><div class="v">42%</div><div class="d">обращение → заказ</div></div>
+    </div>
+    <div class="cols">
+      <div>
+        <div class="panel">
+          <div class="pt"><h3>Филиалы сети</h3><span class="lnk" onclick="toast('7 филиалов в одном окне. Клик — карточка филиала: заказы, выручка, остатки, флористы, план/факт.')">все 7 →</span></div>
+          <div class="pb"><div class="filgrid" id="filGrid"></div></div>
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="pt"><h3>Продажи по каналам</h3></div>
+          <div class="pb" id="chanList"></div>
+        </div>
+        <div class="panel">
+          <div class="pt"><h3>Топ позиций · неделя</h3></div>
+          <div class="pb" id="topList"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ПЕРЕМЕЩЕНИЯ ===== -->
+  <section class="screen" id="s-transfers">
+    <div class="ph-head"><h1>Перемещения между филиалами</h1><span class="sub">клиент хочет букет, а цветы — в другом филиале: одно нажатие вместо звонков</span></div>
+    <div class="cols">
+      <div>
+        <div id="trfList"></div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="pt"><h3>Как это закрывает логистику</h3></div>
+          <div class="pb note" style="line-height:1.9">
+            <div style="margin-bottom:8px"><span class="dot b"></span>Видно по <b onclick="nav('stock')" style="cursor:pointer;color:var(--grn)">Наличию</b>, в каком филиале есть нужные цветы.</div>
+            <div style="margin-bottom:8px"><span class="dot b"></span>Одним нажатием — <b>перемещение</b>: списание у отправителя, приход у получателя.</div>
+            <div style="margin-bottom:8px"><span class="dot g"></span>Всё зеркалится в <b onclick="nav('onec')" style="cursor:pointer;color:var(--grn)">1С</b> — накладная на перемещение создаётся сама.</div>
+            <div><span class="dot a"></span>Курьер и срок видны — «человеку, который распределяет заказы», не нужно писать в филиал.</div>
+          </div>
+        </div>
+        <button class="act" style="width:100%" onclick="toast('Демо: создание перемещения — откуда, куда, позиции и количество; система проверит остаток по 1С и назначит курьера между точками.')">+ Создать перемещение</button>
+      </div>
+    </div>
+    <div class="note" style="margin-top:12px">Это вторая ваша боль после наличия: <b>стыковка филиалов</b>. Заказ на букет, которого нет в «своём» филиале, больше не теряется — товар едет туда, где клиент, а остатки и документы сходятся сами.</div>
+  </section>
+
+  <!-- ===== КЛИЕНТЫ ===== -->
+  <section class="screen" id="s-clients">
+    <div class="ph-head"><h1>Клиенты и поводы</h1><span class="sub">цветы живут на повторных заказах — ДР, годовщины, праздники не теряются</span></div>
+    <div class="cols">
+      <div>
+        <div style="overflow-x:auto"><table class="cltbl" id="clTbl"></table></div>
+        <div class="note" style="margin-top:12px">Каждый заказ закрепляется за клиентом: история, любимые цветы, повод. Постоянные и корпоративные клиенты (банки, компании) — отдельный сегмент с регулярными заказами.</div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="pt"><h3>Поводы на неделе</h3><span class="lnk" onclick="toast('Поводы-триггеры: робот сам напомнит менеджеру и отправит клиенту тёплое сообщение с подборкой букетов. Продажи, которые иначе забылись бы.')">роботы →</span></div>
+          <div class="pb" id="occList"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ЛОЯЛЬНОСТЬ ===== -->
+  <section class="screen" id="s-loyalty">
+    <div class="ph-head"><h1>Лояльность и повторные продажи</h1><span class="sub">то, чего не хватало 2 года — база постоянных клиентов работает сама</span></div>
+    <div class="meterline">
+      <div class="mt" onclick="toast('База постоянных клиентов с привязкой к номеру телефона. Никаких пластиковых карт — SMS приходит на телефон. Основная выручка — с повторных продаж, а не с 8 марта.')"><div class="l">Постоянных клиентов</div><div class="v">1 840</div><div class="d">привязаны к телефону</div></div>
+      <div class="mt" onclick="toast('Роботы сами напомнят: годовщина покупки («год назад покупали букет жене»), дни рождения, «вечерний букет» по субботам. Продажи, которые иначе забылись бы.')"><div class="l">Поводов на неделе</div><div class="v r">37</div><div class="d">роботы напомнят и продадут</div></div>
+      <div class="mt" onclick="toast('Активные сценарии-роботы по воронке лояльности: на каждый этап своё сообщение. Настраиваются под вас на рабочей встрече.')"><div class="l">Роботов активно</div><div class="v g">6</div><div class="d">сценариев рассылок</div></div>
+      <div class="mt" onclick="toast('Повторные продажи с лояльности за месяц. Прямой рост выручки без затрат на рекламу.')"><div class="l">Повторных продаж · мес</div><div class="v g">412 <em>тыс сом</em></div><div class="d">с рассылок и статусов</div></div>
+    </div>
+    <div class="cols">
+      <div>
+        <div style="overflow-x:auto"><table class="cltbl" id="loyTbl"></table></div>
+        <div class="note" style="margin-top:12px">Статусы присваиваются автоматически по частоте покупок. «Супер-муж» — покупает 4+ букета в месяц; ему — отдельные условия и первым лучшие позиции. Классические схемы «купи 3 — 4-й букет в подарок» тоже здесь.</div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="pt"><h3>Роботы-сценарии</h3><span class="lnk" onclick="toast('Каждый сценарий настраивается: текст SMS/почты, за сколько дней, для какого статуса. Собираем прямо на рабочей встрече по всей воронке.')">настроить →</span></div>
+          <div class="pb" id="robotsList"></div>
+        </div>
+        <div class="panel">
+          <div class="pt"><h3>Статусы клиентов</h3></div>
+          <div class="pb" id="statusList"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== KPI / ПЛАН-ФАКТ ===== -->
+  <section class="screen" id="s-kpi">
+    <div class="ph-head"><h1>KPI и план-факт флористов</h1><span class="sub">зарплата от выручки + план-факт (2 недели) и бонусы — доход растёт, воровство падает</span></div>
+    <div class="meterline">
+      <div class="mt" onclick="toast('Средний чек по сети. Растёт за счёт апселлов (заготовки корзин: средний клиент и супер-дорогой от $500) и правильных подсказок менеджеру.')"><div class="l">Средний чек</div><div class="v">2 380 <em>сом</em></div><div class="d">цель по сети — рост</div></div>
+      <div class="mt" onclick="toast('Среднее количество позиций в чеке (цветы + допродажи: шоколад, игрушки, открытки). Тоже KPI флориста.')"><div class="l">Позиций в чеке</div><div class="v">3,4</div><div class="d">цветы + допродажи</div></div>
+      <div class="mt" onclick="toast('Выполнение плана по сети за текущий период (2 недели). План реалистичный, но с нагрузкой. Перевыполнил — получил бонус.')"><div class="l">Выполнение плана</div><div class="v g">86%</div><div class="d">период · 2 недели</div></div>
+      <div class="mt" onclick="toast('Бонусный фонд за перевыполнение плана. Выплаты 2 раза в месяц. Прозрачно и честно — флористы настроены на высокую кассу.')"><div class="l">Бонусный фонд</div><div class="v g">74 <em>тыс сом</em></div><div class="d">за перевыполнение</div></div>
+    </div>
+    <div class="panel">
+      <div class="pt"><h3>Флористы · план-факт за период</h3><span class="lnk" onclick="toast('Зарплата = минималка + процент от выручки (без потолка) + бонус за перевыполнение плана. Начисление считается системой автоматически.')">как считается →</span></div>
+      <div class="pb" style="padding-top:4px;overflow-x:auto"><table class="cltbl" id="kpiTbl"></table></div>
+    </div>
+  </section>
+
+  <!-- ===== КАНАЛЫ ===== -->
+  <section class="screen" id="s-channels">
+    <div class="ph-head"><h1>Каналы и реклама</h1><span class="sub">видно, где реклама эффективнее — Instagram, WhatsApp, Telegram, сайт</span></div>
+    <div class="meterline">
+      <div class="mt" onclick="toast('Все заявки со всех каналов падают в одну воронку. Здесь видно, откуда пришёл каждый лид, и какой канал приносит продажи.')"><div class="l">Заявок · неделя</div><div class="v">214</div><div class="d">со всех каналов</div></div>
+      <div class="mt" onclick="toast('Онлайн-магазин на сайте (корзина + оплата) — большой потенциал: у сетей 50%+ выручки уходит в онлайн. Делается отдельным этапом.')"><div class="l">Онлайн-потенциал</div><div class="v g">×2</div><div class="d">магазин на сайте</div></div>
+      <div class="mt" onclick="toast('WhatsApp — безлимит сообщений. Обычно $80/мес, у вас ≈$10/мес (или бесплатно через ваш сервис). Экономия ~$800/год.')"><div class="l">WhatsApp</div><div class="v">≈$10<em>/мес</em></div><div class="d">вместо $80 — экономия</div></div>
+      <div class="mt" onclick="nav('dash')"><div class="l">Выручка с каналов</div><div class="v g">1,2 <em>млн сом</em></div><div class="d">за месяц</div></div>
+    </div>
+    <div class="cols">
+      <div>
+        <div style="overflow-x:auto"><table class="cltbl" id="chTbl"></table></div>
+        <div class="note" style="margin-top:12px">Интеграция каналов входит в разработку и дальше не оплачивается. Telegram-бот доводим до конца: заказ + оплата + адрес доставки прямо в боте, готовый оплаченный заказ падает в воронку.</div>
+      </div>
+      <div>
+        <div class="panel">
+          <div class="pt"><h3>Эффективность рекламы</h3></div>
+          <div class="pb" id="chBars"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="mobile-nav">
+  <button class="on" data-s="fun" onclick="nav('fun')">Заказы</button>
+  <button data-s="stock" onclick="nav('stock')">Наличие</button>
+  <button data-s="transfers" onclick="nav('transfers')">Переместить</button>
+  <button data-s="clients" onclick="nav('clients')">Клиенты</button>
+  <button data-s="cash" onclick="nav('cash')">Касса</button>
+  <button data-s="dash" onclick="nav('dash')">Дашборд</button>
+</div>
+
+<!-- заказ-модал -->
+<div class="ovl" id="dealOvl" onclick="if(event.target===this)closeDeal()">
+  <div class="deal">
+    <div class="dh"><h2 id="dTitle">—</h2><span class="dsum num" id="dSum">—</span><span class="mx" onclick="closeDeal()">✕</span></div>
+    <div class="stepper" id="dStep"></div>
+    <div class="db">
+      <div class="dleft">
+        <div class="dfld"><div class="fl">Клиент</div><div class="fv" id="dContact">—</div>
+          <div class="cbtns">
+            <span class="cbtn" onclick="toast('Звонок клиенту в один клик через IP-телефонию — запись ляжет в историю заказа.')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>Позвонить</span>
+            <span class="cbtn" onclick="toast('WhatsApp внутри заказа — вся переписка остаётся в системе, даже если флорист уволится.')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-4-7.5"/><path d="M8 12h8M8 9h5"/></svg>WhatsApp</span>
+          </div>
+        </div>
+        <div class="dfld"><div class="fl">Букет / состав</div><div class="fv" id="dItems">—</div></div>
+        <div class="dfld"><div class="fl">Филиал</div><div class="fv clk" id="dFil" onclick="nav('stock');closeDeal()">—</div></div>
+        <div class="dfld"><div class="fl">Сумма</div><div class="fv num clk" id="dSumF" onclick="toast('Сумма собирается из позиций заказа. Допродажи (открытка, ваза, доставка) робот предлагает менеджеру.')">—</div></div>
+        <div class="dfld"><div class="fl">Канал</div><div class="fv clk" id="dCh" onclick="toast('Канал проставляется сам. По нему в дашборде видно, откуда идут платящие клиенты.')">—</div></div>
+        <div class="dfld"><div class="fl">Доставка</div><div class="fv clk" id="dNext" onclick="toast('Адрес и время доставки — с картой и назначением курьера. Между филиалами видно, где собрать быстрее.')">—</div></div>
+      </div>
+      <div class="dmid"><div class="tl" id="dTl"></div></div>
+      <div class="drgt">
+        <div class="dfld"><div class="fl">Задачи</div></div>
+        <div id="dTasks"></div>
+        <button class="btn o" style="width:100%;margin-top:4px" onclick="toast('Задача добавлена. По заказу всегда виден «следующий шаг» — ничего не теряется в потоке.')">+ задача</button>
+      </div>
+    </div>
+    <div class="dfoot">
+      <button class="btn g" id="dNextBtn" onclick="toast('Заказ передвинут на следующую стадию. Робот стадии отработает сам: уведомит клиента, поставит задачу флористу или курьеру.')">→ далее</button>
+      <button class="btn o" onclick="toast('При переводе в «Выполнен» заказ закрывается, документы уже проведены в 1С, клиент попадает в базу для повторных продаж к следующему празднику.')">Закрыть заказ</button>
+      <button class="btn o" onclick="closeDeal()">Свернуть</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+function toast(html){const t=document.createElement('div');t.className='toast';t.innerHTML=html;$('toasts').appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},5600)}
+function nav(s){
+  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
+  $('s-'+s).classList.add('on');
+  document.querySelectorAll('.mnav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  document.querySelectorAll('.mobile-nav button').forEach(x=>x.classList.toggle('on',x.dataset.s===s));
+  window.scrollTo({top:0});
+}
+document.querySelectorAll('.mnav button').forEach(b=>b.onclick=()=>nav(b.dataset.s));
+function setRole(el,name,msg){document.querySelectorAll('.roles button').forEach(b=>b.classList.toggle('on',b===el));toast('<b>'+name+'</b>: '+msg+'.')}
+
+const FIL=['Чуй проспект','Ала-Тоо','Джал','Восток-5','Ортосай','Аламедин','Университет'];
+const FILA=['ул. Чуй 154','мкр. Ала-Тоо','мкр. Джал 23','Восток-5','рынок Ортосай','Аламединский рынок','ул. Киевская'];
+
+const phoneIc='<svg viewBox="0 0 24 24" fill="none" stroke="#356a86" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>';
+const waIc='<svg viewBox="0 0 24 24" fill="none" stroke="#1fa855" stroke-width="2"><path d="M21 12a9 9 0 1 1-4-7.5"/><path d="M8 12h8M8 9h5"/></svg>';
+const camIc='<svg viewBox="0 0 24 24" fill="none" stroke="#a9803f" stroke-width="2"><path d="M3 8h3l2-2h8l2 2h3v11H3z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+
+/* ===== ВОРОНКА ===== */
+// [клиент, состав, сумма, шаг, флаг('lt'|'photo'|''), филиал#, канал, роботСтрока]
+const STAGES=[
+  ['Новый',[
+    ['Айгерим','25 роз Freedom, красные',3750,'подтвердить состав · 10 мин','','0','wa','робот: приветствие ушло'],
+    ['Данияр','букет «как на фото из Instagram»','—','уточнить бюджет · сегодня','photo','4','ig',''],
+  ]],
+  ['Уточняем · фото',[
+    ['Нурзат','пионы, если есть в наличии',4200,'снять фото пионов в Ортосай','photo','4','wa','робот: запрос фото филиалу'],
+    ['Компания «Абди»','15 букетов на конференцию',22500,'счёт юрлицу · согласование','lt','0','tg',''],
+    ['Сафия','тюльпаны 51 шт, микс',5100,'фото собранного букета клиенту','photo','1','ig',''],
+  ]],
+  ['Оплата',[
+    ['Bakai Bank · подарки','30 моно-букетов сотрудницам',27000,'счёт-фактура выставлена','lt','0','tg','робот: реквизиты + счёт'],
+    ['Элнура','хризантема + упаковка',1850,'ждём оплату по ссылке','','2','wa','робот: ссылка на оплату'],
+    ['Тимур','розы 101, доставка на дом',14200,'подтвердить оплату Kaspi','','3','ks',''],
+  ]],
+  ['Сборка',[
+    ['Гульмира','эустома + гипсофила, ваза',3600,'флорист собирает · Джал','','2','wa','робот: задача флористу'],
+    ['Азиза','свадебный, 5 композиций',31000,'сборка к 14:00 · Чуй','lt','0','ig',''],
+  ]],
+  ['Доставка',[
+    ['Марат','букет + открытка',2400,'курьер в пути · Восток-5','','3','wa','робот: трек клиенту'],
+    ['Салтанат','моно-букет роз',1750,'доставлен · подтвердить','','5','ks','робот: запрос отзыва'],
+  ]],
+];
+const SNAMES=['Новый','Уточняем · фото','Оплата','Сборка','Доставка'];
+const CHNAME={wa:'WhatsApp',tg:'Telegram',ig:'Instagram',ks:'Kaspi/касса'};
+const fT=n=>n.toLocaleString('ru-RU');
+function chLabel(c){return '<span class="ch '+c+'">'+CHNAME[c].toUpperCase()+'</span>'}
+function renderFun(){
+  $('funKan').innerHTML=STAGES.map((s,si)=>{
+    const sum=s[1].reduce((a,k)=>a+(typeof k[2]==='number'?k[2]:0),0);
+    return '<div class="kcol"><h4 onclick="toast(\'Стадия «'+s[0]+'». Стадии настраиваются под ваш процесс — можно добавить свои.\')">'+s[0]+'<span class="n">'+s[1].length+'</span></h4>'+
+    '<div class="ksum" onclick="toast(\'Сумма стадии считается сама и обновляется при каждом переносе заказа.\')">'+(sum?fT(sum)+' сом':'—')+'</div>'+
+    s[1].map((k,ki)=>{
+      const cls=k[4]==='lt'?' late':k[4]==='photo'?' photo':'';
+      const nx=k[4]==='lt'?' lt':k[4]==='photo'?' ph':'';
+      const pre=k[4]==='lt'?'⚑ ':k[4]==='photo'?'◈ ':'';
+      return '<div class="kcard'+cls+'" onclick="openDeal('+si+','+ki+')">'+
+      '<div class="kt">'+k[0]+'</div><div class="kc2">'+k[1]+'</div>'+
+      (typeof k[2]==='number'?'<div class="ksm num">'+fT(k[2])+' сом</div>':'')+
+      '<div class="knext'+nx+'">'+pre+k[3]+'</div>'+
+      '<div class="kic">'+
+      (k[4]==='photo'?'<span class="ic" onclick="event.stopPropagation();reqPhoto(\''+FIL[+k[5]]+'\')">'+camIc+'</span>':'<span class="ic" onclick="event.stopPropagation();toast(\'Звонок клиенту из карточки — запись сохранится в заказе.\')">'+phoneIc+'</span>')+
+      '<span class="ic" onclick="event.stopPropagation();toast(\'WhatsApp внутри заказа — переписка остаётся в системе.\')">'+waIc+'</span>'+
+      chLabel(k[6])+
+      '<span class="fil" onclick="event.stopPropagation();toast(\'Филиал «'+FIL[+k[5]]+'» — заказ привязан к точке, где собирают и откуда везут.\')">'+FIL[+k[5]]+'</span>'+
+      '</div></div>';
+    }).join('')+'</div>';
+  }).join('');
+}
+function reqPhoto(fil){toast('◈ <b>Запрос фото ушёл флористу филиала «'+fil+'»</b>. Флорист снимет наличие — фото уйдёт клиенту в тот же чат автоматически. Это тот самый ручной шаг, который сейчас отнимает у вас время.')}
+
+/* заказ-модал */
+function evH(cls,t,b){return '<div class="ev '+cls+'"><div class="et">'+t+'</div><div class="eb">'+b+'</div></div>'}
+function openDeal(si,ki){
+  const k=STAGES[si][1][ki];
+  $('dTitle').textContent=k[0];
+  $('dSum').textContent=typeof k[2]==='number'?fT(k[2])+' сом':'уточняется';
+  $('dStep').innerHTML=SNAMES.map((st,i)=>'<button class="'+(i<si?'done':i===si?'cur':'')+'" onclick="toast(\'Стадию можно переключить прямо здесь — робот новой стадии отработает сам.\')">'+st+'</button>').join('');
+  $('dContact').textContent=k[0];
+  $('dItems').textContent=k[1];
+  $('dFil').textContent='«'+FIL[+k[5]]+'» · '+FILA[+k[5]];
+  $('dSumF').textContent=typeof k[2]==='number'?fT(k[2])+' сом':'—';
+  $('dCh').textContent=CHNAME[k[6]];
+  $('dNext').textContent=k[3];
+  let tl='';
+  if(si>=4)tl+=evH('robot','сегодня 13:20 · робот стадии «Доставка»','Клиенту ушёл трек и фото собранного букета. После доставки — автозапрос отзыва и метка «повторный клиент к следующему празднику».');
+  if(si>=3)tl+=evH('robot','сегодня 11:40 · робот стадии «Сборка»','Задача флористу филиала «'+FIL[+k[5]]+'»: собрать букет к сроку. Списание позиций уйдёт в 1С при отгрузке.');
+  if(si>=2)tl+=evH('pay','сегодня 10:15 · оплата','<b>Счёт-фактура выставлена, ссылка на оплату отправлена.</b> При оплате документ проведётся в 1С автоматически.');
+  if(k[4]==='photo')tl+=evH('photo','сегодня 09:50 · фото из филиала','Клиент попросил конкретный букет. Робот запросил фото у флориста «'+FIL[+k[5]]+'»:<div class="photobox">'+camIc+'Фото букета из наличия филиала → уходит клиенту в чат без пересылок вручную.</div>');
+  tl+=evH('wa','сегодня 09:30 · '+CHNAME[k[6]],'<b>Обращение клиента:</b> «'+k[1]+'». Заказ создан автоматически из '+CHNAME[k[6]]+' и распределён на филиал «'+FIL[+k[5]]+'».<div class="wamsg">Здравствуйте! Это Оранжерея 🌷 Уточняю наличие и через пару минут пришлю варианты с фото и ценой.</div>');
+  tl+=evH('','при создании','Лид из «'+CHNAME[k[6]]+'» · заказ #GЗ-'+si+ki+'8 · филиал «'+FIL[+k[5]]+'»');
+  $('dTl').innerHTML=tl;
+  $('dTasks').innerHTML='<div class="task"><b>'+k[3].split(' · ')[0]+'</b><span>'+(k[4]==='lt'?'⚑ просрочен — виден управляющему':k[3].split(' · ')[1]||'в срок')+'</span></div>'+
+    '<div class="task don"><b>Наличие подтверждено по 1С</b><span>сделано · автоматически</span></div>';
+  $('dNextBtn').textContent=si<4?'→ '+SNAMES[si+1]:'✓ Выполнен';
+  $('dealOvl').classList.add('show');
+}
+function closeDeal(){$('dealOvl').classList.remove('show')}
+
+/* ===== НАЛИЧИЕ ===== */
+// позиция: [название, ед, мин, [7 остатков]]
+const STOCK=[
+  ['Роза Freedom 60см · красная','шт',40,[120,35,0,80,60,25,90]],
+  ['Роза Mondial · белая','шт',40,[60,0,44,30,55,0,70]],
+  ['Тюльпан микс','шт',60,[200,120,90,0,150,80,60]],
+  ['Пион (сезон)','шт',20,[0,0,0,0,45,0,0]],
+  ['Хризантема кустовая','вет',30,[80,40,55,20,0,35,48]],
+  ['Эустома','вет',25,[35,18,0,40,22,10,30]],
+  ['Гипсофила','вет',20,[50,25,30,15,40,12,0]],
+  ['Упаковка крафт','лист',100,[300,150,80,220,90,60,180]],
+  ['Лента атласная','м',50,[120,60,0,90,45,30,70]],
+];
+let STQ='';
+function renderStock(){
+  const q=STQ.trim().toLowerCase();
+  let head='<thead><tr><th class="l">Позиция</th>'+FIL.map(f=>'<th>'+f+'</th>').join('')+'<th>Σ сеть</th></tr></thead>';
+  let rows=STOCK.filter(p=>!q||p[0].toLowerCase().includes(q)).map(p=>{
+    const tot=p[3].reduce((a,b)=>a+b,0);
+    const best=Math.max(...p[3]);
+    return '<tr onclick="toast(\'«'+p[0]+'»: клик по остатку филиала — карточка позиции, движение, инвентаризация. Всё зеркалом из 1С.\')"><td class="l">'+p[0]+'<small>мин. остаток '+p[2]+' '+p[1]+'</small></td>'+
+    p[3].map((n,i)=>{
+      let cls=n===0?'q0':n<p[2]?'qlow':'qok';
+      if(q&&n===best&&n>0)cls+=' hlfil';
+      return '<td class="'+cls+'">'+(n===0?'—':n)+'</td>';
+    }).join('')+
+    '<td class="rowsum">'+tot+'</td></tr>';
+  }).join('');
+  if(!rows)rows='<tr><td class="l" colspan="9" style="color:var(--faint)">Ничего не найдено — попробуйте «роза», «тюльпан», «упаковка».</td></tr>';
+  $('stockTbl').innerHTML=head+'<tbody>'+rows+'</tbody>';
+}
+
+/* ===== КАССА ===== */
+let CART=[];
+function fillFilSelect(){$('cashFil').innerHTML=FIL.map((f,i)=>'<option value="'+i+'">Филиал «'+f+'»</option>').join('')}
+function renderCatalog(){
+  const fi=+$('cashFil').value;
+  $('catalog').innerHTML=STOCK.map((p,pi)=>{
+    const q=p[3][fi];
+    return '<div class="prodrow" onclick="addToCart('+pi+')"><div class="pn">'+p[0]+'<small>цена за '+p[1]+' · остаток по 1С</small></div>'+
+    '<div class="pq '+(q===0?'qlow':'')+'">'+(q===0?'нет':q+' '+p[1])+'</div>'+
+    '<button class="add" onclick="event.stopPropagation();addToCart('+pi+')">+ в заказ</button></div>';
+  }).join('');
+}
+const PRICE=[150,160,90,350,110,120,80,20,40];
+function addToCart(pi){
+  const fi=+$('cashFil').value;
+  if(STOCK[pi][3][fi]===0){toast('В этом филиале позиции нет. Портал сразу показывает, в каком филиале есть — можно собрать там или перекинуть заказ.');return}
+  const ex=CART.find(c=>c.pi===pi);
+  if(ex)ex.n++;else CART.push({pi,n:1});
+  renderCart();
+}
+function renderCart(){
+  if(!CART.length){$('cart').innerHTML='<div class="cnote" style="padding:14px 0;color:var(--faint)">Добавьте позиции из каталога слева. Остаток списывается из 1С при оформлении.</div>';$('cartTot').textContent='0 сом';return}
+  let tot=0;
+  $('cart').innerHTML=CART.map((c,ci)=>{const p=STOCK[c.pi];const line=PRICE[c.pi]*c.n;tot+=line;
+    return '<div class="cartline"><span>'+p[0].split(' · ')[0]+' × '+c.n+'</span><span>'+fT(line)+' сом</span></div>';
+  }).join('');
+  $('cartTot').textContent=fT(tot)+' сом';
+}
+function checkout(){
+  if(!CART.length){toast('Добавьте хотя бы одну позицию — и увидите, как заказ уходит в воронку и в 1С.');return}
+  const fi=+$('cashFil').value;
+  CART=[];renderCart();
+  toast('<b>Заказ оформлен</b> ✓ Встал в воронку (стадия «Оплата»), в 1С филиала «'+FIL[fi]+'» создались <b>счёт-фактура и накладная</b>, остаток списан. Флорист в 1С не заходил.');
+  setTimeout(()=>nav('onec'),1300);
+}
+function pickChip(el){el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));el.classList.add('on')}
+
+/* ===== 1С ===== */
+const F1=[
+  [camIc,'Заказ в портале','Касса, WhatsApp, Instagram или сайт — заказ в одном окне.'],
+  ['<svg viewBox="0 0 24 24" fill="none" stroke="#256b46" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>','1С создаёт документы','Счёт-фактура и накладная проводятся автоматически.'],
+  ['<svg viewBox="0 0 24 24" fill="none" stroke="#256b46" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg>','Списание остатка','Позиции списываются, наличие в портале обновляется.'],
+  ['<svg viewBox="0 0 24 24" fill="none" stroke="#256b46" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>','Готово · без входа в 1С','Бухгалтерия видит проведённые документы, флорист — нет.'],
+];
+function render1c(){
+  $('flow1c').innerHTML=F1.map(s=>'<div class="fstep"><div class="fi">'+s[0]+'</div><b>'+s[1]+'</b><span>'+s[2]+'</span></div>').join('');
+  const rows=[
+    ['GЗ-238','Счёт-фактура №СФ-1042','Чуй проспект',27000,'проведён'],
+    ['GЗ-241','Расходная накладная №РН-880','Ортосай',4200,'проведён'],
+    ['GЗ-233','Счёт-фактура №СФ-1041','Джал',3600,'проведён'],
+    ['GЗ-244','Расходная накладная №РН-881','Восток-5',14200,'в очереди'],
+    ['GЗ-229','Счёт-фактура №СФ-1040','Аламедин',1750,'проведён'],
+  ];
+  $('syncBody').innerHTML=rows.map(r=>'<tr onclick="toast(\'Документ '+r[1]+' привязан к заказу '+r[0]+'. Открывается и заказ, и проведённый документ 1С — сверять вручную не нужно.\')"><td class="num">'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td class="r">'+fT(r[3])+'</td><td class="r"><span class="badge1c">'+(r[4]==='проведён'?'✓ '+r[4]:'⏳ '+r[4])+'</span></td></tr>').join('');
+}
+
+/* ===== ДАШБОРД ===== */
+const FILSTAT=[ // выручка тыс, заказов, план%
+  [31.2,24,96],[22.8,19,82],[15.6,14,71],[18.4,15,88],[14.1,11,64],[12.3,9,58],[13.9,4,49]];
+function renderDash(){
+  $('filGrid').innerHTML=FIL.map((f,i)=>{const s=FILSTAT[i];
+    return '<div class="filcard" onclick="toast(\'Филиал «'+f+'»: '+s[1]+' заказов, '+s[0]+' тыс сом сегодня, план выполнен на '+s[2]+'%. Клик открыл бы карточку филиала с флористами, остатками и графиком.\')">'+
+    '<div class="fh"><span class="fn">'+f+'</span></div><div class="fa">'+FILA[i]+'</div>'+
+    '<div class="fmet"><div>выручка<b>'+s[0]+'к</b></div><div>заказов<b>'+s[1]+'</b></div><div>план<b>'+s[2]+'%</b></div></div>'+
+    '<div class="bar"><i style="width:'+s[2]+'%;background:'+(s[2]>=80?'var(--grn)':s[2]>=60?'var(--gold)':'var(--rose)')+'"></i></div></div>';
+  }).join('');
+  const chans=[['WhatsApp',44,'#1fa855'],['Instagram',26,'#c13584'],['Касса офлайн',18,'#a9803f'],['Сайт',8,'#356a86'],['Telegram',4,'#2c9bd6']];
+  $('chanList').innerHTML=chans.map(c=>'<div class="barrow" onclick="toast(\'Канал «'+c[0]+'»: '+c[1]+'% заказов. Видно, какая реклама приводит платящих, а какая — просто вопросы.\')"><span class="bl">'+c[0]+'</span><span class="bt"><i style="width:'+c[1]+'%;background:'+c[2]+'"></i></span><span class="bv">'+c[1]+'%</span></div>').join('');
+  const tops=[['Роза Freedom красная',312],['Тюльпан микс',280],['Хризантема кустовая',190],['Упаковка крафт',175],['Эустома',120]];
+  const mx=tops[0][1];
+  $('topList').innerHTML=tops.map(t=>'<div class="barrow" onclick="toast(\'«'+t[0]+'» — '+t[1]+' продано за неделю. Топ-позиции держим в наличии во всех филиалах, робот предупреждает о минимуме.\')"><span class="bl">'+t[0]+'</span><span class="bt"><i style="width:'+Math.round(t[1]/mx*100)+'%;background:var(--grn)"></i></span><span class="bv">'+t[1]+' шт</span></div>').join('');
+}
+
+/* init */
+/* ===== перемещения между филиалами ===== */
+const TRF=[
+  [4,1,'Пионы · 15 шт','move','под заказ «Нурзат» · курьер в пути · ~40 мин'],
+  [0,5,'Роза Freedom · 40 шт','wait','Аламедин просит — подтвердить у Чуй проспект'],
+  [6,0,'Эустома · 30 вет','move','пополнение перед 8 марта · в пути'],
+  [2,3,'Гипсофила · 20 вет','done','принято · остатки обновлены в 1С'],
+];
+function renderTrf(){
+  const st={wait:['Ждёт подтверждения','var(--gold)'],move:['В пути','var(--blu)'],done:['Принято','var(--grn)']};
+  $('trfList').innerHTML=TRF.map(t=>{const s=st[t[3]];
+    return '<div class="trf-card '+(t[3]==='done'?'done':t[3]==='wait'?'wait':'')+'" onclick="toast(\'Перемещение '+t[2]+': «'+FIL[t[0]]+'» → «'+FIL[t[1]]+'». Списание у отправителя, приход у получателя, накладная в 1С — всё само.\')">'+
+    '<div class="trf-top"><div class="trf-route">«'+FIL[t[0]]+'» <span class="arr">→</span> «'+FIL[t[1]]+'»</div><div class="trf-st" style="color:'+s[1]+'">'+s[0]+'</div></div>'+
+    '<div class="trf-body"><b>'+t[2]+'</b> · '+t[4]+'</div></div>';
+  }).join('');
+}
+
+/* ===== клиенты и поводы ===== */
+const CLIENTS=[
+  ['Айгерим Т.','+996 555 12 …',0,'ДР 14.07','25 роз Freedom · 3 дня назад',86000],
+  ['ОсОО «Абди»','+996 700 44 …',0,'корпоратив','15 букетов на конференцию · неделю назад',240000],
+  ['Нурзат К.','+996 559 77 …',4,'годовщина 20.07','пионы · вчера',42000],
+  ['Сафия М.','+996 555 90 …',1,'ДР 09.07','тюльпаны 51 · сегодня',51000],
+  ['Bakai Bank','+996 312 61 …',0,'8 марта · регуляр','30 моно-букетов сотрудницам',270000],
+  ['Данияр С.','+996 707 33 …',1,'—','букет по фото · 5 дней назад',18500],
+];
+const OCC=[
+  ['09','ИЮЛ','Сафия М. · день рождения','напомнить за 2 дня → спецпредложение букета'],
+  ['14','ИЮЛ','Айгерим Т. · день рождения','робот отправит поздравление + подборку роз'],
+  ['20','ИЮЛ','Нурзат К. · годовщина','постоянный клиент — предложить премиум-букет'],
+  ['≈','8 МАР','Bakai Bank · корпоратив','регулярные 30 букетов — подтвердить заранее'],
+];
+function renderClients(){
+  $('clTbl').innerHTML='<thead><tr><th>Клиент</th><th>Осн. филиал</th><th>Повод</th><th>Последний заказ</th><th class="r">Оборот, год</th></tr></thead><tbody>'+
+  CLIENTS.map(c=>'<tr onclick="toast(\'Карточка клиента «'+c[0]+'»: история заказов, любимые цветы, поводы, оборот. Повторные и корпоративные — там, где основные деньги в цветах.\')">'+
+  '<td style="font-weight:600">'+c[0]+'<div style="font-size:11px;color:var(--faint)" class="num">'+c[1]+'</div></td>'+
+  '<td>«'+FIL[c[2]]+'»</td>'+
+  '<td>'+(c[3]==='—'?'<span style="color:var(--faint)">—</span>':'<span style="color:var(--rose);font-weight:600">◈ '+c[3]+'</span>')+'</td>'+
+  '<td style="color:var(--mut);font-size:12.5px">'+c[4]+'</td>'+
+  '<td class="r">'+fT(c[5])+' сом</td></tr>').join('')+'</tbody>';
+  $('occList').innerHTML=OCC.map(o=>'<div class="occ-item" onclick="toast(\'Повод-триггер: '+o[3]+'. Робот сам напомнит менеджеру и отправит клиенту тёплое сообщение — цветочный бизнес живёт на поводах.\')"><div class="occ-d"><b>'+o[0]+'</b><span>'+o[1]+'</span></div><div class="occ-i"><div class="on">'+o[2]+'</div><div class="os">'+o[3]+'</div></div></div>').join('');
+}
+
+/* ===== переключатель дизайна ===== */
+function setTheme(t,el){
+  document.body.classList.toggle('t-clean',t==='clean');
+  document.querySelectorAll('.themesw button').forEach(b=>b.classList.toggle('on',b===el));
+  toast(t==='clean'
+    ? 'Дизайн <b>«Чистый»</b> — на читабельность: без засечек, выше контраст, крупнее текст.'
+    : 'Дизайн <b>«Флора»</b> — фирменная эстетика цветочного бутика.');
+}
+
+/* ===== доработки по встрече 13.07: лояльность / KPI / каналы ===== */
+function badge(txt,bg,col){return '<span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;background:'+bg+';color:'+col+'">'+txt+'</span>';}
+function stB(s){return s==='Супер-муж'?badge(s,'#e7f2ee','#1e7d5f'):s==='Корпоратив'?badge(s,'#e9eff5','#28527a'):s==='Постоянный'?badge(s,'#f5eeda','#8a6a12'):badge(s,'#efe7d6','#7a6a4f');}
+const LOY=[
+  ['Айгерим Осмонова','+996 555 12 34 56','Супер-муж',6,'2 дня назад',148000],
+  ['Бекболот Т.','+996 555 33 22 11','Супер-муж',5,'вчера',132000],
+  ['Компания «Абди»','+996 312 90 00 00','Корпоратив',4,'3 дня назад',420000],
+  ['Данияр Ж.','+996 700 22 11 09','Постоянный',3,'неделю назад',67000],
+  ['Нурзат К.','+996 559 88 77 66','Постоянный',2,'вчера',54000],
+  ['Сафия М.','+996 770 45 45 45','Новый',1,'сегодня',5100],
+];
+function renderLoy(){
+  $('loyTbl').innerHTML='<thead><tr><th>Клиент</th><th>Телефон</th><th>Статус</th><th class="r">Покупок/мес</th><th>Последняя</th><th class="r">LTV</th></tr></thead><tbody>'+
+    LOY.map(c=>'<tr onclick="toast(\'Карточка клиента: история покупок, любимые цветы, поводы (ДР, годовщины), статус и LTV. Роботы шлют SMS по сценариям.\')"><td style="font-weight:600">'+c[0]+'</td><td class="num" style="color:#356a86;font-size:12px">'+c[1]+'</td><td>'+stB(c[2])+'</td><td class="r">'+c[3]+'</td><td style="color:var(--mut);font-size:12.5px">'+c[4]+'</td><td class="r">'+fT(c[5])+' сом</td></tr>').join('')+'</tbody>';
+  const robots=[['🎂','День рождения','за 1 день — SMS с подборкой букетов'],['💍','Годовщина покупки','«год назад покупали букет жене»'],['🌙','Вечерний букет','постоянным по будням и субботам'],['💤','Давно не заходил','30 дней тишины — тёплое сообщение + промо'],['🎁','Купи 3 — 4-й в подарок','автоматический учёт по клиенту'],['⭐','Смена статуса','достиг «Супер-муж» — спец-условия']];
+  $('robotsList').innerHTML=robots.map(r=>'<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #efe7d6;cursor:pointer" onclick="toast(\'Сценарий «'+r[1]+'»: '+r[2]+'. Текст и тайминг настраиваются под вас на рабочей встрече.\')"><span style="font-size:18px">'+r[0]+'</span><div style="flex:1"><b style="font-size:13.5px">'+r[1]+'</b><div style="font-size:11.5px;color:var(--mut)">'+r[2]+'</div></div>'+badge('вкл','#e7f2ee','#1e7d5f')+'</div>').join('');
+  const stat=[['Супер-муж','4+ букета/мес · спец-условия'],['Постоянный','регулярные покупки'],['Корпоратив','компании, регулярные счета'],['Новый','первая покупка']];
+  $('statusList').innerHTML=stat.map(s=>'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #efe7d6">'+stB(s[0])+'<div style="font-size:12.5px;color:var(--mut);flex:1">'+s[1]+'</div></div>').join('');
+}
+const KPI=[['Айдай','Чуй проспект',186000,180000,2540,3.6],['Салтанат','Ала-Тоо',142000,160000,2210,3.1],['Гүлнара','Ортосай',204000,180000,2880,4.0],['Нургиза','Джал',158000,160000,2300,3.3],['Азиза','Восток-5',171000,160000,2620,3.5]];
+function renderKpi(){
+  $('kpiTbl').innerHTML='<thead><tr><th>Флорист</th><th>Филиал</th><th class="r">Касса (период)</th><th class="r">План</th><th class="r">Факт</th><th class="r">Ср. чек</th><th class="r">Позиций</th><th class="r">Бонус</th></tr></thead><tbody>'+
+    KPI.map(k=>{const pct=Math.round(k[2]/k[3]*100),done=pct>=100,bonus=done?Math.round((k[2]-k[3])*0.1):0;
+      return '<tr onclick="toast(\'Зарплата '+k[0]+' = минималка + % от кассы (без потолка) + бонус за перевыполнение плана. Считается автоматически по кассе и плану.\')"><td style="font-weight:600">'+k[0]+'</td><td style="font-size:12.5px;color:var(--mut)">«'+k[1]+'»</td><td class="r">'+fT(k[2])+'</td><td class="r" style="color:var(--mut)">'+fT(k[3])+'</td><td class="r">'+badge(pct+'%',done?'#e7f2ee':'#f7e9e2',done?'#1e7d5f':'#b4552e')+'</td><td class="r">'+fT(k[4])+'</td><td class="r">'+k[5]+'</td><td class="r" style="font-weight:700;color:#1e7d5f">'+(bonus?'+'+fT(bonus):'—')+'</td></tr>';}).join('')+'</tbody>';
+}
+const CH=[['Instagram',86,42,540000],['WhatsApp',72,55,610000],['Telegram',38,29,240000],['Сайт',18,12,190000]];
+function renderChannels(){
+  $('chTbl').innerHTML='<thead><tr><th>Канал</th><th class="r">Заявок</th><th class="r">Заказов</th><th class="r">Конверсия</th><th class="r">Выручка</th></tr></thead><tbody>'+
+    CH.map(c=>{const conv=Math.round(c[2]/c[1]*100);return '<tr onclick="toast(\'Канал '+c[0]+': заявки, конверсия и выручка. Видно, где реклама эффективнее — куда вкладывать бюджет.\')"><td style="font-weight:600">'+c[0]+'</td><td class="r">'+c[1]+'</td><td class="r">'+c[2]+'</td><td class="r">'+conv+'%</td><td class="r">'+fT(c[3])+' сом</td></tr>';}).join('')+'</tbody>';
+  const mx=Math.max.apply(null,CH.map(c=>c[3]));
+  $('chBars').innerHTML=CH.map(c=>'<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px"><b>'+c[0]+'</b><span class="num">'+fT(c[3])+' сом</span></div><div style="height:10px;background:#efe7d6;border-radius:5px;overflow:hidden"><div style="height:100%;width:'+(c[3]/mx*100)+'%;background:var(--rose);border-radius:5px"></div></div></div>').join('');
+}
+renderFun();renderStock();fillFilSelect();renderCatalog();renderCart();render1c();renderDash();renderTrf();renderClients();renderLoy();renderKpi();renderChannels();
+setTimeout(()=>toast('Это <b>Оранжерея</b> — портал под вашу цветочную сеть: <b>база клиентов и лояльность</b> (роботы, статусы, повторные продажи), склад и наличие зеркалом из 1С, <b>KPI/план-факт флористов</b>, каналы и реклама, касса без входа в 1С. Вверху справа — переключатель <b>дизайна</b> (Флора / Чистый).'),800);
+const q=new URLSearchParams(location.search);
+if(q.get('t')==='clean')setTheme('clean',document.querySelectorAll('.themesw button')[1]);
+if(q.get('s'))nav(q.get('s'));if(q.get('deal'))setTimeout(()=>openDeal(1,0),300);
+</script>
+</body>
+</html>

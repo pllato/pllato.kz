@@ -5,7 +5,7 @@
 import { jwtVerify, createRemoteJWKSet } from "jose";
 import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket, broadcastToUser, downloadFile as downloadChatFile, setWaNotifier } from "./chat-module.js";
 import { sendWebPush, VAPID_PUBLIC_KEY } from "./webpush.js";
-import { imapList, imapFetchMessage, smtpSend, mailTestConnection, imapFolders, imapUnreadCount } from "./mail.js";
+import { imapList, imapFetchMessage, imapFetchAttachment, smtpSend, mailTestConnection, imapFolders, imapUnreadCount } from "./mail.js";
 
 // ctx последнего fetch/scheduled — чтобы фоновую рассылку пушей (несколько
 // сетевых запросов к FCM/Mozilla/Apple) повесить на ctx.waitUntil и не держать
@@ -1619,15 +1619,23 @@ async function handleList(request, env, entity) {
     // только когда явно запрошены (?includePublic=1), чтобы не засорять доски задач.
     await ensureEventPublicColumn(env);
     const includePublic = url.searchParams.get("includePublic") === "1";
-    const vuid = me.canonicalUid || '';
-    const orC = [];
-    if (vuid) {
-      for (const f of (cfg.mineFields || [])) { orC.push(`${f} = ?`); whereParams.push(vuid); }
-      for (const f of (cfg.mineJsonFields || [])) { orC.push(`${f} LIKE ?`); whereParams.push(`%"${vuid}"%`); }
+    // allEvents=1 — обзор ВСЕХ встреч/событий (для календаря). Разрешено только
+    // админам/директорам: они видят все задачи-события без ограничения «только свои».
+    const allEvents = url.searchParams.get("allEvents") === "1";
+    const isPrivileged = me.role === 'admin' || (me.orgPerms && me.orgPerms.isDirector);
+    if (allEvents && isPrivileged) {
+      // без фильтра видимости — показываем все задачи набора
+    } else {
+      const vuid = me.canonicalUid || '';
+      const orC = [];
+      if (vuid) {
+        for (const f of (cfg.mineFields || [])) { orC.push(`${f} = ?`); whereParams.push(vuid); }
+        for (const f of (cfg.mineJsonFields || [])) { orC.push(`${f} LIKE ?`); whereParams.push(`%"${vuid}"%`); }
+      }
+      if (includePublic) orC.push("event_public = 1");
+      if (orC.length) whereParts.push("(" + orC.join(" OR ") + ")");
+      else whereParts.push("1 = 0");
     }
-    if (includePublic) orC.push("event_public = 1");
-    if (orC.length) whereParts.push("(" + orC.join(" OR ") + ")");
-    else whereParts.push("1 = 0");
   }
 
   // archived фильтр (только для deals — у contacts/tasks колонки нет).
@@ -4842,22 +4850,60 @@ async function checkChannelsHealth(env, ctx) {
     if (!down && prevDown) recovered.push(notif.display_name || 'Системный нотификатор');
   }
 
-  // 3) Пуш админам — только на переход в down (один раз на событие)
-  if (newlyDown.length) {
-    const admins = await getAdminUids(env);
-    const names = newlyDown.join(', ');
-    const payload = {
-      title: '⚠ WhatsApp-канал отключён',
-      body: `Канал «${names}» потерял связь — сообщения не приходят. Откройте Настройки → каналы и переподключите.`,
-      url: '/team.html',
-      tag: 'channel-down',
-    };
-    for (const uid of admins) {
-      const job = pushToUserDevices(env, uid, payload);
-      if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(job); else await job;
-    }
-  }
+  // Пуш «на каждое падение» УБРАН по просьбе: админов дёргало слишком часто.
+  // Теперь — только состояние в БД (для Настройки → Каналы) + еженедельная
+  // сводка (maybeWeeklyChannelDigest). newlyDown/recovered оставляем в возврате
+  // для логов.
   return { checked: channels.length + (notif && notif.active ? 1 : 0), newlyDown: newlyDown.length, recovered: recovered.length };
+}
+
+// Раз в неделю: если есть отключённые WhatsApp-каналы — одно системное
+// уведомление админам (web push). Гейт по kv-таймстампу, чтобы не чаще недели.
+async function maybeWeeklyChannelDigest(env, ctx) {
+  let last = 0;
+  try {
+    const row = await env.DB.prepare("SELECT v FROM kv WHERE k = 'channel_health:last_weekly'").first();
+    if (row && row.v) { try { last = Date.parse(JSON.parse(row.v)); } catch { last = Date.parse(row.v) || 0; } }
+  } catch {}
+  const now = Date.now();
+  if (last && (now - last) < 7 * 864e5) return { sent: false, reason: 'not_due' };
+
+  // Собираем отключённые каналы из БД (без живых запросов — состояние уже
+  // обновил checkChannelsHealth).
+  const down = [];
+  try {
+    const { results } = await env.DB.prepare(
+      "SELECT display_name, id_instance FROM wa_channels WHERE active = 1 AND conn_state = 'down'"
+    ).all();
+    for (const c of (results || [])) down.push(c.display_name || c.id_instance || 'канал');
+  } catch {}
+  try {
+    const n = await env.DB.prepare("SELECT display_name, active, conn_state FROM wa_notifier WHERE id = 1").first();
+    if (n && n.active && n.conn_state === 'down') down.push((n.display_name || 'Системный нотификатор') + ' (системный)');
+  } catch {}
+
+  // Таймстамп обновляем в любом случае — чтобы следующая сводка была не раньше
+  // чем через неделю, даже если сейчас всё в порядке.
+  try {
+    await env.DB.prepare("INSERT INTO kv (k, v) VALUES ('channel_health:last_weekly', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v")
+      .bind(JSON.stringify(new Date(now).toISOString())).run();
+  } catch {}
+
+  if (!down.length) return { sent: false, reason: 'all_ok' };
+
+  const admins = await getAdminUids(env);
+  const names = down.join(', ');
+  const payload = {
+    title: '⚠ Проверьте WhatsApp-каналы',
+    body: `Не на связи: ${names}. Настройки → Каналы — переподключите (пересканируйте QR).`,
+    url: '/team.html',
+    tag: 'channel-weekly',
+  };
+  for (const uid of admins) {
+    const job = pushToUserDevices(env, uid, payload);
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(job); else await job;
+  }
+  return { sent: true, down: down.length, admins: admins.length };
 }
 
 // GET /api/wa/channels/health — состояние связи каналов (из БД, без живых
@@ -7080,6 +7126,36 @@ async function handleMailMessage(request, env, id, uid) {
   }
 }
 
+// GET /api/mail/:id/message/:uid/attachment/:index — скачать/просмотреть вложение.
+// Гибкая авторизация (?auth=token) — чтобы работать по прямой ссылке <a>/нового окна.
+async function handleMailAttachment(request, env, id, uid, index) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureMailTables(env);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const acc = await env.DB.prepare("SELECT * FROM mail_accounts WHERE id = ?").bind(id).first();
+  if (!acc) return json({ error: "mailbox not found" }, 404, request);
+  const allowed = me.role === 'admin' || mailParseAssigned(acc.assigned_uids).includes(me.canonicalUid);
+  if (!allowed) return json({ error: "forbidden" }, 403, request);
+  const url = new URL(request.url);
+  const folder = url.searchParams.get('folder') || 'INBOX';
+  try {
+    const att = await imapFetchAttachment(acc, uid, index, { folder });
+    const ct = att.mime || 'application/octet-stream';
+    // Картинки/PDF — inline (просмотр в браузере); остальное — attachment (скачивание).
+    const inline = /^image\//.test(ct) || ct === 'application/pdf' || url.searchParams.get('view') === '1';
+    const headers = new Headers(corsHeaders(request));
+    headers.set('Content-Type', ct);
+    headers.set('Content-Length', String(att.bytes.length));
+    const safeName = encodeURIComponent(att.filename || 'attachment');
+    headers.set('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${safeName}`);
+    headers.set('Cache-Control', 'private, max-age=600');
+    return new Response(att.bytes, { status: 200, headers });
+  } catch (e) {
+    return json({ ok: false, error: String(e && e.message || e) }, 502, request);
+  }
+}
+
 // POST /api/mail/:id/send { to, cc, subject, text, html, inReplyTo } — отправка.
 async function handleMailSend(request, env, id) {
   const g = await mailAccountForUser(request, env, id);
@@ -7232,30 +7308,44 @@ async function handleOnboardingStatus(request, env) {
 // Данные: «новые сделки» (по дате создания) либо «вход в стадию» (по журналу).
 // ════════════════════════════════════════════════════════════════════════
 function _ymd(d) { return d.toISOString().slice(0, 10); }
+// Якорь недели: четверг 14:00 Алматы (UTC+5) = четверг 09:00 UTC.
+// Возвращает старт ТЕКУЩЕЙ (ещё не завершённой) недели — ближайший прошлый
+// четверг-09:00-UTC, не позже now.
+function weekAnchorThuUTC(now) {
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 9, 0, 0, 0));
+  const back = (d.getUTCDay() - 4 + 7) % 7; // 4 = четверг
+  d.setUTCDate(d.getUTCDate() - back);
+  if (d.getTime() > now.getTime()) d.setUTCDate(d.getUTCDate() - 7);
+  return d;
+}
 function buildChartBuckets(period, points) {
   const now = new Date();
   const RU_MON = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
   const buckets = [];
   if (period === 'week') {
-    const day = now.getUTCDay() || 7;
-    const monday = new Date(now); monday.setUTCDate(now.getUTCDate() - (day - 1));
+    // Неделя: четверг 14:00 → следующий четверг 14:00 (Алматы). Последний бакет —
+    // текущая незавершённая неделя (partial), её линией не соединяем на графике.
+    const anchor = weekAnchorThuUTC(now);
     for (let i = points - 1; i >= 0; i--) {
-      const ws = new Date(monday); ws.setUTCDate(monday.getUTCDate() - i * 7);
+      const ws = new Date(anchor); ws.setUTCDate(anchor.getUTCDate() - i * 7);
       const we = new Date(ws); we.setUTCDate(ws.getUTCDate() + 7);
-      const s = _ymd(ws), e = _ymd(we);
-      buckets.push({ key: s, start: s, end: e, label: s.slice(8, 10) + '.' + s.slice(5, 7) });
+      // Подпись — дата ОКОНЧАНИЯ недели (чт 14:00 Алматы). Так «16.07» = неделя,
+      // завершившаяся 16.07 (завершена, в линии), а текущая = «23.07» (точка).
+      const weAlm = new Date(we.getTime() + 5 * 3600 * 1000);
+      const label = String(weAlm.getUTCDate()).padStart(2, '0') + '.' + String(weAlm.getUTCMonth() + 1).padStart(2, '0');
+      buckets.push({ key: ws.toISOString(), start: ws.toISOString().slice(0, 10), startMs: ws.getTime(), endMs: we.getTime(), label, partial: i === 0 });
     }
   } else if (period === 'month') {
     for (let i = points - 1; i >= 0; i--) {
       const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
       const key = d.toISOString().slice(0, 7);
-      buckets.push({ key, start: key + '-01', label: RU_MON[d.getUTCMonth()] });
+      buckets.push({ key, start: key + '-01', label: RU_MON[d.getUTCMonth()], partial: i === 0 });
     }
   } else {
     for (let i = points - 1; i >= 0; i--) {
       const d = new Date(now); d.setUTCDate(d.getUTCDate() - i);
       const key = _ymd(d);
-      buckets.push({ key, start: key, label: key.slice(8, 10) + '.' + key.slice(5, 7) });
+      buckets.push({ key, start: key, label: key.slice(8, 10) + '.' + key.slice(5, 7), partial: i === 0 });
     }
   }
   return buckets;
@@ -7266,11 +7356,13 @@ function countIntoBuckets(dates, buckets, period) {
     if (!ds) continue;
     let idx = -1;
     if (period === 'month') idx = buckets.findIndex(b => b.key === ds.slice(0, 7));
-    else if (period === 'week') idx = buckets.findIndex(b => ds >= b.start && ds < b.end);
-    else idx = buckets.findIndex(b => b.key === ds);
+    else if (period === 'week') {
+      const t = Date.parse(ds);
+      if (!isNaN(t)) idx = buckets.findIndex(b => t >= b.startMs && t < b.endMs);
+    } else idx = buckets.findIndex(b => b.key === ds.slice(0, 10));
     if (idx >= 0) counts[idx]++;
   }
-  return buckets.map((b, i) => ({ label: b.label, value: counts[i] }));
+  return buckets.map((b, i) => ({ label: b.label, value: counts[i], partial: !!b.partial }));
 }
 
 async function handleChartsConfigGet(request, env) {
@@ -7322,11 +7414,13 @@ async function handleChartsSeries(request, env) {
   const minDate = buckets[0].start;
   let rows = [];
   try {
+    // Полный таймстамп (не substr): для недельных бакетов нужна точность до
+    // времени (граница четверг 14:00). Для day/month countIntoBuckets режет сам.
     if (usesCreated) {
-      const r = await env.DB.prepare("SELECT substr(bitrix_date_create,1,10) AS d FROM deals WHERE pipeline_id = ? AND bitrix_date_create >= ?").bind(pipeline, minDate).all();
+      const r = await env.DB.prepare("SELECT bitrix_date_create AS d FROM deals WHERE pipeline_id = ? AND bitrix_date_create >= ?").bind(pipeline, minDate).all();
       rows = r.results || [];
     } else {
-      const r = await env.DB.prepare("SELECT substr(entered_at,1,10) AS d FROM deal_stage_events WHERE pipeline_id = ? AND stage_id = ? AND entered_at >= ?").bind(pipeline, stage, minDate).all();
+      const r = await env.DB.prepare("SELECT entered_at AS d FROM deal_stage_events WHERE pipeline_id = ? AND stage_id = ? AND entered_at >= ?").bind(pipeline, stage, minDate).all();
       rows = r.results || [];
     }
   } catch (e) { return json({ ok: false, error: String(e && e.message || e) }, 500, request); }
@@ -9169,6 +9263,10 @@ export default {
     if (mailMsgsMatch && request.method === "GET") {
       return handleMailMessages(request, env, decodeURIComponent(mailMsgsMatch[1]));
     }
+    const mailAttMatch = path.match(/^\/api\/mail\/([^/]+)\/message\/([^/]+)\/attachment\/([^/]+)$/);
+    if (mailAttMatch && request.method === "GET") {
+      return handleMailAttachment(request, env, decodeURIComponent(mailAttMatch[1]), decodeURIComponent(mailAttMatch[2]), decodeURIComponent(mailAttMatch[3]));
+    }
     const mailMsgMatch = path.match(/^\/api\/mail\/([^/]+)\/message\/([^/]+)$/);
     if (mailMsgMatch && request.method === "GET") {
       return handleMailMessage(request, env, decodeURIComponent(mailMsgMatch[1]), decodeURIComponent(mailMsgMatch[2]));
@@ -9249,6 +9347,12 @@ export default {
         }
       } catch (e) {
         console.error("[cron] checkChannelsHealth failed:", e.message);
+      }
+      try {
+        const w = await maybeWeeklyChannelDigest(env, ctx);
+        if (w && w.sent) console.log(`[cron] channel_health weekly digest sent down=${w.down} admins=${w.admins}`);
+      } catch (e) {
+        console.error("[cron] maybeWeeklyChannelDigest failed:", e.message);
       }
     })());
   },

@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ТЗ · EastPole — портал управления фрирайд-турами · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0e1b2e;--ink2:#28405f;--acc:#066aab;--accD:#05537f;--gold:#f5a800;--goldL:#fef2d3;--text:#1b2735;--muted:#5b6b82;--faint:#93a1b5;--line:#e3e9f1;--off:#f5f8fc;--green:#008749;--greenL:#e2f4ec;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55;background:#e8edf3}
+.page{width:210mm;min-height:297mm;position:relative;padding:15mm 16mm 17mm;margin:0 auto 8mm;background:#fff;display:flex;flex-direction:column}
+.runfoot{position:absolute;left:16mm;right:16mm;bottom:9mm;display:flex;justify-content:space-between;font-size:8px;color:var(--faint);border-top:1px solid var(--line);padding-top:6px}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .bm{width:40px;height:40px;background:linear-gradient(140deg,#0a86c9,#066aab);border-radius:11px;display:grid;place-items:center;flex:none}
+.brand .bt{font-size:20px;font-weight:900;letter-spacing:.01em;color:var(--ink)}
+.brand .bs{font-size:8.5px;color:var(--muted);letter-spacing:.03em;margin-top:1px}
+.hr{text-align:right}
+.hr .t{font-size:13px;font-weight:800;color:var(--ink)}
+.hr .dt{font-size:9.5px;color:var(--muted);margin-top:2px}
+.rule{height:2px;background:linear-gradient(90deg,var(--acc),var(--gold));margin-bottom:14px}
+h1{font-size:20px;font-weight:900;letter-spacing:-.01em;line-height:1.15;margin-bottom:8px;color:var(--ink)}
+.lead{font-size:11px;color:var(--ink2);margin-bottom:14px;line-height:1.6}
+.lead b{color:var(--ink)}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.chip{background:var(--off);border:1px solid var(--line);border-radius:20px;padding:4px 11px;font-size:9px;font-weight:600;color:var(--ink2)}
+.sec{font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--acc);margin:16px 0 9px;display:flex;align-items:center;gap:9px}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.sec.first{margin-top:2px}
+.mod{border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin-bottom:8px;break-inside:avoid}
+.mod .mt{font-weight:800;font-size:11.5px;color:var(--ink);margin-bottom:5px;display:flex;align-items:center;gap:8px}
+.mod .mt .n{width:20px;height:20px;border-radius:6px;background:var(--ink);color:#fff;font-size:10px;display:grid;place-items:center;flex:none;font-weight:700}
+.mod.key .mt .n{background:var(--acc)}
+.mod ul{margin:0;padding-left:15px}
+.mod li{font-size:10px;color:var(--ink2);margin-bottom:2.5px;line-height:1.5}
+.mod li b{color:var(--ink)}
+.mod .note{font-size:9.5px;color:var(--muted);margin-top:5px;font-style:italic}
+.callout{background:var(--goldL);border:1px solid #f2d789;border-radius:9px;padding:10px 13px;font-size:10px;color:#7a5410;line-height:1.55;margin-bottom:8px}
+.callout b{color:#5b3f0a}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+table.req{width:100%;border-collapse:collapse;margin-top:4px}
+table.req td{padding:6px 9px;font-size:9.5px;border-bottom:1px solid var(--line)}
+table.req td.k{width:22%;color:var(--muted)}
+table.req tr:nth-child(even){background:var(--off)}
+.accept{border:1px solid var(--line);border-radius:9px;padding:6px 14px}
+.accept .t{display:flex;gap:12px;padding:7px 0;border-bottom:1px solid var(--off)}
+.accept .t:last-child{border-bottom:none}
+.accept .t .w{width:118px;flex:none;font-size:9.5px;font-weight:800;color:var(--acc)}
+.accept .t .d{font-size:10px;color:var(--ink2)}
+.accept .t .d b{color:var(--ink)}
+.signs{display:flex;gap:40px;margin-top:14px}
+.signs .s{flex:1}
+.signs .sl{font-size:9px;color:var(--muted);margin-bottom:12px}
+.signs .snm{font-weight:700;font-size:10.5px;margin-bottom:12px}
+.signs .ln{font-size:10px;color:#3a4453}
+.signs .ln u{display:inline-block;width:80px;border-bottom:1px solid #b9c0ca}
+</style></head>
+<body>
+
+<!-- страница 1 -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg viewBox="0 0 32 32" width="25" height="25"><path d="M3 25L12 11l9 14z" fill="#fff"/><path d="M13 25L21 9l8 16z" fill="#fff" opacity=".78"/><path d="M9 3l.9 3.1 3.1.9-3.1.9L9 12l-.9-3.1L5 8l3.1-.9z" fill="#f5a800"/></svg></div>
+      <div><div class="bt">EastPole</div><div class="bs">портал управления фрирайд-турами · Pllato</div></div>
+    </div>
+    <div class="hr"><div class="t">ТЗ № TZ-EP-2026-01</div><div class="dt">17 июля 2026 г.</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h1>Техническое задание — портал управления фрирайд-турами EastPole</h1>
+  <div class="lead">Разработка кастомной системы управления для <b>ТОО «Восточный Полюс»</b> (EastPole, Дарья; фрирайд: кэтскиинг, хели-ски, ски-тур; база на 28 мест, ратраки/снегоходы/вертолёт, штат гидов) взамен ведения в таблицах Excel и переписках. Система — «пульт управления бизнесом»: календарь загрузки ресурсов, брони с привязкой к транспорту и гидам, приём оплат, чек-ин, финансы и зарплаты гидов. Веб-приложение, моб. адаптив, размещается на сервере Заказчика, передаётся в собственность.</div>
+  <div class="meta">
+    <span class="chip">Платформа: веб (браузер), моб. адаптив</span>
+    <span class="chip">Размещение: сервер Заказчика</span>
+    <span class="chip">Интеграции: эквайринг · WhatsApp · Telegram</span>
+    <span class="chip">Основа: демо EastPole (согласовано на встрече)</span>
+  </div>
+  <div class="callout"><b>Важно.</b> Настоящее ТЗ фиксирует состав системы по итогам встречи и на основе согласованного демо. Точные справочники, тарифы, правила (ставки гидов, цены по гражданству, минимальная бронь, статусы, шаблоны сообщений) уточняются и утверждаются на рабочих встречах в течение первых итераций, затем — поэтапная сдача. Приоритет №1 Заказчика: <b>календарь загрузки</b> — по каким датам что свободно (проживание и транспорт), чтобы менеджер сразу предлагал варианты клиенту.</div>
+
+  <div class="sec first">1. Роли и доступы</div>
+  <div class="mod">
+    <div class="mt"><span class="n">1</span>Роли входа и права</div>
+    <ul>
+      <li><b>Руководитель</b> — полный доступ: календарь, брони, финансы, зарплаты гидов, аналитика.</li>
+      <li><b>Менеджер</b> — работа с клиентами: календарь, брони, чек-ин, заявки, подтверждение и оплата.</li>
+      <li><b>Кабинет клиента</b> — гость видит свою бронь, статус и оплату (что забронировал).</li>
+      <li>Состав ролей и точные права уточняются; возможна отдельная роль «гид».</li>
+    </ul>
+  </div>
+
+  <div class="sec">2. Календарь загрузки (приоритет №1)</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">2</span>Единая карта загрузки ресурсов по датам</div>
+    <ul>
+      <li>Строки — <b>ресурсы</b>: номера базы (до 28 мест) и транспорт (ратраки с местами, снегоходы, вертолёт). Столбцы — <b>даты</b> (месяц, листание вперёд/назад).</li>
+      <li><b>Выходные подсвечены</b> (важно: европейцы бронируют неделю, ориентируясь на выходные).</li>
+      <li><b>Цвет = группа</b>: где группа живёт и где катается — одним цветом (как в таблице Заказчика).</li>
+      <li>Клик по занятой ячейке — карточка брони; по транспорту — кто в этот день выезжает и сколько мест свободно.</li>
+      <li>Сразу видно, что свободно по датам — менеджер предлагает клиенту варианты проживания и катания.</li>
+    </ul>
+  </div>
+
+  <div class="sec">3. Брони с привязкой к транспорту и гидам</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">3</span>Бронь = места + транспорт + гид + проживание</div>
+    <ul>
+      <li>Каждая бронь закреплена за <b>конкретным ратраком / снегоходом / вертолётом</b> с числом мест (продаём целиком или по одному месту), проживанием (номер на базе или внешний отель) и <b>гидами</b>.</li>
+      <li>Статусы сделки: <b>заявка → бронь → предоплата → оплачено → заезд → завершён</b>. Смена статуса вручную и автоматически (после оплаты).</li>
+      <li>Группа целиком (гид набирает свою группу, напр. 12 чел.) или индивидуальные места.</li>
+      <li>Карточка гостя создаётся при бронировании; клик — вся информация по клиенту.</li>
+    </ul>
+  </div>
+
+  <div class="sec">4. Клиенты и воронки</div>
+  <div class="mod">
+    <div class="mt"><span class="n">4</span>Две воронки и карточки клиентов</div>
+    <ul>
+      <li>Воронка <b>новых</b> и воронка <b>повторных</b> клиентов (приезжают из года в год — костяк базы).</li>
+      <li>Карточка гостя: контакты, гражданство, история туров и оплат, заметки. Ведём отдельно новых и повторных.</li>
+      <li>Гражданство важно для цены (см. модуль 5) и для географии в аналитике.</li>
+    </ul>
+  </div>
+
+  <div class="runfoot"><span>Pllato · ТЗ TZ-EP-2026-01 · EastPole для ТОО «Восточный Полюс»</span><span>1 / 3</span></div>
+</section>
+
+<!-- страница 2 -->
+<section class="page">
+  <div class="sec first">5. Подтверждение брони и приём оплаты</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">5</span>Ссылки на подтверждение и оплату</div>
+    <ul>
+      <li>Клиенту уходит <b>ссылка на подтверждение брони и оплату картой</b> (эквайринг): сумма тура, состав, кнопка оплаты.</li>
+      <li><b>Предоплата</b> (напр. 30%) или полная оплата; после оплаты статус брони обновляется автоматически.</li>
+      <li><b>Разные цены по гражданству</b>: для гостей из СНГ и для иностранцев (напр. ратрак — 90 000 ₸ / €200 в день). Валюта и сумма подставляются по клиенту.</li>
+      <li>Минимальная бронь и правила (напр. от 2 дней) — настраиваемые.</li>
+    </ul>
+    <div class="note">Подключение эквайринга (приём карт) — на стороне банка-эквайера; интеграцию в портал делаем. Комиссия эквайринга ~4% (на стороне банка).</div>
+  </div>
+
+  <div class="sec">6. Чек-ин на выезд</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">6</span>Регистрация «как на рейс» — QR / Wallet</div>
+    <ul>
+      <li>Утром каждый гость <b>чек-инится на свой транспорт</b> по QR-коду или карте <b>Apple / Google Wallet</b>.</li>
+      <li>Видно, кто уже на борту и кого ещё нет — <b>даже когда одновременно выходит несколько групп</b>.</li>
+      <li>Идентификация группы/транспорта у гостя; спонтанно записавшиеся дорегистрируются на месте.</li>
+      <li>Список выездов на день, состав по каждой машине и гиду.</li>
+    </ul>
+  </div>
+
+  <div class="sec">7. Гиды и зарплата</div>
+  <div class="mod key">
+    <div class="mt"><span class="n">7</span>Выходы → зарплата автоматически</div>
+    <ul>
+      <li>Штат гидов; на бронь/ратрак назначаются гиды (кто гид, кто водитель).</li>
+      <li><b>Зарплата считается по количеству выходов</b> (ставка × число выездов) — из привязки к броням, без ручных подсчётов.</li>
+      <li>По каждому гиду: выходы за сезон, закреплённые группы, начислено.</li>
+    </ul>
+  </div>
+
+  <div class="sec">8. Транспорт, проживание, финансы, аналитика</div>
+  <div class="two">
+    <div class="mod"><div class="mt"><span class="n">8</span>Транспорт и проживание</div><ul>
+      <li>Ратраки (места), снегоходы, вертолёт — вместимость и загрузка.</li>
+      <li>Номера базы (до 28 мест), заселение по датам.</li>
+      <li>Загрузка по дням и за сезон.</li>
+    </ul></div>
+    <div class="mod"><div class="mt"><span class="n">9</span>Финансы</div><ul>
+      <li>Выручка (<b>₸ и €</b>), предоплаты, эквайринг.</li>
+      <li><b>Фонд оплаты гидов</b> по выходам.</li>
+      <li>Разные цены СНГ / иностранцы — учитываются.</li>
+    </ul></div>
+    <div class="mod"><div class="mt"><span class="n">10</span>Аналитика</div><ul>
+      <li>Загрузка транспорта, конверсия воронок.</li>
+      <li><b>География гостей</b> по гражданству.</li>
+      <li>Доля повторных; любые срезы по запросу.</li>
+    </ul></div>
+    <div class="mod"><div class="mt"><span class="n">11</span>Роботы · рассылки</div><ul>
+      <li>Автосообщения по этапам: подтверждение, оплата, памятка, чек-ин, пост-тур.</li>
+      <li>Два <b>WhatsApp</b> и <b>Telegram</b> — в одном месте.</li>
+    </ul></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · ТЗ TZ-EP-2026-01 · EastPole для ТОО «Восточный Полюс»</span><span>2 / 3</span></div>
+</section>
+
+<!-- страница 3 -->
+<section class="page">
+  <div class="sec first">12. Приём заявок с сайта</div>
+  <div class="mod">
+    <div class="mt"><span class="n">12</span>Заявки и календарь на сайте → в портал</div>
+    <ul>
+      <li>Виджет на сайте: <b>календарь свободных дат</b> (занятые — недоступны) и форма заявки.</li>
+      <li>Заявка <b>падает прямо в портал</b> со статусом «заявка»; менеджер подтверждает и высылает ссылку на оплату.</li>
+      <li>Разработка самого сайта и предварительная SEO — по отдельному ТЗ/КП № EP-S-2026-01. Здесь — только интеграция портала.</li>
+    </ul>
+  </div>
+
+  <div class="sec">13. Инфраструктура и передача</div>
+  <div class="mod">
+    <div class="mt"><span class="n">13</span>Размещение и владение</div>
+    <ul>
+      <li>Веб-приложение в браузере, <b>моб. адаптив</b> (телефон/планшет); размещается на <b>сервере Заказчика</b>.</li>
+      <li>Настройка сервера — в стандартном пакете (бесплатный вариант или ≈5 000–10 000 ₸/мес).</li>
+      <li>Система <b>передаётся в собственность</b> Заказчику: исходники и доступы — Заказчику. Абонплаты за пользование нет.</li>
+      <li>Сопровождение: ошибки по вине Исполнителя — бесплатно; доработки после сдачи — по часам (≈$20/час), запас правок заложен в проект.</li>
+    </ul>
+  </div>
+
+  <div class="sec">Порядок разработки и приёмки — 4–6 недель, 3 итерации</div>
+  <div class="accept">
+    <div class="t"><div class="w">Этап 0 · старт</div><div class="d"><b>Предоплата 150 000 ₸.</b> Разворачиваем систему, забрендируем под EastPole, переносим таблицы загрузки Заказчика.</div></div>
+    <div class="t"><div class="w">Итерация 1 · 1–2 нед.</div><div class="d"><b>Каркас:</b> календарь загрузки, брони с привязкой к транспорту, клиенты. Согласование структуры — оплата этапа 675 000 ₸.</div></div>
+    <div class="t"><div class="w">Итерация 2 · 2–4 нед.</div><div class="d"><b>Функционал:</b> оплата (эквайринг), чек-ин, гиды и зарплата, финансы, аналитика, кабинет клиента, роботы, заявки с сайта.</div></div>
+    <div class="t"><div class="w">Итерация 3 · неделя</div><div class="d"><b>Полировка и передача</b> на ваш сервер. Оплата остатка — 675 000 ₸. Логин и пароль — ваши.</div></div>
+  </div>
+
+  <div class="sec">Стоимость</div>
+  <div class="callout" style="margin-bottom:12px">Полная стоимость разработки портала — <b>1 500 000 ₸</b> (разово, с передачей в собственность). Оплата в 3 транша: 150 000 ₸ (старт, 10%) + 675 000 ₸ (после согласования структуры, 45%) + 675 000 ₸ (после полной передачи, 45%). Кабинет клиента и приём заявок с сайта — включены; заложен запас ≈20% на доработки по ходу. Детали — в КП № EP-2026-01, оплата старта — счёт № EP-С-2026-01. Сайт и предварительная SEO — отдельно (КП № EP-S-2026-01, 470 000 ₸).</div>
+
+  <div class="sec">Стороны</div>
+  <table class="req">
+    <tr><td class="k">Исполнитель</td><td>ИП «STUDYSTORIES.APP», БИН 880607300110, директор Цай Платон · pllato.kz · uurraa@gmail.com</td></tr>
+    <tr><td class="k">Заказчик</td><td>ТОО «Восточный Полюс», БИН 220340024191, директор Михель Дарья Александровна · Казахстан, ВКО, п. Ульба, ул. Гэсовская, 18, оф. 17 · eastpole.kz</td></tr>
+  </table>
+
+  <div class="signs">
+    <div class="s"><div class="sl">Исполнитель</div><div class="snm">ИП «STUDYSTORIES.APP»</div><div class="ln"><u></u> / Цай П. / М.П.</div></div>
+    <div class="s"><div class="sl">Заказчик</div><div class="snm">ТОО «Восточный Полюс»</div><div class="ln"><u></u> / Михель Д.А. / М.П.</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · ТЗ TZ-EP-2026-01 · ИП «STUDYSTORIES.APP» · pllato.kz</span><span>3 / 3</span></div>
+</section>
+</body></html>
