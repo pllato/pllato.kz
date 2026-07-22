@@ -535,13 +535,20 @@ $('#navHome').onclick=renderHome;
 $('#navSettings').onclick=()=>renderSettings();
 // bootPanel вызывается либо после входа (командный режим), либо в локальном режиме.
 window.bootPanel=function(){
-  return HRStore.init().then(()=>HRStore.getSettings()).then(s=>{
-    SETTINGS=s||{};
-    if(SETTINGS.bands){ SETTINGS.bands.forEach((b,i)=>{ if(window.HR_BANDS.fit[i]) window.HR_BANDS.fit[i].min=b.min; }); }
-    const u=HRStore.user(); $('#who').textContent=u?(u.name||u.email):'';
-    HRStore.onChange(()=>{ if(!D) renderList(); });
-    renderHome();
-  });
+  // renderHome() рисует поле ввода кода СРАЗУ, поэтому вызываем его в первую очередь —
+  // даже если сохранённые настройки/данные повреждены, пользователь не застрянет на замке.
+  try { renderHome(); } catch (e) { console.error('renderHome', e); }
+  return Promise.resolve()
+    .then(()=>HRStore.init())
+    .then(()=>HRStore.getSettings())
+    .then(s=>{
+      SETTINGS=s||{};
+      try { if(SETTINGS.bands && SETTINGS.bands.forEach){ SETTINGS.bands.forEach((b,i)=>{ if(b && window.HR_BANDS.fit[i]) window.HR_BANDS.fit[i].min=b.min; }); } }
+      catch(e){ console.warn('bands', e); }
+      const u=HRStore.user(); $('#who').textContent=u?(u.name||u.email):'';
+      HRStore.onChange(()=>{ if(!D) renderList(); });
+    })
+    .catch(e=>{ console.error('bootPanel', e); });
 };
 // Экран входа (когда сервер требует авторизацию и пользователь не вошёл)
 window.renderGate=function(msg){
