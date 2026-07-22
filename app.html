@@ -844,6 +844,28 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
         <span class="tool-badge new">КП + Демо</span>
       </div>
 
+      <div class="tool-card" data-app-id="ava_cosmetics">
+        <div class="tool-icon" style="background:#b83d78">
+          <svg viewBox="0 0 32 32" width="22" height="22"><path d="M16 6 C12 12 12 17 16 21 C20 17 20 12 16 6 Z" fill="#fff"/><rect x="14.5" y="20" width="3" height="7" rx="1.4" fill="#ffe6c7"/></svg>
+        </div>
+        <h3>AVA · Дистрибуция косметики (ОсОО «Ава Тават», Бишкек)</h3>
+        <p>Демо по встрече: единственный дистрибьютор проф-косметики <b>Concept</b> по Кыргызстану (~700 наименований, салоны/магазины/частные), уходят от неудобного <b>SalesDoctor</b>. Своя система под их боли, <b>выбор роли на входе</b> (6 кабинетов). Внутри — ровно то, на что он жаловался: <b>товары в папках</b> (Краски → SoftTouch/ProfiTouch/Infinity) с <b>3 ценами в одной строке</b> (закуп/опт/розница) и <b>массовой сменой цен всей папки</b> одной кнопкой; <b>возврат по сканеру</b> (клиент → пикнул → на склад и в историю); <b>история клиента</b> (покупки/отказы, блокировка скандалистов); <b>прибыль/убыток за день</b> (калькулятор маржи); <b>триггеры</b> (день рождения, вернувшийся клиент, повторный заказ); <b>мобильный интерфейс агента</b>; <b>AI-справочник</b> (Instagram/WhatsApp → 2-3 вопроса → менеджер, DeepSeek); воронка, экспедиторы, дашборд. Свежая rose-plum тема, свет/тёмная. Рабочий бренд AVA. <b>1 500 000 ₸ (≈ $3000)</b>, 1С и финансы — по часам сверху.</p>
+        <a class="tool-cta as-link" href="app/ava.html">Открыть демо →</a>
+        <details class="tool-dd">
+          <summary>▤ Документы (AVA · Ава Тават)<span class="chev">▾</span></summary>
+          <div class="tool-dd-menu">
+            <a href="app/ava.html" target="_blank" rel="noopener"><span class="dot"></span>Демо — выбор роли на входе (врем. доступ)</a>
+            <a href="app/ava.html?s=goods" target="_blank" rel="noopener"><span class="dot"></span>Демо — товары: папки, 3 цены, массовая смена</a>
+            <a href="app/ava.html?s=returns" target="_blank" rel="noopener"><span class="dot"></span>Демо — возврат по сканеру + история</a>
+            <a href="app/kp-ava.html" target="_blank" rel="noopener"><span class="dot"></span>КП — 1 500 000 ₸ (≈$3000) (врем. доступ)</a>
+            <a class="is-pdf" href="app/kp-ava.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП — PDF</a>
+            <a href="app/schet-ava-1.html" target="_blank" rel="noopener"><span class="dot"></span>Счёт на предоплату — 150 000 ₸ (10%) (врем. доступ)</a>
+            <a class="is-pdf" href="app/schet-ava-1.pdf" target="_blank" rel="noopener"><span class="dot"></span>Счёт — PDF</a>
+          </div>
+        </details>
+        <span class="tool-badge new">КП + Счёт + Демо</span>
+      </div>
+
       <div class="tool-card" data-app-id="genius_school">
         <div class="tool-icon" style="background:#1b2340">
           <svg viewBox="0 0 32 32" width="22" height="22"><path d="M16 7 L27 12 L16 17 L5 12 Z" fill="#f0972c"/><path d="M9 14.5 V20 C9 22 12.5 23.5 16 23.5 C19.5 23.5 23 22 23 20 V14.5" fill="none" stroke="#c9cfe8" stroke-width="1.8"/><line x1="27" y1="12" x2="27" y2="18" stroke="#c9cfe8" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -1676,6 +1698,7 @@ const APPS_CATALOG = [
   { id: "magistral_rail",   label: "MAGISTRAL · ЖД-грузоперевозки + счета/вагоны (Алдияр, Павлодар)" },
   { id: "azam_zavod",       label: "AZAM · Завод элеваторного оборудования — пульт завода (Аязбек, с. Жалтырь)" },
   { id: "plombir_zavod",    label: "PLOMBIR · Завод мороженого — пульт завода (B2B, дилеры)" },
+  { id: "ava_cosmetics",    label: "AVA · Дистрибуция косметики — CRM вместо SalesDoctor (Ава Тават, Бишкек)" },
   { id: "genius_school",    label: "Genius School · Частная начальная школа + оплаты (Надира, Астана)" },
   { id: "korpus_mebel",     label: "KORPUS · Производство корпусной мебели — КП (Майра, Алматы)" },
   { id: "jyly_beton",       label: "JYLY · Полистиролбетон и дома (Бигайдар, Алматы)" },
@@ -2397,7 +2420,7 @@ function saveRate(){ try { localStorage.setItem(RATE_KEY, String(RATE)); } catch
   const raw = localStorage.getItem(MONEY_KEY);
   if (raw) { try { MONEY = JSON.parse(raw) || {}; } catch(e){ MONEY = {}; } }
   else {
-    const seed = { eastpole_freeride:{deal:1500000}, skala_crm:{deal:1455000}, sella_crm:{deal:2100000}, agrosklad_portal:{deal:1500000}, magistral_rail:{deal:1500000}, azam_zavod:{deal:2500000}, plombir_zavod:{deal:2500000}, genius_school:{deal:1500000}, rl_system:{deal:2000000}, gulzar_flowers:{deal:2700,cur:'USD'} };
+    const seed = { eastpole_freeride:{deal:1500000}, skala_crm:{deal:1455000}, sella_crm:{deal:2100000}, agrosklad_portal:{deal:1500000}, magistral_rail:{deal:1500000}, azam_zavod:{deal:2500000}, plombir_zavod:{deal:2500000}, ava_cosmetics:{deal:1500000}, genius_school:{deal:1500000}, rl_system:{deal:2000000}, gulzar_flowers:{deal:2700,cur:'USD'} };
     Object.entries(seed).forEach(([id,o]) => { MONEY[id] = { deal:o.deal, pays:[], cur:o.cur||'KZT' }; });
     saveMoney();
   }

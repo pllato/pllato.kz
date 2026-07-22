@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>КП · AVA — CRM для дистрибуции косметики · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#241a22;--ink2:#443746;--acc:#b83d78;--accD:#9a2f63;--accL:#f7e6ef;--gold:#c69a3e;--goldL:#f7efdd;--text:#2c2530;--muted:#7a6a76;--faint:#a99aa4;--line:#ece6ea;--off:#faf6f8;--grn:#1c8a63;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55;background:#eceef2}
+.page{width:210mm;min-height:297mm;position:relative;padding:15mm 16mm 17mm;margin:0 auto 8mm;background:#fff;display:flex;flex-direction:column}
+.runfoot{position:absolute;left:16mm;right:16mm;bottom:9mm;display:flex;justify-content:space-between;font-size:8px;color:var(--faint);border-top:1px solid var(--line);padding-top:6px}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .bm{width:42px;height:42px;background:linear-gradient(145deg,#b83d78,#9a2f63);border-radius:12px;display:grid;place-items:center;flex:none;color:#fff;font-weight:900;font-size:20px}
+.brand .bt{font-size:22px;font-weight:900;letter-spacing:.09em;color:var(--ink)}
+.brand .bt b{color:var(--gold)}
+.brand .bs{font-size:8.5px;color:var(--muted);letter-spacing:.02em;margin-top:2px}
+.hr{text-align:right}
+.hr .t{font-size:13px;font-weight:800;color:var(--ink)}
+.hr .dt{font-size:9.5px;color:var(--muted);margin-top:2px}
+.hr .st{font-size:8.5px;color:var(--faint);margin-top:1px}
+.rule{height:2px;background:linear-gradient(90deg,var(--acc),var(--gold));margin-bottom:14px}
+.badge{display:inline-block;background:var(--accL);color:var(--accD);font-size:8.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:20px;margin-bottom:9px}
+h1{font-size:20px;font-weight:900;letter-spacing:-.01em;line-height:1.15;margin-bottom:8px;color:var(--ink)}
+.lead{font-size:11px;color:var(--ink2);margin-bottom:14px;line-height:1.6}
+.lead b{color:var(--ink)}
+.sec{font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--acc);margin:16px 0 9px;display:flex;align-items:center;gap:9px}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.sec.first{margin-top:2px}
+table.pain{width:100%;border-collapse:collapse;margin-bottom:4px}
+table.pain td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:9.8px;vertical-align:top;width:50%}
+table.pain tr:nth-child(even) td{background:var(--off)}
+table.pain .was::before{content:"SalesDoctor · ";font-weight:700;color:var(--accD)}
+table.pain .was{color:var(--muted)}
+table.pain .now b{color:var(--ink)}
+table.pain .now::before{content:"В системе · ";font-weight:700;color:var(--grn)}
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mod{border:1px solid var(--line);border-radius:9px;padding:10px 12px;break-inside:avoid}
+.mod .mt{font-weight:800;font-size:11px;color:var(--ink);margin-bottom:3px;display:flex;align-items:center;gap:7px}
+.mod .mt .n{width:19px;height:19px;border-radius:6px;background:var(--acc);color:#fff;font-size:9.5px;display:grid;place-items:center;flex:none;font-weight:700}
+.mod .md{font-size:9.5px;color:var(--ink2);line-height:1.5}
+.mod .md b{color:var(--ink)}
+.callout{background:var(--accL);border:1px solid #e6c4d8;border-radius:9px;padding:10px 13px;font-size:9.8px;color:#7a2551;line-height:1.55;margin-bottom:8px}
+.callout b{color:#5e1c3e}
+.pricewrap{display:grid;grid-template-columns:1.15fr 1fr;gap:12px;margin-bottom:6px}
+.pricebox{border:1px solid var(--line);border-radius:11px;padding:14px 15px;background:linear-gradient(160deg,#fff,var(--off))}
+.pricebox .lbl{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.pricebox .big{font-size:28px;font-weight:900;color:var(--ink);letter-spacing:-.02em;margin:3px 0}
+.pricebox .big b{color:var(--acc)}
+.pricebox .note{font-size:9.3px;color:var(--muted);line-height:1.5}
+.steps{border:1px solid var(--line);border-radius:11px;overflow:hidden}
+.steps .st{display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid var(--line)}
+.steps .st:last-child{border-bottom:none}
+.steps .st.tot{background:var(--accL)}
+.steps .sn{font-size:9.8px;color:var(--ink2)}
+.steps .sn b{color:var(--ink)}
+.steps .sv{margin-left:auto;font-weight:800;font-size:11px;color:var(--ink);white-space:nowrap;text-align:right}
+.steps .st.tot .sv{color:var(--accD)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.term{border:1px solid var(--line);border-radius:9px;padding:9px 12px}
+.term .h{font-weight:800;font-size:10px;color:var(--ink);margin-bottom:2px}
+.term .b{font-size:9.3px;color:var(--ink2);line-height:1.5}
+table.req{width:100%;border-collapse:collapse;margin-top:4px}
+table.req td{padding:6px 9px;font-size:9.5px;border-bottom:1px solid var(--line)}
+table.req td.k{width:20%;color:var(--muted)}
+table.req tr:nth-child(even){background:var(--off)}
+.cta{background:var(--ink);color:#fff;border-radius:11px;padding:12px 15px;display:flex;align-items:center;gap:14px;margin-top:10px}
+.cta .x{flex:1;font-size:10px;line-height:1.55}
+.cta .x b{color:#f0a9cd}
+.cta .amt{text-align:right}
+.cta .amt .v{font-size:19px;font-weight:900;color:#f0a9cd;white-space:nowrap}
+.cta .amt .s{font-size:8.5px;color:#c8b6c2}
+.signs{display:flex;gap:40px;margin-top:14px}
+.signs .s{flex:1}
+.signs .sl{font-size:9px;color:var(--muted);margin-bottom:12px}
+.signs .snm{font-weight:700;font-size:10.5px;margin-bottom:12px}
+.signs .ln{font-size:10px;color:#3a4453}
+.signs .ln u{display:inline-block;width:80px;border-bottom:1px solid #b9c0ca}
+</style></head>
+<body>
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm">A</div>
+      <div><div class="bt">A<b>V</b>A · Дистрибуция</div><div class="bs">CRM для дистрибуции проф-косметики · Pllato</div></div>
+    </div>
+    <div class="hr"><div class="t">КП № AVA-2026-01</div><div class="dt">22 июля 2026 г.</div><div class="st">коммерческое предложение</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <span class="badge">Своя система вместо SalesDoctor · в собственность</span>
+  <h1>Единая система для дистрибьютора косметики — вместо SalesDoctor</h1>
+  <div class="lead">Коммерческое предложение для <b>ОсОО «Ава Тават»</b> (Бишкек) — единственного дистрибьютора проф-косметики <b>Concept</b> по Кыргызстану (~700 наименований, салоны/магазины/частные). Уходим от неудобного SalesDoctor к <b>своей системе под ваши процессы</b>: удобный товар с папками и ценами, воронка, история клиентов, возвраты по сканеру, прибыль дня и мобильный интерфейс агента. Полное владение, на вашем сервере.</div>
+
+  <div class="sec first">Что бесит в SalesDoctor → что даёт AVA</div>
+  <table class="pain">
+    <tr><td class="was">Товар «лежит на улице» без папок — ищешь позицию среди 500–600 красок.</td><td class="now"><b>Папки-категории</b> (Краски → SoftTouch / ProfiTouch / Infinity), раздельный алфавит латиница/кириллица.</td></tr>
+    <tr><td class="was">3 цены (закуп/опт/розница) — 3 отдельные процедуры, сохраняешь весь склад по три раза.</td><td class="now"><b>3 цены в одной строке/карточке</b> — зашёл, поменял все три, вышел.</td></tr>
+    <tr><td class="was">Смена цен убивает: каждую из 150 позиций тыкать вручную.</td><td class="now"><b>Массовая смена цен всей папки</b> одной кнопкой (все «стаканы» разом, ±% или новая цена).</td></tr>
+    <tr><td class="was">Сканер сделали на приход (бесполезно), а нужен на возврат.</td><td class="now"><b>Сканер на возврат</b>: выбрал клиента, пропикал — товар на склад и в историю клиента.</td></tr>
+    <tr><td class="was">Не видно истории клиента, кто скандалит и возвращает.</td><td class="now"><b>История клиента</b>: что покупает, сколько отказов — скандалиста в один клик заблокировать.</td></tr>
+    <tr><td class="was">Не знаешь к вечеру — в прибыли ты или в убытке.</td><td class="now"><b>Прибыль/убыток за день</b>: ввёл расходы (ЗП, бензин, аренда) — система по марже показала итог.</td></tr>
+  </table>
+
+  <div class="sec">Что входит в разработку</div>
+  <div class="mods">
+    <div class="mod"><div class="mt"><span class="n">1</span>Товары, папки и 3 цены</div><div class="md">Категории-папки, 3 цены в строке (закуп/опт/розница), массовая смена цен папки, карточка товара (остаток, маржа, мин. запас), автоподгрузка прайса.</div></div>
+    <div class="mod"><div class="mt"><span class="n">2</span>Возвраты по сканеру</div><div class="md">Возврат по клиенту: сканер → на склад + в историю. Корректировка/ревизия/инвентаризация склада.</div></div>
+    <div class="mod"><div class="mt"><span class="n">3</span>Клиенты и история</div><div class="md">Салоны/магазины/частные, статусы, история покупок и отказов, блокировка проблемных клиентов.</div></div>
+    <div class="mod"><div class="mt"><span class="n">4</span>Воронка продаж</div><div class="md">Обращения из Instagram/WhatsApp → воронка по статусам; сбор всех данных в одном месте.</div></div>
+    <div class="mod"><div class="mt"><span class="n">5</span>Прибыль дня + закуп</div><div class="md">Калькулятор прибыли/убытка за день по марже и расходам; рекомендации по закупу на основе истории продаж.</div></div>
+    <div class="mod"><div class="mt"><span class="n">6</span>Триггеры</div><div class="md">Авто-события: день рождения, повторный заказ, «вернувшийся клиент», низкий остаток — напоминания и рассылки по статусу.</div></div>
+    <div class="mod"><div class="mt"><span class="n">7</span>Мобильный интерфейс агента</div><div class="md">Упрощённое приложение: агент в пару касаний шлёт заявку в офис, офис её формирует.</div></div>
+    <div class="mod"><div class="mt"><span class="n">8</span>Экспедиторы и рейсы</div><div class="md">Свои/наёмные машины, рейсы, вечерний возврат отказов. Каталог машин внутри процесса.</div></div>
+    <div class="mod"><div class="mt"><span class="n">9</span>AI-справочник</div><div class="md">Бот из Instagram/WhatsApp: 2–3 вопроса по каталогу → рекомендация линейки → перевод на менеджера. Бесплатные модели (DeepSeek), токены по вашему ключу.</div></div>
+    <div class="mod"><div class="mt"><span class="n">10</span>Дашборд + роли</div><div class="md">Обзор с прибылью дня, продажами, вниманием; роли (руководитель, менеджер, товаровед, агент, экспедитор, маркетолог).</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП AVA-2026-01 · для ОсОО «Ава Тават»</span><span>1 / 2</span></div>
+</section>
+
+<section class="page">
+  <div class="sec first">За рамками стандартного пакета</div>
+  <div class="callout"><b>Интеграция 1С</b> и <b>глубокий финансовый блок</b> (полный ДДС, бюджет, окупаемость) — по часам отдельно, когда база уже работает: их глубина зависит от вашей учётной системы. В стандартном пакете уже включены товар/цены/папки, возвраты, клиенты, воронка, прибыль дня, мобильный агент и AI-справочник — то есть весь основной процесс дистрибуции.</div>
+
+  <div class="sec">Стоимость и порядок оплаты</div>
+  <div class="pricewrap">
+    <div class="pricebox">
+      <div class="lbl">Разработка «под ключ», разово</div>
+      <div class="big"><b>1 500 000 ₸</b></div>
+      <div class="note">≈ $3 000 ≈ 300 000 сом. Полная передача системы вам, на ваш сервер, в собственность. Без ежемесячной платы за пользование — только хостинг (есть бесплатный до 10 ГБ). В стандарт входит и ~20% индивидуальных доработок под вас.</div>
+    </div>
+    <div class="steps">
+      <div class="st"><div class="sn"><b>Предоплата 10% · старт</b><br><span style="color:var(--muted)">символическая, начинаем работу</span></div><div class="sv">150 000 ₸<br><span style="font-size:8.5px;color:var(--muted)">≈ $300</span></div></div>
+      <div class="st"><div class="sn"><b>Этап 1 · базовый функционал</b><br><span style="color:var(--muted)">после утверждения (пост-оплата)</span></div><div class="sv">600 000 ₸</div></div>
+      <div class="st"><div class="sn"><b>Этап 2 · финальная сдача</b><br><span style="color:var(--muted)">по факту полной передачи</span></div><div class="sv">750 000 ₸</div></div>
+      <div class="st tot"><div class="sn"><b>Итого</b></div><div class="sv">1 500 000 ₸</div></div>
+    </div>
+  </div>
+
+  <div class="sec">Как мы работаем</div>
+  <div class="steps" style="margin-bottom:2px">
+    <div class="st"><div class="sn"><b>Демо уже готово</b> — от него отталкиваемся. Садимся на Zoom, проходим по каждому блоку под ваши процессы.</div><div class="sv">демо</div></div>
+    <div class="st"><div class="sn"><b>Итерации</b> — выкатываем рабочие релизы, вы кликаете и говорите, что оставить/убрать/добавить.</div><div class="sv">обсуждаем · внедряем</div></div>
+    <div class="st"><div class="sn"><b>4–6 недель</b> — сборка и поэтапная сдача, пост-оплатой. Готовность — ближе к концу сентября.</div><div class="sv">срок</div></div>
+  </div>
+
+  <div class="sec">Условия</div>
+  <div class="two">
+    <div class="term"><div class="h">Полное владение</div><div class="b">Система разрабатывается под вас, размещается на вашем сервере и передаётся насовсем. Исходники и доступы — ваши.</div></div>
+    <div class="term"><div class="h">Сервер</div><div class="b">На сервере, доступ из браузера и с телефона. Есть бесплатный сервер до 10 ГБ.</div></div>
+    <div class="term"><div class="h">Сопровождение</div><div class="b">Ошибки по нашей вине — правим бесплатно. Ведём вас после внедрения.</div></div>
+    <div class="term"><div class="h">Доработки после сдачи</div><div class="b">Новые пожелания (в т.ч. 1С и финансы) — по часам (≈$20/час).</div></div>
+  </div>
+
+  <div class="sec">Стороны</div>
+  <table class="req">
+    <tr><td class="k">Исполнитель</td><td>ИП «STUDYSTORIES.APP», БИН 880607300110, директор Цай Платон · pllato.kz · uurraa@gmail.com</td></tr>
+    <tr><td class="k">Заказчик</td><td>ОсОО «Ава Тават», г. Бишкек · р/с 1090808942020116, ОАО «Оптима Банк» (филиал Бишкек №1), БИК 109008, SWIFT ENEJKG22</td></tr>
+  </table>
+
+  <div class="cta">
+    <div class="x">Демо готово — кликайте вживую. Чтобы стартовать, вносите символическую <b>предоплату 10% = $300 (150 000 ₸)</b>, и начинаем поднимать вашу систему. Итерациями за 4–6 недель заменим SalesDoctor полностью.</div>
+    <div class="amt"><div class="v">$300 · 150 000 ₸</div><div class="s">старт · 10%</div></div>
+  </div>
+
+  <div class="signs">
+    <div class="s"><div class="sl">Исполнитель</div><div class="snm">ИП «STUDYSTORIES.APP»</div><div class="ln"><u></u> / Цай П. / М.П.</div></div>
+    <div class="s"><div class="sl">Заказчик</div><div class="snm">ОсОО «Ава Тават»</div><div class="ln"><u></u> / __________ / М.П.</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП AVA-2026-01 · ИП «STUDYSTORIES.APP» · pllato.kz</span><span>2 / 2</span></div>
+</section>
+</body></html>
