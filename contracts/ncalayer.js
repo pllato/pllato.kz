@@ -229,20 +229,52 @@ function extractSubjectFromCms(cmsBase64) {
  */
 export async function signBase64(base64Data, opts = {}) {
   const { storage = "PKCS12", keyType = "SIGNATURE", attach = false } = opts;
-  const ws = await openSocket();
+
+  // Попытка 1 — модуль basics с доверенной меткой времени (TSP от НУЦ РК).
+  // Даёт подпись CAdES-T: момент подписания подтверждён TSA НУЦ и не зависит
+  // от нашего сервера. Если версия NCALayer/ключ не поддерживает — молча
+  // откатываемся на проверенный commonUtils (CAdES-BES). Отмену пользователем
+  // (он уже выбрал ключ) — не повторяем.
+  try {
+    const ws = await openSocket();
+    try {
+      const payload = {
+        module: "kz.gov.pki.knca.basics",
+        method: "sign",
+        args: {
+          format: "cms",
+          data: base64Data,
+          signingParams: { decode: true, encapsulate: attach, digested: false, tsaProfile: {} },
+          signerParams: { extKeyUsageOids: ["1.3.6.1.5.5.7.3.4"] },
+          locale: "ru",
+        },
+      };
+      const cms = await sendRequest(ws, payload);
+      if (cms && typeof cms === "string") {
+        return { cms, signer: extractSubjectFromCms(cms), tsp: true };
+      }
+    } finally { try { ws.close(); } catch {} }
+  } catch (e) {
+    const code = e && e.code ? e.code : "";
+    if (code === "CANCELLED" || code === "500" || code === "TIMEOUT") throw e;
+    try { console.warn("[NCALayer] TSP (basics) недоступен, откат на CAdES-BES:", e && e.message); } catch {}
+  }
+
+  // Попытка 2 — проверенный commonUtils (CAdES-BES, без метки времени).
+  const ws2 = await openSocket();
   try {
     const payload = {
       module: "kz.gov.pki.knca.commonUtils",
       method: "createCAdESFromBase64",
       args: [storage, keyType, base64Data, attach],
     };
-    const cms = await sendRequest(ws, payload);
+    const cms = await sendRequest(ws2, payload);
     if (!cms || typeof cms !== "string") {
       throw new NcaLayerError("NCALayer не вернул подпись");
     }
-    return { cms, signer: extractSubjectFromCms(cms) };
+    return { cms, signer: extractSubjectFromCms(cms), tsp: false };
   } finally {
-    try { ws.close(); } catch {}
+    try { ws2.close(); } catch {}
   }
 }
 

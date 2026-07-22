@@ -1,5 +1,5 @@
 // Публичная страница подписания договора по персональной ссылке (без логина).
-import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20260609-3";
+import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20260722-2";
 
 const $ = (s) => document.querySelector(s);
 const root = $("#root");
@@ -164,7 +164,7 @@ async function render(data) {
         <label class="fld"><span id="lbl-iin">ИИН / БИН</span><input data-f="iinBin" maxlength="12" value="${val("iinBin")}"></label>
         <label class="fld indiv-only"><span>Уд. личности №</span><input data-f="idNumber" value="${val("idNumber")}"></label>
         <label class="fld indiv-only"><span>Дата выдачи</span><input data-f="idDate" placeholder="дд.мм.гггг" value="${val("idDate")}"></label>
-        <label class="fld"><span>Адрес</span><input data-f="address" value="${val("address")}"></label>
+        <label class="fld"><span id="lbl-address">Адрес жительства (прописки)</span><input data-f="address" placeholder="город, улица, дом, кв." value="${val("address")}"></label>
         <label class="fld"><span>Контакт (тел./e-mail)</span><input data-f="contact" value="${val("contact")}"></label>
         <label class="fld"><span>Банк</span><input data-f="bank" value="${val("bank")}"></label>
         <label class="fld"><span>IBAN счёт</span><input data-f="iban" value="${val("iban")}"></label>
@@ -187,6 +187,8 @@ async function render(data) {
     [...$("#type-seg").querySelectorAll(".seg-btn")].forEach((b) => b.classList.toggle("on", b.dataset.type === t));
     $("#lbl-name").textContent = t === "ip" ? "Наименование ИП" : "ФИО";
     $("#lbl-iin").textContent = t === "ip" ? "БИН / ИИН" : "ИИН";
+    const la = $("#lbl-address");
+    if (la) la.textContent = t === "ip" ? "Юридический адрес" : "Адрес жительства (прописки)";
     formEl.classList.toggle("is-ip", t === "ip");
   }
   $("#type-seg").addEventListener("click", (e) => {
@@ -231,6 +233,7 @@ function collectRequisites() {
   if (!signerType) throw new Error("Выберите тип: ИП или физическое лицо");
   if (!data.name) throw new Error("Укажите наименование / ФИО");
   if (!data.iinBin) throw new Error("Укажите ИИН / БИН");
+  if (!data.address) throw new Error(signerType === "ip" ? "Укажите юридический адрес" : "Укажите адрес жительства");
   return { signerType, requisites: { data } };
 }
 
@@ -246,9 +249,9 @@ async function onSign(contract) {
     }
     const base64 = await blobToBase64(currentBlob);
     toast("Выберите ключ ЭЦП в окне NCALayer…");
-    const { cms, signer } = await signBase64(base64);
+    const { cms, signer, tsp } = await signBase64(base64);
     btn.textContent = "Сохраняю подпись…";
-    const res = await apiPost({ cmsBase64: cms, signer, signerType: reqs.signerType, requisites: reqs.requisites });
+    const res = await apiPost({ cmsBase64: cms, signer, tsp, signerType: reqs.signerType, requisites: reqs.requisites });
     renderDone(res.signer, contract);
   } catch (e) {
     const msg = e instanceof NcaLayerError ? e.message : (e.message || String(e));

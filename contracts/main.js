@@ -3,7 +3,7 @@ import {
   listContracts, createContract, signOwner, sendContract, deleteContract, addSigners, setContractMode,
   fetchContractFileBlob, fetchSignatureBlob, fileToBase64, signLinkForToken, signLinkForContract,
 } from "./api.js";
-import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20260609-3";
+import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20260722-2";
 
 const session = requireSession({ redirectTo: "login.html" });
 
@@ -219,8 +219,8 @@ async function doSignOwner(id) {
   const blob = await fetchContractFileBlob(id);
   const base64 = await blobToBase64(blob);
   toast("Откройте NCALayer и выберите ключ ЭЦП…");
-  const { cms, signer } = await signBase64(base64);
-  await signOwner(id, { cmsBase64: cms, signer });
+  const { cms, signer, tsp } = await signBase64(base64);
+  await signOwner(id, { cmsBase64: cms, signer, tsp });
   toast("Вы подписали договор");
   await loadList();
 }
