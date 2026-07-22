@@ -5,6 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RL · Фонды проектов</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --ink:#1a2230;--paper:#eef0f3;--line:#d5d9e0;--muted:#5d6472;--card:#fff;
@@ -162,18 +163,19 @@ function load(){
    копию для мгновенного старта и офлайна. Оптимистическая блокировка версий:
    при конфликте побеждает сервер (данные с другого устройства), клиент
    перечитывает. Ключ доступа хранится только на устройстве. */
-const SYNC_URL='https://rl-fondy-api.uurraa.workers.dev/api/db?ws=rls';
-const AUTH_BASE='https://pllato-comm.uurraa.workers.dev';
+const API_BASE='https://rl-fondy-api.uurraa.workers.dev';
+const SYNC_URL=API_BASE+'/api/db?ws=rls';
+const GOOGLE_CLIENT_ID='690738857241-oechm85eio8np7hepafta8opn9jev6uj.apps.googleusercontent.com';
 const KEY_LS='rl-fondy-key';
+const SES_LS='rl-fondy-session'; // собственная сессия программы (не портальная)
 let _srvVer=0,_dirty=false,_pushT=null,_noPush=true; // _noPush: не пушим, пока не забрали свежее с сервера
-// Google-сессия портала pllato (общая для всего pllato.kz) — приоритетный способ входа
-function getPllatoSession(){
-  try{const s=JSON.parse(localStorage.getItem('pllato_session')||'null');
-    if(s&&s.token&&s.exp&&s.exp>Date.now()/1000+15&&s.user)return s;}catch(e){}
+function getSession(){
+  try{const s=JSON.parse(localStorage.getItem(SES_LS)||'null');
+    if(s&&s.token&&s.exp&&s.exp>Date.now()/1000+15&&s.email)return s;}catch(e){}
   return null;
 }
-const getKey=()=>{const s=getPllatoSession();return s?s.token:(localStorage.getItem(KEY_LS)||'')};
-const isSuper=()=>{const u=getPllatoSession()?.user;return !!(u&&(u.isSuperAdmin||u.isAdmin))};
+const getKey=()=>{const s=getSession();return s?s.token:(localStorage.getItem(KEY_LS)||'')};
+const isSuper=()=>{const s=getSession();return s?s.role==='super':!!localStorage.getItem(KEY_LS)};
 function setSyncMsg(m,color){const el=document.getElementById('syncStatus');if(el){el.textContent=m;el.style.color=color||'#7d8aa3'}}
 function syncBody(){const {sel,...rest}=DB;return {...rest,_id}}
 function _timeoutSignal(ms){const c=new AbortController();setTimeout(()=>c.abort(),ms);return c.signal}
@@ -181,7 +183,7 @@ async function syncPull(initial){
   if(!getKey())return;
   try{
     const r=await fetch(SYNC_URL,{headers:{Authorization:'Bearer '+getKey()},signal:_timeoutSignal(12000)});
-    if(r.status===401||r.status===403){localStorage.removeItem(KEY_LS);showKeyGate(r.status);return}
+    if(r.status===401||r.status===403){localStorage.removeItem(SES_LS);localStorage.removeItem(KEY_LS);showKeyGate(r.status);return}
     if(!r.ok)throw 0;
     const j=await r.json();
     if(j.data==null){ // сервер пуст — заливаем локальное состояние как первую версию
@@ -207,7 +209,7 @@ async function syncPush(){
     const r=await fetch(SYNC_URL,{method:'PUT',
       headers:{Authorization:'Bearer '+getKey(),'Content-Type':'application/json'},
       body:JSON.stringify({baseVer:_srvVer,data:syncBody()}),signal:_timeoutSignal(15000)});
-    if(r.status===401||r.status===403){localStorage.removeItem(KEY_LS);showKeyGate(r.status);return}
+    if(r.status===401||r.status===403){localStorage.removeItem(SES_LS);localStorage.removeItem(KEY_LS);showKeyGate(r.status);return}
     if(r.status===409){toast('Данные обновлены с другого устройства — загружаю свежую версию','err');_dirty=false;await syncPull(true);return}
     if(!r.ok)throw 0;
     const j=await r.json();
@@ -222,23 +224,41 @@ function schedulePush(force){
 }
 function showKeyGate(reason){
   const host=document.getElementById('main');
-  const onSite=location.hostname.endsWith('pllato.kz');
-  const ps=getPllatoSession();
+  const onSite=location.protocol.startsWith('http');
   let msg='';
-  if(reason===403&&ps)msg=`Вошёл как <b>${esc(ps.user.email||'')}</b>, но доступ к «Фондам проектов» не выдан. Попроси владельца добавить тебя (портал → Фонды → «Доступы»).`;
-  else if(reason)msg='Вход не подошёл — войди через Google или проверь ключ.';
+  if(reason&&reason.denied)msg=`Аккаунт <b>${esc(reason.denied)}</b> не добавлен в «Фонды проектов». Попроси владельца открыть доступ (кнопка «👥 Доступы»).`;
+  else if(reason)msg='Вход не подошёл или сессия истекла — войди заново.';
   host.innerHTML=`<div class="card" style="max-width:460px;margin:70px auto;text-align:center;padding:28px 26px">
     <div style="font-size:18px;font-weight:700;margin-bottom:6px">Вход в «Фонды проектов»</div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5">Данные хранятся на защищённом сервере. Доступ — по Google-аккаунту, который добавил владелец.</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5">Данные хранятся на защищённом сервере. Вход — через Google-аккаунт, который добавил владелец.</div>
     ${msg?`<div class="warn" style="display:block;margin-bottom:12px">${msg}</div>`:''}
-    ${onSite?`<button class="btn" style="width:100%;margin-bottom:14px" onclick="location.href='/login.html'">Войти через Google</button>`
-      :'<div style="font-size:12px;color:var(--muted);margin-bottom:12px">Google-вход работает на pllato.kz — открой приложение через сайт. Здесь можно войти запасным ключом:</div>'}
+    ${onSite?'<div id="gsiBtn" style="display:flex;justify-content:center;margin-bottom:14px"></div>'
+      :'<div style="font-size:12px;color:var(--muted);margin-bottom:12px">Google-вход работает при открытии с сайта. Здесь — запасной ключ:</div>'}
     <details ${onSite?'':'open'} style="text-align:left"><summary style="font-size:12px;color:var(--muted);cursor:pointer">запасной вход по ключу</summary>
       <div style="margin-top:10px"><input id="keyInp" type="password" placeholder="ключ доступа" style="margin-bottom:10px;text-align:center" onkeydown="if(event.key==='Enter')saveKey()">
       <button class="btn ghost" style="width:100%" onclick="saveKey()">Войти по ключу</button></div>
     </details>
   </div>`;
   setSyncMsg('');
+  if(onSite)mountGsi();
+}
+function mountGsi(){
+  if(!(window.google&&google.accounts&&google.accounts.id)){setTimeout(mountGsi,300);return}
+  const el=document.getElementById('gsiBtn');if(!el)return;
+  google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID,callback:onGoogleCredential});
+  google.accounts.id.renderButton(el,{theme:'outline',size:'large',width:280});
+}
+async function onGoogleCredential(resp){
+  try{
+    setSyncMsg('⟳ проверяю доступ…');
+    const r=await fetch(API_BASE+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({credential:resp.credential})});
+    const j=await r.json().catch(()=>({}));
+    if(r.status===403){showKeyGate({denied:j.email||''});return}
+    if(!r.ok){showKeyGate('err');return}
+    localStorage.setItem(SES_LS,JSON.stringify(j));
+    setWho();render();syncPull(true);
+    toast('Вход выполнен: '+j.email+' ✓');
+  }catch(e){setSyncMsg('');toast('Не получилось войти — проверь интернет','err')}
 }
 function saveKey(){
   const v=document.getElementById('keyInp').value.trim();
@@ -248,17 +268,17 @@ function saveKey(){
   syncPull(true);
 }
 function changeKey(){
-  const ps=getPllatoSession();
-  if(ps){toast('Вход через Google: '+(ps.user.email||'')+'. Выход — на портале pllato.kz/app','ok');return}
-  if(!confirm('Сменить запасной ключ? Текущий будет забыт на этом устройстве.'))return;
-  localStorage.removeItem(KEY_LS);showKeyGate(false);
+  const s=getSession();
+  if(!confirm(s?('Выйти из аккаунта '+s.email+'?'):'Забыть запасной ключ на этом устройстве?'))return;
+  localStorage.removeItem(SES_LS);localStorage.removeItem(KEY_LS);
+  showKeyGate(false);setWho();
 }
 function setWho(){
   const el=document.getElementById('whoami');if(!el)return;
-  const ps=getPllatoSession();
-  el.textContent=ps?('· '+(ps.user.email||'')+(isSuper()?' (админ)':'')):(getKey()?'· вход по ключу':'');
+  const s=getSession();
+  el.textContent=s?('· '+s.email+(s.role==='super'?' (супер-админ)':'')):(getKey()?'· вход по ключу':'');
   const ab=document.getElementById('accessBtn');
-  if(ab)ab.style.display=(ps&&isSuper())?'':'none';
+  if(ab)ab.style.display=isSuper()&&getKey()?'':'none';
 }
 function goAccess(){
   DB.sel=null;_kbEdit=false;render();
@@ -266,62 +286,64 @@ function goAccess(){
     if(b){b.scrollIntoView({block:'center',behavior:'smooth'});admLoad()}},80);
 }
 
-/* ---- Доступы: супер-админы и пользователи (через pllato-comm, для админов) ---- */
+/* ---- Доступы: собственные пользователи программы (только супер-админ) ---- */
 function adminsSectionHtml(){
-  if(!getPllatoSession()||!isSuper())return '';
-  return `<h2>Доступы · админы</h2>
-  <div class="explain">Кто может входить в «Фонды проектов». <b>Супер-админ</b> управляет всем порталом и всеми доступами; галочка «Фонды» открывает только это приложение. Добавление по email Google-аккаунта.</div>
+  if(!isSuper())return '';
+  return `<h2>Доступы · пользователи</h2>
+  <div class="explain">Кто может входить в «Фонды проектов» (своя база программы, с порталом не связана). <b>Супер-админ</b> видит всё и управляет доступами; <b>пользователь</b> — работает с данными. Добавление по email Google-аккаунта.</div>
   <div class="card" id="admBox"><button class="btn ghost" onclick="admLoad()">Показать пользователей</button></div>`;
 }
 async function admLoad(){
   const box=document.getElementById('admBox');if(!box)return;
   box.innerHTML='<div style="color:var(--muted);font-size:12.5px">загружаю…</div>';
   try{
-    const r=await fetch(AUTH_BASE+'/users/list',{headers:{Authorization:'Bearer '+getKey()}});
+    const r=await fetch(API_BASE+'/api/users',{headers:{Authorization:'Bearer '+getKey()}});
     if(!r.ok)throw 0;
     const j=await r.json();
-    window._admUsers=j.users||[];
-    admRender(window._admUsers);
-  }catch(e){box.innerHTML='<div class="warn" style="display:block">Не удалось загрузить пользователей — нужны права админа портала</div>'}
+    admRender(j.users||[]);
+  }catch(e){box.innerHTML='<div class="warn" style="display:block">Не удалось загрузить — нужны права супер-админа</div>'}
 }
 function admRender(users){
   const box=document.getElementById('admBox');if(!box)return;
-  const me=(getPllatoSession()?.user?.email||'').toLowerCase();
+  const me=(getSession()?.email||'').toLowerCase();
   box.innerHTML=users.map(u=>{const isMe=(u.email||'').toLowerCase()===me;
-    const appOn=!!(u.apps&&u.apps.rl_fondy)||u.isAdmin||u.isSuperAdmin;
     return `<div class="oprow">
-    <div class="ds"><div class="p">${esc(u.email)}${isMe?' <span class="tg">это ты</span>':''}</div><div class="c">${esc([u.name,u.position].filter(Boolean).join(' · '))}</div></div>
-    <label style="display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;cursor:pointer;flex-shrink:0">супер-админ
-      <input type="checkbox" style="width:auto" ${u.isSuperAdmin?'checked':''} ${isMe?'disabled title="себя не разжаловать"':''} onchange="admSave('${esc(u.email)}',{isSuperAdmin:this.checked})"></label>
-    <label style="display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;cursor:pointer;flex-shrink:0">Фонды
-      <input type="checkbox" style="width:auto" ${appOn?'checked':''} ${(u.isAdmin||u.isSuperAdmin)?'disabled title="админ видит всё и так"':''} onchange="admSave('${esc(u.email)}',{app:this.checked})"></label>
+    <div class="ds"><div class="p">${esc(u.email)}${isMe?' <span class="tg">это ты</span>':''}${u.root?' <span class="tg" title="корневой супер-админ, неизменяем">root</span>':''}</div>
+      <div class="c">добавил: ${esc(u.added_by||'—')}</div></div>
+    <select style="width:auto;padding:5px 9px;font-size:12px" ${u.root?'disabled':''} onchange="admSave('${esc(u.email)}',this.value)">
+      <option value="user"${u.role==='user'?' selected':''}>пользователь</option>
+      <option value="super"${u.role==='super'?' selected':''}>супер-админ</option>
+    </select>
+    ${u.root?'':`<span class="del" onclick="admDel('${esc(u.email)}')" title="удалить доступ">×</span>`}
   </div>`}).join('')
   +`<div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-top:12px" class="txg">
-    <input id="admEmail" placeholder="email@gmail.com" onkeydown="if(event.key==='Enter')admAdd(false)">
-    <button class="btn ghost" onclick="admAdd(false)">+ доступ к Фондам</button>
-    <button class="btn" onclick="admAdd(true)">+ супер-админ</button></div>`;
+    <input id="admEmail" placeholder="email@gmail.com" onkeydown="if(event.key==='Enter')admAdd('user')">
+    <button class="btn ghost" onclick="admAdd('user')">+ пользователь</button>
+    <button class="btn" onclick="admAdd('super')">+ супер-админ</button></div>`;
 }
-async function admSave(email,patch){
-  const u=(window._admUsers||[]).find(x=>(x.email||'').toLowerCase()===email.toLowerCase())||{email};
-  const apps={...(u.apps||{})};
-  if(patch.app!==undefined){if(patch.app)apps.rl_fondy=true;else delete apps.rl_fondy}
-  const body={email,name:u.name||'',isAdmin:!!u.isAdmin,
-    isSuperAdmin:patch.isSuperAdmin!==undefined?patch.isSuperAdmin:!!u.isSuperAdmin,apps};
+async function admSave(email,role){
   try{
-    const r=await fetch(AUTH_BASE+'/users/save',{method:'POST',headers:{Authorization:'Bearer '+getKey(),'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const r=await fetch(API_BASE+'/api/users',{method:'POST',headers:{Authorization:'Bearer '+getKey(),'Content-Type':'application/json'},body:JSON.stringify({email,role})});
     if(!r.ok)throw 0;
-    toast('Сохранено ✓');admLoad();
-  }catch(e){toast('Не сохранилось — нужны права админа','err');admLoad()}
+    toast('Роль обновлена ✓');admLoad();
+  }catch(e){toast('Не сохранилось','err');admLoad()}
 }
-async function admAdd(superAdmin){
+async function admAdd(role){
   const email=(document.getElementById('admEmail')?.value||'').trim().toLowerCase();
   if(!email||!email.includes('@')){toast('Укажи email Google-аккаунта','err');return}
   try{
-    const r=await fetch(AUTH_BASE+'/users/save',{method:'POST',headers:{Authorization:'Bearer '+getKey(),'Content-Type':'application/json'},
-      body:JSON.stringify({email,isSuperAdmin:!!superAdmin,isAdmin:false,apps:{rl_fondy:true}})});
+    const r=await fetch(API_BASE+'/api/users',{method:'POST',headers:{Authorization:'Bearer '+getKey(),'Content-Type':'application/json'},body:JSON.stringify({email,role})});
     if(!r.ok)throw 0;
-    toast(superAdmin?'Супер-админ добавлен ✓':'Доступ к Фондам выдан ✓');admLoad();
-  }catch(e){toast('Не получилось — нужны права админа','err')}
+    toast(role==='super'?'Супер-админ добавлен ✓':'Пользователь добавлен ✓');admLoad();
+  }catch(e){toast('Не получилось','err')}
+}
+async function admDel(email){
+  if(!confirm('Удалить доступ для '+email+'? Его активные сессии тоже закроются.'))return;
+  try{
+    const r=await fetch(API_BASE+'/api/users',{method:'DELETE',headers:{Authorization:'Bearer '+getKey(),'Content-Type':'application/json'},body:JSON.stringify({email})});
+    if(!r.ok)throw 0;
+    toast('Доступ удалён ✓');admLoad();
+  }catch(e){toast('Не получилось','err')}
 }
 
 const fmt=n=>(n||n===0)?new Intl.NumberFormat('ru-RU').format(Math.round(n)):'—';
