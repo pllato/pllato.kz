@@ -7,6 +7,31 @@ import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=2026060
 
 const session = requireSession({ redirectTo: "login.html" });
 
+// ---- Доступ к реестру — только владельцу лично ----
+// Реестр договоров содержит персональные данные подписантов и ЭЦП-материал,
+// поэтому открыт только владельцу студии. Проверка по e-mail Google-сессии
+// (вход в этот аккаунт уже защищён паролем и 2FA Google — это и есть
+// «подтверждение через вашу почту»). Дополнительно — код на почту (см. ниже).
+const OWNER_EMAILS = ["uurraa@gmail.com"];
+function isOwner(s) {
+  const email = String(s?.user?.email || "").trim().toLowerCase();
+  return OWNER_EMAILS.includes(email);
+}
+function denyAccess(reason) {
+  document.body.innerHTML =
+    '<div style="max-width:520px;margin:14vh auto;padding:0 22px;font-family:Inter,system-ui,sans-serif;text-align:center;color:#1c2433">' +
+      '<div style="font-size:44px;line-height:1;margin-bottom:18px">🔒</div>' +
+      '<h1 style="font-size:22px;font-weight:800;margin:0 0 10px">Доступ только владельцу</h1>' +
+      '<p style="font-size:14px;color:#5a6472;line-height:1.6;margin:0 0 22px">Реестр договоров с ЭЦП доступен только владельцу студии. ' +
+      (reason ? reason + ' ' : '') +
+      'Если это ваш реестр — войдите под своим аккаунтом-владельцем.</p>' +
+      '<a href="app.html" style="display:inline-block;background:#1c2433;color:#fff;text-decoration:none;padding:11px 22px;border-radius:10px;font-weight:700;font-size:14px">← В портал</a>' +
+    '</div>';
+  throw new Error("forbidden: " + (reason || "not owner"));
+}
+if (!session) { throw new Error("no session"); }
+if (!isOwner(session)) { denyAccess("Ваш аккаунт (" + (session.user?.email || "—") + ") не является владельцем."); }
+
 const $ = (sel) => document.querySelector(sel);
 const listEl = $("#list");
 const toastEl = $("#toast");
