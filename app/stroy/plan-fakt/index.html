@@ -1627,8 +1627,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v375';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v374';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v376';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v376';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -1702,8 +1702,13 @@ function lkPassTop(pool,ref){
   if(cc)cls.push(cc);
   for(const cl of cls){const c=cl.slice().sort((a,b)=>a.y-b.y);
     if(c.length<3)continue;const bot=c[0].s.trim();
-    if(/^\d+(?:[.,]\d+)?$/.test(bot)||!/^[№MМА-ЯЁA-Z]/.test(bot))continue;
-    if(c.filter(o=>/^\d+\s\d+$/.test(o.s.trim())).length<2)continue;
+    // низ — имя-токен: не чистое число, с буквой (бывает с цифры: «1Н1», 2539)
+    if(/^\d+(?:[.,]\d+)?$/.test(bot)||!/[А-ЯЁA-Za-zа-яё№]/.test(bot))continue;
+    // сигнатура паспорта: ≥2 полей с битой запятой («53 5», 2435) ИЛИ ≥3 отдельных прочерков
+    // между полями («1Н1 - 103.28 - 0.93 - … - 65», 2539)
+    const broken=c.filter(o=>/^\d+\s\d+$/.test(o.s.trim())).length;
+    const dashes=c.filter(o=>o.s.trim()==='-').length;
+    if(broken<2&&dashes<3)continue;
     for(let q=c.length-1;q>=0;q--){const t=c[q].s.trim();if(!/^\d+(?:[.,]\d+)?$/.test(t))continue;
       const v=parseFloat(t.replace(',','.'));if(v>5&&v<=300)return v;}}
   return null;
@@ -2099,7 +2104,7 @@ function lkDetectVru(items){
    ПЛОХИЕ группы: пустые, маркоподобный мусор или фоллбек именем щита (2717 л.9–17) */
 function lkTableNames(items,rows,shields){
   const It=items.map(it=>{const s=(it.str||'').trim();return {s,x:it.transform[4],y:it.transform[5],rot:Math.abs(it.transform[1])>Math.abs(it.transform[0])?'V':'H'}}).filter(o=>o.s);
-  const mh=It.find(o=>/^Маркировка\s+груп/i.test(o.s));
+  const mh=It.find(o=>/^(?:Маркировка|Номер)\s+груп/i.test(o.s));   // «Номер группы» — 2539
   const nh=It.find(o=>/^Наименовани/i.test(o.s));
   if(!mh&&!nh)return;
   const labels=mh?It.filter(o=>o!==mh&&Math.abs(o.y-mh.y)<12&&o.x>mh.x+40&&o.s.length<=16&&!/^[\d.,]+$/.test(o.s)).map(o=>({x:o.x,t:o.s})):[];
@@ -2115,9 +2120,11 @@ function lkTableNames(items,rows,shields){
   if(!labels.length&&!names.length)return;
   const shieldSet=new Set((shields||[]).map(s=>s.name));
   const bad=g=>!g||g==='—'||LK_MARK.test(g)||shieldSet.has(g);
-  rows.forEach(r=>{if(!bad(r.group))return;
+  rows.forEach(r=>{
     const near=(arr,d)=>{let b=null,bd=d;arr.forEach(c=>{const dd=Math.abs((r.x||0)-c.x);if(dd<bd){bd=dd;b=c;}});return b;};
     const lb=near(labels,28),nm=near(names,44);
+    // к «голому» номеру группы («гр.11») дописываем имя потребителя из таблицы (2539)
+    if(!bad(r.group)){if(nm&&/^гр\.?\s*\d+[А-Яа-яA-Za-z]?$/i.test(r.group))r.group+=' · '+nm.t;return;}
     if(lb&&nm)r.group=lb.t+' · '+nm.t;
     else if(nm)r.group=nm.t;
     else if(lb)r.group=lb.t;});
@@ -2139,7 +2146,7 @@ async function lkExtract(data,onProgress){
     // добираем ВСЕ марки-фидеры отдельными строками с точками; длина ненадёжна → needsCheck (красная точка).
     const ctab=lkParseCableTable(tc.items);let potrebOv=null;
     // фидерный лист-таблица? (есть «длина участка» или «№ группы»+«Наименование потребителя»)
-    const _tj=tc.items.map(i=>i.str||'').join(' ');const isFeederSheet=/длина\s*участка/i.test(_tj)||(/№\s*группы/i.test(_tj)&&/Наименование\s*потребителя/i.test(_tj));
+    const _tj=tc.items.map(i=>i.str||'').join(' ');const isFeederSheet=/длина\s*участка/i.test(_tj)||(/№\s*группы|Номер\s+группы/i.test(_tj)&&/Наименование\s*потребител/i.test(_tj));
     // добираем непойманные вертикальные марки-фидеры (голая длина). Только на фидерных листах,
     // и только если их не меньше, чем уже прочитано (иначе лист прочитан полно) — с пометкой «проверить».
     // дубль прочитанной строки: та же колонка (<8пт) — всегда; 8–20пт — только при том же сечении
@@ -2150,7 +2157,7 @@ async function lkExtract(data,onProgress){
     // Пустой лист добираем только если это однолинейная схема (по штампу) — на планах этажей
     // марки легенд давали бы двойной счёт (022 л.18–29).
     let mf=[];
-    if(isFeederSheet||/однолинейн/i.test(_tj)){   // любой лист-однолинейка (по штампу); планы этажей — нет (двойной счёт)
+    if(isFeederSheet||/однолинейн|расчетн\w*\s+схема/i.test(_tj)){   // лист-однолинейка или «Расчетная схема» (2539 паркинг); планы этажей — нет (двойной счёт)
       const boxes=lkPotrebBoxes(tc.items);const inBox=m=>boxes.some(b=>m.x>b.x0&&m.x<b.x1&&m.y>b.y0&&m.y<b.y1);
       const sameSec=(r,m)=>String(r.section).replace('.',',')===String(m.section).replace('.',',');
       // строки шин — не фидеры: подпись «Изолированные шины» стоит вплотную к колонке стояка и гасила его (S2 л.5 М3.1)
@@ -2188,6 +2195,17 @@ async function lkExtract(data,onProgress){
     groups.forEach(gr=>{if(gr.name&&gr.name!=='Линейка')gr.rows.forEach(r=>{if(!r.group||r.group==='—')r.group=gr.name;});});
     // потребители из авторской таблицы листа (перекрывают мусор и щит-фоллбек — 2717 л.9–17)
     lkTableNames(tc.items,rows,shields);
+    // авторская строка «Длина линий, м» (2539): длины фидеров ТОЛЬКО из неё — по колонке;
+    // прочерк = длины в проекте нет (0, красная). Заодно гасит ложные длины, которые
+    // ненадёжный фоллбек брал из строк «Напряжение, В» (220/380 → 2250 «метров» на щит)
+    {const T=tc.items.map(it=>({s:(it.str||'').trim(),x:it.transform[4],y:it.transform[5]}));
+     const lenHdr=T.find(o=>/^Длина\s+лини/i.test(o.s));
+     if(lenHdr){
+       const nums=T.filter(o=>Math.abs(o.y-lenHdr.y)<10&&o.x>lenHdr.x+30&&/^\d+(?:[.,]\d+)?$/.test(o.s));
+       rows.forEach(r=>{if(!r.x)return;
+         let best=null,bd=26;nums.forEach(n=>{const d=Math.abs(n.x-r.x);if(d<bd){bd=d;best=n;}});
+         if(best){r.len=parseFloat(best.s.replace(',','.'));r.needsCheck=false;}
+         else if(r.needsCheck)r.len=0;});}}
     const v0=page.getViewport({scale:1});
     // нормализованные экранные координаты точки С УЧЁТОМ поворота страницы (page.rotate 90/270)
     rows.forEach(r=>{if(r.x&&r.y){const q=v0.convertToViewportPoint(r.x,r.y);r.mx=q[0]/v0.width;r.my=q[1]/v0.height;}});
