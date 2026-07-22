@@ -124,6 +124,7 @@
   <span id="syncStatus" style="font-size:11px;margin-left:4px;color:#7d8aa3"></span>
   <span id="whoami" style="font-size:11px;color:#9aa7bd"></span>
   <div class="sp"></div>
+  <button class="tbtn" id="accessBtn" style="display:none" onclick="goAccess()">👥 Доступы</button>
   <button class="tbtn" onclick="changeKey()" title="сменить ключ доступа">🔑</button>
   <button class="tbtn acc" onclick="showNew()">+ Новый проект</button>
   <button class="tbtn" onclick="exportData()">Скачать данные</button>
@@ -256,6 +257,13 @@ function setWho(){
   const el=document.getElementById('whoami');if(!el)return;
   const ps=getPllatoSession();
   el.textContent=ps?('· '+(ps.user.email||'')+(isSuper()?' (админ)':'')):(getKey()?'· вход по ключу':'');
+  const ab=document.getElementById('accessBtn');
+  if(ab)ab.style.display=(ps&&isSuper())?'':'none';
+}
+function goAccess(){
+  DB.sel=null;_kbEdit=false;render();
+  setTimeout(()=>{const b=document.getElementById('admBox');
+    if(b){b.scrollIntoView({block:'center',behavior:'smooth'});admLoad()}},80);
 }
 
 /* ---- Доступы: супер-админы и пользователи (через pllato-comm, для админов) ---- */
@@ -447,6 +455,7 @@ const mLabel=k=>{const[y,m]=k.split('-');return MR[+m]+' '+y.slice(2)};
 /* ============ ЭКРАНЫ ============ */
 function render(){
   save();
+  setWho();
   const host=document.getElementById('main');
   if(DB.sel==='__new')return renderNew(host);
   if(DB.sel&&P())return renderProject(host,P());
