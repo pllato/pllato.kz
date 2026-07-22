@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Панель анализа — Pllato HR</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="../../pllato_favicon_64.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0a1628;--bronze:#b8895a;--bronze-deep:#8b6740;--bronze-tint:rgba(184,137,90,.09);
+  --bg:#f4f2ec;--surface:#fff;--surface-2:#f3f0e8;--text:#0f1620;--text-2:#4a5163;--text-3:#8a8d96;
+  --line:#e3ddcf;--green:#16794a;--green-l:#e7f5ee;--red:#c0392b;--red-l:#fbeae8;--amber:#c47d1d;--amber-l:#fdf3e2;
+  --r:12px;--shadow:0 6px 26px -14px rgba(10,22,40,.3);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:15px;line-height:1.5}
+.top{background:var(--navy);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:6px;position:sticky;top:0;z-index:10;flex-wrap:wrap}
+.top .brand{font-weight:800}.top .tag{font-size:11px;font-family:'JetBrains Mono',monospace;background:var(--bronze);color:#1a1205;padding:3px 8px;border-radius:6px}
+.top .sp{flex:1}
+.top a,.top button.nav{color:#cfe0ee;font-size:13px;text-decoration:none;margin-left:14px;background:none;border:none;cursor:pointer;font-family:inherit}
+.top a:hover,.top button.nav:hover{color:#fff}
+.top .who{font-size:12px;color:#8fa6bd;margin-left:14px}
+.wrap{max-width:1000px;margin:0 auto;padding:20px 16px 90px}
+h1{font-size:22px;margin:0 0 4px;letter-spacing:-.3px}h2{font-size:17px;margin:26px 0 12px}h3{font-size:14px;margin:16px 0 8px;color:var(--text-2)}
+p{color:var(--text-2);margin:0 0 12px}.muted{color:var(--text-3);font-size:13px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;box-shadow:var(--shadow);margin-bottom:16px}
+textarea,input[type=text],input[type=number]{width:100%;font-family:inherit;font-size:14px;padding:10px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--text)}
+textarea.code{font-family:'JetBrains Mono',monospace;font-size:12px;min-height:90px;resize:vertical}
+.btn{border:none;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;border-radius:10px;padding:12px 20px;background:var(--navy);color:#fff}
+.btn.ghost{background:var(--surface-2);color:var(--text)}.btn.sm{padding:8px 14px;font-size:13px}.btn:disabled{opacity:.4}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:20px}
+.pill.good{background:var(--green-l);color:var(--green)}.pill.warn{background:var(--amber-l);color:var(--amber)}.pill.bad{background:var(--red-l);color:var(--red)}
+.pill.neutral{background:var(--surface-2);color:var(--text-2)}
+.verdict{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.gaugebox{position:relative;width:120px;height:120px;flex:0 0 auto}
+svg.gauge{width:120px;height:120px}
+.val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.val b{font-size:30px;line-height:1}.val small{font-size:10px;color:var(--text-3)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;flex-wrap:wrap}
+.seg button{border:none;background:#fff;padding:8px 14px;font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;color:var(--text-2)}
+.seg button.on{background:var(--navy);color:#fff}
+.seg.dec button.hire.on{background:var(--green);color:#fff}.seg.dec button.reserve.on{background:var(--amber);color:#fff}.seg.dec button.reject.on{background:var(--red);color:#fff}
+.barrow{display:grid;grid-template-columns:150px 1fr 46px;gap:10px;align-items:center;margin-bottom:8px}
+.barrow .lb{font-size:13px;font-weight:600;text-align:right;color:var(--text-2)}
+.track{position:relative;height:22px;background:var(--surface-2);border-radius:6px;overflow:hidden}
+.track > i{position:absolute;top:0;bottom:0;left:0;border-radius:6px}
+.track .sem{position:absolute;top:0;bottom:0;background:rgba(0,0,0,.12)}
+.barrow .num{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;text-align:right}
+.ocarow{display:grid;grid-template-columns:150px 1fr;gap:10px;align-items:center;margin-bottom:6px}
+.ocatrack{position:relative;height:24px;background:linear-gradient(90deg,#fbeae8 0%,#fdf3e2 40%,#eef6f0 60%,#e7f5ee 100%);border-radius:5px;border:1px solid var(--line)}
+.ocatrack .mid{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--text-3)}
+.ocatrack .bar{position:absolute;top:3px;bottom:3px;background:var(--navy);border-radius:3px;opacity:.85}
+.flag{display:flex;gap:10px;padding:11px 13px;border-radius:10px;margin-bottom:8px;font-size:14px;align-items:flex-start}
+.flag.red{background:var(--red-l);color:#7a241a}.flag.yellow{background:var(--amber-l);color:#7a4e12}.flag .i{font-weight:800}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:14px}.kv b{color:var(--text-2);font-weight:600}
+.qz{border-left:3px solid var(--bronze);padding:8px 0 12px 12px;margin:0 0 16px}
+.qz .c{font-weight:700;font-size:14px;margin-bottom:6px}.qz .q{font-size:14px;color:var(--text-2);margin:8px 0}
+.bars{display:inline-flex;gap:4px;margin-left:6px;vertical-align:middle}
+.bars button{width:30px;height:30px;border:1px solid var(--line);background:#fff;border-radius:7px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;color:var(--text-3)}
+.bars button.on{background:var(--bronze);border-color:var(--bronze);color:#fff}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}th{color:var(--text-3);font-weight:600;font-size:12px}
+td.n,th.n{text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700}
+.chip{font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:var(--surface-2);color:var(--text-2)}
+.chip-blue{background:#dbeafe;color:#1e40af}
+details{border:1px solid var(--line);border-radius:10px;padding:0 14px;margin-bottom:10px;background:#fff}
+details summary{cursor:pointer;font-weight:700;padding:12px 0}
+.legend{font-size:12px;color:var(--text-3);margin-top:6px}
+.hidden{display:none}
+.field{margin-bottom:12px}.field label{display:block;font-weight:600;font-size:13px;margin-bottom:5px;color:var(--text-2)}
+.bditem{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.bditem .ans{font-size:12px;color:var(--text-3)}
+.pts{display:inline-flex;gap:4px}
+.pts button{width:30px;height:30px;border:1px solid var(--line);background:#fff;border-radius:7px;font-weight:700;font-size:13px;cursor:pointer;color:var(--text-3)}
+.pts button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.candrow{display:grid;grid-template-columns:1fr auto auto auto;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer;background:#fff}
+.candrow:hover{border-color:var(--bronze)}
+.candrow .nm{font-weight:700}.candrow .meta{font-size:12px;color:var(--text-3)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:50;box-shadow:var(--shadow)}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px;padding:6px 0;cursor:pointer}
+.chk input{width:18px;height:18px}
+@media print{.top,.noprint{display:none}.card{box-shadow:none;break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="top">
+  <span class="brand">Pllato</span><span class="tag">ПАНЕЛЬ HR</span>
+  <span class="sp"></span>
+  <span class="who" id="who"></span>
+  <button class="nav" id="navHome">Кандидаты</button>
+  <button class="nav" id="navSettings">Настройки</button>
+  <a href="guide.html">Методичка</a>
+</div>
+<div class="wrap"><div id="app"></div></div>
+
+<script src="data/positions.js"></script>
+<script src="data/personality.js"></script>
+<script src="data/cognitive.js"></script>
+<script src="data/abstract.js"></script>
+<script src="data/knowledge.js"></script>
+<script src="data/sjt.js"></script>
+<script src="data/integrity.js"></script>
+<script src="data/biodata.js"></script>
+<script src="data/interview.js"></script>
+<script src="hr-config.js"></script>
+<script src="core.js"></script>
+<script src="hr-store.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const app=$('#app');
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+const MODULE_LABELS={personality:'Личность',cognitive:'Способности',sjt:'Рабочие ситуации',integrity:'Надёжность',biodata:'Продуктивность',knowledge:'Профзнания',attention:'Внимательность'};
+function domLabel(k){const m={C:'Добросовестность',ES:'Эмоц. стабильность',H:'Честность',E:'Экстраверсия',A:'Доброжелательность',O:'Открытость/обучаемость',C1:'Трудолюбие',C2:'Организованность',C3:'Самодисциплина',C4:'Целеустремлённость',ES1:'Стрессоустойчивость',ES2:'Контроль эмоций',Hf:'Справедливость',Hs:'Искренность',Hm:'Скромность'};return m[k]||k}
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),1800)}
+
+let SETTINGS={}, REC=null, D=null, SCORED=null, MODE='evidence';
+let saveTimer=null;
+function saveRecSoon(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>HRStore.saveCandidate(REC).catch(e=>toast('Не сохранено: '+e.message)),400); }
+
+/* =============== СКОРИНГ (с учётом настроек и правок) =============== */
+function computeScored(){
+  const P=HR.effectivePosition(D.fam, SETTINGS);
+  const pers=HR.scorePersonality(D.ans.personality||{});
+  const lookup={}; window.HR_COGNITIVE.items.forEach(it=>lookup[it.id]=it);
+  window.HR_ABSTRACT.items.forEach(it=>lookup[it.id]=Object.assign({section:'A'},it));
+  let cog=null, cogFlags=[];
+  if((D.ans.cognitive||[]).length){
+    const admin=D.ans.cognitive.map(c=>lookup[c.id]).filter(Boolean);
+    const ans=D.ans.cognitive.map(c=>c.a);
+    cog=HR.scoreCognitive(admin,ans); cogFlags=cognitiveCheatFlags(D,admin,ans);
+  }
+  const bank=P.sjtBank?HR.effectiveSJT(window.HR_SJT[P.sjtBank],SETTINGS):null;
+  const sjt=(bank&&D.ans.sjt&&D.ans.sjt.length)?HR.scoreSJT(bank,D.ans.sjt):null;
+  const intItems=window.HR_INTEGRITY.core.concat(window.HR_INTEGRITY[D.fam]||[]);
+  const integ=(D.ans.integrity&&Object.keys(D.ans.integrity).length)?HR.scoreIntegrity(intItems,D.ans.integrity):null;
+  const bioItems=window.HR_BIODATA.core.concat(window.HR_BIODATA[D.fam]||[]);
+  const bio=(D.ans.biodata&&Object.keys(D.ans.biodata).length)?HR.scoreBiodata(bioItems,D.ans.biodata,D.fam,(REC.biodata&&REC.biodata.overrides)||{}):null;
+  let know=null;
+  if((D.ans.knowledge||[]).length){
+    const kl={}; window.HR_KNOWLEDGE.items.forEach(it=>kl[it.id]=it);
+    let correct=0,n=0; D.ans.knowledge.forEach(k=>{const it=kl[k.id];if(it){n++;if(k.a===it.answerIndex)correct++;}});
+    know={score:n?Math.round(correct/n*100):0,correct,n};
+  }
+  const att=D.ans.attention?HR.scoreAttention(D.ans.attention):null;
+  const persAnswered=D.ans.personality&&Object.keys(D.ans.personality).length;
+  const persFit=persAnswered?HR.personalityFit(P,pers):null;
+  const moduleScores={};
+  if(persFit!=null)moduleScores.personality=persFit;
+  if(cog)moduleScores.cognitive=cog.composite.score;
+  if(sjt)moduleScores.sjt=sjt.percent;
+  if(integ)moduleScores.integrity=integ.score;
+  if(bio)moduleScores.biodata=bio.score;
+  if(know)moduleScores.knowledge=know.score;
+  if(att)moduleScores.attention=att.score;
+  const fit=HR.computeFit(P,moduleScores);
+  const flags=[].concat(pers.flags,cogFlags,sjt?sjt.flags:[],integ?integ.flags:[],bio?bio.flags:[]);
+  if(P.redFlags.knowledgeBelow&&know&&know.score<P.redFlags.knowledgeBelow) flags.push({level:'red',code:'KNOW',text:'Профзнания ниже '+P.redFlags.knowledgeBelow+'% — квалификация не подтверждена.'});
+  (P.redFlags.personalityRisk||[]).forEach(dom=>{const sc=pers.scales[dom];if(sc&&sc.pct<16)flags.push({level:'red',code:'P-'+dom,text:'Очень низкий балл по шкале «'+domLabel(dom)+'» (перц. '+sc.pct+') — риск для этой должности.'})});
+  if(cog){const c=P.cognitive;if(cog.composite.score<c.min)flags.push({level:'yellow',code:'COG',text:'Способности ниже минимума (балл '+cog.composite.score+' < '+c.min+').'})}
+  const invalid=pers.invalid||flags.some(f=>f.code==='ATT'&&f.level==='red');
+  const comps=window.HR_INTERVIEW.families[D.fam]||[];
+  const interview=HR.scoreInterview(comps,(REC.interview&&REC.interview.scores)||{});
+  const combined=HR.combineVerdict(fit.fit,interview,SETTINGS);
+  return {P,pers,cog,cogFlags,sjt,integ,bio,know,att,persFit,moduleScores,fit,flags,invalid,verify:bio?bio.verify:[],comps,interview,combined};
+}
+function cognitiveCheatFlags(d,admin,ans){
+  const flags=[]; const times=(d.ans.cognitive||[]).map(c=>c.t).filter(t=>t!=null&&t>=0); const tel=d.telemetry||{};
+  if(tel.blur>=6)flags.push({level:'red',code:'BLUR',text:'Кандидат покидал окно теста '+tel.blur+' раз — возможен поиск ответов.'});
+  else if(tel.blur>=3)flags.push({level:'yellow',code:'BLUR',text:'Переключения окна во время теста: '+tel.blur+'.'});
+  if(tel.paste>0)flags.push({level:'yellow',code:'PASTE',text:'Попытки вставки текста: '+tel.paste+'.'});
+  if(times.length>4){
+    const med=times.slice().sort((a,b)=>a-b)[Math.floor(times.length/2)];
+    let acc=0;admin.forEach((it,i)=>{if(ans[i]===it.answerIndex)acc++});acc=acc/admin.length;
+    if(med<4&&acc>0.85)flags.push({level:'red',code:'FAST',text:'Очень быстрые и точные ответы (медиана '+med+' c) — перепроверить очным ретестом.'});
+    const mean=times.reduce((a,b)=>a+b,0)/times.length;const sd=Math.sqrt(times.reduce((a,b)=>a+(b-mean)**2,0)/times.length);
+    if(mean>0&&sd/mean<0.2)flags.push({level:'yellow',code:'CV',text:'Слишком равномерное время на задания — возможны случайные/шаблонные ответы.'});
+  }
+  return flags;
+}
+
+/* =============== ДОМ: ввод + список кандидатов =============== */
+function renderHome(){
+  MODE='evidence'; D=null; REC=null; SCORED=null;
+  app.innerHTML=`
+  <div class="card noprint">
+    <h1>Анализ результата кандидата</h1>
+    <p>Вставьте код результата от кандидата (начинается с <code>HR1.</code>) или загрузите файл.</p>
+    <textarea id="codeInput" class="code" placeholder="HR1.xxxxx.yyyyy..."></textarea>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="analyzeBtn">Разобрать</button>
+      <button class="btn ghost" id="fileBtn">Загрузить файл</button>
+      <input type="file" id="fileInput" accept=".txt" class="hidden">
+      <span class="muted" id="inputMsg"></span>
+    </div>
+  </div>
+  <div id="listWrap"></div>`;
+  $('#analyzeBtn').onclick=()=>analyze($('#codeInput').value);
+  $('#fileBtn').onclick=()=>$('#fileInput').click();
+  $('#fileInput').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>analyze(r.result.trim());r.readAsText(f)};
+  renderList();
+}
+function decInfo(d){return d==='hire'?{label:'Нанять',tone:'good'}:d==='reserve'?{label:'Резерв',tone:'warn'}:d==='reject'?{label:'Отказ',tone:'bad'}:{label:'',tone:'neutral'}}
+function renderList(){
+  const wrap=$('#listWrap'); if(!wrap)return;
+  HRStore.listCandidates().then(list=>{
+    if(!list.length){wrap.innerHTML=`<div class="card"><p class="muted" style="margin:0">Пока нет сохранённых кандидатов. Разберите первый код — он появится здесь${HRStore.mode==='firebase'?' и станет доступен всей команде':''}.</p></div>`;return;}
+    const byFam={}; list.forEach(r=>{(byFam[r.fam]=byFam[r.fam]||[]).push(r)});
+    let h='';
+    Object.keys(byFam).forEach(fam=>{
+      const P=window.HR_POSITIONS[fam]||{label:fam,icon:''};
+      h+=`<h2>${P.icon||''} ${esc(P.label||fam)}</h2>`;
+      byFam[fam].sort((a,b)=>(b.fit||0)-(a.fit||0));
+      byFam[fam].forEach(r=>{
+        const dec=decInfo(r.decision);
+        h+=`<div class="candrow" data-id="${esc(r.id)}">
+          <div><div class="nm">${esc(r.name||'Без имени')} ${r.invalid?'<span class="chip" style="background:var(--red-l);color:var(--red)">? достоверность</span>':''}</div>
+            <div class="meta">Fit ${r.fit==null?'—':r.fit}${r.interviewPct!=null?' · интервью '+r.interviewPct:''}${r.updatedBy?' · '+esc(r.updatedBy):''}</div></div>
+          <div>${r.combinedVerdict?`<span class="pill ${r.combinedTone||'neutral'}">${esc(r.combinedVerdict)}</span>`:''}</div>
+          <div>${dec.label?`<span class="pill ${dec.tone}">${dec.label}</span>`:''}</div>
+          <div><button class="btn ghost sm" data-del="${esc(r.id)}">✕</button></div>
+        </div>`;
+      });
+    });
+    wrap.innerHTML=`<div class="card noprint"><h2 style="margin:0 0 12px">Кандидаты (${list.length})</h2>${h}</div>`;
+    wrap.querySelectorAll('.candrow').forEach(row=>row.onclick=e=>{if(e.target.dataset.del)return;loadById(row.dataset.id)});
+    wrap.querySelectorAll('[data-del]').forEach(b=>b.onclick=e=>{e.stopPropagation();if(confirm('Удалить кандидата?')){HRStore.deleteCandidate(b.dataset.del).then(renderList)}});
+  });
+}
+function migrateRec(r){r.interview=r.interview||{scores:{}};r.interview.scores=r.interview.scores||{};r.biodata=r.biodata||{};r.biodata.overrides=r.biodata.overrides||{};r.biodata.confirmed=r.biodata.confirmed||{};return r}
+function loadById(id){HRStore.getCandidate(id).then(rec=>{if(!rec){toast('Не найден');return}const dec=HR.decodeResult(rec.code);if(dec.error){toast(dec.error);return}D=dec.data;REC=migrateRec(rec);SCORED=computeScored();renderReport();window.scrollTo(0,0)})}
+function analyze(code){
+  const dec=HR.decodeResult(code); const msg=$('#inputMsg');
+  if(dec.error){if(msg){msg.textContent=dec.error;msg.style.color='var(--red)'}else toast(dec.error);return}
+  D=dec.data; const id=(code||'').trim().split('.')[1];
+  HRStore.getCandidate(id).then(existing=>{
+    REC=existing?migrateRec(existing):{id,code:code.trim(),name:D.cand.name||'',fam:D.fam,kp:D.kp,decision:null,notes:'',interview:{scores:{}},biodata:{overrides:{},confirmed:{}}};
+    REC.code=code.trim();
+    SCORED=computeScored(); persistSummary(); saveRecSoon();
+    renderReport(); window.scrollTo(0,0);
+  });
+}
+function persistSummary(){REC.fit=SCORED.fit.fit;REC.invalid=SCORED.invalid;REC.combinedVerdict=SCORED.combined.verdict;REC.combinedTone=SCORED.combined.tone;REC.interviewPct=SCORED.interview.pct}
+function applyEdit(){SCORED=computeScored();persistSummary();saveRecSoon();renderReport()}
+
+/* =============== ОТЧЁТ =============== */
+function gauge(fit,tone){
+  const col=tone==='good'?'var(--green)':tone==='warn'?'var(--amber)':'var(--red)';
+  const c=2*Math.PI*52, off=c*(1-fit/100);
+  return `<div class="gaugebox"><svg class="gauge" viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--surface-2)" stroke-width="12"/>
+    <circle cx="60" cy="60" r="52" fill="none" stroke="${col}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 60 60)"/></svg>
+    <div class="val"><b>${fit}</b><small>${SCORED.combined.hasInterview?'Итог':'Fit Score'}</small></div></div>`;
+}
+function barRow(label,val,opt){
+  opt=opt||{}; const band=HR.band(val); const col=opt.band?band.color:(val>=60?'var(--green)':val>=40?'var(--bronze)':'var(--red)');
+  const sem=opt.sem?`<div class="sem" style="left:${Math.max(0,val-opt.sem)}%;width:${opt.sem*2}%"></div>`:'';
+  return `<div class="barrow"><div class="lb">${esc(label)}${opt.sub?`<br><span class="muted" style="font-weight:400">${esc(opt.sub)}</span>`:''}</div>
+    <div class="track"><i style="width:${val}%;background:${col}"></i>${sem}</div>
+    <div class="num">${val}${opt.band?`<br><span class="muted" style="font-weight:400;font-size:10px">${band.label}</span>`:''}</div></div>`;
+}
+function renderReport(){
+  const s=SCORED, P=s.P, d=D, c=s.combined;
+  const dec=decInfo(REC.decision);
+  let h=`<div class="card"><div class="row" style="justify-content:space-between">
+      <div><h1>${esc(REC.name||'Кандидат')}</h1>
+      <div class="muted">${P.icon} ${P.label}${d.kp?' · профиль: '+d.kp:''} · пройдено ${d.ts||''} · ${Math.round((d.total||0)/60)} мин</div></div>
+      <div class="noprint"><button class="btn ghost sm" onclick="renderHome()">← К списку</button> <button class="btn ghost sm" onclick="window.print()">Печать</button></div>
+    </div>
+
+    <div class="verdict" style="margin-top:16px">
+      ${gauge(c.score,c.tone)}
+      <div style="flex:1;min-width:240px">
+        <span class="pill ${c.tone}">${c.verdict}</span>
+        ${c.hasInterview?`<span class="pill neutral">тест ${s.fit.fit} · интервью ${s.interview.pct}${c.complete?'':' (не всё)'}</span>`:''}
+        <p style="margin:10px 0 6px">${c.note}</p>
+        ${s.invalid?`<div class="flag red"><span class="i">⚠</span> Протокол сомнительной достоверности — интерпретировать осторожно.</div>`:''}
+        <div class="muted">${c.hasInterview?'Итог = тесты + структурированное интервью.':'Пока только тесты (~0.45–0.50). Заполните интервью ниже — точность вырастет до ~0.55–0.60.'}</div>
+      </div>
+    </div>
+
+    <h3>Решение по кандидату</h3>
+    <div class="row" style="align-items:flex-start">
+      <div class="seg dec" id="decSeg">
+        <button class="hire ${REC.decision==='hire'?'on':''}" data-d="hire">Нанять</button>
+        <button class="reserve ${REC.decision==='reserve'?'on':''}" data-d="reserve">Резерв</button>
+        <button class="reject ${REC.decision==='reject'?'on':''}" data-d="reject">Отказ</button>
+        <button class="${!REC.decision?'on':''}" data-d="">—</button>
+      </div>
+    </div>
+    <div class="field" style="margin-top:12px"><label>Имя кандидата</label><input type="text" id="nameInp" value="${esc(REC.name)}"></div>
+    <div class="field"><label>Заметки (видны команде)</label><textarea id="notesInp" placeholder="Впечатления, договорённости, итоги проверки рекомендаций…">${esc(REC.notes)}</textarea></div>
+
+    <h3>Из чего сложился Fit Score (тесты)</h3>`;
+  s.fit.contrib.forEach(x=>{ h+=barRow(MODULE_LABELS[x.module]||x.module,x.score,{sub:'вес '+Math.round(x.norm*100)+'%'}); });
+  h+=`</div>`;
+
+  if(s.flags.length){
+    const reds=s.flags.filter(f=>f.level==='red'),yels=s.flags.filter(f=>f.level==='yellow');
+    h+=`<div class="card"><h2 style="margin-top:0">⚑ Флаги и зоны внимания</h2>`;
+    reds.concat(yels).forEach(f=>h+=`<div class="flag ${f.level==='red'?'red':'yellow'}"><span class="i">${f.level==='red'?'●':'○'}</span><div>${esc(f.text)}</div></div>`);
+    h+=`</div>`;
+  }
+
+  // Личность
+  h+=`<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Личностный профиль</h2>
+    <div class="seg noprint"><button class="${MODE==='evidence'?'on':''}" onclick="setMode('evidence')">Научный профиль</button><button class="${MODE==='oca'?'on':''}" onclick="setMode('oca')">График 10 шкал</button></div></div>`;
+  h+= MODE==='oca'?renderOCA(s.pers):renderEvidence(s.pers);
+  h+=`</div>`;
+
+  // Способности
+  if(s.cog){
+    h+=`<div class="card"><h2 style="margin-top:0">Способности (тест интеллекта)</h2>`;
+    h+=barRow('Общий балл',s.cog.composite.score,{band:true});
+    if(s.cog.V)h+=barRow('Логика и слова',s.cog.V.score,{band:true});
+    if(s.cog.N)h+=barRow('Числа',s.cog.N.score,{band:true});
+    if(s.cog.A)h+=barRow('Фигуры/логика',s.cog.A.score,{band:true});
+    if(s.att)h+=barRow('Внимательность',s.att.score,{band:true,sub:s.att.correct+'−'+s.att.errors+' из '+s.att.total});
+    const cg=P.cognitive;
+    h+=`<div class="legend">Порог: рекомендуемо ≥${cg.recommend}, минимум ${cg.min}. ${esc(cg.note)}. Перцентильные баллы 0–99.</div></div>`;
+  }
+  if(s.know) h+=`<div class="card"><h2 style="margin-top:0">Профессиональные знания</h2>`+barRow('Правильных ответов',s.know.score,{sub:s.know.correct+' из '+s.know.n})+`<div class="legend">Порог: не ниже 50%.</div></div>`;
+
+  // Рабочее поведение
+  if(s.sjt||s.integ||s.bio){
+    h+=`<div class="card"><h2 style="margin-top:0">Рабочее поведение</h2>`;
+    if(s.sjt)h+=barRow('Верные решения ситуаций',s.sjt.percent,{sub:'сырой '+s.sjt.raw+'/'+s.sjt.max});
+    if(s.integ)h+=barRow('Надёжность / установки',s.integ.score,{band:true});
+    if(s.bio)h+=barRow('Подтверждаемая продуктивность',s.bio.score,{band:true});
+    h+=`<div class="legend">SJT: ≥75 высокий, 55–74 средний, &lt;55 риск. Надёжность/продуктивность: ≥70 хорошо, 50–69 средне, &lt;50 внимание.</div></div>`;
+  }
+
+  // Продуктивность — редактируемая проверка фактов
+  if(s.bio&&s.bio.breakdown&&s.bio.breakdown.length){
+    h+=`<div class="card"><h2 style="margin-top:0">Проверка фактов (продуктивность)</h2>
+      <p class="muted">Балл каждого пункта — авто. После проверки по рекомендациям можно скорректировать (0–2): например, снизить, если кандидат преувеличил.</p>`;
+    s.bio.breakdown.forEach(b=>{
+      h+=`<div class="bditem"><div><div>${esc(b.label)}</div><div class="ans">${esc(b.answer)}${b.overridden?' · <b style="color:var(--amber)">скорректировано</b>':''}</div></div>
+        <div class="pts" data-bd="${esc(b.id)}">${[0,1,2].map(v=>`<button data-v="${v}" class="${b.score===v?'on':''}">${v}</button>`).join('')}</div></div>`;
+    });
+    h+=`</div>`;
+  }
+
+  if(s.verify&&s.verify.length){
+    h+=`<div class="card"><h2 style="margin-top:0">Что проверить по рекомендациям</h2>`;
+    s.verify.forEach((v,i)=>{ const key='v'+i; const on=REC.biodata.confirmed[key];
+      h+=`<label class="chk"><input type="checkbox" data-conf="${key}" ${on?'checked':''}><span style="${on?'text-decoration:line-through;color:var(--text-3)':''}">${esc(v)}</span></label>`; });
+    h+=`</div>`;
+  }
+
+  // Интервью — редактируемое
+  h+=renderInterview(s);
+
+  h+=`<div class="card"><div class="muted">Инструмент рекомендательный, не психодиагностика здоровья и не единственное основание отказа. Личностные шкалы — на пунктах IPIP (public domain); нормы предварительные. Обработка данных кандидата — с его согласия (Закон РК «О персональных данных и их защите»).</div></div>`;
+
+  app.innerHTML=h;
+
+  // события
+  $('#decSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{REC.decision=b.dataset.d||null;applyEdit()});
+  $('#nameInp').oninput=e=>{REC.name=e.target.value;saveRecSoon()};
+  $('#notesInp').oninput=e=>{REC.notes=e.target.value;saveRecSoon()};
+  app.querySelectorAll('.pts[data-bd]').forEach(g=>g.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
+    const id=g.dataset.bd,v=+btn.dataset.v; const bd=SCORED.bio.breakdown.find(x=>x.id===id);
+    if(bd && v===bd.auto) delete REC.biodata.overrides[id]; else REC.biodata.overrides[id]=v;
+    applyEdit();
+  }));
+  app.querySelectorAll('[data-conf]').forEach(ch=>ch.onchange=()=>{REC.biodata.confirmed[ch.dataset.conf]=ch.checked;saveRecSoon();
+    ch.nextElementSibling.style.cssText=ch.checked?'text-decoration:line-through;color:var(--text-3)':''});
+  app.querySelectorAll('.bars[data-iv]').forEach(g=>g.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
+    REC.interview.scores[g.dataset.iv]=+btn.dataset.v; applyEdit();
+  }));
+}
+
+function renderEvidence(pers){
+  let h=`<p class="muted">Перцентили относительно нормы (0–99). Затемнённая полоса — погрешность (±1 SEM); разницу меньше неё не считайте значимой.</p>`;
+  ['C','ES','H','E','A','O'].forEach(k=>{const sc=pers.scales[k];if(sc)h+=barRow(domLabel(k),sc.pct,{band:true,sem:Math.round(sc.semZ*20)})});
+  h+=`<details><summary>Детализация: Добросовестность и Стабильность</summary><div style="padding:8px 0">`;
+  ['C1','C2','C3','C4','ES1','ES2','Hf','Hs','Hm'].forEach(k=>{const sc=pers.scales[k];if(sc)h+=barRow(domLabel(k),sc.pct,{band:true})});
+  h+=`</div></details><h3>Панель достоверности</h3><div class="kv">
+    <b>Соц. желательность</b><span>${pers.sdMean.toFixed(2)} из 5 ${pers.sdMean>=4.2?'— высокая':pers.sdMean>=3.6?'— умеренная':'— норма'}</span>
+    <b>Проверки внимания</b><span>${pers.attFail===0?'пройдены':'провалено '+pers.attFail}</span>
+    <b>Одинаковых подряд</b><span>${pers.longstring}</span></div>`;
+  return h;
+}
+function renderOCA(pers){
+  let h=`<div class="flag yellow" style="margin-bottom:12px"><span class="i">i</span><div><b>Иллюстративный формат</b> в стиле «графика 10 шкал». Данные — из наших научных шкал (Big Five), а не из методики OCA. Для решений используйте научный профиль.</div></div><div>`;
+  window.HR_OCA_SCALES.forEach(sc=>{const src=pers.scales[sc.from[0]];if(!src)return;const v=src.oca;const left=v>=0?50:50+v/2;const width=Math.abs(v)/2;
+    h+=`<div class="ocarow"><div style="text-align:right;font-size:13px;font-weight:600;color:var(--text-2)">${sc.label}</div><div class="ocatrack"><div class="mid"></div><div class="bar" style="left:${left}%;width:${width}%"></div></div></div>`});
+  h+=`</div><div class="legend">Шкала −100…+100. Правее центра — сильнее выражено.</div>`;
+  return h;
+}
+function renderInterview(s){
+  const kit=window.HR_INTERVIEW, comps=s.comps;
+  let zones=[]; s.flags.forEach(f=>{if(f.level==='red')zones.push(f.text)});
+  ['C','ES','H'].forEach(k=>{const sc=s.pers.scales[k];if(sc&&sc.pct<30)zones.push('Низкий балл по «'+domLabel(k)+'» — попросить конкретные примеры.')});
+  if(s.pers.sdMean>=3.6)zones.push('Высокая социальная желательность — верификационные вопросы: «пример, когда сорвали срок / ошиблись».');
+  const iv=s.interview;
+  let h=`<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Структурированное интервью</h2>
+    <span class="pill ${iv.pct==null?'neutral':iv.pct>=80?'good':iv.pct>=60?'warn':'bad'}">${iv.answered?('балл '+iv.pct+' · '+iv.total+'/'+ (iv.answered*5)):'не заполнено'}</span></div>
+    <p>Задайте одинаковые вопросы всем кандидатам, ставьте балл 1–5 сразу после ответа (шкала внизу). Итог влияет на общий вердикт вверху.</p>`;
+  if(zones.length){h+=`<h3>⚑ Обязательно проверить у этого кандидата</h3>`;zones.forEach(z=>h+=`<div class="flag yellow"><span class="i">○</span><div>${esc(z)}</div></div>`)}
+  comps.forEach((cmp,i)=>{
+    h+=`<div class="qz"><div class="c">${esc(cmp.c)}</div>
+      <div class="q"><b>Опыт:</b> ${esc(cmp.B)} <span class="bars" data-iv="${i}:B">${bars(REC.interview.scores[i+':B'])}</span></div>
+      <div class="q"><b>Ситуация:</b> ${esc(cmp.S)} <span class="bars" data-iv="${i}:S">${bars(REC.interview.scores[i+':S'])}</span></div></div>`;
+  });
+  h+=`<details><summary>Что значит каждый балл (BARS 1–5)</summary><div class="kv" style="padding:8px 0">`;
+  kit.bars.forEach(b=>h+=`<b>${b.score}</b><span>${esc(b.text)}</span>`); h+=`</div></details>`;
+  if(s.P.recommendWorkSample)h+=`<div class="flag yellow" style="margin-top:10px"><span class="i">○</span><div>Для рабочей должности обязательна практическая проба на объекте и проверка допусков/удостоверений.</div></div>`;
+  h+=`<div class="legend">${esc(kit.scoring.note)}</div></div>`;
+  return h;
+}
+function bars(v){ return [1,2,3,4,5].map(n=>`<button data-v="${n}" class="${v===n?'on':''}">${n}</button>`).join(''); }
+
+function setMode(m){MODE=m;renderReport()}
+
+/* =============== НАСТРОЙКИ =============== */
+function renderSettings(){
+  const fams=Object.keys(window.HR_POSITIONS);
+  let fam=(SETTINGS._lastFam)||fams[0];
+  const P=HR.effectivePosition(fam,SETTINGS);
+  const combine=(SETTINGS.combine)||{interview:55,tests:45};
+  const bands=window.HR_BANDS.fit;
+  let h=`<div class="card"><div class="row" style="justify-content:space-between"><h1 style="margin:0">Настройки оценки</h1>
+    <button class="btn ghost sm" onclick="renderHome()">← Готово</button></div>
+    <p class="muted">Изменения применяются ко всем кандидатам и, при подключённом сервере, ко всей команде. Значения по умолчанию — из доказательной базы; меняйте под свою компанию.</p></div>`;
+
+  // Команда — только в командном режиме для администратора
+  if(window.HR_ME && window.HR_ME.isAdmin) h+=`<div class="card" id="teamCard"><h2 style="margin-top:0">Команда (доступ к панели)</h2>
+    <p class="muted">Сотрудники, которые могут входить в панель найма. Добавляет и удаляет только админ.</p>
+    <div id="teamList" class="muted">Загрузка…</div>
+    <div class="row" style="margin-top:12px;gap:8px">
+      <input type="email" id="teamEmail" placeholder="email сотрудника" style="flex:1;min-width:180px">
+      <input type="text" id="teamName" placeholder="имя (необязательно)" style="flex:1;min-width:140px">
+      <select id="teamRole"><option value="member">участник</option><option value="admin">админ</option></select>
+      <button class="btn sm" id="teamAdd">Добавить</button>
+    </div>
+    <div class="muted" id="teamMsg" style="margin-top:6px"></div></div>`;
+
+  h+=`<div class="card"><h2 style="margin-top:0">Вес интервью против тестов</h2>
+    <p class="muted">Интервью — предиктор №1, поэтому по умолчанию весит больше. Сумма нормируется автоматически.</p>
+    <div class="field"><label>Интервью: <b id="ivW">${combine.interview}</b></label><input type="range" min="0" max="100" value="${combine.interview}" id="combineRange" style="width:100%"></div>
+    <div class="muted">Тесты получат остаток: <b id="tW">${100-combine.interview}</b></div></div>`;
+
+  h+=`<div class="card"><h2 style="margin-top:0">Пороги вердикта (общий балл)</h2>
+    <div class="field"><label>«Рекомендован» от: <b id="t1v">${bands[0].min}</b></label><input type="range" min="50" max="90" value="${bands[0].min}" id="thr1"></div>
+    <div class="field"><label>«С осторожностью» от: <b id="t2v">${bands[1].min}</b></label><input type="range" min="30" max="75" value="${bands[1].min}" id="thr2"></div>
+    <div class="muted">Ниже второго порога — «Высокий риск».</div></div>`;
+
+  h+=`<div class="card"><h2 style="margin-top:0">Веса модулей по должности</h2>
+    <div class="seg" id="famSeg">${fams.map(f=>`<button data-f="${f}" class="${f===fam?'on':''}">${window.HR_POSITIONS[f].short}</button>`).join('')}</div>
+    <div id="weightsBox" style="margin-top:14px"></div></div>`;
+
+  h+=`<div class="card"><h2 style="margin-top:0">Ключи ситуационных кейсов (SJT)</h2>
+    <p class="muted">«Лучший» и «худший» вариант в каждом кейсе. По умолчанию — экспертный черновик; сверьте с мнением ваших руководителей.</p>
+    <div id="sjtBox"></div></div>`;
+
+  app.innerHTML=h;
+  // combine
+  const cr=$('#combineRange'); cr.oninput=()=>{$('#ivW').textContent=cr.value;$('#tW').textContent=100-cr.value; setCombine(+cr.value)};
+  // thresholds
+  $('#thr1').oninput=e=>{$('#t1v').textContent=e.target.value;setThresh(0,+e.target.value)};
+  $('#thr2').oninput=e=>{$('#t2v').textContent=e.target.value;setThresh(1,+e.target.value)};
+  // weights
+  renderWeights(fam);
+  $('#famSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{SETTINGS._lastFam=b.dataset.f;renderSettings()});
+  renderSJT(fam);
+  // team
+  if(window.HR_ME && window.HR_ME.isAdmin) renderTeam();
+}
+function renderTeam(){
+  const list=$('#teamList'); if(!list) return;
+  HRStore.getTeam().then(d=>{
+    const items=d.items||[];
+    list.innerHTML=`<table style="width:100%;border-collapse:collapse">${items.map(m=>`
+      <tr style="border-bottom:1px solid var(--line)">
+        <td style="padding:6px 0">${esc(m.email)}${m.name?` <span class="muted">· ${esc(m.name)}</span>`:''}</td>
+        <td style="padding:6px 0"><span class="chip ${m.role==='admin'?'chip-blue':''}">${m.role==='admin'?'админ':'участник'}</span></td>
+        <td style="padding:6px 0;text-align:right">${(m.added_by==='—')?'<span class="muted">владелец</span>':`<button class="btn ghost sm" data-rm="${esc(m.email)}">Удалить</button>`}</td>
+      </tr>`).join('')}</table>`;
+    list.querySelectorAll('button[data-rm]').forEach(b=>b.onclick=()=>{
+      if(!confirm('Убрать доступ для '+b.dataset.rm+'?')) return;
+      HRStore.removeTeam(b.dataset.rm).then(renderTeam).catch(e=>$('#teamMsg').textContent=e.message);
+    });
+  }).catch(e=>list.textContent='Не удалось загрузить: '+e.message);
+  $('#teamAdd').onclick=()=>{
+    const email=$('#teamEmail').value.trim(), name=$('#teamName').value.trim(), role=$('#teamRole').value;
+    if(!email) return;
+    $('#teamMsg').textContent='Добавляю…';
+    HRStore.addTeam(email,name,role).then(()=>{ $('#teamEmail').value='';$('#teamName').value='';$('#teamMsg').textContent='Добавлен ✓'; renderTeam(); })
+      .catch(e=>$('#teamMsg').textContent=e.message);
+  };
+}
+function setCombine(iv){ SETTINGS.combine={interview:iv,tests:100-iv}; HRStore.saveSettings(SETTINGS) }
+function setThresh(i,v){
+  // храним пороги как override в SETTINGS.bands и применяем к HR_BANDS
+  window.HR_BANDS.fit[i].min=v; SETTINGS.bands=window.HR_BANDS.fit.map(b=>({min:b.min})); HRStore.saveSettings(SETTINGS);
+}
+function renderWeights(fam){
+  const box=$('#weightsBox'); const base=window.HR_POSITIONS[fam];
+  const eff=HR.effectivePosition(fam,SETTINGS).moduleWeights;
+  const mods=Object.keys(base.moduleWeights);
+  box.innerHTML=mods.map(m=>`<div class="field"><label>${MODULE_LABELS[m]||m}: <b id="w_${m}">${Math.round(eff[m]*100)}</b>%</label>
+    <input type="range" min="0" max="60" value="${Math.round(eff[m]*100)}" data-m="${m}" style="width:100%"></div>`).join('')
+    +`<div class="muted">Суммы нормируются автоматически при подсчёте. Сброс: поставьте как было.</div>`;
+  box.querySelectorAll('input[type=range]').forEach(r=>r.oninput=()=>{
+    $('#w_'+r.dataset.m).textContent=r.value;
+    SETTINGS.positions=SETTINGS.positions||{}; SETTINGS.positions[fam]=SETTINGS.positions[fam]||{};
+    SETTINGS.positions[fam].moduleWeights=SETTINGS.positions[fam].moduleWeights||{};
+    SETTINGS.positions[fam].moduleWeights[r.dataset.m]=(+r.value)/100;
+    HRStore.saveSettings(SETTINGS);
+  });
+}
+function renderSJT(fam){
+  const box=$('#sjtBox'); const bankId=window.HR_POSITIONS[fam].sjtBank; const bank=window.HR_SJT[bankId]||[];
+  box.innerHTML=bank.map(s=>{
+    const ov=(SETTINGS.sjt&&SETTINGS.sjt[s.id])||{}; const best=ov.best!=null?ov.best:s.best, worst=ov.worst!=null?ov.worst:s.worst;
+    const opts=s.options.map((o,i)=>`${'АБВГ'[i]}`);
+    return `<div style="border-bottom:1px solid var(--line);padding:10px 0"><div style="font-weight:600;font-size:14px">${esc(s.title)}</div>
+      <div class="row" style="margin-top:6px"><span class="muted">Лучший:</span> <select data-sjt="${s.id}" data-k="best">${opts.map((o,i)=>`<option value="${i}" ${i===best?'selected':''}>${o}</option>`).join('')}</select>
+      <span class="muted">Худший:</span> <select data-sjt="${s.id}" data-k="worst">${opts.map((o,i)=>`<option value="${i}" ${i===worst?'selected':''}>${o}</option>`).join('')}</select></div></div>`;
+  }).join('');
+  box.querySelectorAll('select[data-sjt]').forEach(sel=>sel.onchange=()=>{
+    const id=sel.dataset.sjt,k=sel.dataset.k; SETTINGS.sjt=SETTINGS.sjt||{};
+    const base=window.HR_SJT[bankId].find(x=>x.id===id);
+    SETTINGS.sjt[id]=SETTINGS.sjt[id]||{best:base.best,worst:base.worst};
+    SETTINGS.sjt[id][k]=+sel.value; HRStore.saveSettings(SETTINGS);
+  });
+}
+
+/* =============== ИНИЦИАЛИЗАЦИЯ =============== */
+$('#navHome').onclick=renderHome;
+$('#navSettings').onclick=()=>renderSettings();
+// bootPanel вызывается либо после входа (командный режим), либо в локальном режиме.
+window.bootPanel=function(){
+  return HRStore.init().then(()=>HRStore.getSettings()).then(s=>{
+    SETTINGS=s||{};
+    if(SETTINGS.bands){ SETTINGS.bands.forEach((b,i)=>{ if(window.HR_BANDS.fit[i]) window.HR_BANDS.fit[i].min=b.min; }); }
+    const u=HRStore.user(); $('#who').textContent=u?(u.name||u.email):'';
+    HRStore.onChange(()=>{ if(!D) renderList(); });
+    renderHome();
+  });
+};
+// Экран входа (когда сервер требует авторизацию и пользователь не вошёл)
+window.renderGate=function(msg){
+  $('#who').textContent='';
+  const configured=window.HR_SERVER_CONFIGURED;
+  app.innerHTML=`<div class="card" style="max-width:520px;margin:40px auto;text-align:center">
+    <div style="font-size:40px">🔒</div>
+    <h1>Панель найма</h1>
+    <p>${msg?esc(msg):'Войдите рабочим Google-аккаунтом, чтобы работать с кандидатами вместе с командой.'}</p>
+    ${configured?`<button class="btn" id="gsiBtn" style="margin-top:8px">Войти через Google</button>`:''}
+    <div style="margin-top:16px"><a href="#" id="localBtn" class="muted">Работать локально, без команды →</a></div>
+  </div>`;
+  const g=$('#gsiBtn'); if(g) g.onclick=()=>window.hrSignIn&&window.hrSignIn();
+  $('#localBtn').onclick=e=>{e.preventDefault(); window.startLocal&&window.startLocal();};
+};
+// Локальный режим (fallback): хранилище в браузере.
+window.startLocal=function(){ bootPanel(); };
+// Если модуль входа не загрузился за 2.5с — показать экран (с доступом к локальному режиму).
+setTimeout(()=>{ if(!app.children.length) renderGate('Не удалось подключиться к серверу входа. Можно работать локально.'); }, 2500);
+</script>
+
+<!-- Серверный режим: вход через Google (Firebase Auth) + хранилище в Cloudflare Worker + D1.
+     Пока воркер не развёрнут / вход не сделан — доступен локальный режим (кнопка на экране входа). -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+
+// Конфиг берём из отдельного файла hr-config.js (свой Firebase-проект для HR, не CRM).
+const CFG = window.HR_CONFIG || {};
+const FB = CFG.firebase || {};
+const WORKER = (CFG.workerUrl || '').replace(/\/$/,'');
+const CONFIGURED = !!(FB.apiKey && FB.projectId && WORKER);
+window.HR_SERVER_CONFIGURED = CONFIGURED;
+
+let auth = null, localChosen = false;
+
+window.hrSignIn = () => { if(!auth) return; signInWithPopup(auth, new GoogleAuthProvider()).catch(e=>window.renderGate('Не удалось войти: '+e.message)); };
+window.hrSignOut = () => { localChosen=false; window.HR_ME=null; if(auth) signOut(auth); else window.renderGate(); };
+window.startLocal = () => { localChosen=true; window.HR_ME=null; document.getElementById('who').textContent='Локально (в этом браузере)'; bootPanel(); };
+
+// worker-бэкенд для HRStore — тот же интерфейс, что и локальный, плюс команда
+function workerStore(user){
+  async function api(path, opts){
+    const token = await user.getIdToken();
+    const r = await fetch(WORKER+path, { ...(opts||{}), headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+token, ...((opts&&opts.headers)||{}) } });
+    if(!r.ok){ let m; try{ m=(await r.json()).error }catch(e){} throw new Error(m||('HTTP '+r.status)); }
+    return r.json();
+  }
+  const listeners=[];
+  return {
+    mode:'firebase', backendLabel:'сервер команды',
+    init(){ return Promise.resolve(); },
+    user(){ return { email:user.email, name:user.email }; },
+    me(){ return api('/api/hr/me'); },
+    saveCandidate(rec){ return api('/api/hr/candidate/'+encodeURIComponent(rec.id), { method:'PUT', body:JSON.stringify(rec) }).then(d=>{ listeners.forEach(cb=>cb()); return d.item; }); },
+    getCandidate(id){ return api('/api/hr/candidate/'+encodeURIComponent(id)).then(d=>d.item); },
+    listCandidates(){ return api('/api/hr/candidates').then(d=>d.items||[]); },
+    deleteCandidate(id){ return api('/api/hr/candidate/'+encodeURIComponent(id), { method:'DELETE' }).then(()=>{ listeners.forEach(cb=>cb()); }); },
+    getSettings(){ return api('/api/hr/settings').then(d=>d.settings||{}); },
+    saveSettings(s){ return api('/api/hr/settings', { method:'PUT', body:JSON.stringify(s) }); },
+    getTeam(){ return api('/api/hr/team'); },
+    addTeam(email,name,role){ return api('/api/hr/team', { method:'POST', body:JSON.stringify({email,name,role}) }); },
+    removeTeam(email){ return api('/api/hr/team/'+encodeURIComponent(email), { method:'DELETE' }); },
+    onChange(cb){ listeners.push(cb); return ()=>{ const i=listeners.indexOf(cb); if(i>=0) listeners.splice(i,1); }; },
+  };
+}
+
+// небольшая кнопка «выйти» в шапке в командном режиме
+function addSignOut(email){
+  const bar=document.querySelector('.top'); let b=document.getElementById('signOutBtn');
+  if(!b){ b=document.createElement('button'); b.id='signOutBtn'; b.className='nav'; b.textContent='Выйти'; b.onclick=window.hrSignOut; bar.appendChild(b); }
+}
+
+if(!CONFIGURED){
+  // отдельный сервер HR ещё не настроен — работаем локально, с понятным пояснением
+  window.renderGate('Командный сервер найма ещё не настроен (создайте свой Firebase-проект и разверните воркер — см. hr-worker/README.md). Пока можно работать локально в этом браузере.');
+} else {
+  auth = getAuth(initializeApp(FB));
+  onAuthStateChanged(auth, (user)=>{
+    if(localChosen) return;           // пользователь выбрал локальный режим — не перехватываем
+    if(user){
+      window.HRStore = workerStore(user);
+      // проверим доступ и роль (админ/участник), затем откроем панель
+      window.HRStore.me()
+        .then(me=>{ window.HR_ME=me; addSignOut(user.email); document.getElementById('who').textContent=user.email+(me.isAdmin?' · админ':''); bootPanel(); })
+        .catch(err=>{ window.renderGate(/доступ/.test(err.message)?err.message:('Сервер недоступен: '+err.message+'. Можно работать локально.')); });
+    } else {
+      renderGate();
+    }
+  });
+}
+</script>
+</body>
+</html>

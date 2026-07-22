@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Методичка — Pllato HR-Ассесмент</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="../../pllato_favicon_64.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0a1628;--bronze:#b8895a;--bronze-deep:#8b6740;--bronze-tint:rgba(184,137,90,.09);--bg:#f4f2ec;--surface:#fff;--surface-2:#f3f0e8;--text:#0f1620;--text-2:#4a5163;--text-3:#8a8d96;--line:#e3ddcf;--green:#16794a;--red:#c0392b;--amber:#c47d1d;--r:12px;--shadow:0 6px 26px -14px rgba(10,22,40,.3)}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:16px;line-height:1.62}
+.top{background:var(--navy);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
+.top .brand{font-weight:800}.top .tag{font-size:11px;font-family:'JetBrains Mono',monospace;background:var(--bronze);color:#1a1205;padding:3px 8px;border-radius:6px}.top .sp{flex:1}
+.top a{color:#cfe0ee;font-size:13px;text-decoration:none;margin-left:14px}.top a:hover{color:#fff}
+.wrap{max-width:820px;margin:0 auto;padding:24px 18px 100px}
+h1{font-size:30px;letter-spacing:-.5px;margin:8px 0 6px}
+h2{font-size:22px;margin:34px 0 10px;letter-spacing:-.3px;padding-top:8px}
+h3{font-size:17px;margin:20px 0 6px}
+p{color:var(--text-2);margin:0 0 14px}
+ul,ol{color:var(--text-2);margin:0 0 14px;padding-left:22px}li{margin-bottom:6px}
+.lead{font-size:18px;color:var(--text)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px;box-shadow:var(--shadow);margin:16px 0}
+.note{background:var(--bronze-tint);border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:15px;color:var(--text-2);margin:14px 0}
+.note.warn{background:#fdf3e2;border-color:#f0dcb5}
+.note.bad{background:#fbeae8;border-color:#eecac4}
+b,strong{color:var(--text)}
+code{font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:5px}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:12px 0}
+th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--text-3);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+td.n,th.n{text-align:center;font-family:'JetBrains Mono',monospace}
+.toc{columns:2;font-size:14px}.toc a{color:var(--bronze-deep);text-decoration:none}.toc a:hover{text-decoration:underline}
+.step{display:flex;gap:14px;margin-bottom:14px}
+.step .n{flex:0 0 30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px}
+.gen label{display:block;font-weight:600;font-size:14px;margin:10px 0 5px}
+.gen select{width:100%;padding:11px;border:1px solid var(--line);border-radius:9px;font-family:inherit;font-size:15px;background:#fff}
+.gen .out{font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--navy);color:#cfe;padding:12px;border-radius:9px;word-break:break-all;margin-top:12px;user-select:all}
+.btn{border:none;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;border-radius:9px;padding:11px 18px;background:var(--navy);color:#fff}
+.pill{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;background:var(--surface-2);color:var(--text-2)}
+.good{color:var(--green)}.bad{color:var(--red)}.warnc{color:var(--amber)}
+</style>
+</head>
+<body>
+<div class="top"><span class="brand">Pllato</span><span class="tag">МЕТОДИЧКА</span><span class="sp"></span>
+  <a href="index.html">Тест кандидата</a><a href="admin.html">Панель анализа</a></div>
+<div class="wrap">
+
+<h1>Оценка кандидатов при найме</h1>
+<p class="lead">Инструмент помогает решить, кого звать на собеседование и что на нём проверять. Он не заменяет ваше решение — он делает его точнее и одинаковым для всех кандидатов.</p>
+
+<div class="card"><b>Содержание</b>
+<div class="toc" style="margin-top:8px">
+<a href="#osnova">1. На чём это основано</a><br>
+<a href="#kak">2. Как пользоваться</a><br>
+<a href="#gen">3. Ссылка для кандидата</a><br>
+<a href="#otchet">4. Как читать отчёт</a><br>
+<a href="#porogi">5. Пороги по должностям</a><br>
+<a href="#flagi">6. Флаги достоверности и обмана</a><br>
+<a href="#interview">7. Интервью после теста</a><br>
+<a href="#granicy">8. Границы и этика (РК)</a><br>
+<a href="#kalibrovka">9. Калибровка со временем</a><br>
+</div></div>
+
+<h2 id="osnova">1. На чём это основано</h2>
+<p>Батарея собрана по современной доказательной базе отбора персонала — прежде всего по большому пересмотру мета-анализов <b>Sackett, Zhang, Berry &amp; Lievens (2022)</b>. Он показал, какие методы реально предсказывают успех в работе:</p>
+<table>
+<thead><tr><th>Метод</th><th class="n">Валидность</th><th>Где у нас</th></tr></thead>
+<tbody>
+<tr><td>Структурированное интервью</td><td class="n">.42</td><td>Гайд в панели анализа</td></tr>
+<tr><td>Профессиональные знания</td><td class="n">.40</td><td>Модуль «Профзнания»</td></tr>
+<tr><td>Биографические данные (продуктивность)</td><td class="n">.38</td><td>Модуль «Продуктивность»</td></tr>
+<tr><td>Тесты честности / надёжности</td><td class="n">.31</td><td>Модуль «Рабочие установки»</td></tr>
+<tr><td>Общие способности (интеллект)</td><td class="n">.31</td><td>Тест способностей</td></tr>
+<tr><td>Ситуационные тесты (SJT)</td><td class="n">.26</td><td>Модуль «Рабочие ситуации»</td></tr>
+<tr><td>Личностные шкалы (добросовестность)</td><td class="n">.19</td><td>Личностный опросник</td></tr>
+</tbody></table>
+<p>Ни один метод по отдельности не решает — сила в <b>сочетании</b>. Наша батарея из 5–6 модулей даёт ожидаемую точность прогноза ≈ <b>0.45–0.50</b>, а добавление структурированного интервью поднимает её до <b>0.55–0.60</b>. Поэтому панель обязательно выдаёт гайд интервью — это самый дешёвый способ повысить точность.</p>
+<div class="note"><b>Важно про «график 10 шкал».</b> В панели есть режим отображения в стиле привычного графика из 10 шкал (как в OCA / «Оксфордском тесте», Performia, HR Scanner). Мы используем только <b>внешний формат</b> этого графика для наглядности. Сами вопросы и баллы — <b>наши собственные, на научной основе</b> (Big Five / International Personality Item Pool — общественное достояние). Мы <b>не используем</b> материалы OCA, саентологии и Freezone: у них нет доказанной валидности. Для решений опирайтесь на «Научный профиль», график 10 шкал — только чтобы привычно посмотреть.</p></div>
+
+<h2 id="kak">2. Как пользоваться</h2>
+<div class="step"><div class="n">1</div><div><b>Создайте ссылку</b> для нужной должности (раздел 3 ниже) и отправьте кандидату — в WhatsApp, Telegram или на почту.</div></div>
+<div class="step"><div class="n">2</div><div><b>Кандидат проходит тест</b> с телефона или компьютера (20–55 минут в зависимости от должности) и в конце получает <b>код результата</b> (начинается с <code>HR1.</code>).</div></div>
+<div class="step"><div class="n">3</div><div><b>Кандидат присылает вам код.</b> Сервер не нужен — весь результат зашифрован в коде.</div></div>
+<div class="step"><div class="n">4</div><div><b>Вставьте код в «Панель анализа»</b> — увидите профиль, Fit Score, флаги и гайд для интервью. Кандидат сохраняется в общий список.</div></div>
+<div class="step"><div class="n">5</div><div><b>Работайте с кандидатом прямо в панели:</b> ставьте оценки собеседования (они уточняют итоговый балл), фиксируйте решение (нанять / резерв / отказ), заметки, корректируйте баллы после проверки фактов. Всё сохраняется.</div></div>
+<div class="note"><b>Командный режим.</b> Войдите в панель рабочим Google-аккаунтом — кандидаты и правки видны всей команде найма (общий сервер). Без входа можно «Работать локально» — тогда данные хранятся только в вашем браузере. Код кандидата не содержит расшифровки, только ответы: интерпретация и нормы живут в панели, их можно улучшать, не переделывая тест.</div>
+
+<h2 id="gen">3. Ссылка для кандидата</h2>
+<div class="card gen">
+  <label>Должность</label>
+  <select id="pos"></select>
+  <div id="kpWrap" style="display:none"><label>Профиль (для профзнаний)</label>
+    <select id="kp">
+      <option value="pto">ПТО / сметы / инженер</option>
+      <option value="supply">Снабжение / закупки</option>
+      <option value="accounting">Бухгалтерия</option>
+    </select></div>
+  <div class="out" id="linkOut"></div>
+  <div style="margin-top:12px"><button class="btn" id="copyLink">Скопировать ссылку</button> <span id="copyMsg" style="font-size:13px;color:var(--text-3)"></span></div>
+</div>
+<p class="note">Продажникам профиль профзнаний ставится автоматически. Рабочим и руководителям профзнания не назначаются.</p>
+
+<h2 id="otchet">4. Как читать отчёт</h2>
+<h3>Fit Score и вердикт</h3>
+<p><b>Fit Score</b> (0–100) — насколько профиль кандидата подходит именно этой должности (у разных должностей разные веса модулей). Вердикт:</p>
+<ul>
+<li><span class="pill good">≥ 75 — Рекомендован к интервью</span> зон риска по тесту нет.</li>
+<li><span class="pill warnc">60–74 — С осторожностью</span> проверьте отмеченные зоны на интервью.</li>
+<li><span class="pill bad">&lt; 60 — Высокий риск</span> см. красные флаги. Это <b>не</b> автоматический отказ.</li>
+</ul>
+<p>Ниже гейджа показано, <b>из чего сложился</b> Fit Score — вклад каждого модуля с его весом. Так видно, тянет кандидата вверх сильная сторона или тащит вниз слабая.</p>
+<h3>Два режима личностного профиля</h3>
+<p><b>Научный профиль</b> — 6 черт (Big Five + Честность) в перцентилях с полосой погрешности (±1 SEM). <b>Правило:</b> разницу меньше погрешности не считайте значимой. <b>График 10 шкал</b> — тот же профиль в привычном виде −100…+100 (иллюстративно).</p>
+<h3>Полосы и цвета</h3>
+<p>Перцентиль показывает, где кандидат относительно нормы: &lt;16 низкий, 16–30 ниже среднего, 31–69 средний, 70–84 выше среднего, &gt;84 высокий.</p>
+
+<h2 id="porogi">5. Пороги по должностям</h2>
+<p>Веса модулей и пороги заданы под каждую группу должностей (на основе того, что для неё реально важно). Например:</p>
+<table>
+<thead><tr><th>Должность</th><th>Что важнее всего</th><th class="n">Способности (порог)</th></tr></thead>
+<tbody>
+<tr><td>Руководители</td><td>Способности, суждения в ситуациях, добросовестность, стабильность</td><td class="n">≥ 65</td></tr>
+<tr><td>ИТР / офис</td><td>Профзнания, способности, добросовестность, внимательность</td><td class="n">≥ 60</td></tr>
+<tr><td>Продажи</td><td>Напористость/общение, достижение, устойчивость, честность</td><td class="n">≥ 50</td></tr>
+<tr><td>Рабочие</td><td>Надёжность/честность, добросовестность, безопасность в ситуациях</td><td class="n">≥ 20 (отсев)</td></tr>
+</tbody></table>
+<p class="note warn"><b>Для рабочих</b> тест способностей — только грубый отсев (вес мал). Гораздо важнее надёжность, установки к безопасности и <b>практическая проба на объекте</b> + проверка допусков/удостоверений. Панель об этом напоминает.</p>
+
+<h2 id="flagi">6. Флаги достоверности и обмана</h2>
+<p>Люди на собеседовании склонны приукрашивать. Поэтому в тест встроены проверки, и панель показывает флаги. Это <b>не приговор</b>, а повод перепроверить на интервью.</p>
+<ul>
+<li><b>Приукрашивание (соц. желательность):</b> кандидат выбирает «идеальные» ответы. При высоком флаге <b>очень высокие</b> баллы по добросовестности/стабильности читайте как «проверить», а не «идеальный».</li>
+<li><b>Провал проверок внимания / «невозможные» пункты:</b> отвечал не читая → протокол ненадёжен.</li>
+<li><b>Обман в тесте способностей:</b> слишком быстро и точно, частые выходы из окна (поиск ответов), равномерное «машинное» время. Панель советует <b>очный мини-ретест</b> на собеседовании.</li>
+<li><b>Красные зоны в ситуациях:</b> если кандидат выбрал как «правильный» самый неверный вариант в кейсе про безопасность или честность — обязательно обсудите.</li>
+</ul>
+<div class="note bad"><b>Мы намеренно НЕ «подкручиваем» баллы</b> по шкале лжи — это не работает и портит результат. Флаг только снижает доверие к профилю и подсказывает вопросы для интервью.</div>
+
+<h2 id="interview">7. Интервью после теста</h2>
+<p>Тест — это примерно <b>половина</b> решения. Вторая половина — структурированное интервью и проверка фактов. Оценки интервью вы ставите <b>прямо в панели</b>, и общий балл кандидата вверху сразу пересчитывается (интервью весит больше тестов — это самый сильный предиктор). Панель под каждого кандидата выдаёт готовый кит:</p>
+<ul>
+<li><b>Одни и те же вопросы</b> всем кандидатам на должность (6 компетенций, по 2 вопроса: про опыт и про ситуацию).</li>
+<li><b>Оценка сразу после ответа</b> по шкале 1–5 с описанием, что значит каждый балл (BARS). В конце — сумма, а не «общее впечатление».</li>
+<li><b>Зоны для проверки</b> — панель сама добавляет туда флаги и слабые места конкретного кандидата, а также факты из блока «Продуктивность», которые стоит подтвердить рекомендателями.</li>
+</ul>
+
+<h2 id="granicy">8. Границы и этика (РК)</h2>
+<ul>
+<li>Инструмент <b>рекомендательный</b>. Он не диагностирует здоровье и <b>не может быть единственным основанием отказа</b> в приёме на работу.</li>
+<li>Обрабатывайте данные кандидата <b>с его согласия</b> и только для оценки соответствия должности (Закон РК «О персональных данных и их защите»).</li>
+<li>Не задавайте на интервью вопросов о возрасте, семье, религии, здоровье, национальности — это и незаконно, и снижает качество отбора.</li>
+<li>Формулировки в отчёте — вероятностные («кандидаты с таким профилем чаще…»), без ярлыков. Так и говорите кандидату, если он спросит.</li>
+</ul>
+<div class="note"><b>Что мы сознательно НЕ используем</b> (нет доказанной пользы для найма): графология, соционика/MBTI/DISC как основа решения, отдельный «тест EQ», знак зодиака, а также OCA/«Оксфордский тест» и материалы Freezone.</div>
+
+<h2 id="kalibrovka">9. Калибровка со временем</h2>
+<p>Сейчас нормы предварительные (международная выборка) — этого достаточно, чтобы начать. Чтобы инструмент стал точнее именно под вашу компанию:</p>
+<ol>
+<li>Прогоняйте всех кандидатов — коды сохраняются в панели (в вашем браузере).</li>
+<li>После ~100–200 кандидатов пересчитайте нормы под ваш пул (можно поручить нам).</li>
+<li><b>Ключи ситуаций (SJT)</b> — черновые. Дайте 5–12 опытным сотрудникам (директор, начальники участков, гл. бухгалтер, РОП) пройти кейсы и сверьте «правильные» ответы с их консенсусом.</li>
+<li>Через 3–6 месяцев сверьте прогноз с реальной работой нанятых и уточните веса.</li>
+</ol>
+
+<div class="note" style="margin-top:30px">Личностные пункты основаны на International Personality Item Pool (Goldberg, 1999; Johnson, 2014; Ashton, Lee &amp; Goldberg, 2007) — общественное достояние; русские формулировки авторские. Доказательная база: Sackett, Zhang, Berry &amp; Lievens (2022); Ones, Viswesvaran &amp; Schmidt (1993); Schmidt &amp; Hunter (1998).</div>
+
+</div>
+
+<script src="data/positions.js"></script>
+<script>
+const posSel=document.querySelector('#pos'), kpSel=document.querySelector('#kp'), kpWrap=document.querySelector('#kpWrap'), out=document.querySelector('#linkOut');
+Object.values(window.HR_POSITIONS).forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.icon+' '+p.label;posSel.appendChild(o)});
+function base(){return location.href.replace(/guide\.html.*$/,'index.html')}
+function build(){
+  const p=window.HR_POSITIONS[posSel.value];
+  const needsKp = p.id==='itr'; // только ИТР выбирает профиль (ПТО/снабжение/бухгалтерия); у продаж профиль фиксирован
+  kpWrap.style.display = needsKp ? 'block':'none';
+  let url=base()+'?pos='+p.id;
+  if(needsKp) url+='&kp='+kpSel.value;
+  out.textContent=url;
+}
+posSel.onchange=build; kpSel.onchange=build; build();
+document.querySelector('#copyLink').onclick=()=>{navigator.clipboard.writeText(out.textContent).then(()=>document.querySelector('#copyMsg').textContent='Скопировано ✓')};
+</script>
+</body>
+</html>
