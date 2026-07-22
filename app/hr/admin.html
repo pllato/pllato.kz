@@ -185,7 +185,10 @@ function cognitiveCheatFlags(d,admin,ans){
 /* =============== ДОМ: ввод + список кандидатов =============== */
 function renderHome(){
   MODE='evidence'; D=null; REC=null; SCORED=null;
-  app.innerHTML=`
+  const localNote = (window.__hrLocalNote && HRStore.mode==='local')
+    ? `<div class="card noprint" style="background:var(--bronze-tint);border-color:var(--line);display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+        <span class="muted" style="margin:0">Локальный режим — данные хранятся в этом браузере. Чтобы работать командой (общий доступ) — настройте свой сервер по <b>hr-worker/README.md</b>.</span></div>` : '';
+  app.innerHTML=localNote+`
   <div class="card noprint">
     <h1>Анализ результата кандидата</h1>
     <p>Вставьте код результата от кандидата (начинается с <code>HR1.</code>) или загрузите файл.</p>
@@ -623,8 +626,11 @@ function addSignOut(email){
 }
 
 if(!CONFIGURED){
-  // отдельный сервер HR ещё не настроен — работаем локально, с понятным пояснением
-  window.renderGate('Командный сервер найма ещё не настроен (создайте свой Firebase-проект и разверните воркер — см. hr-worker/README.md). Пока можно работать локально в этом браузере.');
+  // Командный сервер не настроен — логиниться некуда, поэтому открываем панель
+  // СРАЗУ в локальном режиме (без экрана-замка и лишнего клика). Подсказку про
+  // командный режим показываем ненавязчивой плашкой внутри панели.
+  window.__hrLocalNote = true;
+  window.startLocal();
 } else {
   auth = getAuth(initializeApp(FB));
   onAuthStateChanged(auth, (user)=>{
