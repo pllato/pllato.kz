@@ -47,7 +47,7 @@ async function verifyFirebaseIdToken(token, projectId) {
   return payload;
 }
 
-// Проверяет токен И что e-mail входит в список разрешённых команды.
+// Проверяет токен И что e-mail входит в команду (таблица team или владелец).
 async function requireTeam(request, env) {
   const auth = request.headers.get("Authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
@@ -56,13 +56,15 @@ async function requireTeam(request, env) {
   try { claims = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID); }
   catch (e) { return { error: "Недействительный токен: " + e.message, status: 401 }; }
   const email = (claims.email || "").toLowerCase().trim();
-  const allowed = new Set(
-    ("uurraa@gmail.com," + (env.HR_ALLOWED_EMAILS || "")).split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
-  );
-  if (!email || !allowed.has(email)) {
-    return { error: "Нет доступа к HR-панели для " + (email || "этого аккаунта") + ". Попросите администратора добавить вас.", status: 403 };
+  if (!email) return { error: "В аккаунте нет e-mail", status: 403 };
+  const owner = (env.HR_OWNER_EMAIL || "").toLowerCase().trim();
+  const isOwner = email === owner;
+  let member = null;
+  if (!isOwner) member = await env.DB.prepare("SELECT email, role FROM team WHERE email = ?").bind(email).first();
+  if (!isOwner && !member) {
+    return { error: "Нет доступа к HR-панели для " + email + ". Попросите администратора добавить вас.", status: 403 };
   }
-  return { email, uid: claims.user_id || claims.sub };
+  return { email, uid: claims.user_id || claims.sub, isAdmin: isOwner || (member && member.role === "admin"), isOwner };
 }
 
 const nowISO = () => new Date().toISOString();
@@ -78,6 +80,40 @@ export default {
     if (me.error) return json({ error: me.error }, me.status, request);
 
     try {
+      // /api/hr/me — кто я и админ ли
+      if (path === "/api/hr/me" && request.method === "GET") {
+        return json({ email: me.email, isAdmin: me.isAdmin, isOwner: me.isOwner }, 200, request);
+      }
+      // /api/hr/team — управление командой (список — все, изменения — только админ)
+      if (path === "/api/hr/team") {
+        if (request.method === "GET") {
+          const rows = await env.DB.prepare("SELECT email, name, role, added_by, added_at FROM team ORDER BY added_at").all();
+          const owner = (env.HR_OWNER_EMAIL || "").toLowerCase().trim();
+          const items = (rows.results || []).slice();
+          if (owner && !items.some(r => r.email === owner)) items.unshift({ email: owner, name: "Владелец", role: "admin", added_by: "—", added_at: "" });
+          return json({ items, isAdmin: me.isAdmin }, 200, request);
+        }
+        if (request.method === "POST") {
+          if (!me.isAdmin) return json({ error: "Добавлять сотрудников может только админ" }, 403, request);
+          const b = await request.json();
+          const email = (b.email || "").toLowerCase().trim();
+          if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "Неверный e-mail" }, 400, request);
+          const role = b.role === "admin" ? "admin" : "member";
+          await env.DB.prepare(
+            "INSERT INTO team (email,name,role,added_by,added_at) VALUES (?,?,?,?,?) " +
+            "ON CONFLICT(email) DO UPDATE SET name=excluded.name, role=excluded.role"
+          ).bind(email, b.name || null, role, me.email, nowISO()).run();
+          return json({ ok: true }, 200, request);
+        }
+      }
+      const tm = path.match(/^\/api\/hr\/team\/(.+)$/);
+      if (tm && request.method === "DELETE") {
+        if (!me.isAdmin) return json({ error: "Удалять может только админ" }, 403, request);
+        const email = decodeURIComponent(tm[1]).toLowerCase().trim();
+        if (email === (env.HR_OWNER_EMAIL || "").toLowerCase().trim()) return json({ error: "Владельца нельзя удалить" }, 400, request);
+        await env.DB.prepare("DELETE FROM team WHERE email = ?").bind(email).run();
+        return json({ ok: true }, 200, request);
+      }
       // /api/hr/candidates  (список)
       if (path === "/api/hr/candidates" && request.method === "GET") {
         const rows = await env.DB.prepare("SELECT data FROM candidates ORDER BY updated_at DESC").all();

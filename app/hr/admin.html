@@ -65,7 +65,8 @@ svg.gauge{width:120px;height:120px}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}th{color:var(--text-3);font-weight:600;font-size:12px}
 td.n,th.n{text-align:center;font-family:'JetBrains Mono',monospace;font-weight:700}
-.chip{font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px}
+.chip{font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:var(--surface-2);color:var(--text-2)}
+.chip-blue{background:#dbeafe;color:#1e40af}
 details{border:1px solid var(--line);border-radius:10px;padding:0 14px;margin-bottom:10px;background:#fff}
 details summary{cursor:pointer;font-weight:700;padding:12px 0}
 .legend{font-size:12px;color:var(--text-3);margin-top:6px}
@@ -105,6 +106,7 @@ details summary{cursor:pointer;font-weight:700;padding:12px 0}
 <script src="data/integrity.js"></script>
 <script src="data/biodata.js"></script>
 <script src="data/interview.js"></script>
+<script src="hr-config.js"></script>
 <script src="core.js"></script>
 <script src="hr-store.js"></script>
 <script>
@@ -425,6 +427,18 @@ function renderSettings(){
     <button class="btn ghost sm" onclick="renderHome()">← Готово</button></div>
     <p class="muted">Изменения применяются ко всем кандидатам и, при подключённом сервере, ко всей команде. Значения по умолчанию — из доказательной базы; меняйте под свою компанию.</p></div>`;
 
+  // Команда — только в командном режиме для администратора
+  if(window.HR_ME && window.HR_ME.isAdmin) h+=`<div class="card" id="teamCard"><h2 style="margin-top:0">Команда (доступ к панели)</h2>
+    <p class="muted">Сотрудники, которые могут входить в панель найма. Добавляет и удаляет только админ.</p>
+    <div id="teamList" class="muted">Загрузка…</div>
+    <div class="row" style="margin-top:12px;gap:8px">
+      <input type="email" id="teamEmail" placeholder="email сотрудника" style="flex:1;min-width:180px">
+      <input type="text" id="teamName" placeholder="имя (необязательно)" style="flex:1;min-width:140px">
+      <select id="teamRole"><option value="member">участник</option><option value="admin">админ</option></select>
+      <button class="btn sm" id="teamAdd">Добавить</button>
+    </div>
+    <div class="muted" id="teamMsg" style="margin-top:6px"></div></div>`;
+
   h+=`<div class="card"><h2 style="margin-top:0">Вес интервью против тестов</h2>
     <p class="muted">Интервью — предиктор №1, поэтому по умолчанию весит больше. Сумма нормируется автоматически.</p>
     <div class="field"><label>Интервью: <b id="ivW">${combine.interview}</b></label><input type="range" min="0" max="100" value="${combine.interview}" id="combineRange" style="width:100%"></div>
@@ -453,6 +467,31 @@ function renderSettings(){
   renderWeights(fam);
   $('#famSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{SETTINGS._lastFam=b.dataset.f;renderSettings()});
   renderSJT(fam);
+  // team
+  if(window.HR_ME && window.HR_ME.isAdmin) renderTeam();
+}
+function renderTeam(){
+  const list=$('#teamList'); if(!list) return;
+  HRStore.getTeam().then(d=>{
+    const items=d.items||[];
+    list.innerHTML=`<table style="width:100%;border-collapse:collapse">${items.map(m=>`
+      <tr style="border-bottom:1px solid var(--line)">
+        <td style="padding:6px 0">${esc(m.email)}${m.name?` <span class="muted">· ${esc(m.name)}</span>`:''}</td>
+        <td style="padding:6px 0"><span class="chip ${m.role==='admin'?'chip-blue':''}">${m.role==='admin'?'админ':'участник'}</span></td>
+        <td style="padding:6px 0;text-align:right">${(m.added_by==='—')?'<span class="muted">владелец</span>':`<button class="btn ghost sm" data-rm="${esc(m.email)}">Удалить</button>`}</td>
+      </tr>`).join('')}</table>`;
+    list.querySelectorAll('button[data-rm]').forEach(b=>b.onclick=()=>{
+      if(!confirm('Убрать доступ для '+b.dataset.rm+'?')) return;
+      HRStore.removeTeam(b.dataset.rm).then(renderTeam).catch(e=>$('#teamMsg').textContent=e.message);
+    });
+  }).catch(e=>list.textContent='Не удалось загрузить: '+e.message);
+  $('#teamAdd').onclick=()=>{
+    const email=$('#teamEmail').value.trim(), name=$('#teamName').value.trim(), role=$('#teamRole').value;
+    if(!email) return;
+    $('#teamMsg').textContent='Добавляю…';
+    HRStore.addTeam(email,name,role).then(()=>{ $('#teamEmail').value='';$('#teamName').value='';$('#teamMsg').textContent='Добавлен ✓'; renderTeam(); })
+      .catch(e=>$('#teamMsg').textContent=e.message);
+  };
 }
 function setCombine(iv){ SETTINGS.combine={interview:iv,tests:100-iv}; HRStore.saveSettings(SETTINGS) }
 function setThresh(i,v){
@@ -507,14 +546,15 @@ window.bootPanel=function(){
 // Экран входа (когда сервер требует авторизацию и пользователь не вошёл)
 window.renderGate=function(msg){
   $('#who').textContent='';
+  const configured=window.HR_SERVER_CONFIGURED;
   app.innerHTML=`<div class="card" style="max-width:520px;margin:40px auto;text-align:center">
     <div style="font-size:40px">🔒</div>
     <h1>Панель найма</h1>
     <p>${msg?esc(msg):'Войдите рабочим Google-аккаунтом, чтобы работать с кандидатами вместе с командой.'}</p>
-    <button class="btn" id="gsiBtn" style="margin-top:8px">Войти через Google</button>
+    ${configured?`<button class="btn" id="gsiBtn" style="margin-top:8px">Войти через Google</button>`:''}
     <div style="margin-top:16px"><a href="#" id="localBtn" class="muted">Работать локально, без команды →</a></div>
   </div>`;
-  $('#gsiBtn').onclick=()=>window.hrSignIn&&window.hrSignIn();
+  const g=$('#gsiBtn'); if(g) g.onclick=()=>window.hrSignIn&&window.hrSignIn();
   $('#localBtn').onclick=e=>{e.preventDefault(); window.startLocal&&window.startLocal();};
 };
 // Локальный режим (fallback): хранилище в браузере.
@@ -529,24 +569,20 @@ setTimeout(()=>{ if(!app.children.length) renderGate('Не удалось под
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc",
-  authDomain: "pllato-crm.firebaseapp.com",
-  databaseURL: "https://pllato-crm-default-rtdb.firebaseio.com",
-  projectId: "pllato-crm",
-  storageBucket: "pllato-crm.firebasestorage.app",
-  messagingSenderId: "690738857241",
-  appId: "1:690738857241:web:2356e97c435656890ab188"
-};
-const WORKER = 'https://pllato-hr-worker.uurraa.workers.dev';
-const auth = getAuth(initializeApp(firebaseConfig));
-let localChosen = false;
+// Конфиг берём из отдельного файла hr-config.js (свой Firebase-проект для HR, не CRM).
+const CFG = window.HR_CONFIG || {};
+const FB = CFG.firebase || {};
+const WORKER = (CFG.workerUrl || '').replace(/\/$/,'');
+const CONFIGURED = !!(FB.apiKey && FB.projectId && WORKER);
+window.HR_SERVER_CONFIGURED = CONFIGURED;
 
-window.hrSignIn = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e=>window.renderGate('Не удалось войти: '+e.message));
-window.hrSignOut = () => { localChosen=false; signOut(auth); };
-window.startLocal = () => { localChosen=true; document.getElementById('who').textContent='Локально (в этом браузере)'; bootPanel(); };
+let auth = null, localChosen = false;
 
-// worker-бэкенд для HRStore — тот же интерфейс, что и локальный
+window.hrSignIn = () => { if(!auth) return; signInWithPopup(auth, new GoogleAuthProvider()).catch(e=>window.renderGate('Не удалось войти: '+e.message)); };
+window.hrSignOut = () => { localChosen=false; window.HR_ME=null; if(auth) signOut(auth); else window.renderGate(); };
+window.startLocal = () => { localChosen=true; window.HR_ME=null; document.getElementById('who').textContent='Локально (в этом браузере)'; bootPanel(); };
+
+// worker-бэкенд для HRStore — тот же интерфейс, что и локальный, плюс команда
 function workerStore(user){
   async function api(path, opts){
     const token = await user.getIdToken();
@@ -559,12 +595,16 @@ function workerStore(user){
     mode:'firebase', backendLabel:'сервер команды',
     init(){ return Promise.resolve(); },
     user(){ return { email:user.email, name:user.email }; },
+    me(){ return api('/api/hr/me'); },
     saveCandidate(rec){ return api('/api/hr/candidate/'+encodeURIComponent(rec.id), { method:'PUT', body:JSON.stringify(rec) }).then(d=>{ listeners.forEach(cb=>cb()); return d.item; }); },
     getCandidate(id){ return api('/api/hr/candidate/'+encodeURIComponent(id)).then(d=>d.item); },
     listCandidates(){ return api('/api/hr/candidates').then(d=>d.items||[]); },
     deleteCandidate(id){ return api('/api/hr/candidate/'+encodeURIComponent(id), { method:'DELETE' }).then(()=>{ listeners.forEach(cb=>cb()); }); },
     getSettings(){ return api('/api/hr/settings').then(d=>d.settings||{}); },
     saveSettings(s){ return api('/api/hr/settings', { method:'PUT', body:JSON.stringify(s) }); },
+    getTeam(){ return api('/api/hr/team'); },
+    addTeam(email,name,role){ return api('/api/hr/team', { method:'POST', body:JSON.stringify({email,name,role}) }); },
+    removeTeam(email){ return api('/api/hr/team/'+encodeURIComponent(email), { method:'DELETE' }); },
     onChange(cb){ listeners.push(cb); return ()=>{ const i=listeners.indexOf(cb); if(i>=0) listeners.splice(i,1); }; },
   };
 }
@@ -575,18 +615,24 @@ function addSignOut(email){
   if(!b){ b=document.createElement('button'); b.id='signOutBtn'; b.className='nav'; b.textContent='Выйти'; b.onclick=window.hrSignOut; bar.appendChild(b); }
 }
 
-onAuthStateChanged(auth, (user)=>{
-  if(localChosen) return;           // пользователь выбрал локальный режим — не перехватываем
-  if(user){
-    // проверим доступ и, если ок, переключим хранилище на сервер
-    window.HRStore = workerStore(user);
-    window.HRStore.listCandidates()
-      .then(()=>{ addSignOut(user.email); bootPanel(); })
-      .catch(err=>{ window.renderGate(err.message.indexOf('доступ')>=0?err.message:('Сервер недоступен: '+err.message+'. Можно работать локально.')); });
-  } else {
-    renderGate();
-  }
-});
+if(!CONFIGURED){
+  // отдельный сервер HR ещё не настроен — работаем локально, с понятным пояснением
+  window.renderGate('Командный сервер найма ещё не настроен (создайте свой Firebase-проект и разверните воркер — см. hr-worker/README.md). Пока можно работать локально в этом браузере.');
+} else {
+  auth = getAuth(initializeApp(FB));
+  onAuthStateChanged(auth, (user)=>{
+    if(localChosen) return;           // пользователь выбрал локальный режим — не перехватываем
+    if(user){
+      window.HRStore = workerStore(user);
+      // проверим доступ и роль (админ/участник), затем откроем панель
+      window.HRStore.me()
+        .then(me=>{ window.HR_ME=me; addSignOut(user.email); document.getElementById('who').textContent=user.email+(me.isAdmin?' · админ':''); bootPanel(); })
+        .catch(err=>{ window.renderGate(/доступ/.test(err.message)?err.message:('Сервер недоступен: '+err.message+'. Можно работать локально.')); });
+    } else {
+      renderGate();
+    }
+  });
+}
 </script>
 </body>
 </html>

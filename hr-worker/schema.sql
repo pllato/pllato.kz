@@ -19,3 +19,13 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at  TEXT,
   updated_by  TEXT
 );
+
+-- Команда: кто имеет доступ к панели. Владелец (HR_OWNER_EMAIL) разрешён всегда,
+-- даже если его нет в этой таблице, и всегда admin. Остальных заводит админ в панели.
+CREATE TABLE IF NOT EXISTS team (
+  email     TEXT PRIMARY KEY,       -- в нижнем регистре
+  name      TEXT,
+  role      TEXT DEFAULT 'member',  -- 'admin' | 'member'
+  added_by  TEXT,
+  added_at  TEXT
+);

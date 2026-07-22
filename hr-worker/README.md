@@ -1,52 +1,79 @@
 # pllato-hr-worker
 
-Серверный бэкенд HR-панели (`app/hr/admin.html`): хранение оценок кандидатов и
-настроек для всей команды. Cloudflare Worker + D1, вход по Firebase (Google),
-тот же проект `pllato-crm`, что и у CRM.
+Полностью **отдельный** серверный бэкенд HR-панели найма (`app/hr/admin.html`):
+своя база (Cloudflare D1 `pllato-hr-d1`), свой воркер, свой Firebase-проект для
+входа. Никак не связан с CRM.
 
-- Кандидатский тест (`app/hr/index.html`) сюда **не** обращается — он публичный
-  и отдаёт код, который работодатель вставляет в панель.
-- Доступ только у e-mail из `HR_ALLOWED_EMAILS` в `wrangler.toml` (+ владелец).
+- Кандидатский тест (`app/hr/index.html`) сюда **не** обращается — он публичный,
+  без входа, и отдаёт код, который работодатель вставляет в панель.
+- Доступ к панели — только у сотрудников из таблицы `team` (+ владелец
+  `HR_OWNER_EMAIL`). Владелец и админы заводят остальных **прямо в панели**
+  (Настройки → Команда), без правки конфигов.
 
-## Роуты (все требуют `Authorization: Bearer <firebase-id-token>`)
+Пока не настроено — панель работает в **локальном режиме** (данные в браузере).
 
-| Метод | Путь | Назначение |
-|---|---|---|
-| GET | `/api/hr/health` | проверка (без авторизации) |
-| GET | `/api/hr/candidates` | список всех кандидатов |
-| GET | `/api/hr/candidate/:id` | один кандидат |
-| PUT | `/api/hr/candidate/:id` | сохранить/обновить |
-| DELETE | `/api/hr/candidate/:id` | удалить |
-| GET | `/api/hr/settings` | настройки (веса, пороги, ключи SJT) |
-| PUT | `/api/hr/settings` | сохранить настройки |
+## Роуты (все требуют `Authorization: Bearer <firebase-id-token>`, кроме health)
 
-## Деплой (один раз)
+| Метод | Путь | Кто | Назначение |
+|---|---|---|---|
+| GET | `/api/hr/health` | все | проверка (без авторизации) |
+| GET | `/api/hr/me` | команда | кто я, админ ли |
+| GET | `/api/hr/candidates` | команда | список кандидатов |
+| GET/PUT/DELETE | `/api/hr/candidate/:id` | команда | кандидат |
+| GET/PUT | `/api/hr/settings` | команда | настройки (веса, пороги, ключи SJT) |
+| GET | `/api/hr/team` | команда | список команды |
+| POST | `/api/hr/team` | админ | добавить сотрудника |
+| DELETE | `/api/hr/team/:email` | админ | убрать сотрудника |
 
-Нужен доступ к Cloudflare-аккаунту Pllato (wrangler login или API-токен).
+## Настройка (один раз)
+
+### A. Свой Firebase-проект (вход через Google)
+
+1. [console.firebase.google.com](https://console.firebase.google.com) → **Add project**
+   (например `pllato-hr`). Google Analytics можно отключить.
+2. **Build → Authentication → Get started → Sign-in method → Google → включить**,
+   выбрать support email, Save.
+3. **Project settings (⚙️) → General → Your apps → Web (`</>`)** — зарегистрировать
+   веб-приложение (`hr-panel`). Скопировать объект `firebaseConfig`.
+4. Вписать значения в **`app/hr/hr-config.js`** (`apiKey`, `authDomain`,
+   `projectId`, `appId`, `messagingSenderId`).
+5. **Authentication → Settings → Authorized domains** — добавить домен, где живёт
+   панель (`pllato.kz`; `localhost` уже есть для локальной проверки).
+
+### B. Воркер и база (Cloudflare)
+
+Нужен доступ к Cloudflare-аккаунту (wrangler login или API-токен).
 
 ```bash
 cd hr-worker
 npm install
 
-# 1. Создать базу и вписать её id в wrangler.toml (database_id):
+# 1. Создать базу и вписать database_id в wrangler.toml:
 npx wrangler d1 create pllato-hr-d1
-#    → скопировать database_id из вывода в wrangler.toml
 
-# 2. Применить схему к боевой базе:
+# 2. Применить схему:
 npx wrangler d1 execute pllato-hr-d1 --remote --file=schema.sql
 
-# 3. Развернуть воркер:
+# 3. В wrangler.toml выставить:
+#    FIREBASE_PROJECT_ID = "<projectId из шага A, напр. pllato-hr>"
+#    HR_OWNER_EMAIL      = "<ваш рабочий gmail>"
+
+# 4. Развернуть:
 npx wrangler deploy
-#    → воркер станет доступен на https://pllato-hr-worker.<subdomain>.workers.dev
+#    → адрес вида https://pllato-hr-worker.<subdomain>.workers.dev
 ```
 
-Если workers.dev-поддомен не `uurraa`, поправьте константу `WORKER` в
-`app/hr/admin.html` (строка с `const WORKER = ...`).
+6. Скопировать адрес воркера в **`app/hr/hr-config.js`** → `workerUrl`.
 
-## Кто имеет доступ
+Готово: откройте `admin.html`, войдите Google-аккаунтом владельца, затем
+**Настройки → Команда** — добавьте сотрудников найма (участник или админ).
 
-Добавляйте e-mail сотрудников в `HR_ALLOWED_EMAILS` (через запятую) и
-передеплойте (`npx wrangler deploy`). `uurraa@gmail.com` разрешён всегда.
+## Модель доступа
+
+- `HR_OWNER_EMAIL` — владелец: разрешён всегда, всегда админ, удалить нельзя.
+- Таблица `team` (в `pllato-hr-d1`): `email`, `name`, `role` (`admin`|`member`).
+- `admin` — может добавлять/удалять сотрудников и менять настройки; `member` —
+  работать с кандидатами.
 
 ## Локальная проверка (без деплоя)
 
@@ -55,3 +82,5 @@ npx wrangler d1 execute pllato-hr-d1 --local --file=schema.sql
 npx wrangler dev --local
 # health → 200, запросы без токена → 401
 ```
+
+Панель без заполненного `hr-config.js` сама предложит локальный режим.
