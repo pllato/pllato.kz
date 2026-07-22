@@ -115,6 +115,10 @@ const qp = new URLSearchParams(location.search);
 function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 function fmtTime(s){const m=Math.floor(s/60),x=s%60;return String(m).padStart(2,'0')+':'+String(x).padStart(2,'0')}
 function shuffle(a,seed){a=a.slice();let r=seed||1;for(let i=a.length-1;i>0;i--){r=(r*9301+49297)%233280;const j=Math.floor(r/233280*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+// Порядок показа вариантов для задания (перемешивается один раз за сессию и кэшируется).
+// В ответе всегда сохраняется ИСХОДНЫЙ индекс варианта (data-oi) — скоринг в панели не меняется.
+const OPT_ORDER={};
+function optOrder(id,n){ if(!OPT_ORDER[id]){const a=[];for(let i=0;i<n;i++)a.push(i);for(let i=n-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}OPT_ORDER[id]=a;} return OPT_ORDER[id]; }
 
 /* Рендер фигуры-примитива в SVG */
 function renderShapes(prims){
@@ -189,6 +193,10 @@ function screenIntro(){
     state.kp = qp.get('kp') || p.knowledgeProfile || null;
     state.cform = p.cognitiveForm || qp.get('form') || 'A';
     state.modules = p.modules.slice();
+    // Отдельные тесты по ссылке: ?tests=cognitive,personality — оставить только выбранные блоки
+    const only = (qp.get('tests')||'').split(',').map(s=>s.trim()).filter(Boolean);
+    if(only.length){ const f=state.modules.filter(m=>only.includes(m)); if(f.length) state.modules=f; }
+    state.partial = only.length>0 && state.modules.length < p.modules.length;
     state.startTs=Date.now();
     state.mi=0; runModule();
   };
@@ -239,35 +247,13 @@ function runPersonality(){
       checkDone();
     }));
     setProgress((state.mi + (pg+1)/(pages.length+1))/state.modules.length);
-    setFoot(true,{next: pg<pages.length-1?'Далее':'К выбору',prev:pg>0}); checkDone();
+    setFoot(true,{next: pg<pages.length-1?'Далее':'Готово',prev:pg>0}); checkDone();
     prevBtn.onclick=()=>{pg--;window.scrollTo(0,0);render()};
-    nextBtn.onclick=()=>{ if(pg<pages.length-1){pg++;window.scrollTo(0,0);render()} else runFC(); };
+    nextBtn.onclick=()=>{ if(pg<pages.length-1){pg++;window.scrollTo(0,0);render()} else nextModule(); };
     window.scrollTo(0,0);
   }
   function checkDone(){ nextBtn.disabled = !pages[pg].every(it=>state.ans.personality[it.id]!=null); }
 }
-function runFC(){
-  const blocks=window.HR_PERSONALITY.forced_choice; let i=0; state.ans.fc=state.ans.fc||[];
-  render();
-  function render(){
-    const b=blocks[i]; const cur=state.ans.fc[i]||{};
-    app.innerHTML=`<h2>Что о вас в первую очередь?</h2><p class="muted">В каждой тройке отметьте, что <b>больше всего</b> и что <b>меньше всего</b> похоже на вас.</p>`+
-      b.statements.map((s,si)=>`<div class="fcrow" style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px">
-        <div style="margin-bottom:8px">${esc(s.text)}</div>
-        <div class="bw" data-si="${si}"><button data-t="best" class="${cur.best===si?'on-best':''}">Больше всего</button><button data-t="worst" class="${cur.worst===si?'on-worst':''}">Меньше всего</button></div></div>`).join('');
-    app.querySelectorAll('.bw').forEach(row=>row.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
-      const si=+row.dataset.si,t=btn.dataset.t; const o=state.ans.fc[i]||{};
-      if(t==='best'){ if(o.worst===si)o.worst=undefined; o.best=si } else { if(o.best===si)o.best=undefined; o.worst=si }
-      state.ans.fc[i]=o; render();
-    }));
-    setProgress((state.mi + 0.9)/state.modules.length);
-    const o=state.ans.fc[i]||{};
-    setFoot(true,{next:i<blocks.length-1?'Далее':'Готово',prev:i>0,nextEnabled:o.best!=null&&o.worst!=null});
-    prevBtn.onclick=()=>{i--;render()};
-    nextBtn.onclick=()=>{ if(i<blocks.length-1){i++;render()} else nextModule(); };
-  }
-}
-
 /* ============ Когнитивный (секции с таймером) ============ */
 let timerHandle=null;
 function startTimer(sec,onEnd){
@@ -304,9 +290,9 @@ function runCognitive(){
       if(sec.k==='A') app.innerHTML=renderAbstract(it,answers[qi]);
       else app.innerHTML=renderVN(it,answers[qi],qi,items.length);
       if(sec.k==='A'){
-        app.querySelectorAll('.optcell').forEach((c,ci)=>c.onclick=()=>{answers[qi]=ci;app.querySelectorAll('.optcell').forEach(x=>x.classList.remove('on'));c.classList.add('on');nextBtn.disabled=false});
+        app.querySelectorAll('.optcell').forEach(c=>c.onclick=()=>{answers[qi]=+c.dataset.oi;app.querySelectorAll('.optcell').forEach(x=>x.classList.remove('on'));c.classList.add('on');nextBtn.disabled=false});
       } else {
-        app.querySelectorAll('.opt').forEach((o,ci)=>o.onclick=()=>{answers[qi]=ci;app.querySelectorAll('.opt').forEach(x=>x.classList.remove('on'));o.classList.add('on');nextBtn.disabled=false});
+        app.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{answers[qi]=+o.dataset.oi;app.querySelectorAll('.opt').forEach(x=>x.classList.remove('on'));o.classList.add('on');nextBtn.disabled=false});
       }
       setFoot(true,{next: qi<items.length-1?'Далее':'Завершить раздел',nextEnabled:answers[qi]!=null});
       nextBtn.onclick=advance;
@@ -326,12 +312,14 @@ function runCognitive(){
   }
 }
 function renderVN(it,cur,idx,total){
+  const order=optOrder(it.id,it.options.length);
   return `<div class="muted" style="margin-bottom:8px">Задание ${idx+1} из ${total}</div><h2 style="font-size:18px">${esc(it.stem)}</h2>`+
-    it.options.map((o,i)=>`<div class="opt ${cur===i?'on':''}"><div class="mk">${'АБВГД'[i]}</div><div>${esc(o)}</div></div>`).join('');
+    order.map((oi,pos)=>`<div class="opt ${cur===oi?'on':''}" data-oi="${oi}"><div class="mk">${'АБВГД'[pos]}</div><div>${esc(it.options[oi])}</div></div>`).join('');
 }
 function renderAbstract(it,cur){
   const cells=it.grid.map(c=>c===null?`<div class="cell q">?</div>`:`<div class="cell">${renderShapes(c)}</div>`).join('');
-  const opts=it.options.map((o,i)=>`<div class="optcell ${cur===i?'on':''}">${renderShapes(o)}</div>`).join('');
+  const order=optOrder(it.id,it.options.length);
+  const opts=order.map((oi,pos)=>`<div class="optcell ${cur===oi?'on':''}" data-oi="${oi}">${renderShapes(it.options[oi])}</div>`).join('');
   return `<div class="muted" style="margin-bottom:8px">${esc(it.prompt||'Найдите недостающую фигуру')}</div>
     <div class="grid3">${cells}</div><div class="muted" style="text-align:center;margin-bottom:6px">Выберите ответ:</div><div class="optgrid">${opts}</div>`;
 }
@@ -382,8 +370,9 @@ function runSJT(){
     ()=>render(),null);
   function render(){
     const s=scen[i]; const cur=state.ans.sjt[i]||{};
+    const order=optOrder(s.id,s.options.length);
     app.innerHTML=`<div class="muted">Ситуация ${i+1} из ${scen.length}</div><h2 style="font-size:18px">${esc(s.title)}</h2><p>${esc(s.text)}</p>`+
-      s.options.map((o,oi)=>`<div class="opt" data-oi="${oi}"><div class="mk">${'АБВГ'[oi]}</div><div style="flex:1">${esc(o)}
+      order.map((oi,pos)=>`<div class="opt" data-oi="${oi}"><div class="mk">${'АБВГ'[pos]}</div><div style="flex:1">${esc(s.options[oi])}
         <div class="bw" style="margin-top:8px"><button data-t="best" class="${cur.best===oi?'on-best':''}">👍 Правильнее</button><button data-t="worst" class="${cur.worst===oi?'on-worst':''}">👎 Не стоит</button></div></div></div>`).join('');
     app.querySelectorAll('.opt').forEach(op=>op.querySelectorAll('.bw button').forEach(btn=>btn.onclick=(e)=>{
       e.stopPropagation(); const oi=+op.dataset.oi,t=btn.dataset.t; const o=state.ans.sjt[i]||{};
@@ -471,8 +460,9 @@ function runKnowledge(){
     ()=>render(),null);
   function render(){
     const it=items[i]; const cur=(state.ans.knowledge[i]||{}).a;
+    const order=optOrder(it.id,it.options.length);
     app.innerHTML=`<div class="muted">Вопрос ${i+1} из ${items.length}</div><h2 style="font-size:18px">${esc(it.stem)}</h2>`+
-      it.options.map((o,oi)=>`<div class="opt ${cur===oi?'on':''}" data-oi="${oi}"><div class="mk">${'АБВГ'[oi]}</div><div>${esc(o)}</div></div>`).join('');
+      order.map((oi,pos)=>`<div class="opt ${cur===oi?'on':''}" data-oi="${oi}"><div class="mk">${'АБВГ'[pos]}</div><div>${esc(it.options[oi])}</div></div>`).join('');
     app.querySelectorAll('.opt').forEach(op=>op.onclick=()=>{state.ans.knowledge[i]={id:it.id,a:+op.dataset.oi};render()});
     setProgress((state.mi+(i+1)/(items.length+1))/state.modules.length);
     setFoot(true,{next:i<items.length-1?'Далее':'Готово',prev:i>0,nextEnabled:cur!=null});

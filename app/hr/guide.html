@@ -98,6 +98,9 @@ td.n,th.n{text-align:center;font-family:'JetBrains Mono',monospace}
       <option value="supply">Снабжение / закупки</option>
       <option value="accounting">Бухгалтерия</option>
     </select></div>
+  <label style="margin-top:10px">Какие тесты включить</label>
+  <div id="testsBox" style="display:flex;flex-wrap:wrap;gap:8px 16px;margin-bottom:6px"></div>
+  <div class="muted" style="font-size:13px;margin-bottom:8px">Снимите галочки, чтобы дать кандидату только часть тестов. Каждая ссылка даёт свой код-результат.</div>
   <div class="out" id="linkOut"></div>
   <div style="margin-top:12px"><button class="btn" id="copyLink">Скопировать ссылку</button> <span id="copyMsg" style="font-size:13px;color:var(--text-3)"></span></div>
 </div>
@@ -171,18 +174,29 @@ td.n,th.n{text-align:center;font-family:'JetBrains Mono',monospace}
 
 <script src="data/positions.js"></script>
 <script>
-const posSel=document.querySelector('#pos'), kpSel=document.querySelector('#kp'), kpWrap=document.querySelector('#kpWrap'), out=document.querySelector('#linkOut');
+const posSel=document.querySelector('#pos'), kpSel=document.querySelector('#kp'), kpWrap=document.querySelector('#kpWrap'), out=document.querySelector('#linkOut'), testsBox=document.querySelector('#testsBox');
 Object.values(window.HR_POSITIONS).forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.icon+' '+p.label;posSel.appendChild(o)});
+const MOD_LABELS={personality:'Личностный',cognitive:'Способности',attention:'Внимательность',sjt:'Рабочие ситуации',integrity:'Надёжность',biodata:'Опыт / продуктивность',knowledge:'Профзнания'};
 function base(){return location.href.replace(/guide\.html.*$/,'index.html')}
+function renderTests(){
+  const p=window.HR_POSITIONS[posSel.value];
+  testsBox.innerHTML=p.modules.map(m=>`<label style="display:inline-flex;align-items:center;gap:5px;font-weight:500;font-size:14px;cursor:pointer">
+    <input type="checkbox" value="${m}" checked> ${MOD_LABELS[m]||m}</label>`).join('');
+  testsBox.querySelectorAll('input').forEach(c=>c.onchange=build);
+}
 function build(){
   const p=window.HR_POSITIONS[posSel.value];
   const needsKp = p.id==='itr'; // только ИТР выбирает профиль (ПТО/снабжение/бухгалтерия); у продаж профиль фиксирован
   kpWrap.style.display = needsKp ? 'block':'none';
   let url=base()+'?pos='+p.id;
   if(needsKp) url+='&kp='+kpSel.value;
+  const checked=[...testsBox.querySelectorAll('input:checked')].map(c=>c.value);
+  const knowledgeIn = checked.includes('knowledge');
+  if(needsKp && !knowledgeIn){} // профиль не нужен, если профзнания сняты — но оставим kp безвредным
+  if(checked.length && checked.length<p.modules.length) url+='&tests='+checked.join(',');
   out.textContent=url;
 }
-posSel.onchange=build; kpSel.onchange=build; build();
+posSel.onchange=()=>{renderTests();build();}; kpSel.onchange=build; renderTests(); build();
 document.querySelector('#copyLink').onclick=()=>{navigator.clipboard.writeText(out.textContent).then(()=>document.querySelector('#copyMsg').textContent='Скопировано ✓')};
 </script>
 </body>
