@@ -208,6 +208,8 @@ function renderHome(){
   renderList();
 }
 function decInfo(d){return d==='hire'?{label:'Нанять',tone:'good'}:d==='reserve'?{label:'Резерв',tone:'warn'}:d==='reject'?{label:'Отказ',tone:'bad'}:{label:'',tone:'neutral'}}
+function stageInfo(s){return s==='personality'?{label:'Этап 1 · личность',tone:'neutral'}:s==='iq'?{label:'Этап 2 · IQ',tone:'warn'}:{label:'Полная оценка',tone:'neutral'}}
+function statusInfo(s){return s==='review'?{label:'на рассмотрении',tone:'neutral'}:s==='passed'?{label:'прошёл',tone:'good'}:{label:'не прошёл',tone:'bad'}}
 function renderList(){
   const wrap=$('#listWrap'); if(!wrap)return;
   HRStore.listCandidates().then(list=>{
@@ -219,11 +221,11 @@ function renderList(){
       h+=`<h2>${P.icon||''} ${esc(P.label||fam)}</h2>`;
       byFam[fam].sort((a,b)=>(b.fit||0)-(a.fit||0));
       byFam[fam].forEach(r=>{
-        const dec=decInfo(r.decision);
+        const dec=decInfo(r.decision), st=stageInfo(r.stage), status=statusInfo(r.status);
         h+=`<div class="candrow" data-id="${esc(r.id)}">
           <div><div class="nm">${esc(r.name||'Без имени')}</div>
-            <div class="meta">${esc(r.phone||'')}${r.email?' · '+esc(r.email):''} · Fit ${r.fit==null?'—':r.fit}</div></div>
-          <div>${r.status?`<span class="pill ${r.status==='passed'?'good':'bad'}">${r.status==='passed'?'прошёл':'не прошёл'}</span>`:''}</div>
+            <div class="meta">${esc(r.phone||'')}${r.email?' · '+esc(r.email):''} · ${st.label} · Fit ${r.fit==null?'—':r.fit}</div></div>
+          <div>${r.status?`<span class="pill ${status.tone}">${status.label}</span>`:''}</div>
           <div>${dec.label?`<span class="pill ${dec.tone}">${dec.label}</span>`:''}</div>
           <div><button class="btn ghost sm" data-del="${esc(r.id)}">✕</button></div>
         </div>`;
@@ -242,8 +244,9 @@ function analyze(code){
   const dec=HR.decodeResult(code); const msg=$('#inputMsg');
   if(dec.error){ if(msg){msg.textContent=dec.error;msg.style.color='var(--red)'} else toast(dec.error); return; }
   const d=dec.data; let qr; try{ qr=HR.quickResult(d,SETTINGS); }catch(e){ qr={fit:0,passed:false}; }
+  const stage=d.stage||'full';
   const payload={ name:(d.cand&&d.cand.name)||'', phone:(d.cand&&d.cand.phone)||'', email:(d.cand&&d.cand.email)||'',
-    fam:d.fam, kp:d.kp, status:qr.passed?'passed':'failed', fit:qr.fit, code:code.trim() };
+    stage, fam:d.fam, kp:d.kp, status:stage==='personality'?'review':(qr.passed?'passed':'failed'), fit:qr.fit, code:code.trim() };
   if(msg){ msg.textContent='Добавляю в систему…'; msg.style.color=''; }
   HRStore.submitCode(payload)
     .then(r=>HRStore.getCandidate(r.id))
@@ -270,9 +273,10 @@ function barRow(label,val,opt){
 }
 function renderReport(){
   const s=SCORED, P=s.P, d=D, c=s.combined;
-  const dec=decInfo(REC.decision);
+  const dec=decInfo(REC.decision), status=statusInfo(REC.status), stage=stageInfo(REC.stage);
   let h=`<div class="card"><div class="row" style="justify-content:space-between">
-      <div><h1>${esc(REC.name||'Кандидат')} ${REC.status?`<span class="pill ${REC.status==='passed'?'good':'bad'}" style="vertical-align:middle;font-size:12px">${REC.status==='passed'?'прошёл порог':'не прошёл порог'}</span>`:''}</h1>
+      <div><h1>${esc(REC.name||'Кандидат')} ${REC.status?`<span class="pill ${status.tone}" style="vertical-align:middle;font-size:12px">${status.label}</span>`:''}</h1>
+      <div class="muted">${stage.label}</div>
       <div class="muted">${P.icon} ${P.label}${d.kp?' · профиль: '+d.kp:''}${REC.phone?' · 📞 '+esc(REC.phone):''}${REC.email?' · ✉ '+esc(REC.email):''}</div>
       <div class="muted">пройдено ${d.ts||''} · ${Math.round((d.total||0)/60)} мин</div></div>
       <div class="noprint"><button class="btn ghost sm" onclick="renderHome()">← К списку</button> <button class="btn ghost sm" onclick="window.print()">Печать</button></div>
@@ -585,7 +589,7 @@ setTimeout(()=>{ if(!app.children.length) renderGate('Не удалось под
   function rowToRec(row){
     const iv=parseIV(row.interview);
     return { id:row.id, code:row.code, name:row.name||'', phone:row.phone||'', email:row.email||'',
-      fam:row.fam, kp:row.kp, status:row.status, fit:row.fit, decision:row.decision||null, notes:row.notes||'',
+      fam:row.fam, stage:row.stage||'full', kp:row.kp, status:row.status, fit:row.fit, decision:row.decision||null, notes:row.notes||'',
       interview:{scores:iv.scores||{}}, biodata:iv.biodata||{overrides:{},confirmed:{}}, submitted_at:row.submitted_at };
   }
   const listeners=[];
