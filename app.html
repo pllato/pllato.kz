@@ -2438,22 +2438,42 @@ const RATE_KEY = 'pllato_usd_rate';
 let MONEY = {};
 let RATE = 530; // ₸ за $1 (редактируется)
 let MONEY_LOADED = false;
+let MONEY_LOAD_PROMISE = null;
+let MONEY_SAVE_TIMER = null;
 function canSeeProjectMoney(){ return CURRENT?.isSuperAdmin === true; }
-function saveMoney(){ if(!canSeeProjectMoney()) return; try { localStorage.setItem(MONEY_KEY, JSON.stringify(MONEY)); } catch(e){} }
-function saveRate(){ if(!canSeeProjectMoney()) return; try { localStorage.setItem(RATE_KEY, String(RATE)); } catch(e){} }
-function loadMoney(){
+async function persistMoney(){
+  if(!canSeeProjectMoney() || !MONEY_LOADED) return;
+  await apiFetch('/project-finance',{method:'PUT',body:{money:MONEY,rate:RATE}});
+}
+function scheduleMoneySave(){
+  if(!canSeeProjectMoney() || !MONEY_LOADED) return;
+  clearTimeout(MONEY_SAVE_TIMER);
+  MONEY_SAVE_TIMER=setTimeout(()=>persistMoney().catch(e=>console.error('project finance save:',e)),450);
+}
+function saveMoney(){ scheduleMoneySave(); }
+function saveRate(){ scheduleMoneySave(); }
+async function loadMoney(){
   if (MONEY_LOADED || !canSeeProjectMoney()) return;
-  MONEY_LOADED = true;
-  const r = parseFloat(localStorage.getItem(RATE_KEY)); if (r > 0) RATE = r;
-  const raw = localStorage.getItem(MONEY_KEY);
-  if (raw) { try { MONEY = JSON.parse(raw) || {}; } catch(e){ MONEY = {}; } }
-  else {
-    const seed = { eastpole_freeride:{deal:1500000}, skala_crm:{deal:1455000}, sella_crm:{deal:2100000}, agrosklad_portal:{deal:1500000}, magistral_rail:{deal:1500000}, azam_zavod:{deal:2500000}, plombir_zavod:{deal:2500000}, ava_cosmetics:{deal:1500000}, genius_school:{deal:1500000}, rl_system:{deal:2000000}, gulzar_flowers:{deal:2700,cur:'USD'} };
-    Object.entries(seed).forEach(([id,o]) => { MONEY[id] = { deal:o.deal, pays:[], cur:o.cur||'KZT' }; });
-    saveMoney();
-  }
-  // мягкая миграция: Оранжерея считается в долларах ($2700)
-  if (MONEY.gulzar_flowers && !MONEY.gulzar_flowers.cur && MONEY.gulzar_flowers.deal === 1350000) { MONEY.gulzar_flowers.deal = 2700; MONEY.gulzar_flowers.cur = 'USD'; saveMoney(); }
+  if (MONEY_LOAD_PROMISE) return MONEY_LOAD_PROMISE;
+  MONEY_LOAD_PROMISE=(async()=>{
+    const server=await apiFetch('/project-finance');
+    if(server.exists){
+      MONEY=server.money||{};
+      RATE=Number(server.rate)||530;
+    } else {
+      // Одноразовый перенос прежних данных из браузера Super Admin на сервер.
+      const raw=localStorage.getItem(MONEY_KEY);
+      const localRate=parseFloat(localStorage.getItem(RATE_KEY));
+      try { MONEY=raw ? (JSON.parse(raw)||{}) : {}; } catch(e){ MONEY={}; }
+      if(localRate>0) RATE=localRate;
+      MONEY_LOADED=true;
+      await persistMoney();
+      localStorage.removeItem(MONEY_KEY);
+      localStorage.removeItem(RATE_KEY);
+    }
+    MONEY_LOADED=true;
+  })().finally(()=>{MONEY_LOAD_PROMISE=null;});
+  return MONEY_LOAD_PROMISE;
 }
 function mEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function curOf(id){ return (MONEY[id] && MONEY[id].cur) || 'KZT'; }
@@ -2470,9 +2490,11 @@ function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.get
 function mCard(id){ return document.querySelector('.tool-card[data-app-id="'+CSS.escape(id)+'"]'); }
 function projName(id){ const c=mCard(id); return ((c && c.querySelector('h3') && c.querySelector('h3').textContent) || id).trim(); }
 
-function injectMoney(){
+async function injectMoney(){
   if (!canSeeProjectMoney()) return;
-  loadMoney();
+  try { await loadMoney(); }
+  catch(e){ console.error('project finance load:',e); return; }
+  if (!canSeeProjectMoney()) return;
   document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
     if (card.querySelector('.money-strip')) return;
     if (card.dataset.group && card.dataset.group !== 'Работа с клиентами') return; // деньги — только по клиентским проектам
@@ -2497,6 +2519,8 @@ function syncProjectMoneyVisibility(){
   _mmId = null;
   MONEY = {};
   MONEY_LOADED = false;
+  MONEY_LOAD_PROMISE = null;
+  clearTimeout(MONEY_SAVE_TIMER);
 }
 function renderMoneyStrip(id){
   if (!canSeeProjectMoney()) return;
