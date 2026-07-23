@@ -20,7 +20,9 @@ const TEAM_ID = "pllato";
 const STORE_COLLECTION_RE = /^[a-z0-9_]{1,64}$/;
 const DEFAULT_STORE_PULL_LIMIT = 5000;
 const MAX_STORE_OPS = 500;
-const BUILD_ID = "2026-05-21-auth-server-side-v2";
+const PRIVATE_PROJECT_FINANCE_COLLECTION = "_project_finance_private";
+const PRIVATE_PROJECT_FINANCE_ID = "global";
+const BUILD_ID = "2026-07-23-project-finance-server-v1";
 
 let googleKeysCache = {
   keys: null,
@@ -855,6 +857,9 @@ async function handleStorePull(request, env, actor) {
   if (collections.length === 0) {
     throw new HttpError(400, "Передай массив collections для pull");
   }
+  if (collections.includes(PRIVATE_PROJECT_FINANCE_COLLECTION) && !canAccessProjectFinance(actor)) {
+    throw new HttpError(403, "Финансы проектов доступны только Super Admin");
+  }
 
   const data = {};
   for (const collection of collections) {
@@ -882,6 +887,9 @@ async function handleStorePush(request, env, actor) {
   for (const op of ops) {
     if (!isObject(op)) continue;
     const collection = normalizeCollectionName(op.collection);
+    if (collection === PRIVATE_PROJECT_FINANCE_COLLECTION && !canAccessProjectFinance(actor)) {
+      throw new HttpError(403, "Финансы проектов доступны только Super Admin");
+    }
     const type = String(op.type || "").toLowerCase();
     if (type === "upsert") {
       // FIX: pipelines не синхронизируются между клиентами — у каждого
@@ -2102,6 +2110,60 @@ function canManageUsers(actor) {
 
 function canDeleteUsers(actor) {
   return Boolean(actor?.isRoot || actor?.user?.isSuperAdmin);
+}
+
+function canAccessProjectFinance(actor) {
+  return Boolean(actor?.isRoot || actor?.user?.isSuperAdmin);
+}
+
+function requireProjectFinanceAccess(actor) {
+  if (!canAccessProjectFinance(actor)) {
+    throw new HttpError(403, "Финансы проектов доступны только Super Admin");
+  }
+}
+
+function normalizeProjectFinance(payload) {
+  const source = isObject(payload?.money) ? payload.money : {};
+  const money = {};
+  const projectIds = Object.keys(source).slice(0, 500);
+  for (const rawId of projectIds) {
+    const id = String(rawId || "").trim();
+    if (!/^[a-zA-Z0-9_-]{1,80}$/.test(id)) continue;
+    const item = isObject(source[rawId]) ? source[rawId] : {};
+    const deal = Math.max(0, Math.min(Number(item.deal) || 0, 1_000_000_000_000));
+    const cur = item.cur === "USD" ? "USD" : "KZT";
+    const pays = (Array.isArray(item.pays) ? item.pays : []).slice(0, 1000).map((p) => ({
+      d: /^\d{4}-\d{2}-\d{2}$/.test(String(p?.d || "")) ? String(p.d) : "",
+      sum: Math.max(0, Math.min(Number(p?.sum) || 0, 1_000_000_000_000)),
+    })).filter((p) => p.sum > 0);
+    money[id] = { deal, cur, pays };
+  }
+  return {
+    money,
+    rate: Math.max(1, Math.min(Number(payload?.rate) || 530, 1_000_000)),
+  };
+}
+
+async function handleProjectFinanceGet(env, actor) {
+  requireProjectFinanceAccess(actor);
+  const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
+  if (!stored) return { ok: true, exists: false, money: {}, rate: 530 };
+  const normalized = normalizeProjectFinance(stored);
+  return { ok: true, exists: true, ...normalized, updatedAt: stored.updatedAt || null };
+}
+
+async function handleProjectFinancePut(request, env, actor) {
+  requireProjectFinanceAccess(actor);
+  const body = await readRequestBodyAsJson(request);
+  const normalized = normalizeProjectFinance(body);
+  const now = Date.now();
+  await d1UpsertDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, {
+    id: PRIVATE_PROJECT_FINANCE_ID,
+    ...normalized,
+    createdAt: now,
+    updatedAt: now,
+  }, actor.email);
+  return { ok: true, ...normalized, updatedAt: now };
 }
 
 async function d1InsertIntegrationLog(env, bucket, payload) {
@@ -7844,6 +7906,16 @@ export default {
       if (request.method === "POST" && path === "/channels/delete") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleChannelsDelete(request, env, actor));
+      }
+
+      if (request.method === "GET" && path === "/project-finance") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleProjectFinanceGet(env, actor));
+      }
+
+      if (request.method === "PUT" && path === "/project-finance") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleProjectFinancePut(request, env, actor));
       }
 
       if (request.method === "POST" && path === "/store/pull") {
