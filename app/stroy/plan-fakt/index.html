@@ -274,6 +274,10 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-main{display:flex;flex:1;min-height:0;}
 .lk-nav{width:214px;flex-shrink:0;overflow-y:auto;background:var(--panel);border-right:1px solid var(--line);padding:9px;display:flex;flex-direction:column;gap:8px;}
 .lk-pg{display:flex;gap:9px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:7px;cursor:pointer;font-family:var(--sans);}
+/* листы С линейками выделены из общего списка; пустые (титульники, планы) приглушены */
+.lk-pg.has{background:#fff;border-left:4px solid var(--steel);}
+.lk-pg.has .lk-pgt{color:var(--steel);}
+.lk-pg:not(.has){opacity:.62;}
 .lk-pg.on{border-color:var(--steel2);box-shadow:0 0 0 2px rgba(45,81,131,.16);background:#fff;}
 .lk-pg img{width:52px;height:38px;object-fit:cover;border:1px solid var(--line);border-radius:5px;background:#fff;flex-shrink:0;}
 .lk-pgi{min-width:0;flex:1;}
@@ -1627,8 +1631,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v376';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v376';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v377';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v377';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -1738,7 +1742,9 @@ function lkParseVertical(items){
 /* имя-потребитель: метка (буквы/цифры/точки, при желании через дефис) + «;» или «,».
    Требуем хотя бы одну цифру до разделителя, чтобы не принять обычные слова за имя.
    Ловит: В1-н2, ВР1-к1, М1.1, М0.1, ЩА5.1-н1, НЩСР-1, НЩО-5, НШУФО-5, ШУ-ХПж1, Вар-н1. */
-const LK_NAME=/^["“]?\s*(?=[^;,\n]*[-\d])([A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё0-9.()]*(?:-[A-Za-zА-Яа-яЁёA-Za-z0-9.()]+)*)\s*[;,]/;
+// запятая-разделитель имени не бывает ПЕРЕД цифрой: «…-LS-3х2,5-» — десятичная в сечении,
+// склееные марки 2539 ловились как «имя ячейки» и лист терял все фидеры (л.7 ЩО-1)
+const LK_NAME=/^["“]?\s*(?=[^;,\n]*[-\d])([A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё0-9.()]*(?:-[A-Za-zА-Яа-яЁёA-Za-z0-9.()]+)*)\s*(?:;|,(?!\d))/;
 function lkName(nm){return nm[1];}
 const LK_SECT=/(\d+)\s*[xхХX×]\s*(\d+(?:[,.]\d+)?)/;
 const LK_MARK=/(А[сcС]?\s*ВВГ|КВВГ|ВВГ|ШВВП|ПВ\s?\d|ПГ\d|DEVI[A-Za-z]*)/;   // DEVI… — греющий кабель (DEVIsnow 30T, S2 л.9)
@@ -1806,6 +1812,11 @@ function lkParseHorizLoose(lines,used,hmeta){
       const spec=m[0],mark=lkMarkName(spec),st=starts[n]||{};n++;
       rows.push({group:'—',mark,section:m[1]+'x'+m[2].replace('.',','),len:parseFloat(m[3].replace(',','.')),conds:[],x:st.x||0,y:st.y||0});
     }
+    // ЦЕЛАЯ строка «марка сечение - длина» без «мм²» — тоже линия («ВВГнг (А)-FRLS 5х35 - 3м»,
+    // 022 л.5: раньше цеплялась за случайное «имя» L1,2,3 — фазные метки именем больше не считаются)
+    if(!n){const w=line.match(/^((?:А[сcС]?\s?)?(?:КВВГ|ВВГ|ШВВП)[А-Яа-яЁёA-Za-z0-9()\-\s]{0,20}?)\s*(\d+)\s*[xхХX×]\s*(\d+(?:[,.]\d+)?)\s*[-–]\s*(\d+(?:[,.]\d+)?)\s*м\s*$/);
+      if(w){const st=starts[0]||(hmeta&&hmeta[idx]&&hmeta[idx].pos)||{};
+        rows.push({group:'—',mark:lkMarkName(w[1]),section:w[2]+'x'+w[3].replace('.',','),len:parseFloat(w[4].replace(',','.')),conds:[],x:st.x||0,y:st.y||0,mult:lkMult(line)});}}
   });
   return rows;
 }
@@ -2569,7 +2580,7 @@ function renderLineyka(){
   // листы строго ПО ПОРЯДКУ (1..N), как в PDF: группировка по ВРУ вырывала листы из
   // последовательности («нет всех страниц») — ВРУ показываем подписью на самом листе
   let navH='';LK.pages.forEach((pg,i)=>{const pt=lkSum(pg.rows).t;
-    navH+=`<button class="lk-pg ${i===LK.sel?'on':''}" data-pg="${i}"><div class="lk-pgi"><div class="lk-pgt">Лист ${pg.page}${pg.vru?` <span style="font-weight:600;opacity:.65">· ${esc(pg.vru)}</span>`:''}</div><div class="lk-pgn">${pg.shields.length?esc(pg.shields.join(', ')):'линейка'}</div><div class="lk-pgm">${Math.round(pt)} м · ${pg.rows.length} лин.</div></div></button>`;});
+    navH+=`<button class="lk-pg ${i===LK.sel?'on':''} ${(pg.rows||[]).length?'has':''}" data-pg="${i}"><div class="lk-pgi"><div class="lk-pgt">Лист ${pg.page}${pg.vru?` <span style="font-weight:600;opacity:.65">· ${esc(pg.vru)}</span>`:''}</div><div class="lk-pgn">${pg.shields.length?esc(pg.shields.join(', ')):'линейка'}</div><div class="lk-pgm">${Math.round(pt)} м · ${pg.rows.length} лин.</div></div></button>`;});
   if(LK.stale)navH=`<div class="lk-stale">⚠ Разбор сделан <b>старой версией</b> парсера. Сейчас — <b>${LK_PARSER_VER}</b>: исправления не видны, пока файл не перечитан.<button class="lk-add" id="lkStaleRe">⟳ Перечитать файл сейчас</button><div class="lk-stale-sub">Ручные правки строк будут заменены свежим разбором; пометки ⚑ останутся.</div></div>`+navH;
   $('lkNav').innerHTML=navH;
   const _sre=$('lkStaleRe');if(_sre)_sre.onclick=()=>lkReparse();
