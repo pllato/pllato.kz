@@ -41,17 +41,18 @@ export default {
       if (path === "/api/hr/submit" && request.method === "POST") {
         const b = await request.json();
         if (!b.phone || !b.fam || !b.code) return json({ error: "Нужны phone, fam, code" }, 400, request);
-        // одна запись на телефон+должность: повторное прохождение обновляет результат,
+        // одна запись на телефон+должность+этап: повторное прохождение этапа обновляет результат,
         // но решение/заметки/интервью ответственного НЕ затираются.
-        const id = sanId(b.phone) + "_" + sanId(b.fam);
-        const status = b.status === "passed" ? "passed" : "failed";
+        const stage = ["personality", "iq", "full"].includes(b.stage) ? b.stage : "full";
+        const id = sanId(b.phone) + "_" + sanId(b.fam) + "_" + stage;
+        const status = ["review", "passed", "failed"].includes(b.status) ? b.status : "failed";
         await env.DB.prepare(
-          "INSERT INTO submissions (id,name,phone,fam,kp,status,fit,code,submitted_at,updated_at) " +
-          "VALUES (?,?,?,?,?,?,?,?,?,?) " +
-          "ON CONFLICT(id) DO UPDATE SET name=excluded.name,kp=excluded.kp,status=excluded.status," +
+          "INSERT INTO submissions (id,name,phone,email,fam,stage,kp,status,fit,code,submitted_at,updated_at) " +
+          "VALUES (?,?,?,?,?,?,?,?,?,?,?,?) " +
+          "ON CONFLICT(id) DO UPDATE SET name=excluded.name,email=excluded.email,kp=excluded.kp,status=excluded.status," +
           "fit=excluded.fit,code=excluded.code,submitted_at=excluded.submitted_at,updated_at=excluded.updated_at"
         ).bind(
-          id, (b.name || "").slice(0, 120), sanId(b.phone), sanId(b.fam), b.kp || null,
+          id, (b.name || "").slice(0, 120), sanId(b.phone), String(b.email || "").slice(0, 160), sanId(b.fam), stage, b.kp || null,
           status, b.fit == null ? null : (b.fit | 0), String(b.code).slice(0, 20000), nowISO(), nowISO()
         ).run();
         return json({ ok: true, id, status }, 200, request);
@@ -69,7 +70,7 @@ export default {
 
       if (path === "/api/hr/submissions" && request.method === "GET") {
         const rows = await env.DB.prepare(
-          "SELECT id,name,phone,fam,kp,status,fit,decision,notes,interview,submitted_at,updated_at,updated_by FROM submissions ORDER BY submitted_at DESC"
+          "SELECT id,name,phone,email,fam,stage,kp,status,fit,decision,notes,interview,submitted_at,updated_at,updated_by FROM submissions ORDER BY submitted_at DESC"
         ).all();
         return json({ items: rows.results || [] }, 200, request);
       }

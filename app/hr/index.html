@@ -113,6 +113,8 @@ const $ = s => document.querySelector(s);
 const app = $('#app'), foot = $('#foot'), nextBtn = $('#nextBtn'), prevBtn = $('#prevBtn');
 const timerEl = $('#timer'), progressBar = $('#progressBar');
 const qp = new URLSearchParams(location.search);
+const STAGE = ['personality','iq'].includes(qp.get('stage')) ? qp.get('stage') : 'full';
+const STAGE_LABEL = STAGE==='personality' ? 'Этап 1 — анализ личности' : STAGE==='iq' ? 'Этап 2 — IQ / тест способностей' : 'Анкета кандидата';
 function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 function fmtTime(s){const m=Math.floor(s/60),x=s%60;return String(m).padStart(2,'0')+':'+String(x).padStart(2,'0')}
 function shuffle(a,seed){a=a.slice();let r=seed||1;for(let i=a.length-1;i>0;i--){r=(r*9301+49297)%233280;const j=Math.floor(r/233280*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
@@ -149,8 +151,9 @@ const WORKER = ((window.HR_CONFIG&&window.HR_CONFIG.workerUrl)||'').replace(/\/$
 // Ориентиры времени по разделам (минуты)
 const MODULE_MIN = {personality:12, cognitive:15, attention:4, sjt:13, integrity:8, biodata:8, knowledge:12};
 function posMinutes(fam){ const p=POS[fam]; if(!p)return 0; return (p.modules||[]).reduce((s,m)=>s+(MODULE_MIN[m]||5),0); }
+function selectedMinutes(fam){ const requested=(qp.get('tests')||'').split(',').map(s=>s.trim()).filter(Boolean); return requested.length ? requested.reduce((s,m)=>s+(MODULE_MIN[m]||5),0) : posMinutes(fam); }
 let state = {
-  fam:null, kp:null, cform:'A', cand:{name:'',phone:'',sex:'m',age:'y'},
+  stage:STAGE, fam:null, kp:null, cform:'A', cand:{name:'',phone:'',email:'',sex:'m',age:'y'},
   modules:[], mi:0, // module index
   ans:{ personality:{}, fc:[], cognitive:[], sjt:[], integrity:{}, biodata:{}, knowledge:[], attention:null, cogTimes:{} },
   telemetry:{blur:0,paste:0}, startTs:0
@@ -159,8 +162,8 @@ window.addEventListener('blur',()=>{ if(state.startTs) state.telemetry.blur++ })
 document.addEventListener('paste',()=>{ if(state.startTs) state.telemetry.paste++ });
 
 /* ============ Черновик (тот же браузер) ============ */
-const DRAFT_KEY='hr_candidate_draft';
-function saveDraft(){ try{ if(!state.fam)return; localStorage.setItem(DRAFT_KEY, JSON.stringify({fam:state.fam,kp:state.kp,cform:state.cform,modules:state.modules,mi:state.mi,ans:state.ans,cand:state.cand,telemetry:state.telemetry,startTs:state.startTs,partial:state.partial,ts:Date.now()})); }catch(e){} }
+const DRAFT_KEY='hr_candidate_draft_'+STAGE;
+function saveDraft(){ try{ if(!state.fam)return; localStorage.setItem(DRAFT_KEY, JSON.stringify({stage:state.stage,fam:state.fam,kp:state.kp,cform:state.cform,modules:state.modules,mi:state.mi,ans:state.ans,cand:state.cand,telemetry:state.telemetry,startTs:state.startTs,partial:state.partial,ts:Date.now()})); }catch(e){} }
 function loadDraft(){ try{ return JSON.parse(localStorage.getItem(DRAFT_KEY)||'null'); }catch(e){ return null; } }
 function clearDraft(){ try{ localStorage.removeItem(DRAFT_KEY); }catch(e){} }
 window.addEventListener('beforeunload',()=>{ if(state.startTs) saveDraft(); });
@@ -192,8 +195,8 @@ function screenIntro(){
   }
   const preset = qp.get('pos');
   app.innerHTML = `
-    <h1>Анкета кандидата</h1>
-    <p>Профессиональный опросник для подбора персонала. Занимает <b id="estTime">30–55 минут</b> в зависимости от должности. Можно закрыть и продолжить позже с этого устройства. Отвечайте честно — в тесте есть встроенные проверки достоверности.</p>
+    <h1>${STAGE_LABEL}</h1>
+    <p>Профессиональный опросник для подбора персонала. Занимает <b id="estTime">около ${selectedMinutes(preset)||selectedMinutes('manager')} минут</b>. Можно закрыть и продолжить позже с этого устройства. Отвечайте честно — в тесте есть встроенные проверки достоверности.</p>
     <div class="card">
       <div class="field"><label>Имя и фамилия</label><input id="fName" placeholder="Например, Ерлан Ахметов"></div>
       <div class="field"><label>Телефон (для связи)</label><input id="fPhone" type="tel" inputmode="tel" placeholder="+7 701 000 00 00"></div>
@@ -205,10 +208,10 @@ function screenIntro(){
     </div>
     <div class="note warn">Нажимая «Начать», вы соглашаетесь на обработку ваших данных (имя, контакты, ответы) для оценки соответствия должности. Результат автоматически отправится работодателю.</div>`;
   let pick = preset||null;
-  const estEl=$('#estTime'); if(pick) estEl.textContent='около '+posMinutes(pick)+' минут';
+  const estEl=$('#estTime'); if(pick) estEl.textContent='около '+selectedMinutes(pick)+' минут';
   app.querySelectorAll('#sexSeg button').forEach(b=>b.onclick=()=>{app.querySelectorAll('#sexSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');state.cand.sex=b.dataset.v});
   app.querySelectorAll('#ageSeg button').forEach(b=>b.onclick=()=>{app.querySelectorAll('#ageSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');state.cand.age=b.dataset.v});
-  app.querySelectorAll('#posSeg button').forEach(b=>b.onclick=()=>{app.querySelectorAll('#posSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');pick=b.dataset.p;estEl.textContent='около '+posMinutes(pick)+' минут';updateNext()});
+  app.querySelectorAll('#posSeg button').forEach(b=>b.onclick=()=>{app.querySelectorAll('#posSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');pick=b.dataset.p;estEl.textContent='около '+selectedMinutes(pick)+' минут';updateNext()});
   ['fName','fPhone','fEmail'].forEach(id=>$('#'+id).oninput=updateNext);
   function valid(){ const ph=($('#fPhone').value||'').replace(/\D/g,''); const em=($('#fEmail').value||'').trim(); return $('#fName').value.trim() && ph.length>=6 && /@.+\./.test(em) && pick; }
   function updateNext(){ nextBtn.disabled=!valid(); }
@@ -227,7 +230,7 @@ function screenIntro(){
   };
 }
 function resumeDraft(draft){
-  Object.assign(state,{fam:draft.fam,kp:draft.kp,cform:draft.cform,modules:draft.modules,mi:draft.mi||0,ans:draft.ans,cand:draft.cand,telemetry:draft.telemetry||{blur:0,paste:0},startTs:draft.startTs||Date.now(),partial:draft.partial});
+  Object.assign(state,{stage:draft.stage||STAGE,fam:draft.fam,kp:draft.kp,cform:draft.cform,modules:draft.modules,mi:draft.mi||0,ans:draft.ans,cand:draft.cand,telemetry:draft.telemetry||{blur:0,paste:0},startTs:draft.startTs||Date.now(),partial:draft.partial});
   runModule();
 }
 
@@ -507,7 +510,7 @@ function runKnowledge(){
 function screenFinish(){
   stopTimer(); setProgress(1); foot.classList.add('hidden');
   const result={
-    v:1, ts:new Date().toISOString().slice(0,16), fam:state.fam, kp:state.kp, cform:state.cform,
+    v:1, ts:new Date().toISOString().slice(0,16), stage:state.stage, fam:state.fam, kp:state.kp, cform:state.cform,
     cand:state.cand, total:Math.round((Date.now()-state.startTs)/1000),
     telemetry:state.telemetry, ans:state.ans
   };
@@ -515,11 +518,12 @@ function screenFinish(){
   // локальный скоринг + порог «прошёл/не прошёл»
   let qr; try{ qr=HR.quickResult(result,{}); }catch(e){ qr={fit:0,passed:false}; }
   const passed=!!qr.passed;
+  const status=state.stage==='personality' ? 'review' : (passed?'passed':'failed');
   clearDraft(); // анкета завершена — черновик больше не нужен
 
   app.innerHTML=`<div class="big-center"><h1>Отправляем результат…</h1><p class="muted">Секунду.</p></div>`;
   const payload={ name:state.cand.name, phone:state.cand.phone, email:state.cand.email||'',
-    fam:state.fam, kp:state.kp, status:passed?'passed':'failed', fit:qr.fit, code:code };
+    stage:state.stage, fam:state.fam, kp:state.kp, status, fit:qr.fit, code:code };
 
   submitToServer(payload).then(ok=>{
     renderDone(passed, ok, code);
@@ -531,7 +535,13 @@ function submitToServer(payload){
     .then(r=>r.ok).catch(()=>false);
 }
 function renderDone(passed, sent, code){
-  if(passed){
+  if(state.stage==='personality'){
+    app.innerHTML=`<div class="big-center">
+      <div style="font-size:52px">✅</div>
+      <h1>Первый этап завершён</h1>
+      <p style="max-width:480px">${esc(state.cand.name||'')}, результаты анализа личности ${sent?'переданы работодателю':'сохранены'}. Если профиль подойдёт для выбранной должности, вам направят ссылку на второй этап — IQ / тест способностей.</p>
+    </div>`;
+  } else if(passed){
     app.innerHTML=`<div class="big-center">
       <div style="font-size:52px">✅</div>
       <h1>Спасибо, заявка принята!</h1>
