@@ -185,13 +185,14 @@ function cognitiveCheatFlags(d,admin,ans){
 /* =============== ДОМ: ввод + список кандидатов =============== */
 function renderHome(){
   MODE='evidence'; D=null; REC=null; SCORED=null;
-  const localNote = (window.__hrLocalNote && HRStore.mode==='local')
-    ? `<div class="card noprint" style="background:var(--bronze-tint);border-color:var(--line);display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap">
-        <span class="muted" style="margin:0">Локальный режим — данные хранятся в этом браузере. Чтобы работать командой (общий доступ) — настройте свой сервер по <b>hr-worker/README.md</b>.</span></div>` : '';
-  app.innerHTML=localNote+`
-  <div class="card noprint">
-    <h1>Анализ результата кандидата</h1>
-    <p>Вставьте код результата от кандидата (начинается с <code>HR1.</code>) или загрузите файл.</p>
+  app.innerHTML=`
+  <div class="card noprint" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <div><h1 style="margin:0">Кандидаты</h1><div class="muted">Заявки приходят сами, как только кандидат проходит анкету по вашей ссылке (pllato.kz/app/hr/).</div></div>
+    <button class="btn ghost sm" id="refreshBtn">↻ Обновить</button>
+  </div>
+  <div id="listWrap"><div class="card"><p class="muted" style="margin:0">Загрузка…</p></div></div>
+  <details class="card noprint"><summary style="cursor:pointer;font-weight:600">Добавить вручную по коду</summary>
+    <p class="muted" style="margin:10px 0 8px">Запасной способ: если кандидат прислал код результата — вставьте его сюда.</p>
     <textarea id="codeInput" class="code" placeholder="HR1.xxxxx.yyyyy..."></textarea>
     <div class="row" style="margin-top:12px">
       <button class="btn" id="analyzeBtn">Разобрать</button>
@@ -199,8 +200,8 @@ function renderHome(){
       <input type="file" id="fileInput" accept=".txt" class="hidden">
       <span class="muted" id="inputMsg"></span>
     </div>
-  </div>
-  <div id="listWrap"></div>`;
+  </details>`;
+  $('#refreshBtn').onclick=renderList;
   $('#analyzeBtn').onclick=()=>analyze($('#codeInput').value);
   $('#fileBtn').onclick=()=>$('#fileInput').click();
   $('#fileInput').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>analyze(r.result.trim());r.readAsText(f)};
@@ -210,7 +211,7 @@ function decInfo(d){return d==='hire'?{label:'Нанять',tone:'good'}:d==='re
 function renderList(){
   const wrap=$('#listWrap'); if(!wrap)return;
   HRStore.listCandidates().then(list=>{
-    if(!list.length){wrap.innerHTML=`<div class="card"><p class="muted" style="margin:0">Пока нет сохранённых кандидатов. Разберите первый код — он появится здесь${HRStore.mode==='firebase'?' и станет доступен всей команде':''}.</p></div>`;return;}
+    if(!list.length){wrap.innerHTML=`<div class="card"><p class="muted" style="margin:0">Пока никто не проходил анкету. Как только кандидат пройдёт тест по вашей ссылке — он появится здесь автоматически.</p></div>`;return;}
     const byFam={}; list.forEach(r=>{(byFam[r.fam]=byFam[r.fam]||[]).push(r)});
     let h='';
     Object.keys(byFam).forEach(fam=>{
@@ -220,9 +221,9 @@ function renderList(){
       byFam[fam].forEach(r=>{
         const dec=decInfo(r.decision);
         h+=`<div class="candrow" data-id="${esc(r.id)}">
-          <div><div class="nm">${esc(r.name||'Без имени')} ${r.invalid?'<span class="chip" style="background:var(--red-l);color:var(--red)">? достоверность</span>':''}</div>
-            <div class="meta">Fit ${r.fit==null?'—':r.fit}${r.interviewPct!=null?' · интервью '+r.interviewPct:''}${r.updatedBy?' · '+esc(r.updatedBy):''}</div></div>
-          <div>${r.combinedVerdict?`<span class="pill ${r.combinedTone||'neutral'}">${esc(r.combinedVerdict)}</span>`:''}</div>
+          <div><div class="nm">${esc(r.name||'Без имени')}</div>
+            <div class="meta">${esc(r.phone||'')}${r.email?' · '+esc(r.email):''} · Fit ${r.fit==null?'—':r.fit}</div></div>
+          <div>${r.status?`<span class="pill ${r.status==='passed'?'good':'bad'}">${r.status==='passed'?'прошёл':'не прошёл'}</span>`:''}</div>
           <div>${dec.label?`<span class="pill ${dec.tone}">${dec.label}</span>`:''}</div>
           <div><button class="btn ghost sm" data-del="${esc(r.id)}">✕</button></div>
         </div>`;
@@ -234,17 +235,20 @@ function renderList(){
   });
 }
 function migrateRec(r){r.interview=r.interview||{scores:{}};r.interview.scores=r.interview.scores||{};r.biodata=r.biodata||{};r.biodata.overrides=r.biodata.overrides||{};r.biodata.confirmed=r.biodata.confirmed||{};return r}
-function loadById(id){HRStore.getCandidate(id).then(rec=>{if(!rec){toast('Не найден');return}const dec=HR.decodeResult(rec.code);if(dec.error){toast(dec.error);return}D=dec.data;REC=migrateRec(rec);SCORED=computeScored();renderReport();window.scrollTo(0,0)})}
+function loadRec(rec){ const dec=HR.decodeResult(rec.code); if(dec.error){toast(dec.error);return} D=dec.data; REC=migrateRec(rec); SCORED=computeScored(); renderReport(); window.scrollTo(0,0); }
+function loadById(id){ HRStore.getCandidate(id).then(rec=>{ if(!rec){toast('Заявка не найдена');return} loadRec(rec); }); }
 function analyze(code){
+  // Ручной разбор кода (запасной путь): создаём заявку в системе и открываем её.
   const dec=HR.decodeResult(code); const msg=$('#inputMsg');
-  if(dec.error){if(msg){msg.textContent=dec.error;msg.style.color='var(--red)'}else toast(dec.error);return}
-  D=dec.data; const id=(code||'').trim().split('.')[1];
-  HRStore.getCandidate(id).then(existing=>{
-    REC=existing?migrateRec(existing):{id,code:code.trim(),name:D.cand.name||'',fam:D.fam,kp:D.kp,decision:null,notes:'',interview:{scores:{}},biodata:{overrides:{},confirmed:{}}};
-    REC.code=code.trim();
-    SCORED=computeScored(); persistSummary(); saveRecSoon();
-    renderReport(); window.scrollTo(0,0);
-  });
+  if(dec.error){ if(msg){msg.textContent=dec.error;msg.style.color='var(--red)'} else toast(dec.error); return; }
+  const d=dec.data; let qr; try{ qr=HR.quickResult(d,SETTINGS); }catch(e){ qr={fit:0,passed:false}; }
+  const payload={ name:(d.cand&&d.cand.name)||'', phone:(d.cand&&d.cand.phone)||'', email:(d.cand&&d.cand.email)||'',
+    fam:d.fam, kp:d.kp, status:qr.passed?'passed':'failed', fit:qr.fit, code:code.trim() };
+  if(msg){ msg.textContent='Добавляю в систему…'; msg.style.color=''; }
+  HRStore.submitCode(payload)
+    .then(r=>HRStore.getCandidate(r.id))
+    .then(rec=>{ if(rec) loadRec(rec); else toast('Не удалось загрузить'); })
+    .catch(e=>{ if(msg){ msg.textContent=e.message; msg.style.color='var(--red)'; } });
 }
 function persistSummary(){REC.fit=SCORED.fit.fit;REC.invalid=SCORED.invalid;REC.combinedVerdict=SCORED.combined.verdict;REC.combinedTone=SCORED.combined.tone;REC.interviewPct=SCORED.interview.pct}
 function applyEdit(){SCORED=computeScored();persistSummary();saveRecSoon();renderReport()}
@@ -268,8 +272,9 @@ function renderReport(){
   const s=SCORED, P=s.P, d=D, c=s.combined;
   const dec=decInfo(REC.decision);
   let h=`<div class="card"><div class="row" style="justify-content:space-between">
-      <div><h1>${esc(REC.name||'Кандидат')}</h1>
-      <div class="muted">${P.icon} ${P.label}${d.kp?' · профиль: '+d.kp:''} · пройдено ${d.ts||''} · ${Math.round((d.total||0)/60)} мин</div></div>
+      <div><h1>${esc(REC.name||'Кандидат')} ${REC.status?`<span class="pill ${REC.status==='passed'?'good':'bad'}" style="vertical-align:middle;font-size:12px">${REC.status==='passed'?'прошёл порог':'не прошёл порог'}</span>`:''}</h1>
+      <div class="muted">${P.icon} ${P.label}${d.kp?' · профиль: '+d.kp:''}${REC.phone?' · 📞 '+esc(REC.phone):''}${REC.email?' · ✉ '+esc(REC.email):''}</div>
+      <div class="muted">пройдено ${d.ts||''} · ${Math.round((d.total||0)/60)} мин</div></div>
       <div class="noprint"><button class="btn ghost sm" onclick="renderHome()">← К списку</button> <button class="btn ghost sm" onclick="window.print()">Печать</button></div>
     </div>
 
@@ -430,17 +435,8 @@ function renderSettings(){
     <button class="btn ghost sm" onclick="renderHome()">← Готово</button></div>
     <p class="muted">Изменения применяются ко всем кандидатам и, при подключённом сервере, ко всей команде. Значения по умолчанию — из доказательной базы; меняйте под свою компанию.</p></div>`;
 
-  // Команда — только в командном режиме для администратора
-  if(window.HR_ME && window.HR_ME.isAdmin) h+=`<div class="card" id="teamCard"><h2 style="margin-top:0">Команда (доступ к панели)</h2>
-    <p class="muted">Сотрудники, которые могут входить в панель найма. Добавляет и удаляет только админ.</p>
-    <div id="teamList" class="muted">Загрузка…</div>
-    <div class="row" style="margin-top:12px;gap:8px">
-      <input type="email" id="teamEmail" placeholder="email сотрудника" style="flex:1;min-width:180px">
-      <input type="text" id="teamName" placeholder="имя (необязательно)" style="flex:1;min-width:140px">
-      <select id="teamRole"><option value="member">участник</option><option value="admin">админ</option></select>
-      <button class="btn sm" id="teamAdd">Добавить</button>
-    </div>
-    <div class="muted" id="teamMsg" style="margin-top:6px"></div></div>`;
+  h+=`<div class="card"><h2 style="margin-top:0">Доступ к панели</h2>
+    <p class="muted">Вход в панель — по общему паролю команды. Сменить пароль: <code>npx wrangler secret put HR_TEAM_PASSWORD</code> в папке <b>hr-worker</b>.</p></div>`;
 
   h+=`<div class="card"><h2 style="margin-top:0">Вес интервью против тестов</h2>
     <p class="muted">Интервью — предиктор №1, поэтому по умолчанию весит больше. Сумма нормируется автоматически.</p>
@@ -470,8 +466,6 @@ function renderSettings(){
   renderWeights(fam);
   $('#famSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{SETTINGS._lastFam=b.dataset.f;renderSettings()});
   renderSJT(fam);
-  // team
-  if(window.HR_ME && window.HR_ME.isAdmin) renderTeam();
 }
 function renderTeam(){
   const list=$('#teamList'); if(!list) return;
@@ -573,79 +567,75 @@ window.startLocal=function(){ bootPanel(); };
 setTimeout(()=>{ if(!app.children.length) renderGate('Не удалось подключиться к серверу входа. Можно работать локально.'); }, 2500);
 </script>
 
-<!-- Серверный режим: вход через Google (Firebase Auth) + хранилище в Cloudflare Worker + D1.
-     Пока воркер не развёрнут / вход не сделан — доступен локальный режим (кнопка на экране входа). -->
-<script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
-import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+<!-- Командный доступ по паролю. Заявки кандидатов читаются с воркера (Cloudflare + D1). -->
+<script>
+(function(){
+  const CFG = window.HR_CONFIG || {};
+  const WORKER = (CFG.workerUrl||'').replace(/\/$/,'');
+  window.HR_SERVER_CONFIGURED = !!WORKER;
+  window.HR_ME = { isAdmin:true }; // в парольном режиме все с доступом — администраторы
+  const PW_KEY='hr_team_pw';
 
-// Конфиг берём из отдельного файла hr-config.js (свой Firebase-проект для HR, не CRM).
-const CFG = window.HR_CONFIG || {};
-const FB = CFG.firebase || {};
-const WORKER = (CFG.workerUrl || '').replace(/\/$/,'');
-const CONFIGURED = !!(FB.apiKey && FB.projectId && WORKER);
-window.HR_SERVER_CONFIGURED = CONFIGURED;
-
-let auth = null, localChosen = false;
-
-window.hrSignIn = () => { if(!auth) return; signInWithPopup(auth, new GoogleAuthProvider()).catch(e=>window.renderGate('Не удалось войти: '+e.message)); };
-window.hrSignOut = () => { localChosen=false; window.HR_ME=null; if(auth) signOut(auth); else window.renderGate(); };
-window.startLocal = () => { localChosen=true; window.HR_ME=null; document.getElementById('who').textContent='Локально (в этом браузере)'; bootPanel(); };
-
-// worker-бэкенд для HRStore — тот же интерфейс, что и локальный, плюс команда
-function workerStore(user){
-  async function api(path, opts){
-    const token = await user.getIdToken();
-    const r = await fetch(WORKER+path, { ...(opts||{}), headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+token, ...((opts&&opts.headers)||{}) } });
-    if(!r.ok){ let m; try{ m=(await r.json()).error }catch(e){} throw new Error(m||('HTTP '+r.status)); }
-    return r.json();
+  function api(path, opts){
+    const pw=localStorage.getItem(PW_KEY)||'';
+    return fetch(WORKER+path, {...(opts||{}), headers:{'Content-Type':'application/json','X-HR-Team':pw, ...((opts&&opts.headers)||{})}})
+      .then(async r=>{ if(!r.ok){ let m; try{m=(await r.json()).error}catch(e){} throw new Error(m||('HTTP '+r.status)); } return r.json(); });
+  }
+  function parseIV(s){ try{ return JSON.parse(s||'{}'); }catch(e){ return {}; } }
+  function rowToRec(row){
+    const iv=parseIV(row.interview);
+    return { id:row.id, code:row.code, name:row.name||'', phone:row.phone||'', email:row.email||'',
+      fam:row.fam, kp:row.kp, status:row.status, fit:row.fit, decision:row.decision||null, notes:row.notes||'',
+      interview:{scores:iv.scores||{}}, biodata:iv.biodata||{overrides:{},confirmed:{}}, submitted_at:row.submitted_at };
   }
   const listeners=[];
-  return {
-    mode:'firebase', backendLabel:'сервер команды',
+  window.HRStore = {
+    mode:'server', backendLabel:'сервер (по паролю)',
     init(){ return Promise.resolve(); },
-    user(){ return { email:user.email, name:user.email }; },
-    me(){ return api('/api/hr/me'); },
-    saveCandidate(rec){ return api('/api/hr/candidate/'+encodeURIComponent(rec.id), { method:'PUT', body:JSON.stringify(rec) }).then(d=>{ listeners.forEach(cb=>cb()); return d.item; }); },
-    getCandidate(id){ return api('/api/hr/candidate/'+encodeURIComponent(id)).then(d=>d.item); },
-    listCandidates(){ return api('/api/hr/candidates').then(d=>d.items||[]); },
-    deleteCandidate(id){ return api('/api/hr/candidate/'+encodeURIComponent(id), { method:'DELETE' }).then(()=>{ listeners.forEach(cb=>cb()); }); },
+    user(){ return {name:'команда', email:'команда'}; },
+    me(){ return Promise.resolve({isAdmin:true}); },
+    listCandidates(){ return api('/api/hr/submissions').then(d=>(d.items||[]).map(rowToRec)); },
+    getCandidate(id){ return api('/api/hr/submission/'+encodeURIComponent(id)).then(d=>d.item?rowToRec(d.item):null); },
+    saveCandidate(rec){ return api('/api/hr/submission/'+encodeURIComponent(rec.id),{method:'PATCH',body:JSON.stringify({decision:rec.decision,notes:rec.notes,name:rec.name,interview:{scores:rec.interview.scores,biodata:rec.biodata}})}).then(()=>{listeners.forEach(cb=>cb());return rec;}); },
+    submitCode(payload){ return api('/api/hr/submit',{method:'POST',body:JSON.stringify(payload)}).then(d=>{listeners.forEach(cb=>cb());return d;}); },
+    deleteCandidate(id){ return api('/api/hr/submission/'+encodeURIComponent(id),{method:'DELETE'}).then(()=>listeners.forEach(cb=>cb())); },
     getSettings(){ return api('/api/hr/settings').then(d=>d.settings||{}); },
-    saveSettings(s){ return api('/api/hr/settings', { method:'PUT', body:JSON.stringify(s) }); },
-    getTeam(){ return api('/api/hr/team'); },
-    addTeam(email,name,role){ return api('/api/hr/team', { method:'POST', body:JSON.stringify({email,name,role}) }); },
-    removeTeam(email){ return api('/api/hr/team/'+encodeURIComponent(email), { method:'DELETE' }); },
-    onChange(cb){ listeners.push(cb); return ()=>{ const i=listeners.indexOf(cb); if(i>=0) listeners.splice(i,1); }; },
+    saveSettings(s){ return api('/api/hr/settings',{method:'PUT',body:JSON.stringify(s)}); },
+    onChange(cb){ listeners.push(cb); return ()=>{const i=listeners.indexOf(cb);if(i>=0)listeners.splice(i,1);}; },
   };
-}
 
-// небольшая кнопка «выйти» в шапке в командном режиме
-function addSignOut(email){
-  const bar=document.querySelector('.top'); let b=document.getElementById('signOutBtn');
-  if(!b){ b=document.createElement('button'); b.id='signOutBtn'; b.className='nav'; b.textContent='Выйти'; b.onclick=window.hrSignOut; bar.appendChild(b); }
-}
+  function addSignOut(){ const bar=document.querySelector('.top'); if(!document.getElementById('signOutBtn')){ const b=document.createElement('button'); b.id='signOutBtn'; b.className='nav'; b.textContent='Выйти'; b.onclick=window.hrSignOut; bar.appendChild(b);} }
+  window.hrSignOut=function(){ localStorage.removeItem(PW_KEY); const b=document.getElementById('signOutBtn'); if(b)b.remove(); renderGate(); };
 
-if(!CONFIGURED){
-  // Командный сервер не настроен — логиниться некуда, поэтому открываем панель
-  // СРАЗУ в локальном режиме (без экрана-замка и лишнего клика). Подсказку про
-  // командный режим показываем ненавязчивой плашкой внутри панели.
-  window.__hrLocalNote = true;
-  window.startLocal();
-} else {
-  auth = getAuth(initializeApp(FB));
-  onAuthStateChanged(auth, (user)=>{
-    if(localChosen) return;           // пользователь выбрал локальный режим — не перехватываем
-    if(user){
-      window.HRStore = workerStore(user);
-      // проверим доступ и роль (админ/участник), затем откроем панель
-      window.HRStore.me()
-        .then(me=>{ window.HR_ME=me; addSignOut(user.email); document.getElementById('who').textContent=user.email+(me.isAdmin?' · админ':''); bootPanel(); })
-        .catch(err=>{ window.renderGate(/доступ/.test(err.message)?err.message:('Сервер недоступен: '+err.message+'. Можно работать локально.')); });
-    } else {
-      renderGate();
-    }
-  });
-}
+  // Экран входа по паролю (перекрывает базовый renderGate)
+  window.renderGate=function(msg){
+    document.getElementById('who').textContent='';
+    app.innerHTML=`<div class="card" style="max-width:440px;margin:48px auto;text-align:center">
+      <div style="font-size:40px">🔒</div><h1>Панель найма</h1>
+      <p class="muted">Введите пароль команды, чтобы видеть кандидатов.</p>
+      ${msg?`<div class="flag red" style="text-align:left"><div>${esc(msg)}</div></div>`:''}
+      <input type="password" id="pwInp" placeholder="пароль" autocomplete="current-password" style="width:100%;margin:6px 0 10px;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:16px">
+      <button class="btn" id="pwBtn" style="width:100%">Войти</button>
+    </div>`;
+    const go=()=>{ const pw=document.getElementById('pwInp').value; if(!pw)return;
+      document.getElementById('pwBtn').textContent='Проверяю…';
+      fetch(WORKER+'/api/hr/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})})
+        .then(r=>{ if(r.ok){ localStorage.setItem(PW_KEY,pw); addSignOut(); bootPanel(); } else { renderGate('Неверный пароль'); } })
+        .catch(e=>renderGate('Сервер недоступен: '+e.message)); };
+    document.getElementById('pwBtn').onclick=go;
+    document.getElementById('pwInp').onkeydown=e=>{ if(e.key==='Enter') go(); };
+    document.getElementById('pwInp').focus();
+  };
+
+  if(!WORKER){ app.innerHTML='<div class="card" style="max-width:460px;margin:48px auto;text-align:center"><h1>Не настроено</h1><p class="muted">Не задан адрес сервера в hr-config.js.</p></div>'; return; }
+  app.innerHTML='<div class="big-center"><h1>Загрузка…</h1></div>';
+  const saved=localStorage.getItem(PW_KEY);
+  if(saved){
+    fetch(WORKER+'/api/hr/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:saved})})
+      .then(r=>{ if(r.ok){ addSignOut(); bootPanel(); } else { localStorage.removeItem(PW_KEY); renderGate(); } })
+      .catch(()=>renderGate('Сервер недоступен. Повторите позже.'));
+  } else { renderGate(); }
+})();
 </script>
 </body>
 </html>

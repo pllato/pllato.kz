@@ -302,5 +302,46 @@
     return { score: score, verdict: band.verdict, tone: band.tone, note: band.note, hasInterview: true, complete: interview.complete };
   };
 
+  /* ---------- Быстрый общий результат (для кандидатской стороны: Fit + прошёл/не прошёл) ----------
+     Переиспользует те же функции, что и панель. rec — для override/интервью (у кандидата пусто). */
+  HR.quickResult = function (d, settings) {
+    settings = settings || {};
+    const P = HR.effectivePosition(d.fam, settings);
+    const pers = HR.scorePersonality(d.ans.personality || {});
+    const lookup = {}; window.HR_COGNITIVE.items.forEach(it => lookup[it.id] = it);
+    window.HR_ABSTRACT.items.forEach(it => lookup[it.id] = Object.assign({ section: 'A' }, it));
+    let cog = null;
+    if ((d.ans.cognitive || []).length) {
+      const adm = d.ans.cognitive.map(c => lookup[c.id]).filter(Boolean);
+      cog = HR.scoreCognitive(adm, d.ans.cognitive.map(c => c.a));
+    }
+    const bank = P.sjtBank ? HR.effectiveSJT(window.HR_SJT[P.sjtBank], settings) : null;
+    const sjt = (bank && d.ans.sjt && d.ans.sjt.length) ? HR.scoreSJT(bank, d.ans.sjt) : null;
+    const intItems = window.HR_INTEGRITY.core.concat(window.HR_INTEGRITY[d.fam] || []);
+    const integ = (d.ans.integrity && Object.keys(d.ans.integrity).length) ? HR.scoreIntegrity(intItems, d.ans.integrity) : null;
+    const bioItems = window.HR_BIODATA.core.concat(window.HR_BIODATA[d.fam] || []);
+    const bio = (d.ans.biodata && Object.keys(d.ans.biodata).length) ? HR.scoreBiodata(bioItems, d.ans.biodata, d.fam, {}) : null;
+    let know = null;
+    if ((d.ans.knowledge || []).length) {
+      const kl = {}; window.HR_KNOWLEDGE.items.forEach(it => kl[it.id] = it);
+      let correct = 0, n = 0; d.ans.knowledge.forEach(k => { const it = kl[k.id]; if (it) { n++; if (k.a === it.answerIndex) correct++; } });
+      know = { score: n ? Math.round(correct / n * 100) : 0 };
+    }
+    const att = d.ans.attention ? HR.scoreAttention(d.ans.attention) : null;
+    const persAnswered = d.ans.personality && Object.keys(d.ans.personality).length;
+    const ms = {};
+    if (persAnswered) ms.personality = HR.personalityFit(P, pers);
+    if (cog) ms.cognitive = cog.composite.score;
+    if (sjt) ms.sjt = sjt.percent;
+    if (integ) ms.integrity = integ.score;
+    if (bio) ms.biodata = bio.score;
+    if (know) ms.knowledge = know.score;
+    if (att) ms.attention = att.score;
+    const fit = HR.computeFit(P, ms);
+    // Порог прохождения: второй порог вердикта (по умолчанию 60). Ниже — «не прошёл».
+    const passMin = (window.HR_BANDS.fit[1] && window.HR_BANDS.fit[1].min) || 60;
+    return { fit: fit.fit, tone: fit.tone, verdict: fit.verdict, passed: fit.fit >= passMin, passMin: passMin, moduleScores: ms };
+  };
+
   window.HR = HR;
 })();

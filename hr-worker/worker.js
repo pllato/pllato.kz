@@ -1,33 +1,17 @@
-// ── Pllato HR Worker ─────────────────────────────────────
-// Хранилище оценок кандидатов для HR-панели (app/hr/admin.html).
-// Auth: Firebase ID token (Google Sign-In), тот же проект pllato-crm, что и CRM.
-// Доступ: только e-mail из HR_ALLOWED_EMAILS (+ uurraa@gmail.com).
-// Данные: D1 (pllato-hr-d1). Кандидатский тест (app/hr/index.html) сюда НЕ ходит —
-// он публичный и отдаёт код, который работодатель вставляет в панель.
+/* pllato-hr-worker — воронка найма.
+   • Кандидат (публично, без входа): POST /api/hr/submit — присылает заявку с результатом.
+   • Ответственный/команда (по паролю HR_TEAM_PASSWORD в заголовке X-HR-Team):
+     GET /api/hr/submissions, PATCH/DELETE /api/hr/submission/:id, GET/PUT /api/hr/settings.
+   Хранилище — Cloudflare D1 (pllato-hr-d1). Никакого Firebase. */
 
-import { jwtVerify, createRemoteJWKSet } from "jose";
-
-const ALLOWED_ORIGINS = new Set([
-  "https://pllato.kz",
-  "https://www.pllato.kz",
-  "http://localhost:8779",
-  "http://localhost:8765",
-  "http://localhost:8080",
-  "http://localhost:5173",
-  "http://localhost:3000",
-]);
-
-const FIREBASE_JWKS = createRemoteJWKSet(
-  new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com")
-);
+const nowISO = () => new Date().toISOString();
 
 function corsHeaders(request) {
-  const origin = request.headers.get("Origin") || "";
-  const allow = ALLOWED_ORIGINS.has(origin) ? origin : "https://pllato.kz";
+  const origin = request.headers.get("Origin") || "*";
   return {
-    "Access-Control-Allow-Origin": allow,
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type,X-HR-Team",
     "Access-Control-Max-Age": "86400",
     "Vary": "Origin",
   };
@@ -38,128 +22,99 @@ function json(data, status, request) {
     headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders(request) },
   });
 }
-
-async function verifyFirebaseIdToken(token, projectId) {
-  const { payload } = await jwtVerify(token, FIREBASE_JWKS, {
-    issuer: `https://securetoken.google.com/${projectId}`,
-    audience: projectId,
-  });
-  return payload;
+function sanId(s) { return String(s || "").replace(/[^0-9a-zA-Zа-яА-Я_+-]/g, "").slice(0, 60); }
+function teamOK(request, env) {
+  const pw = request.headers.get("X-HR-Team") || "";
+  return !!env.HR_TEAM_PASSWORD && pw === env.HR_TEAM_PASSWORD;
 }
-
-// Проверяет токен И что e-mail входит в команду (таблица team или владелец).
-async function requireTeam(request, env) {
-  const auth = request.headers.get("Authorization") || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
-  if (!token) return { error: "Нужен вход (нет токена)", status: 401 };
-  let claims;
-  try { claims = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID); }
-  catch (e) { return { error: "Недействительный токен: " + e.message, status: 401 }; }
-  const email = (claims.email || "").toLowerCase().trim();
-  if (!email) return { error: "В аккаунте нет e-mail", status: 403 };
-  const owner = (env.HR_OWNER_EMAIL || "").toLowerCase().trim();
-  const isOwner = email === owner;
-  let member = null;
-  if (!isOwner) member = await env.DB.prepare("SELECT email, role FROM team WHERE email = ?").bind(email).first();
-  if (!isOwner && !member) {
-    return { error: "Нет доступа к HR-панели для " + email + ". Попросите администратора добавить вас.", status: 403 };
-  }
-  return { email, uid: claims.user_id || claims.sub, isAdmin: isOwner || (member && member.role === "admin"), isOwner };
-}
-
-const nowISO = () => new Date().toISOString();
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    const path = url.pathname.replace(/\/+$/, "");
-    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(request) });
-    if (path === "/api/hr/health") return json({ ok: true, service: "pllato-hr-worker" }, 200, request);
+    const path = url.pathname;
 
-    const me = await requireTeam(request, env);
-    if (me.error) return json({ error: me.error }, me.status, request);
+    if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders(request) });
+    if (path === "/api/hr/health") return json({ ok: true, ts: nowISO() }, 200, request);
 
     try {
-      // /api/hr/me — кто я и админ ли
-      if (path === "/api/hr/me" && request.method === "GET") {
-        return json({ email: me.email, isAdmin: me.isAdmin, isOwner: me.isOwner }, 200, request);
+      // ---------- ПУБЛИЧНО: приём заявки кандидата ----------
+      if (path === "/api/hr/submit" && request.method === "POST") {
+        const b = await request.json();
+        if (!b.phone || !b.fam || !b.code) return json({ error: "Нужны phone, fam, code" }, 400, request);
+        // одна запись на телефон+должность: повторное прохождение обновляет результат,
+        // но решение/заметки/интервью ответственного НЕ затираются.
+        const id = sanId(b.phone) + "_" + sanId(b.fam);
+        const status = b.status === "passed" ? "passed" : "failed";
+        await env.DB.prepare(
+          "INSERT INTO submissions (id,name,phone,fam,kp,status,fit,code,submitted_at,updated_at) " +
+          "VALUES (?,?,?,?,?,?,?,?,?,?) " +
+          "ON CONFLICT(id) DO UPDATE SET name=excluded.name,kp=excluded.kp,status=excluded.status," +
+          "fit=excluded.fit,code=excluded.code,submitted_at=excluded.submitted_at,updated_at=excluded.updated_at"
+        ).bind(
+          id, (b.name || "").slice(0, 120), sanId(b.phone), sanId(b.fam), b.kp || null,
+          status, b.fit == null ? null : (b.fit | 0), String(b.code).slice(0, 20000), nowISO(), nowISO()
+        ).run();
+        return json({ ok: true, id, status }, 200, request);
       }
-      // /api/hr/team — управление командой (список — все, изменения — только админ)
-      if (path === "/api/hr/team") {
-        if (request.method === "GET") {
-          const rows = await env.DB.prepare("SELECT email, name, role, added_by, added_at FROM team ORDER BY added_at").all();
-          const owner = (env.HR_OWNER_EMAIL || "").toLowerCase().trim();
-          const items = (rows.results || []).slice();
-          if (owner && !items.some(r => r.email === owner)) items.unshift({ email: owner, name: "Владелец", role: "admin", added_by: "—", added_at: "" });
-          return json({ items, isAdmin: me.isAdmin }, 200, request);
-        }
-        if (request.method === "POST") {
-          if (!me.isAdmin) return json({ error: "Добавлять сотрудников может только админ" }, 403, request);
-          const b = await request.json();
-          const email = (b.email || "").toLowerCase().trim();
-          if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "Неверный e-mail" }, 400, request);
-          const role = b.role === "admin" ? "admin" : "member";
-          await env.DB.prepare(
-            "INSERT INTO team (email,name,role,added_by,added_at) VALUES (?,?,?,?,?) " +
-            "ON CONFLICT(email) DO UPDATE SET name=excluded.name, role=excluded.role"
-          ).bind(email, b.name || null, role, me.email, nowISO()).run();
-          return json({ ok: true }, 200, request);
-        }
+
+      // ---------- Проверка пароля команды ----------
+      if (path === "/api/hr/login" && request.method === "POST") {
+        const b = await request.json().catch(() => ({}));
+        if (b.password && env.HR_TEAM_PASSWORD && b.password === env.HR_TEAM_PASSWORD) return json({ ok: true }, 200, request);
+        return json({ error: "Неверный пароль" }, 401, request);
       }
-      const tm = path.match(/^\/api\/hr\/team\/(.+)$/);
-      if (tm && request.method === "DELETE") {
-        if (!me.isAdmin) return json({ error: "Удалять может только админ" }, 403, request);
-        const email = decodeURIComponent(tm[1]).toLowerCase().trim();
-        if (email === (env.HR_OWNER_EMAIL || "").toLowerCase().trim()) return json({ error: "Владельца нельзя удалить" }, 400, request);
-        await env.DB.prepare("DELETE FROM team WHERE email = ?").bind(email).run();
+
+      // ---------- Дальше — только с паролем ----------
+      if (!teamOK(request, env)) return json({ error: "Нужен пароль команды" }, 401, request);
+
+      if (path === "/api/hr/submissions" && request.method === "GET") {
+        const rows = await env.DB.prepare(
+          "SELECT id,name,phone,fam,kp,status,fit,decision,notes,interview,submitted_at,updated_at,updated_by FROM submissions ORDER BY submitted_at DESC"
+        ).all();
+        return json({ items: rows.results || [] }, 200, request);
+      }
+
+      // одна заявка целиком (с кодом — для полного разбора в панели)
+      const gm = path.match(/^\/api\/hr\/submission\/([^/]+)$/);
+      if (gm && request.method === "GET") {
+        const row = await env.DB.prepare("SELECT * FROM submissions WHERE id = ?").bind(decodeURIComponent(gm[1])).first();
+        return json({ item: row || null }, 200, request);
+      }
+      if (gm && request.method === "PATCH") {
+        const id = decodeURIComponent(gm[1]);
+        const b = await request.json();
+        const fields = [], vals = [];
+        if (b.decision !== undefined) { fields.push("decision=?"); vals.push(b.decision || null); }
+        if (b.notes !== undefined) { fields.push("notes=?"); vals.push((b.notes || "").slice(0, 8000)); }
+        if (b.interview !== undefined) { fields.push("interview=?"); vals.push(JSON.stringify(b.interview)); }
+        if (b.name !== undefined) { fields.push("name=?"); vals.push((b.name || "").slice(0, 120)); }
+        if (!fields.length) return json({ error: "Нечего обновлять" }, 400, request);
+        fields.push("updated_at=?"); vals.push(nowISO());
+        fields.push("updated_by=?"); vals.push((b.by || "команда").slice(0, 60));
+        vals.push(id);
+        await env.DB.prepare("UPDATE submissions SET " + fields.join(",") + " WHERE id = ?").bind(...vals).run();
         return json({ ok: true }, 200, request);
       }
-      // /api/hr/candidates  (список)
-      if (path === "/api/hr/candidates" && request.method === "GET") {
-        const rows = await env.DB.prepare("SELECT data FROM candidates ORDER BY updated_at DESC").all();
-        const items = (rows.results || []).map(r => { try { return JSON.parse(r.data); } catch (e) { return null; } }).filter(Boolean);
-        return json({ items }, 200, request);
+      if (gm && request.method === "DELETE") {
+        await env.DB.prepare("DELETE FROM submissions WHERE id = ?").bind(decodeURIComponent(gm[1])).run();
+        return json({ ok: true }, 200, request);
       }
-      // /api/hr/candidate/{id}
-      const cm = path.match(/^\/api\/hr\/candidate\/([A-Za-z0-9_-]+)$/);
-      if (cm) {
-        const id = cm[1];
-        if (request.method === "GET") {
-          const row = await env.DB.prepare("SELECT data FROM candidates WHERE id = ?").bind(id).first();
-          return json({ item: row ? JSON.parse(row.data) : null }, 200, request);
-        }
-        if (request.method === "PUT") {
-          const rec = await request.json();
-          rec.id = id; rec.updatedAt = nowISO(); rec.updatedBy = me.email;
-          await env.DB.prepare(
-            "INSERT INTO candidates (id,fam,name,fit,decision,data,updated_at,updated_by) VALUES (?,?,?,?,?,?,?,?) " +
-            "ON CONFLICT(id) DO UPDATE SET fam=excluded.fam,name=excluded.name,fit=excluded.fit,decision=excluded.decision,data=excluded.data,updated_at=excluded.updated_at,updated_by=excluded.updated_by"
-          ).bind(id, rec.fam || null, rec.name || null, rec.fit == null ? null : rec.fit, rec.decision || null, JSON.stringify(rec), rec.updatedAt, me.email).run();
-          return json({ item: rec }, 200, request);
-        }
-        if (request.method === "DELETE") {
-          await env.DB.prepare("DELETE FROM candidates WHERE id = ?").bind(id).run();
-          return json({ ok: true }, 200, request);
-        }
+
+      if (path === "/api/hr/settings" && request.method === "GET") {
+        const row = await env.DB.prepare("SELECT data FROM settings WHERE id='global'").first();
+        return json({ settings: row ? JSON.parse(row.data) : {} }, 200, request);
       }
-      // /api/hr/settings
-      if (path === "/api/hr/settings") {
-        if (request.method === "GET") {
-          const row = await env.DB.prepare("SELECT data FROM settings WHERE id = 'global'").first();
-          return json({ settings: row ? JSON.parse(row.data) : {} }, 200, request);
-        }
-        if (request.method === "PUT") {
-          const s = await request.json();
-          await env.DB.prepare(
-            "INSERT INTO settings (id,data,updated_at,updated_by) VALUES ('global',?,?,?) " +
-            "ON CONFLICT(id) DO UPDATE SET data=excluded.data,updated_at=excluded.updated_at,updated_by=excluded.updated_by"
-          ).bind(JSON.stringify(s), nowISO(), me.email).run();
-          return json({ ok: true }, 200, request);
-        }
+      if (path === "/api/hr/settings" && request.method === "PUT") {
+        const s = await request.json();
+        await env.DB.prepare(
+          "INSERT INTO settings (id,data,updated_at) VALUES ('global',?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data,updated_at=excluded.updated_at"
+        ).bind(JSON.stringify(s), nowISO()).run();
+        return json({ ok: true }, 200, request);
       }
-      return json({ error: "not found" }, 404, request);
+
+      return json({ error: "Не найдено: " + path }, 404, request);
     } catch (e) {
-      return json({ error: "server: " + e.message }, 500, request);
+      return json({ error: "Ошибка сервера: " + e.message }, 500, request);
     }
   },
 };
