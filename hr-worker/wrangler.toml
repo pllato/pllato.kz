@@ -3,16 +3,12 @@ main = "worker.js"
 compatibility_date = "2025-01-01"
 account_id = "d0655e161d8fca8487f88d55c0eeb215"
 
-[vars]
-# ID вашего ОТДЕЛЬНОГО Firebase-проекта для HR (не CRM!). Должен совпадать
-# с projectId в app/hr/hr-config.js. См. hr-worker/README.md.
-FIREBASE_PROJECT_ID = "PUT_HR_FIREBASE_PROJECT_ID"
-# Владелец: разрешён всегда и всегда админ. Через панель он заводит остальных.
-HR_OWNER_EMAIL = "uurraa@gmail.com"
+# Пароль команды задаётся СЕКРЕТОМ (не в этом файле):
+#   npx wrangler secret put HR_TEAM_PASSWORD
+# Сменить пароль — той же командой заново.
 
-# D1: создать один раз командой  wrangler d1 create pllato-hr-d1
-# и подставить database_id из вывода.
+# D1: создать один раз  npx wrangler d1 create pllato-hr-d1  и подставить database_id.
 [[d1_databases]]
 binding = "DB"
 database_name = "pllato-hr-d1"
-database_id = "PUT_D1_ID_HERE"
+database_id = "2739792f-2e35-4bf2-8c14-e496f16791ee"

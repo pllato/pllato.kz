@@ -105,6 +105,7 @@ svg.shape{width:100%;height:100%;display:block}
 <script src="data/sjt.js"></script>
 <script src="data/integrity.js"></script>
 <script src="data/biodata.js"></script>
+<script src="hr-config.js"></script>
 <script src="core.js"></script>
 <script>
 /* ============ Утилиты ============ */
@@ -144,14 +145,25 @@ function renderShapes(prims){
 
 /* ============ Состояние ============ */
 const POS = window.HR_POSITIONS;
+const WORKER = ((window.HR_CONFIG&&window.HR_CONFIG.workerUrl)||'').replace(/\/$/,'');
+// Ориентиры времени по разделам (минуты)
+const MODULE_MIN = {personality:12, cognitive:15, attention:4, sjt:13, integrity:8, biodata:8, knowledge:12};
+function posMinutes(fam){ const p=POS[fam]; if(!p)return 0; return (p.modules||[]).reduce((s,m)=>s+(MODULE_MIN[m]||5),0); }
 let state = {
-  fam:null, kp:null, cform:'A', cand:{name:'',sex:'m',age:'y'},
+  fam:null, kp:null, cform:'A', cand:{name:'',phone:'',sex:'m',age:'y'},
   modules:[], mi:0, // module index
   ans:{ personality:{}, fc:[], cognitive:[], sjt:[], integrity:{}, biodata:{}, knowledge:[], attention:null, cogTimes:{} },
   telemetry:{blur:0,paste:0}, startTs:0
 };
 window.addEventListener('blur',()=>{ if(state.startTs) state.telemetry.blur++ });
 document.addEventListener('paste',()=>{ if(state.startTs) state.telemetry.paste++ });
+
+/* ============ Черновик (тот же браузер) ============ */
+const DRAFT_KEY='hr_candidate_draft';
+function saveDraft(){ try{ if(!state.fam)return; localStorage.setItem(DRAFT_KEY, JSON.stringify({fam:state.fam,kp:state.kp,cform:state.cform,modules:state.modules,mi:state.mi,ans:state.ans,cand:state.cand,telemetry:state.telemetry,startTs:state.startTs,partial:state.partial,ts:Date.now()})); }catch(e){} }
+function loadDraft(){ try{ return JSON.parse(localStorage.getItem(DRAFT_KEY)||'null'); }catch(e){ return null; } }
+function clearDraft(){ try{ localStorage.removeItem(DRAFT_KEY); }catch(e){} }
+window.addEventListener('beforeunload',()=>{ if(state.startTs) saveDraft(); });
 
 /* ============ Роутер экранов ============ */
 function setFoot(show,{next='Далее',prev=false,nextEnabled=true}={}){
@@ -164,42 +176,59 @@ function setProgress(f){progressBar.classList.remove('hidden');progressBar.first
 /* ---- Старт ---- */
 function screenIntro(){
   timerEl.classList.add('hidden'); progressBar.classList.add('hidden');
-  const preset = qp.get('pos');
-  let picker='';
-  if(!preset){
-    picker = `<div class="field"><label>Должность, на которую вы претендуете</label><div class="seg" id="posSeg">`+
-      Object.values(POS).map(p=>`<button data-p="${p.id}">${p.icon} ${p.short}</button>`).join('')+`</div></div>`;
+  // Есть незаконченный черновик? Предложим продолжить.
+  const draft = loadDraft();
+  const hasProgress = draft && draft.fam && (draft.mi>0 || (draft.ans&&draft.ans.personality&&Object.keys(draft.ans.personality).length));
+  if(hasProgress){
+    const p=POS[draft.fam];
+    app.innerHTML=`<h1>Продолжить анкету?</h1>
+      <p>У вас есть незаконченная анкета${draft.cand&&draft.cand.name?' ('+esc(draft.cand.name)+')':''} на должность «${esc(p?p.short:draft.fam)}». Можно продолжить с того места, где вы остановились.</p>
+      <div class="card"><div class="muted">Черновик хранится в этом браузере. Пройдено разделов: ${draft.mi} из ${draft.modules.length}.</div></div>
+      <div style="text-align:center;margin-top:8px"><a href="#" id="restartLink" class="muted">Начать заново →</a></div>`;
+    setFoot(true,{next:'Продолжить'});
+    nextBtn.onclick=()=>resumeDraft(draft);
+    $('#restartLink').onclick=e=>{e.preventDefault(); clearDraft(); screenIntro();};
+    return;
   }
+  const preset = qp.get('pos');
   app.innerHTML = `
-    <h1>Оценка кандидата</h1>
-    <p>Это профессиональный опросник для подбора персонала. Он занимает <b>${preset?POS[preset].time:'30–55 минут'}</b> в зависимости от должности. Отвечайте честно — «правильных» ответов в личностной части нет, а в тесте есть встроенные проверки достоверности.</p>
+    <h1>Анкета кандидата</h1>
+    <p>Профессиональный опросник для подбора персонала. Занимает <b id="estTime">30–55 минут</b> в зависимости от должности. Можно закрыть и продолжить позже с этого устройства. Отвечайте честно — в тесте есть встроенные проверки достоверности.</p>
     <div class="card">
-      <div class="field"><label>Ваше имя и фамилия</label><input id="fName" placeholder="Например, Ерлан Ахметов"></div>
+      <div class="field"><label>Имя и фамилия</label><input id="fName" placeholder="Например, Ерлан Ахметов"></div>
+      <div class="field"><label>Телефон (для связи)</label><input id="fPhone" type="tel" inputmode="tel" placeholder="+7 701 000 00 00"></div>
+      <div class="field"><label>Электронная почта</label><input id="fEmail" type="email" inputmode="email" placeholder="you@example.com"></div>
+      <div class="field"><label>Должность, на которую претендуете</label><div class="seg" id="posSeg" style="flex-wrap:wrap">`+
+        Object.values(POS).map(p=>`<button data-p="${p.id}" class="${preset===p.id?'on':''}">${p.icon} ${p.short}</button>`).join('')+`</div></div>
       <div class="field"><label>Пол</label><div class="seg" id="sexSeg"><button data-v="m" class="on">Мужской</button><button data-v="f">Женский</button></div></div>
       <div class="field"><label>Возраст</label><div class="seg" id="ageSeg"><button data-v="y" class="on">18–35</button><button data-v="o">36 и старше</button></div></div>
-      ${picker}
     </div>
-    <div class="note warn">Результат вы получите в виде кода в конце. Скопируйте его и отправьте работодателю (например, в WhatsApp) — по нему он увидит ваш профиль. Персональные данные обрабатываются с вашего согласия для оценки соответствия должности.</div>`;
+    <div class="note warn">Нажимая «Начать», вы соглашаетесь на обработку ваших данных (имя, контакты, ответы) для оценки соответствия должности. Результат автоматически отправится работодателю.</div>`;
   let pick = preset||null;
+  const estEl=$('#estTime'); if(pick) estEl.textContent='около '+posMinutes(pick)+' минут';
   app.querySelectorAll('#sexSeg button').forEach(b=>b.onclick=()=>{app.querySelectorAll('#sexSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');state.cand.sex=b.dataset.v});
   app.querySelectorAll('#ageSeg button').forEach(b=>b.onclick=()=>{app.querySelectorAll('#ageSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');state.cand.age=b.dataset.v});
-  if(!preset) app.querySelectorAll('#posSeg button').forEach(b=>b.onclick=()=>{app.querySelectorAll('#posSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');pick=b.dataset.p;updateNext()});
-  function updateNext(){nextBtn.disabled=!pick}
-  setFoot(true,{next:'Начать',nextEnabled:!!preset});
+  app.querySelectorAll('#posSeg button').forEach(b=>b.onclick=()=>{app.querySelectorAll('#posSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');pick=b.dataset.p;estEl.textContent='около '+posMinutes(pick)+' минут';updateNext()});
+  ['fName','fPhone','fEmail'].forEach(id=>$('#'+id).oninput=updateNext);
+  function valid(){ const ph=($('#fPhone').value||'').replace(/\D/g,''); const em=($('#fEmail').value||'').trim(); return $('#fName').value.trim() && ph.length>=6 && /@.+\./.test(em) && pick; }
+  function updateNext(){ nextBtn.disabled=!valid(); }
+  setFoot(true,{next:'Начать',nextEnabled:false}); updateNext();
   nextBtn.onclick=()=>{
-    if(!pick) return;
+    if(!valid()) return;
     state.fam=pick; const p=POS[pick];
-    state.cand.name = $('#fName').value.trim();
+    state.cand.name=$('#fName').value.trim(); state.cand.phone=$('#fPhone').value.trim(); state.cand.email=$('#fEmail').value.trim();
     state.kp = qp.get('kp') || p.knowledgeProfile || null;
     state.cform = p.cognitiveForm || qp.get('form') || 'A';
     state.modules = p.modules.slice();
-    // Отдельные тесты по ссылке: ?tests=cognitive,personality — оставить только выбранные блоки
     const only = (qp.get('tests')||'').split(',').map(s=>s.trim()).filter(Boolean);
     if(only.length){ const f=state.modules.filter(m=>only.includes(m)); if(f.length) state.modules=f; }
     state.partial = only.length>0 && state.modules.length < p.modules.length;
-    state.startTs=Date.now();
-    state.mi=0; runModule();
+    state.startTs=Date.now(); state.mi=0; saveDraft(); runModule();
   };
+}
+function resumeDraft(draft){
+  Object.assign(state,{fam:draft.fam,kp:draft.kp,cform:draft.cform,modules:draft.modules,mi:draft.mi||0,ans:draft.ans,cand:draft.cand,telemetry:draft.telemetry||{blur:0,paste:0},startTs:draft.startTs||Date.now(),partial:draft.partial});
+  runModule();
 }
 
 /* ---- Диспетчер модулей ---- */
@@ -214,12 +243,14 @@ function runModule(){
   const runners={personality:runPersonality,cognitive:runCognitive,attention:runAttention,sjt:runSJT,integrity:runIntegrity,biodata:runBiodata,knowledge:runKnowledge};
   runners[m]();
 }
-function nextModule(){ state.mi++; window.scrollTo(0,0); runModule(); }
+function nextModule(){ state.mi++; saveDraft(); window.scrollTo(0,0); runModule(); }
 
-/* модульный интро-экран */
+/* модульный интро-экран (с ориентиром времени) */
 function moduleIntro(title,desc,onStart,warn){
   timerEl.classList.add('hidden');
-  app.innerHTML=`<div class="big-center"><h1>${title}</h1><p style="max-width:460px">${desc}</p>${warn?`<div class="note warn" style="max-width:460px;text-align:left">${warn}</div>`:''}</div>`;
+  const m=state.modules[state.mi]; const mins=MODULE_MIN[m]||5;
+  const step=`Раздел ${state.mi+1} из ${state.modules.length} · ориентировочно ~${mins} мин`;
+  app.innerHTML=`<div class="big-center"><div class="muted" style="margin-bottom:6px">${step}</div><h1>${title}</h1><p style="max-width:460px">${desc}</p>${warn?`<div class="note warn" style="max-width:460px;text-align:left">${warn}</div>`:''}</div>`;
   setFoot(true,{next:'Начать раздел'}); nextBtn.onclick=onStart;
 }
 
@@ -472,35 +503,56 @@ function runKnowledge(){
   }
 }
 
-/* ============ Финиш: сборка и код ============ */
+/* ============ Финиш: скоринг, авто-отправка в систему, экран результата ============ */
 function screenFinish(){
-  stopTimer(); setProgress(1);
+  stopTimer(); setProgress(1); foot.classList.add('hidden');
   const result={
     v:1, ts:new Date().toISOString().slice(0,16), fam:state.fam, kp:state.kp, cform:state.cform,
-    cand:state.cand,
-    total:Math.round((Date.now()-state.startTs)/1000),
-    telemetry:state.telemetry,
-    ans:state.ans
+    cand:state.cand, total:Math.round((Date.now()-state.startTs)/1000),
+    telemetry:state.telemetry, ans:state.ans
   };
   const code=HR.encodeResult(result);
-  app.innerHTML=`
-    <div class="big-center">
-      <h1>Готово!</h1>
-      <p style="max-width:460px">Спасибо, ${esc(state.cand.name||'кандидат')}. Ваш результат зашифрован в код ниже. <b>Скопируйте его и отправьте работодателю</b> (WhatsApp, Telegram или почта).</p>
-    </div>
-    <div class="card">
-      <div class="muted" style="margin-bottom:8px">Код результата:</div>
+  // локальный скоринг + порог «прошёл/не прошёл»
+  let qr; try{ qr=HR.quickResult(result,{}); }catch(e){ qr={fit:0,passed:false}; }
+  const passed=!!qr.passed;
+  clearDraft(); // анкета завершена — черновик больше не нужен
+
+  app.innerHTML=`<div class="big-center"><h1>Отправляем результат…</h1><p class="muted">Секунду.</p></div>`;
+  const payload={ name:state.cand.name, phone:state.cand.phone, email:state.cand.email||'',
+    fam:state.fam, kp:state.kp, status:passed?'passed':'failed', fit:qr.fit, code:code };
+
+  submitToServer(payload).then(ok=>{
+    renderDone(passed, ok, code);
+  });
+}
+function submitToServer(payload){
+  if(!WORKER) return Promise.resolve(false);
+  return fetch(WORKER+'/api/hr/submit', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
+    .then(r=>r.ok).catch(()=>false);
+}
+function renderDone(passed, sent, code){
+  if(passed){
+    app.innerHTML=`<div class="big-center">
+      <div style="font-size:52px">✅</div>
+      <h1>Спасибо, заявка принята!</h1>
+      <p style="max-width:460px">${esc(state.cand.name||'')}, вы прошли первичную оценку на должность «${esc(POS[state.fam].short)}». ${sent?'Ваши данные переданы работодателю — с вами свяжутся по телефону или почте.':'Результат сохранён.'}</p>
+    </div>`;
+  } else {
+    app.innerHTML=`<div class="big-center">
+      <div style="font-size:52px">🙏</div>
+      <h1>Спасибо за то, что прошли анкету</h1>
+      <p style="max-width:480px">${esc(state.cand.name||'')}, к сожалению, на эту должность («${esc(POS[state.fam].short)}») на данном этапе вы не подходите. Это не оценка вас как человека — просто на этой позиции важны другие сильные стороны. Желаем удачи!</p>
+    </div>`;
+  }
+  if(!sent && WORKER){
+    // сервер не ответил — дадим запасной способ (код), чтобы результат не потерялся
+    const box=document.createElement('div'); box.className='card'; box.style.marginTop='16px';
+    box.innerHTML=`<div class="muted" style="margin-bottom:8px">Не удалось отправить автоматически. Отправьте этот код работодателю:</div>
       <div class="codebox" id="code">${code}</div>
-      <div style="display:flex;gap:10px;margin-top:12px">
-        <button class="btn primary" id="copyBtn">Скопировать код</button>
-        <button class="btn ghost" id="dlBtn">Скачать файлом</button>
-      </div>
-      <div class="muted" id="copyMsg" style="margin-top:8px"></div>
-    </div>
-    <div class="note">Код не содержит расшифровки — только ваши ответы. Баллы и профиль работодатель увидит в своей панели анализа. Персональные данные обработаны с вашего согласия.</div>`;
-  foot.classList.add('hidden');
-  $('#copyBtn').onclick=()=>{ navigator.clipboard.writeText(code).then(()=>$('#copyMsg').textContent='Скопировано ✓').catch(()=>$('#copyMsg').textContent='Выделите код вручную и скопируйте.'); };
-  $('#dlBtn').onclick=()=>{ const b=new Blob([code],{type:'text/plain'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download='result-'+(state.cand.name||'candidate').replace(/\s+/g,'_')+'.txt'; a.click(); URL.revokeObjectURL(u); };
+      <button class="btn primary" id="copyBtn" style="margin-top:10px">Скопировать код</button> <span class="muted" id="copyMsg"></span>`;
+    app.appendChild(box);
+    $('#copyBtn').onclick=()=>navigator.clipboard.writeText(code).then(()=>$('#copyMsg').textContent='Скопировано ✓');
+  }
 }
 
 /* ============ Старт ============ */
