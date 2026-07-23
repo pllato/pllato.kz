@@ -2298,6 +2298,7 @@ async function syncAdminEmailsRegistry(users) {
 function applyPermissionsAndAdminUI() {
   if (!CURRENT) return;
   initProjectGroups();
+  syncProjectMoneyVisibility();
   applyProjectFilters();
 }
 
@@ -2429,9 +2430,13 @@ const MONEY_KEY = 'pllato_money_v1';
 const RATE_KEY = 'pllato_usd_rate';
 let MONEY = {};
 let RATE = 530; // ₸ за $1 (редактируется)
-function saveMoney(){ try { localStorage.setItem(MONEY_KEY, JSON.stringify(MONEY)); } catch(e){} }
-function saveRate(){ try { localStorage.setItem(RATE_KEY, String(RATE)); } catch(e){} }
-(function(){
+let MONEY_LOADED = false;
+function canSeeProjectMoney(){ return CURRENT?.isSuperAdmin === true; }
+function saveMoney(){ if(!canSeeProjectMoney()) return; try { localStorage.setItem(MONEY_KEY, JSON.stringify(MONEY)); } catch(e){} }
+function saveRate(){ if(!canSeeProjectMoney()) return; try { localStorage.setItem(RATE_KEY, String(RATE)); } catch(e){} }
+function loadMoney(){
+  if (MONEY_LOADED || !canSeeProjectMoney()) return;
+  MONEY_LOADED = true;
   const r = parseFloat(localStorage.getItem(RATE_KEY)); if (r > 0) RATE = r;
   const raw = localStorage.getItem(MONEY_KEY);
   if (raw) { try { MONEY = JSON.parse(raw) || {}; } catch(e){ MONEY = {}; } }
@@ -2442,7 +2447,7 @@ function saveRate(){ try { localStorage.setItem(RATE_KEY, String(RATE)); } catch
   }
   // мягкая миграция: Оранжерея считается в долларах ($2700)
   if (MONEY.gulzar_flowers && !MONEY.gulzar_flowers.cur && MONEY.gulzar_flowers.deal === 1350000) { MONEY.gulzar_flowers.deal = 2700; MONEY.gulzar_flowers.cur = 'USD'; saveMoney(); }
-})();
+}
 function mEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function curOf(id){ return (MONEY[id] && MONEY[id].cur) || 'KZT'; }
 function symOf(id){ return curOf(id)==='USD' ? '$' : '₸'; }
@@ -2459,6 +2464,8 @@ function mCard(id){ return document.querySelector('.tool-card[data-app-id="'+CSS
 function projName(id){ const c=mCard(id); return ((c && c.querySelector('h3') && c.querySelector('h3').textContent) || id).trim(); }
 
 function injectMoney(){
+  if (!canSeeProjectMoney()) return;
+  loadMoney();
   document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
     if (card.querySelector('.money-strip')) return;
     if (card.dataset.group && card.dataset.group !== 'Работа с клиентами') return; // деньги — только по клиентским проектам
@@ -2472,7 +2479,20 @@ function injectMoney(){
   ensureMoneySummary();
   renderMoneySummary();
 }
+function syncProjectMoneyVisibility(){
+  if (canSeeProjectMoney()) {
+    injectMoney();
+    return;
+  }
+  document.getElementById('moneySum')?.remove();
+  document.getElementById('moneyOvl')?.remove();
+  document.querySelectorAll('.money-strip').forEach(el=>el.remove());
+  _mmId = null;
+  MONEY = {};
+  MONEY_LOADED = false;
+}
 function renderMoneyStrip(id){
+  if (!canSeeProjectMoney()) return;
   const card = mCard(id); const strip = card && card.querySelector('.money-strip');
   if (!strip) return;
   const dealN=mDeal(id), gotN=mRecv(id);
@@ -2498,6 +2518,7 @@ function allPaysSorted(){
   return out.sort((a,b)=> String(b.d||'').localeCompare(String(a.d||'')));
 }
 function renderMoneySummary(){
+  if (!canSeeProjectMoney()) return;
   const el = document.getElementById('moneySum'); if (!el) return;
   let deal=0, got=0;
   Object.keys(MONEY).forEach(id => { deal+=toKZT(id,mDeal(id)); got+=toKZT(id,mRecv(id)); });
@@ -2517,10 +2538,11 @@ function renderMoneySummary(){
   const t=document.getElementById('msToggle'), f=document.getElementById('moneyFeed');
   if (t && f) t.addEventListener('click', () => { f.classList.toggle('show'); t.textContent = f.classList.contains('show') ? '▴ свернуть' : ('▾ поступления по датам ('+feed.length+')'); });
 }
-function editRate(){ const v=parseFloat(prompt('Курс доллара — сколько ₸ за $1:', RATE)); if(!v||v<=0) return; RATE=v; saveRate(); document.querySelectorAll('.tool-card[data-app-id]').forEach(c=>renderMoneyStrip(c.dataset.appId)); renderMoneySummary(); if(_mmId) renderMoneyModal(); }
+function editRate(){ if(!canSeeProjectMoney()) return; const v=parseFloat(prompt('Курс доллара — сколько ₸ за $1:', RATE)); if(!v||v<=0) return; RATE=v; saveRate(); document.querySelectorAll('.tool-card[data-app-id]').forEach(c=>renderMoneyStrip(c.dataset.appId)); renderMoneySummary(); if(_mmId) renderMoneyModal(); }
 
 let _mmId = null;
 function openMoneyModal(id){
+  if (!canSeeProjectMoney()) return;
   _mmId = id;
   MONEY[id] = MONEY[id] || { deal:0, pays:[], cur:'KZT' };
   MONEY[id].pays = MONEY[id].pays || [];
@@ -2533,6 +2555,7 @@ function openMoneyModal(id){
 function closeMoney(){ const o=document.getElementById('moneyOvl'); if(o) o.classList.remove('show'); _mmId=null; }
 document.addEventListener('keydown', e => { if (e.key==='Escape') closeMoney(); });
 function renderMoneyModal(){
+  if (!canSeeProjectMoney()) return;
   const id=_mmId, ovl=document.getElementById('moneyOvl'); if(!id||!ovl) return;
   const usd = curOf(id)==='USD';
   const pays=(MONEY[id].pays||[]).map((p,i)=>({d:p.d,sum:p.sum,i})).sort((a,b)=>String(b.d||'').localeCompare(String(a.d||'')));
@@ -2558,10 +2581,10 @@ function moneyGrid(id){ const usd=curOf(id)==='USD';
   return cell('','Сумма сделки',fmtCur(id,mDeal(id)),toKZT(id,mDeal(id)))
     + cell('g','Получено',fmtCur(id,mRecv(id)),toKZT(id,mRecv(id)))
     + cell('r','Остаток',fmtCur(id,mDebt(id)),toKZT(id,mDebt(id))); }
-function setMoneyCur(c){ if(!_mmId) return; MONEY[_mmId].cur=c; saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
-function setMoneyDeal(v){ if(!_mmId) return; MONEY[_mmId].deal=Math.max(0,parseInt(v)||0); saveMoney(); const g=document.getElementById('mmGrid'); if(g)g.innerHTML=moneyGrid(_mmId); renderMoneyStrip(_mmId); renderMoneySummary(); }
-function addMoneyPay(){ if(!_mmId) return; const sum=parseInt(document.getElementById('mmPaySum').value)||0; const d=document.getElementById('mmPayDate').value||todayISO(); if(sum<=0) return; MONEY[_mmId].pays.push({d,sum}); saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
-function delMoneyPay(i){ if(!_mmId) return; MONEY[_mmId].pays.splice(i,1); saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
+function setMoneyCur(c){ if(!canSeeProjectMoney()||!_mmId) return; MONEY[_mmId].cur=c; saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
+function setMoneyDeal(v){ if(!canSeeProjectMoney()||!_mmId) return; MONEY[_mmId].deal=Math.max(0,parseInt(v)||0); saveMoney(); const g=document.getElementById('mmGrid'); if(g)g.innerHTML=moneyGrid(_mmId); renderMoneyStrip(_mmId); renderMoneySummary(); }
+function addMoneyPay(){ if(!canSeeProjectMoney()||!_mmId) return; const sum=parseInt(document.getElementById('mmPaySum').value)||0; const d=document.getElementById('mmPayDate').value||todayISO(); if(sum<=0) return; MONEY[_mmId].pays.push({d,sum}); saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
+function delMoneyPay(i){ if(!canSeeProjectMoney()||!_mmId) return; MONEY[_mmId].pays.splice(i,1); saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
 // модуль → выносим обработчики inline onclick в global-скоуп
 Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate });
 
