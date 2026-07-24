@@ -2474,10 +2474,11 @@ let MONEY_LOADED = false;
 let MONEY_LOAD_PROMISE = null;
 let MONEY_SAVE_TIMER = null;
 let CHART_VISIBILITY = { orders: [], cash: [] };
+let CHART_SCALE = { orders: 0, cash: 0 };
 function canSeeProjectMoney(){ return CURRENT?.isSuperAdmin === true; }
 async function persistMoney(){
   if(!canSeeProjectMoney() || !MONEY_LOADED) return;
-  await apiFetch('/project-finance',{method:'PUT',body:{money:MONEY,rate:RATE,chartVisibility:CHART_VISIBILITY}});
+  await apiFetch('/project-finance',{method:'PUT',body:{money:MONEY,rate:RATE,chartVisibility:CHART_VISIBILITY,chartScale:CHART_SCALE}});
   renderFinanceCharts();
 }
 function scheduleMoneySave(){
@@ -2496,6 +2497,7 @@ async function loadMoney(){
       MONEY=server.money||{};
       RATE=Number(server.rate)||530;
       CHART_VISIBILITY=server.chartVisibility||{orders:[],cash:[]};
+      CHART_SCALE=server.chartScale||{orders:0,cash:0};
     } else {
       // Одноразовый перенос прежних данных из браузера Super Admin на сервер.
       const raw=localStorage.getItem(MONEY_KEY);
@@ -2707,9 +2709,10 @@ function financeValue(kind,n){
 }
 function financeChartSvg(kind,series){
   const count=series.length||1, vw=count*100, vh=270, top=24, bottom=16;
-  const max=Math.max(1,...series.map(x=>Number(x.value)||0));
+  const autoMax=Math.max(1,...series.map(x=>Number(x.value)||0));
+  const max=Math.max(1,Number(CHART_SCALE[kind])||autoMax);
   const x=i=>(i+.5)*100;
-  const y=v=>top+(1-(Number(v)||0)/max)*(vh-top-bottom);
+  const y=v=>top+(1-Math.min(1,(Number(v)||0)/max))*(vh-top-bottom);
   const completed=series.map((s,i)=>s.partial?null:`${x(i)},${y(s.value).toFixed(1)}`).filter(Boolean).join(' ');
   const color=FINANCE_CHART_META[kind].color;
   const dots=series.map((s,i)=>{
@@ -2724,7 +2727,7 @@ function financeChartSvg(kind,series){
 }
 function financeChartCard(kind,series){
   const meta=FINANCE_CHART_META[kind];
-  const access=canSeeProjectMoney()?`<button class="fc-access" onclick="openFinanceAccess('${kind}')">Доступ</button>`:'';
+  const access=canSeeProjectMoney()?`<button class="fc-access" onclick="openFinanceAccess('${kind}')">Настройки</button>`:'';
   return `<article class="fc-card">
     <div class="fc-card-head"><div><div class="fc-card-title">${meta.title}</div><div class="fc-card-sub">${meta.sub} · чт 14:00 → чт 14:00</div></div>${access}</div>
     <div class="fc-values">${series.map(s=>`<span title="${kind==='cash'?fmtT(s.value):s.value}">${financeValue(kind,s.value)}</span>`).join('')}</div>
@@ -2742,6 +2745,7 @@ async function renderFinanceCharts(){
     const data=await apiFetch('/project-finance/charts?points=8');
     if(requestId!==FINANCE_CHART_REQUEST) return;
     if(canSeeProjectMoney() && data.chartVisibility) CHART_VISIBILITY=data.chartVisibility;
+    if(canSeeProjectMoney() && data.chartScale) CHART_SCALE=data.chartScale;
     const kinds=['orders','cash'].filter(kind=>Array.isArray(data.charts?.[kind]));
     if(!kinds.length){ el.remove(); return; }
     el.innerHTML='<div class="fc-head"><div><h2>Динамика по неделям</h2><p>Неделя закрывается каждый четверг в 14:00 по Алматы</p></div></div>'
@@ -2763,8 +2767,12 @@ async function openFinanceAccess(kind){
   ovl.id='financeAccessOvl'; ovl.className='money-ovl show';
   ovl.addEventListener('click',e=>{if(e.target===ovl)ovl.remove();});
   const people=users.filter(u=>u.email && String(u.email).toLowerCase()!==String(CURRENT.email).toLowerCase());
-  ovl.innerHTML='<div class="money-modal"><div class="mm-h"><h3>Кто видит: '+mEsc(FINANCE_CHART_META[kind].title)+'</h3><span class="mm-x" onclick="document.getElementById(\'financeAccessOvl\').remove()">✕</span></div>'
-    +'<div class="mm-b"><div style="font-size:12px;color:var(--text-2)">Super Admin видит график всегда. Отметьте остальных сотрудников.</div>'
+  const scaleValue=Number(CHART_SCALE[kind])||'';
+  const scaleHint=kind==='cash'?'например, 3000000':'например, 10';
+  ovl.innerHTML='<div class="money-modal"><div class="mm-h"><h3>Настройки: '+mEsc(FINANCE_CHART_META[kind].title)+'</h3><span class="mm-x" onclick="document.getElementById(\'financeAccessOvl\').remove()">✕</span></div>'
+    +'<div class="mm-b"><label>Максимум вертикальной шкалы</label><input id="fcScaleMax" type="number" min="0" step="1" value="'+scaleValue+'" placeholder="'+scaleHint+'">'
+    +'<div style="font-size:10.5px;color:var(--text-3);margin-top:4px">Оставьте пустым — масштаб будет рассчитываться автоматически.</div>'
+    +'<div style="font-size:12px;color:var(--text-2);margin-top:16px">Кто видит график. Super Admin видит его всегда.</div>'
     +'<div class="fc-modal-list">'+(people.length?people.map(u=>{const email=String(u.email).toLowerCase();return '<label class="fc-person"><input type="checkbox" value="'+mEsc(email)+'" '+(selected.has(email)?'checked':'')+'><span><div class="n">'+mEsc(u.name||email)+'</div><div class="e">'+mEsc(email)+'</div></span></label>';}).join(''):'<div class="fc-empty" style="padding:14px">Других сотрудников пока нет.</div>')+'</div></div>'
     +'<div class="mm-f"><button onclick="document.getElementById(\'financeAccessOvl\').remove()">Отмена</button><button style="background:var(--navy);color:#fff" onclick="saveFinanceAccess(\''+kind+'\')">Сохранить</button></div></div>';
   document.body.appendChild(ovl);
@@ -2774,8 +2782,10 @@ async function saveFinanceAccess(kind){
   if(!ovl) return;
   const viewers=[...ovl.querySelectorAll('.fc-person input:checked')].map(x=>x.value);
   CHART_VISIBILITY={...CHART_VISIBILITY,[kind]:viewers};
+  const scale=Math.max(0,Math.round(Number(ovl.querySelector('#fcScaleMax')?.value)||0));
+  CHART_SCALE={...CHART_SCALE,[kind]:scale};
   try{
-    await apiFetch('/project-finance/charts',{method:'PUT',body:{chartVisibility:CHART_VISIBILITY}});
+    await apiFetch('/project-finance/charts',{method:'PUT',body:{chartVisibility:CHART_VISIBILITY,chartScale:CHART_SCALE}});
     ovl.remove(); renderFinanceCharts();
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }
