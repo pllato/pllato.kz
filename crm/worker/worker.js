@@ -2174,6 +2174,7 @@ function normalizeProjectFinance(payload) {
     if (Number.isFinite(Number(value.orders))) one.orders = Math.max(0, Math.round(Number(value.orders)));
     if (Number.isFinite(Number(value.cash))) one.cash = Math.max(0, Math.round(Number(value.cash)));
     if (Number.isFinite(Number(value.releases))) one.releases = Math.max(0, Math.round(Number(value.releases)));
+    if (Number.isFinite(Number(value.kep))) one.kep = Math.max(0, Math.round(Number(value.kep)));
     if (Object.keys(one).length) chartOverrides[week] = one;
   });
   return {
@@ -2362,7 +2363,17 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
       const upstream = await fetch(`https://pllato-elc-worker.uurraa.workers.dev/api/public/pllato-kep?points=${pointCount}`);
       if (upstream.ok) {
         const payload = await upstream.json();
-        if (Array.isArray(payload?.series)) charts.kep = payload.series;
+        if (Array.isArray(payload?.series)) {
+          charts.kep = payload.series.map((point, index) => {
+            const base = allSeries[index];
+            if (!base?.end) return point;
+            const weekKey = new Date(base.end + 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+            const override = finance.chartOverrides?.[weekKey];
+            return Number.isFinite(Number(override?.kep))
+              ? { ...point, value: Number(override.kep) }
+              : point;
+          });
+        }
       }
     } catch (error) {
       console.warn("pllato KEP chart unavailable", error?.message || error);
