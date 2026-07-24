@@ -64,12 +64,44 @@ async function verifyFirebaseIdToken(token, projectId) {
   return payload; // { user_id, email, ... }
 }
 
+async function verifyPllatoAppToken(token) {
+  const response = await fetch("https://pllato-comm.uurraa.workers.dev/api/me", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error(`App session rejected (${response.status})`);
+  const payload = await response.json();
+  const user = payload?.user;
+  const canUseCrm = Boolean(user?.isAdmin || user?.isSuperAdmin || user?.apps?.pllato_sales_crm);
+  if (!user?.id || !user?.email || !canUseCrm) throw new Error("CRM access is not granted");
+  return {
+    sub: String(user.id),
+    user_id: String(user.id),
+    email: String(user.email),
+    name: String(user.name || user.email),
+    app_session: true,
+    crm_access: user.crmAccess || { pipelines: ["start", "production"], dealScope: "own" },
+    app_is_admin: Boolean(user.isAdmin || user.isSuperAdmin),
+  };
+}
+
+async function verifySupportedToken(token, env) {
+  try {
+    return await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID);
+  } catch (firebaseError) {
+    try {
+      return await verifyPllatoAppToken(token);
+    } catch (appError) {
+      throw new Error(`${firebaseError.message}; ${appError.message}`);
+    }
+  }
+}
+
 async function requireAuth(request, env) {
   const auth = request.headers.get("Authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
   if (!token) return { error: "missing Bearer token", status: 401 };
   try {
-    const claims = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID);
+    const claims = await verifySupportedToken(token, env);
     return { uid: claims.user_id || claims.sub, email: claims.email, claims };
   } catch (e) {
     return { error: `invalid token: ${e.message}`, status: 401 };
@@ -122,7 +154,30 @@ async function resolveCanonicalUser(env, claims) {
 
   // Phase 2: ORG-структура определяет права. Director = super-admin.
   // Computed permissions: {pipelineIds (null=all), dealScope (own|team|all), teamUids}
-  const orgPerms = await resolveOrgPermissions(env, canonicalUid, matchUids);
+  let orgPerms = await resolveOrgPermissions(env, canonicalUid, matchUids);
+  if (claims.app_session) {
+    const access = claims.crm_access || {};
+    const requested = Array.isArray(access.pipelines) ? access.pipelines : ["start", "production"];
+    const pipelineNames = [];
+    if (requested.includes("start")) pipelineNames.push("Pllato Старт");
+    if (requested.includes("production")) pipelineNames.push("Pllato Производство");
+    let pipelineIds = [];
+    if (pipelineNames.length) {
+      const placeholders = pipelineNames.map(() => "?").join(",");
+      const { results } = await env.DB.prepare(
+        `SELECT id FROM pipelines WHERE name IN (${placeholders})`
+      ).bind(...pipelineNames).all();
+      pipelineIds = (results || []).map((row) => row.id).filter(Boolean);
+    }
+    orgPerms = {
+      isDirector: false,
+      pipelineIds,
+      dealScope: access.dealScope === "all" ? "all" : "own",
+      teamUids: new Set(),
+      hasAnyNode: true,
+    };
+    role = claims.app_is_admin ? "admin" : "agent";
+  }
   // Если user является Директором (top of org), эскалируем до admin
   if (orgPerms.isDirector) role = 'admin';
 
@@ -320,7 +375,7 @@ async function requireAuthFlexible(request, env) {
   }
   if (!token) return { error: "missing auth token", status: 401 };
   try {
-    const claims = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID);
+    const claims = await verifySupportedToken(token, env);
     return { uid: claims.user_id || claims.sub, email: claims.email, claims };
   } catch (e) {
     return { error: `invalid token: ${e.message}`, status: 401 };
@@ -558,7 +613,8 @@ async function handleRtdb(request, env) {
   try {
     const method = request.method;
     if (method === "GET") {
-      return await handleRtdbGet(env, request, parts, opts);
+      const me = await resolveCanonicalUser(env, auth.claims);
+      return await handleRtdbGet(env, request, parts, opts, me);
     }
     if (method === "PATCH" || method === "PUT") {
       const me = await resolveCanonicalUser(env, auth.claims);
@@ -574,7 +630,7 @@ async function handleRtdb(request, env) {
   }
 }
 
-async function handleRtdbGet(env, request, parts, opts) {
+async function handleRtdbGet(env, request, parts, opts, me) {
   const [head, ...rest] = parts;
 
   switch (head) {
@@ -590,8 +646,8 @@ async function handleRtdbGet(env, request, parts, opts) {
 
     case "deals":
       return rest.length === 0
-        ? respondCollection(env, request, "deals", "id", opts)
-        : respondSingle(env, request, "deals", "id", rest[0]);
+        ? respondDealsForUser(env, request, opts, me)
+        : respondDealForUser(env, request, rest[0], me);
 
     case "tasks":
       return rest.length === 0
@@ -645,6 +701,71 @@ async function handleRtdbGet(env, request, parts, opts) {
     default:
       return json({ error: "unknown path", path: parts.join("/") }, 404, request);
   }
+}
+
+function dealAccessSql(me) {
+  if (me?.role === "admin") return { where: "", params: [] };
+  const permissions = me?.orgPerms || {};
+  const clauses = [];
+  const params = [];
+  if (Array.isArray(permissions.pipelineIds)) {
+    if (!permissions.pipelineIds.length) clauses.push("1 = 0");
+    else {
+      clauses.push(`pipeline_id IN (${permissions.pipelineIds.map(() => "?").join(",")})`);
+      params.push(...permissions.pipelineIds);
+    }
+  }
+  if (permissions.dealScope !== "all") {
+    const uid = String(me?.canonicalUid || "");
+    if (!uid) clauses.push("1 = 0");
+    else {
+      clauses.push("(responsible_uid = ? OR created_by_uid = ? OR modify_by_uid = ?)");
+      params.push(uid, uid, uid);
+    }
+  }
+  return { where: clauses.length ? ` AND ${clauses.join(" AND ")}` : "", params };
+}
+
+async function* streamDealsForUser(env, me, chunkSize = 2000) {
+  yield "{";
+  let lastKey = "";
+  let first = true;
+  const access = dealAccessSql(me);
+  while (true) {
+    const { results } = await env.DB.prepare(
+      `SELECT * FROM deals WHERE id > ?${access.where} ORDER BY id LIMIT ?`
+    ).bind(lastKey, ...access.params, chunkSize).all();
+    if (!results?.length) break;
+    let buffer = "";
+    for (const row of results) {
+      buffer += (first ? "" : ",") + JSON.stringify(row.id) + ":" + serializeRowFast(row, "deals");
+      first = false;
+    }
+    yield buffer;
+    if (results.length < chunkSize) break;
+    lastKey = results[results.length - 1].id;
+  }
+  yield "}";
+}
+
+async function respondDealsForUser(env, request, opts, me) {
+  const access = dealAccessSql(me);
+  if (opts.shallow) {
+    const { results } = await env.DB.prepare(
+      `SELECT id FROM deals WHERE 1 = 1${access.where}`
+    ).bind(...access.params).all();
+    return json(Object.fromEntries((results || []).map((row) => [row.id, true])), 200, request);
+  }
+  return streamingJsonResponse(request, () => streamDealsForUser(env, me));
+}
+
+async function respondDealForUser(env, request, id, me) {
+  const access = dealAccessSql(me);
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM deals WHERE id = ?${access.where} LIMIT 1`
+  ).bind(id, ...access.params).all();
+  if (!results?.length) return json(null, 200, request);
+  return json(rowToCamel(results[0], "deals"), 200, request);
 }
 
 async function respondCollection(env, request, tableName, keyCol, opts) {

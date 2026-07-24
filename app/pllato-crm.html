@@ -3301,7 +3301,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword,
-  sendPasswordResetEmail, onAuthStateChanged, signOut as fbSignOut
+  sendPasswordResetEmail, onAuthStateChanged as firebaseOnAuthStateChanged, signOut as fbSignOut
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import {
   getDatabase, ref, get, set, onValue, off, push, update,
@@ -3474,7 +3474,12 @@ const WORKER_RTDB_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/rtdb';
   //     {uid: true}. renderDeals → localeCompare(undefined) → TypeError.
   // v6: не кэшируем пустые справочники (pipelines/users/schema) + бамп сбрасывает
   //     все старые залипшие пустые записи у всех клиентов разом.
-  const CACHE_VERSION = 'v6';
+  let appCacheUser = 'firebase';
+  try {
+    const session = JSON.parse(localStorage.getItem('pllato_session') || 'null');
+    if (session?.user?.id) appCacheUser = 'app-' + String(session.user.id).replace(/[^a-zA-Z0-9_-]/g, '_');
+  } catch {}
+  const CACHE_VERSION = 'v7-' + appCacheUser;
 
   // ВАЖНО: query-параметры (shallow/orderBy/limitToLast) дают разные ответы
   // и должны храниться в кеше под разными ключами. auth/_v выкидываем —
@@ -3586,8 +3591,25 @@ const WORKER_RTDB_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/rtdb';
 // === /ELC IndexedDB RTDB cache ===
 
 
+function readPllatoAppSession() {
+  try {
+    const value = JSON.parse(localStorage.getItem('pllato_session') || 'null');
+    if (!value?.token || !value?.user || Number(value.exp || 0) <= Math.floor(Date.now() / 1000) + 15) return null;
+    return value;
+  } catch { return null; }
+}
+const pllatoAppSession = readPllatoAppSession();
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+const firebaseAuth = getAuth(app);
+const auth = pllatoAppSession ? {
+  currentUser: {
+    uid: String(pllatoAppSession.user.id || pllatoAppSession.user.email),
+    email: String(pllatoAppSession.user.email || ''),
+    displayName: String(pllatoAppSession.user.name || pllatoAppSession.user.email || 'Сотрудник'),
+    photoURL: '',
+    getIdToken: async () => pllatoAppSession.token,
+  },
+} : firebaseAuth;
 const db = getDatabase(app);
 
 // Expose to window for inline handlers
@@ -3614,7 +3636,7 @@ window.loginGoogle = async function() {
   showError('');
   try {
     const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    await signInWithPopup(firebaseAuth, provider);
   } catch (e) {
     showError(humanizeAuthError(e));
   }
@@ -3626,7 +3648,7 @@ window.loginEmail = async function() {
   if (!email || !pass) { showError('Введите email и пароль'); return; }
   showError('');
   try {
-    await signInWithEmailAndPassword(auth, email, pass);
+    await signInWithEmailAndPassword(firebaseAuth, email, pass);
   } catch (e) {
     showError(humanizeAuthError(e));
   }
@@ -3636,7 +3658,7 @@ window.resetPassword = async function() {
   const email = document.getElementById('login-email').value.trim();
   if (!email) { showError('Сначала введите email'); return; }
   try {
-    await sendPasswordResetEmail(auth, email);
+    await sendPasswordResetEmail(firebaseAuth, email);
     showSuccess('Письмо для сброса пароля отправлено на ' + email);
   } catch (e) {
     showError(humanizeAuthError(e));
@@ -3644,7 +3666,12 @@ window.resetPassword = async function() {
 };
 
 window.signOut = async function() {
-  await fbSignOut(auth);
+  if (pllatoAppSession) {
+    localStorage.removeItem('pllato_session');
+    location.href = '/login.html';
+    return;
+  }
+  await fbSignOut(firebaseAuth);
 };
 
 function humanizeAuthError(e) {
@@ -3669,7 +3696,7 @@ function showSuccess(msg) {
 }
 
 // ── Auth state listener ──────────────────────────────────
-onAuthStateChanged(auth, async user => {
+const handleAuthState = async user => {
   if (user) {
     document.getElementById('login').style.display = 'none';
     document.getElementById('app').classList.add('active');
@@ -3686,7 +3713,12 @@ onAuthStateChanged(auth, async user => {
       if (token) setTimeout(() => openInviteAcceptModal(token), 300);
     }
   }
-});
+};
+if (pllatoAppSession) {
+  queueMicrotask(() => handleAuthState(auth.currentUser));
+} else {
+  firebaseOnAuthStateChanged(firebaseAuth, handleAuthState);
+}
 
 // ── App init ─────────────────────────────────────────────
 // ── Scope toggle (Мои / Команда / Все) — role-aware ──────────────────────

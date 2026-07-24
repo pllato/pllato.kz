@@ -473,6 +473,7 @@ async function ensureD1Schema(env) {
         is_admin        INTEGER NOT NULL DEFAULT 0,
         is_super_admin  INTEGER NOT NULL DEFAULT 0,
         apps            TEXT NOT NULL DEFAULT '{}',
+        crm_access      TEXT NOT NULL DEFAULT '{}',
         created_at      INTEGER NOT NULL,
         updated_at      INTEGER NOT NULL,
         created_by      TEXT
@@ -742,6 +743,7 @@ async function ensureD1Schema(env) {
   await safeAlter("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0");
   await safeAlter("ALTER TABLE users ADD COLUMN is_super_admin INTEGER NOT NULL DEFAULT 0");
   await safeAlter("ALTER TABLE users ADD COLUMN apps TEXT NOT NULL DEFAULT '{}'");
+  await safeAlter("ALTER TABLE users ADD COLUMN crm_access TEXT NOT NULL DEFAULT '{}'");
   await safeAlter("ALTER TABLE users ADD COLUMN created_by TEXT");
   await safeAlter("ALTER TABLE users ADD COLUMN role_id TEXT");
 
@@ -1983,6 +1985,7 @@ function d1RowToUser(row) {
     isAdmin: Number(row.is_admin) === 1,
     isSuperAdmin: Number(row.is_super_admin) === 1,
     apps: parseJsonObject(row.apps, {}),
+    crmAccess: parseJsonObject(row.crm_access, {}),
     createdAt: Number(row.created_at) || 0,
     updatedAt: Number(row.updated_at) || 0,
     createdBy: row.created_by || null,
@@ -1996,7 +1999,7 @@ async function d1GetUserByEmail(env, email) {
   if (!normalizedEmail) return null;
   const row = await db
     .prepare(`
-      SELECT id, email, name, last_name, position, role, role_id, is_admin, is_super_admin, apps, created_at, updated_at, created_by
+      SELECT id, email, name, last_name, position, role, role_id, is_admin, is_super_admin, apps, crm_access, created_at, updated_at, created_by
       FROM users
       WHERE email = ?
       LIMIT 1
@@ -2011,7 +2014,7 @@ async function d1GetUserById(env, id) {
   const db = requireStoreDb(env);
   const row = await db
     .prepare(`
-      SELECT id, email, name, last_name, position, role, role_id, is_admin, is_super_admin, apps, created_at, updated_at, created_by
+      SELECT id, email, name, last_name, position, role, role_id, is_admin, is_super_admin, apps, crm_access, created_at, updated_at, created_by
       FROM users
       WHERE id = ?
       LIMIT 1
@@ -2026,7 +2029,7 @@ async function d1ListUsers(env) {
   const db = requireStoreDb(env);
   const res = await db
     .prepare(`
-      SELECT id, email, name, last_name, position, role, role_id, is_admin, is_super_admin, apps, created_at, updated_at, created_by
+      SELECT id, email, name, last_name, position, role, role_id, is_admin, is_super_admin, apps, crm_access, created_at, updated_at, created_by
       FROM users
       ORDER BY updated_at DESC
     `)
@@ -2049,6 +2052,16 @@ async function d1UpsertUser(env, payload, actor) {
   const apps = isObject(payload.apps)
     ? payload.apps
     : (existingByEmail?.apps || {});
+  const crmAccess = isObject(payload.crmAccess)
+    ? {
+        pipelines: Array.from(new Set(
+          (Array.isArray(payload.crmAccess.pipelines) ? payload.crmAccess.pipelines : [])
+            .map((value) => String(value || "").trim())
+            .filter((value) => value === "start" || value === "production")
+        )),
+        dealScope: payload.crmAccess.dealScope === "all" ? "all" : "own",
+      }
+    : (existingByEmail?.crmAccess || { pipelines: ["start", "production"], dealScope: "own" });
 
   // roleId — id кастомной роли из pllato_core_roles (Settings → Роли).
   // Если payload.roleId передан (даже пустая строка для сброса) — используем,
@@ -2060,9 +2073,9 @@ async function d1UpsertUser(env, payload, actor) {
   await db
     .prepare(`
       INSERT INTO users (
-        id, email, name, last_name, position, role, role_id, is_admin, is_super_admin, apps, created_at, updated_at, created_by
+        id, email, name, last_name, position, role, role_id, is_admin, is_super_admin, apps, crm_access, created_at, updated_at, created_by
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(email) DO UPDATE SET
         id = COALESCE(excluded.id, users.id),
         name = excluded.name,
@@ -2073,6 +2086,7 @@ async function d1UpsertUser(env, payload, actor) {
         is_admin = excluded.is_admin,
         is_super_admin = excluded.is_super_admin,
         apps = excluded.apps,
+        crm_access = excluded.crm_access,
         updated_at = excluded.updated_at
     `)
     .bind(
@@ -2086,6 +2100,7 @@ async function d1UpsertUser(env, payload, actor) {
       isAdmin ? 1 : 0,
       isSuperAdmin ? 1 : 0,
       JSON.stringify(apps || {}),
+      JSON.stringify(crmAccess),
       Number(existingByEmail?.createdAt || now),
       now,
       actor?.email || actor?.uid || null,
@@ -2633,6 +2648,7 @@ function publicUserPayload(user) {
     isAdmin: Boolean(user.isAdmin),
     isSuperAdmin: Boolean(user.isSuperAdmin),
     apps: user.apps || {},
+    crmAccess: user.crmAccess || { pipelines: ["start", "production"], dealScope: "own" },
     createdAt: user.createdAt || 0,
     updatedAt: user.updatedAt || 0,
   };
@@ -2651,6 +2667,7 @@ async function issueSessionTokenForUser(env, user) {
     isAdmin: Boolean(user.isAdmin),
     isSuperAdmin: Boolean(user.isSuperAdmin),
     apps: user.apps || {},
+    crmAccess: user.crmAccess || { pipelines: ["start", "production"], dealScope: "own" },
     iat: now,
     exp: now + JWT_TTL_SECONDS,
   };
