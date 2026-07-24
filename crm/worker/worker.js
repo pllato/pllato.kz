@@ -2161,11 +2161,13 @@ function normalizeProjectFinance(payload) {
     money,
     rate: Math.max(1, Math.min(Number(payload?.rate) || 530, 1_000_000)),
     chartVisibility: {
+      inquiries: normalizeViewers(rawVisibility.inquiries),
       orders: normalizeViewers(rawVisibility.orders),
       cash: normalizeViewers(rawVisibility.cash),
     },
     chartOverrides,
     chartScale: {
+      inquiries: Math.max(0, Math.round(Number(rawScale.inquiries) || 0)),
       orders: Math.max(0, Math.round(Number(rawScale.orders) || 0)),
       cash: Math.max(0, Math.round(Number(rawScale.cash) || 0)),
     },
@@ -2284,11 +2286,24 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
   const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
   const finance = normalizeProjectFinance(stored || {});
   const visible = {
+    inquiries: financeChartAllowed(actor, finance.chartVisibility.inquiries),
     orders: financeChartAllowed(actor, finance.chartVisibility.orders),
     cash: financeChartAllowed(actor, finance.chartVisibility.cash),
   };
   const allSeries = projectFinanceChartSeries(finance, url.searchParams.get("points"));
   const charts = {};
+  if (visible.inquiries) {
+    try {
+      const pointCount = Math.max(4, Math.min(Number(url.searchParams.get("points")) || 8, 16));
+      const upstream = await fetch(`https://pllato-elc-worker.uurraa.workers.dev/api/public/pllato-inquiries?points=${pointCount}`);
+      if (upstream.ok) {
+        const payload = await upstream.json();
+        if (Array.isArray(payload?.series)) charts.inquiries = payload.series;
+      }
+    } catch (error) {
+      console.warn("pllato inquiries chart unavailable", error?.message || error);
+    }
+  }
   if (visible.orders) charts.orders = allSeries.map(({ start, end, label, partial, orders }) => ({ start, end, label, partial, value: orders }));
   if (visible.cash) charts.cash = allSeries.map(({ start, end, label, partial, cash }) => ({ start, end, label, partial, value: cash }));
   return {

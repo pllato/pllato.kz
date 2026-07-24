@@ -7428,6 +7428,30 @@ async function handleChartsSeries(request, env) {
   return json({ ok: true, series, period, usesCreated }, 200, request);
 }
 
+// Публичная агрегированная серия для внутреннего App Pllato.
+// Возвращает только недельные количества созданных сделок — без названий,
+// контактов, ответственных и любых других персональных данных.
+async function handlePublicPllatoInquiries(request, env) {
+  const url = new URL(request.url);
+  const points = Math.min(16, Math.max(4, parseInt(url.searchParams.get('points') || '8', 10) || 8));
+  const pipeline = await env.DB.prepare(
+    "SELECT id FROM pipelines WHERE name = ? LIMIT 1"
+  ).bind("Pllato Старт").first();
+  if (!pipeline?.id) return json({ ok: false, error: "pipeline not found" }, 404, request);
+  const buckets = buildChartBuckets('week', points);
+  const minDate = buckets[0].start;
+  const result = await env.DB.prepare(
+    "SELECT bitrix_date_create AS d FROM deals WHERE pipeline_id = ? AND bitrix_date_create >= ?"
+  ).bind(pipeline.id, minDate).all();
+  const series = countIntoBuckets((result.results || []).map((row) => row.d), buckets, 'week');
+  return json({
+    ok: true,
+    series,
+    period: 'week',
+    boundary: { weekday: 4, hour: 14, timeZone: 'Asia/Almaty' },
+  }, 200, request);
+}
+
 // GET /api/sip/route?phone=77073320409 — Asterisk дёргает при входящем.
 // Возвращает: { extensions: ["101","102"], mobile: "+7...", fallbackSeconds: 30 }
 // Логика: phone → contact → recent open deal → responsible_uid → org-tree node →
@@ -9249,6 +9273,9 @@ export default {
     }
     if (path === "/api/charts/series" && request.method === "GET") {
       return handleChartsSeries(request, env);
+    }
+    if (path === "/api/public/pllato-inquiries" && request.method === "GET") {
+      return handlePublicPllatoInquiries(request, env);
     }
     // Работа с письмами конкретного ящика
     const mailUnreadMatch = path.match(/^\/api\/mail\/([^/]+)\/unread$/);
