@@ -2155,7 +2155,10 @@ function normalizeProjectFinance(payload) {
     const orderCreatedAt = Number.isFinite(Number(item.orderCreatedAt))
       ? Math.max(0, Number(item.orderCreatedAt))
       : 0;
-    money[id] = { deal, cur, pays, orderCreatedAt };
+    const completedAt = Number.isFinite(Number(item.completedAt))
+      ? Math.max(0, Number(item.completedAt))
+      : 0;
+    money[id] = { deal, cur, pays, orderCreatedAt, completedAt };
   }
   const rawVisibility = isObject(payload?.chartVisibility) ? payload.chartVisibility : {};
   const rawOverrides = isObject(payload?.chartOverrides) ? payload.chartOverrides : {};
@@ -2170,6 +2173,7 @@ function normalizeProjectFinance(payload) {
     const one = {};
     if (Number.isFinite(Number(value.orders))) one.orders = Math.max(0, Math.round(Number(value.orders)));
     if (Number.isFinite(Number(value.cash))) one.cash = Math.max(0, Math.round(Number(value.cash)));
+    if (Number.isFinite(Number(value.releases))) one.releases = Math.max(0, Math.round(Number(value.releases)));
     if (Object.keys(one).length) chartOverrides[week] = one;
   });
   return {
@@ -2183,12 +2187,14 @@ function normalizeProjectFinance(payload) {
       ),
       orders: normalizeViewers(rawVisibility.orders),
       cash: normalizeViewers(rawVisibility.cash),
+      releases: normalizeViewers(rawVisibility.releases),
     },
     chartOverrides,
     chartScale: {
       inquiries: Math.max(0, Math.round(Number(rawScale.inquiries) || 0)),
       orders: Math.max(0, Math.round(Number(rawScale.orders) || 0)),
       cash: Math.max(0, Math.round(Number(rawScale.cash) || 0)),
+      releases: Math.max(0, Math.round(Number(rawScale.releases) || 0)),
     },
   };
 }
@@ -2259,6 +2265,7 @@ function projectFinanceChartSeries(finance, points = 8) {
   const starts = Array.from({ length: count }, (_, i) => currentStart - (count - 1 - i) * weekMs);
   const orders = starts.map(() => 0);
   const cash = starts.map(() => 0);
+  const releases = starts.map(() => 0);
   const startIndex = starts[0];
   const toIndex = (timestamp) => Math.floor((almatyThursdayWeekStart(timestamp) - startIndex) / weekMs);
   const label = (start) => new Intl.DateTimeFormat("ru-RU", {
@@ -2282,6 +2289,23 @@ function projectFinanceChartSeries(finance, points = 8) {
         cash[index] += Math.round(amount);
       }
     });
+    let releaseTime = Number(item.completedAt) || 0;
+    if (!releaseTime && Number(item.deal) > 0) {
+      let received = 0;
+      const sortedPays = (item.pays || [])
+        .map((pay) => ({ pay, timestamp: projectFinanceEventTime(pay) }))
+        .filter(({ timestamp }) => timestamp > 0)
+        .sort((a, b) => a.timestamp - b.timestamp);
+      for (const entry of sortedPays) {
+        received += Number(entry.pay.sum) || 0;
+        if (received >= Number(item.deal)) {
+          releaseTime = entry.timestamp;
+          break;
+        }
+      }
+    }
+    const releaseIndex = releaseTime ? toIndex(releaseTime) : -1;
+    if (releaseIndex >= 0 && releaseIndex < count) releases[releaseIndex] += 1;
   });
 
   return starts.map((start, index) => {
@@ -2297,6 +2321,7 @@ function projectFinanceChartSeries(finance, points = 8) {
       partial: start === currentStart,
       orders: Number.isFinite(Number(override.orders)) ? Number(override.orders) : orders[index],
       cash: Number.isFinite(Number(override.cash)) ? Number(override.cash) : cash[index],
+      releases: Number.isFinite(Number(override.releases)) ? Number(override.releases) : releases[index],
     };
   });
 }
@@ -2308,6 +2333,7 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
     inquiries: financeChartAllowed(actor, finance.chartVisibility.inquiries),
     orders: financeChartAllowed(actor, finance.chartVisibility.orders),
     cash: financeChartAllowed(actor, finance.chartVisibility.cash),
+    releases: financeChartAllowed(actor, finance.chartVisibility.releases),
   };
   const allSeries = projectFinanceChartSeries(finance, url.searchParams.get("points"));
   const charts = {};
@@ -2325,6 +2351,7 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
   }
   if (visible.orders) charts.orders = allSeries.map(({ start, end, label, partial, orders }) => ({ start, end, label, partial, value: orders }));
   if (visible.cash) charts.cash = allSeries.map(({ start, end, label, partial, cash }) => ({ start, end, label, partial, value: cash }));
+  if (visible.releases) charts.releases = allSeries.map(({ start, end, label, partial, releases }) => ({ start, end, label, partial, value: releases }));
   const visibleKinds = Object.keys(visible).filter((kind) => visible[kind]);
   return {
     ok: true,
@@ -2341,7 +2368,7 @@ async function handleProjectFinanceChartsPut(request, env, actor) {
   const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
   const current = normalizeProjectFinance(stored || {});
   const kind = String(body.kind || "").trim();
-  const validKinds = new Set(["inquiries", "orders", "cash"]);
+  const validKinds = new Set(["inquiries", "orders", "cash", "releases"]);
   if (!canAccessProjectFinance(actor)) {
     if (!validKinds.has(kind) || !financeChartAllowed(actor, current.chartVisibility[kind])) {
       throw new HttpError(403, "Нет доступа к настройкам этого графика");
