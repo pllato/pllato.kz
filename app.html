@@ -373,14 +373,14 @@ body {
 .fav-star:hover { background:var(--bronze-tint); color:#e8a726; opacity:1; }
 .fav-star.on { opacity:1; color:#e8a726; }
 .lnk-btn {
-  position:absolute; top:10px; right:41px;
-  width:28px; height:28px; border-radius:8px;
-  border:none; background:transparent; color:var(--text-3);
-  font-size:13px; line-height:1; cursor:pointer;
-  display:grid; place-items:center; z-index:3; opacity:0; transition:.14s;
+  position:relative; align-self:flex-start; margin-top:10px;
+  min-height:30px; border-radius:9px; padding:6px 10px;
+  border:1px solid var(--line-2); background:var(--surface); color:var(--bronze-deep);
+  font:700 11px/1.2 inherit; cursor:pointer;
+  display:flex; align-items:center; gap:5px; z-index:3; opacity:.9; transition:.14s;
 }
-.tool-card:hover .lnk-btn { opacity:.85; }
-.lnk-btn:hover { background:var(--bronze-tint); color:var(--bronze-deep); opacity:1; }
+.tool-card:hover .lnk-btn { opacity:1; }
+.lnk-btn:hover { background:var(--bronze-tint); border-color:var(--bronze); opacity:1; }
 .tile-access-btn {
   position:absolute; top:10px; right:72px;
   width:28px; height:28px; border-radius:8px;
@@ -570,6 +570,13 @@ body {
 .fc-head p { color: var(--text-3); font-size: 11.5px; }
 .fc-toggle { border: 1px solid var(--line-2); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; }
 .fc-toggle:hover { color: var(--bronze-deep); border-color: var(--bronze-deep); }
+.sales-quick-link { display:none; align-items:center; gap:9px; margin:0 0 12px; padding:10px 12px; background:var(--surface); border:1px solid var(--line-2); border-radius:11px; }
+.sales-quick-link.visible { display:flex; }
+.sales-quick-link .sql-label { color:var(--text-3); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+.sales-quick-link a { color:var(--bronze-deep); font-size:13px; font-weight:800; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sales-quick-link a:hover { text-decoration:underline; }
+.sales-quick-link button { margin-left:auto; border:1px solid var(--line-2); background:transparent; color:var(--text-2); border-radius:8px; padding:6px 9px; font:700 11px/1.2 inherit; cursor:pointer; white-space:nowrap; }
+.sales-quick-link button:hover { border-color:var(--bronze-deep); color:var(--bronze-deep); }
 .finance-charts.folded { margin-bottom: 18px; }
 .finance-charts.folded .fc-grid { display: none; }
 .fc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
@@ -1615,55 +1622,6 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
         <span class="tool-badge new">Новое</span>
       </a>
 
-      <a href="app/offers.html" class="tool-card" data-app-id="offer_admin">
-        <div class="tool-icon color-indigo">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
-        </div>
-        <h3>Договоры-оферты</h3>
-        <p>Управление публичными офертами на pllato.kz/offer/. Создание новых редакций, замораживание архивных копий.</p>
-        <span class="tool-cta">Открыть →</span>
-        <span class="tool-badge new">Новое</span>
-      </a>
-
-      <a href="crm-builder.html" class="tool-card" data-app-id="crm_builder">
-        <div class="tool-icon color-orange">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-        </div>
-        <h3>Конструктор CRM</h3>
-        <p>Визуальный конструктор схемы CRM для клиента. Показ на встречах.</p>
-        <span class="tool-cta">Открыть →</span>
-      </a>
-
-      <a href="#" class="tool-card disabled" data-app-id="bitrix_migrator" data-coming="Мигратор Bitrix">
-        <div class="tool-icon color-pink">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-        </div>
-        <h3>Мигратор Bitrix</h3>
-        <p>Анализ существующей CRM Bitrix24 клиента. Выявление точек миграции.</p>
-        <span class="tool-cta">Скоро</span>
-        <span class="tool-badge coming">В работе</span>
-      </a>
-
-      <a href="documents.html" class="tool-card" data-app-id="docs_portal">
-        <div class="tool-icon color-purple">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 6.5A2.5 2.5 0 0 1 4.5 4H10a3 3 0 0 1 3 3v13a3 3 0 0 0-3-3H4.5A2.5 2.5 0 0 0 2 19.5z"/><path d="M22 6.5A2.5 2.5 0 0 0 19.5 4H14a3 3 0 0 0-3 3v13a3 3 0 0 1 3-3h5.5a2.5 2.5 0 0 1 2.5 2.5z"/></svg>
-        </div>
-        <h3>Документы</h3>
-        <p>Внутренние регламенты, инструкции и мотивация команды. Сейчас доступен документ по мотивации партнёра.</p>
-        <span class="tool-cta">Открыть документы →</span>
-        <span class="tool-badge new">Новое</span>
-      </a>
-
-      <a href="app/linkgen.html" class="tool-card" data-app-id="linkgen">
-        <div class="tool-icon color-orange">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-        </div>
-        <h3>Генератор временных ссылок</h3>
-        <p>Ссылка на любое демо, КП или мокап с ограниченным сроком: 1–30 дней или до даты, после — экран «Срок истёк». Все плашки портала в списке с поиском (подтягиваются автоматически) + произвольный путь; отправка в WhatsApp.</p>
-        <span class="tool-cta">Открыть генератор →</span>
-        <span class="tool-badge new">Новое</span>
-      </a>
-
       <a href="meet.html" class="tool-card" data-app-id="pllato_meet">
         <div class="tool-icon color-indigo">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
@@ -1805,7 +1763,6 @@ const APPS_CATALOG = [
   { id: "mk_group",         label: "MK Group · Объекты и снабжение (Мухтар)" },
   { id: "balapan_net",      label: "Зайка · Сеть детских садов (Екатерина)" },
   { id: "pllato_crm",       label: "Aminamed CRM" },
-  { id: "docs_portal",      label: "Документы" },
   { id: "contracts_registry", label: "Реестр договоров (ЭЦП)" },
   { id: "team_crm",         label: "CRM Команды (ELC)" },
   { id: "robeng_crm",       label: "RobEng CRM" },
@@ -1826,11 +1783,7 @@ const APPS_CATALOG = [
   { id: "team_tasks",       label: "Задачи команды" },
   { id: "ai_tasks",         label: "AI Мониторинг" },
   { id: "pllato_sales_crm", label: "CRM Pllato — Старт и Производство" },
-  { id: "crm_builder",      label: "Конструктор CRM" },
-  { id: "bitrix_migrator",  label: "Мигратор Bitrix" },
   { id: "contact_center",   label: "Контакт-центр" },
-  { id: "linkgen",          label: "Генератор временных ссылок" },
-  { id: "offer_admin",      label: "Договоры-оферты" },
   { id: "pllato_meet",      label: "Видеовстречи" },
 ];
 
@@ -2445,9 +2398,9 @@ function initProjectGroups(){
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'lnk-btn';
-    btn.innerHTML = '🔗';
-    btn.title = 'Выдать временный доступ';
-    btn.setAttribute('aria-label', 'Выдать временный доступ');
+    btn.innerHTML = '<span aria-hidden="true">🔗</span> Временная ссылка';
+    btn.title = 'Сгенерировать временную ссылку';
+    btn.setAttribute('aria-label', 'Сгенерировать временную ссылку');
     btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openSharePop(card, btn, href); });
     card.appendChild(btn);
   });
@@ -2832,6 +2785,70 @@ function financeChartCard(kind,series){
 function financeChartsPinnedOpen(){
   return ACTIVE_TAB==='fav' || ACTIVE_TAB==='g:Инструменты для продаж';
 }
+function salesQuickLinkKey(){
+  return 'pllato_sales_quick_link_v1:' + String(CURRENT?.email||'guest').toLowerCase();
+}
+let GLOBAL_SALES_QUICK_LINK=null;
+function getSalesQuickLink(){
+  if(GLOBAL_SALES_QUICK_LINK?.enabled) return {...GLOBAL_SALES_QUICK_LINK,shared:true};
+  try { return JSON.parse(localStorage.getItem(salesQuickLinkKey())||'null'); } catch(e){ return null; }
+}
+async function loadGlobalSalesQuickLink(){
+  try {
+    const data=await apiFetch('/store/pull',{method:'POST',body:{collections:['portal_settings'],limitPerCollection:50}});
+    const items=Array.isArray(data?.collections?.portal_settings)?data.collections.portal_settings:[];
+    GLOBAL_SALES_QUICK_LINK=items.find(item=>item?.id==='sales_quick_link')||null;
+  } catch(e) {
+    console.warn('shared quick link:',e);
+  }
+}
+function configureSalesQuickLink(){
+  const current=getSalesQuickLink()||{};
+  const box=document.getElementById('salesQuickLink');
+  if(!box) return;
+  box.innerHTML=`<div style="display:grid;grid-template-columns:minmax(140px,1fr) minmax(220px,2fr);gap:8px;flex:1">
+    <input class="sql-name" aria-label="Название ссылки" placeholder="Название" value="${mEsc(current.name||'')}">
+    <input class="sql-url" aria-label="Адрес ссылки" placeholder="https://..." value="${mEsc(current.url||'')}">
+    <label style="grid-column:1/-1;display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700"><input class="sql-shared" type="checkbox"${current.shared?' checked':''}> Доступна всем пользователям App</label>
+  </div>
+  <button type="button" onclick="saveSalesQuickLink()">Сохранить</button>
+  <button type="button" onclick="renderSalesQuickLink()">Отмена</button>`;
+}
+async function saveSalesQuickLink(){
+  const box=document.getElementById('salesQuickLink');
+  const name=box?.querySelector('.sql-name')?.value.trim()||'';
+  const raw=box?.querySelector('.sql-url')?.value.trim()||'';
+  const shared=!!box?.querySelector('.sql-shared')?.checked;
+  let url='';
+  try {
+    url=new URL(raw).href;
+    if(!/^https?:$/i.test(new URL(url).protocol)) throw new Error('protocol');
+  } catch(e) {
+    alert('Укажите корректную ссылку, начинающуюся с https://');
+    return;
+  }
+  const item={name:name||'Моя ссылка',url};
+  localStorage.setItem(salesQuickLinkKey(),JSON.stringify(item));
+  if(shared){
+    GLOBAL_SALES_QUICK_LINK={id:'sales_quick_link',...item,enabled:true,createdBy:CURRENT?.email||'',updatedAt:Date.now()};
+    await apiFetch('/store/push',{method:'POST',body:{ops:[{type:'upsert',collection:'portal_settings',item:GLOBAL_SALES_QUICK_LINK}]}});
+  } else if(GLOBAL_SALES_QUICK_LINK?.createdBy===CURRENT?.email) {
+    GLOBAL_SALES_QUICK_LINK={...GLOBAL_SALES_QUICK_LINK,enabled:false,updatedAt:Date.now()};
+    await apiFetch('/store/push',{method:'POST',body:{ops:[{type:'upsert',collection:'portal_settings',item:GLOBAL_SALES_QUICK_LINK}]}});
+  }
+  renderSalesQuickLink();
+}
+function renderSalesQuickLink(){
+  const box=document.getElementById('salesQuickLink');
+  if(!box) return;
+  const visible=ACTIVE_TAB==='g:Инструменты для продаж';
+  box.classList.toggle('visible',visible);
+  if(!visible) return;
+  const item=getSalesQuickLink();
+  box.innerHTML=item
+    ? `<span class="sql-label">Быстрая ссылка${item.shared?' · доступна всем':''}</span><a href="${mEsc(item.url)}" target="_blank" rel="noopener">${mEsc(item.name)}</a><button type="button" onclick="configureSalesQuickLink()">Настроить</button>`
+    : '<span class="sql-label">Быстрая ссылка</span><span style="font-size:12px;color:var(--text-3)">Добавьте нужную ссылку для быстрого доступа</span><button type="button" onclick="configureSalesQuickLink()">Настроить</button>';
+}
 function financeChartsAreOpen(){
   if(financeChartsPinnedOpen()) return true;
   return PORTAL_VIEW.chartsOpen?.[ACTIVE_TAB]===true;
@@ -2839,6 +2856,7 @@ function financeChartsAreOpen(){
 function applyFinanceChartsFold(){
   const el=document.getElementById('financeCharts');
   if(!el) return;
+  renderSalesQuickLink();
   const open=financeChartsAreOpen();
   el.classList.toggle('folded',!open);
   const btn=el.querySelector('.fc-toggle');
@@ -2885,8 +2903,10 @@ async function renderFinanceCharts(){
     if(data.chartScale) CHART_SCALE={...CHART_SCALE,...data.chartScale};
     const kinds=['inquiries','orders','cash'].filter(kind=>Array.isArray(data.charts?.[kind]));
     if(!kinds.length){ el.remove(); return; }
+    await loadGlobalSalesQuickLink();
     const toggle=financeChartsPinnedOpen()?'':'<button class="fc-toggle" onclick="toggleFinanceCharts()"></button>';
-    el.innerHTML='<div class="fc-head"><div><h2>Динамика по неделям</h2><p>Неделя закрывается каждый четверг в 14:00 по Алматы</p></div>'+toggle+'</div>'
+    el.innerHTML='<div class="sales-quick-link" id="salesQuickLink"></div>'
+      +'<div class="fc-head"><div><h2>Динамика по неделям</h2><p>Неделя закрывается каждый четверг в 14:00 по Алматы</p></div>'+toggle+'</div>'
       +'<div class="fc-grid">'+kinds.map(kind=>financeChartCard(kind,data.charts[kind])).join('')+'</div>';
     applyFinanceChartsFold();
     restorePortalPosition();
