@@ -1689,7 +1689,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
     </div>
     <div class="tools-grid">
 
-      <a href="app/sdr-training.html" class="tool-card" data-app-id="pllato_crm">
+      <a href="app/sdr-training.html" class="tool-card" data-app-id="sdr_training">
         <div class="tool-icon color-green">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
         </div>
@@ -1824,6 +1824,7 @@ const APPS_CATALOG = [
   { id: "pllato_sales_crm", label: "CRM Pllato — Старт и Производство" },
   { id: "contact_center",   label: "Контакт-центр" },
   { id: "pllato_meet",      label: "Видеовстречи" },
+  { id: "sdr_training",     label: "Тренажёр SDR · первые встречи" },
 ];
 
 // Главный супер-админ (системный) — всегда имеет полный доступ независимо от записей в /users
@@ -2481,6 +2482,21 @@ function initProjectGroups(){
       openCrmTileAccess();
     });
     crmCard.appendChild(accessBtn);
+  }
+  const sdrCard = document.querySelector('.tool-card[data-app-id="sdr_training"]');
+  if (sdrCard && CURRENT?.isAdmin && !sdrCard.querySelector('.tile-access-btn')) {
+    const accessBtn = document.createElement('button');
+    accessBtn.type = 'button';
+    accessBtn.className = 'tile-access-btn';
+    accessBtn.innerHTML = '⚙';
+    accessBtn.title = 'Настроить доступ к тренажёру SDR';
+    accessBtn.setAttribute('aria-label', 'Настроить доступ к тренажёру SDR');
+    accessBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openSdrTileAccess();
+    });
+    sdrCard.appendChild(accessBtn);
   }
   buildProjectTabs();
   injectMoney();
@@ -3304,6 +3320,70 @@ async function saveCrmTileAccess() {
     saveButton.disabled = false;
     saveButton.textContent = 'Сохранить';
     alert('Не удалось сохранить права CRM: ' + (error.message || error));
+  }
+}
+
+async function openSdrTileAccess() {
+  if (!CURRENT?.isAdmin) return;
+  try {
+    const users = await loadUsersMap();
+    adminUsersCache = users;
+    const overlay = document.createElement('div');
+    overlay.id = 'sdrTileAccessOverlay';
+    overlay.className = 'money-ovl show';
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) overlay.remove();
+    });
+    const rows = Object.entries(users)
+      .filter(([, user]) => user?.email)
+      .sort((a, b) => String(a[1].name || a[1].email).localeCompare(String(b[1].name || b[1].email), 'ru'))
+      .map(([uid, user]) => {
+        const isFullAdmin = Boolean(user.isAdmin || user.isSuperAdmin || isRootSuper(user.email));
+        const enabled = isFullAdmin || Boolean(user.apps?.sdr_training);
+        return `<label class="fc-person" data-sdr-tile-user="${escapeHtml(uid)}">
+          <input type="checkbox" data-sdr-enabled ${enabled ? 'checked' : ''} ${isFullAdmin ? 'disabled' : ''}>
+          <span><div class="n">${escapeHtml(user.name || user.email)}${isFullAdmin ? ' · полный доступ' : ''}</div><div class="e">${escapeHtml(user.email)}</div></span>
+        </label>`;
+      }).join('');
+    overlay.innerHTML = `<div class="money-modal" style="max-width:620px">
+      <div class="mm-h"><h3>Доступ к тренажёру SDR</h3><span class="mm-x" data-sdr-close>✕</span></div>
+      <div class="mm-b">
+        <div style="font-size:12px;color:var(--text-2);margin-bottom:10px">Отметьте пользователей App, которым доступна эта плашка и вход в тренажёр. Супер-админ имеет доступ всегда.</div>
+        <div class="fc-modal-list">${rows || '<div class="fc-empty" style="padding:14px">Пользователей пока нет.</div>'}</div>
+      </div>
+      <div class="mm-f"><button data-sdr-close>Отмена</button><button style="background:var(--navy);color:#fff" data-sdr-save>Сохранить</button></div>
+    </div>`;
+    overlay.querySelectorAll('[data-sdr-close]').forEach((button) => button.addEventListener('click', () => overlay.remove()));
+    overlay.querySelector('[data-sdr-save]')?.addEventListener('click', saveSdrTileAccess);
+    document.body.appendChild(overlay);
+  } catch (error) {
+    alert('Не удалось загрузить права тренажёра: ' + (error.message || error));
+  }
+}
+
+async function saveSdrTileAccess() {
+  const overlay = document.getElementById('sdrTileAccessOverlay');
+  const saveButton = overlay?.querySelector('[data-sdr-save]');
+  if (!overlay || !saveButton) return;
+  saveButton.disabled = true;
+  saveButton.textContent = 'Сохраняем…';
+  try {
+    for (const row of overlay.querySelectorAll('[data-sdr-tile-user]')) {
+      const uid = row.dataset.sdrTileUser;
+      const current = adminUsersCache[uid];
+      if (!current || current.isAdmin || current.isSuperAdmin || isRootSuper(current.email)) continue;
+      const enabled = Boolean(row.querySelector('[data-sdr-enabled]')?.checked);
+      const next = { ...current, apps: { ...(current.apps || {}), sdr_training: enabled } };
+      await apiFetch('/users/save', { method: 'POST', body: next });
+      adminUsersCache[uid] = next;
+    }
+    writeUsersRegistryCache(adminUsersCache);
+    overlay.remove();
+    showAdminMsg('Доступ к тренажёру SDR сохранён', 'ok');
+  } catch (error) {
+    saveButton.disabled = false;
+    saveButton.textContent = 'Сохранить';
+    alert('Не удалось сохранить доступ: ' + (error.message || error));
   }
 }
 
