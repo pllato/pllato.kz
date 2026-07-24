@@ -7574,6 +7574,44 @@ async function handlePublicPllatoInquiries(request, env) {
   }, 200, request);
 }
 
+// Публичная обезличенная серия для КЭП: уникальная сделка учитывается один раз
+// по первому входу в «Создание Демо» или «Показ Демо».
+async function handlePublicPllatoKep(request, env) {
+  const url = new URL(request.url);
+  const points = Math.min(16, Math.max(4, parseInt(url.searchParams.get('points') || '8', 10) || 8));
+  await ensureStageEventsBackfill(env);
+  const pipeline = await env.DB.prepare(
+    "SELECT id, stages FROM pipelines WHERE name = ? LIMIT 1"
+  ).bind("Pllato Старт").first();
+  if (!pipeline?.id) return json({ ok: false, error: "pipeline not found" }, 404, request);
+  let stages = {};
+  try { stages = JSON.parse(pipeline.stages || '{}'); } catch {}
+  const targetNames = new Set(['создание демо', 'показ демо']);
+  const stageIds = Object.entries(stages)
+    .filter(([, stage]) => targetNames.has(String(stage?.name || '').trim().toLowerCase()))
+    .map(([id]) => id);
+  if (stageIds.length !== 2) return json({ ok: false, error: "KEP stages not found" }, 404, request);
+  const buckets = buildChartBuckets('week', points);
+  const minDate = buckets[0].start;
+  const result = await env.DB.prepare(`
+    SELECT first_entered_at AS d FROM (
+      SELECT deal_id, MIN(entered_at) AS first_entered_at
+      FROM deal_stage_events
+      WHERE pipeline_id = ? AND stage_id IN (?, ?)
+      GROUP BY deal_id
+    )
+    WHERE first_entered_at >= ?
+  `).bind(pipeline.id, stageIds[0], stageIds[1], minDate).all();
+  const series = countIntoBuckets((result.results || []).map((row) => row.d), buckets, 'week');
+  return json({
+    ok: true,
+    series,
+    period: 'week',
+    stages: ['Создание Демо', 'Показ Демо'],
+    boundary: { weekday: 4, hour: 14, timeZone: 'Asia/Almaty' },
+  }, 200, request);
+}
+
 // GET /api/sip/route?phone=77073320409 — Asterisk дёргает при входящем.
 // Возвращает: { extensions: ["101","102"], mobile: "+7...", fallbackSeconds: 30 }
 // Логика: phone → contact → recent open deal → responsible_uid → org-tree node →
@@ -9398,6 +9436,9 @@ export default {
     }
     if (path === "/api/public/pllato-inquiries" && request.method === "GET") {
       return handlePublicPllatoInquiries(request, env);
+    }
+    if (path === "/api/public/pllato-kep" && request.method === "GET") {
+      return handlePublicPllatoKep(request, env);
     }
     // Работа с письмами конкретного ящика
     const mailUnreadMatch = path.match(/^\/api\/mail\/([^/]+)\/unread$/);
