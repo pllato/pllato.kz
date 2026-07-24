@@ -22,7 +22,7 @@ const DEFAULT_STORE_PULL_LIMIT = 5000;
 const MAX_STORE_OPS = 500;
 const PRIVATE_PROJECT_FINANCE_COLLECTION = "_project_finance_private";
 const PRIVATE_PROJECT_FINANCE_ID = "global";
-const BUILD_ID = "2026-07-24-project-finance-charts-v1";
+const BUILD_ID = "2026-07-24-project-finance-chart-overrides-v1";
 
 let googleKeysCache = {
   keys: null,
@@ -2143,10 +2143,19 @@ function normalizeProjectFinance(payload) {
     money[id] = { deal, cur, pays, orderCreatedAt };
   }
   const rawVisibility = isObject(payload?.chartVisibility) ? payload.chartVisibility : {};
+  const rawOverrides = isObject(payload?.chartOverrides) ? payload.chartOverrides : {};
   const normalizeViewers = (value) => [...new Set((Array.isArray(value) ? value : [])
     .map((email) => String(email || "").trim().toLowerCase())
     .filter((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     .slice(0, 200))];
+  const chartOverrides = {};
+  Object.entries(rawOverrides).slice(0, 100).forEach(([week, value]) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(week) || !isObject(value)) return;
+    const one = {};
+    if (Number.isFinite(Number(value.orders))) one.orders = Math.max(0, Math.round(Number(value.orders)));
+    if (Number.isFinite(Number(value.cash))) one.cash = Math.max(0, Math.round(Number(value.cash)));
+    if (Object.keys(one).length) chartOverrides[week] = one;
+  });
   return {
     money,
     rate: Math.max(1, Math.min(Number(payload?.rate) || 530, 1_000_000)),
@@ -2154,6 +2163,7 @@ function normalizeProjectFinance(payload) {
       orders: normalizeViewers(rawVisibility.orders),
       cash: normalizeViewers(rawVisibility.cash),
     },
+    chartOverrides,
   };
 }
 
@@ -2172,6 +2182,7 @@ async function handleProjectFinancePut(request, env, actor) {
   const normalized = normalizeProjectFinance({
     ...body,
     chartVisibility: body.chartVisibility ?? stored?.chartVisibility,
+    chartOverrides: body.chartOverrides ?? stored?.chartOverrides,
   });
   const now = Date.now();
   await d1UpsertDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, {
@@ -2246,14 +2257,18 @@ function projectFinanceChartSeries(finance, points = 8) {
     });
   });
 
-  return starts.map((start, index) => ({
-    start,
-    end: start + weekMs,
-    label: label(start),
-    partial: start === currentStart,
-    orders: orders[index],
-    cash: cash[index],
-  }));
+  return starts.map((start, index) => {
+    const weekKey = new Date(start + 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const override = finance.chartOverrides?.[weekKey] || {};
+    return {
+      start,
+      end: start + weekMs,
+      label: label(start),
+      partial: start === currentStart,
+      orders: Number.isFinite(Number(override.orders)) ? Number(override.orders) : orders[index],
+      cash: Number.isFinite(Number(override.cash)) ? Number(override.cash) : cash[index],
+    };
+  });
 }
 
 async function handleProjectFinanceChartsGet(env, actor, url) {
