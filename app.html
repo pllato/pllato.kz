@@ -565,6 +565,7 @@ body {
 
 /* ===== Недельные графики финансов ===== */
 .finance-charts { margin: -2px 0 26px; }
+.search-hidden { display:none !important; }
 .fc-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
 .fc-head h2 { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
 .fc-head p { color: var(--text-3); font-size: 11.5px; }
@@ -2374,7 +2375,11 @@ function initProjectGroups(){
   let cur = '';
   document.querySelectorAll('#main-content .section-title, #main-content .tool-card[data-app-id]').forEach(el => {
     if (el.classList.contains('section-title')) cur = el.textContent.trim();
-    else el.dataset.group = cur;
+    else {
+      el.dataset.group = cur;
+      const hrefs=[...el.querySelectorAll('[href]')].map(link=>link.getAttribute('href')||'').join(' ');
+      el.dataset.searchIndex=normalizeProjectSearch([el.textContent,cur,el.dataset.appId,hrefs].join(' '));
+    }
   });
   // звёзды «в избранное»
   document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
@@ -2426,7 +2431,8 @@ function initProjectGroups(){
 function buildProjectTabs(){
   const bar = document.getElementById('projectTabs');
   if (!bar) return;
-  const groups = [...new Set([...document.querySelectorAll('.tool-card[data-app-id]')].map(c => c.dataset.group).filter(Boolean))];
+  const groups = [...new Set([...document.querySelectorAll('.tool-card[data-app-id]')].map(c => c.dataset.group).filter(Boolean))]
+    .filter(group => group !== 'Работа с клиентами');
   const validTabs=new Set(['all','fav',...groups.map(g=>'g:'+g)]);
   if(!validTabs.has(ACTIVE_TAB)) ACTIVE_TAB='fav';
   const tab = (id, label, cls) => `<button class="ptab${cls||''}${id===ACTIVE_TAB?' on':''}" data-tab="${id}">${label}<span class="pt-c" data-c="${id}"></span></button>`;
@@ -2950,16 +2956,22 @@ async function saveFinanceAccess(kind){
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts });
+Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink });
 
 function applyProjectFilters(){
+  const searchTokens=normalizeProjectSearch(SEARCH_TERM).split(' ').filter(Boolean);
   document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
     let show = cardAllowed(card);
-    if (show && ACTIVE_TAB === 'fav') show = FAVS.has(card.dataset.appId);
-    else if (show && ACTIVE_TAB.startsWith('g:')) show = card.dataset.group === ACTIVE_TAB.slice(2);
-    if (show && SEARCH_TERM) show = card.textContent.toLowerCase().includes(SEARCH_TERM);
+    if (show && !searchTokens.length && ACTIVE_TAB === 'fav') show = FAVS.has(card.dataset.appId);
+    else if (show && !searchTokens.length && ACTIVE_TAB.startsWith('g:')) show = card.dataset.group === ACTIVE_TAB.slice(2);
+    if (show && searchTokens.length) {
+      const index=card.dataset.searchIndex||normalizeProjectSearch(card.textContent);
+      show=searchTokens.every(token=>index.includes(token));
+    }
     card.style.display = show ? '' : 'none';
   });
+  document.getElementById('moneySum')?.classList.toggle('search-hidden',searchTokens.length>0);
+  document.getElementById('financeCharts')?.classList.toggle('search-hidden',searchTokens.length>0);
   updateSectionVisibility();
   updateTabCounts();
 }
@@ -2978,8 +2990,12 @@ function updateTabCounts(){
 }
 
 function filterProjects(q){
-  SEARCH_TERM = (q || '').toLowerCase().trim();
+  SEARCH_TERM = normalizeProjectSearch(q);
   applyProjectFilters();
+}
+
+function normalizeProjectSearch(value){
+  return String(value||'').toLowerCase().replace(/ё/g,'е').replace(/[^a-zа-я0-9]+/gi,' ').trim();
 }
 
 function updateSectionVisibility(){
