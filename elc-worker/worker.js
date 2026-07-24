@@ -2444,6 +2444,85 @@ async function handleDealQualificationPut(request, env, dealId) {
 // ── Записи звонков к брифу квалификации ───────────────────────────────────
 // Загрузка файла (запись звонка) с компьютера в сделку. Файл → R2, метаданные
 // → таблица deal_qual_recordings. Отдача — с авторизацией (?auth=token тоже ок).
+let _sdrTrainingTableEnsured = false;
+async function ensureSdrTrainingTable(env) {
+  if (_sdrTrainingTableEnsured) return;
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS sdr_training_reports (
+    trainee_uid TEXT PRIMARY KEY,
+    data TEXT NOT NULL DEFAULT '{}',
+    viewers TEXT NOT NULL DEFAULT '[]',
+    updated_by TEXT,
+    updated_at TEXT
+  )`).run();
+  _sdrTrainingTableEnsured = true;
+}
+function sdrTrainingUidFromDeal(dealId) {
+  const prefix = 'sdr-training-';
+  return String(dealId || '').startsWith(prefix) ? String(dealId).slice(prefix.length) : '';
+}
+async function sdrTrainingActor(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return { error: auth.error, status: auth.status };
+  const me = await resolveCanonicalUser(env, auth.claims);
+  return { auth, me };
+}
+function sdrActorOwns(me, traineeUid) {
+  const ids = new Set([me?.canonicalUid, me?.firebaseUid, ...(me?.matchUids || [])].filter(Boolean).map(String));
+  return ids.has(String(traineeUid));
+}
+async function guardSdrTrainingAccess(request, env, traineeUid, { write = false } = {}) {
+  const actor = await sdrTrainingActor(request, env);
+  if (actor.error) return actor;
+  const { me } = actor;
+  if (me?.role === 'admin' || sdrActorOwns(me, traineeUid)) return { ...actor, allowed: true };
+  if (write) return { ...actor, error: 'Нет права изменять этот отчёт', status: 403 };
+  await ensureSdrTrainingTable(env);
+  const row = await env.DB.prepare("SELECT viewers FROM sdr_training_reports WHERE trainee_uid = ?").bind(traineeUid).first();
+  let viewers = [];
+  try { viewers = JSON.parse(row?.viewers || '[]'); } catch {}
+  const actorIds = new Set([me?.canonicalUid, me?.firebaseUid, ...(me?.matchUids || [])].filter(Boolean).map(String));
+  if (viewers.some(uid => actorIds.has(String(uid)))) return { ...actor, allowed: true };
+  return { ...actor, error: 'Нет доступа к отчёту стажёра', status: 403 };
+}
+async function handleSdrTrainingReport(request, env, traineeUid) {
+  const guard = await guardSdrTrainingAccess(request, env, traineeUid, { write: request.method === 'PUT' });
+  if (guard.error) return json({ error: guard.error }, guard.status, request);
+  await ensureSdrTrainingTable(env);
+  if (request.method === 'GET') {
+    const row = await env.DB.prepare("SELECT data, viewers, updated_at FROM sdr_training_reports WHERE trainee_uid = ?").bind(traineeUid).first();
+    let report = {}, viewers = [];
+    try { report = JSON.parse(row?.data || '{}'); } catch {}
+    try { viewers = JSON.parse(row?.viewers || '[]'); } catch {}
+    return json({ ok: true, report, viewers, updatedAt: row?.updated_at || null, canManageAccess: guard.me?.role === 'admin' }, 200, request);
+  }
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid json' }, 400, request); }
+  const report = body && typeof body.report === 'object' ? body.report : {};
+  const encoded = JSON.stringify(report);
+  if (encoded.length > 250000) return json({ error: 'report too large' }, 413, request);
+  const now = new Date().toISOString();
+  const by = guard.me?.canonicalUid || guard.me?.firebaseUid || '';
+  await env.DB.prepare(`INSERT INTO sdr_training_reports (trainee_uid,data,viewers,updated_by,updated_at)
+    VALUES (?,?, '[]',?,?)
+    ON CONFLICT(trainee_uid) DO UPDATE SET data=excluded.data,updated_by=excluded.updated_by,updated_at=excluded.updated_at`)
+    .bind(traineeUid, encoded, by, now).run();
+  return json({ ok: true, updatedAt: now }, 200, request);
+}
+async function handleSdrTrainingAccess(request, env, traineeUid) {
+  const actor = await sdrTrainingActor(request, env);
+  if (actor.error) return json({ error: actor.error }, actor.status, request);
+  if (actor.me?.role !== 'admin') return json({ error: 'Только супер-админ может настраивать доступ' }, 403, request);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid json' }, 400, request); }
+  const viewers = [...new Set((Array.isArray(body.viewers) ? body.viewers : []).map(String).filter(Boolean))].slice(0, 500);
+  await ensureSdrTrainingTable(env);
+  const now = new Date().toISOString();
+  await env.DB.prepare(`INSERT INTO sdr_training_reports (trainee_uid,data,viewers,updated_by,updated_at)
+    VALUES (?, '{}', ?, ?, ?)
+    ON CONFLICT(trainee_uid) DO UPDATE SET viewers=excluded.viewers,updated_by=excluded.updated_by,updated_at=excluded.updated_at`)
+    .bind(traineeUid, JSON.stringify(viewers), actor.me.canonicalUid || actor.me.firebaseUid || '', now).run();
+  return json({ ok: true, viewers, updatedAt: now }, 200, request);
+}
 let _qualRecTableEnsured = false;
 async function ensureQualRecordingsTable(env) {
   if (_qualRecTableEnsured) return;
@@ -2472,6 +2551,11 @@ async function qualRecordingsFor(env, dealId) {
 }
 
 async function handleQualRecordingUpload(request, env, dealId) {
+  const trainingUid = sdrTrainingUidFromDeal(dealId);
+  if (trainingUid) {
+    const guard = await guardSdrTrainingAccess(request, env, trainingUid, { write: true });
+    if (guard.error) return json({ error: guard.error }, guard.status, request);
+  }
   const auth = await requireAuthFlexible(request, env);
   if (auth.error) return json({ error: auth.error }, auth.status, request);
   if (!env.FILES) return json({ error: "R2 binding FILES not configured" }, 500, request);
@@ -2507,12 +2591,22 @@ async function handleQualRecordingUpload(request, env, dealId) {
 }
 
 async function handleQualRecordingsList(request, env, dealId) {
+  const trainingUid = sdrTrainingUidFromDeal(dealId);
+  if (trainingUid) {
+    const guard = await guardSdrTrainingAccess(request, env, trainingUid);
+    if (guard.error) return json({ error: guard.error }, guard.status, request);
+  }
   const auth = await requireAuthFlexible(request, env);
   if (auth.error) return json({ error: auth.error }, auth.status, request);
   return json({ ok: true, recordings: await qualRecordingsFor(env, dealId) }, 200, request);
 }
 
 async function handleQualRecordingServe(request, env, dealId, recId) {
+  const trainingUid = sdrTrainingUidFromDeal(dealId);
+  if (trainingUid) {
+    const guard = await guardSdrTrainingAccess(request, env, trainingUid);
+    if (guard.error) return json({ error: guard.error }, guard.status, request);
+  }
   const auth = await requireAuthFlexible(request, env);
   if (auth.error) return json({ error: auth.error }, auth.status, request);
   if (!env.FILES) return new Response('R2 not configured', { status: 500 });
@@ -2534,6 +2628,11 @@ async function handleQualRecordingServe(request, env, dealId, recId) {
 }
 
 async function handleQualRecordingDelete(request, env, dealId, recId) {
+  const trainingUid = sdrTrainingUidFromDeal(dealId);
+  if (trainingUid) {
+    const guard = await guardSdrTrainingAccess(request, env, trainingUid, { write: true });
+    if (guard.error) return json({ error: guard.error }, guard.status, request);
+  }
   const auth = await requireAuthFlexible(request, env);
   if (auth.error) return json({ error: auth.error }, auth.status, request);
   await ensureQualRecordingsTable(env);
@@ -9110,6 +9209,15 @@ export default {
     }
     if (dealQualMatch && request.method === "PUT") {
       return handleDealQualificationPut(request, env, decodeURIComponent(dealQualMatch[1]));
+    }
+    // Защищённый отчёт тренажёра SDR и список пользователей с доступом.
+    const sdrTrainingAccessMatch = path.match(/^\/api\/training\/sdr\/([^/]+)\/access$/);
+    if (sdrTrainingAccessMatch && request.method === "PUT") {
+      return handleSdrTrainingAccess(request, env, decodeURIComponent(sdrTrainingAccessMatch[1]));
+    }
+    const sdrTrainingReportMatch = path.match(/^\/api\/training\/sdr\/([^/]+)$/);
+    if (sdrTrainingReportMatch && (request.method === "GET" || request.method === "PUT")) {
+      return handleSdrTrainingReport(request, env, decodeURIComponent(sdrTrainingReportMatch[1]));
     }
     // /api/deals/{id}/qualification/recording/{recId} — отдать/удалить запись звонка
     const qualRecOneMatch = path.match(/^\/api\/deals\/([^/]+)\/qualification\/recording\/([^/]+)$/);
