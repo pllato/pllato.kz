@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CRM Pllato</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <style>
+    :root{--bg:#f7f7f4;--card:#fff;--text:#151b25;--muted:#858b96;--line:#e9e3d9;--blue:#5548f5;--green:#12a34a;--red:#ef5367;--shadow:0 14px 40px rgba(31,25,16,.08)}
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);background:var(--bg)}
+    button,input{font:inherit}.hidden{display:none!important}
+    .top{height:68px;padding:0 28px;display:flex;align-items:center;gap:16px;background:rgba(255,255,255,.92);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30;backdrop-filter:blur(14px)}
+    .back{color:#5b6372;text-decoration:none;font-size:14px;font-weight:700}.brand{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:850}.brand-mark{width:34px;height:34px;border-radius:10px;background:#111827;color:#fff;display:grid;place-items:center}
+    .top-spacer{flex:1}.user{font-size:13px;color:var(--muted)}.btn{border:1px solid var(--line);background:#fff;border-radius:11px;padding:9px 13px;font-weight:750;color:#525a69;cursor:pointer}.btn:hover{border-color:#cfc5b6}.btn.primary{background:#151b25;color:#fff;border-color:#151b25}
+    main{padding:28px;max-width:1900px;margin:auto}.head{display:flex;align-items:flex-end;gap:18px;margin-bottom:22px}.head h1{font-size:28px;margin:0 0 5px;letter-spacing:-.04em}.head p{margin:0;color:var(--muted);font-size:14px}.head-actions{margin-left:auto;display:flex;gap:9px}
+    .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px}.tabs{display:flex;gap:8px}.tab{border:1px solid var(--line);background:#fff;color:#596172;border-radius:11px;padding:10px 16px;font-weight:800;cursor:pointer}.tab.active{background:#151b25;border-color:#151b25;color:white}.tab small{opacity:.65;margin-left:7px}
+    .search{margin-left:auto;min-width:300px;position:relative}.search input{width:100%;border:1px solid var(--line);background:#fff;border-radius:11px;padding:11px 14px 11px 38px;outline:none}.search input:focus{border-color:#8e84fa;box-shadow:0 0 0 3px rgba(85,72,245,.1)}.search:before{content:"⌕";position:absolute;left:14px;top:8px;font-size:20px;color:#9298a3}
+    .board{display:flex;gap:12px;overflow-x:auto;padding:1px 2px 18px;min-height:600px;scrollbar-color:#c9c3b9 transparent}.col{width:300px;min-width:300px;border:1px solid var(--line);background:#f3f4f8;border-radius:15px;display:flex;flex-direction:column;max-height:calc(100vh - 205px)}.col[data-sem="S"]{background:#f0f8f2}.col[data-sem="F"]{background:#fff3f4}
+    .col-head{padding:14px 14px 11px;border-top:4px solid var(--stage,#8b7dfa);border-radius:14px 14px 0 0;background:rgba(255,255,255,.7);display:flex;align-items:center;gap:8px}.col-name{text-transform:uppercase;font-size:12px;font-weight:900;color:var(--stage,#7061e8);letter-spacing:.025em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.count{margin-left:auto;border-radius:20px;background:#fff;padding:3px 8px;font-size:11px;font-weight:850;border:1px solid color-mix(in srgb,var(--stage,#8b7dfa) 25%,white)}
+    .add{margin:8px 10px 0;border:1px dashed #d8d4cc;background:rgba(255,255,255,.65);border-radius:9px;padding:7px;color:#777f8e;cursor:pointer;font-weight:750}.cards{padding:9px;overflow-y:auto;min-height:150px;flex:1}.cards.dragover{background:rgba(85,72,245,.07)}.empty{text-align:center;color:#adb1ba;padding:40px 10px;font-size:13px}
+    .deal{background:#fff;border:1px solid #e3dfd8;border-left:3px solid var(--stage,#8b7dfa);border-radius:11px;padding:12px;margin-bottom:8px;box-shadow:0 2px 8px rgba(33,28,20,.035);cursor:pointer}.deal:hover{box-shadow:0 7px 18px rgba(33,28,20,.1);transform:translateY(-1px)}.deal.dragging{opacity:.45}.deal-title{font-size:13px;font-weight:800;line-height:1.35}.money{color:#16813d;font-size:12px;font-weight:850;margin-top:7px}.meta{display:flex;align-items:center;gap:7px;margin-top:9px;color:#8a909b;font-size:11px}.avatar{width:23px;height:23px;border-radius:50%;background:#eef0ff;color:#5548f5;display:grid;place-items:center;font-weight:900}.age{margin-left:auto}.comment-preview{margin-top:8px;background:#f7f7f7;border-radius:7px;padding:6px 8px;color:#676e7b;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .state{min-height:480px;display:grid;place-items:center;color:#858b96}.spinner{width:34px;height:34px;border:3px solid #e2ddd4;border-top-color:#5548f5;border-radius:50%;animation:spin .8s linear infinite;margin:auto auto 12px}@keyframes spin{to{transform:rotate(360deg)}}
+    .login{max-width:430px;margin:90px auto;background:white;border:1px solid var(--line);border-radius:20px;padding:32px;box-shadow:var(--shadow);text-align:center}.login h2{margin:5px 0 8px}.login p{color:var(--muted);line-height:1.5}.login .btn{width:100%;margin-top:10px}
+    .overlay{position:fixed;inset:0;background:rgba(12,16,24,.42);z-index:80;display:flex;justify-content:flex-end}.drawer{width:min(520px,100%);height:100%;background:#fff;box-shadow:-20px 0 60px rgba(0,0,0,.14);padding:24px;overflow:auto}.drawer-head{display:flex;gap:12px;align-items:flex-start}.drawer h2{margin:0;font-size:22px;line-height:1.25}.close{margin-left:auto;border:0;background:#f3f3f1;border-radius:9px;width:36px;height:36px;font-size:22px;cursor:pointer}.stage-select{display:flex;gap:6px;overflow-x:auto;margin:20px 0;padding-bottom:5px}.stage-chip{white-space:nowrap;border:1px solid var(--line);background:white;border-radius:20px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer}.stage-chip.active{background:#151b25;color:#fff;border-color:#151b25}.details{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}.detail{background:#f7f7f4;border-radius:10px;padding:11px}.detail label{display:block;font-size:10px;text-transform:uppercase;color:#989da7;font-weight:800;margin-bottom:5px}.detail div{font-size:13px;font-weight:700}
+    .timeline-title{font-weight:850;margin:24px 0 10px}.event{border-left:2px solid #e3ddd5;padding:0 0 14px 12px;font-size:12px;color:#626977}.event b{color:#202632}.event time{display:block;color:#a0a5ad;font-size:10px;margin-top:3px}.comment-form{display:flex;gap:8px;position:sticky;bottom:-24px;background:#fff;padding:13px 0 0}.comment-form input{flex:1;border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
+    dialog{border:0;border-radius:18px;padding:0;box-shadow:var(--shadow);width:min(460px,calc(100% - 28px))}dialog::backdrop{background:rgba(10,14,21,.45)}.modal{padding:24px}.modal h3{margin:0 0 18px}.field{margin:12px 0}.field label{display:block;font-size:12px;font-weight:800;margin-bottom:6px}.field input,.field select{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px}.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+    .toast{position:fixed;right:24px;bottom:24px;background:#151b25;color:#fff;padding:12px 16px;border-radius:11px;z-index:120;box-shadow:var(--shadow);font-size:13px;font-weight:700}.toast.err{background:#c93649}
+    @media(max-width:720px){.top{padding:0 14px}.brand span:last-child,.user{display:none}main{padding:18px 12px}.head{align-items:flex-start}.head-actions{position:absolute;right:12px;top:82px}.toolbar{padding-top:8px}.tabs{width:100%}.tab{flex:1;padding:9px}.search{margin-left:0;min-width:100%}.col{width:270px;min-width:270px;max-height:calc(100vh - 250px)}}
+  </style>
+</head>
+<body>
+  <header class="top">
+    <a class="back" href="../app.html">← App</a>
+    <div class="brand"><span class="brand-mark">P</span><span>CRM Pllato</span></div>
+    <div class="top-spacer"></div>
+    <span id="user-label" class="user"></span>
+    <button id="logout" class="btn hidden">Выйти</button>
+  </header>
+
+  <section id="login" class="login hidden">
+    <div class="brand-mark" style="margin:auto">P</div>
+    <h2>Вход в CRM</h2>
+    <p>Используйте ту же учётную запись, что и во внутреннем портале Pllato.</p>
+    <button id="google-login" class="btn primary">Войти через Google</button>
+    <p id="login-error" style="color:#c93649;font-size:12px"></p>
+  </section>
+
+  <main id="crm" class="hidden">
+    <div class="head">
+      <div><h1>CRM</h1><p>Две рабочие воронки Pllato в одном пространстве</p></div>
+      <div class="head-actions"><button id="refresh" class="btn">↻ Обновить</button><button id="new-deal" class="btn primary">+ Сделка</button></div>
+    </div>
+    <div class="toolbar">
+      <div id="tabs" class="tabs"></div>
+      <label class="search"><input id="search" placeholder="Поиск по названию сделки…"></label>
+    </div>
+    <div id="content" class="state"><div><div class="spinner"></div>Загружаем воронки…</div></div>
+  </main>
+
+  <div id="deal-overlay" class="overlay hidden"><aside id="drawer" class="drawer"></aside></div>
+  <dialog id="deal-dialog"><form id="deal-form" class="modal" method="dialog">
+    <h3>Новая сделка</h3>
+    <div class="field"><label>Название</label><input id="deal-title" required placeholder="Название сделки"></div>
+    <div class="field"><label>Стадия</label><select id="deal-stage"></select></div>
+    <div class="field"><label>Сумма, ₸</label><input id="deal-sum" type="number" min="0" step="1000" placeholder="0"></div>
+    <div class="modal-actions"><button value="cancel" class="btn">Отмена</button><button id="deal-save" value="default" class="btn primary">Создать</button></div>
+  </form></dialog>
+
+  <script type="module">
+    import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+    import {getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+
+    const firebaseConfig={apiKey:"AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc",authDomain:"pllato-crm.firebaseapp.com",databaseURL:"https://pllato-crm-default-rtdb.firebaseio.com",projectId:"pllato-crm",storageBucket:"pllato-crm.firebasestorage.app",messagingSenderId:"690738857241",appId:"1:690738857241:web:2356e97c435656890ab188"};
+    const auth=getAuth(initializeApp(firebaseConfig));
+    const BASE='https://pllato-elc-worker.uurraa.workers.dev';
+    const RTDB=BASE+'/api/rtdb';
+    const TARGET=['Pllato Старт','Pllato Производство'];
+    const state={pipelines:[],active:null,deals:[],users:{},counts:{},search:'',token:'',drag:null};
+    const $=s=>document.querySelector(s);
+    const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const stages=p=>Object.values(p?.stages||{}).sort((a,b)=>(a.sort||0)-(b.sort||0));
+    const color=s=>s?.semantics==='S'?'#20ae62':s?.semantics==='F'?'#ef5367':'#8b73f6';
+    const dealKey=d=>d.id||('deal_'+d.bitrixId);
+    const api=async(url,opt={})=>{const r=await fetch(url,{...opt,headers:{...(opt.body?{'Content-Type':'application/json'}:{}),Authorization:'Bearer '+state.token,...opt.headers}});if(!r.ok){const x=await r.json().catch(()=>({}));throw new Error(x.error||`HTTP ${r.status}`)}return r.json()};
+    const rtdb=async(path,opt={})=>{const sep=path.includes('?')?'&':'?';const r=await fetch(`${RTDB}/${path}${sep}auth=${encodeURIComponent(state.token)}`,opt);if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json()};
+    function toast(text,err=false){const el=document.createElement('div');el.className='toast'+(err?' err':'');el.textContent=text;document.body.append(el);setTimeout(()=>el.remove(),2600)}
+    function fmtMoney(v){const n=Number(v)||0;return n?new Intl.NumberFormat('ru-RU').format(n)+' ₸':''}
+    function fmtDate(v){if(!v)return '—';const d=new Date(v);return isNaN(d)?'—':d.toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+    function userName(uid){const u=state.users[uid]||{};return [u.lastName,u.name].filter(Boolean).join(' ')||u.email||'Без ответственного'}
+    function initials(uid){return userName(uid).split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase()||'—'}
+
+    async function bootstrap(){
+      $('#content').innerHTML='<div><div class="spinner"></div>Загружаем данные CRM…</div>';
+      const [pipes,users]=await Promise.all([rtdb('pipelines.json?_cb='+Date.now()),rtdb('users.json?_cb='+Date.now())]);
+      state.users=users||{};
+      state.pipelines=Object.values(pipes||{}).filter(p=>TARGET.includes(String(p.name||'').trim())).sort((a,b)=>TARGET.indexOf(a.name)-TARGET.indexOf(b.name));
+      if(!state.pipelines.length)throw new Error('Воронки «Pllato Старт» и «Pllato Производство» не найдены');
+      const saved=localStorage.getItem('pllato:app-crm:pipeline');
+      state.active=state.pipelines.find(p=>p.id===saved)||state.pipelines[0];
+      renderTabs();
+      await loadDeals();
+    }
+    async function loadDeals(){
+      $('#content').className='state';$('#content').innerHTML='<div><div class="spinner"></div>Загружаем сделки…</div>';
+      const params=new URLSearchParams({pipeline:state.active.id,page:'1',pageSize:'500',sort:'modified',scope:'all',auth:state.token});
+      const data=await api(`${BASE}/api/list/deals?${params}`);
+      state.deals=data.items||[];
+      const cp=new URLSearchParams({pipeline:state.active.id,countsOnly:'1',scope:'all',auth:state.token});
+      api(`${BASE}/api/list/deals?${cp}`).then(x=>{state.counts=x.counts||{};renderBoard()}).catch(()=>{});
+      renderBoard();
+    }
+    function renderTabs(){
+      $('#tabs').innerHTML=state.pipelines.map(p=>`<button class="tab ${p.id===state.active.id?'active':''}" data-pipe="${esc(p.id)}">${esc(p.name)}</button>`).join('');
+      $('#tabs').querySelectorAll('.tab').forEach(b=>b.onclick=async()=>{state.active=state.pipelines.find(p=>p.id===b.dataset.pipe);localStorage.setItem('pllato:app-crm:pipeline',state.active.id);state.search='';$('#search').value='';renderTabs();await loadDeals()});
+    }
+    function renderBoard(){
+      const q=state.search.toLowerCase().trim();
+      const visible=state.deals.filter(d=>!q||String(d.title||'').toLowerCase().includes(q));
+      $('#content').className='board';
+      $('#content').innerHTML=stages(state.active).map(s=>{
+        const cards=visible.filter(d=>String(d.stageId)===String(s.statusId)||d._mirror&&String(d._viewStageId)===String(s.statusId));
+        const total=state.counts[s.statusId]??cards.length;
+        return `<section class="col" data-stage="${esc(s.statusId)}" data-sem="${esc(s.semantics||'')}" style="--stage:${color(s)}">
+          <header class="col-head"><span class="col-name">● ${esc(s.name||s.statusId)}</span><span class="count">${total}</span></header>
+          <button class="add" data-add="${esc(s.statusId)}">+ Сделка</button>
+          <div class="cards" data-drop="${esc(s.statusId)}">${cards.length?cards.map(d=>card(d,s)).join(''):'<div class="empty">Перетащите сделку сюда</div>'}</div>
+        </section>`}).join('');
+      bindBoard();
+    }
+    function card(d,s){
+      const ageRaw=d.stageChangedAt||d.bitrixDateModify||d.bitrixDateCreate;
+      const days=ageRaw?Math.max(0,Math.floor((Date.now()-new Date(ageRaw))/86400000)):null;
+      const preview=(d._comments||[])[0]?.text||'';
+      return `<article class="deal" draggable="true" data-id="${esc(dealKey(d))}" style="--stage:${color(s)}">
+        <div class="deal-title">${esc(d.title||'(без названия)')}</div>
+        ${fmtMoney(d.opportunity)?`<div class="money">${fmtMoney(d.opportunity)}</div>`:''}
+        ${preview?`<div class="comment-preview">💬 ${esc(preview)}</div>`:''}
+        <div class="meta"><span class="avatar">${esc(initials(d.responsibleUid))}</span><span>${esc(userName(d.responsibleUid).split(' ')[0])}</span>${days!==null?`<span class="age">${days?'⏱ '+days+' дн.':'⏱ сегодня'}</span>`:''}</div>
+      </article>`;
+    }
+    function bindBoard(){
+      document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>openCreate(b.dataset.add));
+      document.querySelectorAll('.deal').forEach(el=>{
+        el.onclick=()=>openDeal(el.dataset.id);
+        el.ondragstart=e=>{state.drag=el.dataset.id;el.classList.add('dragging');e.dataTransfer.effectAllowed='move'};
+        el.ondragend=()=>{state.drag=null;el.classList.remove('dragging')};
+      });
+      document.querySelectorAll('[data-drop]').forEach(zone=>{
+        zone.ondragover=e=>{e.preventDefault();zone.classList.add('dragover')};
+        zone.ondragleave=()=>zone.classList.remove('dragover');
+        zone.ondrop=async e=>{e.preventDefault();zone.classList.remove('dragover');if(state.drag)await moveDeal(state.drag,zone.dataset.drop)};
+      });
+    }
+    async function moveDeal(id,stageId){
+      const d=state.deals.find(x=>dealKey(x)===id);if(!d||d.stageId===stageId)return;
+      const old=d.stageId;d.stageId=stageId;renderBoard();
+      try{await api(`${BASE}/api/deals/${encodeURIComponent(id)}/stage`,{method:'PATCH',body:JSON.stringify({pipelineId:state.active.id,stageId})});toast('Стадия обновлена');state.counts[old]=Math.max(0,(state.counts[old]||1)-1);state.counts[stageId]=(state.counts[stageId]||0)+1}
+      catch(e){d.stageId=old;renderBoard();toast(e.message,true)}
+    }
+    async function openDeal(id){
+      const d=state.deals.find(x=>dealKey(x)===id);if(!d)return;
+      $('#deal-overlay').classList.remove('hidden');
+      $('#drawer').innerHTML=`<div class="drawer-head"><div><h2>${esc(d.title||'(без названия)')}</h2><div style="color:#969ba4;font-size:12px;margin-top:5px">ID: ${esc(d.bitrixId||id)}</div></div><button class="close" id="drawer-close">×</button></div>
+        <div class="stage-select">${stages(state.active).map(s=>`<button class="stage-chip ${s.statusId===d.stageId?'active':''}" data-card-stage="${esc(s.statusId)}">${esc(s.name)}</button>`).join('')}</div>
+        <div class="details"><div class="detail"><label>Сумма</label><div>${fmtMoney(d.opportunity)||'—'}</div></div><div class="detail"><label>Ответственный</label><div>${esc(userName(d.responsibleUid))}</div></div><div class="detail"><label>Создана</label><div>${fmtDate(d.bitrixDateCreate)}</div></div><div class="detail"><label>Изменена</label><div>${fmtDate(d.bitrixDateModify)}</div></div></div>
+        <div class="timeline-title">История и комментарии</div><div id="timeline"><div class="state" style="min-height:150px"><div><div class="spinner"></div>Загрузка…</div></div></div>
+        <form id="comment-form" class="comment-form"><input id="comment" placeholder="Написать комментарий…" maxlength="2000"><button class="btn primary">Отправить</button></form>`;
+      $('#drawer-close').onclick=closeDrawer;
+      $('#drawer').querySelectorAll('[data-card-stage]').forEach(b=>b.onclick=async()=>{await moveDeal(id,b.dataset.cardStage);openDeal(id)});
+      $('#comment-form').onsubmit=async e=>{e.preventDefault();const input=$('#comment');const text=input.value.trim();if(!text)return;try{await api(`${BASE}/api/deals/${encodeURIComponent(id)}/comments`,{method:'POST',body:JSON.stringify({text})});input.value='';await loadTimeline(id);toast('Комментарий добавлен')}catch(x){toast(x.message,true)}};
+      await loadTimeline(id);
+    }
+    async function loadTimeline(id){
+      try{const data=await api(`${BASE}/api/deals/${encodeURIComponent(id)}/timeline?limit=80`);$('#timeline').innerHTML=(data.items||[]).map(ev=>{const p=ev.payload||{};let text=ev.kind==='comment'?(p.text||'Комментарий'):ev.kind==='call'?`Звонок ${p.phone||''}`:ev.kind==='wa'?(p.text||'Сообщение WhatsApp'):(ev.kind||'Событие');return `<div class="event"><b>${esc(text)}</b>${p.authorName?`<div>${esc(p.authorName)}</div>`:''}<time>${fmtDate(ev.ts)}</time></div>`}).join('')||'<div class="empty">История пока пуста</div>'}catch(e){$('#timeline').innerHTML='<div class="empty">Не удалось загрузить историю</div>'}
+    }
+    function closeDrawer(){ $('#deal-overlay').classList.add('hidden') }
+    function openCreate(stageId){const sel=$('#deal-stage');sel.innerHTML=stages(state.active).map(s=>`<option value="${esc(s.statusId)}" ${s.statusId===stageId?'selected':''}>${esc(s.name)}</option>`).join('');$('#deal-title').value='';$('#deal-sum').value='';$('#deal-dialog').showModal();setTimeout(()=>$('#deal-title').focus(),50)}
+    async function createDeal(){
+      const title=$('#deal-title').value.trim();if(!title)return;
+      const now=new Date().toISOString(),id='deal_local_'+Math.random().toString(36).slice(2,10),bitrix=id.replace('deal_',''),uid=auth.currentUser.uid;
+      const body={id,title,opportunity:Number($('#deal-sum').value)||0,currency:'KZT',pipelineId:state.active.id,stageId:$('#deal-stage').value,closed:0,beginDate:null,closeDate:null,contactId:null,companyId:null,responsibleUid:uid,createdByUid:uid,modifyByUid:uid,bitrixId:bitrix,bitrixDateCreate:now,bitrixDateModify:now,customFields:null,migratedAt:null};
+      await rtdb(`deals/${encodeURIComponent(id)}.json`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});state.deals.unshift(body);state.counts[body.stageId]=(state.counts[body.stageId]||0)+1;renderBoard();toast('Сделка создана')
+    }
+
+    $('#google-login').onclick=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>$('#login-error').textContent=e.message);
+    $('#logout').onclick=()=>signOut(auth);
+    $('#refresh').onclick=()=>loadDeals().catch(e=>toast(e.message,true));
+    $('#new-deal').onclick=()=>openCreate(stages(state.active)[0]?.statusId);
+    $('#search').oninput=e=>{state.search=e.target.value;renderBoard()};
+    $('#deal-overlay').onclick=e=>{if(e.target.id==='deal-overlay')closeDrawer()};
+    $('#deal-form').addEventListener('submit',async e=>{if(e.submitter?.value==='cancel')return;e.preventDefault();const b=$('#deal-save');b.disabled=true;try{await createDeal();$('#deal-dialog').close()}catch(x){toast(x.message,true)}finally{b.disabled=false}});
+    onAuthStateChanged(auth,async user=>{
+      $('#login').classList.toggle('hidden',!!user);$('#crm').classList.toggle('hidden',!user);$('#logout').classList.toggle('hidden',!user);
+      if(!user)return;
+      $('#user-label').textContent=user.email||user.displayName||'';state.token=await user.getIdToken();
+      try{await bootstrap()}catch(e){$('#content').className='state';$('#content').innerHTML=`<div>Не удалось открыть CRM<br><small>${esc(e.message)}</small><br><button class="btn" onclick="location.reload()" style="margin-top:12px">Повторить</button></div>`}
+    });
+  </script>
+</body>
+</html>
