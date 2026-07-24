@@ -2815,6 +2815,23 @@ async function renderFinanceCharts(){
   el.innerHTML='<div class="fc-empty">Загружаю недельную статистику…</div>';
   try{
     const data=await apiFetch('/project-finance/charts?points=8');
+    // Агрегат обращений живёт в CRM-базе. Если меж-worker запрос временно не
+    // попал в основной ответ, забираем ту же обезличенную серию напрямую.
+    // Доступ наследуется от уже видимого пользователю графика новых заказов.
+    if(!Array.isArray(data.charts?.inquiries) && Array.isArray(data.charts?.orders)){
+      try{
+        const inquiryResponse=await fetch('https://pllato-elc-worker.uurraa.workers.dev/api/public/pllato-inquiries?points=8',{cache:'no-store'});
+        if(inquiryResponse.ok){
+          const inquiryData=await inquiryResponse.json();
+          if(Array.isArray(inquiryData.series)){
+            data.charts=data.charts||{};
+            data.charts.inquiries=inquiryData.series;
+          }
+        }
+      }catch(inquiryError){
+        console.warn('inquiries chart fallback:',inquiryError);
+      }
+    }
     if(requestId!==FINANCE_CHART_REQUEST) return;
     if(canSeeProjectMoney() && data.chartVisibility) CHART_VISIBILITY=data.chartVisibility;
     if(canSeeProjectMoney() && data.chartScale) CHART_SCALE=data.chartScale;
