@@ -22,7 +22,7 @@ const DEFAULT_STORE_PULL_LIMIT = 5000;
 const MAX_STORE_OPS = 500;
 const PRIVATE_PROJECT_FINANCE_COLLECTION = "_project_finance_private";
 const PRIVATE_PROJECT_FINANCE_ID = "global";
-const BUILD_ID = "2026-07-24-project-finance-chart-overrides-v1";
+const BUILD_ID = "2026-07-24-project-finance-chart-scale-v1";
 
 let googleKeysCache = {
   keys: null,
@@ -2144,6 +2144,7 @@ function normalizeProjectFinance(payload) {
   }
   const rawVisibility = isObject(payload?.chartVisibility) ? payload.chartVisibility : {};
   const rawOverrides = isObject(payload?.chartOverrides) ? payload.chartOverrides : {};
+  const rawScale = isObject(payload?.chartScale) ? payload.chartScale : {};
   const normalizeViewers = (value) => [...new Set((Array.isArray(value) ? value : [])
     .map((email) => String(email || "").trim().toLowerCase())
     .filter((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
@@ -2164,6 +2165,10 @@ function normalizeProjectFinance(payload) {
       cash: normalizeViewers(rawVisibility.cash),
     },
     chartOverrides,
+    chartScale: {
+      orders: Math.max(0, Math.round(Number(rawScale.orders) || 0)),
+      cash: Math.max(0, Math.round(Number(rawScale.cash) || 0)),
+    },
   };
 }
 
@@ -2183,6 +2188,7 @@ async function handleProjectFinancePut(request, env, actor) {
     ...body,
     chartVisibility: body.chartVisibility ?? stored?.chartVisibility,
     chartOverrides: body.chartOverrides ?? stored?.chartOverrides,
+    chartScale: body.chartScale ?? stored?.chartScale,
   });
   const now = Date.now();
   await d1UpsertDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, {
@@ -2287,6 +2293,7 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
     charts,
     visible,
     chartVisibility: canAccessProjectFinance(actor) ? finance.chartVisibility : undefined,
+    chartScale: canAccessProjectFinance(actor) ? finance.chartScale : undefined,
     boundary: { weekday: 4, hour: 14, timeZone: "Asia/Almaty" },
   };
 }
@@ -2295,7 +2302,11 @@ async function handleProjectFinanceChartsPut(request, env, actor) {
   requireProjectFinanceAccess(actor);
   const body = await readRequestBodyAsJson(request);
   const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
-  const normalized = normalizeProjectFinance({ ...(stored || {}), chartVisibility: body.chartVisibility });
+  const normalized = normalizeProjectFinance({
+    ...(stored || {}),
+    chartVisibility: body.chartVisibility,
+    chartScale: body.chartScale,
+  });
   const now = Date.now();
   await d1UpsertDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, {
     id: PRIVATE_PROJECT_FINANCE_ID,
@@ -2303,7 +2314,12 @@ async function handleProjectFinanceChartsPut(request, env, actor) {
     createdAt: Number(stored?.createdAt) || now,
     updatedAt: now,
   }, actor.email);
-  return { ok: true, chartVisibility: normalized.chartVisibility, updatedAt: now };
+  return {
+    ok: true,
+    chartVisibility: normalized.chartVisibility,
+    chartScale: normalized.chartScale,
+    updatedAt: now,
+  };
 }
 
 async function d1InsertIntegrationLog(env, bucket, payload) {
