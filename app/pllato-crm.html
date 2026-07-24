@@ -20,6 +20,19 @@
   .pipe-tab[data-action="new-pipeline"],
   .pipe-tab[data-action="manage-pipelines"] { display:none !important; }
   .sidebar .elc-brand-img { width:118px; height:auto; }
+  .pllato-app-back {
+    display:flex; align-items:center; gap:7px; margin:0 12px 18px; padding:9px 11px;
+    border:1px solid var(--b1); border-radius:10px; color:var(--t2);
+    background:var(--bg2); text-decoration:none; font-size:12px; font-weight:700;
+    transition:border-color .15s,color .15s,background .15s;
+  }
+  .pllato-app-back:hover { border-color:var(--ac2); color:var(--ac2); background:var(--acbg); }
+  .pllato-app-back-mobile {
+    display:none; color:inherit; text-decoration:none; font-size:20px; font-weight:800;
+  }
+  @media (max-width: 800px) {
+    .pllato-app-back-mobile { display:grid; place-items:center; width:36px; height:36px; }
+  }
 </style>
 <script>
   // Регистрируем service worker — нужен для установки PWA и push-уведомлений.
@@ -3192,6 +3205,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
   <!-- Мобильная верхняя панель (видна только на узких экранах / в PWA) -->
   <div id="mobile-topbar">
     <div class="mtb-side mtb-left">
+      <a class="pllato-app-back-mobile" href="app.html" aria-label="Вернуться в App" title="Вернуться в App">←</a>
       <button id="drawer-toggle" class="mtb-btn" aria-label="Открыть меню">☰</button>
     </div>
     <img src="pllato_favicon_64.svg" alt="Pllato" class="mtb-logo">
@@ -3206,6 +3220,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
     <div class="elc-brand">
       <img src="pllato_logo_transparent_navy.svg" alt="Pllato" class="elc-brand-img">
     </div>
+    <a class="pllato-app-back" href="app.html">← Вернуться в App</a>
 
     <div class="nav-section">Главное</div>
     <div class="nav-item" data-page="dashboard">
