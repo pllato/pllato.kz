@@ -2517,8 +2517,8 @@ let RATE = 530; // ₸ за $1 (редактируется)
 let MONEY_LOADED = false;
 let MONEY_LOAD_PROMISE = null;
 let MONEY_SAVE_TIMER = null;
-let CHART_VISIBILITY = { orders: [], cash: [] };
-let CHART_SCALE = { orders: 0, cash: 0 };
+let CHART_VISIBILITY = { inquiries: [], orders: [], cash: [] };
+let CHART_SCALE = { inquiries: 0, orders: 0, cash: 0 };
 function canSeeProjectMoney(){ return CURRENT?.isSuperAdmin === true; }
 async function persistMoney(){
   if(!canSeeProjectMoney() || !MONEY_LOADED) return;
@@ -2540,8 +2540,8 @@ async function loadMoney(){
     if(server.exists){
       MONEY=server.money||{};
       RATE=Number(server.rate)||530;
-      CHART_VISIBILITY=server.chartVisibility||{orders:[],cash:[]};
-      CHART_SCALE=server.chartScale||{orders:0,cash:0};
+      CHART_VISIBILITY=server.chartVisibility||{inquiries:[],orders:[],cash:[]};
+      CHART_SCALE=server.chartScale||{inquiries:0,orders:0,cash:0};
     } else {
       // Одноразовый перенос прежних данных из браузера Super Admin на сервер.
       const raw=localStorage.getItem(MONEY_KEY);
@@ -2731,6 +2731,7 @@ function delMoneyPay(i){
 }
 
 const FINANCE_CHART_META = {
+  inquiries: { title:'Количество новых обращений', sub:'Pllato Старт · стадия «Новая»', color:'#373d8d' },
   orders: { title:'Количество новых заказов', sub:'Сумма заказа + первый платёж', color:'#4f46e5' },
   cash: { title:'Количество денег в кассе', sub:'Все транзакции за неделю', color:'#16a34a' },
 };
@@ -2817,7 +2818,7 @@ async function renderFinanceCharts(){
     if(requestId!==FINANCE_CHART_REQUEST) return;
     if(canSeeProjectMoney() && data.chartVisibility) CHART_VISIBILITY=data.chartVisibility;
     if(canSeeProjectMoney() && data.chartScale) CHART_SCALE=data.chartScale;
-    const kinds=['orders','cash'].filter(kind=>Array.isArray(data.charts?.[kind]));
+    const kinds=['inquiries','orders','cash'].filter(kind=>Array.isArray(data.charts?.[kind]));
     if(!kinds.length){ el.remove(); return; }
     const toggle=ACTIVE_TAB==='fav'?'':'<button class="fc-toggle" onclick="toggleFinanceCharts()"></button>';
     el.innerHTML='<div class="fc-head"><div><h2>Динамика по неделям</h2><p>Неделя закрывается каждый четверг в 14:00 по Алматы</p></div>'+toggle+'</div>'
