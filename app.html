@@ -526,7 +526,7 @@ body {
 .fc-toggle:hover { color: var(--bronze-deep); border-color: var(--bronze-deep); }
 .finance-charts.folded { margin-bottom: 18px; }
 .finance-charts.folded .fc-grid { display: none; }
-.fc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.fc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .fc-card { background: var(--surface); border: 1px solid var(--line-2); border-radius: 14px; padding: 16px 18px 14px; min-width: 0; aspect-ratio: 1 / 1; display: flex; flex-direction: column; }
 .fc-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .fc-card-title { font-size: 14px; font-weight: 800; }
@@ -549,6 +549,9 @@ body {
   .fc-grid { grid-template-columns: 1fr; }
   .fc-card { padding-inline: 12px; }
   .fc-labels span { font-size: 8.5px; }
+}
+@media (min-width: 761px) and (max-width: 980px) {
+  .fc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* ===== Карточка с действиями + выпадающий список (сайт-лендинг) ===== */
@@ -2738,7 +2741,7 @@ function financeValue(kind,n){
   return kind==='cash' ? shortT(n)+' ₸' : String(Math.round(n||0));
 }
 function financeChartSvg(kind,series){
-  const count=series.length||1, vw=count*100, vh=270, top=24, bottom=16;
+  const count=series.length||1, vw=count*100, vh=650, top=48, bottom=32;
   const autoMax=Math.max(1,...series.map(x=>Number(x.value)||0));
   const max=Math.max(1,Number(CHART_SCALE[kind])||autoMax);
   const x=i=>(i+.5)*100;
@@ -2754,7 +2757,7 @@ function financeChartSvg(kind,series){
     const labelY=Math.max(10,y(s.value)-14);
     return `<text x="${x(i)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="var(--text)" font-size="16" font-weight="700">${mEsc(value)}</text>`;
   }).join('');
-  return `<svg viewBox="0 0 ${vw} ${vh}" preserveAspectRatio="none" aria-label="${mEsc(FINANCE_CHART_META[kind].title)}">
+  return `<svg viewBox="0 0 ${vw} ${vh}" preserveAspectRatio="xMidYMid meet" aria-label="${mEsc(FINANCE_CHART_META[kind].title)}">
     <line x1="0" y1="${top}" x2="${vw}" y2="${top}" stroke="var(--line-2)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
     <line x1="0" y1="${vh-bottom}" x2="${vw}" y2="${vh-bottom}" stroke="var(--line-2)" vector-effect="non-scaling-stroke"/>
     <polyline points="${completed}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
