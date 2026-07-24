@@ -28,6 +28,11 @@ database_id = "3e6c3138-5c6d-4239-ae09-2d60ca2ed0ab"
 binding = "FILES"
 bucket_name = "pllato-elc-files"
 
+# Прямая проверка App JWT без внешнего workers.dev hop.
+[[services]]
+binding = "PLLATO_COMM"
+service = "pllato-comm"
+
 # ── Durable Objects: внутренний чат сотрудников ──
 # ChannelRoom — комната-канал (broadcast typing/presence через WS Hibernation).
 # UserNotifyRoom — комната юзера (открытые вкладки получают push real-time).
