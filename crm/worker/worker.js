@@ -22,7 +22,7 @@ const DEFAULT_STORE_PULL_LIMIT = 5000;
 const MAX_STORE_OPS = 500;
 const PRIVATE_PROJECT_FINANCE_COLLECTION = "_project_finance_private";
 const PRIVATE_PROJECT_FINANCE_ID = "global";
-const BUILD_ID = "2026-07-23-project-finance-server-v1";
+const BUILD_ID = "2026-07-24-project-finance-charts-v1";
 
 let googleKeysCache = {
   keys: null,
@@ -2135,12 +2135,25 @@ function normalizeProjectFinance(payload) {
     const pays = (Array.isArray(item.pays) ? item.pays : []).slice(0, 1000).map((p) => ({
       d: /^\d{4}-\d{2}-\d{2}$/.test(String(p?.d || "")) ? String(p.d) : "",
       sum: Math.max(0, Math.min(Number(p?.sum) || 0, 1_000_000_000_000)),
+      at: Number.isFinite(Number(p?.at)) ? Math.max(0, Number(p.at)) : 0,
     })).filter((p) => p.sum > 0);
-    money[id] = { deal, cur, pays };
+    const orderCreatedAt = Number.isFinite(Number(item.orderCreatedAt))
+      ? Math.max(0, Number(item.orderCreatedAt))
+      : 0;
+    money[id] = { deal, cur, pays, orderCreatedAt };
   }
+  const rawVisibility = isObject(payload?.chartVisibility) ? payload.chartVisibility : {};
+  const normalizeViewers = (value) => [...new Set((Array.isArray(value) ? value : [])
+    .map((email) => String(email || "").trim().toLowerCase())
+    .filter((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    .slice(0, 200))];
   return {
     money,
     rate: Math.max(1, Math.min(Number(payload?.rate) || 530, 1_000_000)),
+    chartVisibility: {
+      orders: normalizeViewers(rawVisibility.orders),
+      cash: normalizeViewers(rawVisibility.cash),
+    },
   };
 }
 
@@ -2155,15 +2168,127 @@ async function handleProjectFinanceGet(env, actor) {
 async function handleProjectFinancePut(request, env, actor) {
   requireProjectFinanceAccess(actor);
   const body = await readRequestBodyAsJson(request);
-  const normalized = normalizeProjectFinance(body);
+  const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
+  const normalized = normalizeProjectFinance({
+    ...body,
+    chartVisibility: body.chartVisibility ?? stored?.chartVisibility,
+  });
   const now = Date.now();
   await d1UpsertDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, {
     id: PRIVATE_PROJECT_FINANCE_ID,
     ...normalized,
-    createdAt: now,
+    createdAt: Number(stored?.createdAt) || now,
     updatedAt: now,
   }, actor.email);
   return { ok: true, ...normalized, updatedAt: now };
+}
+
+function projectFinanceEventTime(pay) {
+  const exact = Number(pay?.at) || 0;
+  if (exact > 0) return exact;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(pay?.d || "")) ? pay.d : "";
+  // Старые платежи не содержат времени. Полдень Алматы сохраняет их дату и
+  // предсказуемо относит четверг к завершающейся в 14:00 неделе.
+  return date ? Date.parse(`${date}T12:00:00+05:00`) : 0;
+}
+
+function almatyThursdayWeekStart(timestamp) {
+  const shiftMs = 5 * 60 * 60 * 1000;
+  const local = new Date(timestamp + shiftMs);
+  const day = local.getUTCDay();
+  const daysSinceThursday = (day - 4 + 7) % 7;
+  const startLocal = Date.UTC(
+    local.getUTCFullYear(),
+    local.getUTCMonth(),
+    local.getUTCDate() - daysSinceThursday,
+    14, 0, 0, 0,
+  );
+  let startUtc = startLocal - shiftMs;
+  if (timestamp < startUtc) startUtc -= 7 * 86400000;
+  return startUtc;
+}
+
+function financeChartAllowed(actor, viewers) {
+  if (canAccessProjectFinance(actor)) return true;
+  const email = String(actor?.email || "").trim().toLowerCase();
+  return Boolean(email && viewers.includes(email));
+}
+
+function projectFinanceChartSeries(finance, points = 8) {
+  const count = Math.max(4, Math.min(Number(points) || 8, 16));
+  const weekMs = 7 * 86400000;
+  const currentStart = almatyThursdayWeekStart(Date.now());
+  const starts = Array.from({ length: count }, (_, i) => currentStart - (count - 1 - i) * weekMs);
+  const orders = starts.map(() => 0);
+  const cash = starts.map(() => 0);
+  const startIndex = starts[0];
+  const toIndex = (timestamp) => Math.floor((almatyThursdayWeekStart(timestamp) - startIndex) / weekMs);
+  const label = (start) => new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Asia/Almaty",
+    day: "2-digit",
+    month: "2-digit",
+  }).format(new Date(start));
+
+  Object.values(finance.money || {}).forEach((item) => {
+    const firstPayTime = (item.pays || []).map(projectFinanceEventTime).filter(Boolean).sort((a, b) => a - b)[0] || 0;
+    const orderTime = Number(item.orderCreatedAt) || firstPayTime;
+    if (Number(item.deal) > 0 && firstPayTime && orderTime) {
+      const index = toIndex(orderTime);
+      if (index >= 0 && index < count) orders[index] += 1;
+    }
+    (item.pays || []).forEach((pay) => {
+      const timestamp = projectFinanceEventTime(pay);
+      const index = timestamp ? toIndex(timestamp) : -1;
+      if (index >= 0 && index < count) {
+        const amount = item.cur === "USD" ? Number(pay.sum || 0) * finance.rate : Number(pay.sum || 0);
+        cash[index] += Math.round(amount);
+      }
+    });
+  });
+
+  return starts.map((start, index) => ({
+    start,
+    end: start + weekMs,
+    label: label(start),
+    partial: start === currentStart,
+    orders: orders[index],
+    cash: cash[index],
+  }));
+}
+
+async function handleProjectFinanceChartsGet(env, actor, url) {
+  const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
+  const finance = normalizeProjectFinance(stored || {});
+  const visible = {
+    orders: financeChartAllowed(actor, finance.chartVisibility.orders),
+    cash: financeChartAllowed(actor, finance.chartVisibility.cash),
+  };
+  const allSeries = projectFinanceChartSeries(finance, url.searchParams.get("points"));
+  const charts = {};
+  if (visible.orders) charts.orders = allSeries.map(({ start, end, label, partial, orders }) => ({ start, end, label, partial, value: orders }));
+  if (visible.cash) charts.cash = allSeries.map(({ start, end, label, partial, cash }) => ({ start, end, label, partial, value: cash }));
+  return {
+    ok: true,
+    charts,
+    visible,
+    chartVisibility: canAccessProjectFinance(actor) ? finance.chartVisibility : undefined,
+    boundary: { weekday: 4, hour: 14, timeZone: "Asia/Almaty" },
+  };
+}
+
+async function handleProjectFinanceChartsPut(request, env, actor) {
+  requireProjectFinanceAccess(actor);
+  const body = await readRequestBodyAsJson(request);
+  const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
+  const normalized = normalizeProjectFinance({ ...(stored || {}), chartVisibility: body.chartVisibility });
+  const now = Date.now();
+  await d1UpsertDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, {
+    id: PRIVATE_PROJECT_FINANCE_ID,
+    ...normalized,
+    createdAt: Number(stored?.createdAt) || now,
+    updatedAt: now,
+  }, actor.email);
+  return { ok: true, chartVisibility: normalized.chartVisibility, updatedAt: now };
 }
 
 async function d1InsertIntegrationLog(env, bucket, payload) {
@@ -7916,6 +8041,16 @@ export default {
       if (request.method === "PUT" && path === "/project-finance") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleProjectFinancePut(request, env, actor));
+      }
+
+      if (request.method === "GET" && path === "/project-finance/charts") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleProjectFinanceChartsGet(env, actor, url));
+      }
+
+      if (request.method === "PUT" && path === "/project-finance/charts") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleProjectFinanceChartsPut(request, env, actor));
       }
 
       if (request.method === "POST" && path === "/store/pull") {

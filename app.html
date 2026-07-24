@@ -517,6 +517,39 @@ body {
 .mm-f { padding: 12px 20px; border-top: 1px solid var(--line-2); display: flex; gap: 8px; justify-content: flex-end; }
 .mm-f button { font-weight: 700; font-size: 13px; padding: 9px 16px; border-radius: 9px; border: 1px solid var(--line-2); background: var(--surface); color: var(--text); cursor: pointer; }
 
+/* ===== Недельные графики финансов ===== */
+.finance-charts { margin: -2px 0 26px; }
+.fc-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+.fc-head h2 { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
+.fc-head p { color: var(--text-3); font-size: 11.5px; }
+.fc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.fc-card { background: var(--surface); border: 1px solid var(--line-2); border-radius: 14px; padding: 16px 18px 14px; min-width: 0; }
+.fc-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.fc-card-title { font-size: 14px; font-weight: 800; }
+.fc-card-sub { color: var(--text-3); font-size: 11px; margin-top: 2px; }
+.fc-access { border: 1px solid var(--line-2); background: transparent; color: var(--text-2); border-radius: 8px; font: inherit; font-size: 11.5px; font-weight: 700; padding: 5px 8px; cursor: pointer; white-space: nowrap; }
+.fc-access:hover { color: var(--bronze-deep); border-color: var(--bronze-deep); }
+.fc-values, .fc-labels { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); }
+.fc-values { margin: 14px 0 3px; }
+.fc-values span { min-width: 0; text-align: center; font-size: 10.5px; font-weight: 800; overflow: hidden; }
+.fc-plot { height: 128px; position: relative; }
+.fc-plot svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.fc-labels { margin-top: 5px; }
+.fc-labels span { min-width: 0; overflow: hidden; text-align: center; white-space: nowrap; color: var(--text-3); font-size: 9.5px; }
+.fc-empty { color: var(--text-3); font-size: 12.5px; padding: 20px 0 4px; }
+.fc-modal-list { max-height: 330px; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 10px; margin-top: 10px; }
+.fc-person { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border-bottom: 1px solid var(--line-2); cursor: pointer; }
+.fc-person:last-child { border-bottom: none; }
+.fc-person input { width: 16px; height: 16px; accent-color: var(--bronze-deep); }
+.fc-person .n { font-size: 12.5px; font-weight: 700; }
+.fc-person .e { color: var(--text-3); font-size: 10.5px; }
+@media (max-width: 760px) {
+  .fc-grid { grid-template-columns: 1fr; }
+  .fc-card { padding-inline: 12px; }
+  .fc-values span { font-size: 9px; }
+  .fc-labels span { font-size: 8.5px; }
+}
+
 /* ===== Карточка с действиями + выпадающий список (сайт-лендинг) ===== */
 .tool-card .tool-cta.as-link { text-decoration: none; }
 .tool-dd {
@@ -2440,10 +2473,12 @@ let RATE = 530; // ₸ за $1 (редактируется)
 let MONEY_LOADED = false;
 let MONEY_LOAD_PROMISE = null;
 let MONEY_SAVE_TIMER = null;
+let CHART_VISIBILITY = { orders: [], cash: [] };
 function canSeeProjectMoney(){ return CURRENT?.isSuperAdmin === true; }
 async function persistMoney(){
   if(!canSeeProjectMoney() || !MONEY_LOADED) return;
-  await apiFetch('/project-finance',{method:'PUT',body:{money:MONEY,rate:RATE}});
+  await apiFetch('/project-finance',{method:'PUT',body:{money:MONEY,rate:RATE,chartVisibility:CHART_VISIBILITY}});
+  renderFinanceCharts();
 }
 function scheduleMoneySave(){
   if(!canSeeProjectMoney() || !MONEY_LOADED) return;
@@ -2460,6 +2495,7 @@ async function loadMoney(){
     if(server.exists){
       MONEY=server.money||{};
       RATE=Number(server.rate)||530;
+      CHART_VISIBILITY=server.chartVisibility||{orders:[],cash:[]};
     } else {
       // Одноразовый перенос прежних данных из браузера Super Admin на сервер.
       const raw=localStorage.getItem(MONEY_KEY);
@@ -2487,6 +2523,11 @@ function fmtCur(id, n){ n=Math.round(n||0); return curOf(id)==='USD' ? '$' + n.t
 function shortT(n){ n=Math.round(n||0); return n>=1e6 ? (n/1e6).toFixed(n%1e6? 1:0).replace('.',',')+' млн' : n>=1000 ? Math.round(n/1000)+'к' : String(n); }
 function fmtD(iso){ if(!iso) return ''; const p=String(iso).split('-'); return p.length===3 ? p[2]+'.'+p[1]+'.'+p[0] : iso; }
 function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function nowLocalInput(){ const d=new Date(Date.now()-new Date().getTimezoneOffset()*60000); return d.toISOString().slice(0,16); }
+function fmtPayWhen(p){
+  if(!p?.at) return fmtD(p?.d);
+  return new Date(Number(p.at)).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
 function mCard(id){ return document.querySelector('.tool-card[data-app-id="'+CSS.escape(id)+'"]'); }
 function projName(id){ const c=mCard(id); return ((c && c.querySelector('h3') && c.querySelector('h3').textContent) || id).trim(); }
 
@@ -2507,6 +2548,7 @@ async function injectMoney(){
   });
   ensureMoneySummary();
   renderMoneySummary();
+  renderFinanceCharts();
 }
 function syncProjectMoneyVisibility(){
   if (canSeeProjectMoney()) {
@@ -2521,6 +2563,7 @@ function syncProjectMoneyVisibility(){
   MONEY_LOADED = false;
   MONEY_LOAD_PROMISE = null;
   clearTimeout(MONEY_SAVE_TIMER);
+  renderFinanceCharts();
 }
 function renderMoneyStrip(id){
   if (!canSeeProjectMoney()) return;
@@ -2589,7 +2632,7 @@ function renderMoneyModal(){
   if (!canSeeProjectMoney()) return;
   const id=_mmId, ovl=document.getElementById('moneyOvl'); if(!id||!ovl) return;
   const usd = curOf(id)==='USD';
-  const pays=(MONEY[id].pays||[]).map((p,i)=>({d:p.d,sum:p.sum,i})).sort((a,b)=>String(b.d||'').localeCompare(String(a.d||'')));
+  const pays=(MONEY[id].pays||[]).map((p,i)=>({d:p.d,sum:p.sum,at:p.at,i})).sort((a,b)=>(Number(b.at)||0)-(Number(a.at)||0)||String(b.d||'').localeCompare(String(a.d||'')));
   ovl.innerHTML = '<div class="money-modal">'
     + '<div class="mm-h"><h3>💰 '+mEsc(projName(id))+'</h3><span class="mm-x" onclick="closeMoney()">✕</span></div>'
     + '<div class="mm-b">'
@@ -2601,10 +2644,10 @@ function renderMoneyModal(){
     + '<label>Сумма сделки, '+symOf(id)+'</label><input id="mmDeal" type="number" min="0" step="'+(usd?'50':'1000')+'" value="'+mDeal(id)+'" oninput="setMoneyDeal(this.value)">'
     + '<div class="mm-pt">Платежи · что когда зашло</div>'
     + '<div class="mm-pays">'
-    + (pays.length ? pays.map(p=>'<div class="mm-pay"><span class="pd">'+fmtD(p.d)+'</span><span class="psum">+ '+fmtCur(id,p.sum)+(usd?' <span class="ke2">≈ '+fmtT(toKZT(id,p.sum))+'</span>':'')+'</span><span class="pdel" title="удалить" onclick="delMoneyPay('+p.i+')">✕</span></div>').join('')
+    + (pays.length ? pays.map(p=>'<div class="mm-pay"><span class="pd">'+fmtPayWhen(p)+'</span><span class="psum">+ '+fmtCur(id,p.sum)+(usd?' <span class="ke2">≈ '+fmtT(toKZT(id,p.sum))+'</span>':'')+'</span><span class="pdel" title="удалить" onclick="delMoneyPay('+p.i+')">✕</span></div>').join('')
         : '<div class="mm-pay empty">Платежей ещё не было — добавьте первый.</div>')
     + '</div>'
-    + '<div class="mm-add"><input id="mmPaySum" type="number" min="0" placeholder="сумма, '+symOf(id)+'"><input id="mmPayDate" type="date" value="'+todayISO()+'"><button onclick="addMoneyPay()">＋ Платёж</button></div>'
+    + '<div class="mm-add"><input id="mmPaySum" type="number" min="0" placeholder="сумма, '+symOf(id)+'"><input id="mmPayDate" type="datetime-local" value="'+nowLocalInput()+'"><button onclick="addMoneyPay()">＋ Платёж</button></div>'
     + '</div><div class="mm-f"><button onclick="closeMoney()">Готово</button></div></div>';
 }
 function moneyGrid(id){ const usd=curOf(id)==='USD';
@@ -2613,11 +2656,131 @@ function moneyGrid(id){ const usd=curOf(id)==='USD';
     + cell('g','Получено',fmtCur(id,mRecv(id)),toKZT(id,mRecv(id)))
     + cell('r','Остаток',fmtCur(id,mDebt(id)),toKZT(id,mDebt(id))); }
 function setMoneyCur(c){ if(!canSeeProjectMoney()||!_mmId) return; MONEY[_mmId].cur=c; saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
-function setMoneyDeal(v){ if(!canSeeProjectMoney()||!_mmId) return; MONEY[_mmId].deal=Math.max(0,parseInt(v)||0); saveMoney(); const g=document.getElementById('mmGrid'); if(g)g.innerHTML=moneyGrid(_mmId); renderMoneyStrip(_mmId); renderMoneySummary(); }
-function addMoneyPay(){ if(!canSeeProjectMoney()||!_mmId) return; const sum=parseInt(document.getElementById('mmPaySum').value)||0; const d=document.getElementById('mmPayDate').value||todayISO(); if(sum<=0) return; MONEY[_mmId].pays.push({d,sum}); saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
-function delMoneyPay(i){ if(!canSeeProjectMoney()||!_mmId) return; MONEY[_mmId].pays.splice(i,1); saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
+function setMoneyDeal(v){
+  if(!canSeeProjectMoney()||!_mmId) return;
+  const item=MONEY[_mmId];
+  item.deal=Math.max(0,parseInt(v)||0);
+  if(item.deal>0 && item.pays.length && !item.orderCreatedAt) item.orderCreatedAt=Date.now();
+  if(item.deal<=0) item.orderCreatedAt=0;
+  saveMoney(); const g=document.getElementById('mmGrid'); if(g)g.innerHTML=moneyGrid(_mmId); renderMoneyStrip(_mmId); renderMoneySummary(); renderFinanceCharts();
+}
+function addMoneyPay(){
+  if(!canSeeProjectMoney()||!_mmId) return;
+  const sum=parseInt(document.getElementById('mmPaySum').value)||0;
+  const raw=document.getElementById('mmPayDate').value||nowLocalInput();
+  const at=new Date(raw).getTime()||Date.now();
+  const local=new Date(at-new Date(at).getTimezoneOffset()*60000);
+  const d=local.toISOString().slice(0,10);
+  if(sum<=0) return;
+  const item=MONEY[_mmId];
+  item.pays.push({d,sum,at});
+  if(item.deal>0 && !item.orderCreatedAt) item.orderCreatedAt=Date.now();
+  saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); renderFinanceCharts();
+}
+function delMoneyPay(i){
+  if(!canSeeProjectMoney()||!_mmId) return;
+  MONEY[_mmId].pays.splice(i,1);
+  if(!MONEY[_mmId].pays.length) MONEY[_mmId].orderCreatedAt=0;
+  saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); renderFinanceCharts();
+}
+
+const FINANCE_CHART_META = {
+  orders: { title:'Количество новых заказов', sub:'Сумма заказа + первый платёж', color:'#4f46e5' },
+  cash: { title:'Количество денег в кассе', sub:'Все транзакции за неделю', color:'#16a34a' },
+};
+let FINANCE_CHART_REQUEST = 0;
+
+function ensureFinanceCharts(){
+  let el=document.getElementById('financeCharts');
+  if(el) return el;
+  const tabs=document.getElementById('projectTabs');
+  if(!tabs) return null;
+  el=document.createElement('section');
+  el.className='finance-charts';
+  el.id='financeCharts';
+  const summary=document.getElementById('moneySum');
+  (summary||tabs).insertAdjacentElement('afterend',el);
+  return el;
+}
+function financeValue(kind,n){
+  return kind==='cash' ? shortT(n)+' ₸' : String(Math.round(n||0));
+}
+function financeChartSvg(kind,series){
+  const count=series.length||1, vw=count*100, vh=270, top=24, bottom=16;
+  const max=Math.max(1,...series.map(x=>Number(x.value)||0));
+  const x=i=>(i+.5)*100;
+  const y=v=>top+(1-(Number(v)||0)/max)*(vh-top-bottom);
+  const completed=series.map((s,i)=>s.partial?null:`${x(i)},${y(s.value).toFixed(1)}`).filter(Boolean).join(' ');
+  const color=FINANCE_CHART_META[kind].color;
+  const dots=series.map((s,i)=>{
+    const title=`${s.label}: ${kind==='cash'?fmtT(s.value):s.value}${s.partial?' · текущая неделя':''}`;
+    return `<circle cx="${x(i)}" cy="${y(s.value).toFixed(1)}" r="4.5" fill="${s.partial?'var(--surface)':color}" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"><title>${mEsc(title)}</title></circle>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${vw} ${vh}" preserveAspectRatio="none" aria-label="${mEsc(FINANCE_CHART_META[kind].title)}">
+    <line x1="0" y1="${top}" x2="${vw}" y2="${top}" stroke="var(--line-2)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
+    <line x1="0" y1="${vh-bottom}" x2="${vw}" y2="${vh-bottom}" stroke="var(--line-2)" vector-effect="non-scaling-stroke"/>
+    <polyline points="${completed}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    ${dots}</svg>`;
+}
+function financeChartCard(kind,series){
+  const meta=FINANCE_CHART_META[kind];
+  const access=canSeeProjectMoney()?`<button class="fc-access" onclick="openFinanceAccess('${kind}')">Доступ</button>`:'';
+  return `<article class="fc-card">
+    <div class="fc-card-head"><div><div class="fc-card-title">${meta.title}</div><div class="fc-card-sub">${meta.sub} · чт 14:00 → чт 14:00</div></div>${access}</div>
+    <div class="fc-values">${series.map(s=>`<span title="${kind==='cash'?fmtT(s.value):s.value}">${financeValue(kind,s.value)}</span>`).join('')}</div>
+    <div class="fc-plot">${financeChartSvg(kind,series)}</div>
+    <div class="fc-labels">${series.map(s=>`<span>${mEsc(s.label)}</span>`).join('')}</div>
+  </article>`;
+}
+async function renderFinanceCharts(){
+  if(!CURRENT) return;
+  const el=ensureFinanceCharts();
+  if(!el) return;
+  const requestId=++FINANCE_CHART_REQUEST;
+  el.innerHTML='<div class="fc-empty">Загружаю недельную статистику…</div>';
+  try{
+    const data=await apiFetch('/project-finance/charts?points=8');
+    if(requestId!==FINANCE_CHART_REQUEST) return;
+    if(canSeeProjectMoney() && data.chartVisibility) CHART_VISIBILITY=data.chartVisibility;
+    const kinds=['orders','cash'].filter(kind=>Array.isArray(data.charts?.[kind]));
+    if(!kinds.length){ el.remove(); return; }
+    el.innerHTML='<div class="fc-head"><div><h2>Динамика по неделям</h2><p>Неделя закрывается каждый четверг в 14:00 по Алматы</p></div></div>'
+      +'<div class="fc-grid">'+kinds.map(kind=>financeChartCard(kind,data.charts[kind])).join('')+'</div>';
+  }catch(e){
+    if(requestId!==FINANCE_CHART_REQUEST) return;
+    console.error('finance charts:',e);
+    el.innerHTML='<div class="fc-empty">Не удалось загрузить графики.</div>';
+  }
+}
+async function openFinanceAccess(kind){
+  if(!canSeeProjectMoney() || !FINANCE_CHART_META[kind]) return;
+  let users=[];
+  try{ users=(await apiFetch('/users/list')).users||[]; }
+  catch(e){ alert('Не удалось загрузить сотрудников: '+e.message); return; }
+  document.getElementById('financeAccessOvl')?.remove();
+  const selected=new Set(CHART_VISIBILITY[kind]||[]);
+  const ovl=document.createElement('div');
+  ovl.id='financeAccessOvl'; ovl.className='money-ovl show';
+  ovl.addEventListener('click',e=>{if(e.target===ovl)ovl.remove();});
+  const people=users.filter(u=>u.email && String(u.email).toLowerCase()!==String(CURRENT.email).toLowerCase());
+  ovl.innerHTML='<div class="money-modal"><div class="mm-h"><h3>Кто видит: '+mEsc(FINANCE_CHART_META[kind].title)+'</h3><span class="mm-x" onclick="document.getElementById(\'financeAccessOvl\').remove()">✕</span></div>'
+    +'<div class="mm-b"><div style="font-size:12px;color:var(--text-2)">Super Admin видит график всегда. Отметьте остальных сотрудников.</div>'
+    +'<div class="fc-modal-list">'+(people.length?people.map(u=>{const email=String(u.email).toLowerCase();return '<label class="fc-person"><input type="checkbox" value="'+mEsc(email)+'" '+(selected.has(email)?'checked':'')+'><span><div class="n">'+mEsc(u.name||email)+'</div><div class="e">'+mEsc(email)+'</div></span></label>';}).join(''):'<div class="fc-empty" style="padding:14px">Других сотрудников пока нет.</div>')+'</div></div>'
+    +'<div class="mm-f"><button onclick="document.getElementById(\'financeAccessOvl\').remove()">Отмена</button><button style="background:var(--navy);color:#fff" onclick="saveFinanceAccess(\''+kind+'\')">Сохранить</button></div></div>';
+  document.body.appendChild(ovl);
+}
+async function saveFinanceAccess(kind){
+  const ovl=document.getElementById('financeAccessOvl');
+  if(!ovl) return;
+  const viewers=[...ovl.querySelectorAll('.fc-person input:checked')].map(x=>x.value);
+  CHART_VISIBILITY={...CHART_VISIBILITY,[kind]:viewers};
+  try{
+    await apiFetch('/project-finance/charts',{method:'PUT',body:{chartVisibility:CHART_VISIBILITY}});
+    ovl.remove(); renderFinanceCharts();
+  }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
+}
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate });
+Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinanceAccess, saveFinanceAccess });
 
 function applyProjectFilters(){
   document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
