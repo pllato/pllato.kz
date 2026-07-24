@@ -381,6 +381,27 @@ body {
 }
 .tool-card:hover .lnk-btn { opacity:.85; }
 .lnk-btn:hover { background:var(--bronze-tint); color:var(--bronze-deep); opacity:1; }
+.tile-access-btn {
+  position:absolute; top:10px; right:72px;
+  width:28px; height:28px; border-radius:8px;
+  border:none; background:transparent; color:var(--text-3);
+  font-size:14px; line-height:1; cursor:pointer;
+  display:grid; place-items:center; z-index:4; opacity:.65; transition:.14s;
+}
+.tool-card:hover .tile-access-btn { opacity:1; }
+.tile-access-btn:hover { background:var(--bronze-tint); color:var(--bronze-deep); }
+.crm-tile-user { padding:12px; border-bottom:1px solid var(--line-2); }
+.crm-tile-user:last-child { border-bottom:none; }
+.crm-tile-user-head { display:flex; align-items:center; gap:9px; }
+.money-modal .crm-tile-user-head input,
+.money-modal .crm-tile-detail input { width:16px; height:16px; padding:0; flex:0 0 16px; accent-color:var(--bronze-deep); }
+.crm-tile-user-name { flex:1; min-width:0; }
+.crm-tile-user-name .n { font-size:12.5px; font-weight:800; }
+.crm-tile-user-name .e { font-size:10.5px; color:var(--text-3); }
+.crm-tile-detail { display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; margin:10px 0 0 25px; }
+.crm-tile-detail label { display:flex; align-items:center; gap:6px; margin:0; font-size:11px; }
+.crm-tile-detail select { grid-column:1/-1; border:1px solid var(--line-2); border-radius:8px; padding:7px 9px; background:var(--surface); color:var(--text); font:inherit; font-size:11.5px; }
+.crm-tile-user.no-access .crm-tile-detail { display:none; }
 .share-pop {
   position:absolute; z-index:60; width:272px; background:var(--surface,#fff);
   border:1px solid var(--line-2,#e7e5e4); border-radius:14px; padding:14px 15px;
@@ -2426,6 +2447,21 @@ function initProjectGroups(){
     btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openSharePop(card, btn, href); });
     card.appendChild(btn);
   });
+  const crmCard = document.querySelector('.tool-card[data-app-id="pllato_sales_crm"]');
+  if (crmCard && CURRENT?.isAdmin && !crmCard.querySelector('.tile-access-btn')) {
+    const accessBtn = document.createElement('button');
+    accessBtn.type = 'button';
+    accessBtn.className = 'tile-access-btn';
+    accessBtn.innerHTML = '⚙';
+    accessBtn.title = 'Настроить доступ к CRM';
+    accessBtn.setAttribute('aria-label', 'Настроить доступ к CRM');
+    accessBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openCrmTileAccess();
+    });
+    crmCard.appendChild(accessBtn);
+  }
   buildProjectTabs();
   injectMoney();
 }
@@ -3012,6 +3048,96 @@ async function loadAdminUsers() {
     showAdminMsg('');
   } catch (e) {
     showAdminMsg('Ошибка загрузки: ' + (e.message || e), 'err');
+  }
+}
+
+async function openCrmTileAccess() {
+  if (!CURRENT?.isAdmin) return;
+  try {
+    const users = await loadUsersMap();
+    adminUsersCache = users;
+    const overlay = document.createElement('div');
+    overlay.id = 'crmTileAccessOverlay';
+    overlay.className = 'money-ovl show';
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) overlay.remove();
+    });
+    const rows = Object.entries(users)
+      .filter(([, user]) => user?.email)
+      .sort((a, b) => String(a[1].name || a[1].email).localeCompare(String(b[1].name || b[1].email), 'ru'))
+      .map(([uid, user]) => {
+        const isFullAdmin = Boolean(user.isAdmin || user.isSuperAdmin || isRootSuper(user.email));
+        const enabled = isFullAdmin || Boolean(user.apps?.pllato_sales_crm);
+        const access = user.crmAccess || { pipelines: ['start', 'production'], dealScope: 'own' };
+        const pipelines = Array.isArray(access.pipelines) ? access.pipelines : ['start', 'production'];
+        return `<div class="crm-tile-user ${enabled ? '' : 'no-access'}" data-crm-tile-user="${escapeHtml(uid)}">
+          <div class="crm-tile-user-head">
+            <input type="checkbox" data-crm-enabled ${enabled ? 'checked' : ''} ${isFullAdmin ? 'disabled' : ''}>
+            <div class="crm-tile-user-name">
+              <div class="n">${escapeHtml(user.name || user.email)}${isFullAdmin ? ' · полный доступ' : ''}</div>
+              <div class="e">${escapeHtml(user.email)}</div>
+            </div>
+          </div>
+          <div class="crm-tile-detail">
+            <label><input type="checkbox" data-crm-pipe="start" ${pipelines.includes('start') || isFullAdmin ? 'checked' : ''} ${isFullAdmin ? 'disabled' : ''}> Pllato Старт</label>
+            <label><input type="checkbox" data-crm-pipe="production" ${pipelines.includes('production') || isFullAdmin ? 'checked' : ''} ${isFullAdmin ? 'disabled' : ''}> Pllato Производство</label>
+            <select data-crm-deal-scope ${isFullAdmin ? 'disabled' : ''}>
+              <option value="own" ${access.dealScope !== 'all' && !isFullAdmin ? 'selected' : ''}>Только свои сделки</option>
+              <option value="all" ${access.dealScope === 'all' || isFullAdmin ? 'selected' : ''}>Все сделки</option>
+            </select>
+          </div>
+        </div>`;
+      }).join('');
+    overlay.innerHTML = `<div class="money-modal" style="max-width:620px">
+      <div class="mm-h"><h3>Доступ к CRM Pllato</h3><span class="mm-x" data-crm-close>✕</span></div>
+      <div class="mm-b">
+        <div style="font-size:12px;color:var(--text-2)">Сначала сотрудник добавляется в «Пользователи App». Здесь настраивается доступ именно к этой плашке.</div>
+        <div class="fc-modal-list">${rows || '<div class="fc-empty" style="padding:14px">Пользователей пока нет.</div>'}</div>
+      </div>
+      <div class="mm-f"><button data-crm-close>Отмена</button><button style="background:var(--navy);color:#fff" data-crm-save>Сохранить</button></div>
+    </div>`;
+    overlay.querySelectorAll('[data-crm-close]').forEach((button) => button.addEventListener('click', () => overlay.remove()));
+    overlay.querySelectorAll('[data-crm-enabled]').forEach((checkbox) => {
+      checkbox.addEventListener('change', () => {
+        checkbox.closest('.crm-tile-user')?.classList.toggle('no-access', !checkbox.checked);
+      });
+    });
+    overlay.querySelector('[data-crm-save]')?.addEventListener('click', saveCrmTileAccess);
+    document.body.appendChild(overlay);
+  } catch (error) {
+    alert('Не удалось загрузить права CRM: ' + (error.message || error));
+  }
+}
+
+async function saveCrmTileAccess() {
+  const overlay = document.getElementById('crmTileAccessOverlay');
+  const saveButton = overlay?.querySelector('[data-crm-save]');
+  if (!overlay || !saveButton) return;
+  saveButton.disabled = true;
+  saveButton.textContent = 'Сохраняем…';
+  try {
+    for (const row of overlay.querySelectorAll('[data-crm-tile-user]')) {
+      const uid = row.dataset.crmTileUser;
+      const current = adminUsersCache[uid];
+      if (!current || current.isAdmin || current.isSuperAdmin || isRootSuper(current.email)) continue;
+      const enabled = Boolean(row.querySelector('[data-crm-enabled]')?.checked);
+      const pipelines = Array.from(row.querySelectorAll('[data-crm-pipe]:checked')).map((input) => input.dataset.crmPipe);
+      const dealScope = row.querySelector('[data-crm-deal-scope]')?.value === 'all' ? 'all' : 'own';
+      const next = {
+        ...current,
+        apps: { ...(current.apps || {}), pllato_sales_crm: enabled },
+        crmAccess: { pipelines, dealScope },
+      };
+      await apiFetch('/users/save', { method: 'POST', body: next });
+      adminUsersCache[uid] = next;
+    }
+    writeUsersRegistryCache(adminUsersCache);
+    overlay.remove();
+    showAdminMsg('Права CRM сохранены', 'ok');
+  } catch (error) {
+    saveButton.disabled = false;
+    saveButton.textContent = 'Сохранить';
+    alert('Не удалось сохранить права CRM: ' + (error.message || error));
   }
 }
 
