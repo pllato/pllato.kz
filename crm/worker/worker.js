@@ -2161,7 +2161,11 @@ function normalizeProjectFinance(payload) {
     money,
     rate: Math.max(1, Math.min(Number(payload?.rate) || 530, 1_000_000)),
     chartVisibility: {
-      inquiries: normalizeViewers(rawVisibility.inquiries),
+      inquiries: normalizeViewers(
+        Object.prototype.hasOwnProperty.call(rawVisibility, "inquiries")
+          ? rawVisibility.inquiries
+          : rawVisibility.orders
+      ),
       orders: normalizeViewers(rawVisibility.orders),
       cash: normalizeViewers(rawVisibility.cash),
     },
