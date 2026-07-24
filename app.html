@@ -522,6 +522,10 @@ body {
 .fc-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
 .fc-head h2 { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
 .fc-head p { color: var(--text-3); font-size: 11.5px; }
+.fc-toggle { border: 1px solid var(--line-2); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; }
+.fc-toggle:hover { color: var(--bronze-deep); border-color: var(--bronze-deep); }
+.finance-charts.folded { margin-bottom: 18px; }
+.finance-charts.folded .fc-grid { display: none; }
 .fc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .fc-card { background: var(--surface); border: 1px solid var(--line-2); border-radius: 14px; padding: 16px 18px 14px; min-width: 0; }
 .fc-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
@@ -2345,11 +2349,32 @@ function applyPermissionsAndAdminUI() {
 /* ===== группы-вкладки проектов + избранное ===== */
 const FAV_KEY = 'pllato_fav_projects';
 let FAVS = new Set((()=>{ try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch(e){ return []; } })());
-let ACTIVE_TAB = 'all';
+const PORTAL_VIEW_KEY = 'pllato_portal_view_v1';
+let PORTAL_VIEW = (()=>{ try { return JSON.parse(localStorage.getItem(PORTAL_VIEW_KEY)||'{}')||{}; } catch(e){ return {}; } })();
+let ACTIVE_TAB = PORTAL_VIEW.tab || 'fav';
 let SEARCH_TERM = '';
 let GROUPS_INIT = false;
+let PORTAL_SCROLL_TIMER = null;
 
 function saveFavs(){ try { localStorage.setItem(FAV_KEY, JSON.stringify([...FAVS])); } catch(e){} }
+function savePortalView(){
+  PORTAL_VIEW.tab=ACTIVE_TAB;
+  PORTAL_VIEW.scroll=PORTAL_VIEW.scroll||{};
+  PORTAL_VIEW.chartsOpen=PORTAL_VIEW.chartsOpen||{};
+  try { localStorage.setItem(PORTAL_VIEW_KEY,JSON.stringify(PORTAL_VIEW)); } catch(e){}
+}
+function restorePortalPosition(){
+  const y=Math.max(0,Number(PORTAL_VIEW.scroll?.[ACTIVE_TAB])||0);
+  requestAnimationFrame(()=>window.scrollTo({top:y,left:0,behavior:'auto'}));
+}
+window.addEventListener('scroll',()=>{
+  clearTimeout(PORTAL_SCROLL_TIMER);
+  PORTAL_SCROLL_TIMER=setTimeout(()=>{
+    PORTAL_VIEW.scroll=PORTAL_VIEW.scroll||{};
+    PORTAL_VIEW.scroll[ACTIVE_TAB]=Math.max(0,Math.round(window.scrollY));
+    savePortalView();
+  },120);
+},{passive:true});
 function cardAllowed(card){ const id = card.dataset.appId; return !!(CURRENT?.isAdmin || CURRENT?.apps?.[id]); }
 
 function initProjectGroups(){
@@ -2396,13 +2421,21 @@ function buildProjectTabs(){
   const bar = document.getElementById('projectTabs');
   if (!bar) return;
   const groups = [...new Set([...document.querySelectorAll('.tool-card[data-app-id]')].map(c => c.dataset.group).filter(Boolean))];
+  const validTabs=new Set(['all','fav',...groups.map(g=>'g:'+g)]);
+  if(!validTabs.has(ACTIVE_TAB)) ACTIVE_TAB='fav';
   const tab = (id, label, cls) => `<button class="ptab${cls||''}${id===ACTIVE_TAB?' on':''}" data-tab="${id}">${label}<span class="pt-c" data-c="${id}"></span></button>`;
   bar.innerHTML = tab('all','Все') + tab('fav','★ Избранное',' fav') + groups.map(g => tab('g:'+g, g)).join('');
   bar.querySelectorAll('.ptab').forEach(b => b.addEventListener('click', () => {
+    PORTAL_VIEW.scroll=PORTAL_VIEW.scroll||{};
+    PORTAL_VIEW.scroll[ACTIVE_TAB]=Math.max(0,Math.round(window.scrollY));
     ACTIVE_TAB = b.dataset.tab;
+    savePortalView();
     bar.querySelectorAll('.ptab').forEach(x => x.classList.toggle('on', x === b));
     applyProjectFilters();
+    applyFinanceChartsFold();
+    restorePortalPosition();
   }));
+  savePortalView();
 }
 
 function toggleFav(id, star){
@@ -2735,6 +2768,28 @@ function financeChartCard(kind,series){
     <div class="fc-labels">${series.map(s=>`<span>${mEsc(s.label)}</span>`).join('')}</div>
   </article>`;
 }
+function financeChartsAreOpen(){
+  if(ACTIVE_TAB==='fav') return true;
+  return PORTAL_VIEW.chartsOpen?.[ACTIVE_TAB]===true;
+}
+function applyFinanceChartsFold(){
+  const el=document.getElementById('financeCharts');
+  if(!el) return;
+  const open=financeChartsAreOpen();
+  el.classList.toggle('folded',!open);
+  const btn=el.querySelector('.fc-toggle');
+  if(btn){
+    btn.textContent=open?'Свернуть':'Развернуть';
+    btn.setAttribute('aria-expanded',String(open));
+  }
+}
+function toggleFinanceCharts(){
+  if(ACTIVE_TAB==='fav') return;
+  PORTAL_VIEW.chartsOpen=PORTAL_VIEW.chartsOpen||{};
+  PORTAL_VIEW.chartsOpen[ACTIVE_TAB]=!financeChartsAreOpen();
+  savePortalView();
+  applyFinanceChartsFold();
+}
 async function renderFinanceCharts(){
   if(!CURRENT) return;
   const el=ensureFinanceCharts();
@@ -2748,8 +2803,11 @@ async function renderFinanceCharts(){
     if(canSeeProjectMoney() && data.chartScale) CHART_SCALE=data.chartScale;
     const kinds=['orders','cash'].filter(kind=>Array.isArray(data.charts?.[kind]));
     if(!kinds.length){ el.remove(); return; }
-    el.innerHTML='<div class="fc-head"><div><h2>Динамика по неделям</h2><p>Неделя закрывается каждый четверг в 14:00 по Алматы</p></div></div>'
+    const toggle=ACTIVE_TAB==='fav'?'':'<button class="fc-toggle" onclick="toggleFinanceCharts()"></button>';
+    el.innerHTML='<div class="fc-head"><div><h2>Динамика по неделям</h2><p>Неделя закрывается каждый четверг в 14:00 по Алматы</p></div>'+toggle+'</div>'
       +'<div class="fc-grid">'+kinds.map(kind=>financeChartCard(kind,data.charts[kind])).join('')+'</div>';
+    applyFinanceChartsFold();
+    restorePortalPosition();
   }catch(e){
     if(requestId!==FINANCE_CHART_REQUEST) return;
     console.error('finance charts:',e);
@@ -2790,7 +2848,7 @@ async function saveFinanceAccess(kind){
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinanceAccess, saveFinanceAccess });
+Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts });
 
 function applyProjectFilters(){
   document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
@@ -2863,6 +2921,7 @@ function showApp(user) {
     avatarEl.textContent = initials;
   }
   applyPermissionsAndAdminUI();
+  restorePortalPosition();
   grantDemoAccess();
 }
 
