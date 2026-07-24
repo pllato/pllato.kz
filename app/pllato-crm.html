@@ -3607,6 +3607,7 @@ const auth = pllatoAppSession ? {
     email: String(pllatoAppSession.user.email || ''),
     displayName: String(pllatoAppSession.user.name || pllatoAppSession.user.email || 'Сотрудник'),
     photoURL: '',
+    providerData: [{ providerId: 'pllato-app' }],
     getIdToken: async () => pllatoAppSession.token,
   },
 } : firebaseAuth;
@@ -3940,7 +3941,7 @@ async function initApp(user) {
     name: user.displayName || user.email.split('@')[0],
     photoURL: user.photoURL || '',
     lastLogin: new Date().toISOString(),
-    provider: user.providerData[0]?.providerId || 'unknown',
+    provider: user.providerData?.[0]?.providerId || 'pllato-app',
   };
   console.log('[initApp] profile save skipped (Phase 2.1 read-only)');
 
