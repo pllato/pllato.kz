@@ -2185,6 +2185,11 @@ function normalizeProjectFinance(payload) {
           ? rawVisibility.inquiries
           : rawVisibility.orders
       ),
+      kep: normalizeViewers(
+        Object.prototype.hasOwnProperty.call(rawVisibility, "kep")
+          ? rawVisibility.kep
+          : rawVisibility.inquiries
+      ),
       orders: normalizeViewers(rawVisibility.orders),
       cash: normalizeViewers(rawVisibility.cash),
       releases: normalizeViewers(rawVisibility.releases),
@@ -2192,6 +2197,7 @@ function normalizeProjectFinance(payload) {
     chartOverrides,
     chartScale: {
       inquiries: Math.max(0, Math.round(Number(rawScale.inquiries) || 0)),
+      kep: Math.max(0, Math.round(Number(rawScale.kep) || 0)),
       orders: Math.max(0, Math.round(Number(rawScale.orders) || 0)),
       cash: Math.max(0, Math.round(Number(rawScale.cash) || 0)),
       releases: Math.max(0, Math.round(Number(rawScale.releases) || 0)),
@@ -2331,6 +2337,7 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
   const finance = normalizeProjectFinance(stored || {});
   const visible = {
     inquiries: financeChartAllowed(actor, finance.chartVisibility.inquiries),
+    kep: financeChartAllowed(actor, finance.chartVisibility.kep),
     orders: financeChartAllowed(actor, finance.chartVisibility.orders),
     cash: financeChartAllowed(actor, finance.chartVisibility.cash),
     releases: financeChartAllowed(actor, finance.chartVisibility.releases),
@@ -2347,6 +2354,18 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
       }
     } catch (error) {
       console.warn("pllato inquiries chart unavailable", error?.message || error);
+    }
+  }
+  if (visible.kep) {
+    try {
+      const pointCount = Math.max(4, Math.min(Number(url.searchParams.get("points")) || 8, 16));
+      const upstream = await fetch(`https://pllato-elc-worker.uurraa.workers.dev/api/public/pllato-kep?points=${pointCount}`);
+      if (upstream.ok) {
+        const payload = await upstream.json();
+        if (Array.isArray(payload?.series)) charts.kep = payload.series;
+      }
+    } catch (error) {
+      console.warn("pllato KEP chart unavailable", error?.message || error);
     }
   }
   if (visible.orders) charts.orders = allSeries.map(({ start, end, label, partial, orders }) => ({ start, end, label, partial, value: orders }));
@@ -2368,7 +2387,7 @@ async function handleProjectFinanceChartsPut(request, env, actor) {
   const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
   const current = normalizeProjectFinance(stored || {});
   const kind = String(body.kind || "").trim();
-  const validKinds = new Set(["inquiries", "orders", "cash", "releases"]);
+  const validKinds = new Set(["inquiries", "kep", "orders", "cash", "releases"]);
   if (!canAccessProjectFinance(actor)) {
     if (!validKinds.has(kind) || !financeChartAllowed(actor, current.chartVisibility[kind])) {
       throw new HttpError(403, "Нет доступа к настройкам этого графика");

@@ -2528,9 +2528,9 @@ let RATE = 530; // ₸ за $1 (редактируется)
 let MONEY_LOADED = false;
 let MONEY_LOAD_PROMISE = null;
 let MONEY_SAVE_TIMER = null;
-let CHART_VISIBILITY = { inquiries: [], orders: [], cash: [], releases: [] };
-let CHART_SCALE = { inquiries: 0, orders: 0, cash: 0, releases: 0 };
-let CHART_ALLOWED = { inquiries: false, orders: false, cash: false, releases: false };
+let CHART_VISIBILITY = { inquiries: [], kep: [], orders: [], cash: [], releases: [] };
+let CHART_SCALE = { inquiries: 0, kep: 0, orders: 0, cash: 0, releases: 0 };
+let CHART_ALLOWED = { inquiries: false, kep: false, orders: false, cash: false, releases: false };
 function canSeeProjectMoney(){ return CURRENT?.isSuperAdmin === true; }
 function canConfigureFinanceChart(kind){ return canSeeProjectMoney() || CHART_ALLOWED[kind] === true; }
 async function persistMoney(){
@@ -2553,8 +2553,8 @@ async function loadMoney(){
     if(server.exists){
       MONEY=server.money||{};
       RATE=Number(server.rate)||530;
-      CHART_VISIBILITY=server.chartVisibility||{inquiries:[],orders:[],cash:[],releases:[]};
-      CHART_SCALE=server.chartScale||{inquiries:0,orders:0,cash:0,releases:0};
+      CHART_VISIBILITY=server.chartVisibility||{inquiries:[],kep:[],orders:[],cash:[],releases:[]};
+      CHART_SCALE=server.chartScale||{inquiries:0,kep:0,orders:0,cash:0,releases:0};
     } else {
       // Одноразовый перенос прежних данных из браузера Super Admin на сервер.
       const raw=localStorage.getItem(MONEY_KEY);
@@ -2774,6 +2774,7 @@ function delMoneyPay(i){
 
 const FINANCE_CHART_META = {
   inquiries: { title:'Количество новых обращений', sub:'Pllato Старт · стадия «Новая»', color:'#373d8d' },
+  kep: { title:'Количество людей на КЭП', sub:'Этапы «Создание Демо» или «Показ Демо»', color:'#7c3aed' },
   orders: { title:'Количество новых заказов', sub:'Сумма заказа + первый платёж', color:'#4f46e5' },
   cash: { title:'Количество денег в кассе', sub:'Все транзакции за неделю', color:'#16a34a' },
   releases: { title:'Выпуски', sub:'Завершённые проекты', color:'#d97706' },
@@ -2952,11 +2953,25 @@ async function renderFinanceCharts(){
         console.warn('inquiries chart fallback:',inquiryError);
       }
     }
+    if(!Array.isArray(data.charts?.kep) && data.visible?.kep){
+      try{
+        const kepResponse=await fetch('https://pllato-elc-worker.uurraa.workers.dev/api/public/pllato-kep?points=8',{cache:'no-store'});
+        if(kepResponse.ok){
+          const kepData=await kepResponse.json();
+          if(Array.isArray(kepData.series)){
+            data.charts=data.charts||{};
+            data.charts.kep=kepData.series;
+          }
+        }
+      }catch(kepError){
+        console.warn('KEP chart fallback:',kepError);
+      }
+    }
     if(requestId!==FINANCE_CHART_REQUEST) return;
     CHART_ALLOWED={...CHART_ALLOWED,...(data.visible||{})};
     if(data.chartVisibility) CHART_VISIBILITY={...CHART_VISIBILITY,...data.chartVisibility};
     if(data.chartScale) CHART_SCALE={...CHART_SCALE,...data.chartScale};
-    const kinds=['inquiries','orders','cash','releases'].filter(kind=>Array.isArray(data.charts?.[kind]));
+    const kinds=['inquiries','kep','orders','cash','releases'].filter(kind=>Array.isArray(data.charts?.[kind]));
     if(!kinds.length){ el.remove(); return; }
     await loadGlobalSalesQuickLink();
     const toggle=financeChartsPinnedOpen()?'':'<button class="fc-toggle" onclick="toggleFinanceCharts()"></button>';
