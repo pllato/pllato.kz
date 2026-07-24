@@ -1667,6 +1667,29 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
     </div>
 
     <div class="section-title">Найм и оценка персонала</div>
+    <div style="max-width:820px;margin:0 0 16px;padding:16px 18px;background:var(--surface,#fff);border:1px solid var(--line-2,#e8e8e8);border-radius:14px">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line-2,#eee)">
+        <div style="flex:1;min-width:220px">
+          <div style="font-size:11px;color:#9a9a95;text-transform:uppercase;letter-spacing:.5px;font-weight:700">Этап 1 — анализ личности · 12–15 минут</div>
+          <code style="font-size:14px;color:var(--text-1,#222)">https://pllato.kz/app/hr/?stage=personality&amp;tests=personality</code>
+        </div>
+        <button style="border:none;background:#0a1628;color:#fff;font-weight:600;font-size:13px;padding:9px 16px;border-radius:9px;cursor:pointer" onclick="navigator.clipboard.writeText('https://pllato.kz/app/hr/?stage=personality&amp;tests=personality').then(()=>{this.textContent='Скопировано ✓';setTimeout(()=>this.textContent='Копировать этап 1',1500)})">Копировать этап 1</button>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line-2,#eee)">
+        <div style="flex:1;min-width:220px">
+          <div style="font-size:11px;color:#9a9a95;text-transform:uppercase;letter-spacing:.5px;font-weight:700">Этап 2 — IQ / тест способностей · около 15 минут</div>
+          <code style="font-size:14px;color:var(--text-1,#222)">https://pllato.kz/app/hr/?stage=iq&amp;tests=cognitive</code>
+        </div>
+        <button style="border:none;background:#6d28d9;color:#fff;font-weight:600;font-size:13px;padding:9px 16px;border-radius:9px;cursor:pointer" onclick="navigator.clipboard.writeText('https://pllato.kz/app/hr/?stage=iq&amp;tests=cognitive').then(()=>{this.textContent='Скопировано ✓';setTimeout(()=>this.textContent='Копировать этап 2',1500)})">Копировать этап 2</button>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 0 4px">
+        <div style="flex:1;min-width:220px">
+          <div style="font-size:11px;color:#9a9a95;text-transform:uppercase;letter-spacing:.5px;font-weight:700">Панель ответственного — по паролю</div>
+          <code style="font-size:14px;color:var(--text-1,#222)">https://pllato.kz/app/hr/admin.html</code>
+        </div>
+        <button style="border:1px solid #d8d4c8;background:#f3f0e8;color:#0a1628;font-weight:600;font-size:13px;padding:9px 16px;border-radius:9px;cursor:pointer" onclick="navigator.clipboard.writeText('https://pllato.kz/app/hr/admin.html').then(()=>{this.textContent='Скопировано ✓';setTimeout(()=>this.textContent='Копировать',1500)})">Копировать</button>
+      </div>
+    </div>
     <div class="tools-grid">
 
       <a href="app/hr/admin.html" class="tool-card" data-app-id="hr_panel">
@@ -2557,7 +2580,9 @@ let MONEY_LOAD_PROMISE = null;
 let MONEY_SAVE_TIMER = null;
 let CHART_VISIBILITY = { inquiries: [], orders: [], cash: [] };
 let CHART_SCALE = { inquiries: 0, orders: 0, cash: 0 };
+let CHART_ALLOWED = { inquiries: false, orders: false, cash: false };
 function canSeeProjectMoney(){ return CURRENT?.isSuperAdmin === true; }
+function canConfigureFinanceChart(kind){ return canSeeProjectMoney() || CHART_ALLOWED[kind] === true; }
 async function persistMoney(){
   if(!canSeeProjectMoney() || !MONEY_LOADED) return;
   await apiFetch('/project-finance',{method:'PUT',body:{money:MONEY,rate:RATE,chartVisibility:CHART_VISIBILITY,chartScale:CHART_SCALE}});
@@ -2816,15 +2841,18 @@ function financeChartSvg(kind,series){
 }
 function financeChartCard(kind,series){
   const meta=FINANCE_CHART_META[kind];
-  const access=canSeeProjectMoney()?`<button class="fc-access" onclick="openFinanceAccess('${kind}')">Настройки</button>`:'';
+  const access=canConfigureFinanceChart(kind)?`<button class="fc-access" onclick="openFinanceAccess('${kind}')">Настройки</button>`:'';
   return `<article class="fc-card">
     <div class="fc-card-head"><div><div class="fc-card-title">${meta.title}</div><div class="fc-card-sub">${meta.sub} · чт 14:00 → чт 14:00</div></div>${access}</div>
     <div class="fc-plot">${financeChartSvg(kind,series)}</div>
     <div class="fc-labels">${series.map(s=>`<span>${mEsc(s.label)}</span>`).join('')}</div>
   </article>`;
 }
+function financeChartsPinnedOpen(){
+  return ACTIVE_TAB==='fav' || ACTIVE_TAB==='g:Инструменты для продаж';
+}
 function financeChartsAreOpen(){
-  if(ACTIVE_TAB==='fav') return true;
+  if(financeChartsPinnedOpen()) return true;
   return PORTAL_VIEW.chartsOpen?.[ACTIVE_TAB]===true;
 }
 function applyFinanceChartsFold(){
@@ -2839,7 +2867,7 @@ function applyFinanceChartsFold(){
   }
 }
 function toggleFinanceCharts(){
-  if(ACTIVE_TAB==='fav') return;
+  if(financeChartsPinnedOpen()) return;
   PORTAL_VIEW.chartsOpen=PORTAL_VIEW.chartsOpen||{};
   PORTAL_VIEW.chartsOpen[ACTIVE_TAB]=!financeChartsAreOpen();
   savePortalView();
@@ -2871,11 +2899,12 @@ async function renderFinanceCharts(){
       }
     }
     if(requestId!==FINANCE_CHART_REQUEST) return;
-    if(canSeeProjectMoney() && data.chartVisibility) CHART_VISIBILITY=data.chartVisibility;
-    if(canSeeProjectMoney() && data.chartScale) CHART_SCALE=data.chartScale;
+    CHART_ALLOWED={...CHART_ALLOWED,...(data.visible||{})};
+    if(data.chartVisibility) CHART_VISIBILITY={...CHART_VISIBILITY,...data.chartVisibility};
+    if(data.chartScale) CHART_SCALE={...CHART_SCALE,...data.chartScale};
     const kinds=['inquiries','orders','cash'].filter(kind=>Array.isArray(data.charts?.[kind]));
     if(!kinds.length){ el.remove(); return; }
-    const toggle=ACTIVE_TAB==='fav'?'':'<button class="fc-toggle" onclick="toggleFinanceCharts()"></button>';
+    const toggle=financeChartsPinnedOpen()?'':'<button class="fc-toggle" onclick="toggleFinanceCharts()"></button>';
     el.innerHTML='<div class="fc-head"><div><h2>Динамика по неделям</h2><p>Неделя закрывается каждый четверг в 14:00 по Алматы</p></div>'+toggle+'</div>'
       +'<div class="fc-grid">'+kinds.map(kind=>financeChartCard(kind,data.charts[kind])).join('')+'</div>';
     applyFinanceChartsFold();
@@ -2887,7 +2916,7 @@ async function renderFinanceCharts(){
   }
 }
 async function openFinanceAccess(kind){
-  if(!canSeeProjectMoney() || !FINANCE_CHART_META[kind]) return;
+  if(!canConfigureFinanceChart(kind) || !FINANCE_CHART_META[kind]) return;
   let users=[];
   try{ users=(await apiFetch('/users/list')).users||[]; }
   catch(e){ alert('Не удалось загрузить сотрудников: '+e.message); return; }
@@ -2915,7 +2944,7 @@ async function saveFinanceAccess(kind){
   const scale=Math.max(0,Math.round(Number(ovl.querySelector('#fcScaleMax')?.value)||0));
   CHART_SCALE={...CHART_SCALE,[kind]:scale};
   try{
-    await apiFetch('/project-finance/charts',{method:'PUT',body:{chartVisibility:CHART_VISIBILITY,chartScale:CHART_SCALE}});
+    await apiFetch('/project-finance/charts',{method:'PUT',body:{kind,chartVisibility:CHART_VISIBILITY,chartScale:CHART_SCALE}});
     ovl.remove(); renderFinanceCharts();
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }

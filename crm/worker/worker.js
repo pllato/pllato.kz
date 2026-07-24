@@ -2325,24 +2325,38 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
   }
   if (visible.orders) charts.orders = allSeries.map(({ start, end, label, partial, orders }) => ({ start, end, label, partial, value: orders }));
   if (visible.cash) charts.cash = allSeries.map(({ start, end, label, partial, cash }) => ({ start, end, label, partial, value: cash }));
+  const visibleKinds = Object.keys(visible).filter((kind) => visible[kind]);
   return {
     ok: true,
     charts,
     visible,
-    chartVisibility: canAccessProjectFinance(actor) ? finance.chartVisibility : undefined,
-    chartScale: canAccessProjectFinance(actor) ? finance.chartScale : undefined,
+    chartVisibility: Object.fromEntries(visibleKinds.map((kind) => [kind, finance.chartVisibility[kind]])),
+    chartScale: Object.fromEntries(visibleKinds.map((kind) => [kind, finance.chartScale[kind]])),
     boundary: { weekday: 4, hour: 14, timeZone: "Asia/Almaty" },
   };
 }
 
 async function handleProjectFinanceChartsPut(request, env, actor) {
-  requireProjectFinanceAccess(actor);
   const body = await readRequestBodyAsJson(request);
   const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
+  const current = normalizeProjectFinance(stored || {});
+  const kind = String(body.kind || "").trim();
+  const validKinds = new Set(["inquiries", "orders", "cash"]);
+  if (!canAccessProjectFinance(actor)) {
+    if (!validKinds.has(kind) || !financeChartAllowed(actor, current.chartVisibility[kind])) {
+      throw new HttpError(403, "Нет доступа к настройкам этого графика");
+    }
+  }
+  const nextVisibility = canAccessProjectFinance(actor)
+    ? body.chartVisibility
+    : { ...current.chartVisibility, [kind]: body.chartVisibility?.[kind] };
+  const nextScale = canAccessProjectFinance(actor)
+    ? body.chartScale
+    : { ...current.chartScale, [kind]: body.chartScale?.[kind] };
   const normalized = normalizeProjectFinance({
     ...(stored || {}),
-    chartVisibility: body.chartVisibility,
-    chartScale: body.chartScale,
+    chartVisibility: nextVisibility,
+    chartScale: nextScale,
   });
   const now = Date.now();
   await d1UpsertDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, {
