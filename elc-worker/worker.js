@@ -64,8 +64,9 @@ async function verifyFirebaseIdToken(token, projectId) {
   return payload; // { user_id, email, ... }
 }
 
-async function verifyPllatoAppToken(token) {
-  const response = await fetch("https://pllato-comm.uurraa.workers.dev/api/me", {
+async function verifyPllatoAppToken(token, env) {
+  const appBackend = env.PLLATO_COMM || { fetch };
+  const response = await appBackend.fetch("https://pllato-comm.uurraa.workers.dev/api/me", {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) throw new Error(`App session rejected (${response.status})`);
@@ -89,7 +90,7 @@ async function verifySupportedToken(token, env) {
     return await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID);
   } catch (firebaseError) {
     try {
-      return await verifyPllatoAppToken(token);
+      return await verifyPllatoAppToken(token, env);
     } catch (appError) {
       throw new Error(`${firebaseError.message}; ${appError.message}`);
     }
