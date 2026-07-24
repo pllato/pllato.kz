@@ -2752,7 +2752,7 @@ function financeChartSvg(kind,series){
   const pointLabels=series.map((s,i)=>{
     const value=financeValue(kind,s.value);
     const labelY=Math.max(10,y(s.value)-14);
-    return `<text x="${x(i)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="var(--text)" font-size="24" font-weight="800">${mEsc(value)}</text>`;
+    return `<text x="${x(i)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="var(--text)" font-size="16" font-weight="700">${mEsc(value)}</text>`;
   }).join('');
   return `<svg viewBox="0 0 ${vw} ${vh}" preserveAspectRatio="none" aria-label="${mEsc(FINANCE_CHART_META[kind].title)}">
     <line x1="0" y1="${top}" x2="${vw}" y2="${top}" stroke="var(--line-2)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
