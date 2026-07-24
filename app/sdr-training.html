@@ -267,15 +267,28 @@ function moveTerm(d){termIndex=(termIndex+d+TERMS.length)%TERMS.length;renderTer
 function markTerm(level){state.known[termIndex]=level;if(level>0&&termIndex<TERMS.length-1)termIndex++;save();renderTerm()}
 function renderTermList(){$('#knownCount').textContent=Object.values(state.known).filter(x=>x>0).length;$('#termList').innerHTML=TERMS.map((t,i)=>`<div class="term-row" onclick="termIndex=${i};renderTerm()"><span class="dot ${state.known[i]>0?'ok':''}"></span><b>${esc(t[0])}${ABBR[t[0]]?`<small class="term-full">${esc(ABBR[t[0]])}</small>`:''}</b><span>${esc(t[1])}</span></div>`).join('')}
 function termCorrectText(index){const t=TERMS[index];return (ABBR[t[0]]?ABBR[t[0]]+'. ':'')+t[1]}
-function termOptions(index){
+function shuffleCopy(items){
+  const result=[...items];
+  for(let i=result.length-1;i>0;i--){
+    const random=new Uint32Array(1);
+    crypto.getRandomValues(random);
+    const j=random[0]%(i+1);
+    [result[i],result[j]]=[result[j],result[i]];
+  }
+  return result;
+}
+function termOptions(index,position){
   const wrong=[(index+7)%50,(index+19)%50,(index+31)%50];
   const items=[{index,txt:termCorrectText(index)},...wrong.map(i=>({index:i,txt:termCorrectText(i)}))];
-  return items.sort((a,b)=>((a.index*17+index*11)%53)-((b.index*17+index*11)%53));
+  const test=state.termTest;
+  test.optionOrders=test.optionOrders||{};
+  if(!test.optionOrders[position])test.optionOrders[position]=shuffleCopy(items.map(item=>item.index));
+  return test.optionOrders[position].map(itemIndex=>items.find(item=>item.index===itemIndex)).filter(Boolean);
 }
 function startTermTest(indexes){
   state.termTest={
-    indexes:(indexes&&indexes.length?indexes:[...Array(50).keys()]),
-    pos:0,answers:{},wrong:[],round:(state.termTest.round||0)+1,passed:false
+    indexes:shuffleCopy(indexes&&indexes.length?indexes:[...Array(50).keys()]),
+    pos:0,answers:{},wrong:[],optionOrders:{},round:(state.termTest.round||0)+1,passed:false
   };
   save();renderTermTest();
 }
@@ -288,7 +301,7 @@ function renderTermTest(){
     box.innerHTML=`<div class="term-test-result ${passed?'pass':'fail'}"><h3>${passed?'Порог пройден':'Нужно повторить ошибки'}</h3><p><b>${mastered} из 50</b> слов подтверждены. ${passed?'Модуль терминологии засчитан.':`До порога не хватает ${45-mastered}. В повтор войдут только ${test.wrong.length} ошибочных слов.`}</p>${passed?`<button class="btn green" onclick="showScreen('script')">Перейти к скрипту →</button>`:`<button class="btn" onclick="startTermTest(${JSON.stringify(test.wrong)})">Повторить ошибочные слова</button>`}</div>`;
     return;
   }
-  const idx=test.indexes[test.pos],t=TERMS[idx],options=termOptions(idx);
+  const idx=test.indexes[test.pos],t=TERMS[idx],options=termOptions(idx,test.pos);
   box.innerHTML=`<div class="term-test-head"><b>Попытка ${test.round}</b><div class="progress"><i style="width:${Math.round(test.pos/test.indexes.length*100)}%"></i></div><span>${test.pos+1}/${test.indexes.length}</span></div><div class="label">Выберите точное объяснение</div><div class="term-test-word">${esc(t[0])}</div>${ABBR[t[0]]?'<p>Выберите правильную полную расшифровку и смысл.</p>':'<p>Выберите правильный смысл слова.</p>'}<div>${options.map((o,i)=>`<button class="option" onclick="answerTermTest(${o.index})">${esc(o.txt)}</button>`).join('')}</div>`;
 }
 function answerTermTest(chosenIndex){
