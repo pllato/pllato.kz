@@ -21,6 +21,7 @@
 .term-test-word{font-size:34px;font-weight:800;margin:8px 0}
 .term-test-result{padding:18px;border-radius:13px;background:#f7f5ef}
 .term-test-result.pass{background:#ecfdf3}.term-test-result.fail{background:#fff6e8}
+.scenario-box{margin:14px 0;padding:14px;border-radius:12px;background:#fff;border:1px solid #dacdff}.scenario-box h3{color:var(--purple)}.client-line{margin-top:10px;padding:11px;border-radius:9px;background:#f3ecff;font-weight:700}.recording-list{display:grid;gap:9px;margin-top:14px}.recording-item{padding:12px;border:1px solid var(--line);border-radius:11px;background:#fff}.recording-item audio{width:100%;height:36px;margin-top:8px}.rec-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);margin-right:7px}.cloud-note{font-size:12px;color:var(--muted)}
 @media(max-width:520px){.term-row{grid-template-columns:9px minmax(0,1fr)}.term-row span:last-child{grid-column:2}}
 </style>
 </head>
@@ -72,7 +73,7 @@
 
       <section class="screen" id="screen-script">
         <div class="section-head"><div class="num">03</div><div><h2>Тренажёр скрипта квалификации</h2><p>Цель первого контакта — не продать разработку, а квалифицировать и назначить конкретную КЭП.</p></div></div>
-        <div class="grid two"><article class="card"><h3>Эталонная последовательность</h3><div class="script-steps" id="scriptSteps"></div></article><article class="recorder"><div class="label">Репетиция вслух</div><h2>Проведите звонок за 7 минут</h2><div class="timer" id="callTimer">07:00</div><p>Поставьте таймер, проговорите скрипт вслух и зафиксируйте саморазбор.</p><div class="actions"><button class="btn purple" id="timerBtn" onclick="toggleTimer()">Начать репетицию</button><button class="btn secondary" onclick="resetTimer()">Сбросить</button></div><div class="field" style="margin-top:15px"><label>Что получилось / где потерял управление разговором</label><textarea id="rehearsalNotes" placeholder="Зафиксируйте конкретные моменты…"></textarea></div></article></div>
+        <div class="grid two"><article class="card"><h3>Эталонная последовательность</h3><div class="script-steps" id="scriptSteps"></div></article><article class="recorder"><div class="label">Постановочный звонок с записью</div><h2>Минимум 10 разных тренировок</h2><div class="timer" id="callTimer">00:00</div><p>Программа играет клиента: показывает роль, вводные и новые ситуации по ходу разговора. Стажёр придумывает голос и ответы собеседника, проводит весь звонок и записывает его для РОП.</p><div id="scenarioBox" class="scenario-box"></div><div class="actions"><button class="btn purple" id="recordBtn" onclick="toggleRecording()">● Начать запись</button><button class="btn secondary" id="nextLineBtn" onclick="nextClientLine()" disabled>Следующая ситуация клиента</button></div><div class="field" style="margin-top:15px"><label>Саморазбор после звонка *</label><textarea id="rehearsalNotes" placeholder="Что получилось, где потерял ход разговора, что исправить в следующей попытке…"></textarea></div><button class="btn green" id="saveRecordingBtn" onclick="saveRecording()" disabled>Сохранить тренировку</button><p class="cloud-note" id="recordingCloudState">Подключаем общее хранилище App…</p><div class="recording-list" id="recordingList"></div></article></div>
         <article class="card" style="margin-top:16px"><h3>Ситуационные развилки</h3><p>Выберите ответ, который сохраняет логику квалификации и ведёт к следующему шагу.</p><div id="scriptCases"></div><button class="btn" onclick="checkScript()">Проверить скрипт</button><b id="scriptScore" style="margin-left:12px"></b></article>
       </section>
 
@@ -121,7 +122,8 @@
 
       <section class="screen" id="screen-result">
         <div class="result-hero"><div class="eyebrow">Результат стажировки</div><div class="big-score"><span id="resultScore">0</span>/100</div><h2 id="resultVerdict">Программа ещё не завершена</h2><p id="resultExplanation"></p><div class="modules" id="moduleScores"></div></div>
-        <div class="grid two" style="margin-top:16px"><article class="card"><h3>Критерий допуска к самостоятельной работе</h3><p>Итог не ниже <b>80/100</b> и выполнены минимумы по каждому модулю: термины 20/20 после прохождения порога 90%, скрипт 21/30, CRM 25/35, аттестация 10/15.</p><div id="gateList"></div></article><article class="card"><h3>Решение РОП</h3><div class="field"><label>Комментарий руководителя</label><textarea id="managerComment" placeholder="Сильные стороны, что доработать, решение о допуске"></textarea></div><div class="actions"><button class="btn green" onclick="copyReport()">Скопировать отчёт</button><button class="btn outline" onclick="window.print()">Печать / PDF</button><button class="btn secondary" onclick="resetTraining()">Новая попытка</button></div></article></div>
+        <div class="grid two" style="margin-top:16px"><article class="card"><h3>Критерий допуска к самостоятельной работе</h3><p>Итог не ниже <b>80/100</b> и выполнены минимумы по каждому модулю: термины 20/20 после прохождения порога 90%, скрипт 21/30 и не менее 10 записанных звонков, CRM 25/35, аттестация 10/15.</p><div id="gateList"></div></article><article class="card"><h3>Решение РОП</h3><div class="field"><label>Комментарий руководителя</label><textarea id="managerComment" placeholder="Сильные стороны, что доработать, решение о допуске"></textarea></div><div class="actions"><button class="btn green" onclick="copyReport()">Скопировать отчёт</button><button class="btn outline" onclick="window.print()">Печать / PDF</button><button class="btn secondary" onclick="resetTraining()">Новая попытка</button></div></article></div>
+        <h3 style="margin-top:22px">Записи постановочных звонков</h3><p>РОП может прослушать каждую тренировку прямо в итоговом отчёте.</p><div class="recording-list" id="reportRecordings"></div>
         <h3 style="margin-top:22px">Отчёт для руководителя</h3><div class="report" id="reportText"></div>
       </section>
     </div>
@@ -216,6 +218,20 @@ const SCRIPT_CASES=[
 ['На звонке клиент много рассказывает.',0,['Слушать, структурировать и задавать углубляющие вопросы','Перебивать скриптом','Сократить разговор до цены','Передать производство'],'Правило — слушать 80%, говорить 20%, сохраняя структуру.'],
 ['После назначения КЭП бриф заполнен наполовину.',3,['Передать как есть','Удалить пустые поля','Попросить клоузера разобраться','До встречи дозаполнить обязательное, запросить материалы и зафиксировать договорённости'],'Качество передачи — часть продукта поста SDR.']
 ];
+const CALL_SCENARIOS=[
+  {role:'Владелец мебельного производства',context:'3 цеха, 28 сотрудников, заказы в WhatsApp и Excel, чистый доход $12 000.',lines:['«Мне некогда, скажите сразу цену»','«У нас и так всё работает в Excel»','«Решение принимаю с партнёром»','«Презентацию пришлите, потом решим»']},
+  {role:'Директор сети детских центров',context:'4 филиала, разные абонементы, чистый доход $8 000, используют только часть Bitrix24.',lines:['«CRM у нас уже есть»','«Сотрудники не хотят заполнять систему»','«Как вы перенесёте старых клиентов?»','«На встречу смогу только через две недели»']},
+  {role:'Владелец склада агрохимии',context:'80 компаний-клиентов, учёт в 1С и тетрадях, чистый доход $18 000.',lines:['«Главное — ячейки и остатки, продажи не нужны»','«Без связи с 1С проект не имеет смысла»','«Данные должны быть на нашем сервере»','«Покажите похожий склад»']},
+  {role:'Руководитель железнодорожных перевозок',context:'8 лет на рынке, 12 сотрудников, забывают выставлять счета, чистый доход $9 000.',lines:['«Я уже объяснял всё другому менеджеру»','«Нужен учёт вагонов и разных оплат»','«Бюджет пока не обсуждали»','«Встречу проведёт мой помощник»']},
+  {role:'Собственник школы скалолазания',context:'Детские и взрослые группы, Altegio и amoCRM, чистый доход $7 000.',lines:['«Зачем нам ещё одна система?»','«Нужен QR-вход и заморозка абонементов»','«Тренеры работают без компьютеров»','«Партнёр против новой CRM»']},
+  {role:'Директор строительной компании',context:'Проекты с подрядчиками, материалы и финансы вне контроля, чистый доход $25 000.',lines:['«Клиентов у нас достаточно, CRM не нужна»','«Мне важнее производство и остатки»','«Сколько займёт разработка?»','«Пришлите договор сегодня»']},
+  {role:'Владелец туристической базы',context:'Номера, гиды и транспорт, брони в мессенджерах, чистый доход $6 500.',lines:['«У нас сезон, внедрять некогда»','«Нужен календарь ратраков и гидов»','«Хотим оплату прямо на сайте»','«Решение принимает управляющая»']},
+  {role:'Основатель образовательной платформы',context:'10 менеджеров продаж, amoCRM используют частично, чистый доход $20 000.',lines:['«Хотим без ограничений по пользователям»','«Почему не купить готовый сервис?»','«Нужно начать через месяц»','«Сначала покажите техническое задание»']},
+  {role:'Владелец стоматологии',context:'Одна клиника, запись и оплаты в разных программах, чистый доход $5 500.',lines:['«Нам нужен только календарь»','«Администраторы боятся сложных программ»','«Кто будет обучать сотрудников?»','«Бюджет есть, но решение с главным врачом»']},
+  {role:'Директор сервисной компании ЖКХ',context:'50 млн ₸ в год, заявки и расчёты вводятся вручную, есть своё ТЗ.',lines:['«У нас уже есть готовое ТЗ»','«Сначала подпишите NDA»','«Почему нельзя назвать точную цену сейчас?»','«На КЭП хочу пригласить технического специалиста»']},
+  {role:'Владелец цветочного бизнеса',context:'3 магазина и доставка, заказы из Instagram и WhatsApp, чистый доход $7 500.',lines:['«Нужно запуститься за две недели»','«Остатки цветов списываются неправильно»','«Сайт нам не нужен»','«Муж тоже участвует в решении»']},
+  {role:'Руководитель производства окон',context:'Замеры, расчёты и монтаж ведут в таблицах, чистый доход $11 000.',lines:['«Основная проблема — ошибки в расчётах»','«Менеджеры будут сопротивляться»','«Нужна мобильная работа замерщика»','«Сравниваем вас с Bitrix24»']}
+];
 const FINAL_Q=[
 ['Продукт поста SDR?',1,['Количество звонков','Квалифицированный клиент, посетивший КЭП','Заполненная карточка','Проданная разработка']],
 ['Минимальный чистый доход?',2,['$1 500','$3 000','$5 000','$10 000']],
@@ -235,11 +251,11 @@ const FINAL_Q=[
 ];
 const KEY='pllato_sdr_training_v1';
 let state=JSON.parse(localStorage.getItem(KEY)||'{}');
-state.profile=state.profile||{};state.known=state.known||{};state.termAnswers=state.termAnswers||{};state.termTest=state.termTest||{};state.scriptAnswers=state.scriptAnswers||{};state.examAnswers=state.examAnswers||{};state.crm=state.crm||{};state.scores=state.scores||{terms:0,script:0,crm:0,exam:0};
-let termIndex=0,timerLeft=420,timerId=null,currentStage=state.crm.stage||0;
+state.profile=state.profile||{};state.known=state.known||{};state.termAnswers=state.termAnswers||{};state.termTest=state.termTest||{};state.scriptAnswers=state.scriptAnswers||{};state.examAnswers=state.examAnswers||{};state.crm=state.crm||{};state.recordings=state.recordings||[];state.scores=state.scores||{terms:0,script:0,crm:0,exam:0};
+let termIndex=0,timerLeft=0,timerId=null,currentStage=state.crm.stage||0,mediaRecorder=null,mediaStream=null,audioChunks=[],pendingAudio=null,scenarioLine=0,recordingStartedAt=0;
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function save(){localStorage.setItem(KEY,JSON.stringify(state));updateScore();$('#saveState').textContent='Сохранено · '+new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});}
+function save(){localStorage.setItem(KEY,JSON.stringify(state));updateScore();$('#saveState').textContent='Сохранено · '+new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});window.SDRCloud?.scheduleSave?.()}
 function toast(t){$('#toast').textContent=t;$('#toast').classList.add('on');setTimeout(()=>$('#toast').classList.remove('on'),1600)}
 function showScreen(id){$$('.screen').forEach(x=>x.classList.toggle('on',x.id==='screen-'+id));$$('#nav button').forEach(x=>x.classList.toggle('on',x.dataset.screen===id));if(id==='result')renderResult();window.scrollTo(0,0)}
 $$('#nav button').forEach(b=>b.onclick=()=>showScreen(b.dataset.screen));
@@ -290,10 +306,60 @@ function renderQuiz(container,questions,answers,prefix){container.innerHTML=ques
 function selectAnswer(prefix,qi,oi,el){const map=prefix==='term'?state.termAnswers:prefix==='script'?state.scriptAnswers:state.examAnswers;map[qi]=oi;el.parentElement.querySelectorAll('.option').forEach(x=>x.classList.remove('selected'));el.classList.add('selected');save()}
 function paintAnswers(sel,qs,ans){$$(sel+' .quiz-q').forEach((box,i)=>{box.querySelectorAll('.option').forEach((o,j)=>o.classList.add(j===qs[i][1]?'correct':ans[i]===j?'wrong':''))})}
 function renderScript(){ $('#scriptSteps').innerHTML=SCRIPT_STEPS.map((s,i)=>`<div class="script-step"><b>${i+1}</b><div><h3>${esc(s[0])}</h3><p>${esc(s[1])}</p><div class="quote">${esc(s[2])}</div></div></div>`).join('');renderQuiz($('#scriptCases'),SCRIPT_CASES,state.scriptAnswers,'script');}
-function checkScript(){let c=0;SCRIPT_CASES.forEach((q,i)=>{if(state.scriptAnswers[i]===q[1])c++});const notes=$('#rehearsalNotes').value.trim().length>=80?6:0;state.scores.script=Math.min(30,c*3+notes);state.scriptChecked=true;save();$('#scriptScore').textContent=`${state.scores.script}/30`;paintAnswers('#scriptCases',SCRIPT_CASES,state.scriptAnswers);SCRIPT_CASES.forEach((q,i)=>{const box=$$('#scriptCases .quiz-q')[i];box.insertAdjacentHTML('beforeend',`<div class="quote">${esc(q[3])}</div>`)});toast('Скрипт проверен')}
-function toggleTimer(){if(timerId){clearInterval(timerId);timerId=null;$('#timerBtn').textContent='Продолжить';return}$('#timerBtn').textContent='Пауза';timerId=setInterval(()=>{timerLeft--;renderTimer();if(timerLeft<=0){clearInterval(timerId);timerId=null;$('#timerBtn').textContent='Завершено';toast('7 минут завершены')}},1000)}
-function resetTimer(){clearInterval(timerId);timerId=null;timerLeft=420;renderTimer();$('#timerBtn').textContent='Начать репетицию'}
+function scoreScript(){
+  let c=0;SCRIPT_CASES.forEach((q,i)=>{if(state.scriptAnswers[i]===q[1])c++});
+  const practice=Math.min(6,Math.floor(state.recordings.length/10*6));
+  state.scores.script=Math.min(30,c*3+practice);
+  state.scriptChecked=true;save();
+  if($('#scriptScore'))$('#scriptScore').textContent=`${state.scores.script}/30 · записей ${state.recordings.length}/10`;
+}
+function checkScript(){scoreScript();paintAnswers('#scriptCases',SCRIPT_CASES,state.scriptAnswers);SCRIPT_CASES.forEach((q,i)=>{const box=$$('#scriptCases .quiz-q')[i];if(!box.querySelector('.quote'))box.insertAdjacentHTML('beforeend',`<div class="quote">${esc(q[3])}</div>`)});toast(state.recordings.length>=10?'Скрипт проверен':'Нужно сохранить минимум 10 звонков')}
+function currentScenario(){return CALL_SCENARIOS[state.recordings.length%CALL_SCENARIOS.length]}
+function renderScenario(){
+  const s=currentScenario();
+  $('#scenarioBox').innerHTML=`<div class="label">Тренировка ${state.recordings.length+1} из 10 · роль клиента</div><h3>${esc(s.role)}</h3><p>${esc(s.context)}</p><div class="client-line">${scenarioLine?esc(s.lines[scenarioLine-1]):'Начните разговор. Когда будете готовы к возражению, нажмите «Следующая ситуация клиента».'}</div>`;
+}
+function nextClientLine(){const s=currentScenario();scenarioLine=(scenarioLine%s.lines.length)+1;renderScenario()}
+async function toggleRecording(){
+  if(mediaRecorder&&mediaRecorder.state==='recording'){mediaRecorder.stop();return}
+  if(!window.MediaRecorder||!navigator.mediaDevices?.getUserMedia){toast('Запись голоса не поддерживается этим браузером');return}
+  try{
+    mediaStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    audioChunks=[];pendingAudio=null;scenarioLine=0;timerLeft=0;recordingStartedAt=Date.now();
+    mediaRecorder=new MediaRecorder(mediaStream);
+    mediaRecorder.ondataavailable=e=>{if(e.data.size)audioChunks.push(e.data)};
+    mediaRecorder.onstop=()=>{
+      clearInterval(timerId);timerId=null;
+      pendingAudio=new Blob(audioChunks,{type:mediaRecorder.mimeType||'audio/webm'});
+      mediaStream?.getTracks().forEach(t=>t.stop());
+      $('#recordBtn').textContent='● Записать заново';$('#recordBtn').classList.remove('green');
+      $('#nextLineBtn').disabled=true;$('#saveRecordingBtn').disabled=false;
+      toast('Запись готова — заполните саморазбор');
+    };
+    mediaRecorder.start(1000);$('#recordBtn').textContent='■ Остановить запись';$('#recordBtn').classList.add('green');$('#nextLineBtn').disabled=false;$('#saveRecordingBtn').disabled=true;
+    timerId=setInterval(()=>{timerLeft++;renderTimer()},1000);renderScenario();
+  }catch(e){toast('Разрешите доступ к микрофону для записи звонка')}
+}
 function renderTimer(){let m=Math.floor(timerLeft/60),s=timerLeft%60;$('#callTimer').textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`}
+async function saveRecording(){
+  const notes=$('#rehearsalNotes').value.trim();
+  if(!pendingAudio){toast('Сначала запишите звонок');return}
+  if(notes.length<40){toast('Добавьте саморазбор: минимум 40 знаков');return}
+  if(!window.SDRCloud?.ready){toast('Войдите в App, чтобы сохранить запись для РОП');return}
+  const s=currentScenario(),attempt=state.recordings.length+1;
+  $('#saveRecordingBtn').disabled=true;$('#saveRecordingBtn').textContent='Сохраняем…';
+  try{
+    const rec=await window.SDRCloud.uploadRecording(pendingAudio,{attempt,scenario:s.role,notes,duration:Math.round((Date.now()-recordingStartedAt)/1000)});
+    state.recordings.push(rec);pendingAudio=null;$('#rehearsalNotes').value='';scenarioLine=0;timerLeft=0;renderTimer();scoreScript();renderScenario();renderRecordingLists();await window.SDRCloud.saveResult();
+    toast('Тренировка сохранена для РОП');
+  }catch(e){toast('Не удалось сохранить запись: '+(e.message||e))}
+  $('#saveRecordingBtn').disabled=true;$('#saveRecordingBtn').textContent='Сохранить тренировку';
+}
+function renderRecordingLists(){
+  const html=state.recordings.length?state.recordings.map((r,i)=>`<div class="recording-item"><b>${i+1}. ${esc(r.scenario||r.name||'Постановочный звонок')}</b><div class="cloud-note">${esc(r.date||r.uploadedAt||'')} · ${r.duration?Math.floor(r.duration/60)+':'+String(r.duration%60).padStart(2,'0'):''}</div>${r.authUrl?`<audio controls preload="none" src="${esc(r.authUrl)}"></audio>`:''}${r.notes?`<p>${esc(r.notes)}</p>`:''}</div>`).join(''):'<div class="cloud-note">Записей пока нет. Для допуска нужно 10.</div>';
+  if($('#recordingList'))$('#recordingList').innerHTML=html;
+  if($('#reportRecordings'))$('#reportRecordings').innerHTML=html;
+}
 const STAGES=['Новая','Выход на ЛПР','Квалификация','Встреча назначена','Создание Демо','Показ Демо'];
 const CRM_TASKS=['Заполнить контекст бизнеса','Зафиксировать текущий процесс','Записать дословную боль и реальный случай','Проверить доход не ниже $5 000','Указать ЛПР, срочность и бюджет','Назначить клоузера','Поставить конкретную КЭП в календарь','Перенести сделку на этап «Встреча назначена»'];
 function renderStages(){$('#stageBar').innerHTML=STAGES.map((s,i)=>`<button class="stage ${i===currentStage?'on':''}" onclick="setStage(${i})">${esc(s)}</button>`).join('')}
@@ -308,16 +374,91 @@ function gradeCrm(){collectBrief();const checks=crmChecks();let score=checks.fil
 function checkFinalExam(){let c=0;FINAL_Q.forEach((q,i)=>{if(state.examAnswers[i]===q[1])c++});state.scores.exam=c;state.examChecked=true;state.completedAt=new Date().toISOString();save();$('#examScore').textContent=`${c}/15`;paintAnswers('#finalExam',FINAL_Q,state.examAnswers);showScreen('result')}
 function total(){return Object.values(state.scores).reduce((a,b)=>a+(Number(b)||0),0)}
 function updateScore(){const t=total();$('#totalScore').textContent=t;$('#progressFill').style.width=t+'%';$('#sideStatus').textContent=t>=80?'порог набран':t?'обучение продолжается':'стажировка начата'}
-function renderResult(){const s=state.scores,t=total(),gates={terms:s.terms>=20&&state.termTest.passed,script:s.script>=21,crm:s.crm>=25,exam:s.exam>=10},pass=t>=80&&Object.values(gates).every(Boolean);$('#resultScore').textContent=t;$('#resultVerdict').textContent=pass?'Готов к демонстрации навыка РОП':'Требуется доработка модулей';$('#resultExplanation').textContent=pass?'Стажёр выполнил общий норматив и минимумы по каждому навыку. Финальный допуск подтверждает руководитель после живой демонстрации скрипта.':'Общий балл или один из обязательных модулей ниже норматива. Повторите слабые блоки и пройдите проверку снова.';$('#moduleScores').innerHTML=[['Термины',s.terms,20],['Скрипт',s.script,30],['CRM',s.crm,35],['Экзамен',s.exam,15]].map(x=>`<div class="module-score"><small>${x[0]}</small><b>${x[1]}/${x[2]}</b></div>`).join('');$('#gateList').innerHTML=Object.entries({Термины:gates.terms,Скрипт:gates.script,'CRM-практика':gates.crm,Аттестация:gates.exam}).map(([k,v])=>`<p class="status ${v?'pass':'fail'}">${v?'✓':'×'} ${k}</p>`).join('');$('#reportText').textContent=buildReport(pass)}
-function buildReport(pass){const s=state.scores;return `ОТЧЁТ О СТАЖИРОВКЕ SDR · PLLATO\n\nСотрудник: ${state.profile.name||'не указано'}\nРуководитель: ${state.profile.manager||'РОП'}\nДата: ${new Date().toLocaleDateString('ru')}\n\nИТОГ: ${total()}/100 — ${pass?'НОРМАТИВ ВЫПОЛНЕН':'ТРЕБУЕТСЯ ДОРАБОТКА'}\nТерминология: ${s.terms}/20 (порог: 45 из 50 слов)\nСкрипт квалификации: ${s.script}/30 (минимум 21)\nCRM-практика: ${s.crm}/35 (минимум 25)\nИтоговая аттестация: ${s.exam}/15 (минимум 10)\n\nПродукт поста: квалифицированный клиент, посетивший КЭП.\nСтатистика: количество состоявшихся КЭП с квалифицированными клиентами.\nРешение о самостоятельной работе принимает РОП после живой демонстрации скрипта.\n\nКомментарий РОП: ${$('#managerComment')?.value||'—'}`;}
+function renderResult(){const s=state.scores,t=total(),gates={terms:s.terms>=20&&state.termTest.passed,script:s.script>=21&&state.recordings.length>=10,crm:s.crm>=25,exam:s.exam>=10},pass=t>=80&&Object.values(gates).every(Boolean);$('#resultScore').textContent=t;$('#resultVerdict').textContent=pass?'Готов к демонстрации навыка РОП':'Требуется доработка модулей';$('#resultExplanation').textContent=pass?'Стажёр выполнил общий норматив и минимумы по каждому навыку. РОП может прослушать все постановочные звонки ниже.':'Общий балл или один из обязательных модулей ниже норматива. Повторите слабые блоки и пройдите проверку снова.';$('#moduleScores').innerHTML=[['Термины',s.terms,20],['Скрипт',s.script,30],['CRM',s.crm,35],['Экзамен',s.exam,15]].map(x=>`<div class="module-score"><small>${x[0]}</small><b>${x[1]}/${x[2]}</b></div>`).join('');$('#gateList').innerHTML=Object.entries({Термины:gates.terms,'Скрипт + 10 записей':gates.script,'CRM-практика':gates.crm,Аттестация:gates.exam}).map(([k,v])=>`<p class="status ${v?'pass':'fail'}">${v?'✓':'×'} ${k}</p>`).join('');renderRecordingLists();$('#reportText').textContent=buildReport(pass)}
+function buildReport(pass){const s=state.scores,reportUrl=window.SDRCloud?.targetUid?`${location.origin}${location.pathname}?trainee=${encodeURIComponent(window.SDRCloud.targetUid)}`:'будет доступна после входа в App';return `ОТЧЁТ О СТАЖИРОВКЕ SDR · PLLATO\n\nСотрудник: ${state.profile.name||'не указано'}\nРуководитель: ${state.profile.manager||'РОП'}\nДата: ${new Date().toLocaleDateString('ru')}\nСсылка для РОП: ${reportUrl}\n\nИТОГ: ${total()}/100 — ${pass?'НОРМАТИВ ВЫПОЛНЕН':'ТРЕБУЕТСЯ ДОРАБОТКА'}\nТерминология: ${s.terms}/20 (порог: 45 из 50 слов)\nСкрипт квалификации: ${s.script}/30 (минимум 21)\nЗаписано постановочных звонков: ${state.recordings.length}/10\nCRM-практика: ${s.crm}/35 (минимум 25)\nИтоговая аттестация: ${s.exam}/15 (минимум 10)\n\nПродукт поста: квалифицированный клиент, посетивший КЭП.\nСтатистика: количество состоявшихся КЭП с квалифицированными клиентами.\nРешение о самостоятельной работе принимает РОП после прослушивания записей.\n\nКомментарий РОП: ${$('#managerComment')?.value||'—'}`;}
 async function copyReport(){renderResult();await navigator.clipboard.writeText($('#reportText').textContent);toast('Отчёт скопирован')}
 function resetTraining(){if(!confirm('Начать новую попытку и удалить текущие ответы?'))return;localStorage.removeItem(KEY);location.reload()}
 $('#traineeName').value=state.profile.name||'';$('#managerName').value=state.profile.manager||'РОП';
 if(!state.termTest.passed){state.scores.terms=0;state.termChecked=false}
-renderTerm();renderTermTest();renderScript();renderStages();fillBrief();renderCrmTasks();if(state.crm.calendar&&state.crm.meeting){$('#calendarBox').classList.add('on');$('#calendarBox').innerHTML=`✅ КЭП добавлена в календарь: <b>${new Date(state.crm.meeting).toLocaleString('ru')}</b>`}renderQuiz($('#finalExam'),FINAL_Q,state.examAnswers,'exam');updateScore();
+renderTerm();renderTermTest();renderScript();renderScenario();renderRecordingLists();renderStages();fillBrief();renderCrmTasks();if(state.crm.calendar&&state.crm.meeting){$('#calendarBox').classList.add('on');$('#calendarBox').innerHTML=`✅ КЭП добавлена в календарь: <b>${new Date(state.crm.meeting).toLocaleString('ru')}</b>`}renderQuiz($('#finalExam'),FINAL_Q,state.examAnswers,'exam');updateScore();
 if(state.scriptChecked)$('#scriptScore').textContent=`${state.scores.script}/30`;
 if(state.crmChecked)$('#crmScore').textContent=`Результат CRM: ${state.scores.crm}/35`;
 if(state.examChecked){$('#examScore').textContent=`${state.scores.exam}/15`;paintAnswers('#finalExam',FINAL_Q,state.examAnswers)}
+</script>
+<script type="module">
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+const firebaseConfig={
+  apiKey:"AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc",
+  authDomain:"pllato-crm.firebaseapp.com",
+  databaseURL:"https://pllato-crm-default-rtdb.firebaseio.com",
+  projectId:"pllato-crm",
+  storageBucket:"pllato-crm.firebasestorage.app",
+  messagingSenderId:"690738857241",
+  appId:"1:690738857241:web:2356e97c435656890ab188"
+};
+const cloudApp=initializeApp(firebaseConfig,'sdr-training');
+const cloudAuth=getAuth(cloudApp);
+const WORKER='https://pllato-elc-worker.uurraa.workers.dev';
+let cloudUser=null,cloudToken='',saveTimer=null;
+const requestedTrainee=new URLSearchParams(location.search).get('trainee');
+const cloud={
+  ready:false,targetUid:'',
+  async refreshToken(){cloudToken=await cloudUser.getIdToken();return cloudToken},
+  dealId(){return 'sdr-training-'+this.targetUid},
+  async api(path,options={}){
+    const token=await this.refreshToken();
+    const response=await fetch(WORKER+path,{...options,headers:{...(options.headers||{}),Authorization:'Bearer '+token}});
+    if(!response.ok){let message='Ошибка '+response.status;try{message=(await response.json()).error||message}catch{}throw new Error(message)}
+    return response;
+  },
+  async uploadRecording(blob,meta){
+    const fileName=`sdr-call-${String(meta.attempt).padStart(2,'0')}-${Date.now()}.webm`;
+    const response=await this.api(`/api/deals/${encodeURIComponent(this.dealId())}/qualification/recording`,{method:'POST',headers:{'Content-Type':blob.type||'audio/webm','X-File-Name':encodeURIComponent(fileName)},body:blob});
+    const data=await response.json(),rec=data.recording;
+    const token=cloudToken;
+    return {id:rec.id,name:rec.name,uploadedAt:rec.uploadedAt,date:new Date().toLocaleString('ru'),scenario:meta.scenario,notes:meta.notes,duration:meta.duration,url:rec.url,authUrl:WORKER+rec.url+'?auth='+encodeURIComponent(token)};
+  },
+  cleanState(){
+    const copy=JSON.parse(JSON.stringify(state));
+    copy.recordings=(copy.recordings||[]).map(({authUrl,...r})=>r);
+    return copy;
+  },
+  async saveResult(){
+    if(!this.ready||requestedTrainee)return;
+    await this.api(`/api/deals/${encodeURIComponent(this.dealId())}/qualification`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({qualification:{kind:'sdr-training',trainingState:this.cleanState(),updatedAt:new Date().toISOString()}})});
+  },
+  scheduleSave(){
+    if(!this.ready||requestedTrainee)return;
+    clearTimeout(saveTimer);saveTimer=setTimeout(()=>this.saveResult().catch(()=>{}),1200);
+  },
+  async load(){
+    const response=await this.api(`/api/deals/${encodeURIComponent(this.dealId())}/qualification`);
+    const data=await response.json(),remote=data.qualification?.trainingState;
+    if(remote){
+      Object.assign(state,remote);
+      state.scores=remote.scores||state.scores;
+      state.recordings=remote.recordings||[];
+      localStorage.setItem(KEY,JSON.stringify(state));
+    }
+    const meta=new Map((state.recordings||[]).map(r=>[r.id,r]));
+    state.recordings=(data.recordings||[]).filter(r=>r.kind==='recording').map(r=>{
+      const saved=meta.get(r.id)||{};
+      return {...r,...saved,authUrl:WORKER+r.url+'?auth='+encodeURIComponent(cloudToken)};
+    }).sort((a,b)=>String(a.uploadedAt).localeCompare(String(b.uploadedAt)));
+    localStorage.setItem(KEY,JSON.stringify(state));
+    scoreScript();renderRecordingLists();renderScenario();updateScore();
+    if(requestedTrainee)showScreen('result');
+  }
+};
+window.SDRCloud=cloud;
+onAuthStateChanged(cloudAuth,async user=>{
+  const status=document.getElementById('recordingCloudState');
+  if(!user){if(status)status.textContent='Чтобы записи увидел РОП, сначала войдите в App.';return}
+  cloudUser=user;cloud.targetUid=requestedTrainee||user.uid;cloud.ready=true;
+  if(status)status.textContent=requestedTrainee?'Открыт отчёт стажёра.':'Записи сохраняются в общем хранилище App и доступны РОП.';
+  try{await cloud.load()}catch(e){if(status)status.textContent='Не удалось подключить записи: '+e.message}
+});
 </script>
 </body>
 </html>
