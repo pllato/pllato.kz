@@ -576,8 +576,9 @@ body {
 .sales-quick-link .sql-label { color:var(--text-3); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
 .sales-quick-link a { color:var(--bronze-deep); font-size:13px; font-weight:800; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .sales-quick-link a:hover { text-decoration:underline; }
-.sales-quick-link button { margin-left:auto; border:1px solid var(--line-2); background:transparent; color:var(--text-2); border-radius:8px; padding:6px 9px; font:700 11px/1.2 inherit; cursor:pointer; white-space:nowrap; }
-.sales-quick-link button:hover { border-color:var(--bronze-deep); color:var(--bronze-deep); }
+.sales-quick-link .sql-actions { margin-left:auto; display:flex; align-items:center; gap:6px; }
+.sales-quick-link button, .sales-quick-link .sql-open { border:1px solid var(--line-2); background:transparent; color:var(--text-2); border-radius:8px; padding:6px 9px; font:700 11px/1.2 inherit; cursor:pointer; white-space:nowrap; text-decoration:none; }
+.sales-quick-link button:hover, .sales-quick-link .sql-open:hover { border-color:var(--bronze-deep); color:var(--bronze-deep); text-decoration:none; }
 .finance-charts.folded { margin-bottom: 18px; }
 .finance-charts.folded .fc-grid { display: none; }
 .fc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
@@ -2852,8 +2853,17 @@ function renderSalesQuickLink(){
   if(!visible) return;
   const item=getSalesQuickLink();
   box.innerHTML=item
-    ? `<span class="sql-label">Быстрая ссылка${item.shared?' · доступна всем':''}</span><a href="${mEsc(item.url)}" target="_blank" rel="noopener">${mEsc(item.name)}</a><button type="button" onclick="configureSalesQuickLink()">Настроить</button>`
+    ? `<span class="sql-label">Быстрая ссылка${item.shared?' · доступна всем':''}</span><a href="${mEsc(item.url)}" target="_blank" rel="noopener">${mEsc(item.name)}</a><span class="sql-actions"><button type="button" onclick="copySalesQuickLink(this)">Скопировать</button><a class="sql-open" href="${mEsc(item.url)}" target="_blank" rel="noopener">Открыть</a><button type="button" onclick="configureSalesQuickLink()">Настроить</button></span>`
     : '<span class="sql-label">Быстрая ссылка</span><span style="font-size:12px;color:var(--text-3)">Добавьте нужную ссылку для быстрого доступа</span><button type="button" onclick="configureSalesQuickLink()">Настроить</button>';
+}
+function copySalesQuickLink(button){
+  const item=getSalesQuickLink();
+  if(!item?.url) return;
+  navigator.clipboard.writeText(item.url).then(()=>{
+    const previous=button.textContent;
+    button.textContent='Скопировано ✓';
+    setTimeout(()=>button.textContent=previous,1500);
+  }).catch(()=>alert('Не удалось скопировать ссылку'));
 }
 function financeChartsAreOpen(){
   if(financeChartsPinnedOpen()) return true;
@@ -2956,7 +2966,7 @@ async function saveFinanceAccess(kind){
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, filterProjects });
+Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, filterProjects });
 
 function applyProjectFilters(){
   const searchTokens=normalizeProjectSearch(SEARCH_TERM).split(' ').filter(Boolean);
