@@ -390,6 +390,17 @@ body {
 }
 .tool-card:hover .tile-access-btn { opacity:1; }
 .tile-access-btn:hover { background:var(--bronze-tint); color:var(--bronze-deep); }
+.done-toggle {
+  position:absolute; top:10px; right:41px;
+  width:28px; height:28px; border-radius:8px;
+  border:1px solid transparent; background:transparent; color:var(--text-3);
+  font-size:14px; font-weight:900; line-height:1; cursor:pointer;
+  display:grid; place-items:center; z-index:4; opacity:.55; transition:.14s;
+}
+.tool-card:hover .done-toggle { opacity:1; }
+.done-toggle:hover { background:rgba(22,163,74,.1); color:var(--green); }
+.done-toggle.on { opacity:1; color:#fff; background:var(--green); border-color:var(--green); }
+.done-toggle.auto { cursor:default; }
 .crm-tile-user { padding:12px; border-bottom:1px solid var(--line-2); }
 .crm-tile-user:last-child { border-bottom:none; }
 .crm-tile-user-head { display:flex; align-items:center; gap:9px; }
@@ -581,8 +592,8 @@ body {
 .sales-quick-link button:hover, .sales-quick-link .sql-open:hover { border-color:var(--bronze-deep); color:var(--bronze-deep); text-decoration:none; }
 .finance-charts.folded { margin-bottom: 18px; }
 .finance-charts.folded .fc-grid { display: none; }
-.fc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.fc-card { background: var(--surface); border: 1px solid var(--line-2); border-radius: 14px; padding: 16px 18px 14px; min-width: 0; aspect-ratio: 1 / 1; display: flex; flex-direction: column; }
+.fc-grid { display:flex; flex-wrap:nowrap; gap:14px; overflow-x:auto; padding:0 0 8px; scroll-snap-type:x proximity; scrollbar-width:thin; }
+.fc-card { background:var(--surface); border:1px solid var(--line-2); border-radius:14px; padding:16px 18px 14px; flex:0 0 max(290px,calc((100% - 42px) / 4)); min-width:0; aspect-ratio:1 / 1; display:flex; flex-direction:column; scroll-snap-align:start; }
 .fc-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .fc-card-title { font-size: 14px; font-weight: 800; }
 .fc-card-sub { color: var(--text-3); font-size: 11px; margin-top: 2px; }
@@ -601,12 +612,11 @@ body {
 .fc-person .n { font-size: 12.5px; font-weight: 700; }
 .fc-person .e { color: var(--text-3); font-size: 10.5px; }
 @media (max-width: 760px) {
-  .fc-grid { grid-template-columns: 1fr; }
-  .fc-card { padding-inline: 12px; }
+  .fc-card { flex-basis:min(82vw,360px); padding-inline:12px; }
   .fc-labels span { font-size: 8.5px; }
 }
 @media (min-width: 761px) and (max-width: 980px) {
-  .fc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fc-card { flex-basis:max(290px,calc((100% - 14px) / 2)); }
 }
 
 /* ===== Карточка с действиями + выпадающий список (сайт-лендинг) ===== */
@@ -2519,9 +2529,9 @@ let RATE = 530; // ₸ за $1 (редактируется)
 let MONEY_LOADED = false;
 let MONEY_LOAD_PROMISE = null;
 let MONEY_SAVE_TIMER = null;
-let CHART_VISIBILITY = { inquiries: [], orders: [], cash: [] };
-let CHART_SCALE = { inquiries: 0, orders: 0, cash: 0 };
-let CHART_ALLOWED = { inquiries: false, orders: false, cash: false };
+let CHART_VISIBILITY = { inquiries: [], orders: [], cash: [], releases: [] };
+let CHART_SCALE = { inquiries: 0, orders: 0, cash: 0, releases: 0 };
+let CHART_ALLOWED = { inquiries: false, orders: false, cash: false, releases: false };
 function canSeeProjectMoney(){ return CURRENT?.isSuperAdmin === true; }
 function canConfigureFinanceChart(kind){ return canSeeProjectMoney() || CHART_ALLOWED[kind] === true; }
 async function persistMoney(){
@@ -2544,8 +2554,8 @@ async function loadMoney(){
     if(server.exists){
       MONEY=server.money||{};
       RATE=Number(server.rate)||530;
-      CHART_VISIBILITY=server.chartVisibility||{inquiries:[],orders:[],cash:[]};
-      CHART_SCALE=server.chartScale||{inquiries:0,orders:0,cash:0};
+      CHART_VISIBILITY=server.chartVisibility||{inquiries:[],orders:[],cash:[],releases:[]};
+      CHART_SCALE=server.chartScale||{inquiries:0,orders:0,cash:0,releases:0};
     } else {
       // Одноразовый перенос прежних данных из браузера Super Admin на сервер.
       const raw=localStorage.getItem(MONEY_KEY);
@@ -2568,6 +2578,8 @@ function toKZT(id, amt){ return curOf(id)==='USD' ? (amt||0)*RATE : (amt||0); }
 function mDeal(id){ return (MONEY[id] && +MONEY[id].deal) || 0; }
 function mRecv(id){ return ((MONEY[id] && MONEY[id].pays) || []).reduce((a,p)=>a+(+p.sum||0),0); }
 function mDebt(id){ return Math.max(0, mDeal(id) - mRecv(id)); }
+function projectIsAutoComplete(id){ return mDeal(id)>0 && mRecv(id)>=mDeal(id); }
+function projectIsComplete(id){ return projectIsAutoComplete(id) || Number(MONEY[id]?.completedAt)>0; }
 function fmtT(n){ return Math.round(n||0).toLocaleString('ru-RU') + ' ₸'; }
 function fmtCur(id, n){ n=Math.round(n||0); return curOf(id)==='USD' ? '$' + n.toLocaleString('ru-RU') : n.toLocaleString('ru-RU') + ' ₸'; }
 function shortT(n){ n=Math.round(n||0); return n>=1e6 ? (n/1e6).toFixed(n%1e6? 1:0).replace('.',',')+' млн' : n>=1000 ? Math.round(n/1000)+'к' : String(n); }
@@ -2595,6 +2607,14 @@ async function injectMoney(){
     strip.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openMoneyModal(id); });
     card.appendChild(strip);
     renderMoneyStrip(id);
+    if(!card.querySelector('.done-toggle')){
+      const done=document.createElement('button');
+      done.type='button';
+      done.className='done-toggle';
+      done.addEventListener('click',(event)=>{ event.preventDefault(); event.stopPropagation(); toggleProjectComplete(id); });
+      card.appendChild(done);
+    }
+    renderProjectComplete(id);
   });
   ensureMoneySummary();
   renderMoneySummary();
@@ -2628,6 +2648,25 @@ function renderMoneyStrip(id){
   strip.innerHTML = '<div class="ms-bar"><i style="width:'+pct+'%;background:'+(debtK?'var(--orange)':'var(--green)')+'"></i></div>'
     + '<div class="ms-row"><span class="ms-l">💰 '+shortT(gotK)+' / '+shortT(dealK)+' ₸'+(usd?' <span class="ms-cur">$</span>':'')+'</span>'
     + (debtK ? '<span class="ms-d">−'+shortT(debtK)+'</span>' : '<span class="ms-ok">оплачено ✓</span>') + '</div>';
+}
+function renderProjectComplete(id){
+  const button=mCard(id)?.querySelector('.done-toggle');
+  if(!button) return;
+  const automatic=projectIsAutoComplete(id);
+  const complete=projectIsComplete(id);
+  button.classList.toggle('on',complete);
+  button.classList.toggle('auto',automatic);
+  button.textContent='✓';
+  button.title=automatic?'Выполнено автоматически: сделка оплачена полностью':(complete?'Снять отметку «Выполнено»':'Отметить как выполненное');
+  button.setAttribute('aria-label',button.title);
+}
+function toggleProjectComplete(id){
+  if(!canSeeProjectMoney() || projectIsAutoComplete(id)) return;
+  MONEY[id]=MONEY[id]||{deal:0,pays:[],cur:'KZT'};
+  MONEY[id].completedAt=Number(MONEY[id].completedAt)>0?0:Date.now();
+  renderProjectComplete(id);
+  saveMoney();
+  renderFinanceCharts();
 }
 function ensureMoneySummary(){
   if (document.getElementById('moneySum')) return;
@@ -2712,7 +2751,7 @@ function setMoneyDeal(v){
   item.deal=Math.max(0,parseInt(v)||0);
   if(item.deal>0 && item.pays.length && !item.orderCreatedAt) item.orderCreatedAt=Date.now();
   if(item.deal<=0) item.orderCreatedAt=0;
-  saveMoney(); const g=document.getElementById('mmGrid'); if(g)g.innerHTML=moneyGrid(_mmId); renderMoneyStrip(_mmId); renderMoneySummary(); renderFinanceCharts();
+  saveMoney(); const g=document.getElementById('mmGrid'); if(g)g.innerHTML=moneyGrid(_mmId); renderMoneyStrip(_mmId); renderProjectComplete(_mmId); renderMoneySummary(); renderFinanceCharts();
 }
 function addMoneyPay(){
   if(!canSeeProjectMoney()||!_mmId) return;
@@ -2725,19 +2764,20 @@ function addMoneyPay(){
   const item=MONEY[_mmId];
   item.pays.push({d,sum,at});
   if(item.deal>0 && !item.orderCreatedAt) item.orderCreatedAt=Date.now();
-  saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); renderFinanceCharts();
+  saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderProjectComplete(_mmId); renderMoneySummary(); renderFinanceCharts();
 }
 function delMoneyPay(i){
   if(!canSeeProjectMoney()||!_mmId) return;
   MONEY[_mmId].pays.splice(i,1);
   if(!MONEY[_mmId].pays.length) MONEY[_mmId].orderCreatedAt=0;
-  saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); renderFinanceCharts();
+  saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderProjectComplete(_mmId); renderMoneySummary(); renderFinanceCharts();
 }
 
 const FINANCE_CHART_META = {
   inquiries: { title:'Количество новых обращений', sub:'Pllato Старт · стадия «Новая»', color:'#373d8d' },
   orders: { title:'Количество новых заказов', sub:'Сумма заказа + первый платёж', color:'#4f46e5' },
   cash: { title:'Количество денег в кассе', sub:'Все транзакции за неделю', color:'#16a34a' },
+  releases: { title:'Выпуски', sub:'Завершённые проекты', color:'#d97706' },
 };
 let FINANCE_CHART_REQUEST = 0;
 
@@ -2917,7 +2957,7 @@ async function renderFinanceCharts(){
     CHART_ALLOWED={...CHART_ALLOWED,...(data.visible||{})};
     if(data.chartVisibility) CHART_VISIBILITY={...CHART_VISIBILITY,...data.chartVisibility};
     if(data.chartScale) CHART_SCALE={...CHART_SCALE,...data.chartScale};
-    const kinds=['inquiries','orders','cash'].filter(kind=>Array.isArray(data.charts?.[kind]));
+    const kinds=['inquiries','orders','cash','releases'].filter(kind=>Array.isArray(data.charts?.[kind]));
     if(!kinds.length){ el.remove(); return; }
     await loadGlobalSalesQuickLink();
     const toggle=financeChartsPinnedOpen()?'':'<button class="fc-toggle" onclick="toggleFinanceCharts()"></button>';
@@ -2966,7 +3006,7 @@ async function saveFinanceAccess(kind){
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, filterProjects });
+Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects });
 
 function applyProjectFilters(){
   const searchTokens=normalizeProjectSearch(SEARCH_TERM).split(' ').filter(Boolean);
