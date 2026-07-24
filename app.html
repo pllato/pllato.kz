@@ -391,13 +391,12 @@ body {
 .tool-card:hover .tile-access-btn { opacity:1; }
 .tile-access-btn:hover { background:var(--bronze-tint); color:var(--bronze-deep); }
 .done-toggle {
-  position:absolute; top:10px; right:41px;
-  width:28px; height:28px; border-radius:8px;
-  border:1px solid transparent; background:transparent; color:var(--text-3);
-  font-size:14px; font-weight:900; line-height:1; cursor:pointer;
-  display:grid; place-items:center; z-index:4; opacity:.55; transition:.14s;
+  position:absolute; top:48px; right:11px;
+  min-height:28px; border-radius:8px; padding:5px 8px;
+  border:1px solid var(--line-2); background:var(--surface); color:var(--text-3);
+  font-size:10.5px; font-weight:800; line-height:1; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; z-index:4; opacity:1; transition:.14s;
 }
-.tool-card:hover .done-toggle { opacity:1; }
 .done-toggle:hover { background:rgba(22,163,74,.1); color:var(--green); }
 .done-toggle.on { opacity:1; color:#fff; background:var(--green); border-color:var(--green); }
 .done-toggle.auto { cursor:default; }
@@ -2656,7 +2655,7 @@ function renderProjectComplete(id){
   const complete=projectIsComplete(id);
   button.classList.toggle('on',complete);
   button.classList.toggle('auto',automatic);
-  button.textContent='✓';
+  button.textContent='✓ Выполнено';
   button.title=automatic?'Выполнено автоматически: сделка оплачена полностью':(complete?'Снять отметку «Выполнено»':'Отметить как выполненное');
   button.setAttribute('aria-label',button.title);
 }
