@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Тренажёр SDR — Pllato</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="../pllato_favicon_64.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#111827;--muted:#667085;--soft:#f6f6f1;--paper:#fff;--line:#e7e2d6;--navy:#0b1728;--gold:#a8753d;--green:#119c4b;--purple:#7146e8;--red:#d92d20;--amber:#e9a008;--shadow:0 14px 40px rgba(15,23,42,.08)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#fafaf7;color:var(--ink);font:15px/1.55 Inter,system-ui,sans-serif}button,input,textarea,select{font:inherit}button{cursor:pointer}.shell{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:100vh}.side{position:sticky;top:0;height:100vh;padding:24px 18px;background:var(--navy);color:#fff}.brand{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:800}.brand-mark{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#fff;color:var(--navy)}.role{margin:24px 0 16px;padding:14px;border:1px solid #28384d;border-radius:14px;background:#122238}.role small{display:block;color:#aebbd0;text-transform:uppercase;letter-spacing:.08em}.role strong{display:block;margin-top:5px}.nav{display:grid;gap:7px}.nav button{width:100%;border:0;border-radius:10px;padding:10px 12px;background:transparent;color:#cdd6e4;text-align:left}.nav button.on,.nav button:hover{background:#fff;color:var(--navy);font-weight:700}.side-score{position:absolute;left:18px;right:18px;bottom:22px}.score-ring{display:flex;align-items:center;gap:12px}.score-ring b{font:800 28px/1 JetBrains Mono}.side-score small{color:#aebbd0}.progress{height:7px;margin-top:10px;border-radius:9px;background:#28384d;overflow:hidden}.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#f3c978,#47d782);transition:.35s}.main{min-width:0}.top{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:14px;padding:13px 28px;border-bottom:1px solid var(--line);background:rgba(250,250,247,.94);backdrop-filter:blur(12px)}.top a{color:var(--muted);text-decoration:none}.top .spacer{flex:1}.pill{padding:5px 10px;border-radius:99px;background:#edf7ef;color:var(--green);font-size:12px;font-weight:800}.content{max-width:1180px;margin:auto;padding:34px 34px 90px}.screen{display:none}.screen.on{display:block}.eyebrow{color:var(--gold);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.12em}h1{max-width:900px;margin:7px 0 12px;font-size:clamp(30px,4vw,52px);line-height:1.06;letter-spacing:-.045em}h2{margin:0 0 10px;font-size:25px;line-height:1.18}h3{margin:0 0 7px;font-size:17px}p{color:var(--muted)}.lead{max-width:800px;font-size:18px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.card{padding:22px;border:1px solid var(--line);border-radius:17px;background:var(--paper);box-shadow:0 6px 20px rgba(15,23,42,.035)}.card.accent{background:linear-gradient(145deg,#0c1b2f,#142b48);color:#fff;border:0}.card.accent p{color:#c9d4e4}.metric{font:800 32px/1.1 JetBrains Mono;color:var(--green)}.label{color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}.org{margin-top:16px;padding:20px;border:1px solid var(--line);border-radius:17px;background:#fff}.org-tree{display:flex;justify-content:center;gap:26px;align-items:flex-start;margin-top:18px}.node{padding:10px 14px;border-radius:11px;background:#f3f0e9;text-align:center;font-weight:700}.node.primary{background:var(--navy);color:#fff}.branch{display:grid;gap:8px;text-align:center}.branch .children{display:grid;gap:6px}.branch .children span{padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;font-size:13px}.branch .children .you{border-color:var(--green);box-shadow:0 0 0 2px rgba(17,156,75,.12);color:var(--green);font-weight:800}.btn{border:0;border-radius:11px;padding:11px 16px;font-weight:750;background:var(--navy);color:#fff}.btn:hover{transform:translateY(-1px)}.btn.secondary{background:#f1eee7;color:var(--ink)}.btn.green{background:var(--green)}.btn.purple{background:var(--purple)}.btn.outline{border:1px solid var(--line);background:#fff;color:var(--ink)}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}.section-head{display:flex;align-items:flex-start;gap:18px;margin-bottom:22px}.section-head .num{display:grid;place-items:center;flex:0 0 48px;height:48px;border-radius:14px;background:var(--navy);color:#fff;font:800 18px JetBrains Mono}.section-head p{margin:4px 0}.term-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);gap:18px}.flash{min-height:330px;display:flex;flex-direction:column;justify-content:center;text-align:center}.flash .counter{font:700 12px JetBrains Mono;color:var(--muted)}.flash .term{margin:18px 0 9px;font-size:36px;font-weight:800;letter-spacing:-.03em}.flash .definition{font-size:17px;color:var(--muted)}.flash .example{margin-top:14px;padding:12px;border-radius:10px;background:#f7f5ef;color:#475467;font-style:italic}.confidence{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:22px}.confidence button{border:1px solid var(--line);border-radius:10px;padding:10px 5px;background:#fff}.confidence button:hover{border-color:var(--gold)}.term-list{max-height:460px;overflow:auto;padding-right:5px}.term-row{display:flex;gap:10px;padding:10px 4px;border-bottom:1px solid #eee}.term-row b{min-width:105px}.dot{width:9px;height:9px;margin-top:7px;border-radius:50%;background:#d0d5dd}.dot.ok{background:var(--green)}.quiz-q{margin-bottom:16px}.option{display:block;width:100%;margin:7px 0;padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:#fff;text-align:left}.option.selected{border-color:var(--navy);background:#edf1f6}.option.correct{border-color:var(--green);background:#ecfdf3}.option.wrong{border-color:var(--red);background:#fff1f0}.script-steps{display:grid;gap:10px}.script-step{display:grid;grid-template-columns:44px 1fr;gap:12px;padding:15px;border:1px solid var(--line);border-radius:13px;background:#fff}.script-step b:first-child{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:#f1eee7}.quote{margin-top:7px;padding:11px 13px;border-left:3px solid var(--gold);background:#faf8f3;color:#344054}.case{padding:16px;border:1px solid var(--line);border-radius:13px;background:#fff;margin-bottom:12px}.case .feedback{display:none;margin-top:10px;padding:10px;border-radius:9px;background:#f7f5ef}.case.done .feedback{display:block}.recorder{padding:20px;border-radius:17px;background:linear-gradient(145deg,#f3ecff,#fff);border:1px solid #d9cbff}.timer{font:800 42px/1 JetBrains Mono;color:var(--purple)}textarea,input,select{width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px 12px;color:var(--ink)}textarea{min-height:90px;resize:vertical}.field{margin-bottom:12px}.field label{display:block;margin-bottom:5px;font-size:12px;font-weight:750;color:#475467}.crm{display:grid;grid-template-columns:210px minmax(0,1fr);min-height:650px;border:1px solid var(--line);border-radius:18px;background:#f4f5fa;overflow:hidden}.crm-side{padding:18px;background:#fff;border-right:1px solid var(--line)}.crm-side b{display:block;margin-bottom:16px}.crm-side button{width:100%;margin:3px 0;padding:9px;border:0;border-radius:8px;background:transparent;text-align:left}.crm-side button.on{background:#eef0ff;color:#4938d0;font-weight:700}.crm-main{padding:18px;overflow:auto}.stagebar{display:flex;gap:6px;overflow:auto;margin-bottom:15px}.stage{white-space:nowrap;border:1px solid #d8dbea;border-radius:8px;background:#fff;padding:7px 10px;font-size:12px}.stage.on{background:#5146dd;color:#fff}.deal{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:14px}.panel{padding:17px;border:1px solid #dddfee;border-radius:13px;background:#fff}.brief-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.brief-grid .wide{grid-column:1/-1}.task-list{display:grid;gap:8px}.task{display:flex;align-items:flex-start;gap:9px;padding:10px;border-radius:10px;background:#f7f5ef}.task.ok{background:#ecfdf3}.task i{font-style:normal}.calendar-box{display:none;margin-top:12px;padding:13px;border:1px solid #b9e4c9;border-radius:11px;background:#ecfdf3}.calendar-box.on{display:block}.result-hero{padding:28px;border-radius:20px;background:linear-gradient(145deg,#0b1728,#193654);color:#fff}.result-hero p{color:#d5dfec}.big-score{font:800 clamp(58px,9vw,100px)/1 JetBrains Mono}.modules{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:20px}.module-score{padding:14px;border-radius:12px;background:rgba(255,255,255,.09)}.module-score b{display:block;font:800 23px JetBrains Mono}.status.pass{color:#65e59c}.status.fail{color:#ffbdad}.report{white-space:pre-wrap;padding:18px;border:1px solid var(--line);border-radius:13px;background:#fff;font:12px/1.6 JetBrains Mono}.toast{position:fixed;right:22px;bottom:22px;z-index:30;padding:11px 15px;border-radius:10px;background:#111827;color:#fff;opacity:0;transform:translateY(12px);pointer-events:none;transition:.2s}.toast.on{opacity:1;transform:none}@media(max-width:900px){.shell{grid-template-columns:1fr}.side{position:relative;height:auto}.nav{grid-template-columns:repeat(3,1fr)}.side-score{position:static;margin-top:15px}.grid,.grid.two,.term-layout,.deal{grid-template-columns:1fr}.org-tree{overflow:auto;justify-content:flex-start}.modules{grid-template-columns:1fr 1fr}.crm{grid-template-columns:1fr}.crm-side{display:none}.content{padding:24px 16px 70px}.top{padding:11px 16px}}@media(max-width:520px){.nav{grid-template-columns:1fr 1fr}.brief-grid{grid-template-columns:1fr}.brief-grid .wide{grid-column:auto}.confidence{grid-template-columns:1fr}.modules{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="brand-mark">P</span>Pllato Academy</div>
+    <div class="role"><small>Тренажёр поста</small><strong>SDR · Менеджер первых встреч</strong></div>
+    <nav class="nav" id="nav">
+      <button data-screen="passport" class="on">01 · Пост</button>
+      <button data-screen="terms">02 · 50 терминов</button>
+      <button data-screen="script">03 · Скрипт</button>
+      <button data-screen="crm">04 · CRM</button>
+      <button data-screen="exam">05 · Аттестация</button>
+      <button data-screen="result">Результат</button>
+    </nav>
+    <div class="side-score"><div class="score-ring"><b id="totalScore">0</b><div><small>из 100 баллов</small><div id="sideStatus">стажировка начата</div></div></div><div class="progress"><i id="progressFill"></i></div></div>
+  </aside>
+  <main class="main">
+    <header class="top"><a href="../app.html">← Вернуться в App</a><span class="spacer"></span><span class="pill" id="saveState">Прогресс сохраняется</span></header>
+    <div class="content">
+      <section class="screen on" id="screen-passport">
+        <div class="eyebrow">Паспорт поста</div>
+        <h1>SDR — человек, который превращает обращение в квалифицированную первую встречу</h1>
+        <p class="lead">После программы сотрудник знает продукт поста, уверенно проводит квалификацию, назначает КЭП, правильно заполняет CRM и может показать измеримый результат РОП.</p>
+        <div class="grid">
+          <article class="card accent"><div class="label">Продукт поста</div><h2>Квалифицированный клиент, посетивший КЭП</h2><p>Клиент соответствует требованиям, бриф заполнен, первая встреча состоялась и продана следующая встреча — подготовка и показ Демо.</p></article>
+          <article class="card"><div class="label">Статистика поста</div><div class="metric">КЭП / неделя</div><p>Количество состоявшихся первых встреч с квалифицированными клиентами. Не количество звонков и не число назначений.</p></article>
+          <article class="card"><div class="label">Руководитель</div><h2>РОП</h2><p>Линия коммуникации: <b>Менеджер → РОП → Директор → Владелец бизнеса.</b> Эскалации идут по этой линии.</p></article>
+        </div>
+        <div class="grid two" style="margin-top:16px">
+          <article class="card"><h3>Три обязательных условия квалификации</h3><ol><li>Минимальный чистый доход клиента — <b>$5 000</b>.</li><li>Есть чёткая потребность в разработке ПО для бизнеса.</li><li>Заполнен бриф о бизнесе и выявлена главная боль.</li></ol></article>
+          <article class="card"><h3>Что такое КЭП</h3><p><b>КЭП — ключевой этап продаж.</b> Первая встреча, где мы выявляем основную боль, показываем основную ценность и возможные решения.</p><p><b>Продукт КЭП:</b> дополнительная квалификация относительно цены продукта и проданная встреча на подготовку и просмотр Демо.</p></article>
+        </div>
+        <div class="org"><div class="label">Положение в организующей структуре</div><div class="org-tree">
+          <div class="branch"><div class="node primary">Владелец</div></div>
+          <div class="branch"><div class="node">РОП</div><div class="children"><span class="you">Вы: Лид-менеджер / SDR</span><span>Клоузер</span></div></div>
+          <div class="branch"><div class="node">Глава производства</div><div class="children"><span>Программист базового продукта</span><span>Программист доп. продуктов</span></div></div>
+          <div class="branch"><div class="node">Глава продвижения</div><div class="children"><span>Продвижение и распространение</span></div></div>
+        </div></div>
+        <div class="card" style="margin-top:16px"><h3>Карточка стажёра</h3><div class="grid two"><div class="field"><label>Имя сотрудника</label><input id="traineeName" placeholder="Например, Анна"></div><div class="field"><label>Непосредственный руководитель</label><input id="managerName" value="РОП"></div></div><button class="btn green" onclick="saveProfile()">Сохранить и начать обучение →</button></div>
+      </section>
+
+      <section class="screen" id="screen-terms">
+        <div class="section-head"><div class="num">02</div><div><h2>50 рабочих терминов</h2><p>Не заучить перевод, а уметь объяснить клиенту простыми словами и применить в контексте первой встречи.</p></div></div>
+        <div class="term-layout"><article class="card flash" id="flashCard"></article><article class="card"><h3>Карта изучения</h3><p><span id="knownCount">0</span> из 50 отмечены как понятные</p><div class="term-list" id="termList"></div></article></div>
+        <article class="card" style="margin-top:16px"><h3>Контроль понимания · 10 вопросов</h3><p>Выберите точное значение или лучшее применение термина. Баллы начисляются только за первую проверку.</p><div id="termQuiz"></div><button class="btn" onclick="checkTermQuiz()">Проверить терминологию</button><b id="termQuizScore" style="margin-left:12px"></b></article>
+      </section>
+
+      <section class="screen" id="screen-script">
+        <div class="section-head"><div class="num">03</div><div><h2>Тренажёр скрипта квалификации</h2><p>Цель первого контакта — не продать разработку, а квалифицировать и назначить конкретную КЭП.</p></div></div>
+        <div class="grid two"><article class="card"><h3>Эталонная последовательность</h3><div class="script-steps" id="scriptSteps"></div></article><article class="recorder"><div class="label">Репетиция вслух</div><h2>Проведите звонок за 7 минут</h2><div class="timer" id="callTimer">07:00</div><p>Поставьте таймер, проговорите скрипт вслух и зафиксируйте саморазбор.</p><div class="actions"><button class="btn purple" id="timerBtn" onclick="toggleTimer()">Начать репетицию</button><button class="btn secondary" onclick="resetTimer()">Сбросить</button></div><div class="field" style="margin-top:15px"><label>Что получилось / где потерял управление разговором</label><textarea id="rehearsalNotes" placeholder="Зафиксируйте конкретные моменты…"></textarea></div></article></div>
+        <article class="card" style="margin-top:16px"><h3>Ситуационные развилки</h3><p>Выберите ответ, который сохраняет логику квалификации и ведёт к следующему шагу.</p><div id="scriptCases"></div><button class="btn" onclick="checkScript()">Проверить скрипт</button><b id="scriptScore" style="margin-left:12px"></b></article>
+      </section>
+
+      <section class="screen" id="screen-crm">
+        <div class="section-head"><div class="num">04</div><div><h2>Практический симулятор CRM Pllato</h2><p>Без риска для боевой базы: заполните реальный по структуре бриф, перенесите сделку и поставьте КЭП в календарь.</p></div></div>
+        <div class="crm">
+          <aside class="crm-side"><b>Pllato CRM · Тренировка</b><button class="on">💼 Сделка</button><button>📋 Квалификация</button><button>📅 Календарь</button><button>✅ Дела</button><button>📜 Лента событий</button></aside>
+          <div class="crm-main">
+            <div class="stagebar" id="stageBar"></div>
+            <div class="deal">
+              <div class="panel"><div class="label">Учебная сделка</div><h2>Арман · производство мебели</h2><p>Входящее обращение: «У нас три цеха, заказы в WhatsApp и Excel, часто теряем сроки и не понимаем прибыль по заказу. Хотим навести порядок».</p>
+                <div class="brief-grid" id="briefForm">
+                  <div class="field"><label>Чем занимается компания? *</label><input data-key="business" placeholder="Что производит / продаёт"></div>
+                  <div class="field"><label>Город / регионы</label><input data-key="city"></div>
+                  <div class="field"><label>Размер команды *</label><select data-key="team"><option value="">—</option><option>1–5</option><option>6–15</option><option>16–50</option><option>50+</option></select></div>
+                  <div class="field"><label>Филиалы / точки / цех</label><input data-key="branches"></div>
+                  <div class="field wide"><label>В чём ведут клиентов и заказы сейчас? *</label><input data-key="current" placeholder="CRM, 1С, Excel, бумага, мессенджеры"></div>
+                  <div class="field"><label>Что раздражает больше всего? *</label><textarea data-key="irritation"></textarea></div>
+                  <div class="field"><label>Что делают вручную / дважды?</label><textarea data-key="manual"></textarea></div>
+                  <div class="field wide"><label>ГЛАВНАЯ БОЛЬ — дословно *</label><textarea data-key="pain" placeholder="Не общая формулировка, а слова клиента"></textarea></div>
+                  <div class="field"><label>Из-за чего теряют деньги / клиентов?</label><textarea data-key="loss"></textarea></div>
+                  <div class="field"><label>Что хотят видеть, но сейчас не видят? *</label><textarea data-key="want"></textarea></div>
+                  <div class="field wide"><label>Недавний реальный случай, когда что-то пошло не так *</label><textarea data-key="incident"></textarea></div>
+                  <div class="field"><label>Нужна связь с 1С?</label><select data-key="oneC"><option value="">—</option><option>Да</option><option>Нет</option><option>Не уверены</option></select></div>
+                  <div class="field"><label>Нужен склад / остатки?</label><select data-key="stock"><option value="">—</option><option>Да</option><option>Нет</option></select></div>
+                  <div class="field"><label>Кто принимает решение? *</label><select data-key="decision"><option value="">—</option><option>Сам клиент</option><option>Партнёр / совет / инвестор</option></select></div>
+                  <div class="field"><label>Чистый доход в месяц, $ *</label><input data-key="income" type="number" min="0"></div>
+                  <div class="field"><label>Срочность *</label><select data-key="urgency"><option value="">—</option><option>Горит сейчас</option><option>На перспективу</option><option>Просто смотрят</option></select></div>
+                  <div class="field"><label>Бюджет</label><select data-key="budget"><option value="">—</option><option>Есть</option><option>Нет</option><option>Не обсуждали</option></select></div>
+                  <div class="field"><label>Дата и время КЭП *</label><input data-key="meeting" type="datetime-local"></div>
+                  <div class="field"><label>Сайт / соцсеть клиента</label><input data-key="website" placeholder="https://…"></div>
+                  <div class="field"><label>Назначенный закрыватель *</label><select data-key="closer"><option value="">—</option><option>Клоузер 1</option><option>Клоузер 2</option><option>РОП</option></select></div>
+                </div>
+                <div class="actions"><button class="btn green" onclick="saveBrief()">Сохранить бриф</button><button class="btn outline" onclick="addToCalendar()">📅 Поставить в календарь</button></div><div class="calendar-box" id="calendarBox"></div>
+              </div>
+              <aside class="panel"><h3>Задание SDR</h3><div class="task-list" id="crmTasks"></div><div class="card" style="padding:13px;margin-top:13px;box-shadow:none"><div class="label">Подсказка</div><p style="margin-bottom:0">Главная боль должна быть дословной и конкретной. Дата — конкретной. Доход ниже $5 000 означает, что клиент не проходит квалификацию.</p></div><button class="btn" style="margin-top:14px;width:100%" onclick="gradeCrm()">Завершить CRM-практику</button><div id="crmScore" style="margin-top:10px;font-weight:800"></div></aside>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-exam">
+        <div class="section-head"><div class="num">05</div><div><h2>Итоговая аттестация</h2><p>15 вопросов по продукту поста, квалификации, КЭП, скрипту и CRM. После отправки ответы изменить нельзя без сброса попытки.</p></div></div>
+        <article class="card"><div id="finalExam"></div><button class="btn green" onclick="checkFinalExam()">Завершить аттестацию</button><b id="examScore" style="margin-left:12px"></b></article>
+      </section>
+
+      <section class="screen" id="screen-result">
+        <div class="result-hero"><div class="eyebrow">Результат стажировки</div><div class="big-score"><span id="resultScore">0</span>/100</div><h2 id="resultVerdict">Программа ещё не завершена</h2><p id="resultExplanation"></p><div class="modules" id="moduleScores"></div></div>
+        <div class="grid two" style="margin-top:16px"><article class="card"><h3>Критерий допуска к самостоятельной работе</h3><p>Итог не ниже <b>80/100</b> и выполнены минимумы по каждому модулю: термины 14/20, скрипт 21/30, CRM 25/35, аттестация 10/15.</p><div id="gateList"></div></article><article class="card"><h3>Решение РОП</h3><div class="field"><label>Комментарий руководителя</label><textarea id="managerComment" placeholder="Сильные стороны, что доработать, решение о допуске"></textarea></div><div class="actions"><button class="btn green" onclick="copyReport()">Скопировать отчёт</button><button class="btn outline" onclick="window.print()">Печать / PDF</button><button class="btn secondary" onclick="resetTraining()">Новая попытка</button></div></article></div>
+        <h3 style="margin-top:22px">Отчёт для руководителя</h3><div class="report" id="reportText"></div>
+      </section>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast">Сохранено</div>
+<script>
+const TERMS=[
+['SDR','Менеджер развития продаж: квалифицирует обращение и назначает первую встречу.','«Я отвечаю за путь от нового обращения до состоявшейся КЭП».'],
+['Лид','Потенциальный клиент, который оставил контакт или проявил интерес.','«Лид ещё не является квалифицированным клиентом».'],
+['Квалификация','Проверка клиента на соответствие требованиям и реальность потребности.','«Доход, потребность, лицо решения и заполненный бриф».'],
+['ICP','Портрет идеального клиента: отрасль, масштаб, проблема и платежеспособность.','«Сверим лид с нашим ICP».'],
+['Лид-менеджер','Менеджер, который быстро обрабатывает лиды и доводит их до КЭП.','«Лид-менеджер не закрывает сделку, а создаёт качественную встречу».'],
+['РОП','Руководитель отдела продаж. Управляет процессом, статистиками и менеджерами.','«Сложный случай эскалирую РОП».'],
+['Клоузер','Менеджер, который проводит КЭП/Демо и закрывает клиента на сделку.','«Передам клоузеру полный бриф до встречи».'],
+['Воронка продаж','Последовательность этапов, через которые проходит сделка.','«Перенесу сделку на следующий этап воронки».'],
+['Этап сделки','Текущее состояние сделки с определённым результатом и следующим действием.','«Этап меняется только после фактически выполненного действия».'],
+['Конверсия','Доля клиентов, перешедших из одного этапа в следующий.','«Конверсия из квалификации в состоявшуюся КЭП».'],
+['Касание','Любое содержательное взаимодействие с клиентом.','«После первого касания зафиксирую результат».'],
+['Follow-up','Следующее согласованное касание после разговора или встречи.','«Отправлю follow-up с датой и договорённостями».'],
+['Бриф','Структурированная запись о бизнесе, боли, системе и договорённостях клиента.','«Бриф должен позволить подготовить Демо без повторного допроса клиента».'],
+['КЭП','Ключевой этап продаж: первая встреча с выявлением боли и показом ценности.','«На КЭП дополнительно квалифицируем клиента по цене продукта».'],
+['Демо','Показ решения на процессах и данных конкретного клиента.','«Для сильного Демо нужны бриф, логотип и сайт».'],
+['CRM','Система управления клиентами, сделками, коммуникациями и воронкой.','«CRM покажет, кто ответственный и что делать дальше».'],
+['ERP','Система управления ресурсами предприятия: финансы, закупки, склад, производство.','«ERP связывает процессы всей компании, а не только продажи».'],
+['ERM','Управление отношениями с сотрудниками; термин встречается реже, чем ERP.','«Уточню, имеет ли клиент в виду ERP или систему для персонала».'],
+['API','Правила, по которым две программы автоматически обмениваются данными.','«Через API CRM может получать статусы оплаты из другой системы».'],
+['Интеграция','Связь систем, при которой данные или действия передаются между ними.','«Интеграция с 1С уберёт двойной ввод».'],
+['Портал','Закрытая рабочая веб-система для сотрудников, клиентов или партнёров.','«Клиентский портал показывает заказ и документы».'],
+['Website','Публичный сайт компании для информации, продвижения и заявок.','«Website привлекает, портал помогает работать».'],
+['Web-приложение','Интерактивная программа, работающая через браузер.','«CRM Pllato — web-приложение».'],
+['Мобильное приложение','Программа для смартфона, обычно устанавливаемая из магазина приложений.','«Мобильное приложение оправдано, если нужен частый нативный сценарий».'],
+['База данных','Структурированное хранилище клиентов, заказов, оплат и других сущностей.','«Карточка сделки сохраняется в базе данных».'],
+['Сервер','Компьютер или сервис, который обрабатывает запросы и хранит данные приложения.','«Сервер проверяет права и отдаёт нужные данные».'],
+['Облако','Удалённая инфраструктура, доступная через интернет без сервера в офисе.','«Облачная система доступна филиалам из разных городов».'],
+['Frontend','Видимая пользователю часть системы: экраны, формы, кнопки.','«Frontend показывает менеджеру карточку сделки».'],
+['Backend','Логика на сервере: данные, права, расчёты и интеграции.','«Backend считает остатки и проверяет доступ».'],
+['Автоматизация','Передача повторяющихся действий системе по заданным правилам.','«После оплаты автоматически изменится статус заказа».'],
+['1С','Популярная система учёта и автоматизации бизнеса.','«Сначала выясню конфигурацию 1С и какие данные надо обменивать».'],
+['Webhook','Автоматическое уведомление одной системы другой о событии.','«Webhook сообщит CRM о новой оплате».'],
+['Дашборд','Экран с ключевыми показателями и состоянием процессов.','«Директор видит продажи и производство на дашборде».'],
+['Роль и права доступа','Правила, определяющие, какие данные и действия доступны пользователю.','«Менеджер видит свои сделки, РОП — все».'],
+['Аутентификация','Проверка личности пользователя при входе.','«Вход по Google — способ аутентификации».'],
+['UI','Пользовательский интерфейс: внешний вид и элементы управления.','«UI должен быть понятен без инструкции».'],
+['UX','Опыт пользователя: насколько удобно и предсказуемо решается задача.','«Хороший UX сокращает время заполнения брифа».'],
+['MVP','Минимальная версия продукта, уже решающая главную задачу и дающая обратную связь.','«Начнём с MVP, затем добавим модули».'],
+['Кастомная разработка','Создание решения под уникальные процессы конкретной компании.','«Кастомная разработка оправдана, когда готовые системы не закрывают ядро процесса».'],
+['SaaS','Готовый облачный продукт по подписке для многих клиентов.','«SaaS быстрее запустить, но он ограничен общей логикой».'],
+['Миграция данных','Перенос данных из старой системы в новую с проверкой качества.','«До миграции определим поля, дубли и историю».'],
+['Боль клиента','Конкретная проблема с последствиями: потерями, риском или затратой времени.','«Не “нужна CRM”, а “теряем оплаты из-за разрозненных таблиц”».'],
+['Потребность','Желаемое изменение, которое клиент готов рассматривать и внедрять.','«Потребность — видеть прибыль по каждому заказу».'],
+['ЛПР','Лицо, принимающее решение о покупке или запуске проекта.','«На КЭП должен быть ЛПР или понятен путь согласования».'],
+['Выручка','Все поступления от продаж до вычета расходов.','«Выручка не равна чистому доходу».'],
+['Чистый доход','То, что остаётся после расходов; один из критериев квалификации Pllato.','«Минимальный чистый доход клиента — $5 000».'],
+['Бюджет','Доступный объём денег и готовность выделить его на решение.','«Если бюджет не обсуждали, так и фиксируем».'],
+['Бизнес-процесс','Повторяемая последовательность действий, создающая результат бизнеса.','«Разберём процесс от заявки до оплаты и выпуска».'],
+['Потеря','Измеримый ущерб из-за текущей проблемы: деньги, клиент, время или риск.','«Спросите о последнем реальном случае потери».'],
+['KPI','Ключевой измеримый показатель результата сотрудника или процесса.','«KPI SDR — состоявшиеся КЭП с квалифицированными клиентами».']
+];
+const TERM_Q=[
+['Что точнее всего описывает API?',2,['Дизайн сайта','Складской отчёт','Правила обмена данными между программами','Название CRM']],
+['Чем портал отличается от публичного сайта?',1,['Ничем','Портал — рабочая закрытая система, сайт — публичное представление','Портал работает только на телефоне','Сайт всегда дороже']],
+['Что является настоящей болью?',3,['Клиент хочет современно','Нужна CRM','Не нравится Excel','Из-за двойного ввода забыли выставить счёт и потеряли деньги']],
+['Кто такой ЛПР?',0,['Тот, кто принимает решение','Любой сотрудник клиента','Программист','Источник лида']],
+['Что делает webhook?',2,['Рисует интерфейс','Хранит пароль','Сообщает другой системе о событии','Заменяет базу данных']],
+['Что такое MVP?',1,['Максимально полный продукт','Минимальная работающая версия, решающая ядро задачи','Мобильная версия портала','Миграция данных']],
+['Какой KPI соответствует посту SDR?',3,['Число сообщений','Время разговора','Количество созданных карточек','Состоявшиеся КЭП с квалифицированными клиентами']],
+['Что означает интеграция с 1С?',0,['Автоматический обмен согласованными данными','Открытие 1С во второй вкладке','Покупка нового сервера','Копирование Excel вручную']],
+['Чем ERP шире CRM?',2,['В ERP нет пользователей','CRM только для программистов','ERP охватывает ресурсы предприятия, CRM фокусируется на клиентах и продажах','Ничем']],
+['Что должен дать хороший бриф?',1,['Максимум текста','Данные, достаточные для подготовки релевантного Демо','Только телефон','Только бюджет']]
+];
+const SCRIPT_STEPS=[
+['Рамка','Представьтесь, напомните источник обращения и согласуйте 7–10 минут.','«Правильно понимаю, сейчас удобно 7 минут, чтобы понять задачу и решить, есть ли смысл во встрече?»'],
+['Контекст','Узнайте продукт, географию, срок работы, команду и текущий способ учёта.','«Как сейчас выглядит путь от обращения клиента до оплаты и исполнения?»'],
+['Боль','Спросите, что раздражает, что делают вручную и почему это проблема. Уточните 2–3 раза.','«Что произошло в последний раз из-за этой ситуации? Во что это обошлось?»'],
+['Желаемый результат','Выясните, что клиент хочет видеть и что должно измениться.','«Если система заработает идеально, что вы сможете контролировать, чего не видите сейчас?»'],
+['Квалификация','Проверьте ЛПР, чистый доход от $5 000, срочность и готовность обсуждать решение.','«Кто кроме вас участвует в решении и согласовании бюджета?»'],
+['Продажа КЭП','Коротко свяжите боль с ценностью и предложите конкретный слот.','«На встрече покажем, как можно собрать единый процесс под вашу ситуацию. Удобнее во вторник в 15:00 или в среду в 11:00?»'],
+['Фиксация','Повторите договорённость, запросите сайт/логотип, назначьте клоузера, заполните CRM.','«Фиксирую среду 11:00, отправлю ссылку. Пришлите сайт и логотип — подготовим встречу предметно».']
+];
+const SCRIPT_CASES=[
+['Клиент сразу спрашивает цену.',1,['Назвать минимальную цену и торговаться','Сказать, что зависит от задачи, обычно ориентир около $3 000, точнее после разбора; вернуться к процессу','Уйти от ответа','Завершить звонок'],'Дайте честный ориентир без ложной точности и верните разговор к задаче.'],
+['Клиент говорит: «Просто пришлите презентацию».',2,['Сразу отправить и закрыть лид','Спорить, что презентации бесполезны','Уточнить 2–3 вопроса, чтобы отправить релевантное, и предложить конкретный короткий слот','Передать РОП'],'Материал без контекста редко двигает сделку. Сначала минимальная квалификация.'],
+['Доход клиента $3 000, потребность есть.',0,['Зафиксировать неквалифицированным и согласовать допустимый дальнейший контакт/материал','Назначить КЭП ради статистики','Изменить доход в CRM','Сразу отказать грубо'],'Критерий $5 000 защищает время КЭП. Не подменяйте статистику.'],
+['Клиент описывает решение: «Нужна CRM».',3,['Записать “нужна CRM” как боль','Рассказать все функции','Сразу назначить Демо','Спросить, что сейчас происходит, почему это проблема и привести последний случай'],'Название решения не равно боли. Нужны последствия и реальный эпизод.'],
+['Клиент не является ЛПР.',1,['Закончить разговор','Выяснить путь решения и пригласить ЛПР на КЭП','Скрыть это в брифе','Назначить встречу только с менеджером'],'Нужен понятный путь согласования и участие принимающего решение.'],
+['Клиент говорит: «Перезвоните когда-нибудь на следующей неделе».',2,['Согласиться без даты','Поставить случайную дату','Предложить два конкретных слота и согласовать один','Закрыть сделку'],'Следующий шаг существует только когда есть дата и ответственность.'],
+['На звонке клиент много рассказывает.',0,['Слушать, структурировать и задавать углубляющие вопросы','Перебивать скриптом','Сократить разговор до цены','Передать производство'],'Правило — слушать 80%, говорить 20%, сохраняя структуру.'],
+['После назначения КЭП бриф заполнен наполовину.',3,['Передать как есть','Удалить пустые поля','Попросить клоузера разобраться','До встречи дозаполнить обязательное, запросить материалы и зафиксировать договорённости'],'Качество передачи — часть продукта поста SDR.']
+];
+const FINAL_Q=[
+['Продукт поста SDR?',1,['Количество звонков','Квалифицированный клиент, посетивший КЭП','Заполненная карточка','Проданная разработка']],
+['Минимальный чистый доход?',2,['$1 500','$3 000','$5 000','$10 000']],
+['Статистика поста?',0,['Состоявшиеся КЭП с квалифицированными клиентами','Назначенные звонки','Новые лиды','Отправленные сообщения']],
+['Непосредственный руководитель?',3,['Директор','Владелец','Клоузер','РОП']],
+['Правильная линия коммуникации?',1,['Менеджер → Владелец','Менеджер → РОП → Директор → Владелец','Менеджер → Производство','Менеджер → Клоузер → Владелец']],
+['Что обязательно для квалификации?',2,['Только телефон','Готовый договор','Доход, потребность в ПО и заполненный бриф','Наличие 1С']],
+['Продукт КЭП?',0,['Допквалификация по цене и проданная встреча на подготовку/показ Демо','Счёт на оплату','Техническое задание','Созданный сайт']],
+['Главную боль записываем…',3,['Своими словами','Одним словом','После Демо','Дословно с последствиями и реальным случаем']],
+['Когда менять этап сделки?',1,['Сразу после звонка','Когда результат этапа фактически получен','Раз в неделю','По просьбе клиента']],
+['Что должно попасть в календарь?',2,['Любой лид','Дата создания сделки','Конкретная дата и время КЭП','День рождения клиента']],
+['Если ЛПР не на связи…',0,['Выяснить путь согласования и участие ЛПР','Скрыть это','Всегда закрыть лид','Назвать цену']],
+['Если клиент просит цену сразу…',3,['Придумать скидку','Не отвечать','Отправить договор','Дать ориентир с оговоркой и вернуться к задаче']],
+['Зачем нужен сайт и логотип?',1,['Для отчётности','Для брендинга и подготовки релевантного Демо','Для проверки дохода','Для CRM-доступа']],
+['Какой вопрос углубляет боль?',2,['Как вас зовут?','У вас есть сайт?','Почему это проблема и что случилось в последний раз?','Когда перезвонить?']],
+['Что делать после назначения КЭП?',0,['Повторить договорённость, заполнить бриф, календарь, материалы и клоузера','Ничего','Удалить комментарии','Перенести сразу в “Показ Демо”']]
+];
+const KEY='pllato_sdr_training_v1';
+let state=JSON.parse(localStorage.getItem(KEY)||'{}');
+state.profile=state.profile||{};state.known=state.known||{};state.termAnswers=state.termAnswers||{};state.scriptAnswers=state.scriptAnswers||{};state.examAnswers=state.examAnswers||{};state.crm=state.crm||{};state.scores=state.scores||{terms:0,script:0,crm:0,exam:0};
+let termIndex=0,timerLeft=420,timerId=null,currentStage=state.crm.stage||0;
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function save(){localStorage.setItem(KEY,JSON.stringify(state));updateScore();$('#saveState').textContent='Сохранено · '+new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});}
+function toast(t){$('#toast').textContent=t;$('#toast').classList.add('on');setTimeout(()=>$('#toast').classList.remove('on'),1600)}
+function showScreen(id){$$('.screen').forEach(x=>x.classList.toggle('on',x.id==='screen-'+id));$$('#nav button').forEach(x=>x.classList.toggle('on',x.dataset.screen===id));if(id==='result')renderResult();window.scrollTo(0,0)}
+$$('#nav button').forEach(b=>b.onclick=()=>showScreen(b.dataset.screen));
+function saveProfile(){state.profile.name=$('#traineeName').value.trim();state.profile.manager=$('#managerName').value.trim()||'РОП';state.profile.startedAt=state.profile.startedAt||new Date().toISOString();save();showScreen('terms')}
+function renderTerm(){const t=TERMS[termIndex];$('#flashCard').innerHTML=`<div class="counter">${termIndex+1} / 50</div><div class="term">${esc(t[0])}</div><div class="definition">${esc(t[1])}</div><div class="example">${esc(t[2])}</div><div class="confidence"><button onclick="markTerm(0)">Повторить</button><button onclick="markTerm(1)">Понимаю</button><button onclick="markTerm(2)">Могу объяснить клиенту</button></div><div class="actions" style="justify-content:center"><button class="btn secondary" onclick="moveTerm(-1)">←</button><button class="btn secondary" onclick="moveTerm(1)">→</button></div>`;renderTermList()}
+function moveTerm(d){termIndex=(termIndex+d+TERMS.length)%TERMS.length;renderTerm()}
+function markTerm(level){state.known[termIndex]=level;if(level>0&&termIndex<TERMS.length-1)termIndex++;save();renderTerm()}
+function renderTermList(){$('#knownCount').textContent=Object.values(state.known).filter(x=>x>0).length;$('#termList').innerHTML=TERMS.map((t,i)=>`<div class="term-row" onclick="termIndex=${i};renderTerm()"><span class="dot ${state.known[i]>0?'ok':''}"></span><b>${esc(t[0])}</b><span>${esc(t[1])}</span></div>`).join('')}
+function renderQuiz(container,questions,answers,prefix){container.innerHTML=questions.map((q,qi)=>`<div class="quiz-q" data-q="${qi}"><b>${qi+1}. ${esc(q[0])}</b>${q[2].map((o,oi)=>`<button class="option ${answers[qi]==oi?'selected':''}" onclick="selectAnswer('${prefix}',${qi},${oi},this)">${esc(o)}</button>`).join('')}</div>`).join('')}
+function selectAnswer(prefix,qi,oi,el){const map=prefix==='term'?state.termAnswers:prefix==='script'?state.scriptAnswers:state.examAnswers;map[qi]=oi;el.parentElement.querySelectorAll('.option').forEach(x=>x.classList.remove('selected'));el.classList.add('selected');save()}
+function checkTermQuiz(){let correct=0;TERM_Q.forEach((q,i)=>{if(state.termAnswers[i]===q[1])correct++;});const studied=Object.values(state.known).filter(x=>x>0).length;state.scores.terms=Math.min(20,Math.round(correct*1.5+studied/10));state.termChecked=true;save();$('#termQuizScore').textContent=`${state.scores.terms}/20`;paintAnswers('#termQuiz',TERM_Q,state.termAnswers);toast('Терминология проверена')}
+function paintAnswers(sel,qs,ans){$$(sel+' .quiz-q').forEach((box,i)=>{box.querySelectorAll('.option').forEach((o,j)=>o.classList.add(j===qs[i][1]?'correct':ans[i]===j?'wrong':''))})}
+function renderScript(){ $('#scriptSteps').innerHTML=SCRIPT_STEPS.map((s,i)=>`<div class="script-step"><b>${i+1}</b><div><h3>${esc(s[0])}</h3><p>${esc(s[1])}</p><div class="quote">${esc(s[2])}</div></div></div>`).join('');renderQuiz($('#scriptCases'),SCRIPT_CASES,state.scriptAnswers,'script');}
+function checkScript(){let c=0;SCRIPT_CASES.forEach((q,i)=>{if(state.scriptAnswers[i]===q[1])c++});const notes=$('#rehearsalNotes').value.trim().length>=80?6:0;state.scores.script=Math.min(30,c*3+notes);state.scriptChecked=true;save();$('#scriptScore').textContent=`${state.scores.script}/30`;paintAnswers('#scriptCases',SCRIPT_CASES,state.scriptAnswers);SCRIPT_CASES.forEach((q,i)=>{const box=$$('#scriptCases .quiz-q')[i];box.insertAdjacentHTML('beforeend',`<div class="quote">${esc(q[3])}</div>`)});toast('Скрипт проверен')}
+function toggleTimer(){if(timerId){clearInterval(timerId);timerId=null;$('#timerBtn').textContent='Продолжить';return}$('#timerBtn').textContent='Пауза';timerId=setInterval(()=>{timerLeft--;renderTimer();if(timerLeft<=0){clearInterval(timerId);timerId=null;$('#timerBtn').textContent='Завершено';toast('7 минут завершены')}},1000)}
+function resetTimer(){clearInterval(timerId);timerId=null;timerLeft=420;renderTimer();$('#timerBtn').textContent='Начать репетицию'}
+function renderTimer(){let m=Math.floor(timerLeft/60),s=timerLeft%60;$('#callTimer').textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`}
+const STAGES=['Новая','Выход на ЛПР','Квалификация','Встреча назначена','Создание Демо','Показ Демо'];
+const CRM_TASKS=['Заполнить контекст бизнеса','Зафиксировать текущий процесс','Записать дословную боль и реальный случай','Проверить доход не ниже $5 000','Указать ЛПР, срочность и бюджет','Назначить клоузера','Поставить конкретную КЭП в календарь','Перенести сделку на этап «Встреча назначена»'];
+function renderStages(){$('#stageBar').innerHTML=STAGES.map((s,i)=>`<button class="stage ${i===currentStage?'on':''}" onclick="setStage(${i})">${esc(s)}</button>`).join('')}
+function setStage(i){currentStage=i;state.crm.stage=i;save();renderStages();renderCrmTasks()}
+function collectBrief(){$$('#briefForm [data-key]').forEach(el=>state.crm[el.dataset.key]=el.value.trim());save()}
+function fillBrief(){$$('#briefForm [data-key]').forEach(el=>el.value=state.crm[el.dataset.key]||'')}
+function saveBrief(){collectBrief();state.crm.briefSaved=true;save();renderCrmTasks();toast('Учебный бриф сохранён')}
+function addToCalendar(){collectBrief();if(!state.crm.meeting){toast('Сначала укажите дату и время КЭП');return}state.crm.calendar=true;save();$('#calendarBox').classList.add('on');$('#calendarBox').innerHTML=`✅ КЭП добавлена в календарь: <b>${new Date(state.crm.meeting).toLocaleString('ru')}</b>`;renderCrmTasks()}
+function crmChecks(){const c=state.crm;return [!!(c.business&&c.team),!!c.current,!!(c.pain&&c.incident&&c.want),Number(c.income)>=5000,!!(c.decision&&c.urgency&&c.budget),!!c.closer,!!(c.meeting&&c.calendar),c.stage===3]}
+function renderCrmTasks(){const checks=crmChecks();$('#crmTasks').innerHTML=CRM_TASKS.map((t,i)=>`<div class="task ${checks[i]?'ok':''}"><i>${checks[i]?'✅':'○'}</i><span>${esc(t)}</span></div>`).join('')}
+function gradeCrm(){collectBrief();const checks=crmChecks();let score=checks.filter(Boolean).length*4;const quality=(state.crm.pain||'').length>=25&&(state.crm.incident||'').length>=20&&(state.crm.want||'').length>=20?3:0;state.scores.crm=Math.min(35,score+quality);state.crmChecked=true;save();renderCrmTasks();$('#crmScore').textContent=`Результат CRM: ${state.scores.crm}/35`;toast('CRM-практика оценена')}
+function checkFinalExam(){let c=0;FINAL_Q.forEach((q,i)=>{if(state.examAnswers[i]===q[1])c++});state.scores.exam=c;state.examChecked=true;state.completedAt=new Date().toISOString();save();$('#examScore').textContent=`${c}/15`;paintAnswers('#finalExam',FINAL_Q,state.examAnswers);showScreen('result')}
+function total(){return Object.values(state.scores).reduce((a,b)=>a+(Number(b)||0),0)}
+function updateScore(){const t=total();$('#totalScore').textContent=t;$('#progressFill').style.width=t+'%';$('#sideStatus').textContent=t>=80?'порог набран':t?'обучение продолжается':'стажировка начата'}
+function renderResult(){const s=state.scores,t=total(),gates={terms:s.terms>=14,script:s.script>=21,crm:s.crm>=25,exam:s.exam>=10},pass=t>=80&&Object.values(gates).every(Boolean);$('#resultScore').textContent=t;$('#resultVerdict').textContent=pass?'Готов к демонстрации навыка РОП':'Требуется доработка модулей';$('#resultExplanation').textContent=pass?'Стажёр выполнил общий норматив и минимумы по каждому навыку. Финальный допуск подтверждает руководитель после живой демонстрации скрипта.':'Общий балл или один из обязательных модулей ниже норматива. Повторите слабые блоки и пройдите проверку снова.';$('#moduleScores').innerHTML=[['Термины',s.terms,20],['Скрипт',s.script,30],['CRM',s.crm,35],['Экзамен',s.exam,15]].map(x=>`<div class="module-score"><small>${x[0]}</small><b>${x[1]}/${x[2]}</b></div>`).join('');$('#gateList').innerHTML=Object.entries({Термины:gates.terms,Скрипт:gates.script,'CRM-практика':gates.crm,Аттестация:gates.exam}).map(([k,v])=>`<p class="status ${v?'pass':'fail'}">${v?'✓':'×'} ${k}</p>`).join('');$('#reportText').textContent=buildReport(pass)}
+function buildReport(pass){const s=state.scores;return `ОТЧЁТ О СТАЖИРОВКЕ SDR · PLLATO\n\nСотрудник: ${state.profile.name||'не указано'}\nРуководитель: ${state.profile.manager||'РОП'}\nДата: ${new Date().toLocaleDateString('ru')}\n\nИТОГ: ${total()}/100 — ${pass?'НОРМАТИВ ВЫПОЛНЕН':'ТРЕБУЕТСЯ ДОРАБОТКА'}\nТерминология: ${s.terms}/20 (минимум 14)\nСкрипт квалификации: ${s.script}/30 (минимум 21)\nCRM-практика: ${s.crm}/35 (минимум 25)\nИтоговая аттестация: ${s.exam}/15 (минимум 10)\n\nПродукт поста: квалифицированный клиент, посетивший КЭП.\nСтатистика: количество состоявшихся КЭП с квалифицированными клиентами.\nРешение о самостоятельной работе принимает РОП после живой демонстрации скрипта.\n\nКомментарий РОП: ${$('#managerComment')?.value||'—'}`;}
+async function copyReport(){renderResult();await navigator.clipboard.writeText($('#reportText').textContent);toast('Отчёт скопирован')}
+function resetTraining(){if(!confirm('Начать новую попытку и удалить текущие ответы?'))return;localStorage.removeItem(KEY);location.reload()}
+$('#traineeName').value=state.profile.name||'';$('#managerName').value=state.profile.manager||'РОП';
+renderTerm();renderQuiz($('#termQuiz'),TERM_Q,state.termAnswers,'term');renderScript();renderStages();fillBrief();renderCrmTasks();if(state.crm.calendar&&state.crm.meeting){$('#calendarBox').classList.add('on');$('#calendarBox').innerHTML=`✅ КЭП добавлена в календарь: <b>${new Date(state.crm.meeting).toLocaleString('ru')}</b>`}renderQuiz($('#finalExam'),FINAL_Q,state.examAnswers,'exam');updateScore();
+if(state.termChecked){$('#termQuizScore').textContent=`${state.scores.terms}/20`;paintAnswers('#termQuiz',TERM_Q,state.termAnswers)}
+if(state.scriptChecked)$('#scriptScore').textContent=`${state.scores.script}/30`;
+if(state.crmChecked)$('#crmScore').textContent=`Результат CRM: ${state.scores.crm}/35`;
+if(state.examChecked){$('#examScore').textContent=`${state.scores.exam}/15`;paintAnswers('#finalExam',FINAL_Q,state.examAnswers)}
+</script>
+</body>
+</html>
