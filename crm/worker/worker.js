@@ -22,7 +22,7 @@ const DEFAULT_STORE_PULL_LIMIT = 5000;
 const MAX_STORE_OPS = 500;
 const PRIVATE_PROJECT_FINANCE_COLLECTION = "_project_finance_private";
 const PRIVATE_PROJECT_FINANCE_ID = "global";
-const BUILD_ID = "2026-07-24-project-finance-chart-scale-v1";
+const BUILD_ID = "2026-07-24-project-finance-week-end-labels-v1";
 
 let googleKeysCache = {
   keys: null,
@@ -2264,12 +2264,15 @@ function projectFinanceChartSeries(finance, points = 8) {
   });
 
   return starts.map((start, index) => {
-    const weekKey = new Date(start + 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const end = start + weekMs;
+    // Точка подписывается датой закрытия недели. Например, период
+    // 16.07 14:00 → 23.07 14:00 отображается как «23.07».
+    const weekKey = new Date(end + 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const override = finance.chartOverrides?.[weekKey] || {};
     return {
       start,
-      end: start + weekMs,
-      label: label(start),
+      end,
+      label: label(end),
       partial: start === currentStart,
       orders: Number.isFinite(Number(override.orders)) ? Number(override.orders) : orders[index],
       cash: Number.isFinite(Number(override.cash)) ? Number(override.cash) : cash[index],
