@@ -7602,7 +7602,17 @@ async function handlePublicPllatoKep(request, env) {
     )
     WHERE first_entered_at >= ?
   `).bind(pipeline.id, stageIds[0], stageIds[1], minDate).all();
-  const series = countIntoBuckets((result.results || []).map((row) => row.d), buckets, 'week');
+  const manualOverrides = { '2026-07-09': 12 };
+  const series = countIntoBuckets((result.results || []).map((row) => row.d), buckets, 'week')
+    .map((point, index) => {
+      const bucket = buckets[index];
+      const weekKey = bucket?.endMs
+        ? new Date(bucket.endMs + 5 * 3600 * 1000).toISOString().slice(0, 10)
+        : '';
+      return Number.isFinite(Number(manualOverrides[weekKey]))
+        ? { ...point, value: Number(manualOverrides[weekKey]) }
+        : point;
+    });
   return json({
     ok: true,
     series,
