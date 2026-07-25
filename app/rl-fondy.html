@@ -160,7 +160,9 @@
 <script>
 /* ============ ДАННЫЕ ============ */
 const LS='rl-fondy-v2'; // v2: чистый лист, только Атлетико (старые данные целы под ключом rl-fondy-v1)
-const FUND_COLORS=['#2563eb','#059669','#d97706','#7c3aed','#db2777','#0891b2','#dc2626','#4f46e5'];
+const FUND_COLORS=['#2563eb','#0891b2','#d97706','#7c3aed','#dc2626','#4f46e5','#b45309','#0e7490'];
+const RESERVE_COLOR='#059669';
+function fundColorFor(f,i){return /прибыл|резерв/i.test(f?.name||'')?RESERVE_COLOR:FUND_COLORS[i%FUND_COLORS.length]}
 // базовый набор фондов строительного проекта — редактируется в каждом проекте
 const DEFAULT_FUNDS=[
   {name:'Материалы и субподряд',pct:55},
@@ -943,7 +945,7 @@ function createProject(){
   if(!fundRows.length){toast('Добавь хотя бы один фонд','err');return}
   const psum=fundRows.reduce((s,f)=>s+f.pct,0);
   if(Math.round(psum)!==100&&!confirm('Доли фондов дают '+psum+'%, а не 100%. Так тоже можно — но авто-раскладка приходов по долям будет недоступна, поступления будешь раскладывать по фондам вручную суммами.\n\nСоздать проект?'))return;
-  const funds=fundRows.map((f,i)=>({id:uid(),name:f.name,pct:f.pct,color:FUND_COLORS[i%FUND_COLORS.length]}));
+  const funds=fundRows.map((f,i)=>({id:uid(),name:f.name,pct:f.pct,color:fundColorFor(f,i)}));
   const rowsIn=[...document.querySelectorAll('#npIn .plan-row')].map(r=>({
     id:uid(),date:r.querySelector('.nr-date').value,amt:Math.abs(impNum(r.querySelector('.nr-amt').value)),
     note:r.querySelector('.nr-note').value})).filter(r=>r.date&&r.amt);
@@ -970,7 +972,7 @@ function delProject(){
 
 /* ============ КАРТОЧКА ПРОЕКТА ============ */
 function renderProject(host,p){
-  p.funds.forEach((f,i)=>f.color=FUND_COLORS[i%FUND_COLORS.length]);
+  p.funds.forEach((f,i)=>f.color=fundColorFor(f,i));
   [...p.planOut,...(p.finOut||[])].forEach(r=>{if(!p.funds.some(f=>f.id===r.fund))r.fund=p.funds[0]?.id||''});
   const fb=fundBalances(p);
   const cash=Object.values(fb).reduce((s,x)=>s+x.bal,0);
@@ -1247,7 +1249,7 @@ function updFund(id,key,val){const p=P();const f=p.funds.find(x=>x.id===id);if(!
   if(key==='pct'){const old=f.pct;f.pct=Math.max(0,Math.min(100,parseFloat(val)||0));auditLog('Изменён плановый процент фонда',f.name+': '+old+'% → '+f.pct+'%',p)}
   else if(key==='plan')f.plan=Math.abs(parseFloat(val)||0);
   else{const old=f.name;f.name=val.trim()||f.name;auditLog('Переименован фонд',old+' → '+f.name,p)}render()}
-function addFund(){const p=P();p.funds.push({id:uid(),name:'Новый фонд',pct:0,color:FUND_COLORS[p.funds.length%FUND_COLORS.length]});auditLog('Добавлен фонд','Новый фонд',p);render()}
+function addFund(){const p=P();const f={id:uid(),name:'Новый фонд',pct:0};f.color=fundColorFor(f,p.funds.length);p.funds.push(f);auditLog('Добавлен фонд','Новый фонд',p);render()}
 function delFund(id){const p=P();const b=fundBalances(p)[id];
   if(Math.round(b.bal)!==0){toast('На фонде '+fmt(b.bal)+' ₸ — сначала перекинь деньги в другой фонд','err');return}
   if([...p.planOut,...(p.finOut||[])].some(r=>r.fund===id)){toast('К этому фонду привязаны плановые расходы — сначала перенеси их в другой фонд','err');return}
