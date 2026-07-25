@@ -54,10 +54,11 @@
   .pcard .row span:last-child{font-weight:600;font-variant-numeric:tabular-nums}
   .gap-warn{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--red-bg);color:var(--red);margin-top:8px}
   .gap-ok{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--green-bg);color:var(--green);margin-top:8px}
-  .fund-head,.fund-row{display:grid;grid-template-columns:14px minmax(170px,1.05fr) 120px 120px 100px 100px minmax(140px,1fr) 58px 14px;gap:8px;align-items:center}
+  .fund-head,.fund-row{display:grid;grid-template-columns:14px minmax(155px,1fr) 128px 128px 100px 100px minmax(140px,1fr) 58px 14px;gap:8px;align-items:center}
   .fund-head>* , .fund-row>*{min-width:0}
   .fund-head{padding:0 0 8px;border-bottom:1px solid var(--line);font-size:10px;line-height:1.25;font-weight:700;letter-spacing:.35px;text-transform:uppercase;color:var(--muted)}
   .fund-head .right{text-align:center}
+  .fund-head small{display:block;margin-top:3px;font-size:8px;font-weight:600;letter-spacing:0;text-transform:none;color:#89909c}
   .fund-row{padding:8px 0;border-bottom:1px solid #eef0f3}
   .fbtns{display:flex;gap:5px}
   .fbtns span{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;cursor:pointer;border:1px solid var(--line);color:var(--muted);background:#fbfaf7;white-space:nowrap}
@@ -70,8 +71,10 @@
   .fplan,.ffactin{display:grid;grid-template-columns:1fr auto;gap:5px;align-items:center;padding:9px 8px;border-radius:8px;color:var(--green);font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
   .fplan{background:var(--green-bg)}
   .ffactin{background:#edf4f1}
-  .amount-pct{padding:2px 4px;border-radius:5px;background:rgba(15,111,82,.1);font-size:9px;font-weight:800;line-height:1.2}
-  .amount-pct input{width:25px!important;padding:0!important;border:0;background:transparent;color:inherit;font-size:9px;font-weight:800;text-align:right}
+  .amount-pct{padding:4px 7px;border-radius:6px;font-size:11px;font-weight:800;line-height:1.2;color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .fplan .amount-pct{background:var(--blue)}
+  .ffactin .amount-pct{background:var(--green)}
+  .amount-pct input{width:27px!important;padding:0!important;border:0;background:transparent;color:#fff;font-size:11px;font-weight:800;text-align:right}
   .fplan>span,.ffactin>span{white-space:nowrap}
   .fexpense{padding:9px 8px;border-radius:8px;background:#f3f4f6;font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
   .ffactout{padding:9px 8px;border-radius:8px;background:var(--red-bg);color:var(--red);font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
@@ -1112,7 +1115,7 @@ function renderProject(host,p){
       <span class="right">Факт поступил<br>в фонд</span>
       <span class="right">План<br>расходов</span>
       <span class="right">Факт<br>расходов</span>
-      <span class="right">Обеспеченность расходов</span>
+      <span class="right">Обеспеченность расходов<small>план поступлений − план расходов</small></span>
       <span>±</span>
       <span></span>
     </div>
