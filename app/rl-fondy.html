@@ -67,17 +67,14 @@
   .plan-row.with-fund{grid-template-columns:125px 1fr 1fr 1.1fr auto auto}
   .fund-row:last-child{border-bottom:none}
   .fdot{width:11px;height:11px;border-radius:50%}
-  .fplan{padding:9px 8px;border-radius:8px;background:var(--green-bg);color:var(--green);font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
-  .ffactin{padding:9px 8px;border-radius:8px;background:#edf4f1;color:var(--green);font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+  .fplan,.ffactin{display:grid;grid-template-columns:1fr auto;gap:5px;align-items:center;padding:9px 8px;border-radius:8px;color:var(--green);font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+  .fplan{background:var(--green-bg)}
+  .ffactin{background:#edf4f1}
+  .amount-pct{padding:2px 4px;border-radius:5px;background:rgba(15,111,82,.1);font-size:9px;font-weight:800;line-height:1.2}
+  .amount-pct input{width:24px!important;padding:0!important;border:0;background:transparent;color:inherit;font-size:9px;font-weight:800;text-align:right}
   .fexpense{padding:9px 8px;border-radius:8px;background:#f3f4f6;font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
   .ffactout{padding:9px 8px;border-radius:8px;background:var(--red-bg);color:var(--red);font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
-  .fund-main{display:grid;grid-template-columns:1fr;gap:4px;align-items:center}
-  .fund-pcts{display:flex;align-items:center;gap:5px;white-space:nowrap}
-  .fund-pct-plan,.fund-pct-fact{display:flex;align-items:center;gap:2px;padding:5px 6px;border-radius:7px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.2px}
-  .fund-pct-plan{background:var(--blue-bg);color:var(--blue)}
-  .fund-pct-plan input{width:32px!important;padding:2px!important;border:0;background:transparent;color:var(--blue);font-size:12px;font-weight:700;text-align:right}
-  .fund-pct-fact{background:var(--green-bg);color:var(--green);font-variant-numeric:tabular-nums}
-  .fund-pct-fact b{font-size:12px;letter-spacing:0}
+  .fund-main{display:grid;grid-template-columns:1fr;align-items:center}
   .fmetrics{grid-column:7;display:grid;grid-template-columns:1fr;gap:5px}
   .fmetric{min-width:0;padding:7px 8px;border-radius:8px;background:#f7f8fa;text-align:right;font-variant-numeric:tabular-nums}
   .fmetric .flabel{font-size:8.5px;line-height:1.15;text-transform:uppercase;letter-spacing:.25px;color:var(--muted);white-space:normal}
@@ -1005,13 +1002,9 @@ function renderProject(host,p){
       <span class="fdot" style="background:${f.color}"></span>
       <div class="fund-main">
         <input value="${esc(f.name)}" onchange="updFund('${f.id}','name',this.value)">
-        <div class="fund-pcts">
-          <label class="fund-pct-plan" title="Плановая доля распределения поступлений">план <input type="number" value="${f.pct}" min="0" max="100" onchange="updFund('${f.id}','pct',this.value)">%</label>
-          <span class="fund-pct-fact" title="Фактическая доля фонда во всех поступивших деньгах">факт <b>${factPct.toFixed(1).replace('.',',')}%</b></span>
-        </div>
       </div>
-      <div class="fplan" title="Все строки плана поступлений, распределённые в этот фонд">${fmtM(plannedIn)}</div>
-      <div class="ffactin" title="Фактически распределённые поступления и ручные пополнения фонда">${fmtM(factIn)}</div>
+      <div class="fplan" title="Все строки плана поступлений, распределённые в этот фонд"><span>${fmtM(plannedIn)}</span><label class="amount-pct" title="Плановая доля — можно изменить"><input type="number" value="${f.pct}" min="0" max="100" onchange="updFund('${f.id}','pct',this.value)">%</label></div>
+      <div class="ffactin" title="Фактически распределённые поступления и ручные пополнения фонда"><span>${fmtM(factIn)}</span><span class="amount-pct">${factPct.toFixed(1).replace('.',',')}%</span></div>
       <div class="fexpense ${plannedOut>plannedIn?'neg':''}" title="Все строки плана расходов, закреплённые за этим фондом">${fmtM(plannedOut)}</div>
       <div class="ffactout" title="Проведённые расходы и ручные снятия из фонда">${fmtM(factOut)}</div>
       <div class="fmetrics">
@@ -1113,7 +1106,7 @@ function renderProject(host,p){
     </div>
     <div class="fund-head">
       <span></span>
-      <span>Фонд · плановая и фактическая доля</span>
+      <span>Фонд</span>
       <span class="right">План поступит<br>в фонд</span>
       <span class="right">Факт поступил<br>в фонд</span>
       <span class="right">План<br>расходов</span>
