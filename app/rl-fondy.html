@@ -54,7 +54,7 @@
   .pcard .row span:last-child{font-weight:600;font-variant-numeric:tabular-nums}
   .gap-warn{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--red-bg);color:var(--red);margin-top:8px}
   .gap-ok{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--green-bg);color:var(--green);margin-top:8px}
-  .fund-head,.fund-row{display:grid;grid-template-columns:14px minmax(170px,1.05fr) 70px 105px 105px 105px minmax(225px,1.35fr) 60px 14px;gap:8px;align-items:center}
+  .fund-head,.fund-row{display:grid;grid-template-columns:14px minmax(155px,1fr) 58px 58px 100px 100px 100px minmax(205px,1.3fr) 58px 14px;gap:7px;align-items:center}
   .fund-head>* , .fund-row>*{min-width:0}
   .fund-head{padding:0 0 8px;border-bottom:1px solid var(--line);font-size:10px;line-height:1.25;font-weight:700;letter-spacing:.35px;text-transform:uppercase;color:var(--muted)}
   .fund-head .right{text-align:center}
@@ -70,13 +70,14 @@
   .fplan{padding:9px 8px;border-radius:8px;background:var(--green-bg);color:var(--green);font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
   .ffactin{padding:9px 8px;border-radius:8px;background:#edf4f1;color:var(--green);font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
   .fexpense{padding:9px 8px;border-radius:8px;background:#f3f4f6;font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
-  .fmetrics{grid-column:7;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+  .factpct{font-size:12px;font-weight:700;text-align:center;color:var(--green);font-variant-numeric:tabular-nums}
+  .fmetrics{grid-column:8;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
   .fmetric{min-width:0;padding:7px 8px;border-radius:8px;background:#f7f8fa;text-align:right;font-variant-numeric:tabular-nums}
   .fmetric .flabel{font-size:8.5px;line-height:1.15;text-transform:uppercase;letter-spacing:.25px;color:var(--muted);white-space:normal}
   .fmetric .fvalue{margin-top:4px;font-size:12px;font-weight:700;line-height:1.15;white-space:nowrap}
   .fund-bar{display:flex;height:13px;border-radius:7px;overflow:hidden;margin:6px 0 14px;border:1px solid var(--line)}
   .forms{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
-  @media(max-width:760px){.forms{grid-template-columns:1fr}.fund-row{grid-template-columns:14px 1fr 55px 78px 78px 78px auto auto}.fund-head{display:none}.fmetrics{grid-column:2/7;grid-row:2;grid-template-columns:repeat(3,1fr);margin:0 0 6px}.fbtns{grid-column:7}.fund-row>.del{grid-column:8}}
+  @media(max-width:760px){.forms{grid-template-columns:1fr}.fund-row{grid-template-columns:14px 1fr 50px 50px 72px 72px 72px auto auto}.fund-head{display:none}.fmetrics{grid-column:2/8;grid-row:2;grid-template-columns:repeat(2,1fr);margin:0 0 6px}.fbtns{grid-column:8}.fund-row>.del{grid-column:9}}
   .fgrid{display:grid;grid-template-columns:120px 1fr;gap:8px;margin-bottom:8px}
   .fgrid3{display:grid;grid-template-columns:120px 1fr 1fr;gap:8px;margin-bottom:8px}
   .alloc{font-size:11.5px;color:var(--muted);background:var(--green-bg);border-radius:8px;padding:8px 11px;margin:8px 0;line-height:1.6;display:none}
@@ -155,14 +156,14 @@ const DEFAULT_FUNDS=[
   {name:'Налоги',pct:8},
   {name:'Накладные (офис, техника, транспорт)',pct:7},
   {name:'Прибыль (резерв)',pct:10}];
-let DB={projects:[],sel:null};
+let DB={projects:[],sel:null,audit:[]};
 let _id=1;
 const uid=()=>'x'+(_id++)+'_'+Math.random().toString(36).slice(2,6);
 function localSave(){localStorage.setItem(LS,JSON.stringify({...DB,_id}))}
 function save(){localSave();schedulePush()}
 function load(){
   try{const raw=localStorage.getItem(LS);if(!raw)return false;
-    const d=JSON.parse(raw);DB={projects:d.projects||[],stages:d.stages||null,sel:d.sel||null,impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null,dictUrl:d.dictUrl||'',fundDict:d.fundDict||null,atlSeeded:!!d.atlSeeded};_id=d._id||1000;
+    const d=JSON.parse(raw);DB={projects:d.projects||[],stages:d.stages||null,sel:d.sel||null,audit:d.audit||[],impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null,dictUrl:d.dictUrl||'',fundDict:d.fundDict||null,atlSeeded:!!d.atlSeeded};_id=d._id||1000;
     DB.projects.forEach(p=>{p.tasks=p.tasks||[];p.finIn=p.finIn||[];p.finOut=p.finOut||[]});
     return DB.projects.length>0;
   }catch(e){return false}
@@ -202,6 +203,7 @@ async function syncPull(initial){
     const srv=j.data;
     _id=Math.max(_id||1,(srv._id||0)+1);
     DB={...srv,sel};delete DB._id;
+    DB.audit=DB.audit||[];
     _srvVer=j.ver;_dirty=false;
     localStorage.setItem(LS,JSON.stringify({...DB,_id}));
     DB.projects.forEach(p=>{p.tasks=p.tasks||[];p.finIn=p.finIn||[];p.finOut=p.finOut||[]});
@@ -334,7 +336,7 @@ async function admSave(email,role){
   try{
     const r=await fetch(API_BASE+'/api/users',{method:'POST',headers:{Authorization:'Bearer '+getKey(),'Content-Type':'application/json'},body:JSON.stringify({email,role})});
     if(!r.ok)throw 0;
-    toast('Роль обновлена ✓');admLoad();
+    auditLog('Изменены права доступа',email+' → '+role,null);save();toast('Роль обновлена ✓');admLoad();
   }catch(e){toast('Не сохранилось','err');admLoad()}
 }
 async function admAdd(role){
@@ -343,7 +345,7 @@ async function admAdd(role){
   try{
     const r=await fetch(API_BASE+'/api/users',{method:'POST',headers:{Authorization:'Bearer '+getKey(),'Content-Type':'application/json'},body:JSON.stringify({email,role})});
     if(!r.ok)throw 0;
-    toast(role==='super'?'Супер-админ добавлен ✓':'Пользователь добавлен ✓');admLoad();
+    auditLog('Добавлен пользователь',email+' · '+role,null);save();toast(role==='super'?'Супер-админ добавлен ✓':'Пользователь добавлен ✓');admLoad();
   }catch(e){toast('Не получилось','err')}
 }
 async function admDel(email){
@@ -351,7 +353,7 @@ async function admDel(email){
   try{
     const r=await fetch(API_BASE+'/api/users',{method:'DELETE',headers:{Authorization:'Bearer '+getKey(),'Content-Type':'application/json'},body:JSON.stringify({email})});
     if(!r.ok)throw 0;
-    toast('Доступ удалён ✓');admLoad();
+    auditLog('Удалён доступ',email,null);save();toast('Доступ удалён ✓');admLoad();
   }catch(e){toast('Не получилось','err')}
 }
 
@@ -370,6 +372,16 @@ const todayIso=()=>new Date().toISOString().slice(0,10);
 const dRu=iso=>iso?iso.split('-').reverse().join('.'):'—';
 function toast(m,t){const e=document.getElementById('toast');e.textContent=m;e.style.background=t==='err'?'var(--red)':'var(--green)';e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2400)}
 const P=()=>DB.projects.find(p=>p.id===DB.sel);
+function auditLog(action,detail,p=P()){
+  DB.audit=DB.audit||[];
+  const s=getSession();
+  DB.audit.unshift({id:uid(),at:new Date().toISOString(),user:s?.email||'доступ по ключу',
+    projectId:p?.id||null,project:p?.name||'',action,detail:detail||''});
+  if(DB.audit.length>2000)DB.audit.length=2000;
+}
+function auditTime(iso){
+  try{return new Date(iso).toLocaleString('ru-RU',{timeZone:'Asia/Almaty',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return iso}
+}
 
 /* ============ РАСЧЁТЫ ============ */
 function fundBalances(p){
@@ -463,7 +475,7 @@ function delStage(id){
   DB.projects.forEach(p=>{if(p.stage===id)p.stage=DB.stages[0].id});
   render()}
 function addStage(){DB.stages.push({id:uid(),name:'Новый этап'});render()}
-function setStage(v){const p=P();if(p){p.stage=v;save();toast('Этап проекта обновлён ✓')}}
+function setStage(v){const p=P();if(p){p.stage=v;auditLog('Изменён этап проекта',DB.stages?.find(s=>s.id===v)?.name||v,p);save();toast('Этап проекта обновлён ✓')}}
 function bindKbDrag(){
   document.querySelectorAll('.kb-card').forEach(el=>{el.onpointerdown=ev=>{
     if(ev.button!==undefined&&ev.button!==0)return;
@@ -488,7 +500,7 @@ function bindKbDrag(){
       if(!st.moved){openProject(pid);return}
       if(!st.hot)return;
       const p=DB.projects.find(x=>x.id===pid);const stg=DB.stages.find(s=>s.id===st.hot.dataset.st);
-      if(p&&stg&&p.stage!==stg.id){p.stage=stg.id;toast('Проект → «'+stg.name+'» ✓')}
+      if(p&&stg&&p.stage!==stg.id){p.stage=stg.id;auditLog('Изменён этап проекта',stg.name,p);toast('Проект → «'+stg.name+'» ✓')}
       render();
     };
     el.onpointermove=move;el.onpointerup=up;el.onpointercancel=up;
@@ -650,6 +662,7 @@ function addTxGlobal(){
     p.ops.push({id:uid(),type:'in',date,amt:Math.abs(amt),note,art:art||undefined,cp:cp||undefined,src,alloc});
   }
   window._txKeep={proj:p.id,dir,date}; // форма не сбрасывает проект/направление/дату
+  auditLog(dir==='out'?'Внесён расход':'Внесено поступление',fmt(amt)+' ₸'+(note?' · '+note:''),p);
   toast((dir==='out'?'Расход':'Приход')+' проведён: '+p.name+' ✓');
   save();render();
   setTimeout(()=>{const a=document.getElementById('txAmt');if(a)a.focus()},50);
@@ -931,6 +944,7 @@ function createProject(){
   // стартовые суммы — ручным пополнением фондов, чтобы всё движение шло через фонды
   fundRows.forEach((f,i)=>{if(f.start)p.ops.push({id:uid(),type:'adj',date:todayIso(),fund:funds[i].id,amt:f.start,note:'стартовое наполнение фонда'})});
   DB.projects.push(p);DB.sel=p.id;
+  auditLog('Создан проект','Договор '+fmt(contract)+' ₸',p);
   toast('Проект заведён ✓');render();
 }
 function goList(){DB.sel=null;render()}
@@ -938,12 +952,14 @@ function openProject(id){DB.sel=id;render();window.scrollTo(0,0)}
 function delProject(){
   const p=P();if(!p)return;
   if(!confirm('Удалить проект «'+p.name+'» со всеми операциями?'))return;
+  auditLog('Удалён проект','Проект и все его данные',p);
   DB.projects=DB.projects.filter(x=>x.id!==p.id);DB.sel=null;render();
 }
 
 /* ============ КАРТОЧКА ПРОЕКТА ============ */
 function renderProject(host,p){
   p.funds.forEach((f,i)=>f.color=FUND_COLORS[i%FUND_COLORS.length]);
+  [...p.planOut,...(p.finOut||[])].forEach(r=>{if(!p.funds.some(f=>f.id===r.fund))r.fund=p.funds[0]?.id||''});
   const fb=fundBalances(p);
   const cash=Object.values(fb).reduce((s,x)=>s+x.bal,0);
   const got=p.ops.filter(o=>o.type==='in'&&o.src!=='fin').reduce((s,o)=>s+o.amt,0);
@@ -965,22 +981,26 @@ function renderProject(host,p){
     });
   });
   [...p.planOut,...(p.finOut||[])].forEach(r=>{if(r.fund)plannedFundOut[r.fund]=(plannedFundOut[r.fund]||0)+Math.abs(r.amt||0)});
+  const factFundIn={};
+  p.funds.forEach(f=>factFundIn[f.id]=(fb[f.id]?.in||0)+p.ops.filter(o=>o.type==='adj'&&o.fund===f.id&&o.amt>0).reduce((s,o)=>s+o.amt,0));
+  const factInTotal=Object.values(factFundIn).reduce((s,v)=>s+v,0);
 
   const fundRows=p.funds.map(f=>{const b=fb[f.id];
     const plannedIn=plannedFundIn[f.id]||0;
     const futureIn=futureFundIn[f.id]||0;
     const plannedOut=plannedFundOut[f.id]||0;
-    const factIn=b.in+p.ops.filter(o=>o.type==='adj'&&o.fund===f.id&&o.amt>0).reduce((s,o)=>s+o.amt,0);
+    const factIn=factFundIn[f.id]||0;
+    const factPct=factInTotal?factIn/factInTotal*100:0;
     const reserve=plannedIn-plannedOut;
     return `<div class="fund-row">
       <span class="fdot" style="background:${f.color}"></span>
       <input value="${esc(f.name)}" onchange="updFund('${f.id}','name',this.value)">
       <div style="display:flex;align-items:center;gap:4px"><input type="number" value="${f.pct}" min="0" max="100" style="text-align:right" onchange="updFund('${f.id}','pct',this.value)"><span style="font-size:11px;color:var(--muted)">%</span></div>
+      <div class="factpct" title="Доля фонда во всех фактически поступивших деньгах">${factPct.toFixed(1).replace('.',',')}%</div>
       <div class="fplan" title="Все строки плана поступлений, распределённые в этот фонд">${fmtM(plannedIn)}</div>
       <div class="ffactin" title="Фактически распределённые поступления и ручные пополнения фонда">${fmtM(factIn)}</div>
       <div class="fexpense ${plannedOut>plannedIn?'neg':''}" title="Все строки плана расходов, закреплённые за этим фондом">${fmtM(plannedOut)}</div>
       <div class="fmetrics">
-        <div class="fmetric" title="Фактический остаток денег в фонде"><div class="flabel">Факт на фонде</div><div class="fvalue ${b.bal>=0?'pos':'neg'}">${fmtM(b.bal)}</div></div>
         <div class="fmetric" title="Фактический остаток плюс ещё не наступившие плановые поступления"><div class="flabel">После поступлений</div><div class="fvalue">${fmtM(b.bal+futureIn)}</div></div>
         <div class="fmetric" title="План поступлений фонда минус план расходов"><div class="flabel">${reserve>=0?'Резерв плана':'Дефицит плана'}</div><div class="fvalue ${reserve<0?'neg':'pos'}">${fmtM(Math.abs(reserve))}</div></div>
       </div>
@@ -1044,6 +1064,12 @@ function renderProject(host,p){
     if(o.type==='adj')return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||(o.amt>0?'пополнение фонда вручную':'снятие из фонда вручную'))}</div><div class="c" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">ручное движение · фонд: ${fundSel(o)}</div></div><div class="am ${o.amt>0?'pos':'neg'}">${o.amt>0?'+':''}${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
     return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'перекладка между фондами')}</div><div class="c">${esc(fname(o.from))} → ${esc(fname(o.to))}</div></div><div class="am" style="color:var(--amber)">${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
   }).join(''):'<div style="color:var(--muted);font-size:12.5px;padding:8px 0">Операций пока нет.</div>';
+  const auditRows=(DB.audit||[]).filter(a=>!a.projectId||a.projectId===p.id).slice(0,300);
+  const auditHtml=auditRows.length?auditRows.map(a=>`<div class="oprow">
+    <div class="dt">${auditTime(a.at)}</div>
+    <div class="ds"><div class="p">${esc(a.action)}</div><div class="c">${esc(a.detail||'')}${a.project?' · '+esc(a.project):''}</div></div>
+    <div style="font-size:11.5px;font-weight:700;color:var(--blue);white-space:nowrap">${esc(a.user)}</div>
+  </div>`).join(''):'<div style="color:var(--muted);font-size:12.5px;padding:8px 0">Действий пока нет.</div>';
 
   host.innerHTML=`<span class="back" onclick="goList()">← к списку проектов</span>
   <div class="htitle"><h1>${esc(p.name)}</h1><span class="cu">${esc(p.customer||'заказчик не указан')} · договор <b>${fmt(p.contract)} ₸</b></span>
@@ -1072,11 +1098,12 @@ function renderProject(host,p){
     <div class="fund-head">
       <span></span>
       <span>Фонд</span>
-      <span class="right">Доля<br>приходов</span>
+      <span class="right">План<br>%</span>
+      <span class="right">Факт<br>%</span>
       <span class="right">План поступит<br>в фонд</span>
       <span class="right">Факт поступил<br>в фонд</span>
       <span class="right">План<br>расходов</span>
-      <span class="right">Факт, прогноз и обеспеченность расходов</span>
+      <span class="right">Прогноз и обеспеченность расходов</span>
       <span>±</span>
       <span></span>
     </div>
@@ -1194,21 +1221,26 @@ function renderProject(host,p){
     <button class="btn ghost" onclick="addPlan('out')">+ строка траты</button></div>
 
   <h2>Журнал операций · ${p.ops.length}</h2>
-  <div class="card" style="max-height:420px;overflow:auto">${opRows}</div>`;
+  <div class="card" style="max-height:420px;overflow:auto">${opRows}</div>
+
+  <h2>Журнал действий · ${auditRows.length}</h2>
+  <div class="explain">Кто, когда и что изменил в проекте. Журнал хранится вместе с серверными данными и доступен всем пользователям проекта.</div>
+  <div class="card" style="max-height:420px;overflow:auto">${auditHtml}</div>`;
   formatMoneyInputs(host);
 }
 
 /* ============ ДЕЙСТВИЯ ============ */
 function updFund(id,key,val){const p=P();const f=p.funds.find(x=>x.id===id);if(!f)return;
-  if(key==='pct')f.pct=Math.max(0,Math.min(100,parseFloat(val)||0));
+  if(key==='pct'){const old=f.pct;f.pct=Math.max(0,Math.min(100,parseFloat(val)||0));auditLog('Изменён плановый процент фонда',f.name+': '+old+'% → '+f.pct+'%',p)}
   else if(key==='plan')f.plan=Math.abs(parseFloat(val)||0);
-  else f.name=val.trim()||f.name;render()}
-function addFund(){const p=P();p.funds.push({id:uid(),name:'Новый фонд',pct:0,color:FUND_COLORS[p.funds.length%FUND_COLORS.length]});render()}
+  else{const old=f.name;f.name=val.trim()||f.name;auditLog('Переименован фонд',old+' → '+f.name,p)}render()}
+function addFund(){const p=P();p.funds.push({id:uid(),name:'Новый фонд',pct:0,color:FUND_COLORS[p.funds.length%FUND_COLORS.length]});auditLog('Добавлен фонд','Новый фонд',p);render()}
 function delFund(id){const p=P();const b=fundBalances(p)[id];
   if(Math.round(b.bal)!==0){toast('На фонде '+fmt(b.bal)+' ₸ — сначала перекинь деньги в другой фонд','err');return}
+  if([...p.planOut,...(p.finOut||[])].some(r=>r.fund===id)){toast('К этому фонду привязаны плановые расходы — сначала перенеси их в другой фонд','err');return}
   const used=p.ops.some(o=>(o.type==='out'&&o.fund===id)||(o.type==='in'&&o.alloc&&o.alloc[id])||(o.type==='move'&&(o.from===id||o.to===id)));
   if(used&&!confirm('По фонду были операции — история сохранится, но фонд исчезнет из списка. Удалить?'))return;
-  p.funds=p.funds.filter(f=>f.id!==id);render()}
+  const name=p.funds.find(f=>f.id===id)?.name||'Фонд';p.funds=p.funds.filter(f=>f.id!==id);auditLog('Удалён фонд',name,p);render()}
 function allocMode(){return document.querySelector('input[name="amode"]:checked')?.value||'manual'}
 function allocModeUI(){const box=document.getElementById('manualAlloc');if(box)box.style.display=allocMode()==='manual'?'block':'none';previewAlloc()}
 function previewAlloc(){const p=P();const amt=impNum(document.getElementById('inAmt').value);
@@ -1243,6 +1275,7 @@ function addIncome(){const p=P();
   const src=document.getElementById('inSrc')?.value==='fin'?'fin':undefined;
   const inArt=document.getElementById('inArt')?.value.trim()||'',inCp=document.getElementById('inCp')?.value.trim()||'';
   p.ops.push({id:uid(),type:'in',date,amt:Math.abs(amt),note:document.getElementById('inNote').value.trim(),alloc,src,art:inArt||undefined,cp:inCp||undefined});
+  auditLog(src?'Внесено финансирование':'Внесено поступление',fmt(amt)+' ₸'+(inCp?' · '+inCp:''),p);
   toast(src?'Финансирование разложено по фондам ✓':'Поступление разложено по фондам ✓');render()}
 function outArtChange(){
   const p=P();if(!p)return;
@@ -1261,6 +1294,7 @@ function addExpense(){const p=P();
   const oSrc=document.getElementById('outFin')?.checked?'fin':undefined;
   const oArt=document.getElementById('outArt')?.value.trim()||'',oCp=document.getElementById('outCp')?.value.trim()||'';
   p.ops.push({id:uid(),type:'out',date,amt:-Math.abs(amt),fund:document.getElementById('outFund').value,note:document.getElementById('outNote').value.trim(),src:oSrc,art:oArt||undefined,cp:oCp||undefined});
+  auditLog(oSrc?'Внесён возврат финансирования':'Внесён расход',fmt(amt)+' ₸ · '+(p.funds.find(f=>f.id===document.getElementById('outFund').value)?.name||'фонд'),p);
   toast(oSrc?'Возврат финансирования списан из фонда ✓':'Расход списан из фонда ✓');render()}
 function moveFund(){const p=P();
   const from=document.getElementById('mvFrom').value,to=document.getElementById('mvTo').value;
@@ -1268,11 +1302,13 @@ function moveFund(){const p=P();
   if(!amt||amt<=0){toast('Укажи сумму','err');return}
   if(from===to){toast('Выбери разные фонды','err');return}
   p.ops.push({id:uid(),type:'move',date:todayIso(),from,to,amt:Math.abs(amt),note:document.getElementById('mvNote')?.value.trim()||''});
+  auditLog('Перевод между фондами',fmt(amt)+' ₸ · '+(p.funds.find(f=>f.id===from)?.name||'фонд')+' → '+(p.funds.find(f=>f.id===to)?.name||'фонд'),p);
   toast('Перекинуто между фондами ✓');render()}
 function returnDebt(from,to,amt){const p=P();
   const fn=id=>p.funds.find(f=>f.id===id)?.name||'—';
   if(!confirm('Вернуть '+fmt(amt)+' ₸ из «'+fn(to)+'» обратно в «'+fn(from)+'»?'))return;
   p.ops.push({id:uid(),type:'move',date:todayIso(),from:to,to:from,amt,note:'возврат в фонд'});
+  auditLog('Возврат между фондами',fmt(amt)+' ₸ · '+fn(to)+' → '+fn(from),p);
   toast('Возвращено в фонд ✓');render()}
 
 /* ---- задачи по деньгам ---- */
@@ -1281,16 +1317,18 @@ function addTask(){const p=P();
   const t=document.getElementById('tkTitle').value.trim();
   if(!t){toast('Напиши, что сделать','err');return}
   taskArr(p).push({id:uid(),title:t,due:document.getElementById('tkDue').value||null,done:false});
+  auditLog('Добавлена задача',t,p);
   toast('Задача добавлена ✓');render()}
 function quickTask(title,due){const p=P();
   if(taskArr(p).some(x=>x.title===title&&!x.done)){toast('Такая задача уже стоит','err');return}
   taskArr(p).push({id:uid(),title,due:due||null,done:false});
+  auditLog('Добавлена задача',title,p);
   toast('Задача добавлена ✓');render()}
-function toggleTask(id){const p=P();const t=taskArr(p).find(x=>x.id===id);if(t)t.done=!t.done;render()}
-function delTask(id){const p=P();p.tasks=taskArr(p).filter(x=>x.id!==id);render()}
-function delOp(id){const p=P();if(!confirm('Удалить операцию?'))return;p.ops=p.ops.filter(o=>o.id!==id);render()}
+function toggleTask(id){const p=P();const t=taskArr(p).find(x=>x.id===id);if(t){t.done=!t.done;auditLog(t.done?'Задача выполнена':'Задача возвращена в работу',t.title,p)}render()}
+function delTask(id){const p=P();const t=taskArr(p).find(x=>x.id===id);p.tasks=taskArr(p).filter(x=>x.id!==id);auditLog('Удалена задача',t?.title||'',p);render()}
+function delOp(id){const p=P();if(!confirm('Удалить операцию?'))return;const o=p.ops.find(x=>x.id===id);p.ops=p.ops.filter(o=>o.id!==id);auditLog('Удалена операция',o?(fmt(Math.abs(o.amt||0))+' ₸ · '+(o.note||o.type)):'',p);render()}
 /* смена фонда и точная перераскладка операций в журнале */
-function opSetFund(id,fid){const p=P();const o=p.ops.find(x=>x.id===id);if(o&&p.funds.some(f=>f.id===fid)){o.fund=fid;toast('Фонд операции изменён ✓');render()}}
+function opSetFund(id,fid){const p=P();const o=p.ops.find(x=>x.id===id);if(o&&p.funds.some(f=>f.id===fid)){o.fund=fid;auditLog('Изменён фонд операции',p.funds.find(f=>f.id===fid)?.name||'',p);toast('Фонд операции изменён ✓');render()}}
 function raOpen(id){window._reallocOp=id;render()}
 function raLeft(id){const p=P();const o=p.ops.find(x=>x.id===id);if(!o)return;
   const s=[...document.querySelectorAll('.ra-amt')].reduce((x,i)=>x+Math.abs(impNum(i.value)),0);
@@ -1301,20 +1339,28 @@ function raSave(id){const p=P();const o=p.ops.find(x=>x.id===id);if(!o)return;
   const alloc={};let s=0;
   document.querySelectorAll('.ra-amt').forEach(i=>{const v=Math.abs(impNum(i.value));if(v){alloc[i.dataset.fid]=v;s+=v}});
   if(Math.round(s)!==Math.round(o.amt)){toast('Разложи всю сумму: распределено '+fmt(s)+' из '+fmt(o.amt)+' ₸','err');return}
-  o.alloc=alloc;window._reallocOp=null;toast('Раскладка обновлена ✓');render()}
+  o.alloc=alloc;window._reallocOp=null;auditLog('Изменено распределение поступления',fmt(o.amt)+' ₸',p);toast('Раскладка обновлена ✓');render()}
 function planArr(p,kind){
   if(kind==='in')return p.planIn;
   if(kind==='out')return p.planOut;
   if(kind==='finin')return p.finIn=p.finIn||[];
   return p.finOut=p.finOut||[];
 }
-function addPlan(kind){const p=P();planArr(p,kind).push({id:uid(),date:todayIso(),amt:0,note:''});render()}
+function addPlan(kind){const p=P();
+  if((kind==='out'||kind==='finout')&&!p.funds.length){toast('Сначала создай фонд','err');return}
+  const r={id:uid(),date:todayIso(),amt:0,note:''};
+  if(kind==='out'||kind==='finout')r.fund=p.funds[0].id;
+  planArr(p,kind).push(r);auditLog('Добавлена строка плана',kind==='out'||kind==='finout'?'Расход привязан к фонду '+p.funds[0].name:'Плановое поступление',p);render()}
 function updPlan(kind,id,key,val){const p=P();const r=planArr(p,kind).find(x=>x.id===id);if(!r)return;
+  const old=key==='fund'?(p.funds.find(f=>f.id===r.fund)?.name||'—'):key==='amt'?fmt(Math.abs(r.amt||0)):String(r[key]||'');
   const sign=(kind==='in'||kind==='finin')?1:-1;
   if(key==='amt')r.amt=sign*Math.abs(impNum(val));
   else if(key==='date')r.date=val;
   else if(key==='fund')r.fund=val;
-  else r.note=val;render()}
+  else r.note=val;
+  const now=key==='fund'?(p.funds.find(f=>f.id===r.fund)?.name||'—'):key==='amt'?fmt(Math.abs(r.amt||0)):String(r[key]||'');
+  if(old!==now)auditLog('Изменён план '+(kind==='out'||kind==='finout'?'расходов':'поступлений'),key+': '+old+' → '+now,p);
+  render()}
 function paOpen(kind,id){window._reallocPlan=kind+':'+id;render()}
 function paLeft(kind,id){const p=P();const r=planArr(p,kind).find(x=>x.id===id);if(!r)return;
   const s=[...document.querySelectorAll('.pa-amt')].reduce((x,i)=>x+Math.abs(impNum(i.value)),0);
@@ -1325,9 +1371,9 @@ function paSave(kind,id){const p=P();const r=planArr(p,kind).find(x=>x.id===id);
   const alloc={};let s=0;
   document.querySelectorAll('.pa-amt').forEach(i=>{const v=Math.abs(impNum(i.value));if(v){alloc[i.dataset.fid]=v;s+=v}});
   if(Math.round(s)!==Math.round(Math.abs(r.amt))){toast('Разложи всю сумму: распределено '+fmt(s)+' из '+fmt(Math.abs(r.amt))+' ₸','err');return}
-  r.alloc=alloc;window._reallocPlan=null;toast('Плановое поступление распределено точно ✓');render()}
+  r.alloc=alloc;window._reallocPlan=null;auditLog('Изменено распределение планового поступления',fmt(Math.abs(r.amt))+' ₸ · вручную',p);toast('Плановое поступление распределено точно ✓');render()}
 function paPct(kind,id){const p=P();const r=planArr(p,kind).find(x=>x.id===id);if(!r)return;
-  delete r.alloc;window._reallocPlan=null;toast('Плановое поступление распределяется по долям фондов ✓');render()}
+  delete r.alloc;window._reallocPlan=null;auditLog('Изменено распределение планового поступления',fmt(Math.abs(r.amt))+' ₸ · по плановым процентам',p);toast('Плановое поступление распределяется по долям фондов ✓');render()}
 /* ручное пополнение / снятие из фонда — любая транзакция идёт через фонд */
 function addFundAdj(){const p=P();
   const fund=document.getElementById('faFund').value,dir=document.getElementById('faDir').value;
@@ -1335,6 +1381,7 @@ function addFundAdj(){const p=P();
   if(!fund){toast('Выбери фонд','err');return}
   if(!amt||amt<=0){toast('Укажи сумму','err');return}
   p.ops.push({id:uid(),type:'adj',date:todayIso(),fund,amt:dir==='in'?Math.abs(amt):-Math.abs(amt),note:document.getElementById('faNote').value.trim()});
+  auditLog(dir==='in'?'Фонд пополнен вручную':'Из фонда снято вручную',fmt(amt)+' ₸ · '+(p.funds.find(f=>f.id===fund)?.name||'фонд'),p);
   toast(dir==='in'?'Фонд пополнен ✓':'Снято из фонда ✓');render()}
 function fundAdjPrefill(fid,dir){
   const f=document.getElementById('faFund'),d=document.getElementById('faDir');
@@ -1342,8 +1389,9 @@ function fundAdjPrefill(fid,dir){
   const a=document.getElementById('faAmt');a.scrollIntoView({block:'center',behavior:'smooth'});a.focus()}
 function movePlan(kind,id,days){const p=P();const r=planArr(p,kind).find(x=>x.id===id);if(!r||!r.date)return;
   const d=new Date(r.date);d.setDate(d.getDate()+days);r.date=d.toISOString().slice(0,10);
+  auditLog('Перенесена строка плана',(days>0?'+':'')+days+' дней · '+fmt(Math.abs(r.amt||0))+' ₸',p);
   toast(days>0?'Сдвинуто на неделю позже ✓':'Сдвинуто на неделю раньше ✓');render()}
-function delPlan(kind,id){const p=P();const arr=planArr(p,kind);const i=arr.findIndex(x=>x.id===id);if(i>=0)arr.splice(i,1);render()}
+function delPlan(kind,id){const p=P();const arr=planArr(p,kind);const i=arr.findIndex(x=>x.id===id);if(i>=0){const r=arr[i];arr.splice(i,1);auditLog('Удалена строка плана',(kind==='out'||kind==='finout'?'Расход ':'Поступление ')+fmt(Math.abs(r.amt||0))+' ₸',p)}render()}
 
 /* ============ ЭКСПОРТ / ИМПОРТ ============ */
 function exportData(){
