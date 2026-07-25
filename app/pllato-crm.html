@@ -8683,7 +8683,8 @@ function setPipelineOrder(ids) {
 function isPipelineAllowed(pid) {
   const standalonePipeline = dealsState.pipelines && dealsState.pipelines[pid];
   const standaloneName = String(standalonePipeline?.name || '').trim();
-  if (standaloneName !== 'Pllato Старт' && standaloneName !== 'Pllato Производство') return false;
+  const standaloneAllowed = new Set(['Pllato Старт', 'Pllato Производство', 'Лидген']);
+  if (!standaloneAllowed.has(standaloneName)) return false;
   if (window.currentUser?.role === 'admin') return true;
   const allowed = window.currentUser?.orgPerms?.pipelineIds;
   if (!Array.isArray(allowed)) return true; // null = все воронки
