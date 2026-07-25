@@ -995,7 +995,7 @@ function renderProject(host,p){
     return `<div class="fund-row">
       <span class="fdot" style="background:${f.color}"></span>
       <input value="${esc(f.name)}" onchange="updFund('${f.id}','name',this.value)">
-      <div style="display:flex;align-items:center;gap:4px"><input type="number" value="${f.pct}" min="0" max="100" style="text-align:right" onchange="updFund('${f.id}','pct',this.value)"><span style="font-size:11px;color:var(--muted)">%</span></div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:3px"><input type="number" value="${f.pct}" min="0" max="100" style="width:42px;padding:7px 4px;text-align:right" onchange="updFund('${f.id}','pct',this.value)"><span style="font-size:11px;color:var(--muted)">%</span></div>
       <div class="factpct" title="Доля фонда во всех фактически поступивших деньгах">${factPct.toFixed(1).replace('.',',')}%</div>
       <div class="fplan" title="Все строки плана поступлений, распределённые в этот фонд">${fmtM(plannedIn)}</div>
       <div class="ffactin" title="Фактически распределённые поступления и ручные пополнения фонда">${fmtM(factIn)}</div>
