@@ -67,6 +67,7 @@
   .fund-row:last-child{border-bottom:none}
   .fdot{width:11px;height:11px;border-radius:50%}
   .fbal{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+  .fbal-plan{margin-top:3px;font-size:10.5px;font-weight:500;color:var(--muted);white-space:nowrap}
   .fio{font-size:10.5px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
   .fund-bar{display:flex;height:13px;border-radius:7px;overflow:hidden;margin:6px 0 14px;border:1px solid var(--line)}
   .forms{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
@@ -932,16 +933,23 @@ function renderProject(host,p){
   const gap=firstGap(p);
   const pctSum=p.funds.reduce((s,f)=>s+f.pct,0);
   const t=todayIso();
+  const plannedFundIn={};
+  p.funds.forEach(f=>plannedFundIn[f.id]=0);
+  [...p.planIn,...(p.finIn||[])].filter(r=>r.date>=t).forEach(r=>{
+    const alloc=allocByPct(p,Math.abs(r.amt));
+    p.funds.forEach(f=>plannedFundIn[f.id]+=(alloc[f.id]||0));
+  });
 
   const fundRows=p.funds.map(f=>{const b=fb[f.id];
     const plan=fundPlan(p,f);const left=plan-b.out;
+    const plannedIn=plannedFundIn[f.id]||0;
     return `<div class="fund-row">
       <span class="fdot" style="background:${f.color}"></span>
       <input value="${esc(f.name)}" onchange="updFund('${f.id}','name',this.value)">
       <div style="display:flex;align-items:center;gap:4px"><input type="number" value="${f.pct}" min="0" max="100" style="text-align:right" onchange="updFund('${f.id}','pct',this.value)"><span style="font-size:11px;color:var(--muted)">%</span></div>
       <input type="number" value="${f.plan||''}" placeholder="${plan?'≈'+fmt(plan):'план ₸'}" inputmode="numeric" style="text-align:right;font-size:12px" title="план на весь проект, ₸ (пусто — считается как ${f.pct}% от договора)" onchange="updFund('${f.id}','plan',this.value)">
-      <div class="fbal ${b.bal>=0?'pos':'neg'}">${fmt(b.bal)} ₸</div>
-      <div class="fio"><div>факт: поступило +${fmtM(b.in+Math.max(b.adj,0))} · потрачено −${fmtM(b.out)}${b.mv?` · перекл. ${b.mv>0?'+':''}${fmtM(b.mv)}`:''}</div>
+      <div class="fbal ${b.bal>=0?'pos':'neg'}">${fmt(b.bal)} ₸<div class="fbal-plan">после плановых поступлений: ${fmt(b.bal+plannedIn)} ₸</div></div>
+      <div class="fio"><div>план: ещё поступит +${fmtM(plannedIn)}</div><div>факт: поступило +${fmtM(b.in+Math.max(b.adj,0))} · потрачено −${fmtM(b.out)}${b.mv?` · перекл. ${b.mv>0?'+':''}${fmtM(b.mv)}`:''}</div>
         <div>план расходов ${fmtM(plan)} · <span style="${left<0?'color:var(--red);font-weight:700':''}">${left>=0?'ещё потратить '+fmtM(left):'перерасход '+fmtM(-left)}</span></div></div>
       <div class="fbtns"><span onclick="fundAdjPrefill('${f.id}','in')" title="пополнить фонд">+</span><span onclick="fundAdjPrefill('${f.id}','out')" title="снять из фонда">−</span></div>
       <span class="del" onclick="delFund('${f.id}')" title="удалить фонд">×</span>
@@ -1024,8 +1032,8 @@ function renderProject(host,p){
       <span>Фонд</span>
       <span class="right">Доля<br>приходов</span>
       <span class="right">План расходов<br>на проект, ₸</span>
-      <span class="right">На фонде<br>сейчас</span>
-      <span class="right">Факт и остаток<br>плана расходов</span>
+      <span class="right">Факт на фонде<br>и после плана</span>
+      <span class="right">План поступлений,<br>факт и расходы</span>
       <span>±</span>
       <span></span>
     </div>
