@@ -12941,6 +12941,105 @@ const REJECT_REASON_LABELS = {
 const STAGE_WARM_DAYS = 4;
 const STAGE_STUCK_DAYS = 7;
 
+function openLeadgenRequirementsModal(deal, missing = []) {
+  document.getElementById('_leadgen-requirements-modal')?.remove();
+  const dealId = deal.id || ('deal_' + deal.bitrixId);
+  const cf = deal.customFields || {};
+  const ov = document.createElement('div');
+  ov.id = '_leadgen-requirements-modal';
+  ov.className = 'qad-overlay';
+  ov.innerHTML = `
+    <div class="qad-modal" style="max-width:560px">
+      <div class="qad-head">
+        <h2>Заполните данные для демо</h2>
+        <button class="qad-btn qad-btn-ghost" data-close style="padding:4px 10px">×</button>
+      </div>
+      <div class="qad-body" style="display:grid;gap:14px">
+        <div style="padding:10px 12px;border-radius:8px;background:rgba(245,158,11,.12);color:var(--t2);font-size:13px">
+          Не хватает: <b>${escapeHtml(missing.join(', ') || 'обязательных данных')}</b>
+        </div>
+        <label>
+          <div class="qad-label">Ссылка на профиль ЛПР *</div>
+          <input id="lgr-profile" class="qad-input" type="url" placeholder="https://linkedin.com/in/... или https://instagram.com/..."
+            value="${escapeHtml(cf.lprLinkedin || cf.lprInstagram || cf.lprProfileExtra || '')}">
+        </label>
+        <label>
+          <div class="qad-label">Ниша / типовая CRM *</div>
+          <select id="lgr-niche" class="qad-input">
+            ${[
+              ['', '— выберите нишу —'],
+              ['medical_equipment', 'Медицинское оборудование'],
+              ['medical_supplies', 'Медицинские изделия и расходные материалы'],
+              ['laboratory', 'Лабораторное оборудование'],
+              ['dentistry', 'Стоматологическое оборудование'],
+              ['pharma_distribution', 'Фармацевтическая дистрибуция'],
+              ['clinic_equipment', 'Комплексное оснащение клиник'],
+              ['other', 'Другое'],
+            ].map(([value, label]) => `<option value="${value}" ${cf.companyNiche === value ? 'selected' : ''}>${label}</option>`).join('')}
+          </select>
+        </label>
+        <label>
+          <div class="qad-label">Логотип компании *</div>
+          <input id="lgr-logo" class="qad-input" type="file" accept="image/*,.png,.jpg,.jpeg,.svg,.webp,.gif">
+          <div id="lgr-status" style="font-size:12px;color:var(--t3);margin-top:5px">Если логотип уже загружен, файл повторно выбирать не нужно.</div>
+        </label>
+      </div>
+      <div class="qad-foot">
+        <button class="qad-btn qad-btn-ghost" data-close>Отмена</button>
+        <button class="qad-btn qad-btn-primary" id="lgr-save">Сохранить данные</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.querySelectorAll('[data-close]').forEach(btn => btn.onclick = () => ov.remove());
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  ov.querySelector('#lgr-save').onclick = async () => {
+    const profile = ov.querySelector('#lgr-profile').value.trim();
+    const niche = ov.querySelector('#lgr-niche').value;
+    const logo = ov.querySelector('#lgr-logo').files?.[0] || null;
+    const status = ov.querySelector('#lgr-status');
+    const btn = ov.querySelector('#lgr-save');
+    if (!profile || !niche || (missing.includes('логотип') && !logo)) {
+      status.innerHTML = '<span style="color:var(--rd)">Заполните ссылку, выберите нишу и добавьте недостающий логотип.</span>';
+      return;
+    }
+    if (logo && logo.size > 15 * 1024 * 1024) {
+      status.innerHTML = '<span style="color:var(--rd)">Логотип больше 15 МБ.</span>';
+      return;
+    }
+    btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
+    try {
+      const token = await fbAuth.currentUser.getIdToken();
+      const nextCf = { ...(deal.customFields || {}), lprProfileExtra: profile, companyNiche: niche };
+      const save = await fetch(`${WORKER_RTDB_URL}/deals/${encodeURIComponent(dealId)}.json?auth=${token}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customFields: nextCf, bitrixDateModify: new Date().toISOString() }),
+      });
+      if (!save.ok) throw new Error('Не удалось сохранить ссылку и нишу');
+      if (logo) {
+        status.textContent = '⏳ Загружаем логотип…';
+        const upload = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealId)}/qualification/recording?kind=logo`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': logo.type || 'application/octet-stream',
+            'X-File-Name': encodeURIComponent(logo.name),
+            Authorization: 'Bearer ' + token,
+          },
+          body: logo,
+        });
+        const uploadData = await upload.json().catch(() => ({}));
+        if (!upload.ok || !uploadData.ok) throw new Error(uploadData.error || 'Не удалось загрузить логотип');
+      }
+      deal.customFields = nextCf;
+      showToast('Данные для демо сохранены ✅');
+      ov.remove();
+    } catch (e) {
+      status.innerHTML = `<span style="color:var(--rd)">Ошибка: ${escapeHtml(e.message)}</span>`;
+      btn.disabled = false; btn.textContent = 'Сохранить данные';
+    }
+  };
+}
+
 async function moveDealToStage(bitrixId, newStageId) {
   const deal = dealsState.deals.find(d => String(d.bitrixId) === String(bitrixId)
     || String(d.id) === 'deal_' + String(bitrixId)
@@ -13016,11 +13115,7 @@ async function moveDealToStage(bitrixId, newStageId) {
     renderDealsContent();
     showToast('Ошибка: ' + e.message, true);
     if (e.isStageGate) {
-      const missingText = e.missing.length ? e.missing.join(', ') : 'обязательные данные';
-      alert(`Сначала заполните: ${missingText}.\n\nCRM откроет карточку сделки. Ссылку и нишу заполните в блоке «Профили ЛПР», логотип — через кнопку «Квалификация (бриф)».`);
-      if (!document.querySelector('.modal-overlay')) {
-        setTimeout(() => openDealCard(bitrixId), 50);
-      }
+      openLeadgenRequirementsModal(deal, e.missing);
     }
   }
 }
