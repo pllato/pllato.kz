@@ -54,7 +54,10 @@
   .pcard .row span:last-child{font-weight:600;font-variant-numeric:tabular-nums}
   .gap-warn{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--red-bg);color:var(--red);margin-top:8px}
   .gap-ok{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--green-bg);color:var(--green);margin-top:8px}
-  .fund-row{display:grid;grid-template-columns:14px 1.3fr 70px 118px 1fr 1.15fr auto auto;gap:9px;align-items:center;padding:8px 0;border-bottom:1px solid #eef0f3}
+  .fund-head,.fund-row{display:grid;grid-template-columns:14px 1.3fr 70px 118px 1fr 1.15fr auto auto;gap:9px;align-items:center}
+  .fund-head{padding:0 0 8px;border-bottom:1px solid var(--line);font-size:10px;line-height:1.25;font-weight:700;letter-spacing:.35px;text-transform:uppercase;color:var(--muted)}
+  .fund-head .right{text-align:right}
+  .fund-row{padding:8px 0;border-bottom:1px solid #eef0f3}
   .fbtns{display:flex;gap:5px}
   .fbtns span{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;cursor:pointer;border:1px solid var(--line);color:var(--muted);background:#fbfaf7;white-space:nowrap}
   .fbtns span:first-child:hover{background:var(--green-bg);color:var(--green);border-color:var(--green)}
@@ -67,7 +70,7 @@
   .fio{font-size:10.5px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
   .fund-bar{display:flex;height:13px;border-radius:7px;overflow:hidden;margin:6px 0 14px;border:1px solid var(--line)}
   .forms{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
-  @media(max-width:760px){.forms{grid-template-columns:1fr}.fund-row{grid-template-columns:14px 1.1fr 60px 95px 1fr auto auto}.fio{display:none}}
+  @media(max-width:760px){.forms{grid-template-columns:1fr}.fund-row{grid-template-columns:14px 1.1fr 60px 95px 1fr auto auto}.fund-head{display:none}.fio{display:none}}
   .fgrid{display:grid;grid-template-columns:120px 1fr;gap:8px;margin-bottom:8px}
   .fgrid3{display:grid;grid-template-columns:120px 1fr 1fr;gap:8px;margin-bottom:8px}
   .alloc{font-size:11.5px;color:var(--muted);background:var(--green-bg);border-radius:8px;padding:8px 11px;margin:8px 0;line-height:1.6;display:none}
@@ -938,8 +941,8 @@ function renderProject(host,p){
       <div style="display:flex;align-items:center;gap:4px"><input type="number" value="${f.pct}" min="0" max="100" style="text-align:right" onchange="updFund('${f.id}','pct',this.value)"><span style="font-size:11px;color:var(--muted)">%</span></div>
       <input type="number" value="${f.plan||''}" placeholder="${plan?'≈'+fmt(plan):'план ₸'}" inputmode="numeric" style="text-align:right;font-size:12px" title="план на весь проект, ₸ (пусто — считается как ${f.pct}% от договора)" onchange="updFund('${f.id}','plan',this.value)">
       <div class="fbal ${b.bal>=0?'pos':'neg'}">${fmt(b.bal)} ₸</div>
-      <div class="fio"><div>факт: +${fmtM(b.in+Math.max(b.adj,0))} · −${fmtM(b.out)}${b.mv?` · перекл. ${b.mv>0?'+':''}${fmtM(b.mv)}`:''}</div>
-        <div>план ${fmtM(plan)} · <span style="${left<0?'color:var(--red);font-weight:700':''}">${left>=0?'осталось '+fmtM(left):'перерасход '+fmtM(-left)}</span></div></div>
+      <div class="fio"><div>факт: поступило +${fmtM(b.in+Math.max(b.adj,0))} · потрачено −${fmtM(b.out)}${b.mv?` · перекл. ${b.mv>0?'+':''}${fmtM(b.mv)}`:''}</div>
+        <div>план расходов ${fmtM(plan)} · <span style="${left<0?'color:var(--red);font-weight:700':''}">${left>=0?'ещё потратить '+fmtM(left):'перерасход '+fmtM(-left)}</span></div></div>
       <div class="fbtns"><span onclick="fundAdjPrefill('${f.id}','in')" title="пополнить фонд">+</span><span onclick="fundAdjPrefill('${f.id}','out')" title="снять из фонда">−</span></div>
       <span class="del" onclick="delFund('${f.id}')" title="удалить фонд">×</span>
     </div>`}).join('');
@@ -1016,6 +1019,16 @@ function renderProject(host,p){
   <div class="explain">Каждое поступление расходится по фондам (по долям или вручную). Траты списываются из своего фонда. У каждого фонда есть <b>план на весь проект</b>: впиши сумму (ФОТ известен заранее) или оставь пусто — посчитается как % от договора (налоги, прибыль). В строке фонда видно факт и «потрачено из плана · осталось».</div>
   <div class="card">
     <div class="fund-bar">${p.funds.map(f=>`<div style="flex:${f.pct||.001};background:${f.color}" title="${esc(f.name)} ${f.pct}%"></div>`).join('')}</div>
+    <div class="fund-head">
+      <span></span>
+      <span>Фонд</span>
+      <span class="right">Доля<br>приходов</span>
+      <span class="right">План расходов<br>на проект, ₸</span>
+      <span class="right">На фонде<br>сейчас</span>
+      <span class="right">Факт и остаток<br>плана расходов</span>
+      <span>±</span>
+      <span></span>
+    </div>
     ${fundRows}
     <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">
       <button class="btn ghost" onclick="addFund()">+ добавить фонд</button>
