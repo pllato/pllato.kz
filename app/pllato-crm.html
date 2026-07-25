@@ -12807,7 +12807,10 @@ async function sendKanbanQuickComment(dealFullId, inputEl) {
     });
     if (!r.ok) {
       const j = await r.json().catch(() => ({}));
-      throw new Error(j.error || `HTTP ${r.status}`);
+      const err = new Error(j.error || `HTTP ${r.status}`);
+      err.isStageGate = !!(j.demoGate || j.lprGate);
+      err.missing = Array.isArray(j.missing) ? j.missing : [];
+      throw err;
     }
     // Локально добавляем в кеш превью (в начало — он самый свежий), режем до 3
     if (!dealsState.commentsByDeal) dealsState.commentsByDeal = {};
@@ -13012,6 +13015,13 @@ async function moveDealToStage(bitrixId, newStageId) {
     }
     renderDealsContent();
     showToast('Ошибка: ' + e.message, true);
+    if (e.isStageGate) {
+      const missingText = e.missing.length ? e.missing.join(', ') : 'обязательные данные';
+      alert(`Сначала заполните: ${missingText}.\n\nCRM откроет карточку сделки. Ссылку и нишу заполните в блоке «Профили ЛПР», логотип — через кнопку «Квалификация (бриф)».`);
+      if (!document.querySelector('.modal-overlay')) {
+        setTimeout(() => openDealCard(bitrixId), 50);
+      }
+    }
   }
 }
 
@@ -13591,7 +13601,7 @@ async function openDealCard(bitrixId) {
         </div>
         <div class="dc-head-actions">
           <button class="tbtn tbtn-xs" onclick="closeDealCard();navigate('calendar')" title="Открыть календарь встреч">📅 Календарь</button>
-          <button class="tbtn tbtn-xs dc-mirror-btn" id="dc-mirror-btn" title="Добавить эту сделку в ещё одну воронку (зеркало)">🔁 В воронку</button>
+          <button class="tbtn tbtn-xs dc-mirror-btn" id="dc-mirror-btn" title="Выбрать другую воронку и её стадию">🔁 Передать в другую воронку</button>
           <button class="tbtn tbtn-xs dc-archive-btn" id="dc-archive-btn" data-archived="${deal.archived ? 1 : 0}" title="${deal.archived ? 'Восстановить из архива' : 'В архив (soft-delete)'}">
             ${deal.archived ? '↩ Восстановить' : '🗄 В архив'}
           </button>
@@ -13714,7 +13724,26 @@ async function openDealCard(bitrixId) {
           <div class="dc-section-h">Профили ЛПР</div>
           <div style="background:var(--bg3);padding:12px 14px;border-radius:8px;display:grid;gap:10px">
             <label style="display:grid;gap:4px">
-              <span style="font-size:11px;color:var(--t3)">Чем занимается компания</span>
+              <span style="font-size:11px;color:var(--t3)">Типовая CRM / ниша компании</span>
+              <select class="cf-edit"
+                data-field="companyNiche"
+                data-deal-id="deal_${escapeHtml(deal.bitrixId)}"
+                data-type="string"
+                style="width:100%;padding:8px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none">
+                ${[
+                  ['', '— выберите нишу —'],
+                  ['medical_equipment', 'Медицинское оборудование'],
+                  ['medical_supplies', 'Медицинские изделия и расходные материалы'],
+                  ['laboratory', 'Лабораторное оборудование'],
+                  ['dentistry', 'Стоматологическое оборудование'],
+                  ['pharma_distribution', 'Фармацевтическая дистрибуция'],
+                  ['clinic_equipment', 'Комплексное оснащение клиник'],
+                  ['other', 'Другое'],
+                ].map(([value, label]) => `<option value="${value}" ${deal.customFields?.companyNiche === value ? 'selected' : ''}>${label}</option>`).join('')}
+              </select>
+            </label>
+            <label style="display:grid;gap:4px">
+              <span style="font-size:11px;color:var(--t3)">Уточнение по нише <span class="muted">(необязательно)</span></span>
               <textarea class="cf-edit"
                 data-field="companyDescription"
                 data-deal-id="deal_${escapeHtml(deal.bitrixId)}"
@@ -13724,8 +13753,6 @@ async function openDealCard(bitrixId) {
                 style="width:100%;box-sizing:border-box;resize:vertical;padding:8px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;line-height:1.45;outline:none">${escapeHtml(deal.customFields?.companyDescription || '')}</textarea>
             </label>
             ${[
-              ['lprName', 'Имя ЛПР', 'Имя и фамилия'],
-              ['lprRole', 'Должность ЛПР', 'Директор / коммерческий директор / РОП'],
               ['lprLinkedin', 'LinkedIn ЛПР', 'https://linkedin.com/in/...'],
               ['lprInstagram', 'Instagram ЛПР', 'https://instagram.com/...'],
               ['lprProfileExtra', 'Дополнительный профиль ЛПР', 'https://...'],
