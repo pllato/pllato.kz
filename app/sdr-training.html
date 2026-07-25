@@ -25,7 +25,40 @@
 .scenario-box{margin:14px 0;padding:14px;border-radius:12px;background:#fff;border:1px solid #dacdff}.scenario-box h3{color:var(--purple)}.client-line{margin-top:10px;padding:11px;border-radius:9px;background:#f3ecff;font-weight:700}.recording-list{display:grid;gap:9px;margin-top:14px}.recording-item{padding:12px;border:1px solid var(--line);border-radius:11px;background:#fff}.recording-item audio{width:100%;height:36px;margin-top:8px}.rec-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);margin-right:7px}.cloud-note{font-size:12px;color:var(--muted)}
 .call-progress{margin:14px 0;padding:14px;border-radius:12px;background:#fff;border:1px solid #dacdff}.call-progress-head{display:flex;justify-content:space-between;gap:12px;align-items:center}.call-progress-head b{font-size:16px}.call-progress-bar{height:8px;margin:10px 0 12px;border-radius:99px;background:#ece8f2;overflow:hidden}.call-progress-bar i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#7041eb,#18ae58)}.call-checklist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.call-check{display:flex;gap:8px;align-items:flex-start;padding:8px;border-radius:8px;background:#f6f4f9;color:var(--muted);font-size:12px}.call-check.done{background:#edf9f1;color:#14783c}.call-check.current{outline:2px solid #7041eb;background:#f3ecff;color:#4e2bae}.call-check strong{flex:0 0 auto}.call-check span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}@media(max-width:700px){.call-checklist{grid-template-columns:1fr}}
 .access-users{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:280px;overflow:auto;margin:12px 0}.access-user{display:flex;align-items:center;gap:9px;padding:9px;border:1px solid var(--line);border-radius:9px}.access-user input{width:auto}.access-user small{display:block;color:var(--muted)}
+.mobile-record-note{display:none}
 @media(max-width:520px){.term-row{grid-template-columns:9px minmax(0,1fr)}.term-row span:last-child{grid-column:2}}
+@media(max-width:700px){
+  html,body{max-width:100%;overflow-x:hidden}
+  body{font-size:14px}
+  .side{position:relative;height:auto;padding:12px}
+  .brand{font-size:15px}.brand-mark{width:30px;height:30px}
+  .role{display:none}
+  .nav{display:flex;gap:6px;margin-top:10px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .nav::-webkit-scrollbar{display:none}
+  .nav button{flex:0 0 auto;width:auto;min-height:42px;padding:9px 12px;white-space:nowrap;background:#122238}
+  .nav button.on{background:#fff}
+  .side-score{display:none}
+  .top{padding:10px 12px}.top a{font-size:13px}.pill{max-width:48%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .content{padding:18px 10px 70px}
+  h1{font-size:30px;overflow-wrap:anywhere}h2{font-size:22px}.lead{font-size:16px}
+  .card,.recorder,.org{padding:15px;border-radius:14px}
+  .section-head{gap:10px;margin-bottom:16px}.section-head .num{flex-basis:40px;height:40px;border-radius:11px}
+  .metric{font-size:26px}
+  .actions{display:grid;grid-template-columns:1fr;gap:8px}.actions .btn{width:100%;min-height:46px}
+  .btn,.option,.confidence button{min-height:46px;touch-action:manipulation}
+  .term-test-head{flex-wrap:wrap}.term-test-head .progress{order:3;flex-basis:100%}.term-test-word{font-size:29px}
+  .flash{min-height:280px}.flash .term{font-size:30px}
+  .recorder{min-width:0}.timer{font-size:38px}.scenario-box{padding:12px}.client-line{overflow-wrap:anywhere}
+  .mobile-record-note{display:block;margin:8px 0;padding:9px 11px;border-radius:9px;background:#fff7dc;color:#74530c;font-size:12px}
+  .call-progress-head{align-items:flex-start;flex-direction:column;gap:2px}
+  .recording-item{min-width:0}.recording-item audio{display:block;max-width:100%}
+  textarea,input,select{min-width:0;font-size:16px}
+  .crm{min-height:0;border-radius:14px}.crm-main{padding:9px}.panel{min-width:0;padding:12px}.brief-grid{gap:7px}
+  .stagebar{padding-bottom:5px;-webkit-overflow-scrolling:touch}.stage{min-height:42px}
+  .access-users{grid-template-columns:1fr}
+  .result-hero{padding:20px 15px}.big-score{font-size:56px}.report{overflow-wrap:anywhere;white-space:pre-wrap}
+  .exam-lock{padding:18px 12px}
+}
 </style>
 </head>
 <body>
@@ -78,7 +111,7 @@
 
       <section class="screen" id="screen-script">
         <div class="section-head"><div class="num">03</div><div><h2>Тренажёр скрипта квалификации</h2><p>Цель первого контакта — не продать разработку, а квалифицировать и назначить конкретную КЭП.</p></div></div>
-        <div class="grid two"><article class="card"><h3>Эталонная последовательность</h3><div class="script-steps" id="scriptSteps"></div></article><article class="recorder"><div class="label">Тренировка реального звонка с записью</div><h2>Минимум 10 разных звонков</h2><div id="callProgress"></div><div class="timer" id="callTimer">00:00</div><p>Программа задаёт реальную роль клиента и выдаёт его реплики по ходу разговора. Среди звонков есть простые, обычные и сложные: клиент может охотно отвечать и сразу согласиться на КЭП, сомневаться или не пройти квалификацию. Стажёр озвучивает обе стороны и записывает полный разговор для РОП.</p><div id="scenarioBox" class="scenario-box"></div><div class="actions"><button class="btn purple" id="recordBtn" onclick="toggleRecording()">● Начать запись</button><button class="btn secondary" id="nextLineBtn" onclick="nextClientLine()" disabled>Следующая реплика клиента</button></div><div class="field" style="margin-top:15px"><label>Саморазбор после звонка — необязательно</label><textarea id="rehearsalNotes" placeholder="Что получилось и что улучшить в следующей попытке…"></textarea></div><button class="btn green" id="saveRecordingBtn" onclick="saveRecording()" disabled>Сохранить звонок</button><p class="cloud-note" id="recordingCloudState">Подключаем общее хранилище App…</p><div class="recording-list" id="recordingList"></div></article></div>
+        <div class="grid two"><article class="card"><h3>Эталонная последовательность</h3><div class="script-steps" id="scriptSteps"></div></article><article class="recorder"><div class="label">Тренировка реального звонка с записью</div><h2>Минимум 10 разных звонков</h2><div id="callProgress"></div><div class="timer" id="callTimer">00:00</div><p>Программа задаёт реальную роль клиента и выдаёт его реплики по ходу разговора. Среди звонков есть простые, обычные и сложные: клиент может охотно отвечать и сразу согласиться на КЭП, сомневаться или не пройти квалификацию. Стажёр озвучивает обе стороны и записывает полный разговор для РОП.</p><div class="mobile-record-note">На телефоне разрешите доступ к микрофону и не блокируйте экран до остановки записи.</div><div id="scenarioBox" class="scenario-box"></div><div class="actions"><button class="btn purple" id="recordBtn" onclick="toggleRecording()">● Начать запись</button><button class="btn secondary" id="nextLineBtn" onclick="nextClientLine()" disabled>Следующая реплика клиента</button></div><div class="field" style="margin-top:15px"><label>Саморазбор после звонка — необязательно</label><textarea id="rehearsalNotes" placeholder="Что получилось и что улучшить в следующей попытке…"></textarea></div><button class="btn green" id="saveRecordingBtn" onclick="saveRecording()" disabled>Сохранить звонок</button><p class="cloud-note" id="recordingCloudState">Подключаем общее хранилище App…</p><div class="recording-list" id="recordingList"></div></article></div>
         <article class="card" style="margin-top:16px"><h3>Ситуационные развилки</h3><p>Выберите ответ, который сохраняет логику квалификации и ведёт к следующему шагу.</p><div id="scriptCases"></div><button class="btn" onclick="checkScript()">Проверить скрипт</button><b id="scriptScore" style="margin-left:12px"></b></article>
       </section>
 
@@ -361,7 +394,8 @@ async function toggleRecording(){
   try{
     mediaStream=await navigator.mediaDevices.getUserMedia({audio:true});
     audioChunks=[];pendingAudio=null;scenarioLine=0;timerLeft=0;recordingStartedAt=Date.now();
-    mediaRecorder=new MediaRecorder(mediaStream);
+    const preferredMime=['audio/mp4','audio/webm;codecs=opus','audio/webm'].find(type=>MediaRecorder.isTypeSupported?.(type));
+    mediaRecorder=preferredMime?new MediaRecorder(mediaStream,{mimeType:preferredMime}):new MediaRecorder(mediaStream);
     mediaRecorder.ondataavailable=e=>{if(e.data.size)audioChunks.push(e.data)};
     mediaRecorder.onstop=()=>{
       clearInterval(timerId);timerId=null;
@@ -453,7 +487,8 @@ const cloud={
     return response;
   },
   async uploadRecording(blob,meta){
-    const fileName=`sdr-call-${String(meta.attempt).padStart(2,'0')}-${Date.now()}.webm`;
+    const extension=blob.type.includes('mp4')?'m4a':blob.type.includes('ogg')?'ogg':'webm';
+    const fileName=`sdr-call-${String(meta.attempt).padStart(2,'0')}-${Date.now()}.${extension}`;
     const response=await this.api(`/api/deals/${encodeURIComponent(this.dealId())}/qualification/recording`,{method:'POST',headers:{'Content-Type':blob.type||'audio/webm','X-File-Name':encodeURIComponent(fileName)},body:blob});
     const data=await response.json(),rec=data.recording;
     const token=cloudToken;
