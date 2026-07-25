@@ -78,7 +78,7 @@
 
       <section class="screen" id="screen-script">
         <div class="section-head"><div class="num">03</div><div><h2>Тренажёр скрипта квалификации</h2><p>Цель первого контакта — не продать разработку, а квалифицировать и назначить конкретную КЭП.</p></div></div>
-        <div class="grid two"><article class="card"><h3>Эталонная последовательность</h3><div class="script-steps" id="scriptSteps"></div></article><article class="recorder"><div class="label">Тренировка реального звонка с записью</div><h2>Минимум 10 разных звонков</h2><div id="callProgress"></div><div class="timer" id="callTimer">00:00</div><p>Программа задаёт реальную роль клиента и выдаёт его реплики по ходу разговора. Среди звонков есть простые, обычные и сложные: клиент может охотно отвечать и сразу согласиться на КЭП, сомневаться или не пройти квалификацию. Стажёр озвучивает обе стороны и записывает полный разговор для РОП.</p><div id="scenarioBox" class="scenario-box"></div><div class="actions"><button class="btn purple" id="recordBtn" onclick="toggleRecording()">● Начать запись</button><button class="btn secondary" id="nextLineBtn" onclick="nextClientLine()" disabled>Следующая реплика клиента</button></div><div class="field" style="margin-top:15px"><label>Саморазбор после звонка *</label><textarea id="rehearsalNotes" placeholder="Что получилось, где потерял ход разговора, что исправить в следующей попытке…"></textarea></div><button class="btn green" id="saveRecordingBtn" onclick="saveRecording()" disabled>Сохранить звонок</button><p class="cloud-note" id="recordingCloudState">Подключаем общее хранилище App…</p><div class="recording-list" id="recordingList"></div></article></div>
+        <div class="grid two"><article class="card"><h3>Эталонная последовательность</h3><div class="script-steps" id="scriptSteps"></div></article><article class="recorder"><div class="label">Тренировка реального звонка с записью</div><h2>Минимум 10 разных звонков</h2><div id="callProgress"></div><div class="timer" id="callTimer">00:00</div><p>Программа задаёт реальную роль клиента и выдаёт его реплики по ходу разговора. Среди звонков есть простые, обычные и сложные: клиент может охотно отвечать и сразу согласиться на КЭП, сомневаться или не пройти квалификацию. Стажёр озвучивает обе стороны и записывает полный разговор для РОП.</p><div id="scenarioBox" class="scenario-box"></div><div class="actions"><button class="btn purple" id="recordBtn" onclick="toggleRecording()">● Начать запись</button><button class="btn secondary" id="nextLineBtn" onclick="nextClientLine()" disabled>Следующая реплика клиента</button></div><div class="field" style="margin-top:15px"><label>Саморазбор после звонка — необязательно</label><textarea id="rehearsalNotes" placeholder="Что получилось и что улучшить в следующей попытке…"></textarea></div><button class="btn green" id="saveRecordingBtn" onclick="saveRecording()" disabled>Сохранить звонок</button><p class="cloud-note" id="recordingCloudState">Подключаем общее хранилище App…</p><div class="recording-list" id="recordingList"></div></article></div>
         <article class="card" style="margin-top:16px"><h3>Ситуационные развилки</h3><p>Выберите ответ, который сохраняет логику квалификации и ведёт к следующему шагу.</p><div id="scriptCases"></div><button class="btn" onclick="checkScript()">Проверить скрипт</button><b id="scriptScore" style="margin-left:12px"></b></article>
       </section>
 
@@ -377,18 +377,18 @@ async function toggleRecording(){
 }
 function renderTimer(){let m=Math.floor(timerLeft/60),s=timerLeft%60;$('#callTimer').textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`}
 async function saveRecording(){
-  const notes=$('#rehearsalNotes').value.trim();
+  const notes=$('#rehearsalNotes').value.trim()||'Саморазбор не заполнен.';
   if(!pendingAudio){toast('Сначала запишите звонок');return}
-  if(notes.length<40){toast('Добавьте саморазбор: минимум 40 знаков');return}
   if(!window.SDRCloud?.ready){toast('Войдите в App, чтобы сохранить запись для РОП');return}
   const s=currentScenario(),attempt=state.recordings.length+1;
   $('#saveRecordingBtn').disabled=true;$('#saveRecordingBtn').textContent='Сохраняем…';
   try{
     const rec=await window.SDRCloud.uploadRecording(pendingAudio,{attempt,scenario:s.role,notes,duration:Math.round((Date.now()-recordingStartedAt)/1000)});
-    state.recordings.push(rec);pendingAudio=null;$('#rehearsalNotes').value='';scenarioLine=0;timerLeft=0;renderTimer();scoreScript();renderScenario();renderRecordingLists();await window.SDRCloud.saveResult();
-    toast('Тренировка сохранена для РОП');
-  }catch(e){toast('Не удалось сохранить запись: '+(e.message||e))}
-  $('#saveRecordingBtn').disabled=true;$('#saveRecordingBtn').textContent='Сохранить тренировку';
+    state.recordings.push(rec);pendingAudio=null;$('#rehearsalNotes').value='';scenarioLine=0;timerLeft=0;renderTimer();scoreScript();renderScenario();renderRecordingLists();
+    toast('Звонок сохранён для РОП');
+    window.SDRCloud.saveResult().catch(e=>{const status=$('#recordingCloudState');if(status)status.textContent='Звонок сохранён, отчёт синхронизируется позже: '+(e.message||e)});
+  }catch(e){const message='Не удалось сохранить запись: '+(e.message||e);toast(message);const status=$('#recordingCloudState');if(status)status.textContent=message}
+  $('#saveRecordingBtn').disabled=!pendingAudio;$('#saveRecordingBtn').textContent=pendingAudio?'Повторить сохранение':'Сохранить звонок';
 }
 function renderRecordingLists(){
   const html=state.recordings.length?state.recordings.map((r,i)=>`<div class="recording-item"><b>${i+1}. ${esc(r.scenario||r.name||'Постановочный звонок')}</b><div class="cloud-note">${esc(r.date||r.uploadedAt||'')} · ${r.duration?Math.floor(r.duration/60)+':'+String(r.duration%60).padStart(2,'0'):''}</div>${r.authUrl?`<audio controls preload="none" src="${esc(r.authUrl)}"></audio>`:''}${r.notes?`<p>${esc(r.notes)}</p>`:''}</div>`).join(''):'<div class="cloud-note">Записей пока нет. Для допуска нужно 10.</div>';
