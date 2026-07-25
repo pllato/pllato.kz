@@ -397,6 +397,25 @@ body {
   color:var(--bronze-deep); font-size:11px; font-weight:800;
   display:flex; gap:5px; opacity:1;
 }
+.sdr-results-btn {
+  position:relative; align-self:flex-start; margin-top:8px;
+  min-height:30px; padding:6px 10px; border-radius:9px;
+  border:1px solid var(--line-2); background:var(--surface);
+  color:var(--bronze-deep); font:800 11px/1.2 inherit; cursor:pointer; z-index:4;
+}
+.sdr-results-btn:hover { background:var(--bronze-tint); border-color:var(--bronze); }
+.sdr-result-row {
+  display:flex; align-items:center; gap:12px; padding:12px 0;
+  border-bottom:1px solid var(--line-2);
+}
+.sdr-result-row:last-child { border-bottom:0; }
+.sdr-result-info { flex:1; min-width:0; }
+.sdr-result-info b { display:block; color:var(--text); }
+.sdr-result-info small { display:block; color:var(--text-3); margin-top:3px; }
+.sdr-result-open {
+  flex:none; padding:8px 11px; border-radius:8px; text-decoration:none;
+  background:var(--navy); color:#fff; font-size:12px; font-weight:800;
+}
 .done-toggle {
   position:absolute; top:48px; right:11px;
   min-height:28px; border-radius:8px; padding:5px 8px;
@@ -2476,6 +2495,18 @@ function initProjectGroups(){
     crmCard.appendChild(accessBtn);
   }
   const sdrCard = document.querySelector('.tool-card[data-app-id="sdr_training"]');
+  if (sdrCard && CURRENT?.isAdmin && !sdrCard.querySelector('.sdr-results-btn')) {
+    const resultsBtn = document.createElement('button');
+    resultsBtn.type = 'button';
+    resultsBtn.className = 'sdr-results-btn';
+    resultsBtn.textContent = '🎧 Результаты стажёров';
+    resultsBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openSdrTrainingResults();
+    });
+    sdrCard.appendChild(resultsBtn);
+  }
   if (sdrCard && CURRENT?.isAdmin && !sdrCard.querySelector('.tile-access-btn')) {
     const accessBtn = document.createElement('button');
     accessBtn.type = 'button';
@@ -3350,6 +3381,42 @@ async function openSdrTileAccess() {
     document.body.appendChild(overlay);
   } catch (error) {
     alert('Не удалось загрузить права тренажёра: ' + (error.message || error));
+  }
+}
+
+async function openSdrTrainingResults() {
+  const session = getSession();
+  if (!session?.token) return alert('Сначала войдите в App');
+  const overlay = document.createElement('div');
+  overlay.className = 'money-ovl show';
+  overlay.innerHTML = `<div class="money-modal" style="max-width:720px">
+    <div class="mm-h"><h3>Результаты тренировок стажёров</h3><span class="mm-x" data-close>✕</span></div>
+    <div class="mm-b"><div data-results style="padding:18px;text-align:center;color:var(--text-3)">Загружаем отчёты…</div></div>
+  </div>`;
+  overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
+  overlay.querySelector('[data-close]').addEventListener('click', () => overlay.remove());
+  document.body.appendChild(overlay);
+  const box = overlay.querySelector('[data-results]');
+  try {
+    const response = await fetch('https://pllato-elc-worker.uurraa.workers.dev/api/training/sdr', {
+      headers: { Authorization: `Bearer ${session.token}` },
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `Ошибка ${response.status}`);
+    const items = Array.isArray(data.items) ? data.items : [];
+    box.style.cssText = '';
+    box.innerHTML = items.length ? items.map(item => {
+      const updated = item.updatedAt ? new Date(item.updatedAt).toLocaleString('ru') : 'нет даты';
+      return `<div class="sdr-result-row">
+        <div class="sdr-result-info">
+          <b>${escapeHtml(item.name || 'Стажёр')}</b>
+          <small>${item.recordings || 0} записей · ${item.totalScore || 0} баллов · обновлено ${escapeHtml(updated)}</small>
+        </div>
+        <a class="sdr-result-open" href="app/sdr-training.html?trainee=${encodeURIComponent(item.traineeUid)}">Открыть отчёт →</a>
+      </div>`;
+    }).join('') : '<div class="fc-empty" style="padding:22px">Стажёры ещё не сохранили ни одной тренировки.</div>';
+  } catch (error) {
+    box.textContent = 'Не удалось загрузить отчёты: ' + (error.message || error);
   }
 }
 

@@ -2513,6 +2513,42 @@ async function handleSdrTrainingReport(request, env, traineeUid) {
     .bind(traineeUid, encoded, by, now).run();
   return json({ ok: true, updatedAt: now }, 200, request);
 }
+async function handleSdrTrainingReportsList(request, env) {
+  const actor = await sdrTrainingActor(request, env);
+  if (actor.error) return json({ error: actor.error }, actor.status, request);
+  await ensureSdrTrainingTable(env);
+  const { results } = await env.DB.prepare(
+    "SELECT trainee_uid,data,viewers,updated_at FROM sdr_training_reports ORDER BY updated_at DESC"
+  ).all();
+  const actorIds = new Set([
+    actor.me?.canonicalUid,
+    actor.me?.firebaseUid,
+    ...(actor.me?.matchUids || []),
+  ].filter(Boolean).map(String));
+  const isAdmin = actor.me?.role === 'admin';
+  const items = (results || []).flatMap(row => {
+    let report = {}, viewers = [];
+    try { report = JSON.parse(row.data || '{}'); } catch {}
+    try { viewers = JSON.parse(row.viewers || '[]'); } catch {}
+    const owns = actorIds.has(String(row.trainee_uid));
+    const canView = isAdmin || owns || viewers.some(uid => actorIds.has(String(uid)));
+    if (!canView) return [];
+    const recordings = Array.isArray(report.recordings) ? report.recordings : [];
+    const scores = report.scores && typeof report.scores === 'object' ? report.scores : {};
+    const totalScore = ['terms', 'script', 'crm', 'exam']
+      .reduce((sum, key) => sum + (Number(scores[key]) || 0), 0);
+    return [{
+      traineeUid: String(row.trainee_uid),
+      name: String(report.profile?.name || report.traineeName || 'Стажёр'),
+      manager: String(report.profile?.manager || ''),
+      recordings: recordings.length,
+      totalScore,
+      termPassed: Boolean(report.termTest?.passed),
+      updatedAt: row.updated_at || null,
+    }];
+  });
+  return json({ ok: true, items }, 200, request);
+}
 async function handleSdrTrainingAccess(request, env, traineeUid) {
   const actor = await sdrTrainingActor(request, env);
   if (actor.error) return json({ error: actor.error }, actor.status, request);
@@ -9215,7 +9251,10 @@ export default {
     if (dealQualMatch && request.method === "PUT") {
       return handleDealQualificationPut(request, env, decodeURIComponent(dealQualMatch[1]));
     }
-    // Защищённый отчёт тренажёра SDR и список пользователей с доступом.
+    // Защищённые отчёты тренажёра SDR и список пользователей с доступом.
+    if (path === "/api/training/sdr" && request.method === "GET") {
+      return handleSdrTrainingReportsList(request, env);
+    }
     const sdrTrainingAccessMatch = path.match(/^\/api\/training\/sdr\/([^/]+)\/access$/);
     if (sdrTrainingAccessMatch && request.method === "PUT") {
       return handleSdrTrainingAccess(request, env, decodeURIComponent(sdrTrainingAccessMatch[1]));
