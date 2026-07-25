@@ -71,13 +71,13 @@
   .ffactin{padding:9px 8px;border-radius:8px;background:#edf4f1;color:var(--green);font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
   .fexpense{padding:9px 8px;border-radius:8px;background:#f3f4f6;font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
   .factpct{font-size:12px;font-weight:700;text-align:center;color:var(--green);font-variant-numeric:tabular-nums}
-  .fmetrics{grid-column:8;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+  .fmetrics{grid-column:8;display:grid;grid-template-columns:1fr;gap:5px}
   .fmetric{min-width:0;padding:7px 8px;border-radius:8px;background:#f7f8fa;text-align:right;font-variant-numeric:tabular-nums}
   .fmetric .flabel{font-size:8.5px;line-height:1.15;text-transform:uppercase;letter-spacing:.25px;color:var(--muted);white-space:normal}
   .fmetric .fvalue{margin-top:4px;font-size:12px;font-weight:700;line-height:1.15;white-space:nowrap}
   .fund-bar{display:flex;height:13px;border-radius:7px;overflow:hidden;margin:6px 0 14px;border:1px solid var(--line)}
   .forms{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
-  @media(max-width:760px){.forms{grid-template-columns:1fr}.fund-row{grid-template-columns:14px 1fr 50px 50px 72px 72px 72px auto auto}.fund-head{display:none}.fmetrics{grid-column:2/8;grid-row:2;grid-template-columns:repeat(2,1fr);margin:0 0 6px}.fbtns{grid-column:8}.fund-row>.del{grid-column:9}}
+  @media(max-width:760px){.forms{grid-template-columns:1fr}.fund-row{grid-template-columns:14px 1fr 50px 50px 72px 72px 72px auto auto}.fund-head{display:none}.fmetrics{grid-column:2/8;grid-row:2;grid-template-columns:1fr;margin:0 0 6px}.fbtns{grid-column:8}.fund-row>.del{grid-column:9}}
   .fgrid{display:grid;grid-template-columns:120px 1fr;gap:8px;margin-bottom:8px}
   .fgrid3{display:grid;grid-template-columns:120px 1fr 1fr;gap:8px;margin-bottom:8px}
   .alloc{font-size:11.5px;color:var(--muted);background:var(--green-bg);border-radius:8px;padding:8px 11px;margin:8px 0;line-height:1.6;display:none}
@@ -971,13 +971,12 @@ function renderProject(host,p){
   const gap=firstGap(p);
   const pctSum=p.funds.reduce((s,f)=>s+f.pct,0);
   const t=todayIso();
-  const plannedFundIn={},futureFundIn={},plannedFundOut={};
-  p.funds.forEach(f=>{plannedFundIn[f.id]=0;futureFundIn[f.id]=0;plannedFundOut[f.id]=0});
+  const plannedFundIn={},plannedFundOut={};
+  p.funds.forEach(f=>{plannedFundIn[f.id]=0;plannedFundOut[f.id]=0});
   [...p.planIn,...(p.finIn||[])].forEach(r=>{
     const alloc=planAllocation(p,r);
     p.funds.forEach(f=>{
       plannedFundIn[f.id]+=(alloc[f.id]||0);
-      if(r.date>=t)futureFundIn[f.id]+=(alloc[f.id]||0);
     });
   });
   [...p.planOut,...(p.finOut||[])].forEach(r=>{if(r.fund)plannedFundOut[r.fund]=(plannedFundOut[r.fund]||0)+Math.abs(r.amt||0)});
@@ -987,7 +986,6 @@ function renderProject(host,p){
 
   const fundRows=p.funds.map(f=>{const b=fb[f.id];
     const plannedIn=plannedFundIn[f.id]||0;
-    const futureIn=futureFundIn[f.id]||0;
     const plannedOut=plannedFundOut[f.id]||0;
     const factIn=factFundIn[f.id]||0;
     const factPct=factInTotal?factIn/factInTotal*100:0;
@@ -1001,7 +999,6 @@ function renderProject(host,p){
       <div class="ffactin" title="Фактически распределённые поступления и ручные пополнения фонда">${fmtM(factIn)}</div>
       <div class="fexpense ${plannedOut>plannedIn?'neg':''}" title="Все строки плана расходов, закреплённые за этим фондом">${fmtM(plannedOut)}</div>
       <div class="fmetrics">
-        <div class="fmetric" title="Фактический остаток плюс ещё не наступившие плановые поступления"><div class="flabel">После поступлений</div><div class="fvalue">${fmtM(b.bal+futureIn)}</div></div>
         <div class="fmetric" title="План поступлений фонда минус план расходов"><div class="flabel">${reserve>=0?'Резерв плана':'Дефицит плана'}</div><div class="fvalue ${reserve<0?'neg':'pos'}">${fmtM(Math.abs(reserve))}</div></div>
       </div>
       <div class="fbtns"><span onclick="fundAdjPrefill('${f.id}','in')" title="пополнить фонд">+</span><span onclick="fundAdjPrefill('${f.id}','out')" title="снять из фонда">−</span></div>
@@ -1103,7 +1100,7 @@ function renderProject(host,p){
       <span class="right">План поступит<br>в фонд</span>
       <span class="right">Факт поступил<br>в фонд</span>
       <span class="right">План<br>расходов</span>
-      <span class="right">Прогноз и обеспеченность расходов</span>
+      <span class="right">Обеспеченность расходов</span>
       <span>±</span>
       <span></span>
     </div>
