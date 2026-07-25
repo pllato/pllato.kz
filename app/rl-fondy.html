@@ -54,7 +54,7 @@
   .pcard .row span:last-child{font-weight:600;font-variant-numeric:tabular-nums}
   .gap-warn{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--red-bg);color:var(--red);margin-top:8px}
   .gap-ok{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--green-bg);color:var(--green);margin-top:8px}
-  .fund-head,.fund-row{display:grid;grid-template-columns:14px minmax(145px,1fr) 140px 140px 96px 96px minmax(135px,1fr) 58px 14px;gap:8px;align-items:center}
+  .fund-head,.fund-row{display:grid;grid-template-columns:14px minmax(135px,1fr) 150px 150px 92px 92px minmax(130px,1fr) 58px 14px;gap:8px;align-items:center}
   .fund-head>* , .fund-row>*{min-width:0}
   .fund-head{padding:0 0 8px;border-bottom:1px solid var(--line);font-size:10px;line-height:1.25;font-weight:700;letter-spacing:.35px;text-transform:uppercase;color:var(--muted)}
   .fund-head .right{text-align:center}
@@ -71,10 +71,11 @@
   .fplan,.ffactin{display:grid;grid-template-columns:1fr auto;gap:5px;align-items:center;padding:9px 8px;border-radius:8px;color:var(--green);font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
   .fplan{background:var(--green-bg)}
   .ffactin{background:#edf4f1}
-  .amount-pct{display:flex;align-items:center;white-space:nowrap;padding:4px 7px;border-radius:6px;font-size:11px;font-weight:800;line-height:1.2;color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .amount-pct{display:grid;grid-template-columns:34px 8px;align-items:center;justify-content:center;width:56px;box-sizing:border-box;white-space:nowrap;padding:4px 5px;border-radius:6px;font-size:11px;font-weight:800;line-height:1.2;color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08)}
   .fplan .amount-pct{background:var(--blue)}
   .ffactin .amount-pct{background:var(--green)}
-  .amount-pct input{width:27px!important;padding:0!important;border:0;background:transparent;color:#fff;font-size:11px;font-weight:800;text-align:right}
+  .amount-pct input,.amount-pct b{width:34px!important;padding:0!important;border:0;background:transparent;color:#fff;font-size:11px;font-weight:800;text-align:right}
+  .amount-pct i{font-style:normal;text-align:left}
   .fplan>span,.ffactin>span{white-space:nowrap}
   .fexpense{padding:9px 8px;border-radius:8px;background:#f3f4f6;font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
   .ffactout{padding:9px 8px;border-radius:8px;background:var(--red-bg);color:var(--red);font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
@@ -1007,8 +1008,8 @@ function renderProject(host,p){
       <div class="fund-main">
         <input value="${esc(f.name)}" onchange="updFund('${f.id}','name',this.value)">
       </div>
-      <div class="fplan" title="Все строки плана поступлений, распределённые в этот фонд"><span>${fmt(plannedIn)}</span><label class="amount-pct" title="Плановая доля — можно изменить"><input type="text" inputmode="decimal" value="${f.pct}" onchange="updFund('${f.id}','pct',this.value)">%</label></div>
-      <div class="ffactin" title="Фактически распределённые поступления и ручные пополнения фонда"><span>${fmt(factIn)}</span><span class="amount-pct">${factPct.toFixed(1).replace('.',',')}%</span></div>
+      <div class="fplan" title="Все строки плана поступлений, распределённые в этот фонд"><span>${fmt(plannedIn)}</span><label class="amount-pct" title="Плановая доля — можно изменить"><input type="text" inputmode="decimal" value="${f.pct}" onchange="updFund('${f.id}','pct',this.value)"><i>%</i></label></div>
+      <div class="ffactin" title="Фактически распределённые поступления и ручные пополнения фонда"><span>${fmt(factIn)}</span><span class="amount-pct"><b>${factPct.toFixed(1).replace('.',',')}</b><i>%</i></span></div>
       <div class="fexpense ${plannedOut>plannedIn?'neg':''}" title="Все строки плана расходов, закреплённые за этим фондом">${fmt(plannedOut)}</div>
       <div class="ffactout" title="Проведённые расходы и ручные снятия из фонда">${fmt(factOut)}</div>
       <div class="fmetrics">
