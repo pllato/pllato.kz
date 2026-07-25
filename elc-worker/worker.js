@@ -72,8 +72,13 @@ async function verifyPllatoAppToken(token, env) {
   if (!response.ok) throw new Error(`App session rejected (${response.status})`);
   const payload = await response.json();
   const user = payload?.user;
-  const canUseCrm = Boolean(user?.isAdmin || user?.isSuperAdmin || user?.apps?.pllato_sales_crm);
-  if (!user?.id || !user?.email || !canUseCrm) throw new Error("CRM access is not granted");
+  const canUseWorker = Boolean(
+    user?.isAdmin ||
+    user?.isSuperAdmin ||
+    user?.apps?.pllato_sales_crm ||
+    user?.apps?.sdr_training
+  );
+  if (!user?.id || !user?.email || !canUseWorker) throw new Error("App access is not granted");
   return {
     sub: String(user.id),
     user_id: String(user.id),

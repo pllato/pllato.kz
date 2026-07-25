@@ -462,6 +462,7 @@ if(state.examChecked){$('#examScore').textContent=`${state.scores.exam}/15`;pain
 <script type="module">
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+import {getSession} from '../pllato-kz-shared/pllato-api.js';
 const firebaseConfig={
   apiKey:"AIzaSyC3Cw3nX6b1zpE1-lqW1whwUsPPUQ7TIhc",
   authDomain:"pllato-crm.firebaseapp.com",
@@ -474,11 +475,16 @@ const firebaseConfig={
 const cloudApp=initializeApp(firebaseConfig);
 const cloudAuth=getAuth(cloudApp);
 const WORKER='https://pllato-elc-worker.uurraa.workers.dev';
-let cloudUser=null,cloudToken='',saveTimer=null;
+let cloudUser=null,cloudToken='',saveTimer=null,appSession=getSession();
 const requestedTrainee=new URLSearchParams(location.search).get('trainee');
 const cloud={
   ready:false,targetUid:'',canManageAccess:false,viewers:[],
-  async refreshToken(){cloudToken=await cloudUser.getIdToken();return cloudToken},
+  async refreshToken(){
+    appSession=getSession();
+    if(appSession?.token){cloudToken=appSession.token;return cloudToken}
+    if(cloudUser){cloudToken=await cloudUser.getIdToken();return cloudToken}
+    throw new Error('Сессия App не найдена. Вернитесь в App и войдите снова.')
+  },
   dealId(){return 'sdr-training-'+this.targetUid},
   async api(path,options={}){
     const token=await this.refreshToken();
@@ -541,13 +547,22 @@ const cloud={
   }
 };
 window.SDRCloud=cloud;
-onAuthStateChanged(cloudAuth,async user=>{
+async function connectCloud(targetUid){
   const status=document.getElementById('recordingCloudState');
-  if(!user){if(status)status.textContent='Чтобы записи увидел РОП, сначала войдите в App.';return}
-  cloudUser=user;cloud.targetUid=requestedTrainee||user.uid;cloud.ready=true;
+  cloud.targetUid=requestedTrainee||String(targetUid);cloud.ready=true;
   if(status)status.textContent=requestedTrainee?'Открыт отчёт стажёра.':'Записи сохраняются в общем хранилище App и доступны РОП.';
   try{await cloud.load()}catch(e){if(status)status.textContent='Не удалось подключить записи: '+e.message}
-});
+}
+if(appSession?.token&&appSession.user?.id){
+  connectCloud(appSession.user.id);
+}else{
+  onAuthStateChanged(cloudAuth,async user=>{
+    const status=document.getElementById('recordingCloudState');
+    if(!user){if(status)status.textContent='Чтобы записи увидел РОП, сначала войдите в App.';return}
+    cloudUser=user;
+    await connectCloud(user.uid);
+  });
+}
 </script>
 </body>
 </html>
