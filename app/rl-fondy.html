@@ -1004,12 +1004,12 @@ function renderProject(host,p){
       <div class="fund-main">
         <input value="${esc(f.name)}" onchange="updFund('${f.id}','name',this.value)">
       </div>
-      <div class="fplan" title="Все строки плана поступлений, распределённые в этот фонд"><span>${fmtM(plannedIn)}</span><label class="amount-pct" title="Плановая доля — можно изменить"><input type="text" inputmode="decimal" value="${f.pct}" onchange="updFund('${f.id}','pct',this.value)">%</label></div>
-      <div class="ffactin" title="Фактически распределённые поступления и ручные пополнения фонда"><span>${fmtM(factIn)}</span><span class="amount-pct">${factPct.toFixed(1).replace('.',',')}%</span></div>
-      <div class="fexpense ${plannedOut>plannedIn?'neg':''}" title="Все строки плана расходов, закреплённые за этим фондом">${fmtM(plannedOut)}</div>
-      <div class="ffactout" title="Проведённые расходы и ручные снятия из фонда">${fmtM(factOut)}</div>
+      <div class="fplan" title="Все строки плана поступлений, распределённые в этот фонд"><span>${fmt(plannedIn)}</span><label class="amount-pct" title="Плановая доля — можно изменить"><input type="text" inputmode="decimal" value="${f.pct}" onchange="updFund('${f.id}','pct',this.value)">%</label></div>
+      <div class="ffactin" title="Фактически распределённые поступления и ручные пополнения фонда"><span>${fmt(factIn)}</span><span class="amount-pct">${factPct.toFixed(1).replace('.',',')}%</span></div>
+      <div class="fexpense ${plannedOut>plannedIn?'neg':''}" title="Все строки плана расходов, закреплённые за этим фондом">${fmt(plannedOut)}</div>
+      <div class="ffactout" title="Проведённые расходы и ручные снятия из фонда">${fmt(factOut)}</div>
       <div class="fmetrics">
-        <div class="fmetric" title="План поступлений фонда минус план расходов"><div class="flabel">${reserve>=0?'Резерв плана':'Дефицит плана'}</div><div class="fvalue ${reserve<0?'neg':'pos'}">${fmtM(Math.abs(reserve))}</div></div>
+        <div class="fmetric" title="План поступлений фонда минус план расходов"><div class="flabel">${reserve>=0?'Резерв плана':'Дефицит плана'}</div><div class="fvalue ${reserve<0?'neg':'pos'}">${fmt(Math.abs(reserve))}</div></div>
       </div>
       <div class="fbtns"><span onclick="fundAdjPrefill('${f.id}','in')" title="пополнить фонд">+</span><span onclick="fundAdjPrefill('${f.id}','out')" title="снять из фонда">−</span></div>
       <span class="del" onclick="delFund('${f.id}')" title="удалить фонд">×</span>
