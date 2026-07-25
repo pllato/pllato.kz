@@ -390,6 +390,13 @@ body {
 }
 .tool-card:hover .tile-access-btn { opacity:1; }
 .tile-access-btn:hover { background:var(--bronze-tint); color:var(--bronze-deep); }
+.tile-access-btn.sdr-access-btn {
+  position:relative; top:auto; right:auto; align-self:flex-start;
+  width:auto; height:30px; margin-top:8px; padding:6px 10px;
+  border:1px solid var(--line-2); background:var(--surface);
+  color:var(--bronze-deep); font-size:11px; font-weight:800;
+  display:flex; gap:5px; opacity:1;
+}
 .done-toggle {
   position:absolute; top:48px; right:11px;
   min-height:28px; border-radius:8px; padding:5px 8px;
@@ -648,6 +655,7 @@ body {
 
 /* ===== Карточка с действиями + выпадающий список (сайт-лендинг) ===== */
 .tool-card .tool-cta.as-link { text-decoration: none; }
+.hr-card-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:12px}.hr-card-actions .tool-cta{margin:0;padding:7px 10px;border:1px solid var(--line-2);border-radius:9px;background:var(--surface);text-decoration:none}.hr-card-actions .tool-cta:hover{background:var(--bronze-tint)}
 .tool-dd {
   margin-top: 10px;
   border-top: 1px solid var(--line-2);
@@ -1699,35 +1707,19 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
         <span class="tool-badge new">Обучение</span>
       </a>
 
-      <a href="app/hr/admin.html" class="tool-card" data-app-id="hr_panel">
+      <div class="tool-card" data-app-id="hr_hiring" data-share-href="app/hr/index.html">
         <div class="tool-icon color-blue">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-4 3 2 5-6"/></svg>
         </div>
-        <h3>Оценка кандидатов · Панель</h3>
-        <p>Заявки кандидатов приходят сюда автоматически, как только человек прошёл анкету. Список с телефоном, должностью и статусом «прошёл/не прошёл»; по клику — Fit Score, профиль (научный график и «10 шкал»), флаги достоверности, оценки собеседования, решение «нанять/резерв/отказ». Вход по паролю команды. Доказательная база (Sackett 2022, Big Five).</p>
-        <span class="tool-cta">Открыть панель →</span>
-        <span class="tool-badge new">Новое</span>
-      </a>
-
-      <a href="app/hr/index.html" class="tool-card" data-app-id="hr_test">
-        <div class="tool-icon color-purple">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <h3>Найм и оценка кандидатов</h3>
+        <p>Одна плашка для всей работы с кандидатами: анкета и тесты по общей ссылке, панель результатов для ответственного, методичка, пороги и ссылки-приглашения.</p>
+        <div class="hr-card-actions">
+          <a href="app/hr/admin.html" class="tool-cta as-link">Панель результатов →</a>
+          <a href="app/hr/index.html" class="tool-cta as-link">Анкета кандидата →</a>
+          <a href="app/hr/guide.html" class="tool-cta as-link">Методичка и ссылки →</a>
         </div>
-        <h3>Анкета кандидата — одна ссылка на всех</h3>
-        <p>Эту ссылку даёте всем претендентам. Кандидат вводит имя, телефон, почту, выбирает должность и проходит батарею (личность, способности, ситуации, надёжность, продуктивность). Можно закрыть и продолжить. В конце результат сам уходит в панель; не прошедшим порог показывается вежливый отказ.</p>
-        <span class="tool-cta">Открыть анкету →</span>
         <span class="tool-badge new">Одна ссылка</span>
-      </a>
-
-      <a href="app/hr/guide.html" class="tool-card" data-app-id="hr_guide">
-        <div class="tool-icon color-bronze">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-        </div>
-        <h3>Методичка и ссылки для кандидатов</h3>
-        <p>Как это работает и на чём основано, как читать отчёт, пороги по должностям, этика (РК) и генератор ссылок-приглашений для кандидатов под нужную должность.</p>
-        <span class="tool-cta">Открыть методичку →</span>
-        <span class="tool-badge new">Новое</span>
-      </a>
+      </div>
 
       <a href="contracts.html" class="tool-card" data-app-id="contracts_registry">
         <div class="tool-icon color-teal">
@@ -1825,6 +1817,7 @@ const APPS_CATALOG = [
   { id: "contact_center",   label: "Контакт-центр" },
   { id: "pllato_meet",      label: "Видеовстречи" },
   { id: "sdr_training",     label: "Тренажёр лид-менеджера · первые встречи" },
+  { id: "hr_hiring",        label: "Найм и оценка кандидатов" },
 ];
 
 // Главный супер-админ (системный) — всегда имеет полный доступ независимо от записей в /users
@@ -2456,8 +2449,7 @@ function initProjectGroups(){
   // кнопка «выдать доступ» на каждой плашке — временная ссылка без захода в генератор
   document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
     if (card.querySelector('.lnk-btn')) return;
-    const href = card.matches('a[href]') ? card.getAttribute('href')
-      : card.querySelector('a.tool-cta')?.getAttribute('href');
+    const href = card.dataset.shareHref || (card.matches('a[href]') ? card.getAttribute('href') : card.querySelector('a.tool-cta')?.getAttribute('href'));
     if (!href || href === '#' || href.startsWith('javascript:')) return;
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -2487,8 +2479,8 @@ function initProjectGroups(){
   if (sdrCard && CURRENT?.isAdmin && !sdrCard.querySelector('.tile-access-btn')) {
     const accessBtn = document.createElement('button');
     accessBtn.type = 'button';
-    accessBtn.className = 'tile-access-btn';
-    accessBtn.innerHTML = '⚙';
+    accessBtn.className = 'tile-access-btn sdr-access-btn';
+    accessBtn.innerHTML = '⚙ Доступы';
     accessBtn.title = 'Настроить доступ к тренажёру лид-менеджера';
     accessBtn.setAttribute('aria-label', 'Настроить доступ к тренажёру лид-менеджера');
     accessBtn.addEventListener('click', (event) => {
