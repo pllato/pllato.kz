@@ -10408,7 +10408,7 @@ function renderDealsKanban(c, arr) {
   for (const s of stages) {
     const cards = sortDealsForKanban(byStage[s.statusId] || []);
     const totalSum = cards.reduce((acc, d) => acc + (d.opportunity || 0), 0);
-    const stageColor = s.semantics === 'S' ? '#3fd88e' : s.semantics === 'F' ? '#f05975' : '#a87fff';
+    const stageColor = s.color || (s.semantics === 'S' ? '#3fd88e' : s.semantics === 'F' ? '#f05975' : '#a87fff');
     // «Крышка» рендера стадии: по умолчанию MAX_PER_COL, растёт шагами при кликах
     // «… ещё» (НЕ показываем все сразу — иначе тысячи карточек подвешивают DOM).
     const _stKey = dealsState.activePipelineId + ':' + s.statusId;
