@@ -2773,25 +2773,23 @@ function genDemoToken() {
   return Array.from(a).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Полнота материалов для демо: данные ЛПР + логотип + описание компании.
+// Полнота материалов для демо: название компании + профиль ЛПР + логотип + ниша.
 async function demoBriefCompleteness(env, dealId) {
   await ensureQualificationTable(env);
   const row = await env.DB.prepare("SELECT data FROM deal_qualification WHERE deal_id = ?").bind(dealId).first();
   let qual = {}; try { qual = row && row.data ? JSON.parse(row.data) : {}; } catch { qual = {}; }
   const recs = await qualRecordingsFor(env, dealId);
   const hasLogo = recs.some(r => r.kind === 'logo');
-  const deal = await env.DB.prepare("SELECT custom_fields FROM deals WHERE id = ? LIMIT 1").bind(dealId).first();
+  const deal = await env.DB.prepare("SELECT title, custom_fields FROM deals WHERE id = ? LIMIT 1").bind(dealId).first();
   let cf = {}; try { cf = deal?.custom_fields ? JSON.parse(deal.custom_fields) : {}; } catch { cf = {}; }
-  const hasLpr = !!(
-    String(cf.lprName || '').trim()
-    && String(cf.lprRole || '').trim()
-    && [cf.lprLinkedin, cf.lprInstagram, cf.lprProfileExtra].some(v => String(v || '').trim())
-  );
-  const hasDescription = !!String(cf.companyDescription || '').trim();
+  const hasCompanyName = !!String(deal?.title || '').trim();
+  const hasLpr = [cf.lprLinkedin, cf.lprInstagram, cf.lprProfileExtra].some(v => String(v || '').trim());
+  const hasNiche = !!String(cf.companyNiche || '').trim();
   const missing = [];
-  if (!hasLpr) missing.push('данные ЛПР');
+  if (!hasCompanyName) missing.push('название компании');
+  if (!hasLpr) missing.push('ссылка на профиль ЛПР');
   if (!hasLogo) missing.push('логотип');
-  if (!hasDescription) missing.push('описание компании');
+  if (!hasNiche) missing.push('ниша компании');
   return { complete: missing.length === 0, missing, qual, customFields: cf, recordings: recs };
 }
 
@@ -2963,7 +2961,16 @@ function genDemoHtml(demo, snap, rules, origin, token) {
     `<div class="mod"><div class="mi">${m[0]}</div><div class="mt">${esc(m[1])}</div><div class="md">${esc(m[2])}</div></div>`
   ).join('');
   const pain = esc(q.pain_main || q.pain_money || '');
-  const bizWhat = esc(cf.companyDescription || q.biz_what || '');
+  const nicheLabels = {
+    medical_equipment: 'Медицинское оборудование',
+    medical_supplies: 'Медицинские изделия и расходные материалы',
+    laboratory: 'Лабораторное оборудование',
+    dentistry: 'Стоматологическое оборудование',
+    pharma_distribution: 'Фармацевтическая дистрибуция',
+    clinic_equipment: 'Комплексное оснащение клиник',
+    other: 'Другая ниша',
+  };
+  const bizWhat = esc(cf.companyDescription || nicheLabels[cf.companyNiche] || q.biz_what || '');
   const rulesNote = rules && String(rules).trim()
     ? `<!-- Правила сборки (внутреннее ТЗ):\n${String(rules).replace(/--+>/g, '')}\n-->` : '';
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -3062,8 +3069,6 @@ async function handleDealStageChange(request, env, dealId) {
     let cf = {};
     try { cf = deal.custom_fields ? JSON.parse(deal.custom_fields) : {}; } catch { cf = {}; }
     const missing = [];
-    if (!String(cf.lprName || '').trim()) missing.push('имя ЛПР');
-    if (!String(cf.lprRole || '').trim()) missing.push('должность ЛПР');
     if (![cf.lprLinkedin, cf.lprInstagram, cf.lprProfileExtra].some(v => String(v || '').trim())) {
       missing.push('ссылка на профиль ЛПР');
     }
