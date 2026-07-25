@@ -13714,6 +13714,8 @@ async function openDealCard(bitrixId) {
           <div class="dc-section-h">Профили ЛПР</div>
           <div style="background:var(--bg3);padding:12px 14px;border-radius:8px;display:grid;gap:10px">
             ${[
+              ['lprName', 'Имя ЛПР', 'Имя и фамилия'],
+              ['lprRole', 'Должность ЛПР', 'Директор / коммерческий директор / РОП'],
               ['lprLinkedin', 'LinkedIn ЛПР', 'https://linkedin.com/in/...'],
               ['lprInstagram', 'Instagram ЛПР', 'https://instagram.com/...'],
               ['lprProfileExtra', 'Дополнительный профиль ЛПР', 'https://...'],
@@ -13723,14 +13725,15 @@ async function openDealCard(bitrixId) {
                 <span style="font-size:11px;color:var(--t3)">${label}</span>
                 <span style="display:flex;align-items:center;gap:8px">
                   <input class="cf-edit"
-                    type="url"
+                    type="${field.startsWith('lprProfile') || field === 'lprLinkedin' || field === 'lprInstagram' ? 'url' : 'text'}"
                     data-field="${field}"
                     data-deal-id="deal_${escapeHtml(deal.bitrixId)}"
                     data-type="string"
                     value="${escapeHtml(value)}"
                     placeholder="${placeholder}"
                     style="min-width:0;flex:1;padding:8px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none">
-                  ${value ? `<a class="tbtn tbtn-xs" href="${escapeHtml(value)}" target="_blank" rel="noopener">Открыть ↗</a>` : ''}
+                  ${(field.startsWith('lprProfile') || field === 'lprLinkedin' || field === 'lprInstagram') && value
+                    ? `<a class="tbtn tbtn-xs" href="${escapeHtml(value)}" target="_blank" rel="noopener">Открыть ↗</a>` : ''}
                 </span>
               </label>`;
             }).join('')}

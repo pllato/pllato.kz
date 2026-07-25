@@ -2745,7 +2745,10 @@ async function handleCreateTask(request, env) {
 //  Плашки-демо живут на pllato.kz/app (Канбан Новые/В работе/Итоговые),
 //  доступ к демо — по временной токен-ссылке со сроком действия.
 // ═══════════════════════════════════════════════════════════════════════
-const DEMO_BUILD_STAGE_RE = /создани\w*\s*демо/i;
+// Поддерживаем оба естественных названия этапа:
+// «Создание демо» и «Демо создаётся».
+const DEMO_BUILD_STAGE_RE = /(?:создани\w*\s*демо|демо\s*созда\w*)/i;
+const LPR_FOUND_STAGE_RE = /лпр\s*найден/i;
 const DEMO_TOKEN_TTL_DAYS = 30;
 
 let _demosTableEnsured = false;
@@ -3018,7 +3021,7 @@ async function handleDealStageChange(request, env, dealId) {
   if (!pipelineId || !stageId) return json({ error: "pipelineId and stageId required" }, 400, request);
 
   const deal = await env.DB.prepare(
-    "SELECT id, pipeline_id, stage_id, mirrored_in FROM deals WHERE id = ? LIMIT 1"
+    "SELECT id, pipeline_id, stage_id, mirrored_in, custom_fields FROM deals WHERE id = ? LIMIT 1"
   ).bind(dealId).first();
   if (!deal) return json({ error: "deal not found", id: dealId }, 404, request);
 
@@ -3033,15 +3036,33 @@ async function handleDealStageChange(request, env, dealId) {
   // ── Гейт «Создание Демо»: не пускаем сделку на стадию без материалов ──
   // Определяем, называется ли целевая стадия «Создание Демо».
   let isDemoBuildStage = false;
+  let isLprFoundStage = false;
   try {
     const pipRow = await env.DB.prepare("SELECT stages FROM pipelines WHERE id = ?").bind(pipelineId).first();
     if (pipRow && pipRow.stages) {
       const st = JSON.parse(pipRow.stages);
       const nm = (st && st[stageId] && st[stageId].name) || '';
       if (DEMO_BUILD_STAGE_RE.test(nm)) isDemoBuildStage = true;
+      if (LPR_FOUND_STAGE_RE.test(nm)) isLprFoundStage = true;
     }
   } catch {}
   const isMainMove = deal.pipeline_id === pipelineId;
+  if (isLprFoundStage && isMainMove && stageActuallyChanged) {
+    let cf = {};
+    try { cf = deal.custom_fields ? JSON.parse(deal.custom_fields) : {}; } catch { cf = {}; }
+    const missing = [];
+    if (!String(cf.lprName || '').trim()) missing.push('имя ЛПР');
+    if (!String(cf.lprRole || '').trim()) missing.push('должность ЛПР');
+    if (![cf.lprLinkedin, cf.lprInstagram, cf.lprProfileExtra].some(v => String(v || '').trim())) {
+      missing.push('ссылка на профиль ЛПР');
+    }
+    if (missing.length) {
+      return json({
+        error: "Нельзя перевести на «ЛПР найден»: заполните " + missing.join(', ') + ".",
+        lprGate: true, missing,
+      }, 422, request);
+    }
+  }
   if (isDemoBuildStage && isMainMove && stageActuallyChanged) {
     const bc = await demoBriefCompleteness(env, dealId);
     if (!bc.complete) {
