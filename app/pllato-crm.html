@@ -13713,6 +13713,16 @@ async function openDealCard(bitrixId) {
           ${dealsState.pipelines?.[deal.pipelineId]?.name === 'Лидген' ? `
           <div class="dc-section-h">Профили ЛПР</div>
           <div style="background:var(--bg3);padding:12px 14px;border-radius:8px;display:grid;gap:10px">
+            <label style="display:grid;gap:4px">
+              <span style="font-size:11px;color:var(--t3)">Чем занимается компания</span>
+              <textarea class="cf-edit"
+                data-field="companyDescription"
+                data-deal-id="deal_${escapeHtml(deal.bitrixId)}"
+                data-type="string"
+                placeholder="Основные товары, услуги, клиенты и особенности бизнеса"
+                rows="3"
+                style="width:100%;box-sizing:border-box;resize:vertical;padding:8px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;line-height:1.45;outline:none">${escapeHtml(deal.customFields?.companyDescription || '')}</textarea>
+            </label>
             ${[
               ['lprName', 'Имя ЛПР', 'Имя и фамилия'],
               ['lprRole', 'Должность ЛПР', 'Директор / коммерческий директор / РОП'],
