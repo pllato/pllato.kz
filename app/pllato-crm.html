@@ -13098,7 +13098,10 @@ async function moveDealToStage(bitrixId, newStageId) {
     });
     if (!r.ok) {
       const j = await r.json().catch(() => ({}));
-      throw new Error(j.error || `HTTP ${r.status}`);
+      const err = new Error(j.error || `HTTP ${r.status}`);
+      err.isStageGate = !!(j.demoGate || j.lprGate);
+      err.missing = Array.isArray(j.missing) ? j.missing : [];
+      throw err;
     }
     const okData = await r.json().catch(() => ({}));
     if (okData.demoCreated) {
