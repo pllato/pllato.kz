@@ -54,7 +54,7 @@
   .pcard .row span:last-child{font-weight:600;font-variant-numeric:tabular-nums}
   .gap-warn{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--red-bg);color:var(--red);margin-top:8px}
   .gap-ok{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--green-bg);color:var(--green);margin-top:8px}
-  .fund-head,.fund-row{display:grid;grid-template-columns:14px minmax(240px,1.2fr) 100px 170px minmax(0,1fr) minmax(0,1fr) 88px 18px;gap:9px;align-items:center}
+  .fund-head,.fund-row{display:grid;grid-template-columns:14px minmax(190px,1.1fr) 82px 125px 125px minmax(270px,1.5fr) 70px 14px;gap:8px;align-items:center}
   .fund-head>* , .fund-row>*{min-width:0}
   .fund-head{padding:0 0 8px;border-bottom:1px solid var(--line);font-size:10px;line-height:1.25;font-weight:700;letter-spacing:.35px;text-transform:uppercase;color:var(--muted)}
   .fund-head .right{text-align:center}
@@ -63,17 +63,19 @@
   .fbtns span{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;cursor:pointer;border:1px solid var(--line);color:var(--muted);background:#fbfaf7;white-space:nowrap}
   .fbtns span:first-child:hover{background:var(--green-bg);color:var(--green);border-color:var(--green)}
   .fbtns span:last-child:hover{background:var(--red-bg);color:var(--red);border-color:var(--red)}
-  .nf-row{display:grid;grid-template-columns:1.5fr 80px 1fr 1fr auto;gap:8px;align-items:center;margin-bottom:7px}
+  .nf-row{display:grid;grid-template-columns:1.5fr 80px 1fr auto;gap:8px;align-items:center;margin-bottom:7px}
   .plan-row.with-fund{grid-template-columns:125px 1fr 1fr 1.1fr auto auto}
   .fund-row:last-child{border-bottom:none}
   .fdot{width:11px;height:11px;border-radius:50%}
-  .fmetrics{grid-column:5/7;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+  .fplan{padding:9px 8px;border-radius:8px;background:var(--green-bg);color:var(--green);font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+  .fexpense{padding:9px 8px;border-radius:8px;background:#f3f4f6;font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+  .fmetrics{grid-column:6;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
   .fmetric{min-width:0;padding:7px 8px;border-radius:8px;background:#f7f8fa;text-align:right;font-variant-numeric:tabular-nums}
   .fmetric .flabel{font-size:8.5px;line-height:1.15;text-transform:uppercase;letter-spacing:.25px;color:var(--muted);white-space:normal}
   .fmetric .fvalue{margin-top:4px;font-size:12px;font-weight:700;line-height:1.15;white-space:nowrap}
   .fund-bar{display:flex;height:13px;border-radius:7px;overflow:hidden;margin:6px 0 14px;border:1px solid var(--line)}
   .forms{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
-  @media(max-width:760px){.forms{grid-template-columns:1fr}.fund-row{grid-template-columns:14px 1fr 60px 95px auto auto}.fund-head{display:none}.fmetrics{grid-column:2/5;grid-row:2;grid-template-columns:1fr 1fr;margin:0 0 6px}.fbtns{grid-column:5}.fund-row>.del{grid-column:6}}
+  @media(max-width:760px){.forms{grid-template-columns:1fr}.fund-row{grid-template-columns:14px 1fr 60px 90px 90px auto auto}.fund-head{display:none}.fmetrics{grid-column:2/6;grid-row:2;grid-template-columns:repeat(3,1fr);margin:0 0 6px}.fbtns{grid-column:6}.fund-row>.del{grid-column:7}}
   .fgrid{display:grid;grid-template-columns:120px 1fr;gap:8px;margin-bottom:8px}
   .fgrid3{display:grid;grid-template-columns:120px 1fr 1fr;gap:8px;margin-bottom:8px}
   .alloc{font-size:11.5px;color:var(--muted);background:var(--green-bg);border-radius:8px;padding:8px 11px;margin:8px 0;line-height:1.6;display:none}
@@ -398,6 +400,12 @@ function allocByPct(p,amt){
     acc+=a;alloc[f.id]=a;
   });
   return alloc;
+}
+function planAllocation(p,r){
+  const amt=Math.abs(r.amt||0);
+  const saved=r.alloc||{};
+  const sum=Object.values(saved).reduce((s,v)=>s+(Math.abs(Number(v))||0),0);
+  return Math.round(sum)===Math.round(amt)&&amt?saved:allocByPct(p,amt);
 }
 function monthKey(iso){return (iso||'').slice(0,7)}
 function monthly(p){
@@ -814,7 +822,6 @@ function addNewFundRow(name,pct){
   const div=document.createElement('div');div.className='nf-row';
   div.innerHTML=`<input class="nf-name" value="${esc(name||'')}" placeholder="название фонда" oninput="refreshNewFundSelects();npFundSum()">
     <input type="number" class="nf-pct" value="${pct!=null?pct:''}" min="0" max="100" style="text-align:right" oninput="npFundSum()">
-    <input type="number" class="nf-plan" placeholder="авто: % × договор" inputmode="numeric" title="сколько всего будет положено/потрачено по этому фонду за проект; пусто — считается от доли">
     <input type="number" class="nf-start" placeholder="0" inputmode="numeric">
     <span class="del" onclick="this.parentNode.remove();refreshNewFundSelects();npFundSum()">×</span>`;
   box.appendChild(div);refreshNewFundSelects();npFundSum();
@@ -843,7 +850,7 @@ function renderNew(host){
     </div>
     <h2>Фонды проекта — как раскладывать деньги</h2>
     <div class="explain">Каждое поступление будет автоматически расходиться по этим фондам в указанных долях (сумма долей — 100%). Если какие-то деньги уже есть — впиши стартовую сумму, она ляжет в фонд сразу при создании проекта. Состав фондов свой для каждого проекта: переименовывай, удаляй, добавляй.</div>
-    <div class="nf-row" style="margin-bottom:2px"><label style="margin:0">Название фонда</label><label style="margin:0">Доля, %</label><label style="margin:0">План на весь проект, ₸</label><label style="margin:0">Стартовая сумма, ₸</label><span></span></div>
+    <div class="nf-row" style="margin-bottom:2px"><label style="margin:0">Название фонда</label><label style="margin:0">Доля, %</label><label style="margin:0">Стартовая сумма, ₸</label><span></span></div>
     <div id="npFunds"></div>
     <button class="btn ghost" onclick="addNewFundRow()">+ свой фонд</button>
     <span id="npFundSum" style="font-size:11.5px;color:var(--muted);margin-left:10px"></span>
@@ -893,13 +900,12 @@ function createProject(){
   const fundRows=[...document.querySelectorAll('#npFunds .nf-row')].map(r=>({
     name:r.querySelector('.nf-name').value.trim(),
     pct:parseFloat(r.querySelector('.nf-pct').value)||0,
-    plan:Math.abs(parseFloat(r.querySelector('.nf-plan')?.value)||0),
     start:Math.abs(parseFloat(r.querySelector('.nf-start').value)||0)
   })).filter(f=>f.name);
   if(!fundRows.length){toast('Добавь хотя бы один фонд','err');return}
   const psum=fundRows.reduce((s,f)=>s+f.pct,0);
   if(Math.round(psum)!==100&&!confirm('Доли фондов дают '+psum+'%, а не 100%. Так тоже можно — но авто-раскладка приходов по долям будет недоступна, поступления будешь раскладывать по фондам вручную суммами.\n\nСоздать проект?'))return;
-  const funds=fundRows.map((f,i)=>({id:uid(),name:f.name,pct:f.pct,plan:f.plan||0,color:FUND_COLORS[i%FUND_COLORS.length]}));
+  const funds=fundRows.map((f,i)=>({id:uid(),name:f.name,pct:f.pct,color:FUND_COLORS[i%FUND_COLORS.length]}));
   const rowsIn=[...document.querySelectorAll('#npIn .plan-row')].map(r=>({
     id:uid(),date:r.querySelector('.nr-date').value,amt:Math.abs(parseFloat(r.querySelector('.nr-amt').value)||0),
     note:r.querySelector('.nr-note').value})).filter(r=>r.date&&r.amt);
@@ -935,26 +941,32 @@ function renderProject(host,p){
   const gap=firstGap(p);
   const pctSum=p.funds.reduce((s,f)=>s+f.pct,0);
   const t=todayIso();
-  const plannedFundIn={};
-  p.funds.forEach(f=>plannedFundIn[f.id]=0);
-  [...p.planIn,...(p.finIn||[])].filter(r=>r.date>=t).forEach(r=>{
-    const alloc=allocByPct(p,Math.abs(r.amt));
-    p.funds.forEach(f=>plannedFundIn[f.id]+=(alloc[f.id]||0));
+  const plannedFundIn={},futureFundIn={},plannedFundOut={};
+  p.funds.forEach(f=>{plannedFundIn[f.id]=0;futureFundIn[f.id]=0;plannedFundOut[f.id]=0});
+  [...p.planIn,...(p.finIn||[])].forEach(r=>{
+    const alloc=planAllocation(p,r);
+    p.funds.forEach(f=>{
+      plannedFundIn[f.id]+=(alloc[f.id]||0);
+      if(r.date>=t)futureFundIn[f.id]+=(alloc[f.id]||0);
+    });
   });
+  [...p.planOut,...(p.finOut||[])].forEach(r=>{if(r.fund)plannedFundOut[r.fund]=(plannedFundOut[r.fund]||0)+Math.abs(r.amt||0)});
 
   const fundRows=p.funds.map(f=>{const b=fb[f.id];
-    const plan=fundPlan(p,f);const left=plan-b.out;
     const plannedIn=plannedFundIn[f.id]||0;
+    const futureIn=futureFundIn[f.id]||0;
+    const plannedOut=plannedFundOut[f.id]||0;
+    const reserve=plannedIn-plannedOut;
     return `<div class="fund-row">
       <span class="fdot" style="background:${f.color}"></span>
       <input value="${esc(f.name)}" onchange="updFund('${f.id}','name',this.value)">
       <div style="display:flex;align-items:center;gap:4px"><input type="number" value="${f.pct}" min="0" max="100" style="text-align:right" onchange="updFund('${f.id}','pct',this.value)"><span style="font-size:11px;color:var(--muted)">%</span></div>
-      <input type="number" value="${f.plan||''}" placeholder="${plan?'≈'+fmt(plan):'план ₸'}" inputmode="numeric" style="text-align:right;font-size:12px" title="план на весь проект, ₸ (пусто — считается как ${f.pct}% от договора)" onchange="updFund('${f.id}','plan',this.value)">
+      <div class="fplan" title="Все строки плана поступлений, распределённые в этот фонд">${fmtM(plannedIn)}</div>
+      <div class="fexpense ${plannedOut>plannedIn?'neg':''}" title="Все строки плана расходов, закреплённые за этим фондом">${fmtM(plannedOut)}</div>
       <div class="fmetrics">
         <div class="fmetric" title="Фактический остаток денег в фонде"><div class="flabel">Факт на фонде</div><div class="fvalue ${b.bal>=0?'pos':'neg'}">${fmtM(b.bal)}</div></div>
-        <div class="fmetric" title="Будущие плановые поступления, распределённые в фонд по его доле"><div class="flabel">Поступит по плану</div><div class="fvalue pos">+${fmtM(plannedIn)}</div></div>
-        <div class="fmetric" title="Фактический остаток плюс будущие плановые поступления"><div class="flabel">После поступлений</div><div class="fvalue">${fmtM(b.bal+plannedIn)}</div></div>
-        <div class="fmetric" title="План расходов фонда за вычетом фактических трат"><div class="flabel">${left>=0?'Остаток расходов':'Перерасход'}</div><div class="fvalue ${left<0?'neg':''}">${fmtM(Math.abs(left))}</div></div>
+        <div class="fmetric" title="Фактический остаток плюс ещё не наступившие плановые поступления"><div class="flabel">После поступлений</div><div class="fvalue">${fmtM(b.bal+futureIn)}</div></div>
+        <div class="fmetric" title="План поступлений фонда минус план расходов"><div class="flabel">${reserve>=0?'Резерв плана':'Дефицит плана'}</div><div class="fvalue ${reserve<0?'neg':'pos'}">${fmtM(Math.abs(reserve))}</div></div>
       </div>
       <div class="fbtns"><span onclick="fundAdjPrefill('${f.id}','in')" title="пополнить фонд">+</span><span onclick="fundAdjPrefill('${f.id}','out')" title="снять из фонда">−</span></div>
       <span class="del" onclick="delFund('${f.id}')" title="удалить фонд">×</span>
@@ -965,16 +977,25 @@ function renderProject(host,p){
   const planRow=(r,kind)=>{
     const late=r.date<t;
     const needFund=kind==='out'||kind==='finout';
+    const isIncome=kind==='in'||kind==='finin';
     const fundSel=needFund?`<select onchange="updPlan('${kind}','${r.id}','fund',this.value)" title="из какого фонда возьмутся деньги">
       ${p.funds.map(f=>`<option value="${f.id}"${r.fund===f.id?' selected':''}>${esc(f.name)}</option>`).join('')}
       ${!r.fund?'<option value="" selected>— фонд?</option>':''}</select>`:'';
-    return `<div class="plan-row${needFund?' with-fund':''}">
+    const row=`<div class="plan-row${needFund?' with-fund':''}">
       <input type="date" value="${r.date}" onchange="updPlan('${kind}','${r.id}','date',this.value)">
       <input type="number" value="${Math.abs(r.amt)}" style="text-align:right" onchange="updPlan('${kind}','${r.id}','amt',this.value)">
       ${fundSel}
       <input value="${esc(r.note)}" placeholder="комментарий" onchange="updPlan('${kind}','${r.id}','note',this.value)">
-      <span class="mv"><button onclick="movePlan('${kind}','${r.id}',-7)" title="на неделю раньше">◀</button><button onclick="movePlan('${kind}','${r.id}',7)" title="на неделю позже">▶</button>${late?`<span class="late" title="дата в прошлом — в расчёт не идёт">просрочен</span>`:''}</span>
+      <span class="mv"><button onclick="movePlan('${kind}','${r.id}',-7)" title="на неделю раньше">◀</button><button onclick="movePlan('${kind}','${r.id}',7)" title="на неделю позже">▶</button>${isIncome?`<button onclick="paOpen('${kind}','${r.id}')" title="распределить плановое поступление по фондам">⚙ фонды</button>`:''}${late?`<span class="late" title="дата в прошлом — в расчёт не идёт">просрочен</span>`:''}</span>
       <span class="del" onclick="delPlan('${kind}','${r.id}')">×</span>
+    </div>`;
+    if(!isIncome||window._reallocPlan!==kind+':'+r.id)return row;
+    const alloc=planAllocation(p,r);
+    return row+`<div style="background:#eef1f5;border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin:2px 0 8px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">Распределение планового поступления ${fmt(Math.abs(r.amt))} ₸ по фондам</div>
+      ${p.funds.map(f=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span class="fdot" style="background:${f.color}"></span><span style="flex:1;font-size:12px">${esc(f.name)}</span><input type="number" class="pa-amt" data-fid="${f.id}" value="${alloc[f.id]||''}" style="width:135px;text-align:right;padding:6px 8px" oninput="paLeft('${kind}','${r.id}')"></div>`).join('')}
+      <div id="paLeft" style="font-size:11.5px;color:var(--green);font-weight:700;margin:4px 0 8px">распределено полностью ✓</div>
+      <div style="display:flex;gap:8px"><button class="btn grn" style="padding:7px 14px;font-size:12px" onclick="paSave('${kind}','${r.id}')">Сохранить точно</button><button class="btn ghost" style="padding:7px 14px;font-size:12px" onclick="paPct('${kind}','${r.id}')">По долям %</button></div>
     </div>`};
 
   const mrows=monthly(p);
@@ -1029,15 +1050,16 @@ function renderProject(host,p){
   <div class="card" style="overflow-x:auto">${mtable}</div>
 
   <h2>Фонды проекта</h2>
-  <div class="explain">Каждое поступление расходится по фондам (по долям или вручную). Траты списываются из своего фонда. У каждого фонда есть <b>план на весь проект</b>: впиши сумму (ФОТ известен заранее) или оставь пусто — посчитается как % от договора (налоги, прибыль). В строке фонда видно факт и «потрачено из плана · осталось».</div>
+  <div class="explain">Все строки плана поступлений распределяются по фондам — по долям или вручную. План расходов фонда складывается из строк «План трат», где выбран этот фонд. Если расходы превышают поступления фонда, система показывает дефицит красным. Сумма договора не ограничивает план поступлений.</div>
   <div class="card">
     <div class="fund-bar">${p.funds.map(f=>`<div style="flex:${f.pct||.001};background:${f.color}" title="${esc(f.name)} ${f.pct}%"></div>`).join('')}</div>
     <div class="fund-head">
       <span></span>
       <span>Фонд</span>
       <span class="right">Доля<br>приходов</span>
-      <span class="right">План расходов<br>на проект, ₸</span>
-      <span class="right" style="grid-column:5/7">Состояние фонда: факт, план поступлений и расходы</span>
+      <span class="right">План поступит<br>в фонд</span>
+      <span class="right">План<br>расходов</span>
+      <span class="right">Факт, прогноз и обеспеченность расходов</span>
       <span>±</span>
       <span></span>
     </div>
@@ -1046,7 +1068,7 @@ function renderProject(host,p){
       <button class="btn ghost" onclick="addFund()">+ добавить фонд</button>
       <span style="font-size:11.5px;color:${Math.round(pctSum)===100?'var(--muted)':'var(--red)'};font-weight:${Math.round(pctSum)===100?'400':'700'}">сумма долей: ${pctSum}%${Math.round(pctSum)!==100?' — приведи к 100%':''}</span>
       <span style="flex:1"></span>
-      <span style="font-size:12px;color:var(--muted)">итого на фондах: <b class="${cash>=0?'pos':'neg'}">${fmt(cash)} ₸</b> · план по фондам: <b>${fmt(p.funds.reduce((s,f)=>s+fundPlan(p,f),0))} ₸</b></span>
+      <span style="font-size:12px;color:var(--muted)">факт на фондах: <b class="${cash>=0?'pos':'neg'}">${fmt(cash)} ₸</b> · план поступлений: <b>${fmt(Object.values(plannedFundIn).reduce((s,v)=>s+v,0))} ₸</b> · план расходов: <b>${fmt(Object.values(plannedFundOut).reduce((s,v)=>s+v,0))} ₸</b></span>
     </div>
     ${(()=>{const debts=fundDebts(p);const fn=id=>p.funds.find(f=>f.id===id)?.name||'фонд удалён';
       if(!debts.length)return '';
@@ -1275,6 +1297,19 @@ function updPlan(kind,id,key,val){const p=P();const r=planArr(p,kind).find(x=>x.
   else if(key==='date')r.date=val;
   else if(key==='fund')r.fund=val;
   else r.note=val;render()}
+function paOpen(kind,id){window._reallocPlan=kind+':'+id;render()}
+function paLeft(kind,id){const p=P();const r=planArr(p,kind).find(x=>x.id===id);if(!r)return;
+  const s=[...document.querySelectorAll('.pa-amt')].reduce((x,i)=>x+(Math.abs(parseFloat(i.value))||0),0);
+  const d=Math.abs(r.amt)-s,el=document.getElementById('paLeft');if(!el)return;
+  el.style.color=Math.round(d)===0?'var(--green)':d>0?'var(--muted)':'var(--red)';
+  el.innerHTML=Math.round(d)===0?'распределено полностью ✓':d>0?'осталось распределить: '+fmt(d)+' ₸':'перебор на '+fmt(-d)+' ₸'}
+function paSave(kind,id){const p=P();const r=planArr(p,kind).find(x=>x.id===id);if(!r)return;
+  const alloc={};let s=0;
+  document.querySelectorAll('.pa-amt').forEach(i=>{const v=Math.abs(parseFloat(i.value))||0;if(v){alloc[i.dataset.fid]=v;s+=v}});
+  if(Math.round(s)!==Math.round(Math.abs(r.amt))){toast('Разложи всю сумму: распределено '+fmt(s)+' из '+fmt(Math.abs(r.amt))+' ₸','err');return}
+  r.alloc=alloc;window._reallocPlan=null;toast('Плановое поступление распределено точно ✓');render()}
+function paPct(kind,id){const p=P();const r=planArr(p,kind).find(x=>x.id===id);if(!r)return;
+  delete r.alloc;window._reallocPlan=null;toast('Плановое поступление распределяется по долям фондов ✓');render()}
 /* ручное пополнение / снятие из фонда — любая транзакция идёт через фонд */
 function addFundAdj(){const p=P();
   const fund=document.getElementById('faFund').value,dir=document.getElementById('faDir').value;
