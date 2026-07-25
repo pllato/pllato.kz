@@ -2773,20 +2773,26 @@ function genDemoToken() {
   return Array.from(a).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Полнота материалов для демо: логотип + запись звонка + сайт клиента.
+// Полнота материалов для демо: данные ЛПР + логотип + описание компании.
 async function demoBriefCompleteness(env, dealId) {
   await ensureQualificationTable(env);
   const row = await env.DB.prepare("SELECT data FROM deal_qualification WHERE deal_id = ?").bind(dealId).first();
   let qual = {}; try { qual = row && row.data ? JSON.parse(row.data) : {}; } catch { qual = {}; }
   const recs = await qualRecordingsFor(env, dealId);
   const hasLogo = recs.some(r => r.kind === 'logo');
-  const hasRecording = recs.some(r => r.kind !== 'logo');
-  const hasWebsite = !!(qual.client_website && String(qual.client_website).trim());
+  const deal = await env.DB.prepare("SELECT custom_fields FROM deals WHERE id = ? LIMIT 1").bind(dealId).first();
+  let cf = {}; try { cf = deal?.custom_fields ? JSON.parse(deal.custom_fields) : {}; } catch { cf = {}; }
+  const hasLpr = !!(
+    String(cf.lprName || '').trim()
+    && String(cf.lprRole || '').trim()
+    && [cf.lprLinkedin, cf.lprInstagram, cf.lprProfileExtra].some(v => String(v || '').trim())
+  );
+  const hasDescription = !!String(cf.companyDescription || '').trim();
   const missing = [];
+  if (!hasLpr) missing.push('данные ЛПР');
   if (!hasLogo) missing.push('логотип');
-  if (!hasRecording) missing.push('запись звонка');
-  if (!hasWebsite) missing.push('сайт клиента');
-  return { complete: missing.length === 0, missing, qual, recordings: recs };
+  if (!hasDescription) missing.push('описание компании');
+  return { complete: missing.length === 0, missing, qual, customFields: cf, recordings: recs };
 }
 
 // Авто-создание демо-записи из брифа (идемпотентно: один демо на сделку).
@@ -2803,7 +2809,11 @@ async function createDemoForDeal(env, dealId, me) {
   const clientName = (deal && deal.title) ? deal.title : 'Клиент';
   const nowIso = new Date().toISOString();
   const expIso = new Date(Date.now() + DEMO_TOKEN_TTL_DAYS * 864e5).toISOString();
-  const snapshot = { qual: bc.qual, recordings: bc.recordings.map(r => ({ id: r.id, kind: r.kind, name: r.name })) };
+  const snapshot = {
+    qual: bc.qual,
+    customFields: bc.customFields,
+    recordings: bc.recordings.map(r => ({ id: r.id, kind: r.kind, name: r.name })),
+  };
   const id = 'demo_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const token = genDemoToken();
   await env.DB.prepare(`
@@ -2937,6 +2947,7 @@ function demoStubHtml(msg) {
 // Генерация полноценной демо-страницы из брифа + правил сборки.
 function genDemoHtml(demo, snap, rules, origin, token) {
   const q = (snap && snap.qual) || {};
+  const cf = (snap && snap.customFields) || {};
   const esc = (s) => escapeHtml(String(s == null ? '' : s));
   const client = esc(demo.client_name || 'Клиент');
   const logoUrl = `${origin}/api/demo/${encodeURIComponent(demo.id)}/logo?t=${encodeURIComponent(token)}`;
@@ -2952,7 +2963,7 @@ function genDemoHtml(demo, snap, rules, origin, token) {
     `<div class="mod"><div class="mi">${m[0]}</div><div class="mt">${esc(m[1])}</div><div class="md">${esc(m[2])}</div></div>`
   ).join('');
   const pain = esc(q.pain_main || q.pain_money || '');
-  const bizWhat = esc(q.biz_what || '');
+  const bizWhat = esc(cf.companyDescription || q.biz_what || '');
   const rulesNote = rules && String(rules).trim()
     ? `<!-- Правила сборки (внутреннее ТЗ):\n${String(rules).replace(/--+>/g, '')}\n-->` : '';
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
