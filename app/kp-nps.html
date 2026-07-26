@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>КП · ДентаЛайн — NPS-система замера лояльности · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#10231b;--ink2:#33473e;--acc:#10b981;--accD:#0b7a5c;--accL:#e6f7f0;--gold:#0e9488;--goldL:#e3f5f2;--text:#26302b;--muted:#6d8479;--faint:#a3b3aa;--line:#e6efe9;--off:#f5faf7;--grn:#16a34a;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55;background:#eceef2}
+.page{width:210mm;min-height:297mm;position:relative;padding:15mm 16mm 17mm;margin:0 auto 8mm;background:#fff;display:flex;flex-direction:column}
+.runfoot{position:absolute;left:16mm;right:16mm;bottom:9mm;display:flex;justify-content:space-between;font-size:8px;color:var(--faint);border-top:1px solid var(--line);padding-top:6px}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .bm{width:42px;height:42px;background:linear-gradient(145deg,#10b981,#0b7a5c);border-radius:12px;display:grid;place-items:center;flex:none}
+.brand .bm svg{width:24px;height:24px}
+.brand .bt{font-size:21px;font-weight:900;letter-spacing:-.01em;color:var(--ink)}
+.brand .bt b{color:var(--acc)}
+.brand .bs{font-size:8.5px;color:var(--muted);letter-spacing:.02em;margin-top:2px}
+.hr{text-align:right}
+.hr .t{font-size:13px;font-weight:800;color:var(--ink)}
+.hr .dt{font-size:9.5px;color:var(--muted);margin-top:2px}
+.hr .st{font-size:8.5px;color:var(--faint);margin-top:1px}
+.rule{height:2px;background:linear-gradient(90deg,var(--acc),var(--gold));margin-bottom:14px}
+.badge{display:inline-block;background:var(--accL);color:var(--accD);font-size:8.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:20px;margin-bottom:9px}
+h1{font-size:20px;font-weight:900;letter-spacing:-.01em;line-height:1.15;margin-bottom:8px;color:var(--ink)}
+.lead{font-size:11px;color:var(--ink2);margin-bottom:14px;line-height:1.6}
+.lead b{color:var(--ink)}
+.sec{font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--acc);margin:16px 0 9px;display:flex;align-items:center;gap:9px}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.sec.first{margin-top:2px}
+table.pain{width:100%;border-collapse:collapse;margin-bottom:4px}
+table.pain td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:9.8px;vertical-align:top;width:50%}
+table.pain tr:nth-child(even) td{background:var(--off)}
+table.pain .was::before{content:"Сейчас · ";font-weight:700;color:var(--muted)}
+table.pain .was{color:var(--muted)}
+table.pain .now b{color:var(--ink)}
+table.pain .now::before{content:"С NPS-системой · ";font-weight:700;color:var(--grn)}
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mod{border:1px solid var(--line);border-radius:9px;padding:10px 12px;break-inside:avoid}
+.mod .mt{font-weight:800;font-size:11px;color:var(--ink);margin-bottom:3px;display:flex;align-items:center;gap:7px}
+.mod .mt .n{width:19px;height:19px;border-radius:6px;background:var(--acc);color:#fff;font-size:9.5px;display:grid;place-items:center;flex:none;font-weight:700}
+.mod .md{font-size:9.5px;color:var(--ink2);line-height:1.5}
+.mod .md b{color:var(--ink)}
+.callout{background:var(--accL);border:1px solid #c3e8d8;border-radius:9px;padding:10px 13px;font-size:9.8px;color:#1c5e46;line-height:1.55;margin-bottom:8px}
+.callout b{color:#0b3e2c}
+.trig{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.trigc{border:1px solid var(--line);border-radius:9px;padding:9px 12px;break-inside:avoid}
+.trigc .th{font-size:8.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--acc);margin-bottom:5px}
+.trigc ul{margin:0;padding-left:14px}
+.trigc li{font-size:9.4px;color:var(--ink2);line-height:1.5;margin-bottom:2px}
+.trigc li b{color:var(--ink)}
+.pricewrap{display:grid;grid-template-columns:1.15fr 1fr;gap:12px;margin-bottom:6px}
+.pricebox{border:1px solid var(--line);border-radius:11px;padding:14px 15px;background:linear-gradient(160deg,#fff,var(--off))}
+.pricebox .lbl{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.pricebox .big{font-size:28px;font-weight:900;color:var(--ink);letter-spacing:-.02em;margin:3px 0}
+.pricebox .big b{color:var(--acc)}
+.pricebox .note{font-size:9.3px;color:var(--muted);line-height:1.5}
+.steps{border:1px solid var(--line);border-radius:11px;overflow:hidden}
+.steps .st{display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid var(--line)}
+.steps .st:last-child{border-bottom:none}
+.steps .st.tot{background:var(--accL)}
+.steps .sn{font-size:9.8px;color:var(--ink2)}
+.steps .sn b{color:var(--ink)}
+.steps .sv{margin-left:auto;font-weight:800;font-size:11px;color:var(--ink);white-space:nowrap;text-align:right}
+.steps .st.tot .sv{color:var(--accD)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.term{border:1px solid var(--line);border-radius:9px;padding:9px 12px}
+.term .h{font-weight:800;font-size:10px;color:var(--ink);margin-bottom:2px}
+.term .b{font-size:9.3px;color:var(--ink2);line-height:1.5}
+table.req{width:100%;border-collapse:collapse;margin-top:4px}
+table.req td{padding:6px 9px;font-size:9.5px;border-bottom:1px solid var(--line)}
+table.req td.k{width:20%;color:var(--muted)}
+table.req tr:nth-child(even){background:var(--off)}
+.cta{background:var(--ink);color:#fff;border-radius:11px;padding:12px 15px;display:flex;align-items:center;gap:14px;margin-top:10px}
+.cta .x{flex:1;font-size:10px;line-height:1.55}
+.cta .x b{color:#6ee7b7}
+.cta .amt{text-align:right}
+.cta .amt .v{font-size:19px;font-weight:900;color:#6ee7b7;white-space:nowrap}
+.cta .amt .s{font-size:8.5px;color:#a7d3c3}
+.signs{display:flex;gap:40px;margin-top:14px}
+.signs .s{flex:1}
+.signs .sl{font-size:9px;color:var(--muted);margin-bottom:12px}
+.signs .snm{font-weight:700;font-size:10.5px;margin-bottom:12px}
+.signs .ln{font-size:10px;color:#3a4453}
+.signs .ln u{display:inline-block;width:80px;border-bottom:1px solid #b9c0ca}
+</style></head>
+<body>
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg viewBox="0 0 24 24" fill="#fff"><path d="M7.5 3.2C5.4 3.2 4 4.7 4 7c0 2 .6 3.8 1.4 6.6.5 2 .7 4.2 1.8 4.2 1 0 1.3-1.7 1.7-3.6.3-1.3.5-2.2 1.1-2.2s.8.9 1.1 2.2c.4 1.9.7 3.6 1.7 3.6 1.1 0 1.3-2.2 1.8-4.2C19.4 10.8 20 9 20 7c0-2.3-1.4-3.8-3.5-3.8-1.7 0-2.6.9-4.5.9s-2.8-.9-4.5-.9Z"/></svg></div>
+      <div><div class="bt">Дента<b>Лайн</b> · NPS</div><div class="bs">Замер лояльности клиентов на автопилоте · Pllato</div></div>
+    </div>
+    <div class="hr"><div class="t">КП № NPS-2026-01</div><div class="dt">26 июля 2026 г.</div><div class="st">коммерческое предложение</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <span class="badge">Система NPS/CSAT · в собственность</span>
+  <h1>Система замера лояльности клиентов (NPS) — на автопилоте</h1>
+  <div class="lead">Коммерческое предложение для <b>Revyline Кыргызстан</b> («Зубная аптека», собственник Оксана, Бишкек) — сеть точек + онлайн (revyline.kg / dentalpharmacy.kg), ~799 карт лояльности. Задача: перестать угадывать «вроде клиенты довольны» и получать <b>один честный балл лояльности</b> от −100 до +100, который сам собирается после каждого касания и показывает, <b>какая точка и какой продавец</b> роняют сервис — чтобы отрабатывать недовольных, пока они не ушли к конкуренту. Полное владение, на вашем сервере.</div>
+
+  <div class="sec first">Как сейчас → что даёт NPS-система</div>
+  <table class="pain">
+    <tr><td class="was">Отзывы стихийные: кто-то похвалил в Instagram, кто-то молча ушёл. Системного замера нет.</td><td class="now"><b>Каждое касание завершается опросом</b> в WhatsApp — ответы сами капают в ленту дашборда.</td></tr>
+    <tr><td class="was">Реальную лояльность не измерить — «вроде норм».</td><td class="now"><b>Один индекс NPS</b> (−100…+100) и динамика по месяцам — видно тренд, а не ощущения.</td></tr>
+    <tr><td class="was">Недовольный клиент уходит к конкуренту молча.</td><td class="now"><b>Детрактор (0–6) подсвечивается сразу</b> — менеджер отрабатывает, пока клиент не потерян.</td></tr>
+    <tr><td class="was">Непонятно, какая точка и какой продавец портят впечатление.</td><td class="now"><b>Привязка к аптеке и продавцу</b> (из чека 1С) — видно и героев, и слабые места.</td></tr>
+    <tr><td class="was">799 держателей карт — база есть, обратной связи ноль.</td><td class="now"><b>Relationship NPS раз в квартал</b> по всей базе карт автоматически.</td></tr>
+    <tr><td class="was">Сотрудники и партнёры (врачи, блогеры) — вслепую.</td><td class="now"><b>eNPS сотрудников</b> и <b>NPS партнёров</b> тем же движком.</td></tr>
+  </table>
+
+  <div class="sec">Что входит в разработку</div>
+  <div class="mods">
+    <div class="mod"><div class="mt"><span class="n">1</span>Дашборд NPS</div><div class="md">Индекс NPS, динамика по месяцам, промоутеры/пассивы/детракторы, лента ответов с баллом и комментарием «почему?».</div></div>
+    <div class="mod"><div class="mt"><span class="n">2</span>Точки опроса (транзакционные)</div><div class="md">Авто-опрос после: покупки в аптеке (чек в 1С), онлайн-заказа, закрытия сделки, диалога в WhatsApp (CSAT), звонка.</div></div>
+    <div class="mod"><div class="mt"><span class="n">3</span>Периодические опросы</div><div class="md">Relationship NPS держателям карт (раз в квартал), реактивация сегмента «давно не покупали».</div></div>
+    <div class="mod"><div class="mt"><span class="n">4</span>Внутренние и партнёрские</div><div class="md">eNPS сотрудников (раз в квартал), NPS врачей и блогеров по партнёрской программе.</div></div>
+    <div class="mod"><div class="mt"><span class="n">5</span>Привязка к точке и продавцу</div><div class="md">Аптека · продавец · источник берутся из чека 1С — рейтинг и группировка по точкам и людям.</div></div>
+    <div class="mod"><div class="mt"><span class="n">6</span>Отработка детракторов</div><div class="md">Низкие баллы подсвечиваются, ставится задача менеджеру, статус «отработан» — замкнутый цикл.</div></div>
+    <div class="mod"><div class="mt"><span class="n">7</span>Рассылка опросов в WhatsApp</div><div class="md">Одно сообщение и цифра в ответ + свободный вопрос «почему?». Брендированный текст, без спама.</div></div>
+    <div class="mod"><div class="mt"><span class="n">8</span>Интеграции</div><div class="md">1С (чеки, карты лояльности), CRM-воронка, сайты revyline.kg / dentalpharmacy.kg, WhatsApp Business.</div></div>
+    <div class="mod"><div class="mt"><span class="n">9</span>«Как видит клиент»</div><div class="md">Предпросмотр переписки: клиент получает сообщение, ставит балл, отвечает «почему?» — ответ мгновенно в дашборде.</div></div>
+    <div class="mod"><div class="mt"><span class="n">10</span>Роли, разрезы и экспорт</div><div class="md">Руководитель / маркетолог / консультант; аналитические срезы одних и тех же ответов; выгрузка данных.</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП NPS-2026-01 · для Revyline Кыргызстан</span><span>1 / 2</span></div>
+</section>
+
+<section class="page">
+  <div class="sec first">Каталог точек опроса (что и когда спрашиваем)</div>
+  <div class="trig">
+    <div class="trigc"><div class="th">Транзакционные (после касания)</div><ul>
+      <li><b>Покупка в аптеке</b> — чек закрыт в 1С</li>
+      <li><b>Онлайн-заказ</b> — заказ выполнен (сайт)</li>
+      <li><b>Закрытие сделки</b> — этап «Выиграна» в воронке</li>
+      <li><b>Диалог в WhatsApp (CSAT)</b> — чат закрыт консультантом</li>
+      <li><b>Звонок</b> — разговор завершён</li>
+    </ul></div>
+    <div class="trigc"><div class="th">Периодические · внутренние · партнёрские</div><ul>
+      <li><b>Relationship NPS</b> — держателям карт раз в квартал</li>
+      <li><b>Реактивация</b> — сегмент «давно не покупали»</li>
+      <li><b>eNPS сотрудников</b> — раз в квартал</li>
+      <li><b>NPS врачей и блогеров</b> — по партнёрке</li>
+    </ul></div>
+  </div>
+  <div class="callout"><b>Один движок — не десять опросников.</b> Все касания используют одну механику (балл 0–10 + «почему?»), а аналитические разрезы (по точке, продавцу, источнику, периоду) — это срезы тех же ответов, а не новые опросы. Клиенту приходит одно короткое сообщение в WhatsApp; вам — честный балл и живой комментарий.</div>
+
+  <div class="sec">За рамками стандартного пакета</div>
+  <div class="callout"><b>Глубина интеграции с 1С</b> (нестандартные конфигурации, обмен по расписанию) и <b>подключение платного WhatsApp Business API</b> (номер, верификация, тарифы провайдера) — по факту и по часам сверху, так как зависят от вашей учётной системы и оператора рассылок. В стандартный пакет входят вся логика NPS, дашборд, точки опроса, привязка к точке/продавцу, отработка детракторов и предпросмотр клиента.</div>
+
+  <div class="sec">Стоимость и порядок оплаты</div>
+  <div class="pricewrap">
+    <div class="pricebox">
+      <div class="lbl">Разработка «под ключ», разово</div>
+      <div class="big"><b>1 500 000 ₸</b></div>
+      <div class="note">≈ $3 000 ≈ 300 000 сом. Полная передача системы вам, на ваш сервер, в собственность. Без ежемесячной платы за пользование — только хостинг (есть бесплатный до 10 ГБ). В стандарт входит и ~20% индивидуальных доработок под вас.</div>
+    </div>
+    <div class="steps">
+      <div class="st"><div class="sn"><b>Предоплата 10% · старт</b><br><span style="color:var(--muted)">символическая, начинаем работу</span></div><div class="sv">150 000 ₸<br><span style="font-size:8.5px;color:var(--muted)">≈ $300</span></div></div>
+      <div class="st"><div class="sn"><b>Этап 1 · базовый функционал</b><br><span style="color:var(--muted)">после утверждения (пост-оплата)</span></div><div class="sv">600 000 ₸</div></div>
+      <div class="st"><div class="sn"><b>Этап 2 · финальная сдача</b><br><span style="color:var(--muted)">по факту полной передачи</span></div><div class="sv">750 000 ₸</div></div>
+      <div class="st tot"><div class="sn"><b>Итого</b></div><div class="sv">1 500 000 ₸</div></div>
+    </div>
+  </div>
+
+  <div class="sec">Как мы работаем</div>
+  <div class="steps" style="margin-bottom:2px">
+    <div class="st"><div class="sn"><b>Демо уже готово</b> — от него отталкиваемся. Садимся на Zoom, проходим по каждому блоку под ваши точки и процессы.</div><div class="sv">демо</div></div>
+    <div class="st"><div class="sn"><b>Итерации</b> — выкатываем рабочие релизы, вы кликаете и говорите, что оставить/убрать/добавить.</div><div class="sv">обсуждаем · внедряем</div></div>
+    <div class="st"><div class="sn"><b>3–5 недель</b> — сборка и поэтапная сдача, пост-оплатой.</div><div class="sv">срок</div></div>
+  </div>
+
+  <div class="sec">Условия</div>
+  <div class="two">
+    <div class="term"><div class="h">Полное владение</div><div class="b">Система разрабатывается под вас, размещается на вашем сервере и передаётся насовсем. Исходники и доступы — ваши.</div></div>
+    <div class="term"><div class="h">Сервер</div><div class="b">Доступ из браузера и с телефона. Есть бесплатный сервер до 10 ГБ.</div></div>
+    <div class="term"><div class="h">Сопровождение</div><div class="b">Ошибки по нашей вине — правим бесплатно. Ведём вас после внедрения.</div></div>
+    <div class="term"><div class="h">Доработки после сдачи</div><div class="b">Новые пожелания (1С, WhatsApp API, новые точки) — по часам (≈$20/час).</div></div>
+  </div>
+
+  <div class="sec">Стороны</div>
+  <table class="req">
+    <tr><td class="k">Исполнитель</td><td>ИП «STUDYSTORIES.APP», БИН 880607300110, директор Цай Платон · pllato.kz · uurraa@gmail.com</td></tr>
+    <tr><td class="k">Заказчик</td><td>Revyline Кыргызстан («Зубная аптека»), г. Бишкек · собственник Оксана · реквизиты уточняются</td></tr>
+  </table>
+
+  <div class="cta">
+    <div class="x">Демо готово — кликайте вживую. Чтобы стартовать, вносите символическую <b>предоплату 10% = $300 (150 000 ₸)</b>, и начинаем поднимать вашу систему NPS. Итерациями за 3–5 недель запустим замер лояльности по всем точкам.</div>
+    <div class="amt"><div class="v">$300 · 150 000 ₸</div><div class="s">старт · 10%</div></div>
+  </div>
+
+  <div class="signs">
+    <div class="s"><div class="sl">Исполнитель</div><div class="snm">ИП «STUDYSTORIES.APP»</div><div class="ln"><u></u> / Цай П. / М.П.</div></div>
+    <div class="s"><div class="sl">Заказчик</div><div class="snm">Revyline Кыргызстан</div><div class="ln"><u></u> / Оксана / М.П.</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП NPS-2026-01 · ИП «STUDYSTORIES.APP» · pllato.kz</span><span>2 / 2</span></div>
+</section>
+</body></html>
