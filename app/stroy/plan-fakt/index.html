@@ -259,6 +259,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-iss-new{display:flex;gap:8px;align-items:flex-end;}
 .lk-iss-new textarea{flex:1;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:inherit;font-size:13px;resize:vertical;}
 /* поле ввода обучалки: без своих стилей textarea оставался крошечным системным */
+.lk-iss-cap{font-size:12px;line-height:1.5;color:var(--muted);padding:2px 2px 8px;}
 .lk-iss-add{display:flex;flex-direction:column;gap:9px;}
 .lk-iss-add textarea{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;padding:11px 13px;font:inherit;font-size:14px;line-height:1.5;resize:vertical;min-height:96px;background:#fff;}
 .lk-iss-add textarea:focus{outline:none;border-color:var(--steel);box-shadow:0 0 0 3px rgba(47,74,110,.12);}
@@ -1637,8 +1638,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v384';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v381';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v386';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v385';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -1770,8 +1771,9 @@ function lkParseVertical(items){
 const LK_NAME=/^["“]?\s*(?=[^;,\n]*[-\d])([A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё0-9.()]*(?:-[A-Za-zА-Яа-яЁёA-Za-z0-9.()]+)*)\s*(?:;|,(?!\d))/;
 function lkName(nm){return nm[1];}
 const LK_SECT=/(\d+)\s*[xхХX×]\s*(\d+(?:[,.]\d+)?)/;
-const LK_MARK=/(А[сcС]?\s*ВВГ|КВВГ|ВВГ|ШВВП|ПВ\s?\d|ПГ\d|DEVI[A-Za-z]*)/;   // DEVI… — греющий кабель (DEVIsnow 30T, S2 л.9)
-const LK_MARKNAME=/(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ПВ\s?\d|ПГ\d)(?:[а-яёА-ЯA-Za-z0-9()\-\s]*?(?:FRLS|LS|HF))?/i;
+// ВБ(б)Шв — бронированный кабель (АВБбШв-3x6-ПНД32, ФА-009 л.4: три линии С18–С20 терялись)
+const LK_MARK=/(А[сcС]?\s*ВВГ|КВВГ|ВВГ|ШВВП|А?ВБ[бБ]?Шв|ПВ\s?\d|ПГ\d|DEVI[A-Za-z]*)/;   // DEVI… — греющий кабель (DEVIsnow 30T, S2 л.9)
+const LK_MARKNAME=/(?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|ВБ[бБ]?Шв|ПВ\s?\d|ПГ\d)(?:[а-яёА-ЯA-Za-z0-9()\-\s]*?(?:FRLS|LS|HF))?/i;
 function lkMarkName(s){if(/DEVI/i.test(s||'')){const d=(s||'').match(/DEVI\w*(?:\s*\d+[A-ZА-Яа-яa-z]*)?/i);if(d)return d[0].trim();}
   const m=(s||'').match(LK_MARKNAME);return m?m[0].replace(/\s+/g,'').replace(/^[-\s]+/,''):'';}
 const LK_LEN_DASH=/-\s*(\d+(?:[,.]\d+)?)\s*м/g;
@@ -1902,6 +1904,8 @@ function lkParseOneLine(items,keepNoLen){const rows=[];const dist=(a,b)=>Math.hy
         return t.length<=16&&!/^\d+(?:[.,]\d+)?$/.test(t)&&!LK_MARK.test(t)&&/^[№А-ЯЁA-Z][А-ЯЁа-яёA-Za-z.:\s-]{0,8}[\d.]/.test(t);})
       .sort((a,b)=>a.y-b.y)[0];
       if(cand)gname=cand.s.replace(/[\s:_-]+$/,'');}   // «Л:ЩС-К1-Н -» → «Л:ЩС-К1-Н»
+    // склеенный паспорт в одном токене: «С20 0.5 0.80 2.8» → «С20» (хвост из одних чисел — не имя)
+    {const mn=gname.match(/^(\S+)((?:\s+\d+(?:[.,]\d+)?)+)$/);if(mn)gname=mn[1];}
     if(/^M\s?[А-ЯЁ]/.test(gname))gname='т'+gname.replace(/^M\s?/,'');   // латинская M битого шрифта = «т» («MЩРС»→тЩРС)
     rows.push({group:gname,mark,section:sm[1]+'x'+sm[2],len:parseFloat(String(L).replace(',','.')),conds,x:it.x,y:it.y,mult:lkMult(s),needsCheck:ncFlag});});
   return rows;
@@ -2626,13 +2630,15 @@ function lkTeachStart(){
 }
 $('lkTeach').onclick=lkTeachStart;      // в модале «Правки»
 $('lkTeachTop').onclick=lkTeachStart;   // в верхней панели — основной вход
+function lkPlural(n,one,few,many){const a=Math.abs(n)%100,b=a%10;
+  return a>10&&a<20?many:b>1&&b<5?few:b===1?one:many;}
 function lkTeachPanel(pg,rect,clusters){
   // ВАЖНО: класть внутрь .ledger и поверх него по z-index — панель в body уходила ПОД
   // полноэкранную Линейку (z-index 150 против 60) и выглядела как «ничего не происходит»
   const wrap=document.createElement('div');wrap.className='lk-iss-modal';wrap.id='lkTeachModal';
   wrap.style.display='flex';wrap.style.zIndex='200';
   wrap.innerHTML=`<div class="lk-iss-box"><div class="lk-iss-head"><b>🎓 Научить читать</b><span class="lk-iss-sub">лист ${pg.page} · найдено подписей: ${clusters.length}</span><button class="lg-x" id="lkTcX">✕</button></div>
-    <div class="lk-iss-list" id="lkTcList">${clusters.length?clusters.slice(0,20).map(c=>`<div class="lk-iss"><span class="tx" style="font-family:var(--mono);font-size:11px">${esc(c.s.slice(0,150))}</span></div>`).join(''):'<div class="lk-iss-empty">В этой области нет текста — возможно, это картинка/скан. Обведи участок с подписями.</div>'}</div>
+    <div class="lk-iss-list" id="lkTcList">${clusters.length?`<div class="lk-iss-cap">Это ТЕКСТ, найденный в обведённой области — ${clusters.length} ${lkPlural(clusters.length,'подпись','подписи','подписей')}, по одной на каждую линию схемы. Не правки: правило из них получится ОДНО.</div>`+clusters.slice(0,20).map((c,i)=>`<div class="lk-iss"><span class="pg">${i+1}</span><span class="tx" style="font-family:var(--mono);font-size:11px">${esc(c.s.slice(0,150))}</span></div>`).join(''):'<div class="lk-iss-empty">В этой области нет текста — возможно, это картинка/скан. Обведи участок с подписями.</div>'}</div>
     <div class="lk-iss-add"><textarea id="lkTcHint" rows="4" placeholder="Скажи словами, что здесь нужно читать. Например:&#10;• тут тоже нужно считать кабель&#10;• длина — последнее целое число в подписи&#10;• имя потребителя стоит слева от марки"></textarea>
       <div class="lk-iss-actions"><button class="lk-add" id="lkTcGo" ${clusters.length?'':'disabled'}>🤖 Разобрать</button>
       <button class="lk-add" id="lkTcApply" style="display:none;border-color:#2f7d4f;color:#2f7d4f">✓ Применить и запомнить</button>
