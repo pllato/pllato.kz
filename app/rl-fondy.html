@@ -160,6 +160,9 @@
   .tip .tp-sum{border-top:1px solid rgba(255,255,255,.16);margin-top:8px;padding-top:7px;display:flex;justify-content:space-between;gap:12px;font-weight:800}
   .tip .tp-f{color:#93a4c2;font-size:11px;margin-top:6px}
   .hint-num{cursor:help;border-bottom:1px dotted rgba(90,110,140,.5)}
+  body.sum-mode .money-input,body.sum-mode .oprow .am{cursor:pointer;box-shadow:inset 0 0 0 1px #b9cbe6}
+  body.sum-mode .money-input:hover,body.sum-mode .oprow .am:hover{background:var(--blue-bg)!important}
+  #sumModeBtn.on{background:#3f6ea8;color:#fff}
   .sum-sel{outline:2px solid var(--blue)!important;outline-offset:-1px;background:var(--blue-bg)!important;border-radius:7px}
   .sum-bar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%) translateY(90px);z-index:98;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
     background:var(--navy);color:#fff;padding:11px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(15,22,38,.32);font-size:13px;transition:.25s;opacity:0;pointer-events:none}
@@ -189,6 +192,7 @@
   <span id="syncStatus" style="font-size:11px;margin-left:4px;color:#7d8aa3"></span>
   <span id="whoami" style="font-size:11px;color:#9aa7bd"></span>
   <div class="sp"></div>
+  <button class="tbtn" id="sumModeBtn" onclick="toggleSumMode()" title="режим выделения сумм: клик по суммам — считает итог">Σ Сумма</button>
   <button class="tbtn" id="accessBtn" style="display:none" onclick="goAccess()">👥 Доступы</button>
   <button class="tbtn" onclick="changeKey()" title="сменить ключ доступа">🔑</button>
   <button class="tbtn acc" onclick="showNew()">+ Новый проект</button>
@@ -439,17 +443,27 @@ const SUM_SELECTOR='.money-input,.oprow .am,.pf-cell .pf';
 let _sumAnchor=null;
 function sumCellsAll(){return [...document.querySelectorAll('.money-input,.oprow .am')]}
 function sumValue(el){return el.matches('.money-input')?impNum(el.value):impNum(el.textContent)}
+function toggleSumMode(){
+  window._sumMode=!window._sumMode;
+  document.body.classList.toggle('sum-mode',!!window._sumMode);
+  document.getElementById('sumModeBtn')?.classList.toggle('on',!!window._sumMode);
+  if(!window._sumMode)clearSumSel();else{updateSumBar();toast('Режим суммы: кликай по суммам — итог внизу')}
+}
 function clearSumSel(){document.querySelectorAll('.sum-sel').forEach(e=>e.classList.remove('sum-sel'));updateSumBar()}
 function updateSumBar(){
   const bar=document.getElementById('sumBar');if(!bar)return;
   const sel=[...document.querySelectorAll('.sum-sel')];
-  if(!sel.length){bar.classList.remove('show');bar.innerHTML='';return}
+  if(!sel.length){
+    if(window._sumMode){bar.innerHTML='<span>Режим суммы включён — кликай по суммам</span><button onclick="toggleSumMode()">Выключить</button>';bar.classList.add('show')}
+    else{bar.classList.remove('show');bar.innerHTML=''}
+    return}
   const vals=sel.map(sumValue).filter(v=>v||v===0);
   const sum=vals.reduce((a,b)=>a+b,0),avg=vals.length?sum/vals.length:0;
   bar.innerHTML=`<span>Выделено ${vals.length}</span>
     <span>Сумма <b>${fmt(sum)} ₸</b></span>
     <span class="sb-sub">среднее ${fmt(avg)} · макс ${fmt(Math.max(...vals))} · мин ${fmt(Math.min(...vals))}</span>
-    <button onclick="sumCopy(${sum})">Копировать</button><button onclick="clearSumSel()">Снять</button>`;
+    <button onclick="sumCopy(${sum})">Копировать</button><button onclick="clearSumSel()">Снять</button>
+    ${window._sumMode?'<button onclick="toggleSumMode()">Выйти из режима</button>':'<span class="sb-sub">⌘/Ctrl+клик · Shift+клик — диапазон</span>'}`;
   bar.classList.add('show');
 }
 function sumCopy(v){navigator.clipboard?.writeText(String(Math.round(v))).then(()=>toast('Сумма скопирована: '+fmt(v)+' ₸'),()=>{})}
@@ -466,8 +480,8 @@ function sumPickCard(el){
 }
 document.addEventListener('mousedown',e=>{
   const el=e.target.closest?.('.money-input,.oprow .am');
-  if(!el){if(!e.target.closest?.('.sum-bar,.sum-pick'))clearSumSel();return}
-  if(e.metaKey||e.ctrlKey){
+  if(!el){if(!window._sumMode&&!e.target.closest?.('.sum-bar,.sum-pick'))clearSumSel();return}
+  if(window._sumMode||e.metaKey||e.ctrlKey){
     e.preventDefault();el.classList.toggle('sum-sel');_sumAnchor=el;updateSumBar();
   }else if(e.shiftKey){
     e.preventDefault();
