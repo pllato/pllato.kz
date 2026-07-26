@@ -1638,7 +1638,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v386';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v387';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v385';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2612,7 +2612,9 @@ async function lkAreaClusters(pg,rect){
   const tc=await page.getTextContent();
   tc.items.forEach(it=>{if(it.str)it.str=lkFixEnc(it.str);});
   const v0=page.getViewport({scale:1});
-  return lkClusters(tc.items).filter(c=>{
+  const all=lkClusters(tc.items);
+  pg._tcl=all;   // подписи ВСЕГО листа — из них lkTeachSamples берёт опорные примеры для ИИ
+  return all.filter(c=>{
     const q=v0.convertToViewportPoint(c.x,c.y);const mx=q[0]/v0.width,my=q[1]/v0.height;
     return mx>=rect.x0-0.01&&mx<=rect.x1+0.01&&my>=rect.y0-0.02&&my<=rect.y1+0.02;});
 }
@@ -2630,6 +2632,20 @@ function lkTeachStart(){
 }
 $('lkTeach').onclick=lkTeachStart;      // в модале «Правки»
 $('lkTeachTop').onclick=lkTeachStart;   // в верхней панели — основной вход
+/* ОПОРА ДЛЯ ИИ: линии этого же листа, прочитанные верно (с их исходной подписью) — по ним видно,
+   какой столбец безымянного паспорта «… 5.7 95 95 2.1 …» является длиной. Без опоры ИИ гадает
+   и иногда решает, что длины в подписи нет вовсе (ФА-009-3.4 л.4, первая попытка). */
+function lkTeachSamples(pg,clusters){
+  const rows=(pg.rows||[]).filter(r=>r.len>0&&!r.needsCheck&&r.group&&r.group!=='—');
+  if(!rows.length)return [];
+  const out=[];
+  rows.slice(0,6).forEach(r=>{
+    // ищем подпись, из которой эта строка получилась — по имени потребителя в начале кластера
+    const raw=(clusters.concat(pg._tcl||[])).find(c=>c&&c.s&&c.s.indexOf(' '+r.group+' ')>=0);
+    out.push({group:r.group,mark:r.mark||'',section:r.section||'',len:r.len,raw:raw?raw.s:''});
+  });
+  return out;
+}
 function lkPlural(n,one,few,many){const a=Math.abs(n)%100,b=a%10;
   return a>10&&a<20?many:b>1&&b<5?few:b===1?one:many;}
 function lkTeachPanel(pg,rect,clusters){
@@ -2654,7 +2670,8 @@ function lkTeachPanel(pg,rect,clusters){
     try{
       const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
       const r=await fetch(LK_AI+'/teach',{method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({hint:$('lkTcHint').value||'',clusters:clusters.map(c=>c.s),file:name,page:pg.page})});
+        body:JSON.stringify({hint:$('lkTcHint').value||'',clusters:clusters.map(c=>c.s),file:name,page:pg.page,
+          samples:lkTeachSamples(pg,clusters)})});
       const data=await r.json();
       btn.disabled=false;
       if(data.error){note.textContent='Не вышло: '+data.error;return;}
