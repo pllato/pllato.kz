@@ -554,6 +554,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
         <textarea id="lkIssText" rows="2" placeholder="Что не так на текущем листе? Например: «справа кабель на насос не посчитан», «длина у ЩК-2.4 должна быть 25 м»…"></textarea>
         <div class="lk-iss-newbtns">
           <button class="lk-add" id="lkIssPick" title="Закроет окно — обведи рамкой место на листе, пометка привяжется к области">⌖ Обвести место на листе <span id="lkIssPage"></span></button>
+          <button class="lk-add" id="lkTeach" title="Обведи участок, который программа не читает, и скажи словами, что там считать — правило запомнится и заработает на всех похожих листах" style="border-color:#b45309;color:#b45309">🎓 Научить читать</button>
           <button class="lk-add" id="lkIssAdd" title="Пометка на весь лист, без области">⚑ На весь лист</button>
         </div>
       </div>
@@ -1631,8 +1632,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v380';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v380';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v381';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v381';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2165,6 +2166,55 @@ function lkTableNames(items,rows,shields){
 function lkExpandMult(rows){const out=[];rows.forEach(r=>{const n=Math.max(1,r.mult||1);for(let i=0;i<n;i++)out.push(Object.assign({},r,{mult:1,conds:i===0?(r.conds||[]).map(c=>Object.assign({},c)):[]}));});return out;}
 /* «Изолированные шины комплектно» — сборная шина, всегда 5 м; отдельной строкой с отметкой на схеме */
 function lkParseBus(items){return items.filter(it=>/Изолированные\s+шины/i.test(it.str||'')).map(it=>({group:'—',mark:'Изолированные шины',section:'шина',len:5,conds:[],x:it.transform[4],y:it.transform[5],mult:1}));}
+/* ==== ОБУЧАЛКА: кластеры подписей + исполнение выученных правил ====
+   Кластер — одна подпись линии целиком (паспорт + марка стоят рядом отдельными колонками).
+   Собираем «полосы» по поперечной оси (разрыв >34пт = другая линия), внутри полосы делим по
+   продольной (разрыв >60пт = другая подпись). Строка кластера — текст в порядке чтения. */
+function lkClusters(items){
+  const It=items.map(it=>({s:(it.str||'').trim(),x:it.transform[4],y:it.transform[5],
+    rot:Math.abs(it.transform[1])>Math.abs(it.transform[0])?'V':'H'})).filter(o=>o.s);
+  const out=[];
+  ['V','H'].forEach(rot=>{
+    const arr=It.filter(o=>o.rot===rot);if(!arr.length)return;
+    const cross=o=>rot==='V'?o.x:o.y, along=o=>rot==='V'?o.y:o.x;
+    const byCross=arr.slice().sort((a,b)=>cross(a)-cross(b));
+    let band=[],prev=null;
+    const flushBand=()=>{
+      if(!band.length)return;
+      const sorted=band.slice().sort((a,b)=>along(a)-along(b));
+      let grp=[],pa=null;
+      const flushGrp=()=>{
+        if(grp.length<2)return;
+        const ord=grp.slice().sort((a,b)=>(rot==='V'?cross(a)-cross(b):along(a)-along(b))||(rot==='V'?along(a)-along(b):cross(a)-cross(b)));
+        const s=ord.map(o=>o.s).join(' ').replace(/\s+/g,' ').trim();
+        if(s.length>3)out.push({s,rot,x:grp.reduce((a,o)=>a+o.x,0)/grp.length,y:grp.reduce((a,o)=>a+o.y,0)/grp.length,n:grp.length});
+        grp=[];};
+      sorted.forEach(o=>{if(pa!=null&&along(o)-pa>60)flushGrp();grp.push(o);pa=along(o);});
+      flushGrp();band=[];};
+    byCross.forEach(o=>{if(prev!=null&&cross(o)-prev>34){flushBand();}band.push(o);prev=cross(o);});
+    flushBand();
+  });
+  return out;
+}
+/* исполнение выученного правила: только regex, никакого кода из сети */
+function lkRuleRows(clusters,rules){
+  const rows=[];if(!rules||!rules.length)return rows;
+  const rx=(p,f)=>{try{return p?new RegExp(String(p).slice(0,400),f||''):null;}catch(e){return null;}};
+  rules.forEach(rule=>{
+    const test=rx(rule.test),mk=rx(rule.mark),sec=rx(rule.section),len=rx(rule.len),grp=rx(rule.group),cnd=rx(rule.conds,'g');
+    if(!test||!sec||!len)return;
+    clusters.forEach(c=>{
+      if(!test.test(c.s))return;
+      const sm=sec.exec(c.s),lm=len.exec(c.s);if(!sm||!lm)return;
+      const L=parseFloat(String(lm[1]).replace(',','.'));if(!(L>0)||L>1000)return;
+      const conds=[];if(cnd){let m;cnd.lastIndex=0;while((m=cnd.exec(c.s))&&conds.length<4)conds.push({t:lkCondName(m[1])+(m[2]||''),len:+(m[3]||0)||0});}
+      rows.push({group:(grp&&(grp.exec(c.s)||[])[1]||'').trim()||'—',
+        mark:(mk&&(mk.exec(c.s)||[])[1]||'').trim()||lkMarkName(c.s),
+        section:sm[1]+'x'+String(sm[2]).replace('.',','),len:L,conds,x:c.x,y:c.y,mult:1,_rule:rule.id||1});
+    });
+  });
+  return rows;
+}
 async function lkExtract(data,onProgress){
   const pdf=await pdfjsLib.getDocument({data}).promise;const N=pdf.numPages;const pages=[];let docBlocks=false;
   for(let p=1;p<=N;p++){if(onProgress)onProgress(p,N);
@@ -2215,6 +2265,14 @@ async function lkExtract(data,onProgress){
       // длины на чертеже (S7 л.7 ЩСНТ-А(8): у соседей «П40-42м», у него нет). Красная, длину впишут.
       mf.filter(m=>rows.filter(r=>r.x&&Math.abs((r.y||0)-m.y)<25).length>=2)
         .forEach(m=>rows.push({group:m.group||'',mark:m.mark,section:m.section,len:m.len,conds:m.conds||[],x:m.x,y:m.y,mult:1,needsCheck:true}));
+    }
+    // выученные правила (обучалка): добираем подписи, которые штатные парсеры не взяли.
+    // Строку из правила добавляем только если рядом (±20пт) ещё ничего не прочитано.
+    if(LK.rules&&LK.rules.length){
+      const cl=lkClusters(tc.items);
+      lkRuleRows(cl,LK.rules).forEach(r=>{
+        if(rows.some(o=>o.x&&Math.abs(o.x-r.x)<20&&Math.abs((o.y||0)-r.y)<20))return;
+        rows.push(r);});
     }
     // линия-отсылка без данных на листе («от фотореле см. л. ЭОМ-6», P9): у якоря группы «№кА4»
     // нет своей строки — создаём заглушку с красной точкой: известное (группа) заполнено,
@@ -2474,6 +2532,7 @@ setTimeout(async()=>{try{
     document.body.appendChild(d);}
 }catch(e){}},3500);
 window.addEventListener('load',()=>{(async()=>{try{
+  await lkRulesLoad();   // выученные правила (свои + общие командные) — до первого разбора
   await lkRefreshDocs();
   const last=localStorage.getItem('lkLast');if(!last)return;
   const rec=await archGet(last);if(rec&&rec._lk)await lkOpenBuf(rec.id,rec.name,rec.buf.slice(0),rec.state,rec.issues,rec.ver);
@@ -2519,6 +2578,73 @@ $('lkIssPick').onclick=()=>{const t=($('lkIssText').value||'').trim();if(!t){toa
   $('lkIssModal').style.display='none';
   lkPickArea(rect=>{LK.issues.push({page:pg.page,text:t,rect,done:false,ts:Date.now()});
     $('lkIssText').value='';lkIssBadge();lkPersist();renderLineyka();toast('Пометка ⚑ с областью добавлена');});};
+/* ==== ОБУЧАЛКА: «обведи участок → скажи словами → правило запомнилось» ====
+   В ИИ уходит ТОЛЬКО текст выделенного участка (сам PDF не уходит). ИИ возвращает не метры,
+   а ПРАВИЛО разбора — дальше строки считает обычный парсер, одинаково и без интернета. */
+const LK_AI='https://lineyka-ai.uurraa.workers.dev';
+LK.rules=[];
+async function lkRulesLoad(){
+  try{const rec=await archGet('lk_rules');if(rec&&rec.rules)LK.rules=rec.rules;}catch(e){}
+  try{const r=await fetch(LK_AI+'/rules');if(r.ok){const list=await r.json();
+    const have=new Set(LK.rules.map(x=>x.id));(list||[]).forEach(x=>{if(x&&x.id&&!have.has(x.id))LK.rules.push(x);});}}catch(e){}
+}
+async function lkRulesSave(rule){
+  LK.rules.unshift(rule);
+  try{await archPut({id:'lk_rules',_lkrules:1,rules:LK.rules.slice(0,200),date:Date.now()});}catch(e){}
+  try{await fetch(LK_AI+'/rules',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rule})});}catch(e){}
+}
+/* текст подписей внутри обведённой области (rect — нормализованные коорд. картинки листа) */
+async function lkAreaClusters(pg,rect){
+  if(!LK.pdf)return [];
+  const page=await LK.pdf.getPage(pg.page);
+  const tc=await page.getTextContent();
+  tc.items.forEach(it=>{if(it.str)it.str=lkFixEnc(it.str);});
+  const v0=page.getViewport({scale:1});
+  return lkClusters(tc.items).filter(c=>{
+    const q=v0.convertToViewportPoint(c.x,c.y);const mx=q[0]/v0.width,my=q[1]/v0.height;
+    return mx>=rect.x0-0.01&&mx<=rect.x1+0.01&&my>=rect.y0-0.02&&my<=rect.y1+0.02;});
+}
+$('lkTeach').onclick=()=>{
+  const pg=LK.pages[LK.sel];if(!pg){toast('Нет листа');return;}
+  if(LK.view!=='pages'){LK.view='pages';renderLineyka();}
+  $('lkIssModal').style.display='none';
+  toast('Обведи участок, который нужно научиться читать');
+  lkPickArea(async rect=>{
+    const cl=await lkAreaClusters(pg,rect);
+    lkTeachPanel(pg,rect,cl);});
+};
+function lkTeachPanel(pg,rect,clusters){
+  const wrap=document.createElement('div');wrap.className='lk-iss-modal';wrap.id='lkTeachModal';wrap.style.display='flex';
+  wrap.innerHTML=`<div class="lk-iss-box"><div class="lk-iss-head"><b>🎓 Научить читать</b><span class="lk-iss-sub">лист ${pg.page} · найдено подписей: ${clusters.length}</span><button class="lg-x" id="lkTcX">✕</button></div>
+    <div class="lk-iss-list" id="lkTcList">${clusters.length?clusters.slice(0,20).map(c=>`<div class="lk-iss"><span class="tx" style="font-family:var(--mono);font-size:11px">${esc(c.s.slice(0,150))}</span></div>`).join(''):'<div class="lk-iss-empty">В этой области нет текста — возможно, это картинка/скан. Обведи участок с подписями.</div>'}</div>
+    <div class="lk-iss-add"><textarea id="lkTcHint" rows="2" placeholder="Скажи словами: «тут тоже нужно считать», «длина — последнее число», «имя линии слева»…"></textarea>
+      <div class="lk-iss-actions"><button class="lk-add" id="lkTcGo" ${clusters.length?'':'disabled'}>🤖 Разобрать и запомнить</button>
+      <span class="lk-note" id="lkTcNote">В ИИ уйдёт только текст этой области, сам файл — нет.</span></div></div></div>`;
+  document.body.appendChild(wrap);
+  const close=()=>wrap.remove();
+  $('lkTcX').onclick=close;
+  $('lkTcGo').onclick=async()=>{
+    const btn=$('lkTcGo'),note=$('lkTcNote');btn.disabled=true;note.textContent='Думаю…';
+    try{
+      const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
+      const r=await fetch(LK_AI+'/teach',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({hint:$('lkTcHint').value||'',clusters:clusters.map(c=>c.s),file:name,page:pg.page})});
+      const data=await r.json();
+      if(data.error){note.textContent='Не вышло: '+data.error;btn.disabled=false;return;}
+      const test=lkRuleRows(clusters,[data.rule]);
+      const sum=test.reduce((a,x)=>a+x.len,0);
+      $('lkTcList').innerHTML=`<div class="lk-iss-empty" style="text-align:left"><b>${esc(data.rule.title||'Новое правило')}</b><br>${esc(data.explain||'')}</div>`
+        +(test.length?test.slice(0,20).map(x=>`<div class="lk-iss"><span class="pg">${esc(x.section)}</span><span class="tx">${esc(x.group||'—')} · ${esc(x.mark||'')} · <b>${x.len} м</b></span></div>`).join('')
+          :'<div class="lk-iss-empty">Правило не дало строк на этой области — стоит переформулировать подсказку.</div>');
+      note.textContent=test.length?('Проверка на этой области: '+test.length+' строк, '+Math.round(sum)+' м'):'';
+      btn.textContent='✓ Применить и запомнить';btn.disabled=!test.length;
+      btn.onclick=async()=>{btn.disabled=true;note.textContent='Сохраняю…';
+        await lkRulesSave(data.rule);
+        LK.issues.push({page:pg.page,text:'🎓 Выучено правило: '+(data.rule.title||''),rect,done:true,ts:Date.now()});
+        close();await lkReparse();toast('Правило запомнено — файл перечитан');};
+    }catch(e){note.textContent='Сеть недоступна: '+e.message;btn.disabled=false;}
+  };
+}
 function lkPickArea(cb){
   const vp=$('lkPgImg');const ib=$('lkImgBox');
   if(!vp||!ib){toast('Лист ещё не отрисован — подожди картинку');return;}
