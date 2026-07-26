@@ -65,7 +65,7 @@
   .fbtns span:first-child:hover{background:var(--green-bg);color:var(--green);border-color:var(--green)}
   .fbtns span:last-child:hover{background:var(--red-bg);color:var(--red);border-color:var(--red)}
   .nf-row{display:grid;grid-template-columns:1.5fr 80px 1fr auto;gap:8px;align-items:center;margin-bottom:7px}
-  .plan-row.with-fund{grid-template-columns:125px 1fr 1fr 1.1fr auto auto}
+  .plan-row.with-fund{grid-template-columns:125px 150px minmax(140px,0.9fr) minmax(170px,1.4fr) 152px auto auto}
   .fund-row:last-child{border-bottom:none}
   .fdot{width:11px;height:11px;border-radius:50%}
   .fplan,.ffactin{display:grid;grid-template-columns:1fr auto;gap:5px;align-items:center;padding:9px 8px;border-radius:8px;color:var(--green);font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
@@ -94,7 +94,23 @@
   .fgrid3{display:grid;grid-template-columns:120px 1fr 1fr;gap:8px;margin-bottom:8px}
   .alloc{font-size:11.5px;color:var(--muted);background:var(--green-bg);border-radius:8px;padding:8px 11px;margin:8px 0;line-height:1.6;display:none}
   .warn{font-size:11.5px;color:#7a5c1e;background:var(--amber-bg);border-radius:8px;padding:8px 11px;margin:8px 0;display:none}
-  .plan-row{display:grid;grid-template-columns:125px 1fr 1.3fr auto auto;gap:8px;align-items:center;margin-bottom:7px}
+  .plan-row{display:grid;grid-template-columns:125px 150px minmax(180px,1fr) 152px auto auto;gap:8px;align-items:center;margin-bottom:7px;position:relative;padding:5px 7px;border-radius:9px}
+  .plan-row::before{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--fill,0%);background:var(--fillc,rgba(15,111,82,.13));border-radius:9px;z-index:0;transition:width .35s ease}
+  .plan-row>*{position:relative;z-index:1}
+  .plan-row input.note{text-overflow:ellipsis;transition:box-shadow .15s}
+  .plan-row input.note:focus{position:absolute;z-index:9;width:min(620px,74vw);background:#fff;box-shadow:0 8px 26px rgba(20,28,44,.20)}
+  .pf-cell{display:grid;gap:3px;justify-items:stretch}
+  .pf-bar{height:5px;border-radius:4px;background:#e4e7ec;overflow:hidden}
+  .pf-bar i{display:block;height:100%;border-radius:4px;background:var(--barc,var(--green));transition:width .35s ease}
+  .pf{font-size:9px;font-weight:700;border-radius:5px;padding:3px 5px;white-space:normal;text-align:center;line-height:1.2;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:3px;min-height:20px}
+  .pf.wait{background:#eceef2;color:var(--muted)}
+  .pf.late{background:var(--red-bg);color:var(--red)}
+  .pf.part{background:var(--amber-bg);color:var(--amber)}
+  .pf.ok{background:var(--green-bg);color:var(--green)}
+  .pf-panel{background:#eef1f5;border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin:2px 0 9px}
+  .pf-panel .ttl{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px}
+  .pf-grid{display:grid;grid-template-columns:130px 150px 1fr auto;gap:8px;align-items:end}
+  @media(max-width:760px){.pf-grid{grid-template-columns:1fr 1fr}}
   .mv{display:flex;gap:3px}
   .mv button{border:1px solid var(--line);background:#fff;border-radius:5px;font-size:9px;padding:3px 7px;cursor:pointer;color:var(--muted)}
   .mv button:hover{background:var(--blue-bg);color:var(--blue);border-color:var(--blue)}
@@ -173,12 +189,19 @@ const DEFAULT_FUNDS=[
 let DB={projects:[],sel:null,audit:[]};
 let _id=1;
 const uid=()=>'x'+(_id++)+'_'+Math.random().toString(36).slice(2,6);
+function migrateProject(p){
+  p.tasks=p.tasks||[];p.finIn=p.finIn||[];p.finOut=p.finOut||[];
+  // старая пометка «исполнено» (строка превращалась в операцию) → закрытая строка плана
+  ['planIn','planOut','finIn','finOut'].forEach(k=>(p[k]||[]).forEach(r=>{
+    if(r.closed){r.done=true;r.doneAt=r.closedAt||todayIso();delete r.closed;delete r.closedAt}
+  }));
+}
 function localSave(){localStorage.setItem(LS,JSON.stringify({...DB,_id}))}
 function save(){localSave();schedulePush()}
 function load(){
   try{const raw=localStorage.getItem(LS);if(!raw)return false;
     const d=JSON.parse(raw);DB={projects:d.projects||[],stages:d.stages||null,sel:d.sel||null,audit:d.audit||[],impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null,dictUrl:d.dictUrl||'',fundDict:d.fundDict||null,atlSeeded:!!d.atlSeeded};_id=d._id||1000;
-    DB.projects.forEach(p=>{p.tasks=p.tasks||[];p.finIn=p.finIn||[];p.finOut=p.finOut||[]});
+    DB.projects.forEach(migrateProject);
     return DB.projects.length>0;
   }catch(e){return false}
 }
@@ -220,7 +243,7 @@ async function syncPull(initial){
     DB.audit=DB.audit||[];
     _srvVer=j.ver;_dirty=false;
     localStorage.setItem(LS,JSON.stringify({...DB,_id}));
-    DB.projects.forEach(p=>{p.tasks=p.tasks||[];p.finIn=p.finIn||[];p.finOut=p.finOut||[]});
+    DB.projects.forEach(migrateProject);
     _noPush=true; // рендер серверных данных не должен пушить их обратно (эхо)
     ensureStages();render();
     _noPush=false;
@@ -442,6 +465,60 @@ function planAllocation(p,r){
   const sum=Object.values(saved).reduce((s,v)=>s+(Math.abs(Number(v))||0),0);
   return Math.round(sum)===Math.round(amt)&&amt?saved:allocByPct(p,amt);
 }
+/* ===== ПЛАН ↔ ФАКТ =====
+   План независим: строка плана никогда не превращается в операцию и не меняется фактом.
+   Фактические операции «заливают» строки плана каскадом по датам: хватило на строку —
+   она закрашена полностью, излишек переливается в следующую, не хватило — строка залита
+   частично. Расходы заливаются в пределах своего фонда. Пометка «выполнено» — ручная. */
+const planKey=(kind,id)=>kind+':'+id;
+function planCascade(p,kind){
+  const rows=planArr(p,kind).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const isIncome=kind==='in'||kind==='finin';
+  const isFin=kind==='finin'||kind==='finout';
+  const map={_over:0,_fact:0};
+  if(isIncome){
+    let pool=p.ops.filter(o=>o.type==='in'&&(isFin?o.src==='fin':o.src!=='fin')).reduce((s,o)=>s+Math.abs(o.amt||0),0);
+    map._fact=pool;
+    rows.forEach(r=>{const amt=Math.abs(r.amt||0);const fill=Math.min(pool,amt);pool-=fill;
+      map[r.id]={amt,fill,pct:amt?Math.min(100,fill/amt*100):0}});
+    map._over=pool; // факта пришло больше, чем всего в плане
+  }else{
+    const byFund={};
+    p.ops.filter(o=>o.type==='out'&&(isFin?o.src==='fin':o.src!=='fin')).forEach(o=>{
+      byFund[o.fund||'']=(byFund[o.fund||'']||0)+Math.abs(o.amt||0);map._fact+=Math.abs(o.amt||0)});
+    rows.forEach(r=>{const amt=Math.abs(r.amt||0);const k=r.fund||'';
+      const pool=byFund[k]||0;const fill=Math.min(pool,amt);byFund[k]=pool-fill;
+      map[r.id]={amt,fill,pct:amt?Math.min(100,fill/amt*100):0}});
+    map._over=Object.values(byFund).reduce((s,v)=>s+v,0);
+  }
+  return map;
+}
+function planRemainC(cas,r){
+  if(r.done)return 0;
+  const c=cas[r.id]||{amt:Math.abs(r.amt||0),fill:0};
+  return Math.max(c.amt-c.fill,0);
+}
+function planStatusC(cas,r){
+  const c=cas[r.id]||{amt:Math.abs(r.amt||0),fill:0,pct:0};
+  const rem=Math.max(c.amt-c.fill,0);
+  if(r.done)return{cls:'ok',text:'выполнено',pct:100,fill:c.fill,amt:c.amt,rem:0};
+  if(c.pct>=99.5)return{cls:'ok',text:'залито',pct:100,fill:c.fill,amt:c.amt,rem};
+  if(c.fill>0)return{cls:'part',text:Math.round(c.pct)+'% · '+fmtM(c.fill),pct:c.pct,fill:c.fill,amt:c.amt,rem};
+  return r.date<todayIso()?{cls:'late',text:'просрочен',pct:0,fill:0,amt:c.amt,rem}
+                          :{cls:'wait',text:'ожидается',pct:0,fill:0,amt:c.amt,rem};
+}
+function planTotals(p,kind){
+  const cas=planCascade(p,kind);
+  return planArr(p,kind).reduce((a,r)=>{
+    const c=cas[r.id]||{amt:Math.abs(r.amt||0),fill:0};
+    a.plan+=c.amt;a.fill+=c.fill;a.rem+=planRemainC(cas,r);return a;
+  },{plan:0,fill:0,rem:0,over:cas._over,fact:cas._fact});
+}
+function planSummaryHtml(p,kind){
+  const s=planTotals(p,kind);
+  if(!s.plan)return '';
+  return `<div style="font-size:12px;color:var(--muted);margin:-4px 0 10px">План <b>${fmt(s.plan)} ₸</b> · залито фактом <b class="${s.fill?'pos':''}">${fmt(s.fill)} ₸</b> (${Math.round(s.fill/s.plan*100)}%) · осталось <b>${fmt(s.rem)} ₸</b>${s.over?` · <b style="color:var(--amber)">сверх плана ${fmt(s.over)} ₸</b>`:''}</div>`;
+}
 function monthKey(iso){return (iso||'').slice(0,7)}
 function monthly(p){
   // прошлое — фактом (операции), будущее — планом (строки плана с датой >= сегодня)
@@ -450,10 +527,18 @@ function monthly(p){
   p.ops.forEach(o=>{if(o.type==='in')ev.push({m:monthKey(o.date),fin:o.amt});
     if(o.type==='out')ev.push({m:monthKey(o.date),fout:-Math.abs(o.amt)});
     if(o.type==='adj')ev.push(o.amt>0?{m:monthKey(o.date),fin:o.amt}:{m:monthKey(o.date),fout:o.amt})});
-  p.planIn.forEach(r=>{if(!r.done&&r.date>=t)ev.push({m:monthKey(r.date),pin:r.amt})});
-  p.planOut.forEach(r=>{if(!r.done&&r.date>=t)ev.push({m:monthKey(r.date),pout:-Math.abs(r.amt)})});
-  (p.finIn||[]).forEach(r=>{if(!r.done&&r.date>=t)ev.push({m:monthKey(r.date),pin:r.amt})});
-  (p.finOut||[]).forEach(r=>{if(!r.done&&r.date>=t)ev.push({m:monthKey(r.date),pout:-Math.abs(r.amt)})});
+  // план в прогнозе — только НЕисполненный остаток строки; просроченный остаток переносится в текущий месяц
+  const curM=monthKey(t);
+  const addPlan=(cas,r,sign)=>{
+    const rem=planRemainC(cas,r);if(!rem)return;
+    const m=monthKey(r.date)>=curM?monthKey(r.date):curM;
+    ev.push(sign>0?{m,pin:rem}:{m,pout:-rem});
+  };
+  const cIn=planCascade(p,'in'),cOut=planCascade(p,'out'),cFI=planCascade(p,'finin'),cFO=planCascade(p,'finout');
+  p.planIn.forEach(r=>addPlan(cIn,r,1));
+  p.planOut.forEach(r=>addPlan(cOut,r,-1));
+  (p.finIn||[]).forEach(r=>addPlan(cFI,r,1));
+  (p.finOut||[]).forEach(r=>addPlan(cFO,r,-1));
   const keys=[...new Set(ev.map(e=>e.m))].filter(Boolean).sort();
   if(!keys.length)return[];
   // непрерывный диапазон месяцев
@@ -910,13 +995,13 @@ function addNewRow(kind){
   if(kind==='in'){
     div.style.gridTemplateColumns='125px 1fr 1.3fr auto';
     div.innerHTML=`<input type="date" class="nr-date"><input type="text" class="nr-amt money-input" placeholder="сумма ₸" inputmode="numeric" oninput="newSum()">
-      <input class="nr-note" placeholder="аванс / оплата этапа">
+      <input class="nr-note note" placeholder="аванс / оплата этапа">
       <span class="del" onclick="this.parentNode.remove();newSum()">×</span>`;
   }else{
     div.style.gridTemplateColumns='125px 1fr 1fr 1.1fr auto';
     div.innerHTML=`<input type="date" class="nr-date"><input type="text" class="nr-amt money-input" placeholder="сумма ₸" inputmode="numeric" oninput="newSum()">
       <select class="nr-fund" title="из какого фонда возьмутся деньги"></select>
-      <input class="nr-note" placeholder="материалы / ФОТ / налоги">
+      <input class="nr-note note" placeholder="материалы / ФОТ / налоги">
       <span class="del" onclick="this.parentNode.remove();newSum()">×</span>`;
   }
   box.appendChild(div);
@@ -1023,31 +1108,28 @@ function renderProject(host,p){
 
   const fundOpts=p.funds.map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join('');
 
-  const planRow=(r,kind)=>{
-    const late=r.date<t&&!r.done;
+  const planRow=(r,kind,cas)=>{
     const needFund=kind==='out'||kind==='finout';
     const isIncome=kind==='in'||kind==='finin';
-    if(r.done){
-      return `<div class="plan-row${needFund?' with-fund':''}" style="opacity:.55">
-        <input type="date" value="${r.date}" disabled>
-        <input type="text" value="${fmt(Math.abs(r.amt))}" disabled style="text-align:right">
-        ${needFund?`<input value="${esc(p.funds.find(f=>f.id===r.fund)?.name||'—')}" disabled>`:''}
-        <input value="${esc(r.note)}" disabled style="text-decoration:line-through">
-        <span class="late" style="background:var(--green-bg);color:var(--green)" title="создана фактическая операция">✓ исполнено ${dRu(r.doneAt||'')}</span>
-        <span class="del" onclick="delPlan('${kind}','${r.id}')" title="убрать строку из плана">×</span>
-      </div>`;
-    }
+    const st=planStatusC(cas,r);
+    const fillC=isIncome?'rgba(15,111,82,.14)':'rgba(178,59,59,.11)';
+    const barC=isIncome?'var(--green)':'var(--red)';
     const fundSel=needFund?`<select onchange="updPlan('${kind}','${r.id}','fund',this.value)" title="из какого фонда возьмутся деньги">
       ${p.funds.map(f=>`<option value="${f.id}"${r.fund===f.id?' selected':''}>${esc(f.name)}</option>`).join('')}
       ${!r.fund?'<option value="" selected>— фонд?</option>':''}</select>`:'';
-    const row=`<div class="plan-row${needFund?' with-fund':''}">
+    const row=`<div class="plan-row${needFund?' with-fund':''}" style="--fill:${st.pct.toFixed(1)}%;--fillc:${r.done?'rgba(15,111,82,.20)':fillC}${r.done?';opacity:.75':''}">
       <input type="date" value="${r.date}" onchange="updPlan('${kind}','${r.id}','date',this.value)">
       <input type="text" class="money-input" inputmode="numeric" value="${Math.abs(r.amt)}" style="text-align:right" onchange="updPlan('${kind}','${r.id}','amt',this.value)">
       ${fundSel}
-      <input value="${esc(r.note)}" placeholder="комментарий" onchange="updPlan('${kind}','${r.id}','note',this.value)">
-      <span class="mv"><button onclick="execPlan('${kind}','${r.id}')" title="исполнено: провести фактом (${isIncome?'деньги зайдут на фонды по раскладке':'спишется из фонда строки'})" style="color:var(--green);font-weight:800;border-color:var(--green)">✓</button><button onclick="movePlan('${kind}','${r.id}',-7)" title="на неделю раньше">◀</button><button onclick="movePlan('${kind}','${r.id}',7)" title="на неделю позже">▶</button>${isIncome?`<button onclick="paOpen('${kind}','${r.id}')" title="распределить плановое поступление по фондам">⚙ фонды</button>`:''}${late?`<span class="late" title="дата в прошлом — в расчёт не идёт">просрочен</span>`:''}</span>
+      <input class="note" value="${esc(r.note)}" placeholder="комментарий" onchange="updPlan('${kind}','${r.id}','note',this.value)">
+      <div class="pf-cell" title="залито фактом ${fmt(st.fill)} из ${fmt(st.amt)} ₸${st.rem?' · осталось '+fmt(st.rem)+' ₸':''}">
+        <div class="pf-bar"><i style="width:${st.pct.toFixed(1)}%;--barc:${barC}"></i></div>
+        <label class="pf ${st.cls}" title="галочка — пометить строку выполненной вручную"><input type="checkbox" style="width:auto;margin-right:4px;vertical-align:-1px" ${r.done?'checked':''} onchange="planDone('${kind}','${r.id}')">${st.text}</label>
+      </div>
+      <span class="mv"><button onclick="pfOpen('${kind}','${r.id}')" title="внести факт по этой строке">факт</button><button onclick="movePlan('${kind}','${r.id}',-7)" title="на неделю раньше">◀</button><button onclick="movePlan('${kind}','${r.id}',7)" title="на неделю позже">▶</button>${isIncome?`<button onclick="paOpen('${kind}','${r.id}')" title="распределить плановое поступление по фондам">⚙ фонды</button>`:''}</span>
       <span class="del" onclick="delPlan('${kind}','${r.id}')">×</span>
     </div>`;
+    if(window._pfPlan===planKey(kind,r.id))return row+pfPanelHtml(p,kind,r,cas);
     if(!isIncome||window._reallocPlan!==kind+':'+r.id)return row;
     const alloc=planAllocation(p,r);
     return row+`<div style="background:#eef1f5;border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin:2px 0 8px">
@@ -1057,6 +1139,7 @@ function renderProject(host,p){
       <div style="display:flex;gap:8px"><button class="btn grn" style="padding:7px 14px;font-size:12px" onclick="paSave('${kind}','${r.id}')">Сохранить точно</button><button class="btn ghost" style="padding:7px 14px;font-size:12px" onclick="paPct('${kind}','${r.id}')">По долям %</button></div>
     </div>`};
 
+  const casIn=planCascade(p,'in'),casOut=planCascade(p,'out'),casFinIn=planCascade(p,'finin'),casFinOut=planCascade(p,'finout');
   const mrows=monthly(p);
   const mtable=mrows.length?`<table><thead><tr><th>Месяц</th><th>Приход</th><th>Расход</th><th>Сальдо месяца</th><th>Остаток на конец</th><th></th></tr></thead><tbody>
     ${mrows.map(r=>{const inn=r.fin+r.pin,out=r.fout+r.pout;const isPlan=r.pin||r.pout;
@@ -1213,12 +1296,12 @@ function renderProject(host,p){
 
   <h2>План финансирования · займы и инвестиции в проект</h2>
   <div class="explain">Деньги, которые зайдут в проект не по договору: займ компании, инвестор, собственное вливание. В кассе по месяцам — приход. Факт вносится формой «Внести поступление» с источником «финансирование».</div>
-  <div class="card">${(p.finIn||[]).length?(p.finIn||[]).map(r=>planRow(r,'finin')).join(''):'<div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">строк нет</div>'}
+  <div class="card">${(p.finIn||[]).length?(p.finIn||[]).map(r=>planRow(r,'finin',casFinIn)).join(''):'<div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">строк нет</div>'}
     <button class="btn ghost" onclick="addPlan('finin')">+ строка финансирования</button></div>
 
   <h2>План возврата инвестиций</h2>
   <div class="explain">Когда и сколько вернуть: возврат займа, выплата инвестору — и из какого фонда вернём (обычно прибыль/резерв). В кассе по месяцам — расход. Факт — формой «Внести расход» с галочкой «возврат финансирования».</div>
-  <div class="card">${(p.finOut||[]).length?(p.finOut||[]).map(r=>planRow(r,'finout')).join(''):'<div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">строк нет</div>'}
+  <div class="card">${(p.finOut||[]).length?(p.finOut||[]).map(r=>planRow(r,'finout',casFinOut)).join(''):'<div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">строк нет</div>'}
     <button class="btn ghost" onclick="addPlan('finout')">+ строка возврата</button></div>
 
   <h2>Задачи по деньгам · ${taskArr(p).filter(x=>!x.done).length} открытых</h2>
@@ -1238,11 +1321,14 @@ function renderProject(host,p){
   </div>
 
   <h2>План поступлений</h2>
-  <div class="card">${p.planIn.length?p.planIn.map(r=>planRow(r,'in')).join(''):'<div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">строк нет</div>'}
+  <div class="explain">План живёт отдельно от факта. <b>Фактические поступления заливают строки зелёным</b> по порядку дат: хватило на строку — залита целиком, излишек переливается в следующую, не хватило — залита частично. Расходы так же заливают красным свои строки, каждая в пределах своего фонда. Если строка просрочена или закрыта иначе — <b>поставь галочку «выполнено»</b>, и её остаток уйдёт из прогноза кассы.</div>
+  ${planSummaryHtml(p,'in')}
+  <div class="card">${p.planIn.length?p.planIn.map(r=>planRow(r,'in',casIn)).join(''):'<div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">строк нет</div>'}
     <button class="btn ghost" onclick="addPlan('in')">+ строка поступления</button></div>
 
   <h2>План трат</h2>
-  <div class="card">${p.planOut.length?p.planOut.map(r=>planRow(r,'out')).join(''):'<div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">строк нет</div>'}
+  ${planSummaryHtml(p,'out')}
+  <div class="card">${p.planOut.length?p.planOut.map(r=>planRow(r,'out',casOut)).join(''):'<div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">строк нет</div>'}
     <button class="btn ghost" onclick="addPlan('out')">+ строка траты</button></div>
 
   <h2>Журнал операций · ${p.ops.length}</h2>
@@ -1417,26 +1503,68 @@ function movePlan(kind,id,days){const p=P();const r=planArr(p,kind).find(x=>x.id
   auditLog('Перенесена строка плана',(days>0?'+':'')+days+' дней · '+fmt(Math.abs(r.amt||0))+' ₸',p);
   toast(days>0?'Сдвинуто на неделю позже ✓':'Сдвинуто на неделю раньше ✓');render()}
 function delPlan(kind,id){const p=P();const arr=planArr(p,kind);const i=arr.findIndex(x=>x.id===id);if(i>=0){const r=arr[i];arr.splice(i,1);auditLog('Удалена строка плана',(kind==='out'||kind==='finout'?'Расход ':'Поступление ')+fmt(Math.abs(r.amt||0))+' ₸',p)}render()}
-/* «✓ исполнено»: плановая строка становится фактической операцией */
-function execPlan(kind,id){
-  const p=P();const r=planArr(p,kind).find(x=>x.id===id);
-  if(!r||r.done)return;
-  const amt=Math.abs(r.amt||0);
-  if(!amt){toast('У строки нет суммы','err');return}
+/* ---- факт по строке плана: отдельная операция со ссылкой на строку ---- */
+function scaledAlloc(p,r,amt){
+  // раскладка факта по фондам пропорционально раскладке плановой строки
+  const base=planAllocation(p,r);
+  const keys=Object.keys(base).filter(k=>Math.abs(base[k]||0)>0);
+  const total=keys.reduce((s,k)=>s+Math.abs(base[k]),0);
+  if(!total)return allocByPct(p,amt);
+  const out={};let acc=0;
+  keys.forEach((k,i)=>{const v=i===keys.length-1?amt-acc:Math.round(amt*Math.abs(base[k])/total);acc+=v;out[k]=v});
+  return out;
+}
+function pfOpen(kind,id){window._pfPlan=window._pfPlan===planKey(kind,id)?null:planKey(kind,id);window._reallocPlan=null;render()}
+function pfPanelHtml(p,kind,r,cas){
   const isIncome=kind==='in'||kind==='finin';
-  const date=r.date&&r.date<=todayIso()?r.date:todayIso(); // если план в прошлом — берём его дату, иначе сегодня
-  const note=(r.note||'').trim()||'по плану';
+  const st=planStatusC(cas,r);
+  const fundSel=!isIncome?`<div><label>Из фонда</label><select id="pfFund">${p.funds.map(f=>`<option value="${f.id}"${r.fund===f.id?' selected':''}>${esc(f.name)}</option>`).join('')}</select></div>`:'';
+  return `<div class="pf-panel">
+    <div class="ttl">Строка плана ${fmt(st.amt)} ₸ на ${dRu(r.date)} · залито фактом ${fmt(st.fill)} ₸ · осталось ${fmt(st.rem)} ₸${r.done?' · помечена выполненной':''}</div>
+    <div style="font-size:11.5px;color:var(--muted);margin-bottom:9px">Быстрый ввод фактической операции: она попадёт в журнал и в общий поток факта, который заливает строки плана по порядку дат${isIncome?'':' в пределах фонда'}. Сумма и дата могут отличаться от плана.</div>
+    <div class="pf-grid">
+      <div><label>Дата факта</label><input type="date" id="pfDate" value="${r.date<=todayIso()?r.date:todayIso()}"></div>
+      <div><label>Сумма факта, ₸</label><input type="text" class="money-input" id="pfAmt" inputmode="numeric" value="${st.rem||st.amt}"></div>
+      <div><label>Комментарий</label><input id="pfNote" value="${esc(r.note||'')}"></div>
+      <button class="btn grn" onclick="pfSave('${kind}','${r.id}')">Провести факт</button>
+    </div>
+    ${fundSel?`<div style="margin-top:8px;max-width:280px">${fundSel}</div>`:`<div style="font-size:11px;color:var(--muted);margin-top:7px">Деньги разойдутся по фондам в пропорции этой плановой строки.</div>`}
+    <div style="margin-top:11px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn ghost" style="padding:6px 12px;font-size:12px" onclick="planDone('${kind}','${r.id}')">${r.done?'↺ снять «выполнено»':'✓ пометить выполненной'}</button>
+      <button class="btn ghost" style="padding:6px 12px;font-size:12px" onclick="window._pfPlan=null;render()">Закрыть</button>
+    </div>
+  </div>`;
+}
+function pfSave(kind,id){
+  const p=P();const r=planArr(p,kind).find(x=>x.id===id);if(!r)return;
+  const date=document.getElementById('pfDate').value;
+  const amt=Math.abs(impNum(document.getElementById('pfAmt').value));
+  if(!date||!amt){toast('Укажи дату и сумму факта','err');return}
+  const note=(document.getElementById('pfNote').value||'').trim()||(r.note||'по плану');
+  const isIncome=kind==='in'||kind==='finin';
   if(isIncome){
-    const alloc=planAllocation(p,r); // точная раскладка строки, иначе по долям
-    p.ops.push({id:uid(),type:'in',date,amt,note,src:kind==='finin'?'fin':undefined,alloc});
+    p.ops.push({id:uid(),type:'in',date,amt,note,src:kind==='finin'?'fin':undefined,alloc:scaledAlloc(p,r,amt)});
   }else{
-    const fund=(r.fund&&p.funds.some(f=>f.id===r.fund))?r.fund:(p.funds[0]&&p.funds[0].id);
-    if(!fund){toast('Не выбран фонд у строки','err');return}
+    const fund=document.getElementById('pfFund')?.value||r.fund||p.funds[0]?.id;
+    if(!fund){toast('Выбери фонд','err');return}
     p.ops.push({id:uid(),type:'out',date,amt:-amt,fund,note,src:kind==='finout'?'fin':undefined});
   }
-  r.done=true;r.doneAt=todayIso();
-  auditLog('Исполнена строка плана',fmt(amt)+' ₸ · '+note,p);
-  toast(isIncome?'Исполнено: '+fmt(amt)+' ₸ зашли на фонды ✓':'Исполнено: '+fmt(amt)+' ₸ списаны из фонда ✓');
+  auditLog(isIncome?'Внесено поступление':'Внесён расход',fmt(amt)+' ₸ · '+note,p);
+  toast('Факт внесён — строки плана перекрашены ✓');
+  window._pfPlan=null;save();render();
+}
+/* пометка «выполнено» — только вручную; снимает остаток строки с прогноза */
+function planDone(kind,id){
+  const p=P();const r=planArr(p,kind).find(x=>x.id===id);if(!r)return;
+  if(!r.done){
+    r.done=true;r.doneAt=todayIso();
+    auditLog('Строка плана помечена выполненной',fmt(Math.abs(r.amt))+' ₸ · '+(r.note||''),p);
+    toast('Отмечено выполненной — остаток снят с прогноза');
+  }else{
+    delete r.done;delete r.doneAt;
+    auditLog('Со строки плана снята пометка «выполнено»',fmt(Math.abs(r.amt))+' ₸',p);
+    toast('Строка снова в прогнозе');
+  }
   save();render();
 }
 
@@ -1452,7 +1580,7 @@ function importData(inp){
   rd.onload=()=>{try{const d=JSON.parse(rd.result);
     if(!Array.isArray(d.projects))throw 0;
     DB={projects:d.projects,stages:d.stages||null,sel:null,impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null,dictUrl:d.dictUrl||'',fundDict:d.fundDict||null,atlSeeded:!!d.atlSeeded};_id=d._id||9000;
-    DB.projects.forEach(p=>{p.tasks=p.tasks||[];p.finIn=p.finIn||[];p.finOut=p.finOut||[]});
+    DB.projects.forEach(migrateProject);
     ensureStages();toast('Данные загружены ✓');render();
   }catch(e){toast('Не получилось прочитать файл','err')}};
   rd.readAsText(f);inp.value='';
