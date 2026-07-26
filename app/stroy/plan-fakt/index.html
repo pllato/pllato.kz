@@ -1631,8 +1631,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v378';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v378';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v379';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v379';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -1713,6 +1713,10 @@ function lkPassTop(pool,ref){
     const broken=c.filter(o=>/^\d+\s\d+$/.test(o.s.trim())).length;
     const dashes=c.filter(o=>o.s.trim()==='-').length;
     if(broken<2&&dashes<3)continue;
+    // правило Данияра: метраж на линейках пишут ЦЕЛЫМ числом (мощность/cos/ток/момент — дробные)
+    // → сперва верхнее ЦЕЛОЕ 5..300; дробное — только если целых нет (редкость: 022 л.4 «15,1»)
+    for(let q=c.length-1;q>=0;q--){const t=c[q].s.trim();if(!/^\d+$/.test(t))continue;
+      const v=parseFloat(t);if(v>5&&v<=300)return v;}
     for(let q=c.length-1;q>=0;q--){const t=c[q].s.trim();if(!/^\d+(?:[.,]\d+)?$/.test(t))continue;
       const v=parseFloat(t.replace(',','.'));if(v>5&&v<=300)return v;}}
   return null;
@@ -1976,7 +1980,10 @@ function lkParseMarkFeeders(items){
       // иначе прежний топ чистых чисел колонки ±15 (022 л.4 — там паспорт не подходит по сигнатуре)
       const pv=lkPassTop(It.filter(o=>o!==mk&&o!==secIt&&o.rot===mk.rot),mk);
       if(pv!=null)len=pv;
-      else{const nums=col.filter(o=>o!==secIt&&/^\d+(?:[.,]\d+)?$/.test(o.s)).sort((a,b)=>b.y-a.y);for(const n of nums){const v=parseFloat(n.s.replace(',','.'));if(v>5&&v<=300){len=v;break;}}}}
+      else{const nums=col.filter(o=>o!==secIt&&/^\d+(?:[.,]\d+)?$/.test(o.s)).sort((a,b)=>b.y-a.y);
+        // правило Данияра: метраж — целое число; дробное — только если целых в колонке нет
+        for(const n of nums){if(!/^\d+$/.test(n.s))continue;const v=+n.s;if(v>5&&v<=300){len=v;break;}}
+        if(!len)for(const n of nums){const v=parseFloat(n.s.replace(',','.'));if(v>5&&v<=300){len=v;break;}}}}
     // группа = НИЖНИЙ текстовый элемент паспортной колонки («М2.1», «тЩО1», «MЛ1(1» — S2 л.5/6);
     // короткий токен «буквы+цифра», не чистое число; латинская M перед кириллицей = битый «№»
     let group='';{const cand=colW.filter(o=>o!==mk&&o!==secIt&&o.rot===mk.rot&&o.s.length<=12
