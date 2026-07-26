@@ -450,10 +450,10 @@ function monthly(p){
   p.ops.forEach(o=>{if(o.type==='in')ev.push({m:monthKey(o.date),fin:o.amt});
     if(o.type==='out')ev.push({m:monthKey(o.date),fout:-Math.abs(o.amt)});
     if(o.type==='adj')ev.push(o.amt>0?{m:monthKey(o.date),fin:o.amt}:{m:monthKey(o.date),fout:o.amt})});
-  p.planIn.forEach(r=>{if(r.date>=t)ev.push({m:monthKey(r.date),pin:r.amt})});
-  p.planOut.forEach(r=>{if(r.date>=t)ev.push({m:monthKey(r.date),pout:-Math.abs(r.amt)})});
-  (p.finIn||[]).forEach(r=>{if(r.date>=t)ev.push({m:monthKey(r.date),pin:r.amt})});
-  (p.finOut||[]).forEach(r=>{if(r.date>=t)ev.push({m:monthKey(r.date),pout:-Math.abs(r.amt)})});
+  p.planIn.forEach(r=>{if(!r.done&&r.date>=t)ev.push({m:monthKey(r.date),pin:r.amt})});
+  p.planOut.forEach(r=>{if(!r.done&&r.date>=t)ev.push({m:monthKey(r.date),pout:-Math.abs(r.amt)})});
+  (p.finIn||[]).forEach(r=>{if(!r.done&&r.date>=t)ev.push({m:monthKey(r.date),pin:r.amt})});
+  (p.finOut||[]).forEach(r=>{if(!r.done&&r.date>=t)ev.push({m:monthKey(r.date),pout:-Math.abs(r.amt)})});
   const keys=[...new Set(ev.map(e=>e.m))].filter(Boolean).sort();
   if(!keys.length)return[];
   // непрерывный диапазон месяцев
@@ -1024,9 +1024,19 @@ function renderProject(host,p){
   const fundOpts=p.funds.map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join('');
 
   const planRow=(r,kind)=>{
-    const late=r.date<t;
+    const late=r.date<t&&!r.done;
     const needFund=kind==='out'||kind==='finout';
     const isIncome=kind==='in'||kind==='finin';
+    if(r.done){
+      return `<div class="plan-row${needFund?' with-fund':''}" style="opacity:.55">
+        <input type="date" value="${r.date}" disabled>
+        <input type="text" value="${fmt(Math.abs(r.amt))}" disabled style="text-align:right">
+        ${needFund?`<input value="${esc(p.funds.find(f=>f.id===r.fund)?.name||'—')}" disabled>`:''}
+        <input value="${esc(r.note)}" disabled style="text-decoration:line-through">
+        <span class="late" style="background:var(--green-bg);color:var(--green)" title="создана фактическая операция">✓ исполнено ${dRu(r.doneAt||'')}</span>
+        <span class="del" onclick="delPlan('${kind}','${r.id}')" title="убрать строку из плана">×</span>
+      </div>`;
+    }
     const fundSel=needFund?`<select onchange="updPlan('${kind}','${r.id}','fund',this.value)" title="из какого фонда возьмутся деньги">
       ${p.funds.map(f=>`<option value="${f.id}"${r.fund===f.id?' selected':''}>${esc(f.name)}</option>`).join('')}
       ${!r.fund?'<option value="" selected>— фонд?</option>':''}</select>`:'';
@@ -1035,7 +1045,7 @@ function renderProject(host,p){
       <input type="text" class="money-input" inputmode="numeric" value="${Math.abs(r.amt)}" style="text-align:right" onchange="updPlan('${kind}','${r.id}','amt',this.value)">
       ${fundSel}
       <input value="${esc(r.note)}" placeholder="комментарий" onchange="updPlan('${kind}','${r.id}','note',this.value)">
-      <span class="mv"><button onclick="movePlan('${kind}','${r.id}',-7)" title="на неделю раньше">◀</button><button onclick="movePlan('${kind}','${r.id}',7)" title="на неделю позже">▶</button>${isIncome?`<button onclick="paOpen('${kind}','${r.id}')" title="распределить плановое поступление по фондам">⚙ фонды</button>`:''}${late?`<span class="late" title="дата в прошлом — в расчёт не идёт">просрочен</span>`:''}</span>
+      <span class="mv"><button onclick="execPlan('${kind}','${r.id}')" title="исполнено: провести фактом (${isIncome?'деньги зайдут на фонды по раскладке':'спишется из фонда строки'})" style="color:var(--green);font-weight:800;border-color:var(--green)">✓</button><button onclick="movePlan('${kind}','${r.id}',-7)" title="на неделю раньше">◀</button><button onclick="movePlan('${kind}','${r.id}',7)" title="на неделю позже">▶</button>${isIncome?`<button onclick="paOpen('${kind}','${r.id}')" title="распределить плановое поступление по фондам">⚙ фонды</button>`:''}${late?`<span class="late" title="дата в прошлом — в расчёт не идёт">просрочен</span>`:''}</span>
       <span class="del" onclick="delPlan('${kind}','${r.id}')">×</span>
     </div>`;
     if(!isIncome||window._reallocPlan!==kind+':'+r.id)return row;
@@ -1407,6 +1417,28 @@ function movePlan(kind,id,days){const p=P();const r=planArr(p,kind).find(x=>x.id
   auditLog('Перенесена строка плана',(days>0?'+':'')+days+' дней · '+fmt(Math.abs(r.amt||0))+' ₸',p);
   toast(days>0?'Сдвинуто на неделю позже ✓':'Сдвинуто на неделю раньше ✓');render()}
 function delPlan(kind,id){const p=P();const arr=planArr(p,kind);const i=arr.findIndex(x=>x.id===id);if(i>=0){const r=arr[i];arr.splice(i,1);auditLog('Удалена строка плана',(kind==='out'||kind==='finout'?'Расход ':'Поступление ')+fmt(Math.abs(r.amt||0))+' ₸',p)}render()}
+/* «✓ исполнено»: плановая строка становится фактической операцией */
+function execPlan(kind,id){
+  const p=P();const r=planArr(p,kind).find(x=>x.id===id);
+  if(!r||r.done)return;
+  const amt=Math.abs(r.amt||0);
+  if(!amt){toast('У строки нет суммы','err');return}
+  const isIncome=kind==='in'||kind==='finin';
+  const date=r.date&&r.date<=todayIso()?r.date:todayIso(); // если план в прошлом — берём его дату, иначе сегодня
+  const note=(r.note||'').trim()||'по плану';
+  if(isIncome){
+    const alloc=planAllocation(p,r); // точная раскладка строки, иначе по долям
+    p.ops.push({id:uid(),type:'in',date,amt,note,src:kind==='finin'?'fin':undefined,alloc});
+  }else{
+    const fund=(r.fund&&p.funds.some(f=>f.id===r.fund))?r.fund:(p.funds[0]&&p.funds[0].id);
+    if(!fund){toast('Не выбран фонд у строки','err');return}
+    p.ops.push({id:uid(),type:'out',date,amt:-amt,fund,note,src:kind==='finout'?'fin':undefined});
+  }
+  r.done=true;r.doneAt=todayIso();
+  auditLog('Исполнена строка плана',fmt(amt)+' ₸ · '+note,p);
+  toast(isIncome?'Исполнено: '+fmt(amt)+' ₸ зашли на фонды ✓':'Исполнено: '+fmt(amt)+' ₸ списаны из фонда ✓');
+  save();render();
+}
 
 /* ============ ЭКСПОРТ / ИМПОРТ ============ */
 function exportData(){
