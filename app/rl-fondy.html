@@ -3,7 +3,6 @@
 <head>
 <script src="/app/gate.js"></script>
 <meta charset="UTF-8">
-<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RL · Фонды проектов</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -149,6 +148,18 @@
   .tg{font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:4px;background:#eceef2;color:var(--muted);white-space:nowrap}
   .txg{display:grid;gap:10px}
   @media(max-width:760px){.txg{grid-template-columns:1fr 1fr!important}}
+  .tip{position:absolute;z-index:120;max-width:430px;background:#141c2c;color:#e8edf6;border-radius:11px;padding:11px 13px;
+    font-size:12px;line-height:1.45;box-shadow:0 14px 38px rgba(10,16,28,.38);display:none;pointer-events:none}
+  .tip .tp-h{font-size:11px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:#93a4c2;margin-bottom:7px}
+  .tip .tp-r{display:flex;gap:10px;align-items:baseline;padding:2px 0}
+  .tip .tp-d{color:#8fa1bf;font-variant-numeric:tabular-nums;flex:none;width:74px}
+  .tip .tp-n{flex:1;min-width:0}
+  .tip .tp-a{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tip .tp-a.pos{color:#7fd6a8}.tip .tp-a.neg{color:#ffa9a0}
+  .tip .tp-tag{font-size:9px;font-weight:800;border-radius:4px;padding:1px 5px;background:rgba(255,255,255,.12);color:#c8d5ea;margin-left:5px}
+  .tip .tp-sum{border-top:1px solid rgba(255,255,255,.16);margin-top:8px;padding-top:7px;display:flex;justify-content:space-between;gap:12px;font-weight:800}
+  .tip .tp-f{color:#93a4c2;font-size:11px;margin-top:6px}
+  .hint-num{cursor:help;border-bottom:1px dotted rgba(90,110,140,.5)}
   .sum-sel{outline:2px solid var(--blue)!important;outline-offset:-1px;background:var(--blue-bg)!important;border-radius:7px}
   .sum-bar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%) translateY(90px);z-index:98;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
     background:var(--navy);color:#fff;padding:11px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(15,22,38,.32);font-size:13px;transition:.25s;opacity:0;pointer-events:none}
@@ -467,6 +478,35 @@ document.addEventListener('mousedown',e=>{
   }else clearSumSel();
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')clearSumSel()});
+/* ---- подсказки «как сложилась цифра» ---- */
+window._TIPS={};let _tipSeq=0,_tipEl=null;
+function tipReset(){window._TIPS={};_tipSeq=0}
+function tipAttr(html){const k='t'+(++_tipSeq);window._TIPS[k]=html;
+  return `class="hint-num" onmouseenter="tipShow(event,'${k}')" onmouseleave="tipHide()"`}
+function tipShow(ev,key){
+  const html=window._TIPS[key];if(!html)return;
+  if(!_tipEl){_tipEl=document.createElement('div');_tipEl.className='tip';document.body.appendChild(_tipEl)}
+  _tipEl.innerHTML=html;_tipEl.style.display='block';
+  const r=ev.currentTarget.getBoundingClientRect(),w=_tipEl.offsetWidth,h=_tipEl.offsetHeight;
+  let x=r.left+window.scrollX+r.width/2-w/2;
+  x=Math.max(8,Math.min(x,document.documentElement.clientWidth-w-8));
+  let y=r.top+window.scrollY-h-10;
+  if(y<window.scrollY+8)y=r.bottom+window.scrollY+10;
+  _tipEl.style.left=x+'px';_tipEl.style.top=y+'px';
+}
+function tipHide(){if(_tipEl)_tipEl.style.display='none'}
+function tipRows(items,title,foot){
+  if(!items.length)return `<div class="tp-h">${title}</div><div style="color:#93a4c2">нет движений</div>`;
+  const total=items.reduce((s,i)=>s+i.amt,0);
+  const body=items.slice(0,14).map(i=>`<div class="tp-r">
+    <span class="tp-d">${dRu(i.date)}</span>
+    <span class="tp-n">${esc((i.note||'').slice(0,54))}${i.cp?' <span style="color:#8fa1bf">· '+esc(i.cp.slice(0,22))+'</span>':''}${(i.k==='pin'||i.k==='pout')?'<span class="tp-tag">план</span>':'<span class="tp-tag">факт</span>'}${i.late?'<span class="tp-tag" style="background:rgba(255,120,110,.22);color:#ffb4ac">просрочен</span>':''}</span>
+    <span class="tp-a ${i.amt>=0?'pos':'neg'}">${i.amt>0?'+':''}${fmt(i.amt)}</span></div>`).join('');
+  const more=items.length>14?`<div class="tp-f">…и ещё ${items.length-14}</div>`:'';
+  return `<div class="tp-h">${title}</div>${body}${more}
+    <div class="tp-sum"><span>Итого</span><span class="${total>=0?'tp-a pos':'tp-a neg'}">${total>0?'+':''}${fmt(total)} ₸</span></div>
+    ${foot?`<div class="tp-f">${foot}</div>`:''}`;
+}
 function autoGrow(el){if(!el)return;el.style.height='auto';el.style.height=Math.max(36,el.scrollHeight+2)+'px'}
 function autoGrowAll(root=document){root.querySelectorAll('textarea.note').forEach(autoGrow)}
 const todayIso=()=>new Date().toISOString().slice(0,10);
@@ -586,23 +626,32 @@ function planSummaryHtml(p,kind){
 function monthKey(iso){return (iso||'').slice(0,7)}
 function monthly(p){
   // прошлое — фактом (операции), будущее — планом (строки плана с датой >= сегодня)
+  // каждая строка несёт детализацию d — из чего сложилась цифра месяца (для подсказок)
   const t=todayIso();
   const ev=[];
-  p.ops.forEach(o=>{if(o.type==='in')ev.push({m:monthKey(o.date),fin:o.amt});
-    if(o.type==='out')ev.push({m:monthKey(o.date),fout:-Math.abs(o.amt)});
-    if(o.type==='adj')ev.push(o.amt>0?{m:monthKey(o.date),fin:o.amt}:{m:monthKey(o.date),fout:o.amt})});
+  p.ops.forEach(o=>{
+    const nm=(o.note||'').trim();
+    if(o.type==='in')ev.push({m:monthKey(o.date),fin:o.amt,d:{k:'fin',date:o.date,amt:o.amt,note:nm||'поступление',cp:o.cp||''}});
+    if(o.type==='out')ev.push({m:monthKey(o.date),fout:-Math.abs(o.amt),d:{k:'fout',date:o.date,amt:-Math.abs(o.amt),note:nm||'расход',cp:o.cp||'',fund:o.fund}});
+    if(o.type==='adj')ev.push(o.amt>0
+      ?{m:monthKey(o.date),fin:o.amt,d:{k:'fin',date:o.date,amt:o.amt,note:nm||'пополнение фонда вручную'}}
+      :{m:monthKey(o.date),fout:o.amt,d:{k:'fout',date:o.date,amt:o.amt,note:nm||'снятие из фонда вручную'}});
+  });
   // план в прогнозе — только НЕисполненный остаток строки; просроченный остаток переносится в текущий месяц
   const curM=monthKey(t);
-  const addPlan=(cas,r,sign)=>{
+  const addPlan=(cas,r,sign,label)=>{
     const rem=planRemainC(cas,r);if(!rem)return;
-    const m=monthKey(r.date)>=curM?monthKey(r.date):curM;
-    ev.push(sign>0?{m,pin:rem}:{m,pout:-rem});
+    const late=monthKey(r.date)<curM;
+    const m=late?curM:monthKey(r.date);
+    const d={k:sign>0?'pin':'pout',date:r.date,amt:sign>0?rem:-rem,note:(r.note||'').trim()||label,
+      plan:Math.abs(r.amt||0),late,fund:r.fund};
+    ev.push(sign>0?{m,pin:rem,d}:{m,pout:-rem,d});
   };
   const cIn=planCascade(p,'in'),cOut=planCascade(p,'out'),cFI=planCascade(p,'finin'),cFO=planCascade(p,'finout');
-  p.planIn.forEach(r=>addPlan(cIn,r,1));
-  p.planOut.forEach(r=>addPlan(cOut,r,-1));
-  (p.finIn||[]).forEach(r=>addPlan(cFI,r,1));
-  (p.finOut||[]).forEach(r=>addPlan(cFO,r,-1));
+  p.planIn.forEach(r=>addPlan(cIn,r,1,'плановое поступление'));
+  p.planOut.forEach(r=>addPlan(cOut,r,-1,'плановый расход'));
+  (p.finIn||[]).forEach(r=>addPlan(cFI,r,1,'финансирование'));
+  (p.finOut||[]).forEach(r=>addPlan(cFO,r,-1,'возврат финансирования'));
   const keys=[...new Set(ev.map(e=>e.m))].filter(Boolean).sort();
   if(!keys.length)return[];
   // непрерывный диапазон месяцев
@@ -610,9 +659,9 @@ function monthly(p){
   while(y<ey||(y===ey&&m<=em)){months.push(y+'-'+String(m).padStart(2,'0'));m++;if(m>12){m=1;y++}}
   let run=0;
   return months.map(k=>{
-    const r={m:k,fin:0,fout:0,pin:0,pout:0};
-    ev.forEach(e=>{if(e.m===k){r.fin+=e.fin||0;r.fout+=e.fout||0;r.pin+=e.pin||0;r.pout+=e.pout||0}});
-    r.net=r.fin+r.fout+r.pin+r.pout;run+=r.net;r.run=run;
+    const r={m:k,fin:0,fout:0,pin:0,pout:0,det:[]};
+    ev.forEach(e=>{if(e.m===k){r.fin+=e.fin||0;r.fout+=e.fout||0;r.pin+=e.pin||0;r.pout+=e.pout||0;if(e.d)r.det.push(e.d)}});
+    r.open=run;r.net=r.fin+r.fout+r.pin+r.pout;run+=r.net;r.run=run;
     return r;
   });
 }
@@ -676,6 +725,7 @@ const mLabel=k=>{const[y,m]=k.split('-');return MR[+m]+' '+y.slice(2)};
 function render(){
   save();
   setWho();
+  tipReset();tipHide();
   setTimeout(()=>{updateSumBar();autoGrowAll()},0);setTimeout(autoGrowAll,220);
   const host=document.getElementById('main');
   if(DB.sel==='__new')return renderNew(host);
@@ -1207,12 +1257,25 @@ function renderProject(host,p){
   const mrows=monthly(p);
   const mtable=mrows.length?`<table><thead><tr><th>Месяц</th><th>Приход</th><th>Расход</th><th>Сальдо месяца</th><th>Остаток на конец</th><th></th></tr></thead><tbody>
     ${mrows.map(r=>{const inn=r.fin+r.pin,out=r.fout+r.pout;const isPlan=r.pin||r.pout;
+      const dIn=r.det.filter(d=>d.k==='fin'||d.k==='pin'),dOut=r.det.filter(d=>d.k==='fout'||d.k==='pout');
+      const tIn=tipRows(dIn,'Приход · '+mLabel(r.m),(r.fin&&r.pin)?`факт ${fmt(r.fin)} + план ${fmt(r.pin)}`:'');
+      const tOut=tipRows(dOut,'Расход · '+mLabel(r.m),(r.fout&&r.pout)?`факт ${fmt(r.fout)} + план ${fmt(r.pout)}`:'');
+      const tNet=`<div class="tp-h">Сальдо месяца · ${mLabel(r.m)}</div>
+        <div class="tp-r"><span class="tp-n">приход</span><span class="tp-a pos">+${fmt(inn)}</span></div>
+        <div class="tp-r"><span class="tp-n">расход</span><span class="tp-a neg">${fmt(out)}</span></div>
+        <div class="tp-sum"><span>сальдо</span><span class="tp-a ${r.net>=0?'pos':'neg'}">${fmt(r.net)} ₸</span></div>
+        <div class="tp-f">Сколько денег проект заработал или проел за месяц.</div>`;
+      const tRun=`<div class="tp-h">Остаток на конец · ${mLabel(r.m)}</div>
+        <div class="tp-r"><span class="tp-n">остаток на начало месяца</span><span class="tp-a ${r.open>=0?'pos':'neg'}">${fmt(r.open)}</span></div>
+        <div class="tp-r"><span class="tp-n">сальдо месяца</span><span class="tp-a ${r.net>=0?'pos':'neg'}">${fmt(r.net)}</span></div>
+        <div class="tp-sum"><span>остаток на конец</span><span class="tp-a ${r.run>=0?'pos':'neg'}">${fmt(r.run)} ₸</span></div>
+        <div class="tp-f">${r.run<0?'Минус — в этом месяце денег проекта не хватит: собрать оплату раньше или сдвинуть траты.':'Накопленным итогом с начала проекта.'}</div>`;
       return `<tr class="${r.run<0?'month-red':''}">
       <td><b>${mLabel(r.m)}</b>${isPlan?'<span class="tag-plan">план</span>':''}</td>
-      <td class="${inn?'pos':''}">${inn?'+'+fmt(inn):'—'}</td>
-      <td class="${out?'neg':''}">${out?fmt(out):'—'}</td>
-      <td class="${r.net>=0?'pos':'neg'}">${fmt(r.net)}</td>
-      <td style="font-weight:700" class="${r.run>=0?'pos':'neg'}">${fmt(r.run)}</td>
+      <td class="${inn?'pos':''}"><span ${tipAttr(tIn)}>${inn?'+'+fmt(inn):'—'}</span></td>
+      <td class="${out?'neg':''}"><span ${tipAttr(tOut)}>${out?fmt(out):'—'}</span></td>
+      <td class="${r.net>=0?'pos':'neg'}"><span ${tipAttr(tNet)}>${fmt(r.net)}</span></td>
+      <td style="font-weight:700" class="${r.run>=0?'pos':'neg'}"><span ${tipAttr(tRun)}>${fmt(r.run)}</span></td>
       <td style="text-align:left">${r.run<0?`<span class="late">разрыв: не хватает ${fmtM(r.run)}</span>`:''}</td></tr>`}).join('')}
   </tbody></table>`:'<div style="color:var(--muted);font-size:12.5px;padding:8px 0">Заполни план или внеси операции — здесь появится касса по месяцам.</div>';
 
@@ -1247,12 +1310,27 @@ function renderProject(host,p){
     <span style="flex:1"></span><button class="btn red" style="padding:7px 13px;font-size:12px" onclick="delProject()">удалить проект</button></div>
 
   <div class="kpis">
-    <div class="kpi"><div class="k">Поступило</div><div class="v pos">${fmtM(got)}</div><div class="d">факт, ${Math.round(got/p.contract*100)||0}% договора</div></div>
-    <div class="kpi"><div class="k">Потрачено</div><div class="v neg">${fmtM(spent)}</div><div class="d">факт из фондов</div></div>
-    <div class="kpi"><div class="k">Финансирование · долг</div><div class="v" style="color:var(--amber)">${(finGot||finRet)?fmtM(finGot-finRet):'—'}</div><div class="d">${(finGot||finRet)?('получено '+fmtM(finGot)+' · возвращено '+fmtM(finRet)):'займы и инвестиции в проект'}</div></div>
-    <div class="kpi"><div class="k">Касса проекта</div><div class="v ${cash>=0?'pos':'neg'}">${fmtM(cash)}</div><div class="d">лежит на фондах сейчас</div></div>
-    <div class="kpi"><div class="k">Останется по плану</div><div class="v ${marginPlan>=0?'pos':'neg'}">${fmtM(marginPlan)}</div><div class="d">договор − траты (факт+план)</div></div>
-    <div class="kpi"><div class="k">Кассовый разрыв</div><div class="v ${gap?'neg':'pos'}">${gap?mLabel(gap.m):'не виден'}</div><div class="d">${gap?'не хватит '+fmtM(gap.short):'по текущему плану денег хватает'}</div>
+    <div class="kpi"><div class="k">Поступило</div><div class="v pos"><span ${tipAttr(tipRows(p.ops.filter(o=>o.type==='in'&&o.src!=='fin').map(o=>({k:'fin',date:o.date,amt:o.amt,note:o.note,cp:o.cp})),'Поступило · факт по договору','Только оплаты заказчика. Займы и вливания считаются отдельно — в «Финансировании».'))}>${fmtM(got)}</span></div><div class="d">факт, ${Math.round(got/p.contract*100)||0}% договора</div></div>
+    <div class="kpi"><div class="k">Потрачено</div><div class="v neg"><span ${tipAttr(tipRows(p.ops.filter(o=>o.type==='out'&&o.src!=='fin').map(o=>({k:'fout',date:o.date,amt:o.amt,note:o.note,cp:o.cp})),'Потрачено · факт из фондов','Возвраты займов сюда не входят — они в «Финансировании».'))}>${fmtM(spent)}</span></div><div class="d">факт из фондов</div></div>
+    <div class="kpi"><div class="k">Финансирование · долг</div><div class="v" style="color:var(--amber)"><span ${tipAttr(`<div class="tp-h">Финансирование</div>
+      <div class="tp-r"><span class="tp-n">получено (займы, вливания)</span><span class="tp-a pos">+${fmt(finGot)}</span></div>
+      <div class="tp-r"><span class="tp-n">возвращено</span><span class="tp-a neg">−${fmt(finRet)}</span></div>
+      <div class="tp-sum"><span>остаток долга</span><span class="tp-a">${fmt(finGot-finRet)} ₸</span></div>
+      <div class="tp-f">Столько ещё предстоит вернуть по займам и инвестициям.</div>`)}>${(finGot||finRet)?fmtM(finGot-finRet):'—'}</span></div><div class="d">${(finGot||finRet)?('получено '+fmtM(finGot)+' · возвращено '+fmtM(finRet)):'займы и инвестиции в проект'}</div></div>
+    <div class="kpi"><div class="k">Касса проекта</div><div class="v ${cash>=0?'pos':'neg'}"><span ${tipAttr(`<div class="tp-h">Касса проекта = сумма балансов фондов</div>
+      ${p.funds.map(f=>`<div class="tp-r"><span class="tp-n">${esc(f.name)}</span><span class="tp-a ${fb[f.id].bal>=0?'pos':'neg'}">${fmt(fb[f.id].bal)}</span></div>`).join('')}
+      <div class="tp-sum"><span>итого на фондах</span><span class="tp-a ${cash>=0?'pos':'neg'}">${fmt(cash)} ₸</span></div>
+      <div class="tp-f">Баланс фонда = зашло по раскладке + ручные пополнения − расходы ± перекладки.</div>`)}>${fmtM(cash)}</span></div><div class="d">лежит на фондах сейчас</div></div>
+    <div class="kpi"><div class="k">Останется по плану</div><div class="v ${marginPlan>=0?'pos':'neg'}"><span ${tipAttr(`<div class="tp-h">Останется по плану</div>
+      <div class="tp-r"><span class="tp-n">сумма договора</span><span class="tp-a pos">+${fmt(p.contract)}</span></div>
+      <div class="tp-r"><span class="tp-n">уже потрачено (факт)</span><span class="tp-a neg">−${fmt(spent)}</span></div>
+      <div class="tp-r"><span class="tp-n">осталось потратить по плану</span><span class="tp-a neg">−${fmt(planOutLeft)}</span></div>
+      <div class="tp-sum"><span>останется</span><span class="tp-a ${marginPlan>=0?'pos':'neg'}">${fmt(marginPlan)} ₸</span></div>
+      <div class="tp-f">Ожидаемый заработок, если план трат исполнится как задумано.</div>`)}>${fmtM(marginPlan)}</span></div><div class="d">договор − траты (факт+план)</div></div>
+    <div class="kpi"><div class="k">Кассовый разрыв</div><div class="v ${gap?'neg':'pos'}"><span ${tipAttr(gap?`<div class="tp-h">Кассовый разрыв · ${mLabel(gap.m)}</div>
+      <div class="tp-r"><span class="tp-n">остаток на конец месяца</span><span class="tp-a neg">${fmt(gap.short)}</span></div>
+      <div class="tp-f">Первый месяц, где накопленный остаток уходит в минус: приход (факт+план) минус расход (факт+план) нарастающим итогом. Лечится сдвигом трат ◀ ▶ или ускорением оплаты.</div>`
+      :`<div class="tp-h">Кассовый разрыв</div><div class="tp-f">Ни в одном месяце накопленный остаток не уходит в минус — по текущему плану денег хватает.</div>`)}>${gap?mLabel(gap.m):'не виден'}</span></div><div class="d">${gap?'не хватит '+fmtM(gap.short):'по текущему плану денег хватает'}</div>
       ${gap?`<button class="btn ghost" style="padding:5px 10px;font-size:11px;margin-top:7px" onclick="quickTask('Найти ${fmtM(-gap.short)} ₸ к ${mLabel(gap.m)} — закрыть кассовый разрыв','${gap.m}-01')">+ задача на разрыв</button>`:''}
     </div>
   </div>
