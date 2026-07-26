@@ -1633,7 +1633,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v382';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v383';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v381';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2596,8 +2596,11 @@ async function lkRulesSave(rule){
 }
 /* текст подписей внутри обведённой области (rect — нормализованные коорд. картинки листа) */
 async function lkAreaClusters(pg,rect){
-  if(!LK.pdf)return [];
-  const page=await LK.pdf.getPage(pg.page);
+  let pdf=LK.pdf;
+  // документ восстановлен из хранилища (или прежний pdf «протух») — открываем буфер заново
+  if(!pdf&&LK.docId){try{const rec=await archGet(LK.docId);if(rec&&rec.buf)pdf=await pdfjsLib.getDocument({data:rec.buf.slice(0)}).promise;}catch(e){}}
+  if(!pdf)return [];
+  const page=await pdf.getPage(pg.page);
   const tc=await page.getTextContent();
   tc.items.forEach(it=>{if(it.str)it.str=lkFixEnc(it.str);});
   const v0=page.getViewport({scale:1});
@@ -2612,19 +2615,24 @@ function lkTeachStart(){
   $('lkIssModal').style.display='none';
   toast('Обведи участок, который нужно научиться читать');
   lkPickArea(async rect=>{
-    const cl=await lkAreaClusters(pg,rect);
-    lkTeachPanel(pg,rect,cl);});
+    try{
+      const cl=await lkAreaClusters(pg,rect);
+      lkTeachPanel(pg,rect,cl);
+    }catch(e){toast('Не удалось прочитать область: '+(e&&e.message||e));}});
 }
 $('lkTeach').onclick=lkTeachStart;      // в модале «Правки»
 $('lkTeachTop').onclick=lkTeachStart;   // в верхней панели — основной вход
 function lkTeachPanel(pg,rect,clusters){
-  const wrap=document.createElement('div');wrap.className='lk-iss-modal';wrap.id='lkTeachModal';wrap.style.display='flex';
+  // ВАЖНО: класть внутрь .ledger и поверх него по z-index — панель в body уходила ПОД
+  // полноэкранную Линейку (z-index 150 против 60) и выглядела как «ничего не происходит»
+  const wrap=document.createElement('div');wrap.className='lk-iss-modal';wrap.id='lkTeachModal';
+  wrap.style.display='flex';wrap.style.zIndex='200';
   wrap.innerHTML=`<div class="lk-iss-box"><div class="lk-iss-head"><b>🎓 Научить читать</b><span class="lk-iss-sub">лист ${pg.page} · найдено подписей: ${clusters.length}</span><button class="lg-x" id="lkTcX">✕</button></div>
     <div class="lk-iss-list" id="lkTcList">${clusters.length?clusters.slice(0,20).map(c=>`<div class="lk-iss"><span class="tx" style="font-family:var(--mono);font-size:11px">${esc(c.s.slice(0,150))}</span></div>`).join(''):'<div class="lk-iss-empty">В этой области нет текста — возможно, это картинка/скан. Обведи участок с подписями.</div>'}</div>
     <div class="lk-iss-add"><textarea id="lkTcHint" rows="2" placeholder="Скажи словами: «тут тоже нужно считать», «длина — последнее число», «имя линии слева»…"></textarea>
       <div class="lk-iss-actions"><button class="lk-add" id="lkTcGo" ${clusters.length?'':'disabled'}>🤖 Разобрать и запомнить</button>
       <span class="lk-note" id="lkTcNote">В ИИ уйдёт только текст этой области, сам файл — нет.</span></div></div></div>`;
-  document.body.appendChild(wrap);
+  ($('lineyka')||document.body).appendChild(wrap);
   const close=()=>wrap.remove();
   $('lkTcX').onclick=close;
   $('lkTcGo').onclick=async()=>{
