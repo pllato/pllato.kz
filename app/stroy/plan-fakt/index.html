@@ -1638,7 +1638,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v387';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v389';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v385';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2211,10 +2211,13 @@ function lkRuleRows(clusters,rules){
   const rx=(p,f)=>{try{return p?new RegExp(String(p).slice(0,400),f||''):null;}catch(e){return null;}};
   rules.forEach(rule=>{
     const test=rx(rule.test),mk=rx(rule.mark),sec=rx(rule.section),len=rx(rule.len),grp=rx(rule.group),cnd=rx(rule.conds,'g');
-    if(!test||!sec||!len)return;
+    if(!sec||!len)return;
     clusters.forEach(c=>{
-      if(!test.test(c.s))return;
+      // test — ПОДСКАЗКА, а не приговор: ИИ иногда пишет его с неверным порядком полей
+      // («марка после сечения», а в подписи наоборот) и рабочее правило не давало ни строки.
+      // Настоящий пропуск — сечение И длина: без них строки всё равно не будет.
       const sm=sec.exec(c.s),lm=len.exec(c.s);if(!sm||!lm)return;
+      if(test&&!test.test(c.s)&&!(sm[1]&&sm[2]))return;
       const L=parseFloat(String(lm[1]).replace(',','.'));if(!(L>0)||L>1000)return;
       const conds=[];if(cnd){let m;cnd.lastIndex=0;while((m=cnd.exec(c.s))&&conds.length<4)conds.push({t:lkCondName(m[1])+(m[2]||''),len:+(m[3]||0)||0});}
       rows.push({group:(grp&&(grp.exec(c.s)||[])[1]||'').trim()||'—',
@@ -2669,12 +2672,24 @@ function lkTeachPanel(pg,rect,clusters){
     btn.disabled=true;ap.style.display='none';note.textContent='Думаю…';
     try{
       const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
-      const r=await fetch(LK_AI+'/teach',{method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({hint:$('lkTcHint').value||'',clusters:clusters.map(c=>c.s),file:name,page:pg.page,
-          samples:lkTeachSamples(pg,clusters)})});
-      const data=await r.json();
+      const ask=async extra=>{
+        const r=await fetch(LK_AI+'/teach',{method:'POST',headers:{'content-type':'application/json'},
+          body:JSON.stringify({hint:(($('lkTcHint').value||'')+' '+(extra||'')).trim(),clusters:clusters.map(c=>c.s),
+            file:name,page:pg.page,samples:lkTeachSamples(pg,clusters)})});
+        return r.json();
+      };
+      const bad=d=>!d||d.error||!d.rule||typeof d.rule!=='object';
+      let data=await ask('');
+      if(bad(data)&&!(data&&data.error)){note.textContent='Пробую ещё раз…';data=await ask('');}
+      // правило пришло, но НА ЭТОЙ области не дало ни строки — просим ИИ ещё раз, уже прямо
+      // (первая попытка на ФА-009 срывалась именно так; сотруднику не должно быть до этого дела)
+      if(!bad(data)&&!lkRuleRows(clusters,[data.rule]).length){
+        note.textContent='Уточняю у ИИ…';
+        const d2=await ask('Правило не дало ни одной строки на этих подписях — длина в них ЕСТЬ, найди её и верни рабочее правило.');
+        if(!bad(d2)&&lkRuleRows(clusters,[d2.rule]).length)data=d2;
+      }
       btn.disabled=false;
-      if(data.error){note.textContent='Не вышло: '+data.error;return;}
+      if(bad(data)){note.textContent='Не вышло: '+((data&&data.error)||'ИИ ответил неразборчиво, нажми «Разобрать» ещё раз');return;}
       const test=lkRuleRows(clusters,[data.rule]);
       const sum=test.reduce((a,x)=>a+x.len,0);
       $('lkTcList').innerHTML=`<div class="lk-iss-empty" style="text-align:left"><b>${esc(data.rule.title||'Новое правило')}</b><br>${esc(data.explain||'')}</div>`
