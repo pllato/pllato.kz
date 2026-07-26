@@ -541,7 +541,8 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
     <button class="lk-tb" id="lkBack" title="Назад">← Назад</button>
     <div class="lg-title">Линейка — чтение схемы<span class="lk-verchip" id="lkVer" title="Версия парсера Линейки. Если Claude говорит про более новую — обнови страницу с Cmd+Shift+R и нажми «Перечитать файл»"></span><span class="lg-sub" id="lkName"></span></div>
     <div class="lk-docs" id="lkDocs"></div>
-    <button class="lk-tb" id="lkIssues" style="margin-left:auto" title="Пометки «что исправить» с привязкой к файлу и листу">⚑ Правки<span id="lkIssN"></span></button>
+    <button class="lk-tb" id="lkTeachTop" style="margin-left:auto" title="Обведи участок, который программа не читает, и скажи словами, что там считать — правило запомнится и заработает на всех похожих листах">🎓 Научить читать</button>
+    <button class="lk-tb" id="lkIssues" title="Пометки «что исправить» с привязкой к файлу и листу">⚑ Правки<span id="lkIssN"></span></button>
     <button class="lk-tb" id="lkReport">📊 Отчёт по файлу</button>
     <button class="lk-tb" id="lkCopy">⧉ Копировать для Excel</button>
     <button class="lg-x" id="lkClose">✕ Закрыть</button>
@@ -1632,7 +1633,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v381';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v382';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v381';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2604,7 +2605,8 @@ async function lkAreaClusters(pg,rect){
     const q=v0.convertToViewportPoint(c.x,c.y);const mx=q[0]/v0.width,my=q[1]/v0.height;
     return mx>=rect.x0-0.01&&mx<=rect.x1+0.01&&my>=rect.y0-0.02&&my<=rect.y1+0.02;});
 }
-$('lkTeach').onclick=()=>{
+function lkTeachStart(){
+  if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}
   const pg=LK.pages[LK.sel];if(!pg){toast('Нет листа');return;}
   if(LK.view!=='pages'){LK.view='pages';renderLineyka();}
   $('lkIssModal').style.display='none';
@@ -2612,7 +2614,9 @@ $('lkTeach').onclick=()=>{
   lkPickArea(async rect=>{
     const cl=await lkAreaClusters(pg,rect);
     lkTeachPanel(pg,rect,cl);});
-};
+}
+$('lkTeach').onclick=lkTeachStart;      // в модале «Правки»
+$('lkTeachTop').onclick=lkTeachStart;   // в верхней панели — основной вход
 function lkTeachPanel(pg,rect,clusters){
   const wrap=document.createElement('div');wrap.className='lk-iss-modal';wrap.id='lkTeachModal';wrap.style.display='flex';
   wrap.innerHTML=`<div class="lk-iss-box"><div class="lk-iss-head"><b>🎓 Научить читать</b><span class="lk-iss-sub">лист ${pg.page} · найдено подписей: ${clusters.length}</span><button class="lg-x" id="lkTcX">✕</button></div>
