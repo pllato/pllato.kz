@@ -12959,7 +12959,7 @@ function openLeadgenRequirementsModal(deal, missing = []) {
           Не хватает: <b>${escapeHtml(missing.join(', ') || 'обязательных данных')}</b>
         </div>
         <label>
-          <div class="qad-label">Ссылка на профиль ЛПР *</div>
+          <div class="qad-label">Ссылка на профиль ЛПР <span class="muted">(необязательно для сборки)</span></div>
           <input id="lgr-profile" class="qad-input" type="url" placeholder="https://linkedin.com/in/... или https://instagram.com/..."
             value="${escapeHtml(cf.lprLinkedin || cf.lprInstagram || cf.lprProfileExtra || '')}">
         </label>
@@ -12969,7 +12969,7 @@ function openLeadgenRequirementsModal(deal, missing = []) {
             value="${escapeHtml(cf.companyWebsite || '')}">
         </label>
         <label>
-          <div class="qad-label">Ниша / типовая CRM *</div>
+          <div class="qad-label">Ниша / типовая CRM <span class="muted">(определим автоматически, если не выбрана)</span></div>
           <select id="lgr-niche" class="qad-input">
             ${[
               ['', '— выберите нишу —'],
@@ -12984,9 +12984,9 @@ function openLeadgenRequirementsModal(deal, missing = []) {
           </select>
         </label>
         <label>
-          <div class="qad-label">Логотип компании *</div>
+          <div class="qad-label">Логотип компании <span class="muted">(попробуем взять с сайта)</span></div>
           <input id="lgr-logo" class="qad-input" type="file" accept="image/*,.png,.jpg,.jpeg,.svg,.webp,.gif">
-          <div id="lgr-status" style="font-size:12px;color:var(--t3);margin-top:5px">Если логотип уже загружен, файл повторно выбирать не нужно.</div>
+          <div id="lgr-status" style="font-size:12px;color:var(--t3);margin-top:5px">Для запуска сборки обязателен только сайт компании.</div>
         </label>
       </div>
       <div class="qad-foot">
@@ -13004,8 +13004,8 @@ function openLeadgenRequirementsModal(deal, missing = []) {
     const logo = ov.querySelector('#lgr-logo').files?.[0] || null;
     const status = ov.querySelector('#lgr-status');
     const btn = ov.querySelector('#lgr-save');
-    if (!profile || !website || !niche || (missing.includes('логотип') && !logo)) {
-      status.innerHTML = '<span style="color:var(--rd)">Заполните профиль ЛПР, сайт компании, нишу и добавьте недостающий логотип.</span>';
+    if (!website) {
+      status.innerHTML = '<span style="color:var(--rd)">Укажите сайт компании — по нему система соберёт демо.</span>';
       return;
     }
     if (logo && logo.size > 15 * 1024 * 1024) {
@@ -13017,16 +13017,16 @@ function openLeadgenRequirementsModal(deal, missing = []) {
       const token = await fbAuth.currentUser.getIdToken();
       const nextCf = {
         ...(deal.customFields || {}),
-        lprProfileExtra: profile,
         companyWebsite: website,
-        companyNiche: niche,
       };
+      if (profile) nextCf.lprProfileExtra = profile;
+      if (niche) nextCf.companyNiche = niche;
       const save = await fetch(`${WORKER_RTDB_URL}/deals/${encodeURIComponent(dealId)}.json?auth=${token}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ customFields: nextCf, bitrixDateModify: new Date().toISOString() }),
       });
-      if (!save.ok) throw new Error('Не удалось сохранить ссылку и нишу');
+      if (!save.ok) throw new Error('Не удалось сохранить сайт компании');
       if (logo) {
         status.textContent = '⏳ Загружаем логотип…';
         const upload = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealId)}/qualification/recording?kind=logo`, {
@@ -13116,7 +13116,24 @@ async function moveDealToStage(bitrixId, newStageId) {
     }
     const okData = await r.json().catch(() => ({}));
     if (okData.demoCreated) {
-      showToast('✅ Демо собрано и добавлено в App (pllato.kz/app)');
+      deal.stageId = okData.stageId || newStageId;
+      deal.customFields = {
+        ...(deal.customFields || {}),
+        demoUrl: okData.demoUrl,
+        demoMessage: okData.demoMessage,
+        demoStatus: 'ready',
+        demoBuiltAt: new Date().toISOString(),
+      };
+      renderDealsContent();
+      showToast('✅ Демо собрано, ссылка и сообщение добавлены в сделку');
+    } else if (okData.demoError) {
+      deal.customFields = {
+        ...(deal.customFields || {}),
+        demoStatus: 'error',
+        demoBuildError: okData.demoError,
+      };
+      renderDealsContent();
+      showToast('Сборка не завершена: ' + okData.demoError, true);
     } else {
       showToast(isMirror ? 'Стадия зеркала обновлена' : 'Стадия обновлена');
     }
@@ -13900,6 +13917,29 @@ async function openDealCard(bitrixId) {
             }).join('')}
           </div>` : ''}
 
+          ${deal.customFields?.demoUrl ? `
+          <div class="dc-section-h">Готовая персональная CRM</div>
+          <div style="background:color-mix(in srgb,var(--gn) 8%,var(--bg3));border:1px solid color-mix(in srgb,var(--gn) 28%,var(--b1));padding:14px;border-radius:10px;display:grid;gap:12px">
+            <div style="display:grid;gap:5px">
+              <span style="font-size:11px;color:var(--t3)">Ссылка на демо</span>
+              <span style="display:flex;align-items:center;gap:8px">
+                <input readonly value="${escapeHtml(deal.customFields.demoUrl)}"
+                  style="min-width:0;flex:1;padding:8px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px">
+                <a class="tbtn tbtn-xs" href="${escapeHtml(deal.customFields.demoUrl)}" target="_blank" rel="noopener">Открыть ↗</a>
+              </span>
+            </div>
+            <div style="display:grid;gap:5px">
+              <span style="font-size:11px;color:var(--t3)">Сообщение для ЛПР</span>
+              <textarea id="demo-msg-${escapeHtml(String(deal.bitrixId))}" readonly rows="8"
+                style="width:100%;box-sizing:border-box;resize:vertical;padding:10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;line-height:1.5">${escapeHtml(deal.customFields.demoMessage || '')}</textarea>
+              <button class="tbtn" style="width:max-content;padding:7px 12px" onclick="navigator.clipboard.writeText(document.getElementById('demo-msg-${escapeHtml(String(deal.bitrixId))}').value);showToast('Текст скопирован ✅')">Копировать сообщение</button>
+            </div>
+          </div>` : deal.customFields?.demoStatus === 'error' ? `
+          <div class="dc-section-h">Сборка демо</div>
+          <div style="padding:12px 14px;border-radius:8px;background:color-mix(in srgb,var(--rd) 10%,var(--bg3));border:1px solid color-mix(in srgb,var(--rd) 30%,var(--b1));color:var(--rd);font-size:13px">
+            Не удалось собрать демо: ${escapeHtml(deal.customFields.demoBuildError || 'проверьте доступность сайта и повторите перенос')}
+          </div>` : ''}
+
           ${renderCustomFieldsBlock(deal.customFields, { dealId: 'deal_' + deal.bitrixId, editable: true })}
         </div>
 
@@ -14610,6 +14650,14 @@ function renderCustomFieldsBlock(cfData, opts = {}) {
   // Объединяем: все из schema + те что есть в cfData но не в schema
   const allKeys = new Set([...Object.keys(schema), ...Object.keys(cfData)]);
   let entries = [...allKeys].map(k => [k, cfData[k]]);
+  // Эти служебные поля уже имеют отдельный понятный интерфейс в карточке.
+  // Не показываем их второй раз сырыми ключами в «Дополнительных полях».
+  const handledFields = new Set([
+    'companyWebsite', 'companyNiche', 'companyDescription',
+    'lprLinkedin', 'lprInstagram', 'lprProfileExtra',
+    'demoUrl', 'demoMessage', 'demoStatus', 'demoBuiltAt', 'demoSlug', 'demoBuildError',
+  ]);
+  entries = entries.filter(([k]) => !handledFields.has(k));
   // Фильтр hidden (если не showHidden)
   let hiddenCount = 0;
   if (!showHidden && hiddenSet.size > 0) {

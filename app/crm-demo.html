@@ -404,6 +404,7 @@ td.r{text-align:right;font-weight:700;white-space:nowrap}
 
 <script>
 var Q=new URLSearchParams(location.search);
+var CFG=window.PLLATO_DEMO_CONFIG||{};
 var PLLATO_WA=(Q.get('wa')||'77011239999').replace(/\D/g,'');
 var LEAD_URL=window.PLLATO_LEAD_URL||'';
 var CITIES=['Алматы','Астана','Шымкент','Караганда','Актобе','Атырау','Костанай','Павлодар'];
@@ -464,12 +465,23 @@ var FUNNEL=['Новая заявка','Квалификация','КП / рас�
 var ROLES=[['Руководитель','видит всё: деньги, воронка, аналитика'],['Менеджер продаж','свои сделки, клиенты, товары'],['Склад','остатки, резерв, отгрузка'],['Бухгалтер','счета, оплаты, дебиторка']];
 var SOURCES=[['Сайт / заявки',34],['WhatsApp',26],['Входящие звонки',18],['Тендерные площадки',14],['Рекомендации',8]];
 
-var CO=(Q.get('c')||'МедТехСнаб').trim().replace(/^[«»"'“”]+|[«»"'“”]+$/g,'').trim();
-var NK=(Q.get('n')||'medobor'); if(!NICHES[NK])NK='medobor';
+var CO=(CFG.company||Q.get('c')||'МедТехСнаб').trim().replace(/^[«»"'“”]+|[«»"'“”]+$/g,'').trim();
+var NK=(CFG.niche||Q.get('n')||'medobor'); if(!NICHES[NK])NK='medobor';
 var N=NICHES[NK];
-var ACC=Q.get('a')||N.acc;
-var LOGO=Q.get('logo')||'';
-var MGR=Q.get('mgr')||'';
+var ACC=CFG.accent||Q.get('a')||N.acc;
+var LOGO=CFG.logo||Q.get('logo')||'';
+var MGR=CFG.manager||Q.get('mgr')||'';
+if(Array.isArray(CFG.products)&&CFG.products.length){
+  N=Object.assign({},N,{products:CFG.products.slice(0,30).map(function(p,i){
+    return [
+      String(p.name||('Товар '+(i+1))),
+      String(p.category||'Каталог'),
+      Number(p.price)||([185000,420000,980000,1450000,3200000,6800000][i%6]),
+      Number.isFinite(Number(p.stock))?Number(p.stock):([24,8,42,3,15,6][i%6]),
+      p.status||((i%7===3)?'y':'g')
+    ];
+  })});
+}
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function initials(s){return s.replace(/[«»"]/g,'').split(/\s+/).filter(Boolean).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase()||'?';}

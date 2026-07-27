@@ -2745,11 +2745,12 @@ async function handleCreateTask(request, env) {
 //  Плашки-демо живут на pllato.kz/app (Канбан Новые/В работе/Итоговые),
 //  доступ к демо — по временной токен-ссылке со сроком действия.
 // ═══════════════════════════════════════════════════════════════════════
-// Поддерживаем оба естественных названия этапа:
-// «Создание демо» и «Демо создаётся».
-const DEMO_BUILD_STAGE_RE = /(?:создани\w*\s*демо|демо\s*созда\w*)/i;
+// Поддерживаем старые названия и рабочую стадию «Готов к сбору демо».
+const DEMO_BUILD_STAGE_RE = /(?:создани\w*\s*демо|демо\s*созда\w*|готов\w*\s*(?:к\s*)?сбор\w*\s*демо)/i;
+const DEMO_READY_STAGE_RE = /демо\s*готов/i;
 const LPR_FOUND_STAGE_RE = /лпр\s*найден/i;
 const DEMO_TOKEN_TTL_DAYS = 30;
+const DEMO_PUBLIC_ORIGIN = 'https://demo.pllato.kz';
 
 let _demosTableEnsured = false;
 async function ensureDemosTable(env) {
@@ -2763,6 +2764,11 @@ async function ensureDemosTable(env) {
     )`).run();
     try { await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_demos_deal ON demos(deal_id)`).run(); } catch {}
     try { await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_demos_status ON demos(status)`).run(); } catch {}
+    try { await env.DB.prepare(`ALTER TABLE demos ADD COLUMN slug TEXT`).run(); } catch {}
+    try { await env.DB.prepare(`ALTER TABLE demos ADD COLUMN message TEXT`).run(); } catch {}
+    try { await env.DB.prepare(`ALTER TABLE demos ADD COLUMN build_status TEXT DEFAULT 'ready'`).run(); } catch {}
+    try { await env.DB.prepare(`ALTER TABLE demos ADD COLUMN build_error TEXT`).run(); } catch {}
+    try { await env.DB.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_demos_slug ON demos(slug)`).run(); } catch {}
   } catch (e) {}
   _demosTableEnsured = true;
 }
@@ -2773,56 +2779,279 @@ function genDemoToken() {
   return Array.from(a).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Полнота материалов для демо: название компании + сайт + профиль ЛПР + логотип + ниша.
+// Для автоматической сборки достаточно названия сделки и сайта. Всё остальное
+// (логотип, палитра, описание, каталог) генератор пытается получить сам.
 async function demoBriefCompleteness(env, dealId) {
   await ensureQualificationTable(env);
   const row = await env.DB.prepare("SELECT data FROM deal_qualification WHERE deal_id = ?").bind(dealId).first();
   let qual = {}; try { qual = row && row.data ? JSON.parse(row.data) : {}; } catch { qual = {}; }
   const recs = await qualRecordingsFor(env, dealId);
-  const hasLogo = recs.some(r => r.kind === 'logo');
   const deal = await env.DB.prepare("SELECT title, custom_fields FROM deals WHERE id = ? LIMIT 1").bind(dealId).first();
   let cf = {}; try { cf = deal?.custom_fields ? JSON.parse(deal.custom_fields) : {}; } catch { cf = {}; }
   const hasCompanyName = !!String(deal?.title || '').trim();
   const hasWebsite = !!String(cf.companyWebsite || '').trim();
-  const hasLpr = [cf.lprLinkedin, cf.lprInstagram, cf.lprProfileExtra].some(v => String(v || '').trim());
-  const hasNiche = !!String(cf.companyNiche || '').trim();
   const missing = [];
   if (!hasCompanyName) missing.push('название компании');
   if (!hasWebsite) missing.push('сайт компании');
-  if (!hasLpr) missing.push('ссылка на профиль ЛПР');
-  if (!hasLogo) missing.push('логотип');
-  if (!hasNiche) missing.push('ниша компании');
   return { complete: missing.length === 0, missing, qual, customFields: cf, recordings: recs };
 }
 
-// Авто-создание демо-записи из брифа (идемпотентно: один демо на сделку).
+function normalizeCompanyWebsite(value) {
+  let raw = String(value || '').trim();
+  if (!raw) return '';
+  if (!/^https?:\/\//i.test(raw)) raw = 'https://' + raw;
+  try {
+    const url = new URL(raw);
+    if (!['http:', 'https:'].includes(url.protocol)) return '';
+    url.hash = '';
+    return url.href;
+  } catch {
+    return '';
+  }
+}
+
+function decodeHtmlText(value) {
+  return String(value || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;|&#34;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function absoluteWebUrl(value, base) {
+  try {
+    const u = new URL(String(value || '').trim(), base);
+    return ['http:', 'https:'].includes(u.protocol) ? u.href : '';
+  } catch {
+    return '';
+  }
+}
+
+function htmlMeta(html, key) {
+  const safe = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const patterns = [
+    new RegExp(`<meta[^>]+(?:property|name)=["']${safe}["'][^>]+content=["']([^"']+)`, 'i'),
+    new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${safe}["']`, 'i'),
+  ];
+  for (const re of patterns) {
+    const match = html.match(re);
+    if (match) return decodeHtmlText(match[1]);
+  }
+  return '';
+}
+
+function extractSiteProducts(html) {
+  const products = [];
+  const add = (name, category = 'Каталог', price = 0) => {
+    const clean = decodeHtmlText(name).replace(/\s+[|—-]\s+.*$/, '').trim();
+    if (clean.length < 4 || clean.length > 120) return;
+    if (/^(каталог|продукция|товары|услуги|подробнее|главная|контакты|о компании)$/i.test(clean)) return;
+    if (products.some(p => p.name.toLowerCase() === clean.toLowerCase())) return;
+    products.push({ name: clean, category: decodeHtmlText(category) || 'Каталог', price: Number(price) || 0 });
+  };
+  for (const match of html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    try {
+      const root = JSON.parse(match[1]);
+      const walk = (node) => {
+        if (!node || typeof node !== 'object') return;
+        if (Array.isArray(node)) { node.forEach(walk); return; }
+        const type = String(node['@type'] || '').toLowerCase();
+        if (type === 'product' && node.name) {
+          const offer = Array.isArray(node.offers) ? node.offers[0] : node.offers;
+          add(node.name, node.category || node.brand?.name || 'Каталог', offer?.price);
+        }
+        Object.values(node).forEach(walk);
+      };
+      walk(root);
+    } catch {}
+  }
+  if (products.length < 8) {
+    for (const match of html.matchAll(/<(?:h2|h3)[^>]*>([\s\S]*?)<\/(?:h2|h3)>/gi)) add(match[1]);
+  }
+  return products.slice(0, 30);
+}
+
+function extractSiteProfile(html, sourceUrl) {
+  const title = htmlMeta(html, 'og:site_name')
+    || htmlMeta(html, 'application-name')
+    || decodeHtmlText((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1]);
+  const description = htmlMeta(html, 'description') || htmlMeta(html, 'og:description');
+  let logo = htmlMeta(html, 'og:logo');
+  if (!logo) {
+    const logoImg = html.match(/<img[^>]+(?:class|id)=["'][^"']*logo[^"']*["'][^>]+src=["']([^"']+)/i)
+      || html.match(/<img[^>]+src=["']([^"']+)["'][^>]+(?:class|id)=["'][^"']*logo/i);
+    logo = logoImg?.[1] || htmlMeta(html, 'og:image');
+  }
+  const theme = htmlMeta(html, 'theme-color');
+  const colorCounts = {};
+  for (const match of html.matchAll(/#[0-9a-f]{6}\b/gi)) {
+    const c = match[0].toLowerCase();
+    const rgb = [c.slice(1, 3), c.slice(3, 5), c.slice(5, 7)].map(x => parseInt(x, 16));
+    const spread = Math.max(...rgb) - Math.min(...rgb);
+    const light = rgb.reduce((a, b) => a + b, 0) / 3;
+    if (spread > 22 && light > 38 && light < 225) colorCounts[c] = (colorCounts[c] || 0) + 1;
+  }
+  const accent = /^#[0-9a-f]{6}$/i.test(theme)
+    ? theme
+    : (Object.entries(colorCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '');
+  const catalogLinks = [];
+  for (const match of html.matchAll(/<a[^>]+href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+    const label = decodeHtmlText(match[2]);
+    if (/(каталог|продукц|товар|оборудован|products?|catalog)/i.test(label + ' ' + match[1])) {
+      const link = absoluteWebUrl(match[1], sourceUrl);
+      if (link && new URL(link).origin === new URL(sourceUrl).origin && !catalogLinks.includes(link)) catalogLinks.push(link);
+    }
+  }
+  return {
+    title,
+    description,
+    logo: absoluteWebUrl(logo, sourceUrl),
+    accent,
+    products: extractSiteProducts(html),
+    catalogLinks: catalogLinks.slice(0, 3),
+  };
+}
+
+async function fetchSiteHtml(url) {
+  const response = await fetch(url, {
+    redirect: 'follow',
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; PllatoDemoBot/1.0; +https://pllato.kz)',
+      'Accept': 'text/html,application/xhtml+xml',
+    },
+    signal: AbortSignal.timeout(9000),
+  });
+  if (!response.ok) throw new Error(`Сайт вернул HTTP ${response.status}`);
+  const type = response.headers.get('content-type') || '';
+  if (!type.includes('html')) throw new Error('Сайт не вернул HTML-страницу');
+  return { html: (await response.text()).slice(0, 900000), url: response.url };
+}
+
+async function analyzeCompanyWebsite(website) {
+  const normalized = normalizeCompanyWebsite(website);
+  if (!normalized) throw new Error('Некорректный адрес сайта');
+  const home = await fetchSiteHtml(normalized);
+  const profile = extractSiteProfile(home.html, home.url);
+  const pages = await Promise.allSettled(profile.catalogLinks.map(fetchSiteHtml));
+  for (const page of pages) {
+    if (page.status !== 'fulfilled') continue;
+    const extra = extractSiteProfile(page.value.html, page.value.url);
+    for (const product of extra.products) {
+      if (!profile.products.some(p => p.name.toLowerCase() === product.name.toLowerCase())) profile.products.push(product);
+    }
+  }
+  profile.products = profile.products.slice(0, 30);
+  profile.website = home.url;
+  return profile;
+}
+
+function demoNicheKey(companyNiche, text = '') {
+  const known = {
+    medical_equipment: 'medobor',
+    medical_supplies: 'medizd',
+    laboratory: 'lab',
+    dentistry: 'stomat',
+    pharma_distribution: 'pharma',
+    clinic_equipment: 'complex',
+  };
+  if (known[companyNiche]) return known[companyNiche];
+  const hay = String(text || '').toLowerCase();
+  if (/стомат/.test(hay)) return 'stomat';
+  if (/лаборатор|анализатор|реагент/.test(hay)) return 'lab';
+  if (/фарма|лекарств|препарат|аптек/.test(hay)) return 'pharma';
+  if (/расходн|медицинск.{0,10}издел/.test(hay)) return 'medizd';
+  if (/оснащен.*клиник|медицинск.*мебел/.test(hay)) return 'complex';
+  return 'medobor';
+}
+
+function baseSlug(value) {
+  const translit = {а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'e',ж:'zh',з:'z',и:'i',й:'i',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'h',ц:'c',ч:'ch',ш:'sh',щ:'sch',ы:'y',э:'e',ю:'yu',я:'ya'};
+  return String(value || '').toLowerCase().split('').map(ch => translit[ch] || ch).join('')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 58) || 'company';
+}
+
+async function uniqueDemoSlug(env, companyName, website, dealId) {
+  let seed = companyName;
+  try {
+    const host = new URL(website).hostname.replace(/^www\./, '');
+    seed = host.split('.')[0] || companyName;
+  } catch {}
+  const root = baseSlug(seed);
+  let slug = root;
+  for (let i = 2; i < 50; i++) {
+    const row = await env.DB.prepare("SELECT deal_id FROM demos WHERE slug = ? LIMIT 1").bind(slug).first();
+    if (!row || row.deal_id === dealId) return slug;
+    slug = `${root}-${i}`;
+  }
+  return `${root}-${Date.now().toString(36)}`;
+}
+
+function buildOutreachMessage(company, demoUrl, profile, dealId) {
+  const n = [...String(dealId || company)].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
+  const intros = [
+    `Изучили сайт компании ${company} и собрали рабочую CRM именно под ваш бизнес.`,
+    `Подготовили для ${company} персональную версию CRM на основе информации с вашего сайта.`,
+    `Мы заранее собрали демонстрацию CRM для ${company}, чтобы показать идею не на словах, а в готовом интерфейсе.`,
+    `Посмотрели, как устроено направление ${company}, и подготовили персональный CRM-прототип.`,
+    `Собрали пример системы для ${company}: с вашей айдентикой, каталогом и логикой B2B-продаж.`,
+  ];
+  const details = profile.products?.length
+    ? `Внутри уже есть ваш каталог (${profile.products.slice(0, 3).map(p => p.name).join(', ')}), воронка, склад и повторные продажи.`
+    : `Внутри уже настроены воронка, каталог, склад, аналитика и повторные продажи.`;
+  const endings = [
+    `Можно открыть без регистрации: ${demoUrl}\n\nЕсли откликается, покажу за 15 минут, как это можно адаптировать под ваши реальные процессы.`,
+    `Ссылка на демо: ${demoUrl}\n\nПосмотрите, пожалуйста. Если направление интересно — коротко покажу логику и варианты внедрения.`,
+    `Вот доступ к демо: ${demoUrl}\n\nБудет интересно узнать, насколько такая система попадает в ваши текущие задачи.`,
+    `Открыть демонстрацию: ${demoUrl}\n\nЕсли удобно, можем созвониться на 15 минут и пройтись по сценарию работы.`,
+  ];
+  return `${intros[n % intros.length]}\n\n${details}\n\n${endings[(n >>> 3) % endings.length]}`;
+}
+
+// Авто-создание персональной CRM (идемпотентно: один адрес на сделку).
 async function createDemoForDeal(env, dealId, me) {
   await ensureDemosTable(env);
-  const existing = await env.DB.prepare("SELECT id FROM demos WHERE deal_id = ? LIMIT 1").bind(dealId).first();
-  if (existing) {
-    // Уже есть — просто снова помечаем «новая» и обновляем срок ссылки.
-    await env.DB.prepare("UPDATE demos SET is_new = 1, updated_at = ? WHERE id = ?").bind(new Date().toISOString(), existing.id).run();
-    return existing.id;
-  }
   const bc = await demoBriefCompleteness(env, dealId);
+  if (!bc.complete) throw new Error('Не заполнено: ' + bc.missing.join(', '));
   const deal = await env.DB.prepare("SELECT title FROM deals WHERE id = ? LIMIT 1").bind(dealId).first();
   const clientName = (deal && deal.title) ? deal.title : 'Клиент';
+  const website = normalizeCompanyWebsite(bc.customFields.companyWebsite);
+  const profile = await analyzeCompanyWebsite(website);
   const nowIso = new Date().toISOString();
   const expIso = new Date(Date.now() + DEMO_TOKEN_TTL_DAYS * 864e5).toISOString();
+  const existing = await env.DB.prepare("SELECT id, slug, token FROM demos WHERE deal_id = ? LIMIT 1").bind(dealId).first();
+  const id = existing?.id || ('demo_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
+  const slug = existing?.slug || await uniqueDemoSlug(env, clientName, website, dealId);
+  const demoUrl = `${DEMO_PUBLIC_ORIGIN}/${encodeURIComponent(slug)}`;
+  const niche = demoNicheKey(bc.customFields.companyNiche, `${profile.title} ${profile.description}`);
+  const sourceLogo = profile.logo || '';
+  const logo = `${DEMO_PUBLIC_ORIGIN}/${encodeURIComponent(slug)}/logo`;
+  const message = buildOutreachMessage(clientName, demoUrl, profile, dealId);
   const snapshot = {
     qual: bc.qual,
     customFields: bc.customFields,
     recordings: bc.recordings.map(r => ({ id: r.id, kind: r.kind, name: r.name })),
+    siteProfile: { ...profile, sourceLogo, niche, logo },
   };
-  const id = 'demo_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-  const token = genDemoToken();
-  await env.DB.prepare(`
-    INSERT INTO demos (id, deal_id, client_name, title, status, is_new, website, brief_snapshot, token, token_expires, sort_order, created_by, created_at, updated_at)
-    VALUES (?,?,?,?,'new',1,?,?,?,?,0,?,?,?)
-  `).bind(id, dealId, clientName, clientName + ' — демо',
-    (bc.qual.client_website || ''), JSON.stringify(snapshot), token, expIso,
-    (me && (me.canonicalUid || me.uid)) || '', nowIso, nowIso).run();
-  return id;
+  const token = existing?.token || genDemoToken();
+  if (existing) {
+    await env.DB.prepare(`UPDATE demos SET client_name=?, title=?, status='final', is_new=1,
+      website=?, brief_snapshot=?, token=?, token_expires=?, slug=?, message=?, build_status='ready',
+      build_error=NULL, updated_at=? WHERE id=?`)
+      .bind(clientName, clientName + ' — демо', website, JSON.stringify(snapshot), token, expIso, slug, message, nowIso, id).run();
+  } else {
+    await env.DB.prepare(`
+      INSERT INTO demos (id, deal_id, client_name, title, status, is_new, website, brief_snapshot,
+        token, token_expires, slug, message, build_status, sort_order, created_by, created_at, updated_at)
+      VALUES (?,?,?,?,'final',1,?,?,?,?,?,?,'ready',0,?,?,?)
+    `).bind(id, dealId, clientName, clientName + ' — демо', website, JSON.stringify(snapshot), token, expIso,
+      slug, message, (me && (me.canonicalUid || me.uid)) || '', nowIso, nowIso).run();
+  }
+  return { id, slug, demoUrl, message, profile, niche, logo };
 }
 
 // GET /api/demos — список плашек для Канбана (auth).
@@ -2831,14 +3060,15 @@ async function handleDemosList(request, env) {
   if (auth.error) return json({ error: auth.error }, auth.status, request);
   await ensureDemosTable(env);
   const { results } = await env.DB.prepare(
-    "SELECT id, deal_id, client_name, title, status, is_new, website, token, token_expires, sort_order, created_at, updated_at FROM demos ORDER BY sort_order ASC, created_at DESC"
+    "SELECT id, deal_id, client_name, title, status, is_new, website, token, token_expires, slug, message, build_status, sort_order, created_at, updated_at FROM demos ORDER BY sort_order ASC, created_at DESC"
   ).all();
   const origin = new URL(request.url).origin;
   const items = (results || []).map(d => ({
     id: d.id, dealId: d.deal_id, clientName: d.client_name, title: d.title,
     status: d.status || 'new', isNew: !!d.is_new, website: d.website,
     tokenExpires: d.token_expires, createdAt: d.created_at, updatedAt: d.updated_at,
-    link: `${origin}/api/demo/${encodeURIComponent(d.id)}?t=${encodeURIComponent(d.token || '')}`,
+    message: d.message || '', buildStatus: d.build_status || 'ready',
+    link: d.slug ? `${DEMO_PUBLIC_ORIGIN}/${encodeURIComponent(d.slug)}` : `${origin}/api/demo/${encodeURIComponent(d.id)}?t=${encodeURIComponent(d.token || '')}`,
   }));
   return json({ ok: true, items }, 200, request);
 }
@@ -2871,8 +3101,10 @@ async function handleDemoRelink(request, env, id) {
   const res = await env.DB.prepare("UPDATE demos SET token = ?, token_expires = ?, updated_at = ? WHERE id = ?")
     .bind(token, expIso, new Date().toISOString(), id).run();
   if (!res.meta || res.meta.changes === 0) return json({ error: "not found" }, 404, request);
+  const demo = await env.DB.prepare("SELECT slug FROM demos WHERE id = ? LIMIT 1").bind(id).first();
   const origin = new URL(request.url).origin;
-  return json({ ok: true, link: `${origin}/api/demo/${encodeURIComponent(id)}?t=${token}`, tokenExpires: expIso }, 200, request);
+  const link = demo?.slug ? `${DEMO_PUBLIC_ORIGIN}/${encodeURIComponent(demo.slug)}` : `${origin}/api/demo/${encodeURIComponent(id)}?t=${token}`;
+  return json({ ok: true, link, tokenExpires: expIso }, 200, request);
 }
 
 async function handleDemoDelete(request, env, id) {
@@ -2916,6 +3148,85 @@ async function handleDemoServe(request, env, id) {
   let rules = ''; try { const rr = await env.DB.prepare("SELECT v FROM kv WHERE k = 'demo:rules'").first(); rules = rr && rr.v ? JSON.parse(rr.v) : ''; } catch {}
   const html = genDemoHtml(d, snap, rules, url.origin, token);
   return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+}
+
+async function handlePersonalDemoServe(request, env, slug) {
+  await ensureDemosTable(env);
+  const demo = await env.DB.prepare(
+    "SELECT id, deal_id, client_name, brief_snapshot, build_status FROM demos WHERE slug = ? LIMIT 1"
+  ).bind(slug).first();
+  if (!demo) return new Response(demoStubHtml('Демо не найдено.'), {
+    status: 404,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
+  if (demo.build_status && demo.build_status !== 'ready') {
+    return new Response(demoStubHtml('Демо ещё собирается. Обновите страницу через несколько минут.'), {
+      status: 202,
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Retry-After': '20' },
+    });
+  }
+  let snapshot = {};
+  try { snapshot = JSON.parse(demo.brief_snapshot || '{}'); } catch {}
+  const site = snapshot.siteProfile || {};
+  const config = {
+    company: demo.client_name || 'Компания',
+    niche: site.niche || 'medobor',
+    accent: site.accent || '',
+    logo: site.logo || `${DEMO_PUBLIC_ORIGIN}/${encodeURIComponent(slug)}/logo`,
+    products: Array.isArray(site.products) ? site.products : [],
+  };
+  const base = await fetch('https://pllato.kz/app/crm-demo.html', {
+    headers: { 'User-Agent': 'PllatoDemoRenderer/1.0' },
+  });
+  if (!base.ok) return new Response(demoStubHtml('Не удалось загрузить шаблон CRM.'), {
+    status: 503,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
+  let html = await base.text();
+  const safeConfig = JSON.stringify(config).replace(/</g, '\\u003c');
+  html = html.replace('<script>', `<script>window.PLLATO_DEMO_CONFIG=${safeConfig};</script>\n<script>`);
+  html = html.replace(/<meta name="robots"[^>]*>/i, '<meta name="robots" content="noindex,nofollow"/>');
+  return new Response(html, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=120',
+      'X-Robots-Tag': 'noindex, nofollow',
+    },
+  });
+}
+
+async function handlePersonalDemoLogo(request, env, slug) {
+  await ensureDemosTable(env);
+  const demo = await env.DB.prepare("SELECT deal_id, brief_snapshot FROM demos WHERE slug = ? LIMIT 1").bind(slug).first();
+  if (!demo) return new Response('not found', { status: 404 });
+  let snapshot = {};
+  try { snapshot = JSON.parse(demo.brief_snapshot || '{}'); } catch {}
+  const remoteLogo = snapshot.siteProfile?.sourceLogo;
+  if (remoteLogo) {
+    try {
+      const result = await fetch(remoteLogo, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PllatoDemoBot/1.0)' },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (result.ok) {
+        const headers = new Headers();
+        headers.set('Content-Type', result.headers.get('content-type') || 'image/png');
+        headers.set('Cache-Control', 'public, max-age=86400');
+        return new Response(result.body, { headers });
+      }
+    } catch {}
+  }
+  if (!env.FILES) return new Response('no logo', { status: 404 });
+  const rec = await env.DB.prepare(
+    "SELECT r2_key, content_type FROM deal_qual_recordings WHERE deal_id = ? AND kind = 'logo' ORDER BY uploaded_at DESC LIMIT 1"
+  ).bind(demo.deal_id).first();
+  if (!rec) return new Response('no logo', { status: 404 });
+  const obj = await env.FILES.get(rec.r2_key);
+  if (!obj) return new Response('missing', { status: 404 });
+  return new Response(obj.body, {
+    headers: { 'Content-Type': rec.content_type || 'image/png', 'Cache-Control': 'public, max-age=86400' },
+  });
 }
 
 // Публичная отдача логотипа демо (в контексте валидного токена): /api/demo/:id/logo?t=
@@ -3085,7 +3396,7 @@ async function handleDealStageChange(request, env, dealId) {
     const bc = await demoBriefCompleteness(env, dealId);
     if (!bc.complete) {
       return json({
-        error: "Нельзя перевести на «Создание Демо»: не заполнены материалы для демо — " + bc.missing.join(', ') + ". Откройте Бриф в карточке сделки и добавьте их.",
+        error: "Нельзя перевести в «Готов к сбору демо»: заполните " + bc.missing.join(', ') + ".",
         demoGate: true, missing: bc.missing,
       }, 422, request);
     }
@@ -3123,13 +3434,59 @@ async function handleDealStageChange(request, env, dealId) {
 
   await auditLog(env, me, "deal_stage_change", "deal", dealId, { pipelineId, stageId, isMirror: deal.pipeline_id !== pipelineId });
 
-  // ── Авто-сборка демо при входе в «Создание Демо» ────────────────────
-  // Гейт выше уже гарантировал полноту материалов. Создаём плашку-демо
-  // (идемпотентно) + временную токен-ссылку. Ошибку не пробрасываем, чтобы
-  // не сорвать смену стадии.
-  let demoCreatedId = null;
+  // ── Авто-сборка демо при входе в «Готов к сбору демо» ───────────────
+  // После успешной сборки записываем ссылку и текст в сделку, затем сами
+  // переводим её в «Демо готово». При ошибке карточка остаётся в очереди.
+  let demoBuild = null;
+  let demoBuildError = null;
+  let completedStageId = stageId;
   if (isDemoBuildStage && isMainMove && stageActuallyChanged) {
-    try { demoCreatedId = await createDemoForDeal(env, dealId, me); } catch (e) { console.error('createDemoForDeal:', e); }
+    try {
+      demoBuild = await createDemoForDeal(env, dealId, me);
+      let customFields = {};
+      try { customFields = deal.custom_fields ? JSON.parse(deal.custom_fields) : {}; } catch {}
+      customFields = {
+        ...customFields,
+        demoUrl: demoBuild.demoUrl,
+        demoMessage: demoBuild.message,
+        demoStatus: 'ready',
+        demoBuiltAt: new Date().toISOString(),
+        demoSlug: demoBuild.slug,
+      };
+      const pipeline = await env.DB.prepare("SELECT stages FROM pipelines WHERE id = ? LIMIT 1").bind(pipelineId).first();
+      let readyStageId = '';
+      try {
+        const stages = JSON.parse(pipeline?.stages || '{}');
+        for (const [key, value] of Object.entries(stages || {})) {
+          if (DEMO_READY_STAGE_RE.test(String(value?.name || ''))) {
+            readyStageId = String(value?.statusId || value?.id || key);
+            break;
+          }
+        }
+      } catch {}
+      completedStageId = readyStageId || stageId;
+      const builtAt = new Date().toISOString();
+      await env.DB.prepare(
+        "UPDATE deals SET custom_fields = ?, stage_id = ?, bitrix_date_modify = ?, stage_changed_at = ? WHERE id = ?"
+      ).bind(JSON.stringify(customFields), completedStageId, builtAt, builtAt, dealId).run();
+      if (completedStageId !== stageId) await logStageEvent(env, dealId, pipelineId, completedStageId, builtAt);
+      await auditLog(env, me, "deal_demo_built", "deal", dealId, {
+        demoId: demoBuild.id,
+        demoUrl: demoBuild.demoUrl,
+        sourceWebsite: demoBuild.profile.website,
+        productsFound: demoBuild.profile.products?.length || 0,
+        stageId: completedStageId,
+      });
+    } catch (e) {
+      demoBuildError = e?.message || 'Не удалось собрать демо';
+      console.error('createDemoForDeal:', e);
+      let customFields = {};
+      try { customFields = deal.custom_fields ? JSON.parse(deal.custom_fields) : {}; } catch {}
+      customFields.demoStatus = 'error';
+      customFields.demoBuildError = demoBuildError;
+      await env.DB.prepare("UPDATE deals SET custom_fields = ?, bitrix_date_modify = ? WHERE id = ?")
+        .bind(JSON.stringify(customFields), new Date().toISOString(), dealId).run();
+    }
   }
 
   // ── Auto-mirror triggers ───────────────────────────────────────────
@@ -3173,10 +3530,13 @@ async function handleDealStageChange(request, env, dealId) {
   }
 
   return json({
-    ok: true, dealId, pipelineId, stageId,
+    ok: true, dealId, pipelineId, stageId: completedStageId,
     isMirror: deal.pipeline_id !== pipelineId,
     autoMirrored,
-    demoCreated: demoCreatedId || null,
+    demoCreated: demoBuild?.id || null,
+    demoUrl: demoBuild?.demoUrl || null,
+    demoMessage: demoBuild?.message || null,
+    demoError: demoBuildError,
   }, 200, request);
 }
 
@@ -9024,6 +9384,18 @@ export default {
     CURRENT_CTX = ctx; // для фоновой рассылки Web Push из createNotification
     const url = new URL(request.url);
     const path = url.pathname;
+
+    // Чистые публичные адреса персональных CRM:
+    // https://demo.pllato.kz/company-name
+    if (url.hostname === 'demo.pllato.kz' && request.method === 'GET') {
+      if (path === '/' || path === '') {
+        return Response.redirect('https://pllato.kz/', 302);
+      }
+      const logoMatch = path.match(/^\/([^/]+)\/logo\/?$/);
+      if (logoMatch) return handlePersonalDemoLogo(request, env, decodeURIComponent(logoMatch[1]));
+      const slugMatch = path.match(/^\/([^/]+)\/?$/);
+      if (slugMatch) return handlePersonalDemoServe(request, env, decodeURIComponent(slugMatch[1]));
+    }
 
     // ── WS upgrade ДО CORS-обёртки ───────────────────────────────────────
     // Стандартный new Response(body, {headers}) ломает webSocket: client
