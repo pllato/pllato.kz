@@ -12964,6 +12964,11 @@ function openLeadgenRequirementsModal(deal, missing = []) {
             value="${escapeHtml(cf.lprLinkedin || cf.lprInstagram || cf.lprProfileExtra || '')}">
         </label>
         <label>
+          <div class="qad-label">Сайт компании *</div>
+          <input id="lgr-website" class="qad-input" type="url" placeholder="https://company.kz"
+            value="${escapeHtml(cf.companyWebsite || '')}">
+        </label>
+        <label>
           <div class="qad-label">Ниша / типовая CRM *</div>
           <select id="lgr-niche" class="qad-input">
             ${[
@@ -12994,12 +12999,13 @@ function openLeadgenRequirementsModal(deal, missing = []) {
   ov.onclick = e => { if (e.target === ov) ov.remove(); };
   ov.querySelector('#lgr-save').onclick = async () => {
     const profile = ov.querySelector('#lgr-profile').value.trim();
+    const website = ov.querySelector('#lgr-website').value.trim();
     const niche = ov.querySelector('#lgr-niche').value;
     const logo = ov.querySelector('#lgr-logo').files?.[0] || null;
     const status = ov.querySelector('#lgr-status');
     const btn = ov.querySelector('#lgr-save');
-    if (!profile || !niche || (missing.includes('логотип') && !logo)) {
-      status.innerHTML = '<span style="color:var(--rd)">Заполните ссылку, выберите нишу и добавьте недостающий логотип.</span>';
+    if (!profile || !website || !niche || (missing.includes('логотип') && !logo)) {
+      status.innerHTML = '<span style="color:var(--rd)">Заполните профиль ЛПР, сайт компании, нишу и добавьте недостающий логотип.</span>';
       return;
     }
     if (logo && logo.size > 15 * 1024 * 1024) {
@@ -13009,7 +13015,12 @@ function openLeadgenRequirementsModal(deal, missing = []) {
     btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
     try {
       const token = await fbAuth.currentUser.getIdToken();
-      const nextCf = { ...(deal.customFields || {}), lprProfileExtra: profile, companyNiche: niche };
+      const nextCf = {
+        ...(deal.customFields || {}),
+        lprProfileExtra: profile,
+        companyWebsite: website,
+        companyNiche: niche,
+      };
       const save = await fetch(`${WORKER_RTDB_URL}/deals/${encodeURIComponent(dealId)}.json?auth=${token}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -13821,6 +13832,21 @@ async function openDealCard(bitrixId) {
           ${dealsState.pipelines?.[deal.pipelineId]?.name === 'Лидген' ? `
           <div class="dc-section-h">Профили ЛПР</div>
           <div style="background:var(--bg3);padding:12px 14px;border-radius:8px;display:grid;gap:10px">
+            <label style="display:grid;gap:4px">
+              <span style="font-size:11px;color:var(--t3)">Сайт компании</span>
+              <span style="display:flex;align-items:center;gap:8px">
+                <input class="cf-edit"
+                  type="url"
+                  data-field="companyWebsite"
+                  data-deal-id="deal_${escapeHtml(deal.bitrixId)}"
+                  data-type="string"
+                  value="${escapeHtml(deal.customFields?.companyWebsite || '')}"
+                  placeholder="https://company.kz"
+                  style="min-width:0;flex:1;padding:8px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none">
+                ${deal.customFields?.companyWebsite
+                  ? `<a class="tbtn tbtn-xs" href="${escapeHtml(deal.customFields.companyWebsite)}" target="_blank" rel="noopener">Открыть ↗</a>` : ''}
+              </span>
+            </label>
             <label style="display:grid;gap:4px">
               <span style="font-size:11px;color:var(--t3)">Типовая CRM / ниша компании</span>
               <select class="cf-edit"
