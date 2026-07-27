@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>ABMG Expert — демонстрационный контур CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=PT+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --ink:#14223a;--muted:#68758a;--line:#dfe4eb;--soft:#f4f6f8;--paper:#fff;
+      --nav:#101b2d;--nav2:#182741;--blue:#2366d1;--cyan:#0b8793;--green:#16835f;
+      --amber:#ad6b13;--red:#b84444;--shadow:0 16px 44px rgba(20,34,58,.11)
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;font-family:"Golos Text",sans-serif;color:var(--ink);background:#e9edf2}
+    button,input{font:inherit}
+    button{cursor:pointer}
+    .app{min-height:100vh;display:grid;grid-template-columns:244px minmax(0,1fr)}
+    .side{position:sticky;top:0;height:100vh;background:var(--nav);color:#dce4f0;display:flex;flex-direction:column}
+    .brand{height:86px;padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.09);display:flex;align-items:center;gap:12px}
+    .brand-mark{width:54px;height:48px;background:#fff;color:#153356;display:grid;place-items:center;font:700 13px "PT Mono",monospace;letter-spacing:-.08em}
+    .brand-name{font-size:15px;font-weight:700;line-height:1.2;color:#fff}
+    .brand-sub{font:10px "PT Mono",monospace;color:#8fa0b9;margin-top:4px;text-transform:uppercase;letter-spacing:.06em}
+    .nav{padding:18px 12px;display:grid;gap:4px}
+    .nav button{height:42px;width:100%;border:0;background:transparent;color:#9eadc2;display:flex;align-items:center;gap:12px;text-align:left;padding:0 12px;border-left:3px solid transparent}
+    .nav button:hover{background:rgba(255,255,255,.05);color:#fff}
+    .nav button.active{background:var(--nav2);color:#fff;border-left-color:#4ba5ff}
+    .ico{width:19px;height:19px;display:grid;place-items:center}
+    .ico svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7}
+    .nav-label{font-size:13px;font-weight:500}
+    .nav-count{margin-left:auto;font:10px "PT Mono",monospace;background:#263a5b;color:#bcd2f2;padding:3px 6px}
+    .side-foot{margin-top:auto;padding:14px 18px 18px;border-top:1px solid rgba(255,255,255,.09)}
+    .user{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:center}
+    .avatar{width:34px;height:34px;background:#dce8f5;color:#183150;display:grid;place-items:center;font-weight:700;font-size:12px}
+    .user-name{font-size:12px;color:#fff;font-weight:600}
+    .user-role{font-size:10px;color:#8698b2;margin-top:2px}
+    .main{min-width:0}
+    .top{height:66px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 28px;position:sticky;top:0;z-index:5}
+    .crumb{font-size:12px;color:var(--muted)}
+    .crumb b{color:var(--ink)}
+    .top-actions{margin-left:auto;display:flex;align-items:center;gap:10px}
+    .demo-mark{font:10px "PT Mono",monospace;letter-spacing:.06em;text-transform:uppercase;color:#875d16;border:1px solid #e5cfaa;background:#fff9ee;padding:7px 10px}
+    .top-btn{width:36px;height:36px;border:1px solid var(--line);background:#fff;color:#536279;display:grid;place-items:center}
+    .top-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8}
+    .page{padding:28px 30px 50px;max-width:1680px;margin:0 auto}
+    .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:22px}
+    h1{font-size:25px;line-height:1.15;margin:0;font-weight:700;letter-spacing:-.025em}
+    .subtitle{color:var(--muted);font-size:12px;margin-top:7px}
+    .period{display:flex;border:1px solid var(--line);background:#fff}
+    .period button{border:0;border-right:1px solid var(--line);background:#fff;color:#6a7688;font-size:11px;padding:8px 12px}
+    .period button:last-child{border-right:0}.period button.active{background:#eef4fd;color:var(--blue);font-weight:600}
+    .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);background:#fff;margin-bottom:18px}
+    .metric{padding:18px 20px;border-right:1px solid var(--line);min-height:108px}
+    .metric:last-child{border-right:0}
+    .m-top{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:11px}
+    .delta{font:10px "PT Mono",monospace;color:var(--green)}
+    .delta.down{color:var(--red)}
+    .m-value{font:27px "PT Mono",monospace;margin-top:13px;letter-spacing:-.04em}
+    .m-note{font-size:10px;color:#8994a5;margin-top:8px}
+    .layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(320px,.75fr);gap:18px}
+    .panel{background:#fff;border:1px solid var(--line);box-shadow:0 1px 0 rgba(20,34,58,.02)}
+    .panel-head{height:55px;padding:0 18px;display:flex;align-items:center;border-bottom:1px solid var(--line)}
+    .panel-title{font-size:13px;font-weight:650}
+    .panel-note{font-size:10px;color:var(--muted);margin-left:10px}
+    .panel-action{margin-left:auto;border:0;background:none;color:var(--blue);font-size:11px}
+    .pipeline{padding:18px}
+    .pipe-sum{display:flex;align-items:baseline;gap:9px;margin-bottom:17px}
+    .pipe-sum strong{font:21px "PT Mono",monospace}
+    .pipe-sum span{font-size:10px;color:var(--muted)}
+    .pipe-bars{height:14px;display:flex;width:100%;overflow:hidden;margin-bottom:18px}
+    .pipe-bars i{display:block;height:100%;border-right:2px solid #fff}
+    .stages{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+    .stage{border-top:3px solid var(--c);padding:11px 9px 8px;background:var(--soft);min-height:78px}
+    .stage-name{font-size:9px;text-transform:uppercase;color:#6c7889;letter-spacing:.03em;line-height:1.25}
+    .stage-n{font:19px "PT Mono",monospace;margin-top:10px}
+    .stage-v{font:9px "PT Mono",monospace;color:var(--muted);margin-top:4px}
+    .table-wrap{overflow:auto}
+    table{width:100%;border-collapse:collapse;min-width:760px}
+    th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#7a8798;background:#f8f9fb;padding:10px 14px;border-bottom:1px solid var(--line);font-weight:600}
+    td{font-size:11px;padding:12px 14px;border-bottom:1px solid #edf0f4;vertical-align:middle}
+    tr:last-child td{border-bottom:0}
+    .deal-title{font-weight:600;font-size:11px}.deal-sub{font-size:9px;color:var(--muted);margin-top:3px}
+    .money{font:11px "PT Mono",monospace;white-space:nowrap}
+    .status{font-size:9px;font-weight:600;display:inline-flex;align-items:center;gap:6px;color:var(--s)}
+    .status:before{content:"";width:6px;height:6px;background:var(--s)}
+    .owner{display:flex;align-items:center;gap:7px}.owner b{width:24px;height:24px;display:grid;place-items:center;background:#e8edf4;font-size:8px}
+    .date{font:10px "PT Mono",monospace;color:#667285;white-space:nowrap}
+    .right-col{display:grid;gap:18px;align-content:start}
+    .stock{padding:4px 18px 12px}
+    .stock-row{display:grid;grid-template-columns:1fr auto;gap:12px;padding:13px 0;border-bottom:1px solid #edf0f4}
+    .stock-row:last-child{border-bottom:0}
+    .stock-title{font-size:11px;font-weight:600}.stock-sku{font:9px "PT Mono",monospace;color:var(--muted);margin-top:4px}
+    .stock-val{text-align:right}.stock-val strong{display:block;font:12px "PT Mono",monospace;color:var(--red)}.stock-val span{font-size:9px;color:var(--muted)}
+    .todo{padding:4px 18px 12px}
+    .task{padding:12px 0;border-bottom:1px solid #edf0f4;display:grid;grid-template-columns:12px 1fr auto;gap:10px}
+    .task:last-child{border-bottom:0}
+    .task-dot{width:8px;height:8px;background:var(--c);margin-top:4px}
+    .task-title{font-size:11px;line-height:1.35}.task-meta{font-size:9px;color:var(--muted);margin-top:4px}
+    .task-time{font:9px "PT Mono",monospace;color:var(--c);white-space:nowrap}
+    .lower{margin-top:18px;display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
+    .docs{padding:5px 18px 12px}
+    .doc{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid #edf0f4}
+    .doc:last-child{border-bottom:0}
+    .doc-type{width:30px;height:34px;background:#eef2f7;display:grid;place-items:center;font:8px "PT Mono",monospace;color:#506176}
+    .doc-name{font-size:10px;font-weight:600}.doc-meta{font-size:9px;color:var(--muted);margin-top:3px}.doc-state{font-size:9px;color:var(--green)}
+    .one-c{padding:18px}
+    .sync-line{height:8px;background:#e8edf2;margin:14px 0 9px;position:relative}.sync-line:after{content:"";position:absolute;inset:0 18% 0 0;background:var(--green)}
+    .sync-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+    .sync-item{background:var(--soft);padding:11px}.sync-item b{display:block;font:13px "PT Mono",monospace}.sync-item span{font-size:9px;color:var(--muted)}
+    .screen{display:none}.screen.active{display:block}
+    .catalog-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+    .product{background:#fff;border:1px solid var(--line);padding:18px;min-height:150px}
+    .product-code{font:9px "PT Mono",monospace;color:var(--muted)}.product h3{font-size:13px;margin:16px 0 7px}.product p{font-size:10px;color:var(--muted);line-height:1.5}.product-foot{margin-top:18px;display:flex;justify-content:space-between;font:10px "PT Mono",monospace}
+    .mobile-head{display:none}
+    @media(max-width:1100px){.app{grid-template-columns:82px 1fr}.brand{padding:16px 12px}.brand>div:not(.brand-mark){display:none}.nav-label,.nav-count,.user>div{display:none}.nav button{justify-content:center;padding:0}.user{grid-template-columns:1fr}.avatar{margin:auto}.metrics{grid-template-columns:1fr 1fr}.metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--line)}.layout,.lower{grid-template-columns:1fr}}
+    @media(max-width:700px){.app{display:block}.side{display:none}.mobile-head{display:flex;height:58px;background:var(--nav);color:#fff;align-items:center;padding:0 14px;gap:10px}.mobile-head .brand-mark{width:42px;height:34px;font-size:10px}.top{top:58px;padding:0 14px}.page{padding:18px 12px 40px}.page-head{align-items:flex-start;flex-direction:column}.metrics{grid-template-columns:1fr 1fr}.metric{padding:14px;min-height:96px}.m-value{font-size:20px}.stages{grid-template-columns:1fr 1fr}.catalog-grid{grid-template-columns:1fr}.demo-mark{display:none}}
+  </style>
+</head>
+<body>
+  <div class="mobile-head"><div class="brand-mark">ABMG</div><b>ABMG Expert</b></div>
+  <div class="app">
+    <aside class="side">
+      <div class="brand"><div class="brand-mark">ABMG</div><div><div class="brand-name">ABMG Expert</div><div class="brand-sub">Distribution OS</div></div></div>
+      <nav class="nav">
+        <button class="active" data-screen="dashboard"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4zm10 7h6v-9h-6zM4 20h6v-3H4zm10-13h6V4h-6z"/></svg></span><span class="nav-label">Рабочий стол</span></button>
+        <button data-screen="deals"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="15" r="3"/></svg></span><span class="nav-label">Сделки и тендеры</span><span class="nav-count">18</span></button>
+        <button data-screen="catalog"><span class="ico"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg></span><span class="nav-label">Каталог</span><span class="nav-count">126</span></button>
+        <button><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v10l-8 3-8-3zM4 8l8 4 8-4M12 12v9"/></svg></span><span class="nav-label">Склад и резервы</span><span class="nav-count">7</span></button>
+        <button><span class="ico"><svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7zM15 3v5h5M10 13h6M10 17h6"/></svg></span><span class="nav-label">Документы</span></button>
+        <button><span class="ico"><svg viewBox="0 0 24 24"><path d="M5 20V10m7 10V4m7 16v-7"/></svg></span><span class="nav-label">Аналитика</span></button>
+        <button><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="8"/></svg></span><span class="nav-label">Сервис оборудования</span></button>
+      </nav>
+      <div class="side-foot"><div class="user"><div class="avatar">АТ</div><div><div class="user-name">Айдар Т.</div><div class="user-role">Коммерческий директор</div></div></div></div>
+    </aside>
+    <main class="main">
+      <header class="top"><div class="crumb">CRM / <b id="crumb">Рабочий стол</b></div><div class="top-actions"><span class="demo-mark">Демонстрационный контур</span><button class="top-btn" aria-label="Поиск"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M16 16l5 5"/></svg></button><button class="top-btn" aria-label="Уведомления"><svg viewBox="0 0 24 24"><path d="M6 17h12l-1.4-2.2V10a4.6 4.6 0 00-9.2 0v4.8zM10 20h4"/></svg></button></div></header>
+      <div class="page">
+        <section class="screen active" id="dashboard">
+          <div class="page-head"><div><h1>Пульс продаж</h1><div class="subtitle">Оперативная картина на 27 июля 2026 · Алматы</div></div><div class="period"><button>Неделя</button><button class="active">Месяц</button><button>Квартал</button></div></div>
+          <div class="metrics">
+            <div class="metric"><div class="m-top"><span>Активный портфель</span><span class="delta">+12.4%</span></div><div class="m-value">₸ 184.6 млн</div><div class="m-note">18 открытых сделок</div></div>
+            <div class="metric"><div class="m-top"><span>Прогноз на август</span><span class="delta">+8.1%</span></div><div class="m-value">₸ 62.8 млн</div><div class="m-note">взвешенный прогноз</div></div>
+            <div class="metric"><div class="m-top"><span>Конверсия КП → договор</span><span class="delta">+3.7 п.п.</span></div><div class="m-value">31.4%</div><div class="m-note">за последние 90 дней</div></div>
+            <div class="metric"><div class="m-top"><span>Товары под резервом</span><span class="delta down">5 позиций</span></div><div class="m-value">₸ 28.2 млн</div><div class="m-note">требуют контроля поставки</div></div>
+          </div>
+          <div class="layout">
+            <div>
+              <section class="panel">
+                <div class="panel-head"><div class="panel-title">Воронка B2B-продаж</div><div class="panel-note">включая тендерные процедуры</div><button class="panel-action">Открыть сделки</button></div>
+                <div class="pipeline">
+                  <div class="pipe-sum"><strong>₸ 184 560 000</strong><span>общая сумма активного портфеля</span></div>
+                  <div class="pipe-bars"><i style="width:24%;background:#456fae"></i><i style="width:22%;background:#2f86a0"></i><i style="width:20%;background:#3d9b81"></i><i style="width:18%;background:#bd872b"></i><i style="width:16%;background:#6d6f9f"></i></div>
+                  <div class="stages">
+                    <div class="stage" style="--c:#456fae"><div class="stage-name">Квалификация</div><div class="stage-n">6</div><div class="stage-v">₸ 41.2 млн</div></div>
+                    <div class="stage" style="--c:#2f86a0"><div class="stage-name">Подбор решения</div><div class="stage-n">4</div><div class="stage-v">₸ 38.6 млн</div></div>
+                    <div class="stage" style="--c:#3d9b81"><div class="stage-name">КП направлено</div><div class="stage-n">3</div><div class="stage-v">₸ 35.4 млн</div></div>
+                    <div class="stage" style="--c:#bd872b"><div class="stage-name">Согласование</div><div class="stage-n">3</div><div class="stage-v">₸ 32.8 млн</div></div>
+                    <div class="stage" style="--c:#6d6f9f"><div class="stage-name">Договор / тендер</div><div class="stage-n">2</div><div class="stage-v">₸ 36.5 млн</div></div>
+                  </div>
+                </div>
+              </section>
+              <section class="panel" style="margin-top:18px">
+                <div class="panel-head"><div class="panel-title">Сделки, требующие внимания</div><button class="panel-action">Все 18 сделок</button></div>
+                <div class="table-wrap"><table><thead><tr><th>Клиент / проект</th><th>Этап</th><th>Сумма</th><th>Менеджер</th><th>Следующий шаг</th></tr></thead><tbody>
+                  <tr><td><div class="deal-title">Центр крови г. Шымкент</div><div class="deal-sub">Гемоконтейнеры и фильтры · тендер</div></td><td><span class="status" style="--s:#bd872b">Согласование</span></td><td class="money">₸ 18 460 000</td><td><div class="owner"><b>АК</b>А. Ким</div></td><td class="date">28.07 · 11:00</td></tr>
+                  <tr><td><div class="deal-title">ГКБ №4 Алматы</div><div class="deal-sub">Система эндопротезирования коленного сустава</div></td><td><span class="status" style="--s:#3d9b81">КП направлено</span></td><td class="money">₸ 12 880 000</td><td><div class="owner"><b>ДС</b>Д. Садыков</div></td><td class="date">29.07 · 15:30</td></tr>
+                  <tr><td><div class="deal-title">Клиника репродуктивной медицины</div><div class="deal-sub">Оснащение родильного отделения</div></td><td><span class="status" style="--s:#2f86a0">Подбор решения</span></td><td class="money">₸ 9 720 000</td><td><div class="owner"><b>МС</b>М. Сеитов</div></td><td class="date">30.07 · 10:00</td></tr>
+                  <tr><td><div class="deal-title">Областной кардиоцентр</div><div class="deal-sub">Катетеры, интродьюсеры, проводники</div></td><td><span class="status" style="--s:#456fae">Квалификация</span></td><td class="money">₸ 7 340 000</td><td><div class="owner"><b>АК</b>А. Ким</div></td><td class="date">31.07 · 12:00</td></tr>
+                </tbody></table></div>
+              </section>
+            </div>
+            <aside class="right-col">
+              <section class="panel"><div class="panel-head"><div class="panel-title">Риски по складу</div><span class="panel-note">5 позиций</span></div><div class="stock">
+                <div class="stock-row"><div><div class="stock-title">Интродьюсер 6F</div><div class="stock-sku">INT-6F-11 · Meril</div></div><div class="stock-val"><strong>8 шт.</strong><span>резерв 14</span></div></div>
+                <div class="stock-row"><div><div class="stock-title">Гемоконтейнер 450 мл</div><div class="stock-sku">BC-450-TQ · Mitra</div></div><div class="stock-val"><strong>120 шт.</strong><span>резерв 180</span></div></div>
+                <div class="stock-row"><div><div class="stock-title">Проводник 0.035"</div><div class="stock-sku">GW-035-150 · Ananth</div></div><div class="stock-val"><strong>22 шт.</strong><span>минимум 40</span></div></div>
+              </div></section>
+              <section class="panel"><div class="panel-head"><div class="panel-title">Сегодня</div><span class="panel-note">6 действий</span></div><div class="todo">
+                <div class="task"><i class="task-dot" style="--c:#b84444"></i><div><div class="task-title">Подтвердить наличие эндопротезов</div><div class="task-meta">ГКБ №4 · Д. Садыков</div></div><div class="task-time">10:30</div></div>
+                <div class="task"><i class="task-dot" style="--c:#2366d1"></i><div><div class="task-title">Встреча с отделом закупок</div><div class="task-meta">Центр крови г. Шымкент</div></div><div class="task-time">11:00</div></div>
+                <div class="task"><i class="task-dot" style="--c:#16835f"></i><div><div class="task-title">Отправить регистрационные документы</div><div class="task-meta">Областной кардиоцентр</div></div><div class="task-time">14:00</div></div>
+                <div class="task"><i class="task-dot" style="--c:#ad6b13"></i><div><div class="task-title">Согласовать резерв партии</div><div class="task-meta">Склад · заказ SO-2048</div></div><div class="task-time">16:30</div></div>
+              </div></section>
+            </aside>
+          </div>
+          <div class="lower">
+            <section class="panel"><div class="panel-head"><div class="panel-title">Документы на контроле</div><button class="panel-action">Реестр документов</button></div><div class="docs">
+              <div class="doc"><div class="doc-type">РК МИ</div><div><div class="doc-name">Регистрационное удостоверение — Freedom Total Knee</div><div class="doc-meta">Действует до 14.09.2028 · Министерство здравоохранения РК</div></div><div class="doc-state">Действует</div></div>
+              <div class="doc"><div class="doc-type">КП</div><div><div class="doc-name">Коммерческое предложение ABMG-2026-0718</div><div class="doc-meta">Центр крови г. Шымкент · версия 3</div></div><div class="doc-state">Подписано</div></div>
+              <div class="doc"><div class="doc-type">СЕРТ</div><div><div class="doc-name">ISO 13485 — Meril Life Sciences</div><div class="doc-meta">Производитель · пакет ортопедии</div></div><div class="doc-state">Проверено</div></div>
+            </div></section>
+            <section class="panel"><div class="panel-head"><div class="panel-title">Обмен с 1С</div><span class="panel-note">последний сеанс 09:42</span></div><div class="one-c"><div style="font-size:11px;color:var(--muted)">Синхронизация каталога, цен и складских остатков</div><div class="sync-line"></div><div style="font:9px 'PT Mono',monospace;color:var(--green)">Система работает штатно</div><div class="sync-grid"><div class="sync-item"><b>126</b><span>товаров обновлено</span></div><div class="sync-item"><b>3 842</b><span>остатка сверено</span></div><div class="sync-item"><b>18</b><span>заказов передано</span></div><div class="sync-item"><b>0</b><span>ошибок обмена</span></div></div></div></section>
+          </div>
+        </section>
+        <section class="screen" id="deals"><div class="page-head"><div><h1>Сделки и тендеры</h1><div class="subtitle">Единый реестр коммерческих возможностей</div></div></div><section class="panel"><div class="panel-head"><div class="panel-title">18 активных сделок</div><button class="panel-action">+ Новая сделка</button></div><div class="table-wrap"><table><thead><tr><th>№</th><th>Клиент</th><th>Предмет поставки</th><th>Этап</th><th>Сумма</th><th>Дедлайн</th></tr></thead><tbody>
+          <tr><td class="date">AB-2048</td><td>Центр крови г. Шымкент</td><td>Гемоконтейнеры и фильтры</td><td><span class="status" style="--s:#bd872b">Согласование</span></td><td class="money">₸ 18 460 000</td><td class="date">05.08.26</td></tr>
+          <tr><td class="date">AB-2046</td><td>ГКБ №4 Алматы</td><td>Эндопротезирование коленного сустава</td><td><span class="status" style="--s:#3d9b81">КП направлено</span></td><td class="money">₸ 12 880 000</td><td class="date">12.08.26</td></tr>
+          <tr><td class="date">AB-2042</td><td>Клиника репродуктивной медицины</td><td>Оборудование родильного отделения</td><td><span class="status" style="--s:#2f86a0">Подбор решения</span></td><td class="money">₸ 9 720 000</td><td class="date">18.08.26</td></tr>
+        </tbody></table></div></section></section>
+        <section class="screen" id="catalog"><div class="page-head"><div><h1>Каталог продукции</h1><div class="subtitle">126 товарных позиций · 7 направлений</div></div></div><div class="catalog-grid">
+          <article class="product"><div class="product-code">ORTHO / TKR-FREEDOM</div><h3>Freedom Total Knee</h3><p>Система тотального эндопротезирования коленного сустава. Комплект компонентов и инструментов.</p><div class="product-foot"><span>Meril</span><b>в наличии</b></div></article>
+          <article class="product"><div class="product-code">CARDIO / ASPIRON-6F</div><h3>Аспирационный катетер Aspiron</h3><p>Катетер для удаления тромботических масс при интервенционных вмешательствах.</p><div class="product-foot"><span>Meril</span><b>под заказ</b></div></article>
+          <article class="product"><div class="product-code">BLOOD / BC-450-TQ</div><h3>Гемоконтейнер 450 мл</h3><p>Система забора и хранения компонентов крови с антикоагулянтом.</p><div class="product-foot"><span>Mitra</span><b>120 шт.</b></div></article>
+          <article class="product"><div class="product-code">SURG / MESH-PP-15</div><h3>Хирургическая сетка PP</h3><p>Полипропиленовый имплантат для герниопластики, различные размеры.</p><div class="product-foot"><span>Suru</span><b>84 шт.</b></div></article>
+          <article class="product"><div class="product-code">CARDIO / GW-035-150</div><h3>Проводник диагностический</h3><p>Гидрофильный проводник 0.035", длина 150 см для ангиографических процедур.</p><div class="product-foot"><span>Ananth</span><b>22 шт.</b></div></article>
+          <article class="product"><div class="product-code">BLOOD / FILTER-LR</div><h3>Лейкоцитарный фильтр</h3><p>Одноразовая система фильтрации компонентов донорской крови.</p><div class="product-foot"><span>Mitra</span><b>под заказ</b></div></article>
+        </div></section>
+      </div>
+    </main>
+  </div>
+  <script>
+    const labels={dashboard:'Рабочий стол',deals:'Сделки и тендеры',catalog:'Каталог продукции'};
+    document.querySelectorAll('[data-screen]').forEach(btn=>btn.addEventListener('click',()=>{
+      document.querySelectorAll('[data-screen]').forEach(x=>x.classList.remove('active'));
+      document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.screen).classList.add('active');
+      document.getElementById('crumb').textContent=labels[btn.dataset.screen]||btn.textContent.trim();
+      window.scrollTo({top:0,behavior:'smooth'});
+    }));
+  </script>
+</body>
+</html>
