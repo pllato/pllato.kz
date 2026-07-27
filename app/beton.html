@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#0e1620"/>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
+<title>МОНОЛИТ · Пульт бетонного завода — Демо</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --acc:#e8871e; --acc2:#f5b544; --accD:#b96908; --accSoft:rgba(232,135,30,.13);
+  --bg:#eef1f5; --card:#ffffff; --side:#111a24; --ink:#141c26; --ink2:#3d4a58; --muted:#6b7887; --faint:#9aa7b5;
+  --line:#e5eaf0; --off:#f3f6fa; --grn:#16a34a; --red:#e0483d; --amb:#d97706; --blue:#2563eb; --steel:#5b7186;
+  --sh:0 12px 32px -16px rgba(16,28,42,.22); --sh2:0 3px 12px -6px rgba(16,28,42,.14);
+}
+:root[data-theme="dark"]{
+  --bg:#0a1119; --card:#101b27; --side:#080e15; --ink:#e8eff7; --ink2:#b1c1d0; --muted:#7c8ea0; --faint:#556575;
+  --line:#1c2c3c; --off:#0d1922; --accSoft:rgba(232,135,30,.18); --sh:0 16px 42px -18px rgba(0,0,0,.62); --sh2:0 6px 18px -8px rgba(0,0,0,.5);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+a{color:inherit;text-decoration:none}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+.hidden{display:none!important}
+
+/* ===== role gate ===== */
+.gate{position:fixed;inset:0;z-index:80;background:linear-gradient(150deg,#0c141d,#132234 65%,#17324a);display:grid;place-items:center;padding:22px;overflow:auto}
+.gate .aur{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.gate .aur i{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;animation:fl 20s ease-in-out infinite}
+.gate .aur i:nth-child(1){width:520px;height:520px;background:var(--acc);top:-160px;right:-120px}
+.gate .aur i:nth-child(2){width:440px;height:440px;background:#2f6fb0;bottom:-160px;left:-120px;animation-delay:-7s;opacity:.35}
+@keyframes fl{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(28px,-26px) scale(1.08)}}
+.gate .in{position:relative;max-width:920px;width:100%;text-align:center;color:#fff}
+.gate .bm{width:60px;height:60px;border-radius:16px;background:linear-gradient(145deg,#1a2a3c,#0c141d);display:grid;place-items:center;margin:0 auto 16px;border:1px solid rgba(255,255,255,.12)}
+.gate .bm b{color:var(--acc2);font-weight:900;font-size:26px}
+.gate h1{font-size:clamp(24px,4vw,36px);font-weight:900;letter-spacing:-.02em}
+.gate h1 b{color:var(--acc2)}
+.gate .sub{color:#9db1c6;font-size:15px;margin:10px 0 26px;max-width:620px;margin-left:auto;margin-right:auto}
+.gate .rgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.rolecard{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:16px 13px;text-align:left;cursor:pointer;transition:.15s}
+.rolecard:hover{background:rgba(255,255,255,.1);border-color:var(--acc);transform:translateY(-2px)}
+.rolecard .ri{font-size:22px;margin-bottom:8px}
+.rolecard .rn{font-weight:800;font-size:14px;color:#fff}
+.rolecard .rd{font-size:11px;color:#9db1c6;margin-top:3px;line-height:1.4}
+.rolecard .rt{font-size:10.5px;color:var(--acc2);font-weight:700;margin-top:8px}
+.gate .foot{margin-top:22px;font-size:12px;color:#7d93a8}
+.gate .foot b{color:#c7d6e6}
+
+/* ===== app ===== */
+.app{display:grid;grid-template-columns:238px 1fr;height:100vh}
+.side{background:var(--side);color:#c6d3df;display:flex;flex-direction:column;overflow:hidden}
+.side .brand{padding:16px 16px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:11px}
+.side .bl{width:40px;height:40px;border-radius:11px;background:linear-gradient(145deg,#1c2c3e,#0d151e);display:grid;place-items:center;flex:none;color:var(--acc2);font-weight:900;font-size:19px}
+.side .bn{font-weight:900;font-size:16px;color:#fff;letter-spacing:.02em}
+.side .bs{font-size:10px;color:#7d93a8;margin-top:1px}
+.side .pill{margin:12px 12px 4px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:9px 11px;display:flex;align-items:center;gap:9px}
+.side .pill .d{width:8px;height:8px;border-radius:50%;background:var(--grn);box-shadow:0 0 0 4px rgba(22,163,74,.2);flex:none}
+.side .pill .t{font-size:12px;font-weight:600;color:#e2ebf3}.side .pill .x{font-size:10px;color:#8298ad;margin-top:1px}
+.nav{flex:1;overflow-y:auto;padding:8px 10px}
+.nav .g{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:#5e7488;font-weight:800;padding:12px 12px 5px}
+.nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;font-size:13.5px;font-weight:500;color:#a6b6c6;transition:.12s;position:relative}
+.nav a:hover{background:rgba(255,255,255,.05);color:#fff}
+.nav a.on{background:linear-gradient(90deg,var(--accSoft),transparent);color:#fff}
+.nav a.on::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:3px;background:var(--acc2)}
+.nav a .ic{width:18px;text-align:center;font-size:15px}
+.nav a .cnt{margin-left:auto;font-size:10.5px;font-weight:700;background:rgba(255,255,255,.08);border-radius:20px;padding:1px 7px;color:#c6d3df}
+.nav a .cnt.r{background:var(--red);color:#fff}
+.side .usr{padding:11px 12px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px}
+.side .usr .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--accD));display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;flex:none}
+.side .usr .un{font-size:12.5px;font-weight:600;color:#eef4fa}.side .usr .ur{font-size:10.5px;color:#8298ad}
+
+.main{display:flex;flex-direction:column;min-width:0;height:100vh}
+.topbar{display:flex;align-items:center;gap:14px;padding:11px 22px;border-bottom:1px solid var(--line);background:var(--card);flex-wrap:wrap}
+.topbar .tt{font-size:17px;font-weight:800}
+.topbar .ts{font-size:12px;color:var(--muted);margin-top:1px}
+.topbar .sp{flex:1}
+.badge1c{display:inline-flex;align-items:center;gap:7px;background:color-mix(in srgb,var(--grn) 12%,transparent);color:var(--grn);font-size:11.5px;font-weight:700;padding:6px 11px;border-radius:20px}
+.badge1c .d{width:7px;height:7px;border-radius:50%;background:var(--grn)}
+select.rolesel{background:var(--off);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:12.5px;font-weight:600;color:var(--ink);font-family:inherit;outline:none}
+.tbtn{width:37px;height:37px;border-radius:10px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;font-size:15px}
+.mtoggle{display:none}
+.body{flex:1;overflow-y:auto;padding:20px 22px}
+.screen{display:none;animation:fade .22s ease}.screen.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:var(--sh2)}
+.kpi .l{font-size:11.5px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:7px}
+.kpi .l .i{width:24px;height:24px;border-radius:7px;background:var(--accSoft);display:grid;place-items:center;font-size:12px}
+.kpi .v{font-size:22px;font-weight:900;letter-spacing:-.02em;margin-top:9px}
+.kpi .v.up{color:var(--grn)}.kpi .v.acc{color:var(--acc)}.kpi .v.amb{color:var(--amb)}.kpi .v.red{color:var(--red)}.kpi .v.bl{color:var(--blue)}
+.kpi .d{font-size:11px;color:var(--muted);margin-top:2px}
+.grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-bottom:14px}
+.grid2.eq{grid-template-columns:1fr 1fr}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:17px;box-shadow:var(--sh2)}
+.card .ct{font-size:13.5px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card .ct .mini{font-size:11px;color:var(--muted);font-weight:600}
+/* grouped bars */
+.gbars{display:flex;align-items:flex-end;gap:12px;height:170px;padding-top:18px}
+.gbars .gc{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%;justify-content:flex-end}
+.gbars .gp{display:flex;align-items:flex-end;gap:4px;height:100%;width:100%;justify-content:center}
+.gbars .gp i{width:15px;border-radius:5px 5px 0 0;transition:height .85s cubic-bezier(.2,.8,.2,1);position:relative}
+.gbars .gp i.f{background:linear-gradient(180deg,var(--acc),var(--acc2))}
+.gbars .gp i.p{background:var(--line)}
+.gbars .gp i.f b{position:absolute;top:-16px;left:-8px;right:-8px;text-align:center;font-size:9.5px;font-weight:800;color:var(--ink2)}
+.gbars .gc span{font-size:10.5px;color:var(--muted);font-weight:600}
+.legend{display:flex;gap:16px;margin-top:12px;font-size:11.5px;color:var(--muted);font-weight:600}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.hbars .hb{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.hbars .hb .lb{width:96px;font-size:12px;color:var(--ink2);font-weight:600;flex:none}
+.hbars .hb .tr{flex:1;height:11px;border-radius:6px;background:var(--off);overflow:hidden}
+.hbars .hb .tr i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--acc),var(--acc2));width:0;transition:width .9s cubic-bezier(.2,.8,.2,1)}
+.hbars .hb .vv{font-size:12px;font-weight:800;width:88px;text-align:right;flex:none}
+.att{display:flex;flex-direction:column;gap:8px}
+.att .a{display:flex;gap:10px;align-items:flex-start;background:var(--off);border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+.att .a .ai{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:13px;flex:none}
+.att .a.r .ai{background:color-mix(in srgb,var(--red) 14%,transparent)}.att .a.y .ai{background:color-mix(in srgb,var(--amb) 15%,transparent)}.att .a.g .ai{background:color-mix(in srgb,var(--grn) 14%,transparent)}
+.att .a .tx{font-size:12.5px;line-height:1.4}.att .a .tx .s{color:var(--muted);font-size:11.5px}
+/* pipeline flow */
+.flow{display:flex;align-items:stretch;gap:0;overflow-x:auto}
+.flow .st{flex:1;min-width:150px;background:var(--off);border:1px solid var(--line);border-radius:13px;padding:14px;position:relative;margin-right:22px}
+.flow .st:last-child{margin-right:0}
+.flow .st::after{content:"→";position:absolute;right:-19px;top:50%;transform:translateY(-50%);color:var(--acc);font-size:18px;font-weight:800}
+.flow .st:last-child::after{display:none}
+.flow .st .si{font-size:22px;margin-bottom:8px}
+.flow .st .sn{font-size:13px;font-weight:800}
+.flow .st .sv{font-size:19px;font-weight:900;color:var(--acc);margin-top:6px;letter-spacing:-.02em}
+.flow .st .sd{font-size:11px;color:var(--muted);margin-top:2px}
+
+table{width:100%;border-collapse:collapse}
+th{font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);text-align:left;padding:10px 10px;font-weight:800;border-bottom:1px solid var(--line)}
+td{padding:11px 10px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr{transition:.1s}tbody tr:hover{background:var(--off)}
+tbody tr.clk{cursor:pointer}
+td.r{text-align:right;font-weight:700;white-space:nowrap}
+.tag{font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:20px;display:inline-block;white-space:nowrap}
+.tag.a{background:var(--accSoft);color:var(--accD)}.tag.g{background:color-mix(in srgb,var(--grn) 15%,transparent);color:var(--grn)}.tag.y{background:color-mix(in srgb,var(--amb) 16%,transparent);color:var(--amb)}.tag.r{background:color-mix(in srgb,var(--red) 14%,transparent);color:var(--red)}.tag.b{background:color-mix(in srgb,var(--blue) 13%,transparent);color:var(--blue)}.tag.n{background:var(--off);color:var(--muted)}
+.mini{font-size:11px;color:var(--muted)}
+.miniprog{width:80px;height:7px;border-radius:5px;background:var(--off);overflow:hidden;display:inline-block;vertical-align:middle}
+.miniprog i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.dobtn{font-size:11.5px;font-weight:800;color:var(--acc);border:1px solid color-mix(in srgb,var(--acc) 35%,transparent);border-radius:8px;padding:5px 10px}
+.av2{width:28px;height:28px;border-radius:8px;display:inline-grid;place-items:center;color:#fff;font-size:11px;font-weight:700;vertical-align:middle;margin-right:8px}
+.cell{display:flex;align-items:center}
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.chipf{font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid var(--line);background:var(--card);color:var(--ink2)}
+.chipf.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.hint{background:var(--accSoft);border:1px solid color-mix(in srgb,var(--acc) 22%,transparent);border-radius:12px;padding:14px 16px;font-size:13px;color:var(--ink2);line-height:1.55;margin-top:16px}
+.hint b{color:var(--ink)}
+/* kanban */
+.kan{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;align-items:flex-start}
+.col{min-width:214px;flex:1;background:var(--off);border:1px solid var(--line);border-radius:13px;padding:10px}
+.col.drop{outline:2px dashed var(--acc);outline-offset:-3px}
+.col .ch{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:800;margin-bottom:4px;color:var(--ink2)}
+.col .ch .n{background:var(--card);border:1px solid var(--line);border-radius:20px;font-size:10.5px;padding:1px 8px;color:var(--muted)}
+.col .cs{font-size:10.5px;color:var(--muted);font-weight:700;margin-bottom:9px}
+.deal{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:10px 11px;margin-bottom:8px;box-shadow:var(--sh2);cursor:pointer}
+.deal .dn{font-size:12.5px;font-weight:700;margin-bottom:5px}
+.deal .dm{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.deal .ds{font-size:13px;font-weight:800;color:var(--acc)}
+.mtag{font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:20px;background:var(--accSoft);color:var(--accD)}
+/* pnl */
+.pnl{display:flex;flex-direction:column;gap:2px}
+.pnl .r{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.pnl .r:last-child{border:none}
+.pnl .r .k{color:var(--ink2)}.pnl .r .v{font-weight:700}
+.pnl .r.plus .v{color:var(--grn)}.pnl .r.minus .v{color:var(--red)}
+.pnl .r.tot{border-top:2px solid var(--line);margin-top:4px;font-weight:900}.pnl .r.tot .v{color:var(--acc);font-size:16px}
+/* modal */
+.ov{position:fixed;inset:0;z-index:70;background:rgba(8,14,21,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:18px}
+.ov.show{display:flex}
+.modal{background:var(--card);border:1px solid var(--line);border-radius:18px;max-width:560px;width:100%;box-shadow:var(--sh);max-height:92vh;overflow:auto;position:relative}
+.mh{padding:20px 22px 6px}.mh .t{font-size:19px;font-weight:900;letter-spacing:-.01em}.mh .s{font-size:12.5px;color:var(--ink2);margin-top:5px}
+.mb{padding:14px 22px 20px}
+.dl .row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}.dl .row:last-child{border:none}.dl .row .k{color:var(--muted)}.dl .row .v{font-weight:700}
+.dsec{font-size:12px;font-weight:800;color:var(--ink2);margin:15px 0 7px;text-transform:uppercase;letter-spacing:.03em}
+.ditems .di{display:flex;justify-content:space-between;font-size:12.5px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.mclose{position:absolute;top:13px;right:15px;font-size:22px;color:var(--muted);line-height:1;z-index:2}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(30px);background:var(--side);color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:var(--sh);opacity:0;transition:.25s;z-index:75;max-width:90%}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast b{color:var(--acc2)}
+@media(max-width:900px){
+  .app{grid-template-columns:1fr}
+  .side{position:fixed;z-index:50;width:238px;height:100vh;transform:translateX(-100%);transition:.25s;box-shadow:var(--sh)}
+  .side.open{transform:none}
+  .mtoggle{display:grid;place-items:center;width:37px;height:37px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-size:18px}
+  .kpis{grid-template-columns:repeat(2,1fr)}.grid2,.grid2.eq,.grid3{grid-template-columns:1fr}
+  .gate .rgrid{grid-template-columns:repeat(2,1fr)}
+}
+</style></head>
+<body>
+
+<!-- ROLE GATE -->
+<div class="gate" id="gate">
+  <div class="aur"><i></i><i></i></div>
+  <div class="in">
+    <div class="bm"><b>М</b></div>
+    <h1>МОНОЛИТ · <b>Пульт завода</b></h1>
+    <div class="sub">Единая система бетонного завода: добыча инертных → производство бетона → продажи и дебиторка → заявки → люди и ЗП → техника в аренду. Выберите роль — покажем ровно её экраны. Всё кликается.</div>
+    <div class="rgrid" id="rgrid"></div>
+    <div class="foot">Демо-режим · данные вымышлены для показа · сделано <b>Pllato</b> под ваш бизнес</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app hidden" id="app">
+  <aside class="side" id="side">
+    <div class="brand"><div class="bl">М</div><div><div class="bn">МОНОЛИТ</div><div class="bs">бетонный завод · пульт</div></div></div>
+    <div class="pill"><span class="d"></span><div><div class="t">Бетонный завод · Бишкек</div><div class="x">карьер · БСУ · автопарк</div></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="usr"><div class="av" id="uav">Н</div><div><div class="un" id="uname">Нурсултан</div><div class="ur" id="urole">Собственник</div></div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <button class="mtoggle" id="mtoggle">☰</button>
+      <div><div class="tt" id="pageTitle">Обзор</div><div class="ts" id="pageSub">Пульт собственника</div></div>
+      <span class="sp"></span>
+      <span class="badge1c"><span class="d"></span>1С · онлайн</span>
+      <select class="rolesel" id="roleSel"></select>
+      <button class="tbtn" id="themeBtn">🌙</button>
+    </div>
+    <div class="body">
+      <!-- Обзор -->
+      <div class="screen on" data-s="dash">
+        <div class="kpis" id="kpis"></div>
+        <div class="grid2"><div class="card"><div class="ct"><span>Отгрузка бетона · план / факт <span class="mini">тыс. м³</span></span><span class="mini">6 мес</span></div><div class="gbars" id="bars"></div><div class="legend"><span><i style="background:var(--acc)"></i>Факт</span><span><i style="background:var(--line)"></i>План</span><span style="margin-left:auto;color:var(--ink2);font-weight:700" id="barNote"></span></div></div>
+          <div class="card"><div class="ct">Требует внимания <span class="mini">красные флаги</span></div><div class="att" id="att"></div></div></div>
+        <div class="card" style="margin-bottom:14px"><div class="ct">Цепочка бизнеса сегодня <span class="mini">добыча → бетон → отгрузка</span></div>
+          <div class="flow">
+            <div class="st"><div class="si">⛏️</div><div class="sn">Добыча (карьер)</div><div class="sv" id="fl1">1 240 м³</div><div class="sd">щебень + песок за сутки</div></div>
+            <div class="st"><div class="si">🏭</div><div class="sn">Производство</div><div class="sv" id="fl2">860 м³</div><div class="sd">бетон замешан сегодня</div></div>
+            <div class="st"><div class="si">🚚</div><div class="sn">Отгрузка</div><div class="sv" id="fl3">740 м³</div><div class="sd">миксерами на объекты</div></div>
+            <div class="st"><div class="si">💰</div><div class="sn">Оплаты</div><div class="sv" id="fl4">5,4 млн</div><div class="sd">поступило за сутки, сом</div></div>
+          </div></div>
+        <div class="grid2 eq"><div class="card"><div class="ct">Продажи по маркам бетона <span class="mini">за месяц</span></div><div class="hbars" id="markBars"></div></div>
+          <div class="card"><div class="ct">Техника — отдельный центр прибыли <span class="mini">внутренняя аренда</span></div><div class="pnl" id="fleetMini"></div><div class="hint" style="margin-top:12px">Миксеры и помпы работают на ваши объекты по <b>внутренней ставке</b> — прибыль техники считается <b>отдельно</b> от завода.</div></div></div>
+      </div>
+
+      <!-- Продажи -->
+      <div class="screen" data-s="sales">
+        <div class="kpis" id="salesKpis"></div>
+        <div class="card"><div class="ct">Воронка сделок <span class="mini" id="salesSum"></span></div><div class="kan" id="kan"></div></div>
+        <div class="card" style="margin-top:14px"><div class="ct">Контракты на объём <span class="mini">отгружаем по частям · контроль дебиторки</span></div>
+          <table><thead><tr><th>Клиент (застройщик)</th><th class="r">Объём</th><th>Выборка</th><th class="r">Сумма</th><th class="r">Долг</th><th>Статус</th></tr></thead><tbody id="contracts"></tbody></table></div>
+      </div>
+
+      <!-- Добыча -->
+      <div class="screen" data-s="quarry">
+        <div class="kpis" id="qKpis"></div>
+        <div class="grid2"><div class="card"><div class="ct">Инертные материалы · остатки <span class="mini">карьер → завод</span></div>
+          <table><thead><tr><th>Материал</th><th class="r">Добыто/сут</th><th class="r">Остаток</th><th class="r">Себест. м³</th><th>Статус</th></tr></thead><tbody id="quarry"></tbody></table></div>
+          <div class="card"><div class="ct">Движение сырья <span class="mini">сегодня</span></div><div class="att" id="qFeed"></div></div></div>
+        <div class="hint">Добыли → переработали → передали на БСУ. Списание сырья в производство идёт <b>по рецептуре марки бетона</b> — видно себестоимость каждого куба и дефицит до простоя завода.</div>
+      </div>
+
+      <!-- Производство -->
+      <div class="screen" data-s="prod">
+        <div class="kpis" id="prodKpis"></div>
+        <div class="grid2"><div class="card"><div class="ct">Заказы на бетон · сегодня <span class="mini">очередь БСУ</span></div>
+          <table><thead><tr><th>Заказ / объект</th><th>Марка</th><th class="r">Объём</th><th>Готовность</th><th>Статус</th></tr></thead><tbody id="prodOrders"></tbody></table></div>
+          <div class="card"><div class="ct">Рецептура и лаборатория <span class="mini">расход на 1 м³ · ОТК</span></div>
+            <table><thead><tr><th>Марка</th><th class="r">Цемент</th><th class="r">Щебень</th><th class="r">Песок</th><th>ОТК</th></tr></thead><tbody id="recipes"></tbody></table>
+            <div class="hint" style="margin-top:12px">Лаборант заносит замес и <b>испытание образцов</b> (7/28 сут). Марка не уходит на отгрузку без отметки ОТК.</div></div></div>
+      </div>
+
+      <!-- Заявки -->
+      <div class="screen" data-s="supply">
+        <div class="kpis" id="supKpis"></div>
+        <div class="card"><div class="ct">Заявки на закуп · снабжение <span class="mini">от прорабов и мастеров — вместо WhatsApp</span></div>
+          <table><thead><tr><th>Заявка</th><th>Кто / участок</th><th class="r">Сумма</th><th>Стадия</th><th></th></tr></thead><tbody id="requests"></tbody></table>
+          <div class="hint" style="margin-top:12px">Каждая заявка видна: <b>откуда, что запрашивают, на какой стадии</b> — не теряется в переписке. Согласование → закуп → приёмка на склад.</div></div>
+      </div>
+
+      <!-- Люди и ЗП -->
+      <div class="screen" data-s="hr">
+        <div class="kpis" id="hrKpis"></div>
+        <div class="grid2"><div class="card"><div class="ct">Сотрудники · табель и ЗП <span class="mini">оклад + смены + KPI</span></div>
+          <table><thead><tr><th>Сотрудник</th><th>Роль</th><th class="r">Смен</th><th class="r">ЗП к выплате</th><th>Статус</th></tr></thead><tbody id="staff"></tbody></table></div>
+          <div class="card"><div class="ct">Задачи и контроль <span class="mini">назначено / выполнено</span></div><div class="att" id="tasks"></div>
+            <div class="hint" style="margin-top:12px">Чёткие <b>функциональные обязанности</b> по ролям: назначил задачу → работник отметил выполнение с телефона → вы видите, кто и что сделал. Меньше ручного контроля.</div></div></div>
+      </div>
+
+      <!-- Техника -->
+      <div class="screen" data-s="fleet">
+        <div class="kpis" id="fleetKpis"></div>
+        <div class="grid2"><div class="card"><div class="ct">Парк техники <span class="mini">миксеры · помпы · самосвалы · погрузчики</span></div>
+          <table><thead><tr><th>Единица</th><th>Тип</th><th class="r">Рейсов/ч</th><th>Загрузка</th><th>Статус</th></tr></thead><tbody id="fleet"></tbody></table></div>
+          <div class="card"><div class="ct">Техника как бизнес <span class="mini">внутренняя аренда · P&L отдельно</span></div><div class="pnl" id="fleetPnl"></div>
+            <div class="hint" style="margin-top:12px">Собственная техника <b>сдаётся вашим же объектам по внутренней ставке</b>. Система считает выручку от аренды, ГСМ, ремонт, ЗП водителей — и показывает <b>чистую прибыль техники отдельно</b> от завода.</div></div></div>
+        <div class="card" style="margin-top:14px"><div class="ct">Журнал внутренней аренды <span class="mini">кто арендовал · часы/рейсы · ставка</span></div>
+          <table><thead><tr><th>Техника</th><th>Объект / арендатор</th><th class="r">Часы/рейсы</th><th class="r">Ставка</th><th class="r">Сумма</th></tr></thead><tbody id="rentLog"></tbody></table></div>
+      </div>
+
+      <!-- Финансы -->
+      <div class="screen" data-s="fin">
+        <div class="kpis" id="finKpis"></div>
+        <div class="grid2 eq"><div class="card"><div class="ct">P&L · завод (бетон) <span class="mini">за месяц</span></div><div class="pnl" id="finPlant"></div></div>
+          <div class="card"><div class="ct">P&L · техника (аренда) <span class="mini">отдельный центр</span></div><div class="pnl" id="finFleet"></div></div></div>
+        <div class="card"><div class="ct">Дебиторка по клиентам <span class="mini">кто и сколько должен · просрочка</span></div>
+          <table><thead><tr><th>Клиент</th><th class="r">Долг</th><th class="r">Просрочка</th><th>Статус</th></tr></thead><tbody id="debt"></tbody></table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- deal modal -->
+<div class="ov" id="dov"><div class="modal"><button class="mclose" onclick="closeM('dov')">×</button>
+  <div class="mh"><div class="t" id="dmName"></div><div class="s" id="dmSub"></div></div>
+  <div class="mb"><div class="dl" id="dmMeta"></div><div class="dsec" id="dmItemsH">Выборка по договору</div><div class="ditems" id="dmItems"></div>
+    <div class="hint" style="margin-top:14px">В полной версии здесь — отгрузки миксерами, счета, акты, переписка и история по контракту.</div></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== данные ===== */
+var C='с'; // сом
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function ini(s){return s.replace(/[«»"]/g,'').split(/\s+/).filter(Boolean).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase();}
+function money(n){return n>=1000000?(n/1000000).toFixed(n%1000000?1:0).replace('.',',')+' млн':(n>=1000?Math.round(n).toLocaleString('ru-RU'):n);}
+
+var ROLES={
+ 'Собственник':{ic:'👑',d:'Весь завод: деньги, добыча, производство, техника, люди',s:['dash','sales','quarry','prod','supply','hr','fleet','fin']},
+ 'Отдел продаж':{ic:'🤝',d:'Воронка, контракты, дебиторка',s:['sales','fin']},
+ 'Технолог / БСУ':{ic:'🏭',d:'Заказы на бетон, рецептура, очередь замесов',s:['prod','quarry']},
+ 'Лаборатория / ОТК':{ic:'🧪',d:'Испытания образцов, допуск марок',s:['prod']},
+ 'Снабжение':{ic:'📦',d:'Заявки на закуп, приёмка на склад',s:['supply','quarry']},
+ 'Механик / техника':{ic:'🛠️',d:'Парк техники, аренда, ГСМ и ремонт',s:['fleet']},
+ 'Кадры / ЗП':{ic:'🧾',d:'Табель, смены, начисление зарплат',s:['hr']},
+ 'Бухгалтерия':{ic:'💰',d:'Оплаты, дебиторка, P&L завода и техники',s:['fin','sales']},
+};
+var NAVDEF=[['Управление',[['dash','▦','Обзор'],['sales','🤝','Продажи','deals'],['fin','💰','Финансы']]],
+ ['Производство',[['quarry','⛏️','Добыча'],['prod','🏭','Производство','po'],['supply','📦','Заявки','req']]],
+ ['Ресурсы',[['hr','👷','Люди и ЗП','emp'],['fleet','🚚','Техника']]]];
+var TITLES={dash:['Обзор','Пульт собственника'],sales:['Продажи','Воронка, контракты и дебиторка'],quarry:['Добыча','Карьер: инертные материалы'],prod:['Производство','БСУ: заказы, рецептура, ОТК'],supply:['Заявки','Снабжение вместо WhatsApp'],hr:['Люди и ЗП','Табель, смены, зарплаты'],fleet:['Техника','Внутренняя аренда — отдельный бизнес'],fin:['Финансы','P&L завода и техники, дебиторка']};
+
+var CLIENTS=[['«БГ Строй»',30000,21400],['«Авангард Девелопмент»',18000,9200],['«Капитал Констракшн»',24000,24000],['«Элит Хаус»',12000,4100],['«Мега Билд»',15000,15800]];
+var STAGES=['Заявка','Замер/расчёт','Договор','Отгрузка (выборка)','Расчёт закрыт'];
+var MARKS=[['М200',280,1050,780,7200,'g'],['М250',310,1040,760,7600,'g'],['М300',340,1030,740,8100,'y'],['М350',380,1010,720,8700,'g'],['М400',410,990,700,9400,'g']];
+var PROD=[['ЖК «Ак-Кёль», корп.3','М300',180,72,'y'],['Мост через Ала-Арчу','М400',90,100,'g'],['ТРЦ «Восток»','М250',140,40,'b'],['Склад «Мега Билд»','М200',60,0,'n'],['Дорога М-41 участок','М350',120,88,'g']];
+var FLEET=[['АБС-7 (миксер 9м³)','Миксер',6,86,'g'],['АБС-3 (миксер 7м³)','Миксер',5,74,'g'],['Помпа PM-52','Бетононасос',3,60,'y'],['Самосвал HOWO-1','Самосвал',8,92,'g'],['Погрузчик LG-1','Погрузчик',0,0,'r'],['АБС-5 (миксер 9м³)','Миксер',4,55,'g']];
+var STAFF=[['Асан Ж.','Технолог БСУ',24,58000,'g'],['Бакыт О.','Оператор БСУ',22,46000,'g'],['Данияр С.','Лаборант ОТК',23,52000,'g'],['Эрлан Т.','Водитель миксера',26,64000,'y'],['Нургиза К.','Снабжение',24,55000,'g'],['Максат Д.','Механик',25,60000,'g'],['Айбек Н.','Водитель самосвала',26,58000,'g'],['Салтанат М.','Бухгалтер',24,70000,'g']];
+var REQ=[['Дизель 2000 л','снабжение · Нургиза',180000,3],['Ремкомплект помпы','механик · Максат',95000,1],['Цемент М500 · 40 т','технолог · Асан',760000,2],['Спецодежда · 15 компл.','мастер участка',68000,0],['Запчасти миксер АБС-3','механик · Максат',142000,4],['Присадка (пластификатор)','лаборант · Данияр',210000,2]];
+
+/* state */
+var DEALS=[];function buildDeals(){DEALS=[
+ {c:CLIENTS[0][0],mark:'М300',cub:2400,sum:2400*8100,st:3,mgr:'Азамат',next:'Отгрузка 400 м³ на завтра'},
+ {c:CLIENTS[1][0],mark:'М350',cub:900,sum:900*8700,st:2,mgr:'Дана',next:'Подписать договор'},
+ {c:'«Строй-Инвест» (новый)',mark:'М250',cub:600,sum:600*7600,st:1,mgr:'Азамат',next:'Просчитать смету'},
+ {c:CLIENTS[3][0],mark:'М200',cub:800,sum:800*7200,st:0,mgr:'Дана',next:'Уточнить объём и график'},
+ {c:CLIENTS[4][0],mark:'М300',cub:1500,sum:1500*8100,st:4,mgr:'Азамат',next:'Дебиторка к сбору'},
+ {c:CLIENTS[2][0],mark:'М400',cub:1100,sum:1100*9400,st:3,mgr:'Дана',next:'Отгрузка по графику'},
+ {c:'«Дорстрой» тендер',mark:'М350',cub:3000,sum:3000*8700,st:1,mgr:'Азамат',next:'Подать на тендер'}
+];}
+
+/* ===== персонализация/роль ===== */
+var ROLE='Собственник';
+function renderGate(){document.getElementById('rgrid').innerHTML=Object.keys(ROLES).map(function(r){var m=ROLES[r];var n=m.s.length;
+  return '<div class="rolecard" onclick="enter(\''+r.replace(/'/g,"\\'")+'\')"><div class="ri">'+m.ic+'</div><div class="rn">'+esc(r)+'</div><div class="rd">'+esc(m.d)+'</div><div class="rt">'+n+' экран'+(n>4?'ов':(n>1?'а':''))+' →</div></div>';}).join('');}
+function enter(r){ROLE=r;document.getElementById('gate').classList.add('hidden');document.getElementById('app').classList.remove('hidden');buildNav();render();var f=ROLES[r].s[0];nav(f);setTimeout(function(){toast('Вход как <b>'+esc(r)+'</b>. Сменить роль — вверху справа. Всё кликается.');},250);}
+function buildNav(){var allowed=ROLES[ROLE].s;var html='';NAVDEF.forEach(function(gr){var items=gr[1].filter(function(it){return allowed.indexOf(it[0])>=0;});if(!items.length)return;html+='<div class="g">'+gr[0]+'</div>';items.forEach(function(it){html+='<a data-go="'+it[0]+'"><span class="ic">'+it[1]+'</span>'+it[2]+'<span class="cnt" data-c="'+(it[3]||'')+'"></span></a>';});});
+  document.getElementById('nav').innerHTML=html;document.querySelectorAll('.nav a').forEach(function(a){a.onclick=function(){nav(a.dataset.go);};});updCnt();
+  var sel=document.getElementById('roleSel');sel.innerHTML=Object.keys(ROLES).map(function(r){return '<option'+(r===ROLE?' selected':'')+'>'+esc(r)+'</option>';}).join('');
+  sel.onchange=function(){ROLE=sel.value;document.getElementById('urole').textContent=ROLE;buildNav();var f=ROLES[ROLE].s[0];nav(f);toast('Роль: <b>'+esc(ROLE)+'</b> — интерфейс показывает только её экраны.');};
+  document.getElementById('urole').textContent=ROLE;}
+function updCnt(){var c={deals:DEALS.length,po:PROD.length,req:REQ.length,emp:STAFF.length};document.querySelectorAll('.nav .cnt').forEach(function(e){var k=e.dataset.c;e.textContent=c[k]!=null?c[k]:'';if(!c[k])e.style.display='none';});}
+function nav(s){document.querySelectorAll('.screen').forEach(function(x){x.classList.toggle('on',x.dataset.s===s);});document.querySelectorAll('.nav a').forEach(function(a){a.classList.toggle('on',a.dataset.go===s);});
+  var t=TITLES[s]||['',''];document.getElementById('pageTitle').textContent=t[0];document.getElementById('pageSub').textContent=t[1];document.getElementById('side').classList.remove('open');document.querySelector('.body').scrollTop=0;
+  setTimeout(function(){document.querySelectorAll('.screen.on .hb .tr i,.screen.on .gp i.f').forEach(function(i){if(i.dataset.w)i.style.width=i.dataset.w;if(i.dataset.h)i.style.height=i.dataset.h+'%';});},60);}
+
+function kpi(k){var tr='';if(typeof k[4]==='number'){var u=k[4]>=0;tr='<div class="d" style="color:'+(u?'var(--grn)':'var(--red)')+';font-weight:700">'+(u?'▲ ':'▼ ')+Math.abs(k[4])+'% '+(k[5]||'')+'</div>';}else if(k[5]){tr='<div class="d">'+k[5]+'</div>';}
+  return '<div class="kpi"><div class="l"><span class="i">'+k[1]+'</span>'+k[3]+'</div><div class="v '+k[0]+'">'+k[2]+'</div>'+tr+'</div>';}
+function hbars(id,arr,fmt){var mx=Math.max.apply(null,arr.map(function(a){return a[1];}))||1;document.getElementById(id).innerHTML=arr.map(function(a){return '<div class="hb"><span class="lb">'+esc(a[0])+'</span><span class="tr"><i data-w="'+Math.round(a[1]/mx*100)+'%"></i></span><span class="vv">'+fmt(a[1])+'</span></div>';}).join('');}
+
+function render(){
+  buildDeals();
+  // dashboard
+  document.getElementById('kpis').innerHTML=[
+    ['acc','📄','1,42 млрд '+C,'Портфель контрактов',null,'по действующим'],
+    ['up','💵','5,4 млн '+C,'Оплаты за сутки',8,'к прошлой'],
+    ['red','⏰','62,3 млн '+C,'Дебиторка / просрочка',null,'к сбору'],
+    ['amb','🚚','740 м³','Отгружено сегодня',null,'бетон на объекты']
+  ].map(kpi).join('');
+  var f=[6.2,7.1,6.6,8.3,7.4,8.9],p=[7,7,7.5,8,8,8.5],mx=Math.max.apply(null,f.concat(p))*1.14;
+  document.getElementById('bars').innerHTML=['фев','мар','апр','май','июн','июл'].map(function(m,i){return '<div class="gc"><div class="gp"><i class="p" style="height:'+(p[i]/mx*100)+'%"></i><i class="f" style="height:0" data-h="'+(f[i]/mx*100)+'"><b>'+f[i]+'</b></i></div><span>'+m+'</span></div>';}).join('');
+  document.getElementById('barNote').textContent='факт '+Math.round(f.reduce(function(a,b){return a+b;})/p.reduce(function(a,b){return a+b;})*100)+'% от плана';
+  document.getElementById('att').innerHTML=[
+    ['r','🔴','Просрочен платёж','«Капитал Констракшн» — 24 000 м³ выбраны, оплата −18 дней'],
+    ['y','🟡','Дефицит цемента','остаток на 1,5 суток — заявка на закуп не согласована'],
+    ['r','🔴','Простой техники','погрузчик LG-1 в ремонте — карьер грузит медленнее'],
+    ['g','🟢','План отгрузки','сегодня 740/700 м³ — идём с опережением']
+  ].map(function(a){return '<div class="a '+a[0]+'"><div class="ai">'+a[1]+'</div><div class="tx"><b>'+esc(a[2])+'</b><div class="s">'+esc(a[3])+'</div></div></div>';}).join('');
+  hbars('markBars',MARKS.map(function(m){return [m[0],m[5]==='y'?38:(60-MARKS.indexOf(m)*7)];}),function(v){return v+'%';});
+  // fleet mini pnl (dashboard)
+  document.getElementById('fleetMini').innerHTML=pnlRows([['plus','Выручка (внутр. аренда)',3820000],['minus','ГСМ',-980000],['minus','Ремонт и запчасти',-410000],['minus','ЗП водителей',-640000],['tot','Прибыль техники',1790000]]);
+
+  // sales
+  document.getElementById('salesKpis').innerHTML=[
+    ['acc','📊',DEALS.length,'Сделок в работе',null,''],['up','💰',money(DEALS.reduce(function(s,d){return s+d.sum;},0))+' '+C,'Сумма воронки',null,''],
+    ['','📦',money(CLIENTS.reduce(function(s,c){return s+c[1];},0))+' м³','Законтрактовано',null,'по объёму'],['red','⏰','62,3 млн '+C,'Дебиторка',null,'к сбору']
+  ].map(kpi).join('');
+  renderKan();
+  document.getElementById('contracts').innerHTML=CLIENTS.map(function(c){var vy=Math.round(c[2]/c[1]*100);var mark=MARKS[CLIENTS.indexOf(c)%MARKS.length];var sum=c[1]*mark[4];var debt=c[2]===c[1]?Math.round(sum*0.28):(CLIENTS.indexOf(c)%2?Math.round(sum*0.12):0);var st=debt&&c[2]===c[1]?['tag r','просрочка']:(vy>=100?['tag g','выбран']:['tag b','отгрузка']);
+    return '<tr><td><b>'+esc(c[0])+'</b><div class="mini">'+mark[0]+' · договор</div></td><td class="r">'+money(c[1])+' м³</td><td><span class="miniprog"><i style="width:'+Math.min(100,vy)+'%"></i></span> <span class="mini">'+vy+'%</span></td><td class="r">'+money(sum)+' '+C+'</td><td class="r">'+(debt?'<span class="tag r">'+money(debt)+'</span>':'<span class="mini">—</span>')+'</td><td><span class="'+st[0]+'">'+st[1]+'</span></td></tr>';}).join('');
+
+  // quarry
+  document.getElementById('qKpis').innerHTML=[['acc','⛏️','1 240 м³','Добыто за сутки',null,'щебень+песок'],['up','♻️','1 090 м³','Переработано',null,'на фракции'],['','🏭','940 м³','Передано на БСУ',null,'сырьё в бетон'],['amb','⚠️','1',' Дефицит',null,'позиция ниже нормы']].map(kpi).join('');
+  var Q=[['Щебень фр. 5–20','420','2 850','680','g'],['Щебень фр. 20–40','360','1 940','640','g'],['Песок мытый','460','3 200','410','g'],['Отсев','—','980','220','g'],['Цемент М500 (закуп)','—','88 т','—','r']];
+  document.getElementById('quarry').innerHTML=Q.map(function(q){var st=q[4]==='r'?['tag r','дефицит']:['tag g','норма'];return '<tr><td><b>'+esc(q[0])+'</b></td><td class="r">'+q[1]+(q[1]!=='—'?' м³':'')+'</td><td class="r">'+q[2]+(/т/.test(q[2])?'':' м³')+'</td><td class="r">'+q[3]+' '+C+'</td><td><span class="'+st[0]+'">'+st[1]+'</span></td></tr>';}).join('');
+  document.getElementById('qFeed').innerHTML=[['g','⛏️','Добыча щебня 5–20','+220 м³ · карьер №1 · 11:20'],['g','♻️','Переработка','−180 м³ в дробилку · 10:40'],['y','🚚','Передача на БСУ','340 м³ песка → бункер · 09:15'],['r','⚠️','Цемент','остаток на 1,5 сут — нужен закуп']].map(function(a){return '<div class="a '+a[0]+'"><div class="ai">'+a[1]+'</div><div class="tx"><b>'+esc(a[2])+'</b><div class="s">'+esc(a[3])+'</div></div></div>';}).join('');
+
+  // prod
+  document.getElementById('prodKpis').innerHTML=[['acc','🏭','860 м³','Замешано сегодня',null,''],['','📋',PROD.length,'Заказов в очереди',null,''],['up','🧪','98%','Прошли ОТК',null,'марки'],['amb','⏳','2','На испытании',null,'образцы 7/28 сут']].map(kpi).join('');
+  document.getElementById('prodOrders').innerHTML=PROD.map(function(p){var st=p[4]==='n'?['tag n','в очереди']:(p[4]==='b'?['tag b','замешивается']:(p[4]==='y'?['tag y','отгрузка']:['tag g','готово']));return '<tr class="clk" onclick="toast(\'Заказ «'+esc(p[0]).replace(/'/g,'')+'»: марка '+p[1]+', '+p[2]+' м³. В полной версии — замесы, миксеры, накладные.\')"><td><b>'+esc(p[0])+'</b></td><td><span class="tag a">'+p[1]+'</span></td><td class="r">'+p[2]+' м³</td><td><span class="miniprog"><i style="width:'+p[3]+'%"></i></span> <span class="mini">'+p[3]+'%</span></td><td><span class="'+st[0]+'">'+st[1]+'</span></td></tr>';}).join('');
+  document.getElementById('recipes').innerHTML=MARKS.map(function(m){return '<tr><td><b>'+m[0]+'</b> <span class="mini">'+money(m[4])+' '+C+'/м³</span></td><td class="r">'+m[1]+' кг</td><td class="r">'+m[2]+' кг</td><td class="r">'+m[3]+' кг</td><td><span class="tag '+(m[5]==='y'?'y':'g')+'">'+(m[5]==='y'?'испыт.':'допущ.')+'</span></td></tr>';}).join('');
+
+  // supply
+  document.getElementById('supKpis').innerHTML=[['acc','📥',REQ.length,'Заявок в работе',null,''],['amb','⏳',REQ.filter(function(r){return r[3]<2;}).length,'Ждут согласования',null,''],['up','✅',money(REQ.reduce(function(s,r){return s+r[2];},0))+' '+C,'Сумма заявок',null,'этот месяц'],['','🔁','0','Потеряно',null,'всё в системе']].map(kpi).join('');
+  var RST=['новая','на согласовании','в закупе','приёмка','получено'];
+  document.getElementById('requests').innerHTML=REQ.map(function(r){var st=r[3]<=1?'tag y':(r[3]<=2?'tag b':(r[3]<4?'tag a':'tag g'));return '<tr><td><b>'+esc(r[0])+'</b></td><td><span class="mini">'+esc(r[1])+'</span></td><td class="r">'+money(r[2])+' '+C+'</td><td><span class="'+st+'">'+RST[r[3]]+'</span></td><td class="r"><span class="dobtn" onclick="toast(\'Заявка продвинута по стадии. В полной версии — согласование в 1 клик и приёмка на склад.\')">Дальше →</span></td></tr>';}).join('');
+
+  // hr
+  document.getElementById('hrKpis').innerHTML=[['acc','👷',STAFF.length,'Сотрудников',null,'на смене'],['','📅','96%','Явка',null,'по табелю'],['up','💵',money(STAFF.reduce(function(s,e){return s+e[3];},0))+' '+C,'ФОТ к выплате',null,'этот период'],['amb','📌','5','Задач в работе',null,'контроль']].map(kpi).join('');
+  document.getElementById('staff').innerHTML=STAFF.map(function(e,i){var st=e[4]==='y'?['tag y','переработка']:['tag g','норма'];return '<tr><td><div class="cell"><span class="av2" style="background:hsl('+(i*47%360)+',45%,45%)">'+ini(e[0])+'</span><b>'+esc(e[0])+'</b></div></td><td><span class="mini">'+esc(e[1])+'</span></td><td class="r">'+e[2]+'</td><td class="r">'+money(e[3])+' '+C+'</td><td><span class="'+st[0]+'">'+st[1]+'</span></td></tr>';}).join('');
+  document.getElementById('tasks').innerHTML=[['g','✅','Загрузка миксеров · Эрлан','выполнено · 6 рейсов · сегодня'],['y','⏳','Заявка на цемент · Нургиза','в работе · ждёт согласования'],['g','✅','Отбор образцов · Данияр','выполнено · партия М300'],['r','🔴','ТО помпы PM-52 · Максат','просрочено на 1 день']].map(function(a){return '<div class="a '+a[0]+'"><div class="ai">'+a[1]+'</div><div class="tx"><b>'+esc(a[2])+'</b><div class="s">'+esc(a[3])+'</div></div></div>';}).join('');
+
+  // fleet
+  document.getElementById('fleetKpis').innerHTML=[['acc','🚚',FLEET.length,'Единиц техники',null,''],['up','⏱️','82%','Средняя загрузка',null,'по парку'],['','💰','3,82 млн '+C,'Выручка аренды',null,'внутренняя'],['red','🛠️','1','В ремонте',null,'простой']].map(kpi).join('');
+  document.getElementById('fleet').innerHTML=FLEET.map(function(u){var st=u[4]==='r'?['tag r','ремонт']:(u[4]==='y'?['tag y','частично']:['tag g','в работе']);return '<tr class="clk" onclick="toast(\''+esc(u[0]).replace(/'/g,'')+' · '+u[1]+'. В полной версии — путевые листы, ГСМ, ТО и график аренды.\')"><td><b>'+esc(u[0])+'</b></td><td><span class="mini">'+u[1]+'</span></td><td class="r">'+(u[2]||'—')+'</td><td><span class="miniprog"><i style="width:'+u[3]+'%"></i></span> <span class="mini">'+u[3]+'%</span></td><td><span class="'+st[0]+'">'+st[1]+'</span></td></tr>';}).join('');
+  document.getElementById('fleetPnl').innerHTML=pnlRows([['plus','Выручка от внутренней аренды',3820000],['minus','ГСМ (дизель)',-980000],['minus','Ремонт и запчасти',-410000],['minus','ЗП водителей',-640000],['minus','Амортизация',-320000],['tot','Чистая прибыль техники',1470000]]);
+  var RENT=[['АБС-7 (миксер)','ЖК «Ак-Кёль» корп.3',6,4500,6*4500],['Помпа PM-52','Мост Ала-Арча',5,9000,5*9000],['Самосвал HOWO-1','Карьер → БСУ',8,3200,8*3200],['АБС-3 (миксер)','ТРЦ «Восток»',4,4500,4*4500],['Погрузчик LG-1','Карьер №1',7,2800,7*2800]];
+  document.getElementById('rentLog').innerHTML=RENT.map(function(r){return '<tr><td><b>'+esc(r[0])+'</b></td><td>'+esc(r[1])+'</td><td class="r">'+r[2]+'</td><td class="r">'+money(r[3])+' '+C+'</td><td class="r">'+money(r[4])+' '+C+'</td></tr>';}).join('');
+
+  // fin
+  document.getElementById('finKpis').innerHTML=[['up','💵','48,6 млн '+C,'Выручка за месяц',12,'к прошлому'],['acc','🏭','9,1 млн '+C,'Прибыль завода',null,''],['','🚚','1,47 млн '+C,'Прибыль техники',null,'отдельно'],['red','⏰','62,3 млн '+C,'Дебиторка',null,'к сбору']].map(kpi).join('');
+  document.getElementById('finPlant').innerHTML=pnlRows([['plus','Выручка (бетон)',48600000],['minus','Сырьё (щебень, песок, цемент)',-24800000],['minus','Энергия и ГСМ',-3600000],['minus','ФОТ завода',-6900000],['minus','Прочие расходы',-4200000],['tot','Прибыль завода',9100000]]);
+  document.getElementById('finFleet').innerHTML=pnlRows([['plus','Выручка (внутр. аренда)',3820000],['minus','ГСМ',-980000],['minus','Ремонт',-410000],['minus','ЗП водителей',-640000],['minus','Амортизация',-320000],['tot','Прибыль техники',1470000]]);
+  document.getElementById('debt').innerHTML=CLIENTS.map(function(c){var mark=MARKS[CLIENTS.indexOf(c)%MARKS.length];var sum=c[1]*mark[4];var debt=c[2]===c[1]?Math.round(sum*0.28):(CLIENTS.indexOf(c)%2?Math.round(sum*0.12):0);var od=debt&&c[2]===c[1]?18:0;if(!debt)return '';var st=od?['tag r','просрочка '+od+' дн']:['tag y','в графике'];return '<tr><td><b>'+esc(c[0])+'</b></td><td class="r">'+money(debt)+' '+C+'</td><td class="r">'+(od?od+' дн':'—')+'</td><td><span class="'+st[0]+'">'+st[1]+'</span></td></tr>';}).filter(Boolean).join('');
+
+  setTimeout(function(){document.querySelectorAll('.screen.on .gp i.f').forEach(function(i){i.style.height=i.dataset.h+'%';});document.querySelectorAll('.screen.on .hb .tr i').forEach(function(i){i.style.width=i.dataset.w;});},260);
+}
+function pnlRows(rows){return rows.map(function(r){var sign=r[2]<0?'−':(r[0]==='plus'||r[0]==='tot'?'':'');var val=Math.abs(r[2]);return '<div class="r '+r[0]+'"><span class="k">'+r[1]+'</span><span class="v">'+sign+money(val)+' '+C+'</span></div>';}).join('');}
+
+function renderKan(){var kan=document.getElementById('kan');var sum=DEALS.reduce(function(a,d){return a+d.sum;},0);
+  document.getElementById('salesSum').textContent='сумма: '+money(sum)+' '+C+' · '+DEALS.length+' сделок';
+  kan.innerHTML=STAGES.map(function(f,si){var inc=DEALS.map(function(d,idx){return {d:d,idx:idx};}).filter(function(x){return x.d.st===si;});var cs=inc.reduce(function(a,x){return a+x.d.sum;},0);
+    return '<div class="col" data-col="'+si+'"><div class="ch"><span>'+esc(f)+'</span><span class="n">'+inc.length+'</span></div><div class="cs">'+money(cs)+' '+C+'</div>'+
+      inc.map(function(x){var d=x.d;return '<div class="deal" draggable="true" data-id="'+x.idx+'" onclick="openDeal('+x.idx+')"><div class="dn">'+esc(d.c)+'</div><div class="dm"><span class="mtag">'+d.mark+'</span>'+d.cub+' м³ · '+esc(d.mgr)+'</div><div class="ds">'+money(d.sum)+' '+C+'</div></div>';}).join('')+'</div>';}).join('');
+  var drag=null;kan.querySelectorAll('.deal').forEach(function(el){el.ondragstart=function(e){drag=+el.dataset.id;e.stopPropagation();};});
+  kan.querySelectorAll('.col').forEach(function(col){col.ondragover=function(e){e.preventDefault();col.classList.add('drop');};col.ondragleave=function(){col.classList.remove('drop');};col.ondrop=function(e){e.preventDefault();col.classList.remove('drop');if(drag==null)return;DEALS[drag].st=+col.dataset.col;drag=null;renderKan();toast('Сделка перемещена по воронке.');};});}
+function openDeal(i){var d=DEALS[i];document.getElementById('dmName').textContent=d.c;document.getElementById('dmSub').textContent='Бетон '+d.mark+' · '+STAGES[d.st];
+  document.getElementById('dmMeta').innerHTML=[['Объём',d.cub+' м³'],['Марка',d.mark],['Сумма',money(d.sum)+' '+C],['Менеджер',d.mgr],['Стадия',STAGES[d.st]],['Следующий шаг',d.next]].map(function(r){return '<div class="row"><span class="k">'+r[0]+'</span><span class="v">'+esc(String(r[1]))+'</span></div>';}).join('');
+  document.getElementById('dmItems').innerHTML=[['Отгружено',Math.round(d.cub*0.4)+' м³'],['Остаток по договору',Math.round(d.cub*0.6)+' м³'],['Ставка',money(d.sum/d.cub)+' '+C+'/м³']].map(function(r){return '<div class="di"><span>'+r[0]+'</span><span class="mini">'+r[1]+'</span></div>';}).join('');
+  document.getElementById('dov').classList.add('show');}
+function closeM(id){document.getElementById(id).classList.remove('show');}
+document.getElementById('dov').onclick=function(e){if(e.target===this)closeM('dov');};
+
+document.getElementById('mtoggle').onclick=function(){document.getElementById('side').classList.toggle('open');};
+function applyTheme(t){document.documentElement.setAttribute('data-theme',t);document.getElementById('themeBtn').textContent=t==='dark'?'☀️':'🌙';try{localStorage.setItem('beton_theme',t);}catch(e){}}
+document.getElementById('themeBtn').onclick=function(){applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');};
+(function(){var t='light';try{t=localStorage.getItem('beton_theme')||'light';}catch(e){}applyTheme(t);})();
+var _tt;function toast(h){var e=document.getElementById('toast');e.innerHTML=h;e.classList.add('show');clearTimeout(_tt);_tt=setTimeout(function(){e.classList.remove('show');},3400);}
+
+renderGate();
+/* deep-link: ?s=fleet и т.п. — сразу входим как Собственник и открываем экран */
+(function(){try{var s=new URLSearchParams(location.search).get('s');if(s&&TITLES[s]){enter('Собственник');setTimeout(function(){nav(s);},80);}}catch(e){}})();
+</script>
+</body></html>
