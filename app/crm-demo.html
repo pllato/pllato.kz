@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#0ea5e9"/>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
+<title>CRM под ваш бизнес — персональное демо · Pllato</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --acc:#0ea5e9; --acc2:#22d3ee; --accD:#0369a1;
+  --bg:#f6f9fc; --card:#ffffff; --ink:#0d1b2a; --ink2:#3b4a5a; --muted:#6b7a8c; --faint:#9fb0c0;
+  --line:#e6edf3; --off:#f1f6fa; --grn:#16a34a; --red:#e11d48; --amb:#d97706;
+  --sh:0 12px 34px -14px rgba(13,27,42,.20); --sh2:0 4px 14px -6px rgba(13,27,42,.14);
+  --r:16px;
+}
+:root[data-theme="dark"]{
+  --bg:#0a1220; --card:#101d30; --ink:#eaf2fb; --ink2:#b7c6d6; --muted:#8194a8; --faint:#5b6c80;
+  --line:#1d2f45; --off:#132339; --sh:0 16px 40px -16px rgba(0,0,0,.6); --sh2:0 6px 18px -8px rgba(0,0,0,.5);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+.wrap{max-width:1160px;margin:0 auto;padding:0 20px}
+.aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.aurora i{position:absolute;border-radius:50%;filter:blur(80px);opacity:.5;animation:float 18s ease-in-out infinite}
+.aurora i:nth-child(1){width:520px;height:520px;background:var(--acc);top:-160px;right:-120px}
+.aurora i:nth-child(2){width:460px;height:460px;background:var(--acc2);top:180px;left:-160px;animation-delay:-6s;opacity:.35}
+.aurora i:nth-child(3){width:400px;height:400px;background:#a855f7;bottom:-160px;right:20%;animation-delay:-11s;opacity:.22}
+@keyframes float{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(30px,-30px) scale(1.08)}}
+
+/* top bar */
+.top{position:sticky;top:0;z-index:40;backdrop-filter:blur(12px);background:color-mix(in srgb,var(--bg) 78%,transparent);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:14px;height:62px}
+.blogo{display:flex;align-items:center;gap:9px;font-weight:900;letter-spacing:-.01em;font-size:17px}
+.blogo .m{width:30px;height:30px;border-radius:8px;background:linear-gradient(145deg,#0a1628,#12325a);display:grid;place-items:center;color:var(--acc2);font-weight:900}
+.top .for{margin-left:6px;font-size:12.5px;color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .sp{flex:1}
+.tbtn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;font-size:16px}
+.cta{background:linear-gradient(135deg,var(--acc),var(--accD));color:#fff;font-weight:800;font-size:13.5px;padding:10px 18px;border-radius:11px;box-shadow:0 8px 20px -8px var(--acc);white-space:nowrap;transition:.15s}
+.cta:hover{transform:translateY(-1px);filter:brightness(1.05)}
+.cta.sm{padding:9px 14px;font-size:12.5px}
+
+/* hero */
+.hero{padding:52px 0 30px;text-align:center;position:relative}
+.chip{display:inline-flex;align-items:center;gap:7px;background:var(--card);border:1px solid var(--line);color:var(--accD);font-weight:800;font-size:11.5px;letter-spacing:.02em;padding:7px 14px;border-radius:30px;box-shadow:var(--sh2);margin-bottom:22px}
+.chip .d{width:7px;height:7px;border-radius:50%;background:var(--grn);box-shadow:0 0 0 4px color-mix(in srgb,var(--grn) 22%,transparent)}
+.hlogo{width:78px;height:78px;border-radius:20px;margin:0 auto 20px;display:grid;place-items:center;background:var(--card);border:1px solid var(--line);box-shadow:var(--sh);font-weight:900;font-size:30px;color:var(--acc);overflow:hidden}
+.hlogo img{width:100%;height:100%;object-fit:contain;padding:8px}
+h1{font-size:clamp(30px,5vw,52px);font-weight:900;letter-spacing:-.025em;line-height:1.05;margin-bottom:16px}
+h1 .g{background:linear-gradient(120deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:clamp(15px,2.2vw,18px);color:var(--ink2);max-width:640px;margin:0 auto 26px;line-height:1.6}
+.lead b{color:var(--ink)}
+.hbtns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:12px}
+.ghost{background:var(--card);border:1px solid var(--line);color:var(--ink);font-weight:700;font-size:13.5px;padding:11px 18px;border-radius:11px;box-shadow:var(--sh2)}
+.hnote{font-size:12px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:34px 0 8px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 16px;text-align:left;box-shadow:var(--sh2)}
+.stat .v{font-size:26px;font-weight:900;letter-spacing:-.02em;color:var(--ink)}
+.stat .v b{color:var(--acc)}
+.stat .l{font-size:12px;color:var(--muted);margin-top:3px;font-weight:600}
+
+/* app frame */
+.section-h{text-align:center;margin:56px 0 22px}
+.section-h .k{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--acc)}
+.section-h h2{font-size:clamp(22px,3.4vw,32px);font-weight:900;letter-spacing:-.02em;margin-top:6px}
+.section-h p{color:var(--ink2);max-width:600px;margin:9px auto 0;font-size:14.5px}
+.appframe{background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--sh);overflow:hidden}
+.appbar{display:flex;align-items:center;gap:8px;padding:11px 16px;border-bottom:1px solid var(--line);background:var(--off)}
+.appbar .dot{width:11px;height:11px;border-radius:50%;background:#e5686f}.appbar .dot.y{background:#f2b84b}.appbar .dot.g{background:#5fc27e}
+.appbar .u{margin-left:12px;font-size:12.5px;color:var(--muted);font-weight:600}
+.appbody{display:grid;grid-template-columns:200px 1fr;min-height:520px}
+.nav{border-right:1px solid var(--line);padding:12px 10px;background:var(--off)}
+.nav b{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:8px 12px 5px;font-weight:800}
+.nav a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;font-size:13.5px;font-weight:600;color:var(--ink2);transition:.12s}
+.nav a:hover{background:var(--card)}
+.nav a.on{background:var(--card);color:var(--ink);box-shadow:var(--sh2)}
+.nav a.on .ic{color:var(--acc)}
+.nav a .ic{width:18px;text-align:center}
+.screen{padding:20px 22px;display:none}
+.screen.on{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.scr-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.scr-h h3{font-size:18px;font-weight:800}
+.scr-h .sub{font-size:12.5px;color:var(--muted)}
+.badge2{font-size:11px;font-weight:800;padding:5px 10px;border-radius:20px;background:color-mix(in srgb,var(--acc) 12%,transparent);color:var(--accD)}
+
+/* dashboard */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--off);border:1px solid var(--line);border-radius:13px;padding:14px}
+.kpi .v{font-size:22px;font-weight:900;letter-spacing:-.02em}
+.kpi .v.up{color:var(--grn)}.kpi .v.acc{color:var(--acc)}.kpi .v.amb{color:var(--amb)}
+.kpi .l{font-size:11.5px;color:var(--muted);margin-top:2px;font-weight:600}
+.d2{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}
+.panel{background:var(--off);border:1px solid var(--line);border-radius:14px;padding:16px}
+.panel .pt{font-size:13px;font-weight:800;margin-bottom:12px}
+.bars{display:flex;align-items:flex-end;gap:10px;height:150px}
+.bars .b{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.bars .b i{width:100%;border-radius:7px 7px 0 0;background:linear-gradient(180deg,var(--acc),var(--acc2));display:block;transition:height 1s cubic-bezier(.2,.8,.2,1)}
+.bars .b span{font-size:10.5px;color:var(--muted);font-weight:600}
+.att{display:flex;flex-direction:column;gap:8px}
+.att .a{display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+.att .a .ai{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:13px;flex:none}
+.att .a.r .ai{background:color-mix(in srgb,var(--red) 15%,transparent)}
+.att .a.y .ai{background:color-mix(in srgb,var(--amb) 15%,transparent)}
+.att .a.g .ai{background:color-mix(in srgb,var(--grn) 15%,transparent)}
+.att .a .tx{font-size:12.5px;line-height:1.4}.att .a .tx b{font-weight:700}
+.att .a .tx .s{color:var(--muted);font-size:11.5px}
+
+/* kanban */
+.kan{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px}
+.col{min-width:210px;flex:1;background:var(--off);border:1px solid var(--line);border-radius:13px;padding:10px}
+.col.drop{outline:2px dashed var(--acc);outline-offset:-3px}
+.col .ch{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:800;margin-bottom:9px;color:var(--ink2)}
+.col .ch .n{background:var(--card);border:1px solid var(--line);border-radius:20px;font-size:10.5px;padding:1px 8px;color:var(--muted)}
+.deal{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:10px 11px;margin-bottom:8px;box-shadow:var(--sh2);cursor:grab}
+.deal:active{cursor:grabbing}
+.deal .dn{font-size:12.5px;font-weight:700;margin-bottom:3px}
+.deal .dm{font-size:11px;color:var(--muted)}
+.deal .ds{font-size:13px;font-weight:800;color:var(--acc);margin-top:5px}
+
+/* tables */
+table{width:100%;border-collapse:collapse}
+th{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);text-align:left;padding:9px 10px;font-weight:800;border-bottom:1px solid var(--line)}
+td{padding:11px 10px;border-bottom:1px solid var(--line);font-size:13px}
+tr:last-child td{border-bottom:none}
+td.r{text-align:right;font-weight:700;white-space:nowrap}
+.tag{font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:20px;display:inline-block}
+.tag.a{background:color-mix(in srgb,var(--acc) 14%,transparent);color:var(--accD)}
+.tag.g{background:color-mix(in srgb,var(--grn) 15%,transparent);color:var(--grn)}
+.tag.y{background:color-mix(in srgb,var(--amb) 15%,transparent);color:var(--amb)}
+.mini{font-size:11px;color:var(--muted)}
+.dobtn{font-size:11.5px;font-weight:800;color:var(--acc);border:1px solid color-mix(in srgb,var(--acc) 35%,transparent);border-radius:8px;padding:5px 10px}
+
+/* why + convert */
+.why{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:24px}
+.why .w{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px 18px;box-shadow:var(--sh2)}
+.why .w .i{font-size:24px;margin-bottom:10px}
+.why .w .t{font-weight:800;font-size:15px;margin-bottom:5px}
+.why .w .d{font-size:13px;color:var(--ink2);line-height:1.55}
+.convert{margin:60px 0 40px;background:linear-gradient(135deg,#0a1628,#123055);border-radius:26px;padding:44px 34px;color:#fff;text-align:center;position:relative;overflow:hidden}
+.convert::before{content:"";position:absolute;width:360px;height:360px;border-radius:50%;background:var(--acc);filter:blur(90px);opacity:.4;top:-140px;right:-80px}
+.convert h2{font-size:clamp(24px,3.6vw,34px);font-weight:900;letter-spacing:-.02em;position:relative}
+.convert p{color:#b9cbe0;max-width:560px;margin:12px auto 24px;font-size:15px;position:relative}
+.convert .cta{font-size:15px;padding:14px 28px;position:relative}
+.convert .sub{margin-top:14px;font-size:12.5px;color:#8ba3bd;position:relative}
+footer{text-align:center;padding:30px 0 46px;color:var(--muted);font-size:12.5px}
+footer a{color:var(--acc);font-weight:700}
+
+/* sticky cta */
+.sticky{position:fixed;left:0;right:0;bottom:0;z-index:45;transform:translateY(120%);transition:.3s;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line);box-shadow:0 -10px 30px -14px rgba(13,27,42,.25)}
+.sticky.show{transform:none}
+.sticky .wrap{display:flex;align-items:center;gap:14px;padding:12px 20px}
+.sticky .tx{font-size:13.5px;font-weight:700;flex:1}
+.sticky .tx .s{font-weight:500;color:var(--muted);font-size:12px;display:block}
+
+/* modal */
+.ov{position:fixed;inset:0;z-index:60;background:rgba(8,16,28,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:18px}
+.ov.show{display:flex}
+.modal{background:var(--card);border:1px solid var(--line);border-radius:20px;max-width:460px;width:100%;box-shadow:var(--sh);max-height:92vh;overflow:auto}
+.modal .mh{padding:22px 24px 6px}
+.modal .mh .t{font-size:20px;font-weight:900;letter-spacing:-.01em}
+.modal .mh .s{font-size:13px;color:var(--ink2);margin-top:5px}
+.modal .mb{padding:14px 24px 22px}
+.fld{margin-bottom:12px}
+.fld label{display:block;font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:5px}
+.fld input,.fld textarea{width:100%;background:var(--off);border:1px solid var(--line);border-radius:11px;padding:11px 13px;font-size:14px;color:var(--ink);font-family:inherit;outline:none;transition:.15s}
+.fld input:focus,.fld textarea:focus{border-color:var(--acc);background:var(--card)}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.chips button{font-size:12px;font-weight:600;padding:7px 12px;border-radius:20px;border:1px solid var(--line);background:var(--off);color:var(--ink2);transition:.12s}
+.chips button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.msend{width:100%;background:linear-gradient(135deg,var(--acc),var(--accD));color:#fff;font-weight:800;font-size:15px;padding:14px;border-radius:12px;box-shadow:0 10px 24px -10px var(--acc)}
+.mclose{position:absolute;top:14px;right:16px;font-size:22px;color:var(--muted);line-height:1}
+.ok{text-align:center;padding:30px 24px}
+.ok .em{font-size:52px;margin-bottom:10px}
+.ok .t{font-size:20px;font-weight:900;margin-bottom:8px}
+.ok .d{font-size:14px;color:var(--ink2);line-height:1.6}
+.priv{font-size:11px;color:var(--muted);text-align:center;margin-top:10px}
+
+@media(max-width:820px){
+  .stats,.kpis,.why{grid-template-columns:repeat(2,1fr)}
+  .d2{grid-template-columns:1fr}
+  .appbody{grid-template-columns:1fr}
+  .nav{display:flex;overflow-x:auto;border-right:none;border-bottom:1px solid var(--line);padding:8px}
+  .nav b{display:none}.nav a{white-space:nowrap}
+  .top .for{display:none}
+}
+</style></head>
+<body>
+<div class="aurora"><i></i><i></i><i></i></div>
+
+<div class="top"><div class="wrap">
+  <div class="blogo"><span class="m">P</span>Pllato</div>
+  <span class="for" id="topFor"></span>
+  <span class="sp"></span>
+  <button class="tbtn" id="themeBtn" title="Тема">🌙</button>
+  <button class="cta sm" onclick="openLead('шапка')">Оставить заявку</button>
+</div></div>
+
+<!-- HERO -->
+<section class="hero"><div class="wrap">
+  <span class="chip"><span class="d"></span><span id="chipTxt">Персональное демо · собрано под вашу компанию</span></span>
+  <div class="hlogo" id="hlogo">М</div>
+  <h1>CRM для <span class="g" id="h1co">вашей компании</span></h1>
+  <p class="lead" id="heroLead"></p>
+  <div class="hbtns">
+    <button class="cta" onclick="openLead('герой')">Хочу такую же под свой бизнес →</button>
+    <a class="ghost" href="#app">Сначала посмотреть демо</a>
+  </div>
+  <div class="hnote" id="heroNote"></div>
+  <div class="stats" id="stats"></div>
+</div></section>
+
+<!-- APP DEMO -->
+<a id="app"></a>
+<section class="wrap">
+  <div class="section-h">
+    <div class="k">Рабочее демо · всё кликается</div>
+    <h2>Как это выглядит внутри</h2>
+    <p>Это не презентация, а живой прототип с воронкой, клиентами, товарами и повторными продажами — уже под вашу нишу.</p>
+  </div>
+  <div class="appframe">
+    <div class="appbar"><span class="dot"></span><span class="dot y"></span><span class="dot g"></span><span class="u" id="appUrl">crm.вашакомпания.kz</span></div>
+    <div class="appbody">
+      <nav class="nav" id="nav"></nav>
+      <div style="min-width:0">
+        <!-- dashboard -->
+        <div class="screen on" data-s="dash">
+          <div class="scr-h"><div><h3>Обзор</h3><div class="sub">Ключевые цифры отдела продаж</div></div><span class="badge2">демо-данные</span></div>
+          <div class="kpis" id="kpis"></div>
+          <div class="d2">
+            <div class="panel"><div class="pt">Выручка по месяцам</div><div class="bars" id="bars"></div></div>
+            <div class="panel"><div class="pt">Требует внимания</div><div class="att" id="att"></div></div>
+          </div>
+        </div>
+        <!-- funnel -->
+        <div class="screen" data-s="funnel">
+          <div class="scr-h"><div><h3>Воронка сделок</h3><div class="sub">Перетащите карточку между этапами</div></div><span class="badge2" id="funnelSum"></span></div>
+          <div class="kan" id="kan"></div>
+        </div>
+        <!-- clients -->
+        <div class="screen" data-s="clients">
+          <div class="scr-h"><div><h3>Клиенты</h3><div class="sub">Клиники, организации и дилеры — с историей и LTV</div></div></div>
+          <table><thead><tr><th>Клиент</th><th>Тип</th><th class="r">Заказов</th><th class="r">LTV</th><th>Повтор</th></tr></thead><tbody id="clients"></tbody></table>
+        </div>
+        <!-- catalog -->
+        <div class="screen" data-s="catalog">
+          <div class="scr-h"><div><h3>Товары и склад</h3><div class="sub" id="catSub"></div></div></div>
+          <table><thead><tr><th>Наименование</th><th>Категория</th><th class="r">Цена</th><th class="r">Остаток</th><th>Статус</th></tr></thead><tbody id="catalog"></tbody></table>
+        </div>
+        <!-- repeat -->
+        <div class="screen" data-s="repeat">
+          <div class="scr-h"><div><h3>Повторные продажи</h3><div class="sub">Расходники на дозаказ — система напомнит сама</div></div><span class="badge2">+ выручка без новых лидов</span></div>
+          <table><thead><tr><th>Клиент</th><th>Что дозаказать</th><th class="r">Цикл</th><th>Срок</th><th></th></tr></thead><tbody id="repeat"></tbody></table>
+        </div>
+        <!-- 1c -->
+        <div class="screen" data-s="int">
+          <div class="scr-h"><div><h3>Интеграции</h3><div class="sub">Синхронизация с учётом и каналами</div></div></div>
+          <div class="why" style="grid-template-columns:repeat(3,1fr);margin-top:0" id="ints"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WHY -->
+  <div class="section-h"><div class="k">Почему это «под вас»</div><h2>Не шаблон, а система под ваши процессы</h2></div>
+  <div class="why">
+    <div class="w"><div class="i">🎯</div><div class="t">Под ваши процессы</div><div class="d">Воронка, товары и роли настраиваются под то, как продаёте именно вы — а не наоборот.</div></div>
+    <div class="w"><div class="i">🔗</div><div class="t">Интеграция с 1С</div><div class="d">1С остаётся учётом, CRM ведёт продажи. Обмен товарами, остатками и оплатами — настраивается.</div></div>
+    <div class="w"><div class="i">🔁</div><div class="t">Повторные продажи</div><div class="d">Система сама напоминает о дозаказе расходников — деньги без новых лидов.</div></div>
+    <div class="w"><div class="i">🏆</div><div class="t">В собственность</div><div class="d">Отдаём с исходниками на ваш сервер. Без абонплаты за пользование.</div></div>
+  </div>
+
+  <!-- CONVERT -->
+  <div class="convert">
+    <h2 id="convH">Соберём такую CRM под ваши процессы</h2>
+    <p id="convP">Это демо мы собрали заранее под вашу компанию. Оставьте заявку — покажем на встрече за 15–20 минут и предложим состав первого этапа под ваши реальные продажи.</p>
+    <button class="cta" onclick="openLead('низ')">Оставить заявку на разработку →</button>
+    <div class="sub">Ответим в течение рабочего дня · без обязательств</div>
+  </div>
+</section>
+
+<footer>Pllato · студия кастомной разработки · <a href="https://pllato.kz">pllato.kz</a> · демо-данные вымышлены для показа</footer>
+
+<!-- sticky -->
+<div class="sticky" id="sticky"><div class="wrap">
+  <div class="tx" id="stickyTx">Понравилось? Соберём под ваш бизнес.<span class="s">Демо, встреча и оценка — без обязательств</span></div>
+  <button class="cta sm" onclick="openLead('плашка')">Оставить заявку</button>
+</div></div>
+
+<!-- modal -->
+<div class="ov" id="ov"><div class="modal" style="position:relative">
+  <button class="mclose" onclick="closeLead()">×</button>
+  <div id="mform">
+    <div class="mh"><div class="t">Заявка на разработку</div><div class="s" id="mSub"></div></div>
+    <div class="mb">
+      <div class="fld"><label>Ваше имя</label><input id="fName" placeholder="Как к вам обращаться"></div>
+      <div class="fld"><label>Телефон / WhatsApp</label><input id="fPhone" placeholder="+7 ___ ___ __ __" inputmode="tel"></div>
+      <div class="fld"><label>Компания</label><input id="fCo"></div>
+      <label style="display:block;font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:7px">Что хотите автоматизировать?</label>
+      <div class="chips" id="chips"></div>
+      <div class="fld"><label>Комментарий (необязательно)</label><textarea id="fMsg" rows="2" placeholder="Пара слов о задаче"></textarea></div>
+      <button class="msend" onclick="sendLead()">Отправить заявку</button>
+      <div class="priv">Нажимая «Отправить», вы соглашаетесь, что мы свяжемся с вами по заявке.</div>
+    </div>
+  </div>
+  <div id="mok" style="display:none"><div class="ok">
+    <div class="em">✅</div>
+    <div class="t">Заявка принята!</div>
+    <div class="d" id="okText"></div>
+    <div style="margin-top:18px"><a class="cta" id="okWa" target="_blank" rel="noopener">Продолжить в WhatsApp</a></div>
+  </div></div>
+</div></div>
+
+<script>
+/* ================= КОНФИГ / персонализация ================= */
+// Ссылку генерирует лидген-CRM. Параметры URL:
+//   ?c=Название  &n=ниша(medobor|medizd|lab|stomat|pharma|complex)  &logo=URL  &a=#hex(акцент)  &mgr=Имя менеджера
+// Телефон Pllato для заявки (WhatsApp) — можно переопределить ?wa=7701...
+var Q=new URLSearchParams(location.search);
+var PLLATO_WA=(Q.get('wa')||'77011239999').replace(/\D/g,'');
+var LEAD_URL=window.PLLATO_LEAD_URL||''; // при наличии — POST заявки на бэкенд
+
+var NICHES={
+ medobor:{label:'медицинского оборудования',acc:'#0ea5e9',cats:['Диагностика','Хирургия','Реанимация','Мониторинг'],
+   products:[['Аппарат УЗИ (экспертный)','Диагностика',18500000,4,'g'],['Наркозно-дыхательный аппарат','Реанимация',9200000,2,'y'],['Монитор пациента','Мониторинг',1450000,11,'g'],['Электрохирургический блок','Хирургия',3600000,0,'r'],['Дефибриллятор','Реанимация',2100000,6,'g']],
+   clients:[['Городская больница №4','Стационар',12,'48,2 млн','через 2 нед'],['МЦ «Диагностика+»','Частная клиника',7,'21,6 млн','через 1 мес'],['Облздрав (тендер)','Госзакупки',3,'96,0 млн','—'],['Дилер «МедРегион»','Дилер',19,'63,4 млн','через 5 дн']],
+   repeat:[['МЦ «Диагностика+»','Гель для УЗИ, электроды','каждые 2 мес','через 5 дней','y'],['Городская больница №4','Расходники к монитору','ежемесячно','сегодня','r'],['Клиника «Сана»','Датчики SpO₂','квартал','через 3 нед','g']]},
+ medizd:{label:'медизделий и расходных материалов',acc:'#14b8a6',cats:['Расходники','Одноразовое','Перевязка','Шприцы'],
+   products:[['Шприцы 5мл (уп. 100)','Шприцы',9800,240,'g'],['Перчатки нитрил (уп. 100)','Одноразовое',7200,58,'y'],['Система инфузионная','Расходники',420,1900,'g'],['Бинт стерильный','Перевязка',310,0,'r'],['Катетер в/в (уп. 50)','Расходники',14500,33,'g']],
+   clients:[['Сеть клиник «Инвита»','Сеть',44,'38,9 млн','через 6 дн'],['Аптечный склад «Фарм-Ю»','Дистрибьютор',61,'104,2 млн','через 3 дн'],['Роддом №2','Стационар',18,'12,4 млн','через 2 нед'],['Дилер «МедОпт»','Дилер',37,'55,1 млн','завтра']],
+   repeat:[['Сеть клиник «Инвита»','Перчатки, шприцы','ежемесячно','через 6 дней','y'],['Роддом №2','Перевязочные','каждые 3 нед','сегодня','r'],['Аптечный склад «Фарм-Ю»','Инфузионные системы','2 недели','через 4 дня','g']]},
+ lab:{label:'лабораторного оборудования',acc:'#6366f1',cats:['Анализаторы','Центрифуги','Реагенты','Микроскопы'],
+   products:[['Биохим. анализатор','Анализаторы',14200000,3,'g'],['Гематологический анализатор','Анализаторы',8600000,1,'y'],['Центрифуга лабораторная','Центрифуги',1250000,8,'g'],['Набор реагентов (биохимия)','Реагенты',185000,0,'r'],['Микроскоп бинокулярный','Микроскопы',540000,12,'g']],
+   clients:[['Лаборатория «Инвитро-KZ»','Сеть лабораторий',22,'71,3 млн','через 4 дн'],['НИИ кардиологии','НИИ',5,'34,8 млн','через 1 мес'],['Облбольница (тендер)','Госзакупки',2,'58,0 млн','—'],['Дилер «ЛабТех»','Дилер',14,'41,9 млн','через 8 дн']],
+   repeat:[['Лаборатория «Инвитро-KZ»','Реагенты, расходники','ежемесячно','через 4 дня','y'],['НИИ кардиологии','Реагенты биохимия','каждые 3 нед','сегодня','r'],['Клиника «Сана»','Пробирки, наконечники','2 недели','через 2 нед','g']]},
+ stomat:{label:'стоматологического оборудования',acc:'#06b6d4',cats:['Установки','Инструмент','Материалы','Стерилизация'],
+   products:[['Стоматологическая установка','Установки',6800000,2,'g'],['Автоклав класс B','Стерилизация',1650000,4,'g'],['Наконечник турбинный','Инструмент',185000,0,'r'],['Композит светоотверждаемый','Материалы',42000,120,'g'],['Рентген визиограф','Установки',2900000,3,'y']],
+   clients:[['Сеть клиник «ДентаЛюкс»','Сеть',33,'52,7 млн','через 3 дн'],['Стоматология «Улыбка»','Частная клиника',12,'9,8 млн','через 2 нед'],['Колледж (тендер)','Госзакупки',1,'18,0 млн','—'],['Дилер «СтомТорг»','Дилер',26,'44,3 млн','завтра']],
+   repeat:[['Сеть клиник «ДентаЛюкс»','Композиты, боры','ежемесячно','через 3 дня','y'],['Стоматология «Улыбка»','Расходники стерилизации','каждые 3 нед','сегодня','r'],['Клиника «Дента»','Наконечники, материалы','квартал','через 3 нед','g']]},
+ pharma:{label:'фармацевтической дистрибуции',acc:'#8b5cf6',cats:['Рецептурные','ОТС','БАД','Медизделия'],
+   products:[['Препарат A (уп.)','Рецептурные',1250,3400,'g'],['Препарат B (уп.)','ОТС',680,1200,'g'],['Витамины (линейка)','БАД',990,0,'r'],['Антисептик 1л','Медизделия',540,760,'g'],['Препарат C (термо)','Рецептурные',4200,88,'y']],
+   clients:[['Аптечная сеть «Здоровье»','Сеть аптек',88,'212,0 млн','через 2 дн'],['Больничная аптека №1','Стационар',24,'46,5 млн','через 5 дн'],['Облзакуп (тендер)','Госзакупки',4,'180,0 млн','—'],['Дилер «ФармЛайн»','Дистрибьютор',53,'134,7 млн','завтра']],
+   repeat:[['Аптечная сеть «Здоровье»','Топ-SKU дозаказ','еженедельно','через 2 дня','y'],['Больничная аптека №1','Рецептурные','ежемесячно','сегодня','r'],['Аптека «Дару»','ОТС, БАД','2 недели','через 6 дн','g']]},
+ complex:{label:'комплексного оснащения клиник',acc:'#0284c7',cats:['Оборудование','Мебель','Расходники','Монтаж'],
+   products:[['Оснащение операционной (компл.)','Оборудование',72000000,1,'y'],['Мебель медицинская (палата)','Мебель',3400000,5,'g'],['Комплект расходников','Расходники',890000,14,'g'],['Монтаж и пуско-наладка','Монтаж',5600000,0,'r'],['Система вызова персонала','Оборудование',2200000,3,'g']],
+   clients:[['МЦ «Нур-Медикал» (новый корпус)','Проект',2,'186,0 млн','через 1 мес'],['Санаторий «Каспий»','Проект',3,'54,0 млн','через 2 нед'],['Облакимат (тендер)','Госзакупки',1,'240,0 млн','—'],['Клиника «Сана» (реконструкция)','Проект',4,'92,4 млн','через 10 дн']],
+   repeat:[['МЦ «Нур-Медикал»','Доснащение отделений','по этапам','через 1 нед','y'],['Санаторий «Каспий»','Расходники','ежемесячно','сегодня','r'],['Клиника «Сана»','Мебель, монтаж','по проекту','через 3 нед','g']]},
+};
+
+var FUNNEL=['Новая заявка','Квалификация','КП / расчёт','Договор','Поставка','Повторная продажа'];
+
+/* персонализация */
+var CO=(Q.get('c')||'МедТехСнаб').trim().replace(/^[«»"'“”]+|[«»"'“”]+$/g,'').trim();
+var NK=(Q.get('n')||'medobor'); if(!NICHES[NK])NK='medobor';
+var N=NICHES[NK];
+var ACC=Q.get('a')||N.acc;
+var LOGO=Q.get('logo')||'';
+var MGR=Q.get('mgr')||'';
+var IS_EXAMPLE=!Q.get('c');
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function initials(s){return s.replace(/[«»"]/g,'').split(/\s+/).filter(Boolean).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase()||'?';}
+function accEls(){document.documentElement.style.setProperty('--acc',ACC);
+  // производные оттенки
+  document.documentElement.style.setProperty('--acc2',lighten(ACC,26));
+  document.documentElement.style.setProperty('--accD',lighten(ACC,-26));}
+function lighten(hex,amt){var h=hex.replace('#','');if(h.length===3)h=h.split('').map(function(x){return x+x;}).join('');
+  var r=parseInt(h.substr(0,2),16),g=parseInt(h.substr(2,2),16),b=parseInt(h.substr(4,2),16);
+  var f=amt>0?(255-Math.max(r,g,b)):Math.min(r,g,b);var t=amt/100;
+  r=Math.round(r+(amt>0?(255-r):-r)*Math.abs(t));g=Math.round(g+(amt>0?(255-g):-g)*Math.abs(t));b=Math.round(b+(amt>0?(255-b):-b)*Math.abs(t));
+  return '#'+[r,g,b].map(function(x){return ('0'+Math.max(0,Math.min(255,x)).toString(16)).slice(-2);}).join('');}
+
+/* ================= рендер ================= */
+function money(n){return n>=1000000?(n/1000000).toFixed(n%1000000?1:0).replace('.',',')+' млн':n.toLocaleString('ru-RU');}
+function render(){
+  accEls();
+  document.getElementById('topFor').textContent='демо для «'+CO+'»';
+  document.getElementById('h1co').textContent='«'+CO+'»';
+  document.getElementById('chipTxt').textContent = IS_EXAMPLE ? 'Пример персонального демо' : 'Персональное демо · собрано под «'+CO+'»';
+  document.getElementById('heroLead').innerHTML='Мы изучили вашу компанию и <b>заранее собрали рабочий прототип CRM</b> под продажи '+esc(N.label)+': воронка, клиенты, товары, склад и повторные продажи. Ничего устанавливать не нужно — открывается в браузере.';
+  document.getElementById('heroNote').innerHTML= IS_EXAMPLE ? 'Это пример. В вашей версии будут ваш логотип, название и ниша.' : (MGR?('Подготовил: '+esc(MGR)+' · Pllato'):'Прототип подготовлен специально для «'+esc(CO)+'»');
+  document.getElementById('appUrl').textContent='crm.'+translit(CO)+'.kz';
+  document.getElementById('convH').textContent='Соберём такую CRM под процессы «'+CO+'»';
+  document.getElementById('mSub').textContent='Для «'+CO+'» — покажем демо на встрече и предложим состав первого этапа.';
+  document.getElementById('fCo').value=CO;
+  // logo
+  var hl=document.getElementById('hlogo');
+  if(LOGO){hl.innerHTML='<img src="'+esc(LOGO)+'" alt="'+esc(CO)+'" onerror="this.parentNode.textContent=\''+initials(CO)+'\'">';}
+  else hl.textContent=initials(CO);
+  // stats
+  document.getElementById('stats').innerHTML=[
+    ['<b>+37%</b>','конверсия из заявки в счёт'],['<b>−4 ч</b>','в день на ручную рутину'],
+    ['<b>2×</b>','повторных продаж расходников'],['<b>100%</b>','сделок под контролем']
+  ].map(function(s){return '<div class="stat"><div class="v">'+s[0]+'</div><div class="l">'+s[1]+'</div></div>';}).join('');
+  // nav
+  var NAV=[['dash','▦','Обзор'],['funnel','⤳','Воронка'],['clients','👥','Клиенты'],['catalog','📦','Товары · склад'],['repeat','🔁','Повторные'],['int','🔗','Интеграции']];
+  document.getElementById('nav').innerHTML='<b>CRM · '+esc(CO)+'</b>'+NAV.map(function(n,i){return '<a class="'+(i===0?'on':'')+'" data-go="'+n[0]+'"><span class="ic">'+n[1]+'</span>'+n[2]+'</a>';}).join('');
+  document.querySelectorAll('.nav a').forEach(function(a){a.onclick=function(){go(a.dataset.go);};});
+  // kpis
+  document.getElementById('kpis').innerHTML=[
+    ['acc','24','Сделок в работе'],['up',money(342000000).replace(' млн',' млн ₸'),'Сумма воронки'],['','58,4 млн ₸','Выручка за месяц'],['amb','7','К дозаказу сейчас']
+  ].map(function(k){return '<div class="kpi"><div class="v '+k[0]+'">'+k[1]+'</div><div class="l">'+k[2]+'</div></div>';}).join('');
+  // bars
+  var vals=[38,44,41,52,49,58];
+  document.getElementById('bars').innerHTML=['фев','мар','апр','май','июн','июл'].map(function(m,i){return '<div class="b"><i style="height:0" data-h="'+(vals[i]/58*100)+'"></i><span>'+m+'</span></div>';}).join('');
+  // attention
+  document.getElementById('att').innerHTML=[
+    ['r','🔴','Просрочен счёт','«'+N.clients[0][0]+'» — договор подписан, счёт не выставлен'],
+    ['y','🟡','Тендер на неделе','«'+(N.clients[2]?N.clients[2][0]:'Госзакупки')+'» — дедлайн подачи через 3 дня'],
+    ['g','🟢','Повтор к дозаказу','7 клиентов ждут расходники — авто-напоминание готово']
+  ].map(function(a){return '<div class="a '+a[0]+'"><div class="ai">'+a[1]+'</div><div class="tx"><b>'+a[2]+'</b><div class="s">'+esc(a[3])+'</div></div></div>';}).join('');
+  // kanban
+  var DEALS=buildDeals();
+  renderKan(DEALS);
+  // clients
+  document.getElementById('clients').innerHTML=N.clients.map(function(c){return '<tr><td><b>'+esc(c[0])+'</b></td><td><span class="mini">'+esc(c[1])+'</span></td><td class="r">'+c[2]+'</td><td class="r">'+esc(c[3])+' ₸</td><td>'+(c[4]==='—'?'<span class="mini">—</span>':'<span class="tag y">'+esc(c[4])+'</span>')+'</td></tr>';}).join('');
+  // catalog
+  document.getElementById('catSub').textContent='Каталог под нишу: '+N.cats.join(' · ');
+  document.getElementById('catalog').innerHTML=N.products.map(function(p){var st=p[4]==='r'?['tag y','мало / нет']:(p[4]==='y'?['tag y','заканчивается']:['tag g','в наличии']);return '<tr><td><b>'+esc(p[0])+'</b></td><td><span class="mini">'+esc(p[1])+'</span></td><td class="r">'+money(p[2])+' ₸</td><td class="r">'+p[3]+'</td><td><span class="'+st[0]+'">'+st[1]+'</span></td></tr>';}).join('');
+  // repeat
+  document.getElementById('repeat').innerHTML=N.repeat.map(function(r){var due=r[4]==='r'?'tag y':(r[4]==='y'?'tag y':'tag g');return '<tr><td><b>'+esc(r[0])+'</b></td><td>'+esc(r[1])+'</td><td class="r"><span class="mini">'+esc(r[2])+'</span></td><td><span class="'+due+'">'+esc(r[3])+'</span></td><td class="r"><span class="dobtn">Дозаказ →</span></td></tr>';}).join('');
+  // integrations
+  document.getElementById('ints').innerHTML=[
+    ['🧾','1С: Бухгалтерия','Счета, оплаты и остатки — без ручного дублирования.'],
+    ['💬','WhatsApp','Заявки и переписка с клиентом прямо в карточке сделки.'],
+    ['🌐','Сайт и заявки','Форма с сайта падает сразу в воронку — ни один лид не теряется.']
+  ].map(function(x){return '<div class="w"><div class="i">'+x[0]+'</div><div class="t">'+x[1]+'</div><div class="d">'+x[2]+'</div></div>';}).join('');
+  // chips
+  document.getElementById('chips').innerHTML=['Воронка продаж','Товары и склад','Повторные продажи','Интеграция 1С','WhatsApp / сайт','Отчёты и KPI'].map(function(c){return '<button type="button" onclick="this.classList.toggle(\'on\')">'+c+'</button>';}).join('');
+  // animate bars
+  setTimeout(function(){document.querySelectorAll('.bars .b i').forEach(function(i){i.style.height=i.dataset.h+'%';});},250);
+}
+function translit(s){var m={а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ж:'zh',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'h',ц:'c',ч:'ch',ш:'sh',щ:'sch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya'};
+  return s.toLowerCase().replace(/[«»"',.]/g,'').replace(/\s+/g,'').split('').map(function(c){return m[c]!=null?m[c]:c;}).join('').slice(0,14)||'company';}
+
+function buildDeals(){
+  var cl=N.clients, p=N.products;
+  return [
+    {n:cl[0][0],m:'мен. Асель',s:p[0][2],st:1},
+    {n:cl[1][0],m:'мен. Ерлан',s:(p[1]?p[1][2]:1000000),st:2},
+    {n:cl[3]?cl[3][0]:'Дилер',m:'мен. Асель',s:(p[2]?p[2][2]*3:900000),st:3},
+    {n:cl[2]?cl[2][0]:'Тендер',m:'мен. Дана',s:(p[0][2]*2),st:0},
+    {n:cl[0][0]+' (доснащение)',m:'мен. Ерлан',s:(p[4]?p[4][2]:800000),st:4},
+    {n:cl[1][0]+' (расходники)',m:'мен. Дана',s:(p[3]?p[3][2]*10:450000),st:5}
+  ];
+}
+function renderKan(DEALS){
+  var kan=document.getElementById('kan');
+  var sum=DEALS.reduce(function(a,d){return a+d.s;},0);
+  document.getElementById('funnelSum').textContent='сумма воронки: '+money(sum)+' ₸';
+  kan.innerHTML=FUNNEL.map(function(f,si){
+    var inc=DEALS.filter(function(d){return d.st===si;});
+    return '<div class="col" data-col="'+si+'"><div class="ch"><span>'+esc(f)+'</span><span class="n">'+inc.length+'</span></div>'+
+      inc.map(function(d){return '<div class="deal" draggable="true" data-id="'+DEALS.indexOf(d)+'"><div class="dn">'+esc(d.n)+'</div><div class="dm">'+esc(d.m)+'</div><div class="ds">'+money(d.s)+' ₸</div></div>';}).join('')+'</div>';
+  }).join('');
+  var dragId=null;
+  kan.querySelectorAll('.deal').forEach(function(el){
+    el.ondragstart=function(e){dragId=+el.dataset.id;e.dataTransfer.setData('t','1');};
+  });
+  kan.querySelectorAll('.col').forEach(function(col){
+    col.ondragover=function(e){e.preventDefault();col.classList.add('drop');};
+    col.ondragleave=function(){col.classList.remove('drop');};
+    col.ondrop=function(e){e.preventDefault();col.classList.remove('drop');if(dragId==null)return;DEALS[dragId].st=+col.dataset.col;renderKan(DEALS);};
+  });
+}
+
+/* nav */
+function go(s){document.querySelectorAll('.screen').forEach(function(x){x.classList.toggle('on',x.dataset.s===s);});
+  document.querySelectorAll('.nav a').forEach(function(a){a.classList.toggle('on',a.dataset.go===s);});}
+
+/* theme */
+function applyTheme(t){document.documentElement.setAttribute('data-theme',t);document.getElementById('themeBtn').textContent=t==='dark'?'☀️':'🌙';try{localStorage.setItem('crmdemo_theme',t);}catch(e){}}
+document.getElementById('themeBtn').onclick=function(){applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');};
+(function(){var t='light';try{t=localStorage.getItem('crmdemo_theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');}catch(e){}applyTheme(t);})();
+
+/* sticky cta */
+addEventListener('scroll',function(){document.getElementById('sticky').classList.toggle('show',scrollY>640);});
+
+/* lead modal */
+function openLead(src){document.getElementById('ov').classList.add('show');document.getElementById('mform').style.display='';document.getElementById('mok').style.display='none';window._leadSrc=src||'';document.body.style.overflow='hidden';}
+function closeLead(){document.getElementById('ov').classList.remove('show');document.body.style.overflow='';}
+document.getElementById('ov').onclick=function(e){if(e.target===this)closeLead();};
+function sendLead(){
+  var name=document.getElementById('fName').value.trim();
+  var phone=document.getElementById('fPhone').value.trim();
+  var co=document.getElementById('fCo').value.trim()||CO;
+  var msg=document.getElementById('fMsg').value.trim();
+  var wants=[].slice.call(document.querySelectorAll('#chips button.on')).map(function(b){return b.textContent;});
+  if(!name||!phone){alert('Укажите имя и телефon для связи.');return;}
+  var text='Заявка на разработку CRM\nКомпания: '+co+'\nИмя: '+name+'\nТелефон: '+phone
+    +'\nНиша: '+N.label+(wants.length?('\nИнтересует: '+wants.join(', ')):'')
+    +(msg?('\nКомментарий: '+msg):'')+(MGR?('\nЛид-менеджер: '+MGR):'')+'\nИсточник: демо ('+(window._leadSrc||'')+')';
+  // 1) POST на бэкенд, если задан
+  if(LEAD_URL){try{fetch(LEAD_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,phone:phone,company:co,niche:NK,wants:wants,msg:msg,mgr:MGR,src:window._leadSrc})});}catch(e){}}
+  // 2) сохранить локально (на всякий)
+  try{var k='crmdemo_leads';var a=JSON.parse(localStorage.getItem(k)||'[]');a.push({t:Date.now(),name:name,phone:phone,co:co});localStorage.setItem(k,JSON.stringify(a));}catch(e){}
+  // 3) WhatsApp в Pllato
+  var wa='https://wa.me/'+PLLATO_WA+'?text='+encodeURIComponent(text);
+  document.getElementById('okWa').href=wa;
+  document.getElementById('okText').innerHTML='Спасибо, <b>'+esc(name)+'</b>! Мы свяжемся по номеру <b>'+esc(phone)+'</b> в течение рабочего дня и покажем демо под «'+esc(co)+'».<br><br>Хотите быстрее — нажмите кнопку ниже, заявка уйдёт нам в WhatsApp.';
+  document.getElementById('mform').style.display='none';
+  document.getElementById('mok').style.display='';
+}
+
+render();
+</script>
+</body></html>
