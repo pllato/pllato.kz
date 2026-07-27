@@ -1638,8 +1638,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v390';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v385';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v391';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v391';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -1842,6 +1842,38 @@ function lkParseHorizLoose(lines,used,hmeta){
     if(!n){const w=line.match(/^((?:А[сcС]?\s?)?(?:КВВГ|ВВГ|ШВВП)[А-Яа-яЁёA-Za-z0-9()\-\s]{0,20}?)\s*(\d+)\s*[xхХX×]\s*(\d+(?:[,.]\d+)?)\s*[-–]\s*(\d+(?:[,.]\d+)?)\s*м\s*$/);
       if(w){const st=starts[0]||(hmeta&&hmeta[idx]&&hmeta[idx].pos)||{};
         rows.push({group:'—',mark:lkMarkName(w[1]),section:w[2]+'x'+w[3].replace('.',','),len:parseFloat(w[4].replace(',','.')),conds:[],x:st.x||0,y:st.y||0,mult:lkMult(line)});}}
+  });
+  return rows;
+}
+/* Биографи (ТОО TAIMAS-M, серии 2484/2512 ЭОМ): линейка одной подписью-кластером — штатные
+   парсеры её не берут, листы возвращали ноль. Два вида, оба со СПЕЦИФИЧНЫМИ токенами (ВВГ + труба
+   «гофра»/«Г40»), поэтому на эталоны не влияет:
+   A) фидер/группа с длиной: «гр.1-0,33-0,98-0,51-50 17-0,1- АсВВГнгLS 5х4-Г25»
+      = Pp-cosφ-I-ДЛИНА(целое, перед пробелом) момент-ΔU- марка NxS-Гдиаметр
+   B) квартирная группа без длины: «Гр.1-АсВВГнг-LS 3х2,5 м гофра - 20»
+      = марка сечение, «гофра - N» диаметр трубы; длины на листе нет (как в 2539) → needsCheck */
+const LK_BIO_A=/^(?:Вр\d+\s+)?(гр\.?\s*\d+)\s*-\s*[\d.,]+-[\d.,]+-[\d.,]+-(\d+)\s+\d+(?:[.,]\d+)?\s*-\s*[\d.,]+\s*-\s*(А?[сcС]?ВВГ[а-яёА-ЯA-Za-z()]*)\s+(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?)\s*-\s*Г(\d+)/i;
+// вариант Boulevard (BuharJ/EON): сечение в СКОБКАХ, труба «Тг-N» — «Гр.1-0,038-0,9-0,2-200 7,6-3-ВВГнг-LS (3х2,5) Тг-20»
+const LK_BIO_A2=/^(Гр\.?\s*\d+)\s*-\s*[\d.,]+-[\d.,]+-[\d.,]+-(\d+)\s+[\d.,]+\s*-\s*[\d.,]+\s*-\s*(А?[сcС]?ВВГ[А-Яа-яёA-Za-z()\-]*?)\s*\(\s*(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?)\s*\)\s*(?:Тг|Тр|Г|гофра)?\s*[-–]?\s*(\d*)/i;
+const LK_BIO_B=/^(Гр\.?\s*\d+)\s*-\s*(А?[сcС]?ВВГ[а-яёА-ЯA-Za-z()\-]*?)\s+(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?)\s*м?\s*гофра\s*-\s*(\d+)/i;
+function lkParseBio(items){
+  const rows=[];
+  lkClusters(items).forEach(c=>{
+    let m=c.s.match(LK_BIO_A);
+    if(m){const L=+m[2];
+      rows.push({group:m[1].replace(/\s+/g,'').replace('.',''),mark:lkMarkName(m[3]),
+        section:m[4]+'x'+m[5].replace('.',','),len:(L>0&&L<=300)?L:0,
+        conds:[{t:'Г'+m[6],len:0}],x:c.x,y:c.y,mult:1,needsCheck:!(L>0&&L<=300)});return;}
+    m=c.s.match(LK_BIO_A2);
+    if(m){const L=+m[2];
+      rows.push({group:m[1].replace(/\s+/g,'').replace('.',''),mark:lkMarkName(m[3]),
+        section:m[4]+'x'+m[5].replace('.',','),len:(L>0&&L<=300)?L:0,
+        conds:m[6]?[{t:'Тг'+m[6],len:0}]:[],x:c.x,y:c.y,mult:1,needsCheck:!(L>0&&L<=300)});return;}
+    m=c.s.match(LK_BIO_B);
+    if(m){
+      rows.push({group:m[1].replace(/\s+/g,'').replace('.',''),mark:lkMarkName(m[2]),
+        section:m[3]+'x'+m[4].replace('.',','),len:0,
+        conds:[{t:'гофра'+m[5],len:0}],x:c.x,y:c.y,mult:1,needsCheck:true});}
   });
   return rows;
 }
@@ -2241,6 +2273,9 @@ async function lkExtract(data,onProgress){
     const _lenNums=_lenHdr?_lenT.filter(o=>Math.abs(o.y-_lenHdr.y)<10&&o.x>_lenHdr.x+30&&/^\d+(?:[.,]\d+)?$/.test(o.s)):[];
     const hasLenBand=!!_lenHdr;
     const rows=lkExpandMult(lkParseVertical(vitems).concat(lkParseOneLine(vitems,hasLenBand)).concat(hp.rows).concat(lkParseHorizLoose(hlines,hp.used,hmeta)).concat(lkParseJournal(tc.items))).concat(lkParseBus(tc.items));
+    // Биографи (одна подпись-кластер): добираем, чего штатные парсеры не взяли; спец-токены
+    // «гофра»/«-Гдиаметр» гарантируют, что на других стилях ветка не срабатывает
+    lkParseBio(tc.items).forEach(r=>{if(!rows.some(o=>o.x&&Math.abs(o.x-r.x)<8&&Math.abs((o.y||0)-r.y)<8))rows.push(r);});
     // по-фидерно неполно (голая длина/векторные подписи) + есть авторская таблица «Потребность в кабелях»:
     // добираем ВСЕ марки-фидеры отдельными строками с точками; длина ненадёжна → needsCheck (красная точка).
     const ctab=lkParseCableTable(tc.items);let potrebOv=null;
