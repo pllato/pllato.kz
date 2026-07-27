@@ -1638,7 +1638,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v389';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v390';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v385';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2626,7 +2626,7 @@ function lkTeachStart(){
   const pg=LK.pages[LK.sel];if(!pg){toast('Нет листа');return;}
   if(LK.view!=='pages'){LK.view='pages';renderLineyka();}
   $('lkIssModal').style.display='none';
-  toast('Обведи участок, который нужно научиться читать');
+  toast('Обведи участок, который не прочитался — ИИ прочитает сам');
   lkPickArea(async rect=>{
     try{
       const cl=await lkAreaClusters(pg,rect);
@@ -2658,8 +2658,8 @@ function lkTeachPanel(pg,rect,clusters){
   wrap.style.display='flex';wrap.style.zIndex='200';
   wrap.innerHTML=`<div class="lk-iss-box"><div class="lk-iss-head"><b>🎓 Научить читать</b><span class="lk-iss-sub">лист ${pg.page} · найдено подписей: ${clusters.length}</span><button class="lg-x" id="lkTcX">✕</button></div>
     <div class="lk-iss-list" id="lkTcList">${clusters.length?`<div class="lk-iss-cap">Это ТЕКСТ, найденный в обведённой области — ${clusters.length} ${lkPlural(clusters.length,'подпись','подписи','подписей')}, по одной на каждую линию схемы. Не правки: правило из них получится ОДНО.</div>`+clusters.slice(0,20).map((c,i)=>`<div class="lk-iss"><span class="pg">${i+1}</span><span class="tx" style="font-family:var(--mono);font-size:11px">${esc(c.s.slice(0,150))}</span></div>`).join(''):'<div class="lk-iss-empty">В этой области нет текста — возможно, это картинка/скан. Обведи участок с подписями.</div>'}</div>
-    <div class="lk-iss-add"><textarea id="lkTcHint" rows="4" placeholder="Скажи словами, что здесь нужно читать. Например:&#10;• тут тоже нужно считать кабель&#10;• длина — последнее целое число в подписи&#10;• имя потребителя стоит слева от марки"></textarea>
-      <div class="lk-iss-actions"><button class="lk-add" id="lkTcGo" ${clusters.length?'':'disabled'}>🤖 Разобрать</button>
+    <div class="lk-iss-add"><textarea id="lkTcHint" rows="3" placeholder="Подсказка не обязательна — ИИ читает сам. Впиши что-то, только если он ошибётся: например «длина — последнее целое число» или «имя потребителя слева от марки»."></textarea>
+      <div class="lk-iss-actions"><button class="lk-add" id="lkTcGo" ${clusters.length?'':'disabled'}>🤖 Прочитать заново</button>
       <button class="lk-add" id="lkTcApply" style="display:none;border-color:#2f7d4f;color:#2f7d4f">✓ Применить и запомнить</button>
       <span class="lk-note" id="lkTcNote">В ИИ уйдёт только текст этой области, сам файл — нет.</span></div></div></div>`;
   ($('lineyka')||document.body).appendChild(wrap);
@@ -2689,13 +2689,13 @@ function lkTeachPanel(pg,rect,clusters){
         if(!bad(d2)&&lkRuleRows(clusters,[d2.rule]).length)data=d2;
       }
       btn.disabled=false;
-      if(bad(data)){note.textContent='Не вышло: '+((data&&data.error)||'ИИ ответил неразборчиво, нажми «Разобрать» ещё раз');return;}
+      if(bad(data)){note.textContent='Не вышло: '+((data&&data.error)||'ИИ ответил неразборчиво, нажми «Прочитать заново»');return;}
       const test=lkRuleRows(clusters,[data.rule]);
       const sum=test.reduce((a,x)=>a+x.len,0);
       $('lkTcList').innerHTML=`<div class="lk-iss-empty" style="text-align:left"><b>${esc(data.rule.title||'Новое правило')}</b><br>${esc(data.explain||'')}</div>`
         +(test.length?test.slice(0,20).map(x=>`<div class="lk-iss"><span class="pg">${esc(x.section)}</span><span class="tx">${esc(x.group||'—')} · ${esc(x.mark||'')} · <b>${x.len} м</b></span></div>`).join('')
           :'<div class="lk-iss-empty" style="text-align:left">В этой области считать нечего: ИИ не нашёл здесь длин кабеля.<br><b>Что делать:</b> обведи участок, где рядом с маркой стоит длина (или строку таблицы «Длина линии»), и напиши, какое число — метры. Автоматы QF, счётчики и подписи щитов кабелем не считаются.</div>');
-      note.textContent=test.length?('Проверка: '+test.length+' строк, '+Math.round(sum)+' м — можно применять'):'Поправь подсказку или обведи другое место и нажми «Разобрать» ещё раз';
+      note.textContent=test.length?('ИИ прочитал: '+test.length+' строк, '+Math.round(sum)+' м — проверь и нажми «Применить»'):'Поправь подсказку или обведи другое место и нажми «Прочитать заново»';
       if(test.length){
         ap.style.display='';ap.disabled=false;
         ap.onclick=async()=>{ap.disabled=true;btn.disabled=true;note.textContent='Сохраняю…';
@@ -2705,6 +2705,9 @@ function lkTeachPanel(pg,rect,clusters){
       }
     }catch(e){note.textContent='Сеть недоступна: '+e.message;btn.disabled=false;}
   };
+  // главное — выделить участок; читает ИИ сам. Разбор стартует СРАЗУ, без нажатия кнопки
+  // (кнопка остаётся — на случай, если сотрудник вписал подсказку и хочет перечитать)
+  if(clusters.length)$('lkTcGo').onclick();
 }
 function lkPickArea(cb){
   const vp=$('lkPgImg');const ib=$('lkImgBox');
