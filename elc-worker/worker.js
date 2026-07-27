@@ -2773,7 +2773,7 @@ function genDemoToken() {
   return Array.from(a).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Полнота материалов для демо: название компании + профиль ЛПР + логотип + ниша.
+// Полнота материалов для демо: название компании + сайт + профиль ЛПР + логотип + ниша.
 async function demoBriefCompleteness(env, dealId) {
   await ensureQualificationTable(env);
   const row = await env.DB.prepare("SELECT data FROM deal_qualification WHERE deal_id = ?").bind(dealId).first();
@@ -2783,10 +2783,12 @@ async function demoBriefCompleteness(env, dealId) {
   const deal = await env.DB.prepare("SELECT title, custom_fields FROM deals WHERE id = ? LIMIT 1").bind(dealId).first();
   let cf = {}; try { cf = deal?.custom_fields ? JSON.parse(deal.custom_fields) : {}; } catch { cf = {}; }
   const hasCompanyName = !!String(deal?.title || '').trim();
+  const hasWebsite = !!String(cf.companyWebsite || '').trim();
   const hasLpr = [cf.lprLinkedin, cf.lprInstagram, cf.lprProfileExtra].some(v => String(v || '').trim());
   const hasNiche = !!String(cf.companyNiche || '').trim();
   const missing = [];
   if (!hasCompanyName) missing.push('название компании');
+  if (!hasWebsite) missing.push('сайт компании');
   if (!hasLpr) missing.push('ссылка на профиль ЛПР');
   if (!hasLogo) missing.push('логотип');
   if (!hasNiche) missing.push('ниша компании');
