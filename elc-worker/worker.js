@@ -2750,7 +2750,9 @@ const DEMO_BUILD_STAGE_RE = /(?:создани\w*\s*демо|демо\s*созд
 const DEMO_READY_STAGE_RE = /демо\s*готов/i;
 const LPR_FOUND_STAGE_RE = /лпр\s*найден/i;
 const DEMO_TOKEN_TTL_DAYS = 30;
-const DEMO_PUBLIC_ORIGIN = 'https://demo.pllato.kz';
+// Пока DNS pllato.kz обслуживается Hoster.kz, используем рабочий адрес Worker.
+// После делегирования demo.pllato.kz в Cloudflare меняется только эта константа.
+const DEMO_PUBLIC_ORIGIN = 'https://pllato-elc-worker.uurraa.workers.dev/demo';
 
 let _demosTableEnsured = false;
 async function ensureDemosTable(env) {
@@ -9387,13 +9389,14 @@ export default {
 
     // Чистые публичные адреса персональных CRM:
     // https://demo.pllato.kz/company-name
-    if (url.hostname === 'demo.pllato.kz' && request.method === 'GET') {
+    if ((url.hostname === 'demo.pllato.kz' || path.startsWith('/demo/')) && request.method === 'GET') {
       if (path === '/' || path === '') {
         return Response.redirect('https://pllato.kz/', 302);
       }
-      const logoMatch = path.match(/^\/([^/]+)\/logo\/?$/);
+      const publicPath = path.startsWith('/demo/') ? path.slice('/demo'.length) : path;
+      const logoMatch = publicPath.match(/^\/([^/]+)\/logo\/?$/);
       if (logoMatch) return handlePersonalDemoLogo(request, env, decodeURIComponent(logoMatch[1]));
-      const slugMatch = path.match(/^\/([^/]+)\/?$/);
+      const slugMatch = publicPath.match(/^\/([^/]+)\/?$/);
       if (slugMatch) return handlePersonalDemoServe(request, env, decodeURIComponent(slugMatch[1]));
     }
 
