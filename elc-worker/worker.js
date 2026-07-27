@@ -2751,8 +2751,7 @@ const DEMO_READY_STAGE_RE = /демо\s*готов/i;
 const LPR_FOUND_STAGE_RE = /лпр\s*найден/i;
 const DEMO_TOKEN_TTL_DAYS = 30;
 // Пока DNS pllato.kz обслуживается Hoster.kz, используем рабочий адрес Worker.
-// После делегирования demo.pllato.kz в Cloudflare меняется только эта константа.
-const DEMO_PUBLIC_ORIGIN = 'https://pllato-elc-worker.uurraa.workers.dev/demo';
+const DEMO_PUBLIC_ORIGIN = 'https://demo.pllato.kz';
 
 let _demosTableEnsured = false;
 async function ensureDemosTable(env) {
