@@ -3371,11 +3371,17 @@ async function handleDealStageChange(request, env, dealId) {
   let isDemoBuildStage = false;
   let isLprFoundStage = false;
   try {
-    const pipRow = await env.DB.prepare("SELECT stages FROM pipelines WHERE id = ?").bind(pipelineId).first();
+    const pipRow = await env.DB.prepare("SELECT name, stages FROM pipelines WHERE id = ?").bind(pipelineId).first();
     if (pipRow && pipRow.stages) {
       const st = JSON.parse(pipRow.stages);
       const nm = (st && st[stageId] && st[stageId].name) || '';
-      if (DEMO_BUILD_STAGE_RE.test(nm)) isDemoBuildStage = true;
+      // У импортированной воронки системный id этого этапа — LOST. Не
+      // полагаемся только на текстовое имя: старый код/кэш мог сохранить
+      // вариант названия, который не совпадает с регулярным выражением.
+      if (
+        DEMO_BUILD_STAGE_RE.test(nm)
+        || (String(pipRow.name || '').trim().toLowerCase() === 'лидген' && stageId === 'LOST')
+      ) isDemoBuildStage = true;
       if (LPR_FOUND_STAGE_RE.test(nm)) isLprFoundStage = true;
     }
   } catch {}
