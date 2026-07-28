@@ -1647,8 +1647,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v407';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v399';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v408';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v400';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -1865,6 +1865,37 @@ const LK_BIO_A=/^(?:Вр\d+\s+)?(гр\.?\s*\d+)\s*-\s*[\d.,]+-[\d.,]+-[\d.,]+-(\
 // вариант Boulevard (BuharJ/EON): сечение в СКОБКАХ, труба «Тг-N» — «Гр.1-0,038-0,9-0,2-200 7,6-3-ВВГнг-LS (3х2,5) Тг-20»
 const LK_BIO_A2=/^(Гр\.?\s*\d+)\s*-\s*[\d.,]+-[\d.,]+-[\d.,]+-(\d+)\s+[\d.,]+\s*-\s*[\d.,]+\s*-\s*(А?[сcС]?ВВГ[А-Яа-яёA-Za-z()\-]*?)\s*\(\s*(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?)\s*\)\s*(?:Тг|Тр|Г|гофра)?\s*[-–]?\s*(\d*)/i;
 const LK_BIO_B=/^(Гр\.?\s*\d+)\s*-\s*(А?[сcС]?ВВГ[а-яёА-ЯA-Za-z()\-]*?)\s+(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?)\s*м?\s*гофра\s*-\s*(\d+)/i;
+/* Boulevard / BuharJ: часть повёрнутых паспортов РАЗНЕСЕНА на три параллельных item:
+   «Гр.1; 1,0-0,8-5,7-» + «АсВВГнгLS-3х2,5» + «20м ПНД-Ø25мм-».
+   Связываем только эту узкую тройку: специфичная расчётная голова, марка без своей длины,
+   длина с обязательным началом подписи трубы; все три элемента одной ориентации и стоят
+   последовательными близкими колонками. Голые числа рядом никогда не используем. */
+const LK_BOULEVARD_HEAD=/^(Гр\.?\s*\d+(?:[А-ЯA-Z])?)\s*[;,]\s*[\d.,]+\s*-\s*[\d.,]+\s*-\s*[\d.,]+\s*-\s*$/i;
+const LK_BOULEVARD_LEN=/^\s*(\d+(?:[.,]\d+)?)\s*м\s*$/i;
+const LK_BOULEVARD_PIPE=/^(?:ПНД|П\.?Н\.?Д\.?|Тг|Тр|гофра)/i;
+function lkParseBoulevardSplit(items){
+  const rows=[];
+  const it=items.map(o=>({s:lkFixEnc(o.str||'').replace(/\s+/g,' ').trim(),
+    x:o.transform[4],y:o.transform[5],v:Math.abs(o.transform[1])>Math.abs(o.transform[0])})).filter(o=>o.s);
+  it.forEach(h=>{const hm=h.s.match(LK_BOULEVARD_HEAD);if(!hm)return;
+    let best=null,score=1e9;
+    it.forEach(m=>{LK_LEN_DASH.lastIndex=0;const hasOwnLen=LK_LEN_DASH.test(m.s);LK_LEN_DASH.lastIndex=0;
+      if(m===h||m.v!==h.v||!LK_MARK.test(m.s)||!LK_SECT.test(m.s)||hasOwnLen)return;
+      const dx1=m.x-h.x,ad1=Math.abs(dx1),along1=Math.abs(m.y-h.y);if(ad1<8||ad1>38||along1>12)return;
+      it.forEach(l=>{if(l===h||l===m||l.v!==h.v)return;const lm=l.s.match(LK_BOULEVARD_LEN);if(!lm)return;
+        const dx2=l.x-m.x,ad2=Math.abs(dx2),along2=Math.abs(l.y-m.y);
+        if(ad2<5||ad2>24||along2>12||dx1*dx2<=0)return;
+        const pipe=it.some(p=>p!==l&&p.v===l.v&&LK_BOULEVARD_PIPE.test(p.s)&&Math.abs(p.x-l.x)<3&&Math.abs(p.y-l.y)<40);
+        if(!pipe)return;
+        const sc=ad1+ad2+along1+along2;if(sc<score){score=sc;best={m,l,lm};}});
+    });
+    if(!best)return;const sm=best.m.s.match(LK_SECT),L=parseFloat(best.lm[1].replace(',','.'));
+    if(!(L>0&&L<=300))return;
+    rows.push({group:hm[1].replace(/\s+/g,''),mark:lkMarkName(best.m.s),
+      section:sm[1]+'x'+sm[2].replace('.',','),len:L,conds:[],x:best.m.x,y:best.m.y,mult:1});
+  });
+  return rows;
+}
 function lkParseBio(items){
   const rows=[];
   lkClusters(items).forEach(c=>{
@@ -2402,6 +2433,9 @@ async function lkExtract(data,onProgress,scope){
     // Биографи (одна подпись-кластер): добираем, чего штатные парсеры не взяли; спец-токены
     // «гофра»/«-Гдиаметр» гарантируют, что на других стилях ветка не срабатывает
     lkParseBio(tc.items).forEach(r=>{if(!rows.some(o=>o.x&&Math.abs(o.x-r.x)<8&&Math.abs((o.y||0)-r.y)<8))rows.push(r);});
+    // Boulevard/BuharJ: группа, марка/сечение и длина разнесены по трём соседним item.
+    lkParseBoulevardSplit(tc.items).forEach(r=>{const old=rows.find(o=>o.x&&Math.abs(o.x-r.x)<8&&Math.abs((o.y||0)-r.y)<8);
+      if(old&&!(+old.len>0)){Object.assign(old,r,{needsCheck:false});}else if(!old)rows.push(r);});
     // Арена Парк: паспорт М-стояка из двух элементов (голова+хвост) по сырым items
     lkParseBioM(tc.items).forEach(r=>{if(!rows.some(o=>o.x&&Math.abs(o.x-r.x)<12&&Math.abs((o.y||0)-r.y)<12))rows.push(r);});
     // контрольные кабели с длиной строкой ниже (Арена Парк л.17): пара строго геометрическая,
