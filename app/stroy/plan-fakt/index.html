@@ -353,6 +353,11 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-mk.warn{background:rgba(192,57,43,.7);box-shadow:0 0 0 1px rgba(192,57,43,.95);}
 .lk-mk.illeg{width:20px;height:20px;background:#c0392b;border:3px solid #fff;box-shadow:0 0 0 2px #c0392b,0 0 8px 2px rgba(192,57,43,.6);font-size:12px;z-index:4;}
 .lk-illeg-lbl{position:absolute;transform:translate(-50%,10px);background:#c0392b;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px;white-space:nowrap;pointer-events:none;z-index:4;box-shadow:0 1px 4px rgba(0,0,0,.3);}
+.lk-busy{position:fixed;inset:0;z-index:300;background:rgba(15,26,42,.55);display:flex;align-items:center;justify-content:center;}
+.lk-busy-card{background:#fff;border-radius:16px;padding:22px 28px;display:flex;flex-direction:column;align-items:center;gap:8px;box-shadow:0 10px 40px rgba(0,0,0,.3);max-width:320px;text-align:center;}
+.lk-busy-card b{font-size:15px;}.lk-busy-card span{font-size:12px;color:var(--muted);}
+.lk-spin2{width:34px;height:34px;border:4px solid #e3e8ef;border-top-color:var(--steel);border-radius:50%;animation:lkSpin 0.9s linear infinite;margin-bottom:4px;}
+@keyframes lkSpin{to{transform:rotate(360deg);}}
 .lg-row.warn{border-color:#e0b0a8!important;box-shadow:inset 3px 0 0 #c0392b;}
 .lk-recheck{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:#c0392b;background:#fdecea;border:1px solid #f5c6c0;border-radius:6px;padding:2px 7px;white-space:nowrap;}
 .lg-row.hl{border-color:var(--amber)!important;box-shadow:0 0 0 2px rgba(217,131,36,.35);}
@@ -1642,7 +1647,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v404';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v405';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v399';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2847,29 +2852,40 @@ function lkVisionCost(u){if(!u)return null;const c=(u.input_tokens||0)*2e-6+(u.o
 async function lkVisionSheet(){
   if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}
   const pg=LK.pages[LK.sel];if(!pg){toast('Нет листа');return;}
-  const btn=$('lkVisSheet');if(btn)btn.disabled=true;
-  toast('Рисую лист и показываю ИИ… (~10–30 сек)');
+  const btn=$('lkVisSheet');if(btn){btn.disabled=true;btn.dataset.t=btn.textContent;btn.textContent='👁 читаю лист…';}
+  lkBusy('👁 Рисую лист и показываю ИИ…','это 10–40 секунд, не закрывай');
   try{
     const img=await lkAreaImage(pg,{x0:0,y0:0,x1:1,y1:1},2200);
-    if(!img){toast('Не удалось отрисовать лист');if(btn)btn.disabled=false;return;}
+    if(!img){lkBusy(false);toast('Не удалось отрисовать лист — подожди, пока прорисуется картинка, и повтори');if(btn){btn.disabled=false;btn.textContent=btn.dataset.t;}return;}
+    lkBusy('👁 ИИ читает лист…','обычно 10–30 секунд');
     const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
-    const r=await fetch(LK_AI+'/vision',{method:'POST',headers:{'content-type':'application/json'},
-      body:JSON.stringify({image:img,file:name,page:pg.page})});
-    const d=await r.json();if(btn)btn.disabled=false;
+    const ac=new AbortController();const to=setTimeout(()=>ac.abort(),120000);   // не висеть дольше 2 минут
+    let d;try{const r=await fetch(LK_AI+'/vision',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({image:img,file:name,page:pg.page}),signal:ac.signal});d=await r.json();}
+    finally{clearTimeout(to);}
+    lkBusy(false);if(btn){btn.disabled=false;btn.textContent=btn.dataset.t;}
     if(d.error){toast('Не вышло: '+d.error);return;}
     const rows=(d.rows||[]).filter(x=>x&&x.section);
     if(!rows.length){toast('ИИ не увидел кабельных линий на этом листе');return;}
-    // помечаем прежние «зрение»-строки этого листа и заменяем (повторный прогон не дублирует)
+    // прежние «зрение»-строки заменяем (повтор не дублирует)
     pg.rows=pg.rows.filter(r=>r._src!=='vision');pg.groups=pg.groups.filter(g=>g.name!=='👁 по картинке (весь лист)');
-    let noLen=0;rows.forEach(x=>{const L=+x.len||0;if(!(L>0))noLen++;
+    // расставляем ВИДИМЫЕ точки сеткой, чтобы результат было видно на схеме
+    const n=rows.length,cols=Math.ceil(Math.sqrt(n*1.6));
+    let noLen=0;rows.forEach((x,i)=>{const L=+x.len||0;if(!(L>0))noLen++;
+      const cx=0.08+0.84*((i%cols)/Math.max(1,cols-1)),cy=0.10+0.80*(Math.floor(i/cols)/Math.max(1,Math.ceil(n/cols)-1));
       const row={_id:'r'+(_lkVid++),page:pg.page,group:x.group||'—',mark:x.mark||'',section:String(x.section).replace('.',','),
-        len:L,conds:[],mult:1,needsCheck:!(L>0),_src:'vision'};
+        len:L,conds:[],mult:1,needsCheck:!(L>0),_src:'vision',mx:cx,my:cy};
       pg.rows.push(row);LK.byId[row._id]=row;pg.groups.push({name:'👁 по картинке (весь лист)',rows:[row]});});
     LK.view='pages';renderLineyka();lkPersist();
     const cost=lkVisionCost(d._usage);
-    toast('Прочитано зрением: '+rows.length+' линий'+(noLen?(' · у '+noLen+' нет длины (красные «впишите»)'):'')+(cost?(' · ≈'+cost+'¢'):''));
-  }catch(e){if(btn)btn.disabled=false;toast('Сеть недоступна: '+(e&&e.message||e));}
+    toast('✓ Прочитано зрением: '+rows.length+' линий'+(noLen?(' · у '+noLen+' нет длины (красные «впишите»)'):'')+(cost?(' · ≈'+cost+'¢'):''));
+  }catch(e){lkBusy(false);if(btn){btn.disabled=false;btn.textContent=btn.dataset.t;}toast('Не получилось: '+(e&&e.message||e));}
 }
+/* стойкий индикатор долгой операции (зрение 10–40с): тост исчезает за 2.6с — этого мало */
+function lkBusy(title,sub){let el=$('lkBusy');
+  if(title===false){if(el)el.remove();return;}
+  if(!el){el=document.createElement('div');el.id='lkBusy';el.className='lk-busy';($('lineyka')||document.body).appendChild(el);}
+  el.innerHTML=`<div class="lk-busy-card"><div class="lk-spin2"></div><b>${esc(title)}</b>${sub?`<span>${esc(sub)}</span>`:''}</div>`;}
 function lkTeachStart(){
   if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}
   const pg=LK.pages[LK.sel];if(!pg){toast('Нет листа');return;}
