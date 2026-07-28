@@ -1638,8 +1638,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v391';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v391';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v392';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v392';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -1874,6 +1874,31 @@ function lkParseBio(items){
       rows.push({group:m[1].replace(/\s+/g,'').replace('.',''),mark:lkMarkName(m[2]),
         section:m[3]+'x'+m[4].replace('.',','),len:0,
         conds:[{t:'гофра'+m[5],len:0}],x:c.x,y:c.y,mult:1,needsCheck:true});}
+  });
+  return rows;
+}
+/* Арена Парк (TAIMAS-M): паспорт М-стояка РАЗОРВАН на ДВА элемента, стоящих рядом (та же высота):
+   голова «М1.3 - 4,0- 0,9 -6,8 -15» (группа-Pp-cosφ-I-ДЛИНА) + хвост «60,0 - 0,21 - ВВГнгLS 5х4»
+   (момент-ΔU- марка сечение). Кластеризация склеивает голову с блоком автоматов, поэтому парой
+   их не собрать через lkClusters — работаем по СЫРЫМ элементам. Голова = ОДНА буква+цифра
+   («М1.3», «М4», «К1», «К4»), затем 4 числа через дефис, последнее — ДЛИНА (целое). Ровно одна
+   буква важна: 2435 «МА1…» (две буквы) и ФА «Л:…» не подходят. Сверка: момент = Pp×L. */
+const LK_BIOM_H=/^([А-ЯA-Zа-яa-z]\d+(?:[.,]\d+)?)\s*-\s*[\d.,]+\s*-\s*[\d.,]+\s*-\s*[\d.,]+\s*-\s*(\d+)\s*$/;
+const LK_BIOM_T=/^[\d.,]+\s*-\s*[\d.,]+\s*-\s*(А?[сcС]?ВВГ[А-Яа-яёA-Za-z()\-]*?)\s*[- ]\s*(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?)/i;
+function lkParseBioM(items){
+  const rows=[];
+  const it=items.map(o=>({s:lkFixEnc(o.str||'').trim(),x:o.transform[4],y:o.transform[5]})).filter(o=>o.s);
+  const heads=it.filter(o=>LK_BIOM_H.test(o.s));
+  heads.forEach(h=>{
+    const hm=h.s.match(LK_BIOM_H);const L=+hm[2];
+    // ближайший хвост (та же высота ±6, x рядом ±90) — голова и хвост стоят колонкой на одной y
+    let best=null,bd=90,tm=null;
+    it.forEach(o=>{if(o===h||Math.abs(o.y-h.y)>6)return;const d=Math.abs(o.x-h.x);if(d>=bd)return;
+      const m=o.s.match(LK_BIOM_T);if(m){bd=d;best=o;tm=m;}});
+    if(!best)return;
+    rows.push({group:hm[1].replace(/^M/,'М'),mark:lkMarkName(tm[1]),
+      section:tm[2]+'x'+tm[3].replace('.',','),len:(L>0&&L<=300)?L:0,
+      conds:[],x:h.x,y:h.y,mult:1,needsCheck:!(L>0&&L<=300)});
   });
   return rows;
 }
@@ -2276,6 +2301,8 @@ async function lkExtract(data,onProgress){
     // Биографи (одна подпись-кластер): добираем, чего штатные парсеры не взяли; спец-токены
     // «гофра»/«-Гдиаметр» гарантируют, что на других стилях ветка не срабатывает
     lkParseBio(tc.items).forEach(r=>{if(!rows.some(o=>o.x&&Math.abs(o.x-r.x)<8&&Math.abs((o.y||0)-r.y)<8))rows.push(r);});
+    // Арена Парк: паспорт М-стояка из двух элементов (голова+хвост) по сырым items
+    lkParseBioM(tc.items).forEach(r=>{if(!rows.some(o=>o.x&&Math.abs(o.x-r.x)<12&&Math.abs((o.y||0)-r.y)<12))rows.push(r);});
     // по-фидерно неполно (голая длина/векторные подписи) + есть авторская таблица «Потребность в кабелях»:
     // добираем ВСЕ марки-фидеры отдельными строками с точками; длина ненадёжна → needsCheck (красная точка).
     const ctab=lkParseCableTable(tc.items);let potrebOv=null;
