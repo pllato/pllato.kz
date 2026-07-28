@@ -1641,7 +1641,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v402';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v403';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v399';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2878,11 +2878,10 @@ function lkTeachPanel(pg,rect,clusters){
   wrap.innerHTML=`<div class="lk-iss-box"><div class="lk-iss-head"><b>🎓 Научить читать</b><span class="lk-iss-sub">лист ${pg.page} · найдено подписей: ${clusters.length}</span><button class="lg-x" id="lkTcX">✕</button></div>
     <div class="lk-iss-list" id="lkTcList">${clusters.length?`<div class="lk-iss-cap">Это ТЕКСТ, найденный в обведённой области — ${clusters.length} ${lkPlural(clusters.length,'подпись','подписи','подписей')}, по одной на каждую линию схемы. Не правки: правило из них получится ОДНО.</div>`+clusters.slice(0,20).map((c,i)=>`<div class="lk-iss"><span class="pg">${i+1}</span><span class="tx" style="font-family:var(--mono);font-size:11px">${esc(c.s.slice(0,150))}</span></div>`).join(''):'<div class="lk-iss-empty">В этой области нет текста — возможно, это картинка/скан. Обведи участок с подписями.</div>'}</div>
     <div class="lk-iss-add"><textarea id="lkTcHint" rows="3" placeholder="Подсказка не обязательна — ИИ читает сам. Впиши что-то, только если он ошибётся: например «длина — последнее целое число» или «имя потребителя слева от марки»."></textarea>
-      <div class="lk-iss-actions"><button class="lk-add" id="lkTcGo" ${clusters.length?'':'disabled'}>🤖 Прочитать заново</button>
-      <button class="lk-add" id="lkTcVision" title="ИИ посмотрит на сам чертёж картинкой и прочитает как человек — для битого/нечитаемого текста">👁 Прочитать по картинке</button>
+      <div class="lk-iss-actions"><button class="lk-add" id="lkTcGo" ${clusters.length?'':'disabled'} title="ИИ разберёт ТЕКСТ и запомнит ПРАВИЛО — дальше программа читает похожие листы сама, без интернета">🤖 Прочитать текст и внести правило</button>
+      <button class="lk-add" id="lkTcVision" title="ИИ посмотрит на сам чертёж КАРТИНКОЙ и прочитает как человек — для битого/нечитаемого текста; это разово, для этого участка">👁 Прочитать зрением (один раз)</button>
       <button class="lk-add" id="lkTcApply" style="display:none;border-color:#2f7d4f;color:#2f7d4f">✓ Применить и запомнить</button>
-      <button class="lk-add" id="lkTcMark" style="border-color:#c0392b;color:#c0392b" title="Поставить на этом месте жирную красную точку «длина не проставлена — неразборчиво»">📍 Неразборчиво</button>
-      <span class="lk-note" id="lkTcNote">Текст области → ИИ. «По картинке» — отправит картинку участка (не весь файл).</span></div></div></div>`;
+      <span class="lk-note" id="lkTcNote">Текст → правило (запомнится). Зрение → читает картинку участка один раз (в ИИ уходит только картинка, не весь файл).</span></div></div></div>`;
   ($('lineyka')||document.body).appendChild(wrap);
   const close=()=>wrap.remove();
   $('lkTcX').onclick=close;
@@ -2965,15 +2964,6 @@ function lkTeachPanel(pg,rect,clusters){
           toast('Добавлено линий: '+n+(noLen?(' · у '+noLen+' нет длины — красные точки «впишите длину»'):' — проверь длины со схемой'));};
       }
     }catch(e){note.textContent='Сеть недоступна: '+(e&&e.message||e);btn.disabled=false;$('lkTcGo').disabled=false;}
-  };
-  // МЕТКА «неразборчиво»: жирная красная точка + подпись, длина не проставлена
-  $('lkTcMark').onclick=()=>{
-    const cx=(rect.x0+rect.x1)/2,cy=(rect.y0+rect.y1)/2;
-    const row={_id:'r'+(_lkVid++),page:pg.page,group:'⚠ неразборчиво',mark:'(не читается)',section:'?',
-      len:0,conds:[],mult:1,needsCheck:true,illegible:true,mx:cx,my:cy};
-    pg.rows.push(row);LK.byId[row._id]=row;pg.groups.push({name:'⚠ неразборчиво',rows:[row]});
-    LK.issues.push({page:pg.page,text:'⚠ Неразборчиво — длина не проставлена',rect,ts:Date.now()});
-    close();LK.view='pages';renderLineyka();lkPersist();toast('Помечено: длина не проставлена — неразборчиво');
   };
   // главное — выделить участок; читает ИИ сам. Разбор стартует СРАЗУ, без нажатия кнопки
   // (кнопка остаётся — на случай, если сотрудник вписал подсказку и хочет перечитать)
