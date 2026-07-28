@@ -1647,7 +1647,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v405';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v406';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v399';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2869,16 +2869,29 @@ async function lkVisionSheet(){
     if(!rows.length){toast('ИИ не увидел кабельных линий на этом листе');return;}
     // прежние «зрение»-строки заменяем (повтор не дублирует)
     pg.rows=pg.rows.filter(r=>r._src!=='vision');pg.groups=pg.groups.filter(g=>g.name!=='👁 по картинке (весь лист)');
-    // расставляем ВИДИМЫЕ точки сеткой, чтобы результат было видно на схеме
+    // ПОЗИЦИИ ПОДПИСЕЙ ЛИСТА: имена линеек (Гр.1, СТ1, ЩС…) в тексте стоят на СВОИХ местах —
+    // ставим точку у подписи, совпавшей с именем строки (норм.: убрать пробелы/точки, ц→с)
+    const nrm=s=>String(s).replace(/[\s.()\-;:]/g,'').toLowerCase().replace(/ц/g,'с');
+    let labels=[];
+    try{let pdf=LK.pdf;if(!pdf&&LK.docId){const rc=await archGet(LK.docId);if(rc&&rc.buf)pdf=await pdfjsLib.getDocument({data:rc.buf.slice(0)}).promise;}
+      if(pdf){const page=await pdf.getPage(pg.page);const tc=await page.getTextContent();const v=page.getViewport({scale:1});
+        tc.items.forEach(it=>{const s=lkFixEnc(it.str||'').trim();if(!s||s.length>16)return;if(!/[А-ЯЁA-Z].*\d|\d/.test(s))return;
+          const q=v.convertToViewportPoint(it.transform[4],it.transform[5]);labels.push({n:nrm(s),mx:q[0]/v.width,my:q[1]/v.height,used:false});});}
+    }catch(e){}
+    const findPos=g=>{const gn=nrm(g);if(!gn)return null;
+      let l=labels.find(o=>!o.used&&o.n===gn);                         // точное совпадение имени
+      if(!l)l=labels.find(o=>!o.used&&o.n.length>2&&(o.n.indexOf(gn)>=0||gn.indexOf(o.n)>=0));  // вложение
+      if(l){l.used=true;return [l.mx,l.my];}return null;};
     const n=rows.length,cols=Math.ceil(Math.sqrt(n*1.6));
-    let noLen=0;rows.forEach((x,i)=>{const L=+x.len||0;if(!(L>0))noLen++;
-      const cx=0.08+0.84*((i%cols)/Math.max(1,cols-1)),cy=0.10+0.80*(Math.floor(i/cols)/Math.max(1,Math.ceil(n/cols)-1));
+    let noLen=0,placed=0;rows.forEach((x,i)=>{const L=+x.len||0;if(!(L>0))noLen++;
+      const p=findPos(x.group||'');if(p)placed++;
+      const g=p||[0.06+0.88*((i%cols)/Math.max(1,cols-1)),0.10+0.80*(Math.floor(i/cols)/Math.max(1,Math.ceil(n/cols)-1))];
       const row={_id:'r'+(_lkVid++),page:pg.page,group:x.group||'—',mark:x.mark||'',section:String(x.section).replace('.',','),
-        len:L,conds:[],mult:1,needsCheck:!(L>0),_src:'vision',mx:cx,my:cy};
+        len:L,conds:[],mult:1,needsCheck:!(L>0),_src:'vision',mx:g[0],my:g[1]};
       pg.rows.push(row);LK.byId[row._id]=row;pg.groups.push({name:'👁 по картинке (весь лист)',rows:[row]});});
     LK.view='pages';renderLineyka();lkPersist();
     const cost=lkVisionCost(d._usage);
-    toast('✓ Прочитано зрением: '+rows.length+' линий'+(noLen?(' · у '+noLen+' нет длины (красные «впишите»)'):'')+(cost?(' · ≈'+cost+'¢'):''));
+    toast('✓ Прочитано зрением: '+rows.length+' линий'+(placed?(' · '+placed+' у своих линеек'):'')+(noLen?(' · у '+noLen+' нет длины (красные «впишите»)'):'')+(cost?(' · ≈'+cost+'¢'):''));
   }catch(e){lkBusy(false);if(btn){btn.disabled=false;btn.textContent=btn.dataset.t;}toast('Не получилось: '+(e&&e.message||e));}
 }
 /* стойкий индикатор долгой операции (зрение 10–40с): тост исчезает за 2.6с — этого мало */
