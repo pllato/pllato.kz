@@ -1638,8 +1638,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v394';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v394';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v395';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v395';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2299,6 +2299,19 @@ function lkRuleRow(rule,F,s,x,y){
     mark:(F.mk&&(F.mk.exec(s)||[])[1]||'').trim()||lkMarkName(s),
     section:sm[1]+'x'+String(sm[2]).replace('.',','),len:L,conds,x,y,mult:1,_rule:rule.id||1};
 }
+/* сырьё → СТРОКИ: бакеты по высоте (шаг 6пт), внутри — слева направо (разрыв x>140 = новая
+   строка). Так осколки одной подписи склеиваются в правильном порядке, а схемный шум с других
+   высот остаётся отдельной строкой. Общая для движка правил и для показа ИИ. */
+function lkItemLines(raw){
+  const R=(raw||[]).map(o=>({s:(o.s!=null?o.s:lkFixEnc(o.str||'')).trim(),
+    x:o.x!=null?o.x:(o.transform?o.transform[4]:0),y:o.y!=null?o.y:(o.transform?o.transform[5]:0)})).filter(o=>o.s);
+  const bnd={};R.forEach(o=>{const b=Math.round(o.y/6);(bnd[b]=bnd[b]||[]).push(o);});
+  const lines=[];
+  Object.keys(bnd).map(Number).sort((a,b)=>b-a).forEach(b=>{
+    const arr=bnd[b].sort((a,c)=>a.x-c.x);let cur=null,px=null;
+    arr.forEach(o=>{if(cur&&o.x-px<140){cur.s+=' '+o.s;px=o.x;}else{cur={s:o.s,x:o.x,y:o.y};lines.push(cur);px=o.x;}});});
+  return lines;
+}
 function lkRuleRows(clusters,rules,items){
   const rows=[];if(!rules||!rules.length)return rows;
   const rx=(p,f)=>{try{return p?new RegExp(String(p).slice(0,400),f||''):null;}catch(e){return null;}};
@@ -2307,15 +2320,17 @@ function lkRuleRows(clusters,rules,items){
   rules.forEach(rule=>{
     const F=lkRuleFields(rule);if(!F.sec||!F.len)return;
     if(rule.pair&&(rule.head||rule.test)&&raw.length){
-      // ГЕОМЕТРИЧЕСКОЕ правило — по сырым элементам
+      // ГЕОМЕТРИЧЕСКОЕ правило. Сначала собираем сырьё в СТРОКИ (элементы с почти равным y,
+      // слева направо) — так осколки одной подписи склеиваются, а схемный шум с других высот
+      // остаётся отдельно. Затем ищем пару строк: 'below' — строка ниже; 'same-line' — подпись
+      // уже собралась в ОДНУ строку (пара не нужна, поля берём из неё).
+      const lines=lkItemLines(raw);
       const hRx=rx(rule.head||rule.test),pRx=rule.partner?rx(rule.partner):null;if(!hRx)return;
-      raw.forEach(h=>{if(!hRx.test(h.s))return;
-        let best=null,bd;
-        if(rule.pair==='below'||rule.pair==='above'){bd=64;raw.forEach(o=>{if(o===h)return;
-          const dy=rule.pair==='below'?h.y-o.y:o.y-h.y;if(dy<4||dy>24)return;const dx=Math.abs(o.x-h.x);
+      lines.forEach(h=>{if(!hRx.test(h.s))return;
+        let best=null;
+        if(rule.pair==='below'||rule.pair==='above'){let bd=90;lines.forEach(o=>{if(o===h)return;
+          const dy=rule.pair==='below'?h.y-o.y:o.y-h.y;if(dy<4||dy>26)return;const dx=Math.abs(o.x-h.x);
           if(dx<bd&&(!pRx||pRx.test(o.s))){bd=dx;best=o;}});}
-        else{bd=140;raw.forEach(o=>{if(o===h||Math.abs(o.y-h.y)>6)return;const dx=Math.abs(o.x-h.x);
-          if(dx<bd&&dx>0&&(!pRx||pRx.test(o.s))){bd=dx;best=o;}});}  // 'same-line' (по умолчанию)
         const s=best?(h.s+' '+best.s):h.s;
         const row=lkRuleRow(rule,F,s,h.x,h.y);if(row)rows.push(row);
       });
@@ -2729,11 +2744,22 @@ async function lkAreaClusters(pg,rect){
   const v0=page.getViewport({scale:1});
   const all=lkClusters(tc.items);
   pg._tcl=all;   // подписи ВСЕГО листа — из них lkTeachSamples берёт опорные примеры для ИИ
-  const inRect=(x,y)=>{const q=v0.convertToViewportPoint(x,y);const mx=q[0]/v0.width,my=q[1]/v0.height;
-    return mx>=rect.x0-0.01&&mx<=rect.x1+0.01&&my>=rect.y0-0.02&&my<=rect.y1+0.02;};
-  const out=all.filter(c=>inRect(c.x,c.y));
-  // сырые элементы области — нужны для ГЕОМЕТРИЧЕСКИХ правил (голова+партнёр) в предпросмотре
-  out.items=tc.items.filter(it=>inRect(it.transform[4],it.transform[5]));
+  const nrm=(x,y)=>{const q=v0.convertToViewportPoint(x,y);return [q[0]/v0.width,q[1]/v0.height];};
+  const inPad=(x,y,p)=>{const[mx,my]=nrm(x,y);return mx>=rect.x0-p&&mx<=rect.x1+p&&my>=rect.y0-p&&my<=rect.y1+p;};
+  // ПРОЩАЮЩАЯ обводка: если в рамке пусто — расширяем поле, потом берём ближайшую подпись к центру.
+  // Достаточно обвести ПРИМЕРНО (частая жалоба «нет текста на выделенном» — подпись рядом, не внутри).
+  let pad=0.012,out=all.filter(c=>inPad(c.x,c.y,pad));
+  if(!out.length)for(const p of [0.05,0.11,0.18]){out=all.filter(c=>inPad(c.x,c.y,p));if(out.length){pad=p;break;}}
+  // всё ещё пусто (обвёл схему/пустое место): берём ближайшую подпись С МАРКОЙ кабеля к центру
+  // рамки — обычно это и есть то, что не прочиталось. Достаточно ткнуть рядом.
+  if(!out.length&&all.length){const cx=(rect.x0+rect.x1)/2,cy=(rect.y0+rect.y1)/2;
+    const cable=c=>LK_MARK.test(c.s)&&/\d/.test(c.s);
+    let best=null,bd=0.55;all.forEach(c=>{if(!cable(c))return;const[mx,my]=nrm(c.x,c.y);const d=Math.hypot(mx-cx,my-cy);if(d<bd){bd=d;best=c;}});
+    if(!best){bd=0.35;all.forEach(c=>{const[mx,my]=nrm(c.x,c.y);const d=Math.hypot(mx-cx,my-cy);if(d<bd){bd=d;best=c;}});}
+    if(best){out=[best];pad=0.14;}}
+  // сырые элементы (с запасом ≥6%) — для ГЕОМЕТРИЧЕСКИХ правил нужны соседи головы/партнёра
+  const ip=Math.max(pad,0.06);
+  out.items=tc.items.filter(it=>inPad(it.transform[4],it.transform[5],ip));
   return out;
 }
 function lkTeachStart(){
@@ -2788,13 +2814,14 @@ function lkTeachPanel(pg,rect,clusters){
     try{
       const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
       const ask=async extra=>{
-        // сырые элементы области (с координатами) — по ним ИИ видит РАЗОРВАННЫЕ подписи
-        // (голова+хвост на одной высоте, длина строкой ниже) и может вернуть геометрическое правило
-        const items=(clusters.items||[]).slice(0,60).map(it=>({s:lkFixEnc(it.str||'').trim(),
+        // сырые элементы области (с координатами) + собранные СТРОКИ — по строкам ИИ видит
+        // РАЗОРВАННЫЕ подписи (голова+хвост, длина строкой ниже) и пишет геометрическое правило
+        const items=(clusters.items||[]).slice(0,80).map(it=>({s:lkFixEnc(it.str||'').trim(),
           x:Math.round(it.transform[4]),y:Math.round(it.transform[5])})).filter(o=>o.s);
+        const lines=lkItemLines(items).slice(0,40).map(l=>l.s);
         const r=await fetch(LK_AI+'/teach',{method:'POST',headers:{'content-type':'application/json'},
           body:JSON.stringify({hint:(($('lkTcHint').value||'')+' '+(extra||'')).trim(),clusters:clusters.map(c=>c.s),
-            items,file:name,page:pg.page,samples:lkTeachSamples(pg,clusters)})});
+            items,lines,file:name,page:pg.page,samples:lkTeachSamples(pg,clusters)})});
         return r.json();
       };
       const bad=d=>!d||d.error||!d.rule||typeof d.rule!=='object';
