@@ -1638,8 +1638,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v396';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v396';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v397';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v397';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2326,24 +2326,37 @@ function lkRuleRows(clusters,rules,items){
   const raw=(items||[]).map(o=>({s:lkFixEnc(o.str!=null?o.str:(o.s||'')).trim(),
     x:o.transform?o.transform[4]:o.x,y:o.transform?o.transform[5]:o.y})).filter(o=>o.s&&o.x!=null);
   rules.forEach(rule=>{
-    const F=lkRuleFields(rule);if(!F.sec||!F.len)return;
+    const F=lkRuleFields(rule);
     if(rule.pair&&(rule.head||rule.test)&&raw.length){
-      // ГЕОМЕТРИЧЕСКОЕ правило. Сначала собираем сырьё в СТРОКИ (элементы с почти равным y,
-      // слева направо) — так осколки одной подписи склеиваются, а схемный шум с других высот
-      // остаётся отдельно. Затем ищем пару строк: 'below' — строка ниже; 'same-line' — подпись
-      // уже собралась в ОДНУ строку (пара не нужна, поля берём из неё).
+      // ГЕОМЕТРИЧЕСКОЕ правило. Сырьё → СТРОКИ (осколки подписи склеены, схемный шум с других
+      // высот отдельно). Партнёра к голове ищем В ЛЮБУЮ сторону — рядом на той же высоте, ниже
+      // или выше: ИИ иногда путает направление (пишет same-line, а марка строкой ниже). Партнёр —
+      // строка с маркой кабеля (по partner-regex, иначе по LK_MARK). Голову склеиваем с ним и
+      // тянем поля универсально (см. lkRuleRow). Так правило не рушится от неточностей ИИ.
       const lines=lkItemLines(raw);
       const hRx=rx(rule.head||rule.test),pRx=rule.partner?rx(rule.partner):null;if(!hRx)return;
       lines.forEach(h=>{if(!hRx.test(h.s))return;
-        let best=null;
-        if(rule.pair==='below'||rule.pair==='above'){let bd=90;lines.forEach(o=>{if(o===h)return;
-          const dy=rule.pair==='below'?h.y-o.y:o.y-h.y;if(dy<4||dy>26)return;const dx=Math.abs(o.x-h.x);
-          if(dx<bd&&(!pRx||pRx.test(o.s))){bd=dx;best=o;}});}
-        const s=best?(h.s+' '+best.s):h.s;
-        const row=lkRuleRow(rule,F,s,h.x,h.y);if(row)rows.push(row);
+        const cand=[];lines.forEach(o=>{if(o===h)return;const dy=Math.abs(o.y-h.y);if(dy>30)return;
+          const okP=pRx?pRx.test(o.s):LK_MARK.test(o.s);if(!okP)return;
+          cand.push({o,score:Math.abs(o.x-h.x)+(dy<=6?0:35)});});   // та же высота предпочтительнее, ближе по x
+        cand.sort((a,b)=>a.score-b.score);
+        const P=cand.length?cand[0].o.s:'';const H=h.s;   // голова / хвост раздельно
+        // ДЛИНА и ИМЯ — из ГОЛОВЫ (ИИ пишет len для неё: «последнее целое в голове»); МАРКА и
+        // СЕЧЕНИЕ — из ХВОСТА. Если хвоста нет (подпись одной строкой) — всё из головы.
+        const MS=P||H;
+        let L=null,lm=F.len&&F.len.exec(H);if(lm&&lm[1]!=null){const v=parseFloat(String(lm[1]).replace(',','.'));if(v>0)L=v;}
+        if(!(L>0)){const mm=H.match(/(\d+)\s*м(?![²2])/);if(mm)L=+mm[1];
+          else{const ints=(H.replace(LK_SECT,' ').match(/\d+/g)||[]).map(Number).filter(v=>v>=5&&v<=300);if(ints.length)L=ints[ints.length-1];}}
+        let sm=F.sec&&F.sec.exec(MS);if(!sm||sm[1]==null||sm[2]==null)sm=MS.match(LK_SECT);
+        if(!sm||!(L>0)||L>1000)return;
+        const conds=[];if(F.cnd){let m;F.cnd.lastIndex=0;while((m=F.cnd.exec(MS))&&conds.length<4)conds.push({t:lkCondName(m[1])+(m[2]||''),len:+(m[3]||0)||0});}
+        rows.push({group:(F.grp&&(F.grp.exec(H)||[])[1]||'').trim()||'—',
+          mark:(F.mk&&(F.mk.exec(MS)||[])[1]||'').trim()||lkMarkName(MS),
+          section:sm[1]+'x'+String(sm[2]).replace('.',','),len:L,conds,x:h.x,y:h.y,mult:1,_rule:rule.id||1});
       });
       return;
     }
+    if(!F.sec||!F.len)return;
     // ОБЫЧНОЕ правило — по кластеру. test — подсказка, а не приговор.
     const test=rx(rule.test);
     clusters.forEach(c=>{
