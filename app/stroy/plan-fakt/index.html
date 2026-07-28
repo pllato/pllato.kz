@@ -1638,8 +1638,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v397';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v397';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v398';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v398';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2291,17 +2291,22 @@ function lkRuleFields(rule){
   const rx=(p,f)=>{try{return p?new RegExp(String(p).slice(0,400),f||''):null;}catch(e){return null;}};
   return {mk:rx(rule.mark),sec:rx(rule.section),len:rx(rule.len),grp:rx(rule.group),cnd:rx(rule.conds,'g')};
 }
+/* ДЛИНА из строки паспорта, устойчиво к неточностям ИИ. Порядок надёжности:
+   1) число перед ФИНАЛЬНЫМ «м» — дробное тоже («207,0м»→207, «36 м»→36; не «0» из «207,0м»!);
+   2) регэксп len от ИИ; 3) (только геометрич.) последнее целое 5..300 без цифр сечения. */
+function lkRuleLen(s,F,geom){
+  const mAll=String(s).match(/(\d+(?:[.,]\d+)?)\s*м(?![²2])/g);
+  if(mAll&&mAll.length){const v=parseFloat(mAll[mAll.length-1].replace(/\s*м.*$/,'').replace(',','.'));if(v>0&&v<=5000)return v;}
+  if(F&&F.len){const lm=F.len.exec(s);if(lm&&lm[1]!=null){const v=parseFloat(String(lm[1]).replace(',','.'));if(v>0&&v<=5000)return v;}}
+  if(geom){const ints=(String(s).replace(LK_SECT,' ').match(/\d+/g)||[]).map(Number).filter(v=>v>=5&&v<=300);if(ints.length)return ints[ints.length-1];}
+  return null;
+}
 function lkRuleRow(rule,F,s,x,y){
   // УСТОЙЧИВОСТЬ: регэксп ИИ бывает чуть неточным (пробелы/якоря) — если он не сработал,
-  // включаем универсальные запасные: сечение = NxS, длина = целое перед «м» (иначе последнее
-  // целое 5..300, правило Данияра). Так ИИ достаточно верно указать РАСКЛАДКУ (pair/head).
+  // включаем универсальные запасные: сечение = NxS, длина = число перед «м».
   let sm=F.sec&&F.sec.exec(s);if(!sm||sm[1]==null||sm[2]==null)sm=s.match(LK_SECT);
-  let L=null,lm=F.len&&F.len.exec(s);if(lm&&lm[1]!=null){const v=parseFloat(String(lm[1]).replace(',','.'));if(v>0)L=v;}
-  if(!(L>0)){const mm=s.match(/(\d+)\s*м(?![²2])/);if(mm)L=+mm[1];
-    else if(rule.pair){   // фолбэк «последнее целое 5..300» — ТОЛЬКО геометрические, и без цифр сечения
-      const ints=(s.replace(LK_SECT,' ').match(/\d+/g)||[]).map(Number).filter(v=>v>=5&&v<=300);
-      if(ints.length)L=ints[ints.length-1];}}
-  if(!sm||!(L>0)||L>1000)return null;
+  const L=lkRuleLen(s,F,!!rule.pair);
+  if(!sm||!(L>0)||L>2000)return null;
   const conds=[];if(F.cnd){let m;F.cnd.lastIndex=0;while((m=F.cnd.exec(s))&&conds.length<4)conds.push({t:lkCondName(m[1])+(m[2]||''),len:+(m[3]||0)||0});}
   return {group:(F.grp&&(F.grp.exec(s)||[])[1]||'').trim()||'—',
     mark:(F.mk&&(F.mk.exec(s)||[])[1]||'').trim()||lkMarkName(s),
@@ -2344,11 +2349,9 @@ function lkRuleRows(clusters,rules,items){
         // ДЛИНА и ИМЯ — из ГОЛОВЫ (ИИ пишет len для неё: «последнее целое в голове»); МАРКА и
         // СЕЧЕНИЕ — из ХВОСТА. Если хвоста нет (подпись одной строкой) — всё из головы.
         const MS=P||H;
-        let L=null,lm=F.len&&F.len.exec(H);if(lm&&lm[1]!=null){const v=parseFloat(String(lm[1]).replace(',','.'));if(v>0)L=v;}
-        if(!(L>0)){const mm=H.match(/(\d+)\s*м(?![²2])/);if(mm)L=+mm[1];
-          else{const ints=(H.replace(LK_SECT,' ').match(/\d+/g)||[]).map(Number).filter(v=>v>=5&&v<=300);if(ints.length)L=ints[ints.length-1];}}
+        const L=lkRuleLen(H,F,true);
         let sm=F.sec&&F.sec.exec(MS);if(!sm||sm[1]==null||sm[2]==null)sm=MS.match(LK_SECT);
-        if(!sm||!(L>0)||L>1000)return;
+        if(!sm||!(L>0)||L>2000)return;
         const conds=[];if(F.cnd){let m;F.cnd.lastIndex=0;while((m=F.cnd.exec(MS))&&conds.length<4)conds.push({t:lkCondName(m[1])+(m[2]||''),len:+(m[3]||0)||0});}
         rows.push({group:(F.grp&&(F.grp.exec(H)||[])[1]||'').trim()||'—',
           mark:(F.mk&&(F.mk.exec(MS)||[])[1]||'').trim()||lkMarkName(MS),
@@ -2367,8 +2370,14 @@ function lkRuleRows(clusters,rules,items){
   });
   return rows;
 }
-async function lkExtract(data,onProgress){
+/* СЕРИЯ файла для привязки правил: ведущий номер проекта («2810_03…»→«2810») или первый токен.
+   Правило применяется только к своей серии — иначе выученное на одном стиле течёт на чужие файлы. */
+function lkRuleSeries(name){const s=String(name||'');const m=s.match(/\d{3,5}/);return m?m[0]:(s.match(/[A-Za-zА-Яа-я0-9]{3,}/)||[''])[0].toLowerCase();}
+async function lkExtract(data,onProgress,scope){
   const pdf=await pdfjsLib.getDocument({data}).promise;const N=pdf.numPages;const pages=[];let docBlocks=false;
+  // правила ТОЛЬКО своей серии: у правила должна быть серия И она входит в имя файла.
+  // Без серии (старые эксперименты) — не применяем: иначе выученное на одном стиле течёт на чужие.
+  const _scopeRules=scope==null?[]:(LK.rules||[]).filter(r=>r.series&&String(scope).includes(r.series));
   for(let p=1;p<=N;p++){if(onProgress)onProgress(p,N);
     const page=await pdf.getPage(p);const tc=await page.getTextContent();
     tc.items.forEach(it=>{if(it.str)it.str=lkFixEnc(it.str);});
@@ -2428,9 +2437,9 @@ async function lkExtract(data,onProgress){
     }
     // выученные правила (обучалка): добираем подписи, которые штатные парсеры не взяли.
     // Строку из правила добавляем только если рядом (±20пт) ещё ничего не прочитано.
-    if(LK.rules&&LK.rules.length){
+    if(_scopeRules.length){
       const cl=lkClusters(tc.items);
-      lkRuleRows(cl,LK.rules,tc.items).forEach(r=>{
+      lkRuleRows(cl,_scopeRules,tc.items).forEach(r=>{
         if(rows.some(o=>o.x&&Math.abs(o.x-r.x)<20&&Math.abs((o.y||0)-r.y)<20))return;
         rows.push(r);});
     }
@@ -2652,7 +2661,7 @@ async function lkOpenBuf(id,name,buf,state,issues,ver){
   $('lkSum').innerHTML='';$('lkNav').innerHTML='';
   $('lkPage').innerHTML='<div class="lk-spin"><b>Читаю схему…</b><br><span id="lkProg">готовлю…</span></div>';
   try{
-    const {pdf,pages}=await lkExtract(buf,(p,n)=>{const e=$('lkProg');if(e)e.textContent='страница '+p+' из '+n;});
+    const {pdf,pages}=await lkExtract(buf,(p,n)=>{const e=$('lkProg');if(e)e.textContent='страница '+p+' из '+n;},name);
     LK.pdf=pdf;LK.pages=pages;LK.byId={};let id0=0;
     pages.forEach(pg=>pg.rows.forEach(r=>{r._id='r'+(id0++);LK.byId[r._id]=r;r.page=pg.page;}));
     if(!pages.length){$('lkPage').innerHTML='<div class="lk-spin">Не нашёл кабельных данных. Возможно, это скан без текстового слоя или другой формат линейки — пришли файл, настрою парсер.</div>';return;}
@@ -2749,6 +2758,9 @@ async function lkRulesLoad(){
     const have=new Set(LK.rules.map(x=>x.id));(list||[]).forEach(x=>{if(x&&x.id&&!have.has(x.id))LK.rules.push(x);});}}catch(e){}
 }
 async function lkRulesSave(rule){
+  // привязываем правило к серии текущего файла — чтобы не текло на чужие проекты
+  const nm=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
+  if(!rule.series)rule.series=lkRuleSeries(nm);
   LK.rules.unshift(rule);
   try{await archPut({id:'lk_rules',_lkrules:1,rules:LK.rules.slice(0,200),date:Date.now()});}catch(e){}
   try{await fetch(LK_AI+'/rules',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rule})});}catch(e){}
