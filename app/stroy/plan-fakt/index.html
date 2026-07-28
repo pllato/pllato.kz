@@ -549,6 +549,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
     <div class="lg-title">Линейка — чтение схемы<span class="lk-verchip" id="lkVer" title="Версия парсера Линейки. Если Claude говорит про более новую — обнови страницу с Cmd+Shift+R и нажми «Перечитать файл»"></span><span class="lg-sub" id="lkName"></span></div>
     <div class="lk-docs" id="lkDocs"></div>
     <button class="lk-tb" id="lkTeachTop" style="margin-left:auto" title="Обведи участок, который программа не читает, и скажи словами, что там считать — правило запомнится и заработает на всех похожих листах">🎓 Научить читать</button>
+    <button class="lk-tb" id="lkVisSheet" title="ИИ прочитает ВЕСЬ лист по картинке — для файлов с битым текстом (таблица нарисована картинкой). ≈2–4 цента за лист">👁 Прочитать лист целиком</button>
     <button class="lk-tb" id="lkIssues" title="Пометки «что исправить» с привязкой к файлу и листу">⚑ Правки<span id="lkIssN"></span></button>
     <button class="lk-tb" id="lkReport">📊 Отчёт по файлу</button>
     <button class="lk-tb" id="lkReportAll" title="Свод по ВСЕМ открытым файлам сразу">📚 Отчёт по всем</button>
@@ -1641,7 +1642,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v403';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v404';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v399';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2650,7 +2651,7 @@ $('lkCopy').onclick=()=>{if(!LK.pages||!LK.pages.length){toast('Сначала �
 /* ---- несколько документов + автосохранение правок (IndexedDB) + восстановление после перезагрузки ---- */
 LK.docId=null;LK.docs=[];LK.issues=[];
 function lkSerialize(){return {sel:LK.sel,view:LK.view,pages:LK.pages.map(pg=>({page:pg.page,wpt:pg.wpt,hpt:pg.hpt,vru:pg.vru,shields:pg.shields,potreb:pg.potreb,pipes:pg.pipes,
-  rows:pg.rows.map(r=>({group:r.group,mark:r.mark,section:r.section,len:r.len,mult:r.mult,needsCheck:!!r.needsCheck,illegible:!!r.illegible,block:r.block||'',x:r.x,y:r.y,mx:r.mx,my:r.my,_id:r._id,page:r.page,conds:(r.conds||[]).map(c=>({t:c.t,len:c.len}))})),
+  rows:pg.rows.map(r=>({group:r.group,mark:r.mark,section:r.section,len:r.len,mult:r.mult,needsCheck:!!r.needsCheck,illegible:!!r.illegible,_src:r._src||'',block:r.block||'',x:r.x,y:r.y,mx:r.mx,my:r.my,_id:r._id,page:r.page,conds:(r.conds||[]).map(c=>({t:c.t,len:c.len}))})),
   groups:pg.groups.map(g=>({name:g.name,ids:g.rows.map(r=>r._id)}))}))};}
 function lkRevive(state){LK.byId={};
   LK.pages=state.pages.map(pg=>{const by={};pg.rows.forEach(r=>{by[r._id]=r;LK.byId[r._id]=r;});
@@ -2826,19 +2827,48 @@ async function lkAreaClusters(pg,rect){
 }
 /* КАРТИНКА обведённого участка (для ИИ-зрения): рендерим кусок листа в PNG/JPEG. Когда текстовый
    слой битый (символы врассыпную), человек читает картинку — и ИИ пусть читает картинку. */
-async function lkAreaImage(pg,rect){
+async function lkAreaImage(pg,rect,targetPx){
   let pdf=LK.pdf;
   if(!pdf&&LK.docId){try{const rec=await archGet(LK.docId);if(rec&&rec.buf)pdf=await pdfjsLib.getDocument({data:rec.buf.slice(0)}).promise;}catch(e){}}
   if(!pdf)return null;
   const page=await pdf.getPage(pg.page);const base=page.getViewport({scale:1});
   const rw=Math.max(0.04,rect.x1-rect.x0);
-  const scale=Math.max(0.8,Math.min(2,1300/(rw*base.width)));   // целимся в ~1300px по ширине участка
+  const scale=Math.max(0.8,Math.min(2.4,(targetPx||1300)/(rw*base.width)));
   const vp=page.getViewport({scale});
   const x0=rect.x0*vp.width,y0=rect.y0*vp.height,w=(rect.x1-rect.x0)*vp.width,h=(rect.y1-rect.y0)*vp.height;
   const cv=document.createElement('canvas');cv.width=Math.max(1,Math.round(w));cv.height=Math.max(1,Math.round(h));
   const ctx=cv.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);ctx.translate(-x0,-y0);
   await page.render({canvasContext:ctx,viewport:vp}).promise;
-  return cv.toDataURL('image/jpeg',0.85);
+  return cv.toDataURL('image/jpeg',0.82);
+}
+/* стоимость по расходу токенов (Sonnet 5, вводная цена $2/$10 за 1М до 31.08.2026) → центы */
+function lkVisionCost(u){if(!u)return null;const c=(u.input_tokens||0)*2e-6+(u.output_tokens||0)*10e-6;return (c*100).toFixed(1);}
+/* ЗРЕНИЕ на ВЕСЬ ЛИСТ одним кликом — для файлов с битым текстом (таблица-картинка) */
+async function lkVisionSheet(){
+  if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}
+  const pg=LK.pages[LK.sel];if(!pg){toast('Нет листа');return;}
+  const btn=$('lkVisSheet');if(btn)btn.disabled=true;
+  toast('Рисую лист и показываю ИИ… (~10–30 сек)');
+  try{
+    const img=await lkAreaImage(pg,{x0:0,y0:0,x1:1,y1:1},2200);
+    if(!img){toast('Не удалось отрисовать лист');if(btn)btn.disabled=false;return;}
+    const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
+    const r=await fetch(LK_AI+'/vision',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({image:img,file:name,page:pg.page})});
+    const d=await r.json();if(btn)btn.disabled=false;
+    if(d.error){toast('Не вышло: '+d.error);return;}
+    const rows=(d.rows||[]).filter(x=>x&&x.section);
+    if(!rows.length){toast('ИИ не увидел кабельных линий на этом листе');return;}
+    // помечаем прежние «зрение»-строки этого листа и заменяем (повторный прогон не дублирует)
+    pg.rows=pg.rows.filter(r=>r._src!=='vision');pg.groups=pg.groups.filter(g=>g.name!=='👁 по картинке (весь лист)');
+    let noLen=0;rows.forEach(x=>{const L=+x.len||0;if(!(L>0))noLen++;
+      const row={_id:'r'+(_lkVid++),page:pg.page,group:x.group||'—',mark:x.mark||'',section:String(x.section).replace('.',','),
+        len:L,conds:[],mult:1,needsCheck:!(L>0),_src:'vision'};
+      pg.rows.push(row);LK.byId[row._id]=row;pg.groups.push({name:'👁 по картинке (весь лист)',rows:[row]});});
+    LK.view='pages';renderLineyka();lkPersist();
+    const cost=lkVisionCost(d._usage);
+    toast('Прочитано зрением: '+rows.length+' линий'+(noLen?(' · у '+noLen+' нет длины (красные «впишите»)'):'')+(cost?(' · ≈'+cost+'¢'):''));
+  }catch(e){if(btn)btn.disabled=false;toast('Сеть недоступна: '+(e&&e.message||e));}
 }
 function lkTeachStart(){
   if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}
@@ -2854,6 +2884,7 @@ function lkTeachStart(){
 }
 $('lkTeach').onclick=lkTeachStart;      // в модале «Правки»
 $('lkTeachTop').onclick=lkTeachStart;   // в верхней панели — основной вход
+$('lkVisSheet').onclick=lkVisionSheet;  // зрение на весь лист
 /* ОПОРА ДЛЯ ИИ: линии этого же листа, прочитанные верно (с их исходной подписью) — по ним видно,
    какой столбец безымянного паспорта «… 5.7 95 95 2.1 …» является длиной. Без опоры ИИ гадает
    и иногда решает, что длины в подписи нет вовсе (ФА-009-3.4 л.4, первая попытка). */
