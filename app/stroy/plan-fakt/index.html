@@ -1638,8 +1638,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v393';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v393';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v394';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v394';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2280,24 +2280,53 @@ function lkClusters(items){
   });
   return out;
 }
-/* исполнение выученного правила: только regex, никакого кода из сети */
-function lkRuleRows(clusters,rules){
+/* исполнение выученного правила. ВАЖНО: код из сети НЕ исполняется — только регулярки и
+   ДЕКЛАРАТИВНАЯ геометрия (rule.pair). Правило бывает двух видов:
+   • обычное: одна подпись-кластер, поля берутся регулярками (как раньше);
+   • геометрическое (rule.pair задан): «голова» rule.head — сырой элемент; к ней движок
+     САМ подбирает партнёра рядом (pair:'same-line') или строкой ниже (pair:'below') и склеивает
+     их текст, затем применяет те же поля. Так «Научить читать» умеет то же, что вшито руками
+     (М-стояки Арена — голова+хвост; контрольные кабели — длина строкой ниже). */
+function lkRuleFields(rule){
+  const rx=(p,f)=>{try{return p?new RegExp(String(p).slice(0,400),f||''):null;}catch(e){return null;}};
+  return {mk:rx(rule.mark),sec:rx(rule.section),len:rx(rule.len),grp:rx(rule.group),cnd:rx(rule.conds,'g')};
+}
+function lkRuleRow(rule,F,s,x,y){
+  const sm=F.sec&&F.sec.exec(s),lm=F.len&&F.len.exec(s);if(!sm||!lm)return null;
+  const L=parseFloat(String(lm[1]).replace(',','.'));if(!(L>0)||L>1000)return null;
+  const conds=[];if(F.cnd){let m;F.cnd.lastIndex=0;while((m=F.cnd.exec(s))&&conds.length<4)conds.push({t:lkCondName(m[1])+(m[2]||''),len:+(m[3]||0)||0});}
+  return {group:(F.grp&&(F.grp.exec(s)||[])[1]||'').trim()||'—',
+    mark:(F.mk&&(F.mk.exec(s)||[])[1]||'').trim()||lkMarkName(s),
+    section:sm[1]+'x'+String(sm[2]).replace('.',','),len:L,conds,x,y,mult:1,_rule:rule.id||1};
+}
+function lkRuleRows(clusters,rules,items){
   const rows=[];if(!rules||!rules.length)return rows;
   const rx=(p,f)=>{try{return p?new RegExp(String(p).slice(0,400),f||''):null;}catch(e){return null;}};
+  const raw=(items||[]).map(o=>({s:lkFixEnc(o.str!=null?o.str:(o.s||'')).trim(),
+    x:o.transform?o.transform[4]:o.x,y:o.transform?o.transform[5]:o.y})).filter(o=>o.s&&o.x!=null);
   rules.forEach(rule=>{
-    const test=rx(rule.test),mk=rx(rule.mark),sec=rx(rule.section),len=rx(rule.len),grp=rx(rule.group),cnd=rx(rule.conds,'g');
-    if(!sec||!len)return;
+    const F=lkRuleFields(rule);if(!F.sec||!F.len)return;
+    if(rule.pair&&(rule.head||rule.test)&&raw.length){
+      // ГЕОМЕТРИЧЕСКОЕ правило — по сырым элементам
+      const hRx=rx(rule.head||rule.test),pRx=rule.partner?rx(rule.partner):null;if(!hRx)return;
+      raw.forEach(h=>{if(!hRx.test(h.s))return;
+        let best=null,bd;
+        if(rule.pair==='below'||rule.pair==='above'){bd=64;raw.forEach(o=>{if(o===h)return;
+          const dy=rule.pair==='below'?h.y-o.y:o.y-h.y;if(dy<4||dy>24)return;const dx=Math.abs(o.x-h.x);
+          if(dx<bd&&(!pRx||pRx.test(o.s))){bd=dx;best=o;}});}
+        else{bd=140;raw.forEach(o=>{if(o===h||Math.abs(o.y-h.y)>6)return;const dx=Math.abs(o.x-h.x);
+          if(dx<bd&&dx>0&&(!pRx||pRx.test(o.s))){bd=dx;best=o;}});}  // 'same-line' (по умолчанию)
+        const s=best?(h.s+' '+best.s):h.s;
+        const row=lkRuleRow(rule,F,s,h.x,h.y);if(row)rows.push(row);
+      });
+      return;
+    }
+    // ОБЫЧНОЕ правило — по кластеру. test — подсказка, а не приговор.
+    const test=rx(rule.test);
     clusters.forEach(c=>{
-      // test — ПОДСКАЗКА, а не приговор: ИИ иногда пишет его с неверным порядком полей
-      // («марка после сечения», а в подписи наоборот) и рабочее правило не давало ни строки.
-      // Настоящий пропуск — сечение И длина: без них строки всё равно не будет.
-      const sm=sec.exec(c.s),lm=len.exec(c.s);if(!sm||!lm)return;
+      const sm=F.sec.exec(c.s),lm=F.len.exec(c.s);if(!sm||!lm)return;
       if(test&&!test.test(c.s)&&!(sm[1]&&sm[2]))return;
-      const L=parseFloat(String(lm[1]).replace(',','.'));if(!(L>0)||L>1000)return;
-      const conds=[];if(cnd){let m;cnd.lastIndex=0;while((m=cnd.exec(c.s))&&conds.length<4)conds.push({t:lkCondName(m[1])+(m[2]||''),len:+(m[3]||0)||0});}
-      rows.push({group:(grp&&(grp.exec(c.s)||[])[1]||'').trim()||'—',
-        mark:(mk&&(mk.exec(c.s)||[])[1]||'').trim()||lkMarkName(c.s),
-        section:sm[1]+'x'+String(sm[2]).replace('.',','),len:L,conds,x:c.x,y:c.y,mult:1,_rule:rule.id||1});
+      const row=lkRuleRow(rule,F,c.s,c.x,c.y);if(row)rows.push(row);
     });
   });
   return rows;
@@ -2365,7 +2394,7 @@ async function lkExtract(data,onProgress){
     // Строку из правила добавляем только если рядом (±20пт) ещё ничего не прочитано.
     if(LK.rules&&LK.rules.length){
       const cl=lkClusters(tc.items);
-      lkRuleRows(cl,LK.rules).forEach(r=>{
+      lkRuleRows(cl,LK.rules,tc.items).forEach(r=>{
         if(rows.some(o=>o.x&&Math.abs(o.x-r.x)<20&&Math.abs((o.y||0)-r.y)<20))return;
         rows.push(r);});
     }
@@ -2700,9 +2729,12 @@ async function lkAreaClusters(pg,rect){
   const v0=page.getViewport({scale:1});
   const all=lkClusters(tc.items);
   pg._tcl=all;   // подписи ВСЕГО листа — из них lkTeachSamples берёт опорные примеры для ИИ
-  return all.filter(c=>{
-    const q=v0.convertToViewportPoint(c.x,c.y);const mx=q[0]/v0.width,my=q[1]/v0.height;
-    return mx>=rect.x0-0.01&&mx<=rect.x1+0.01&&my>=rect.y0-0.02&&my<=rect.y1+0.02;});
+  const inRect=(x,y)=>{const q=v0.convertToViewportPoint(x,y);const mx=q[0]/v0.width,my=q[1]/v0.height;
+    return mx>=rect.x0-0.01&&mx<=rect.x1+0.01&&my>=rect.y0-0.02&&my<=rect.y1+0.02;};
+  const out=all.filter(c=>inRect(c.x,c.y));
+  // сырые элементы области — нужны для ГЕОМЕТРИЧЕСКИХ правил (голова+партнёр) в предпросмотре
+  out.items=tc.items.filter(it=>inRect(it.transform[4],it.transform[5]));
+  return out;
 }
 function lkTeachStart(){
   if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}
@@ -2756,9 +2788,13 @@ function lkTeachPanel(pg,rect,clusters){
     try{
       const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
       const ask=async extra=>{
+        // сырые элементы области (с координатами) — по ним ИИ видит РАЗОРВАННЫЕ подписи
+        // (голова+хвост на одной высоте, длина строкой ниже) и может вернуть геометрическое правило
+        const items=(clusters.items||[]).slice(0,60).map(it=>({s:lkFixEnc(it.str||'').trim(),
+          x:Math.round(it.transform[4]),y:Math.round(it.transform[5])})).filter(o=>o.s);
         const r=await fetch(LK_AI+'/teach',{method:'POST',headers:{'content-type':'application/json'},
           body:JSON.stringify({hint:(($('lkTcHint').value||'')+' '+(extra||'')).trim(),clusters:clusters.map(c=>c.s),
-            file:name,page:pg.page,samples:lkTeachSamples(pg,clusters)})});
+            items,file:name,page:pg.page,samples:lkTeachSamples(pg,clusters)})});
         return r.json();
       };
       const bad=d=>!d||d.error||!d.rule||typeof d.rule!=='object';
@@ -2766,14 +2802,14 @@ function lkTeachPanel(pg,rect,clusters){
       if(bad(data)&&!(data&&data.error)){note.textContent='Пробую ещё раз…';data=await ask('');}
       // правило пришло, но НА ЭТОЙ области не дало ни строки — просим ИИ ещё раз, уже прямо
       // (первая попытка на ФА-009 срывалась именно так; сотруднику не должно быть до этого дела)
-      if(!bad(data)&&!lkRuleRows(clusters,[data.rule]).length){
+      if(!bad(data)&&!lkRuleRows(clusters,[data.rule],clusters.items).length){
         note.textContent='Уточняю у ИИ…';
         const d2=await ask('Правило не дало ни одной строки на этих подписях — длина в них ЕСТЬ, найди её и верни рабочее правило.');
-        if(!bad(d2)&&lkRuleRows(clusters,[d2.rule]).length)data=d2;
+        if(!bad(d2)&&lkRuleRows(clusters,[d2.rule],clusters.items).length)data=d2;
       }
       btn.disabled=false;
       if(bad(data)){note.textContent='Не вышло: '+((data&&data.error)||'ИИ ответил неразборчиво, нажми «Прочитать заново»');return;}
-      const test=lkRuleRows(clusters,[data.rule]);
+      const test=lkRuleRows(clusters,[data.rule],clusters.items);
       const sum=test.reduce((a,x)=>a+x.len,0);
       $('lkTcList').innerHTML=`<div class="lk-iss-empty" style="text-align:left"><b>${esc(data.rule.title||'Новое правило')}</b><br>${esc(data.explain||'')}</div>`
         +(test.length?test.slice(0,20).map(x=>`<div class="lk-iss"><span class="pg">${esc(x.section)}</span><span class="tx">${esc(x.group||'—')} · ${esc(x.mark||'')} · <b>${x.len} м</b></span></div>`).join('')
