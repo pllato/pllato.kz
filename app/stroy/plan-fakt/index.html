@@ -1647,7 +1647,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v406';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v407';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v399';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2884,8 +2884,10 @@ async function lkVisionSheet(){
       if(l){l.used=true;return [l.mx,l.my];}return null;};
     const n=rows.length,cols=Math.ceil(Math.sqrt(n*1.6));
     let noLen=0,placed=0;rows.forEach((x,i)=>{const L=+x.len||0;if(!(L>0))noLen++;
-      const p=findPos(x.group||'');if(p)placed++;
-      const g=p||[0.06+0.88*((i%cols)/Math.max(1,cols-1)),0.10+0.80*(Math.floor(i/cols)/Math.max(1,Math.ceil(n/cols)-1))];
+      let g=findPos(x.group||'');   // 1) точная позиция подписи из текста листа
+      if(!g&&typeof x.x==='number'&&typeof x.y==='number'&&x.x>=0&&x.x<=100&&x.y>=0&&x.y<=100)g=[x.x/100,x.y/100]; // 2) координаты от ЗРЕНИЯ
+      if(g)placed++;
+      if(!g)g=[0.06+0.88*((i%cols)/Math.max(1,cols-1)),0.10+0.80*(Math.floor(i/cols)/Math.max(1,Math.ceil(n/cols)-1))]; // 3) сетка (крайний случай)
       const row={_id:'r'+(_lkVid++),page:pg.page,group:x.group||'—',mark:x.mark||'',section:String(x.section).replace('.',','),
         len:L,conds:[],mult:1,needsCheck:!(L>0),_src:'vision',mx:g[0],my:g[1]};
       pg.rows.push(row);LK.byId[row._id]=row;pg.groups.push({name:'👁 по картинке (весь лист)',rows:[row]});});
