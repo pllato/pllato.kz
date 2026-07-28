@@ -1647,8 +1647,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v408';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v400';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v409';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v401';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -1895,6 +1895,82 @@ function lkParseBoulevardSplit(items){
       section:sm[1]+'x'+sm[2].replace('.',','),len:L,conds:[],x:best.m.x,y:best.m.y,mult:1});
   });
   return rows;
+}
+/* Общий офлайн-разбор ФРАГМЕНТИРОВАННЫХ паспортов. Некоторые САПР разбивают одну видимую
+   подпись на десятки text-item: в опорной колонке остаются «имя-P-cos-I-ДЛИНА», а в соседней
+   отдельными буквами/цифрами — «МОМЕНТ-ΔU-МАРКА-NxS». Связка принимается только при ВСЕХ
+   независимых сигналах: одна ориентация, соседние колонки, физически правдоподобные P/cos/I,
+   явные марка и NxS, и момент ≈ P×ДЛИНА. Поэтому случайные числа/таблицы не подходят.
+   rule (из обучалки) может дополнительно сузить головы/партнёров regex-ами, но результат дальше
+   исполняется здесь локально, без сети. */
+function lkParseFragmentedPassports(items,rule){
+  const rows=[],R=items.map(o=>{const s=lkFixEnc(o.str!=null?o.str:(o.s||'')).trim(),t=o.transform;
+    const v=t?Math.abs(t[1])>Math.abs(t[0]):o.rot==='V',x=t?t[4]:o.x,y=t?t[5]:o.y;
+    return {s,x,y,v,c:v?x:y,a:v?y:x};}).filter(o=>o.s&&o.x!=null);
+  const rx=p=>{try{return p?new RegExp(String(p).slice(0,400),'i'):null;}catch(e){return null;}};
+  const hRx=rule&&rx(rule.head||rule.test),pRx=rule&&rx(rule.partner);
+  const nums=s=>[...String(s).matchAll(/\d+(?:[.,]\d+)?/g)].map(m=>({v:parseFloat(m[0].replace(',','.')),i:m.index}));
+  const physics=(P,co,I)=>{if(!(P>0&&co>=.4&&co<=1.1&&I>0))return false;
+    const e1=P/(.22*co),e3=P/(.38*Math.sqrt(3)*co);
+    return Math.min(Math.abs(I-e1)/Math.max(1,e1),Math.abs(I-e3)/Math.max(1,e3))<=.16;};
+  const crossGroups=A=>{const out=[];A.slice().sort((a,b)=>a.c-b.c||a.a-b.a).forEach(o=>{
+    let g=out[out.length-1];if(!g||o.c-g.c>1.6){g={c:o.c,a:[]};out.push(g);}g.a.push(o);});return out;};
+  R.forEach(h=>{
+    const hc=h.s.replace(/\s+/g,'');if(!/[A-Za-zА-Яа-яЁё]/.test(h.s)||!/\d/.test(h.s)||LK_MARK.test(hc))return;
+    if(hRx){hRx.lastIndex=0;if(!hRx.test(h.s))return;}
+    const col=R.filter(o=>o.v===h.v&&Math.abs(o.c-h.c)<2.3&&o.a>=h.a-2&&o.a<=h.a+220).sort((a,b)=>a.a-b.a);
+    const H=col.map(o=>o.s).join(' ').replace(/\s+/g,' ').trim(),N=nums(H);let sig=null;
+    for(let i=0;i+3<N.length;i++){const P=N[i].v,co=N[i+1].v,I=N[i+2].v,L=N[i+3].v;
+      if(physics(P,co,I)&&L>=2&&L<=2000&&Math.abs(L-Math.round(L))<.01){sig={P,L,at:N[i].i};break;}}
+    if(!sig)return;
+    const group=H.slice(0,sig.at).replace(/\s*\.\s*/g,'.').replace(/\s+/g,' ').replace(/[\s,;:-]+$/,'').trim();
+    if(!group||!/[A-Za-zА-Яа-яЁё]/.test(group))return;
+    let best=null,bscore=1e9,found=[];
+    [-1,1].forEach(dir=>{
+      const side=R.filter(o=>o.v===h.v&&(o.c-h.c)*dir>=3&&(o.c-h.c)*dir<=38&&o.a>=h.a-8&&o.a<=h.a+210);
+      if(!side.length)return;
+      // Марка: отдельная тонкая колонка букв/цельных фрагментов марки.
+      let mark='',mg=null;
+      crossGroups(side.filter(o=>/^[A-Za-zА-Яа-яЁё()\-\s]+$/.test(o.s)&&/[A-Za-zА-Яа-яЁё]/.test(o.s))).forEach(g=>{
+        const joined=g.a.sort((a,b)=>a.a-b.a).map(o=>o.s.replace(/[^A-Za-zА-Яа-яЁё()\-]/g,'')).join('');
+        const splitLetters=g.a.filter(o=>/^[A-Za-zА-Яа-яЁё]$/.test(o.s.trim())).length;
+        if((splitLetters>=3||(rule&&rule.pair==='fragments'))&&LK_MARK.test(joined)&&joined.length>(mark||'').length){mark=lkMarkName(joined);mg=g;}});
+      if(!mark||!mg)return;if(pRx){pRx.lastIndex=0;if(!pRx.test(mark))return;}
+      // Взаимно-ближайшая связка: не забираем марку соседнего паспорта, если к ней ближе
+      // другой буквенно-цифровой якорь на той же продольной позиции.
+      if(R.some(o=>o!==h&&o.v===h.v&&/[A-Za-zА-Яа-яЁё]/.test(o.s)&&o.s.length<=30
+        &&!LK_MARK.test(o.s.replace(/\s+/g,''))&&Math.abs(o.a-h.a)<35
+        &&Math.abs(o.c-mg.c)+2<Math.abs(h.c-mg.c)))return;
+      const markA=Math.min(...mg.a.map(o=>o.a));
+      // Сечение: символ «x/х» и ближайшие числовые токены до/после него по продольной оси.
+      let sec=null,secScore=1e9;
+      side.forEach(xt=>{const z=xt.s.replace(/\s+/g,'');const xm=z.match(/^[xхХX×](\d+(?:[.,]\d+)?)?$/);if(!xm)return;
+        const pre=side.filter(o=>o!==xt&&o.a<xt.a&&xt.a-o.a<=55&&/^\d$/.test(o.s.trim())).sort((a,b)=>b.a-a.a)[0];if(!pre)return;
+        let sv=xm[1]||'';const aft=side.filter(o=>Math.abs(o.c-xt.c)<3&&o.a>xt.a&&o.a-xt.a<=35&&/^\d+(?:[.,]\d+)?$/.test(o.s.trim())).sort((a,b)=>a.a-b.a);
+        if(!sv){if(!aft.length)return;sv=aft[0].s.trim();for(let q=1;q<aft.length&&aft[q].a-aft[q-1].a<7;q++)sv+=aft[q].s.trim();}
+        else if(aft.length&&aft[0].a-xt.a<16){const comma=side.some(o=>Math.abs(o.c-xt.c)<3&&o.a>xt.a&&o.a<=aft[0].a+1&&/^[,.]$/.test(o.s.trim()));
+          sv+=(comma?',':'')+aft[0].s.trim();for(let q=1;q<aft.length&&aft[q].a-aft[q-1].a<7;q++)sv+=aft[q].s.trim();}
+        if(!/^\d+(?:[.,]\d+)?$/.test(sv))return;const sc=Math.abs(xt.c-mg.c)*3+Math.abs(xt.c-h.c)/10+(xt.a-h.a)/100;
+        if(sc<secScore){secScore=sc;sec=pre.s.trim()+'x'+sv.replace('.',',');}});
+      if(!sec)return;
+      // Независимое подтверждение хвоста: либо момент совпадает с P×L, либо авторский полный
+      // хвост содержит одновременно ΔU=0.xx и аппарат «Пxx». Второй вариант нужен авторам,
+      // у которых первое поле хвоста — не момент (напр. ППД2: «660-0.73-...-П40»).
+      let moment=null;
+      crossGroups(side.filter(o=>o.a<markA&&/^[\d\s.,-]+$/.test(o.s))).forEach(g=>{
+        const s=g.a.sort((a,b)=>a.a-b.a).map(o=>o.s.replace(/\s+/g,'')).join('');const m=s.match(/\d+(?:[.,]\d+)?/);
+        if(!m)return;const v=parseFloat(m[0].replace(',','.')),want=sig.P*sig.L;
+        if(Math.abs(v-want)<=Math.max(1,want*.02))moment=v;});
+      const sideText=side.map(o=>o.s).join(' '),fullTail=/0[.,]\d+/.test(sideText)&&/П\s*\d+/.test(sideText);
+      if(moment==null&&!fullTail)return;
+      const score=Math.abs(mg.c-h.c)+secScore;found.push({mark,sec,score});
+      if(score<bscore){bscore=score;best={mark,sec};}
+    });
+    if(new Set(found.map(o=>o.sec)).size>1)return; // две разные соседние линии равно правдоподобны — не угадываем
+    if(best)rows.push({group,mark:best.mark,section:best.sec,len:sig.L,conds:[],x:h.x,y:h.y,mult:1,_fragments:true});
+  });
+  // Один паспорт может иметь несколько буквенных стартовых item в той же колонке — оставляем один.
+  return rows.filter((r,i,a)=>!a.slice(0,i).some(o=>Math.abs(o.x-r.x)<4&&Math.abs(o.y-r.y)<8&&o.section===r.section));
 }
 function lkParseBio(items){
   const rows=[];
@@ -2372,6 +2448,10 @@ function lkRuleRows(clusters,rules,items){
     x:o.transform?o.transform[4]:o.x,y:o.transform?o.transform[5]:o.y})).filter(o=>o.s&&o.x!=null);
   rules.forEach(rule=>{
     const F=lkRuleFields(rule);
+    if(rule.pair==='fragments'){
+      lkParseFragmentedPassports(items,rule).forEach(r=>{r._rule=rule.id||1;rows.push(r);});
+      return;
+    }
     if(rule.pair&&(rule.head||rule.test)&&raw.length){
       // ГЕОМЕТРИЧЕСКОЕ правило. Сырьё → СТРОКИ (осколки подписи склеены, схемный шум с других
       // высот отдельно). Партнёра к голове ищем В ЛЮБУЮ сторону — рядом на той же высоте, ниже
@@ -2435,6 +2515,10 @@ async function lkExtract(data,onProgress,scope){
     lkParseBio(tc.items).forEach(r=>{if(!rows.some(o=>o.x&&Math.abs(o.x-r.x)<8&&Math.abs((o.y||0)-r.y)<8))rows.push(r);});
     // Boulevard/BuharJ: группа, марка/сечение и длина разнесены по трём соседним item.
     lkParseBoulevardSplit(tc.items).forEach(r=>{const old=rows.find(o=>o.x&&Math.abs(o.x-r.x)<8&&Math.abs((o.y||0)-r.y)<8);
+      if(old&&!(+old.len>0)){Object.assign(old,r,{needsCheck:false});}else if(!old)rows.push(r);});
+    // Общий случай: паспорт раскрошен на много текстовых фрагментов, но геометрия и P×L сохраняются.
+    const _fragRows=lkParseFragmentedPassports(tc.items);
+    _fragRows.forEach(r=>{const old=rows.find(o=>o.x&&Math.abs(o.x-r.x)<10&&Math.abs((o.y||0)-r.y)<10);
       if(old&&!(+old.len>0)){Object.assign(old,r,{needsCheck:false});}else if(!old)rows.push(r);});
     // Арена Парк: паспорт М-стояка из двух элементов (голова+хвост) по сырым items
     lkParseBioM(tc.items).forEach(r=>{if(!rows.some(o=>o.x&&Math.abs(o.x-r.x)<12&&Math.abs((o.y||0)-r.y)<12))rows.push(r);});
