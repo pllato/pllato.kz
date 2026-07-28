@@ -1638,8 +1638,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v392';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v392';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v393';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v393';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -1899,6 +1899,24 @@ function lkParseBioM(items){
     rows.push({group:hm[1].replace(/^M/,'М'),mark:lkMarkName(tm[1]),
       section:tm[2]+'x'+tm[3].replace('.',','),len:(L>0&&L<=300)?L:0,
       conds:[],x:h.x,y:h.y,mult:1,needsCheck:!(L>0&&L<=300)});
+  });
+  return rows;
+}
+/* Арена Парк, контрольные кабели: марка+сечение ОДНОЙ строкой «КВВГнг-FRLS 4х1,5», а длина «400м» —
+   ОТДЕЛЬНЫМ элементом строго НИЖЕ (Δy 6..20, Δx<48). Штатный парсер их не связывает. Пара строго
+   геометрическая: чистый «<марка> <NxS>» без длины + одинокое «<число>м» под ним. */
+const LK_MS_ONLY=/^(А?[сcС]?(?:КВВГ|ВВГ|ПВ|NYM)[А-Яа-яёA-Za-z()\-]*?)\s*[- ]\s*(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?)\s*$/i;
+const LK_BARE_M=/^(\d{2,4})\s*м$/;
+function lkPairBelowLen(items){
+  const rows=[];
+  const it=items.map(o=>({s:lkFixEnc(o.str||'').trim(),x:o.transform[4],y:o.transform[5]})).filter(o=>o.s);
+  const lens=it.filter(o=>LK_BARE_M.test(o.s));
+  it.forEach(o=>{const m=o.s.match(LK_MS_ONLY);if(!m)return;
+    let best=null,bd=48,L=0;
+    lens.forEach(l=>{const dy=o.y-l.y;if(dy<6||dy>20)return;const dx=Math.abs(l.x-o.x);if(dx<bd){bd=dx;best=l;L=+l.s.match(LK_BARE_M)[1];}});
+    if(!best||!(L>0&&L<=1000))return;
+    rows.push({group:'—',mark:lkMarkName(m[1]),section:m[2]+'x'+m[3].replace('.',','),
+      len:L,conds:[],x:o.x,y:o.y,mult:1});
   });
   return rows;
 }
@@ -2303,6 +2321,9 @@ async function lkExtract(data,onProgress){
     lkParseBio(tc.items).forEach(r=>{if(!rows.some(o=>o.x&&Math.abs(o.x-r.x)<8&&Math.abs((o.y||0)-r.y)<8))rows.push(r);});
     // Арена Парк: паспорт М-стояка из двух элементов (голова+хвост) по сырым items
     lkParseBioM(tc.items).forEach(r=>{if(!rows.some(o=>o.x&&Math.abs(o.x-r.x)<12&&Math.abs((o.y||0)-r.y)<12))rows.push(r);});
+    // контрольные кабели с длиной строкой ниже (Арена Парк л.17): пара строго геометрическая,
+    // добираем только там, где рядом (±12пт) ещё ничего не прочитано — двойного счёта нет
+    lkPairBelowLen(tc.items).forEach(r=>{if(!rows.some(o=>o.x&&Math.abs(o.x-r.x)<12&&Math.abs((o.y||0)-r.y)<12))rows.push(r);});
     // по-фидерно неполно (голая длина/векторные подписи) + есть авторская таблица «Потребность в кабелях»:
     // добираем ВСЕ марки-фидеры отдельными строками с точками; длина ненадёжна → needsCheck (красная точка).
     const ctab=lkParseCableTable(tc.items);let potrebOv=null;
