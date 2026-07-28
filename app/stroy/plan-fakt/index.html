@@ -351,6 +351,8 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-mk.flash{animation:lkFlash 1.6s ease;z-index:3;}
 @keyframes lkFlash{0%,100%{box-shadow:0 0 0 1px rgba(47,125,79,.9);}20%,60%{box-shadow:0 0 0 12px rgba(217,131,36,.6);}40%,80%{box-shadow:0 0 0 4px rgba(217,131,36,.95);}}
 .lk-mk.warn{background:rgba(192,57,43,.7);box-shadow:0 0 0 1px rgba(192,57,43,.95);}
+.lk-mk.illeg{width:20px;height:20px;background:#c0392b;border:3px solid #fff;box-shadow:0 0 0 2px #c0392b,0 0 8px 2px rgba(192,57,43,.6);font-size:12px;z-index:4;}
+.lk-illeg-lbl{position:absolute;transform:translate(-50%,10px);background:#c0392b;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px;white-space:nowrap;pointer-events:none;z-index:4;box-shadow:0 1px 4px rgba(0,0,0,.3);}
 .lg-row.warn{border-color:#e0b0a8!important;box-shadow:inset 3px 0 0 #c0392b;}
 .lk-recheck{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:#c0392b;background:#fdecea;border:1px solid #f5c6c0;border-radius:6px;padding:2px 7px;white-space:nowrap;}
 .lg-row.hl{border-color:var(--amber)!important;box-shadow:0 0 0 2px rgba(217,131,36,.35);}
@@ -1639,7 +1641,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v400';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v401';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v399';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2539,6 +2541,7 @@ function lkMarkersHtml(pg){
   // № строки в точке — в том же порядке, что список справа и Excel-выгрузка
   const num={};{let n=0;pg.groups.forEach(g=>g.rows.forEach(r=>{n++;num[r._id]=n;}));}
   return lkSeqSvg(pg)+issR+pg.rows.filter(r=>r.mx!=null&&r.my!=null).map(r=>{const l=Math.max(0,Math.min(100,r.mx*100)),t=Math.max(0,Math.min(100,r.my*100));
+    if(r.illegible)return `<span class="lk-mk illeg" data-id="${r._id}" title="Длина НЕ проставлена — неразборчиво на чертеже. Впиши длину вручную, если разберёшь." style="left:${l.toFixed(2)}%;top:${t.toFixed(2)}%">!</span><span class="lk-illeg-lbl" style="left:${l.toFixed(2)}%;top:${t.toFixed(2)}%">длина не проставлена — неразборчиво</span>`;
     return `<span class="lk-mk${r.needsCheck?' warn':''}" data-id="${r._id}" title="${esc('№'+(num[r._id]||'')+' · '+(r.group||'')+' '+r.section+' '+r.len+'м'+(r.needsCheck?' — ПРОВЕРИТЬ длину вручную':''))}" style="left:${l.toFixed(2)}%;top:${t.toFixed(2)}%">${num[r._id]||''}</span>`;}).join('');
 }
 /* линия последовательности: соединяет точки строк в порядке списка — видно, как идёт обход схемы */
@@ -2645,7 +2648,7 @@ $('lkCopy').onclick=()=>{if(!LK.pages||!LK.pages.length){toast('Сначала �
 /* ---- несколько документов + автосохранение правок (IndexedDB) + восстановление после перезагрузки ---- */
 LK.docId=null;LK.docs=[];LK.issues=[];
 function lkSerialize(){return {sel:LK.sel,view:LK.view,pages:LK.pages.map(pg=>({page:pg.page,wpt:pg.wpt,hpt:pg.hpt,vru:pg.vru,shields:pg.shields,potreb:pg.potreb,pipes:pg.pipes,
-  rows:pg.rows.map(r=>({group:r.group,mark:r.mark,section:r.section,len:r.len,mult:r.mult,needsCheck:!!r.needsCheck,block:r.block||'',x:r.x,y:r.y,mx:r.mx,my:r.my,_id:r._id,page:r.page,conds:(r.conds||[]).map(c=>({t:c.t,len:c.len}))})),
+  rows:pg.rows.map(r=>({group:r.group,mark:r.mark,section:r.section,len:r.len,mult:r.mult,needsCheck:!!r.needsCheck,illegible:!!r.illegible,block:r.block||'',x:r.x,y:r.y,mx:r.mx,my:r.my,_id:r._id,page:r.page,conds:(r.conds||[]).map(c=>({t:c.t,len:c.len}))})),
   groups:pg.groups.map(g=>({name:g.name,ids:g.rows.map(r=>r._id)}))}))};}
 function lkRevive(state){LK.byId={};
   LK.pages=state.pages.map(pg=>{const by={};pg.rows.forEach(r=>{by[r._id]=r;LK.byId[r._id]=r;});
@@ -2819,6 +2822,22 @@ async function lkAreaClusters(pg,rect){
   out.items=tc.items.filter(it=>inPad(it.transform[4],it.transform[5],ip));
   return out;
 }
+/* КАРТИНКА обведённого участка (для ИИ-зрения): рендерим кусок листа в PNG/JPEG. Когда текстовый
+   слой битый (символы врассыпную), человек читает картинку — и ИИ пусть читает картинку. */
+async function lkAreaImage(pg,rect){
+  let pdf=LK.pdf;
+  if(!pdf&&LK.docId){try{const rec=await archGet(LK.docId);if(rec&&rec.buf)pdf=await pdfjsLib.getDocument({data:rec.buf.slice(0)}).promise;}catch(e){}}
+  if(!pdf)return null;
+  const page=await pdf.getPage(pg.page);const base=page.getViewport({scale:1});
+  const rw=Math.max(0.04,rect.x1-rect.x0);
+  const scale=Math.max(0.8,Math.min(2,1300/(rw*base.width)));   // целимся в ~1300px по ширине участка
+  const vp=page.getViewport({scale});
+  const x0=rect.x0*vp.width,y0=rect.y0*vp.height,w=(rect.x1-rect.x0)*vp.width,h=(rect.y1-rect.y0)*vp.height;
+  const cv=document.createElement('canvas');cv.width=Math.max(1,Math.round(w));cv.height=Math.max(1,Math.round(h));
+  const ctx=cv.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);ctx.translate(-x0,-y0);
+  await page.render({canvasContext:ctx,viewport:vp}).promise;
+  return cv.toDataURL('image/jpeg',0.85);
+}
 function lkTeachStart(){
   if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}
   const pg=LK.pages[LK.sel];if(!pg){toast('Нет листа');return;}
@@ -2858,8 +2877,10 @@ function lkTeachPanel(pg,rect,clusters){
     <div class="lk-iss-list" id="lkTcList">${clusters.length?`<div class="lk-iss-cap">Это ТЕКСТ, найденный в обведённой области — ${clusters.length} ${lkPlural(clusters.length,'подпись','подписи','подписей')}, по одной на каждую линию схемы. Не правки: правило из них получится ОДНО.</div>`+clusters.slice(0,20).map((c,i)=>`<div class="lk-iss"><span class="pg">${i+1}</span><span class="tx" style="font-family:var(--mono);font-size:11px">${esc(c.s.slice(0,150))}</span></div>`).join(''):'<div class="lk-iss-empty">В этой области нет текста — возможно, это картинка/скан. Обведи участок с подписями.</div>'}</div>
     <div class="lk-iss-add"><textarea id="lkTcHint" rows="3" placeholder="Подсказка не обязательна — ИИ читает сам. Впиши что-то, только если он ошибётся: например «длина — последнее целое число» или «имя потребителя слева от марки»."></textarea>
       <div class="lk-iss-actions"><button class="lk-add" id="lkTcGo" ${clusters.length?'':'disabled'}>🤖 Прочитать заново</button>
+      <button class="lk-add" id="lkTcVision" title="ИИ посмотрит на сам чертёж картинкой и прочитает как человек — для битого/нечитаемого текста">👁 Прочитать по картинке</button>
       <button class="lk-add" id="lkTcApply" style="display:none;border-color:#2f7d4f;color:#2f7d4f">✓ Применить и запомнить</button>
-      <span class="lk-note" id="lkTcNote">В ИИ уйдёт только текст этой области, сам файл — нет.</span></div></div></div>`;
+      <button class="lk-add" id="lkTcMark" style="border-color:#c0392b;color:#c0392b" title="Поставить на этом месте жирную красную точку «длина не проставлена — неразборчиво»">📍 Неразборчиво</button>
+      <span class="lk-note" id="lkTcNote">Текст области → ИИ. «По картинке» — отправит картинку участка (не весь файл).</span></div></div></div>`;
   ($('lineyka')||document.body).appendChild(wrap);
   const close=()=>wrap.remove();
   $('lkTcX').onclick=close;
@@ -2908,10 +2929,53 @@ function lkTeachPanel(pg,rect,clusters){
       }
     }catch(e){note.textContent='Сеть недоступна: '+e.message;btn.disabled=false;}
   };
+  // ЗРЕНИЕ: ИИ смотрит на КАРТИНКУ участка и читает как человек (для битого текстового слоя).
+  // Возвращает готовые строки (не правило) — добавляем их прямо на этот лист.
+  $('lkTcVision').onclick=async()=>{
+    const btn=$('lkTcVision'),ap=$('lkTcApply'),note=$('lkTcNote');
+    btn.disabled=true;$('lkTcGo').disabled=true;ap.style.display='none';note.textContent='Рисую участок и показываю ИИ…';
+    try{
+      const img=await lkAreaImage(pg,rect);
+      if(!img){note.textContent='Не удалось отрисовать участок';btn.disabled=false;$('lkTcGo').disabled=false;return;}
+      const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
+      note.textContent='ИИ смотрит на чертёж…';
+      const r=await fetch(LK_AI+'/vision',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({image:img,hint:$('lkTcHint').value||'',file:name,page:pg.page})});
+      const d=await r.json();btn.disabled=false;$('lkTcGo').disabled=false;
+      if(d.error){note.textContent='Не вышло: '+d.error;return;}
+      const rows=(d.rows||[]).filter(x=>x&&x.section);
+      $('lkTcList').innerHTML=`<div class="lk-iss-empty" style="text-align:left">👁 <b>ИИ прочитал по картинке</b><br>${esc(d.explain||'')}</div>`
+        +(rows.length?rows.slice(0,30).map(x=>`<div class="lk-iss"><span class="pg">${esc(x.section)}</span><span class="tx">${esc(x.group||'—')} · ${esc(x.mark||'')} · <b>${+x.len>0?x.len+' м':'длина?'}</b></span></div>`).join('')
+          :'<div class="lk-iss-empty" style="text-align:left">На картинке ИИ не увидел кабельных линий. Обведи участок, где видны марки и длины.</div>');
+      const sum=rows.reduce((a,x)=>a+(+x.len||0),0);
+      note.textContent=rows.length?('Прочитано '+rows.length+' линий, '+Math.round(sum)+' м — проверь и нажми «Применить на лист»'):'Пусто — попробуй обвести плотнее по линиям';
+      if(rows.length){
+        ap.style.display='';ap.disabled=false;ap.textContent='✓ Применить на лист';
+        ap.onclick=()=>{
+          const cx=(rect.x0+rect.x1)/2,cy=(rect.y0+rect.y1)/2,n=rows.length;
+          rows.forEach((x,i)=>{const L=+x.len||0;
+            const row={_id:'r'+(_lkVid++),page:pg.page,group:x.group||'—',mark:x.mark||'',section:String(x.section).replace('.',','),
+              len:L,conds:[],mult:1,needsCheck:!(L>0),illegible:false,
+              mx:rect.x0+(rect.x1-rect.x0)*(0.2+0.6*(i/Math.max(1,n-1))),my:cy};
+            pg.rows.push(row);LK.byId[row._id]=row;pg.groups.push({name:'👁 по картинке',rows:[row]});});
+          close();LK.view='pages';renderLineyka();lkPersist();toast('Добавлено линий: '+n+' — проверь длины со схемой');};
+      }
+    }catch(e){note.textContent='Сеть недоступна: '+(e&&e.message||e);btn.disabled=false;$('lkTcGo').disabled=false;}
+  };
+  // МЕТКА «неразборчиво»: жирная красная точка + подпись, длина не проставлена
+  $('lkTcMark').onclick=()=>{
+    const cx=(rect.x0+rect.x1)/2,cy=(rect.y0+rect.y1)/2;
+    const row={_id:'r'+(_lkVid++),page:pg.page,group:'⚠ неразборчиво',mark:'(не читается)',section:'?',
+      len:0,conds:[],mult:1,needsCheck:true,illegible:true,mx:cx,my:cy};
+    pg.rows.push(row);LK.byId[row._id]=row;pg.groups.push({name:'⚠ неразборчиво',rows:[row]});
+    LK.issues.push({page:pg.page,text:'⚠ Неразборчиво — длина не проставлена',rect,ts:Date.now()});
+    close();LK.view='pages';renderLineyka();lkPersist();toast('Помечено: длина не проставлена — неразборчиво');
+  };
   // главное — выделить участок; читает ИИ сам. Разбор стартует СРАЗУ, без нажатия кнопки
   // (кнопка остаётся — на случай, если сотрудник вписал подсказку и хочет перечитать)
   if(clusters.length)$('lkTcGo').onclick();
 }
+let _lkVid=900000;
 function lkPickArea(cb){
   const vp=$('lkPgImg');const ib=$('lkImgBox');
   if(!vp||!ib){toast('Лист ещё не отрисован — подожди картинку');return;}
@@ -3041,7 +3105,8 @@ function lkRow(r,noConds,idx,src){const opts=(r.section?[]:['']).concat(LK_SECTI
     +`<div class="lg-cell"><label>Марка (кабель)</label><input class="lk-m" data-id="${r._id}" value="${esc(r.mark||'')}" style="width:132px" placeholder="—"></div>`
     +`<div class="lg-cell"><label>Сечение</label><select class="lk-s" data-id="${r._id}">${opts.map(s=>`<option ${s===r.section?'selected':''}>${esc(s)}</option>`).join('')}</select></div>`
     +`<div class="lg-cell"><label>Длина, м</label><input class="lk-l" data-id="${r._id}" type="number" step="0.1" min="0" value="${r.len}"></div>`
-    +(r.needsCheck?`<div class="lg-cell" style="justify-content:flex-end"><span class="lk-recheck" title="Длину не удалось прочитать точно (голое число на схеме) — сверь со схемой и поправь">⚠ проверить длину</span></div>`:'')
+    +(r.illegible?`<div class="lg-cell" style="justify-content:flex-end"><span class="lk-recheck" style="background:#c0392b;color:#fff" title="Длина не проставлена — участок неразборчив на чертеже. Впиши длину вручную, если разберёшь.">⚠ неразборчиво — длина не проставлена</span></div>`
+      :r.needsCheck?`<div class="lg-cell" style="justify-content:flex-end"><span class="lk-recheck" title="Длину не удалось прочитать точно (голое число на схеме) — сверь со схемой и поправь">⚠ проверить длину</span></div>`:'')
     +(noConds
       ?(condsTxt?`<div class="lg-cell"><label>Трубы</label><span class="lk-pipe-cab" title="Трубы правятся во вкладке «Трубы»">${esc(condsTxt)}</span></div>`:'')
       :`<div class="lg-cell" style="flex:1;min-width:190px"><label>Трубы</label><div class="lk-conds">`+lkCondsHtml(r)+`</div></div>`)
