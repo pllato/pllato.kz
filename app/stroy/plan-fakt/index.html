@@ -1647,8 +1647,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v415';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v407';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v416';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v408';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2095,6 +2095,40 @@ function lkPairBelowLen(items){
       len:L,conds:[],x:o.x,y:o.y,mult:1});
   });
   return rows;
+}
+/* Целая длина и единица «м» отдельными text-item. Некоторые авторы печатают рядом с
+   повёрнутой «марка NxS» параллельную узкую строку: число начинается на той же продольной
+   координате, а «м» идёт сразу после числа. На одной группе может быть ДВА ряда кабелей с
+   одинаковым X, поэтому разбираем каждый item марки, не схлопывая колонку.
+   Сигналы строгие: готовые марка+сечение, одна ориентация, соседняя полоса 5..24 pt,
+   ЦЕЛОЕ число и либо слитное «Nм», либо отдельное «м», геометрически продолжающее число. */
+function lkParseParallelUnitLen(items){
+  const R=items.map(o=>{const t=o.transform,s=lkFixEnc(o.str||'').trim();
+    const v=Math.abs(t[1])>Math.abs(t[0]),d=Math.sign(v?t[1]:t[0])||1;
+    return {s,x:t[4],y:t[5],w:o.width||0,v,c:v?t[4]:t[5],a:v?t[5]:t[4],d};}).filter(o=>o.s);
+  const marks=R.filter(o=>LK_MARK.test(o.s)&&LK_SECT.test(o.s));
+  const whole=R.filter(o=>/^\d{1,4}\s*м$/i.test(o.s));
+  const nums=R.filter(o=>/^\d{1,4}$/.test(o.s));
+  const units=R.filter(o=>/^м$/i.test(o.s));
+  const out=[];
+  marks.forEach(mk=>{
+    let best=null,score=1e9;
+    whole.forEach(n=>{if(n.v!==mk.v)return;const dc=Math.abs(n.c-mk.c),da=Math.abs(n.a-mk.a);
+      if(dc<5||dc>24||da>4)return;const L=parseInt(n.s,10);
+      if(!(L>0&&L<=2000))return;const sc=dc+da*3;if(sc<score){score=sc;best={L,n};}});
+    nums.forEach(n=>{if(n.v!==mk.v)return;const dc=Math.abs(n.c-mk.c),da=Math.abs(n.a-mk.a);
+      if(dc<5||dc>24||da>4)return;const L=+n.s;if(!(L>0&&L<=2000))return;
+      units.forEach(u=>{if(u.v!==n.v||Math.abs(u.c-n.c)>2.5)return;
+        // Начало «м» должно продолжать число в направлении письма; допускаем PDF-кернинг.
+        const gap=(u.a-n.a)*n.d-n.w;if(gap<-.8||gap>2.5)return;
+        const sc=dc+da*3+Math.abs(gap);if(sc<score){score=sc;best={L,n};}});
+    });
+    if(!best)return;const sm=mk.s.match(LK_SECT);
+    out.push({group:'—',mark:lkMarkName(mk.s),section:sm[1]+'x'+sm[2].replace('.',','),
+      len:best.L,conds:[],x:mk.x,y:mk.y,mult:1,needsCheck:false,_parallelUnit:true});
+  });
+  return out.filter((r,i,a)=>!a.slice(0,i).some(o=>Math.abs(o.x-r.x)<3&&Math.abs(o.y-r.y)<3&&
+    o.mark===r.mark&&o.section===r.section));
 }
 /* второй формат (квартирные щиты): марка+сечение без имени «X-н1;»; длину ищем рядом (nearest-neighbor) */
 function lkParseOneLine(items,keepNoLen){const rows=[];const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -2591,6 +2625,13 @@ async function lkExtract(data,onProgress,scope){
     // контрольные кабели с длиной строкой ниже (Арена Парк л.17): пара строго геометрическая,
     // добираем только там, где рядом (±12пт) ещё ничего не прочитано — двойного счёта нет
     lkPairBelowLen(tc.items).forEach(r=>{if(!rows.some(o=>o.x&&Math.abs(o.x-r.x)<12&&Math.abs((o.y||0)-r.y)<12))rows.push(r);});
+    // Параллельная полоса «целое число» + отдельная единица «м»: не схлопываем два ряда
+    // одной группы с одинаковым X. Уже прочитанный тот же кабель в той же точке не дублируем.
+    lkParseParallelUnitLen(tc.items).forEach(r=>{const old=rows.find(o=>o.x&&
+      Math.abs(o.x-r.x)<12&&Math.abs((o.y||0)-r.y)<12&&
+      String(o.section||'').replace('.',',')===r.section&&
+      String(o.mark||'').replace(/\s/g,'')===String(r.mark||'').replace(/\s/g,''));
+      if(old){if(!(old.len>0))Object.assign(old,r);}else rows.push(r);});
     // по-фидерно неполно (голая длина/векторные подписи) + есть авторская таблица «Потребность в кабелях»:
     // добираем ВСЕ марки-фидеры отдельными строками с точками; длина ненадёжна → needsCheck (красная точка).
     const ctab=lkParseCableTable(tc.items);let potrebOv=null;
