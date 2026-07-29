@@ -2302,9 +2302,11 @@ function projectFinanceChartSeries(finance, points = 8) {
 
   Object.values(finance.money || {}).forEach((item) => {
     const firstPayTime = (item.pays || []).map(projectFinanceEventTime).filter(Boolean).sort((a, b) => a - b)[0] || 0;
-    const orderTime = Number(item.orderCreatedAt) || firstPayTime;
-    if (Number(item.deal) > 0 && firstPayTime && orderTime) {
-      const index = toIndex(orderTime);
+    // Новый заказ появляется только когда одновременно есть сумма сделки и
+    // первое пополнение. Неделя определяется датой первого пополнения, а не
+    // временем, когда пользователь внёс/отредактировал запись в App.
+    if (Number(item.deal) > 0 && firstPayTime) {
+      const index = toIndex(firstPayTime);
       if (index >= 0 && index < count) orders[index] += 1;
     }
     (item.pays || []).forEach((pay) => {
@@ -2369,7 +2371,7 @@ async function handleProjectFinanceChartDetails(env, actor, url) {
         .map((pay) => ({ pay, timestamp: projectFinanceEventTime(pay) }))
         .filter(({ timestamp }) => timestamp > 0)
         .sort((a, b) => a.timestamp - b.timestamp)[0];
-      const timestamp = Number(item.orderCreatedAt) || firstPayment?.timestamp || 0;
+      const timestamp = firstPayment?.timestamp || 0;
       if (Number(item.deal) > 0 && firstPayment && timestamp >= start && timestamp < end) {
         items.push({
           projectId,
