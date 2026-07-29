@@ -1647,8 +1647,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v418';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v410';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v419';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v411';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2165,6 +2165,36 @@ function lkParsePercentPassport(items){
   return out.filter((r,i,a)=>!a.slice(0,i).some(o=>Math.abs(o.x-r.x)<3&&Math.abs(o.y-r.y)<3&&
     o.mark===r.mark&&o.section===r.section));
 }
+/* Битая десятичная запятая в отдельной полосе длины: визуальное «20,0м» pdf.js отдаёт
+   как «20 0м». Марка при этом сама склеена lkLinesFromItems из нескольких фрагментов.
+   Связываем только строгую геометрию: готовые марка+NxS во vitems, соседняя полоса 5..18pt,
+   integer-valued decimal с обязательной «м» внутри продольного диапазона марки. Ещё правее
+   может стоять отдельная труба «П50 = 10м» — сохраняем её как условие, но не как длину кабеля. */
+function lkParseBrokenDecimalLen(vitems,items){
+  const V=(vitems||[]).filter(o=>o&&o.s),lens=V.filter(o=>/^(\d{1,4})(?:[.,]\s*|\s+)0+м$/i.test(o.s));
+  const pipes=V.filter(o=>/^П\s*\d{1,3}\s*=\s*\d{1,4}\s*м$/i.test(o.s));
+  const labels=(items||[]).map(o=>({s:lkFixEnc(o.str||'').trim(),x:o.transform[4],y:o.transform[5]}))
+    .filter(o=>o.s.length<=12&&/^[№А-ЯЁA-Z][А-ЯЁа-яёA-Za-z.]{0,4}\s?\d/.test(o.s));
+  const out=[];
+  V.forEach(mk=>{if(!LK_MARK.test(mk.s)||!LK_SECT.test(mk.s))return;
+    const y0=Math.min(mk.y,mk.y+(mk.w||0))-3,y1=Math.max(mk.y,mk.y+(mk.w||0))+3;
+    const cand=lens.filter(l=>{const dx=Math.abs(l.x-mk.x);return dx>=5&&dx<=18&&l.y>=y0&&l.y<=y1;})
+      .sort((a,b)=>Math.abs(a.x-mk.x)-Math.abs(b.x-mk.x));
+    if(!cand.length)return;const lm=cand[0].s.match(/^(\d{1,4})/),L=+lm[1];
+    if(!(L>0&&L<=2000))return;const sm=mk.s.match(LK_SECT);
+    const pi=pipes.filter(p=>{const dx=Math.abs(p.x-mk.x);return dx>=15&&dx<=36&&p.y>=y0&&p.y<=y1;})
+      .sort((a,b)=>Math.abs(a.x-mk.x)-Math.abs(b.x-mk.x))[0];
+    const conds=[];if(pi){const pm=pi.s.match(/^П\s*(\d{1,3})\s*=\s*(\d{1,4})\s*м$/i);
+      if(pm)conds.push({t:'П'+pm[1],len:+pm[2]});}
+    // Метка группы находится в таблице НИЖЕ кабельной подписи; служебные «ВА47-29»/«QF»
+    // выше линии не должны становиться потребителем.
+    const lb=labels.filter(l=>Math.abs(l.x-mk.x)<24&&l.y<mk.y-20&&mk.y-l.y<100)
+      .sort((a,b)=>Math.abs(a.x-mk.x)-Math.abs(b.x-mk.x))[0];
+    out.push({group:lb?lb.s:'—',mark:lkMarkName(mk.s),section:sm[1]+'x'+sm[2].replace('.',','),
+      len:L,conds,x:mk.x,y:mk.y,mult:1,needsCheck:false,_brokenDecimalLen:true});
+  });
+  return out;
+}
 /* второй формат (квартирные щиты): марка+сечение без имени «X-н1;»; длину ищем рядом (nearest-neighbor) */
 function lkParseOneLine(items,keepNoLen){const rows=[];const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   items.forEach(it=>{const s=it.s;if(LK_NAME.test(s)||!LK_MARK.test(s))return;
@@ -2639,6 +2669,13 @@ async function lkExtract(data,onProgress,scope){
     const _lenNums=_lenHdr?_lenT.filter(o=>Math.abs(o.y-_lenHdr.y)<10&&o.x>_lenHdr.x+30&&/^\d+(?:[.,]\d+)?$/.test(o.s)):[];
     const hasLenBand=!!_lenHdr;
     const rows=lkExpandMult(lkParseVertical(vitems).concat(lkParseOneLine(vitems,hasLenBand)).concat(hp.rows).concat(lkParseHorizLoose(hlines,hp.used,hmeta)).concat(lkParseJournal(tc.items))).concat(lkParseBus(tc.items));
+    // Разорванная марка + отдельное видимое «20,0м», которое в text-layer стало «20 0м».
+    // Строгая полоса кабельной длины применяется до ненадёжного добора mark-feeders.
+    lkParseBrokenDecimalLen(vitems,tc.items).forEach(r=>{const old=rows.find(o=>o.x&&
+      Math.abs(o.x-r.x)<12&&Math.abs((o.y||0)-r.y)<12&&
+      String(o.section||'').replace('.',',')===r.section&&
+      String(o.mark||'').replace(/\s/g,'')===String(r.mark||'').replace(/\s/g,''));
+      if(old)Object.assign(old,r);else rows.push(r);});
     // Биографи (одна подпись-кластер): добираем, чего штатные парсеры не взяли; спец-токены
     // «гофра»/«-Гдиаметр» гарантируют, что на других стилях ветка не срабатывает
     lkParseBio(tc.items).forEach(r=>{if(!rows.some(o=>o.x&&Math.abs(o.x-r.x)<8&&Math.abs((o.y||0)-r.y)<8))rows.push(r);});
