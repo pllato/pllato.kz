@@ -1647,8 +1647,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v416';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v408';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v417';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v409';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2126,6 +2126,30 @@ function lkParseParallelUnitLen(items){
     if(!best)return;const sm=mk.s.match(LK_SECT);
     out.push({group:'—',mark:lkMarkName(mk.s),section:sm[1]+'x'+sm[2].replace('.',','),
       len:best.L,conds:[],x:mk.x,y:mk.y,mult:1,needsCheck:false,_parallelUnit:true});
+  });
+  return out.filter((r,i,a)=>!a.slice(0,i).some(o=>Math.abs(o.x-r.x)<3&&Math.abs(o.y-r.y)<3&&
+    o.mark===r.mark&&o.section===r.section));
+}
+/* Паспорт «группа-P-cosφ-ДЛИНА-ΔU%» + отдельная параллельная строка марки/сечения.
+   Целое перед процентом — длина: его семантически ограничивают физичный cosφ и обязательное
+   финальное падение напряжения в процентах. Геометрически партнёр — готовые марка+NxS той же
+   ориентации, с тем же продольным стартом и в соседней полосе 5..24 pt. */
+const LK_PERCENT_H=/^([№NА-Яа-яЁёA-Za-z][№NА-Яа-яЁёA-Za-z0-9.()\-]{1,29})\s*-\s*(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)\s*-\s*(\d{1,4})\s*-\s*(\d+(?:[.,]\d+)?)\s*%$/;
+function lkParsePercentPassport(items){
+  const R=items.map(o=>{const t=o.transform,s=lkFixEnc(o.str||'').trim();
+    const v=Math.abs(t[1])>Math.abs(t[0]);
+    return {s,x:t[4],y:t[5],v,c:v?t[4]:t[5],a:v?t[5]:t[4]};}).filter(o=>o.s);
+  const out=[];
+  R.forEach(h=>{const hm=h.s.match(LK_PERCENT_H);if(!hm)return;
+    const P=parseFloat(hm[2].replace(',','.')),co=parseFloat(hm[3].replace(',','.')),
+      L=+hm[4],du=parseFloat(hm[5].replace(',','.'));
+    if(!(P>0&&P<=1000&&co>=.4&&co<=1.1&&L>0&&L<=2000&&du>=0&&du<=5))return;
+    const near=R.filter(o=>o!==h&&o.v===h.v&&LK_MARK.test(o.s)&&LK_SECT.test(o.s)&&
+      Math.abs(o.c-h.c)>=5&&Math.abs(o.c-h.c)<=24&&Math.abs(o.a-h.a)<=4)
+      .sort((a,b)=>Math.abs(a.c-h.c)-Math.abs(b.c-h.c));
+    if(!near.length)return;const mk=near[0],sm=mk.s.match(LK_SECT);
+    out.push({group:hm[1],mark:lkMarkName(mk.s),section:sm[1]+'x'+sm[2].replace('.',','),
+      len:L,conds:[],x:mk.x,y:mk.y,mult:1,needsCheck:false,_percentPassport:true});
   });
   return out.filter((r,i,a)=>!a.slice(0,i).some(o=>Math.abs(o.x-r.x)<3&&Math.abs(o.y-r.y)<3&&
     o.mark===r.mark&&o.section===r.section));
@@ -2632,6 +2656,14 @@ async function lkExtract(data,onProgress,scope){
       String(o.section||'').replace('.',',')===r.section&&
       String(o.mark||'').replace(/\s/g,'')===String(r.mark||'').replace(/\s/g,''));
       if(old){if(!(old.len>0))Object.assign(old,r);}else rows.push(r);});
+    // Паспорт «P-cosφ-длина-ΔU%»: строгая семантика + соседняя марка/сечение. Он надёжнее
+    // голого числового фоллбэка и заполняет строку до добора mark-feeders.
+    lkParsePercentPassport(tc.items).forEach(r=>{const old=rows.find(o=>o.x&&
+      Math.abs(o.x-r.x)<12&&Math.abs((o.y||0)-r.y)<12&&
+      String(o.section||'').replace('.',',')===r.section&&
+      String(o.mark||'').replace(/\s/g,'')===String(r.mark||'').replace(/\s/g,''));
+      if(old){const conds=old.conds||[];Object.assign(old,r);if(conds.length)old.conds=conds;}
+      else rows.push(r);});
     // по-фидерно неполно (голая длина/векторные подписи) + есть авторская таблица «Потребность в кабелях»:
     // добираем ВСЕ марки-фидеры отдельными строками с точками; длина ненадёжна → needsCheck (красная точка).
     const ctab=lkParseCableTable(tc.items);let potrebOv=null;
