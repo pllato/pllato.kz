@@ -1647,8 +1647,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v414';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v406';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v415';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v407';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2022,31 +2022,40 @@ function lkParseBio(items){
 // Имя может само содержать дефисы («№СС-1»); ленивый квантификатор оставляет последние
 // четыре дефисных числа полями P/cos/I/L. В марке допустимы PDF-пробелы внутри «( А)».
 const LK_BIOM_H=/^([№A-Za-zА-Яа-яЁё][№A-Za-zА-Яа-яЁё0-9.()\-]{1,29}?)\s*-\s*(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)\s*-\s*(\d+)\s*$/;
-const LK_BIOM_T=/^[\d.,]+\s*-\s*[\d.,]+\s*-\s*(А?[сcС]?ВВГ[А-Яа-яёA-Za-z()\-\s]*?)\s*[- ]\s*(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?)/i;
+const LK_BIOM_T=/^[\d.,]+\s*-\s*[\d.,]+\s*-\s*(А?[сcС]?ВВГ[А-Яа-яёA-Za-z()\-\s]*?)\s*[- ]\s*(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?)(?:\s*\+\s*(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?))?/i;
+const LK_BIOM_S=/^(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?)(?:\s*\+\s*(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?))?$/i;
 /* Таблица без заголовка «Потребность»: «Число и сечение жил, напряжение» + строки
    «5x2,5-0,66/1кВ | 175». Используем её только как контроль СУММЫ строгих паспортов одного
    сечения, а не как самостоятельные кабельные линии. */
 function lkCableSectionTotals(items){
   const it=items.map(o=>({s:(o.str||'').trim(),x:o.transform[4],y:o.transform[5]})).filter(o=>o.s);
   const hdrs=it.filter(o=>/Число\s+и\s+сечение\s+жил/i.test(o.s)),out={},seen=new Set();
-  const sr=/^(\d+)\s*[хxХX×]\s*(\d+(?:[.,]\d+)?)(?:\s*-\s*[\d.,/]+\s*к?В)?$/i;
+  const sr=/^(\d+)\s*[хxХX×]\s*(\d+(?:[.,]\d+)?)(?:\s*\+\s*(\d+)\s*[хxХX×]\s*(\d+(?:[.,]\d+)?))?(?:\s*-\s*[\d.,/]+\s*к?В)?$/i;
   hdrs.forEach(h=>it.forEach(sec=>{const m=sec.s.match(sr);
     if(!m||Math.abs(sec.x-h.x)>100||sec.y>=h.y-10||sec.y<h.y-260)return;
     const key=Math.round(sec.x)+'_'+Math.round(sec.y);if(seen.has(key))return;seen.add(key);
     const nums=it.filter(n=>n!==sec&&Math.abs(n.y-sec.y)<7&&n.x>sec.x+40&&n.x<sec.x+260&&/^\d{1,4}$/.test(n.s));
-    if(nums.length){const s=m[1]+'x'+m[2].replace('.',',');
+    if(nums.length){const s=m[1]+'x'+m[2].replace('.',',')+(m[3]?('+'+m[3]+'x'+m[4].replace('.',',')):'');
       out[s]=(out[s]||0)+nums.reduce((a,n)=>a+(+n.s||0),0);}}));
   return out;
 }
+function lkSectionGaugeKey(s){return String(s||'').split('+').map(p=>(p.split('x')[1]||'').replace('.',',')).filter(Boolean).join('+');}
 function lkParseBioM(items){
   const cand=[];
   const it=items.map(o=>({s:lkFixEnc(o.str||'').trim(),x:o.transform[4],y:o.transform[5],
     v:Math.abs(o.transform[1])>Math.abs(o.transform[0])})).filter(o=>o.s);
+  // ONER: хвост дополнительно расколот на «момент-ΔU-марка» + отдельное составное сечение
+  // «4x120+1x70». Склеиваем только соседнюю пару той же ориентации и только если результат
+  // целиком имеет строгий формат хвоста.
+  const tailIt=it.slice(),secIt=it.filter(o=>LK_BIOM_S.test(o.s));
+  it.forEach(o=>secIt.forEach(s=>{if(o===s||o.v!==s.v)return;
+    const dx=Math.abs(s.x-o.x),dy=Math.abs(s.y-o.y);if(dx<4||dx>24||dy>=6)return;
+    const joined=o.s+' '+s.s;if(LK_BIOM_T.test(joined))tailIt.push({s:joined,x:o.x,y:o.y,v:o.v});}));
   const heads=it.filter(o=>LK_BIOM_H.test(o.s));
   heads.forEach(h=>{
     const hm=h.s.match(LK_BIOM_H),P=parseFloat(hm[2].replace(',','.')),L=+hm[5];
     const tails=[];
-    it.forEach(o=>{if(o===h||o.v!==h.v)return;
+    tailIt.forEach(o=>{if(o===h||o.v!==h.v)return;
       const dx=Math.abs(o.x-h.x),dy=Math.abs(o.y-h.y);
       // одна строка: элементы рядом; две строки: одинаковое начало, межстрочный шаг 6–20pt
       if(!((dy<6&&dx<90)||(dx<6&&dy>=6&&dy<=20)))return;
@@ -2055,15 +2064,19 @@ function lkParseBioM(items){
       tails.push({m,d:Math.hypot(dx,dy),ok:Math.abs(moment-want)<=Math.max(.5,want*.02)});});
     tails.sort((a,b)=>(a.ok===b.ok?a.d-b.d:(a.ok?-1:1)));const t=tails[0];
     if(!t||!(L>0&&L<=300))return;
-    const section=t.m[2]+'x'+t.m[3].replace('.',',');
+    const section=t.m[2]+'x'+t.m[3].replace('.',',')+(t.m[4]?('+'+t.m[4]+'x'+t.m[5].replace('.',',')):'');
     cand.push({ok:t.ok,row:{group:hm[1].replace(/^M/,'М'),mark:lkMarkName(t.m[1]),
       section,len:L,conds:[],x:h.x,y:h.y,mult:1,needsCheck:false}});
   });
   // Если P×L в исходном PDF ошибочно не совпадает (ONER В2: 3,45 вместо 297,5), разрешаем
   // длины только когда сумма ВСЕХ строгих паспортов этого сечения равна явному итогу таблицы.
-  const totals=lkCableSectionTotals(items),sums={};
+  const totals=lkCableSectionTotals(items),sums={},totalGauge={},sumGauge={};
+  Object.keys(totals).forEach(s=>{const k=lkSectionGaugeKey(s);totalGauge[k]=(totalGauge[k]||0)+totals[s];});
   cand.forEach(c=>{sums[c.row.section]=(sums[c.row.section]||0)+c.row.len;});
-  return cand.filter(c=>c.ok||(totals[c.row.section]>0&&Math.abs(totals[c.row.section]-sums[c.row.section])<.01)).map(c=>c.row);
+  cand.forEach(c=>{const k=lkSectionGaugeKey(c.row.section);sumGauge[k]=(sumGauge[k]||0)+c.row.len;});
+  return cand.filter(c=>{const k=lkSectionGaugeKey(c.row.section);return c.ok||
+    (totals[c.row.section]>0&&Math.abs(totals[c.row.section]-sums[c.row.section])<.01)||
+    (totalGauge[k]>0&&Math.abs(totalGauge[k]-sumGauge[k])<.01);}).map(c=>c.row);
 }
 /* Арена Парк, контрольные кабели: марка+сечение ОДНОЙ строкой «КВВГнг-FRLS 4х1,5», а длина «400м» —
    ОТДЕЛЬНЫМ элементом строго НИЖЕ (Δy 6..20, Δx<48). Штатный парсер их не связывает. Пара строго
@@ -2570,8 +2583,9 @@ async function lkExtract(data,onProgress,scope){
     // Строгий паспорт P/cos/I/L + P×L главнее прежнего результата: общий парсер иногда
     // принимал длину трубы «П25-5м» за длину кабеля. Заменяем только тот же кабель
     // (близкая точка + совпали марка и сечение), сохраняя уже найденные трубы и потребителя.
-    lkParseBioM(tc.items).forEach(r=>{const old=rows.find(o=>o.x&&Math.abs(o.x-r.x)<14&&Math.abs((o.y||0)-r.y)<14&&
-      String(o.section||'').replace('.',',')===String(r.section||'').replace('.',',')&&String(o.mark||'').replace(/\s/g,'')===String(r.mark||'').replace(/\s/g,''));
+    lkParseBioM(tc.items).forEach(r=>{const rs=String(r.section||'').replace('.',','),base=rs.split('+')[0];
+      const old=rows.find(o=>{const os=String(o.section||'').replace('.',',');return o.x&&Math.abs(o.x-r.x)<14&&Math.abs((o.y||0)-r.y)<14&&
+        (os===rs||os===base)&&String(o.mark||'').replace(/\s/g,'')===String(r.mark||'').replace(/\s/g,'');});
       if(old){const conds=old.conds||[],group=old.group;Object.assign(old,r,{needsCheck:false});
         if(conds.length)old.conds=conds;if(group&&group!=='—')old.group=group;}else rows.push(r);});
     // контрольные кабели с длиной строкой ниже (Арена Парк л.17): пара строго геометрическая,
@@ -2594,7 +2608,8 @@ async function lkExtract(data,onProgress,scope){
     let mf=[];
     if(isFeederSheet||/однолинейн|расчетн\w*\s+схема/i.test(_tj)){   // лист-однолинейка или «Расчетная схема» (2539 паркинг); планы этажей — нет (двойной счёт)
       const boxes=lkPotrebBoxes(tc.items);const inBox=m=>boxes.some(b=>m.x>b.x0&&m.x<b.x1&&m.y>b.y0&&m.y<b.y1);
-      const sameSec=(r,m)=>String(r.section).replace('.',',')===String(m.section).replace('.',',');
+      const sameSec=(r,m)=>{const a=String(r.section).replace('.',','),b=String(m.section).replace('.',',');
+        return a===b||a.split('+')[0]===b.split('+')[0];};
       // строки шин — не фидеры: подпись «Изолированные шины» стоит вплотную к колонке стояка и гасила его (S2 л.5 М3.1)
       const dupV=m=>rows.some(r=>r.x&&r.section!=='шина'&&(Math.abs(r.x-m.x)<8||(Math.abs(r.x-m.x)<20&&sameSec(r,m))));
       const dupH=m=>rows.some(r=>r.x&&r.section!=='шина'&&Math.abs(r.x-m.x)<20&&Math.abs((r.y||0)-m.y)<20&&((Math.abs(r.x-m.x)<8&&Math.abs((r.y||0)-m.y)<8)||sameSec(r,m)));
