@@ -8169,6 +8169,96 @@ async function handlePublicPllatoKep(request, env) {
   }, 200, request);
 }
 
+function parsePllatoChartDetailPeriod(request) {
+  const url = new URL(request.url);
+  const start = Number(url.searchParams.get('start'));
+  const end = Number(url.searchParams.get('end'));
+  const weekMs = 7 * 86400000;
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - start > weekMs + 1000) {
+    return { error: 'invalid period' };
+  }
+  return {
+    start,
+    end,
+    startIso: new Date(start).toISOString(),
+    endIso: new Date(end).toISOString(),
+  };
+}
+
+// Защищённая расшифровка точек App-графиков. В отличие от публичных серий,
+// здесь есть названия сделок, поэтому требуется действующая сессия CRM/App.
+async function handlePllatoChartDetails(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ ok: false, error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const url = new URL(request.url);
+  const kind = String(url.searchParams.get('kind') || '');
+  if (!['inquiries', 'kep'].includes(kind)) {
+    return json({ ok: false, error: 'unknown chart' }, 400, request);
+  }
+  const period = parsePllatoChartDetailPeriod(request);
+  if (period.error) return json({ ok: false, error: period.error }, 400, request);
+  const pipeline = await env.DB.prepare(
+    "SELECT id, stages FROM pipelines WHERE name = ? LIMIT 1"
+  ).bind("Pllato Старт").first();
+  if (!pipeline?.id) return json({ ok: false, error: "pipeline not found" }, 404, request);
+  const allowedPipelines = me.orgPerms?.pipelineIds;
+  if (Array.isArray(allowedPipelines) && !allowedPipelines.includes(pipeline.id)) {
+    return json({ ok: false, error: "pipeline access denied" }, 403, request);
+  }
+
+  let rows = [];
+  if (kind === 'inquiries') {
+    const result = await env.DB.prepare(`
+      SELECT d.id, d.title, d.bitrix_date_create AS event_at,
+             d.responsible_uid, u.name AS responsible_name, u.last_name AS responsible_last_name
+      FROM deals d
+      LEFT JOIN users u ON u.uid = d.responsible_uid
+      WHERE d.pipeline_id = ? AND d.bitrix_date_create >= ? AND d.bitrix_date_create < ?
+      ORDER BY d.bitrix_date_create ASC
+    `).bind(pipeline.id, period.startIso, period.endIso).all();
+    rows = result.results || [];
+  } else {
+    await ensureStageEventsBackfill(env);
+    let stages = {};
+    try { stages = JSON.parse(pipeline.stages || '{}'); } catch {}
+    const targetNames = new Set(['создание демо', 'показ демо']);
+    const stageIds = Object.entries(stages)
+      .filter(([, stage]) => targetNames.has(String(stage?.name || '').trim().toLowerCase()))
+      .map(([id]) => id);
+    if (stageIds.length !== 2) return json({ ok: false, error: "KEP stages not found" }, 404, request);
+    const result = await env.DB.prepare(`
+      SELECT d.id, d.title, first_stage.first_entered_at AS event_at,
+             d.responsible_uid, u.name AS responsible_name, u.last_name AS responsible_last_name
+      FROM (
+        SELECT deal_id, MIN(entered_at) AS first_entered_at
+        FROM deal_stage_events
+        WHERE pipeline_id = ? AND stage_id IN (?, ?)
+        GROUP BY deal_id
+      ) first_stage
+      JOIN deals d ON d.id = first_stage.deal_id
+      LEFT JOIN users u ON u.uid = d.responsible_uid
+      WHERE first_stage.first_entered_at >= ? AND first_stage.first_entered_at < ?
+      ORDER BY first_stage.first_entered_at ASC
+    `).bind(pipeline.id, stageIds[0], stageIds[1], period.startIso, period.endIso).all();
+    rows = result.results || [];
+  }
+  const items = rows.map((row) => ({
+    dealId: row.id,
+    title: row.title || '(без названия)',
+    timestamp: Date.parse(row.event_at) || 0,
+    responsible: [row.responsible_name, row.responsible_last_name].filter(Boolean).join(' ') || '',
+  })).filter((item) => item.timestamp >= period.start && item.timestamp < period.end);
+  return json({
+    ok: true,
+    kind,
+    start: period.start,
+    end: period.end,
+    items,
+    actualValue: items.length,
+  }, 200, request);
+}
+
 // GET /api/sip/route?phone=77073320409 — Asterisk дёргает при входящем.
 // Возвращает: { extensions: ["101","102"], mobile: "+7...", fallbackSeconds: 30 }
 // Логика: phone → contact → recent open deal → responsible_uid → org-tree node →
@@ -10021,6 +10111,9 @@ export default {
     }
     if (path === "/api/public/pllato-kep" && request.method === "GET") {
       return handlePublicPllatoKep(request, env);
+    }
+    if (path === "/api/charts/pllato-details" && request.method === "GET") {
+      return handlePllatoChartDetails(request, env);
     }
     // Работа с письмами конкретного ящика
     const mailUnreadMatch = path.match(/^\/api\/mail\/([^/]+)\/unread$/);

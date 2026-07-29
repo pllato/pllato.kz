@@ -2265,6 +2265,25 @@ function financeChartAllowed(actor, viewers) {
   return Boolean(email && viewers.includes(email));
 }
 
+function projectFinanceRelease(item) {
+  let timestamp = Number(item?.completedAt) || 0;
+  if (timestamp) return { timestamp, reason: "completed" };
+  if (Number(item?.deal) <= 0) return { timestamp: 0, reason: "" };
+  let received = 0;
+  const sortedPays = (item.pays || [])
+    .map((pay) => ({ pay, timestamp: projectFinanceEventTime(pay) }))
+    .filter(({ timestamp: payTime }) => payTime > 0)
+    .sort((a, b) => a.timestamp - b.timestamp);
+  for (const entry of sortedPays) {
+    received += Number(entry.pay.sum) || 0;
+    if (received >= Number(item.deal)) {
+      timestamp = entry.timestamp;
+      break;
+    }
+  }
+  return { timestamp, reason: timestamp ? "paid" : "" };
+}
+
 function projectFinanceChartSeries(finance, points = 8) {
   const count = Math.max(4, Math.min(Number(points) || 8, 16));
   const weekMs = 7 * 86400000;
@@ -2296,21 +2315,7 @@ function projectFinanceChartSeries(finance, points = 8) {
         cash[index] += Math.round(amount);
       }
     });
-    let releaseTime = Number(item.completedAt) || 0;
-    if (!releaseTime && Number(item.deal) > 0) {
-      let received = 0;
-      const sortedPays = (item.pays || [])
-        .map((pay) => ({ pay, timestamp: projectFinanceEventTime(pay) }))
-        .filter(({ timestamp }) => timestamp > 0)
-        .sort((a, b) => a.timestamp - b.timestamp);
-      for (const entry of sortedPays) {
-        received += Number(entry.pay.sum) || 0;
-        if (received >= Number(item.deal)) {
-          releaseTime = entry.timestamp;
-          break;
-        }
-      }
-    }
+    const releaseTime = projectFinanceRelease(item).timestamp;
     const releaseIndex = releaseTime ? toIndex(releaseTime) : -1;
     if (releaseIndex >= 0 && releaseIndex < count) releases[releaseIndex] += 1;
   });
@@ -2333,6 +2338,94 @@ function projectFinanceChartSeries(finance, points = 8) {
   });
 }
 
+function projectFinanceDetailPeriod(url) {
+  const start = Number(url.searchParams.get("start"));
+  const end = Number(url.searchParams.get("end"));
+  const weekMs = 7 * 86400000;
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - start > weekMs + 1000) {
+    throw new HttpError(400, "Некорректный период графика");
+  }
+  if (almatyThursdayWeekStart(start) !== start || end !== start + weekMs) {
+    throw new HttpError(400, "Период должен идти с четверга 14:00 до четверга 14:00");
+  }
+  return { start, end };
+}
+
+async function handleProjectFinanceChartDetails(env, actor, url) {
+  const kind = String(url.searchParams.get("kind") || "");
+  if (!["orders", "cash", "releases"].includes(kind)) {
+    throw new HttpError(400, "Неизвестный график");
+  }
+  const { start, end } = projectFinanceDetailPeriod(url);
+  const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
+  const finance = normalizeProjectFinance(stored || {});
+  if (!financeChartAllowed(actor, finance.chartVisibility[kind])) {
+    throw new HttpError(403, "Нет доступа к этому графику");
+  }
+  const items = [];
+  for (const [projectId, item] of Object.entries(finance.money || {})) {
+    if (kind === "orders") {
+      const firstPayment = (item.pays || [])
+        .map((pay) => ({ pay, timestamp: projectFinanceEventTime(pay) }))
+        .filter(({ timestamp }) => timestamp > 0)
+        .sort((a, b) => a.timestamp - b.timestamp)[0];
+      const timestamp = Number(item.orderCreatedAt) || firstPayment?.timestamp || 0;
+      if (Number(item.deal) > 0 && firstPayment && timestamp >= start && timestamp < end) {
+        items.push({
+          projectId,
+          timestamp,
+          deal: Number(item.deal) || 0,
+          currency: item.cur === "USD" ? "USD" : "KZT",
+          firstPayment: Number(firstPayment.pay.sum) || 0,
+        });
+      }
+      continue;
+    }
+    if (kind === "cash") {
+      for (const pay of item.pays || []) {
+        const timestamp = projectFinanceEventTime(pay);
+        if (timestamp < start || timestamp >= end) continue;
+        const amount = Number(pay.sum) || 0;
+        items.push({
+          projectId,
+          timestamp,
+          amount,
+          currency: item.cur === "USD" ? "USD" : "KZT",
+          amountKzt: Math.round(item.cur === "USD" ? amount * finance.rate : amount),
+        });
+      }
+      continue;
+    }
+    const release = projectFinanceRelease(item);
+    if (release.timestamp >= start && release.timestamp < end) {
+      items.push({
+        projectId,
+        timestamp: release.timestamp,
+        deal: Number(item.deal) || 0,
+        currency: item.cur === "USD" ? "USD" : "KZT",
+        reason: release.reason,
+      });
+    }
+  }
+  items.sort((a, b) => a.timestamp - b.timestamp);
+  const actualValue = kind === "cash"
+    ? items.reduce((sum, item) => sum + item.amountKzt, 0)
+    : items.length;
+  const weekKey = new Date(end + 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const override = finance.chartOverrides?.[weekKey]?.[kind];
+  const chartValue = Number.isFinite(Number(override)) ? Number(override) : actualValue;
+  return {
+    ok: true,
+    kind,
+    start,
+    end,
+    items,
+    actualValue,
+    chartValue,
+    manuallyAdjusted: Number.isFinite(Number(override)),
+  };
+}
+
 async function handleProjectFinanceChartsGet(env, actor, url) {
   const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
   const finance = normalizeProjectFinance(stored || {});
@@ -2351,7 +2444,13 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
       const upstream = await fetch(`https://pllato-elc-worker.uurraa.workers.dev/api/public/pllato-inquiries?points=${pointCount}`);
       if (upstream.ok) {
         const payload = await upstream.json();
-        if (Array.isArray(payload?.series)) charts.inquiries = payload.series;
+        if (Array.isArray(payload?.series)) {
+          charts.inquiries = payload.series.map((point, index) => ({
+            ...point,
+            start: allSeries[index]?.start,
+            end: allSeries[index]?.end,
+          }));
+        }
       }
     } catch (error) {
       console.warn("pllato inquiries chart unavailable", error?.message || error);
@@ -2369,9 +2468,12 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
             if (!base?.end) return point;
             const weekKey = new Date(base.end + 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
             const override = finance.chartOverrides?.[weekKey];
-            return Number.isFinite(Number(override?.kep))
-              ? { ...point, value: Number(override.kep) }
-              : point;
+            return {
+              ...point,
+              start: base.start,
+              end: base.end,
+              ...(Number.isFinite(Number(override?.kep)) ? { value: Number(override.kep) } : {}),
+            };
           });
         }
       }
@@ -8187,6 +8289,11 @@ export default {
       if (request.method === "GET" && path === "/project-finance/charts") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleProjectFinanceChartsGet(env, actor, url));
+      }
+
+      if (request.method === "GET" && path === "/project-finance/chart-details") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleProjectFinanceChartDetails(env, actor, url));
       }
 
       if (request.method === "PUT" && path === "/project-finance/charts") {
