@@ -655,9 +655,26 @@ body {
 .fc-labels { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); }
 .fc-plot { flex: 1; min-height: 0; position: relative; margin-top: 12px; }
 .fc-plot svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.fc-point { cursor:pointer; outline:none; }
+.fc-point .fc-hit { fill:transparent; }
+.fc-point:hover .fc-hit, .fc-point:focus .fc-hit { fill:color-mix(in srgb,var(--bronze) 14%,transparent); }
+.fc-point:hover .fc-dot, .fc-point:focus .fc-dot { stroke-width:3; }
 .fc-labels { margin-top: 5px; }
 .fc-labels span { min-width: 0; overflow: hidden; text-align: center; white-space: nowrap; color: var(--text-3); font-size: 9.5px; }
 .fc-empty { color: var(--text-3); font-size: 12.5px; padding: 20px 0 4px; }
+.fc-detail-modal { max-width:680px; }
+.fc-detail-summary { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+.fc-detail-summary .c { flex:1; min-width:150px; border:1px solid var(--line-2); border-radius:10px; padding:10px 12px; }
+.fc-detail-summary .l { color:var(--text-3); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+.fc-detail-summary .v { color:var(--text); font-size:16px; font-weight:800; margin-top:2px; }
+.fc-detail-note { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:9px; padding:9px 11px; margin-bottom:12px; font-size:11.5px; line-height:1.45; }
+.fc-detail-list { border:1px solid var(--line-2); border-radius:11px; overflow:hidden; }
+.fc-detail-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:5px 14px; padding:11px 13px; border-bottom:1px solid var(--line-2); }
+.fc-detail-row:last-child { border-bottom:0; }
+.fc-detail-row .n { font-size:12.5px; font-weight:800; min-width:0; overflow-wrap:anywhere; }
+.fc-detail-row .d { color:var(--text-3); font-size:10.5px; }
+.fc-detail-row .s { grid-row:1 / span 2; grid-column:2; align-self:center; font-size:12.5px; font-weight:800; color:var(--green); white-space:nowrap; }
+.fc-detail-empty { color:var(--text-3); font-size:12.5px; text-align:center; padding:24px 12px; }
 .fc-modal-list { max-height: 330px; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 10px; margin-top: 10px; }
 .fc-person { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border-bottom: 1px solid var(--line-2); cursor: pointer; }
 .fc-person:last-child { border-bottom: none; }
@@ -667,6 +684,8 @@ body {
 @media (max-width: 760px) {
   .fc-card { flex-basis:min(82vw,360px); padding-inline:12px; }
   .fc-labels span { font-size: 8.5px; }
+  .fc-detail-row { grid-template-columns:minmax(0,1fr); }
+  .fc-detail-row .s { grid-row:auto; grid-column:auto; justify-self:start; }
 }
 @media (min-width: 761px) and (max-width: 980px) {
   .fc-card { flex-basis:max(290px,calc((100% - 14px) / 2)); }
@@ -2998,21 +3017,22 @@ function financeChartSvg(kind,series){
   const y=v=>top+(1-Math.min(1,(Number(v)||0)/max))*(vh-top-bottom);
   const completed=series.map((s,i)=>s.partial?null:`${x(i)},${y(s.value).toFixed(1)}`).filter(Boolean).join(' ');
   const color=FINANCE_CHART_META[kind].color;
-  const dots=series.map((s,i)=>{
+  const points=series.map((s,i)=>{
     const title=`${s.label}: ${kind==='cash'?fmtT(s.value):s.value}${s.partial?' · текущая неделя':''}`;
-    return `<circle cx="${x(i)}" cy="${y(s.value).toFixed(1)}" r="4.5" fill="${s.partial?'var(--surface)':color}" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"><title>${mEsc(title)}</title></circle>`;
-  }).join('');
-  const pointLabels=series.map((s,i)=>{
     const value=financeValue(kind,s.value);
     const labelY=Math.max(10,y(s.value)-14);
-    return `<text x="${x(i)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="var(--text)" font-size="20" font-weight="700">${mEsc(value)}</text>`;
+    const action=`openFinancePointDetails('${kind}',${Number(s.start)},${Number(s.end)},${Number(s.value)||0})`;
+    return `<g class="fc-point" role="button" tabindex="0" aria-label="${mEsc(title)}. Показать состав" onclick="${action}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${action}}">
+      <circle class="fc-hit" cx="${x(i)}" cy="${y(s.value).toFixed(1)}" r="19"><title>${mEsc(title)} · нажмите, чтобы увидеть состав</title></circle>
+      <circle class="fc-dot" cx="${x(i)}" cy="${y(s.value).toFixed(1)}" r="4.5" fill="${s.partial?'var(--surface)':color}" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"/>
+      <text x="${x(i)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="var(--text)" font-size="20" font-weight="700">${mEsc(value)}</text>
+    </g>`;
   }).join('');
   return `<svg viewBox="0 0 ${vw} ${vh}" preserveAspectRatio="xMidYMid meet" aria-label="${mEsc(FINANCE_CHART_META[kind].title)}">
     <line x1="0" y1="${top}" x2="${vw}" y2="${top}" stroke="var(--line-2)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
     <line x1="0" y1="${vh-bottom}" x2="${vw}" y2="${vh-bottom}" stroke="var(--line-2)" vector-effect="non-scaling-stroke"/>
     <polyline points="${completed}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
-    ${dots}
-    ${pointLabels}</svg>`;
+    ${points}</svg>`;
 }
 function financeChartCard(kind,series){
   const meta=FINANCE_CHART_META[kind];
@@ -3161,6 +3181,17 @@ async function renderFinanceCharts(){
         console.warn('KEP chart fallback:',kepError);
       }
     }
+    const referenceSeries=['orders','cash','releases'].map(kind=>data.charts?.[kind]).find(Array.isArray);
+    if(referenceSeries){
+      ['inquiries','kep'].forEach(kind=>{
+        if(!Array.isArray(data.charts?.[kind])) return;
+        data.charts[kind]=data.charts[kind].map((point,index)=>({
+          ...point,
+          start:Number(point.start)||Number(referenceSeries[index]?.start)||0,
+          end:Number(point.end)||Number(referenceSeries[index]?.end)||0
+        }));
+      });
+    }
     if(requestId!==FINANCE_CHART_REQUEST) return;
     CHART_ALLOWED={...CHART_ALLOWED,...(data.visible||{})};
     if(data.chartVisibility) CHART_VISIBILITY={...CHART_VISIBILITY,...data.chartVisibility};
@@ -3180,6 +3211,80 @@ async function renderFinanceCharts(){
     if(requestId!==FINANCE_CHART_REQUEST) return;
     console.error('finance charts:',e);
     el.innerHTML='<div class="fc-empty">Не удалось загрузить графики.</div>';
+  }
+}
+function financeDetailDate(timestamp){
+  return new Intl.DateTimeFormat('ru-RU',{
+    timeZone:'Asia/Almaty',day:'2-digit',month:'2-digit',year:'numeric',
+    hour:'2-digit',minute:'2-digit'
+  }).format(new Date(Number(timestamp)||0));
+}
+function financeDetailPeriod(start,end){
+  const format=value=>new Intl.DateTimeFormat('ru-RU',{
+    timeZone:'Asia/Almaty',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'
+  }).format(new Date(value));
+  return `${format(start)} → ${format(end)}`;
+}
+function financeDetailAmount(value,currency){
+  const amount=new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Number(value)||0);
+  return currency==='USD' ? `$ ${amount}` : `${amount} ₸`;
+}
+function financeDetailRow(kind,item){
+  const project=kind==='inquiries'||kind==='kep'
+    ? (item.title||'(без названия)')
+    : projName(item.projectId);
+  let meta=financeDetailDate(item.timestamp);
+  let amount='';
+  if(kind==='orders'){
+    meta+=` · заказ ${financeDetailAmount(item.deal,item.currency)} · первый платёж ${financeDetailAmount(item.firstPayment,item.currency)}`;
+  }else if(kind==='cash'){
+    amount=`+ ${financeDetailAmount(item.amount,item.currency)}`;
+    if(item.currency==='USD') meta+=` · ${financeDetailAmount(item.amountKzt,'KZT')} по курсу`;
+  }else if(kind==='releases'){
+    meta+=item.reason==='paid'?' · полная оплата':' · отмечено «Выполнено»';
+  }else if(item.responsible){
+    meta+=` · ${item.responsible}`;
+  }
+  return `<div class="fc-detail-row"><div class="n">${mEsc(project)}</div><div class="d">${mEsc(meta)}</div>${amount?`<div class="s">${mEsc(amount)}</div>`:''}</div>`;
+}
+async function fetchCrmChartDetails(kind,start,end){
+  const session=getSession();
+  if(!session?.token) throw new Error('Сессия не найдена. Выполните вход заново.');
+  const params=new URLSearchParams({kind,start:String(start),end:String(end)});
+  const response=await fetch(`https://pllato-elc-worker.uurraa.workers.dev/api/charts/pllato-details?${params}`,{
+    headers:{Authorization:`Bearer ${session.token}`},
+    cache:'no-store'
+  });
+  const payload=await response.json().catch(()=>null);
+  if(!response.ok||payload?.ok===false) throw new Error(payload?.error||`HTTP ${response.status}`);
+  return payload;
+}
+async function openFinancePointDetails(kind,start,end,chartValue){
+  if(!FINANCE_CHART_META[kind]) return;
+  document.getElementById('financeDetailOvl')?.remove();
+  const ovl=document.createElement('div');
+  ovl.id='financeDetailOvl';
+  ovl.className='money-ovl show';
+  ovl.addEventListener('click',event=>{if(event.target===ovl)ovl.remove();});
+  ovl.innerHTML=`<div class="money-modal fc-detail-modal"><div class="mm-h"><h3>${mEsc(FINANCE_CHART_META[kind].title)}</h3><span class="mm-x" onclick="document.getElementById('financeDetailOvl').remove()">✕</span></div><div class="mm-b"><div class="fc-empty">Загружаю состав точки…</div></div></div>`;
+  document.body.appendChild(ovl);
+  try{
+    const params=new URLSearchParams({kind,start:String(start),end:String(end)});
+    const data=(kind==='inquiries'||kind==='kep')
+      ? await fetchCrmChartDetails(kind,start,end)
+      : await apiFetch(`/project-finance/chart-details?${params}`);
+    if(!document.body.contains(ovl)) return;
+    const actualValue=Number(data.actualValue)||0;
+    const shownValue=Number(chartValue)||0;
+    const different=actualValue!==shownValue;
+    const summaryValue=kind==='cash'?financeValue(kind,shownValue):String(shownValue);
+    const actualLabel=kind==='cash'?financeValue(kind,actualValue):String(actualValue);
+    ovl.querySelector('.mm-b').innerHTML=`<div class="fc-detail-summary"><div class="c"><div class="l">Период</div><div class="v">${mEsc(financeDetailPeriod(start,end))}</div></div><div class="c"><div class="l">Значение на графике</div><div class="v">${mEsc(summaryValue)}</div></div></div>`
+      +(different?`<div class="fc-detail-note">Значение на графике скорректировано вручную. По сохранённым сделкам и транзакциям найдено: <b>${mEsc(actualLabel)}</b>.</div>`:'')
+      +(data.items?.length?`<div class="fc-detail-list">${data.items.map(item=>financeDetailRow(kind,item)).join('')}</div>`:'<div class="fc-detail-list"><div class="fc-detail-empty">За эту неделю сохранённых сделок или транзакций нет.</div></div>');
+  }catch(error){
+    if(!document.body.contains(ovl)) return;
+    ovl.querySelector('.mm-b').innerHTML=`<div class="fc-detail-empty">Не удалось загрузить список.<br>${mEsc(error.message||'Попробуйте ещё раз.')}</div>`;
   }
 }
 async function openFinanceAccess(kind){
@@ -3216,7 +3321,7 @@ async function saveFinanceAccess(kind){
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects });
+Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinancePointDetails, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects });
 
 function applyProjectFilters(){
   const searchTokens=normalizeProjectSearch(SEARCH_TERM).split(' ').filter(Boolean);
