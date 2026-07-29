@@ -1647,8 +1647,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v417';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v409';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v418';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v410';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2023,7 +2023,18 @@ function lkParseBio(items){
 // четыре дефисных числа полями P/cos/I/L. В марке допустимы PDF-пробелы внутри «( А)».
 const LK_BIOM_H=/^([№A-Za-zА-Яа-яЁё][№A-Za-zА-Яа-яЁё0-9.()\-]{1,29}?)\s*-\s*(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)\s*-\s*(\d+)\s*$/;
 const LK_BIOM_T=/^[\d.,]+\s*-\s*[\d.,]+\s*-\s*(А?[сcС]?ВВГ[А-Яа-яёA-Za-z()\-\s]*?)\s*[- ]\s*(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?)(?:\s*\+\s*(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?))?/i;
+// Параллельные нитки: «… АВВГнг(А)-LS 2(5х50)». Скобки обязательны, чтобы множитель
+// невозможно было перепутать с числом жил; внутри допускается то же составное сечение.
+const LK_BIOM_TP=/^[\d.,]+\s*-\s*[\d.,]+\s*-\s*(А?[сcС]?ВВГ[А-Яа-яёA-Za-z()\-\s]*?)\s*[- ]\s*(\d+)\s*\(\s*(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?)(?:\s*\+\s*(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?))?\s*\)/i;
 const LK_BIOM_S=/^(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?)(?:\s*\+\s*(\d+)\s*[хxХX]\s*(\d+(?:[.,]\d+)?))?$/i;
+function lkBioMTail(s){
+  let m=String(s||'').match(LK_BIOM_T);
+  if(m)return {mark:m[1],mult:1,n1:m[2],s1:m[3],n2:m[4],s2:m[5]};
+  m=String(s||'').match(LK_BIOM_TP);
+  if(!m)return null;const mult=+m[2];
+  if(mult<2||mult>9)return null;
+  return {mark:m[1],mult,n1:m[3],s1:m[4],n2:m[5],s2:m[6]};
+}
 /* Таблица без заголовка «Потребность»: «Число и сечение жил, напряжение» + строки
    «5x2,5-0,66/1кВ | 175». Используем её только как контроль СУММЫ строгих паспортов одного
    сечения, а не как самостоятельные кабельные линии. */
@@ -2050,7 +2061,7 @@ function lkParseBioM(items){
   const tailIt=it.slice(),secIt=it.filter(o=>LK_BIOM_S.test(o.s));
   it.forEach(o=>secIt.forEach(s=>{if(o===s||o.v!==s.v)return;
     const dx=Math.abs(s.x-o.x),dy=Math.abs(s.y-o.y);if(dx<4||dx>24||dy>=6)return;
-    const joined=o.s+' '+s.s;if(LK_BIOM_T.test(joined))tailIt.push({s:joined,x:o.x,y:o.y,v:o.v});}));
+    const joined=o.s+' '+s.s;if(lkBioMTail(joined))tailIt.push({s:joined,x:o.x,y:o.y,v:o.v});}));
   const heads=it.filter(o=>LK_BIOM_H.test(o.s));
   heads.forEach(h=>{
     const hm=h.s.match(LK_BIOM_H),P=parseFloat(hm[2].replace(',','.')),L=+hm[5];
@@ -2059,14 +2070,14 @@ function lkParseBioM(items){
       const dx=Math.abs(o.x-h.x),dy=Math.abs(o.y-h.y);
       // одна строка: элементы рядом; две строки: одинаковое начало, межстрочный шаг 6–20pt
       if(!((dy<6&&dx<90)||(dx<6&&dy>=6&&dy<=20)))return;
-      const m=o.s.match(LK_BIOM_T);if(!m)return;
+      const m=lkBioMTail(o.s);if(!m)return;
       const moment=parseFloat(o.s.match(/^[\d.,]+/)[0].replace(',','.')),want=P*L;
       tails.push({m,d:Math.hypot(dx,dy),ok:Math.abs(moment-want)<=Math.max(.5,want*.02)});});
     tails.sort((a,b)=>(a.ok===b.ok?a.d-b.d:(a.ok?-1:1)));const t=tails[0];
     if(!t||!(L>0&&L<=300))return;
-    const section=t.m[2]+'x'+t.m[3].replace('.',',')+(t.m[4]?('+'+t.m[4]+'x'+t.m[5].replace('.',',')):'');
-    cand.push({ok:t.ok,row:{group:hm[1].replace(/^M/,'М'),mark:lkMarkName(t.m[1]),
-      section,len:L,conds:[],x:h.x,y:h.y,mult:1,needsCheck:false}});
+    const section=t.m.n1+'x'+t.m.s1.replace('.',',')+(t.m.n2?('+'+t.m.n2+'x'+t.m.s2.replace('.',',')):'');
+    cand.push({ok:t.ok,row:{group:hm[1].replace(/^M/,'М'),mark:lkMarkName(t.m.mark),
+      section,len:L,conds:[],x:h.x,y:h.y,mult:t.m.mult,needsCheck:false}});
   });
   // Если P×L в исходном PDF ошибочно не совпадает (ONER В2: 3,45 вместо 297,5), разрешаем
   // длины только когда сумма ВСЕХ строгих паспортов этого сечения равна явному итогу таблицы.
@@ -2641,11 +2652,16 @@ async function lkExtract(data,onProgress,scope){
     // Строгий паспорт P/cos/I/L + P×L главнее прежнего результата: общий парсер иногда
     // принимал длину трубы «П25-5м» за длину кабеля. Заменяем только тот же кабель
     // (близкая точка + совпали марка и сечение), сохраняя уже найденные трубы и потребителя.
-    lkParseBioM(tc.items).forEach(r=>{const rs=String(r.section||'').replace('.',','),base=rs.split('+')[0];
+    lkParseBioM(tc.items).forEach(r=>{const copies=Math.max(1,r.mult||1);r.mult=1;
+      const rs=String(r.section||'').replace('.',','),base=rs.split('+')[0];
       const old=rows.find(o=>{const os=String(o.section||'').replace('.',',');return o.x&&Math.abs(o.x-r.x)<14&&Math.abs((o.y||0)-r.y)<14&&
         (os===rs||os===base)&&String(o.mark||'').replace(/\s/g,'')===String(r.mark||'').replace(/\s/g,'');});
+      let baseRow=r;
       if(old){const conds=old.conds||[],group=old.group;Object.assign(old,r,{needsCheck:false});
-        if(conds.length)old.conds=conds;if(group&&group!=='—')old.group=group;}else rows.push(r);});
+        if(conds.length)old.conds=conds;if(group&&group!=='—')old.group=group;baseRow=old;}else rows.push(r);
+      // «2(5x50)» = две отдельные нитки одинаковой длины. Первая замещает/создаёт строку,
+      // остальные добавляются явно: обычный геометрический дедуп не должен их схлопнуть.
+      for(let i=1;i<copies;i++)rows.push(Object.assign({},baseRow,{conds:[],mult:1,_parallelCopy:true}));});
     // контрольные кабели с длиной строкой ниже (Арена Парк л.17): пара строго геометрическая,
     // добираем только там, где рядом (±12пт) ещё ничего не прочитано — двойного счёта нет
     lkPairBelowLen(tc.items).forEach(r=>{if(!rows.some(o=>o.x&&Math.abs(o.x-r.x)<12&&Math.abs((o.y||0)-r.y)<12))rows.push(r);});
