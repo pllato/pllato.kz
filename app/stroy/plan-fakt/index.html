@@ -1647,8 +1647,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v412';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v404';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v413';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v405';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2548,9 +2548,13 @@ async function lkExtract(data,onProgress,scope){
     const _fragRows=lkParseFragmentedPassports(tc.items);
     _fragRows.forEach(r=>{const old=rows.find(o=>o.x&&Math.abs(o.x-r.x)<10&&Math.abs((o.y||0)-r.y)<10);
       if(old&&!(+old.len>0)){Object.assign(old,r,{needsCheck:false});}else if(!old)rows.push(r);});
-    // Арена Парк: паспорт М-стояка из двух элементов (голова+хвост) по сырым items
-    lkParseBioM(tc.items).forEach(r=>{const old=rows.find(o=>o.x&&Math.abs(o.x-r.x)<14&&Math.abs((o.y||0)-r.y)<14);
-      if(old&&(old.needsCheck||!(+old.len>0)))Object.assign(old,r,{needsCheck:false});else if(!old)rows.push(r);});
+    // Строгий паспорт P/cos/I/L + P×L главнее прежнего результата: общий парсер иногда
+    // принимал длину трубы «П25-5м» за длину кабеля. Заменяем только тот же кабель
+    // (близкая точка + совпали марка и сечение), сохраняя уже найденные трубы и потребителя.
+    lkParseBioM(tc.items).forEach(r=>{const old=rows.find(o=>o.x&&Math.abs(o.x-r.x)<14&&Math.abs((o.y||0)-r.y)<14&&
+      String(o.section||'').replace('.',',')===String(r.section||'').replace('.',',')&&String(o.mark||'').replace(/\s/g,'')===String(r.mark||'').replace(/\s/g,''));
+      if(old){const conds=old.conds||[],group=old.group;Object.assign(old,r,{needsCheck:false});
+        if(conds.length)old.conds=conds;if(group&&group!=='—')old.group=group;}else rows.push(r);});
     // контрольные кабели с длиной строкой ниже (Арена Парк л.17): пара строго геометрическая,
     // добираем только там, где рядом (±12пт) ещё ничего не прочитано — двойного счёта нет
     lkPairBelowLen(tc.items).forEach(r=>{if(!rows.some(o=>o.x&&Math.abs(o.x-r.x)<12&&Math.abs((o.y||0)-r.y)<12))rows.push(r);});
