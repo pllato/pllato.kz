@@ -2523,8 +2523,21 @@ function applyPermissionsAndAdminUI() {
 }
 
 /* ===== группы-вкладки проектов + избранное ===== */
-const FAV_KEY = 'pllato_fav_projects';
-let FAVS = new Set((()=>{ try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch(e){ return []; } })());
+const FAV_LEGACY_KEY = 'pllato_fav_projects';
+const FAV_ACCOUNT_ID = String(session?.user?.id || session?.user?.email || 'guest').toLowerCase();
+const FAV_KEY = FAV_LEGACY_KEY + ':' + FAV_ACCOUNT_ID;
+let FAVS = new Set((()=>{
+  try {
+    // Первый вход после обновления подхватывает уже отмеченные в этом браузере
+    // карточки. Дальше кэш разделён по аккаунтам.
+    const own = localStorage.getItem(FAV_KEY);
+    return JSON.parse(own !== null ? own : (localStorage.getItem(FAV_LEGACY_KEY) || '[]'));
+  } catch(e){ return []; }
+})());
+let FAVS_LOCAL_CHANGED = false;
+let FAVS_SYNCED = false;
+let FAVS_SYNC_PROMISE = null;
+let FAVS_SAVE_TIMER = null;
 const PORTAL_VIEW_KEY = 'pllato_portal_view_v1';
 let PORTAL_VIEW = (()=>{ try { return JSON.parse(localStorage.getItem(PORTAL_VIEW_KEY)||'{}')||{}; } catch(e){ return {}; } })();
 let ACTIVE_TAB = PORTAL_VIEW.tab || 'fav';
@@ -2533,6 +2546,80 @@ let GROUPS_INIT = false;
 let PORTAL_SCROLL_TIMER = null;
 
 function saveFavs(){ try { localStorage.setItem(FAV_KEY, JSON.stringify([...FAVS])); } catch(e){} }
+function favServerRecordId(){ return 'portal_favorites_' + FAV_ACCOUNT_ID; }
+function refreshFavsUi(){
+  document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
+    card.querySelector('.fav-star')?.classList.toggle('on', FAVS.has(card.dataset.appId));
+  });
+  if (GROUPS_INIT) {
+    if (ACTIVE_TAB === 'fav') applyProjectFilters();
+    else updateTabCounts();
+  }
+}
+async function pushFavsToServer(){
+  if (!session?.user || !FAVS_SYNCED) return;
+  const favorites = [...FAVS];
+  await apiFetch('/store/push', {
+    method: 'POST',
+    body: {
+      ops: [{
+        type: 'upsert',
+        collection: 'portal_user_preferences',
+        item: {
+          id: favServerRecordId(),
+          ownerId: FAV_ACCOUNT_ID,
+          favorites,
+          updatedAt: Date.now(),
+        },
+      }],
+    },
+  });
+  FAVS_LOCAL_CHANGED = false;
+}
+function scheduleFavsServerSave(){
+  clearTimeout(FAVS_SAVE_TIMER);
+  FAVS_SAVE_TIMER = setTimeout(() => {
+    pushFavsToServer().catch(error => console.warn('favorites save:', error));
+  }, 180);
+}
+async function syncFavsFromServer({ refresh = false } = {}){
+  if (!session?.user) return;
+  if (FAVS_SYNC_PROMISE) return FAVS_SYNC_PROMISE;
+  if (refresh && FAVS_LOCAL_CHANGED) return;
+  FAVS_SYNC_PROMISE = (async () => {
+    try {
+      const data = await apiFetch('/store/pull', {
+        method: 'POST',
+        body: { collections: ['portal_user_preferences'], limitPerCollection: 5000 },
+      });
+      const items = Array.isArray(data?.collections?.portal_user_preferences)
+        ? data.collections.portal_user_preferences : [];
+      const saved = items.find(item => item?.id === favServerRecordId() && item?.ownerId === FAV_ACCOUNT_ID);
+      if (saved && !FAVS_LOCAL_CHANGED) {
+        FAVS = new Set(Array.isArray(saved.favorites) ? saved.favorites.map(String) : []);
+        saveFavs();
+        refreshFavsUi();
+      }
+      FAVS_SYNCED = true;
+      // Если серверной записи ещё нет, переносим старые локальные звёздочки.
+      // Если пользователь успел нажать звезду во время загрузки — сохраняем
+      // именно его последнее локальное состояние.
+      if (!saved || FAVS_LOCAL_CHANGED) await pushFavsToServer();
+    } catch (error) {
+      console.warn('favorites sync:', error);
+      // При недоступном API избранное продолжает работать из локального кэша.
+      FAVS_SYNCED = false;
+    } finally {
+      FAVS_SYNC_PROMISE = null;
+    }
+  })();
+  return FAVS_SYNC_PROMISE;
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    syncFavsFromServer({ refresh: true }).catch(() => {});
+  }
+});
 function savePortalView(){
   PORTAL_VIEW.tab=ACTIVE_TAB;
   PORTAL_VIEW.scroll=PORTAL_VIEW.scroll||{};
@@ -2703,7 +2790,10 @@ function buildProjectTabs(){
 function toggleFav(id, star){
   if (FAVS.has(id)) { FAVS.delete(id); star && star.classList.remove('on'); }
   else { FAVS.add(id); star && star.classList.add('on'); }
+  FAVS_LOCAL_CHANGED = true;
   saveFavs();
+  if (FAVS_SYNCED) scheduleFavsServerSave();
+  else syncFavsFromServer().catch(() => {});
   if (ACTIVE_TAB === 'fav') applyProjectFilters(); else updateTabCounts();
 }
 
@@ -3545,6 +3635,7 @@ function showApp(user) {
     avatarEl.textContent = initials;
   }
   applyPermissionsAndAdminUI();
+  syncFavsFromServer().catch(() => {});
   restorePortalPosition();
   grantDemoAccess();
 }
