@@ -659,8 +659,24 @@ body {
 .fc-point .fc-hit { fill:transparent; }
 .fc-point:hover .fc-hit, .fc-point:focus .fc-hit { fill:color-mix(in srgb,var(--bronze) 14%,transparent); }
 .fc-point:hover .fc-dot, .fc-point:focus .fc-dot { stroke-width:3; }
+.fc-note-dot { fill:var(--bronze-deep); stroke:var(--surface); stroke-width:2; vector-effect:non-scaling-stroke; }
 .fc-labels { margin-top: 5px; }
 .fc-labels span { min-width: 0; overflow: hidden; text-align: center; white-space: nowrap; color: var(--text-3); font-size: 9.5px; }
+.fc-notes { margin-top:8px; min-height:29px; display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; }
+.fc-notes::-webkit-scrollbar { display:none; }
+.fc-note-chip { min-width:0; max-width:100%; display:flex; align-items:center; gap:6px; padding:6px 8px; border:1px solid #ead8c2; border-radius:8px; background:#fffaf4; color:var(--text-2); font:600 10px/1.3 inherit; cursor:pointer; text-align:left; white-space:nowrap; }
+.fc-note-chip .d { color:var(--bronze-deep); font-weight:800; flex:none; }
+.fc-note-chip .t { overflow:hidden; text-overflow:ellipsis; }
+.fc-note-chip:hover { border-color:var(--bronze-deep); }
+.fc-point-comments { margin-top:14px; border:1px solid #ead8c2; border-radius:11px; background:#fffaf4; padding:11px 12px; }
+.fc-point-comments-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+.fc-point-comments-head strong { font-size:12px; }
+.fc-point-comments-head button, .fc-comment-add { border:1px solid #d9c1a4; background:var(--surface); color:var(--bronze-deep); border-radius:8px; padding:6px 9px; font:700 11px/1.2 inherit; cursor:pointer; }
+.fc-comment-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:3px 8px; padding:8px 0; border-top:1px solid #ead8c2; }
+.fc-comment-row .t { font-size:12px; line-height:1.45; white-space:pre-wrap; }
+.fc-comment-row .m { color:var(--text-3); font-size:9.5px; }
+.fc-comment-row button { grid-column:2; grid-row:1 / span 2; align-self:center; border:0; background:transparent; color:var(--text-3); cursor:pointer; }
+.fc-comment-editor textarea { width:100%; min-height:100px; resize:vertical; }
 .fc-empty { color: var(--text-3); font-size: 12.5px; padding: 20px 0 4px; }
 .fc-detail-modal { max-width:680px; }
 .fc-detail-summary { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
@@ -2993,6 +3009,39 @@ const FINANCE_CHART_META = {
   releases: { title:'Выпуски', sub:'Завершённые проекты', color:'#d97706' },
 };
 let FINANCE_CHART_REQUEST = 0;
+let FINANCE_CHART_COMMENTS = [];
+let FINANCE_CHART_COMMENTS_LOADED = false;
+
+function financePointComments(kind,start){
+  return FINANCE_CHART_COMMENTS
+    .filter(item=>!item.deleted && item.kind===kind && Number(item.start)===Number(start) && String(item.text||'').trim())
+    .sort((a,b)=>(Number(a.createdAt)||0)-(Number(b.createdAt)||0));
+}
+async function loadFinanceChartComments(){
+  if(FINANCE_CHART_COMMENTS_LOADED) return;
+  const data=await apiFetch('/store/pull',{method:'POST',body:{collections:['chart_comments'],limitPerCollection:500}});
+  FINANCE_CHART_COMMENTS=Array.isArray(data?.collections?.chart_comments)?data.collections.chart_comments:[];
+  FINANCE_CHART_COMMENTS_LOADED=true;
+}
+async function ensureInitialFinanceComment(series){
+  if(!CURRENT?.isSuperAdmin || !Array.isArray(series)) return;
+  const point=series.find(item=>item?.partial && item?.label==='30.07');
+  if(!point?.start) return;
+  const id=`chart-comment-launch-${Number(point.start)}`;
+  if(FINANCE_CHART_COMMENTS.some(item=>item.id===id)) return;
+  const item={
+    id,kind:'inquiries',start:Number(point.start),end:Number(point.end)||0,
+    text:'Запускаем новый канал продвижения и нанимаем нового менеджера.',
+    author:CURRENT.email||'',authorName:CURRENT.name||CURRENT.email||'',
+    createdAt:Date.now()
+  };
+  FINANCE_CHART_COMMENTS.push(item);
+  try{
+    await apiFetch('/store/push',{method:'POST',body:{ops:[{type:'upsert',collection:'chart_comments',item}]}});
+  }catch(error){
+    console.warn('initial chart comment:',error);
+  }
+}
 
 function ensureFinanceCharts(){
   let el=document.getElementById('financeCharts');
@@ -3022,9 +3071,14 @@ function financeChartSvg(kind,series){
     const value=financeValue(kind,s.value);
     const labelY=Math.max(10,y(s.value)-14);
     const action=`openFinancePointDetails('${kind}',${Number(s.start)},${Number(s.end)},${Number(s.value)||0})`;
+    const comments=financePointComments(kind,s.start);
+    const commentMarker=comments.length
+      ? `<circle class="fc-note-dot" cx="${x(i)+11}" cy="${Math.max(8,y(s.value)-10).toFixed(1)}" r="5"><title>${mEsc(comments.length===1?comments[0].text:`Комментариев: ${comments.length}`)}</title></circle>`
+      : '';
     return `<g class="fc-point" role="button" tabindex="0" aria-label="${mEsc(title)}. Показать состав" onclick="${action}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${action}}">
       <circle class="fc-hit" cx="${x(i)}" cy="${y(s.value).toFixed(1)}" r="19"><title>${mEsc(title)} · нажмите, чтобы увидеть состав</title></circle>
       <circle class="fc-dot" cx="${x(i)}" cy="${y(s.value).toFixed(1)}" r="4.5" fill="${s.partial?'var(--surface)':color}" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"/>
+      ${commentMarker}
       <text x="${x(i)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="var(--text)" font-size="20" font-weight="700">${mEsc(value)}</text>
     </g>`;
   }).join('');
@@ -3037,10 +3091,15 @@ function financeChartSvg(kind,series){
 function financeChartCard(kind,series){
   const meta=FINANCE_CHART_META[kind];
   const access=canConfigureFinanceChart(kind)?`<button class="fc-access" onclick="openFinanceAccess('${kind}')">Настройки</button>`:'';
+  const noted=series.flatMap(point=>financePointComments(kind,point.start).map(comment=>({...comment,label:point.label,end:point.end})));
+  const notes=noted.length
+    ? `<div class="fc-notes">${noted.slice(-3).reverse().map(comment=>`<button class="fc-note-chip" onclick="openFinanceCommentEditor('${kind}',${Number(comment.start)},${Number(comment.end)||0})" title="${mEsc(comment.text)}"><span class="d">● ${mEsc(comment.label)}</span><span class="t">${mEsc(comment.text)}</span></button>`).join('')}</div>`
+    : '';
   return `<article class="fc-card">
     <div class="fc-card-head"><div><div class="fc-card-title">${meta.title}</div><div class="fc-card-sub">${meta.sub} · чт 14:00 → чт 14:00</div></div>${access}</div>
     <div class="fc-plot">${financeChartSvg(kind,series)}</div>
     <div class="fc-labels">${series.map(s=>`<span>${mEsc(s.label)}</span>`).join('')}</div>
+    ${notes}
   </article>`;
 }
 function financeChartsPinnedOpen(){
@@ -3198,6 +3257,12 @@ async function renderFinanceCharts(){
     if(data.chartScale) CHART_SCALE={...CHART_SCALE,...data.chartScale};
     const kinds=['inquiries','kep','orders','cash','releases'].filter(kind=>Array.isArray(data.charts?.[kind]));
     if(!kinds.length){ el.remove(); return; }
+    try{
+      await loadFinanceChartComments();
+      await ensureInitialFinanceComment(data.charts?.inquiries);
+    }catch(commentError){
+      console.warn('chart comments:',commentError);
+    }
     await loadGlobalSalesQuickLink();
     const toggle=financeChartsPinnedOpen()?'':'<button class="fc-toggle" onclick="toggleFinanceCharts()"></button>';
     el.innerHTML='<div class="sales-quick-link" id="salesQuickLink"></div>'
@@ -3259,6 +3324,64 @@ async function fetchCrmChartDetails(kind,start,end){
   if(!response.ok||payload?.ok===false) throw new Error(payload?.error||`HTTP ${response.status}`);
   return payload;
 }
+function financeCommentDate(value){
+  return new Intl.DateTimeFormat('ru-RU',{
+    timeZone:'Asia/Almaty',day:'2-digit',month:'2-digit',year:'numeric',
+    hour:'2-digit',minute:'2-digit'
+  }).format(new Date(Number(value)||Date.now()));
+}
+function financePointCommentsBlock(kind,start,end){
+  const comments=financePointComments(kind,start);
+  const add=canConfigureFinanceChart(kind)
+    ? `<button onclick="openFinanceCommentEditor('${kind}',${Number(start)},${Number(end)})">＋ Добавить</button>`
+    : '';
+  return `<div class="fc-point-comments"><div class="fc-point-comments-head"><strong>Комментарии к периоду</strong>${add}</div>`
+    +(comments.length?comments.map(comment=>`<div class="fc-comment-row"><div class="t">${mEsc(comment.text)}</div><div class="m">${mEsc(comment.authorName||comment.author||'')} · ${mEsc(financeCommentDate(comment.createdAt))}</div>${canConfigureFinanceChart(kind)?`<span style="grid-column:2;grid-row:1 / span 2;display:flex;align-items:center"><button title="Изменить" onclick="openFinanceCommentEditor('${kind}',${Number(start)},${Number(end)},'${mEsc(comment.id)}')">✎</button><button title="Удалить" onclick="deleteFinanceComment('${mEsc(comment.id)}')">✕</button></span>`:''}</div>`).join('')
+      : '<div class="fc-detail-empty" style="padding:8px 0">Комментариев пока нет.</div>')
+    +'</div>';
+}
+function openFinanceCommentEditor(kind,start,end,commentId=''){
+  if(!canConfigureFinanceChart(kind)) return;
+  const existing=FINANCE_CHART_COMMENTS.find(item=>item.id===commentId && !item.deleted);
+  document.getElementById('financeCommentOvl')?.remove();
+  const ovl=document.createElement('div');
+  ovl.id='financeCommentOvl';
+  ovl.className='money-ovl show';
+  ovl.addEventListener('click',event=>{if(event.target===ovl)ovl.remove();});
+  ovl.innerHTML=`<div class="money-modal fc-detail-modal"><div class="mm-h"><h3>${existing?'Изменить':'Новый'} комментарий</h3><span class="mm-x" onclick="document.getElementById('financeCommentOvl').remove()">✕</span></div><div class="mm-b fc-comment-editor"><div class="fc-detail-summary"><div class="c"><div class="l">График</div><div class="v">${mEsc(FINANCE_CHART_META[kind]?.title||kind)}</div></div><div class="c"><div class="l">Период</div><div class="v">${mEsc(financeDetailPeriod(start,end))}</div></div></div><label for="fcCommentText">Что было сделано или что нужно сделать</label><textarea id="fcCommentText" maxlength="1000" placeholder="Напишите короткий комментарий к этому периоду…">${mEsc(existing?.text||'')}</textarea></div><div class="mm-f"><button onclick="document.getElementById('financeCommentOvl').remove()">Отмена</button><button style="background:var(--navy);color:#fff" onclick="saveFinanceComment('${kind}',${Number(start)},${Number(end)},'${mEsc(commentId)}')">Сохранить</button></div></div>`;
+  document.body.appendChild(ovl);
+  setTimeout(()=>ovl.querySelector('textarea')?.focus(),0);
+}
+async function saveFinanceComment(kind,start,end,commentId=''){
+  const ovl=document.getElementById('financeCommentOvl');
+  const text=ovl?.querySelector('#fcCommentText')?.value.trim()||'';
+  if(!text){ alert('Напишите комментарий.'); return; }
+  const old=FINANCE_CHART_COMMENTS.find(item=>item.id===commentId);
+  const item={
+    ...(old||{}),id:old?.id||crypto.randomUUID(),kind,start:Number(start),end:Number(end),
+    text,author:CURRENT?.email||'',authorName:CURRENT?.name||CURRENT?.email||'',
+    createdAt:Number(old?.createdAt)||Date.now(),updatedAt:Date.now(),deleted:false
+  };
+  try{
+    await apiFetch('/store/push',{method:'POST',body:{ops:[{type:'upsert',collection:'chart_comments',item}]}});
+    const index=FINANCE_CHART_COMMENTS.findIndex(entry=>entry.id===item.id);
+    if(index>=0) FINANCE_CHART_COMMENTS[index]=item; else FINANCE_CHART_COMMENTS.push(item);
+    ovl?.remove();
+    document.getElementById('financeDetailOvl')?.remove();
+    renderFinanceCharts();
+  }catch(error){ alert('Не удалось сохранить комментарий: '+error.message); }
+}
+async function deleteFinanceComment(id){
+  const item=FINANCE_CHART_COMMENTS.find(entry=>entry.id===id);
+  if(!item || !canConfigureFinanceChart(item.kind) || !confirm('Удалить комментарий?')) return;
+  const deleted={...item,deleted:true,updatedAt:Date.now()};
+  try{
+    await apiFetch('/store/push',{method:'POST',body:{ops:[{type:'upsert',collection:'chart_comments',item:deleted}]}});
+    FINANCE_CHART_COMMENTS[FINANCE_CHART_COMMENTS.indexOf(item)]=deleted;
+    document.getElementById('financeDetailOvl')?.remove();
+    renderFinanceCharts();
+  }catch(error){ alert('Не удалось удалить комментарий: '+error.message); }
+}
 async function openFinancePointDetails(kind,start,end,chartValue){
   if(!FINANCE_CHART_META[kind]) return;
   document.getElementById('financeDetailOvl')?.remove();
@@ -3281,10 +3404,11 @@ async function openFinancePointDetails(kind,start,end,chartValue){
     const actualLabel=kind==='cash'?financeValue(kind,actualValue):String(actualValue);
     ovl.querySelector('.mm-b').innerHTML=`<div class="fc-detail-summary"><div class="c"><div class="l">Период</div><div class="v">${mEsc(financeDetailPeriod(start,end))}</div></div><div class="c"><div class="l">Значение на графике</div><div class="v">${mEsc(summaryValue)}</div></div></div>`
       +(different?`<div class="fc-detail-note">Значение на графике скорректировано вручную. По сохранённым сделкам и транзакциям найдено: <b>${mEsc(actualLabel)}</b>.</div>`:'')
-      +(data.items?.length?`<div class="fc-detail-list">${data.items.map(item=>financeDetailRow(kind,item)).join('')}</div>`:'<div class="fc-detail-list"><div class="fc-detail-empty">За эту неделю сохранённых сделок или транзакций нет.</div></div>');
+      +(data.items?.length?`<div class="fc-detail-list">${data.items.map(item=>financeDetailRow(kind,item)).join('')}</div>`:'<div class="fc-detail-list"><div class="fc-detail-empty">За эту неделю сохранённых сделок или транзакций нет.</div></div>')
+      +financePointCommentsBlock(kind,start,end);
   }catch(error){
     if(!document.body.contains(ovl)) return;
-    ovl.querySelector('.mm-b').innerHTML=`<div class="fc-detail-empty">Не удалось загрузить список.<br>${mEsc(error.message||'Попробуйте ещё раз.')}</div>`;
+    ovl.querySelector('.mm-b').innerHTML=`<div class="fc-detail-empty">Не удалось загрузить список.<br>${mEsc(error.message||'Попробуйте ещё раз.')}</div>${financePointCommentsBlock(kind,start,end)}`;
   }
 }
 async function openFinanceAccess(kind){
@@ -3321,7 +3445,7 @@ async function saveFinanceAccess(kind){
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinancePointDetails, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects });
+Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects });
 
 function applyProjectFilters(){
   const searchTokens=normalizeProjectSearch(SEARCH_TERM).split(' ').filter(Boolean);
