@@ -3091,9 +3091,9 @@ function financeChartSvg(kind,series){
 function financeChartCard(kind,series){
   const meta=FINANCE_CHART_META[kind];
   const access=canConfigureFinanceChart(kind)?`<button class="fc-access" onclick="openFinanceAccess('${kind}')">Настройки</button>`:'';
-  const noted=series.flatMap(point=>financePointComments(kind,point.start).map(comment=>({...comment,label:point.label,end:point.end})));
+  const noted=series.flatMap(point=>financePointComments(kind,point.start).map(comment=>({...comment,label:point.label,end:point.end,value:point.value})));
   const notes=noted.length
-    ? `<div class="fc-notes">${noted.slice(-3).reverse().map(comment=>`<button class="fc-note-chip" onclick="openFinanceCommentEditor('${kind}',${Number(comment.start)},${Number(comment.end)||0})" title="${mEsc(comment.text)}"><span class="d">● ${mEsc(comment.label)}</span><span class="t">${mEsc(comment.text)}</span></button>`).join('')}</div>`
+    ? `<div class="fc-notes">${noted.slice(-3).reverse().map(comment=>`<button class="fc-note-chip" onclick="openFinancePointDetails('${kind}',${Number(comment.start)},${Number(comment.end)||0},${Number(comment.value)||0})" title="${mEsc(comment.text)}"><span class="d">● ${mEsc(comment.label)}</span><span class="t">${mEsc(comment.text)}</span></button>`).join('')}</div>`
     : '';
   return `<article class="fc-card">
     <div class="fc-card-head"><div><div class="fc-card-title">${meta.title}</div><div class="fc-card-sub">${meta.sub} · чт 14:00 → чт 14:00</div></div>${access}</div>
