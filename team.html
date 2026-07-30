@@ -1422,10 +1422,24 @@ body.page-team-chat .sipc-bottombar:not([data-state="established"]):not([data-st
 .task-resp-chip { display: inline-flex; align-items: center; gap: 7px; }
 .kanban-card-resp-name {
   font-size: 11px;
-  color: var(--t2);
+  color: var(--t1);
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.kanban-card-resp-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.1;
+}
+.kanban-card-resp-label {
+  color: var(--t3);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: uppercase;
 }
 .kanban-card-date {
   font-size: 10px;
@@ -12556,7 +12570,10 @@ function buildDealCard(d, stageColor) {
     <div class="kanban-card-foot">
       <div class="kanban-card-resp" title="${escapeHtml(respName || 'Без ответственного')}">
         <span class="kanban-av">${escapeHtml(respShort)}</span>
-        <span class="kanban-card-resp-name">${escapeHtml(respName.split(' ')[0] || '—')}</span>
+        <span class="kanban-card-resp-copy">
+          <span class="kanban-card-resp-label">Ответственный</span>
+          <span class="kanban-card-resp-name">${escapeHtml(respName || 'Не назначен')}</span>
+        </span>
       </div>
       ${staleWarn ? `<span class="kanban-stale">${daysSince}д</span>` : (dateLabel ? `<span class="${dateLabelClass}">${dateLabel}</span>` : '')}
     </div>
