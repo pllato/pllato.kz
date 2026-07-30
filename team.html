@@ -16248,6 +16248,7 @@ function renderDeedsList() {
 //   КАЛЕНДАРЬ — месячная сетка событий (задачи с дедлайном + Первый Zoom)
 // ═════════════════════════════════════════════════════════════════════════
 const CAL_VIEW_LS_KEY = 'elc:calendarView';
+const CAL_SCOPE_LS_KEY = 'elc:calendarShowAll:v2';
 const calendarState = {
   // Дефолт — День. Восстанавливаем последний выбранный из localStorage,
   // чтобы переключение View сохранялось между навигациями.
@@ -16265,12 +16266,12 @@ const calendarState = {
   events: null,
   loading: false,
   loadingPromise: null,
-  // Обзор всех встреч (только админ/директор). По умолчанию вкл — чтобы админ
-  // сразу видел все события; можно переключить на «Мои».
-  showAll: (() => { try { return localStorage.getItem('cal-show-all') !== '0'; } catch { return true; } })(),
+  // Общий календарь доступен каждому сотруднику, которому открыт вход в CRM.
+  // По умолчанию показываем все события команды; «Мои» остаётся быстрым фильтром.
+  showAll: (() => { try { return localStorage.getItem(CAL_SCOPE_LS_KEY) !== '0'; } catch { return true; } })(),
 };
 function calCanSeeAll() {
-  return window.currentUser?.role === 'admin' || !!window.currentUser?.orgPerms?.isDirector;
+  return !!window.currentUser;
 }
 
 function ensureCalendarStylesInjected() {
@@ -16451,13 +16452,13 @@ async function renderCalendar(el) {
       renderCalendar(el);  // полная пересборка тулбара для подсветки активной кнопки
     });
   });
-  // Переключатель охвата (Все встречи / Мои) — только админ/директор.
+  // Переключатель охвата (Все встречи / Мои) доступен всем пользователям CRM.
   el.querySelectorAll('.cal-view-btn[data-cal-scope]').forEach(b => {
     b.addEventListener('click', () => {
       const wantAll = b.dataset.calScope === 'all';
       if (calendarState.showAll === wantAll) return;
       calendarState.showAll = wantAll;
-      try { localStorage.setItem('cal-show-all', wantAll ? '1' : '0'); } catch {}
+      try { localStorage.setItem(CAL_SCOPE_LS_KEY, wantAll ? '1' : '0'); } catch {}
       calendarState.events = null;   // сбросить кеш → renderCalendar перезагрузит с новым охватом
       renderCalendar(el);
     });
@@ -16574,7 +16575,7 @@ async function loadCalendarEvents(opts = {}) {
       try { await loadDealsMeta(); } catch {}
       const pipelineIds = Object.keys(dealsState.pipelines || {});
       const dealFetches = pipelineIds.map(pid =>
-        fetch(`${WORKER_LIST_URL}/deals?page=1&pageSize=200&pipeline=${encodeURIComponent(pid)}&sort=modified&scope=${effectiveScope()}&auth=${idToken}`)
+        fetch(`${WORKER_LIST_URL}/deals?page=1&pageSize=200&pipeline=${encodeURIComponent(pid)}&sort=modified&scope=${effectiveScope()}${allEventsParam}&auth=${idToken}`)
           .then(r => r.ok ? r.json() : { items: [] })
           .catch(() => ({ items: [] }))
       );

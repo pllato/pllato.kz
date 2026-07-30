@@ -1527,6 +1527,11 @@ async function handleList(request, env, entity) {
   const stage = (url.searchParams.get("stage") || "").trim();
   const closed = (url.searchParams.get("closed") || "").trim();
   const pipeline = (url.searchParams.get("pipeline") || "").trim();
+  // Календарь CRM является общим для всей команды. Параметр используется
+  // только календарём и снимает персональные scope/org-фильтры у встреч.
+  // Аутентификация уже проверена выше: доступ получают только пользователи CRM.
+  const calendarAllEvents = url.searchParams.get("allEvents") === "1"
+    && (entity === "tasks" || entity === "deals");
   // scope: mine | team | all
   //   agent   — только mine (всё остальное downgrade'ится)
   //   manager — mine | team (свой отдел); default team если есть department, иначе mine
@@ -1538,7 +1543,8 @@ async function handleList(request, env, entity) {
     else scope = "mine";
   }
   // Downgrade недозволенных scope'ов:
-  if (scope === "all" && me.role !== "admin") scope = "mine";
+  if (calendarAllEvents) scope = "all";
+  else if (scope === "all" && me.role !== "admin") scope = "mine";
   if (scope === "team" && me.role === "agent") scope = "mine";
 
   // ──── ORG-структура — источник истины для видимости deals/tasks/contacts ────
@@ -1549,7 +1555,7 @@ async function handleList(request, env, entity) {
   // «Все сделки» видел бы только свои (а при отсутствии своих — пустую воронку).
   // Касается только deals/tasks/contacts (их покрывает orgPerms-блок); для
   // прочих сущностей legacy scope остаётся как есть.
-  if (me.role !== 'admin' && me.orgPerms && me.orgPerms.hasAnyNode &&
+  if (!calendarAllEvents && me.role !== 'admin' && me.orgPerms && me.orgPerms.hasAnyNode &&
       (entity === 'deals' || entity === 'tasks' || entity === 'contacts')) {
     scope = 'all';
   }
@@ -1746,11 +1752,9 @@ async function handleList(request, env, entity) {
     // только когда явно запрошены (?includePublic=1), чтобы не засорять доски задач.
     await ensureEventPublicColumn(env);
     const includePublic = url.searchParams.get("includePublic") === "1";
-    // allEvents=1 — обзор ВСЕХ встреч/событий (для календаря). Разрешено только
-    // админам/директорам: они видят все задачи-события без ограничения «только свои».
-    const allEvents = url.searchParams.get("allEvents") === "1";
-    const isPrivileged = me.role === 'admin' || (me.orgPerms && me.orgPerms.isDirector);
-    if (allEvents && isPrivileged) {
+    // allEvents=1 — общий календарь CRM. Все авторизованные пользователи CRM
+    // видят полный набор встреч и событий команды.
+    if (calendarAllEvents) {
       // без фильтра видимости — показываем все задачи набора
     } else {
       const vuid = me.canonicalUid || '';
@@ -1791,7 +1795,7 @@ async function handleList(request, env, entity) {
   // Применяется к: deals, contacts. Не применяется к: pipelines, users (мета).
   // tasks — исключены: у задач своя строгая видимость «только свои» (см. блок выше),
   // org-perms не должен ANDить её и терять соисполнителей/наблюдателей.
-  if (me.role !== 'admin' && me.orgPerms && (entity === 'deals' || entity === 'contacts')) {
+  if (!calendarAllEvents && me.role !== 'admin' && me.orgPerms && (entity === 'deals' || entity === 'contacts')) {
     const op = me.orgPerms;
     // Pipeline whitelist (только для deals — у tasks нет pipeline_id)
     if (entity === 'deals' && Array.isArray(op.pipelineIds)) {
