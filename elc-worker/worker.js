@@ -65,10 +65,18 @@ async function verifyFirebaseIdToken(token, projectId) {
 }
 
 async function verifyPllatoAppToken(token, env) {
-  const appBackend = env.PLLATO_COMM || { fetch };
-  const response = await appBackend.fetch("https://pllato-comm.uurraa.workers.dev/api/me", {
+  const request = new Request("https://pllato-comm.uurraa.workers.dev/api/me", {
     headers: { Authorization: `Bearer ${token}` },
   });
+  let response = env.PLLATO_COMM
+    ? await env.PLLATO_COMM.fetch(request.clone())
+    : await fetch(request.clone());
+  // Service bindings normally avoid a public network hop. If the bound service
+  // is temporarily on an older deployment/secret and rejects a freshly issued
+  // App session, retry against the canonical public Worker that issued it.
+  if (!response.ok && env.PLLATO_COMM) {
+    response = await fetch(request);
+  }
   if (!response.ok) throw new Error(`App session rejected (${response.status})`);
   const payload = await response.json();
   const user = payload?.user;
