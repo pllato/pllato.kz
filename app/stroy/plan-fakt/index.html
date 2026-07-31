@@ -1698,7 +1698,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v424';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v425';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v415';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -3543,7 +3543,8 @@ function lkChatInferLen(items,row,value){
 }
 function lkChatSourceValue(s){const m=String(s).match(/((?:ВРУ|ГРЩ|Щ|РП|ТП)[А-ЯЁа-яёA-Za-z0-9().\/-]{1,28})/i);return m?m[1]:'';}
 function lkChatLengthValue(s){let m=String(s).match(/(?:длин[а-яё]*|метр[а-яё]*)[^\d]{0,18}(\d+(?:[,.]\d+)?)/i);
-  if(!m)m=String(s).match(/(\d+(?:[,.]\d+)?)\s*м(?:\b|$)/i);
+  if(!m)m=String(s).match(/(\d+(?:[,.]\d+)?)\s*м(?=\s|$|[.,;:!?])/i);
+  if(!m)m=String(s).match(/(?:указат[а-яё]*|поставит[а-яё]*|внести|сделат[а-яё]*|должн[а-яё]*\s+быть)[^\d]{0,18}(\d+(?:[,.]\d+)?)/i);
   return m?parseFloat(m[1].replace(',','.')):null;}
 function lkChatTarget(rows,text){
   if(!rows.length)return null;const n=lkChatNorm(text);
@@ -3561,18 +3562,24 @@ function lkChatPreviewTable(before,after,reason){
     before.map((r,i)=>`<tr><td>${esc((r.group&&r.group!=='—'?r.group+' · ':'')+(r.section||''))}</td><td>${esc(String(r.value))}</td><td><b>${esc(String(after[i].value))}</b></td></tr>`).join('')+
     `</table><div style="margin-top:7px;color:var(--muted);font-size:11px">${esc(reason||'')}</div>`;
 }
+function lkChatAiCost(u,model){if(!u)return'';const haiku=/haiku/i.test(model||'');
+  const intro=Date.now()<Date.UTC(2026,8,1),pin=haiku?1:(intro?2:3),pout=haiku?5:(intro?10:15);
+  const input=(+u.input_tokens||0)*pin,write=(+u.cache_creation_input_tokens||0)*pin*1.25,
+    read=(+u.cache_read_input_tokens||0)*pin*.1,output=(+u.output_tokens||0)*pout;
+  const usd=(input+write+read+output)/1e6;
+  return usd>0?('≈'+(usd*100).toFixed(2).replace(/0+$/,'').replace(/\.$/,'')+'¢'):'';}
 function lkTeachPanel(pg,rect,clusters){
-  // Бесплатный предметный чат. Свободный текст никогда не уходит во внешний ИИ: локальный
-  // интерпретатор принимает только исправления источника/потребителя/длины/труб и подтверждения.
+  // Гибридный предметный чат: понятные команды исполняются локально; непонятый естественный язык
+  // переводит в белый список действий Claude. Применение и проверка всегда остаются в браузере.
   const wrap=document.createElement('div');wrap.className='lk-iss-modal lk-chat-modal';wrap.id='lkTeachModal';
   wrap.style.display='flex';wrap.style.zIndex='200';
   const context=clusters.slice(0,16).map(c=>c.s).join('\n');
-  wrap.innerHTML=`<div class="lk-iss-box lk-chat-box"><div class="lk-iss-head" id="lkChatHead"><b>🎓 Диалоговая Обучалка</b><span class="lk-chat-badge">бесплатно · локально</span><span class="lk-iss-sub" id="lkChatSheet">лист ${pg.page}</span><span class="lk-chat-winbtns"><button class="lk-chat-winbtn" id="lkTcMin" title="Свернуть окно" aria-label="Свернуть окно">—</button><button class="lk-chat-winbtn" id="lkTcMax" title="Развернуть на весь экран" aria-label="Развернуть на весь экран">□</button><button class="lk-chat-winbtn close" id="lkTcX" title="Закрыть" aria-label="Закрыть">×</button></span></div>
+  wrap.innerHTML=`<div class="lk-iss-box lk-chat-box"><div class="lk-iss-head" id="lkChatHead"><b>🎓 Диалоговая Обучалка</b><span class="lk-chat-badge">локально + Claude</span><span class="lk-iss-sub" id="lkChatSheet">лист ${pg.page}</span><span class="lk-chat-winbtns"><button class="lk-chat-winbtn" id="lkTcMin" title="Свернуть окно" aria-label="Свернуть окно">—</button><button class="lk-chat-winbtn" id="lkTcMax" title="Развернуть на весь экран" aria-label="Развернуть на весь экран">□</button><button class="lk-chat-winbtn close" id="lkTcX" title="Закрыть" aria-label="Закрыть">×</button></span></div>
     <div class="lk-chat-body" id="lkChatBody"><details class="lk-chat-context"><summary id="lkChatContextSummary">Лист ${pg.page} · ${lkChatAreaLabel(rect)} · найдено: ${clusters.length} ${lkPlural(clusters.length,'подпись','подписи','подписей')}</summary><pre id="lkChatContextRaw">${esc(context||'Текстового слоя в области нет')}</pre></details>
     <div class="lk-chat-log" id="lkChatLog"></div><div class="lk-chat-quick" id="lkChatQuick"></div>
     <div class="lk-chat-tools"><button class="lk-chat-attach" id="lkChatAttach">⌖ Добавить фрагмент с чертежа</button><span class="lk-note">переписка сохранится</span></div>
     <div class="lk-chat-compose"><textarea id="lkChatInput" rows="2" maxlength="500" placeholder="Например: «здесь длина 175 м, крайнее целое справа»"></textarea><button class="lk-chat-send" id="lkChatSend">Отправить</button></div>
-    <div class="lk-chat-foot"><button class="lk-chat-apply" id="lkChatApply" style="display:none">✓ Всё правильно — применить</button><button class="lk-chat-apply secondary" id="lkChatGeneral" style="display:none">Для будущих похожих файлов</button><span class="lk-note" id="lkChatNote">Только обучение чтению чертежей · внешних ИИ-вызовов нет</span></div></div></div>`;
+    <div class="lk-chat-foot"><button class="lk-chat-apply" id="lkChatApply" style="display:none">✓ Всё правильно — применить</button><button class="lk-chat-apply secondary" id="lkChatGeneral" style="display:none">Для будущих похожих файлов</button><span class="lk-note" id="lkChatNote">Сначала локально · Claude только для непонятного диалога</span></div></div></div>`;
   ($('lineyka')||document.body).appendChild(wrap);
   const box=wrap.querySelector('.lk-chat-box'),head=$('lkChatHead'),minBtn=$('lkTcMin'),maxBtn=$('lkTcMax');
   const fit=()=>{if(!box.isConnected||box.classList.contains('maximized'))return;const b=box.getBoundingClientRect();
@@ -3596,17 +3603,19 @@ function lkTeachPanel(pg,rect,clusters){
   head.ondblclick=e=>{if(!e.target.closest('button'))maxBtn.click();};
   window.addEventListener('resize',fit);
   let name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
-  const st={pg,rect,clusters,rows:lkChatRowsInRect(pg,rect),target:null,draft:null,suggested:null,pendingValue:null,pendingText:'',messages:[],fragments:[]};
-  const log=$('lkChatLog'),quick=$('lkChatQuick'),input=$('lkChatInput'),apply=$('lkChatApply'),general=$('lkChatGeneral'),note=$('lkChatNote'),attach=$('lkChatAttach');
-  const say=(role,html)=>{const el=document.createElement('div');el.className='lk-chat-msg '+role;
+  const st={pg,rect,clusters,rows:lkChatRowsInRect(pg,rect),target:null,draft:null,suggested:null,pendingValue:null,pendingText:'',messages:[],fragments:[],activeImage:null,imageShared:false};
+  const log=$('lkChatLog'),quick=$('lkChatQuick'),input=$('lkChatInput'),sendBtn=$('lkChatSend'),apply=$('lkChatApply'),general=$('lkChatGeneral'),note=$('lkChatNote'),attach=$('lkChatAttach');
+  const say=(role,html,record=true)=>{const el=document.createElement('div');el.className='lk-chat-msg '+role;
     el.innerHTML=`<span class="lk-chat-avatar">${role==='user'?'Вы':'🎓'}</span><div class="lk-chat-bubble">${html}</div>`;
-    log.appendChild(el);log.scrollTop=log.scrollHeight;};
+    log.appendChild(el);log.scrollTop=log.scrollHeight;
+    if(record)st.messages.push({role:role==='user'?'user':'assistant',content:(el.querySelector('.lk-chat-bubble').textContent||'').replace(/\s+/g,' ').trim().slice(0,1000)});
+    return el;};
   const chips=list=>{quick.innerHTML='';list.forEach(x=>{const b=document.createElement('button');b.className='lk-chat-chip';b.textContent=x[0];
     b.onclick=()=>{if(x[2]){input.value=x[1];input.focus();}else send(x[1]);};quick.appendChild(b);});};
   const showRows=()=>{
     say('bot','В области несколько линий. Укажите нужную номером или напишите её сечение:'+
       `<table>${st.rows.map((r,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(lkChatRowLabel(r))}</td></tr>`).join('')}</table>`);
-    chips(st.rows.map((r,i)=>[(i+1)+' · '+r.section,String(i+1)]));};
+    chips(st.rows.map((r,i)=>[(i+1)+' · '+((r.group&&r.group!=='—')?r.group+' · ':'')+r.section,String(i+1)]));};
   const showDraft=(rule,before,after,reason,team)=>{
     st.draft={rule,team:!!team};say('bot','Поняла. Вот что изменится:'+lkChatPreviewTable(before,after,reason));
     apply.style.display='';apply.textContent=team?'✓ Всё правильно — сохранить для похожих':'✓ Всё правильно — применить к этому файлу';
@@ -3638,7 +3647,88 @@ function lkTeachPanel(pg,rect,clusters){
       if(st.suggested){say('bot','Я сама проанализировала подписи выбранной линии: вижу <b>'+esc(String(value))+' м</b> как '+esc(st.suggested.label)+'. Нажмите «Для будущих похожих файлов» — я сразу покажу готовое правило.');
         chips([['Использовать найденное правило','использовать найденное правило'],['Нет, указать иначе','нет, указать иначе']]);}}
     };
-  const send=txt=>{
+  const sourceDraft=(src,teamRequested)=>{
+    let rule={id:'chat'+Date.now().toString(36),title:'Чат: источник из заголовка',series:lkRuleSeries(name),
+      source:'схема\\s+(?:(?:щита|панели|шкафа)\\s+)?([А-ЯЁA-Z][А-ЯЁа-яёA-Za-z0-9.,()\\/…-]{1,24})'};
+    const found=lkRuleSource(st.clusters,[rule],st.clusters.items),team=!!teamRequested&&lkChatSame(found,src);
+    if(!team)rule={id:rule.id,title:'Чат: источник '+src,series:rule.series,
+      chat:{action:'set-source',value:src,file:name,page:st.pg.page}};
+    showDraft(rule,[{group:'Источник',value:st.pg.vru||'не определён'}],[{group:'Источник',value:src}],
+      team?'Источник будет читаться из заголовка «схема щита/панели/шкафа».':'Значение сохранится только для этого файла и листа.',team);};
+  const consumerDraft=(target,value)=>{st.target=target;
+    const rule={id:'chat'+Date.now().toString(36),title:'Чат: потребитель '+(target.section||''),series:lkRuleSeries(name),
+      chat:{action:'set-consumer',match:{group:target.group||'',mark:target.mark||'',section:target.section||''},value,file:name,page:st.pg.page}};
+    showDraft(rule,[{group:target.section,value:target.group||'—'}],[{group:target.section,value}],
+      'Точечное имя сохранится только для этого файла; для общего правила нужен источник названий на чертеже.',false);};
+  const pipesDraft=()=>{
+    const before=(st.pg.rows||[]).reduce((a,r)=>a+(r.conds||[]).length,0);
+    const test=(st.pg.rows||[]).map(r=>Object.assign({},r,{conds:(r.conds||[]).map(c=>Object.assign({},c))}));
+    const rule={id:'chat'+Date.now().toString(36),title:'Чат: трубы один раз на фидер',series:lkRuleSeries(name),chat:{action:'dedupe-pipes'}};
+    lkApplyChatRules(st.clusters.items||[],test,[rule],name,st.pg.page);
+    const after=test.reduce((a,r)=>a+(r.conds||[]).length,0);
+    showDraft(rule,[{group:'Трубы на листе',value:before+' поз.'}],[{group:'Трубы на листе',value:after+' поз.'}],
+      'Одинаковая труба одной стопки учитывается один раз.',true);};
+  const ignoreDraft=()=>{const rule={id:'chat'+Date.now().toString(36),title:'Чат: U/ΔU не потребитель',series:lkRuleSeries(name),chat:{action:'ignore-u'}};
+    showDraft(rule,[{group:'U/ΔU с процентом',value:'потребитель'}],[{group:'U/ΔU с процентом',value:'игнорируется'}],
+      'Правило действует только на значения U/ΔU, заканчивающиеся процентом.',true);};
+  const learnPattern=async hint=>{
+    if(!st.clusters.length){say('bot','В этом фрагменте нет пригодного текстового слоя. Я могу исправить значение по картинке, но общее правило из одних пикселей небезопасно.');return;}
+    note.textContent='Claude строит проверяемое правило по активному фрагменту…';sendBtn.disabled=attach.disabled=true;
+    try{
+      const items=(st.clusters.items||[]).slice(0,80).map(it=>({s:lkFixEnc(it.str||'').trim(),x:Math.round(it.transform[4]),y:Math.round(it.transform[5])})).filter(o=>o.s);
+      const lines=lkItemLines(items).slice(0,40).map(l=>l.s);
+      const ac=new AbortController(),to=setTimeout(()=>ac.abort(),120000);let d;
+      try{const r=await fetch(LK_AI+'/teach',{method:'POST',headers:{'content-type':'application/json'},signal:ac.signal,
+        body:JSON.stringify({hint:String(hint||'').slice(0,500),clusters:st.clusters.map(c=>c.s),items,lines,file:name,page:st.pg.page,samples:lkTeachSamples(st.pg,st.clusters)})});d=await r.json();}
+      finally{clearTimeout(to);}
+      if(d.error){say('bot','Не смогла построить правило: '+esc(d.error));return;}
+      const rows=lkRuleRows(st.clusters,[d.rule],st.clusters.items),source=lkRuleSource(st.clusters,[d.rule],st.clusters.items);
+      if(!rows.length&&!source){say('bot','Предложенное правило не прошло локальную проверку на этом фрагменте. Я его не сохраню. Уточните, где именно стоят марка, сечение и длина.');return;}
+      d.rule.series=lkRuleSeries(name);
+      const before=[],after=[];
+      if(source){before.push({group:'Источник',value:st.pg.vru||'не определён'});after.push({group:'Источник',value:source});}
+      rows.slice(0,20).forEach(r=>{before.push({group:r.group||'Линия',section:r.section,value:'не прочитано'});after.push({group:r.group||'Линия',section:r.section,value:r.len+' м'});});
+      showDraft(d.rule,before,after,(d.explain||'Claude построил правило.')+' Оно уже проверено на текущем фрагменте; после подтверждения файл будет перечитан.',true);
+    }catch(e){say('bot','Связь с Claude не сработала: '+esc(e&&e.message||String(e)));}
+    finally{sendBtn.disabled=attach.disabled=false;if(!st.draft)note.textContent='Можно уточнить словами или приложить другой фрагмент';input.focus();}
+  };
+  const aiInterpret=async txt=>{
+    sendBtn.disabled=attach.disabled=true;note.textContent='Claude связывает сообщение с активным фрагментом…';
+    const thinking=say('bot','Смотрю на фрагмент и предыдущие сообщения…',false);
+    try{
+      const n=lkChatNorm(txt),needImage=!st.imageShared||/здесь|вот|видн|указан|написан|показыв|ткнул|тыкн/.test(n);
+      if(needImage&&!st.activeImage)try{st.activeImage=await lkAreaImage(st.pg,st.rect,900);}catch(e){}
+      const raw=st.clusters.slice(0,20).map(c=>c.s).join('\n');
+      const rows=st.rows.map(r=>({group:r.group||'',mark:r.mark||'',section:r.section||'',len:+r.len||0,
+        x:r.mx==null?null:r.mx*100,y:r.my==null?null:r.my*100}));
+      const ac=new AbortController(),to=setTimeout(()=>ac.abort(),120000);let d;
+      try{const r=await fetch(LK_AI+'/chat',{method:'POST',headers:{'content-type':'application/json'},signal:ac.signal,
+        body:JSON.stringify({message:txt,history:st.messages.slice(0,-1).slice(-10),context:{file:name,page:st.pg.page,area:lkChatAreaLabel(st.rect),text:raw},rows,
+          image:needImage&&st.activeImage?st.activeImage:''})});d=await r.json();}
+      finally{clearTimeout(to);}
+      thinking.remove();
+      if(d.error){say('bot','Claude сейчас недоступен: '+esc(d.error)+'. Локальные команды продолжают работать.');return;}
+      if(needImage&&st.activeImage)st.imageShared=true;
+      const cost=lkChatAiCost(d._usage,d._model);note.textContent='Ответил '+(/haiku/i.test(d._model||'')?'Claude Haiku':'Claude Sonnet')+(cost?' · '+cost:'')+' · сохранение только после подтверждения';
+      if(d.reply)say('bot',esc(d.reply));
+      const target=(Number.isInteger(d.target_index)&&d.target_index>=0?st.rows[d.target_index]:null)||st.target||(st.rows.length===1?st.rows[0]:null);
+      if(target)st.target=target;
+      if(d.intent==='set_length'){
+        if(!target){st.pendingValue=+d.value_number;st.pendingText=txt;showRows();return;}
+        lengthDraft(target,+d.value_number,d.scope==='similar'?d.strategy:'');return;}
+      if(d.intent==='set_source'){sourceDraft(d.value_text,d.scope==='similar');return;}
+      if(d.intent==='set_consumer'){
+        if(!target){showRows();return;}consumerDraft(target,d.value_text);return;}
+      if(d.intent==='dedupe_pipes'){pipesDraft();return;}
+      if(d.intent==='ignore_u'){ignoreDraft();return;}
+      if(d.intent==='learn_pattern'){await learnPattern(txt);return;}
+      if(d.intent==='clarify'&&st.rows.length>1){const mentioned=lkChatLengthValue(txt);
+        if(mentioned>0){st.pendingValue=mentioned;st.pendingText=txt;showRows();}
+        else chips(st.rows.map((r,i)=>[(i+1)+' · '+((r.group&&r.group!=='—')?r.group+' · ':'')+r.section,String(i+1)]));}
+    }catch(e){thinking.remove();say('bot','Не удалось связаться с Claude: '+esc(e&&e.message||String(e))+'. Попробуйте ещё раз — переписка сохранена.');}
+    finally{sendBtn.disabled=attach.disabled=false;input.focus();}
+  };
+  const send=async txt=>{
     txt=String(txt||'').trim();if(!txt)return;say('user',esc(txt));input.value='';
     const n=lkChatNorm(txt);
     if(/анекдот|погод|рецепт|договор|письмо|столиц|перевед|напиши\s+код|кто\s+такой/.test(n)){
@@ -3650,48 +3740,28 @@ function lkTeachPanel(pg,rect,clusters){
     if(st.pendingValue!=null&&/^\d+$/.test(n)){const i=+n-1;if(st.rows[i]){st.target=st.rows[i];const v=st.pendingValue,t=st.pendingText;st.pendingValue=null;lengthDraft(st.target,v,lkChatStrategy(t));}else showRows();return;}
     const src=lkChatSourceValue(txt);
     if(src&&/источник|схем|щит/.test(n)){
-      let rule={id:'chat'+Date.now().toString(36),title:'Чат: источник из заголовка',series:lkRuleSeries(name),
-        source:'схема\\s+(?:(?:щита|панели|шкафа)\\s+)?([А-ЯЁA-Z][А-ЯЁа-яёA-Za-z0-9.,()\\/…-]{1,24})'};
-      const found=lkRuleSource(st.clusters,[rule],st.clusters.items);
-      const team=lkChatSame(found,src);
-      if(!team)rule={id:rule.id,title:'Чат: источник '+src,series:rule.series,
-        chat:{action:'set-source',value:src,file:name,page:st.pg.page}};
-      showDraft(rule,[{group:'Источник',value:st.pg.vru||'не определён'}],[{group:'Источник',value:src}],
-        team?'Источник будет читаться из заголовка «схема щита/панели/шкафа».':'В выделенном тексте шаблон источника не найден: значение сохранится только для этого файла.',team);return;}
+      sourceDraft(src,true);return;}
     const strategy=lkChatStrategy(txt),val=lkChatLengthValue(txt);
-    if((val!=null||strategy)&&(/длин|метр|должн[а-я]*\s+быть|правильн[а-я]*|вот\s+здесь|цел[а-я]*\s+справа|цифр[а-я]*\s+справа|справа\s+от\s+марк|перед\s+м/.test(n)||st.draft&&st.draft.rule.chat&&st.draft.rule.chat.action==='set-length')){
+    if((val!=null||strategy)&&(/длин|метр|\d+(?:[.,]\d+)?\s*м(?=\s|$|[.,;:!?])|указат|укаж|постав|должн[а-я]*\s+быть|правильн[а-я]*|вот\s+здесь|цел[а-я]*\s+справа|цифр[а-я]*\s+справа|справа\s+от\s+марк|перед\s+м/.test(n)||st.draft&&st.draft.rule.chat&&st.draft.rule.chat.action==='set-length')){
       const target=st.target||lkChatTarget(st.rows,txt)||(st.draft&&st.draft.rule.chat?st.rows.find(r=>lkChatRuleMatchesRow(st.draft.rule.chat,r)):null);
       const value=val!=null?val:(st.draft&&st.draft.rule.chat?+st.draft.rule.chat.value:null);
       if(!target){st.pendingValue=value;st.pendingText=txt;showRows();return;}
       if(!(value>0)&&!strategy){say('bot','Напишите длину числом, например: «длина 175 м».');return;}
       lengthDraft(target,value,strategy);return;}
     if(/труб|гофр/.test(n)&&/один|раз|дубл|стопк|повтор/.test(n)){
-      const before=(st.pg.rows||[]).reduce((a,r)=>a+(r.conds||[]).length,0);
-      const test=(st.pg.rows||[]).map(r=>Object.assign({},r,{conds:(r.conds||[]).map(c=>Object.assign({},c))}));
-      const rule={id:'chat'+Date.now().toString(36),title:'Чат: трубы один раз на фидер',series:lkRuleSeries(name),chat:{action:'dedupe-pipes'}};
-      lkApplyChatRules(st.clusters.items||[],test,[rule],name,st.pg.page);
-      const after=test.reduce((a,r)=>a+(r.conds||[]).length,0);
-      showDraft(rule,[{group:'Трубы на листе',value:before+' поз.'}],[{group:'Трубы на листе',value:after+' поз.'}],
-        'Одинаковая труба одной стопки учитывается один раз.',true);return;}
+      pipesDraft();return;}
     if((/u|∆|δu|потер/.test(n)&&/%|потребител/.test(n)&&/не\s+потребител|игнор|не\s+назван/.test(n))){
-      const rule={id:'chat'+Date.now().toString(36),title:'Чат: U/ΔU не потребитель',series:lkRuleSeries(name),chat:{action:'ignore-u'}};
-      showDraft(rule,[{group:'U/ΔU с процентом',value:'потребитель'}],[{group:'U/ΔU с процентом',value:'игнорируется'}],
-        'Правило действует только на значения U/ΔU, заканчивающиеся процентом.',true);return;}
+      ignoreDraft();return;}
     const cm=String(txt).match(/потребител[а-яё]*(?:\s+(?:это|=))?\s*[:\-]?\s*(.{2,80})/i);
     if(cm){const target=st.target||lkChatTarget(st.rows,txt);if(!target){showRows();return;}
-      const value=cm[1].trim(),rule={id:'chat'+Date.now().toString(36),title:'Чат: потребитель '+(target.section||''),
-        series:lkRuleSeries(name),chat:{action:'set-consumer',match:{group:target.group||'',mark:target.mark||'',section:target.section||''},value,file:name,page:st.pg.page}};
-      showDraft(rule,[{group:target.section,value:target.group||'—'}],[{group:target.section,value}],
-        'Точечное имя сохранится только для этого файла; для общего правила лучше указать таблицу-источник.',false);return;}
+      consumerDraft(target,cm[1].trim());return;}
     if(/источник/.test(n)){say('bot','Напишите имя полностью, например: «источник ЩАО-2(1)».');return;}
-    if(/длин|метр/.test(n)){say('bot','Напишите правильное число, например: «длина 175 м». Если правило нужно для будущих файлов, добавьте: «крайнее целое справа».');return;}
-    say('bot','Я пока понимаю только обучение чтению чертежа: источник, потребителя, длину кабеля и трубы. Например: «здесь длина 175 м» или «трубы учитывать один раз на стопку».');};
+    await aiInterpret(txt);};
   $('lkChatSend').onclick=()=>send(input.value);
   input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send(input.value);}};
   apply.onclick=save;
   general.onclick=()=>{if(st.suggested&&st.target&&st.draft&&st.draft.rule.chat){lengthDraft(st.target,+st.draft.rule.chat.value,st.suggested.strategy);return;}
-    say('bot','Где брать длину в будущих похожих файлах? Выберите вариант или напишите своими словами.');
-    chips([['Верхняя строка справа','в верхней строке справа'],['Число перед «м»','число перед м'],['Крайнее целое справа','крайнее целое справа'],['Справа от марки','число справа от марки']]);};
+    send('Нужно научить будущие похожие файлы по этому фрагменту. Определи безопасное правило.');};
   const restoreAfterPick=()=>{wrap.style.display='flex';attach.disabled=false;fit();input.focus();};
   attach.onclick=()=>{
     if(!LK.pages||!LK.pages.length){toast('Сначала откройте лист');return;}
@@ -3701,11 +3771,11 @@ function lkTeachPanel(pg,rect,clusters){
       try{
         const nextClusters=await lkAreaClusters(nextPg,nextRect);
         let image=null;try{image=await lkAreaImage(nextPg,nextRect,720);}catch(e){}
-        st.pg=nextPg;st.rect=nextRect;st.clusters=nextClusters;st.rows=lkChatRowsInRect(nextPg,nextRect);
+        st.pg=nextPg;st.rect=nextRect;st.clusters=nextClusters;st.rows=lkChatRowsInRect(nextPg,nextRect);st.activeImage=image;st.imageShared=false;
         st.target=null;st.draft=null;st.suggested=null;st.pendingValue=null;st.pendingText='';
         name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||name;
         apply.style.display=general.style.display='none';apply.disabled=general.disabled=false;
-        note.textContent='Активен последний прикреплённый фрагмент · внешних ИИ-вызовов нет';chips([]);
+        note.textContent='Активен последний фрагмент · сначала локально, Claude при необходимости';chips([]);
         const raw=nextClusters.slice(0,16).map(c=>c.s).join('\n');
         $('lkChatSheet').textContent='лист '+nextPg.page;
         $('lkChatContextSummary').textContent='Лист '+nextPg.page+' · '+lkChatAreaLabel(nextRect)+' · найдено: '+nextClusters.length+' '+lkPlural(nextClusters.length,'подпись','подписи','подписей');
@@ -3719,7 +3789,7 @@ function lkTeachPanel(pg,rect,clusters){
       finally{restoreAfterPick();}
     },restoreAfterPick);
   };
-  say('bot','Покажите, что здесь нужно исправить. Можно написать обычной фразой: <b>«длина 175 м»</b>, <b>«источник ЩАО-2(1)»</b> или <b>«трубы учитывать один раз»</b>. Я сначала покажу «было → стало» и ничего не сохраню без подтверждения.');
+  say('bot','Покажите, что здесь нужно исправить — говорите обычными словами и ссылайтесь на предыдущие сообщения: <b>«вот же здесь написано 5 м»</b>, <b>«поставь 5 этой линии»</b> или <b>«научи так читать будущие файлы»</b>. Я сначала покажу «было → стало» и ничего не сохраню без подтверждения.');
   if(st.rows.length>1)say('bot','В выделении найдено '+st.rows.length+' кабельных линий. Можно указать сечение нужной линии, например «4x1,5 — 20 м».');
   chips([['Указать длину','длина ',true],['Указать источник','источник ',true],['Трубы один раз','трубы учитывать один раз'],['U% не потребитель','U% — не потребитель']]);
   input.focus();
