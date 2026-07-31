@@ -3865,6 +3865,32 @@ document.querySelectorAll('.js-footer-feedback-form').forEach(form => {
 <!-- Отслеживание кликов по WhatsApp и телефону как конверсий (тот же паттерн, что у формы) -->
 <script>
 (function () {
+  function attributionLabel() {
+    var a = typeof getAdAttributionObject === 'function' ? getAdAttributionObject() : {};
+    var parts = [];
+    if (a.utm_source) parts.push('source=' + a.utm_source);
+    if (a.utm_campaign) parts.push('campaign=' + a.utm_campaign);
+    if (a.utm_content) parts.push('content=' + a.utm_content);
+    if (a.utm_term) parts.push('term=' + a.utm_term);
+    if (a.gclid) parts.push('gclid=' + a.gclid);
+    return parts.join(' | ');
+  }
+
+  // Источник едет внутри первого сообщения клиента. Поэтому менеджер видит
+  // кампанию даже если диалог начался в WhatsApp, а не через форму сайта.
+  document.querySelectorAll('a[href*="wa.me"],a[href*="api.whatsapp.com"],a[href*="web.whatsapp.com"]').forEach(function (a) {
+    try {
+      var url = new URL(a.href, location.href);
+      var marker = attributionLabel();
+      if (!marker) return;
+      var baseText = url.searchParams.get('text') || 'Здравствуйте! Хочу обсудить проект CRM';
+      if (!baseText.includes('Источник рекламы:')) {
+        url.searchParams.set('text', baseText + '\n\nИсточник рекламы: ' + marker);
+        a.href = url.toString();
+      }
+    } catch (e) { /* ссылка останется рабочей без метки */ }
+  });
+
   function sendContact(eventName, label) {
     if (window.dataLayer) window.dataLayer.push({ event: eventName, lead_source: label });
     if (typeof gtag === 'function') gtag('event', eventName, { source: label });
@@ -3877,6 +3903,11 @@ document.querySelectorAll('.js-footer-feedback-form').forEach(form => {
     var href = a.getAttribute('href') || '';
     if (/(?:wa\.me|api\.whatsapp\.com|web\.whatsapp\.com)/i.test(href)) {
       sendContact('contact_whatsapp', 'whatsapp_link');
+      // Текущий GTM-триггер Google Analytics слушает lead_submitted.
+      if (window.dataLayer) window.dataLayer.push({ event: 'lead_submitted', lead_source: 'whatsapp_click' });
+    } else if (/(?:t\.me|telegram\.me)/i.test(href)) {
+      sendContact('contact_telegram', 'telegram_link');
+      if (window.dataLayer) window.dataLayer.push({ event: 'lead_submitted', lead_source: 'telegram_click' });
     } else if (/^tel:/i.test(href)) {
       sendContact('contact_phone', 'phone_link');
     }
