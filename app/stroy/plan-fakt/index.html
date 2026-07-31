@@ -275,6 +275,35 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-iss-note{font-size:11.5px;color:var(--gray);line-height:1.45;}
 .lk-iss-empty{color:var(--gray);font-size:13px;padding:8px 2px;}
 .lk-note{font-size:12px;color:var(--gray);line-height:1.45;align-self:center;flex:1;min-width:180px;}
+.lk-chat-box{width:760px;max-width:96vw;padding:0;gap:0;overflow:hidden;}
+.lk-chat-box .lk-iss-head{padding:14px 16px;border-bottom:1px solid var(--line);}
+.lk-chat-badge{font-size:10px;font-weight:800;color:#23653c;background:#e8f6ed;border:1px solid #bfe0ca;border-radius:999px;padding:3px 7px;white-space:nowrap;}
+.lk-chat-context{padding:9px 16px;background:#f7f9fc;border-bottom:1px solid var(--line);font-size:11.5px;color:var(--muted);}
+.lk-chat-context summary{cursor:pointer;font-weight:700;color:var(--steel);}
+.lk-chat-context pre{white-space:pre-wrap;max-height:120px;overflow:auto;margin:8px 0 0;font:10.5px/1.45 var(--mono);color:var(--muted);}
+.lk-chat-log{min-height:280px;max-height:50vh;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:#f6f8fb;}
+.lk-chat-msg{display:flex;gap:8px;align-items:flex-start;max-width:88%;}
+.lk-chat-msg.user{align-self:flex-end;flex-direction:row-reverse;}
+.lk-chat-avatar{width:27px;height:27px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;background:#e6edf7;font-size:13px;}
+.lk-chat-msg.user .lk-chat-avatar{background:#f5dfbf;}
+.lk-chat-bubble{background:#fff;border:1px solid var(--line);border-radius:12px;padding:9px 11px;font-size:13px;line-height:1.48;box-shadow:0 2px 8px rgba(32,48,70,.05);}
+.lk-chat-msg.user .lk-chat-bubble{background:#fff8ed;border-color:#efd4aa;}
+.lk-chat-bubble table{width:100%;border-collapse:collapse;margin-top:8px;font-size:11.5px;}
+.lk-chat-bubble th,.lk-chat-bubble td{padding:5px 6px;border-top:1px solid var(--line);text-align:left;vertical-align:top;}
+.lk-chat-bubble th{color:var(--muted);font-weight:700;}
+.lk-chat-quick{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 10px;background:#f6f8fb;}
+.lk-chat-chip{border:1px solid #c8d3e2;background:#fff;color:var(--steel);border-radius:999px;padding:6px 10px;font:600 11.5px/1.2 inherit;cursor:pointer;}
+.lk-chat-chip:hover{border-color:var(--steel);background:#f0f5fb;}
+.lk-chat-compose{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);background:#fff;align-items:flex-end;}
+.lk-chat-compose textarea{flex:1;min-height:42px;max-height:110px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:13px/1.4 inherit;}
+.lk-chat-compose textarea:focus{outline:none;border-color:var(--steel);box-shadow:0 0 0 3px rgba(47,74,110,.10);}
+.lk-chat-send{border:0;background:var(--steel);color:#fff;border-radius:10px;padding:11px 15px;font-weight:800;cursor:pointer;}
+.lk-chat-send:disabled{opacity:.45;cursor:default;}
+.lk-chat-foot{display:flex;gap:8px;align-items:center;padding:0 16px 14px;background:#fff;}
+.lk-chat-foot .lk-note{margin-left:auto;text-align:right;}
+.lk-chat-apply{border:1px solid #2f7d4f;background:#edf8f1;color:#23653c;border-radius:9px;padding:8px 12px;font-weight:800;cursor:pointer;}
+.lk-chat-apply.secondary{border-color:#aab8ca;background:#fff;color:var(--steel);}
+.lk-chat-apply:disabled{opacity:.45;cursor:default;}
 /* постраничный вид линейки */
 .lk-main{display:flex;flex:1;min-height:0;}
 .lk-nav{width:214px;flex-shrink:0;overflow-y:auto;background:var(--panel);border-right:1px solid var(--line);padding:9px;display:flex;flex-direction:column;gap:8px;}
@@ -553,7 +582,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
     <button class="lk-tb" id="lkBack" title="Назад">← Назад</button>
     <div class="lg-title">Линейка — чтение схемы<span class="lk-verchip" id="lkVer" title="Версия парсера Линейки. Если Claude говорит про более новую — обнови страницу с Cmd+Shift+R и нажми «Перечитать файл»"></span><span class="lg-sub" id="lkName"></span></div>
     <div class="lk-docs" id="lkDocs"></div>
-    <button class="lk-tb" id="lkTeachTop" style="margin-left:auto" title="Обведи участок, который программа не читает, и скажи словами, что там считать — правило запомнится и заработает на всех похожих листах">🎓 Научить читать</button>
+    <button class="lk-tb" id="lkTeachTop" style="margin-left:auto" title="Бесплатный предметный чат: обведи участок, объясни исправление и подтверди правило для похожих чертежей">🎓 Обучалка-чат</button>
     <button class="lk-tb" id="lkVisSheet" title="ИИ прочитает ВЕСЬ лист по картинке — для файлов с битым текстом (таблица нарисована картинкой). ≈2–4 цента за лист">👁 Прочитать лист целиком</button>
     <button class="lk-tb" id="lkIssues" title="Пометки «что исправить» с привязкой к файлу и листу">⚑ Правки<span id="lkIssN"></span></button>
     <button class="lk-tb" id="lkReport">📊 Отчёт по файлу</button>
@@ -569,7 +598,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
         <textarea id="lkIssText" rows="2" placeholder="Что не так на текущем листе? Например: «справа кабель на насос не посчитан», «длина у ЩК-2.4 должна быть 25 м»…"></textarea>
         <div class="lk-iss-newbtns">
           <button class="lk-add" id="lkIssPick" title="Закроет окно — обведи рамкой место на листе, пометка привяжется к области">⌖ Обвести место на листе <span id="lkIssPage"></span></button>
-          <button class="lk-add" id="lkTeach" title="Обведи участок, который программа не читает, и скажи словами, что там считать — правило запомнится и заработает на всех похожих листах" style="border-color:#b45309;color:#b45309">🎓 Научить читать</button>
+          <button class="lk-add" id="lkTeach" title="Бесплатный предметный чат: обведи участок, объясни исправление и подтверди правило" style="border-color:#b45309;color:#b45309">🎓 Обучалка-чат</button>
           <button class="lk-add" id="lkIssAdd" title="Пометка на весь лист, без области">⚑ На весь лист</button>
         </div>
       </div>
@@ -1647,8 +1676,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v421';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v413';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v422';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v414';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2745,6 +2774,73 @@ function lkRuleRows(clusters,rules,items){
 /* СЕРИЯ файла для привязки правил: ведущий номер проекта («2810_03…»→«2810») или первый токен.
    Правило применяется только к своей серии — иначе выученное на одном стиле течёт на чужие файлы. */
 function lkRuleSeries(name){const s=String(name||'');const m=s.match(/\d{3,5}/);return m?m[0]:(s.match(/[A-Za-zА-Яа-я0-9]{3,}/)||[''])[0].toLowerCase();}
+/* БЕСПЛАТНАЯ ДИАЛОГОВАЯ ОБУЧАЛКА. Чат не исполняет произвольный код и не обращается к
+   языковой модели: фраза сотрудника превращается только в одну из разрешённых операций.
+   Точечное числовое исправление ограничивается файлом+листом. В командное правило для будущих
+   файлов превращаются лишь явные стратегии («число перед м», «крайнее целое справа»). */
+function lkChatNorm(s){return String(s||'').toLowerCase().replace(/ё/g,'е').replace(/[×х]/g,'x').replace(/\s+/g,' ').trim();}
+function lkChatSame(a,b){return lkChatNorm(a).replace(/[.,\s]/g,'')===lkChatNorm(b).replace(/[.,\s]/g,'');}
+function lkChatRuleMatchesRow(c,r){
+  const m=c.match||{};
+  if(m.mark&&!lkChatSame(m.mark,r.mark))return false;
+  if(m.section&&!lkChatSame(m.section,r.section))return false;
+  if(!c.general&&m.group&&!lkChatSame(m.group,r.group))return false;
+  return true;
+}
+function lkChatNearbyTexts(items,row){
+  const R=(items||[]).map(o=>({s:lkFixEnc(o.str!=null?o.str:(o.s||'')).trim(),
+    x:o.transform?o.transform[4]:o.x,y:o.transform?o.transform[5]:o.y})).filter(o=>o.s&&o.x!=null);
+  if(!row||row.x==null||row.y==null)return R.map(o=>o.s);
+  const near=R.filter(o=>Math.abs(o.x-row.x)<90&&Math.abs(o.y-row.y)<90);
+  const mark=lkChatNorm(row.mark).replace(/\s/g,''),sec=lkChatNorm(row.section).replace(/[.,\s]/g,'');
+  const dist=o=>Math.hypot(o.x-row.x,o.y-row.y);
+  const secOwn=near.filter(o=>{const n=lkChatNorm(o.s).replace(/[.,\s]/g,'');return sec&&n.includes(sec);}).sort((a,b)=>dist(a)-dist(b));
+  const markOwn=near.filter(o=>{const n=lkChatNorm(o.s).replace(/\s/g,'');return mark&&n.includes(mark)&&!secOwn.includes(o);}).sort((a,b)=>dist(a)-dist(b));
+  const own=secOwn.concat(markOwn);
+  const lines=lkItemLines(near).map(l=>l.s);
+  return own.map(o=>o.s).concat(lines,near.map(o=>o.s));
+}
+function lkChatLearnedLen(items,row,strategy){
+  const texts=lkChatNearbyTexts(items,row);if(!texts.length)return null;
+  const numbers=s=>{const out=[];String(s).replace(LK_SECT,' ').replace(LK_COND_RX,' ').replace(/(?:^|\D)(\d{1,4})(?![.,\d])/g,(z,n)=>{const v=+n;if(v>=1&&v<=5000)out.push(v);return z;});return out;};
+  for(const s0 of texts){
+    const s=String(s0);
+    if(strategy==='before-m'){
+      const a=[...s.matchAll(/(\d+(?:[,.]\d+)?)\s*м(?![²2])/gi)].map(m=>parseFloat(m[1].replace(',','.'))).filter(v=>v>0&&v<=5000);
+      if(a.length)return a[a.length-1];
+    }
+    if(strategy==='right-of-mark'){
+      const mark=String(row.mark||''),i=lkChatNorm(s).indexOf(lkChatNorm(mark));
+      if(i>=0){const a=numbers(s.slice(i+mark.length));if(a.length)return a[a.length-1];}
+    }
+    if(strategy==='rightmost-integer'){const a=numbers(s);if(a.length)return a[a.length-1];}
+  }
+  return null;
+}
+function lkApplyChatRules(items,rows,rules,scope,page){
+  (rules||[]).filter(r=>r&&r.chat).forEach(rule=>{
+    const c=rule.chat;
+    if(c.file&&!String(scope||'').includes(c.file))return;
+    if(c.page&&+c.page!==+page)return;
+    if(c.action==='set-length'){
+      rows.filter(r=>lkChatRuleMatchesRow(c,r)).forEach(r=>{
+        const v=c.strategy&&c.strategy!=='fixed'?lkChatLearnedLen(items,r,c.strategy):+c.value;
+        if(v>0&&v<=5000){r.len=v;r.needsCheck=false;r._chatRule=rule.id||1;}
+      });
+    }else if(c.action==='set-consumer'){
+      rows.filter(r=>lkChatRuleMatchesRow(c,r)).forEach(r=>{r.group=c.value||r.group;r._chatRule=rule.id||1;});
+    }else if(c.action==='ignore-u'){
+      rows.forEach(r=>{if(/^(?:∆\s*)?U\s*[-=]?\s*\d.*%$/i.test(r.group||''))r.group='—';});
+    }else if(c.action==='dedupe-pipes'){
+      // Не удаляем одинаковые трубы глобально по листу: две независимые линии вправе иметь
+      // одинаковый тип и длину. Повторно применяем штатную геометрическую привязку стопки,
+      // затем убираем только точные дубли внутри одной итоговой строки.
+      if(items&&rows.length)lkAttachFeederConds(items,rows);
+      rows.forEach(r=>{const seen=new Set();r.conds=(r.conds||[]).filter(x=>{const k=String(x.t||'').toLowerCase()+'|'+(+x.len||0);
+        if(seen.has(k))return false;seen.add(k);return true;});});
+    }
+  });
+}
 async function lkExtract(data,onProgress,scope){
   const pdf=await pdfjsLib.getDocument({data}).promise;const N=pdf.numPages;const pages=[];let docBlocks=false;
   // правила ТОЛЬКО своей серии: у правила должна быть серия И она входит в имя файла.
@@ -2908,6 +3004,9 @@ async function lkExtract(data,onProgress,scope){
          let best=null,bd=26;_lenNums.forEach(n=>{const d=Math.abs(n.x-r.x);if(d<bd){bd=d;best=n;}});
          if(best){r.len=parseFloat(best.s.replace(',','.'));r.needsCheck=false;}
          else if(r.needsCheck)r.len=0;});}
+    // подтверждённые в бесплатном чате коррекции применяются ПОСЛЕ штатных таблиц/геометрии.
+    // Точечные значения ограничены файлом+листом; общие стратегии — серией файла.
+    if(_scopeRules.some(r=>r.chat))lkApplyChatRules(tc.items,rows,_scopeRules,scope,p);
     const v0=page.getViewport({scale:1});
     // нормализованные экранные координаты точки С УЧЁТОМ поворота страницы (page.rotate 90/270)
     rows.forEach(r=>{if(r.x&&r.y){const q=v0.convertToViewportPoint(r.x,r.y);r.mx=q[0]/v0.width;r.my=q[1]/v0.height;}});
@@ -2924,7 +3023,10 @@ async function lkExtract(data,onProgress,scope){
       const near=tc.items.some(i2=>{const s2=lkFixEnc(i2.str||'');if(!/щитов|ВРУ/i.test(s2))return false;
         return Math.abs(i2.transform[4]-l.x)<60&&Math.abs(i2.transform[5]-l.y)<40;});
       if(near){_blkHome=l.n;break;}}
-    const _learnedSource=_scopeRules.some(r=>r.source)?lkRuleSource(lkClusters(tc.items),_scopeRules,tc.items):'';
+    const _fixedSourceRule=_scopeRules.find(r=>r.chat&&r.chat.action==='set-source'&&
+      (!r.chat.file||String(scope||'').includes(r.chat.file))&&(!r.chat.page||+r.chat.page===p));
+    const _learnedSource=(_fixedSourceRule&&_fixedSourceRule.chat.value)||
+      (_scopeRules.some(r=>r.source)?lkRuleSource(lkClusters(tc.items),_scopeRules,tc.items):'');
     const _source=_learnedSource||lkDetectVru(tc.items)||(shields.length===1?shields[0].name:'');
     pages.push({page:p,img:null,wpt:v0.width,hpt:v0.height,vru:_source,shields:shields.map(s=>s.name),groups,rows,potreb:potrebOv||lkParsePotreb(tc.items),pipes:lkParsePipeTable(tc.items),_blk,_blkHome});}
   // блоки (пятна) проекта: суффикс «(N» в группе («№Р1(2», «MЛ1(1») или колонка под заголовком
@@ -3221,13 +3323,14 @@ async function lkRulesLoad(){
   try{const r=await fetch(LK_AI+'/rules');if(r.ok){const list=await r.json();
     const have=new Set(LK.rules.map(x=>x.id));(list||[]).forEach(x=>{if(x&&x.id&&!have.has(x.id))LK.rules.push(x);});}}catch(e){}
 }
-async function lkRulesSave(rule){
+async function lkRulesSave(rule,opt){
   // привязываем правило к серии текущего файла — чтобы не текло на чужие проекты
   const nm=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
   if(!rule.series)rule.series=lkRuleSeries(nm);
   LK.rules.unshift(rule);
   try{await archPut({id:'lk_rules',_lkrules:1,rules:LK.rules.slice(0,200),date:Date.now()});}catch(e){}
-  try{await fetch(LK_AI+'/rules',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rule})});}catch(e){}
+  // точечная правка остаётся личной. В общий реестр уходит только проверенное обобщённое правило.
+  if(!opt||opt.team!==false)try{await fetch(LK_AI+'/rules',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rule})});}catch(e){}
 }
 /* текст подписей внутри обведённой области (rect — нормализованные коорд. картинки листа) */
 async function lkAreaClusters(pg,rect){
@@ -3346,7 +3449,7 @@ function lkTeachStart(){
   const pg=LK.pages[LK.sel];if(!pg){toast('Нет листа');return;}
   if(LK.view!=='pages'){LK.view='pages';renderLineyka();}
   $('lkIssModal').style.display='none';
-  toast('Обведи участок, который не прочитался — ИИ прочитает сам');
+  toast('Обведи участок и напиши Обучалке, что нужно исправить');
   lkPickArea(async rect=>{
     try{
       const cl=await lkAreaClusters(pg,rect);
@@ -3372,112 +3475,145 @@ function lkTeachSamples(pg,clusters){
 }
 function lkPlural(n,one,few,many){const a=Math.abs(n)%100,b=a%10;
   return a>10&&a<20?many:b>1&&b<5?few:b===1?one:many;}
+function lkChatRowsInRect(pg,rect){
+  const rows=(pg.rows||[]).filter(r=>r.section&&r.mx!=null&&r.my!=null);
+  let out=rows.filter(r=>r.mx>=rect.x0-.035&&r.mx<=rect.x1+.035&&r.my>=rect.y0-.06&&r.my<=rect.y1+.06);
+  if(!out.length&&rows.length){const cx=(rect.x0+rect.x1)/2,cy=(rect.y0+rect.y1)/2;
+    out=rows.slice().sort((a,b)=>Math.hypot(a.mx-cx,a.my-cy)-Math.hypot(b.mx-cx,b.my-cy)).slice(0,1);}
+  return out.slice(0,12);
+}
+function lkChatRowLabel(r){return (r.group&&r.group!=='—'?r.group+' · ':'')+(r.mark||'кабель')+' '+(r.section||'')+' · '+(+r.len||0)+' м';}
+function lkChatStrategy(s){const n=lkChatNorm(s);
+  if(/перед\s+(?:буквой\s+)?м|число\s+с\s+метр|подписан[а-я]*\s*м/.test(n))return'before-m';
+  if(/крайн[а-я]*\s+(?:цел[а-я]*\s+)?(?:числ[а-я]*\s+)?справа|последн[а-я]*\s+цел[а-я]*|прав[а-я]*\s+цифр/.test(n))return'rightmost-integer';
+  if(/справа\s+от\s+марк|после\s+марк/.test(n))return'right-of-mark';
+  return'';
+}
+function lkChatSourceValue(s){const m=String(s).match(/((?:ВРУ|ГРЩ|Щ|РП|ТП)[А-ЯЁа-яёA-Za-z0-9().\/-]{1,28})/i);return m?m[1]:'';}
+function lkChatLengthValue(s){let m=String(s).match(/(?:длин[а-яё]*|метр[а-яё]*)[^\d]{0,18}(\d+(?:[,.]\d+)?)/i);
+  if(!m)m=String(s).match(/(\d+(?:[,.]\d+)?)\s*м(?:\b|$)/i);
+  return m?parseFloat(m[1].replace(',','.')):null;}
+function lkChatTarget(rows,text){
+  if(!rows.length)return null;const n=lkChatNorm(text);
+  const sm=n.match(/(\d+)\s*x\s*(\d+(?:[,.]\d+)?)/);
+  const gm=n.match(/№\s*[\d.]+[а-яa-z]?/i);
+  if(sm){const sec=(sm[1]+'x'+sm[2]).replace('.',',');let a=rows.filter(r=>lkChatSame(r.section,sec));
+    if(gm)a=a.filter(r=>lkChatNorm(r.group).includes(gm[0].replace(/\s/g,''))||lkChatNorm(r.group).includes(gm[0]));
+    if(a.length===1)return a[0];}
+  const named=rows.filter(r=>n.length>2&&((r.group&&n.includes(lkChatNorm(r.group)))||(r.mark&&n.includes(lkChatNorm(r.mark)))));
+  if(named.length===1)return named[0];
+  return rows.length===1?rows[0]:null;
+}
+function lkChatPreviewTable(before,after,reason){
+  return `<table><tr><th>Поле</th><th>Было</th><th>Станет</th></tr>`+
+    before.map((r,i)=>`<tr><td>${esc((r.group&&r.group!=='—'?r.group+' · ':'')+(r.section||''))}</td><td>${esc(String(r.value))}</td><td><b>${esc(String(after[i].value))}</b></td></tr>`).join('')+
+    `</table><div style="margin-top:7px;color:var(--muted);font-size:11px">${esc(reason||'')}</div>`;
+}
 function lkTeachPanel(pg,rect,clusters){
-  // ВАЖНО: класть внутрь .ledger и поверх него по z-index — панель в body уходила ПОД
-  // полноэкранную Линейку (z-index 150 против 60) и выглядела как «ничего не происходит»
+  // Бесплатный предметный чат. Свободный текст никогда не уходит во внешний ИИ: локальный
+  // интерпретатор принимает только исправления источника/потребителя/длины/труб и подтверждения.
   const wrap=document.createElement('div');wrap.className='lk-iss-modal';wrap.id='lkTeachModal';
   wrap.style.display='flex';wrap.style.zIndex='200';
-  wrap.innerHTML=`<div class="lk-iss-box"><div class="lk-iss-head"><b>🎓 Научить читать</b><span class="lk-iss-sub">лист ${pg.page} · найдено подписей: ${clusters.length}</span><button class="lg-x" id="lkTcX">✕</button></div>
-    <div class="lk-iss-list" id="lkTcList">${clusters.length?`<div class="lk-iss-cap">Это ТЕКСТ, найденный в обведённой области — ${clusters.length} ${lkPlural(clusters.length,'подпись','подписи','подписей')}, по одной на каждую линию схемы. Не правки: правило из них получится ОДНО.</div>`+clusters.slice(0,20).map((c,i)=>`<div class="lk-iss"><span class="pg">${i+1}</span><span class="tx" style="font-family:var(--mono);font-size:11px">${esc(c.s.slice(0,150))}</span></div>`).join(''):'<div class="lk-iss-empty">В этой области нет текста — возможно, это картинка/скан. Обведи участок с подписями.</div>'}</div>
-    <div class="lk-iss-add"><textarea id="lkTcHint" rows="3" placeholder="Подсказка не обязательна — ИИ читает сам. Впиши что-то, только если он ошибётся: например «длина — последнее целое число» или «имя потребителя слева от марки»."></textarea>
-      <div class="lk-iss-actions"><button class="lk-add" id="lkTcGo" ${clusters.length?'':'disabled'} title="ИИ разберёт ТЕКСТ и запомнит ПРАВИЛО — дальше программа читает похожие листы сама, без интернета">🤖 Прочитать текст и внести правило</button>
-      <button class="lk-add" id="lkTcVision" title="ИИ посмотрит на сам чертёж КАРТИНКОЙ и прочитает как человек — для битого/нечитаемого текста; это разово, для этого участка">👁 Прочитать зрением (один раз)</button>
-      <button class="lk-add" id="lkTcApply" style="display:none;border-color:#2f7d4f;color:#2f7d4f">✓ Применить и запомнить</button>
-      <span class="lk-note" id="lkTcNote">Текст → правило (запомнится). Зрение → читает картинку участка один раз (в ИИ уходит только картинка, не весь файл).</span></div></div></div>`;
+  const context=clusters.slice(0,16).map(c=>c.s).join('\n');
+  wrap.innerHTML=`<div class="lk-iss-box lk-chat-box"><div class="lk-iss-head"><b>🎓 Диалоговая Обучалка</b><span class="lk-chat-badge">бесплатно · локально</span><span class="lk-iss-sub">лист ${pg.page}</span><button class="lg-x" id="lkTcX">✕</button></div>
+    <details class="lk-chat-context"><summary>Что найдено в области: ${clusters.length} ${lkPlural(clusters.length,'подпись','подписи','подписей')}</summary><pre>${esc(context||'Текстового слоя в области нет')}</pre></details>
+    <div class="lk-chat-log" id="lkChatLog"></div><div class="lk-chat-quick" id="lkChatQuick"></div>
+    <div class="lk-chat-compose"><textarea id="lkChatInput" rows="2" maxlength="500" placeholder="Например: «здесь длина 175 м, крайнее целое справа»"></textarea><button class="lk-chat-send" id="lkChatSend">Отправить</button></div>
+    <div class="lk-chat-foot"><button class="lk-chat-apply" id="lkChatApply" style="display:none">✓ Всё правильно — применить</button><button class="lk-chat-apply secondary" id="lkChatGeneral" style="display:none">Для будущих похожих файлов</button><span class="lk-note" id="lkChatNote">Только обучение чтению чертежей · внешних ИИ-вызовов нет</span></div></div>`;
   ($('lineyka')||document.body).appendChild(wrap);
   const close=()=>wrap.remove();
   $('lkTcX').onclick=close;
-  // «Разобрать» можно жать сколько угодно раз, меняя подсказку; «Применить» появляется
-  // только когда правило реально дало строки на этой области
-  $('lkTcGo').onclick=async()=>{
-    const btn=$('lkTcGo'),ap=$('lkTcApply'),note=$('lkTcNote');
-    btn.disabled=true;ap.style.display='none';note.textContent='Думаю…';
-    try{
-      const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
-      const ask=async extra=>{
-        // сырые элементы области (с координатами) + собранные СТРОКИ — по строкам ИИ видит
-        // РАЗОРВАННЫЕ подписи (голова+хвост, длина строкой ниже) и пишет геометрическое правило
-        const items=(clusters.items||[]).slice(0,80).map(it=>({s:lkFixEnc(it.str||'').trim(),
-          x:Math.round(it.transform[4]),y:Math.round(it.transform[5])})).filter(o=>o.s);
-        const lines=lkItemLines(items).slice(0,40).map(l=>l.s);
-        const r=await fetch(LK_AI+'/teach',{method:'POST',headers:{'content-type':'application/json'},
-          body:JSON.stringify({hint:(($('lkTcHint').value||'')+' '+(extra||'')).trim(),clusters:clusters.map(c=>c.s),
-            items,lines,file:name,page:pg.page,samples:lkTeachSamples(pg,clusters)})});
-        return r.json();
-      };
-      const bad=d=>!d||d.error||!d.rule||typeof d.rule!=='object';
-      const preview=d=>({rows:lkRuleRows(clusters,[d.rule],clusters.items),
-        source:lkRuleSource(clusters,[d.rule],clusters.items)});
-      let data=await ask('');
-      if(bad(data)&&!(data&&data.error)){note.textContent='Пробую ещё раз…';data=await ask('');}
-      // правило пришло, но НА ЭТОЙ области не дало ни строки, ни источника — просим ещё раз
-      // (первая попытка на ФА-009 срывалась именно так; сотруднику не должно быть до этого дела)
-      if(!bad(data)){const p=preview(data);if(!p.rows.length&&!p.source){
-        note.textContent='Уточняю у ИИ…';
-        const d2=await ask('Правило не дало результата. Если выделен источник — верни source; если кабельные линии — найди потребителя, марку, сечение, длину и трубы.');
-        if(!bad(d2)){const p2=preview(d2);if(p2.rows.length||p2.source)data=d2;}}}
-      btn.disabled=false;
-      if(bad(data)){note.textContent='Не вышло: '+((data&&data.error)||'ИИ ответил неразборчиво, нажми «Прочитать заново»');return;}
-      const test=lkRuleRows(clusters,[data.rule],clusters.items);
-      const source=lkRuleSource(clusters,[data.rule],clusters.items);
-      const sum=test.reduce((a,x)=>a+x.len,0);
-      $('lkTcList').innerHTML=`<div class="lk-iss-empty" style="text-align:left"><b>${esc(data.rule.title||'Новое правило')}</b><br>${esc(data.explain||'')}</div>`
-        +(source?`<div class="lk-iss"><span class="pg">⚡</span><span class="tx">Источник: <b>${esc(source)}</b></span></div>`:'')
-        +(test.length?test.slice(0,20).map(x=>{const pc=(x.conds||[]).map(c=>c.t+' '+c.len+'м').join(', ');
-          return `<div class="lk-iss"><span class="pg">${esc(x.section)}</span><span class="tx">${esc(x.group||'—')} · ${esc(x.mark||'')} · <b>${x.len} м</b>${pc?' · трубы '+esc(pc):''}</span></div>`;}).join('')
-          :(source?'':'<div class="lk-iss-empty" style="text-align:left">В этой области правило не нашло ни источника, ни кабельных линий.<br><b>Что делать:</b> обведи заголовок источника или участок, где рядом с маркой стоят сечение, длина и трубы.</div>'));
-      note.textContent=(test.length||source)?('ИИ прочитал: '+(source?'источник'+(test.length?' и ':''):'')+(test.length?(test.length+' строк, '+Math.round(sum)+' м'):'')+' — проверь и нажми «Применить»'):'Поправь подсказку или обведи другое место и нажми «Прочитать заново»';
-      if(test.length||source){
-        ap.style.display='';ap.disabled=false;
-        ap.onclick=async()=>{ap.disabled=true;btn.disabled=true;note.textContent='Сохраняю…';
-          await lkRulesSave(data.rule);
-          LK.issues.push({page:pg.page,text:'🎓 Выучено правило: '+(data.rule.title||''),rect,done:true,ts:Date.now()});
-          close();await lkReparse();toast('Правило запомнено — файл перечитан');};
-      }
-    }catch(e){note.textContent='Сеть недоступна: '+e.message;btn.disabled=false;}
-  };
-  // ЗРЕНИЕ: ИИ смотрит на КАРТИНКУ участка и читает как человек (для битого текстового слоя).
-  // Возвращает готовые строки (не правило) — добавляем их прямо на этот лист.
-  $('lkTcVision').onclick=async()=>{
-    const btn=$('lkTcVision'),ap=$('lkTcApply'),note=$('lkTcNote');
-    btn.disabled=true;$('lkTcGo').disabled=true;ap.style.display='none';note.textContent='Рисую участок и показываю ИИ…';
-    try{
-      const img=await lkAreaImage(pg,rect);
-      if(!img){note.textContent='Не удалось отрисовать участок';btn.disabled=false;$('lkTcGo').disabled=false;return;}
-      const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
-      note.textContent='ИИ смотрит на чертёж…';
-      const r=await fetch(LK_AI+'/vision',{method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({image:img,hint:$('lkTcHint').value||'',file:name,page:pg.page})});
-      const d=await r.json();btn.disabled=false;$('lkTcGo').disabled=false;
-      if(d.error){note.textContent='Не вышло: '+d.error;return;}
-      const rows=(d.rows||[]).filter(x=>x&&x.section);
-      const source=String(d.source||'').trim();
-      $('lkTcList').innerHTML=`<div class="lk-iss-empty" style="text-align:left">👁 <b>ИИ прочитал по картинке</b><br>${esc(d.explain||'')}</div>`
-        +(source?`<div class="lk-iss"><span class="pg">⚡</span><span class="tx">Источник: <b>${esc(source)}</b></span></div>`:'')
-        +(rows.length?rows.slice(0,30).map(x=>{const pc=lkVisionConds(x).map(c=>c.t+' '+c.len+'м').join(', ');
-          return `<div class="lk-iss"><span class="pg">${esc(x.section)}</span><span class="tx">${esc(x.group||'—')} · ${esc(x.mark||'')} · <b>${+x.len>0?x.len+' м':'длина?'}</b>${pc?' · трубы '+esc(pc):''}</span></div>`;}).join('')
-          :(source?'':'<div class="lk-iss-empty" style="text-align:left">На картинке ИИ не увидел источник или кабельные линии. Обведи заголовок либо участок с марками и длинами.</div>'));
-      const sum=rows.reduce((a,x)=>a+(+x.len||0),0);
-      note.textContent=(rows.length||source)?('Прочитано '+(source?'источник'+(rows.length?' и ':''):'')+(rows.length?(rows.length+' линий, '+Math.round(sum)+' м'):'')+' — проверь и нажми «Применить на лист»'):'Пусто — попробуй обвести плотнее';
-      if(rows.length||source){
-        ap.style.display='';ap.disabled=false;ap.textContent='✓ Применить на лист';
-        ap.onclick=()=>{
-          const cx=(rect.x0+rect.x1)/2,cy=(rect.y0+rect.y1)/2,n=rows.length;
-          if(source)pg.vru=source;
-          rows.forEach((x,i)=>{const L=+x.len||0;
-            const row={_id:'r'+(_lkVid++),page:pg.page,group:x.group||'—',mark:x.mark||'',section:String(x.section).replace('.',','),
-              len:L,conds:lkVisionConds(x),mult:1,needsCheck:!(L>0),illegible:false,_src:'vision',
-              mx:rect.x0+(rect.x1-rect.x0)*(0.2+0.6*(i/Math.max(1,n-1))),my:cy};
-            pg.rows.push(row);LK.byId[row._id]=row;pg.groups.push({name:'👁 по картинке',rows:[row]});});
-          const noLen=rows.filter(x=>!(+x.len>0)).length;
-          close();LK.view='pages';renderLineyka();lkPersist();
-          toast((source?('Источник: '+source+(n?' · ':'')):'')+(n?('добавлено линий: '+n+(noLen?(' · у '+noLen+' нет длины — красные точки «впишите длину»'):' — проверь длины со схемой')):'источник применён'));};
-      }
-    }catch(e){note.textContent='Сеть недоступна: '+(e&&e.message||e);btn.disabled=false;$('lkTcGo').disabled=false;}
-  };
-  // главное — выделить участок; читает ИИ сам. Разбор стартует СРАЗУ, без нажатия кнопки
-  // (кнопка остаётся — на случай, если сотрудник вписал подсказку и хочет перечитать)
-  if(clusters.length)$('lkTcGo').onclick();
+  const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
+  const st={rows:lkChatRowsInRect(pg,rect),target:null,draft:null,pendingValue:null,pendingText:'',messages:[]};
+  const log=$('lkChatLog'),quick=$('lkChatQuick'),input=$('lkChatInput'),apply=$('lkChatApply'),general=$('lkChatGeneral'),note=$('lkChatNote');
+  const say=(role,html)=>{const el=document.createElement('div');el.className='lk-chat-msg '+role;
+    el.innerHTML=`<span class="lk-chat-avatar">${role==='user'?'Вы':'🎓'}</span><div class="lk-chat-bubble">${html}</div>`;
+    log.appendChild(el);log.scrollTop=log.scrollHeight;};
+  const chips=list=>{quick.innerHTML='';list.forEach(x=>{const b=document.createElement('button');b.className='lk-chat-chip';b.textContent=x[0];
+    b.onclick=()=>{if(x[2]){input.value=x[1];input.focus();}else send(x[1]);};quick.appendChild(b);});};
+  const showRows=()=>{
+    say('bot','В области несколько линий. Укажите нужную номером или напишите её сечение:'+
+      `<table>${st.rows.map((r,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(lkChatRowLabel(r))}</td></tr>`).join('')}</table>`);
+    chips(st.rows.map((r,i)=>[(i+1)+' · '+r.section,String(i+1)]));};
+  const showDraft=(rule,before,after,reason,team)=>{
+    st.draft={rule,team:!!team};say('bot','Поняла. Вот что изменится:'+lkChatPreviewTable(before,after,reason));
+    apply.style.display='';apply.textContent=team?'✓ Всё правильно — сохранить для похожих':'✓ Всё правильно — применить к этому файлу';
+    general.style.display=team?'none':'';note.textContent=team?'Правило ограничено серией '+(rule.series||lkRuleSeries(name)):'Точечная правка не затронет другие файлы';
+    chips(team?[['Всё правильно','да'],['Нет, поправить','нет']]:
+      [['Число перед «м»','число перед м'],['Крайнее целое справа','крайнее целое справа'],['Справа от марки','число справа от марки']]);};
+  const save=async()=>{
+    if(!st.draft)return;apply.disabled=true;general.disabled=true;note.textContent='Сохраняю и перечитываю файл…';
+    await lkRulesSave(st.draft.rule,{team:st.draft.team});
+    LK.issues.push({page:pg.page,text:'🎓 Чат выучил правило: '+(st.draft.rule.title||''),rect,done:true,ts:Date.now()});
+    close();await lkReparse();toast(st.draft.team?'Правило сохранено для похожих файлов':'Исправление сохранено для этого файла');};
+  const lengthDraft=(target,value,strategy)=>{
+    const team=!!strategy;const rule={id:'chat'+Date.now().toString(36),title:'Чат: длина '+(target.section||target.mark||'кабеля'),
+      series:lkRuleSeries(name),chat:{action:'set-length',match:{group:target.group||'',mark:target.mark||'',section:target.section||''},
+        value,strategy:strategy||'fixed',general:team}};
+    if(!team){rule.chat.file=name;rule.chat.page=pg.page;}
+    let detected=value;
+    if(team){detected=lkChatLearnedLen(clusters.items||[],target,strategy);
+      if(!(detected>0)){say('bot','Я не смогла безопасно найти это число по выбранному расположению. Напишите точную длину с «м» — сохраню исправление только для этого файла.');chips([]);return;}
+      if(value>0&&Math.abs(detected-value)>.01){say('bot','По этому способу на текущем примере получается <b>'+esc(String(detected))+' м</b>, а вы указали <b>'+esc(String(value))+' м</b>. Такое правило нельзя безопасно переносить на будущие файлы. Точечное исправление '+esc(String(value))+' м оставляю доступным только для этого файла.');chips([]);return;}
+      rule.chat.value=detected;}
+    const before=[{group:target.group,value:(+target.len||0)+' м'}],after=[{group:target.group,value:detected+' м'}];
+    showDraft(rule,before,after,team?('На текущем примере найдено '+detected+' м. В будущих файлах число будет извлекаться тем же способом.'):'Заданное число сохранится только для этого файла и листа.',team);};
+  const send=txt=>{
+    txt=String(txt||'').trim();if(!txt)return;say('user',esc(txt));input.value='';
+    const n=lkChatNorm(txt);
+    if(/анекдот|погод|рецепт|договор|письмо|столиц|перевед|напиши\s+код|кто\s+такой/.test(n)){
+      say('bot','Я работаю только с обучением чтению электрических чертежей. Покажите, что исправить: источник, потребителя, марку, сечение, длину или трубы.');chips([]);return;}
+    if(/^(?:нет|неверно|поправить)$/.test(n)){st.draft=null;apply.style.display=general.style.display='none';
+      say('bot','Хорошо. Напишите правильное значение и, если нужно правило для будущих файлов, где оно расположено на чертеже.');return;}
+    if(/^(?:да|верно|все правильно|всё правильно|применить|сохранить)$/.test(n)&&st.draft){save();return;}
+    if(st.pendingValue!=null&&/^\d+$/.test(n)){const i=+n-1;if(st.rows[i]){st.target=st.rows[i];const v=st.pendingValue,t=st.pendingText;st.pendingValue=null;lengthDraft(st.target,v,lkChatStrategy(t));}else showRows();return;}
+    const src=lkChatSourceValue(txt);
+    if(src&&/источник|схем|щит/.test(n)){
+      let rule={id:'chat'+Date.now().toString(36),title:'Чат: источник из заголовка',series:lkRuleSeries(name),
+        source:'схема\\s+(?:(?:щита|панели|шкафа)\\s+)?([А-ЯЁA-Z][А-ЯЁа-яёA-Za-z0-9.,()\\/…-]{1,24})'};
+      const found=lkRuleSource(clusters,[rule],clusters.items);
+      const team=lkChatSame(found,src);
+      if(!team)rule={id:rule.id,title:'Чат: источник '+src,series:rule.series,
+        chat:{action:'set-source',value:src,file:name,page:pg.page}};
+      showDraft(rule,[{group:'Источник',value:pg.vru||'не определён'}],[{group:'Источник',value:src}],
+        team?'Источник будет читаться из заголовка «схема щита/панели/шкафа».':'В выделенном тексте шаблон источника не найден: значение сохранится только для этого файла.',team);return;}
+    const strategy=lkChatStrategy(txt),val=lkChatLengthValue(txt);
+    if((val!=null||strategy)&&(/длин|метр|цел[а-я]*\s+справа|цифр[а-я]*\s+справа|справа\s+от\s+марк|перед\s+м/.test(n)||st.draft&&st.draft.rule.chat&&st.draft.rule.chat.action==='set-length')){
+      const target=st.target||lkChatTarget(st.rows,txt)||(st.draft&&st.draft.rule.chat?st.rows.find(r=>lkChatRuleMatchesRow(st.draft.rule.chat,r)):null);
+      const value=val!=null?val:(st.draft&&st.draft.rule.chat?+st.draft.rule.chat.value:null);
+      if(!target){st.pendingValue=value;st.pendingText=txt;showRows();return;}
+      if(!(value>0)&&!strategy){say('bot','Напишите длину числом, например: «длина 175 м».');return;}
+      lengthDraft(target,value,strategy);return;}
+    if(/труб|гофр/.test(n)&&/один|раз|дубл|стопк|повтор/.test(n)){
+      const before=(pg.rows||[]).reduce((a,r)=>a+(r.conds||[]).length,0);
+      const test=(pg.rows||[]).map(r=>Object.assign({},r,{conds:(r.conds||[]).map(c=>Object.assign({},c))}));
+      const rule={id:'chat'+Date.now().toString(36),title:'Чат: трубы один раз на фидер',series:lkRuleSeries(name),chat:{action:'dedupe-pipes'}};
+      lkApplyChatRules(clusters.items||[],test,[rule],name,pg.page);
+      const after=test.reduce((a,r)=>a+(r.conds||[]).length,0);
+      showDraft(rule,[{group:'Трубы на листе',value:before+' поз.'}],[{group:'Трубы на листе',value:after+' поз.'}],
+        'Одинаковая труба одной стопки учитывается один раз.',true);return;}
+    if((/u|∆|δu|потер/.test(n)&&/%|потребител/.test(n)&&/не\s+потребител|игнор|не\s+назван/.test(n))){
+      const rule={id:'chat'+Date.now().toString(36),title:'Чат: U/ΔU не потребитель',series:lkRuleSeries(name),chat:{action:'ignore-u'}};
+      showDraft(rule,[{group:'U/ΔU с процентом',value:'потребитель'}],[{group:'U/ΔU с процентом',value:'игнорируется'}],
+        'Правило действует только на значения U/ΔU, заканчивающиеся процентом.',true);return;}
+    const cm=String(txt).match(/потребител[а-яё]*(?:\s+(?:это|=))?\s*[:\-]?\s*(.{2,80})/i);
+    if(cm){const target=st.target||lkChatTarget(st.rows,txt);if(!target){showRows();return;}
+      const value=cm[1].trim(),rule={id:'chat'+Date.now().toString(36),title:'Чат: потребитель '+(target.section||''),
+        series:lkRuleSeries(name),chat:{action:'set-consumer',match:{group:target.group||'',mark:target.mark||'',section:target.section||''},value,file:name,page:pg.page}};
+      showDraft(rule,[{group:target.section,value:target.group||'—'}],[{group:target.section,value}],
+        'Точечное имя сохранится только для этого файла; для общего правила лучше указать таблицу-источник.',false);return;}
+    if(/источник/.test(n)){say('bot','Напишите имя полностью, например: «источник ЩАО-2(1)».');return;}
+    if(/длин|метр/.test(n)){say('bot','Напишите правильное число, например: «длина 175 м». Если правило нужно для будущих файлов, добавьте: «крайнее целое справа».');return;}
+    say('bot','Я пока понимаю только обучение чтению чертежа: источник, потребителя, длину кабеля и трубы. Например: «здесь длина 175 м» или «трубы учитывать один раз на стопку».');};
+  $('lkChatSend').onclick=()=>send(input.value);
+  input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send(input.value);}};
+  apply.onclick=save;
+  general.onclick=()=>{say('bot','Где брать длину в будущих похожих файлах? Выберите вариант или напишите своими словами.');
+    chips([['Число перед «м»','число перед м'],['Крайнее целое справа','крайнее целое справа'],['Справа от марки','число справа от марки']]);};
+  say('bot','Покажите, что здесь нужно исправить. Можно написать обычной фразой: <b>«длина 175 м»</b>, <b>«источник ЩАО-2(1)»</b> или <b>«трубы учитывать один раз»</b>. Я сначала покажу «было → стало» и ничего не сохраню без подтверждения.');
+  if(st.rows.length>1)say('bot','В выделении найдено '+st.rows.length+' кабельных линий. Можно указать сечение нужной линии, например «4x1,5 — 20 м».');
+  chips([['Указать длину','длина ',true],['Указать источник','источник ',true],['Трубы один раз','трубы учитывать один раз'],['U% не потребитель','U% — не потребитель']]);
+  input.focus();
 }
 let _lkVid=900000;
 function lkPickArea(cb){
@@ -3771,7 +3907,7 @@ function lkExcelAllRows(){
         rows.push([nm,r._page||'',r.block||'',r._vru||'',r.group||'',n,t,m?m[2]:'','м',c.len]);});});});
   return rows;}
 let _lkId=100000;function id2(){return ++_lkId;}
-function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 let tt;function toast(m){const el=$('toast');el.textContent=m;el.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('show'),2600);}
 window.addEventListener('resize',()=>{if(S.data&&S.pageNum){fitPage();applyTransform();}});
 </script>
