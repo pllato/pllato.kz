@@ -645,6 +645,8 @@ body {
 .sales-quick-link button:hover, .sales-quick-link .sql-open:hover { border-color:var(--bronze-deep); color:var(--bronze-deep); text-decoration:none; }
 .finance-charts.folded { margin-bottom: 18px; }
 .finance-charts.folded .fc-grid { display: none; }
+.fc-status { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 10px; padding:8px 10px; border:1px solid #fde68a; border-radius:9px; background:#fffbeb; color:#92400e; font-size:11.5px; }
+.fc-status button { border:1px solid currentColor; border-radius:7px; background:transparent; color:inherit; padding:5px 8px; font:700 11px/1.2 inherit; cursor:pointer; white-space:nowrap; }
 .fc-grid { display:flex; flex-wrap:nowrap; gap:14px; overflow-x:auto; padding:0 0 8px; scroll-snap-type:x proximity; scrollbar-width:thin; }
 .fc-card { background:var(--surface); border:1px solid var(--line-2); border-radius:14px; padding:16px 18px 14px; flex:0 0 max(290px,calc((100% - 100px) / 3)); min-width:0; aspect-ratio:1 / 1; display:flex; flex-direction:column; scroll-snap-align:start; }
 .fc-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
@@ -2799,7 +2801,9 @@ function buildProjectTabs(){
     savePortalView();
     bar.querySelectorAll('.ptab').forEach(x => x.classList.toggle('on', x === b));
     applyProjectFilters();
-    applyFinanceChartsFold();
+    // Повторно запрашиваем статистику при смене вкладки: если сеть кратко
+    // пропадала во время старта, пользователю не нужно обновлять всю страницу.
+    renderFinanceCharts();
     restorePortalPosition();
   }));
   savePortalView();
@@ -2943,7 +2947,13 @@ function projName(id){ const c=mCard(id); return ((c && c.querySelector('h3') &&
 async function injectMoney(){
   if (!canSeeProjectMoney()) return;
   try { await loadMoney(); }
-  catch(e){ console.error('project finance load:',e); return; }
+  catch(e){
+    console.error('project finance load:',e);
+    // Графики загружаются отдельным маршрутом. Ошибка финансовых плашек не
+    // должна убирать недельную статистику целиком.
+    renderFinanceCharts();
+    return;
+  }
   if (!canSeeProjectMoney()) return;
   document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
     if (card.querySelector('.money-strip')) return;
@@ -3130,6 +3140,25 @@ const FINANCE_CHART_META = {
 let FINANCE_CHART_REQUEST = 0;
 let FINANCE_CHART_COMMENTS = [];
 let FINANCE_CHART_COMMENTS_LOADED = false;
+let FINANCE_CHART_RETRY_TIMER = null;
+const FINANCE_CHART_CACHE_VERSION = 1;
+
+function financeChartCacheKey(){
+  return `pllato_finance_charts_v${FINANCE_CHART_CACHE_VERSION}:${String(CURRENT?.email||'guest').toLowerCase()}`;
+}
+function readFinanceChartCache(){
+  try{
+    const cached=JSON.parse(localStorage.getItem(financeChartCacheKey())||'null');
+    return cached?.data && Date.now()-Number(cached.savedAt||0)<30*86400000 ? cached : null;
+  }catch(e){ return null; }
+}
+function saveFinanceChartCache(data){
+  try{ localStorage.setItem(financeChartCacheKey(),JSON.stringify({savedAt:Date.now(),data})); }
+  catch(e){}
+}
+function financeChartKinds(data){
+  return ['inquiries','kep','orders','cash','releases'].filter(kind=>Array.isArray(data?.charts?.[kind]));
+}
 
 function financePointComments(kind,start){
   return FINANCE_CHART_COMMENTS
@@ -3320,12 +3349,41 @@ function toggleFinanceCharts(){
   savePortalView();
   applyFinanceChartsFold();
 }
+async function paintFinanceCharts(el,data,{cached=false}={}){
+  CHART_ALLOWED={...CHART_ALLOWED,...(data.visible||{})};
+  if(data.chartVisibility) CHART_VISIBILITY={...CHART_VISIBILITY,...data.chartVisibility};
+  if(data.chartScale) CHART_SCALE={...CHART_SCALE,...data.chartScale};
+  const kinds=financeChartKinds(data);
+  if(!kinds.length) return false;
+  try{
+    await loadFinanceChartComments();
+    await ensureInitialFinanceComment(data.charts?.inquiries);
+  }catch(commentError){
+    console.warn('chart comments:',commentError);
+  }
+  await loadGlobalSalesQuickLink();
+  const toggle=financeChartsPinnedOpen()?'':'<button class="fc-toggle" onclick="toggleFinanceCharts()"></button>';
+  const status=cached
+    ? '<div class="fc-status"><span>Показана последняя сохранённая статистика. Обновляю данные…</span><button type="button" onclick="renderFinanceCharts()">Обновить</button></div>'
+    : '';
+  el.innerHTML='<div class="sales-quick-link" id="salesQuickLink"></div>'
+    +status
+    +'<div class="fc-head"><div><h2>Динамика по неделям</h2><p>Неделя закрывается каждый четверг в 14:00 по Алматы</p></div>'+toggle+'</div>'
+    +'<div class="fc-grid">'+kinds.map(kind=>financeChartCard(kind,data.charts[kind])).join('')+'</div>';
+  const chartGrid=el.querySelector('.fc-grid');
+  if(chartGrid) chartGrid.scrollLeft=0;
+  applyFinanceChartsFold();
+  restorePortalPosition();
+  return true;
+}
 async function renderFinanceCharts(){
   if(!CURRENT) return;
   const el=ensureFinanceCharts();
   if(!el) return;
   const requestId=++FINANCE_CHART_REQUEST;
-  el.innerHTML='<div class="fc-empty">Загружаю недельную статистику…</div>';
+  const cached=readFinanceChartCache();
+  if(cached) await paintFinanceCharts(el,cached.data,{cached:true});
+  else if(!el.querySelector('.fc-grid')) el.innerHTML='<div class="fc-empty">Загружаю недельную статистику…</div>';
   try{
     const data=await apiFetch('/project-finance/charts?points=8');
     // Агрегат обращений живёт в CRM-базе. Если меж-worker запрос временно не
@@ -3371,32 +3429,26 @@ async function renderFinanceCharts(){
       });
     }
     if(requestId!==FINANCE_CHART_REQUEST) return;
-    CHART_ALLOWED={...CHART_ALLOWED,...(data.visible||{})};
-    if(data.chartVisibility) CHART_VISIBILITY={...CHART_VISIBILITY,...data.chartVisibility};
-    if(data.chartScale) CHART_SCALE={...CHART_SCALE,...data.chartScale};
-    const kinds=['inquiries','kep','orders','cash','releases'].filter(kind=>Array.isArray(data.charts?.[kind]));
-    if(!kinds.length){ el.remove(); return; }
-    try{
-      await loadFinanceChartComments();
-      await ensureInitialFinanceComment(data.charts?.inquiries);
-    }catch(commentError){
-      console.warn('chart comments:',commentError);
-    }
-    await loadGlobalSalesQuickLink();
-    const toggle=financeChartsPinnedOpen()?'':'<button class="fc-toggle" onclick="toggleFinanceCharts()"></button>';
-    el.innerHTML='<div class="sales-quick-link" id="salesQuickLink"></div>'
-      +'<div class="fc-head"><div><h2>Динамика по неделям</h2><p>Неделя закрывается каждый четверг в 14:00 по Алматы</p></div>'+toggle+'</div>'
-      +'<div class="fc-grid">'+kinds.map(kind=>financeChartCard(kind,data.charts[kind])).join('')+'</div>';
-    const chartGrid=el.querySelector('.fc-grid');
-    if(chartGrid) chartGrid.scrollLeft=0;
-    applyFinanceChartsFold();
-    restorePortalPosition();
+    if(!financeChartKinds(data).length) throw new Error('Сервер не вернул данные графиков');
+    saveFinanceChartCache(data);
+    clearTimeout(FINANCE_CHART_RETRY_TIMER);
+    await paintFinanceCharts(el,data);
   }catch(e){
     if(requestId!==FINANCE_CHART_REQUEST) return;
     console.error('finance charts:',e);
-    el.innerHTML='<div class="fc-empty">Не удалось загрузить графики.</div>';
+    if(!el.querySelector('.fc-grid')){
+      el.innerHTML='<div class="fc-head"><div><h2>Динамика по неделям</h2><p>Неделя закрывается каждый четверг в 14:00 по Алматы</p></div></div>'
+        +'<div class="fc-status"><span>Не удалось загрузить статистику. Графики автоматически появятся после восстановления связи.</span><button type="button" onclick="renderFinanceCharts()">Повторить</button></div>';
+      applyFinanceChartsFold();
+    }
+    clearTimeout(FINANCE_CHART_RETRY_TIMER);
+    FINANCE_CHART_RETRY_TIMER=setTimeout(()=>renderFinanceCharts(),15000);
   }
 }
+window.addEventListener('online',()=>renderFinanceCharts());
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible' && !document.querySelector('#financeCharts .fc-grid')) renderFinanceCharts();
+});
 function financeDetailDate(timestamp){
   return new Intl.DateTimeFormat('ru-RU',{
     timeZone:'Asia/Almaty',day:'2-digit',month:'2-digit',year:'numeric',
@@ -3564,7 +3616,7 @@ async function saveFinanceAccess(kind){
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects });
+Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, renderFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects });
 
 function applyProjectFilters(){
   const searchTokens=normalizeProjectSearch(SEARCH_TERM).split(' ').filter(Boolean);
