@@ -1698,7 +1698,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v425';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v426';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v415';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2802,10 +2802,12 @@ function lkRuleSeries(name){const s=String(name||'');const m=s.match(/\d{3,5}/);
    файлов превращаются лишь явные стратегии («число перед м», «крайнее целое справа»). */
 function lkChatNorm(s){return String(s||'').toLowerCase().replace(/ё/g,'е').replace(/×/g,'x').replace(/(\d)\s*х\s*(?=\d)/g,'$1x').replace(/\s+/g,' ').trim();}
 function lkChatSame(a,b){return lkChatNorm(a).replace(/[.,\s]/g,'')===lkChatNorm(b).replace(/[.,\s]/g,'');}
+function lkChatRowKey(r){return [r&&r.group||'',r&&r.mark||'',r&&r.section||''].map(x=>lkChatNorm(x).replace(/[.,;\s]/g,'')).join('|');}
 function lkChatGroupShape(s){const t=String(s||'').split('·')[0].trim().slice(0,48);if(!/\d/.test(t))return'';
   return'^'+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\d+/g,'\\d+')+'$';}
 function lkChatRuleMatchesRow(c,r){
   const m=c.match||{};
+  if(Array.isArray(m.keys)&&m.keys.length&&!m.keys.includes(lkChatRowKey(r)))return false;
   if(m.mark&&!lkChatSame(m.mark,r.mark))return false;
   if(m.section&&!lkChatSame(m.section,r.section))return false;
   if(c.general&&m.groupPattern)try{if(!new RegExp(m.groupPattern,'i').test(String(r.group||'').split('·')[0].trim()))return false;}catch(_){return false;}
@@ -3526,7 +3528,7 @@ function lkChatRowsInRect(pg,rect){
 function lkChatRowLabel(r){return (r.group&&r.group!=='—'?r.group+' · ':'')+(r.mark||'кабель')+' '+(r.section||'')+' · '+(+r.len||0)+' м';}
 function lkChatAreaLabel(rect){return 'x '+Math.round(rect.x0*100)+'–'+Math.round(rect.x1*100)+'%, y '+Math.round(rect.y0*100)+'–'+Math.round(rect.y1*100)+'% сверху';}
 function lkChatStrategy(s){const n=lkChatNorm(s);
-  if(/верхн[а-я]*\s+строк[а-я]*\s+справа|справа\s+(?:в|на)\s+верхн[а-я]*\s+строк[а-я]*/.test(n))return'top-row-right';
+  if(/верхн[а-я]*\s+строк[а-я]*\s+справа|справа\s+(?:в|на)\s+верхн[а-я]*\s+строк[а-я]*|сверху\s+справа|справа\s+сверху/.test(n))return'top-row-right';
   if(/перед\s+(?:буквой\s+)?м|число\s+с\s+метр|подписан[а-я]*\s*м|в\s+конце\s+(?:своей\s+)?строк[а-я]*/.test(n))return'before-m';
   if(/крайн[а-я]*\s+(?:цел[а-я]*\s+)?(?:числ[а-я]*\s+)?справа|последн[а-я]*\s+цел[а-я]*|прав[а-я]*\s+цифр/.test(n))return'rightmost-integer';
   if(/справа\s+от\s+марк|после\s+марк/.test(n))return'right-of-mark';
@@ -3603,7 +3605,7 @@ function lkTeachPanel(pg,rect,clusters){
   head.ondblclick=e=>{if(!e.target.closest('button'))maxBtn.click();};
   window.addEventListener('resize',fit);
   let name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
-  const st={pg,rect,clusters,rows:lkChatRowsInRect(pg,rect),target:null,draft:null,suggested:null,pendingValue:null,pendingText:'',messages:[],fragments:[],activeImage:null,imageShared:false};
+  const st={pg,rect,clusters,rows:lkChatRowsInRect(pg,rect),target:null,targets:[],draft:null,suggested:null,pendingValue:null,pendingText:'',messages:[],fragments:[],activeImage:null,imageShared:false};
   const log=$('lkChatLog'),quick=$('lkChatQuick'),input=$('lkChatInput'),sendBtn=$('lkChatSend'),apply=$('lkChatApply'),general=$('lkChatGeneral'),note=$('lkChatNote'),attach=$('lkChatAttach');
   const say=(role,html,record=true)=>{const el=document.createElement('div');el.className='lk-chat-msg '+role;
     el.innerHTML=`<span class="lk-chat-avatar">${role==='user'?'Вы':'🎓'}</span><div class="lk-chat-bubble">${html}</div>`;
@@ -3628,7 +3630,7 @@ function lkTeachPanel(pg,rect,clusters){
     LK.issues.push({page:st.pg.page,text:'🎓 Чат выучил правило: '+(st.draft.rule.title||''),rect:st.rect,done:true,ts:Date.now()});
     close();await lkReparse();toast(st.draft.team?'Правило сохранено для похожих файлов':'Исправление сохранено для этого файла');};
   const lengthDraft=(target,value,strategy)=>{
-    st.target=target;
+    st.target=target;st.targets=[target];
     const team=!!strategy;const rule={id:'chat'+Date.now().toString(36),title:'Чат: длина '+(target.section||target.mark||'кабеля'),
       series:lkRuleSeries(name),chat:{action:'set-length',match:{group:target.group||'',groupPattern:lkChatGroupShape(target.group),mark:target.mark||'',section:target.section||''},
         value,strategy:strategy||'fixed',general:team}};
@@ -3647,6 +3649,18 @@ function lkTeachPanel(pg,rect,clusters){
       if(st.suggested){say('bot','Я сама проанализировала подписи выбранной линии: вижу <b>'+esc(String(value))+' м</b> как '+esc(st.suggested.label)+'. Нажмите «Для будущих похожих файлов» — я сразу покажу готовое правило.');
         chips([['Использовать найденное правило','использовать найденное правило'],['Нет, указать иначе','нет, указать иначе']]);}}
     };
+  const multiLengthDraft=(targets,value,reason)=>{
+    const seen=new Set();targets=(targets||[]).filter(r=>{const k=lkChatRowKey(r);if(!k||seen.has(k))return false;seen.add(k);return true;});
+    if(!targets.length)return false;if(targets.length===1){lengthDraft(targets[0],value,'');return true;}
+    st.target=null;st.targets=targets;st.suggested=null;
+    const rule={id:'chat'+Date.now().toString(36),title:'Чат: длина '+targets.length+' линий',series:lkRuleSeries(name),
+      chat:{action:'set-length',match:{keys:targets.map(lkChatRowKey)},value,strategy:'fixed',general:false,file:name,page:st.pg.page}};
+    const before=targets.map(r=>({group:r.group,section:r.section,value:(+r.len||0)+' м'}));
+    const after=targets.map(r=>({group:r.group,section:r.section,value:value+' м'}));
+    showDraft(rule,before,after,(reason||('Число '+value+' м геометрически относится ко всем '+targets.length+' выбранным линиям.'))+
+      ' Исправление ограничено этими точными строками текущего файла и листа.',false);
+    return true;
+  };
   const sourceDraft=(src,teamRequested)=>{
     let rule={id:'chat'+Date.now().toString(36),title:'Чат: источник из заголовка',series:lkRuleSeries(name),
       source:'схема\\s+(?:(?:щита|панели|шкафа)\\s+)?([А-ЯЁA-Z][А-ЯЁа-яёA-Za-z0-9.,()\\/…-]{1,24})'};
@@ -3711,9 +3725,12 @@ function lkTeachPanel(pg,rect,clusters){
       if(needImage&&st.activeImage)st.imageShared=true;
       const cost=lkChatAiCost(d._usage,d._model);note.textContent='Ответил '+(/haiku/i.test(d._model||'')?'Claude Haiku':'Claude Sonnet')+(cost?' · '+cost:'')+' · сохранение только после подтверждения';
       if(d.reply)say('bot',esc(d.reply));
-      const target=(Number.isInteger(d.target_index)&&d.target_index>=0?st.rows[d.target_index]:null)||st.target||(st.rows.length===1?st.rows[0]:null);
+      const aiIndexes=(Array.isArray(d.target_indexes)?d.target_indexes:[]).filter(i=>Number.isInteger(i)&&i>=0&&i<st.rows.length);
+      if(Number.isInteger(d.target_index)&&d.target_index>=0&&d.target_index<st.rows.length&&!aiIndexes.includes(d.target_index))aiIndexes.unshift(d.target_index);
+      const aiTargets=aiIndexes.map(i=>st.rows[i]),target=aiTargets[0]||st.target||(st.rows.length===1?st.rows[0]:null);
       if(target)st.target=target;
       if(d.intent==='set_length'){
+        if(aiTargets.length>1&&d.scope!=='similar'){multiLengthDraft(aiTargets,+d.value_number,'Claude сопоставил подписи и число на активном фрагменте.');return;}
         if(!target){st.pendingValue=+d.value_number;st.pendingText=txt;showRows();return;}
         lengthDraft(target,+d.value_number,d.scope==='similar'?d.strategy:'');return;}
       if(d.intent==='set_source'){sourceDraft(d.value_text,d.scope==='similar');return;}
@@ -3737,7 +3754,7 @@ function lkTeachPanel(pg,rect,clusters){
       say('bot','Хорошо. Напишите правильное значение и, если нужно правило для будущих файлов, где оно расположено на чертеже.');return;}
     if(/^(?:да|верно|все правильно|всё правильно|применить|сохранить)$/.test(n)&&st.draft){save();return;}
     if(/использовать\s+найденн[а-я]*\s+правил|применить\s+найденн[а-я]*\s+правил/.test(n)&&st.suggested&&st.target){lengthDraft(st.target,+st.draft.rule.chat.value,st.suggested.strategy);return;}
-    if(st.pendingValue!=null&&/^\d+$/.test(n)){const i=+n-1;if(st.rows[i]){st.target=st.rows[i];const v=st.pendingValue,t=st.pendingText;st.pendingValue=null;lengthDraft(st.target,v,lkChatStrategy(t));}else showRows();return;}
+    if(st.pendingValue!=null&&/^\d+$/.test(n)){const i=+n-1;if(st.rows[i]){st.target=st.rows[i];st.targets=[st.target];const v=st.pendingValue,t=st.pendingText;st.pendingValue=null;lengthDraft(st.target,v,lkChatStrategy(t));}else showRows();return;}
     const src=lkChatSourceValue(txt);
     if(src&&/источник|схем|щит/.test(n)){
       sourceDraft(src,true);return;}
@@ -3745,6 +3762,9 @@ function lkTeachPanel(pg,rect,clusters){
     if((val!=null||strategy)&&(/длин|метр|\d+(?:[.,]\d+)?\s*м(?=\s|$|[.,;:!?])|указат|укаж|постав|должн[а-я]*\s+быть|правильн[а-я]*|вот\s+здесь|цел[а-я]*\s+справа|цифр[а-я]*\s+справа|справа\s+от\s+марк|перед\s+м/.test(n)||st.draft&&st.draft.rule.chat&&st.draft.rule.chat.action==='set-length')){
       const target=st.target||lkChatTarget(st.rows,txt)||(st.draft&&st.draft.rule.chat?st.rows.find(r=>lkChatRuleMatchesRow(st.draft.rule.chat,r)):null);
       const value=val!=null?val:(st.draft&&st.draft.rule.chat?+st.draft.rule.chat.value:null);
+      if(!target&&value>0&&strategy){const matched=st.rows.filter(r=>Math.abs((+lkChatLearnedLen(st.clusters.items||[],r,strategy)||0)-value)<.01);
+        if(matched.length){multiLengthDraft(matched,value,'Положение «'+(strategy==='top-row-right'?'сверху справа':strategy)+'» проверено отдельно у каждой линии.');return;}}
+      if(!target&&st.rows.length>1&&/здесь|тут|вот|видн|написан|указан|сверху|справа|слева|эт[а-я]*\s+област/.test(n)){await aiInterpret(txt);return;}
       if(!target){st.pendingValue=value;st.pendingText=txt;showRows();return;}
       if(!(value>0)&&!strategy){say('bot','Напишите длину числом, например: «длина 175 м».');return;}
       lengthDraft(target,value,strategy);return;}
@@ -3772,7 +3792,7 @@ function lkTeachPanel(pg,rect,clusters){
         const nextClusters=await lkAreaClusters(nextPg,nextRect);
         let image=null;try{image=await lkAreaImage(nextPg,nextRect,720);}catch(e){}
         st.pg=nextPg;st.rect=nextRect;st.clusters=nextClusters;st.rows=lkChatRowsInRect(nextPg,nextRect);st.activeImage=image;st.imageShared=false;
-        st.target=null;st.draft=null;st.suggested=null;st.pendingValue=null;st.pendingText='';
+        st.target=null;st.targets=[];st.draft=null;st.suggested=null;st.pendingValue=null;st.pendingText='';
         name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||name;
         apply.style.display=general.style.display='none';apply.disabled=general.disabled=false;
         note.textContent='Активен последний фрагмент · сначала локально, Claude при необходимости';chips([]);
