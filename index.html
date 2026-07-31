@@ -3470,6 +3470,13 @@ function getAdAttribution() {
   } catch (e) { return []; }
 }
 
+function getAdAttributionObject() {
+  try {
+    const m = document.cookie.match(/(?:^|;\s*)pllato_attr=([^;]+)/);
+    return m ? JSON.parse(decodeURIComponent(m[1])) : {};
+  } catch (e) { return {}; }
+}
+
 function buildLeadText(phone, source) {
   // Защита: не строим сообщение, если телефон пустой или некорректный
   const digits = (phone || '').replace(/\D/g, '');
@@ -3511,6 +3518,17 @@ async function sendToTelegram(text) {
     throw new Error('Telegram: ' + err);
   }
   return { service: 'telegram', ok: true };
+}
+
+async function sendToCrm(payload) {
+  const r = await fetch('https://pllato-elc-worker.uurraa.workers.dev/api/public/pllato-lead', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  });
+  if (!r.ok) throw new Error('CRM: HTTP ' + r.status);
+  return { service: 'crm', ok: true };
 }
 
 /* ============== SEND TO WHATSAPP (via CallMeBot) ==============
@@ -3756,10 +3774,22 @@ function handleFormSubmit(form, isExtended) {
   if (_attr.length) text = (text || '') + '\n' + _attr.join('\n');
 
   Promise.allSettled([
+    sendToCrm({
+      phone,
+      name: extra.name || '',
+      team: extra.team || '',
+      current: extra.current || '',
+      form: sourceLabel,
+      page: location.href,
+      referrer: document.referrer || '',
+      device: navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop',
+      attribution: getAdAttributionObject(),
+      website: honeypot ? honeypot.value : '',
+    }),
     sendToTelegram(text),
     sendToWhatsApp(text),
   ]).then(results => {
-    const services = ['telegram', 'whatsapp'];
+    const services = ['crm', 'telegram', 'whatsapp'];
     results.forEach((r, i) => {
       if (r.status === 'fulfilled') {
         if (r.value.skipped) console.warn(`[Pllato] ${services[i]}: пропущен (${r.value.reason})`);

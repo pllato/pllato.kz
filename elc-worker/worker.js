@@ -8133,6 +8133,101 @@ async function handlePublicPllatoInquiries(request, env) {
   }, 200, request);
 }
 
+// POST /api/public/pllato-lead — заявка с корпоративного сайта сразу в CRM.
+// Endpoint публичный намеренно: персональные данные принимает только с pllato.kz,
+// не возвращает содержимое CRM и не требует браузерной сессии сотрудника.
+async function handlePublicPllatoLead(request, env) {
+  const origin = String(request.headers.get('Origin') || '');
+  if (origin && !['https://pllato.kz', 'https://www.pllato.kz'].includes(origin)) {
+    return json({ ok: false, error: 'origin not allowed' }, 403, request);
+  }
+
+  let body;
+  try { body = await request.json(); }
+  catch { return json({ ok: false, error: 'invalid json' }, 400, request); }
+
+  // Honeypot дублируется на сервере: прямой вызов endpoint не должен обходить форму.
+  if (String(body.website || '').trim()) return json({ ok: true, ignored: true }, 200, request);
+  const phoneRaw = String(body.phone || '').trim().slice(0, 40);
+  const phone = phoneRaw.replace(/\D/g, '');
+  if (phone.length < 7 || phone.length > 15) {
+    return json({ ok: false, error: 'invalid phone' }, 422, request);
+  }
+  const phoneTail = phone.slice(-10);
+  const nowIso = new Date().toISOString();
+  const name = String(body.name || '').trim().slice(0, 120) || '(без имени)';
+  const attribution = body.attribution && typeof body.attribution === 'object' && !Array.isArray(body.attribution)
+    ? Object.fromEntries(Object.entries(body.attribution).slice(0, 20).map(([k, v]) => [String(k).slice(0, 40), String(v).slice(0, 500)]))
+    : {};
+
+  const pipeline = await env.DB.prepare(
+    'SELECT id, stages FROM pipelines WHERE name = ? LIMIT 1'
+  ).bind('Pllato Старт').first();
+  if (!pipeline?.id) return json({ ok: false, error: 'pipeline not found' }, 503, request);
+  let stageId = '';
+  try {
+    const stages = Object.entries(JSON.parse(pipeline.stages || '{}'))
+      .map(([id, value]) => ({ id, ...(value || {}) }))
+      .sort((a, b) => Number(a.sort || 0) - Number(b.sort || 0));
+    stageId = String(stages[0]?.statusId || stages[0]?.id || '');
+  } catch {}
+  if (!stageId) return json({ ok: false, error: 'pipeline has no stages' }, 503, request);
+
+  // Один контакт на телефон; повторная отправка той же формы за 5 минут не
+  // создаёт дубль сделки (двойной тап/повторный сетевой запрос).
+  let contact = await env.DB.prepare(
+    'SELECT id FROM contacts WHERE phones LIKE ? LIMIT 1'
+  ).bind(`%${phoneTail}%`).first();
+  let contactId = contact?.id || '';
+  if (!contactId) {
+    contactId = 'contact_site_' + crypto.randomUUID();
+    await env.DB.prepare(`
+      INSERT INTO contacts (
+        id, name, last_name, type, source_id, source_description, opened, export,
+        bitrix_date_create, bitrix_date_modify, phones, custom_fields
+      ) VALUES (?, ?, '', 'CLIENT', 'WEBSITE', 'Сайт pllato.kz', 1, 0, ?, ?, ?, ?)
+    `).bind(
+      contactId, name, nowIso, nowIso,
+      JSON.stringify([{ type: 'MOBILE', value: phoneRaw }]),
+      JSON.stringify({ attribution, landingPage: String(body.page || '').slice(0, 1000) })
+    ).run();
+  }
+
+  const recent = await env.DB.prepare(`
+    SELECT id FROM deals
+    WHERE contact_id = ? AND pipeline_id = ? AND source_id = 'PLLATO_SITE'
+      AND datetime(bitrix_date_create) >= datetime('now', '-5 minutes')
+    ORDER BY bitrix_date_create DESC LIMIT 1
+  `).bind(contactId, pipeline.id).first();
+  if (recent?.id) return json({ ok: true, dealId: recent.id, contactId, duplicate: true }, 200, request);
+
+  const dealId = 'deal_site_' + crypto.randomUUID();
+  const details = {
+    attribution,
+    form: String(body.form || '').slice(0, 120),
+    page: String(body.page || '').slice(0, 1000),
+    referrer: String(body.referrer || '').slice(0, 1000),
+    device: String(body.device || '').slice(0, 40),
+    team: String(body.team || '').slice(0, 120),
+    current: String(body.current || '').slice(0, 240),
+    submittedAt: nowIso,
+  };
+  const campaign = attribution.utm_campaign ? ` · ${attribution.utm_campaign}` : '';
+  await env.DB.prepare(`
+    INSERT INTO deals (
+      id, title, opportunity, currency, pipeline_id, stage_id, closed,
+      contact_id, source_id, source_description, bitrix_date_create,
+      bitrix_date_modify, stage_changed_at, custom_fields
+    ) VALUES (?, ?, 0, 'KZT', ?, ?, 0, ?, 'PLLATO_SITE', ?, ?, ?, ?, ?)
+  `).bind(
+    dealId, `Заявка с сайта · ${name}${campaign}`.slice(0, 240), pipeline.id, stageId,
+    contactId, attribution.utm_source === 'youtube' ? 'YouTube Shorts' : 'Сайт pllato.kz',
+    nowIso, nowIso, nowIso, JSON.stringify(details)
+  ).run();
+  await logStageEvent(env, dealId, pipeline.id, stageId, nowIso);
+  return json({ ok: true, dealId, contactId, pipeline: 'Pllato Старт', stageId }, 201, request);
+}
+
 // Публичная обезличенная серия для КЭП: уникальная сделка учитывается один раз
 // по первому входу в «Создание Демо» или «Показ Демо».
 async function handlePublicPllatoKep(request, env) {
@@ -10120,6 +10215,9 @@ export default {
     }
     if (path === "/api/public/pllato-inquiries" && request.method === "GET") {
       return handlePublicPllatoInquiries(request, env);
+    }
+    if (path === "/api/public/pllato-lead" && request.method === "POST") {
+      return handlePublicPllatoLead(request, env);
     }
     if (path === "/api/public/pllato-kep" && request.method === "GET") {
       return handlePublicPllatoKep(request, env);
