@@ -306,6 +306,15 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-chat-quick{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 10px;background:#f6f8fb;}
 .lk-chat-chip{border:1px solid #c8d3e2;background:#fff;color:var(--steel);border-radius:999px;padding:6px 10px;font:600 11.5px/1.2 inherit;cursor:pointer;}
 .lk-chat-chip:hover{border-color:var(--steel);background:#f0f5fb;}
+.lk-chat-tools{display:flex;align-items:center;gap:8px;padding:9px 16px 0;background:#fff;}
+.lk-chat-attach{border:1px dashed #7790b0;background:#f7faff;color:var(--steel);border-radius:9px;padding:7px 11px;font:800 11.5px/1.2 inherit;cursor:pointer;}
+.lk-chat-attach:hover{border-style:solid;background:#edf4fc;}
+.lk-chat-attach:disabled{opacity:.45;cursor:default;}
+.lk-chat-fragment{display:grid;grid-template-columns:112px minmax(0,1fr);gap:9px;min-width:min(430px,70vw);}
+.lk-chat-fragment img{width:112px;height:78px;object-fit:cover;border:1px solid var(--line);border-radius:7px;background:#fff;}
+.lk-chat-fragment b{display:block;margin-bottom:3px;}
+.lk-chat-fragment small{display:block;color:var(--muted);font-size:10.5px;line-height:1.35;}
+.lk-chat-fragment pre{white-space:pre-wrap;max-height:58px;overflow:auto;margin:5px 0 0;font:10px/1.35 var(--mono);color:var(--muted);}
 .lk-chat-compose{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);background:#fff;align-items:flex-end;}
 .lk-chat-compose textarea{flex:1;min-height:42px;max-height:110px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:13px/1.4 inherit;}
 .lk-chat-compose textarea:focus{outline:none;border-color:var(--steel);box-shadow:0 0 0 3px rgba(47,74,110,.10);}
@@ -316,7 +325,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-chat-apply{border:1px solid #2f7d4f;background:#edf8f1;color:#23653c;border-radius:9px;padding:8px 12px;font-weight:800;cursor:pointer;}
 .lk-chat-apply.secondary{border-color:#aab8ca;background:#fff;color:var(--steel);}
 .lk-chat-apply:disabled{opacity:.45;cursor:default;}
-@media(max-width:640px){.lk-chat-box{top:8px;max-height:calc(100vh - 16px);min-width:280px}.lk-chat-badge,.lk-chat-box .lk-iss-sub{display:none}.lk-chat-box.maximized{inset:4px!important}}
+@media(max-width:640px){.lk-chat-box{top:8px;max-height:calc(100vh - 16px);min-width:280px}.lk-chat-badge,.lk-chat-box .lk-iss-sub{display:none}.lk-chat-box.maximized{inset:4px!important}.lk-chat-fragment{grid-template-columns:72px minmax(0,1fr);min-width:0}.lk-chat-fragment img{width:72px;height:58px}}
 /* постраничный вид линейки */
 .lk-main{display:flex;flex:1;min-height:0;}
 .lk-nav{width:214px;flex-shrink:0;overflow-y:auto;background:var(--panel);border-right:1px solid var(--line);padding:9px;display:flex;flex-direction:column;gap:8px;}
@@ -1689,7 +1698,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v423';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v424';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v415';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -3515,6 +3524,7 @@ function lkChatRowsInRect(pg,rect){
   return out.slice(0,12);
 }
 function lkChatRowLabel(r){return (r.group&&r.group!=='—'?r.group+' · ':'')+(r.mark||'кабель')+' '+(r.section||'')+' · '+(+r.len||0)+' м';}
+function lkChatAreaLabel(rect){return 'x '+Math.round(rect.x0*100)+'–'+Math.round(rect.x1*100)+'%, y '+Math.round(rect.y0*100)+'–'+Math.round(rect.y1*100)+'% сверху';}
 function lkChatStrategy(s){const n=lkChatNorm(s);
   if(/верхн[а-я]*\s+строк[а-я]*\s+справа|справа\s+(?:в|на)\s+верхн[а-я]*\s+строк[а-я]*/.test(n))return'top-row-right';
   if(/перед\s+(?:буквой\s+)?м|число\s+с\s+метр|подписан[а-я]*\s*м|в\s+конце\s+(?:своей\s+)?строк[а-я]*/.test(n))return'before-m';
@@ -3557,9 +3567,10 @@ function lkTeachPanel(pg,rect,clusters){
   const wrap=document.createElement('div');wrap.className='lk-iss-modal lk-chat-modal';wrap.id='lkTeachModal';
   wrap.style.display='flex';wrap.style.zIndex='200';
   const context=clusters.slice(0,16).map(c=>c.s).join('\n');
-  wrap.innerHTML=`<div class="lk-iss-box lk-chat-box"><div class="lk-iss-head" id="lkChatHead"><b>🎓 Диалоговая Обучалка</b><span class="lk-chat-badge">бесплатно · локально</span><span class="lk-iss-sub">лист ${pg.page}</span><span class="lk-chat-winbtns"><button class="lk-chat-winbtn" id="lkTcMin" title="Свернуть окно" aria-label="Свернуть окно">—</button><button class="lk-chat-winbtn" id="lkTcMax" title="Развернуть на весь экран" aria-label="Развернуть на весь экран">□</button><button class="lk-chat-winbtn close" id="lkTcX" title="Закрыть" aria-label="Закрыть">×</button></span></div>
-    <div class="lk-chat-body" id="lkChatBody"><details class="lk-chat-context"><summary>Что найдено в области: ${clusters.length} ${lkPlural(clusters.length,'подпись','подписи','подписей')}</summary><pre>${esc(context||'Текстового слоя в области нет')}</pre></details>
+  wrap.innerHTML=`<div class="lk-iss-box lk-chat-box"><div class="lk-iss-head" id="lkChatHead"><b>🎓 Диалоговая Обучалка</b><span class="lk-chat-badge">бесплатно · локально</span><span class="lk-iss-sub" id="lkChatSheet">лист ${pg.page}</span><span class="lk-chat-winbtns"><button class="lk-chat-winbtn" id="lkTcMin" title="Свернуть окно" aria-label="Свернуть окно">—</button><button class="lk-chat-winbtn" id="lkTcMax" title="Развернуть на весь экран" aria-label="Развернуть на весь экран">□</button><button class="lk-chat-winbtn close" id="lkTcX" title="Закрыть" aria-label="Закрыть">×</button></span></div>
+    <div class="lk-chat-body" id="lkChatBody"><details class="lk-chat-context"><summary id="lkChatContextSummary">Лист ${pg.page} · ${lkChatAreaLabel(rect)} · найдено: ${clusters.length} ${lkPlural(clusters.length,'подпись','подписи','подписей')}</summary><pre id="lkChatContextRaw">${esc(context||'Текстового слоя в области нет')}</pre></details>
     <div class="lk-chat-log" id="lkChatLog"></div><div class="lk-chat-quick" id="lkChatQuick"></div>
+    <div class="lk-chat-tools"><button class="lk-chat-attach" id="lkChatAttach">⌖ Добавить фрагмент с чертежа</button><span class="lk-note">переписка сохранится</span></div>
     <div class="lk-chat-compose"><textarea id="lkChatInput" rows="2" maxlength="500" placeholder="Например: «здесь длина 175 м, крайнее целое справа»"></textarea><button class="lk-chat-send" id="lkChatSend">Отправить</button></div>
     <div class="lk-chat-foot"><button class="lk-chat-apply" id="lkChatApply" style="display:none">✓ Всё правильно — применить</button><button class="lk-chat-apply secondary" id="lkChatGeneral" style="display:none">Для будущих похожих файлов</button><span class="lk-note" id="lkChatNote">Только обучение чтению чертежей · внешних ИИ-вызовов нет</span></div></div></div>`;
   ($('lineyka')||document.body).appendChild(wrap);
@@ -3584,9 +3595,9 @@ function lkTeachPanel(pg,rect,clusters){
     maxBtn.textContent=on?'❐':'□';maxBtn.title=on?'Восстановить размер':'Развернуть на весь экран';maxBtn.setAttribute('aria-label',maxBtn.title);if(!on)fit();};
   head.ondblclick=e=>{if(!e.target.closest('button'))maxBtn.click();};
   window.addEventListener('resize',fit);
-  const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
-  const st={rows:lkChatRowsInRect(pg,rect),target:null,draft:null,suggested:null,pendingValue:null,pendingText:'',messages:[]};
-  const log=$('lkChatLog'),quick=$('lkChatQuick'),input=$('lkChatInput'),apply=$('lkChatApply'),general=$('lkChatGeneral'),note=$('lkChatNote');
+  let name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
+  const st={pg,rect,clusters,rows:lkChatRowsInRect(pg,rect),target:null,draft:null,suggested:null,pendingValue:null,pendingText:'',messages:[],fragments:[]};
+  const log=$('lkChatLog'),quick=$('lkChatQuick'),input=$('lkChatInput'),apply=$('lkChatApply'),general=$('lkChatGeneral'),note=$('lkChatNote'),attach=$('lkChatAttach');
   const say=(role,html)=>{const el=document.createElement('div');el.className='lk-chat-msg '+role;
     el.innerHTML=`<span class="lk-chat-avatar">${role==='user'?'Вы':'🎓'}</span><div class="lk-chat-bubble">${html}</div>`;
     log.appendChild(el);log.scrollTop=log.scrollHeight;};
@@ -3605,25 +3616,25 @@ function lkTeachPanel(pg,rect,clusters){
   const save=async()=>{
     if(!st.draft)return;apply.disabled=true;general.disabled=true;note.textContent='Сохраняю и перечитываю файл…';
     await lkRulesSave(st.draft.rule,{team:st.draft.team});
-    LK.issues.push({page:pg.page,text:'🎓 Чат выучил правило: '+(st.draft.rule.title||''),rect,done:true,ts:Date.now()});
+    LK.issues.push({page:st.pg.page,text:'🎓 Чат выучил правило: '+(st.draft.rule.title||''),rect:st.rect,done:true,ts:Date.now()});
     close();await lkReparse();toast(st.draft.team?'Правило сохранено для похожих файлов':'Исправление сохранено для этого файла');};
   const lengthDraft=(target,value,strategy)=>{
     st.target=target;
     const team=!!strategy;const rule={id:'chat'+Date.now().toString(36),title:'Чат: длина '+(target.section||target.mark||'кабеля'),
       series:lkRuleSeries(name),chat:{action:'set-length',match:{group:target.group||'',groupPattern:lkChatGroupShape(target.group),mark:target.mark||'',section:target.section||''},
         value,strategy:strategy||'fixed',general:team}};
-    if(!team){rule.chat.file=name;rule.chat.page=pg.page;}
+    if(!team){rule.chat.file=name;rule.chat.page=st.pg.page;}
     let detected=value;
-    if(team){detected=lkChatLearnedLen(clusters.items||[],target,strategy);
+    if(team){detected=lkChatLearnedLen(st.clusters.items||[],target,strategy);
       if(!(detected>0)){say('bot','Я не смогла безопасно найти это число по выбранному расположению. Напишите точную длину с «м» — сохраню исправление только для этого файла.');chips([]);return;}
       if(value>0&&Math.abs(detected-value)>.01){say('bot','По этому способу на текущем примере получается <b>'+esc(String(detected))+' м</b>, а вы указали <b>'+esc(String(value))+' м</b>. Такое правило нельзя безопасно переносить на будущие файлы. Точечное исправление '+esc(String(value))+' м оставляю доступным только для этого файла.');chips([]);return;}
-      if(strategy==='top-row-right'){const top=lkChatColumnMeters(clusters.items||[],target).find(o=>Math.abs(o.v-detected)<.01);
+      if(strategy==='top-row-right'){const top=lkChatColumnMeters(st.clusters.items||[],target).find(o=>Math.abs(o.v-detected)<.01);
         if(!top||Math.abs(top.y-target.y)<8){say('bot','В этой подписи нет отдельной верхней строки: числа стоят на одной высоте. Я не буду сохранять такое правило для будущих файлов.');chips([]);return;}
         rule.chat.topDy=top.y-target.y;}
       rule.chat.value=detected;}
     const before=[{group:target.group,value:(+target.len||0)+' м'}],after=[{group:target.group,value:detected+' м'}];
     showDraft(rule,before,after,team?('На текущем примере найдено '+detected+' м. В будущих файлах число будет извлекаться тем же способом.'):'Заданное число сохранится только для этого файла и листа.',team);
-    if(!team){st.suggested=lkChatInferLen(clusters.items||[],target,value);
+    if(!team){st.suggested=lkChatInferLen(st.clusters.items||[],target,value);
       if(st.suggested){say('bot','Я сама проанализировала подписи выбранной линии: вижу <b>'+esc(String(value))+' м</b> как '+esc(st.suggested.label)+'. Нажмите «Для будущих похожих файлов» — я сразу покажу готовое правило.');
         chips([['Использовать найденное правило','использовать найденное правило'],['Нет, указать иначе','нет, указать иначе']]);}}
     };
@@ -3641,24 +3652,24 @@ function lkTeachPanel(pg,rect,clusters){
     if(src&&/источник|схем|щит/.test(n)){
       let rule={id:'chat'+Date.now().toString(36),title:'Чат: источник из заголовка',series:lkRuleSeries(name),
         source:'схема\\s+(?:(?:щита|панели|шкафа)\\s+)?([А-ЯЁA-Z][А-ЯЁа-яёA-Za-z0-9.,()\\/…-]{1,24})'};
-      const found=lkRuleSource(clusters,[rule],clusters.items);
+      const found=lkRuleSource(st.clusters,[rule],st.clusters.items);
       const team=lkChatSame(found,src);
       if(!team)rule={id:rule.id,title:'Чат: источник '+src,series:rule.series,
-        chat:{action:'set-source',value:src,file:name,page:pg.page}};
-      showDraft(rule,[{group:'Источник',value:pg.vru||'не определён'}],[{group:'Источник',value:src}],
+        chat:{action:'set-source',value:src,file:name,page:st.pg.page}};
+      showDraft(rule,[{group:'Источник',value:st.pg.vru||'не определён'}],[{group:'Источник',value:src}],
         team?'Источник будет читаться из заголовка «схема щита/панели/шкафа».':'В выделенном тексте шаблон источника не найден: значение сохранится только для этого файла.',team);return;}
     const strategy=lkChatStrategy(txt),val=lkChatLengthValue(txt);
-    if((val!=null||strategy)&&(/длин|метр|цел[а-я]*\s+справа|цифр[а-я]*\s+справа|справа\s+от\s+марк|перед\s+м/.test(n)||st.draft&&st.draft.rule.chat&&st.draft.rule.chat.action==='set-length')){
+    if((val!=null||strategy)&&(/длин|метр|должн[а-я]*\s+быть|правильн[а-я]*|вот\s+здесь|цел[а-я]*\s+справа|цифр[а-я]*\s+справа|справа\s+от\s+марк|перед\s+м/.test(n)||st.draft&&st.draft.rule.chat&&st.draft.rule.chat.action==='set-length')){
       const target=st.target||lkChatTarget(st.rows,txt)||(st.draft&&st.draft.rule.chat?st.rows.find(r=>lkChatRuleMatchesRow(st.draft.rule.chat,r)):null);
       const value=val!=null?val:(st.draft&&st.draft.rule.chat?+st.draft.rule.chat.value:null);
       if(!target){st.pendingValue=value;st.pendingText=txt;showRows();return;}
       if(!(value>0)&&!strategy){say('bot','Напишите длину числом, например: «длина 175 м».');return;}
       lengthDraft(target,value,strategy);return;}
     if(/труб|гофр/.test(n)&&/один|раз|дубл|стопк|повтор/.test(n)){
-      const before=(pg.rows||[]).reduce((a,r)=>a+(r.conds||[]).length,0);
-      const test=(pg.rows||[]).map(r=>Object.assign({},r,{conds:(r.conds||[]).map(c=>Object.assign({},c))}));
+      const before=(st.pg.rows||[]).reduce((a,r)=>a+(r.conds||[]).length,0);
+      const test=(st.pg.rows||[]).map(r=>Object.assign({},r,{conds:(r.conds||[]).map(c=>Object.assign({},c))}));
       const rule={id:'chat'+Date.now().toString(36),title:'Чат: трубы один раз на фидер',series:lkRuleSeries(name),chat:{action:'dedupe-pipes'}};
-      lkApplyChatRules(clusters.items||[],test,[rule],name,pg.page);
+      lkApplyChatRules(st.clusters.items||[],test,[rule],name,st.pg.page);
       const after=test.reduce((a,r)=>a+(r.conds||[]).length,0);
       showDraft(rule,[{group:'Трубы на листе',value:before+' поз.'}],[{group:'Трубы на листе',value:after+' поз.'}],
         'Одинаковая труба одной стопки учитывается один раз.',true);return;}
@@ -3669,7 +3680,7 @@ function lkTeachPanel(pg,rect,clusters){
     const cm=String(txt).match(/потребител[а-яё]*(?:\s+(?:это|=))?\s*[:\-]?\s*(.{2,80})/i);
     if(cm){const target=st.target||lkChatTarget(st.rows,txt);if(!target){showRows();return;}
       const value=cm[1].trim(),rule={id:'chat'+Date.now().toString(36),title:'Чат: потребитель '+(target.section||''),
-        series:lkRuleSeries(name),chat:{action:'set-consumer',match:{group:target.group||'',mark:target.mark||'',section:target.section||''},value,file:name,page:pg.page}};
+        series:lkRuleSeries(name),chat:{action:'set-consumer',match:{group:target.group||'',mark:target.mark||'',section:target.section||''},value,file:name,page:st.pg.page}};
       showDraft(rule,[{group:target.section,value:target.group||'—'}],[{group:target.section,value}],
         'Точечное имя сохранится только для этого файла; для общего правила лучше указать таблицу-источник.',false);return;}
     if(/источник/.test(n)){say('bot','Напишите имя полностью, например: «источник ЩАО-2(1)».');return;}
@@ -3681,22 +3692,49 @@ function lkTeachPanel(pg,rect,clusters){
   general.onclick=()=>{if(st.suggested&&st.target&&st.draft&&st.draft.rule.chat){lengthDraft(st.target,+st.draft.rule.chat.value,st.suggested.strategy);return;}
     say('bot','Где брать длину в будущих похожих файлах? Выберите вариант или напишите своими словами.');
     chips([['Верхняя строка справа','в верхней строке справа'],['Число перед «м»','число перед м'],['Крайнее целое справа','крайнее целое справа'],['Справа от марки','число справа от марки']]);};
+  const restoreAfterPick=()=>{wrap.style.display='flex';attach.disabled=false;fit();input.focus();};
+  attach.onclick=()=>{
+    if(!LK.pages||!LK.pages.length){toast('Сначала откройте лист');return;}
+    const nextPg=LK.pages[LK.sel];if(!nextPg){toast('Нет листа');return;}
+    attach.disabled=true;wrap.style.display='none';toast('Обведи или ткни нужное место — оно добавится в этот же диалог');
+    lkPickArea(async nextRect=>{
+      try{
+        const nextClusters=await lkAreaClusters(nextPg,nextRect);
+        let image=null;try{image=await lkAreaImage(nextPg,nextRect,720);}catch(e){}
+        st.pg=nextPg;st.rect=nextRect;st.clusters=nextClusters;st.rows=lkChatRowsInRect(nextPg,nextRect);
+        st.target=null;st.draft=null;st.suggested=null;st.pendingValue=null;st.pendingText='';
+        name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||name;
+        apply.style.display=general.style.display='none';apply.disabled=general.disabled=false;
+        note.textContent='Активен последний прикреплённый фрагмент · внешних ИИ-вызовов нет';chips([]);
+        const raw=nextClusters.slice(0,16).map(c=>c.s).join('\n');
+        $('lkChatSheet').textContent='лист '+nextPg.page;
+        $('lkChatContextSummary').textContent='Лист '+nextPg.page+' · '+lkChatAreaLabel(nextRect)+' · найдено: '+nextClusters.length+' '+lkPlural(nextClusters.length,'подпись','подписи','подписей');
+        $('lkChatContextRaw').textContent=raw||'Текстового слоя в области нет';
+        st.fragments.push({page:nextPg.page,rect:nextRect,text:raw,image});
+        say('user','<div class="lk-chat-fragment">'+(image?'<img src="'+image+'" alt="Прикреплённый фрагмент листа '+nextPg.page+'">':'')+
+          '<div><b>⌖ '+esc(name||'Текущий файл')+' · лист '+nextPg.page+'</b><small>'+esc(lkChatAreaLabel(nextRect))+' · найдено '+nextClusters.length+' '+lkPlural(nextClusters.length,'подпись','подписи','подписей')+'</small><pre>'+esc(raw||'Текстового слоя в области нет')+'</pre></div></div>');
+        say('bot','Фрагмент добавлен в эту переписку и теперь активен. Напишите прямо: <b>«вот здесь неправильно, должно быть 175 м»</b>. Я свяжу сообщение с этим листом, областью и найденными линиями.');
+        if(st.rows.length>1)say('bot','В новом фрагменте найдено '+st.rows.length+' кабельных линий. Можно назвать нужную линию или её сечение.');
+      }catch(e){say('bot','Не удалось прочитать новый фрагмент: '+esc(e&&e.message||String(e)));}
+      finally{restoreAfterPick();}
+    },restoreAfterPick);
+  };
   say('bot','Покажите, что здесь нужно исправить. Можно написать обычной фразой: <b>«длина 175 м»</b>, <b>«источник ЩАО-2(1)»</b> или <b>«трубы учитывать один раз»</b>. Я сначала покажу «было → стало» и ничего не сохраню без подтверждения.');
   if(st.rows.length>1)say('bot','В выделении найдено '+st.rows.length+' кабельных линий. Можно указать сечение нужной линии, например «4x1,5 — 20 м».');
   chips([['Указать длину','длина ',true],['Указать источник','источник ',true],['Трубы один раз','трубы учитывать один раз'],['U% не потребитель','U% — не потребитель']]);
   input.focus();
 }
 let _lkVid=900000;
-function lkPickArea(cb){
+function lkPickArea(cb,onCancel){
   const vp=$('lkPgImg');const ib=$('lkImgBox');
-  if(!vp||!ib){toast('Лист ещё не отрисован — подожди картинку');return;}
+  if(!vp||!ib){toast('Лист ещё не отрисован — подожди картинку');if(onCancel)onCancel();return;}
   const lay=document.createElement('div');lay.id='lkPickLayer';
   lay.innerHTML='<div class="lk-pick-hint">Обведи рамкой место на листе · Esc — отмена</div><div class="lk-pick-rect" style="display:none"></div>';
   vp.appendChild(lay);
   const rectEl=lay.querySelector('.lk-pick-rect');let st=null;
   const norm=e=>{const b=ib.getBoundingClientRect();return {x:Math.max(0,Math.min(1,(e.clientX-b.left)/b.width)),y:Math.max(0,Math.min(1,(e.clientY-b.top)/b.height))};};
   const off=()=>{lay.remove();document.removeEventListener('keydown',esc);};
-  const esc=e=>{if(e.key==='Escape')off();};
+  const esc=e=>{if(e.key==='Escape'){off();if(onCancel)onCancel();}};
   document.addEventListener('keydown',esc);
   lay.onpointerdown=e=>{e.preventDefault();e.stopPropagation();st=norm(e);try{lay.setPointerCapture(e.pointerId);}catch(_){}rectEl.style.display='block';draw(st,st);};
   lay.onpointermove=e=>{if(!st)return;draw(st,norm(e));};
