@@ -9623,6 +9623,13 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders(request) });
     }
 
+    // Public website lead intake must be dispatched before the authenticated
+    // CRM API routes below. Keeping it here prevents a generic API fallback
+    // from swallowing form submissions and returning a misleading 404.
+    if (path === "/api/public/pllato-lead" && request.method === "POST") {
+      return handlePublicPllatoLead(request, env);
+    }
+
     if (path === "/health" && request.method === "GET") {
       return handleHealth(request, env);
     }
@@ -10215,9 +10222,6 @@ export default {
     }
     if (path === "/api/public/pllato-inquiries" && request.method === "GET") {
       return handlePublicPllatoInquiries(request, env);
-    }
-    if (path === "/api/public/pllato-lead" && request.method === "POST") {
-      return handlePublicPllatoLead(request, env);
     }
     if (path === "/api/public/pllato-kep" && request.method === "GET") {
       return handlePublicPllatoKep(request, env);
