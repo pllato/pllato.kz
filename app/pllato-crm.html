@@ -3946,9 +3946,20 @@ async function initApp(user) {
   // Загружаем роль/canonical uid через worker /api/me
   try {
     const idToken = await user.getIdToken();
-    const me = await fetch('https://pllato-elc-worker.uurraa.workers.dev/api/me', {
+    const meResponse = await fetch('https://pllato-elc-worker.uurraa.workers.dev/api/me', {
       headers: { 'Authorization': `Bearer ${idToken}` },
-    }).then(r => r.ok ? r.json() : null);
+      cache: 'no-store',
+    });
+    // App-сессия могла стать недействительной после ротации секрета или
+    // повторного деплоя. Не продолжаем с currentUser=null (это выглядит как
+    // «пропали все сделки»), а принудительно получаем свежую Google-сессию.
+    if (!meResponse.ok && pllatoAppSession && (meResponse.status === 401 || meResponse.status === 403)) {
+      localStorage.removeItem('pllato_session');
+      const returnTo = encodeURIComponent(location.pathname + location.search + location.hash);
+      location.replace(`/login.html?next=${returnTo}`);
+      return;
+    }
+    const me = meResponse.ok ? await meResponse.json() : null;
     if (me && me.ok) {
       window.currentUser = me;
       console.log('[initApp] role:', me.role, 'canonicalUid:', me.canonicalUid, 'linked:', me.isLinked);
