@@ -1698,7 +1698,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v427';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v428';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v415';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2878,6 +2878,7 @@ function lkApplyChatUpserts(rows,rules,scope,page,viewport){let changed=0;
     (Array.isArray(c.rows)?c.rows:[]).slice(0,12).forEach(raw=>{const f=lkChatFixedRow(raw);if(!f)return;
       let target=f.matchKey?rows.find(r=>lkChatRowKey(r)===f.matchKey):null;
       if(!target)target=rows.find(r=>lkChatSame(r.group,f.group)&&lkChatSame(r.mark,f.mark)&&lkChatSame(r.section,f.section));
+      if(!target){const sameLine=rows.filter(r=>lkChatSame(r.group,f.group)&&lkChatSame(r.section,f.section));if(sameLine.length===1)target=sameLine[0];}
       if(target){target.group=f.group;target.mark=f.mark;target.section=f.section;target.len=f.len;
         if(f.conds.length||(target.conds||[]).length===0)target.conds=f.conds;
         target.needsCheck=!(f.len>0);target._chatRule=rule.id||1;target._src='chat-vision';changed++;return;}
@@ -3401,6 +3402,12 @@ async function lkRulesSave(rule,opt){
   // привязываем правило к серии текущего файла — чтобы не текло на чужие проекты
   const nm=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
   if(!rule.series)rule.series=lkRuleSeries(nm);
+  // Повторное уточнение одной восстановленной строки заменяет прежнюю точечную версию. Иначе
+  // два сохранения с разным чтением марки могли создать две строки и удвоить метраж.
+  if(rule.chat&&rule.chat.action==='upsert-lines'){
+    const c=rule.chat,keys=new Set((c.rows||[]).map(r=>lkChatNorm(r.group)+'|'+lkChatNorm(r.section)));
+    LK.rules=LK.rules.filter(old=>{const o=old&&old.chat;if(!o||o.action!=='upsert-lines'||String(o.file)!==String(c.file)||+o.page!==+c.page)return true;
+      return !(o.rows||[]).some(r=>keys.has(lkChatNorm(r.group)+'|'+lkChatNorm(r.section)));});}
   LK.rules.unshift(rule);
   try{await archPut({id:'lk_rules',_lkrules:1,rules:LK.rules.slice(0,200),date:Date.now()});}catch(e){}
   // точечная правка остаётся личной. В общий реестр уходит только проверенное обобщённое правило.
@@ -3624,7 +3631,9 @@ function lkTeachPanel(pg,rect,clusters){
     box.style.left=Math.max(0,Math.min(e.clientX-drag.dx,window.innerWidth-w))+'px';
     box.style.top=Math.max(0,Math.min(e.clientY-drag.dy,window.innerHeight-h))+'px';};
   const dragStop=()=>{drag=null;window.removeEventListener('pointermove',dragMove);window.removeEventListener('pointerup',dragStop);window.removeEventListener('pointercancel',dragStop);};
-  const close=()=>{dragStop();window.removeEventListener('resize',fit);wrap.remove();};
+  let reparseAfterClose=false;
+  const close=()=>{dragStop();window.removeEventListener('resize',fit);wrap.remove();
+    if(reparseAfterClose){reparseAfterClose=false;lkReparse();}};
   $('lkTcX').onclick=close;
   head.onpointerdown=e=>{if(e.button!==0||e.target.closest('button')||box.classList.contains('maximized'))return;
     const b=box.getBoundingClientRect();box.style.transform='none';box.style.left=b.left+'px';box.style.top=b.top+'px';
@@ -3636,7 +3645,7 @@ function lkTeachPanel(pg,rect,clusters){
   head.ondblclick=e=>{if(!e.target.closest('button'))maxBtn.click();};
   window.addEventListener('resize',fit);
   let name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
-  const st={pg,rect,clusters,rows:lkChatRowsInRect(pg,rect),target:null,targets:[],draft:null,suggested:null,pendingValue:null,pendingText:'',messages:[],fragments:[],activeImage:null,imageShared:false};
+  const st={pg,rect,clusters,rows:lkChatRowsInRect(pg,rect),target:null,targets:[],draft:null,lastExact:null,suggested:null,pendingValue:null,pendingText:'',messages:[],fragments:[],activeImage:null,imageShared:false};
   const log=$('lkChatLog'),quick=$('lkChatQuick'),input=$('lkChatInput'),sendBtn=$('lkChatSend'),apply=$('lkChatApply'),general=$('lkChatGeneral'),note=$('lkChatNote'),attach=$('lkChatAttach');
   const say=(role,html,record=true)=>{const el=document.createElement('div');el.className='lk-chat-msg '+role;
     el.innerHTML=`<span class="lk-chat-avatar">${role==='user'?'Вы':'🎓'}</span><div class="lk-chat-bubble">${html}</div>`;
@@ -3652,14 +3661,27 @@ function lkTeachPanel(pg,rect,clusters){
   const showDraft=(rule,before,after,reason,team)=>{
     st.draft={rule,team:!!team};say('bot','Поняла. Вот что изменится:'+lkChatPreviewTable(before,after,reason));
     apply.style.display='';apply.textContent=team?'✓ Всё правильно — сохранить для похожих':'✓ Всё правильно — применить к этому файлу';
-    general.style.display=team?'none':'';note.textContent=team?'Правило ограничено серией '+(rule.series||lkRuleSeries(name)):'Точечная правка не затронет другие файлы';
-    chips(team?[['Всё правильно','да'],['Нет, поправить','нет']]:
-      [['Верхняя строка справа','в верхней строке справа'],['Число перед «м»','число перед м'],['Крайнее целое справа','крайнее целое справа'],['Справа от марки','число справа от марки']]);};
+    general.style.display='none';note.textContent=team?'Правило ограничено серией '+(rule.series||lkRuleSeries(name)):'После применения предложу правило для будущих файлов';
+    chips([['Всё правильно','да'],['Нет, поправить','нет']]);};
+  const exactHint=rule=>{const c=rule&&rule.chat||{};
+    if(c.action==='upsert-lines')return 'Правильный результат на текущем примере: '+(c.rows||[]).map(r=>
+      'потребитель '+r.group+', марка '+r.mark+', сечение '+r.section+', длина '+r.len+' м'+
+      ((r.conds||[]).length?', трубы '+r.conds.map(x=>x.t+' '+x.len+' м').join(', '):'')).join('; ')+
+      '. Сформируй переносимое геометрическое правило чтения такого паспорта для будущих похожих файлов этой серии. Не привязывай правило к конкретному имени потребителя или конкретным числам.';
+    if(c.action==='set-length')return 'На текущем примере правильная длина '+c.value+' м для '+(c.match&&c.match.group||'выбранной линии')+
+      '. Сформируй правило, которое на будущих похожих файлах извлекает длину из того же положения, без фиксированного значения.';
+    if(c.action==='set-source')return 'На текущем примере правильный источник '+c.value+'. Сформируй правило чтения источника из такого же заголовка для будущих похожих файлов.';
+    if(c.action==='set-consumer')return 'На текущем примере правильный потребитель '+c.value+'. Сформируй правило геометрической привязки имени потребителя к строке кабеля для будущих похожих файлов.';
+    return 'Сформируй переносимое правило для будущих похожих файлов по только что подтверждённой точечной правке.';};
   const save=async()=>{
     if(!st.draft)return;apply.disabled=true;general.disabled=true;note.textContent='Сохраняю и перечитываю файл…';
-    await lkRulesSave(st.draft.rule,{team:st.draft.team});
-    LK.issues.push({page:st.pg.page,text:'🎓 Чат выучил правило: '+(st.draft.rule.title||''),rect:st.rect,done:true,ts:Date.now()});
-    close();await lkReparse();toast(st.draft.team?'Правило сохранено для похожих файлов':'Исправление сохранено для этого файла');};
+    const done=st.draft;await lkRulesSave(done.rule,{team:done.team});
+    LK.issues.push({page:st.pg.page,text:'🎓 Чат '+(done.team?'выучил правило: ':'исправил: ')+(done.rule.title||''),rect:st.rect,done:true,ts:Date.now()});
+    if(done.team){reparseAfterClose=true;close();toast('Правило сохранено для похожих файлов');return;}
+    st.lastExact={rule:done.rule,hint:exactHint(done.rule),target:st.target,suggested:st.suggested};st.draft=null;reparseAfterClose=true;
+    apply.disabled=general.disabled=false;apply.style.display=general.style.display='none';note.textContent='Точная правка сохранена · можно добавить правило для будущих файлов';
+    say('bot','Точная правка сохранена для этого файла. Хотите, чтобы я теперь сформировала из этого примера <b>правило для будущих похожих файлов</b>? Я сначала проверю правило на текущем фрагменте, покажу результат и внесу его в программу только после вашего подтверждения.');
+    chips([['Да — создать правило','создать правило для будущих похожих файлов'],['Нет — завершить','завершить без общего правила']]);input.focus();};
   const lengthDraft=(target,value,strategy)=>{
     st.target=target;st.targets=[target];
     const team=!!strategy;const rule={id:'chat'+Date.now().toString(36),title:'Чат: длина '+(target.section||target.mark||'кабеля'),
@@ -3677,8 +3699,7 @@ function lkTeachPanel(pg,rect,clusters){
     const before=[{group:target.group,value:(+target.len||0)+' м'}],after=[{group:target.group,value:detected+' м'}];
     showDraft(rule,before,after,team?('На текущем примере найдено '+detected+' м. В будущих файлах число будет извлекаться тем же способом.'):'Заданное число сохранится только для этого файла и листа.',team);
     if(!team){st.suggested=lkChatInferLen(st.clusters.items||[],target,value);
-      if(st.suggested){say('bot','Я сама проанализировала подписи выбранной линии: вижу <b>'+esc(String(value))+' м</b> как '+esc(st.suggested.label)+'. Нажмите «Для будущих похожих файлов» — я сразу покажу готовое правило.');
-        chips([['Использовать найденное правило','использовать найденное правило'],['Нет, указать иначе','нет, указать иначе']]);}}
+      if(st.suggested)say('bot','Я уже нашла возможный переносимый признак: '+esc(st.suggested.label)+'. После применения точечной правки предложу проверить и сохранить его для будущих похожих файлов.');}
     };
   const multiLengthDraft=(targets,value,reason)=>{
     const seen=new Set();targets=(targets||[]).filter(r=>{const k=lkChatRowKey(r);if(!k||seen.has(k))return false;seen.add(k);return true;});
@@ -3742,12 +3763,29 @@ function lkTeachPanel(pg,rect,clusters){
     try{
       const items=(st.clusters.items||[]).slice(0,80).map(it=>({s:lkFixEnc(it.str||'').trim(),x:Math.round(it.transform[4]),y:Math.round(it.transform[5])})).filter(o=>o.s);
       const lines=lkItemLines(items).slice(0,40).map(l=>l.s);
-      const ac=new AbortController(),to=setTimeout(()=>ac.abort(),120000);let d;
-      try{const r=await fetch(LK_AI+'/teach',{method:'POST',headers:{'content-type':'application/json'},signal:ac.signal,
-        body:JSON.stringify({hint:String(hint||'').slice(0,500),clusters:st.clusters.map(c=>c.s),items,lines,file:name,page:st.pg.page,samples:lkTeachSamples(st.pg,st.clusters)})});d=await r.json();}
-      finally{clearTimeout(to);}
+      const lastChat=st.lastExact&&st.lastExact.rule&&st.lastExact.rule.chat||{};
+      let expected=lastChat.action==='upsert-lines'?(lastChat.rows||[]).map(lkChatFixedRow).filter(Boolean):[];
+      if(!expected.length&&st.lastExact&&st.lastExact.target&&lastChat.action==='set-length')expected=[lkChatFixedRow(Object.assign({},st.lastExact.target,{len:+lastChat.value||0}))].filter(Boolean);
+      if(!expected.length&&st.lastExact&&st.lastExact.target&&lastChat.action==='set-consumer')expected=[lkChatFixedRow(Object.assign({},st.lastExact.target,{group:lastChat.value}))].filter(Boolean);
+      const expectedSource=lastChat.action==='set-source'?String(lastChat.value||''):'';
+      const covers=rows=>expected.every(e=>(rows||[]).some(r=>lkChatSame(r.group,e.group)&&lkChatSame(r.mark,e.mark)&&
+        lkChatSame(r.section,e.section)&&Math.abs((+r.len||0)-e.len)<.01&&(e.conds||[]).every(c=>(r.conds||[]).some(x=>lkChatSame(x.t,c.t)&&Math.abs((+x.len||0)-c.len)<.01))));
+      const expectedText=expected.map(e=>e.group+' · '+e.mark+' '+e.section+' · '+e.len+' м'+
+        (e.conds.length?' · '+e.conds.map(c=>c.t+' '+c.len+' м').join(', '):'')).join('; ')+(expectedSource?('источник '+expectedSource):'');
+      const verified=(rows,source)=>covers(rows)&&(!expectedSource||lkChatSame(source,expectedSource));
+      let d=null,rows=[],source='';
+      for(let attempt=0;attempt<2;attempt++){
+        const requestHint=attempt&&(expected.length||expectedSource)?'Предыдущее правило прочитало соседние данные, но НЕ повторило подтверждённый результат «'+expectedText+'». Перестрой геометрию так, чтобы локальный исполнитель получил именно этот результат со всеми полями. Это должно быть переносимое правило без фиксированного имени и чисел.':String(hint||'');
+        const ac=new AbortController(),to=setTimeout(()=>ac.abort(),120000);
+        try{const r=await fetch(LK_AI+'/teach',{method:'POST',headers:{'content-type':'application/json'},signal:ac.signal,
+          body:JSON.stringify({hint:requestHint.slice(0,500),clusters:st.clusters.map(c=>c.s),items,lines,file:name,page:st.pg.page,samples:lkTeachSamples(st.pg,st.clusters)})});d=await r.json();}
+        finally{clearTimeout(to);}
+        if(d.error)break;
+        rows=lkRuleRows(st.clusters,[d.rule],st.clusters.items);source=lkRuleSource(st.clusters,[d.rule],st.clusters.items);
+        if((!expected.length&&!expectedSource)||verified(rows,source))break;
+      }
       if(d.error){say('bot','Не смогла построить правило: '+esc(d.error));return;}
-      const rows=lkRuleRows(st.clusters,[d.rule],st.clusters.items),source=lkRuleSource(st.clusters,[d.rule],st.clusters.items);
+      if((expected.length||expectedSource)&&!verified(rows,source)){say('bot','Я проверила предложенное правило дважды: оно читает соседние данные, но не повторяет подтверждённый результат <b>'+esc(expectedText)+'</b>. Поэтому общее правило не сохранено. Точечная правка уже действует для этого файла; опишите, где именно находятся нужные поля, — я перестрою правило в этом же диалоге.');return;}
       if(!rows.length&&!source){say('bot','Предложенное правило не прошло локальную проверку на этом фрагменте. Я его не сохраню. Уточните, где именно стоят марка, сечение и длина.');return;}
       d.rule.series=lkRuleSeries(name);
       const before=[],after=[];
@@ -3756,6 +3794,14 @@ function lkTeachPanel(pg,rect,clusters){
       showDraft(d.rule,before,after,(d.explain||'Claude построил правило.')+' Оно уже проверено на текущем фрагменте; после подтверждения файл будет перечитан.',true);
     }catch(e){say('bot','Связь с Claude не сработала: '+esc(e&&e.message||String(e)));}
     finally{sendBtn.disabled=attach.disabled=false;if(!st.draft)note.textContent='Можно уточнить словами или приложить другой фрагмент';input.focus();}
+  };
+  const proposeGeneral=async()=>{
+    if(!st.lastExact)return;
+    const last=st.lastExact;
+    say('bot','Формирую обобщённое правило и проверяю его на текущем фрагменте. Точечные имена и значения в правило не войдут.');
+    if(last.suggested&&last.target&&last.rule&&last.rule.chat&&last.rule.chat.action==='set-length'){
+      lengthDraft(last.target,+last.rule.chat.value,last.suggested.strategy);return;}
+    await learnPattern(last.hint);
   };
   const aiInterpret=async txt=>{
     sendBtn.disabled=attach.disabled=true;note.textContent='Claude связывает сообщение с активным фрагментом…';
@@ -3804,6 +3850,12 @@ function lkTeachPanel(pg,rect,clusters){
     const n=lkChatNorm(txt);
     if(/анекдот|погод|рецепт|договор|письмо|столиц|перевед|напиши\s+код|кто\s+такой/.test(n)){
       say('bot','Я работаю только с обучением чтению электрических чертежей. Покажите, что исправить: источник, потребителя, марку, сечение, длину или трубы.');chips([]);return;}
+    if(st.lastExact&&(/^(?:нет|не\s+надо|завершить|закончить)$/.test(n)||/без\s+(?:общего\s+)?правил|только\s+(?:этот|текущ)/.test(n))){
+      close();toast('Точечная правка сохранена для этого файла');return;}
+    if(st.lastExact&&(/^(?:да|верно|согласен|согласна)$/.test(n)||/созда[йт]*|сформиру[йт]*|добав[ьт]*|внес[иет]*|науч/.test(n)&&/правил|будущ|похож/.test(n))){
+      await proposeGeneral();return;}
+    if(st.lastExact){st.lastExact.hint+=' Дополнение пользователя: «'+txt.slice(0,300)+'». Используй это пояснение только как ограничение геометрии правила.';
+      await proposeGeneral();return;}
     if(/^(?:нет|неверно|поправить)$/.test(n)){st.draft=null;apply.style.display=general.style.display='none';
       say('bot','Хорошо. Напишите правильное значение и, если нужно правило для будущих файлов, где оно расположено на чертеже.');return;}
     if(/^(?:да|верно|все правильно|всё правильно|применить|сохранить)$/.test(n)&&st.draft){save();return;}
@@ -3838,7 +3890,7 @@ function lkTeachPanel(pg,rect,clusters){
   $('lkChatSend').onclick=()=>send(input.value);
   input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send(input.value);}};
   apply.onclick=save;
-  general.onclick=()=>{if(st.suggested&&st.target&&st.draft&&st.draft.rule.chat){lengthDraft(st.target,+st.draft.rule.chat.value,st.suggested.strategy);return;}
+  general.onclick=()=>{if(st.lastExact){proposeGeneral();return;}if(st.suggested&&st.target&&st.draft&&st.draft.rule.chat){lengthDraft(st.target,+st.draft.rule.chat.value,st.suggested.strategy);return;}
     send('Нужно научить будущие похожие файлы по этому фрагменту. Определи безопасное правило.');};
   const restoreAfterPick=()=>{wrap.style.display='flex';attach.disabled=false;fit();input.focus();};
   attach.onclick=()=>{
