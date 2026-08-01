@@ -1704,8 +1704,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v430';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v416';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v431';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v417';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2760,11 +2760,12 @@ function lkRuleRows(clusters,rules,items){
     x:o.transform?o.transform[4]:o.x,y:o.transform?o.transform[5]:o.y})).filter(o=>o.s&&o.x!=null);
   rules.forEach(rule=>{
     const F=lkRuleFields(rule);
-    if(rule.pair==='fragments'){
+    const profile=rule.profile||(rule.pair==='fragments'?'fragments':(rule.pair?'paired':(rule.source&&!rule.section?'source':'cluster')));
+    if(profile==='fragments'){
       lkParseFragmentedPassports(items,rule).forEach(r=>{r._rule=rule.id||1;rows.push(r);});
       return;
     }
-    if(rule.pair&&(rule.head||rule.test)&&raw.length){
+    if(profile==='paired'&&rule.pair&&(rule.head||rule.test)&&raw.length){
       // ГЕОМЕТРИЧЕСКОЕ правило. Сырьё → СТРОКИ (осколки подписи склеены, схемный шум с других
       // высот отдельно). Партнёра к голове ищем В ЛЮБУЮ сторону — рядом на той же высоте, ниже
       // или выше: ИИ иногда путает направление (пишет same-line, а марка строкой ниже). Партнёр —
@@ -3398,9 +3399,10 @@ $('lkIssPick').onclick=()=>{const t=($('lkIssText').value||'').trim();if(!t){toa
   $('lkIssModal').style.display='none';
   lkPickArea(rect=>{LK.issues.push({page:pg.page,text:t,rect,done:false,ts:Date.now()});
     $('lkIssText').value='';lkIssBadge();lkPersist();renderLineyka();toast('Пометка ⚑ с областью добавлена');});};
-/* ==== ОБУЧАЛКА: «обведи участок → скажи словами → правило запомнилось» ====
-   В ИИ уходит ТОЛЬКО текст выделенного участка (сам PDF не уходит). ИИ возвращает не метры,
-   а ПРАВИЛО разбора — дальше строки считает обычный парсер, одинаково и без интернета. */
+/* ==== ОБУЧАЛКА: аудит всего файла → диалог/фрагмент → проверенное правило ====
+   Браузер сам сверяет парсер с таблицами листов. Claude получает только активный рисунок/текст,
+   подтверждённый результат и отчёт аудита. Общее правило сохраняется только после локальной проверки; затем строки снова
+   считает обычный детерминированный парсер без вызова ИИ. */
 const LK_AI='https://lineyka-ai.uurraa.workers.dev';
 LK.rules=[];
 async function lkRulesLoad(){
@@ -3418,10 +3420,15 @@ async function lkRulesSave(rule,opt){
     const c=rule.chat,keys=new Set((c.rows||[]).map(r=>lkChatNorm(r.group)+'|'+lkChatNorm(r.section)));
     LK.rules=LK.rules.filter(old=>{const o=old&&old.chat;if(!o||o.action!=='upsert-lines'||String(o.file)!==String(c.file)||+o.page!==+c.page)return true;
       return !(o.rows||[]).some(r=>keys.has(lkChatNorm(r.group)+'|'+lkChatNorm(r.section)));});}
-  LK.rules.unshift(rule);
+  const team=!!(opt&&opt.team);
+  // Для командного правила сначала требуется подтверждение общего реестра. Раньше ошибка сети
+  // проглатывалась, а чат мог сказать «работает у всех», хотя правило осталось лишь в браузере.
+  if(team){const r=await fetch(LK_AI+'/rules',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rule})});
+    let d={};try{d=await r.json();}catch(_){d={};}
+    if(!r.ok||!d.ok)throw new Error(d.error||('общий реестр ответил '+r.status));}
+  LK.rules=LK.rules.filter(x=>x&&x.id!==rule.id);LK.rules.unshift(rule);
   try{await archPut({id:'lk_rules',_lkrules:1,rules:LK.rules.slice(0,200),date:Date.now()});}catch(e){}
-  // точечная правка остаётся личной. В общий реестр уходит только проверенное обобщённое правило.
-  if(!opt||opt.team!==false)try{await fetch(LK_AI+'/rules',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rule})});}catch(e){}
+  return {team};
 }
 /* текст подписей внутри обведённой области (rect — нормализованные коорд. картинки листа) */
 async function lkAreaClusters(pg,rect){
@@ -3435,6 +3442,7 @@ async function lkAreaClusters(pg,rect){
   const v0=page.getViewport({scale:1});
   const all=lkClusters(tc.items);
   pg._tcl=all;   // подписи ВСЕГО листа — из них lkTeachSamples берёт опорные примеры для ИИ
+  pg._titems=tc.items; // сырые элементы ВСЕГО листа — контроль общего правила на соседних линиях
   const nrm=(x,y)=>{const q=v0.convertToViewportPoint(x,y);return [q[0]/v0.width,q[1]/v0.height];};
   const inPad=(x,y,p)=>{const[mx,my]=nrm(x,y);return mx>=rect.x0-p&&mx<=rect.x1+p&&my>=rect.y0-p&&my<=rect.y1+p;};
   // ПРОЩАЮЩАЯ обводка: если в рамке пусто — расширяем поле, потом берём ближайшую подпись к центру.
@@ -3535,17 +3543,15 @@ function lkBusy(title,sub){let el=$('lkBusy');
   if(title===false){if(el)el.remove();return;}
   if(!el){el=document.createElement('div');el.id='lkBusy';el.className='lk-busy';($('lineyka')||document.body).appendChild(el);}
   el.innerHTML=`<div class="lk-busy-card"><div class="lk-spin2"></div><b>${esc(title)}</b>${sub?`<span>${esc(sub)}</span>`:''}</div>`;}
-function lkTeachStart(){
+async function lkTeachStart(){
   if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}
   const pg=LK.pages[LK.sel];if(!pg){toast('Нет листа');return;}
   if(LK.view!=='pages'){LK.view='pages';renderLineyka();}
   $('lkIssModal').style.display='none';
-  toast('Обведи участок и напиши Обучалке, что нужно исправить');
-  lkPickArea(async rect=>{
-    try{
-      const cl=await lkAreaClusters(pg,rect);
-      lkTeachPanel(pg,rect,cl);
-    }catch(e){toast('Не удалось прочитать область: '+(e&&e.message||e));}});
+  // Вход в чат сразу аудирует файл. Нужный фрагмент можно добавить в эту же переписку в любой момент.
+  const rect={x0:0,y0:0,x1:1,y1:1};toast('Обучалка сверяет файл и текущий лист…');
+  try{const cl=await lkAreaClusters(pg,rect);lkTeachPanel(pg,rect,cl);}
+  catch(e){toast('Не удалось прочитать лист: '+(e&&e.message||e));}
 }
 $('lkTeach').onclick=lkTeachStart;      // в модале «Правки»
 $('lkTeachTop').onclick=lkTeachStart;   // в верхней панели — основной вход
@@ -3573,6 +3579,48 @@ function lkChatRowsInRect(pg,rect){
     out=rows.slice().sort((a,b)=>Math.hypot(a.mx-cx,a.my-cy)-Math.hypot(b.mx-cx,b.my-cy)).slice(0,1);}
   return out.slice(0,12);
 }
+/* Самопроверка не гадает по картинке: она сверяет факт с авторскими таблицами и
+   со строгими флагами парсера. Claude получает уже конкретную разницу, а не общий вопрос «что не так?». */
+function lkChatAuditPage(pg){
+  const rows=pg&&pg.rows||[],sum=lkSum(rows),issues=[],proj=pg&&pg.potreb||{},pipes=pg&&pg.pipes||{};
+  const projKeys=Object.keys(proj),overlap=projKeys.filter(k=>sum.s[k]!=null),anchors=overlap.filter(k=>Math.abs((+proj[k]||0)-(+sum.s[k]||0))<=1);
+  // Многострочная таблица иногда извлекается со сдвигом значений между сечениями. Сверка доказана,
+  // только если в таблице одно сечение или есть хотя бы одна совпавшая опора. Так ложный недобор не станет правилом.
+  const trustedCableTable=projKeys.length===1||anchors.length>0;
+  if(trustedCableTable)projKeys.forEach(section=>{const expected=+proj[section]||0,actual=+sum.s[section]||0,delta=expected-actual;
+    if(Math.abs(delta)>1)issues.push({type:'cable-total',section,expected,actual,delta,
+      text:section+': в таблице '+expected+' м, парсер '+Math.round(actual*10)/10+' м ('+(delta>0?'не хватает ':'лишние ')+Math.abs(Math.round(delta*10)/10)+' м)',
+      solution:delta>0?'найти пропущенную линию или неверную длину':'найти дубль или чужое число'});});
+  const noLen=rows.filter(r=>!(+r.len>0)),noConsumer=rows.filter(r=>!r.group||r.group==='—'),uncertain=rows.filter(r=>r.needsCheck);
+  if(noLen.length)issues.push({type:'missing-length',count:noLen.length,text:noLen.length+' '+lkPlural(noLen.length,'строка без длины','строки без длины','строк без длины'),solution:'прочитать явный метраж у каждой линии'});
+  if(noConsumer.length)issues.push({type:'missing-consumer',count:noConsumer.length,text:noConsumer.length+' '+lkPlural(noConsumer.length,'строка без потребителя','строки без потребителя','строк без потребителя'),solution:'связать имя из шапки/таблицы с кабелем'});
+  if(uncertain.length)issues.push({type:'uncertain',count:uncertain.length,text:uncertain.length+' '+lkPlural(uncertain.length,'длина взята ненадёжно','длины взяты ненадёжно','длин взяты ненадёжно'),solution:'сверить число с паспортом линии'});
+  Object.keys(pipes).forEach(t=>{if(sum.c[t]==null)return;const expected=+pipes[t]||0,actual=+sum.c[t]||0;
+    if(Math.abs(expected-actual)>1)issues.push({type:'pipe-total',pipe:t,expected,actual,text:t+': таблица '+expected+' м, в строках '+actual+' м',solution:'проверить пропуски и дубли труб'});});
+  let duplicatePipes=0;rows.forEach(r=>{const seen=new Set();(r.conds||[]).forEach(c=>{const k=lkChatNorm(c.t)+'|'+(+c.len||0);if(seen.has(k))duplicatePipes++;seen.add(k);});});
+  if(duplicatePipes)issues.push({type:'duplicate-pipes',count:duplicatePipes,text:'повторов одной трубы внутри строк: '+duplicatePipes,solution:'учитывать трубу один раз'});
+  return{page:pg.page,issues,rows:rows.length,total:sum.t,hasCableTable:projKeys.length>0,trustedCableTable,
+    advisory:rows.length&&(!String(pg&&pg.vru||'').trim()||/\?$|^—$/.test(String(pg&&pg.vru||'').trim()))?'источник не определён (проверяется по указанию пользователя)':''};
+}
+function lkChatAuditFile(activePg){const pages=(LK.pages||[]).map(lkChatAuditPage),problem=pages.filter(a=>a.issues.length);
+  return{active:pages.find(a=>a.page===activePg.page)||lkChatAuditPage(activePg),pages,problem,
+    text:problem.length?problem.map(a=>'лист '+a.page+': '+a.issues.map(i=>i.text+'; решение: '+i.solution).join(' | ')).join('\n'):'Контрольных расхождений в файле не найдено.'};}
+function lkChatAuditHtml(a){const top=a.problem.slice(0,8);
+  if(!top.length)return '<b>Самопроверка файла:</b> контрольных расхождений не найдено. Если визуально видите ошибку, добавьте фрагмент.';
+  return '<b>Самопроверка файла:</b> найдены отклонения на '+a.problem.length+' '+lkPlural(a.problem.length,'листе','листах','листах')+'.'+
+    '<table><tr><th>Лист</th><th>Что найдено</th><th>Что делать</th></tr>'+top.map(p=>'<tr><td><b>'+p.page+'</b></td><td>'+esc(p.issues.map(i=>i.text).join('; '))+'</td><td>'+esc(p.issues.map(i=>i.solution).filter((x,i,a)=>a.indexOf(x)===i).join('; '))+'</td></tr>').join('')+'</table>'+
+    (a.problem.length>top.length?'<div style="margin-top:6px">Ещё проблемных листов: '+(a.problem.length-top.length)+'.</div>':'');}
+function lkChatAuditFocusRect(pg,audit){
+  const secs=new Set((audit&&audit.issues||[]).filter(i=>i.type==='cable-total').map(i=>i.section));
+  let rows=(pg.rows||[]).filter(r=>r.mx!=null&&r.my!=null&&secs.has(r.section));
+  if(!rows.length)rows=(pg.rows||[]).filter(r=>r.mx!=null&&r.my!=null&&(!(+r.len>0)||r.needsCheck)).slice(0,6);
+  if(!rows.length)return null;let x0=Math.min(...rows.map(r=>r.mx)),x1=Math.max(...rows.map(r=>r.mx)),y0=Math.min(...rows.map(r=>r.my)),y1=Math.max(...rows.map(r=>r.my));
+  // Для вертикального паспорта нужно видеть колонку целиком, а для горизонтальной — соседние поля.
+  const px=Math.max(.055,(.16-(x1-x0))/2),py=Math.max(.10,(.28-(y1-y0))/2);
+  return{x0:Math.max(0,x0-px),x1:Math.min(1,x1+px),y0:Math.max(0,y0-py),y1:Math.min(1,y1+py)};
+}
+function lkChatAuditRows(pg,audit){const secs=new Set((audit&&audit.issues||[]).filter(i=>i.type==='cable-total').map(i=>i.section)),seen=new Set(),out=[];
+  (pg.rows||[]).filter(r=>secs.has(r.section)||!(+r.len>0)||r.needsCheck||!r.group||r.group==='—').concat(pg.rows||[]).forEach(r=>{const k=lkChatRowKey(r);if(!k||seen.has(k)||out.length>=12)return;seen.add(k);out.push(r);});return out;}
 function lkChatRowLabel(r){return (r.group&&r.group!=='—'?r.group+' · ':'')+(r.mark||'кабель')+' '+(r.section||'')+' · '+(+r.len||0)+' м';}
 function lkChatAreaLabel(rect){return 'x '+Math.round(rect.x0*100)+'–'+Math.round(rect.x1*100)+'%, y '+Math.round(rect.y0*100)+'–'+Math.round(rect.y1*100)+'% сверху';}
 function lkChatStrategy(s){const n=lkChatNorm(s);
@@ -3655,7 +3703,8 @@ function lkTeachPanel(pg,rect,clusters){
   head.ondblclick=e=>{if(!e.target.closest('button'))maxBtn.click();};
   window.addEventListener('resize',fit);
   let name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
-  const st={pg,rect,clusters,rows:lkChatRowsInRect(pg,rect),target:null,targets:[],draft:null,lastExact:null,finished:false,suggested:null,pendingValue:null,pendingText:'',messages:[],fragments:[],activeImage:null,imageShared:false};
+  const initialAudit=lkChatAuditFile(pg),wholeRect=rect.x0===0&&rect.y0===0&&rect.x1===1&&rect.y1===1;
+  const st={pg,rect,clusters,rows:wholeRect?lkChatAuditRows(pg,initialAudit.active):lkChatRowsInRect(pg,rect),audit:initialAudit,target:null,targets:[],draft:null,lastExact:null,finished:false,suggested:null,pendingValue:null,pendingText:'',messages:[],fragments:[],activeImage:null,activeImageRect:null,imageShared:false};
   const log=$('lkChatLog'),quick=$('lkChatQuick'),input=$('lkChatInput'),sendBtn=$('lkChatSend'),apply=$('lkChatApply'),general=$('lkChatGeneral'),note=$('lkChatNote'),attach=$('lkChatAttach');
   const say=(role,html,record=true)=>{const el=document.createElement('div');el.className='lk-chat-msg '+role;
     el.innerHTML=`<span class="lk-chat-avatar">${role==='user'?'Вы':'🎓'}</span><div class="lk-chat-bubble">${html}</div>`;
@@ -3663,7 +3712,7 @@ function lkTeachPanel(pg,rect,clusters){
     if(record)st.messages.push({role:role==='user'?'user':'assistant',content:(el.querySelector('.lk-chat-bubble').textContent||'').replace(/\s+/g,' ').trim().slice(0,1000)});
     return el;};
   const chips=list=>{quick.innerHTML='';list.forEach(x=>{const b=document.createElement('button');b.className='lk-chat-chip';b.textContent=x[0];
-    b.onclick=()=>{if(x[2]){input.value=x[1];input.focus();}else send(x[1]);};quick.appendChild(b);});};
+    b.onclick=()=>{if(x[1]==='__attach__'){attach.click();return;}if(x[2]){input.value=x[1];input.focus();}else send(x[1]);};quick.appendChild(b);});};
   const showRows=()=>{
     say('bot','В области несколько линий. Укажите нужную номером или напишите её сечение:'+
       `<table>${st.rows.map((r,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(lkChatRowLabel(r))}</td></tr>`).join('')}</table>`);
@@ -3700,7 +3749,9 @@ function lkTeachPanel(pg,rect,clusters){
     return 'Сформируй переносимое правило для будущих похожих файлов по только что подтверждённой точечной правке.';};
   const save=async()=>{
     if(!st.draft)return;apply.disabled=true;general.disabled=true;note.textContent='Сохраняю…';
-    const done=st.draft;await lkRulesSave(done.rule,{team:done.team});
+    const done=st.draft;try{await lkRulesSave(done.rule,{team:done.team});}
+    catch(e){apply.disabled=general.disabled=false;note.textContent='Правило не сохранено';
+      say('bot','Не удалось записать правило в общий реестр: <b>'+esc(e&&e.message||String(e))+'</b>. Я не буду говорить, что оно работает у компании. Предпросмотр остался — можно повторить сохранение.');return;}
     LK.issues.push({page:st.pg.page,text:'🎓 Чат '+(done.team?'выучил правило: ':'исправил: ')+(done.rule.title||''),rect:st.rect,done:true,ts:Date.now()});
     if(done.team){const summary=st.lastExact&&st.lastExact.summary||{before:done.before,after:done.after,cause:causeOf(done.rule,done.before)};
       reparseAfterClose=true;st.draft=null;st.finished=true;apply.disabled=general.disabled=false;apply.style.display=general.style.display='none';
@@ -3761,9 +3812,9 @@ function lkTeachPanel(pg,rect,clusters){
     const src=(Array.isArray(proposed)?proposed:[]).slice(0,12),entries=[],before=[],after=[],evidence=[];
     src.forEach(p=>{if(!p||typeof p!=='object')return;const idx=Number.isInteger(p.target_index)?p.target_index:-1;
       const target=idx>=0&&idx<st.rows.length?st.rows[idx]:null;
-      const px=Math.max(0,Math.min(100,+p.x||0))/100,py=Math.max(0,Math.min(100,+p.y||0))/100;
+      const px=Math.max(0,Math.min(100,+p.x||0))/100,py=Math.max(0,Math.min(100,+p.y||0))/100,ref=st.activeImageRect||st.rect;
       const f=lkChatFixedRow({group:p.group,mark:p.mark,section:p.section,len:p.len,conds:p.conds,
-        mx:st.rect.x0+(st.rect.x1-st.rect.x0)*px,my:st.rect.y0+(st.rect.y1-st.rect.y0)*py,
+        mx:ref.x0+(ref.x1-ref.x0)*px,my:ref.y0+(ref.y1-ref.y0)*py,
         matchKey:target?lkChatRowKey(target):''});
       if(!f)return;entries.push(f);
       const pipes=f.conds.length?' · '+f.conds.map(c=>c.t+' '+c.len+' м').join(', '):'';
@@ -3788,6 +3839,27 @@ function lkTeachPanel(pg,rect,clusters){
   const ignoreDraft=()=>{const rule={id:'chat'+Date.now().toString(36),title:'Чат: U/ΔU не потребитель',series:lkRuleSeries(name),chat:{action:'ignore-u'}};
     showDraft(rule,[{group:'U/ΔU с процентом',value:'потребитель'}],[{group:'U/ΔU с процентом',value:'игнорируется'}],
       'Правило действует только на значения U/ΔU, заканчивающиеся процентом.',true);};
+  const fullRuleAudit=(rule,expected,expectedSource)=>{
+    const allClusters=st.pg._tcl&&st.pg._tcl.length?st.pg._tcl:st.clusters;
+    const allItems=st.pg._titems&&st.pg._titems.length?st.pg._titems:(st.clusters.items||[]);
+    const generated=lkRuleRows(allClusters,[rule],allItems),source=lkRuleSource(allClusters,[rule],allItems),existing=st.pg.rows||[];
+    const condsEqual=(a,b)=>(a||[]).every(c=>(b||[]).some(x=>lkChatSame(c.t,x.t)&&Math.abs((+c.len||0)-(+x.len||0))<.01));
+    const exact=(a,b)=>lkChatSame(a.group,b.group)&&lkChatSame(a.mark,b.mark)&&lkChatSame(a.section,b.section)&&Math.abs((+a.len||0)-(+b.len||0))<.01&&condsEqual(a.conds,b.conds)&&condsEqual(b.conds,a.conds);
+    const covers=(expected||[]).every(e=>generated.some(r=>exact(r,e)));
+    const sourceOk=!expectedSource||lkChatSame(source,expectedSource);let controls=0;const conflicts=[],novel=[];
+    generated.forEach(r=>{if((expected||[]).some(e=>exact(r,e)))return;const ok=existing.find(e=>exact(r,e));if(ok){controls++;return;}
+      const same=existing.find(e=>lkChatSame(e.group,r.group)||(e.mx!=null&&r.mx!=null&&Math.hypot(e.mx-r.mx,e.my-r.my)<.025));
+      if(same)conflicts.push((r.group||r.section)+' → '+lkChatRowLabel(r)+' (в таблице '+lkChatRowLabel(same)+')');
+      else novel.push(lkChatRowLabel(r));});
+    const seen=new Set(),duplicates=[];generated.forEach(r=>{const k=lkChatNorm(r.group)+'|'+lkChatNorm(r.mark)+'|'+lkChatNorm(r.section)+'|'+(+r.len||0);if(seen.has(k))duplicates.push(lkChatRowLabel(r));seen.add(k);});
+    const enoughControl=rule.profile==='source'||expectedSource?sourceOk:(controls>0||(expected||[]).length>1);
+    const pass=covers&&sourceOk&&!conflicts.length&&!novel.length&&!duplicates.length&&enoughControl;
+    const text=[covers?'подтверждённый пример воспроизведён':'подтверждённый пример НЕ воспроизведён',
+      'соседних правильных строк: '+controls,'конфликтов: '+conflicts.length,'лишних новых строк: '+novel.length,'дублей: '+duplicates.length];
+    if(!enoughControl)text.push('нет независимой контрольной строки');
+    if(conflicts.length)text.push('конфликты: '+conflicts.slice(0,3).join('; '));if(novel.length)text.push('лишние: '+novel.slice(0,3).join('; '));
+    return{pass,generated,source,controls,conflicts,novel,duplicates,text:text.join('. ')};
+  };
   const learnPattern=async hint=>{
     if(!st.clusters.length){say('bot','В этом фрагменте нет пригодного текстового слоя. Я могу исправить значение по картинке, но общее правило из одних пикселей небезопасно.');return;}
     note.textContent='Claude строит проверяемое правило по активному фрагменту…';sendBtn.disabled=attach.disabled=true;
@@ -3799,32 +3871,31 @@ function lkTeachPanel(pg,rect,clusters){
       if(!expected.length&&st.lastExact&&st.lastExact.target&&lastChat.action==='set-length')expected=[lkChatFixedRow(Object.assign({},st.lastExact.target,{len:+lastChat.value||0}))].filter(Boolean);
       if(!expected.length&&st.lastExact&&st.lastExact.target&&lastChat.action==='set-consumer')expected=[lkChatFixedRow(Object.assign({},st.lastExact.target,{group:lastChat.value}))].filter(Boolean);
       const expectedSource=lastChat.action==='set-source'?String(lastChat.value||''):'';
-      const covers=rows=>expected.every(e=>(rows||[]).some(r=>lkChatSame(r.group,e.group)&&lkChatSame(r.mark,e.mark)&&
-        lkChatSame(r.section,e.section)&&Math.abs((+r.len||0)-e.len)<.01&&(e.conds||[]).every(c=>(r.conds||[]).some(x=>lkChatSame(x.t,c.t)&&Math.abs((+x.len||0)-c.len)<.01))));
       const expectedText=expected.map(e=>e.group+' · '+e.mark+' '+e.section+' · '+e.len+' м'+
         (e.conds.length?' · '+e.conds.map(c=>c.t+' '+c.len+' м').join(', '):'')).join('; ')+(expectedSource?('источник '+expectedSource):'');
-      const verified=(rows,source)=>covers(rows)&&(!expectedSource||lkChatSame(source,expectedSource));
-      let d=null,rows=[],source='';
-      for(let attempt=0;attempt<2;attempt++){
-        const requestHint=attempt&&(expected.length||expectedSource)?'Предыдущее правило прочитало соседние данные, но НЕ повторило подтверждённый результат «'+expectedText+'». Перестрой геометрию так, чтобы локальный исполнитель получил именно этот результат со всеми полями. Это должно быть переносимое правило без фиксированного имени и чисел.':String(hint||'');
+      if(!expected.length&&!expectedSource){say('bot','Общее правило можно строить только из точного результата. Сначала доведём эту строку до правильного вида и вы подтвердите «было → стало». После этого я сама проверю правило на всём листе.');return;}
+      if(!st.activeImage)try{st.activeImage=await lkAreaImage(st.pg,st.rect,1200);}catch(e){}
+      let d=null,audit=null;
+      for(let attempt=0;attempt<3;attempt++){
+        const requestHint=String(hint||'')+(expectedText?(' Подтверждённый итог: '+expectedText+'.'):'');
         const ac=new AbortController(),to=setTimeout(()=>ac.abort(),120000);
         try{const r=await fetch(LK_AI+'/teach',{method:'POST',headers:{'content-type':'application/json'},signal:ac.signal,
-          body:JSON.stringify({hint:requestHint.slice(0,500),clusters:st.clusters.map(c=>c.s),items,lines,file:name,page:st.pg.page,samples:lkTeachSamples(st.pg,st.clusters)})});d=await r.json();}
+          body:JSON.stringify({hint:requestHint.slice(0,500),clusters:st.clusters.map(c=>c.s),items,lines,file:name,page:st.pg.page,
+            samples:lkTeachSamples(st.pg,st.clusters),expected,expectedSource,audit:audit&&audit.text||'',image:st.activeImage||''})});d=await r.json();}
         finally{clearTimeout(to);}
         if(d.error)break;
-        rows=lkRuleRows(st.clusters,[d.rule],st.clusters.items);source=lkRuleSource(st.clusters,[d.rule],st.clusters.items);
-        if((!expected.length&&!expectedSource)||verified(rows,source))break;
+        audit=fullRuleAudit(d.rule,expected,expectedSource);if(audit.pass)break;
       }
       if(d.error){say('bot','Не смогла построить правило: '+esc(d.error));return;}
-      if((expected.length||expectedSource)&&!verified(rows,source)){const summary=st.lastExact&&st.lastExact.summary||{before:[],after:[],cause:'Формат подписи отличается от известных вариантов.'};
-        say('bot',resultCard('Понял. Текущий файл исправлен, обучение будущих пока не завершено.',summary,'Только текущий файл. Предложенное правило не повторило подтверждённый результат «'+expectedText+'», поэтому я его не включила и не испортила следующие файлы.')+
-          '<div style="margin-top:8px"><b>Чтобы закончить правило:</b> напишите одним предложением, где находятся нужные поля, например «длина — крайнее целое верхней строки справа». Я перестрою правило в этом же диалоге.</div>');return;}
-      if(!rows.length&&!source){say('bot','Предложенное правило не прошло локальную проверку на этом фрагменте. Я его не сохраню. Уточните, где именно стоят марка, сечение и длина.');return;}
+      if(!audit||!audit.pass){const summary=st.lastExact&&st.lastExact.summary||{before:[],after:[],cause:'Формат подписи отличается от известных вариантов.'};
+        say('bot',resultCard('Текущий файл исправлен, но общее правило пока не включено.',summary,'Правило трижды проверено на всём листе и не прошло контроль: '+(audit?audit.text:'нет результата')+'. Оно не попало в общий реестр.')+
+          '<div style="margin-top:8px"><b>Следующий безопасный шаг:</b> добавьте в эту же переписку второй пример такой же линейки. Диалог и подтверждённый результат сохранятся.</div>');return;}
       d.rule.series=lkRuleSeries(name);
+      d.rule.validation={version:1,page:st.pg.page,expected:expected.length+(expectedSource?1:0),controls:audit.controls,conflicts:0,novel:0,duplicates:0,passedAt:Date.now()};
       const before=[],after=[];
-      if(source){before.push({group:'Источник',value:st.pg.vru||'не определён'});after.push({group:'Источник',value:source});}
-      rows.slice(0,20).forEach(r=>{before.push({group:r.group||'Линия',section:r.section,value:'не прочитано'});after.push({group:r.group||'Линия',section:r.section,value:r.len+' м'});});
-      showDraft(d.rule,before,after,(d.explain||'Claude построил правило.')+' Оно уже проверено на текущем фрагменте; после подтверждения файл будет перечитан.',true);
+      if(audit.source){before.push({group:'Источник',value:st.pg.vru||'не определён'});after.push({group:'Источник',value:audit.source});}
+      expected.slice(0,20).forEach(r=>{before.push({group:r.group||'Линия',section:r.section,value:'старое/неполное чтение'});after.push({group:r.group||'Линия',section:r.section,value:r.mark+' '+r.section+' · '+r.len+' м'});});
+      showDraft(d.rule,before,after,(d.explain||'Claude построил правило.')+' Локальная проверка всего листа: пример воспроизведён, соседних контрольных строк '+audit.controls+', конфликтов 0, лишних строк 0, дублей 0. После подтверждения файл будет перечитан.',true);
     }catch(e){say('bot','Связь с Claude не сработала: '+esc(e&&e.message||String(e)));}
     finally{sendBtn.disabled=attach.disabled=false;if(!st.draft)note.textContent='Можно уточнить словами или приложить другой фрагмент';input.focus();}
   };
@@ -3840,16 +3911,20 @@ function lkTeachPanel(pg,rect,clusters){
     sendBtn.disabled=attach.disabled=true;note.textContent='Claude связывает сообщение с активным фрагментом…';
     const thinking=say('bot','Смотрю на фрагмент и предыдущие сообщения…',false);
     try{
-      const n=lkChatNorm(txt),needImage=!st.imageShared||/здесь|вот|видн|указан|написан|показыв|ткнул|тыкн/.test(n);
-      if(needImage&&!st.activeImage)try{st.activeImage=await lkAreaImage(st.pg,st.rect,900);}catch(e){}
-      const raw=st.clusters.slice(0,20).map(c=>c.s).join('\n');
+      const n=lkChatNorm(txt),needImage=!st.imageShared||/здесь|вот|видн|указан|написан|показыв|ткнул|тыкн|аудит|расхожд|провер/.test(n);
+      const whole=st.rect.x0===0&&st.rect.y0===0&&st.rect.x1===1&&st.rect.y1===1;
+      const imageRect=whole&&st.audit.active.issues.length?(lkChatAuditFocusRect(st.pg,st.audit.active)||st.rect):st.rect;
+      let aiClusters=st.clusters;if(needImage&&!st.activeImage)try{st.activeImage=await lkAreaImage(st.pg,imageRect,1400);st.activeImageRect=imageRect;
+        if(imageRect!==st.rect)aiClusters=await lkAreaClusters(st.pg,imageRect);}catch(e){}
+      const raw=aiClusters.slice(0,20).map(c=>c.s).join('\n');
       const rows=st.rows.map(r=>({group:r.group||'',mark:r.mark||'',section:r.section||'',len:+r.len||0,
         x:r.mx==null?null:r.mx*100,y:r.my==null?null:r.my*100}));
       const draft=st.draft&&st.draft.rule&&st.draft.rule.chat&&st.draft.rule.chat.action==='upsert-lines'
         ?{action:'upsert-lines',rows:st.draft.rule.chat.rows}:null;
       const ac=new AbortController(),to=setTimeout(()=>ac.abort(),120000);let d;
       try{const r=await fetch(LK_AI+'/chat',{method:'POST',headers:{'content-type':'application/json'},signal:ac.signal,
-        body:JSON.stringify({message:txt,history:st.messages.slice(0,-1).slice(-10),context:{file:name,page:st.pg.page,area:lkChatAreaLabel(st.rect),text:raw},rows,draft,
+        body:JSON.stringify({message:txt,history:st.messages.slice(0,-1).slice(-10),context:{file:name,page:st.pg.page,area:lkChatAreaLabel(st.activeImageRect||st.rect),text:raw,
+          audit:'Лист '+st.pg.page+': '+(st.audit.active.issues.length?st.audit.active.issues.map(i=>i.text+'; предлагаемое решение: '+i.solution).join(' | '):'контрольных расхождений нет')},rows,draft,
           image:needImage&&st.activeImage?st.activeImage:''})});d=await r.json();}
       finally{clearTimeout(to);}
       thinking.remove();
@@ -3872,6 +3947,7 @@ function lkTeachPanel(pg,rect,clusters){
       if(d.intent==='dedupe_pipes'){pipesDraft();return;}
       if(d.intent==='ignore_u'){ignoreDraft();return;}
       if(d.intent==='learn_pattern'){await learnPattern(txt);return;}
+      if(d.intent==='clarify'&&whole&&st.audit.active.issues.length){say('bot','Точное исправление пока не доказано: авторская таблица и паспорт линии дают неоднозначный сигнал. Нажмите <b>«Добавить фрагмент с чертежа»</b> и обведите саму подпись или строку таблицы. Этот аудит и весь диалог останутся в контексте.');chips([]);return;}
       if(d.intent==='clarify'&&st.rows.length>1){const mentioned=lkChatLengthValue(txt);
         if(mentioned>0){st.pendingValue=mentioned;st.pendingText=txt;showRows();}
         else chips(st.rows.map((r,i)=>[(i+1)+' · '+((r.group&&r.group!=='—')?r.group+' · ':'')+r.section,String(i+1)]));}
@@ -3935,7 +4011,7 @@ function lkTeachPanel(pg,rect,clusters){
       try{
         const nextClusters=await lkAreaClusters(nextPg,nextRect);
         let image=null;try{image=await lkAreaImage(nextPg,nextRect,720);}catch(e){}
-        st.pg=nextPg;st.rect=nextRect;st.clusters=nextClusters;st.rows=lkChatRowsInRect(nextPg,nextRect);st.activeImage=image;st.imageShared=false;
+        st.pg=nextPg;st.rect=nextRect;st.clusters=nextClusters;st.rows=lkChatRowsInRect(nextPg,nextRect);st.audit=lkChatAuditFile(nextPg);st.activeImage=image;st.activeImageRect=nextRect;st.imageShared=false;
         st.target=null;st.targets=[];st.draft=null;st.suggested=null;st.pendingValue=null;st.pendingText='';
         name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||name;
         apply.style.display=general.style.display='none';apply.disabled=general.disabled=false;
@@ -3953,9 +4029,13 @@ function lkTeachPanel(pg,rect,clusters){
       finally{restoreAfterPick();}
     },restoreAfterPick);
   };
-  say('bot','Покажите, что здесь нужно исправить — говорите обычными словами и ссылайтесь на предыдущие сообщения: <b>«эта линия не посчиталась — прочитай её целиком»</b>, <b>«вот же здесь написано 5 м»</b> или <b>«научи так читать будущие файлы»</b>. Я могу восстановить отсутствующую строку, даже если её нет среди кандидатов, сначала покажу «было → стало» и ничего не сохраню без подтверждения.');
-  if(st.rows.length>1)say('bot','В выделении найдено '+st.rows.length+' кабельных линий. Можно указать сечение нужной линии, например «4x1,5 — 20 м».');
-  chips([['Добавить пропущенную линию','эта линия не посчиталась — прочитай её целиком'],['Указать длину','длина ',true],['Указать источник','источник ',true],['Трубы один раз','трубы учитывать один раз'],['U% не потребитель','U% — не потребитель']]);
+  say('bot',lkChatAuditHtml(st.audit));
+  say('bot','Я сама нахожу контрольные отклонения, а вы можете в любой момент добавить фрагмент и любыми словами уточнить, что видите. Сначала покажу «было → стало»; после точечного исправления предложу общее правило и включу его только после проверки.');
+  const currentIssues=st.audit.active.issues;
+  if(currentIssues.length){chips([['Разобрать расхождения листа '+st.pg.page,'проверь весь лист по аудиту, найди пропущенные или неверные строки и предложи полное исправление'],['Добавить фрагмент','__attach__']]);
+    // На текущем проблемном листе не ждём вопроса «что не так»: отдаём аудит и лист в зрение сразу.
+    setTimeout(()=>aiInterpret('проверь весь лист по аудиту, найди пропущенные или неверные строки и предложи полное исправление'),80);
+  }else chips([['Добавить фрагмент с чертежа','__attach__'],['Указать длину','длина ',true],['Указать источник','источник ',true],['Трубы один раз','трубы учитывать один раз']]);
   input.focus();
 }
 let _lkVid=900000;
