@@ -1704,8 +1704,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v429';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v415';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v430';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v416';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2040,7 +2040,11 @@ function lkParseFragmentedPassports(items,rule){
             if(aft)ss=lead[1]+'x'+aft.s.trim().replace('.',',');}}
         if(!ss)return;const sc=Math.abs(o.c-mg.c)*3+Math.abs(o.c-h.c)/10+Math.abs(o.a-markA)/100;
         if(sc<secScore){secScore=sc;sec=ss;}});
-      side.forEach(xt=>{const z=xt.s.replace(/\s+/g,'');const xm=z.match(/^[xхХX×](\d+(?:[.,]\d+)?)?$/);if(!xm)return;
+      side.forEach(xt=>{const z=xt.s.replace(/\s+/g,'');
+        // У ряда авторов сечение и труба лежат в ОДНОМ text-item: «х 2,5 - П20».
+        // Это тот же строгий хвост паспорта, что «х» + «10» + «- П32»; допускаем только
+        // явный трубный суффикс после NxS, а произвольный текст/числа по-прежнему не берём.
+        const xm=z.match(/^[xхХX×](\d+(?:[.,]\d+)?)?(?:-(?:ПНД|П|Тг|Тр)\d+)?$/i);if(!xm)return;
         const pre=side.filter(o=>o!==xt&&o.a<xt.a&&xt.a-o.a<=55&&/^\d$/.test(o.s.trim())).sort((a,b)=>b.a-a.a)[0];if(!pre)return;
         let sv=xm[1]||'';const aft=side.filter(o=>Math.abs(o.c-xt.c)<3&&o.a>xt.a&&o.a-xt.a<=35&&/^\d+(?:[.,]\d+)?$/.test(o.s.trim())).sort((a,b)=>a.a-b.a);
         if(!sv){if(!aft.length)return;sv=aft[0].s.trim();for(let q=1;q<aft.length&&aft[q].a-aft[q-1].a<7;q++)sv+=aft[q].s.trim();}
