@@ -51,7 +51,7 @@ integrations:[
  {id:"site",name:"NUK-каталог",desc:"Остатки, цены, резервы и SEO-страницы",status:"connected",sync:"2 мин назад"},
  {id:"whatsapp",name:"WhatsApp Business",desc:"Диалоги, карточка клиента, подбор и оплата",status:"connected",sync:"онлайн"},
  {id:"phone",name:"IP-телефония",desc:"Звонки двух точек и запись разговоров",status:"connected",sync:"онлайн"},
- {id:"bazon",name:"Миграция Bazon",desc:"18 720 карточек, фото и история документов",status:"progress",sync:"42% проверено"},
+ {id:"bazon",name:"План миграции Bazon",desc:"Демо маршрута переноса карточек, фото и истории",status:"ready",sync:"реальный перенос не запускался"},
  {id:"google",name:"Google / Search Console",desc:"SEO-запросы и источники продаж",status:"connected",sync:"сегодня 09:10"},
  {id:"meta",name:"Instagram / Meta",desc:"Реклама, UTM и обращения",status:"ready",sync:"готово к подключению"},
  {id:"tiktok",name:"TikTok",desc:"Переходы по роликам и кампании BMW",status:"ready",sync:"готово к подключению"},

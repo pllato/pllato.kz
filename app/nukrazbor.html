@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#071a3a">
   <title>NUK Control — управление BMW-разбором</title>
   <meta name="description" content="Демонстрация цифровой платформы NUK: доноры, склад, продажи, аналитика и интеграция с сайтом.">
-  <link rel="stylesheet" href="/app/nukrazbor/styles.css?v=2">
+  <link rel="stylesheet" href="/app/nukrazbor/styles.css?v=3">
 </head>
 <body>
 <div class="app-shell">
@@ -38,6 +38,7 @@
       <button class="mobile-logo" data-action="mobile-nav"><img src="https://fdf8c21f-36e1-49dd-bd56-c83d68351902.selstorage.ru/Site-Static/68e5e620f5fe9dcb18e1693a/00064108fd22d9c0.19d3.png" alt="NUK"></button>
       <div class="breadcrumbs"><button data-nav="dashboard">NUK</button><span>/</span><b id="crumb">Пульт собственника</b></div>
       <div class="top-actions">
+        <button class="help-btn" data-action="guide-tour"><span>?</span><b>Как пользоваться</b></button>
         <button class="global-search" data-action="search"><span>⌕</span><b>Найти деталь, VIN, клиента</b><kbd>⌘ K</kbd></button>
         <button class="top-icon" data-nav="tasks">✓<i>6</i></button>
         <button class="date-btn" data-action="period">03 августа · Сегодня⌄</button>
@@ -50,7 +51,18 @@
 <aside class="drawer" id="drawer"><button class="drawer-close" data-action="close-drawer">×</button><div id="drawerBody"></div></aside>
 <div class="modal" id="modal"><section class="modal-card"><button class="modal-close" data-action="close-modal">×</button><div id="modalBody"></div></section></div>
 <div class="toast" id="toast"><i>✓</i><span></span></div>
+<button class="guide-fab" data-action="guide-tour"><span>?</span><b>Подсказки</b></button>
+<div class="tour-layer" id="tourLayer" aria-hidden="true">
+  <section class="tour-card" id="tourCard" role="dialog" aria-modal="true" aria-label="Обучение по NUK Control">
+    <button class="tour-skip" data-tour="close">Пропустить</button>
+    <span class="tour-count" id="tourCount"></span>
+    <h2 id="tourTitle"></h2>
+    <p id="tourText"></p>
+    <div class="tour-example" id="tourExample"></div>
+    <footer><button class="tour-back" data-tour="back">← Назад</button><button class="tour-next" data-tour="next">Далее →</button></footer>
+  </section>
+</div>
 <script src="/app/nukrazbor/data.js?v=1"></script>
-<script src="/app/nukrazbor/app.js?v=1"></script>
+<script src="/app/nukrazbor/app.js?v=2"></script>
 </body>
 </html>
