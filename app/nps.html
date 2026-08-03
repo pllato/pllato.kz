@@ -208,6 +208,10 @@ select.sel{background:var(--panel);border:1px solid var(--line);border-radius:10
 .step-note{font-size:12.5px;color:var(--muted);line-height:1.6}
 .legend-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:5px 11px}
 
+/* tablet demo embedded into the NPS shell */
+.tablet-demo-frame{display:block;width:100%;height:calc(100vh - 155px);min-height:720px;border:1px solid var(--line);border-radius:16px;background:#eef7f3;box-shadow:var(--shadow-lg)}
+.tablet-demo-note{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+
 /* ===== ПОЯСНЕНИЯ (обучающий слой) ===== */
 .hint-toggle.on{background:var(--accent-soft);border-color:#10b98155;color:var(--accent2)}
 .ann{background:repeating-linear-gradient(135deg,#101d1855,#101d1855 10px,#0f1c1655 10px,#0f1c1655 20px);
@@ -314,6 +318,7 @@ body.no-hints .ann{display:none}
 <symbol viewBox="0 0 24 24" id="i-repeat"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></symbol>
 <symbol viewBox="0 0 24 24" id="i-cog"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></symbol>
 <symbol viewBox="0 0 24 24" id="i-eye"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol viewBox="0 0 24 24" id="i-monitor"><rect x="2" y="3" width="20" height="15" rx="2"/><path d="M8 22h8M12 18v4"/></symbol>
 <symbol viewBox="0 0 24 24" id="i-card"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></symbol>
 <symbol viewBox="0 0 24 24" id="i-briefcase"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
 <symbol viewBox="0 0 24 24" id="i-check2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></symbol>
@@ -422,6 +427,7 @@ const NAV=[
     {id:'nps-dash',i:'i-star',t:'Дашборд NPS',badge:'NEW'},
     {id:'nps-points',i:'i-target',t:'Точки опроса'},
     {id:'nps-client',i:'i-eye',t:'Как видит клиент'},
+    {id:'nps-tablet',i:'i-monitor',t:'Планшет в аптеке',badge:'NEW'},
     {id:'nps-guide',i:'i-book',t:'Как это работает'}
   ]},
   {g:'Система', items:[
@@ -433,6 +439,7 @@ const PAGE_META={
   'nps-dash':['NPS','Индекс лояльности · опросы после покупки, визита и чата'],
   'nps-points':['Точки опроса','Конструктор · где и как спрашиваем клиента'],
   'nps-client':['Как это видит клиент','Мокап опроса в WhatsApp и экрана ответа'],
+  'nps-tablet':['Планшет в аптеке','Баннеры с сайта · оценка после офлайн-покупки · мини-анкета'],
   'nps-guide':['Как это работает','Методология NPS · для показа клиенту']
 };
 
@@ -783,7 +790,17 @@ function pickScore(score,scale,phone,notes){
     </div>`;
 }
 
-/* ---------- 4. КАК ЭТО РАБОТАЕТ (методичка внутри демки) ---------- */
+/* ---------- 4. ПЛАНШЕТ В АПТЕКЕ ---------- */
+PAGES['nps-tablet']=(c)=>{
+  const bar=el(`<div class="tablet-demo-note">
+    <div class="demo-banner" style="margin:0;flex:1">${ic('i-monitor','sm')}<span><b>Офлайн-сценарий.</b> В ожидании планшет показывает баннеры с сайта; после закрытия физического чека открывает оценку и короткую анкету.</span></div>
+    <a class="btn sm" href="tablet-demo.html" target="_blank" rel="noopener">${ic('i-eye','sm')}Открыть на весь экран</a>
+  </div>`);
+  c.appendChild(bar);
+  c.appendChild(el(`<iframe class="tablet-demo-frame" src="tablet-demo.html" title="Демо планшета в аптеке"></iframe>`));
+};
+
+/* ---------- 5. КАК ЭТО РАБОТАЕТ (методичка внутри демки) ---------- */
 PAGES['nps-guide']=(c)=>{
   c.appendChild(el(`<div class="demo-banner">${ic('i-book','sm')}<span><b>Методичка.</b> Здесь — вся логика NPS одним экраном: что показывать клиенту и как это формируется. Можно открыть прямо во время встречи.</span></div>`));
 
@@ -806,12 +823,13 @@ PAGES['nps-guide']=(c)=>{
   c.appendChild(f);
 
   // 4 экрана
-  const scr=el(`<div class="panel section-gap"><div class="panel-h"><h3>Четыре экрана демки</h3></div><div class="panel-b guide"></div></div>`);
+  const scr=el(`<div class="panel section-gap"><div class="panel-h"><h3>Пять экранов демки</h3></div><div class="panel-b guide"></div></div>`);
   const sb=$('.panel-b',scr);
   [
     ['i-star','Дашборд NPS','Сводная картина: общий балл, структура П/П/Д, динамика по месяцам, response rate, разрезы по аптекам/продавцам/точкам и лента живых комментариев.'],
     ['i-target','Точки опроса','12 моментов, когда система спрашивает клиента. Каждый включается отдельно, со своим каналом, текстом и антиспам-паузой (cooldown).'],
     ['i-eye','Как видит клиент','Взгляд покупателя: одно сообщение в WhatsApp и цифра 0–10 в ответ. Плюс — что при этом происходит внутри CRM.'],
+    ['i-monitor','Планшет в аптеке','В ожидании показывает баннеры с сайта; после закрытия офлайн-чека запускает оценку обслуживания и мини-анкету.'],
     ['i-book','Как это работает','Этот экран — методология для показа клиенту.']
   ].forEach(([i,t,d])=>sb.appendChild(el(`<div class="row" style="align-items:flex-start;gap:13px;padding:11px 0;border-bottom:1px solid var(--line)">
     <div class="tp-ic" style="width:38px;height:38px">${ic(i)}</div>
