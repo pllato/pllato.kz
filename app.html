@@ -589,6 +589,9 @@ body {
 .mm-pay .ke2 { font-size: 10.5px; color: var(--text-3); font-weight: 600; margin-left: 4px; }
 .money-sum { background: var(--surface); border: 1px solid var(--line-2); border-radius: 14px; padding: 13px 18px; margin-bottom: 18px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
 .money-sum.finance-folded, .money-strip.finance-folded { display:none !important; }
+.money-sum .mtot { appearance:none; border:0; background:transparent; color:inherit; font:inherit; text-align:left; padding:5px 7px; margin:-5px -7px; border-radius:9px; cursor:pointer; }
+.money-sum .mtot:hover { background:var(--surface-2); }
+.money-sum .mtot:focus-visible { outline:2px solid var(--bronze-deep); outline-offset:2px; }
 .money-sum .mtot .l { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-3); font-weight: 700; }
 .money-sum .mtot .v { font-size: 19px; font-weight: 800; letter-spacing: -0.01em; }
 .money-sum .mtot .v.g { color: var(--green); } .money-sum .mtot .v.r { color: #dc2626; }
@@ -627,6 +630,20 @@ body {
 .mm-add button { background: var(--green); color: #fff; font-weight: 700; font-size: 13px; padding: 9px 15px; border-radius: 9px; border: none; cursor: pointer; }
 .mm-f { padding: 12px 20px; border-top: 1px solid var(--line-2); display: flex; gap: 8px; justify-content: flex-end; }
 .mm-f button { font-weight: 700; font-size: 13px; padding: 9px 16px; border-radius: 9px; border: 1px solid var(--line-2); background: var(--surface); color: var(--text); cursor: pointer; }
+.money-summary-modal { max-width:720px; }
+.money-summary-intro { color:var(--text-3); font-size:12px; line-height:1.45; margin-bottom:12px; }
+.money-summary-list { max-height:min(55vh,480px); overflow-y:auto; border:1px solid var(--line-2); border-radius:11px; }
+.money-summary-row { width:100%; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:5px 16px; align-items:center; padding:11px 13px; border:0; border-bottom:1px solid var(--line-2); background:var(--surface); color:var(--text); text-align:left; cursor:pointer; }
+.money-summary-row:last-child { border-bottom:0; }
+.money-summary-row:hover { background:var(--surface-2); }
+.money-summary-row .name { min-width:0; font-size:13px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.money-summary-row .meta { min-width:0; color:var(--text-3); font-size:10.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.money-summary-row .amount { grid-column:2; grid-row:1 / span 2; font-size:14px; font-weight:800; white-space:nowrap; }
+.money-summary-row .amount.green { color:var(--green); }
+.money-summary-row .amount.red { color:#dc2626; }
+.money-summary-total { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:12px; padding:11px 13px; border-radius:10px; background:var(--surface-2); font-size:12px; font-weight:800; }
+.money-summary-total strong { font-size:16px; }
+.money-summary-empty { color:var(--text-3); font-size:12.5px; padding:20px; text-align:center; }
 
 /* ===== Недельные графики финансов ===== */
 .finance-charts { margin: -2px 0 26px; }
@@ -705,6 +722,8 @@ body {
   .fc-labels span { font-size: 8.5px; }
   .fc-detail-row { grid-template-columns:minmax(0,1fr); }
   .fc-detail-row .s { grid-row:auto; grid-column:auto; justify-self:start; }
+  .money-summary-row { grid-template-columns:minmax(0,1fr); gap:4px; }
+  .money-summary-row .amount { grid-column:auto; grid-row:auto; }
 }
 @media (min-width: 761px) and (max-width: 980px) {
   .fc-card { flex-basis:max(290px,calc((100% - 14px) / 2)); }
@@ -3126,9 +3145,9 @@ function renderMoneySummary(){
   const feed = allPaysSorted();
   const wasOpen = el.querySelector('.money-feed.show');
   el.innerHTML =
-    '<div class="mtot"><div class="l">Сумма сделок</div><div class="v">'+fmtT(deal)+'</div></div>'
-    + '<div class="mtot"><div class="l">Получено</div><div class="v g">'+fmtT(got)+'</div></div>'
-    + '<div class="mtot"><div class="l">Остаток</div><div class="v r">'+fmtT(debt)+'</div></div>'
+    '<button type="button" class="mtot" onclick="openMoneySummaryDetails(\'deal\')" aria-label="Показать сделки, из которых складывается общая сумма"><div class="l">Сумма сделок</div><div class="v">'+fmtT(deal)+'</div></button>'
+    + '<button type="button" class="mtot" onclick="openMoneySummaryDetails(\'received\')" aria-label="Показать сделки, из которых складывается полученная сумма"><div class="l">Получено</div><div class="v g">'+fmtT(got)+'</div></button>'
+    + '<button type="button" class="mtot" onclick="openMoneySummaryDetails(\'debt\')" aria-label="Показать сделки, из которых складывается остаток"><div class="l">Остаток</div><div class="v r">'+fmtT(debt)+'</div></button>'
     + '<span class="mrate" onclick="editRate()">курс $ = '+RATE+' ₸ ✎</span>'
     + '<span class="msp" id="msToggle">'+(wasOpen?'▴ свернуть':'▾ поступления по датам ('+feed.length+')')+'</span>'
     + '<div class="money-feed'+(wasOpen?' show':'')+'" id="moneyFeed">'
@@ -3139,6 +3158,54 @@ function renderMoneySummary(){
   if (t && f) t.addEventListener('click', () => { f.classList.toggle('show'); t.textContent = f.classList.contains('show') ? '▴ свернуть' : ('▾ поступления по датам ('+feed.length+')'); });
 }
 function editRate(){ if(!canSeeProjectMoney()) return; const v=parseFloat(prompt('Курс доллара — сколько ₸ за $1:', RATE)); if(!v||v<=0) return; RATE=v; saveRate(); document.querySelectorAll('.tool-card[data-app-id]').forEach(c=>renderMoneyStrip(c.dataset.appId)); renderMoneySummary(); if(_mmId) renderMoneyModal(); }
+
+function closeMoneySummaryDetails(){
+  document.getElementById('moneySummaryOvl')?.remove();
+}
+function openMoneyProjectFromSummary(id){
+  closeMoneySummaryDetails();
+  openMoneyModal(id);
+}
+function openMoneySummaryDetails(kind){
+  if(!canSeeProjectMoney()) return;
+  const config={
+    deal:{title:'Состав суммы сделок',intro:'Проекты, в которых указана общая сумма сделки.',label:'Сумма сделки'},
+    received:{title:'Состав полученной суммы',intro:'Все поступления, сгруппированные по проектам.',label:'Получено'},
+    debt:{title:'Состав остатка',intro:'Разница между суммой сделки и поступлениями. Отрицательное значение означает переплату.',label:'Остаток'}
+  }[kind];
+  if(!config) return;
+  const rows=Object.keys(MONEY).map(id=>{
+    const deal=toKZT(id,mDeal(id));
+    const received=toKZT(id,mRecv(id));
+    const balance=deal-received;
+    const value=kind==='deal'?deal:(kind==='received'?received:balance);
+    return {id,name:projName(id),deal,received,balance,value};
+  }).filter(row=>Math.abs(row.value)>.001).sort((a,b)=>Math.abs(b.value)-Math.abs(a.value)||a.name.localeCompare(b.name,'ru'));
+  const rawTotal=rows.reduce((sum,row)=>sum+row.value,0);
+  const total=kind==='debt'?Math.max(0,rawTotal):rawTotal;
+  let ovl=document.getElementById('moneySummaryOvl');
+  if(!ovl){
+    ovl=document.createElement('div');
+    ovl.id='moneySummaryOvl';
+    ovl.className='money-ovl show';
+    ovl.addEventListener('click',event=>{ if(event.target===ovl) closeMoneySummaryDetails(); });
+    document.body.appendChild(ovl);
+  }
+  const list=rows.length ? rows.map(row=>{
+    const balanceText=row.balance<0?'переплата '+fmtT(Math.abs(row.balance)):'остаток '+fmtT(row.balance);
+    const amountClass=kind==='received'?' green':(kind==='debt'?(row.value>0?' red':' green'):'');
+    return '<button type="button" class="money-summary-row" data-money-project="'+mEsc(row.id)+'">'
+      +'<span class="name">'+mEsc(row.name)+'</span>'
+      +'<span class="meta">Сделка '+fmtT(row.deal)+' · получено '+fmtT(row.received)+' · '+balanceText+'</span>'
+      +'<span class="amount'+amountClass+'">'+fmtT(row.value)+'</span></button>';
+  }).join('') : '<div class="money-summary-empty">Сделок для этого показателя пока нет.</div>';
+  ovl.innerHTML='<div class="money-modal money-summary-modal">'
+    +'<div class="mm-h"><h3>'+config.title+'</h3><span class="mm-x" onclick="closeMoneySummaryDetails()">✕</span></div>'
+    +'<div class="mm-b"><div class="money-summary-intro">'+config.intro+' Нажмите на проект, чтобы открыть его платежи.</div>'
+    +'<div class="money-summary-list">'+list+'</div>'
+    +'<div class="money-summary-total"><span>Итого · '+config.label+'</span><strong>'+fmtT(total)+'</strong></div></div></div>';
+  ovl.querySelectorAll('[data-money-project]').forEach(button=>button.addEventListener('click',()=>openMoneyProjectFromSummary(button.dataset.moneyProject)));
+}
 
 let _mmId = null;
 function openMoneyModal(id){
@@ -3153,7 +3220,7 @@ function openMoneyModal(id){
   ovl.classList.add('show');
 }
 function closeMoney(){ const o=document.getElementById('moneyOvl'); if(o) o.classList.remove('show'); _mmId=null; }
-document.addEventListener('keydown', e => { if (e.key==='Escape') closeMoney(); });
+document.addEventListener('keydown', e => { if (e.key==='Escape'){ closeMoney(); closeMoneySummaryDetails(); } });
 function renderMoneyModal(){
   if (!canSeeProjectMoney()) return;
   const id=_mmId, ovl=document.getElementById('moneyOvl'); if(!id||!ovl) return;
@@ -3707,7 +3774,7 @@ async function saveFinanceAccess(kind){
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openMoneyModal, closeMoney, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, renderFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects });
+Object.assign(window, { openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, renderFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects });
 
 function applyProjectFilters(){
   const searchTokens=normalizeProjectSearch(SEARCH_TERM).split(' ').filter(Boolean);
