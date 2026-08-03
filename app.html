@@ -588,6 +588,7 @@ body {
 .mm-grid .c .ke { font-size: 10.5px; color: var(--text-3); font-weight: 700; margin-top: 2px; }
 .mm-pay .ke2 { font-size: 10.5px; color: var(--text-3); font-weight: 600; margin-left: 4px; }
 .money-sum { background: var(--surface); border: 1px solid var(--line-2); border-radius: 14px; padding: 13px 18px; margin-bottom: 18px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+.money-sum.finance-folded, .money-strip.finance-folded { display:none !important; }
 .money-sum .mtot .l { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-3); font-weight: 700; }
 .money-sum .mtot .v { font-size: 19px; font-weight: 800; letter-spacing: -0.01em; }
 .money-sum .mtot .v.g { color: var(--green); } .money-sum .mtot .v.r { color: #dc2626; }
@@ -2860,6 +2861,7 @@ function buildProjectTabs(){
     savePortalView();
     bar.querySelectorAll('.ptab').forEach(x => x.classList.toggle('on', x === b));
     applyProjectFilters();
+    applyFinanceChartsFold();
     // Повторно запрашиваем статистику при смене вкладки: если сеть кратко
     // пропадала во время старта, пользователю не нужно обновлять всю страницу.
     renderFinanceCharts();
@@ -3034,6 +3036,7 @@ async function injectMoney(){
   });
   ensureMoneySummary();
   renderMoneySummary();
+  applyFinanceChartsFold();
   renderFinanceCharts();
 }
 function syncProjectMoneyVisibility(){
@@ -3309,8 +3312,9 @@ function financeChartCard(kind,series){
     ${notes}
   </article>`;
 }
+let FINANCE_DISCLOSURE_OPEN=false;
 function financeChartsPinnedOpen(){
-  return ACTIVE_TAB==='fav' || ACTIVE_TAB==='g:Инструменты для продаж';
+  return ACTIVE_TAB==='g:Инструменты для продаж';
 }
 function salesQuickLinkKey(){
   return 'pllato_sales_quick_link_v1:' + String(CURRENT?.email||'guest').toLowerCase();
@@ -3387,15 +3391,27 @@ function copySalesQuickLink(button){
 }
 function financeChartsAreOpen(){
   if(financeChartsPinnedOpen()) return true;
-  return PORTAL_VIEW.chartsOpen?.[ACTIVE_TAB]===true;
+  // Финансовые данные открываются только на время текущего просмотра.
+  // После перезагрузки страницы снова включается приватный режим.
+  return FINANCE_DISCLOSURE_OPEN;
 }
 function applyFinanceChartsFold(){
   const el=document.getElementById('financeCharts');
-  if(!el) return;
-  renderSalesQuickLink();
   const open=financeChartsAreOpen();
-  el.classList.toggle('folded',!open);
-  const btn=el.querySelector('.fc-toggle');
+  if(el){
+    renderSalesQuickLink();
+    el.classList.toggle('folded',!open);
+  }
+  const summary=document.getElementById('moneySum');
+  if(summary){
+    summary.classList.toggle('finance-folded',!open);
+    summary.setAttribute('aria-hidden',String(!open));
+  }
+  document.querySelectorAll('.money-strip').forEach(strip=>{
+    strip.classList.toggle('finance-folded',!open);
+    strip.setAttribute('aria-hidden',String(!open));
+  });
+  const btn=el?.querySelector('.fc-toggle');
   if(btn){
     btn.textContent=open?'Свернуть':'Развернуть';
     btn.setAttribute('aria-expanded',String(open));
@@ -3403,9 +3419,7 @@ function applyFinanceChartsFold(){
 }
 function toggleFinanceCharts(){
   if(financeChartsPinnedOpen()) return;
-  PORTAL_VIEW.chartsOpen=PORTAL_VIEW.chartsOpen||{};
-  PORTAL_VIEW.chartsOpen[ACTIVE_TAB]=!financeChartsAreOpen();
-  savePortalView();
+  FINANCE_DISCLOSURE_OPEN=!FINANCE_DISCLOSURE_OPEN;
   applyFinanceChartsFold();
 }
 async function paintFinanceCharts(el,data,{cached=false}={}){
