@@ -1704,7 +1704,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v435';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v436';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v420';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2012,6 +2012,12 @@ function lkParseFragmentedPassports(items,rule){
     return {s,x,y,v,c:v?x:y,a:v?y:x};}).filter(o=>o.s&&o.x!=null);
   const rx=p=>{try{return p?new RegExp(String(p).slice(0,400),'i'):null;}catch(e){return null;}};
   const hRx=rule&&rx(rule.head||rule.test),pRx=rule&&rx(rule.partner);
+  // По умолчанию сохраняем прежнюю строгую погрешность момента 2%. Обучалка может включить
+  // ограниченный режим 8% только для уже найденной строки: у авторов с округлённой мощностью
+  // (7 кВт вместо 6,6) P×L получается 105, а напечатанный момент — 99. Остальные сигналы
+  // полного паспорта (P/cos/I/L, марка, NxS и соседняя колонка) по-прежнему обязательны.
+  const momentTol=rule&&+rule.momentTolerance>0?Math.max(.02,Math.min(.08,+rule.momentTolerance)):.02;
+  const momentOk=(v,want)=>Math.abs(v-want)<=Math.max(momentTol>.02?2:1,want*momentTol);
   const nums=s=>[...String(s).matchAll(/\d+(?:[.,]\d+)?/g)].map(m=>({v:parseFloat(m[0].replace(',','.')),i:m.index}));
   const physics=(P,co,I)=>{if(!(P>0&&co>=.4&&co<=1.1&&I>0))return false;
     const e1=P/(.22*co),e3=P/(.38*Math.sqrt(3)*co);
@@ -2097,13 +2103,13 @@ function lkParseFragmentedPassports(items,rule){
       // Раздельные числовые item одной полосы нельзя склеивать без разделителя («20»+«1.1»
       // превращалось в «201.1»). Проверяем каждый токен отдельно по физике P×L.
       if(wholeMark)side.filter(o=>o.a<markA&&/^[\d\s.,-]+$/.test(o.s)).forEach(o=>nums(o.s).forEach(n=>{
-        const want=sig.P*sig.L;if(Math.abs(n.v-want)<=Math.max(1,want*.02))moment=n.v;}));
+        const want=sig.P*sig.L;if(momentOk(n.v,want))moment=n.v;}));
       if(wholeMark)mg.a.forEach(o=>{const at=o.s.search(LK_MARK);if(at<=0)return;
-        nums(o.s.slice(0,at)).forEach(n=>{const want=sig.P*sig.L;if(Math.abs(n.v-want)<=Math.max(1,want*.02))moment=n.v;});});
+        nums(o.s.slice(0,at)).forEach(n=>{const want=sig.P*sig.L;if(momentOk(n.v,want))moment=n.v;});});
       crossGroups(side.filter(o=>o.a<markA&&/^[\d\s.,-]+$/.test(o.s))).forEach(g=>{
         const s=g.a.sort((a,b)=>a.a-b.a).map(o=>o.s.replace(/\s+/g,'')).join('');const m=s.match(/\d+(?:[.,]\d+)?/);
         if(!m)return;const v=parseFloat(m[0].replace(',','.')),want=sig.P*sig.L;
-        if(Math.abs(v-want)<=Math.max(1,want*.02))moment=v;});
+        if(momentOk(v,want))moment=v;});
       const sideText=side.map(o=>o.s).join(' '),fullTail=/(?:^|[^\d])[012][.,]\d+/.test(sideText)&&/П\s*\d+/.test(sideText);
       const trustedHead=wholeMark&&rule&&rule.trustHead&&mg.a.some(o=>!!lkBioMTail(o.s));
       if(moment==null&&!fullTail&&!trustedHead)return;
@@ -2949,7 +2955,26 @@ function lkChatColumnMeters(items,row){if(!row||row.x==null||row.y==null)return[
     .filter(o=>o.s&&o.x!=null&&Math.abs(o.x-row.x)<18&&Math.abs(o.y-row.y)<130)
     .map(o=>{const m=o.s.match(/(?:^|\D)(\d+(?:[,.]\d+)?)\s*м(?![²2м])/i);return m?{v:parseFloat(m[1].replace(',','.')),y:o.y,s:o.s}:null;})
     .filter(o=>o&&o.v>0&&o.v<=5000).sort((a,b)=>b.y-a.y);}
+const _lkChatPassportCache=new WeakMap();
+/* Длина из полного расчётного паспорта P/cosφ/I/L. В отличие от «крайнего целого» этот
+   способ не перебирает числа вокруг строки: сначала строгий геометрический парсер доказывает
+   весь паспорт и соседние марку+сечение, затем результат сопоставляется с УЖЕ найденным
+   кабелем. Поэтому правило меняет одно поле и физически не может создать новую строку. */
+function lkChatPassportHeadLen(items,row){if(!Array.isArray(items)||!row||row.x==null||row.y==null)return null;
+  let parsed=_lkChatPassportCache.get(items);if(!parsed){
+    parsed=lkParseFragmentedPassports(items,{wholeMark:true,trustHead:true,momentTolerance:.08}).filter(r=>r._wholeMark);
+    _lkChatPassportCache.set(items,parsed);}
+  const nm=s=>String(s||'').replace(/[\s-]/g,'').toLowerCase(),rs=String(row.section||'').replace('.',',');
+  const cand=parsed.filter(r=>String(r.section||'').replace('.',',')===rs&&nm(r.mark)===nm(row.mark)).map(r=>{
+    const cross=r._v?Math.abs((+row.x||0)-r.x):Math.abs((+row.y||0)-r.y);
+    const along=r._v?Math.abs((+row.y||0)-r.y):Math.abs((+row.x||0)-r.x);
+    return{r,cross,along,score:cross*4+along};}).filter(o=>o.cross<22&&o.along<120).sort((a,b)=>a.score-b.score);
+  if(!cand.length)return null;
+  if(cand.length>1&&Math.abs((+cand[0].r.len||0)-(+cand[1].r.len||0))>.01&&cand[1].score-cand[0].score<18)return null;
+  return +cand[0].r.len||null;
+}
 function lkChatLearnedLen(items,row,strategy,opt){
+  if(strategy==='passport-head-length')return lkChatPassportHeadLen(items,row);
   if(strategy==='top-row-right'&&row&&row.x!=null&&row.y!=null){
     let cand=lkChatColumnMeters(items,row);
     if(opt&&Number.isFinite(+opt.topDy))cand=cand.filter(o=>Math.abs((o.y-row.y)-(+opt.topDy))<20);
@@ -3573,6 +3598,10 @@ async function lkRulesSave(rule,opt){
     const c=rule.chat,keys=new Set((c.rows||[]).map(r=>lkChatNorm(r.group)+'|'+lkChatNorm(r.section)));
     LK.rules=LK.rules.filter(old=>{const o=old&&old.chat;if(!o||o.action!=='upsert-lines'||String(o.file)!==String(c.file)||+o.page!==+c.page)return true;
       return !(o.rows||[]).some(r=>keys.has(lkChatNorm(r.group)+'|'+lkChatNorm(r.section)));});}
+  // Повторная точечная длина той же строки заменяет старую. Иначе два правила одного файла
+  // применялись по очереди и более старое могло вернуть уже исправленное значение обратно.
+  if(rule.chat&&rule.chat.action==='set-length'&&rule.chat.file&&rule.chat.page){const c=rule.chat,k=JSON.stringify(c.match||{});
+    LK.rules=LK.rules.filter(old=>{const o=old&&old.chat;return !(o&&o.action==='set-length'&&String(o.file)===String(c.file)&&+o.page===+c.page&&JSON.stringify(o.match||{})===k);});}
   const team=!!(opt&&opt.team);
   // Для командного правила сначала требуется подтверждение общего реестра. Раньше ошибка сети
   // проглатывалась, а чат мог сказать «работает у всех», хотя правило осталось лишь в браузере.
@@ -3786,6 +3815,9 @@ function lkChatStrategy(s){const n=lkChatNorm(s);
   return'';
 }
 function lkChatInferLen(items,row,value){
+  const passport=lkChatGroupShape(row&&row.group)&&lkChatPassportHeadLen(items,row);
+  if(passport>0&&Math.abs(passport-value)<.01&&Math.abs((+row.len||0)-value)>.01)
+    return{strategy:'passport-head-length',label:'четвёртое поле полного паспорта P / cosφ / I / длина',value:passport};
   const col=lkChatColumnMeters(items,row);
   if(Math.abs((+row.len||0)-value)>.01&&col.length>1&&Math.abs(col[0].v-value)<.01&&col.some(o=>Math.abs(o.v-(+row.len||0))<.01))
     return{strategy:'top-row-right',label:'верхнее число с «м» в собственной колонке',value,topDy:col[0].y-row.y};
@@ -3794,6 +3826,15 @@ function lkChatInferLen(items,row,value){
     if(found>0&&Math.abs(found-value)<.01)return{strategy,label,value:found};}
   return null;
 }
+function lkChatAuditLengthRule(items,rows,rule,target,expected){const c=rule&&rule.chat||{};
+  let controls=0,detected=0,targetOk=false;const conflicts=[];
+  (rows||[]).forEach(r=>{const v=lkChatLearnedLen(items,r,c.strategy,c);if(!(v>0))return;detected++;
+    if(r===target){targetOk=Math.abs(v-expected)<.01;return;}
+    if(Math.abs(v-(+r.len||0))<.01){controls++;return;}
+    if(lkChatRuleMatchesRow(c,r))conflicts.push(lkChatRowLabel(r)+' → '+v+' м');});
+  return{pass:targetOk&&controls>0&&!conflicts.length,targetOk,controls,detected,conflicts,
+    text:(targetOk?'исправляемая строка воспроизведена':'исправляемая строка НЕ воспроизведена')+
+      '. соседних правильных строк: '+controls+'. конфликтов: '+conflicts.length};}
 function lkChatSourceValue(s){const m=String(s).match(/((?:ВРУ|ГРЩ|Щ|РП|ТП)[А-ЯЁа-яёA-Za-z0-9().\/-]{1,28})/i);return m?m[1]:'';}
 function lkChatLengthValue(s){let m=String(s).match(/(?:длин[а-яё]*|метр[а-яё]*)[^\d]{0,18}(\d+(?:[,.]\d+)?)/i);
   if(!m)m=String(s).match(/(\d+(?:[,.]\d+)?)\s*м(?=\s|$|[.,;:!?])/i);
@@ -3922,23 +3963,41 @@ function lkTeachPanel(pg,rect,clusters,opt){
     say('bot',resultCard('Понял. Для текущего файла исправлено.',summary,'Пока только этот файл и лист. Для следующих похожих файлов правило ещё не включено.')+
       '<div style="margin-top:8px"><b>Создать и проверить правило для будущих похожих файлов?</b> Без отдельного подтверждения оно в программу не попадёт.</div>');
     chips([['Да — создать правило','создать правило для будущих похожих файлов'],['Нет — завершить','завершить без общего правила']]);input.focus();};
-  const lengthDraft=(target,value,strategy)=>{
+  const auditLengthFile=async(rule,target,value)=>{let pdf=LK.pdf;
+    if(!pdf&&LK.docId){const rec=await archGet(LK.docId);if(rec&&rec.buf)pdf=await pdfjsLib.getDocument({data:rec.buf.slice(0)}).promise;}
+    let controls=0,detected=0,targetOk=false;const conflicts=[];
+    for(const pg of (LK.pages||[])){if(!(pg.rows||[]).length)continue;let items=pg._titems;
+      if(!items||!items.length){if(!pdf)continue;const tc=await(await pdf.getPage(pg.page)).getTextContent();tc.items.forEach(it=>{if(it.str)it.str=lkFixEnc(it.str);});items=tc.items;}
+      const a=lkChatAuditLengthRule(items,pg.rows,rule,pg===st.pg?target:null,value);
+      controls+=a.controls;detected+=a.detected;if(pg===st.pg)targetOk=a.targetOk;conflicts.push(...a.conflicts.map(x=>'лист '+pg.page+': '+x));}
+    return{pass:targetOk&&controls>0&&!conflicts.length,targetOk,controls,detected,conflicts,
+      text:(targetOk?'исправляемая строка воспроизведена':'исправляемая строка НЕ воспроизведена')+
+        '. правильных контрольных строк в файле: '+controls+'. конфликтов: '+conflicts.length};};
+  const lengthDraft=async(target,value,strategy)=>{
     st.target=target;st.targets=[target];
-    const team=!!strategy;const rule={id:'chat'+Date.now().toString(36),title:'Чат: длина '+(target.section||target.mark||'кабеля'),
-      series:lkRuleSeries(name),chat:{action:'set-length',match:{group:target.group||'',groupPattern:lkChatGroupShape(target.group),mark:target.mark||'',section:target.section||''},
+    const team=!!strategy,passport=strategy==='passport-head-length';
+    const match=passport?{groupPattern:lkChatGroupShape(target.group)}:{group:target.group||'',groupPattern:lkChatGroupShape(target.group),mark:target.mark||'',section:target.section||''};
+    const rule={id:'chat'+Date.now().toString(36),title:'Чат: длина '+(target.section||target.mark||'кабеля'),
+      series:lkRuleSeries(name),chat:{action:'set-length',match,
         value,strategy:strategy||'fixed',general:team}};
     if(!team){rule.chat.file=name;rule.chat.page=st.pg.page;}
-    let detected=value;
-    if(team){detected=lkChatLearnedLen(st.clusters.items||[],target,strategy);
+    let detected=value,fieldAudit=null;const pageItems=st.pg._titems&&st.pg._titems.length?st.pg._titems:(st.clusters.items||[]);
+    if(team){detected=lkChatLearnedLen(pageItems,target,strategy);
       if(!(detected>0)){say('bot','Я не смогла безопасно найти это число по выбранному расположению. Напишите точную длину с «м» — сохраню исправление только для этого файла.');chips([]);return;}
       if(value>0&&Math.abs(detected-value)>.01){say('bot','По этому способу на текущем примере получается <b>'+esc(String(detected))+' м</b>, а вы указали <b>'+esc(String(value))+' м</b>. Такое правило нельзя безопасно переносить на будущие файлы. Точечное исправление '+esc(String(value))+' м оставляю доступным только для этого файла.');chips([]);return;}
       if(strategy==='top-row-right'){const top=lkChatColumnMeters(st.clusters.items||[],target).find(o=>Math.abs(o.v-detected)<.01);
         if(!top||Math.abs(top.y-target.y)<8){say('bot','В этой подписи нет отдельной верхней строки: числа стоят на одной высоте. Я не буду сохранять такое правило для будущих файлов.');chips([]);return;}
         rule.chat.topDy=top.y-target.y;}
+      if(passport){note.textContent='Проверяю способ чтения длины на всех листах файла…';sendBtn.disabled=attach.disabled=true;
+        try{fieldAudit=await auditLengthFile(rule,target,detected);}finally{sendBtn.disabled=attach.disabled=false;}
+        if(!fieldAudit.pass){say('bot','Точечная длина <b>'+esc(String(value))+' м</b> сохранена, но переносимое правило пока не прошло проверку всего файла: '+esc(fieldAudit.text)+'. Добавьте в эту переписку второй пример той же линейки — контекст не потеряется.');chips([]);return;}
+        rule.validation={version:1,page:st.pg.page,expected:1,controls:fieldAudit.controls,conflicts:0,novel:0,duplicates:0,passedAt:Date.now()};}
       rule.chat.value=detected;}
     const before=[{group:target.group,value:(+target.len||0)+' м'}],after=[{group:target.group,value:detected+' м'}];
-    showDraft(rule,before,after,team?('На текущем примере найдено '+detected+' м. В будущих файлах число будет извлекаться тем же способом.'):'Заданное число сохранится только для этого файла и листа.',team);
-    if(!team){st.suggested=lkChatInferLen(st.clusters.items||[],target,value);
+    const teamReason=fieldAudit?('На всех листах файла проверено поле длины: исправляемая строка даёт '+detected+' м, правильных контрольных строк '+fieldAudit.controls+', конфликтов 0. Новые строки не создаются.'):
+      ('На текущем примере найдено '+detected+' м. В будущих файлах число будет извлекаться тем же способом.');
+    showDraft(rule,before,after,team?teamReason:'Заданное число сохранится только для этого файла и листа.',team);
+    if(!team){st.suggested=lkChatInferLen(pageItems,target,value);
       if(st.suggested)say('bot','Я уже нашла возможный переносимый признак: '+esc(st.suggested.label)+'. После применения точечной правки предложу проверить и сохранить его для будущих похожих файлов.');}
     };
   const multiLengthDraft=(targets,value,reason)=>{
@@ -4062,7 +4121,7 @@ function lkTeachPanel(pg,rect,clusters,opt){
     const last=st.lastExact;
     say('bot','Формирую обобщённое правило и проверяю его на текущем фрагменте. Точечные имена и значения в правило не войдут.');
     if(last.suggested&&last.target&&last.rule&&last.rule.chat&&last.rule.chat.action==='set-length'){
-      lengthDraft(last.target,+last.rule.chat.value,last.suggested.strategy);return;}
+      await lengthDraft(last.target,+last.rule.chat.value,last.suggested.strategy);return;}
     await learnPattern(last.hint);
   };
   const aiInterpret=async(txt,runOpt)=>{
