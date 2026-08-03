@@ -3058,6 +3058,9 @@ function renderMoneyStrip(id){
   if (!canSeeProjectMoney()) return;
   const card = mCard(id); const strip = card && card.querySelector('.money-strip');
   if (!strip) return;
+  const moneyVisible=financeChartsAreOpen();
+  strip.classList.toggle('finance-folded',!moneyVisible);
+  strip.setAttribute('aria-hidden',String(!moneyVisible));
   const dealN=mDeal(id), gotN=mRecv(id);
   if (!dealN && !gotN){ strip.classList.add('empty'); strip.innerHTML='<span class="ms-add">＋ указать сумму сделки</span>'; return; }
   strip.classList.remove('empty');
@@ -3092,6 +3095,9 @@ function ensureMoneySummary(){
   const tabs = document.getElementById('projectTabs');
   if (!tabs) return;
   const el = document.createElement('div'); el.className='money-sum'; el.id='moneySum';
+  const moneyVisible=financeChartsAreOpen();
+  el.classList.toggle('finance-folded',!moneyVisible);
+  el.setAttribute('aria-hidden',String(!moneyVisible));
   tabs.insertAdjacentElement('afterend', el);
 }
 function allPaysSorted(){
@@ -3102,6 +3108,9 @@ function allPaysSorted(){
 function renderMoneySummary(){
   if (!canSeeProjectMoney()) return;
   const el = document.getElementById('moneySum'); if (!el) return;
+  const moneyVisible=financeChartsAreOpen();
+  el.classList.toggle('finance-folded',!moneyVisible);
+  el.setAttribute('aria-hidden',String(!moneyVisible));
   let deal=0, got=0;
   Object.keys(MONEY).forEach(id => { deal+=toKZT(id,mDeal(id)); got+=toKZT(id,mRecv(id)); });
   const debt = Math.max(0, deal-got);
