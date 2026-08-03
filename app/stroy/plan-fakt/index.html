@@ -1704,8 +1704,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v432';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v418';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v433';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v419';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -1970,6 +1970,33 @@ function lkParseBoulevardSplit(items){
     rows.push({group:hm[1].replace(/\s+/g,''),mark:lkMarkName(best.m.s),
       section:sm[1]+'x'+sm[2].replace('.',','),len:L,conds:[],x:best.m.x,y:best.m.y,mult:1});
   });
+  return rows;
+}
+/* Некоторые CAD/PDF-драйверы визуально печатают цельную подпись кабеля, но в text-layer
+   отдают КАЖДЫЙ её символ отдельным item. Обычная склейка не стартует с одиночной «К»/«В»
+   и теряет даже явную запись «КВВГ…-2х1 L=25 м». Собираем только длинные односимвольные
+   ряды одной ориентации и принимаем их лишь при полном паспорте: известная кабельная марка,
+   NxS и явное L=Nм. Голые числа, трубы и обычные цельные подписи сюда не попадают. */
+function lkParseSpelledCableLabels(items){
+  const raw=items.map(o=>{const t=o.transform,s=lkFixEnc(o.str==null?'':o.str),v=Math.abs(t[1])>Math.abs(t[0]);
+    return {s,x:t[4],y:t[5],v,c:v?t[4]:t[5],a:v?t[5]:t[4]};})
+    .filter(o=>o.s&&o.s.length<=3&&o.x!=null);
+  const cols=[];raw.sort((a,b)=>(a.v-b.v)||(a.c-b.c)||(a.a-b.a)).forEach(o=>{
+    let g=cols[cols.length-1];if(!g||g.v!==o.v||Math.abs(o.c-g.c)>1.6){g={v:o.v,c:o.c,a:[]};cols.push(g);}g.a.push(o);});
+  const runs=[];cols.forEach(g=>{let run=[];g.a.sort((a,b)=>a.a-b.a).forEach(o=>{
+    if(run.length&&o.a-run[run.length-1].a>32){if(run.length>=8)runs.push({v:g.v,c:g.c,a:run});run=[];}run.push(o);});
+    if(run.length>=8)runs.push({v:g.v,c:g.c,a:run});});
+  const norm=s=>String(s||'').replace(/\s+/g,'');const rows=[];
+  runs.forEach(run=>{const blob=norm(run.a.map(o=>o.s).join(''));
+    const m=blob.match(/((?:А[сcС]?)?(?:КВВГ|ВВГ|ШВВП|А?ВБ[бБ]?Шв)[А-Яа-яЁёA-Za-z0-9()\-]{0,36}?)-?(\d+)\s*[xхХX×]\s*(\d+(?:[,.]\d+)?)(?:мм[2²]?)?L\s*=\s*(\d+(?:[,.]\d+)?)\s*м/i);
+    if(!m)return;const L=parseFloat(m[4].replace(',','.'));if(!(L>0&&L<=2000))return;
+    const mark=m[1].replace(/-+$/,'');if(!LK_MARK.test(mark))return;
+    const a0=Math.min(...run.a.map(o=>o.a)),a1=Math.max(...run.a.map(o=>o.a));
+    const consumer=runs.find(q=>q!==run&&q.v===run.v&&Math.abs(q.c-run.c)>=4&&Math.abs(q.c-run.c)<=32&&
+      Math.min(...q.a.map(o=>o.a))<a1+20&&Math.max(...q.a.map(o=>o.a))>a0-20&&
+      /независим(?:ый|ого)?расцепител/i.test(norm(q.a.map(o=>o.s).join(''))));
+    rows.push({group:consumer?'Независимый расцепитель':'—',mark,section:m[2]+'x'+m[3].replace('.',','),len:L,
+      conds:[],x:run.v?run.c:a0,y:run.v?a0:run.c,mult:1,_spelled:true});});
   return rows;
 }
 /* Общий офлайн-разбор ФРАГМЕНТИРОВАННЫХ паспортов. Некоторые САПР разбивают одну видимую
@@ -3040,6 +3067,12 @@ async function lkExtract(data,onProgress,scope){
             r.section===o.section&&r.len===o.len&&(ng.includes(og)||og.includes(ng));});});
     _fragRows.forEach(r=>{const old=rows.find(o=>o.x&&Math.abs(o.x-r.x)<10&&Math.abs((o.y||0)-r.y)<10);
       if(old&&!(+old.len>0)){Object.assign(old,r,{needsCheck:false});}else if(!old)rows.push(r);});
+    // Посимвольно выгруженная подпись с явным L=Nм — самостоятельная кабельная линия.
+    // Совпавшую строку обновляем только при той же марке/сечении и близкой геометрии.
+    (_ras1878Style?lkParseSpelledCableLabels(tc.items):[]).forEach(r=>{const nm=s=>String(s||'').replace(/[\s-]/g,'').toLowerCase();
+      const old=rows.find(o=>o.x&&Math.abs(o.x-r.x)<16&&Math.abs((o.y||0)-r.y)<30&&
+        nm(o.mark)===nm(r.mark)&&String(o.section||'').replace('.',',')===r.section);
+      if(old){if(!(old.len>0))Object.assign(old,r,{needsCheck:false});}else rows.push(r);});
     // Строгий паспорт P/cos/I/L + P×L главнее прежнего результата: общий парсер иногда
     // принимал длину трубы «П25-5м» за длину кабеля. Заменяем только тот же кабель
     // (близкая точка + совпали марка и сечение), сохраняя уже найденные трубы и потребителя.
