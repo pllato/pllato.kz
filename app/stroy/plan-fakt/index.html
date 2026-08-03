@@ -610,7 +610,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
     <button class="lk-tb" id="lkBack" title="Назад">← Назад</button>
     <div class="lg-title">Линейка — чтение схемы<span class="lk-verchip" id="lkVer" title="Версия парсера Линейки. Если Claude говорит про более новую — обнови страницу с Cmd+Shift+R и нажми «Перечитать файл»"></span><span class="lg-sub" id="lkName"></span></div>
     <div class="lk-docs" id="lkDocs"></div>
-    <button class="lk-tb" id="lkTeachTop" style="margin-left:auto" title="Бесплатный предметный чат: обведи участок, объясни исправление и подтверди правило для похожих чертежей">🎓 Обучалка-чат</button>
+    <button class="lk-tb" id="lkTeachTop" style="margin-left:auto" title="Предметный чат сам проверит выделенный участок; если ошибка неочевидна — задаст один уточняющий вопрос">🎓 Обучалка-чат</button>
     <button class="lk-tb" id="lkVisSheet" title="ИИ прочитает ВЕСЬ лист по картинке — для файлов с битым текстом (таблица нарисована картинкой). ≈2–4 цента за лист">👁 Прочитать лист целиком</button>
     <button class="lk-tb" id="lkIssues" title="Пометки «что исправить» с привязкой к файлу и листу">⚑ Правки<span id="lkIssN"></span></button>
     <button class="lk-tb" id="lkReport">📊 Отчёт по файлу</button>
@@ -623,10 +623,10 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
       <div class="lk-iss-head"><b>⚑ Правки по файлу</b><span class="lk-iss-sub" id="lkIssFile"></span><button class="lg-x" id="lkIssClose">✕</button></div>
       <div class="lk-iss-list" id="lkIssList"></div>
       <div class="lk-iss-new">
-        <textarea id="lkIssText" rows="2" placeholder="Что не так на текущем листе? Например: «справа кабель на насос не посчитан», «длина у ЩК-2.4 должна быть 25 м»…"></textarea>
+        <textarea id="lkIssText" rows="2" placeholder="Описание необязательно. Можно сразу выделить участок — ИИ сам сверит чертёж с результатом парсера."></textarea>
         <div class="lk-iss-newbtns">
-          <button class="lk-add" id="lkIssPick" title="Закроет окно — обведи рамкой место на листе, пометка привяжется к области">⌖ Обвести место на листе <span id="lkIssPage"></span></button>
-          <button class="lk-add" id="lkTeach" title="Бесплатный предметный чат: обведи участок, объясни исправление и подтверди правило" style="border-color:#b45309;color:#b45309">🎓 Обучалка-чат</button>
+          <button class="lk-add" id="lkIssPick" title="Обведи участок: Обучалка сама найдёт видимое расхождение или задаст один точный вопрос">⌖ Выделить и проверить ИИ · лист <span id="lkIssPage"></span></button>
+          <button class="lk-add" id="lkTeach" title="Открыть предметный чат с автоматической проверкой текущего листа" style="border-color:#b45309;color:#b45309">🎓 Обучалка-чат</button>
           <button class="lk-add" id="lkIssAdd" title="Пометка на весь лист, без области">⚑ На весь лист</button>
         </div>
       </div>
@@ -636,7 +636,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
         <button class="lk-tb dark" id="lkIssShots" title="Скачать PNG-вырезки помеченных областей — приложи их к сообщению вместе с PDF">⤓ Вырезки PNG</button>
         <button class="lk-tb dark" id="lkIssReparse" title="Разобрать PDF заново текущим парсером — для проверки исправлений. Ручные правки строк будут заменены свежим разбором, пометки останутся.">⟳ Перечитать файл</button>
       </div>
-      <div class="lk-iss-note">Как это работает: опиши проблему → «Обвести место» и выдели область на листе (рамка ⚑ останется на схеме) → «Скопировать» + «Вырезки PNG» → отправь текст, вырезки и PDF в чат Claude → после исправления «Перечитать файл» и пройди по пометкам (клик — откроет лист), отмечая ✓.</div>
+      <div class="lk-iss-note">Как это работает: можно ничего не описывать → «Выделить и проверить ИИ» → Обучалка сама сравнит видимые подписи с результатом парсера и покажет «было → станет». Если отличие нельзя доказать по фрагменту, она задаст один точный вопрос. Любое изменение и правило для будущих файлов сохраняются только после подтверждения.</div>
     </div>
   </div>
   <div class="lk-sum" id="lkSum"></div>
@@ -1704,7 +1704,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v434';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v435';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v420';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -3540,13 +3540,18 @@ $('lkIssAdd').onclick=()=>{const t=($('lkIssText').value||'').trim();if(!t){toas
   const pg=LK.pages[LK.sel];if(!pg)return;
   LK.issues.push({page:pg.page,text:t,done:false,ts:Date.now()});
   $('lkIssText').value='';lkIssBadge();lkIssRender();lkPersist();};
-/* «Обвести место»: модал прячется, юзер тянет рамку по листу — пометка с областью (норм. коорд. картинки) */
-$('lkIssPick').onclick=()=>{const t=($('lkIssText').value||'').trim();if(!t){toast('Сначала опиши, что не так');return;}
+/* «Выделить и проверить ИИ»: описание необязательно. Рамка сразу становится активным
+   фрагментом Обучалки, которая сама сравнивает изображение с уже разобранными строками. */
+$('lkIssPick').onclick=()=>{const t=($('lkIssText').value||'').trim();
   const pg=LK.pages[LK.sel];if(!pg){toast('Нет листа');return;}
   if(LK.view!=='pages'){LK.view='pages';renderLineyka();}
   $('lkIssModal').style.display='none';
-  lkPickArea(rect=>{LK.issues.push({page:pg.page,text:t,rect,done:false,ts:Date.now()});
-    $('lkIssText').value='';lkIssBadge();lkPersist();renderLineyka();toast('Пометка ⚑ с областью добавлена');});};
+  lkPickArea(async rect=>{
+    let issueIndex=-1;if(t){issueIndex=LK.issues.length;LK.issues.push({page:pg.page,text:t,rect,done:false,ts:Date.now()});}
+    $('lkIssText').value='';lkIssBadge();lkPersist();renderLineyka();toast('ИИ проверяет выделенный участок…');
+    try{const cl=await lkAreaClusters(pg,rect);lkTeachPanel(pg,rect,cl,{autoDiagnose:true,userHint:t,fromIssues:true,issueIndex});}
+    catch(e){toast('Не удалось прочитать выделение: '+(e&&e.message||e));}
+  },()=>{$('lkIssModal').style.display='flex';});};
 /* ==== ОБУЧАЛКА: аудит всего файла → диалог/фрагмент → проверенное правило ====
    Браузер сам сверяет парсер с таблицами листов. Claude получает только активный рисунок/текст,
    подтверждённый результат и отчёт аудита. Общее правило сохраняется только после локальной проверки; затем строки снова
@@ -3701,8 +3706,8 @@ async function lkTeachStart(){
   try{const cl=await lkAreaClusters(pg,rect);lkTeachPanel(pg,rect,cl);}
   catch(e){toast('Не удалось прочитать лист: '+(e&&e.message||e));}
 }
-$('lkTeach').onclick=lkTeachStart;      // в модале «Правки»
-$('lkTeachTop').onclick=lkTeachStart;   // в верхней панели — основной вход
+$('lkTeach').onclick=()=>lkTeachStart();      // в модале «Правки»
+$('lkTeachTop').onclick=()=>lkTeachStart();   // в верхней панели — основной вход
 $('lkVisSheet').onclick=lkVisionSheet;  // зрение на весь лист
 /* ОПОРА ДЛЯ ИИ: линии этого же листа, прочитанные верно (с их исходной подписью) — по ним видно,
    какой столбец безымянного паспорта «… 5.7 95 95 2.1 …» является длиной. Без опоры ИИ гадает
@@ -3816,7 +3821,8 @@ function lkChatAiCost(u,model){if(!u)return'';const haiku=/haiku/i.test(model||'
     read=(+u.cache_read_input_tokens||0)*pin*.1,output=(+u.output_tokens||0)*pout;
   const usd=(input+write+read+output)/1e6;
   return usd>0?('≈'+(usd*100).toFixed(2).replace(/0+$/,'').replace(/\.$/,'')+'¢'):'';}
-function lkTeachPanel(pg,rect,clusters){
+function lkTeachPanel(pg,rect,clusters,opt){
+  opt=opt||{};
   // Гибридный предметный чат: понятные команды исполняются локально; непонятый естественный язык
   // переводит в белый список действий Claude. Применение и проверка всегда остаются в браузере.
   const wrap=document.createElement('div');wrap.className='lk-iss-modal lk-chat-modal';wrap.id='lkTeachModal';
@@ -3902,7 +3908,9 @@ function lkTeachPanel(pg,rect,clusters){
     const done=st.draft;try{await lkRulesSave(done.rule,{team:done.team});}
     catch(e){apply.disabled=general.disabled=false;note.textContent='Правило не сохранено';
       say('bot','Не удалось записать правило в общий реестр: <b>'+esc(e&&e.message||String(e))+'</b>. Я не буду говорить, что оно работает у компании. Предпросмотр остался — можно повторить сохранение.');return;}
-    LK.issues.push({page:st.pg.page,text:'🎓 Чат '+(done.team?'выучил правило: ':'исправил: ')+(done.rule.title||''),rect:st.rect,done:true,ts:Date.now()});
+    const linked=Number.isInteger(opt.issueIndex)&&opt.issueIndex>=0?LK.issues[opt.issueIndex]:null;
+    if(linked)linked.done=true;
+    else LK.issues.push({page:st.pg.page,text:'🎓 Чат '+(done.team?'выучил правило: ':'исправил: ')+(done.rule.title||''),rect:st.rect,done:true,ts:Date.now()});
     if(done.team){const summary=st.lastExact&&st.lastExact.summary||{before:done.before,after:done.after,cause:causeOf(done.rule,done.before)};
       reparseAfterClose=true;st.draft=null;st.finished=true;apply.disabled=general.disabled=false;apply.style.display=general.style.display='none';
       note.textContent='Правило сохранено · закройте чат, чтобы перечитать файл';
@@ -4057,11 +4065,12 @@ function lkTeachPanel(pg,rect,clusters){
       lengthDraft(last.target,+last.rule.chat.value,last.suggested.strategy);return;}
     await learnPattern(last.hint);
   };
-  const aiInterpret=async txt=>{
-    sendBtn.disabled=attach.disabled=true;note.textContent='Claude связывает сообщение с активным фрагментом…';
-    const thinking=say('bot','Смотрю на фрагмент и предыдущие сообщения…',false);
+  const aiInterpret=async(txt,runOpt)=>{
+    runOpt=runOpt||{};const auto=!!runOpt.auto;
+    sendBtn.disabled=attach.disabled=true;note.textContent=auto?'ИИ сверяет чертёж с результатом парсера…':'Claude связывает сообщение с активным фрагментом…';
+    const thinking=say('bot',auto?'Сама проверяю все видимые поля и ищу конкретное расхождение…':'Смотрю на фрагмент и предыдущие сообщения…',false);
     try{
-      const n=lkChatNorm(txt),needImage=!st.imageShared||/здесь|вот|видн|указан|написан|показыв|ткнул|тыкн|аудит|расхожд|провер/.test(n);
+      const n=lkChatNorm(txt),needImage=auto||!st.imageShared||/здесь|вот|видн|указан|написан|показыв|ткнул|тыкн|аудит|расхожд|провер/.test(n);
       const whole=st.rect.x0===0&&st.rect.y0===0&&st.rect.x1===1&&st.rect.y1===1;
       const imageRect=whole&&st.audit.active.issues.length?(lkChatAuditFocusRect(st.pg,st.audit.active)||st.rect):st.rect;
       let aiClusters=st.clusters;if(needImage&&!st.activeImage)try{st.activeImage=await lkAreaImage(st.pg,imageRect,1400);st.activeImageRect=imageRect;
@@ -4073,7 +4082,7 @@ function lkTeachPanel(pg,rect,clusters){
         ?{action:'upsert-lines',rows:st.draft.rule.chat.rows}:null;
       const ac=new AbortController(),to=setTimeout(()=>ac.abort(),120000);let d;
       try{const r=await fetch(LK_AI+'/chat',{method:'POST',headers:{'content-type':'application/json'},signal:ac.signal,
-        body:JSON.stringify({message:txt,history:st.messages.slice(0,-1).slice(-10),context:{file:name,page:st.pg.page,area:lkChatAreaLabel(st.activeImageRect||st.rect),text:raw,
+        body:JSON.stringify({mode:auto?'auto-diagnose':'chat',message:txt,history:st.messages.slice(0,-1).slice(-10),context:{file:name,page:st.pg.page,area:lkChatAreaLabel(st.activeImageRect||st.rect),text:raw,source:st.pg.vru||'',
           audit:'Лист '+st.pg.page+': '+(st.audit.active.issues.length?st.audit.active.issues.map(i=>i.text+'; предлагаемое решение: '+i.solution).join(' | '):'контрольных расхождений нет')},rows,draft,
           image:needImage&&st.activeImage?st.activeImage:''})});d=await r.json();}
       finally{clearTimeout(to);}
@@ -4097,6 +4106,7 @@ function lkTeachPanel(pg,rect,clusters){
       if(d.intent==='dedupe_pipes'){pipesDraft();return;}
       if(d.intent==='ignore_u'){ignoreDraft();return;}
       if(d.intent==='learn_pattern'){await learnPattern(txt);return;}
+      if(d.intent==='clarify'&&auto){chips([['Описать, что не так','',true],['Выделить другой фрагмент','__attach__']]);return;}
       if(d.intent==='clarify'&&whole&&st.audit.active.issues.length){say('bot','Точное исправление пока не доказано: авторская таблица и паспорт линии дают неоднозначный сигнал. Нажмите <b>«Добавить фрагмент с чертежа»</b> и обведите саму подпись или строку таблицы. Этот аудит и весь диалог останутся в контексте.');chips([]);return;}
       if(d.intent==='clarify'&&st.rows.length>1){const mentioned=lkChatLengthValue(txt);
         if(mentioned>0){st.pendingValue=mentioned;st.pendingText=txt;showRows();}
@@ -4157,7 +4167,7 @@ function lkTeachPanel(pg,rect,clusters){
     if(!LK.pages||!LK.pages.length){toast('Сначала откройте лист');return;}
     const nextPg=LK.pages[LK.sel];if(!nextPg){toast('Нет листа');return;}
     attach.disabled=true;wrap.style.display='none';toast('Обведи или ткни нужное место — оно добавится в этот же диалог');
-    lkPickArea(async nextRect=>{
+    lkPickArea(async nextRect=>{let restored=false;
       try{
         const nextClusters=await lkAreaClusters(nextPg,nextRect);
         let image=null;try{image=await lkAreaImage(nextPg,nextRect,720);}catch(e){}
@@ -4173,16 +4183,21 @@ function lkTeachPanel(pg,rect,clusters){
         st.fragments.push({page:nextPg.page,rect:nextRect,text:raw,image});
         say('user','<div class="lk-chat-fragment">'+(image?'<img src="'+image+'" alt="Прикреплённый фрагмент листа '+nextPg.page+'">':'')+
           '<div><b>⌖ '+esc(name||'Текущий файл')+' · лист '+nextPg.page+'</b><small>'+esc(lkChatAreaLabel(nextRect))+' · найдено '+nextClusters.length+' '+lkPlural(nextClusters.length,'подпись','подписи','подписей')+'</small><pre>'+esc(raw||'Текстового слоя в области нет')+'</pre></div></div>');
-        say('bot','Фрагмент добавлен в эту переписку и теперь активен. Напишите прямо: <b>«вот здесь неправильно, должно быть 175 м»</b>. Я свяжу сообщение с этим листом, областью и найденными линиями.');
-        if(st.rows.length>1)say('bot','В новом фрагменте найдено '+st.rows.length+' кабельных линий. Можно назвать нужную линию или её сечение.');
+        say('bot','Фрагмент добавлен и стал активным. Сейчас сама сверю все видимые поля с результатом парсера. Если конкретное отличие нельзя доказать по чертежу, спрошу только недостающую деталь.');
+        restoreAfterPick();restored=true;
+        await aiInterpret('Автоматически проверь выделенный участок: сравни все видимые кабельные линии, источник, потребителей, марки, сечения, длины и трубы с кандидатами парсера. Если есть доказанное отличие — предложи одно конкретное исправление. Если всё совпадает или данных недостаточно — задай один точный вопрос.',{auto:true});
       }catch(e){say('bot','Не удалось прочитать новый фрагмент: '+esc(e&&e.message||String(e)));}
-      finally{restoreAfterPick();}
+      finally{if(!restored)restoreAfterPick();}
     },restoreAfterPick);
   };
   say('bot',lkChatAuditHtml(st.audit));
   say('bot','Я сама нахожу контрольные отклонения, а вы можете в любой момент добавить фрагмент и любыми словами уточнить, что видите. Сначала покажу «было → стало»; после точечного исправления предложу общее правило и включу его только после проверки.');
   const currentIssues=st.audit.active.issues;
-  if(currentIssues.length){chips([['Разобрать расхождения листа '+st.pg.page,'проверь весь лист по аудиту, найди пропущенные или неверные строки и предложи полное исправление'],['Добавить фрагмент','__attach__']]);
+  if(opt.autoDiagnose){
+    if(opt.userHint)say('user',esc(opt.userHint));
+    say('bot','Выделение принято. Сравниваю изображение с тем, что записал парсер; описание для этого не требуется.');
+    setTimeout(()=>aiInterpret(opt.userHint||'Автоматически проверь выделенный участок: сравни все видимые кабельные линии, источник, потребителей, марки, сечения, длины и трубы с кандидатами парсера. Если есть доказанное отличие — предложи одно конкретное исправление. Если всё совпадает или данных недостаточно — задай один точный вопрос.',{auto:true}),80);
+  }else if(currentIssues.length){chips([['Разобрать расхождения листа '+st.pg.page,'проверь весь лист по аудиту, найди пропущенные или неверные строки и предложи полное исправление'],['Добавить фрагмент','__attach__']]);
     // На текущем проблемном листе не ждём вопроса «что не так»: отдаём аудит и лист в зрение сразу.
     setTimeout(()=>aiInterpret('проверь весь лист по аудиту, найди пропущенные или неверные строки и предложи полное исправление'),80);
   }else chips([['Добавить фрагмент с чертежа','__attach__'],['Указать длину','длина ',true],['Указать источник','источник ',true],['Трубы один раз','трубы учитывать один раз']]);
