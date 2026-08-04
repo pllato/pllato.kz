@@ -419,7 +419,7 @@ const JSON_COLS = {
   users: new Set(["department", "apps"]),
   contacts: new Set(["emails", "phones", "messengers", "websites", "custom_fields"]),
   companies: new Set(["phones"]),
-  deals: new Set(["custom_fields", "mirrored_in"]),
+  deals: new Set(["custom_fields", "mirrored_in", "meta_ad_attribution"]),
   tasks: new Set(["accomplices", "auditors", "comments_data", "crm_links", "bitrix_crm_links", "bitrix_file_ids"]),
   pipelines: new Set(["stages"]),
   timeline_activities: new Set(["payload"]),
@@ -3639,6 +3639,7 @@ async function handleDealRemoveMirror(request, env, dealId, pipelineId) {
 async function handleDealTimeline(request, env, dealId) {
   const auth = await requireAuthFlexible(request, env);
   if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureWaMetaAdColumns(env);
 
   const url = new URL(request.url);
   const limit = Math.min(500, Math.max(20, parseInt(url.searchParams.get("limit") || "200", 10) || 200));
@@ -3663,7 +3664,8 @@ async function handleDealTimeline(request, env, dealId) {
 
   // 3. WA сообщения по сделке (последние 50)
   const waRes = await env.DB.prepare(`
-    SELECT m.id, m.chat_id, m.direction, m.text, m.media_kind, m.media_url, m.media_file_name, m.ts
+    SELECT m.id, m.chat_id, m.direction, m.text, m.media_kind, m.media_url, m.media_file_name,
+           m.meta_ad_id, m.meta_ad_attribution, m.ts
     FROM wa_messages m
     JOIN wa_chats c ON c.id = m.chat_id
     WHERE c.deal_id = ?
@@ -3712,6 +3714,8 @@ async function handleDealTimeline(request, env, dealId) {
         mediaKind: r.media_kind,
         mediaUrl: r.media_url,
         mediaFileName: r.media_file_name,
+        metaAdId: r.meta_ad_id,
+        metaAdAttribution: r.meta_ad_attribution ? tryParseJson(r.meta_ad_attribution) : null,
       },
     });
   }
@@ -4452,6 +4456,23 @@ function extractWaWebhookEnvelope(body) {
   const ts = (body?.timestamp || Math.floor(Date.now() / 1000)) * 1000;
 
   const md = body?.messageData || {};
+  const ext = md?.extendedTextMessageData || {};
+  // Рекламные сообщения Click-to-WhatsApp приходят как extendedTextMessage.
+  // sourceId — стабильный ID объявления Meta; остальные поля описывают креатив.
+  const hasAdAttribution = !!(ext.showAdAttribution || ext.sourceId || ext.sourceType === 'ad');
+  const metaAdAttribution = hasAdAttribution ? {
+    adId: ext.sourceId ? String(ext.sourceId) : null,
+    sourceType: ext.sourceType || null,
+    sourceUrl: ext.sourceUrl || null,
+    title: ext.title || null,
+    description: ext.description || null,
+    thumbnailUrl: ext.thumbnailUrl || null,
+    mediaType: ext.mediaType || null,
+    conversionSource: ext.conversionSource || null,
+    entryPointConversionApp: ext.entryPointConversionApp || null,
+    containsAutoReply: !!ext.containsAutoReply,
+    receivedAt: new Date(ts).toISOString(),
+  } : null;
   let text = '', mediaKind = null, mediaUrl = null, mediaFileName = null, mediaMimeType = null, caption = null;
   if (md.typeMessage === 'textMessage' || md.typeMessage === 'extendedTextMessage') {
     text = md.textMessageData?.textMessage || md.extendedTextMessageData?.text || '';
@@ -4478,7 +4499,7 @@ function extractWaWebhookEnvelope(body) {
     mediaMimeType = md.fileMessageData?.mimeType || null;
     caption = md.fileMessageData?.caption || null;
   }
-  return { direction: isIncoming ? 'in' : 'out', instanceId: instance, chatId, phone, senderName, chatName, displayName, isGroup, waMessageId, ts, text, mediaKind, mediaUrl, mediaFileName, mediaMimeType, caption };
+  return { direction: isIncoming ? 'in' : 'out', instanceId: instance, chatId, phone, senderName, chatName, displayName, isGroup, waMessageId, ts, text, mediaKind, mediaUrl, mediaFileName, mediaMimeType, caption, metaAdAttribution };
 }
 
 // Ленивая идемпотентная миграция: колонка sender_name в wa_messages (для показа
@@ -4489,6 +4510,24 @@ async function ensureWaSenderColumn(env) {
   try { await env.DB.prepare("ALTER TABLE wa_messages ADD COLUMN sender_name TEXT").run(); }
   catch (e) { /* колонка уже есть — ок */ }
   _waSenderColEnsured = true;
+}
+
+// Ленивая миграция: после деплоя существующая D1 начинает сохранять рекламу
+// без отдельного окна работ. Ошибка ALTER означает, что колонка уже существует.
+let _waMetaAdColsEnsured = false;
+async function ensureWaMetaAdColumns(env) {
+  if (_waMetaAdColsEnsured) return;
+  const statements = [
+    "ALTER TABLE wa_messages ADD COLUMN meta_ad_id TEXT",
+    "ALTER TABLE wa_messages ADD COLUMN meta_ad_attribution TEXT",
+    "ALTER TABLE deals ADD COLUMN meta_ad_id TEXT",
+    "ALTER TABLE deals ADD COLUMN meta_ad_attribution TEXT",
+    "CREATE INDEX IF NOT EXISTS idx_deals_meta_ad ON deals(meta_ad_id)",
+  ];
+  for (const sql of statements) {
+    try { await env.DB.prepare(sql).run(); } catch (e) { /* уже применено */ }
+  }
+  _waMetaAdColsEnsured = true;
 }
 
 // POST /api/wa/webhook?token=XXX — приёмник от Green-API.
@@ -4507,6 +4546,7 @@ async function handleWaWebhook(request, env) {
     return json({ error: "invalid webhook token" }, 401, request);
   }
   if (!channel.active) return json({ ok: true, ignored: true, reason: "channel inactive" }, 200, request);
+  await ensureWaMetaAdColumns(env);
 
   const isGroup = evt.chatId?.endsWith('@g.us') || false;
   let contactId = null;
@@ -4563,11 +4603,15 @@ async function handleWaWebhook(request, env) {
     await env.DB.prepare(`
       INSERT OR IGNORE INTO wa_messages (
         id, chat_id, wa_message_id, direction, text,
-        media_kind, media_url, media_file_name, media_mime_type, caption, sender_name, ts
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        media_kind, media_url, media_file_name, media_mime_type, caption, sender_name,
+        meta_ad_id, meta_ad_attribution, ts
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       msgDocId, chatDocId, evt.waMessageId, evt.direction, evt.text || null,
-      evt.mediaKind, evt.mediaUrl, evt.mediaFileName, evt.mediaMimeType, evt.caption, senderForRow, evt.ts,
+      evt.mediaKind, evt.mediaUrl, evt.mediaFileName, evt.mediaMimeType, evt.caption, senderForRow,
+      evt.metaAdAttribution?.adId || null,
+      evt.metaAdAttribution ? JSON.stringify(evt.metaAdAttribution) : null,
+      evt.ts,
     ).run();
   }
 
@@ -4575,7 +4619,19 @@ async function handleWaWebhook(request, env) {
   // сортирует по нему, плюс это "свежая" сделка наверху списка).
   if (dealId) {
     const isoTs = new Date(evt.ts).toISOString();
-    await env.DB.prepare("UPDATE deals SET bitrix_date_modify = ? WHERE id = ?").bind(isoTs, dealId).run();
+    if (evt.direction === 'in' && evt.metaAdAttribution) {
+      const adId = evt.metaAdAttribution.adId || null;
+      const sourceDescription = adId
+        ? `Instagram → WhatsApp · объявление ${adId}`
+        : 'Instagram → WhatsApp · реклама';
+      await env.DB.prepare(`
+        UPDATE deals SET bitrix_date_modify = ?, source_id = 'META_AD',
+          source_description = ?, meta_ad_id = ?, meta_ad_attribution = ?
+        WHERE id = ?
+      `).bind(isoTs, sourceDescription, adId, JSON.stringify(evt.metaAdAttribution), dealId).run();
+    } else {
+      await env.DB.prepare("UPDATE deals SET bitrix_date_modify = ? WHERE id = ?").bind(isoTs, dealId).run();
+    }
   }
 
   // Уведомление ответственному о входящем WhatsApp (для индивидуальных чатов).
@@ -4967,6 +5023,7 @@ async function handleWaListChats(request, env) {
 async function handleWaListMessages(request, env) {
   const auth = await requireAuthFlexible(request, env);
   if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureWaMetaAdColumns(env);
   const url = new URL(request.url);
   const chatId = (url.searchParams.get("chatId") || "").trim();
   if (!chatId) return json({ error: "chatId required" }, 400, request);
@@ -4992,7 +5049,10 @@ async function handleWaListMessages(request, env) {
     direction: r.direction, text: r.text,
     mediaKind: r.media_kind, mediaUrl: r.media_url,
     mediaFileName: r.media_file_name, mediaMimeType: r.media_mime_type,
-    caption: r.caption, senderName: r.sender_name || null, ts: r.ts,
+    caption: r.caption, senderName: r.sender_name || null,
+    metaAdId: r.meta_ad_id || null,
+    metaAdAttribution: r.meta_ad_attribution ? tryParseJson(r.meta_ad_attribution) : null,
+    ts: r.ts,
   }));
   return json({ items, total: items.length, chatId }, 200, request);
 }

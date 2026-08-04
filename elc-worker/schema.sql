@@ -98,6 +98,8 @@ CREATE TABLE deals (
   modify_by_uid          TEXT,
   source_id              TEXT,
   source_description     TEXT,
+  meta_ad_id             TEXT,         -- Meta/Instagram Click-to-WhatsApp ad id
+  meta_ad_attribution    TEXT,         -- JSON: креатив, ссылка, источник входящего WA
   bitrix_id              TEXT,
   bitrix_category_id     INTEGER,
   bitrix_contact_id      TEXT,
@@ -125,6 +127,7 @@ CREATE INDEX idx_deals_company        ON deals(company_id);
 CREATE INDEX idx_deals_responsible    ON deals(responsible_uid);
 CREATE INDEX idx_deals_bitrix         ON deals(bitrix_id);
 CREATE INDEX idx_deals_closed         ON deals(closed);
+CREATE INDEX idx_deals_meta_ad        ON deals(meta_ad_id);
 
 -- ── Tasks ────────────────────────────────────────────────
 CREATE TABLE tasks (
@@ -452,6 +455,8 @@ CREATE TABLE wa_messages (
   media_mime_type       TEXT,
   caption               TEXT,
   sender_name           TEXT,                 -- имя автора (для групп: кто из участников написал)
+  meta_ad_id            TEXT,                 -- Meta/Instagram Click-to-WhatsApp ad id
+  meta_ad_attribution   TEXT,                 -- JSON рекламного контекста Green-API
   ts                    INTEGER NOT NULL,
   created_at            TEXT DEFAULT CURRENT_TIMESTAMP
 );
