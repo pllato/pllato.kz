@@ -1708,7 +1708,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v441';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v442';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v422';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -4019,7 +4019,7 @@ function lkTeachPanel(pg,rect,clusters,opt){
   window.addEventListener('resize',fit);
   let name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
   const initialAudit=lkChatAuditFile(pg),wholeRect=rect.x0===0&&rect.y0===0&&rect.x1===1&&rect.y1===1;
-  const st={pg,rect,clusters,rows:wholeRect?lkChatAuditRows(pg,initialAudit.active):lkChatRowsInRect(pg,rect),audit:initialAudit,target:null,targets:[],draft:null,lastExact:null,finished:false,suggested:null,pendingValue:null,pendingText:'',messages:[],fragments:[],activeImage:null,activeImageRect:null,imageShared:false,validationFeedback:'',agentSession:'lk_'+crypto.randomUUID().replace(/-/g,''),agentProposal:'',agentAttempts:0,generalAttempted:false,generalTerminal:false};
+  const st={pg,rect,clusters,rows:wholeRect?lkChatAuditRows(pg,initialAudit.active):lkChatRowsInRect(pg,rect),audit:initialAudit,target:null,targets:[],draft:null,lastExact:null,finished:false,suggested:null,pendingValue:null,pendingText:'',messages:[],fragments:[],activeImage:null,activeImageRect:null,imageShared:false,validationFeedback:'',agentSession:'lk_'+crypto.randomUUID().replace(/-/g,''),agentProposal:'',agentAttempts:0,generalAttempted:false,generalTerminal:false,generalFailureReason:''};
   const log=$('lkChatLog'),quick=$('lkChatQuick'),input=$('lkChatInput'),sendBtn=$('lkChatSend'),apply=$('lkChatApply'),general=$('lkChatGeneral'),note=$('lkChatNote'),attach=$('lkChatAttach');
   const say=(role,html,record=true)=>{const el=document.createElement('div');el.className='lk-chat-msg '+role;
     el.innerHTML=`<span class="lk-chat-avatar">${role==='user'?'Вы':'🎓'}</span><div class="lk-chat-bubble">${html}</div>`;
@@ -4051,18 +4051,18 @@ function lkTeachPanel(pg,rect,clusters,opt){
     '<div class="line"><b>Почему не считывалось:</b> '+esc(summary.cause)+'</div>'+
     '<div class="line"><b>Стало:</b> '+esc(summaryRows(summary.after))+'</div>'+
     '<div class="line"><b>Где теперь работает:</b> '+esc(future)+'</div></div>';
-  /* Обучение правила — конечная операция. Если переносимый шаблон не доказан, чат не должен
-     снова запускать тот же заход по короткому «да». Точечная правка уже сохранена, а второй
-     пример остаётся необязательным новым входом, а не условием выхода из бесконечного цикла. */
+  /* Завершается только конкретная попытка правила, не разговор. Короткое «да» не запускает
+     тот же отклонённый способ, но вопрос «почему?» получает точную причину, а новое словесное
+     уточнение или фрагмент открывают следующую проверяемую попытку в этом же диалоге. */
   const finishGeneral=(reason)=>{
-    st.generalAttempted=true;st.generalTerminal=true;st.draft=null;
+    st.generalAttempted=true;st.generalTerminal=true;st.generalFailureReason=String(reason||'Недостаточно независимых доказательств для безопасного правила.');st.draft=null;
     apply.style.display=general.style.display='none';apply.disabled=general.disabled=false;
     note.textContent='Точечная правка сохранена · общее правило не включено';
     say('bot','<div class="lk-chat-result good"><div class="ttl">Текущая правка сохранена.</div>'+
       '<div class="line"><b>Текущий файл:</b> подтверждённая точечная правка сохранена.</div>'+
       '<div class="line"><b>Будущие файлы:</b> общее правило не включено.</div>'+
-      '<div class="line"><b>Почему:</b> '+esc(reason||'Недостаточно независимых доказательств для безопасного правила.')+'</div></div>'+
-      '<div style="margin-top:8px">Можно написать «завершить» или «выделить ещё один фрагмент» — переписка сохранится.</div>');input.focus();
+      '<div class="line"><b>Почему:</b> '+esc(st.generalFailureReason)+'</div></div>'+
+      '<div style="margin-top:8px">Можно спросить подробнее, описать другой способ чтения обычными словами или написать «выделить ещё» — я продолжу этот же диалог.</div>');input.focus();
   };
   const exactHint=rule=>{const c=rule&&rule.chat||{};
     if(c.action==='upsert-lines')return 'Правильный результат на текущем примере: '+(c.rows||[]).map(r=>
@@ -4088,7 +4088,7 @@ function lkTeachPanel(pg,rect,clusters,opt){
       say('bot',resultCard('Понял. Исправление и правило сохранены.',summary,'Текущий файл исправлен. Проверенное правило включено для серии «'+(done.rule.series||lkRuleSeries(name))+'» и будет автоматически применяться в следующих файлах с таким же расположением полей.',true)+
         '<div style="margin-top:8px">Напишите «закрыть и перечитать», когда закончите разговор.</div>');input.focus();return;}
     const summary={before:done.before,after:done.after,cause:causeOf(done.rule,done.before)};
-    st.lastExact={rule:done.rule,hint:exactHint(done.rule),target:st.target,suggested:st.suggested,summary};st.draft=null;st.generalAttempted=false;st.generalTerminal=false;reparseAfterClose=true;
+    st.lastExact={rule:done.rule,hint:exactHint(done.rule),target:st.target,suggested:st.suggested,summary};st.draft=null;st.generalAttempted=false;st.generalTerminal=false;st.generalFailureReason='';reparseAfterClose=true;
     try{await agentPost({event:'applied'});}catch(e){console.warn('agent applied state',e);}
     apply.disabled=general.disabled=false;apply.style.display=general.style.display='none';note.textContent='Точная правка сохранена · можно добавить правило для будущих файлов';
     say('bot',resultCard('Понял. Для текущего файла исправлено.',summary,'Пока только этот файл и лист. Для следующих похожих файлов правило ещё не включено.')+
@@ -4346,6 +4346,21 @@ function lkTeachPanel(pg,rect,clusters,opt){
     if(d.intent==='learn_pattern'){await learnPattern('ИИ-агент предложил построить переносимое правило по текущему подтверждённому примеру.');return{handled:true};}
     return{handled:true};
   };
+  const executeAgentControl=async(d,reply)=>{
+    const intent=d&&d.intent||'answer',text=String(reply||d&&d.reply||'').trim();
+    if(intent==='answer'){say('bot',esc(text||'Продолжаю разбирать этот случай по сохранённому контексту.'));return;}
+    if(intent==='confirm_apply'){
+      if(!st.draft){say('bot',esc(text||'Сейчас нет показанного изменения, которое можно применить. Опишите нужную правку обычными словами.'));return;}
+      await save();return;
+    }
+    if(intent==='create_rule'){
+      if(!st.lastExact){say('bot','Сначала доведу точечную правку до правильного предпросмотра и применю её после вашего подтверждения. Затем построю отдельное правило для будущих файлов.');return;}
+      if(text)say('bot',esc(text));await proposeGeneral();return;
+    }
+    if(intent==='select_fragment'){if(text)say('bot',esc(text));pickAnotherFragment();return;}
+    if(intent==='finish'){if(text)say('bot',esc(text));close();toast(st.lastExact?'Точечная правка сохранена':'Диалог Правок завершён');return;}
+    say('bot',esc(text||'Продолжаю этот диалог.'));
+  };
   aiInterpret=async(txt,runOpt)=>{
     runOpt=runOpt||{};const auto=!!runOpt.auto;
     sendBtn.disabled=attach.disabled=true;note.textContent=auto?'ИИ-агент сверяет чертёж с парсером…':'ИИ-агент продолжает этот диалог…';
@@ -4361,14 +4376,19 @@ function lkTeachPanel(pg,rect,clusters,opt){
         x:r.mx==null?null:r.mx*100,y:r.my==null?null:r.my*100}));
       const draft=st.draft&&st.draft.rule&&st.draft.rule.chat&&st.draft.rule.chat.action==='upsert-lines'
         ?{action:'upsert-lines',rows:st.draft.rule.chat.rows}:null;
+      const workflow={stage:st.draft?'awaiting_apply':st.generalTerminal?'rule_failed':st.lastExact?'exact_saved':'analysing',
+        draft_present:!!st.draft,exact_saved:!!st.lastExact,general_failure_reason:st.generalFailureReason||'',
+        draft_summary:st.draft?(summaryRows(st.draft.before)+' → '+summaryRows(st.draft.after)+'. '+String(st.draft.reason||'')):
+          (st.lastExact&&st.lastExact.summary?(summaryRows(st.lastExact.summary.before)+' → '+summaryRows(st.lastExact.summary.after)):'')};
       const common={mode:auto?'auto-diagnose':'chat',context:{file:name,page:st.pg.page,area:lkChatAreaLabel(st.activeImageRect||st.rect),text:raw,source:st.pg.vru||'',
         audit:st.audit.text+'\nАктивный лист '+st.pg.page+': '+(st.audit.active.issues.length?st.audit.active.issues.map(i=>i.text+'; предлагаемое решение: '+i.solution).join(' | '):'контрольных расхождений нет')},rows,draft,
-        image:needImage&&st.activeImage?st.activeImage:''};
+        workflow,image:needImage&&st.activeImage?st.activeImage:''};
       let response=await agentPost(Object.assign({event:'user',message:txt},common));
       if(needImage&&st.activeImage)st.imageShared=true;
       let lastCost='';
       for(let step=0;step<4;step++){
         if(response._usage)lastCost=lkChatAiCost(response._usage,response._model);
+        if(response.status==='control'&&response.action){thinking.remove();await executeAgentControl(response.action,response.reply);return;}
         if(response.status==='clarify'||response.status==='unsupported'){
           thinking.remove();say('bot',esc(response.reply||response.action&&response.action.reply||'Нужно одно уточнение.')+
             (response.status==='clarify'?'<div style="margin-top:8px">Ответьте текстом или напишите «выделить ещё», чтобы показать другое место.</div>':''));return;}
@@ -4398,25 +4418,9 @@ function lkTeachPanel(pg,rect,clusters,opt){
   };
   const send=async txt=>{
     txt=String(txt||'').trim();if(!txt)return;say('user',esc(txt));input.value='';
-    const n=lkChatNorm(txt);
-    if(st.finished&&/закрыть|завершить|перечитать|готово/.test(n)){close();toast('Правило сохранено; файл перечитывается');return;}
-    if(/анекдот|погод|рецепт|договор|письмо|столиц|перевед|напиши\s+код|кто\s+такой/.test(n)){
-      say('bot','Я работаю только с обучением чтению электрических чертежей. Покажите, что исправить: источник, потребителя, марку, сечение, длину или трубы.');chips([]);return;}
-    if(/(?:выдел|обвед|покаж|добав).*(?:еще|друг|нов|фрагмент|област|мест)|(?:еще|друг).*(?:фрагмент|област|мест)/.test(n)){
-      pickAnotherFragment();return;}
-    if(st.lastExact&&(/^(?:нет|не\s+надо|завершить|закончить)$/.test(n)||/без\s+(?:общего\s+)?правил|только\s+(?:этот|текущ)/.test(n))){
-      close();toast('Точечная правка сохранена для этого файла');return;}
-    if(st.lastExact&&st.generalTerminal){finishGeneral('Предыдущая попытка общего правила уже завершена. Добавьте новый контрольный фрагмент, только если хотите попробовать другой доказуемый пример.');return;}
-    if(st.lastExact&&(/^(?:да|верно|согласен|согласна)$/.test(n)||/созда[йт]*|сформиру[йт]*|добав[ьт]*|внес[иет]*|науч/.test(n)&&/правил|будущ|похож/.test(n))){
-      await proposeGeneral();return;}
-    if(st.lastExact){st.lastExact.hint+=' Дополнение пользователя: «'+txt.slice(0,300)+'». Используй это пояснение только как ограничение геометрии правила.';
-      await proposeGeneral();return;}
-    if(/^(?:нет|неверно|поправить)(?:\s*[,.;:—-]?\s*(?:не\s+так|поправить|исправить))?[.!]?$/.test(n)&&st.draft){apply.style.display=general.style.display='none';
-      await aiInterpret('Нет, текущий предпросмотр неверен. Сам определи по активному фрагменту, какое поле не совпало; если это невозможно доказать, спроси только одно конкретное поле.');return;}
-    if(/^(?:да|верно|все правильно|всё правильно|применить|сохранить)(?:\s*[,.;:—-]?\s*(?:применить|сохранить|все правильно|всё правильно))?[.!]?$/.test(n)&&st.draft){save();return;}
-    // Любое содержательное уточнение теперь проходит через один и тот же постоянный агент. Он
-    // видит прежние реплики и текущий черновик, поэтому «там 5x2,5» или «соседняя справа» не
-    // запускают диалог заново и не упираются в набор локальных фраз-шаблонов.
+    // Все реплики без исключения видит постоянный ИИ-агент. Браузер больше не перехватывает
+    // «да», «почему», «это цифра» и другие продолжения жёсткими фразовыми ветками: агент получает
+    // весь диалог и состояние работы, а клиент только исполняет выбранное безопасное действие.
     await aiInterpret(txt);};
   $('lkChatSend').onclick=()=>send(input.value);
   input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send(input.value);}};
@@ -4433,7 +4437,7 @@ function lkTeachPanel(pg,rect,clusters,opt){
         const nextClusters=await lkAreaClusters(nextPg,nextRect);
         let image=null;try{image=await lkAreaImage(nextPg,nextRect,720);}catch(e){}
         st.pg=nextPg;st.rect=nextRect;st.clusters=nextClusters;st.rows=lkChatRowsInRect(nextPg,nextRect);st.audit=lkChatAuditFile(nextPg);st.activeImage=image;st.activeImageRect=nextRect;st.imageShared=false;
-        st.target=null;st.targets=[];st.draft=null;st.suggested=null;st.pendingValue=null;st.pendingText='';st.generalAttempted=false;st.generalTerminal=false;
+        st.target=null;st.targets=[];st.draft=null;st.suggested=null;st.pendingValue=null;st.pendingText='';st.generalAttempted=false;st.generalTerminal=false;st.generalFailureReason='';
         name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||name;
         apply.style.display=general.style.display='none';apply.disabled=general.disabled=false;
         note.textContent='Активен новый фрагмент · ИИ-агент помнит прежний диалог';chips([]);
