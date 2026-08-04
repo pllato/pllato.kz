@@ -1,2 +1,16 @@
-/*
+# CF Pages склеивает совпадающие правила, поэтому без /* — перечисляем пути явно.
+# Не-versioned (должны быть свежими, чтобы подхватывать изменения):
+/
   Cache-Control: public, max-age=0, must-revalidate
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+/config.js
+  Cache-Control: public, max-age=0, must-revalidate
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Versioned-ассеты (?v= меняется при деплое) → кэш 7 дней без ревалидации:
+/app.js
+  Cache-Control: public, max-age=604800, immutable
+/overrides.css
+  Cache-Control: public, max-age=604800, immutable

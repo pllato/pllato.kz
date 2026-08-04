@@ -7,8 +7,15 @@
 <title>Зубная аптека Revyline — CRM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="manifest" href="manifest.json?v=1">
+<link rel="apple-touch-icon" href="favicon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Аптека CRM">
 <style>
 :root{
   --bg:#0c1512; --bg2:#101d18; --panel:#13211b; --panel2:#172a22;
@@ -81,6 +88,15 @@ a{color:inherit;text-decoration:none}
 .topbar .search{margin-left:auto;display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line);
   border-radius:10px;padding:8px 12px;width:220px;color:var(--muted)}
 .topbar .search input{background:none;border:none;outline:none;color:var(--txt);width:100%;font-size:13px}
+.search{position:relative}
+.search-pop{position:absolute;top:calc(100% + 6px);left:0;right:0;min-width:320px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);padding:6px;z-index:95;max-height:72vh;overflow:auto}
+.search-pop .sp-sec{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:8px 10px 4px;font-weight:700}
+.search-pop .sp-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:9px;cursor:pointer}
+.search-pop .sp-row:hover{background:var(--accent-soft)}
+.search-pop .sp-ic{width:30px;height:30px;border-radius:8px;background:var(--bg2);display:grid;place-items:center;flex:none;font-size:15px}
+.search-pop .sp-nm{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.search-pop .sp-sub{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.search-pop .sp-empty{padding:16px;text-align:center;color:var(--muted);font-size:12.5px}
 .seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
 .seg button{padding:6px 11px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--muted)}
 .seg button.on{background:var(--accent);color:#06231a}
@@ -229,12 +245,30 @@ select.sel{background:var(--panel);border:1px solid var(--line);border-radius:10
 .thread .tm{font-size:11.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
 .thread .tt{font-size:10.5px;color:var(--muted2);position:absolute;top:11px;right:13px}
 .thread .un{position:absolute;bottom:11px;right:13px;background:var(--accent);color:#06231a;font-size:10px;font-weight:800;border-radius:20px;padding:0 6px}
-.ib-chat{display:flex;flex-direction:column;min-width:0}
+.ib-chat{display:flex;flex-direction:column;min-width:0;min-height:0}
 .chat-h{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px}
 .chat-h .av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff;flex:none}
-.chat-body{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:9px;
+.chat-body{flex:1;min-height:0;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:9px;
   background:linear-gradient(180deg,var(--bg2),var(--bg))}
-.msg{max-width:74%;padding:9px 13px;border-radius:13px;font-size:13px;line-height:1.45;position:relative}
+.msg{max-width:74%;padding:9px 13px;border-radius:13px;font-size:13px;line-height:1.45;position:relative;white-space:pre-wrap;overflow-wrap:break-word}
+.msg-act{position:absolute;top:1px;right:5px;cursor:pointer;opacity:.45;font-size:16px;line-height:.7;padding:3px 5px;font-weight:800;user-select:none;z-index:2}
+.msg-act:hover{opacity:1}
+.reply-q{border-left:3px solid currentColor;padding:2px 8px;margin:1px 0 5px;opacity:.72;font-size:11.5px;line-height:1.35;border-radius:4px;background:rgba(127,127,127,.16);max-height:42px;overflow:hidden}
+.reply-q b{opacity:.95}
+.msg-hl{animation:msgHl 1.5s ease}
+@keyframes msgHl{0%,100%{box-shadow:none}22%,55%{box-shadow:0 0 0 3px var(--accent),0 0 16px -2px var(--accent)}}
+.msg-reply{position:absolute;top:1px;right:5px;cursor:pointer;font-size:13px;opacity:.4;padding:0 4px;border-radius:5px;line-height:1.5;user-select:none;z-index:2}
+.msg-reply:hover{opacity:1;background:rgba(0,0,0,.1)}
+.msg.out .msg-reply,.cw-msg.out .msg-reply{right:26px}
+.reply-bar{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--panel2);border-top:1px solid var(--line);border-left:3px solid var(--wa)}
+.reply-bar .rb-txt{flex:1;min-width:0;font-size:12px;line-height:1.35;overflow:hidden}
+.reply-bar .rb-txt b{display:block;color:var(--wa);font-size:11px}
+.reply-bar .rb-txt span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.8}
+.reply-bar .rb-x{background:none;border:none;color:var(--txt);opacity:.6;cursor:pointer;font-size:14px;padding:2px 6px;flex:0 0 auto;line-height:1}
+.reply-bar .rb-x:hover{opacity:1}
+.msg-rx{position:absolute;bottom:-9px;right:8px;background:var(--panel,#fff);border:1px solid var(--line);border-radius:11px;padding:0 5px;font-size:12px;line-height:18px;box-shadow:0 1px 3px rgba(0,0,0,.18);z-index:3;white-space:nowrap;cursor:default}
+.msg.out .msg-rx,.cw-msg.out .msg-rx{right:auto;left:8px}
+.emoji-b:hover{background:var(--line)!important}
 .msg .mt{font-size:9.5px;color:var(--muted2);margin-top:4px;text-align:right}
 .msg.in{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);border-bottom-left-radius:4px}
 .msg.out{align-self:flex-end;background:linear-gradient(135deg,#0f5132,#16794a);color:#eafff3;border-bottom-right-radius:4px}
@@ -243,10 +277,10 @@ select.sel{background:var(--panel);border:1px solid var(--line);border-radius:10
 .day-sep{align-self:center;font-size:10.5px;color:var(--muted2);background:var(--panel);border:1px solid var(--line);padding:3px 11px;border-radius:20px;margin:6px 0}
 .chat-input{padding:11px 14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}
 .chat-input .ci-box{flex:1;display:flex;align-items:center;gap:9px;background:var(--bg2);border:1px solid var(--line);border-radius:11px;padding:9px 13px}
-.chat-input input{flex:1;background:none;border:none;outline:none;color:var(--txt);font-size:13.5px}
+.chat-input input,.chat-input textarea{flex:1;background:none;border:none;outline:none;color:var(--txt);font-size:13.5px;font-family:inherit;resize:none;line-height:1.4;padding:0;margin:0;max-height:120px;overflow-y:auto}
 /* выбор номера-отправителя в чате */
-.cw-from{display:flex;align-items:center;gap:6px;padding:7px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
-.cw-from .sel.sm{margin-left:2px;padding:4px 8px;font-size:12px;height:auto}
+.cw-from{display:flex;align-items:center;gap:6px;padding:7px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);min-width:0;max-width:100%}
+.cw-from .sel.sm{margin-left:2px;padding:4px 8px;font-size:12px;height:auto;min-width:0;flex:0 1 auto;max-width:100%}
 .cw-via{opacity:.7;font-size:10px;font-style:normal;margin-left:5px;white-space:nowrap}
 .ib-context{border-left:1px solid var(--line);overflow-y:auto;background:var(--bg2)}
 .ctx-card{padding:15px 16px;border-bottom:1px solid var(--line)}
@@ -264,7 +298,7 @@ select.sel{background:var(--panel);border:1px solid var(--line);border-radius:10
 
 /* ===== MODAL ===== */
 .modal-bg{position:fixed;inset:0;background:#04080699;backdrop-filter:blur(6px);display:grid;place-items:center;z-index:100;padding:24px;animation:fade .15s}
-.modal{width:100%;max-width:640px;max-height:90vh;background:linear-gradient(180deg,var(--panel2),var(--panel));
+.modal{width:100%;min-width:0;max-width:640px;max-height:90vh;background:linear-gradient(180deg,var(--panel2),var(--panel));
   border:1px solid var(--line2);border-radius:18px;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;animation:pop .18s}
 .modal.wide{max-width:820px}.modal.xwide{max-width:960px}
 .modal-h{display:flex;align-items:center;gap:14px;padding:17px 22px;border-bottom:1px solid var(--line)}
@@ -370,6 +404,8 @@ select.sel{background:var(--panel);border:1px solid var(--line);border-radius:10
 .note .svg-i{flex:none;margin-top:1px}
 
 .perm-tbl .yes{color:#4ade80}.perm-tbl .no{color:#3a5446}
+.perm-tbl thead th{white-space:normal;word-break:break-word;font-size:11px;line-height:1.2;max-width:96px;vertical-align:bottom}
+.perm-tbl thead th:first-child{max-width:none;white-space:nowrap}
 .list-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:15px}
 .demo-banner{position:fixed;bottom:18px;right:18px;z-index:55;display:inline-flex;align-items:center;gap:8px;
   background:var(--panel2);border:1px solid var(--line2);border-radius:30px;padding:8px 15px;font-size:12px;color:var(--muted);box-shadow:var(--shadow)}
@@ -381,7 +417,9 @@ select.sel{background:var(--panel);border:1px solid var(--line);border-radius:10
 @media (max-width:760px){.shell{grid-template-columns:1fr}
   .sidebar{position:fixed;left:-270px;z-index:50;transition:.2s;box-shadow:var(--shadow-lg)}
   .sidebar.open{left:0}.content{padding:14px}.topbar{padding:10px 14px}.topbar .search{display:none}
-  .menu-toggle{display:grid!important}.inbox{grid-template-columns:1fr;height:auto}.ib-context{display:none}}
+  .menu-toggle{display:grid!important}.inbox{grid-template-columns:1fr;height:auto}.ib-context{display:none}
+  .modal-bg{padding:8px}.modal,.modal.wide,.modal.xwide{max-width:100%;max-height:94vh}
+  #dmChatMsgs{height:auto!important;max-height:46vh}}
 
 /* ===== LIGHT THEME ===== */
 body.light{
@@ -448,7 +486,7 @@ body.light .note.blue{color:#1e40af}
 .login-foot{margin-top:20px;font-size:11.5px;color:var(--muted2);text-align:center;line-height:1.5}
 body.light .login-field input{background:#fff}
 </style>
-<link rel="stylesheet" href="overrides.css?v=20260623c">
+<link rel="stylesheet" href="overrides.css?v=20260708a">
 
 <!-- ===== LOGIN SCREEN ===== -->
 <div id="loginScreen" class="login-screen">
@@ -510,7 +548,7 @@ body.light .login-field input{background:#fff}
       </div>
       <div class="search">
         <svg class="svg-i sm"><use href="#i-search"/></svg>
-        <input placeholder="Поиск: клиент, заказ, товар…">
+        <input id="topSearch" placeholder="Поиск: клиент, заказ, товар…" autocomplete="off"><div class="search-pop" id="topSearchPop" hidden></div>
       </div>
       <div class="seg" id="curSeg" title="Валюта: сом / рубль">
         <button class="on" data-cur="KGS">сом</button>
@@ -584,7 +622,7 @@ body.light .login-field input{background:#fff}
 <script src="https://accounts.google.com/gsi/client" async></script>
 <script src="config.js?v=20260619a"></script>
 <script src="data.js?v=20260623a"></script>
-<script src="app.js?v=20260623w"></script>
+<script src="app.js?v=20260804c"></script>
 <script src="sip-client.js?v=20260623a"></script>
 </body>
 </html>

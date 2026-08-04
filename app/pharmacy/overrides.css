@@ -36,7 +36,7 @@ body.light .kpi, body.light .intg-card { box-shadow: 0 2px 10px -4px rgba(20,45,
 /* Воронки: колонки фиксированной ширины (280px). Без этого длинное название товара
    (nowrap) через min-width:auto раздувало колонку на всю ширину. */
 .kanban .kcol  { min-width: 0 !important; }
-.kanban .kcard { overflow: hidden; }
+.kanban .kcard { overflow: hidden; flex-shrink: 0; }
 
 /* Продажи → «Точки → продавцы внутри»: раскрывающиеся точки (native <details>) */
 .ss-wrap { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
@@ -145,4 +145,19 @@ details.om-log > #omLog { border-top: 1px solid var(--line); }
 .sip-btn:hover{border-color:var(--line2)}
 .sip-btn-active{background:var(--accent);color:#06231a}
 .sip-btn-hangup-overlay{background:var(--red);color:#fff;border-color:var(--red)}
+
+/* ===== МОБИЛЬНЫЙ INBOX: переключение «список ↔ чат» + кнопка «Назад» ===== */
+.ib-back{display:none;width:34px;height:34px;flex:none;border-radius:9px;place-items:center;color:var(--muted);background:var(--panel);border:1px solid var(--line);margin-right:2px}
+.ib-back:hover{color:var(--txt);border-color:var(--line2)}
+@media (max-width:760px){
+  .inbox{grid-template-columns:1fr;height:calc(100vh - 120px)}
+  .inbox .ib-context{display:none}
+  .inbox .ib-threads{display:flex}
+  .inbox .ib-chat{display:none}
+  .inbox.mob-chat .ib-threads{display:none}
+  .inbox.mob-chat .ib-chat{display:flex}
+  .ib-back{display:grid}
+}
+/* Горизонтальная прокрутка широких таблиц (каталог, клиенты, продажи…) на узких экранах */
+.panel:has(> table.tbl){overflow-x:auto}
 .sip-btn-answer{background:var(--green);color:#fff;border-color:var(--green)}

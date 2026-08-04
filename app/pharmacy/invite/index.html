@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Приглашение · CRM «Гигиена+»</title>
+<title>Приглашение · CRM «Зубная аптека»</title>
 <link rel="icon" type="image/svg+xml" href="../favicon.svg">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Приглашение в CRM «Гигиена+»">
+<meta property="og:title" content="Приглашение в CRM «Зубная аптека»">
 <meta property="og:description" content="Перейдите по ссылке и задайте пароль для входа.">
 <meta property="og:image" content="https://pllato.kz/app/pharmacy/og.png">
 <meta property="og:url" content="https://pllato.kz/app/pharmacy/invite">
@@ -49,8 +49,8 @@
 </head>
 <body>
   <div class="card">
-    <div class="brand"><div class="logo">Г+</div>
-      <div><h1>Гигиена+ CRM</h1><div class="sub">Приглашение сотрудника</div></div></div>
+    <div class="brand"><div class="logo">З</div>
+      <div><h1>Зубная аптека CRM</h1><div class="sub">Приглашение сотрудника</div></div></div>
 
     <div id="loading"><div class="spinner"></div>
       <div class="center sub">Проверяем приглашение…</div></div>
@@ -59,6 +59,9 @@
       <div id="greet"></div>
       <label for="name">Ваше имя</label>
       <input id="name" placeholder="Имя Фамилия" autocomplete="name">
+      <label for="loginId">Логин для входа</label>
+      <input id="loginId" placeholder="телефон, логин или email" autocomplete="username">
+      <div class="foot" style="margin-top:6px;text-align:left">Этим логином (по умолчанию — ваш телефон) вы будете входить в CRM.</div>
       <label for="pass">Пароль для входа</label>
       <input id="pass" type="password" placeholder="минимум 6 символов" autocomplete="new-password">
       <label for="pass2">Повторите пароль</label>
@@ -81,7 +84,7 @@
 
 <script src="https://accounts.google.com/gsi/client" async></script>
 <script>
-const API_BASE = 'https://pharmacy-crm-worker.uurraa.workers.dev';
+const API_BASE = 'https://pharmacy-crm-worker.dentalpharmacy.workers.dev';
 const GOOGLE_CLIENT_ID = '773798066647-jg137in0mum92famuml70kauonp7amgg.apps.googleusercontent.com';
 const APP_URL = '../'; // CRM: /app/pharmacy/
 const TOKEN = new URLSearchParams(location.search).get('token') || '';
@@ -110,6 +113,7 @@ async function boot(){
   $('form').style.display='block';
   $('greet').innerHTML = 'Вас приглашают в CRM на роль <span class="role">'+(inv.roleName||inv.role)+'</span>';
   if(inv.name) $('name').value = inv.name;
+  $('loginId').value = inv.email || (inv.phone ? String(inv.phone).replace(/\D/g,'') : '');
   if(inv.google_enabled){ $('googleWrap').style.display='block'; initGoogle(); }
 }
 function dead(text){ $('loading').style.display='none'; $('dead').style.display='block'; $('deadMsg').textContent=text; }
@@ -120,9 +124,12 @@ $('submit').onclick = async ()=>{
   if(p1.length<6){ showMsg('Пароль не короче 6 символов'); return; }
   if(p1!==p2){ showMsg('Пароли не совпадают'); return; }
   const b=$('submit'); b.disabled=true; const old=b.textContent; b.textContent='Создаём…';
+  const loginVal=$('loginId').value.trim();
+  const payload={ name, password:p1 };
+  if(loginVal){ payload.login=loginVal; if(loginVal.includes('@')) payload.email=loginVal; }
   const r = await call('/api/invites/'+encodeURIComponent(TOKEN)+'/accept', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ name, password:p1 }) });
+    body: JSON.stringify(payload) });
   b.disabled=false; b.textContent=old;
   if(!r.ok){ showMsg((r.data&&r.data.error)||'Не удалось принять приглашение'); return; }
   finish(r.data.token);
