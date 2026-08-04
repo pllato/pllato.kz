@@ -614,7 +614,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
     <button class="lk-tb" id="lkBack" title="Назад">← Назад</button>
     <div class="lg-title">Линейка — чтение схемы<span class="lk-verchip" id="lkVer" title="Версия парсера Линейки. Если Claude говорит про более новую — обнови страницу с Cmd+Shift+R и нажми «Перечитать файл»"></span><span class="lg-sub" id="lkName"></span></div>
     <div class="lk-docs" id="lkDocs"></div>
-    <button class="lk-tb" id="lkTeachTop" style="margin-left:auto" title="Предметный чат сам проверит выделенный участок; если ошибка неочевидна — задаст один уточняющий вопрос">🎓 Обучалка-чат</button>
+    <button class="lk-tb" id="lkTeachTop" style="margin-left:auto" title="Постоянный ИИ-агент видит файл, помнит диалог и проверяет каждую правку локальным парсером">🎓 ИИ-агент Правок</button>
     <button class="lk-tb" id="lkVisSheet" title="ИИ прочитает ВЕСЬ лист по картинке — для файлов с битым текстом (таблица нарисована картинкой). ≈2–4 цента за лист">👁 Прочитать лист целиком</button>
     <button class="lk-tb" id="lkIssues" title="Пометки «что исправить» с привязкой к файлу и листу">⚑ Правки<span id="lkIssN"></span></button>
     <button class="lk-tb" id="lkReport">📊 Отчёт по файлу</button>
@@ -630,7 +630,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
         <textarea id="lkIssText" rows="2" placeholder="Описание необязательно. Можно сразу выделить участок — ИИ сам сверит чертёж с результатом парсера."></textarea>
         <div class="lk-iss-newbtns">
           <button class="lk-add" id="lkIssPick" title="Обведи участок: Обучалка сама найдёт видимое расхождение или задаст один точный вопрос">⌖ Выделить и проверить ИИ · лист <span id="lkIssPage"></span></button>
-          <button class="lk-add" id="lkTeach" title="Открыть предметный чат с автоматической проверкой текущего листа" style="border-color:#b45309;color:#b45309">🎓 Обучалка-чат</button>
+          <button class="lk-add" id="lkTeach" title="Открыть постоянного ИИ-агента с автоматической проверкой текущего листа" style="border-color:#b45309;color:#b45309">🎓 ИИ-агент Правок</button>
           <button class="lk-add" id="lkIssAdd" title="Пометка на весь лист, без области">⚑ На весь лист</button>
         </div>
       </div>
@@ -1708,7 +1708,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v438';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v439';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v422';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -3965,17 +3965,18 @@ function lkChatAiCost(u,model){if(!u)return'';const haiku=/haiku/i.test(model||'
   return usd>0?('≈'+(usd*100).toFixed(2).replace(/0+$/,'').replace(/\.$/,'')+'¢'):'';}
 function lkTeachPanel(pg,rect,clusters,opt){
   opt=opt||{};
-  // Гибридный предметный чат: понятные команды исполняются локально; непонятый естественный язык
-  // переводит в белый список действий Claude. Применение и проверка всегда остаются в браузере.
+  // Постоянный предметный агент ведёт диалог и предлагает только белый список действий. Локальный
+  // парсер выступает его инструментом: проверяет каждый автоматический черновик и возвращает причину
+  // отказа, пока агент не найдёт безопасный вариант или не запросит одно конкретное поле.
   const wrap=document.createElement('div');wrap.className='lk-iss-modal lk-chat-modal';wrap.id='lkTeachModal';
   wrap.style.display='flex';wrap.style.zIndex='200';
   const context=clusters.slice(0,16).map(c=>c.s).join('\n');
-  wrap.innerHTML=`<div class="lk-iss-box lk-chat-box"><div class="lk-iss-head" id="lkChatHead"><b>🎓 Диалоговая Обучалка</b><span class="lk-chat-badge">локально + Claude</span><span class="lk-iss-sub" id="lkChatSheet">лист ${pg.page}</span><span class="lk-chat-winbtns"><button class="lk-chat-winbtn" id="lkTcMin" title="Свернуть окно" aria-label="Свернуть окно">—</button><button class="lk-chat-winbtn" id="lkTcMax" title="Развернуть на весь экран" aria-label="Развернуть на весь экран">□</button><button class="lk-chat-winbtn close" id="lkTcX" title="Закрыть" aria-label="Закрыть">×</button></span></div>
+  wrap.innerHTML=`<div class="lk-iss-box lk-chat-box"><div class="lk-iss-head" id="lkChatHead"><b>🎓 ИИ-агент Правок</b><span class="lk-chat-badge">помнит диалог · сам проверяет</span><span class="lk-iss-sub" id="lkChatSheet">лист ${pg.page}</span><span class="lk-chat-winbtns"><button class="lk-chat-winbtn" id="lkTcMin" title="Свернуть окно" aria-label="Свернуть окно">—</button><button class="lk-chat-winbtn" id="lkTcMax" title="Развернуть на весь экран" aria-label="Развернуть на весь экран">□</button><button class="lk-chat-winbtn close" id="lkTcX" title="Закрыть" aria-label="Закрыть">×</button></span></div>
     <div class="lk-chat-body" id="lkChatBody"><details class="lk-chat-context"><summary id="lkChatContextSummary">Лист ${pg.page} · ${lkChatAreaLabel(rect)} · найдено: ${clusters.length} ${lkPlural(clusters.length,'подпись','подписи','подписей')}</summary><pre id="lkChatContextRaw">${esc(context||'Текстового слоя в области нет')}</pre></details>
     <div class="lk-chat-log" id="lkChatLog"></div><div class="lk-chat-quick" id="lkChatQuick"></div>
     <div class="lk-chat-tools"><button class="lk-chat-attach" id="lkChatAttach">⌖ Добавить фрагмент с чертежа</button><span class="lk-note">переписка сохранится</span></div>
     <div class="lk-chat-compose"><textarea id="lkChatInput" rows="2" maxlength="500" placeholder="Например: «здесь длина 175 м, крайнее целое справа»"></textarea><button class="lk-chat-send" id="lkChatSend">Отправить</button></div>
-    <div class="lk-chat-foot"><button class="lk-chat-apply" id="lkChatApply" style="display:none">✓ Всё правильно — применить</button><button class="lk-chat-apply secondary" id="lkChatGeneral" style="display:none">Для будущих похожих файлов</button><span class="lk-note" id="lkChatNote">Сначала локально · Claude только для непонятного диалога</span></div></div></div>`;
+    <div class="lk-chat-foot"><button class="lk-chat-apply" id="lkChatApply" style="display:none">✓ Всё правильно — применить</button><button class="lk-chat-apply secondary" id="lkChatGeneral" style="display:none">Для будущих похожих файлов</button><span class="lk-note" id="lkChatNote">ИИ видит фрагмент и аудит · парсер проверяет каждое предложение</span></div></div></div>`;
   ($('lineyka')||document.body).appendChild(wrap);
   const box=wrap.querySelector('.lk-chat-box'),head=$('lkChatHead'),minBtn=$('lkTcMin'),maxBtn=$('lkTcMax');
   const fit=()=>{if(!box.isConnected||box.classList.contains('maximized'))return;const b=box.getBoundingClientRect();
@@ -4002,7 +4003,7 @@ function lkTeachPanel(pg,rect,clusters,opt){
   window.addEventListener('resize',fit);
   let name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
   const initialAudit=lkChatAuditFile(pg),wholeRect=rect.x0===0&&rect.y0===0&&rect.x1===1&&rect.y1===1;
-  const st={pg,rect,clusters,rows:wholeRect?lkChatAuditRows(pg,initialAudit.active):lkChatRowsInRect(pg,rect),audit:initialAudit,target:null,targets:[],draft:null,lastExact:null,finished:false,suggested:null,pendingValue:null,pendingText:'',messages:[],fragments:[],activeImage:null,activeImageRect:null,imageShared:false,validationFeedback:''};
+  const st={pg,rect,clusters,rows:wholeRect?lkChatAuditRows(pg,initialAudit.active):lkChatRowsInRect(pg,rect),audit:initialAudit,target:null,targets:[],draft:null,lastExact:null,finished:false,suggested:null,pendingValue:null,pendingText:'',messages:[],fragments:[],activeImage:null,activeImageRect:null,imageShared:false,validationFeedback:'',agentSession:'lk_'+crypto.randomUUID().replace(/-/g,''),agentProposal:'',agentAttempts:0};
   const log=$('lkChatLog'),quick=$('lkChatQuick'),input=$('lkChatInput'),sendBtn=$('lkChatSend'),apply=$('lkChatApply'),general=$('lkChatGeneral'),note=$('lkChatNote'),attach=$('lkChatAttach');
   const say=(role,html,record=true)=>{const el=document.createElement('div');el.className='lk-chat-msg '+role;
     el.innerHTML=`<span class="lk-chat-avatar">${role==='user'?'Вы':'🎓'}</span><div class="lk-chat-bubble">${html}</div>`;
@@ -4060,6 +4061,7 @@ function lkTeachPanel(pg,rect,clusters,opt){
       chips([['Закрыть и перечитать файл','закрыть и перечитать']]);input.focus();return;}
     const summary={before:done.before,after:done.after,cause:causeOf(done.rule,done.before)};
     st.lastExact={rule:done.rule,hint:exactHint(done.rule),target:st.target,suggested:st.suggested,summary};st.draft=null;reparseAfterClose=true;
+    try{await agentPost({event:'applied'});}catch(e){console.warn('agent applied state',e);}
     apply.disabled=general.disabled=false;apply.style.display=general.style.display='none';note.textContent='Точная правка сохранена · можно добавить правило для будущих файлов';
     say('bot',resultCard('Понял. Для текущего файла исправлено.',summary,'Пока только этот файл и лист. Для следующих похожих файлов правило ещё не включено.')+
       '<div style="margin-top:8px"><b>Создать и проверить правило для будущих похожих файлов?</b> Без отдельного подтверждения оно в программу не попадёт.</div>');
@@ -4096,6 +4098,10 @@ function lkTeachPanel(pg,rect,clusters,opt){
         rule.validation={version:1,page:st.pg.page,expected:1,controls:fieldAudit.controls,conflicts:0,novel:0,duplicates:0,passedAt:Date.now()};}
       rule.chat.value=detected;}
     if(draftOpt.auto&&!team){const types=new Set((st.audit.active.issues||[]).map(i=>i.type));
+      const explicit=[...String(draftOpt.evidence||'').matchAll(/(\d+(?:[,.]\d+)?)\s*м\b/gi)].map(m=>parseFloat(m[1].replace(',','.'))).filter(Number.isFinite);
+      const allowed=[detected,...(target.conds||[]).map(c=>+c.len||0)],conflicting=explicit.filter(v=>!allowed.some(a=>Math.abs(a-v)<.01));
+      if(conflicting.length)
+        return{ok:false,feedback:'На чертеже в доказательстве явно прочитано '+[...new Set(conflicting)].join('/')+' м, но предложено '+detected+' м. Итог таблицы не может отменять явное число линии.'};
       if(+target.len>0&&!target.needsCheck&&Math.abs((+target.len||0)-detected)>.01&&!['cable-total','missing-length','uncertain'].some(t=>types.has(t)))
         return{ok:false,feedback:'Аудит листа не содержит ошибки кабельной длины, поэтому уверенное значение '+(+target.len||0)+' м нельзя менять автоматически.'};
       const test=(st.pg.rows||[]).map(r=>Object.assign({},r,{conds:(r.conds||[]).map(c=>Object.assign({},c))}));
@@ -4137,21 +4143,29 @@ function lkTeachPanel(pg,rect,clusters,opt){
     if(!team)rule={id:rule.id,title:'Чат: источник '+src,series:rule.series,
       chat:{action:'set-source',value:src,file:name,page:st.pg.page}};
     showDraft(rule,[{group:'Источник',value:st.pg.vru||'не определён'}],[{group:'Источник',value:src}],
-      team?'Источник будет читаться из заголовка «схема щита/панели/шкафа».':'Значение сохранится только для этого файла и листа.',team);};
+      team?'Источник будет читаться из заголовка «схема щита/панели/шкафа».':'Значение сохранится только для этого файла и листа.',team);return{ok:true,rule};};
   const consumerDraft=(target,value)=>{st.target=target;
     const rule={id:'chat'+Date.now().toString(36),title:'Чат: потребитель '+(target.section||''),series:lkRuleSeries(name),
       chat:{action:'set-consumer',match:{group:target.group||'',mark:target.mark||'',section:target.section||''},value,file:name,page:st.pg.page}};
     showDraft(rule,[{group:target.section,value:target.group||'—'}],[{group:target.section,value}],
-      'Точечное имя сохранится только для этого файла; для общего правила нужен источник названий на чертеже.',false);};
+      'Точечное имя сохранится только для этого файла; для общего правила нужен источник названий на чертеже.',false);return{ok:true,rule};};
   const upsertDraft=(proposed,draftOpt)=>{
     draftOpt=draftOpt||{};
-    const src=(Array.isArray(proposed)?proposed:[]).slice(0,12),entries=[],before=[],after=[],evidence=[],targets=[];
+    const src=(Array.isArray(proposed)?proposed:[]).slice(0,12),entries=[],before=[],after=[],evidence=[],targets=[],contradictions=[];
     src.forEach(p=>{if(!p||typeof p!=='object')return;const idx=Number.isInteger(p.target_index)?p.target_index:-1;
       let target=idx>=0&&idx<st.rows.length?st.rows[idx]:null,inferred=false;
       const px=Math.max(0,Math.min(100,+p.x||0))/100,py=Math.max(0,Math.min(100,+p.y||0))/100,ref=st.activeImageRect||st.rect;
       const mx=ref.x0+(ref.x1-ref.x0)*px,my=ref.y0+(ref.y1-ref.y0)*py;
       let f=lkChatFixedRow({group:p.group,mark:p.mark,section:p.section,len:p.len,conds:p.conds,mx,my,matchKey:target?lkChatRowKey(target):''});
       if(!f)return;
+      if(draftOpt.auto&&!String(p.evidence||'').trim()){contradictions.push((f.group||f.section)+': ИИ не указал явную надпись, подтверждающую строку');return;}
+      if(draftOpt.auto){const explicit=[...String(p.evidence||'').matchAll(/(\d+(?:[,.]\d+)?)\s*м\b/gi)].map(m=>parseFloat(m[1].replace(',','.'))).filter(Number.isFinite),
+        allowed=[f.len,...f.conds.map(c=>+c.len||0)],conflicting=explicit.filter(v=>!allowed.some(a=>Math.abs(a-v)<.01));
+        if(conflicting.length){contradictions.push((f.group||f.section)+': в доказательстве явно '+[...new Set(conflicting)].join('/')+' м, но такого метража нет в предложенной строке');return;}}
+      // Даже при неточных координатах зрение не должно создавать вторую строку, если в парсере
+      // уже есть единственная строка с теми же потребителем, маркой и сечением.
+      if(!target){const exact=st.rows.filter(r=>lkChatSame(r.group,f.group)&&lkChatSame(r.mark,f.mark)&&lkChatSame(r.section,f.section));
+        if(exact.length===1){target=exact[0];inferred=true;f.matchKey=lkChatRowKey(target);}}
       // Если зрение назвало строку «новой», но рядом уже есть единственный кабель той же марки
       // и сечения, исправляем его. Это закрывает типичный случай: неверная длина 1 м + явные 110 м.
       if(!target){const near=st.rows.filter(r=>r.mx!=null&&r.my!=null&&lkChatSame(r.mark,f.mark)&&lkChatSame(r.section,f.section)&&Math.hypot(r.mx-f.mx,r.my-f.my)<.085)
@@ -4166,6 +4180,7 @@ function lkTeachPanel(pg,rect,clusters,opt){
       before.push({group:f.group,section:f.section,value:target?lkChatRowLabel(target):'строки нет'});
       after.push({group:f.group,section:f.section,value:f.mark+' '+f.section+' · '+f.len+' м'+pipes});
       if(p.evidence)evidence.push(String(p.evidence).slice(0,240));});
+    if(contradictions.length)return{ok:false,feedback:'Предложение противоречит явному метражу на фрагменте: '+contradictions.join('; ')+'. Итог авторской таблицы нельзя закрывать выдуманной длиной.'};
     if(!entries.length){const feedback='Не собрана ни одна полная строка: нужны потребитель, марка, сечение и длина.';
       if(!draftOpt.auto)say('bot','Я не смогла собрать безопасную полную строку. Уточните только неразборчивое поле: потребитель, марку кабеля или сечение. Остальной диалог и фрагмент сохранены.');
       return{ok:false,feedback};}
@@ -4194,10 +4209,10 @@ function lkTeachPanel(pg,rect,clusters,opt){
     lkApplyChatRules(st.clusters.items||[],test,[rule],name,st.pg.page);
     const after=test.reduce((a,r)=>a+(r.conds||[]).length,0);
     showDraft(rule,[{group:'Трубы на листе',value:before+' поз.'}],[{group:'Трубы на листе',value:after+' поз.'}],
-      'Одинаковая труба одной стопки учитывается один раз.',true);};
+      'Одинаковая труба одной стопки учитывается один раз.',true);return{ok:true,rule};};
   const ignoreDraft=()=>{const rule={id:'chat'+Date.now().toString(36),title:'Чат: U/ΔU не потребитель',series:lkRuleSeries(name),chat:{action:'ignore-u'}};
     showDraft(rule,[{group:'U/ΔU с процентом',value:'потребитель'}],[{group:'U/ΔU с процентом',value:'игнорируется'}],
-      'Правило действует только на значения U/ΔU, заканчивающиеся процентом.',true);};
+      'Правило действует только на значения U/ΔU, заканчивающиеся процентом.',true);return{ok:true,rule};};
   const fullRuleAudit=(rule,expected,expectedSource)=>{
     const allClusters=st.pg._tcl&&st.pg._tcl.length?st.pg._tcl:st.clusters;
     const allItems=st.pg._titems&&st.pg._titems.length?st.pg._titems:(st.clusters.items||[]);
@@ -4267,15 +4282,39 @@ function lkTeachPanel(pg,rect,clusters,opt){
     await learnPattern(last.hint);
   };
   let aiInterpret;
-  const retryRejected=async(checked,runOpt)=>{st.validationFeedback=checked.feedback;
-    if(!runOpt.repair){say('bot','Первый вариант не применяю: '+esc(checked.feedback)+' Перестраиваю исправление по этому контролю…');
-      await aiInterpret('Перестрой исправление. Оно обязано уменьшить указанное расхождение, не менять уверенные поля без соответствующего сигнала аудита, не создавать новую строку рядом с существующей той же марки и сечения и не ухудшать кабели или трубы.',{auto:true,repair:true});return;}
-    say('bot','ИИ не доказал безопасную правку: '+esc(checked.feedback)+' <b>Ничего не изменено.</b> Добавьте более узкий фрагмент с самой подписью — весь текущий аудит и переписка сохранятся.');
-    chips([['Добавить более узкий фрагмент','__attach__']]);st.validationFeedback='';};
+  const agentPost=async body=>{
+    const ac=new AbortController(),to=setTimeout(()=>ac.abort(),120000);
+    try{const r=await fetch(LK_AI+'/agent',{method:'POST',headers:{'content-type':'application/json'},signal:ac.signal,
+      body:JSON.stringify(Object.assign({session_id:st.agentSession},body))});const d=await r.json();
+      if(!r.ok||d.error)throw new Error(d.error||('HTTP '+r.status));return d;}
+    finally{clearTimeout(to);}
+  };
+  const executeAgentAction=async(d,auto)=>{
+    const aiIndexes=(Array.isArray(d.target_indexes)?d.target_indexes:[]).filter(i=>Number.isInteger(i)&&i>=0&&i<st.rows.length);
+    if(Number.isInteger(d.target_index)&&d.target_index>=0&&d.target_index<st.rows.length&&!aiIndexes.includes(d.target_index))aiIndexes.unshift(d.target_index);
+    const aiTargets=aiIndexes.map(i=>st.rows[i]),target=aiTargets[0]||st.target||(st.rows.length===1?st.rows[0]:null);
+    if(target)st.target=target;
+    if(d.intent==='set_length'){
+      const evidence=(d.proposed_rows||[]).map(r=>r&&r.evidence||'').join(' ');
+      if(auto&&!evidence.trim())return{ok:false,feedback:'Автоматическая длина отклонена: ИИ не указал конкретную надпись на чертеже, которая подтверждает это число.'};
+      if(auto&&!/надпис|текст|видн|изображ|справа|слева|сверху|снизу|перед|после|рядом/i.test(evidence))
+        return{ok:false,feedback:'Автоматическая длина опирается только на итог таблицы, а не на явную надпись линии. Нужна визуальная или текстовая опора самого паспорта.'};
+      if(aiTargets.length>1&&d.scope!=='similar')return await multiLengthDraft(aiTargets,+d.value_number,'ИИ-агент сопоставил подписи и число на активном фрагменте.',{auto,evidence});
+      if(!target){st.pendingValue=+d.value_number;showRows();return{handled:true};}
+      return await lengthDraft(target,+d.value_number,d.scope==='similar'?d.strategy:'',{auto,evidence})||{ok:false,feedback:'Предложенный способ не смог воспроизвести указанную длину на активном фрагменте.'};}
+    if(d.intent==='set_source')return sourceDraft(d.value_text,d.scope==='similar');
+    if(d.intent==='set_consumer'){
+      if(!target){showRows();return{handled:true};}return consumerDraft(target,d.value_text);}
+    if(d.intent==='upsert_lines')return upsertDraft(d.proposed_rows,{auto});
+    if(d.intent==='dedupe_pipes')return pipesDraft();
+    if(d.intent==='ignore_u')return ignoreDraft();
+    if(d.intent==='learn_pattern'){await learnPattern('ИИ-агент предложил построить переносимое правило по текущему подтверждённому примеру.');return{handled:true};}
+    return{handled:true};
+  };
   aiInterpret=async(txt,runOpt)=>{
     runOpt=runOpt||{};const auto=!!runOpt.auto;
-    sendBtn.disabled=attach.disabled=true;note.textContent=auto?'ИИ сверяет чертёж с результатом парсера…':'Claude связывает сообщение с активным фрагментом…';
-    const thinking=say('bot',auto?'Сама проверяю все видимые поля и ищу конкретное расхождение…':'Смотрю на фрагмент и предыдущие сообщения…',false);
+    sendBtn.disabled=attach.disabled=true;note.textContent=auto?'ИИ-агент сверяет чертёж с парсером…':'ИИ-агент продолжает этот диалог…';
+    const thinking=say('bot',auto?'Анализирую выделение, строки парсера и отклонения всего файла…':'Учитываю переписку, активный фрагмент и результат парсера…',false);
     try{
       const n=lkChatNorm(txt),needImage=auto||!st.imageShared||/здесь|вот|видн|указан|написан|показыв|ткнул|тыкн|аудит|расхожд|провер/.test(n);
       const whole=st.rect.x0===0&&st.rect.y0===0&&st.rect.x1===1&&st.rect.y1===1;
@@ -4287,44 +4326,38 @@ function lkTeachPanel(pg,rect,clusters,opt){
         x:r.mx==null?null:r.mx*100,y:r.my==null?null:r.my*100}));
       const draft=st.draft&&st.draft.rule&&st.draft.rule.chat&&st.draft.rule.chat.action==='upsert-lines'
         ?{action:'upsert-lines',rows:st.draft.rule.chat.rows}:null;
-      const ac=new AbortController(),to=setTimeout(()=>ac.abort(),120000);let d;
-      try{const r=await fetch(LK_AI+'/chat',{method:'POST',headers:{'content-type':'application/json'},signal:ac.signal,
-        body:JSON.stringify({mode:auto?'auto-diagnose':'chat',message:txt,history:st.messages.slice(0,-1).slice(-10),context:{file:name,page:st.pg.page,area:lkChatAreaLabel(st.activeImageRect||st.rect),text:raw,source:st.pg.vru||'',
-          audit:'Лист '+st.pg.page+': '+(st.audit.active.issues.length?st.audit.active.issues.map(i=>i.text+'; предлагаемое решение: '+i.solution).join(' | '):'контрольных расхождений нет')+
-            (st.validationFeedback?' | ПРЕДЫДУЩИЙ ЧЕРНОВИК ОТКЛОНЁН ЛОКАЛЬНОЙ ПРОВЕРКОЙ: '+st.validationFeedback:'')},rows,draft,
-          image:needImage&&st.activeImage?st.activeImage:''})});d=await r.json();}
-      finally{clearTimeout(to);}
-      thinking.remove();
-      if(d.error){say('bot','Claude сейчас недоступен: '+esc(d.error)+'. Локальные команды продолжают работать.');return;}
+      const common={mode:auto?'auto-diagnose':'chat',context:{file:name,page:st.pg.page,area:lkChatAreaLabel(st.activeImageRect||st.rect),text:raw,source:st.pg.vru||'',
+        audit:st.audit.text+'\nАктивный лист '+st.pg.page+': '+(st.audit.active.issues.length?st.audit.active.issues.map(i=>i.text+'; предлагаемое решение: '+i.solution).join(' | '):'контрольных расхождений нет')},rows,draft,
+        image:needImage&&st.activeImage?st.activeImage:''};
+      let response=await agentPost(Object.assign({event:'user',message:txt},common));
       if(needImage&&st.activeImage)st.imageShared=true;
-      const cost=lkChatAiCost(d._usage,d._model);note.textContent='Ответил '+(/haiku/i.test(d._model||'')?'Claude Haiku':'Claude Sonnet')+(cost?' · '+cost:'')+' · сохранение только после подтверждения';
-      if(d.reply)say('bot',esc(d.reply));
-      const aiIndexes=(Array.isArray(d.target_indexes)?d.target_indexes:[]).filter(i=>Number.isInteger(i)&&i>=0&&i<st.rows.length);
-      if(Number.isInteger(d.target_index)&&d.target_index>=0&&d.target_index<st.rows.length&&!aiIndexes.includes(d.target_index))aiIndexes.unshift(d.target_index);
-      const aiTargets=aiIndexes.map(i=>st.rows[i]),target=aiTargets[0]||st.target||(st.rows.length===1?st.rows[0]:null);
-      if(target)st.target=target;
-      if(d.intent==='set_length'){
-        if(aiTargets.length>1&&d.scope!=='similar'){const checked=await multiLengthDraft(aiTargets,+d.value_number,'Claude сопоставил подписи и число на активном фрагменте.',{auto});
-          if(auto&&checked&&!checked.ok)await retryRejected(checked,runOpt);else st.validationFeedback='';return;}
-        if(!target){st.pendingValue=+d.value_number;st.pendingText=txt;showRows();return;}
-        const checked=await lengthDraft(target,+d.value_number,d.scope==='similar'?d.strategy:'',{auto});
-        if(auto&&checked&&!checked.ok)await retryRejected(checked,runOpt);else st.validationFeedback='';return;}
-      if(d.intent==='set_source'){sourceDraft(d.value_text,d.scope==='similar');return;}
-      if(d.intent==='set_consumer'){
-        if(!target){showRows();return;}consumerDraft(target,d.value_text);return;}
-      if(d.intent==='upsert_lines'){const checked=upsertDraft(d.proposed_rows,{auto});
-        if(checked.ok){st.validationFeedback='';return;}
-        if(auto){await retryRejected(checked,runOpt);return;}
-        say('bot',esc(checked.feedback));return;}
-      if(d.intent==='dedupe_pipes'){pipesDraft();return;}
-      if(d.intent==='ignore_u'){ignoreDraft();return;}
-      if(d.intent==='learn_pattern'){await learnPattern(txt);return;}
-      if(d.intent==='clarify'&&auto){chips([['Описать, что не так','',true],['Выделить другой фрагмент','__attach__']]);return;}
-      if(d.intent==='clarify'&&whole&&st.audit.active.issues.length){say('bot','Точное исправление пока не доказано: авторская таблица и паспорт линии дают неоднозначный сигнал. Нажмите <b>«Добавить фрагмент с чертежа»</b> и обведите саму подпись или строку таблицы. Этот аудит и весь диалог останутся в контексте.');chips([]);return;}
-      if(d.intent==='clarify'&&st.rows.length>1){const mentioned=lkChatLengthValue(txt);
-        if(mentioned>0){st.pendingValue=mentioned;st.pendingText=txt;showRows();}
-        else chips(st.rows.map((r,i)=>[(i+1)+' · '+((r.group&&r.group!=='—')?r.group+' · ':'')+r.section,String(i+1)]));}
-    }catch(e){thinking.remove();say('bot','Не удалось связаться с Claude: '+esc(e&&e.message||String(e))+'. Попробуйте ещё раз — переписка сохранена.');}
+      let lastCost='';
+      for(let step=0;step<4;step++){
+        if(response._usage)lastCost=lkChatAiCost(response._usage,response._model);
+        if(response.status==='clarify'||response.status==='unsupported'){
+          thinking.remove();say('bot',esc(response.reply||response.action&&response.action.reply||'Нужно одно уточнение.'));
+          chips(response.status==='clarify'?[['Ответить словами','',true],['Добавить другой фрагмент','__attach__']]:[]);return;}
+        if(response.status==='needs_context'){
+          thinking.remove();say('bot',esc(response.reply||'Ничего не изменено: нужен более точный фрагмент.'));
+          chips([['Добавить более узкий фрагмент','__attach__']]);return;}
+        if(response.status!=='proposal'||!response.action)throw new Error('Агент не вернул проверяемое действие');
+        st.agentProposal=response.proposal_id;st.agentAttempts=response.attempts||step+1;
+        thinking.querySelector('.lk-chat-bubble').textContent='Предложение '+st.agentAttempts+' проверяется локальным парсером…';
+        const checked=await executeAgentAction(response.action,auto);
+        if(checked&&checked.handled){thinking.remove();return;}
+        const ok=!!(checked&&checked.ok),feedback=ok
+          ?('Проверка пройдена. Предпросмотр: '+(st.draft?summaryRows(st.draft.before)+' → '+summaryRows(st.draft.after)+'. '+st.draft.reason:'действие допустимо.'))
+          :String(checked&&checked.feedback||'Предложение не прошло локальную проверку.');
+        if(!ok){st.draft=null;apply.style.display=general.style.display='none';st.validationFeedback=feedback;
+          say('bot','Вариант '+st.agentAttempts+' не применяю: '+esc(feedback)+' <b>Агент сам перестраивает решение…</b>');}
+        response=await agentPost(Object.assign({event:'tool_result',proposal_id:st.agentProposal,tool_result:{ok,feedback}},common));
+        if(ok){thinking.remove();st.validationFeedback='';
+          say('bot',esc(response.reply||'Локальная проверка пройдена. Изменение ждёт вашего подтверждения.'));
+          note.textContent='ИИ-агент · проверка пройдена'+(lastCost?' · '+lastCost:'')+' · сохранение только после подтверждения';return;}
+      }
+      thinking.remove();say('bot','Агент не нашёл безопасный вариант за четыре проверки. <b>Ничего не изменено.</b> Добавьте более узкий фрагмент — весь диалог сохранён.');
+      chips([['Добавить более узкий фрагмент','__attach__']]);
+    }catch(e){thinking.remove();say('bot','ИИ-агент сейчас недоступен: '+esc(e&&e.message||String(e))+'. Переписка и активный фрагмент сохранены — можно повторить.');}
     finally{sendBtn.disabled=attach.disabled=false;input.focus();}
   };
   const send=async txt=>{
@@ -4339,36 +4372,12 @@ function lkTeachPanel(pg,rect,clusters,opt){
       await proposeGeneral();return;}
     if(st.lastExact){st.lastExact.hint+=' Дополнение пользователя: «'+txt.slice(0,300)+'». Используй это пояснение только как ограничение геометрии правила.';
       await proposeGeneral();return;}
-    if(/^(?:нет|неверно|поправить)$/.test(n)){st.draft=null;apply.style.display=general.style.display='none';
-      say('bot','Хорошо. Напишите правильное значение и, если нужно правило для будущих файлов, где оно расположено на чертеже.');return;}
+    if(/^(?:нет|неверно|поправить)$/.test(n)&&st.draft){apply.style.display=general.style.display='none';
+      await aiInterpret('Нет, текущий предпросмотр неверен. Сам определи по активному фрагменту, какое поле не совпало; если это невозможно доказать, спроси только одно конкретное поле.');return;}
     if(/^(?:да|верно|все правильно|всё правильно|применить|сохранить)$/.test(n)&&st.draft){save();return;}
-    if(/использовать\s+найденн[а-я]*\s+правил|применить\s+найденн[а-я]*\s+правил/.test(n)&&st.suggested&&st.target){lengthDraft(st.target,+st.draft.rule.chat.value,st.suggested.strategy);return;}
-    // Черновик восстановленной строки можно править обычными следующими репликами («там 5x2,5»,
-    // «длина 50», «марка другая»). Claude получает весь текущий предпросмотр и обновляет его,
-    // поэтому пользователь не упирается в начальный набор полей/кандидатов.
-    if(st.draft&&st.draft.rule&&st.draft.rule.chat&&st.draft.rule.chat.action==='upsert-lines'){await aiInterpret(txt);return;}
-    if(st.pendingValue!=null&&/^\d+$/.test(n)){const i=+n-1;if(st.rows[i]){st.target=st.rows[i];st.targets=[st.target];const v=st.pendingValue,t=st.pendingText;st.pendingValue=null;lengthDraft(st.target,v,lkChatStrategy(t));}else showRows();return;}
-    const src=lkChatSourceValue(txt);
-    if(src&&/источник|схем|щит/.test(n)){
-      sourceDraft(src,true);return;}
-    const strategy=lkChatStrategy(txt),val=lkChatLengthValue(txt);
-    if((val!=null||strategy)&&(/длин|метр|\d+(?:[.,]\d+)?\s*м(?=\s|$|[.,;:!?])|указат|укаж|постав|должн[а-я]*\s+быть|правильн[а-я]*|вот\s+здесь|цел[а-я]*\s+справа|цифр[а-я]*\s+справа|справа\s+от\s+марк|перед\s+м/.test(n)||st.draft&&st.draft.rule.chat&&st.draft.rule.chat.action==='set-length')){
-      const target=st.target||lkChatTarget(st.rows,txt)||(st.draft&&st.draft.rule.chat?st.rows.find(r=>lkChatRuleMatchesRow(st.draft.rule.chat,r)):null);
-      const value=val!=null?val:(st.draft&&st.draft.rule.chat?+st.draft.rule.chat.value:null);
-      if(!target&&value>0&&strategy){const matched=st.rows.filter(r=>Math.abs((+lkChatLearnedLen(st.clusters.items||[],r,strategy)||0)-value)<.01);
-        if(matched.length){multiLengthDraft(matched,value,'Положение «'+(strategy==='top-row-right'?'сверху справа':strategy)+'» проверено отдельно у каждой линии.');return;}}
-      if(!target&&st.rows.length>1&&/здесь|тут|вот|видн|написан|указан|сверху|справа|слева|эт[а-я]*\s+област/.test(n)){await aiInterpret(txt);return;}
-      if(!target){st.pendingValue=value;st.pendingText=txt;showRows();return;}
-      if(!(value>0)&&!strategy){say('bot','Напишите длину числом, например: «длина 175 м».');return;}
-      lengthDraft(target,value,strategy);return;}
-    if(/труб|гофр/.test(n)&&/один|раз|дубл|стопк|повтор/.test(n)){
-      pipesDraft();return;}
-    if((/u|∆|δu|потер/.test(n)&&/%|потребител/.test(n)&&/не\s+потребител|игнор|не\s+назван/.test(n))){
-      ignoreDraft();return;}
-    const cm=String(txt).match(/потребител[а-яё]*(?:\s+(?:это|=))?\s*[:\-]?\s*(.{2,80})/i);
-    if(cm){const target=st.target||lkChatTarget(st.rows,txt);if(!target){showRows();return;}
-      consumerDraft(target,cm[1].trim());return;}
-    if(/источник/.test(n)){say('bot','Напишите имя полностью, например: «источник ЩАО-2(1)».');return;}
+    // Любое содержательное уточнение теперь проходит через один и тот же постоянный агент. Он
+    // видит прежние реплики и текущий черновик, поэтому «там 5x2,5» или «соседняя справа» не
+    // запускают диалог заново и не упираются в набор локальных фраз-шаблонов.
     await aiInterpret(txt);};
   $('lkChatSend').onclick=()=>send(input.value);
   input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send(input.value);}};
@@ -4388,7 +4397,7 @@ function lkTeachPanel(pg,rect,clusters,opt){
         st.target=null;st.targets=[];st.draft=null;st.suggested=null;st.pendingValue=null;st.pendingText='';
         name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||name;
         apply.style.display=general.style.display='none';apply.disabled=general.disabled=false;
-        note.textContent='Активен последний фрагмент · сначала локально, Claude при необходимости';chips([]);
+        note.textContent='Активен новый фрагмент · ИИ-агент помнит прежний диалог';chips([]);
         const raw=nextClusters.slice(0,16).map(c=>c.s).join('\n');
         $('lkChatSheet').textContent='лист '+nextPg.page;
         $('lkChatContextSummary').textContent='Лист '+nextPg.page+' · '+lkChatAreaLabel(nextRect)+' · найдено: '+nextClusters.length+' '+lkPlural(nextClusters.length,'подпись','подписи','подписей');
