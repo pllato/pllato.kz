@@ -1708,7 +1708,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v442';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v443';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v422';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -4376,8 +4376,9 @@ function lkTeachPanel(pg,rect,clusters,opt){
         x:r.mx==null?null:r.mx*100,y:r.my==null?null:r.my*100}));
       const draft=st.draft&&st.draft.rule&&st.draft.rule.chat&&st.draft.rule.chat.action==='upsert-lines'
         ?{action:'upsert-lines',rows:st.draft.rule.chat.rows}:null;
-      const workflow={stage:st.draft?'awaiting_apply':st.generalTerminal?'rule_failed':st.lastExact?'exact_saved':'analysing',
+      const workflow={stage:st.draft?'awaiting_apply':st.generalTerminal?'rule_failed':st.lastExact?'awaiting_rule_decision':'analysing',
         draft_present:!!st.draft,exact_saved:!!st.lastExact,general_failure_reason:st.generalFailureReason||'',
+        pending_question:st.draft?'Верно ли показанное изменение и нужно ли его применить?':st.lastExact&&!st.generalTerminal?'Создать и проверить правило для будущих похожих файлов?':'',
         draft_summary:st.draft?(summaryRows(st.draft.before)+' → '+summaryRows(st.draft.after)+'. '+String(st.draft.reason||'')):
           (st.lastExact&&st.lastExact.summary?(summaryRows(st.lastExact.summary.before)+' → '+summaryRows(st.lastExact.summary.after)):'')};
       const common={mode:auto?'auto-diagnose':'chat',context:{file:name,page:st.pg.page,area:lkChatAreaLabel(st.activeImageRect||st.rect),text:raw,source:st.pg.vru||'',
