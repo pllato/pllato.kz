@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <script src="/app/gate.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#10213f">
+  <title>Pllato Mini CRM — продажи без сложности</title>
+  <meta name="description" content="Демонстрация простой CRM для начинающего малого бизнеса: заявки, продажи, клиенты, задачи и аналитика.">
+  <link rel="stylesheet" href="/app/mini-crm/styles.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="?s=today" aria-label="Pllato Mini CRM">
+        <span class="brand-mark">P</span>
+        <span class="brand-name"><b>PLLATO</b><small>MINI CRM</small></span>
+      </a>
+      <div class="workspace-card">
+        <span>РАБОЧЕЕ ПРОСТРАНСТВО</span>
+        <b>Alem Service</b>
+        <small>Услуги · Алматы</small>
+      </div>
+      <nav id="mainNav" aria-label="Разделы CRM">
+        <button data-nav="today"><em>01</em><span>Главная</span><b>3</b></button>
+        <button data-nav="sales"><em>02</em><span>Продажи</span><b>9</b></button>
+        <button data-nav="clients"><em>03</em><span>Клиенты</span></button>
+        <button data-nav="tasks"><em>04</em><span>Задачи</span><b>4</b></button>
+        <button data-nav="analytics"><em>05</em><span>Аналитика</span></button>
+        <button data-nav="settings"><em>06</em><span>Настройки</span></button>
+      </nav>
+      <div class="side-help">
+        <span>ПЕРВЫЙ ДЕНЬ?</span>
+        <p>Покажем весь путь заявки за 2 минуты.</p>
+        <button data-action="start-tour">Запустить обучение →</button>
+      </div>
+      <button class="profile" data-action="profile"><span>АР</span><p><b>Алексей Романов</b><small>Владелец</small></p><em>•••</em></button>
+    </aside>
+    <section class="workspace">
+      <header class="topbar">
+        <button class="mobile-brand" data-nav="today"><span>P</span><b>MINI CRM</b></button>
+        <div class="crumb"><span>Alem Service</span><i>/</i><b id="crumbTitle">Главная</b></div>
+        <div class="top-actions">
+          <button class="search-btn" data-action="global-search"><span>⌕</span><b>Найти клиента или сделку</b><kbd>⌘ K</kbd></button>
+          <button class="help-btn" data-action="start-tour">? <span>Как работать</span></button>
+          <button class="primary-btn" data-action="new-deal">+ Новая сделка</button>
+        </div>
+      </header>
+      <main id="view" tabindex="-1"></main>
+    </section>
+  </div>
+
+  <div class="screen-overlay" id="screenOverlay"></div>
+  <aside class="drawer" id="drawer"><button class="close-btn" data-action="close-drawer">×</button><div id="drawerBody"></div></aside>
+  <div class="modal" id="modal"><section class="modal-card"><button class="close-btn" data-action="close-modal">×</button><div id="modalBody"></div></section></div>
+  <div class="toast" id="toast"><i>✓</i><span></span></div>
+
+  <div class="tour" id="tour" aria-hidden="true">
+    <section class="tour-card" role="dialog" aria-modal="true" aria-label="Обучение Mini CRM">
+      <button class="tour-close" data-tour="close">Пропустить</button>
+      <span id="tourCounter"></span>
+      <h2 id="tourTitle"></h2>
+      <p id="tourText"></p>
+      <div class="tour-tip" id="tourTip"></div>
+      <footer><button data-tour="back">← Назад</button><button data-tour="next">Далее →</button></footer>
+    </section>
+  </div>
+
+  <script src="/app/mini-crm/data.js?v=1"></script>
+  <script src="/app/mini-crm/app.js?v=1"></script>
+</body>
+</html>
