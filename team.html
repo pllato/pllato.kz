@@ -11347,6 +11347,72 @@ function renderMetaAdAttributionHtml(attribution, opts = {}) {
   </div>`;
 }
 
+function metaAdSourceLabel(adId, attribution) {
+  const creative = attribution?.title || attribution?.description || `объявление ${adId}`;
+  return `Instagram → WhatsApp → ${creative} → ID ${adId}`;
+}
+
+async function mountDealSourceSelect(modal, deal) {
+  const select = modal.querySelector('#dc-source-select');
+  if (!select) return;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const response = await fetch(`${WORKER_BASE_URL}/api/meta-ads`, {
+      headers: { Authorization: `Bearer ${idToken}` },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const ads = data.items || [];
+    let currentId = deal.metaAdId || '';
+    const options = [];
+    if (!ads.length && !currentId) {
+      options.push('<option value="">Рекламных источников пока нет</option>');
+    } else {
+      if (!currentId) {
+        const currentLabel = deal.sourceDescription || getSourceName(deal.sourceId) || 'Источник не указан';
+        options.push(`<option value="" selected>${escapeHtml(currentLabel)}</option>`);
+      }
+      for (const ad of ads) {
+        options.push(`<option value="${escapeHtml(ad.adId)}" ${ad.adId === currentId ? 'selected' : ''}>${escapeHtml(metaAdSourceLabel(ad.adId, ad.attribution))}</option>`);
+      }
+      if (currentId && !ads.some(ad => ad.adId === currentId)) {
+        options.unshift(`<option value="${escapeHtml(currentId)}" selected>${escapeHtml(metaAdSourceLabel(currentId, deal.metaAdAttribution))}</option>`);
+      }
+    }
+    select.innerHTML = options.join('');
+    select.disabled = !ads.length && !currentId;
+    select.onchange = async () => {
+      const metaAdId = select.value;
+      if (!metaAdId || metaAdId === currentId) return;
+      select.disabled = true;
+      try {
+        const token = await fbAuth.currentUser.getIdToken();
+        const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent('deal_' + deal.bitrixId)}/source`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ metaAdId }),
+        });
+        const saved = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(saved.error || `HTTP ${r.status}`);
+        deal.sourceId = 'META_AD';
+        deal.sourceDescription = `Instagram → WhatsApp · объявление ${metaAdId}`;
+        deal.metaAdId = metaAdId;
+        deal.metaAdAttribution = saved.attribution || null;
+        currentId = metaAdId;
+        showToast('Источник сделки обновлён');
+      } catch (e) {
+        select.value = currentId;
+        alert('Не удалось изменить источник: ' + e.message);
+      } finally {
+        select.disabled = false;
+      }
+    };
+  } catch (e) {
+    select.innerHTML = `<option>${escapeHtml(deal.sourceDescription || getSourceName(deal.sourceId) || 'Источник не указан')}</option>`;
+    select.disabled = true;
+  }
+}
+
 function renderWaMessageHtml(m, isGroup) {
   const cls = m.direction === 'in' ? 'in' : 'out';
   const ts = new Date(m.ts).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
@@ -13649,12 +13715,13 @@ async function openDealCard(bitrixId) {
             <div class="fv">${deal.bitrixDateModify ? new Date(deal.bitrixDateModify).toLocaleString('ru') : '—'}</div>
             <div class="fl">Закрыто</div>
             <div class="fv">${deal.closed ? '<span style="color:var(--gn)">✓ Да</span> ' + (deal.closeDate ? new Date(deal.closeDate).toLocaleDateString('ru') : '') : '<span class="muted">Нет</span>'}</div>
-            ${deal.sourceId ? `<div class="fl">Источник</div>
-              <div class="fv">${escapeHtml(getSourceName(deal.sourceId))}${deal.sourceDescription ? ` <span class="muted">· ${escapeHtml(deal.sourceDescription)}</span>` : ''}</div>` : ''}
+            <div class="fl">Источник</div>
+            <div class="fv">
+              <select id="dc-source-select" class="cf-edit" style="width:100%;max-width:520px;padding:7px 9px;border:1px solid var(--b1);border-radius:7px;background:var(--bg2);color:var(--t1);font-size:12px">
+                <option>${escapeHtml(deal.metaAdId ? metaAdSourceLabel(deal.metaAdId, deal.metaAdAttribution) : (deal.sourceDescription || getSourceName(deal.sourceId) || 'Загрузка источников…'))}</option>
+              </select>
+            </div>
           </div>
-
-          ${deal.metaAdAttribution ? `<div class="dc-section-h">Источник рекламы</div>
-            ${renderMetaAdAttributionHtml(deal.metaAdAttribution, { adId: deal.metaAdId })}` : ''}
 
           ${contact ? `<div class="dc-section-h">Контакт</div>
             <div class="dc-contact-card">
@@ -13782,6 +13849,7 @@ async function openDealCard(bitrixId) {
   const modal = div.firstElementChild;
   document.body.appendChild(modal);
   document.body.style.overflow = 'hidden';
+  mountDealSourceSelect(modal, deal);
 
   // Квалификация (бриф первого звонка)
   const qualDealId = 'deal_' + deal.bitrixId;

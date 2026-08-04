@@ -782,6 +782,58 @@ async function respondDealForUser(env, request, id, me) {
   return json(rowToCamel(results[0], "deals"), 200, request);
 }
 
+// Единый справочник рекламных источников. Одна строка на стабильный Meta ad ID;
+// title/preview можно переименовывать, но отчёты всегда группируются по adId.
+async function handleMetaAdsList(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureWaMetaAdColumns(env);
+  const { results } = await env.DB.prepare(`
+    SELECT meta_ad_id, MAX(meta_ad_attribution) AS meta_ad_attribution,
+           COUNT(*) AS leads_count, MAX(bitrix_date_create) AS last_lead_at
+    FROM deals
+    WHERE meta_ad_id IS NOT NULL AND meta_ad_id != ''
+    GROUP BY meta_ad_id
+    ORDER BY MAX(bitrix_date_create) DESC
+  `).all();
+  const items = (results || []).map(r => ({
+    adId: r.meta_ad_id,
+    attribution: r.meta_ad_attribution ? tryParseJson(r.meta_ad_attribution) : null,
+    leadsCount: r.leads_count || 0,
+    lastLeadAt: r.last_lead_at || null,
+  }));
+  return json({ items, total: items.length }, 200, request);
+}
+
+// PATCH /api/deals/{id}/source { metaAdId }
+// Меняет единое поле источника и все связанные машинные поля атомарно.
+async function handleDealSourceUpdate(request, env, dealId) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  if (!(await canEditRecord(env, me, 'deals', dealId))) {
+    return json({ error: 'no permission to edit deal source' }, 403, request);
+  }
+  await ensureWaMetaAdColumns(env);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid json body' }, 400, request); }
+  const metaAdId = String(body?.metaAdId || '').trim();
+  if (!metaAdId) return json({ error: 'metaAdId required' }, 400, request);
+  const source = await env.DB.prepare(`
+    SELECT meta_ad_attribution FROM deals
+    WHERE meta_ad_id = ? AND meta_ad_attribution IS NOT NULL
+    ORDER BY bitrix_date_create DESC LIMIT 1
+  `).bind(metaAdId).first();
+  if (!source) return json({ error: 'advertising source not found' }, 404, request);
+  const sourceDescription = `Instagram → WhatsApp · объявление ${metaAdId}`;
+  await env.DB.prepare(`
+    UPDATE deals SET source_id = 'META_AD', source_description = ?,
+      meta_ad_id = ?, meta_ad_attribution = ?, bitrix_date_modify = ?
+    WHERE id = ?
+  `).bind(sourceDescription, metaAdId, source.meta_ad_attribution, new Date().toISOString(), dealId).run();
+  return json({ ok: true, dealId, metaAdId, attribution: tryParseJson(source.meta_ad_attribution) }, 200, request);
+}
+
 async function respondCollection(env, request, tableName, keyCol, opts) {
   if (opts.shallow) {
     const { results } = await env.DB.prepare(
@@ -9838,6 +9890,10 @@ export default {
       return handleContactsPhonesBulk(request, env);
     }
 
+    if (path === "/api/meta-ads" && request.method === "GET") {
+      return handleMetaAdsList(request, env);
+    }
+
     // /api/tasks — создать новую задачу в портале
     if (path === "/api/tasks" && request.method === "POST") {
       return handleCreateTask(request, env);
@@ -10044,6 +10100,12 @@ export default {
     if (qualRecListMatch && request.method === "GET") {
       return handleQualRecordingsList(request, env, decodeURIComponent(qualRecListMatch[1]));
     }
+    // /api/deals/{id}/stage — менять стадию (учитывает зеркала)
+    const dealSourceMatch = path.match(/^\/api\/deals\/([^/]+)\/source$/);
+    if (dealSourceMatch && request.method === "PATCH") {
+      return handleDealSourceUpdate(request, env, decodeURIComponent(dealSourceMatch[1]));
+    }
+
     // /api/deals/{id}/stage — менять стадию (учитывает зеркала)
     const dealStageMatch = path.match(/^\/api\/deals\/([^/]+)\/stage$/);
     if (dealStageMatch && request.method === "PATCH") {
