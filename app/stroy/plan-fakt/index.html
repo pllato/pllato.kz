@@ -1708,7 +1708,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v440';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v441';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v422';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -3823,10 +3823,13 @@ async function lkTeachStart(){
   const pg=LK.pages[LK.sel];if(!pg){toast('Нет листа');return;}
   if(LK.view!=='pages'){LK.view='pages';renderLineyka();}
   $('lkIssModal').style.display='none';
-  // Вход в чат сразу аудирует файл. Нужный фрагмент можно добавить в эту же переписку в любой момент.
-  const rect={x0:0,y0:0,x1:1,y1:1};toast('Обучалка сверяет файл и текущий лист…');
-  try{const cl=await lkAreaClusters(pg,rect);lkTeachPanel(pg,rect,cl);}
-  catch(e){toast('Не удалось прочитать лист: '+(e&&e.message||e));}
+  // Основной вход начинается с места, которое заметил человек. Агент получает изображение,
+  // текстовый слой и результат парсера этой области и сам начинает разговор без промежуточного меню.
+  toast('Обведите место, где заметили ошибку');
+  lkPickArea(async rect=>{
+    try{const cl=await lkAreaClusters(pg,rect);lkTeachPanel(pg,rect,cl,{autoDiagnose:true});}
+    catch(e){toast('Не удалось прочитать выделение: '+(e&&e.message||e));}
+  });
 }
 $('lkTeach').onclick=()=>lkTeachStart();      // в модале «Правки»
 $('lkTeachTop').onclick=()=>lkTeachStart();   // в верхней панели — основной вход
@@ -3986,10 +3989,10 @@ function lkTeachPanel(pg,rect,clusters,opt){
   const context=clusters.slice(0,16).map(c=>c.s).join('\n');
   wrap.innerHTML=`<div class="lk-iss-box lk-chat-box"><div class="lk-iss-head" id="lkChatHead"><b>🎓 ИИ-агент Правок</b><span class="lk-chat-badge">помнит диалог · сам проверяет</span><span class="lk-iss-sub" id="lkChatSheet">лист ${pg.page}</span><span class="lk-chat-winbtns"><button class="lk-chat-winbtn" id="lkTcMin" title="Свернуть окно" aria-label="Свернуть окно">—</button><button class="lk-chat-winbtn" id="lkTcMax" title="Развернуть на весь экран" aria-label="Развернуть на весь экран">□</button><button class="lk-chat-winbtn close" id="lkTcX" title="Закрыть" aria-label="Закрыть">×</button></span></div>
     <div class="lk-chat-body" id="lkChatBody"><details class="lk-chat-context"><summary id="lkChatContextSummary">Лист ${pg.page} · ${lkChatAreaLabel(rect)} · найдено: ${clusters.length} ${lkPlural(clusters.length,'подпись','подписи','подписей')}</summary><pre id="lkChatContextRaw">${esc(context||'Текстового слоя в области нет')}</pre></details>
-    <div class="lk-chat-log" id="lkChatLog"></div><div class="lk-chat-quick" id="lkChatQuick"></div>
-    <div class="lk-chat-tools"><button class="lk-chat-attach" id="lkChatAttach">⌖ Добавить фрагмент с чертежа</button><span class="lk-note">переписка сохранится</span></div>
-    <div class="lk-chat-compose"><textarea id="lkChatInput" rows="2" maxlength="500" placeholder="Например: «здесь длина 175 м, крайнее целое справа»"></textarea><button class="lk-chat-send" id="lkChatSend">Отправить</button></div>
-    <div class="lk-chat-foot"><button class="lk-chat-apply" id="lkChatApply" style="display:none">✓ Всё правильно — применить</button><button class="lk-chat-apply secondary" id="lkChatGeneral" style="display:none">Для будущих похожих файлов</button><span class="lk-note" id="lkChatNote">ИИ видит фрагмент и аудит · парсер проверяет каждое предложение</span></div></div></div>`;
+    <div class="lk-chat-log" id="lkChatLog"></div><div class="lk-chat-quick" id="lkChatQuick" style="display:none!important"></div>
+    <div class="lk-chat-tools" style="display:none!important"><button class="lk-chat-attach" id="lkChatAttach" type="button" style="display:none!important">⌖ Добавить фрагмент с чертежа</button></div>
+    <div class="lk-chat-compose"><textarea id="lkChatInput" rows="2" maxlength="500" placeholder="Напишите обычными словами или подтвердите: «да, применить»"></textarea><button class="lk-chat-send" id="lkChatSend">Отправить</button></div>
+    <div class="lk-chat-foot"><button class="lk-chat-apply" id="lkChatApply" type="button" style="display:none!important">Применить</button><button class="lk-chat-apply secondary" id="lkChatGeneral" type="button" style="display:none!important">Создать правило</button><span class="lk-note" id="lkChatNote">Пишите обычными словами · чтобы показать другое место, напишите «выделить ещё»</span></div></div></div>`;
   ($('lineyka')||document.body).appendChild(wrap);
   const box=wrap.querySelector('.lk-chat-box'),head=$('lkChatHead'),minBtn=$('lkTcMin'),maxBtn=$('lkTcMax');
   const fit=()=>{if(!box.isConnected||box.classList.contains('maximized'))return;const b=box.getBoundingClientRect();
@@ -4023,17 +4026,16 @@ function lkTeachPanel(pg,rect,clusters,opt){
     log.appendChild(el);log.scrollTop=log.scrollHeight;
     if(record)st.messages.push({role:role==='user'?'user':'assistant',content:(el.querySelector('.lk-chat-bubble').textContent||'').replace(/\s+/g,' ').trim().slice(0,1000)});
     return el;};
-  const chips=list=>{quick.innerHTML='';list.forEach(x=>{const b=document.createElement('button');b.className='lk-chat-chip';b.textContent=x[0];
-    b.onclick=()=>{if(x[1]==='__attach__'){attach.click();return;}if(x[2]){input.value=x[1];input.focus();}else send(x[1]);};quick.appendChild(b);});};
+  // Внутренние быстрые действия больше не показываем: весь рабочий сценарий идёт сообщениями.
+  const chips=list=>{quick.innerHTML='';};
   const showRows=()=>{
     say('bot','В области несколько линий. Укажите нужную номером или напишите её сечение:'+
       `<table>${st.rows.map((r,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(lkChatRowLabel(r))}</td></tr>`).join('')}</table>`);
     chips(st.rows.map((r,i)=>[(i+1)+' · '+((r.group&&r.group!=='—')?r.group+' · ':'')+r.section,String(i+1)]));};
   const showDraft=(rule,before,after,reason,team)=>{
-    st.draft={rule,team:!!team,before,after,reason};say('bot','Поняла. Вот что изменится:'+lkChatPreviewTable(before,after,reason));
-    apply.style.display='';apply.textContent=team?'✓ Всё правильно — сохранить для похожих':'✓ Всё правильно — применить к этому файлу';
-    general.style.display='none';note.textContent=team?'Правило ограничено серией '+(rule.series||lkRuleSeries(name)):'После применения предложу правило для будущих файлов';
-    chips([['Всё правильно','да'],['Нет, поправить','нет']]);};
+    st.draft={rule,team:!!team,before,after,reason};say('bot','Поняла. Вот что изменится:'+lkChatPreviewTable(before,after,reason)+
+      '<div style="margin-top:8px"><b>Если всё верно, напишите «да, применить».</b> Если нет — просто опишите, что нужно поправить.</div>');
+    note.textContent=team?'Правило ограничено серией '+(rule.series||lkRuleSeries(name)):'Изменение сохранится только после вашего текстового подтверждения';};
   const summaryRows=rows=>(rows||[]).map(r=>{const k=((r.group&&r.group!=='—'?r.group:'')+(r.section?' · '+r.section:'')).trim();return (k?k+': ':'')+String(r.value);}).join('; ')||'нет данных';
   const causeOf=(rule,before)=>{const c=rule&&rule.chat||{};
     if(c.action==='upsert-lines'&&(before||[]).some(r=>/строки нет/i.test(String(r.value))))return 'Подпись линии была разнесена по нескольким текстовым элементам, поэтому программа не связала потребителя, кабель, сечение и длину в одну строку.';
@@ -4056,11 +4058,11 @@ function lkTeachPanel(pg,rect,clusters,opt){
     st.generalAttempted=true;st.generalTerminal=true;st.draft=null;
     apply.style.display=general.style.display='none';apply.disabled=general.disabled=false;
     note.textContent='Точечная правка сохранена · общее правило не включено';
-    say('bot','<div class="lk-chat-result good"><div class="ttl">Цикл завершён — повторно запускать ту же проверку не буду.</div>'+
+    say('bot','<div class="lk-chat-result good"><div class="ttl">Текущая правка сохранена.</div>'+
       '<div class="line"><b>Текущий файл:</b> подтверждённая точечная правка сохранена.</div>'+
       '<div class="line"><b>Будущие файлы:</b> общее правило не включено.</div>'+
-      '<div class="line"><b>Почему:</b> '+esc(reason||'Недостаточно независимых доказательств для безопасного правила.')+'</div></div>');
-    chips([['Завершить','завершить без общего правила'],['Добавить другой пример (необязательно)','__attach__']]);input.focus();
+      '<div class="line"><b>Почему:</b> '+esc(reason||'Недостаточно независимых доказательств для безопасного правила.')+'</div></div>'+
+      '<div style="margin-top:8px">Можно написать «завершить» или «выделить ещё один фрагмент» — переписка сохранится.</div>');input.focus();
   };
   const exactHint=rule=>{const c=rule&&rule.chat||{};
     if(c.action==='upsert-lines')return 'Правильный результат на текущем примере: '+(c.rows||[]).map(r=>
@@ -4083,15 +4085,14 @@ function lkTeachPanel(pg,rect,clusters,opt){
     if(done.team){const summary=st.lastExact&&st.lastExact.summary||{before:done.before,after:done.after,cause:causeOf(done.rule,done.before)};
       reparseAfterClose=true;st.draft=null;st.finished=true;apply.disabled=general.disabled=false;apply.style.display=general.style.display='none';
       note.textContent='Правило сохранено · закройте чат, чтобы перечитать файл';
-      say('bot',resultCard('Понял. Исправление и правило сохранены.',summary,'Текущий файл исправлен. Проверенное правило включено для серии «'+(done.rule.series||lkRuleSeries(name))+'» и будет автоматически применяться в следующих файлах с таким же расположением полей.',true));
-      chips([['Закрыть и перечитать файл','закрыть и перечитать']]);input.focus();return;}
+      say('bot',resultCard('Понял. Исправление и правило сохранены.',summary,'Текущий файл исправлен. Проверенное правило включено для серии «'+(done.rule.series||lkRuleSeries(name))+'» и будет автоматически применяться в следующих файлах с таким же расположением полей.',true)+
+        '<div style="margin-top:8px">Напишите «закрыть и перечитать», когда закончите разговор.</div>');input.focus();return;}
     const summary={before:done.before,after:done.after,cause:causeOf(done.rule,done.before)};
     st.lastExact={rule:done.rule,hint:exactHint(done.rule),target:st.target,suggested:st.suggested,summary};st.draft=null;st.generalAttempted=false;st.generalTerminal=false;reparseAfterClose=true;
     try{await agentPost({event:'applied'});}catch(e){console.warn('agent applied state',e);}
     apply.disabled=general.disabled=false;apply.style.display=general.style.display='none';note.textContent='Точная правка сохранена · можно добавить правило для будущих файлов';
     say('bot',resultCard('Понял. Для текущего файла исправлено.',summary,'Пока только этот файл и лист. Для следующих похожих файлов правило ещё не включено.')+
-      '<div style="margin-top:8px"><b>Создать и проверить правило для будущих похожих файлов?</b> Без отдельного подтверждения оно в программу не попадёт.</div>');
-    chips([['Да — создать правило','создать правило для будущих похожих файлов'],['Нет — завершить','завершить без общего правила']]);input.focus();};
+      '<div style="margin-top:8px"><b>Создать и проверить правило для будущих похожих файлов?</b> Ответьте обычным сообщением: «да, создай правило» или «нет, завершить». Без отдельного подтверждения правило в программу не попадёт.</div>');input.focus();};
   const auditLengthFile=async(rule,target,value)=>{let pdf=LK.pdf;
     if(!pdf&&LK.docId){const rec=await archGet(LK.docId);if(rec&&rec.buf)pdf=await pdfjsLib.getDocument({data:rec.buf.slice(0)}).promise;}
     let controls=0,detected=0,targetOk=false,repairs=0;const conflicts=[];
@@ -4369,29 +4370,30 @@ function lkTeachPanel(pg,rect,clusters,opt){
       for(let step=0;step<4;step++){
         if(response._usage)lastCost=lkChatAiCost(response._usage,response._model);
         if(response.status==='clarify'||response.status==='unsupported'){
-          thinking.remove();say('bot',esc(response.reply||response.action&&response.action.reply||'Нужно одно уточнение.'));
-          chips(response.status==='clarify'?[['Ответить словами','',true],['Добавить другой фрагмент','__attach__']]:[]);return;}
+          thinking.remove();say('bot',esc(response.reply||response.action&&response.action.reply||'Нужно одно уточнение.')+
+            (response.status==='clarify'?'<div style="margin-top:8px">Ответьте текстом или напишите «выделить ещё», чтобы показать другое место.</div>':''));return;}
         if(response.status==='needs_context'){
-          thinking.remove();say('bot',esc(response.reply||'Ничего не изменено: нужен более точный фрагмент.'));
-          chips([['Добавить более узкий фрагмент','__attach__']]);return;}
+          thinking.remove();say('bot',esc(response.reply||'Ничего не изменено: нужен более точный фрагмент.')+
+            '<div style="margin-top:8px">Напишите «выделить ещё» и обведите нужную область.</div>');return;}
         if(response.status!=='proposal'||!response.action)throw new Error('Агент не вернул проверяемое действие');
         st.agentProposal=response.proposal_id;st.agentAttempts=response.attempts||step+1;
-        thinking.querySelector('.lk-chat-bubble').textContent='Предложение '+st.agentAttempts+' проверяется локальным парсером…';
+        thinking.querySelector('.lk-chat-bubble').textContent='Проверяю найденное решение…';
+        const visibleCount=log.children.length,historyCount=st.messages.length;
         const checked=await executeAgentAction(response.action,auto);
         if(checked&&checked.handled){thinking.remove();return;}
         const ok=!!(checked&&checked.ok),feedback=ok
           ?('Проверка пройдена. Предпросмотр: '+(st.draft?summaryRows(st.draft.before)+' → '+summaryRows(st.draft.after)+'. '+st.draft.reason:'действие допустимо.'))
           :String(checked&&checked.feedback||'Предложение не прошло локальную проверку.');
-        if(!ok){st.draft=null;apply.style.display=general.style.display='none';st.validationFeedback=feedback;
-          say('bot','Вариант '+st.agentAttempts+' не применяю: '+esc(feedback)+' <b>Агент сам перестраивает решение…</b>');}
+        if(!ok){while(log.children.length>visibleCount)log.lastElementChild.remove();st.messages.length=historyCount;
+          st.draft=null;apply.style.display=general.style.display='none';st.validationFeedback=feedback;
+          thinking.querySelector('.lk-chat-bubble').textContent='Уточняю решение после проверки…';}
         response=await agentPost(Object.assign({event:'tool_result',proposal_id:st.agentProposal,tool_result:{ok,feedback}},common));
         if(ok){thinking.remove();st.validationFeedback='';
-          say('bot',esc(response.reply||'Локальная проверка пройдена. Изменение ждёт вашего подтверждения.'));
+          if(!st.draft)say('bot',esc(response.reply||'Проверка пройдена. Изменение ждёт вашего подтверждения.'));
           note.textContent='ИИ-агент · проверка пройдена'+(lastCost?' · '+lastCost:'')+' · сохранение только после подтверждения';return;}
       }
-      thinking.remove();say('bot','Агент не нашёл безопасный вариант за четыре проверки. <b>Ничего не изменено.</b> Добавьте более узкий фрагмент — весь диалог сохранён.');
-      chips([['Добавить более узкий фрагмент','__attach__']]);
-    }catch(e){thinking.remove();say('bot','ИИ-агент сейчас недоступен: '+esc(e&&e.message||String(e))+'. Переписка и активный фрагмент сохранены — можно повторить.');}
+      thinking.remove();say('bot','Агент не нашёл безопасный вариант за четыре проверки. <b>Ничего не изменено.</b> Напишите «выделить ещё» и обведите более точный фрагмент — весь диалог сохранён.');
+    }catch(e){thinking.remove();note.textContent='ИИ-агент недоступен · ничего не изменено';say('bot','ИИ-агент сейчас недоступен: '+esc(e&&e.message||String(e))+'. Переписка и активный фрагмент сохранены — можно повторить.');}
     finally{sendBtn.disabled=attach.disabled=false;input.focus();}
   };
   const send=async txt=>{
@@ -4400,6 +4402,8 @@ function lkTeachPanel(pg,rect,clusters,opt){
     if(st.finished&&/закрыть|завершить|перечитать|готово/.test(n)){close();toast('Правило сохранено; файл перечитывается');return;}
     if(/анекдот|погод|рецепт|договор|письмо|столиц|перевед|напиши\s+код|кто\s+такой/.test(n)){
       say('bot','Я работаю только с обучением чтению электрических чертежей. Покажите, что исправить: источник, потребителя, марку, сечение, длину или трубы.');chips([]);return;}
+    if(/(?:выдел|обвед|покаж|добав).*(?:еще|друг|нов|фрагмент|област|мест)|(?:еще|друг).*(?:фрагмент|област|мест)/.test(n)){
+      pickAnotherFragment();return;}
     if(st.lastExact&&(/^(?:нет|не\s+надо|завершить|закончить)$/.test(n)||/без\s+(?:общего\s+)?правил|только\s+(?:этот|текущ)/.test(n))){
       close();toast('Точечная правка сохранена для этого файла');return;}
     if(st.lastExact&&st.generalTerminal){finishGeneral('Предыдущая попытка общего правила уже завершена. Добавьте новый контрольный фрагмент, только если хотите попробовать другой доказуемый пример.');return;}
@@ -4407,9 +4411,9 @@ function lkTeachPanel(pg,rect,clusters,opt){
       await proposeGeneral();return;}
     if(st.lastExact){st.lastExact.hint+=' Дополнение пользователя: «'+txt.slice(0,300)+'». Используй это пояснение только как ограничение геометрии правила.';
       await proposeGeneral();return;}
-    if(/^(?:нет|неверно|поправить)$/.test(n)&&st.draft){apply.style.display=general.style.display='none';
+    if(/^(?:нет|неверно|поправить)(?:\s*[,.;:—-]?\s*(?:не\s+так|поправить|исправить))?[.!]?$/.test(n)&&st.draft){apply.style.display=general.style.display='none';
       await aiInterpret('Нет, текущий предпросмотр неверен. Сам определи по активному фрагменту, какое поле не совпало; если это невозможно доказать, спроси только одно конкретное поле.');return;}
-    if(/^(?:да|верно|все правильно|всё правильно|применить|сохранить)$/.test(n)&&st.draft){save();return;}
+    if(/^(?:да|верно|все правильно|всё правильно|применить|сохранить)(?:\s*[,.;:—-]?\s*(?:применить|сохранить|все правильно|всё правильно))?[.!]?$/.test(n)&&st.draft){save();return;}
     // Любое содержательное уточнение теперь проходит через один и тот же постоянный агент. Он
     // видит прежние реплики и текущий черновик, поэтому «там 5x2,5» или «соседняя справа» не
     // запускают диалог заново и не упираются в набор локальных фраз-шаблонов.
@@ -4420,7 +4424,7 @@ function lkTeachPanel(pg,rect,clusters,opt){
   general.onclick=()=>{if(st.lastExact){proposeGeneral();return;}if(st.suggested&&st.target&&st.draft&&st.draft.rule.chat){lengthDraft(st.target,+st.draft.rule.chat.value,st.suggested.strategy);return;}
     send('Нужно научить будущие похожие файлы по этому фрагменту. Определи безопасное правило.');};
   const restoreAfterPick=()=>{wrap.style.display='flex';attach.disabled=false;fit();input.focus();};
-  attach.onclick=()=>{
+  const pickAnotherFragment=()=>{
     if(!LK.pages||!LK.pages.length){toast('Сначала откройте лист');return;}
     const nextPg=LK.pages[LK.sel];if(!nextPg){toast('Нет листа');return;}
     attach.disabled=true;wrap.style.display='none';toast('Обведи или ткни нужное место — оно добавится в этот же диалог');
@@ -4447,17 +4451,10 @@ function lkTeachPanel(pg,rect,clusters,opt){
       finally{if(!restored)restoreAfterPick();}
     },restoreAfterPick);
   };
-  say('bot',lkChatAuditHtml(st.audit));
-  say('bot','Я сама нахожу контрольные отклонения, а вы можете в любой момент добавить фрагмент и любыми словами уточнить, что видите. Сначала покажу «было → стало»; после точечного исправления предложу общее правило и включу его только после проверки.');
-  const currentIssues=st.audit.active.issues;
-  if(opt.autoDiagnose){
-    if(opt.userHint)say('user',esc(opt.userHint));
-    say('bot','Выделение принято. Сравниваю изображение с тем, что записал парсер; описание для этого не требуется.');
-    setTimeout(()=>aiInterpret(opt.userHint||'Автоматически проверь выделенный участок: сравни все видимые кабельные линии, источник, потребителей, марки, сечения, длины и трубы с кандидатами парсера. Если есть доказанное отличие — предложи одно конкретное исправление. Если всё совпадает или данных недостаточно — задай один точный вопрос.',{auto:true}),80);
-  }else if(currentIssues.length){chips([['Разобрать расхождения листа '+st.pg.page,'проверь весь лист по аудиту, найди пропущенные или неверные строки и предложи полное исправление'],['Добавить фрагмент','__attach__']]);
-    // На текущем проблемном листе не ждём вопроса «что не так»: отдаём аудит и лист в зрение сразу.
-    setTimeout(()=>aiInterpret('проверь весь лист по аудиту, найди пропущенные или неверные строки и предложи полное исправление'),80);
-  }else chips([['Добавить фрагмент с чертежа','__attach__'],['Указать длину','длина ',true],['Указать источник','источник ',true],['Трубы один раз','трубы учитывать один раз']]);
+  attach.onclick=pickAnotherFragment;
+  if(opt.userHint)say('user',esc(opt.userHint));
+  say('bot','Вижу выделенную область на листе '+st.pg.page+'. Сама сравниваю чертёж с результатом парсера. Если найду доказанную ошибку, покажу «было → стало»; если данных не хватит, задам один конкретный вопрос.');
+  setTimeout(()=>aiInterpret(opt.userHint||'Автоматически проверь выделенный участок: сравни все видимые кабельные линии, источник, потребителей, марки, сечения, длины и трубы с кандидатами парсера. Если есть доказанное отличие — предложи одно конкретное исправление. Если всё совпадает или данных недостаточно — задай один точный вопрос.',{auto:true}),80);
   input.focus();
 }
 let _lkVid=900000;
