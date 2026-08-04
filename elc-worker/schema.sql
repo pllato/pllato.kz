@@ -433,6 +433,7 @@ CREATE TABLE wa_chats (
   last_message_from     TEXT,                 -- 'me'|'them'
   last_read_at          INTEGER,
   unread_count          INTEGER DEFAULT 0,
+  meta_attribution_checked_at TEXT,            -- когда история проверена на старую Meta-рекламу
   created_at            TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at            TEXT
 );
