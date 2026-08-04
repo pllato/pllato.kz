@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Кейсы Pllato — CRM и ПО под бизнес: что мы построили</title>
-<meta name="description" content="Кейсы Pllato: заказные CRM, ERP и порталы под разные ниши — снабжение с 1С, завод вентиляции, металлургия, ЖКХ, розница, оконный бизнес, образование.">
+<title>Кейсы Pllato — CRM, ERP и порталы под реальные процессы</title>
+<meta name="description" content="Кейсы Pllato: как мы собираем продажи, производство, склад, финансы и коммуникации в одну систему под процессы конкретного бизнеса.">
 <meta name="theme-color" content="#fafaf6">
 <link rel="canonical" href="https://pllato.kz/cases/">
-<meta property="og:title" content="Кейсы Pllato — CRM и ПО под бизнес">
-<meta property="og:description" content="Что мы уже построили: CRM, ERP и порталы под снабжение, производство, ЖКХ, розницу и образование.">
+<meta property="og:title" content="Кейсы Pllato — от разрозненных процессов к одной системе">
+<meta property="og:description" content="10 кейсов в торговле, производстве, строительстве, логистике, туризме и образовании.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://pllato.kz/cases/">
 <meta property="og:image" content="https://pllato.kz/og-image.jpg">
@@ -20,6 +20,28 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/landing.css">
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"CollectionPage",
+  "name":"Кейсы Pllato",
+  "url":"https://pllato.kz/cases/",
+  "description":"Примеры заказных CRM, ERP и бизнес-порталов Pllato",
+  "mainEntity":{"@type":"ItemList","numberOfItems":10,"itemListElement":[
+    {"@type":"ListItem","position":1,"name":"Aminamed — торговля и дистрибуция"},
+    {"@type":"ListItem","position":2,"name":"Revyline — розничная сеть"},
+    {"@type":"ListItem","position":3,"name":"Полистиролбетон — производственный холдинг"},
+    {"@type":"ListItem","position":4,"name":"RL Systems — проектное снабжение"},
+    {"@type":"ListItem","position":5,"name":"Зайка — сеть детских садов"},
+    {"@type":"ListItem","position":6,"name":"EastPole — туризм"},
+    {"@type":"ListItem","position":7,"name":"АгроСклад — ответственное хранение"},
+    {"@type":"ListItem","position":8,"name":"AZAM — производство"},
+    {"@type":"ListItem","position":9,"name":"MAGISTRAL — железнодорожная логистика"},
+    {"@type":"ListItem","position":10,"name":"Orangery — розничная сеть"}
+  ]}
+}
+</script>
 <!-- Google Tag Manager -->
 <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
@@ -27,204 +49,242 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
 })(window,document,'script','dataLayer','GTM-M5N2WR2B');</script>
 <!-- End Google Tag Manager -->
-<link rel="stylesheet" href="/assets/landing.css">
 <style>
-  .cases-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:22px}
-  .case{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:28px}
-  .case .tag{font-size:12.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--bronze-deep)}
-  .case h3{font-size:21px;font-weight:800;margin:8px 0 12px;line-height:1.25}
-  .case .task{font-size:15px;color:var(--text-2);margin-bottom:14px}
-  .case .task b{color:var(--navy)}
-  .case ul{margin:0;padding-left:18px}
-  .case li{font-size:14.5px;color:var(--text-2);margin-bottom:6px}
-  .note{font-size:14px;color:var(--text-3);margin-top:24px}
-  @media(max-width:760px){ .cases-grid{grid-template-columns:1fr} }
+:root{--case-navy:#0a1628;--case-bronze:#4f46e5;--case-muted:#667085;--case-line:#e8e3d6;--case-bg:#fafaf6;--case-green:#169b62}
+*{box-sizing:border-box}
+body{background:var(--case-bg);color:var(--case-navy)}
+.case-header{position:sticky;top:0;z-index:30;background:rgba(250,250,246,.92);backdrop-filter:blur(16px);border-bottom:1px solid rgba(232,227,214,.85)}
+.case-header-in{height:72px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+.case-logo img{display:block;width:118px;height:auto}
+.case-nav{display:flex;align-items:center;gap:24px;font-size:14px;font-weight:600}
+.case-nav a:hover{color:var(--case-bronze)}
+.case-hero{padding:92px 0 72px;overflow:hidden;position:relative}
+.case-hero:after{content:"";position:absolute;right:-140px;top:-190px;width:560px;height:560px;border-radius:50%;background:radial-gradient(circle,rgba(79,70,229,.17),rgba(79,70,229,0) 69%);pointer-events:none}
+.case-breadcrumb{font-size:13px;font-weight:700;color:var(--case-bronze);letter-spacing:.08em;text-transform:uppercase}
+.case-hero-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,.75fr);gap:64px;align-items:end}
+.case-hero h1{font-size:clamp(42px,6.4vw,76px);line-height:1.02;letter-spacing:-.055em;margin:18px 0 22px;max-width:900px}
+.case-hero h1 em{color:var(--case-bronze);font-style:normal}
+.case-lead{font-size:clamp(17px,2vw,21px);line-height:1.6;color:#4d586b;max-width:760px}
+.case-lead b{color:var(--case-navy)}
+.case-hero-note{border-left:3px solid var(--case-bronze);padding:4px 0 4px 22px;color:#5f6878;font-size:14px;line-height:1.65}
+.case-hero-note b{display:block;color:var(--case-navy);font-size:15px;margin-bottom:5px}
+.sector-list{display:flex;flex-wrap:wrap;gap:9px;margin-top:34px}
+.sector-list span{border:1px solid var(--case-line);background:#fff;border-radius:999px;padding:9px 14px;font-size:13px;font-weight:700;color:#465166}
+.signal-section{padding:26px 0 70px}
+.signal-panel{display:grid;grid-template-columns:repeat(4,1fr);background:var(--case-navy);color:#fff;border-radius:24px;overflow:hidden;box-shadow:0 28px 70px rgba(10,22,40,.16)}
+.signal{padding:28px;border-right:1px solid rgba(255,255,255,.11)}
+.signal:last-child{border-right:0}
+.signal-num{font-size:13px;color:#c7d2fe;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.signal p{font-size:15px;line-height:1.5;margin-top:10px;color:#dbe2ec}
+.section-block{padding:80px 0}
+.section-block.white{background:#fff;border-top:1px solid var(--case-line);border-bottom:1px solid var(--case-line)}
+.section-kicker{font-size:12px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--case-bronze)}
+.section-title{font-size:clamp(32px,4vw,48px);line-height:1.08;letter-spacing:-.035em;margin:12px 0 16px;max-width:900px}
+.section-intro{font-size:17px;line-height:1.65;color:#667085;max-width:780px}
+.featured-list{display:grid;gap:34px;margin-top:42px}
+.feature-case{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);background:#fff;border:1px solid var(--case-line);border-radius:24px;overflow:hidden;box-shadow:0 16px 50px rgba(10,22,40,.07)}
+.feature-case:nth-child(even) .case-copy{order:2}.feature-case:nth-child(even) .case-visual{order:1}
+.case-copy{padding:42px}
+.case-topline{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.industry{font-size:12px;font-weight:800;color:var(--case-bronze);letter-spacing:.09em;text-transform:uppercase}
+.status{font-size:11px;font-weight:800;color:var(--case-green);background:#eaf8f1;border-radius:999px;padding:5px 9px}
+.case-copy h3{font-size:30px;line-height:1.15;letter-spacing:-.025em;margin:14px 0 26px}
+.case-phase{margin-top:20px}
+.case-phase small{display:block;text-transform:uppercase;letter-spacing:.09em;font-size:11px;font-weight:800;color:#8b94a3;margin-bottom:7px}
+.case-phase p{font-size:15px;line-height:1.6;color:#4f5a6d}
+.case-phase strong{color:var(--case-navy)}
+.module-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:25px}
+.module-tags span{font-size:12px;font-weight:700;border-radius:8px;background:#f1f0ff;border:1px solid #e2e0ff;padding:7px 10px;color:#4338ca}
+.case-visual{background:#eef2f6;padding:32px;display:flex;align-items:center;min-height:470px}
+.ui-window{width:100%;background:#fff;border:1px solid #dfe4ea;border-radius:16px;overflow:hidden;box-shadow:0 24px 54px rgba(10,22,40,.13)}
+.ui-bar{height:38px;background:#f6f7f9;border-bottom:1px solid #e7ebef;display:flex;align-items:center;gap:6px;padding:0 13px}
+.ui-bar i{width:8px;height:8px;border-radius:50%;background:#d7dce3}.ui-bar i:nth-child(1){background:#ef777c}.ui-bar i:nth-child(2){background:#f5c25c}.ui-bar i:nth-child(3){background:#68c987}
+.ui-bar span{margin-left:8px;font-size:10px;color:#8a93a1;font-weight:700}
+.ui-content{padding:20px}
+.ui-title{display:flex;justify-content:space-between;gap:15px;align-items:flex-end;margin-bottom:16px}
+.ui-title b{font-size:15px}.ui-title span{font-size:9px;text-transform:uppercase;color:#8892a0;font-weight:800;letter-spacing:.08em}
+.metric-row{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px}
+.metric{background:#f7f8fa;border:1px solid #edf0f3;border-radius:9px;padding:11px}.metric small{font-size:8px;color:#8d96a4;display:block;margin-bottom:7px}.metric b{font-size:13px}.metric b.mask{letter-spacing:.09em;color:#a4acb8}
+.ui-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:11px}
+.ui-panel{border:1px solid #e9edf1;border-radius:10px;padding:12px;min-height:128px}
+.ui-panel-title{font-size:9px;color:#6b7482;font-weight:800;margin-bottom:13px}
+.bars{display:flex;align-items:flex-end;gap:7px;height:72px;border-bottom:1px solid #eaedf1;padding:0 5px}.bars i{flex:1;background:linear-gradient(180deg,#a5b4fc,#4f46e5);border-radius:4px 4px 0 0}.bars i:nth-child(1){height:32%}.bars i:nth-child(2){height:66%}.bars i:nth-child(3){height:48%}.bars i:nth-child(4){height:84%}.bars i:nth-child(5){height:62%}
+.flow-lines{display:grid;gap:9px}.flow-line{display:grid;grid-template-columns:8px 1fr auto;gap:7px;align-items:center;font-size:8px;color:#667085}.flow-line i{width:8px;height:8px;border-radius:50%;background:#4f46e5}.flow-line b{font-size:8px;color:#344054}.flow-track{grid-column:2/4;height:5px;border-radius:99px;background:#eef0f3;overflow:hidden}.flow-track:before{content:"";display:block;height:100%;width:var(--w,70%);background:#1e9b64;border-radius:99px}
+.kanban{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.kanban-col{background:#f7f8fa;border-radius:8px;padding:8px}.kanban-col>span{font-size:7px;font-weight:800;color:#7e8794;text-transform:uppercase}.ticket{background:#fff;border:1px solid #e9edf1;border-left:3px solid #b8895a;border-radius:6px;margin-top:7px;padding:7px}.ticket b{font-size:7px;display:block}.ticket small{font-size:6px;color:#929aa6}
+.privacy-caption{font-size:11px;color:#7a8494;margin-top:12px;text-align:center}
+.all-cases{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:38px}
+.case-card{background:#fff;border:1px solid var(--case-line);border-radius:18px;padding:28px;display:flex;flex-direction:column;min-height:315px;transition:transform .2s ease,box-shadow .2s ease}
+.case-card:hover{transform:translateY(-3px);box-shadow:0 18px 40px rgba(10,22,40,.08)}
+.case-card-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
+.case-card h3{font-size:22px;line-height:1.22;margin:8px 0 18px}
+.case-card .audience{font-size:11px;font-weight:800;color:#4338ca;background:#eef2ff;border-radius:999px;padding:6px 9px;white-space:nowrap}
+.case-card dl{display:grid;gap:15px;margin:0}.case-card dt{font-size:10px;font-weight:800;color:#9098a5;letter-spacing:.09em;text-transform:uppercase}.case-card dd{margin:5px 0 0;font-size:14px;line-height:1.55;color:#515c6e}.case-card dd strong{color:var(--case-navy)}
+.case-card .outcome{margin-top:auto;padding-top:18px;border-top:1px solid #eeeae2;font-size:13px;line-height:1.5;color:#22734f;font-weight:700}
+.method{display:grid;grid-template-columns:.8fr 1.2fr;gap:64px;align-items:start;margin-top:42px}
+.method-steps{display:grid;gap:12px}.method-step{display:grid;grid-template-columns:42px 1fr;gap:15px;align-items:start;background:#fff;border:1px solid var(--case-line);padding:18px;border-radius:14px}.method-step i{width:42px;height:42px;border-radius:12px;background:var(--case-navy);color:#fff;display:grid;place-items:center;font-style:normal;font-weight:800}.method-step b{display:block;font-size:15px;margin-bottom:4px}.method-step p{font-size:13px;line-height:1.5;color:#667085}
+.method-copy{background:#f6f1e9;border:1px solid #e9ddca;border-radius:22px;padding:34px}.method-copy h3{font-size:26px;line-height:1.2;margin-bottom:15px}.method-copy p{color:#5c6677;font-size:15px;line-height:1.65}.method-copy ul{padding-left:19px;margin:20px 0 0}.method-copy li{margin:9px 0;color:#4e596a;font-size:14px;line-height:1.5}
+.cases-cta{margin:70px 0 90px;background:var(--case-navy);color:#fff;border-radius:28px;padding:52px;display:flex;justify-content:space-between;gap:40px;align-items:center;box-shadow:0 26px 70px rgba(10,22,40,.18)}
+.cases-cta h2{font-size:clamp(30px,4vw,46px);line-height:1.08;letter-spacing:-.03em;max-width:690px}.cases-cta p{color:#bec9d8;margin-top:13px;max-width:650px;line-height:1.6}.cases-cta .btn{white-space:nowrap}
+.case-footer{border-top:1px solid var(--case-line);padding:28px 0 42px;color:#7b8491;font-size:13px}.case-footer-in{display:flex;justify-content:space-between;gap:20px;align-items:center}.case-footer-links{display:flex;gap:20px}.case-footer a:hover{color:var(--case-bronze)}
+@media(max-width:980px){.case-nav{display:none}.case-hero-grid,.feature-case,.method{grid-template-columns:1fr}.feature-case:nth-child(even) .case-copy{order:1}.feature-case:nth-child(even) .case-visual{order:2}.signal-panel{grid-template-columns:1fr 1fr}.signal:nth-child(2){border-right:0}.signal:nth-child(-n+2){border-bottom:1px solid rgba(255,255,255,.11)}.cases-cta{align-items:flex-start;flex-direction:column}.all-cases{grid-template-columns:1fr}}
+@media(max-width:640px){.case-header-in{height:64px}.case-header .btn{padding:10px 13px;font-size:12px}.case-hero{padding:58px 0 48px}.case-hero h1{font-size:42px}.case-hero-grid{gap:30px}.signal-panel{grid-template-columns:1fr}.signal{border-right:0;border-bottom:1px solid rgba(255,255,255,.11)}.signal:last-child{border-bottom:0}.section-block{padding:58px 0}.case-copy{padding:27px 23px}.case-copy h3{font-size:26px}.case-visual{padding:18px;min-height:370px}.metric-row{grid-template-columns:1fr 1fr}.metric:last-child{display:none}.ui-grid{grid-template-columns:1fr}.ui-grid .ui-panel:last-child{display:none}.case-card{padding:22px;min-height:0}.case-card-head{display:block}.case-card .audience{display:inline-block;margin-bottom:10px}.method{gap:28px}.method-copy{padding:25px}.cases-cta{margin:52px 0 65px;padding:32px 24px}.case-footer-in{align-items:flex-start;flex-direction:column}.case-footer-links{flex-wrap:wrap}}
 </style>
 <!-- Meta Pixel Code -->
 <script>
-!function(f,b,e,v,n,t,s)
-{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-n.queue=[];t=b.createElement(e);t.async=!0;
-t.src=v;s=b.getElementsByTagName(e)[0];
-s.parentNode.insertBefore(t,s)}(window, document,'script',
-'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '893448113078273');
-fbq('track', 'PageView');
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init','893448113078273');fbq('track','PageView');
 </script>
-<noscript><img height="1" width="1" style="display:none"
-src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
-/></noscript>
-<!-- End Meta Pixel Code -->
 </head>
 <body>
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-M5N2WR2B" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
-<header class="hdr">
-  <div class="wrap hdr-in">
-    <a href="/" class="logo">Pl<b>l</b>ato</a>
-    <div class="hdr-right">
-      <a href="tel:+77011239999" class="hdr-phone">+7 701 123 99 99</a>
-      <a href="/crm/na-zakaz/#zakazat" class="btn btn-bronze btn-sm">Заказать разработку</a>
-    </div>
+<header class="case-header">
+  <div class="wrap case-header-in">
+    <a class="case-logo" href="/" aria-label="Pllato — на главную"><img src="/pllato_logo_transparent_navy.svg" alt="Pllato" width="118" height="32"></a>
+    <nav class="case-nav" aria-label="Навигация по странице">
+      <a href="#featured">Главные кейсы</a><a href="#all">Все направления</a><a href="#approach">Как работаем</a><a href="/">На главную</a>
+    </nav>
+    <a href="/crm/na-zakaz/#zakazat" class="btn btn-bronze btn-sm">Обсудить задачу</a>
   </div>
 </header>
 
-<section class="hero" style="padding-bottom:24px">
+<main>
+  <section class="case-hero">
+    <div class="wrap case-hero-grid">
+      <div>
+        <div class="case-breadcrumb">Кейсы Pllato</div>
+        <h1>Не ещё одна CRM. <em>Рабочая система</em> под процессы компании.</h1>
+        <p class="case-lead">Мы объединяем продажи, производство, склад, финансы и коммуникации в одном окне. Ниже — <b>какие задачи приносили клиенты и как менялась ежедневная работа руководителя и команды.</b></p>
+        <div class="sector-list"><span>Торговля</span><span>Производство</span><span>Строительство</span><span>Логистика</span><span>Сети услуг</span><span>Туризм</span></div>
+      </div>
+      <aside class="case-hero-note"><b>Что важно в этих кейсах</b>Мы показываем не набор функций, а управленческую задачу: где терялись данные, какие участки связали и что руководитель теперь видит без ручного сбора отчётов.</aside>
+    </div>
+  </section>
+
+  <section class="signal-section" aria-label="Когда нужна своя система">
+    <div class="wrap">
+      <div class="signal-panel">
+        <div class="signal"><div class="signal-num">01 · Excel</div><p>Критичные процессы держатся на таблицах и ручных сверках.</p></div>
+        <div class="signal"><div class="signal-num">02 · WhatsApp</div><p>Заявки, согласования и история работы теряются в чатах.</p></div>
+        <div class="signal"><div class="signal-num">03 · 1С</div><p>Данные есть, но руководителю неудобно получать картину бизнеса.</p></div>
+        <div class="signal"><div class="signal-num">04 · Типовая CRM</div><p>Команда упёрлась в ограничения и продолжает работать в обход системы.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-block white" id="featured">
+    <div class="wrap">
+      <div class="section-kicker">Четыре подробных разбора</div>
+      <h2 class="section-title">От исходной проблемы — до рабочего контура</h2>
+      <p class="section-intro">Для публичной версии мы оставили архитектуру решений и управленческий эффект. Коммерческие показатели, персональные данные и внутренние документы скрыты.</p>
+
+      <div class="featured-list">
+        <article class="feature-case">
+          <div class="case-copy">
+            <div class="case-topline"><span class="industry">Торговля и дистрибуция</span><span class="status">Рабочая система</span></div>
+            <h3>Aminamed: продажи, склад и 1С в одном окне</h3>
+            <div class="case-phase"><small>Исходная задача</small><p>Убрать бумажный и ручной контур: заказы собирались из разных источников, склад и деньги приходилось сверять отдельно.</p></div>
+            <div class="case-phase"><small>Что собрали</small><p><strong>Панель руководителя, воронку продаж, конструктор заказа по трём прайсам, склад в реальном времени и обмен с 1С.</strong></p></div>
+            <div class="case-phase"><small>Управленческий эффект</small><p>Продажи, остатки и движение операций доступны в одном интерфейсе — без повторного сбора данных.</p></div>
+            <div class="module-tags"><span>Панель из 13 показателей</span><span>Заказы</span><span>Склад</span><span>1С</span></div>
+          </div>
+          <div class="case-visual" aria-label="Обезличенная схема интерфейса Aminamed">
+            <div><div class="ui-window"><div class="ui-bar"><i></i><i></i><i></i><span>Панель руководителя · данные обезличены</span></div><div class="ui-content"><div class="ui-title"><b>Обзор компании</b><span>обновлено сейчас</span></div><div class="metric-row"><div class="metric"><small>Заказы</small><b class="mask">••••</b></div><div class="metric"><small>Остатки</small><b class="mask">••••</b></div><div class="metric"><small>Поступления</small><b class="mask">••••</b></div></div><div class="ui-grid"><div class="ui-panel"><div class="ui-panel-title">Динамика операций</div><div class="bars"><i></i><i></i><i></i><i></i><i></i></div></div><div class="ui-panel"><div class="ui-panel-title">Контуры системы</div><div class="flow-lines"><div class="flow-line"><i></i><b>Продажи</b><span>связано</span></div><div class="flow-track" style="--w:88%"></div><div class="flow-line"><i></i><b>Склад</b><span>связано</span></div><div class="flow-track" style="--w:76%"></div><div class="flow-line"><i></i><b>1С</b><span>обмен</span></div><div class="flow-track" style="--w:92%"></div></div></div></div></div></div><div class="privacy-caption">Иллюстрация структуры рабочего экрана без коммерческих данных</div></div>
+          </div>
+        </article>
+
+        <article class="feature-case">
+          <div class="case-copy">
+            <div class="case-topline"><span class="industry">Розничная сеть</span><span class="status">Рабочая система</span></div>
+            <h3>Revyline: управленческий портал поверх 1С</h3>
+            <div class="case-phase"><small>Исходная задача</small><p>Учёт был настроен в 1С, но руководителю было сложно регулярно получать понятный отчёт и видеть работу сети.</p></div>
+            <div class="case-phase"><small>Что собрали</small><p><strong>Портал с данными из 1С, B2B- и B2C-воронки, KPI, автоматические сценарии и отдельный контур работы с блогерами и рекомендациями.</strong></p></div>
+            <div class="case-phase"><small>Управленческий эффект</small><p>Основные показатели и действия команды стали доступны в привычном веб-интерфейсе без ежедневной работы внутри 1С.</p></div>
+            <div class="module-tags"><span>1С → портал</span><span>KPI</span><span>CRM-роботы</span><span>Реферальная система</span></div>
+          </div>
+          <div class="case-visual" aria-label="Обезличенная схема интерфейса Revyline">
+            <div><div class="ui-window"><div class="ui-bar"><i></i><i></i><i></i><span>Сеть · продажи и клиенты</span></div><div class="ui-content"><div class="ui-title"><b>Продажи и работа сети</b><span>единый портал</span></div><div class="metric-row"><div class="metric"><small>Точки</small><b>В работе</b></div><div class="metric"><small>План / факт</small><b class="mask">••%</b></div><div class="metric"><small>Клиенты</small><b class="mask">••••</b></div></div><div class="ui-grid"><div class="ui-panel"><div class="ui-panel-title">Выручка по направлениям</div><div class="bars"><i></i><i></i><i></i><i></i><i></i></div></div><div class="ui-panel"><div class="ui-panel-title">Автоматические сценарии</div><div class="flow-lines"><div class="flow-line"><i></i><b>Повторная покупка</b><span>активно</span></div><div class="flow-track" style="--w:82%"></div><div class="flow-line"><i></i><b>Рекомендации</b><span>активно</span></div><div class="flow-track" style="--w:68%"></div><div class="flow-line"><i></i><b>Опрос качества</b><span>активно</span></div><div class="flow-track" style="--w:74%"></div></div></div></div></div></div><div class="privacy-caption">Публичная реконструкция: реальные показатели сети не отображаются</div></div>
+          </div>
+        </article>
+
+        <article class="feature-case">
+          <div class="case-copy">
+            <div class="case-topline"><span class="industry">Строительство и проекты</span><span class="status">Внедрено в процесс</span></div>
+            <h3>RL Systems: заявки прорабов и платежи по проектам</h3>
+            <div class="case-phase"><small>Исходная задача</small><p>Заявки на закуп и платежи шли через WhatsApp. На десятках проектов терялась история, возникали повторные вопросы и ручные сверки.</p></div>
+            <div class="case-phase"><small>Что собрали</small><p><strong>Единый маршрут заявки: создание, проверка, согласование, очередь платежей и внутренний аудит с привязкой к проекту.</strong></p></div>
+            <div class="case-phase"><small>Управленческий эффект</small><p>По каждой заявке видно ответственного, основание, статус и историю — без поиска по чатам.</p></div>
+            <div class="module-tags"><span>Заявки прорабов</span><span>Согласования</span><span>Платёжный календарь</span><span>Аудит</span></div>
+          </div>
+          <div class="case-visual" aria-label="Обезличенная схема интерфейса RL Systems">
+            <div><div class="ui-window"><div class="ui-bar"><i></i><i></i><i></i><span>Проектное снабжение · суммы скрыты</span></div><div class="ui-content"><div class="ui-title"><b>Запросы и согласования</b><span>по проектам</span></div><div class="metric-row"><div class="metric"><small>В работе</small><b>Заявки</b></div><div class="metric"><small>На проверке</small><b>Контроль</b></div><div class="metric"><small>К оплате</small><b class="mask">••••</b></div></div><div class="ui-panel"><div class="ui-panel-title">Маршрут заявки</div><div class="kanban"><div class="kanban-col"><span>Новая</span><div class="ticket"><b>Заявка на материал</b><small>Проект · участок</small></div><div class="ticket"><b>Заявка на услугу</b><small>Проект · участок</small></div></div><div class="kanban-col"><span>Проверка</span><div class="ticket"><b>Смета приложена</b><small>Ответственный</small></div></div><div class="kanban-col"><span>Согласовано</span><div class="ticket"><b>В календарь</b><small>Дата платежа</small></div></div></div></div></div></div><div class="privacy-caption">Коммерческие суммы и названия проектов намеренно скрыты</div></div>
+          </div>
+        </article>
+
+        <article class="feature-case">
+          <div class="case-copy">
+            <div class="case-topline"><span class="industry">Производство</span><span class="status">Производственный контур</span></div>
+            <h3>AZAM: путь заказа через весь завод</h3>
+            <div class="case-phase"><small>Исходная задача</small><p>Связать длинный цикл: от договора и комплектации до закупа, цехов, контроля качества и отгрузки.</p></div>
+            <div class="case-phase"><small>Что собрали</small><p><strong>Четыре рабочих потока, конструктор заказа, производственное планирование по цехам, склад, штрихкод-прослеживаемость, ОТК и обмен с 1С.</strong></p></div>
+            <div class="case-phase"><small>Управленческий эффект</small><p>Команда видит, на каком участке находится заказ и что мешает перейти к следующему этапу.</p></div>
+            <div class="module-tags"><span>ПДО и цеха</span><span>ОТК</span><span>Штрихкоды</span><span>Склад</span><span>1С</span></div>
+          </div>
+          <div class="case-visual" aria-label="Обезличенная схема интерфейса AZAM">
+            <div><div class="ui-window"><div class="ui-bar"><i></i><i></i><i></i><span>Пульт завода · производственные данные скрыты</span></div><div class="ui-content"><div class="ui-title"><b>Заказы в производстве</b><span>сквозной контроль</span></div><div class="metric-row"><div class="metric"><small>Проектирование</small><b>Этап</b></div><div class="metric"><small>Цеха</small><b>Загрузка</b></div><div class="metric"><small>ОТК</small><b>Контроль</b></div></div><div class="ui-grid"><div class="ui-panel"><div class="ui-panel-title">Движение по участкам</div><div class="bars"><i></i><i></i><i></i><i></i><i></i></div></div><div class="ui-panel"><div class="ui-panel-title">Готовность заказа</div><div class="flow-lines"><div class="flow-line"><i></i><b>Комплектация</b><span>готово</span></div><div class="flow-track" style="--w:100%"></div><div class="flow-line"><i></i><b>Производство</b><span>в работе</span></div><div class="flow-track" style="--w:72%"></div><div class="flow-line"><i></i><b>Отгрузка</b><span>ожидает</span></div><div class="flow-track" style="--w:20%"></div></div></div></div></div></div><div class="privacy-caption">Публичная схема без объёмов производства и финансов</div></div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-block" id="all">
+    <div class="wrap">
+      <div class="section-kicker">Все направления</div>
+      <h2 class="section-title">Ещё шесть задач из разных отраслей</h2>
+      <p class="section-intro">Система строится не вокруг названия отрасли, а вокруг маршрута работы: кто создаёт данные, кто принимает решение и где чаще всего возникает потеря.</p>
+      <div class="all-cases">
+        <article class="case-card"><div class="case-card-head"><div><span class="industry">Производственный холдинг</span><h3>Полистиролбетон</h3></div><span class="audience">4 направления</span></div><dl><div><dt>Задача</dt><dd>Перейти от ограничений типовой CRM к <strong>собственной системе для нескольких бизнесов</strong>.</dd></div><div><dt>Контур</dt><dd>Раздельные воронки, заказы из прайса, предложения, склады, производство и аналитика.</dd></div></dl><div class="outcome">Один продукт для разных команд холдинга вместо набора разрозненных решений.</div></article>
+        <article class="case-card"><div class="case-card-head"><div><span class="industry">Образование и услуги</span><h3>Сеть детских садов «Зайка»</h3></div><span class="audience">Сеть филиалов</span></div><dl><div><dt>Задача</dt><dd>Связать посещаемость, расчёт оплаты труда и <strong>коммуникацию с родителями</strong>.</dd></div><div><dt>Контур</dt><dd>Группы и дети, посещения, база для начислений, задачи, склад и единый канал общения.</dd></div></dl><div class="outcome">Ежедневная работа сети перестаёт зависеть от множества несвязанных чатов.</div></article>
+        <article class="case-card"><div class="case-card-head"><div><span class="industry">Туризм</span><h3>EastPole</h3></div><span class="audience">Сложные туры</span></div><dl><div><dt>Задача</dt><dd>Управлять турами, где дата связана с группой, проживанием, техникой, транспортом и гидами.</dd></div><div><dt>Контур</dt><dd>Календарь загрузки, бронирования, воронки, оплата, check-in, распределение ресурсов и аналитика.</dd></div></dl><div class="outcome">Продажа тура и операционная подготовка соединены в одном маршруте.</div></article>
+        <article class="case-card"><div class="case-card-head"><div><span class="industry">Складская логистика</span><h3>АгроСклад</h3></div><span class="audience">Ответхранение</span></div><dl><div><dt>Задача</dt><dd>Дать заказчикам возможность самостоятельно создавать задания складу и видеть их исполнение.</dd></div><div><dt>Контур</dt><dd>Кабинет клиента, приёмка и отгрузка, ячейки, штрихкоды, остатки, инвентаризация и история действий.</dd></div></dl><div class="outcome">Склад точно понимает, что принять и отгрузить, а клиент видит статус без звонков.</div></article>
+        <article class="case-card"><div class="case-card-head"><div><span class="industry">Железнодорожная логистика</span><h3>MAGISTRAL</h3></div><span class="audience">Вагоны и рейсы</span></div><dl><div><dt>Задача</dt><dd>Не допускать ситуации, когда перевозка выполнена, а счёт не выставлен или оплата потеряна.</dd></div><div><dt>Контур</dt><dd>Заявки, реестр вагонов, маршруты, документы, частичные оплаты и контроль «готово к выставлению».</dd></div></dl><div class="outcome">Финансовый контроль встроен в операционный маршрут перевозки.</div></article>
+        <article class="case-card"><div class="case-card-head"><div><span class="industry">Розничная сеть</span><h3>Orangery</h3></div><span class="audience">Розница + опт</span></div><dl><div><dt>Задача</dt><dd>Связать клиентскую базу, повторные продажи, остатки по филиалам и показатели команды.</dd></div><div><dt>Контур</dt><dd>Лояльность, сегменты и сообщения, склад, прогноз закупа, KPI, план-факт и аналитика каналов.</dd></div></dl><div class="outcome">Владелец видит сеть целиком, а команда работает с клиентами и запасами по общей логике.</div></article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-block white" id="approach">
+    <div class="wrap">
+      <div class="section-kicker">Как мы проектируем</div>
+      <h2 class="section-title">Сначала процесс. Потом интерфейс.</h2>
+      <div class="method">
+        <div class="method-steps">
+          <div class="method-step"><i>1</i><div><b>Разбираем текущую работу</b><p>От заявки клиента до денег, исполнения и управленческого отчёта.</p></div></div>
+          <div class="method-step"><i>2</i><div><b>Находим места потерь</b><p>Повторный ввод, ручные согласования, потерянные чаты и невидимые остатки.</p></div></div>
+          <div class="method-step"><i>3</i><div><b>Собираем рабочее демо</b><p>Показываем будущую систему на знакомом клиенту сценарии.</p></div></div>
+          <div class="method-step"><i>4</i><div><b>Запускаем по этапам</b><p>Команда начинает работать в системе, а мы докручиваем логику по факту использования.</p></div></div>
+        </div>
+        <aside class="method-copy"><h3>Что должно быть понятно после первого разбора</h3><p>Не «какие кнопки будут в CRM», а какой управленческий результат должна обеспечить система.</p><ul><li>Какие данные вводятся один раз и используются дальше автоматически.</li><li>Кто отвечает за переход между этапами.</li><li>Что руководитель видит без ручного запроса отчёта.</li><li>Какие внешние системы нужно связать: 1С, WhatsApp, сайт, телефонию или оборудование.</li></ul></aside>
+      </div>
+    </div>
+  </section>
+
   <div class="wrap">
-    <span class="badge"><span class="dot"></span> Кейсы Pllato</span>
-    <h1 style="font-size:42px;font-weight:800;margin:6px 0 12px">Что мы уже построили</h1>
-    <p class="hero-sub">Заказные CRM, ERP и порталы под реальные процессы бизнеса — от снабжения и производства до ЖКХ и розницы. Каждая система спроектирована под нишу клиента.</p>
+    <section class="cases-cta">
+      <div><h2>Покажите нам процесс, который держится на Excel и чатах.</h2><p>За одну встречу разложим путь работы, найдём места потерь и покажем, как может выглядеть единая система под вашу компанию.</p></div>
+      <a href="/crm/na-zakaz/#zakazat" class="btn btn-bronze">Разобрать мой процесс →</a>
+    </section>
   </div>
-</section>
+</main>
 
-<section style="padding-top:8px">
-  <div class="wrap">
-    <div class="cases-grid">
+<footer class="case-footer"><div class="wrap case-footer-in"><div>© Pllato · заказные CRM, ERP и порталы</div><div class="case-footer-links"><a href="/">Главная</a><a href="/crm/na-zakaz/">Разработка CRM</a><a href="/privacy.html">Конфиденциальность</a></div></div></footer>
 
-      <div class="case">
-        <span class="tag">Снабжение · строительство</span>
-        <h3>CRM снабжения с двусторонней интеграцией 1С</h3>
-        <p class="task"><b>Задача:</b> вести снабжение без двойного ввода и рассинхрона с 1С.</p>
-        <ul>
-          <li>Заказы и маршрут заказа по дням</li>
-          <li>Остатки по партиям, сигналы по складу</li>
-          <li>Единая номенклатура: ключ ↔ код 1С</li>
-          <li>Контрагенты, договоры, документы</li>
-          <li>Двусторонняя интеграция с 1С</li>
-        </ul>
-      </div>
-
-      <div class="case">
-        <span class="tag">Производство · вентиляция</span>
-        <h3>ERP завода вентиляционного оборудования</h3>
-        <p class="task"><b>Задача:</b> объединить производство и B2B-продажи на одном портале.</p>
-        <ul>
-          <li>Дашборд завода, загрузка цехов, отгрузки</li>
-          <li>Контроль заказов и сроков</li>
-          <li>Воронка B2B-продаж</li>
-          <li>Подбор оборудования по параметрам (калькулятор)</li>
-          <li>Интеграция с 1С-бухгалтерией</li>
-        </ul>
-      </div>
-
-      <div class="case">
-        <span class="tag">Производство · металлургия</span>
-        <h3>Производственный портал металлургии</h3>
-        <p class="task"><b>Задача:</b> видеть план/факт, узкие места и маржу в реальном времени.</p>
-        <ul>
-          <li>План / факт выпуска, структура выпуска</li>
-          <li>Производственные заказы по сменам</li>
-          <li>Остатки готовой продукции, движение за смену</li>
-          <li>Воронка продаж и маржа по маркам</li>
-          <li>Сигналы по узким местам</li>
-        </ul>
-      </div>
-
-      <div class="case">
-        <span class="tag">ЖКХ · управление</span>
-        <h3>Система управления для УК (ЖКХ)</h3>
-        <p class="task"><b>Задача:</b> заявки жителей, лицевые счета и финансы по домам в одном месте.</p>
-        <ul>
-          <li>Реестр объектов и жителей, лицевые счета</li>
-          <li>Заявки и инциденты, движение заявки</li>
-          <li>Плановые работы и акты выполненных работ</li>
-          <li>Сбор средств и баланс по домам</li>
-          <li>Автосигналы системы</li>
-        </ul>
-      </div>
-
-      <div class="case">
-        <span class="tag">Розница · здоровье</span>
-        <h3>CRM и дашборд для розничной сети</h3>
-        <p class="task"><b>Задача:</b> учёт продаж и клиентов с прозрачным контролем для владельца.</p>
-        <ul>
-          <li>Дашборд владельца с ключевыми показателями</li>
-          <li>CRM клиентов и продаж</li>
-          <li>Аналитика по точкам и выручке</li>
-          <li>Роли и доступы для команды</li>
-        </ul>
-      </div>
-
-      <div class="case">
-        <span class="tag">Производство · окна</span>
-        <h3>CRM для оконного бизнеса</h3>
-        <p class="task"><b>Задача:</b> заявки, замеры, заказы и монтаж в единой системе.</p>
-        <ul>
-          <li>Воронка заявок и сделок</li>
-          <li>Расчёт и параметры заказа</li>
-          <li>График замеров и монтажа</li>
-          <li>Статусы по каждому заказу</li>
-        </ul>
-      </div>
-
-      <div class="case">
-        <span class="tag">Образование</span>
-        <h3>Портал для школы / образовательного центра</h3>
-        <p class="task"><b>Задача:</b> ученики, абонементы, оплаты и привлечение в одном месте.</p>
-        <ul>
-          <li>База учеников и групп, расписание</li>
-          <li>Абонементы и платежи</li>
-          <li>Воронка лидов и привлечение</li>
-          <li>Выручка по направлениям</li>
-          <li>Автосигналы и напоминания</li>
-        </ul>
-      </div>
-
-      <div class="case" style="display:flex;flex-direction:column;justify-content:center;background:var(--bronze-tint);border-color:#ecdcc4">
-        <h3 style="margin-top:0">А что построим вам?</h3>
-        <p class="task">Спроектируем и разработаем систему под ваш процесс — в любой нише. Бесплатная диагностика и расчёт за 30 минут.</p>
-        <a href="/crm/na-zakaz/#zakazat" class="btn btn-bronze" style="align-self:flex-start">Обсудить проект</a>
-      </div>
-
-    </div>
-
-    <p class="note">Названия компаний-заказчиков не раскрываются по соглашению о конфиденциальности. Все примеры — реальные системы, разработанные студией Pllato.</p>
-  </div>
-</section>
-
-<section id="zakazat">
-  <div class="wrap">
-    <div class="final">
-      <h2>Хотите такую же систему под свой бизнес?</h2>
-      <p>Оставьте номер — перезвоним за 30 минут, разберём задачу и назовём стоимость и сроки.</p>
-      <div class="form-success" data-lead-success>
-        <div class="form-success-mark">✓</div>
-        <div><b>Заявка принята</b>Перезвоним в течение 30 минут.</div>
-      </div>
-      <div class="form-error-state" data-lead-error>
-        Не удалось отправить. Позвоните напрямую: <a href="tel:+77011239999">+7 701 123 99 99</a>
-      </div>
-      <form class="lead-form js-lead-form" data-source="Лендинг: Кейсы" novalidate>
-        <input type="tel" name="phone" placeholder="+7 701 234 56 78" required autocomplete="tel" inputmode="tel">
-        <button type="submit" class="btn btn-bronze">Заказать разработку →</button>
-      </form>
-      <div class="form-note"><span>Перезвоним за 30 минут</span><span>Назовём цену и сроки</span><span>Без обязательств</span></div>
-    </div>
-  </div>
-</section>
-
-<footer>
-  <div class="wrap ft-in">
-    <div>
-      <div class="logo" style="color:#fff;margin-bottom:6px">Pl<b>l</b>ato</div>
-      <div>Студия разработки CRM и ПО под бизнес · Алматы</div>
-    </div>
-    <div class="ft-links">
-      <a href="/crm/na-zakaz/">Разработка CRM</a>
-      <a href="/razrabotka-po/">Разработка ПО</a>
-      <a href="/avtomatizaciya-biznesa/">Автоматизация</a>
-      <a href="/blog/">Блог</a>
-      <a href="/">На главную</a>
-    </div>
-  </div>
-</footer>
-
-<a class="wa-float" href="https://wa.me/77011239999?text=%D0%97%D0%B4%D1%80%D0%B0%D0%B2%D1%81%D1%82%D0%B2%D1%83%D0%B9%D1%82%D0%B5%2C%20%D0%B2%D0%B8%D0%B4%D0%B5%D0%BB%20%D0%B2%D0%B0%D1%88%D0%B8%20%D0%BA%D0%B5%D0%B9%D1%81%D1%8B" target="_blank" rel="noopener" aria-label="Написать в WhatsApp">
+<a class="wa-float" href="https://wa.me/77011239999?text=%D0%97%D0%B4%D1%80%D0%B0%D0%B2%D1%81%D1%82%D0%B2%D1%83%D0%B9%D1%82%D0%B5%2C%20%D1%85%D0%BE%D1%87%D1%83%20%D1%80%D0%B0%D0%B7%D0%BE%D0%B1%D1%80%D0%B0%D1%82%D1%8C%20%D0%BD%D0%B0%D1%88%20%D0%B1%D0%B8%D0%B7%D0%BD%D0%B5%D1%81-%D0%BF%D1%80%D0%BE%D1%86%D0%B5%D1%81%D1%81" target="_blank" rel="noopener" aria-label="Написать в WhatsApp">
   <svg viewBox="0 0 24 24"><path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-1.6-.8-2.6-1.4-3.7-3.2-.3-.5.3-.5.8-1.5.1-.2 0-.4 0-.5 0-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.2.2 2.1 3.3 5.2 4.6 2 .8 2.7.9 3.7.8.6-.1 1.7-.7 2-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3z"/><path d="M12 2C6.5 2 2 6.5 2 12c0 1.8.5 3.5 1.3 4.9L2 22l5.2-1.4C8.6 21.5 10.3 22 12 22c5.5 0 10-4.5 10-10S17.5 2 12 2zm0 18c-1.6 0-3.1-.4-4.4-1.2l-.3-.2-3.1.8.8-3-.2-.3C4 14.5 3.6 13.3 3.6 12 3.6 7.4 7.4 3.6 12 3.6S20.4 7.4 20.4 12 16.6 20.4 12 20.4z"/></svg>
 </a>
-
-<script src="/assets/lead.js" defer></script>
 </body>
 </html>
