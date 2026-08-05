@@ -236,6 +236,8 @@ export async function createSipClient(config) {
   let _ringOsc1 = null, _ringOsc2 = null, _ringGain = null;
   let _ringTimer = null;
   let _ringActive = false;
+  let _incomingRingActive = false;
+  let _incomingRingTimer = null;
 
   function _ringStartTone() {
     if (!_ringCtx) return;
@@ -289,6 +291,40 @@ export async function createSipClient(config) {
     if (_ringTimer) { clearTimeout(_ringTimer); _ringTimer = null; }
     _ringStopTone();
   }
+
+  function playIncomingRingtone() {
+    if (_incomingRingActive) return;
+    _incomingRingActive = true;
+    try {
+      if (!_ringCtx) _ringCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (_ringCtx.state === 'suspended') _ringCtx.resume();
+      let isOn = false;
+      const tick = () => {
+        if (!_incomingRingActive) return;
+        if (isOn) {
+          _ringStopTone(); isOn = false;
+          _incomingRingTimer = setTimeout(tick, 1800);
+        } else {
+          _ringStartTone(); isOn = true;
+          _incomingRingTimer = setTimeout(tick, 900);
+        }
+      };
+      tick();
+    } catch (e) { dbg('incoming ringtone failed', e); }
+  }
+  function stopIncomingRingtone() {
+    _incomingRingActive = false;
+    if (_incomingRingTimer) { clearTimeout(_incomingRingTimer); _incomingRingTimer = null; }
+    _ringStopTone();
+  }
+
+  // Chrome разрешает автозвук после первого жеста пользователя.
+  document.addEventListener('pointerdown', () => {
+    try {
+      if (!_ringCtx) _ringCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (_ringCtx.state === 'suspended') _ringCtx.resume();
+    } catch {}
+  }, { once: true, passive: true });
 
   // ── Audio element ────────────
   function getAudioEl() {
@@ -395,7 +431,9 @@ export async function createSipClient(config) {
   // ── SIP UA init + register ───
   async function fetchCreds(force=false) {
     if (creds && !force) return creds;
-    const r = await authFetch(opts.tokenEndpoint);
+    const tokenUrl = new URL(opts.tokenEndpoint, window.location.href);
+    tokenUrl.searchParams.set('_sipcfg', String(Date.now()));
+    const r = await authFetch(tokenUrl.toString(), { cache: 'no-store' });
     if (!r.ok) throw new Error(`SIP token fetch failed: ${r.status} ${await r.text()}`);
     creds = await r.json();
     return creds;
@@ -496,6 +534,7 @@ export async function createSipClient(config) {
   // ── Incoming call handler ────
   async function handleIncomingInvite(invitation) {
     if (session) { try { invitation.reject(); } catch{} return; }
+    playIncomingRingtone();
     const fromUri = invitation.remoteIdentity?.uri;
     const phone = fromUri?.user || 'неизвестно';
 
@@ -507,6 +546,7 @@ export async function createSipClient(config) {
     invitation.stateChange.addListener((state) => {
       dbg('invitation state', state);
       if (state === 'Terminated' || state === SIP.SessionState.Terminated) {
+        stopIncomingRingtone();
         _incomingTerminated = true;
         if (sessionMeta && !sessionMeta._localHangup) {
           sessionMeta.terminatedBy = 'remote';
@@ -583,6 +623,7 @@ export async function createSipClient(config) {
   }
 
   async function acceptIncoming(invitation) {
+    stopIncomingRingtone();
     try {
       await invitation.accept({
         sessionDescriptionHandlerOptions: { constraints: AUDIO_CONSTRAINTS },
@@ -598,6 +639,7 @@ export async function createSipClient(config) {
     }
   }
   async function rejectIncoming(invitation) {
+    stopIncomingRingtone();
     if (sessionMeta) sessionMeta._localHangup = true;  // помечаем что мы сами отклонили (не клиент сбросил)
     try { await invitation.reject(); } catch{}
     if (sessionMeta?.callId) logCallEvent({ callId: sessionMeta.callId, status: 'rejected', endedAt: new Date().toISOString() });
@@ -708,6 +750,7 @@ export async function createSipClient(config) {
   }
 
   function finalizeCall(s) {
+    stopIncomingRingtone();
     stopTimer();
     stopRingback();
     if (session === s) {
