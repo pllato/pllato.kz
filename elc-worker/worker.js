@@ -7647,6 +7647,13 @@ async function handleSipAsteriskConfig(request, env) {
   const { results: agentsRaw } = await env.DB.prepare(
     `SELECT * FROM sip_agents WHERE enabled = 1 AND extension != '' AND endpoint_password != ''`).all();
   const agents = agentsRaw || [];
+  const orgExtRow = await env.DB.prepare("SELECT v FROM kv WHERE k = ?").bind('org:extensions').first();
+  let orgExtensions = {};
+  try { orgExtensions = orgExtRow?.v ? JSON.parse(orgExtRow.v) : {}; } catch {}
+  const internalExtensions = [...new Set([
+    ...agents.map(a => String(a.extension || '')),
+    ...Object.values(orgExtensions || {}).map(v => String(v || '')),
+  ].filter(v => /^\d{2,6}$/.test(v)))];
 
   const lineById = {};
   for (const l of lines) lineById[l.id] = l;
@@ -7762,6 +7769,7 @@ dtls_verify=fingerprint
 ice_support=yes
 media_use_received_transport=yes
 rtcp_mux=yes
+allow_transfer=yes
 
 [100]
 type=aor
@@ -7795,6 +7803,7 @@ dtls_verify=fingerprint
 ice_support=yes
 media_use_received_transport=yes
 rtcp_mux=yes
+allow_transfer=yes
 
 [${a.extension}]
 type=aor
@@ -7817,6 +7826,7 @@ writeprotect=no
     ext += `
 ;=== Исходящие через линию ${l.number} ===
 [${lineCtx(l)}]
+${internalExtensions.map(extension => `exten => ${extension},1,Dial(PJSIP/${extension},30)\n same => n,Hangup()`).join('\n')}
 exten => _X.,1,NoOp(Out via line ${l.number}: \${EXTEN})
 ${cid ? ` same => n,Set(CALLERID(num)=${cid})\n` : ''} same => n,Dial(PJSIP/\${EXTEN}@line-${l.number},60)
  same => n,Hangup()

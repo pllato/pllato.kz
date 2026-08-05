@@ -15539,6 +15539,19 @@ async function getSipClient() {
           console.warn('[sip] window.openDealCard not defined');
         }
       },
+      getTransferTargets: async () => {
+        await ensureUsersLoaded();
+        const idToken = await fbAuth.currentUser.getIdToken();
+        const r = await fetch(`${WORKER_BASE_URL}/api/sip/extensions`, {
+          headers: { Authorization: `Bearer ${idToken}` }, cache: 'no-store'
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const { extensions = {} } = await r.json();
+        return Object.entries(extensions).map(([uid, extension]) => {
+          const u = usersState.users?.[uid] || {};
+          return { extension: String(extension), name: [u.lastName, u.name].filter(Boolean).join(' ').trim() || u.email || uid };
+        }).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+      },
       onCallEvent: (evt) => {
         const status = evt?.payload?.status || evt?.status;
         if (status === 'missed' || status === 'no_answer' || status === 'busy') {

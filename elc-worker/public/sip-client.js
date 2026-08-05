@@ -101,12 +101,16 @@ const STYLES = `
 .sipc-state.sipc-state-error{background:#fee2e2;color:#b91c1c}
 .sipc-timer{font-variant-numeric:tabular-nums;opacity:.7;margin-left:8px}
 
-.sipc-controls{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.sipc-controls{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
 .sipc-ctrl{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:10px 8px;cursor:pointer;font-size:13px;text-align:center;color:#0f172a;transition:all .12s;display:flex;flex-direction:column;align-items:center;gap:4px}
 .sipc-ctrl:hover:not(:disabled){background:#e2e8f0}
 .sipc-ctrl:disabled{opacity:.5;cursor:not-allowed}
 .sipc-ctrl.sipc-ctrl-on{background:#fef3c7;border-color:#fbbf24;color:#92400e}
 .sipc-ctrl .sipc-ctrl-ico{font-size:18px}
+.sipc-transfer{display:none;border:1px solid #bfdbfe;background:#eff6ff;border-radius:10px;padding:10px;margin:-4px 0 12px}
+.sipc-transfer.sipc-open{display:flex;gap:8px;align-items:center}
+.sipc-transfer select{flex:1;min-width:0;padding:8px;border:1px solid #93c5fd;border-radius:7px;background:#fff;color:#0f172a}
+.sipc-transfer button{border:0;border-radius:7px;padding:8px 10px;background:#2563eb;color:#fff;font-weight:600;cursor:pointer}
 
 .sipc-dtmf-wrap{display:none;border-top:1px solid #e5e7eb;padding-top:12px;margin-bottom:12px}
 .sipc-dtmf-wrap.sipc-open{display:block}
@@ -210,6 +214,7 @@ export async function createSipClient(config) {
     resolveContact:    config.resolveContact || null,
     onOpenContact:     config.onOpenContact || null,   // (contactId) => void — для кнопки "Открыть карточку"
     onOpenDeal:        config.onOpenDeal || null,      // (dealId) => void — клик по сделке в popup
+    getTransferTargets: config.getTransferTargets || null, // async () => [{extension,name}]
     showBottomBar:     config.showBottomBar !== false,  // default true
     autoConnect:       config.autoConnect !== false,    // default true
     debug:             !!config.debug,
@@ -826,6 +831,33 @@ export async function createSipClient(config) {
     } catch (e) { dbg('dtmf err', e); return false; }
   }
 
+  async function openTransferPicker() {
+    const box = currentOverlay?.querySelector('[data-transfer]');
+    if (!box || !opts.getTransferTargets) return;
+    box.classList.add('sipc-open');
+    const sel = box.querySelector('select');
+    sel.innerHTML = '<option value="">Загрузка сотрудников…</option>';
+    try {
+      const targets = await opts.getTransferTargets();
+      sel.innerHTML = '<option value="">Выберите сотрудника</option>' + (targets || [])
+        .map(t => `<option value="${escapeHtml(t.extension)}">${escapeHtml(t.name || t.extension)} · ${escapeHtml(t.extension)}</option>`).join('');
+    } catch (e) {
+      sel.innerHTML = '<option value="">Не удалось загрузить список</option>';
+    }
+  }
+
+  async function transferCall(extension) {
+    if (!session || session.state !== SIP.SessionState.Established) throw new Error('Нет активного разговора');
+    const ext = String(extension || '').replace(/\D/g, '');
+    if (!ext) throw new Error('Выберите сотрудника');
+    const cfg = await fetchCreds();
+    const target = SIP.UserAgent.makeURI(`sip:${ext}@${cfg.domain}`);
+    if (!target) throw new Error('Некорректный внутренний номер');
+    await session.refer(target);
+    const st = currentOverlay?.querySelector('[data-state]');
+    if (st) st.textContent = `Переводим на ${ext}…`;
+  }
+
   // ── Overlays ─────────────────
   function closeOverlays() {
     if (currentOverlay) { currentOverlay.remove(); currentOverlay = null; }
@@ -965,7 +997,11 @@ export async function createSipClient(config) {
             <button class="sipc-ctrl" data-act="dtmf" disabled>
               <span class="sipc-ctrl-ico">⌨</span><span>Тоны</span>
             </button>
+            <button class="sipc-ctrl" data-act="transfer" disabled>
+              <span class="sipc-ctrl-ico">↪</span><span>Перевести</span>
+            </button>
           </div>
+          <div class="sipc-transfer" data-transfer><select></select><button type="button">Перевести</button></div>
           <div class="sipc-dtmf-wrap" data-dtmf>
             <div class="sipc-dtmf-display"></div>
             <div class="sipc-dtmf-pad">
@@ -989,6 +1025,13 @@ export async function createSipClient(config) {
     bg.querySelector('[data-act="hold"]').onclick = () => toggleHold();
     bg.querySelector('[data-act="dtmf"]').onclick = () => {
       bg.querySelector('[data-dtmf]').classList.toggle('sipc-open');
+    };
+    bg.querySelector('[data-act="transfer"]').onclick = () => openTransferPicker();
+    bg.querySelector('[data-transfer] button').onclick = async (e) => {
+      const btn = e.currentTarget; const sel = bg.querySelector('[data-transfer] select');
+      btn.disabled = true;
+      try { await transferCall(sel.value); }
+      catch (err) { alert('Не удалось перевести звонок: ' + (err?.message || err)); btn.disabled = false; }
     };
     bg.querySelectorAll('.sipc-dtmf-key').forEach(b => {
       b.onclick = () => sendDtmf(b.dataset.d);
