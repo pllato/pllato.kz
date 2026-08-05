@@ -7831,6 +7831,8 @@ ${cid ? ` same => n,Set(CALLERID(num)=${cid})\n` : ''} same => n,Dial(PJSIP/\${E
 [${lineIn(l)}]
 exten => _X.,1,NoOp(In on line ${l.number} from \${CALLERID(num)})
  same => n,Set(CRM_PHONE=\${FILTER(0-9,\${CALLERID(num)})})
+ same => n,Set(CRM_REC_FILE=/var/spool/asterisk/monitor/\${UNIQUEID}.wav)
+ same => n,MixMonitor(\${CRM_REC_FILE},b)
  same => n,Set(CRM_TARGETS=\${CURL(${workerOrigin}/api/sip/route?phone=\${CRM_PHONE}&format=dial&route_v=20260731b&secret=${secret})})
  same => n,GotoIf(\$["\${CRM_TARGETS}"=""]?mobile)
  same => n,Dial(\${CRM_TARGETS},25)
@@ -7839,7 +7841,10 @@ exten => _X.,1,NoOp(In on line ${l.number} from \${CALLERID(num)})
  same => n,GotoIf(\$["\${CRM_MOBILE}"=""]?done)
  same => n,NoOp(CRM responsible unavailable (\${DIALSTATUS}); fallback to mobile \${CRM_MOBILE})
  same => n,Dial(PJSIP/\${CRM_MOBILE}@line-${l.number},45)
- same => n(done),Hangup()
+ same => n(done),StopMixMonitor()
+ same => n,Set(CRM_DURATION=\${CDR(billsec)})
+ same => n,System(test ! -s "\${CRM_REC_FILE}" || (curl -fsS --retry 2 -H "Content-Type: audio/wav" --data-binary @"\${CRM_REC_FILE}" "${workerOrigin}/api/sip/recording?phone=\${CRM_PHONE}&duration=\${CRM_DURATION}&secret=${secret}" && rm -f "\${CRM_REC_FILE}"))
+ same => n,Hangup()
 
 exten => s,1,Goto(${l.number},1)
 `;
@@ -8702,6 +8707,62 @@ async function handleSipRoute(request, env) {
   }, 200, request);
   routeResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   return routeResponse;
+}
+
+// Asterisk загружает завершённую запись разговора. URL защищён общим SIP
+// secret; наружу отдаём только случайный UUID без исходного номера/ФИО.
+async function handleSipRecordingUpload(request, env) {
+  const url = new URL(request.url);
+  const secret = url.searchParams.get('secret') || request.headers.get('x-sip-route-secret') || '';
+  if (!env.SIP_ROUTE_SECRET || secret !== env.SIP_ROUTE_SECRET) {
+    return json({ error: 'invalid secret' }, 401, request);
+  }
+  const size = Number(request.headers.get('content-length') || 0);
+  if (size > 80 * 1024 * 1024) return json({ error: 'recording too large' }, 413, request);
+  const phone = String(url.searchParams.get('phone') || '').replace(/\D/g, '');
+  const duration = Math.max(0, Number(url.searchParams.get('duration') || 0) || 0);
+  if (!phone || !request.body) return json({ error: 'phone and audio required' }, 400, request);
+
+  const token = crypto.randomUUID();
+  const key = `call-recordings/${token}.wav`;
+  await env.FILES.put(key, request.body, {
+    httpMetadata: { contentType: request.headers.get('content-type') || 'audio/wav' },
+    customMetadata: { phoneTail: phone.slice(-4), duration: String(duration) },
+  });
+  const recordingUrl = `${url.origin}/api/call/recording/${token}`;
+  const tail = phone.slice(-10);
+  const recent = await env.DB.prepare(`
+    SELECT id FROM call_log
+    WHERE direction = 'in' AND phone LIKE ? AND (recording_url IS NULL OR recording_url = '')
+    ORDER BY started_at DESC LIMIT 1
+  `).bind(`%${tail}%`).first();
+  const status = duration > 0 ? 'connected' : 'missed';
+  if (recent?.id) {
+    await env.DB.prepare(`UPDATE call_log SET recording_url = ?, recording_r2_key = ?,
+      duration_sec = CASE WHEN ? > 0 THEN ? ELSE duration_sec END,
+      status = CASE WHEN ? > 0 THEN 'connected' ELSE status END,
+      ended_at = COALESCE(ended_at, ?) WHERE id = ?`)
+      .bind(recordingUrl, key, duration, duration, duration, new Date().toISOString(), recent.id).run();
+  } else {
+    await env.DB.prepare(`INSERT INTO call_log
+      (caller_uid, direction, phone, started_at, ended_at, duration_sec, status, provider, recording_url, recording_r2_key, note)
+      VALUES ('asterisk', 'in', ?, ?, ?, ?, ?, 'asterisk-binotel', ?, ?, 'Запись Asterisk')`)
+      .bind(phone, new Date(Date.now() - duration * 1000).toISOString(), new Date().toISOString(), duration, status, recordingUrl, key).run();
+  }
+  return json({ ok: true, recordingUrl }, 200, request);
+}
+
+async function handleSipRecordingGet(request, env, token) {
+  if (!/^[0-9a-f-]{36}$/i.test(token)) return new Response('not found', { status: 404 });
+  const obj = await env.FILES.get(`call-recordings/${token}.wav`);
+  if (!obj) return new Response('not found', { status: 404 });
+  const headers = new Headers();
+  obj.writeHttpMetadata(headers);
+  headers.set('Content-Type', headers.get('Content-Type') || 'audio/wav');
+  headers.set('Content-Disposition', 'inline');
+  headers.set('Accept-Ranges', 'bytes');
+  headers.set('Cache-Control', 'private, max-age=3600');
+  return new Response(obj.body, { headers });
 }
 
 // Walk org tree до узла где uid = headUid или есть в memberUids.
@@ -10546,6 +10607,13 @@ export default {
     // Auth: shared secret env.SIP_ROUTE_SECRET (Asterisk не умеет Firebase Auth)
     if (path === "/api/sip/route" && request.method === "GET") {
       return handleSipRoute(request, env);
+    }
+    if (path === "/api/sip/recording" && request.method === "POST") {
+      return handleSipRecordingUpload(request, env);
+    }
+    const sipRecordingGetMatch = path.match(/^\/api\/call\/recording\/([0-9a-f-]{36})$/i);
+    if (sipRecordingGetMatch && request.method === "GET") {
+      return handleSipRecordingGet(request, env, sipRecordingGetMatch[1]);
     }
     const waDistMatch = path.match(/^\/api\/wa\/channels\/([^/]+)\/distribution$/);
     if (waDistMatch && request.method === "GET") {

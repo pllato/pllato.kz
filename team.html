@@ -10522,7 +10522,7 @@ function paintTelephonyList() {
       <div><b style="color:${missed?'#dc2626':'var(--t1)'}">${escapeHtml(x.phone)}</b><div style="font-size:11px;color:var(--t3)">${escapeHtml(when)}</div></div>
       <div style="font-weight:${missed?'700':'500'};color:${missed?'#dc2626':'var(--t2)'}">${escapeHtml(callStatusLabel(x.status))}</div>
       <div style="font-size:12px;color:var(--t3)">${x.durationSec ? Math.floor(x.durationSec/60)+':'+String(x.durationSec%60).padStart(2,'0') : '—'}</div>
-      <button class="btn btn-sm" onclick="placeCall({phone:'${escapeHtml(x.phone)}',contactId:'${escapeHtml(x.contactId||'')}',dealId:'${escapeHtml(x.dealId||'')}'})">📞 Перезвонить</button>
+      <div style="display:flex;align-items:center;gap:8px">${x.recordingUrl ? `<audio controls preload="metadata" src="${escapeHtml(x.recordingUrl)}" style="width:210px;height:34px"></audio>` : ''}<button class="btn btn-sm" onclick="placeCall({phone:'${escapeHtml(x.phone)}',contactId:'${escapeHtml(x.contactId||'')}',dealId:'${escapeHtml(x.dealId||'')}'})">📞 Перезвонить</button></div>
     </div>`;
   }).join('');
 }
