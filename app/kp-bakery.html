@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>КП — веб-система дистрибуции выпечки · Pllato</title>
+<title>КП - веб-система дистрибуции выпечки · Pllato</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -53,6 +53,27 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
 .cx b{font-size:14px}
 .cx p{font-size:13px;color:var(--muted);margin-top:2px}
 
+/* optimized delivery */
+.shift{background:#fff;border:1px solid var(--border);border-radius:18px;padding:22px;margin:18px 0 8px;break-inside:avoid}
+.shift-top{display:grid;grid-template-columns:1fr 42px 1fr;gap:14px;align-items:center}
+.shift-price{border-radius:14px;padding:18px;background:#f5f5f4}
+.shift-price.new{background:#ecfdf3;border:1px solid #bbf7d0}
+.shift-price .label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.7px}
+.shift-price .value{font-size:31px;font-weight:900;line-height:1.15;margin:4px 0;color:var(--ink)}
+.shift-price.old .value{text-decoration:line-through;text-decoration-thickness:2px;color:#78716c}
+.shift-price .desc{font-size:12.5px;color:var(--muted)}
+.shift-arrow{text-align:center;font-size:24px;color:var(--green);font-weight:900}
+.shift-note{margin-top:14px;padding:13px 15px;border-radius:12px;background:var(--amber-l);color:#78350f;font-size:13px}
+.shift-note b{font-weight:800}
+
+.speed{background:#fff7ed;border:2px solid #f59e0b;border-radius:16px;padding:18px 20px;margin:16px 0 20px;display:flex;justify-content:space-between;gap:20px;align-items:center;break-inside:avoid}
+.speed .eyebrow{font-size:11px;color:var(--amber-d);font-weight:900;text-transform:uppercase;letter-spacing:1px}
+.speed h3{font-size:20px;line-height:1.25;margin:3px 0;color:#7c2d12}
+.speed p{font-size:13px;color:#9a3412}
+.speed .deal{text-align:right;white-space:nowrap}
+.speed .was{font-size:14px;color:#a8a29e;text-decoration:line-through}
+.speed .now{font-size:36px;font-weight:900;color:#c2410c;line-height:1.05}
+
 /* timeline */
 .stage{display:flex;gap:18px;margin-bottom:6px}
 .stage .sn{width:44px;flex-shrink:0;display:flex;flex-direction:column;align-items:center}
@@ -83,11 +104,17 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
 .footer{margin-top:56px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--muted)}
 .footer b{color:#1c1917}
 .cta{display:inline-block;background:var(--amber);color:#fff;font-weight:800;font-size:15px;padding:14px 32px;border-radius:12px;text-decoration:none;margin-top:20px}
-@media(max-width:720px){.grid2,.grid3{grid-template-columns:1fr}.hero h1{font-size:26px}}
+@media(max-width:720px){
+  .grid2,.grid3,.shift-top{grid-template-columns:1fr}
+  .shift-arrow{transform:rotate(90deg)}
+  .speed{align-items:flex-start;flex-direction:column}
+  .speed .deal{text-align:left}
+  .hero h1{font-size:26px}
+}
 @media print{
   @page{margin:0;size:A4}
   body{background:#fff;font-size:13.5px;line-height:1.5}
-  .wrap{padding:0 20px 36px}
+  .wrap{padding:0 20px 8px}
   .hero{background:var(--dark)!important;-webkit-print-color-adjust:exact;padding:44px 20px 38px;margin-bottom:30px}
   .hero-in{padding:0 20px}
   .hero .brand{margin-bottom:28px}
@@ -101,6 +128,13 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
   .card ul{font-size:12.3px}
   .cx{padding:10px 14px;margin-bottom:7px;break-inside:avoid}
   .cx p{font-size:12px}
+  .shift{padding:16px;margin-top:12px}
+  .shift-price{padding:13px}
+  .shift-price .value{font-size:26px}
+  .shift-note{padding:10px 12px;font-size:12px}
+  .speed{padding:14px 16px;margin:12px 0 16px}
+  .speed h3{font-size:17px}
+  .speed .now{font-size:30px}
   .stage{gap:12px;break-inside:avoid}
   .stage .sc{width:38px;height:38px}
   .stage .sn{width:38px}
@@ -111,8 +145,9 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
   .pay-tbl td{padding:10px 16px}
   .inc-tbl{font-size:12.2px}
   .grid3{break-inside:avoid}
-  .cta{margin-top:14px;padding:12px 28px}
-  .footer{margin-top:32px;padding-top:18px;break-inside:avoid}
+  .cta{margin-top:10px;padding:10px 24px}
+  .footer{margin-top:6px;padding-top:6px;font-size:8.5px;line-height:1.35;break-inside:avoid;flex-wrap:nowrap;gap:8px}
+  .footer>div{width:50%}
 }
 </style>
 </head>
@@ -129,7 +164,8 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
     <div class="hero-meta">
       <div class="hm">Срок разработки<b>14 недель</b></div>
       <div class="hm">Первый выпуск в поля<b>8 недель</b></div>
-      <div class="hm">Стоимость проекта<b>$11 800</b></div>
+      <div class="hm">Web App под ключ<b>$6 800</b></div>
+      <div class="hm">До 06.08 · 14:00<b>$6 120</b></div>
       <div class="hm">Дата<b>05.08.2026</b></div>
     </div>
   </div>
@@ -138,9 +174,9 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
 <div class="wrap">
 
   <h2>Что мы строим</h2>
-  <p class="sub">4 роли, 16 модулей вашего ТЗ. Интерактивное демо уже готово — можно прокликать каждую роль.</p>
+  <p class="sub">4 роли, 16 модулей вашего ТЗ. Интерактивное демо уже готово - можно прокликать каждую роль.</p>
   <div class="grid2">
-    <div class="card"><h3>📱 Торговый агент — веб-кабинет</h3>
+    <div class="card"><h3>📱 Торговый агент - веб-кабинет</h3>
       <ul>
         <li>Заявки Т-2/Т-1: календарь 30 дней, потоварные дедлайны ±, автоподстановка, статусы модерации</li>
         <li>Умная корзина: Блок А/Б, сетевые матрицы, сканер штрихкодов, весовой товар</li>
@@ -150,7 +186,7 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
         <li>Офлайн-режим: локальная очередь действий, защита от дублей и автосинхронизация</li>
       </ul>
     </div>
-    <div class="card"><h3>🏭 Кладовщик СГП — веб-кабинет</h3>
+    <div class="card"><h3>🏭 Кладовщик СГП - веб-кабинет</h3>
       <ul>
         <li>Приёмка с производства по датам выработки, конвертация шт→кг</li>
         <li>Сводная потребность + мульти-суммирование агентов</li>
@@ -160,7 +196,7 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
         <li>Касса СГП: розница + продажа персоналу под ЗП</li>
       </ul>
     </div>
-    <div class="card"><h3>👁️ Супервизор — веб-кабинет</h3>
+    <div class="card"><h3>👁️ Супервизор - веб-кабинет</h3>
       <ul>
         <li>GPS-карта: треки (точка / 5 мин), маркеры визитов, километраж</li>
         <li>Фотоконтроль с гео-метками</li>
@@ -169,7 +205,7 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
         <li>Аудит расходов, звонков, чатов своей команды</li>
       </ul>
     </div>
-    <div class="card"><h3>⚙️ Администратор — веб-панель</h3>
+    <div class="card"><h3>⚙️ Администратор - веб-панель</h3>
       <ul>
         <li>Каталог SKU: штрихкоды, весовой флаг, кванты, сроки</li>
         <li>Иерархия прайсов 3 уровней + матрицы сетей</li>
@@ -181,15 +217,34 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
     </div>
   </div>
 
-  <h2>Почему это дороже типовой CRM: техническая нагрузка</h2>
-  <p class="sub">Честно показываем, что именно в вашем ТЗ создаёт дополнительную сложность — и учтено в цене.</p>
+  <h2>Как мы снизили стоимость с $11 800 до $6 800</h2>
+  <p class="sub">В первоначальном КП была заложена разработка нескольких отдельных приложений. Мы пересобрали архитектуру, сократили затраты на $5 000 и предлагаем единую Web App - без сокращения необходимого функционала.</p>
+  <div class="shift">
+    <div class="shift-top">
+      <div class="shift-price old">
+        <div class="label">Первоначальный вариант</div>
+        <div class="value">$11 800</div>
+        <div class="desc">Отдельные приложения, отдельные сборки и повышенные затраты на разработку и поддержку.</div>
+      </div>
+      <div class="shift-arrow">→</div>
+      <div class="shift-price new">
+        <div class="label">Оптимизированный вариант</div>
+        <div class="value">$6 800</div>
+        <div class="desc">Единая адаптивная Web App для агента, склада, супервизора и администратора.</div>
+      </div>
+    </div>
+    <div class="shift-note"><b>Расчёт:</b> $11 800 - $5 000 экономии на разработке = $6 800. При подтверждении в срок дополнительно применяется скидка 10%: $6 800 - $680 = <b>$6 120</b>.<br><b>Важно:</b> мы уменьшаем стоимость за счёт одной кодовой базы, общего интерфейсного ядра и более экономной инфраструктуры. Все необходимые функции из согласованного объёма сохраняются: офлайн-работа, синхронизация, GPS, печать, склад, продажи, ДЗ, KPI, телефония и WhatsApp.</div>
+  </div>
+
+  <h2>Что сохраняется в Web App: техническая нагрузка</h2>
+  <p class="sub">Оптимизация технологии не упрощает бизнес-логику: сложные сценарии вашего ТЗ остаются в полном согласованном объёме.</p>
   <div class="cx"><b>📵 Офлайн-режим веб-версии</b><p>Интерфейс и рабочие справочники кэшируются на устройстве. Заказы, оплаты, возвраты и другие действия без связи записываются в локальную защищённую очередь. При появлении интернета система автоматически отправляет накопленные данные на сервер, проверяет дубли и показывает статус синхронизации.</p></div>
   <div class="cx"><b>🔄 Надёжная синхронизация</b><p>Каждая операция получает уникальный идентификатор и время создания. Повторная отправка не задваивает выручку, а спорные изменения попадают в понятный журнал для проверки ответственным сотрудником.</p></div>
   <div class="cx"><b>📍 GPS-контроль в веб-версии</b><p>Точки маршрута и визиты фиксируются во время активной рабочей сессии, временно сохраняются без связи и синхронизируются позже. Браузер показывает агенту, включена ли геолокация и переданы ли данные на сервер.</p></div>
   <div class="cx"><b>🖨️ Печать ESC/POS</b><p>Печать накладных и чеков 58/80 мм через системную печать или совместимый Bluetooth-/сетевой шлюз. Разметка автоматически адаптируется под формат ленты.</p></div>
-  <div class="cx"><b>💬 WhatsApp Business API + IP-телефония</b><p>Верификация Meta (1–3 недели), шлюз маршрутизации чатов по номеру ЛПР, интеграция с облачной АТС, запись звонков с привязкой к ТТ.</p></div>
+  <div class="cx"><b>💬 WhatsApp Business API + IP-телефония</b><p>Верификация Meta (1-3 недели), шлюз маршрутизации чатов по номеру ЛПР, интеграция с облачной АТС, запись звонков с привязкой к ТТ.</p></div>
   <div class="cx"><b>🖥️ Поддержка Windows XP/7 на складе</b><p>Отдельная облегчённая фронт-сборка без современных JS-фич: пагинация, virtual scrolling, никаких тяжёлых библиотек.</p></div>
-  <div class="cx"><b>🧮 Сложная финансовая логика</b><p>5 сценариев оплаты × 4 варианта консигнации, FIFO-гашение, виртуальные авансы, изолированные зарплатные регистры А/Б, многодневные рейсы — каждая ветка покрывается тестами, ошибки здесь = прямые деньги клиента.</p></div>
+  <div class="cx"><b>🧮 Сложная финансовая логика</b><p>5 сценариев оплаты × 4 варианта консигнации, FIFO-гашение, виртуальные авансы, изолированные зарплатные регистры А/Б, многодневные рейсы - каждая ветка покрывается тестами, ошибки здесь = прямые деньги клиента.</p></div>
 
   <h2>Этапы и сроки</h2>
   <p class="sub">Работаем итерациями с еженедельными демо. Каждый этап сдаётся прокликиваемым.</p>
@@ -197,20 +252,20 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
   <div class="stage">
     <div class="sn"><div class="sc">1</div><div class="sl"></div></div>
     <div class="sb">
-      <h3>Ядро: маршрут работает <span class="dur">Недели 1–8</span></h3>
+      <h3>Ядро: маршрут работает <span class="dur">Недели 1-8</span></h3>
       <ul>
         <li>Веб-кабинет агента: заявки Т-2/Т-1, корзина А/Б, 5 сценариев, ДЗ + FIFO, офлайн-работа и автосинхронизация</li>
         <li>Веб-кабинет кладовщика: приёмка, модерация корректировок, отгрузка + ВСА, закрытие смен</li>
         <li>Админка: SKU, прайсы 3 уровней, пользователи, районы</li>
         <li>Параллельно: верификация WhatsApp Business API и тестирование веб-версии на телефонах, планшетах и ПК</li>
       </ul>
-      <div class="out">→ Выпуск в поля: пилот с 1–2 агентами на реальном маршруте</div>
+      <div class="out">→ Выпуск в поля: пилот с 1-2 агентами на реальном маршруте</div>
     </div>
   </div>
   <div class="stage">
     <div class="sn"><div class="sc">2</div><div class="sl"></div></div>
     <div class="sb">
-      <h3>Контроль и логистика <span class="dur">Недели 9–12</span></h3>
+      <h3>Контроль и логистика <span class="dur">Недели 9-12</span></h3>
       <ul>
         <li>GPS-трекинг + карта супервизора, фотоконтроль визитов</li>
         <li>Перегруз в полях, многодневные рейсы, Касса СГП (2 режима)</li>
@@ -223,7 +278,7 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
   <div class="stage">
     <div class="sn"><div class="sc">3</div></div>
     <div class="sb">
-      <h3>Коммуникации и аналитика <span class="dur">Недели 13–14</span></h3>
+      <h3>Коммуникации и аналитика <span class="dur">Недели 13-14</span></h3>
       <ul>
         <li>IP-телефония: маршрутизация звонков, запись, резервные номера</li>
         <li>WhatsApp-шлюз чатов + массовые рассылки (глобальные / районные / сетевые)</li>
@@ -235,19 +290,27 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
   </div>
 
   <h2>Стоимость</h2>
+  <div class="speed">
+    <div>
+      <div class="eyebrow">Скидка 10% за скорость решения</div>
+      <h3>Скажите нам «работаем» до 6 августа, 14:00</h3>
+      <p>Зафиксируем специальную стоимость на весь согласованный объём проекта. После указанного срока действует базовая цена $6 800.</p>
+    </div>
+    <div class="deal"><div class="was">$6 800</div><div class="now">$6 120</div></div>
+  </div>
   <div class="price-hero">
     <div>
-      <div class="pl">Стоимость проекта под ключ</div>
-      <div class="pv">$11 800 <span>USD</span></div>
+      <div class="pl">Цена со скидкой 10%</div>
+      <div class="pv">$6 120 <span>USD</span></div>
     </div>
-    <div class="pnote">≈ 1 032 500 сом (KGS) по курсу ≈ 87.5 · Фиксированная цена по ТЗ — без скрытых доплат. Офлайн-режим веб-версии, синхронизация, GPS, ESC/POS, WhatsApp API и поддержка старых складских ПК уже учтены.</div>
+    <div class="pnote">≈ 535 500 сом (KGS) по курсу ≈ 87.5 · Базовая стоимость Web App после экономии $5 000 - $6 800 (≈ 595 000 сом). Скидка фиксируется при подтверждении «работаем» до 06.08.2026, 14:00.</div>
   </div>
   <table class="pay-tbl">
-    <tr><td><b>Предоплата</b> — старт работ, разворачивание инфраструктуры</td><td class="pr">$1 800</td></tr>
-    <tr><td><b>Этап 1</b> — ядро системы, пилот в полях (оплата по демонстрации)</td><td class="pr">$4 500</td></tr>
-    <tr><td><b>Этап 2</b> — контроль и логистика (оплата по демонстрации)</td><td class="pr">$3 000</td></tr>
-    <tr><td><b>Этап 3</b> — постоплата по передаче исходного кода</td><td class="pr">$2 500</td></tr>
-    <tr><td>Итого</td><td class="pr">$11 800</td></tr>
+    <tr><td><b>Предоплата 10%</b> - старт работ, разворачивание инфраструктуры</td><td class="pr">$612</td></tr>
+    <tr><td><b>Этап 1 · 40%</b> - ядро системы, пилот в полях (оплата по демонстрации)</td><td class="pr">$2 448</td></tr>
+    <tr><td><b>Этап 2 · 30%</b> - контроль и логистика (оплата по демонстрации)</td><td class="pr">$1 836</td></tr>
+    <tr><td><b>Этап 3 · 20%</b> - постоплата по передаче исходного кода</td><td class="pr">$1 224</td></tr>
+    <tr><td>Итого со скидкой за скорость</td><td class="pr">$6 120</td></tr>
   </table>
 
   <h2>Что входит в цену</h2>
@@ -258,7 +321,7 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
         <tr><td>✅</td><td>Работа с телефона, планшета и компьютера без установки отдельного приложения</td></tr>
         <tr><td>✅</td><td>Офлайн-режим, локальное сохранение и автоматическая синхронизация после восстановления интернета</td></tr>
         <tr><td>✅</td><td>Добавление ярлыка веб-системы на главный экран телефона</td></tr>
-        <tr><td>✅</td><td>Сервер, БД, API — разворачивание на вашем хостинге</td></tr>
+        <tr><td>✅</td><td>Сервер, БД, API - разворачивание на вашем хостинге</td></tr>
         <tr><td>✅</td><td>API-архитектура с заделом под ERP/MES (ProductInflow)</td></tr>
       </table>
     </div>
@@ -267,7 +330,7 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
         <tr><td>✅</td><td>Обучение: агенты, кладовщик, супервизор (видео + созвоны)</td></tr>
         <tr><td>✅</td><td>2 месяца бесплатной поддержки после сдачи</td></tr>
         <tr><td>✅</td><td>Передача исходного кода и документации</td></tr>
-        <tr><td>⚠️</td><td>Не входит: термопринтеры, тарифы АТС и WhatsApp API, хостинг (~$20–40/мес)</td></tr>
+        <tr><td>⚠️</td><td>Не входит: термопринтеры, тарифы АТС и WhatsApp API, хостинг (~$20-40/мес)</td></tr>
         <tr><td>⚠️</td><td>Для первого входа, авторизации и загрузки рабочих справочников потребуется интернет; после этого доступен офлайн-режим</td></tr>
       </table>
     </div>
@@ -275,16 +338,16 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
 
   <h2>Как мы работаем</h2>
   <div class="grid3">
-    <div class="card"><h3>🎯 Демо уже готово</h3><p>Интерактивный прототип всех 4 ролей собран по вашему ТЗ — прокликайте прежде чем платить.</p></div>
-    <div class="card"><h3>📅 2 встречи в неделю</h3><p>Показываем прогресс, согласовываем каждый модуль. Вы утверждаете — двигаемся дальше.</p></div>
-    <div class="card"><h3>💰 Оплата по факту</h3><p>Этапы 1–2 оплачиваются после демонстрации работающего функционала, этап 3 — постоплата.</p></div>
+    <div class="card"><h3>🎯 Демо уже готово</h3><p>Интерактивный прототип всех 4 ролей собран по вашему ТЗ - прокликайте прежде чем платить.</p></div>
+    <div class="card"><h3>📅 2 встречи в неделю</h3><p>Показываем прогресс, согласовываем каждый модуль. Вы утверждаете - двигаемся дальше.</p></div>
+    <div class="card"><h3>💰 Оплата по факту</h3><p>Этапы 1-2 оплачиваются после демонстрации работающего функционала, этап 3 - постоплата.</p></div>
   </div>
 
   <a class="cta" href="https://pllato.kz/app/demo-bakery.html">🥐 Открыть интерактивное демо →</a>
 
   <div class="footer">
-    <div><b>Pllato · Custom Development</b><br>ИП «STUDYSTORIES.APP» · БИН 880607300110<br>Цай Платон · +7 701 123 99 99</div>
-    <div style="text-align:right">pllato.kz · uurraa@gmail.com<br>КП действительно 14 дней · до 19.08.2026<br>Договор публичной оферты pllato.kz/offer</div>
+    <div><b>Pllato · Custom Development</b><br>ИП «STUDYSTORIES.APP» · БИН 880607300110 · Цай Платон · +7 701 123 99 99</div>
+    <div style="text-align:right"><b>Цена $6 120 действует до 06.08.2026, 14:00</b><br>Базовая цена после срока - $6 800 · pllato.kz/offer</div>
   </div>
 </div>
 </body>
