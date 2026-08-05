@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>КП — Мобильный Агент (продажа выпечки) · Pllato</title>
+<title>КП — веб-система дистрибуции выпечки · Pllato</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -84,7 +84,36 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
 .footer b{color:#1c1917}
 .cta{display:inline-block;background:var(--amber);color:#fff;font-weight:800;font-size:15px;padding:14px 32px;border-radius:12px;text-decoration:none;margin-top:20px}
 @media(max-width:720px){.grid2,.grid3{grid-template-columns:1fr}.hero h1{font-size:26px}}
-@media print{.hero{background:var(--dark)!important;-webkit-print-color-adjust:exact}body{background:#fff}@page{margin:0;size:A4}}
+@media print{
+  @page{margin:0;size:A4}
+  body{background:#fff;font-size:13.5px;line-height:1.5}
+  .wrap{padding:0 20px 36px}
+  .hero{background:var(--dark)!important;-webkit-print-color-adjust:exact;padding:44px 20px 38px;margin-bottom:30px}
+  .hero-in{padding:0 20px}
+  .hero .brand{margin-bottom:28px}
+  .hero h1{font-size:31px;margin-bottom:10px}
+  .hero p{font-size:14.5px}
+  .hero-meta{margin-top:20px}
+  h2{font-size:20px;margin:32px 0 6px;break-after:avoid-page}
+  .sub{font-size:13px;margin-bottom:15px;break-after:avoid-page}
+  .grid2,.grid3{gap:10px}
+  .card{padding:14px;break-inside:avoid}
+  .card ul{font-size:12.3px}
+  .cx{padding:10px 14px;margin-bottom:7px;break-inside:avoid}
+  .cx p{font-size:12px}
+  .stage{gap:12px;break-inside:avoid}
+  .stage .sc{width:38px;height:38px}
+  .stage .sn{width:38px}
+  .stage .sb{padding:12px 16px;margin-bottom:10px}
+  .stage .sb ul{font-size:12.5px}
+  .price-hero{padding:24px;break-inside:avoid}
+  .pay-tbl{break-inside:avoid}
+  .pay-tbl td{padding:10px 16px}
+  .inc-tbl{font-size:12.2px}
+  .grid3{break-inside:avoid}
+  .cta{margin-top:14px;padding:12px 28px}
+  .footer{margin-top:32px;padding-top:18px;break-inside:avoid}
+}
 </style>
 </head>
 <body>
@@ -95,13 +124,13 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
       <div class="mark">🥐</div>
       <div class="bname">Pllato.<span>Custom Development</span></div>
     </div>
-    <h1>Коммерческое предложение:<br>система <em>«Мобильный Агент»</em><br>для дистрибуции выпечки</h1>
-    <p>Мобильное приложение торговых агентов (Android/iOS, offline-first) + веб-контур склада СГП, супервизора и администратора. Полный цикл: заявка на производство → отгрузка → продажа на маршруте → инкассация → закрытие смены. По вашему ТЗ, 16 разделов.</p>
+    <h1>Коммерческое предложение:<br><em>единая веб-система</em><br>для дистрибуции выпечки</h1>
+    <p>Адаптивная веб-версия для торговых агентов, склада СГП, супервизора и администратора. Все роли работают через браузер с телефона, планшета или компьютера. Система продолжает работу без интернета, сохраняет операции на устройстве и автоматически синхронизирует их после восстановления связи.</p>
     <div class="hero-meta">
       <div class="hm">Срок разработки<b>14 недель</b></div>
       <div class="hm">Первый выпуск в поля<b>8 недель</b></div>
       <div class="hm">Стоимость проекта<b>$11 800</b></div>
-      <div class="hm">Дата<b>02.07.2026</b></div>
+      <div class="hm">Дата<b>05.08.2026</b></div>
     </div>
   </div>
 </div>
@@ -111,17 +140,17 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
   <h2>Что мы строим</h2>
   <p class="sub">4 роли, 16 модулей вашего ТЗ. Интерактивное демо уже готово — можно прокликать каждую роль.</p>
   <div class="grid2">
-    <div class="card"><h3>📱 Торговый агент — мобильное приложение</h3>
+    <div class="card"><h3>📱 Торговый агент — веб-кабинет</h3>
       <ul>
         <li>Заявки Т-2/Т-1: календарь 30 дней, потоварные дедлайны ±, автоподстановка, статусы модерации</li>
         <li>Умная корзина: Блок А/Б, сетевые матрицы, сканер штрихкодов, весовой товар</li>
         <li>5 сценариев оплаты, FIFO-гашение ДЗ, защита лимитов</li>
         <li>Перегруз в полях, расходы, KPI и зарплатная карточка</li>
         <li>Bluetooth-печать чеков (ESC/POS, 58/80 мм)</li>
-        <li>Offline-first: SQLite + шифрование, GUID-идемпотентность</li>
+        <li>Офлайн-режим: локальная очередь действий, защита от дублей и автосинхронизация</li>
       </ul>
     </div>
-    <div class="card"><h3>🏭 Кладовщик СГП — веб (адаптив)</h3>
+    <div class="card"><h3>🏭 Кладовщик СГП — веб-кабинет</h3>
       <ul>
         <li>Приёмка с производства по датам выработки, конвертация шт→кг</li>
         <li>Сводная потребность + мульти-суммирование агентов</li>
@@ -131,7 +160,7 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
         <li>Касса СГП: розница + продажа персоналу под ЗП</li>
       </ul>
     </div>
-    <div class="card"><h3>👁️ Супервизор — веб</h3>
+    <div class="card"><h3>👁️ Супервизор — веб-кабинет</h3>
       <ul>
         <li>GPS-карта: треки (точка / 5 мин), маркеры визитов, километраж</li>
         <li>Фотоконтроль с гео-метками</li>
@@ -140,7 +169,7 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
         <li>Аудит расходов, звонков, чатов своей команды</li>
       </ul>
     </div>
-    <div class="card"><h3>⚙️ Администратор — Back-Office</h3>
+    <div class="card"><h3>⚙️ Администратор — веб-панель</h3>
       <ul>
         <li>Каталог SKU: штрихкоды, весовой флаг, кванты, сроки</li>
         <li>Иерархия прайсов 3 уровней + матрицы сетей</li>
@@ -154,9 +183,10 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
 
   <h2>Почему это дороже типовой CRM: техническая нагрузка</h2>
   <p class="sub">Честно показываем, что именно в вашем ТЗ создаёт дополнительную сложность — и учтено в цене.</p>
-  <div class="cx"><b>📵 Offline-first архитектура</b><p>Полноценная локальная БД (SQLite + SQLCipher) на телефоне, очередь синхронизации, GUID-идемпотентность против задвоения выручки. Это фактически вторая база данных со своей логикой конфликтов — ×1.5 к сложности мобильной части.</p></div>
-  <div class="cx"><b>📍 Фоновый GPS-трекинг</b><p>Foreground Service, работа при заблокированном экране, анти-дрейф фильтр, оффлайн-буфер точек. Отладка на «капризных» прошивках (Xiaomi, Huawei) — отдельный цикл тестирования на реальных устройствах.</p></div>
-  <div class="cx"><b>🖨️ Bluetooth-печать ESC/POS</b><p>Прямая работа с термопринтерами 58/80 мм, адаптивная вёрстка чека под две ленты, тестирование на физических принтерах.</p></div>
+  <div class="cx"><b>📵 Офлайн-режим веб-версии</b><p>Интерфейс и рабочие справочники кэшируются на устройстве. Заказы, оплаты, возвраты и другие действия без связи записываются в локальную защищённую очередь. При появлении интернета система автоматически отправляет накопленные данные на сервер, проверяет дубли и показывает статус синхронизации.</p></div>
+  <div class="cx"><b>🔄 Надёжная синхронизация</b><p>Каждая операция получает уникальный идентификатор и время создания. Повторная отправка не задваивает выручку, а спорные изменения попадают в понятный журнал для проверки ответственным сотрудником.</p></div>
+  <div class="cx"><b>📍 GPS-контроль в веб-версии</b><p>Точки маршрута и визиты фиксируются во время активной рабочей сессии, временно сохраняются без связи и синхронизируются позже. Браузер показывает агенту, включена ли геолокация и переданы ли данные на сервер.</p></div>
+  <div class="cx"><b>🖨️ Печать ESC/POS</b><p>Печать накладных и чеков 58/80 мм через системную печать или совместимый Bluetooth-/сетевой шлюз. Разметка автоматически адаптируется под формат ленты.</p></div>
   <div class="cx"><b>💬 WhatsApp Business API + IP-телефония</b><p>Верификация Meta (1–3 недели), шлюз маршрутизации чатов по номеру ЛПР, интеграция с облачной АТС, запись звонков с привязкой к ТТ.</p></div>
   <div class="cx"><b>🖥️ Поддержка Windows XP/7 на складе</b><p>Отдельная облегчённая фронт-сборка без современных JS-фич: пагинация, virtual scrolling, никаких тяжёлых библиотек.</p></div>
   <div class="cx"><b>🧮 Сложная финансовая логика</b><p>5 сценариев оплаты × 4 варианта консигнации, FIFO-гашение, виртуальные авансы, изолированные зарплатные регистры А/Б, многодневные рейсы — каждая ветка покрывается тестами, ошибки здесь = прямые деньги клиента.</p></div>
@@ -169,10 +199,10 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
     <div class="sb">
       <h3>Ядро: маршрут работает <span class="dur">Недели 1–8</span></h3>
       <ul>
-        <li>Мобильное приложение агента: заявки Т-2/Т-1, корзина А/Б, 5 сценариев, ДЗ + FIFO, offline-синхронизация</li>
-        <li>Веб кладовщика: приёмка, модерация корректировок, отгрузка + ВСА, закрытие смен</li>
+        <li>Веб-кабинет агента: заявки Т-2/Т-1, корзина А/Б, 5 сценариев, ДЗ + FIFO, офлайн-работа и автосинхронизация</li>
+        <li>Веб-кабинет кладовщика: приёмка, модерация корректировок, отгрузка + ВСА, закрытие смен</li>
         <li>Админка: SKU, прайсы 3 уровней, пользователи, районы</li>
-        <li>Параллельно: подача на верификацию WhatsApp Business API и аккаунты App Store / Google Play</li>
+        <li>Параллельно: верификация WhatsApp Business API и тестирование веб-версии на телефонах, планшетах и ПК</li>
       </ul>
       <div class="out">→ Выпуск в поля: пилот с 1–2 агентами на реальном маршруте</div>
     </div>
@@ -184,8 +214,8 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
       <ul>
         <li>GPS-трекинг + карта супервизора, фотоконтроль визитов</li>
         <li>Перегруз в полях, многодневные рейсы, Касса СГП (2 режима)</li>
-        <li>KPI-экран агента, зарплатные регистры А/Б, отчёт выработки цеха</li>
-        <li>Bluetooth-печать ESC/POS (58/80 мм)</li>
+        <li>KPI в веб-кабинете агента, зарплатные регистры А/Б, отчёт выработки цеха</li>
+        <li>Печать ESC/POS (58/80 мм) через совместимое оборудование</li>
       </ul>
       <div class="out">→ Полный операционный цикл под контролем супервизора</div>
     </div>
@@ -210,7 +240,7 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
       <div class="pl">Стоимость проекта под ключ</div>
       <div class="pv">$11 800 <span>USD</span></div>
     </div>
-    <div class="pnote">≈ 1 032 500 сом (KGS) по курсу ≈ 87.5 · Фиксированная цена по ТЗ — без скрытых доплат. Техническая нагрузка (offline, GPS, ESC/POS, WhatsApp API, legacy-фронт) уже учтена.</div>
+    <div class="pnote">≈ 1 032 500 сом (KGS) по курсу ≈ 87.5 · Фиксированная цена по ТЗ — без скрытых доплат. Офлайн-режим веб-версии, синхронизация, GPS, ESC/POS, WhatsApp API и поддержка старых складских ПК уже учтены.</div>
   </div>
   <table class="pay-tbl">
     <tr><td><b>Предоплата</b> — старт работ, разворачивание инфраструктуры</td><td class="pr">$1 800</td></tr>
@@ -224,9 +254,10 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
   <div class="grid2">
     <div class="card">
       <table class="inc-tbl">
-        <tr><td>✅</td><td>Мобильное приложение Android + iOS (единая кодовая база)</td></tr>
-        <tr><td>✅</td><td>3 веб-интерфейса: склад, супервизор, админка</td></tr>
-        <tr><td>✅</td><td>Публикация в Google Play и App Store</td></tr>
+        <tr><td>✅</td><td>Единая адаптивная веб-система для 4 ролей: агент, склад, супервизор, администратор</td></tr>
+        <tr><td>✅</td><td>Работа с телефона, планшета и компьютера без установки отдельного приложения</td></tr>
+        <tr><td>✅</td><td>Офлайн-режим, локальное сохранение и автоматическая синхронизация после восстановления интернета</td></tr>
+        <tr><td>✅</td><td>Добавление ярлыка веб-системы на главный экран телефона</td></tr>
         <tr><td>✅</td><td>Сервер, БД, API — разворачивание на вашем хостинге</td></tr>
         <tr><td>✅</td><td>API-архитектура с заделом под ERP/MES (ProductInflow)</td></tr>
       </table>
@@ -237,7 +268,7 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
         <tr><td>✅</td><td>2 месяца бесплатной поддержки после сдачи</td></tr>
         <tr><td>✅</td><td>Передача исходного кода и документации</td></tr>
         <tr><td>⚠️</td><td>Не входит: термопринтеры, тарифы АТС и WhatsApp API, хостинг (~$20–40/мес)</td></tr>
-        <tr><td>⚠️</td><td>Аккаунт Apple Developer ($99/год) — оформляется на вас</td></tr>
+        <tr><td>⚠️</td><td>Для первого входа, авторизации и загрузки рабочих справочников потребуется интернет; после этого доступен офлайн-режим</td></tr>
       </table>
     </div>
   </div>
@@ -249,11 +280,11 @@ h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:44px 0 8px}
     <div class="card"><h3>💰 Оплата по факту</h3><p>Этапы 1–2 оплачиваются после демонстрации работающего функционала, этап 3 — постоплата.</p></div>
   </div>
 
-  <a class="cta" href="demo-bakery.html">🥐 Открыть интерактивное демо →</a>
+  <a class="cta" href="https://pllato.kz/app/demo-bakery.html">🥐 Открыть интерактивное демо →</a>
 
   <div class="footer">
     <div><b>Pllato · Custom Development</b><br>ИП «STUDYSTORIES.APP» · БИН 880607300110<br>Цай Платон · +7 701 123 99 99</div>
-    <div style="text-align:right">pllato.kz · uurraa@gmail.com<br>КП действительно 14 дней · до 16.07.2026<br>Договор публичной оферты pllato.kz/offer</div>
+    <div style="text-align:right">pllato.kz · uurraa@gmail.com<br>КП действительно 14 дней · до 19.08.2026<br>Договор публичной оферты pllato.kz/offer</div>
   </div>
 </div>
 </body>
