@@ -350,6 +350,63 @@ body {
 }
 
 /* группы-вкладки проектов + избранное */
+.project-search-row {
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  margin:20px 0 4px;
+}
+.project-search-wrap { position:relative; flex:1; min-width:260px; max-width:520px; }
+.project-search-wrap svg {
+  position:absolute; left:13px; top:50%; transform:translateY(-50%);
+  pointer-events:none; opacity:.5;
+}
+.project-search-wrap input {
+  width:100%; padding:10px 14px 10px 38px; background:var(--surface);
+  border:1px solid var(--line-2); border-radius:10px; font:inherit;
+  font-size:14px; color:var(--text); outline:none; transition:.15s;
+}
+.project-search-wrap input:focus { border-color:var(--accent); }
+.date-filter-toggle {
+  min-height:42px; padding:9px 13px; border:1px solid var(--line-2);
+  border-radius:10px; background:var(--surface); color:var(--text-2);
+  font:700 12px/1.2 inherit; cursor:pointer; white-space:nowrap;
+}
+.date-filter-toggle:hover,
+.date-filter-toggle.on { border-color:var(--bronze); color:var(--bronze-deep); background:var(--bronze-tint); }
+.date-filter-toggle .count {
+  display:none; min-width:18px; height:18px; margin-left:5px; padding:0 5px;
+  border-radius:9px; background:var(--bronze-deep); color:#fff;
+  align-items:center; justify-content:center; font-size:10px;
+}
+.date-filter-toggle.on .count { display:inline-flex; }
+.project-date-filters {
+  display:none; margin:10px 0 6px; padding:12px;
+  border:1px solid var(--line-2); border-radius:12px; background:var(--surface);
+  grid-template-columns:minmax(230px,1fr) minmax(230px,1fr) minmax(210px,.8fr) auto;
+  gap:10px; align-items:end;
+}
+.project-date-filters.open { display:grid; }
+.date-filter-group { min-width:0; }
+.date-filter-label {
+  display:block; margin-bottom:6px; color:var(--text-3); font-size:10px;
+  font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+}
+.date-range { display:grid; grid-template-columns:1fr auto 1fr; gap:6px; align-items:center; }
+.date-range span { color:var(--text-3); font-size:11px; }
+.date-range input,
+.date-sort-select {
+  width:100%; min-height:36px; padding:7px 8px; border:1px solid var(--line-2);
+  border-radius:8px; background:var(--surface); color:var(--text);
+  font:600 11.5px/1.2 inherit; outline:none;
+}
+.date-range input:focus,
+.date-sort-select:focus { border-color:var(--bronze); }
+.date-filter-reset {
+  min-height:36px; padding:7px 12px; border:1px solid var(--line-2);
+  border-radius:8px; background:var(--surface-2); color:var(--text-2);
+  font:700 11.5px/1.2 inherit; cursor:pointer;
+}
+.date-filter-reset:hover { border-color:var(--bronze); color:var(--bronze-deep); }
+.date-filter-summary { margin:7px 0 0; color:var(--text-3); font-size:11px; }
 .project-tabs { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0 4px; }
 .ptab {
   display:inline-flex; align-items:center; gap:6px;
@@ -362,6 +419,14 @@ body {
 .ptab.on { background:var(--text); color:var(--surface); border-color:var(--text); }
 .ptab .pt-c { font-size:11px; font-weight:700; opacity:.6; font-variant-numeric:tabular-nums; }
 .ptab.fav.on { background:#e8a726; border-color:#e8a726; color:#1c1206; }
+@media (max-width: 860px) {
+  .project-date-filters { grid-template-columns:1fr 1fr; }
+}
+@media (max-width: 620px) {
+  .project-search-wrap { min-width:100%; max-width:none; }
+  .date-filter-toggle { width:100%; }
+  .project-date-filters { grid-template-columns:1fr; }
+}
 .fav-star {
   position:absolute; top:10px; right:11px;
   width:28px; height:28px; border-radius:8px;
@@ -825,12 +890,43 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
       <p>Все инструменты для работы команды Pllato в одном месте.</p>
     </div>
 
-    <div style="margin:20px 0 4px;position:relative">
-      <svg style="position:absolute;left:13px;top:50%;transform:translateY(-50%);pointer-events:none;opacity:.5" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input id="projectSearch" placeholder="Поиск по проектам..." oninput="filterProjects(this.value)"
-        style="width:100%;max-width:420px;padding:10px 14px 10px 38px;background:var(--surface);border:1px solid var(--line-2);border-radius:10px;font-size:14px;color:var(--text);outline:none;font-family:inherit;transition:.15s"
-        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--line-2)'">
+    <div class="project-search-row">
+      <div class="project-search-wrap">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="projectSearch" placeholder="Поиск по проектам..." oninput="filterProjects(this.value)">
+      </div>
+      <button class="date-filter-toggle" id="dateFilterToggle" type="button" onclick="toggleDateFilters()">Календарь · даты <span class="count" id="dateFilterCount">0</span></button>
     </div>
+
+    <div class="project-date-filters" id="projectDateFilters">
+      <div class="date-filter-group">
+        <label class="date-filter-label">Дата добавления</label>
+        <div class="date-range">
+          <input id="createdFrom" type="date" aria-label="Добавлено с" onchange="setProjectDateFilters()">
+          <span>—</span>
+          <input id="createdTo" type="date" aria-label="Добавлено по" onchange="setProjectDateFilters()">
+        </div>
+      </div>
+      <div class="date-filter-group">
+        <label class="date-filter-label">Дата последних правок</label>
+        <div class="date-range">
+          <input id="updatedFrom" type="date" aria-label="Изменено с" onchange="setProjectDateFilters()">
+          <span>—</span>
+          <input id="updatedTo" type="date" aria-label="Изменено по" onchange="setProjectDateFilters()">
+        </div>
+      </div>
+      <div class="date-filter-group">
+        <label class="date-filter-label" for="projectDateSort">Сортировка</label>
+        <select class="date-sort-select" id="projectDateSort" onchange="setProjectDateFilters()">
+          <option value="created_desc">Сначала недавно добавленные</option>
+          <option value="updated_desc">Сначала недавно изменённые</option>
+          <option value="created_asc">Сначала старые по добавлению</option>
+          <option value="updated_asc">Сначала давно изменённые</option>
+        </select>
+      </div>
+      <button class="date-filter-reset" type="button" onclick="resetProjectDateFilters()">Сбросить</button>
+    </div>
+    <div class="date-filter-summary" id="dateFilterSummary"></div>
 
     <div class="project-tabs" id="projectTabs"></div>
 
@@ -1564,7 +1660,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
         <span class="tool-badge new">Демо</span>
       </div>
 
-      <div class="tool-card" data-app-id="okna_crm_aziz">
+      <div class="tool-card" data-app-id="okna_crm_aziz" data-created="2026-08-05" data-updated="2026-08-05">
         <div class="tool-icon color-indigo">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 12h18M12 3v18"/><path d="m7 17 2 2 4-5"/></svg>
         </div>
@@ -1575,7 +1671,8 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
           <summary>📄 Материалы и передача проекта<span class="chev">▾</span></summary>
           <div class="tool-dd-menu">
             <a href="app/okna-aziz/?role=director&amp;module=coverage" target="_blank" rel="noopener"><span class="dot"></span>Покрытие ТЗ — 33 из 33 блоков</a>
-            <a href="app/okna-aziz/HANDOFF.md" target="_blank" rel="noopener"><span class="dot"></span>Полная передача код-агенту — Markdown</a>
+            <a href="app/okna-aziz/HANDOFF.html" target="_blank" rel="noopener"><span class="dot"></span>Полная передача код-агенту — HTML</a>
+            <a href="app/okna-aziz/HANDOFF.md" target="_blank" rel="noopener"><span class="dot"></span>Исходник передачи — Markdown</a>
           </div>
         </details>
         <span class="tool-badge new">Демо · Бишкек</span>
@@ -2700,6 +2797,14 @@ const PORTAL_VIEW_KEY = 'pllato_portal_view_v1';
 let PORTAL_VIEW = (()=>{ try { return JSON.parse(localStorage.getItem(PORTAL_VIEW_KEY)||'{}')||{}; } catch(e){ return {}; } })();
 let ACTIVE_TAB = PORTAL_VIEW.tab || 'fav';
 let SEARCH_TERM = '';
+let PROJECT_DATE_FILTERS = {
+  createdFrom: String(PORTAL_VIEW.dateFilters?.createdFrom || ''),
+  createdTo: String(PORTAL_VIEW.dateFilters?.createdTo || ''),
+  updatedFrom: String(PORTAL_VIEW.dateFilters?.updatedFrom || ''),
+  updatedTo: String(PORTAL_VIEW.dateFilters?.updatedTo || ''),
+  sort: ['created_desc','updated_desc','created_asc','updated_asc'].includes(PORTAL_VIEW.dateFilters?.sort)
+    ? PORTAL_VIEW.dateFilters.sort : 'created_desc',
+};
 let GROUPS_INIT = false;
 let PORTAL_SCROLL_TIMER = null;
 
@@ -2782,6 +2887,7 @@ function savePortalView(){
   PORTAL_VIEW.tab=ACTIVE_TAB;
   PORTAL_VIEW.scroll=PORTAL_VIEW.scroll||{};
   PORTAL_VIEW.chartsOpen=PORTAL_VIEW.chartsOpen||{};
+  PORTAL_VIEW.dateFilters={...PROJECT_DATE_FILTERS};
   try { localStorage.setItem(PORTAL_VIEW_KEY,JSON.stringify(PORTAL_VIEW)); } catch(e){}
 }
 function restorePortalPosition(){
@@ -2799,20 +2905,79 @@ window.addEventListener('scroll',()=>{
 function cardAllowed(card){ const id = card.dataset.appId; return !!(CURRENT?.isAdmin || CURRENT?.apps?.[id]); }
 
 const DEMO_BASE_DATE = '2026-07-15'; // дата массового импорта — база для карточек без data-created
-function sortDemosByCreated(){
+function projectCardDate(card, kind='created'){
+  const created=card?.dataset?.created || DEMO_BASE_DATE;
+  return kind==='updated' ? (card?.dataset?.updated || created) : created;
+}
+function projectDateFilterIsActive(){
+  return !!(PROJECT_DATE_FILTERS.createdFrom || PROJECT_DATE_FILTERS.createdTo || PROJECT_DATE_FILTERS.updatedFrom || PROJECT_DATE_FILTERS.updatedTo);
+}
+function cardMatchesProjectDates(card){
+  const created=projectCardDate(card,'created');
+  const updated=projectCardDate(card,'updated');
+  if(PROJECT_DATE_FILTERS.createdFrom && created<PROJECT_DATE_FILTERS.createdFrom) return false;
+  if(PROJECT_DATE_FILTERS.createdTo && created>PROJECT_DATE_FILTERS.createdTo) return false;
+  if(PROJECT_DATE_FILTERS.updatedFrom && updated<PROJECT_DATE_FILTERS.updatedFrom) return false;
+  if(PROJECT_DATE_FILTERS.updatedTo && updated>PROJECT_DATE_FILTERS.updatedTo) return false;
+  return true;
+}
+function sortProjectCards(){
+  const [kind,direction]=PROJECT_DATE_FILTERS.sort.split('_');
   document.querySelectorAll('#main-content .tools-grid').forEach(grid => {
     const cards = [...grid.querySelectorAll(':scope > .tool-card[data-app-id]')];
     if (cards.length < 2) return;
+    cards.forEach((card,index)=>{ if(card.dataset.portalOrder===undefined) card.dataset.portalOrder=String(index); });
     cards
-      .map((c, i) => [c, i])
+      .map(c => [c, Number(c.dataset.portalOrder)||0])
       .sort((a, b) => {
-        const da = a[0].dataset.created || DEMO_BASE_DATE;
-        const db = b[0].dataset.created || DEMO_BASE_DATE;
-        if (da !== db) return db.localeCompare(da); // новее — выше
+        const da = projectCardDate(a[0],kind);
+        const db = projectCardDate(b[0],kind);
+        if (da !== db) return direction==='asc' ? da.localeCompare(db) : db.localeCompare(da);
         return a[1] - b[1];                          // стабильно: тот же порядок при равной дате
       })
       .forEach(([c]) => grid.appendChild(c));
   });
+}
+function syncProjectDateFilterControls(){
+  const ids=['createdFrom','createdTo','updatedFrom','updatedTo'];
+  ids.forEach(id=>{ const el=document.getElementById(id); if(el) el.value=PROJECT_DATE_FILTERS[id]||''; });
+  const sort=document.getElementById('projectDateSort');
+  if(sort) sort.value=PROJECT_DATE_FILTERS.sort;
+  const activeCount=ids.filter(id=>PROJECT_DATE_FILTERS[id]).length;
+  const toggle=document.getElementById('dateFilterToggle');
+  const count=document.getElementById('dateFilterCount');
+  if(toggle) toggle.classList.toggle('on',activeCount>0 || document.getElementById('projectDateFilters')?.classList.contains('open'));
+  if(count){ count.textContent=String(activeCount); count.style.display=activeCount?'inline-flex':'none'; }
+}
+function toggleDateFilters(force){
+  const panel=document.getElementById('projectDateFilters');
+  if(!panel) return;
+  const open=typeof force==='boolean' ? force : !panel.classList.contains('open');
+  panel.classList.toggle('open',open);
+  PORTAL_VIEW.dateFiltersOpen=open;
+  syncProjectDateFilterControls();
+  savePortalView();
+}
+function setProjectDateFilters(){
+  ['createdFrom','createdTo','updatedFrom','updatedTo'].forEach(id=>{
+    PROJECT_DATE_FILTERS[id]=document.getElementById(id)?.value||'';
+  });
+  PROJECT_DATE_FILTERS.sort=document.getElementById('projectDateSort')?.value||'created_desc';
+  if(PROJECT_DATE_FILTERS.createdFrom && PROJECT_DATE_FILTERS.createdTo && PROJECT_DATE_FILTERS.createdFrom>PROJECT_DATE_FILTERS.createdTo){
+    [PROJECT_DATE_FILTERS.createdFrom,PROJECT_DATE_FILTERS.createdTo]=[PROJECT_DATE_FILTERS.createdTo,PROJECT_DATE_FILTERS.createdFrom];
+  }
+  if(PROJECT_DATE_FILTERS.updatedFrom && PROJECT_DATE_FILTERS.updatedTo && PROJECT_DATE_FILTERS.updatedFrom>PROJECT_DATE_FILTERS.updatedTo){
+    [PROJECT_DATE_FILTERS.updatedFrom,PROJECT_DATE_FILTERS.updatedTo]=[PROJECT_DATE_FILTERS.updatedTo,PROJECT_DATE_FILTERS.updatedFrom];
+  }
+  syncProjectDateFilterControls();
+  savePortalView();
+  applyProjectFilters();
+}
+function resetProjectDateFilters(){
+  PROJECT_DATE_FILTERS={createdFrom:'',createdTo:'',updatedFrom:'',updatedTo:'',sort:'created_desc'};
+  syncProjectDateFilterControls();
+  savePortalView();
+  applyProjectFilters();
 }
 function initProjectGroups(){
   if (GROUPS_INIT) return; GROUPS_INIT = true;
@@ -2829,7 +2994,9 @@ function initProjectGroups(){
   // порядок карточек — по дате создания демки (новые сверху); одинаковые даты
   // сохраняют текущий порядок. Дату задаёт data-created="ГГГГ-ММ-ДД" на карточке;
   // без атрибута берётся базовая дата массового импорта.
-  sortDemosByCreated();
+  sortProjectCards();
+  syncProjectDateFilterControls();
+  if(PORTAL_VIEW.dateFiltersOpen) toggleDateFilters(true);
   // звёзды «в избранное»
   document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
     if (card.querySelector('.fav-star')) return;
@@ -3824,12 +3991,17 @@ async function saveFinanceAccess(kind){
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, renderFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects });
+Object.assign(window, { openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, renderFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
 
 function applyProjectFilters(){
+  sortProjectCards();
   const searchTokens=normalizeProjectSearch(SEARCH_TERM).split(' ').filter(Boolean);
+  let visibleCount=0;
+  let availableCount=0;
   document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
     let show = cardAllowed(card);
+    if(show) availableCount++;
+    if(show) show=cardMatchesProjectDates(card);
     if (show && !searchTokens.length && ACTIVE_TAB === 'fav') show = FAVS.has(card.dataset.appId);
     else if (show && !searchTokens.length && ACTIVE_TAB.startsWith('g:')) show = card.dataset.group === ACTIVE_TAB.slice(2);
     if (show && searchTokens.length) {
@@ -3837,7 +4009,11 @@ function applyProjectFilters(){
       show=searchTokens.every(token=>index.includes(token));
     }
     card.style.display = show ? '' : 'none';
+    if(show) visibleCount++;
   });
+  const summary=document.getElementById('dateFilterSummary');
+  if(summary) summary.textContent=projectDateFilterIsActive()?`По выбранным датам: ${visibleCount} из ${availableCount}`:'';
+  syncProjectDateFilterControls();
   document.getElementById('moneySum')?.classList.toggle('search-hidden',searchTokens.length>0);
   document.getElementById('financeCharts')?.classList.toggle('search-hidden',searchTokens.length>0);
   updateSectionVisibility();
@@ -3847,7 +4023,7 @@ function applyProjectFilters(){
 function updateTabCounts(){
   const bar = document.getElementById('projectTabs');
   if (!bar) return;
-  const cards = [...document.querySelectorAll('.tool-card[data-app-id]')].filter(cardAllowed);
+  const cards = [...document.querySelectorAll('.tool-card[data-app-id]')].filter(card=>cardAllowed(card)&&cardMatchesProjectDates(card));
   bar.querySelectorAll('.pt-c').forEach(sp => {
     const t = sp.dataset.c;
     let n = t === 'all' ? cards.length
