@@ -9,8 +9,11 @@
 /sw.js
   Cache-Control: public, max-age=0, must-revalidate
 
-# Versioned-ассеты (?v= меняется при деплое) → кэш 7 дней без ревалидации:
+# app.js/overrides.css: ревалидация на каждой загрузке (must-revalidate, max-age=0).
+# НЕ immutable: Cloudflare edge кэширует /app.js игнорируя ?v=, и immutable намертво
+# фиксировал старую версию на 7 дней (на разных нодах — разные версии: ПК свежий, мобилка старый).
+# Ревалидация = условный GET (304, если не менялось → без перекачки); после деплоя все получают свежий.
 /app.js
-  Cache-Control: public, max-age=604800, immutable
+  Cache-Control: public, max-age=0, must-revalidate
 /overrides.css
-  Cache-Control: public, max-age=604800, immutable
+  Cache-Control: public, max-age=0, must-revalidate

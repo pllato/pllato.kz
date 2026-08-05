@@ -157,7 +157,17 @@ details.om-log > #omLog { border-top: 1px solid var(--line); }
   .inbox.mob-chat .ib-threads{display:none}
   .inbox.mob-chat .ib-chat{display:flex}
   .ib-back{display:grid}
+  /* Панель ввода на узких экранах: плотнее отступы, чтобы всё влезло */
+  .chat-input{gap:6px;padding:9px 8px}
+  .chat-input .ci-box{padding:8px 10px;gap:6px}
+  .chat-input>.btn{padding-left:10px;padding-right:10px}
 }
+/* Панель ввода чата: поле сжимается (min-width:0), кнопки НЕ сжимаются — чтобы ✈️ «Отправить» не уезжала за экран (мобилка). */
+.chat-input{max-width:100%}
+.chat-input .ci-box{min-width:0}
+.chat-input>.btn{flex:none}
+/* На странице «Чаты» плавающая кнопка-виджет не нужна (дублирует омни-чат) и перекрывала панель ввода снизу. */
+body:has(.inbox) #cw-root{display:none}
 /* Горизонтальная прокрутка широких таблиц (каталог, клиенты, продажи…) на узких экранах */
 .panel:has(> table.tbl){overflow-x:auto}
 .sip-btn-answer{background:var(--green);color:#fff;border-color:var(--green)}

@@ -695,7 +695,7 @@ async function dealChatLoad(bg,d){
     const w=r2.data&&r2.data.whatsapp; toast(w&&w.sent?'Доставлено в WhatsApp':'Отправлено','i-send','var(--wa)');
   };
   ta.addEventListener('input',()=>{ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,100)+'px'; });
-  ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); send(); } });
+  ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey&&!isTouch()){ e.preventDefault(); send(); } });
   sb.onclick=send;
   // авто-обновление входящих без перезагрузки страницы (пока карточка открыта и активна вкладка чата)
   const dmSig=(ms)=>{ const l=(ms||[]).length, last=(ms||[])[l-1]||{}; return l+':'+(last.ts||0)+':'+(last.edited_at||0)+':'+(last.deleted||0)+':'+(ms||[]).reduce((a,x)=>a+(x.reactions||''),''); };
@@ -1286,25 +1286,47 @@ function ibChat(){
     (__ibMsgsCache[t.id]=__ibMsgsCache[t.id]||[]).push({id:(r.data&&r.data.id)||null,dir:'out',body:v,ts:(r.data&&r.data.ts)||Date.now(),channel_id:t._sendCh,ext_id:(r.data&&r.data.whatsapp&&r.data.whatsapp.id)||null,reply_to:rc?rc.ext:null,reply_preview:rc?rc.preview:null});
     ibAppendLocal(t); const w=r.data&&r.data.whatsapp; toast(w&&w.sent?'Доставлено в WhatsApp':'Отправлено','i-send','var(--wa)');
   };
-  if(inp){ inp.addEventListener('input',()=>{ inp.style.height='auto'; inp.style.height=Math.min(inp.scrollHeight,120)+'px'; }); inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); send(); } }); }
+  if(inp){ inp.addEventListener('input',()=>{ inp.style.height='auto'; inp.style.height=Math.min(inp.scrollHeight,120)+'px'; }); inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey&&!isTouch()){ e.preventDefault(); send(); } }); }
   if(sb)sb.onclick=send;
   const tplBtn=box.querySelector('#ibTpl'); if(tplBtn) tplBtn.onclick=()=>pickTemplate(tplBtn,{'имя':t.title||t.phone||''},text=>{ if(inp){ inp.value=text; inp.focus(); } });
   const ibEmB=box.querySelector('#ibEmoji'); if(ibEmB) ibEmB.onclick=(e)=>{ e.stopPropagation(); emojiPicker(ibEmB, inp); };
   const mic=box.querySelector('#ibMic'); if(mic) mic.onclick=()=>micToggle('/api/inbox/threads/'+encodeURIComponent(t.id)+'/audio', mic, ()=>{ ibSyncOpen(); }, ()=>({channel_id:t._sendCh}));
   const backBtn=box.querySelector('.ib-back'); if(backBtn) backBtn.onclick=()=>{ if(__ibWrap) __ibWrap.classList.remove('mob-chat'); };
   const attach=box.querySelector('#ibAttach'), fileInp=box.querySelector('#ibFile');
-  if(attach&&fileInp){ attach.onclick=()=>fileInp.click(); fileInp.onchange=()=>{ const f=fileInp.files&&fileInp.files[0]; if(f) ibSendMedia(t,f); fileInp.value=''; }; }
+  if(attach&&fileInp){ attach.onclick=()=>fileInp.click(); fileInp.onchange=()=>{ const f=fileInp.files&&fileInp.files[0]; if(f) mediaCaptionModal(f,(cap)=>ibSendMedia(t,f,cap)); fileInp.value=''; }; }
   mountReplyBar(t.id, box);
 }
 // Отправка медиа/файла в чат (фото/видео/pdf) — как голосовое, но любой файл
-async function ibSendMedia(t, file){
+async function ibSendMedia(t, file, caption){
   if(file.size>16*1024*1024){ toast('Файл слишком большой (макс 16 МБ)','i-info','#dc2626'); return; }
   toast('Отправляю файл…','i-paperclip');
   let b64; try{ b64=await new Promise((res,rej)=>{ const rd=new FileReader(); rd.onload=()=>res(String(rd.result)); rd.onerror=rej; rd.readAsDataURL(file); }); }catch(e){ toast('Не удалось прочитать файл','i-x','#dc2626'); return; }
-  const r=await api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/media',{method:'POST',body:JSON.stringify({file_b64:b64, mime:file.type||'application/octet-stream', name:file.name||'file', channel_id:t._sendCh})});
+  const r=await api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/media',{method:'POST',body:JSON.stringify({file_b64:b64, mime:file.type||'application/octet-stream', name:file.name||'file', channel_id:t._sendCh, caption:(caption||'')})});
   if(!r.ok){ toast(r.data&&r.data.error?r.data.error:'Файл не отправлен','i-info','#dc2626'); return; }
   const w=r.data&&r.data.whatsapp; toast(w&&w.sent?'Файл доставлен в WhatsApp':'Файл отправлен','i-send','var(--wa)');
   ibSyncOpen(); // подтянуть реальное сообщение (с id) — без дублей и без ре-рендера
+}
+// Тач-устройства: Enter вставляет ПЕРЕНОС СТРОКИ (не отправляет) — отправка кнопкой. На десктопе Enter отправляет, Shift+Enter — перенос.
+function isTouch(){
+  try{ if(window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return true; }catch(e){}
+  if(/Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile|BlackBerry|Silk|Windows Phone/i.test(navigator.userAgent||'')) return true;
+  return ('ontouchstart' in window) && (navigator.maxTouchPoints||0) > 1;
+}
+// Превью файла + подпись перед отправкой (как в настоящем WhatsApp: картинка и текст — ОДНИМ сообщением).
+function mediaCaptionModal(file, onSend){
+  const isImg=/^image\//.test(file.type||''), isVid=/^video\//.test(file.type||'');
+  let url=''; try{ url=URL.createObjectURL(file); }catch(e){}
+  const prev = isImg ? `<img src="${url}" style="max-width:100%;max-height:46vh;border-radius:12px;display:block;margin:0 auto">`
+    : isVid ? `<video src="${url}" controls style="max-width:100%;max-height:46vh;border-radius:12px;display:block;margin:0 auto"></video>`
+    : `<div class="note blue" style="justify-content:center">${ic('i-paperclip','sm')} ${esc(file.name||'файл')}</div>`;
+  const bg=openModal(`<div class="modal-h"><div><h3>Отправить ${isImg?'фото':isVid?'видео':'файл'}</h3><div class="mh-sub">${esc(file.name||'')}</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
+  <div class="modal-b">${prev}
+    <div class="fld section-gap"><label>Подпись (необязательно)</label><textarea id="mcCap" rows="2" placeholder="Добавьте подпись — уйдёт вместе с ${isImg?'фото':'файлом'}…"></textarea></div>
+  </div>
+  <div class="modal-f"><button class="btn" onclick="closeModal()">Отмена</button><button class="btn primary" id="mcSend">${ic('i-send','sm')} Отправить</button></div>`);
+  const doSend=()=>{ const cap=(bg.querySelector('#mcCap').value||'').trim(); if(url) try{URL.revokeObjectURL(url);}catch(e){} closeModal(); onSend(cap); };
+  bg.querySelector('#mcSend').onclick=doSend;
+  const cap=bg.querySelector('#mcCap'); if(cap){ cap.focus(); cap.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey&&!isTouch()){ e.preventDefault(); doSend(); } }); }
 }
 function ibContext(){
   const box=__ibWrap&&__ibWrap.querySelector('.ib-context'); if(!box)return;
@@ -3241,16 +3263,19 @@ async function waTplCached(force){ if(!force && window.__waTplCache) return wind
 async function pickTemplate(btn, vars, onPick){
   const tpls=await waTplCached(); const keys=Object.keys(tpls);
   document.querySelectorAll('.tpl-menu').forEach(m=>m.remove());
-  if(!keys.length){ toast('Шаблонов нет — добавьте в «Триггеры → Шаблоны»','i-info'); return; }
-  const menu=el(`<div class="tpl-menu" style="position:fixed;z-index:200;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);max-height:280px;overflow:auto;width:320px;max-width:88vw;padding:6px">
-    <div class="muted2" style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:5px 8px 6px">Вставить шаблон</div>
-    ${keys.map(k=>`<button class="tpl-item" data-k="${esc(k)}" style="display:block;width:100%;text-align:left;padding:8px 10px;border-radius:8px;color:var(--txt)"><b style="font-size:12.5px">${esc(tplLabel(k,tpls[k]))}</b><div class="muted2" style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc((fillTpl((tpls[k]||{}).text,vars)||'').slice(0,80))}</div></button>`).join('')}</div>`);
+  const editRow=`<button class="tpl-item tpl-edit" style="display:block;width:100%;text-align:left;padding:9px 10px;border-radius:8px;color:var(--accent2);font-weight:600;border-top:1px solid var(--line);margin-top:5px">${ic('i-plus','sm')} Добавить / редактировать шаблоны</button>`;
+  const listHtml = keys.length
+    ? `<div class="muted2" style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:5px 8px 6px">Вставить шаблон</div>`
+      + keys.map(k=>`<button class="tpl-item" data-k="${esc(k)}" style="display:block;width:100%;text-align:left;padding:8px 10px;border-radius:8px;color:var(--txt)"><b style="font-size:12.5px">${esc(tplLabel(k,tpls[k]))}</b><div class="muted2" style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc((fillTpl((tpls[k]||{}).text,vars)||'').slice(0,80))}</div></button>`).join('')
+    : `<div class="muted2" style="font-size:12px;padding:9px 10px">Быстрых сообщений пока нет — создайте первое ↓</div>`;
+  const menu=el(`<div class="tpl-menu" style="position:fixed;z-index:200;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);max-height:280px;overflow:auto;width:320px;max-width:88vw;padding:6px">${listHtml}${editRow}</div>`);
   document.body.appendChild(menu);
   const rect=btn.getBoundingClientRect();
   let top=rect.top-menu.offsetHeight-6; if(top<8) top=rect.bottom+6;
   let left=rect.right-menu.offsetWidth; if(left<8) left=8;
   menu.style.top=top+'px'; menu.style.left=left+'px';
   menu.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{ onPick(fillTpl((tpls[b.dataset.k]||{}).text,vars)); menu.remove(); });
+  const eb=menu.querySelector('.tpl-edit'); if(eb) eb.onclick=()=>{ menu.remove(); waTemplatesModal(); };
   setTimeout(()=>{ const close=(e)=>{ if(!menu.contains(e.target)&&e.target!==btn){ menu.remove(); document.removeEventListener('mousedown',close); } }; document.addEventListener('mousedown',close); },10);
 }
 const TPL_LBL={birthday:'🎂 День рождения',lapsed:'⏳ Давно не покупали',repeat:'🔁 Повтор покупки',order_ready:'📦 Заказ собран',order_shipped:'🚚 Заказ отправлен'};
@@ -3325,8 +3350,8 @@ async function waTemplatesModal(){
     const out={};
     for(const row of rows){ if(row.custom && !(row.name||'').trim() && !(row.text||'').trim()) continue; out[row.key]={name:row.custom?((row.name||'').trim()||'Шаблон'):row.name, text:row.text||''}; }
     const rr=await api('/api/wa/templates',{method:'POST',body:JSON.stringify({templates:out})});
-    if(!rr.ok){ toast(rr.status===403?'Менять шаблоны может только админ/маркетолог':'Ошибка','i-x','#dc2626'); return; }
-    closeModal(); toast('Шаблоны сохранены','i-check2');
+    if(!rr.ok){ toast(rr.status===403?'Недостаточно прав для изменения шаблонов':'Ошибка','i-x','#dc2626'); return; }
+    window.__waTplCache=null; closeModal(); toast('Шаблоны сохранены','i-check2');
   };
 }
 PAGES.triggers=(c)=>{
@@ -4786,7 +4811,7 @@ function cwRenderChat(root){
   };
   if(ta){
     ta.addEventListener('input',()=>{ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,100)+'px'; });
-    ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); send(); } });
+    ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey&&!isTouch()){ e.preventDefault(); send(); } });
     ta.focus();
   }
   const sb=$('#cw-send',root); if(sb) sb.onclick=send;
