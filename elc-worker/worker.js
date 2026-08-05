@@ -2259,7 +2259,7 @@ async function handleSipToken(request, env) {
   const auth = await requireAuth(request, env);
   if (auth.error) return json({ error: auth.error }, auth.status, request);
 
-  const domain = env.SIP_DOMAIN || "130-61-243-44.nip.io";
+  const domain = env.SIP_DOMAIN || "89-168-122-186.nip.io";
   // Персональная линия: если сотруднику назначен свой endpoint — отдаём его
   // креды (он регистрируется на наш Asterisk как отдельный пользователь, звонит
   // и принимает через свою линию Бинотел). Иначе — общий endpoint 100 (как было).
@@ -7635,6 +7635,9 @@ async function handleSipAsteriskConfig(request, env) {
   }
   await ensureSipTables(env);
   const domain = env.SIP_DOMAIN || "your-domain.nip.io";
+  const publicIp = String(env.SIP_PUBLIC_IP || domain).trim();
+  const workerOrigin = url.origin;
+  const fallbackExtension = String(env.SIP_FALLBACK_EXTENSION || "1950").replace(/\D/g, '') || "1950";
   const certDir = url.searchParams.get('cert_dir') || `/etc/letsencrypt/live/${domain}`;
   const sharedPwd = env.SIP_PASSWORD || "changeme_set_strong_password";
 
@@ -7670,7 +7673,7 @@ endpoint_identifier_order=username,ip
 [transport-wss]
 type=transport
 protocol=wss
-bind=0.0.0.0:8089
+bind=0.0.0.0
 cert_file=${certDir}/fullchain.pem
 priv_key_file=${certDir}/privkey.pem
 
@@ -7678,6 +7681,9 @@ priv_key_file=${certDir}/privkey.pem
 type=transport
 protocol=udp
 bind=0.0.0.0:5060
+external_signaling_address=${publicIp}
+external_media_address=${publicIp}
+local_net=10.0.0.0/8
 `;
 
   // Транки линий Бинотел
@@ -7703,6 +7709,9 @@ aors=line-${l.number}
 from_user=${l.sip_user || l.number}
 from_domain=${server}
 direct_media=no
+rtp_symmetric=yes
+force_rport=yes
+rewrite_contact=yes
 
 [line-${l.number}]
 type=aor
@@ -7715,9 +7724,15 @@ match=${server}
 
 [line-${l.number}-reg]
 type=registration
+transport=transport-udp
 outbound_auth=line-${l.number}-auth
+endpoint=line-${l.number}
+line=yes
+support_path=yes
+support_outbound=yes
 server_uri=sip:${server}:${port}
 client_uri=sip:${l.sip_user || l.number}@${server}
+contact_user=${l.number}
 retry_interval=60
 `;
   }
@@ -7807,18 +7822,26 @@ ${cid ? ` same => n,Set(CALLERID(num)=${cid})\n` : ''} same => n,Dial(PJSIP/\${E
  same => n,Hangup()
 `;
   }
-  // Входящие: на каждую линию → звоним назначенным сотрудникам (или 100)
+  // Входящие: определяем ответственных по телефону клиента и открытым сделкам.
+  // Grandstream звонит параллельно на стороне группы Binotel; здесь вызываем
+  // только браузерные CRM-endpoint'ы, чтобы не создавать обратную SIP-петлю.
   for (const l of lines) {
-    const ringAgents = agents.filter(a => a.line_id === l.id && a.extension);
-    const dialStr = ringAgents.length
-      ? ringAgents.map(a => `PJSIP/${a.extension}`).join('&')
-      : 'PJSIP/100';
     ext += `
-;=== Входящие на линию ${l.number} → ${ringAgents.length ? ringAgents.map(a=>a.extension).join(', ') : '100 (никто не назначен)'} ===
+;=== Входящие на линию ${l.number}: ответственные CRM ===
 [${lineIn(l)}]
-exten => _X.,1,NoOp(In on line ${l.number} to \${EXTEN})
- same => n,Dial(${dialStr},30)
- same => n,Hangup()
+exten => _X.,1,NoOp(In on line ${l.number} from \${CALLERID(num)})
+ same => n,Set(CRM_PHONE=\${FILTER(0-9,\${CALLERID(num)})})
+ same => n,Set(CRM_TARGETS=\${CURL(${workerOrigin}/api/sip/route?phone=\${CRM_PHONE}&format=dial&route_v=20260731b&secret=${secret})})
+ same => n,GotoIf(\$["\${CRM_TARGETS}"=""]?mobile)
+ same => n,Dial(\${CRM_TARGETS},25)
+ same => n,GotoIf(\$["\${DIALSTATUS}"="ANSWER"]?done)
+ same => n(mobile),Set(CRM_MOBILE=\${CURL(${workerOrigin}/api/sip/route?phone=\${CRM_PHONE}&format=mobile&route_v=20260805&secret=${secret})})
+ same => n,GotoIf(\$["\${CRM_MOBILE}"=""]?done)
+ same => n,NoOp(CRM responsible unavailable (\${DIALSTATUS}); fallback to mobile \${CRM_MOBILE})
+ same => n,Dial(PJSIP/\${CRM_MOBILE}@line-${l.number},45)
+ same => n(done),Hangup()
+
+exten => s,1,Goto(${l.number},1)
 `;
   }
   // Legacy fallback-контекст (если 100 без линий)
@@ -8574,20 +8597,29 @@ async function handleSipRoute(request, env) {
   const phone = phoneRaw.replace(/\D/g, '');
   if (!phone) return json({ error: "phone required" }, 400, request);
 
-  // 1) Найти контакт по phone (LIKE по JSON-полю phones)
+  // 1) Найти контакт по phone (LIKE по JSON-полю phones). Binotel может
+  // прислать казахстанский номер как 8XXXXXXXXXX, CRM хранит его как
+  // 7XXXXXXXXXX, поэтому дополнительно сопоставляем последние 10 цифр.
+  const phoneTail = phone.slice(-10);
+  const phoneKz = phone.length === 11 && phone.startsWith('8') ? `7${phone.slice(1)}` : phone;
   const contact = await env.DB.prepare(
-    "SELECT id FROM contacts WHERE phones LIKE ? LIMIT 1"
-  ).bind(`%${phone}%`).first();
+    "SELECT id FROM contacts WHERE phones LIKE ? OR phones LIKE ? OR phones LIKE ? LIMIT 1"
+  ).bind(`%${phone}%`, `%${phoneKz}%`, `%${phoneTail}%`).first();
   let responsibleUid = null;
   let dealInfo = null;
+  let responsibleUids = [];
+  let dealInfos = [];
   if (contact) {
-    // 2) Самая свежая открытая сделка с этим контактом
-    const deal = await env.DB.prepare(
-      "SELECT id, responsible_uid, pipeline_id FROM deals WHERE contact_id = ? AND closed = 0 ORDER BY bitrix_date_modify DESC LIMIT 1"
-    ).bind(contact.id).first();
-    if (deal) {
-      responsibleUid = deal.responsible_uid || null;
-      dealInfo = { id: deal.id, pipelineId: deal.pipeline_id };
+    // 2) Все открытые сделки контакта. Если у клиента несколько сделок у
+    // разных менеджеров, звоним всем уникальным ответственным одновременно.
+    const { results: openDeals } = await env.DB.prepare(
+      "SELECT id, responsible_uid, pipeline_id FROM deals WHERE contact_id = ? AND closed = 0 ORDER BY bitrix_date_modify DESC LIMIT 20"
+    ).bind(contact.id).all();
+    dealInfos = (openDeals || []).map((deal) => ({ id: deal.id, pipelineId: deal.pipeline_id }));
+    responsibleUids = [...new Set((openDeals || []).map((deal) => deal.responsible_uid).filter(Boolean))];
+    if (openDeals && openDeals.length) {
+      responsibleUid = openDeals[0].responsible_uid || null;
+      dealInfo = dealInfos[0];
     }
   }
 
@@ -8611,20 +8643,24 @@ async function handleSipRoute(request, env) {
   }
 
   // 5) Применить правило: mode = responsible | list | mobile | ring-all
-  const mode = nodeRule?.mode || (responsibleUid ? 'responsible' : 'ring-all');
+  const mode = nodeRule?.mode || 'responsible';
   let extsToRing = [];
   let mobile = nodeRule?.mobile || null;
   const fallbackSeconds = nodeRule?.fallbackSeconds || 30;
 
+  // Если отдельный fallback не задан в структуре, используем основной
+  // мобильный ответственного сотрудника из его профиля CRM.
+  if (!mobile && responsibleUid) {
+    const responsibleUser = await env.DB.prepare(
+      "SELECT phone, phones FROM users WHERE uid = ? LIMIT 1"
+    ).bind(responsibleUid).first();
+    const phones = responsibleUser ? userPhoneList(responsibleUser) : [];
+    mobile = phones[0] || responsibleUser?.phone || null;
+  }
+
   if (mode === 'responsible') {
-    if (responsibleUid && extensions[responsibleUid]) extsToRing.push(extensions[responsibleUid]);
-    if (extsToRing.length === 0) {
-      // Нет extension у ответственного → fallback на список или ring-all
-      if (Array.isArray(nodeRule?.listUids)) {
-        extsToRing = nodeRule.listUids.map(u => extensions[u]).filter(Boolean);
-      }
-      if (extsToRing.length === 0) extsToRing = Object.values(extensions);
-    }
+    const uids = responsibleUids.length ? responsibleUids : (responsibleUid ? [responsibleUid] : []);
+    extsToRing.push(...uids.map((uid) => extensions[uid]).filter(Boolean));
   } else if (mode === 'list') {
     extsToRing = (nodeRule?.listUids || []).map(u => extensions[u]).filter(Boolean);
   } else if (mode === 'mobile') {
@@ -8635,16 +8671,37 @@ async function handleSipRoute(request, env) {
     extsToRing = Object.values(extensions);
   }
 
-  return json({
+  const uniqueExtensions = [...new Set(extsToRing)];
+  if (url.searchParams.get('format') === 'dial') {
+    return new Response(uniqueExtensions.map(ext => `PJSIP/${ext}`).join('&'), {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    });
+  }
+  if (url.searchParams.get('format') === 'mobile') {
+    return new Response(String(mobile || '').replace(/\D/g, ''), {
+      status: 200,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+    });
+  }
+
+  const routeResponse = json({
     ok: true,
     phone,
     responsibleUid,
+    responsibleUids,
     dealId: dealInfo?.id || null,
+    dealIds: dealInfos.map((deal) => deal.id),
     mode,
-    extensions: [...new Set(extsToRing)],
+    extensions: uniqueExtensions,
     mobile,
     fallbackSeconds,
   }, 200, request);
+  routeResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  return routeResponse;
 }
 
 // Walk org tree до узла где uid = headUid или есть в memberUids.

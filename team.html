@@ -3240,6 +3240,10 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
     <div class="nav-item" data-page="calendar" style="padding-left:32px">
       <span class="nav-icon">📅</span><span>Календарь</span>
     </div>
+    <div class="nav-item" data-page="telephony" style="padding-left:32px">
+      <span class="nav-icon">☎️</span><span>Телефония</span>
+      <span class="nav-badge" id="call-missed-badge" style="display:none"></span>
+    </div>
 
     <div class="nav-section">Команда</div>
     <div class="nav-item" data-page="feed">
@@ -4002,7 +4006,7 @@ async function initApp(user) {
 
   // Default page — восстанавливаем последнюю открытую (persist в localStorage
   // через navigate). Deep-link в hash (#deal/, #contact/, #task/) приоритетнее.
-  const VALID_PAGES = ['dashboard', 'notifications', 'contacts', 'deals', 'tasks', 'team-chat', 'deeds', 'calendar', 'chats', 'orgchart', 'migration', 'settings', 'feed', 'lesson-checks', 'mail', 'onboarding'];
+  const VALID_PAGES = ['dashboard', 'notifications', 'contacts', 'deals', 'tasks', 'team-chat', 'deeds', 'calendar', 'telephony', 'chats', 'orgchart', 'migration', 'settings', 'feed', 'lesson-checks', 'mail', 'onboarding'];
   // Старая страница 'users' переехала в 'settings' → редирект сохранённого значения
   // Дефолт при ПЕРВОМ входе (нет сохранённой страницы) — «Чаты» (team-chat).
   // Для вернувшихся пользователей ниже восстанавливаем их последнюю страницу.
@@ -4055,6 +4059,7 @@ async function initApp(user) {
   // Центр уведомлений: realtime-listener (WS) + поллинг бэйджа непрочитанных
   notifBindRealtime();
   notifStartPolling();
+  startMissedCallsPolling();
   // Почта: бейдж непрочитанных в меню + уведомления о новых письмах
   try { mailStartUnreadPolling(); } catch (e) {}
   // Если пуши уже разрешены — переподписать устройство (ключи/endpoint могли
@@ -4152,6 +4157,7 @@ function navigate(page) {
   else if (page === 'tasks') renderTasks(main);
   else if (page === 'deeds') renderDeeds(main);
   else if (page === 'calendar') renderCalendar(main);
+  else if (page === 'telephony') renderTelephony(main);
   else if (page === 'chats') renderChats(main);
   else if (page === 'team-chat') renderTeamChat(main);
   else if (page === 'mail') renderMail(main);
@@ -10447,6 +10453,79 @@ async function placeCall(opts) {
     alert('Не удалось начать звонок: ' + (e?.message || e));
   }
 }
+
+const telephonyState = { items: [], filter: 'all', pollTimer: null };
+const CALL_MISSED_STATUSES = new Set(['missed', 'no_answer', 'busy', 'cancelled', 'rejected', 'failed']);
+
+async function loadTelephonyCalls() {
+  await waitForFbUser();
+  const token = await fbAuth.currentUser.getIdToken();
+  const r = await fetch(`${WORKER_CALL_URL}/log?limit=200&_=${Date.now()}`, {
+    headers: { Authorization: `Bearer ${token}` }, cache: 'no-store'
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const data = await r.json();
+  telephonyState.items = data.items || [];
+  return telephonyState.items;
+}
+
+function callStatusLabel(s) {
+  return ({ connected:'Разговор', ringing:'Звонит', attempted:'Исходящий', missed:'Пропущен',
+    no_answer:'Нет ответа', busy:'Занято', cancelled:'Отменён', rejected:'Отклонён', failed:'Ошибка' })[s] || s || '—';
+}
+
+async function updateMissedCallsBadge() {
+  try {
+    const items = await loadTelephonyCalls();
+    const seenId = Number(localStorage.getItem('elc:telephonySeenId') || 0);
+    const missed = items.filter(x => x.direction === 'in' && CALL_MISSED_STATUSES.has(x.status) && Number(x.id) > seenId);
+    const badge = document.getElementById('call-missed-badge');
+    if (badge) { badge.textContent = missed.length > 99 ? '99+' : String(missed.length); badge.style.display = missed.length ? '' : 'none'; }
+  } catch {}
+}
+
+function startMissedCallsPolling() {
+  updateMissedCallsBadge();
+  if (telephonyState.pollTimer) clearInterval(telephonyState.pollTimer);
+  telephonyState.pollTimer = setInterval(updateMissedCallsBadge, 20000);
+}
+
+async function renderTelephony(main) {
+  main.innerHTML = `<div class="section-head"><div><h2>☎️ Телефония</h2><p>Входящие, исходящие и пропущенные звонки</p></div><button class="btn" id="tel-refresh">↻ Обновить</button></div>
+    <div class="card" style="padding:16px"><div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="btn btn-sm" data-tel-filter="all">Все</button><button class="btn btn-sm" data-tel-filter="missed">🔴 Пропущенные</button>
+    </div><div id="telephony-list"><div class="empty">Загрузка…</div></div></div>`;
+  document.getElementById('tel-refresh').onclick = () => renderTelephony(main);
+  main.querySelectorAll('[data-tel-filter]').forEach(b => b.onclick = () => { telephonyState.filter = b.dataset.telFilter; paintTelephonyList(); });
+  try {
+    await loadTelephonyCalls();
+    const maxMissedId = Math.max(0, ...telephonyState.items.filter(x => x.direction === 'in' && CALL_MISSED_STATUSES.has(x.status)).map(x => Number(x.id) || 0));
+    localStorage.setItem('elc:telephonySeenId', String(maxMissedId));
+    await updateMissedCallsBadge();
+    paintTelephonyList();
+  } catch (e) {
+    document.getElementById('telephony-list').innerHTML = `<div class="empty">Не удалось загрузить звонки: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function paintTelephonyList() {
+  const el = document.getElementById('telephony-list'); if (!el) return;
+  const items = telephonyState.filter === 'missed'
+    ? telephonyState.items.filter(x => x.direction === 'in' && CALL_MISSED_STATUSES.has(x.status))
+    : telephonyState.items;
+  if (!items.length) { el.innerHTML = '<div class="empty">Звонков пока нет</div>'; return; }
+  el.innerHTML = items.map(x => {
+    const missed = x.direction === 'in' && CALL_MISSED_STATUSES.has(x.status);
+    const dt = new Date(x.startedAt); const when = isNaN(dt) ? '' : dt.toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return `<div style="display:grid;grid-template-columns:34px minmax(150px,1fr) 130px 110px auto;gap:10px;align-items:center;padding:11px 8px;border-bottom:1px solid var(--b1);${missed?'background:rgba(239,68,68,.07)':''}">
+      <div style="font-size:20px">${x.direction === 'in' ? (missed?'↙️':'📲') : '↗️'}</div>
+      <div><b style="color:${missed?'#dc2626':'var(--t1)'}">${escapeHtml(x.phone)}</b><div style="font-size:11px;color:var(--t3)">${escapeHtml(when)}</div></div>
+      <div style="font-weight:${missed?'700':'500'};color:${missed?'#dc2626':'var(--t2)'}">${escapeHtml(callStatusLabel(x.status))}</div>
+      <div style="font-size:12px;color:var(--t3)">${x.durationSec ? Math.floor(x.durationSec/60)+':'+String(x.durationSec%60).padStart(2,'0') : '—'}</div>
+      <button class="btn btn-sm" onclick="placeCall({phone:'${escapeHtml(x.phone)}',contactId:'${escapeHtml(x.contactId||'')}',dealId:'${escapeHtml(x.dealId||'')}'})">📞 Перезвонить</button>
+    </div>`;
+  }).join('');
+}
 // Глобальный alias — нужен для inline onclick в .call-btn-inline
 window.placeCall = placeCall;
 
@@ -15458,6 +15537,16 @@ async function getSipClient() {
           window.openDealCard(dealId);
         } else {
           console.warn('[sip] window.openDealCard not defined');
+        }
+      },
+      onCallEvent: (evt) => {
+        const status = evt?.payload?.status || evt?.status;
+        if (status === 'missed' || status === 'no_answer' || status === 'busy') {
+          try { showToast('🔴 Пропущенный звонок — откройте раздел «Телефония»'); } catch {}
+          try {
+            if (Notification.permission === 'granted') new Notification('🔴 Пропущенный звонок', { body: evt?.payload?.phone || 'Откройте CRM', tag: 'sip-missed' });
+          } catch {}
+          updateMissedCallsBadge();
         }
       },
       debug: false,
