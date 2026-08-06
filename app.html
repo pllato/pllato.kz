@@ -4146,7 +4146,7 @@ function paintRoleStatistics(){
   el.innerHTML='<div class="rs-head"><div><h2>Статистика постов</h2><p>Данные вводятся вручную по датам · каждая строка соответствует отдельному посту</p></div></div>'
     +'<div class="rs-role-list">'+roles.map(role=>{
       const charts=Array.isArray(role.charts)?role.charts:[];
-      const add=ROLE_STAT_DATA.canCreate?`<button class="rs-add" type="button" onclick="openRoleStatisticEditor('','${mEsc(role.key)}')">＋ График</button>`:'';
+      const add=ROLE_STAT_DATA.canCreate?`<button class="rs-add" type="button" aria-label="Добавить график: ${mEsc(role.title)}" onclick="openRoleStatisticEditor('','${mEsc(role.key)}')">＋ График</button>`:'';
       return `<section class="rs-role"><div class="rs-role-head"><h3>${mEsc(role.title)}</h3>${add}</div>${charts.length?`<div class="fc-grid rs-grid">${charts.map(roleStatisticCard).join('')}</div>`:'<div class="rs-empty">У вас пока нет доступных графиков этого поста. Можно создать свой через «＋ График».</div>'}</section>`;
     }).join('')+'</div>';
   applyRoleStatisticsFold();
