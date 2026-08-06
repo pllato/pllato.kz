@@ -26,8 +26,8 @@ export function generateSignLinks(id, count = 1) {
   return apiFetch(`/api/contracts/${encodeURIComponent(id)}/signers`, { method: "POST", body: { count } });
 }
 
-export function signOwner(id, { cmsBase64, signer }) {
-  return apiFetch(`/api/contracts/${encodeURIComponent(id)}/sign`, { method: "POST", body: { cmsBase64, signer } });
+export function signOwner(id, { cmsBase64, signer, tsp = false }) {
+  return apiFetch(`/api/contracts/${encodeURIComponent(id)}/sign`, { method: "POST", body: { cmsBase64, signer, tsp } });
 }
 
 export function sendContract(id) {
