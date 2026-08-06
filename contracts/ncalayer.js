@@ -63,7 +63,7 @@ function deepFindSignature(node, depth = 0) {
   if (depth > 6 || node == null) return "";
   if (typeof node === "string") {
     const s = node.trim();
-    if (s.length > 100 && /^[A-Za-z0-9+/=\s]+$/.test(s)) return s;
+    if (s.length > 100 && /^[A-Za-z0-9+/_=\-\s]+$/.test(s)) return s;
     return "";
   }
   if (Array.isArray(node)) {
@@ -83,6 +83,27 @@ function deepFindSignature(node, depth = 0) {
     return best;
   }
   return "";
+}
+
+// NCALayer разных версий возвращает CMS как обычный base64, base64url,
+// data URL или PEM-блок. Перед отправкой на сервер приводим все варианты
+// к одному стандартному base64 и сразу отбрасываем повреждённый ответ.
+function normalizeCmsBase64(value) {
+  let clean = String(value || "").trim();
+  clean = clean.replace(/^data:[^,]*,/, "");
+  clean = clean.replace(/-----BEGIN[^-]+-----/g, "").replace(/-----END[^-]+-----/g, "");
+  clean = clean.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+  if (!clean || /[^A-Za-z0-9+/=]/.test(clean) || clean.length % 4 === 1) {
+    throw new NcaLayerError("NCALayer вернул повреждённую подпись. Обновите NCALayer и попробуйте ещё раз.", "BAD_SIGNATURE");
+  }
+  clean = clean.replace(/=+$/, "");
+  clean += "=".repeat((4 - (clean.length % 4)) % 4);
+  try {
+    if (!atob(clean).length) throw new Error("empty");
+  } catch {
+    throw new NcaLayerError("NCALayer вернул повреждённую подпись. Обновите NCALayer и попробуйте ещё раз.", "BAD_SIGNATURE");
+  }
+  return clean;
 }
 
 // Разбор ответа NCALayer (формат отличается между версиями) — толерантно.
@@ -249,7 +270,7 @@ export async function signBase64(base64Data, opts = {}) {
           locale: "ru",
         },
       };
-      const cms = await sendRequest(ws, payload);
+      const cms = normalizeCmsBase64(await sendRequest(ws, payload));
       if (cms && typeof cms === "string") {
         return { cms, signer: extractSubjectFromCms(cms), tsp: true };
       }
@@ -268,7 +289,7 @@ export async function signBase64(base64Data, opts = {}) {
       method: "createCAdESFromBase64",
       args: [storage, keyType, base64Data, attach],
     };
-    const cms = await sendRequest(ws2, payload);
+    const cms = normalizeCmsBase64(await sendRequest(ws2, payload));
     if (!cms || typeof cms !== "string") {
       throw new NcaLayerError("NCALayer не вернул подпись");
     }

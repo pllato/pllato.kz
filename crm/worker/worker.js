@@ -1238,9 +1238,12 @@ const REQUISITE_FIELDS = ["name", "iinBin", "idNumber", "idDate", "address", "co
 function normalizeRequisites(input, signerType) {
   const type = signerType === "ip" ? "ip" : signerType === "individual" ? "individual" : "";
   if (!input || typeof input !== "object") return { type, data: null };
+  // Фронт отправляет { requisites: { data: {...} } }, старые клиенты могли
+  // отправлять сами поля напрямую. Принимаем оба формата без потери данных.
+  const source = input.data && typeof input.data === "object" ? input.data : input;
   const data = {};
   for (const f of REQUISITE_FIELDS) {
-    const v = String(input[f] ?? "").trim().slice(0, 300);
+    const v = String(source[f] ?? "").trim().slice(0, 300);
     if (v) data[f] = v;
   }
   return { type, data: Object.keys(data).length ? data : null };
@@ -1272,9 +1275,18 @@ async function sha256Hex(bytes) {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function base64ToBytes(b64) {
-  const clean = String(b64 || "").replace(/^data:[^,]*,/, "").replace(/\s+/g, "");
-  const bin = atob(clean);
+function base64ToBytes(b64, label = "Данные") {
+  let clean = String(b64 || "").trim().replace(/^data:[^,]*,/, "");
+  clean = clean.replace(/-----BEGIN[^-]+-----/g, "").replace(/-----END[^-]+-----/g, "");
+  clean = clean.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+  if (!clean || /[^A-Za-z0-9+/=]/.test(clean) || clean.length % 4 === 1) {
+    throw new HttpError(400, `${label}: неверный формат base64. Обновите NCALayer и повторите подписание`);
+  }
+  clean = clean.replace(/=+$/, "");
+  clean += "=".repeat((4 - (clean.length % 4)) % 4);
+  let bin;
+  try { bin = atob(clean); }
+  catch (_e) { throw new HttpError(400, `${label}: повреждённые данные. Повторите подписание`); }
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);
   return out;
@@ -1631,7 +1643,7 @@ async function applySignature(env, request, contractRow, signerRow, body) {
   } else {
     const cmsB64 = String(body?.cmsBase64 || "").trim();
     if (!cmsB64) throw new HttpError(400, "Нет данных подписи (cmsBase64)");
-    const cmsBytes = base64ToBytes(cmsB64);
+    const cmsBytes = base64ToBytes(cmsB64, "Подпись ЭЦП");
     if (!cmsBytes.length) throw new HttpError(400, "Пустая подпись");
     if (cmsBytes.length > CONTRACT_MAX_BYTES) throw new HttpError(400, "Подпись слишком большая");
     const sigKey = `contracts/${contractRow.id}/sig_${signerRow.id}.p7s`;
@@ -1644,18 +1656,33 @@ async function applySignature(env, request, contractRow, signerRow, body) {
     const reqJson = req.data || req.type ? JSON.stringify(req) : (signerRow.requisites || null);
     const reqType = req.type || signerRow.signer_type || null;
     const fullName = req.data?.name ? req.data.name.slice(0, 200) : signerRow.full_name;
-    await db
-      .prepare(
-        `UPDATE contract_signers SET status = 'signed', full_name = ?, sig_key = ?, signer_cn = ?, signer_iin = ?, signer_serial = ?, signer_type = ?, requisites = ?, signed_at = ?, signed_ip = ?, updated_at = ? WHERE id = ?`
-      )
-      .bind(fullName, sigKey, cn, iin, serial, reqType, reqJson, now, clientIp(request), now, signerRow.id)
-      .run();
+    try {
+      await db
+        .prepare(
+          `UPDATE contract_signers SET status = 'signed', full_name = ?, sig_key = ?, signer_cn = ?, signer_iin = ?, signer_serial = ?, signer_type = ?, requisites = ?, signed_at = ?, signed_ip = ?, updated_at = ? WHERE id = ?`
+        )
+        .bind(fullName, sigKey, cn, iin, serial, reqType, reqJson, now, clientIp(request), now, signerRow.id)
+        .run();
+    } catch (e) {
+      // Не оставляем в R2 бесхозную подпись, если метаданные не записались.
+      try { await r2.delete(sigKey); } catch (_cleanupError) {}
+      throw e;
+    }
   }
 
   await db.prepare(`UPDATE contracts SET updated_at = ? WHERE id = ?`).bind(now, contractRow.id).run();
   const refreshed = await loadContractOr404(env, contractRow.id);
   const signers = await syncContractStatus(env, refreshed);
   return { contract: refreshed, signers };
+}
+
+function publicSigningError(error) {
+  if (error instanceof HttpError) return error;
+  console.error("[contract-sign] unexpected error:", error);
+  return new HttpError(
+    503,
+    "Не удалось завершить сохранение подписи. Обновите страницу: если договор ещё не подписан, повторите подписание",
+  );
 }
 
 async function handleContractSignOwner(request, env, id) {
@@ -8503,7 +8530,11 @@ export default {
       const contractSignMatch = path.match(/^\/api\/contracts\/([a-zA-Z0-9_-]+)\/sign$/);
       if (request.method === "POST" && contractSignMatch) {
         await loadActorContext(request, env, { strictTeamCheck: true });
-        return json(request, env, await handleContractSignOwner(request, env, contractSignMatch[1]));
+        try {
+          return json(request, env, await handleContractSignOwner(request, env, contractSignMatch[1]));
+        } catch (error) {
+          throw publicSigningError(error);
+        }
       }
       const contractSendMatch = path.match(/^\/api\/contracts\/([a-zA-Z0-9_-]+)\/send$/);
       if (request.method === "POST" && contractSendMatch) {
@@ -8545,7 +8576,11 @@ export default {
         return json(request, env, await handleSignGetByContract(env, signCMatch[1]));
       }
       if (request.method === "POST" && signCMatch) {
-        return json(request, env, await handleSignPostByContract(request, env, signCMatch[1]));
+        try {
+          return json(request, env, await handleSignPostByContract(request, env, signCMatch[1]));
+        } catch (error) {
+          throw publicSigningError(error);
+        }
       }
 
       // Публичные ручки подписания по персональной ссылке (без логина):
@@ -8558,7 +8593,11 @@ export default {
         return json(request, env, await handleSignGet(env, signTokenMatch[1]));
       }
       if (request.method === "POST" && signTokenMatch) {
-        return json(request, env, await handleSignPost(request, env, signTokenMatch[1]));
+        try {
+          return json(request, env, await handleSignPost(request, env, signTokenMatch[1]));
+        } catch (error) {
+          throw publicSigningError(error);
+        }
       }
 
       return fail(request, env, 404, "Not found", { path, method: request.method });
