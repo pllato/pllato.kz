@@ -155,28 +155,58 @@ tbody tr:hover td{background:#f6f7f4}
 .deal .dh{background:var(--panel);border-bottom:1px solid var(--ln);padding:14px 20px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
 .deal .dh h2{font-family:var(--serif);font-size:20px;font-weight:600}
 .deal .dh .mx{margin-left:auto;font-size:20px;color:var(--mut);cursor:pointer}
+.lead-workbench{max-width:1500px;height:calc(100vh - 32px);display:flex;flex-direction:column;overflow:hidden}
+.lead-workbench .dh{flex:none;padding:13px 20px;background:#fff}
+.lead-workbench .dh-copy{min-width:0}
+.lead-workbench .dh-copy h2{font-size:22px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lead-workbench .dh-meta{display:flex;gap:8px;align-items:center;margin-top:4px}
+.lead-workbench .dh-actions{display:flex;gap:7px;margin-left:auto}
+.lead-workbench .dh .mx{margin-left:3px;width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--ln);font-size:18px}
+.lead-workbench .dh .mx:hover{border-color:var(--ink);color:var(--ink)}
+.head-action{border:1px solid var(--ln);background:var(--panel);padding:8px 12px;font-size:12px;font-weight:700;color:var(--ink);cursor:pointer}
+.head-action:hover{border-color:var(--grn);color:var(--grn)}
 .stepper{display:flex;border-bottom:1px solid var(--ln);background:var(--panel);overflow-x:auto}
-.stepper button{flex:1;min-width:120px;padding:9px 6px;font-size:11.5px;font-weight:700;color:var(--faint);border-bottom:3px solid transparent;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
+.stepper button{flex:1;min-width:150px;padding:10px 9px;font-size:11px;font-weight:700;color:var(--faint);border-bottom:3px solid transparent;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
 .stepper button.done{color:var(--grn)}
 .stepper button.cur{color:var(--ink);border-bottom-color:var(--grn);background:var(--grn-l)}
-.deal .db{display:grid;grid-template-columns:238px 1fr 216px;gap:0;min-height:400px}
-@media(max-width:900px){.deal .db{grid-template-columns:1fr}}
-.deal .dleft{border-right:1px solid var(--ln);padding:14px 16px;background:var(--panel)}
+.lead-workbench .db{display:grid;grid-template-columns:minmax(330px,380px) minmax(0,1fr);gap:0;flex:1;min-height:0}
+.lead-workbench .dleft{border-right:1px solid var(--ln);padding:16px;background:var(--panel);overflow-y:auto}
+.profile-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:11px}
+.profile-top h3{font-family:var(--serif);font-size:17px;font-weight:700}
+.profile-actions{display:flex;gap:6px;align-items:center}.profile-toggle{display:none}
+.profile-edit{border:1px solid var(--ln);padding:6px 9px;font-size:11px;font-weight:700;background:#fff;cursor:pointer}
+.profile-edit:hover{border-color:var(--grn);color:var(--grn)}
+.profile-card{background:#fff;border:1px solid var(--ln);padding:13px 14px;margin-bottom:10px}
+.profile-card-title{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:800;margin-bottom:10px}
+.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 15px}
+.profile-grid .fld{margin:0;min-width:0}
+.profile-grid .wide{grid-column:1/-1}
 .fld{margin-bottom:11px}
 .fld .fl{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:700}
-.fld .fv{font-size:14.5px;font-weight:600;margin-top:2px}
+.fld .fv{font-size:14px;font-weight:600;margin-top:3px;line-height:1.4;overflow-wrap:anywhere}
 .fld .fv.clk{cursor:pointer}.fld .fv.clk:hover{color:var(--grn)}
 .hhlink{color:var(--blu);font-weight:600;font-size:12.5px;text-decoration:underline;cursor:pointer}
-.cbtns{display:flex;gap:6px;margin-top:4px}
+.cbtns{display:flex;gap:7px;margin-top:10px}
 .cbtn{flex:1;border:1px solid var(--ln);padding:8px 6px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;font-weight:600;cursor:pointer}
 .cbtn:hover{border-color:var(--grn);color:var(--grn)}
 .cbtn svg{width:13px;height:13px}
-.deal .dmid{padding:0;overflow:hidden;display:flex;flex-direction:column}
+.plan-value{padding:8px 9px;background:var(--panel);border-left:3px solid var(--grn);cursor:pointer}
+.plan-value.warn{border-left-color:var(--terra);color:var(--terra)}
+.note-box{background:var(--panel);border:1px solid var(--ln2);padding:10px 11px;min-height:58px;cursor:pointer;font-size:13px;line-height:1.55;color:var(--ink2)}
+.note-box:hover{border-color:var(--grn)}
+.lead-workbench .dmid{padding:0;overflow:hidden;display:flex;flex-direction:column;min-width:0;background:#fff}
 .midtabs{display:flex;border-bottom:1px solid var(--ln);background:var(--panel)}
-.midtabs button{flex:1;padding:11px 6px;font-size:12.5px;font-weight:600;color:var(--mut);border-bottom:2px solid transparent}
+.midtabs button{flex:0 1 180px;padding:13px 10px;font-size:12.5px;font-weight:700;color:var(--mut);border-bottom:3px solid transparent}
 .midtabs button.on{color:var(--ink);border-bottom-color:var(--grn)}
-.midbody{padding:14px 18px;overflow-y:auto;max-height:52vh}
-.midpane{display:none}.midpane.on{display:block}
+.tab-count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:18px;padding:0 5px;margin-left:5px;background:var(--ln);font-family:var(--mono);font-size:10px;color:var(--mut)}
+.midtabs button.on .tab-count{background:var(--grn-l);color:var(--grn)}
+.midbody{flex:1;min-height:0;overflow:hidden;position:relative;background:#fff}
+.midpane{display:none;height:100%;overflow-y:auto;padding:20px 24px}.midpane.on{display:block}
+#mp-wa.on{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.pane-head{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--ln2);background:#fff}
+.pane-avatar{width:38px;height:38px;background:var(--grn-l);color:var(--grn);display:grid;place-items:center;font-weight:800;font-size:13px;flex:none}
+.pane-head-copy{min-width:0;flex:1}.pane-head-copy b{display:block;font-size:13.5px}.pane-head-copy span{display:block;color:var(--faint);font-size:11.5px;margin-top:2px}
+.pane-status{font-size:11px;color:var(--grn);font-weight:700}
 .tl{position:relative;padding-left:20px}
 .tl::before{content:'';position:absolute;left:5px;top:4px;bottom:4px;width:2px;background:var(--ln)}
 .ev{position:relative;padding:0 0 14px}
@@ -187,27 +217,44 @@ tbody tr:hover td{background:#f6f7f4}
 .ev .eb b{font-weight:600}
 .ev .rec{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--ln);padding:5px 10px;margin-top:5px;font-size:11px;font-family:var(--mono);cursor:pointer}
 .ev .rec:hover{border-color:var(--blu)}
-.chatwin{display:flex;flex-direction:column;gap:8px}
-.msg{max-width:80%;padding:8px 11px;font-size:13.5px;line-height:1.45}
-.msg.them{align-self:flex-start;background:var(--ln2)}
-.msg.me{align-self:flex-end;background:#eaf6ef;border:1px solid #cbe7d6}
+.chatwin{display:flex;flex:1;min-height:0;overflow-y:auto;flex-direction:column;gap:9px;padding:18px;background:#f5f6f3}
+.msg{max-width:min(74%,620px);padding:10px 12px;font-size:13.5px;line-height:1.45;box-shadow:0 1px 0 rgba(23,32,51,.05)}
+.msg.them{align-self:flex-start;background:#fff;border:1px solid var(--ln)}
+.msg.me{align-self:flex-end;background:#e5f4ec;border:1px solid #bfdccb}
 .msg .mt2{font-size:10px;color:var(--faint);font-family:var(--mono);margin-top:3px}
-.chatbar{display:flex;gap:6px;margin-top:12px}
-.chatbar input{flex:1;border:1px solid var(--ln);padding:9px 11px;font-size:13px}
-.chatbar button{background:var(--grn);color:#fff;font-weight:600;padding:0 16px;font-size:12.5px}
+.chatbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:7px;padding:11px 14px;background:#fff;border-top:1px solid var(--ln)}
+.chatbar textarea{min-height:42px;max-height:112px;resize:vertical;border:1px solid var(--ln);padding:10px 11px;font:13px/1.45 'Onest',sans-serif;outline:none}
+.chatbar textarea:focus{border-color:var(--grn)}
+.chatbar .chat-tool{width:42px;border:1px solid var(--ln);background:var(--panel);font-size:17px;color:var(--mut);cursor:pointer}
+.chatbar .send{background:var(--grn);color:#fff;font-weight:700;padding:0 17px;font-size:12.5px}
+.chat-quick{display:flex;gap:6px;overflow-x:auto;padding:8px 14px 0;background:#fff}
+.chat-quick button{border:1px solid var(--ln);padding:6px 9px;font-size:11px;color:var(--mut);white-space:nowrap;background:#fff;cursor:pointer}
+.chat-quick button:hover{border-color:var(--grn);color:var(--grn)}
 .mailitem{border:1px solid var(--ln);padding:11px 13px;margin-bottom:9px}
 .mailitem .mh{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut);margin-bottom:5px}
 .mailitem .msubj{font-weight:700;font-size:13.5px}
 .mailitem .mbody{font-size:13px;color:var(--ink2);margin-top:4px;line-height:1.5}
-.deal .drgt{border-left:1px solid var(--ln);padding:14px 16px;background:var(--panel)}
+.tasks-pane-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.tasks-pane-head h3{font-family:var(--serif);font-size:18px}
+.tasks-wrap{max-width:760px}
 .task{border:1px solid var(--ln);padding:9px 11px;margin-bottom:8px;font-size:13.5px;cursor:pointer}
 .task b{font-weight:600;display:block}
 .task span{font-size:11px;color:var(--terra);font-family:var(--mono);font-weight:600}
 .task.don{opacity:.55}.task.don span{color:var(--grn)}
-.dfoot{border-top:1px solid var(--ln);background:var(--panel);padding:11px 20px;display:flex;gap:8px;flex-wrap:wrap}
+.dfoot{border-top:1px solid var(--ln);background:var(--panel);padding:11px 20px;display:flex;gap:8px;flex-wrap:wrap;flex:none}
 .btn{background:var(--ink);color:#fff;font-weight:600;font-size:12.5px;padding:9px 16px;cursor:pointer}
 .btn.g{background:var(--grn)}
 .btn.o{background:#fff;color:var(--ink);border:1px solid var(--ln)}
+.ovl.sub{z-index:80;background:rgba(23,32,51,.68)}
+@media(max-width:1180px){.lead-workbench .dh-actions{display:none}.lead-workbench .midtabs{overflow-x:auto}.lead-workbench .midtabs button{min-width:125px}}
+@media(max-width:900px){
+  .ovl{padding:0}.lead-workbench{height:100dvh;max-width:none;border:0}
+  .lead-workbench .dh{padding:10px 12px}.lead-workbench .dh-actions{display:none}.lead-workbench .dh-copy h2{font-size:18px}
+  .lead-workbench .dh-meta{margin-top:2px}.lead-workbench .db{grid-template-columns:1fr;overflow-y:auto}.lead-workbench .dleft{overflow:visible;border-right:0;border-bottom:1px solid var(--ln);padding:12px}
+  .profile-toggle{display:inline-block}.lead-workbench.profile-collapsed .dleft .profile-card{display:none}.lead-workbench.profile-collapsed .profile-top{margin-bottom:0}
+  .lead-workbench .dmid{min-height:560px}.midtabs{overflow-x:auto}.midtabs button{min-width:115px;flex:1}.midpane{padding:16px}
+  .profile-grid{grid-template-columns:1fr 1fr}.lead-workbench .dfoot{padding:9px 12px;overflow-x:auto;flex-wrap:nowrap}.lead-workbench .dfoot .btn{white-space:nowrap}
+}
+@media(max-width:540px){.profile-grid{grid-template-columns:1fr}.profile-grid .wide{grid-column:auto}.msg{max-width:88%}.chatbar{grid-template-columns:auto minmax(0,1fr)}.chatbar .send{grid-column:2}.ovl.sub .ff2{grid-template-columns:1fr}}
 
 #toasts{position:fixed;right:18px;bottom:18px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:390px}
 .toast{background:var(--ink);color:#e6eaf1;padding:12px 16px;font-size:12.5px;line-height:1.55;box-shadow:6px 6px 0 rgba(23,32,51,.15);animation:tin .22s}
@@ -386,45 +433,67 @@ tbody tr:hover td{background:#f6f7f4}
 
 <!-- карточка лида -->
 <div class="ovl" id="dealOvl" onclick="if(event.target===this)closeDeal()">
-  <div class="deal">
-    <div class="dh"><h2 id="dTitle">—</h2><span class="mark gy" id="dMeta">—</span><span class="mx" onclick="closeDeal()">✕</span></div>
+  <div class="deal lead-workbench">
+    <div class="dh">
+      <div class="dh-copy"><h2 id="dTitle">—</h2><div class="dh-meta"><span class="mark gy" id="dMeta">—</span></div></div>
+      <div class="dh-actions">
+        <button class="head-action" onclick="callFromCard()">Позвонить</button>
+        <button class="head-action" onclick="dmid('wa')">Открыть WhatsApp</button>
+        <button class="head-action" onclick="openLeadDataEditor()">Редактировать анкету</button>
+      </div>
+      <span class="mx" onclick="closeDeal()" title="Закрыть">✕</span>
+    </div>
     <div class="stepper" id="dStep"></div>
     <div class="db">
       <div class="dleft">
-        <div class="fld"><div class="fl">Компания</div><div class="fv" id="dComp">—</div>
+        <div class="profile-top"><h3>Анкетные данные</h3><div class="profile-actions"><button class="profile-edit profile-toggle" onclick="toggleMobileProfile(this)">Показать</button><button class="profile-edit" onclick="openLeadDataEditor()">Изменить всё</button></div></div>
+        <div class="profile-card">
+          <div class="profile-card-title">Контакт</div>
+          <div class="fld"><div class="fl">Компания</div><div class="fv" id="dComp">—</div>
           <div class="cbtns">
             <span class="cbtn" onclick="callFromCard()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>Позвонить</span>
             <span class="cbtn" onclick="dmid('wa')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-4-7.5"/><path d="M8 12h8M8 9h5"/></svg>WhatsApp</span>
           </div>
         </div>
-        <div class="fld"><div class="fl">Город · сегмент</div><div class="fv" id="dSeg">—</div></div>
-        <div class="fld"><div class="fl">Телефон</div><div class="fv num clk" style="font-size:13.5px" id="dPhone" onclick="callFromCard()">—</div></div>
-        <div class="fld"><div class="fl">Ссылка hh</div><div class="fv"><span class="hhlink" id="dHh" onclick="toast('Прямая ссылка на страницу работодателя на hh.kz — из импортированной таблицы.')">—</span></div></div>
-        <div class="fld"><div class="fl">БИН · источник</div><div class="fv" id="dBin" style="font-size:13px">—</div></div>
-        <div class="fld"><div class="fl">Ответственный</div><div class="fv" id="dMgr">—</div></div>
-        <div class="fld"><div class="fl">Встреча <span class="linklike" onclick="editMeet()">изменить</span></div><div class="fv clk" id="dMeet" onclick="editMeet()">—</div></div>
-        <div class="fld"><div class="fl">Следующее действие <span class="linklike" onclick="editNext()">изменить</span></div><div class="fv clk" style="color:var(--terra)" id="dNext" onclick="editNext()">—</div></div>
+          <div class="fld" style="margin-top:12px;margin-bottom:0"><div class="fl">Телефон</div><div class="fv num clk" id="dPhone" onclick="callFromCard()">—</div></div>
+        </div>
+        <div class="profile-card">
+          <div class="profile-card-title">Компания и источник</div>
+          <div class="profile-grid">
+            <div class="fld wide"><div class="fl">Город · сегмент</div><div class="fv" id="dSeg">—</div></div>
+            <div class="fld wide"><div class="fl">Ссылка hh</div><div class="fv"><span class="hhlink" id="dHh" onclick="openLeadSourceLink()">—</span></div></div>
+            <div class="fld wide"><div class="fl">БИН · источник</div><div class="fv" id="dBin">—</div></div>
+            <div class="fld wide"><div class="fl">Ответственный</div><div class="fv" id="dMgr">—</div></div>
+          </div>
+        </div>
+        <div class="profile-card">
+          <div class="profile-card-title">План работы</div>
+          <div class="fld"><div class="fl">Встреча <span class="linklike" onclick="editMeet()">изменить</span></div><div class="fv plan-value" id="dMeet" onclick="editMeet()">—</div></div>
+          <div class="fld" style="margin-bottom:0"><div class="fl">Следующее действие <span class="linklike" onclick="editNext()">изменить</span></div><div class="fv plan-value warn" id="dNext" onclick="editNext()">—</div></div>
+        </div>
+        <div class="profile-card" style="margin-bottom:0">
+          <div class="profile-card-title">Заметка <span class="linklike" onclick="editNote()">изменить</span></div>
+          <div class="note-box" id="dNote" onclick="editNote()">—</div>
+        </div>
       </div>
       <div class="dmid">
         <div class="midtabs">
           <button class="on" data-m="hist" onclick="dmid('hist')">История</button>
-          <button data-m="wa" onclick="dmid('wa')">WhatsApp</button>
+          <button data-m="wa" onclick="dmid('wa')">WhatsApp <span class="tab-count" id="dWaCount">0</span></button>
           <button data-m="mail" onclick="dmid('mail')">Почта</button>
+          <button data-m="tasks" onclick="dmid('tasks')">Задачи <span class="tab-count" id="dTaskCount">0</span></button>
         </div>
         <div class="midbody">
           <div class="midpane on" id="mp-hist"><div class="tl" id="dTl"></div></div>
           <div class="midpane" id="mp-wa">
+            <div class="pane-head"><div class="pane-avatar">WA</div><div class="pane-head-copy"><b id="dChatTitle">Диалог с клиентом</b><span id="dChatPhone">—</span></div><span class="pane-status">● канал подключён</span></div>
             <div class="chatwin" id="dWa"></div>
-            <div class="chatbar"><input placeholder="Сообщение в WhatsApp…" onkeydown="if(event.key==='Enter')waSend(this)"><button onclick="waSend(this.previousElementSibling)">Отпр.</button></div>
+            <div class="chat-quick"><button onclick="insertChatTemplate('Здравствуйте! Подскажите, удобно сейчас говорить?')">Первый контакт</button><button onclick="insertChatTemplate('Отправляю короткую презентацию и условия. Если будут вопросы — я на связи.')">Отправить материалы</button><button onclick="insertChatTemplate('Подтверждаю нашу встречу. Всё в силе?')">Подтвердить встречу</button></div>
+            <div class="chatbar"><button class="chat-tool" onclick="toast('В рабочей CRM здесь добавляется файл или документ.')" title="Прикрепить файл">＋</button><textarea id="dWaInput" rows="1" placeholder="Напишите сообщение…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();waSend(this)}"></textarea><button class="send" onclick="waSend(document.getElementById('dWaInput'))">Отправить</button></div>
           </div>
           <div class="midpane" id="mp-mail"><div id="dMail"></div></div>
+          <div class="midpane" id="mp-tasks"><div class="tasks-wrap"><div class="tasks-pane-head"><h3>Задачи по лиду</h3><button class="btn g" onclick="addCardTask()">+ Новая задача</button></div><div id="dTasks"></div></div></div>
         </div>
-      </div>
-      <div class="drgt">
-        <div class="fld"><div class="fl">Задачи по лиду</div></div>
-        <div id="dTasks"></div>
-        <button class="btn o" style="width:100%;margin-top:2px" onclick="addCardTask()">+ задача</button>
-        <div class="fld" style="margin-top:14px"><div class="fl">Заметки <span class="linklike" onclick="editNote()">изменить</span></div><div class="note clk" id="dNote" style="margin-top:4px;cursor:pointer" onclick="editNote()">—</div></div>
       </div>
     </div>
     <div class="dfoot">
@@ -433,6 +502,24 @@ tbody tr:hover td{background:#f6f7f4}
       <button class="btn o" onclick="deleteLead()" style="color:var(--terra);border-color:#e3b9a5">Удалить</button>
       <button class="btn o" onclick="closeDeal()" style="margin-left:auto">Закрыть</button>
     </div>
+  </div>
+</div>
+
+<!-- модал: редактирование анкеты лида -->
+<div class="ovl sub" id="profileOvl" onclick="if(event.target===this)closeForm('profileOvl')">
+  <div class="deal" style="max-width:760px">
+    <div class="dh"><h2>Анкетные данные лида</h2><span class="mark gy">все основные поля в одном месте</span><span class="mx" onclick="closeForm('profileOvl')">✕</span></div>
+    <div class="formbody">
+      <div class="ff"><label>Компания *</label><input id="edC"></div>
+      <div class="ff2"><div class="ff"><label>Город</label><input id="edCity"></div><div class="ff"><label>Сегмент</label><input id="edSeg"></div></div>
+      <div class="ff2"><div class="ff"><label>Телефон</label><input id="edPh"></div><div class="ff"><label>БИН</label><input id="edBin"></div></div>
+      <div class="ff"><label>Ссылка hh.kz / сайт компании</label><input id="edHh"></div>
+      <div class="ff2"><div class="ff"><label>Источник</label><input id="edSrc"></div><div class="ff"><label>Ответственный</label><select id="edMgr"></select></div></div>
+      <div class="ff2"><div class="ff"><label>Встреча</label><input id="edMeet" placeholder="назначена · чт 11:00"></div><div class="ff"><label>Срок следующего действия</label><input id="edNd" placeholder="сегодня 16:00"></div></div>
+      <div class="ff"><label>Следующее действие</label><input id="edNext"></div>
+      <div class="ff"><label>Заметка</label><textarea id="edNote" rows="4"></textarea></div>
+    </div>
+    <div class="dfoot"><button class="btn g" onclick="saveLeadData()">Сохранить анкету</button><button class="btn o" onclick="closeForm('profileOvl')">Отмена</button></div>
   </div>
 </div>
 
@@ -686,9 +773,17 @@ function dropCol(e,fn,si){e.preventDefault();if(!DRAG||DRAG.fn!==fn)return;const
 /* ===== КАРТОЧКА ЛИДА ===== */
 let CUR=null;
 function evH(cls,t,b){return '<div class="ev '+cls+'"><div class="et">'+t+'</div><div class="eb">'+b+'</div></div>'}
-function dmid(m){document.querySelectorAll('.midtabs button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));document.querySelectorAll('.midpane').forEach(p=>p.classList.remove('on'));$('mp-'+m).classList.add('on')}
+function dmid(m){
+  const root=$('dealOvl');if(!root)return;
+  root.querySelectorAll('.midtabs button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
+  root.querySelectorAll('.midpane').forEach(p=>p.classList.remove('on'));
+  const pane=$('mp-'+m);if(pane)pane.classList.add('on');
+  if(m==='wa')setTimeout(()=>{const box=$('dWa');if(box)box.scrollTop=box.scrollHeight;const inp=$('dWaInput');if(inp)inp.focus();},30);
+}
 function openLead(fn,si,ki){
   const arr=(fn==='lead'?LSTAGES:SSTAGES);const l=arr[si]&&arr[si].ls[ki];if(!l)return;CUR={fn,si,ki,l};
+  const workbench=$('dealOvl').querySelector('.lead-workbench');
+  if(workbench){workbench.classList.toggle('profile-collapsed',window.matchMedia('(max-width:900px)').matches);const toggle=workbench.querySelector('.profile-toggle');if(toggle)toggle.textContent=workbench.classList.contains('profile-collapsed')?'Показать':'Свернуть';}
   const mgr=fn==='lead'?LMGRS[l.m]:SMGRS[l.m];
   $('dTitle').textContent=l.c;
   $('dMeta').textContent=(fn==='lead'?'лид':'сделка')+' · '+mgr+' · '+l.city;
@@ -703,6 +798,8 @@ function openLead(fn,si,ki){
   $('dMeet').textContent=l.meet||'не назначена';
   $('dNext').textContent=l.next+' · '+l.nd;
   $('dNote').textContent=l.note||'—';
+  $('dChatTitle').textContent=l.c;
+  $('dChatPhone').textContent=l.ph+' · WhatsApp';
   renderHist(l);renderWa(l);renderCardTasks(l);
   $('dMail').innerHTML=
     '<div class="mailitem"><div class="mh"><span>от hr@'+esc(l.c.toLowerCase().replace(/[^a-zа-я0-9]/gi,''))+'.kz</span><span>вчера 17:02</span></div><div class="msubj">Re: HireBox — тесты для найма</div><div class="mbody">Спасибо, презентацию получили. Пришлите, пожалуйста, прайс на пакет до 100 прохождений и условия пилота.</div></div>'+
@@ -731,15 +828,40 @@ function renderWa(l){
     {me:true,text:'Отправлю расчёт и короткое видео (1 мин). Когда удобно созвониться?',t:'10:33'},
   ];
   $('dWa').innerHTML=l.wa.map(m=>'<div class="msg '+(m.me?'me':'them')+'">'+esc(m.text)+'<div class="mt2">'+esc(m.t)+(m.me?' · доставлено':'')+'</div></div>').join('');
+  if($('dWaCount'))$('dWaCount').textContent=l.wa.length;
+  requestAnimationFrame(()=>{const box=$('dWa');if(box)box.scrollTop=box.scrollHeight;});
 }
 function renderCardTasks(l){
   const open=TASKS.filter(t=>t.lead===l.c);
   let h=open.length?open.map(t=>'<div class="task"><b>'+esc(t.action)+'</b><span>'+(t.grp==='late'?'⚑ просрочено':esc(t.when))+'</span> <button class="linklike" style="float:right" onclick="taskDone('+t.id+')">✓ выполнить</button></div>').join(''):'';
   h+='<div class="task don"><b>Первый контакт</b><span>сделано</span></div>';
   $('dTasks').innerHTML=h;
+  if($('dTaskCount'))$('dTaskCount').textContent=open.length;
 }
 function closeDeal(){$('dealOvl').classList.remove('show')}
-function waSend(inp){if(!inp.value.trim()||!CUR)return;const l=CUR.l;(l.wa=l.wa||[]).push({me:true,text:inp.value,t:nowHM()});inp.value='';save();renderWa(l);logWt(nowHM(),'WhatsApp → '+l.c,l.m);const box=$('dWa');if(box&&box.parentElement)box.parentElement.scrollTop=9999;toast('Сообщение отправлено — переписка привязана к лиду и сохранена.');}
+function waSend(inp){if(!inp||!inp.value.trim()||!CUR)return;const l=CUR.l;(l.wa=l.wa||[]).push({me:true,text:inp.value.trim(),t:nowHM()});inp.value='';save();renderWa(l);logWt(nowHM(),'WhatsApp → '+l.c,l.m);const box=$('dWa');if(box)box.scrollTop=box.scrollHeight;inp.focus();toast('Сообщение отправлено — переписка привязана к лиду и сохранена.');}
+function insertChatTemplate(text){const inp=$('dWaInput');if(!inp)return;inp.value=text;inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}
+function openLeadSourceLink(){
+  if(!CUR||!CUR.l.hh){toast('Ссылка на hh.kz или сайт компании пока не указана.');return;}
+  const raw=CUR.l.hh.trim();const url=/^https?:\/\//i.test(raw)?raw:'https://'+raw;
+  window.open(url,'_blank','noopener');
+}
+function toggleMobileProfile(btn){const workbench=$('dealOvl').querySelector('.lead-workbench');if(!workbench)return;const collapsed=workbench.classList.toggle('profile-collapsed');btn.textContent=collapsed?'Показать':'Свернуть';}
+function openLeadDataEditor(){
+  if(!CUR)return;const l=CUR.l;const managers=CUR.fn==='lead'?LMGRS:SMGRS;
+  $('edC').value=l.c||'';$('edCity').value=l.city||'';$('edSeg').value=l.seg||'';$('edPh').value=l.ph||'';$('edBin').value=l.bin||'';$('edHh').value=l.hh||'';$('edSrc').value=l.src||'';
+  $('edMeet').value=l.meet||'';$('edNext').value=l.next||'';$('edNd').value=l.nd||'';$('edNote').value=l.note||'';
+  $('edMgr').innerHTML=managers.map((name,i)=>'<option value="'+i+'"'+(i===l.m?' selected':'')+'>'+esc(name)+'</option>').join('');
+  $('profileOvl').classList.add('show');setTimeout(()=>$('edC').focus(),20);
+}
+function saveLeadData(){
+  if(!CUR)return;const l=CUR.l;const name=$('edC').value.trim();if(!name){toast('Укажите название компании.');$('edC').focus();return;}
+  const oldName=l.c;
+  l.c=name;l.city=$('edCity').value.trim();l.seg=$('edSeg').value.trim();l.ph=$('edPh').value.trim();l.bin=$('edBin').value.trim();l.hh=$('edHh').value.trim();l.src=$('edSrc').value.trim()||'вручную';l.m=Math.max(0,parseInt($('edMgr').value)||0);
+  l.meet=$('edMeet').value.trim();l.next=$('edNext').value.trim()||'связаться с клиентом';l.nd=$('edNd').value.trim()||'сегодня';l.note=$('edNote').value.trim();
+  if(oldName!==l.c)TASKS.forEach(t=>{if(t.lead===oldName)t.lead=l.c;});
+  logWt(nowHM(),'обновила анкету: '+l.c,l.m);save();renderLeads();renderSales();renderTasks();renderStat();closeForm('profileOvl');openRef(l);toast('Анкетные данные сохранены. Карточка и воронка обновлены.');
+}
 function callFromCard(){
   if(!CUR)return;const l=CUR.l;const mgr=CUR.fn==='lead'?LMGRS[l.m]:SMGRS[l.m];
   const def=String(60+Math.floor(Math.random()*380));
