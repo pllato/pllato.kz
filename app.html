@@ -740,6 +740,7 @@ body {
 .fc-labels { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); }
 .fc-plot { flex: 1; min-height: 0; position: relative; margin-top: 12px; }
 .fc-plot svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.fc-unavailable { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:20px; color:var(--text-3); font-size:11.5px; font-weight:700; text-align:center; }
 .fc-point { cursor:pointer; outline:none; }
 .fc-point .fc-hit { fill:transparent; }
 .fc-point:hover .fc-hit, .fc-point:focus .fc-hit { fill:color-mix(in srgb,var(--bronze) 14%,transparent); }
@@ -3508,6 +3509,7 @@ let FINANCE_CHART_COMMENTS = [];
 let FINANCE_CHART_COMMENTS_LOADED = false;
 let FINANCE_CHART_RETRY_TIMER = null;
 const FINANCE_CHART_CACHE_VERSION = 1;
+const FINANCE_CHART_KINDS = ['inquiries','kep','orders','cash','releases'];
 
 function financeChartCacheKey(){
   return `pllato_finance_charts_v${FINANCE_CHART_CACHE_VERSION}:${String(CURRENT?.email||'guest').toLowerCase()}`;
@@ -3523,7 +3525,43 @@ function saveFinanceChartCache(data){
   catch(e){}
 }
 function financeChartKinds(data){
-  return ['inquiries','kep','orders','cash','releases'].filter(kind=>Array.isArray(data?.charts?.[kind]));
+  return FINANCE_CHART_KINDS.filter(kind=>Array.isArray(data?.charts?.[kind]));
+}
+function mergeFinanceChartData(fresh,cachedData){
+  const cached=cachedData||{};
+  const merged={
+    ...cached,
+    ...fresh,
+    charts:{},
+    visible:{...(cached.visible||{}),...(fresh.visible||{})},
+    chartVisibility:{...(cached.chartVisibility||{}),...(fresh.chartVisibility||{})},
+    chartScale:{...(cached.chartScale||{}),...(fresh.chartScale||{})},
+    cachedKinds:[],
+    unavailableKinds:[]
+  };
+  FINANCE_CHART_KINDS.forEach(kind=>{
+    if(merged.visible?.[kind]===false) return;
+    if(Array.isArray(fresh.charts?.[kind])){
+      merged.charts[kind]=fresh.charts[kind];
+    }else if(Array.isArray(cached.charts?.[kind]) && !cached.charts[kind].every(point=>point?.unavailable)){
+      merged.charts[kind]=cached.charts[kind];
+      merged.cachedKinds.push(kind);
+    }
+  });
+  const reference=FINANCE_CHART_KINDS.map(kind=>merged.charts[kind]).find(series=>Array.isArray(series)&&series.length);
+  FINANCE_CHART_KINDS.forEach(kind=>{
+    if(merged.visible?.[kind]!==true || Array.isArray(merged.charts[kind]) || !reference) return;
+    merged.charts[kind]=reference.map(point=>({
+      start:Number(point.start)||0,
+      end:Number(point.end)||0,
+      label:point.label||'',
+      partial:!!point.partial,
+      value:0,
+      unavailable:true
+    }));
+    merged.unavailableKinds.push(kind);
+  });
+  return merged;
 }
 
 function financePointComments(kind,start){
@@ -3607,13 +3645,14 @@ function financeChartSvg(kind,series){
 function financeChartCard(kind,series){
   const meta=FINANCE_CHART_META[kind];
   const access=canConfigureFinanceChart(kind)?`<button class="fc-access" onclick="openFinanceAccess('${kind}')">Настройки</button>`:'';
+  const unavailable=series.length>0 && series.every(point=>point?.unavailable);
   const noted=series.flatMap(point=>financePointComments(kind,point.start).map(comment=>({...comment,label:point.label,end:point.end,value:point.value})));
   const notes=noted.length
     ? `<div class="fc-notes">${noted.slice(-3).reverse().map(comment=>`<button class="fc-note-chip" onclick="openFinancePointDetails('${kind}',${Number(comment.start)},${Number(comment.end)||0},${Number(comment.value)||0})" title="${mEsc(comment.text)}"><span class="d">● ${mEsc(comment.label)}</span><span class="t">${mEsc(comment.text)}</span></button>`).join('')}</div>`
     : '';
   return `<article class="fc-card">
     <div class="fc-card-head"><div><div class="fc-card-title">${meta.title}</div><div class="fc-card-sub">${meta.sub} · чт 14:00 → чт 14:00</div></div>${access}</div>
-    <div class="fc-plot">${financeChartSvg(kind,series)}</div>
+    <div class="fc-plot">${unavailable?'<div class="fc-unavailable">Источник временно недоступен.<br>График останется на месте и обновится автоматически.</div>':financeChartSvg(kind,series)}</div>
     <div class="fc-labels">${series.map(s=>`<span>${mEsc(s.label)}</span>`).join('')}</div>
     ${notes}
   </article>`;
@@ -3742,8 +3781,12 @@ async function paintFinanceCharts(el,data,{cached=false}={}){
   }
   await loadGlobalSalesQuickLink();
   const toggle=financeChartsPinnedOpen()?'':'<button class="fc-toggle" onclick="toggleFinanceCharts()"></button>';
-  const status=cached
-    ? '<div class="fc-status"><span>Показана последняя сохранённая статистика. Обновляю данные…</span><button type="button" onclick="renderFinanceCharts()">Обновить</button></div>'
+  const hasFallback=(data.cachedKinds||[]).length>0 || (data.unavailableKinds||[]).length>0;
+  const status=cached || hasFallback
+    ? '<div class="fc-status"><span>'+(cached
+        ? 'Показана последняя сохранённая статистика. Обновляю данные…'
+        : 'Часть источников временно недоступна. Все графики сохранены и обновятся автоматически.')
+      +'</span><button type="button" onclick="renderFinanceCharts()">Обновить</button></div>'
     : '';
   el.innerHTML='<div class="sales-quick-link" id="salesQuickLink"></div>'
     +status
@@ -3761,7 +3804,7 @@ async function renderFinanceCharts(){
   if(!el) return;
   const requestId=++FINANCE_CHART_REQUEST;
   const cached=readFinanceChartCache();
-  if(cached) await paintFinanceCharts(el,cached.data,{cached:true});
+  if(cached) await paintFinanceCharts(el,mergeFinanceChartData({},cached.data),{cached:true});
   else if(!el.querySelector('.fc-grid')) el.innerHTML='<div class="fc-empty">Загружаю недельную статистику…</div>';
   try{
     const data=await apiFetch('/project-finance/charts?points=8');
@@ -3808,10 +3851,11 @@ async function renderFinanceCharts(){
       });
     }
     if(requestId!==FINANCE_CHART_REQUEST) return;
-    if(!financeChartKinds(data).length) throw new Error('Сервер не вернул данные графиков');
-    saveFinanceChartCache(data);
+    const completeData=mergeFinanceChartData(data,cached?.data);
+    if(!financeChartKinds(completeData).length) throw new Error('Сервер не вернул данные графиков');
+    saveFinanceChartCache(completeData);
     clearTimeout(FINANCE_CHART_RETRY_TIMER);
-    await paintFinanceCharts(el,data);
+    await paintFinanceCharts(el,completeData);
   }catch(e){
     if(requestId!==FINANCE_CHART_REQUEST) return;
     console.error('finance charts:',e);
