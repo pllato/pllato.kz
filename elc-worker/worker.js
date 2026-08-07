@@ -4813,20 +4813,31 @@ async function deliverWaMessage(env, { channel, chatId, text, mediaUrl, fileName
   fileName = fileName || 'file';
 
   let apiResp;
+  let providerStatus = 0;
+  let providerText = '';
   if (mediaUrl) {
     const r = await fetch(`${baseUrl}/sendFileByUrl/${apiToken}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chatId, urlFile: mediaUrl, fileName, caption: text || undefined }),
     });
-    apiResp = await r.json().catch(() => ({ error: 'parse failed', status: r.status }));
+    providerStatus = r.status;
+    providerText = (await r.text()).slice(0, 500);
   } else if (text) {
     const r = await fetch(`${baseUrl}/sendMessage/${apiToken}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chatId, message: text }),
     });
-    apiResp = await r.json().catch(() => ({ error: 'parse failed', status: r.status }));
+    providerStatus = r.status;
+    providerText = (await r.text()).slice(0, 500);
   } else {
     throw new Error('text or mediaUrl required');
+  }
+
+  try { apiResp = providerText ? JSON.parse(providerText) : {}; }
+  catch { apiResp = { error: providerText || 'empty response', status: providerStatus }; }
+
+  if (providerStatus < 200 || providerStatus >= 300) {
+    throw new Error(`Green-API HTTP ${providerStatus}: ${JSON.stringify(apiResp).slice(0, 300)}`);
   }
 
   const waMessageId = apiResp?.idMessage || null;
@@ -4866,18 +4877,40 @@ async function handleWaSend(request, env) {
 
   let body;
   try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
-  const channelId = body.channelId || '';
-  let chatId = body.chatId || '';
+  const channelId = String(body.channelId || '').trim();
+  let instanceId = String(body.instanceId || '').trim();
+  let chatId = String(body.chatId || '').trim();
   const phone = body.phone || '';
   const text = (body.text || '').trim();
   const mediaUrl = body.mediaUrl || '';
   const fileName = body.fileName || 'file';
 
+  // Фронтенд может прислать canonical id вида wa:{instance}:{chatId}.
+  // В Green-API нужен именно исходный chat_id; заодно из строки чата
+  // восстанавливаем instance, чтобы ответ всегда уходил с того же номера.
+  if (chatId.startsWith('wa:')) {
+    const saved = await env.DB.prepare(
+      "SELECT instance_id, chat_id FROM wa_chats WHERE id = ? LIMIT 1"
+    ).bind(chatId).first();
+    if (saved?.chat_id) {
+      chatId = saved.chat_id;
+      instanceId = instanceId || String(saved.instance_id || '');
+    }
+  }
   if (!chatId && phone) chatId = waChatIdFromPhone(phone);
   if (!chatId) return json({ error: "chatId or phone required" }, 400, request);
   if (!text && !mediaUrl) return json({ error: "text or mediaUrl required" }, 400, request);
 
   let channel = channelId ? await getWaChannel(env, channelId) : null;
+  if (!channel && instanceId) channel = await getWaChannelByInstance(env, instanceId);
+  if (!channel) {
+    // Старые версии фронтенда не передавали instanceId. Находим его по
+    // сохранённому чату, а не выбираем первый активный канал наугад.
+    const saved = await env.DB.prepare(
+      "SELECT instance_id FROM wa_chats WHERE chat_id = ? ORDER BY updated_at DESC LIMIT 1"
+    ).bind(chatId).first();
+    if (saved?.instance_id) channel = await getWaChannelByInstance(env, saved.instance_id);
+  }
   if (!channel) {
     channel = await env.DB.prepare("SELECT * FROM wa_channels WHERE active = 1 ORDER BY created_at ASC LIMIT 1").first();
   }

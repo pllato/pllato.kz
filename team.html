@@ -7569,7 +7569,7 @@ function renderWaWidgetChat(root) {
       const r = await fetch(`${WORKER_BASE_URL}/api/wa/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-        body: JSON.stringify({ chatId: chat.chatId, phone: chat.phone, text }),
+        body: JSON.stringify({ chatId: chat.chatId, phone: chat.phone, instanceId: chat.instanceId, text }),
       });
       if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || `HTTP ${r.status}`); }
       input.value = '';
@@ -7614,7 +7614,7 @@ function renderWaWidgetChat(root) {
     attachBtn.textContent = '⏳';
     try {
       await sendWaMediaFile(
-        { rawChatId: chat.chatId, phone: chat.phone },
+        { rawChatId: chat.chatId, phone: chat.phone, instanceId: chat.instanceId },
         file, file.name, caption || null,
         async () => {
           input.value = '';
@@ -10964,7 +10964,7 @@ async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }
     renderWaMessages(window.__waOpenState.canonicalChatId, { searchQuery: e.target.value });
   });
 
-  window.__waOpenState = { canonicalChatId, rawChatId: chatId, phone: digits, contactId, dealId, contactName, archived: !!(match && match.archived) || !!(typeof waWidget !== 'undefined' && waWidget.showArchived) };
+  window.__waOpenState = { canonicalChatId, rawChatId: chatId, phone: digits, instanceId: match?.instanceId || null, contactId, dealId, contactName, archived: !!(match && match.archived) || !!(typeof waWidget !== 'undefined' && waWidget.showArchived) };
 
   // Архивировать / вернуть из архива текущий чат
   const archiveBtn = document.getElementById('wa-float-archive');
@@ -11036,7 +11036,7 @@ async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }
       const r = await fetch(`${WORKER_BASE_URL}/api/wa/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-        body: JSON.stringify({ chatId: window.__waOpenState.rawChatId, phone: window.__waOpenState.phone, text, mediaUrl, fileName }),
+        body: JSON.stringify({ chatId: window.__waOpenState.rawChatId, phone: window.__waOpenState.phone, instanceId: window.__waOpenState.instanceId, text, mediaUrl, fileName }),
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
@@ -11216,7 +11216,7 @@ async function uploadWaMediaFile(blob, fileName) {
 }
 
 // Универсальная отправка media: загружает в R2, потом POST /api/wa/send с
-// mediaUrl + fileName. chatRef = {rawChatId, phone}. После — onSent колбэк
+// mediaUrl + fileName. chatRef = {rawChatId, phone, instanceId}. После — onSent колбэк
 // для перерисовки.
 async function sendWaMediaFile(chatRef, blob, fileName, caption, onSent) {
   const upload = await uploadWaMediaFile(blob, fileName);
@@ -11224,6 +11224,7 @@ async function sendWaMediaFile(chatRef, blob, fileName, caption, onSent) {
   const body = {
     chatId: chatRef.rawChatId,
     phone: chatRef.phone,
+    instanceId: chatRef.instanceId || null,
     mediaUrl: upload.publicUrl,
     fileName: upload.fileName,
   };
@@ -11549,12 +11550,13 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
     body.innerHTML = '<div class="dc-wa-empty">Неверный номер</div>';
     return;
   }
-  const rawChatId = `${digits}@c.us`;
+  let rawChatId = `${digits}@c.us`;
 
   // Резолвим canonicalChatId через worker (нужен instanceId) — ищем существующий
   // чат, иначе используем "wa::{phone}@c.us" как фолбэк. Send всё равно сработает —
   // worker сам построит chatDocId из id_instance активного канала.
   let canonicalChatId = null;
+  let instanceId = null;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
     const list = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=500`, {
@@ -11566,11 +11568,15 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
       || (c.contactId && deal.contactId && c.contactId === deal.contactId)
       || c.phone === digits
     );
-    if (match) canonicalChatId = match.id;
+    if (match) {
+      canonicalChatId = match.id;
+      rawChatId = match.chatId || rawChatId;
+      instanceId = match.instanceId || null;
+    }
   } catch {}
 
   // Сохраним state на pane для send/poll
-  pane._waState = { rawChatId, canonicalChatId, phone: digits, contactName, dealId: deal.bitrixId };
+  pane._waState = { rawChatId, canonicalChatId, phone: digits, instanceId, contactName, dealId: deal.bitrixId };
 
   // Первый рендер
   await renderDealWaMessages(pane);
@@ -11618,6 +11624,7 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
           body: JSON.stringify({
             chatId: pane._waState.rawChatId,
             phone: pane._waState.phone,
+            instanceId: pane._waState.instanceId,
             text, mediaUrl, fileName,
           }),
         });
@@ -11639,7 +11646,7 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
     });
   }
   const voiceBtn = modal.querySelector('#dc-wa-voice');
-  const chatRefGetter = () => ({ rawChatId: pane._waState.rawChatId, phone: pane._waState.phone });
+  const chatRefGetter = () => ({ rawChatId: pane._waState.rawChatId, phone: pane._waState.phone, instanceId: pane._waState.instanceId });
   const onSentRefresh = async () => { await renderDealWaMessages(pane); };
   bindWaVoiceButton(voiceBtn, chatRefGetter, onSentRefresh);
   if (attachBtn) {
@@ -21000,6 +21007,7 @@ async function openWaChat(chatId) {
         body: JSON.stringify({
           chatId: chat.chatId,
           phone: chat.phone,
+          instanceId: chat.instanceId,
           text, mediaUrl, fileName,
         }),
       });
@@ -21025,7 +21033,7 @@ async function openWaChat(chatId) {
     input.style.height = Math.min(input.scrollHeight, 120) + 'px';
   });
   const voiceBtn = threadEl.querySelector('#wa-thread-voice');
-  const threadChatRefGetter = () => ({ rawChatId: chat.chatId, phone: chat.phone });
+  const threadChatRefGetter = () => ({ rawChatId: chat.chatId, phone: chat.phone, instanceId: chat.instanceId });
   const threadOnSent = async () => { await loadAndRenderWaThreadMessages(); loadAndRenderWaChats({ silent: true }); };
   bindWaAttachButton(attachBtn, threadChatRefGetter, threadOnSent);
   bindWaVoiceButton(voiceBtn, threadChatRefGetter, threadOnSent);
