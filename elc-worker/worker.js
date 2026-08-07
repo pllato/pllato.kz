@@ -1472,6 +1472,16 @@ async function handleRtdbWrite(env, request, parts, me) {
         const sql = `INSERT INTO ${tableName} (${allCols.join(", ")}) VALUES (${placeholders})`;
         await env.DB.prepare(sql).bind(...allVals).run();
         await auditLog(env, me, "record_create", tableName, id, { fields: cols });
+        if (tableName === "deals") {
+          await notifyPllatoStartNewLead(env, {
+            id,
+            bitrixId: body.bitrixId || body.bitrix_id || null,
+            title: body.title || "Новый лид",
+            pipelineId: body.pipelineId || body.pipeline_id || null,
+            stageId: body.stageId || body.stage_id || null,
+            source: body.sourceDescription || body.source_description || body.sourceId || body.source_id || "CRM",
+          });
+        }
         return json({ ok: true, created: true }, 200, request);
       }
     }
@@ -4468,6 +4478,14 @@ async function ensureDealForWaContact(env, channel, contactId, contactName, phon
     contactId, bitrixKey, nowIso, nowIso, nowIso,
   ).run();
   await logStageEvent(env, newId, channel.default_pipeline_id, stageId, nowIso);
+  await notifyPllatoStartNewLead(env, {
+    id: newId,
+    bitrixId: bitrixKey,
+    title,
+    pipelineId: channel.default_pipeline_id,
+    stageId,
+    source: "WhatsApp",
+  });
   return newId;
 }
 
@@ -7306,6 +7324,40 @@ async function createNotificationFor(env, uids, baseOpts) {
   }
 }
 
+// Персональная подписка на новые лиды Pllato Старт хранится в KV:
+// notif:pllato_start:new_lead:uids = ["canonicalUid", ...].
+// Триггер вызывают все места, где реально создаётся новая сделка. Детерминированный
+// id не позволяет прислать повторный push, если источник повторит запрос.
+async function notifyPllatoStartNewLead(env, deal) {
+  try {
+    if (!deal?.id || deal.pipelineId !== "pipeline_r22lrm" || deal.stageId !== "NEW") return;
+    const cfg = await env.DB.prepare(
+      "SELECT v FROM kv WHERE k = 'notif:pllato_start:new_lead:uids' LIMIT 1"
+    ).first();
+    const uids = safeJsonParse(cfg?.v, []);
+    if (!Array.isArray(uids) || uids.length === 0) return;
+
+    const publicDealId = String(deal.bitrixId || deal.id).replace(/^deal_/, "");
+    const source = String(deal.source || "CRM").trim();
+    const body = `${String(deal.title || "Новый лид").trim()}${source ? ` · ${source}` : ""}`;
+    for (const uid of new Set(uids.map((x) => String(x || "").trim()).filter(Boolean))) {
+      await createNotification(env, {
+        id: `nt_pllato_start_${deal.id}_${uid}`,
+        uid,
+        type: "pllato_start_new_lead",
+        title: "🆕 Новый лид — Pllato Старт",
+        body,
+        link: `/team.html#deal/${encodeURIComponent(publicDealId)}`,
+        icon: "🆕",
+        entityType: "deal",
+        entityId: deal.id,
+      });
+    }
+  } catch (e) {
+    console.warn("[notif] pllato start lead failed:", e && e.message);
+  }
+}
+
 // GET /api/notifications?limit=&before=&unreadOnly=1
 async function handleNotificationsList(request, env) {
   const auth = await requireAuthFlexible(request, env);
@@ -8494,6 +8546,13 @@ async function handlePublicPllatoLead(request, env) {
     nowIso, nowIso, nowIso, JSON.stringify(details)
   ).run();
   await logStageEvent(env, dealId, pipeline.id, stageId, nowIso);
+  await notifyPllatoStartNewLead(env, {
+    id: dealId,
+    title: `Заявка с сайта · ${name}${campaign}`.slice(0, 240),
+    pipelineId: pipeline.id,
+    stageId,
+    source: attribution.utm_source === 'youtube' ? 'YouTube Shorts' : 'Сайт pllato.kz',
+  });
   return json({ ok: true, dealId, contactId, pipeline: 'Pllato Старт', stageId }, 201, request);
 }
 
