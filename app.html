@@ -783,36 +783,6 @@ body {
 .fc-person input { width: 16px; height: 16px; accent-color: var(--bronze-deep); }
 .fc-person .n { font-size: 12.5px; font-weight: 700; }
 .fc-person .e { color: var(--text-3); font-size: 10.5px; }
-/* ===== Универсальная статистика постов ===== */
-.role-statistics { margin:-4px 0 30px; }
-.role-statistics.folded .rs-role-list { display:none; }
-.rs-head { display:flex; align-items:end; justify-content:space-between; gap:16px; margin-bottom:13px; }
-.rs-head h2 { font-size:15px; font-weight:800; letter-spacing:-.01em; }
-.rs-head p { color:var(--text-3); font-size:11.5px; }
-.rs-role { margin-bottom:22px; }
-.rs-role:last-child { margin-bottom:0; }
-.rs-role-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:9px; }
-.rs-role-head h3 { font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--text-2); }
-.rs-add { border:1px solid var(--line-2); background:var(--surface); color:var(--bronze-deep); border-radius:8px; padding:6px 10px; font:700 11.5px/1.2 inherit; cursor:pointer; white-space:nowrap; }
-.rs-add:hover { border-color:var(--bronze-deep); }
-.rs-grid { padding-bottom:10px; }
-.rs-card .fc-card-sub { max-width:280px; }
-.rs-card .fc-point { cursor:default; }
-.rs-empty { border:1px dashed var(--line-2); border-radius:12px; color:var(--text-3); padding:18px; font-size:12px; }
-.rs-modal { max-width:780px; }
-.rs-fields { display:grid; grid-template-columns:minmax(0,2fr) minmax(150px,1fr) minmax(150px,1fr); gap:10px; }
-.rs-fields select { width:100%; border:1px solid var(--line-2); border-radius:9px; padding:9px 11px; font:13.5px/1.2 inherit; background:var(--surface); color:var(--text); }
-.rs-section-title { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:17px 0 7px; color:var(--text-2); font-size:12px; font-weight:800; }
-.rs-section-title button { border:1px solid var(--line-2); background:var(--surface); color:var(--bronze-deep); border-radius:8px; padding:5px 8px; font:700 11px/1.2 inherit; cursor:pointer; }
-.rs-data-table { border:1px solid var(--line-2); border-radius:10px; overflow:hidden; }
-.rs-data-head,.rs-data-row { display:grid; grid-template-columns:minmax(145px,1fr) minmax(130px,1fr) 38px; gap:8px; align-items:center; padding:8px 10px; }
-.rs-data-head { color:var(--text-3); background:var(--surface-2); font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; }
-.rs-data-row { border-top:1px solid var(--line-2); }
-.rs-data-row input { min-width:0; }
-.rs-data-row button { width:32px; height:32px; border:0; background:transparent; color:var(--text-3); border-radius:7px; font-size:18px; cursor:pointer; }
-.rs-data-row button:hover { background:var(--surface-2); color:#dc2626; }
-.rs-modal .fc-modal-list { max-height:250px; }
-.rs-delete { margin-right:auto; color:#b91c1c !important; }
 @media (max-width: 760px) {
   .fc-card { flex-basis:min(82vw,360px); padding-inline:12px; }
   .fc-labels span { font-size: 8.5px; }
@@ -820,8 +790,6 @@ body {
   .fc-detail-row .s { grid-row:auto; grid-column:auto; justify-self:start; }
   .money-summary-row { grid-template-columns:minmax(0,1fr); gap:4px; }
   .money-summary-row .amount { grid-column:auto; grid-row:auto; }
-  .rs-fields { grid-template-columns:1fr; }
-  .rs-data-head,.rs-data-row { grid-template-columns:minmax(125px,1fr) minmax(95px,1fr) 34px; padding-inline:8px; }
 }
 @media (min-width: 761px) and (max-width: 980px) {
   .fc-card { flex-basis:max(290px,calc((100% - 14px) / 2)); }
@@ -3793,7 +3761,6 @@ function applyFinanceChartsFold(){
     btn.textContent=open?'Свернуть':'Развернуть';
     btn.setAttribute('aria-expanded',String(open));
   }
-  applyRoleStatisticsFold();
 }
 function toggleFinanceCharts(){
   if(financeChartsPinnedOpen()) return;
@@ -3835,7 +3802,6 @@ async function renderFinanceCharts(){
   if(!CURRENT) return;
   const el=ensureFinanceCharts();
   if(!el) return;
-  renderRoleStatistics().catch(error=>console.warn('role statistics:',error));
   const requestId=++FINANCE_CHART_REQUEST;
   const cached=readFinanceChartCache();
   if(cached) await paintFinanceCharts(el,mergeFinanceChartData({},cached.data),{cached:true});
@@ -4072,226 +4038,8 @@ async function saveFinanceAccess(kind){
     ovl.remove(); renderFinanceCharts();
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }
-
-const ROLE_STAT_UNIT_LABELS={count:'Количество',hours:'Часы',percent:'Проценты',money:'Тенге'};
-let ROLE_STAT_DATA=null;
-let ROLE_STAT_LOADING=null;
-let ROLE_STAT_EDITOR=null;
-
-function ensureRoleStatistics(){
-  let el=document.getElementById('roleStatistics');
-  if(el) return el;
-  const finance=ensureFinanceCharts();
-  if(!finance) return null;
-  el=document.createElement('section');
-  el.id='roleStatistics';
-  el.className='role-statistics';
-  finance.insertAdjacentElement('afterend',el);
-  return el;
-}
-function applyRoleStatisticsFold(){
-  const el=document.getElementById('roleStatistics');
-  if(!el) return;
-  el.classList.toggle('folded',!financeChartsAreOpen());
-}
-function roleStatisticFormat(unit,value){
-  const number=Number(value)||0;
-  if(unit==='money') return shortT(number)+' ₸';
-  if(unit==='percent') return number.toLocaleString('ru-RU',{maximumFractionDigits:1})+'%';
-  if(unit==='hours') return number.toLocaleString('ru-RU',{maximumFractionDigits:1})+' ч';
-  return Math.round(number).toLocaleString('ru-RU');
-}
-function roleStatisticDateLabel(date){
-  const parts=String(date||'').split('-');
-  return parts.length===3?`${parts[2]}.${parts[1]}`:String(date||'');
-}
-function roleStatisticSeries(chart){
-  return [...(Array.isArray(chart?.points)?chart.points:[])]
-    .filter(point=>/^\d{4}-\d{2}-\d{2}$/.test(String(point?.date||'')) && Number.isFinite(Number(point?.value)))
-    .sort((a,b)=>String(a.date).localeCompare(String(b.date)))
-    .slice(-8);
-}
-function roleStatisticSvg(chart,series){
-  const count=Math.max(1,series.length),vw=count*100,vh=650,top=66,bottom=32;
-  const autoMax=Math.max(1,...series.map(point=>Number(point.value)||0));
-  const max=Math.max(1,Number(chart.scaleMax)||autoMax);
-  const x=index=>(index+.5)*100;
-  const y=value=>top+(1-Math.min(1,Math.max(0,(Number(value)||0)/max)))*(vh-top-bottom);
-  const points=series.map((point,index)=>`${x(index)},${y(point.value).toFixed(1)}`).join(' ');
-  const color=chart.color||'#2563eb';
-  return `<svg viewBox="0 0 ${vw} ${vh}" preserveAspectRatio="xMidYMid meet" aria-label="${mEsc(chart.title)}">
-    <line x1="0" y1="${top}" x2="${vw}" y2="${top}" stroke="var(--line-2)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
-    <text x="${vw-8}" y="28" text-anchor="end" fill="var(--text-3)" font-size="18" font-weight="700">${mEsc('Максимум шкалы: '+roleStatisticFormat(chart.unit,max))}</text>
-    <line x1="0" y1="${vh-bottom}" x2="${vw}" y2="${vh-bottom}" stroke="var(--line-2)" vector-effect="non-scaling-stroke"/>
-    <polyline points="${points}" fill="none" stroke="${mEsc(color)}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
-    ${series.map((point,index)=>{
-      const pointY=y(point.value),labelY=Math.max(12,pointY-14),value=roleStatisticFormat(chart.unit,point.value);
-      return `<g class="fc-point" aria-label="${mEsc(roleStatisticDateLabel(point.date)+': '+value)}"><circle class="fc-dot" cx="${x(index)}" cy="${pointY.toFixed(1)}" r="4.5" fill="${mEsc(color)}" stroke="${mEsc(color)}" stroke-width="2" vector-effect="non-scaling-stroke"/><text x="${x(index)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="var(--text)" font-size="20" font-weight="700">${mEsc(value)}</text></g>`;
-    }).join('')}
-  </svg>`;
-}
-function roleStatisticCard(chart){
-  const series=roleStatisticSeries(chart);
-  const settings=chart.canEdit?`<button class="fc-access" type="button" onclick="openRoleStatisticEditor('${mEsc(chart.id)}','${mEsc(chart.roleKey)}')">Настройки</button>`:'';
-  return `<article class="fc-card rs-card">
-    <div class="fc-card-head"><div><div class="fc-card-title">${mEsc(chart.title)}</div><div class="fc-card-sub">Ручные данные · ${mEsc(ROLE_STAT_UNIT_LABELS[chart.unit]||'Значение')}</div></div>${settings}</div>
-    <div class="fc-plot">${series.length?roleStatisticSvg(chart,series):'<div class="fc-unavailable">Добавьте даты и значения в настройках графика.</div>'}</div>
-    <div class="fc-labels" style="grid-template-columns:repeat(${Math.max(1,series.length)},minmax(0,1fr))">${series.map(point=>`<span>${mEsc(roleStatisticDateLabel(point.date))}</span>`).join('')}</div>
-  </article>`;
-}
-function paintRoleStatistics(){
-  const el=ensureRoleStatistics();
-  if(!el||!ROLE_STAT_DATA) return;
-  const roles=Array.isArray(ROLE_STAT_DATA.roles)?ROLE_STAT_DATA.roles:[];
-  el.innerHTML='<div class="rs-head"><div><h2>Статистика постов</h2><p>Данные вводятся вручную по датам · каждая строка соответствует отдельному посту</p></div></div>'
-    +'<div class="rs-role-list">'+roles.map(role=>{
-      const charts=Array.isArray(role.charts)?role.charts:[];
-      const add=ROLE_STAT_DATA.canCreate?`<button class="rs-add" type="button" aria-label="Добавить график: ${mEsc(role.title)}" onclick="openRoleStatisticEditor('','${mEsc(role.key)}')">＋ График</button>`:'';
-      return `<section class="rs-role"><div class="rs-role-head"><h3>${mEsc(role.title)}</h3>${add}</div>${charts.length?`<div class="fc-grid rs-grid">${charts.map(roleStatisticCard).join('')}</div>`:'<div class="rs-empty">У вас пока нет доступных графиков этого поста. Можно создать свой через «＋ График».</div>'}</section>`;
-    }).join('')+'</div>';
-  applyRoleStatisticsFold();
-}
-async function renderRoleStatistics(force=false){
-  if(!CURRENT) return;
-  const el=ensureRoleStatistics();
-  if(!el) return;
-  if(ROLE_STAT_DATA&&!force){
-    if(!el.querySelector('.rs-role-list')) paintRoleStatistics();
-    else applyRoleStatisticsFold();
-    return;
-  }
-  if(ROLE_STAT_LOADING) return ROLE_STAT_LOADING;
-  if(!ROLE_STAT_DATA) el.innerHTML='<div class="fc-empty">Загружаю статистику постов…</div>';
-  ROLE_STAT_LOADING=(async()=>{
-    try{
-      ROLE_STAT_DATA=await apiFetch('/portal-statistics');
-      paintRoleStatistics();
-    }catch(error){
-      console.error('portal statistics:',error);
-      if(!ROLE_STAT_DATA){
-        el.innerHTML='<div class="fc-status"><span>Не удалось загрузить статистику постов.</span><button type="button" onclick="renderRoleStatistics(true)">Повторить</button></div>';
-      }
-    }
-  })().finally(()=>{ROLE_STAT_LOADING=null;});
-  return ROLE_STAT_LOADING;
-}
-function findRoleStatistic(chartId){
-  for(const role of (ROLE_STAT_DATA?.roles||[])){
-    const chart=(role.charts||[]).find(item=>item.id===chartId);
-    if(chart) return chart;
-  }
-  return null;
-}
-function defaultRoleStatisticPoints(){
-  const source=(ROLE_STAT_DATA?.roles||[]).flatMap(role=>role.charts||[]).find(chart=>chart.points?.length)?.points;
-  if(source?.length) return source.map(point=>({...point,value:0}));
-  const out=[];
-  const anchor=new Date();
-  const diff=(anchor.getDay()-4+7)%7;
-  anchor.setDate(anchor.getDate()-diff);
-  for(let index=7;index>=0;index--){
-    const date=new Date(anchor); date.setDate(anchor.getDate()-index*7);
-    out.push({date:date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0'),value:0});
-  }
-  return out;
-}
-function syncRoleStatisticEditorPoints(){
-  const ovl=document.getElementById('roleStatisticOvl');
-  if(!ovl||!ROLE_STAT_EDITOR) return;
-  ROLE_STAT_EDITOR.points=[...ovl.querySelectorAll('.rs-data-row')].map(row=>({
-    date:row.querySelector('.rs-date')?.value||'',
-    value:Number(row.querySelector('.rs-value')?.value)||0
-  }));
-}
-function renderRoleStatisticPointRows(){
-  const table=document.getElementById('roleStatisticRows');
-  if(!table||!ROLE_STAT_EDITOR) return;
-  table.innerHTML=ROLE_STAT_EDITOR.points.length?ROLE_STAT_EDITOR.points.map((point,index)=>`<div class="rs-data-row"><input class="rs-date" type="date" value="${mEsc(point.date)}" aria-label="Дата"><input class="rs-value" type="number" step="any" min="0" value="${mEsc(point.value)}" aria-label="Значение"><button type="button" onclick="removeRoleStatisticPoint(${index})" aria-label="Удалить строку">×</button></div>`).join(''):'<div class="rs-empty" style="border:0">Добавьте первую дату и значение.</div>';
-}
-function addRoleStatisticPoint(){
-  syncRoleStatisticEditorPoints();
-  if(!ROLE_STAT_EDITOR||ROLE_STAT_EDITOR.points.length>=52) return;
-  const last=ROLE_STAT_EDITOR.points.filter(point=>point.date).sort((a,b)=>a.date.localeCompare(b.date)).at(-1);
-  let date=todayISO();
-  if(last){ const next=new Date(last.date+'T12:00:00'); next.setDate(next.getDate()+7); date=next.getFullYear()+'-'+String(next.getMonth()+1).padStart(2,'0')+'-'+String(next.getDate()).padStart(2,'0'); }
-  ROLE_STAT_EDITOR.points.push({date,value:0});
-  renderRoleStatisticPointRows();
-}
-function removeRoleStatisticPoint(index){
-  syncRoleStatisticEditorPoints();
-  ROLE_STAT_EDITOR.points.splice(index,1);
-  renderRoleStatisticPointRows();
-}
-async function openRoleStatisticEditor(chartId,roleKey){
-  const chart=chartId?findRoleStatistic(chartId):null;
-  const role=(ROLE_STAT_DATA?.roles||[]).find(item=>item.key===(chart?.roleKey||roleKey));
-  if(!role||chartId&&!chart) return;
-  let users=[];
-  try{ users=(await apiFetch('/users/list')).users||[]; }
-  catch(error){ alert('Не удалось загрузить сотрудников: '+error.message); return; }
-  document.getElementById('roleStatisticOvl')?.remove();
-  ROLE_STAT_EDITOR={
-    chartId:chart?.id||'',roleKey:role.key,
-    points:(chart?.points?.length?chart.points:defaultRoleStatisticPoints()).map(point=>({...point}))
-  };
-  const selected=new Set(chart?.viewers||[]);
-  const people=users.filter(user=>user.email&&String(user.email).toLowerCase()!==String(CURRENT?.email||'').toLowerCase());
-  const ovl=document.createElement('div');
-  ovl.id='roleStatisticOvl'; ovl.className='money-ovl show';
-  ovl.addEventListener('click',event=>{if(event.target===ovl){ovl.remove();ROLE_STAT_EDITOR=null;}});
-  ovl.innerHTML=`<div class="money-modal rs-modal"><div class="mm-h"><h3>${chart?'Настройки':'Новый график'} · ${mEsc(role.title)}</h3><span class="mm-x" onclick="closeRoleStatisticEditor()">✕</span></div><div class="mm-b">
-    <div class="rs-fields"><div><label for="rsTitle">Название графика</label><input id="rsTitle" maxlength="160" value="${mEsc(chart?.title||'')}" placeholder="Например, Количество встреч"></div><div><label for="rsUnit">Единица измерения</label><select id="rsUnit">${Object.entries(ROLE_STAT_UNIT_LABELS).map(([value,label])=>`<option value="${value}"${(chart?.unit||'count')===value?' selected':''}>${mEsc(label)}</option>`).join('')}</select></div><div><label for="rsScale">Максимум вертикальной шкалы</label><input id="rsScale" type="number" min="0" step="any" value="${Number(chart?.scaleMax)||''}" placeholder="Автоматически"></div></div>
-    <div class="rs-section-title"><span>Таблица данных</span><button type="button" onclick="addRoleStatisticPoint()">＋ Дата и значение</button></div>
-    <div class="rs-data-table"><div class="rs-data-head"><span>Дата</span><span>Значение</span><span></span></div><div id="roleStatisticRows"></div></div>
-    <div class="rs-section-title"><span>Кто видит график</span></div><div style="font-size:11px;color:var(--text-3)">Super Admin и создатель видят график всегда. Пользователи с доступом также могут изменять данные и настройки.</div>
-    <div class="fc-modal-list">${people.length?people.map(user=>{const email=String(user.email).toLowerCase();return `<label class="fc-person"><input type="checkbox" value="${mEsc(email)}"${selected.has(email)?' checked':''}><span><div class="n">${mEsc(user.name||email)}</div><div class="e">${mEsc(email)}</div></span></label>`;}).join(''):'<div class="fc-empty" style="padding:14px">Других сотрудников пока нет.</div>'}</div>
-    </div><div class="mm-f">${chart?.canDelete?`<button class="rs-delete" type="button" onclick="deleteRoleStatistic('${mEsc(chart.id)}')">Удалить график</button>`:''}<button type="button" onclick="closeRoleStatisticEditor()">Отмена</button><button type="button" style="background:var(--navy);color:#fff" onclick="saveRoleStatistic()">Сохранить</button></div></div>`;
-  document.body.appendChild(ovl);
-  renderRoleStatisticPointRows();
-}
-function closeRoleStatisticEditor(){
-  document.getElementById('roleStatisticOvl')?.remove();
-  ROLE_STAT_EDITOR=null;
-}
-async function saveRoleStatistic(){
-  const ovl=document.getElementById('roleStatisticOvl');
-  if(!ovl||!ROLE_STAT_EDITOR) return;
-  syncRoleStatisticEditorPoints();
-  const title=ovl.querySelector('#rsTitle')?.value.trim()||'';
-  if(!title){ alert('Укажите название графика'); return; }
-  const points=ROLE_STAT_EDITOR.points.filter(point=>/^\d{4}-\d{2}-\d{2}$/.test(point.date));
-  if(!points.length){ alert('Добавьте хотя бы одну дату и значение'); return; }
-  const body={
-    roleKey:ROLE_STAT_EDITOR.roleKey,title,
-    unit:ovl.querySelector('#rsUnit')?.value||'count',
-    scaleMax:Math.max(0,Number(ovl.querySelector('#rsScale')?.value)||0),
-    viewers:[...ovl.querySelectorAll('.fc-person input:checked')].map(input=>input.value),
-    points
-  };
-  const saveButton=ovl.querySelector('.mm-f button:last-child');
-  if(saveButton){saveButton.disabled=true;saveButton.textContent='Сохраняю…';}
-  try{
-    const path=ROLE_STAT_EDITOR.chartId?'/portal-statistics/'+encodeURIComponent(ROLE_STAT_EDITOR.chartId):'/portal-statistics';
-    await apiFetch(path,{method:ROLE_STAT_EDITOR.chartId?'PUT':'POST',body});
-    closeRoleStatisticEditor();
-    ROLE_STAT_DATA=null;
-    await renderRoleStatistics(true);
-  }catch(error){
-    alert('Не удалось сохранить график: '+error.message);
-    if(saveButton){saveButton.disabled=false;saveButton.textContent='Сохранить';}
-  }
-}
-async function deleteRoleStatistic(chartId){
-  if(!confirm('Удалить этот график?')) return;
-  try{
-    await apiFetch('/portal-statistics/'+encodeURIComponent(chartId),{method:'DELETE'});
-    closeRoleStatisticEditor();
-    ROLE_STAT_DATA=null;
-    await renderRoleStatistics(true);
-  }catch(error){ alert('Не удалось удалить график: '+error.message); }
-}
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, renderFinanceCharts, renderRoleStatistics, openRoleStatisticEditor, closeRoleStatisticEditor, addRoleStatisticPoint, removeRoleStatisticPoint, saveRoleStatistic, deleteRoleStatistic, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
+Object.assign(window, { openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, renderFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
 
 function applyProjectFilters(){
   sortProjectCards();
@@ -4316,7 +4064,6 @@ function applyProjectFilters(){
   syncProjectDateFilterControls();
   document.getElementById('moneySum')?.classList.toggle('search-hidden',searchTokens.length>0);
   document.getElementById('financeCharts')?.classList.toggle('search-hidden',searchTokens.length>0);
-  document.getElementById('roleStatistics')?.classList.toggle('search-hidden',searchTokens.length>0);
   updateSectionVisibility();
   updateTabCounts();
 }

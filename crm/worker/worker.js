@@ -22,9 +22,7 @@ const DEFAULT_STORE_PULL_LIMIT = 5000;
 const MAX_STORE_OPS = 500;
 const PRIVATE_PROJECT_FINANCE_COLLECTION = "_project_finance_private";
 const PRIVATE_PROJECT_FINANCE_ID = "global";
-const PRIVATE_PORTAL_STATISTICS_COLLECTION = "_portal_statistics_private";
-const PRIVATE_PORTAL_STATISTICS_ID = "global";
-const BUILD_ID = "2026-08-06-portal-role-statistics-v1";
+const BUILD_ID = "2026-07-24-project-finance-week-end-labels-v1";
 
 let googleKeysCache = {
   keys: null,
@@ -864,9 +862,6 @@ async function handleStorePull(request, env, actor) {
   if (collections.includes(PRIVATE_PROJECT_FINANCE_COLLECTION) && !canAccessProjectFinance(actor)) {
     throw new HttpError(403, "Финансы проектов доступны только Super Admin");
   }
-  if (collections.includes(PRIVATE_PORTAL_STATISTICS_COLLECTION)) {
-    throw new HttpError(403, "Статистика постов доступна только через защищённый маршрут");
-  }
 
   const data = {};
   for (const collection of collections) {
@@ -896,9 +891,6 @@ async function handleStorePush(request, env, actor) {
     const collection = normalizeCollectionName(op.collection);
     if (collection === PRIVATE_PROJECT_FINANCE_COLLECTION && !canAccessProjectFinance(actor)) {
       throw new HttpError(403, "Финансы проектов доступны только Super Admin");
-    }
-    if (collection === PRIVATE_PORTAL_STATISTICS_COLLECTION) {
-      throw new HttpError(403, "Статистика постов доступна только через защищённый маршрут");
     }
     const type = String(op.type || "").toLowerCase();
     if (type === "upsert") {
@@ -2239,272 +2231,6 @@ function normalizeProjectFinance(payload) {
       releases: Math.max(0, Math.round(Number(rawScale.releases) || 0)),
     },
   };
-}
-
-const PORTAL_STATISTIC_ROLES = [
-  { key: "lead_manager", title: "Лид-менеджер", color: "#2563eb" },
-  { key: "closer", title: "Менеджер — closer", color: "#7c3aed" },
-  { key: "rop", title: "РОП", color: "#15803d" },
-];
-const PORTAL_STATISTIC_UNITS = new Set(["count", "hours", "percent", "money"]);
-
-function portalStatisticRole(roleKey) {
-  return PORTAL_STATISTIC_ROLES.find((role) => role.key === String(roleKey || "")) || null;
-}
-
-function portalStatisticViewers(value) {
-  return [...new Set((Array.isArray(value) ? value : [])
-    .map((email) => String(email || "").trim().toLowerCase())
-    .filter((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-    .slice(0, 200))];
-}
-
-function portalStatisticPoints(value) {
-  const byDate = new Map();
-  for (const point of (Array.isArray(value) ? value : []).slice(0, 100)) {
-    const date = String(point?.date || "").trim();
-    const number = Number(point?.value);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(number)) continue;
-    byDate.set(date, {
-      date,
-      value: Math.max(0, Math.min(number, 1_000_000_000_000)),
-    });
-  }
-  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-52);
-}
-
-function portalStatisticWeekPoints(count = 8) {
-  const shiftMs = 5 * 60 * 60 * 1000;
-  const local = new Date(Date.now() + shiftMs);
-  const daysSinceThursday = (local.getUTCDay() - 4 + 7) % 7;
-  const anchor = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() - daysSinceThursday);
-  return Array.from({ length: count }, (_, index) => ({
-    date: new Date(anchor - (count - 1 - index) * 86400000 * 7).toISOString().slice(0, 10),
-    value: 0,
-  }));
-}
-
-function portalStatisticDefaults() {
-  const points = portalStatisticWeekPoints();
-  const definitions = [
-    ["lead_calls_held", "lead_manager", "Кол-во состоявшихся звонков", "count"],
-    ["lead_info_packages", "lead_manager", "Кол-во отправленных инфо пакетов", "count"],
-    ["lead_meetings_booked", "lead_manager", "Количество назначенных встреч", "count"],
-    ["lead_meetings_held", "lead_manager", "Количество проведённых встреч", "count"],
-    ["lead_call_hours", "lead_manager", "Часы звонков", "hours"],
-    ["lead_companies_in_work", "lead_manager", "Количество компаний в работе на 1-ую встречу", "count"],
-    ["closer_first_meetings", "closer", "Количество проведённых первых встреч", "count"],
-    ["closer_review_meetings", "closer", "Количество проведённых встреч-разборов", "count"],
-    ["closer_invoices_issued", "closer", "Количество выставленных счетов", "count"],
-    ["closer_invoices_paid", "closer", "Количество оплаченных счетов", "count"],
-    ["closer_reviews_received", "closer", "Количество полученных отзывов после разборов", "count"],
-    ["closer_income", "closer", "Доход", "money"],
-    ["rop_total_income", "rop", "Доход общий", "money"],
-    ["rop_leads_to_booked", "rop", "Конверсия: все входящие лиды → назначенные первые встречи", "percent"],
-    ["rop_first_to_second", "rop", "Конверсия: первые встречи → проведённые вторые", "percent"],
-    ["rop_second_to_paid", "rop", "Конверсия: вторые встречи → оплаты", "percent"],
-    ["rop_lead_manager_efficiency", "rop", "Эффективность лид-менеджера: выполнение плана первых встреч", "percent"],
-    ["rop_closer_efficiency", "rop", "Эффективность closer: вторые встречи → оплаченные счета", "percent"],
-  ];
-  const orderByRole = new Map();
-  return definitions.map(([id, roleKey, title, unit]) => {
-    const orderIndex = orderByRole.get(roleKey) || 0;
-    orderByRole.set(roleKey, orderIndex + 1);
-    return {
-      id,
-      roleKey,
-      title,
-      unit,
-      scaleMax: 0,
-      viewers: [],
-      points: points.map((point) => ({ ...point })),
-      ownerEmail: ROOT_SUPER_ADMIN,
-      color: portalStatisticRole(roleKey)?.color || "#2563eb",
-      orderIndex,
-      isCustom: false,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-  });
-}
-
-function normalizePortalStatistic(payload, fallback = {}) {
-  const role = portalStatisticRole(payload?.roleKey ?? fallback.roleKey);
-  if (!role) return null;
-  const id = String(payload?.id || fallback.id || "").trim();
-  if (!/^[a-zA-Z0-9_-]{1,100}$/.test(id)) return null;
-  const title = String(payload?.title ?? fallback.title ?? "").trim().slice(0, 160);
-  if (!title) return null;
-  const unitRaw = String(payload?.unit ?? fallback.unit ?? "count");
-  const unit = PORTAL_STATISTIC_UNITS.has(unitRaw) ? unitRaw : "count";
-  const scaleNumber = Number(payload?.scaleMax ?? fallback.scaleMax);
-  const scaleMax = Number.isFinite(scaleNumber)
-    ? Math.max(0, Math.min(scaleNumber, 1_000_000_000_000))
-    : 0;
-  const ownerEmail = String(payload?.ownerEmail || fallback.ownerEmail || ROOT_SUPER_ADMIN).trim().toLowerCase();
-  return {
-    id,
-    roleKey: role.key,
-    title,
-    unit,
-    scaleMax,
-    viewers: portalStatisticViewers(payload?.viewers ?? fallback.viewers),
-    points: portalStatisticPoints(payload?.points ?? fallback.points),
-    ownerEmail,
-    color: role.color,
-    orderIndex: Math.max(0, Math.min(Math.round(Number(payload?.orderIndex ?? fallback.orderIndex) || 0), 1000)),
-    isCustom: Boolean(payload?.isCustom ?? fallback.isCustom),
-    createdAt: Math.max(0, Number(payload?.createdAt ?? fallback.createdAt) || Date.now()),
-    updatedAt: Math.max(0, Number(payload?.updatedAt ?? fallback.updatedAt) || Date.now()),
-  };
-}
-
-function portalStatisticIsSuperAdmin(actor) {
-  return Boolean(actor?.isRoot || actor?.user?.isSuperAdmin);
-}
-
-function canViewPortalStatistic(actor, chart) {
-  if (portalStatisticIsSuperAdmin(actor)) return true;
-  const email = String(actor?.email || "").trim().toLowerCase();
-  return Boolean(email && (email === chart.ownerEmail || chart.viewers.includes(email)));
-}
-
-function canEditPortalStatistic(actor, chart) {
-  // Как и у финансовых графиков: сотрудник с доступом может открыть настройки,
-  // поправить ручные значения и список зрителей.
-  return canViewPortalStatistic(actor, chart);
-}
-
-function canDeletePortalStatistic(actor, chart) {
-  if (!chart.isCustom) return false;
-  const email = String(actor?.email || "").trim().toLowerCase();
-  return portalStatisticIsSuperAdmin(actor) || email === chart.ownerEmail;
-}
-
-async function loadPortalStatistics(env) {
-  const stored = await d1GetDoc(env, PRIVATE_PORTAL_STATISTICS_COLLECTION, PRIVATE_PORTAL_STATISTICS_ID);
-  const defaults = portalStatisticDefaults();
-  const incoming = Array.isArray(stored?.charts) ? stored.charts.slice(0, 100) : [];
-  const charts = incoming.map((chart) => normalizePortalStatistic(chart)).filter(Boolean);
-  const existingIds = new Set(charts.map((chart) => chart.id));
-  let changed = !stored;
-  for (const chart of defaults) {
-    if (existingIds.has(chart.id)) continue;
-    charts.push(chart);
-    changed = true;
-  }
-  charts.sort((a, b) => {
-    const roleOrder = PORTAL_STATISTIC_ROLES.findIndex((role) => role.key === a.roleKey)
-      - PORTAL_STATISTIC_ROLES.findIndex((role) => role.key === b.roleKey);
-    return roleOrder || a.orderIndex - b.orderIndex || a.title.localeCompare(b.title, "ru");
-  });
-  if (changed) {
-    const now = Date.now();
-    await d1UpsertDoc(env, PRIVATE_PORTAL_STATISTICS_COLLECTION, {
-      id: PRIVATE_PORTAL_STATISTICS_ID,
-      charts,
-      createdAt: Number(stored?.createdAt) || now,
-      updatedAt: now,
-    }, ROOT_SUPER_ADMIN);
-  }
-  return {
-    id: PRIVATE_PORTAL_STATISTICS_ID,
-    charts,
-    createdAt: Number(stored?.createdAt) || Date.now(),
-    updatedAt: Number(stored?.updatedAt) || Date.now(),
-  };
-}
-
-async function savePortalStatistics(env, document, actor) {
-  const now = Date.now();
-  await d1UpsertDoc(env, PRIVATE_PORTAL_STATISTICS_COLLECTION, {
-    id: PRIVATE_PORTAL_STATISTICS_ID,
-    charts: document.charts,
-    createdAt: Number(document.createdAt) || now,
-    updatedAt: now,
-  }, actor.email || actor.uid || ROOT_SUPER_ADMIN);
-  return now;
-}
-
-function publicPortalStatistic(actor, chart) {
-  return {
-    ...chart,
-    canEdit: canEditPortalStatistic(actor, chart),
-    canDelete: canDeletePortalStatistic(actor, chart),
-  };
-}
-
-async function handlePortalStatisticsGet(env, actor) {
-  const document = await loadPortalStatistics(env);
-  return {
-    ok: true,
-    roles: PORTAL_STATISTIC_ROLES.map((role) => ({
-      ...role,
-      charts: document.charts
-        .filter((chart) => chart.roleKey === role.key && canViewPortalStatistic(actor, chart))
-        .map((chart) => publicPortalStatistic(actor, chart)),
-    })),
-    canCreate: true,
-    updatedAt: document.updatedAt,
-  };
-}
-
-async function handlePortalStatisticsCreate(request, env, actor) {
-  const body = await readRequestBodyAsJson(request);
-  const document = await loadPortalStatistics(env);
-  const role = portalStatisticRole(body.roleKey);
-  if (!role) throw new HttpError(400, "Выберите пост для нового графика");
-  const orderIndex = document.charts
-    .filter((chart) => chart.roleKey === role.key)
-    .reduce((max, chart) => Math.max(max, chart.orderIndex + 1), 0);
-  const now = Date.now();
-  const chart = normalizePortalStatistic({
-    ...body,
-    id: `stat_${crypto.randomUUID()}`,
-    roleKey: role.key,
-    ownerEmail: actor.email,
-    orderIndex,
-    isCustom: true,
-    createdAt: now,
-    updatedAt: now,
-  });
-  if (!chart) throw new HttpError(400, "Заполните название графика");
-  document.charts.push(chart);
-  const updatedAt = await savePortalStatistics(env, document, actor);
-  return { ok: true, chart: publicPortalStatistic(actor, chart), updatedAt };
-}
-
-async function handlePortalStatisticsUpdate(request, env, actor, chartId) {
-  const body = await readRequestBodyAsJson(request);
-  const document = await loadPortalStatistics(env);
-  const index = document.charts.findIndex((chart) => chart.id === chartId);
-  if (index < 0) throw new HttpError(404, "График не найден");
-  const current = document.charts[index];
-  if (!canEditPortalStatistic(actor, current)) throw new HttpError(403, "Нет доступа к настройкам графика");
-  const chart = normalizePortalStatistic({
-    ...current,
-    title: body.title,
-    unit: body.unit,
-    scaleMax: body.scaleMax,
-    viewers: body.viewers,
-    points: body.points,
-    updatedAt: Date.now(),
-  }, current);
-  if (!chart) throw new HttpError(400, "Заполните название графика");
-  document.charts[index] = chart;
-  const updatedAt = await savePortalStatistics(env, document, actor);
-  return { ok: true, chart: publicPortalStatistic(actor, chart), updatedAt };
-}
-
-async function handlePortalStatisticsDelete(env, actor, chartId) {
-  const document = await loadPortalStatistics(env);
-  const index = document.charts.findIndex((chart) => chart.id === chartId);
-  if (index < 0) return { ok: true, deleted: chartId };
-  const chart = document.charts[index];
-  if (!canDeletePortalStatistic(actor, chart)) throw new HttpError(403, "Этот график нельзя удалить");
-  document.charts.splice(index, 1);
-  const updatedAt = await savePortalStatistics(env, document, actor);
-  return { ok: true, deleted: chartId, updatedAt };
 }
 
 async function handleProjectFinanceGet(env, actor) {
@@ -8602,27 +8328,6 @@ export default {
       if (request.method === "PUT" && path === "/project-finance/charts") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleProjectFinanceChartsPut(request, env, actor));
-      }
-
-      if (request.method === "GET" && path === "/portal-statistics") {
-        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
-        return json(request, env, await handlePortalStatisticsGet(env, actor));
-      }
-
-      if (request.method === "POST" && path === "/portal-statistics") {
-        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
-        return json(request, env, await handlePortalStatisticsCreate(request, env, actor));
-      }
-
-      const portalStatisticMatch = path.match(/^\/portal-statistics\/([a-zA-Z0-9_-]+)$/);
-      if (portalStatisticMatch && request.method === "PUT") {
-        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
-        return json(request, env, await handlePortalStatisticsUpdate(request, env, actor, portalStatisticMatch[1]));
-      }
-
-      if (portalStatisticMatch && request.method === "DELETE") {
-        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
-        return json(request, env, await handlePortalStatisticsDelete(env, actor, portalStatisticMatch[1]));
       }
 
       if (request.method === "POST" && path === "/store/pull") {
