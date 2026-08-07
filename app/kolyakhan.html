@@ -148,6 +148,38 @@ tbody tr:hover td{background:#f6f7f4}
 .wtl .we{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
 .wtl .wb{font-size:13.5px;margin-top:1px}
 
+/* универсальные графики статистики по должностям */
+.role-stats{margin-bottom:26px}
+.role-stats-intro{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin:4px 0 18px;padding-bottom:11px;border-bottom:2px solid var(--ink)}
+.role-stats-intro h2{font-family:var(--serif);font-size:20px;font-weight:700}
+.role-stats-intro p{font-size:12.5px;color:var(--mut)}
+.role-row{margin-bottom:26px}.role-row:last-child{margin-bottom:0}
+.role-row-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}
+.role-row-head h3{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);font-weight:800}
+.role-add{border:1px solid var(--ln);background:var(--panel);padding:6px 10px;font-size:11.5px;font-weight:700;color:var(--grn)}
+.role-add:hover{border-color:var(--grn)}
+.role-chart-strip{display:flex;gap:12px;overflow-x:auto;padding:0 0 13px;scroll-snap-type:x proximity;overscroll-behavior-inline:contain}
+.role-chart{flex:0 0 calc((100% - 24px)/3);min-width:370px;height:410px;background:var(--panel);border:1px solid var(--ln);padding:16px 17px 13px;display:flex;flex-direction:column;scroll-snap-align:start}
+.role-chart-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;min-height:58px}
+.role-chart-title{font-family:var(--serif);font-size:17px;font-weight:700;line-height:1.25}
+.role-chart-sub{font-size:11.5px;color:var(--mut);margin-top:3px}
+.role-chart-settings{border:1px solid var(--ln);padding:6px 9px;font-size:11px;font-weight:700;white-space:nowrap}
+.role-chart-settings:hover{border-color:var(--grn);color:var(--grn)}
+.role-chart-plot{flex:1;min-height:0;margin-top:3px}.role-chart-plot svg{display:block;width:100%;height:100%;overflow:visible}
+.role-chart-labels{display:grid;align-items:start;margin-top:1px}.role-chart-labels span{text-align:center;color:var(--mut);font-family:var(--mono);font-size:9.5px;white-space:nowrap}
+.role-empty{border:1px dashed var(--ln);padding:22px;color:var(--mut);font-size:12.5px}
+.role-stat-modal{max-width:780px}.role-stat-fields{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+.role-stat-table{border:1px solid var(--ln);margin-top:8px;max-height:290px;overflow-y:auto}
+.role-stat-row{display:grid;grid-template-columns:minmax(135px,1fr) minmax(110px,1fr) 34px;gap:8px;align-items:center;padding:8px;border-bottom:1px solid var(--ln2)}
+.role-stat-row:last-child{border-bottom:0}.role-stat-row input{width:100%;border:1px solid var(--ln);padding:8px 9px;background:#fff}
+.role-stat-row button{font-size:18px;color:var(--terra)}
+.role-stat-section{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;font-size:12px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+.role-stat-section button{border:1px solid var(--ln);padding:5px 9px;color:var(--grn);font-size:11px;font-weight:700;text-transform:none;letter-spacing:0}
+.role-viewers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--ln);margin-top:8px}
+.role-viewers label{display:flex;align-items:center;gap:8px;padding:10px 12px;border-right:1px solid var(--ln);font-size:12.5px;font-weight:600}.role-viewers label:last-child{border-right:0}.role-viewers input{width:16px;height:16px;accent-color:var(--grn)}
+@media(max-width:1100px){.role-chart{flex-basis:calc((100% - 12px)/2);min-width:340px}}
+@media(max-width:720px){.role-chart{flex-basis:86vw;min-width:300px;height:390px}.role-stat-fields{grid-template-columns:1fr}.role-viewers{grid-template-columns:1fr}.role-viewers label{border-right:0;border-bottom:1px solid var(--ln)}.role-viewers label:last-child{border-bottom:0}}
+
 /* модал лида */
 .ovl{position:fixed;inset:0;background:rgba(23,32,51,.55);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:26px 14px;overflow-y:auto}
 .ovl.show{display:flex}
@@ -388,6 +420,7 @@ tbody tr:hover td{background:#f6f7f4}
         <button onclick="setPeriod(this)">Месяц</button>
       </div>
     </div>
+    <div class="role-stats" id="roleStats"></div>
     <div class="panel">
       <div class="pb" style="padding-top:6px;overflow-x:auto"><table>
         <thead><tr><th>Менеджер</th><th class="r">Звонков</th><th class="r">Результ. ≥1мин</th><th class="r">Эфир</th><th class="r">Лидов</th><th class="r">Встреч назн.</th><th class="r">Состоялось</th><th class="r">В продажи</th></tr></thead>
@@ -565,6 +598,29 @@ tbody tr:hover td{background:#f6f7f4}
   </div>
 </div>
 
+<!-- модал: универсальный график -->
+<div class="ovl" id="roleStatOvl" onclick="if(event.target===this)closeRoleStatEditor()">
+  <div class="deal role-stat-modal">
+    <div class="dh"><h2 id="roleStatModalTitle">Настройки графика</h2><span class="mark gy">ручные данные</span><span class="mx" onclick="closeRoleStatEditor()">✕</span></div>
+    <div class="formbody">
+      <div class="role-stat-fields">
+        <div class="ff"><label>Название графика</label><input id="roleStatTitle" maxlength="90"></div>
+        <div class="ff"><label>Единица</label><select id="roleStatUnit"><option value="count">Количество</option><option value="hours">Часы</option><option value="percent">Проценты</option><option value="money">Тенге</option></select></div>
+        <div class="ff"><label>Максимум шкалы</label><input id="roleStatMax" type="number" min="0" step="any" placeholder="автоматически"></div>
+      </div>
+      <div class="role-stat-section"><span>Кто может видеть</span></div>
+      <div class="role-viewers">
+        <label><input type="checkbox" value="lead">Лид-менеджер</label>
+        <label><input type="checkbox" value="sales">Менеджер-клоузер</label>
+        <label><input type="checkbox" value="boss">РОП / руководитель</label>
+      </div>
+      <div class="role-stat-section"><span>Даты и значения</span><button type="button" onclick="addRoleStatPoint()">＋ Строка</button></div>
+      <div class="role-stat-table" id="roleStatTable"></div>
+    </div>
+    <div class="dfoot"><button class="btn o" id="roleStatDelete" onclick="deleteRoleStatChart()" style="margin-right:auto;color:var(--terra);border-color:#e3b9a5">Удалить</button><button class="btn g" onclick="saveRoleStatChart()">Сохранить график</button><button class="btn o" onclick="closeRoleStatEditor()">Отмена</button></div>
+  </div>
+</div>
+
 <div id="toasts"></div>
 
 <script>
@@ -582,6 +638,7 @@ document.querySelectorAll('.mnav button').forEach(b=>b.onclick=()=>nav(b.dataset
 const LMGRS=['Эвилина','Дамир','Санжар'];
 const SMGRS=['Айдос'];
 const AV=n=>n.slice(0,2).toUpperCase();
+let ACTIVE_ROLE='lead';
 
 /* ===== утилиты ===== */
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -608,7 +665,9 @@ function load(){let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){
 function resetDemo(){if(!confirm('Сбросить демо к исходным данным? Все внесённые изменения (лиды, задачи, звонки) удалятся.'))return;localStorage.removeItem(KEY);load();renderAll();nav('leads');toast('Демо сброшено к исходным данным.');}
 function renderAll(){renderLeads();renderSales();renderTasks();renderCalls();renderStat();renderWt();}
 function setRole(r,el){
+  ACTIVE_ROLE=r;
   document.querySelectorAll('.roles button').forEach(b=>b.classList.toggle('on',b===el));
+  renderRoleStats();
   if(r==='lead'){setLMgrIdx(0);nav('leads');toast('<b>Лид-менеджер</b>: видит только своих лидов и свою статистику, работает в воронке «Лид-менеджеры». Показаны лиды Эвилины.');}
   if(r==='sales'){nav('sales');toast('<b>Ведущий менеджер</b>: видит лидов, переданных в отдел продаж, ведёт закрытие сделки.');}
   if(r==='boss'){setLMgrIdx(-1);nav('stats');toast('<b>Руководитель / админ</b>: видит всех, все воронки, всю статистику; управляет пользователями и импортом.');}
@@ -960,9 +1019,105 @@ function renderStat(){
       '<td class="r">'+calls.length+'</td><td class="r" style="color:var(--grn)">'+ok+'</td><td class="r">'+air+'</td>'+
       '<td class="r">'+leads+'</td><td class="r">'+mSet+'</td><td class="r" style="color:var(--grn)">'+mOk+'</td><td class="r">'+sales+'</td></tr>';
   }).join('');
+  renderRoleStats();
 }
 function setPeriod(el){el.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el));toast('Период: «'+el.textContent+'». В демо показаны данные за сегодня; статистика считается по журналу событий.')}
 function renderWt(){$('wtLog').innerHTML=WLOG.map(w=>'<div class="wtl"><div class="we">'+esc(w[0])+'</div><div class="wb">'+esc(w[1])+'</div></div>').join('')}
+
+/* ===== УНИВЕРСАЛЬНЫЕ ГРАФИКИ ПО ДОЛЖНОСТЯМ ===== */
+const ROLE_STAT_KEY='kolyakhan_role_statistics_v1';
+const ROLE_STAT_TITLES={lead:'Лид-менеджер',sales:'Менеджер-клоузер',boss:'РОП'};
+const ROLE_STAT_UNITS={count:'Количество',hours:'Часы',percent:'Проценты',money:'Тенге'};
+const ROLE_STAT_COLORS={lead:'#28527a',sales:'#1e7d5f',boss:'#b4552e'};
+let ROLE_STATS=[],ROLE_STAT_EDIT=null;
+function roleStatPoints(values){
+  const dates=['2026-06-25','2026-07-02','2026-07-09','2026-07-16','2026-07-23','2026-07-30','2026-08-06','2026-08-13'];
+  return dates.map((date,i)=>({date,value:Number(values[i])||0}));
+}
+function roleStatDefaults(){
+  const make=(role,key,title,unit,values,max)=>({id:role+'-'+key,role,title,unit,scaleMax:max||0,color:ROLE_STAT_COLORS[role],viewers:[role,'boss'],points:roleStatPoints(values)});
+  return [
+    make('lead','calls','Количество состоявшихся звонков','count',[18,24,21,30,33,29,35,0],40),
+    make('lead','packs','Количество отправленных инфопакетов','count',[8,11,9,16,18,14,19,0],25),
+    make('lead','appointed','Количество назначенных встреч','count',[2,3,4,5,6,5,7,0],10),
+    make('lead','held','Количество проведённых встреч','count',[1,2,3,4,5,4,6,0],8),
+    make('lead','hours','Часы звонков','hours',[3.2,4.1,3.8,5.4,6.1,5.7,6.6,0],8),
+    make('lead','companies','Компаний в работе на первую встречу','count',[12,15,17,20,24,22,27,0],30),
+    make('sales','first','Количество проведённых первых встреч','count',[2,3,3,4,5,4,6,0],8),
+    make('sales','reviews','Количество проведённых встреч-разборов','count',[1,2,2,3,4,3,5,0],7),
+    make('sales','invoices','Количество выставленных счетов','count',[0,1,2,2,3,2,4,0],6),
+    make('sales','paid','Количество оплаченных счетов','count',[0,1,1,1,2,2,3,0],5),
+    make('sales','feedback','Отзывы после разборов','count',[0,1,1,2,2,3,3,0],5),
+    make('sales','income','Доход','money',[0,450000,500000,750000,1100000,900000,1500000,0],2000000),
+    make('boss','income','Доход общий','money',[500000,802000,2200000,135000,1700000,1800000,2100000,0],3000000),
+    make('boss','lead-to-meet','Конверсия: входящие лиды → первые встречи','percent',[18,22,25,28,31,29,34,0],40),
+    make('boss','first-to-second','Конверсия: первые встречи → вторые','percent',[34,38,41,46,49,45,52,0],60),
+    make('boss','second-to-pay','Конверсия: вторые встречи → оплаты','percent',[20,24,27,31,35,33,39,0],50),
+    make('boss','lead-plan','Эффективность лид-менеджера','percent',[72,81,78,90,94,88,100,0],100),
+    make('boss','closer-plan','Эффективность менеджера-клоузера','percent',[48,55,60,64,72,70,78,0],100)
+  ];
+}
+function loadRoleStats(){
+  try{const saved=JSON.parse(localStorage.getItem(ROLE_STAT_KEY));ROLE_STATS=Array.isArray(saved)&&saved.length?saved:roleStatDefaults();}
+  catch(e){ROLE_STATS=roleStatDefaults();}
+}
+function saveRoleStats(){try{localStorage.setItem(ROLE_STAT_KEY,JSON.stringify(ROLE_STATS));}catch(e){}}
+function roleStatValue(unit,value){
+  const n=Number(value)||0;
+  if(unit==='money')return n>=1000000?(n/1000000).toLocaleString('ru-RU',{maximumFractionDigits:1})+' млн ₸':Math.round(n/1000)+' тыс ₸';
+  if(unit==='percent')return n.toLocaleString('ru-RU',{maximumFractionDigits:1})+'%';
+  if(unit==='hours')return n.toLocaleString('ru-RU',{maximumFractionDigits:1})+' ч';
+  return Math.round(n).toLocaleString('ru-RU');
+}
+function roleStatDate(date){const p=String(date||'').split('-');return p.length===3?p[2]+'.'+p[1]:date;}
+function roleStatSeries(chart){return (Array.isArray(chart.points)?chart.points:[]).filter(p=>/^\d{4}-\d{2}-\d{2}$/.test(p.date)&&Number.isFinite(Number(p.value))).sort((a,b)=>a.date.localeCompare(b.date)).slice(-8);}
+function roleStatSvg(chart,series){
+  const W=640,H=265,L=26,R=18,T=42,B=28,usable=W-L-R;
+  const auto=Math.max(1,...series.map(p=>Number(p.value)||0)),max=Math.max(1,Number(chart.scaleMax)||auto);
+  const x=i=>series.length===1?W/2:L+i*(usable/(series.length-1));
+  const y=v=>T+(1-Math.min(1,Math.max(0,(Number(v)||0)/max)))*(H-T-B);
+  const pts=series.map((p,i)=>x(i)+','+y(p.value)).join(' '),color=chart.color||ROLE_STAT_COLORS[chart.role]||'#28527a';
+  return '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" aria-label="'+esc(chart.title)+'">'+
+    '<line x1="'+L+'" y1="'+T+'" x2="'+(W-R)+'" y2="'+T+'" stroke="#dfe3ea" stroke-dasharray="5 6" vector-effect="non-scaling-stroke"/>'+
+    '<text x="'+(W-R)+'" y="22" text-anchor="end" fill="#6b7689" font-size="12" font-weight="700">Максимум шкалы: '+esc(roleStatValue(chart.unit,max))+'</text>'+
+    '<line x1="'+L+'" y1="'+(H-B)+'" x2="'+(W-R)+'" y2="'+(H-B)+'" stroke="#dfe3ea" vector-effect="non-scaling-stroke"/>'+
+    '<polyline points="'+pts+'" fill="none" stroke="'+esc(color)+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>'+
+    series.map((p,i)=>{const py=y(p.value),ly=Math.max(13,py-11);return '<g><circle cx="'+x(i)+'" cy="'+py+'" r="4" fill="'+esc(color)+'" vector-effect="non-scaling-stroke"/><text x="'+x(i)+'" y="'+ly+'" text-anchor="middle" fill="#172033" font-size="12" font-weight="700">'+esc(roleStatValue(chart.unit,p.value))+'</text></g>';}).join('')+'</svg>';
+}
+function roleStatCard(chart){
+  const series=roleStatSeries(chart);
+  return '<article class="role-chart"><div class="role-chart-head"><div><div class="role-chart-title">'+esc(chart.title)+'</div><div class="role-chart-sub">Ручные данные · '+esc(ROLE_STAT_UNITS[chart.unit]||'Значение')+'</div></div><button class="role-chart-settings" onclick="openRoleStatEditor(\''+jsq(chart.role)+'\',\''+jsq(chart.id)+'\')">Настройки</button></div><div class="role-chart-plot">'+roleStatSvg(chart,series)+'</div><div class="role-chart-labels" style="grid-template-columns:repeat('+Math.max(1,series.length)+',minmax(0,1fr))">'+series.map(p=>'<span>'+esc(roleStatDate(p.date))+'</span>').join('')+'</div></article>';
+}
+function roleStatVisible(chart){return ACTIVE_ROLE==='boss'||(chart.viewers||[]).includes(ACTIVE_ROLE);}
+function renderRoleStats(){
+  const root=$('roleStats');if(!root)return;
+  const roles=['lead','sales','boss'].map(role=>({role,charts:ROLE_STATS.filter(c=>c.role===role&&roleStatVisible(c))})).filter(group=>ACTIVE_ROLE==='boss'||group.charts.length||group.role===ACTIVE_ROLE);
+  root.innerHTML='<div class="role-stats-intro"><div><h2>Статистика постов</h2><p>Каждая строка — отдельная должность. Данные вводятся вручную по датам.</p></div></div>'+roles.map(group=>'<section class="role-row"><div class="role-row-head"><h3>'+esc(ROLE_STAT_TITLES[group.role])+'</h3><button class="role-add" onclick="openRoleStatEditor(\''+group.role+'\',\'\')">＋ График</button></div>'+(group.charts.length?'<div class="role-chart-strip">'+group.charts.map(roleStatCard).join('')+'</div>':'<div class="role-empty">Для этой должности пока нет доступных графиков.</div>')+'</section>').join('');
+}
+function openRoleStatEditor(role,id){
+  const existing=ROLE_STATS.find(c=>c.id===id);
+  ROLE_STAT_EDIT=existing?JSON.parse(JSON.stringify(existing)):{id:'',role,title:'Новый показатель',unit:'count',scaleMax:0,color:ROLE_STAT_COLORS[role],viewers:[role,'boss'],points:[]};
+  $('roleStatModalTitle').textContent=existing?'Настройки: '+existing.title:'Новый график · '+ROLE_STAT_TITLES[role];
+  $('roleStatTitle').value=ROLE_STAT_EDIT.title;$('roleStatUnit').value=ROLE_STAT_EDIT.unit;$('roleStatMax').value=ROLE_STAT_EDIT.scaleMax||'';
+  document.querySelectorAll('#roleStatOvl .role-viewers input').forEach(input=>input.checked=(ROLE_STAT_EDIT.viewers||[]).includes(input.value));
+  $('roleStatDelete').style.display=existing?'':'none';renderRoleStatRows();$('roleStatOvl').classList.add('show');
+}
+function renderRoleStatRows(){
+  const rows=ROLE_STAT_EDIT&&Array.isArray(ROLE_STAT_EDIT.points)?ROLE_STAT_EDIT.points:[];
+  $('roleStatTable').innerHTML=rows.length?rows.map((p,i)=>'<div class="role-stat-row"><input type="date" value="'+esc(p.date)+'" onchange="ROLE_STAT_EDIT.points['+i+'].date=this.value"><input type="number" step="any" value="'+esc(p.value)+'" onchange="ROLE_STAT_EDIT.points['+i+'].value=Number(this.value)"><button title="Удалить строку" onclick="ROLE_STAT_EDIT.points.splice('+i+',1);renderRoleStatRows()">×</button></div>').join(''):'<div class="role-empty" style="border:0">Добавьте первую дату и значение.</div>';
+}
+function addRoleStatPoint(){if(!ROLE_STAT_EDIT)return;ROLE_STAT_EDIT.points.push({date:new Date().toISOString().slice(0,10),value:0});renderRoleStatRows();const box=$('roleStatTable');box.scrollTop=box.scrollHeight;}
+function closeRoleStatEditor(){$('roleStatOvl').classList.remove('show');ROLE_STAT_EDIT=null;}
+function saveRoleStatChart(){
+  if(!ROLE_STAT_EDIT)return;const title=$('roleStatTitle').value.trim();if(!title){toast('Укажите название графика.');return;}
+  ROLE_STAT_EDIT.title=title;ROLE_STAT_EDIT.unit=$('roleStatUnit').value;ROLE_STAT_EDIT.scaleMax=Math.max(0,Number($('roleStatMax').value)||0);
+  ROLE_STAT_EDIT.viewers=[...document.querySelectorAll('#roleStatOvl .role-viewers input:checked')].map(i=>i.value);if(!ROLE_STAT_EDIT.viewers.includes('boss'))ROLE_STAT_EDIT.viewers.push('boss');
+  ROLE_STAT_EDIT.points=(ROLE_STAT_EDIT.points||[]).filter(p=>p.date&&Number.isFinite(Number(p.value))).map(p=>({date:p.date,value:Number(p.value)}));
+  if(ROLE_STAT_EDIT.id){const i=ROLE_STATS.findIndex(c=>c.id===ROLE_STAT_EDIT.id);if(i>=0)ROLE_STATS[i]=ROLE_STAT_EDIT;}
+  else{ROLE_STAT_EDIT.id=ROLE_STAT_EDIT.role+'-'+Date.now();ROLE_STATS.push(ROLE_STAT_EDIT);}
+  saveRoleStats();closeRoleStatEditor();renderRoleStats();toast('График «'+esc(title)+'» сохранён.');
+}
+function deleteRoleStatChart(){if(!ROLE_STAT_EDIT||!ROLE_STAT_EDIT.id||!confirm('Удалить график «'+ROLE_STAT_EDIT.title+'»?'))return;ROLE_STATS=ROLE_STATS.filter(c=>c.id!==ROLE_STAT_EDIT.id);saveRoleStats();closeRoleStatEditor();renderRoleStats();toast('График удалён.');}
 
 /* ===== ФОРМЫ: новый лид / импорт ===== */
 function closeForm(id){$(id).classList.remove('show');}
@@ -1013,7 +1168,7 @@ function runImport(){
 }
 
 /* ===== init ===== */
-load();renderAll();
+load();loadRoleStats();renderAll();
 const q=new URLSearchParams(location.search);
 if(q.get('s'))nav(q.get('s'));
 if(q.get('deal'))setTimeout(()=>openLeadByName('Kaspi.kz'),300);
