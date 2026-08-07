@@ -4912,7 +4912,14 @@ async function handleWaSend(request, env) {
     if (saved?.instance_id) channel = await getWaChannelByInstance(env, saved.instance_id);
   }
   if (!channel) {
-    channel = await env.DB.prepare("SELECT * FROM wa_channels WHERE active = 1 ORDER BY created_at ASC LIMIT 1").first();
+    // Если чат ещё не сохранён, берём прежде всего реально подключённый
+    // канал. Раньше первым мог выбираться active=1, но conn_state='down'.
+    channel = await env.DB.prepare(`
+      SELECT * FROM wa_channels
+      WHERE active = 1
+      ORDER BY CASE WHEN conn_state = 'up' THEN 0 ELSE 1 END, created_at ASC
+      LIMIT 1
+    `).first();
   }
   if (!channel) return json({ error: "no active WhatsApp channel configured" }, 503, request);
 
@@ -5040,7 +5047,11 @@ async function processScheduledWaMessages(env) {
     try {
       let channel = row.channel_id ? await getWaChannel(env, row.channel_id) : null;
       if (!channel) {
-        channel = await env.DB.prepare("SELECT * FROM wa_channels WHERE active = 1 ORDER BY created_at ASC LIMIT 1").first();
+        channel = await env.DB.prepare(`
+          SELECT * FROM wa_channels WHERE active = 1
+          ORDER BY CASE WHEN conn_state = 'up' THEN 0 ELSE 1 END, created_at ASC
+          LIMIT 1
+        `).first();
       }
       if (!channel) throw new Error("no active WhatsApp channel configured");
 
@@ -5916,7 +5927,13 @@ async function getNotifierConfig(env) {
     };
   }
   let ch = null;
-  try { ch = await env.DB.prepare("SELECT * FROM wa_channels WHERE active = 1 ORDER BY created_at ASC LIMIT 1").first(); } catch {}
+  try {
+    ch = await env.DB.prepare(`
+      SELECT * FROM wa_channels WHERE active = 1
+      ORDER BY CASE WHEN conn_state = 'up' THEN 0 ELSE 1 END, created_at ASC
+      LIMIT 1
+    `).first();
+  } catch {}
   if (ch) {
     return {
       source: 'channel',
