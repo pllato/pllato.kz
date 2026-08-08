@@ -145,6 +145,20 @@
   .kb-card .row b{font-variant-numeric:tabular-nums}
   .kb-empty{color:var(--muted);font-size:11.5px;font-style:italic;padding:6px}
   .kb-bar{display:flex;align-items:center;gap:10px;margin:4px 0 12px;flex-wrap:wrap}
+  .bank-card{background:linear-gradient(135deg,#18253a 0%,#263c5d 100%);color:#fff;border:none;box-shadow:0 10px 26px rgba(24,37,58,.16);padding:20px 22px}
+  .bank-top{display:grid;grid-template-columns:1.4fr repeat(3,minmax(120px,.65fr));gap:14px;align-items:center;margin-bottom:16px}
+  .bank-title{font-size:19px;font-weight:800;letter-spacing:-.3px}.bank-sub{font-size:11.5px;color:#aebbd0;margin-top:3px}
+  .bank-kpi{padding-left:14px;border-left:1px solid rgba(255,255,255,.16)}
+  .bank-kpi .k{font-size:9px;text-transform:uppercase;letter-spacing:.55px;color:#9fb0c9;font-weight:800}
+  .bank-kpi .v{margin-top:3px;font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .bank-form{display:grid;grid-template-columns:1.15fr 1.2fr 1.2fr 130px 1.1fr 1.4fr auto;gap:8px;align-items:end;padding-top:14px;border-top:1px solid rgba(255,255,255,.15)}
+  .bank-form label{color:#aebbd0}.bank-form input,.bank-form select{background:rgba(255,255,255,.95)}
+  .bank-avail{font-size:10px;color:#aebbd0;margin-top:4px;min-height:15px}
+  .bank-history{margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.15)}
+  .bank-history-title{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#aebbd0;font-weight:800;margin-bottom:5px}
+  .bank-op{display:grid;grid-template-columns:78px 24px 1fr auto 145px;gap:9px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.09);font-size:11.5px}
+  .bank-op:last-child{border-bottom:none}.bank-op .dt{color:#9fb0c9}.bank-op .arr{font-size:15px;font-weight:800;text-align:center}.bank-op .meta{color:#aebbd0;font-size:10px}.bank-op .amt{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}.bank-op .usr{color:#aebbd0;font-size:10px;text-align:right;overflow:hidden;text-overflow:ellipsis}
+  @media(max-width:900px){.bank-top{grid-template-columns:1fr 1fr}.bank-form{grid-template-columns:1fr 1fr}.bank-op{grid-template-columns:70px 20px 1fr auto}.bank-op .usr{display:none}}
   .tg{font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:4px;background:#eceef2;color:var(--muted);white-space:nowrap}
   .txg{display:grid;gap:10px}
   @media(max-width:760px){.txg{grid-template-columns:1fr 1fr!important}}
@@ -217,9 +231,14 @@ const DEFAULT_FUNDS=[
   {name:'Налоги',pct:8},
   {name:'Накладные (офис, техника, транспорт)',pct:7},
   {name:'Прибыль (резерв)',pct:10}];
-let DB={projects:[],sel:null,audit:[]};
+let DB={projects:[],sel:null,audit:[],bank:{name:'Главный фонд компании',ops:[]}};
 let _id=1;
 const uid=()=>'x'+(_id++)+'_'+Math.random().toString(36).slice(2,6);
+function ensureBank(){
+  if(!DB.bank||typeof DB.bank!=='object')DB.bank={name:'Главный фонд компании',ops:[]};
+  DB.bank.name=DB.bank.name||'Главный фонд компании';DB.bank.ops=Array.isArray(DB.bank.ops)?DB.bank.ops:[];
+  return DB.bank;
+}
 function migrateProject(p){
   p.tasks=p.tasks||[];p.finIn=p.finIn||[];p.finOut=p.finOut||[];
   // старая пометка «исполнено» (строка превращалась в операцию) → закрытая строка плана
@@ -231,7 +250,8 @@ function localSave(){localStorage.setItem(LS,JSON.stringify({...DB,_id}))}
 function save(){localSave();schedulePush()}
 function load(){
   try{const raw=localStorage.getItem(LS);if(!raw)return false;
-    const d=JSON.parse(raw);DB={projects:d.projects||[],stages:d.stages||null,sel:d.sel||null,audit:d.audit||[],impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null,dictUrl:d.dictUrl||'',fundDict:d.fundDict||null,atlSeeded:!!d.atlSeeded};_id=d._id||1000;
+    const d=JSON.parse(raw);DB={projects:d.projects||[],stages:d.stages||null,sel:d.sel||null,audit:d.audit||[],bank:d.bank||null,impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null,dictUrl:d.dictUrl||'',fundDict:d.fundDict||null,atlSeeded:!!d.atlSeeded};_id=d._id||1000;
+    ensureBank();
     DB.projects.forEach(migrateProject);
     return DB.projects.length>0;
   }catch(e){return false}
@@ -272,6 +292,7 @@ async function syncPull(initial){
     _id=Math.max(_id||1,(srv._id||0)+1);
     DB={...srv,sel};delete DB._id;
     DB.audit=DB.audit||[];
+    ensureBank();
     _srvVer=j.ver;_dirty=false;
     localStorage.setItem(LS,JSON.stringify({...DB,_id}));
     DB.projects.forEach(migrateProject);
@@ -595,14 +616,14 @@ function planCascade(p,kind){
   const isFin=kind==='finin'||kind==='finout';
   const map={_over:0,_fact:0};
   if(isIncome){
-    let pool=p.ops.filter(o=>o.type==='in'&&(isFin?o.src==='fin':o.src!=='fin')).reduce((s,o)=>s+Math.abs(o.amt||0),0);
+    let pool=p.ops.filter(o=>o.type==='in'&&(isFin?(o.src==='fin'||o.src==='bank'):(o.src!=='fin'&&o.src!=='bank'))).reduce((s,o)=>s+Math.abs(o.amt||0),0);
     map._fact=pool;
     rows.forEach(r=>{const amt=Math.abs(r.amt||0);const fill=Math.min(pool,amt);pool-=fill;
       map[r.id]={amt,fill,pct:amt?Math.min(100,fill/amt*100):0}});
     map._over=pool; // факта пришло больше, чем всего в плане
   }else{
     const byFund={};
-    p.ops.filter(o=>o.type==='out'&&(isFin?o.src==='fin':o.src!=='fin')).forEach(o=>{
+    p.ops.filter(o=>o.type==='out'&&(isFin?(o.src==='fin'||o.src==='bank'):(o.src!=='fin'&&o.src!=='bank'))).forEach(o=>{
       byFund[o.fund||'']=(byFund[o.fund||'']||0)+Math.abs(o.amt||0);map._fact+=Math.abs(o.amt||0)});
     rows.forEach(r=>{const amt=Math.abs(r.amt||0);const k=r.fund||'';
       const pool=byFund[k]||0;const fill=Math.min(pool,amt);byFund[k]=pool-fill;
@@ -746,17 +767,82 @@ function render(){
   if(DB.sel&&P())return renderProject(host,P());
   renderList(host);
 }
+function bankStats(){
+  const bank=ensureBank();let incoming=0,outgoing=0;
+  bank.ops.forEach(o=>{if(o.dir==='in')incoming+=Math.abs(o.amt||0);else outgoing+=Math.abs(o.amt||0)});
+  return{incoming,outgoing,balance:incoming-outgoing};
+}
+function bankSectionHtml(){
+  const bank=ensureBank(),st=bankStats(),k=window._bankKeep||{};
+  const p=DB.projects.find(x=>x.id===k.projectId)||DB.projects[0];
+  const projectOpts=DB.projects.map(x=>`<option value="${x.id}"${p&&x.id===p.id?' selected':''}>${esc(x.name)}</option>`).join('');
+  const fundOpts=(p?.funds||[]).map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join('');
+  const dir=k.dir||'toBank';
+  const ops=[...bank.ops].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||'')).slice(0,20);
+  const history=ops.length?ops.map(o=>`<div class="bank-op">
+    <span class="dt">${dRu(o.date)}</span><span class="arr ${o.dir==='in'?'pos':'neg'}">${o.dir==='in'?'→':'←'}</span>
+    <span><b>${esc(o.project||'Проект')}</b> · ${esc(o.fund||'фонд')}<div class="meta">${esc(o.note||'без комментария')}</div></span>
+    <span class="amt ${o.dir==='in'?'pos':'neg'}">${o.dir==='in'?'+':'−'}${fmt(Math.abs(o.amt||0))} ₸</span>
+    <span class="usr">${esc(o.user||'пользователь')}</span></div>`).join(''):'<div style="font-size:11.5px;color:#aebbd0">Переводов пока нет.</div>';
+  return `<h2 style="margin-top:4px">Банк финансирования</h2>
+  <div class="bank-card card">
+    <div class="bank-top">
+      <div><div class="bank-title">🏦 ${esc(bank.name)}</div><div class="bank-sub">Общий банк для финансирования всех проектов</div></div>
+      <div class="bank-kpi"><div class="k">Баланс банка</div><div class="v ${st.balance>=0?'pos':'neg'}">${fmt(st.balance)} ₸</div></div>
+      <div class="bank-kpi"><div class="k">Получено из проектов</div><div class="v">+${fmt(st.incoming)} ₸</div></div>
+      <div class="bank-kpi"><div class="k">Выдано проектам</div><div class="v">−${fmt(st.outgoing)} ₸</div></div>
+    </div>
+    ${DB.projects.length?`<div class="bank-form">
+      <div><label>Направление</label><select id="bankDir" onchange="bankDirChange()"><option value="toBank"${dir==='toBank'?' selected':''}>Проект → Банк</option><option value="fromBank"${dir==='fromBank'?' selected':''}>Банк → Проект</option></select></div>
+      <div><label>Проект</label><select id="bankProject" onchange="bankProjectChange()">${projectOpts}</select></div>
+      <div><label>Фонд проекта</label><select id="bankFund" onchange="bankUpdateUI()">${fundOpts}</select><div class="bank-avail" id="bankAvail"></div></div>
+      <div><label>Дата</label><input type="date" id="bankDate" value="${k.date||todayIso()}"></div>
+      <div><label>Сумма, ₸</label><input type="text" class="money-input" id="bankAmt" inputmode="numeric" placeholder="0"></div>
+      <div><label>Комментарий</label><input id="bankNote" placeholder="финансирование / возврат в банк"></div>
+      <button class="btn" id="bankBtn" onclick="addBankTransfer()">Перевести</button>
+    </div>`:'<div style="padding-top:12px;border-top:1px solid rgba(255,255,255,.15);font-size:12px;color:#aebbd0">Создайте проект, чтобы переводить деньги между его фондами и Банком компании.</div>'}
+    <div class="bank-history"><div class="bank-history-title">Последние переводы</div>${history}</div>
+  </div>`;
+}
+function bankProjectChange(){
+  const p=DB.projects.find(x=>x.id===document.getElementById('bankProject')?.value);if(!p)return;
+  const sel=document.getElementById('bankFund');sel.innerHTML=p.funds.map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join('');bankUpdateUI();
+}
+function bankDirChange(){bankUpdateUI()}
+function bankUpdateUI(){
+  const dir=document.getElementById('bankDir')?.value||'toBank';
+  const p=DB.projects.find(x=>x.id===document.getElementById('bankProject')?.value),fid=document.getElementById('bankFund')?.value;
+  const el=document.getElementById('bankAvail'),btn=document.getElementById('bankBtn');if(btn)btn.textContent=dir==='toBank'?'Перевести в Банк':'Финансировать проект';
+  if(!el)return;if(dir==='fromBank'){el.textContent='доступно в Банке: '+fmt(bankStats().balance)+' ₸';return}
+  const bal=p&&fundBalances(p)[fid]?.bal||0;el.textContent='доступно в фонде: '+fmt(bal)+' ₸';
+}
+function addBankTransfer(){
+  const dir=document.getElementById('bankDir')?.value||'toBank';
+  const p=DB.projects.find(x=>x.id===document.getElementById('bankProject')?.value);if(!p){toast('Выберите проект','err');return}
+  const fid=document.getElementById('bankFund')?.value,f=p.funds.find(x=>x.id===fid);if(!f){toast('Выберите фонд проекта','err');return}
+  const date=document.getElementById('bankDate')?.value,amt=Math.abs(impNum(document.getElementById('bankAmt')?.value));
+  if(!date||!amt){toast('Укажите дату и сумму','err');return}
+  const source=dir==='toBank'?(fundBalances(p)[fid]?.bal||0):bankStats().balance;
+  if(amt>source){toast(dir==='toBank'?'В фонде недостаточно денег':'В Банке компании недостаточно денег','err');return}
+  const id=uid(),note=document.getElementById('bankNote')?.value.trim()||'',user=getSession()?.email||'доступ по ключу';
+  ensureBank().ops.unshift({id,date,createdAt:new Date().toISOString(),dir:dir==='toBank'?'in':'out',projectId:p.id,project:p.name,fundId:f.id,fund:f.name,amt,user,note});
+  if(dir==='toBank')p.ops.push({id:uid(),type:'out',date,amt:-amt,fund:f.id,src:'bank',bankTransferId:id,note:note||'перевод в Главный фонд компании'});
+  else p.ops.push({id:uid(),type:'in',date,amt,alloc:{[f.id]:amt},src:'bank',bankTransferId:id,note:note||'финансирование из Главного фонда компании'});
+  window._bankKeep={dir,projectId:p.id,date};
+  auditLog(dir==='toBank'?'Перевод в Банк компании':'Финансирование из Банка компании',fmt(amt)+' ₸ · '+f.name+(note?' · '+note:''),p);
+  toast(dir==='toBank'?'Деньги переведены в Банк компании ✓':'Проект профинансирован из Банка ✓');render();
+}
 function renderList(host){
   if(!DB.projects.length){
-    host.innerHTML=`<div class="card" style="text-align:center;padding:44px 20px">
+    host.innerHTML=`${bankSectionHtml()}<div class="card" style="text-align:center;padding:44px 20px">
       <div style="font-size:17px;font-weight:700;margin-bottom:6px">Проектов пока нет</div>
       <div style="font-size:13px;color:var(--muted);margin-bottom:18px">Заведи первый: сумма договора, план поступлений и трат — и система покажет кассу по месяцам.</div>
-      <button class="btn" onclick="showNew()">+ Новый проект</button></div>`;return;
+      <button class="btn" onclick="showNew()">+ Новый проект</button></div>`;formatMoneyInputs(host);return;
   }
   ensureStages();
   const card=p=>{
     const fb=fundBalances(p);const cash=Object.values(fb).reduce((s,x)=>s+x.bal,0);
-    const got=p.ops.filter(o=>o.type==='in').reduce((s,o)=>s+o.amt,0);
+    const got=p.ops.filter(o=>o.type==='in'&&o.src!=='fin'&&o.src!=='bank').reduce((s,o)=>s+o.amt,0);
     const gap=firstGap(p);
     return `<div class="kb-card" data-pid="${p.id}">
       <div class="nm">${esc(p.name)}</div><div class="cu">${esc(p.customer||'заказчик не указан')}</div>
@@ -775,7 +861,7 @@ function renderList(host){
       :`<div class="kb-head"><span style="flex:1">${esc(st.name)}</span><span class="cnt">${ps.length}</span></div>`;
     return `<div class="kb-col" data-st="${st.id}">${head}${ps.map(card).join('')||'<div class="kb-empty">перетащи сюда проект</div>'}</div>`;
   }).join('');
-  host.innerHTML=`<div class="kb-bar"><h2 style="margin:0">Проекты · ${DB.projects.length}</h2><span style="flex:1"></span>
+  host.innerHTML=`${bankSectionHtml()}<div class="kb-bar"><h2 style="margin:0">Проекты · ${DB.projects.length}</h2><span style="flex:1"></span>
     ${_kbEdit?`<button class="btn ghost" onclick="addStage()">+ этап</button><button class="btn" style="padding:8px 16px;font-size:12.5px" onclick="_kbEdit=false;render()">Готово</button>`
       :`<button class="btn ghost" onclick="_kbEdit=true;render()">⚙ настроить этапы</button>`}</div>
   <div class="explain">Все проекты по этапам. <b>Перетащи карточку</b> в другую колонку — этап сменится. Клик — открыть проект. «Настроить этапы» — переименовать, поменять порядок (◀ ▶), удалить или добавить свой этап.</div>
@@ -799,6 +885,7 @@ function renderList(host){
   </div>`;
   bindKbDrag();
   formatMoneyInputs(host);
+  setTimeout(bankUpdateUI,0);
 }
 
 /* ============ РУЧНОЙ ВВОД ТРАНЗАКЦИЙ (глобальная форма) ============ */
@@ -1189,10 +1276,10 @@ function renderProject(host,p){
   [...p.planOut,...(p.finOut||[])].forEach(r=>{if(!p.funds.some(f=>f.id===r.fund))r.fund=p.funds[0]?.id||''});
   const fb=fundBalances(p);
   const cash=Object.values(fb).reduce((s,x)=>s+x.bal,0);
-  const got=p.ops.filter(o=>o.type==='in'&&o.src!=='fin').reduce((s,o)=>s+o.amt,0);
-  const finGot=p.ops.filter(o=>o.type==='in'&&o.src==='fin').reduce((s,o)=>s+o.amt,0);
-  const finRet=p.ops.filter(o=>o.type==='out'&&o.src==='fin').reduce((s,o)=>s+Math.abs(o.amt),0);
-  const spent=p.ops.filter(o=>o.type==='out'&&o.src!=='fin').reduce((s,o)=>s+Math.abs(o.amt),0);
+  const got=p.ops.filter(o=>o.type==='in'&&o.src!=='fin'&&o.src!=='bank').reduce((s,o)=>s+o.amt,0);
+  const finGot=p.ops.filter(o=>o.type==='in'&&(o.src==='fin'||o.src==='bank')).reduce((s,o)=>s+o.amt,0);
+  const finRet=p.ops.filter(o=>o.type==='out'&&(o.src==='fin'||o.src==='bank')).reduce((s,o)=>s+Math.abs(o.amt),0);
+  const spent=p.ops.filter(o=>o.type==='out'&&o.src!=='fin'&&o.src!=='bank').reduce((s,o)=>s+Math.abs(o.amt),0);
   const planOutLeft=p.planOut.filter(r=>r.date>=todayIso()).reduce((s,r)=>s+Math.abs(r.amt),0);
   const marginPlan=p.contract-spent-planOutLeft;
   const gap=firstGap(p);
@@ -1298,7 +1385,7 @@ function renderProject(host,p){
   const opRows=ops.length?ops.map(o=>{
     const fundSel=o=>`<select onchange="opSetFund('${o.id}',this.value)" style="width:auto;padding:2px 6px;font-size:10.5px;background:#fff" title="сменить фонд операции">${p.funds.map(f=>`<option value="${f.id}"${o.fund===f.id?' selected':''}>${esc(f.name)}</option>`).join('')}${!p.funds.some(f=>f.id===o.fund)?'<option selected>фонд удалён</option>':''}</select>`;
     if(o.type==='in'){
-      const row=`<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'поступление')}${o.cp?' <span style="color:var(--muted);font-weight:400">· '+esc(o.cp)+'</span>':''}</div><div class="c">${o.art?'<span class="tg">'+esc(o.art)+'</span> ':''}${o.src==='fin'?'<b style="color:var(--amber)">финансирование</b> · ':''}по фондам: ${p.funds.map(f=>o.alloc[f.id]?esc(f.name.split(' ')[0])+' '+fmtM(o.alloc[f.id]):'').filter(Boolean).join(' · ')} <span style="color:var(--blue);cursor:pointer;font-weight:700" onclick="raOpen('${o.id}')">⚙ раскладка</span></div></div><div class="am pos">+${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
+      const row=`<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'поступление')}${o.cp?' <span style="color:var(--muted);font-weight:400">· '+esc(o.cp)+'</span>':''}</div><div class="c">${o.art?'<span class="tg">'+esc(o.art)+'</span> ':''}${o.src==='fin'?'<b style="color:var(--amber)">финансирование</b> · ':o.src==='bank'?'<b style="color:var(--blue)">из Банка компании</b> · ':''}по фондам: ${p.funds.map(f=>o.alloc[f.id]?esc(f.name.split(' ')[0])+' '+fmtM(o.alloc[f.id]):'').filter(Boolean).join(' · ')} ${o.src==='bank'?'':`<span style="color:var(--blue);cursor:pointer;font-weight:700" onclick="raOpen('${o.id}')">⚙ раскладка</span>`}</div></div><div class="am pos">+${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
       if(window._reallocOp!==o.id)return row;
       return row+`<div style="background:#eef1f5;border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin:2px 0 8px">
         <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">Точная раскладка ${fmt(o.amt)} ₸ по фондам</div>
@@ -1307,7 +1394,7 @@ function renderProject(host,p){
         <div style="display:flex;gap:8px"><button class="btn grn" style="padding:7px 14px;font-size:12px" onclick="raSave('${o.id}')">Сохранить</button><button class="btn ghost" style="padding:7px 14px;font-size:12px" onclick="window._reallocOp=null;render()">Отмена</button></div>
       </div>`;
     }
-    if(o.type==='out')return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'расход')}${o.cp?' <span style="color:var(--muted);font-weight:400">· '+esc(o.cp)+'</span>':''}</div><div class="c" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">${o.art?'<span class="tg">'+esc(o.art)+'</span>':''}из фонда: ${fundSel(o)}${o.src==='fin'?' <b style="color:var(--amber)">возврат финансирования</b>':''}</div></div><div class="am neg">−${fmt(Math.abs(o.amt))}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
+    if(o.type==='out')return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'расход')}${o.cp?' <span style="color:var(--muted);font-weight:400">· '+esc(o.cp)+'</span>':''}</div><div class="c" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">${o.art?'<span class="tg">'+esc(o.art)+'</span>':''}из фонда: ${o.src==='bank'?'<b>'+esc(fname(o.fund))+'</b>':fundSel(o)}${o.src==='fin'?' <b style="color:var(--amber)">возврат финансирования</b>':o.src==='bank'?' <b style="color:var(--blue)">в Банк компании</b>':''}</div></div><div class="am neg">−${fmt(Math.abs(o.amt))}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
     if(o.type==='adj')return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||(o.amt>0?'пополнение фонда вручную':'снятие из фонда вручную'))}</div><div class="c" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">ручное движение · фонд: ${fundSel(o)}</div></div><div class="am ${o.amt>0?'pos':'neg'}">${o.amt>0?'+':''}${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
     return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'перекладка между фондами')}</div><div class="c">${esc(fname(o.from))} → ${esc(fname(o.to))}</div></div><div class="am" style="color:var(--amber)">${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
   }).join(''):'<div style="color:var(--muted);font-size:12.5px;padding:8px 0">Операций пока нет.</div>';
@@ -1591,9 +1678,9 @@ function quickTask(title,due){const p=P();
   toast('Задача добавлена ✓');render()}
 function toggleTask(id){const p=P();const t=taskArr(p).find(x=>x.id===id);if(t){t.done=!t.done;auditLog(t.done?'Задача выполнена':'Задача возвращена в работу',t.title,p)}render()}
 function delTask(id){const p=P();const t=taskArr(p).find(x=>x.id===id);p.tasks=taskArr(p).filter(x=>x.id!==id);auditLog('Удалена задача',t?.title||'',p);render()}
-function delOp(id){const p=P();if(!confirm('Удалить операцию?'))return;const o=p.ops.find(x=>x.id===id);p.ops=p.ops.filter(o=>o.id!==id);auditLog('Удалена операция',o?(fmt(Math.abs(o.amt||0))+' ₸ · '+(o.note||o.type)):'',p);render()}
+function delOp(id){const p=P();const o=p.ops.find(x=>x.id===id);if(o?.bankTransferId){toast('Перевод с Банком компании нельзя удалить из журнала проекта — сделайте обратный перевод','err');return}if(!confirm('Удалить операцию?'))return;p.ops=p.ops.filter(o=>o.id!==id);auditLog('Удалена операция',o?(fmt(Math.abs(o.amt||0))+' ₸ · '+(o.note||o.type)):'',p);render()}
 /* смена фонда и точная перераскладка операций в журнале */
-function opSetFund(id,fid){const p=P();const o=p.ops.find(x=>x.id===id);if(o&&p.funds.some(f=>f.id===fid)){o.fund=fid;auditLog('Изменён фонд операции',p.funds.find(f=>f.id===fid)?.name||'',p);toast('Фонд операции изменён ✓');render()}}
+function opSetFund(id,fid){const p=P();const o=p.ops.find(x=>x.id===id);if(o?.bankTransferId){toast('Фонд банковского перевода не меняется — сделайте обратный перевод','err');render();return}if(o&&p.funds.some(f=>f.id===fid)){o.fund=fid;auditLog('Изменён фонд операции',p.funds.find(f=>f.id===fid)?.name||'',p);toast('Фонд операции изменён ✓');render()}}
 function raOpen(id){window._reallocOp=id;render()}
 function raLeft(id){const p=P();const o=p.ops.find(x=>x.id===id);if(!o)return;
   const s=[...document.querySelectorAll('.ra-amt')].reduce((x,i)=>x+Math.abs(impNum(i.value)),0);
@@ -1733,7 +1820,7 @@ function importData(inp){
   const rd=new FileReader();
   rd.onload=()=>{try{const d=JSON.parse(rd.result);
     if(!Array.isArray(d.projects))throw 0;
-    DB={projects:d.projects,stages:d.stages||null,sel:null,impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null,dictUrl:d.dictUrl||'',fundDict:d.fundDict||null,atlSeeded:!!d.atlSeeded};_id=d._id||9000;
+    DB={projects:d.projects,stages:d.stages||null,sel:null,audit:d.audit||[],bank:d.bank||null,impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null,dictUrl:d.dictUrl||'',fundDict:d.fundDict||null,atlSeeded:!!d.atlSeeded};_id=d._id||9000;ensureBank();
     DB.projects.forEach(migrateProject);
     ensureStages();toast('Данные загружены ✓');render();
   }catch(e){toast('Не получилось прочитать файл','err')}};
