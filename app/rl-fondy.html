@@ -249,7 +249,15 @@ function migrateProject(p){
     if(r.closed){r.done=true;r.doneAt=r.closedAt||todayIso();delete r.closed;delete r.closedAt}
   }));
 }
-function localSave(){localStorage.setItem(LS,JSON.stringify({...DB,_id}))}
+function localSave(){
+  // Полный журнал хранится на сервере. Если браузерная квота заполнена,
+  // сохраняем облегчённую локальную копию и не прерываем render/sync.
+  try{localStorage.setItem(LS,JSON.stringify({...DB,_id}));return true}
+  catch(e){
+    try{localStorage.setItem(LS,JSON.stringify({...DB,audit:(DB.audit||[]).slice(0,200),_id}));return true}
+    catch(e2){console.warn('Локальная копия не сохранена',e2);return false}
+  }
+}
 function save(){localSave();schedulePush()}
 function load(){
   try{const raw=localStorage.getItem(LS);if(!raw)return false;
@@ -297,7 +305,7 @@ async function syncPull(initial){
     DB.audit=DB.audit||[];
     ensureBank();
     _srvVer=j.ver;_dirty=false;
-    localStorage.setItem(LS,JSON.stringify({...DB,_id}));
+    localSave();
     DB.projects.forEach(migrateProject);
     _noPush=true; // рендер серверных данных не должен пушить их обратно (эхо)
     ensureStages();render();
