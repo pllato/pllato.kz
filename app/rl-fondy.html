@@ -460,6 +460,9 @@ async function admDel(email){
 const fmt=n=>(n||n===0)?new Intl.NumberFormat('ru-RU').format(Math.round(n)):'—';
 const fmtM=n=>(n<0?'−':'')+(Math.abs(n)/1e6).toFixed(Math.abs(n)<1e7?1:0).replace('.',',')+' млн';
 const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const companyFundText=s=>String(s??'')
+  .replace(/Банком компании/g,'Главным фондом компании').replace(/Банка компании/g,'Главного фонда компании')
+  .replace(/Банке компании/g,'Главном фонде компании').replace(/в Банк/g,'в Главный фонд').replace(/из Банка/g,'из Главного фонда');
 function formatMoneyInputs(root=document){
   root.querySelectorAll('.money-input').forEach(i=>{
     const show=()=>{if(i.value.trim()!=='')i.value=fmt(impNum(i.value))};
@@ -800,27 +803,27 @@ function bankSectionHtml(){
   const dir=k.dir||'toBank';
   const ops=[...bank.ops].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||'')).slice(0,20);
   const history=ops.length?ops.map(o=>`<div class="bank-op${o.cancelledAt?' cancelled':''}">
-    <span class="dt">${dRu(o.date)}</span><span class="arr ${o.dir==='in'?'pos':'neg'}">${o.dir==='in'?'В БАНК':'ИЗ БАНКА → В ПРОЕКТ'}</span>
+    <span class="dt">${dRu(o.date)}</span><span class="arr ${o.dir==='in'?'pos':'neg'}">${o.dir==='in'?'В ГЛАВНЫЙ ФОНД':'ИЗ ГЛАВНОГО ФОНДА → В ПРОЕКТ'}</span>
     <span><b>${esc(o.project||'Проект')}</b> · ${esc(o.fund||'фонд')}<div class="meta">${o.cancelledAt?'отменено '+esc(auditTime(o.cancelledAt))+' · ':''}${esc(o.note||'без комментария')}</div></span>
     <span class="amt ${o.dir==='in'?'pos':'neg'}">${o.dir==='in'?'+':'−'}${fmt(Math.abs(o.amt||0))} ₸</span>
     <span class="usr">${esc(o.user||'пользователь')}</span>${o.cancelledAt?'<span class="bank-cancelled">отменено</span>':`<button type="button" class="bank-cancel" onclick="cancelBankTransfer('${o.id}')">Отменить</button>`}</div>`).join(''):'<div style="font-size:11.5px;color:#aebbd0">Переводов пока нет.</div>';
-  return `<h2 style="margin-top:4px">Банк финансирования</h2>
+  return `<h2 style="margin-top:4px">Фондирование проектов</h2>
   <div class="bank-card card">
     <div class="bank-top">
-      <div><div class="bank-title">🏦 ${esc(bank.name)}</div><div class="bank-sub">Общий банк для финансирования всех проектов</div></div>
-      <div class="bank-kpi"><div class="k">Баланс банка</div><div class="v ${st.balance>=0?'pos':'neg'}">${fmt(st.balance)} ₸</div></div>
+      <div><div class="bank-title">💼 ${esc(bank.name)}</div><div class="bank-sub">Общий фонд для финансирования всех проектов</div></div>
+      <div class="bank-kpi"><div class="k">Баланс Главного фонда</div><div class="v ${st.balance>=0?'pos':'neg'}">${fmt(st.balance)} ₸</div></div>
       <div class="bank-kpi"><div class="k">Получено из проектов</div><div class="v">+${fmt(st.incoming)} ₸</div></div>
       <div class="bank-kpi"><div class="k">Выдано проектам</div><div class="v">−${fmt(st.outgoing)} ₸</div></div>
     </div>
     ${DB.projects.length?`<div class="bank-form">
-      <div><label>Направление</label><select id="bankDir" onchange="bankDirChange()"><option value="toBank"${dir==='toBank'?' selected':''}>Проект → Банк</option><option value="fromBank"${dir==='fromBank'?' selected':''}>Банк → Проект</option></select></div>
+      <div><label>Направление</label><select id="bankDir" onchange="bankDirChange()"><option value="toBank"${dir==='toBank'?' selected':''}>Проект → Главный фонд</option><option value="fromBank"${dir==='fromBank'?' selected':''}>Главный фонд → Проект</option></select></div>
       <div><label>Проект</label><select id="bankProject" onchange="bankProjectChange()">${projectOpts}</select></div>
       <div><label>Фонд проекта</label><select id="bankFund" onchange="bankUpdateUI()">${fundOpts}</select><div class="bank-avail" id="bankAvail"></div></div>
       <div><label>Дата</label><input type="date" id="bankDate" value="${k.date||todayIso()}"></div>
       <div><label>Сумма, ₸</label><input type="text" class="money-input" id="bankAmt" inputmode="numeric" placeholder="0"></div>
-      <div><label>Комментарий</label><input id="bankNote" placeholder="финансирование / возврат в банк"></div>
+      <div><label>Комментарий</label><input id="bankNote" placeholder="финансирование / возврат в Главный фонд"></div>
       <button type="button" class="btn" id="bankBtn" onclick="addBankTransfer()">Перевести</button>
-    </div>`:'<div style="padding-top:12px;border-top:1px solid rgba(255,255,255,.15);font-size:12px;color:#aebbd0">Создайте проект, чтобы переводить деньги между его фондами и Банком компании.</div>'}
+    </div>`:'<div style="padding-top:12px;border-top:1px solid rgba(255,255,255,.15);font-size:12px;color:#aebbd0">Создайте проект, чтобы переводить деньги между его фондами и Главным фондом компании.</div>'}
     <div class="bank-history"><div class="bank-history-title">Последние переводы</div>${history}</div>
   </div>`;
 }
@@ -832,8 +835,8 @@ function bankDirChange(){bankUpdateUI()}
 function bankUpdateUI(){
   const dir=document.getElementById('bankDir')?.value||'toBank';
   const p=DB.projects.find(x=>x.id===document.getElementById('bankProject')?.value),fid=document.getElementById('bankFund')?.value;
-  const el=document.getElementById('bankAvail'),btn=document.getElementById('bankBtn');if(btn)btn.textContent=dir==='toBank'?'Перевести в Банк':'Финансировать проект';
-  if(!el)return;if(dir==='fromBank'){el.textContent='доступно в Банке: '+fmt(bankStats().balance)+' ₸';return}
+  const el=document.getElementById('bankAvail'),btn=document.getElementById('bankBtn');if(btn)btn.textContent=dir==='toBank'?'Перевести в Главный фонд':'Финансировать проект';
+  if(!el)return;if(dir==='fromBank'){el.textContent='доступно в Главном фонде: '+fmt(bankStats().balance)+' ₸';return}
   const bal=p&&fundBalances(p)[fid]?.bal||0;el.textContent='доступно в фонде: '+fmt(bal)+' ₸';
 }
 function addBankTransfer(){
@@ -843,14 +846,14 @@ function addBankTransfer(){
   const date=document.getElementById('bankDate')?.value,amt=Math.abs(impNum(document.getElementById('bankAmt')?.value));
   if(!date||!amt){toast('Укажите дату и сумму','err');return}
   const source=dir==='toBank'?(fundBalances(p)[fid]?.bal||0):bankStats().balance;
-  if(amt>source){toast(dir==='toBank'?'В фонде недостаточно денег':'В Банке компании недостаточно денег','err');return}
+  if(amt>source){toast(dir==='toBank'?'В фонде недостаточно денег':'В Главном фонде компании недостаточно денег','err');return}
   const id=uid(),note=document.getElementById('bankNote')?.value.trim()||'',user=getSession()?.email||'доступ по ключу';
   ensureBank().ops.unshift({id,date,createdAt:new Date().toISOString(),dir:dir==='toBank'?'in':'out',projectId:p.id,project:p.name,fundId:f.id,fund:f.name,amt,user,note});
   if(dir==='toBank')p.ops.push({id:uid(),type:'out',date,amt:-amt,fund:f.id,src:'bank',bankTransferId:id,note:note||'перевод в Главный фонд компании'});
   else p.ops.push({id:uid(),type:'in',date,amt,alloc:{[f.id]:amt},src:'bank',bankTransferId:id,note:note||'финансирование из Главного фонда компании'});
   window._bankKeep={dir,projectId:p.id,date};
-  auditLog(dir==='toBank'?'Перевод в Банк компании':'Финансирование из Банка компании',fmt(amt)+' ₸ · '+f.name+(note?' · '+note:''),p);
-  toast(dir==='toBank'?'Деньги переведены в Банк компании ✓':'Проект профинансирован из Банка ✓');render();
+  auditLog(dir==='toBank'?'Перевод в Главный фонд компании':'Финансирование из Главного фонда компании',fmt(amt)+' ₸ · '+f.name+(note?' · '+note:''),p);
+  toast(dir==='toBank'?'Деньги переведены в Главный фонд компании ✓':'Проект профинансирован из Главного фонда ✓');render();
 }
 function cancelBankTransfer(id){
   const o=ensureBank().ops.find(x=>x.id===id);if(!o||o.cancelledAt)return;
@@ -858,12 +861,12 @@ function cancelBankTransfer(id){
   const linked=p.ops.find(x=>x.bankTransferId===id);
   if(!linked){toast('Связанная проводка проекта не найдена','err');return}
   const amt=Math.abs(o.amt||0);
-  if(o.dir==='in'&&bankStats().balance<amt){toast('Нельзя отменить: деньги из Банка уже использованы','err');return}
+  if(o.dir==='in'&&bankStats().balance<amt){toast('Нельзя отменить: деньги из Главного фонда уже использованы','err');return}
   if(o.dir==='out'&&(fundBalances(p)[o.fundId]?.bal||0)<amt){toast('Нельзя отменить: деньги в фонде уже использованы','err');return}
   if(!confirm('Отменить перевод '+fmt(amt)+' ₸? Запись останется в истории со статусом «Отменено».'))return;
   p.ops=p.ops.filter(x=>x.bankTransferId!==id);
   o.cancelledAt=new Date().toISOString();o.cancelledBy=getSession()?.email||'доступ по ключу';
-  auditLog('Отменён перевод Банка компании',fmt(amt)+' ₸ · '+o.fund+' · '+(o.dir==='in'?'из проекта в Банк':'из Банка в проект'),p);
+  auditLog('Отменён перевод Главного фонда компании',fmt(amt)+' ₸ · '+o.fund+' · '+(o.dir==='in'?'из проекта в Главный фонд':'из Главного фонда в проект'),p);
   toast('Перевод отменён, остатки восстановлены ✓');render();
 }
 function renderList(host){
@@ -1420,7 +1423,7 @@ function renderProject(host,p){
   const opRows=ops.length?ops.map(o=>{
     const fundSel=o=>`<select onchange="opSetFund('${o.id}',this.value)" style="width:auto;padding:2px 6px;font-size:10.5px;background:#fff" title="сменить фонд операции">${p.funds.map(f=>`<option value="${f.id}"${o.fund===f.id?' selected':''}>${esc(f.name)}</option>`).join('')}${!p.funds.some(f=>f.id===o.fund)?'<option selected>фонд удалён</option>':''}</select>`;
     if(o.type==='in'){
-      const row=`<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'поступление')}${o.cp?' <span style="color:var(--muted);font-weight:400">· '+esc(o.cp)+'</span>':''}</div><div class="c">${o.art?'<span class="tg">'+esc(o.art)+'</span> ':''}${o.src==='fin'?'<b style="color:var(--amber)">финансирование</b> · ':o.src==='bank'?'<b style="color:var(--blue)">из Банка компании</b> · ':''}по фондам: ${p.funds.map(f=>o.alloc[f.id]?esc(f.name.split(' ')[0])+' '+fmtM(o.alloc[f.id]):'').filter(Boolean).join(' · ')} ${o.src==='bank'?'':`<span style="color:var(--blue);cursor:pointer;font-weight:700" onclick="raOpen('${o.id}')">⚙ раскладка</span>`}</div></div><div class="am pos">+${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
+      const row=`<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'поступление')}${o.cp?' <span style="color:var(--muted);font-weight:400">· '+esc(o.cp)+'</span>':''}</div><div class="c">${o.art?'<span class="tg">'+esc(o.art)+'</span> ':''}${o.src==='fin'?'<b style="color:var(--amber)">финансирование</b> · ':o.src==='bank'?'<b style="color:var(--blue)">из Главного фонда компании</b> · ':''}по фондам: ${p.funds.map(f=>o.alloc[f.id]?esc(f.name.split(' ')[0])+' '+fmtM(o.alloc[f.id]):'').filter(Boolean).join(' · ')} ${o.src==='bank'?'':`<span style="color:var(--blue);cursor:pointer;font-weight:700" onclick="raOpen('${o.id}')">⚙ раскладка</span>`}</div></div><div class="am pos">+${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
       if(window._reallocOp!==o.id)return row;
       return row+`<div style="background:#eef1f5;border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin:2px 0 8px">
         <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">Точная раскладка ${fmt(o.amt)} ₸ по фондам</div>
@@ -1429,14 +1432,14 @@ function renderProject(host,p){
         <div style="display:flex;gap:8px"><button class="btn grn" style="padding:7px 14px;font-size:12px" onclick="raSave('${o.id}')">Сохранить</button><button class="btn ghost" style="padding:7px 14px;font-size:12px" onclick="window._reallocOp=null;render()">Отмена</button></div>
       </div>`;
     }
-    if(o.type==='out')return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'расход')}${o.cp?' <span style="color:var(--muted);font-weight:400">· '+esc(o.cp)+'</span>':''}</div><div class="c" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">${o.art?'<span class="tg">'+esc(o.art)+'</span>':''}из фонда: ${o.src==='bank'?'<b>'+esc(fname(o.fund))+'</b>':fundSel(o)}${o.src==='fin'?' <b style="color:var(--amber)">возврат финансирования</b>':o.src==='bank'?' <b style="color:var(--blue)">в Банк компании</b>':''}</div></div><div class="am neg">−${fmt(Math.abs(o.amt))}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
+    if(o.type==='out')return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'расход')}${o.cp?' <span style="color:var(--muted);font-weight:400">· '+esc(o.cp)+'</span>':''}</div><div class="c" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">${o.art?'<span class="tg">'+esc(o.art)+'</span>':''}из фонда: ${o.src==='bank'?'<b>'+esc(fname(o.fund))+'</b>':fundSel(o)}${o.src==='fin'?' <b style="color:var(--amber)">возврат финансирования</b>':o.src==='bank'?' <b style="color:var(--blue)">в Главный фонд компании</b>':''}</div></div><div class="am neg">−${fmt(Math.abs(o.amt))}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
     if(o.type==='adj')return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||(o.amt>0?'пополнение фонда вручную':'снятие из фонда вручную'))}</div><div class="c" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">ручное движение · фонд: ${fundSel(o)}</div></div><div class="am ${o.amt>0?'pos':'neg'}">${o.amt>0?'+':''}${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
     return `<div class="oprow"><div class="dt">${dRu(o.date)}</div><div class="ds"><div class="p">${esc(o.note||'перекладка между фондами')}</div><div class="c">${esc(fname(o.from))} → ${esc(fname(o.to))}</div></div><div class="am" style="color:var(--amber)">${fmt(o.amt)}</div><span class="del" onclick="delOp('${o.id}')">×</span></div>`;
   }).join(''):'<div style="color:var(--muted);font-size:12.5px;padding:8px 0">Операций пока нет.</div>';
   const auditRows=(DB.audit||[]).filter(a=>!a.projectId||a.projectId===p.id).slice(0,300);
   const auditHtml=auditRows.length?auditRows.map(a=>`<div class="oprow">
     <div class="dt">${auditTime(a.at)}</div>
-    <div class="ds"><div class="p">${esc(a.action)}</div><div class="c">${esc(a.detail||'')}${a.project?' · '+esc(a.project):''}</div></div>
+    <div class="ds"><div class="p">${esc(companyFundText(a.action))}</div><div class="c">${esc(companyFundText(a.detail||''))}${a.project?' · '+esc(a.project):''}</div></div>
     <div style="font-size:11.5px;font-weight:700;color:var(--blue);white-space:nowrap">${esc(a.user)}</div>
   </div>`).join(''):'<div style="color:var(--muted);font-size:12.5px;padding:8px 0">Действий пока нет.</div>';
 
@@ -1713,9 +1716,9 @@ function quickTask(title,due){const p=P();
   toast('Задача добавлена ✓');render()}
 function toggleTask(id){const p=P();const t=taskArr(p).find(x=>x.id===id);if(t){t.done=!t.done;auditLog(t.done?'Задача выполнена':'Задача возвращена в работу',t.title,p)}render()}
 function delTask(id){const p=P();const t=taskArr(p).find(x=>x.id===id);p.tasks=taskArr(p).filter(x=>x.id!==id);auditLog('Удалена задача',t?.title||'',p);render()}
-function delOp(id){const p=P();const o=p.ops.find(x=>x.id===id);if(o?.bankTransferId){toast('Перевод с Банком компании нельзя удалить из журнала проекта — сделайте обратный перевод','err');return}if(!confirm('Удалить операцию?'))return;p.ops=p.ops.filter(o=>o.id!==id);auditLog('Удалена операция',o?(fmt(Math.abs(o.amt||0))+' ₸ · '+(o.note||o.type)):'',p);render()}
+function delOp(id){const p=P();const o=p.ops.find(x=>x.id===id);if(o?.bankTransferId){toast('Перевод с Главным фондом компании нельзя удалить из журнала проекта — отмените его на главной странице','err');return}if(!confirm('Удалить операцию?'))return;p.ops=p.ops.filter(o=>o.id!==id);auditLog('Удалена операция',o?(fmt(Math.abs(o.amt||0))+' ₸ · '+(o.note||o.type)):'',p);render()}
 /* смена фонда и точная перераскладка операций в журнале */
-function opSetFund(id,fid){const p=P();const o=p.ops.find(x=>x.id===id);if(o?.bankTransferId){toast('Фонд банковского перевода не меняется — сделайте обратный перевод','err');render();return}if(o&&p.funds.some(f=>f.id===fid)){o.fund=fid;auditLog('Изменён фонд операции',p.funds.find(f=>f.id===fid)?.name||'',p);toast('Фонд операции изменён ✓');render()}}
+function opSetFund(id,fid){const p=P();const o=p.ops.find(x=>x.id===id);if(o?.bankTransferId){toast('Фонд перевода с Главным фондом компании не меняется — отмените операцию на главной странице','err');render();return}if(o&&p.funds.some(f=>f.id===fid)){o.fund=fid;auditLog('Изменён фонд операции',p.funds.find(f=>f.id===fid)?.name||'',p);toast('Фонд операции изменён ✓');render()}}
 function raOpen(id){window._reallocOp=id;render()}
 function raLeft(id){const p=P();const o=p.ops.find(x=>x.id===id);if(!o)return;
   const s=[...document.querySelectorAll('.ra-amt')].reduce((x,i)=>x+Math.abs(impNum(i.value)),0);
