@@ -158,9 +158,10 @@
   .bank-avail{font-size:10px;color:#aebbd0;margin-top:4px;min-height:15px}
   .bank-history{margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.15)}
   .bank-history-title{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#aebbd0;font-weight:800;margin-bottom:5px}
-  .bank-op{display:grid;grid-template-columns:78px 132px 1fr auto 145px;gap:9px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.09);font-size:11.5px}
+  .bank-op{display:grid;grid-template-columns:78px 132px 1fr auto 145px 86px;gap:9px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.09);font-size:11.5px}
   .bank-op:last-child{border-bottom:none}.bank-op .dt{color:#9fb0c9}.bank-op .arr{font-size:9px;font-weight:900;text-align:center;white-space:nowrap;padding:4px 7px;border-radius:5px;background:rgba(255,255,255,.1)}.bank-op .meta{color:#aebbd0;font-size:10px}.bank-op .amt{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}.bank-op .usr{color:#aebbd0;font-size:10px;text-align:right;overflow:hidden;text-overflow:ellipsis}
-  @media(max-width:900px){.bank-top{grid-template-columns:1fr 1fr}.bank-form{grid-template-columns:1fr 1fr}.bank-op{grid-template-columns:70px 120px 1fr auto}.bank-op .usr{display:none}}
+  .bank-op.cancelled{opacity:.52}.bank-op.cancelled .amt{text-decoration:line-through}.bank-cancel{border:1px solid rgba(255,255,255,.25);background:transparent;color:#dbe5f5;border-radius:6px;padding:5px 7px;font:700 9.5px inherit;cursor:pointer}.bank-cancel:hover{background:#a83e45;border-color:#a83e45;color:#fff}.bank-cancelled{font-size:9px;font-weight:800;color:#c7d1e1;text-align:center;text-transform:uppercase}
+  @media(max-width:900px){.bank-top{grid-template-columns:1fr 1fr}.bank-form{grid-template-columns:1fr 1fr}.bank-op{grid-template-columns:70px 120px 1fr auto 82px}.bank-op .usr{display:none}}
   .tg{font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:4px;background:#eceef2;color:var(--muted);white-space:nowrap}
   .txg{display:grid;gap:10px}
   @media(max-width:760px){.txg{grid-template-columns:1fr 1fr!important}}
@@ -780,7 +781,7 @@ function render(){
 }
 function bankStats(){
   const bank=ensureBank();let incoming=0,outgoing=0;
-  bank.ops.forEach(o=>{if(o.dir==='in')incoming+=Math.abs(o.amt||0);else outgoing+=Math.abs(o.amt||0)});
+  bank.ops.forEach(o=>{if(o.cancelledAt)return;if(o.dir==='in')incoming+=Math.abs(o.amt||0);else outgoing+=Math.abs(o.amt||0)});
   return{incoming,outgoing,balance:incoming-outgoing};
 }
 function bankSectionHtml(){
@@ -790,11 +791,11 @@ function bankSectionHtml(){
   const fundOpts=(p?.funds||[]).map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join('');
   const dir=k.dir||'toBank';
   const ops=[...bank.ops].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||'')).slice(0,20);
-  const history=ops.length?ops.map(o=>`<div class="bank-op">
+  const history=ops.length?ops.map(o=>`<div class="bank-op${o.cancelledAt?' cancelled':''}">
     <span class="dt">${dRu(o.date)}</span><span class="arr ${o.dir==='in'?'pos':'neg'}">${o.dir==='in'?'В БАНК':'ИЗ БАНКА → В ПРОЕКТ'}</span>
-    <span><b>${esc(o.project||'Проект')}</b> · ${esc(o.fund||'фонд')}<div class="meta">${esc(o.note||'без комментария')}</div></span>
+    <span><b>${esc(o.project||'Проект')}</b> · ${esc(o.fund||'фонд')}<div class="meta">${o.cancelledAt?'отменено '+esc(auditTime(o.cancelledAt))+' · ':''}${esc(o.note||'без комментария')}</div></span>
     <span class="amt ${o.dir==='in'?'pos':'neg'}">${o.dir==='in'?'+':'−'}${fmt(Math.abs(o.amt||0))} ₸</span>
-    <span class="usr">${esc(o.user||'пользователь')}</span></div>`).join(''):'<div style="font-size:11.5px;color:#aebbd0">Переводов пока нет.</div>';
+    <span class="usr">${esc(o.user||'пользователь')}</span>${o.cancelledAt?'<span class="bank-cancelled">отменено</span>':`<button type="button" class="bank-cancel" onclick="cancelBankTransfer('${o.id}')">Отменить</button>`}</div>`).join(''):'<div style="font-size:11.5px;color:#aebbd0">Переводов пока нет.</div>';
   return `<h2 style="margin-top:4px">Банк финансирования</h2>
   <div class="bank-card card">
     <div class="bank-top">
@@ -842,6 +843,20 @@ function addBankTransfer(){
   window._bankKeep={dir,projectId:p.id,date};
   auditLog(dir==='toBank'?'Перевод в Банк компании':'Финансирование из Банка компании',fmt(amt)+' ₸ · '+f.name+(note?' · '+note:''),p);
   toast(dir==='toBank'?'Деньги переведены в Банк компании ✓':'Проект профинансирован из Банка ✓');render();
+}
+function cancelBankTransfer(id){
+  const o=ensureBank().ops.find(x=>x.id===id);if(!o||o.cancelledAt)return;
+  const p=DB.projects.find(x=>x.id===o.projectId);if(!p){toast('Проект этой операции не найден','err');return}
+  const linked=p.ops.find(x=>x.bankTransferId===id);
+  if(!linked){toast('Связанная проводка проекта не найдена','err');return}
+  const amt=Math.abs(o.amt||0);
+  if(o.dir==='in'&&bankStats().balance<amt){toast('Нельзя отменить: деньги из Банка уже использованы','err');return}
+  if(o.dir==='out'&&(fundBalances(p)[o.fundId]?.bal||0)<amt){toast('Нельзя отменить: деньги в фонде уже использованы','err');return}
+  if(!confirm('Отменить перевод '+fmt(amt)+' ₸? Запись останется в истории со статусом «Отменено».'))return;
+  p.ops=p.ops.filter(x=>x.bankTransferId!==id);
+  o.cancelledAt=new Date().toISOString();o.cancelledBy=getSession()?.email||'доступ по ключу';
+  auditLog('Отменён перевод Банка компании',fmt(amt)+' ₸ · '+o.fund+' · '+(o.dir==='in'?'из проекта в Банк':'из Банка в проект'),p);
+  toast('Перевод отменён, остатки восстановлены ✓');render();
 }
 function renderList(host){
   if(!DB.projects.length){
