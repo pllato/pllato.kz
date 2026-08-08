@@ -731,7 +731,7 @@ function bindKbDrag(){
     // Резервный обычный click нужен для мышей/трекпадов, где pointerup иногда
     // теряется после pointer capture. Защита времени не даёт открыть карточку
     // повторно после штатного pointerup или после перетаскивания.
-    el.onclick=()=>{if(Date.now()-(el._kbPointerEnd||0)>300)openProject(el.dataset.pid)};
+    el.onclick=e=>{if(e.target.closest('.kb-open'))return;if(Date.now()-(el._kbPointerEnd||0)>300)openProject(el.dataset.pid)};
     el.onpointerdown=ev=>{
     if(ev.target.closest('.kb-open'))return;
     if(ev.button!==undefined&&ev.button!==0)return;
@@ -811,7 +811,7 @@ function bankSectionHtml(){
       <div><label>Дата</label><input type="date" id="bankDate" value="${k.date||todayIso()}"></div>
       <div><label>Сумма, ₸</label><input type="text" class="money-input" id="bankAmt" inputmode="numeric" placeholder="0"></div>
       <div><label>Комментарий</label><input id="bankNote" placeholder="финансирование / возврат в банк"></div>
-      <button type="button" class="btn" id="bankBtn" onclick="event.preventDefault();addBankTransfer()">Перевести</button>
+      <button type="button" class="btn" id="bankBtn" onclick="addBankTransfer()">Перевести</button>
     </div>`:'<div style="padding-top:12px;border-top:1px solid rgba(255,255,255,.15);font-size:12px;color:#aebbd0">Создайте проект, чтобы переводить деньги между его фондами и Банком компании.</div>'}
     <div class="bank-history"><div class="bank-history-title">Последние переводы</div>${history}</div>
   </div>`;
@@ -876,7 +876,7 @@ function renderList(host){
       <div class="row"><span>Поступило</span><b class="pos">${fmtM(got)}</b></div>
       <div class="row"><span>Касса</span><b class="${cash>=0?'pos':'neg'}">${fmtM(cash)}</b></div>
       ${gap?`<span class="gap-warn">⚠ разрыв ${mLabel(gap.m)}: ${fmtM(gap.short)}</span>`:`<span class="gap-ok">✓ без разрывов</span>`}
-      <button type="button" class="kb-open" onclick="event.stopPropagation();openProject('${p.id}')">Открыть проект →</button>
+      <button type="button" class="kb-open" onclick="openProject('${p.id}')">Открыть проект →</button>
     </div>`};
   const cols=DB.stages.map(st=>{
     const ps=DB.projects.filter(p=>p.stage===st.id);
