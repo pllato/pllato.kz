@@ -731,7 +731,7 @@ body {
 .fc-status { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 10px; padding:8px 10px; border:1px solid #fde68a; border-radius:9px; background:#fffbeb; color:#92400e; font-size:11.5px; }
 .fc-status button { border:1px solid currentColor; border-radius:7px; background:transparent; color:inherit; padding:5px 8px; font:700 11px/1.2 inherit; cursor:pointer; white-space:nowrap; }
 .fc-grid { display:flex; flex-wrap:nowrap; gap:14px; overflow-x:auto; padding:0 0 8px; scroll-snap-type:x proximity; scrollbar-width:thin; }
-.fc-card { background:var(--surface); border:1px solid var(--line-2); border-radius:14px; padding:16px 18px 14px; flex:0 0 max(290px,calc((100% - 100px) / 3)); min-width:0; aspect-ratio:1 / 1; display:flex; flex-direction:column; scroll-snap-align:start; }
+.fc-card { background:var(--surface); border:1px solid var(--line-2); border-radius:14px; padding:16px 18px 14px; flex:0 0 max(290px,calc((100% - 100px) / 3)); min-width:0; height:clamp(560px,36vw,660px); display:flex; flex-direction:column; scroll-snap-align:start; }
 .fc-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .fc-card-title { font-size: 14px; font-weight: 800; }
 .fc-card-sub { color: var(--text-3); font-size: 11px; margin-top: 2px; }
@@ -754,6 +754,22 @@ body {
 .fc-note-chip .d { color:var(--bronze-deep); font-weight:800; flex:none; }
 .fc-note-chip .t { overflow:hidden; text-overflow:ellipsis; }
 .fc-note-chip:hover { border-color:var(--bronze-deep); }
+.fc-week-tasks { flex:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--line-2); }
+.fc-week-tasks-head { display:flex; align-items:center; gap:7px; min-height:27px; }
+.fc-week-tasks-head strong { font-size:11px; font-weight:800; }
+.fc-week-tasks-head .period { color:var(--text-3); font-size:9.5px; white-space:nowrap; }
+.fc-week-tasks-head button { margin-left:auto; border:1px solid var(--line-2); background:transparent; color:var(--bronze-deep); border-radius:7px; padding:4px 7px; font:700 10px/1.2 inherit; cursor:pointer; }
+.fc-week-tasks-head button:hover { border-color:var(--bronze-deep); }
+.fc-week-tasks-list { max-height:108px; overflow-y:auto; scrollbar-width:thin; }
+.fc-week-task { display:grid; grid-template-columns:18px minmax(0,1fr) auto; align-items:center; gap:6px; padding:5px 0; border-top:1px solid color-mix(in srgb,var(--line-2) 75%,transparent); }
+.fc-week-task:first-child { border-top:0; }
+.fc-week-task input { width:15px; height:15px; margin:0; accent-color:var(--green); cursor:pointer; }
+.fc-week-task .text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-2); font-size:10.5px; line-height:1.35; cursor:pointer; }
+.fc-week-task.done .text { color:var(--text-3); text-decoration:line-through; }
+.fc-week-task .del { border:0; background:transparent; color:var(--text-3); padding:2px 3px; border-radius:5px; cursor:pointer; font-size:12px; }
+.fc-week-task .del:hover { color:#dc2626; background:var(--surface-2); }
+.fc-week-tasks-empty { color:var(--text-3); font-size:10px; padding:7px 0 2px; }
+.fc-week-task-editor input { width:100%; }
 .fc-point-comments { margin-top:14px; border:1px solid #ead8c2; border-radius:11px; background:#fffaf4; padding:11px 12px; }
 .fc-point-comments-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
 .fc-point-comments-head strong { font-size:12px; }
@@ -784,7 +800,7 @@ body {
 .fc-person .n { font-size: 12.5px; font-weight: 700; }
 .fc-person .e { color: var(--text-3); font-size: 10.5px; }
 @media (max-width: 760px) {
-  .fc-card { flex-basis:min(82vw,360px); padding-inline:12px; }
+  .fc-card { flex-basis:min(82vw,360px); height:570px; padding-inline:12px; }
   .fc-labels span { font-size: 8.5px; }
   .fc-detail-row { grid-template-columns:minmax(0,1fr); }
   .fc-detail-row .s { grid-row:auto; grid-column:auto; justify-self:start; }
@@ -3507,6 +3523,8 @@ const FINANCE_CHART_META = {
 let FINANCE_CHART_REQUEST = 0;
 let FINANCE_CHART_COMMENTS = [];
 let FINANCE_CHART_COMMENTS_LOADED = false;
+let FINANCE_WEEK_TASKS = [];
+let FINANCE_WEEK_TASKS_LOADED = false;
 let FINANCE_CHART_RETRY_TIMER = null;
 const FINANCE_CHART_CACHE_VERSION = 1;
 const FINANCE_CHART_KINDS = ['inquiries','kep','orders','cash','releases'];
@@ -3574,6 +3592,12 @@ async function loadFinanceChartComments(){
   const data=await apiFetch('/store/pull',{method:'POST',body:{collections:['chart_comments'],limitPerCollection:500}});
   FINANCE_CHART_COMMENTS=Array.isArray(data?.collections?.chart_comments)?data.collections.chart_comments:[];
   FINANCE_CHART_COMMENTS_LOADED=true;
+}
+async function loadFinanceWeekTasks(){
+  if(FINANCE_WEEK_TASKS_LOADED) return;
+  const data=await apiFetch('/store/pull',{method:'POST',body:{collections:['chart_week_tasks'],limitPerCollection:500}});
+  FINANCE_WEEK_TASKS=Array.isArray(data?.collections?.chart_week_tasks)?data.collections.chart_week_tasks:[];
+  FINANCE_WEEK_TASKS_LOADED=true;
 }
 async function ensureInitialFinanceComment(series){
   if(!CURRENT?.isSuperAdmin || !Array.isArray(series)) return;
@@ -3655,7 +3679,102 @@ function financeChartCard(kind,series){
     <div class="fc-plot">${unavailable?'<div class="fc-unavailable">Источник временно недоступен.<br>График останется на месте и обновится автоматически.</div>':financeChartSvg(kind,series)}</div>
     <div class="fc-labels">${series.map(s=>`<span>${mEsc(s.label)}</span>`).join('')}</div>
     ${notes}
+    ${financeWeekTaskBlock(kind,series)}
   </article>`;
+}
+
+function financeCurrentWeekPoint(series){
+  const offset=5*60*60*1000, week=7*24*60*60*1000, now=Date.now();
+  const localNow=new Date(now+offset);
+  const daysSinceThursday=(localNow.getUTCDay()-4+7)%7;
+  let localStart=Date.UTC(localNow.getUTCFullYear(),localNow.getUTCMonth(),localNow.getUTCDate()-daysSinceThursday,14,0,0,0);
+  if(now+offset<localStart) localStart-=week;
+  const start=localStart-offset, end=start+week;
+  const source=(Array.isArray(series)?series:[]).find(point=>Number(point.start)===start)
+    || (Array.isArray(series)?series:[]).find(point=>Number(point.start)<=now && Number(point.end)>now)
+    || {};
+  return {...source,start,end,label:source.label||financeWeekShortDate(end)};
+}
+function financeWeekShortDate(timestamp){
+  const date=new Date(Number(timestamp)+5*60*60*1000);
+  return String(date.getUTCDate()).padStart(2,'0')+'.'+String(date.getUTCMonth()+1).padStart(2,'0');
+}
+function financeWeekTaskPeriod(point){
+  return financeWeekShortDate(point.start)+'–'+financeWeekShortDate(point.end);
+}
+function financeWeekTasks(kind,start){
+  return FINANCE_WEEK_TASKS
+    .filter(item=>!item.deleted && item.kind===kind && Number(item.start)===Number(start) && String(item.text||'').trim())
+    .sort((a,b)=>Number(Boolean(a.done))-Number(Boolean(b.done)) || (Number(a.createdAt)||0)-(Number(b.createdAt)||0));
+}
+function financeWeekTaskBlock(kind,series){
+  return financeWeekTaskBlockForPoint(kind,financeCurrentWeekPoint(series));
+}
+function financeWeekTaskBlockForPoint(kind,point){
+  const tasks=financeWeekTasks(kind,point.start);
+  const add=canConfigureFinanceChart(kind)
+    ? `<button type="button" onclick="openFinanceWeekTaskEditor('${kind}',${Number(point.start)},${Number(point.end)})">＋ Дело</button>`
+    : '';
+  const rows=tasks.length
+    ? tasks.map(task=>`<div class="fc-week-task${task.done?' done':''}"><input type="checkbox"${task.done?' checked':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="openFinanceWeekTaskEditor('${kind}',${Number(point.start)},${Number(point.end)},'${mEsc(task.id)}')" title="${mEsc(task.text)}">${mEsc(task.text)}</span>${canConfigureFinanceChart(kind)?`<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button>`:'<span></span>'}</div>`).join('')
+    : '<div class="fc-week-tasks-empty">На текущую неделю дел пока нет.</div>';
+  return `<section class="fc-week-tasks" id="financeWeekTasks-${kind}" data-start="${Number(point.start)}" data-end="${Number(point.end)}"><div class="fc-week-tasks-head"><strong>Дела недели</strong><span class="period">${mEsc(financeWeekTaskPeriod(point))}</span>${add}</div><div class="fc-week-tasks-list">${rows}</div></section>`;
+}
+function refreshFinanceWeekTaskBlock(kind){
+  const current=document.getElementById('financeWeekTasks-'+kind);
+  if(!current) return;
+  current.outerHTML=financeWeekTaskBlockForPoint(kind,{start:Number(current.dataset.start),end:Number(current.dataset.end)});
+}
+function openFinanceWeekTaskEditor(kind,start,end,taskId=''){
+  if(!canConfigureFinanceChart(kind)) return;
+  const existing=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
+  document.getElementById('financeWeekTaskOvl')?.remove();
+  const ovl=document.createElement('div');
+  ovl.id='financeWeekTaskOvl'; ovl.className='money-ovl show';
+  ovl.addEventListener('click',event=>{if(event.target===ovl)ovl.remove();});
+  ovl.innerHTML=`<div class="money-modal fc-detail-modal"><div class="mm-h"><h3>${existing?'Изменить':'Новое'} дело на неделю</h3><span class="mm-x" onclick="document.getElementById('financeWeekTaskOvl').remove()">✕</span></div><div class="mm-b fc-week-task-editor"><div class="fc-detail-summary"><div class="c"><div class="l">График</div><div class="v">${mEsc(FINANCE_CHART_META[kind]?.title||kind)}</div></div><div class="c"><div class="l">Текущая неделя</div><div class="v">${mEsc(financeWeekTaskPeriod({start,end}))}</div></div></div><label for="financeWeekTaskText">Что нужно сделать</label><input id="financeWeekTaskText" maxlength="300" value="${mEsc(existing?.text||'')}" placeholder="Например: проверить новый канал продвижения"></div><div class="mm-f"><button onclick="document.getElementById('financeWeekTaskOvl').remove()">Отмена</button><button style="background:var(--navy);color:#fff" onclick="saveFinanceWeekTask('${kind}',${Number(start)},${Number(end)},'${mEsc(taskId)}')">Сохранить</button></div></div>`;
+  document.body.appendChild(ovl);
+  const input=document.getElementById('financeWeekTaskText');
+  input?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();saveFinanceWeekTask(kind,start,end,taskId);}});
+  setTimeout(()=>input?.focus(),30);
+}
+async function saveFinanceWeekTask(kind,start,end,taskId=''){
+  if(!canConfigureFinanceChart(kind)) return;
+  const input=document.getElementById('financeWeekTaskText');
+  const text=String(input?.value||'').trim();
+  if(!text){ alert('Напишите, что нужно сделать.'); input?.focus(); return; }
+  const old=FINANCE_WEEK_TASKS.find(item=>item.id===taskId);
+  const now=Date.now();
+  const item=old
+    ? {...old,text,updatedAt:now,updatedBy:CURRENT?.email||''}
+    : {id:`chart-task-${kind}-${Number(start)}-${now}`,kind,start:Number(start),end:Number(end),text,done:false,author:CURRENT?.email||'',authorName:CURRENT?.name||CURRENT?.email||'',createdAt:now,updatedAt:now};
+  try{
+    await apiFetch('/store/push',{method:'POST',body:{ops:[{type:'upsert',collection:'chart_week_tasks',item}]}});
+    const index=FINANCE_WEEK_TASKS.findIndex(entry=>entry.id===item.id);
+    if(index>=0) FINANCE_WEEK_TASKS[index]=item; else FINANCE_WEEK_TASKS.push(item);
+    document.getElementById('financeWeekTaskOvl')?.remove();
+    refreshFinanceWeekTaskBlock(kind);
+  }catch(error){ alert('Не удалось сохранить дело: '+error.message); }
+}
+async function toggleFinanceWeekTask(taskId,done){
+  const task=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
+  if(!task || !canConfigureFinanceChart(task.kind)) return;
+  const item={...task,done:Boolean(done),completedAt:done?Date.now():0,updatedAt:Date.now(),updatedBy:CURRENT?.email||''};
+  try{
+    await apiFetch('/store/push',{method:'POST',body:{ops:[{type:'upsert',collection:'chart_week_tasks',item}]}});
+    FINANCE_WEEK_TASKS[FINANCE_WEEK_TASKS.indexOf(task)]=item;
+    refreshFinanceWeekTaskBlock(item.kind);
+  }catch(error){ refreshFinanceWeekTaskBlock(task.kind); alert('Не удалось обновить дело: '+error.message); }
+}
+async function deleteFinanceWeekTask(taskId){
+  const task=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
+  if(!task || !canConfigureFinanceChart(task.kind) || !confirm('Удалить это дело?')) return;
+  const item={...task,deleted:true,updatedAt:Date.now(),updatedBy:CURRENT?.email||''};
+  try{
+    await apiFetch('/store/push',{method:'POST',body:{ops:[{type:'upsert',collection:'chart_week_tasks',item}]}});
+    FINANCE_WEEK_TASKS[FINANCE_WEEK_TASKS.indexOf(task)]=item;
+    refreshFinanceWeekTaskBlock(item.kind);
+  }catch(error){ alert('Не удалось удалить дело: '+error.message); }
 }
 let FINANCE_DISCLOSURE_OPEN=false;
 function financeChartsPinnedOpen(){
@@ -3774,10 +3893,10 @@ async function paintFinanceCharts(el,data,{cached=false}={}){
   const kinds=financeChartKinds(data);
   if(!kinds.length) return false;
   try{
-    await loadFinanceChartComments();
+    await Promise.all([loadFinanceChartComments(),loadFinanceWeekTasks()]);
     await ensureInitialFinanceComment(data.charts?.inquiries);
   }catch(commentError){
-    console.warn('chart comments:',commentError);
+    console.warn('chart collaboration:',commentError);
   }
   await loadGlobalSalesQuickLink();
   const toggle=financeChartsPinnedOpen()?'':'<button class="fc-toggle" onclick="toggleFinanceCharts()"></button>';
