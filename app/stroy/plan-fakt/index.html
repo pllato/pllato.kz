@@ -1708,8 +1708,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v446';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v422';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v447';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v423';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2137,7 +2137,22 @@ function lkParseFragmentedPassports(items,rule,internal){
     if(best)rows.push({group,mark:best.mark,section:best.sec,len:sig.L,conds:[],x:h.x,y:h.y,mult:1,_fragments:true,_wholeMark:!!best.wholeMark,_v:h.v});
   });
   // Один паспорт может иметь несколько буквенных стартовых item в той же колонке — оставляем один.
-  return rows.filter((r,i,a)=>!a.slice(0,i).some(o=>Math.abs(o.x-r.x)<4&&Math.abs(o.y-r.y)<8&&o.section===r.section));
+  // Направление выгрузки текста зависит от PDF-драйвера. У части чертежей паспорт визуально
+  // читается слева направо, но его повёрнутые text-item идут от БОЛЬШЕЙ продольной координаты
+  // к меньшей (M1/M2: имя → P → cosφ → I → L). Повторяем тот же строгий разбор на зеркальной
+  // продольной оси; все семантические проверки P/cosφ/I/L, P×L, марки и NxS остаются прежними.
+  let out=rows.filter((r,i,a)=>!a.slice(0,i).some(o=>Math.abs(o.x-r.x)<4&&Math.abs(o.y-r.y)<8&&o.section===r.section));
+  if(!(internal&&internal._oneDirection)&&rule&&rule.wholeMark&&rule.trustHead){
+    const flipped=(items||[]).map(o=>{const q=Object.assign({},o);
+      if(o.transform){const t=o.transform.slice(),v=Math.abs(t[1])>Math.abs(t[0]);if(v)t[5]=-t[5];else t[4]=-t[4];q.transform=t;}
+      else{const v=o.rot==='V';if(v)q.y=-(+o.y||0);else q.x=-(+o.x||0);}
+      return q;});
+    const rev=lkParseFragmentedPassports(flipped,rule,Object.assign({},internal||{},{_oneDirection:true})).map(r=>{
+      const q=Object.assign({},r);if(q._v)q.y=-q.y;else q.x=-q.x;return q;});
+    out=out.concat(rev);
+  }
+  return out.filter((r,i,a)=>!a.slice(0,i).some(o=>Math.abs(o.x-r.x)<3&&Math.abs(o.y-r.y)<3&&
+    o.section===r.section&&o.len===r.len&&String(o.group||'')===String(r.group||'')));
 }
 function lkParseBio(items){
   const rows=[];
@@ -3037,7 +3052,11 @@ function lkChatPassportHeadLen(items,row){if(!Array.isArray(items)||!row||row.x=
   // хвост мог отдать длину соседней колонки (№4а получал 151 м от №4.1а). Для уже найденной
   // строки имя — обязательный якорь; если её паспорта нет, честно возвращаем null.
   if(row.group&&row.group!=='—'){
-    const own=matching.filter(r=>lkChatSame(String(r.group||'').split('·')[0],String(row.group||'').split('·')[0]));
+    // Строгий паспорт сам доказывает марку и сечение. Поэтому при уже известном потребителе
+    // ищем его среди ВСЕХ доказанных паспортов, а не только среди строк с прежним (возможно,
+    // ошибочным) сечением парсера: именно так агент исправляет M1/M2 с 4x70/4x50 на 5x50.
+    const own=parsed.filter(r=>lkChatSame(String(r.group||'').split('·')[0],String(row.group||'').split('·')[0])&&
+      (!row.mark||!r.mark||nm(r.mark)===nm(row.mark)));
     if(!own.length)return null;matching=own;}
   const cand=matching.map(r=>{
     const cross=r._v?Math.abs((+row.x||0)-r.x):Math.abs((+row.y||0)-r.y);
@@ -3168,7 +3187,8 @@ async function lkExtract(data,onProgress,scope){
     const _fragRows=lkParseFragmentedPassports(tc.items);
     // Профиль автора определяется по штампу и номеру проекта, а не по имени файла/листу.
     // В стилях RAS/1878 и VSN/2717 числа паспорта фрагментированы, но марка часто остаётся
-    // цельным item; для других авторов этот вариант не включаем.
+    // цельным item. Профиль ограничен штампом/серией автора: на несхожих чертежах обратный
+    // порядок text-item не включается, пока пользователь не подтвердит такой стиль в Правках.
     const _styleText=tc.items.map(i=>i.str||'').join(' ');
     const _ras1878Style=/RAS\s*Group\s*Project/i.test(_styleText)&&/\b1878\s*[-_]/.test(_styleText);
     const _vsn2717Style=/\bVSN\b/i.test(_styleText)&&/\b2717\s*[-_]/.test(_styleText);
@@ -3258,10 +3278,13 @@ async function lkExtract(data,onProgress,scope){
     // чтобы новый строгий P×L-результат не менял их порог и не удалял уже найденные строки.
     // Дубль ищем в узкой поперечной полосе и по продольному диапазону одного паспорта.
     _wholeFragRows.forEach(r=>{const rs=String(r.section||'').replace('.',','),rm=String(r.mark||'').replace(/\s/g,'');
-      const old=rows.find(o=>{if(!o.x||String(o.section||'').replace('.',',')!==rs||
-          String(o.mark||'').replace(/\s/g,'')!==rm)return false;
-        return r._v?(Math.abs(o.x-r.x)<22&&Math.abs((o.y||0)-r.y)<120):
-          (Math.abs((o.y||0)-r.y)<22&&Math.abs(o.x-r.x)<120);});
+      const old=rows.find(o=>{if(!o.x)return false;
+        const near=r._v?(Math.abs(o.x-r.x)<22&&Math.abs((o.y||0)-r.y)<120):
+          (Math.abs((o.y||0)-r.y)<22&&Math.abs(o.x-r.x)<120);
+        if(!near)return false;
+        const sameCable=String(o.section||'').replace('.',',')===rs&&String(o.mark||'').replace(/\s/g,'')===rm;
+        const sameGroup=o.needsCheck&&r.group&&o.group&&lkChatSame(String(o.group).split('·')[0],String(r.group).split('·')[0]);
+        return sameCable||sameGroup;});
       if(old){const conds=old.conds||[];Object.assign(old,r,{needsCheck:false});if(conds.length)old.conds=conds;}
       else rows.push(r);});
     // выученные правила (обучалка): добираем подписи, которые штатные парсеры не взяли.
