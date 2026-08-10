@@ -1381,8 +1381,12 @@ async function handleRtdbWrite(env, request, parts, me) {
     const keyCol = updatableTables[head];
     const id = rest[0];
     const jsonCols = JSON_COLS[tableName] || new Set();
-    // event_public — ленивая колонка (общий календарь); гарантируем перед записью.
-    if (tableName === "tasks") await ensureEventPublicColumn(env);
+    // Календарные колонки гарантируем перед записью: старые D1-схемы могли
+    // остаться без них после обновления фронта.
+    if (tableName === "tasks") {
+      await ensureEventPublicColumn(env);
+      await ensureCalendarDealTitleColumn(env);
+    }
 
     // Permissions:
     //   pipelines / users — только admin
@@ -2766,6 +2770,13 @@ async function ensureEventPublicColumn(env) {
   _eventPublicColEnsured = true;
 }
 
+let _calendarDealTitleColEnsured = false;
+async function ensureCalendarDealTitleColumn(env) {
+  if (_calendarDealTitleColEnsured) return;
+  try { await env.DB.prepare("ALTER TABLE tasks ADD COLUMN calendar_deal_title TEXT").run(); } catch (e) {}
+  _calendarDealTitleColEnsured = true;
+}
+
 // POST /api/tasks — создать НОВУЮ задачу в портале (bitrix_id пуст → «текущие»,
 // не в «Битрикс Архив»). Постановщик = текущий пользователь.
 async function handleCreateTask(request, env) {
@@ -2793,23 +2804,27 @@ async function handleCreateTask(request, env) {
   if (Array.isArray(body.crmLinks) && body.crmLinks.length) {
     crmLinks = JSON.stringify(body.crmLinks.filter(Boolean).map(String));
   }
+  const calendarDealTitle = body.calendarDealTitle != null
+    ? String(body.calendarDealTitle).trim().slice(0, 1000) || null
+    : null;
   const eventPublic = body.eventPublic ? 1 : 0;   // 1 = общий календарь (видно всем)
   await ensureEventPublicColumn(env);
+  await ensureCalendarDealTitleColumn(env);
   const nowIso = new Date().toISOString();
   const id = 'task_local_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   await env.DB.prepare(`
     INSERT INTO tasks (id, title, description, status, priority, deadline,
-      start_date_plan, end_date_plan, mark, crm_links,
+      start_date_plan, end_date_plan, mark, crm_links, calendar_deal_title,
       responsible_uid, created_by_uid, changed_by_uid, accomplices, auditors,
       event_public, bitrix_created_date, bitrix_changed_date, bitrix_status_changed_date, comments_count)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)
   `).bind(id, title, description, status, priority, deadline,
-    startDatePlan, endDatePlan, mark, crmLinks,
+    startDatePlan, endDatePlan, mark, crmLinks, calendarDealTitle,
     responsible, uid, uid, JSON.stringify(accomplices), JSON.stringify(auditors),
     eventPublic, nowIso, nowIso, nowIso).run();
   return json({ ok: true, id, task: {
     id, title, description, status, priority, deadline,
-    startDatePlan, endDatePlan, mark,
+    startDatePlan, endDatePlan, mark, calendarDealTitle,
     responsibleUid: responsible, createdByUid: uid, accomplices, auditors,
   } }, 200, request);
 }
