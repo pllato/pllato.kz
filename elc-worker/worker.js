@@ -4422,7 +4422,7 @@ async function getFirstStageId(env, pipelineId) {
 // вручную созданный — без этого worker создавал бы новую сделку игнорируя
 // существующую). Учитываем все стадии (включая closed=1) чтобы revive потом
 // мог их вернуть из «Провал» в «Новые».
-async function ensureDealForWaContact(env, channel, contactId, contactName, phone) {
+async function ensureDealForWaContact(env, channel, contactId, contactName, phone, options = {}) {
   if (!channel.default_pipeline_id) return null;
   // 1) Точный поиск по contactId (быстрый путь — если 1 контакт = 1 сделка)
   let existing = await env.DB.prepare(`
@@ -4450,6 +4450,9 @@ async function ensureDealForWaContact(env, channel, contactId, contactName, phon
   const newId = 'deal_' + bitrixKey;
   const nowIso = new Date().toISOString();
   const title = `WhatsApp: ${contactName || 'Новый клиент'}`;
+  const sourceDescription = options.unsyncedShell
+    ? 'WhatsApp · сообщение не синхронизировано'
+    : 'WhatsApp';
   // Phase C: round-robin распределение по списку участников канала.
   // Если пул настроен (kv['wa:distribution:{channelId}']) — берём следующего uid.
   // Иначе fallback на channel.responsible_uid (как раньше).
@@ -4470,12 +4473,12 @@ async function ensureDealForWaContact(env, channel, contactId, contactName, phon
       id, title, pipeline_id, stage_id, responsible_uid,
       contact_id, source_description, closed, bitrix_id,
       bitrix_date_create, bitrix_date_modify, stage_changed_at
-    ) VALUES (?, ?, ?, ?, ?, ?, 'WhatsApp', 0, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
   `).bind(
     newId, title,
     channel.default_pipeline_id, stageId,
     responsibleUid,
-    contactId, bitrixKey, nowIso, nowIso, nowIso,
+    contactId, sourceDescription, bitrixKey, nowIso, nowIso, nowIso,
   ).run();
   await logStageEvent(env, newId, channel.default_pipeline_id, stageId, nowIso);
   await notifyPllatoStartNewLead(env, {
@@ -4487,6 +4490,218 @@ async function ensureDealForWaContact(env, channel, contactId, contactName, phon
     source: "WhatsApp",
   });
   return newId;
+}
+
+let _waChatDiscoverySchemaEnsured = false;
+async function ensureWaChatDiscoverySchema(env) {
+  if (_waChatDiscoverySchemaEnsured) return;
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS wa_chat_discovery (
+      channel_id TEXT NOT NULL,
+      chat_id TEXT NOT NULL,
+      name TEXT,
+      first_seen_at INTEGER NOT NULL,
+      processed_at INTEGER,
+      status TEXT NOT NULL DEFAULT 'seen',
+      deal_id TEXT,
+      error TEXT,
+      PRIMARY KEY (channel_id, chat_id)
+    )
+  `).run();
+  await env.DB.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_wa_chat_discovery_status
+    ON wa_chat_discovery(channel_id, status, first_seen_at)
+  `).run();
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS wa_chat_discovery_state (
+      channel_id TEXT PRIMARY KEY,
+      initialized_at INTEGER NOT NULL,
+      last_scan_at INTEGER,
+      last_error TEXT
+    )
+  `).run();
+  _waChatDiscoverySchemaEnsured = true;
+}
+
+async function fetchWaProviderChats(channel) {
+  const baseUrl = String(channel.api_url || 'https://api.green-api.com').replace(/\/$/, '');
+  const response = await fetch(
+    `${baseUrl}/waInstance${channel.id_instance}/getChats/${channel.api_token_instance}`,
+    { method: 'GET' },
+  );
+  if (!response.ok) throw new Error(`Green-API getChats HTTP ${response.status}`);
+  const payload = await response.json();
+  if (!Array.isArray(payload)) throw new Error('Green-API getChats returned invalid payload');
+  return payload.filter(chat => {
+    const chatId = String(chat?.id || chat?.chatId || '');
+    return chatId.endsWith('@c.us') && (!chat?.type || chat.type === 'user');
+  });
+}
+
+async function createDealFromWaChatShell(env, channel, providerChat, now) {
+  const chatId = String(providerChat?.id || providerChat?.chatId || '');
+  const phone = normalizeWaPhone(chatId.split('@')[0]);
+  if (!phone) throw new Error('chat phone is empty');
+  const name = String(providerChat?.name || '').trim() || ('+' + phone);
+  const contactId = await findOrCreateContactByPhone(env, phone, name);
+  const dealId = await ensureDealForWaContact(
+    env, channel, contactId, name, phone, { unsyncedShell: true },
+  );
+  const chatDocId = waChatDocId(channel.id_instance, chatId);
+  const existingChat = await env.DB.prepare(
+    'SELECT id FROM wa_chats WHERE id = ? LIMIT 1'
+  ).bind(chatDocId).first();
+  if (existingChat) {
+    await env.DB.prepare(`
+      UPDATE wa_chats SET
+        phone = COALESCE(phone, ?), name = COALESCE(NULLIF(name, ''), ?),
+        contact_id = COALESCE(contact_id, ?), deal_id = COALESCE(deal_id, ?),
+        last_message_text = COALESCE(NULLIF(last_message_text, ''), ?),
+        last_message_at = COALESCE(last_message_at, ?),
+        last_message_from = COALESCE(last_message_from, 'them'),
+        unread_count = MAX(COALESCE(unread_count, 0), 1), updated_at = datetime('now')
+      WHERE id = ?
+    `).bind(
+      phone, name, contactId, dealId, '⚠ Сообщение не синхронизировано', now, chatDocId,
+    ).run();
+  } else {
+    await env.DB.prepare(`
+      INSERT INTO wa_chats (
+        id, instance_id, chat_id, phone, is_group, name, contact_id, deal_id,
+        last_message_text, last_message_at, last_message_from, unread_count, updated_at
+      ) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, 'them', 1, datetime('now'))
+    `).bind(
+      chatDocId, String(channel.id_instance), chatId, phone, name, contactId, dealId,
+      '⚠ Сообщение не синхронизировано', now,
+    ).run();
+  }
+  return dealId;
+}
+
+// GREEN-API может добавить диалог в getChats, но не передать его первое
+// сообщение из-за сбоя ключей linked-device. Первый снимок нового канала
+// сохраняем как baseline, а каждый следующий новый chat_id превращаем в лид.
+async function syncWaChatShells(env) {
+  await ensureWaChatDiscoverySchema(env);
+  const { results: channels = [] } = await env.DB.prepare(`
+    SELECT * FROM wa_channels
+    WHERE active = 1 AND default_pipeline_id IS NOT NULL
+  `).all();
+  let scanned = 0;
+  let created = 0;
+  let existing = 0;
+  let failed = 0;
+
+  for (const channel of channels) {
+    const now = Date.now();
+    try {
+      const providerChats = await fetchWaProviderChats(channel);
+      scanned += providerChats.length;
+      const state = await env.DB.prepare(
+        'SELECT channel_id FROM wa_chat_discovery_state WHERE channel_id = ? LIMIT 1'
+      ).bind(channel.id).first();
+      const { results: knownRows = [] } = await env.DB.prepare(
+        'SELECT chat_id, status, first_seen_at, deal_id FROM wa_chat_discovery WHERE channel_id = ?'
+      ).bind(channel.id).all();
+      const knownById = new Map(knownRows.map(row => [row.chat_id, row]));
+
+      // Безопасная инициализация: старые чаты существующего/нового инстанса
+      // не должны разом превратиться в сотни лидов.
+      if (!state) {
+        const inserts = providerChats
+          .filter(chat => !knownById.has(String(chat.id || chat.chatId || '')))
+          .map(chat => env.DB.prepare(`
+            INSERT OR IGNORE INTO wa_chat_discovery
+              (channel_id, chat_id, name, first_seen_at, processed_at, status)
+            VALUES (?, ?, ?, ?, ?, 'baseline')
+          `).bind(
+            channel.id, String(chat.id || chat.chatId || ''), chat.name || null, now, now,
+          ));
+        // D1 ограничивает размер batch; режем baseline на небольшие порции.
+        for (let offset = 0; offset < inserts.length; offset += 50) {
+          await env.DB.batch(inserts.slice(offset, offset + 50));
+        }
+        await env.DB.prepare(`
+          INSERT INTO wa_chat_discovery_state (channel_id, initialized_at, last_scan_at, last_error)
+          VALUES (?, ?, ?, NULL)
+          ON CONFLICT(channel_id) DO UPDATE SET last_scan_at = excluded.last_scan_at, last_error = NULL
+        `).bind(channel.id, now, now).run();
+        continue;
+      }
+
+      for (const providerChat of providerChats) {
+        const chatId = String(providerChat.id || providerChat.chatId || '');
+        if (!chatId) continue;
+        const knownRow = knownById.get(chatId);
+        if (knownRow && ['baseline', 'created', 'existing', 'outgoing'].includes(knownRow.status)) continue;
+        if (!knownRow) {
+          // Даём обычному webhook до следующего cron успеть создать сделку.
+          // Это также не позволяет исходящему сообщению менеджера стать лидом.
+          await env.DB.prepare(`
+            INSERT OR IGNORE INTO wa_chat_discovery
+              (channel_id, chat_id, name, first_seen_at, status)
+            VALUES (?, ?, ?, ?, 'seen')
+          `).bind(channel.id, chatId, providerChat.name || null, now).run();
+          continue;
+        }
+        if (knownRow.status === 'seen' && now - Number(knownRow.first_seen_at || now) < 45_000) continue;
+        try {
+          const chatDocId = waChatDocId(channel.id_instance, chatId);
+          const crmChat = await env.DB.prepare(`
+            SELECT deal_id, last_message_from FROM wa_chats WHERE id = ? LIMIT 1
+          `).bind(chatDocId).first();
+          if (crmChat?.deal_id) {
+            existing++;
+            await env.DB.prepare(`
+              UPDATE wa_chat_discovery
+              SET processed_at = ?, status = 'existing', deal_id = ?, error = NULL
+              WHERE channel_id = ? AND chat_id = ?
+            `).bind(now, crmChat.deal_id, channel.id, chatId).run();
+            continue;
+          }
+          if (crmChat?.last_message_from === 'me') {
+            await env.DB.prepare(`
+              UPDATE wa_chat_discovery
+              SET processed_at = ?, status = 'outgoing', error = NULL
+              WHERE channel_id = ? AND chat_id = ?
+            `).bind(now, channel.id, chatId).run();
+            continue;
+          }
+          const preexisting = await env.DB.prepare(`
+            SELECT d.id FROM deals d
+            JOIN contacts c ON c.id = d.contact_id
+            WHERE d.pipeline_id = ? AND c.phones LIKE ? LIMIT 1
+          `).bind(channel.default_pipeline_id, `%${normalizeWaPhone(chatId.split('@')[0])}%`).first();
+          const dealId = await createDealFromWaChatShell(env, channel, providerChat, now);
+          const status = preexisting ? 'existing' : 'created';
+          if (preexisting) existing++; else created++;
+          await env.DB.prepare(`
+            UPDATE wa_chat_discovery
+            SET processed_at = ?, status = ?, deal_id = ?, error = NULL
+            WHERE channel_id = ? AND chat_id = ?
+          `).bind(now, status, dealId, channel.id, chatId).run();
+        } catch (error) {
+          failed++;
+          await env.DB.prepare(`
+            UPDATE wa_chat_discovery SET processed_at = ?, status = 'failed', error = ?
+            WHERE channel_id = ? AND chat_id = ?
+          `).bind(now, String(error?.message || error).slice(0, 500), channel.id, chatId).run();
+        }
+      }
+      await env.DB.prepare(`
+        UPDATE wa_chat_discovery_state SET last_scan_at = ?, last_error = NULL WHERE channel_id = ?
+      `).bind(now, channel.id).run();
+    } catch (error) {
+      failed++;
+      // Ошибка самого первого getChats НЕ должна инициализировать канал:
+      // иначе следующий успешный запуск примет всю старую историю за новые лиды.
+      await env.DB.prepare(`
+        UPDATE wa_chat_discovery_state SET last_scan_at = ?, last_error = ? WHERE channel_id = ?
+      `).bind(now, String(error?.message || error).slice(0, 500), channel.id).run();
+      console.warn('[cron] wa_chat_shells channel failed:', channel.id, error?.message || error);
+    }
+  }
+  return { scanned, created, existing, failed };
 }
 
 // Извлечь данные из Green-API webhook envelope (поддерживаем incoming +
@@ -10767,6 +10982,14 @@ export default {
         if (w && w.sent) console.log(`[cron] channel_health weekly digest sent down=${w.down} admins=${w.admins}`);
       } catch (e) {
         console.error("[cron] maybeWeeklyChannelDigest failed:", e.message);
+      }
+      try {
+        const shells = await syncWaChatShells(env);
+        if (shells.created > 0 || shells.existing > 0 || shells.failed > 0) {
+          console.log(`[cron] wa_chat_shells scanned=${shells.scanned} created=${shells.created} existing=${shells.existing} failed=${shells.failed}`);
+        }
+      } catch (e) {
+        console.error("[cron] syncWaChatShells failed:", e.message);
       }
     })());
   },

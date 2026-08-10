@@ -464,6 +464,32 @@ CREATE TABLE wa_messages (
 CREATE INDEX idx_wa_messages_chat      ON wa_messages(chat_id, ts DESC);
 CREATE INDEX idx_wa_messages_ts        ON wa_messages(ts DESC);
 
+-- Резервное обнаружение новых диалогов. Green-API иногда показывает новый
+-- чат в getChats, но не отдаёт его первое зашифрованное сообщение ни webhook'ом,
+-- ни через getChatHistory. В таком случае cron всё равно создаёт сделку.
+CREATE TABLE wa_chat_discovery (
+  channel_id            TEXT NOT NULL,
+  chat_id               TEXT NOT NULL,
+  name                  TEXT,
+  first_seen_at         INTEGER NOT NULL,
+  processed_at          INTEGER,
+  status                TEXT NOT NULL DEFAULT 'seen', -- baseline|seen|created|existing|outgoing|failed
+  deal_id               TEXT,
+  error                 TEXT,
+  PRIMARY KEY (channel_id, chat_id)
+);
+CREATE INDEX idx_wa_chat_discovery_status
+  ON wa_chat_discovery(channel_id, status, first_seen_at);
+
+-- Первый снимок каждого нового канала является baseline: старые диалоги не
+-- импортируем массово. После него только действительно новые chat_id создают лиды.
+CREATE TABLE wa_chat_discovery_state (
+  channel_id            TEXT PRIMARY KEY,
+  initialized_at        INTEGER NOT NULL,
+  last_scan_at          INTEGER,
+  last_error            TEXT
+);
+
 -- ─────────────────────────────────────────────────────────────────────────
 -- Системный WhatsApp-оповещатель (portal notifier).
 -- Отдельный Green-API инстанс (НЕ из wa_channels), который шлёт системные
