@@ -763,7 +763,8 @@ body {
 .fc-week-tasks-head .plan + button { margin-left:0; }
 .fc-week-tasks-head button:hover { border-color:var(--bronze-deep); }
 .fc-week-tasks-list { max-height:108px; overflow-y:auto; scrollbar-width:thin; }
-.fc-week-task { display:grid; grid-template-columns:18px minmax(0,1fr) max-content auto; align-items:center; gap:6px; padding:5px 0; border-top:1px solid color-mix(in srgb,var(--line-2) 75%,transparent); }
+.fc-week-task { display:grid; grid-template-columns:18px minmax(0,1fr) auto; align-items:center; gap:6px; padding:5px 0; border-top:1px solid color-mix(in srgb,var(--line-2) 75%,transparent); }
+.fc-week-task.with-amount { grid-template-columns:18px minmax(0,1fr) max-content auto; }
 .fc-week-task:first-child { border-top:0; }
 .fc-week-task input { width:15px; height:15px; margin:0; accent-color:var(--green); cursor:pointer; }
 .fc-week-task .text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-2); font-size:10.5px; line-height:1.35; cursor:pointer; }
@@ -775,6 +776,7 @@ body {
 .fc-week-tasks-empty { color:var(--text-3); font-size:10px; padding:7px 0 2px; }
 .fc-week-task-editor input { width:100%; }
 .fc-week-task-fields { display:grid; grid-template-columns:minmax(0,1fr) minmax(150px,.42fr); gap:12px; margin-top:14px; }
+.fc-week-task-fields.single { grid-template-columns:1fr; }
 .fc-week-task-fields label { display:block; }
 .fc-week-task-fields input { margin-top:6px; }
 @media (max-width:640px){ .fc-week-task-fields{grid-template-columns:1fr;} .fc-week-tasks-head .plan{order:3;margin-left:0;width:100%;} }
@@ -3723,14 +3725,16 @@ function financeWeekTaskBlock(kind,series){
 }
 function financeWeekTaskBlockForPoint(kind,point){
   const tasks=financeWeekTasks(kind,point.start);
-  const planTotal=tasks.reduce((sum,task)=>sum+Math.max(0,Number(task.amount)||0),0);
+  const showAmounts=kind==='cash';
+  const planTotal=showAmounts ? tasks.reduce((sum,task)=>sum+Math.max(0,Number(task.amount)||0),0) : 0;
   const add=canConfigureFinanceChart(kind)
     ? `<button type="button" onclick="openFinanceWeekTaskEditor('${kind}',${Number(point.start)},${Number(point.end)})">＋ Дело</button>`
     : '';
   const rows=tasks.length
-    ? tasks.map(task=>`<div class="fc-week-task${task.done?' done':''}"><input type="checkbox"${task.done?' checked':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="openFinanceWeekTaskEditor('${kind}',${Number(point.start)},${Number(point.end)},'${mEsc(task.id)}')" title="${mEsc(task.text)}">${mEsc(task.text)}</span><span class="amount" onclick="openFinanceWeekTaskEditor('${kind}',${Number(point.start)},${Number(point.end)},'${mEsc(task.id)}')" title="Изменить сумму">${mEsc(financeWeekTaskAmount(task.amount))}</span>${canConfigureFinanceChart(kind)?`<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button>`:'<span></span>'}</div>`).join('')
+    ? tasks.map(task=>`<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}"><input type="checkbox"${task.done?' checked':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="openFinanceWeekTaskEditor('${kind}',${Number(point.start)},${Number(point.end)},'${mEsc(task.id)}')" title="${mEsc(task.text)}">${mEsc(task.text)}</span>${showAmounts?`<span class="amount" onclick="openFinanceWeekTaskEditor('${kind}',${Number(point.start)},${Number(point.end)},'${mEsc(task.id)}')" title="Изменить сумму">${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}${canConfigureFinanceChart(kind)?`<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button>`:'<span></span>'}</div>`).join('')
     : '<div class="fc-week-tasks-empty">На текущую неделю дел пока нет.</div>';
-  return `<section class="fc-week-tasks" id="financeWeekTasks-${kind}" data-start="${Number(point.start)}" data-end="${Number(point.end)}"><div class="fc-week-tasks-head"><strong>Дела недели</strong><span class="period">${mEsc(financeWeekTaskPeriod(point))}</span><span class="plan">План недели: ${mEsc(financeWeekTaskAmount(planTotal))}</span>${add}</div><div class="fc-week-tasks-list">${rows}</div></section>`;
+  const plan=showAmounts?`<span class="plan">План недели: ${mEsc(financeWeekTaskAmount(planTotal))}</span>`:'';
+  return `<section class="fc-week-tasks" id="financeWeekTasks-${kind}" data-start="${Number(point.start)}" data-end="${Number(point.end)}"><div class="fc-week-tasks-head"><strong>Дела недели</strong><span class="period">${mEsc(financeWeekTaskPeriod(point))}</span>${plan}${add}</div><div class="fc-week-tasks-list">${rows}</div></section>`;
 }
 function refreshFinanceWeekTaskBlock(kind){
   const current=document.getElementById('financeWeekTasks-'+kind);
@@ -3740,11 +3744,13 @@ function refreshFinanceWeekTaskBlock(kind){
 function openFinanceWeekTaskEditor(kind,start,end,taskId=''){
   if(!canConfigureFinanceChart(kind)) return;
   const existing=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
+  const showAmount=kind==='cash';
   document.getElementById('financeWeekTaskOvl')?.remove();
   const ovl=document.createElement('div');
   ovl.id='financeWeekTaskOvl'; ovl.className='money-ovl show';
   ovl.addEventListener('click',event=>{if(event.target===ovl)ovl.remove();});
-  ovl.innerHTML=`<div class="money-modal fc-detail-modal"><div class="mm-h"><h3>${existing?'Изменить':'Новое'} дело на неделю</h3><span class="mm-x" onclick="document.getElementById('financeWeekTaskOvl').remove()">✕</span></div><div class="mm-b fc-week-task-editor"><div class="fc-detail-summary"><div class="c"><div class="l">График</div><div class="v">${mEsc(FINANCE_CHART_META[kind]?.title||kind)}</div></div><div class="c"><div class="l">Текущая неделя</div><div class="v">${mEsc(financeWeekTaskPeriod({start,end}))}</div></div></div><div class="fc-week-task-fields"><label for="financeWeekTaskText">Запись<input id="financeWeekTaskText" maxlength="300" value="${mEsc(existing?.text||'')}" placeholder="Например: закрыть сделку с клиентом"></label><label for="financeWeekTaskAmount">Сумма, ₸<input id="financeWeekTaskAmount" type="number" min="0" step="1000" inputmode="numeric" value="${Math.max(0,Number(existing?.amount)||0)}" placeholder="0"></label></div></div><div class="mm-f"><button onclick="document.getElementById('financeWeekTaskOvl').remove()">Отмена</button><button style="background:var(--navy);color:#fff" onclick="saveFinanceWeekTask('${kind}',${Number(start)},${Number(end)},'${mEsc(taskId)}')">Сохранить</button></div></div>`;
+  const amountField=showAmount?`<label for="financeWeekTaskAmount">Сумма, ₸<input id="financeWeekTaskAmount" type="number" min="0" step="1000" inputmode="numeric" value="${Math.max(0,Number(existing?.amount)||0)}" placeholder="0"></label>`:'';
+  ovl.innerHTML=`<div class="money-modal fc-detail-modal"><div class="mm-h"><h3>${existing?'Изменить':'Новое'} дело на неделю</h3><span class="mm-x" onclick="document.getElementById('financeWeekTaskOvl').remove()">✕</span></div><div class="mm-b fc-week-task-editor"><div class="fc-detail-summary"><div class="c"><div class="l">График</div><div class="v">${mEsc(FINANCE_CHART_META[kind]?.title||kind)}</div></div><div class="c"><div class="l">Текущая неделя</div><div class="v">${mEsc(financeWeekTaskPeriod({start,end}))}</div></div></div><div class="fc-week-task-fields${showAmount?'':' single'}"><label for="financeWeekTaskText">Запись<input id="financeWeekTaskText" maxlength="300" value="${mEsc(existing?.text||'')}" placeholder="Например: закрыть сделку с клиентом"></label>${amountField}</div></div><div class="mm-f"><button onclick="document.getElementById('financeWeekTaskOvl').remove()">Отмена</button><button style="background:var(--navy);color:#fff" onclick="saveFinanceWeekTask('${kind}',${Number(start)},${Number(end)},'${mEsc(taskId)}')">Сохранить</button></div></div>`;
   document.body.appendChild(ovl);
   const input=document.getElementById('financeWeekTaskText');
   ovl.querySelectorAll('input').forEach(field=>field.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();saveFinanceWeekTask(kind,start,end,taskId);}}));
@@ -3756,10 +3762,10 @@ async function saveFinanceWeekTask(kind,start,end,taskId=''){
   const amountInput=document.getElementById('financeWeekTaskAmount');
   const text=String(input?.value||'').trim();
   if(!text){ alert('Напишите, что нужно сделать.'); input?.focus(); return; }
-  const amountRaw=String(amountInput?.value||'').trim();
-  const amount=Number(amountRaw);
-  if(amountRaw==='' || !Number.isFinite(amount) || amount<0){ alert('Укажите сумму плана в тенге.'); amountInput?.focus(); return; }
   const old=FINANCE_WEEK_TASKS.find(item=>item.id===taskId);
+  const amountRaw=String(amountInput?.value||'').trim();
+  const amount=kind==='cash' ? Number(amountRaw) : Math.max(0,Number(old?.amount)||0);
+  if(kind==='cash' && (amountRaw==='' || !Number.isFinite(amount) || amount<0)){ alert('Укажите сумму плана в тенге.'); amountInput?.focus(); return; }
   const now=Date.now();
   const item=old
     ? {...old,text,amount,updatedAt:now,updatedBy:CURRENT?.email||''}
