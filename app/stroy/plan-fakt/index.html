@@ -1708,7 +1708,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v443';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v444';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v422';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -3930,7 +3930,10 @@ function lkChatStrategy(s){const n=lkChatNorm(s);
 }
 function lkChatInferLen(items,row,value){
   const passport=lkChatGroupShape(row&&row.group)&&lkChatPassportHeadLen(items,row);
-  if(passport>0&&Math.abs(passport-value)<.01&&Math.abs((+row.len||0)-value)>.01)
+  // Строгий паспорт является переносимым доказательством и когда текущая строка уже показывает
+  // названное число. Раньше в таком случае Обучалка пропускала лучший сигнал, переходила к
+  // широкому «крайнему целому справа», а после точного upsert вообще отдавала пример в /teach.
+  if(passport>0&&Math.abs(passport-value)<.01)
     return{strategy:'passport-head-length',label:'четвёртое поле полного паспорта P / cosφ / I / длина',value:passport};
   const col=lkChatColumnMeters(items,row);
   if(Math.abs((+row.len||0)-value)>.01&&col.length>1&&Math.abs(col[0].v-value)<.01&&col.some(o=>Math.abs(o.v-(+row.len||0))<.01))
@@ -3941,17 +3944,42 @@ function lkChatInferLen(items,row,value){
   return null;
 }
 function lkChatAuditLengthRule(items,rows,rule,target,expected){const c=rule&&rule.chat||{};
-  let controls=0,detected=0,targetOk=false,repairs=0;const conflicts=[],repaired=[];
-  (rows||[]).forEach(r=>{const v=lkChatLearnedLen(items,r,c.strategy,c);if(!(v>0))return;detected++;
-    if(r===target){targetOk=Math.abs(v-expected)<.01;return;}
+  let controls=0,detected=0,targetOk=false,selfProof=false,repairs=0;const conflicts=[],repaired=[];
+  (rows||[]).forEach(r=>{if(!lkChatRuleMatchesRow(c,r))return;const v=lkChatLearnedLen(items,r,c.strategy,c);if(!(v>0))return;detected++;
+    if(r===target){targetOk=Math.abs(v-expected)<.01;selfProof=targetOk&&c.strategy==='passport-head-length';return;}
     if(Math.abs(v-(+r.len||0))<.01){controls++;return;}
     // Та же строгая геометрия может доказать другие пустые строки этого формата. Это не
     // конфликт: правило как раз должно восстановить их локально и в будущих похожих файлах.
-    if(!(+(r.len||0)>0)&&r.needsCheck&&lkChatRuleMatchesRow(c,r)){repairs++;repaired.push(lkChatRowLabel(r)+' → '+v+' м');return;}
-    if(lkChatRuleMatchesRow(c,r))conflicts.push(lkChatRowLabel(r)+' → '+v+' м');});
-  return{pass:targetOk&&controls>0&&!conflicts.length,targetOk,controls,detected,repairs,repaired,conflicts,
+    if(!(+(r.len||0)>0)&&r.needsCheck){repairs++;repaired.push(lkChatRowLabel(r)+' → '+v+' м');return;}
+    conflicts.push(lkChatRowLabel(r)+' → '+v+' м');});
+  // Полный P/cosφ/I/L + марка + сечение + собственный потребитель + геометрическая ось уже
+  // являются независимыми сигналами одной строки. Если весь файл не дал ни одного конфликта,
+  // отсутствие второго положительного примера не должно превращаться в вечный отказ.
+  return{pass:targetOk&&(controls>0||selfProof)&&!conflicts.length,targetOk,selfProof,controls,detected,repairs,repaired,conflicts,
     text:(targetOk?'исправляемая строка воспроизведена':'исправляемая строка НЕ воспроизведена')+
-      '. соседних правильных строк: '+controls+'. доказанных пустых строк восстановится: '+repairs+'. конфликтов: '+conflicts.length};}
+      '. строгая геометрия цели: '+(selfProof?'доказана':'нет')+'. соседних правильных строк: '+controls+
+      '. доказанных пустых строк восстановится: '+repairs+'. конфликтов: '+conflicts.length};}
+function lkChatExactTarget(rows,raw){const f=lkChatFixedRow(raw);if(!f)return null;
+  let target=f.matchKey?(rows||[]).find(r=>lkChatRowKey(r)===f.matchKey):null;
+  if(!target)target=(rows||[]).find(r=>lkChatSame(r.group,f.group)&&lkChatSame(r.mark,f.mark)&&lkChatSame(r.section,f.section));
+  if(!target&&f.mx!=null&&f.my!=null){const near=(rows||[]).filter(r=>r.mx!=null&&r.my!=null&&lkChatSame(r.section,f.section)&&
+    Math.hypot(r.mx-f.mx,r.my-f.my)<.045).sort((a,b)=>Math.hypot(a.mx-f.mx,a.my-f.my)-Math.hypot(b.mx-f.mx,b.my-f.my));
+    if(near.length===1||(near.length>1&&Math.hypot(near[1].mx-f.mx,near[1].my-f.my)-Math.hypot(near[0].mx-f.mx,near[0].my-f.my)>.018))target=near[0];}
+  return target;}
+/* После точной правки агент сначала ищет уже доказанный локальный способ чтения поля. Это
+   закрывает оба пути: set-length и vision/upsert, когда Claude восстановил всю строку, хотя
+   для будущих файлов достаточно переносимого правила одного поля длины. */
+function lkChatGeneralLengthFromExact(items,rows,last){const c=last&&last.rule&&last.rule.chat||{};
+  if(c.action==='set-length'){
+    const target=last.target||lkChatExactTarget(rows,Object.assign({},c.match||{},{len:+c.value||0}));
+    const suggested=target&&lkChatInferLen(items,target,+c.value||0);return suggested?{target,value:+c.value,suggested}:null;}
+  if(c.action!=='upsert-lines')return null;
+  for(const raw of (c.rows||[])){const f=lkChatFixedRow(raw),target=f&&lkChatExactTarget(rows,f);if(!target||!(f.len>0))continue;
+    const suggested=lkChatInferLen(items,target,f.len);
+    // Из полного vision-upsert автоматически обобщаем только самое строгое доказанное поле.
+    // Остальные поля продолжит строить /teach, если такой геометрии в примере нет.
+    if(suggested&&suggested.strategy==='passport-head-length')return{target,value:f.len,suggested};}
+  return null;}
 function lkChatSourceValue(s){const m=String(s).match(/((?:ВРУ|ГРЩ|Щ|РП|ТП)[А-ЯЁа-яёA-Za-z0-9().\/-]{1,28})/i);return m?m[1]:'';}
 function lkChatLengthValue(s){let m=String(s).match(/(?:длин[а-яё]*|метр[а-яё]*)[^\d]{0,18}(\d+(?:[,.]\d+)?)/i);
   if(!m)m=String(s).match(/(\d+(?:[,.]\d+)?)\s*м(?=\s|$|[.,;:!?])/i);
@@ -4095,13 +4123,15 @@ function lkTeachPanel(pg,rect,clusters,opt){
       '<div style="margin-top:8px"><b>Создать и проверить правило для будущих похожих файлов?</b> Ответьте обычным сообщением: «да, создай правило» или «нет, завершить». Без отдельного подтверждения правило в программу не попадёт.</div>');input.focus();};
   const auditLengthFile=async(rule,target,value)=>{let pdf=LK.pdf;
     if(!pdf&&LK.docId){const rec=await archGet(LK.docId);if(rec&&rec.buf)pdf=await pdfjsLib.getDocument({data:rec.buf.slice(0)}).promise;}
-    let controls=0,detected=0,targetOk=false,repairs=0;const conflicts=[];
+    let controls=0,detected=0,targetOk=false,selfProof=false,repairs=0,scannedPages=0;const conflicts=[];
     for(const pg of (LK.pages||[])){if(!(pg.rows||[]).length)continue;let items=pg._titems;
       if(!items||!items.length){if(!pdf)continue;const tc=await(await pdf.getPage(pg.page)).getTextContent();tc.items.forEach(it=>{if(it.str)it.str=lkFixEnc(it.str);});items=tc.items;}
+      scannedPages++;
       const a=lkChatAuditLengthRule(items,pg.rows,rule,pg===st.pg?target:null,value);
-      controls+=a.controls;detected+=a.detected;repairs+=a.repairs||0;if(pg===st.pg)targetOk=a.targetOk;conflicts.push(...a.conflicts.map(x=>'лист '+pg.page+': '+x));}
-    return{pass:targetOk&&controls>0&&!conflicts.length,targetOk,controls,detected,repairs,conflicts,
+      controls+=a.controls;detected+=a.detected;repairs+=a.repairs||0;if(pg===st.pg){targetOk=a.targetOk;selfProof=a.selfProof;}conflicts.push(...a.conflicts.map(x=>'лист '+pg.page+': '+x));}
+    return{pass:targetOk&&(controls>0||selfProof)&&!conflicts.length,targetOk,selfProof,controls,detected,repairs,scannedPages,conflicts,
       text:(targetOk?'исправляемая строка воспроизведена':'исправляемая строка НЕ воспроизведена')+
+        '. строгая геометрия цели: '+(selfProof?'доказана':'нет')+'. проверено листов: '+scannedPages+
         '. правильных контрольных строк в файле: '+controls+'. доказанных пустых строк восстановится: '+repairs+'. конфликтов: '+conflicts.length};};
   const lengthDraft=async(target,value,strategy,draftOpt)=>{
     draftOpt=draftOpt||{};
@@ -4122,8 +4152,11 @@ function lkTeachPanel(pg,rect,clusters,opt){
       if(passport){note.textContent='Проверяю способ чтения длины на всех листах файла…';sendBtn.disabled=attach.disabled=true;
         try{fieldAudit=await auditLengthFile(rule,target,detected);}finally{sendBtn.disabled=attach.disabled=false;}
         if(!fieldAudit.pass){finishGeneral('Проверка всего файла не подтвердила переносимое правило: '+fieldAudit.text+'.');return;}
-        rule.validation={version:1,page:st.pg.page,expected:1+(fieldAudit.repairs||0),controls:fieldAudit.controls,conflicts:0,novel:0,duplicates:0,passedAt:Date.now()};}
-      rule.chat.value=detected;}
+        rule.validation={version:1,page:st.pg.page,expected:1,controls:fieldAudit.controls,conflicts:0,novel:0,duplicates:0,
+          proof:fieldAudit.selfProof?'passport-pcosil-geometry-v1':'independent-controls-v1',targetProof:!!fieldAudit.selfProof,
+          repairs:fieldAudit.repairs||0,detected:fieldAudit.detected||0,scannedPages:fieldAudit.scannedPages||0,passedAt:Date.now()};}
+      // Переносимое правило хранит способ извлечения, а не число из учебного примера.
+      delete rule.chat.value;}
     if(draftOpt.auto&&!team){const types=new Set((st.audit.active.issues||[]).map(i=>i.type));
       const explicit=[...String(draftOpt.evidence||'').matchAll(/(\d+(?:[,.]\d+)?)\s*м\b/gi)].map(m=>parseFloat(m[1].replace(',','.'))).filter(Number.isFinite);
       const allowed=[detected,...(target.conds||[]).map(c=>+c.len||0)],conflicting=explicit.filter(v=>!allowed.some(a=>Math.abs(a-v)<.01));
@@ -4137,7 +4170,7 @@ function lkTeachPanel(pg,rect,clusters,opt){
       if(!impact.pass)return{ok:false,feedback:'Локальная проверка отклонила длину '+detected+' м: '+impact.text};
       fieldAudit={pass:true,controls:0,text:impact.text};}
     const before=[{group:target.group,value:(+target.len||0)+' м'}],after=[{group:target.group,value:detected+' м'}];
-    const teamReason=fieldAudit?('На всех листах файла проверено поле длины: исправляемая строка даёт '+detected+' м, правильных контрольных строк '+fieldAudit.controls+', дополнительно восстановится пустых строк '+(fieldAudit.repairs||0)+', конфликтов 0. Новые строки не создаются.'):
+    const teamReason=fieldAudit?('На '+fieldAudit.scannedPages+' '+lkPlural(fieldAudit.scannedPages,'листе','листах','листах')+' файла проверено поле длины: строгая геометрия исправляемой строки даёт '+detected+' м, правильных контрольных строк '+fieldAudit.controls+', дополнительно восстановится пустых строк '+(fieldAudit.repairs||0)+', конфликтов 0. Новые строки не создаются.'):
       ('На текущем примере найдено '+detected+' м. В будущих файлах число будет извлекаться тем же способом.');
     showDraft(rule,before,after,team?teamReason:'Заданное число сохранится только для этого файла и листа.',team);
     if(!team){st.suggested=lkChatInferLen(pageItems,target,value);
@@ -4253,13 +4286,20 @@ function lkTeachPanel(pg,rect,clusters,opt){
       if(same)conflicts.push((r.group||r.section)+' → '+lkChatRowLabel(r)+' (в таблице '+lkChatRowLabel(same)+')');
       else novel.push(lkChatRowLabel(r));});
     const seen=new Set(),duplicates=[];generated.forEach(r=>{const k=lkChatNorm(r.group)+'|'+lkChatNorm(r.mark)+'|'+lkChatNorm(r.section)+'|'+(+r.len||0);if(seen.has(k))duplicates.push(lkChatRowLabel(r));seen.add(k);});
-    const enoughControl=rule.profile==='source'||expectedSource?sourceOk:(controls>0||(expected||[]).length>1);
+    // profile=fragments исполняется не одним regex: локальный движок повторно доказывает
+    // P/cosφ/I/L, марку, NxS, момент/полный хвост и геометрию соседних колонок. Один точно
+    // воспроизведённый пример плюс отрицательный прогон всего листа поэтому достаточен; для
+    // обычных cluster/paired по-прежнему нужна независимая правильная строка.
+    const strictSelfProof=rule&&rule.engine==='lineyka-dsl-v1'&&rule.profile==='fragments'&&rule.pair==='fragments'&&
+      !!rule.head&&!!rule.partner&&(expected||[]).length===1&&generated.length===1&&covers;
+    const enoughControl=rule.profile==='source'||expectedSource?sourceOk:(controls>0||(expected||[]).length>1||strictSelfProof);
     const pass=covers&&sourceOk&&!conflicts.length&&!novel.length&&!duplicates.length&&enoughControl;
     const text=[covers?'подтверждённый пример воспроизведён':'подтверждённый пример НЕ воспроизведён',
       'соседних правильных строк: '+controls,'конфликтов: '+conflicts.length,'лишних новых строк: '+novel.length,'дублей: '+duplicates.length];
+    if(strictSelfProof)text.push('строгая геометрия фрагментированного паспорта доказана на цели и отрицательном контроле листа');
     if(!enoughControl)text.push('нет независимой контрольной строки');
     if(conflicts.length)text.push('конфликты: '+conflicts.slice(0,3).join('; '));if(novel.length)text.push('лишние: '+novel.slice(0,3).join('; '));
-    return{pass,generated,source,controls,conflicts,novel,duplicates,text:text.join('. ')};
+    return{pass,generated,source,controls,strictSelfProof,conflicts,novel,duplicates,text:text.join('. ')};
   };
   const learnPattern=async hint=>{
     if(!st.clusters.length){say('bot','В этом фрагменте нет пригодного текстового слоя. Я могу исправить значение по картинке, но общее правило из одних пикселей небезопасно.');return;}
@@ -4290,7 +4330,8 @@ function lkTeachPanel(pg,rect,clusters,opt){
       if(d.error){say('bot','Не смогла построить правило: '+esc(d.error));return;}
       if(!audit||!audit.pass){finishGeneral('Правило трижды проверено на всём листе и не прошло контроль: '+(audit?audit.text:'проверяемый результат не получен')+'.');return;}
       d.rule.series=lkRuleSeries(name);
-      d.rule.validation={version:1,page:st.pg.page,expected:expected.length+(expectedSource?1:0),controls:audit.controls,conflicts:0,novel:0,duplicates:0,passedAt:Date.now()};
+      d.rule.validation={version:1,page:st.pg.page,expected:expected.length+(expectedSource?1:0),controls:audit.controls,conflicts:0,novel:0,duplicates:0,
+        proof:audit.strictSelfProof?'fragments-geometry-negative-scan-v1':'independent-controls-v1',passedAt:Date.now()};
       const before=[],after=[];
       if(audit.source){before.push({group:'Источник',value:st.pg.vru||'не определён'});after.push({group:'Источник',value:audit.source});}
       expected.slice(0,20).forEach(r=>{before.push({group:r.group||'Линия',section:r.section,value:'старое/неполное чтение'});after.push({group:r.group||'Линия',section:r.section,value:r.mark+' '+r.section+' · '+r.len+' м'});});
@@ -4304,8 +4345,13 @@ function lkTeachPanel(pg,rect,clusters,opt){
     st.generalAttempted=true;st.generalTerminal=false;
     const last=st.lastExact;
     say('bot','Формирую обобщённое правило и проверяю его на текущем фрагменте. Точечные имена и значения в правило не войдут.');
-    if(last.suggested&&last.target&&last.rule&&last.rule.chat&&last.rule.chat.action==='set-length'){
-      await lengthDraft(last.target,+last.rule.chat.value,last.suggested.strategy);return;}
+    const pageItems=st.pg._titems&&st.pg._titems.length?st.pg._titems:(st.clusters.items||[]);
+    const known=(last.suggested&&last.target&&last.rule&&last.rule.chat&&last.rule.chat.action==='set-length')
+      ?{target:last.target,value:+last.rule.chat.value,suggested:last.suggested}
+      :lkChatGeneralLengthFromExact(pageItems,st.pg.rows||[],last);
+    if(known&&known.suggested){
+      say('bot','Нашла строгий переносимый способ: '+esc(known.suggested.label)+'. Проверяю его на всех листах файла и сохраняю только при отсутствии конфликтов.');
+      await lengthDraft(known.target,known.value,known.suggested.strategy);return;}
     await learnPattern(last.hint);
   };
   let aiInterpret;
