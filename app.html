@@ -710,12 +710,17 @@ body {
 .money-summary-total strong { font-size:16px; }
 .money-summary-empty { color:var(--text-3); font-size:12.5px; padding:20px; text-align:center; }
 
-/* ===== Недельные графики финансов ===== */
+/* ===== Графики финансов: день / неделя / месяц ===== */
 .finance-charts { margin: -2px 0 26px; }
 .search-hidden { display:none !important; }
 .fc-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
 .fc-head h2 { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
 .fc-head p { color: var(--text-3); font-size: 11.5px; }
+.fc-head-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+.fc-period-switch { display:inline-flex; align-items:center; padding:2px; border:1px solid var(--line-2); border-radius:9px; background:var(--surface); }
+.fc-period-switch button { border:0; border-radius:7px; background:transparent; color:var(--text-3); padding:5px 9px; font:700 10.5px/1.2 inherit; cursor:pointer; white-space:nowrap; }
+.fc-period-switch button:hover { color:var(--text); }
+.fc-period-switch button.active { background:var(--navy); color:#fff; box-shadow:0 1px 2px rgba(15,23,42,.12); }
 .fc-toggle { border: 1px solid var(--line-2); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; }
 .fc-toggle:hover { color: var(--bronze-deep); border-color: var(--bronze-deep); }
 .sales-quick-link { display:none; align-items:center; gap:9px; margin:0 0 12px; padding:10px 12px; background:var(--surface); border:1px solid var(--line-2); border-radius:11px; }
@@ -809,13 +814,20 @@ body {
 .fc-person input { width: 16px; height: 16px; accent-color: var(--bronze-deep); }
 .fc-person .n { font-size: 12.5px; font-weight: 700; }
 .fc-person .e { color: var(--text-3); font-size: 10.5px; }
+.fc-scale-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin-top:7px; }
+.fc-scale-grid label { margin:0; }
+.fc-scale-grid label span { display:block; margin-bottom:5px; color:var(--text-2); font-size:11px; font-weight:700; }
 @media (max-width: 760px) {
+  .fc-head { align-items:flex-start; }
+  .fc-head-actions { align-items:flex-end; }
+  .fc-period-switch button { padding-inline:7px; }
   .fc-card { flex-basis:min(82vw,360px); height:570px; padding-inline:12px; }
   .fc-labels span { font-size: 8.5px; }
   .fc-detail-row { grid-template-columns:minmax(0,1fr); }
   .fc-detail-row .s { grid-row:auto; grid-column:auto; justify-self:start; }
   .money-summary-row { grid-template-columns:minmax(0,1fr); gap:4px; }
   .money-summary-row .amount { grid-column:auto; grid-row:auto; }
+  .fc-scale-grid { grid-template-columns:1fr; }
 }
 @media (min-width: 761px) and (max-width: 980px) {
   .fc-card { flex-basis:max(290px,calc((100% - 14px) / 2)); }
@@ -3239,7 +3251,21 @@ let MONEY_LOADED = false;
 let MONEY_LOAD_PROMISE = null;
 let MONEY_SAVE_TIMER = null;
 let CHART_VISIBILITY = { inquiries: [], kep: [], orders: [], cash: [], releases: [] };
-let CHART_SCALE = { inquiries: 0, kep: 0, orders: 0, cash: 0, releases: 0 };
+function normalizeFinanceChartScale(raw={}){
+  const normalized={};
+  ['inquiries','kep','orders','cash','releases'].forEach(kind=>{
+    const value=raw?.[kind];
+    normalized[kind]=value && typeof value==='object' && !Array.isArray(value)
+      ? {
+          day:Math.max(0,Math.round(Number(value.day)||0)),
+          week:Math.max(0,Math.round(Number(value.week)||0)),
+          month:Math.max(0,Math.round(Number(value.month)||0))
+        }
+      : {day:0,week:Math.max(0,Math.round(Number(value)||0)),month:0};
+  });
+  return normalized;
+}
+let CHART_SCALE = normalizeFinanceChartScale();
 let CHART_ALLOWED = { inquiries: false, kep: false, orders: false, cash: false, releases: false };
 function canSeeProjectMoney(){ return CURRENT?.isSuperAdmin === true; }
 function canConfigureFinanceChart(kind){ return canSeeProjectMoney() || CHART_ALLOWED[kind] === true; }
@@ -3264,7 +3290,7 @@ async function loadMoney(){
       MONEY=server.money||{};
       RATE=Number(server.rate)||530;
       CHART_VISIBILITY=server.chartVisibility||{inquiries:[],kep:[],orders:[],cash:[],releases:[]};
-      CHART_SCALE=server.chartScale||{inquiries:0,kep:0,orders:0,cash:0,releases:0};
+      CHART_SCALE=normalizeFinanceChartScale(server.chartScale);
     } else {
       // Одноразовый перенос прежних данных из браузера Super Admin на сервер.
       const raw=localStorage.getItem(MONEY_KEY);
@@ -3550,20 +3576,48 @@ const FINANCE_CHART_META = {
   inquiries: { title:'Количество новых обращений', sub:'Pllato Старт · стадия «Новая»', color:'#373d8d' },
   kep: { title:'Количество людей на КЭП', sub:'Этапы «Создание Демо» или «Показ Демо»', color:'#7c3aed' },
   orders: { title:'Количество новых заказов', sub:'Сумма заказа + первый платёж', color:'#4f46e5' },
-  cash: { title:'Количество денег в кассе', sub:'Все транзакции за неделю', color:'#16a34a' },
+  cash: { title:'Количество денег в кассе', sub:'Все транзакции за период', color:'#16a34a' },
   releases: { title:'Выпуски', sub:'Завершённые проекты', color:'#d97706' },
 };
+const FINANCE_CHART_PERIOD_META = {
+  day: {
+    label:'День',
+    heading:'Динамика по дням',
+    description:'Одна точка — один календарный день по Алматы',
+    suffix:'по дням'
+  },
+  week: {
+    label:'Неделя',
+    heading:'Динамика по неделям',
+    description:'Неделя закрывается каждый четверг в 14:00 по Алматы',
+    suffix:'чт 14:00 → чт 14:00'
+  },
+  month: {
+    label:'Месяц',
+    heading:'Динамика по месяцам',
+    description:'Одна точка — один календарный месяц по Алматы',
+    suffix:'по месяцам'
+  }
+};
+let FINANCE_CHART_PERIOD='week';
+function financeChartPeriodMeta(){ return FINANCE_CHART_PERIOD_META[FINANCE_CHART_PERIOD]||FINANCE_CHART_PERIOD_META.week; }
+function financeChartScale(kind){ return Math.max(0,Number(CHART_SCALE?.[kind]?.[FINANCE_CHART_PERIOD])||0); }
+function setFinanceChartPeriod(period){
+  if(!FINANCE_CHART_PERIOD_META[period] || period===FINANCE_CHART_PERIOD) return;
+  FINANCE_CHART_PERIOD=period;
+  renderFinanceCharts();
+}
 let FINANCE_CHART_REQUEST = 0;
 let FINANCE_CHART_COMMENTS = [];
 let FINANCE_CHART_COMMENTS_LOADED = false;
 let FINANCE_WEEK_TASKS = [];
 let FINANCE_WEEK_TASKS_LOADED = false;
 let FINANCE_CHART_RETRY_TIMER = null;
-const FINANCE_CHART_CACHE_VERSION = 1;
+const FINANCE_CHART_CACHE_VERSION = 2;
 const FINANCE_CHART_KINDS = ['inquiries','kep','orders','cash','releases'];
 
 function financeChartCacheKey(){
-  return `pllato_finance_charts_v${FINANCE_CHART_CACHE_VERSION}:${String(CURRENT?.email||'guest').toLowerCase()}`;
+  return `pllato_finance_charts_v${FINANCE_CHART_CACHE_VERSION}:${String(CURRENT?.email||'guest').toLowerCase()}:${FINANCE_CHART_PERIOD}`;
 }
 function readFinanceChartCache(){
   try{
@@ -3670,14 +3724,14 @@ function financeValue(kind,n){
 function financeChartSvg(kind,series){
   const count=series.length||1, vw=count*100, vh=650, top=66, bottom=32;
   const autoMax=Math.max(1,...series.map(x=>Number(x.value)||0));
-  const max=Math.max(1,Number(CHART_SCALE[kind])||autoMax);
+  const max=Math.max(1,financeChartScale(kind)||autoMax);
   const scaleLabel=`Максимум шкалы: ${financeValue(kind,max)}`;
   const x=i=>(i+.5)*100;
   const y=v=>top+(1-Math.min(1,(Number(v)||0)/max))*(vh-top-bottom);
   const completed=series.map((s,i)=>s.partial?null:`${x(i)},${y(s.value).toFixed(1)}`).filter(Boolean).join(' ');
   const color=FINANCE_CHART_META[kind].color;
   const points=series.map((s,i)=>{
-    const title=`${s.label}: ${kind==='cash'?fmtT(s.value):s.value}${s.partial?' · текущая неделя':''}`;
+    const title=`${s.label}: ${kind==='cash'?fmtT(s.value):s.value}${s.partial?' · текущий период':''}`;
     const value=financeValue(kind,s.value);
     const labelY=Math.max(10,y(s.value)-14);
     const action=`openFinancePointDetails('${kind}',${Number(s.start)},${Number(s.end)},${Number(s.value)||0})`;
@@ -3701,6 +3755,7 @@ function financeChartSvg(kind,series){
 }
 function financeChartCard(kind,series){
   const meta=FINANCE_CHART_META[kind];
+  const periodMeta=financeChartPeriodMeta();
   const access=canConfigureFinanceChart(kind)?`<button class="fc-access" onclick="openFinanceAccess('${kind}')">Настройки</button>`:'';
   const unavailable=series.length>0 && series.every(point=>point?.unavailable);
   const noted=series.flatMap(point=>financePointComments(kind,point.start).map(comment=>({...comment,label:point.label,end:point.end,value:point.value})));
@@ -3708,7 +3763,7 @@ function financeChartCard(kind,series){
     ? `<div class="fc-notes">${noted.slice(-3).reverse().map(comment=>`<button class="fc-note-chip" onclick="openFinancePointDetails('${kind}',${Number(comment.start)},${Number(comment.end)||0},${Number(comment.value)||0})" title="${mEsc(comment.text)}"><span class="d">● ${mEsc(comment.label)}</span><span class="t">${mEsc(comment.text)}</span></button>`).join('')}</div>`
     : '';
   return `<article class="fc-card">
-    <div class="fc-card-head"><div><div class="fc-card-title">${meta.title}</div><div class="fc-card-sub">${meta.sub} · чт 14:00 → чт 14:00</div></div>${access}</div>
+    <div class="fc-card-head"><div><div class="fc-card-title">${meta.title}</div><div class="fc-card-sub">${meta.sub} · ${periodMeta.suffix}</div></div>${access}</div>
     <div class="fc-plot">${unavailable?'<div class="fc-unavailable">Источник временно недоступен.<br>График останется на месте и обновится автоматически.</div>':financeChartSvg(kind,series)}</div>
     <div class="fc-labels">${series.map(s=>`<span>${mEsc(s.label)}</span>`).join('')}</div>
     ${notes}
@@ -3931,20 +3986,25 @@ function toggleFinanceCharts(){
   FINANCE_DISCLOSURE_OPEN=!FINANCE_DISCLOSURE_OPEN;
   applyFinanceChartsFold();
 }
+function financeChartsHeader(){
+  const meta=financeChartPeriodMeta();
+  const periods=Object.entries(FINANCE_CHART_PERIOD_META).map(([key,item])=>`<button type="button" class="${key===FINANCE_CHART_PERIOD?'active':''}" onclick="setFinanceChartPeriod('${key}')" aria-pressed="${key===FINANCE_CHART_PERIOD}">${item.label}</button>`).join('');
+  const toggle=financeChartsPinnedOpen()?'':'<button class="fc-toggle" onclick="toggleFinanceCharts()"></button>';
+  return `<div class="fc-head"><div><h2>${meta.heading}</h2><p>${meta.description}</p></div><div class="fc-head-actions"><div class="fc-period-switch" role="group" aria-label="Масштаб графиков">${periods}</div>${toggle}</div></div>`;
+}
 async function paintFinanceCharts(el,data,{cached=false}={}){
   CHART_ALLOWED={...CHART_ALLOWED,...(data.visible||{})};
   if(data.chartVisibility) CHART_VISIBILITY={...CHART_VISIBILITY,...data.chartVisibility};
-  if(data.chartScale) CHART_SCALE={...CHART_SCALE,...data.chartScale};
+  if(data.chartScale) CHART_SCALE=normalizeFinanceChartScale({...CHART_SCALE,...data.chartScale});
   const kinds=financeChartKinds(data);
   if(!kinds.length) return false;
   try{
     await Promise.all([loadFinanceChartComments(),loadFinanceWeekTasks()]);
-    await ensureInitialFinanceComment(data.charts?.inquiries);
+    if(FINANCE_CHART_PERIOD==='week') await ensureInitialFinanceComment(data.charts?.inquiries);
   }catch(commentError){
     console.warn('chart collaboration:',commentError);
   }
   await loadGlobalSalesQuickLink();
-  const toggle=financeChartsPinnedOpen()?'':'<button class="fc-toggle" onclick="toggleFinanceCharts()"></button>';
   const hasFallback=(data.cachedKinds||[]).length>0 || (data.unavailableKinds||[]).length>0;
   const status=cached || hasFallback
     ? '<div class="fc-status"><span>'+(cached
@@ -3954,7 +4014,7 @@ async function paintFinanceCharts(el,data,{cached=false}={}){
     : '';
   el.innerHTML='<div class="sales-quick-link" id="salesQuickLink"></div>'
     +status
-    +'<div class="fc-head"><div><h2>Динамика по неделям</h2><p>Неделя закрывается каждый четверг в 14:00 по Алматы</p></div>'+toggle+'</div>'
+    +financeChartsHeader()
     +'<div class="fc-grid">'+kinds.map(kind=>financeChartCard(kind,data.charts[kind])).join('')+'</div>';
   const chartGrid=el.querySelector('.fc-grid');
   if(chartGrid) chartGrid.scrollLeft=0;
@@ -3969,15 +4029,15 @@ async function renderFinanceCharts(){
   const requestId=++FINANCE_CHART_REQUEST;
   const cached=readFinanceChartCache();
   if(cached) await paintFinanceCharts(el,mergeFinanceChartData({},cached.data),{cached:true});
-  else if(!el.querySelector('.fc-grid')) el.innerHTML='<div class="fc-empty">Загружаю недельную статистику…</div>';
+  else if(!el.querySelector('.fc-grid')) el.innerHTML=financeChartsHeader()+'<div class="fc-empty">Загружаю статистику…</div>';
   try{
-    const data=await apiFetch('/project-finance/charts?points=8');
+    const data=await apiFetch(`/project-finance/charts?points=8&period=${FINANCE_CHART_PERIOD}`);
     // Агрегат обращений живёт в CRM-базе. Если меж-worker запрос временно не
     // попал в основной ответ, забираем ту же обезличенную серию напрямую.
     // Доступ наследуется от уже видимого пользователю графика новых заказов.
     if(!Array.isArray(data.charts?.inquiries) && Array.isArray(data.charts?.orders)){
       try{
-        const inquiryResponse=await fetch('https://pllato-elc-worker.uurraa.workers.dev/api/public/pllato-inquiries?points=8',{cache:'no-store'});
+        const inquiryResponse=await fetch(`https://pllato-elc-worker.uurraa.workers.dev/api/public/pllato-inquiries?points=8&period=${FINANCE_CHART_PERIOD}`,{cache:'no-store'});
         if(inquiryResponse.ok){
           const inquiryData=await inquiryResponse.json();
           if(Array.isArray(inquiryData.series)){
@@ -3991,7 +4051,7 @@ async function renderFinanceCharts(){
     }
     if(!Array.isArray(data.charts?.kep) && data.visible?.kep){
       try{
-        const kepResponse=await fetch('https://pllato-elc-worker.uurraa.workers.dev/api/public/pllato-kep?points=8',{cache:'no-store'});
+        const kepResponse=await fetch(`https://pllato-elc-worker.uurraa.workers.dev/api/public/pllato-kep?points=8&period=${FINANCE_CHART_PERIOD}`,{cache:'no-store'});
         if(kepResponse.ok){
           const kepData=await kepResponse.json();
           if(Array.isArray(kepData.series)){
@@ -4024,7 +4084,7 @@ async function renderFinanceCharts(){
     if(requestId!==FINANCE_CHART_REQUEST) return;
     console.error('finance charts:',e);
     if(!el.querySelector('.fc-grid')){
-      el.innerHTML='<div class="fc-head"><div><h2>Динамика по неделям</h2><p>Неделя закрывается каждый четверг в 14:00 по Алматы</p></div></div>'
+      el.innerHTML=financeChartsHeader()
         +'<div class="fc-status"><span>Не удалось загрузить статистику. Графики автоматически появятся после восстановления связи.</span><button type="button" onclick="renderFinanceCharts()">Повторить</button></div>';
       applyFinanceChartsFold();
     }
@@ -4162,7 +4222,7 @@ async function openFinancePointDetails(kind,start,end,chartValue){
     const actualLabel=kind==='cash'?financeValue(kind,actualValue):String(actualValue);
     ovl.querySelector('.mm-b').innerHTML=`<div class="fc-detail-summary"><div class="c"><div class="l">Период</div><div class="v">${mEsc(financeDetailPeriod(start,end))}</div></div><div class="c"><div class="l">Значение на графике</div><div class="v">${mEsc(summaryValue)}</div></div></div>`
       +(different?`<div class="fc-detail-note">Значение на графике скорректировано вручную. По сохранённым сделкам и транзакциям найдено: <b>${mEsc(actualLabel)}</b>.</div>`:'')
-      +(data.items?.length?`<div class="fc-detail-list">${data.items.map(item=>financeDetailRow(kind,item)).join('')}</div>`:'<div class="fc-detail-list"><div class="fc-detail-empty">За эту неделю сохранённых сделок или транзакций нет.</div></div>')
+      +(data.items?.length?`<div class="fc-detail-list">${data.items.map(item=>financeDetailRow(kind,item)).join('')}</div>`:'<div class="fc-detail-list"><div class="fc-detail-empty">За этот период сохранённых сделок или транзакций нет.</div></div>')
       +financePointCommentsBlock(kind,start,end);
   }catch(error){
     if(!document.body.contains(ovl)) return;
@@ -4180,10 +4240,12 @@ async function openFinanceAccess(kind){
   ovl.id='financeAccessOvl'; ovl.className='money-ovl show';
   ovl.addEventListener('click',e=>{if(e.target===ovl)ovl.remove();});
   const people=users.filter(u=>u.email && String(u.email).toLowerCase()!==String(CURRENT.email).toLowerCase());
-  const scaleValue=Number(CHART_SCALE[kind])||'';
+  const scales=normalizeFinanceChartScale({[kind]:CHART_SCALE[kind]})[kind];
   const scaleHint=kind==='cash'?'например, 3000000':'например, 10';
   ovl.innerHTML='<div class="money-modal"><div class="mm-h"><h3>Настройки: '+mEsc(FINANCE_CHART_META[kind].title)+'</h3><span class="mm-x" onclick="document.getElementById(\'financeAccessOvl\').remove()">✕</span></div>'
-    +'<div class="mm-b"><label>Максимум вертикальной шкалы</label><input id="fcScaleMax" type="number" min="0" step="1" value="'+scaleValue+'" placeholder="'+scaleHint+'">'
+    +'<div class="mm-b"><label>Максимум вертикальной шкалы</label><div class="fc-scale-grid">'
+    +Object.entries(FINANCE_CHART_PERIOD_META).map(([period,item])=>'<label><span>'+mEsc(item.label)+'</span><input data-scale-period="'+period+'" type="number" min="0" step="1" value="'+(Number(scales[period])||'')+'" placeholder="'+scaleHint+'"></label>').join('')
+    +'</div>'
     +'<div style="font-size:10.5px;color:var(--text-3);margin-top:4px">Оставьте пустым — масштаб будет рассчитываться автоматически.</div>'
     +'<div style="font-size:12px;color:var(--text-2);margin-top:16px">Кто видит график. Super Admin видит его всегда.</div>'
     +'<div class="fc-modal-list">'+(people.length?people.map(u=>{const email=String(u.email).toLowerCase();return '<label class="fc-person"><input type="checkbox" value="'+mEsc(email)+'" '+(selected.has(email)?'checked':'')+'><span><div class="n">'+mEsc(u.name||email)+'</div><div class="e">'+mEsc(email)+'</div></span></label>';}).join(''):'<div class="fc-empty" style="padding:14px">Других сотрудников пока нет.</div>')+'</div></div>'
@@ -4195,15 +4257,18 @@ async function saveFinanceAccess(kind){
   if(!ovl) return;
   const viewers=[...ovl.querySelectorAll('.fc-person input:checked')].map(x=>x.value);
   CHART_VISIBILITY={...CHART_VISIBILITY,[kind]:viewers};
-  const scale=Math.max(0,Math.round(Number(ovl.querySelector('#fcScaleMax')?.value)||0));
-  CHART_SCALE={...CHART_SCALE,[kind]:scale};
+  const scale={day:0,week:0,month:0};
+  ovl.querySelectorAll('[data-scale-period]').forEach(input=>{
+    scale[input.dataset.scalePeriod]=Math.max(0,Math.round(Number(input.value)||0));
+  });
+  CHART_SCALE=normalizeFinanceChartScale({...CHART_SCALE,[kind]:scale});
   try{
     await apiFetch('/project-finance/charts',{method:'PUT',body:{kind,chartVisibility:CHART_VISIBILITY,chartScale:CHART_SCALE}});
     ovl.remove(); renderFinanceCharts();
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTask, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, renderFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
+Object.assign(window, { openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTask, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
 
 function applyProjectFilters(){
   sortProjectCards();

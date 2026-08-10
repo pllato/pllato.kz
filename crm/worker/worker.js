@@ -2190,6 +2190,22 @@ function normalizeProjectFinance(payload) {
   const rawVisibility = isObject(payload?.chartVisibility) ? payload.chartVisibility : {};
   const rawOverrides = isObject(payload?.chartOverrides) ? payload.chartOverrides : {};
   const rawScale = isObject(payload?.chartScale) ? payload.chartScale : {};
+  const normalizeScale = (value) => {
+    if (isObject(value)) {
+      return {
+        day: Math.max(0, Math.round(Number(value.day) || 0)),
+        week: Math.max(0, Math.round(Number(value.week) || 0)),
+        month: Math.max(0, Math.round(Number(value.month) || 0)),
+      };
+    }
+    // До появления переключателя масштаба максимум был одним числом и
+    // относился к недельному графику. Сохраняем его именно как week.
+    return {
+      day: 0,
+      week: Math.max(0, Math.round(Number(value) || 0)),
+      month: 0,
+    };
+  };
   const normalizeViewers = (value) => [...new Set((Array.isArray(value) ? value : [])
     .map((email) => String(email || "").trim().toLowerCase())
     .filter((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
@@ -2224,11 +2240,11 @@ function normalizeProjectFinance(payload) {
     },
     chartOverrides,
     chartScale: {
-      inquiries: Math.max(0, Math.round(Number(rawScale.inquiries) || 0)),
-      kep: Math.max(0, Math.round(Number(rawScale.kep) || 0)),
-      orders: Math.max(0, Math.round(Number(rawScale.orders) || 0)),
-      cash: Math.max(0, Math.round(Number(rawScale.cash) || 0)),
-      releases: Math.max(0, Math.round(Number(rawScale.releases) || 0)),
+      inquiries: normalizeScale(rawScale.inquiries),
+      kep: normalizeScale(rawScale.kep),
+      orders: normalizeScale(rawScale.orders),
+      cash: normalizeScale(rawScale.cash),
+      releases: normalizeScale(rawScale.releases),
     },
   };
 }
@@ -2286,6 +2302,66 @@ function almatyThursdayWeekStart(timestamp) {
   return startUtc;
 }
 
+function projectFinanceGranularity(value) {
+  return ["day", "week", "month"].includes(String(value)) ? String(value) : "week";
+}
+
+function projectFinanceChartBuckets(granularity, points = 8, now = Date.now()) {
+  const period = projectFinanceGranularity(granularity);
+  const count = Math.max(4, Math.min(Number(points) || 8, 16));
+  const shiftMs = 5 * 60 * 60 * 1000;
+  const dayMs = 86400000;
+  const localNow = new Date(now + shiftMs);
+  const buckets = [];
+  const shortDate = (timestamp) => new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Asia/Almaty",
+    day: "2-digit",
+    month: "2-digit",
+  }).format(new Date(timestamp));
+
+  if (period === "week") {
+    const currentStart = almatyThursdayWeekStart(now);
+    for (let i = count - 1; i >= 0; i -= 1) {
+      const start = currentStart - i * 7 * dayMs;
+      const end = start + 7 * dayMs;
+      buckets.push({ start, end, label: shortDate(end), partial: i === 0 });
+    }
+    return buckets;
+  }
+
+  if (period === "month") {
+    const year = localNow.getUTCFullYear();
+    const month = localNow.getUTCMonth();
+    const monthLabel = new Intl.DateTimeFormat("ru-RU", {
+      timeZone: "Asia/Almaty",
+      month: "short",
+      year: "2-digit",
+    });
+    for (let i = count - 1; i >= 0; i -= 1) {
+      const start = Date.UTC(year, month - i, 1) - shiftMs;
+      const end = Date.UTC(year, month - i + 1, 1) - shiftMs;
+      buckets.push({
+        start,
+        end,
+        label: monthLabel.format(new Date(start)).replace(" г.", ""),
+        partial: i === 0,
+      });
+    }
+    return buckets;
+  }
+
+  const currentStart = Date.UTC(
+    localNow.getUTCFullYear(),
+    localNow.getUTCMonth(),
+    localNow.getUTCDate(),
+  ) - shiftMs;
+  for (let i = count - 1; i >= 0; i -= 1) {
+    const start = currentStart - i * dayMs;
+    buckets.push({ start, end: start + dayMs, label: shortDate(start), partial: i === 0 });
+  }
+  return buckets;
+}
+
 function financeChartAllowed(actor, viewers) {
   if (canAccessProjectFinance(actor)) return true;
   const email = String(actor?.email || "").trim().toLowerCase();
@@ -2311,21 +2387,15 @@ function projectFinanceRelease(item) {
   return { timestamp, reason: timestamp ? "paid" : "" };
 }
 
-function projectFinanceChartSeries(finance, points = 8) {
-  const count = Math.max(4, Math.min(Number(points) || 8, 16));
-  const weekMs = 7 * 86400000;
-  const currentStart = almatyThursdayWeekStart(Date.now());
-  const starts = Array.from({ length: count }, (_, i) => currentStart - (count - 1 - i) * weekMs);
-  const orders = starts.map(() => 0);
-  const cash = starts.map(() => 0);
-  const releases = starts.map(() => 0);
-  const startIndex = starts[0];
-  const toIndex = (timestamp) => Math.floor((almatyThursdayWeekStart(timestamp) - startIndex) / weekMs);
-  const label = (start) => new Intl.DateTimeFormat("ru-RU", {
-    timeZone: "Asia/Almaty",
-    day: "2-digit",
-    month: "2-digit",
-  }).format(new Date(start));
+function projectFinanceChartSeries(finance, points = 8, granularity = "week") {
+  const period = projectFinanceGranularity(granularity);
+  const buckets = projectFinanceChartBuckets(period, points);
+  const orders = buckets.map(() => 0);
+  const cash = buckets.map(() => 0);
+  const releases = buckets.map(() => 0);
+  const toIndex = (timestamp) => buckets.findIndex((bucket) => (
+    timestamp >= bucket.start && timestamp < bucket.end
+  ));
 
   Object.values(finance.money || {}).forEach((item) => {
     const firstPayTime = (item.pays || []).map(projectFinanceEventTime).filter(Boolean).sort((a, b) => a - b)[0] || 0;
@@ -2334,32 +2404,30 @@ function projectFinanceChartSeries(finance, points = 8) {
     // временем, когда пользователь внёс/отредактировал запись в App.
     if (Number(item.deal) > 0 && firstPayTime) {
       const index = toIndex(firstPayTime);
-      if (index >= 0 && index < count) orders[index] += 1;
+      if (index >= 0 && index < buckets.length) orders[index] += 1;
     }
     (item.pays || []).forEach((pay) => {
       const timestamp = projectFinanceEventTime(pay);
       const index = timestamp ? toIndex(timestamp) : -1;
-      if (index >= 0 && index < count) {
+      if (index >= 0 && index < buckets.length) {
         const amount = item.cur === "USD" ? Number(pay.sum || 0) * finance.rate : Number(pay.sum || 0);
         cash[index] += Math.round(amount);
       }
     });
     const releaseTime = projectFinanceRelease(item).timestamp;
     const releaseIndex = releaseTime ? toIndex(releaseTime) : -1;
-    if (releaseIndex >= 0 && releaseIndex < count) releases[releaseIndex] += 1;
+    if (releaseIndex >= 0 && releaseIndex < buckets.length) releases[releaseIndex] += 1;
   });
 
-  return starts.map((start, index) => {
-    const end = start + weekMs;
-    // Точка подписывается датой закрытия недели. Например, период
-    // 16.07 14:00 → 23.07 14:00 отображается как «23.07».
-    const weekKey = new Date(end + 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const override = finance.chartOverrides?.[weekKey] || {};
+  return buckets.map((bucket, index) => {
+    // Ручные исторические корректировки заведены для недельных точек и не
+    // должны менять реальные дневные или месячные итоги.
+    const weekKey = period === "week"
+      ? new Date(bucket.end + 5 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      : "";
+    const override = weekKey ? (finance.chartOverrides?.[weekKey] || {}) : {};
     return {
-      start,
-      end,
-      label: label(end),
-      partial: start === currentStart,
+      ...bucket,
       orders: Number.isFinite(Number(override.orders)) ? Number(override.orders) : orders[index],
       cash: Number.isFinite(Number(override.cash)) ? Number(override.cash) : cash[index],
       releases: Number.isFinite(Number(override.releases)) ? Number(override.releases) : releases[index],
@@ -2370,12 +2438,9 @@ function projectFinanceChartSeries(finance, points = 8) {
 function projectFinanceDetailPeriod(url) {
   const start = Number(url.searchParams.get("start"));
   const end = Number(url.searchParams.get("end"));
-  const weekMs = 7 * 86400000;
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - start > weekMs + 1000) {
+  const maxPeriodMs = 32 * 86400000;
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - start > maxPeriodMs) {
     throw new HttpError(400, "Некорректный период графика");
-  }
-  if (almatyThursdayWeekStart(start) !== start || end !== start + weekMs) {
-    throw new HttpError(400, "Период должен идти с четверга 14:00 до четверга 14:00");
   }
   return { start, end };
 }
@@ -2440,8 +2505,12 @@ async function handleProjectFinanceChartDetails(env, actor, url) {
   const actualValue = kind === "cash"
     ? items.reduce((sum, item) => sum + item.amountKzt, 0)
     : items.length;
-  const weekKey = new Date(end + 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const override = finance.chartOverrides?.[weekKey]?.[kind];
+  const weekMs = 7 * 86400000;
+  const isWeeklyPoint = end === start + weekMs && almatyThursdayWeekStart(start) === start;
+  const weekKey = isWeeklyPoint
+    ? new Date(end + 5 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    : "";
+  const override = weekKey ? finance.chartOverrides?.[weekKey]?.[kind] : undefined;
   const chartValue = Number.isFinite(Number(override)) ? Number(override) : actualValue;
   return {
     ok: true,
@@ -2465,12 +2534,13 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
     cash: financeChartAllowed(actor, finance.chartVisibility.cash),
     releases: financeChartAllowed(actor, finance.chartVisibility.releases),
   };
-  const allSeries = projectFinanceChartSeries(finance, url.searchParams.get("points"));
+  const granularity = projectFinanceGranularity(url.searchParams.get("period"));
+  const allSeries = projectFinanceChartSeries(finance, url.searchParams.get("points"), granularity);
   const charts = {};
   if (visible.inquiries) {
     try {
       const pointCount = Math.max(4, Math.min(Number(url.searchParams.get("points")) || 8, 16));
-      const upstream = await fetch(`https://pllato-elc-worker.uurraa.workers.dev/api/public/pllato-inquiries?points=${pointCount}`);
+      const upstream = await fetch(`https://pllato-elc-worker.uurraa.workers.dev/api/public/pllato-inquiries?points=${pointCount}&period=${granularity}`);
       if (upstream.ok) {
         const payload = await upstream.json();
         if (Array.isArray(payload?.series)) {
@@ -2488,15 +2558,17 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
   if (visible.kep) {
     try {
       const pointCount = Math.max(4, Math.min(Number(url.searchParams.get("points")) || 8, 16));
-      const upstream = await fetch(`https://pllato-elc-worker.uurraa.workers.dev/api/public/pllato-kep?points=${pointCount}`);
+      const upstream = await fetch(`https://pllato-elc-worker.uurraa.workers.dev/api/public/pllato-kep?points=${pointCount}&period=${granularity}`);
       if (upstream.ok) {
         const payload = await upstream.json();
         if (Array.isArray(payload?.series)) {
           charts.kep = payload.series.map((point, index) => {
             const base = allSeries[index];
             if (!base?.end) return point;
-            const weekKey = new Date(base.end + 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
-            const override = finance.chartOverrides?.[weekKey];
+            const weekKey = granularity === "week"
+              ? new Date(base.end + 5 * 60 * 60 * 1000).toISOString().slice(0, 10)
+              : "";
+            const override = weekKey ? finance.chartOverrides?.[weekKey] : undefined;
             return {
               ...point,
               start: base.start,
@@ -2520,6 +2592,7 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
     visible,
     chartVisibility: Object.fromEntries(visibleKinds.map((kind) => [kind, finance.chartVisibility[kind]])),
     chartScale: Object.fromEntries(visibleKinds.map((kind) => [kind, finance.chartScale[kind]])),
+    period: granularity,
     boundary: { weekday: 4, hour: 14, timeZone: "Asia/Almaty" },
   };
 }
