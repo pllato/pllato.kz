@@ -1708,7 +1708,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v444';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v445';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v422';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -2026,12 +2026,17 @@ function lkParseFragmentedPassports(items,rule,internal){
   const minPassportLen=internal&&internal.chatMinLength===1?1:2;
   const momentOk=(v,want)=>Math.abs(v-want)<=Math.max(momentTol>.02?2:1,want*momentTol);
   const nums=s=>[...String(s).matchAll(/\d+(?:[.,]\d+)?/g)].map(m=>({v:parseFloat(m[0].replace(',','.')),i:m.index}));
+  // Только при проверке уже подтверждённой строки в ИИ-агенте разрешаем небольшой дополнительный
+  // допуск для округлённого тока. На листе автора 1878 ток 7,4 А при P=2,13 и cosφ=0,93
+  // отклоняется от упрощённой формулы на 29%, хотя соседний хвост и момент независимо доказывают
+  // паспорт. Основной офлайн-парсер сохраняет прежние 27%.
+  const chatProof=!!(internal&&internal.chatMinLength===1&&rule&&rule.wholeMark&&rule.trustHead),physicsTol=chatProof?.30:.27;
   const physics=(P,co,I)=>{if(!(P>0&&co>=.4&&co<=1.1&&I>0))return false;
     const e1=P/(.22*co),e3=P/(.38*Math.sqrt(3)*co);
     // У разных авторов расчётный ток в паспорте включает свой коэффициент спроса:
     // у Boulevard он системно на 23% ниже номинальной формулы. Остальные независимые
     // сигналы (марка, NxS и полный хвост) обязательны, поэтому допуск остаётся безопасным.
-    return Math.min(Math.abs(I-e1)/Math.max(1,e1),Math.abs(I-e3)/Math.max(1,e3))<=.27;};
+    return Math.min(Math.abs(I-e1)/Math.max(1,e1),Math.abs(I-e3)/Math.max(1,e3))<=physicsTol;};
   const crossGroups=A=>{const out=[];A.slice().sort((a,b)=>a.c-b.c||a.a-b.a).forEach(o=>{
     let g=out[out.length-1];if(!g||o.c-g.c>1.6){g={c:o.c,a:[]};out.push(g);}g.a.push(o);});return out;};
   R.forEach(h=>{
@@ -2899,8 +2904,10 @@ function lkRuleLen(s,F,geom){
 }
 function lkRuleRow(rule,F,s,x,y){
   // УСТОЙЧИВОСТЬ: регэксп ИИ бывает чуть неточным (пробелы/якоря) — если он не сработал,
-  // включаем универсальные запасные: сечение = NxS, длина = число перед «м».
-  let sm=F.sec&&F.sec.exec(s);if(!sm||sm[1]==null||sm[2]==null)sm=s.match(LK_SECT);
+  // включаем универсальные запасные: сечение = ЯВНО напечатанное NxS, длина = число перед «м».
+  // Захваты regex нельзя превращать в сечение, если в подписи нет собственного NxS: иначе
+  // группа JB4 и соседний cosφ 0,93 складывались в выдуманное «4x0,93».
+  const sm=String(s).match(LK_SECT);if(!sm)return null;
   const L=lkRuleLen(s,F,!!rule.pair);
   if(!sm||!(L>0)||L>2000)return null;
   const conds=[];if(F.cnd){let m;F.cnd.lastIndex=0;while((m=F.cnd.exec(s))&&conds.length<4)conds.push({t:lkCondName(m[1])+(m[2]||''),len:+(m[3]||0)||0});}
@@ -2951,7 +2958,7 @@ function lkRuleRows(clusters,rules,items){
         // СЕЧЕНИЕ — из ХВОСТА. Если хвоста нет (подпись одной строкой) — всё из головы.
         const MS=P||H;
         const L=lkRuleLen(H,F,true);
-        let sm=F.sec&&F.sec.exec(MS);if(!sm||sm[1]==null||sm[2]==null)sm=MS.match(LK_SECT);
+        const sm=MS.match(LK_SECT);if(!sm)return;
         if(!sm||!(L>0)||L>2000)return;
         const conds=[];if(F.cnd){let m;F.cnd.lastIndex=0;while((m=F.cnd.exec(MS))&&conds.length<4)conds.push({t:lkCondName(m[1])+(m[2]||''),len:+(m[3]||0)||0});}
         rows.push({group:(F.grp&&(F.grp.exec(H)||[])[1]||'').trim()||'—',
@@ -3948,9 +3955,10 @@ function lkChatAuditLengthRule(items,rows,rule,target,expected){const c=rule&&ru
   (rows||[]).forEach(r=>{if(!lkChatRuleMatchesRow(c,r))return;const v=lkChatLearnedLen(items,r,c.strategy,c);if(!(v>0))return;detected++;
     if(r===target){targetOk=Math.abs(v-expected)<.01;selfProof=targetOk&&c.strategy==='passport-head-length';return;}
     if(Math.abs(v-(+r.len||0))<.01){controls++;return;}
-    // Та же строгая геометрия может доказать другие пустые строки этого формата. Это не
-    // конфликт: правило как раз должно восстановить их локально и в будущих похожих файлах.
-    if(!(+(r.len||0)>0)&&r.needsCheck){repairs++;repaired.push(lkChatRowLabel(r)+' → '+v+' м');return;}
+    // Та же строгая геометрия может доказать другие строки, которые парсер сам пометил
+    // ненадёжными. Это не конфликт даже при ненулевом старом числе: например, ток 7,4 А был
+    // ошибочно принят за длину, а полное поле L строго даёт 1 м.
+    if(r.needsCheck){repairs++;repaired.push(lkChatRowLabel(r)+' → '+v+' м');return;}
     conflicts.push(lkChatRowLabel(r)+' → '+v+' м');});
   // Полный P/cosφ/I/L + марка + сечение + собственный потребитель + геометрическая ось уже
   // являются независимыми сигналами одной строки. Если весь файл не дал ни одного конфликта,
