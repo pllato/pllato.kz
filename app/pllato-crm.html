@@ -12037,6 +12037,7 @@ function openAddDeedModal(deal, onDone) {
         createdByUid: window.currentUser?.canonicalUid || null,
         deadline: dlIso,
         crmLinks: ['deal_' + deal.bitrixId],
+        calendarDealTitle: deal.title || '',
         bitrixCreatedDate: nowIso,
         bitrixChangedDate: nowIso,
       };
@@ -15048,6 +15049,13 @@ function wireUpCustomFieldsEditing(modal, opts = {}) {
         const rec = stateRecordById(recordId);
         if (rec?.customFields) cf = { ...rec.customFields };
         cf[field] = value;
+        // Храним автора назначения отдельно от ответственного по сделке.
+        // Для старых встреч календарь использует ответственного как запасной вариант.
+        if (entity === 'deal' && (field === 'firstZoomAt' || field === 'trialLessonAt')) {
+          const marker = field === 'firstZoomAt' ? 'firstZoom' : 'trialLesson';
+          cf[marker + 'SetByUid'] = value ? (window.currentUser?.canonicalUid || null) : null;
+          cf[marker + 'SetAt'] = value ? new Date().toISOString() : null;
+        }
         const r = await fetch(`${WORKER_RTDB_URL}/${collectionPath}/${encodeURIComponent(recordId)}.json?auth=${idToken}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -16653,7 +16661,8 @@ function ensureCalendarStylesInjected() {
     .cal-hourly-event.zoom { background: rgba(37,99,235,0.15); color: #1e40af; border-left-color: #2563eb; }
     .cal-hourly-event.task { background: rgba(168,85,247,0.12); color: #6b21a8; border-left-color: #a855f7; }
     .cal-hourly-event-time { font-weight: 600; font-size: 10px; }
-    .cal-hourly-event-title { font-size: 11px; }
+    .cal-hourly-event-title { font-size: 11px; font-weight: 600; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cal-hourly-event-manager { font-size: 9px; opacity: .82; font-weight: 500; }
     [data-theme="dark"] .cal-hourly-event.zoom { color: #bfdbfe; }
     [data-theme="dark"] .cal-hourly-event.task { color: #ddd6fe; }
     /* Линия "текущее время" — только в day-view today / week-view today-col */
@@ -16769,7 +16778,26 @@ function renderCalendarView() {
 // перерисовывается лишь если состав событий изменился.
 function calEventsSig(events) {
   if (!Array.isArray(events)) return '';
-  return events.map(e => `${e.date ? e.date.getTime() : ''}|${e.title || ''}`).sort().join(';');
+  return events.map(e => `${e.date ? e.date.getTime() : ''}|${e.title || ''}|${e.dealTitle || ''}|${e.scheduledByName || ''}`).sort().join(';');
+}
+
+function calCalendarUserLabel(uid) {
+  if (!uid) return '';
+  const label = typeof orgUserLabel === 'function' ? orgUserLabel(String(uid)) : '';
+  return label && label !== String(uid) ? label : (usersState.users?.[uid]?.email || label || '');
+}
+
+function calEventPrimaryTitle(ev) {
+  return ev.dealTitle || ev.rawTitle || ev.title || '(без названия)';
+}
+
+function calEventFullLabel(ev, time) {
+  const parts = [time];
+  if (ev.dealTitle) parts.push('Сделка: ' + ev.dealTitle);
+  if (ev.rawTitle && ev.rawTitle !== ev.dealTitle) parts.push('Событие: ' + ev.rawTitle);
+  else if (!ev.dealTitle && ev.title) parts.push(ev.title);
+  if (ev.scheduledByName) parts.push('Поставил: ' + ev.scheduledByName);
+  return parts.join(' · ');
 }
 
 function updateCalNowLine() {
@@ -16843,6 +16871,7 @@ async function loadCalendarEvents(opts = {}) {
   const promise = (async () => {
     try {
       const idToken = await fbAuth.currentUser.getIdToken();
+      try { await ensureUsersLoaded(); } catch {}
       // Задачи в окне ±90 дней от курсора (для day/week/month-видов хватает).
       // Без диапазона /api/list/tasks отдаёт первые 500 по deadline ASC — там
       // тысячи старых тасков с просроченными дедлайнами, а новые с future-
@@ -16871,6 +16900,10 @@ async function loadCalendarEvents(opts = {}) {
       const dealsForCalendar = [];
       for (const r of dealResults) {
         for (const d of (r.items || [])) dealsForCalendar.push(d);
+      }
+      const dealsById = new Map();
+      for (const deal of dealsForCalendar) {
+        if (deal?.bitrixId != null) dealsById.set(String(deal.bitrixId), deal);
       }
       const tasksR = await tasksP;
       const events = [];
@@ -16923,6 +16956,8 @@ async function loadCalendarEvents(opts = {}) {
         const ed = new Date(t.endDatePlan);
         if (!isNaN(ed)) endDate = ed;
       }
+      const linkedDeal = linkedDealBitrixId ? dealsById.get(String(linkedDealBitrixId)) : null;
+      const scheduledByUid = isZoom ? (t.createdByUid || t.responsibleUid || null) : null;
       events.push({
         type: isZoom ? 'zoom' : 'task',
         date: d,
@@ -16935,6 +16970,9 @@ async function loadCalendarEvents(opts = {}) {
         subtype: isZoom ? 'zoom' : 'deadline',
         uid: 'task:' + (t.id || t.bitrixKey),
         rawTitle: (t.title || '(без названия)'),
+        dealTitle: linkedDeal?.title || t.calendarDealTitle || '',
+        scheduledByUid,
+        scheduledByName: calCalendarUserLabel(scheduledByUid),
         isMeeting: isZoom && t.mark === 'zoom_meeting',
         createdByUid: t.createdByUid || null,
         responsibleUid: t.responsibleUid || null,
@@ -16951,11 +16989,16 @@ async function loadCalendarEvents(opts = {}) {
           if (!isNaN(dt)) {
             // Для firstZoomAt длительности нет — берём дефолт 60 минут
             const endDt = new Date(dt.getTime() + 60 * 60000);
+            const scheduledByUid = d.customFields?.firstZoomSetByUid || d.responsibleUid || d.createdByUid || null;
             events.push({
               type: 'zoom',
               date: dt,
               endDate: endDt,
               title: 'Zoom: ' + (d.title || d.bitrixId),
+              rawTitle: 'Первый Zoom',
+              dealTitle: d.title || `Сделка #${d.bitrixId}`,
+              scheduledByUid,
+              scheduledByName: calCalendarUserLabel(scheduledByUid),
               dealBitrixId: d.bitrixId,
               source: 'deal',
               field: 'firstZoomAt',
@@ -16969,17 +17012,42 @@ async function loadCalendarEvents(opts = {}) {
           const dt = new Date(tl);
           if (!isNaN(dt)) {
             const endDt = new Date(dt.getTime() + 60 * 60000);
+            const scheduledByUid = d.customFields?.trialLessonSetByUid || d.responsibleUid || d.createdByUid || null;
             events.push({
               type: 'zoom',
               date: dt,
               endDate: endDt,
               title: '📚 Пробный: ' + (d.title || d.bitrixId),
+              rawTitle: 'Пробный урок',
+              dealTitle: d.title || `Сделка #${d.bitrixId}`,
+              scheduledByUid,
+              scheduledByName: calCalendarUserLabel(scheduledByUid),
               dealBitrixId: d.bitrixId,
               source: 'deal',
               field: 'trialLessonAt',
               uid: 'deal:' + d.bitrixId + ':trialLessonAt',
             });
           }
+        }
+      }
+      // Если связанная сделка не попала в первые 200 карточек воронки,
+      // догружаем её точечно. Иначе в календаре был бы виден только внутренний id.
+      const missingDealIds = [...new Set(events
+        .filter(ev => ev.dealBitrixId && !ev.dealTitle)
+        .map(ev => String(ev.dealBitrixId)))];
+      if (missingDealIds.length) {
+        const missingDeals = await Promise.all(missingDealIds.map(async id => {
+          try {
+            const r = await fetch(`${WORKER_RTDB_URL}/deals/deal_${encodeURIComponent(id)}.json?auth=${idToken}`);
+            if (!r.ok) return [id, null];
+            return [id, await r.json()];
+          } catch { return [id, null]; }
+        }));
+        const missingById = new Map(missingDeals);
+        for (const ev of events) {
+          if (!ev.dealBitrixId || ev.dealTitle) continue;
+          const id = String(ev.dealBitrixId);
+          ev.dealTitle = missingById.get(id)?.title || `Сделка #${id}`;
         }
       }
       calendarState.events = events;
@@ -17058,7 +17126,10 @@ function renderCalendarGrid() {
         else parts.push(`data-cal-deal="${escapeHtml(ev.dealBitrixId)}"`);
       }
       const dataAttr = parts.join(' ');
-      return `<span class="cal-event ${cls}" ${dataAttr} title="${escapeHtml(time + ' · ' + ev.title)}">${escapeHtml(time)} ${escapeHtml(ev.title)}</span>`;
+      const primaryTitle = calEventPrimaryTitle(ev);
+      const visibleTitle = ev.dealTitle ? `Сделка: ${primaryTitle}` : primaryTitle;
+      const managerSuffix = ev.scheduledByName ? ` · ${ev.scheduledByName}` : '';
+      return `<span class="cal-event ${cls}" ${dataAttr} title="${escapeHtml(calEventFullLabel(ev, time))}">${escapeHtml(time)} ${escapeHtml(visibleTitle + managerSuffix)}</span>`;
     }).join('');
     html += `<div class="cal-day ${isOther ? 'other-month' : ''} ${isToday ? 'today' : ''}">
       <div class="cal-day-num">${cellDate.getDate()}</div>
@@ -17315,11 +17386,13 @@ function calHourlyEventHtml(ev, START_H, HOUR_H, isAlone, layout) {
     else parts.push(`data-cal-deal="${escapeHtml(ev.dealBitrixId)}"`);
   }
   const hasDealLink = !!(ev.dealBitrixId);
-  const tooltip = time + ' · ' + ev.title + (hasDealLink ? ' · 🔗 кликни → сделка' : (ev.taskId ? ' · 🔗 кликни → дело' : '')) + ' · перетащи, чтобы перенести';
+  const primaryTitle = calEventPrimaryTitle(ev);
+  const visibleTitle = ev.dealTitle ? `Сделка: ${primaryTitle}` : primaryTitle;
+  const tooltip = calEventFullLabel(ev, time) + (hasDealLink ? ' · 🔗 кликни → сделка' : (ev.taskId ? ' · 🔗 кликни → дело' : '')) + ' · перетащи, чтобы перенести';
   if (ev.uid) parts.push(`data-cal-uid="${escapeHtml(ev.uid)}"`);
   return `<div class="cal-event cal-hourly-event ${cls}" draggable="true" style="${styleParts.join(';')};cursor:grab" ${parts.join(' ')} title="${escapeHtml(tooltip)}">
     <div class="cal-hourly-event-time">${escapeHtml(time)}</div>
-    <div class="cal-hourly-event-title">${escapeHtml(ev.title)}</div>
+    <div class="cal-hourly-event-title">${escapeHtml(visibleTitle)}${ev.scheduledByName ? `<span class="cal-hourly-event-manager"> · 👤 ${escapeHtml(ev.scheduledByName)}</span>` : ''}</div>
   </div>`;
 }
 
@@ -17513,7 +17586,10 @@ function openCalEventForm(prefillDate) {
       startDatePlan: startDt.toISOString(), endDatePlan: endDt.toISOString(),
       deadline: startDt.toISOString(),   // календарь тянет задачи по окну deadline
     };
-    if (pickedDeal) payload.crmLinks = ['deal_' + pickedDeal.bitrixId];
+    if (pickedDeal) {
+      payload.crmLinks = ['deal_' + pickedDeal.bitrixId];
+      payload.calendarDealTitle = pickedDeal.title || '';
+    }
     const vis = visSel.value;
     if (vis === 'all') payload.eventPublic = true;
     else if (vis === 'people') payload.accomplices = Array.from(peopleSel.selectedOptions).map(o => o.value);
@@ -17569,6 +17645,10 @@ function openCalEventEdit(uid) {
       <b style="font-size:16px">✏️ Редактировать событие</b><button id="ee-x" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--t3)">×</button>
     </div>
     <div style="padding:16px 18px;max-height:76vh;overflow:auto">
+      ${(ev.dealTitle || ev.scheduledByName) ? `<div style="display:grid;grid-template-columns:90px 1fr;gap:7px 10px;margin-bottom:14px;padding:11px 12px;border:1px solid var(--b1);border-radius:9px;background:var(--bg3);font-size:12px">
+        ${ev.dealTitle ? `<span style="color:var(--t3)">Сделка</span><strong style="color:var(--t1)">${escapeHtml(ev.dealTitle)}</strong>` : ''}
+        ${ev.scheduledByName ? `<span style="color:var(--t3)">Поставил</span><strong style="color:var(--t1)">${escapeHtml(ev.scheduledByName)}</strong>` : ''}
+      </div>` : ''}
       <label style="font-size:12px;color:var(--t3)">Название</label>
       ${canEditTitle
         ? `<input id="ee-title" value="${escapeHtml(titleVal)}" style="width:100%;margin:5px 0 12px;padding:10px 12px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);font-size:14px">`
