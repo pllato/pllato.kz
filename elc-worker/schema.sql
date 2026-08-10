@@ -172,6 +172,8 @@ CREATE TABLE tasks (
   crm_links                   TEXT,    -- JSON
   bitrix_crm_links            TEXT,    -- JSON
   bitrix_file_ids             TEXT,    -- JSON
+  event_public                INTEGER DEFAULT 0, -- 1 = событие видно всем в общем календаре
+  calendar_deal_title         TEXT,    -- название связанной сделки для календаря
   migrated_at                 TEXT
 );
 CREATE INDEX idx_tasks_responsible ON tasks(responsible_uid);
