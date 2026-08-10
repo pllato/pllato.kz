@@ -1136,10 +1136,15 @@ function chatReconcile(box, fresh, opts){
   return touched;
 }
 function ibMsgBubble(m, t, byE){
-  const c=(__ibChannels.length>1 && m.dir==='out' && m.channel_id)?(__ibChannels.find(x=>x.id===m.channel_id)):null;
-  const via=c?` <span class="cw-via">через ${esc(c.name||'WhatsApp')}</span>`:'';
-  const cls=m.dir==='out'?'out':m.dir==='ai'?'ai':'in';
-  return `<div class="msg ${cls}" data-mid="${esc(String(m.id||''))}" data-ext="${esc(String(m.ext_id||''))}" data-sig="${esc(ibMsgSig(m))}">${replyBlockHtml(m,byE,esc)}${msgActBtn(m,t.id)}${msgReplyBtn(m,t.id)}${waMediaHtml(m)}${msgTxt(m,esc)}<div class="mt">${esc(cwFmtTimeFull(m.ts))}${msgWho(m,esc)}${via}</div>${reactionBadgeHtml(m,esc)}</div>`;
+  try{
+    const c=(__ibChannels.length>1 && m.dir==='out' && m.channel_id)?(__ibChannels.find(x=>x.id===m.channel_id)):null;
+    const via=c?` <span class="cw-via">через ${esc(c.name||'WhatsApp')}</span>`:'';
+    const cls=m.dir==='out'?'out':m.dir==='ai'?'ai':'in';
+    return `<div class="msg ${cls}" data-mid="${esc(String(m.id||''))}" data-ext="${esc(String(m.ext_id||''))}" data-sig="${esc(ibMsgSig(m))}">${replyBlockHtml(m,byE,esc)}${msgActBtn(m,t.id)}${msgReplyBtn(m,t.id)}${waMediaHtml(m)}${msgTxt(m,esc)}<div class="mt">${esc(cwFmtTimeFull(m.ts))}${msgWho(m,esc)}${via}</div>${reactionBadgeHtml(m,esc)}</div>`;
+  }catch(e){ // одно «битое» сообщение не должно ронять весь чат
+    const cls=(m&&m.dir==='out')?'out':(m&&m.dir==='ai')?'ai':'in';
+    return `<div class="msg ${cls}" data-mid="${esc(String((m&&m.id)||''))}" data-ext="${esc(String((m&&m.ext_id)||''))}">${esc((m&&m.body)||'[сообщение]')}</div>`;
+  }
 }
 function ibSyncOpen(){
   if(!ibAlive()) return;
@@ -4453,7 +4458,11 @@ const CW = { open:false, view:'list', thread:null, threads:null, source:'demo' }
 
 // Время для строк виджета: сегодня → ЧЧ:ММ, иначе ДД.ММ.
 // ── Редактирование/удаление отправленных сообщений WhatsApp (инбокс + карточка сделки) ──
-function msgActBtn(m, tid){ if(!m||m.dir!=='out'||!m.id||m.deleted) return ''; const canEdit=!m.media_key&&(Date.now()-(m.ts||0)<15*60*1000); return `<span class="msg-act" data-tid="${esc(String(tid||''))}" data-mid="${esc(String(m.id))}" data-txt="${encodeURIComponent(m.body||'')}" data-cane="${canEdit?1:0}" title="Изменить / удалить">⋯</span>`; }
+// Безопасные encode/decode URI: обрезанный эмодзи (одиночный суррогат) роняет encodeURIComponent (URIError).
+// Без этого рендер ОДНОГО такого сообщения падал → весь чат зависал на «Загрузка...».
+function safeUri(s){ try{ return encodeURIComponent(s==null?'':s); }catch(e){ return encodeURIComponent(String(s==null?'':s).replace(/[\uD800-\uDFFF]/g,'')); } }
+function safeDeUri(s){ try{ return decodeURIComponent(s==null?'':s); }catch(e){ return String(s==null?'':s); } }
+function msgActBtn(m, tid){ if(!m||m.dir!=='out'||!m.id||m.deleted) return ''; const canEdit=!m.media_key&&(Date.now()-(m.ts||0)<15*60*1000); return `<span class="msg-act" data-tid="${esc(String(tid||''))}" data-mid="${esc(String(m.id))}" data-txt="${safeUri(m.body||'')}" data-cane="${canEdit?1:0}" title="Изменить / удалить">⋯</span>`; }
 function msgTxt(m, escFn){ if(m.deleted) return '<i style="opacity:.55">🚫 удалено</i>'; return escFn(m.body||'')+(m.edited_at?' <span style="opacity:.5;font-size:10px">(изм.)</span>':''); }
 // Автор исходящего: имя менеджера, ответившего из CRM, либо «с телефона» (отправлено из приложения WhatsApp).
 function msgWho(m, escFn){ if(!m || m.dir!=='out') return ''; const a=((m.author||'')+'').trim(); if(!a || a==='WhatsApp') return ' <span style="opacity:.6">· с телефона</span>'; return ' <span style="opacity:.9;font-weight:600">· '+escFn(a)+'</span>'; }
@@ -4472,7 +4481,7 @@ function waMsgEditModal(tid, mid, curText, canEdit, onDone){
   const sv=document.getElementById('wmeSave'); if(sv) sv.onclick=async()=>{ const text=(document.getElementById('wmeText').value||'').trim(); if(!text){ toast('Пустой текст','i-x','#dc2626'); return; } sv.disabled=true; const r=await api('/api/inbox/threads/'+encodeURIComponent(tid)+'/messages/'+encodeURIComponent(mid)+'/edit',{method:'POST',body:JSON.stringify({text})}); sv.disabled=false; if(!r.ok){ toast((r.data&&r.data.error)||'Не удалось изменить','i-x','#dc2626'); return; } toast('Изменено','i-check2'); done(); };
   const dl=document.getElementById('wmeDel'); if(dl) dl.onclick=async()=>{ if(!confirm('Удалить это сообщение у клиента в WhatsApp?')) return; dl.disabled=true; const r=await api('/api/inbox/threads/'+encodeURIComponent(tid)+'/messages/'+encodeURIComponent(mid)+'/delete',{method:'POST'}); dl.disabled=false; if(!r.ok){ toast((r.data&&r.data.error)||'Не удалось удалить','i-x','#dc2626'); return; } toast('Удалено','i-check2'); done(); };
 }
-document.addEventListener('click',e=>{ const b=e.target&&e.target.closest&&e.target.closest('.msg-act'); if(!b)return; e.stopPropagation(); waMsgEditModal(b.dataset.tid,b.dataset.mid,decodeURIComponent(b.dataset.txt||''),b.dataset.cane==='1',()=>{ if(typeof window.__waMsgReload==='function') window.__waMsgReload(); }); });
+document.addEventListener('click',e=>{ const b=e.target&&e.target.closest&&e.target.closest('.msg-act'); if(!b)return; e.stopPropagation(); waMsgEditModal(b.dataset.tid,b.dataset.mid,safeDeUri(b.dataset.txt||''),b.dataset.cane==='1',()=>{ if(typeof window.__waMsgReload==='function') window.__waMsgReload(); }); });
 // ── Цитата (ответ на конкретное сообщение WhatsApp) ──
 function mediaLabelFront(m){ const t=String(m&&m.media_type||''); if(t.indexOf('image/')===0)return '📷 Фото'; if(t.indexOf('video/')===0)return '🎥 Видео'; if(t.indexOf('audio/')===0)return '🎤 Голосовое'; if(t.indexOf('application/pdf')===0)return '📄 PDF'; if(m&&m.media_key)return '📎 Файл'; return ''; }
 function replyMap(msgs){ const b={}; (msgs||[]).forEach(x=>{ if(x&&x.ext_id) b[x.ext_id]=x; }); return b; }
@@ -4508,7 +4517,7 @@ document.addEventListener('click',e=>{
 // ── Ответ НА сообщение (цитирование): выбрать сообщение → бар над полём → отправка с quotedMessageId ──
 let __replyCtx = null; // {tid, ext, preview, who}
 function clearReply(){ __replyCtx=null; document.querySelectorAll('.reply-bar').forEach(x=>x.remove()); }
-function msgReplyBtn(m, tid){ if(!m||!m.ext_id||m.deleted) return ''; const who=m.dir==='out'?'Вы':'Клиент'; const prev=((m.body||'').trim())||mediaLabelFront(m)||'сообщение'; return `<span class="msg-reply" data-tid="${esc(String(tid==null?'':tid))}" data-rext="${esc(String(m.ext_id))}" data-rwho="${esc(who)}" data-rprev="${encodeURIComponent(String(prev).slice(0,120))}" title="Ответить (цитировать)">↩</span>`; }
+function msgReplyBtn(m, tid){ if(!m||!m.ext_id||m.deleted) return ''; const who=m.dir==='out'?'Вы':'Клиент'; const prev=((m.body||'').trim())||mediaLabelFront(m)||'сообщение'; return `<span class="msg-reply" data-tid="${esc(String(tid==null?'':tid))}" data-rext="${esc(String(m.ext_id))}" data-rwho="${esc(who)}" data-rprev="${safeUri(String(prev).slice(0,120))}" title="Ответить (цитировать)">↩</span>`; }
 function mountReplyBar(tid, scope){
   if(!scope||!scope.querySelector) return;
   const ex=scope.querySelector('.reply-bar'); if(ex) ex.remove();
@@ -4523,7 +4532,7 @@ function mountReplyBar(tid, scope){
 document.addEventListener('click',e=>{
   const b=e.target&&e.target.closest&&e.target.closest('.msg-reply'); if(!b)return;
   e.stopPropagation();
-  __replyCtx={ tid:b.getAttribute('data-tid')||'', ext:b.getAttribute('data-rext')||'', who:b.getAttribute('data-rwho')||'', preview:decodeURIComponent(b.getAttribute('data-rprev')||'') };
+  __replyCtx={ tid:b.getAttribute('data-tid')||'', ext:b.getAttribute('data-rext')||'', who:b.getAttribute('data-rwho')||'', preview:safeDeUri(b.getAttribute('data-rprev')||'') };
   let scope=b.parentElement, comp=null;
   while(scope && scope!==document.body){ comp=scope.querySelector&&scope.querySelector('.chat-input, #dmChatComp, .cw-comp'); if(comp) break; scope=scope.parentElement; }
   if(scope){ mountReplyBar(__replyCtx.tid, scope); const input=scope.querySelector('#ibMsgInput, #dmChatInput, #cw-input'); if(input) input.focus(); }
