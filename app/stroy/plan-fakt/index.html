@@ -1708,8 +1708,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v447';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v423';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v448';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v424';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2126,15 +2126,18 @@ function lkParseFragmentedPassports(items,rule,internal){
       const trustedHead=wholeMark&&rule&&rule.trustHead&&mg.a.some(o=>!!lkBioMTail(o.s));
       if(moment==null&&!fullTail&&!trustedHead)return;
       if(wholeMark&&moment==null&&!trustedHead)return;
-      const markDist=Math.abs(mg.c-h.c),score=markDist+secScore;found.push({mark,sec,score,markDist,wholeMark});
-      if(score<bscore){bscore=score;best={mark,sec,wholeMark};}
+      const markDist=Math.abs(mg.c-h.c),score=markDist+secScore;
+      found.push({mark,sec,score,markDist,wholeMark,partnerC:mg.c,partnerA:markA,headC:h.c});
+      if(score<bscore){bscore=score;best={mark,sec,wholeMark,partnerC:mg.c,partnerA:markA,headC:h.c};}
     });
     found.sort((a,b)=>a.markDist-b.markDist||a.score-b.score);
     if(found.length){
       if(found.length>1&&found[0].sec!==found[1].sec&&found[1].markDist-found[0].markDist<4)return;
-      best={mark:found[0].mark,sec:found[0].sec,wholeMark:found[0].wholeMark};
+      best={mark:found[0].mark,sec:found[0].sec,wholeMark:found[0].wholeMark,
+        partnerC:found[0].partnerC,partnerA:found[0].partnerA,headC:found[0].headC};
     }
-    if(best)rows.push({group,mark:best.mark,section:best.sec,len:sig.L,conds:[],x:h.x,y:h.y,mult:1,_fragments:true,_wholeMark:!!best.wholeMark,_v:h.v});
+    if(best)rows.push({group,mark:best.mark,section:best.sec,len:sig.L,conds:[],x:h.x,y:h.y,mult:1,
+      _fragments:true,_wholeMark:!!best.wholeMark,_v:h.v,_headC:best.headC,_partnerC:best.partnerC,_partnerA:best.partnerA});
   });
   // Один паспорт может иметь несколько буквенных стартовых item в той же колонке — оставляем один.
   // Направление выгрузки текста зависит от PDF-драйвера. У части чертежей паспорт визуально
@@ -2142,6 +2145,23 @@ function lkParseFragmentedPassports(items,rule,internal){
   // к меньшей (M1/M2: имя → P → cosφ → I → L). Повторяем тот же строгий разбор на зеркальной
   // продольной оси; все семантические проверки P/cosφ/I/L, P×L, марки и NxS остаются прежними.
   let out=rows.filter((r,i,a)=>!a.slice(0,i).some(o=>Math.abs(o.x-r.x)<4&&Math.abs(o.y-r.y)<8&&o.section===r.section));
+  // Один расчётный паспорт может перечислять несколько кабелей, а поле L печатать один раз.
+  // Дополнительной строкой считаем только явную марку+NxS в следующей параллельной полосе:
+  // тот же текстовый разворот, та же марка, одинаковое продольное начало и шаг 4..24 pt в
+  // сторону уже доказанного хвоста. Длина наследуется лишь от паспорта, который выше прошёл
+  // P/cosφ/I/L, физику тока и момент P×L; отдельное голое число здесь никогда не ищется.
+  const shared=[];out.forEach(r=>{if(!r._wholeMark||r._partnerC==null||r._headC==null||r._partnerA==null)return;
+    const dir=Math.sign(r._partnerC-r._headC);if(!dir)return;
+    const near=R.filter(o=>o.v===r._v&&o.a>=r._partnerA-4&&o.a<=r._partnerA+130&&
+      (o.c-r._partnerC)*dir>=4&&(o.c-r._partnerC)*dir<=24);
+    crossGroups(near).forEach(g=>{const ga=g.a.slice().sort((a,b)=>a.a-b.a),text=ga.map(o=>o.s).join(' ').replace(/\s+/g,' ').trim();
+      if(!LK_MARK.test(text)||!LK_SECT.test(text))return;const mark=lkMarkName(text),nm=s=>String(s||'').replace(/[\s-]/g,'').toLowerCase();
+      if(!mark||nm(mark)!==nm(r.mark))return;const mi=ga.filter(o=>LK_MARK.test(o.s));if(!mi.length)return;
+      const startA=Math.min(...mi.map(o=>o.a));if(Math.abs(startA-r._partnerA)>12)return;
+      const sm=text.match(LK_SECT);if(!sm)return;const section=sm[1]+'x'+sm[2].replace('.',',');
+      const x=r._v?g.c:startA,y=r._v?startA:g.c;
+      shared.push(Object.assign({},r,{section,x,y,conds:[],_sharedPassport:true,_partnerC:g.c,_partnerA:startA}));});});
+  out=out.concat(shared);
   if(!(internal&&internal._oneDirection)&&rule&&rule.wholeMark&&rule.trustHead){
     const flipped=(items||[]).map(o=>{const q=Object.assign({},o);
       if(o.transform){const t=o.transform.slice(),v=Math.abs(t[1])>Math.abs(t[0]);if(v)t[5]=-t[5];else t[4]=-t[4];q.transform=t;}
@@ -3057,13 +3077,18 @@ function lkChatPassportHeadLen(items,row){if(!Array.isArray(items)||!row||row.x=
     // ошибочным) сечением парсера: именно так агент исправляет M1/M2 с 4x70/4x50 на 5x50.
     const own=parsed.filter(r=>lkChatSame(String(r.group||'').split('·')[0],String(row.group||'').split('·')[0])&&
       (!row.mark||!r.mark||nm(r.mark)===nm(row.mark)));
-    if(!own.length)return null;matching=own;}
+    if(own.length)matching=own;
+    else if(row.needsCheck)matching=matching.filter(r=>r._sharedPassport);
+    else return null;}
   const cand=matching.map(r=>{
     const cross=r._v?Math.abs((+row.x||0)-r.x):Math.abs((+row.y||0)-r.y);
     const along=r._v?Math.abs((+row.y||0)-r.y):Math.abs((+row.x||0)-r.x);
     return{r,cross,along,score:cross*4+along};}).filter(o=>o.cross<22&&o.along<120).sort((a,b)=>a.score-b.score);
   if(!cand.length)return null;
   if(cand.length>1&&Math.abs((+cand[0].r.len||0)-(+cand[1].r.len||0))>.01&&cand[1].score-cand[0].score<18)return null;
+  // Сохраняем доказанный паспорт, а не старое имя ошибочной строки. Это позволяет агенту
+  // завершить правило и для второго кабеля, который делит единственное поле длины с первым.
+  row._passportGroup=cand[0].r.group||'';row._passportShared=!!cand[0].r._sharedPassport;
   return +cand[0].r.len||null;
 }
 function lkChatLearnedLen(items,row,strategy,opt){
@@ -3979,7 +4004,9 @@ function lkChatInferLen(items,row,value){
   // названное число. Раньше в таком случае Обучалка пропускала лучший сигнал, переходила к
   // широкому «крайнему целому справа», а после точного upsert вообще отдавала пример в /teach.
   if(passport>0&&Math.abs(passport-value)<.01)
-    return{strategy:'passport-head-length',label:'четвёртое поле полного паспорта P / cosφ / I / длина',value:passport};
+    return{strategy:'passport-head-length',label:row&&row._passportShared?
+      'единое поле длины полного паспорта для перечисленных кабелей':
+      'четвёртое поле полного паспорта P / cosφ / I / длина',value:passport};
   const col=lkChatColumnMeters(items,row);
   if(Math.abs((+row.len||0)-value)>.01&&col.length>1&&Math.abs(col[0].v-value)<.01&&col.some(o=>Math.abs(o.v-(+row.len||0))<.01))
     return{strategy:'top-row-right',label:'верхнее число с «м» в собственной колонке',value,topDy:col[0].y-row.y};
@@ -3990,7 +4017,7 @@ function lkChatInferLen(items,row,value){
 }
 function lkChatAuditLengthRule(items,rows,rule,target,expected){const c=rule&&rule.chat||{};
   let controls=0,detected=0,targetOk=false,selfProof=false,repairs=0;const conflicts=[],repaired=[];
-  (rows||[]).forEach(r=>{if(!lkChatRuleMatchesRow(c,r))return;const v=lkChatLearnedLen(items,r,c.strategy,c);if(!(v>0))return;detected++;
+  (rows||[]).forEach(r=>{if(r!==target&&!lkChatRuleMatchesRow(c,r))return;const v=lkChatLearnedLen(items,r,c.strategy,c);if(!(v>0))return;detected++;
     if(r===target){targetOk=Math.abs(v-expected)<.01;selfProof=targetOk&&c.strategy==='passport-head-length';return;}
     if(Math.abs(v-(+r.len||0))<.01){controls++;return;}
     // Та же строгая геометрия может доказать другие строки, которые парсер сам пометил
@@ -4183,7 +4210,8 @@ function lkTeachPanel(pg,rect,clusters,opt){
     draftOpt=draftOpt||{};
     st.target=target;st.targets=[target];
     const team=!!strategy,passport=strategy==='passport-head-length';
-    const match=passport?{groupPattern:lkChatGroupShape(target.group)}:{group:target.group||'',groupPattern:lkChatGroupShape(target.group),mark:target.mark||'',section:target.section||''};
+    const passportGroup=passport?(target._passportGroup||target.group||''):(target.group||'');
+    const match=passport?{groupPattern:lkChatGroupShape(passportGroup)}:{group:target.group||'',groupPattern:lkChatGroupShape(target.group),mark:target.mark||'',section:target.section||''};
     const rule={id:'chat'+Date.now().toString(36),title:'Чат: длина '+(target.section||target.mark||'кабеля'),
       series:lkRuleSeries(name),chat:{action:'set-length',match,
         value,strategy:strategy||'fixed',general:team}};
