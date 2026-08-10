@@ -8552,6 +8552,9 @@ function weekAnchorThuUTC(now) {
 }
 function buildChartBuckets(period, points) {
   const now = new Date();
+  const shiftMs = 5 * 3600 * 1000;
+  const dayMs = 86400000;
+  const localNow = new Date(now.getTime() + shiftMs);
   const RU_MON = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
   const buckets = [];
   if (period === 'week') {
@@ -8569,15 +8572,36 @@ function buildChartBuckets(period, points) {
     }
   } else if (period === 'month') {
     for (let i = points - 1; i >= 0; i--) {
-      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
-      const key = d.toISOString().slice(0, 7);
-      buckets.push({ key, start: key + '-01', label: RU_MON[d.getUTCMonth()], partial: i === 0 });
+      const startMs = Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth() - i, 1) - shiftMs;
+      const endMs = Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth() - i + 1, 1) - shiftMs;
+      const localStart = new Date(startMs + shiftMs);
+      const key = `${localStart.getUTCFullYear()}-${String(localStart.getUTCMonth() + 1).padStart(2, '0')}`;
+      buckets.push({
+        key,
+        start: new Date(startMs).toISOString(),
+        startMs,
+        endMs,
+        label: RU_MON[localStart.getUTCMonth()] + ' ' + String(localStart.getUTCFullYear()).slice(-2),
+        partial: i === 0,
+      });
     }
   } else {
+    const currentStartMs = Date.UTC(
+      localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate()
+    ) - shiftMs;
     for (let i = points - 1; i >= 0; i--) {
-      const d = new Date(now); d.setUTCDate(d.getUTCDate() - i);
-      const key = _ymd(d);
-      buckets.push({ key, start: key, label: key.slice(8, 10) + '.' + key.slice(5, 7), partial: i === 0 });
+      const startMs = currentStartMs - i * dayMs;
+      const endMs = startMs + dayMs;
+      const localStart = new Date(startMs + shiftMs);
+      const key = _ymd(localStart);
+      buckets.push({
+        key,
+        start: new Date(startMs).toISOString(),
+        startMs,
+        endMs,
+        label: key.slice(8, 10) + '.' + key.slice(5, 7),
+        partial: i === 0,
+      });
     }
   }
   return buckets;
@@ -8586,12 +8610,10 @@ function countIntoBuckets(dates, buckets, period) {
   const counts = buckets.map(() => 0);
   for (const ds of dates) {
     if (!ds) continue;
-    let idx = -1;
-    if (period === 'month') idx = buckets.findIndex(b => b.key === ds.slice(0, 7));
-    else if (period === 'week') {
-      const t = Date.parse(ds);
-      if (!isNaN(t)) idx = buckets.findIndex(b => t >= b.startMs && t < b.endMs);
-    } else idx = buckets.findIndex(b => b.key === ds.slice(0, 10));
+    const timestamp = Date.parse(ds);
+    const idx = Number.isFinite(timestamp)
+      ? buckets.findIndex(b => timestamp >= b.startMs && timestamp < b.endMs)
+      : -1;
     if (idx >= 0) counts[idx]++;
   }
   return buckets.map((b, i) => ({ label: b.label, value: counts[i], partial: !!b.partial }));
@@ -8666,20 +8688,23 @@ async function handleChartsSeries(request, env) {
 async function handlePublicPllatoInquiries(request, env) {
   const url = new URL(request.url);
   const points = Math.min(16, Math.max(4, parseInt(url.searchParams.get('points') || '8', 10) || 8));
+  const period = ['day', 'week', 'month'].includes(url.searchParams.get('period'))
+    ? url.searchParams.get('period')
+    : 'week';
   const pipeline = await env.DB.prepare(
     "SELECT id FROM pipelines WHERE name = ? LIMIT 1"
   ).bind("Pllato Старт").first();
   if (!pipeline?.id) return json({ ok: false, error: "pipeline not found" }, 404, request);
-  const buckets = buildChartBuckets('week', points);
+  const buckets = buildChartBuckets(period, points);
   const minDate = buckets[0].start;
   const result = await env.DB.prepare(
     "SELECT bitrix_date_create AS d FROM deals WHERE pipeline_id = ? AND bitrix_date_create >= ?"
   ).bind(pipeline.id, minDate).all();
-  const series = countIntoBuckets((result.results || []).map((row) => row.d), buckets, 'week');
+  const series = countIntoBuckets((result.results || []).map((row) => row.d), buckets, period);
   return json({
     ok: true,
     series,
-    period: 'week',
+    period,
     boundary: { weekday: 4, hour: 14, timeZone: 'Asia/Almaty' },
   }, 200, request);
 }
@@ -8791,6 +8816,9 @@ async function handlePublicPllatoLead(request, env) {
 async function handlePublicPllatoKep(request, env) {
   const url = new URL(request.url);
   const points = Math.min(16, Math.max(4, parseInt(url.searchParams.get('points') || '8', 10) || 8));
+  const period = ['day', 'week', 'month'].includes(url.searchParams.get('period'))
+    ? url.searchParams.get('period')
+    : 'week';
   await ensureStageEventsBackfill(env);
   const pipeline = await env.DB.prepare(
     "SELECT id, stages FROM pipelines WHERE name = ? LIMIT 1"
@@ -8803,7 +8831,7 @@ async function handlePublicPllatoKep(request, env) {
     .filter(([, stage]) => targetNames.has(String(stage?.name || '').trim().toLowerCase()))
     .map(([id]) => id);
   if (stageIds.length !== 2) return json({ ok: false, error: "KEP stages not found" }, 404, request);
-  const buckets = buildChartBuckets('week', points);
+  const buckets = buildChartBuckets(period, points);
   const minDate = buckets[0].start;
   const result = await env.DB.prepare(`
     SELECT first_entered_at AS d FROM (
@@ -8815,10 +8843,10 @@ async function handlePublicPllatoKep(request, env) {
     WHERE first_entered_at >= ?
   `).bind(pipeline.id, stageIds[0], stageIds[1], minDate).all();
   const manualOverrides = { '2026-07-09': 12 };
-  const series = countIntoBuckets((result.results || []).map((row) => row.d), buckets, 'week')
+  const series = countIntoBuckets((result.results || []).map((row) => row.d), buckets, period)
     .map((point, index) => {
       const bucket = buckets[index];
-      const weekKey = bucket?.endMs
+      const weekKey = period === 'week' && bucket?.endMs
         ? new Date(bucket.endMs + 5 * 3600 * 1000).toISOString().slice(0, 10)
         : '';
       return Number.isFinite(Number(manualOverrides[weekKey]))
@@ -8828,7 +8856,7 @@ async function handlePublicPllatoKep(request, env) {
   return json({
     ok: true,
     series,
-    period: 'week',
+    period,
     stages: ['Создание Демо', 'Показ Демо'],
     boundary: { weekday: 4, hour: 14, timeZone: 'Asia/Almaty' },
   }, 200, request);
@@ -8838,8 +8866,8 @@ function parsePllatoChartDetailPeriod(request) {
   const url = new URL(request.url);
   const start = Number(url.searchParams.get('start'));
   const end = Number(url.searchParams.get('end'));
-  const weekMs = 7 * 86400000;
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - start > weekMs + 1000) {
+  const maxPeriodMs = 32 * 86400000;
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - start > maxPeriodMs) {
     return { error: 'invalid period' };
   }
   return {
