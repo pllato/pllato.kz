@@ -60,6 +60,7 @@
   .fund-head .right{text-align:center}
   .fund-head small{display:block;margin-top:3px;font-size:8px;font-weight:600;letter-spacing:0;text-transform:none;color:#89909c}
   .fund-row{padding:8px 0;border-bottom:1px solid #eef0f3}
+  .fund-row.fund-deficit{background:#fff2f1;border-radius:9px;padding-left:6px;padding-right:6px}
   .fbtns{display:flex;gap:5px}
   .fbtns span{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;cursor:pointer;border:1px solid var(--line);color:var(--muted);background:#fbfaf7;white-space:nowrap}
   .fbtns span:first-child:hover{background:var(--green-bg);color:var(--green);border-color:var(--green)}
@@ -586,6 +587,12 @@ function fundBalances(p){
   Object.values(b).forEach(x=>x.bal=x.in-x.out+x.mv+x.adj);
   return b;
 }
+function requireFundBalance(p,fid,amt,action='списания'){
+  const f=p.funds.find(x=>x.id===fid),available=fundBalances(p)[fid]?.bal||0,need=Math.abs(amt||0);
+  if(need<=available+0.001)return true;
+  toast('Недостаточно денег в фонде «'+(f?.name||'фонд')+'»: доступно '+fmt(Math.max(0,available))+' ₸, нужно '+fmt(need)+' ₸','err');
+  return false;
+}
 function fundDebts(p){
   // непогашенные перекладки: из какого фонда сколько взято и куда (сальдо по паре фондов)
   const net={};
@@ -1005,6 +1012,7 @@ function addTxGlobal(){
   if(dir==='out'){
     const fund=document.getElementById('txFund').value;
     if(!fund){toast('Выбери фонд','err');return}
+    if(!requireFundBalance(p,fund,amt))return;
     p.ops.push({id:uid(),type:'out',date,amt:-Math.abs(amt),fund,note,art:art||undefined,cp:cp||undefined,src:document.getElementById('txFin').checked?'fin':undefined});
   }else{
     const src=document.getElementById('txSrc').value==='fin'?'fin':undefined;
@@ -1143,8 +1151,11 @@ function impBuild(rows){
   return {plan,skip,missing};
 }
 function applyImpPlan(plan){
-  plan.forEach(x=>{const p=DB.projects.find(z=>z.id===x.pid);if(p)p.ops.push({id:uid(),...x.op})});
-  save();
+  let added=0,rejected=0;
+  plan.forEach(x=>{const p=DB.projects.find(z=>z.id===x.pid);if(!p)return;
+    if(x.op.type==='out'&&!requireFundBalance(p,x.op.fund,Math.abs(x.op.amt))){rejected++;return}
+    p.ops.push({id:uid(),...x.op});added++});
+  save();return{added,rejected};
 }
 function impParse(){
   const text=document.getElementById('impText').value;
@@ -1166,10 +1177,10 @@ function impParse(){
 }
 function impApply(){
   if(!_impPlan||!_impPlan.length)return;
-  applyImpPlan(_impPlan);
-  const n=_impPlan.length;_impPlan=null;
+  const applied=applyImpPlan(_impPlan);
+  const n=applied.added;_impPlan=null;
   DB.impLast={t:todayIso()+' '+new Date().toTimeString().slice(0,5),n};
-  toast('Импортировано '+n+' операций ✓');
+  toast('Импортировано '+n+' операций'+(applied.rejected?' · отклонено без денег: '+applied.rejected:'')+' ✓',applied.rejected?'err':undefined);
   document.getElementById('impText').value='';
   render();
 }
@@ -1182,8 +1193,8 @@ function impAutoSync(){
     if(res.err)return;
     DB.impLast={t:todayIso()+' '+new Date().toTimeString().slice(0,5),n:res.plan.length};
     if(res.plan.length){
-      applyImpPlan(res.plan);
-      toast('⇩ Из таблицы подтянуто '+res.plan.length+' новых операций ✓');
+      const applied=applyImpPlan(res.plan);
+      toast('⇩ Из таблицы подтянуто '+applied.added+' операций'+(applied.rejected?' · отклонено: '+applied.rejected:'')+' ✓',applied.rejected?'err':undefined);
     }
     save();
     if(!DB.sel)render(); // обновляем главную; открытую карточку не трогаем, чтобы не сбить ввод
@@ -1343,7 +1354,8 @@ function renderProject(host,p){
     const factOut=b.out+p.ops.filter(o=>o.type==='adj'&&o.fund===f.id&&o.amt<0).reduce((s,o)=>s+Math.abs(o.amt),0);
     const factPct=factInTotal?factIn/factInTotal*100:0;
     const reserve=plannedIn-plannedOut;
-    return `<div class="fund-row">
+    const actualBal=b.bal||0;
+    return `<div class="fund-row${actualBal<0?' fund-deficit':''}">
       <span class="fdot" style="background:${f.color}"></span>
       <div class="fund-main">
         <input value="${esc(f.name)}" onchange="updFund('${f.id}','name',this.value)">
@@ -1353,7 +1365,9 @@ function renderProject(host,p){
       <div class="fexpense ${plannedOut>plannedIn?'neg':''}" title="Все строки плана расходов, закреплённые за этим фондом">${fmt(plannedOut)}</div>
       <div class="ffactout" title="Проведённые расходы и ручные снятия из фонда">${fmt(factOut)}</div>
       <div class="fmetrics">
-        <div class="fmetric" title="План поступлений фонда минус план расходов"><div class="flabel">${reserve>=0?'Резерв плана':'Дефицит плана'}</div><div class="fvalue ${reserve<0?'neg':'pos'}">${fmt(Math.abs(reserve))}</div></div>
+        ${actualBal<0
+          ?`<div class="fmetric" title="Фактические списания превысили все поступления и переводы в фонд"><div class="flabel">Дефицит фонда · исправить</div><div class="fvalue neg">−${fmt(Math.abs(actualBal))}</div></div>`
+          :`<div class="fmetric" title="План поступлений фонда минус план расходов"><div class="flabel">${reserve>=0?'Резерв плана':'Дефицит плана'}</div><div class="fvalue ${reserve<0?'neg':'pos'}">${fmt(Math.abs(reserve))}</div></div>`}
       </div>
       <div class="fbtns"><span onclick="fundAdjPrefill('${f.id}','in')" title="пополнить фонд">+</span><span onclick="fundAdjPrefill('${f.id}','out')" title="снять из фонда">−</span></div>
       <span class="del" onclick="delFund('${f.id}')" title="удалить фонд">×</span>
@@ -1683,7 +1697,9 @@ function addExpense(){const p=P();
   if(!date||!amt||amt<=0){toast('Укажи дату и сумму','err');return}
   const oSrc=document.getElementById('outFin')?.checked?'fin':undefined;
   const oArt='',oCp=document.getElementById('outCp')?.value.trim()||'';
-  p.ops.push({id:uid(),type:'out',date,amt:-Math.abs(amt),fund:document.getElementById('outFund').value,note:document.getElementById('outNote').value.trim(),src:oSrc,art:oArt||undefined,cp:oCp||undefined});
+  const outFund=document.getElementById('outFund').value;
+  if(!requireFundBalance(p,outFund,amt))return;
+  p.ops.push({id:uid(),type:'out',date,amt:-Math.abs(amt),fund:outFund,note:document.getElementById('outNote').value.trim(),src:oSrc,art:oArt||undefined,cp:oCp||undefined});
   auditLog(oSrc?'Внесён возврат финансирования':'Внесён расход',fmt(amt)+' ₸ · '+(p.funds.find(f=>f.id===document.getElementById('outFund').value)?.name||'фонд'),p);
   toast(oSrc?'Возврат финансирования списан из фонда ✓':'Расход списан из фонда ✓');render()}
 function moveFund(){const p=P();
@@ -1691,11 +1707,13 @@ function moveFund(){const p=P();
   const amt=impNum(document.getElementById('mvAmt').value);
   if(!amt||amt<=0){toast('Укажи сумму','err');return}
   if(from===to){toast('Выбери разные фонды','err');return}
+  if(!requireFundBalance(p,from,amt))return;
   p.ops.push({id:uid(),type:'move',date:todayIso(),from,to,amt:Math.abs(amt),note:document.getElementById('mvNote')?.value.trim()||''});
   auditLog('Перевод между фондами',fmt(amt)+' ₸ · '+(p.funds.find(f=>f.id===from)?.name||'фонд')+' → '+(p.funds.find(f=>f.id===to)?.name||'фонд'),p);
   toast('Перекинуто между фондами ✓');render()}
 function returnDebt(from,to,amt){const p=P();
   const fn=id=>p.funds.find(f=>f.id===id)?.name||'—';
+  if(!requireFundBalance(p,to,amt))return;
   if(!confirm('Вернуть '+fmt(amt)+' ₸ из «'+fn(to)+'» обратно в «'+fn(from)+'»?'))return;
   p.ops.push({id:uid(),type:'move',date:todayIso(),from:to,to:from,amt,note:'возврат в фонд'});
   auditLog('Возврат между фондами',fmt(amt)+' ₸ · '+fn(to)+' → '+fn(from),p);
@@ -1716,9 +1734,14 @@ function quickTask(title,due){const p=P();
   toast('Задача добавлена ✓');render()}
 function toggleTask(id){const p=P();const t=taskArr(p).find(x=>x.id===id);if(t){t.done=!t.done;auditLog(t.done?'Задача выполнена':'Задача возвращена в работу',t.title,p)}render()}
 function delTask(id){const p=P();const t=taskArr(p).find(x=>x.id===id);p.tasks=taskArr(p).filter(x=>x.id!==id);auditLog('Удалена задача',t?.title||'',p);render()}
-function delOp(id){const p=P();const o=p.ops.find(x=>x.id===id);if(o?.bankTransferId){toast('Перевод с Главным фондом компании нельзя удалить из журнала проекта — отмените его на главной странице','err');return}if(!confirm('Удалить операцию?'))return;p.ops=p.ops.filter(o=>o.id!==id);auditLog('Удалена операция',o?(fmt(Math.abs(o.amt||0))+' ₸ · '+(o.note||o.type)):'',p);render()}
+function delOp(id){const p=P();const o=p.ops.find(x=>x.id===id);if(o?.bankTransferId){toast('Перевод с Главным фондом компании нельзя удалить из журнала проекта — отмените его на главной странице','err');return}
+  const b=fundBalances(p);
+  if(o?.type==='in'&&Object.entries(o.alloc||{}).some(([fid,a])=>(b[fid]?.bal||0)<Math.abs(a))){toast('Нельзя удалить поступление: часть денег уже потрачена из фонда','err');return}
+  if(o?.type==='adj'&&o.amt>0&&(b[o.fund]?.bal||0)<o.amt){toast('Нельзя удалить пополнение: часть денег уже потрачена','err');return}
+  if(o?.type==='move'&&(b[o.to]?.bal||0)<Math.abs(o.amt)){toast('Нельзя удалить перевод: деньги уже потрачены в фонде-получателе','err');return}
+  if(!confirm('Удалить операцию?'))return;p.ops=p.ops.filter(o=>o.id!==id);auditLog('Удалена операция',o?(fmt(Math.abs(o.amt||0))+' ₸ · '+(o.note||o.type)):'',p);render()}
 /* смена фонда и точная перераскладка операций в журнале */
-function opSetFund(id,fid){const p=P();const o=p.ops.find(x=>x.id===id);if(o?.bankTransferId){toast('Фонд перевода с Главным фондом компании не меняется — отмените операцию на главной странице','err');render();return}if(o&&p.funds.some(f=>f.id===fid)){o.fund=fid;auditLog('Изменён фонд операции',p.funds.find(f=>f.id===fid)?.name||'',p);toast('Фонд операции изменён ✓');render()}}
+function opSetFund(id,fid){const p=P();const o=p.ops.find(x=>x.id===id);if(o?.bankTransferId){toast('Фонд перевода с Главным фондом компании не меняется — отмените операцию на главной странице','err');render();return}if(o&&p.funds.some(f=>f.id===fid)){if(o.type==='out'&&o.fund!==fid&&!requireFundBalance(p,fid,Math.abs(o.amt))){render();return}o.fund=fid;auditLog('Изменён фонд операции',p.funds.find(f=>f.id===fid)?.name||'',p);toast('Фонд операции изменён ✓');render()}}
 function raOpen(id){window._reallocOp=id;render()}
 function raLeft(id){const p=P();const o=p.ops.find(x=>x.id===id);if(!o)return;
   const s=[...document.querySelectorAll('.ra-amt')].reduce((x,i)=>x+Math.abs(impNum(i.value)),0);
@@ -1729,6 +1752,8 @@ function raSave(id){const p=P();const o=p.ops.find(x=>x.id===id);if(!o)return;
   const alloc={};let s=0;
   document.querySelectorAll('.ra-amt').forEach(i=>{const v=Math.abs(impNum(i.value));if(v){alloc[i.dataset.fid]=v;s+=v}});
   if(Math.round(s)!==Math.round(o.amt)){toast('Разложи всю сумму: распределено '+fmt(s)+' из '+fmt(o.amt)+' ₸','err');return}
+  const b=fundBalances(p),old=o.alloc||{};
+  if(p.funds.some(f=>(b[f.id]?.bal||0)-Math.abs(old[f.id]||0)+Math.abs(alloc[f.id]||0)<-0.001)){toast('Нельзя изменить раскладку: часть поступления уже потрачена из фонда','err');return}
   o.alloc=alloc;window._reallocOp=null;auditLog('Изменено распределение поступления',fmt(o.amt)+' ₸',p);toast('Раскладка обновлена ✓');render()}
 function planArr(p,kind){
   if(kind==='in')return p.planIn;
@@ -1770,6 +1795,7 @@ function addFundAdj(){const p=P();
   const amt=impNum(document.getElementById('faAmt').value);
   if(!fund){toast('Выбери фонд','err');return}
   if(!amt||amt<=0){toast('Укажи сумму','err');return}
+  if(dir==='out'&&!requireFundBalance(p,fund,amt))return;
   p.ops.push({id:uid(),type:'adj',date:todayIso(),fund,amt:dir==='in'?Math.abs(amt):-Math.abs(amt),note:document.getElementById('faNote').value.trim()});
   auditLog(dir==='in'?'Фонд пополнен вручную':'Из фонда снято вручную',fmt(amt)+' ₸ · '+(p.funds.find(f=>f.id===fund)?.name||'фонд'),p);
   toast(dir==='in'?'Фонд пополнен ✓':'Снято из фонда ✓');render()}
@@ -1826,6 +1852,7 @@ function pfSave(kind,id){
   }else{
     const fund=document.getElementById('pfFund')?.value||r.fund||p.funds[0]?.id;
     if(!fund){toast('Выбери фонд','err');return}
+    if(!requireFundBalance(p,fund,amt))return;
     p.ops.push({id:uid(),type:'out',date,amt:-amt,fund,note,src:kind==='finout'?'fin':undefined});
   }
   auditLog(isIncome?'Внесено поступление':'Внесён расход',fmt(amt)+' ₸ · '+note,p);
