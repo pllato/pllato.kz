@@ -129,6 +129,26 @@ CREATE INDEX idx_deals_bitrix         ON deals(bitrix_id);
 CREATE INDEX idx_deals_closed         ON deals(closed);
 CREATE INDEX idx_deals_meta_ad        ON deals(meta_ad_id);
 
+-- ── Meta Lead Ads webhook ───────────────────────────────
+-- Одна строка на leadgen_id. Детерминированный deal_id + UNIQUE leadgen_id
+-- защищают CRM от дублей при повторной доставке webhook от Meta.
+CREATE TABLE meta_lead_events (
+  leadgen_id      TEXT PRIMARY KEY,
+  page_id         TEXT NOT NULL,
+  form_id         TEXT NOT NULL,
+  ad_id           TEXT,
+  deal_id         TEXT,
+  contact_id      TEXT,
+  status          TEXT NOT NULL DEFAULT 'processing',
+  attempts        INTEGER NOT NULL DEFAULT 1,
+  error           TEXT,
+  payload         TEXT,
+  received_at     TEXT NOT NULL,
+  processed_at    TEXT
+);
+CREATE INDEX idx_meta_lead_events_form_status
+  ON meta_lead_events(form_id, status, received_at);
+
 -- ── Tasks ────────────────────────────────────────────────
 CREATE TABLE tasks (
   id                          TEXT PRIMARY KEY,

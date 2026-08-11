@@ -8811,6 +8811,287 @@ async function handlePublicPllatoLead(request, env) {
   return json({ ok: true, dealId, contactId, pipeline: 'Pllato Старт', stageId }, 201, request);
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// META LEAD ADS — моментальные формы Facebook → ELC / «Не обработан».
+// Секреты META_APP_SECRET, META_PAGE_ACCESS_TOKEN и META_WEBHOOK_VERIFY_TOKEN
+// задаются только через `wrangler secret put`; в git их нет.
+// ════════════════════════════════════════════════════════════════════════
+const META_WEBHOOK_MAX_BYTES = 256 * 1024;
+
+function constantTimeBytesEqual(left, right) {
+  const a = left instanceof Uint8Array ? left : new Uint8Array(left || []);
+  const b = right instanceof Uint8Array ? right : new Uint8Array(right || []);
+  let diff = a.length ^ b.length;
+  const length = Math.max(a.length, b.length);
+  for (let i = 0; i < length; i++) diff |= (a[i % Math.max(a.length, 1)] || 0) ^ (b[i % Math.max(b.length, 1)] || 0);
+  return diff === 0;
+}
+
+function constantTimeTextEqual(left, right) {
+  const enc = new TextEncoder();
+  return constantTimeBytesEqual(enc.encode(String(left || '')), enc.encode(String(right || '')));
+}
+
+function hexToBytes(hex) {
+  const clean = String(hex || '').toLowerCase();
+  if (!/^[0-9a-f]+$/.test(clean) || clean.length % 2 !== 0) return new Uint8Array();
+  const bytes = new Uint8Array(clean.length / 2);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
+  return bytes;
+}
+
+async function verifyMetaWebhookSignature(rawBody, signatureHeader, appSecret) {
+  const match = String(signatureHeader || '').match(/^sha256=([0-9a-f]{64})$/i);
+  if (!match || !appSecret) return false;
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(String(appSecret)),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+  );
+  const expected = new Uint8Array(await crypto.subtle.sign('HMAC', key, rawBody));
+  return constantTimeBytesEqual(expected, hexToBytes(match[1]));
+}
+
+function metaFieldMap(fieldData) {
+  const values = {};
+  for (const field of (Array.isArray(fieldData) ? fieldData : [])) {
+    const key = String(field?.name || '').trim();
+    if (!key) continue;
+    const list = Array.isArray(field.values) ? field.values : [];
+    values[key] = list.length <= 1 ? String(list[0] ?? '') : list.map((v) => String(v ?? ''));
+  }
+  return values;
+}
+
+function metaFieldValue(fields, names) {
+  for (const name of names) {
+    const value = fields[name];
+    if (Array.isArray(value)) {
+      const first = value.find((item) => String(item || '').trim());
+      if (first) return String(first).trim();
+    } else if (String(value || '').trim()) {
+      return String(value).trim();
+    }
+  }
+  return '';
+}
+
+async function pickNextMetaLeadUid(env, formId) {
+  const key = `meta:leadgen:distribution:${formId}`;
+  const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ? LIMIT 1').bind(key).first();
+  const data = safeJsonParse(row?.v, { uids: [], pointer: 0 });
+  const uids = Array.isArray(data?.uids)
+    ? data.uids.map((uid) => String(uid || '').trim()).filter(Boolean)
+    : [];
+  if (!uids.length) return null;
+  const index = Math.max(0, Number(data.pointer) || 0) % uids.length;
+  const uid = uids[index];
+  await env.DB.prepare(`
+    INSERT INTO kv (k, v) VALUES (?, ?)
+    ON CONFLICT(k) DO UPDATE SET v = excluded.v
+  `).bind(key, JSON.stringify({ uids, pointer: (index + 1) % uids.length })).run();
+  return uid;
+}
+
+async function fetchMetaLead(env, leadgenId) {
+  if (!env.META_PAGE_ACCESS_TOKEN) throw new Error('META_PAGE_ACCESS_TOKEN is not configured');
+  const version = String(env.META_GRAPH_API_VERSION || 'v25.0');
+  const fields = [
+    'id', 'created_time', 'ad_id', 'ad_name', 'adset_id', 'adset_name',
+    'campaign_id', 'campaign_name', 'form_id', 'field_data', 'platform', 'is_organic',
+  ].join(',');
+  const response = await fetch(
+    `https://graph.facebook.com/${encodeURIComponent(version)}/${encodeURIComponent(leadgenId)}?fields=${encodeURIComponent(fields)}`,
+    { headers: { Authorization: `Bearer ${env.META_PAGE_ACCESS_TOKEN}` } },
+  );
+  const text = (await response.text()).slice(0, 200000);
+  let payload;
+  try { payload = text ? JSON.parse(text) : {}; }
+  catch { payload = { error: { message: text.slice(0, 500) || 'invalid Graph API response' } }; }
+  if (!response.ok || payload?.error) {
+    const code = payload?.error?.code ? ` code ${payload.error.code}` : '';
+    throw new Error(`Meta Graph API HTTP ${response.status}${code}: ${String(payload?.error?.message || 'unknown error').slice(0, 300)}`);
+  }
+  return payload;
+}
+
+async function findOrCreateMetaLeadContact(env, lead, fields, nowIso) {
+  const phoneRaw = metaFieldValue(fields, ['phone_number', 'phone', 'mobile_phone']);
+  const email = metaFieldValue(fields, ['email', 'work_email']).toLowerCase();
+  const fullName = metaFieldValue(fields, ['full_name', 'name']);
+  const firstName = metaFieldValue(fields, ['first_name']) || fullName.split(/\s+/)[0] || '(без имени)';
+  const lastName = metaFieldValue(fields, ['last_name']) || fullName.split(/\s+/).slice(1).join(' ');
+  const phoneDigits = normalizeWaPhone(phoneRaw);
+  let contact = null;
+  if (phoneDigits) {
+    contact = await env.DB.prepare('SELECT id FROM contacts WHERE phones LIKE ? LIMIT 1')
+      .bind(`%${phoneDigits.slice(-10)}%`).first();
+  }
+  if (!contact && email) {
+    contact = await env.DB.prepare('SELECT id FROM contacts WHERE LOWER(emails) LIKE ? LIMIT 1')
+      .bind(`%${email.replace(/[%_]/g, '')}%`).first();
+  }
+  if (contact?.id) return contact.id;
+
+  const contactId = `contact_meta_${lead.id}`;
+  await env.DB.prepare(`
+    INSERT OR IGNORE INTO contacts (
+      id, name, last_name, type, source_id, source_description, opened, export,
+      bitrix_date_create, bitrix_date_modify, phones, emails, custom_fields
+    ) VALUES (?, ?, ?, 'CLIENT', 'META_LEAD_AD', ?, 1, 0, ?, ?, ?, ?, ?)
+  `).bind(
+    contactId, firstName.slice(0, 120), lastName.slice(0, 120),
+    `Facebook лид-форма · ${String(env.META_LEAD_FORM_NAME || lead.form_id || '').slice(0, 120)}`,
+    nowIso, nowIso,
+    phoneRaw ? JSON.stringify([{ type: 'MOBILE', value: phoneRaw.slice(0, 40) }]) : null,
+    email ? JSON.stringify([{ type: 'WORK', value: email.slice(0, 200) }]) : null,
+    JSON.stringify({ metaLeadId: lead.id, metaFormId: lead.form_id || env.META_LEAD_FORM_ID || null }),
+  ).run();
+  return contactId;
+}
+
+async function processMetaLeadEvent(env, value, rawEvent) {
+  const leadgenId = String(value?.leadgen_id || '').trim();
+  const pageId = String(value?.page_id || '').trim();
+  const formId = String(value?.form_id || '').trim();
+  if (!leadgenId || !pageId || !formId) return { ignored: true, reason: 'missing ids' };
+  if (String(env.META_LEAD_PAGE_ID || '') && pageId !== String(env.META_LEAD_PAGE_ID)) {
+    return { ignored: true, reason: 'page not configured' };
+  }
+  if (String(env.META_LEAD_FORM_ID || '') && formId !== String(env.META_LEAD_FORM_ID)) {
+    return { ignored: true, reason: 'form not configured' };
+  }
+
+  const existing = await env.DB.prepare(
+    "SELECT status, deal_id FROM meta_lead_events WHERE leadgen_id = ? LIMIT 1"
+  ).bind(leadgenId).first();
+  if (existing?.status === 'done' && existing.deal_id) {
+    return { duplicate: true, dealId: existing.deal_id };
+  }
+
+  const receivedAt = new Date(Number(rawEvent?.time || 0) * 1000 || Date.now()).toISOString();
+  await env.DB.prepare(`
+    INSERT INTO meta_lead_events (
+      leadgen_id, page_id, form_id, ad_id, status, attempts, payload, received_at
+    ) VALUES (?, ?, ?, ?, 'processing', 1, ?, ?)
+    ON CONFLICT(leadgen_id) DO UPDATE SET
+      status='processing', attempts=attempts+1, error=NULL, payload=excluded.payload
+  `).bind(
+    leadgenId, pageId, formId, value?.ad_id ? String(value.ad_id) : null,
+    JSON.stringify({ value, time: rawEvent?.time || null }), receivedAt,
+  ).run();
+
+  try {
+    const lead = await fetchMetaLead(env, leadgenId);
+    const fields = metaFieldMap(lead.field_data);
+    const nowIso = lead.created_time ? new Date(lead.created_time).toISOString() : receivedAt;
+    const contactId = await findOrCreateMetaLeadContact(env, lead, fields, nowIso);
+    const responsibleUid = await pickNextMetaLeadUid(env, formId);
+    const dealId = `deal_meta_${leadgenId}`;
+    const name = metaFieldValue(fields, ['full_name', 'name'])
+      || [metaFieldValue(fields, ['first_name']), metaFieldValue(fields, ['last_name'])].filter(Boolean).join(' ')
+      || metaFieldValue(fields, ['phone_number', 'phone', 'email'])
+      || 'Новый лид';
+    const formName = String(env.META_LEAD_FORM_NAME || formId).slice(0, 120);
+    const details = {
+      metaLeadId: leadgenId,
+      pageId,
+      formId,
+      formName,
+      adId: lead.ad_id || value.ad_id || null,
+      adName: lead.ad_name || null,
+      adsetId: lead.adset_id || null,
+      adsetName: lead.adset_name || null,
+      campaignId: lead.campaign_id || null,
+      campaignName: lead.campaign_name || null,
+      platform: lead.platform || null,
+      isOrganic: !!lead.is_organic,
+      answers: fields,
+      submittedAt: nowIso,
+    };
+    await ensureStageChangedAtColumn(env);
+    const dealInsert = await env.DB.prepare(`
+      INSERT OR IGNORE INTO deals (
+        id, title, opportunity, currency, pipeline_id, stage_id, closed,
+        contact_id, responsible_uid, source_id, source_description, meta_ad_id,
+        bitrix_date_create, bitrix_date_modify, stage_changed_at, custom_fields
+      ) VALUES (?, ?, 0, 'KZT', ?, ?, 0, ?, ?, 'META_LEAD_AD', ?, ?, ?, ?, ?, ?)
+    `).bind(
+      dealId, `Facebook Lead · ${name}`.slice(0, 240),
+      String(env.META_LEAD_PIPELINE_ID || 'pipeline_imp_elc'),
+      String(env.META_LEAD_STAGE_ID || 'NEW'), contactId, responsibleUid,
+      `Facebook лид-форма · ${formName}`, lead.ad_id || value.ad_id || null,
+      nowIso, nowIso, nowIso, JSON.stringify(details),
+    ).run();
+    if (dealInsert?.meta?.changes > 0) {
+      await logStageEvent(
+        env, dealId, String(env.META_LEAD_PIPELINE_ID || 'pipeline_imp_elc'),
+        String(env.META_LEAD_STAGE_ID || 'NEW'), nowIso,
+      );
+    }
+    await env.DB.prepare(`
+      UPDATE meta_lead_events SET
+        status='done', deal_id=?, contact_id=?, ad_id=?, error=NULL, processed_at=?
+      WHERE leadgen_id=?
+    `).bind(dealId, contactId, lead.ad_id || value.ad_id || null, new Date().toISOString(), leadgenId).run();
+
+    if (responsibleUid) {
+      await createNotification(env, {
+        id: `nt_meta_lead_${leadgenId}_${responsibleUid}`,
+        uid: responsibleUid, type: 'meta_lead_new', title: '🆕 Новый лид Facebook',
+        body: `${name} · ${formName}`.slice(0, 500),
+        link: `/team.html#deal/${encodeURIComponent(dealId.replace(/^deal_/, ''))}`,
+        icon: '🆕', entityType: 'deal', entityId: dealId,
+      });
+    }
+    return { ok: true, leadgenId, dealId, contactId };
+  } catch (error) {
+    const message = String(error?.message || error).slice(0, 1000);
+    await env.DB.prepare(
+      "UPDATE meta_lead_events SET status='error', error=? WHERE leadgen_id=?"
+    ).bind(message, leadgenId).run();
+    throw error;
+  }
+}
+
+async function handleMetaLeadWebhook(request, env) {
+  const url = new URL(request.url);
+  if (request.method === 'GET') {
+    const mode = url.searchParams.get('hub.mode') || '';
+    const token = url.searchParams.get('hub.verify_token') || '';
+    const challenge = url.searchParams.get('hub.challenge') || '';
+    if (mode === 'subscribe' && env.META_WEBHOOK_VERIFY_TOKEN
+      && constantTimeTextEqual(token, env.META_WEBHOOK_VERIFY_TOKEN)) {
+      return new Response(challenge, { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+    }
+    return json({ ok: false, error: 'webhook verification failed' }, 403, request);
+  }
+  if (request.method !== 'POST') return json({ ok: false, error: 'method not allowed' }, 405, request);
+
+  const declaredLength = Number(request.headers.get('Content-Length') || 0);
+  if (declaredLength > META_WEBHOOK_MAX_BYTES) return json({ ok: false, error: 'payload too large' }, 413, request);
+  const rawBody = await request.arrayBuffer();
+  if (rawBody.byteLength > META_WEBHOOK_MAX_BYTES) return json({ ok: false, error: 'payload too large' }, 413, request);
+  const signatureOk = await verifyMetaWebhookSignature(
+    rawBody, request.headers.get('X-Hub-Signature-256'), env.META_APP_SECRET,
+  );
+  if (!signatureOk) return json({ ok: false, error: 'invalid webhook signature' }, 401, request);
+
+  let payload;
+  try { payload = JSON.parse(new TextDecoder().decode(rawBody)); }
+  catch { return json({ ok: false, error: 'invalid json' }, 400, request); }
+  if (payload?.object !== 'page') return json({ ok: true, ignored: true }, 200, request);
+
+  const events = [];
+  for (const entry of (Array.isArray(payload.entry) ? payload.entry : [])) {
+    for (const change of (Array.isArray(entry?.changes) ? entry.changes : [])) {
+      if (change?.field === 'leadgen') events.push({ entry, value: change.value || {} });
+    }
+  }
+  const results = [];
+  for (const event of events) results.push(await processMetaLeadEvent(env, event.value, event.entry));
+  return json({ ok: true, received: events.length, results }, 200, request);
+}
+
 // Публичная обезличенная серия для КЭП: уникальная сделка учитывается один раз
 // по первому входу в «Создание Демо» или «Показ Демо».
 async function handlePublicPllatoKep(request, env) {
@@ -10304,6 +10585,10 @@ export default {
     // from swallowing form submissions and returning a misleading 404.
     if (path === "/api/public/pllato-lead" && request.method === "POST") {
       return handlePublicPllatoLead(request, env);
+    }
+
+    if (path === "/api/meta/lead-webhook") {
+      return handleMetaLeadWebhook(request, env);
     }
 
     if (path === "/health" && request.method === "GET") {
