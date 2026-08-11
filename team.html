@@ -9671,7 +9671,7 @@ function renderPipelineTabs() {
     const isArchived = p.isActive === false || p.isActive === 0;
     const archivedBadge = isArchived ? ' <span style="background:rgba(0,0,0,0.15);font-size:9px;padding:1px 5px;border-radius:3px;vertical-align:middle;text-transform:uppercase">архив</span>' : '';
     const archiveBtn = isAdmin && !isArchived ? `<span class="pipe-tab-archive" data-archive-pipeline="${escapeHtml(p.id)}" data-archive-name="${escapeHtml(p.name)}" title="В архив" style="display:inline-block;margin-left:6px;opacity:0.4;cursor:pointer;font-size:11px">🗄</span>` : '';
-    const cfgBtn = isAdmin && isActive ? `<span class="pipe-tab-cfg" data-cfg-pipeline="${escapeHtml(p.id)}" title="Настройка полей на карточках (Первый Zoom, Дата пробного урока)" style="display:inline-block;margin-left:6px;opacity:0.55;cursor:pointer;font-size:11px">⚙</span>` : '';
+    const cfgBtn = isAdmin && isActive ? `<span class="pipe-tab-cfg" data-cfg-pipeline="${escapeHtml(p.id)}" title="Настройки полей, календаря и доступа к воронке" style="display:inline-block;margin-left:6px;opacity:0.55;cursor:pointer;font-size:11px">⚙</span>` : '';
     html += `<button class="pipe-tab ${isActive ? 'active' : ''}" data-pipeline-id="${escapeHtml(p.id)}" draggable="true" title="${escapeHtml(p.name)} · перетащи влево/вправо чтобы поменять порядок">${escapeHtml(p.name)}${archivedBadge}${cfgBtn}${archiveBtn}</button>`;
   }
   html += `<button class="pipe-tab pipe-tab-new" data-action="new-pipeline" title="Создать новую воронку">+</button>`;
@@ -9694,19 +9694,55 @@ function pipelineCardFieldFlags(pipelineId) {
 
 // Модал «⚙ Поля на карточках» для конкретной воронки (шестерёнка на активной
 // вкладке). Управляет видимостью «📹 Первый Zoom» и «📚 Дата пробного урока».
-function openPipelineCardFieldsModal(pipelineId) {
+async function openPipelineCardFieldsModal(pipelineId) {
   if (!pipelineId) { alert('Сначала открой воронку'); return; }
   document.getElementById('_pcf-modal')?.remove();
   const pipeName = dealsState.pipelines?.[pipelineId]?.name || pipelineId;
   const flags = pipelineCardFieldFlags(pipelineId);
+  const cfg = (window.__fieldConfig && pipelineId) ? (window.__fieldConfig[pipelineId] || {}) : {};
+  let structure = null;
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const response = await fetch(`${WORKER_BASE_URL}/api/org/structure`, {
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    if (response.ok) structure = (await response.json()).structure || null;
+  } catch (error) { console.warn('[pipeline-access] structure load failed:', error); }
+
+  const people = Object.entries(dealsState.users || {}).map(([key, user]) => ({
+    uid: String(user?.uid || key),
+    label: [user?.name, user?.lastName || user?.last_name].filter(Boolean).join(' ').trim()
+      || user?.email || String(user?.uid || key),
+    active: user?.active !== false && user?.active !== 0,
+  })).filter((user) => user.active).sort((a, b) => a.label.localeCompare(b.label, 'ru'));
+  const nodes = [];
+  const flattenNode = (node, parents = []) => {
+    if (!node) return;
+    const label = [...parents, node.name || 'Без названия'].join(' → ');
+    if (node.id) nodes.push({ id: String(node.id), label });
+    const children = node.subDepartments || node.departments || [];
+    for (const child of children) flattenNode(child, [...parents, node.name || 'Без названия']);
+  };
+  for (const branch of (structure?.branches || [])) flattenNode(branch, []);
+  const selectedMembers = new Set(Array.isArray(cfg.accessMemberUids) ? cfg.accessMemberUids.map(String) : []);
+  const selectedNodes = new Set(Array.isArray(cfg.accessNodeIds) ? cfg.accessNodeIds.map(String) : []);
+  const peopleHtml = people.map((user) => `<label data-pcf-person-row style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--b1);cursor:pointer">
+    <input type="checkbox" data-pcf-member="${escapeHtml(user.uid)}" ${selectedMembers.has(user.uid) ? 'checked' : ''}>
+    <span style="font-size:13px;color:var(--t1)">${escapeHtml(user.label)}</span>
+  </label>`).join('');
+  const nodesHtml = nodes.map((node) => `<label style="display:flex;align-items:flex-start;gap:8px;padding:6px 8px;border-bottom:1px solid var(--b1);cursor:pointer">
+    <input type="checkbox" data-pcf-node="${escapeHtml(node.id)}" ${selectedNodes.has(node.id) ? 'checked' : ''} style="margin-top:2px">
+    <span style="font-size:12px;color:var(--t2)">${escapeHtml(node.label)}</span>
+  </label>`).join('');
   const ov = document.createElement('div');
   ov.id = '_pcf-modal';
   ov.className = 'qad-overlay';
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
   ov.innerHTML = `
-    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:480px;width:94vw">
-      <div class="qad-head"><h2>⚙ Поля на карточках «${escapeHtml(pipeName)}»</h2><button class="qad-btn qad-btn-ghost" id="pcf-close" style="padding:4px 10px">×</button></div>
-      <div class="qad-body" style="padding:18px 24px">
+    <div class="qad-modal" onclick="event.stopPropagation()" style="max-width:680px;width:96vw">
+      <div class="qad-head"><h2>⚙ Настройки воронки «${escapeHtml(pipeName)}»</h2><button class="qad-btn qad-btn-ghost" id="pcf-close" style="padding:4px 10px">×</button></div>
+      <div class="qad-body" style="padding:18px 24px;max-height:72vh;overflow:auto">
+        <h3 style="margin:0 0 6px;font-size:14px;color:var(--t1)">Поля карточки</h3>
         <div style="font-size:12px;color:var(--t3);margin-bottom:14px">Выбери, какие поля показывать в карточке сделки этой воронки. Дата подхватится в Календарь.</div>
         <label style="display:flex;align-items:center;gap:10px;padding:11px 0;cursor:pointer;font-size:14px;color:var(--t1);border-bottom:1px solid var(--b2)">
           <input type="checkbox" id="pcf-zoom" ${flags.showFirstZoom ? 'checked' : ''} style="width:17px;height:17px">
@@ -9716,6 +9752,24 @@ function openPipelineCardFieldsModal(pipelineId) {
           <input type="checkbox" id="pcf-trial" ${flags.showTrialLesson ? 'checked' : ''} style="width:17px;height:17px">
           <span>📚 Дата пробного урока <span style="color:var(--t3);font-size:12px">— дата и время</span></span>
         </label>
+        <div style="border-top:1px solid var(--b2);margin:12px 0 16px"></div>
+        <h3 style="margin:0 0 6px;font-size:14px;color:var(--t1)">🔐 Доступ к воронке</h3>
+        <div style="font-size:12px;color:var(--t3);margin-bottom:10px">Этот же список получает доступ к отдельному календарю пробных уроков. Выбранный филиал включает всех сотрудников внутри него и вложенных отделов.</div>
+        <label style="display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13px;color:var(--t1);cursor:pointer">
+          <input type="checkbox" id="pcf-restrict" ${cfg.accessMode === 'restricted' ? 'checked' : ''}>
+          <b>Ограничить доступ выбранными людьми и подразделениями</b>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:8px 0 12px;font-size:13px;color:var(--t1);cursor:pointer">
+          <input type="checkbox" id="pcf-trial-calendar" ${cfg.trialCalendarEnabled === true ? 'checked' : ''}>
+          <b>📚 Включить отдельный календарь «Пробные уроки»</b>
+        </label>
+        <div id="pcf-access-fields" style="${cfg.accessMode === 'restricted' ? '' : 'opacity:.45;pointer-events:none'}">
+          <div style="font-size:12px;font-weight:600;color:var(--t2);margin:5px 0">Подразделения из структуры</div>
+          <div style="border:1px solid var(--b1);border-radius:8px;max-height:155px;overflow:auto">${nodesHtml || '<div style="padding:10px;color:var(--t3);font-size:12px">В структуре нет подразделений</div>'}</div>
+          <div style="font-size:12px;font-weight:600;color:var(--t2);margin:13px 0 5px">Отдельные сотрудники</div>
+          <input id="pcf-person-search" placeholder="Поиск сотрудника…" style="width:100%;padding:8px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);margin-bottom:5px">
+          <div style="border:1px solid var(--b1);border-radius:8px;max-height:190px;overflow:auto">${peopleHtml || '<div style="padding:10px;color:var(--t3);font-size:12px">Сотрудники не найдены</div>'}</div>
+        </div>
       </div>
       <div class="qad-foot">
         <button class="qad-btn qad-btn-ghost" id="pcf-cancel">Отмена</button>
@@ -9725,6 +9779,17 @@ function openPipelineCardFieldsModal(pipelineId) {
   document.body.appendChild(ov);
   document.getElementById('pcf-close').onclick = () => ov.remove();
   document.getElementById('pcf-cancel').onclick = () => ov.remove();
+  document.getElementById('pcf-restrict').onchange = (event) => {
+    const fields = document.getElementById('pcf-access-fields');
+    fields.style.opacity = event.target.checked ? '1' : '.45';
+    fields.style.pointerEvents = event.target.checked ? '' : 'none';
+  };
+  document.getElementById('pcf-person-search').oninput = (event) => {
+    const q = String(event.target.value || '').trim().toLowerCase();
+    ov.querySelectorAll('[data-pcf-person-row]').forEach((row) => {
+      row.style.display = !q || row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  };
   document.getElementById('pcf-save').onclick = async () => {
     const btn = document.getElementById('pcf-save');
     btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
@@ -9737,7 +9802,16 @@ function openPipelineCardFieldsModal(pipelineId) {
         pinned: Array.isArray(prev.pinned) ? prev.pinned : [],
         showFirstZoom: document.getElementById('pcf-zoom').checked,
         showTrialLesson: document.getElementById('pcf-trial').checked,
+        accessMode: document.getElementById('pcf-restrict').checked ? 'restricted' : 'inherit',
+        accessMemberUids: [...ov.querySelectorAll('[data-pcf-member]:checked')].map((input) => input.dataset.pcfMember),
+        accessNodeIds: [...ov.querySelectorAll('[data-pcf-node]:checked')].map((input) => input.dataset.pcfNode),
+        trialCalendarEnabled: document.getElementById('pcf-trial-calendar').checked,
       };
+      if (config[pipelineId].accessMode === 'restricted'
+          && config[pipelineId].accessMemberUids.length === 0
+          && config[pipelineId].accessNodeIds.length === 0) {
+        throw new Error('Выбери хотя бы одного сотрудника или подразделение');
+      }
       await saveFieldConfig(config);
       ov.remove();
       showToast('Настройки полей сохранены');
@@ -16455,6 +16529,7 @@ function renderDeedsList() {
 // ═════════════════════════════════════════════════════════════════════════
 const CAL_VIEW_LS_KEY = 'elc:calendarView';
 const CAL_SCOPE_LS_KEY = 'elc:calendarShowAll:v2';
+const CAL_KIND_LS_KEY = 'elc:calendarKind:v1';
 const calendarState = {
   // Дефолт — День. Восстанавливаем последний выбранный из localStorage,
   // чтобы переключение View сохранялось между навигациями.
@@ -16475,9 +16550,17 @@ const calendarState = {
   // Общий календарь доступен каждому сотруднику, которому открыт вход в CRM.
   // По умолчанию показываем все события команды; «Мои» остаётся быстрым фильтром.
   showAll: (() => { try { return localStorage.getItem(CAL_SCOPE_LS_KEY) !== '0'; } catch { return true; } })(),
+  kind: (() => { try { return localStorage.getItem(CAL_KIND_LS_KEY) === 'trial' ? 'trial' : 'general'; } catch { return 'general'; } })(),
 };
 function calCanSeeAll() {
   return !!window.currentUser;
+}
+
+function trialCalendarPipelineIds() {
+  return Object.values(dealsState.pipelines || {})
+    .filter((pipeline) => isPipelineAllowed(pipeline.id)
+      && window.__fieldConfig?.[pipeline.id]?.trialCalendarEnabled === true)
+    .map((pipeline) => pipeline.id);
 }
 
 function ensureCalendarStylesInjected() {
@@ -16520,10 +16603,12 @@ function ensureCalendarStylesInjected() {
     }
     .cal-event-zoom { background: rgba(37, 99, 235, 0.15); color: #1e40af; border-left: 3px solid #2563eb; }
     .cal-event-task { background: rgba(168, 85, 247, 0.12); color: #6b21a8; border-left: 3px solid #a855f7; }
+    .cal-event-trial { background: rgba(16, 185, 129, 0.14); color: #047857; border-left: 3px solid #10b981; }
     .cal-event:hover { filter: brightness(0.95); }
     .cal-day-more { font-size: 10px; color: var(--t3); margin-top: 2px; }
     [data-theme="dark"] .cal-event-zoom { color: #bfdbfe; }
     [data-theme="dark"] .cal-event-task { color: #ddd6fe; }
+    [data-theme="dark"] .cal-event-trial { color: #a7f3d0; }
 
     /* ──── Hourly views (day / week) ──── */
     .cal-hourly-wrap { display: flex; border: 1px solid var(--b1); border-radius: 8px; overflow: hidden; background: var(--bg2); }
@@ -16570,11 +16655,13 @@ function ensureCalendarStylesInjected() {
     }
     .cal-hourly-event.zoom { background: rgba(37,99,235,0.15); color: #1e40af; border-left-color: #2563eb; }
     .cal-hourly-event.task { background: rgba(168,85,247,0.12); color: #6b21a8; border-left-color: #a855f7; }
+    .cal-hourly-event.trial { background: rgba(16,185,129,0.14); color: #047857; border-left-color: #10b981; }
     .cal-hourly-event-time { font-weight: 600; font-size: 10px; }
     .cal-hourly-event-title { font-size: 11px; font-weight: 600; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .cal-hourly-event-manager { font-size: 9px; opacity: .82; font-weight: 500; }
     [data-theme="dark"] .cal-hourly-event.zoom { color: #bfdbfe; }
     [data-theme="dark"] .cal-hourly-event.task { color: #ddd6fe; }
+    [data-theme="dark"] .cal-hourly-event.trial { color: #a7f3d0; }
     /* Линия "текущее время" — только в day-view today / week-view today-col */
     .cal-now-line {
       position: absolute; left: 0; right: 0;
@@ -16598,6 +16685,10 @@ function ensureCalendarStylesInjected() {
 
 async function renderCalendar(el) {
   ensureCalendarStylesInjected();
+  try { await loadDealsMeta(); } catch {}
+  try { await loadFieldConfig(); } catch {}
+  const hasTrialCalendar = trialCalendarPipelineIds().length > 0;
+  if (calendarState.kind === 'trial' && !hasTrialCalendar) calendarState.kind = 'general';
   const now = new Date();
   if (!calendarState.cursorDate) calendarState.cursorDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   // Sync legacy month-grid поля из cursorDate (для совместимости)
@@ -16606,15 +16697,19 @@ async function renderCalendar(el) {
   el.innerHTML = `
     <div class="cal-page">
       <div class="page-head" style="margin-bottom:10px">
-        <h1 style="margin:0">📅 Календарь</h1>
+        <h1 style="margin:0">${calendarState.kind === 'trial' ? '📚 Календарь пробных уроков' : '📅 Общий календарь'}</h1>
       </div>
-      <div class="page-sub">Встречи Zoom из сделок + задачи с дедлайном. Клик на событие открывает запись.</div>
+      <div class="page-sub">${calendarState.kind === 'trial' ? 'Только даты пробных уроков из доступных воронок. Клик открывает сделку.' : 'Встречи Zoom из сделок + задачи с дедлайном. Клик на событие открывает запись.'}</div>
       <div class="cal-toolbar">
+        <div class="cal-view-toggle" style="margin-right:4px">
+          <button class="cal-view-btn ${calendarState.kind === 'general' ? 'active' : ''}" data-cal-kind="general">📅 Общий</button>
+          ${hasTrialCalendar ? `<button class="cal-view-btn ${calendarState.kind === 'trial' ? 'active' : ''}" data-cal-kind="trial">📚 Пробные уроки</button>` : ''}
+        </div>
         <button class="btn btn-sm" id="cal-prev">←</button>
         <button class="btn btn-sm" id="cal-today">Сегодня</button>
         <button class="btn btn-sm" id="cal-next">→</button>
         <button class="btn btn-sm" id="cal-reload" title="Перезагрузить события">🔄</button>
-        <button class="btn btn-sm" id="cal-add-event" title="Создать событие" style="background:linear-gradient(135deg,#5b6dff,#8a5cff);color:#fff">➕ Событие</button>
+        ${calendarState.kind === 'general' ? '<button class="btn btn-sm" id="cal-add-event" title="Создать событие" style="background:linear-gradient(135deg,#5b6dff,#8a5cff);color:#fff">➕ Событие</button>' : ''}
         <span class="cal-month-label" id="cal-label"></span>
         <div class="cal-view-toggle">
           <button class="cal-view-btn ${calendarState.view === 'day' ? 'active' : ''}" data-cal-view="day">День</button>
@@ -16626,8 +16721,9 @@ async function renderCalendar(el) {
           <button class="cal-view-btn ${!calendarState.showAll ? 'active' : ''}" data-cal-scope="mine">Мои</button>
         </div>` : ''}
         <span id="cal-stats" style="margin-left:auto;font-size:11px;color:var(--t3);display:flex;gap:14px;align-items:center">
-          <span><span style="display:inline-block;width:10px;height:10px;background:#2563eb;border-radius:2px;vertical-align:middle"></span> Zoom</span>
-          <span><span style="display:inline-block;width:10px;height:10px;background:#a855f7;border-radius:2px;vertical-align:middle"></span> Задача</span>
+          ${calendarState.kind === 'trial'
+            ? '<span><span style="display:inline-block;width:10px;height:10px;background:#10b981;border-radius:2px;vertical-align:middle"></span> Пробный урок</span>'
+            : '<span><span style="display:inline-block;width:10px;height:10px;background:#2563eb;border-radius:2px;vertical-align:middle"></span> Zoom</span><span><span style="display:inline-block;width:10px;height:10px;background:#a855f7;border-radius:2px;vertical-align:middle"></span> Задача</span>'}
         </span>
       </div>
       <div id="cal-grid"><div class="empty" style="padding:30px;text-align:center;color:var(--t3)">⏳ Загружаем события…</div></div>
@@ -16650,7 +16746,19 @@ async function renderCalendar(el) {
     await loadCalendarEvents({ force: true });
     renderCalendarView();
   };
-  document.getElementById('cal-add-event').onclick = () => openCalEventForm(new Date());
+  const addEventButton = document.getElementById('cal-add-event');
+  if (addEventButton) addEventButton.onclick = () => openCalEventForm(new Date());
+  el.querySelectorAll('.cal-view-btn[data-cal-kind]').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (calendarState.kind === button.dataset.calKind) return;
+      calendarState.kind = button.dataset.calKind;
+      try { localStorage.setItem(CAL_KIND_LS_KEY, calendarState.kind); } catch {}
+      calendarState.events = null;
+      calendarState.loading = false;
+      calendarState.loadingPromise = null;
+      renderCalendar(el);
+    });
+  });
   // Переключатель видов
   el.querySelectorAll('.cal-view-btn[data-cal-view]').forEach(b => {
     b.addEventListener('click', () => {
@@ -16791,16 +16899,20 @@ async function loadCalendarEvents(opts = {}) {
       const dlTo = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + 90);
       const fmtDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       const allEventsParam = (calendarState.showAll && calCanSeeAll()) ? '&allEvents=1' : '';
-      const tasksP = fetch(`${WORKER_LIST_URL}/tasks?page=1&pageSize=500&status=active&sort=deadline&deadlineFrom=${fmtDate(dlFrom)}&deadlineTo=${fmtDate(dlTo)}T23:59:59&scope=${effectiveScope()}&includePublic=1${allEventsParam}&auth=${idToken}`)
-        .then(r => r.ok ? r.json() : { items: [] })
-        .catch(() => ({ items: [] }));
+      const tasksP = calendarState.kind === 'trial'
+        ? Promise.resolve({ items: [] })
+        : fetch(`${WORKER_LIST_URL}/tasks?page=1&pageSize=500&status=active&sort=deadline&deadlineFrom=${fmtDate(dlFrom)}&deadlineTo=${fmtDate(dlTo)}T23:59:59&scope=${effectiveScope()}&includePublic=1${allEventsParam}&auth=${idToken}`)
+          .then(r => r.ok ? r.json() : { items: [] })
+          .catch(() => ({ items: [] }));
       // Сделки: ВСЕГДА тянем свежие данные из ВСЕХ воронок параллельно,
       // чтобы Zoom-встреча показалась даже если активная воронка СРМ
       // указывает на другую. Без этого календарь не видел firstZoomAt
       // сделок из неактивных воронок и in-memory dealsState.deals мог
       // быть устаревшим (если карточка обновлена в другой вкладке).
       try { await loadDealsMeta(); } catch {}
-      const pipelineIds = Object.keys(dealsState.pipelines || {});
+      const pipelineIds = calendarState.kind === 'trial'
+        ? trialCalendarPipelineIds()
+        : Object.keys(dealsState.pipelines || {}).filter((pipelineId) => isPipelineAllowed(pipelineId));
       const dealFetches = pipelineIds.map(pid =>
         fetch(`${WORKER_LIST_URL}/deals?page=1&pageSize=200&pipeline=${encodeURIComponent(pid)}&sort=modified&scope=${effectiveScope()}${allEventsParam}&auth=${idToken}`)
           .then(r => r.ok ? r.json() : { items: [] })
@@ -16893,7 +17005,8 @@ async function loadCalendarEvents(opts = {}) {
       for (const d of dealsForCalendar) {
         const flags = pipelineCardFieldFlags(d.pipelineId);
         // Первый Zoom
-        const zt = flags.showFirstZoom ? d.customFields?.firstZoomAt : null;
+        const zt = calendarState.kind === 'general' && flags.showFirstZoom
+          ? d.customFields?.firstZoomAt : null;
         if (zt) {
           const dt = new Date(zt);
           if (!isNaN(dt)) {
@@ -16916,15 +17029,16 @@ async function loadCalendarEvents(opts = {}) {
             });
           }
         }
-        // Дата пробного урока
-        const tl = flags.showTrialLesson ? d.customFields?.trialLessonAt : null;
+        // Дата пробного урока живёт только в отдельном календаре.
+        const tl = calendarState.kind === 'trial' && flags.showTrialLesson
+          ? d.customFields?.trialLessonAt : null;
         if (tl) {
           const dt = new Date(tl);
           if (!isNaN(dt)) {
             const endDt = new Date(dt.getTime() + 60 * 60000);
             const scheduledByUid = d.customFields?.trialLessonSetByUid || d.responsibleUid || d.createdByUid || null;
             events.push({
-              type: 'zoom',
+              type: 'trial',
               date: dt,
               endDate: endDt,
               title: '📚 Пробный: ' + (d.title || d.bitrixId),
@@ -17025,7 +17139,8 @@ function renderCalendarGrid() {
     const overflow = dayEvents.length - visible.length;
     const eventsHtml = visible.map(ev => {
       const time = ev.date.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
-      const cls = ev.type === 'zoom' ? 'cal-event-zoom' : 'cal-event-task';
+      const cls = ev.type === 'trial' ? 'cal-event-trial'
+        : (ev.type === 'zoom' ? 'cal-event-zoom' : 'cal-event-task');
       // Zoom-событие может быть из сделки (firstZoomAt → dealBitrixId)
       // или из задачи (mark='zoom_meeting' → taskId + dealBitrixId через crmLinks).
       const parts = [];
@@ -17049,7 +17164,9 @@ function renderCalendarGrid() {
   }
   grid.innerHTML = `
     <div class="cal-grid">${html}</div>
-    ${calendarState.events && calendarState.events.length === 0 ? '<div style="margin-top:14px;color:var(--t3);font-size:12px;text-align:center;line-height:1.6">Событий не найдено.<br>Проставь дату «Первого Zoom» в сделке или создай Zoom-встречу через «+ Дело» → 📹 Zoom-встреча.</div>' : ''}
+    ${calendarState.events && calendarState.events.length === 0
+      ? `<div style="margin-top:14px;color:var(--t3);font-size:12px;text-align:center;line-height:1.6">Событий не найдено.<br>${calendarState.kind === 'trial' ? 'Проставь «Дату пробного урока» в карточке сделки.' : 'Проставь дату «Первого Zoom» в сделке или создай Zoom-встречу через «+ Дело» → 📹 Zoom-встреча.'}</div>`
+      : ''}
   `;
   // Счётчик в тулбаре: сколько событий всего загружено и сколько в этом месяце
   const stats = document.getElementById('cal-stats');
@@ -17287,7 +17404,7 @@ function calHourlyEventHtml(ev, START_H, HOUR_H, isAlone, layout) {
     `width:calc(${widthPct}% - ${gap * 2}px)`,
     'right:auto',  // override default right:4px
   ];
-  const cls = ev.type === 'zoom' ? 'zoom' : 'task';
+  const cls = ev.type === 'trial' ? 'trial' : (ev.type === 'zoom' ? 'zoom' : 'task');
   const time = ev.date.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
   const parts = [];
   if (ev.taskId) parts.push(`data-cal-task="${escapeHtml(ev.taskId)}"`);
@@ -17352,6 +17469,7 @@ function attachCalDragHandlers(grid) {
       _calDragUid = null;
     });
     body.addEventListener('dblclick', (e) => {
+      if (calendarState.kind === 'trial') return;
       if (e.target.closest('.cal-event')) return;
       const rect = body.getBoundingClientRect();
       let mins = START_H * 60 + Math.round(((e.clientY - rect.top) / HOUR_H * 60) / SNAP) * SNAP;
