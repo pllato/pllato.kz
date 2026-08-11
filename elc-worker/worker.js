@@ -240,7 +240,12 @@ async function resolveOrgPermissions(env, uid, matchUids) {
     for (const child of children) walk(child, [...parents, node]);
   }
   for (const branch of (structure.branches || [])) walk(branch, []);
-  if (!userNodes.length) return defaults;
+  if (!userNodes.length) {
+    return {
+      ...defaults,
+      pipelineIds: await applyPipelineAccessConfig(env, structure, ids, defaults.pipelineIds),
+    };
+  }
 
   // Эффективные права = UNION node.permissions всех userNodes + всех их descendants
   // (потому что user, состоящий в верхнем узле, должен видеть всё что нижние видят)
@@ -274,13 +279,65 @@ async function resolveOrgPermissions(env, uid, matchUids) {
     for (const u of (node.memberUids || [])) if (u) teamUids.add(u);
   }
 
+  const basePipelineIds = pipelineAccess === 'all' ? null : Array.from(pipelineIdsSet);
   return {
     isDirector: false,
-    pipelineIds: pipelineAccess === 'all' ? null : Array.from(pipelineIdsSet),
+    pipelineIds: await applyPipelineAccessConfig(env, structure, ids, basePipelineIds),
     dealScope,
     teamUids,
     hasAnyNode: true,
   };
+}
+
+function orgNodeContainsAnyUid(node, ids) {
+  if (!node || !ids?.size) return false;
+  if (node.headUid && ids.has(String(node.headUid))) return true;
+  if ((node.memberUids || []).some((memberUid) => ids.has(String(memberUid)))) return true;
+  const children = node.subDepartments || node.departments || [];
+  return children.some((child) => orgNodeContainsAnyUid(child, ids));
+}
+
+function findOrgNodeById(structure, nodeId) {
+  let found = null;
+  const walk = (node) => {
+    if (!node || found) return;
+    if (String(node.id || '') === String(nodeId || '')) { found = node; return; }
+    for (const child of (node.subDepartments || node.departments || [])) walk(child);
+  };
+  for (const branch of (structure?.branches || [])) walk(branch);
+  return found;
+}
+
+// Воронка может иметь собственный редактируемый ACL в org:fieldConfig.
+// Он является hard limit поверх унаследованных прав оргструктуры. Узел структуры
+// раскрывается динамически: новые сотрудники выбранного филиала получают доступ
+// без ручного добавления в ACL.
+async function applyPipelineAccessConfig(env, structure, ids, basePipelineIds) {
+  let config = {};
+  try {
+    const row = await env.DB.prepare("SELECT v FROM kv WHERE k = 'org:fieldConfig'").first();
+    if (row?.v) config = JSON.parse(row.v) || {};
+  } catch (error) {
+    console.warn('[pipeline-access] config read failed:', error?.message || error);
+    return basePipelineIds;
+  }
+  const restricted = Object.entries(config).filter(([, cfg]) => cfg?.accessMode === 'restricted');
+  if (!restricted.length) return basePipelineIds;
+
+  let allowed = new Set(Array.isArray(basePipelineIds) ? basePipelineIds : []);
+  if (basePipelineIds == null) {
+    const { results } = await env.DB.prepare('SELECT id FROM pipelines').all();
+    allowed = new Set((results || []).map((row) => String(row.id)).filter(Boolean));
+  }
+  for (const [pipelineId, cfg] of restricted) {
+    const explicit = Array.isArray(cfg.accessMemberUids)
+      && cfg.accessMemberUids.some((memberUid) => ids.has(String(memberUid)));
+    const viaNode = Array.isArray(cfg.accessNodeIds)
+      && cfg.accessNodeIds.some((nodeId) => orgNodeContainsAnyUid(findOrgNodeById(structure, nodeId), ids));
+    if (explicit || viaNode) allowed.add(String(pipelineId));
+    else allowed.delete(String(pipelineId));
+  }
+  return Array.from(allowed);
 }
 
 // ── Audit log helper ──────────────────────────────────────
@@ -1869,9 +1926,11 @@ async function handleList(request, env, entity) {
   // Применяется к: deals, contacts. Не применяется к: pipelines, users (мета).
   // tasks — исключены: у задач своя строгая видимость «только свои» (см. блок выше),
   // org-perms не должен ANDить её и терять соисполнителей/наблюдателей.
-  if (!calendarAllEvents && me.role !== 'admin' && me.orgPerms && (entity === 'deals' || entity === 'contacts')) {
+  if (me.role !== 'admin' && me.orgPerms && (entity === 'deals' || entity === 'contacts')) {
     const op = me.orgPerms;
-    // Pipeline whitelist (только для deals — у tasks нет pipeline_id)
+    // Pipeline whitelist — hard limit даже для общего календаря. Так отдельный
+    // календарь пробных уроков не раскрывает сделки пользователям без доступа
+    // к соответствующей воронке.
     if (entity === 'deals' && Array.isArray(op.pipelineIds)) {
       if (op.pipelineIds.length === 0) {
         whereParts.push("1 = 0");
@@ -1881,8 +1940,9 @@ async function handleList(request, env, entity) {
         for (const pid of op.pipelineIds) whereParams.push(pid);
       }
     }
-    // Deal-scope из org perms
-    if (op.dealScope !== 'all') {
+    // allEvents снимает персональный own/team scope внутри разрешённой воронки,
+    // но никогда не снимает сам whitelist воронок.
+    if (!calendarAllEvents && op.dealScope !== 'all') {
       const fields = cfg.mineFields || [];
       const jsonFields = cfg.mineJsonFields || [];
       const uids = op.dealScope === 'team' ? Array.from(op.teamUids || []) : [me.canonicalUid].filter(Boolean);
@@ -7718,12 +7778,23 @@ async function handleFieldConfigPut(request, env) {
     if (!cfg || typeof cfg !== 'object') { incoming[pid] = { hidden: [], pinned: [] }; continue; }
     if (!Array.isArray(cfg.hidden)) cfg.hidden = [];
     if (!Array.isArray(cfg.pinned)) cfg.pinned = [];
+    cfg.accessMode = cfg.accessMode === 'restricted' ? 'restricted' : 'inherit';
+    cfg.accessMemberUids = Array.isArray(cfg.accessMemberUids)
+      ? [...new Set(cfg.accessMemberUids.map((uid) => String(uid || '').trim()).filter(Boolean))].slice(0, 500)
+      : [];
+    cfg.accessNodeIds = Array.isArray(cfg.accessNodeIds)
+      ? [...new Set(cfg.accessNodeIds.map((id) => String(id || '').trim()).filter(Boolean))].slice(0, 100)
+      : [];
+    cfg.trialCalendarEnabled = cfg.trialCalendarEnabled === true;
   }
   const v = JSON.stringify(incoming);
   await env.DB.prepare(`
     INSERT INTO kv (k, v) VALUES (?, ?)
     ON CONFLICT(k) DO UPDATE SET v = excluded.v
   `).bind('org:fieldConfig', v).run();
+  await auditLog(env, guard.me, 'pipeline_access_config_update', 'pipelines', null, {
+    pipelineIds: Object.keys(incoming),
+  });
   return json({ ok: true, config: incoming }, 200, request);
 }
 
@@ -9090,6 +9161,58 @@ async function handleMetaLeadWebhook(request, env) {
   const results = [];
   for (const event of events) results.push(await processMetaLeadEvent(env, event.value, event.entry));
   return json({ ok: true, received: events.length, results }, 200, request);
+}
+
+// Пока Meta-приложение проходит публикацию, Webhooks в режиме разработки не
+// присылают реальные лиды. Резервный опрос формы использует тот же Page token,
+// тот же обработчик и ту же дедупликацию, поэтому после публикации оба канала
+// могут безопасно работать одновременно.
+async function pollMetaLeadForm(env) {
+  const formId = String(env.META_LEAD_FORM_ID || '').trim();
+  const pageId = String(env.META_LEAD_PAGE_ID || '').trim();
+  if (!formId || !pageId || !env.META_PAGE_ACCESS_TOKEN) {
+    return { skipped: true, reason: 'Meta lead polling is not configured' };
+  }
+
+  const version = String(env.META_GRAPH_API_VERSION || 'v25.0');
+  const fields = 'id,created_time,form_id,ad_id';
+  const url = new URL(`https://graph.facebook.com/${encodeURIComponent(version)}/${encodeURIComponent(formId)}/leads`);
+  url.searchParams.set('fields', fields);
+  url.searchParams.set('limit', '50');
+
+  const response = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${env.META_PAGE_ACCESS_TOKEN}` },
+  });
+  const text = (await response.text()).slice(0, 500000);
+  let payload;
+  try { payload = text ? JSON.parse(text) : {}; }
+  catch { payload = { error: { message: text.slice(0, 500) || 'invalid Graph API response' } }; }
+  if (!response.ok || payload?.error) {
+    const code = payload?.error?.code ? ` code ${payload.error.code}` : '';
+    throw new Error(`Meta lead polling HTTP ${response.status}${code}: ${String(payload?.error?.message || 'unknown error').slice(0, 300)}`);
+  }
+
+  const leads = Array.isArray(payload?.data) ? payload.data : [];
+  const results = [];
+  for (const lead of leads) {
+    const leadgenId = String(lead?.id || '').trim();
+    if (!leadgenId) continue;
+    results.push(await processMetaLeadEvent(env, {
+      leadgen_id: leadgenId,
+      page_id: pageId,
+      form_id: String(lead?.form_id || formId),
+      ad_id: lead?.ad_id ? String(lead.ad_id) : null,
+    }, {
+      time: Math.floor(new Date(lead?.created_time || Date.now()).getTime() / 1000),
+      source: 'scheduled_poll',
+    }));
+  }
+  return {
+    ok: true,
+    fetched: leads.length,
+    created: results.filter((item) => item?.ok).length,
+    duplicates: results.filter((item) => item?.duplicate).length,
+  };
 }
 
 // Публичная обезличенная серия для КЭП: уникальная сделка учитывается один раз
@@ -11318,6 +11441,14 @@ export default {
         }
       } catch (e) {
         console.error("[cron] syncWaChatShells failed:", e.message);
+      }
+      try {
+        const meta = await pollMetaLeadForm(env);
+        if (!meta.skipped && (meta.created > 0 || meta.fetched > 0)) {
+          console.log(`[cron] meta_leads fetched=${meta.fetched} created=${meta.created} duplicates=${meta.duplicates}`);
+        }
+      } catch (e) {
+        console.error("[cron] pollMetaLeadForm failed:", e.message);
       }
     })());
   },
