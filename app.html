@@ -984,6 +984,50 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
     <p id="loading-text">Проверка доступа...</p>
   </div>
 
+  <script>
+  // Если Chrome оставил старую HTML-версию в кэше и основной module-script не
+  // стартовал, не держим пользователя на бесконечном экране проверки доступа.
+  (() => {
+    const retryKey = 'pllato_app_boot_retry_v1';
+    const freshUrl = () => {
+      const url = new URL(window.location.href);
+      url.searchParams.set('_app_fresh', String(Date.now()));
+      return url.href;
+    };
+    const loadingVisible = () => {
+      const loading = document.getElementById('loading');
+      return loading && getComputedStyle(loading).display !== 'none';
+    };
+    window.__PLLATO_APP_BOOT_STARTED__ = false;
+    window.__PLLATO_APP_READY__ = false;
+    window.addEventListener('pllato-app-ready', () => {
+      window.__PLLATO_APP_READY__ = true;
+      try { sessionStorage.removeItem(retryKey); } catch (_) {}
+    });
+    window.setTimeout(() => {
+      const untouched = document.getElementById('loading-text')?.textContent?.trim() === 'Проверка доступа...';
+      if (!loadingVisible() || window.__PLLATO_APP_BOOT_STARTED__ || !untouched) return;
+      let retried = false;
+      try { retried = sessionStorage.getItem(retryKey) === '1'; } catch (_) {}
+      if (!retried) {
+        try { sessionStorage.setItem(retryKey, '1'); } catch (_) {}
+        window.location.replace(freshUrl());
+      }
+    }, 5000);
+    window.setTimeout(() => {
+      if (!loadingVisible() || window.__PLLATO_APP_READY__) return;
+      const loading = document.getElementById('loading');
+      loading.innerHTML = '<div style="max-width:420px;text-align:center;padding:24px">'
+        + '<div style="font-size:20px;font-weight:800;color:#101827;margin-bottom:10px">App не смог завершить загрузку</div>'
+        + '<div style="font-size:14px;line-height:1.55;color:#8a909c;margin-bottom:18px">Обновим страницу без старого кэша Chrome. Авторизация сохранится.</div>'
+        + '<button type="button" id="app-boot-retry" style="border:1px solid #e7dfd3;border-radius:12px;background:#101827;color:#fff;padding:11px 18px;font:700 14px Inter,Arial,sans-serif;cursor:pointer">Обновить App</button>'
+        + '</div>';
+      document.getElementById('app-boot-retry')?.addEventListener('click', () => window.location.replace(freshUrl()));
+      try { sessionStorage.removeItem(retryKey); } catch (_) {}
+    }, 20000);
+  })();
+  </script>
+
   <div id="main-content" style="display:none;">
 
     <div class="top-bar">
@@ -2329,9 +2373,11 @@ import {
   signOut as localSignOut,
   apiFetch,
   requireSession,
-} from './pllato-kz-shared/pllato-api.js';
-import { openEmployeeDocumentsDialog } from './documents/share_dialog.js';
-import { normalizeDocument } from './documents/registry.js';
+} from './pllato-kz-shared/pllato-api.js?v=20260812-app-boot';
+import { openEmployeeDocumentsDialog } from './documents/share_dialog.js?v=20260812-app-boot';
+import { normalizeDocument } from './documents/registry.js?v=20260812-app-boot';
+
+window.__PLLATO_APP_BOOT_STARTED__ = true;
 
 // ===== Каталог приложений (синхронизируй с data-app-id у карточек) =====
 const APPS_CATALOG = [
@@ -4691,6 +4737,7 @@ function updateSectionVisibility(){
 function showApp(user) {
   loadingEl.style.display = 'none';
   mainEl.style.display = 'block';
+  window.dispatchEvent(new Event('pllato-app-ready'));
 
   const firstName = (user.name || '').split(' ')[0] || (user.crmUserData?.name || '').split(' ')[0] || 'друг';
   const hour = new Date().getHours();
