@@ -4536,6 +4536,11 @@ async function ensureDealForWaContact(env, channel, contactId, contactName, phon
     const rrUid = await pickNextRoundRobinUid(env, channel.id);
     if (rrUid) responsibleUid = rrUid;
   } catch (e) { /* fallback ok */ }
+  // Единое правило воронки имеет приоритет над настройкой отдельного канала.
+  // Это гарантирует одного ответственного для всех входящих источников.
+  responsibleUid = await resolveInboundResponsibleUid(
+    env, channel.default_pipeline_id, responsibleUid,
+  );
   // Стадия: заданная у канала, иначе — первая активная стадия воронки
   // (чтобы сделка не создавалась с stage_id = NULL и прочно легла в «Новую»).
   let stageId = channel.default_stage_id || null;
@@ -8849,6 +8854,7 @@ async function handlePublicPllatoLead(request, env) {
   if (recent?.id) return json({ ok: true, dealId: recent.id, contactId, duplicate: true }, 200, request);
 
   const dealId = 'deal_site_' + crypto.randomUUID();
+  const responsibleUid = await resolveInboundResponsibleUid(env, pipeline.id, null);
   const details = {
     attribution,
     form: String(body.form || '').slice(0, 120),
@@ -8863,12 +8869,13 @@ async function handlePublicPllatoLead(request, env) {
   await env.DB.prepare(`
     INSERT INTO deals (
       id, title, opportunity, currency, pipeline_id, stage_id, closed,
-      contact_id, source_id, source_description, bitrix_date_create,
+      contact_id, responsible_uid, source_id, source_description, bitrix_date_create,
       bitrix_date_modify, stage_changed_at, custom_fields
-    ) VALUES (?, ?, 0, 'KZT', ?, ?, 0, ?, 'PLLATO_SITE', ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, 0, 'KZT', ?, ?, 0, ?, ?, 'PLLATO_SITE', ?, ?, ?, ?, ?)
   `).bind(
     dealId, `Заявка с сайта · ${name}${campaign}`.slice(0, 240), pipeline.id, stageId,
-    contactId, attribution.utm_source === 'youtube' ? 'YouTube Shorts' : 'Сайт pllato.kz',
+    contactId, responsibleUid,
+    attribution.utm_source === 'youtube' ? 'YouTube Shorts' : 'Сайт pllato.kz',
     nowIso, nowIso, nowIso, JSON.stringify(details)
   ).run();
   await logStageEvent(env, dealId, pipeline.id, stageId, nowIso);
@@ -9056,7 +9063,11 @@ async function processMetaLeadEvent(env, value, rawEvent) {
     const fields = metaFieldMap(lead.field_data);
     const nowIso = lead.created_time ? new Date(lead.created_time).toISOString() : receivedAt;
     const contactId = await findOrCreateMetaLeadContact(env, lead, fields, nowIso);
-    const responsibleUid = await pickNextMetaLeadUid(env, formId);
+    const responsibleUid = await resolveInboundResponsibleUid(
+      env,
+      String(env.META_LEAD_PIPELINE_ID || 'pipeline_imp_elc'),
+      await pickNextMetaLeadUid(env, formId),
+    );
     const dealId = `deal_meta_${leadgenId}`;
     const name = metaFieldValue(fields, ['full_name', 'name'])
       || [metaFieldValue(fields, ['first_name']), metaFieldValue(fields, ['last_name'])].filter(Boolean).join(' ')
@@ -9861,6 +9872,25 @@ async function handleInviteRevoke(request, env, token) {
 
 // Phase C: распределение ответственных по каналу (round-robin).
 // Хранение: kv[`wa:distribution:${channelId}`] = { uids: [...], pointer: 0 }
+// Единый ответственный для всех входящих источников конкретной воронки:
+// kv[`pipeline:inbound-responsible:${pipelineId}`] = { uid: "..." }
+async function resolveInboundResponsibleUid(env, pipelineId, fallbackUid = null) {
+  const normalizedPipelineId = String(pipelineId || '').trim();
+  if (!normalizedPipelineId) return fallbackUid || null;
+  const key = `pipeline:inbound-responsible:${normalizedPipelineId}`;
+  const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ? LIMIT 1').bind(key).first();
+  if (!row?.v) return fallbackUid || null;
+  const parsed = safeJsonParse(row.v, null);
+  const configuredUid = String(
+    parsed && typeof parsed === 'object' ? parsed.uid : row.v,
+  ).trim();
+  if (!configuredUid) return fallbackUid || null;
+  const user = await env.DB.prepare(
+    'SELECT uid FROM users WHERE uid = ? AND COALESCE(active, 1) != 0 LIMIT 1',
+  ).bind(configuredUid).first();
+  return user?.uid || fallbackUid || null;
+}
+
 async function getWaDistribution(env, channelId) {
   const k = `wa:distribution:${channelId}`;
   const row = await env.DB.prepare("SELECT v FROM kv WHERE k = ?").bind(k).first();
