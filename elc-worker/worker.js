@@ -32,6 +32,10 @@ const ALLOWED_ORIGINS = new Set([
 const FIREBASE_JWKS = createRemoteJWKSet(
   new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com")
 );
+const GOOGLE_ACCOUNT_JWKS = createRemoteJWKSet(
+  new URL("https://www.googleapis.com/oauth2/v3/certs")
+);
+const PLLATO_GOOGLE_CLIENT_ID = "690738857241-oechm85eio8np7hepafta8opn9jev6uj.apps.googleusercontent.com";
 
 // ── Helpers ──────────────────────────────────────────────
 function corsHeaders(request) {
@@ -62,6 +66,20 @@ async function verifyFirebaseIdToken(token, projectId) {
     audience: projectId,
   });
   return payload; // { user_id, email, ... }
+}
+
+async function verifyGoogleAccountToken(token) {
+  const { payload } = await jwtVerify(token, GOOGLE_ACCOUNT_JWKS, {
+    issuer: ["accounts.google.com", "https://accounts.google.com"],
+    audience: PLLATO_GOOGLE_CLIENT_ID,
+  });
+  const email = String(payload.email || "").trim().toLowerCase();
+  if (!email || payload.email_verified !== true) throw new Error("Google email is not verified");
+  return {
+    email,
+    name: String(payload.name || email),
+    picture: String(payload.picture || ""),
+  };
 }
 
 async function verifyPllatoAppToken(token, env) {
@@ -9495,10 +9513,13 @@ function finalizeLeadAnalyticsGroups(groups) {
 // Когортная аналитика: выбираем лиды, СОЗДАННЫЕ в видимом диапазоне, затем
 // проверяем, дошёл ли каждый из них до КЭП когда-либо. Поэтому поздний переход
 // в КЭП остаётся у исходной рекламы и не искажает конверсию периода.
-async function handlePllatoLeadSourceAnalytics(request, env) {
-  const auth = await requireAuth(request, env);
-  if (auth.error) return json({ ok: false, error: auth.error }, auth.status, request);
-  const me = await resolveCanonicalUser(env, auth.claims);
+async function handlePllatoLeadSourceAnalytics(request, env, { skipInternalAuth = false } = {}) {
+  let me = null;
+  if (!skipInternalAuth) {
+    const auth = await requireAuth(request, env);
+    if (auth.error) return json({ ok: false, error: auth.error }, auth.status, request);
+    me = await resolveCanonicalUser(env, auth.claims);
+  }
   const url = new URL(request.url);
   const period = ['day', 'week', 'month', 'custom'].includes(url.searchParams.get('period'))
     ? url.searchParams.get('period')
@@ -9523,7 +9544,7 @@ async function handlePllatoLeadSourceAnalytics(request, env) {
     "SELECT id, stages FROM pipelines WHERE name = ? LIMIT 1"
   ).bind('Pllato Старт').first();
   if (!pipeline?.id) return json({ ok: false, error: 'pipeline not found' }, 404, request);
-  const allowedPipelines = me.orgPerms?.pipelineIds;
+  const allowedPipelines = me?.orgPerms?.pipelineIds;
   if (Array.isArray(allowedPipelines) && !allowedPipelines.includes(pipeline.id)) {
     return json({ ok: false, error: 'pipeline access denied' }, 403, request);
   }
@@ -9610,6 +9631,96 @@ async function handlePllatoLeadSourceAnalytics(request, env) {
     mainGap,
     methodology: 'created_cohort_ever_reached_kep',
   }, 200, request);
+}
+
+async function ensureLeadAnalyticsExternalAccessTable(env) {
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS lead_analytics_external_viewers (
+    email TEXT PRIMARY KEY,
+    added_by TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+}
+
+function normalizeLeadAnalyticsViewerEmail(value) {
+  const email = String(value || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return '';
+  return email;
+}
+
+async function requireLeadAnalyticsAccessAdmin(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return { response: json({ ok: false, error: auth.error }, auth.status, request) };
+  const me = await resolveCanonicalUser(env, auth.claims);
+  if (me.role !== 'admin' && !me.orgPerms?.isDirector) {
+    return { response: json({ ok: false, error: 'admin access required' }, 403, request) };
+  }
+  return { auth, me };
+}
+
+async function handleLeadAnalyticsExternalAccessAdmin(request, env) {
+  const admin = await requireLeadAnalyticsAccessAdmin(request, env);
+  if (admin.response) return admin.response;
+  await ensureLeadAnalyticsExternalAccessTable(env);
+
+  if (request.method === 'GET') {
+    const { results } = await env.DB.prepare(
+      'SELECT email, added_by, created_at FROM lead_analytics_external_viewers ORDER BY email'
+    ).all();
+    return json({
+      ok: true,
+      shareUrl: 'https://pllato.kz/lead-analytics.html',
+      viewers: results || [],
+    }, 200, request);
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const email = normalizeLeadAnalyticsViewerEmail(body.email);
+  if (!email) return json({ ok: false, error: 'valid Google account email is required' }, 400, request);
+
+  if (request.method === 'POST') {
+    await env.DB.prepare(`
+      INSERT INTO lead_analytics_external_viewers (email, added_by, created_at)
+      VALUES (?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(email) DO UPDATE SET added_by = excluded.added_by
+    `).bind(email, admin.me.email || admin.auth.email || '').run();
+  } else if (request.method === 'DELETE') {
+    await env.DB.prepare('DELETE FROM lead_analytics_external_viewers WHERE email = ?').bind(email).run();
+  } else {
+    return json({ ok: false, error: 'method not allowed' }, 405, request);
+  }
+
+  const { results } = await env.DB.prepare(
+    'SELECT email, added_by, created_at FROM lead_analytics_external_viewers ORDER BY email'
+  ).all();
+  return json({
+    ok: true,
+    shareUrl: 'https://pllato.kz/lead-analytics.html',
+    viewers: results || [],
+  }, 200, request);
+}
+
+async function handlePublicPllatoLeadSourceAnalytics(request, env) {
+  const authHeader = request.headers.get('Authorization') || '';
+  const credential = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+  if (!credential) return json({ ok: false, error: 'Google sign-in required' }, 401, request);
+
+  let viewer;
+  try {
+    viewer = await verifyGoogleAccountToken(credential);
+  } catch (error) {
+    return json({ ok: false, error: `Google sign-in rejected: ${error.message}` }, 401, request);
+  }
+
+  await ensureLeadAnalyticsExternalAccessTable(env);
+  const allowed = await env.DB.prepare(
+    'SELECT email FROM lead_analytics_external_viewers WHERE email = ? LIMIT 1'
+  ).bind(viewer.email).first();
+  if (!allowed) return json({ ok: false, error: 'This Google account has no access' }, 403, request);
+
+  const response = await handlePllatoLeadSourceAnalytics(request, env, { skipInternalAuth: true });
+  const headers = new Headers(response.headers);
+  headers.set('Cache-Control', 'private, no-store');
+  return new Response(response.body, { status: response.status, headers });
 }
 
 // GET /api/sip/route?phone=77073320409 — Asterisk дёргает при входящем.
@@ -11600,6 +11711,12 @@ export default {
     }
     if (path === "/api/charts/pllato-lead-sources" && request.method === "GET") {
       return handlePllatoLeadSourceAnalytics(request, env);
+    }
+    if (path === "/api/charts/pllato-lead-sources/access" && ["GET", "POST", "DELETE"].includes(request.method)) {
+      return handleLeadAnalyticsExternalAccessAdmin(request, env);
+    }
+    if (path === "/api/public/pllato-lead-sources" && request.method === "GET") {
+      return handlePublicPllatoLeadSourceAnalytics(request, env);
     }
     // Работа с письмами конкретного ящика
     const mailUnreadMatch = path.match(/^\/api\/mail\/([^/]+)\/unread$/);

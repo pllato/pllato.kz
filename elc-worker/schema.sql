@@ -548,3 +548,8 @@ CREATE TABLE notify_log (
 );
 CREATE INDEX idx_notify_log_created    ON notify_log(created_at DESC);
 CREATE INDEX idx_notify_log_uid        ON notify_log(uid, created_at DESC);
+CREATE TABLE IF NOT EXISTS lead_analytics_external_viewers (
+  email TEXT PRIMARY KEY,
+  added_by TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
