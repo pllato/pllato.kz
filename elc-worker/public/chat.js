@@ -39,6 +39,7 @@
     loadingMsgs: false,
     loadingOlder: false,      // идёт догрузка истории (старых сообщений)
     hasMoreOlder: true,       // есть ли ещё старые сообщения для подгрузки
+    syncingMessages: false,   // резервная дельта-синхронизация поверх WebSocket
     readWatermarks: {},       // uid другого участника → created_at его последнего прочитанного (для галочек)
     deliveredWatermarks: {},  // uid → created_at последнего доставленного (вторые серые галочки)
     templates: null,          // личные шаблоны сообщений (ленивая загрузка)
@@ -186,6 +187,9 @@
         state.pingTimer = setInterval(() => {
           try { ws.send(JSON.stringify({ kind: 'ping', t: Date.now() })); } catch {}
         }, 30000);
+        // После реконнекта забираем сообщения из возможного разрыва соединения.
+        syncActiveMessages();
+        loadChannels();
       };
       ws.onmessage = (ev) => {
         try { handleWsMessage(JSON.parse(ev.data)); }
@@ -217,10 +221,14 @@
   function ensureWsAlive() {
     if (!state.mounted || state.suspended) return;
     const rs = state.ws ? state.ws.readyState : 3;
-    if (rs === 0 || rs === 1) return; // CONNECTING / OPEN — соединение живо
-    state.wsReconnectAttempts = 0;
-    connectWs();
-    loadChannels(); // подтянуть сообщения, пришедшие пока WS был мёртв
+    if (rs !== 0 && rs !== 1) {
+      state.wsReconnectAttempts = 0;
+      connectWs();
+    }
+    // Даже OPEN может быть «зомби» после сна телефона. Всегда делаем лёгкую
+    // дельта-синхронизацию при возврате в приложение.
+    loadChannels();
+    syncActiveMessages();
   }
 
   function handleWsMessage(msg) {
@@ -398,6 +406,29 @@
       state.loadingMsgs = false;
       console.error('loadMessages:', e);
       renderMessages();
+    }
+  }
+
+  // Резерв к WebSocket: забирает только сообщения новее последнего локального.
+  // Нужен для мобильных браузеров и PWA, которые иногда оставляют readyState=OPEN,
+  // но уже не доставляют события после блокировки экрана.
+  async function syncActiveMessages() {
+    if (!state.mounted || state.suspended || state.syncingMessages || state.loadingMsgs) return;
+    const channelId = state.activeChannelId;
+    if (!channelId) return;
+    const last = state.messages[state.messages.length - 1];
+    if (!last?.id) { loadMessages(channelId); return; }
+    state.syncingMessages = true;
+    try {
+      const d = await api(`/api/chat/channels/${channelId}/messages?after=${encodeURIComponent(last.id)}&limit=100`);
+      if (channelId !== state.activeChannelId) return;
+      state.readWatermarks = d.read_watermarks || state.readWatermarks;
+      state.deliveredWatermarks = d.delivered_watermarks || state.deliveredWatermarks;
+      for (const m of (d.items || [])) onMessageNew(m);
+    } catch (e) {
+      console.warn('[TeamChat] delta sync:', e);
+    } finally {
+      state.syncingMessages = false;
     }
   }
 
@@ -1082,9 +1113,10 @@
 
     let body = '';
     if (m.reply_to) {
-      const replyTo = state.messages.find(x => x.id === m.reply_to);
+      const replyTo = m.reply_preview || state.messages.find(x => x.id === m.reply_to);
       if (replyTo) {
-        body += `<div class="tc-msg-reply" data-scroll-to="${escapeHtml(replyTo.id)}" style="cursor:pointer" title="Перейти к сообщению"><b>${escapeHtml(userLabel(replyTo.user_id))}</b><br>${escapeHtml((replyTo.text || '[медиа]').slice(0, 90))}</div>`;
+        const replyText = replyTo.deleted_at ? 'Сообщение удалено' : (replyTo.text || '[медиа]');
+        body += `<div class="tc-msg-reply" data-scroll-to="${escapeHtml(replyTo.id)}" style="cursor:pointer" title="Перейти к сообщению"><b>${escapeHtml(userLabel(replyTo.user_id))}</b><br>${escapeHtml(String(replyText).slice(0, 90))}</div>`;
       }
     }
     if (m.text) {
@@ -2678,6 +2710,11 @@
     if (!state._tokenTimer) {
       state._tokenTimer = setInterval(() => getAuthToken().catch(() => {}), 25 * 60 * 1000);
     }
+    if (!state._syncTimer) {
+      state._syncTimer = setInterval(() => {
+        if (document.visibilityState === 'visible') syncActiveMessages();
+      }, 5000);
+    }
     renderMainHead();
     renderMessages();
     renderComposer();
@@ -2709,6 +2746,7 @@
     state.suspended = false;
     if (!state.ws || state.ws.readyState >= 2) connectWs();
     loadChannels();
+    syncActiveMessages();
   }
 
   function openDmWith(uid) {
