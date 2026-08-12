@@ -777,8 +777,10 @@ body {
 .fc-week-task .amount { color:var(--text); font-size:10px; font-weight:800; white-space:nowrap; cursor:pointer; }
 .fc-week-task.done .text { color:var(--text-3); text-decoration:line-through; }
 .fc-week-task.done .amount { color:var(--text-3); }
-.fc-week-task .del { border:0; background:transparent; color:var(--text-3); padding:2px 3px; border-radius:5px; cursor:pointer; font-size:12px; }
-.fc-week-task .del:hover { color:#dc2626; background:var(--surface-2); }
+.fc-week-task-actions { display:flex; align-items:center; justify-content:flex-end; gap:2px; }
+.fc-week-task-actions button { border:0; background:transparent; color:var(--text-3); min-width:23px; min-height:23px; padding:2px 4px; border-radius:5px; cursor:pointer; font:800 13px/1 inherit; }
+.fc-week-task-actions .move:hover { color:var(--bronze-deep); background:#fff7ed; }
+.fc-week-task-actions .del:hover { color:#dc2626; background:var(--surface-2); }
 .fc-week-tasks-empty { color:var(--text-3); font-size:10px; padding:7px 0 2px; }
 .fc-week-task-editor input { width:100%; }
 .fc-week-task-fields { display:grid; grid-template-columns:minmax(0,1fr) minmax(150px,.42fr); gap:12px; margin-top:14px; }
@@ -3876,7 +3878,12 @@ function financeWeekTaskBlockForPoint(kind,point){
     ? `<button type="button" onclick="openFinanceWeekTaskEditor('${kind}',${Number(point.start)},${Number(point.end)})">＋ Дело</button>`
     : '';
   const rows=tasks.length
-    ? tasks.map(task=>`<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}"><input type="checkbox"${task.done?' checked':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="openFinanceWeekTaskEditor('${kind}',${Number(point.start)},${Number(point.end)},'${mEsc(task.id)}')" title="${mEsc(task.text)}">${mEsc(task.text)}</span>${showAmounts?`<span class="amount" onclick="openFinanceWeekTaskEditor('${kind}',${Number(point.start)},${Number(point.end)},'${mEsc(task.id)}')" title="Изменить сумму">${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}${canConfigureFinanceChart(kind)?`<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button>`:'<span></span>'}</div>`).join('')
+    ? tasks.map(task=>{
+      const actions=canConfigureFinanceChart(kind)
+        ? `<span class="fc-week-task-actions">${task.done?'':`<button class="move" type="button" onclick="moveFinanceWeekTaskForward('${mEsc(task.id)}')" aria-label="Перенести дело на следующую неделю" title="Перенести на следующую неделю">→</button>`}<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button></span>`
+        : '<span></span>';
+      return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}"><input type="checkbox"${task.done?' checked':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="openFinanceWeekTaskEditor('${kind}',${Number(point.start)},${Number(point.end)},'${mEsc(task.id)}')" title="${mEsc(task.text)}">${mEsc(task.text)}</span>${showAmounts?`<span class="amount" onclick="openFinanceWeekTaskEditor('${kind}',${Number(point.start)},${Number(point.end)},'${mEsc(task.id)}')" title="Изменить сумму">${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}${actions}</div>`;
+    }).join('')
     : '<div class="fc-week-tasks-empty">На текущую неделю дел пока нет.</div>';
   const plan=showAmounts?`<span class="plan">План недели: ${mEsc(financeWeekTaskAmount(planTotal))}</span>`:'';
   return `<section class="fc-week-tasks" id="financeWeekTasks-${kind}" data-start="${Number(point.start)}" data-end="${Number(point.end)}"><div class="fc-week-tasks-head"><strong>Дела недели</strong><span class="period">${mEsc(financeWeekTaskPeriod(point))}</span>${plan}${add}</div><div class="fc-week-tasks-list">${rows}</div></section>`;
@@ -3932,6 +3939,31 @@ async function toggleFinanceWeekTask(taskId,done){
     FINANCE_WEEK_TASKS[FINANCE_WEEK_TASKS.indexOf(task)]=item;
     refreshFinanceWeekTaskBlock(item.kind);
   }catch(error){ refreshFinanceWeekTaskBlock(task.kind); alert('Не удалось обновить дело: '+error.message); }
+}
+async function moveFinanceWeekTaskForward(taskId){
+  const task=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
+  if(!task || task.done || !canConfigureFinanceChart(task.kind)) return;
+  const week=7*24*60*60*1000;
+  const nextStart=Number(task.start)+week;
+  const nextEnd=(Number(task.end)>Number(task.start)?Number(task.end):Number(task.start)+week)+week;
+  if(!Number.isFinite(nextStart)||!Number.isFinite(nextEnd)) return;
+  const nextPeriod=financeWeekTaskPeriod({start:nextStart,end:nextEnd});
+  if(!confirm(`Перенести «${String(task.text||'Дело')}» на неделю ${nextPeriod}?`)) return;
+  const item={
+    ...task,
+    start:nextStart,
+    end:nextEnd,
+    movedFromStart:Number(task.start)||0,
+    movedAt:Date.now(),
+    movedBy:CURRENT?.email||'',
+    updatedAt:Date.now(),
+    updatedBy:CURRENT?.email||''
+  };
+  try{
+    await apiFetch('/store/push',{method:'POST',body:{ops:[{type:'upsert',collection:'chart_week_tasks',item}]}});
+    FINANCE_WEEK_TASKS[FINANCE_WEEK_TASKS.indexOf(task)]=item;
+    refreshFinanceWeekTaskBlock(item.kind);
+  }catch(error){ alert('Не удалось перенести дело: '+error.message); }
 }
 async function deleteFinanceWeekTask(taskId){
   const task=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
