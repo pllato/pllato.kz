@@ -733,6 +733,7 @@ body {
 .sales-quick-link button:hover, .sales-quick-link .sql-open:hover { border-color:var(--bronze-deep); color:var(--bronze-deep); text-decoration:none; }
 .finance-charts.folded { margin-bottom: 18px; }
 .finance-charts.folded .fc-grid { display: none; }
+.finance-charts.folded .lead-analytics { display:none; }
 .fc-status { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 10px; padding:8px 10px; border:1px solid #fde68a; border-radius:9px; background:#fffbeb; color:#92400e; font-size:11.5px; }
 .fc-status button { border:1px solid currentColor; border-radius:7px; background:transparent; color:inherit; padding:5px 8px; font:700 11px/1.2 inherit; cursor:pointer; white-space:nowrap; }
 .fc-grid { display:flex; flex-wrap:nowrap; gap:14px; overflow-x:auto; padding:0 0 8px; scroll-snap-type:x proximity; scrollbar-width:thin; }
@@ -817,6 +818,58 @@ body {
 .fc-scale-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin-top:7px; }
 .fc-scale-grid label { margin:0; }
 .fc-scale-grid label span { display:block; margin-bottom:5px; color:var(--text-2); font-size:11px; font-weight:700; }
+
+/* ===== Аналитика лидов по каналам и рекламе ===== */
+.lead-analytics { margin-top:14px; border:1px solid var(--line-2); border-radius:14px; background:var(--surface); overflow:hidden; }
+.la-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:16px 18px 13px; border-bottom:1px solid var(--line-2); }
+.la-head h3 { margin:0; font-size:15px; font-weight:800; }
+.la-head p { margin:4px 0 0; color:var(--text-3); font-size:11px; line-height:1.45; }
+.la-period { flex:none; padding:5px 8px; border-radius:7px; background:var(--surface-2); color:var(--text-2); font-size:10px; font-weight:800; white-space:nowrap; }
+.la-body { padding:14px 18px 17px; }
+.la-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; }
+.la-metric { min-width:0; padding:10px 11px; border:1px solid var(--line-2); border-radius:10px; background:var(--surface); }
+.la-metric .l { color:var(--text-3); font-size:9.5px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+.la-metric .v { margin-top:2px; color:var(--text); font-size:21px; font-weight:850; letter-spacing:-.02em; }
+.la-metric.good .v { color:var(--green); }
+.la-metric.warn .v { color:#dc2626; }
+.la-funnel { margin:11px 0 14px; padding:10px 11px; border-radius:10px; background:var(--surface-2); }
+.la-funnel-line { height:9px; border-radius:999px; background:#e5e7eb; overflow:hidden; }
+.la-funnel-line span { display:block; height:100%; min-width:2px; border-radius:inherit; background:linear-gradient(90deg,#7c3aed,var(--green)); }
+.la-funnel-copy { display:flex; justify-content:space-between; gap:12px; margin-top:6px; color:var(--text-3); font-size:10px; }
+.la-alert { margin:0 0 14px; padding:8px 10px; border:1px solid #fed7aa; border-radius:9px; background:#fff7ed; color:#9a3412; font-size:10.5px; line-height:1.45; }
+.la-section-title { margin:14px 0 8px; color:var(--text-2); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; }
+.la-channels { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:8px; }
+.la-channel { padding:9px 10px; border:1px solid var(--line-2); border-radius:9px; }
+.la-channel .n { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); font-size:11px; font-weight:800; }
+.la-channel .m { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:5px; color:var(--text-3); font-size:9.5px; }
+.la-channel .m strong { color:var(--green); }
+.la-table { border:1px solid var(--line-2); border-radius:10px; overflow:hidden; }
+.la-table-head,.la-source-summary { display:grid; grid-template-columns:minmax(180px,1fr) 64px 64px 78px; gap:8px; align-items:center; }
+.la-table-head { padding:7px 11px; background:var(--surface-2); color:var(--text-3); font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+.la-table-head span:not(:first-child) { text-align:right; }
+.la-source { border-top:1px solid var(--line-2); }
+.la-source:first-of-type { border-top:0; }
+.la-source summary { list-style:none; cursor:pointer; }
+.la-source summary::-webkit-details-marker { display:none; }
+.la-source-summary { padding:10px 11px; }
+.la-source-summary:hover { background:var(--surface-2); }
+.la-source-name { min-width:0; }
+.la-source-name .n { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); font-size:11px; font-weight:800; }
+.la-source-name .c { margin-top:2px; color:var(--text-3); font-size:9.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.la-source-num { text-align:right; color:var(--text); font-size:11.5px; font-weight:800; }
+.la-source-num.kep { color:var(--green); }
+.la-source-num.conversion { color:var(--bronze-deep); }
+.la-deals { padding:0 11px 9px; background:color-mix(in srgb,var(--surface-2) 72%,transparent); }
+.la-deal { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:3px 10px; padding:7px 0; border-top:1px solid var(--line-2); }
+.la-deal .n { min-width:0; color:var(--text-2); font-size:10.5px; font-weight:700; overflow-wrap:anywhere; }
+.la-deal .d { color:var(--text-3); font-size:9px; }
+.la-deal .status { grid-column:2; grid-row:1 / span 2; align-self:center; padding:3px 6px; border-radius:999px; background:#fee2e2; color:#b91c1c; font-size:8.5px; font-weight:800; white-space:nowrap; }
+.la-deal .status.kep { background:#dcfce7; color:#15803d; }
+.la-source-link { display:inline-block; margin-top:7px; color:var(--bronze-deep); font-size:9.5px; font-weight:800; text-decoration:none; }
+.la-source-link:hover { text-decoration:underline; }
+.la-truncated { padding:7px 0 0; color:var(--text-3); font-size:9px; }
+.la-loading,.la-error,.la-empty { padding:22px 12px; color:var(--text-3); font-size:11.5px; text-align:center; }
+.la-error button { margin-left:8px; border:1px solid currentColor; border-radius:7px; background:transparent; color:inherit; padding:5px 8px; font:700 10px/1.2 inherit; cursor:pointer; }
 @media (max-width: 760px) {
   .fc-head { align-items:flex-start; }
   .fc-head-actions { align-items:flex-end; }
@@ -828,6 +881,12 @@ body {
   .money-summary-row { grid-template-columns:minmax(0,1fr); gap:4px; }
   .money-summary-row .amount { grid-column:auto; grid-row:auto; }
   .fc-scale-grid { grid-template-columns:1fr; }
+  .la-head { padding-inline:12px; }
+  .la-body { padding-inline:12px; }
+  .la-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .la-table { overflow-x:auto; }
+  .la-table-head,.la-source-summary { min-width:570px; }
+  .la-deals { min-width:570px; }
 }
 @media (min-width: 761px) and (max-width: 980px) {
   .fc-card { flex-basis:max(290px,calc((100% - 14px) / 2)); }
@@ -3620,6 +3679,7 @@ let FINANCE_CHART_COMMENTS_LOADED = false;
 let FINANCE_WEEK_TASKS = [];
 let FINANCE_WEEK_TASKS_LOADED = false;
 let FINANCE_CHART_RETRY_TIMER = null;
+let LEAD_ANALYTICS_REQUEST = 0;
 const FINANCE_CHART_CACHE_VERSION = 2;
 const FINANCE_CHART_KINDS = ['inquiries','kep','orders','cash','releases'];
 
@@ -4022,9 +4082,12 @@ async function paintFinanceCharts(el,data,{cached=false}={}){
   el.innerHTML='<div class="sales-quick-link" id="salesQuickLink"></div>'
     +status
     +financeChartsHeader()
-    +'<div class="fc-grid">'+kinds.map(kind=>financeChartCard(kind,data.charts[kind])).join('')+'</div>';
+    +'<div class="fc-grid">'+kinds.map(kind=>financeChartCard(kind,data.charts[kind])).join('')+'</div>'
+    +(kinds.includes('inquiries')&&kinds.includes('kep')?leadAnalyticsShell():'');
   const chartGrid=el.querySelector('.fc-grid');
   if(chartGrid) chartGrid.scrollLeft=0;
+  const analyticsEl=el.querySelector('#leadAnalytics');
+  if(analyticsEl) renderLeadAnalytics(analyticsEl);
   applyFinanceChartsFold();
   restorePortalPosition();
   return true;
@@ -4148,6 +4211,92 @@ async function fetchCrmChartDetails(kind,start,end){
   const payload=await response.json().catch(()=>null);
   if(!response.ok||payload?.ok===false) throw new Error(payload?.error||`HTTP ${response.status}`);
   return payload;
+}
+
+function leadAnalyticsShell(){
+  return `<section class="lead-analytics" id="leadAnalytics" aria-live="polite"><div class="la-head"><div><h3>Аналитика лидов → КЭП</h3><p>Показывает, из каких каналов и реклам пришли лиды и сколько из них дошли до КЭП.</p></div><span class="la-period">${mEsc(financeChartPeriodMeta().label)}</span></div><div class="la-loading">Считаю конверсию по источникам…</div></section>`;
+}
+function leadAnalyticsCacheKey(){
+  return `pllato_lead_analytics_v1:${String(CURRENT?.email||'guest').toLowerCase()}:${FINANCE_CHART_PERIOD}`;
+}
+function readLeadAnalyticsCache(){
+  try{
+    const cached=JSON.parse(localStorage.getItem(leadAnalyticsCacheKey())||'null');
+    return cached?.data&&Date.now()-Number(cached.savedAt||0)<30*86400000?cached.data:null;
+  }catch(e){ return null; }
+}
+function saveLeadAnalyticsCache(data){
+  try{ localStorage.setItem(leadAnalyticsCacheKey(),JSON.stringify({savedAt:Date.now(),data})); }
+  catch(e){}
+}
+function leadAnalyticsDate(value,withTime=false){
+  const options={timeZone:'Asia/Almaty',day:'2-digit',month:'2-digit',year:'numeric'};
+  if(withTime){ options.hour='2-digit'; options.minute='2-digit'; }
+  return new Intl.DateTimeFormat('ru-RU',options).format(new Date(Number(value)||0));
+}
+function leadAnalyticsSafeUrl(value){
+  try{
+    const url=new URL(String(value||''));
+    return ['http:','https:'].includes(url.protocol)?url.href:'';
+  }catch(e){ return ''; }
+}
+function leadAnalyticsDealRows(source){
+  const rows=(source.deals||[]).map(deal=>{
+    const status=deal.reachedKep?'Дошёл до КЭП':'Не дошёл';
+    const date=leadAnalyticsDate(deal.createdAt);
+    const kepDate=deal.reachedKep&&deal.firstKepAt?` · КЭП ${leadAnalyticsDate(deal.firstKepAt)}`:'';
+    return `<div class="la-deal"><div class="n">${mEsc(deal.title||'(без названия)')}</div><div class="d">Создан ${mEsc(date+kepDate)}</div><span class="status${deal.reachedKep?' kep':''}">${mEsc(status)}</span></div>`;
+  }).join('');
+  const sourceUrl=leadAnalyticsSafeUrl(source.sourceUrl);
+  const link=sourceUrl?`<a class="la-source-link" href="${mEsc(sourceUrl)}" target="_blank" rel="noopener">Открыть рекламу ↗</a>`:'';
+  const truncated=source.dealsTruncated?'<div class="la-truncated">Показаны последние 200 сделок этого источника; итоговые цифры рассчитаны по всем лидам.</div>':'';
+  return `<div class="la-deals">${rows||'<div class="la-empty">Сделок нет.</div>'}${link}${truncated}</div>`;
+}
+function leadAnalyticsSourceRows(sources){
+  if(!sources.length) return '<div class="la-empty">За выбранный период лидов нет.</div>';
+  return sources.map(source=>{
+    const details=[source.channel,source.campaign&&`кампания: ${source.campaign}`,source.adset&&`группа: ${source.adset}`,source.adId&&`ID: ${source.adId}`].filter(Boolean).join(' · ');
+    return `<details class="la-source"><summary class="la-source-summary"><div class="la-source-name"><div class="n">${mEsc(source.label||'Источник не указан')}</div><div class="c">${mEsc(details||'Нажмите, чтобы увидеть сделки')}</div></div><div class="la-source-num">${Number(source.leads)||0}</div><div class="la-source-num kep">${Number(source.kep)||0}</div><div class="la-source-num conversion">${Number(source.conversion)||0}%</div></summary>${leadAnalyticsDealRows(source)}</details>`;
+  }).join('');
+}
+function paintLeadAnalytics(el,data,{cached=false}={}){
+  if(!el||!data?.totals) return;
+  const totals=data.totals;
+  const conversion=Math.max(0,Math.min(100,Number(totals.conversion)||0));
+  const channels=(data.channels||[]).map(channel=>`<div class="la-channel"><div class="n" title="${mEsc(channel.label)}">${mEsc(channel.label)}</div><div class="m"><span>${Number(channel.leads)||0} лидов · ${Number(channel.kep)||0} КЭП</span><strong>${Number(channel.conversion)||0}%</strong></div></div>`).join('');
+  const mainGap=data.mainGap&&Number(data.mainGap.lost)>0
+    ? `<div class="la-alert"><strong>Главная потеря:</strong> ${mEsc(data.mainGap.label)} — ${Number(data.mainGap.lost)} из ${Number(data.mainGap.leads)} лидов пока не дошли до КЭП.</div>`
+    : '';
+  const range=data.range?`${leadAnalyticsDate(data.range.start)} — ${leadAnalyticsDate(data.range.end-1)}`:financeChartPeriodMeta().label;
+  const cachedNote=cached?' · последние сохранённые данные':'';
+  el.innerHTML=`<div class="la-head"><div><h3>Аналитика лидов → КЭП</h3><p>Когорта: лиды созданы в выбранном диапазоне; КЭП засчитывается, даже если состоялся позже.${cachedNote}</p></div><span class="la-period">${mEsc(range)}</span></div><div class="la-body"><div class="la-summary"><div class="la-metric"><div class="l">Всего лидов</div><div class="v">${Number(totals.leads)||0}</div></div><div class="la-metric good"><div class="l">Дошли до КЭП</div><div class="v">${Number(totals.kep)||0}</div></div><div class="la-metric warn"><div class="l">Не дошли</div><div class="v">${Number(totals.notReached)||0}</div></div><div class="la-metric"><div class="l">Конверсия в КЭП</div><div class="v">${conversion}%</div></div></div><div class="la-funnel"><div class="la-funnel-line"><span style="width:${conversion}%"></span></div><div class="la-funnel-copy"><span>${Number(totals.leads)||0} лидов</span><span>${Number(totals.kep)||0} дошли до КЭП</span></div></div>${mainGap}<div class="la-section-title">По каналам</div><div class="la-channels">${channels||'<div class="la-empty">Нет данных по каналам.</div>'}</div><div class="la-section-title">По рекламе и источникам</div><div class="la-table"><div class="la-table-head"><span>Реклама / источник</span><span>Лиды</span><span>КЭП</span><span>Конверсия</span></div>${leadAnalyticsSourceRows(data.sources||[])}</div></div>`;
+}
+async function fetchLeadAnalytics(){
+  const session=getSession();
+  if(!session?.token) throw new Error('Сессия не найдена. Выполните вход заново.');
+  const params=new URLSearchParams({period:FINANCE_CHART_PERIOD,points:'8'});
+  const response=await fetch(`https://pllato-elc-worker.uurraa.workers.dev/api/charts/pllato-lead-sources?${params}`,{
+    headers:{Authorization:`Bearer ${session.token}`},cache:'no-store'
+  });
+  const payload=await response.json().catch(()=>null);
+  if(!response.ok||payload?.ok===false) throw new Error(payload?.error||`HTTP ${response.status}`);
+  return payload;
+}
+async function renderLeadAnalytics(el=document.getElementById('leadAnalytics')){
+  if(!el) return;
+  const requestId=++LEAD_ANALYTICS_REQUEST;
+  const cached=readLeadAnalyticsCache();
+  if(cached) paintLeadAnalytics(el,cached,{cached:true});
+  try{
+    const data=await fetchLeadAnalytics();
+    if(requestId!==LEAD_ANALYTICS_REQUEST||!document.documentElement.contains(el)) return;
+    saveLeadAnalyticsCache(data);
+    paintLeadAnalytics(el,data);
+  }catch(error){
+    console.warn('lead analytics:',error);
+    if(requestId!==LEAD_ANALYTICS_REQUEST||cached) return;
+    el.innerHTML=`<div class="la-head"><div><h3>Аналитика лидов → КЭП</h3><p>Источники и конверсия в ключевой этап продаж.</p></div></div><div class="la-error">Не удалось загрузить аналитику. <button type="button" onclick="renderLeadAnalytics()">Повторить</button></div>`;
+  }
 }
 function financeCommentDate(value){
   return new Intl.DateTimeFormat('ru-RU',{

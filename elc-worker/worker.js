@@ -9367,6 +9367,243 @@ async function handlePllatoChartDetails(request, env) {
   }, 200, request);
 }
 
+function leadAnalyticsText(...values) {
+  for (const value of values) {
+    const text = String(value == null ? '' : value).trim();
+    if (text) return text;
+  }
+  return '';
+}
+
+function leadAnalyticsLabel(value, max = 180) {
+  const text = String(value == null ? '' : value)
+    .split(/\r?\n/).map((part) => part.trim()).find(Boolean) || '';
+  return text.replace(/\s+/g, ' ').slice(0, max);
+}
+
+function leadAnalyticsObject(value) {
+  const parsed = tryParseJson(value);
+  return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+}
+
+// Единая атрибуция для источников, которые попадают в CRM разными путями:
+// Instagram -> WhatsApp хранит meta_ad_attribution, Facebook Lead Ads —
+// custom_fields, сайт — custom_fields.attribution. Стабильный ad ID приоритетнее
+// названия, чтобы переименование объявления не раздваивало статистику.
+function resolveLeadAnalyticsAttribution(row) {
+  const meta = leadAnalyticsObject(row.meta_ad_attribution);
+  const custom = leadAnalyticsObject(row.custom_fields);
+  const website = leadAnalyticsObject(custom.attribution);
+  const sourceId = leadAnalyticsText(row.source_id).toUpperCase();
+  const sourceDescription = leadAnalyticsText(row.source_description);
+  const adId = leadAnalyticsText(row.meta_ad_id, meta.adId, custom.adId, custom.ad_id);
+  const campaign = leadAnalyticsText(
+    meta.campaignName, custom.campaignName, custom.campaign_name,
+    website.utm_campaign, website.utmCampaign,
+  );
+  const adName = leadAnalyticsText(
+    custom.adName, custom.ad_name, meta.description, meta.title,
+    website.utm_content, website.utmContent,
+  );
+  const adset = leadAnalyticsText(
+    meta.adsetName, custom.adsetName, custom.adset_name,
+    website.utm_term, website.utmTerm,
+  );
+
+  let channelKey = 'other';
+  let channelLabel = sourceDescription || sourceId || 'Источник не указан';
+  if (sourceId === 'META_LEAD_AD' || /facebook.*лид|lead ads?/i.test(sourceDescription)) {
+    channelKey = 'facebook_lead_ads';
+    channelLabel = 'Facebook Lead Ads';
+  } else if (sourceId === 'META_AD' || /instagram/i.test(sourceDescription) || (adId && meta.adId)) {
+    channelKey = 'instagram_whatsapp';
+    channelLabel = 'Instagram -> WhatsApp';
+  } else if (sourceId === 'PLLATO_SITE' || /сайт|website|pllato\.kz/i.test(sourceDescription)) {
+    channelKey = 'website';
+    channelLabel = 'Сайт Pllato';
+  } else if (/whats ?app/i.test(sourceDescription) || sourceId === 'WHATSAPP') {
+    channelKey = 'whatsapp';
+    channelLabel = 'WhatsApp';
+  } else if (/youtube/i.test(sourceDescription) || sourceId === 'YOUTUBE') {
+    channelKey = 'youtube';
+    channelLabel = 'YouTube';
+  } else if (/excel/i.test(sourceDescription) || sourceId === 'EXCEL_IMPORT') {
+    channelKey = 'excel';
+    channelLabel = 'Excel-импорт';
+  } else if (!sourceDescription && !sourceId) {
+    channelKey = 'unknown';
+    channelLabel = 'Источник не указан';
+  } else {
+    channelKey = `source:${(sourceId || sourceDescription).toLowerCase()}`;
+  }
+
+  const cleanCampaign = leadAnalyticsLabel(campaign, 90);
+  const cleanAdName = leadAnalyticsLabel(adName, 150);
+  const advertisingLabel = cleanCampaign && cleanAdName && cleanCampaign.toLowerCase() !== cleanAdName.toLowerCase()
+    ? `${cleanCampaign} · ${cleanAdName}`
+    : (cleanAdName || cleanCampaign || leadAnalyticsLabel(adset, 120) || '');
+  let sourceKey;
+  let sourceLabel;
+  if (adId) {
+    sourceKey = `ad:${adId}`;
+    sourceLabel = advertisingLabel || `${channelLabel} · объявление ${adId}`;
+  } else if (campaign) {
+    sourceKey = `campaign:${channelKey}:${campaign.toLowerCase()}`;
+    sourceLabel = advertisingLabel || campaign;
+  } else if (adName) {
+    sourceKey = `creative:${channelKey}:${adName.toLowerCase()}`;
+    sourceLabel = adName;
+  } else {
+    sourceKey = `channel:${channelKey}`;
+    sourceLabel = sourceDescription || channelLabel;
+  }
+  return {
+    channelKey,
+    channelLabel,
+    sourceKey,
+    sourceLabel,
+    campaign: cleanCampaign,
+    adName: cleanAdName,
+    adset: leadAnalyticsLabel(adset, 120),
+    adId,
+    sourceUrl: leadAnalyticsText(meta.sourceUrl, custom.sourceUrl, custom.source_url),
+  };
+}
+
+function leadAnalyticsGroup(map, key, seed, reachedKep, deal) {
+  let group = map.get(key);
+  if (!group) {
+    group = { ...seed, leads: 0, kep: 0, deals: [] };
+    map.set(key, group);
+  }
+  group.leads += 1;
+  if (reachedKep) group.kep += 1;
+  // Детальная расшифровка нужна для аудита, но не должна раздувать ответ при
+  // месячном диапазоне. Счётчики всегда полные; в UI показываем до 200 сделок
+  // на один источник и явно указываем, если часть списка скрыта.
+  if (group.deals.length < 200) group.deals.push(deal);
+}
+
+function finalizeLeadAnalyticsGroups(groups) {
+  return [...groups.values()].map((group) => ({
+    ...group,
+    dealsTruncated: group.leads > group.deals.length,
+    conversion: group.leads ? Math.round((group.kep / group.leads) * 1000) / 10 : 0,
+  })).sort((a, b) => b.leads - a.leads || b.kep - a.kep || String(a.label || '').localeCompare(String(b.label || ''), 'ru'));
+}
+
+// Когортная аналитика: выбираем лиды, СОЗДАННЫЕ в видимом диапазоне, затем
+// проверяем, дошёл ли каждый из них до КЭП когда-либо. Поэтому поздний переход
+// в КЭП остаётся у исходной рекламы и не искажает конверсию периода.
+async function handlePllatoLeadSourceAnalytics(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ ok: false, error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  const url = new URL(request.url);
+  const period = ['day', 'week', 'month'].includes(url.searchParams.get('period'))
+    ? url.searchParams.get('period')
+    : 'week';
+  const points = Math.min(16, Math.max(2, parseInt(url.searchParams.get('points') || '8', 10) || 8));
+  const buckets = buildChartBuckets(period, points);
+  const rangeStart = buckets[0].startMs;
+  const rangeEnd = buckets[buckets.length - 1].endMs;
+  const startIso = new Date(rangeStart).toISOString();
+  const endIso = new Date(rangeEnd).toISOString();
+
+  await ensureStageEventsBackfill(env);
+  const pipeline = await env.DB.prepare(
+    "SELECT id, stages FROM pipelines WHERE name = ? LIMIT 1"
+  ).bind('Pllato Старт').first();
+  if (!pipeline?.id) return json({ ok: false, error: 'pipeline not found' }, 404, request);
+  const allowedPipelines = me.orgPerms?.pipelineIds;
+  if (Array.isArray(allowedPipelines) && !allowedPipelines.includes(pipeline.id)) {
+    return json({ ok: false, error: 'pipeline access denied' }, 403, request);
+  }
+
+  let stages = {};
+  try { stages = JSON.parse(pipeline.stages || '{}'); } catch {}
+  const targetNames = new Set(['создание демо', 'показ демо']);
+  const stageIds = Object.entries(stages)
+    .filter(([, stage]) => targetNames.has(String(stage?.name || '').trim().toLowerCase()))
+    .map(([id]) => id);
+  if (stageIds.length !== 2) return json({ ok: false, error: 'KEP stages not found' }, 404, request);
+
+  const result = await env.DB.prepare(`
+    SELECT d.id, d.title, d.bitrix_date_create, d.source_id, d.source_description,
+           d.meta_ad_id, d.meta_ad_attribution, d.custom_fields,
+           kep.first_kep_at
+    FROM deals d
+    LEFT JOIN (
+      SELECT deal_id, MIN(entered_at) AS first_kep_at
+      FROM deal_stage_events
+      WHERE pipeline_id = ? AND stage_id IN (?, ?)
+      GROUP BY deal_id
+    ) kep ON kep.deal_id = d.id
+    WHERE d.pipeline_id = ? AND d.bitrix_date_create >= ? AND d.bitrix_date_create < ?
+    ORDER BY d.bitrix_date_create DESC
+    LIMIT 10000
+  `).bind(
+    pipeline.id, stageIds[0], stageIds[1], pipeline.id, startIso, endIso,
+  ).all();
+
+  const channelGroups = new Map();
+  const sourceGroups = new Map();
+  let totalKep = 0;
+  for (const row of (result.results || [])) {
+    const reachedKep = !!row.first_kep_at;
+    if (reachedKep) totalKep += 1;
+    const attribution = resolveLeadAnalyticsAttribution(row);
+    const deal = {
+      dealId: row.id,
+      title: row.title || '(без названия)',
+      createdAt: Date.parse(row.bitrix_date_create) || 0,
+      reachedKep,
+      firstKepAt: Date.parse(row.first_kep_at) || 0,
+    };
+    leadAnalyticsGroup(channelGroups, attribution.channelKey, {
+      key: attribution.channelKey,
+      label: attribution.channelLabel,
+    }, reachedKep, deal);
+    leadAnalyticsGroup(sourceGroups, attribution.sourceKey, {
+      key: attribution.sourceKey,
+      label: attribution.sourceLabel,
+      channel: attribution.channelLabel,
+      campaign: attribution.campaign,
+      adName: attribution.adName,
+      adset: attribution.adset,
+      adId: attribution.adId,
+      sourceUrl: attribution.sourceUrl,
+    }, reachedKep, deal);
+  }
+
+  const totalLeads = (result.results || []).length;
+  const sources = finalizeLeadAnalyticsGroups(sourceGroups);
+  const channels = finalizeLeadAnalyticsGroups(channelGroups).map(({ deals, ...group }) => group);
+  const mainGap = sources.map((source) => ({
+    key: source.key,
+    label: source.label,
+    lost: source.leads - source.kep,
+    leads: source.leads,
+    kep: source.kep,
+  })).sort((a, b) => b.lost - a.lost || b.leads - a.leads)[0] || null;
+  return json({
+    ok: true,
+    period,
+    points,
+    range: { start: rangeStart, end: rangeEnd },
+    totals: {
+      leads: totalLeads,
+      kep: totalKep,
+      notReached: Math.max(0, totalLeads - totalKep),
+      conversion: totalLeads ? Math.round((totalKep / totalLeads) * 1000) / 10 : 0,
+    },
+    channels,
+    sources,
+    mainGap,
+    methodology: 'created_cohort_ever_reached_kep',
+  }, 200, request);
+}
+
 // GET /api/sip/route?phone=77073320409 — Asterisk дёргает при входящем.
 // Возвращает: { extensions: ["101","102"], mobile: "+7...", fallbackSeconds: 30 }
 // Логика: phone → contact → recent open deal → responsible_uid → org-tree node →
@@ -11352,6 +11589,9 @@ export default {
     }
     if (path === "/api/charts/pllato-details" && request.method === "GET") {
       return handlePllatoChartDetails(request, env);
+    }
+    if (path === "/api/charts/pllato-lead-sources" && request.method === "GET") {
+      return handlePllatoLeadSourceAnalytics(request, env);
     }
     // Работа с письмами конкретного ящика
     const mailUnreadMatch = path.match(/^\/api\/mail\/([^/]+)\/unread$/);
