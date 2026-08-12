@@ -9500,13 +9500,21 @@ async function handlePllatoLeadSourceAnalytics(request, env) {
   if (auth.error) return json({ ok: false, error: auth.error }, auth.status, request);
   const me = await resolveCanonicalUser(env, auth.claims);
   const url = new URL(request.url);
-  const period = ['day', 'week', 'month'].includes(url.searchParams.get('period'))
+  const period = ['day', 'week', 'month', 'custom'].includes(url.searchParams.get('period'))
     ? url.searchParams.get('period')
     : 'week';
   const points = Math.min(16, Math.max(2, parseInt(url.searchParams.get('points') || '8', 10) || 8));
-  const buckets = buildChartBuckets(period, points);
-  const rangeStart = buckets[0].startMs;
-  const rangeEnd = buckets[buckets.length - 1].endMs;
+  const requestedStart = Number(url.searchParams.get('start'));
+  const requestedEnd = Number(url.searchParams.get('end'));
+  const hasRequestedRange = Number.isFinite(requestedStart) && Number.isFinite(requestedEnd)
+    && requestedStart > 0 && requestedEnd > requestedStart;
+  const maxRangeMs = 3 * 366 * 86400000;
+  if (hasRequestedRange && requestedEnd - requestedStart > maxRangeMs) {
+    return json({ ok: false, error: 'date range is too large' }, 400, request);
+  }
+  const buckets = hasRequestedRange ? [] : buildChartBuckets(period === 'custom' ? 'week' : period, points);
+  const rangeStart = hasRequestedRange ? Math.trunc(requestedStart) : buckets[0].startMs;
+  const rangeEnd = hasRequestedRange ? Math.trunc(requestedEnd) : buckets[buckets.length - 1].endMs;
   const startIso = new Date(rangeStart).toISOString();
   const endIso = new Date(rangeEnd).toISOString();
 
