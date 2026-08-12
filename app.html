@@ -827,6 +827,9 @@ body {
 .la-head h3 { margin:0; font-size:15px; font-weight:800; }
 .la-head p { margin:4px 0 0; color:var(--text-3); font-size:11px; line-height:1.45; }
 .la-head-tools { display:flex; flex-direction:column; align-items:flex-end; gap:8px; min-width:0; }
+.la-head-actions { display:flex; align-items:center; justify-content:flex-end; gap:7px; flex-wrap:wrap; }
+.la-access-btn { border:1px solid var(--bronze); border-radius:8px; background:var(--surface); color:var(--bronze-deep); padding:6px 10px; font-family:inherit; font-size:10px; font-weight:800; line-height:1; cursor:pointer; white-space:nowrap; }
+.la-access-btn:hover { background:var(--bronze-tint); }
 .la-period-switch { display:flex; align-items:center; padding:2px; border:1px solid var(--line-2); border-radius:9px; background:var(--surface-2); }
 .la-period-switch button { border:0; border-radius:7px; background:transparent; color:var(--text-3); padding:6px 9px; font-family:inherit; font-size:10px; font-weight:800; line-height:1; cursor:pointer; white-space:nowrap; }
 .la-period-switch button:hover { color:var(--text); }
@@ -882,6 +885,25 @@ body {
 .la-truncated { padding:7px 0 0; color:var(--text-3); font-size:9px; }
 .la-loading,.la-error,.la-empty { padding:22px 12px; color:var(--text-3); font-size:11.5px; text-align:center; }
 .la-error button { margin-left:8px; border:1px solid currentColor; border-radius:7px; background:transparent; color:inherit; padding:5px 8px; font:700 10px/1.2 inherit; cursor:pointer; }
+.la-access-note { padding:10px 12px; border:1px solid #bfdbfe; border-radius:10px; background:#eff6ff; color:#1e40af; font-size:11px; line-height:1.5; }
+.la-access-link { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; margin-top:14px; }
+.la-access-link input { min-width:0; }
+.la-access-link button,.la-access-add button { border:1px solid var(--line-2); border-radius:9px; background:var(--surface-2); color:var(--text); padding:9px 13px; font-family:inherit; font-size:11px; font-weight:800; cursor:pointer; }
+.la-access-link button:hover,.la-access-add button:hover { border-color:var(--bronze); color:var(--bronze-deep); }
+.la-access-add { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; margin-top:16px; }
+.la-access-add input { min-width:0; }
+.la-access-add button { background:var(--navy); color:#fff; }
+.la-access-add button:hover { background:var(--navy); color:#fff; filter:brightness(1.08); }
+.la-access-count { margin:17px 0 7px; color:var(--text-2); font-size:11px; font-weight:800; }
+.la-access-list { border:1px solid var(--line-2); border-radius:10px; overflow:hidden; }
+.la-access-viewer { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid var(--line-2); }
+.la-access-viewer:last-child { border-bottom:0; }
+.la-access-viewer .email { min-width:0; overflow-wrap:anywhere; color:var(--text); font-size:12px; font-weight:800; }
+.la-access-viewer .meta { margin-top:2px; color:var(--text-3); font-size:9.5px; }
+.la-access-viewer button { width:30px; height:30px; border:1px solid #fecaca; border-radius:8px; background:#fff; color:#dc2626; font:800 16px/1 inherit; cursor:pointer; }
+.la-access-viewer button:hover { background:#fef2f2; }
+.la-access-status { min-height:18px; margin-top:8px; color:var(--text-3); font-size:10.5px; }
+.la-access-status.error { color:#dc2626; }
 @media (max-width: 760px) {
   .fc-head { align-items:flex-start; }
   .fc-head-actions { align-items:flex-end; }
@@ -895,6 +917,7 @@ body {
   .fc-scale-grid { grid-template-columns:1fr; }
   .la-head { flex-direction:column; padding-inline:12px; }
   .la-head-tools { width:100%; align-items:flex-start; }
+  .la-head-actions { justify-content:flex-start; width:100%; }
   .la-period-switch { max-width:100%; overflow-x:auto; }
   .la-period-switch button { padding-inline:8px; }
   .la-custom-range { align-items:stretch; flex-wrap:wrap; justify-content:flex-start; padding-inline:12px; }
@@ -906,6 +929,7 @@ body {
   .la-table { overflow-x:auto; }
   .la-table-head,.la-source-summary { min-width:570px; }
   .la-deals { min-width:570px; }
+  .la-access-link,.la-access-add { grid-template-columns:1fr; }
 }
 @media (min-width: 761px) and (max-width: 980px) {
   .fc-card { flex-basis:max(290px,calc((100% - 14px) / 2)); }
@@ -4399,7 +4423,8 @@ function leadAnalyticsHeader(description,rangeLabel,cached=false){
   const modes=[['day','День'],['week','Неделя'],['month','Месяц'],['custom','Период']];
   const buttons=modes.map(([mode,label])=>`<button type="button" class="${filter.mode===mode?'active':''}" onclick="setLeadAnalyticsPeriod('${mode}')" aria-pressed="${filter.mode===mode}">${label}</button>`).join('');
   const note=cached?' · последние сохранённые данные':'';
-  return `<div class="la-head"><div><h3>Аналитика лидов → КЭП</h3><p>${mEsc(description+note)}</p></div><div class="la-head-tools"><div class="la-period-switch" role="group" aria-label="Период аналитики">${buttons}</div><span class="la-period">${mEsc(rangeLabel||leadAnalyticsCurrentRange().label)}</span></div></div>${leadAnalyticsCustomRange()}`;
+  const externalAccess=CURRENT?.isAdmin?'<button type="button" class="la-access-btn" onclick="openLeadAnalyticsExternalAccess()">Внешний доступ</button>':'';
+  return `<div class="la-head"><div><h3>Аналитика лидов → КЭП</h3><p>${mEsc(description+note)}</p></div><div class="la-head-tools"><div class="la-period-switch" role="group" aria-label="Период аналитики">${buttons}</div><div class="la-head-actions"><span class="la-period">${mEsc(rangeLabel||leadAnalyticsCurrentRange().label)}</span>${externalAccess}</div></div></div>${leadAnalyticsCustomRange()}`;
 }
 function leadAnalyticsCustomRange(){
   const filter=ensureLeadAnalyticsFilter();
@@ -4537,6 +4562,102 @@ async function renderLeadAnalytics(el=document.getElementById('leadAnalytics')){
     el.innerHTML=`${leadAnalyticsHeader('Источники и конверсия в ключевой этап продаж.',leadAnalyticsCurrentRange().label)}<div class="la-error">Не удалось загрузить аналитику. <button type="button" onclick="renderLeadAnalytics()">Повторить</button></div>`;
   }
 }
+const LEAD_ANALYTICS_ACCESS_API='https://pllato-elc-worker.uurraa.workers.dev/api/charts/pllato-lead-sources/access';
+async function leadAnalyticsAccessRequest(method='GET',email=''){
+  const session=getSession();
+  if(!session?.token) throw new Error('Сессия не найдена. Выполните вход заново.');
+  const options={method,headers:{Authorization:`Bearer ${session.token}`,'Content-Type':'application/json'},cache:'no-store'};
+  if(method!=='GET') options.body=JSON.stringify({email});
+  const response=await fetch(LEAD_ANALYTICS_ACCESS_API,options);
+  const payload=await response.json().catch(()=>null);
+  if(!response.ok||payload?.ok===false) throw new Error(payload?.error||`HTTP ${response.status}`);
+  return payload;
+}
+function leadAnalyticsAccessDate(value){
+  if(!value) return '';
+  const parsed=Date.parse(String(value).replace(' ','T')+'Z');
+  if(!Number.isFinite(parsed)) return '';
+  return new Intl.DateTimeFormat('ru-RU',{timeZone:'Asia/Almaty',day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(parsed));
+}
+function paintLeadAnalyticsExternalAccess(payload){
+  const ovl=document.getElementById('leadAnalyticsExternalAccessOvl');
+  if(!ovl) return;
+  const link=payload?.shareUrl||'https://pllato.kz/lead-analytics.html';
+  const viewers=Array.isArray(payload?.viewers)?payload.viewers:[];
+  const list=ovl.querySelector('[data-la-access-list]');
+  const count=ovl.querySelector('[data-la-access-count]');
+  const linkInput=ovl.querySelector('[data-la-access-link]');
+  if(linkInput) linkInput.value=link;
+  if(count) count.textContent=`Внешние пользователи: ${viewers.length}`;
+  if(list) list.innerHTML=viewers.length?viewers.map(viewer=>`<div class="la-access-viewer"><div><div class="email">${mEsc(viewer.email)}</div><div class="meta">Добавлен${viewer.created_at?' · '+mEsc(leadAnalyticsAccessDate(viewer.created_at)):''}</div></div><button type="button" data-remove-email="${mEsc(viewer.email)}" title="Удалить доступ" aria-label="Удалить доступ ${mEsc(viewer.email)}">×</button></div>`).join(''):'<div class="la-empty">Внешних пользователей пока нет.</div>';
+  list?.querySelectorAll('[data-remove-email]').forEach(button=>button.addEventListener('click',()=>removeLeadAnalyticsExternalViewer(button.dataset.removeEmail,button)));
+}
+function setLeadAnalyticsAccessStatus(message='',isError=false){
+  const status=document.querySelector('#leadAnalyticsExternalAccessOvl [data-la-access-status]');
+  if(!status) return;
+  status.textContent=message;
+  status.classList.toggle('error',isError);
+}
+async function openLeadAnalyticsExternalAccess(){
+  if(!CURRENT?.isAdmin) return;
+  document.getElementById('leadAnalyticsExternalAccessOvl')?.remove();
+  const ovl=document.createElement('div');
+  ovl.id='leadAnalyticsExternalAccessOvl';
+  ovl.className='money-ovl show';
+  ovl.addEventListener('click',event=>{ if(event.target===ovl) ovl.remove(); });
+  ovl.innerHTML=`<div class="money-modal" style="max-width:650px"><div class="mm-h"><h3>Внешний доступ · Аналитика лидов → КЭП</h3><span class="mm-x" data-la-access-close>×</span></div><div class="mm-b"><div class="la-access-note">По ссылке виден только этот аналитический блок. Пользователь входит через Google, а доступа к App, CRM и другим данным не получает.</div><div class="la-access-link"><input data-la-access-link readonly value="https://pllato.kz/lead-analytics.html" aria-label="Внешняя ссылка"><button type="button" onclick="copyLeadAnalyticsExternalLink(this)">Скопировать ссылку</button></div><form class="la-access-add" onsubmit="addLeadAnalyticsExternalViewer(event)"><input data-la-access-email type="email" inputmode="email" autocomplete="email" placeholder="name@gmail.com" required aria-label="Gmail внешнего пользователя"><button type="submit">Добавить Gmail</button></form><div class="la-access-status" data-la-access-status>Загружаю список…</div><div class="la-access-count" data-la-access-count>Внешние пользователи</div><div class="la-access-list" data-la-access-list><div class="la-loading">Загрузка…</div></div></div><div class="mm-f"><button type="button" data-la-access-close>Готово</button></div></div>`;
+  ovl.querySelectorAll('[data-la-access-close]').forEach(button=>button.addEventListener('click',()=>ovl.remove()));
+  document.body.appendChild(ovl);
+  try{
+    const payload=await leadAnalyticsAccessRequest();
+    paintLeadAnalyticsExternalAccess(payload);
+    setLeadAnalyticsAccessStatus('После удаления Gmail новые данные по ссылке больше не загрузятся.');
+  }catch(error){
+    setLeadAnalyticsAccessStatus('Не удалось загрузить список: '+error.message,true);
+    const list=ovl.querySelector('[data-la-access-list]');
+    if(list) list.innerHTML='<div class="la-empty">Список недоступен.</div>';
+  }
+}
+async function copyLeadAnalyticsExternalLink(button){
+  const input=document.querySelector('#leadAnalyticsExternalAccessOvl [data-la-access-link]');
+  if(!input) return;
+  try{
+    await navigator.clipboard.writeText(input.value);
+  }catch(error){ input.select(); document.execCommand('copy'); }
+  const original=button.textContent;
+  button.textContent='Скопировано ✓';
+  setTimeout(()=>{ if(document.documentElement.contains(button)) button.textContent=original; },1400);
+}
+async function addLeadAnalyticsExternalViewer(event){
+  event.preventDefault();
+  const form=event.currentTarget;
+  const input=form.querySelector('[data-la-access-email]');
+  const button=form.querySelector('button');
+  const email=String(input?.value||'').trim().toLowerCase();
+  if(!email) return;
+  button.disabled=true;
+  setLeadAnalyticsAccessStatus('Добавляю доступ…');
+  try{
+    const payload=await leadAnalyticsAccessRequest('POST',email);
+    paintLeadAnalyticsExternalAccess(payload);
+    input.value='';
+    setLeadAnalyticsAccessStatus(`${email} добавлен. Доступ уже работает.`);
+  }catch(error){ setLeadAnalyticsAccessStatus('Не удалось добавить: '+error.message,true); }
+  finally{ button.disabled=false; }
+}
+async function removeLeadAnalyticsExternalViewer(email,button){
+  if(!email) return;
+  button.disabled=true;
+  setLeadAnalyticsAccessStatus(`Отзываю доступ у ${email}…`);
+  try{
+    const payload=await leadAnalyticsAccessRequest('DELETE',email);
+    paintLeadAnalyticsExternalAccess(payload);
+    setLeadAnalyticsAccessStatus(`${email} удалён. Доступ отозван.`);
+  }catch(error){
+    button.disabled=false;
+    setLeadAnalyticsAccessStatus('Не удалось удалить: '+error.message,true);
+  }
+}
 function financeCommentDate(value){
   return new Intl.DateTimeFormat('ru-RU',{
     timeZone:'Asia/Almaty',day:'2-digit',month:'2-digit',year:'numeric',
@@ -4663,7 +4784,7 @@ async function saveFinanceAccess(kind){
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTask, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
+Object.assign(window, { openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTask, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, openLeadAnalyticsExternalAccess, copyLeadAnalyticsExternalLink, addLeadAnalyticsExternalViewer, removeLeadAnalyticsExternalViewer, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
 
 function applyProjectFilters(){
   sortProjectCards();
