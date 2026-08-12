@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Коммерческое предложение · FIELD / 400</title>
+<style>
+@page{size:A4;margin:0}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#cfd3d2;color:#172229;font-family:"Avenir Next","Helvetica Neue",Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+:root{--night:#101b22;--night2:#182a33;--paper:#f3f0e8;--white:#fffefa;--ink:#172229;--muted:#68777c;--line:#d6d3ca;--orange:#ffad38;--cyan:#54c6c9;--green:#3d9a73;--red:#d95747;--blue:#327b9d}
+.page{width:210mm;height:297mm;position:relative;overflow:hidden;background:var(--paper);page-break-after:always;padding:16mm 16mm 14mm}
+.page:last-child{page-break-after:auto}
+.page.dark{background:var(--night);color:white}
+.folio{position:absolute;z-index:20;left:16mm;right:16mm;bottom:7mm;display:flex;justify-content:space-between;align-items:center;font-size:7.3pt;color:#7e898c;letter-spacing:.05em}
+.dark .folio{color:#66808a}.folio b{font-size:7.5pt;color:var(--orange)}
+.brand{display:flex;align-items:center;gap:3mm;font-size:9pt;font-weight:800;letter-spacing:.05em}.mark{width:11mm;height:11mm;background:var(--orange);color:var(--night);display:grid;place-items:center;font-size:6.5pt;font-weight:900;position:relative}.mark:after{content:"";position:absolute;inset:2mm;border:.3mm solid currentColor;opacity:.35}.brand small{display:block;font-size:5.6pt;color:#71868e;letter-spacing:.14em;margin-top:1mm}
+.topline{display:flex;align-items:flex-start;justify-content:space-between;gap:8mm}.docmeta{text-align:right;font-size:6.5pt;color:var(--muted);line-height:1.6}.dark .docmeta{color:#78909a}.docmeta b{display:block;color:inherit;font-size:7pt}
+.eyebrow{font-family:ui-monospace,"SFMono-Regular",Menlo,monospace;font-size:6.8pt;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#9b6333}.dark .eyebrow{color:var(--orange)}
+h1,h2,h3,p{margin-top:0}h1{font-family:Georgia,"Times New Roman",serif;font-size:35pt;line-height:.96;letter-spacing:-.04em;margin:17mm 0 6mm;max-width:160mm}h1 span{color:var(--orange)}h2{font-family:Georgia,"Times New Roman",serif;font-size:23pt;line-height:1.05;letter-spacing:-.035em;margin:3mm 0 3mm}h3{font-size:11pt;line-height:1.2;margin-bottom:2mm}.lead{font-size:11pt;line-height:1.55;color:#a7bac1;max-width:145mm}.intro{font-size:10pt;line-height:1.6;color:var(--muted);max-width:155mm}.dark .intro{color:#9eb1b8}
+.rule{height:.4mm;background:var(--line);margin:5mm 0}.dark .rule{background:#29414c}
+.cover-grid{display:grid;grid-template-columns:1.3fr .7fr;gap:4mm;margin-top:15mm}.cover-box{border:.35mm solid #2c454f;padding:5mm;min-height:35mm}.cover-box:first-child{background:#152832}.cover-box small,.metric small,.mini small{display:block;font-family:ui-monospace,"SFMono-Regular",Menlo,monospace;font-size:5.5pt;font-weight:700;letter-spacing:.08em;color:#78919b;text-transform:uppercase}.cover-box b{display:block;font-size:19pt;color:var(--orange);margin-top:3mm}.cover-box p{font-size:7.7pt;color:#8da2aa;line-height:1.5;margin:2mm 0 0}.cover-mini{display:grid;grid-template-columns:1fr 1fr;gap:4mm}.cover-mini .cover-box b{font-size:16pt;color:white}
+.cover-foot{position:absolute;left:16mm;right:16mm;bottom:18mm;border-top:.3mm solid #2b414b;padding-top:5mm;display:grid;grid-template-columns:1fr auto;gap:7mm}.cover-foot p{font-size:7.5pt;color:#80959d;margin:0;line-height:1.5}.cover-foot strong{color:white}.valid{background:var(--orange);color:var(--night);padding:3mm 4mm;font-size:7.5pt;font-weight:800;align-self:start}
+.section-head{margin:8mm 0 7mm}.section-head p{font-size:8.5pt;color:var(--muted);line-height:1.5;margin:0;max-width:155mm}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm}.card{background:var(--white);border:.3mm solid var(--line);padding:4mm}.card.darkcard{background:var(--night);border-color:var(--night);color:white}.card.orange{background:var(--orange);border-color:var(--orange)}.card h3{font-size:9.5pt}.card p{font-size:7.2pt;line-height:1.5;color:var(--muted);margin:0}.darkcard p{color:#8da2aa}.orange p{color:#544322}.code{display:inline-grid;place-items:center;min-width:8mm;height:7mm;padding:0 2mm;background:#e5e3dc;color:#325761;font:800 5.8pt ui-monospace,Menlo,monospace;margin-bottom:4mm}.darkcard .code{background:#233a45;color:var(--cyan)}.orange .code{background:var(--night);color:var(--orange)}
+.journey{display:grid;grid-template-columns:repeat(6,1fr);gap:0;margin:7mm 0 0}.step{position:relative;padding:5mm 3mm 4mm;background:var(--white);border:.3mm solid var(--line);border-right:0;min-height:37mm}.step:last-child{border-right:.3mm solid var(--line)}.step:not(:last-child):after{content:"";position:absolute;right:-2.3mm;top:17mm;width:4.5mm;height:4.5mm;background:var(--orange);transform:rotate(45deg);z-index:3}.step code{font:800 5.5pt ui-monospace,Menlo,monospace;color:#9b6333}.step b{display:block;font-size:7.7pt;margin:3mm 0 1mm}.step p{font-size:6.2pt;line-height:1.4;color:var(--muted);margin:0}
+.promise{margin-top:6mm;background:var(--night);color:white;padding:5mm;display:grid;grid-template-columns:45mm 1fr;gap:5mm;align-items:center}.promise b{font-family:Georgia,serif;color:var(--orange);font-size:16pt;line-height:1.05}.promise p{font-size:7.8pt;color:#9aafb7;line-height:1.5;margin:0}
+.flow{display:grid;grid-template-columns:44mm 1fr 44mm;gap:4mm;align-items:stretch;margin-top:7mm}.flow-side{display:flex;flex-direction:column;gap:3mm}.flow-card{background:var(--white);border:.3mm solid var(--line);padding:4mm;min-height:27mm}.flow-card b{display:block;font-size:8.5pt;margin-bottom:1.5mm}.flow-card p{font-size:6.5pt;line-height:1.4;color:var(--muted);margin:0}.flow-core{background:var(--night);color:white;padding:6mm;position:relative}.flow-core:before,.flow-core:after{content:"";position:absolute;top:50%;width:8mm;border-top:.6mm solid var(--orange)}.flow-core:before{left:-8mm}.flow-core:after{right:-8mm}.flow-core h3{font-family:Georgia,serif;font-size:17pt;color:var(--orange)}.flow-core ul{margin:5mm 0 0;padding:0;list-style:none}.flow-core li{font-size:7pt;padding:2.6mm 0;border-bottom:.25mm solid #29404a;color:#b0c0c6}.flow-core li:last-child{border:0}.flow-core li b{color:white}
+.source-note{margin-top:5mm;padding:4mm;border-left:1.2mm solid var(--orange);background:#e9e6de;font-size:7.7pt;line-height:1.5;color:#465359}.source-note b{color:var(--ink)}
+.screen-frame{background:var(--night);padding:2.5mm;margin-top:5mm;box-shadow:0 4mm 12mm rgba(16,27,34,.17)}.screen-frame img{display:block;width:100%;height:auto}.screen-caption{display:flex;justify-content:space-between;align-items:center;margin-top:2mm;font-size:6pt;color:var(--muted)}.screen-caption b{color:#9b6333}.screen-grid{display:grid;grid-template-columns:1fr 1fr;gap:4mm;margin-top:4mm}.screen-mini{background:var(--night);padding:1.6mm;overflow:hidden}.screen-mini img{width:100%;height:66mm;object-fit:cover;object-position:top;display:block}.caption{padding:2.5mm;background:var(--white);border:.3mm solid var(--line);border-top:0}.caption b{font-size:7.8pt}.caption p{font-size:6.5pt;color:var(--muted);line-height:1.4;margin:1mm 0 0}
+.callouts{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-top:5mm}.callout{border-top:1.2mm solid var(--orange);background:var(--white);padding:3mm}.callout b{font-size:7.4pt;display:block}.callout p{font-size:6.1pt;color:var(--muted);line-height:1.4;margin:1.5mm 0 0}
+.field-grid{display:grid;grid-template-columns:67mm 1fr;gap:5mm;margin-top:5mm}.phone-shot{background:var(--night);padding:2mm;border-radius:5mm;box-shadow:0 4mm 12mm rgba(16,27,34,.18)}.phone-shot img{width:100%;height:160mm;object-fit:cover;object-position:top;display:block;border-radius:3.5mm}.timeline{display:flex;flex-direction:column;gap:2.5mm}.timeline .item{display:grid;grid-template-columns:10mm 1fr;background:var(--white);border:.3mm solid var(--line);padding:3.5mm}.timeline .num{width:7mm;height:7mm;display:grid;place-items:center;background:var(--orange);font:800 6pt ui-monospace,Menlo,monospace}.timeline b{font-size:8pt}.timeline p{font-size:6.5pt;line-height:1.45;color:var(--muted);margin:1mm 0 0}.ai-box{margin-top:3mm;background:var(--night);color:white;padding:4mm}.ai-box b{font-size:9pt;color:var(--orange)}.ai-box p{font-size:6.8pt;color:#9aafb7;line-height:1.5;margin:2mm 0 0}
+.plus-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-top:5mm}.plus{background:var(--white);border:.3mm solid var(--line);padding:3.4mm;min-height:29mm}.plus code{font:800 5.5pt ui-monospace,Menlo,monospace;color:#a0681c}.plus b{display:block;font-size:7.6pt;margin:2mm 0 1mm}.plus p{font-size:6.1pt;line-height:1.4;color:var(--muted);margin:0}
+.arch{margin-top:7mm;display:grid;grid-template-columns:1fr;gap:3mm}.arch-row{display:grid;grid-template-columns:29mm 1fr;gap:3mm}.arch-label{display:grid;align-items:center;background:var(--night);color:var(--orange);padding:3mm;font:800 6pt ui-monospace,Menlo,monospace}.arch-nodes{display:grid;grid-template-columns:repeat(4,1fr);gap:2mm}.node{background:var(--white);border:.3mm solid var(--line);padding:3mm}.node b{font-size:7.5pt}.node p{font-size:5.9pt;line-height:1.35;color:var(--muted);margin:1mm 0 0}.arch-row:nth-child(3) .node{border-top:1mm solid var(--cyan)}.arch-row:nth-child(4) .node{border-top:1mm solid var(--orange)}
+.guard-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-top:5mm}.guard{background:#e7e5dd;padding:3.5mm}.guard b{font-size:7.4pt}.guard p{font-size:6.1pt;color:var(--muted);line-height:1.4;margin:1.5mm 0 0}
+.compare{width:100%;border-collapse:collapse;margin-top:6mm;background:var(--white);font-size:7pt}.compare th{background:var(--night);color:white;text-align:left;padding:3.5mm;border-right:.25mm solid #2d434d;font-size:7.5pt}.compare th.reco{background:var(--orange);color:var(--night)}.compare td{padding:3mm 3.5mm;border-bottom:.25mm solid var(--line);vertical-align:top}.compare td:nth-child(2),.compare td:nth-child(3){width:52mm}.compare .price{font-size:13pt;font-weight:900}.yes{color:var(--green);font-weight:900}.partial{color:#9b6333;font-weight:800}
+.payment{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-top:5mm}.pay{background:var(--white);border:.3mm solid var(--line);padding:4mm}.pay strong{font-size:17pt;color:#9b6333}.pay b{display:block;font-size:8pt;margin:1.5mm 0}.pay p{font-size:6.4pt;color:var(--muted);line-height:1.45;margin:0}.pay.reco{background:var(--night);color:white;border-color:var(--night)}.pay.reco strong{color:var(--orange)}.pay.reco p{color:#8da2aa}
+.weeks{display:grid;grid-template-columns:repeat(10,1fr);gap:1mm;margin-top:5mm}.week{height:19mm;background:#dedbd3;padding:2mm}.week b{font:800 5.5pt ui-monospace,Menlo,monospace}.week span{display:block;font-size:5.5pt;line-height:1.25;margin-top:2mm;color:var(--muted)}.week.on{background:var(--night);color:white}.week.on span{color:#91a6ae}.week.milestone{background:var(--orange);color:var(--night)}.week.milestone span{color:#684c1d}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:4mm;margin-top:5mm}.listbox{background:var(--white);border:.3mm solid var(--line);padding:4mm}.listbox h3{font-size:9pt}.listbox ul{margin:3mm 0 0;padding-left:4mm}.listbox li{font-size:6.5pt;line-height:1.45;margin-bottom:1.4mm;color:var(--muted)}.listbox li b{color:var(--ink)}
+.cta{margin-top:5mm;background:var(--orange);padding:5mm;display:grid;grid-template-columns:1fr auto;gap:6mm;align-items:center}.cta h3{font-family:Georgia,serif;font-size:16pt;margin:0}.cta p{font-size:7pt;line-height:1.4;color:#5f4820;margin:2mm 0 0}.cta .action{background:var(--night);color:white;padding:4mm 5mm;font-size:7.5pt;font-weight:900}
+.commercial .section-head{margin-bottom:5mm}.commercial .compare{margin-top:4mm}.commercial .compare td{padding:2.2mm 3.5mm}.commercial .payment{margin-top:3mm}.commercial .pay{padding:3mm}.commercial .weeks{margin-top:3mm}.commercial .week{height:17mm}.commercial .twocol{margin-top:3mm}.commercial .listbox{padding:3mm}.commercial .listbox ul{margin-top:2mm}.commercial .listbox li{margin-bottom:1mm}.commercial .cta{margin-top:3mm;padding:4mm}
+</style>
+</head>
+<body>
+
+<section class="page dark">
+  <div class="topline">
+    <div class="brand"><span class="mark">F/4</span><span>FIELD / 400<small>BY PLLATO</small></span></div>
+    <div class="docmeta"><b>КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ</b>№ KP-F400-2026-01<br>12 августа 2026 · Алматы</div>
+  </div>
+  <div class="eyebrow" style="margin-top:21mm">CRM-СИСТЕМА ДЛЯ ОТДЕЛА ПОЛЕВЫХ ПРОДАЖ</div>
+  <h1>Не просто CRM.<br><span>Операционная система</span><br>для 400 торговых точек.</h1>
+  <p class="lead">Единый контур для заявок, клиентов, маршрутов, визитов, задач, контроля команды и аналитики — с 1С как источником заказов и финансовых данных.</p>
+  <div class="cover-grid">
+    <div class="cover-box">
+      <small>РЕКОМЕНДУЕМОЕ РЕШЕНИЕ</small><b>5 800 000 ₸</b>
+      <p>Полная версия: CRM + официальный WhatsApp/Instagram + 1С + PWA для агента + карта + офлайн + AI + аналитика.</p>
+    </div>
+    <div class="cover-mini">
+      <div class="cover-box"><small>СРОК</small><b>8–10</b><p>недель до полного запуска</p></div>
+      <div class="cover-box"><small>КОМАНДА</small><b>5–10</b><p>полевых агентов</p></div>
+      <div class="cover-box"><small>СЕТЬ</small><b>≈400</b><p>активных точек</p></div>
+      <div class="cover-box"><small>РОЛИ</small><b>4</b><p>агент → директор</p></div>
+    </div>
+  </div>
+  <div class="cover-foot">
+    <p>Подготовлено на основании документа <strong>«ТЗ. CRM-система для отдела продаж»</strong>.<br>Наименование и реквизиты Заказчика в исходном ТЗ не указаны и будут внесены в финальную редакцию.</p>
+    <div class="valid">УСЛОВИЯ ДЕЙСТВУЮТ ДО 22.08.2026</div>
+  </div>
+  <div class="folio"><span>PLLATO · CONFIDENTIAL</span><b>01 / 08</b></div>
+</section>
+
+<section class="page">
+  <div class="topline"><div class="brand"><span class="mark">F/4</span><span>FIELD / 400</span></div><div class="docmeta"><b>КОНЦЕПЦИЯ</b>От контроля действий — к росту продаж</div></div>
+  <div class="section-head"><div class="eyebrow">01 · РЕЗУЛЬТАТ</div><h2>Что получит бизнес</h2><p>Клиент просит учёт лидов, визитов и KPI. Мы предлагаем следующий уровень: систему, которая подсказывает команде следующий шаг и показывает руководителю, какая активность действительно создаёт оборот.</p></div>
+  <div class="three">
+    <div class="card"><span class="code">NOW</span><h3>Единая картина дня</h3><p>Все обращения, маршруты, отклонения, просрочки и результаты — в одном командном центре без ручной сборки Google-таблиц.</p></div>
+    <div class="card darkcard"><span class="code">FIELD</span><h3>Управляемый визит</h3><p>GPS check-in/out, фото только из CRM, аудио по правам, обязательный результат и следующая задача. Работает офлайн.</p></div>
+    <div class="card orange"><span class="code">GROW</span><h3>Рост, а не отчётность</h3><p>Риск оттока, белые пятна территории, возврат клиентов, next best action и связь полевой активности с продажами из 1С.</p></div>
+  </div>
+  <div class="journey">
+    <div class="step"><code>01 · LEAD</code><b>Обращение</b><p>WhatsApp / Instagram, поиск дубля, SLA ответа.</p></div>
+    <div class="step"><code>02 · QUAL</code><b>Квалификация</b><p>Новая карточка либо единая история клиента.</p></div>
+    <div class="step"><code>03 · PLAN</code><b>Маршрут</b><p>Окно визита, география, приоритет и загрузка.</p></div>
+    <div class="step"><code>04 · VISIT</code><b>Визит</b><p>GPS, фото, аудио, результат и договорённости.</p></div>
+    <div class="step"><code>05 · 1C</code><b>Заказ</b><p>Оформляется только в 1С — без дублирования.</p></div>
+    <div class="step"><code>06 · LOOP</code><b>Развитие</b><p>Оборот, повторный контакт, риск и возврат.</p></div>
+  </div>
+  <div class="promise"><b>1С остаётся источником истины.</b><p>CRM не создаёт второй склад, вторую номенклатуру или вторую финансовую систему. Она управляет коммуникациями и полевой работой, а затем получает из 1С статус, сумму, историю и оборот клиента.</p></div>
+  <div class="source-note"><b>Ключевая управленческая перемена:</b> руководитель видит не только «сколько звонков и визитов было», а цепочку <b>действие → результат визита → заказ в 1С → повторный оборот</b>.</div>
+  <div class="folio"><span>КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ · FIELD / 400</span><b>02 / 08</b></div>
+</section>
+
+<section class="page">
+  <div class="topline"><div class="brand"><span class="mark">F/4</span><span>FIELD / 400</span></div><div class="docmeta"><b>ФУНКЦИОНАЛЬНЫЙ КОНТУР</b>От лида до повторного заказа</div></div>
+  <div class="section-head"><div class="eyebrow">02 · СИСТЕМА</div><h2>Один рабочий контур вместо разрозненных таблиц</h2><p>Каждая роль получает свой интерфейс, но работает с одной карточкой клиента и одной историей событий.</p></div>
+  <div class="flow">
+    <div class="flow-side">
+      <div class="flow-card"><b>WhatsApp Business API</b><p>Диалоги, медиа, шаблоны, SLA, распределение и привязка к клиенту.</p></div>
+      <div class="flow-card"><b>Instagram Messaging</b><p>Новые обращения Direct, квалификация и назначение ответственного.</p></div>
+      <div class="flow-card"><b>Мобильная PWA</b><p>Маршрут, check-in/out, фото, аудио, результат, следующая задача.</p></div>
+      <div class="flow-card"><b>Карты и GPS</b><p>Территории, 400 точек, геозоны, белые пятна и оптимизация маршрута.</p></div>
+    </div>
+    <div class="flow-core">
+      <h3>FIELD / 400<br>Sales Operating System</h3>
+      <ul>
+        <li><b>Единая карточка 360°</b> · контакты, история, сделки, файлы</li>
+        <li><b>Воронка лидов</b> · от обращения до передачи заказа в 1С</li>
+        <li><b>Визиты и задачи</b> · план/факт, доказательства, следующий шаг</li>
+        <li><b>Полевые миссии</b> · кампании по сегментам, территориям и брендам</li>
+        <li><b>Возврат клиентов</b> · 30/60/90 дней, риск и сценарий реакции</li>
+        <li><b>KPI и coaching</b> · качество, дисциплина, результат и развитие</li>
+        <li><b>AI-слой</b> · briefing, конспект, аудит фото, next best action</li>
+      </ul>
+    </div>
+    <div class="flow-side">
+      <div class="flow-card"><b>1С · двусторонний обмен</b><p>ID клиента, дата/сумма/статус заказа, история, оборот, последний заказ.</p></div>
+      <div class="flow-card"><b>Директор</b><p>Продажи из 1С, активность, клиенты, территории, миссии и риски.</p></div>
+      <div class="flow-card"><b>Супервайзер</b><p>Команда, маршруты, отклонения, качество визитов и coaching.</p></div>
+      <div class="flow-card"><b>Администратор</b><p>Роли, справочники, интеграции, обязательные поля и журнал аудита.</p></div>
+    </div>
+  </div>
+  <div class="callouts">
+    <div class="callout"><b>Официальные API</b><p>Каналы подключаются через официальных провайдеров. История сообщений сохраняется централизованно.</p></div>
+    <div class="callout"><b>Без дублей</b><p>Поиск по телефону, WhatsApp и 1C ID до создания новой карточки клиента.</p></div>
+    <div class="callout"><b>Настраиваемые правила</b><p>Обязательные поля, статусы, SLA, периоды потери и KPI задаются без переписывания системы.</p></div>
+    <div class="callout"><b>Готово к росту</b><p>Архитектура рассчитана на расширение команды, территорий, каналов и отчётов.</p></div>
+  </div>
+  <div class="source-note"><b>Граница ответственности:</b> товары, остатки, цены, проведение заказа и финансовый учёт остаются в 1С. CRM показывает нужный контекст, но не подменяет учётную систему.</div>
+  <div class="folio"><span>КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ · FIELD / 400</span><b>03 / 08</b></div>
+</section>
+
+<section class="page">
+  <div class="topline"><div class="brand"><span class="mark">F/4</span><span>FIELD / 400</span></div><div class="docmeta"><b>ИНТЕРАКТИВНАЯ ДЕМО</b>Реальные рабочие сценарии</div></div>
+  <div class="section-head"><div class="eyebrow">03 · ВИДЕНИЕ ПРОДУКТА</div><h2>Командный центр и живая карта территории</h2><p>Демо уже показывает будущий опыт пользователя: интерфейс можно открыть по ролям, перейти в каждый раздел, провалиться в клиента, оптимизировать маршрут и завершить визит.</p></div>
+  <div class="screen-frame"><img src="assets/field400/pulse.png" alt="Командный центр FIELD / 400"></div>
+  <div class="screen-caption"><span><b>ЭКРАН 01</b> · Пульс продаж: команда в поле, сигналы и результат</span><span>КЛИКАБЕЛЬНЫЙ ПРОТОТИП</span></div>
+  <div class="screen-grid">
+    <div class="screen-mini"><img src="assets/field400/map.png" alt="Карта территории" style="height:55mm"><div class="caption"><b>Карта 400 точек</b><p>Территории агентов, маршруты, риски, белые пятна и пересборка дневного плана.</p></div></div>
+    <div class="screen-mini"><img src="assets/field400/analytics.png" alt="Аналитика" style="height:55mm"><div class="caption"><b>Аналитика, которая объясняет продажи</b><p>Воронка, активность, динамика 1С и вклад возвратов, новых точек и кампаний.</p></div></div>
+  </div>
+  <div class="folio"><span>КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ · FIELD / 400</span><b>04 / 08</b></div>
+</section>
+
+<section class="page">
+  <div class="topline"><div class="brand"><span class="mark">F/4</span><span>FIELD / 400</span></div><div class="docmeta"><b>МОБИЛЬНОЕ РАБОЧЕЕ МЕСТО</b>Один сценарий для каждого визита</div></div>
+  <div class="section-head"><div class="eyebrow">04 · АГЕНТ В ПОЛЕ</div><h2>Визит, который невозможно «дорисовать» задним числом</h2><p>PWA работает прямо в браузере телефона, устанавливается на главный экран и сохраняет операции при нестабильном интернете.</p></div>
+  <div class="field-grid">
+    <div class="phone-shot"><img src="assets/field400/mobile-visit.png" alt="Мобильный сценарий визита"></div>
+    <div>
+      <div class="timeline">
+        <div class="item"><span class="num">01</span><div><b>AI-бриф перед визитом</b><p>Последние заказы, переписка, риск, договорённости и рекомендованное предложение за 30 секунд.</p></div></div>
+        <div class="item"><span class="num">02</span><div><b>GPS check-in и плановое окно</b><p>Координаты, точность, время прибытия, отклонение и геозона торговой точки.</p></div></div>
+        <div class="item"><span class="num">03</span><div><b>Фото только через CRM</b><p>Дата, время и GPS; AI проверяет качество, наличие бренда и долю полки.</p></div></div>
+        <div class="item"><span class="num">04</span><div><b>Аудио с правами доступа</b><p>Запись по разрешению, расшифровка, резюме и выделение обязательств сторон.</p></div></div>
+        <div class="item"><span class="num">05</span><div><b>Обязательный результат</b><p>Исход визита, комментарий, следующая задача, срок и ответственный.</p></div></div>
+        <div class="item"><span class="num">06</span><div><b>Офлайн-синхронизация</b><p>Действия остаются в защищённой очереди и уходят на сервер после восстановления сети.</p></div></div>
+      </div>
+      <div class="ai-box"><b>WAU-функция: качество визита, а не факт посещения</b><p>Руководитель видит доказательства, результат, созданный следующий шаг и влияние визита на заказ. AI подсвечивает слабые отчёты и помогает супервайзеру выбрать разговор для coaching.</p></div>
+    </div>
+  </div>
+  <div class="folio"><span>КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ · FIELD / 400</span><b>05 / 08</b></div>
+</section>
+
+<section class="page">
+  <div class="topline"><div class="brand"><span class="mark">F/4</span><span>FIELD / 400</span></div><div class="docmeta"><b>СВЕРХ ИСХОДНОГО ТЗ</b>Функции для роста и масштабирования</div></div>
+  <div class="section-head"><div class="eyebrow">05 · +10 ВОЗМОЖНОСТЕЙ</div><h2>Мы предлагаем больше, чем учёт активности</h2><p>Дополнительные механики делают систему не архивом действий, а ежедневным инструментом управления выручкой.</p></div>
+  <div class="plus-grid">
+    <div class="plus"><code>+01</code><b>AI-бриф перед визитом</b><p>Ключевой контекст, риск и следующее лучшее действие без чтения всей истории.</p></div>
+    <div class="plus"><code>+02</code><b>AI-конспект встречи</b><p>Обязательства, договорённости и задача создаются из аудио автоматически.</p></div>
+    <div class="plus"><code>+03</code><b>Фото-аудит точки</b><p>Качество фото, присутствие бренда, доля полки и несоответствия.</p></div>
+    <div class="plus"><code>+04</code><b>Next best action</b><p>Персональная подсказка: кому звонить, что предложить и почему сейчас.</p></div>
+    <div class="plus"><code>+05</code><b>Оптимизатор маршрута</b><p>Окна клиентов, приоритет, расстояние, загрузка и просрочки в одном плане.</p></div>
+    <div class="plus"><code>+06</code><b>Белые пятна</b><p>Карта выявляет территории без покрытия и сегменты с высоким потенциалом.</p></div>
+    <div class="plus"><code>+07</code><b>Recovery center</b><p>Риск 30/60/90, потенциальный оборот и пакет задач на возврат клиентов.</p></div>
+    <div class="plus"><code>+08</code><b>Полевые миссии</b><p>Кампании по бренду, сегменту или территории с планом, фото и эффектом.</p></div>
+    <div class="plus"><code>+09</code><b>Supervisor coaching</b><p>Оценка качества визитов, подбор кейсов и индивидуальный план развития.</p></div>
+    <div class="plus"><code>+10</code><b>Причинная аналитика</b><p>Связь активности, возвратов, кампаний и новых точек с оборотом из 1С.</p></div>
+    <div class="plus"><code>+11</code><b>Контроль SLA</b><p>Не просто таймер: эскалация, перераспределение и причина просрочки.</p></div>
+    <div class="plus"><code>+12</code><b>Конструктор правил</b><p>Статусы, обязательные поля, периоды потери и KPI без доработки кода.</p></div>
+  </div>
+  <div class="screen-grid" style="margin-top:5mm">
+    <div class="screen-mini"><img src="assets/field400/recovery.png" alt="Центр возврата клиентов" style="height:42mm"><div class="caption"><b>Центр возврата клиентов</b><p>Приоритет, потенциальный оборот, сценарий и массовая постановка задач.</p></div></div>
+    <div class="screen-mini"><img src="assets/field400/visit.png" alt="AI контекст визита" style="height:42mm"><div class="caption"><b>AI-контекст визита</b><p>Аудио, конспект, фото-аудит и рекомендованный следующий шаг.</p></div></div>
+  </div>
+  <div class="folio"><span>КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ · FIELD / 400</span><b>06 / 08</b></div>
+</section>
+
+<section class="page">
+  <div class="topline"><div class="brand"><span class="mark">F/4</span><span>FIELD / 400</span></div><div class="docmeta"><b>АРХИТЕКТУРА</b>API-first · роли · офлайн · аудит</div></div>
+  <div class="section-head"><div class="eyebrow">06 · ТЕХНИЧЕСКОЕ РЕШЕНИЕ</div><h2>Архитектура без тупиков и дублирования 1С</h2><p>Финальный стек уточняется после обследования 1С и провайдеров каналов. Ниже — целевая логика системы и границы данных.</p></div>
+  <div class="arch">
+    <div class="arch-row"><div class="arch-label">ИНТЕРФЕЙСЫ</div><div class="arch-nodes"><div class="node"><b>Web-портал</b><p>Директор, супервайзер, администратор</p></div><div class="node"><b>PWA агента</b><p>Офлайн, GPS, камера, аудио</p></div><div class="node"><b>Role-based UI</b><p>Разделы и данные по роли</p></div><div class="node"><b>Экспорт</b><p>Excel/CSV и печатные отчёты</p></div></div></div>
+    <div class="arch-row"><div class="arch-label">ПРИКЛАДНОЙ API</div><div class="arch-nodes"><div class="node"><b>CRM Core API</b><p>Клиенты, лиды, события, задачи</p></div><div class="node"><b>Visit API</b><p>check-in/out, медиа, результат</p></div><div class="node"><b>Analytics API</b><p>KPI, воронка, активность, риск</p></div><div class="node"><b>Rules Engine</b><p>SLA, обязательность, 30/60/90</p></div></div></div>
+    <div class="arch-row"><div class="arch-label">ДАННЫЕ</div><div class="arch-nodes"><div class="node"><b>PostgreSQL</b><p>Карточки, события, права, задачи</p></div><div class="node"><b>Object Storage</b><p>Фото, аудио, документы</p></div><div class="node"><b>Offline Queue</b><p>Идемпотентная синхронизация</p></div><div class="node"><b>Audit Log</b><p>Кто, что и когда изменил</p></div></div></div>
+    <div class="arch-row"><div class="arch-label">ИНТЕГРАЦИИ</div><div class="arch-nodes"><div class="node"><b>1С</b><p>REST/OData/обмен по согласованному API</p></div><div class="node"><b>WhatsApp</b><p>Официальный Business API</p></div><div class="node"><b>Instagram</b><p>Официальный Messaging API</p></div><div class="node"><b>Карты / AI</b><p>Маршрутизация и модели анализа</p></div></div></div>
+  </div>
+  <div class="guard-grid">
+    <div class="guard"><b>Права по ролям</b><p>Агент видит своих клиентов; руководитель — свою команду; директор — всю сеть.</p></div>
+    <div class="guard"><b>Защита медиа</b><p>Сроки хранения, доступ к аудио и скачивание задаются политиками.</p></div>
+    <div class="guard"><b>Надёжный обмен</b><p>Очередь, повторная отправка, контроль дублей и журнал ошибок интеграций.</p></div>
+    <div class="guard"><b>Резервирование</b><p>Мониторинг, резервные копии и процедура восстановления.</p></div>
+  </div>
+  <div class="source-note"><b>До старта разработки:</b> проводим техническое обследование версии и конфигурации 1С, доступных методов обмена, лимитов WhatsApp/Instagram, политики хранения аудио и точности геопроверки.</div>
+  <div class="folio"><span>КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ · FIELD / 400</span><b>07 / 08</b></div>
+</section>
+
+<section class="page commercial">
+  <div class="topline"><div class="brand"><span class="mark">F/4</span><span>FIELD / 400</span></div><div class="docmeta"><b>СТОИМОСТЬ И ЗАПУСК</b>Два варианта · рекомендуем полный</div></div>
+  <div class="section-head"><div class="eyebrow">07 · КОММЕРЧЕСКИЕ УСЛОВИЯ</div><h2>Запуск по контрольным результатам</h2><p>Можно начать с MVP, однако максимальный управленческий эффект дают AI, офлайн, recovery, полевые миссии и причинная аналитика полной версии.</p></div>
+  <table class="compare">
+    <thead><tr><th>Состав</th><th>MVP · 6 недель</th><th class="reco">FIELD / 400 · 8–10 недель</th></tr></thead>
+    <tbody>
+      <tr><td>Пользователи, роли, клиенты 360°, история, задачи, отчёты</td><td><span class="yes">Включено</span></td><td><span class="yes">Включено</span></td></tr>
+      <tr><td>WhatsApp / Instagram: единый inbox, SLA, дедупликация</td><td><span class="yes">Включено</span></td><td><span class="yes">Включено</span></td></tr>
+      <tr><td>Визиты: GPS, фото, результат, следующая задача</td><td><span class="yes">Включено</span></td><td><span class="yes">Включено</span></td></tr>
+      <tr><td>1С: клиенты, заказы, история, оборот, последний заказ</td><td><span class="yes">Базовый обмен</span></td><td><span class="yes">Расширенный и контролируемый</span></td></tr>
+      <tr><td>Карта, территории и дневные маршруты</td><td><span class="partial">Базовая карта</span></td><td><span class="yes">Оптимизация + белые пятна</span></td></tr>
+      <tr><td>Офлайн PWA, аудио, AI-бриф, конспект и фото-аудит</td><td>—</td><td><span class="yes">Включено</span></td></tr>
+      <tr><td>Recovery center, полевые миссии, coaching, причинная аналитика</td><td>—</td><td><span class="yes">Включено</span></td></tr>
+      <tr><td><b>Стоимость разработки и внедрения</b></td><td class="price">3 600 000 ₸</td><td class="price">5 800 000 ₸</td></tr>
+    </tbody>
+  </table>
+  <div class="payment">
+    <div class="pay reco"><strong>10%</strong><b>580 000 ₸ · предоплата</b><p>Старт проекта, обследование 1С, карта процессов и финальная архитектура.</p></div>
+    <div class="pay"><strong>45%</strong><b>2 610 000 ₸ · ядро согласовано</b><p>Роли, клиенты, inbox, воронка, задачи, визиты и базовая интеграция готовы к приёмке.</p></div>
+    <div class="pay"><strong>45%</strong><b>2 610 000 ₸ · система сдана</b><p>Полная версия развёрнута, данные проверены, обучение проведено, акт приёмки подписан.</p></div>
+  </div>
+  <div class="weeks">
+    <div class="week on"><b>W01</b><span>обследование</span></div><div class="week on"><b>W02</b><span>UX + прототип</span></div><div class="week milestone"><b>W03</b><span>ядро · контроль</span></div><div class="week on"><b>W04</b><span>каналы + CRM</span></div><div class="week on"><b>W05</b><span>визиты + карта</span></div><div class="week milestone"><b>W06</b><span>MVP · пилот</span></div><div class="week on"><b>W07</b><span>AI + recovery</span></div><div class="week on"><b>W08</b><span>аналитика</span></div><div class="week on"><b>W09</b><span>пилот команды</span></div><div class="week milestone"><b>W10</b><span>запуск</span></div>
+  </div>
+  <div class="twocol">
+    <div class="listbox"><h3>В стоимость включено</h3><ul><li><b>Discovery:</b> обследование, архитектура, карта интеграций.</li><li><b>Разработка:</b> web/PWA, API, БД, роли и заявленный функционал.</li><li><b>Внедрение:</b> тестирование, пилот, обучение ключевых пользователей.</li><li><b>Гарантия:</b> 30 календарных дней после промышленного запуска.</li></ul></div>
+    <div class="listbox"><h3>Оплачивается отдельно</h3><ul><li>Лицензии/доработки 1С и работы внешнего 1С-подрядчика.</li><li>Тарифы WhatsApp BSP, Meta, карт, телефонии, AI и хостинга.</li><li>Массовая очистка/ручное восстановление исходных данных.</li><li>Новые модули за пределами согласованного ТЗ и change request.</li></ul></div>
+  </div>
+  <div class="cta"><div><h3>Следующий шаг — 90 минут discovery</h3><p>Фиксируем конфигурацию 1С, каналы, поля карточки, правила визита, KPI и выбираем пилотную группу. После этого выдаём календарный план и спецификацию интеграций.</p></div><div class="action">СОГЛАСОВАТЬ СТАРТ</div></div>
+  <div class="folio"><span>PLLATO · АЛМАТЫ · 12.08.2026</span><b>08 / 08</b></div>
+</section>
+
+</body>
+</html>
