@@ -5,7 +5,8 @@ const require = createRequire(import.meta.url);
 const { chromium } = require('/Users/platontsay/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 
 const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const base = 'http://127.0.0.1:4179/app/field400.html';
+const port = process.env.DEMO_PORT || '4179';
+const base = `http://127.0.0.1:${port}/app/field400.html`;
 const token = 'MTgwMTkxNTkzODA5My5nYXNnNnY=';
 const out = new URL('./assets/field400/', import.meta.url).pathname;
 
@@ -14,7 +15,7 @@ const browser = await chromium.launch({ executablePath: chrome, headless: true }
 const page = await browser.newPage({ viewport: { width: 1440, height: 920 }, deviceScaleFactor: 1 });
 
 async function enterIfNeeded(target, role) {
-  const button = target.getByRole('button', { name: role, exact: true });
+  const button = target.locator('.role', { hasText: role }).first();
   if (await button.isVisible({ timeout: 400 }).catch(() => false)) await button.click();
 }
 
