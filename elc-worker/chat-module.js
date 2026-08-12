@@ -549,8 +549,21 @@ async function getMessages(env, me, channelId, url) {
   const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 50));
   const before = url.searchParams.get('before') || null;
   const around = url.searchParams.get('around') || null;
+  const after = url.searchParams.get('after') || null;
   let results;
-  if (around) {
+  if (after) {
+    // Лёгкая дельта для резервной синхронизации, если мобильный браузер
+    // считает WebSocket открытым, хотя фактически уже перестал получать события.
+    const r = await env.DB.prepare(`
+      SELECT * FROM team_chat_msgs
+      WHERE channel_id = ?
+        AND created_at > (
+          SELECT created_at FROM team_chat_msgs WHERE id = ? AND channel_id = ?
+        )
+      ORDER BY created_at DESC LIMIT ?
+    `).bind(channelId, after, channelId, limit).all();
+    results = r.results;
+  } else if (around) {
     const tgt = await env.DB.prepare(
       "SELECT created_at FROM team_chat_msgs WHERE id = ? AND channel_id = ?"
     ).bind(around, channelId).first();
@@ -597,6 +610,23 @@ async function getMessages(env, me, channelId, url) {
     }
     for (const m of results) {
       m.reactions = Object.entries(byMsg[m.id] || {}).map(([emoji, users]) => ({ emoji, users }));
+    }
+
+    // Отдаём снимок цитируемого сообщения вместе с ответом. Раньше клиент
+    // пытался найти оригинал только в своей локально загруженной истории:
+    // автор его видел, а другой участник (если оригинал был вне окна из 50)
+    // получал ответ без цитаты.
+    const replyIds = [...new Set(results.map(m => m.reply_to).filter(Boolean))];
+    if (replyIds.length) {
+      const replyPh = replyIds.map(() => '?').join(',');
+      const { results: replies } = await env.DB.prepare(`
+        SELECT id, user_id, text, type, deleted_at
+        FROM team_chat_msgs WHERE channel_id = ? AND id IN (${replyPh})
+      `).bind(channelId, ...replyIds).all();
+      const byReplyId = Object.fromEntries((replies || []).map(row => [row.id, row]));
+      for (const m of results) {
+        if (m.reply_to && byReplyId[m.reply_to]) m.reply_preview = byReplyId[m.reply_to];
+      }
     }
   }
   // Водяные знаки прочтения других участников: для каждого участника (кроме
@@ -650,14 +680,24 @@ async function sendMessage(env, me, channelId, body) {
     mentions = rawMentions.filter(u => memSet.has(u));
   }
   const mentionsJson = mentions.length ? JSON.stringify(mentions) : null;
+  let replyPreview = null;
+  if (replyTo) {
+    replyPreview = await env.DB.prepare(`
+      SELECT id, user_id, text, type, deleted_at
+      FROM team_chat_msgs WHERE id = ? AND channel_id = ? LIMIT 1
+    `).bind(replyTo, channelId).first();
+    if (!replyPreview) return errRes('reply message not found', 404);
+  }
   const id = uuid();
   const ts = now();
   await env.DB.prepare(`
     INSERT INTO team_chat_msgs (id, channel_id, user_id, text, type, file_key, file_meta, reply_to, mentions, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(id, channelId, me.uid, text, type, fileKey, fileMeta, replyTo, mentionsJson, ts).run();
-  const message = { id, channel_id: channelId, user_id: me.uid, text, type, file_key: fileKey, file_meta: fileMeta, reply_to: replyTo, mentions, created_at: ts };
-  broadcastToChannel(env, channelId, { kind: 'message_new', message });
+  const message = { id, channel_id: channelId, user_id: me.uid, text, type, file_key: fileKey, file_meta: fileMeta, reply_to: replyTo, reply_preview: replyPreview, mentions, created_at: ts };
+  // waitUntil удерживает Worker живым до фактической доставки события во все
+  // UserNotifyRoom. Голый Promise раньше мог быть отменён сразу после HTTP 200.
+  runBg(broadcastToChannel(env, channelId, { kind: 'message_new', message }));
   runBg(notifyChatMessage(env, channelId, me, message));
   return jsonRes({ message });
 }
@@ -676,7 +716,7 @@ async function editMessage(env, me, messageId, body) {
     INSERT INTO team_chat_history (id, message_id, channel_id, author_id, action, prev_text, acted_by, acted_at)
     VALUES (?, ?, ?, ?, 'edited', ?, ?, ?)
   `).bind(uuid(), messageId, prev.channel_id, me.uid, prev.text, me.uid, ts).run();
-  broadcastToChannel(env, prev.channel_id, { kind: 'message_edited', message_id: messageId, text, edited_at: ts });
+  runBg(broadcastToChannel(env, prev.channel_id, { kind: 'message_edited', message_id: messageId, text, edited_at: ts }));
   return jsonRes({ ok: true });
 }
 
@@ -692,7 +732,7 @@ async function deleteMessage(env, me, messageId) {
     INSERT INTO team_chat_history (id, message_id, channel_id, author_id, action, prev_text, acted_by, acted_at)
     VALUES (?, ?, ?, ?, 'deleted', ?, ?, ?)
   `).bind(uuid(), messageId, msg.channel_id, me.uid, msg.text, me.uid, ts).run();
-  broadcastToChannel(env, msg.channel_id, { kind: 'message_deleted', message_id: messageId, channel_id: msg.channel_id });
+  runBg(broadcastToChannel(env, msg.channel_id, { kind: 'message_deleted', message_id: messageId, channel_id: msg.channel_id }));
   return jsonRes({ ok: true });
 }
 
@@ -717,7 +757,7 @@ async function addReaction(env, me, messageId, body) {
     grouped[r.emoji].push(r.user_id);
   }
   const reactions = Object.entries(grouped).map(([emoji, users]) => ({ emoji, users }));
-  broadcastToChannel(env, msg.channel_id, { kind: 'reaction_changed', message_id: messageId, reactions });
+  runBg(broadcastToChannel(env, msg.channel_id, { kind: 'reaction_changed', message_id: messageId, reactions }));
   return jsonRes({ reactions });
 }
 
@@ -736,7 +776,7 @@ async function removeReaction(env, me, messageId, body) {
   const grouped = {};
   for (const r of rx) { if (!grouped[r.emoji]) grouped[r.emoji] = []; grouped[r.emoji].push(r.user_id); }
   const reactions = Object.entries(grouped).map(([emoji, users]) => ({ emoji, users }));
-  broadcastToChannel(env, msg.channel_id, { kind: 'reaction_changed', message_id: messageId, reactions });
+  runBg(broadcastToChannel(env, msg.channel_id, { kind: 'reaction_changed', message_id: messageId, reactions }));
   return jsonRes({ reactions });
 }
 
@@ -756,7 +796,7 @@ async function markAsRead(env, me, channelId, body) {
     const row = await env.DB.prepare('SELECT created_at FROM team_chat_msgs WHERE id = ?').bind(lastReadId).first();
     lastReadAt = row?.created_at || 0;
   } catch (e) {}
-  broadcastToChannel(env, channelId, { kind: 'read', channel_id: channelId, user_id: me.uid, last_read_message_id: lastReadId, last_read_at: lastReadAt });
+  runBg(broadcastToChannel(env, channelId, { kind: 'read', channel_id: channelId, user_id: me.uid, last_read_message_id: lastReadId, last_read_at: lastReadAt }));
   // Открыл канал → схлопнутое уведомление «chatnt_<channel>_<uid>» считаем прочитанным,
   // колокольчик в team.html обновляем реактивно (kind:'notif_read'), без ожидания поллинга.
   try {
@@ -790,7 +830,7 @@ async function markDelivered(env, me, channelId, body) {
   ).bind(id, channelId, ...ids, id).run();
   let ts = 0;
   try { const row = await env.DB.prepare('SELECT created_at FROM team_chat_msgs WHERE id = ?').bind(id).first(); ts = row?.created_at || 0; } catch (e) {}
-  broadcastToChannel(env, channelId, { kind: 'delivered', channel_id: channelId, user_id: me.uid, last_delivered_message_id: id, last_delivered_at: ts });
+  runBg(broadcastToChannel(env, channelId, { kind: 'delivered', channel_id: channelId, user_id: me.uid, last_delivered_message_id: id, last_delivered_at: ts }));
   return jsonRes({ ok: true });
 }
 
@@ -811,7 +851,7 @@ async function leaveChannel(env, me, channelId) {
   await env.DB.prepare(
     `DELETE FROM team_chat_members WHERE channel_id = ? AND user_id IN (${phList(ids)})`
   ).bind(channelId, ...ids).run();
-  broadcastToChannel(env, channelId, { kind: 'user_left', channel_id: channelId, user_id: me.uid });
+  runBg(broadcastToChannel(env, channelId, { kind: 'user_left', channel_id: channelId, user_id: me.uid }));
   broadcastToUser(env, me.uid, { kind: 'channel_removed', channel_id: channelId });
   return jsonRes({ ok: true });
 }
@@ -868,7 +908,7 @@ async function removeMember(env, me, channelId, targetUid) {
   await env.DB.prepare(
     "DELETE FROM team_chat_members WHERE channel_id = ? AND user_id = ?"
   ).bind(channelId, targetUid).run();
-  broadcastToChannel(env, channelId, { kind: 'user_left', channel_id: channelId, user_id: targetUid });
+  runBg(broadcastToChannel(env, channelId, { kind: 'user_left', channel_id: channelId, user_id: targetUid }));
   broadcastToUser(env, targetUid, { kind: 'channel_removed', channel_id: channelId });
   return jsonRes({ ok: true });
 }
@@ -888,7 +928,7 @@ async function addMembers(env, me, channelId, body) {
       "INSERT OR IGNORE INTO team_chat_members (channel_id, user_id, joined_at, role) VALUES (?, ?, ?, 'member')"
     ).bind(channelId, uid, ts).run();
     broadcastToUser(env, uid, { kind: 'channel_added', channel_id: channelId });
-    broadcastToChannel(env, channelId, { kind: 'user_joined', channel_id: channelId, user_id: uid });
+    runBg(broadcastToChannel(env, channelId, { kind: 'user_joined', channel_id: channelId, user_id: uid }));
     // Только реально добавленным (а не уже состоявшим) — колокольчик + push.
     if (r.meta?.changes) runBg(notifyAddedToChannel(env, channelId, me, uid));
   }
@@ -914,7 +954,7 @@ async function removeMembers(env, me, channelId, body) {
     ).bind(channelId, uid).run();
     if (r.meta?.changes) {
       removed += r.meta.changes;
-      broadcastToChannel(env, channelId, { kind: 'user_left', channel_id: channelId, user_id: uid });
+      runBg(broadcastToChannel(env, channelId, { kind: 'user_left', channel_id: channelId, user_id: uid }));
       broadcastToUser(env, uid, { kind: 'channel_removed', channel_id: channelId });
     }
   }
@@ -931,7 +971,7 @@ async function renameChannel(env, me, channelId, body) {
   const name = String(body.name || '').trim().slice(0, 120);
   if (!name) return errRes('name required');
   await env.DB.prepare("UPDATE team_chat_channels SET name = ? WHERE id = ?").bind(name, channelId).run();
-  broadcastToChannel(env, channelId, { kind: 'channel_renamed', channel_id: channelId, name });
+  runBg(broadcastToChannel(env, channelId, { kind: 'channel_renamed', channel_id: channelId, name }));
   return jsonRes({ ok: true, name });
 }
 
@@ -944,7 +984,7 @@ async function setChannelIcon(env, me, channelId, body) {
   await ensureChannelIconColumn(env);
   const icon = String(body.icon || '').trim().slice(0, 16) || null;
   await env.DB.prepare("UPDATE team_chat_channels SET icon = ? WHERE id = ?").bind(icon, channelId).run();
-  broadcastToChannel(env, channelId, { kind: 'channel_icon', channel_id: channelId, icon });
+  runBg(broadcastToChannel(env, channelId, { kind: 'channel_icon', channel_id: channelId, icon }));
   return jsonRes({ ok: true, icon });
 }
 
@@ -969,7 +1009,7 @@ async function uploadChannelIcon(request, env, me, channelId) {
   const icon = `${new URL(request.url).origin}/api/avatar/${encodeURIComponent(key)}`;
   await ensureChannelIconColumn(env);
   await env.DB.prepare("UPDATE team_chat_channels SET icon = ? WHERE id = ?").bind(icon, channelId).run();
-  broadcastToChannel(env, channelId, { kind: 'channel_icon', channel_id: channelId, icon });
+  runBg(broadcastToChannel(env, channelId, { kind: 'channel_icon', channel_id: channelId, icon }));
   return jsonRes({ ok: true, icon });
 }
 
@@ -1034,7 +1074,7 @@ async function setMemberRole(env, me, channelId, targetUid, body) {
   await env.DB.prepare(
     "UPDATE team_chat_members SET role = ? WHERE channel_id = ? AND user_id = ?"
   ).bind(role, channelId, targetUid).run();
-  broadcastToChannel(env, channelId, { kind: 'members_changed', channel_id: channelId });
+  runBg(broadcastToChannel(env, channelId, { kind: 'members_changed', channel_id: channelId }));
   broadcastToUser(env, targetUid, { kind: 'role_changed', channel_id: channelId, role });
   return jsonRes({ ok: true, role });
 }
