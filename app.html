@@ -1015,7 +1015,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
   // Если Chrome оставил старую HTML-версию в кэше и основной module-script не
   // стартовал, не держим пользователя на бесконечном экране проверки доступа.
   (() => {
-    const retryKey = 'pllato_app_boot_retry_v1';
+    const retryKey = 'pllato_app_boot_retry_v2';
     const freshUrl = () => {
       const url = new URL(window.location.href);
       url.searchParams.set('_app_fresh', String(Date.now()));
@@ -1032,15 +1032,14 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
       try { sessionStorage.removeItem(retryKey); } catch (_) {}
     });
     window.setTimeout(() => {
-      const untouched = document.getElementById('loading-text')?.textContent?.trim() === 'Проверка доступа...';
-      if (!loadingVisible() || window.__PLLATO_APP_BOOT_STARTED__ || !untouched) return;
+      if (!loadingVisible() || window.__PLLATO_APP_READY__) return;
       let retried = false;
       try { retried = sessionStorage.getItem(retryKey) === '1'; } catch (_) {}
       if (!retried) {
         try { sessionStorage.setItem(retryKey, '1'); } catch (_) {}
         window.location.replace(freshUrl());
       }
-    }, 5000);
+    }, 8000);
     window.setTimeout(() => {
       if (!loadingVisible() || window.__PLLATO_APP_READY__) return;
       const loading = document.getElementById('loading');
@@ -1051,7 +1050,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
         + '</div>';
       document.getElementById('app-boot-retry')?.addEventListener('click', () => window.location.replace(freshUrl()));
       try { sessionStorage.removeItem(retryKey); } catch (_) {}
-    }, 20000);
+    }, 16000);
   })();
   </script>
 
@@ -2433,7 +2432,7 @@ import {
   signOut as localSignOut,
   apiFetch,
   requireSession,
-} from './pllato-kz-shared/pllato-api.js?v=20260812-app-boot';
+} from './pllato-kz-shared/pllato-api.js?v=20260813-access-timeout';
 import { openEmployeeDocumentsDialog } from './documents/share_dialog.js?v=20260812-app-boot';
 import { normalizeDocument } from './documents/registry.js?v=20260812-app-boot';
 
@@ -2559,7 +2558,7 @@ function push(pathRef) {
 }
 
 async function loadUsersMap() {
-  const data = await apiFetch('/users/list');
+  const data = await apiFetch('/users/list', { timeoutMs: 10000 });
   const map = {};
   for (const user of (data?.users || [])) {
     if (!user?.id) continue;
@@ -2779,11 +2778,14 @@ onAuthStateChanged(auth, async (user) => {
     if (cached) cachedUser = JSON.parse(cached);
   } catch (e) {}
 
-  // Если есть свежий кэш (< 1 час) — показываем сразу
-  const CACHE_FRESH_MS = 60 * 60 * 1000;
-  if (cachedUser && cachedUser.email && cachedUser.cachedAt &&
-      Date.now() - cachedUser.cachedAt < CACHE_FRESH_MS &&
-      cachedUser.email.toLowerCase() === (user.email || '').toLowerCase()) {
+  // Пока подписанная JWT-сессия действительна (на сервере она выдаётся на 7
+  // дней), App не должен блокировать вход сетевым запросом. Показываем последний
+  // подтверждённый профиль сразу, а права обновляем в фоне.
+  const cachedUserMatches = Boolean(
+    cachedUser?.email &&
+    cachedUser.email.toLowerCase() === (user.email || '').toLowerCase()
+  );
+  if (cachedUserMatches) {
     CURRENT = {
       email: user.email,
       name: cachedUser.name || user.displayName || user.email.split('@')[0],
@@ -2801,6 +2803,40 @@ onAuthStateChanged(auth, async (user) => {
       crmUserData: cachedUser.crmUserData || {},
     });
     // Тихо обновим кэш в фоне
+    refreshUserDataInBackground(user);
+    return;
+  }
+
+  // Если кэш профиля был очищен самим браузером, данные действующей серверной
+  // сессии всё равно достаточны для мгновенного запуска. Любое чтение/изменение
+  // данных по-прежнему проверяет этот JWT на API, а актуальные права придут
+  // фоновым запросом ниже.
+  if (session?.user?.email &&
+      session.user.email.toLowerCase() === (user.email || '').toLowerCase()) {
+    const sessionProfile = session.user;
+    CURRENT = buildCurrent(user, sessionProfile, sessionProfile.id || user.uid);
+    const userData = {
+      email: user.email,
+      name: CURRENT.name,
+      photoURL: user.photoURL || '',
+      authUid: user.uid,
+      crmUid: CURRENT.crmUid,
+      crmUserData: {
+        name: sessionProfile.name || CURRENT.name,
+        lastName: sessionProfile.lastName || '',
+        position: sessionProfile.position || '',
+      },
+      flags: { isAdmin: CURRENT.isAdmin, isSuperAdmin: CURRENT.isSuperAdmin },
+      apps: CURRENT.apps,
+      cachedAt: Date.now(),
+    };
+    try { localStorage.setItem('pllato_user_cache', JSON.stringify(userData)); } catch (_) {}
+    showApp({
+      email: user.email,
+      name: userData.name,
+      photoURL: userData.photoURL,
+      crmUserData: userData.crmUserData,
+    });
     refreshUserDataInBackground(user);
     return;
   }
@@ -2998,6 +3034,10 @@ async function refreshUserDataInBackground(user) {
     }
     if (!foundUser) {
       localStorage.removeItem('pllato_user_cache');
+      if (!isRootSuper(userEmail)) {
+        await fbSignOut(auth);
+        redirectToLogin();
+      }
       return;
     }
     CURRENT = buildCurrent(user, foundUser, foundCrmUid);
@@ -3020,7 +3060,12 @@ async function refreshUserDataInBackground(user) {
     // Перерисовать карточки и кнопку админа (вдруг права изменились)
     applyPermissionsAndAdminUI();
   } catch (e) {
-    // тихо игнорим
+    // Истёкшая/отозванная сессия не должна оставлять открытым старый профиль.
+    if (e?.status === 401 || e?.status === 403) {
+      try { localStorage.removeItem('pllato_user_cache'); } catch (_) {}
+      await fbSignOut(auth);
+      redirectToLogin();
+    }
   }
 }
 
