@@ -9011,9 +9011,11 @@ async function fetchMetaLead(env, leadgenId) {
 }
 
 async function findOrCreateMetaLeadContact(env, lead, fields, nowIso) {
-  const phoneRaw = metaFieldValue(fields, ['phone_number', 'phone', 'mobile_phone']);
+  const phoneRaw = metaFieldValue(fields, [
+    'phone_number', 'phone', 'mobile_phone', 'номер_телефона', 'номер_телефона_',
+  ]);
   const email = metaFieldValue(fields, ['email', 'work_email']).toLowerCase();
-  const fullName = metaFieldValue(fields, ['full_name', 'name']);
+  const fullName = metaFieldValue(fields, ['full_name', 'name', 'полное_имя']);
   const firstName = metaFieldValue(fields, ['first_name']) || fullName.split(/\s+/)[0] || '(без имени)';
   const lastName = metaFieldValue(fields, ['last_name']) || fullName.split(/\s+/).slice(1).join(' ');
   const phoneDigits = normalizeWaPhone(phoneRaw);
@@ -9087,9 +9089,9 @@ async function processMetaLeadEvent(env, value, rawEvent) {
       await pickNextMetaLeadUid(env, formId),
     );
     const dealId = `deal_meta_${leadgenId}`;
-    const name = metaFieldValue(fields, ['full_name', 'name'])
+    const name = metaFieldValue(fields, ['full_name', 'name', 'полное_имя'])
       || [metaFieldValue(fields, ['first_name']), metaFieldValue(fields, ['last_name'])].filter(Boolean).join(' ')
-      || metaFieldValue(fields, ['phone_number', 'phone', 'email'])
+      || metaFieldValue(fields, ['phone_number', 'phone', 'mobile_phone', 'номер_телефона', 'номер_телефона_', 'email'])
       || 'Новый лид';
     const formName = String(env.META_LEAD_FORM_NAME || formId).slice(0, 120);
     const details = {
