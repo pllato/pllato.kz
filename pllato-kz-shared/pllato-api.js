@@ -1,6 +1,7 @@
 const SESSION_KEY = "pllato_session";
 const SESSION_SKEW_SEC = 15;
 const GIS_WAIT_MS = 10000;
+const API_TIMEOUT_MS = 30000;
 
 function nowSec() {
   return Math.floor(Date.now() / 1000);
@@ -121,6 +122,7 @@ export async function apiFetch(path, {
   body = undefined,
   headers = {},
   auth = true,
+  timeoutMs = API_TIMEOUT_MS,
 } = {}) {
   const base = ensureApiBase();
   const finalHeaders = { ...headers };
@@ -139,11 +141,26 @@ export async function apiFetch(path, {
       : body;
   }
 
-  const res = await fetch(base + path, {
-    method,
-    headers: finalHeaders,
-    body: payloadBody,
-  });
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), Math.max(1000, Number(timeoutMs) || API_TIMEOUT_MS));
+  let res;
+  try {
+    res = await fetch(base + path, {
+      method,
+      headers: finalHeaders,
+      body: payloadBody,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      const timeoutError = new Error("Сервер не ответил вовремя. Проверьте интернет и повторите.");
+      timeoutError.code = "API_TIMEOUT";
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 
   const text = await res.text();
   const data = text ? parseJsonSafe(text) : null;
