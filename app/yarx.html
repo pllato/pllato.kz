@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#0e1830"/>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
+<title>YARX · Пульт девелопера — Демо</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --acc:#2f5fe0; --acc2:#7ea3f5; --accD:#1e3f9e; --accSoft:rgba(47,95,224,.12); --safety:#f5a623;
+  --bg:#eef1f7; --card:#ffffff; --side:#0e1830; --ink:#141b2b; --ink2:#3c4557; --muted:#6c7688; --faint:#9aa3b5;
+  --line:#e6eaf1; --off:#f4f6fb; --grn:#16a34a; --red:#e0483d; --amb:#d97706; --blue:#2563eb;
+  --sh:0 12px 32px -16px rgba(16,26,48,.24); --sh2:0 3px 12px -6px rgba(16,26,48,.14);
+}
+:root[data-theme="dark"]{
+  --bg:#0a1120; --card:#111a2e; --side:#070c17; --ink:#e9eef8; --ink2:#b6c1d4; --muted:#7d8aa2; --faint:#525d74;
+  --line:#1e2a40; --off:#0d1524; --accSoft:rgba(47,95,224,.2); --sh:0 16px 42px -18px rgba(0,0,0,.62); --sh2:0 6px 18px -8px rgba(0,0,0,.5);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+a{color:inherit;text-decoration:none}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+.hidden{display:none!important}
+
+/* ===== role gate ===== */
+.gate{position:fixed;inset:0;z-index:80;background:linear-gradient(150deg,#0b1426,#132447 62%,#173a6b);display:grid;place-items:center;padding:22px;overflow:auto}
+.gate .aur{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.gate .aur i{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;animation:fl 20s ease-in-out infinite}
+.gate .aur i:nth-child(1){width:520px;height:520px;background:var(--acc);top:-160px;right:-120px}
+.gate .aur i:nth-child(2){width:440px;height:440px;background:var(--safety);bottom:-160px;left:-120px;animation-delay:-7s;opacity:.28}
+@keyframes fl{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(28px,-26px) scale(1.08)}}
+.gate .in{position:relative;max-width:960px;width:100%;text-align:center;color:#fff}
+.gate .bm{width:60px;height:60px;border-radius:16px;background:linear-gradient(145deg,#1a2c4d,#0d1730);display:grid;place-items:center;margin:0 auto 16px;border:1px solid rgba(255,255,255,.12)}
+.gate .bm b{color:var(--acc2);font-weight:900;font-size:24px}
+.gate h1{font-size:clamp(24px,4vw,36px);font-weight:900;letter-spacing:-.02em}
+.gate h1 b{color:var(--acc2)}
+.gate .sub{color:#a9bbd6;font-size:15px;margin:10px 0 26px;max-width:660px;margin-left:auto;margin-right:auto}
+.gate .rgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.rolecard{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:16px 13px;text-align:left;cursor:pointer;transition:.15s}
+.rolecard:hover{background:rgba(255,255,255,.1);border-color:var(--acc);transform:translateY(-2px)}
+.rolecard .ri{font-size:22px;margin-bottom:8px}
+.rolecard .rn{font-weight:800;font-size:14px;color:#fff}
+.rolecard .rd{font-size:11px;color:#a9bbd6;margin-top:3px;line-height:1.4}
+.rolecard .rt{font-size:10.5px;color:var(--acc2);font-weight:700;margin-top:8px}
+.gate .foot{margin-top:22px;font-size:12px;color:#8296b4}
+.gate .foot b{color:#c7d6ea}
+
+/* ===== app ===== */
+.app{display:grid;grid-template-columns:238px 1fr;height:100vh}
+.side{background:var(--side);color:#c3cee0;display:flex;flex-direction:column;overflow:hidden}
+.side .brand{padding:16px 16px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:11px}
+.side .bl{width:40px;height:40px;border-radius:11px;background:linear-gradient(145deg,#1c2e4f,#0e1830);display:grid;place-items:center;flex:none;color:var(--acc2);font-weight:900;font-size:16px;letter-spacing:.02em}
+.side .bn{font-weight:900;font-size:16px;color:#fff;letter-spacing:.03em}
+.side .bs{font-size:10px;color:#8296b4;margin-top:1px}
+.side .pill{margin:12px 12px 4px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:9px 11px;display:flex;align-items:center;gap:9px}
+.side .pill .d{width:8px;height:8px;border-radius:50%;background:var(--grn);box-shadow:0 0 0 4px rgba(22,163,74,.2);flex:none}
+.side .pill .t{font-size:12px;font-weight:600;color:#e0e8f3}.side .pill .x{font-size:10px;color:#8296b4;margin-top:1px}
+.nav{flex:1;overflow-y:auto;padding:8px 10px}
+.nav .g{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:#5d6a83;font-weight:800;padding:12px 12px 5px}
+.nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;font-size:13.5px;font-weight:500;color:#a6b3c8;transition:.12s;position:relative}
+.nav a:hover{background:rgba(255,255,255,.05);color:#fff}
+.nav a.on{background:linear-gradient(90deg,var(--accSoft),transparent);color:#fff}
+.nav a.on::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:3px;background:var(--acc2)}
+.nav a .ic{width:18px;text-align:center;font-size:15px}
+.nav a .cnt{margin-left:auto;font-size:10.5px;font-weight:700;background:rgba(255,255,255,.08);border-radius:20px;padding:1px 7px;color:#c3cee0}
+.nav a .cnt.r{background:var(--red);color:#fff}
+.side .usr{padding:11px 12px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px}
+.side .usr .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--accD));display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;flex:none}
+.side .usr .un{font-size:12.5px;font-weight:600;color:#eef3fa}.side .usr .ur{font-size:10.5px;color:#8296b4}
+
+.main{display:flex;flex-direction:column;min-width:0;height:100vh}
+.topbar{display:flex;align-items:center;gap:14px;padding:11px 22px;border-bottom:1px solid var(--line);background:var(--card);flex-wrap:wrap}
+.topbar .tt{font-size:17px;font-weight:800}
+.topbar .ts{font-size:12px;color:var(--muted);margin-top:1px}
+.topbar .sp{flex:1}
+.badge1c{display:inline-flex;align-items:center;gap:7px;background:color-mix(in srgb,var(--grn) 12%,transparent);color:var(--grn);font-size:11.5px;font-weight:700;padding:6px 11px;border-radius:20px}
+.badge1c .d{width:7px;height:7px;border-radius:50%;background:var(--grn)}
+select.rolesel{background:var(--off);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:12.5px;font-weight:600;color:var(--ink);font-family:inherit;outline:none}
+.tbtn{width:37px;height:37px;border-radius:10px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;font-size:15px}
+.mtoggle{display:none}
+.body{flex:1;overflow-y:auto;padding:20px 22px}
+.screen{display:none;animation:fade .22s ease}.screen.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:var(--sh2)}
+.kpi .l{font-size:11.5px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:7px}
+.kpi .l .i{width:24px;height:24px;border-radius:7px;background:var(--accSoft);display:grid;place-items:center;font-size:12px}
+.kpi .v{font-size:22px;font-weight:900;letter-spacing:-.02em;margin-top:9px}
+.kpi .v.up{color:var(--grn)}.kpi .v.acc{color:var(--acc)}.kpi .v.amb{color:var(--amb)}.kpi .v.red{color:var(--red)}.kpi .v.sf{color:var(--safety)}
+.kpi .d{font-size:11px;color:var(--muted);margin-top:2px}
+.grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-bottom:14px}
+.grid2.eq{grid-template-columns:1fr 1fr}
+.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:17px;box-shadow:var(--sh2)}
+.card .ct{font-size:13.5px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card .ct .mini{font-size:11px;color:var(--muted);font-weight:600}
+.gbars{display:flex;align-items:flex-end;gap:12px;height:170px;padding-top:18px}
+.gbars .gc{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%;justify-content:flex-end}
+.gbars .gp{display:flex;align-items:flex-end;gap:4px;height:100%;width:100%;justify-content:center}
+.gbars .gp i{width:26px;border-radius:6px 6px 0 0;transition:height .85s cubic-bezier(.2,.8,.2,1);position:relative;background:linear-gradient(180deg,var(--acc),var(--acc2))}
+.gbars .gp i b{position:absolute;top:-16px;left:-12px;right:-12px;text-align:center;font-size:9.5px;font-weight:800;color:var(--ink2)}
+.gbars .gc span{font-size:10.5px;color:var(--muted);font-weight:600}
+.legend{display:flex;gap:16px;margin-top:12px;font-size:11.5px;color:var(--muted);font-weight:600}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.hbars .hb{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.hbars .hb .lb{width:150px;font-size:12px;color:var(--ink2);font-weight:600;flex:none}
+.hbars .hb .tr{flex:1;height:11px;border-radius:6px;background:var(--off);overflow:hidden}
+.hbars .hb .tr i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--acc),var(--acc2));width:0;transition:width .9s cubic-bezier(.2,.8,.2,1)}
+.hbars .hb .vv{font-size:12px;font-weight:800;width:52px;text-align:right;flex:none}
+.att{display:flex;flex-direction:column;gap:8px}
+.att .a{display:flex;gap:10px;align-items:flex-start;background:var(--off);border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+.att .a .ai{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:13px;flex:none}
+.att .a.r .ai{background:color-mix(in srgb,var(--red) 14%,transparent)}.att .a.y .ai{background:color-mix(in srgb,var(--amb) 15%,transparent)}.att .a.g .ai{background:color-mix(in srgb,var(--grn) 14%,transparent)}.att .a.b .ai{background:var(--accSoft)}
+.att .a .tx{font-size:12.5px;line-height:1.4}.att .a .tx .s{color:var(--muted);font-size:11.5px}
+
+table{width:100%;border-collapse:collapse}
+th{font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);text-align:left;padding:10px 10px;font-weight:800;border-bottom:1px solid var(--line)}
+td{padding:11px 10px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr{transition:.1s}tbody tr:hover{background:var(--off)}
+tbody tr.clk{cursor:pointer}
+td.r{text-align:right;font-weight:700;white-space:nowrap}
+.tag{font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:20px;display:inline-block;white-space:nowrap}
+.tag.a{background:var(--accSoft);color:var(--accD)}.tag.g{background:color-mix(in srgb,var(--grn) 15%,transparent);color:var(--grn)}.tag.y{background:color-mix(in srgb,var(--amb) 16%,transparent);color:var(--amb)}.tag.r{background:color-mix(in srgb,var(--red) 14%,transparent);color:var(--red)}.tag.sf{background:color-mix(in srgb,var(--safety) 18%,transparent);color:#a06a08}.tag.b{background:color-mix(in srgb,var(--blue) 13%,transparent);color:var(--blue)}.tag.n{background:var(--off);color:var(--muted)}
+.mini{font-size:11px;color:var(--muted)}
+.miniprog{width:74px;height:7px;border-radius:5px;background:var(--off);overflow:hidden;display:inline-block;vertical-align:middle}
+.miniprog i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.av2{width:28px;height:28px;border-radius:8px;display:inline-grid;place-items:center;color:#fff;font-size:11px;font-weight:700;vertical-align:middle;margin-right:8px}
+.cell{display:flex;align-items:center}
+.hint{background:var(--accSoft);border:1px solid color-mix(in srgb,var(--acc) 22%,transparent);border-radius:12px;padding:14px 16px;font-size:13px;color:var(--ink2);line-height:1.55;margin-top:16px}
+.hint b{color:var(--ink)}
+/* kanban */
+.kan{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;align-items:flex-start}
+.col{min-width:214px;flex:1;background:var(--off);border:1px solid var(--line);border-radius:13px;padding:10px}
+.col.drop{outline:2px dashed var(--acc);outline-offset:-3px}
+.col .ch{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:800;margin-bottom:4px;color:var(--ink2)}
+.col .ch .n{background:var(--card);border:1px solid var(--line);border-radius:20px;font-size:10.5px;padding:1px 8px;color:var(--muted)}
+.col .cs{font-size:10.5px;color:var(--muted);font-weight:700;margin-bottom:9px}
+.deal{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:10px 11px;margin-bottom:8px;box-shadow:var(--sh2);cursor:pointer}
+.deal .dn{font-size:12.5px;font-weight:700;margin-bottom:5px}
+.deal .dm{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}
+.deal .dpb{height:6px;border-radius:5px;background:var(--off);overflow:hidden;margin-bottom:6px}
+.deal .dpb i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.deal .ds{font-size:12.5px;font-weight:800;color:var(--acc)}
+.mtag{font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:20px;background:var(--accSoft);color:var(--accD)}
+/* cycles */
+.cyc{border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:11px;background:var(--card)}
+.cyc .ch{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.cyc .ch .nm{font-size:13.5px;font-weight:800}
+.cyc .ch .km{font-size:11px;color:var(--muted);font-weight:600}
+.cyc .ch .co{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--ink2);display:flex;align-items:center;gap:6px}
+.cyc .mets{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.met .ml{font-size:10.5px;color:var(--muted);font-weight:700;display:flex;justify-content:space-between;margin-bottom:4px}
+.met .ml b{color:var(--ink)}
+.met .mt{height:9px;border-radius:6px;background:var(--off);overflow:hidden}
+.met .mt i{display:block;height:100%;border-radius:6px;width:0;transition:width .9s cubic-bezier(.2,.8,.2,1)}
+.met .mt i.b1{background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.met .mt i.b2{background:linear-gradient(90deg,#0e9488,#3fc7ba)}
+.met .mt i.b3{background:linear-gradient(90deg,var(--safety),#ffc96b)}
+/* chat */
+.chat{display:grid;grid-template-columns:220px 1fr;height:520px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.chat .clist{border-right:1px solid var(--line);background:var(--off);overflow-y:auto}
+.chat .cg{display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid var(--line);cursor:pointer}
+.chat .cg:hover{background:var(--card)}.chat .cg.on{background:var(--card)}
+.chat .cg .cgi{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-size:14px;color:#fff;flex:none}
+.chat .cg .cgn{font-size:12.5px;font-weight:700}.chat .cg .cgm{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+.chat .cg .un{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:20px;padding:1px 7px;flex:none}
+.chat .cmain{display:flex;flex-direction:column;background:var(--card)}
+.chat .chd{padding:12px 16px;border-bottom:1px solid var(--line);font-weight:800;font-size:13px;display:flex;align-items:center;gap:8px}
+.chat .cbody{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:11px}
+.msg{max-width:76%;padding:9px 12px;border-radius:12px;font-size:12.5px;line-height:1.45}
+.msg .mn{font-size:10.5px;font-weight:800;color:var(--acc);margin-bottom:2px}
+.msg.them{background:var(--off);border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:3px}
+.msg.me{background:var(--accSoft);align-self:flex-end;border-bottom-right-radius:3px}
+.msg .mt2{font-size:9.5px;color:var(--faint);margin-top:3px;text-align:right}
+.msg .voice{display:flex;align-items:center;gap:8px;color:var(--acc);font-weight:700}
+.msg .voice .wf{flex:1;height:16px;background:repeating-linear-gradient(90deg,var(--acc) 0 2px,transparent 2px 5px);opacity:.5;border-radius:3px}
+.cinp{padding:11px 14px;border-top:1px solid var(--line);display:flex;gap:9px;align-items:center}
+.cinp .cf{flex:1;background:var(--off);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:12.5px;color:var(--muted)}
+.cinp .cb{width:38px;height:38px;border-radius:10px;background:var(--acc);color:#fff;display:grid;place-items:center;font-size:15px}
+/* pnl */
+.pnl{display:flex;flex-direction:column;gap:2px}
+.pnl .r{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.pnl .r:last-child{border:none}
+.pnl .r .k{color:var(--ink2)}.pnl .r .v{font-weight:700}
+.pnl .r.plus .v{color:var(--grn)}.pnl .r.minus .v{color:var(--red)}
+.pnl .r.tot{border-top:2px solid var(--line);margin-top:4px;font-weight:900}.pnl .r.tot .v{color:var(--acc);font-size:16px}
+/* modal */
+.ov{position:fixed;inset:0;z-index:70;background:rgba(8,14,26,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:18px}
+.ov.show{display:flex}
+.modal{background:var(--card);border:1px solid var(--line);border-radius:18px;max-width:580px;width:100%;box-shadow:var(--sh);max-height:92vh;overflow:auto;position:relative}
+.mh{padding:20px 22px 6px}.mh .t{font-size:19px;font-weight:900;letter-spacing:-.01em}.mh .s{font-size:12.5px;color:var(--ink2);margin-top:5px}
+.mb{padding:14px 22px 20px}
+.dl .row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}.dl .row:last-child{border:none}.dl .row .k{color:var(--muted)}.dl .row .v{font-weight:700}
+.mclose{position:absolute;top:13px;right:15px;font-size:22px;color:var(--muted);line-height:1;z-index:2}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(30px);background:var(--side);color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:var(--sh);opacity:0;transition:.25s;z-index:75;max-width:90%}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast b{color:var(--acc2)}
+@media(max-width:900px){
+  .app{grid-template-columns:1fr}
+  .side{position:fixed;z-index:50;width:238px;height:100vh;transform:translateX(-100%);transition:.25s;box-shadow:var(--sh)}
+  .side.open{transform:none}
+  .mtoggle{display:grid;place-items:center;width:37px;height:37px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-size:18px}
+  .kpis{grid-template-columns:repeat(2,1fr)}.grid2,.grid2.eq{grid-template-columns:1fr}
+  .gate .rgrid{grid-template-columns:repeat(2,1fr)}
+  .cyc .mets{grid-template-columns:1fr}.chat{grid-template-columns:1fr}.chat .clist{display:none}
+}
+</style></head>
+<body>
+
+<!-- ROLE GATE -->
+<div class="gate" id="gate">
+  <div class="aur"><i></i><i></i></div>
+  <div class="in">
+    <div class="bm"><b>Y</b></div>
+    <h1>YARX · <b>Пульт девелопера</b></h1>
+    <div class="sub">Единая система проектной деятельности: портфель проектов → канбан по стадиям → циклы и участки с объёмами → подрядчики → финансы по проектам → внутренний чат вместо WhatsApp → задачи и планёрки. Выберите роль — покажем ровно её экраны. Всё кликается.</div>
+    <div class="rgrid" id="rgrid"></div>
+    <div class="foot">Демо-режим · данные вымышлены для показа · сделано <b>Pllato</b> под вашу компанию</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app hidden" id="app">
+  <aside class="side" id="side">
+    <div class="brand"><div class="bl">YX</div><div><div class="bn">YARX</div><div class="bs">девелопер · пульт проектов</div></div></div>
+    <div class="pill"><span class="d"></span><div><div class="t">Строительная компания · Алматы</div><div class="x">полный цикл · проекты</div></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="usr"><div class="av" id="uav">А</div><div><div class="un" id="uname">Аскар</div><div class="ur" id="urole">Собственник</div></div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <button class="mtoggle" id="mtoggle">☰</button>
+      <div><div class="tt" id="pageTitle">Обзор</div><div class="ts" id="pageSub">Пульт руководителя</div></div>
+      <span class="sp"></span>
+      <span class="badge1c"><span class="d"></span>всё в одной системе</span>
+      <select class="rolesel" id="roleSel"></select>
+      <button class="tbtn" id="themeBtn">🌙</button>
+    </div>
+    <div class="body">
+      <!-- Обзор -->
+      <div class="screen on" data-s="dash">
+        <div class="kpis" id="kpis"></div>
+        <div class="grid2"><div class="card"><div class="ct"><span>Выполнение объёмов по неделям <span class="mini">% плана</span></span><span class="mini">6 нед</span></div><div class="gbars" id="bars"></div><div class="legend"><span><i style="background:var(--acc)"></i>Факт vs план</span><span style="margin-left:auto;color:var(--ink2);font-weight:700" id="barNote"></span></div></div>
+          <div class="card"><div class="ct">Требует внимания <span class="mini">красные флаги</span></div><div class="att" id="att"></div></div></div>
+        <div class="grid2 eq"><div class="card"><div class="ct">Портфель проектов <span class="mini">прогресс</span></div><div class="hbars" id="portBars"></div></div>
+          <div class="card"><div class="ct">Активность за сегодня <span class="mini">по системе, не в WhatsApp</span></div><div class="att" id="feed"></div>
+            <div class="hint" style="margin-top:12px">Вся работа — <b>в одной системе</b>: задачи, объёмы, чат, документы. Открыли на планёрке в Zoom — и видно, где каждый цикл каждого проекта.</div></div></div>
+      </div>
+
+      <!-- Проекты (канбан) -->
+      <div class="screen" data-s="projects">
+        <div class="kpis" id="prKpis"></div>
+        <div class="card"><div class="ct">Проекты по стадиям <span class="mini" id="prSum"></span></div><div class="kan" id="kan"></div>
+          <div class="hint" style="margin-top:14px">Проектная деятельность — не конвейер. <b>Канбан кастомизирован под вас</b>: свои стадии (инициация → концепт → рабочий проект → разрешения → стройка → ввод), свои поля в карточке, свои уведомления. Перетащите карточку между стадиями.</div></div>
+      </div>
+
+      <!-- Циклы и участки -->
+      <div class="screen" data-s="cycles">
+        <div class="kpis" id="cyKpis"></div>
+        <div class="card"><div class="ct"><span>Городской коллектор · 7 км в этом году <span class="mini">4 участка · 4 подрядчика</span></span><span class="tag b">стройка</span></div>
+          <div id="cycles"></div>
+          <div class="hint" style="margin-top:6px">Проект разбит на <b>участки и циклы работ</b> (земляные → трубопровод → колодцы/камеры). По каждому участку видно, <b>кто сколько сделал в объёмах и метрах</b> — не «вроде движется», а факт. Именно этого нет в Битриксе и обычных CRM.</div></div>
+      </div>
+
+      <!-- Подрядчики -->
+      <div class="screen" data-s="contractors">
+        <div class="kpis" id="coKpis"></div>
+        <div class="card"><div class="ct">Подрядчики на объектах <span class="mini">по специальностям · контроль качества (СНиП)</span></div>
+          <table><thead><tr><th>Подрядчик</th><th>Специальность</th><th>Проект / участок</th><th class="r">Люди · техника</th><th>Контроль</th></tr></thead><tbody id="contractors"></tbody></table>
+          <div class="hint" style="margin-top:12px">На объекте — <b>несколько компаний по своим специальностям</b> (земля, трубы, электрика, бетон). Ваши люди курируют качество по СНиП/РК, сроки и объёмы — всё в одном месте, а не в десяти чатах.</div></div>
+      </div>
+
+      <!-- Финансы -->
+      <div class="screen" data-s="finance">
+        <div class="kpis" id="finKpis"></div>
+        <div class="grid2"><div class="card"><div class="ct">Финансы по проектам <span class="mini">бюджет · выполнено · дебиторка / кредиторка</span></div>
+          <table><thead><tr><th>Проект</th><th class="r">Бюджет</th><th>Освоено</th><th class="r">К поступлению</th><th class="r">Кредиторка</th></tr></thead><tbody id="finTable"></tbody></table></div>
+          <div class="card"><div class="ct">Свод по компании <span class="mini">за месяц</span></div><div class="pnl" id="finPnl"></div>
+            <div class="hint" style="margin-top:12px">По каждому проекту — <b>бюджет, освоение, дебиторка и кредиторка</b>. Собственник видит деньги по всем проектам в одном окне, а не собирает по бухгалтерам.</div></div></div>
+      </div>
+
+      <!-- Внутренний чат -->
+      <div class="screen" data-s="chat">
+        <div class="card"><div class="ct">Внутренний чат <span class="mini">группы по проектам · вместо личного WhatsApp</span></div>
+          <div class="chat">
+            <div class="clist" id="clist"></div>
+            <div class="cmain">
+              <div class="chd" id="chatHd"></div>
+              <div class="cbody" id="cbody"></div>
+              <div class="cinp"><div class="cf">Сообщение…</div><button class="cb" onclick="toast('В полной версии — реальная отправка, файлы, голосовые, @упоминания.')">➤</button></div>
+            </div>
+          </div>
+          <div class="hint" style="margin-top:14px">Весь рабочий цикл — <b>во внутреннем чате</b>, а не в личных WhatsApp: группы по проектам и участкам, голосовые, файлы, история. Ничего не теряется и <b>не уходит вместе с сотрудником</b> — это безопасность компании.</div></div>
+      </div>
+
+      <!-- Задачи и планёрки -->
+      <div class="screen" data-s="tasks">
+        <div class="kpis" id="tsKpis"></div>
+        <div class="grid2"><div class="card"><div class="ct">Задачи <span class="mini">назначено · срок · статус</span></div>
+          <table><thead><tr><th>Задача</th><th>Проект</th><th>Кому</th><th>Срок</th><th>Статус</th></tr></thead><tbody id="tasks"></tbody></table></div>
+          <div class="card"><div class="ct">Планёрки и календарь <span class="mini">поэтапность</span></div><div class="att" id="meetings"></div>
+            <div class="hint" style="margin-top:12px">Планёрки несколько раз в неделю — прямо из системы: повестка = <b>задачи по проектам</b>, статусы обновляются на месте. Календарь этапов встроен в канбан.</div></div></div>
+      </div>
+
+      <!-- Документы -->
+      <div class="screen" data-s="docs">
+        <div class="kpis" id="docKpis"></div>
+        <div class="card"><div class="ct">Документы по проекту <span class="mini">лаборатории · сертификаты · лицензии · разрешения</span></div>
+          <table><thead><tr><th>Документ</th><th>Проект</th><th>Тип</th><th>Срок / статус</th><th></th></tr></thead><tbody id="docs"></tbody></table>
+          <div class="hint" style="margin-top:12px">Документооборот <b>привязан к проекту и не мешает производству</b>: лабораторные, сертификаты, лицензии, разрешения — под рукой, с напоминаниями о сроках. Но в центре — объёмы и циклы, а не бумаги.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- project modal -->
+<div class="ov" id="dov"><div class="modal"><button class="mclose" onclick="closeM('dov')">×</button>
+  <div class="mh"><div class="t" id="dmName"></div><div class="s" id="dmSub"></div></div>
+  <div class="mb"><div class="dl" id="dmMeta"></div>
+    <div class="hint" style="margin-top:14px">В полной версии — циклы и объёмы, документы, финансы, чат и задачи проекта в одной карточке.</div></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var C='₸';
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function ini(s){return s.replace(/[«»"]/g,'').split(/\s+/).filter(Boolean).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase();}
+function money(n){return n>=1000000?(n/1000000).toFixed(n%1000000?1:0).replace('.',',')+' млн':(n>=1000?Math.round(n).toLocaleString('ru-RU'):n);}
+
+var ROLES={
+ 'Собственник':{ic:'👑',d:'Все проекты: объёмы, деньги, подрядчики, команда',s:['dash','projects','cycles','contractors','finance','chat','tasks','docs']},
+ 'Руководитель проекта':{ic:'📐',d:'Проекты, циклы, подрядчики, задачи, чат',s:['projects','cycles','contractors','tasks','chat']},
+ 'ПТО / Технадзор':{ic:'📏',d:'Циклы, объёмы, контроль качества, документы',s:['cycles','contractors','docs']},
+ 'Снабжение':{ic:'🚚',d:'Подрядчики, заявки, задачи',s:['contractors','tasks','chat']},
+ 'Финансы':{ic:'💰',d:'Бюджеты, дебиторка/кредиторка по проектам',s:['finance','projects']},
+ 'Начальник участка':{ic:'🦺',d:'Свой участок: объёмы, задачи, чат',s:['cycles','tasks','chat']},
+ 'Подрядчик':{ic:'🏗️',d:'Свой участок и коммуникация',s:['cycles','chat']},
+};
+var NAVDEF=[['Управление',[['dash','▦','Обзор'],['finance','💰','Финансы']]],
+ ['Проекты',[['projects','🗂️','Проекты','pr'],['cycles','🛠️','Циклы и участки'],['contractors','🏗️','Подрядчики','co']]],
+ ['Работа',[['tasks','✅','Задачи и планёрки','ts'],['chat','💬','Внутренний чат','ch'],['docs','📄','Документы','dc']]]];
+var TITLES={dash:['Обзор','Пульт руководителя'],projects:['Проекты','Канбан по стадиям'],cycles:['Циклы и участки','Объёмы по участкам и подрядчикам'],contractors:['Подрядчики','Компании на объектах'],finance:['Финансы','Бюджеты и дебиторка по проектам'],chat:['Внутренний чат','Группы по проектам вместо WhatsApp'],tasks:['Задачи и планёрки','Постановка, контроль, календарь'],docs:['Документы','Реестр по проектам']};
+
+var STAGES=['Инициация','Концепт','Рабочий проект','Разрешения','Стройка','Ввод в эксплуатацию'];
+var PROJECTS=[];function buildProjects(){PROJECTS=[
+ {c:'Городской коллектор (14 км)',type:'Инфраструктура · ГОФ',st:4,pct:52,budget:4200000000,mgr:'Ержан',next:'7 км до конца года — идём по циклам'},
+ {c:'Освещение города · Нева Слип',type:'Благоустройство · 20 га',st:5,pct:88,budget:980000000,mgr:'Дамир',next:'Пусконаладка и приёмка'},
+ {c:'МФК на Теренгуре (3 БЦ + ресторан)',type:'Коммерческая недвижимость',st:2,pct:30,budget:6500000000,mgr:'Аскар',next:'Рабочий проект и смета'},
+ {c:'Коттеджный городок «Беверли»',type:'Жильё премиум · ~150 домов',st:1,pct:12,budget:9000000000,mgr:'Ержан',next:'Концепт и мастер-план'},
+ {c:'ЖК 1248 квартир',type:'Жильё · сдача',st:5,pct:96,budget:5200000000,mgr:'Дамир',next:'Финальная приёмка и АГК'},
+ {c:'Кафе на берегу (МФК)',type:'Коммерческая · объект',st:3,pct:22,budget:420000000,mgr:'Аскар',next:'Согласование фасада'}
+];}
+
+var CYCLES=[
+ ['Участок 1 · 0–1,5 км','«СтройМех»',[['Земляные работы',92],['Трубопровод',64],['Колодцы / камеры',67]],'g'],
+ ['Участок 2 · 1,5–3,5 км','«ГидроСеть»',[['Земляные работы',78],['Трубопровод',41],['Колодцы / камеры',38]],'y'],
+ ['Участок 3 · 3,5–5,0 км','«АкСу Строй»',[['Земляные работы',55],['Трубопровод',22],['Колодцы / камеры',33]],'y'],
+ ['Участок 4 · 5,0–7,0 км','«Магистраль»',[['Земляные работы',30],['Трубопровод',8],['Колодцы / камеры',17]],'r']
+];
+var CONTRACTORS=[['«СтройМех»','Земляные работы','Коллектор · уч.1','45 · 6 экскав.','g','по СНиП'],['«ГидроСеть»','Трубопровод / сети','Коллектор · уч.2','30 чел','g','по СНиП'],['RL Systems','Электрика / внешние сети','Освещение города','25 чел','g','по СНиП'],['«АкСу Строй»','Земля + бетон','Коллектор · уч.3','28 чел','y','замечание'],['«Магистраль»','Земляные работы','Коллектор · уч.4','22 чел','r','отставание'],['«БетонПро»','Бетонные работы','МФК Теренгур','18 чел','g','по СНиП'],['«ТеплоМонтаж»','Инженерные сети','ЖК 1248','15 чел','g','приёмка']];
+var TASKS=[['Уложить трубу 300 м · уч.2','Коллектор','«ГидроСеть»','2 дня','y'],['Испытание образцов бетона','МФК Теренгур','Лаборатория','сегодня','b'],['Закрыть акт по уч.1','Коллектор','Ержан','просрочка 1 дн','r'],['Пусконаладка освещения','Нева Слип','Дамир','3 дня','g'],['Мастер-план «Беверли»','Беверли','Ержан','неделя','n'],['Согласование фасада кафе','МФК','Аскар','4 дня','y']];
+var MEETINGS=[['g','✅','Планёрка · Коллектор','пн 09:00 · объёмы по участкам · проведена'],['b','📅','Планёрка · МФК Теренгур','ср 11:00 · рабочий проект и смета'],['y','⏳','Штаб по «Беверли»','чт 15:00 · концепт и мастер-план'],['b','📅','Общий совет директоров','пт 10:00 · портфель и финансы']];
+var DOCS=[['Лабораторное заключение · бетон','МФК Теренгур','Лаборатория','действует','g'],['Лицензия подрядчика · «Магистраль»','Коллектор','Лицензия','до 12.2026','y'],['Разрешение на СМР','Коллектор','Разрешение','действует','g'],['Сертификат · труба ПНД','Коллектор','Сертификат','действует','g'],['Проект производства работ','МФК Теренгур','ППР','на согласовании','b'],['Акт скрытых работ · уч.1','Коллектор','Акт','подписан','g']];
+var CHATS=[
+ {n:'Коллектор · штаб',ic:'🛠️',cl:'#2f5fe0',un:3,last:'Ержан: уч.2 отстаёт по трубе',msgs:[
+   ['them','Ержан','По уч.4 «Магистраль» опять простой — нет экскаватора со вчера.','09:12'],
+   ['them','Дамир (ПТО)','Зафиксировал замечание, объём за неделю не добит на 40%.','09:15'],
+   ['me','Вы','Сегодня на планёрке разбираем. Снабжение — технику на уч.4 к завтра.','09:20'],
+   ['them','Снабжение','voice','09:22']
+ ]},
+ {n:'МФК Теренгур',ic:'🏢',cl:'#0e9488',un:0,last:'Аскар: смету пришлём к среде',msgs:[
+   ['them','Проектировщик','Рабочий проект по 2 корпусу готов, выложил в документы проекта.','вчера'],
+   ['me','Вы','Принято. Финансы — заложите в бюджет к среде.','вчера']
+ ]},
+ {n:'Совет директоров',ic:'👔',cl:'#1e3f9e',un:1,last:'Финансы: дебиторка по коллектору',msgs:[
+   ['them','Финансы','К поступлению по коллектору 320 млн ₸ — по графику этапа.','08:40'],
+   ['me','Вы','Держим на контроле, в пятницу на совете.','08:44']
+ ]}
+];
+
+/* ===== роль ===== */
+var ROLE='Собственник';var CHAT_ACTIVE=0;
+function renderGate(){document.getElementById('rgrid').innerHTML=Object.keys(ROLES).map(function(r){var m=ROLES[r];var n=m.s.length;
+  return '<div class="rolecard" onclick="enter(\''+r.replace(/'/g,"\\'")+'\')"><div class="ri">'+m.ic+'</div><div class="rn">'+esc(r)+'</div><div class="rd">'+esc(m.d)+'</div><div class="rt">'+n+' экран'+(n>4?'ов':(n>1?'а':''))+' →</div></div>';}).join('');}
+function enter(r){ROLE=r;document.getElementById('gate').classList.add('hidden');document.getElementById('app').classList.remove('hidden');buildNav();render();var f=ROLES[r].s[0];nav(f);setTimeout(function(){toast('Вход как <b>'+esc(r)+'</b>. Сменить роль — вверху справа. Всё кликается.');},250);}
+function buildNav(){var allowed=ROLES[ROLE].s;var html='';NAVDEF.forEach(function(gr){var items=gr[1].filter(function(it){return allowed.indexOf(it[0])>=0;});if(!items.length)return;html+='<div class="g">'+gr[0]+'</div>';items.forEach(function(it){html+='<a data-go="'+it[0]+'"><span class="ic">'+it[1]+'</span>'+it[2]+'<span class="cnt" data-c="'+(it[3]||'')+'"></span></a>';});});
+  document.getElementById('nav').innerHTML=html;document.querySelectorAll('.nav a').forEach(function(a){a.onclick=function(){nav(a.dataset.go);};});updCnt();
+  var sel=document.getElementById('roleSel');sel.innerHTML=Object.keys(ROLES).map(function(r){return '<option'+(r===ROLE?' selected':'')+'>'+esc(r)+'</option>';}).join('');
+  sel.onchange=function(){ROLE=sel.value;document.getElementById('urole').textContent=ROLE;buildNav();var f=ROLES[ROLE].s[0];nav(f);toast('Роль: <b>'+esc(ROLE)+'</b> — интерфейс показывает только её экраны.');};
+  document.getElementById('urole').textContent=ROLE;}
+function updCnt(){var c={pr:PROJECTS.length,co:CONTRACTORS.length,ts:TASKS.length,ch:4,dc:DOCS.length};document.querySelectorAll('.nav .cnt').forEach(function(e){var k=e.dataset.c;e.textContent=c[k]!=null?c[k]:'';if(!c[k])e.style.display='none';if(k==='ch')e.classList.add('r');});}
+function nav(s){document.querySelectorAll('.screen').forEach(function(x){x.classList.toggle('on',x.dataset.s===s);});document.querySelectorAll('.nav a').forEach(function(a){a.classList.toggle('on',a.dataset.go===s);});
+  var t=TITLES[s]||['',''];document.getElementById('pageTitle').textContent=t[0];document.getElementById('pageSub').textContent=t[1];document.getElementById('side').classList.remove('open');document.querySelector('.body').scrollTop=0;
+  setTimeout(function(){document.querySelectorAll('.screen.on .hb .tr i,.screen.on .met .mt i').forEach(function(i){if(i.dataset.w)i.style.width=i.dataset.w;});document.querySelectorAll('.screen.on .gp i').forEach(function(i){if(i.dataset.h)i.style.height=i.dataset.h+'%';});},60);}
+
+function kpi(k){var tr='';if(typeof k[4]==='number'){var u=k[4]>=0;tr='<div class="d" style="color:'+(u?'var(--grn)':'var(--red)')+';font-weight:700">'+(u?'▲ ':'▼ ')+Math.abs(k[4])+'% '+(k[5]||'')+'</div>';}else if(k[5]){tr='<div class="d">'+k[5]+'</div>';}
+  return '<div class="kpi"><div class="l"><span class="i">'+k[1]+'</span>'+k[3]+'</div><div class="v '+k[0]+'">'+k[2]+'</div>'+tr+'</div>';}
+function hbars(id,arr,fmt){var mx=Math.max.apply(null,arr.map(function(a){return a[1];}))||1;document.getElementById(id).innerHTML=arr.map(function(a){return '<div class="hb"><span class="lb">'+esc(a[0])+'</span><span class="tr"><i data-w="'+Math.round(a[1]/mx*100)+'%"></i></span><span class="vv">'+fmt(a[1])+'</span></div>';}).join('');}
+
+function render(){
+  buildProjects();
+  // dashboard
+  document.getElementById('kpis').innerHTML=[
+    ['acc','🗂️',PROJECTS.length,'Проектов в работе',null,'по всем стадиям'],
+    ['up','🛠️','7 км','Коллектор в этом году',6,'к плану недели'],
+    ['sf','🏗️',CONTRACTORS.length,'Подрядчиков на объектах',null,'по специальностям'],
+    ['red','⏰','1',' Отставание',null,'уч.4 — нет техники']
+  ].map(kpi).join('');
+  var f=[82,90,76,94,88,97];var mx=Math.max.apply(null,f)*1.1;
+  document.getElementById('bars').innerHTML=['н1','н2','н3','н4','н5','н6'].map(function(m,i){return '<div class="gc"><div class="gp"><i style="height:0" data-h="'+(f[i]/mx*100)+'"><b>'+f[i]+'%</b></i></div><span>'+m+'</span></div>';}).join('');
+  document.getElementById('barNote').textContent='эта неделя '+f[5]+'% от плана';
+  document.getElementById('att').innerHTML=[
+    ['r','🔴','Отставание · уч.4 «Магистраль»','нет экскаватора со вчера — объём −40% за неделю'],
+    ['y','🟡','Дебиторка по коллектору','к поступлению 320 млн ₸ — этап на согласовании'],
+    ['b','🔵','Рабочий проект · МФК','2 корпус готов — заложить в бюджет к среде'],
+    ['g','🟢','Освещение · Нева Слип','88% — вышли на пусконаладку']
+  ].map(function(a){return '<div class="a '+a[0]+'"><div class="ai">'+a[1]+'</div><div class="tx"><b>'+esc(a[2])+'</b><div class="s">'+esc(a[3])+'</div></div></div>';}).join('');
+  hbars('portBars',PROJECTS.slice(0,5).map(function(p){return [p.c.replace(/\s*\(.*\)/,''),p.pct];}),function(v){return v+'%';});
+  document.getElementById('feed').innerHTML=[['g','✅','Акт скрытых работ · уч.1','подписан ПТО · 11:20'],['b','💬','Штаб «Коллектор»','12 сообщений · 2 голосовых'],['y','📏','Замер объёмов · уч.3','занесён · труба 22%'],['g','📄','Разрешение на СМР','загружено в проект']].map(function(a){return '<div class="a '+a[0]+'"><div class="ai">'+a[1]+'</div><div class="tx"><b>'+esc(a[2])+'</b><div class="s">'+esc(a[3])+'</div></div></div>';}).join('');
+
+  // projects kanban
+  document.getElementById('prKpis').innerHTML=[['acc','🗂️',PROJECTS.length,'Проектов',null,''],['','💵',money(PROJECTS.reduce(function(s,p){return s+p.budget;},0))+' '+C,'Портфель бюджетов',null,''],['up','📈',Math.round(PROJECTS.reduce(function(s,p){return s+p.pct;},0)/PROJECTS.length)+'%','Средний прогресс',null,''],['sf','🏗️','5','На стройке/сдаче',null,'активные']].map(kpi).join('');
+  renderKan();
+
+  // cycles
+  document.getElementById('cyKpis').innerHTML=[['acc','🛠️','7 км','План этого года',null,'коллектор'],['up','📐','3,1 км','Выполнено',null,'по трубопроводу'],['sf','⛏️','63%','Земляные работы',null,'средне по участкам'],['red','⚠️','1',' Участок в отставании',null,'уч.4']].map(kpi).join('');
+  document.getElementById('cycles').innerHTML=CYCLES.map(function(cy){var st=cy[3]==='r'?['tag r','отставание']:(cy[3]==='y'?['tag y','в работе']:['tag g','по графику']);var bcl=['b1','b2','b3'];
+    return '<div class="cyc"><div class="ch"><span class="nm">'+esc(cy[0])+'</span><span class="km">· '+esc(cy[1])+'</span><span class="co"><span class="'+st[0]+'">'+st[1]+'</span></span></div><div class="mets">'+
+    cy[2].map(function(m,i){return '<div class="met"><div class="ml"><span>'+esc(m[0])+'</span><b>'+m[1]+'%</b></div><div class="mt"><i class="'+bcl[i]+'" data-w="'+m[1]+'%"></i></div></div>';}).join('')+'</div></div>';}).join('');
+
+  // contractors
+  document.getElementById('coKpis').innerHTML=[['acc','🏗️',CONTRACTORS.length,'Подрядчиков',null,'на объектах'],['','👷','183','Человек на объектах',null,'суммарно'],['up','✅','5','По СНиП',null,'без замечаний'],['red','⚠️','1',' Отставание',null,'на контроле']].map(kpi).join('');
+  document.getElementById('contractors').innerHTML=CONTRACTORS.map(function(c){var st=c[4]==='r'?['tag r',c[5]]:(c[4]==='y'?['tag y',c[5]]:['tag g',c[5]]);return '<tr class="clk" onclick="toast(\''+esc(c[0]).replace(/'/g,'')+' · '+esc(c[1])+'. В полной версии — договор, объёмы, акты, техника и люди на объекте.\')"><td><b>'+esc(c[0])+'</b></td><td><span class="mini">'+esc(c[1])+'</span></td><td><span class="mini">'+esc(c[2])+'</span></td><td class="r">'+esc(c[3])+'</td><td><span class="'+st[0]+'">'+st[1]+'</span></td></tr>';}).join('');
+
+  // finance
+  document.getElementById('finKpis').innerHTML=[['','💵','26,3 млрд '+C,'Портфель проектов',null,'бюджеты'],['up','📥','1,84 млрд '+C,'К поступлению',null,'дебиторка'],['red','📤','980 млн '+C,'Кредиторка',null,'подрядчикам'],['acc','💧','7,4 млрд '+C,'Освоено',null,'за период']].map(kpi).join('');
+  document.getElementById('finTable').innerHTML=PROJECTS.slice(0,5).map(function(p){var deb=Math.round(p.budget*0.07);var cred=Math.round(p.budget*0.04);return '<tr><td><b>'+esc(p.c.replace(/\s*\(.*\)/,''))+'</b></td><td class="r">'+money(p.budget)+' '+C+'</td><td><span class="miniprog"><i style="width:'+p.pct+'%"></i></span> <span class="mini">'+p.pct+'%</span></td><td class="r">'+money(deb)+'</td><td class="r"><span class="tag n">'+money(cred)+'</span></td></tr>';}).join('');
+  document.getElementById('finPnl').innerHTML=pnlRows([['plus','Поступления за месяц',2140000000],['minus','Подрядчикам (СМР)',-1180000000],['minus','Материалы и техника',-420000000],['minus','ФОТ бек-офиса (37 чел)',-96000000],['minus','Административные',-84000000],['tot','Операционный результат',360000000]]);
+
+  // tasks
+  document.getElementById('tsKpis').innerHTML=[['acc','✅',TASKS.length,'Задач в работе',null,''],['red','⏰',TASKS.filter(function(t){return t[4]==='r';}).length,'Просрочено',null,'контроль'],['up','📅','4','Планёрки на неделе',null,''],['','👥','37','Человек в системе',null,'бек-офис']].map(kpi).join('');
+  document.getElementById('tasks').innerHTML=TASKS.map(function(t){var st=t[4]==='r'?['tag r','просрочка']:(t[4]==='y'?['tag y','в работе']:(t[4]==='b'?['tag b','сегодня']:(t[4]==='n'?['tag n','запланировано']:['tag g','по графику'])));return '<tr><td><b>'+esc(t[0])+'</b></td><td><span class="mini">'+esc(t[1])+'</span></td><td><span class="mini">'+esc(t[2])+'</span></td><td><span class="mini">'+esc(t[3])+'</span></td><td><span class="'+st[0]+'">'+st[1]+'</span></td></tr>';}).join('');
+  document.getElementById('meetings').innerHTML=MEETINGS.map(function(a){return '<div class="a '+a[0]+'"><div class="ai">'+a[1]+'</div><div class="tx"><b>'+esc(a[2])+'</b><div class="s">'+esc(a[3])+'</div></div></div>';}).join('');
+
+  // docs
+  document.getElementById('docKpis').innerHTML=[['acc','📄',DOCS.length,'Документов',null,'по проектам'],['up','✅','4','Действуют',null,''],['amb','⏳','1','Истекает',null,'лицензия'],['b','📝','1','На согласовании',null,'ППР']].map(kpi).join('');
+  document.getElementById('docs').innerHTML=DOCS.map(function(d){var st=d[4]==='y'?['tag y',d[3]]:(d[4]==='b'?['tag b',d[3]]:['tag g',d[3]]);return '<tr class="clk" onclick="toast(\'Документ «'+esc(d[0]).replace(/'/g,'')+'». В полной версии — файл, версии, срок действия и напоминания.\')"><td><b>'+esc(d[0])+'</b></td><td><span class="mini">'+esc(d[1])+'</span></td><td><span class="tag n">'+esc(d[2])+'</span></td><td><span class="'+st[0]+'">'+st[1]+'</span></td><td class="r"><span class="mini">открыть →</span></td></tr>';}).join('');
+
+  renderChat();
+  setTimeout(function(){document.querySelectorAll('.screen.on .gp i').forEach(function(i){if(i.dataset.h)i.style.height=i.dataset.h+'%';});document.querySelectorAll('.screen.on .hb .tr i,.screen.on .met .mt i').forEach(function(i){i.style.width=i.dataset.w;});},260);
+}
+function pnlRows(rows){return rows.map(function(r){var sign=r[2]<0?'−':'';var val=Math.abs(r[2]);return '<div class="r '+r[0]+'"><span class="k">'+r[1]+'</span><span class="v">'+sign+money(val)+' '+C+'</span></div>';}).join('');}
+
+function renderKan(){var kan=document.getElementById('kan');
+  document.getElementById('prSum').textContent=PROJECTS.length+' проектов · портфель '+money(PROJECTS.reduce(function(a,p){return a+p.budget;},0))+' '+C;
+  kan.innerHTML=STAGES.map(function(f,si){var inc=PROJECTS.map(function(d,idx){return {d:d,idx:idx};}).filter(function(x){return x.d.st===si;});
+    return '<div class="col" data-col="'+si+'"><div class="ch"><span>'+esc(f)+'</span><span class="n">'+inc.length+'</span></div><div class="cs">этап проекта</div>'+
+      inc.map(function(x){var d=x.d;return '<div class="deal" draggable="true" data-id="'+x.idx+'" onclick="openProj('+x.idx+')"><div class="dn">'+esc(d.c)+'</div><div class="dm"><span class="mtag">'+esc(d.type.split('·')[0].trim())+'</span>'+esc(d.mgr)+'</div><div class="dpb"><i style="width:'+d.pct+'%"></i></div><div class="ds">'+d.pct+'% · '+money(d.budget)+' '+C+'</div></div>';}).join('')+'</div>';}).join('');
+  var drag=null;kan.querySelectorAll('.deal').forEach(function(el){el.ondragstart=function(e){drag=+el.dataset.id;e.stopPropagation();};});
+  kan.querySelectorAll('.col').forEach(function(col){col.ondragover=function(e){e.preventDefault();col.classList.add('drop');};col.ondragleave=function(){col.classList.remove('drop');};col.ondrop=function(e){e.preventDefault();col.classList.remove('drop');if(drag==null)return;PROJECTS[drag].st=+col.dataset.col;drag=null;renderKan();toast('Проект перемещён по стадии.');};});}
+function openProj(i){var d=PROJECTS[i];document.getElementById('dmName').textContent=d.c;document.getElementById('dmSub').textContent=d.type+' · '+STAGES[d.st];
+  document.getElementById('dmMeta').innerHTML=[['Стадия',STAGES[d.st]],['Прогресс',d.pct+'%'],['Бюджет',money(d.budget)+' '+C],['Руководитель',d.mgr],['Следующий шаг',d.next]].map(function(r){return '<div class="row"><span class="k">'+r[0]+'</span><span class="v">'+esc(String(r[1]))+'</span></div>';}).join('');
+  document.getElementById('dov').classList.add('show');}
+function closeM(id){document.getElementById(id).classList.remove('show');}
+document.getElementById('dov').onclick=function(e){if(e.target===this)closeM('dov');};
+
+function renderChat(){var cl=document.getElementById('clist');cl.innerHTML=CHATS.map(function(g,i){return '<div class="cg'+(i===CHAT_ACTIVE?' on':'')+'" onclick="selChat('+i+')"><div class="cgi" style="background:'+g.cl+'">'+g.ic+'</div><div style="min-width:0"><div class="cgn">'+esc(g.n)+'</div><div class="cgm">'+esc(g.last)+'</div></div>'+(g.un?'<span class="un">'+g.un+'</span>':'')+'</div>';}).join('');
+  var g=CHATS[CHAT_ACTIVE];document.getElementById('chatHd').innerHTML='<span style="width:26px;height:26px;border-radius:7px;display:grid;place-items:center;color:#fff;background:'+g.cl+'">'+g.ic+'</span> '+esc(g.n);
+  document.getElementById('cbody').innerHTML=g.msgs.map(function(m){if(m[2]==='voice')return '<div class="msg '+m[0]+'"><div class="mn">'+esc(m[1])+'</div><div class="voice">▶ <span class="wf"></span> 0:14</div><div class="mt2">'+m[3]+'</div></div>';return '<div class="msg '+m[0]+'">'+(m[0]==='them'?'<div class="mn">'+esc(m[1])+'</div>':'')+esc(m[2])+'<div class="mt2">'+m[3]+'</div></div>';}).join('');}
+function selChat(i){CHAT_ACTIVE=i;renderChat();}
+
+document.getElementById('mtoggle').onclick=function(){document.getElementById('side').classList.toggle('open');};
+function applyTheme(t){document.documentElement.setAttribute('data-theme',t);document.getElementById('themeBtn').textContent=t==='dark'?'☀️':'🌙';try{localStorage.setItem('yarx_theme',t);}catch(e){}}
+document.getElementById('themeBtn').onclick=function(){applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');};
+(function(){var t='light';try{t=localStorage.getItem('yarx_theme')||'light';}catch(e){}applyTheme(t);})();
+var _tt;function toast(h){var e=document.getElementById('toast');e.innerHTML=h;e.classList.add('show');clearTimeout(_tt);_tt=setTimeout(function(){e.classList.remove('show');},3400);}
+
+renderGate();
+/* deep-link: ?s=cycles и т.п. — сразу входим как Собственник и открываем экран */
+(function(){try{var s=new URLSearchParams(location.search).get('s');if(s&&TITLES[s]){enter('Собственник');setTimeout(function(){nav(s);},80);}}catch(e){}})();
+</script>
+</body></html>
