@@ -423,6 +423,56 @@ body {
   color: var(--t1);
   font-weight: 600;
 }
+.deal-select-cell {
+  width: 42px;
+  text-align: center !important;
+  padding-left: 10px !important;
+  padding-right: 6px !important;
+}
+.deal-select-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--ac);
+}
+.dtable tr.row.deal-row-selected td { background: var(--acbg); }
+.deals-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: var(--bg2);
+  border: 1px solid var(--acb);
+  border-radius: var(--r);
+}
+.deals-bulk-count {
+  color: var(--ac2);
+  font-size: 12px;
+  font-weight: 700;
+  margin-right: auto;
+}
+.deals-bulk-bar .tb-select { min-width: 190px; }
+.deals-bulk-apply {
+  border: 1px solid var(--ac);
+  border-radius: var(--r);
+  background: var(--ac);
+  color: #fff;
+  padding: 7px 13px;
+  font: 600 12px var(--fb);
+  cursor: pointer;
+}
+.deals-bulk-apply:disabled { opacity: .45; cursor: wait; }
+.deals-bulk-clear {
+  border: 1px solid var(--b2);
+  border-radius: var(--r);
+  background: var(--bg3);
+  color: var(--t2);
+  padding: 7px 11px;
+  font: 500 12px var(--fb);
+  cursor: pointer;
+}
 
 /* ── Badges/chips ─────────────────────────────────── */
 .badge {
@@ -8626,6 +8676,7 @@ try {
 // Сохраняем view при каждом переключении
 function setDealsView(v) {
   dealsState.view = v;
+  if (v !== 'list') clearDealsBulkSelection();
   try { localStorage.setItem(DEALS_VIEW_LS_KEY, v); } catch {}
 }
 
@@ -8706,6 +8757,8 @@ const dealsPagedState = {
   totalPages: 0,
   items: [],
   loading: false,
+  selectedIds: new Set(),
+  bulkBusy: false,
 };
 
 async function renderDeals(el) {
@@ -8953,6 +9006,7 @@ async function loadDealsMeta() {
 
 function setActivePipeline(pipelineId) {
   if (!dealsState.pipelines[pipelineId]) return;
+  clearDealsBulkSelection();
   dealsState.activePipelineId = pipelineId;
   localStorage.setItem(ACTIVE_PIPELINE_LS_KEY, pipelineId);
   // Сброс viewArchivedId если кликнули НЕ-архивную (выход из режима просмотра)
@@ -9944,6 +9998,7 @@ function renderDealsLayoutPaged(el) {
       </select>
     </div>
 
+    <div id="deals-bulk-actions"></div>
     <div id="deals-content"></div>
     <div id="deals-pager" class="pager"></div>
   `;
@@ -9954,12 +10009,14 @@ function renderDealsLayoutPaged(el) {
   document.getElementById('deal-search').addEventListener('keydown', async e => {
     if (e.key === 'Enter') {
       dealsState.search = e.target.value.trim();
+      clearDealsBulkSelection();
       await loadDealsPage(1);
       renderDealsPagedTable();
       renderDealsPagedPager();
     } else if (e.key === 'Escape') {
       e.target.value = '';
       dealsState.search = '';
+      clearDealsBulkSelection();
       await loadDealsPage(1);
       renderDealsPagedTable();
       renderDealsPagedPager();
@@ -9967,12 +10024,14 @@ function renderDealsLayoutPaged(el) {
   });
   document.getElementById('stage-filter').addEventListener('change', async e => {
     dealsState.stageFilter = e.target.value;
+    clearDealsBulkSelection();
     await loadDealsPage(1);
     renderDealsPagedTable();
     renderDealsPagedPager();
   });
   document.getElementById('resp-filter').addEventListener('change', async e => {
     dealsState.responsibleFilter = e.target.value;
+    clearDealsBulkSelection();
     await loadDealsPage(1);
     renderDealsPagedTable();
     renderDealsPagedPager();
@@ -10007,7 +10066,8 @@ function renderDealsPagedTable() {
   let html = `<div class="dtable-wrap" style="overflow-x:auto">
     <table class="dtable">
       <thead><tr>
-        <th style="width:42%">Название</th>
+        <th class="deal-select-cell"><input type="checkbox" class="deal-select-checkbox" id="deals-select-page" title="Выделить все сделки на этой странице" aria-label="Выделить все сделки на этой странице"></th>
+        <th style="width:38%">Название</th>
         <th style="width:18%">Стадия</th>
         <th style="width:14%">Сумма</th>
         <th style="width:18%">Ответственный менеджер</th>
@@ -10015,6 +10075,8 @@ function renderDealsPagedTable() {
       </tr></thead>
       <tbody>`;
   for (const d of dealsPagedState.items) {
+    const recordId = String(d.id || ('deal_' + d.bitrixId));
+    const isSelected = dealsPagedState.selectedIds.has(recordId);
     const stage = dealsState.pipeline?.stages?.[d.stageId];
     const stageName = stage?.name || d.stageId || '—';
     const stageColor = stage?.semantics === 'S' ? 'var(--gn)' : (stage?.semantics === 'F' ? 'var(--rd)' : 'var(--ac2)');
@@ -10022,8 +10084,9 @@ function renderDealsPagedTable() {
     const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() || respUser.email || '—' : '—';
     const opp = d.opportunity || 0;
     const date = d.bitrixDateCreate ? new Date(d.bitrixDateCreate).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
-    html += `<tr class="row" data-deal-id="${escapeHtml(d.bitrixId)}">
-      <td class="name-cell" style="width:42%">${escapeHtml(d.title || '(без названия)')}</td>
+    html += `<tr class="row ${isSelected ? 'deal-row-selected' : ''}" data-deal-id="${escapeHtml(d.bitrixId)}" data-deal-record-id="${escapeHtml(recordId)}">
+      <td class="deal-select-cell"><input type="checkbox" class="deal-select-checkbox deal-select-row" data-deal-record-id="${escapeHtml(recordId)}" ${isSelected ? 'checked' : ''} aria-label="Выбрать сделку ${escapeHtml(d.title || '(без названия)')}"></td>
+      <td class="name-cell" style="width:38%">${escapeHtml(d.title || '(без названия)')}</td>
       <td style="width:18%"><span class="badge" style="color:${stageColor};border-color:${stageColor}55;background:${stageColor}22">${escapeHtml(stageName)}</span></td>
       <td style="width:14%;color:${opp ? 'var(--gn)' : 'var(--t3)'};font-variant-numeric:tabular-nums;font-weight:600">${opp ? opp.toLocaleString('ru') + ' ' + (d.currency || '') : '—'}</td>
       <td style="width:18%;color:var(--ac2)">${escapeHtml(respName)}</td>
@@ -10032,9 +10095,185 @@ function renderDealsPagedTable() {
   }
   html += `</tbody></table></div>`;
   c.innerHTML = html;
-  c.querySelectorAll('tr.row').forEach(r => {
-    r.addEventListener('click', () => openDealCard(r.dataset.dealId));
+
+  const pageIds = dealsPagedState.items.map(d => String(d.id || ('deal_' + d.bitrixId)));
+  const selectPage = document.getElementById('deals-select-page');
+  if (selectPage) {
+    const selectedOnPage = pageIds.filter(id => dealsPagedState.selectedIds.has(id)).length;
+    selectPage.checked = pageIds.length > 0 && selectedOnPage === pageIds.length;
+    selectPage.indeterminate = selectedOnPage > 0 && selectedOnPage < pageIds.length;
+    selectPage.addEventListener('change', () => {
+      for (const id of pageIds) {
+        if (selectPage.checked) dealsPagedState.selectedIds.add(id);
+        else dealsPagedState.selectedIds.delete(id);
+      }
+      renderDealsPagedTable();
+    });
+  }
+  c.querySelectorAll('.deal-select-row').forEach(cb => {
+    cb.addEventListener('click', e => e.stopPropagation());
+    cb.addEventListener('change', () => {
+      const id = cb.dataset.dealRecordId;
+      if (cb.checked) dealsPagedState.selectedIds.add(id);
+      else dealsPagedState.selectedIds.delete(id);
+      cb.closest('tr')?.classList.toggle('deal-row-selected', cb.checked);
+      syncDealsBulkSelectionUi();
+    });
   });
+  c.querySelectorAll('tr.row').forEach(r => {
+    r.addEventListener('click', e => {
+      if (e.target.closest('.deal-select-cell')) return;
+      openDealCard(r.dataset.dealId);
+    });
+  });
+  renderDealsBulkActions();
+}
+
+function clearDealsBulkSelection() {
+  if (!(dealsPagedState.selectedIds instanceof Set)) dealsPagedState.selectedIds = new Set();
+  dealsPagedState.selectedIds.clear();
+  document.querySelectorAll('.deal-select-row, #deals-select-page').forEach(cb => {
+    cb.checked = false;
+    cb.indeterminate = false;
+  });
+  document.querySelectorAll('.deal-row-selected').forEach(row => row.classList.remove('deal-row-selected'));
+  renderDealsBulkActions();
+}
+
+function syncDealsBulkSelectionUi() {
+  const pageIds = dealsPagedState.items.map(d => String(d.id || ('deal_' + d.bitrixId)));
+  const selectedOnPage = pageIds.filter(id => dealsPagedState.selectedIds.has(id)).length;
+  const selectPage = document.getElementById('deals-select-page');
+  if (selectPage) {
+    selectPage.checked = pageIds.length > 0 && selectedOnPage === pageIds.length;
+    selectPage.indeterminate = selectedOnPage > 0 && selectedOnPage < pageIds.length;
+  }
+  renderDealsBulkActions();
+}
+
+function renderDealsBulkActions() {
+  const host = document.getElementById('deals-bulk-actions');
+  if (!host) return;
+  const count = dealsPagedState.selectedIds.size;
+  if (!count) {
+    host.innerHTML = '';
+    return;
+  }
+  const users = getUsersForAssignment();
+  const stages = getStagesSorted();
+  const canSelectMore = count < dealsPagedState.total;
+  const selectFilteredLabel = dealsPagedState.total > 200
+    ? 'Выбрать первые 200 по фильтру'
+    : `Выбрать все по фильтру (${dealsPagedState.total.toLocaleString('ru')})`;
+  host.innerHTML = `<div class="deals-bulk-bar">
+    <span class="deals-bulk-count">Выбрано: ${count.toLocaleString('ru')}</span>
+    ${canSelectMore ? `<button class="deals-bulk-clear" id="deals-bulk-select-filtered" ${dealsPagedState.bulkBusy ? 'disabled' : ''}>${selectFilteredLabel}</button>` : ''}
+    <select class="tb-select" id="deals-bulk-responsible" aria-label="Назначить ответственного">
+      <option value="">Ответственный — не менять</option>
+      <option value="__none__">Без ответственного</option>
+      ${users.map(u => `<option value="${escapeHtml(u.uid)}">${escapeHtml(u.fullName)}</option>`).join('')}
+    </select>
+    <select class="tb-select" id="deals-bulk-stage" aria-label="Перенести на этап">
+      <option value="">Этап — не менять</option>
+      ${stages.map(s => `<option value="${escapeHtml(s.statusId)}">${escapeHtml(s.name)}</option>`).join('')}
+    </select>
+    <button class="deals-bulk-apply" id="deals-bulk-apply" ${dealsPagedState.bulkBusy ? 'disabled' : ''}>${dealsPagedState.bulkBusy ? 'Сохраняем…' : 'Применить'}</button>
+    <button class="deals-bulk-clear" id="deals-bulk-clear" ${dealsPagedState.bulkBusy ? 'disabled' : ''}>Снять выделение</button>
+  </div>`;
+  document.getElementById('deals-bulk-select-filtered')?.addEventListener('click', selectAllFilteredDeals);
+  document.getElementById('deals-bulk-apply')?.addEventListener('click', applyDealsBulkUpdate);
+  document.getElementById('deals-bulk-clear')?.addEventListener('click', clearDealsBulkSelection);
+}
+
+async function selectAllFilteredDeals() {
+  if (dealsPagedState.bulkBusy) return;
+  dealsPagedState.bulkBusy = true;
+  renderDealsBulkActions();
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const params = new URLSearchParams({
+      page: '1',
+      pageSize: '200',
+      sort: 'modified',
+      auth: idToken,
+      scope: effectiveScope(),
+    });
+    if (dealsState.search) params.set('q', dealsState.search);
+    if (dealsState.stageFilter) params.set('stage', dealsState.stageFilter);
+    if (dealsState.responsibleFilter) params.set('assignee', dealsState.responsibleFilter);
+    if (dealsState.activePipelineId) params.set('pipeline', dealsState.activePipelineId);
+    const response = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    for (const deal of (result.items || [])) {
+      dealsPagedState.selectedIds.add(String(deal.id || ('deal_' + deal.bitrixId)));
+    }
+    renderDealsPagedTable();
+    if (Number(result.total || 0) > 200) {
+      showToast('Выбраны первые 200 сделок. Уточните фильтр, чтобы обработать остальные.');
+    }
+  } catch (error) {
+    showToast('Не удалось выделить сделки: ' + (error.message || error), true);
+  } finally {
+    dealsPagedState.bulkBusy = false;
+    renderDealsBulkActions();
+  }
+}
+
+async function applyDealsBulkUpdate() {
+  if (dealsPagedState.bulkBusy || !dealsPagedState.selectedIds.size) return;
+  const responsibleValue = document.getElementById('deals-bulk-responsible')?.value || '';
+  const stageId = document.getElementById('deals-bulk-stage')?.value || '';
+  if (!responsibleValue && !stageId) {
+    showToast('Выберите ответственного или этап', true);
+    return;
+  }
+  dealsPagedState.bulkBusy = true;
+  renderDealsBulkActions();
+  try {
+    const idToken = await fbAuth.currentUser.getIdToken();
+    const selectedIds = [...dealsPagedState.selectedIds];
+    const commonBody = {
+      pipelineId: dealsState.activePipelineId,
+    };
+    if (stageId) commonBody.stageId = stageId;
+    if (responsibleValue) {
+      commonBody.setResponsible = true;
+      commonBody.responsibleUid = responsibleValue === '__none__' ? null : responsibleValue;
+    }
+    let updated = 0;
+    const failed = [];
+    for (let offset = 0; offset < selectedIds.length; offset += 50) {
+      const response = await fetch(`${WORKER_BASE_URL}/api/deals/bulk-update`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...commonBody, dealIds: selectedIds.slice(offset, offset + 50) }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+      updated += Number(result.updated || 0);
+      if (Array.isArray(result.failed)) failed.push(...result.failed);
+    }
+    clearDealsBulkSelection();
+    dealsState.loaded = false;
+    delete dealsState.dealsByPipeline[dealsState.activePipelineId];
+    await loadDealsPage(dealsPagedState.page || 1);
+    if (!dealsPagedState.items.length && dealsPagedState.page > 1) {
+      await loadDealsPage(dealsPagedState.page - 1);
+    }
+    renderDealsPagedTable();
+    renderDealsPagedPager();
+    if (failed.length) {
+      showToast(`Обновлено ${updated}, не удалось ${failed.length}: ${failed[0].error || 'ошибка'}`, true);
+    } else {
+      showToast(`Обновлено сделок: ${updated}`);
+    }
+  } catch (e) {
+    showToast('Массовое изменение: ' + (e.message || e), true);
+  } finally {
+    dealsPagedState.bulkBusy = false;
+    renderDealsBulkActions();
+  }
 }
 
 function renderDealsPagedPager() {
@@ -13322,6 +13561,18 @@ function getUsersForFilter() {
     }
   }
   return arr.sort((a, b) => a.fullName.localeCompare(b.fullName, 'ru'));
+}
+
+function getUsersForAssignment() {
+  return Object.entries(dealsState.users || {})
+    .map(([key, user]) => ({
+      uid: String(user?.uid || key),
+      fullName: `${user?.lastName || user?.last_name || ''} ${user?.name || ''}`.trim()
+        || user?.email || String(user?.uid || key),
+      active: user?.active !== false && user?.active !== 0,
+    }))
+    .filter(user => user.active && user.uid)
+    .sort((a, b) => a.fullName.localeCompare(b.fullName, 'ru'));
 }
 
 window.openDealCard = openDealCard;
