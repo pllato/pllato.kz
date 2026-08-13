@@ -3715,6 +3715,98 @@ async function handleDealStageChange(request, env, dealId) {
   }, 200, request);
 }
 
+// POST /api/deals/bulk-update
+// Массово меняет ответственного и/или этап у сделок из list-view. Перевод
+// этапа проходит через обычный handleDealStageChange, поэтому сохраняются
+// права, зеркала, гейты квалификации, журнал стадий и auto-mirror правила.
+async function handleDealsBulkUpdate(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'invalid json body' }, 400, request); }
+  const dealIds = [...new Set((Array.isArray(body.dealIds) ? body.dealIds : [])
+    .map(value => String(value || '').trim())
+    .filter(Boolean)
+    .map(value => value.startsWith('deal_') ? value : `deal_${value}`))];
+  if (!dealIds.length) return json({ error: 'dealIds required' }, 400, request);
+  if (dealIds.length > 50) return json({ error: 'too many deals (max 50 per request)' }, 413, request);
+
+  const stageId = body.stageId != null ? String(body.stageId).trim() : '';
+  const pipelineId = body.pipelineId != null ? String(body.pipelineId).trim() : '';
+  const setResponsible = body.setResponsible === true;
+  const responsibleUid = setResponsible && body.responsibleUid != null
+    ? String(body.responsibleUid).trim()
+    : null;
+  if (!stageId && !setResponsible) {
+    return json({ error: 'stageId or setResponsible required' }, 400, request);
+  }
+  if (stageId && !pipelineId) return json({ error: 'pipelineId required for stage change' }, 400, request);
+
+  if (stageId) {
+    const pipeline = await env.DB.prepare('SELECT stages FROM pipelines WHERE id = ? LIMIT 1').bind(pipelineId).first();
+    if (!pipeline) return json({ error: 'pipeline not found' }, 404, request);
+    let stages = {};
+    try { stages = JSON.parse(pipeline.stages || '{}'); } catch {}
+    if (!stages || !Object.prototype.hasOwnProperty.call(stages, stageId)) {
+      return json({ error: 'stage not found in pipeline' }, 400, request);
+    }
+  }
+  if (setResponsible && responsibleUid) {
+    const user = await env.DB.prepare('SELECT uid FROM users WHERE uid = ? LIMIT 1').bind(responsibleUid).first();
+    if (!user) return json({ error: 'responsible user not found' }, 404, request);
+  }
+
+  const failed = [];
+  let updated = 0;
+  const authorization = request.headers.get('Authorization') || '';
+  for (const dealId of dealIds) {
+    try {
+      if (!(await canEditRecord(env, me, 'deals', dealId))) {
+        failed.push({ dealId, error: 'нет прав на изменение сделки' });
+        continue;
+      }
+
+      if (stageId) {
+        const stageRequest = new Request(request.url, {
+          method: 'PATCH',
+          headers: { 'Authorization': authorization, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pipelineId, stageId }),
+        });
+        const stageResponse = await handleDealStageChange(stageRequest, env, dealId);
+        if (!stageResponse.ok) {
+          const stageError = await stageResponse.json().catch(() => ({}));
+          failed.push({ dealId, error: stageError.error || `HTTP ${stageResponse.status}` });
+          continue;
+        }
+      }
+
+      if (setResponsible) {
+        const nowIso = new Date().toISOString();
+        await env.DB.prepare(`
+          UPDATE deals SET responsible_uid = ?, modify_by_uid = ?, bitrix_date_modify = ?
+          WHERE id = ?
+        `).bind(responsibleUid || null, me.canonicalUid || null, nowIso, dealId).run();
+        await auditLog(env, me, 'deal_responsible_change', 'deal', dealId, {
+          responsibleUid: responsibleUid || null,
+          source: 'bulk_update',
+        });
+      }
+      updated++;
+    } catch (error) {
+      failed.push({ dealId, error: String(error?.message || error).slice(0, 300) });
+    }
+  }
+
+  return json({
+    ok: failed.length === 0,
+    requested: dealIds.length,
+    updated,
+    failed,
+  }, 200, request);
+}
+
 // POST /api/deals/{id}/mirror { pipelineId, stageId } — добавить зеркало
 // в другую воронку. Если stageId не указан — первая стадия воронки.
 async function handleDealAddMirror(request, env, dealId) {
@@ -11329,6 +11421,9 @@ export default {
     // /api/deals/comments-preview — батч последних 3 комментариев на сделку (для канбана)
     if (path === "/api/deals/comments-preview" && request.method === "POST") {
       return handleDealsCommentsPreview(request, env);
+    }
+    if (path === "/api/deals/bulk-update" && request.method === "POST") {
+      return handleDealsBulkUpdate(request, env);
     }
     // /api/deals/{id}/* — карточка сделки (архив, комментарии, лента)
     const dealArchiveMatch = path.match(/^\/api\/deals\/([^/]+)\/archive$/);
