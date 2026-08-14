@@ -9387,6 +9387,55 @@ async function recordMetaLeadPollHealth(env, error = null) {
   return { status: 'down', alerted: firstFailure };
 }
 
+// Пользовательский Meta token живёт до 60 дней. Пока приложение проходит
+// обязательную проверку Meta для бессрочного system-user token, заранее
+// предупреждаем админов за 14, 3 и 1 день. Дата хранится отдельно в kv и
+// обновляется одновременно с ротацией секрета в Cloudflare.
+async function maybeWarnMetaLeadTokenExpiry(env) {
+  const expiryRow = await env.DB.prepare(
+    "SELECT v FROM kv WHERE k = 'meta_lead_token:expires_at' LIMIT 1"
+  ).first();
+  const expiresAt = Date.parse(String(expiryRow?.v || '').replace(/^"|"$/g, ''));
+  if (!Number.isFinite(expiresAt)) return { warned: false, reason: 'no_expiry' };
+
+  const remainingMs = expiresAt - Date.now();
+  const remainingDays = Math.max(0, Math.ceil(remainingMs / 864e5));
+  let level = null;
+  if (remainingMs <= 864e5) level = '1d';
+  else if (remainingMs <= 3 * 864e5) level = '3d';
+  else if (remainingMs <= 14 * 864e5) level = '14d';
+  if (!level) return { warned: false, remainingDays };
+
+  const stateKey = 'meta_lead_token:last_expiry_warning';
+  const stateRow = await env.DB.prepare("SELECT v FROM kv WHERE k = ? LIMIT 1").bind(stateKey).first();
+  const state = safeJsonParse(stateRow?.v, {}) || {};
+  const expiryIso = new Date(expiresAt).toISOString();
+  if (state.expiresAt === expiryIso && state.level === level) {
+    return { warned: false, reason: 'already_warned', remainingDays };
+  }
+
+  const admins = await getAdminUids(env);
+  const expiryId = expiryIso.replace(/[^0-9]/g, '').slice(0, 14);
+  for (const uid of admins) {
+    await createNotification(env, {
+      id: `nt_meta_token_expiry_${expiryId}_${level}_${uid}`,
+      uid,
+      type: 'meta_token_expiry',
+      title: `⚠️ Токен Meta истекает через ${remainingDays} дн.`,
+      body: 'Обновите доступ Meta заранее, чтобы новые заявки продолжали попадать в CRM.',
+      link: '/team.html?page=settings',
+      icon: '⚠️',
+      entityType: 'integration',
+      entityId: 'meta_leads',
+    });
+  }
+  await env.DB.prepare(`
+    INSERT INTO kv (k, v) VALUES (?, ?)
+    ON CONFLICT(k) DO UPDATE SET v = excluded.v
+  `).bind(stateKey, JSON.stringify({ expiresAt: expiryIso, level, warnedAt: new Date().toISOString() })).run();
+  return { warned: true, admins: admins.length, remainingDays };
+}
+
 // Публичная обезличенная серия для КЭП: уникальная сделка учитывается один раз
 // по первому входу в «Создание Демо» или «Показ Демо».
 async function handlePublicPllatoKep(request, env) {
@@ -11985,7 +12034,11 @@ export default {
       }
       try {
         const meta = await pollMetaLeadForm(env);
-        if (!meta.skipped) await recordMetaLeadPollHealth(env);
+        if (!meta.skipped) {
+          await recordMetaLeadPollHealth(env);
+          const expiry = await maybeWarnMetaLeadTokenExpiry(env);
+          if (expiry.warned) console.log(`[cron] meta_token_expiry admins=${expiry.admins} days=${expiry.remainingDays}`);
+        }
         if (!meta.skipped && (meta.created > 0 || meta.fetched > 0)) {
           console.log(`[cron] meta_leads fetched=${meta.fetched} created=${meta.created} duplicates=${meta.duplicates}`);
         }
