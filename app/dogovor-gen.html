@@ -61,8 +61,9 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
   body{background:#fff;font-size:11.5px}
   .wrap{display:block;max-width:none;padding:0}
   .panel{display:none}
-  .doc{border:none;box-shadow:none;border-radius:0;padding:0;font-size:11px}
-  .doc h2{page-break-after:avoid}
+  .doc{border:none;box-shadow:none;border-radius:0;padding:0;font-size:10.6px;line-height:1.5}
+  .doc h2{page-break-after:avoid;margin:11px 0 5px}
+  .doc .pt{margin-bottom:4px}
   .doc .pt,.doc p{orphans:3;widows:3}
   .doc table.recv{page-break-inside:avoid}
   .doc .sig{page-break-inside:avoid}
@@ -116,6 +117,7 @@ body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height
       <div class="f"><label>После ядра, %</label><input id="fP2" type="number" value="45" min="0" max="100"></div>
       <div class="f"><label>При сдаче, %</label><input id="fP3" type="number" value="45" min="0" max="100" disabled></div>
     </div>
+    <div class="f"><label>Сайт отдельным блоком, ₸ — оплата 50% аванс · 50% при сдаче (опц., 0 = нет)</label><input id="fSum2" type="number" value="0" min="0" step="1000" placeholder="0 — сайт не выделяется"></div>
 
     <div class="btns">
       <button class="btn pri" onclick="window.print()">🖨 Печать / Сохранить PDF</button>
@@ -165,7 +167,10 @@ function render(){
   var sum=+val('fSum')||0, p1=+val('fP1')||0, p2=+val('fP2')||0, p3=Math.max(0,100-p1-p2);
   g('fP3').value=p3;
   var s1=Math.round(sum*p1/100), s2=Math.round(sum*p2/100), s3=sum-s1-s2;
-  g('sumWords').innerHTML='Прописью: <b>'+esc(numWords(sum))+' тенге</b> · оплата: '+money(s1)+' / '+money(s2)+' / '+money(s3)+' ₸';
+  var sum2=+val('fSum2')||0, w1=Math.round(sum2/2), w2=sum2-w1, total=sum+sum2;
+  g('sumWords').innerHTML=sum2>0
+    ?'Итого: <b>'+money(total)+' ₸</b> ('+esc(numWords(total))+') · портал: '+money(s1)+' / '+money(s2)+' / '+money(s3)+' · сайт: '+money(w1)+' / '+money(w2)+' ₸'
+    :'Прописью: <b>'+esc(numWords(sum))+' тенге</b> · оплата: '+money(s1)+' / '+money(s2)+' / '+money(s3)+' ₸';
   var client=val('fClient')||'____________________';
   var bin=val('fBin')||'____________';
   var rep=val('fRep')||'____________________';
@@ -187,10 +192,14 @@ function render(){
   '<div class="pt"><span class="n">1.'+(fix?'4':'3')+'.</span> Точный перечень функциональности фиксируется Сторонами на этапе согласования ядра системы (п. 3.2) и может уточняться по взаимному согласию Сторон без изменения общей стоимости, если уточнения не выходят за рамки состава работ.</div>'+
 
   '<h2>2. Стоимость работ и порядок оплаты</h2>'+
-  '<div class="pt"><span class="n">2.1.</span> Общая стоимость работ по Договору составляет <b>'+money(sum)+' ('+esc(numWords(sum))+') тенге</b>. Исполнитель не является плательщиком НДС.</div>'+
-  '<div class="pt"><span class="n">2.2.</span> Оплата производится поэтапно: <b>'+p1+'%</b> — '+money(s1)+' тенге — предоплата в течение 3 (трёх) банковских дней с даты подписания Договора; <b>'+p2+'%</b> — '+money(s2)+' тенге — после согласования Заказчиком ядра системы и размещения его на сервере (п. 3.2); <b>'+p3+'%</b> — '+money(s3)+' тенге — после полной сдачи работ и подписания акта (п. 3.4).</div>'+
-  '<div class="pt"><span class="n">2.3.</span> Оплата производится на расчётный счёт либо иным согласованным Сторонами способом. Датой оплаты считается дата поступления средств.</div>'+
-  '<div class="pt"><span class="n">2.4.</span> Работы и услуги, прямо не входящие в состав работ (п. 1.2), в том числе последующие доработки по заявкам Заказчика, выполняются по отдельному согласованию по ставке 20 (двадцать) долларов США за час работы в тенге по курсу на дату счёта, либо отдельным соглашением.</div>'+
+  (sum2>0
+    ?'<div class="pt"><span class="n">2.1.</span> Общая стоимость работ по Договору составляет <b>'+money(total)+' ('+esc(numWords(total))+') тенге</b>, из них: разработка веб-портала (системы управления бизнесом) — <b>'+money(sum)+' ('+esc(numWords(sum))+') тенге</b>; разработка интернет-магазина (веб-сайта) — <b>'+money(sum2)+' ('+esc(numWords(sum2))+') тенге</b>. Исполнитель не является плательщиком НДС.</div>'+
+     '<div class="pt"><span class="n">2.2.</span> Оплата за разработку веб-портала производится поэтапно: <b>'+p1+'%</b> — '+money(s1)+' тенге — предоплата в течение 3 (трёх) банковских дней с даты подписания Договора; <b>'+p2+'%</b> — '+money(s2)+' тенге — после согласования Заказчиком ядра системы и размещения его на сервере (п. 3.2); <b>'+p3+'%</b> — '+money(s3)+' тенге — после полной сдачи портала и подписания акта (п. 3.4).</div>'+
+     '<div class="pt"><span class="n">2.3.</span> Оплата за разработку интернет-магазина производится двумя частями: <b>50%</b> — '+money(w1)+' тенге — аванс до начала работ по интернет-магазину; <b>50%</b> — '+money(w2)+' тенге — после сдачи интернет-магазина и подписания акта.</div>'
+    :'<div class="pt"><span class="n">2.1.</span> Общая стоимость работ по Договору составляет <b>'+money(sum)+' ('+esc(numWords(sum))+') тенге</b>. Исполнитель не является плательщиком НДС.</div>'+
+     '<div class="pt"><span class="n">2.2.</span> Оплата производится поэтапно: <b>'+p1+'%</b> — '+money(s1)+' тенге — предоплата в течение 3 (трёх) банковских дней с даты подписания Договора; <b>'+p2+'%</b> — '+money(s2)+' тенге — после согласования Заказчиком ядра системы и размещения его на сервере (п. 3.2); <b>'+p3+'%</b> — '+money(s3)+' тенге — после полной сдачи работ и подписания акта (п. 3.4).</div>')+
+  '<div class="pt"><span class="n">2.'+(sum2>0?'4':'3')+'.</span> Оплата производится на расчётный счёт либо иным согласованным Сторонами способом. Датой оплаты считается дата поступления средств.</div>'+
+  '<div class="pt"><span class="n">2.'+(sum2>0?'5':'4')+'.</span> Работы и услуги, прямо не входящие в состав работ (п. 1.2), в том числе последующие доработки по заявкам Заказчика, выполняются по отдельному согласованию по ставке 20 (двадцать) долларов США за час работы в тенге по курсу на дату счёта, либо отдельным соглашением.</div>'+
 
   '<h2>3. Порядок выполнения и сдачи работ</h2>'+
   '<div class="pt"><span class="n">3.1.</span> Срок выполнения работ — '+esc(val('fTerm')||'4–6 недель')+' с даты поступления предоплаты и предоставления Заказчиком исходных материалов (логотип, прайсы, доступы, данные для переноса).</div>'+
@@ -231,7 +240,7 @@ function render(){
 }
 
 function resetForm(){['fClient','fBin','fRep','fPhone','fMail','fAddr','fFix'].forEach(function(i){g(i).value='';});
-  g('fSubj').value='portal';g('fScope').value=SCOPES.portal;g('fSum').value=1500000;g('fP1').value=10;g('fP2').value=45;g('fTerm').value='4–6 недель';initNumDate();render();}
+  g('fSubj').value='portal';g('fScope').value=SCOPES.portal;g('fSum').value=1500000;g('fSum2').value=0;g('fP1').value=10;g('fP2').value=45;g('fTerm').value='4–6 недель';initNumDate();render();}
 
 function initNumDate(){
   var d=new Date();
@@ -247,7 +256,7 @@ document.querySelectorAll('.panel input,.panel select,.panel textarea').forEach(
 (function(){
   initNumDate();
   var q=new URLSearchParams(location.search);
-  var map={client:'fClient',bin:'fBin',rep:'fRep',phone:'fPhone',mail:'fMail',addr:'fAddr',sum:'fSum',fix:'fFix',num:'fNum',term:'fTerm',city:'fCity',p1:'fP1',p2:'fP2'};
+  var map={client:'fClient',bin:'fBin',rep:'fRep',phone:'fPhone',mail:'fMail',addr:'fAddr',sum:'fSum',sum2:'fSum2',fix:'fFix',num:'fNum',term:'fTerm',city:'fCity',p1:'fP1',p2:'fP2'};
   Object.keys(map).forEach(function(k){if(q.get(k))g(map[k]).value=q.get(k);});
   var s=q.get('subj');if(s&&SCOPES.hasOwnProperty(s))g('fSubj').value=s;
   g('fScope').value=q.get('scope')||SCOPES[g('fSubj').value]||'';
