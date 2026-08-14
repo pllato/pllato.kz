@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#1f0e10"/>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
+<title>BEAUTY MIX · Пульт сети — Демо</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --acc:#D7261E; --acc2:#F0837C; --accD:#9E1812; --accSoft:rgba(215,38,30,.10); --rose:#C94F7C;
+  --bg:#F6F1F0; --card:#ffffff; --side:#1F0E10; --ink:#231518; --ink2:#544246; --muted:#837074; --faint:#AC9CA0;
+  --line:#ECE1E1; --off:#F9F4F3; --grn:#16a34a; --red:#e0483d; --amb:#d97706; --blue:#2563eb;
+  --sh:0 12px 32px -16px rgba(50,16,20,.22); --sh2:0 3px 12px -6px rgba(50,16,20,.13);
+}
+:root[data-theme="dark"]{
+  --bg:#160D0F; --card:#211417; --side:#100809; --ink:#F4EAEA; --ink2:#D0BFC2; --muted:#9A868A; --faint:#5F5054;
+  --line:#332226; --off:#1B1013; --accSoft:rgba(215,38,30,.16); --sh:0 16px 42px -18px rgba(0,0,0,.62); --sh2:0 6px 18px -8px rgba(0,0,0,.5);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+a{color:inherit;text-decoration:none}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+.hidden{display:none!important}
+
+/* ===== role gate ===== */
+.gate{position:fixed;inset:0;z-index:80;background:linear-gradient(150deg,#170a0c,#341318 60%,#57181f);display:grid;place-items:center;padding:22px;overflow:auto}
+.gate .aur{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.gate .aur i{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;animation:fl 20s ease-in-out infinite}
+.gate .aur i:nth-child(1){width:520px;height:520px;background:var(--acc);top:-160px;right:-120px}
+.gate .aur i:nth-child(2){width:440px;height:440px;background:var(--rose);bottom:-160px;left:-120px;animation-delay:-7s;opacity:.3}
+@keyframes fl{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(28px,-26px) scale(1.08)}}
+.gate .in{position:relative;max-width:960px;width:100%;text-align:center;color:#fff}
+.gate .bm{width:64px;height:64px;border-radius:50%;background:#D7261E;display:grid;place-items:center;margin:0 auto 16px;border:1px solid rgba(255,255,255,.2)}
+.gate .bm b{color:#fff;font-weight:900;font-size:24px;letter-spacing:-.02em}
+.gate h1{font-size:clamp(24px,4vw,36px);font-weight:900;letter-spacing:-.02em}
+.gate h1 b{color:var(--acc2)}
+.gate .sub{color:#dcbfc2;font-size:15px;margin:10px 0 26px;max-width:680px;margin-left:auto;margin-right:auto}
+.gate .rgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.rolecard{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:16px 13px;text-align:left;cursor:pointer;transition:.15s}
+.rolecard:hover{background:rgba(255,255,255,.1);border-color:var(--acc2);transform:translateY(-2px)}
+.rolecard .ri{font-size:22px;margin-bottom:8px}
+.rolecard .rn{font-weight:800;font-size:14px;color:#fff}
+.rolecard .rd{font-size:11px;color:#dcbfc2;margin-top:3px;line-height:1.4}
+.rolecard .rt{font-size:10.5px;color:var(--acc2);font-weight:700;margin-top:8px}
+.gate .foot{margin-top:22px;font-size:12px;color:#b3969a}
+.gate .foot b{color:#e7d1d3}
+
+/* ===== app ===== */
+.app{display:grid;grid-template-columns:240px 1fr;height:100vh}
+.side{background:var(--side);color:#d8c6c8;display:flex;flex-direction:column;overflow:hidden}
+.side .brand{padding:16px 16px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:11px}
+.side .bl{width:40px;height:40px;border-radius:50%;background:#D7261E;display:grid;place-items:center;flex:none;color:#fff;font-weight:900;font-size:15px}
+.side .bn{font-weight:900;font-size:15px;color:#fff;letter-spacing:.04em}
+.side .bs{font-size:10px;color:#b3969a;margin-top:1px}
+.side .pill{margin:12px 12px 4px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:9px 11px;display:flex;align-items:center;gap:9px}
+.side .pill .d{width:8px;height:8px;border-radius:50%;background:var(--grn);box-shadow:0 0 0 4px rgba(22,163,74,.2);flex:none}
+.side .pill .t{font-size:12px;font-weight:600;color:#f0e2e3}.side .pill .x{font-size:10px;color:#b3969a;margin-top:1px}
+.nav{flex:1;overflow-y:auto;padding:8px 10px}
+.nav .g{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:#7c6367;font-weight:800;padding:12px 12px 5px}
+.nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;font-size:13.5px;font-weight:500;color:#c2abae;transition:.12s;position:relative}
+.nav a:hover{background:rgba(255,255,255,.05);color:#fff}
+.nav a.on{background:linear-gradient(90deg,var(--accSoft),transparent);color:#fff}
+.nav a.on::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:3px;background:var(--acc2)}
+.nav a .ic{width:18px;text-align:center;font-size:15px}
+.nav a .cnt{margin-left:auto;font-size:10.5px;font-weight:700;background:rgba(255,255,255,.08);border-radius:20px;padding:1px 7px;color:#d8c6c8}
+.nav a .cnt.r{background:var(--acc);color:#fff}
+.side .usr{padding:11px 12px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px}
+.side .usr .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--rose));display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;flex:none}
+.side .usr .un{font-size:12.5px;font-weight:600;color:#f6ecec}.side .usr .ur{font-size:10.5px;color:#b3969a}
+
+.main{display:flex;flex-direction:column;min-width:0;height:100vh}
+.topbar{display:flex;align-items:center;gap:14px;padding:11px 22px;border-bottom:1px solid var(--line);background:var(--card);flex-wrap:wrap}
+.topbar .tt{font-size:17px;font-weight:800}
+.topbar .ts{font-size:12px;color:var(--muted);margin-top:1px}
+.topbar .sp{flex:1}
+.badgewa{display:inline-flex;align-items:center;gap:7px;background:color-mix(in srgb,var(--grn) 12%,transparent);color:var(--grn);font-size:11.5px;font-weight:700;padding:6px 11px;border-radius:20px}
+.badgewa .d{width:7px;height:7px;border-radius:50%;background:var(--grn)}
+select.rolesel{background:var(--off);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:12.5px;font-weight:600;color:var(--ink);font-family:inherit;outline:none}
+.tbtn{width:37px;height:37px;border-radius:10px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;font-size:15px}
+.mtoggle{display:none}
+.body{flex:1;overflow-y:auto;padding:20px 22px}
+.screen{display:none;animation:fade .22s ease}.screen.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:var(--sh2)}
+.kpi .l{font-size:11.5px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:7px}
+.kpi .l .i{width:24px;height:24px;border-radius:7px;background:var(--accSoft);display:grid;place-items:center;font-size:12px}
+.kpi .v{font-size:22px;font-weight:900;letter-spacing:-.02em;margin-top:9px}
+.kpi .v.up{color:var(--grn)}.kpi .v.acc{color:var(--acc)}.kpi .v.amb{color:var(--amb)}.kpi .v.red{color:var(--red)}.kpi .v.rs{color:var(--rose)}
+.kpi .d{font-size:11px;color:var(--muted);margin-top:2px}
+.grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-bottom:14px}
+.grid2.eq{grid-template-columns:1fr 1fr}
+.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:17px;box-shadow:var(--sh2)}
+.card .ct{font-size:13.5px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card .ct .mini{font-size:11px;color:var(--muted);font-weight:600}
+.gbars{display:flex;align-items:flex-end;gap:12px;height:170px;padding-top:18px}
+.gbars .gc{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%;justify-content:flex-end}
+.gbars .gp{display:flex;align-items:flex-end;gap:4px;height:100%;width:100%;justify-content:center}
+.gbars .gp i{width:26px;border-radius:6px 6px 0 0;transition:height .85s cubic-bezier(.2,.8,.2,1);position:relative;background:linear-gradient(180deg,var(--acc),var(--acc2))}
+.gbars .gp i b{position:absolute;top:-16px;left:-12px;right:-12px;text-align:center;font-size:9.5px;font-weight:800;color:var(--ink2)}
+.gbars .gc span{font-size:10.5px;color:var(--muted);font-weight:600}
+.legend{display:flex;gap:16px;margin-top:12px;font-size:11.5px;color:var(--muted);font-weight:600}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.hbars .hb{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.hbars .hb .lb{width:132px;font-size:12px;color:var(--ink2);font-weight:600;flex:none}
+.hbars .hb .tr{flex:1;height:11px;border-radius:6px;background:var(--off);overflow:hidden}
+.hbars .hb .tr i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--acc),var(--acc2));width:0;transition:width .9s cubic-bezier(.2,.8,.2,1)}
+.hbars .hb .vv{font-size:12px;font-weight:800;width:86px;text-align:right;flex:none}
+.att{display:flex;flex-direction:column;gap:8px}
+.att .a{display:flex;gap:10px;align-items:flex-start;background:var(--off);border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+.att .a .ai{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:13px;flex:none}
+.att .a.r .ai{background:color-mix(in srgb,var(--red) 14%,transparent)}.att .a.y .ai{background:color-mix(in srgb,var(--amb) 15%,transparent)}.att .a.g .ai{background:color-mix(in srgb,var(--grn) 14%,transparent)}.att .a.p .ai{background:var(--accSoft)}
+.att .a .tx{font-size:12.5px;line-height:1.4}.att .a .tx .s{color:var(--muted);font-size:11.5px}
+
+table{width:100%;border-collapse:collapse}
+th{font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);text-align:left;padding:10px 10px;font-weight:800;border-bottom:1px solid var(--line)}
+td{padding:11px 10px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr{transition:.1s}tbody tr:hover{background:var(--off)}
+tbody tr.clk{cursor:pointer}
+td.r{text-align:right;font-weight:700;white-space:nowrap}
+.tag{font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:20px;display:inline-block;white-space:nowrap}
+.tag.a{background:var(--accSoft);color:var(--accD)}.tag.g{background:color-mix(in srgb,var(--grn) 15%,transparent);color:var(--grn)}.tag.y{background:color-mix(in srgb,var(--amb) 16%,transparent);color:var(--amb)}.tag.r{background:color-mix(in srgb,var(--red) 14%,transparent);color:var(--red)}.tag.b{background:color-mix(in srgb,var(--blue) 13%,transparent);color:var(--blue)}.tag.rs{background:color-mix(in srgb,var(--rose) 15%,transparent);color:var(--rose)}.tag.n{background:var(--off);color:var(--muted)}
+.mini{font-size:11px;color:var(--muted)}
+.miniprog{width:74px;height:7px;border-radius:5px;background:var(--off);overflow:hidden;display:inline-block;vertical-align:middle}
+.miniprog i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.av2{width:28px;height:28px;border-radius:8px;display:inline-grid;place-items:center;color:#fff;font-size:11px;font-weight:700;vertical-align:middle;margin-right:8px}
+.cell{display:flex;align-items:center}
+.hint{background:var(--accSoft);border:1px solid color-mix(in srgb,var(--acc) 22%,transparent);border-radius:12px;padding:14px 16px;font-size:13px;color:var(--ink2);line-height:1.55;margin-top:16px}
+.hint b{color:var(--ink)}
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.chipf{font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid var(--line);background:var(--card);color:var(--ink2);cursor:pointer}
+.chipf.on{background:var(--acc);border-color:var(--acc);color:#fff}
+/* kanban */
+.kan{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;align-items:flex-start}
+.col{min-width:212px;flex:1;background:var(--off);border:1px solid var(--line);border-radius:13px;padding:10px}
+.col.drop{outline:2px dashed var(--acc);outline-offset:-3px}
+.col .ch{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:800;margin-bottom:4px;color:var(--ink2)}
+.col .ch .n{background:var(--card);border:1px solid var(--line);border-radius:20px;font-size:10.5px;padding:1px 8px;color:var(--muted)}
+.col .cs{font-size:10.5px;color:var(--muted);font-weight:700;margin-bottom:9px}
+.deal{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:10px 11px;margin-bottom:8px;box-shadow:var(--sh2);cursor:pointer}
+.deal .dn{font-size:12.5px;font-weight:700;margin-bottom:5px}
+.deal .dm{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}
+.deal .ds{font-size:12.5px;font-weight:800;color:var(--acc)}
+.mtag{font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:20px;background:var(--accSoft);color:var(--accD)}
+/* inventory WOW */
+.invhead{display:grid;grid-template-columns:1.35fr 1fr;gap:14px;margin-bottom:14px}
+.scanbox{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:18px;box-shadow:var(--sh2)}
+.scanbox .sh1{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.scanbox .sh1 .t{font-size:14px;font-weight:800}
+.scanbox .big{font-size:34px;font-weight:900;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.scanbox .big span{font-size:16px;color:var(--muted);font-weight:700}
+.scanprog{height:14px;border-radius:8px;background:var(--off);overflow:hidden;margin:12px 0 8px;position:relative}
+.scanprog i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--acc),var(--acc2));width:0;transition:width 1.2s cubic-bezier(.2,.8,.2,1)}
+.scanmeta{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);font-weight:600;flex-wrap:wrap;gap:6px}
+.zerobtn{display:inline-flex;align-items:center;gap:8px;background:var(--acc);color:#fff;font-weight:800;font-size:13px;border-radius:11px;padding:11px 16px;margin-top:14px;box-shadow:var(--sh2)}
+.zerobtn:hover{background:var(--accD)}
+.lastrev{display:flex;flex-direction:column;gap:8px}
+.lastrev .lr{display:flex;align-items:center;gap:10px;background:var(--off);border:1px solid var(--line);border-radius:11px;padding:9px 12px;font-size:12.5px}
+.lastrev .lr .d8{width:8px;height:8px;border-radius:50%;flex:none}
+.lastrev .lr b{margin-left:auto;white-space:nowrap}
+/* pnl */
+.pnl{display:flex;flex-direction:column;gap:2px}
+.pnl .r{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.pnl .r:last-child{border:none}
+.pnl .r .k{color:var(--ink2)}.pnl .r .v{font-weight:700}
+.pnl .r.plus .v{color:var(--grn)}.pnl .r.minus .v{color:var(--red)}
+.pnl .r.tot{border-top:2px solid var(--line);margin-top:4px;font-weight:900}.pnl .r.tot .v{color:var(--acc);font-size:16px}
+/* site preview */
+.siteprev{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.siteprev .sbar{display:flex;align-items:center;gap:7px;background:var(--off);border-bottom:1px solid var(--line);padding:8px 12px;font-size:11px;color:var(--muted)}
+.siteprev .sbar i{width:9px;height:9px;border-radius:50%;background:var(--line);display:inline-block}
+.siteprev .sbody{padding:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.sprod{border:1px solid var(--line);border-radius:11px;padding:11px;text-align:center}
+.sprod .pi{height:54px;border-radius:9px;background:linear-gradient(135deg,var(--accSoft),var(--off));display:grid;place-items:center;font-size:22px;margin-bottom:8px}
+.sprod .pn{font-size:11.5px;font-weight:700;line-height:1.3}
+.sprod .pp{font-size:12px;font-weight:900;color:var(--acc);margin-top:4px}
+.sprod .pb{font-size:10px;background:var(--acc);color:#fff;border-radius:7px;padding:4px 0;margin-top:7px;font-weight:700}
+/* modal */
+.ov{position:fixed;inset:0;z-index:70;background:rgba(24,8,10,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:18px}
+.ov.show{display:flex}
+.modal{background:var(--card);border:1px solid var(--line);border-radius:18px;max-width:580px;width:100%;box-shadow:var(--sh);max-height:92vh;overflow:auto;position:relative}
+.mh{padding:20px 22px 6px}.mh .t{font-size:19px;font-weight:900;letter-spacing:-.01em}.mh .s{font-size:12.5px;color:var(--ink2);margin-top:5px}
+.mb{padding:14px 22px 20px}
+.dl .row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}.dl .row:last-child{border:none}.dl .row .k{color:var(--muted)}.dl .row .v{font-weight:700}
+.mclose{position:absolute;top:13px;right:15px;font-size:22px;color:var(--muted);line-height:1;z-index:2}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(30px);background:var(--side);color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:var(--sh);opacity:0;transition:.25s;z-index:75;max-width:90%}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast b{color:var(--acc2)}
+@media(max-width:900px){
+  .app{grid-template-columns:1fr}
+  .side{position:fixed;z-index:50;width:240px;height:100vh;transform:translateX(-100%);transition:.25s;box-shadow:var(--sh)}
+  .side.open{transform:none}
+  .mtoggle{display:grid;place-items:center;width:37px;height:37px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-size:18px}
+  .kpis{grid-template-columns:repeat(2,1fr)}.grid2,.grid2.eq,.invhead{grid-template-columns:1fr}
+  .gate .rgrid{grid-template-columns:repeat(2,1fr)}
+  .siteprev .sbody{grid-template-columns:1fr 1fr}
+}
+</style></head>
+<body>
+
+<!-- ROLE GATE -->
+<div class="gate" id="gate">
+  <div class="aur"><i></i><i></i></div>
+  <div class="in">
+    <div class="bm"><b>MB</b></div>
+    <h1>BEAUTY MIX · <b>Пульт сети</b></h1>
+    <div class="sub">Единая система сети магазинов косметики: точки и онлайн в одном окне → воронка из WhatsApp → каталог 10 929 SKU по брендам → склады и перемещения между городами → инвентаризация до копейки (с обнулением непросканированных) → отчёты и ЗП → задачи и роли. Выберите роль — покажем ровно её экраны. Всё кликается.</div>
+    <div class="rgrid" id="rgrid"></div>
+    <div class="foot">Демо-режим · данные вымышлены для показа · сделано <b>Pllato</b> под вашу сеть</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app hidden" id="app">
+  <aside class="side" id="side">
+    <div class="brand"><div class="bl">MB</div><div><div class="bn">BEAUTY MIX</div><div class="bs">сеть косметики · пульт</div></div></div>
+    <div class="pill"><span class="d"></span><div><div class="t">Запад Казахстана</div><div class="x">Атырау · Актау · Уральск · онлайн</div></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="usr"><div class="av" id="uav">Р</div><div><div class="un" id="uname">Раиса</div><div class="ur" id="urole">Собственница</div></div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <button class="mtoggle" id="mtoggle">☰</button>
+      <div><div class="tt" id="pageTitle">Обзор</div><div class="ts" id="pageSub">Пульт собственницы</div></div>
+      <span class="sp"></span>
+      <span class="badgewa"><span class="d"></span>WhatsApp · 7 номеров</span>
+      <select class="rolesel" id="roleSel"></select>
+      <button class="tbtn" id="themeBtn">🌙</button>
+    </div>
+    <div class="body">
+      <!-- Обзор -->
+      <div class="screen on" data-s="dash">
+        <div class="kpis" id="kpis"></div>
+        <div class="grid2"><div class="card"><div class="ct"><span>Выручка сети по месяцам <span class="mini">млн ₸</span></span><span class="mini">6 мес</span></div><div class="gbars" id="bars"></div><div class="legend"><span><i style="background:var(--acc)"></i>Сеть</span><span style="margin-left:auto;color:var(--ink2);font-weight:700" id="barNote"></span></div></div>
+          <div class="card"><div class="ct">Требует внимания <span class="mini">на сегодня</span></div><div class="att" id="att"></div></div></div>
+        <div class="grid2 eq"><div class="card"><div class="ct">Выручка по точкам <span class="mini">этот месяц</span></div><div class="hbars" id="storeBars"></div></div>
+          <div class="card"><div class="ct">Топ-бренды <span class="mini">доля продаж</span></div><div class="hbars" id="brandBars"></div>
+            <div class="hint" style="margin-top:12px">Все точки, онлайн и склады — <b>в одном окне</b>. Не по кассам и файлам, а единый пульт: цифры каждый день, а не когда «дошли руки».</div></div></div>
+      </div>
+
+      <!-- Заказы / воронка -->
+      <div class="screen" data-s="funnel">
+        <div class="kpis" id="fnKpis"></div>
+        <div class="card"><div class="ct">Воронка заказов · онлайн <span class="mini" id="fnSum"></span></div><div class="kan" id="kan"></div>
+          <div class="hint" style="margin-top:14px">Клиент написал в <b>WhatsApp</b> (7 номеров — все в системе) или оставил корзину на сайте → заявка сама в воронке. Менеджер собирает заказ по SKU, выставляет счёт на Kaspi, передаёт в доставку. Вечерние сообщения мастеров не теряются — утром они первые в очереди.</div></div>
+      </div>
+
+      <!-- Клиенты -->
+      <div class="screen" data-s="clients">
+        <div class="kpis" id="clKpis"></div>
+        <div class="card"><div class="ct">База клиентов <span class="mini">розница · мастера · салоны</span></div>
+          <table><thead><tr><th>Клиент</th><th>Сегмент</th><th class="r">Покупок</th><th class="r">Средний чек</th><th>Последняя</th><th>Канал</th></tr></thead><tbody id="clients"></tbody></table>
+          <div class="hint" style="margin-top:12px">Сегменты: <b>розница, мастера (визажисты, косметологи), салоны</b>. По каждому — история покупок и переписка. Мастера пишут вечером — система ставит заявку в очередь и <b>не даёт ей потеряться</b>.</div></div>
+      </div>
+
+      <!-- Каталог -->
+      <div class="screen" data-s="catalog">
+        <div class="kpis" id="ctKpis"></div>
+        <div class="card"><div class="ct">Каталог товаров <span class="mini">10 929 SKU · категории по брендам</span></div>
+          <div class="toolbar" id="brandFilter"></div>
+          <table><thead><tr><th>Товар</th><th>Бренд</th><th class="r">Цена</th><th class="r">Остаток сети</th><th>ABC</th><th>Штрихкод</th></tr></thead><tbody id="goods"></tbody></table>
+          <div class="hint" style="margin-top:12px">До <b>30 000 SKU</b> — без «тормозов» и требований к «качковым» компьютерам: система работает в браузере с любого устройства. Карточка товара готова к <b>НКТ</b> (национальному каталогу) — когда государство обяжет, подключим по API.</div></div>
+      </div>
+
+      <!-- Склады -->
+      <div class="screen" data-s="stock">
+        <div class="kpis" id="stKpis"></div>
+        <div class="grid2"><div class="card"><div class="ct">Остатки по складам <span class="mini">4 точки + подсклады · до 10 складов</span></div>
+          <table><thead><tr><th>Склад</th><th class="r">SKU</th><th class="r">Остаток, шт</th><th class="r">Себестоимость</th><th>Статус</th></tr></thead><tbody id="stocks"></tbody></table></div>
+          <div class="card"><div class="ct">Движения сегодня <span class="mini">каждая цифра — с историей</span></div><div class="att" id="moves"></div>
+            <div class="hint" style="margin-top:12px">Приход, продажа, перемещение между городами, списание — <b>каждое движение пишется в журнал</b>. Любую цифру остатка можно «раскрутить» назад по истории: откуда она сложилась. Цифры не «превращаются сами по себе».</div></div></div>
+      </div>
+
+      <!-- Инвентаризация (WOW) -->
+      <div class="screen" data-s="inv">
+        <div class="kpis" id="invKpis"></div>
+        <div class="invhead">
+          <div class="scanbox">
+            <div class="sh1"><span class="t">Ревизия · Атырау, Сатпаева</span><span class="tag b">идёт сейчас</span></div>
+            <div class="big" id="scanNum">0 <span>/ 10 929 SKU отсканировано</span></div>
+            <div class="scanprog"><i id="scanBar"></i></div>
+            <div class="scanmeta"><span>2 сканера · Айгерим, Мадина</span><span>начата 09:00 · темп 1 240 SKU/час</span></div>
+            <button class="zerobtn" onclick="zeroUnscanned()">⭘ Обнулить непросканированные (71) → акт недостачи</button>
+          </div>
+          <div class="card"><div class="ct">Прошлые ревизии <span class="mini">история сходимости</span></div>
+            <div class="lastrev" id="revlog"></div></div>
+        </div>
+        <div class="card"><div class="ct">Расхождения по факту сканирования <span class="mini">план ↔ факт · клик по строке — вся история движения</span></div>
+          <table><thead><tr><th>Товар</th><th>Склад</th><th class="r">По системе</th><th class="r">Факт скан</th><th class="r">Разница</th><th>Решение</th></tr></thead><tbody id="diffs"></tbody></table>
+          <div class="hint" style="margin-top:12px"><b>Ни один SKU не «вылетает» при завершении.</b> Итог ревизии закрывается контрольной сверкой: отсканировано + непросканировано = весь каталог, ничего не теряется. Список непросканированных — одной кнопкой в <b>акт недостачи</b>, без второй контрольной ревизии.</div></div>
+      </div>
+
+      <!-- Отчёты и ЗП -->
+      <div class="screen" data-s="reports">
+        <div class="kpis" id="rpKpis"></div>
+        <div class="grid2"><div class="card"><div class="ct">Отчётный лист по сотрудникам <span class="mini">продажи → начисление ЗП</span></div>
+          <table><thead><tr><th>Сотрудник</th><th>Точка</th><th class="r">Продажи</th><th class="r">Чеков</th><th class="r">Ср. чек</th><th class="r">ЗП к выплате</th></tr></thead><tbody id="salary"></tbody></table></div>
+          <div class="card"><div class="ct">ABC-анализ <span class="mini">товары по вкладу в выручку</span></div><div class="pnl" id="abc"></div>
+            <div class="hint" style="margin-top:12px">Любой отчёт — <b>автоматически</b>: по сотрудникам (для ЗП, как вы привыкли), ABC, по брендам, по точкам, по каналам. Хотите 10 отчётов — будет 10. Данные уже в системе.</div></div></div>
+      </div>
+
+      <!-- Задачи -->
+      <div class="screen" data-s="tasks">
+        <div class="kpis" id="tsKpis"></div>
+        <div class="card"><div class="ct">Задачи по сети <span class="mini">как Trello — внутри системы</span></div><div class="kan" id="taskKan"></div>
+          <div class="hint" style="margin-top:14px">Задачи по точкам и людям: выкладка, заказ бренду, пересорт, обучение новенькой. Перетаскивайте карточки между колонками.</div></div>
+      </div>
+
+      <!-- Сайт -->
+      <div class="screen" data-s="site">
+        <div class="kpis" id="siKpis"></div>
+        <div class="grid2"><div class="card"><div class="ct">Интернет-магазин <span class="mini">beautymix.kz · выбор города · каталог от остатков</span></div>
+          <div class="siteprev"><div class="sbar"><i></i><i></i><i></i><span>beautymix.kz · город: Атырау ▾</span></div>
+            <div class="sbody" id="siteGoods"></div></div></div>
+          <div class="card"><div class="ct">Заявки с сайта <span class="mini">корзина → CRM → менеджер перезванивает</span></div><div class="att" id="siteLeads"></div>
+            <div class="hint" style="margin-top:12px">Клиент выбирает город → видит <b>живые остатки своей точки</b> → собирает корзину → заявка падает в CRM. Менеджер перезванивает и выставляет счёт на Kaspi. Плюс бесплатный трафик из Google — сайт сдаём с предварительной SEO-оптимизацией.</div></div></div>
+      </div>
+
+      <!-- Команда и роли -->
+      <div class="screen" data-s="team">
+        <div class="kpis" id="tmKpis"></div>
+        <div class="grid2"><div class="card"><div class="ct">Команда <span class="mini">до 50 пользователей · без доплат</span></div>
+          <table><thead><tr><th>Сотрудник</th><th>Роль</th><th>Точка</th><th>Статус</th></tr></thead><tbody id="staff"></tbody></table></div>
+          <div class="card"><div class="ct">Права доступа <span class="mini">кто что видит</span></div>
+            <table><thead><tr><th>Раздел</th><th>Продавец</th><th>Управляющая</th><th>Собственница</th></tr></thead><tbody id="rights"></tbody></table>
+            <div class="hint" style="margin-top:12px">Роли и права — <b>сеткой, как вы привыкли в X2</b>: продавец не видит себестоимость и чужую точку, управляющая — свою точку целиком, собственница — всё. Меняется на лету.</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- modal -->
+<div class="ov" id="dov"><div class="modal"><button class="mclose" onclick="closeM('dov')">×</button>
+  <div class="mh"><div class="t" id="dmName"></div><div class="s" id="dmSub"></div></div>
+  <div class="mb"><div class="dl" id="dmMeta"></div>
+    <div class="hint" style="margin-top:14px" id="dmHint">В полной версии — полная история движения по товару: каждый приход, продажа, перемещение и списание с датой и сотрудником.</div></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var C='₸';
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function ini(s){return s.replace(/[«»"]/g,'').split(/\s+/).filter(Boolean).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase();}
+function money(n){return n>=1000000?(n/1000000).toFixed(n%1000000?1:0).replace('.',',')+' млн':(n>=1000?Math.round(n).toLocaleString('ru-RU'):n);}
+
+var ROLES={
+ 'Собственница':{ic:'👑',d:'Вся сеть: точки, деньги, склады, ревизии, команда',s:['dash','funnel','clients','catalog','stock','inv','reports','tasks','site','team']},
+ 'Управляющая точкой':{ic:'🏬',d:'Своя точка: продажи, склад, ревизия, задачи',s:['dash','stock','inv','tasks','team']},
+ 'Продавец-консультант':{ic:'💄',d:'Заказы, клиенты, каталог и остатки',s:['funnel','clients','catalog']},
+ 'Онлайн-менеджер':{ic:'💬',d:'WhatsApp-воронка, заявки с сайта',s:['funnel','clients','site']},
+ 'Склад / ревизор':{ic:'📦',d:'Приёмка, перемещения, инвентаризация',s:['stock','inv','catalog']},
+ 'Маркетолог':{ic:'✨',d:'Клиенты, бренды, ABC, сайт',s:['clients','reports','site','dash']},
+ 'Бухгалтер':{ic:'💰',d:'Отчёты, ЗП, себестоимость',s:['reports','stock']},
+};
+var NAVDEF=[['Управление',[['dash','▦','Обзор'],['reports','📊','Отчёты и ЗП']]],
+ ['Продажи',[['funnel','🛍️','Заказы · воронка','deals'],['clients','👥','Клиенты','cl'],['site','🌐','Интернет-магазин','sl']]],
+ ['Товары',[['catalog','💄','Каталог · SKU','sku'],['stock','📦','Склады'],['inv','🔍','Инвентаризация','inv']]],
+ ['Команда',[['tasks','✅','Задачи','ts'],['team','🧑‍🤝‍🧑','Команда и роли']]]];
+var TITLES={dash:['Обзор','Пульт собственницы'],funnel:['Заказы · воронка','WhatsApp и сайт → заказ → Kaspi'],clients:['Клиенты','Розница, мастера, салоны'],catalog:['Каталог · SKU','10 929 позиций по брендам'],stock:['Склады','Точки, подсклады, перемещения'],inv:['Инвентаризация','Ревизия до копейки'],reports:['Отчёты и ЗП','Отчётный лист, ABC, бренды'],tasks:['Задачи','Канбан по сети'],site:['Интернет-магазин','Выбор города · заявки в CRM'],team:['Команда и роли','Права доступа сеткой']};
+
+var STORES=[['Атырау · Сатпаева',4820,'g'],['Атырау · Авангард',3610,'g'],['Актау · 12 мкр',4110,'g'],['Уральск · открытие',1240,'y']];
+var BRANDS=['Kapous','Estel','Aravia','Ollin','TNL','CHI'];
+var GOODS=[
+ ['Kapous Professional шампунь 1000 мл','Kapous',4900,186,'A','486902…814'],
+ ['Estel Princess Essex 10/16 крем-краска','Estel',2350,244,'A','487003…122'],
+ ['Aravia гель для депиляции 300 мл','Aravia',6200,97,'A','486801…907'],
+ ['Ollin Megapolis масло 50 мл','Ollin',3800,64,'B','487104…356'],
+ ['TNL гель-лак №204 10 мл','TNL',1450,312,'B','486905…441'],
+ ['CHI Silk Infusion шёлк 59 мл','CHI',9800,28,'B','487206…873'],
+ ['Kapous воск в гранулах 100 г','Kapous',2100,143,'C','486907…210'],
+ ['Estel Curex спрей-термозащита','Estel',2750,88,'C','487008…664']
+];
+var STAGES=['Заявка (WhatsApp/сайт)','Консультация','Сбор заказа','Счёт · Kaspi','Доставка / выдача','Закрыт'];
+var DEALS=[];function buildDeals(){DEALS=[
+ {c:'Салон «Aisha Beauty»',seg:'Салон',sum:186000,st:2,mgr:'Дана',ch:'WhatsApp',next:'Собрать 14 SKU · Kapous, Estel'},
+ {c:'Мадина К. (визажист)',seg:'Мастер',sum:42500,st:0,mgr:'Дана',ch:'WhatsApp · вечер',next:'Написала 22:40 — ответить первой'},
+ {c:'Корзина с сайта · Актау',seg:'Розница',sum:18900,st:1,mgr:'Асель',ch:'Сайт',next:'Перезвонить, уточнить оттенки'},
+ {c:'Салон «Nail Room» Уральск',seg:'Салон',sum:238000,st:3,mgr:'Асель',ch:'WhatsApp',next:'Счёт на Kaspi выставлен'},
+ {c:'Айгуль С. (косметолог)',seg:'Мастер',sum:64700,st:4,mgr:'Дана',ch:'WhatsApp',next:'Передано в доставку'},
+ {c:'Оптовый заказ · Атырау',seg:'Салон',sum:412000,st:2,mgr:'Асель',ch:'Телефон',next:'Сверить остатки по 6 SKU'},
+ {c:'Постоянная · Гульнара',seg:'Розница',sum:23600,st:5,mgr:'Дана',ch:'WhatsApp',next:'Закрыт · оплата получена'}
+];}
+var CLIENTS=[['Салон «Aisha Beauty»','Салон',34,168000,'вчера','WhatsApp','rs'],['Мадина К.','Мастер',21,38000,'сегодня','WhatsApp','a'],['Айгуль С.','Мастер',17,52000,'2 дня','WhatsApp','a'],['Гульнара Ж.','Розница',9,21000,'сегодня','Точка','n'],['Салон «Nail Room»','Салон',12,204000,'сегодня','WhatsApp','rs'],['Салтанат Б.','Розница',5,17800,'неделя','Сайт','b'],['Студия «Lash&Brow»','Салон',8,96000,'3 дня','WhatsApp','rs']];
+var DIFFS=[
+ ['TNL гель-лак №204','Атырау · Сатпаева',312,309,-3,'y','пересорт?'],
+ ['Kapous шампунь 1000 мл','Атырау · Сатпаева',186,186,0,'g','сходится'],
+ ['Aravia гель 300 мл','Атырау · Сатпаева',97,95,-2,'r','недостача'],
+ ['Estel Princess Essex 10/16','Атырау · Сатпаева',244,246,2,'b','излишек'],
+ ['CHI Silk Infusion','Атырау · Сатпаева',28,28,0,'g','сходится'],
+ ['Ollin Megapolis масло','Атырау · Сатпаева',64,63,-1,'y','проверить']
+];
+var STAFF=[['Айгерим Т.','Продавец-консультант','Атырау · Сатпаева','g'],['Мадина Ж.','Продавец-консультант','Атырау · Сатпаева','g'],['Дана С.','Онлайн-менеджер','Онлайн · WhatsApp','g'],['Асель К.','Онлайн-менеджер','Онлайн · сайт','g'],['Жанна О.','Управляющая','Атырау · Авангард','g'],['Салтанат Н.','Управляющая','Актау · 12 мкр','g'],['Инкар Б.','Ревизор / склад','Сеть','y'],['Раиса','Собственница','Сеть','g']];
+var SALARY=[['Айгерим Т.','Атырау · Сатпаева',2140000,318,6730,'214 000'],['Мадина Ж.','Атырау · Сатпаева',1860000,276,6740,'186 000'],['Дана С.','Онлайн',2890000,201,14380,'289 000'],['Асель К.','Онлайн',2310000,163,14170,'231 000'],['Жанна О.','Атырау · Авангард',1690000,241,7010,'169 000'],['Салтанат Н.','Актау · 12 мкр',1980000,287,6900,'198 000']];
+var TASKS=[
+ {t:'Выкладка новинок Aravia',st:0,who:'Айгерим · Сатпаева'},
+ {t:'Заказ бренду Kapous (ниже минимума)',st:1,who:'Инкар · закуп'},
+ {t:'Разобрать пересорт TNL после ревизии',st:1,who:'Инкар · склад'},
+ {t:'Обучение новенькой · Уральск',st:0,who:'Жанна'},
+ {t:'Перемещение Актау → Уральск (открытие)',st:2,who:'Инкар'},
+ {t:'Ответить вечерним мастерам (4)',st:2,who:'Дана'}
+];
+var TSTAGES=['К выполнению','В работе','Готово'];
+
+var ROLE='Собственница';
+function renderGate(){document.getElementById('rgrid').innerHTML=Object.keys(ROLES).map(function(r){var m=ROLES[r];var n=m.s.length;
+  return '<div class="rolecard" onclick="enter(\''+r.replace(/'/g,"\\'")+'\')"><div class="ri">'+m.ic+'</div><div class="rn">'+esc(r)+'</div><div class="rd">'+esc(m.d)+'</div><div class="rt">'+n+' экран'+(n>4?'ов':(n>1?'а':''))+' →</div></div>';}).join('');}
+function enter(r){ROLE=r;document.getElementById('gate').classList.add('hidden');document.getElementById('app').classList.remove('hidden');buildNav();render();var f=ROLES[r].s[0];nav(f);setTimeout(function(){toast('Вход как <b>'+esc(r)+'</b>. Сменить роль — вверху справа. Всё кликается.');},250);}
+function buildNav(){var allowed=ROLES[ROLE].s;var html='';NAVDEF.forEach(function(gr){var items=gr[1].filter(function(it){return allowed.indexOf(it[0])>=0;});if(!items.length)return;html+='<div class="g">'+gr[0]+'</div>';items.forEach(function(it){html+='<a data-go="'+it[0]+'"><span class="ic">'+it[1]+'</span>'+it[2]+'<span class="cnt" data-c="'+(it[3]||'')+'"></span></a>';});});
+  document.getElementById('nav').innerHTML=html;document.querySelectorAll('.nav a').forEach(function(a){a.onclick=function(){nav(a.dataset.go);};});updCnt();
+  var sel=document.getElementById('roleSel');sel.innerHTML=Object.keys(ROLES).map(function(r){return '<option'+(r===ROLE?' selected':'')+'>'+esc(r)+'</option>';}).join('');
+  sel.onchange=function(){ROLE=sel.value;document.getElementById('urole').textContent=ROLE;buildNav();var f=ROLES[ROLE].s[0];nav(f);toast('Роль: <b>'+esc(ROLE)+'</b> — интерфейс показывает только её экраны.');};
+  document.getElementById('urole').textContent=ROLE;document.getElementById('uav').textContent=ini(ROLE==='Собственница'?'Раиса':ROLE);}
+function updCnt(){var c={deals:DEALS.length,cl:CLIENTS.length,sku:'10 929',inv:1,ts:TASKS.length,sl:3};document.querySelectorAll('.nav .cnt').forEach(function(e){var k=e.dataset.c;e.textContent=c[k]!=null?c[k]:'';if(!c[k])e.style.display='none';if(k==='inv')e.classList.add('r');});}
+function nav(s){document.querySelectorAll('.screen').forEach(function(x){x.classList.toggle('on',x.dataset.s===s);});document.querySelectorAll('.nav a').forEach(function(a){a.classList.toggle('on',a.dataset.go===s);});
+  var t=TITLES[s]||['',''];document.getElementById('pageTitle').textContent=t[0];document.getElementById('pageSub').textContent=t[1];document.getElementById('side').classList.remove('open');document.querySelector('.body').scrollTop=0;
+  setTimeout(function(){document.querySelectorAll('.screen.on .hb .tr i').forEach(function(i){if(i.dataset.w)i.style.width=i.dataset.w;});document.querySelectorAll('.screen.on .gp i').forEach(function(i){if(i.dataset.h)i.style.height=i.dataset.h+'%';});if(s==='inv')animScan();},60);}
+
+function kpi(k){var tr='';if(typeof k[4]==='number'){var u=k[4]>=0;tr='<div class="d" style="color:'+(u?'var(--grn)':'var(--red)')+';font-weight:700">'+(u?'▲ ':'▼ ')+Math.abs(k[4])+'% '+(k[5]||'')+'</div>';}else if(k[5]){tr='<div class="d">'+k[5]+'</div>';}
+  return '<div class="kpi"><div class="l"><span class="i">'+k[1]+'</span>'+k[3]+'</div><div class="v '+k[0]+'">'+k[2]+'</div>'+tr+'</div>';}
+function hbars(id,arr,fmt){var mx=Math.max.apply(null,arr.map(function(a){return a[1];}))||1;document.getElementById(id).innerHTML=arr.map(function(a){return '<div class="hb"><span class="lb">'+esc(a[0])+'</span><span class="tr"><i data-w="'+Math.round(a[1]/mx*100)+'%"></i></span><span class="vv">'+fmt(a[1])+'</span></div>';}).join('');}
+
+var scanDone=false;
+function animScan(){if(scanDone)return;scanDone=true;var target=10858,total=10929,cur=0;var bar=document.getElementById('scanBar');bar.style.width=(target/total*100)+'%';
+  var el=document.getElementById('scanNum');var steps=40,i=0;var t=setInterval(function(){i++;cur=Math.round(target*i/steps);el.innerHTML=cur.toLocaleString('ru-RU')+' <span>/ '+total.toLocaleString('ru-RU')+' SKU отсканировано</span>';if(i>=steps)clearInterval(t);},28);}
+function zeroUnscanned(){toast('Сформирован <b>акт недостачи</b>: 71 непросканированный SKU обнулён списком. В полной версии — акт с ценами, подписью ревизора и проводкой по складу.');}
+
+function render(){
+  buildDeals();
+  document.getElementById('kpis').innerHTML=[
+    ['up','💵','13,8 млн '+C,'Выручка сети · месяц',9,'к прошлому'],
+    ['acc','🏬','4','Точки + онлайн',null,'Атырау · Актау · Уральск'],
+    ['rs','💄','10 929','SKU в каталоге',null,'до 30 000 заложено'],
+    ['amb','🔍','99,4%','Сходимость ревизии',null,'последняя · Актау']
+  ].map(kpi).join('');
+  var f=[10.2,11.4,10.8,12.6,12.1,13.8];var mx=Math.max.apply(null,f)*1.12;
+  document.getElementById('bars').innerHTML=['мар','апр','май','июн','июл','авг'].map(function(m,i){return '<div class="gc"><div class="gp"><i style="height:0" data-h="'+(f[i]/mx*100)+'"><b>'+String(f[i]).replace('.',',')+'</b></i></div><span>'+m+'</span></div>';}).join('');
+  document.getElementById('barNote').textContent='август +14% к июлю';
+  document.getElementById('att').innerHTML=[
+    ['p','🔍','Идёт ревизия · Атырау Сатпаева','отсканировано 10 858 из 10 929 SKU · 71 к обнулению'],
+    ['y','📦','Kapous ниже минимума','12 SKU на исходе — сформировать заказ бренду'],
+    ['g','💬','Вечерние мастера отработаны','4 заявки со вчера 22:00+ — все в воронке'],
+    ['r','🟥','Уральск · открытие','перемещение из Актау в пути · приёмка завтра']
+  ].map(function(a){return '<div class="a '+a[0]+'"><div class="ai">'+a[1]+'</div><div class="tx"><b>'+esc(a[2])+'</b><div class="s">'+esc(a[3])+'</div></div></div>';}).join('');
+  hbars('storeBars',STORES.map(function(s){return [s[0],s[1]];}),function(v){return money(v*1000)+' '+C;});
+  hbars('brandBars',[['Kapous',24],['Estel',21],['Aravia',16],['Ollin',12],['TNL',11],['CHI',7]],function(v){return v+'%';});
+
+  // funnel
+  document.getElementById('fnKpis').innerHTML=[['acc','🛍️',DEALS.length,'Заказов в работе',null,''],['up','💰',money(DEALS.reduce(function(s,d){return s+d.sum;},0))+' '+C,'Сумма воронки',null,''],['rs','💬','23','Из WhatsApp за день',null,'7 номеров'],['amb','🌙','4','Вечерние (мастера)',null,'ждут утро — не потеряны']].map(kpi).join('');
+  renderKan();
+
+  // clients
+  document.getElementById('clKpis').innerHTML=[['acc','👥','4 812','Клиентов в базе',null,'вся сеть'],['rs','💅','612','Мастеров и салонов',null,'B2B-сегмент'],['up','💵','28 400 '+C,'Средний чек · салоны',6,'к прошлому'],['amb','🔁','41%','Повторные покупки',null,'доля за месяц']].map(kpi).join('');
+  document.getElementById('clients').innerHTML=CLIENTS.map(function(c,i){return '<tr class="clk" onclick="openClient('+i+')"><td><div class="cell"><span class="av2" style="background:hsl('+(i*49%360)+',52%,48%)">'+ini(c[0])+'</span><b>'+esc(c[0])+'</b></div></td><td><span class="tag '+c[6]+'">'+esc(c[1])+'</span></td><td class="r">'+c[2]+'</td><td class="r">'+money(c[3])+' '+C+'</td><td><span class="mini">'+esc(c[4])+'</span></td><td><span class="mini">'+esc(c[5])+'</span></td></tr>';}).join('');
+
+  // catalog
+  document.getElementById('ctKpis').innerHTML=[['rs','💄','10 929','SKU в каталоге',null,'6 брендов · категории'],['acc','🏷️','6','Брендов',null,'категории по брендам'],['up','📈','A: 18%','ABC-ядро',null,'делает 78% выручки'],['amb','📦','37','SKU ниже минимума',null,'к дозаказу']].map(kpi).join('');
+  document.getElementById('brandFilter').innerHTML='<span class="chipf on">Все бренды</span>'+BRANDS.map(function(b){return '<span class="chipf" onclick="toast(\'Фильтр по бренду «'+b+'». В полной версии — вся категория с остатками по точкам.\')">'+b+'</span>';}).join('');
+  document.getElementById('goods').innerHTML=GOODS.map(function(g){var ab=g[4]==='A'?'tag g':(g[4]==='B'?'tag y':'tag n');return '<tr class="clk" onclick="toast(\'Карточка «'+esc(g[0]).replace(/'/g,'')+'»: остатки по каждой точке, история движений, поле НКТ. В полной версии — фото и аналоги.\')"><td><b>'+esc(g[0])+'</b></td><td><span class="mini">'+g[1]+'</span></td><td class="r">'+money(g[2])+' '+C+'</td><td class="r">'+g[3]+'</td><td><span class="'+ab+'">'+g[4]+'</span></td><td><span class="mini">'+g[5]+'</span></td></tr>';}).join('');
+
+  // stock
+  document.getElementById('stKpis').innerHTML=[['acc','📦','6','Складов активно',null,'из 10 доступных'],['','🚚','1','Перемещение в пути',null,'Актау → Уральск'],['up','💰','48,2 млн '+C,'Товара в сети',null,'по себестоимости'],['amb','⚠️','37','SKU ниже минимума',null,'автозаказ брендам']].map(kpi).join('');
+  var ST=[['Атырау · Сатпаева (осн.)',6240,18400,'21,4 млн','g','ревизия идёт'],['Атырау · Авангард',4980,12100,'11,8 млн','g','норма'],['Актау · 12 мкр',5310,14800,'12,2 млн','g','норма'],['Уральск · открытие',890,2400,'2,8 млн','y','приёмка'],['Подсклад · брак/возвраты',112,180,'0,3 млн','n','разбор'],['Подсклад · акции',204,610,'0,7 млн','n','сезон']];
+  document.getElementById('stocks').innerHTML=ST.map(function(s){var st=s[4]==='y'?['tag y',s[5]]:(s[4]==='n'?['tag n',s[5]]:['tag g',s[5]]);return '<tr><td><b>'+esc(s[0])+'</b></td><td class="r">'+s[1].toLocaleString('ru-RU')+'</td><td class="r">'+s[2].toLocaleString('ru-RU')+'</td><td class="r">'+s[3]+' '+C+'</td><td><span class="'+st[0]+'">'+st[1]+'</span></td></tr>';}).join('');
+  document.getElementById('moves').innerHTML=[['g','📥','Приход · Kapous 240 шт','Атырау Сатпаева · накладная №1182 · 10:20'],['p','🚚','Перемещение 610 SKU','Актау → Уральск · в пути · прибытие завтра'],['g','🛒','Продажи за день · 213 чеков','по всем точкам · онлайн 26 заказов'],['y','📝','Списание 3 шт · тестеры','Актау · акт №77 · утверждено Салтанат']].map(function(a){return '<div class="a '+a[0]+'"><div class="ai">'+a[1]+'</div><div class="tx"><b>'+esc(a[2])+'</b><div class="s">'+esc(a[3])+'</div></div></div>';}).join('');
+
+  // inventory
+  document.getElementById('invKpis').innerHTML=[['acc','🔍','10 858','Отсканировано SKU',null,'из 10 929'],['red','⭘','71','Непросканировано',null,'одной кнопкой в акт'],['amb','↔️','6','Расхождений',null,'план ↔ факт'],['up','✅','99,4%','Сходимость',null,'против «никогда ровно»']].map(kpi).join('');
+  document.getElementById('revlog').innerHTML=[['Июль · Актау 12 мкр','99,4% · недостача 41 200 ₸','g'],['Июнь · Атырау Сатпаева','99,1% · пересорт разобран','g'],['Май · Атырау Авангард','98,7% · акт на 3 SKU','y'],['Апрель · сеть (X2)','«не сошлось, SKU вылетели»','r']].map(function(r){var c=r[2]==='g'?'var(--grn)':(r[2]==='y'?'var(--amb)':'var(--red)');return '<div class="lr"><span class="d8" style="background:'+c+'"></span>'+esc(r[0])+'<b>'+esc(r[1])+'</b></div>';}).join('');
+  document.getElementById('diffs').innerHTML=DIFFS.map(function(d,i){var st=d[5]==='g'?['tag g',d[6]]:(d[5]==='y'?['tag y',d[6]]:(d[5]==='b'?['tag b',d[6]]:['tag r',d[6]]));var dif=d[4]>0?'+'+d[4]:d[4];return '<tr class="clk" onclick="openDiff('+i+')"><td><b>'+esc(d[0])+'</b></td><td><span class="mini">'+esc(d[1])+'</span></td><td class="r">'+d[2]+'</td><td class="r">'+d[3]+'</td><td class="r" style="color:'+(d[4]===0?'var(--grn)':(d[4]>0?'var(--blue)':'var(--red)'))+'">'+dif+'</td><td><span class="'+st[0]+'">'+st[1]+'</span></td></tr>';}).join('');
+
+  // reports
+  document.getElementById('rpKpis').innerHTML=[['up','💵','13,8 млн '+C,'Выручка · месяц',9,''],['acc','🧾','1 287 000 '+C,'ФОТ по отчётному листу',null,'начислено автоматически'],['rs','🏷️','Kapous','Бренд-лидер',null,'24% выручки'],['amb','📉','C: 41%','SKU-хвост',null,'даёт 5% выручки — чистить']].map(kpi).join('');
+  document.getElementById('salary').innerHTML=SALARY.map(function(s,i){return '<tr><td><div class="cell"><span class="av2" style="background:hsl('+(i*57%360)+',48%,46%)">'+ini(s[0])+'</span><b>'+esc(s[0])+'</b></div></td><td><span class="mini">'+esc(s[1])+'</span></td><td class="r">'+money(s[2])+' '+C+'</td><td class="r">'+s[3]+'</td><td class="r">'+money(s[4])+' '+C+'</td><td class="r"><span class="tag g">'+s[5]+' '+C+'</span></td></tr>';}).join('');
+  document.getElementById('abc').innerHTML=[['plus','A · 1 967 SKU (18%) — ядро',10760000],['plus','B · 4 481 SKU (41%) — середина',2350000],['minus','C · 4 481 SKU (41%) — хвост',690000],['tot','Выручка месяца',13800000]].map(function(r){var sign=r[0]==='minus'?'':'';return '<div class="r '+r[0]+'"><span class="k">'+r[1]+'</span><span class="v">'+sign+money(r[2])+' '+C+'</span></div>';}).join('');
+
+  // tasks
+  document.getElementById('tsKpis').innerHTML=[['acc','✅',TASKS.length,'Задач в работе',null,'по сети'],['amb','⏳',TASKS.filter(function(t){return t.st===1;}).length,'В работе',null,''],['up','✔️',TASKS.filter(function(t){return t.st===2;}).length,'Готово сегодня',null,''],['rs','🏬','4','Точки охвачены',null,'']].map(kpi).join('');
+  renderTaskKan();
+
+  // site
+  document.getElementById('siKpis').innerHTML=[['acc','🌐','26','Заказов с сайта · день',null,'корзина → CRM'],['up','🔎','1 890','Визитов из Google',12,'бесплатный трафик'],['rs','🏙️','5','Городов на сайте',null,'выбор города'],['amb','🛒','68%','Довели до счёта',null,'менеджер перезвонил']].map(kpi).join('');
+  document.getElementById('siteGoods').innerHTML=[['💆‍♀️','Kapous шампунь 1000 мл','4 900'],['💅','TNL гель-лак №204','1 450'],['🧴','Aravia гель 300 мл','6 200'],['✨','CHI Silk Infusion','9 800'],['🎨','Estel Essex 10/16','2 350'],['🫧','Ollin масло 50 мл','3 800']].map(function(p){return '<div class="sprod"><div class="pi">'+p[0]+'</div><div class="pn">'+esc(p[1])+'</div><div class="pp">'+p[2]+' '+C+'</div><div class="pb" onclick="toast(\'Товар в корзине. Заявка уйдёт в CRM — менеджер перезвонит и выставит счёт на Kaspi.\')">В корзину</div></div>';}).join('');
+  document.getElementById('siteLeads').innerHTML=[['p','🛒','Корзина · Атырау · 18 900 ₸','3 SKU · Асель перезванивает'],['g','✅','Заказ · Актау · 24 300 ₸','счёт на Kaspi оплачен · в сборку'],['y','🕘','Корзина · ночь · 8 100 ₸','оставлена 23:50 — утром первая'],['g','📈','Google · «kapous атырау»','вышли в топ-10 · SEO работает']].map(function(a){return '<div class="a '+a[0]+'"><div class="ai">'+a[1]+'</div><div class="tx"><b>'+esc(a[2])+'</b><div class="s">'+esc(a[3])+'</div></div></div>';}).join('');
+
+  // team
+  document.getElementById('tmKpis').innerHTML=[['acc','🧑‍🤝‍🧑',STAFF.length,'Пользователей',null,'до 50 — без доплат'],['rs','🔐','7','Ролей настроено',null,'права сеткой'],['up','🏬','4','Точки + онлайн',null,'мульти из коробки'],['amb','🆕','2','Новенькие · Уральск',null,'обучение']].map(kpi).join('');
+  document.getElementById('staff').innerHTML=STAFF.map(function(e,i){var st=e[3]==='y'?['tag y','в разъезде']:['tag g','в системе'];return '<tr><td><div class="cell"><span class="av2" style="background:hsl('+(i*61%360)+',50%,48%)">'+ini(e[0])+'</span><b>'+esc(e[0])+'</b></div></td><td><span class="mini">'+esc(e[1])+'</span></td><td><span class="mini">'+esc(e[2])+'</span></td><td><span class="'+st[0]+'">'+st[1]+'</span></td></tr>';}).join('');
+  document.getElementById('rights').innerHTML=[['Продажи / касса','✅','✅','✅'],['Остатки своей точки','✅','✅','✅'],['Себестоимость','—','✅','✅'],['Другие точки','—','—','✅'],['Отчёты и ЗП','—','своя точка','✅'],['Настройки и роли','—','—','✅']].map(function(r){return '<tr><td><b>'+esc(r[0])+'</b></td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td></tr>';}).join('');
+
+  setTimeout(function(){document.querySelectorAll('.screen.on .gp i').forEach(function(i){if(i.dataset.h)i.style.height=i.dataset.h+'%';});document.querySelectorAll('.screen.on .hb .tr i').forEach(function(i){i.style.width=i.dataset.w;});},260);
+}
+
+function renderKan(){var kan=document.getElementById('kan');var sum=DEALS.reduce(function(a,d){return a+d.sum;},0);
+  document.getElementById('fnSum').textContent='сумма: '+money(sum)+' '+C+' · '+DEALS.length+' заказов';
+  kan.innerHTML=STAGES.map(function(f,si){var inc=DEALS.map(function(d,idx){return {d:d,idx:idx};}).filter(function(x){return x.d.st===si;});var cs=inc.reduce(function(a,x){return a+x.d.sum;},0);
+    return '<div class="col" data-col="'+si+'"><div class="ch"><span>'+esc(f)+'</span><span class="n">'+inc.length+'</span></div><div class="cs">'+(cs?money(cs)+' '+C:'—')+'</div>'+
+      inc.map(function(x){var d=x.d;return '<div class="deal" draggable="true" data-id="'+x.idx+'" onclick="openDeal('+x.idx+')"><div class="dn">'+esc(d.c)+'</div><div class="dm"><span class="mtag">'+esc(d.seg)+'</span>'+esc(d.ch)+'</div><div class="ds">'+money(d.sum)+' '+C+'</div></div>';}).join('')+'</div>';}).join('');
+  var drag=null;kan.querySelectorAll('.deal').forEach(function(el){el.ondragstart=function(e){drag=+el.dataset.id;e.stopPropagation();};});
+  kan.querySelectorAll('.col').forEach(function(col){col.ondragover=function(e){e.preventDefault();col.classList.add('drop');};col.ondragleave=function(){col.classList.remove('drop');};col.ondrop=function(e){e.preventDefault();col.classList.remove('drop');if(drag==null)return;DEALS[drag].st=+col.dataset.col;drag=null;renderKan();toast('Заказ перемещён по воронке.');};});}
+function renderTaskKan(){var kan=document.getElementById('taskKan');
+  kan.innerHTML=TSTAGES.map(function(f,si){var inc=TASKS.map(function(d,idx){return {d:d,idx:idx};}).filter(function(x){return x.d.st===si;});
+    return '<div class="col" data-col="'+si+'"><div class="ch"><span>'+esc(f)+'</span><span class="n">'+inc.length+'</span></div><div class="cs">задачи</div>'+
+      inc.map(function(x){return '<div class="deal" draggable="true" data-tid="'+x.idx+'"><div class="dn">'+esc(x.d.t)+'</div><div class="dm">'+esc(x.d.who)+'</div></div>';}).join('')+'</div>';}).join('');
+  var drag=null;kan.querySelectorAll('.deal').forEach(function(el){el.ondragstart=function(e){drag=+el.dataset.tid;e.stopPropagation();};});
+  kan.querySelectorAll('.col').forEach(function(col){col.ondragover=function(e){e.preventDefault();col.classList.add('drop');};col.ondragleave=function(){col.classList.remove('drop');};col.ondrop=function(e){e.preventDefault();col.classList.remove('drop');if(drag==null)return;TASKS[drag].st=+col.dataset.col;drag=null;renderTaskKan();toast('Задача перемещена.');};});}
+
+function openDeal(i){var d=DEALS[i];document.getElementById('dmName').textContent=d.c;document.getElementById('dmSub').textContent=d.seg+' · '+STAGES[d.st];
+  document.getElementById('dmMeta').innerHTML=[['Сегмент',d.seg],['Канал',d.ch],['Сумма',money(d.sum)+' '+C],['Менеджер',d.mgr],['Стадия',STAGES[d.st]],['Следующий шаг',d.next]].map(function(r){return '<div class="row"><span class="k">'+r[0]+'</span><span class="v">'+esc(String(r[1]))+'</span></div>';}).join('');
+  document.getElementById('dmHint').innerHTML='В полной версии — состав заказа по SKU, переписка WhatsApp внутри карточки, счёт Kaspi и статус доставки.';
+  document.getElementById('dov').classList.add('show');}
+function openClient(i){var c=CLIENTS[i];document.getElementById('dmName').textContent=c[0];document.getElementById('dmSub').textContent='Клиент · '+c[1];
+  document.getElementById('dmMeta').innerHTML=[['Сегмент',c[1]],['Покупок',c[2]],['Средний чек',money(c[3])+' '+C],['Последняя',c[4]],['Канал',c[5]]].map(function(r){return '<div class="row"><span class="k">'+r[0]+'</span><span class="v">'+esc(String(r[1]))+'</span></div>';}).join('');
+  document.getElementById('dmHint').innerHTML='В полной версии — вся история покупок, переписка WhatsApp и персональные предложения по брендам.';
+  document.getElementById('dov').classList.add('show');}
+function openDiff(i){var d=DIFFS[i];document.getElementById('dmName').textContent=d[0];document.getElementById('dmSub').textContent='История движения · '+d[1];
+  document.getElementById('dmMeta').innerHTML=[['12.08 · Приход №1182','+24 шт · Инкар'],['12.08 · Продажа чек №4411','−2 шт · Айгерим'],['13.08 · Продажа чек №4498','−1 шт · Мадина'],['13.08 · Перемещение → Авангард','−12 шт · Инкар'],['14.08 · Скан ревизии','факт '+d[3]+' шт · расчёт '+d[2]+' шт']].map(function(r){return '<div class="row"><span class="k">'+r[0]+'</span><span class="v">'+esc(String(r[1]))+'</span></div>';}).join('');
+  document.getElementById('dmHint').innerHTML='<b>Каждая цифра раскручивается назад по журналу</b> — видно, где именно возникла разница: приёмка, продажа или перемещение. Никакой мистики «цифра сама поменялась».';
+  document.getElementById('dov').classList.add('show');}
+function closeM(id){document.getElementById(id).classList.remove('show');}
+document.getElementById('dov').onclick=function(e){if(e.target===this)closeM('dov');};
+
+document.getElementById('mtoggle').onclick=function(){document.getElementById('side').classList.toggle('open');};
+function applyTheme(t){document.documentElement.setAttribute('data-theme',t);document.getElementById('themeBtn').textContent=t==='dark'?'☀️':'🌙';try{localStorage.setItem('bmix_theme',t);}catch(e){}}
+document.getElementById('themeBtn').onclick=function(){applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');};
+(function(){var t='light';try{t=localStorage.getItem('bmix_theme')||'light';}catch(e){}applyTheme(t);})();
+var _tt;function toast(h){var e=document.getElementById('toast');e.innerHTML=h;e.classList.add('show');clearTimeout(_tt);_tt=setTimeout(function(){e.classList.remove('show');},3800);}
+
+renderGate();
+/* deep-link: ?s=inv и т.п. — сразу входим как Собственница и открываем экран */
+(function(){try{var s=new URLSearchParams(location.search).get('s');if(s&&TITLES[s]){enter('Собственница');setTimeout(function(){nav(s);},80);}}catch(e){}})();
+</script>
+</body></html>
