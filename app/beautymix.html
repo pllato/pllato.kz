@@ -179,6 +179,30 @@ td.r{text-align:right;font-weight:700;white-space:nowrap}
 .frm textarea{resize:vertical;min-height:64px}
 .frow2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .mfoot{display:flex;gap:9px;padding:0 22px 20px}
+/* task chat */
+.tchat{display:flex;flex-direction:column;gap:9px;max-height:220px;overflow-y:auto;background:var(--off);border:1px solid var(--line);border-radius:12px;padding:12px}
+.tmsg{display:flex;gap:9px;align-items:flex-start}
+.tmsg .tb{background:var(--card);border:1px solid var(--line);border-radius:4px 12px 12px 12px;padding:8px 11px;font-size:12.5px;line-height:1.45;flex:1;min-width:0}
+.tmsg .tb .tn{font-size:11px;font-weight:800;color:var(--acc);display:flex;justify-content:space-between;gap:8px;margin-bottom:2px}
+.tmsg .tb .tn .tt2{color:var(--faint);font-weight:600}
+.tmsg.me .tb{background:var(--accSoft);border-color:color-mix(in srgb,var(--acc) 20%,transparent);border-radius:12px 4px 12px 12px}
+.tmsg.me .tb .tn{color:var(--accD)}
+.tchat .tempty{font-size:12px;color:var(--muted);text-align:center;padding:6px}
+.tcin{display:flex;gap:8px;margin-top:9px}
+.tcin input{flex:1;background:var(--off);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--ink);font-family:inherit;outline:none}
+.tcin input:focus{border-color:var(--acc2)}
+.tcin .cbtn{width:42px;border-radius:10px;background:var(--acc);color:#fff;font-size:15px;flex:none}
+.tcin .cbtn:hover{background:var(--accD)}
+/* members */
+.memchips{display:flex;flex-wrap:wrap;gap:6px}
+.mchip{font-size:11.5px;font-weight:700;padding:5px 11px 5px 6px;border-radius:20px;border:1px solid var(--line);background:var(--card);cursor:pointer;display:inline-flex;gap:6px;align-items:center;color:var(--ink2);transition:.12s}
+.mchip .av3{width:18px;height:18px;font-size:8px}
+.mchip.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.mchip:hover{border-color:var(--acc2)}
+.avstack{display:inline-flex;align-items:center}
+.avstack .av3{border:2px solid var(--card);margin-left:-7px}
+.avstack .av3:first-child{margin-left:0}
+.avstack .more{margin-left:-7px;width:20px;height:20px;border-radius:50%;background:var(--off);border:2px solid var(--card);color:var(--muted);font-size:8.5px;font-weight:800;display:inline-grid;place-items:center}
 /* inventory WOW */
 .invhead{display:grid;grid-template-columns:1.35fr 1fr;gap:14px;margin-bottom:14px}
 .scanbox{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:18px;box-shadow:var(--sh2)}
@@ -340,7 +364,7 @@ td.r{text-align:right;font-weight:700;white-space:nowrap}
       <div class="screen" data-s="tasks">
         <div class="kpis" id="tsKpis"></div>
         <div class="card"><div class="ct"><span>Задачи по сети <span class="mini">как Trello — внутри системы</span></span><button class="btn pri" style="padding:7px 14px;font-size:12px" onclick="newTask(0)">＋ Новая задача</button></div><div class="kan" id="taskKan"></div>
-          <div class="hint" style="margin-top:14px">Всё как в Trello, но внутри вашей системы: <b>создавайте</b> задачи (кнопка сверху или «＋» в колонке), <b>открывайте</b> карточку кликом — описание, исполнитель, точка, приоритет и срок, <b>назначайте и переназначайте</b>, <b>перетаскивайте</b> между колонками, <b>удаляйте</b> (× на карточке). Исполнитель видит только свои задачи и отмечает выполнение с телефона.</div></div>
+          <div class="hint" style="margin-top:14px">Всё как в Trello, но внутри вашей системы: <b>создавайте</b> задачи (кнопка сверху или «＋» в колонке), <b>открывайте</b> карточку кликом, <b>назначайте ответственного и нескольких участников</b> — все они видят задачу у себя, <b>обсуждайте прямо в карточке</b> (чат с уведомлениями — 💬 на карточке), <b>перетаскивайте</b> между колонками, <b>удаляйте</b> (× на карточке). Исполнители отмечают выполнение с телефона.</div></div>
       </div>
 
       <!-- Сайт -->
@@ -380,14 +404,20 @@ td.r{text-align:right;font-weight:700;white-space:nowrap}
     <div><label>Название</label><input id="tfT" placeholder="Что нужно сделать"></div>
     <div><label>Описание</label><textarea id="tfD" placeholder="Детали задачи, чек-лист, ссылки"></textarea></div>
     <div class="frow2">
-      <div><label>Исполнитель</label><select id="tfW"></select></div>
+      <div><label>Ответственный</label><select id="tfW"></select></div>
       <div><label>Точка / зона</label><select id="tfS"></select></div>
     </div>
+    <div><label>Участники · видят задачу и обсуждение</label><div class="memchips" id="tfM"></div></div>
     <div class="frow2">
       <div><label>Приоритет</label><select id="tfP"><option value="l">Обычный</option><option value="m">Важный</option><option value="h">Срочный</option></select></div>
       <div><label>Срок</label><input id="tfDue" placeholder="напр. завтра · 18.08"></div>
     </div>
     <div><label>Колонка</label><select id="tfSt"><option value="0">К выполнению</option><option value="1">В работе</option><option value="2">Готово</option></select></div>
+    <div id="tChatWrap">
+      <label>Обсуждение задачи</label>
+      <div class="tchat" id="tChat"></div>
+      <div class="tcin"><input id="tcMsg" placeholder="Написать в обсуждение… (видят участники)"><button class="cbtn" onclick="sendTaskMsg()">➤</button></div>
+    </div>
   </div></div>
   <div class="mfoot"><button class="btn pri" id="tSaveBtn" onclick="saveTask()">Сохранить</button><button class="btn ghost" onclick="closeM('tov')">Отмена</button><button class="btn danger" id="tDelBtn" onclick="delTask()">Удалить</button></div>
 </div></div>
@@ -449,17 +479,27 @@ var DIFFS=[
 var STAFF=[['Айгерим Т.','Продавец-консультант','Атырау · Сатпаева','g'],['Мадина Ж.','Продавец-консультант','Атырау · Сатпаева','g'],['Дана С.','Онлайн-менеджер','Онлайн · WhatsApp','g'],['Асель К.','Онлайн-менеджер','Онлайн · сайт','g'],['Жанна О.','Управляющая','Атырау · Авангард','g'],['Салтанат Н.','Управляющая','Актау · 12 мкр','g'],['Инкар Б.','Ревизор / склад','Сеть','y'],['Раиса','Собственница','Сеть','g']];
 var SALARY=[['Айгерим Т.','Атырау · Сатпаева',2140000,318,6730,'214 000'],['Мадина Ж.','Атырау · Сатпаева',1860000,276,6740,'186 000'],['Дана С.','Онлайн',2890000,201,14380,'289 000'],['Асель К.','Онлайн',2310000,163,14170,'231 000'],['Жанна О.','Атырау · Авангард',1690000,241,7010,'169 000'],['Салтанат Н.','Актау · 12 мкр',1980000,287,6900,'198 000']];
 var TASKS=[
- {t:'Выкладка новинок Aravia',st:0,who:'Айгерим Т.',store:'Атырау · Сатпаева',due:'сегодня',pr:'m',desc:'Выставить новинки Aravia на входной стеллаж, ценники по акции −10%, фото в чат сети.'},
- {t:'Заказ бренду Kapous (ниже минимума)',st:1,who:'Инкар Б.',store:'Сеть · закуп',due:'завтра',pr:'h',desc:'12 SKU ниже минимума — сформировать заказ поставщику, сверить с транзитом Актау → Уральск.'},
- {t:'Разобрать пересорт TNL после ревизии',st:1,who:'Инкар Б.',store:'Атырау · Сатпаева',due:'вчера',pr:'h',od:true,desc:'По ревизии −3 шт гель-лак №204. Проверить соседние оттенки 203/205 — вероятен пересорт при приёмке.'},
- {t:'Обучение новенькой · Уральск',st:0,who:'Жанна О.',store:'Уральск · открытие',due:'18.08',pr:'m',desc:'Каталог, кассовые операции, приёмка по сканеру. Доступ в систему выдан (роль: продавец).'},
- {t:'Перемещение Актау → Уральск (открытие)',st:2,who:'Инкар Б.',store:'Актау → Уральск',due:'14.08',pr:'m',desc:'610 SKU. Машина вышла, приёмка по сканеру на месте, расхождения — фото в задачу.'},
- {t:'Ответить вечерним мастерам (4)',st:2,who:'Дана С.',store:'Онлайн',due:'сегодня',pr:'l',desc:'4 заявки после 22:00 — отработаны утром первыми, заказы заведены в воронку.'}
+ {t:'Выкладка новинок Aravia',st:0,who:'Айгерим Т.',members:['Мадина Ж.','Раиса'],store:'Атырау · Сатпаева',due:'сегодня',pr:'m',desc:'Выставить новинки Aravia на входной стеллаж, ценники по акции −10%, фото в чат сети.',chat:[
+   {who:'Айгерим Т.',tm:'09:40',txt:'Стеллаж освободила, новинки распакованы. Ценники печатаю.'},
+   {who:'Раиса',tm:'09:55',txt:'Фото пришлите сюда до обеда, хочу глянуть выкладку.'}]},
+ {t:'Заказ бренду Kapous (ниже минимума)',st:1,who:'Инкар Б.',members:['Раиса','Жанна О.'],store:'Сеть · закуп',due:'завтра',pr:'h',desc:'12 SKU ниже минимума — сформировать заказ поставщику, сверить с транзитом Актау → Уральск.',chat:[
+   {who:'Инкар Б.',tm:'вчера',txt:'Свёл остатки: в заказе 12 SKU, две позиции уже едут в транзите — их не дублирую.'},
+   {who:'Раиса',tm:'вчера',txt:'Добавь ещё воск в гранулах — на Сатпаева заканчивается.'},
+   {who:'Инкар Б.',tm:'10:12',txt:'Добавил, итог 13 SKU. Счёт от поставщика жду сегодня.'}]},
+ {t:'Разобрать пересорт TNL после ревизии',st:1,who:'Инкар Б.',members:['Айгерим Т.'],store:'Атырау · Сатпаева',due:'вчера',pr:'h',od:true,desc:'По ревизии −3 шт гель-лак №204. Проверить соседние оттенки 203/205 — вероятен пересорт при приёмке.',chat:[
+   {who:'Айгерим Т.',tm:'вчера',txt:'По 203 оттенку излишек +2 — похоже, пересорт при приёмке 12.08.'}]},
+ {t:'Обучение новенькой · Уральск',st:0,who:'Жанна О.',members:['Раиса'],store:'Уральск · открытие',due:'18.08',pr:'m',desc:'Каталог, кассовые операции, приёмка по сканеру. Доступ в систему выдан (роль: продавец).',chat:[]},
+ {t:'Перемещение Актау → Уральск (открытие)',st:2,who:'Инкар Б.',members:['Салтанат Н.','Жанна О.'],store:'Актау → Уральск',due:'14.08',pr:'m',desc:'610 SKU. Машина вышла, приёмка по сканеру на месте, расхождения — фото в задачу.',chat:[
+   {who:'Салтанат Н.',tm:'08:20',txt:'Машина вышла в 8:00, накладная в системе.'},
+   {who:'Жанна О.',tm:'12:45',txt:'Приняла по сканеру, расхождений нет. Закрываю.'}]},
+ {t:'Ответить вечерним мастерам (4)',st:2,who:'Дана С.',members:[],store:'Онлайн',due:'сегодня',pr:'l',desc:'4 заявки после 22:00 — отработаны утром первыми, заказы заведены в воронку.',chat:[]}
 ];
 var TSTAGES=['К выполнению','В работе','Готово'];
 var TSTORES=['Атырау · Сатпаева','Атырау · Авангард','Актау · 12 мкр','Уральск · открытие','Онлайн','Сеть · закуп'];
 var PRN={h:'срочно',m:'важно',l:'обычно'};
-var CURT=null;
+var CURT=null;var TMEM=[];
+function avc(n){return 'hsl('+(Math.abs((n||'').length*47+((n||'').charCodeAt(0)||0)*13)%360)+',50%,46%)';}
+function meName(){return ROLE==='Собственница'?'Раиса':ROLE;}
 
 var ROLE='Собственница';
 function renderGate(){document.getElementById('rgrid').innerHTML=Object.keys(ROLES).map(function(r){var m=ROLES[r];var n=m.s.length;
@@ -562,29 +602,46 @@ function renderTaskKpis(){var stores={};TASKS.forEach(function(t){stores[(t.stor
 function renderTaskKan(){var kan=document.getElementById('taskKan');
   kan.innerHTML=TSTAGES.map(function(f,si){var inc=TASKS.map(function(d,idx){return {d:d,idx:idx};}).filter(function(x){return x.d.st===si;});
     return '<div class="col" data-col="'+si+'"><div class="ch"><span>'+esc(f)+'</span><span class="n">'+inc.length+'</span></div><div class="cs">задачи</div>'+
-      inc.map(function(x){var d=x.d;return '<div class="deal" draggable="true" data-tid="'+x.idx+'" onclick="openTask('+x.idx+')"><button class="delx" title="Удалить" onclick="event.stopPropagation();delTaskAt('+x.idx+')">×</button><div class="dn" style="padding-right:14px">'+esc(d.t)+'</div><div class="dm"><span class="pr '+(d.pr||'l')+'">'+PRN[d.pr||'l']+'</span>'+esc(d.store||'')+'</div><div class="dfoot"><span class="av3" style="background:hsl('+(Math.abs((d.who||'').length*47)%360)+',50%,46%)">'+ini(d.who||'—')+'</span><span class="mini">'+esc((d.who||'').split(' ')[0])+'</span><span class="due'+(d.od?' od':'')+'">'+esc(d.due||'')+'</span></div></div>';}).join('')+
+      inc.map(function(x){var d=x.d;var mem=(d.members||[]).filter(function(m){return m!==d.who;});
+        var stack='<span class="avstack"><span class="av3" title="'+esc(d.who||'')+'" style="background:'+avc(d.who)+'">'+ini(d.who||'—')+'</span>'+mem.slice(0,2).map(function(m){return '<span class="av3" title="'+esc(m)+'" style="background:'+avc(m)+'">'+ini(m)+'</span>';}).join('')+(mem.length>2?'<span class="more">+'+(mem.length-2)+'</span>':'')+'</span>';
+        var cn=(d.chat&&d.chat.length)?'<span class="mini" title="сообщений в обсуждении">💬 '+d.chat.length+'</span>':'';
+        return '<div class="deal" draggable="true" data-tid="'+x.idx+'" onclick="openTask('+x.idx+')"><button class="delx" title="Удалить" onclick="event.stopPropagation();delTaskAt('+x.idx+')">×</button><div class="dn" style="padding-right:14px">'+esc(d.t)+'</div><div class="dm"><span class="pr '+(d.pr||'l')+'">'+PRN[d.pr||'l']+'</span>'+esc(d.store||'')+'</div><div class="dfoot">'+stack+'<span class="mini">'+esc((d.who||'').split(' ')[0])+'</span>'+cn+'<span class="due'+(d.od?' od':'')+'">'+esc(d.due||'')+'</span></div></div>';}).join('')+
       '<button class="addcard" onclick="newTask('+si+')">＋ Добавить задачу</button></div>';}).join('');
   var drag=null;kan.querySelectorAll('.deal').forEach(function(el){el.ondragstart=function(e){drag=+el.dataset.tid;e.stopPropagation();};});
   kan.querySelectorAll('.col').forEach(function(col){col.ondragover=function(e){e.preventDefault();col.classList.add('drop');};col.ondragleave=function(){col.classList.remove('drop');};col.ondrop=function(e){e.preventDefault();col.classList.remove('drop');if(drag==null)return;TASKS[drag].st=+col.dataset.col;drag=null;renderTaskKan();renderTaskKpis();toast('Задача перемещена в «'+TSTAGES[+col.dataset.col]+'».');};});}
-function fillTaskForm(){var w=document.getElementById('tfW');w.innerHTML=STAFF.map(function(s){return '<option>'+esc(s[0])+'</option>';}).join('');
-  var st=document.getElementById('tfS');st.innerHTML=TSTORES.map(function(s){return '<option>'+esc(s)+'</option>';}).join('');}
-function newTask(stage){CURT=null;fillTaskForm();
-  document.getElementById('tmTitle').textContent='Новая задача';document.getElementById('tmSub').textContent='Назначьте исполнителя — задача появится у него в системе';
+function fillTaskForm(){var w=document.getElementById('tfW');w.innerHTML=STAFF.map(function(s){return '<option>'+esc(s[0])+'</option>';}).join('');w.onchange=renderMemChips;
+  var st=document.getElementById('tfS');st.innerHTML=TSTORES.map(function(s){return '<option>'+esc(s)+'</option>';}).join('');renderMemChips();
+  var ci=document.getElementById('tcMsg');ci.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();sendTaskMsg();}};}
+function renderMemChips(){var main=document.getElementById('tfW').value;
+  document.getElementById('tfM').innerHTML=STAFF.filter(function(s){return s[0]!==main;}).map(function(s){var on=TMEM.indexOf(s[0])>=0;
+    return '<span class="mchip'+(on?' on':'')+'" onclick="toggleMem(\''+s[0].replace(/'/g,"\\'")+'\')"><span class="av3" style="background:'+avc(s[0])+'">'+ini(s[0])+'</span>'+esc(s[0])+(on?' ✓':'')+'</span>';}).join('');}
+function toggleMem(n){var i=TMEM.indexOf(n);if(i>=0)TMEM.splice(i,1);else TMEM.push(n);renderMemChips();}
+function renderTaskChat(d){var box=document.getElementById('tChat');var me=meName();
+  box.innerHTML=(d.chat&&d.chat.length)?d.chat.map(function(m){return '<div class="tmsg'+(m.who===me?' me':'')+'"><span class="av3" style="background:'+avc(m.who)+'">'+ini(m.who)+'</span><div class="tb"><div class="tn"><span>'+esc(m.who)+'</span><span class="tt2">'+esc(m.tm)+'</span></div>'+esc(m.txt)+'</div></div>';}).join(''):'<div class="tempty">Обсуждения пока нет — напишите первое сообщение. Его увидят ответственный и участники.</div>';
+  box.scrollTop=box.scrollHeight;}
+function sendTaskMsg(){if(CURT==null)return;var inp=document.getElementById('tcMsg');var v=inp.value.trim();if(!v){inp.focus();return;}
+  var d=TASKS[CURT];if(!d.chat)d.chat=[];d.chat.push({who:meName(),tm:'сейчас',txt:v});inp.value='';renderTaskChat(d);renderTaskKan();
+  toast('Сообщение в задаче. Участники получат уведомление.');}
+function newTask(stage){CURT=null;TMEM=[];fillTaskForm();
+  document.getElementById('tmTitle').textContent='Новая задача';document.getElementById('tmSub').textContent='Назначьте ответственного и участников — они увидят задачу у себя';
   document.getElementById('tfT').value='';document.getElementById('tfD').value='';document.getElementById('tfDue').value='';
   document.getElementById('tfP').value='m';document.getElementById('tfSt').value=String(stage||0);
+  document.getElementById('tChatWrap').style.display='none';
   document.getElementById('tSaveBtn').textContent='Создать задачу';document.getElementById('tDelBtn').style.display='none';
   document.getElementById('tov').classList.add('show');setTimeout(function(){document.getElementById('tfT').focus();},60);}
-function openTask(i){var d=TASKS[i];CURT=i;fillTaskForm();
+function openTask(i){var d=TASKS[i];CURT=i;TMEM=(d.members||[]).slice();fillTaskForm();
   document.getElementById('tmTitle').textContent='Задача';document.getElementById('tmSub').textContent=TSTAGES[d.st]+' · '+ (d.store||'');
   document.getElementById('tfT').value=d.t;document.getElementById('tfD').value=d.desc||'';document.getElementById('tfDue').value=d.due||'';
   document.getElementById('tfW').value=d.who;document.getElementById('tfS').value=d.store||TSTORES[0];
   document.getElementById('tfP').value=d.pr||'l';document.getElementById('tfSt').value=String(d.st);
+  document.getElementById('tChatWrap').style.display='';renderTaskChat(d);
   document.getElementById('tSaveBtn').textContent='Сохранить';document.getElementById('tDelBtn').style.display='';
   document.getElementById('tov').classList.add('show');}
 function saveTask(){var t=document.getElementById('tfT').value.trim();if(!t){toast('Дайте задаче название.');return;}
-  var obj={t:t,desc:document.getElementById('tfD').value.trim(),who:document.getElementById('tfW').value,store:document.getElementById('tfS').value,pr:document.getElementById('tfP').value,due:document.getElementById('tfDue').value.trim()||'без срока',st:+document.getElementById('tfSt').value};
-  if(CURT==null){TASKS.push(obj);toast('Задача создана и назначена: <b>'+esc(obj.who)+'</b> увидит её в своём списке.');}
-  else{obj.od=TASKS[CURT].od;TASKS[CURT]=obj;toast('Задача обновлена.');}
+  var main=document.getElementById('tfW').value;
+  var obj={t:t,desc:document.getElementById('tfD').value.trim(),who:main,members:TMEM.filter(function(m){return m!==main;}),store:document.getElementById('tfS').value,pr:document.getElementById('tfP').value,due:document.getElementById('tfDue').value.trim()||'без срока',st:+document.getElementById('tfSt').value};
+  if(CURT==null){obj.chat=[];TASKS.push(obj);toast('Задача создана: <b>'+esc(obj.who)+'</b>'+(obj.members.length?' + '+obj.members.length+' участник(а)':'')+' увидят её у себя.');}
+  else{obj.od=TASKS[CURT].od;obj.chat=TASKS[CURT].chat||[];TASKS[CURT]=obj;toast('Задача обновлена.');}
   closeM('tov');renderTaskKan();renderTaskKpis();updCnt();}
 function delTask(){if(CURT==null)return;var n=TASKS[CURT].t;TASKS.splice(CURT,1);CURT=null;closeM('tov');renderTaskKan();renderTaskKpis();updCnt();toast('Задача «'+esc(n)+'» удалена.');}
 function delTaskAt(i){var n=TASKS[i].t;TASKS.splice(i,1);renderTaskKan();renderTaskKpis();updCnt();toast('Задача «'+esc(n)+'» удалена.');}
