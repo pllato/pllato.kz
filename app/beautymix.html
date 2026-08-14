@@ -150,6 +150,35 @@ td.r{text-align:right;font-weight:700;white-space:nowrap}
 .deal .dm{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}
 .deal .ds{font-size:12.5px;font-weight:800;color:var(--acc)}
 .mtag{font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:20px;background:var(--accSoft);color:var(--accD)}
+/* tasks · trello */
+.deal{position:relative}
+.deal .delx{position:absolute;top:5px;right:7px;font-size:15px;color:var(--faint);opacity:0;transition:.12s;line-height:1;padding:2px}
+.deal:hover .delx{opacity:1}
+.deal .delx:hover{color:var(--red)}
+.deal .dfoot{display:flex;align-items:center;gap:6px;margin-top:6px}
+.pr{font-size:9.5px;font-weight:800;padding:1px 7px;border-radius:20px}
+.pr.h{background:color-mix(in srgb,var(--red) 14%,transparent);color:var(--red)}
+.pr.m{background:color-mix(in srgb,var(--amb) 16%,transparent);color:var(--amb)}
+.pr.l{background:var(--off);color:var(--muted)}
+.av3{width:20px;height:20px;border-radius:50%;display:inline-grid;place-items:center;color:#fff;font-size:9px;font-weight:700;flex:none}
+.deal .due{font-size:10px;color:var(--muted);font-weight:700;margin-left:auto;white-space:nowrap}
+.deal .due.od{color:var(--red)}
+.addcard{width:100%;border:1px dashed var(--line);border-radius:10px;padding:8px;color:var(--muted);font-size:12px;font-weight:700;text-align:center;transition:.12s;background:transparent;margin-top:2px}
+.addcard:hover{background:var(--card);color:var(--acc);border-color:var(--acc2)}
+.btn{flex:none;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:800;transition:.12s}
+.btn.pri{background:var(--acc);color:#fff}
+.btn.pri:hover{background:var(--accD)}
+.btn.ghost{border:1px solid var(--line);color:var(--ink2)}
+.btn.ghost:hover{background:var(--off)}
+.btn.danger{border:1px solid color-mix(in srgb,var(--red) 40%,transparent);color:var(--red);margin-left:auto}
+.btn.danger:hover{background:color-mix(in srgb,var(--red) 10%,transparent)}
+.frm{display:flex;flex-direction:column;gap:11px}
+.frm label{font-size:11px;font-weight:800;color:var(--muted);display:block;margin-bottom:4px;letter-spacing:.03em;text-transform:uppercase}
+.frm input,.frm select,.frm textarea{width:100%;background:var(--off);border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:13px;color:var(--ink);font-family:inherit;outline:none}
+.frm input:focus,.frm select:focus,.frm textarea:focus{border-color:var(--acc2)}
+.frm textarea{resize:vertical;min-height:64px}
+.frow2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mfoot{display:flex;gap:9px;padding:0 22px 20px}
 /* inventory WOW */
 .invhead{display:grid;grid-template-columns:1.35fr 1fr;gap:14px;margin-bottom:14px}
 .scanbox{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:18px;box-shadow:var(--sh2)}
@@ -310,8 +339,8 @@ td.r{text-align:right;font-weight:700;white-space:nowrap}
       <!-- Задачи -->
       <div class="screen" data-s="tasks">
         <div class="kpis" id="tsKpis"></div>
-        <div class="card"><div class="ct">Задачи по сети <span class="mini">как Trello — внутри системы</span></div><div class="kan" id="taskKan"></div>
-          <div class="hint" style="margin-top:14px">Задачи по точкам и людям: выкладка, заказ бренду, пересорт, обучение новенькой. Перетаскивайте карточки между колонками.</div></div>
+        <div class="card"><div class="ct"><span>Задачи по сети <span class="mini">как Trello — внутри системы</span></span><button class="btn pri" style="padding:7px 14px;font-size:12px" onclick="newTask(0)">＋ Новая задача</button></div><div class="kan" id="taskKan"></div>
+          <div class="hint" style="margin-top:14px">Всё как в Trello, но внутри вашей системы: <b>создавайте</b> задачи (кнопка сверху или «＋» в колонке), <b>открывайте</b> карточку кликом — описание, исполнитель, точка, приоритет и срок, <b>назначайте и переназначайте</b>, <b>перетаскивайте</b> между колонками, <b>удаляйте</b> (× на карточке). Исполнитель видит только свои задачи и отмечает выполнение с телефона.</div></div>
       </div>
 
       <!-- Сайт -->
@@ -342,6 +371,25 @@ td.r{text-align:right;font-weight:700;white-space:nowrap}
   <div class="mh"><div class="t" id="dmName"></div><div class="s" id="dmSub"></div></div>
   <div class="mb"><div class="dl" id="dmMeta"></div>
     <div class="hint" style="margin-top:14px" id="dmHint">В полной версии — полная история движения по товару: каждый приход, продажа, перемещение и списание с датой и сотрудником.</div></div>
+</div></div>
+
+<!-- task modal -->
+<div class="ov" id="tov"><div class="modal"><button class="mclose" onclick="closeM('tov')">×</button>
+  <div class="mh"><div class="t" id="tmTitle">Задача</div><div class="s" id="tmSub"></div></div>
+  <div class="mb"><div class="frm">
+    <div><label>Название</label><input id="tfT" placeholder="Что нужно сделать"></div>
+    <div><label>Описание</label><textarea id="tfD" placeholder="Детали задачи, чек-лист, ссылки"></textarea></div>
+    <div class="frow2">
+      <div><label>Исполнитель</label><select id="tfW"></select></div>
+      <div><label>Точка / зона</label><select id="tfS"></select></div>
+    </div>
+    <div class="frow2">
+      <div><label>Приоритет</label><select id="tfP"><option value="l">Обычный</option><option value="m">Важный</option><option value="h">Срочный</option></select></div>
+      <div><label>Срок</label><input id="tfDue" placeholder="напр. завтра · 18.08"></div>
+    </div>
+    <div><label>Колонка</label><select id="tfSt"><option value="0">К выполнению</option><option value="1">В работе</option><option value="2">Готово</option></select></div>
+  </div></div>
+  <div class="mfoot"><button class="btn pri" id="tSaveBtn" onclick="saveTask()">Сохранить</button><button class="btn ghost" onclick="closeM('tov')">Отмена</button><button class="btn danger" id="tDelBtn" onclick="delTask()">Удалить</button></div>
 </div></div>
 
 <div class="toast" id="toast"></div>
@@ -401,14 +449,17 @@ var DIFFS=[
 var STAFF=[['Айгерим Т.','Продавец-консультант','Атырау · Сатпаева','g'],['Мадина Ж.','Продавец-консультант','Атырау · Сатпаева','g'],['Дана С.','Онлайн-менеджер','Онлайн · WhatsApp','g'],['Асель К.','Онлайн-менеджер','Онлайн · сайт','g'],['Жанна О.','Управляющая','Атырау · Авангард','g'],['Салтанат Н.','Управляющая','Актау · 12 мкр','g'],['Инкар Б.','Ревизор / склад','Сеть','y'],['Раиса','Собственница','Сеть','g']];
 var SALARY=[['Айгерим Т.','Атырау · Сатпаева',2140000,318,6730,'214 000'],['Мадина Ж.','Атырау · Сатпаева',1860000,276,6740,'186 000'],['Дана С.','Онлайн',2890000,201,14380,'289 000'],['Асель К.','Онлайн',2310000,163,14170,'231 000'],['Жанна О.','Атырау · Авангард',1690000,241,7010,'169 000'],['Салтанат Н.','Актау · 12 мкр',1980000,287,6900,'198 000']];
 var TASKS=[
- {t:'Выкладка новинок Aravia',st:0,who:'Айгерим · Сатпаева'},
- {t:'Заказ бренду Kapous (ниже минимума)',st:1,who:'Инкар · закуп'},
- {t:'Разобрать пересорт TNL после ревизии',st:1,who:'Инкар · склад'},
- {t:'Обучение новенькой · Уральск',st:0,who:'Жанна'},
- {t:'Перемещение Актау → Уральск (открытие)',st:2,who:'Инкар'},
- {t:'Ответить вечерним мастерам (4)',st:2,who:'Дана'}
+ {t:'Выкладка новинок Aravia',st:0,who:'Айгерим Т.',store:'Атырау · Сатпаева',due:'сегодня',pr:'m',desc:'Выставить новинки Aravia на входной стеллаж, ценники по акции −10%, фото в чат сети.'},
+ {t:'Заказ бренду Kapous (ниже минимума)',st:1,who:'Инкар Б.',store:'Сеть · закуп',due:'завтра',pr:'h',desc:'12 SKU ниже минимума — сформировать заказ поставщику, сверить с транзитом Актау → Уральск.'},
+ {t:'Разобрать пересорт TNL после ревизии',st:1,who:'Инкар Б.',store:'Атырау · Сатпаева',due:'вчера',pr:'h',od:true,desc:'По ревизии −3 шт гель-лак №204. Проверить соседние оттенки 203/205 — вероятен пересорт при приёмке.'},
+ {t:'Обучение новенькой · Уральск',st:0,who:'Жанна О.',store:'Уральск · открытие',due:'18.08',pr:'m',desc:'Каталог, кассовые операции, приёмка по сканеру. Доступ в систему выдан (роль: продавец).'},
+ {t:'Перемещение Актау → Уральск (открытие)',st:2,who:'Инкар Б.',store:'Актау → Уральск',due:'14.08',pr:'m',desc:'610 SKU. Машина вышла, приёмка по сканеру на месте, расхождения — фото в задачу.'},
+ {t:'Ответить вечерним мастерам (4)',st:2,who:'Дана С.',store:'Онлайн',due:'сегодня',pr:'l',desc:'4 заявки после 22:00 — отработаны утром первыми, заказы заведены в воронку.'}
 ];
 var TSTAGES=['К выполнению','В работе','Готово'];
+var TSTORES=['Атырау · Сатпаева','Атырау · Авангард','Актау · 12 мкр','Уральск · открытие','Онлайн','Сеть · закуп'];
+var PRN={h:'срочно',m:'важно',l:'обычно'};
+var CURT=null;
 
 var ROLE='Собственница';
 function renderGate(){document.getElementById('rgrid').innerHTML=Object.keys(ROLES).map(function(r){var m=ROLES[r];var n=m.s.length;
@@ -483,7 +534,7 @@ function render(){
   document.getElementById('abc').innerHTML=[['plus','A · 1 967 SKU (18%) — ядро',10760000],['plus','B · 4 481 SKU (41%) — середина',2350000],['minus','C · 4 481 SKU (41%) — хвост',690000],['tot','Выручка месяца',13800000]].map(function(r){var sign=r[0]==='minus'?'':'';return '<div class="r '+r[0]+'"><span class="k">'+r[1]+'</span><span class="v">'+sign+money(r[2])+' '+C+'</span></div>';}).join('');
 
   // tasks
-  document.getElementById('tsKpis').innerHTML=[['acc','✅',TASKS.length,'Задач в работе',null,'по сети'],['amb','⏳',TASKS.filter(function(t){return t.st===1;}).length,'В работе',null,''],['up','✔️',TASKS.filter(function(t){return t.st===2;}).length,'Готово сегодня',null,''],['rs','🏬','4','Точки охвачены',null,'']].map(kpi).join('');
+  renderTaskKpis();
   renderTaskKan();
 
   // site
@@ -506,12 +557,38 @@ function renderKan(){var kan=document.getElementById('kan');var sum=DEALS.reduce
       inc.map(function(x){var d=x.d;return '<div class="deal" draggable="true" data-id="'+x.idx+'" onclick="openDeal('+x.idx+')"><div class="dn">'+esc(d.c)+'</div><div class="dm"><span class="mtag">'+esc(d.seg)+'</span>'+esc(d.ch)+'</div><div class="ds">'+money(d.sum)+' '+C+'</div></div>';}).join('')+'</div>';}).join('');
   var drag=null;kan.querySelectorAll('.deal').forEach(function(el){el.ondragstart=function(e){drag=+el.dataset.id;e.stopPropagation();};});
   kan.querySelectorAll('.col').forEach(function(col){col.ondragover=function(e){e.preventDefault();col.classList.add('drop');};col.ondragleave=function(){col.classList.remove('drop');};col.ondrop=function(e){e.preventDefault();col.classList.remove('drop');if(drag==null)return;DEALS[drag].st=+col.dataset.col;drag=null;renderKan();toast('Заказ перемещён по воронке.');};});}
+function renderTaskKpis(){var stores={};TASKS.forEach(function(t){stores[(t.store||'').split(' → ')[0]]=1;});
+  document.getElementById('tsKpis').innerHTML=[['acc','✅',TASKS.length,'Задач в работе',null,'по сети'],['amb','⏳',TASKS.filter(function(t){return t.st===1;}).length,'В работе',null,''],['up','✔️',TASKS.filter(function(t){return t.st===2;}).length,'Готово сегодня',null,''],['rs','🏬',Object.keys(stores).length,'Точек и зон охвачено',null,'']].map(kpi).join('');}
 function renderTaskKan(){var kan=document.getElementById('taskKan');
   kan.innerHTML=TSTAGES.map(function(f,si){var inc=TASKS.map(function(d,idx){return {d:d,idx:idx};}).filter(function(x){return x.d.st===si;});
     return '<div class="col" data-col="'+si+'"><div class="ch"><span>'+esc(f)+'</span><span class="n">'+inc.length+'</span></div><div class="cs">задачи</div>'+
-      inc.map(function(x){return '<div class="deal" draggable="true" data-tid="'+x.idx+'"><div class="dn">'+esc(x.d.t)+'</div><div class="dm">'+esc(x.d.who)+'</div></div>';}).join('')+'</div>';}).join('');
+      inc.map(function(x){var d=x.d;return '<div class="deal" draggable="true" data-tid="'+x.idx+'" onclick="openTask('+x.idx+')"><button class="delx" title="Удалить" onclick="event.stopPropagation();delTaskAt('+x.idx+')">×</button><div class="dn" style="padding-right:14px">'+esc(d.t)+'</div><div class="dm"><span class="pr '+(d.pr||'l')+'">'+PRN[d.pr||'l']+'</span>'+esc(d.store||'')+'</div><div class="dfoot"><span class="av3" style="background:hsl('+(Math.abs((d.who||'').length*47)%360)+',50%,46%)">'+ini(d.who||'—')+'</span><span class="mini">'+esc((d.who||'').split(' ')[0])+'</span><span class="due'+(d.od?' od':'')+'">'+esc(d.due||'')+'</span></div></div>';}).join('')+
+      '<button class="addcard" onclick="newTask('+si+')">＋ Добавить задачу</button></div>';}).join('');
   var drag=null;kan.querySelectorAll('.deal').forEach(function(el){el.ondragstart=function(e){drag=+el.dataset.tid;e.stopPropagation();};});
-  kan.querySelectorAll('.col').forEach(function(col){col.ondragover=function(e){e.preventDefault();col.classList.add('drop');};col.ondragleave=function(){col.classList.remove('drop');};col.ondrop=function(e){e.preventDefault();col.classList.remove('drop');if(drag==null)return;TASKS[drag].st=+col.dataset.col;drag=null;renderTaskKan();toast('Задача перемещена.');};});}
+  kan.querySelectorAll('.col').forEach(function(col){col.ondragover=function(e){e.preventDefault();col.classList.add('drop');};col.ondragleave=function(){col.classList.remove('drop');};col.ondrop=function(e){e.preventDefault();col.classList.remove('drop');if(drag==null)return;TASKS[drag].st=+col.dataset.col;drag=null;renderTaskKan();renderTaskKpis();toast('Задача перемещена в «'+TSTAGES[+col.dataset.col]+'».');};});}
+function fillTaskForm(){var w=document.getElementById('tfW');w.innerHTML=STAFF.map(function(s){return '<option>'+esc(s[0])+'</option>';}).join('');
+  var st=document.getElementById('tfS');st.innerHTML=TSTORES.map(function(s){return '<option>'+esc(s)+'</option>';}).join('');}
+function newTask(stage){CURT=null;fillTaskForm();
+  document.getElementById('tmTitle').textContent='Новая задача';document.getElementById('tmSub').textContent='Назначьте исполнителя — задача появится у него в системе';
+  document.getElementById('tfT').value='';document.getElementById('tfD').value='';document.getElementById('tfDue').value='';
+  document.getElementById('tfP').value='m';document.getElementById('tfSt').value=String(stage||0);
+  document.getElementById('tSaveBtn').textContent='Создать задачу';document.getElementById('tDelBtn').style.display='none';
+  document.getElementById('tov').classList.add('show');setTimeout(function(){document.getElementById('tfT').focus();},60);}
+function openTask(i){var d=TASKS[i];CURT=i;fillTaskForm();
+  document.getElementById('tmTitle').textContent='Задача';document.getElementById('tmSub').textContent=TSTAGES[d.st]+' · '+ (d.store||'');
+  document.getElementById('tfT').value=d.t;document.getElementById('tfD').value=d.desc||'';document.getElementById('tfDue').value=d.due||'';
+  document.getElementById('tfW').value=d.who;document.getElementById('tfS').value=d.store||TSTORES[0];
+  document.getElementById('tfP').value=d.pr||'l';document.getElementById('tfSt').value=String(d.st);
+  document.getElementById('tSaveBtn').textContent='Сохранить';document.getElementById('tDelBtn').style.display='';
+  document.getElementById('tov').classList.add('show');}
+function saveTask(){var t=document.getElementById('tfT').value.trim();if(!t){toast('Дайте задаче название.');return;}
+  var obj={t:t,desc:document.getElementById('tfD').value.trim(),who:document.getElementById('tfW').value,store:document.getElementById('tfS').value,pr:document.getElementById('tfP').value,due:document.getElementById('tfDue').value.trim()||'без срока',st:+document.getElementById('tfSt').value};
+  if(CURT==null){TASKS.push(obj);toast('Задача создана и назначена: <b>'+esc(obj.who)+'</b> увидит её в своём списке.');}
+  else{obj.od=TASKS[CURT].od;TASKS[CURT]=obj;toast('Задача обновлена.');}
+  closeM('tov');renderTaskKan();renderTaskKpis();updCnt();}
+function delTask(){if(CURT==null)return;var n=TASKS[CURT].t;TASKS.splice(CURT,1);CURT=null;closeM('tov');renderTaskKan();renderTaskKpis();updCnt();toast('Задача «'+esc(n)+'» удалена.');}
+function delTaskAt(i){var n=TASKS[i].t;TASKS.splice(i,1);renderTaskKan();renderTaskKpis();updCnt();toast('Задача «'+esc(n)+'» удалена.');}
+document.getElementById('tov').onclick=function(e){if(e.target===this)closeM('tov');};
 
 function openDeal(i){var d=DEALS[i];document.getElementById('dmName').textContent=d.c;document.getElementById('dmSub').textContent=d.seg+' · '+STAGES[d.st];
   document.getElementById('dmMeta').innerHTML=[['Сегмент',d.seg],['Канал',d.ch],['Сумма',money(d.sum)+' '+C],['Менеджер',d.mgr],['Стадия',STAGES[d.st]],['Следующий шаг',d.next]].map(function(r){return '<div class="row"><span class="k">'+r[0]+'</span><span class="v">'+esc(String(r[1]))+'</span></div>';}).join('');
