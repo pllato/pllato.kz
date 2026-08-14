@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Договор-генератор · разработка + NDA · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1a2333;--ink2:#3d4757;--acc:#0e7a5f;--accD:#0a5a46;--accL:#e6f4ef;--gold:#b08a4f;--text:#242c39;--muted:#6d7787;--faint:#a3acba;--line:#e5e9ef;--off:#f5f7fa;--red:#d1493c;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:14mm 15mm}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:14px;line-height:1.55;background:#eef1f5}
+.wrap{max-width:1200px;margin:0 auto;padding:26px 18px 60px;display:grid;grid-template-columns:390px 1fr;gap:20px;align-items:start}
+/* ===== form panel ===== */
+.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;position:sticky;top:16px;box-shadow:0 10px 28px -18px rgba(20,30,50,.25)}
+.panel h1{font-size:19px;font-weight:900;letter-spacing:-.01em;margin-bottom:3px}
+.panel .sub{font-size:12.5px;color:var(--muted);margin-bottom:16px}
+.grp{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--acc);margin:16px 0 8px;display:flex;align-items:center;gap:8px}
+.grp::after{content:"";flex:1;height:1px;background:var(--line)}
+.f{margin-bottom:10px}
+.f label{display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:4px}
+.f input,.f select,.f textarea{width:100%;background:var(--off);border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:13.5px;color:var(--ink);font-family:inherit;outline:none}
+.f input:focus,.f select:focus,.f textarea:focus{border-color:var(--acc)}
+.f textarea{resize:vertical;min-height:58px}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+.sumline{font-size:12px;color:var(--ink2);background:var(--accL);border:1px solid #cfe7de;border-radius:9px;padding:8px 11px;margin-top:-2px;margin-bottom:10px}
+.sumline b{color:var(--accD)}
+.btns{display:flex;gap:9px;margin-top:16px}
+.btn{flex:1;border-radius:11px;padding:12px;font-size:14px;font-weight:800;transition:.12s;cursor:pointer;border:none;font-family:inherit}
+.btn.pri{background:var(--acc);color:#fff}
+.btn.pri:hover{background:var(--accD)}
+.btn.ghost{border:1px solid var(--line);color:var(--ink2);background:#fff}
+.btn.ghost:hover{background:var(--off)}
+.note{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.5}
+/* ===== contract ===== */
+.doc{background:#fff;border:1px solid var(--line);border-radius:16px;padding:46px 52px;box-shadow:0 10px 28px -18px rgba(20,30,50,.25);font-size:12.5px;color:#1c2430;line-height:1.6}
+.doc .dhead{text-align:center;margin-bottom:6px}
+.doc .dhead .t{font-size:17px;font-weight:900;letter-spacing:.01em;text-transform:uppercase}
+.doc .dhead .s{font-size:12.5px;font-weight:700;margin-top:2px}
+.doc .meta{display:flex;justify-content:space-between;font-size:12px;margin:14px 0 6px;font-weight:600}
+.doc h2{font-size:13px;font-weight:800;margin:16px 0 6px;text-align:center;letter-spacing:.02em}
+.doc p{margin-bottom:6px;text-align:justify}
+.doc p b{font-weight:700}
+.doc ol{padding-left:0;list-style:none}
+.doc .pt{margin-bottom:5px;text-align:justify}
+.doc .pt .n{font-weight:700}
+.doc table.recv{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px}
+.doc table.recv td{width:50%;vertical-align:top;padding:8px 12px;border:1px solid var(--line)}
+.doc table.recv .h{font-weight:800;font-size:12.5px}
+.doc .sig{margin-top:18px;display:flex;justify-content:space-between;gap:30px;font-size:12px}
+.doc .sig .s{flex:1}
+.doc .sig .ln{margin-top:26px;border-top:1px solid #99a1ad;padding-top:4px;color:var(--muted);font-size:11px}
+.hl{background:#fdf6e3}
+@media(max-width:980px){.wrap{grid-template-columns:1fr}.panel{position:static}}
+@media print{
+  body{background:#fff;font-size:11.5px}
+  .wrap{display:block;max-width:none;padding:0}
+  .panel{display:none}
+  .doc{border:none;box-shadow:none;border-radius:0;padding:0;font-size:11px}
+  .doc h2{page-break-after:avoid}
+  .doc .pt,.doc p{orphans:3;widows:3}
+  .doc table.recv{page-break-inside:avoid}
+  .doc .sig{page-break-inside:avoid}
+}
+</style></head>
+<body>
+<div class="wrap">
+  <!-- ===== ФОРМА ===== -->
+  <div class="panel">
+    <h1>Договор-генератор</h1>
+    <div class="sub">Типовой договор: разработка + неразглашение (NDA) одним документом. Заполните — договор соберётся справа. Печать → сохранить как PDF.</div>
+
+    <div class="grp">Договор</div>
+    <div class="f3">
+      <div class="f"><label>№ договора</label><input id="fNum"></div>
+      <div class="f"><label>Дата</label><input id="fDate" type="date"></div>
+      <div class="f"><label>Город</label><input id="fCity" value="Алматы"></div>
+    </div>
+
+    <div class="grp">Заказчик</div>
+    <div class="f"><label>Наименование (ТОО / ИП / ФИО)</label><input id="fClient" placeholder="ТОО «Компания» / ИП Иванов И.И."></div>
+    <div class="f2">
+      <div class="f"><label>БИН / ИИН</label><input id="fBin" placeholder="000000000000"></div>
+      <div class="f"><label>Представитель (ФИО)</label><input id="fRep" placeholder="Иванов Иван"></div>
+    </div>
+    <div class="f2">
+      <div class="f"><label>Телефон</label><input id="fPhone" placeholder="+7 ___ ___ __ __"></div>
+      <div class="f"><label>Email</label><input id="fMail" placeholder="mail@mail.kz"></div>
+    </div>
+    <div class="f"><label>Адрес (город)</label><input id="fAddr" placeholder="г. ______"></div>
+
+    <div class="grp">Предмет разработки</div>
+    <div class="f"><label>Что разрабатываем</label>
+      <select id="fSubj">
+        <option value="portal">Портал (веб-система управления бизнесом)</option>
+        <option value="site">Интернет-магазин (сайт)</option>
+        <option value="both">Портал + интернет-магазин</option>
+        <option value="custom">Другое (впишите ниже)</option>
+      </select></div>
+    <div class="f"><label>Состав работ (редактируйте свободно)</label><textarea id="fScope"></textarea></div>
+    <div class="f2">
+      <div class="f"><label>Срок разработки</label><input id="fTerm" value="4–6 недель"></div>
+      <div class="f"><label>Фиксация объёма (опц.)</label><input id="fFix" placeholder="до 10 складов · 30 000 SKU · 50 польз."></div>
+    </div>
+
+    <div class="grp">Стоимость и оплата</div>
+    <div class="f"><label>Сумма договора, ₸</label><input id="fSum" type="number" value="1500000" min="0" step="1000"></div>
+    <div class="sumline" id="sumWords"></div>
+    <div class="f3">
+      <div class="f"><label>Предоплата, %</label><input id="fP1" type="number" value="10" min="0" max="100"></div>
+      <div class="f"><label>После ядра, %</label><input id="fP2" type="number" value="45" min="0" max="100"></div>
+      <div class="f"><label>При сдаче, %</label><input id="fP3" type="number" value="45" min="0" max="100" disabled></div>
+    </div>
+
+    <div class="btns">
+      <button class="btn pri" onclick="window.print()">🖨 Печать / Сохранить PDF</button>
+      <button class="btn ghost" onclick="resetForm()">Сбросить</button>
+    </div>
+    <div class="note">Договор обновляется на лету. Можно предзаполнять ссылкой: <code>?client=…&bin=…&rep=…&sum=…&subj=portal|site|both</code> — удобно слать менеджеру из CRM.</div>
+  </div>
+
+  <!-- ===== ДОГОВОР ===== -->
+  <div class="doc" id="doc"></div>
+</div>
+
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function money(n){return (n||0).toLocaleString('ru-RU');}
+/* сумма прописью (тенге) */
+function numWords(n){
+  var u=['','один','два','три','четыре','пять','шесть','семь','восемь','девять','десять','одиннадцать','двенадцать','тринадцать','четырнадцать','пятнадцать','шестнадцать','семнадцать','восемнадцать','девятнадцать'];
+  var uf={1:'одна',2:'две'};
+  var t=['','','двадцать','тридцать','сорок','пятьдесят','шестьдесят','семьдесят','восемьдесят','девяносто'];
+  var h=['','сто','двести','триста','четыреста','пятьсот','шестьсот','семьсот','восемьсот','девятьсот'];
+  function tri(x,fem){var s=[];if(x>=100)s.push(h[Math.floor(x/100)]);var r=x%100;
+    if(r>0&&r<20){s.push(fem&&uf[r]?uf[r]:u[r]);}else if(r>=20){s.push(t[Math.floor(r/10)]);var d=r%10;if(d)s.push(fem&&uf[d]?uf[d]:u[d]);}
+    return s.join(' ');}
+  function pl(x,f){var r=x%100;if(r>10&&r<20)return f[2];r=x%10;if(r===1)return f[0];if(r>1&&r<5)return f[1];return f[2];}
+  n=Math.round(n||0);if(!n)return 'ноль';
+  var mlrd=Math.floor(n/1e9),mln=Math.floor(n%1e9/1e6),th=Math.floor(n%1e6/1e3),rest=n%1e3,out=[];
+  if(mlrd){out.push(tri(mlrd,false),pl(mlrd,['миллиард','миллиарда','миллиардов']));}
+  if(mln){out.push(tri(mln,false),pl(mln,['миллион','миллиона','миллионов']));}
+  if(th){out.push(tri(th,true),pl(th,['тысяча','тысячи','тысяч']));}
+  if(rest)out.push(tri(rest,false));
+  return out.filter(Boolean).join(' ');
+}
+var SCOPES={
+  portal:'Веб-портал (система управления бизнесом Заказчика): роли и права доступа, воронка заявок/продаж, база клиентов, каталог/склад, отчётность и аналитика, задачи; интеграции по согласованному перечню (WhatsApp и др.); перенос исходных данных Заказчика.',
+  site:'Интернет-магазин (веб-сайт) Заказчика: каталог товаров с актуальными остатками, корзина и оформление заявки, выбор города/точки, форма обратной связи, базовая (предварительная) SEO-оптимизация; привязка заявок к CRM Заказчика.',
+  both:'1) Веб-портал (система управления бизнесом): роли и права, воронка заявок/продаж, база клиентов, каталог/склад, инвентаризация, отчётность и аналитика, задачи; интеграции по согласованному перечню (WhatsApp и др.); перенос исходных данных. 2) Интернет-магазин (сайт) на общей архитектуре с порталом: каталог от живых остатков, выбор города, корзина → заявка в CRM, предварительная SEO-оптимизация.',
+  custom:''
+};
+var SUBJN={portal:'веб-портала (системы управления бизнесом)',site:'интернет-магазина (веб-сайта)',both:'веб-портала (системы управления бизнесом) и интернет-магазина (веб-сайта)',custom:'программного обеспечения'};
+
+function g(id){return document.getElementById(id);}
+function val(id){return g(id).value.trim();}
+function fmtDate(d){if(!d)return '«___» ________ 20__ г.';var p=d.split('-');var m=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];return '«'+(+p[2])+'» '+m[+p[1]-1]+' '+p[0]+' г.';}
+
+function render(){
+  var sum=+val('fSum')||0, p1=+val('fP1')||0, p2=+val('fP2')||0, p3=Math.max(0,100-p1-p2);
+  g('fP3').value=p3;
+  var s1=Math.round(sum*p1/100), s2=Math.round(sum*p2/100), s3=sum-s1-s2;
+  g('sumWords').innerHTML='Прописью: <b>'+esc(numWords(sum))+' тенге</b> · оплата: '+money(s1)+' / '+money(s2)+' / '+money(s3)+' ₸';
+  var client=val('fClient')||'____________________';
+  var bin=val('fBin')||'____________';
+  var rep=val('fRep')||'____________________';
+  var scope=val('fScope')||'____________________';
+  var subj=SUBJN[val('fSubj')]||SUBJN.custom;
+  var fix=val('fFix');
+  var blank='<span class="hl">'+esc(client)+'</span>';
+
+  g('doc').innerHTML=
+  '<div class="dhead"><div class="t">Договор № '+esc(val('fNum')||'____')+'</div><div class="s">на разработку программного обеспечения<br>(с условиями о неразглашении конфиденциальной информации)</div></div>'+
+  '<div class="meta"><span>г. '+esc(val('fCity')||'______')+'</span><span>'+fmtDate(val('fDate'))+'</span></div>'+
+
+  '<p><b>ИП «STUDYSTORIES.APP»</b>, БИН 880607300110, в лице директора Цай Платона, действующего на основании свидетельства о регистрации, именуемое в дальнейшем «Исполнитель», с одной стороны, и <b>'+blank+'</b>, БИН/ИИН '+esc(bin)+', в лице '+esc(rep)+', действующего(-ей) на основании учредительных документов, именуемое в дальнейшем «Заказчик», с другой стороны, совместно именуемые «Стороны», заключили настоящий Договор о нижеследующем:</p>'+
+
+  '<h2>1. Предмет договора</h2>'+
+  '<div class="pt"><span class="n">1.1.</span> Исполнитель обязуется по заданию Заказчика выполнить работы по разработке '+subj+' (далее — «Программное обеспечение», «ПО»), а Заказчик обязуется принять результат работ и оплатить его в порядке и сроки, установленные настоящим Договором.</div>'+
+  '<div class="pt"><span class="n">1.2.</span> Состав работ: '+esc(scope)+'</div>'+
+  (fix?'<div class="pt"><span class="n">1.3.</span> Согласованный объём системы: '+esc(fix)+'. Увеличение объёма сверх согласованного оформляется дополнительным соглашением.</div>':'')+
+  '<div class="pt"><span class="n">1.'+(fix?'4':'3')+'.</span> Точный перечень функциональности фиксируется Сторонами на этапе согласования ядра системы (п. 3.2) и может уточняться по взаимному согласию Сторон без изменения общей стоимости, если уточнения не выходят за рамки состава работ.</div>'+
+
+  '<h2>2. Стоимость работ и порядок оплаты</h2>'+
+  '<div class="pt"><span class="n">2.1.</span> Общая стоимость работ по Договору составляет <b>'+money(sum)+' ('+esc(numWords(sum))+') тенге</b>. Исполнитель не является плательщиком НДС.</div>'+
+  '<div class="pt"><span class="n">2.2.</span> Оплата производится поэтапно: <b>'+p1+'%</b> — '+money(s1)+' тенге — предоплата в течение 3 (трёх) банковских дней с даты подписания Договора; <b>'+p2+'%</b> — '+money(s2)+' тенге — после согласования Заказчиком ядра системы и размещения его на сервере (п. 3.2); <b>'+p3+'%</b> — '+money(s3)+' тенге — после полной сдачи работ и подписания акта (п. 3.4).</div>'+
+  '<div class="pt"><span class="n">2.3.</span> Оплата производится на расчётный счёт либо иным согласованным Сторонами способом. Датой оплаты считается дата поступления средств.</div>'+
+  '<div class="pt"><span class="n">2.4.</span> Работы и услуги, прямо не входящие в состав работ (п. 1.2), в том числе последующие доработки по заявкам Заказчика, выполняются по отдельному согласованию по ставке 20 (двадцать) долларов США за час работы в тенге по курсу на дату счёта, либо отдельным соглашением.</div>'+
+
+  '<h2>3. Порядок выполнения и сдачи работ</h2>'+
+  '<div class="pt"><span class="n">3.1.</span> Срок выполнения работ — '+esc(val('fTerm')||'4–6 недель')+' с даты поступления предоплаты и предоставления Заказчиком исходных материалов (логотип, прайсы, доступы, данные для переноса).</div>'+
+  '<div class="pt"><span class="n">3.2.</span> Этап 1 «Ядро»: Исполнитель разрабатывает и демонстрирует Заказчику основной функционал (скелет) системы. Заказчик согласовывает ядро либо направляет замечания в течение 5 (пяти) рабочих дней.</div>'+
+  '<div class="pt"><span class="n">3.3.</span> Этап 2 «Полировка»: Исполнитель дорабатывает систему по замечаниям Заказчика, проводит проверку под реальной нагрузкой. Правки в рамках состава работ выполняются без дополнительной оплаты.</div>'+
+  '<div class="pt"><span class="n">3.4.</span> Сдача: результат передаётся Заказчику (размещение на сервере Заказчика либо на согласованном хостинге, передача доступов). Заказчик подписывает акт выполненных работ в течение 5 (пяти) рабочих дней либо направляет мотивированный отказ. При отсутствии ответа в указанный срок работы считаются принятыми.</div>'+
+  '<div class="pt"><span class="n">3.5.</span> Гарантийная поддержка: ошибки в работе ПО, возникшие по вине Исполнителя, устраняются бесплатно в течение 6 (шести) месяцев с даты сдачи.</div>'+
+
+  '<h2>4. Права на результат работ</h2>'+
+  '<div class="pt"><span class="n">4.1.</span> С момента полной оплаты исключительные имущественные права на созданное по Договору ПО (включая исходный код в согласованном объёме и права на использование) переходят к Заказчику. ПО размещается на серверах/аккаунтах Заказчика.</div>'+
+  '<div class="pt"><span class="n">4.2.</span> Исполнитель вправе использовать обезличенные наработки, библиотеки и типовые модули, не содержащие конфиденциальной информации Заказчика, в иных проектах.</div>'+
+  '<div class="pt"><span class="n">4.3.</span> Стороны согласовали право Исполнителя упоминать факт сотрудничества и общее описание проекта в портфолио, без раскрытия конфиденциальной информации (п. 5), если Заказчик письменно не запретит такое упоминание.</div>'+
+
+  '<h2>5. Конфиденциальность (NDA)</h2>'+
+  '<div class="pt"><span class="n">5.1.</span> Конфиденциальной признаётся любая информация, полученная Сторонами друг от друга в связи с исполнением Договора, в том числе: сведения о бизнес-процессах, финансовые показатели, базы клиентов и поставщиков, прайсы и условия работы, учётные данные и доступы, содержание переговоров и переписки, исходный код и архитектура ПО, условия настоящего Договора.</div>'+
+  '<div class="pt"><span class="n">5.2.</span> Каждая Сторона обязуется: не разглашать конфиденциальную информацию третьим лицам без письменного согласия другой Стороны; использовать её исключительно для исполнения Договора; обеспечить доступ к ней только тем работникам и подрядчикам, которым она необходима, под аналогичные обязательства о неразглашении; принимать разумные меры защиты (разграничение доступов, защищённое хранение).</div>'+
+  '<div class="pt"><span class="n">5.3.</span> Не является конфиденциальной информация: общедоступная не по вине получившей Стороны; правомерно полученная от третьих лиц; подлежащая раскрытию по требованию закона или уполномоченного органа (с уведомлением другой Стороны, если это допустимо).</div>'+
+  '<div class="pt"><span class="n">5.4.</span> Обязательства о неразглашении действуют в течение срока действия Договора и 3 (трёх) лет после его прекращения.</div>'+
+  '<div class="pt"><span class="n">5.5.</span> Сторона, допустившая разглашение, возмещает другой Стороне документально подтверждённые убытки, причинённые таким разглашением.</div>'+
+
+  '<h2>6. Ответственность сторон</h2>'+
+  '<div class="pt"><span class="n">6.1.</span> За неисполнение или ненадлежащее исполнение обязательств Стороны несут ответственность в соответствии с законодательством Республики Казахстан.</div>'+
+  '<div class="pt"><span class="n">6.2.</span> За просрочку оплаты Заказчик уплачивает пеню 0,1% от неоплаченной суммы за каждый день просрочки, но не более 10% от суммы Договора. За просрочку сдачи по вине Исполнителя — пеня 0,1% от суммы соответствующего этапа за каждый день, но не более 10% от суммы этапа.</div>'+
+  '<div class="pt"><span class="n">6.3.</span> Совокупная ответственность Исполнителя по Договору ограничена суммой фактически полученной оплаты.</div>'+
+
+  '<h2>7. Форс-мажор и прочие условия</h2>'+
+  '<div class="pt"><span class="n">7.1.</span> Стороны освобождаются от ответственности при обстоятельствах непреодолимой силы, подтверждённых в установленном порядке; срок исполнения продлевается соразмерно их действию.</div>'+
+  '<div class="pt"><span class="n">7.2.</span> Все споры разрешаются переговорами; при недостижении согласия — в суде по месту нахождения ответчика в соответствии с законодательством РК.</div>'+
+  '<div class="pt"><span class="n">7.3.</span> Договор вступает в силу с даты подписания и действует до полного исполнения обязательств. Изменения — письменными дополнительными соглашениями. Договор может быть подписан путём обмена сканированными копиями (в т.ч. по электронной почте/мессенджерам) с последующим обменом оригиналами; такие копии имеют юридическую силу.</div>'+
+  '<div class="pt"><span class="n">7.4.</span> Договор составлен в двух экземплярах, имеющих равную юридическую силу, по одному для каждой из Сторон.</div>'+
+
+  '<h2>8. Реквизиты и подписи сторон</h2>'+
+  '<table class="recv"><tr>'+
+  '<td><div class="h">Исполнитель</div>ИП «STUDYSTORIES.APP»<br>БИН 880607300110<br>Директор: Цай Платон<br>pllato.kz · uurraa@gmail.com<br>Тел.: +7 701 123 99 99</td>'+
+  '<td><div class="h">Заказчик</div>'+blank+'<br>БИН/ИИН: '+esc(bin)+'<br>Представитель: '+esc(rep)+'<br>'+(val('fAddr')?'Адрес: '+esc(val('fAddr'))+'<br>':'')+(val('fPhone')?'Тел.: '+esc(val('fPhone'))+'<br>':'')+(val('fMail')?'Email: '+esc(val('fMail')):'')+'</td>'+
+  '</tr></table>'+
+  '<div class="sig"><div class="s"><b>Исполнитель:</b><div class="ln">____________________ / Цай П. / М.П.</div></div><div class="s"><b>Заказчик:</b><div class="ln">____________________ / '+esc((rep||'').split(' ')[0]||'________')+' / М.П.</div></div></div>';
+}
+
+function resetForm(){['fClient','fBin','fRep','fPhone','fMail','fAddr','fFix'].forEach(function(i){g(i).value='';});
+  g('fSubj').value='portal';g('fScope').value=SCOPES.portal;g('fSum').value=1500000;g('fP1').value=10;g('fP2').value=45;g('fTerm').value='4–6 недель';initNumDate();render();}
+
+function initNumDate(){
+  var d=new Date();
+  var iso=d.toISOString().slice(0,10);
+  g('fDate').value=iso;
+  g('fNum').value='PL-'+iso.replace(/-/g,'').slice(2)+'-1';
+}
+
+g('fSubj').onchange=function(){var v=g('fSubj').value;if(SCOPES[v])g('fScope').value=SCOPES[v];render();};
+document.querySelectorAll('.panel input,.panel select,.panel textarea').forEach(function(el){el.addEventListener('input',render);});
+
+/* префилл из URL: ?client=&bin=&rep=&phone=&mail=&addr=&sum=&subj=&fix=&num=&term= */
+(function(){
+  initNumDate();
+  var q=new URLSearchParams(location.search);
+  var map={client:'fClient',bin:'fBin',rep:'fRep',phone:'fPhone',mail:'fMail',addr:'fAddr',sum:'fSum',fix:'fFix',num:'fNum',term:'fTerm',city:'fCity',p1:'fP1',p2:'fP2'};
+  Object.keys(map).forEach(function(k){if(q.get(k))g(map[k]).value=q.get(k);});
+  var s=q.get('subj');if(s&&SCOPES.hasOwnProperty(s))g('fSubj').value=s;
+  g('fScope').value=q.get('scope')||SCOPES[g('fSubj').value]||'';
+  render();
+})();
+</script>
+</body></html>
