@@ -9338,6 +9338,55 @@ async function pollMetaLeadForm(env) {
   };
 }
 
+// Состояние опроса Meta храним в kv, чтобы сбой токена не оставался только
+// строкой в tail-логах. Первое падение создаёт одно уведомление каждому
+// активному админу; повторные минутные ошибки не спамят. Успешный опрос
+// переводит интеграцию обратно в up и позволяет уведомить о новом инциденте.
+async function recordMetaLeadPollHealth(env, error = null) {
+  const key = 'meta_lead_poll:health';
+  let previous = {};
+  try {
+    const row = await env.DB.prepare("SELECT v FROM kv WHERE k = ? LIMIT 1").bind(key).first();
+    previous = safeJsonParse(row?.v, {}) || {};
+  } catch {}
+
+  const now = new Date().toISOString();
+  if (!error) {
+    await env.DB.prepare(`
+      INSERT INTO kv (k, v) VALUES (?, ?)
+      ON CONFLICT(k) DO UPDATE SET v = excluded.v
+    `).bind(key, JSON.stringify({ status: 'up', checkedAt: now, error: null })).run();
+    return { status: 'up', recovered: previous.status === 'down' };
+  }
+
+  const message = String(error?.message || error).slice(0, 500);
+  const firstFailure = previous.status !== 'down';
+  const outageStartedAt = firstFailure ? now : (previous.outageStartedAt || now);
+  await env.DB.prepare(`
+    INSERT INTO kv (k, v) VALUES (?, ?)
+    ON CONFLICT(k) DO UPDATE SET v = excluded.v
+  `).bind(key, JSON.stringify({ status: 'down', checkedAt: now, outageStartedAt, error: message })).run();
+
+  if (firstFailure) {
+    const admins = await getAdminUids(env);
+    const incidentId = outageStartedAt.replace(/[^0-9]/g, '').slice(0, 14);
+    for (const uid of admins) {
+      await createNotification(env, {
+        id: `nt_meta_poll_down_${incidentId}_${uid}`,
+        uid,
+        type: 'meta_integration_down',
+        title: '⚠️ Остановилась загрузка лидов Meta',
+        body: 'CRM не может получить заявки Facebook. Проверьте токен Meta в настройках интеграции.',
+        link: '/team.html?page=settings',
+        icon: '⚠️',
+        entityType: 'integration',
+        entityId: 'meta_leads',
+      });
+    }
+  }
+  return { status: 'down', alerted: firstFailure };
+}
+
 // Публичная обезличенная серия для КЭП: уникальная сделка учитывается один раз
 // по первому входу в «Создание Демо» или «Показ Демо».
 async function handlePublicPllatoKep(request, env) {
@@ -11936,10 +11985,13 @@ export default {
       }
       try {
         const meta = await pollMetaLeadForm(env);
+        if (!meta.skipped) await recordMetaLeadPollHealth(env);
         if (!meta.skipped && (meta.created > 0 || meta.fetched > 0)) {
           console.log(`[cron] meta_leads fetched=${meta.fetched} created=${meta.created} duplicates=${meta.duplicates}`);
         }
       } catch (e) {
+        try { await recordMetaLeadPollHealth(env, e); }
+        catch (healthError) { console.error("[cron] recordMetaLeadPollHealth failed:", healthError.message); }
         console.error("[cron] pollMetaLeadForm failed:", e.message);
       }
     })());
