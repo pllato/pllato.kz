@@ -92,6 +92,30 @@ table.req tr:nth-child(even){background:var(--off)}
 .signs .snm{font-weight:700;font-size:10.5px;margin-bottom:12px}
 .signs .ln{font-size:10px;color:#3a4453}
 .signs .ln u{display:inline-block;width:80px;border-bottom:1px solid #b9c0ca}
+
+/* print fit: 2 страницы A4 ровно */
+@media print{
+  body{background:#fff;font-size:9.5px}
+  .page{margin:0;min-height:auto;padding:10mm 13mm 8mm;page-break-after:always}
+  .page:last-child{page-break-after:auto}
+  .runfoot{position:static;left:auto;right:auto;bottom:auto;margin-top:auto;padding-top:5px}
+  header{padding-bottom:8px}.rule{margin-bottom:10px}
+  h1{font-size:17px;margin-bottom:6px}
+  .lead{font-size:10px;margin-bottom:10px;line-height:1.5}
+  .sec{margin:10px 0 6px}
+  .badge{margin-bottom:6px}
+  table.pain td{padding:5.5px 8px;font-size:9px}
+  .mods{gap:5px}.mod{padding:7px 10px}.mod .md{font-size:8.9px}.mod .mt{font-size:10px;margin-bottom:2px}
+  .callout{padding:7px 10px;font-size:9px;margin-bottom:6px}
+  .trig{gap:5px;margin-bottom:6px}.trigc{padding:6px 10px}.trigc li{font-size:8.8px}
+  .pricewrap{gap:8px;margin-bottom:5px}
+  .pricebox{padding:10px 12px}.pricebox .big{font-size:22px;margin:2px 0}.pricebox .note{font-size:8.7px}
+  .steps .st{padding:5px 10px}.steps .sn{font-size:9px}.steps .sv{font-size:10px}
+  .two{gap:5px}.term{padding:6px 10px}.term .b{font-size:8.7px}
+  table.req td{padding:4.5px 8px;font-size:8.8px}
+  .cta{padding:8px 12px;margin-top:6px}.cta .x{font-size:9.2px}.cta .amt .v{font-size:16px}
+  .signs{margin-top:6px}.signs .sl{margin-bottom:8px}.signs .snm{margin-bottom:8px}
+}
 </style></head>
 <body>
 <section class="page">
@@ -138,42 +162,31 @@ table.req tr:nth-child(even){background:var(--off)}
 
 <section class="page">
   <div class="sec first">Инвентаризация до копейки — боль, которую не решила ни одна аренда (ключевой блок)</div>
-  <div class="callout"><b>«За сколько лет ни разу не было ровной ревизии»</b> — с этого начался наш разговор. В своей системе ревизия устроена иначе: сканируете точку с прогрессом в реальном времени → система показывает <b>расхождения план↔факт</b> по каждому SKU → список непросканированных <b>одной кнопкой обнуляется в акт недостачи</b> (та самая «галочка», которую вы просили во всех автоматизациях) → итог закрывается контрольной сверкой, поэтому <b>SKU не «вылетают»</b> и повторная контрольная ревизия не нужна. А главное — <b>каждая цифра остатка раскручивается назад по журналу</b>: приход, продажа, перемещение, списание — с датой и сотрудником. Цифры не «превращаются сами по себе»: видно, человек ошибся при приёмке или продаже — и где именно.</div>
-
-  <div class="sec">Кого система закрывает по ролям</div>
-  <div class="trig">
-    <div class="trigc"><div class="th">Точки и склад</div><ul>
-      <li><b>Управляющая точкой</b> — своя точка: продажи, склад, ревизия</li>
-      <li><b>Продавец-консультант</b> — заказы, клиенты, каталог</li>
-      <li><b>Склад / ревизор</b> — приёмка, перемещения, инвентаризация</li>
-    </ul></div>
-    <div class="trigc"><div class="th">Онлайн и управление</div><ul>
-      <li><b>Собственница</b> — вся сеть: деньги, склады, ревизии, команда</li>
-      <li><b>Онлайн-менеджер</b> — WhatsApp-воронка, заявки с сайта</li>
-      <li><b>Маркетолог</b> — клиенты, бренды, ABC · <b>Бухгалтер</b> — отчёты, ЗП</li>
-    </ul></div>
-  </div>
-
-  <div class="sec">Интернет-магазин (отдельным этапом)</div>
-  <div class="callout rose"><b>Один сайт на все города: 800 000 ₸.</b> Клиент выбирает город → видит каталог с <b>живыми остатками своей точки</b> → собирает корзину → заявка падает в CRM, менеджер перезванивает и выставляет счёт на Kaspi (по нашему опыту это закрывает сделку быстрее, чем онлайн-эквайринг). Сдаём <b>технически слинкованный с порталом сайт + предварительную SEO-оптимизацию</b> — бесплатный трафик из Google, который сейчас проходит мимо. Хостится на отдельном сервере. Дальше (по желанию) — SEO-специалист с рынка для роста позиций, 6–12 месяцев.</div>
+  <div class="callout"><b>«За сколько лет ни разу не было ровной ревизии»</b> — с этого начался наш разговор. У нас ревизия устроена иначе: сканируете точку с живым прогрессом → система показывает <b>расхождения план↔факт</b> по каждому SKU → непросканированные <b>одной кнопкой обнуляются в акт недостачи</b> (та самая «галочка») → итог закрывается контрольной сверкой: <b>SKU не «вылетают»</b>, повторная ревизия не нужна. И главное — <b>каждая цифра раскручивается назад по журналу</b> (приход, продажа, перемещение — с датой и сотрудником): видно, где именно человек ошибся.</div>
 
   <div class="sec">За рамками пакета</div>
-  <div class="callout">Внешние тарифы (платите не нам): <b>WhatsApp-интеграция</b> — ≈5 000 ₸/номер/мес (казахстанский интегратор, 7 номеров ≈ до $100/мес, вместо 36 000 ₸/номер у WAZZUP); <b>IP-телефония</b> — по желанию, ~30–45 тыс ₸/мес до 10 номеров; хостинг — <b>бесплатно до 10 ГБ</b>, свой сервер ~10–15 тыс ₸/мес. <b>НКТ</b> — подключим по API, когда государство обяжет (10–20 часов доработки). <b>Мобильное приложение</b> (~3 млн ₸) — отдельный разговор про экономику привлечения, обсудили и отложили. Рефакторинг при двукратном росте — ~$200–300 разово. Доработки после сдачи — $20/час.</div>
+  <div class="callout">Внешние тарифы (платите не нам): <b>WhatsApp</b> — ≈5 000 ₸/номер/мес (7 номеров ≈ до $100/мес, вместо 36 000 ₸/номер у WAZZUP); <b>IP-телефония</b> — по желанию, ~30 тыс ₸/мес; хостинг — <b>бесплатно до 10 ГБ</b>. <b>НКТ</b> — подключим по API, когда обяжет государство (10–20 часов). <b>Приложение</b> (~3 млн ₸) — отложили. Рефакторинг при 2× росте — ~$200–300 разово. Доработки — $20/час.</div>
 
-  <div class="sec">Стоимость и порядок оплаты</div>
-  <div class="pricewrap">
+  <div class="sec">Стоимость — два варианта на выбор заказчика</div>
+  <div class="pricewrap" style="grid-template-columns:1fr 1fr">
     <div class="pricebox">
-      <div class="lbl">Основной пакет «под ключ», разово</div>
+      <div class="lbl">Вариант 1 · Портал сети</div>
       <div class="big"><b>1 500 000 ₸</b></div>
-      <div class="fix">зафиксировано: до 10 складов · до 30 000 SKU · до 50 пользователей</div>
-      <div class="note">Разово, в собственность, на ваш сервер — без абонплаты и без доплат за точки и пользователей (никаких «искусственных барьеров» аренды). + Интернет-магазин 800 000 ₸ отдельным этапом, когда будете готовы.</div>
+      <div class="fix">до 10 складов · до 30 000 SKU · до 50 пользователей</div>
+      <div class="note">Все 10 модулей: пульт, воронка WhatsApp, клиенты, каталог, склады, <b>инвентаризация до копейки</b>, отчёты и ЗП, задачи, роли, миграция из X2. Разово, в собственность, без абонплаты. Сайт можно добавить позже отдельным этапом (800 000 ₸).</div>
     </div>
-    <div class="steps">
-      <div class="st"><div class="sn"><b>Предоплата 10% · старт</b><br><span style="color:var(--muted)">начинаем, поднимаем скелет</span></div><div class="sv">150 000 ₸</div></div>
-      <div class="st"><div class="sn"><b>45% · после утверждения ядра</b><br><span style="color:var(--muted)">система уже на серверах, вы пользуетесь</span></div><div class="sv">675 000 ₸</div></div>
-      <div class="st"><div class="sn"><b>45% · остаток при полной сдаче</b><br><span style="color:var(--muted)">после полировки и нагрузочной проверки</span></div><div class="sv">675 000 ₸</div></div>
-      <div class="st tot"><div class="sn"><b>Итого · основной пакет</b></div><div class="sv">1 500 000 ₸</div></div>
+    <div class="pricebox" style="border-color:#eccadb">
+      <div class="lbl" style="color:var(--rose)">Вариант 2 · Портал + интернет-магазин</div>
+      <div class="big"><b>2 300 000 ₸</b></div>
+      <div class="fix" style="background:var(--roseL);color:#a13a68">1 500 000 + 800 000 — сайт сразу в связке с порталом</div>
+      <div class="note">Всё из варианта 1 <b>+ единый сайт на все города</b>: выбор города, каталог от живых остатков точки, корзина → заявка в CRM (менеджер перезванивает, счёт на Kaspi) и <b>предварительная SEO-оптимизация</b> — бесплатный трафик из Google, который сейчас проходит мимо.</div>
     </div>
+  </div>
+  <div class="steps" style="margin-bottom:6px">
+    <div class="st"><div class="sn"><b>Предоплата 10% · старт</b><br><span style="color:var(--muted)">начинаем, поднимаем скелет</span></div><div class="sv">150 000 ₸ <span style="font-size:8.5px;color:var(--muted)">вар. 1</span> · 230 000 ₸ <span style="font-size:8.5px;color:var(--muted)">вар. 2</span></div></div>
+    <div class="st"><div class="sn"><b>45% · после утверждения ядра</b><br><span style="color:var(--muted)">система уже на серверах, вы пользуетесь</span></div><div class="sv">675 000 ₸ · 1 035 000 ₸</div></div>
+    <div class="st"><div class="sn"><b>45% · остаток при полной сдаче</b><br><span style="color:var(--muted)">после полировки и нагрузочной проверки</span></div><div class="sv">675 000 ₸ · 1 035 000 ₸</div></div>
+    <div class="st tot"><div class="sn"><b>Итого · по выбранному варианту</b></div><div class="sv">1 500 000 ₸ · 2 300 000 ₸</div></div>
   </div>
 
   <div class="sec">Как мы работаем</div>
@@ -198,8 +211,8 @@ table.req tr:nth-child(even){background:var(--off)}
   </table>
 
   <div class="cta">
-    <div class="x">Демо с вашим логотипом готово — кликайте вживую: ревизия с обнулением непросканированных, склады, воронка из WhatsApp, отчётный лист для ЗП. Чтобы стартовать, вносите <b>предоплату 10% = 150 000 ₸</b> — дальше 45% после ядра и 45% при полной сдаче. За 4–6 недель переведём сеть с аренды на свою систему, с переносом данных из X2.</div>
-    <div class="amt"><div class="v">150 000 ₸</div><div class="s">старт · 10%</div></div>
+    <div class="x">Демо с вашим логотипом готово — кликайте вживую: ревизия с обнулением непросканированных, склады, воронка из WhatsApp, отчётный лист для ЗП. Выберите вариант — <b>портал (1,5 млн ₸)</b> или <b>портал + интернет-магазин (2,3 млн ₸)</b> — и вносите <b>предоплату 10%</b>: 150 000 ₸ или 230 000 ₸. Дальше 45% после ядра и 45% при полной сдаче. За 4–6 недель переведём сеть с аренды на свою систему, с переносом данных из X2.</div>
+    <div class="amt"><div class="v">от 150 000 ₸</div><div class="s">старт · 10% от варианта</div></div>
   </div>
 
   <div class="signs">
