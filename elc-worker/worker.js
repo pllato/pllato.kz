@@ -9006,6 +9006,59 @@ async function handlePublicPllatoLead(request, env) {
 // ════════════════════════════════════════════════════════════════════════
 const META_WEBHOOK_MAX_BYTES = 256 * 1024;
 
+function getMetaLeadSources(env) {
+  const configured = safeJsonParse(env.META_LEAD_SOURCES_JSON, []);
+  const rawSources = Array.isArray(configured) ? configured.slice(0, 20) : [];
+  const legacyFormId = String(env.META_LEAD_FORM_ID || '').trim();
+  const legacyPageId = String(env.META_LEAD_PAGE_ID || '').trim();
+  if (legacyFormId && legacyPageId && !rawSources.some((source) =>
+    String(source?.formId || '').trim() === legacyFormId
+    && String(source?.pageId || '').trim() === legacyPageId)) {
+    rawSources.push({
+      id: 'legacy',
+      pageId: legacyPageId,
+      formId: legacyFormId,
+      formName: env.META_LEAD_FORM_NAME,
+      pipelineId: env.META_LEAD_PIPELINE_ID,
+      stageId: env.META_LEAD_STAGE_ID,
+      tokenBinding: 'META_PAGE_ACCESS_TOKEN',
+    });
+  }
+  const seen = new Set();
+  return rawSources.map((source, index) => {
+    const pageId = String(source?.pageId || '').trim();
+    const formId = String(source?.formId || '').trim();
+    const tokenBinding = /^[A-Z][A-Z0-9_]{2,80}$/.test(String(source?.tokenBinding || ''))
+      ? String(source.tokenBinding)
+      : 'META_PAGE_ACCESS_TOKEN';
+    return {
+      id: String(source?.id || `source_${index + 1}`).trim().slice(0, 80),
+      pageId,
+      formId,
+      formName: String(source?.formName || formId).trim().slice(0, 120),
+      pipelineId: String(source?.pipelineId || env.META_LEAD_PIPELINE_ID || 'pipeline_imp_elc').trim(),
+      stageId: String(source?.stageId || env.META_LEAD_STAGE_ID || 'NEW').trim(),
+      responsibleUid: String(source?.responsibleUid || '').trim(),
+      tokenBinding,
+    };
+  }).filter((source) => {
+    const key = `${source.pageId}:${source.formId}`;
+    if (!source.pageId || !source.formId || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function findMetaLeadSource(env, pageId, formId) {
+  return getMetaLeadSources(env).find((source) =>
+    source.pageId === String(pageId || '').trim()
+    && source.formId === String(formId || '').trim()) || null;
+}
+
+function getMetaLeadSourceToken(env, source) {
+  return String(env[source?.tokenBinding || 'META_PAGE_ACCESS_TOKEN'] || '').trim();
+}
+
 function constantTimeBytesEqual(left, right) {
   const a = left instanceof Uint8Array ? left : new Uint8Array(left || []);
   const b = right instanceof Uint8Array ? right : new Uint8Array(right || []);
@@ -9080,8 +9133,9 @@ async function pickNextMetaLeadUid(env, formId) {
   return uid;
 }
 
-async function fetchMetaLead(env, leadgenId) {
-  if (!env.META_PAGE_ACCESS_TOKEN) throw new Error('META_PAGE_ACCESS_TOKEN is not configured');
+async function fetchMetaLead(env, leadgenId, source) {
+  const token = getMetaLeadSourceToken(env, source);
+  if (!token) throw new Error(`${source?.tokenBinding || 'META_PAGE_ACCESS_TOKEN'} is not configured`);
   const version = String(env.META_GRAPH_API_VERSION || 'v25.0');
   const fields = [
     'id', 'created_time', 'ad_id', 'ad_name', 'adset_id', 'adset_name',
@@ -9089,7 +9143,7 @@ async function fetchMetaLead(env, leadgenId) {
   ].join(',');
   const response = await fetch(
     `https://graph.facebook.com/${encodeURIComponent(version)}/${encodeURIComponent(leadgenId)}?fields=${encodeURIComponent(fields)}`,
-    { headers: { Authorization: `Bearer ${env.META_PAGE_ACCESS_TOKEN}` } },
+    { headers: { Authorization: `Bearer ${token}` } },
   );
   const text = (await response.text()).slice(0, 200000);
   let payload;
@@ -9102,7 +9156,7 @@ async function fetchMetaLead(env, leadgenId) {
   return payload;
 }
 
-async function findOrCreateMetaLeadContact(env, lead, fields, nowIso) {
+async function findOrCreateMetaLeadContact(env, lead, fields, nowIso, source) {
   const phoneRaw = metaFieldValue(fields, [
     'phone_number', 'phone', 'mobile_phone', 'номер_телефона', 'номер_телефона_',
   ]);
@@ -9130,11 +9184,11 @@ async function findOrCreateMetaLeadContact(env, lead, fields, nowIso) {
     ) VALUES (?, ?, ?, 'CLIENT', 'META_LEAD_AD', ?, 1, 0, ?, ?, ?, ?, ?)
   `).bind(
     contactId, firstName.slice(0, 120), lastName.slice(0, 120),
-    `Facebook лид-форма · ${String(env.META_LEAD_FORM_NAME || lead.form_id || '').slice(0, 120)}`,
+    `Facebook лид-форма · ${String(source?.formName || lead.form_id || '').slice(0, 120)}`,
     nowIso, nowIso,
     phoneRaw ? JSON.stringify([{ type: 'MOBILE', value: phoneRaw.slice(0, 40) }]) : null,
     email ? JSON.stringify([{ type: 'WORK', value: email.slice(0, 200) }]) : null,
-    JSON.stringify({ metaLeadId: lead.id, metaFormId: lead.form_id || env.META_LEAD_FORM_ID || null }),
+    JSON.stringify({ metaLeadId: lead.id, metaFormId: lead.form_id || source?.formId || null }),
   ).run();
   return contactId;
 }
@@ -9144,12 +9198,8 @@ async function processMetaLeadEvent(env, value, rawEvent) {
   const pageId = String(value?.page_id || '').trim();
   const formId = String(value?.form_id || '').trim();
   if (!leadgenId || !pageId || !formId) return { ignored: true, reason: 'missing ids' };
-  if (String(env.META_LEAD_PAGE_ID || '') && pageId !== String(env.META_LEAD_PAGE_ID)) {
-    return { ignored: true, reason: 'page not configured' };
-  }
-  if (String(env.META_LEAD_FORM_ID || '') && formId !== String(env.META_LEAD_FORM_ID)) {
-    return { ignored: true, reason: 'form not configured' };
-  }
+  const source = findMetaLeadSource(env, pageId, formId);
+  if (!source) return { ignored: true, reason: 'source not configured' };
 
   const existing = await env.DB.prepare(
     "SELECT status, deal_id FROM meta_lead_events WHERE leadgen_id = ? LIMIT 1"
@@ -9171,21 +9221,21 @@ async function processMetaLeadEvent(env, value, rawEvent) {
   ).run();
 
   try {
-    const lead = await fetchMetaLead(env, leadgenId);
+    const lead = await fetchMetaLead(env, leadgenId, source);
     const fields = metaFieldMap(lead.field_data);
     const nowIso = lead.created_time ? new Date(lead.created_time).toISOString() : receivedAt;
-    const contactId = await findOrCreateMetaLeadContact(env, lead, fields, nowIso);
+    const contactId = await findOrCreateMetaLeadContact(env, lead, fields, nowIso, source);
     const responsibleUid = await resolveInboundResponsibleUid(
       env,
-      String(env.META_LEAD_PIPELINE_ID || 'pipeline_imp_elc'),
-      await pickNextMetaLeadUid(env, formId),
+      source.pipelineId,
+      source.responsibleUid || await pickNextMetaLeadUid(env, formId),
     );
     const dealId = `deal_meta_${leadgenId}`;
     const name = metaFieldValue(fields, ['full_name', 'name', 'полное_имя'])
       || [metaFieldValue(fields, ['first_name']), metaFieldValue(fields, ['last_name'])].filter(Boolean).join(' ')
       || metaFieldValue(fields, ['phone_number', 'phone', 'mobile_phone', 'номер_телефона', 'номер_телефона_', 'email'])
       || 'Новый лид';
-    const formName = String(env.META_LEAD_FORM_NAME || formId).slice(0, 120);
+    const formName = source.formName;
     const details = {
       metaLeadId: leadgenId,
       pageId,
@@ -9211,15 +9261,15 @@ async function processMetaLeadEvent(env, value, rawEvent) {
       ) VALUES (?, ?, 0, 'KZT', ?, ?, 0, ?, ?, 'META_LEAD_AD', ?, ?, ?, ?, ?, ?)
     `).bind(
       dealId, `Facebook Lead · ${name}`.slice(0, 240),
-      String(env.META_LEAD_PIPELINE_ID || 'pipeline_imp_elc'),
-      String(env.META_LEAD_STAGE_ID || 'NEW'), contactId, responsibleUid,
+      source.pipelineId,
+      source.stageId, contactId, responsibleUid,
       `Facebook лид-форма · ${formName}`, lead.ad_id || value.ad_id || null,
       nowIso, nowIso, nowIso, JSON.stringify(details),
     ).run();
     if (dealInsert?.meta?.changes > 0) {
       await logStageEvent(
-        env, dealId, String(env.META_LEAD_PIPELINE_ID || 'pipeline_imp_elc'),
-        String(env.META_LEAD_STAGE_ID || 'NEW'), nowIso,
+        env, dealId, source.pipelineId,
+        source.stageId, nowIso,
       );
     }
     await env.DB.prepare(`
@@ -9290,13 +9340,11 @@ async function handleMetaLeadWebhook(request, env) {
 // присылают реальные лиды. Резервный опрос формы использует тот же Page token,
 // тот же обработчик и ту же дедупликацию, поэтому после публикации оба канала
 // могут безопасно работать одновременно.
-async function pollMetaLeadForm(env) {
-  const formId = String(env.META_LEAD_FORM_ID || '').trim();
-  const pageId = String(env.META_LEAD_PAGE_ID || '').trim();
-  if (!formId || !pageId || !env.META_PAGE_ACCESS_TOKEN) {
-    return { skipped: true, reason: 'Meta lead polling is not configured' };
-  }
-
+async function pollMetaLeadSource(env, source) {
+  const formId = source.formId;
+  const pageId = source.pageId;
+  const token = getMetaLeadSourceToken(env, source);
+  if (!token) throw new Error(`${source.tokenBinding} is not configured`);
   const version = String(env.META_GRAPH_API_VERSION || 'v25.0');
   const fields = 'id,created_time,form_id,ad_id';
   const url = new URL(`https://graph.facebook.com/${encodeURIComponent(version)}/${encodeURIComponent(formId)}/leads`);
@@ -9304,7 +9352,7 @@ async function pollMetaLeadForm(env) {
   url.searchParams.set('limit', '50');
 
   const response = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${env.META_PAGE_ACCESS_TOKEN}` },
+    headers: { Authorization: `Bearer ${token}` },
   });
   const text = (await response.text()).slice(0, 500000);
   let payload;
@@ -9331,6 +9379,7 @@ async function pollMetaLeadForm(env) {
     }));
   }
   return {
+    id: source.id,
     ok: true,
     fetched: leads.length,
     created: results.filter((item) => item?.ok).length,
@@ -9338,12 +9387,34 @@ async function pollMetaLeadForm(env) {
   };
 }
 
+async function pollMetaLeadForms(env) {
+  const sources = getMetaLeadSources(env);
+  if (!sources.length) return { skipped: true, reason: 'Meta lead polling is not configured', sources: [] };
+  const results = [];
+  for (const source of sources) {
+    try {
+      results.push(await pollMetaLeadSource(env, source));
+    } catch (error) {
+      results.push({ id: source.id, ok: false, error: String(error?.message || error).slice(0, 500) });
+    }
+  }
+  return {
+    ok: results.some((item) => item.ok),
+    sources: results,
+    fetched: results.reduce((sum, item) => sum + (Number(item.fetched) || 0), 0),
+    created: results.reduce((sum, item) => sum + (Number(item.created) || 0), 0),
+    duplicates: results.reduce((sum, item) => sum + (Number(item.duplicates) || 0), 0),
+    failed: results.filter((item) => item.ok === false).length,
+  };
+}
+
 // Состояние опроса Meta храним в kv, чтобы сбой токена не оставался только
-// строкой в tail-логах. Первое падение создаёт одно уведомление каждому
-// активному админу; повторные минутные ошибки не спамят. Успешный опрос
-// переводит интеграцию обратно в up и позволяет уведомить о новом инциденте.
-async function recordMetaLeadPollHealth(env, error = null) {
-  const key = 'meta_lead_poll:health';
+// строкой в tail-логах. Три последовательных падения создают одно уведомление
+// каждому активному админу; повторные минутные ошибки не спамят. Успешный
+// опрос переводит источник обратно в up и позволяет уведомить о новом инциденте.
+async function recordMetaLeadPollHealth(env, error = null, sourceId = 'default') {
+  const safeSourceId = String(sourceId || 'default').replace(/[^a-z0-9_-]/gi, '_').slice(0, 80);
+  const key = `meta_lead_poll:health:${safeSourceId}`;
   let previous = {};
   try {
     const row = await env.DB.prepare("SELECT v FROM kv WHERE k = ? LIMIT 1").bind(key).first();
@@ -9361,30 +9432,37 @@ async function recordMetaLeadPollHealth(env, error = null) {
 
   const message = String(error?.message || error).slice(0, 500);
   const firstFailure = previous.status !== 'down';
+  const consecutiveFailures = firstFailure ? 1 : Math.min(999, (Number(previous.consecutiveFailures) || 1) + 1);
   const outageStartedAt = firstFailure ? now : (previous.outageStartedAt || now);
+  const shouldAlert = !previous.alertedAt && consecutiveFailures >= 3;
+  const alertedAt = shouldAlert ? now : (previous.alertedAt || null);
   await env.DB.prepare(`
     INSERT INTO kv (k, v) VALUES (?, ?)
     ON CONFLICT(k) DO UPDATE SET v = excluded.v
-  `).bind(key, JSON.stringify({ status: 'down', checkedAt: now, outageStartedAt, error: message })).run();
+  `).bind(key, JSON.stringify({
+    status: 'down', checkedAt: now, outageStartedAt, consecutiveFailures, alertedAt, error: message,
+  })).run();
 
-  if (firstFailure) {
+  // Не тревожим администраторов из-за единичного сетевого сбоя Meta.
+  // Уведомление отправляется только после трёх неудачных минут подряд.
+  if (shouldAlert) {
     const admins = await getAdminUids(env);
     const incidentId = outageStartedAt.replace(/[^0-9]/g, '').slice(0, 14);
     for (const uid of admins) {
       await createNotification(env, {
-        id: `nt_meta_poll_down_${incidentId}_${uid}`,
+        id: `nt_meta_poll_down_${safeSourceId}_${incidentId}_${uid}`,
         uid,
         type: 'meta_integration_down',
         title: '⚠️ Остановилась загрузка лидов Meta',
-        body: 'CRM не может получить заявки Facebook. Проверьте токен Meta в настройках интеграции.',
+        body: `CRM не может получить заявки Facebook (${safeSourceId}). Проверьте токен Meta в настройках интеграции.`,
         link: '/team.html?page=settings',
         icon: '⚠️',
         entityType: 'integration',
-        entityId: 'meta_leads',
+        entityId: `meta_leads:${safeSourceId}`,
       });
     }
   }
-  return { status: 'down', alerted: firstFailure };
+  return { status: 'down', alerted: shouldAlert, consecutiveFailures };
 }
 
 // Пользовательский Meta token живёт до 60 дней. Пока приложение проходит
@@ -12033,19 +12111,26 @@ export default {
         console.error("[cron] syncWaChatShells failed:", e.message);
       }
       try {
-        const meta = await pollMetaLeadForm(env);
+        const meta = await pollMetaLeadForms(env);
         if (!meta.skipped) {
-          await recordMetaLeadPollHealth(env);
+          for (const sourceResult of meta.sources) {
+            if (sourceResult.skipped) continue;
+            await recordMetaLeadPollHealth(
+              env,
+              sourceResult.ok === false ? new Error(sourceResult.error || 'unknown Meta polling error') : null,
+              sourceResult.id,
+            );
+          }
           const expiry = await maybeWarnMetaLeadTokenExpiry(env);
           if (expiry.warned) console.log(`[cron] meta_token_expiry admins=${expiry.admins} days=${expiry.remainingDays}`);
         }
         if (!meta.skipped && (meta.created > 0 || meta.fetched > 0)) {
-          console.log(`[cron] meta_leads fetched=${meta.fetched} created=${meta.created} duplicates=${meta.duplicates}`);
+          console.log(`[cron] meta_leads fetched=${meta.fetched} created=${meta.created} duplicates=${meta.duplicates} failed=${meta.failed}`);
         }
       } catch (e) {
-        try { await recordMetaLeadPollHealth(env, e); }
+        try { await recordMetaLeadPollHealth(env, e, 'scheduler'); }
         catch (healthError) { console.error("[cron] recordMetaLeadPollHealth failed:", healthError.message); }
-        console.error("[cron] pollMetaLeadForm failed:", e.message);
+        console.error("[cron] pollMetaLeadForms failed:", e.message);
       }
     })());
   },
