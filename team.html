@@ -13960,25 +13960,38 @@ function openQualificationForm(dealId, deal, opts) {
   }
 }
 
-async function openDealCard(bitrixId) {
+async function openDealCard(dealKey) {
+  const requestedPublicId = String(dealKey || '').replace(/^deal_/, '');
+  const requestedRecordId = requestedPublicId ? `deal_${requestedPublicId}` : '';
   // 1) ищем в full kanban state — если был загружен
-  let deal = dealsState.deals.find(d => d.bitrixId === bitrixId);
+  let deal = dealsState.deals.find(d =>
+    String(d.bitrixId || '') === requestedPublicId || getDealRecordId(d) === requestedRecordId
+  );
   // 2) ищем в текущей странице list-view
-  if (!deal) deal = (dealsPagedState.items || []).find(d => d.bitrixId === bitrixId);
-  // 3) fallback — точечный fetch /api/rtdb/deals/deal_{bitrixId}.json
-  if (!deal) {
+  if (!deal) deal = (dealsPagedState.items || []).find(d =>
+    String(d.bitrixId || '') === requestedPublicId || getDealRecordId(d) === requestedRecordId
+  );
+  // 3) fallback — точечный fetch по единому внутреннему id сделки.
+  if (!deal && requestedRecordId) {
     try {
       const idToken0 = await fbAuth.currentUser.getIdToken();
-      const r = await fetch(`${WORKER_RTDB_URL}/deals/deal_${encodeURIComponent(bitrixId)}.json?auth=${idToken0}`);
-      if (r.ok) deal = await r.json();
+      const r = await fetch(`${WORKER_RTDB_URL}/deals/${encodeURIComponent(requestedRecordId)}.json?auth=${idToken0}`);
+      if (r.ok) {
+        deal = await r.json();
+        // Некоторые legacy RTDB-ответы не содержат id внутри объекта.
+        if (deal && !deal.id) deal.id = requestedRecordId;
+      }
     } catch (e) {}
   }
   if (!deal) return;
+  const dealRecordId = getDealRecordId(deal);
+  const dealPublicId = getDealPublicId(deal);
+  if (!dealRecordId || !dealPublicId) return;
 
   // Обновляем URL для глубокой ссылки
-  const newHash = `#deal/${bitrixId}`;
+  const newHash = `#deal/${dealPublicId}`;
   if (location.hash !== newHash) {
-    history.pushState({ deal: bitrixId }, '', newHash);
+    history.pushState({ deal: dealPublicId }, '', newHash);
   }
 
   const stage = dealsState.pipeline?.stages?.[deal.stageId];
@@ -13993,7 +14006,9 @@ async function openDealCard(bitrixId) {
   const createdByUser = getUserById(deal.createdByUid);
   const createdByName = createdByUser ? `${createdByUser.lastName || ''} ${createdByUser.name || ''}`.trim() : '—';
 
-  const bitrixUrl = `https://elcalmaty.bitrix24.kz/crm/deal/details/${deal.bitrixId}/`;
+  const bitrixUrl = deal.bitrixId
+    ? `https://elcalmaty.bitrix24.kz/crm/deal/details/${deal.bitrixId}/`
+    : '';
 
   const idToken = await fbAuth.currentUser.getIdToken();
   const dbUrl = WORKER_RTDB_URL;
@@ -14008,7 +14023,7 @@ async function openDealCard(bitrixId) {
   } else {
     fetches.push(Promise.resolve(null));
   }
-  fetches.push(fetch(`${dbUrl}/timeline/deal_${deal.bitrixId}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null).catch(() => null));
+  fetches.push(fetch(`${dbUrl}/timeline/${encodeURIComponent(dealRecordId)}.json?auth=${idToken}`).then(r => r.ok ? r.json() : null).catch(() => null));
 
   const [contact, company, timelineRaw] = await Promise.all(fetches);
 
@@ -14057,7 +14072,7 @@ async function openDealCard(bitrixId) {
         <div style="flex:1;min-width:0">
           <h2 style="margin:0">${makeInlineEditableHtml({
             value: deal.title || '',
-            recordId: 'deal_' + deal.bitrixId,
+            recordId: dealRecordId,
             recordCollection: 'deals',
             field: 'title',
             type: 'textarea',
@@ -14065,9 +14080,9 @@ async function openDealCard(bitrixId) {
             extraClass: 'inline-edit-h2 inline-edit-wide',
           })} ${deal.archived ? '<span class="dc-archived-badge">🗄 в архиве</span>' : ''}</h2>
           <div class="modal-sub" style="margin-top:4px">
-            ID: <code>${escapeHtml(deal.bitrixId)}</code> ·
-            <a href="${bitrixUrl}" target="_blank" style="color:var(--ac2)">Открыть в Битриксе ↗</a> ·
-            <button class="tbtn-xs dc-copy-link" data-deal-id="${escapeHtml(deal.bitrixId)}" style="background:none;border:none;color:var(--ac2);cursor:pointer;font-size:11px;padding:0">🔗 Копировать ссылку</button>
+            ID: <code>${escapeHtml(dealPublicId)}</code> ·
+            ${bitrixUrl ? `<a href="${bitrixUrl}" target="_blank" style="color:var(--ac2)">Открыть в Битриксе ↗</a> ·` : ''}
+            <button class="tbtn-xs dc-copy-link" data-deal-id="${escapeHtml(dealPublicId)}" style="background:none;border:none;color:var(--ac2);cursor:pointer;font-size:11px;padding:0">🔗 Копировать ссылку</button>
           </div>
         </div>
         <div class="dc-head-actions">
@@ -14114,7 +14129,7 @@ async function openDealCard(bitrixId) {
             <div class="fl">Сумма</div>
             <div class="fv">${makeInlineEditableHtml({
               value: deal.opportunity || '',
-              recordId: 'deal_' + deal.bitrixId,
+              recordId: dealRecordId,
               recordCollection: 'deals',
               field: 'opportunity',
               type: 'money',
@@ -14123,7 +14138,7 @@ async function openDealCard(bitrixId) {
             <div class="fl">Вероятность</div>
             <div class="fv">${makeInlineEditableHtml({
               value: deal.probability != null ? deal.probability : '',
-              recordId: 'deal_' + deal.bitrixId,
+              recordId: dealRecordId,
               recordCollection: 'deals',
               field: 'probability',
               type: 'number',
@@ -14154,7 +14169,7 @@ async function openDealCard(bitrixId) {
               <div class="dc-contact-name">${escapeHtml(contactName || '(без имени)')}</div>
               ${contactPhone ? `<div class="dc-contact-phone">📱 ${escapeHtml(contactPhone)}</div>
                 <div class="dc-contact-actions">
-                  <button class="tbtn tbtn-xs call-btn-inline" data-call-phone="${escapeHtml(contactPhone)}" data-call-contactid="${escapeHtml(deal.contactId || '')}" data-call-dealid="${escapeHtml(deal.bitrixId || '')}" data-call-contactname="${escapeHtml(contactName || '')}">📞 Позвонить</button>
+                  <button class="tbtn tbtn-xs call-btn-inline" data-call-phone="${escapeHtml(contactPhone)}" data-call-contactid="${escapeHtml(deal.contactId || '')}" data-call-dealid="${escapeHtml(dealPublicId)}" data-call-contactname="${escapeHtml(contactName || '')}">📞 Позвонить</button>
                   <button class="tbtn tbtn-xs" onclick="navigator.clipboard.writeText('${escapeHtml(contactPhone)}');showToast('Телефон скопирован')">📋 Копировать</button>
                 </div>` : ''}
               ${asArray(contact.emails)[0]?.value ? `<div class="dc-contact-email">📧 <a href="mailto:${escapeHtml(contact.emails[0].value)}">${escapeHtml(contact.emails[0].value)}</a></div>` : ''}
@@ -14175,7 +14190,7 @@ async function openDealCard(bitrixId) {
             <input class="cf-edit"
               type="datetime-local"
               data-field="firstZoomAt"
-              data-deal-id="deal_${escapeHtml(deal.bitrixId)}"
+              data-deal-id="${escapeHtml(dealRecordId)}"
               data-type="datetime-local"
               value="${escapeHtml(deal.customFields?.firstZoomAt || '')}"
               style="padding:6px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none">
@@ -14188,14 +14203,14 @@ async function openDealCard(bitrixId) {
             <input class="cf-edit"
               type="datetime-local"
               data-field="trialLessonAt"
-              data-deal-id="deal_${escapeHtml(deal.bitrixId)}"
+              data-deal-id="${escapeHtml(dealRecordId)}"
               data-type="datetime-local"
               value="${escapeHtml(deal.customFields?.trialLessonAt || '')}"
               style="padding:6px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none">
             ${deal.customFields?.trialLessonAt ? `<button class="tbtn tbtn-xs" style="margin-left:8px" onclick="navigate('calendar')">📅 Открыть календарь</button>` : ''}
           </div>` : ''}
 
-          ${renderCustomFieldsBlock(deal.customFields, { dealId: 'deal_' + deal.bitrixId, editable: true })}
+          ${renderCustomFieldsBlock(deal.customFields, { dealId: dealRecordId, editable: true })}
         </div>
 
         <div class="dc-right">
@@ -14203,7 +14218,7 @@ async function openDealCard(bitrixId) {
             <span style="color:#25D366">💬 WhatsApp</span>
             <span class="dc-wa-status" id="dc-wa-status" style="font-size:11px;color:var(--t3);font-weight:400"></span>
           </div>
-          <div class="dc-wa-pane" id="dc-wa-pane" data-deal-id="${escapeHtml(deal.bitrixId)}" data-phone="${escapeHtml(contactPhone || '')}" data-contact-name="${escapeHtml(contactName || '')}">
+          <div class="dc-wa-pane" id="dc-wa-pane" data-deal-id="${escapeHtml(dealPublicId)}" data-phone="${escapeHtml(contactPhone || '')}" data-contact-name="${escapeHtml(contactName || '')}">
             <div class="dc-wa-body" id="dc-wa-body"><div class="dc-wa-empty">${contactPhone ? '⏳ Загружаем историю…' : '📱 У контакта не указан телефон — WhatsApp недоступен.'}</div></div>
             ${contactPhone ? `<div class="dc-wa-input-wrap">
               <button class="dc-wa-attach" id="dc-wa-attach" title="Прикрепить фото/видео/файл">📎</button>
@@ -14228,7 +14243,7 @@ async function openDealCard(bitrixId) {
         <span id="dc-deeds-count" style="font-size:11px;color:var(--t3);font-weight:400"></span>
         <button class="tbtn tbtn-xs" id="dc-add-deed-btn" style="margin-left:auto">+ Дело</button>
       </div>
-      <div class="dc-deeds-wrap" id="dc-deeds-wrap" data-deal-id="${escapeHtml(deal.bitrixId)}">
+      <div class="dc-deeds-wrap" id="dc-deeds-wrap" data-deal-id="${escapeHtml(dealPublicId)}">
         <div style="padding:12px;color:var(--t3);font-size:12px;text-align:center">⏳ Загружаем дела…</div>
       </div>
 
@@ -14241,7 +14256,7 @@ async function openDealCard(bitrixId) {
         <textarea class="dc-comment-input" id="dc-comment-input" placeholder="Добавить комментарий…" rows="2"></textarea>
         <button class="tbtn tbtn-primary tbtn-sm" id="dc-comment-send">Отправить</button>
       </div>
-      <div class="dc-feed" id="dc-feed" data-deal-id="${escapeHtml(deal.bitrixId)}">
+      <div class="dc-feed" id="dc-feed" data-deal-id="${escapeHtml(dealPublicId)}">
         <div style="padding:12px;color:var(--t3);font-size:12px;text-align:center">⏳ Загружаем ленту…</div>
       </div>
 
@@ -14259,7 +14274,7 @@ async function openDealCard(bitrixId) {
             <span>📎</span> Все файлы по сделке (${allFids.size})
             <span style="margin-left:auto;font-size:11px;color:var(--t3);font-weight:400">кликни чтобы развернуть</span>
           </summary>
-          <div class="deal-files-list" id="deal-files-${escapeHtml(deal.bitrixId || '')}" data-fids="${escapeHtml(fids)}" style="display:flex;flex-direction:column;gap:6px;margin-top:14px"></div>
+          <div class="deal-files-list" id="deal-files-${escapeHtml(dealPublicId)}" data-fids="${escapeHtml(fids)}" style="display:flex;flex-direction:column;gap:6px;margin-top:14px"></div>
         </details>`;
       })()}
 
@@ -14278,7 +14293,7 @@ async function openDealCard(bitrixId) {
   mountDealSourceSelect(modal, deal);
 
   // Квалификация (бриф первого звонка)
-  const qualDealId = 'deal_' + deal.bitrixId;
+  const qualDealId = dealRecordId;
   const qualBtn = modal.querySelector('#dc-qual-btn');
   if (qualBtn) {
     qualBtn.onclick = () => openQualificationForm(qualDealId, deal, { readOnly: !canEditDeal });
@@ -14305,10 +14320,10 @@ async function openDealCard(bitrixId) {
     btn.addEventListener('click', async () => {
       const newStageId = btn.dataset.stageId;
       if (newStageId === deal.stageId) return;
-      await moveDealToStage(bitrixId, newStageId);
+      await moveDealToStage(dealPublicId, newStageId);
       // Перерисовываем модалку
       closeDealCard();
-      setTimeout(() => openDealCard(bitrixId), 50);
+      setTimeout(() => openDealCard(dealPublicId), 50);
     });
   });
 
@@ -14316,7 +14331,7 @@ async function openDealCard(bitrixId) {
   const copyBtn = modal.querySelector('.dc-copy-link');
   if (copyBtn) {
     copyBtn.addEventListener('click', () => {
-      const url = `${location.origin}${location.pathname}#deal/${bitrixId}`;
+      const url = `${location.origin}${location.pathname}#deal/${dealPublicId}`;
       navigator.clipboard.writeText(url);
       showToast('Ссылка скопирована');
     });
@@ -14352,7 +14367,7 @@ async function openDealCard(bitrixId) {
         invalidateDealsCacheForPipeline(pid);
       }
       closeDealCard();
-      setTimeout(() => openDealCard(bitrixId), 50);
+      setTimeout(() => openDealCard(dealPublicId), 50);
     }));
   }
   // Кнопки × на чипах воронок — удалить зеркало
@@ -14364,8 +14379,7 @@ async function openDealCard(bitrixId) {
       if (!confirm(`Убрать сделку из воронки «${pname}»? Основная воронка не пострадает.`)) return;
       try {
         const idToken = await fbAuth.currentUser.getIdToken();
-        const dealId = deal.id || ('deal_' + deal.bitrixId);
-        const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealId)}/mirror/${encodeURIComponent(pid)}`, {
+        const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealRecordId)}/mirror/${encodeURIComponent(pid)}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${idToken}` },
         });
@@ -14377,7 +14391,7 @@ async function openDealCard(bitrixId) {
         invalidateDealsCacheForPipeline(pid);
         invalidateDealsCacheForPipeline(deal.pipelineId);
         closeDealCard();
-        setTimeout(() => openDealCard(bitrixId), 50);
+        setTimeout(() => openDealCard(dealPublicId), 50);
       } catch (e) {
         alert('Ошибка: ' + e.message);
       }
@@ -14390,11 +14404,11 @@ async function openDealCard(bitrixId) {
     archiveBtn.addEventListener('click', async () => {
       const isArchived = archiveBtn.dataset.archived === '1';
       const action = isArchived ? 'восстановить из архива' : 'отправить в архив';
-      if (!confirm(`Точно ${action} сделку «${deal.title || deal.bitrixId}»?`)) return;
+      if (!confirm(`Точно ${action} сделку «${deal.title || dealPublicId}»?`)) return;
       archiveBtn.disabled = true;
       try {
         const idToken = await fbAuth.currentUser.getIdToken();
-        const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent('deal_' + deal.bitrixId)}/archive`, {
+        const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealRecordId)}/archive`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
           body: JSON.stringify({ archived: !isArchived }),
@@ -14421,7 +14435,7 @@ async function openDealCard(bitrixId) {
   }
 
   // ── Лента событий + комментарии ────────────────────────────────────
-  await loadDealFeed(modal, 'deal_' + deal.bitrixId);
+  await loadDealFeed(modal, dealRecordId);
   const commentInput = modal.querySelector('#dc-comment-input');
   const commentSend = modal.querySelector('#dc-comment-send');
   if (commentSend && commentInput) {
@@ -14431,7 +14445,7 @@ async function openDealCard(bitrixId) {
       commentSend.disabled = true;
       try {
         const idToken = await fbAuth.currentUser.getIdToken();
-        const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent('deal_' + deal.bitrixId)}/comments`, {
+        const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealRecordId)}/comments`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
           body: JSON.stringify({ text }),
@@ -14441,7 +14455,7 @@ async function openDealCard(bitrixId) {
           throw new Error(j.error || `HTTP ${r.status}`);
         }
         commentInput.value = '';
-        await loadDealFeed(modal, 'deal_' + deal.bitrixId);
+        await loadDealFeed(modal, dealRecordId);
         // Bump в канбане
         invalidateDealsCacheForPipeline(deal.pipelineId);
       } catch (e) {
@@ -14469,7 +14483,7 @@ async function openDealCard(bitrixId) {
   wireUpCustomFieldsEditing(modal);
   modal.addEventListener('elc:reload-deal-card', () => {
     closeDealCard();
-    setTimeout(() => openDealCard(bitrixId), 50);
+    setTimeout(() => openDealCard(dealPublicId), 50);
   });
 
   // Подгружаем файлы во всех timeline-элементах (звонки, email, переписка)
