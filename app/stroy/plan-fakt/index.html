@@ -1708,7 +1708,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v449';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v450';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v425';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -3669,17 +3669,25 @@ async function openLineyka(file){
   lkRefreshDocs();
 }
 /* восстановление после перезагрузки: тот же документ, тот же лист */
-/* автопроверка свежей сборки: страница с GitHub Pages живёт в кэше до 10 минут — люди видели
-   старые версии («ничего не изменилось», «нет потребителей»). Сравниваем с живым файлом. */
-setTimeout(async()=>{try{
-  const t=await (await fetch(location.pathname+'?cb='+Date.now(),{cache:'no-store'})).text();
-  const m=t.match(/LK_VER='v(\d+)'/);if(!m)return;
-  const cur=+LK_VER.replace(/\D/g,''),fresh=+m[1];
-  if(fresh>cur){const d=document.createElement('div');
-    d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#b45309;color:#fff;padding:10px 16px;font:600 14px/1.4 ui-monospace,monospace;display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap';
-    d.innerHTML='⬆ Вышла сборка v'+fresh+' — у вас v'+cur+' из кэша, правки не видны. <button style="border:none;border-radius:8px;padding:6px 14px;font:inherit;cursor:pointer" onclick="location.href=location.pathname+&quot;?v='+fresh+'&quot;">Обновить сейчас</button>';
-    document.body.appendChild(d);}
-}catch(e){}},3500);
+/* автопроверка свежей сборки: GitHub Pages и Chrome могут держать сам index.html до 10 минут.
+   Прежняя проверка запрашивала тот же HTML и иногда получала из браузерного кэша его же старую
+   копию (на реальном v448 она не увидела уже опубликованную v449). Журнал правок — отдельный URL;
+   уникальный query + no-store надёжно возвращают его свежую первую запись. Проверяем не только
+   один раз при старте, но и раз в минуту, пока вкладка открыта. */
+let _lkFreshBanner=null;
+async function lkCheckFreshVersion(){try{
+  const u=new URL('fixlog.json',location.href);u.searchParams.set('cb',Date.now());
+  const r=await fetch(u.href,{cache:'no-store',headers:{'cache-control':'no-cache'}});if(!r.ok)return;
+  const j=await r.json(),nums=(Array.isArray(j.items)?j.items:[]).map(x=>+(String(x&&x.ver||'').match(/v(\d+)/i)||[])[1]||0);
+  const cur=+LK_VER.replace(/\D/g,''),fresh=Math.max(0,...nums);if(!(fresh>cur)||_lkFreshBanner)return;
+  const d=document.createElement('div');_lkFreshBanner=d;
+  d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#b45309;color:#fff;padding:10px 16px;font:600 14px/1.4 ui-monospace,monospace;display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap';
+  d.innerHTML='⬆ Вышла сборка v'+fresh+' — у вас v'+cur+' из кэша, поэтому новые строки ещё не видны. <button type="button" style="border:none;border-radius:8px;padding:6px 14px;font:inherit;cursor:pointer">Обновить и показать</button>';
+  d.querySelector('button').onclick=()=>{const n=new URL(location.href);n.searchParams.set('v',fresh);n.searchParams.set('cb',Date.now());location.href=n.href;};
+  document.body.appendChild(d);
+}catch(e){}}
+setTimeout(lkCheckFreshVersion,1200);
+setInterval(lkCheckFreshVersion,60000);
 window.addEventListener('load',()=>{(async()=>{try{
   await lkRulesLoad();   // выученные правила (свои + общие командные) — до первого разбора
   await lkRefreshDocs();
