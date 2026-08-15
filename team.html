@@ -6857,6 +6857,20 @@ const dealsState = {
   stageCountsByPipeline: {},
 };
 
+// Единый внутренний id сделки. Новые сделки из Meta не имеют bitrixId,
+// поэтому любые привязки должны опираться на deals.id (например,
+// deal_meta_123), а bitrixId использовать только как legacy-fallback.
+function getDealRecordId(deal) {
+  if (!deal) return '';
+  const raw = String(deal.id || deal.bitrixId || '').trim();
+  if (!raw || raw === 'null' || raw === 'undefined') return '';
+  return raw.startsWith('deal_') ? raw : 'deal_' + raw;
+}
+
+function getDealPublicId(deal) {
+  return getDealRecordId(deal).replace(/^deal_/, '');
+}
+
 // Геттер активности по dealId — для buildDealCard / сортировки в канбане.
 // Если активность ещё не подгружена, возвращает дефолты — не ломает рендер.
 //
@@ -12147,7 +12161,8 @@ async function loadDealDeeds(modal, deal) {
     const r = await fetch(`${WORKER_LIST_URL}/tasks?${params}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
-    const dealKey = 'deal_' + deal.bitrixId;
+    const dealKey = getDealRecordId(deal);
+    if (!dealKey) throw new Error('У сделки отсутствует внутренний ID');
     const items = (data.items || []).filter(t => {
       const links = t.crmLinks || t.bitrixCrmLinks;
       if (!links) return false;
@@ -12343,6 +12358,12 @@ function openAddMirrorModal(deal, onDone) {
 }
 
 function openAddDeedModal(deal, onDone) {
+  const dealRecordId = getDealRecordId(deal);
+  const dealPublicId = getDealPublicId(deal);
+  if (!dealRecordId) {
+    alert('Не удалось определить внутренний ID сделки. Обновите страницу и попробуйте снова.');
+    return;
+  }
   document.getElementById('_add-deed-modal')?.remove();
   const ov = document.createElement('div');
   ov.id = '_add-deed-modal';
@@ -12403,7 +12424,7 @@ function openAddDeedModal(deal, onDone) {
           <div style="font-size:11px;color:var(--t3);margin-top:6px">📅 Встреча отобразится в Календаре синей плашкой и привяжется к сделке.</div>
         </div>
         <div><div class="qad-label">Описание</div><textarea id="ad-desc" class="qad-input" rows="3" placeholder="(необязательно)"></textarea></div>
-        <div class="dialer-hint">Привяжется к сделке #${escapeHtml(deal.bitrixId)} — будет видно во вкладке Задачи и в карточке сделки.</div>
+        <div class="dialer-hint">Привяжется к сделке #${escapeHtml(dealPublicId)} — будет видно во вкладке Задачи и в карточке сделки.</div>
       </div>
       <div class="qad-foot">
         <button class="qad-btn qad-btn-ghost" id="ad-cancel">Отмена</button>
@@ -12466,29 +12487,22 @@ function openAddDeedModal(deal, onDone) {
     btn.disabled = true; btn.textContent = '⏳ Сохраняем…';
     try {
       const idToken = await fbAuth.currentUser.getIdToken();
-      const id = 'task_local_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-      const nowIso = new Date().toISOString();
       const body = {
-        id,
         title,
         description: desc || null,
         status: 2, // в работе
-        responsibleUid: window.currentUser?.canonicalUid || null,
-        createdByUid: window.currentUser?.canonicalUid || null,
         deadline: dlIso,
-        crmLinks: ['deal_' + deal.bitrixId],
+        crmLinks: [dealRecordId],
         calendarDealTitle: deal.title || '',
-        bitrixCreatedDate: nowIso,
-        bitrixChangedDate: nowIso,
       };
       if (kind === 'zoom') {
         body.startDatePlan = startIso;
         body.endDatePlan = endIso;
         body.mark = mark;
       }
-      const r = await fetch(`${WORKER_RTDB_URL}/tasks/${encodeURIComponent(id)}.json?auth=${idToken}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+      const r = await fetch(`${WORKER_BASE_URL}/api/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
         body: JSON.stringify(body),
       });
       if (!r.ok) {
@@ -17176,6 +17190,8 @@ async function loadCalendarEvents(opts = {}) {
       }
       const dealsById = new Map();
       for (const deal of dealsForCalendar) {
+        const recordPublicId = getDealPublicId(deal);
+        if (recordPublicId) dealsById.set(recordPublicId, deal);
         if (deal?.bitrixId != null) dealsById.set(String(deal.bitrixId), deal);
       }
       const tasksR = await tasksP;
@@ -17268,15 +17284,15 @@ async function loadCalendarEvents(opts = {}) {
               type: 'zoom',
               date: dt,
               endDate: endDt,
-              title: 'Zoom: ' + (d.title || d.bitrixId),
+              title: 'Zoom: ' + (d.title || getDealPublicId(d)),
               rawTitle: 'Первый Zoom',
-              dealTitle: d.title || `Сделка #${d.bitrixId}`,
+              dealTitle: d.title || `Сделка #${getDealPublicId(d)}`,
               scheduledByUid,
               scheduledByName: calCalendarUserLabel(scheduledByUid),
-              dealBitrixId: d.bitrixId,
+              dealBitrixId: getDealPublicId(d),
               source: 'deal',
               field: 'firstZoomAt',
-              uid: 'deal:' + d.bitrixId + ':firstZoomAt',
+              uid: 'deal:' + getDealPublicId(d) + ':firstZoomAt',
             });
           }
         }
@@ -17292,15 +17308,15 @@ async function loadCalendarEvents(opts = {}) {
               type: 'trial',
               date: dt,
               endDate: endDt,
-              title: '📚 Пробный: ' + (d.title || d.bitrixId),
+              title: '📚 Пробный: ' + (d.title || getDealPublicId(d)),
               rawTitle: 'Пробный урок',
-              dealTitle: d.title || `Сделка #${d.bitrixId}`,
+              dealTitle: d.title || `Сделка #${getDealPublicId(d)}`,
               scheduledByUid,
               scheduledByName: calCalendarUserLabel(scheduledByUid),
-              dealBitrixId: d.bitrixId,
+              dealBitrixId: getDealPublicId(d),
               source: 'deal',
               field: 'trialLessonAt',
-              uid: 'deal:' + d.bitrixId + ':trialLessonAt',
+              uid: 'deal:' + getDealPublicId(d) + ':trialLessonAt',
             });
           }
         }
@@ -17838,11 +17854,11 @@ function openCalEventForm(prefillDate) {
         const d = await r.json();
         const items = d.items || [];
         resEl.innerHTML = items.length ? items.map(it =>
-          `<div class="ce-deal-row" data-bx="${escapeHtml(it.bitrixId)}" data-t="${escapeHtml(it.title || '')}" style="padding:8px 10px;border:1px solid var(--b1);border-radius:8px;margin-bottom:5px;cursor:pointer;font-size:13px">${escapeHtml(it.title || '(без названия)')}</div>`
+          `<div class="ce-deal-row" data-id="${escapeHtml(getDealRecordId(it))}" data-t="${escapeHtml(it.title || '')}" style="padding:8px 10px;border:1px solid var(--b1);border-radius:8px;margin-bottom:5px;cursor:pointer;font-size:13px">${escapeHtml(it.title || '(без названия)')}</div>`
         ).join('') : '<div style="font-size:12px;color:var(--t3);padding:4px">Ничего не найдено</div>';
         resEl.querySelectorAll('.ce-deal-row').forEach(row => row.onclick = () => {
-          pickedDeal = { bitrixId: row.dataset.bx, title: row.dataset.t };
-          selEl.textContent = '✓ Привязана сделка: ' + (pickedDeal.title || pickedDeal.bitrixId);
+          pickedDeal = { id: row.dataset.id, title: row.dataset.t };
+          selEl.textContent = '✓ Привязана сделка: ' + (pickedDeal.title || getDealPublicId(pickedDeal));
           qEl.value = pickedDeal.title || ''; resEl.innerHTML = '';
         });
       } catch (e) { resEl.innerHTML = ''; }
@@ -17866,7 +17882,9 @@ function openCalEventForm(prefillDate) {
       deadline: startDt.toISOString(),   // календарь тянет задачи по окну deadline
     };
     if (pickedDeal) {
-      payload.crmLinks = ['deal_' + pickedDeal.bitrixId];
+      const linkedDealId = getDealRecordId(pickedDeal);
+      if (!linkedDealId) { err.textContent = 'Не удалось определить ID выбранной сделки.'; return; }
+      payload.crmLinks = [linkedDealId];
       payload.calendarDealTitle = pickedDeal.title || '';
     }
     const vis = visSel.value;

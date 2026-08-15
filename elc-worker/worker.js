@@ -2878,10 +2878,14 @@ async function handleCreateTask(request, env) {
   const mark = body.mark ? String(body.mark).slice(0, 40) : null;
   const startDatePlan = body.startDatePlan ? String(body.startDatePlan) : null;
   const endDatePlan = body.endDatePlan ? String(body.endDatePlan) : null;
-  // Привязка к сделке: crmLinks = ['deal_<bitrixId>'].
+  // Привязка к сделке: crmLinks = ['deal_<internalId>'].
+  // Для Meta-лидов internalId имеет вид deal_meta_*, а bitrix_id отсутствует.
   let crmLinks = null;
   if (Array.isArray(body.crmLinks) && body.crmLinks.length) {
-    crmLinks = JSON.stringify(body.crmLinks.filter(Boolean).map(String));
+    const normalizedLinks = [...new Set(body.crmLinks
+      .map((value) => String(value || '').trim())
+      .filter((value) => value && value !== 'deal_null' && value !== 'deal_undefined' && value !== 'deal_'))];
+    if (normalizedLinks.length) crmLinks = JSON.stringify(normalizedLinks);
   }
   const calendarDealTitle = body.calendarDealTitle != null
     ? String(body.calendarDealTitle).trim().slice(0, 1000) || null
@@ -2901,10 +2905,14 @@ async function handleCreateTask(request, env) {
     startDatePlan, endDatePlan, mark, crmLinks, calendarDealTitle,
     responsible, uid, uid, JSON.stringify(accomplices), JSON.stringify(auditors),
     eventPublic, nowIso, nowIso, nowIso).run();
+  await auditLog(env, me, 'record_create', 'tasks', id, {
+    source: 'api_tasks', mark, crmLinks: crmLinks ? JSON.parse(crmLinks) : [], eventPublic: !!eventPublic,
+  });
   return json({ ok: true, id, task: {
     id, title, description, status, priority, deadline,
-    startDatePlan, endDatePlan, mark, calendarDealTitle,
+    startDatePlan, endDatePlan, mark, crmLinks: crmLinks ? JSON.parse(crmLinks) : [], calendarDealTitle,
     responsibleUid: responsible, createdByUid: uid, accomplices, auditors,
+    eventPublic: !!eventPublic,
   } }, 200, request);
 }
 
