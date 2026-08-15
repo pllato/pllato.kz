@@ -6,6 +6,7 @@ import { jwtVerify, createRemoteJWKSet } from "jose";
 import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket, broadcastToUser, downloadFile as downloadChatFile, setWaNotifier } from "./chat-module.js";
 import { sendWebPush, VAPID_PUBLIC_KEY } from "./webpush.js";
 import { imapList, imapFetchMessage, imapFetchAttachment, smtpSend, mailTestConnection, imapFolders, imapUnreadCount } from "./mail.js";
+import { canChangeAnyDealStage } from "./stage-permissions.js";
 
 // ctx последнего fetch/scheduled — чтобы фоновую рассылку пушей (несколько
 // сетевых запросов к FCM/Mozilla/Apple) повесить на ctx.waitUntil и не держать
@@ -3503,8 +3504,6 @@ async function handleDealStageChange(request, env, dealId) {
   const auth = await requireAuthFlexible(request, env);
   if (auth.error) return json({ error: auth.error }, auth.status, request);
   const me = await resolveCanonicalUser(env, auth.claims);
-  const allowed = await canEditRecord(env, me, "deals", dealId);
-  if (!allowed) return json({ error: "no permission to edit this deal", role: me.role }, 403, request);
 
   let body;
   try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
@@ -3519,6 +3518,13 @@ async function handleDealStageChange(request, env, dealId) {
     return json({ error: "invalid rejectReason (allowed: " + [...REJECT_REASONS].join(", ") + ")" }, 400, request);
   }
   if (!pipelineId || !stageId) return json({ error: "pipelineId and stageId required" }, 400, request);
+
+  // Сначала сохраняем прежнюю owner-проверку. Если сделка ещё никому не
+  // назначена (типичный новый Facebook lead), разрешаем смену этапа тому,
+  // у кого оргструктура даёт dealScope=all именно в этой воронке.
+  const allowed = (await canEditRecord(env, me, "deals", dealId))
+    || canChangeAnyDealStage(me, pipelineId);
+  if (!allowed) return json({ error: "no permission to edit this deal", role: me.role }, 403, request);
 
   const deal = await env.DB.prepare(
     "SELECT id, pipeline_id, stage_id, mirrored_in, custom_fields FROM deals WHERE id = ? LIMIT 1"
