@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>КП · Касса на моноблоке · BEAUTY MIX · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#231518;--ink2:#4c3a3e;--acc:#D7261E;--accD:#9E1812;--accL:#FBEAE9;--rose:#C94F7C;--roseL:#F9EAF0;--text:#2c2023;--muted:#837074;--faint:#ac9ca0;--line:#eee2e2;--off:#faf5f4;--grn:#16a34a;--red:#d1493c;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:var(--text);font-size:10.5px;line-height:1.55;background:#f0eaea}
+.page{width:210mm;min-height:297mm;position:relative;padding:15mm 16mm 17mm;margin:0 auto 8mm;background:#fff;display:flex;flex-direction:column}
+.runfoot{position:absolute;left:16mm;right:16mm;bottom:9mm;display:flex;justify-content:space-between;font-size:8px;color:var(--faint);border-top:1px solid var(--line);padding-top:6px}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .bm{width:44px;height:44px;background:#D7261E;border-radius:50%;display:grid;place-items:center;flex:none;color:#fff;font-weight:900;font-size:15px;letter-spacing:-.01em}
+.brand .bt{font-size:21px;font-weight:900;letter-spacing:-.01em;color:var(--ink)}
+.brand .bt b{color:var(--acc)}
+.brand .bs{font-size:8.5px;color:var(--muted);letter-spacing:.02em;margin-top:2px}
+.hr{text-align:right}
+.hr .t{font-size:13px;font-weight:800;color:var(--ink)}
+.hr .dt{font-size:9.5px;color:var(--muted);margin-top:2px}
+.hr .st{font-size:8.5px;color:var(--faint);margin-top:1px}
+.rule{height:2px;background:linear-gradient(90deg,var(--acc),var(--rose));margin-bottom:14px}
+.badge{display:inline-block;background:var(--accL);color:var(--accD);font-size:8.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:20px;margin-bottom:9px}
+h1{font-size:20px;font-weight:900;letter-spacing:-.01em;line-height:1.15;margin-bottom:8px;color:var(--ink)}
+.lead{font-size:11px;color:var(--ink2);margin-bottom:14px;line-height:1.6}
+.lead b{color:var(--ink)}
+.sec{font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--acc);margin:16px 0 9px;display:flex;align-items:center;gap:9px}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.sec.first{margin-top:2px}
+table.pain{width:100%;border-collapse:collapse;margin-bottom:4px}
+table.pain td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:9.8px;vertical-align:top;width:50%}
+table.pain tr:nth-child(even) td{background:var(--off)}
+table.pain .was::before{content:"Отдельная касса · ";font-weight:700;color:var(--muted)}
+table.pain .was{color:var(--muted)}
+table.pain .now b{color:var(--ink)}
+table.pain .now::before{content:"Касса в портале · ";font-weight:700;color:var(--grn)}
+.mods{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mod{border:1px solid var(--line);border-radius:9px;padding:10px 12px;break-inside:avoid}
+.mod .mt{font-weight:800;font-size:11px;color:var(--ink);margin-bottom:3px;display:flex;align-items:center;gap:7px}
+.mod .mt .n{width:19px;height:19px;border-radius:6px;background:var(--acc);color:#fff;font-size:9.5px;display:grid;place-items:center;flex:none;font-weight:700}
+.mod .md{font-size:9.5px;color:var(--ink2);line-height:1.5}
+.mod .md b{color:var(--ink)}
+.callout{background:var(--accL);border:1px solid #f2c9c6;border-radius:9px;padding:10px 13px;font-size:9.8px;color:#7d2a26;line-height:1.55;margin-bottom:8px}
+.callout b{color:#641f1b}
+.callout.rose{background:var(--roseL);border-color:#eccadb;color:#7c2f52}
+.callout.rose b{color:#611f3d}
+.pricewrap{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:6px}
+.pricebox{border:1px solid var(--line);border-radius:11px;padding:14px 15px;background:linear-gradient(160deg,#fff,var(--off))}
+.pricebox .lbl{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.pricebox .big{font-size:28px;font-weight:900;color:var(--ink);letter-spacing:-.02em;margin:3px 0}
+.pricebox .big b{color:var(--acc)}
+.pricebox .fix{display:inline-block;background:color-mix(in srgb,var(--grn) 13%,transparent);color:#12813f;font-size:9px;font-weight:800;padding:3px 9px;border-radius:20px;margin:2px 0 3px}
+.pricebox .note{font-size:9.3px;color:var(--muted);line-height:1.5}
+.steps{border:1px solid var(--line);border-radius:11px;overflow:hidden}
+.steps .st{display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid var(--line)}
+.steps .st:last-child{border-bottom:none}
+.steps .st.tot{background:var(--accL)}
+.steps .sn{font-size:9.8px;color:var(--ink2)}
+.steps .sn b{color:var(--ink)}
+.steps .sv{margin-left:auto;font-weight:800;font-size:11px;color:var(--ink);white-space:nowrap;text-align:right}
+.steps .st.tot .sv{color:var(--accD)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.term{border:1px solid var(--line);border-radius:9px;padding:9px 12px}
+.term .h{font-weight:800;font-size:10px;color:var(--ink);margin-bottom:2px}
+.term .b{font-size:9.3px;color:var(--ink2);line-height:1.5}
+table.req{width:100%;border-collapse:collapse;margin-top:4px}
+table.req td{padding:6px 9px;font-size:9.5px;border-bottom:1px solid var(--line)}
+table.req td.k{width:20%;color:var(--muted)}
+table.req tr:nth-child(even){background:var(--off)}
+.cta{background:var(--ink);color:#fff;border-radius:11px;padding:12px 15px;display:flex;align-items:center;gap:14px;margin-top:10px}
+.cta .x{flex:1;font-size:10px;line-height:1.55}
+.cta .x b{color:#F0837C}
+.cta .amt{text-align:right}
+.cta .amt .v{font-size:19px;font-weight:900;color:#F0837C;white-space:nowrap}
+.cta .amt .s{font-size:8.5px;color:#cbb3b6}
+.signs{display:flex;gap:40px;margin-top:14px}
+.signs .s{flex:1}
+.signs .sl{font-size:9px;color:var(--muted);margin-bottom:12px}
+.signs .snm{font-weight:700;font-size:10.5px;margin-bottom:12px}
+.signs .ln{font-size:10px;color:#3a4453}
+.signs .ln u{display:inline-block;width:80px;border-bottom:1px solid #b9c0ca}
+
+/* print fit: 2 страницы A4 ровно */
+@media print{
+  body{background:#fff;font-size:9.5px}
+  .page{margin:0;min-height:auto;padding:10mm 13mm 8mm;page-break-after:always}
+  .page:last-child{page-break-after:auto}
+  .runfoot{position:static;left:auto;right:auto;bottom:auto;margin-top:auto;padding-top:5px}
+  header{padding-bottom:8px}.rule{margin-bottom:10px}
+  h1{font-size:17px;margin-bottom:6px}
+  .lead{font-size:10px;margin-bottom:10px;line-height:1.5}
+  .sec{margin:10px 0 6px}
+  .badge{margin-bottom:6px}
+  table.pain td{padding:5.5px 8px;font-size:9px}
+  .mods{gap:5px}.mod{padding:7px 10px}.mod .md{font-size:8.9px}.mod .mt{font-size:10px;margin-bottom:2px}
+  .callout{padding:7px 10px;font-size:9px;margin-bottom:6px}
+  .pricewrap{gap:8px;margin-bottom:5px}
+  .pricebox{padding:9px 11px}.pricebox .big{font-size:21px;margin:2px 0}.pricebox .note{font-size:8.6px}.pricebox .fix{padding:2px 8px;font-size:8.4px}
+  .steps .st{padding:5px 10px}.steps .sn{font-size:9px}.steps .sv{font-size:10px}
+  .two{gap:5px}.term{padding:6px 10px}.term .b{font-size:8.7px}
+  table.req td{padding:4.5px 8px;font-size:8.8px}
+  .cta{padding:8px 12px;margin-top:6px}.cta .x{font-size:9.2px}.cta .amt .v{font-size:16px}
+  .signs{margin-top:6px}.signs .sl{margin-bottom:8px}.signs .snm{margin-bottom:8px}
+}
+</style></head>
+<body>
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm">MB</div>
+      <div><div class="bt">BEAUTY <b>MIX</b></div><div class="bs">Касса на моноблоке · дополнение к порталу сети · Pllato</div></div>
+    </div>
+    <div class="hr"><div class="t">КП № BM-2026-02</div><div class="dt">16 августа 2026 г.</div><div class="st">коммерческое предложение</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <span class="badge">Кассовый модуль · рабочее место продавца точки</span>
+  <h1>Касса на моноблоке — продажа за 10 секунд, чек сразу в пульте</h1>
+  <div class="lead">Дополнение к порталу <b>Beauty Mix</b>: кассовое рабочее место, которое работает <b>прямо на сенсорном моноблоке в браузере</b> — без установки программ. Крупные плитки под палец, сканер штрих-кодов, чек на принтер, оплата наличными / картой / <b>Kaspi QR</b>, смены с Z-отчётом. Главное: касса — <b>часть портала</b>, а не отдельная программа. Продажа на точке <b>мгновенно списывает остаток и появляется в пульте собственницы</b> — никаких выгрузок, вторых баз и расхождений с ревизией.</div>
+
+  <div class="sec first">Отдельная кассовая программа → касса внутри портала</div>
+  <table class="pain">
+    <tr><td class="was">Вторая база: касса отдельно, учёт отдельно — выгрузки, расхождения, «цифры не бьются».</td><td class="now"><b>Одна база с порталом</b>: чек сразу списывает остаток точки. Ревизия и касса смотрят на одни и те же цифры.</td></tr>
+    <tr><td class="was">Абонплата за каждую кассу каждый месяц — сеть растёт, платёж растёт.</td><td class="now"><b>Без абонплаты</b>: кассовый модуль в собственность, работает на всех точках сети (до 10 касс) без доплат.</td></tr>
+    <tr><td class="was">Программа под Windows: установка и обновления на каждой точке, «у нас касса слетела».</td><td class="now"><b>Браузер на моноблоке</b> (Windows или Android): нечему «слетать», обновления подхватываются сами.</td></tr>
+    <tr><td class="was">Выручку смены собственница видит вечером после закрытия — или назавтра.</td><td class="now"><b>Каждый чек в реальном времени</b> в пульте: выручка смены по каждой точке — живая, из любого города.</td></tr>
+    <tr><td class="was">Скидки на кассе бесконтрольны: продавец «делает подешевле» по-своему.</td><td class="now"><b>Скидки по правам</b>: лимит продавца, всё сверх — только подтверждение управляющей. Каждая скидка в журнале.</td></tr>
+  </table>
+
+  <div class="sec">Что входит в кассовый модуль</div>
+  <div class="mods">
+    <div class="mod"><div class="mt"><span class="n">1</span>Экран продажи под палец</div><div class="md">Крупные плитки товаров и категорий, работа <b>пальцем на сенсорном экране</b> — без мыши и клавиатуры. Интерфейс продавца, а не бухгалтера.</div></div>
+    <div class="mod"><div class="mt"><span class="n">2</span>Сканер штрих-кодов</div><div class="md">«Пик» — товар в чеке. Нет кода — <b>поиск по названию или бренду</b> за два касания. Каталог тот же, что в портале: до 30 000 SKU.</div></div>
+    <div class="mod"><div class="mt"><span class="n">3</span>Оплата любым способом</div><div class="md">Наличные с подсчётом сдачи, карта, <b>Kaspi QR</b>, смешанная оплата одним чеком. Скидка процентом или суммой — в рамках прав.</div></div>
+    <div class="mod"><div class="mt"><span class="n">4</span>Чек и фискализация</div><div class="md">Печать на чековом принтере. <b>Фискальный чек — через интеграцию с онлайн-ККМ</b> (Webkassa / ReKassa, по согласованию): уходит в ОФД сам при продаже.</div></div>
+    <div class="mod"><div class="mt"><span class="n">5</span>Смены и Z-отчёт</div><div class="md">Открытие и закрытие смены, наличность на начало/конец, <b>X/Z-отчёты</b>, инкассация. Итог смены сам ложится в фин. учёт портала.</div></div>
+    <div class="mod"><div class="mt"><span class="n">6</span>Возвраты</div><div class="md">Возврат по чеку: товар <b>автоматически возвращается на склад</b> с проводкой — остатки честные, ревизия сходится.</div></div>
+    <div class="mod"><div class="mt"><span class="n">7</span>Кассиры и права</div><div class="md">Вход по <b>PIN-коду</b>: видно, кто пробил чек. Отмена чека и скидка сверх лимита — только с подтверждением управляющей.</div></div>
+    <div class="mod"><div class="mt"><span class="n">8</span>Живая связь с порталом</div><div class="md">Чек мгновенно: списывает остаток → попадает в выручку пульта → <b>начисляется в отчётный лист ЗП</b> продавца. Ничего не выгружается руками.</div></div>
+    <div class="mod"><div class="mt"><span class="n">9</span>Нестабильный интернет</div><div class="md">Связь пропала — касса <b>продолжает пробивать</b>: чеки копятся в буфере и досинхронизируются, когда сеть вернётся.</div></div>
+    <div class="mod"><div class="mt"><span class="n">10</span>Запуск на точках</div><div class="md">Настроим моноблок, принтер и сканер на каждой точке, <b>обучим продавцов</b>. Пилот на одной точке → раскатка на сеть.</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП BM-2026-02 · Касса на моноблоке · Beauty Mix</span><span>1 / 2</span></div>
+</section>
+
+<section class="page">
+  <div class="sec first">Оборудование и фискализация — что понадобится помимо разработки</div>
+  <div class="callout"><b>Оборудование</b> (покупается напрямую, платите не нам; поможем подобрать и подключим): сенсорный моноблок — ориентир <b>180–300 тыс ₸</b> за точку; чековый принтер — <b>35–60 тыс ₸</b>; 2D-сканер штрих-кодов — <b>20–35 тыс ₸</b>. Если на точках уже есть моноблоки или принтеры от текущей кассы — <b>постараемся использовать их</b>.</div>
+  <div class="callout rose"><b>Фискализация</b>: фискальные чеки идут через онлайн-ККМ сервис (Webkassa, ReKassa и др. — выберем вместе). Тариф сервиса оплачивается напрямую, ориентир <b>от ~2 000 ₸/касса/мес</b>. Мы делаем интеграцию: продавец просто пробивает продажу — <b>чек уходит в ОФД автоматически</b>, ничего не нужно дублировать.</div>
+
+  <div class="sec">Стоимость</div>
+  <div class="pricewrap">
+    <div class="pricebox">
+      <div class="lbl">Кассовый модуль · в связке с порталом</div>
+      <div class="big"><b>700 000 ₸</b></div>
+      <div class="fix">на все точки сети · до 10 касс · без абонплаты</div>
+      <div class="note">Все 10 блоков: экран продажи, сканер, оплаты и Kaspi QR, чек + фискализация, смены и Z-отчёт, возвраты, PIN кассиров, живая связь с порталом, офлайн-буфер, запуск и обучение. Делаем на одной архитектуре с порталом — поэтому дешевле, чем отдельным проектом.</div>
+    </div>
+    <div class="pricebox" style="border-color:#eccadb">
+      <div class="lbl" style="color:var(--rose)">Если отдельным проектом позже</div>
+      <div class="big">800 000 ₸</div>
+      <div class="note" style="margin-top:4px">Без связки с текущей разработкой кассу придётся поднимать отдельным этапом: заново разворачивать окружение, стыковать с готовым порталом и повторно проходить проверку боем. В связке — <b>экономия 100 000 ₸</b> и один общий запуск сети.</div>
+    </div>
+  </div>
+  <div class="steps" style="margin-bottom:6px">
+    <div class="st"><div class="sn"><b>Аванс 50% · старт работ по кассе</b><br><span style="color:var(--muted)">собираем кассовый экран, подключаем фискализацию</span></div><div class="sv">350 000 ₸</div></div>
+    <div class="st"><div class="sn"><b>Остаток 50% · при сдаче</b><br><span style="color:var(--muted)">после пилота на точке и подписания акта</span></div><div class="sv">350 000 ₸</div></div>
+    <div class="st tot"><div class="sn"><b>Итого · кассовый модуль в связке с порталом</b></div><div class="sv">700 000 ₸</div></div>
+  </div>
+
+  <div class="sec">Как запускаем</div>
+  <div class="steps" style="margin-bottom:2px">
+    <div class="st"><div class="sn"><b>Пилот на одной точке</b> — ставим кассу на моноблок, продавцы пробивают реальные продажи, собираем замечания.</div><div class="sv">неделя пилота</div></div>
+    <div class="st"><div class="sn"><b>Раскатка на сеть</b> — подключаем остальные точки, переносим настройки, обучаем каждую смену.</div><div class="sv">все города</div></div>
+    <div class="st"><div class="sn"><b>2–3 недели</b> — срок разработки кассового модуля (параллельно с порталом, не удлиняет общий запуск).</div><div class="sv">срок</div></div>
+  </div>
+
+  <div class="sec">Условия</div>
+  <div class="two">
+    <div class="term"><div class="h">В собственность</div><div class="b">Кассовый модуль — часть вашей системы, на вашем сервере. Никакой абонплаты за кассы и точки в рамках фиксации.</div></div>
+    <div class="term"><div class="h">Гарантия</div><div class="b">6 месяцев: ошибки в работе кассы правим бесплатно, как по всему функционалу ТЗ.</div></div>
+    <div class="term"><div class="h">Железо — ваше</div><div class="b">Моноблоки, принтеры и сканеры покупаются напрямую и принадлежат вам. Поможем с подбором, подключим и настроим.</div></div>
+    <div class="term"><div class="h">Доработки</div><div class="b">Пожелания сверх состава (весы, этикетки, бонусные карты) — $20/час или отдельным соглашением.</div></div>
+  </div>
+
+  <div class="sec">Стороны</div>
+  <table class="req">
+    <tr><td class="k">Исполнитель</td><td>ИП «STUDYSTORIES.APP», БИН 880607300110, директор Цай Платон · pllato.kz · uurraa@gmail.com</td></tr>
+    <tr><td class="k">Заказчик</td><td>Beauty Mix · Запад Казахстана (Атырау, Актау, Уральск) · собственница Раиса · реквизиты уточняются</td></tr>
+  </table>
+
+  <div class="cta">
+    <div class="x">Касса — часть вашей системы, а не ещё одна программа: продажа на точке <b>мгновенно в пульте</b>, остатки честные, ревизия сходится. В связке с порталом — <b>700 000 ₸</b> на все точки без абонплаты (отдельно позже — 800 000 ₸). Старт — аванс 50%, остаток при сдаче после пилота на реальной точке.</div>
+    <div class="amt"><div class="v">350 000 ₸</div><div class="s">старт · аванс 50%</div></div>
+  </div>
+
+  <div class="signs">
+    <div class="s"><div class="sl">Исполнитель</div><div class="snm">ИП «STUDYSTORIES.APP»</div><div class="ln"><u></u> / Цай П. / М.П.</div></div>
+    <div class="s"><div class="sl">Заказчик</div><div class="snm">Beauty Mix (Раиса)</div><div class="ln"><u></u> / ________ / М.П.</div></div>
+  </div>
+
+  <div class="runfoot"><span>Pllato · КП BM-2026-02 · ИП «STUDYSTORIES.APP» · pllato.kz</span><span>2 / 2</span></div>
+</section>
+</body></html>
