@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#160D0F"/>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
+<title>BEAUTY MIX · Касса на моноблоке — мокап</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--acc:#D7261E;--acc2:#F0837C;--accD:#9E1812;--kaspi:#F14635;--grn:#19b558;--amb:#e8a13c;--red:#ff5a4e;
+--bg:#14090B;--panel:#1E1013;--panel2:#28161A;--ink:#F6ECEC;--ink2:#D8C2C4;--muted:#9A8286;--line:#3A252A;--tile:#241318}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45;overflow:hidden;-webkit-font-smoothing:antialiased;user-select:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+a{color:inherit;text-decoration:none}
+.hidden{display:none!important}
+::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+
+/* ===== PIN ===== */
+.pin{position:fixed;inset:0;z-index:60;background:radial-gradient(900px 500px at 70% -10%,rgba(215,38,30,.25),transparent),var(--bg);display:grid;place-items:center;padding:20px}
+.pin .box{text-align:center;max-width:560px;width:100%}
+.pin .bm{width:60px;height:60px;border-radius:50%;background:var(--acc);display:grid;place-items:center;margin:0 auto 12px;color:#fff;font-weight:900;font-size:21px}
+.pin h1{font-size:24px;font-weight:900}.pin h1 b{color:var(--acc2)}
+.pin .st{color:var(--muted);font-size:13px;margin:6px 0 20px}
+.cashiers{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-bottom:20px}
+.csr{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:15px 10px;transition:.14s}
+.csr:hover{border-color:var(--acc2);transform:translateY(-2px)}
+.csr.on{border-color:var(--acc);background:var(--panel2)}
+.csr .av{width:46px;height:46px;border-radius:50%;margin:0 auto 8px;display:grid;place-items:center;font-weight:800;font-size:16px;color:#fff}
+.csr .n{font-size:13.5px;font-weight:800}.csr .r{font-size:10.5px;color:var(--muted)}
+.pad{display:grid;grid-template-columns:repeat(3,74px);gap:9px;justify-content:center}
+.pad button{height:60px;border-radius:14px;background:var(--panel);border:1px solid var(--line);font-size:20px;font-weight:800;transition:.1s}
+.pad button:active{background:var(--panel2);transform:scale(.96)}
+.dots{display:flex;gap:10px;justify-content:center;margin:0 0 14px}
+.dots i{width:12px;height:12px;border-radius:50%;background:var(--panel);border:1px solid var(--line)}
+.dots i.f{background:var(--acc2);border-color:var(--acc2)}
+.pin .foot{margin-top:18px;font-size:11.5px;color:var(--muted)}
+.pin .foot b{color:var(--ink2)}
+
+/* ===== POS ===== */
+.pos{display:grid;grid-template-columns:1fr 390px;height:100vh}
+.left{display:flex;flex-direction:column;min-width:0}
+.top{display:flex;align-items:center;gap:12px;padding:11px 16px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.top .bm{width:36px;height:36px;border-radius:50%;background:var(--acc);display:grid;place-items:center;color:#fff;font-weight:900;font-size:13px}
+.top .tt{font-weight:900;font-size:14.5px}.top .ts{font-size:10.5px;color:var(--muted)}
+.top .sp{flex:1}
+.stat{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;padding:6px 11px;border-radius:20px;background:var(--panel2);border:1px solid var(--line)}
+.stat .d{width:7px;height:7px;border-radius:50%;background:var(--grn)}
+.stat.off .d{background:var(--amb)}
+.stat.off{color:var(--amb)}
+.tbtn{padding:8px 13px;border-radius:11px;background:var(--panel2);border:1px solid var(--line);font-size:12px;font-weight:800;transition:.12s}
+.tbtn:hover{border-color:var(--acc2)}
+.srow{display:flex;gap:10px;padding:11px 16px 4px}
+.srch{flex:1;display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:11px 14px}
+.srch input{flex:1;border:none;background:none;font:inherit;font-size:14px;color:var(--ink);outline:none}
+.scanbtn{background:linear-gradient(135deg,var(--acc),var(--accD));color:#fff;border-radius:13px;padding:11px 18px;font-size:13.5px;font-weight:900;display:flex;align-items:center;gap:9px;transition:.12s}
+.scanbtn:active{transform:scale(.97)}
+.cats{display:flex;gap:8px;padding:10px 16px;overflow-x:auto;flex:none}
+.cat{flex:none;padding:9px 16px;border-radius:20px;background:var(--panel);border:1px solid var(--line);font-size:12.5px;font-weight:800;color:var(--ink2);transition:.12s}
+.cat.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.tiles{flex:1;overflow-y:auto;padding:6px 16px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-content:start}
+.tile{background:var(--tile);border:1px solid var(--line);border-radius:14px;padding:12px;text-align:left;transition:.12s;display:flex;flex-direction:column;gap:6px;min-height:118px}
+.tile:active{transform:scale(.97);border-color:var(--acc2)}
+.tile .ic{font-size:23px}
+.tile .b{font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--acc2)}
+.tile .n{font-size:12px;font-weight:700;line-height:1.3;color:var(--ink2);flex:1}
+.tile .p{font-size:14.5px;font-weight:900}
+.tile .s{font-size:9.5px;color:var(--muted)}
+
+/* чек */
+.chk{background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;height:100vh}
+.chk .ch{padding:13px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.chk .ch .t{font-weight:900;font-size:14px}.chk .ch .s{font-size:10.5px;color:var(--muted)}
+.chk .ch .av{margin-left:auto;width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--acc),#C94F7C);display:grid;place-items:center;font-size:12px;font-weight:800;color:#fff}
+.items{flex:1;overflow-y:auto;padding:8px 12px}
+.it{display:flex;align-items:center;gap:9px;padding:9px 6px;border-bottom:1px dashed var(--line)}
+.it .n{font-size:12px;font-weight:700;line-height:1.3}
+.it .pp{font-size:10.5px;color:var(--muted)}
+.it .q{margin-left:auto;display:flex;align-items:center;gap:6px;flex:none}
+.it .q button{width:30px;height:30px;border-radius:9px;background:var(--panel2);border:1px solid var(--line);font-size:15px;font-weight:800}
+.it .q b{min-width:18px;text-align:center;font-size:13.5px}
+.it .sm{font-size:12.5px;font-weight:900;width:74px;text-align:right;flex:none}
+.emp{color:var(--muted);text-align:center;font-size:12.5px;padding:44px 14px;line-height:1.6}
+.tots{border-top:1px solid var(--line);padding:12px 16px}
+.tr{display:flex;justify-content:space-between;font-size:12px;color:var(--ink2);margin-bottom:5px}
+.tr.dsc{color:var(--amb)}
+.tr.big{font-size:15px;font-weight:900;color:var(--ink);margin:7px 0 10px}
+.tr.big span:last-child{font-size:21px;color:var(--acc2)}
+.arow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:9px}
+.abtn{padding:10px 6px;border-radius:11px;background:var(--panel2);border:1px solid var(--line);font-size:11.5px;font-weight:800;text-align:center}
+.abtn:active{transform:scale(.97)}
+.paybig{width:100%;background:linear-gradient(135deg,var(--grn),#0d8a40);border-radius:14px;padding:15px;font-size:16px;font-weight:900;color:#fff;transition:.12s}
+.paybig:active{transform:scale(.98)}
+.paybig:disabled{opacity:.35;cursor:default}
+
+/* modal */
+.mov{position:fixed;inset:0;background:rgba(10,4,5,.66);z-index:70;display:none;align-items:center;justify-content:center;padding:18px}
+.mov.on{display:flex}
+.mod{background:var(--panel);border:1px solid var(--line);border-radius:18px;max-width:480px;width:100%;max-height:94vh;overflow-y:auto;padding:20px;position:relative}
+.mod .mx{position:absolute;top:10px;right:13px;font-size:20px;color:var(--muted)}
+.mod h3{font-size:17px;font-weight:900;margin-bottom:3px}
+.mod .ms{font-size:12px;color:var(--muted);margin-bottom:13px}
+.ptabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:13px}
+.ptab{padding:12px 6px;border-radius:12px;background:var(--panel2);border:1.5px solid var(--line);font-size:12px;font-weight:800;text-align:center}
+.ptab .i{display:block;font-size:20px;margin-bottom:4px}
+.ptab.on{border-color:var(--acc2);background:rgba(215,38,30,.12)}
+.cashq{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:9px 0}
+.cashq button{padding:10px 4px;border-radius:11px;background:var(--panel2);border:1px solid var(--line);font-size:12.5px;font-weight:800}
+.chg{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:11px 14px;font-size:13px;margin-top:6px}
+.chg b{color:var(--grn);font-size:16px}
+.qr{width:158px;height:158px;margin:12px auto;border-radius:14px;background:
+ repeating-linear-gradient(0deg,#111 0 6px,transparent 6px 12px),
+ repeating-linear-gradient(90deg,#111 0 6px,#fff 6px 12px);border:9px solid #fff;position:relative}
+.qr::after{content:"KASPI";position:absolute;inset:0;margin:auto;width:70px;height:28px;background:var(--kaspi);color:#fff;font-size:11px;font-weight:900;display:grid;place-items:center;border-radius:7px;border:3px solid #fff}
+.paid{color:var(--grn);font-weight:900;font-size:13.5px;text-align:center}
+.mbtn{width:100%;background:var(--acc);color:#fff;border-radius:13px;padding:13px;font-size:14px;font-weight:900;margin-top:10px}
+.mbtn.g{background:var(--grn)}
+.mbtn.ghost{background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
+/* receipt */
+.rcp{background:#fff;color:#1b1b1b;border-radius:12px;padding:16px 15px;font-size:11.5px;font-family:ui-monospace,Menlo,monospace;max-width:290px;margin:0 auto;box-shadow:0 10px 30px -14px rgba(0,0,0,.6)}
+.rcp .c{text-align:center}.rcp .b{font-weight:800}
+.rcp hr{border:none;border-top:1px dashed #bbb;margin:8px 0}
+.rcp .row{display:flex;justify-content:space-between;gap:8px}
+.rcp .fis{background:#f1f1f1;border-radius:8px;padding:7px 9px;margin-top:8px;font-size:10.5px;text-align:center}
+.rcp .fis b{color:#0d8a40}
+/* смена */
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:11px}
+.sc{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+.sc .l{font-size:10.5px;color:var(--muted);font-weight:700}
+.sc .v{font-size:16.5px;font-weight:900;margin-top:3px}
+.sc .v.g{color:var(--grn)}.sc .v.k{color:var(--acc2)}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(80px);background:#000;color:#fff;border-radius:13px;padding:12px 18px;font-size:13px;z-index:90;transition:.25s;max-width:92vw;text-align:center;opacity:0;border:1px solid var(--line)}
+.toast.on{transform:translateX(-50%);opacity:1}
+.toast b{color:var(--acc2)}
+.beep{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--grn);color:#fff;font-weight:900;font-size:13px;border-radius:20px;padding:8px 18px;z-index:95;opacity:0;transition:.2s}
+.beep.on{opacity:1}
+@media(max-width:900px){.pos{grid-template-columns:1fr}.chk{position:fixed;right:0;top:0;width:min(390px,100vw);z-index:40;transform:translateX(100%);transition:.25s}.chk.open{transform:none}}
+</style></head>
+<body>
+
+<!-- PIN вход -->
+<div class="pin" id="pinScr">
+  <div class="box">
+    <div class="bm">MB</div>
+    <h1>Касса · <b>Атырау, Сатпаева 12</b></h1>
+    <div class="st">Моноблок · смена откроется после входа кассира · мокап</div>
+    <div class="cashiers" id="csrs"></div>
+    <div class="dots" id="dots"><i></i><i></i><i></i><i></i></div>
+    <div class="pad" id="pad"></div>
+    <div class="foot">Любой PIN подходит — это мокап. В полной версии: <b>каждый чек привязан к кассиру</b>, лимиты скидок по ролям.</div>
+  </div>
+</div>
+
+<!-- POS -->
+<div class="pos hidden" id="pos">
+  <div class="left">
+    <div class="top">
+      <div class="bm">MB</div>
+      <div><div class="tt">BEAUTY MIX · Касса</div><div class="ts">Атырау · Сатпаева 12 · моноблок №1</div></div>
+      <span class="sp"></span>
+      <button class="stat" id="net" onclick="toggleNet()"><span class="d"></span><span id="netT">Онлайн · синх с порталом</span></button>
+      <button class="tbtn" onclick="openM('mShift')">Смена · 09:00</button>
+      <button class="tbtn" onclick="openM('mRet')">↩ Возврат</button>
+      <a class="tbtn" href="/app/beautymix.html" target="_blank">Портал ↗</a>
+    </div>
+    <div class="srow">
+      <div class="srch">🔎 <input id="q" placeholder="Поиск по названию или бренду…" oninput="renderTiles()"></div>
+      <button class="scanbtn" onclick="scanOne()">▮▯▮ Скан</button>
+    </div>
+    <div class="cats" id="cats"></div>
+    <div class="tiles" id="tiles"></div>
+  </div>
+
+  <aside class="chk" id="chk">
+    <div class="ch"><span style="font-size:17px">🧾</span><div><div class="t">Чек № <span id="chkNo">1043</span></div><div class="s">продажа · Kaspi/карта/наличные</div></div><div class="av" id="csrAv">А</div></div>
+    <div class="items" id="items"></div>
+    <div class="tots">
+      <div class="tr"><span>Позиции</span><span id="tPos">0</span></div>
+      <div class="tr dsc" id="tDscRow" style="display:none"><span>Скидка <span id="tDscP"></span></span><span id="tDsc"></span></div>
+      <div class="tr big"><span>Итого</span><span id="tSum">0 ₸</span></div>
+      <div class="arow">
+        <button class="abtn" onclick="disc(5)">Скидка 5%</button>
+        <button class="abtn" onclick="disc(10)">Скидка 10%</button>
+        <button class="abtn" onclick="disc(15)">15% 🔒</button>
+      </div>
+      <button class="paybig" id="payBtn" onclick="openPay()" disabled>Оплата</button>
+    </div>
+  </aside>
+</div>
+
+<!-- оплата -->
+<div class="mov" id="mPay"><div class="mod"><button class="mx" onclick="closeM('mPay')">×</button>
+  <h3>Оплата · <span id="paySum"></span></h3><div class="ms">Чек № <span id="payNo"></span> · кассир <span id="payCsr"></span></div>
+  <div class="ptabs">
+    <button class="ptab on" onclick="ptab(this,'cash')"><span class="i">💵</span>Наличные</button>
+    <button class="ptab" onclick="ptab(this,'card')"><span class="i">💳</span>Карта</button>
+    <button class="ptab" onclick="ptab(this,'qr')"><span class="i">🟥</span>Kaspi QR</button>
+  </div>
+  <div id="payCash">
+    <div class="ms" style="margin-bottom:5px">Получено от покупателя:</div>
+    <div class="cashq" id="cashq"></div>
+    <div class="chg">Сдача: <b id="chgV">0 ₸</b></div>
+  </div>
+  <div id="payCard" class="hidden"><div class="chg" style="text-align:center">Терминал: <b style="color:var(--ink)">вставьте / приложите карту…</b><br><span style="font-size:11px;color:var(--muted)">мокап — оплата пройдёт по кнопке ниже</span></div></div>
+  <div id="payQr" class="hidden"><div class="qr"></div><div class="paid hidden" id="qrOk">✓ Kaspi: оплата получена</div><div class="ms" style="text-align:center;margin-top:6px">Покупатель сканирует Kaspi QR — статус придёт сам</div></div>
+  <button class="mbtn g" onclick="donePay()">Провести оплату</button>
+</div></div>
+
+<!-- чек пробит -->
+<div class="mov" id="mRcp"><div class="mod" style="max-width:380px"><button class="mx" onclick="closeM('mRcp')">×</button>
+  <h3 style="text-align:center">Чек пробит ✓</h3><div class="ms" style="text-align:center">печать на чековом принтере…</div>
+  <div class="rcp" id="rcpBody"></div>
+  <div class="ms" style="text-align:center;margin-top:12px" id="rcpNote"></div>
+  <button class="mbtn" onclick="closeM('mRcp')">Новый чек</button>
+</div></div>
+
+<!-- смена -->
+<div class="mov" id="mShift"><div class="mod"><button class="mx" onclick="closeM('mShift')">×</button>
+  <h3>Смена · Атырау, Сатпаева 12</h3><div class="ms">открыта 09:00 · кассир <span id="shCsr">Айгерим</span> · наличных на начало: 40 000 ₸</div>
+  <div class="sgrid">
+    <div class="sc"><div class="l">Выручка смены</div><div class="v g" id="shRev">418 300 ₸</div></div>
+    <div class="sc"><div class="l">Чеков</div><div class="v" id="shChk">61</div></div>
+    <div class="sc"><div class="l">Наличные</div><div class="v">96 400 ₸</div></div>
+    <div class="sc"><div class="l">Kaspi QR + карта</div><div class="v k">321 900 ₸</div></div>
+  </div>
+  <button class="mbtn ghost" onclick="toast('X-отчёт сформирован (без гашения). В полной версии — печать на чековом принтере.')">X-отчёт · без закрытия</button>
+  <button class="mbtn" onclick="toast('Z-отчёт: смена закрыта, наличные к инкассации 96 400 ₸. Итоги уже в фин. учёте портала — <b>Раиса видит их в пульте</b>.');closeM('mShift')">Z-отчёт · закрыть смену</button>
+</div></div>
+
+<!-- возврат -->
+<div class="mov" id="mRet"><div class="mod"><button class="mx" onclick="closeM('mRet')">×</button>
+  <h3>Возврат по чеку</h3><div class="ms">товар вернётся на склад точки с проводкой по журналу</div>
+  <div class="srch" style="margin-bottom:11px">🧾 <input value="Чек № 1041 · сегодня 12:14 · 8 250 ₸"></div>
+  <div class="it" style="border:1px solid var(--line);border-radius:11px;padding:10px 12px"><div><div class="n">TNL гель-лак №204 10 мл</div><div class="pp">1 450 ₸ × 1</div></div><span class="sm">1 450 ₸</span></div>
+  <button class="mbtn" onclick="closeM('mRet');toast('Возврат проведён: 1 450 ₸ · товар <b>вернулся на остаток</b> склада Сатпаева, проводка в журнале, ревизия сойдётся.')">Оформить возврат · 1 450 ₸</button>
+</div></div>
+
+<div class="beep" id="beep">✓ пик — товар в чеке</div>
+<div class="toast" id="toast"></div>
+
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function money(n){return n.toLocaleString('ru-RU')+' ₸';}
+var CATS=['Все','Волосы','Ногти','Уход','Депиляция','Стайлинг'];
+var GOODS=[
+ {n:'Kapous шампунь 1000 мл',b:'Kapous',c:'Волосы',p:4900,ic:'🧴',s:186},
+ {n:'Estel Essex 10/16 краска',b:'Estel',c:'Волосы',p:2350,ic:'🎨',s:244},
+ {n:'Aravia гель депиляция 300 мл',b:'Aravia',c:'Депиляция',p:6200,ic:'🫧',s:97},
+ {n:'Ollin Megapolis масло 50 мл',b:'Ollin',c:'Волосы',p:3800,ic:'💧',s:64},
+ {n:'TNL гель-лак №204',b:'TNL',c:'Ногти',p:1450,ic:'💅',s:312},
+ {n:'CHI Silk Infusion 59 мл',b:'CHI',c:'Волосы',p:9800,ic:'✨',s:28},
+ {n:'Kapous воск гранулы 100 г',b:'Kapous',c:'Депиляция',p:2100,ic:'🕯️',s:143},
+ {n:'Estel Curex термозащита',b:'Estel',c:'Стайлинг',p:2750,ic:'💨',s:88},
+ {n:'Aravia пенка умывание',b:'Aravia',c:'Уход',p:4400,ic:'🧼',s:71},
+ {n:'TNL база каучуковая',b:'TNL',c:'Ногти',p:1900,ic:'💅',s:204},
+ {n:'Ollin BioNika маска 450',b:'Ollin',c:'Волосы',p:5300,ic:'🫙',s:52},
+ {n:'CHI Iron Guard 44',b:'CHI',c:'Стайлинг',p:8200,ic:'🔥',s:19}
+];
+var CSRS=[['Айгерим','продавец','#D7261E'],['Мадина','продавец','#C94F7C'],['Жанна','управляющая','#8a4fb0']];
+var CSR='Айгерим',CAT='Все',CART=[],DSC=0,PAYK='cash',CHKNO=1043,OFF=false,BUF=0,pin='';
+
+/* PIN */
+function renderPin(){document.getElementById('csrs').innerHTML=CSRS.map(function(c,i){
+  return '<button class="csr'+(c[0]===CSR?' on':'')+'" onclick="pickCsr('+i+')"><div class="av" style="background:'+c[2]+'">'+c[0][0]+'</div><div class="n">'+c[0]+'</div><div class="r">'+c[1]+'</div></button>';}).join('');
+ document.getElementById('pad').innerHTML=[1,2,3,4,5,6,7,8,9,'⌫',0,'✓'].map(function(k){return '<button onclick="key(\''+k+'\')">'+k+'</button>';}).join('');}
+function pickCsr(i){CSR=CSRS[i][0];renderPin();}
+function key(k){if(k==='⌫'){pin=pin.slice(0,-1);}else if(k==='✓'){if(pin.length>=4)login();return;}else if(pin.length<4){pin+=k;}
+ var d=document.querySelectorAll('#dots i');d.forEach(function(x,i){x.classList.toggle('f',i<pin.length);});
+ if(pin.length===4)setTimeout(login,220);}
+function login(){document.getElementById('pinScr').classList.add('hidden');document.getElementById('pos').classList.remove('hidden');
+ document.getElementById('csrAv').textContent=CSR[0];document.getElementById('payCsr')&&(document.getElementById('payCsr').textContent=CSR);
+ document.getElementById('shCsr').textContent=CSR;
+ toast('Смена открыта · кассир <b>'+CSR+'</b>. Каждый чек пишется с именем кассира — видно, кто пробил.');}
+
+/* каталог */
+function renderCats(){document.getElementById('cats').innerHTML=CATS.map(function(c){return '<button class="cat'+(c===CAT?' on':'')+'" onclick="CAT=\''+c+'\';renderCats();renderTiles()">'+c+'</button>';}).join('');}
+function renderTiles(){var q=(document.getElementById('q').value||'').toLowerCase();
+ document.getElementById('tiles').innerHTML=GOODS.map(function(g,i){
+  if(CAT!=='Все'&&g.c!==CAT)return '';
+  if(q&&(g.n+g.b).toLowerCase().indexOf(q)<0)return '';
+  return '<button class="tile" onclick="add('+i+')"><span class="ic">'+g.ic+'</span><span class="b">'+g.b+'</span><span class="n">'+esc(g.n)+'</span><span class="p">'+money(g.p)+'</span><span class="s">остаток: '+g.s+' шт</span></button>';}).join('');}
+function add(i){var f=CART.find(function(x){return x.i===i;});if(f)f.q++;else CART.push({i:i,q:1});renderChk();}
+function chg(idx,d){CART[idx].q+=d;if(CART[idx].q<=0)CART.splice(idx,1);renderChk();}
+function scanOne(){var i=Math.floor(Math.random()*GOODS.length);var b=document.getElementById('beep');b.classList.add('on');setTimeout(function(){b.classList.remove('on');},700);add(i);}
+function total(){var t=0;CART.forEach(function(x){t+=GOODS[x.i].p*x.q;});return t;}
+function totalD(){return Math.round(total()*(1-DSC/100));}
+function renderChk(){var el=document.getElementById('items');
+ el.innerHTML=CART.length?CART.map(function(x,idx){var g=GOODS[x.i];
+  return '<div class="it"><div><div class="n">'+esc(g.n)+'</div><div class="pp">'+money(g.p)+' × '+x.q+'</div></div><div class="q"><button onclick="chg('+idx+',-1)">−</button><b>'+x.q+'</b><button onclick="chg('+idx+',1)">＋</button></div><span class="sm">'+money(g.p*x.q)+'</span></div>';}).join('')
+  :'<div class="emp">Чек пуст.<br>Тапните товар на плитке или нажмите <b>Скан</b> — как «пик» сканером.</div>';
+ var n=CART.reduce(function(a,x){return a+x.q;},0);
+ document.getElementById('tPos').textContent=n;
+ document.getElementById('tDscRow').style.display=DSC?'flex':'none';
+ if(DSC){document.getElementById('tDscP').textContent=DSC+'%';document.getElementById('tDsc').textContent='−'+money(total()-totalD());}
+ document.getElementById('tSum').textContent=money(totalD());
+ document.getElementById('payBtn').disabled=!CART.length;}
+function disc(p){if(p>10){toast('Скидка выше 10% — <b>только с подтверждением управляющей</b> (лимит кассира). Жанна подтверждает со своего входа.');return;}
+ DSC=(DSC===p?0:p);renderChk();if(DSC)toast('Скидка '+p+'% применена — в пределах лимита кассира, записана в чек и журнал.');}
+
+/* оплата */
+function openPay(){document.getElementById('paySum').textContent=money(totalD());document.getElementById('payNo').textContent=CHKNO;document.getElementById('payCsr').textContent=CSR;
+ var t=totalD();var qs=[t,Math.ceil(t/1000)*1000,Math.ceil(t/5000)*5000,Math.ceil(t/10000)*10000].filter(function(v,i,a){return a.indexOf(v)===i;});
+ document.getElementById('cashq').innerHTML=qs.map(function(v){return '<button onclick="cash('+v+')">'+money(v)+'</button>';}).join('');
+ document.getElementById('chgV').textContent='0 ₸';openM('mPay');}
+function cash(v){document.getElementById('chgV').textContent=money(Math.max(0,v-totalD()));}
+function ptab(el,k){PAYK=k;el.parentNode.querySelectorAll('.ptab').forEach(function(x){x.classList.remove('on');});el.classList.add('on');
+ document.getElementById('payCash').classList.toggle('hidden',k!=='cash');
+ document.getElementById('payCard').classList.toggle('hidden',k!=='card');
+ document.getElementById('payQr').classList.toggle('hidden',k!=='qr');
+ if(k==='qr'){document.getElementById('qrOk').classList.add('hidden');setTimeout(function(){document.getElementById('qrOk').classList.remove('hidden');},1500);}}
+function donePay(){closeM('mPay');printRcp();}
+function printRcp(){var d=new Date();
+ var rows=CART.map(function(x){var g=GOODS[x.i];return '<div class="row"><span>'+esc(g.n)+' ×'+x.q+'</span><span>'+money(g.p*x.q)+'</span></div>';}).join('');
+ var pm=PAYK==='cash'?'Наличные':PAYK==='card'?'Карта':'Kaspi QR';
+ document.getElementById('rcpBody').innerHTML='<div class="c b">BEAUTY MIX · Атырау, Сатпаева 12</div><div class="c">ИП «Beauty Mix» · Чек № '+CHKNO+'</div><div class="c">Кассир: '+CSR+'</div><hr>'+rows+
+  (DSC?'<div class="row"><span>Скидка '+DSC+'%</span><span>−'+money(total()-totalD())+'</span></div>':'')+
+  '<hr><div class="row b"><span>ИТОГО</span><span>'+money(totalD())+'</span></div><div class="row"><span>Оплата</span><span>'+pm+'</span></div><hr>'+
+  '<div class="fis">'+(OFF?'⏳ ОФД: чек в буфере — уйдёт при появлении связи':'ФИСКАЛЬНЫЙ ЧЕК · онлайн-ККМ Webkassa<br><b>✓ отправлен в ОФД</b> · ФП 00087'+CHKNO)+'</div>';
+ document.getElementById('rcpNote').innerHTML=OFF
+  ?'Интернета нет — чек лёг в <b>офлайн-буфер</b> ('+(++BUF)+'). Продажи не останавливаются, всё досинхронизируется само.'
+  :'Остаток точки <b>списан мгновенно</b> · чек уже в выручке пульта Раисы · продажа начислена в отчётный лист ЗП кассира.';
+ openM('mRcp');CHKNO++;document.getElementById('chkNo').textContent=CHKNO;CART=[];DSC=0;renderChk();}
+function toggleNet(){OFF=!OFF;var n=document.getElementById('net');n.classList.toggle('off',OFF);
+ document.getElementById('netT').textContent=OFF?'Офлайн · буфер чеков':'Онлайн · синх с порталом';
+ if(!OFF&&BUF){toast('Связь появилась: <b>'+BUF+' чек(а) из буфера</b> досинхронизированы с порталом и ОФД.');BUF=0;}
+ else if(OFF)toast('Интернет пропал — касса <b>продолжает пробивать</b>: чеки копятся в буфере и уйдут сами.');}
+function openM(id){document.getElementById(id).classList.add('on');}
+function closeM(id){document.getElementById(id).classList.remove('on');}
+var tt;function toast(h){var t=document.getElementById('toast');t.innerHTML=h;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on');},4200);}
+renderPin();renderCats();renderTiles();renderChk();
+</script>
+</body></html>
