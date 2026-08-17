@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<script src="/app/gate.js"></script>
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ТЗ · CRM + абонементы для пункта замены масла · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<style>
+:root{--ink:#17212B;--acc:#E8720C;--muted:#75828F;--line:#E3E8EE;--off:#F7F9FB;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:14mm 15mm}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',Arial,sans-serif;color:#212a34;font-size:13.5px;line-height:1.6;background:#eef1f5}
+.bar{max-width:880px;margin:18px auto 0;padding:0 16px;display:flex;gap:12px;align-items:center;justify-content:space-between}
+.bar .t{font-size:14px;font-weight:800}
+.bar button{border:none;border-radius:10px;padding:10px 18px;font-size:13.5px;font-weight:800;background:var(--acc);color:#fff;cursor:pointer;font-family:inherit}
+.doc{max-width:880px;margin:14px auto 60px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:46px 52px;box-shadow:0 10px 28px -18px rgba(16,24,32,.25);font-size:12.5px}
+.dhead{text-align:center;margin-bottom:8px}
+.dhead .t{font-size:17px;font-weight:900;text-transform:uppercase}
+.dhead .s{font-size:12.5px;font-weight:700;margin-top:3px}
+.dhead .m{font-size:11px;color:var(--muted);margin-top:5px}
+h2{font-size:13px;font-weight:800;margin:15px 0 6px;color:var(--ink)}
+h2 .n{color:var(--acc)}
+p,.pt{margin-bottom:6px;text-align:justify}
+.pt .n{font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:11.5px;margin:6px 0 10px}
+th{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;font-weight:800;padding:6px 8px;border-bottom:1.5px solid var(--line)}
+td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+td.k{width:26%;color:var(--muted)}
+tr:nth-child(even) td{background:var(--off)}
+.note{background:var(--off);border:1px dashed var(--line);border-radius:9px;padding:9px 12px;font-size:11.5px;margin:8px 0}
+.sig{margin-top:22px;display:flex;justify-content:space-between;gap:30px;font-size:12px}
+.sig .s{flex:1}
+.sig .ln{margin-top:26px;border-top:1px solid #99a1ad;padding-top:4px;color:var(--muted);font-size:11px}
+@media print{
+  body{background:#fff}
+  .bar{display:none}
+  .doc{border:none;box-shadow:none;border-radius:0;padding:0;margin:0;max-width:none;font-size:10.4px;line-height:1.48}
+  h2{page-break-after:avoid;margin:10px 0 4px}
+  .pt,p{orphans:3;widows:3;margin-bottom:3.5px}
+  table{font-size:9.6px;margin:4px 0 7px}
+  td,th{padding:4px 7px}
+  .sig{page-break-inside:avoid}
+}
+</style></head>
+<body>
+<div class="bar"><div class="t">ТЗ · CRM + абонементы для пункта замены масла (проект, к договору)</div><button onclick="window.print()">🖨 Печать / Сохранить PDF</button></div>
+<div class="doc">
+  <div class="dhead">
+    <div class="t">Техническое задание</div>
+    <div class="s">на разработку CRM-системы с модулем абонементов для пункта замены масла<br>(рабочее название «Маслянка PRO» — заменяется на бренд Заказчика)</div>
+    <div class="m">Заказчик: пункт замены масла, г. Атырау (Аймурат) · Исполнитель: ИП «STUDYSTORIES.APP» (Pllato)<br>Версия 1.0 (проект) · 17 августа 2026 г. · по итогам встречи 17.08.2026 · уточняется на этапе согласования ядра</div>
+  </div>
+
+  <h2><span class="n">1.</span> Назначение</h2>
+  <div class="pt"><span class="n">1.1.</span> Веб-система (работает в браузере, включая телефон): единая очередь обращений WhatsApp/Instagram/звонки, база клиентов с напоминаниями, запись в сетку постов, модуль годовых абонементов, мини-склад со связкой Umag, аналитика. Цель: ни одно горячее обращение не теряется (ответ до минуты), точка продаёт абонементы «на будущее» и загружается от базы, а не только от заездов.</div>
+  <div class="pt"><span class="n">1.2.</span> Чат-боты на первичных продажах не используются (зафиксировано на встрече): отвечает человек, система даёт ему очередь, шаблоны, цены/наличие и сетку. Автоматика применяется в сервисных сценариях: напоминания, подтверждения записи, календарь абонементов.</div>
+
+  <h2><span class="n">2.</span> Заявки · воронка</h2>
+  <div class="pt"><span class="n">2.1.</span> Все обращения (WhatsApp, Instagram Direct, телефон — фиксация вручную) падают в одну очередь с <b>таймером времени без ответа</b>; горячие подсвечиваются. Ответ с любого устройства; шаблоны с автоподстановкой цены и наличия из склада и свободных слотов из сетки. Стадии: обращение → консультация → выбор времени → записан → в работе → выехал/закрыт. Конверсия по стадиям.</div>
+
+  <h2><span class="n">3.</span> Абонементы</h2>
+  <div class="pt"><span class="n">3.1.</span> Конструктор тарифов (состав, цена, срок, число замен): «легковая · год», «такси · ежемесячно», «семейный · 2 авто» и др. Цены корректируются в настройках (риск изменения цен масла — на стороне тарифов).</div>
+  <div class="pt"><span class="n">3.2.</span> Продажа и учёт: активные абонементы, остаток замен, срок действия; <b>календарь абонементов</b> — кому пора замена/продление, автонапоминания в WhatsApp, продление со скидкой.</div>
+  <div class="pt"><span class="n">3.3.</span> «Приведи друга»: кэшбэк (например 5 000 ₸) за приведённого клиента, учёт начислений и выплат.</div>
+
+  <h2><span class="n">4.</span> База клиентов</h2>
+  <div class="pt"><span class="n">4.1.</span> Контакты сохраняются автоматически из чатов, звонков и визитов: авто (марка/год/объём), история замен, сегмент (таксист / коммерческий / обычный), интервал замены по сегменту и истории. Автонапоминания «пора менять масло» с кнопкой записи; кампании по «спящим» (6+ месяцев).</div>
+
+  <h2><span class="n">5.</span> Запись · сетка · заказ-наряды</h2>
+  <div class="pt"><span class="n">5.1.</span> Сетка слотов по постам (график настраивается), запись из чата в 2 клика, подтверждение клиенту автоматически. Статусы визита: записан → заехал → в работе → выехал. Заказ-наряд: работы, масло/фильтры (списывают склад), сумма — ложится в историю клиента и аналитику.</div>
+
+  <h2><span class="n">6.</span> Мини-склад · Umag</h2>
+  <div class="pt"><span class="n">6.1.</span> Масла, фильтры, жидкости: остатки, минимумы, лист дозаказа. Связка с Umag (формат согласуется на ядре: синхронизация остатков либо перенос учёта в систему). Цены для ответов в чате берутся из склада.</div>
+
+  <h2><span class="n">7.</span> Отдел продаж</h2>
+  <div class="pt"><span class="n">7.1.</span> Дневное задание менеджеру: список обзвона из базы (приоритет: «пора менять», истекающие абонементы, спящие), скрипт, фиксация итога звонка, план/факт продаж, конверсия менеджера.</div>
+
+  <h2><span class="n">8.</span> Аналитика</h2>
+  <div class="pt"><span class="n">8.1.</span> Выручка (сервис/абонементы), средний чек, повторные, топ-продукты, загрузка постов, эффективность напоминаний и обзвона. Выгрузка в Excel.</div>
+
+  <h2><span class="n">9.</span> Роли и безопасность</h2>
+  <div class="pt"><span class="n">9.1.</span> Роли: собственник, менеджер продаж, мастер точки, оператор. Матрица прав, журнал действий, резервное копирование, HTTPS. Работа с телефона — полноценная.</div>
+
+  <h2><span class="n">10.</span> Этапы, сроки, приёмка</h2>
+  <table><thead><tr><th>Этап</th><th>Содержание</th><th>Срок</th></tr></thead><tbody>
+    <tr><td class="k">1 · Ядро</td><td>Воронка с таймером, база, сетка записи — показ и согласование</td><td>недели 2–3</td></tr>
+    <tr><td class="k">2 · Полировка</td><td>Абонементы, Umag, отдел продаж, аналитика, правки</td><td>недели 3–5</td></tr>
+    <tr><td class="k">3 · Запуск</td><td>Перенос контактов, обучение, боевой запуск</td><td>недели 5–6</td></tr>
+  </tbody></table>
+  <div class="pt"><span class="n">10.1.</span> Срок — 4–6 недель. Оплата: 10% предоплата (150 000 ₸), 45% после ядра (675 000 ₸), 45% после сдачи (675 000 ₸) — постоплата. Гарантия 6 месяцев, обучение «на пальцах». Права на систему, код и данные — у Заказчика после полной оплаты.</div>
+
+  <div class="note">От Заказчика: номера WhatsApp и Instagram для подключения, доступ к Umag (или выгрузка номенклатуры), тарифы абонементов для старта (посчитаем вместе с учётом цен масла), контакт для согласований раз в неделю.</div>
+
+  <div class="sig"><div class="s"><b>Исполнитель:</b><div class="ln">____________________ / Цай П. / М.П.</div></div><div class="s"><b>Заказчик:</b><div class="ln">____________________ / Аймурат / М.П.</div></div></div>
+</div>
+</body></html>

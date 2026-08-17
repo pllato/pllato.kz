@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#101820"/>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
+<title>МАСЛЯНКА · CRM пункта замены масла — Демо</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --acc:#E8720C; --acc2:#FFA24D; --accD:#B85608; --accSoft:rgba(232,114,12,.12);
+  --bg:#F4F6F8; --card:#ffffff; --side:#101820; --ink:#17212B; --ink2:#45525F; --muted:#75828F; --faint:#A0ABB6;
+  --line:#E3E8EE; --off:#F7F9FB; --grn:#16a34a; --red:#e0483d; --amb:#d97706; --blue:#2563eb; --wa:#25D366;
+  --sh2:0 3px 12px -6px rgba(16,24,32,.13);
+}
+:root[data-theme="dark"]{
+  --bg:#0D141B; --card:#151F29; --side:#0A1118; --ink:#EDF2F7; --ink2:#C3CDD7; --muted:#8794A1; --faint:#4F5D6B;
+  --line:#25313E; --off:#111A23; --accSoft:rgba(232,114,12,.2); --sh2:0 6px 18px -8px rgba(0,0,0,.5);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+a{color:inherit;text-decoration:none}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+.hidden{display:none!important}
+.gate{position:fixed;inset:0;z-index:80;background:linear-gradient(150deg,#0a1016,#14202c 60%,#23374a);display:grid;place-items:center;padding:22px;overflow:auto}
+.gate .in{position:relative;max-width:940px;width:100%;text-align:center;color:#fff}
+.gate .em{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--accD));display:grid;place-items:center;margin:0 auto 14px;font-size:28px;border:1px solid rgba(255,255,255,.25)}
+.gate h1{font-size:clamp(22px,3.6vw,33px);font-weight:900;letter-spacing:-.02em}
+.gate h1 b{color:var(--acc2)}
+.gate .sub{color:#c3d2e0;font-size:14.5px;margin:10px auto 24px;max-width:700px}
+.gate .rgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+@media(max-width:860px){.gate .rgrid{grid-template-columns:repeat(2,1fr)}}
+.rolecard{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.11);border-radius:14px;padding:15px 12px;text-align:left;cursor:pointer;transition:.15s}
+.rolecard:hover{background:rgba(255,255,255,.11);border-color:var(--acc2);transform:translateY(-2px)}
+.rolecard .ri{font-size:21px;margin-bottom:7px}
+.rolecard .rn{font-weight:800;font-size:13.5px;color:#fff}
+.rolecard .rd{font-size:10.5px;color:#c3d2e0;margin-top:3px;line-height:1.4}
+.gate .foot{margin-top:20px;font-size:12px;color:#8fa2b5}
+.gate .foot b{color:#d9e4ee}
+.app{display:grid;grid-template-columns:244px 1fr;height:100vh}
+.side{background:var(--side);color:#c6d1dc;display:flex;flex-direction:column;overflow:hidden}
+.side .brand{padding:15px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px}
+.side .bl{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--acc),var(--accD));display:grid;place-items:center;flex:none;font-size:19px}
+.side .bn{font-weight:900;font-size:14.5px;color:#fff;letter-spacing:.04em}
+.side .bs{font-size:9.5px;color:#8fa2b5;margin-top:1px}
+.nav{flex:1;overflow-y:auto;padding:8px 10px}
+.nav .g{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:#5d7185;font-weight:800;padding:12px 12px 5px}
+.nav a{display:flex;align-items:center;gap:10px;padding:8.5px 12px;border-radius:9px;font-size:13px;font-weight:500;color:#aebac6;transition:.12s;position:relative}
+.nav a:hover{background:rgba(255,255,255,.05);color:#fff}
+.nav a.on{background:linear-gradient(90deg,var(--accSoft),transparent);color:#fff}
+.nav a.on::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:3px;background:var(--acc2)}
+.nav a .ic{width:18px;text-align:center;font-size:14px}
+.nav a .cnt{margin-left:auto;font-size:10.5px;font-weight:700;background:rgba(255,255,255,.09);border-radius:20px;padding:1px 7px}
+.nav a .cnt.r{background:var(--red);color:#fff}
+.side .usr{padding:11px 12px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px}
+.side .usr .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--acc),#d3a24b);display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;flex:none}
+.side .usr .un{font-size:12.5px;font-weight:600;color:#eef4fa}.side .usr .ur{font-size:10.5px;color:#8fa2b5}
+.main{display:flex;flex-direction:column;min-width:0;height:100vh}
+.topbar{display:flex;align-items:center;gap:13px;padding:11px 22px;border-bottom:1px solid var(--line);background:var(--card);flex-wrap:wrap}
+.topbar .tt{font-size:17px;font-weight:800}
+.topbar .ts{font-size:12px;color:var(--muted);margin-top:1px}
+.topbar .sp{flex:1}
+.bwa{display:inline-flex;align-items:center;gap:7px;background:color-mix(in srgb,var(--wa) 13%,transparent);color:#128C4B;font-size:11.5px;font-weight:700;padding:6px 11px;border-radius:20px}
+.bwa .d{width:7px;height:7px;border-radius:50%;background:var(--wa)}
+select.rolesel{background:var(--off);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:12.5px;font-weight:600;color:var(--ink);font-family:inherit;outline:none}
+.tbtn{width:37px;height:37px;border-radius:10px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;font-size:15px}
+.body{flex:1;overflow-y:auto;padding:20px 22px}
+.screen{display:none;animation:fade .22s ease}.screen.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:13px 15px;box-shadow:var(--sh2)}
+.kpi .l{font-size:11px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
+.kpi .l .i{width:22px;height:22px;border-radius:7px;background:var(--accSoft);display:grid;place-items:center;font-size:11px}
+.kpi .v{font-size:19px;font-weight:900;letter-spacing:-.02em;margin-top:7px}
+.kpi .v.up{color:var(--grn)}.kpi .v.acc{color:var(--accD)}.kpi .v.amb{color:var(--amb)}.kpi .v.red{color:var(--red)}.kpi .v.bl{color:var(--blue)}
+.kpi .d{font-size:10.5px;color:var(--muted);margin-top:2px}
+.grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:13px;margin-bottom:13px}
+.grid2.eq{grid-template-columns:1fr 1fr}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--sh2);margin-bottom:13px}
+.card .ct{font-size:13.5px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.card .ct .mini{font-size:11px;color:var(--muted);font-weight:600}
+.hint{background:var(--off);border:1px dashed var(--line);border-radius:10px;padding:9px 12px;font-size:11.5px;color:var(--ink2);line-height:1.55}
+.hint b{color:var(--ink)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;font-weight:800;padding:7px 9px;border-bottom:1px solid var(--line)}
+td{padding:8px 9px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:hover td{background:var(--off)}
+th.r,td.r{text-align:right}
+.tag{display:inline-block;font-size:10px;font-weight:800;border-radius:20px;padding:2px 9px;white-space:nowrap}
+.tag.g{background:color-mix(in srgb,var(--grn) 13%,transparent);color:var(--grn)}
+.tag.y{background:color-mix(in srgb,var(--amb) 14%,transparent);color:var(--amb)}
+.tag.r{background:color-mix(in srgb,var(--red) 13%,transparent);color:var(--red)}
+.tag.b{background:var(--accSoft);color:var(--accD)}
+.tag.wa{background:color-mix(in srgb,var(--wa) 14%,transparent);color:#128C4B}
+.tag.ig{background:rgba(193,53,132,.12);color:#C13584}
+.btn{border-radius:10px;padding:8px 15px;font-size:12.5px;font-weight:800;transition:.12s}
+.btn.pri{background:var(--acc);color:#fff}.btn.pri:hover{background:var(--accD)}
+.btn.grn{background:var(--grn);color:#fff}
+.btn.ghost{border:1px solid var(--line);color:var(--ink2);background:var(--card)}
+.att{display:flex;flex-direction:column;gap:7px}
+.att .a{display:flex;gap:10px;align-items:flex-start;background:var(--off);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+.att .a .ai{width:25px;height:25px;border-radius:8px;display:grid;place-items:center;font-size:12px;flex:none}
+.att .a.r .ai{background:color-mix(in srgb,var(--red) 14%,transparent)}.att .a.y .ai{background:color-mix(in srgb,var(--amb) 15%,transparent)}.att .a.g .ai{background:color-mix(in srgb,var(--grn) 14%,transparent)}.att .a.p .ai{background:var(--accSoft)}
+.att .a .tx{font-size:12px;line-height:1.45}.att .a .tx .s{color:var(--muted);font-size:11px}
+.att .a .tx b{color:var(--ink)}
+/* сетка записи */
+.slots{display:grid;grid-template-columns:70px repeat(2,1fr);gap:6px}
+.slots .h{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;padding:4px 6px}
+.slots .t{font-size:11px;color:var(--muted);font-weight:700;padding:9px 6px;text-align:right}
+.slot{border:1px solid var(--line);border-radius:9px;padding:7px 10px;font-size:11.5px;background:var(--off);min-height:38px}
+.slot.busy{background:var(--accSoft);border-color:#f0c193}
+.slot.busy b{display:block;font-size:11.5px}
+.slot.busy .s{font-size:10px;color:var(--muted)}
+.slot.done{background:color-mix(in srgb,var(--grn) 8%,transparent);border-color:color-mix(in srgb,var(--grn) 30%,transparent)}
+.slot.free{display:grid;place-items:center;color:var(--faint);font-weight:700;cursor:pointer;transition:.12s}
+.slot.free:hover{border-color:var(--acc2);color:var(--acc)}
+/* таймер очереди */
+.qrow{display:flex;gap:10px;align-items:center;background:var(--off);border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-bottom:8px}
+.qrow .av2{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;font-size:13px;flex:none}
+.qrow .nm{font-size:12.5px;font-weight:700}
+.qrow .s{font-size:11px;color:var(--muted)}
+.qrow .tm{margin-left:auto;font-size:14px;font-weight:900;font-variant-numeric:tabular-nums}
+.qrow.hot{border-color:#f3b0a9;background:color-mix(in srgb,var(--red) 6%,transparent)}
+.qrow.hot .tm{color:var(--red)}
+.qrow .ans{flex:none}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(90px);background:#101820;color:#fff;border-radius:13px;padding:12px 18px;font-size:13px;z-index:90;transition:.25s;max-width:92vw;text-align:center;opacity:0;border:1px solid rgba(255,255,255,.12)}
+.toast.on{transform:translateX(-50%);opacity:1}
+.toast b{color:var(--acc2)}
+.mtoggle{display:none}
+@media(max-width:900px){.app{grid-template-columns:1fr}.side{position:fixed;inset:0 30% 0 0;z-index:60;transform:translateX(-100%);transition:.22s}.side.open{transform:none}.kpis{grid-template-columns:1fr 1fr}.grid2,.grid2.eq{grid-template-columns:1fr}.slots{grid-template-columns:54px 1fr}}
+</style></head>
+<body>
+
+<div class="gate" id="gate">
+  <div class="in">
+    <div class="em">🛢️</div>
+    <h1>МАСЛЯНКА · <b>CRM + абонементы</b></h1>
+    <div class="sub">Пункт замены масла, Атырау. Ни один горячий клиент не сливается: WhatsApp и Instagram в одной воронке с таймером ответа, база клиентов с напоминаниями, запись в сетку — и главное: <b>продажа годовых абонементов</b>. Выберите роль:</div>
+    <div class="rgrid" id="rgrid"></div>
+    <div class="foot">Демо-режим · данные вымышлены · собрано <b>Pllato</b> по встрече 17.08 · рабочее название — заменим на ваше</div>
+  </div>
+</div>
+
+<div class="app hidden" id="app">
+  <aside class="side" id="side">
+    <div class="brand"><div class="bl">🛢️</div><div><div class="bn">МАСЛЯНКА</div><div class="bs">замена масла · Атырау</div></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="usr"><div class="av" id="uav">А</div><div><div class="un" id="uname">Аймурат</div><div class="ur" id="urole">Собственник</div></div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <button class="mtoggle tbtn" id="mtoggle">☰</button>
+      <div><div class="tt" id="pageTitle">Пульт</div><div class="ts" id="pageSub"></div></div>
+      <span class="sp"></span>
+      <span class="bwa"><span class="d"></span>WhatsApp + Instagram · в воронке</span>
+      <select class="rolesel" id="roleSel"></select>
+      <button class="tbtn" id="themeBtn">🌙</button>
+    </div>
+    <div class="body">
+
+      <!-- ПУЛЬТ -->
+      <div class="screen on" data-s="dash">
+        <div class="kpis">
+          <div class="kpi"><div class="l"><span class="i">🔥</span>Обращения сегодня</div><div class="v acc">11</div><div class="d">WhatsApp 7 · Instagram 3 · звонок 1</div></div>
+          <div class="kpi"><div class="l"><span class="i">⚡</span>Средний ответ</div><div class="v up">48 сек</div><div class="d">было: часы с личного номера</div></div>
+          <div class="kpi"><div class="l"><span class="i">🎟️</span>Абонементов активно</div><div class="v bl">37</div><div class="d">+4 продано на этой неделе</div></div>
+          <div class="kpi"><div class="l"><span class="i">💰</span>Выручка · август</div><div class="v up">2,84 млн ₸</div><div class="d">сервис + абонементы</div></div>
+        </div>
+        <div class="grid2">
+          <div class="card" style="margin-bottom:0"><div class="ct">Требует внимания</div>
+            <div class="att">
+              <div class="a r"><div class="ai">🔥</div><div class="tx"><b>Горячий клиент ждёт 2:41</b> — «Камри 2015, масло есть?» · WhatsApp. <span class="s">не ответим — уедет к соседям</span></div></div>
+              <div class="a y"><div class="ai">📞</div><div class="tx"><b>12 клиентов — подошёл срок замены</b> — в списке обзвона у менеджера. <span class="s">таксисты: раз в месяц · обычные: 3–6 мес</span></div></div>
+              <div class="a p"><div class="ai">🎟️</div><div class="tx"><b>3 абонемента истекают в сентябре</b> — предложить продление со скидкой.</div></div>
+              <div class="a g"><div class="ai">📦</div><div class="tx"><b>Castrol 5W-30 заканчивается</b> — остаток 6 канистр, в заказ поставщику.</div></div>
+            </div></div>
+          <div class="card" style="margin-bottom:0"><div class="ct">Экономика точки <span class="mini">к цели: точка загружена на 100%</span></div>
+            <table><tbody>
+              <tr><td>Записей сегодня</td><td class="r"><b>14 / 20 слотов</b></td></tr>
+              <tr><td>Средний чек</td><td class="r"><b>16 400 ₸</b></td></tr>
+              <tr><td>Продаж абонементов · авг</td><td class="r"><b>11 шт · 484 000 ₸</b></td></tr>
+              <tr><td>Повторные клиенты</td><td class="r"><b>62%</b></td></tr>
+              <tr><td>Приведи друга · кэшбэки</td><td class="r"><b>8 выплат · 40 000 ₸</b></td></tr>
+            </tbody></table>
+            <div class="hint" style="margin-top:10px">Загрузка растёт → излишек спроса виден в цифрах → решение об открытии 2-й точки принимается на данных.</div></div>
+        </div>
+      </div>
+
+      <!-- ВОРОНКА -->
+      <div class="screen" data-s="funnel">
+        <div class="kpis">
+          <div class="kpi"><div class="l"><span class="i">💬</span>В очереди сейчас</div><div class="v red">2</div><div class="d">таймер ответа тикает</div></div>
+          <div class="kpi"><div class="l"><span class="i">⚡</span>Ответ до минуты</div><div class="v up">86%</div><div class="d">цель — 100%</div></div>
+          <div class="kpi"><div class="l"><span class="i">📅</span>Записаны сегодня</div><div class="v acc">14</div><div class="d">из 11 обращений + база</div></div>
+          <div class="kpi"><div class="l"><span class="i">📈</span>Конверсия в запись</div><div class="v">64%</div><div class="d">обращение → запись</div></div>
+        </div>
+        <div class="card"><div class="ct">Очередь обращений — WhatsApp · Instagram · звонки <span class="mini">таймер: горячий клиент не ждёт</span></div>
+          <div class="qrow hot">
+            <div class="av2" style="background:#C13584">Н</div>
+            <div><div class="nm">Нурлан · Камри 2015, 2.5</div><div class="s"><span class="tag ig">Instagram</span> «Масло есть? Сколько будет с работой?»</div></div>
+            <span class="tm" id="hotTimer">2:41</span>
+            <button class="btn pri ans" onclick="answerHot(this)">Ответить + записать</button>
+          </div>
+          <div class="qrow">
+            <div class="av2" style="background:#25a05a">Б</div>
+            <div><div class="nm">Бауыржан · Соната, такси</div><div class="s"><span class="tag wa">WhatsApp</span> «Завтра утром можно заехать?»</div></div>
+            <span class="tm">0:19</span>
+            <button class="btn ghost ans" onclick="toast('Ответ отправлен, предложены слоты завтра 09:00 / 10:00 — <b>клиент выбирает, запись падает в сетку</b>.')">Предложить время</button>
+          </div>
+          <div class="hint" style="margin-top:10px">Все каналы падают в одну очередь — отвечает <b>один человек с любого устройства</b>, а не «кто увидел в личке». Шаблоны ответов: цена+наличие подставляются из склада, время — из сетки записи. Никакого бота на продажах — <b>живой ответ за минуту</b>, как договорились на встрече.</div></div>
+        <div class="card"><div class="ct">Воронка · от обращения до выезда <span class="mini">сегодня</span></div>
+          <table><thead><tr><th>Клиент</th><th>Канал</th><th>Запрос</th><th>Стадия</th><th class="r">Чек</th></tr></thead><tbody>
+            <tr><td><b>Нурлан · Камри 2015</b></td><td><span class="tag ig">Instagram</span></td><td>масло + фильтр</td><td><span class="tag r">Ждёт ответа</span></td><td class="r">≈18 000</td></tr>
+            <tr><td><b>Бауыржан · Соната</b></td><td><span class="tag wa">WhatsApp</span></td><td>замена завтра</td><td><span class="tag y">Выбор времени</span></td><td class="r">≈14 500</td></tr>
+            <tr><td><b>Айгерим · RAV4</b></td><td><span class="tag wa">WhatsApp</span></td><td>масло + антифриз</td><td><span class="tag b">Записана · 16:00</span></td><td class="r">≈24 000</td></tr>
+            <tr><td><b>Мурат · Газель</b></td><td><span class="tag b">Звонок</span></td><td>масло, срочно</td><td><span class="tag g">В работе · бокс 1</span></td><td class="r">19 800</td></tr>
+            <tr><td><b>Салтанат · Элантра</b></td><td><span class="tag wa">WhatsApp</span></td><td>абонемент — вопрос</td><td><span class="tag g">Продан абонемент ✓</span></td><td class="r">44 000</td></tr>
+          </tbody></table></div>
+      </div>
+
+      <!-- АБОНЕМЕНТЫ (WOW) -->
+      <div class="screen" data-s="abon">
+        <div class="kpis">
+          <div class="kpi"><div class="l"><span class="i">🎟️</span>Активные абонементы</div><div class="v acc">37</div><div class="d">1 628 000 ₸ предоплачено</div></div>
+          <div class="kpi"><div class="l"><span class="i">📅</span>Продлить в сентябре</div><div class="v amb">3</div><div class="d">напоминания уйдут сами</div></div>
+          <div class="kpi"><div class="l"><span class="i">🤝</span>Приведи друга</div><div class="v">8</div><div class="d">кэшбэк 5 000 ₸ · выплачено 40 000</div></div>
+          <div class="kpi"><div class="l"><span class="i">💰</span>Продажи · август</div><div class="v up">11 шт</div><div class="d">484 000 ₸ живыми деньгами вперёд</div></div>
+        </div>
+        <div class="card"><div class="ct">Абонементы — продажа на будущее <span class="mini">деньги вперёд · клиент привязан к вашей точке</span></div>
+          <table><thead><tr><th>Абонемент</th><th class="r">Цена</th><th>Что входит</th><th class="r">Продано</th></tr></thead><tbody>
+            <tr><td><b>«Год без забот» · легковая</b></td><td class="r">44 000 ₸</td><td>2 замены масла + фильтры + диагностика жидкостей</td><td class="r">21</td></tr>
+            <tr><td><b>«Такси» · ежемесячный</b></td><td class="r">96 000 ₸/год</td><td>12 замен · приоритетная запись без очереди</td><td class="r">9</td></tr>
+            <tr><td><b>«Семейный» · 2 авто</b></td><td class="r">79 000 ₸</td><td>4 замены на два авто + антифриз зимой</td><td class="r">7</td></tr>
+          </tbody></table>
+          <div class="hint" style="margin-top:11px"><b>Логика со встречи:</b> клиент и так потратит ~50 000 ₸ в год на замену — продаём абонемент за 44 000, он ездит только к вам. Цены абонементов корректируются под рынок масла (заложили риск подорожания — правится в настройках без программиста). «Приведи друга» — кэшбэк 5 000 ₸: таксисты приводят таксистов.</div></div>
+        <div class="grid2 eq">
+          <div class="card" style="margin-bottom:0"><div class="ct">Календарь абонементов <span class="mini">кому позвонить — система говорит сама</span></div>
+            <table><thead><tr><th>Клиент</th><th>Абонемент</th><th>Событие</th><th>Действие</th></tr></thead><tbody>
+              <tr><td><b>Ерлан · Camry</b></td><td>Год без забот</td><td><span class="tag y">Замена подошла · 3 мес</span></td><td><button class="btn ghost" style="padding:4px 10px;font-size:11px" onclick="toast('Напоминание отправлено в WhatsApp: «Ерлан, пора менять масло — записать вас на завтра?» + слоты.')">Напомнить</button></td></tr>
+              <tr><td><b>Бахыт · такси</b></td><td>Такси · мес</td><td><span class="tag y">Месяц прошёл</span></td><td><button class="btn ghost" style="padding:4px 10px;font-size:11px" onclick="toast('Бахыту ушло напоминание + предложение записи. Таксисты — раз в месяц, система помнит за вас.')">Напомнить</button></td></tr>
+              <tr><td><b>Салтанат · Элантра</b></td><td>истекает 09.26</td><td><span class="tag r">Продление</span></td><td><button class="btn ghost" style="padding:4px 10px;font-size:11px" onclick="toast('Предложение продления со скидкой 10% отправлено — <b>деньги на следующий год вперёд</b>.')">Продлить −10%</button></td></tr>
+            </tbody></table></div>
+          <div class="card" style="margin-bottom:0"><div class="ct">Отдел продаж · задание на день <span class="mini">менеджер продаёт, а не ждёт</span></div>
+            <div class="att">
+              <div class="a p"><div class="ai">📞</div><div class="tx"><b>Обзвон: 50 контактов из базы</b> — сегодня сделано 34. <span class="s">скрипт: абонемент вместо разовой замены</span></div></div>
+              <div class="a g"><div class="ai">🎯</div><div class="tx"><b>Продажи сегодня: 2 абонемента · 88 000 ₸</b> <span class="s">план: 2–3 в день</span></div></div>
+              <div class="a y"><div class="ai">🔁</div><div class="tx"><b>12 «подошёл срок» из базы</b> — приоритет в обзвоне. <span class="s">карточка: авто, история, интервал</span></div></div>
+            </div>
+            <div class="hint" style="margin-top:10px">Звонки прямо из карточки, итог фиксируется — конверсия менеджера видна в аналитике.</div></div>
+        </div>
+      </div>
+
+      <!-- ЗАПИСЬ -->
+      <div class="screen" data-s="sched">
+        <div class="kpis">
+          <div class="kpi"><div class="l"><span class="i">📅</span>Слотов сегодня</div><div class="v">20</div><div class="d">два поста · 09:00–19:00</div></div>
+          <div class="kpi"><div class="l"><span class="i">✅</span>Занято</div><div class="v acc">14</div><div class="d">загрузка 70%</div></div>
+          <div class="kpi"><div class="l"><span class="i">🔁</span>Из напоминаний</div><div class="v up">5</div><div class="d">база работает сама</div></div>
+          <div class="kpi"><div class="l"><span class="i">⏱️</span>Средняя замена</div><div class="v">28 мин</div><div class="d">заехал → выехал</div></div>
+        </div>
+        <div class="card"><div class="ct">Сетка записи · сегодня <span class="mini">пост 1 · пост 2 — клик по свободному слоту = запись</span></div>
+          <div class="slots">
+            <div class="h"></div><div class="h">Пост 1</div><div class="h">Пост 2</div>
+            <div class="t">14:00</div><div class="slot done"><b>Мурат · Газель</b><span class="s">выехал · 19 800 ₸</span></div><div class="slot done"><b>Аслан · Аккорд</b><span class="s">выехал · 16 200 ₸</span></div>
+            <div class="t">15:00</div><div class="slot busy"><b>Бахыт · такси</b><span class="s">в боксе · масло+фильтр</span></div><div class="slot free" onclick="toast('Слот забронирован. Клиенту ушло подтверждение в WhatsApp с адресом и временем.')">+ запись</div>
+            <div class="t">16:00</div><div class="slot busy"><b>Айгерим · RAV4</b><span class="s">записана · абонемент</span></div><div class="slot busy"><b>Ерлан · Camry</b><span class="s">записан · напоминание</span></div>
+            <div class="t">17:00</div><div class="slot free" onclick="toast('Слот забронирован.')">+ запись</div><div class="slot busy"><b>Дамир · Спортейдж</b><span class="s">записан</span></div>
+            <div class="t">18:00</div><div class="slot free" onclick="toast('Слот забронирован.')">+ запись</div><div class="slot free" onclick="toast('Слот забронирован.')">+ запись</div>
+          </div>
+          <div class="hint" style="margin-top:11px">Запись из чата в два клика: менеджер предлагает свободные слоты, клиент выбирает — подтверждение уходит само. Заехал → в работе → выехал: по каждому визиту заказ-наряд (что заменили, какое масло) — ложится в историю клиента и списывает склад.</div></div>
+      </div>
+
+      <!-- БАЗА -->
+      <div class="screen" data-s="clients">
+        <div class="kpis">
+          <div class="kpi"><div class="l"><span class="i">👥</span>Клиентов в базе</div><div class="v acc">418</div><div class="d">раньше: «не записываем вообще»</div></div>
+          <div class="kpi"><div class="l"><span class="i">🚕</span>Таксисты</div><div class="v">64</div><div class="d">интервал: каждый месяц</div></div>
+          <div class="kpi"><div class="l"><span class="i">🔔</span>Напоминания · авг</div><div class="v up">96</div><div class="d">→ 31 запись из базы</div></div>
+          <div class="kpi"><div class="l"><span class="i">💤</span>Спящие 6+ мес</div><div class="v amb">57</div><div class="d">кампания «вернись со скидкой»</div></div>
+        </div>
+        <div class="card"><div class="ct">База клиентов <span class="mini">каждый контакт сохраняется сам — из чата, звонка, визита</span></div>
+          <table><thead><tr><th>Клиент</th><th>Авто</th><th>Сегмент</th><th class="r">Визитов</th><th>Последняя замена</th><th>Следующая</th><th></th></tr></thead><tbody>
+            <tr><td><b>Бахыт</b></td><td>Соната · такси</td><td><span class="tag b">Такси</span></td><td class="r">14</td><td>18.07</td><td><span class="tag y">пора · 1 мес</span></td><td><button class="btn ghost" style="padding:4px 10px;font-size:11px" onclick="toast('Напоминание в WhatsApp отправлено.')">🔔</button></td></tr>
+            <tr><td><b>Ерлан</b></td><td>Camry 2018</td><td><span class="tag g">Абонемент</span></td><td class="r">5</td><td>12.05</td><td><span class="tag y">пора · 3 мес</span></td><td><button class="btn ghost" style="padding:4px 10px;font-size:11px" onclick="toast('Напоминание отправлено.')">🔔</button></td></tr>
+            <tr><td><b>Айгерим</b></td><td>RAV4 2021</td><td><span class="tag g">Абонемент</span></td><td class="r">3</td><td>02.06</td><td>ноябрь</td><td></td></tr>
+            <tr><td><b>Мурат</b></td><td>Газель · грузовая</td><td><span class="tag b">Коммерч.</span></td><td class="r">7</td><td>сегодня</td><td>октябрь</td><td></td></tr>
+            <tr><td><b>Салтанат</b></td><td>Элантра 2019</td><td><span class="tag g">Абонемент</span></td><td class="r">4</td><td>29.06</td><td>сентябрь</td><td></td></tr>
+          </tbody></table>
+          <div class="hint" style="margin-top:11px">Интервал замены — по сегменту и истории: таксисту напомним через месяц, обычному — через 3–6. Напоминание = запись в один клик. Спящих будим акцией — «сетка временная забита» без таргета.</div></div>
+      </div>
+
+      <!-- СКЛАД -->
+      <div class="screen" data-s="stock">
+        <div class="kpis">
+          <div class="kpi"><div class="l"><span class="i">🛢️</span>Масла · позиций</div><div class="v">34</div><div class="d">синхронизация с Umag</div></div>
+          <div class="kpi"><div class="l"><span class="i">📦</span>Фильтры</div><div class="v">120</div><div class="d">масляные · воздушные</div></div>
+          <div class="kpi"><div class="l"><span class="i">⚠️</span>Заканчивается</div><div class="v red">3</div><div class="d">в заказ поставщику</div></div>
+          <div class="kpi"><div class="l"><span class="i">💰</span>Склад в деньгах</div><div class="v acc">1,9 млн ₸</div><div class="d">по себестоимости</div></div>
+        </div>
+        <div class="card"><div class="ct">Остатки · мини-склад <span class="mini">каждая замена списывает сама · цена и наличие для ответа в чате</span></div>
+          <table><thead><tr><th>Позиция</th><th class="r">Остаток</th><th class="r">Мин.</th><th class="r">Цена</th><th>Статус</th></tr></thead><tbody>
+            <tr><td><b>Castrol Magnatec 5W-30 · 4л</b></td><td class="r">6</td><td class="r">10</td><td class="r">18 500 ₸</td><td><span class="tag r">Дозаказ</span></td></tr>
+            <tr><td><b>Shell Helix HX8 5W-40 · 4л</b></td><td class="r">18</td><td class="r">10</td><td class="r">16 900 ₸</td><td><span class="tag g">ОК</span></td></tr>
+            <tr><td><b>Лукойл Genesis 5W-40 · 4л</b></td><td class="r">24</td><td class="r">12</td><td class="r">12 400 ₸</td><td><span class="tag g">ОК</span></td></tr>
+            <tr><td><b>Фильтр масляный Toyota</b></td><td class="r">9</td><td class="r">8</td><td class="r">3 200 ₸</td><td><span class="tag y">На грани</span></td></tr>
+            <tr><td><b>Антифриз G12 · 5л</b></td><td class="r">4</td><td class="r">6</td><td class="r">7 800 ₸</td><td><span class="tag r">Дозаказ</span></td></tr>
+          </tbody></table>
+          <div class="hint" style="margin-top:11px">Остатки бьются с Umag (или переносим склад целиком — решим на ядре). Когда менеджер отвечает в чате «есть, 18 500 ₸» — цифры берутся отсюда, а не по памяти.</div></div>
+      </div>
+
+      <!-- АНАЛИТИКА -->
+      <div class="screen" data-s="reports">
+        <div class="kpis">
+          <div class="kpi"><div class="l"><span class="i">💰</span>Выручка · авг</div><div class="v up">2,84 млн ₸</div><div class="d">+31% к июлю</div></div>
+          <div class="kpi"><div class="l"><span class="i">🧾</span>Средний чек</div><div class="v acc">16 400 ₸</div><div class="d">сервис + товары</div></div>
+          <div class="kpi"><div class="l"><span class="i">🔁</span>Повторные</div><div class="v">62%</div><div class="d">база + абонементы работают</div></div>
+          <div class="kpi"><div class="l"><span class="i">🏆</span>Топ-продукт</div><div class="v">5W-30</div><div class="d">38% замен</div></div>
+        </div>
+        <div class="card"><div class="ct">Аналитика точки <span class="mini">решения на цифрах: вторая точка, закуп, акции</span></div>
+          <div class="att">
+            <div class="a g"><div class="ai">📈</div><div class="tx"><b>Записи из базы дают 36% выручки</b> — обзвон и напоминания окупают менеджера ×4. <span class="s">96 напоминаний → 31 запись</span></div></div>
+            <div class="a p"><div class="ai">🎟️</div><div class="tx"><b>Абонементы: 1,63 млн ₸ предоплачено</b> — деньги будущих замен уже в кассе. <span class="s">37 активных</span></div></div>
+            <div class="a y"><div class="ai">📊</div><div class="tx"><b>Загрузка постов 70% и растёт</b> — при стабильных 90% пора смотреть помещение под 2-ю точку. <span class="s">решение на данных — как на встрече</span></div></div>
+          </div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+var ROLES={
+ 'Собственник':{ic:'👑',d:'Пульт: выручка, абонементы, загрузка, склад',s:['dash','funnel','abon','sched','clients','stock','reports']},
+ 'Менеджер продаж':{ic:'📞',d:'Очередь чатов, обзвон базы, продажа абонементов',s:['funnel','abon','clients','sched']},
+ 'Мастер точки':{ic:'🔧',d:'Сетка записи, заказ-наряды, списание склада',s:['sched','stock','funnel']},
+ 'Оператор WhatsApp':{ic:'💬',d:'Ответы за минуту: цена, наличие, запись',s:['funnel','clients','sched']},
+};
+var NAVDEF=[['Продажи',[['dash','▦','Пульт'],['funnel','💬','Заявки · воронка'],['abon','🎟️','Абонементы'],['clients','👥','База клиентов']]],
+ ['Точка',[['sched','📅','Запись · сетка'],['stock','🛢️','Склад · Umag'],['reports','📊','Аналитика']]]];
+var TITLES={dash:['Пульт','Точка на ладони: заявки, абонементы, выручка'],funnel:['Заявки · воронка','WhatsApp + Instagram + звонки · таймер ответа'],abon:['Абонементы','Продажа на будущее · календарь · приведи друга'],clients:['База клиентов','Интервалы замены · напоминания · сегменты'],sched:['Запись · сетка','Слоты постов · заехал-выехал · заказ-наряд'],stock:['Склад','Масла и фильтры · связка с Umag'],reports:['Аналитика','Средний чек · повторные · загрузка']};
+var ROLE='Собственник';
+function renderGate(){document.getElementById('rgrid').innerHTML=Object.keys(ROLES).map(function(r){var m=ROLES[r];
+  return '<div class="rolecard" onclick="enter(\''+r.replace(/'/g,"\\'")+'\')"><div class="ri">'+m.ic+'</div><div class="rn">'+esc(r)+'</div><div class="rd">'+esc(m.d)+'</div></div>';}).join('');}
+function enter(r){ROLE=r;document.getElementById('gate').classList.add('hidden');document.getElementById('app').classList.remove('hidden');buildNav();nav(ROLES[r].s[0]);
+  setTimeout(function(){toast('Вход: <b>'+esc(r)+'</b>. Всё кликается — начните с «Заявки» и «Абонементы».');},250);}
+function buildNav(){var allowed=ROLES[ROLE].s;var html='';NAVDEF.forEach(function(gr){var items=gr[1].filter(function(it){return allowed.indexOf(it[0])>=0;});if(!items.length)return;html+='<div class="g">'+gr[0]+'</div>';items.forEach(function(it){html+='<a data-go="'+it[0]+'"><span class="ic">'+it[1]+'</span>'+it[2]+'</a>';});});
+  document.getElementById('nav').innerHTML=html;document.querySelectorAll('.nav a[data-go]').forEach(function(a){a.onclick=function(){nav(a.dataset.go);};});
+  var sel=document.getElementById('roleSel');sel.innerHTML=Object.keys(ROLES).map(function(r){return '<option'+(r===ROLE?' selected':'')+'>'+esc(r)+'</option>';}).join('');
+  sel.onchange=function(){ROLE=sel.value;document.getElementById('urole').textContent=ROLE;buildNav();nav(ROLES[ROLE].s[0]);};
+  document.getElementById('urole').textContent=ROLE;document.getElementById('uname').textContent=ROLE==='Собственник'?'Аймурат':ROLE;document.getElementById('uav').textContent=(ROLE==='Собственник'?'А':ROLE[0]);}
+function nav(s){document.querySelectorAll('.screen').forEach(function(x){x.classList.toggle('on',x.dataset.s===s);});document.querySelectorAll('.nav a').forEach(function(a){a.classList.toggle('on',a.dataset.go===s);});
+  var t=TITLES[s]||['',''];document.getElementById('pageTitle').textContent=t[0];document.getElementById('pageSub').textContent=t[1];document.getElementById('side').classList.remove('open');document.querySelector('.body').scrollTop=0;}
+function answerHot(btn){var row=btn.closest('.qrow');row.classList.remove('hot');row.querySelector('.tm').textContent='✓';btn.textContent='Записан · 17:00';btn.classList.remove('pri');btn.classList.add('grn');btn.onclick=null;
+  toast('Ответ ушёл: «Castrol 5W-30 есть, 18 500 ₸ + работа 3 000. Свободно сегодня 17:00 — записать?» <b>Цена и наличие — из склада, слот — из сетки.</b>');}
+var hotT=161;setInterval(function(){var el=document.getElementById('hotTimer');if(!el||el.textContent==='✓')return;hotT++;el.textContent=Math.floor(hotT/60)+':'+String(hotT%60).padStart(2,'0');},1000);
+var tt;function toast(h){var t=document.getElementById('toast');t.innerHTML=h;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on');},4800);}
+document.getElementById('themeBtn').onclick=function(){var r=document.documentElement;var d=r.getAttribute('data-theme')==='dark';if(d){r.removeAttribute('data-theme');}else{r.setAttribute('data-theme','dark');}this.textContent=d?'🌙':'☀️';};
+document.getElementById('mtoggle').onclick=function(){document.getElementById('side').classList.add('open');};
+renderGate();
+(function(){var q=new URLSearchParams(location.search);var s=q.get('s');
+ if(s){var role=Object.keys(ROLES).find(function(r){return ROLES[r].s.indexOf(s)>=0;})||'Собственник';enter(role);nav(s);}})();
+</script>
+</body></html>

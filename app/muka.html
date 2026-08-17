@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#241A0E"/>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
+<title>АЛТЫН ДӘН · Пульт комбината — Демо</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --acc:#C98A1B; --acc2:#E8B457; --accD:#9A6812; --accSoft:rgba(201,138,27,.12); --grain:#7A5A1F;
+  --bg:#F7F3EB; --card:#ffffff; --side:#241A0E; --ink:#26200F; --ink2:#54492E; --muted:#84775C; --faint:#AC9F84;
+  --line:#EAE2D2; --off:#FAF6EE; --grn:#16a34a; --red:#e0483d; --amb:#d97706; --blue:#2563eb;
+  --sh2:0 3px 12px -6px rgba(60,45,15,.14);
+}
+:root[data-theme="dark"]{
+  --bg:#171208; --card:#221B0E; --side:#100B05; --ink:#F4EEE0; --ink2:#D3C8AE; --muted:#9C8F72; --faint:#5F553E;
+  --line:#39301C; --off:#1C160B; --accSoft:rgba(201,138,27,.2); --sh2:0 6px 18px -8px rgba(0,0,0,.5);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+a{color:inherit;text-decoration:none}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+.hidden{display:none!important}
+.gate{position:fixed;inset:0;z-index:80;background:linear-gradient(150deg,#171006,#33240d 60%,#57400f);display:grid;place-items:center;padding:22px;overflow:auto}
+.gate .in{position:relative;max-width:980px;width:100%;text-align:center;color:#fff}
+.gate .em{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--acc),#9A6812);display:grid;place-items:center;margin:0 auto 14px;font-size:28px;border:1px solid rgba(255,255,255,.25)}
+.gate h1{font-size:clamp(22px,3.6vw,33px);font-weight:900;letter-spacing:-.02em}
+.gate h1 b{color:var(--acc2)}
+.gate .sub{color:#e3d2ae;font-size:14.5px;margin:10px auto 24px;max-width:720px}
+.gate .rgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+@media(max-width:900px){.gate .rgrid{grid-template-columns:repeat(2,1fr)}}
+.rolecard{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.11);border-radius:14px;padding:15px 12px;text-align:left;cursor:pointer;transition:.15s}
+.rolecard:hover{background:rgba(255,255,255,.11);border-color:var(--acc2);transform:translateY(-2px)}
+.rolecard .ri{font-size:21px;margin-bottom:7px}
+.rolecard .rn{font-weight:800;font-size:13.5px;color:#fff}
+.rolecard .rd{font-size:10.5px;color:#e3d2ae;margin-top:3px;line-height:1.4}
+.gate .foot{margin-top:20px;font-size:12px;color:#b3a382}
+.gate .foot b{color:#ecdec0}
+.app{display:grid;grid-template-columns:248px 1fr;height:100vh}
+.side{background:var(--side);color:#d8ccb2;display:flex;flex-direction:column;overflow:hidden}
+.side .brand{padding:15px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px}
+.side .bl{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--acc),#9A6812);display:grid;place-items:center;flex:none;font-size:19px}
+.side .bn{font-weight:900;font-size:14px;color:#fff;letter-spacing:.03em}
+.side .bs{font-size:9.5px;color:#b3a382;margin-top:1px}
+.nav{flex:1;overflow-y:auto;padding:8px 10px}
+.nav .g{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:#8a7b58;font-weight:800;padding:12px 12px 5px}
+.nav a{display:flex;align-items:center;gap:10px;padding:8.5px 12px;border-radius:9px;font-size:13px;font-weight:500;color:#c2b494;transition:.12s;position:relative}
+.nav a:hover{background:rgba(255,255,255,.05);color:#fff}
+.nav a.on{background:linear-gradient(90deg,var(--accSoft),transparent);color:#fff}
+.nav a.on::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:3px;background:var(--acc2)}
+.nav a .ic{width:18px;text-align:center;font-size:14px}
+.side .usr{padding:11px 12px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px}
+.side .usr .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--grain));display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;flex:none}
+.side .usr .un{font-size:12.5px;font-weight:600;color:#f6f0e2}.side .usr .ur{font-size:10.5px;color:#b3a382}
+.main{display:flex;flex-direction:column;min-width:0;height:100vh}
+.topbar{display:flex;align-items:center;gap:13px;padding:11px 22px;border-bottom:1px solid var(--line);background:var(--card);flex-wrap:wrap}
+.topbar .tt{font-size:17px;font-weight:800}
+.topbar .ts{font-size:12px;color:var(--muted);margin-top:1px}
+.topbar .sp{flex:1}
+.b1c{display:inline-flex;align-items:center;gap:7px;background:color-mix(in srgb,var(--grn) 12%,transparent);color:var(--grn);font-size:11.5px;font-weight:700;padding:6px 11px;border-radius:20px}
+.b1c .d{width:7px;height:7px;border-radius:50%;background:var(--grn)}
+select.rolesel{background:var(--off);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:12.5px;font-weight:600;color:var(--ink);font-family:inherit;outline:none}
+.tbtn{width:37px;height:37px;border-radius:10px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;font-size:15px}
+.body{flex:1;overflow-y:auto;padding:20px 22px}
+.screen{display:none;animation:fade .22s ease}.screen.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.kpis.six{grid-template-columns:repeat(6,1fr)}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:13px 15px;box-shadow:var(--sh2)}
+.kpi .l{font-size:11px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
+.kpi .l .i{width:22px;height:22px;border-radius:7px;background:var(--accSoft);display:grid;place-items:center;font-size:11px}
+.kpi .v{font-size:19px;font-weight:900;letter-spacing:-.02em;margin-top:7px}
+.kpi .v.up{color:var(--grn)}.kpi .v.acc{color:var(--accD)}.kpi .v.amb{color:var(--amb)}.kpi .v.red{color:var(--red)}.kpi .v.bl{color:var(--blue)}
+.kpi .d{font-size:10.5px;color:var(--muted);margin-top:2px}
+.grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:13px;margin-bottom:13px}
+.grid2.eq{grid-template-columns:1fr 1fr}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--sh2);margin-bottom:13px}
+.card .ct{font-size:13.5px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.card .ct .mini{font-size:11px;color:var(--muted);font-weight:600}
+.hint{background:var(--off);border:1px dashed var(--line);border-radius:10px;padding:9px 12px;font-size:11.5px;color:var(--ink2);line-height:1.55}
+.hint b{color:var(--ink)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;font-weight:800;padding:7px 9px;border-bottom:1px solid var(--line)}
+td{padding:8px 9px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:hover td{background:var(--off)}
+th.r,td.r{text-align:right}
+.tag{display:inline-block;font-size:10px;font-weight:800;border-radius:20px;padding:2px 9px;white-space:nowrap}
+.tag.g{background:color-mix(in srgb,var(--grn) 13%,transparent);color:var(--grn)}
+.tag.y{background:color-mix(in srgb,var(--amb) 14%,transparent);color:var(--amb)}
+.tag.r{background:color-mix(in srgb,var(--red) 13%,transparent);color:var(--red)}
+.tag.b{background:var(--accSoft);color:var(--accD)}
+.tag.bl{background:color-mix(in srgb,var(--blue) 12%,transparent);color:var(--blue)}
+/* производственный цикл */
+.cycle{display:flex;gap:0;overflow-x:auto;padding-bottom:4px}
+.cyc{flex:1;min-width:118px;position:relative;padding:12px 10px 12px 20px;background:var(--off);border:1px solid var(--line);margin-right:-1px}
+.cyc:first-child{border-radius:11px 0 0 11px;padding-left:14px}
+.cyc:last-child{border-radius:0 11px 11px 0}
+.cyc::after{content:"";position:absolute;right:-9px;top:50%;transform:translateY(-50%) rotate(45deg);width:16px;height:16px;background:var(--off);border-top:1px solid var(--line);border-right:1px solid var(--line);z-index:1}
+.cyc:last-child::after{display:none}
+.cyc.hl{background:var(--accSoft)}
+.cyc.hl::after{background:#F3E3C2}
+.cyc .ci{font-size:16px}
+.cyc .cn{font-size:11px;font-weight:800;margin-top:3px}
+.cyc .cv{font-size:10px;color:var(--muted);margin-top:2px;line-height:1.35}
+.att{display:flex;flex-direction:column;gap:7px}
+.att .a{display:flex;gap:10px;align-items:flex-start;background:var(--off);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+.att .a .ai{width:25px;height:25px;border-radius:8px;display:grid;place-items:center;font-size:12px;flex:none}
+.att .a.r .ai{background:color-mix(in srgb,var(--red) 14%,transparent)}.att .a.y .ai{background:color-mix(in srgb,var(--amb) 15%,transparent)}.att .a.g .ai{background:color-mix(in srgb,var(--grn) 14%,transparent)}.att .a.p .ai{background:var(--accSoft)}
+.att .a .tx{font-size:12px;line-height:1.45}.att .a .tx .s{color:var(--muted);font-size:11px}
+.att .a .tx b{color:var(--ink)}
+.hb{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.hb .lb{width:150px;font-size:11.5px;color:var(--ink2);font-weight:600;flex:none}
+.hb .tr2{flex:1;height:10px;border-radius:6px;background:var(--off);overflow:hidden}
+.hb .tr2 i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.hb .vv{font-size:11.5px;font-weight:800;width:90px;text-align:right;flex:none}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(90px);background:#241A0E;color:#fff;border-radius:13px;padding:12px 18px;font-size:13px;z-index:90;transition:.25s;max-width:92vw;text-align:center;opacity:0;border:1px solid rgba(255,255,255,.12)}
+.toast.on{transform:translateX(-50%);opacity:1}
+.toast b{color:var(--acc2)}
+.mtoggle{display:none}
+@media(max-width:900px){.app{grid-template-columns:1fr}.side{position:fixed;inset:0 30% 0 0;z-index:60;transform:translateX(-100%);transition:.22s}.side.open{transform:none}.mtoggle{display:grid}.kpis,.kpis.six{grid-template-columns:1fr 1fr}.grid2,.grid2.eq{grid-template-columns:1fr}}
+</style></head>
+<body>
+
+<div class="gate" id="gate">
+  <div class="in">
+    <div class="em">🌾</div>
+    <h1>АЛТЫН ДӘН · <b>Пульт комбината</b></h1>
+    <div class="sub">Единая платформа мукомольного производства: 10 блоков в одном окне — производство с лабораторией и весовой, продажи, финансы по проектам, логистика (машины и вагоны), склады, 1С-зеркало, задачи и блок руководства. Выберите роль:</div>
+    <div class="rgrid" id="rgrid"></div>
+    <div class="foot">Демо-режим · данные вымышлены · собрано <b>Pllato</b> по встрече 17.08 · рабочее название бренда — заменим на ваше</div>
+  </div>
+</div>
+
+<div class="app hidden" id="app">
+  <aside class="side" id="side">
+    <div class="brand"><div class="bl">🌾</div><div><div class="bn">АЛТЫН ДӘН</div><div class="bs">мукомольный комбинат · Костанай</div></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="usr"><div class="av" id="uav">Д</div><div><div class="un" id="uname">Дидар</div><div class="ur" id="urole">Руководитель</div></div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <button class="mtoggle tbtn" id="mtoggle">☰</button>
+      <div><div class="tt" id="pageTitle">Блок руководства</div><div class="ts" id="pageSub"></div></div>
+      <span class="sp"></span>
+      <span class="b1c"><span class="d"></span>1С · зеркало онлайн</span>
+      <select class="rolesel" id="roleSel"></select>
+      <button class="tbtn" id="themeBtn">🌙</button>
+    </div>
+    <div class="body">
+
+      <!-- БЛОК РУКОВОДСТВА -->
+      <div class="screen on" data-s="dash">
+        <div class="kpis six">
+          <div class="kpi"><div class="l"><span class="i">💰</span>Остатки на счетах</div><div class="v up">184,6 млн ₸</div><div class="d">3 счёта · Halyk, БЦК, Kaspi</div></div>
+          <div class="kpi"><div class="l"><span class="i">📥</span>Дебиторка</div><div class="v amb">96,4 млн ₸</div><div class="d">7 контрагентов · 2 просрочки</div></div>
+          <div class="kpi"><div class="l"><span class="i">📤</span>Кредиторка</div><div class="v">41,2 млн ₸</div><div class="d">зерно · энергия · тара</div></div>
+          <div class="kpi"><div class="l"><span class="i">⚙️</span>Произв. цикл</div><div class="v acc">78%</div><div class="d">загрузка мощности · месяц</div></div>
+          <div class="kpi"><div class="l"><span class="i">🚂</span>Отгрузки · авг</div><div class="v bl">312 т</div><div class="d">5 направлений · 3 вагона в пути</div></div>
+          <div class="kpi"><div class="l"><span class="i">📊</span>Прибыль · июль</div><div class="v up">38,2 млн ₸</div><div class="d">по закрытым проектам</div></div>
+        </div>
+        <div class="grid2">
+          <div class="card" style="margin-bottom:0"><div class="ct">Панель приборов — 12 позиций одним взглядом <span class="mini">кратко: финансы · производство · юр/бух</span></div>
+            <div class="att">
+              <div class="a p"><div class="ai">🏭</div><div class="tx"><b>Производство:</b> смена №2 идёт · помол в/с 42 т · выход муки 74,1% <span class="s">план 74,5% — жёлтая зона</span></div></div>
+              <div class="a g"><div class="ai">🔬</div><div class="tx"><b>Лаборатория:</b> партия зерна №118 принята — клейковина 25%, влажность 12,8% ✓</div></div>
+              <div class="a y"><div class="ai">🚛</div><div class="tx"><b>Логистика:</b> вагон № 24581 простаивает на станции 2-е сутки. <span class="s">штраф за простой — риск 180 000 ₸</span></div></div>
+              <div class="a r"><div class="ai">⚖️</div><div class="tx"><b>Юр. блок:</b> претензия по проекту «Шымкент · в/с» — срок ответа 3 дня. <span class="s">ответственный: юрист · на контроле</span></div></div>
+              <div class="a g"><div class="ai">🧾</div><div class="tx"><b>Бухгалтерия:</b> первичка за июль закрыта, счёт-фактуры выставлены — расхождений с 1С нет.</div></div>
+            </div></div>
+          <div class="card" style="margin-bottom:0"><div class="ct">Выручка по направлениям <span class="mini">август · млн ₸</span></div>
+            <div class="hb"><span class="lb">Костанай · опт</span><span class="tr2"><i style="width:92%"></i></span><span class="vv">48,7</span></div>
+            <div class="hb"><span class="lb">Астана · сети</span><span class="tr2"><i style="width:74%"></i></span><span class="vv">39,1</span></div>
+            <div class="hb"><span class="lb">Шымкент · в/с</span><span class="tr2"><i style="width:58%"></i></span><span class="vv">30,6</span></div>
+            <div class="hb"><span class="lb">Экспорт · Узбекистан</span><span class="tr2"><i style="width:47%"></i></span><span class="vv">24,8</span></div>
+            <div class="hb"><span class="lb">Отруби · Костанай</span><span class="tr2"><i style="width:21%"></i></span><span class="vv">11,2</span></div>
+            <div class="hint" style="margin-top:10px">Каждое направление — <b>отдельный проект</b> со своей экономикой. Клик — карточка проекта с P&L (экран «Финансы»).</div></div>
+        </div>
+        <div class="hint">Панель руководителя — «всё сжатое»: финансовая, производственная, юридическая и бухгалтерская сводка без захода в блоки. Каждая цифра кликается вглубь. Выгрузка в Excel и PDF-презентация для акционера — одной кнопкой.</div>
+      </div>
+
+      <!-- ПРОИЗВОДСТВЕННЫЙ ЦИКЛ -->
+      <div class="screen" data-s="prod">
+        <div class="kpis">
+          <div class="kpi"><div class="l"><span class="i">🌾</span>Зерно на хранении</div><div class="v">2 140 т</div><div class="d">3 силоса · хватит на 26 дней</div></div>
+          <div class="kpi"><div class="l"><span class="i">⚙️</span>Помол сегодня</div><div class="v acc">42 т</div><div class="d">смена №2 · мука в/с</div></div>
+          <div class="kpi"><div class="l"><span class="i">📉</span>Выход муки</div><div class="v amb">74,1%</div><div class="d">план 74,5% · контроль технолога</div></div>
+          <div class="kpi"><div class="l"><span class="i">📦</span>Готовая продукция</div><div class="v up">386 т</div><div class="d">в/с · 1с · отруби</div></div>
+        </div>
+        <div class="card"><div class="ct">Полный цикл — от закупа зерна до отгрузки <span class="mini">ваш цикл «в два раза длиннее торгового» — весь на одном экране</span></div>
+          <div class="cycle">
+            <div class="cyc"><div class="ci">🛒</div><div class="cn">Закуп</div><div class="cv">заявка №86 · 300 т<br>ТОО «Агро-Нива»</div></div>
+            <div class="cyc hl"><div class="ci">🔬</div><div class="cn">Лаборатория</div><div class="cv">партия №118<br>клейк. 25% ✓</div></div>
+            <div class="cyc"><div class="ci">⚖️</div><div class="cn">Весовая</div><div class="cv">брутто 42,3 т<br>тара 14,1 т</div></div>
+            <div class="cyc"><div class="ci">🏗️</div><div class="cn">Хранение</div><div class="cv">силос №2<br>2 140 т</div></div>
+            <div class="cyc hl"><div class="ci">🏭</div><div class="cn">Производство</div><div class="cv">помол 42 т/сут<br>выход 74,1%</div></div>
+            <div class="cyc"><div class="ci">📦</div><div class="cn">Склад ГП</div><div class="cv">386 т<br>в/с · 1с · отруби</div></div>
+            <div class="cyc hl"><div class="ci">🚂</div><div class="cn">Отгрузка</div><div class="cv">3 вагона в пути<br>2 машины сегодня</div></div>
+          </div>
+          <div class="hint" style="margin-top:12px">Каждый этап — рабочее место с задачами и документами: лаборатория заносит анализы партии, весовая — фактический вес, производство — сменные отчёты. <b>Исполнители отражают факт в момент операции</b> — руководство видит цикл живым, а финансы получают себестоимость без ручного сбора.</div></div>
+        <div class="grid2 eq">
+          <div class="card" style="margin-bottom:0"><div class="ct">Лаборатория · партии зерна <span class="mini">приёмка по качеству</span></div>
+            <table><thead><tr><th>Партия</th><th>Поставщик</th><th class="r">Клейковина</th><th class="r">Влажность</th><th>Решение</th></tr></thead><tbody>
+              <tr><td><b>№118</b></td><td>ТОО «Агро-Нива»</td><td class="r">25%</td><td class="r">12,8%</td><td><span class="tag g">Принята · силос 2</span></td></tr>
+              <tr><td><b>№117</b></td><td>КХ «Дән»</td><td class="r">23%</td><td class="r">13,1%</td><td><span class="tag g">Принята · силос 1</span></td></tr>
+              <tr><td><b>№116</b></td><td>ТОО «Колос-Т»</td><td class="r">19%</td><td class="r">14,6%</td><td><span class="tag r">Возврат · акт</span></td></tr>
+            </tbody></table></div>
+          <div class="card" style="margin-bottom:0"><div class="ct">Сменные отчёты <span class="mini">производство · выход продукции</span></div>
+            <table><thead><tr><th>Смена</th><th class="r">Помол, т</th><th class="r">Мука в/с</th><th class="r">1 сорт</th><th class="r">Отруби</th><th class="r">Выход</th></tr></thead><tbody>
+              <tr><td>17.08 · №2</td><td class="r">42,0</td><td class="r">23,4</td><td class="r">7,7</td><td class="r">9,6</td><td class="r"><b>74,1%</b></td></tr>
+              <tr><td>17.08 · №1</td><td class="r">41,2</td><td class="r">23,1</td><td class="r">7,6</td><td class="r">9,4</td><td class="r"><b>74,5%</b></td></tr>
+              <tr><td>16.08 · №2</td><td class="r">40,8</td><td class="r">22,7</td><td class="r">7,5</td><td class="r">9,5</td><td class="r"><b>74,0%</b></td></tr>
+            </tbody></table></div>
+        </div>
+      </div>
+
+      <!-- ФИНАНСЫ -->
+      <div class="screen" data-s="fin">
+        <div class="kpis">
+          <div class="kpi"><div class="l"><span class="i">📊</span>P&L · июль</div><div class="v up">+38,2 млн ₸</div><div class="d">по 5 закрытым проектам</div></div>
+          <div class="kpi"><div class="l"><span class="i">💸</span>Cash Flow · авг</div><div class="v acc">+21,4 млн ₸</div><div class="d">поступления − платежи</div></div>
+          <div class="kpi"><div class="l"><span class="i">📥</span>Дебиторка</div><div class="v amb">96,4 млн ₸</div><div class="d">2 просрочки — на контроле</div></div>
+          <div class="kpi"><div class="l"><span class="i">🎯</span>KPI · ФОТ</div><div class="v">24,8 млн ₸</div><div class="d">распределён по проектам</div></div>
+        </div>
+        <div class="card"><div class="ct">Проекты месяца — клиент × направление отгрузки <span class="mini">август · 5 проектов · как в вашем Excel, только само</span></div>
+          <table><thead><tr><th>Проект</th><th class="r">Выручка</th><th class="r">Прямые</th><th class="r">Распр. ФОТ</th><th class="r">Распр. налоги</th><th class="r">Прибыль</th><th class="r">Маржа</th></tr></thead><tbody>
+            <tr><td><b>Костанай · опт · в/с</b></td><td class="r">48,7 млн</td><td class="r">31,2</td><td class="r">5,4</td><td class="r">2,6</td><td class="r"><b style="color:var(--grn)">9,5 млн</b></td><td class="r">19,5%</td></tr>
+            <tr><td><b>Астана · сети · в/с</b></td><td class="r">39,1 млн</td><td class="r">26,0</td><td class="r">4,3</td><td class="r">2,1</td><td class="r"><b style="color:var(--grn)">6,7 млн</b></td><td class="r">17,1%</td></tr>
+            <tr><td><b>Шымкент · в/с</b></td><td class="r">30,6 млн</td><td class="r">21,9</td><td class="r">3,4</td><td class="r">1,6</td><td class="r"><b style="color:var(--grn)">3,7 млн</b></td><td class="r">12,1%</td></tr>
+            <tr><td><b>Экспорт · Узбекистан</b></td><td class="r">24,8 млн</td><td class="r">17,6</td><td class="r">2,7</td><td class="r">1,3</td><td class="r"><b style="color:var(--amb)">3,2 млн</b></td><td class="r">12,9%</td></tr>
+            <tr><td><b>Отруби · Костанай</b></td><td class="r">11,2 млн</td><td class="r">8,1</td><td class="r">1,2</td><td class="r">0,6</td><td class="r"><b style="color:var(--grn)">1,3 млн</b></td><td class="r">11,6%</td></tr>
+          </tbody></table>
+          <div class="hint" style="margin-top:11px"><b>Общие расходы делятся сами:</b> зарплатный фонд 24,8 млн и налоги распределяются по проектам по настроенному правилу (объём/выручка/вручную). ~60 проектов в год ведутся без Excel — себестоимость и маржа каждого видны сразу.</div></div>
+        <div class="grid2 eq">
+          <div class="card" style="margin-bottom:0"><div class="ct">Внеплановые расходы задним числом <span class="mini">ваш пример со штрафом — решён</span></div>
+            <div class="att">
+              <div class="a r"><div class="ai">⚠️</div><div class="tx"><b>Штраф 2 400 $ · проект «Экспорт · Узбекистан» (закрыт в июне)</b><span class="s">прилетел 14.08 — через 2 месяца после закрытия</span></div></div>
+              <div class="a p"><div class="ai">↩️</div><div class="tx">Расход добавлен в проект задним числом → <b>P&L проекта пересчитался автоматически</b>: маржа 14,9% → 12,9%. <span class="s">история изменений сохранена</span></div></div>
+              <div class="a g"><div class="ai">📊</div><div class="tx">Вывод виден сразу: <b>направление пересматриваем</b> — условия штрафов в новый контракт. <span class="s">решение на данных, не на памяти</span></div></div>
+            </div></div>
+          <div class="card" style="margin-bottom:0"><div class="ct">KPI сотрудников <span class="mini">эффективность · автоматично</span></div>
+            <table><thead><tr><th>Сотрудник</th><th>Блок</th><th class="r">KPI план</th><th class="r">Факт</th><th class="r">Премия</th></tr></thead><tbody>
+              <tr><td>Менеджер · Астана</td><td>Продажи</td><td class="r">40 млн</td><td class="r">39,1</td><td class="r">98%</td></tr>
+              <tr><td>Технолог смены</td><td>Производство</td><td class="r">74,5%</td><td class="r">74,1%</td><td class="r">95%</td></tr>
+              <tr><td>Логист ЖД</td><td>Логистика</td><td class="r">0 простоев</td><td class="r">1</td><td class="r">80%</td></tr>
+            </tbody></table>
+            <div class="hint" style="margin-top:10px">KPI считаются из данных системы — «бах-бах, зарплатный фонд по KPI сам».</div></div>
+        </div>
+      </div>
+
+      <!-- ЛОГИСТИКА -->
+      <div class="screen" data-s="log">
+        <div class="kpis">
+          <div class="kpi"><div class="l"><span class="i">🚂</span>Вагоны в пути</div><div class="v bl">3</div><div class="d">186 т · Узбекистан, Шымкент</div></div>
+          <div class="kpi"><div class="l"><span class="i">🚛</span>Машины сегодня</div><div class="v">5</div><div class="d">2 на погрузке · 3 в рейсе</div></div>
+          <div class="kpi"><div class="l"><span class="i">⏱️</span>Простои</div><div class="v red">1 вагон</div><div class="d">№ 24581 · 2-е сутки · риск штрафа</div></div>
+          <div class="kpi"><div class="l"><span class="i">📦</span>Отгружено · авг</div><div class="v up">312 т</div><div class="d">план 400 т · 78%</div></div>
+        </div>
+        <div class="card"><div class="ct">Отгрузки — машины и вагоны <span class="mini">ЖД-департамент ведёт вручную, но в одном месте</span></div>
+          <table><thead><tr><th>Рейс</th><th>Тип</th><th>Направление · проект</th><th class="r">Тоннаж</th><th>Статус</th><th>Документы</th></tr></thead><tbody>
+            <tr><td><b>Вагон № 24581</b></td><td><span class="tag bl">ЖД</span></td><td>Экспорт · Узбекистан</td><td class="r">62 т</td><td><span class="tag r">Простой · станция · 2 сут</span></td><td>СМГС · инвойс</td></tr>
+            <tr><td><b>Вагон № 24610</b></td><td><span class="tag bl">ЖД</span></td><td>Шымкент · в/с</td><td class="r">62 т</td><td><span class="tag y">В пути · ст. Тюлькубас</span></td><td>СМГС</td></tr>
+            <tr><td><b>Вагон № 24612</b></td><td><span class="tag bl">ЖД</span></td><td>Шымкент · в/с</td><td class="r">62 т</td><td><span class="tag y">В пути</span></td><td>СМГС</td></tr>
+            <tr><td><b>КамАЗ 447 AZH</b></td><td><span class="tag b">Авто</span></td><td>Костанай · опт</td><td class="r">20 т</td><td><span class="tag g">Погрузка · весовая</span></td><td>ТТН · счёт</td></tr>
+            <tr><td><b>КамАЗ 512 KST</b></td><td><span class="tag b">Авто</span></td><td>Астана · сети</td><td class="r">20 т</td><td><span class="tag g">В рейсе · прибытие 19:00</span></td><td>ТТН</td></tr>
+          </tbody></table>
+          <div class="hint" style="margin-top:11px">Департамент отгрузок вносит актуальный статус — форма простая, «императивная»: обновил статус, приложил документ. Простой подсвечивается сам, а штраф за простой сразу ложится в расходы проекта (экран «Финансы»).</div></div>
+      </div>
+
+      <!-- ПРОДАЖИ -->
+      <div class="screen" data-s="sales">
+        <div class="kpis">
+          <div class="kpi"><div class="l"><span class="i">🤝</span>Активные сделки</div><div class="v acc">14</div><div class="d">на 214 млн ₸</div></div>
+          <div class="kpi"><div class="l"><span class="i">📋</span>Договоры</div><div class="v">9</div><div class="d">3 на согласовании юристом</div></div>
+          <div class="kpi"><div class="l"><span class="i">💰</span>Ожидаемые платежи</div><div class="v amb">96,4 млн ₸</div><div class="d">по графикам договоров</div></div>
+          <div class="kpi"><div class="l"><span class="i">📈</span>Конверсия</div><div class="v up">41%</div><div class="d">заявка → контракт · квартал</div></div>
+        </div>
+        <div class="card"><div class="ct">Воронка продаж · опт и сети <span class="mini">клиентов немного — процессов в сделке много</span></div>
+          <table><thead><tr><th>Сделка</th><th>Стадия</th><th class="r">Объём</th><th class="r">Сумма</th><th>Следующий шаг</th></tr></thead><tbody>
+            <tr><td><b>ТОО «Астык-Трейд» · Костанай</b></td><td><span class="tag b">Согласование цены</span></td><td class="r">120 т/мес</td><td class="r">≈19 млн ₸</td><td>КП отправлено · звонок завтра</td></tr>
+            <tr><td><b>Сеть «Дастархан» · Астана</b></td><td><span class="tag y">Договор у юриста</span></td><td class="r">80 т/мес</td><td class="r">≈13 млн ₸</td><td>правки в спецификацию</td></tr>
+            <tr><td><b>Экспорт · Ташкент · «Нур-Дон»</b></td><td><span class="tag y">Проба партии</span></td><td class="r">62 т</td><td class="r">≈10 млн ₸</td><td>лаборатория покупателя · до 20.08</td></tr>
+            <tr><td><b>Пекарни · Рудный</b></td><td><span class="tag g">Контракт подписан</span></td><td class="r">30 т/мес</td><td class="r">≈4,8 млн ₸</td><td>первая отгрузка 21.08</td></tr>
+          </tbody></table>
+          <div class="hint" style="margin-top:11px">В сделке живёт весь процесс: спецификации, договор (маршрут через юриста), график платежей, отгрузки по проекту. Канбан-вид — перетаскиванием.</div></div>
+      </div>
+
+      <!-- СКЛАД -->
+      <div class="screen" data-s="stock">
+        <div class="kpis">
+          <div class="kpi"><div class="l"><span class="i">🌾</span>Зерно</div><div class="v">2 140 т</div><div class="d">3 силоса</div></div>
+          <div class="kpi"><div class="l"><span class="i">📦</span>Мука в/с</div><div class="v acc">248 т</div><div class="d">мешки 50 кг · биг-бэги</div></div>
+          <div class="kpi"><div class="l"><span class="i">📦</span>Мука 1 сорт</div><div class="v">86 т</div><div class="d">резерв под Шымкент 40 т</div></div>
+          <div class="kpi"><div class="l"><span class="i">🐄</span>Отруби</div><div class="v">52 т</div><div class="d">заявок на 38 т</div></div>
+        </div>
+        <div class="grid2">
+          <div class="card" style="margin-bottom:0"><div class="ct">Остатки и движения <span class="mini">зеркало с 1С · онлайн</span></div>
+            <table><thead><tr><th>Позиция</th><th class="r">Остаток</th><th class="r">Резерв</th><th class="r">Свободно</th><th>1С</th></tr></thead><tbody>
+              <tr><td>Мука в/с · мешок 50 кг</td><td class="r">196 т</td><td class="r">84 т</td><td class="r">112 т</td><td><span class="tag g">✓ синх</span></td></tr>
+              <tr><td>Мука в/с · биг-бэг</td><td class="r">52 т</td><td class="r">20 т</td><td class="r">32 т</td><td><span class="tag g">✓ синх</span></td></tr>
+              <tr><td>Мука 1 сорт</td><td class="r">86 т</td><td class="r">40 т</td><td class="r">46 т</td><td><span class="tag g">✓ синх</span></td></tr>
+              <tr><td>Отруби гранулированные</td><td class="r">52 т</td><td class="r">38 т</td><td class="r">14 т</td><td><span class="tag g">✓ синх</span></td></tr>
+              <tr><td>Тара · мешок 50 кг</td><td class="r">8 400 шт</td><td class="r">—</td><td class="r">8 400</td><td><span class="tag y">заказ у поставщика</span></td></tr>
+            </tbody></table></div>
+          <div class="card" style="margin-bottom:0"><div class="ct">1С — зазеркалено в обе стороны <span class="mini">интеграция</span></div>
+            <div class="att">
+              <div class="a g"><div class="ai">🔄</div><div class="tx"><b>Остатки и номенклатура</b> — из 1С в портал, онлайн. <span class="s">индикатор синхронизации в шапке</span></div></div>
+              <div class="a g"><div class="ai">🧾</div><div class="tx"><b>Документы</b> — накладные, счета-фактуры формируются из портала и ложатся в 1С. <span class="s">бухгалтерия работает как привыкла</span></div></div>
+              <div class="a p"><div class="ai">🛡️</div><div class="tx"><b>Если сервер 1С упал</b> — портал работает дальше, очередь досинхронизируется. <span class="s">индикатор станет жёлтым</span></div></div>
+            </div>
+            <div class="hint" style="margin-top:10px">Как у нашей сети аптек в Бишкеке: собственнице тяжело было заходить в 1С — теперь всё в портале, 1С живёт своей жизнью.</div></div>
+        </div>
+      </div>
+
+      <!-- ЗАДАЧИ -->
+      <div class="screen" data-s="tasks">
+        <div class="kpis">
+          <div class="kpi"><div class="l"><span class="i">✅</span>Задач в работе</div><div class="v acc">23</div><div class="d">по всем блокам</div></div>
+          <div class="kpi"><div class="l"><span class="i">⏰</span>Просроченные</div><div class="v red">2</div><div class="d">эскалация руководителю</div></div>
+          <div class="kpi"><div class="l"><span class="i">👁️</span>На контроле</div><div class="v">6</div><div class="d">у Дидара</div></div>
+          <div class="kpi"><div class="l"><span class="i">📄</span>Документы</div><div class="v">14</div><div class="d">на согласовании</div></div>
+        </div>
+        <div class="card"><div class="ct">Задачи по блокам <span class="mini">кто ответственный · кто на контроле · срок</span></div>
+          <table><thead><tr><th>Задача</th><th>Блок</th><th>Ответственный</th><th>Контроль</th><th>Срок</th><th>Статус</th></tr></thead><tbody>
+            <tr><td><b>Ответ на претензию · Шымкент</b></td><td>Юридический</td><td>Юрист</td><td>Дидар</td><td>20.08</td><td><span class="tag r">Срочно</span></td></tr>
+            <tr><td><b>Вернуть вагон № 24581 в график</b></td><td>Логистика</td><td>Логист ЖД</td><td>Дидар</td><td>сегодня</td><td><span class="tag y">В работе</span></td></tr>
+            <tr><td><b>Договор «Дастархан» — правки</b></td><td>Юр + Продажи</td><td>Юрист</td><td>Менеджер</td><td>19.08</td><td><span class="tag y">В работе</span></td></tr>
+            <tr><td><b>Заявка на закуп зерна · 300 т</b></td><td>Закуп</td><td>Снабженец</td><td>Финансист</td><td>22.08</td><td><span class="tag b">Плановая</span></td></tr>
+            <tr><td><b>Сменный отчёт №2 · подтвердить</b></td><td>Производство</td><td>Технолог</td><td>—</td><td>сегодня</td><td><span class="tag g">Готово</span></td></tr>
+          </tbody></table>
+          <div class="hint" style="margin-top:11px">Задачи и документооборот живут в каждом блоке: видно, чья задача, кто на контроле, что просрочено. Канбан-вид — по кнопке.</div></div>
+      </div>
+
+      <!-- КОМАНДА -->
+      <div class="screen" data-s="team">
+        <div class="card"><div class="ct">Роли и права <span class="mini">каждый блок — своим людям</span></div>
+          <table><thead><tr><th>Раздел</th><th>Руководитель</th><th>Финансист</th><th>Технолог</th><th>Логист</th><th>Менеджер</th><th>Бухгалтер</th></tr></thead><tbody>
+            <tr><td>Блок руководства</td><td>✓ всё</td><td>читает</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+            <tr><td>Финансы · P&L</td><td>✓</td><td>✓ ведёт</td><td>—</td><td>—</td><td>—</td><td>читает</td></tr>
+            <tr><td>Производство · лаборатория</td><td>✓</td><td>читает</td><td>✓ ведёт</td><td>—</td><td>—</td><td>—</td></tr>
+            <tr><td>Логистика · отгрузки</td><td>✓</td><td>читает</td><td>—</td><td>✓ ведёт</td><td>читает</td><td>читает</td></tr>
+            <tr><td>Продажи · договоры</td><td>✓</td><td>читает</td><td>—</td><td>—</td><td>✓ ведёт</td><td>читает</td></tr>
+            <tr><td>Бухгалтерия · первичка</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓ ведёт</td></tr>
+          </tbody></table>
+          <div class="hint" style="margin-top:11px">Консолидация на вырост: у вас несколько бизнесов — мультиворонки и общий пульт закладываем в архитектуру сразу, как делаем для владельца трёх заводов (полистирол-бетон, опалубка, панели).</div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+var ROLES={
+ 'Руководитель':{ic:'👑',d:'Панель приборов: финансы, производство, юр/бух — всё сжато',s:['dash','fin','prod','log','sales','stock','tasks','team']},
+ 'Финансист':{ic:'📊',d:'P&L и Cash Flow по проектам, распределение расходов, KPI',s:['fin','dash','sales','tasks']},
+ 'Технолог производства':{ic:'🏭',d:'Цикл, лаборатория, весовая, сменные отчёты',s:['prod','stock','tasks']},
+ 'Логист (ЖД + авто)':{ic:'🚂',d:'Вагоны и машины, статусы, документы отгрузки',s:['log','stock','tasks']},
+ 'Менеджер продаж':{ic:'🤝',d:'Воронка, договоры, графики платежей',s:['sales','log','tasks']},
+ 'Бухгалтер':{ic:'🧾',d:'Первичка, 1С-зеркало, счета-фактуры',s:['stock','fin','tasks']},
+};
+var NAVDEF=[['Руководство',[['dash','▦','Блок руководства'],['fin','📊','Финансы · проекты']]],
+ ['Операции',[['prod','🏭','Производство · цикл'],['log','🚂','Логистика · вагоны'],['stock','📦','Склад · 1С']]],
+ ['Коммерция',[['sales','🤝','Продажи · договоры']]],
+ ['Команда',[['tasks','✅','Задачи по блокам'],['team','🧑‍🤝‍🧑','Роли и права']]]];
+var TITLES={dash:['Блок руководства','Панель приборов · 12 позиций сжато'],fin:['Финансы','P&L по проектам · клиент × направление отгрузки'],prod:['Производство','Закуп → лаборатория → весовая → хранение → помол → склад → отгрузка'],log:['Логистика','Машины и вагоны · статусы · документы'],sales:['Продажи','Воронка · договоры · графики платежей'],stock:['Склад','Остатки · резервы · зеркало 1С'],tasks:['Задачи','По блокам · ответственный и контроль'],team:['Роли и права','Каждый блок — своим людям']};
+var ROLE='Руководитель';
+function renderGate(){document.getElementById('rgrid').innerHTML=Object.keys(ROLES).map(function(r){var m=ROLES[r];
+  return '<div class="rolecard" onclick="enter(\''+r.replace(/'/g,"\\'")+'\')"><div class="ri">'+m.ic+'</div><div class="rn">'+esc(r)+'</div><div class="rd">'+esc(m.d)+'</div></div>';}).join('');}
+function enter(r){ROLE=r;document.getElementById('gate').classList.add('hidden');document.getElementById('app').classList.remove('hidden');buildNav();nav(ROLES[r].s[0]);
+  setTimeout(function(){toast('Вход: <b>'+esc(r)+'</b>. Все блоки кликаются, роль меняется вверху справа.');},250);}
+function buildNav(){var allowed=ROLES[ROLE].s;var html='';NAVDEF.forEach(function(gr){var items=gr[1].filter(function(it){return allowed.indexOf(it[0])>=0;});if(!items.length)return;html+='<div class="g">'+gr[0]+'</div>';items.forEach(function(it){html+='<a data-go="'+it[0]+'"><span class="ic">'+it[1]+'</span>'+it[2]+'</a>';});});
+  document.getElementById('nav').innerHTML=html;document.querySelectorAll('.nav a[data-go]').forEach(function(a){a.onclick=function(){nav(a.dataset.go);};});
+  var sel=document.getElementById('roleSel');sel.innerHTML=Object.keys(ROLES).map(function(r){return '<option'+(r===ROLE?' selected':'')+'>'+esc(r)+'</option>';}).join('');
+  sel.onchange=function(){ROLE=sel.value;document.getElementById('urole').textContent=ROLE;buildNav();nav(ROLES[ROLE].s[0]);};
+  document.getElementById('urole').textContent=ROLE;document.getElementById('uname').textContent=ROLE==='Руководитель'?'Дидар':ROLE;document.getElementById('uav').textContent=(ROLE==='Руководитель'?'Д':ROLE[0]);}
+function nav(s){document.querySelectorAll('.screen').forEach(function(x){x.classList.toggle('on',x.dataset.s===s);});document.querySelectorAll('.nav a').forEach(function(a){a.classList.toggle('on',a.dataset.go===s);});
+  var t=TITLES[s]||['',''];document.getElementById('pageTitle').textContent=t[0];document.getElementById('pageSub').textContent=t[1];document.getElementById('side').classList.remove('open');document.querySelector('.body').scrollTop=0;}
+var tt;function toast(h){var t=document.getElementById('toast');t.innerHTML=h;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on');},4600);}
+document.getElementById('themeBtn').onclick=function(){var r=document.documentElement;var d=r.getAttribute('data-theme')==='dark';if(d){r.removeAttribute('data-theme');}else{r.setAttribute('data-theme','dark');}this.textContent=d?'🌙':'☀️';};
+document.getElementById('mtoggle').onclick=function(){document.getElementById('side').classList.add('open');};
+renderGate();
+(function(){var q=new URLSearchParams(location.search);var s=q.get('s');
+ if(s){var role=Object.keys(ROLES).find(function(r){return ROLES[r].s.indexOf(s)>=0;})||'Руководитель';enter(role);nav(s);}})();
+</script>
+</body></html>

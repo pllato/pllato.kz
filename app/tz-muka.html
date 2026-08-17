@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<script src="/app/gate.js"></script>
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ТЗ · Платформа мукомольного комбината · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<style>
+:root{--ink:#26200F;--acc:#C98A1B;--muted:#84775C;--line:#EAE2D2;--off:#FAF6EE;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:14mm 15mm}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',Arial,sans-serif;color:#2a2415;font-size:13.5px;line-height:1.6;background:#efe9dc}
+.bar{max-width:880px;margin:18px auto 0;padding:0 16px;display:flex;gap:12px;align-items:center;justify-content:space-between}
+.bar .t{font-size:14px;font-weight:800}
+.bar button{border:none;border-radius:10px;padding:10px 18px;font-size:13.5px;font-weight:800;background:var(--acc);color:#fff;cursor:pointer;font-family:inherit}
+.doc{max-width:880px;margin:14px auto 60px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:46px 52px;box-shadow:0 10px 28px -18px rgba(60,45,15,.25);font-size:12.5px}
+.dhead{text-align:center;margin-bottom:8px}
+.dhead .t{font-size:17px;font-weight:900;text-transform:uppercase}
+.dhead .s{font-size:12.5px;font-weight:700;margin-top:3px}
+.dhead .m{font-size:11px;color:var(--muted);margin-top:5px}
+h2{font-size:13px;font-weight:800;margin:15px 0 6px;color:var(--ink)}
+h2 .n{color:var(--acc)}
+p,.pt{margin-bottom:6px;text-align:justify}
+.pt .n{font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:11.5px;margin:6px 0 10px}
+th{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;font-weight:800;padding:6px 8px;border-bottom:1.5px solid var(--line)}
+td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+td.k{width:26%;color:var(--muted)}
+tr:nth-child(even) td{background:var(--off)}
+.note{background:var(--off);border:1px dashed var(--line);border-radius:9px;padding:9px 12px;font-size:11.5px;margin:8px 0}
+.sig{margin-top:22px;display:flex;justify-content:space-between;gap:30px;font-size:12px}
+.sig .s{flex:1}
+.sig .ln{margin-top:26px;border-top:1px solid #a9a186;padding-top:4px;color:var(--muted);font-size:11px}
+@media print{
+  body{background:#fff}
+  .bar{display:none}
+  .doc{border:none;box-shadow:none;border-radius:0;padding:0;margin:0;max-width:none;font-size:10.4px;line-height:1.48}
+  h2{page-break-after:avoid;margin:10px 0 4px}
+  .pt,p{orphans:3;widows:3;margin-bottom:3.5px}
+  table{font-size:9.6px;margin:4px 0 7px}
+  td,th{padding:4px 7px}
+  .sig{page-break-inside:avoid}
+}
+</style></head>
+<body>
+<div class="bar"><div class="t">ТЗ · Платформа мукомольного комбината (проект, к договору)</div><button onclick="window.print()">🖨 Печать / Сохранить PDF</button></div>
+<div class="doc">
+  <div class="dhead">
+    <div class="t">Техническое задание</div>
+    <div class="s">на разработку единой платформы управления мукомольным производством<br>(рабочее название «Алтын Дән» — заменяется на бренд Заказчика)</div>
+    <div class="m">Заказчик: мукомольное производство, Костанайский регион (Дидар) · Исполнитель: ИП «STUDYSTORIES.APP» (Pllato)<br>Версия 1.0 (проект) · 17 августа 2026 г. · по итогам встречи 17.08.2026 · уточняется на этапе согласования ядра</div>
+  </div>
+
+  <h2><span class="n">1.</span> Назначение и принципы</h2>
+  <div class="pt"><span class="n">1.1.</span> Единая веб-платформа: 10 функциональных блоков в одном окне, задачи и документооборот в каждом блоке, панель руководителя со сжатой сводкой. Разработка с нуля на общедоступном стеке (веб-технологии, SQL) — без вендор-лока: исходный код, документация и данные принадлежат Заказчику, размещение на сервере Заказчика; сопровождение — специалист уровня middle Заказчика либо Исполнитель по часам.</div>
+  <div class="pt"><span class="n">1.2.</span> Архитектурно закладывается мультиворонка и консолидация нескольких бизнесов Заказчика в общий пульт (реализация дополнительных бизнесов — отдельными соглашениями).</div>
+
+  <h2><span class="n">2.</span> Блок руководства</h2>
+  <div class="pt"><span class="n">2.1.</span> Панель приборов — до 12 позиций сжато: остатки на счетах, дебиторская/кредиторская задолженность, производственный цикл (% загрузки, помол, выход), отгрузки, сводки юридического и бухгалтерского блоков, прибыль по закрытым проектам. Каждая позиция кликается в свой блок. Выгрузка в Excel и PDF-презентация для акционеров.</div>
+
+  <h2><span class="n">3.</span> Производство · оперучёт</h2>
+  <div class="pt"><span class="n">3.1.</span> Цикл: закуп → лаборатория → весовая → хранение → производство → склад ГП → отгрузка → бухгалтерия → финансы → планирование закупа. Каждый этап — рабочее место с задачами и документами; факт отражается в момент операции.</div>
+  <div class="pt"><span class="n">3.2.</span> Лаборатория: партии зерна, показатели (клейковина, влажность, прочие по вашему регламенту), решение о приёмке/возврате с актом, привязка к силосу. Весовая: брутто/тара/нетто, привязка к партии и рейсу.</div>
+  <div class="pt"><span class="n">3.3.</span> Производство: сменные отчёты, помол, выход продукции по сортам (в/с, 1с, отруби), план/факт, отклонения с подсветкой.</div>
+
+  <h2><span class="n">4.</span> Продажи и договоры</h2>
+  <div class="pt"><span class="n">4.1.</span> Канбан-воронка сделок: спецификации, маршрут договора через юриста, графики платежей, привязка отгрузок. Клиентов немного — процессы сделки глубокие. Мультиворонка на вырост.</div>
+
+  <h2><span class="n">5.</span> Финансы (расширенный блок)</h2>
+  <div class="pt"><span class="n">5.1.</span> Проект = клиент × направление отгрузки (~60 в год, ~5 активных в месяц). По каждому проекту: P&L (выручка, прямые расходы, распределённые общие расходы, маржа).</div>
+  <div class="pt"><span class="n">5.2.</span> Распределение общих расходов (ФОТ, налоги и др.) по проектам по настраиваемым правилам: пропорционально объёму / выручке / вручную.</div>
+  <div class="pt"><span class="n">5.3.</span> Расходы задним числом: внеплановый расход (штраф и т.п.) добавляется в закрытый проект — P&L пересчитывается автоматически, история изменений сохраняется.</div>
+  <div class="pt"><span class="n">5.4.</span> Cash Flow по счетам, дебиторка/кредиторка с просрочками и эскалацией, ожидаемые платежи по графикам договоров.</div>
+  <div class="pt"><span class="n">5.5.</span> KPI сотрудников из данных системы (продажи, выход продукции, простои) → расчёт премиальной части ФОТ.</div>
+
+  <h2><span class="n">6.</span> Логистика · машины и вагоны</h2>
+  <div class="pt"><span class="n">6.1.</span> Реестр отгрузок: авто и ЖД (вагоны), статусы ведутся департаментом вручную — простая императивная форма (обновил статус, приложил документ). Простои подсвечиваются; штраф за простой ложится в расходы соответствующего проекта. Документы: ТТН, СМГС, инвойсы. Интеграция с внешними сервисами отслеживания вагонов не требуется.</div>
+
+  <h2><span class="n">7.</span> Склады</h2>
+  <div class="pt"><span class="n">7.1.</span> Зерно по силосам, готовая продукция по сортам и таре, тара, резервы под сделки, движения с журналом. Остатки — зеркало 1С.</div>
+
+  <h2><span class="n">8.</span> Бухгалтерия и юридический блок</h2>
+  <div class="pt"><span class="n">8.1.</span> Первичка: накладные, счета-фактуры формируются из портала и передаются в 1С. Юрблок: реестр договоров с маршрутом согласования, претензии со сроками, ответственными и контролем.</div>
+
+  <h2><span class="n">9.</span> Интеграция 1С (зеркало в обе стороны)</h2>
+  <div class="pt"><span class="n">9.1.</span> Из 1С в портал: номенклатура, остатки — онлайн, индикатор синхронизации. Из портала в 1С: документы (накладные, счета-фактуры). При недоступности сервера 1С портал продолжает работу, очередь досинхронизируется. Конфигурация 1С и доступы предоставляются Заказчиком на этапе интеграции.</div>
+
+  <h2><span class="n">10.</span> Задачи, роли, безопасность</h2>
+  <div class="pt"><span class="n">10.1.</span> Задачи в каждом блоке: ответственный, контролирующий, срок, эскалация просроченных; канбан-вид. Роли: руководитель, финансист, технолог, логист, менеджер, бухгалтер (список уточняется). Матрица прав, журнал действий, ежедневное резервное копирование, HTTPS.</div>
+
+  <h2><span class="n">11.</span> Этапы, сроки, приёмка</h2>
+  <table><thead><tr><th>Этап</th><th>Содержание</th><th>Срок</th></tr></thead><tbody>
+    <tr><td class="k">1 · Ядро</td><td>Скелет всех блоков, показ и согласование</td><td>недели 2–4</td></tr>
+    <tr><td class="k">2 · Полировка</td><td>Правки, наполнение, финансовый блок, 1С-зеркало</td><td>недели 4–8</td></tr>
+    <tr><td class="k">3 · Боевой запуск</td><td>Перенос данных, обучение, документация, сдача</td><td>недели 8–10</td></tr>
+  </tbody></table>
+  <div class="pt"><span class="n">11.1.</span> Общий срок — 8–10 недель (реалистичный, с запасом). Показы каждые 2 недели; замечания в рамках ТЗ — без доплат; запас на доработки 15–20% заложен в стандартный пакет. Оплата: 10% предоплата, 45% после ядра, 45% после сдачи (постоплата). Гарантия 6 месяцев.</div>
+
+  <div class="note">Настоящий документ — проект ТЗ для согласования с юридическим отделом Заказчика вместе с договором-офертой. Детализация полей, форм и правил распределения — на этапе согласования ядра, без изменения стоимости в границах настоящего ТЗ.</div>
+
+  <div class="sig"><div class="s"><b>Исполнитель:</b><div class="ln">____________________ / Цай П. / М.П.</div></div><div class="s"><b>Заказчик:</b><div class="ln">____________________ / ________ / М.П.</div></div></div>
+</div>
+</body></html>
