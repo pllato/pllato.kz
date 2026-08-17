@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#0E1B2C"/>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
+<title>СГР · Цифровой контур — ДПЗ и ГСЭН МЗ КР · Демо</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --acc:#1A5FB4; --acc2:#6FA8E8; --accD:#0F4185; --accSoft:rgba(26,95,180,.10); --gold:#C9A227;
+  --bg:#F2F5F9; --card:#ffffff; --side:#0E1B2C; --ink:#16222F; --ink2:#42505F; --muted:#75828F; --faint:#A0ABB6;
+  --line:#E2E8EF; --off:#F6F9FC; --grn:#16a34a; --red:#e0483d; --amb:#d97706;
+  --sh:0 12px 32px -16px rgba(14,27,44,.22); --sh2:0 3px 12px -6px rgba(14,27,44,.12);
+}
+:root[data-theme="dark"]{
+  --bg:#0C141E; --card:#131F2D; --side:#081019; --ink:#EAF0F6; --ink2:#C0CBD6; --muted:#8593A1; --faint:#4E5D6C;
+  --line:#243447; --off:#101927; --accSoft:rgba(26,95,180,.18); --sh:0 16px 42px -18px rgba(0,0,0,.62); --sh2:0 6px 18px -8px rgba(0,0,0,.5);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+a{color:inherit;text-decoration:none}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+.hidden{display:none!important}
+
+/* gate */
+.gate{position:fixed;inset:0;z-index:80;background:linear-gradient(150deg,#08111d,#0f2440 60%,#153a63);display:grid;place-items:center;padding:22px;overflow:auto}
+.gate .in{position:relative;max-width:1000px;width:100%;text-align:center;color:#fff}
+.gate .em{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--acc),#0F4185);display:grid;place-items:center;margin:0 auto 14px;border:1px solid rgba(255,255,255,.25);font-size:28px}
+.gate h1{font-size:clamp(22px,3.6vw,33px);font-weight:900;letter-spacing:-.02em}
+.gate h1 b{color:var(--acc2)}
+.gate .sub{color:#b9cbe2;font-size:14.5px;margin:10px auto 24px;max-width:720px}
+.gate .rgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:11px}
+@media(max-width:900px){.gate .rgrid{grid-template-columns:repeat(2,1fr)}}
+.rolecard{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.11);border-radius:14px;padding:15px 12px;text-align:left;cursor:pointer;transition:.15s}
+.rolecard:hover{background:rgba(255,255,255,.11);border-color:var(--acc2);transform:translateY(-2px)}
+.rolecard .ri{font-size:21px;margin-bottom:7px}
+.rolecard .rn{font-weight:800;font-size:13.5px;color:#fff}
+.rolecard .rd{font-size:10.5px;color:#b9cbe2;margin-top:3px;line-height:1.4}
+.gate .foot{margin-top:20px;font-size:12px;color:#8ba3c2}
+.gate .foot b{color:#d7e4f4}
+
+/* app */
+.app{display:grid;grid-template-columns:250px 1fr;height:100vh}
+.side{background:var(--side);color:#c3d0de;display:flex;flex-direction:column;overflow:hidden}
+.side .brand{padding:15px 15px 13px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px}
+.side .bl{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--acc),#0F4185);display:grid;place-items:center;flex:none;font-size:19px}
+.side .bn{font-weight:900;font-size:13.5px;color:#fff;letter-spacing:.02em;line-height:1.25}
+.side .bs{font-size:9.5px;color:#8ba3c2;margin-top:1px}
+.nav{flex:1;overflow-y:auto;padding:8px 10px}
+.nav .g{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:#5f7b9c;font-weight:800;padding:12px 12px 5px}
+.nav a{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:500;color:#a9bccf;transition:.12s;position:relative}
+.nav a:hover{background:rgba(255,255,255,.05);color:#fff}
+.nav a.on{background:linear-gradient(90deg,var(--accSoft),transparent);color:#fff}
+.nav a.on::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:3px;background:var(--acc2)}
+.nav a .ic{width:18px;text-align:center;font-size:14px}
+.nav a .cnt{margin-left:auto;font-size:10.5px;font-weight:700;background:rgba(255,255,255,.09);border-radius:20px;padding:1px 7px}
+.nav a .cnt.r{background:var(--red);color:#fff}
+.side .usr{padding:11px 12px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px}
+.side .usr .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--gold));display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;flex:none}
+.side .usr .un{font-size:12.5px;font-weight:600;color:#eef4fa}.side .usr .ur{font-size:10.5px;color:#8ba3c2}
+.main{display:flex;flex-direction:column;min-width:0;height:100vh}
+.topbar{display:flex;align-items:center;gap:13px;padding:11px 22px;border-bottom:1px solid var(--line);background:var(--card);flex-wrap:wrap}
+.topbar .tt{font-size:17px;font-weight:800}
+.topbar .ts{font-size:12px;color:var(--muted);margin-top:1px}
+.topbar .sp{flex:1}
+.tzbtn{display:inline-flex;align-items:center;gap:7px;background:var(--accSoft);color:var(--acc);font-size:12px;font-weight:800;padding:8px 13px;border-radius:20px;border:1px solid transparent;transition:.12s}
+.tzbtn:hover{border-color:var(--acc2)}
+select.rolesel{background:var(--off);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:12.5px;font-weight:600;color:var(--ink);font-family:inherit;outline:none}
+.tbtn{width:37px;height:37px;border-radius:10px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;font-size:15px}
+.body{flex:1;overflow-y:auto;padding:20px 22px}
+.screen{display:none;animation:fade .22s ease}.screen.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+.tzref{display:inline-block;background:color-mix(in srgb,var(--gold) 16%,transparent);color:#8a6d12;font-size:10px;font-weight:800;letter-spacing:.04em;padding:2px 9px;border-radius:20px;vertical-align:2px}
+:root[data-theme="dark"] .tzref{color:#e8c86a}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--sh2)}
+.kpi .l{font-size:11.5px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:7px}
+.kpi .l .i{width:24px;height:24px;border-radius:7px;background:var(--accSoft);display:grid;place-items:center;font-size:12px}
+.kpi .v{font-size:21px;font-weight:900;letter-spacing:-.02em;margin-top:8px}
+.kpi .v.up{color:var(--grn)}.kpi .v.acc{color:var(--acc)}.kpi .v.amb{color:var(--amb)}.kpi .v.red{color:var(--red)}.kpi .v.gl{color:var(--gold)}
+.kpi .d{font-size:11px;color:var(--muted);margin-top:2px}
+.grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-bottom:14px}
+.grid2.eq{grid-template-columns:1fr 1fr}
+.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:17px;box-shadow:var(--sh2);margin-bottom:14px}
+.card .ct{font-size:13.5px;font-weight:800;margin-bottom:13px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.card .ct .mini{font-size:11px;color:var(--muted);font-weight:600}
+.hint{background:var(--off);border:1px dashed var(--line);border-radius:10px;padding:10px 13px;font-size:12px;color:var(--ink2);line-height:1.55}
+.hint b{color:var(--ink)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;font-weight:800;padding:7px 9px;border-bottom:1px solid var(--line)}
+td{padding:9px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:hover td{background:var(--off)}
+th.r,td.r{text-align:right}
+.tag{display:inline-block;font-size:10.5px;font-weight:800;border-radius:20px;padding:2px 10px;white-space:nowrap}
+.tag.b{background:var(--accSoft);color:var(--acc)}
+.tag.g{background:color-mix(in srgb,var(--grn) 13%,transparent);color:var(--grn)}
+.tag.y{background:color-mix(in srgb,var(--amb) 14%,transparent);color:var(--amb)}
+.tag.r{background:color-mix(in srgb,var(--red) 13%,transparent);color:var(--red)}
+.tag.gl{background:color-mix(in srgb,var(--gold) 16%,transparent);color:#8a6d12}
+:root[data-theme="dark"] .tag.gl{color:#e8c86a}
+.btn{border-radius:10px;padding:9px 16px;font-size:12.5px;font-weight:800;transition:.12s}
+.btn.pri{background:var(--acc);color:#fff}.btn.pri:hover{background:var(--accD)}
+.btn.grn{background:var(--grn);color:#fff}
+.btn.red{background:color-mix(in srgb,var(--red) 12%,transparent);color:var(--red)}
+.btn.ghost{border:1px solid var(--line);color:var(--ink2);background:var(--card)}
+.att{display:flex;flex-direction:column;gap:8px}
+.att .a{display:flex;gap:10px;align-items:flex-start;background:var(--off);border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+.att .a .ai{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:13px;flex:none}
+.att .a.r .ai{background:color-mix(in srgb,var(--red) 14%,transparent)}.att .a.y .ai{background:color-mix(in srgb,var(--amb) 15%,transparent)}.att .a.g .ai{background:color-mix(in srgb,var(--grn) 14%,transparent)}.att .a.p .ai{background:var(--accSoft)}
+.att .a .tx{font-size:12.5px;line-height:1.45}.att .a .tx .s{color:var(--muted);font-size:11.5px}
+.att .a .tx b{color:var(--ink)}
+
+/* карточка заявки: вкладки */
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:13px;flex-wrap:wrap}
+.tab{padding:8px 14px;font-size:12.5px;font-weight:700;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.on{color:var(--acc);border-color:var(--acc)}
+.tpane{display:none}.tpane.on{display:block}
+.dl{display:grid;grid-template-columns:170px 1fr;gap:7px 14px;font-size:12.5px}
+.dl .k{color:var(--muted)}.dl .v{font-weight:600}
+.docs .dc{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;margin-bottom:7px;font-size:12.5px}
+.docs .dc .st{margin-left:auto}
+.compl{height:9px;border-radius:6px;background:var(--off);overflow:hidden;margin:8px 0 4px}
+.compl i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:6px;transition:width .7s}
+
+/* одноэкранник эксперта */
+.exp{display:grid;grid-template-columns:1.05fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:1100px){.exp{grid-template-columns:1fr}}
+.pdfv{background:var(--card);border:1px solid var(--line);border-radius:15px;overflow:hidden;box-shadow:var(--sh2);display:flex;flex-direction:column}
+.pdfv .pb{background:#3a3f45;color:#dfe3e8;font-size:11px;padding:8px 13px;display:flex;gap:10px;align-items:center}
+.pdfv .pb i{width:9px;height:9px;border-radius:50%;background:#5a626b;display:inline-block}
+.pdfdoc{background:#fff;color:#222;margin:14px;border:1px solid #d8dde3;border-radius:4px;padding:18px 20px;font-size:11.5px;box-shadow:0 6px 18px -10px rgba(0,0,0,.3);flex:1;overflow-y:auto;max-height:520px}
+.pdfdoc h4{font-size:12.5px;text-align:center;margin-bottom:2px}
+.pdfdoc .lab{text-align:center;font-size:10px;color:#666;margin-bottom:10px}
+.pdfdoc table{font-size:10.5px}
+.pdfdoc th{color:#555;font-size:9px;padding:5px 7px;border-bottom:1px solid #ccc}
+.pdfdoc td{padding:5px 7px;border-bottom:1px solid #eee;color:#222}
+.pdfdoc tr:hover td{background:#fff}
+.pdfdoc .sig{margin-top:12px;font-size:10px;color:#555;display:flex;justify-content:space-between}
+.chkl{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:15px;box-shadow:var(--sh2)}
+.chkl .rows{max-height:300px;overflow-y:auto;margin-bottom:10px}
+.crow{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;margin-bottom:5px;font-size:12px;border:1px solid var(--line)}
+.crow.g{background:color-mix(in srgb,var(--grn) 7%,transparent);border-color:color-mix(in srgb,var(--grn) 25%,transparent)}
+.crow.r{background:color-mix(in srgb,var(--red) 7%,transparent);border-color:color-mix(in srgb,var(--red) 30%,transparent)}
+.crow.y{background:color-mix(in srgb,var(--amb) 8%,transparent);border-color:color-mix(in srgb,var(--amb) 28%,transparent)}
+.crow .m{font-size:14px;flex:none}
+.crow .nn{font-weight:700;flex:1}
+.crow .vv{font-size:11.5px;color:var(--ink2);white-space:nowrap}
+.frm label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin:9px 0 4px}
+.frm input,.frm select,.frm textarea{width:100%;background:var(--off);border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;color:var(--ink);font-family:inherit;outline:none}
+.vrd{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+
+/* бланк СГР */
+.blankw{display:grid;grid-template-columns:1.15fr 1fr;gap:14px}
+@media(max-width:1100px){.blankw{grid-template-columns:1fr}}
+.blank{background:
+ repeating-linear-gradient(45deg,rgba(26,95,180,.045) 0 7px,transparent 7px 14px),
+ repeating-linear-gradient(-45deg,rgba(201,162,39,.05) 0 7px,transparent 7px 14px),
+ #FDFDF8;border:2px solid #B9C6D6;border-radius:6px;padding:24px 26px;color:#1d2836;font-size:11.5px;position:relative;box-shadow:var(--sh2)}
+.blank::before{content:"";position:absolute;inset:7px;border:1px solid rgba(26,95,180,.35);border-radius:3px;pointer-events:none}
+.blank .ghead{text-align:center;margin-bottom:9px}
+.blank .ghead .g1{font-size:10px;letter-spacing:.06em;color:#41506b}
+.blank .ghead .g2{font-size:14px;font-weight:900;margin-top:4px;color:#132749}
+.blank .ghead .g3{font-size:10.5px;color:#41506b}
+.blank .num{text-align:center;font-size:15px;font-weight:900;color:#8a1a1a;letter-spacing:.06em;margin:7px 0}
+.blank .dl{grid-template-columns:150px 1fr;font-size:11px;gap:4px 12px}
+.blank .stamp{position:absolute;right:20px;bottom:16px;width:86px;height:86px;border:2.5px solid rgba(26,95,180,.5);border-radius:50%;display:grid;place-items:center;text-align:center;font-size:7.5px;font-weight:800;color:rgba(26,95,180,.65);transform:rotate(-12deg);line-height:1.3;padding:8px}
+.signfx{position:absolute;left:24px;bottom:20px;font-size:10px;color:#0d7a3a;font-weight:700;opacity:0;transition:.5s}
+.signfx.on{opacity:1}
+.steps{display:flex;flex-direction:column;gap:0;margin:6px 0}
+.sstep{display:flex;gap:12px;position:relative;padding-bottom:16px}
+.sstep::before{content:"";position:absolute;left:13px;top:28px;bottom:0;width:2px;background:var(--line)}
+.sstep:last-child::before{display:none}
+.sstep .n{width:27px;height:27px;border-radius:50%;background:var(--off);border:1px solid var(--line);display:grid;place-items:center;font-size:12px;font-weight:800;flex:none;z-index:1;transition:.3s}
+.sstep.done .n{background:var(--grn);border-color:var(--grn);color:#fff}
+.sstep.act .n{background:var(--acc);border-color:var(--acc);color:#fff;animation:pulse 1.1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 6px var(--accSoft)}}
+.sstep .tx{font-size:12.5px;padding-top:3px}
+.sstep .tx b{display:block}
+.sstep .tx .s{font-size:11px;color:var(--muted)}
+/* степпер ЛК */
+.trk{display:flex;gap:0;margin:14px 0 10px}
+.trk .t{flex:1;text-align:center;position:relative;font-size:11px;font-weight:700;color:var(--muted)}
+.trk .t::before{content:"";display:block;width:15px;height:15px;border-radius:50%;background:var(--off);border:2px solid var(--line);margin:0 auto 6px;position:relative;z-index:1}
+.trk .t::after{content:"";position:absolute;top:6px;left:-50%;width:100%;height:2px;background:var(--line)}
+.trk .t:first-child::after{display:none}
+.trk .t.done{color:var(--grn)}.trk .t.done::before{background:var(--grn);border-color:var(--grn)}
+.trk .t.act{color:var(--acc)}.trk .t.act::before{background:var(--acc);border-color:var(--acc);box-shadow:0 0 0 4px var(--accSoft)}
+/* modal */
+.ov{position:fixed;inset:0;background:rgba(10,18,30,.5);z-index:70;display:none;align-items:center;justify-content:center;padding:18px}
+.ov.on{display:flex}
+.modal{background:var(--card);border-radius:17px;max-width:680px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:var(--sh);position:relative;padding:20px 22px}
+.mclose{position:absolute;top:11px;right:14px;font-size:20px;color:var(--muted)}
+.modal .mh .t{font-size:16.5px;font-weight:900}
+.modal .mh .s{font-size:12px;color:var(--muted);margin-top:2px;margin-bottom:13px}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(90px);background:#0E1B2C;color:#fff;border-radius:13px;padding:13px 19px;font-size:13px;box-shadow:var(--sh);z-index:90;transition:.26s;max-width:94vw;text-align:center;opacity:0;border:1px solid rgba(255,255,255,.1)}
+.toast.on{transform:translateX(-50%);opacity:1}
+.toast b{color:var(--acc2)}
+.mtoggle{display:none}
+@media(max-width:900px){.app{grid-template-columns:1fr}.side{position:fixed;inset:0 30% 0 0;z-index:60;transform:translateX(-100%);transition:.22s}.side.open{transform:none}.mtoggle{display:grid}.kpis{grid-template-columns:1fr 1fr}.grid2,.grid2.eq{grid-template-columns:1fr}}
+</style></head>
+<body>
+
+<!-- GATE -->
+<div class="gate" id="gate">
+  <div class="in">
+    <div class="em">⚕️</div>
+    <h1>СГР · Цифровой контур <b>ДПЗ и ГСЭН МЗ КР</b></h1>
+    <div class="sub">Демо по вашему ТЗ «СМР — Выдача СГР»: приём и регистрация → экспертиза → решение и бланк → выдача и реестр. Плюс ответы на вопросы про серверную ЭЦП, хранение ТН ВЭД и рабочее место эксперта. Выберите роль:</div>
+    <div class="rgrid" id="rgrid"></div>
+    <div class="foot">Демо-режим · данные вымышлены · собрано <b>Pllato</b> по присланному ТЗ · каждый экран помечен пунктом ТЗ</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app hidden" id="app">
+  <aside class="side" id="side">
+    <div class="brand"><div class="bl">⚕️</div><div><div class="bn">СГР · ДПЗ и ГСЭН</div><div class="bs">Минздрав КР · выдача СГР ЕАЭС</div></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="usr"><div class="av" id="uav">Р</div><div><div class="un" id="uname">Руководитель</div><div class="ur" id="urole">Уполномоченное лицо</div></div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <button class="mtoggle tbtn" id="mtoggle">☰</button>
+      <div><div class="tt" id="pageTitle">Обзор</div><div class="ts" id="pageSub"></div></div>
+      <span class="sp"></span>
+      <button class="tzbtn" onclick="openM('tzov')">📋 Чек-лист демонстрации по ТЗ</button>
+      <select class="rolesel" id="roleSel"></select>
+      <button class="tbtn" id="themeBtn">🌙</button>
+    </div>
+    <div class="body">
+
+      <!-- ОБЗОР -->
+      <div class="screen on" data-s="dash">
+        <div class="kpis">
+          <div class="kpi"><div class="l"><span class="i">📥</span>Заявки в работе</div><div class="v acc">47</div><div class="d">12 — на предварительном рассмотрении</div></div>
+          <div class="kpi"><div class="l"><span class="i">🔬</span>На экспертизе</div><div class="v amb">18</div><div class="d">3 — «требует уточнения»</div></div>
+          <div class="kpi"><div class="l"><span class="i">📜</span>Выдано СГР · месяц</div><div class="v up">126</div><div class="d">реестр пополняется автоматически</div></div>
+          <div class="kpi"><div class="l"><span class="i">🗃️</span>Бланков на складе</div><div class="v gl">312</div><div class="d">серия KG · номерная ёмкость</div></div>
+        </div>
+        <div class="grid2">
+          <div class="card" style="margin-bottom:0"><div class="ct">Конвейер заявки — от приёма до реестра <span class="tzref">ТЗ · разделы 1–4</span></div>
+            <div class="steps">
+              <div class="sstep done"><div class="n">1</div><div class="tx"><b>Окно приёма</b><span class="s">карточка заявки, проверка комплектности, робот: ВХ-№/год</span></div></div>
+              <div class="sstep done"><div class="n">2</div><div class="tx"><b>Экспертиза</b><span class="s">одноэкранник: протокол ↔ Единые санитарные требования</span></div></div>
+              <div class="sstep act"><div class="n">3</div><div class="tx"><b>Решение руководителя</b><span class="s">согласовано / мотивированный отказ · резервирование бланка</span></div></div>
+              <div class="sstep"><div class="n">4</div><div class="tx"><b>Выдача и реестр</b><span class="s">PDF-бланк · серверная ЭЦП · запись в реестр · публичная часть</span></div></div>
+            </div>
+            <div class="hint">Заявитель видит каждый переход в личном кабинете — «прозрачность» из раздела «Цели автоматизации» вашего ТЗ. Ни одна заявка не живёт в бумаге или почте.</div></div>
+          <div class="card" style="margin-bottom:0"><div class="ct">Требует внимания</div>
+            <div class="att">
+              <div class="a y"><div class="ai">⏳</div><div class="tx"><b>Заявка ВХ-214/2026</b> — «требует уточнения» 4-й день. <span class="s">заявитель уведомлён · ЛК + email</span></div></div>
+              <div class="a r"><div class="ai">🗃️</div><div class="tx"><b>Бланки серии KG заканчиваются</b> — осталось 312. <span class="s">заказ новой номерной ёмкости</span></div></div>
+              <div class="a p"><div class="ai">✍️</div><div class="tx"><b>6 бланков ждут подписания ЭЦП</b> — очередь криптошлюза. <span class="s">серверное подписание · без флешек</span></div></div>
+              <div class="a g"><div class="ai">📊</div><div class="tx"><b>Реестр СГР синхронизирован</b> с публичной частью сайта. <span class="s">сегодня 09:00 · автоматически</span></div></div>
+            </div></div>
+        </div>
+      </div>
+
+      <!-- ЭТАП 1: ОКНО ПРИЁМА -->
+      <div class="screen" data-s="intake">
+        <div class="kpis">
+          <div class="kpi"><div class="l"><span class="i">📥</span>Сегодня подано</div><div class="v acc">9</div><div class="d">7 через ЛК · 2 через канцелярию</div></div>
+          <div class="kpi"><div class="l"><span class="i">✅</span>Комплект полный</div><div class="v up">6</div><div class="d">приняты автоматически</div></div>
+          <div class="kpi"><div class="l"><span class="i">↩️</span>Возврат на доработку</div><div class="v amb">2</div><div class="d">нет протокола испытаний</div></div>
+          <div class="kpi"><div class="l"><span class="i">🤖</span>Робот-нумератор</div><div class="v">ВХ-231/2026</div><div class="d">следующий входящий номер</div></div>
+        </div>
+        <div class="card"><div class="ct"><span>Очередь приёма · рабочее место «Окно приёма» <span class="tzref">ТЗ · Этап 1</span></span><button class="btn pri" onclick="openCard()">＋ Новая заявка</button></div>
+          <table><thead><tr><th>Вх. №</th><th>Заявитель</th><th>Продукция</th><th>ТН ВЭД</th><th>Комплект</th><th>Статус</th></tr></thead><tbody>
+            <tr onclick="openCard()" style="cursor:pointer"><td><b>ВХ-230/2026</b></td><td>ОсОО «Аква Тоо» (ЮЛ · КР)</td><td>Вода питьевая «Ысык-Ата», 3 SKU</td><td>2201 10</td><td><span class="tag g">6 / 6</span></td><td><span class="tag b">Принято на предв. рассмотрение</span></td></tr>
+            <tr onclick="openCard()" style="cursor:pointer"><td><b>ВХ-229/2026</b></td><td>ИП Асанова А. (ИП · КР)</td><td>Крем детский «Балапан», 1 SKU</td><td>3304 99</td><td><span class="tag g">6 / 6</span></td><td><span class="tag y">На экспертизе</span></td></tr>
+            <tr onclick="openCard()" style="cursor:pointer"><td><b>ВХ-228/2026</b></td><td>ТОО «ЭкоПродукт» (ЮЛ · РК)</td><td>БАД «Иммуно+», 4 SKU</td><td>2106 90</td><td><span class="tag r">4 / 6</span></td><td><span class="tag r">Возврат на доработку</span></td></tr>
+            <tr onclick="openCard()" style="cursor:pointer"><td><b>ВХ-227/2026</b></td><td>ООО «Чистая линия» (ЮЛ · РФ)</td><td>Средство моющее, 2 SKU</td><td>3402 20</td><td><span class="tag g">6 / 6</span></td><td><span class="tag y">На экспертизе</span></td></tr>
+          </tbody></table>
+          <div class="hint" style="margin-top:12px">Клик по строке — карточка заявки со вкладками <b>Заявитель / Изготовитель / Продукция / Файлы</b>, как в Этапе 1 ТЗ. Робот сам присваивает <b>ВХ-№/год</b> и ставит статус «Принято на предварительное рассмотрение». Если обязательных вложений нет — <b>возврат на доработку с комментарием</b>, вручную ничего не проверяется.</div></div>
+      </div>
+
+      <!-- ЭТАП 2: ЭКСПЕРТИЗА -->
+      <div class="screen" data-s="expert">
+        <div class="card" style="margin-bottom:14px"><div class="ct"><span>Рабочее место эксперта — одноэкранник <span class="tzref">ТЗ · Этап 2 + Вопрос 3 (UX)</span></span><span class="mini">заявка ВХ-229/2026 · Крем детский «Балапан» · ТН ВЭД 3304 99</span></div>
+          <div class="hint" style="margin-bottom:0">Ровно как в вашем вопросе про UX: <b>слева — протокол испытаний (встроенный просмотрщик), справа — динамический чек-лист Единых санитарных требований</b> по коду ТН ВЭД. Зелёное — показатель в норме, красное — отсутствует в протоколе, жёлтое — на границе допуска. Эксперт не листает вкладки и не крутит колёсико.</div></div>
+        <div class="exp">
+          <div class="pdfv"><div class="pb"><i></i><i></i><i></i><span>протокол_испытаний_1847.pdf · стр. 1 / 3 · встроенный просмотрщик</span></div>
+            <div class="pdfdoc">
+              <h4>ПРОТОКОЛ ИСПЫТАНИЙ № 1847-К</h4>
+              <div class="lab">Аккредитованная лаборатория «БишкекТест» · аттестат KG.А.01.0117 · 12.08.2026</div>
+              <table><thead><tr><th>Показатель</th><th>Метод</th><th class="r">Результат</th><th class="r">Норматив ЕСТ</th></tr></thead><tbody>
+                <tr><td>Водородный показатель (pH)</td><td>ГОСТ 29188.2</td><td class="r">6,8</td><td class="r">5,0–8,5</td></tr>
+                <tr><td>Свинец (Pb)</td><td>ГОСТ 26932</td><td class="r">0,0008 мг/кг</td><td class="r">≤ 5,0</td></tr>
+                <tr><td>Мышьяк (As)</td><td>ГОСТ 26930</td><td class="r">не обнаружен</td><td class="r">≤ 5,0</td></tr>
+                <tr><td>Ртуть (Hg)</td><td>ГОСТ 26927</td><td class="r">не обнаружена</td><td class="r">≤ 1,0</td></tr>
+                <tr><td>КМАФАнМ</td><td>ГОСТ ISO 21149</td><td class="r">8,4×10²</td><td class="r">≤ 10³</td></tr>
+                <tr><td>Дрожжи и плесени</td><td>ГОСТ ISO 16212</td><td class="r">9,7×10¹</td><td class="r">≤ 10²</td></tr>
+                <tr><td>Staphylococcus aureus</td><td>ГОСТ ISO 22718</td><td class="r">не обнаружен</td><td class="r">отсутствие</td></tr>
+              </tbody></table>
+              <div class="sig"><span>Зав. лабораторией: Осмонова Г.К.</span><span>М.П.</span></div>
+            </div></div>
+          <div class="chkl"><div class="ct" style="margin-bottom:9px">Чек-лист ЕСТ · ТН ВЭД 3304 99 <span class="mini">косметика детская · 9 требований</span></div>
+            <div class="rows">
+              <div class="crow g"><span class="m">✅</span><span class="nn">pH</span><span class="vv">6,8 · норма 5,0–8,5</span></div>
+              <div class="crow g"><span class="m">✅</span><span class="nn">Свинец (Pb)</span><span class="vv">0,0008 ≤ 5,0</span></div>
+              <div class="crow g"><span class="m">✅</span><span class="nn">Мышьяк (As)</span><span class="vv">не обнаружен</span></div>
+              <div class="crow g"><span class="m">✅</span><span class="nn">Ртуть (Hg)</span><span class="vv">не обнаружена</span></div>
+              <div class="crow g"><span class="m">✅</span><span class="nn">КМАФАнМ</span><span class="vv">8,4×10² ≤ 10³</span></div>
+              <div class="crow y"><span class="m">⚠️</span><span class="nn">Дрожжи и плесени</span><span class="vv">9,7×10¹ · близко к границе 10²</span></div>
+              <div class="crow g"><span class="m">✅</span><span class="nn">S. aureus</span><span class="vv">отсутствие · подтверждено</span></div>
+              <div class="crow r"><span class="m">❌</span><span class="nn">Pseudomonas aeruginosa</span><span class="vv">нет в протоколе</span></div>
+              <div class="crow r"><span class="m">❌</span><span class="nn">Микробиологическая чистота после вскрытия</span><span class="vv">нет в протоколе</span></div>
+            </div>
+            <div class="frm">
+              <label>Наименование продукции для СГР (рус, строго по регламенту)</label>
+              <input value="Крем косметический детский «Балапан» для ухода за кожей">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+                <div><label>Срок действия</label><select><option>5 лет</option><option>Бессрочно</option><option>На партию</option></select></div>
+                <div><label>Условия оборота</label><input value="Хранение при t 5–25°C"></div>
+              </div>
+            </div>
+            <div class="vrd">
+              <button class="btn grn" onclick="toast('Вердикт «Соответствует» зафиксирован. Заявка ушла на <b>Этап 3 — решение руководителя</b>. Чек-лист сохранён в карточке как обоснование.')">✓ Соответствует</button>
+              <button class="btn red" onclick="toast('Вердикт «Не соответствует»: сформируется <b>мотивированный отказ</b> с перечнем из 2 красных показателей.')">✗ Не соответствует</button>
+              <button class="btn ghost" onclick="toast('Статус <b>«Требует уточнения»</b>: заявитель получил письмо + уведомление в ЛК со списком недостающих показателей и может дозагрузить протокол — без нового захода заявки.')">⏳ Требует уточнения</button>
+            </div></div>
+        </div>
+        <div class="card"><div class="ct">Почему чек-лист собирается мгновенно <span class="tzref">Вопрос 2 · хранение ТН ВЭД</span></div>
+          <div class="hint">Связки «код ТН ВЭД → показатель → допустимая норма» лежат в <b>отдельной индексированной таблице</b> (142 380 связок в демо-наборе). Чек-лист — один SQL-запрос с JOIN, <b>18 мс</b>. У нас собственная система, а не конструктор: вопрос «инфоблоки или Highload-блоки» здесь не возникает — норм. база сразу проектируется как плоские индексированные таблицы. Подробнее — экран «Архитектура».</div></div>
+      </div>
+
+      <!-- ЭТАП 3: РЕШЕНИЕ -->
+      <div class="screen" data-s="approve">
+        <div class="grid2">
+          <div class="card" style="margin-bottom:0"><div class="ct">Заявка ВХ-229/2026 · на утверждении <span class="tzref">ТЗ · Этап 3</span></div>
+            <div class="dl">
+              <span class="k">Заявитель</span><span class="v">ИП Асанова Айгуль (ИП · Кыргызстан)</span>
+              <span class="k">Изготовитель</span><span class="v">ОсОО «КыргызКосметик», площадка: г. Кант, ул. Заводская 7</span>
+              <span class="k">Продукция для СГР</span><span class="v">Крем косметический детский «Балапан» для ухода за кожей</span>
+              <span class="k">ТН ВЭД ЕАЭС</span><span class="v">3304 99 000 0</span>
+              <span class="k">Вердикт эксперта</span><span class="v" style="color:var(--grn)">Соответствует · Единые санитарные требования (чек-лист приложен)</span>
+              <span class="k">Срок действия</span><span class="v">5 лет</span>
+            </div>
+            <div class="vrd" style="margin-top:14px">
+              <button class="btn grn" onclick="approveIt()">✓ Согласовано</button>
+              <button class="btn red" onclick="openM('refov')">✗ Отказ · мотивированное письмо</button>
+            </div>
+            <div class="hint" style="margin-top:12px">При «Согласовано» робот <b>сам резервирует следующий свободный бланк</b> из номерной ёмкости и меняет его статус «На складе» → «Использован». Коллизии номеров исключены: резервирование — одна транзакция в БД.</div></div>
+          <div class="card" style="margin-bottom:0"><div class="ct">Номерная ёмкость · серия KG <span class="mini">бланки строгой отчётности</span></div>
+            <table><thead><tr><th>Бланк</th><th>Статус</th><th>Заявка</th></tr></thead><tbody>
+              <tr><td>KG № 0023413</td><td><span class="tag gl">Использован</span></td><td>ВХ-221/2026</td></tr>
+              <tr><td>KG № 0023414</td><td><span class="tag gl">Использован</span></td><td>ВХ-225/2026</td></tr>
+              <tr id="blankRow"><td><b>KG № 0023415</b></td><td><span class="tag g" id="blankSt">На складе · следующий</span></td><td id="blankFor">—</td></tr>
+              <tr><td>KG № 0023416</td><td><span class="tag g">На складе</span></td><td>—</td></tr>
+              <tr><td>KG № 0023417</td><td><span class="tag r">Испорчен · акт</span></td><td>—</td></tr>
+            </tbody></table>
+            <div class="hint" style="margin-top:11px">Формат номера — строго ЕАЭС: <b>KG № 0000000</b>. Испорченные бланки списываются актом и не возвращаются в ёмкость.</div></div>
+        </div>
+      </div>
+
+      <!-- ЭТАП 4: БЛАНК И ЭЦП -->
+      <div class="screen" data-s="blank">
+        <div class="blankw">
+          <div>
+            <div class="card" style="margin-bottom:14px"><div class="ct">Бланк СГР — генерация из карточки <span class="tzref">ТЗ · Этап 4</span></div>
+            <div class="blank" id="blankDoc">
+              <div class="ghead"><div class="g1">ЕВРАЗИЙСКИЙ ЭКОНОМИЧЕСКИЙ СОЮЗ</div>
+              <div class="g2">СВИДЕТЕЛЬСТВО О ГОСУДАРСТВЕННОЙ РЕГИСТРАЦИИ</div>
+              <div class="g3">Департамент профилактики заболеваний и госсанэпиднадзора МЗ КР</div></div>
+              <div class="num">KG № 0023415</div>
+              <div class="dl">
+                <span class="k">Продукция</span><span class="v">Крем косметический детский «Балапан» для ухода за кожей</span>
+                <span class="k">Изготовитель</span><span class="v">ОсОО «КыргызКосметик», Кыргызская Республика, г. Кант, ул. Заводская 7</span>
+                <span class="k">Заявитель</span><span class="v">ИП Асанова Айгуль, г. Бишкек</span>
+                <span class="k">Код ТН ВЭД ЕАЭС</span><span class="v">3304 99 000 0</span>
+                <span class="k">Соответствует</span><span class="v">Единым санитарно-эпидемиологическим требованиям (Решение КТС № 299)</span>
+                <span class="k">Срок действия</span><span class="v">по 17.08.2031</span>
+              </div>
+              <div class="stamp">ДПЗ и ГСЭН МЗ КР · ЭЛЕКТРОННЫЙ ДОКУМЕНТ</div>
+              <div class="signfx" id="signfx">✓ Подписано ЭЦП: Департамент · 17.08.2026 14:02 · сертификат УЦ КР действителен</div>
+            </div></div>
+          </div>
+          <div>
+            <div class="card" style="margin-bottom:14px"><div class="ct">Серверное подписание ЭЦП <span class="tzref">Вопрос 1 · КриптоПро/DSS</span></div>
+              <div class="steps" id="signSteps">
+                <div class="sstep" id="ss1"><div class="n">1</div><div class="tx"><b>Данные карточки → XML/PDF бланка</b><span class="s">автоподстановка, защищённый фон</span></div></div>
+                <div class="sstep" id="ss2"><div class="n">2</div><div class="tx"><b>REST-запрос на криптошлюз (DSS)</b><span class="s">сервер портала → сервис подписания · без плагинов и флешек</span></div></div>
+                <div class="sstep" id="ss3"><div class="n">3</div><div class="tx"><b>Подпись от имени Департамента</b><span class="s">серверный сертификат УЦ КР · журналируется</span></div></div>
+                <div class="sstep" id="ss4"><div class="n">4</div><div class="tx"><b>Реестровая запись + выдача</b><span class="s">реестр СГР, ЛК заявителя, публичная часть</span></div></div>
+              </div>
+              <button class="btn pri" style="width:100%" onclick="signIt()">✍️ Подписать серверно · демо</button>
+              <div class="hint" style="margin-top:11px">Оператор ничего не втыкает и не нажимает в браузере — подписание <b>серверное</b>, в час пик очередь бланков уходит автоматически. Честно: готового коннектора к криптошлюзу КР у нас нет — предлагаем <b>оплачиваемый Proof of Concept</b> этим модулем до основного договора (ваш же «Сценарий 3»). Наработка остаётся у вас.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- РЕЕСТР -->
+      <div class="screen" data-s="registry">
+        <div class="card"><div class="ct"><span>Реестр выданных СГР <span class="tzref">ТЗ · Этап 4 · журнал учёта</span></span>
+          <span style="display:flex;gap:8px"><input id="regQ" placeholder="Фильтр: продукция, изготовитель…" style="background:var(--off);border:1px solid var(--line);border-radius:9px;padding:7px 11px;font-size:12px;color:var(--ink);outline:none" oninput="regFilter()">
+          <button class="btn ghost" onclick="pubToggle()" id="pubBtn">🌐 Публичный вид</button></span></div>
+          <table id="regT"><thead><tr><th>№ СГР</th><th>Дата</th><th>Продукция</th><th>Изготовитель</th><th class="priv">Заявитель</th><th class="priv">Эксперт</th><th>Статус</th></tr></thead><tbody>
+            <tr><td><b>KG № 0023414</b></td><td>15.08.2026</td><td>БАД «Иммуно+» капсулы</td><td>ТОО «ЭкоПродукт» (РК)</td><td class="priv">ТОО «ЭкоПродукт»</td><td class="priv">Джумалиева Н.</td><td><span class="tag g">Действует</span></td></tr>
+            <tr><td><b>KG № 0023413</b></td><td>14.08.2026</td><td>Вода питьевая «Ысык-Ата»</td><td>ОсОО «Аква Тоо» (КР)</td><td class="priv">ОсОО «Аква Тоо»</td><td class="priv">Токтогулов Б.</td><td><span class="tag g">Действует</span></td></tr>
+            <tr><td><b>KG № 0023409</b></td><td>11.08.2026</td><td>Средство моющее «Чистая линия»</td><td>ООО «Чистая линия» (РФ)</td><td class="priv">ООО «Чистая линия»</td><td class="priv">Джумалиева Н.</td><td><span class="tag g">Действует</span></td></tr>
+            <tr><td><b>KG № 0023391</b></td><td>04.08.2026</td><td>Детское питание «Наристе»</td><td>ОсОО «АгроМилк» (КР)</td><td class="priv">ОсОО «АгроМилк»</td><td class="priv">Токтогулов Б.</td><td><span class="tag y">Приостановлен</span></td></tr>
+            <tr><td><b>KG № 0023358</b></td><td>21.07.2026</td><td>Косметика «Айдай» — серия</td><td>ИП Осконбаева (КР)</td><td class="priv">ИП Осконбаева</td><td class="priv">Джумалиева Н.</td><td><span class="tag r">Аннулирован</span></td></tr>
+          </tbody></table>
+          <div class="hint" style="margin-top:12px" id="regHint">Каждая выдача попадает в реестр <b>автоматически</b> — руками журнал никто не ведёт. Фильтры по дате, продукции, изготовителю. Кнопка «Публичный вид» показывает, что увидит потребитель на сайте: <b>служебные колонки скрываются</b>, остаётся открытая часть — как требует прозрачность ЕАЭС.</div></div>
+      </div>
+
+      <!-- ЛК ЗАЯВИТЕЛЯ -->
+      <div class="screen" data-s="lk">
+        <div class="grid2">
+          <div class="card" style="margin-bottom:0"><div class="ct">Личный кабинет заявителя · ИП Асанова <span class="tzref">ТЗ · цели: прозрачность</span></div>
+            <div style="font-size:13px;font-weight:700">Заявка ВХ-229/2026 · Крем детский «Балапан»</div>
+            <div class="trk">
+              <div class="t done">Подана</div>
+              <div class="t done">Принята<br>ВХ-№ присвоен</div>
+              <div class="t act">Экспертиза</div>
+              <div class="t">Решение</div>
+              <div class="t">СГР выдано</div>
+            </div>
+            <div class="att">
+              <div class="a y"><div class="ai">⏳</div><div class="tx"><b>Требует уточнения:</b> дозагрузите протокол по показателям P. aeruginosa и «после вскрытия». <span class="s">уведомление: ЛК + email · 15.08 10:22</span></div></div>
+            </div>
+            <button class="btn pri" style="margin-top:11px" onclick="toast('Файл <b>протокол_1902-К.pdf</b> дозагружен в заявку. Эксперт получил уведомление — заявка вернулась на экспертизу <b>без новой подачи</b>.')">📎 Дозагрузить документ</button>
+            <div class="hint" style="margin-top:12px">Заявитель видит статус каждой стадии и получает уведомления на каждом переходе. Звонки «а что с моей заявкой?» исчезают — это и есть «прозрачность» из целей ТЗ.</div></div>
+          <div class="card" style="margin-bottom:0"><div class="ct">Уведомления заявителю <span class="mini">email + ЛК · автоматически</span></div>
+            <div class="att">
+              <div class="a g"><div class="ai">✉️</div><div class="tx"><b>«Заявка принята»</b> · присвоен ВХ-229/2026 <span class="s">13.08 09:14</span></div></div>
+              <div class="a g"><div class="ai">✉️</div><div class="tx"><b>«Передана на экспертизу»</b> <span class="s">13.08 11:40</span></div></div>
+              <div class="a y"><div class="ai">✉️</div><div class="tx"><b>«Требует уточнения»</b> + список показателей <span class="s">15.08 10:22</span></div></div>
+              <div class="a p"><div class="ai">🔔</div><div class="tx"><b>«СГР подписано и доступно»</b> — PDF с ЭЦП в ЛК <span class="s">будет отправлено на этапе 4</span></div></div>
+            </div></div>
+        </div>
+      </div>
+
+      <!-- СПРАВОЧНИКИ -->
+      <div class="screen" data-s="refs">
+        <div class="kpis">
+          <div class="kpi"><div class="l"><span class="i">🧾</span>ТН ВЭД ЕАЭС</div><div class="v acc">12 540</div><div class="d">кодов · дерево разделов</div></div>
+          <div class="kpi"><div class="l"><span class="i">🧪</span>Связок ЕСТ</div><div class="v">142 380</div><div class="d">код → показатель → норма</div></div>
+          <div class="kpi"><div class="l"><span class="i">⚡</span>Ответ чек-листа</div><div class="v up">18 мс</div><div class="d">индексированная таблица · JOIN</div></div>
+          <div class="kpi"><div class="l"><span class="i">🗃️</span>Бланки · ёмкость</div><div class="v gl">312 / 500</div><div class="d">на складе · серия KG</div></div>
+        </div>
+        <div class="card"><div class="ct">Единые санитарные требования — связки норм <span class="tzref">ТЗ · Границы проекта · Вопрос 2</span></div>
+          <table><thead><tr><th>Код ТН ВЭД</th><th>Группа продукции</th><th>Показатель</th><th class="r">Норма</th><th>Ед.</th></tr></thead><tbody>
+            <tr><td>3304 99</td><td>Косметика детская</td><td>Свинец (Pb)</td><td class="r">≤ 5,0</td><td>мг/кг</td></tr>
+            <tr><td>3304 99</td><td>Косметика детская</td><td>Pseudomonas aeruginosa</td><td class="r">отсутствие</td><td>в 1 г</td></tr>
+            <tr><td>2201 10</td><td>Воды питьевые</td><td>Нитраты (NO₃)</td><td class="r">≤ 45</td><td>мг/дм³</td></tr>
+            <tr><td>2106 90</td><td>БАД</td><td>Кадмий (Cd)</td><td class="r">≤ 1,0</td><td>мг/кг</td></tr>
+            <tr><td>3402 20</td><td>Моющие средства</td><td>А-ПАВ, смываемость</td><td class="r">≤ 0,5</td><td>мг/дм³</td></tr>
+          </tbody></table>
+          <div class="hint" style="margin-top:12px">Справочники из ТЗ — все четыре: <b>ТН ВЭД ЕАЭС</b> (дерево), <b>Единые санитарные требования</b> (эта таблица — источник чек-листа эксперта), <b>Группы продукции</b>, <b>Бланки строгой отчётности</b> (номерная ёмкость — экран «Решение»). Обновление норм — загрузкой файла, версии сохраняются: старые СГР ссылаются на нормы своего времени.</div></div>
+      </div>
+
+      <!-- АРХИТЕКТУРА -->
+      <div class="screen" data-s="arch">
+        <div class="card"><div class="ct">Ответы на три вопроса из вашего документа <span class="tzref">док. «Вопросы» + «Сценарии»</span></div>
+          <div class="att">
+            <div class="a p"><div class="ai">✍️</div><div class="tx"><b>1 · ЭЦП: только серверное подписание.</b> Портал сам обращается к сервису подписания по REST (изолированный контейнер с криптопровайдером), подписывает XML/PDF от имени Департамента, журналирует каждый вызов. Плагин на компьютере оператора для серверных задач не используем — в час пик человек не должен быть узким горлышком. <span class="s">Честно: готового коннектора к шлюзу КР у нас нет → предлагаем оплачиваемый PoC до договора (ваш «Сценарий 3»), наработка остаётся у вас.</span></div></div>
+            <div class="a p"><div class="ai">🗄️</div><div class="tx"><b>2 · Хранение ТН ВЭД и норм: плоские индексированные таблицы.</b> У нас собственная система, не конструктор — дилемма «инфоблоки vs Highload-блоки» отсутствует по построению. 142 380 связок «код → показатель → норма», чек-лист = один JOIN, 18 мс. Структуру таблиц фиксируем в ТЗ технического проектирования — до договора. <span class="s">1000 одновременных заявок — штатная нагрузка индексированной СУБД</span></div></div>
+            <div class="a p"><div class="ai">🖥️</div><div class="tx"><b>3 · UX эксперта: одноэкранник, не карточка с 20 вкладками.</b> Слева протокол (встроенный просмотрщик), справа чек-лист с подсветкой: зелёное — норма, красное — отсутствует. Эксперт «не крутит колёсико» — вы это уже видели на экране «Экспертиза». <span class="s">30 заявок в день без скроллинг-ада</span></div></div>
+          </div></div>
+        <div class="grid2 eq">
+          <div class="card" style="margin-bottom:0"><div class="ct">Что фиксируем в ТЗ до договора <span class="mini">по вашему «Сценарию 1»</span></div>
+            <div class="att">
+              <div class="a g"><div class="ai">📐</div><div class="tx"><b>Схема API-вызовов к сервису подписания</b> — последовательность, форматы, обработка ошибок и очередь.</div></div>
+              <div class="a g"><div class="ai">📐</div><div class="tx"><b>Структура таблиц нормативной базы</b> — поля, индексы, версионирование норм.</div></div>
+              <div class="a g"><div class="ai">📐</div><div class="tx"><b>Гарантия отдельной строкой</b> на модуль подписания — как вы и просите в ТЗ.</div></div>
+            </div></div>
+          <div class="card" style="margin-bottom:0"><div class="ct">Этапность · предохранитель для вас <span class="mini">ваш же «Сценарий 3»</span></div>
+            <div class="steps">
+              <div class="sstep done"><div class="n">0</div><div class="tx"><b>PoC · модуль серверного подписания</b><span class="s">малый оплачиваемый этап · работает — идём дальше, нет — расстаёмся, наработка ваша</span></div></div>
+              <div class="sstep act"><div class="n">1</div><div class="tx"><b>Ядро: приём → экспертиза → решение → бланк → реестр</b><span class="s">это демо — его каркас</span></div></div>
+              <div class="sstep"><div class="n">2</div><div class="tx"><b>ЛК заявителя + публичный реестр + уведомления</b></div></div>
+              <div class="sstep"><div class="n">3</div><div class="tx"><b>Боевая ЭЦП + интеграции (Тундук / ИСЕО)</b><span class="s">по мере выдачи доступов госшлюза</span></div></div>
+            </div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Карточка заявки (Этап 1) -->
+<div class="ov" id="cardov"><div class="modal"><button class="mclose" onclick="closeM('cardov')">×</button>
+  <div class="mh"><div class="t">Заявка ВХ-230/2026 · ОсОО «Аква Тоо»</div><div class="s">смарт-карточка · Этап 1 ТЗ: вкладки + проверка комплектности + робот-нумератор</div></div>
+  <div class="tabs">
+    <button class="tab on" onclick="tb(this,'t1')">Заявитель</button>
+    <button class="tab" onclick="tb(this,'t2')">Изготовитель</button>
+    <button class="tab" onclick="tb(this,'t3')">Продукция</button>
+    <button class="tab" onclick="tb(this,'t4')">Файлы · 6/6</button>
+  </div>
+  <div class="tpane on" id="t1"><div class="dl">
+    <span class="k">Тип заявителя</span><span class="v">Юридическое лицо</span>
+    <span class="k">Наименование</span><span class="v">ОсОО «Аква Тоо»</span>
+    <span class="k">Страна</span><span class="v">Кыргызская Республика</span>
+    <span class="k">ИНН / ОКПО</span><span class="v">0240 9832 1007 · 293841</span>
+    <span class="k">Контакт</span><span class="v">Бакытов Э. · +996 555 12-34-56 · aqua@too.kg</span>
+  </div></div>
+  <div class="tpane" id="t2"><div class="dl">
+    <span class="k">Изготовитель</span><span class="v">ОсОО «Аква Тоо»</span>
+    <span class="k">Площадка производства</span><span class="v">с. Ысык-Ата, промзона, цех розлива №2</span>
+    <span class="k">Связь с заявителем</span><span class="v">обязательная · заявитель = изготовитель</span>
+  </div><div class="hint" style="margin-top:10px">Площадки производства различаются — как требует ТЗ: у одного изготовителя может быть несколько цехов с разными адресами.</div></div>
+  <div class="tpane" id="t3"><div class="dl">
+    <span class="k">Продукция (3 SKU)</span><span class="v">Вода питьевая «Ысык-Ата» негаз. 0,5 / 1,0 / 5,0 л</span>
+    <span class="k">Группа</span><span class="v">Воды питьевые упакованные</span>
+    <span class="k">ТН ВЭД ЕАЭС</span><span class="v">2201 10 — выбор из справочника, не руками</span>
+  </div><div class="hint" style="margin-top:10px">Несколько продуктов одной группы в одной заявке — поддержано (множественное поле, как в ТЗ; правило «одна группа = одна заявка» настраивается).</div></div>
+  <div class="tpane" id="t4"><div class="docs">
+    <div class="dc">📄 Заявление установленной формы<span class="st tag g">загружено</span></div>
+    <div class="dc">📄 Документы о регистрации заявителя<span class="st tag g">загружено</span></div>
+    <div class="dc">📄 Документы изготовителя<span class="st tag g">загружено</span></div>
+    <div class="dc">🧪 Протокол испытаний (аккредит. лаборатория)<span class="st tag g">загружено</span></div>
+    <div class="dc">🏷️ Образцы этикеток / маркировки<span class="st tag g">загружено</span></div>
+    <div class="dc">📄 Макет потребительской упаковки<span class="st tag g">загружено</span></div>
+    <div class="compl"><i style="width:100%"></i></div>
+    <div style="font-size:11.5px;color:var(--muted)">Комплект: 6 из 6 · проверка автоматическая (логика БП из ТЗ)</div>
+  </div></div>
+  <div style="display:flex;gap:8px;margin-top:15px;flex-wrap:wrap">
+    <button class="btn pri" onclick="closeM('cardov');toast('Робот: присвоен <b>ВХ-230/2026</b>, статус «Принято на предварительное рассмотрение». Экспертное задание создано автоматически.')">Принять · робот присвоит ВХ-№</button>
+    <button class="btn ghost" onclick="closeM('cardov');toast('Возврат на доработку: заявителю ушёл комментарий со списком недостающих вложений — <b>ЛК + email</b>.')">↩ Вернуть на доработку</button>
+  </div>
+</div></div>
+
+<!-- Мотивированный отказ -->
+<div class="ov" id="refov"><div class="modal" style="max-width:560px"><button class="mclose" onclick="closeM('refov')">×</button>
+  <div class="mh"><div class="t">Мотивированное письмо-отказ</div><div class="s">формируется из шаблона · PDF · Этап 3 ТЗ</div></div>
+  <div class="pdfdoc" style="max-height:300px;margin:0 0 13px">
+    <h4>ПИСЬМО-ОТКАЗ № 118/2026</h4>
+    <div class="lab">по заявке ВХ-229/2026 от 13.08.2026</div>
+    <p style="margin-bottom:7px">Департамент, рассмотрев представленные документы, сообщает об отказе в выдаче СГР по основаниям:</p>
+    <p style="margin-bottom:5px">1. Протокол испытаний не содержит показателя «Pseudomonas aeruginosa», предусмотренного Едиными санитарными требованиями для группы «косметика детская» (ТН ВЭД 3304 99).</p>
+    <p>2. Отсутствуют данные микробиологической чистоты после вскрытия упаковки.</p>
+    <div class="sig"><span>Уполномоченное лицо: ________</span><span>М.П.</span></div>
+  </div>
+  <button class="btn red" style="width:100%" onclick="closeM('refov');toast('Отказ сформирован и отправлен заявителю (ЛК + email). Основания подставились <b>из красных строк чек-листа</b> — вручную письмо никто не пишет.')">Отправить отказ заявителю</button>
+</div></div>
+
+<!-- ТЗ-чеклист демонстрации -->
+<div class="ov" id="tzov"><div class="modal" style="max-width:640px"><button class="mclose" onclick="closeM('tzov')">×</button>
+  <div class="mh"><div class="t">Чек-лист демонстрации — все пункты вашего ТЗ</div><div class="s">кликайте пункт — откроется нужный экран. Для показа на встрече.</div></div>
+  <div class="att" id="tzlist"></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+var ROLES={
+ 'Руководитель':{ic:'🏛️',d:'Решения: согласовано/отказ, бланки, реестры',s:['dash','approve','blank','registry','refs','arch','intake','expert','lk']},
+ 'Окно приёма':{ic:'📥',d:'Приём заявок, комплектность, ВХ-номера',s:['intake','dash','lk']},
+ 'Эксперт ДПЗ':{ic:'🔬',d:'Одноэкранник: протокол ↔ чек-лист ЕСТ',s:['expert','intake','refs']},
+ 'Заявитель · ЛК':{ic:'👤',d:'Статусы, уведомления, дозагрузка',s:['lk']},
+ 'Админ реестров':{ic:'🗃️',d:'Справочники, бланки, публичная часть',s:['refs','registry','blank']},
+};
+var NAVDEF=[['Процесс СГР',[['dash','▦','Обзор'],['intake','📥','Этап 1 · Окно приёма','9'],['expert','🔬','Этап 2 · Экспертиза','18'],['approve','🏛️','Этап 3 · Решение','6'],['blank','📜','Этап 4 · Бланк и ЭЦП','6'],['registry','🗂️','Реестр СГР']]],
+ ['Контур',[['lk','👤','ЛК заявителя'],['refs','🧾','Справочники'],['arch','🧠','Архитектура · ваши вопросы']]]];
+var TITLES={dash:['Обзор','ДПЗ и ГСЭН МЗ КР · выдача СГР ЕАЭС'],intake:['Этап 1 · Окно приёма','Карточка заявки · комплектность · робот ВХ-№'],expert:['Этап 2 · Экспертиза','Одноэкранник: протокол ↔ Единые санитарные требования'],approve:['Этап 3 · Решение','Согласование · отказ · резервирование бланка'],blank:['Этап 4 · Бланк и ЭЦП','Генерация PDF · серверное подписание'],registry:['Реестр СГР','Автоматический журнал · публичная часть'],lk:['ЛК заявителя','Прозрачность: статусы и уведомления'],refs:['Справочники','ТН ВЭД · ЕСТ · группы · бланки'],arch:['Архитектура','Ответы на вопросы про ЭЦП, нагрузку и UX']};
+var TZ=[
+ ['intake','Этап 1 · карточка заявки: вкладки Заявитель / Изготовитель (площадки) / Продукция (несколько SKU, ТН ВЭД из справочника)'],
+ ['intake','Этап 1 · обязательные вложения: заявление, рег. документы, протоколы, этикетки — автопроверка, возврат на доработку с комментарием'],
+ ['intake','Этап 1 · робот: входящий номер ВХ-№/год + статус «Принято на предварительное рассмотрение»'],
+ ['expert','Этап 2 · проверка протоколов против Единых санитарных требований — чек-лист с подсветкой'],
+ ['expert','Этап 2 · статус «Требует уточнения»: уведомление в ЛК/email + дозагрузка без новой подачи'],
+ ['expert','Этап 2 · поля эксперта: наименование для СГР (рус), срок (5 лет/бессрочно/партия), условия оборота, вердикт'],
+ ['approve','Этап 3 · руководитель: «Согласовано» / «Отказ» с мотивированным письмом-PDF из шаблона'],
+ ['approve','Этап 3 · резервирование бланка из номерной ёмкости: KG № 0000000, «На складе» → «Использован», без коллизий'],
+ ['blank','Этап 4 · генерация PDF-бланка СГР с данными карточки и защищённым фоном'],
+ ['blank','Этап 4 · подписание ЭЦП — серверное (Вопрос 1: DSS/REST, без плагина и флешки) + честный PoC-этап'],
+ ['registry','Этап 4 · реестр СГР: автоматические записи, фильтры, публичная выгрузка на сайт'],
+ ['lk','Цели · прозрачность: заявитель отслеживает статус от приёма до выдачи, уведомления на каждом шаге'],
+ ['refs','Границы проекта · справочники: ТН ВЭД ЕАЭС, ЕСТ (142 380 связок · 18 мс), группы продукции, бланки строгой отчётности'],
+ ['arch','Вопрос 2 · хранение норм: индексированные таблицы вместо дилеммы «инфоблоки/Highload» + Вопрос 3 · UX + Сценарий 3 · PoC']
+];
+var ROLE='Руководитель';
+function renderGate(){document.getElementById('rgrid').innerHTML=Object.keys(ROLES).map(function(r){var m=ROLES[r];
+  return '<div class="rolecard" onclick="enter(\''+r.replace(/'/g,"\\'")+'\')"><div class="ri">'+m.ic+'</div><div class="rn">'+esc(r)+'</div><div class="rd">'+esc(m.d)+'</div></div>';}).join('');}
+function enter(r){ROLE=r;document.getElementById('gate').classList.add('hidden');document.getElementById('app').classList.remove('hidden');buildNav();nav(ROLES[r].s[0]);
+  setTimeout(function(){toast('Вход: <b>'+esc(r)+'</b>. Сверху — «Чек-лист демонстрации по ТЗ»: идите по пунктам, всё кликается.');},250);}
+function buildNav(){var allowed=ROLES[ROLE].s;var html='';NAVDEF.forEach(function(gr){var items=gr[1].filter(function(it){return allowed.indexOf(it[0])>=0;});if(!items.length)return;html+='<div class="g">'+gr[0]+'</div>';items.forEach(function(it){html+='<a data-go="'+it[0]+'"><span class="ic">'+it[1]+'</span>'+it[2]+(it[3]?'<span class="cnt">'+it[3]+'</span>':'')+'</a>';});});
+  document.getElementById('nav').innerHTML=html;document.querySelectorAll('.nav a[data-go]').forEach(function(a){a.onclick=function(){nav(a.dataset.go);};});
+  var sel=document.getElementById('roleSel');sel.innerHTML=Object.keys(ROLES).map(function(r){return '<option'+(r===ROLE?' selected':'')+'>'+esc(r)+'</option>';}).join('');
+  sel.onchange=function(){ROLE=sel.value;document.getElementById('urole').textContent=ROLE;buildNav();nav(ROLES[ROLE].s[0]);};
+  document.getElementById('urole').textContent=ROLE;document.getElementById('uname').textContent=ROLE;document.getElementById('uav').textContent=ROLE[0];}
+function nav(s){document.querySelectorAll('.screen').forEach(function(x){x.classList.toggle('on',x.dataset.s===s);});document.querySelectorAll('.nav a').forEach(function(a){a.classList.toggle('on',a.dataset.go===s);});
+  var t=TITLES[s]||['',''];document.getElementById('pageTitle').textContent=t[0];document.getElementById('pageSub').textContent=t[1];document.getElementById('side').classList.remove('open');document.querySelector('.body').scrollTop=0;}
+function renderTz(){document.getElementById('tzlist').innerHTML=TZ.map(function(t,i){
+  return '<div class="a p" style="cursor:pointer" onclick="closeM(\'tzov\');nav(\''+t[0]+'\')"><div class="ai">'+(i+1)+'</div><div class="tx">'+t[1]+' <span class="s">→ экран «'+(TITLES[t[0]][0])+'»</span></div></div>';}).join('');}
+function tb(el,id){el.parentNode.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on');});el.classList.add('on');
+  document.querySelectorAll('.tpane').forEach(function(p){p.classList.toggle('on',p.id===id);});}
+function openCard(){openM('cardov');}
+function approveIt(){document.getElementById('blankSt').className='tag gl';document.getElementById('blankSt').textContent='Использован · только что';document.getElementById('blankFor').textContent='ВХ-229/2026';
+  toast('Согласовано. Робот зарезервировал бланк <b>KG № 0023415</b> («На складе» → «Использован») и передал заявку на Этап 4 — генерация и подписание. Формат номера — строго ЕАЭС.');}
+var signBusy=false;
+function signIt(){if(signBusy)return;signBusy=true;
+  var st=[document.getElementById('ss1'),document.getElementById('ss2'),document.getElementById('ss3'),document.getElementById('ss4')];
+  st.forEach(function(s){s.classList.remove('done','act');});
+  var i=0;function step(){if(i>0){st[i-1].classList.remove('act');st[i-1].classList.add('done');}
+    if(i<st.length){st[i].classList.add('act');i++;setTimeout(step,850);}
+    else{document.getElementById('signfx').classList.add('on');signBusy=false;
+      toast('Бланк подписан <b>серверно</b> — оператор не участвовал. Запись ушла в реестр, PDF с ЭЦП доступен заявителю в ЛК.');}}
+  step();}
+function regFilter(){var q=document.getElementById('regQ').value.toLowerCase();
+  document.querySelectorAll('#regT tbody tr').forEach(function(tr){tr.style.display=tr.textContent.toLowerCase().indexOf(q)>=0?'':'none';});}
+var pub=false;
+function pubToggle(){pub=!pub;document.querySelectorAll('#regT .priv').forEach(function(c){c.style.display=pub?'none':'';});
+  document.getElementById('pubBtn').textContent=pub?'🔒 Служебный вид':'🌐 Публичный вид';
+  document.getElementById('regHint').innerHTML=pub
+   ?'<b>Публичный вид</b> — то, что видит потребитель на сайте: номер, дата, продукция, изготовитель, статус. Служебные колонки скрыты. Проверка подлинности СГР — по номеру.'
+   :'Каждая выдача попадает в реестр <b>автоматически</b> — руками журнал никто не ведёт. Фильтры по дате, продукции, изготовителю. Кнопка «Публичный вид» показывает открытую часть для сайта.';
+  toast(pub?'Так реестр выглядит <b>на публичном сайте</b> — открытость ЕАЭС из вашего ТЗ.':'Вернулись в служебный вид.');}
+function openM(id){document.getElementById(id).classList.add('on');}
+function closeM(id){document.getElementById(id).classList.remove('on');}
+var tt;function toast(h){var t=document.getElementById('toast');t.innerHTML=h;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on');},5200);}
+document.getElementById('themeBtn').onclick=function(){var r=document.documentElement;var d=r.getAttribute('data-theme')==='dark';if(d){r.removeAttribute('data-theme');}else{r.setAttribute('data-theme','dark');}this.textContent=d?'🌙':'☀️';try{localStorage.setItem('sgrTheme',d?'':'dark')}catch(e){}};
+try{if(localStorage.getItem('sgrTheme')==='dark'){document.documentElement.setAttribute('data-theme','dark');document.getElementById('themeBtn').textContent='☀️';}}catch(e){}
+document.getElementById('mtoggle').onclick=function(){document.getElementById('side').classList.add('open');};
+renderGate();renderTz();
+(function(){var q=new URLSearchParams(location.search);var s=q.get('s');
+ if(s){var role=Object.keys(ROLES).find(function(r){return ROLES[r].s.indexOf(s)>=0;})||'Руководитель';enter(role);nav(s);}})();
+</script>
+</body></html>
