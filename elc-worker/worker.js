@@ -9528,8 +9528,29 @@ async function maybeWarnMetaLeadTokenExpiry(env) {
   return { warned: true, admins: admins.length, remainingDays };
 }
 
+function resolvePllatoKepStages(stages) {
+  const entries = Object.entries(stages || {}).map(([id, stage]) => ({
+    id,
+    name: String(stage?.name || '').trim(),
+    sort: Number(stage?.sort),
+  }));
+  const creationDemo = entries.find((stage) => stage.name.toLowerCase() === 'создание демо');
+  const showDemo = entries.find((stage) => stage.name.toLowerCase() === 'показ демо');
+  const advance = entries.find((stage) => stage.name.toLowerCase() === 'аванс');
+  if (!creationDemo || !showDemo || !advance
+    || !Number.isFinite(creationDemo.sort) || !Number.isFinite(advance.sort)) return null;
+  const included = entries
+    .filter((stage) => Number.isFinite(stage.sort)
+      && stage.sort >= creationDemo.sort && stage.sort <= advance.sort)
+    .sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, 'ru'));
+  return {
+    stageIds: included.map((stage) => stage.id),
+    stageNames: included.map((stage) => stage.name),
+  };
+}
+
 // Публичная обезличенная серия для КЭП: уникальная сделка учитывается один раз
-// по первому входу в «Создание Демо» или «Показ Демо».
+// по первому входу в «Создание Демо» или любой следующий этап продаж до «Аванса».
 async function handlePublicPllatoKep(request, env) {
   const url = new URL(request.url);
   const points = Math.min(16, Math.max(4, parseInt(url.searchParams.get('points') || '8', 10) || 8));
@@ -9543,22 +9564,20 @@ async function handlePublicPllatoKep(request, env) {
   if (!pipeline?.id) return json({ ok: false, error: "pipeline not found" }, 404, request);
   let stages = {};
   try { stages = JSON.parse(pipeline.stages || '{}'); } catch {}
-  const targetNames = new Set(['создание демо', 'показ демо']);
-  const stageIds = Object.entries(stages)
-    .filter(([, stage]) => targetNames.has(String(stage?.name || '').trim().toLowerCase()))
-    .map(([id]) => id);
-  if (stageIds.length !== 2) return json({ ok: false, error: "KEP stages not found" }, 404, request);
+  const kepStages = resolvePllatoKepStages(stages);
+  if (!kepStages?.stageIds.length) return json({ ok: false, error: "KEP stages not found" }, 404, request);
+  const stagePlaceholders = kepStages.stageIds.map(() => '?').join(', ');
   const buckets = buildChartBuckets(period, points);
   const minDate = buckets[0].start;
   const result = await env.DB.prepare(`
     SELECT first_entered_at AS d FROM (
       SELECT deal_id, MIN(entered_at) AS first_entered_at
       FROM deal_stage_events
-      WHERE pipeline_id = ? AND stage_id IN (?, ?)
+      WHERE pipeline_id = ? AND stage_id IN (${stagePlaceholders})
       GROUP BY deal_id
     )
     WHERE first_entered_at >= ?
-  `).bind(pipeline.id, stageIds[0], stageIds[1], minDate).all();
+  `).bind(pipeline.id, ...kepStages.stageIds, minDate).all();
   const manualOverrides = { '2026-07-09': 12 };
   const series = countIntoBuckets((result.results || []).map((row) => row.d), buckets, period)
     .map((point, index) => {
@@ -9574,7 +9593,7 @@ async function handlePublicPllatoKep(request, env) {
     ok: true,
     series,
     period,
-    stages: ['Создание Демо', 'Показ Демо'],
+    stages: kepStages.stageNames,
     boundary: { weekday: 4, hour: 14, timeZone: 'Asia/Almaty' },
   }, 200, request);
 }
@@ -9632,25 +9651,23 @@ async function handlePllatoChartDetails(request, env) {
     await ensureStageEventsBackfill(env);
     let stages = {};
     try { stages = JSON.parse(pipeline.stages || '{}'); } catch {}
-    const targetNames = new Set(['создание демо', 'показ демо']);
-    const stageIds = Object.entries(stages)
-      .filter(([, stage]) => targetNames.has(String(stage?.name || '').trim().toLowerCase()))
-      .map(([id]) => id);
-    if (stageIds.length !== 2) return json({ ok: false, error: "KEP stages not found" }, 404, request);
+    const kepStages = resolvePllatoKepStages(stages);
+    if (!kepStages?.stageIds.length) return json({ ok: false, error: "KEP stages not found" }, 404, request);
+    const stagePlaceholders = kepStages.stageIds.map(() => '?').join(', ');
     const result = await env.DB.prepare(`
       SELECT d.id, d.title, first_stage.first_entered_at AS event_at,
              d.responsible_uid, u.name AS responsible_name, u.last_name AS responsible_last_name
       FROM (
         SELECT deal_id, MIN(entered_at) AS first_entered_at
         FROM deal_stage_events
-        WHERE pipeline_id = ? AND stage_id IN (?, ?)
+        WHERE pipeline_id = ? AND stage_id IN (${stagePlaceholders})
         GROUP BY deal_id
       ) first_stage
       JOIN deals d ON d.id = first_stage.deal_id
       LEFT JOIN users u ON u.uid = d.responsible_uid
       WHERE first_stage.first_entered_at >= ? AND first_stage.first_entered_at < ?
       ORDER BY first_stage.first_entered_at ASC
-    `).bind(pipeline.id, stageIds[0], stageIds[1], period.startIso, period.endIso).all();
+    `).bind(pipeline.id, ...kepStages.stageIds, period.startIso, period.endIso).all();
     rows = result.results || [];
   }
   const items = rows.map((row) => ({
@@ -9835,11 +9852,9 @@ async function handlePllatoLeadSourceAnalytics(request, env, { skipInternalAuth 
 
   let stages = {};
   try { stages = JSON.parse(pipeline.stages || '{}'); } catch {}
-  const targetNames = new Set(['создание демо', 'показ демо']);
-  const stageIds = Object.entries(stages)
-    .filter(([, stage]) => targetNames.has(String(stage?.name || '').trim().toLowerCase()))
-    .map(([id]) => id);
-  if (stageIds.length !== 2) return json({ ok: false, error: 'KEP stages not found' }, 404, request);
+  const kepStages = resolvePllatoKepStages(stages);
+  if (!kepStages?.stageIds.length) return json({ ok: false, error: 'KEP stages not found' }, 404, request);
+  const stagePlaceholders = kepStages.stageIds.map(() => '?').join(', ');
 
   const result = await env.DB.prepare(`
     SELECT d.id, d.title, d.bitrix_date_create, d.source_id, d.source_description,
@@ -9849,14 +9864,14 @@ async function handlePllatoLeadSourceAnalytics(request, env, { skipInternalAuth 
     LEFT JOIN (
       SELECT deal_id, MIN(entered_at) AS first_kep_at
       FROM deal_stage_events
-      WHERE pipeline_id = ? AND stage_id IN (?, ?)
+      WHERE pipeline_id = ? AND stage_id IN (${stagePlaceholders})
       GROUP BY deal_id
     ) kep ON kep.deal_id = d.id
     WHERE d.pipeline_id = ? AND d.bitrix_date_create >= ? AND d.bitrix_date_create < ?
     ORDER BY d.bitrix_date_create DESC
     LIMIT 10000
   `).bind(
-    pipeline.id, stageIds[0], stageIds[1], pipeline.id, startIso, endIso,
+    pipeline.id, ...kepStages.stageIds, pipeline.id, startIso, endIso,
   ).all();
 
   const channelGroups = new Map();
