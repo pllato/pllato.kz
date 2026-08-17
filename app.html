@@ -878,6 +878,30 @@ body {
 .la-channel .n { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); font-size:11px; font-weight:800; }
 .la-channel .m { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:5px; color:var(--text-3); font-size:9.5px; }
 .la-channel .m strong { color:var(--green); }
+.la-marketing { display:grid; gap:10px; }
+.la-marketer { border:1px solid var(--line-2); border-radius:12px; background:var(--surface); overflow:hidden; }
+.la-marketer-head { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:11px 12px; background:linear-gradient(135deg,var(--surface-2),var(--surface)); }
+.la-marketer-person { min-width:0; }
+.la-marketer-person .role { color:var(--text-3); font-size:8.5px; font-weight:850; text-transform:uppercase; letter-spacing:.08em; }
+.la-marketer-person .name { margin-top:2px; color:var(--text); font-size:14px; font-weight:850; }
+.la-level-numbers { display:flex; align-items:center; gap:12px; color:var(--text-3); font-size:9.5px; white-space:nowrap; }
+.la-level-numbers strong { color:var(--green); font-size:10.5px; }
+.la-accounts { display:grid; gap:7px; padding:9px; }
+.la-account,.la-campaign,.la-creative { border:1px solid var(--line-2); border-radius:9px; overflow:hidden; }
+.la-account > summary,.la-campaign > summary,.la-creative > summary { list-style:none; cursor:pointer; }
+.la-account > summary::-webkit-details-marker,.la-campaign > summary::-webkit-details-marker,.la-creative > summary::-webkit-details-marker { display:none; }
+.la-level-summary { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:10px; padding:9px 10px; }
+.la-level-summary:hover { background:var(--surface-2); }
+.la-level-name { min-width:0; }
+.la-level-name .eyebrow { color:var(--text-3); font-size:8px; font-weight:850; text-transform:uppercase; letter-spacing:.06em; }
+.la-level-name .name { margin-top:2px; color:var(--text); font-size:11px; font-weight:850; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.la-level-name .meta { margin-top:2px; color:var(--text-3); font-size:9px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.la-account-body { display:grid; gap:7px; padding:0 8px 8px; background:color-mix(in srgb,var(--surface-2) 55%,transparent); }
+.la-campaign { background:var(--surface); }
+.la-campaign-body { display:grid; gap:6px; padding:0 7px 7px; }
+.la-creative { background:var(--surface); }
+.la-creative .la-deals { min-width:0; }
+.la-zero { padding:11px; color:var(--text-3); font-size:10px; text-align:center; }
 .la-table { border:1px solid var(--line-2); border-radius:10px; overflow:hidden; }
 .la-table-head,.la-source-summary { display:grid; grid-template-columns:minmax(180px,1fr) 64px 64px 78px; gap:8px; align-items:center; }
 .la-table-head { padding:7px 11px; background:var(--surface-2); color:var(--text-3); font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
@@ -946,6 +970,10 @@ body {
   .la-custom-range button { flex:1 0 100%; }
   .la-body { padding-inline:12px; }
   .la-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .la-marketer-head { align-items:flex-start; }
+  .la-level-numbers { gap:7px; font-size:8.5px; }
+  .la-level-summary { grid-template-columns:minmax(0,1fr); }
+  .la-level-summary .la-level-numbers { justify-content:flex-start; }
   .la-table { overflow-x:auto; }
   .la-table-head,.la-source-summary { min-width:570px; }
   .la-deals { min-width:570px; }
@@ -4792,7 +4820,7 @@ function leadAnalyticsShell(){
 }
 function leadAnalyticsCacheKey(){
   const range=leadAnalyticsCurrentRange();
-  return `pllato_lead_analytics_v2:${String(CURRENT?.email||'guest').toLowerCase()}:${range.mode}:${range.start}:${range.end}`;
+  return `pllato_lead_analytics_v3:${String(CURRENT?.email||'guest').toLowerCase()}:${range.mode}:${range.start}:${range.end}`;
 }
 function readLeadAnalyticsCache(){
   try{
@@ -4834,6 +4862,30 @@ function leadAnalyticsSourceRows(sources){
     return `<details class="la-source"><summary class="la-source-summary"><div class="la-source-name"><div class="n">${mEsc(source.label||'Источник не указан')}</div><div class="c">${mEsc(details||'Нажмите, чтобы увидеть сделки')}</div></div><div class="la-source-num">${Number(source.leads)||0}</div><div class="la-source-num kep">${Number(source.kep)||0}</div><div class="la-source-num conversion">${Number(source.conversion)||0}%</div></summary>${leadAnalyticsDealRows(source)}</details>`;
   }).join('');
 }
+function leadAnalyticsLevelNumbers(item){
+  return `<div class="la-level-numbers"><span>${Number(item.leads)||0} лидов</span><span>${Number(item.kep)||0} КЭП</span><strong>${Number(item.conversion)||0}%</strong></div>`;
+}
+function leadAnalyticsMarketingRows(marketing){
+  if(!marketing?.length) return '<div class="la-empty">В выбранном периоде нет данных Meta.</div>';
+  return marketing.map(marketer=>{
+    const accounts=(marketer.accounts||[]).map(account=>{
+      const campaigns=(account.campaigns||[]).map(campaign=>{
+        const creatives=(campaign.creatives||[]).map(creative=>{
+          const creativeMeta=[
+            creative.adset&&`группа: ${creative.adset}`,
+            creative.adId&&`ID креатива: ${creative.adId}`,
+          ].filter(Boolean).join(' · ');
+          return `<details class="la-creative"><summary class="la-level-summary"><div class="la-level-name"><div class="eyebrow">Креатив</div><div class="name">${mEsc(creative.label||'Креатив не определён')}</div><div class="meta">${mEsc(creativeMeta||'Нажмите, чтобы увидеть лиды')}</div></div>${leadAnalyticsLevelNumbers(creative)}</summary>${leadAnalyticsDealRows(creative)}</details>`;
+        }).join('');
+        const campaignMeta=[campaign.campaignId&&`ID: ${campaign.campaignId}`].filter(Boolean).join(' · ');
+        return `<details class="la-campaign"><summary class="la-level-summary"><div class="la-level-name"><div class="eyebrow">Кампания</div><div class="name">${mEsc(campaign.label||'Кампания не определена')}</div><div class="meta">${mEsc(campaignMeta||'Креативы и результаты кампании')}</div></div>${leadAnalyticsLevelNumbers(campaign)}</summary><div class="la-campaign-body">${creatives||'<div class="la-zero">Креативов в выбранном периоде нет.</div>'}</div></details>`;
+      }).join('');
+      const accountMeta=account.accountId?`ID кабинета: ${account.accountId}`:'Кампании и креативы кабинета';
+      return `<details class="la-account" open><summary class="la-level-summary"><div class="la-level-name"><div class="eyebrow">Рекламный кабинет</div><div class="name">${mEsc(account.label||'Кабинет не определён')}</div><div class="meta">${mEsc(accountMeta)}</div></div>${leadAnalyticsLevelNumbers(account)}</summary><div class="la-account-body">${campaigns||'<div class="la-zero">В выбранном периоде лидов из этого кабинета нет.</div>'}</div></details>`;
+    }).join('');
+    return `<section class="la-marketer"><div class="la-marketer-head"><div class="la-marketer-person"><div class="role">Таргетолог</div><div class="name">${mEsc(marketer.name||'Не указан')}</div></div>${leadAnalyticsLevelNumbers(marketer)}</div><div class="la-accounts">${accounts}</div></section>`;
+  }).join('');
+}
 function paintLeadAnalytics(el,data,{cached=false}={}){
   if(!el||!data?.totals) return;
   if(ensureLeadAnalyticsFilter().mode==='custom'){
@@ -4848,8 +4900,10 @@ function paintLeadAnalytics(el,data,{cached=false}={}){
   const mainGap=data.mainGap&&Number(data.mainGap.lost)>0
     ? `<div class="la-alert"><strong>Главная потеря:</strong> ${mEsc(data.mainGap.label)} — ${Number(data.mainGap.lost)} из ${Number(data.mainGap.leads)} лидов пока не дошли до КЭП.</div>`
     : '';
+  const otherSources=Array.isArray(data.otherSources)?data.otherSources:(data.sources||[]).filter(source=>!source.isMeta);
+  const otherSourcesBlock=otherSources.length?`<div class="la-section-title">Другие источники</div><div class="la-table"><div class="la-table-head"><span>Источник</span><span>Лиды</span><span>КЭП</span><span>Конверсия</span></div>${leadAnalyticsSourceRows(otherSources)}</div>`:'';
   const range=data.range?leadAnalyticsRangeLabel(data.range.start,data.range.end):leadAnalyticsCurrentRange().label;
-  el.innerHTML=`${leadAnalyticsHeader('Когорта: лиды созданы в выбранном диапазоне; КЭП засчитывается, даже если состоялся позже.',range,cached)}<div class="la-body"><div class="la-summary"><div class="la-metric"><div class="l">Всего лидов</div><div class="v">${Number(totals.leads)||0}</div></div><div class="la-metric good"><div class="l">Дошли до КЭП</div><div class="v">${Number(totals.kep)||0}</div></div><div class="la-metric warn"><div class="l">Не дошли</div><div class="v">${Number(totals.notReached)||0}</div></div><div class="la-metric"><div class="l">Конверсия в КЭП</div><div class="v">${conversion}%</div></div></div><div class="la-funnel"><div class="la-funnel-line"><span style="width:${conversion}%"></span></div><div class="la-funnel-copy"><span>${Number(totals.leads)||0} лидов</span><span>${Number(totals.kep)||0} дошли до КЭП</span></div></div>${mainGap}<div class="la-section-title">По каналам</div><div class="la-channels">${channels||'<div class="la-empty">Нет данных по каналам.</div>'}</div><div class="la-section-title">По рекламе и источникам</div><div class="la-table"><div class="la-table-head"><span>Реклама / источник</span><span>Лиды</span><span>КЭП</span><span>Конверсия</span></div>${leadAnalyticsSourceRows(data.sources||[])}</div></div>`;
+  el.innerHTML=`${leadAnalyticsHeader('Когорта: лиды созданы в выбранном диапазоне; КЭП засчитывается, даже если состоялся позже.',range,cached)}<div class="la-body"><div class="la-summary"><div class="la-metric"><div class="l">Всего лидов</div><div class="v">${Number(totals.leads)||0}</div></div><div class="la-metric good"><div class="l">Дошли до КЭП</div><div class="v">${Number(totals.kep)||0}</div></div><div class="la-metric warn"><div class="l">Не дошли</div><div class="v">${Number(totals.notReached)||0}</div></div><div class="la-metric"><div class="l">Конверсия в КЭП</div><div class="v">${conversion}%</div></div></div><div class="la-funnel"><div class="la-funnel-line"><span style="width:${conversion}%"></span></div><div class="la-funnel-copy"><span>${Number(totals.leads)||0} лидов</span><span>${Number(totals.kep)||0} дошли до КЭП</span></div></div>${mainGap}<div class="la-section-title">По каналам</div><div class="la-channels">${channels||'<div class="la-empty">Нет данных по каналам.</div>'}</div><div class="la-section-title">Meta: таргетологи → кабинеты → кампании → креативы</div><div class="la-marketing">${leadAnalyticsMarketingRows(data.marketing||[])}</div>${otherSourcesBlock}</div>`;
 }
 async function fetchLeadAnalytics(){
   const session=getSession();

@@ -9053,6 +9053,8 @@ function getMetaLeadSources(env) {
       pipelineId: String(source?.pipelineId || env.META_LEAD_PIPELINE_ID || 'pipeline_imp_elc').trim(),
       stageId: String(source?.stageId || env.META_LEAD_STAGE_ID || 'NEW').trim(),
       responsibleUid: String(source?.responsibleUid || '').trim(),
+      marketingAccount: String(source?.marketingAccount || '').trim().slice(0, 120),
+      targetologist: String(source?.targetologist || '').trim().slice(0, 120),
       tokenBinding,
     };
   }).filter((source) => {
@@ -9252,9 +9254,12 @@ async function processMetaLeadEvent(env, value, rawEvent) {
     const formName = source.formName;
     const details = {
       metaLeadId: leadgenId,
+      metaLeadSourceId: source.id,
       pageId,
       formId,
       formName,
+      marketingAccount: source.marketingAccount || null,
+      targetologist: source.targetologist || null,
       adId: lead.ad_id || value.ad_id || null,
       adName: lead.ad_name || null,
       adsetId: lead.adset_id || null,
@@ -9705,29 +9710,149 @@ function leadAnalyticsObject(value) {
   return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
 }
 
+// Явный справочник рекламных кабинетов нужен потому, что Meta передаёт разные
+// наборы полей для Lead Ads и Instagram -> WhatsApp. Кабинет и таргетолог
+// остаются стабильными, даже если кампания или объявление переименованы.
+const LEAD_ANALYTICS_META_ACCOUNTS = Object.freeze([
+  { key: 'pllato-2', label: 'Pllato 2', targetologist: 'Ержан', pageId: '112651580492018' },
+  { key: 'pllato', label: 'Pllato', targetologist: 'Мира', sourceId: 'META_AD' },
+  { key: 'elc-roblox-eng', label: 'ELC Roblox eng', targetologist: 'Мира', pageId: '583575704849654' },
+]);
+
+function leadAnalyticsMetaOwner({ sourceId = '', pageId = '', marketingAccount = '', targetologist = '' } = {}) {
+  const normalizedSource = String(sourceId || '').trim().toUpperCase();
+  const normalizedPage = String(pageId || '').trim();
+  const normalizedAccount = String(marketingAccount || '').trim();
+  const configured = LEAD_ANALYTICS_META_ACCOUNTS.find((item) =>
+    (normalizedAccount && item.label.toLowerCase() === normalizedAccount.toLowerCase())
+    || (normalizedPage && item.pageId === normalizedPage)
+    || (item.sourceId && item.sourceId === normalizedSource)
+  );
+  if (configured) return configured;
+  if (normalizedSource === 'META_LEAD_AD') return LEAD_ANALYTICS_META_ACCOUNTS[0];
+  if (normalizedSource === 'META_AD') return LEAD_ANALYTICS_META_ACCOUNTS[1];
+  if (!normalizedAccount) return null;
+  return {
+    key: `meta:${normalizedAccount.toLowerCase().replace(/[^a-z0-9а-яё]+/gi, '-')}`,
+    label: normalizedAccount.slice(0, 120),
+    targetologist: String(targetologist || 'Не указан').trim().slice(0, 120) || 'Не указан',
+  };
+}
+
+function leadAnalyticsMetaAdCacheKey(adId) {
+  return `meta:ad:analytics:v2:${String(adId || '').trim()}`;
+}
+
+function leadAnalyticsMetaAdDetail(payload) {
+  if (!payload || payload.error || !payload.id) return null;
+  return {
+    adId: String(payload.id || ''),
+    adName: leadAnalyticsLabel(payload.name, 150),
+    accountId: String(payload.account_id || ''),
+    campaignId: String(payload.campaign?.id || ''),
+    campaignName: leadAnalyticsLabel(payload.campaign?.name, 120),
+    adsetId: String(payload.adset?.id || ''),
+    adsetName: leadAnalyticsLabel(payload.adset?.name, 120),
+    fetchedAt: Date.now(),
+  };
+}
+
+// Instagram -> WhatsApp обычно присылает только ad ID. Один пакетный запрос к
+// Graph API восстанавливает кампанию, группу и название объявления; результат
+// сохраняется в D1, поэтому последующие отчёты не зависят от ответа Meta.
+async function getLeadAnalyticsMetaAdDetails(env, rows) {
+  const adIds = [...new Set((rows || [])
+    .filter((row) => ['META_AD', 'META_LEAD_AD'].includes(String(row.source_id || '').toUpperCase()))
+    .map((row) => String(row.meta_ad_id || '').trim())
+    .filter(Boolean))].slice(0, 200);
+  const details = new Map();
+  if (!adIds.length) return details;
+
+  const cacheKeys = adIds.map(leadAnalyticsMetaAdCacheKey);
+  const cachedIds = new Set();
+  for (let offset = 0; offset < cacheKeys.length; offset += 50) {
+    const part = cacheKeys.slice(offset, offset + 50);
+    const placeholders = part.map(() => '?').join(',');
+    const cached = await env.DB.prepare(`SELECT k, v FROM kv WHERE k IN (${placeholders})`)
+      .bind(...part).all();
+    for (const row of (cached.results || [])) {
+      const parsed = leadAnalyticsObject(row.v);
+      if (parsed.adId) {
+        const adId = String(parsed.adId);
+        details.set(adId, parsed);
+        cachedIds.add(adId);
+      }
+    }
+  }
+
+  let missing = adIds.filter((adId) => !details.has(adId));
+  const tokens = [...new Set([
+    String(env.META_PLLATO_ACCESS_TOKEN || '').trim(),
+    String(env.META_PAGE_ACCESS_TOKEN || '').trim(),
+  ].filter(Boolean))];
+  const version = String(env.META_GRAPH_API_VERSION || 'v25.0');
+  const fields = 'id,name,account_id,campaign{id,name},adset{id,name}';
+  for (const token of tokens) {
+    if (!missing.length) break;
+    for (let offset = 0; offset < missing.length; offset += 50) {
+      const part = missing.slice(offset, offset + 50);
+      const graphUrl = new URL(`https://graph.facebook.com/${encodeURIComponent(version)}/`);
+      graphUrl.searchParams.set('ids', part.join(','));
+      graphUrl.searchParams.set('fields', fields);
+      let payload = {};
+      try {
+        const response = await fetch(graphUrl.toString(), { headers: { Authorization: `Bearer ${token}` } });
+        if (response.ok) payload = await response.json();
+      } catch (error) {
+        console.warn(JSON.stringify({ event: 'lead_analytics_meta_enrichment_failed', message: String(error?.message || error) }));
+      }
+      for (const adId of part) {
+        const detail = leadAnalyticsMetaAdDetail(payload?.[adId]);
+        if (detail) details.set(adId, detail);
+      }
+    }
+    missing = missing.filter((adId) => !details.has(adId));
+  }
+
+  const fresh = adIds.filter((adId) => details.has(adId) && !cachedIds.has(adId));
+  const writes = fresh.map((adId) => env.DB.prepare(`
+    INSERT INTO kv (k, v) VALUES (?, ?)
+    ON CONFLICT(k) DO UPDATE SET v = excluded.v
+  `).bind(leadAnalyticsMetaAdCacheKey(adId), JSON.stringify(details.get(adId))));
+  if (writes.length) await env.DB.batch(writes);
+  return details;
+}
+
 // Единая атрибуция для источников, которые попадают в CRM разными путями:
 // Instagram -> WhatsApp хранит meta_ad_attribution, Facebook Lead Ads —
 // custom_fields, сайт — custom_fields.attribution. Стабильный ad ID приоритетнее
 // названия, чтобы переименование объявления не раздваивало статистику.
-function resolveLeadAnalyticsAttribution(row) {
+function resolveLeadAnalyticsAttribution(row, enrichedMetaAd = null) {
   const meta = leadAnalyticsObject(row.meta_ad_attribution);
   const custom = leadAnalyticsObject(row.custom_fields);
   const website = leadAnalyticsObject(custom.attribution);
+  const enriched = enrichedMetaAd || {};
   const sourceId = leadAnalyticsText(row.source_id).toUpperCase();
   const sourceDescription = leadAnalyticsText(row.source_description);
   const adId = leadAnalyticsText(row.meta_ad_id, meta.adId, custom.adId, custom.ad_id);
   const campaign = leadAnalyticsText(
-    meta.campaignName, custom.campaignName, custom.campaign_name,
+    enriched.campaignName, meta.campaignName, custom.campaignName, custom.campaign_name,
     website.utm_campaign, website.utmCampaign,
   );
   const adName = leadAnalyticsText(
-    custom.adName, custom.ad_name, meta.description, meta.title,
+    enriched.adName, custom.adName, custom.ad_name, meta.description, meta.title,
     website.utm_content, website.utmContent,
   );
   const adset = leadAnalyticsText(
-    meta.adsetName, custom.adsetName, custom.adset_name,
+    enriched.adsetName, meta.adsetName, custom.adsetName, custom.adset_name,
     website.utm_term, website.utmTerm,
   );
+  const owner = leadAnalyticsMetaOwner({
+    sourceId,
+    pageId: leadAnalyticsText(custom.pageId, custom.page_id),
+    marketingAccount: leadAnalyticsText(custom.marketingAccount, custom.marketing_account),
+    targetologist: leadAnalyticsText(custom.targetologist),
+  });
 
   let channelKey = 'other';
   let channelLabel = sourceDescription || sourceId || 'Источник не указан';
@@ -9782,10 +9907,17 @@ function resolveLeadAnalyticsAttribution(row) {
     sourceKey,
     sourceLabel,
     campaign: cleanCampaign,
+    campaignId: leadAnalyticsText(enriched.campaignId, custom.campaignId, custom.campaign_id),
     adName: cleanAdName,
     adset: leadAnalyticsLabel(adset, 120),
+    adsetId: leadAnalyticsText(enriched.adsetId, custom.adsetId, custom.adset_id),
     adId,
     sourceUrl: leadAnalyticsText(meta.sourceUrl, custom.sourceUrl, custom.source_url),
+    isMeta: !!owner,
+    marketingAccountKey: owner?.key || '',
+    marketingAccount: owner?.label || '',
+    marketingAccountId: leadAnalyticsText(enriched.accountId, custom.accountId, custom.account_id),
+    targetologist: owner?.targetologist || '',
   };
 }
 
@@ -9809,6 +9941,85 @@ function finalizeLeadAnalyticsGroups(groups) {
     dealsTruncated: group.leads > group.deals.length,
     conversion: group.leads ? Math.round((group.kep / group.leads) * 1000) / 10 : 0,
   })).sort((a, b) => b.leads - a.leads || b.kep - a.kep || String(a.label || '').localeCompare(String(b.label || ''), 'ru'));
+}
+
+function leadAnalyticsGroupConversion(group) {
+  group.conversion = group.leads ? Math.round((group.kep / group.leads) * 1000) / 10 : 0;
+  return group;
+}
+
+function buildLeadAnalyticsMarketingHierarchy(sources) {
+  const targetologists = new Map();
+  function ensureTargetologist(name) {
+    const key = String(name || 'Не указан').trim() || 'Не указан';
+    if (!targetologists.has(key)) targetologists.set(key, { name: key, leads: 0, kep: 0, accounts: new Map() });
+    return targetologists.get(key);
+  }
+  function ensureAccount(targetologist, account) {
+    if (!targetologist.accounts.has(account.key)) {
+      targetologist.accounts.set(account.key, {
+        key: account.key,
+        label: account.label,
+        accountId: account.accountId || '',
+        leads: 0,
+        kep: 0,
+        campaigns: new Map(),
+      });
+    }
+    return targetologist.accounts.get(account.key);
+  }
+
+  // Все три кабинета видны всегда, даже если в выбранном диапазоне было 0 лидов.
+  for (const account of LEAD_ANALYTICS_META_ACCOUNTS) {
+    ensureAccount(ensureTargetologist(account.targetologist), account);
+  }
+
+  for (const source of (sources || []).filter((item) => item.isMeta)) {
+    const targetologist = ensureTargetologist(source.targetologist);
+    const account = ensureAccount(targetologist, {
+      key: source.marketingAccountKey,
+      label: source.marketingAccount,
+      accountId: source.marketingAccountId,
+    });
+    if (!account.accountId && source.marketingAccountId) account.accountId = source.marketingAccountId;
+    targetologist.leads += source.leads;
+    targetologist.kep += source.kep;
+    account.leads += source.leads;
+    account.kep += source.kep;
+    const campaignKey = source.campaignId || `name:${source.campaign || 'unknown'}`;
+    if (!account.campaigns.has(campaignKey)) {
+      account.campaigns.set(campaignKey, {
+        key: campaignKey,
+        label: source.campaign || 'Кампания не определена',
+        campaignId: source.campaignId || '',
+        leads: 0,
+        kep: 0,
+        creatives: [],
+      });
+    }
+    const campaign = account.campaigns.get(campaignKey);
+    campaign.leads += source.leads;
+    campaign.kep += source.kep;
+    campaign.creatives.push({
+      ...source,
+      label: source.adName || source.label || (source.adId ? `Креатив ${source.adId}` : 'Креатив не определён'),
+    });
+  }
+
+  return [...targetologists.values()].map((targetologist) => {
+    const accounts = [...targetologist.accounts.values()].map((account) => {
+      const campaigns = [...account.campaigns.values()].map((campaign) => {
+        campaign.creatives.sort((a, b) => b.leads - a.leads || b.kep - a.kep);
+        return leadAnalyticsGroupConversion(campaign);
+      }).sort((a, b) => b.leads - a.leads || b.kep - a.kep);
+      return leadAnalyticsGroupConversion({ ...account, campaigns });
+    }).sort((a, b) => {
+      const ai = LEAD_ANALYTICS_META_ACCOUNTS.findIndex((item) => item.key === a.key);
+      const bi = LEAD_ANALYTICS_META_ACCOUNTS.findIndex((item) => item.key === b.key);
+      return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi);
+    });
+    return leadAnalyticsGroupConversion({ ...targetologist, accounts });
+  }).sort((a, b) => b.leads - a.leads || a.name.localeCompare(b.name, 'ru'));
 }
 
 // Когортная аналитика: выбираем лиды, СОЗДАННЫЕ в видимом диапазоне, затем
@@ -9874,13 +10085,18 @@ async function handlePllatoLeadSourceAnalytics(request, env, { skipInternalAuth 
     pipeline.id, ...kepStages.stageIds, pipeline.id, startIso, endIso,
   ).all();
 
+  const rows = result.results || [];
+  const enrichedMetaAds = await getLeadAnalyticsMetaAdDetails(env, rows);
   const channelGroups = new Map();
   const sourceGroups = new Map();
   let totalKep = 0;
-  for (const row of (result.results || [])) {
+  for (const row of rows) {
     const reachedKep = !!row.first_kep_at;
     if (reachedKep) totalKep += 1;
-    const attribution = resolveLeadAnalyticsAttribution(row);
+    const attribution = resolveLeadAnalyticsAttribution(
+      row,
+      enrichedMetaAds.get(String(row.meta_ad_id || '').trim()) || null,
+    );
     const deal = {
       dealId: row.id,
       title: row.title || '(без названия)',
@@ -9897,16 +10113,25 @@ async function handlePllatoLeadSourceAnalytics(request, env, { skipInternalAuth 
       label: attribution.sourceLabel,
       channel: attribution.channelLabel,
       campaign: attribution.campaign,
+      campaignId: attribution.campaignId,
       adName: attribution.adName,
       adset: attribution.adset,
+      adsetId: attribution.adsetId,
       adId: attribution.adId,
       sourceUrl: attribution.sourceUrl,
+      isMeta: attribution.isMeta,
+      marketingAccountKey: attribution.marketingAccountKey,
+      marketingAccount: attribution.marketingAccount,
+      marketingAccountId: attribution.marketingAccountId,
+      targetologist: attribution.targetologist,
     }, reachedKep, deal);
   }
 
-  const totalLeads = (result.results || []).length;
+  const totalLeads = rows.length;
   const sources = finalizeLeadAnalyticsGroups(sourceGroups);
   const channels = finalizeLeadAnalyticsGroups(channelGroups).map(({ deals, ...group }) => group);
+  const marketing = buildLeadAnalyticsMarketingHierarchy(sources);
+  const otherSources = sources.filter((source) => !source.isMeta);
   const mainGap = sources.map((source) => ({
     key: source.key,
     label: source.label,
@@ -9927,6 +10152,8 @@ async function handlePllatoLeadSourceAnalytics(request, env, { skipInternalAuth 
     },
     channels,
     sources,
+    marketing,
+    otherSources,
     mainGap,
     methodology: 'created_cohort_ever_reached_kep',
   }, 200, request);
