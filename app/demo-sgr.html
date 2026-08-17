@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Демо по экранам · СГР Цифровой контур · ДПЗ и ГСЭН МЗ КР</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#132239;--ink2:#3c4a5e;--acc:#1A5FB4;--accD:#0F4185;--accL:#E8F0FA;--gold:#C9A227;--muted:#71808f;--faint:#9daab6;--line:#e3e9f0;--off:#f5f8fb;--grn:#16a34a;}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',sans-serif;color:#243040;font-size:10.5px;line-height:1.55;background:#eef1f5}
+.page{width:210mm;min-height:297mm;position:relative;padding:14mm 15mm 16mm;margin:0 auto 8mm;background:#fff;display:flex;flex-direction:column}
+.runfoot{position:absolute;left:15mm;right:15mm;bottom:8mm;display:flex;justify-content:space-between;font-size:8px;color:var(--faint);border-top:1px solid var(--line);padding-top:6px}
+.head{display:flex;align-items:center;gap:10px;padding-bottom:9px;border-bottom:2px solid var(--line);margin-bottom:12px}
+.head .em{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--accD));display:grid;place-items:center;font-size:16px;flex:none}
+.head .t{font-size:14px;font-weight:900;color:var(--ink)}
+.head .s{font-size:9px;color:var(--muted)}
+.head .n{margin-left:auto;font-size:22px;font-weight:900;color:var(--accL);-webkit-text-stroke:1.5px var(--acc)}
+.tzref{display:inline-block;background:color-mix(in srgb,var(--gold) 16%,transparent);color:#8a6d12;font-size:9px;font-weight:800;letter-spacing:.04em;padding:2px 9px;border-radius:20px;vertical-align:2px}
+h2{font-size:17px;font-weight:900;color:var(--ink);letter-spacing:-.01em;margin-bottom:3px}
+.sub{font-size:10.5px;color:var(--muted);margin-bottom:10px}
+.shot{border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 8px 22px -12px rgba(14,27,44,.28);margin-bottom:11px}
+.shot img{display:block;width:100%}
+.cols{display:grid;grid-template-columns:1.15fr 1fr;gap:11px}
+.blk .bt{font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--acc);margin-bottom:6px}
+.blk ul{list-style:none}
+.blk li{font-size:9.8px;color:var(--ink2);padding-left:16px;position:relative;margin-bottom:5px;line-height:1.5}
+.blk li::before{content:"●";position:absolute;left:2px;color:var(--acc);font-size:7px;top:3px}
+.blk.show li::before{content:"👆";font-size:9px;top:0}
+.blk li b{color:var(--ink)}
+.note{background:var(--accL);border:1px solid #c8daf0;border-radius:9px;padding:8px 12px;font-size:9.5px;color:#1c3f6e;line-height:1.5;margin-top:9px}
+.note b{color:#12294a}
+/* cover */
+.cover{justify-content:center;text-align:center}
+.cover .em{width:74px;height:74px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--accD));display:grid;place-items:center;font-size:34px;margin:0 auto 18px}
+.cover h1{font-size:30px;font-weight:900;color:var(--ink);letter-spacing:-.02em;line-height:1.15}
+.cover h1 b{color:var(--acc)}
+.cover .for{font-size:12.5px;color:var(--ink2);margin:12px auto 6px;max-width:150mm}
+.cover .for b{color:var(--ink)}
+.cover .meta{font-size:10px;color:var(--muted);margin-bottom:22px}
+.flow{display:flex;justify-content:center;gap:0;margin:12px 0 20px}
+.flow .f{padding:9px 13px;background:var(--off);border:1px solid var(--line);font-size:10px;font-weight:800;color:var(--ink2);position:relative}
+.flow .f:first-child{border-radius:9px 0 0 9px}
+.flow .f:last-child{border-radius:0 9px 9px 0}
+.flow .f+.f{border-left:none}
+.flow .f.hl{background:var(--accL);color:var(--accD)}
+.toc{max-width:140mm;margin:0 auto;text-align:left}
+.toc .r{display:flex;align-items:baseline;gap:9px;padding:5.5px 0;border-bottom:1px dashed var(--line);font-size:10.5px}
+.toc .r .no{width:20px;font-weight:900;color:var(--acc);flex:none}
+.toc .r .nm{font-weight:700;color:var(--ink)}
+.toc .r .ds{color:var(--muted);font-size:9.5px;margin-left:auto;text-align:right}
+.cover .cta{margin-top:20px;font-size:10.5px;color:var(--ink2);background:var(--off);border:1px solid var(--line);border-radius:10px;padding:10px 16px;display:inline-block}
+.cover .cta b{color:var(--acc)}
+@media print{
+  body{background:#fff}
+  .page{margin:0;min-height:auto;height:297mm;padding:11mm 13mm 9mm;page-break-after:always;overflow:hidden}
+  .page:last-child{page-break-after:auto}
+  .runfoot{position:static;margin-top:auto;padding-top:5px}
+  h2{font-size:15px}
+  .shot{margin-bottom:8px}
+  .head{padding-bottom:6px;margin-bottom:8px}
+}
+</style></head>
+<body>
+
+<!-- ОБЛОЖКА -->
+<section class="page cover">
+  <div>
+    <div class="em">⚕️</div>
+    <h1>СГР · <b>Цифровой контур</b><br>демонстрация системы по экранам</h1>
+    <div class="for">Для <b>Департамента профилактики заболеваний и госсанэпиднадзора МЗ КР</b> · контактное лицо: Улан</div>
+    <div class="meta">Интерактивный прототип собран по вашему ТЗ «СМР — Выдача СГР» и итогам встречи 17.08.2026 · данные вымышлены</div>
+    <div class="flow">
+      <div class="f">Приём + фильтрация</div><div class="f">Экспертиза</div><div class="f">Решение</div><div class="f hl">Бланк + ЭЦП</div><div class="f">Единое окно → ЕАЭС</div><div class="f">Реестр + ЛК</div>
+    </div>
+    <div class="toc">
+      <div class="r"><span class="no">1</span><span class="nm">Вход по ролям</span><span class="ds">5 рабочих мест, у каждого — свои экраны</span></div>
+      <div class="r"><span class="no">2</span><span class="nm">Обзор</span><span class="ds">поток 800–1 000/мес · разбор очереди из 1 000</span></div>
+      <div class="r"><span class="no">3</span><span class="nm">Этап 1 · Окно приёма</span><span class="ds">карточка · комплектность · робот ВХ-№ · фильтрация</span></div>
+      <div class="r"><span class="no">4</span><span class="nm">Этап 2 · Экспертиза</span><span class="ds">одноэкранник · аккредитация лаборатории · чек-лист ЕСТ</span></div>
+      <div class="r"><span class="no">5</span><span class="nm">Этап 3 · Решение</span><span class="ds">согласовано / отказ · бланки KG №</span></div>
+      <div class="r"><span class="no">6</span><span class="nm">Этап 4 · Бланк и ЭЦП</span><span class="ds">генерация PDF · серверная подпись · Единое окно</span></div>
+      <div class="r"><span class="no">7</span><span class="nm">Реестр СГР</span><span class="ds">автоматический журнал · публичная часть</span></div>
+      <div class="r"><span class="no">8</span><span class="nm">ЛК заявителя</span><span class="ds">статусы · уведомления · дозагрузка</span></div>
+      <div class="r"><span class="no">9</span><span class="nm">Справочники</span><span class="ds">ТН ВЭД · ЕСТ 142 380 связок · бланки</span></div>
+      <div class="r"><span class="no">10</span><span class="nm">Архитектура</span><span class="ds">ЭЦП · база знаний · 6 этапов работ</span></div>
+    </div>
+    <div class="cta">Живое демо кликается в браузере — ссылку пришлём отдельно. Этот документ — <b>печатная версия для показа руководству</b>.</div>
+  </div>
+  <div class="runfoot"><span>Pllato · демонстрация СГР · ДПЗ и ГСЭН МЗ КР</span><span>стр. 1</span></div>
+</section>
+
+<!-- 1 ВХОД -->
+<section class="page">
+  <div class="head"><div class="em">⚕️</div><div><div class="t">Вход по ролям</div><div class="s">каждый видит только свои экраны и права</div></div><div class="n">01</div></div>
+  <div class="shot"><img src="/app/sgr-screens/gate.png" alt=""></div>
+  <div class="cols">
+    <div class="blk"><div class="bt">Что на экране</div><ul>
+      <li><b>5 рабочих мест</b>: Руководитель, Окно приёма, Эксперт ДПЗ, Заявитель (личный кабинет), Администратор реестров.</li>
+      <li>Роль определяет набор экранов и права: эксперт не видит бланков, окно приёма не выносит вердиктов, заявитель видит только свою заявку.</li>
+      <li>Каждое действие в системе журналируется: кто, когда, что изменил — готовность к внутренним проверкам.</li>
+    </ul></div>
+    <div class="blk show"><div class="bt">Что показать на демонстрации</div><ul>
+      <li>Выберите роль «Руководитель» — откроется весь контур.</li>
+      <li>Наверху — кнопка <b>«Чек-лист демонстрации по ТЗ»</b>: 15 пунктов вашего ТЗ, клик по пункту открывает нужный экран.</li>
+      <li>Роль можно сменить в любой момент — селектор в правом верхнем углу.</li>
+    </ul></div>
+  </div>
+  <div class="note"><b>Юридическая ответственность остаётся за учреждением и экспертом</b> — система готовит обоснования, фильтрует и ускоряет, но вердикт выносит человек. Это зафиксировано в логике каждого экрана.</div>
+  <div class="runfoot"><span>Pllato · демонстрация СГР</span><span>стр. 2</span></div>
+</section>
+
+<!-- 2 ОБЗОР -->
+<section class="page">
+  <div class="head"><div class="em">▦</div><div><div class="t">Обзор — пульт руководителя</div><div class="s">весь конвейер и узкие места на одном экране</div></div><div class="n">02</div></div>
+  <div class="shot"><img src="/app/sgr-screens/dash.png" alt=""></div>
+  <div class="cols">
+    <div class="blk"><div class="bt">Что на экране</div><ul>
+      <li>Показатели из вашей реальности: <b>поток 800–1 000 заявок в месяц</b>, ход разбора накопленной очереди из 1 000 заявок, средний срок ответа заявителю.</li>
+      <li>Конвейер: приём → экспертиза → решение → выдача — на какой стадии сколько заявок находится прямо сейчас.</li>
+      <li>«Требует внимания»: зависшие уточнения, остаток номерной ёмкости бланков, очередь подписания.</li>
+    </ul></div>
+    <div class="blk show"><div class="bt">Что показать на демонстрации</div><ul>
+      <li>Сегодня 4 сотрудника вручную не успевают месячный объём — здесь виден целевой режим: <b>1–2 эксперта закрывают недельный поток</b>.</li>
+      <li>Норма ответа — месяц, цель системы — <b>3–6 дней</b>: срок виден по каждой заявке, ничего не «висит годами».</li>
+    </ul></div>
+  </div>
+  <div class="note">Оцифрованная очередь убирает и «серые ходы»: статус любой заявки прозрачен заявителю, порядок прохождения — хронологический и виден руководству.</div>
+  <div class="runfoot"><span>Pllato · демонстрация СГР</span><span>стр. 3</span></div>
+</section>
+
+<!-- 3 ОКНО ПРИЁМА -->
+<section class="page">
+  <div class="head"><div class="em">📥</div><div><div class="t">Этап 1 · Окно приёма</div><div class="s">карточка заявки · автопроверка комплектности · робот ВХ-№ <span class="tzref">ТЗ · Этап 1</span></div></div><div class="n">03</div></div>
+  <div class="shot"><img src="/app/sgr-screens/intake.png" alt=""></div>
+  <div class="cols">
+    <div class="blk"><div class="bt">Что на экране</div><ul>
+      <li>Очередь приёма со статусами комплектности. Клик по строке — карточка со вкладками <b>Заявитель / Изготовитель (площадки производства) / Продукция (несколько SKU, ТН ВЭД из справочника) / Файлы</b>.</li>
+      <li>Обязательные вложения (заявление, документы регистрации, протоколы, этикетки) проверяются <b>автоматически</b>: неполный комплект — возврат на доработку с комментарием, какой пункт нарушен.</li>
+      <li>Робот присваивает <b>ВХ-№/год</b> и статус «Принято на предварительное рассмотрение» — вручную никто ничего не нумерует.</li>
+    </ul></div>
+    <div class="blk show"><div class="bt">Что показать на демонстрации</div><ul>
+      <li>Откройте заявку «Аква Тоо» → вкладка «Файлы»: комплект 6/6, прогресс-бар.</li>
+      <li>Кнопка «Вернуть на доработку» — заявитель получает сообщение в ЛК и на email.</li>
+      <li><b>Предварительная фильтрация</b>: Единому окну задаются обязательные поля — неполные заявки не доходят до экспертов вовсе.</li>
+    </ul></div>
+  </div>
+  <div class="note">Это ответ на вашу задачу «отсортировать на предварительном этапе»: мусор отсеивается при подаче, эксперты работают только с полными комплектами.</div>
+  <div class="runfoot"><span>Pllato · демонстрация СГР</span><span>стр. 4</span></div>
+</section>
+
+<!-- 4 ЭКСПЕРТИЗА -->
+<section class="page">
+  <div class="head"><div class="em">🔬</div><div><div class="t">Этап 2 · Экспертиза — одноэкранник</div><div class="s">главный экран системы · «ответ на одном листе» <span class="tzref">ТЗ · Этап 2 + вопрос про UX</span></div></div><div class="n">04</div></div>
+  <div class="shot"><img src="/app/sgr-screens/expert.png" alt=""></div>
+  <div class="cols">
+    <div class="blk"><div class="bt">Что на экране</div><ul>
+      <li>Слева — <b>протокол испытаний</b> во встроенном просмотрщике. Справа — <b>чек-лист из базы знаний</b> по коду ТН ВЭД.</li>
+      <li>Первые строки чек-листа — то, что вы просили на встрече: <b>аккредитована ли лаборатория</b> (аттестат действует) и <b>покрывает ли область аккредитации</b> исследования протокола.</li>
+      <li>Дальше — показатели против норм ЕСТ: зелёное — в норме, жёлтое — на границе, <b>красное — показателя нет в протоколе</b>.</li>
+      <li>Поля эксперта: наименование для СГР (рус, по регламенту), срок действия (5 лет / бессрочно / партия), условия оборота.</li>
+    </ul></div>
+    <div class="blk show"><div class="bt">Что показать на демонстрации</div><ul>
+      <li>Два красных показателя — основание: кнопка «Не соответствует» сама формирует мотивировку.</li>
+      <li>«Требует уточнения» — заявитель получает список недостающего и дозагружает протокол <b>без новой подачи</b>.</li>
+      <li>Вердикт выносит эксперт — система лишь готовит обоснование: ответственность остаётся за учреждением.</li>
+    </ul></div>
+  </div>
+  <div class="note">База знаний: <b>142 380 связок «код ТН ВЭД → показатель → норма»</b> в индексированных таблицах, чек-лист собирается за 18 мс. Обновление нормативной базы — загрузкой файла, с версионированием.</div>
+  <div class="runfoot"><span>Pllato · демонстрация СГР</span><span>стр. 5</span></div>
+</section>
+
+<!-- 5 РЕШЕНИЕ -->
+<section class="page">
+  <div class="head"><div class="em">🏛️</div><div><div class="t">Этап 3 · Решение руководителя</div><div class="s">согласовано / мотивированный отказ · бланки строгой отчётности <span class="tzref">ТЗ · Этап 3</span></div></div><div class="n">05</div></div>
+  <div class="shot"><img src="/app/sgr-screens/approve.png" alt=""></div>
+  <div class="cols">
+    <div class="blk"><div class="bt">Что на экране</div><ul>
+      <li>Карточка заявки у уполномоченного лица: данные, вердикт эксперта с приложенным чек-листом, две кнопки — <b>«Согласовано» / «Отказ»</b>.</li>
+      <li>Отказ формирует <b>мотивированное письмо-PDF из шаблона</b>: основания подставляются из красных строк чек-листа, вручную письмо никто не пишет.</li>
+      <li>Справа — номерная ёмкость бланков серии <b>KG № 0000000</b> (формат строго ЕАЭС): на складе / использован / испорчен (акт).</li>
+    </ul></div>
+    <div class="blk show"><div class="bt">Что показать на демонстрации</div><ul>
+      <li>Нажмите «Согласовано» — робот <b>резервирует следующий свободный бланк</b>: статус меняется «На складе» → «Использован» прямо в таблице.</li>
+      <li>Резервирование — одна транзакция в базе: <b>коллизии номеров исключены</b> технически.</li>
+    </ul></div>
+  </div>
+  <div class="note">Специалист согласует — руководитель утверждает: двухступенчатая схема, как вы описали на встрече. Каждое решение фиксируется с именем и временем.</div>
+  <div class="runfoot"><span>Pllato · демонстрация СГР</span><span>стр. 6</span></div>
+</section>
+
+<!-- 6 БЛАНК И ЭЦП -->
+<section class="page">
+  <div class="head"><div class="em">📜</div><div><div class="t">Этап 4 · Бланк и серверная ЭЦП</div><div class="s">генерация PDF · подпись без флешек · автоотправка в Единое окно <span class="tzref">ТЗ · Этап 4</span></div></div><div class="n">06</div></div>
+  <div class="shot"><img src="/app/sgr-screens/blank.png" alt=""></div>
+  <div class="cols">
+    <div class="blk"><div class="bt">Что на экране</div><ul>
+      <li>Бланк СГР генерируется <b>автоподстановкой из карточки</b>: продукция, изготовитель, ТН ВЭД, срок — с защищённым фоном.</li>
+      <li>Справа — 4 шага серверного подписания: данные → REST-запрос на криптошлюз → <b>подпись от имени Департамента</b> → автоотправка.</li>
+      <li>Отметка «Подписано ЭЦП» появляется на бланке — сертификат, дата, время.</li>
+    </ul></div>
+    <div class="blk show"><div class="bt">Что показать на демонстрации</div><ul>
+      <li>Кнопка «Подписать серверно» — шаги проходят на глазах, <b>оператор не участвует</b>: никто не вставляет флешку.</li>
+      <li>Подписанное свидетельство <b>автоматически уходит в ваше Единое окно</b> — а оно уже само передаёт в реестр ЕАЭС. Напрямую в реестр ЕАЭС мы не заходим — ровно как вы объяснили.</li>
+      <li>У заявителей остаются их привычные ЭЦП — инфраструктура не меняется.</li>
+    </ul></div>
+  </div>
+  <div class="note">В час пик очередь бланков подписывается автоматически — человек не является узким горлышком. Каждый вызов подписания журналируется.</div>
+  <div class="runfoot"><span>Pllato · демонстрация СГР</span><span>стр. 7</span></div>
+</section>
+
+<!-- 7 РЕЕСТР -->
+<section class="page">
+  <div class="head"><div class="em">🗂️</div><div><div class="t">Реестр выданных СГР</div><div class="s">журнал ведётся сам · публичная часть для сайта <span class="tzref">ТЗ · Этап 4 · журнал учёта</span></div></div><div class="n">07</div></div>
+  <div class="shot"><img src="/app/sgr-screens/registry.png" alt=""></div>
+  <div class="cols">
+    <div class="blk"><div class="bt">Что на экране</div><ul>
+      <li>Каждая выдача попадает в реестр <b>автоматически</b> — вручную журнал никто не ведёт.</li>
+      <li>Фильтры по дате, продукции, изготовителю; статусы: действует / приостановлен / аннулирован.</li>
+      <li>Выгрузки для отчётности — в один клик.</li>
+    </ul></div>
+    <div class="blk show"><div class="bt">Что показать на демонстрации</div><ul>
+      <li>Кнопка <b>«Публичный вид»</b> — так реестр выглядит на сайте для потребителей: служебные колонки скрыты, осталась открытая часть.</li>
+      <li>Проверка подлинности СГР по номеру — прозрачность, которую требует открытость ЕАЭС.</li>
+    </ul></div>
+  </div>
+  <div class="note">Реестр — источник правды: и для руководства, и для публичного сайта, и для передачи в Единое окно. Одна база — расхождений между «журналами» не бывает.</div>
+  <div class="runfoot"><span>Pllato · демонстрация СГР</span><span>стр. 8</span></div>
+</section>
+
+<!-- 8 ЛК -->
+<section class="page">
+  <div class="head"><div class="em">👤</div><div><div class="t">Личный кабинет заявителя</div><div class="s">прозрачность: статусы, уведомления, дозагрузка <span class="tzref">ТЗ · цели автоматизации</span></div></div><div class="n">08</div></div>
+  <div class="shot"><img src="/app/sgr-screens/lk.png" alt=""></div>
+  <div class="cols">
+    <div class="blk"><div class="bt">Что на экране</div><ul>
+      <li><b>Статус-трекер</b>: подана → принята (ВХ-№) → экспертиза → решение → СГР выдано. Заявитель видит каждый переход.</li>
+      <li>Уведомления на каждом шаге: ЛК + email. «Требует уточнения» приходит со списком недостающих показателей.</li>
+      <li><b>Дозагрузка документов</b> — прямо в заявку, без новой подачи и потери места в очереди.</li>
+    </ul></div>
+    <div class="blk show"><div class="bt">Что показать на демонстрации</div><ul>
+      <li>Нажмите «Дозагрузить документ» — файл уходит в заявку, эксперт получает уведомление, заявка возвращается на экспертизу.</li>
+      <li>Готовое СГР с ЭЦП заявитель <b>скачивает из кабинета</b> — PDF с подписью.</li>
+    </ul></div>
+  </div>
+  <div class="note">Звонки «а что с моей заявкой?» исчезают: бизнес видит статус сам. Подача — через ваше Единое окно или напрямую через кабинет, оба пути ведут в одну систему.</div>
+  <div class="runfoot"><span>Pllato · демонстрация СГР</span><span>стр. 9</span></div>
+</section>
+
+<!-- 9 СПРАВОЧНИКИ -->
+<section class="page">
+  <div class="head"><div class="em">🧾</div><div><div class="t">Справочники и база знаний</div><div class="s">ТН ВЭД · Единые санитарные требования · бланки <span class="tzref">ТЗ · границы проекта</span></div></div><div class="n">09</div></div>
+  <div class="shot"><img src="/app/sgr-screens/refs.png" alt=""></div>
+  <div class="cols">
+    <div class="blk"><div class="bt">Что на экране</div><ul>
+      <li>Все справочники из ТЗ: <b>ТН ВЭД ЕАЭС</b> (12 540 кодов, дерево), <b>ЕСТ</b> — 142 380 связок «код → показатель → норма», <b>группы продукции</b>, <b>бланки строгой отчётности</b>.</li>
+      <li>Чек-лист эксперта собирается из этой базы за <b>18 мс</b> — индексированные таблицы, один JOIN-запрос.</li>
+      <li>Нормы версионируются: старые СГР ссылаются на нормы своего времени.</li>
+    </ul></div>
+    <div class="blk show"><div class="bt">Что показать на демонстрации</div><ul>
+      <li>Обновление нормативной базы — <b>загрузкой файла</b>, программист не нужен.</li>
+      <li>Номерная ёмкость бланков: на складе / использован / испорчен — акты списания, остаток виден руководству.</li>
+    </ul></div>
+  </div>
+  <div class="note">Мощная база знаний, подключённая к нормативам ЕАЭС, — то, что вы назвали главным условием: эксперт «судит» по ней, а не по памяти.</div>
+  <div class="runfoot"><span>Pllato · демонстрация СГР</span><span>стр. 10</span></div>
+</section>
+
+<!-- 10 АРХИТЕКТУРА -->
+<section class="page">
+  <div class="head"><div class="em">🧠</div><div><div class="t">Архитектура и план работ</div><div class="s">ответы на технические вопросы · 6 этапов · 4–6 месяцев</div></div><div class="n">10</div></div>
+  <div class="shot"><img src="/app/sgr-screens/arch.png" alt=""></div>
+  <div class="cols">
+    <div class="blk"><div class="bt">Что на экране</div><ul>
+      <li><b>ЭЦП</b>: серверное подписание + автоотправка в Единое окно (дальше оно само в ЕАЭС). Без плагинов и флешек у операторов.</li>
+      <li><b>База знаний</b>: собственная система — индексированные таблицы, штатно держат 1 000+ одновременных заявок.</li>
+      <li><b>UX</b>: одноэкранник эксперта — уже показан на стр. 5.</li>
+    </ul></div>
+    <div class="blk"><div class="bt">6 этапов работ · как на встрече</div><ul>
+      <li><b>1.</b> ТЗ технического проектирования · <b>2.</b> Ядро (приём → экспертиза → решение → бланки) · <b>3.</b> Личные кабинеты · <b>4.</b> Боевая интеграция (ЭЦП + Единое окно, тест с сотрудниками) · <b>5.</b> Перенос реестров и разбор очереди · <b>6.</b> Обучение, запуск, сопровождение.</li>
+      <li>Каждый этап сдаётся <b>актом</b>; еженедельные Zoom-показы по 2–3 часа; заложен выезд в Бишкек.</li>
+    </ul></div>
+  </div>
+  <div class="note"><b>Срок — 4–6 месяцев</b> с тестами и запасом. Стоимость и порядок оплаты — в коммерческом предложении (отдельный документ). Полное техническое задание — приложение к договору (отдельный документ).</div>
+  <div class="runfoot"><span>Pllato · демонстрация СГР · pllato.kz</span><span>стр. 11</span></div>
+</section>
+
+</body></html>
