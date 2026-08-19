@@ -1135,12 +1135,17 @@ function chatReconcile(box, fresh, opts){
   });
   return touched;
 }
+// Бейдж «комментарий» + ссылка на пост Instagram (если сообщение — коммент под постом; ig_post = ссылка).
+function igCommentHtml(m, esc){
+  if(!m || !m.ig_post) return '';
+  return `<a href="${esc(String(m.ig_post))}" target="_blank" rel="noopener" title="Открыть пост в Instagram" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:7px;background:rgba(225,48,108,.14);color:var(--ig,#e1306c);margin-bottom:5px;text-decoration:none;white-space:nowrap">💬 комментарий · открыть пост ↗</a><br>`;
+}
 function ibMsgBubble(m, t, byE){
   try{
     const c=(__ibChannels.length>1 && m.dir==='out' && m.channel_id)?(__ibChannels.find(x=>x.id===m.channel_id)):null;
     const via=c?` <span class="cw-via">через ${esc(c.name||'WhatsApp')}</span>`:'';
     const cls=m.dir==='out'?'out':m.dir==='ai'?'ai':'in';
-    return `<div class="msg ${cls}" data-mid="${esc(String(m.id||''))}" data-ext="${esc(String(m.ext_id||''))}" data-sig="${esc(ibMsgSig(m))}">${replyBlockHtml(m,byE,esc)}${msgActBtn(m,t.id)}${msgReplyBtn(m,t.id)}${waMediaHtml(m)}${msgTxt(m,esc)}<div class="mt">${esc(cwFmtTimeFull(m.ts))}${msgWho(m,esc)}${via}</div>${reactionBadgeHtml(m,esc)}</div>`;
+    return `<div class="msg ${cls}" data-mid="${esc(String(m.id||''))}" data-ext="${esc(String(m.ext_id||''))}" data-sig="${esc(ibMsgSig(m))}">${igCommentHtml(m,esc)}${replyBlockHtml(m,byE,esc)}${msgActBtn(m,t.id)}${msgReplyBtn(m,t.id)}${waMediaHtml(m)}${msgTxt(m,esc)}<div class="mt">${esc(cwFmtTimeFull(m.ts))}${msgWho(m,esc)}${via}</div>${reactionBadgeHtml(m,esc)}</div>`;
   }catch(e){ // одно «битое» сообщение не должно ронять весь чат
     const cls=(m&&m.dir==='out')?'out':(m&&m.dir==='ai')?'ai':'in';
     return `<div class="msg ${cls}" data-mid="${esc(String((m&&m.id)||''))}" data-ext="${esc(String((m&&m.ext_id)||''))}">${esc((m&&m.body)||'[сообщение]')}</div>`;
@@ -1183,9 +1188,8 @@ async function liveInbox(c){
   __ibChannels=(r&&r.ok&&r.data&&Array.isArray(r.data.channels))?r.data.channels:[];
   if(__ibChannels.length>1) __ibStores=await fetchStores();
   window.__inboxUnread=__ibThreads.reduce((a,t)=>a+(t.unread||0),0); renderNav();
-  if((!__ibCur || !__ibThreads.some(t=>t.id===__ibCur)) && __ibThreads.length) __ibCur=__ibThreads[0].id;
+  __ibCur=null;  // не открываем диалог автоматически при входе в «Чаты» — иначе случайно обнуляется счётчик непрочитанных
   ibThreadList(); ibChat(); ibContext();
-  if(__ibCur) ibOpen(__ibCur);
   if(__ibPollTimer) clearInterval(__ibPollTimer);
   __ibPollTimer=setInterval(ibPoll, 5000);
 }
@@ -1243,7 +1247,7 @@ function ibThreadList(){
       ${chans.map(ch=>{const u=chUnread(ch.id);return `<button class="btn sm ${__ibChannelFilter===ch.id?'primary':''}" data-chf="${esc(ch.id)}" title="${esc(ch.phone?('номер +'+ch.phone):'')}">${esc(ch.name||'WhatsApp')}${u?(' · '+u):''}</button>`;}).join('')}
     </div>`:'';
   const emptyMsg=__ibChannelFilter?'На этом номере диалогов нет':'Пока нет диалогов';
-  box.innerHTML=`<div class="ib-thead"><span>WhatsApp · GreenAPI</span>${unread?`<span class="b">${unread}</span>`:''}</div>${chipRow}<div class="ib-search"><div class="fld-in">${ic('i-search','sm')}<input id="ibSearch" placeholder="Поиск диалога…"></div></div>`+(rows||('<div class="empty" style="padding:34px 14px"><div>'+emptyMsg+'</div></div>'));
+  box.innerHTML=`<div class="ib-thead"><span>Мессенджеры</span>${unread?`<span class="b">${unread}</span>`:''}</div>${chipRow}<div class="ib-search"><div class="fld-in">${ic('i-search','sm')}<input id="ibSearch" placeholder="Поиск диалога…"></div></div>`+(rows||('<div class="empty" style="padding:34px 14px"><div>'+emptyMsg+'</div></div>'));
   box.querySelectorAll('.thread').forEach(b=>b.onclick=()=>{ ibOpen(b.dataset.t); if(__ibWrap && window.matchMedia('(max-width:760px)').matches) __ibWrap.classList.add('mob-chat'); });
   const s=box.querySelector('#ibSearch'); if(s)s.oninput=()=>{const q=s.value.toLowerCase();box.querySelectorAll('.thread').forEach(b=>{const t=__ibThreads.find(x=>x.id===b.dataset.t);b.style.display=(!q||((t.title||'')+' '+(t.phone||'')).toLowerCase().includes(q))?'':'none';});};
   box.querySelectorAll('[data-chf]').forEach(b=>b.onclick=()=>{ __ibChannelFilter=b.dataset.chf||null; ibThreadList(); });
@@ -1251,25 +1255,26 @@ function ibThreadList(){
 function ibChat(){
   const box=__ibWrap&&__ibWrap.querySelector('.ib-chat'); if(!box)return;
   if(!__ibThreads.length){ box.innerHTML=`<div class="empty" style="margin:auto;text-align:center">${ic('i-chat')}<div>Диалогов пока нет</div><div class="muted2" style="font-size:12px;margin-top:6px">Появятся при входящих на подключённый номер WhatsApp</div></div>`; return; }
-  const t=__ibThreads.find(x=>x.id===__ibCur); if(!t){ box.innerHTML=''; return; }
+  const t=__ibThreads.find(x=>x.id===__ibCur); if(!t){ box.innerHTML=`<div class="empty" style="margin:auto;text-align:center">${ic('i-chat')}<div>Выберите диалог слева</div><div class="muted2" style="font-size:12px;margin-top:6px">Непрочитанные останутся непрочитанными, пока вы не откроете чат</div></div>`; return; }
   window.__waMsgReload=()=>{ api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/messages').then(r=>{ if(r&&r.ok){ __ibMsgsCache[t.id]=r.data.items||[]; ibChat(); } }); };
   const nm=t.title||t.phone||'Диалог';
-  const multi=__ibChannels.length>1; const hasCh=__ibChannels.length>=1;
+  const isWa=(t.ch||'wa')==='wa'; const sendChans=__ibChannels.filter(c=>(c.type||'wa')===(t.ch||'wa'));
+  const multi=sendChans.length>1; const hasCh=sendChans.length>=1;
   const chById=Object.fromEntries(__ibChannels.map(c=>[c.id,c]));
-  if(!t._sendCh) t._sendCh=t.send_channel_id||t.channel_id||(__ibChannels[0]&&__ibChannels[0].id)||null;
+  if(!t._sendCh) t._sendCh=t.send_channel_id||t.channel_id||(sendChans[0]&&sendChans[0].id)||null;
   const chTag=(id)=>{ const c=chById[id]; return c?` <span class="cw-via">через ${esc(c.name||'WhatsApp')}</span>`:''; };
   const msgs=__ibMsgsCache[t.id];
   const __ibByE=replyMap(msgs);
   const bodyHtml = (msgs===undefined) ? '<div class="cw-empty" style="margin:auto">Загрузка…</div>'
     : (msgs.length ? msgs.map(m=>ibMsgBubble(m,t,__ibByE)).join('')
       : '<div class="cw-empty" style="margin:auto">Сообщений пока нет — напишите первым ↓</div>');
-  const fromBar = hasCh?`<div class="cw-from">${ic('i-phone','sm')} <span class="muted2">Отправитель:</span> <select class="sel sm" id="ibFrom">${__ibChannels.map(c=>`<option value="${esc(c.id)}" ${c.id===t._sendCh?'selected':''}>${esc(c.name||'WhatsApp')}${c.phone?(' · +'+esc(c.phone)):''}${c.funnel&&FUNNELS.find(f=>f.id===c.funnel)?(' · '+esc((FUNNELS.find(f=>f.id===c.funnel)||{}).name)):''}</option>`).join('')}<option disabled>──────────</option><option value="__add">＋ нужен доп. номер? добавьте в «Интеграции»</option></select></div>`:'';
+  const fromBar = (hasCh && (multi || isWa))?`<div class="cw-from">${ic('i-phone','sm')} <span class="muted2">Отправитель:</span> <select class="sel sm" id="ibFrom">${sendChans.map(c=>`<option value="${esc(c.id)}" ${c.id===t._sendCh?'selected':''}>${esc(c.name||(isWa?'WhatsApp':'Instagram'))}${c.phone?(' · +'+esc(c.phone)):''}${c.funnel&&FUNNELS.find(f=>f.id===c.funnel)?(' · '+esc((FUNNELS.find(f=>f.id===c.funnel)||{}).name)):''}</option>`).join('')}${isWa?'<option disabled>──────────</option><option value="__add">＋ нужен доп. номер? добавьте в «Интеграции»</option>':''}</select></div>`:'';
   box.innerHTML=`<div class="chat-h"><button class="ib-back" title="К списку диалогов"><svg class="svg-i sm" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button><div class="av" style="background:${avBg(nm)}">${esc(initials(nm))}</div>
-      <div><div style="font-weight:700;font-size:14px">${esc(nm)}</div><div class="muted" style="font-size:11.5px">${ibChanTag(t)}<span class="muted2">${ibChanNum(t)?('на '+esc(ibChanNum(t))):'WhatsApp · GreenAPI'}${t.phone?(' · клиент +'+esc(t.phone)):''}</span></div></div>
+      <div><div style="font-weight:700;font-size:14px">${esc(nm)}</div><div class="muted" style="font-size:11.5px">${ibChanTag(t)}<span class="muted2">${ibChanNum(t)?('на '+esc(ibChanNum(t))):(t.ch==='ig'?'Instagram · Wazzup':'WhatsApp · GreenAPI')}${t.phone?(' · клиент +'+esc(t.phone)):''}</span></div></div>
       <div class="spacer"></div></div>
     <div class="chat-body" id="ibChatBody">${bodyHtml}</div>
     ${fromBar}
-    <div class="chat-input"><input type="file" id="ibFile" accept="image/*,video/*,audio/*,application/pdf" style="display:none"><button class="btn" id="ibAttach" title="Прикрепить фото/видео/файл">${ic('i-paperclip','sm')}</button><div class="ci-box"><textarea id="ibMsgInput" rows="1" placeholder="Сообщение в WhatsApp…"></textarea></div><button class="btn" id="ibEmoji" title="Смайлики">😊</button><button class="btn" id="ibTpl" title="Вставить шаблон">${ic('i-doc','sm')}</button>${__ibAllowAudio?`<button class="btn primary" id="ibMic" title="Голосовое: тап — запись, тап ещё раз — отправить">${ic('i-mic','sm')}</button>`:''}<button class="btn primary" id="ibSendBtn">${ic('i-send','sm')}</button></div>`;
+    <div class="chat-input"><input type="file" id="ibFile" accept="image/*,video/*,audio/*,application/pdf" style="display:none"><button class="btn" id="ibAttach" title="Прикрепить фото/видео/файл">${ic('i-paperclip','sm')}</button><div class="ci-box"><textarea id="ibMsgInput" rows="1" placeholder="Сообщение в ${t.ch==='ig'?'Instagram':'WhatsApp'}…"></textarea></div><button class="btn" id="ibEmoji" title="Смайлики">😊</button><button class="btn" id="ibTpl" title="Вставить шаблон">${ic('i-doc','sm')}</button>${__ibAllowAudio?`<button class="btn primary" id="ibMic" title="Голосовое: тап — запись, тап ещё раз — отправить">${ic('i-mic','sm')}</button>`:''}<button class="btn primary" id="ibSendBtn">${ic('i-send','sm')}</button></div>`;
   const cb=box.querySelector('#ibChatBody'); if(cb)cb.scrollTop=cb.scrollHeight;
   const inp=box.querySelector('#ibMsgInput'), sb=box.querySelector('#ibSendBtn');
   const refStore=(chById[t.channel_id]||{}).store_key||null; // точка исходного номера диалога
@@ -3021,9 +3026,9 @@ PAGES.tasks=(c)=>{
   window.__reloadTasks=load;
   load();
 };
-async function fetchUsers(){ const r=await api('/api/users'); if(!r||!r.ok) return []; return (r.data.items||[]).filter(u=>u.role!=='superadmin'); } // dev/служебные учётки не предлагаем как ответственных
+async function fetchUsers(){ let r=await api('/api/users'); if(!(r&&r.ok)){ await new Promise(s=>setTimeout(s,700)); r=await api('/api/users'); } if(!r||!r.ok) return []; return (r.data.items||[]).filter(u=>u.role!=='superadmin'); } // dev/служебные учётки не предлагаем; при разовом сбое — один ретрай, иначе список менеджеров пустеет
 let __storesCache=null;
-async function fetchStores(){ if(__storesCache) return __storesCache; const r=await api('/api/1c/stores'); __storesCache=(r&&r.ok)?(r.data.items||[]):[]; return __storesCache; }
+async function fetchStores(){ if(__storesCache&&__storesCache.length) return __storesCache; const r=await api('/api/1c/stores'); if(r&&r.ok&&r.data){ __storesCache=r.data.items||[]; return __storesCache; } return []; } // ошибку/пустой ответ НЕ кэшируем — иначе один сбой прячет все филиалы до перезагрузки страницы
 async function fetchCardTypes(){ const r=await api('/api/1c/card-types'); if(!r||!r.ok) return []; return r.data.items||[]; }
 function storeSelectHtml(stores, selectedKey, attr, allLabel){ const sel=(selectedKey||'').toString(); return `<select ${attr}><option value="">${allLabel||'— точка —'}</option>`+(stores||[]).map(s=>`<option value="${esc(s.ref_key)}" ${s.ref_key===sel?'selected':''}>${esc(s.name)}</option>`).join('')+`</select>`; }
 function userSelectHtml(users, selectedName, attr){
@@ -4125,10 +4130,10 @@ function igPanel(){
   const setOpen=(o)=>{ body.style.display=o?'':'none'; chev.innerHTML=`${ic('i-cog','sm')} ${o?'Свернуть':'Управление'}`; };
   setOpen(false); tog.onclick=()=>setOpen(body.style.display==='none');
   (async()=>{ const r=await api('/api/admin/wazzup/settings');
-    if(r&&r.ok){ sub.textContent=r.data.configured?'ключ сохранён · готов к подключению':'не подключено'; const wh=panel.querySelector('[data-ig=wh]'); if(wh)wh.value=r.data.webhook_url||''; if(r.data.configured){const k=panel.querySelector('[data-ig=key]'); if(k)k.placeholder='••• ключ сохранён (пусто = не менять)';} }
+    if(r&&r.ok){ const chN=(r.data.channels||[]).length; sub.textContent=r.data.configured?(chN?(chN+' Instagram · подключено'):'ключ сохранён · канал не найден'):'не подключено'; const wh=panel.querySelector('[data-ig=wh]'); if(wh)wh.value=r.data.webhook_url||''; if(r.data.configured){const k=panel.querySelector('[data-ig=key]'); if(k)k.placeholder='••• ключ сохранён (пусто = не менять)';} }
     else sub.textContent=r.status===403?'нужен админ':'нет связи'; })();
   panel.querySelector('[data-ig=copy]').onclick=()=>{ const v=(panel.querySelector('[data-ig=wh]')||{}).value||''; navigator.clipboard.writeText(v).then(()=>toast('Скопировано','i-check2')).catch(()=>{}); };
-  panel.querySelector('[data-ig=save]').onclick=async()=>{ const key=panel.querySelector('[data-ig=key]').value.trim(); const b={}; if(key)b.api_key=key; const r=await api('/api/admin/wazzup/settings',{method:'PUT',body:JSON.stringify(b)}); if(r.ok){toast('Сохранено','i-check2'); sub.textContent=r.data.configured?'ключ сохранён · готов к подключению':'не подключено';} else toast(r.status===403?'Нужен админ':'Ошибка','i-x','#dc2626'); };
+  panel.querySelector('[data-ig=save]').onclick=async()=>{ const key=panel.querySelector('[data-ig=key]').value.trim(); const b={}; if(key)b.api_key=key; const r=await api('/api/admin/wazzup/settings',{method:'PUT',body:JSON.stringify(b)}); if(r.ok){ const d=r.data||{}; if(d.configured){ sub.textContent=(d.channels||0)+' Instagram · вебхук '+(d.webhook_registered?'зарегистрирован':'НЕ зарегистрирован'); toast(d.webhook_registered?('Подключено · каналов: '+(d.channels||0)):'Ключ сохранён, но вебхук не зарегистрирован — проверь ключ','i-'+(d.webhook_registered?'check2':'x'),d.webhook_registered?'':'#dc2626'); } else { sub.textContent='не подключено'; toast('Сохранено','i-check2'); } } else toast(r.status===403?'Нужен админ':'Ошибка','i-x','#dc2626'); };
   return panel;
 }
 PAGES.integrations=(c)=>{
@@ -4560,10 +4565,17 @@ function emojiPicker(btn, ta){
   pop.querySelectorAll('.emoji-b').forEach(b=>b.onclick=(ev)=>{ ev.stopPropagation(); insertAtCaret(ta, b.textContent); });
   setTimeout(()=>{ const close=(ev)=>{ if(!pop.contains(ev.target)&&ev.target!==btn){ pop.remove(); document.removeEventListener('click',close,true); } }; document.addEventListener('click',close,true); },0);
 }
+// Медиа докачивается в R2 в фоне (1–3с). Если <img> поймал 404 в этом окне, браузер запоминает битую картинку
+// и сам не повторяет. Ретраим загрузку с нарастающей задержкой + cache-bust, пока файл не появится (до 6 попыток).
+function waImgRetry(el){
+  try{ const n=parseInt(el.getAttribute('data-mret')||'0',10); if(n>=6) return; el.setAttribute('data-mret',String(n+1));
+    const base=(el.getAttribute('src')||'').split('?')[0]; setTimeout(()=>{ el.src=base+'?r='+Date.now(); }, 1000*(n+1)); }catch(e){}
+}
+window.waImgRetry=waImgRetry;
 function waMediaHtml(m){
   if(!m||!m.media_key) return '';
   const url=API_BASE+'/api/wa/media/'+encodeURIComponent(m.media_key), t=String(m.media_type||'');
-  if(t.indexOf('image/')===0) return `<a href="${url}" target="_blank"><img src="${url}" loading="lazy" style="max-width:230px;max-height:280px;border-radius:9px;display:block;margin-bottom:4px"></a>`;
+  if(t.indexOf('image/')===0) return `<a href="${url}" target="_blank"><img src="${url}" loading="lazy" data-mret="0" onerror="waImgRetry(this)" style="max-width:230px;max-height:280px;border-radius:9px;display:block;margin-bottom:4px"></a>`;
   if(t.indexOf('video/')===0) return `<video src="${url}" controls style="max-width:230px;border-radius:9px;display:block;margin-bottom:4px"></video>`;
   if(t.indexOf('audio/')===0) return `<audio src="${url}" controls style="display:block;margin-bottom:4px;max-width:230px"></audio>`;
   if(t.indexOf('application/pdf')===0) return `<div style="width:230px;margin-bottom:4px;border:1px solid rgba(0,0,0,.15);border-radius:9px;overflow:hidden;background:#fff">`
@@ -4754,7 +4766,7 @@ async function cwOpenThread(tid){
     if(!t.loaded){
       const r=await api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/messages');
       if(r.ok && r.data && Array.isArray(r.data.items)){
-        t.msgs=r.data.items.map(m=>({id:m.id,dir:m.dir,body:m.body,ts:m.ts,tm:cwFmtTime(m.ts),media_key:m.media_key,media_type:m.media_type,edited_at:m.edited_at,deleted:m.deleted,ext_id:m.ext_id,reply_to:m.reply_to,reply_preview:m.reply_preview,reactions:m.reactions})); t._sig=r.data.items.length+':'+((r.data.items[r.data.items.length-1]||{}).ts||0);
+        t.msgs=r.data.items.map(m=>({id:m.id,dir:m.dir,body:m.body,ts:m.ts,tm:cwFmtTime(m.ts),media_key:m.media_key,media_type:m.media_type,edited_at:m.edited_at,deleted:m.deleted,ext_id:m.ext_id,reply_to:m.reply_to,reply_preview:m.reply_preview,reactions:m.reactions,ig_post:m.ig_post})); t._sig=r.data.items.length+':'+((r.data.items[r.data.items.length-1]||{}).ts||0);
         t.loaded=true;
       }
       if(CW.open && CW.view==='chat' && CW.thread===tid) cwRender();
@@ -4770,7 +4782,7 @@ function cwMsgBubble(m, t, byE){
   const media=m.media_key?waMediaHtml(m):'';
   const act=(m.id&&m.dir==='out')?msgActBtn(m,t.id):'';
   const txt=m.deleted?'<i style="opacity:.55">🚫 удалено</i>':(cwEsc(bd)+(m.edited_at?' <span style="opacity:.5;font-size:10px">(изм.)</span>':''));
-  return `<div class="cw-msg ${cls}" data-mid="${cwEsc(String(m.id||''))}" data-ext="${cwEsc(String(m.ext_id||''))}" data-sig="${cwEsc(ibMsgSig(m))}">${tag}${replyBlockHtml(m,byE,cwEsc)}${act}${msgReplyBtn(m,t.id)}${media}${txt}<div class="cw-mt">${cwEsc(tm)}</div>${reactionBadgeHtml(m,cwEsc)}</div>`;
+  return `<div class="cw-msg ${cls}" data-mid="${cwEsc(String(m.id||''))}" data-ext="${cwEsc(String(m.ext_id||''))}" data-sig="${cwEsc(ibMsgSig(m))}">${tag}${igCommentHtml(m,cwEsc)}${replyBlockHtml(m,byE,cwEsc)}${act}${msgReplyBtn(m,t.id)}${media}${txt}<div class="cw-mt">${cwEsc(tm)}</div>${reactionBadgeHtml(m,cwEsc)}</div>`;
 }
 function cwRenderChat(root){
   const t=cwFindThread(CW.thread); if(!t){ CW.view='list'; cwRender(); return; }
@@ -4832,7 +4844,7 @@ function cwRenderChat(root){
       if(!(CW.open && CW.view==='chat' && CW.thread===t.id)){ clearInterval(CW.chatPollTimer); CW.chatPollTimer=null; return; }
       const r=await api('/api/inbox/threads/'+encodeURIComponent(t.id)+'/messages'); if(!(r&&r.ok&&r.data&&Array.isArray(r.data.items))) return;
       if(!(CW.open && CW.view==='chat' && CW.thread===t.id)) return;
-      const items=r.data.items.map(m=>({id:m.id,dir:m.dir,body:m.body,ts:m.ts,tm:cwFmtTime(m.ts),media_key:m.media_key,media_type:m.media_type,edited_at:m.edited_at,deleted:m.deleted,ext_id:m.ext_id,reply_to:m.reply_to,reply_preview:m.reply_preview,reactions:m.reactions}));
+      const items=r.data.items.map(m=>({id:m.id,dir:m.dir,body:m.body,ts:m.ts,tm:cwFmtTime(m.ts),media_key:m.media_key,media_type:m.media_type,edited_at:m.edited_at,deleted:m.deleted,ext_id:m.ext_id,reply_to:m.reply_to,reply_preview:m.reply_preview,reactions:m.reactions,ig_post:m.ig_post}));
       t.msgs=items; if(items.length){ const lm=items[items.length-1]; t.last=lm.media_key?'📎 вложение':(lm.body||''); }
       const box=$('#cw-msgs',root); if(!box) return;
       const near=chatNearBottom(box);
