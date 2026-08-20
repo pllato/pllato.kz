@@ -132,16 +132,58 @@ const PROD=[
  {id:'ПЗ-0138',deal:1201,cl:'Нур Парк',item:'Урна · 9 шт, скамья · 3 шт',site:'ПГС',mass:498,st:'Отгружено',conf:1,due:'15.08',start:0,len:8,tone:'#4a7f8f',prog:100}
 ];
 
-/* ================= ЗАДАЧИ ================= */
-let TASKS=[
- ['Обмерить образец лопатки КазБетонМикс','Марат Ж. · технолог','сегодня 15:00',0,'hot'],
- ['Ответить по скидке Акимату Степногорска','Асанов Б.','завтра 12:00',0,'hot'],
- ['Позвонить ЖайлыАктау по КП0050','Настя К.','сегодня 16:00',0,''],
- ['Согласовать дату вывоза с Темир Транс','Дамир С.','сегодня',0,''],
- ['Загрузить фото готовых секций в сделку','Цех Шортанды','28.08',0,''],
- ['Проверить остатки чугуна на следующую неделю','Цех Шортанды','21.08',1,''],
- ['Выставить счёт ГорСвет Астана','Гульмира А.','19.08',1,'']
+/* ================= ОЧЕРЕДЬ ТЕХНОЛОГА (КАНБАН) ================= */
+const TSTAGES=[['Заявка на расчёт','var(--blue)'],['Обмер · образец','var(--molten)'],['Чертёж AutoCAD','var(--violet)'],['Масса и технология','var(--gold)'],['Подтверждено','var(--green)']];
+let TECHQ=[
+ {id:'ТР-015',deal:1219,cl:'ИП Сатыбалдиев',item:'Звёздочка приводная',qty:2,ts:0,who:'Марат Ж.',due:'сегодня',files:['Фото звёздочки.jpg'],note:'Чертежа нет, нужен второй элемент пары для замера шага',mass:null,mat:'110Г13Л',tech:'ЛГМ',hot:1},
+ {id:'ТР-014',deal:1217,cl:'ТОО «КазБетонМикс»',item:'Лопатка бетоносмесителя',qty:9,ts:1,who:'Марат Ж.',due:'сегодня 15:00',files:['Фото детали 1.jpg','Фото детали 2.jpg'],note:'Образец привезут после обеда, снимаем размеры',mass:null,mat:'110Г13Л',tech:'ЛГМ',hot:1},
+ {id:'ТР-016',deal:1220,cl:'ТОО «Караганда Комфорт»',item:'Урна «Астана», скамья «Классика»',qty:28,ts:3,who:'Марат Ж.',due:'21.08',files:[],note:'Каталожные позиции, модели в оснастке — считаем только объём',mass:38,mat:'СЧ20',tech:'ПГС',hot:0},
+ {id:'ТР-013',deal:1218,cl:'ТОО «Стройка Плюс»',item:'Боллард парковочный',qty:6,ts:2,who:'Марат Ж.',due:'22.08',files:['Эскиз заказчика.pdf'],note:'Свой эскиз клиента — переводим в чертёж под ЛГМ',mass:42,mat:'СЧ20',tech:'ЛГМ',hot:0},
+ {id:'ТР-012',deal:1215,cl:'Акимат г. Степногорск',item:'Ограждение перильное 2000×900',qty:12,ts:4,who:'Марат Ж.',due:'подтверждено 18.08',files:['Чертёж ограждения.dwg'],note:'Модель в оснастке, повторный заказ — оснастку не считаем',mass:96,mat:'СЧ20',tech:'ПГС',hot:0},
+ {id:'ТР-011',deal:1204,cl:'ТОО «ЖайлыАктау»',item:'Скамья «Лайт», велостоянка',qty:2,ts:4,who:'Марат Ж.',due:'подтверждено 11.08',files:[],note:'Каталог, массы подтверждены',mass:44,mat:'СЧ20',tech:'ПГС',hot:0}
 ];
+const techOf=id=>TECHQ.find(t=>t.deal===id);
+const prodOf=id=>PROD.find(p=>p.deal===id);
+
+/* ================= ДЕБИТОРКА ================= */
+const DEBT=[
+ {cl:'ТОО «ГорСвет Астана»',doc:'СФ-0216',sum:1184000,days:2,mgr:'Настя',deal:1212,note:'Счёт выставлен 19.08, обещали оплату в пятницу'},
+ {cl:'ТОО «Темир Транс»',doc:'СФ-0208',sum:732000,days:11,mgr:'Асанов',deal:1208,note:'Вторая половина по факту готовности, товар на складе'},
+ {cl:'ТОО «Нур Парк»',doc:'СФ-0201',sum:458000,days:26,mgr:'Настя',deal:1201,note:'Отгружено 15.08, остаток по договору 30 дней'},
+ {cl:'ТОО «КазБетонМикс»',doc:'СФ-0194',sum:286000,days:38,mgr:'Настя',deal:null,note:'Просрочка: переносят оплату второй раз'},
+ {cl:'ТОО «Стройка Плюс»',doc:'СФ-0188',sum:164000,days:54,mgr:'Асанов',deal:null,note:'Просрочка: нужен звонок руководителя'}
+];
+
+/* ================= ЗАДАЧИ ================= */
+const TCOLS=[['Новые','var(--blue)'],['В работе','var(--molten)'],['На проверке','var(--violet)'],['Готово','var(--green)']];
+const PEOPLE=['Ербол Б.','Асанов Б.','Настя К.','Марат Ж.','Дамир С.','Гульмира А.','Цех Шортанды'];
+let TASKS=[
+ {id:101,t:'Обмерить образец лопатки КазБетонМикс',who:'Марат Ж.',col:1,due:'сегодня 15:00',pr:'high',prog:40,deal:1217,
+  sub:[['Дождаться образца',1],['Снять размеры',0],['Внести массу в номенклатуру',0]],
+  chat:[['Настя К.','Клиент везёт образец после обеда, нужно 9 штук','09:22'],['Марат Ж.','Принято, освобожу стол к 15:00','09:40']]},
+ {id:102,t:'Ответить Акимату Степногорска по скидке 5%',who:'Асанов Б.',col:1,due:'завтра 12:00',pr:'high',prog:60,deal:1215,
+  sub:[['Пересчитать при объёме 12 секций',1],['Согласовать с Ерболом',0]],
+  chat:[['Ербол Б.','Маржа там 22,4%, пять процентов не даём. Предложи объём или отсрочку','18.08 17:10'],['Асанов Б.','Понял, готовлю вариант с увеличением до 14 секций','18.08 17:25']]},
+ {id:103,t:'Позвонить ЖайлыАктау по КП0050',who:'Настя К.',col:0,due:'сегодня 16:00',pr:'mid',prog:0,deal:1204,
+  sub:[['Уточнить решение по скамьям',0],['Посчитать доставку до Актау',0]],
+  chat:[['Настя К.','Просили посчитать доставку — 2 100 км, беру фуру до 5 тонн','вчера 16:15']]},
+ {id:104,t:'Согласовать дату вывоза с Темир Транс',who:'Дамир С.',col:1,due:'сегодня',pr:'mid',prog:50,deal:1208,
+  sub:[['Связаться с логистом клиента',1],['Забронировать погрузчик',0]],
+  chat:[['Дамир С.','12 зубьев готовы, лежат в третьем пролёте','вчера 15:02']]},
+ {id:105,t:'Загрузить фото готовых секций в сделку',who:'Цех Шортанды',col:0,due:'28.08',pr:'low',prog:0,deal:1210,
+  sub:[['Снять после обрубки',0],['Приложить к заявке ПЗ-0142',0]],
+  chat:[['Асанов Б.','Клиент просит фото до отгрузки, это снимет половину звонков','вчера 14:22']]},
+ {id:106,t:'Проверить остатки чугуна на следующую неделю',who:'Цех Шортанды',col:2,due:'21.08',pr:'mid',prog:85,deal:null,
+  sub:[['Пересчитать шихту',1],['Заказать недостающее',1],['Подтвердить объём Ерболу',0]],
+  chat:[['Цех Шортанды','По СЧ20 хватает на две недели, ВЧ50 нужно докупить','вчера 11:40']]},
+ {id:107,t:'Выставить счёт ГорСвет Астана',who:'Гульмира А.',col:3,due:'19.08',pr:'mid',prog:100,deal:1212,
+  sub:[['Проверить реквизиты',1],['Создать счёт в 1С',1],['Отправить клиенту',1]],
+  chat:[['Гульмира А.','Счёт СФ-0216 выставлен и отправлен','19.08 11:05']]},
+ {id:108,t:'Перенести прайс на болларды в номенклатуру',who:'Марат Ж.',col:3,due:'18.08',pr:'low',prog:100,deal:null,
+  sub:[['Свести массы',1],['Проставить цены',1]],
+  chat:[['Марат Ж.','Готово, шесть позиций добавлены','18.08 16:30']]}
+];
+let taskSeq=109;
 
 /* ================= КАЛЬКУЛЯТОР ================= */
 let C={sku:'MSH-250',name:'Лопатка бетоносмесителя',mat:'110Г13Л',tech:'ЛГМ',hard:'Средняя',mass:12,qty:9,mach:0.6,paint:0,assy:0,tooling:1,toolCost:180000,deliver:1,km:24,margin:28};
@@ -210,8 +252,49 @@ SC.dash=()=>{
       ['DOC','КП0050 сформировано и отправлено','ЖайлыАктау · 336 200 ₸','11.08']]
     .map(a=>`<div style="display:flex;gap:9px;padding:8px 0;border-bottom:1px solid #ece7dd"><span class="mono" style="width:36px;height:30px;background:#eceadf;display:grid;place-items:center;font-size:6.8px;font-weight:700;flex:none">${a[0]}</span><div><b style="font-size:8.8px">${a[1]}</b><p style="font-size:7.6px;color:var(--muted);margin:3px 0">${a[2]}</p><time class="mono" style="font-size:6.6px;color:#95998f">${a[3]}</time></div></div>`).join('')}
   </div>
+ </div>
+ <div class="g3">
+  <div class="panel"><div class="ph"><div><div class="ph-title">Средний чек</div><div class="ph-sub">по закрытым заказам, млн ₸</div></div><span class="tag green">▲ 21%</span></div>
+   <div class="chart" style="height:116px">${[['мар',1.12],['апр',1.28],['май',1.41],['июн',1.52],['июл',1.53],['авг',1.84]].map(m=>`<div class="chart-col" title="${m[0]}: ${m[1]} млн ₸"><i style="--h:${Math.round(m[1]/2*100)}%;--p:0%"></i><span>${m[0]}</span></div>`).join('')}</div>
+   <div class="kpi-mini"><div style="--tone:var(--gold)"><small>АВГУСТ</small><b>1,84 млн</b></div><div style="--tone:var(--blue)"><small>СРЕДНЕЕ ЗА ГОД</small><b>1,45 млн</b></div></div>
+   <div class="hint" style="margin-top:9px"><b>Растёт за счёт комплектов:</b> когда берут не одну скамью, а благоустройство целиком — скамьи, урны и решётки вместе.</div>
+  </div>
+  <div class="panel"><div class="ph"><div><div class="ph-title">Позиций в заказе</div><div class="ph-sub">сколько наименований берут за раз</div></div><span class="tag gold">в среднем 3,4</span></div>
+   ${[['1 позиция',9,22,'#b9b3a5'],['2–3 позиции',15,37,'var(--gold)'],['4–6 позиций',12,29,'var(--blue)'],['7 и больше',5,12,'var(--green)']]
+     .map(r=>`<div class="funnel-row" style="grid-template-columns:78px 1fr 66px"><span>${r[0]}</span><div class="ftrack" style="height:16px"><i style="--w:${Math.round(r[1]/15*100)}%;background:${r[3]}"></i></div><b>${r[1]} зак · ${r[2]}%</b></div>`).join('')}
+   <div class="kpi-mini"><div style="--tone:var(--green)"><small>ЧЕК ПРИ 4 И БОЛЬШЕ</small><b>2,6 млн</b></div><div style="--tone:#b9b3a5"><small>ПРИ ОДНОЙ ПОЗИЦИИ</small><b>0,7 млн</b></div></div>
+   <div class="hint" style="margin-top:9px"><b>Вывод:</b> заказы от четырёх позиций дают чек втрое выше — менеджеру выгоднее предлагать комплект.</div>
+  </div>
+  <div class="panel"><div class="ph"><div><div class="ph-title">Топ менеджеров · август</div><div class="ph-sub">оборот, число КП и скорость ответа</div></div><span class="tag blue">3 человека</span></div>
+   ${[['Настя К.',3960000,28,'11 мин',100,'var(--green)'],['Асанов Б.',3440000,21,'19 мин',87,'var(--gold)'],['Ербол Б. · личные',1180000,6,'6 мин',30,'var(--blue)']]
+     .map((m,i)=>`<div style="display:grid;grid-template-columns:20px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #ece7dd">
+      <span class="mono" style="font-size:11px;font-weight:800;color:${i===0?'var(--gold2,#8b6428)':'var(--muted)'}">${i+1}</span>
+      <div><div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px"><b style="font-size:9px">${m[0]}</b><b class="mono" style="font-size:9px">${mln(m[1])}</b></div>
+      <div class="bar" style="margin-top:4px"><i style="--w:${m[4]}%;--tone:${m[5]}"></i></div>
+      <div class="mini" style="margin-top:3px">${m[2]} КП · ответ ${m[3]}</div></div></div>`).join('')}
+   <div class="hint" style="margin-top:9px"><b>Честное сравнение:</b> считается не активность, а оборот, число КП и минуты до ответа клиенту.</div>
+  </div>
+ </div>
+ <div class="panel"><div class="ph"><div><div class="ph-title">Дебиторская задолженность</div><div class="ph-sub">счета выставлены, деньги ещё не пришли · оплаты подтягиваются из 1С</div></div><span class="tag red">${mln(DEBT.reduce((a,d)=>a+d.sum,0))}</span></div>
+  <div class="tw"><table class="data" style="min-width:680px"><thead><tr><th>Контрагент</th><th>Документ</th><th class="right">Сумма</th><th class="right">Дней</th><th>Состояние</th><th>Менеджер</th><th>Комментарий</th></tr></thead><tbody>
+  ${DEBT.map(d=>`<tr onclick="debtCard('${esc(d.cl)}','${d.doc}',${d.sum},${d.days},'${esc(d.note)}',${d.deal||0})">
+   <td><b>${esc(d.cl)}</b></td><td class="mono">${d.doc}</td><td class="right mono"><b>${fmt(d.sum)} ₸</b></td>
+   <td class="right mono ${d.days>30?'bad':d.days>14?'warn':''}">${d.days}</td>
+   <td><span class="tag ${d.days>30?'red':d.days>14?'gold':'green'}">${d.days>30?'просрочка':d.days>14?'на контроле':'в сроке'}</span></td>
+   <td>${d.mgr}</td><td class="mini">${esc(d.note)}</td></tr>`).join('')}
+  <tr style="background:#f7f4ed;cursor:default"><td><b>Итого</b></td><td></td><td class="right mono"><b>${fmt(DEBT.reduce((a,d)=>a+d.sum,0))} ₸</b></td><td colspan="4" class="mini">просрочено больше 30 дней — <b>${fmt(DEBT.filter(d=>d.days>30).reduce((a,d)=>a+d.sum,0))} ₸</b> у двух клиентов</td></tr>
+  </tbody></table></div>
+  <div class="hint" style="margin-top:11px"><b>Зачем это на главном экране:</b> просрочка дольше 30 дней сама ставит задачу менеджеру и попадает к вам. Деньги перестают теряться между отделом продаж и бухгалтерией.</div>
  </div>`;
 };
+function debtCard(cl,doc,sum,days,note,deal){openD(cl,`${doc} · ${fmt(sum)} ₸ · ${days} дней с даты выставления`,['Задолженность'],
+ `<div class="dg"><div class="det"><small>СУММА</small><b>${fmt(sum)} ₸</b></div><div class="det"><small>ДНЕЙ С ВЫСТАВЛЕНИЯ</small><b class="${days>30?'bad':days>14?'warn':'good'}">${days}</b></div><div class="det"><small>ДОКУМЕНТ</small><b>${doc}</b></div><div class="det"><small>ИСТОЧНИК ДАННЫХ</small><b>1С · обмен 6 мин назад</b></div></div>
+  <div class="note" style="--tone:${days>30?'var(--red)':'var(--gold)'}"><b>Комментарий менеджера</b><p>${esc(note)}</p></div>
+  <div class="btns" style="margin-top:11px">
+   <button class="btn" onclick="toast('Напоминание об оплате отправлено клиенту в WhatsApp вместе со счётом.')">Напомнить в WhatsApp</button>
+   <button class="btn" onclick="closeD();go('tasks');toast('Задача создана: связаться по оплате ${esc(doc)}.')">Поставить задачу</button>
+   ${deal?`<button class="btn dark" onclick="closeD();openDeal(${deal})">Открыть сделку</button>`:''}
+  </div>`)}
 
 SC.deals=()=>`
  <div class="head"><div><h2>Воронка сделок</h2><p>Стадии настроены под литейный цикл: от фото детали в WhatsApp до отгрузки со склада. Карточку можно перетащить мышкой — стадия и история изменятся.</p></div>
@@ -238,7 +321,7 @@ function board(){
      <div class="card-top"><b>${esc(d.cl)}</b><span class="card-sum">${d.sum?mln(d.sum):'—'}</span></div>
      ${d.items.length?`<div class="card-item">${esc(d.items.map(x=>x[0]+' × '+x[2]).join(' · '))}</div>`:`<div class="card-item muted">состав не собран</div>`}
      <div class="card-note ${d.due==='over'?'bad':''}">${d.due==='over'?'⚠ ':'▸ '}${esc(d.next)}</div>
-     <div class="chips"><span class="chip">${esc(d.src)}</span><span class="chip">${esc(d.city)}</span>${d.hot?'<span class="chip hot">без чертежа</span>':''}${d.files.length?`<span class="chip">${d.files.length} файл${d.files.length>1?'а':''}</span>`:''}</div>
+     <div class="chips"><span class="chip">${esc(d.src)}</span><span class="chip">${esc(d.city)}</span>${(()=>{const t=techOf(d.id);return t?`<span class="chip ${t.ts===4?'ok':'wait'}">технолог: ${TSTAGES[t.ts][0].toLowerCase()}</span>`:''})()}${(()=>{const p=prodOf(d.id);return p?`<span class="chip ${p.prog===100?'ok':p.conf?'hot':'wait'}">цех: ${p.st.toLowerCase()}${p.conf&&p.prog<100?' '+p.prog+'%':''}</span>`:''})()}${d.files.length?`<span class="chip">${d.files.length} файл${d.files.length>1?'а':''}</span>`:''}</div>
      <div class="card-foot"><span class="who"><i>${d.mgr==='—'?'??':d.mgr.slice(0,2).toUpperCase()}</i>${d.mgr}</span>${d.st===0?`<span class="sla" data-sla="${d.id}">⏱ ${mmss(d.sla||0)}</span>`:''}</div>
     </div>`).join('')}
    ${i===0?'<button class="addc" onclick="newDeal()">+ Добавить</button>':''}
@@ -264,6 +347,26 @@ function openDeal(id,tab=0){const d=DEALS.find(x=>x.id===id);if(!d)return;dOpen=
  document.getElementById('dtabs').innerHTML=tabs.map((t,i)=>`<button class="dtab ${i===tab?'on':''}" onclick="openDeal(${id},${i})">${t}</button>`).join('');
  document.getElementById('db').innerHTML=dealBody(d,tab);
  document.getElementById('dbg').classList.add('show')}
+function orderState(d){const t=techOf(d.id),p=prodOf(d.id);
+ return `<div class="panel" style="padding:11px;margin-bottom:11px;box-shadow:none">
+  <div class="ph-title" style="font-size:11px;margin-bottom:8px">Состояние заказа</div>
+  <div style="display:grid;grid-template-columns:96px 1fr 82px;gap:9px;align-items:center;padding:6px 0;border-bottom:1px solid #ece7dd">
+   <b style="font-size:9px">Технолог</b>
+   ${t?`<div class="bar"><i style="--w:${(t.ts+1)/5*100}%;--tone:${t.ts===4?'var(--green)':'var(--violet)'}"></i></div><span class="tag ${t.ts===4?'green':'violet'}">${TSTAGES[t.ts][0]}</span>`
+      :`<div class="bar"><i style="--w:0%"></i></div><span class="tag">не заводился</span>`}
+  </div>
+  <div style="display:grid;grid-template-columns:96px 1fr 82px;gap:9px;align-items:center;padding:6px 0;border-bottom:1px solid #ece7dd">
+   <b style="font-size:9px">Производство</b>
+   ${p?`<div class="bar"><i style="--w:${p.prog}%;--tone:${p.tone}"></i></div><span class="tag ${p.prog===100?'green':p.conf?'molten':'red'}">${p.conf?p.st:'не подтверждён'}</span>`
+      :`<div class="bar"><i style="--w:0%"></i></div><span class="tag">не передан</span>`}
+  </div>
+  <div style="display:grid;grid-template-columns:96px 1fr 82px;gap:9px;align-items:center;padding:6px 0">
+   <b style="font-size:9px">Сделка</b>
+   <div class="bar"><i style="--w:${(d.st+1)/9*100}%;--tone:var(--gold)"></i></div><span class="tag gold">${STAGES[d.st][0]}</span>
+  </div>
+  ${t&&t.ts<4?`<div class="mini" style="margin-top:7px">Цена может измениться: технолог ещё не подтвердил массу и технологию. Срок расчёта — ${esc(t.due)}.</div>`:''}
+  ${p&&!p.conf?`<div class="mini bad" style="margin-top:7px">Цех не подтвердил срок — клиенту дату называть рано.</div>`:''}
+ </div>`}
 function dealBody(d,tab){
  if(tab===0)return `
   <div class="stage-track">${STAGES.map((s,i)=>`<div class="stage-step ${i<d.st?'done':i===d.st?'now':''}" onclick="setStage(${d.id},${i})">${i<d.st?'✓ ':''}${s[0].toUpperCase()}</div>`).join('')}</div>
@@ -273,6 +376,7 @@ function dealBody(d,tab){
    <div class="det"><small>ИСТОЧНИК</small><b>${d.src}</b></div>
    <div class="det"><small>ГОРОД / ОБЪЕКТ</small><b>${d.city}</b></div>
   </div>
+  ${orderState(d)}
   <div class="note" style="--tone:${d.due==='over'?'var(--red)':'var(--gold)'}"><b>Следующий шаг${d.due==='over'?' · просрочен':''}</b><p>${esc(d.next)}</p></div>
   <div class="note" style="--tone:var(--blue)"><b>Комментарий менеджера</b><p>${esc(d.note)}</p></div>
   <div class="btns" style="margin-top:12px">
@@ -371,17 +475,17 @@ SC.calc=()=>{const r=calc();
     <div class="fld"><small>НАЦЕНКА ОТДЕЛА, %</small><input type="number" value="${C.margin}" oninput="C.margin=+this.value||0;upd()"></div>
    </div>
    <div class="fld"><small>МАТЕРИАЛ · ЦЕНА ЖИДКОГО МЕТАЛЛА И КОЭФФИЦИЕНТ ЛИТНИКОВ</small>
-    <select onchange="C.mat=this.value;upd()">${Object.entries(MAT).map(([k,m])=>`<option value="${k}" ${k===C.mat?'selected':''}>${m.name} · ${m.price} ₸/кг · к ${m.k} — ${m.note}</option>`).join('')}</select></div>
+    <select onchange="calcSet('mat',this.value)">${Object.entries(MAT).map(([k,m])=>`<option value="${k}" ${k===C.mat?'selected':''}>${m.name} · ${m.price} ₸/кг · к ${m.k} — ${m.note}</option>`).join('')}</select></div>
    <div class="f2">
-    <div class="fld"><small>ТЕХНОЛОГИЯ И ПЛОЩАДКА</small><div class="seg">${Object.entries(TECHS).map(([k,t])=>`<button class="${k===C.tech?'on':''}" onclick="C.tech='${k}';upd()">${t.name}</button>`).join('')}</div></div>
-    <div class="fld"><small>СЛОЖНОСТЬ ФОРМЫ</small><div class="seg">${Object.keys(HARD).map(k=>`<button class="${k===C.hard?'on':''}" onclick="C.hard='${k}';upd()">${k}</button>`).join('')}</div></div>
+    <div class="fld"><small>ТЕХНОЛОГИЯ И ПЛОЩАДКА</small><div class="seg">${Object.entries(TECHS).map(([k,t])=>`<button class="${k===C.tech?'on':''}" onclick="calcSet('tech','${k}')">${t.name}</button>`).join('')}</div></div>
+    <div class="fld"><small>СЛОЖНОСТЬ ФОРМЫ</small><div class="seg">${Object.keys(HARD).map(k=>`<button class="${k===C.hard?'on':''}" onclick="calcSet('hard','${k}')">${k}</button>`).join('')}</div></div>
    </div>
    <div class="ph-title" style="margin:13px 0 3px;font-size:10.5px">Дополнительные операции</div>
-   <div class="sw"><button class="switch ${C.mach?'on':''}" onclick="C.mach=C.mach?0:0.6;upd()"></button><span>Механообработка</span><b>${C.mach?fmt(C.mach*RATE_MACH*C.qty)+' ₸':'нет'}</b></div>
-   <div class="sw"><button class="switch ${C.paint?'on':''}" onclick="C.paint=C.paint?0:1;upd()"></button><span>Грунт + порошковая покраска</span><b>${C.paint?fmt(C.mass*RATE_PAINT*C.qty)+' ₸':'нет'}</b></div>
-   <div class="sw"><button class="switch ${C.assy?'on':''}" onclick="C.assy=C.assy?0:1;upd()"></button><span>Сборка с деревом (скамьи)</span><b>${C.assy?fmt(RATE_ASSY*C.qty)+' ₸':'нет'}</b></div>
-   <div class="sw"><button class="switch ${C.tooling?'on':''}" onclick="C.tooling=C.tooling?0:1;upd()"></button><span>Новая модельная оснастка</span><b>${C.tooling?fmt(C.toolCost)+' ₸':'модель есть'}</b></div>
-   <div class="sw"><button class="switch ${C.deliver?'on':''}" onclick="C.deliver=C.deliver?0:1;upd()"></button><span>Доставка клиенту${C.deliver?', км:':''}</span>${C.deliver?`<input type="number" value="${C.km}" style="width:64px;border:1px solid var(--line);padding:4px 6px;font-size:9px" oninput="C.km=+this.value||0;upd()">`:''}<b>${C.deliver?fmt(C.km*350)+' ₸':'самовывоз'}</b></div>
+   <div class="sw"><button class="switch ${C.mach?'on':''}" onclick="calcToggle('mach')"></button><span>Механообработка</span><b>${C.mach?fmt(C.mach*RATE_MACH*C.qty)+' ₸':'нет'}</b></div>
+   <div class="sw"><button class="switch ${C.paint?'on':''}" onclick="calcToggle('paint')"></button><span>Грунт + порошковая покраска</span><b>${C.paint?fmt(C.mass*RATE_PAINT*C.qty)+' ₸':'нет'}</b></div>
+   <div class="sw"><button class="switch ${C.assy?'on':''}" onclick="calcToggle('assy')"></button><span>Сборка с деревом (скамьи)</span><b>${C.assy?fmt(RATE_ASSY*C.qty)+' ₸':'нет'}</b></div>
+   <div class="sw"><button class="switch ${C.tooling?'on':''}" onclick="calcToggle('tooling')"></button><span>Новая модельная оснастка</span><b>${C.tooling?fmt(C.toolCost)+' ₸':'модель есть'}</b></div>
+   <div class="sw"><button class="switch ${C.deliver?'on':''}" onclick="calcToggle('deliver')"></button><span>Доставка клиенту${C.deliver?', км:':''}</span>${C.deliver?`<input type="number" value="${C.km}" style="width:64px;border:1px solid var(--line);padding:4px 6px;font-size:9px" oninput="C.km=+this.value||0;upd()">`:''}<b>${C.deliver?fmt(C.km*350)+' ₸':'самовывоз'}</b></div>
    <div class="hint"><b>Почему так считается:</b> заливается не масса детали, а масса с литниками и прибылями — для ${MAT[C.mat].name} это ×${MAT[C.mat].k}. Доставка с площадки до склада в Астане (${TECHS[C.tech].km} км, ${fmt(TECHS[C.tech].trip)} ₸ за рейс) — ваш внутренний расход, он уже сидит в себестоимости.</div>
   </div>
   <div>
@@ -410,6 +514,8 @@ function coutHTML(r){const tone=r.marginPct>=25?'var(--green)':r.marginPct>=15?'
  <div style="margin-top:4px;font-size:8px;color:#93a2b1">за единицу ${fmt(r.unit)} ₸ · маржа ${r.marginPct.toFixed(1)}%</div>
  <div class="margin-bar"><i style="--w:${Math.min(100,r.marginPct*2.4)}%;--tone:${tone}"></i></div>
  <div style="font-size:7.6px;color:#93a2b1">${r.marginPct>=25?'Маржа в норме — можно давать скидку до 4% и остаться в зелёной зоне.':r.marginPct>=15?'Маржа ниже целевой: скидку давать нельзя, лучше добавить объём.':'Маржа опасная — проверьте оснастку и доставку, такую цену согласовывает руководитель.'}</div>`}
+function calcSet(k,v){C[k]=v;const sc=document.getElementById('content').scrollTop;render();document.getElementById('content').scrollTop=sc}
+function calcToggle(k){const def={mach:0.6,paint:1,assy:1,tooling:1,deliver:1};calcSet(k,C[k]?0:def[k])}
 function kpWill(r){return `${esc(C.name)} — ${C.qty} шт, ${MAT[C.mat].name}, масса изделия ${C.mass} кг, ${TECHS[C.tech].name}${C.paint?', порошковая покраска':''}. Цена за единицу с НДС — <b>${fmt(r.unit)} ₸</b>, срок изготовления 12–18 рабочих дней.`}
 function upd(){const r=calc();const o=document.getElementById('cout');if(o)o.innerHTML=coutHTML(r);
  const kw=document.getElementById('kpwill');if(kw)kw.innerHTML=kpWill(r);const sw=document.querySelectorAll('.sw b');if(sw.length>=4){sw[0].textContent=C.mach?fmt(C.mach*RATE_MACH*C.qty)+' ₸':'нет';sw[1].textContent=C.paint?fmt(C.mass*RATE_PAINT*C.qty)+' ₸':'нет';sw[2].textContent=C.assy?fmt(RATE_ASSY*C.qty)+' ₸':'нет';sw[3].textContent=C.tooling?fmt(C.toolCost)+' ₸':'модель есть'}}
@@ -497,34 +603,58 @@ SC.tech=()=>`
   <div><small>ПОДТВЕРЖДЕНО СЕГОДНЯ</small><b>3</b><span>цена ушла клиенту</span></div>
   <div><small>ОТКЛОНЕНО</small><b class="bad">1</b><span>не наш профиль</span></div>
  </div>
- <div class="g21">
- <div class="panel"><div class="ph"><div><div class="ph-title">Очередь на расчёт</div><div class="ph-sub">заявка приходит из сделки со всеми фото и размерами</div></div><span class="tag molten">2 срочных</span></div>
-  ${[['ПЗ-Р-014','ТОО «КазБетонМикс»','Лопатка бетоносмесителя · 9 шт','фото образца, чертежа нет','обмер сегодня','hot'],
-     ['ПЗ-Р-015','ИП Сатыбалдиев','Звёздочка приводная','фото, нужен второй элемент пары','ждёт образец','hot'],
-     ['ПЗ-Р-012','Акимат Степногорск','Ограждение перильное 2000×900','чертёж есть, модель в оснастке','подтверждено',''],
-     ['ПЗ-Р-013','ТОО «ЖайлыАктау»','Скамья «Лайт», велостоянка','каталожные позиции','подтверждено','']]
-   .map(t=>`<div style="display:grid;grid-template-columns:64px 1fr auto;gap:9px;align-items:center;padding:9px 0;border-bottom:1px solid #ece7dd;cursor:pointer" onclick="techCard('${t[0]}','${t[1]}','${t[2]}','${t[3]}')">
-    <span class="mono" style="font-size:7px;font-weight:700">${t[0]}</span>
-    <div><b style="font-size:8.8px">${t[2]}</b><div class="sub">${t[1]} · ${t[3]}</div></div>
-    <span class="tag ${t[5]==='hot'?'red':'green'}">${t[4]}</span></div>`).join('')}
-  <div class="hint" style="margin-top:11px"><b>Главный ускоритель:</b> менеджер не ждёт технолога, чтобы назвать цену. Он считает по типовым параметрам сразу в разговоре, отправляет КП, а технолог подтверждает или корректирует в течение дня. Скорость ответа клиенту — часы вместо суток.</div>
+ <div class="board" id="tboard">${tboard()}</div>
+ <div class="g2" style="margin-top:2px">
+ <div class="panel"><div class="ph-title">Главный ускоритель</div>
+  <p class="mini" style="margin-top:6px">Менеджер не ждёт технолога, чтобы назвать цену: он считает по типовым параметрам прямо в разговоре и отправляет КП, а технолог подтверждает или корректирует в течение дня. Стадия расчёта при этом видна в сделке — продажи всегда знают, на чём стоит их заказ.</p>
+  <div class="kpi-mini"><div style="--tone:var(--molten)"><small>СРОЧНЫХ</small><b>${TECHQ.filter(t=>t.hot).length}</b></div><div style="--tone:var(--gold)"><small>В РАБОТЕ</small><b>${TECHQ.filter(t=>t.ts>0&&t.ts<4).length}</b></div><div style="--tone:var(--green)"><small>ПОДТВЕРЖДЕНО</small><b>${TECHQ.filter(t=>t.ts===4).length}</b></div></div>
  </div>
  <div class="panel dark"><div class="ph-title">Как деталь попадает в систему</div>
   <div style="margin-top:11px">
-  ${[['01','Фото «огрызка» в WhatsApp','клиент фотографирует сломанную деталь — файл падает в сделку'],
+  ${[['01','Фото сломанной детали в WhatsApp','файл падает в сделку и виден технологу'],
      ['02','Образец на склад или обмер','технолог снимает размеры, чертит в AutoCAD'],
      ['03','Чертёж и масса в карточке','масса нетто, материал, технология ПГС или ЛГМ'],
      ['04','Появляется в номенклатуре','следующий такой заказ считается за 40 секунд'],
-     ['05','Модель в оснастке','повторный заказ — без затрат на модель, выше маржа']]
-   .map(s=>`<div style="display:grid;grid-template-columns:26px 1fr;gap:10px;padding:8px 0;border-bottom:1px solid #2e3c50"><span class="mono" style="color:var(--gold);font-size:8px;font-weight:700">${s[0]}</span><div><b style="font-size:9px">${s[1]}</b><p style="font-size:7.4px;color:#8194a8;margin:3px 0 0;line-height:1.45">${s[2]}</p></div></div>`).join('')}
+     ['05','Модель в оснастке','повторный заказ идёт без затрат на модель']]
+   .map(s=>`<div style="display:grid;grid-template-columns:26px 1fr;gap:10px;padding:7px 0;border-bottom:1px solid #2e3c50"><span class="mono" style="color:var(--gold);font-size:8px;font-weight:700">${s[0]}</span><div><b style="font-size:9px">${s[1]}</b><p style="font-size:7.4px;color:#8194a8;margin:3px 0 0;line-height:1.45">${s[2]}</p></div></div>`).join('')}
   </div>
  </div>
  </div>`;
-function techCard(id,cl,item,note){openD(item,`${id} · ${cl} · ${note}`,['Расчёт технолога'],
- `<div class="dg"><div class="det"><small>МАССА НЕТТО</small><b>12,0 кг</b></div><div class="det"><small>МАССА ЗАЛИВКИ</small><b>17,4 кг</b></div><div class="det"><small>МАТЕРИАЛ</small><b>110Г13Л</b></div><div class="det"><small>ТЕХНОЛОГИЯ</small><b>ЛГМ · 10 км</b></div></div>
-  <div style="display:flex;gap:10px;margin-bottom:11px"><div class="thumb" style="width:110px;height:88px" data-l="ФОТО ОБРАЗЦА"></div><div class="thumb" style="width:110px;height:88px" data-l="ЧЕРТЁЖ AUTOCAD"></div><div style="flex:1"><p class="mini">Размеры сняты с образца: длина 285 мм, посадочное отверстие ⌀42, толщина 18 мм. Износ рабочей кромки — рекомендую 110Г13Л вместо стали 35Л, ресурс выше примерно вдвое.</p></div></div>
-  <div class="note" style="--tone:var(--green)"><b>Что уйдёт в продажи</b><p>Масса, материал, технология и трудоёмкость. Калькулятор менеджера пересчитает цену автоматически, клиенту уйдёт обновлённое КП.</p></div>
-  <div class="btns" style="margin-top:12px"><button class="btn green" onclick="closeD();toast('Расчёт подтверждён: параметры ушли в сделку и в калькулятор, менеджер уведомлён.')">Подтвердить и вернуть в продажи</button><button class="btn red" onclick="closeD();toast('Заявка отклонена с причиной — менеджер получил объяснение для клиента.')">Не наш профиль</button></div>`)}
+function tboard(){
+ return TSTAGES.map((s,i)=>{const col=TECHQ.filter(t=>t.ts===i);
+  return `<div class="col" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="this.classList.remove('dragover');tdrop(event,${i})">
+   <div class="col-h"><b>${s[0]}</b><small>${col.length}</small></div>
+   ${col.map(t=>`<div class="card" draggable="true" style="--tone:${s[1]}" ondragstart="tdrag(event,'${t.id}')" ondragend="this.classList.remove('dragging')" onclick="techCard('${t.id}')">
+     <div class="card-top"><b>${esc(t.item)}</b><span class="card-sum">${t.qty} шт</span></div>
+     <div class="card-item">${esc(t.cl)}</div>
+     <div class="card-note">${esc(t.note)}</div>
+     <div class="chips"><span class="chip">${t.mat}</span><span class="chip">${t.tech}</span>${t.mass?`<span class="chip ok">${t.mass} кг</span>`:'<span class="chip hot">масса не снята</span>'}${t.files.length?`<span class="chip">${t.files.length} файл</span>`:''}</div>
+     <div class="card-foot"><span class="who"><i>МЖ</i>${t.who}</span><span class="mono" style="font-size:6.6px;color:${t.hot?'var(--red)':'var(--muted)'}">${esc(t.due)}</span></div>
+    </div>`).join('')}
+  </div>`}).join('')}
+function tdrag(e,id){e.dataTransfer.setData('text/plain',id);e.target.classList.add('dragging')}
+function tdrop(e,ts){const id=e.dataTransfer.getData('text/plain'),t=TECHQ.find(x=>x.id===id);if(!t||t.ts===ts)return;
+ const from=TSTAGES[t.ts][0];t.ts=ts;if(ts>=3&&!t.mass)t.mass=t.mat==='СЧ20'?38:12;
+ const d=DEALS.find(x=>x.id===t.deal);if(d)d.log.unshift(['TCH',`Технолог: ${from} → ${TSTAGES[ts][0]}`,'сейчас']);
+ render();
+ if(ts===4)toast(`Расчёт по <b>${esc(t.item)}</b> подтверждён — масса и технология ушли в сделку и в калькулятор.`);
+ else toast(`Заявка <b>${t.id}</b> → «${TSTAGES[ts][0]}». Продажи видят новый статус в сделке.`)}
+function techCard(id){const t=TECHQ.find(x=>x.id===id);if(!t)return;
+ openD(t.item,`${t.id} · ${t.cl} · ${t.qty} шт · ${TSTAGES[t.ts][0]}`,['Расчёт технолога'],
+ `<div class="stage-track">${TSTAGES.map((s,i)=>`<div class="stage-step ${i<t.ts?'done':i===t.ts?'now':''}" onclick="setTech('${t.id}',${i})">${i<t.ts?'✓ ':''}${s[0].toUpperCase()}</div>`).join('')}</div>
+  <div class="dg"><div class="det"><small>МАССА НЕТТО</small><b>${t.mass?t.mass+' кг':'не снята'}</b></div><div class="det"><small>МАССА ЗАЛИВКИ</small><b>${t.mass?(t.mass*MAT[t.mat].k).toFixed(1)+' кг':'—'}</b></div><div class="det"><small>МАТЕРИАЛ</small><b>${t.mat}</b></div><div class="det"><small>ТЕХНОЛОГИЯ</small><b>${TECHS[t.tech].name}</b></div></div>
+  <div style="display:flex;gap:10px;margin-bottom:11px;flex-wrap:wrap">${(t.files.length?t.files:['нет файлов']).map(f=>`<div class="thumb" style="width:104px;height:82px" data-l="${esc(f.includes('Фото')?'ФОТО ОБРАЗЦА':f.includes('dwg')?'ЧЕРТЁЖ AUTOCAD':f.includes('pdf')?'ЭСКИЗ':'НЕТ ФАЙЛА')}"></div>`).join('')}
+   <div style="flex:1;min-width:150px"><p class="mini">${esc(t.note)}</p></div></div>
+  <div class="note" style="--tone:var(--green)"><b>Что уйдёт в продажи</b><p>Масса, материал, технология и трудоёмкость. Калькулятор менеджера пересчитает цену автоматически, стадия расчёта появится в карточке сделки.</p></div>
+  <div class="btns" style="margin-top:12px">
+   <button class="btn green" onclick="setTech('${t.id}',4);closeD()">Подтвердить и вернуть в продажи</button>
+   <button class="btn" onclick="closeD();openDeal(${t.deal})">Открыть сделку</button>
+   <button class="btn" onclick="closeD();go('calc')">Посчитать в калькуляторе</button>
+   <button class="btn red" onclick="closeD();toast('Заявка отклонена с причиной — менеджер получил объяснение для клиента.')">Не наш профиль</button></div>`)}
+function setTech(id,ts){const t=TECHQ.find(x=>x.id===id);const from=TSTAGES[t.ts][0];t.ts=ts;if(ts>=3&&!t.mass)t.mass=t.mat==='СЧ20'?38:12;
+ const d=DEALS.find(x=>x.id===t.deal);if(d)d.log.unshift(['TCH',`Технолог: ${from} → ${TSTAGES[ts][0]}`,'сейчас']);
+ render();if(dOpen)openDeal(dOpen,dTab);
+ toast(ts===4?`Расчёт по <b>${esc(t.item)}</b> подтверждён — параметры ушли в сделку.`:`Стадия технолога обновлена: «${TSTAGES[ts][0]}».`)}
 
 /* ---- ПРОИЗВОДСТВО ---- */
 SC.prod=()=>`
@@ -565,9 +695,17 @@ function prodCard(id){const p=PROD.find(x=>x.id===id);openD(p.cl,`${p.id} · ${T
   <div class="btns" style="margin-top:12px"><button class="btn" onclick="toast('Фото из цеха запрошено у мастера.')">Запросить фото</button><button class="btn dark" onclick="closeD();go('stock')">Принять на склад</button></div>`)}
 
 /* ---- СКЛАД ---- */
-SC.stock=()=>`
+let MOVES=[
+ {t:'in',date:'19.08 14:30',doc:'ПР-0142',what:'Зуб ковша экскаватора',qty:12,mass:312,who:'Дамир С.',src:'Площадка ЛГМ',note:'Приёмка с производства по заказу ПЗ-0141'},
+ {t:'out',date:'15.08 12:00',doc:'РН-0212',what:'Урна «Астана»',qty:9,mass:342,who:'Дамир С.',src:'ТОО «Нур Парк»',note:'Отгрузка клиенту, накладная в 1С'},
+ {t:'out',date:'15.08 12:00',doc:'РН-0212',what:'Скамья «Классика»',qty:3,mass:156,who:'Дамир С.',src:'ТОО «Нур Парк»',note:'Отгрузка клиенту, накладная в 1С'},
+ {t:'in',date:'12.08 10:15',doc:'ПР-0138',what:'Люк канализационный тип Т',qty:8,mass:944,who:'Дамир С.',src:'Площадка ПГС',note:'Приёмка партии из Шортандов'},
+ {t:'inv',date:'01.08 09:00',doc:'ИНВ-08',what:'Плановая инвентаризация',qty:0,mass:0,who:'Дамир С. + Гульмира А.',src:'Склад Астана',note:'Пересчёт 18 позиций, расхождений с 1С нет'}
+];
+SC.stock=()=>{const inQ=MOVES.filter(m=>m.t==='in'),outQ=MOVES.filter(m=>m.t==='out');
+ return `
  <div class="head"><div><h2>Склад и шоурум</h2><p>Готовая продукция в Астане: что стоит в шоуруме, что зарезервировано под заказ, что приехало с площадок. Менеджер видит остаток в момент разговора с клиентом.</p></div>
- <div class="btns"><button class="btn" onclick="toast('Инвентаризация начата: расхождений с 1С не найдено.')">Инвентаризация</button><button class="btn gold" onclick="toast('Приёмка оформлена: 12 позиций приняты с площадки ЛГМ и зеркалированы в 1С.')">Приёмка с производства</button></div></div>
+ <div class="btns"><button class="btn green" onclick="moveForm('in')">↓ Приход</button><button class="btn" onclick="moveForm('out')">↑ Расход</button><button class="btn gold" onclick="invForm()">⚖ Инвентаризация</button></div></div>
  <div class="strip">
   <div><small>НА СКЛАДЕ · ГОТОВАЯ ПРОДУКЦИЯ</small><b>${fmt(SKU.reduce((a,s)=>a+s.stock*s.price,0))} ₸</b><span>${SKU.reduce((a,s)=>a+s.stock,0)} единиц</span></div>
   <div><small>В ШОУРУМЕ</small><b>9</b><span>образцы для показа</span></div>
@@ -576,11 +714,70 @@ SC.stock=()=>`
   <div><small>ОТГРУЗОК ЗА НЕДЕЛЮ</small><b>4</b><span>на 5,9 млн ₸</span></div>
  </div>
  <div class="panel"><div class="ph"><div><div class="ph-title">Остатки готовой продукции</div><div class="ph-sub">обновляются из 1С и приёмок с площадок</div></div><span class="tag green">синхронизировано</span></div>
-  <div class="wh">${SKU.filter(s=>s.stock).map(s=>`<div class="wh-cell" onclick="toast('${esc(s.name)}: ${s.stock} шт на складе, ${s.mass} кг, ${fmt(s.price)} ₸.')" style="cursor:pointer">
+  <div class="wh">${SKU.filter(s=>s.stock).map(s=>`<div class="wh-cell" onclick="skuCard('${s.code}')" style="cursor:pointer">
    <b>${esc(s.name)}</b><small>${s.code} · ${s.mat} · ${s.mass} кг</small>
    <div class="wh-q"><span class="mini">${fmt(s.price)} ₸</span><b class="${s.stock<3?'bad':'good'}">${s.stock} шт</b></div></div>`).join('')}</div>
   <div class="hint" style="margin-top:12px"><b>Зачем это отделу продаж:</b> когда клиент спрашивает «есть в наличии?», менеджер отвечает сразу, а не через полчаса звонков на склад. Позиции с остатком продаются быстрее и без ожидания цеха.</div>
- </div>`;
+ </div>
+ <div class="g2">
+  <div class="panel"><div class="ph"><div><div class="ph-title">Движение по складу</div><div class="ph-sub">каждая строка кликабельна: документ, кто принял, куда ушло</div></div><span class="tag">приход ${inQ.length} · расход ${outQ.length}</span></div>
+   <div class="tw"><table class="data" style="min-width:520px"><thead><tr><th>Дата</th><th>Документ</th><th>Позиция</th><th class="right">Кол-во</th><th>Операция</th></tr></thead><tbody>
+   ${MOVES.map((m,i)=>`<tr onclick="moveCard(${i})"><td class="mono">${m.date}</td><td class="mono">${m.doc}</td><td><b>${esc(m.what)}</b><div class="sub">${esc(m.src)}</div></td><td class="right mono">${m.qty?(m.t==='out'?'−':'+')+m.qty+' шт':'—'}</td><td><span class="tag ${m.t==='in'?'green':m.t==='out'?'blue':'gold'}">${m.t==='in'?'приход':m.t==='out'?'расход':'инвентаризация'}</span></td></tr>`).join('')}
+   </tbody></table></div>
+   <div class="btns" style="margin-top:10px"><button class="btn green" onclick="moveForm('in')">↓ Оформить приход</button><button class="btn" onclick="moveForm('out')">↑ Оформить расход</button></div>
+  </div>
+  <div class="panel"><div class="ph"><div><div class="ph-title">Инвентаризация</div><div class="ph-sub">пересчёт остатков и сверка с 1С</div></div><span class="tag green">последняя 01.08</span></div>
+   <div class="kpi-mini" style="margin-top:0"><div style="--tone:var(--blue)"><small>ПОЗИЦИЙ К ПЕРЕСЧЁТУ</small><b>${SKU.filter(s=>s.stock).length}</b></div><div style="--tone:var(--green)"><small>РАСХОЖДЕНИЙ</small><b>0</b></div><div style="--tone:var(--gold)"><small>СЛЕДУЮЩАЯ</small><b>01.09</b></div></div>
+   <p class="mini" style="margin-top:10px">Кладовщик открывает лист, вводит фактическое количество по каждой позиции, система сразу показывает расхождение с учётом и формирует акт. Итог зеркалится в 1С.</p>
+   <div class="btns" style="margin-top:10px"><button class="btn gold" onclick="invForm()">⚖ Начать инвентаризацию</button><button class="btn" onclick="toast('Акт последней инвентаризации от 01.08 открыт: 18 позиций, расхождений нет.')">Акт от 01.08</button></div>
+   <div class="hint" style="margin-top:11px"><b>Почему это важно для продаж:</b> менеджер верит остатку в системе только тогда, когда склад регулярно пересчитывается. Иначе он снова начинает звонить кладовщику.</div>
+  </div>
+ </div>`};
+function skuCard(code){const s=SKU.find(x=>x.code===code);
+ openD(s.name,`${s.code} · ${s.cat} · ${s.mat} · ${s.mass} кг`,['Карточка позиции'],
+ `<div class="dg"><div class="det"><small>НА СКЛАДЕ</small><b class="${s.stock<3?'bad':'good'}">${s.stock} шт</b></div><div class="det"><small>ЦЕНА БАЗОВАЯ</small><b>${fmt(s.price)} ₸</b></div><div class="det"><small>МАССА ЗАЛИВКИ</small><b>${(s.mass*MAT[s.mat].k).toFixed(1)} кг</b></div><div class="det"><small>ТЕХНОЛОГИЯ</small><b>${TECHS[s.tech].name}</b></div></div>
+  <div class="ph-title" style="margin:11px 0 7px">Последнее движение</div>
+  ${MOVES.filter(m=>m.what===s.name).map(m=>`<div style="display:flex;gap:9px;align-items:center;padding:7px 0;border-bottom:1px solid #ece7dd"><span class="tag ${m.t==='in'?'green':'blue'}">${m.t==='in'?'приход':'расход'}</span><div style="flex:1"><b style="font-size:8.8px">${m.qty} шт · ${esc(m.src)}</b><div class="sub">${m.date} · ${m.doc}</div></div></div>`).join('')||'<p class="mini">Движений по этой позиции ещё не было.</p>'}
+  <div class="btns" style="margin-top:11px"><button class="btn green" onclick="closeD();moveForm('in','${esc(s.name)}')">↓ Приход</button><button class="btn" onclick="closeD();moveForm('out','${esc(s.name)}')">↑ Расход</button><button class="btn" onclick="closeD();pickSku('${s.code}');go('calc')">Посчитать в калькуляторе</button></div>`)}
+function moveCard(i){const m=MOVES[i];
+ openD(m.what,`${m.doc} · ${m.date} · ${m.t==='in'?'приход':m.t==='out'?'расход':'инвентаризация'}`,['Документ'],
+ `<div class="dg"><div class="det"><small>КОЛИЧЕСТВО</small><b>${m.qty?m.qty+' шт':'—'}</b></div><div class="det"><small>МАССА</small><b>${m.mass?fmt(m.mass)+' кг':'—'}</b></div><div class="det"><small>${m.t==='in'?'ОТКУДА':'КУДА'}</small><b>${esc(m.src)}</b></div><div class="det"><small>ОТВЕТСТВЕННЫЙ</small><b>${esc(m.who)}</b></div></div>
+  <div class="note" style="--tone:var(--gold)"><b>Комментарий</b><p>${esc(m.note)}</p></div>
+  <div class="btns" style="margin-top:11px"><button class="btn" onclick="toast('Документ ${m.doc} выгружен в PDF.')">Печать документа</button><button class="btn dark" onclick="toast('Документ ${m.doc} проверен в 1С: проведён, расхождений нет.')">Проверить в 1С</button></div>`)}
+function moveForm(t,name){const opts=SKU.map(s=>`<option ${s.name===name?'selected':''}>${s.name}</option>`).join('');
+ openD(t==='in'?'Приход на склад':'Расход со склада',t==='in'?'Приёмка готовой продукции с производственной площадки':'Отгрузка клиенту или перемещение',['Оформление'],
+ `<div class="fld"><small>ПОЗИЦИЯ</small><select id="mvName">${opts}</select></div>
+  <div class="f3">
+   <div class="fld"><small>КОЛИЧЕСТВО, ШТ</small><input id="mvQty" type="number" value="1"></div>
+   <div class="fld"><small>${t==='in'?'ПЛОЩАДКА':'ПОЛУЧАТЕЛЬ'}</small><select id="mvSrc">${t==='in'?'<option>Площадка ПГС · Шортанды</option><option>Площадка ЛГМ · 10 км</option>':DEALS.slice(0,6).map(d=>`<option>${esc(d.cl)}</option>`).join('')+'<option>Шоурум · перемещение</option>'}</select></div>
+   <div class="fld"><small>ОТВЕТСТВЕННЫЙ</small><select id="mvWho"><option>Дамир С.</option><option>Гульмира А.</option><option>Цех Шортанды</option></select></div>
+  </div>
+  <div class="fld"><small>КОММЕНТАРИЙ</small><input id="mvNote" placeholder="${t==='in'?'по какому заказу пришло':'основание отгрузки'}"></div>
+  <div class="note" style="--tone:var(--blue)"><b>Что произойдёт после сохранения</b><p>${t==='in'?'Остаток увеличится, позиция станет доступна менеджерам, а приходный документ уйдёт в 1С.':'Остаток уменьшится, сформируется расходная накладная и уйдёт в 1С, сделка перейдёт в «Отгружено».'}</p></div>
+  <div class="btns" style="margin-top:12px"><button class="btn ${t==='in'?'green':'dark'}" onclick="saveMove('${t}')">Сохранить и провести</button><button class="btn" onclick="closeD()">Отмена</button></div>`)}
+function saveMove(t){const name=document.getElementById('mvName').value,qty=+document.getElementById('mvQty').value||0;
+ if(!qty)return toast('Укажите количество.');
+ const s=SKU.find(x=>x.name===name);const src=document.getElementById('mvSrc').value,who=document.getElementById('mvWho').value,note=document.getElementById('mvNote').value.trim();
+ if(t==='out'&&s.stock<qty)return toast(`На складе только <b>${s.stock} шт</b> — расход больше остатка провести нельзя.`);
+ s.stock+=t==='in'?qty:-qty;
+ MOVES.unshift({t,date:'сейчас',doc:(t==='in'?'ПР-':'РН-')+(213+MOVES.length),what:name,qty,mass:Math.round(s.mass*qty),who,src,note:note||(t==='in'?'Приёмка с производства':'Отгрузка клиенту')});
+ closeD();render();
+ toast(t==='in'?`Приход проведён: <b>${name} · ${qty} шт</b>. Остаток ${s.stock} шт, документ ушёл в 1С.`:`Расход проведён: <b>${name} · ${qty} шт</b>. Остаток ${s.stock} шт, накладная в 1С.`)}
+function invForm(){openD('Инвентаризация склада','Введите фактическое количество — расхождение посчитается автоматически',['Лист пересчёта'],
+ `<div class="tw"><table class="data" style="min-width:460px"><thead><tr><th>Позиция</th><th class="right">Учёт</th><th class="right" style="width:96px">Факт</th><th class="right">Расхождение</th></tr></thead><tbody>
+ ${SKU.filter(s=>s.stock).map((s,i)=>`<tr style="cursor:default"><td><b>${esc(s.name)}</b><div class="sub">${s.code}</div></td><td class="right mono">${s.stock}</td>
+  <td class="right"><input type="number" id="iv${i}" value="${s.stock}" style="width:78px;border:1px solid var(--line);padding:5px 6px;font-size:9.4px;text-align:right" oninput="invDiff(${i},${s.stock})"></td>
+  <td class="right mono" id="dv${i}">0</td></tr>`).join('')}
+ </tbody></table></div>
+ <div class="note" style="--tone:var(--gold);margin-top:11px"><b>Как это работает у кладовщика</b><p>Открыл лист на телефоне или планшете, прошёл по складу, ввёл фактические цифры. Система сама покажет, где недостача или излишек, сформирует акт и отправит итог в 1С.</p></div>
+ <div class="btns" style="margin-top:12px"><button class="btn gold" onclick="saveInv()">Завершить и сформировать акт</button><button class="btn" onclick="closeD()">Отмена</button></div>`)}
+function invDiff(i,base){const v=+document.getElementById('iv'+i).value||0,d=v-base,el=document.getElementById('dv'+i);
+ el.textContent=d>0?'+'+d:d;el.className='right mono '+(d===0?'':d<0?'bad':'warn')}
+function saveInv(){const list=SKU.filter(s=>s.stock);let diffs=0;
+ list.forEach((s,i)=>{const v=+document.getElementById('iv'+i).value||0;if(v!==s.stock){diffs++;s.stock=v}});
+ MOVES.unshift({t:'inv',date:'сейчас',doc:'ИНВ-'+(9+MOVES.filter(m=>m.t==='inv').length),what:'Инвентаризация склада',qty:0,mass:0,who:ROLES[role].n,src:'Склад Астана',note:diffs?`Пересчёт ${list.length} позиций, расхождений: ${diffs}`:`Пересчёт ${list.length} позиций, расхождений нет`});
+ closeD();render();
+ toast(diffs?`Инвентаризация завершена: <b>расхождений ${diffs}</b>. Акт сформирован, остатки обновлены и ушли в 1С.`:'Инвентаризация завершена: <b>расхождений нет</b>. Акт сформирован и отправлен в 1С.')}
 
 /* ---- ЛОГИСТИКА ---- */
 SC.logi=()=>`
@@ -675,22 +872,96 @@ SC.reports=()=>`
   </div>
  </div>`;
 
-/* ---- ЗАДАЧИ ---- */
+/* ---- ЗАДАЧИ · КАНБАН ---- */
+let whoF='all';
 SC.tasks=()=>`
- <div class="head"><div><h2>Задачи</h2><p>Поручения внутри системы, а не в WhatsApp: с ответственным, сроком и связью со сделкой. Видно, что не сделано и кем.</p></div>
- <div class="btns"><button class="btn gold" onclick="addTask()">+ Задача</button></div></div>
- <div class="g2">
-  <div class="panel"><div class="ph"><div><div class="ph-title">Открытые</div><div class="ph-sub">срочные подсвечены</div></div><span class="tag red">${TASKS.filter(t=>!t[3]).length}</span></div>
-   ${TASKS.map((t,i)=>t[3]?'':`<div style="display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #ece7dd;cursor:pointer" onclick="doneTask(${i})"><input type="checkbox" style="margin-top:2px"><div style="flex:1"><b style="font-size:8.8px">${esc(t[0])}</b><div class="sub">${esc(t[1])} · до ${esc(t[2])}</div></div>${t[4]==='hot'?'<span class="tag red">срочно</span>':''}</div>`).join('')}
-   <div style="display:flex;gap:6px;margin-top:10px"><input id="nt" class="search" placeholder="Новая задача…" onkeydown="if(event.key==='Enter')addTask()"><button class="btn dark" onclick="addTask()">Создать</button></div>
-  </div>
-  <div class="panel"><div class="ph-title">Выполненные сегодня</div>
-   ${TASKS.map((t,i)=>t[3]?`<div style="display:flex;gap:9px;align-items:center;padding:8px 0;border-bottom:1px solid #ece7dd"><span style="color:var(--green)">✓</span><div style="flex:1"><b style="font-size:8.8px;text-decoration:line-through;color:var(--muted)">${esc(t[0])}</b><div class="sub">${esc(t[1])}</div></div></div>`:'').join('')}
-   <div class="hint" style="margin-top:11px"><b>Правило системы:</b> сделка не может остаться без следующего шага. Закрыли задачу — система просит назначить дату следующего контакта, иначе сделка подсветится руководителю.</div>
-  </div>
- </div>`;
-function doneTask(i){TASKS[i][3]=1;render();toast('Задача выполнена и записана в историю.')}
-function addTask(){const el=document.getElementById('nt'),v=el?.value.trim();if(!v)return toast('Введите текст задачи.');TASKS.unshift([v,ROLES[role].n,'сегодня',0,'']);render();toast('Задача создана и назначена.')}
+ <div class="head"><div><h2>Задачи</h2><p>Доска в стиле Trello: карточку тянут между колонками, у каждой — ответственный, срок, чек-лист с прогрессом и внутренний чат. Поручения перестают жить в WhatsApp.</p></div>
+ <div class="btns"><button class="btn" onclick="toast('Доска выгружена в Excel: задачи, ответственные, сроки и прогресс.')">Экспорт</button><button class="btn gold" onclick="newTask()">+ Задача</button></div></div>
+ <div class="strip">
+  <div><small>ВСЕГО ЗАДАЧ</small><b>${TASKS.length}</b><span>${TASKS.filter(t=>t.col<3).length} в работе</span></div>
+  <div><small>СРОЧНЫХ</small><b class="bad">${TASKS.filter(t=>t.pr==='high'&&t.col<3).length}</b><span>приоритет высокий</span></div>
+  <div><small>НА ПРОВЕРКЕ</small><b>${TASKS.filter(t=>t.col===2).length}</b><span>ждут руководителя</span></div>
+  <div><small>ГОТОВО</small><b class="good">${TASKS.filter(t=>t.col===3).length}</b><span>за неделю</span></div>
+  <div><small>СРЕДНИЙ ПРОГРЕСС</small><b>${Math.round(TASKS.filter(t=>t.col<3).reduce((a,t)=>a+t.prog,0)/Math.max(1,TASKS.filter(t=>t.col<3).length))}%</b><span>по открытым</span></div>
+ </div>
+ <div class="filters"><input class="search" id="tq" placeholder="Задача, ответственный, клиент…" oninput="document.getElementById('kb').innerHTML=kboard()"><button class="filter ${whoF==='all'?'on':''}" onclick="fWho(this,'all')">Все</button>${PEOPLE.slice(1,6).map(p=>`<button class="filter ${whoF===p?'on':''}" onclick="fWho(this,'${p}')">${p}</button>`).join('')}</div>
+ <div class="board" id="kb">${kboard()}</div>`;
+function fWho(el,w){whoF=w;el.parentElement.querySelectorAll('.filter').forEach(x=>x.classList.remove('on'));el.classList.add('on');document.getElementById('kb').innerHTML=kboard()}
+function kboard(){const q=(document.getElementById('tq')?.value||'').toLowerCase();
+ const vis=TASKS.filter(t=>(whoF==='all'||t.who===whoF)&&`${t.t} ${t.who}`.toLowerCase().includes(q));
+ return TCOLS.map((c,i)=>{const col=vis.filter(t=>t.col===i);
+  return `<div class="col" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="this.classList.remove('dragover');kdrop(event,${i})">
+   <div class="col-h"><b>${c[0]}</b><small>${col.length}</small></div>
+   ${col.map(t=>{const done=t.sub.filter(s=>s[1]).length;
+    return `<div class="card" draggable="true" style="--tone:${c[1]}" ondragstart="kdrag(event,${t.id})" ondragend="this.classList.remove('dragging')" onclick="taskCard(${t.id})">
+     <div class="card-top"><b>${esc(t.t)}</b></div>
+     <div class="chips" style="margin-top:6px"><span class="chip ${t.pr==='high'?'hot':t.pr==='mid'?'':'ok'}">${t.pr==='high'?'срочно':t.pr==='mid'?'обычная':'низкий'}</span><span class="chip">${esc(t.due)}</span>${t.deal?`<span class="chip wait">сделка №${t.deal}</span>`:''}${t.chat.length?`<span class="chip">💬 ${t.chat.length}</span>`:''}</div>
+     <div style="margin-top:7px"><div class="bar" style="height:6px"><i style="--w:${t.prog}%;--tone:${t.prog===100?'var(--green)':c[1]}"></i></div>
+      <div class="mini" style="margin-top:3px">чек-лист ${done} из ${t.sub.length} · ${t.prog}%</div></div>
+     <div class="card-foot"><span class="who"><i>${t.who.split(' ').map(w=>w[0]).join('').slice(0,2)}</i>${esc(t.who)}</span></div>
+    </div>`}).join('')}
+   ${i===0?'<button class="addc" onclick="newTask()">+ Добавить</button>':''}
+  </div>`}).join('')}
+function kdrag(e,id){e.dataTransfer.setData('text/plain',id);e.target.classList.add('dragging')}
+function kdrop(e,col){const id=+e.dataTransfer.getData('text/plain'),t=TASKS.find(x=>x.id===id);if(!t||t.col===col)return;
+ t.col=col;if(col===3){t.prog=100;t.sub.forEach(s=>s[1]=1)}else if(col>0&&t.prog===0)t.prog=20;
+ t.chat.push(['Система',`Задача перенесена в «${TCOLS[col][0]}»`,'сейчас']);
+ document.getElementById('kb').innerHTML=kboard();
+ if(col===3){sparks();toast(`Задача <b>${esc(t.t)}</b> выполнена. Ответственный и время закрытия сохранены.`)}
+ else toast(`Задача перенесена в «${TCOLS[col][0]}».`)}
+function taskCard(id,tab=0){const t=TASKS.find(x=>x.id===id);if(!t)return;
+ document.getElementById('dt').textContent=t.t;
+ document.getElementById('ds').textContent=`Задача № ${t.id} · ${TCOLS[t.col][0]} · ${t.who} · до ${t.due}`;
+ document.getElementById('dtabs').innerHTML=['Карточка','Обсуждение · '+t.chat.length].map((x,i)=>`<button class="dtab ${i===tab?'on':''}" onclick="taskCard(${id},${i})">${x}</button>`).join('');
+ document.getElementById('db').innerHTML=tab===0?taskMain(t):taskChat(t);
+ document.getElementById('dbg').classList.add('show')}
+function taskMain(t){const done=t.sub.filter(s=>s[1]).length;
+ return `<div class="stage-track">${TCOLS.map((c,i)=>`<div class="stage-step ${i<t.col?'done':i===t.col?'now':''}" onclick="setTaskCol(${t.id},${i})">${i<t.col?'✓ ':''}${c[0].toUpperCase()}</div>`).join('')}</div>
+ <div class="dq">
+  <label><small>ОТВЕТСТВЕННЫЙ</small><select onchange="taskField(${t.id},'who',this.value)">${PEOPLE.map(p=>`<option ${p===t.who?'selected':''}>${p}</option>`).join('')}</select></label>
+  <label><small>СРОК</small><input value="${esc(t.due)}" onchange="taskField(${t.id},'due',this.value)"></label>
+  <label><small>ПРИОРИТЕТ</small><select onchange="taskField(${t.id},'pr',this.value)"><option value="high" ${t.pr==='high'?'selected':''}>Срочный</option><option value="mid" ${t.pr==='mid'?'selected':''}>Обычный</option><option value="low" ${t.pr==='low'?'selected':''}>Низкий</option></select></label>
+  <label><small>СВЯЗАННАЯ СДЕЛКА</small><input value="${t.deal?'№ '+t.deal:'—'}" ${t.deal?`onclick="closeD();openDeal(${t.deal})" readonly style="cursor:pointer"`:'readonly'}></label>
+ </div>
+ <div class="ph-title" style="font-size:11px;margin:4px 0 6px">Прогресс · ${t.prog}%</div>
+ <div class="bar" style="height:10px"><i style="--w:${t.prog}%;--tone:${t.prog===100?'var(--green)':'var(--gold)'}"></i></div>
+ <div class="mini" style="margin-top:5px">Считается по чек-листу: выполнено ${done} из ${t.sub.length} пунктов.</div>
+ <div class="ph-title" style="font-size:11px;margin:12px 0 4px">Чек-лист</div>
+ ${t.sub.map((s,i)=>`<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #ece7dd;cursor:pointer" onclick="subToggle(${t.id},${i})">
+   <input type="checkbox" ${s[1]?'checked':''} onclick="event.stopPropagation();subToggle(${t.id},${i})">
+   <span style="font-size:9.4px;${s[1]?'text-decoration:line-through;color:var(--muted)':''}">${esc(s[0])}</span></div>`).join('')}
+ <div style="display:flex;gap:6px;margin-top:9px"><input id="nsub" class="search" placeholder="Новый пункт чек-листа…" onkeydown="if(event.key==='Enter')addSub(${t.id})"><button class="btn" onclick="addSub(${t.id})">+ Пункт</button></div>
+ <div class="btns" style="margin-top:12px">
+  ${t.col<3?`<button class="btn green" onclick="setTaskCol(${t.id},3)">Отметить выполненной</button>`:''}
+  <button class="btn" onclick="taskCard(${t.id},1)">Обсуждение</button>
+  ${t.deal?`<button class="btn dark" onclick="closeD();openDeal(${t.deal})">Открыть сделку</button>`:''}
+  <button class="btn red" onclick="delTask(${t.id})">Удалить</button>
+ </div>`}
+function taskChat(t){return `<div class="ph-title" style="font-size:11px;margin-bottom:9px">Внутреннее обсуждение</div>
+ <div style="background:#f0eee7;padding:11px;max-height:340px;overflow:auto">
+ ${t.chat.map(m=>`<div class="msg ${m[0]===ROLES[role].n?'out':''}" style="max-width:82%"><b style="font-size:7.6px;color:var(--muted);display:block;margin-bottom:3px">${esc(m[0])}</b>${esc(m[1])}<time>${m[2]}</time></div>`).join('')}
+ </div>
+ <div style="display:flex;gap:6px;margin-top:9px"><input id="tmsg" class="search" placeholder="Написать в обсуждение задачи…" onkeydown="if(event.key==='Enter')taskMsg(${t.id})"><button class="btn dark" onclick="taskMsg(${t.id})">Отправить</button></div>
+ <div class="hint" style="margin-top:11px"><b>Зачем это внутри задачи:</b> переписка по конкретному поручению лежит рядом с ним, а не теряется в общем чате. Новый сотрудник открывает задачу и сразу видит, о чём договорились.</div>`}
+function taskField(id,k,v){const t=TASKS.find(x=>x.id===id);t[k]=v;t.chat.push(['Система',`Изменено поле «${({who:'ответственный',due:'срок',pr:'приоритет'})[k]}»: ${v}`,'сейчас']);
+ if(cur==='tasks')document.getElementById('kb').innerHTML=kboard();taskCard(id,0);toast('Изменение сохранено, ответственный уведомлён.')}
+function setTaskCol(id,col){const t=TASKS.find(x=>x.id===id);t.col=col;if(col===3){t.prog=100;t.sub.forEach(s=>s[1]=1)}
+ t.chat.push(['Система',`Задача перенесена в «${TCOLS[col][0]}»`,'сейчас']);
+ if(cur==='tasks')render();taskCard(id,0);if(col===3){sparks();toast('Задача выполнена и записана в историю.')}}
+function subToggle(id,i){const t=TASKS.find(x=>x.id===id);t.sub[i][1]=t.sub[i][1]?0:1;
+ t.prog=Math.round(t.sub.filter(s=>s[1]).length/t.sub.length*100);
+ if(t.prog===100&&t.col<3)t.col=2;
+ if(cur==='tasks')document.getElementById('kb').innerHTML=kboard();taskCard(id,0)}
+function addSub(id){const el=document.getElementById('nsub'),v=el.value.trim();if(!v)return;
+ const t=TASKS.find(x=>x.id===id);t.sub.push([v,0]);t.prog=Math.round(t.sub.filter(s=>s[1]).length/t.sub.length*100);
+ taskCard(id,0);toast('Пункт добавлен в чек-лист.')}
+function taskMsg(id){const el=document.getElementById('tmsg'),v=el.value.trim();if(!v)return;
+ const t=TASKS.find(x=>x.id===id);t.chat.push([ROLES[role].n,v,'сейчас']);taskCard(id,1);
+ if(cur==='tasks')document.getElementById('kb').innerHTML=kboard();toast('Сообщение отправлено — ответственный получит уведомление.')}
+function delTask(id){const i=TASKS.findIndex(x=>x.id===id);TASKS.splice(i,1);closeD();render();toast('Задача удалена.')}
+function newTask(){const id=taskSeq++;TASKS.unshift({id,t:'Новая задача',who:ROLES[role].n,col:0,due:'сегодня',pr:'mid',prog:0,deal:null,sub:[['Описать, что нужно сделать',0]],chat:[['Система','Задача создана','сейчас']]});
+ if(cur!=='tasks')go('tasks');else document.getElementById('kb').innerHTML=kboard();
+ taskCard(id,0);toast('Задача создана — назначьте ответственного и срок.')}
 
 /* ---- ИНТЕГРАЦИИ ---- */
 SC.integr=()=>`
