@@ -15,15 +15,85 @@
 <meta name="apple-mobile-web-app-title" content="ELC CRM">
 <link rel="apple-touch-icon" href="/elc-favicon-source.png?v=3">
 <script>
+  // Долго открытая PWA раньше могла неделями работать на старом team.html.
+  // Для Meta-лидов это особенно опасно: старый код использовал отсутствующий
+  // bitrixId и показывал «сохранено», хотя запись уходила в deal_null/deal_.
+  // При выпуске новой team.html одновременно обновить team-build.json.
+  const TEAM_APP_BUILD = '2026-08-23.1';
+  window.__TEAM_APP_BUILD__ = TEAM_APP_BUILD;
+  let teamAppReloading = false;
+
+  function teamAppCanReloadSafely() {
+    const active = document.activeElement;
+    const typing = active && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName);
+    const editing = document.querySelector(
+      '.inline-edit-active, .modal-overlay, .qad-overlay, #_cal-event-modal, [data-editing="1"]'
+    );
+    return !typing && !editing;
+  }
+
+  function showTeamAppUpdate(remoteBuild) {
+    if (document.getElementById('team-app-update')) return;
+    const banner = document.createElement('div');
+    banner.id = 'team-app-update';
+    banner.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:2147483647;display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 16px;border-radius:12px;background:#172554;color:#fff;box-shadow:0 10px 32px rgba(0,0,0,.35);font:600 13px/1.35 system-ui,sans-serif';
+    banner.innerHTML = '<span>Доступна исправленная версия CRM. Обновите страницу перед сохранением.</span><button type="button" style="border:0;border-radius:8px;padding:8px 12px;background:#fff;color:#172554;font-weight:700;cursor:pointer">Обновить</button>';
+    banner.querySelector('button').onclick = () => {
+      teamAppReloading = true;
+      location.reload();
+    };
+    banner.dataset.remoteBuild = remoteBuild || '';
+    document.body.appendChild(banner);
+  }
+
+  async function checkTeamAppBuild() {
+    if (teamAppReloading) return;
+    try {
+      const response = await fetch('/team-build.json?build_check=' + Date.now(), {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+      });
+      if (!response.ok) return;
+      const payload = await response.json();
+      const remoteBuild = payload && payload.build;
+      if (!remoteBuild || remoteBuild === TEAM_APP_BUILD) return;
+      if (teamAppCanReloadSafely()) {
+        teamAppReloading = true;
+        location.reload();
+      } else {
+        showTeamAppUpdate(remoteBuild);
+      }
+    } catch (_) {}
+  }
+
   // Регистрируем service worker — нужен для установки PWA и push-уведомлений.
   if ('serviceWorker' in navigator) {
+    let hadServiceWorkerController = !!navigator.serviceWorker.controller;
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/team-sw.js').catch((e) => console.warn('SW register failed', e));
+      navigator.serviceWorker.register('/team-sw.js', { updateViaCache: 'none' })
+        .then((registration) => registration.update())
+        .catch((e) => console.warn('SW register failed', e));
+      setTimeout(checkTeamAppBuild, 15000);
+      setInterval(checkTeamAppBuild, 5 * 60 * 1000);
+    });
+    // Новый SW активировался — безопасно перезагружаем уже открытую CRM.
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadServiceWorkerController && !teamAppReloading) {
+        if (teamAppCanReloadSafely()) {
+          teamAppReloading = true;
+          location.reload();
+        } else {
+          showTeamAppUpdate('service-worker');
+        }
+      }
+      hadServiceWorkerController = true;
     });
     // Клик по push-уведомлению (SW → страница): открыть нужный раздел.
     navigator.serviceWorker.addEventListener('message', (ev) => {
       const d = ev.data || {};
-      if (d.type === 'notification-click' && d.url) {
+      if (d.type === 'app-update') {
+        checkTeamAppBuild();
+      } else if (d.type === 'notification-click' && d.url) {
         // Полный deep-link (раздел + карточка сделки/задачи) через модульный хелпер.
         if (typeof window.notifOpenLink === 'function') {
           window.notifOpenLink(d.url);
@@ -36,6 +106,9 @@
         }
         window.focus();
       }
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') checkTeamAppBuild();
     });
   }
 </script>
@@ -10089,7 +10162,8 @@ function renderDealsPagedTable() {
       </tr></thead>
       <tbody>`;
   for (const d of dealsPagedState.items) {
-    const recordId = String(d.id || ('deal_' + d.bitrixId));
+    const recordId = getDealRecordId(d);
+    const publicId = getDealPublicId(d);
     const isSelected = dealsPagedState.selectedIds.has(recordId);
     const stage = dealsState.pipeline?.stages?.[d.stageId];
     const stageName = stage?.name || d.stageId || '—';
@@ -10098,7 +10172,7 @@ function renderDealsPagedTable() {
     const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() || respUser.email || '—' : '—';
     const opp = d.opportunity || 0;
     const date = d.bitrixDateCreate ? new Date(d.bitrixDateCreate).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
-    html += `<tr class="row ${isSelected ? 'deal-row-selected' : ''}" data-deal-id="${escapeHtml(d.bitrixId)}" data-deal-record-id="${escapeHtml(recordId)}">
+    html += `<tr class="row ${isSelected ? 'deal-row-selected' : ''}" data-deal-id="${escapeHtml(publicId)}" data-deal-record-id="${escapeHtml(recordId)}">
       <td class="deal-select-cell"><input type="checkbox" class="deal-select-checkbox deal-select-row" data-deal-record-id="${escapeHtml(recordId)}" ${isSelected ? 'checked' : ''} aria-label="Выбрать сделку ${escapeHtml(d.title || '(без названия)')}"></td>
       <td class="name-cell" style="width:38%">${escapeHtml(d.title || '(без названия)')}</td>
       <td style="width:18%"><span class="badge" style="color:${stageColor};border-color:${stageColor}55;background:${stageColor}22">${escapeHtml(stageName)}</span></td>
@@ -10110,7 +10184,7 @@ function renderDealsPagedTable() {
   html += `</tbody></table></div>`;
   c.innerHTML = html;
 
-  const pageIds = dealsPagedState.items.map(d => String(d.id || ('deal_' + d.bitrixId)));
+  const pageIds = dealsPagedState.items.map(getDealRecordId).filter(Boolean);
   const selectPage = document.getElementById('deals-select-page');
   if (selectPage) {
     const selectedOnPage = pageIds.filter(id => dealsPagedState.selectedIds.has(id)).length;
@@ -10155,7 +10229,7 @@ function clearDealsBulkSelection() {
 }
 
 function syncDealsBulkSelectionUi() {
-  const pageIds = dealsPagedState.items.map(d => String(d.id || ('deal_' + d.bitrixId)));
+  const pageIds = dealsPagedState.items.map(getDealRecordId).filter(Boolean);
   const selectedOnPage = pageIds.filter(id => dealsPagedState.selectedIds.has(id)).length;
   const selectPage = document.getElementById('deals-select-page');
   if (selectPage) {
@@ -10220,7 +10294,8 @@ async function selectAllFilteredDeals() {
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
     for (const deal of (result.items || [])) {
-      dealsPagedState.selectedIds.add(String(deal.id || ('deal_' + deal.bitrixId)));
+      const recordId = getDealRecordId(deal);
+      if (recordId) dealsPagedState.selectedIds.add(recordId);
     }
     renderDealsPagedTable();
     if (Number(result.total || 0) > 200) {
@@ -10572,7 +10647,7 @@ function renderDealsList(c, arr) {
     const opp = d.opportunity || 0;
     const date = d.bitrixDateCreate ? new Date(d.bitrixDateCreate).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
 
-    html += `<tr class="row" data-deal-id="${escapeHtml(d.bitrixId)}">
+    html += `<tr class="row" data-deal-id="${escapeHtml(getDealPublicId(d))}">
       <td class="name-cell" style="width:42%">${escapeHtml(d.title || '(без названия)')}</td>
       <td style="width:18%"><span class="badge" style="color:${stageColor};border-color:${stageColor}55;background:${stageColor}22">${escapeHtml(stageName)}</span></td>
       <td style="width:14%;color:${opp ? 'var(--gn)' : 'var(--t3)'};font-variant-numeric:tabular-nums;font-weight:600">${opp ? opp.toLocaleString('ru') + ' ' + (d.currency || '') : '—'}</td>
@@ -11794,7 +11869,9 @@ async function mountDealSourceSelect(modal, deal) {
       select.disabled = true;
       try {
         const token = await fbAuth.currentUser.getIdToken();
-        const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent('deal_' + deal.bitrixId)}/source`, {
+        const dealRecordId = getDealRecordId(deal);
+        if (!dealRecordId) throw new Error('Не удалось определить ID сделки. Обновите CRM.');
+        const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealRecordId)}/source`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ metaAdId }),
@@ -12337,7 +12414,8 @@ function openAddMirrorModal(deal, onDone) {
     btn.disabled = true; btn.textContent = '⏳ Добавляем…';
     try {
       const idToken = await fbAuth.currentUser.getIdToken();
-      const dealId = deal.id || ('deal_' + deal.bitrixId);
+      const dealId = getDealRecordId(deal);
+      if (!dealId) throw new Error('Не удалось определить ID сделки. Обновите CRM.');
       const r = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(dealId)}/mirror`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
@@ -13086,10 +13164,10 @@ function buildDealCard(d, stageColor) {
       ${staleWarn ? `<span class="kanban-stale">${daysSince}д</span>` : (dateLabel ? `<span class="${dateLabelClass}">${dateLabel}</span>` : '')}
     </div>
     <div class="kanban-card-actions">
-      <button class="kca-btn kca-wa" data-action="wa" data-phone="${escapeHtml(phone || '')}" data-deal-id="${escapeHtml(d.bitrixId || '')}" title="${phone ? 'Открыть WhatsApp' : 'У контакта нет телефона — добавь в карточке'}" ${!phone ? 'data-no-phone="1" style="opacity:0.45"' : ''}>💬</button>
-      <button class="kca-btn kca-call" data-action="call" data-phone="${escapeHtml(phone || '')}" data-deal-id="${escapeHtml(d.bitrixId || '')}" title="${phone ? 'Позвонить' : 'У контакта нет телефона — добавь в карточке'}" ${!phone ? 'data-no-phone="1" style="opacity:0.45"' : ''}>📞</button>
-      <button class="kca-btn kca-dup" data-action="dup-deal" data-deal-id="${escapeHtml(d.bitrixId || '')}" title="Дублировать сделку (создать копию в этой же стадии)">⧉</button>
-      <button class="kca-btn kca-stage" data-action="stage" data-deal-id="${escapeHtml(d.bitrixId)}" title="Сменить стадию" style="margin-left:auto">→</button>
+      <button class="kca-btn kca-wa" data-action="wa" data-phone="${escapeHtml(phone || '')}" data-deal-id="${escapeHtml(cardKey)}" title="${phone ? 'Открыть WhatsApp' : 'У контакта нет телефона — добавь в карточке'}" ${!phone ? 'data-no-phone="1" style="opacity:0.45"' : ''}>💬</button>
+      <button class="kca-btn kca-call" data-action="call" data-phone="${escapeHtml(phone || '')}" data-deal-id="${escapeHtml(cardKey)}" title="${phone ? 'Позвонить' : 'У контакта нет телефона — добавь в карточке'}" ${!phone ? 'data-no-phone="1" style="opacity:0.45"' : ''}>📞</button>
+      <button class="kca-btn kca-dup" data-action="dup-deal" data-deal-id="${escapeHtml(cardKey)}" title="Дублировать сделку (создать копию в этой же стадии)">⧉</button>
+      <button class="kca-btn kca-stage" data-action="stage" data-deal-id="${escapeHtml(cardKey)}" title="Сменить стадию" style="margin-left:auto">→</button>
     </div>
     ${cmtsHtml}
     ${cmtAddHtml}
@@ -15202,9 +15280,8 @@ function startInlineEdit(el) {
       }
       // Локальный кеш — обновим если есть
       if (collection === 'deals') {
-        const bitrixId = recordId.startsWith('deal_') ? recordId.slice(5) : recordId;
-        const deal = dealsState.deals.find(d => d.bitrixId === bitrixId)
-          || (dealsPagedState.items || []).find(d => d.bitrixId === bitrixId);
+        const deal = dealsState.deals.find(d => getDealRecordId(d) === recordId)
+          || (dealsPagedState.items || []).find(d => getDealRecordId(d) === recordId);
         if (deal) {
           deal[field] = value;
           deal.bitrixDateModify = new Date().toISOString();
@@ -15248,9 +15325,8 @@ function wireUpCustomFieldsEditing(modal, opts = {}) {
   const collectionPath = entity === 'contact' ? 'contacts' : (entity === 'company' ? 'companies' : 'deals');
   const stateRecordById = (id) => {
     if (entity === 'deal') {
-      const bitrixId = id.startsWith('deal_') ? id.slice(5) : id;
-      return dealsState.deals.find(d => d.bitrixId === bitrixId)
-        || (dealsPagedState.items || []).find(d => d.bitrixId === bitrixId)
+      return dealsState.deals.find(d => getDealRecordId(d) === id)
+        || (dealsPagedState.items || []).find(d => getDealRecordId(d) === id)
         || null;
     }
     return null; // для contact — отдельный кеш не используем, перезагрузка по PATCH
@@ -15297,7 +15373,18 @@ function wireUpCustomFieldsEditing(modal, opts = {}) {
         // Текущие cf из локального state (если есть) — иначе берём от сервера
         let cf = {};
         const rec = stateRecordById(recordId);
-        if (rec?.customFields) cf = { ...rec.customFields };
+        if (rec?.customFields) {
+          cf = { ...rec.customFields };
+        } else if (entity === 'deal') {
+          // Карточка могла открыться из урезанного списка. Подтягиваем полный
+          // объект перед записью, чтобы календарное поле не затёрло остальные
+          // customFields Meta-лида.
+          const current = await fetch(`${WORKER_RTDB_URL}/deals/${encodeURIComponent(recordId)}.json?auth=${idToken}`);
+          if (current.ok) {
+            const full = await current.json();
+            if (full?.customFields) cf = { ...full.customFields };
+          }
+        }
         cf[field] = value;
         // Для календарных полей отдельно фиксируем пользователя, который
         // назначил встречу. Это даёт календарю точное имя автора вместо
@@ -19676,7 +19763,8 @@ function openDealRespEditor(displayEl, deal) {
     input.disabled = true;
     try {
       const idToken = await fbAuth.currentUser.getIdToken();
-      const recordId = 'deal_' + deal.bitrixId;
+      const recordId = getDealRecordId(deal);
+      if (!recordId) throw new Error('Не удалось определить ID сделки. Обновите CRM.');
       const modifyIso = new Date().toISOString();
       const r = await fetch(`${WORKER_RTDB_URL}/deals/${encodeURIComponent(recordId)}.json?auth=${idToken}`, {
         method: 'PATCH',
@@ -19690,8 +19778,8 @@ function openDealRespEditor(displayEl, deal) {
       // Локальный кеш
       deal.responsibleUid = newUid || null;
       deal.bitrixDateModify = modifyIso;
-      const cached = dealsState.deals.find(d => d.bitrixId === deal.bitrixId)
-        || (dealsPagedState.items || []).find(d => d.bitrixId === deal.bitrixId);
+      const cached = dealsState.deals.find(d => getDealRecordId(d) === recordId)
+        || (dealsPagedState.items || []).find(d => getDealRecordId(d) === recordId);
       if (cached) { cached.responsibleUid = newUid || null; cached.bitrixDateModify = modifyIso; }
       // Дисплей
       const u = newUid ? getUserById(newUid) : null;
