@@ -1457,6 +1457,16 @@ async function handleRtdbWrite(env, request, parts, me) {
     const keyCol = updatableTables[head];
     const id = rest[0];
     const jsonCols = JSON_COLS[tableName] || new Set();
+    // Старые долго открытые сборки team.html формировали для Meta-лидов
+    // deal_null/deal_. Раньше такой PATCH возвращал ok и попадал в audit,
+    // хотя реальной строки не существовало — менеджер видел «сохранено», а
+    // примечание или дата календаря терялись. Не допускаем тихий успех.
+    if (tableName === "deals" && ["deal_null", "deal_undefined", "deal_", "null", "undefined", ""].includes(id)) {
+      return json({
+        error: "CRM устарела: не удалось определить сделку. Обновите страницу и повторите сохранение.",
+        code: "INVALID_DEAL_ID",
+      }, 409, request);
+    }
     // Календарные колонки гарантируем перед записью: старые D1-схемы могли
     // остаться без них после обновления фронта.
     if (tableName === "tasks") {
@@ -1478,6 +1488,14 @@ async function handleRtdbWrite(env, request, parts, me) {
       const existsRow = await env.DB.prepare(
         `SELECT ${keyCol} FROM ${tableName} WHERE ${keyCol} = ? LIMIT 1`
       ).bind(id).first();
+      // Сделки и события нельзя «успешно» править по уже отсутствующему ID:
+      // 404 оставляет данные в форме и показывает пользователю реальную ошибку.
+      if (!existsRow && request.method === "PATCH" && (tableName === "deals" || tableName === "tasks")) {
+        return json({
+          error: `${tableName === "deals" ? "Сделка" : "Событие"} не найдено. Обновите CRM и повторите сохранение.`,
+          code: "RECORD_NOT_FOUND",
+        }, 404, request);
+      }
       if (existsRow) {
         const allowed = await canEditRecord(env, me, tableName, id);
         if (!allowed) {

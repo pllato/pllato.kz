@@ -8,7 +8,7 @@
  * Пустой обработчик fetch всё же присутствует — это требование Chrome,
  * чтобы сайт считался устанавливаемым PWA.
  */
-const SW_VERSION = 'elc-sw-v1';
+const SW_VERSION = 'elc-sw-v2';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -22,6 +22,12 @@ self.addEventListener('activate', (e) => {
       keys.filter((k) => k.startsWith('elc-') && k !== SW_VERSION).map((k) => caches.delete(k))
     );
     await self.clients.claim();
+    // Новые страницы умеют безопасно перезагрузиться или показать кнопку
+    // обновления, если менеджер сейчас вводит данные.
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clients) {
+      try { client.postMessage({ type: 'app-update', version: SW_VERSION }); } catch (_) {}
+    }
   })());
 });
 
