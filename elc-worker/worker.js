@@ -1462,6 +1462,10 @@ async function handleRtdbWrite(env, request, parts, me) {
     // хотя реальной строки не существовало — менеджер видел «сохранено», а
     // примечание или дата календаря терялись. Не допускаем тихий успех.
     if (tableName === "deals" && ["deal_null", "deal_undefined", "deal_", "null", "undefined", ""].includes(id)) {
+      await auditLog(env, me, "record_patch_rejected", "deals", id || "(empty)", {
+        code: "INVALID_DEAL_ID",
+        fields: Object.keys(body || {}).filter((field) => !/token|auth|phone|email/i.test(field)),
+      });
       return json({
         error: "CRM устарела: не удалось определить сделку. Обновите страницу и повторите сохранение.",
         code: "INVALID_DEAL_ID",

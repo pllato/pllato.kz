@@ -8,7 +8,8 @@
  * Пустой обработчик fetch всё же присутствует — это требование Chrome,
  * чтобы сайт считался устанавливаемым PWA.
  */
-const SW_VERSION = 'elc-sw-v2';
+const SW_VERSION = 'elc-sw-v3';
+const FORCE_REFRESH_BUILD = '2026-08-24.1';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -22,11 +23,21 @@ self.addEventListener('activate', (e) => {
       keys.filter((k) => k.startsWith('elc-') && k !== SW_VERSION).map((k) => caches.delete(k))
     );
     await self.clients.claim();
-    // Новые страницы умеют безопасно перезагрузиться или показать кнопку
-    // обновления, если менеджер сейчас вводит данные.
+    // v1-страницы не умели реагировать на app-update и могли оставаться
+    // открытыми неделями. На них Meta-лид редактировался как deal_null.
+    // Один раз принудительно навигируем все открытые team.html на свежую
+    // сборку. Параметр не меняет маршрут/хеш карточки и предотвращает цикл.
     const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of clients) {
-      try { client.postMessage({ type: 'app-update', version: SW_VERSION }); } catch (_) {}
+      try {
+        const url = new URL(client.url);
+        if (url.pathname.endsWith('/team.html') && url.searchParams.get('app_build') !== FORCE_REFRESH_BUILD) {
+          url.searchParams.set('app_build', FORCE_REFRESH_BUILD);
+          await client.navigate(url.href);
+        } else {
+          client.postMessage({ type: 'app-update', version: SW_VERSION });
+        }
+      } catch (_) {}
     }
   })());
 });
