@@ -1437,6 +1437,46 @@ async function handleMigrateRejectReasons(request, env) {
   return json({ ok: true, dryRun: false, updated_deals: wouldUpdate, alter_applied: alterApplied, pipelineId }, 200, request);
 }
 
+const LEGACY_INVALID_DEAL_IDS = new Set(["deal_null", "deal_undefined", "deal_", "null", "undefined", ""]);
+
+// Совместимость со старыми PWA, где Meta-сделка не имела bitrixId и запись
+// уходила в deal_null/deal_. Для customFields точный metaLeadId уже находится
+// в теле запроса. Для заголовка разрешаем только единственное совпадение среди
+// Meta-сделок текущего ответственного — неоднозначную запись не угадываем.
+async function resolveLegacyMetaDealId(env, me, body) {
+  const customFields = body?.customFields || body?.custom_fields;
+  if (customFields && typeof customFields === "object") {
+    const metaEntry = Object.entries(customFields).find(([key]) =>
+      String(key).replace(/[^a-z0-9]/gi, "").toLowerCase() === "metaleadid"
+    );
+    const metaLeadId = String(metaEntry?.[1] || "").trim();
+    if (/^[A-Za-z0-9_-]{4,100}$/.test(metaLeadId)) {
+      const candidateId = `deal_meta_${metaLeadId}`;
+      const exact = await env.DB.prepare("SELECT id FROM deals WHERE id = ? LIMIT 1").bind(candidateId).first();
+      if (exact?.id) return String(exact.id);
+    }
+  }
+
+  const title = String(body?.title || "").trim();
+  const uid = String(me?.canonicalUid || "").trim();
+  if (!title || !uid) return null;
+  const { results } = await env.DB.prepare(`
+    SELECT id
+    FROM deals
+    WHERE id LIKE 'deal_meta_%'
+      AND (responsible_uid = ? OR created_by_uid = ? OR modify_by_uid = ?)
+      AND (
+        instr(?, title) > 0
+        OR instr(?, replace(title, 'Facebook Lead · ', '')) > 0
+        OR instr(title, ?) > 0
+      )
+    ORDER BY bitrix_date_modify DESC
+    LIMIT 2
+  `).bind(uid, uid, uid, title, title, title).all();
+  const ids = [...new Set((results || []).map((row) => String(row.id || "")).filter(Boolean))];
+  return ids.length === 1 ? ids[0] : null;
+}
+
 async function handleRtdbWrite(env, request, parts, me) {
   const [head, ...rest] = parts;
   let body;
@@ -1455,21 +1495,31 @@ async function handleRtdbWrite(env, request, parts, me) {
   if (updatableTables[head] && rest.length === 1) {
     const tableName = head;
     const keyCol = updatableTables[head];
-    const id = rest[0];
+    let id = rest[0];
     const jsonCols = JSON_COLS[tableName] || new Set();
     // Старые долго открытые сборки team.html формировали для Meta-лидов
     // deal_null/deal_. Раньше такой PATCH возвращал ok и попадал в audit,
     // хотя реальной строки не существовало — менеджер видел «сохранено», а
     // примечание или дата календаря терялись. Не допускаем тихий успех.
-    if (tableName === "deals" && ["deal_null", "deal_undefined", "deal_", "null", "undefined", ""].includes(id)) {
-      await auditLog(env, me, "record_patch_rejected", "deals", id || "(empty)", {
-        code: "INVALID_DEAL_ID",
-        fields: Object.keys(body || {}).filter((field) => !/token|auth|phone|email/i.test(field)),
-      });
-      return json({
-        error: "CRM устарела: не удалось определить сделку. Обновите страницу и повторите сохранение.",
-        code: "INVALID_DEAL_ID",
-      }, 409, request);
+    if (tableName === "deals" && LEGACY_INVALID_DEAL_IDS.has(id)) {
+      const legacyId = id;
+      const resolvedId = request.method === "PATCH" ? await resolveLegacyMetaDealId(env, me, body) : null;
+      if (resolvedId) {
+        id = resolvedId;
+        await auditLog(env, me, "record_patch_legacy_resolved", "deals", resolvedId, {
+          legacyId: legacyId || "(empty)",
+          fields: Object.keys(body || {}).filter((field) => !/token|auth|phone|email/i.test(field)),
+        });
+      } else {
+        await auditLog(env, me, "record_patch_rejected", "deals", legacyId || "(empty)", {
+          code: "INVALID_DEAL_ID",
+          fields: Object.keys(body || {}).filter((field) => !/token|auth|phone|email/i.test(field)),
+        });
+        return json({
+          error: "CRM устарела: не удалось определить сделку. Обновите страницу и повторите сохранение.",
+          code: "INVALID_DEAL_ID",
+        }, 409, request);
+      }
     }
     // Календарные колонки гарантируем перед записью: старые D1-схемы могли
     // остаться без них после обновления фронта.
@@ -1520,8 +1570,6 @@ async function handleRtdbWrite(env, request, parts, me) {
           }
         }
       }
-      // PATCH несуществующей записи — раньше молча no-op; оставим так чтобы
-      // не сломать legacy фронт. PUT-INSERT обработается ниже отдельной веткой.
       // PUT-INSERT — agent может создать; не-admin'у форсим owner-поля чтобы не подсовывал чужой uid
       if (!existsRow && request.method === "PUT" && me?.role !== "admin" && me?.canonicalUid) {
         const ownerForce = {
