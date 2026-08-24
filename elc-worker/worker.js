@@ -1443,6 +1443,11 @@ const LEGACY_INVALID_DEAL_IDS = new Set(["deal_null", "deal_undefined", "deal_",
 // уходила в deal_null/deal_. Для customFields точный metaLeadId уже находится
 // в теле запроса. Для заголовка разрешаем только единственное совпадение среди
 // Meta-сделок текущего ответственного — неоднозначную запись не угадываем.
+// Совсем старая карточка после успешного сохранения заголовка отправляла Zoom и
+// другие customFields отдельным PATCH на deal_ уже без metaLeadId. В этом случае
+// связываем запрос с единственной Meta-сделкой, которую тот же менеджер только
+// что однозначно восстановил. Короткое окно и проверка принадлежности исключают
+// случайную запись в другую карточку.
 async function resolveLegacyMetaDealId(env, me, body) {
   const customFields = body?.customFields || body?.custom_fields;
   if (customFields && typeof customFields === "object") {
@@ -1457,24 +1462,43 @@ async function resolveLegacyMetaDealId(env, me, body) {
     }
   }
 
-  const title = String(body?.title || "").trim();
   const uid = String(me?.canonicalUid || "").trim();
-  if (!title || !uid) return null;
-  const { results } = await env.DB.prepare(`
-    SELECT id
-    FROM deals
-    WHERE id LIKE 'deal_meta_%'
-      AND (responsible_uid = ? OR created_by_uid = ? OR modify_by_uid = ?)
-      AND (
-        instr(?, title) > 0
-        OR instr(?, replace(title, 'Facebook Lead · ', '')) > 0
-        OR instr(title, ?) > 0
-      )
-    ORDER BY bitrix_date_modify DESC
+  if (!uid) return null;
+
+  const title = String(body?.title || "").trim();
+  if (title) {
+    const { results } = await env.DB.prepare(`
+      SELECT id
+      FROM deals
+      WHERE id LIKE 'deal_meta_%'
+        AND (responsible_uid = ? OR created_by_uid = ? OR modify_by_uid = ?)
+        AND (
+          instr(?, title) > 0
+          OR instr(?, replace(title, 'Facebook Lead · ', '')) > 0
+          OR instr(title, ?) > 0
+        )
+      ORDER BY bitrix_date_modify DESC
+      LIMIT 2
+    `).bind(uid, uid, uid, title, title, title).all();
+    const ids = [...new Set((results || []).map((row) => String(row.id || "")).filter(Boolean))];
+    if (ids.length === 1) return ids[0];
+  }
+
+  const { results: recentResults } = await env.DB.prepare(`
+    SELECT DISTINCT a.target_id AS id
+    FROM audit_log a
+    JOIN deals d ON d.id = a.target_id
+    WHERE a.actor_uid = ?
+      AND a.action = 'record_patch_legacy_resolved'
+      AND a.target_type = 'deals'
+      AND a.target_id LIKE 'deal_meta_%'
+      AND a.created_at >= datetime('now', '-30 minutes')
+      AND (d.responsible_uid = ? OR d.created_by_uid = ? OR d.modify_by_uid = ?)
+    ORDER BY a.id DESC
     LIMIT 2
-  `).bind(uid, uid, uid, title, title, title).all();
-  const ids = [...new Set((results || []).map((row) => String(row.id || "")).filter(Boolean))];
-  return ids.length === 1 ? ids[0] : null;
+  `).bind(uid, uid, uid, uid).all();
+  const recentIds = [...new Set((recentResults || []).map((row) => String(row.id || "")).filter(Boolean))];
+  return recentIds.length === 1 ? recentIds[0] : null;
 }
 
 async function handleRtdbWrite(env, request, parts, me) {
