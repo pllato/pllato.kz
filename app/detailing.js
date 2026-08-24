@@ -4,7 +4,7 @@ const fmt=n=>new Intl.NumberFormat('ru-RU').format(Math.round(n));
 const tg=n=>fmt(n)+' ₸';
 
 const ROLES={
- 'Владелец':{n:'Владелец студии',av:'ВЛ',note:'Деньги, загрузка, мастера — вся студия',s:['dash','leads','deals','sched','cars','fin','staff','stock','settings']},
+ 'Владелец':{n:'Владелец студии',av:'ВЛ',note:'Деньги, загрузка, мастера — вся студия',s:['dash','leads','calc','deals','sched','cars','fin','staff','stock','client','settings']},
  'Администратор':{n:'Администратор',av:'АД',note:'Лента заявок, расчёты, запись на посты',s:['leads','calc','deals','sched','cars','client']},
  'Мастер':{n:'Мастер цеха',av:'МА',note:'Мои наряды, чек-листы, фото до/после',s:['jobs','sched','stock']},
  'Клиент':{n:'Клиент · WhatsApp',av:'КЛ',note:'Как всё выглядит для владельца авто',s:['client']}
