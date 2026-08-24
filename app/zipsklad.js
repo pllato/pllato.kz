@@ -20,7 +20,7 @@ const NAV=[
 const TITLES={
  dash:['Пульт сети','Загрузка, деньги и доступы по всем складам — вместо шести вкладок Google Sheets'],
  wh:['Склады и боксы','План каждого склада: занятые, свободные, должники и брони — кликните по боксу'],
- access:['Доступ и охрана','Face ID, видеозвонки и журнал проходов. Доступ закрывается сам при неоплате'],
+ access:['Доступ и охрана','Вход по звонку: система определяет номер и открывает замок. Face ID и журнал проходов'],
  clients:['Арендаторы','Карточка клиента: боксы, период, тариф, доступы и вся история платежей'],
  leads:['Заявки и продажи','Обращения с сайта, WhatsApp, Instagram и звонков — в одной воронке'],
  lk:['Кабинет клиента','То, что видит арендатор с телефона: бокс, счёт, оплата в Kaspi и доступ'],
@@ -78,11 +78,12 @@ const PAYS=[
  {id:'P-4408',cl:'Тимур Байжанов',box:'sey-019',sum:24600,date:'вчера 11:33',src:'Kaspi QR',auto:1,per:'15.08 – 14.09'}
 ];
 const ACCESS=[
+ {t:'Звонок',cl:'Ерлан Мусаев',box:'shr-021',wh:'Шахристан',res:'ok',time:'09:52',note:'Вход по звонку: номер определён, аренда оплачена, замок открыт за 2,1 с'},
  {t:'Face ID',cl:'Айгерим Сакенова',box:'buh-014',wh:'Бухар Жырау',res:'ok',time:'09:41',note:'Распознавание 0,8 с, доступ открыт автоматически'},
- {t:'Видеозвонок',cl:'Ерлан Мусаев',box:'shr-021',wh:'Шахристан',res:'ok',time:'09:28',note:'Оператор Ержан подтвердил личность и открыл дверь'},
+ {t:'Звонок',cl:'Мадина Ержанова · доверенное лицо',box:'ryb-044',wh:'Рыскулова',res:'ok',time:'09:22',note:'Номер добавлен арендатором в кабинете как постоянный доступ (сестра)'},
  {t:'Face ID',cl:'Санжар Оспанов',box:'buh-032',wh:'Бухар Жырау',res:'deny',time:'09:05',note:'Доступ закрыт: не оплачен период с 01.08, долг 27 600 ₸'},
- {t:'Видеозвонок',cl:'Гость · курьер',box:'ryb-007',wh:'Рыскулова',res:'ok',time:'08:52',note:'Разовый доступ по согласованию арендатора, 40 минут'},
- {t:'Face ID',cl:'Динара Абдуллаева',box:'tol-011',wh:'Толе би',res:'ok',time:'08:34',note:'Доступ открыт, второй пользователь бокса'}
+ {t:'Звонок',cl:'Гость · грузчики',box:'tol-018',wh:'Толе би',res:'ok',time:'08:52',note:'Разовый доступ на день, выдан арендатором из кабинета'},
+ {t:'Видеозвонок',cl:'Динара Абдуллаева',box:'tol-011',wh:'Толе би',res:'ok',time:'08:34',note:'Телефон разрядился — оператор верифицировал и открыл вручную'}
 ];
 const LEADS=[
  {n:'Марат Досжанов',ch:'WhatsApp',need:'Бокс 6 м² на 3 месяца, район Абая',st:0,t:'10:41',note:'Спрашивает цену и есть ли свободные'},
@@ -299,28 +300,69 @@ function simulatePay(){const d=stat().debt[0];if(!d)return toast('Должник
 
 /* ---- ДОСТУП ---- */
 SC.access=()=>`
- <div class="head"><div><h2>Доступ и охрана</h2><p>Три оператора в три смены следят за шестью складами. Система забирает у них рутину: Face ID пускает клиента сам, а должника не пускает без звонка и уточнений.</p></div>
- <div class="btns"><button class="btn" onclick="toast('Журнал проходов за месяц выгружен в Excel.')">Журнал за месяц</button><button class="btn y" onclick="faceDemo()">▶ Проход по Face ID</button></div></div>
+ <div class="head"><div><h2>Доступ и охрана</h2><p>Главный способ входа — звонок: клиент звонит на номер замка, система определяет его номер, проверяет оплату и открывает дверь. Как со шлагбаумом — интуитивно, без приложений, дешевле Face ID.</p></div>
+ <div class="btns"><button class="btn" onclick="toast('Журнал проходов за месяц выгружен в Excel.')">Журнал за месяц</button><button class="btn" onclick="faceDemo()">Проход по Face ID</button><button class="btn y" onclick="callDemo()">▶ Вход по звонку</button></div></div>
  <div class="strip">
-  <div><small>ПРОХОДОВ СЕГОДНЯ</small><b>84</b><span>Face ID 61 · видеозвонок 23</span></div>
-  <div><small>БЕЗ УЧАСТИЯ ОПЕРАТОРА</small><b>73%</b><span class="good">было 0%</span></div>
-  <div><small>ОТКАЗОВ</small><b class="bad">6</b><span>долг или нет доступа</span></div>
-  <div><small>СРЕДНЕЕ ВРЕМЯ ВХОДА</small><b>0,8 сек</b><span>против 40 сек звонка</span></div>
-  <div><small>СКЛАДОВ С FACE ID</small><b>2 из 7</b><span>масштабируем на все</span></div>
+  <div><small>ПРОХОДОВ СЕГОДНЯ</small><b>84</b><span>звонок 47 · Face ID 24 · видеозвонок 13</span></div>
+  <div><small>БЕЗ УЧАСТИЯ ОПЕРАТОРА</small><b>86%</b><span class="good">было 0%</span></div>
+  <div><small>ОТКАЗОВ</small><b class="bad">6</b><span>долг или номер не привязан</span></div>
+  <div><small>ВХОД ПО ЗВОНКУ</small><b>~2 сек</b><span>гудок сбрасывается, звонок бесплатный</span></div>
+  <div><small>GSM-ЗАМКОВ</small><b>7 из 7</b><span>Face ID — на 2 складах</span></div>
  </div>
  <div class="g12">
-  <div class="panel"><div class="ph-title">Пункт входа · Бухар Жырау</div>
-   <div class="cam" id="camBox" style="margin-top:9px"><div class="cam-face"></div><div class="cam-lbl" id="camLbl">ОЖИДАНИЕ · КАМЕРА 1</div><div class="cam-ok hidden" id="camOk">ДОСТУП ОТКРЫТ</div></div>
-   <div class="kpi-mini"><div style="--tone:var(--green)"><small>СЕГОДНЯ ПУСТИЛА</small><b>61</b></div><div style="--tone:var(--red)"><small>ОТКАЗАЛА</small><b>6</b></div></div>
-   <div class="hint"><b>Как это работает:</b> клиент регистрируется в кабинете и загружает фото сам — оператор больше не заносит лица вручную в программу охраны. Если аренда не оплачена, система просто не откроет дверь и покажет клиенту причину в кабинете.</div>
+  <div>
+  <div class="panel"><div class="ph"><div><div class="ph-title">Вход по звонку · GSM-замок</div><div class="ph-sub">у каждой входной двери свой номер — клиент звонит, дверь открывается</div></div><span class="tag y">основной способ</span></div>
+   <div style="background:#1c1f26;border-radius:6px;padding:13px;margin-top:4px">
+    <div style="display:flex;justify-content:space-between;align-items:center"><b style="color:#fff;font-size:11px">Шахристан · входная дверь</b><span class="mono" style="color:var(--y);font-size:10px">+7 700 555 01 01</span></div>
+    <div id="callLog" style="margin-top:10px;min-height:118px">
+     <div style="font:600 9.4px 'IBM Plex Mono',monospace;color:#8b93a1;padding:3px 0">ОЖИДАНИЕ ВХОДЯЩЕГО ЗВОНКА…</div>
+    </div>
+   </div>
+   <div class="btns" style="margin-top:10px"><button class="btn y" onclick="callDemo()">▶ Звонит арендатор с оплатой</button><button class="btn red" onclick="callDemo(1)">▶ Звонит должник</button></div>
+   <div class="hint"><b>Как это устроено:</b> номер телефона привязан в личном кабинете — свой и до двух доверенных лиц. Звонок бесплатный: система видит номер, сбрасывает вызов и открывает замок, если аренда оплачена и номер в списке. Все проходы попадают в журнал. Оператор остаётся резервом: телефон сел — он верифицирует и откроет вручную.</div>
   </div>
-  <div class="panel"><div class="ph"><div><div class="ph-title">Журнал проходов</div><div class="ph-sub">кто, куда и по какому основанию заходил</div></div><span class="tag green">live</span></div>
+  <div class="panel" style="margin-top:10px"><div class="ph-title">Face ID · где уже стоит</div>
+   <div class="cam" id="camBox" style="margin-top:9px"><div class="cam-face"></div><div class="cam-lbl" id="camLbl">ОЖИДАНИЕ · КАМЕРА 1</div><div class="cam-ok hidden" id="camOk">ДОСТУП ОТКРЫТ</div></div>
+   <div class="hint"><b>Hikvision на Бухар Жырау и Жандосова</b> подключается в ту же систему: единый журнал и то же правило «не оплатил — не вошёл». На остальные склады ставим GSM-замки — в разы дешевле по оборудованию и интеграции.</div>
+  </div>
+  </div>
+  <div class="panel"><div class="ph"><div><div class="ph-title">Журнал проходов</div><div class="ph-sub">кто, куда и по какому основанию заходил — картотека для охраны</div></div><span class="tag green">live</span></div>
+   <div class="filters" style="margin-bottom:8px"><input class="search" placeholder="Поиск по номеру телефона или имени…" onkeydown="if(event.key==='Enter')toast('Найдено: Айгерим Сакенова · бокс buh-014 · доступ открыт · 2 доверенных лица.')"></div>
    <div class="tw"><table class="data" style="min-width:600px"><thead><tr><th>Время</th><th>Способ</th><th>Клиент</th><th>Бокс / склад</th><th>Результат</th><th>Комментарий</th></tr></thead><tbody id="accTb">
-   ${ACCESS.map(a=>`<tr><td class="mono">${a.time}</td><td><span class="tag ${a.t==='Face ID'?'violet':'blue'}">${a.t}</span></td><td><b>${esc(a.cl)}</b></td><td class="mono">${a.box}<div class="sub">${a.wh}</div></td><td><span class="tag ${a.res==='ok'?'green':'red'}">${a.res==='ok'?'пропущен':'отказ'}</span></td><td class="mini">${esc(a.note)}</td></tr>`).join('')}
+   ${ACCESS.map(a=>`<tr><td class="mono">${a.time}</td><td><span class="tag ${a.t==='Звонок'?'y':a.t==='Face ID'?'violet':'blue'}">${a.t}</span></td><td><b>${esc(a.cl)}</b></td><td class="mono">${a.box}<div class="sub">${a.wh}</div></td><td><span class="tag ${a.res==='ok'?'green':'red'}">${a.res==='ok'?'пропущен':'отказ'}</span></td><td class="mini">${esc(a.note)}</td></tr>`).join('')}
    </tbody></table></div>
-   <div class="hint"><b>Разовый доступ:</b> арендатор может выдать курьеру или родственнику временный проход прямо из кабинета — на час или на день, без звонка оператору. Всё попадает в этот же журнал.</div>
+   <div class="hint"><b>Если система недоступна,</b> охрана открывает картотеку: поиск по номеру или имени, видно доступы и долги — можно принять решение вручную. Разовый доступ грузчику или курьеру арендатор выдаёт сам из кабинета, и он попадает в этот же журнал.</div>
   </div>
  </div>`;
+function callDemo(deny){if(cur!=='access')go('access');
+ setTimeout(()=>{const log=document.getElementById('callLog');if(!log)return;
+  const ok=!deny;
+  const steps=ok?[
+   ['#8b93a1','⟵ ВХОДЯЩИЙ ЗВОНОК · +7 705 244 18 32'],
+   ['#64b8ff','АОН: номер определён · поиск в базе…'],
+   ['#fff','НАЙДЕН: Айгерим Сакенова · бокс shr-014 · доверенное лицо: нет'],
+   ['#2e9e6b','ПРОВЕРКА ОПЛАТЫ: аренда оплачена до 30.09 ✓'],
+   ['#ffc328','ВЫЗОВ СБРОШЕН · ЗАМОК ОТКРЫТ · 1,9 сек'],
+  ]:[
+   ['#8b93a1','⟵ ВХОДЯЩИЙ ЗВОНОК · +7 707 118 42 06'],
+   ['#64b8ff','АОН: номер определён · поиск в базе…'],
+   ['#fff','НАЙДЕН: Санжар Оспанов · бокс buh-032'],
+   ['#d8503f','ПРОВЕРКА ОПЛАТЫ: долг 27 600 ₸ с 01.08 ✗'],
+   ['#d8503f','ЗАМОК НЕ ОТКРЫТ · клиенту ушло SMS со ссылкой на оплату'],
+  ];
+  log.innerHTML='';let i=0;
+  const tick=()=>{if(i>=steps.length){
+    if(ok){ACCESS.unshift({t:'Звонок',cl:'Айгерим Сакенова',box:'shr-014',wh:'Шахристан',res:'ok',time:'только что',note:'Вход по звонку: номер определён, аренда оплачена, замок открыт за 1,9 с'});
+     const tb=document.getElementById('accTb');if(tb)tb.insertAdjacentHTML('afterbegin','<tr style="background:#fdf6e2"><td class="mono">только что</td><td><span class="tag y">Звонок</span></td><td><b>Айгерим Сакенова</b></td><td class="mono">shr-014<div class="sub">Шахристан</div></td><td><span class="tag green">пропущен</span></td><td class="mini">Вход по звонку: номер определён, аренда оплачена, замок открыт за 1,9 с</td></tr>');
+     sparks();toast('Замок открыт <b>по звонку за 1,9 секунды</b>: номер определён, оплата проверена, оператор не участвовал.')}
+    else{ACCESS.unshift({t:'Звонок',cl:'Санжар Оспанов',box:'buh-032',wh:'Бухар Жырау',res:'deny',time:'только что',note:'Отказ: долг 27 600 ₸ — SMS со ссылкой на оплату отправлено'});
+     const tb=document.getElementById('accTb');if(tb)tb.insertAdjacentHTML('afterbegin','<tr style="background:#fbeeec"><td class="mono">только что</td><td><span class="tag y">Звонок</span></td><td><b>Санжар Оспанов</b></td><td class="mono">buh-032<div class="sub">Бухар Жырау</div></td><td><span class="tag red">отказ</span></td><td class="mini">Отказ: долг 27 600 ₸ — SMS со ссылкой на оплату отправлено</td></tr>');
+     toast('Замок <b>не открылся</b>: у клиента долг. Ему ушло SMS со ссылкой на оплату Kaspi — оплатит, и следующий звонок откроет дверь.')}
+    return}
+   const [c,t]=steps[i++];
+   log.insertAdjacentHTML('beforeend',`<div style="font:600 9.4px 'IBM Plex Mono',monospace;color:${c};padding:3px 0">${t}</div>`);
+   setTimeout(tick,i===1?500:750)};
+  tick()},120)}
 function faceDemo(){if(cur!=='access')go('access');
  setTimeout(()=>{const l=document.getElementById('camLbl'),ok=document.getElementById('camOk');if(!l)return;
   l.textContent='РАСПОЗНАВАНИЕ…';
@@ -414,12 +456,17 @@ SC.lk=()=>`
       <div class="row"><span>К оплате</span><b>36 800 ₸</b></div>
       <div class="row"><span>Статус доступа</span><b class="${lkPaid?'good':'warn'}">${lkPaid?'открыт':'откроется после оплаты'}</b></div>
      </div>
-     <div class="lk-card"><b>Кто может заходить</b>
-      <div class="row"><span>Айгерим С. (я)</span><b class="good">Face ID</b></div>
-      <div class="row"><span>Ерлан С. · муж</span><b class="good">Face ID</b></div>
-      <div class="row"><span>Курьер · разовый</span><b>до 18:00</b></div>
+     <div class="lk-card"><b>Мой номер — мой ключ</b>
+      <div class="row"><span>Дверь склада</span><b class="mono">+7 700 555 01 01</b></div>
+      <div class="row"><span>Мой номер</span><b class="mono">+7 705 244 18 32</b></div>
+      <div class="mini" style="margin-top:6px">Подойдите к двери и позвоните — гудок сбросится, замок откроется. Звонок бесплатный.</div>
      </div>
-     <button class="lk-btn dark" onclick="toast('Гостевой доступ создан: ссылка отправлена курьеру, действует 3 часа.')">+ Выдать разовый доступ</button>
+     <div class="lk-card"><b>Кто может заходить</b>
+      <div class="row"><span>Айгерим С. (я)</span><b class="good">звонок · Face ID</b></div>
+      <div class="row"><span>Ерлан С. · муж · постоянный</span><b class="good">звонок</b></div>
+      <div class="row"><span>Грузчики · разовый</span><b>сегодня до 18:00</b></div>
+     </div>
+     <button class="lk-btn dark" onclick="lkAddPerson()">+ Добавить человека</button>
      <div style="height:8px"></div>
      <button class="lk-btn dark" onclick="toast('Заявка на продление принята: система пересчитает счёт и пришлёт его в Kaspi.')">Продлить аренду</button>
     </div>
@@ -441,6 +488,13 @@ SC.lk=()=>`
  </div>`;
 function lkPay(){lkPaid=1;render();sparks();
  toast('Оплата 36 800 ₸ прошла в Kaspi. Система закрыла начисление и <b>открыла доступ на склад</b> — без звонка оператору.')}
+function lkAddPerson(){openD('Добавить человека','Три поля — и его звонок будет открывать вашу дверь',['Доступ'],
+ `<div class="f3"><div class="fld"><small>ФИО</small><input id="apN" placeholder="Ерлан Сакенов"></div>
+   <div class="fld"><small>№ УДОСТОВЕРЕНИЯ</small><input id="apD" placeholder="0123456789"></div>
+   <div class="fld"><small>ТЕЛЕФОН</small><input id="apT" placeholder="+7 ___ ___ __ __"></div></div>
+  <div class="fld"><small>ТИП ДОСТУПА</small><select id="apK"><option>Постоянный — родственник, сотрудник</option><option>Разовый — грузчики, курьер (до конца дня)</option></select></div>
+  <div class="note" style="--tone:var(--y)"><b>Как это работает</b><p>Никаких доверенностей и писем менеджеру: вы добавляете человека в кабинете, его номер попадает в список доступа, и замок открывается по его звонку. Разовый доступ сгорает сам в конце дня.</p></div>
+  <div class="btns" style="margin-top:12px"><button class="btn y" onclick="(function(){const n=document.getElementById('apN').value.trim()||'Гость';closeD();sparks();toast('<b>'+n+'</b> добавлен: его звонок теперь открывает дверь склада. Запись появится в журнале проходов.')})()">Добавить</button><button class="btn" onclick="closeD()">Отмена</button></div>`)}
 
 /* ---- АНАЛИТИКА ---- */
 SC.analytics=()=>{const s=stat();
@@ -494,7 +548,8 @@ SC.admin=()=>`
    ${[['KSP','Kaspi · платежи и счета','Kaspi Платежи для квитанций, QR и ссылка на оплату; резервный разбор писем об оплате',1],
       ['WA','WhatsApp Business','счета, напоминания и переписка с арендаторами из карточки клиента',1],
       ['SITE','Сайт zipsklad.kz','свободные боксы, онлайн-бронь и заявки приходят прямо в систему',1],
-      ['FACE','Face ID и домофоны','открытие двери по лицу, разовые гостевые проходы, журнал',1],
+      ['GSM','GSM-замки · вход по звонку','определение номера, проверка оплаты, открытие замка; свой номер у каждой двери',1],
+      ['FACE','Face ID и домофоны','Hikvision на двух складах в той же системе, разовые проходы, журнал',1],
       ['TEL','IP-телефония','входящие звонки с записью и привязкой к клиенту',0],
       ['IG','Instagram Direct','заявки с рекламы попадают в воронку с источником',1],
       ['DOC','Документы','договор и акт формируются автоматически, подписание онлайн',1],
@@ -568,7 +623,7 @@ const TOUR=[
  ['wh','<b>Шаг 1.</b> Вместо шести вкладок таблицы — план склада. Жёлтые боксы заняты, красные с долгом, зелёные свободны. Нажмите на любой — внутри арендатор, период, тариф и доступы.',5000],
  ['billing','<b>Шаг 2 · главная боль.</b> Счета за месяц. Сейчас это 15 дней работы двух менеджеров. Здесь — одна кнопка: по каждому боксу свой тариф, своя площадь и свой период.',5000],
  ['pay','<b>Шаг 3.</b> Оплата приходит из Kaspi и сама привязывается к боксу и периоду — даже если платил не сам арендатор. Начисление закрывается автоматически.',4800],
- ['access','<b>Шаг 4.</b> Оплатил — Face ID пускает через 0,8 секунды. Не оплатил — дверь не открылась. Оператор больше не сверяет таблицу вручную.',4800],
+ ['access','<b>Шаг 4.</b> Клиент звонит на номер двери — система определяет его номер, проверяет оплату и открывает замок за 2 секунды. Не оплатил — дверь не открылась. Оператор не участвует.',5000],
  ['lk','<b>Шаг 5.</b> Кабинет арендатора в телефоне: счёт, оплата в Kaspi, продление и выдача разового доступа курьеру — без звонков вам.',4800],
  ['analytics','<b>Итог.</b> Все показатели вашей сводной таблицы считаются сами, плюс отток, LTV и прогноз выручки по каждому складу.',5200]
 ];

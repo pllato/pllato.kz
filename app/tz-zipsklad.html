@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Техническое задание · ZIPSKLAD · Система управления сетью self storage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#16181d;--ink2:#242932;--y:#ffc328;--y2:#8d6a10;--orange:#ff7a2f;--paper:#f3f3f1;--white:#fff;--text:#1b1e24;--muted:#6b7280;--line:#dfdedb;--green:#2e9e6b;--red:#d8503f;--blue:#2f7bc4}
+*{box-sizing:border-box}body{margin:0;background:#dcdbd7;font-family:Manrope,system-ui,sans-serif;color:var(--text);-webkit-font-smoothing:antialiased}
+.page{width:210mm;min-height:297mm;margin:0 auto 8mm;background:var(--white);padding:15mm 16mm 12mm;position:relative;box-shadow:0 12px 40px rgba(20,22,28,.16);display:flex;flex-direction:column}
+.mono{font-family:'IBM Plex Mono',monospace}
+h1{font-size:31px;line-height:1.04;letter-spacing:-.03em;margin:0 0 10px;font-weight:800}
+h2{font-size:16px;margin:0 0 9px;letter-spacing:-.02em;font-weight:800}
+h3{font-size:11.5px;margin:0 0 5px;font-weight:800}
+p{font-size:10.2px;line-height:1.62;margin:0 0 8px}
+.lead{font-size:11.4px;line-height:1.66;color:#39424e}
+.kicker{font:700 8.4px 'IBM Plex Mono',monospace;color:var(--y2);letter-spacing:.15em;text-transform:uppercase}
+.hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid var(--ink);padding-bottom:11px;margin-bottom:15px}
+.hd-l{display:flex;align-items:center;gap:11px}
+.mark{width:38px;height:38px;background:var(--y);display:grid;place-items:center;flex:none;border-radius:3px;position:relative}
+.mark span{font:800 16px Manrope;color:var(--ink)}
+.mark:after{content:"";position:absolute;left:5px;right:5px;bottom:5px;height:2px;background:var(--ink);opacity:.35}
+.hd b{font-size:13px;letter-spacing:.11em;display:block}
+.hd small{font:600 7.2px 'IBM Plex Mono',monospace;color:var(--muted);letter-spacing:.1em}
+.hd-r{text-align:right;font-size:9px;color:var(--muted);line-height:1.55}
+.cover{background:var(--ink);color:#fff;margin:-15mm -16mm 0;padding:21mm 16mm 15mm;position:relative;overflow:hidden}
+.cover:after{content:"";position:absolute;right:-40px;top:20px;width:300px;height:200px;background:repeating-linear-gradient(180deg,rgba(255,195,40,.14) 0 8px,transparent 8px 16px);border-radius:4px}
+.cover h1{color:#fff;font-size:35px;max-width:128mm;position:relative;z-index:1}
+.cover h1 span{color:var(--y)}
+.cover .lead{color:#a8b0bd;max-width:124mm;position:relative;z-index:1}
+.cover .kicker{color:var(--y)}
+.cvs{display:grid;grid-template-columns:repeat(4,1fr);margin-top:15px;border-top:1px solid rgba(255,255,255,.14);padding-top:12px;position:relative;z-index:1}
+.cvs div{border-left:1px solid rgba(255,255,255,.14);padding-left:11px}
+.cvs div:first-child{border:0;padding-left:0}
+.cvs small{display:block;font:700 6.8px 'IBM Plex Mono',monospace;color:#8b93a1;letter-spacing:.08em}
+.cvs b{display:block;font-size:15px;margin-top:5px}
+.cvs div:first-child b{color:var(--y)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.card{border:1px solid var(--line);background:#faf9f7;padding:11px 12px;border-radius:4px}
+.card.dark{background:var(--ink);border-color:var(--ink);color:#fff}
+.card.dark p{color:#a8b0bd}
+.card.y{background:#fdf6e2;border-color:#ecd79c}
+.card code{font:700 7px 'IBM Plex Mono',monospace;color:var(--y2);letter-spacing:.1em}
+.card.dark code{color:var(--y)}
+.card p{font-size:9.4px;line-height:1.55;margin:4px 0 0;color:#4a5460}
+.num{display:flex;gap:11px;margin-bottom:9px}
+.num i{width:24px;height:24px;flex:none;background:var(--ink);color:var(--y);display:grid;place-items:center;font:800 8.4px 'IBM Plex Mono',monospace;font-style:normal;border-radius:3px}
+.num b{font-size:10.6px;display:block}
+.num p{font-size:9.4px;margin:3px 0 0;color:#4a5460;line-height:1.52}
+table{width:100%;border-collapse:collapse;margin:9px 0}
+th{text-align:left;font:700 7.4px 'IBM Plex Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:7px 8px;border-bottom:1.5px solid var(--ink)}
+td{padding:8px;border-bottom:1px solid #ececea;font-size:9.6px;vertical-align:top}
+td.r{text-align:right;font-family:'IBM Plex Mono',monospace;white-space:nowrap}
+tr.total td{border-top:1.5px solid var(--ink);border-bottom:0;font-weight:800;font-size:11.4px;padding-top:10px}
+tr.total td.r{font-size:14px;color:var(--y2)}
+.badge{display:inline-block;font:700 7px 'IBM Plex Mono',monospace;padding:3px 6px;background:#eeece7;color:#6d6e67;border-radius:3px}
+.badge.green{background:#dcf0e6;color:var(--green)}.badge.y{background:#fdf0cd;color:var(--y2)}.badge.blue{background:#dce9f6;color:var(--blue)}
+.pay{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:10px 0}
+.pay div{border:1px solid var(--line);padding:11px;background:#faf9f7;border-radius:4px}
+.pay div:first-child{border-color:var(--y);background:#fdf6e2}
+.pay small{font:700 7px 'IBM Plex Mono',monospace;color:var(--muted);letter-spacing:.06em}
+.pay b{display:block;font-size:19px;margin:5px 0 2px;letter-spacing:-.02em}
+.pay span{font-size:8.8px;color:#4a5460;line-height:1.45;display:block}
+.strip{background:var(--ink);color:#fff;padding:13px 15px;margin:11px 0;display:grid;grid-template-columns:repeat(4,1fr);border-radius:4px}
+.strip div{border-left:1px solid rgba(255,255,255,.14);padding-left:12px}
+.strip div:first-child{border:0;padding-left:0}
+.strip small{display:block;font:700 6.8px 'IBM Plex Mono',monospace;color:#8b93a1}
+.strip b{display:block;font-size:14px;margin-top:4px}
+.strip div:first-child b{color:var(--y)}
+.quote{border-left:3px solid var(--y);background:#fdf6e2;padding:10px 12px;margin:10px 0;border-radius:0 4px 4px 0}
+.quote p{font-size:9.6px;margin:0;line-height:1.6}
+.quote b{color:var(--y2)}
+.foot{margin-top:auto;padding-top:11px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-end;font-size:8.4px;color:var(--muted)}
+.foot b{color:var(--text);font-size:9.4px}
+.pnum{font:700 7.4px 'IBM Plex Mono',monospace;color:var(--muted)}
+.chk{display:flex;gap:7px;align-items:flex-start;margin-bottom:6px}
+.chk i{color:var(--green);font-style:normal;font-weight:800;font-size:10px;line-height:1.5}
+.chk span{font-size:9.5px;line-height:1.55}
+.flowrow{display:grid;grid-template-columns:1fr 16px 1fr 16px 1fr 16px 1fr;align-items:stretch;margin:10px 0}
+.fb{border:1px solid var(--line);background:#faf9f7;padding:9px;border-radius:4px}
+.fb.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.fb b{font-size:9.4px;display:block}.fb small{font-size:7.6px;color:var(--muted);display:block;margin-top:3px;line-height:1.4}
+.fb.on small{color:#8b93a1}
+.fa{display:grid;place-items:center;color:var(--y2);font-size:12px}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:4px;overflow:hidden;margin:10px 0}
+.compare>div{padding:11px 13px}
+.compare .was{background:#faf9f7;border-right:1px solid var(--line)}
+.compare .now{background:#fdf6e2}
+.compare h4{font:700 7.4px 'IBM Plex Mono',monospace;letter-spacing:.08em;margin:0 0 7px;color:var(--muted)}
+.compare .now h4{color:var(--y2)}
+.compare .row{font-size:9.4px;padding:5px 0;border-bottom:1px solid #ececea;line-height:1.45}
+.compare .row:last-child{border:0}
+@media print{
+ @page{size:A4;margin:0}
+ body{background:#fff}
+ .page{margin:0;box-shadow:none;min-height:auto;padding:12mm 14mm 9mm;page-break-after:always}
+ .page:last-child{page-break-after:auto}
+ p,.chk span{font-size:9.4px;line-height:1.55}
+ .card p{font-size:8.8px}
+ h1{font-size:28px}.cover h1{font-size:31px}h2{font-size:15px;margin-bottom:7px}
+ td{font-size:9px;padding:5.5px 7px}
+ .pay div{padding:9px}.pay b{font-size:17px}.pay span{font-size:8.4px}
+ .quote{padding:9px 11px;margin:8px 0}.quote p{font-size:9.2px}
+ .grid3 .card p{font-size:8.6px}
+}
+</style>
+</head>
+<body>
+
+<section class="page">
+ <div class="cover">
+  <div class="kicker">Техническое задание · приложение к договору · 24 августа 2026</div>
+  <h1>Система управления<br>сетью <span>ZIPSKLAD</span></h1>
+  <p class="lead">Документ фиксирует состав работ крупными блоками. Детальные требования по каждому блоку согласовываются в рабочем порядке на этапе ядра и полировки; итоговая реализация уточняется по фактическим возможностям оборудования и API сторонних сервисов.</p>
+  <div class="cvs">
+   <div><small>ЗАКАЗЧИК</small><b>Сеть self storage · Адиль</b></div>
+   <div><small>ИСПОЛНИТЕЛЬ</small><b>Pllato</b></div>
+   <div><small>СРОК</small><b>4–6 недель</b></div>
+   <div><small>ЭТАПЫ</small><b>ядро → полировка</b></div>
+  </div>
+ </div>
+
+ <div style="margin-top:14px">
+ <div class="kicker">Раздел 1</div>
+ <h2>Общие положения</h2>
+ <div class="chk"><i>1.</i><span>Разрабатывается система управления сетью складов self storage («система управления», портал) и новый сайт, связанные в единую базу данных. Сайт — витрина и точка входа клиента; портал — договоры, боксы, счета, доступы, клиенты и аналитика.</span></div>
+ <div class="chk"><i>2.</i><span>Сеть на момент старта: 7 складов в Алматы (включая достроенный), на части складов два уровня хранения — второй уровень учитывается отдельным ярусом со своим тарифом. Склады распределены между тремя ИП: счета и приём оплат идут от юрлица, которому принадлежит склад.</span></div>
+ <div class="chk"><i>3.</i><span>Архитектура закладывается с расчётом роста сети до 20–30 складов. Новый склад добавляется Заказчиком самостоятельно через админку (сетка боксов, площади, тарифы, юрлицо, реквизиты Kaspi). При росте сети на каждые ~5 складов может потребоваться профилактический рефакторинг — оплачивается по часам отдельно.</span></div>
+ <div class="chk"><i>4.</i><span>Система развёртывается на сервере Заказчика, исходный код и документация (вики) передаются Заказчику. Ежемесячных платежей Исполнителю за пользование нет; сторонние сервисы (WhatsApp-канал ≈5 000 ₸/номер/мес, IP-телефония, хостинг, SMS) Заказчик оплачивает напрямую поставщикам.</span></div>
+
+ <div class="kicker" style="margin-top:12px">Раздел 2</div>
+ <h2>Склады, боксы и договоры</h2>
+ <div class="chk"><i>✓</i><span><b>Карта-план каждого склада</b> (не список): боксы с цветовыми статусами — занят, свободен, долг, бронь; уровни отображаются отдельными ярусами. Клик по боксу — карточка: арендатор, площадь, тариф, период, доступы, история.</span></div>
+ <div class="chk"><i>✓</i><span><b>Карточка арендатора:</b> все боксы клиента, периоды, платежи, доверенные лица, источник обращения, переписка. Договор аренды формируется автоматически по шаблону Заказчика.</span></div>
+ <div class="chk"><i>✓</i><span><b>Пульт сети:</b> загрузка, выручка, свободные боксы, должники и события по всем складам на одном экране; сводные показатели текущей таблицы Заказчика воспроизводятся.</span></div>
+
+ <div class="kicker" style="margin-top:12px">Раздел 3</div>
+ <h2>Счета, оплаты и Kaspi</h2>
+ <div class="chk"><i>✓</i><span><b>Массовое начисление:</b> счета за период по всем занятым боксам формируются одним запуском — площадь, тариф и период каждого договора; отправка клиентам в Kaspi и WhatsApp.</span></div>
+ <div class="chk"><i>✓</i><span><b>Kaspi Платежи</b> — основной канал оплаты (сервис «Платежи», без эквайринга): клиент видит начисление как квитанцию и оплачивает; поступление автоматически привязывается к боксу и периоду, в том числе при оплате третьим лицом и при оплате за несколько периодов сразу. Интеграция выполняется по документации Kaspi, которую предоставляет Заказчик; резервный путь — постоянная ссылка на оплату и автоматический разбор подтверждений.</span></div>
+ <div class="chk"><i>✓</i><span><b>Автоблокировка:</b> просрочка оплаты автоматически закрывает доступ на склад и отправляет клиенту напоминание со ссылкой на оплату; поступление оплаты открывает доступ без участия персонала. Дебиторка ведётся системой.</span></div>
+
+ <div class="foot"><div><b>Pllato</b> · техническое задание ZIPSKLAD · приложение к договору</div><span class="pnum">01</span></div>
+</section>
+
+<section class="page">
+ <div class="hd"><div class="hd-l"><div class="mark"><span>Z</span></div><div><b>ZIPSKLAD</b><small>ТЕХНИЧЕСКОЕ ЗАДАНИЕ</small></div></div><div class="hd-r">Приложение к договору<br>от 24.08.2026</div></div>
+
+ <div class="kicker">Раздел 4 · ключевой блок</div>
+ <h2>Доступ на склады</h2>
+ <div class="chk"><i>✓</i><span><b>Вход по звонку (основной способ):</b> каждой входной двери присваивается номер (GSM-модуль замка). Клиент звонит на номер двери — система определяет его номер телефона, находит арендатора или доверенное лицо, проверяет оплату и открывает замок; вызов сбрасывается, звонок для клиента бесплатный. При долге замок не открывается, клиенту уходит сообщение со ссылкой на оплату. Аналогия — GSM-шлагбаум.</span></div>
+ <div class="chk"><i>✓</i><span><b>Доверенные лица:</b> арендатор добавляет людей в личном кабинете сам (ФИО, номер удостоверения, телефон). Два типа доступа: постоянный (родственники, сотрудники) и разовый на день (грузчики, курьер — сгорает автоматически). Бумажные доверенности не требуются.</span></div>
+ <div class="chk"><i>✓</i><span><b>Face ID / Hikvision:</b> действующее оборудование (Hikvision Doors) подключается в общую систему с тем же правилом «не оплатил — не вошёл»; единый журнал. Вопрос удалённого управления решается по модели оборудования (статический IP или облачный сервис Hik).</span></div>
+ <div class="chk"><i>✓</i><span><b>Оператор — резервный канал:</b> видеозвонок и ручное открытие после верификации (телефон разряжен, нестандартная ситуация). Для охраны — картотека: поиск по номеру телефона или имени, доступы и долги видны без системы доступа.</span></div>
+ <div class="chk"><i>✓</i><span><b>Журнал проходов</b> по всем складам и всем способам входа: кто, когда, куда, каким способом, результат.</span></div>
+ <div class="quote"><p><b>Зависимость от оборудования:</b> состав GSM-модулей и способ их подключения подбираются на этапе ядра; связь на вторых уровнях обеспечивается усилителями сигнала (зона ответственности Заказчика по монтажу).</p></div>
+
+ <div class="kicker" style="margin-top:12px">Раздел 5</div>
+ <h2>Личный кабинет клиента</h2>
+ <div class="chk"><i>✓</i><span>Мобильная веб-версия без приложения: бокс, договор, период, счёт, оплата Kaspi, продление, история платежей.</span></div>
+ <div class="chk"><i>✓</i><span>Управление доступом: свой номер-ключ, добавление доверенных лиц, разовые доступы; статус «доступ закрыт — оплатите» с причиной.</span></div>
+ <div class="chk"><i>✓</i><span>Онбординг новых клиентов: после оплаты — PDF-инструкция в WhatsApp (как пройти, как открыть дверь звонком).</span></div>
+
+ <div class="kicker" style="margin-top:12px">Раздел 6</div>
+ <h2>Сайт и приём заявок</h2>
+ <div class="chk"><i>✓</i><span><b>Новый сайт с нуля</b> (лендинг-витрина + интеграционный модуль): склады на карте, свободные боксы в реальном времени, цены, онлайн-бронирование и полный самостоятельный чек-ин — выбрал бокс, оплатил, получил доступ и инструкцию без участия менеджера. Контент и данные мигрируются с текущего сайта.</span></div>
+ <div class="chk"><i>✓</i><span><b>Подбор бокса:</b> размерные категории (S / M / L / XL / XXL) с понятной визуализацией «что помещается» (по образцу лучших практик); формат подбора уточняется по опросу действующих клиентов Заказчика.</span></div>
+ <div class="chk"><i>✓</i><span><b>Канбан заявок:</b> обращения с сайта, WhatsApp, Instagram и звонков в одной воронке с источником (Google ≈45%, рекомендации ≈20%, 2ГИС ≈13%, Instagram ≈11% и др.) и маркетинг-кодами — для оценки каналов и рекламы.</span></div>
+
+ <div class="kicker" style="margin-top:12px">Раздел 7</div>
+ <h2>Телефония и WhatsApp</h2>
+ <div class="chk"><i>✓</i><span><b>IP-телефония:</b> действующие номера переводятся в SIP-формат у одного оператора на юрлицо; подключение АТС (Sipuni/Binotel или аналог). Входящие и исходящие звонки: запись разговоров, автоматическое создание карточек, привязка к существующим клиентам. Личные номера сотрудников выводятся из рабочего контура.</span></div>
+ <div class="chk"><i>✓</i><span><b>WhatsApp</b> по QR-протоколу (green-API, ≈5 000 ₸/канал/мес): вся переписка и файлы архивируются в системе и привязываются к клиенту; отправка счетов, напоминаний и инструкций. WhatsApp-звонки — вне текущего объёма (появятся после стабилизации официального канала Meta).</span></div>
+
+
+ <div class="foot"><div><b>Pllato</b> · техническое задание ZIPSKLAD · приложение к договору</div><span class="pnum">02</span></div>
+</section>
+
+<section class="page">
+ <div class="hd"><div class="hd-l"><div class="mark"><span>Z</span></div><div><b>ZIPSKLAD</b><small>ТЕХНИЧЕСКОЕ ЗАДАНИЕ</small></div></div><div class="hd-r">Приложение к договору<br>от 24.08.2026</div></div>
+
+ <div class="kicker">Раздел 8</div>
+ <h2>Аналитика и админка</h2>
+ <div class="chk"><i>✓</i><span>Дашборд с показателями сводного файла Заказчика: загрузка, выручка, ставка за м², должники, источники, отток и прогноз; выгрузки в Excel.</span></div>
+ <div class="chk"><i>✓</i><span>Роли: владелец, менеджер, оператор охраны, администратор, клиент. Админка: склады, тарифы, юрлица, интеграции, пользователи.</span></div>
+
+ <div class="kicker" style="margin-top:12px">Раздел 9</div>
+ <h2>Этапы, приёмка и границы объёма</h2>
+ <div class="chk"><i>1.</i><span><b>Этап «Ядро»</b> — рабочий каркас всех разделов на данных Заказчика (перенос из текущих таблиц включён). Приёмка — работой в системе. <b>Этап «Полировка»</b> — правки по обратной связи боевого использования, перенос на сервер Заказчика, передача кода и вики.</span></div>
+ <div class="chk"><i>2.</i><span>Оплата: 10% при старте, 45% после утверждения ядра, 45% после полной сдачи. Ошибки исправляются бесплатно; доработки после сдачи — 20 $/час.</span></div>
+ <div class="chk"><i>3.</i><span><b>Вне текущего объёма</b> (следующий круг развития, по отдельному согласованию): AI-агент подбора бокса в нерабочее время, аукционы невыкупленных боксов, WhatsApp-звонки, кубометры как единица тарификации.</span></div>
+
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:16px">
+  <div style="border-top:1px solid #16181d;padding-top:8px;font-size:9.6px;color:#6b7280"><b style="color:#1b1e24;display:block;margin-bottom:3px">Исполнитель · Pllato</b>Подпись, дата</div>
+  <div style="border-top:1px solid #16181d;padding-top:8px;font-size:9.6px;color:#6b7280"><b style="color:#1b1e24;display:block;margin-bottom:3px">Заказчик</b>Подпись, дата</div>
+ </div>
+
+ <div class="foot"><div><b>Pllato</b> · техническое задание ZIPSKLAD · приложение к договору</div><span class="pnum">03</span></div>
+</section>
+
+</body>
+</html>
