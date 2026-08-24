@@ -1,4 +1,4 @@
-/* CARBON · система управления детейлинг-центром — демо. Данные вымышленные, суммы в тенге. */
+/* GTA Detailing · система управления детейлинг-центром — демо. Данные вымышленные, суммы в тенге. */
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const fmt=n=>new Intl.NumberFormat('ru-RU').format(Math.round(n));
 const tg=n=>fmt(n)+' ₸';
@@ -191,7 +191,7 @@ function leadRow(l){return `<div class="lead ${l.fresh?'fresh':''}" onclick="ope
 function openLead(id){const l=LEADS.find(x=>x.id===id);if(!l)return;
  openD(l.who,`${srcName[l.src]} · ${l.car} · ${l.t}`,['Заявка'],
  `<div class="wa-msg">${esc(l.txt)}<time>${l.t}</time></div>
-  <div class="wa-msg out">Здравствуйте! Спасибо за обращение в CARBON 🏁 Уже считаем стоимость для вашего авто — ответим в течение пары минут.<time>автоответ · через 6 сек</time></div>
+  <div class="wa-msg out">Здравствуйте! Спасибо за обращение в GTA Detailing 🏁 Уже считаем стоимость для вашего авто — ответим в течение пары минут.<time>автоответ · через 6 сек</time></div>
   ${l.est?`<div class="note" style="--tone:var(--acc)"><b>Черновик расчёта готов</b><p>Система прикинула по прайсу: ~${tg(l.est)}. Проверьте состав в калькуляторе и отправьте одной кнопкой.</p></div>`:''}
   <div class="btns" style="margin-top:12px">
    <button class="btn acc" onclick="closeD();go('calc')">⚡ Открыть калькулятор</button>
@@ -462,7 +462,7 @@ SC.client=()=>`
  <div class="g2">
   <div class="panel"><div class="ph-title">День заказа</div>
    <div style="background:#0b1220;border:1px solid var(--line2);border-radius:14px;padding:13px">
-    <div class="mini" style="text-align:center;margin-bottom:9px">WhatsApp · CARBON Detailing</div>
+    <div class="mini" style="text-align:center;margin-bottom:9px">WhatsApp · GTA Detailing</div>
     <div class="wa-msg out">Здравствуйте! Сколько керамика на RX350?<time>10:02</time></div>
     <div class="wa-msg">Здравствуйте, Арман! 🏁 Считаем стоимость для вашего кроссовера — минуту.<time>10:02 · автоответ за 6 сек</time></div>
     <div class="wa-msg">Готово! <b>Керамика Gyeon 3 слоя + лёгкая полировка — 253 000 ₸</b>, 2 дня. Гарантия на покрытие 2 года. Фото наших работ: [7 фото]<div class="wa-btn" onclick="toast('Клик клиента: свободные окна показаны, запись в 2 касания.')">Записаться</div><div class="wa-btn" onclick="toast('Клик: предоплата 30% через Kaspi бронирует окно.')">Kaspi · бронь 30%</div><time>10:03</time></div>
