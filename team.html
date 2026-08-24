@@ -19,7 +19,7 @@
   // Для Meta-лидов это особенно опасно: старый код использовал отсутствующий
   // bitrixId и показывал «сохранено», хотя запись уходила в deal_null/deal_.
   // При выпуске новой team.html одновременно обновить team-build.json.
-  const TEAM_APP_BUILD = '2026-08-24.1';
+  const TEAM_APP_BUILD = '2026-08-24.2';
   window.__TEAM_APP_BUILD__ = TEAM_APP_BUILD;
   let teamAppReloading = false;
 
@@ -17175,6 +17175,19 @@ function calEventPrimaryTitle(ev) {
   return ev.dealTitle || ev.rawTitle || ev.title || '(без названия)';
 }
 
+// Ссылка календаря должна опираться на единый deals.id. У Meta-лидов нет
+// bitrixId, поэтому старое условие скрывало кнопку «Сделка», хотя связь и
+// заголовок уже были загружены. dealBitrixId оставляем как legacy-fallback.
+function calEventDealKey(ev) {
+  const explicit = String(ev?.dealRecordId || ev?.dealBitrixId || '').trim();
+  if (explicit) return explicit;
+  if (ev?.source === 'deal') {
+    const match = String(ev.uid || '').match(/^deal:(.+?):(?:firstZoomAt|trialLessonAt)$/);
+    if (match?.[1]) return match[1];
+  }
+  return '';
+}
+
 function calEventFullLabel(ev, time) {
   const parts = [time];
   if (ev.dealTitle) parts.push('Сделка: ' + ev.dealTitle);
@@ -17356,6 +17369,8 @@ async function loadCalendarEvents(opts = {}) {
         taskId: t.id || t.bitrixKey,
         bitrixId: t.bitrixId,
         dealBitrixId: linkedDealBitrixId,
+        dealRecordId: linkedDeal ? getDealRecordId(linkedDeal)
+          : (linkedDealBitrixId ? `deal_${linkedDealBitrixId}` : ''),
         source: 'task',
         subtype: isZoom ? 'zoom' : 'deadline',
         uid: 'task:' + (t.id || t.bitrixKey),
@@ -17391,6 +17406,7 @@ async function loadCalendarEvents(opts = {}) {
               scheduledByUid,
               scheduledByName: calCalendarUserLabel(scheduledByUid),
               dealBitrixId: getDealPublicId(d),
+              dealRecordId: getDealRecordId(d),
               source: 'deal',
               field: 'firstZoomAt',
               uid: 'deal:' + getDealPublicId(d) + ':firstZoomAt',
@@ -17415,6 +17431,7 @@ async function loadCalendarEvents(opts = {}) {
               scheduledByUid,
               scheduledByName: calCalendarUserLabel(scheduledByUid),
               dealBitrixId: getDealPublicId(d),
+              dealRecordId: getDealRecordId(d),
               source: 'deal',
               field: 'trialLessonAt',
               uid: 'deal:' + getDealPublicId(d) + ':trialLessonAt',
@@ -18032,6 +18049,7 @@ function openCalEventEdit(uid) {
   const eeUsers = (typeof orgSortedUsers === 'function') ? orgSortedUsers() : [];
   const curVis = ev.eventPublic ? 'all' : ((ev.accomplices && ev.accomplices.length) ? 'people' : 'me');
   const eePeopleOpts = eeUsers.map(u => `<option value="${escapeHtml(u.uid)}" ${(ev.accomplices || []).includes(u.uid) ? 'selected' : ''}>${escapeHtml(u.label)}</option>`).join('');
+  const eventDealKey = calEventDealKey(ev);
 
   const ov = document.createElement('div');
   ov.id = '_cal-event-modal';
@@ -18072,7 +18090,7 @@ function openCalEventEdit(uid) {
     </div>
     <div style="padding:12px 18px;border-top:1px solid var(--b1);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
       <div style="display:flex;gap:8px">
-        ${ev.dealBitrixId ? `<button id="ee-deal" class="tbtn">🔗 Сделка</button>` : ''}
+        ${eventDealKey ? `<button id="ee-deal" class="tbtn">🔗 Открыть сделку</button>` : ''}
         ${canDelete && editable ? `<button id="ee-del" class="tbtn" style="color:var(--rd)">🗑 Удалить</button>` : ''}
       </div>
       <div style="display:flex;gap:8px">
@@ -18085,7 +18103,7 @@ function openCalEventEdit(uid) {
   ov.querySelector('#ee-x').onclick = () => ov.remove();
   ov.querySelector('#ee-cancel').onclick = () => ov.remove();
   const dealBtn = ov.querySelector('#ee-deal');
-  if (dealBtn) dealBtn.onclick = () => { ov.remove(); openDealCard(ev.dealBitrixId); };
+  if (dealBtn) dealBtn.onclick = () => { ov.remove(); openDealCard(eventDealKey); };
   const eeVis = ov.querySelector('#ee-vis'), eePeople = ov.querySelector('#ee-people');
   if (eeVis && eePeople) eeVis.onchange = () => { eePeople.style.display = eeVis.value === 'people' ? '' : 'none'; };
 

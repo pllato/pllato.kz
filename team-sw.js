@@ -8,8 +8,8 @@
  * Пустой обработчик fetch всё же присутствует — это требование Chrome,
  * чтобы сайт считался устанавливаемым PWA.
  */
-const SW_VERSION = 'elc-sw-v3';
-const FORCE_REFRESH_BUILD = '2026-08-24.1';
+const SW_VERSION = 'elc-sw-v4';
+const FORCE_REFRESH_BUILD = '2026-08-24.2';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
