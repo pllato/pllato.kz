@@ -703,7 +703,7 @@ const baseimg=$('baseimg'),svg=$('svg'),gObj=$('gObjects'),gUI=$('gUI'),stack=$(
 const S={data:null,pageNum:null,pageList:[],W:0,H:0,sx:1,sy:1,scale:1,fitScale:1,pan:{x:0,y:0},
   tool:'select',width:4,fontSize:30,objects:{},selected:null,seq:1,history:{},draft:null,filter:'all',
   cal:{},importMode:'edit',cat:'socket',slack:12,panelH:1.5,sideTab:'obj',
-  textColor:'#c0392b',calPts:null,linkedLkDocId:null,linkedLkPage:null,threePointMode:false,drawingPageSizes:{},_lkPrevEditor:null};
+  textColor:'#c0392b',calPts:null,linkedLkDocId:null,linkedLkPage:null,threePointMode:false,drawingPageSizes:{},drawingVectorPages:{},_lkPrevEditor:null};
 /* категории кабеля */
 /* марки кабеля проекта (редактируемые); n — короткое для кнопок, full — для спецификации */
 /* марки/сечения проекта (по встрече 13.06): цвет 3×10 тёмно-жёлтый, 3×4 синий, МОП красный */
@@ -748,6 +748,41 @@ function promoteAt(p){const arr=S.dark[S.pageNum]||[];let best=-1,bd=Math.max(8,
   if(o.type==='line')n=addObj({type:'line',cat:'other',color:'#10151c',width:Math.max(2.4,o.width),pts:o.pts.map(q=>({x:q.x,y:q.y})),ea:{kind:'free',h:0},eb:{kind:'free',h:0},nocalc:true,src:'mine'});
   else n=addObj({type:'rect',color:'#10151c',width:Math.max(2,o.width),x:o.x,y:o.y,w:o.w,h:o.h,nocalc:true,src:'mine'});
   arr.splice(best,1);redrawAll();setTool('select');selectObj(n.id);toast('Элемент стал объектом — двигайте/удаляйте');}
+/* В режиме, открытом из Линейки, исходный PDF остаётся лёгкой растровой подложкой.
+   Векторы листа держим отдельно и превращаем в SVG-объект только после точного клика.
+   Так сложный AutoCAD-лист с десятками тысяч фрагментов не подвешивает браузер. */
+function lkDrawingVectorAt(p){const src=S.drawingVectorPages&&S.drawingVectorPages[S.pageNum];if(!src)return null;
+  const sx=S.W/(src.wpt||S.data.pages[S.pageNum].wpt||S.W),sy=S.H/(src.hpt||S.data.pages[S.pageNum].hpt||S.H);
+  const taken=lkTakenDrawingVectorKeys();
+  const lim=Math.max(4,14/Math.max(.1,S.scale));let best=null,bd=lim;
+  const scan=(arr,prefix)=>{(arr||[]).forEach((o,i)=>{if(!o)return;const key=prefix+i;if(taken.has(key))return;let d=1e18,len=0;
+      if(o.t==='line'&&Array.isArray(o.p)&&o.p.length>1){let x0=1e18,y0=1e18,x1=-1e18,y1=-1e18;
+        for(const q of o.p){const x=q[0]*sx,y=q[1]*sy;x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}
+        if(p.x<x0-lim||p.x>x1+lim||p.y<y0-lim||p.y>y1+lim)return;
+        for(let j=0;j<o.p.length-1;j++){const a={x:o.p[j][0]*sx,y:o.p[j][1]*sy},b={x:o.p[j+1][0]*sx,y:o.p[j+1][1]*sy};d=Math.min(d,dSeg(p,a,b));len+=Math.hypot(b.x-a.x,b.y-a.y);}
+      }else if(o.t==='rect'){const ro={type:'rect',x:o.x*sx,y:o.y*sy,w:o.rw*sx,h:o.rh*sy};d=dDark(p,ro);len=2*(ro.w+ro.h);}else return;
+      if(d<bd-.15||(Math.abs(d-bd)<=.15&&best&&len>best.len)){bd=d;best={raw:o,key,prefix,index:i,sx,sy,len};}});};
+  scan(src.objs,'o:');scan(src.dark,'d:');return best;
+}
+function lkTakenDrawingVectorKeys(){const out=new Set();(cur()||[]).forEach(o=>{if(!o)return;if(o._lkVectorKey)out.add(o._lkVectorKey);(o._lkVectorKeys||[]).forEach(k=>out.add(k));});return out;}
+function lkDrawingVectorChain(hit){if(!hit||hit.raw.t!=='line')return{raw:hit.raw,keys:[hit.key]};
+  const src=S.drawingVectorPages&&S.drawingVectorPages[S.pageNum],arr=hit.prefix==='o:'?src&&src.objs:src&&src.dark;if(!arr)return{raw:hit.raw,keys:[hit.key]};
+  const color=String(hit.raw.c||'#10151c').toLowerCase(),width=+(hit.raw.w||1),taken=lkTakenDrawingVectorKeys(),used=new Set([hit.index]);
+  const pts=hit.raw.p.map(q=>[+q[0],+q[1]]),keys=[hit.key],tol=Math.max(.8,width*2.5,2/Math.max(hit.sx,hit.sy));
+  const same=o=>o&&o.t==='line'&&Array.isArray(o.p)&&o.p.length>1&&String(o.c||'#10151c').toLowerCase()===color&&Math.abs(+(o.w||1)-width)<=Math.max(.15,width*.35);
+  const near=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1])<=tol;
+  const extend=head=>{for(let guard=0;guard<100;guard++){const end=head?pts[0]:pts[pts.length-1],found=[];
+      for(let i=0;i<arr.length;i++){if(used.has(i)||taken.has(hit.prefix+i)||!same(arr[i]))continue;const p=arr[i].p,a=p[0],b=p[p.length-1];if(near(end,a)||near(end,b))found.push({i,atStart:near(end,a)});}
+      if(found.length!==1)break;const f=found[0],p=arr[f.i].p.map(q=>[+q[0],+q[1]]);used.add(f.i);keys.push(hit.prefix+f.i);
+      if(head){const q=f.atStart?p.slice().reverse():p;pts.unshift(...q.slice(0,-1));}
+      else{const q=f.atStart?p:p.slice().reverse();pts.push(...q.slice(1));}
+    }};
+  extend(true);extend(false);return{raw:{t:'line',c:hit.raw.c||'#10151c',w:hit.raw.w||1,p:pts},keys};
+}
+function lkSelectDrawingVectorAt(p){if(!S.linkedLkDocId)return false;const hit=lkDrawingVectorAt(p);if(!hit){toast('Чуть точнее нажмите на саму линию');return false;}
+  pushHistory();const chain=lkDrawingVectorChain(hit),raw=Object.assign({},chain.raw,{c:chain.raw.c||'#10151c'});const n=importObjects([raw],hit.sx,hit.sy)[0];n._lkVectorKey=chain.keys[0];n._lkVectorKeys=chain.keys;cur().push(n);redrawAll();selectObj(n.id);lkQueueDrawingSave();
+  toast('Исходная линия выбрана — двигайте её или правьте узлы');return true;
+}
 function curZoneKey(){return (S.zoneByPage&&S.zoneByPage[S.pageNum])||'apt';}
 function loadZone(){const z=S.zones[curZoneKey()]||S.zones.apt;S.heights={socket:z.socket,switch:z.switch};S.panelH=z.panel;}
 function setZone(k){S.zoneByPage[S.pageNum]=k;loadZone();}
@@ -864,7 +899,7 @@ async function loadData(file){
 }
 async function serverConvert(file){
   if(!CONVERT_URL)return null;
-  const ctrl=new AbortController();const t=setTimeout(()=>ctrl.abort(),120000);
+  const ctrl=new AbortController();const t=setTimeout(()=>ctrl.abort(),300000);
   try{
     $('spinTxt').textContent='Разбираю чертёж на сервере…';
     const fd=new FormData();fd.append('file',file);
@@ -1242,7 +1277,10 @@ function renderOpt(){const bar=$('optbar');let h='';
       }else{
         h=`<div class="grp"><span class="lbl">Цвет</span>${COLORS_LEGACY.map(c=>swt(c,o&&o.color)).join('')}</div><div class="grp"><button class="mini" id="dupBtn">⧉ Дубль</button><button class="mini danger" id="delBtn">Удалить</button></div>`;
       }
-    }else{const mine=(cur()||[]).some(o=>o.src!=='pdf');h=mine?`<span class="tip">Тапните вашу трассу или знак — выделится. Двигайте, правьте форму, меняйте марку и высоты концов.</span>`:`<span class="tip">Чертёж — это фон, его не двигают. <b>Рисуйте поверх:</b> «Масштаб» → «Линия»/«Карандаш» → «Знаки». Нажмите <b>«? Как это работает»</b> вверху.</span>`;}
+    }else{const mine=(cur()||[]).some(o=>o.src!=='pdf'),hasPdf=S.linkedLkDocId&&S.drawingVectorPages&&S.drawingVectorPages[S.pageNum];
+      h=hasPdf?`<span class="tip"><b>Нажмите исходную линию на чертеже</b> — она выделится и получит узлы. После этого её можно двигать, изгибать и удалять. Новая трасса — инструмент «Линия».</span>`
+        :mine?`<span class="tip">Тапните вашу трассу или знак — выделится. Двигайте, правьте форму, меняйте марку и высоты концов.</span>`
+        :`<span class="tip">Чертёж — это фон, его не двигают. <b>Рисуйте поверх:</b> «Масштаб» → «Линия»/«Карандаш» → «Знаки». Нажмите <b>«? Как это работает»</b> вверху.</span>`;}
   }
   else if(S.tool==='erase')h=`<span class="tip"><b>Ластик.</b> Тапайте лишние объекты — удаляются сразу. Удобно чистить дробные фрагменты из чертежа.</span>`;
   else if(S.tool==='sym')h=`<span class="tip"><b>Каталог знаков.</b> Выберите знак справа и тапайте по плану. Знак — единый объект (двигать/вращать/масштабировать/удалять целиком).</span>`;
@@ -1296,7 +1334,8 @@ let panning=false,lastX,lastY,moved=0;const ptrs=new Map();let pinching=false,pd
 vp.addEventListener('pointerdown',e=>{ptrs.set(e.pointerId,e);if(ptrs.size===2){pinching=true;panning=false;cancelDraft();return;}
   const onObj=e.target.closest('[data-id]');
   if(S.tool==='erase'){if(onObj)eraseAt(e.target);else bgPan(e);return;}
-  if(S.tool==='select'){if(!onObj){S.selected=null;drawSelUI();renderOpt();if(S.sideTab==='obj')renderSide();bgPan(e);}return;}
+  if(S.tool==='select'){if(!onObj){S.selected=null;drawSelUI();renderOpt();if(S.sideTab==='obj')renderSide();
+      bgPan(e,S.linkedLkDocId&&inBase(e.clientX,e.clientY)?p=>lkSelectDrawingVectorAt(p):null);}return;}
   if(S.tool==='pan'){panning=true;moved=0;lastX=e.clientX;lastY=e.clientY;vp.setPointerCapture(e.pointerId);return;}
   if(!inBase(e.clientX,e.clientY))return;const p=toImg(e.clientX,e.clientY);
   if(S.tool==='cal'){calClick(p);}
@@ -1310,7 +1349,7 @@ vp.addEventListener('pointermove',e=>{if(ptrs.has(e.pointerId))ptrs.set(e.pointe
   if(panning){const dx=e.clientX-lastX,dy=e.clientY-lastY;moved+=Math.abs(dx)+Math.abs(dy);S.pan.x+=dx;S.pan.y+=dy;lastX=e.clientX;lastY=e.clientY;applyTransform();return;}
   if(S.draft&&S.tool==='line'&&!S.penMode){const p=toImg(e.clientX,e.clientY);S.draft.pts[S.draft.pts.length-1]={x:p.x,y:p.y};drawDraft();}});
 vp.addEventListener('pointerup',e=>{ptrs.delete(e.pointerId);if(ptrs.size<2){pinching=false;pmid=null;}if(panning){panning=false;}});
-function bgPan(e){let sx=e.clientX,sy=e.clientY,m=0;const mv=ev=>{const dx=ev.clientX-sx,dy=ev.clientY-sy;m+=Math.abs(dx)+Math.abs(dy);if(m>4){S.pan.x+=dx;S.pan.y+=dy;sx=ev.clientX;sy=ev.clientY;applyTransform();}};const up=()=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);};window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);}
+function bgPan(e,onTap){let sx=e.clientX,sy=e.clientY,m=0;const mv=ev=>{const dx=ev.clientX-sx,dy=ev.clientY-sy;m+=Math.abs(dx)+Math.abs(dy);if(m>4){S.pan.x+=dx;S.pan.y+=dy;sx=ev.clientX;sy=ev.clientY;applyTransform();}};const up=ev=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);if(m<=4&&onTap&&inBase(ev.clientX,ev.clientY))onTap(toImg(ev.clientX,ev.clientY));};window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);}
 function drawDraft(){let el=gUI.querySelector('#draftLine');if(!el){el=document.createElementNS(SVGNS,'path');el.id='draftLine';el.setAttribute('fill','none');el.setAttribute('stroke-dasharray','2 6');el.setAttribute('stroke-linecap','round');el.setAttribute('stroke-linejoin','round');gUI.appendChild(el);}el.setAttribute('d',smoothPath(S.draft.pts));el.setAttribute('stroke',catC(S.cat));el.setAttribute('stroke-width',S.width);}
 function finishLine(){if(S.draft&&S.draft.pts.length){S.draft.pts.pop();if(S.draft.pts.length>=2){pushHistory();const o=addObj({type:'line',cat:S.cat,color:catC(S.cat),width:S.width,pts:S.draft.pts,ea:{kind:'free',h:0},eb:{kind:'socket',h:kindDefH('socket')},src:'mine'});redrawAll();selectObj(o.id);}}S.draft=null;const d=gUI.querySelector('#draftLine');if(d)d.remove();setTool('select');}
 function startPenDraw(p){S.draft={pts:[{x:p.x,y:p.y}]};drawDraft();
@@ -1717,7 +1756,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v451';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v452';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v425';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -3638,11 +3677,19 @@ function lkApplyDrawingSettings(st){st=st||{};
   S.zones=st.zones||{apt:{name:'Квартиры',socket:.4,switch:.9,panel:1.5},mop:{name:'МОПы',socket:.4,switch:.9,panel:1.5},park:{name:'Паркинг',socket:.5,switch:1.1,panel:1.8}};
   S.zoneByPage=st.zoneByPage||{};S.outletsPer=st.outletsPer!=null?st.outletsPer:2;S.tailLen=st.tailLen!=null?st.tailLen:.3;
   S.outletCorrByPage=st.outletCorrByPage||{};S.lightTail=st.lightTail!=null?st.lightTail:.3;S.switchLen=st.switchLen!=null?st.switchLen:1.5;S.applianceByPage=st.applianceByPage||{};}
+async function lkEnsureDrawingVectors(rec,ds,pg){const pages=ds.vectorPages||{};if(pages[pg.page]&&pages[pg.page].ready)return pages;
+  lkBusy('Подготавливаю линии чертежа…','первый раз PDF разбирается на выбираемые векторы; затем лист откроется из локального кэша');
+  try{const file=new File([rec.buf],rec.name||'drawing.pdf',{type:'application/pdf'}),conv=await serverConvert(file),cp=conv&&conv.pages&&conv.pages[pg.page];
+    if(!cp)throw new Error('векторный слой не получен');
+    pages[pg.page]={ready:1,wpt:cp.wpt||pg.wpt,hpt:cp.hpt||pg.hpt,objs:Array.isArray(cp.objs)?cp.objs:[],dark:Array.isArray(cp.dark)?cp.dark:[]};
+    ds.vectorPages=pages;rec.drawingState=Object.assign({},ds,{updated:Date.now(),vectorPages:pages});await archPut(rec);return pages;
+  }catch(e){console.warn('drawing vectors',e);toast('Исходные линии не удалось подготовить — новые линии всё равно можно рисовать поверх');return pages;}
+  finally{lkBusy(false);}}
 function lkQueueDrawingSave(){if(!S.linkedLkDocId)return;clearTimeout(_lkDrawingSaveT);_lkDrawingSaveT=setTimeout(lkPersistDrawingNow,650);}
 async function lkPersistDrawingNow(){clearTimeout(_lkDrawingSaveT);if(!S.linkedLkDocId)return;
   const id=S.linkedLkDocId;try{const rec=await archGet(id);if(!rec)return;
     S.drawingPageSizes=S.drawingPageSizes||{};if(S.linkedLkPage&&S.W&&S.H)S.drawingPageSizes[S.linkedLkPage]={w:S.W,h:S.H};
-    rec.drawingState={updated:Date.now(),seq:S.seq,objects:S.objects,cal:S.cal,pageSizes:S.drawingPageSizes,settings:lkDrawingSettings()};LK.drawingState=rec.drawingState;await archPut(rec);
+    rec.drawingState={updated:Date.now(),seq:S.seq,objects:S.objects,cal:S.cal,pageSizes:S.drawingPageSizes,vectorPages:S.drawingVectorPages||{},settings:lkDrawingSettings()};LK.drawingState=rec.drawingState;await archPut(rec);
   }catch(e){console.warn('drawing save',e);toast('Не удалось сохранить графические правки');}}
 function lkLeaveDrawingContext(restore){clearTimeout(_lkDrawingSaveT);const prev=S._lkPrevEditor;
   $('btnBackLkDraw').classList.remove('on');S.linkedLkDocId=null;S.linkedLkPage=null;S.threePointMode=false;S._lkPrevEditor=null;
@@ -3654,18 +3701,20 @@ async function lkOpenDrawingEditor(){if(!LK.docId||!LK.pages||!LK.pages.length){
   const pg=LK.pages[LK.sel];if(!pg)return;const btn=$('lkDrawPage');if(btn){btn.disabled=true;btn.textContent='Открываю…';}
   try{
     await lkPersistNow();const img=await lkEnsureImg(pg);if(!img)throw new Error('лист не отрисован');
-    const rec=await archGet(LK.docId),ds=rec&&rec.drawingState||{};
+    const rec=await archGet(LK.docId),ds=rec&&rec.drawingState||{};if(!rec||!rec.buf)throw new Error('PDF не найден в локальном архиве');
+    const vectorPages=await lkEnsureDrawingVectors(rec,ds,pg);
     const prev={};Object.keys(S).forEach(k=>{if(k!=='_lkPrevEditor')prev[k]=S[k];});
     S._lkPrevEditor={state:prev,docname:$('docname').textContent,stageDisplay:$('stage').style.display};
     S.data={name:((rec&&rec.name)||LK.name||'Схема').replace(/\.pdf$/i,''),pages:{}};
     S.data.pages[pg.page]={wpt:pg.wpt,hpt:pg.hpt,objs:[],u:String(img).replace(/^data:image\/[^;]+;base64,/,''),mime:(String(img).match(/^data:(image\/[^;]+)/)||[])[1]||'image/png',title:'Лист '+pg.page};
     S.pageNum=pg.page;S.pageList=[pg.page];S.W=S.H=0;S.sx=S.sy=1;S.scale=S.fitScale=1;S.pan={x:0,y:0};
-    S.objects=ds.objects||{};S.cal=ds.cal||{};S.drawingPageSizes=ds.pageSizes||{};S.seq=ds.seq||1;S.history={};S.selected=null;S.draft=null;S.calPts=null;S.dark={};S.cluster=[];
+    S.objects=ds.objects||{};S.cal=ds.cal||{};S.drawingPageSizes=ds.pageSizes||{};S.drawingVectorPages=vectorPages;S.seq=ds.seq||1;S.history={};S.selected=null;S.draft=null;S.calPts=null;S.dark={};S.cluster=[];
     S.projId=null;S.filter='all';S.sideTab='obj';S.armSym=null;S.cat=CATS[0].k;S.width=4;S.penMode=false;S.dim=1;
     lkApplyDrawingSettings(ds.settings);S.linkedLkDocId=LK.docId;S.linkedLkPage=pg.page;S.threePointMode=true;
     $('lineyka').style.display='none';$('loader').classList.add('hide');$('stage').style.display='flex';$('btnBackLkDraw').classList.add('on');
-    $('docname').textContent=((rec&&rec.name)||'Схема')+' · лист '+pg.page+' · правка линий';buildStrip();goPage(pg.page);hideGuide();setTool('line');
-    toast('Лист '+pg.page+': поставьте 3 точки A → C → B. Сохраняется автоматически.');
+    $('docname').textContent=((rec&&rec.name)||'Схема')+' · лист '+pg.page+' · правка линий';buildStrip();goPage(pg.page);hideGuide();setTool('select');
+    const src=vectorPages[pg.page],n=((src&&src.objs)||[]).length+((src&&src.dark)||[]).length;
+    toast(n?'Нажмите исходную линию — появятся узлы для правки. Новая линия: A → C → B.':'Векторных линий на листе нет — новую линию задайте точками A → C → B.');
   }catch(e){console.error(e);toast('Не удалось открыть лист в редакторе');if(btn){btn.disabled=false;btn.textContent='✎ Править линии';}}}
 async function lkReturnToLineyka(){if(!S.linkedLkDocId){$('lineyka').style.display='flex';return;}
   const page=S.linkedLkPage;await lkPersistDrawingNow();lkLeaveDrawingContext(true);$('lineyka').style.display='flex';renderLineyka();toast('Графические правки листа '+page+' сохранены');}
