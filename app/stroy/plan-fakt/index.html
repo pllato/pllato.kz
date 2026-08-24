@@ -18,6 +18,9 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .top{height:54px;display:flex;align-items:center;gap:11px;padding:0 12px;background:var(--steel);color:#fff;z-index:60;position:relative;box-shadow:0 2px 12px rgba(0,0,0,.25);}
 .lk-draw-back{display:none!important;background:var(--amber)!important;color:#231403!important;border-color:var(--amber)!important;font-weight:800!important;}
 .lk-draw-back.on{display:flex!important;}
+.lk-draw-output{display:none!important;}
+.lk-draw-output.on{display:flex!important;}
+body.lk-drawing-context #btnExport{display:none;}
 .brand{display:flex;align-items:baseline;gap:8px;font-weight:700;font-size:15px;}
 .brand .mark{font-family:var(--mono);font-size:11px;background:var(--amber);color:#1a1205;padding:3px 7px;border-radius:5px;letter-spacing:1px;}
 .brand .mark-img{height:30px;width:auto;display:block;border-radius:6px;}
@@ -484,6 +487,8 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 <div class="top">
   <div class="brand"><img class="mark-img" src="rl-mark.png" alt="RL SYSTEM"><span>План-Факт</span><span class="sub">исполнительные чертежи</span></div>
   <button class="tbtn lk-draw-back" id="btnBackLkDraw" title="Сохранить графические правки и вернуться к этому же листу Линейки">← К Линейке</button>
+  <button class="tbtn primary lk-draw-output" id="btnDownloadEdited" title="Скачать весь исходный PDF со всеми внесёнными графическими правками"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>Скачать PDF</button>
+  <button class="tbtn lk-draw-output" id="btnPrintEdited" title="Открыть весь PDF с правками для печати"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg>Печать</button>
   <span class="sp"></span><span class="docname" id="docname"></span>
   <div class="scalepill" id="scalePill" title="Калибровка масштаба">⌖ Масштаб: <b id="scaleVal">не задан</b></div>
   <button class="tbtn ghost" id="btnDim" title="Приглушить чертёж-подложку, чтобы ваши линии были видны">Подложка: 100%</button>
@@ -495,7 +500,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
   <button class="tbtn" id="btnLineyka" title="Линейка: авто-чтение длин кабеля из однолинейной схемы (.pdf)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/><circle cx="19" cy="19" r="2.4"/></svg>Линейка</button>
   <input type="file" id="lkFile" accept=".pdf,application/pdf" multiple hidden>
   <button class="tbtn" id="btnSpec" title="PDF-смета: длина кабеля по типам, розетки, итоги"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17V7m4 10V11m4 6V9M5 21h14a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1z"/></svg>Смета</button>
-  <button class="tbtn primary" id="btnExport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>Чистый PDF</button>
+  <button class="tbtn primary" id="btnExport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>Скачать PDF</button>
 </div>
 <div class="stage" id="stage" style="display:none">
   <aside class="strip" id="strip"><h4>Листы</h4></aside>
@@ -526,7 +531,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
         <button class="gstep" data-go="cal"><span class="gn">1 · Масштаб</span><span class="gd">2 клика по известному размеру + метры</span></button>
         <button class="gstep" data-go="line"><span class="gn">2 · Трассы</span><span class="gd">Клик-клик или «Карандаш». Гнётся само</span></button>
         <button class="gstep" data-go="sym"><span class="gn">3 · Знаки</span><span class="gd">Розетки/щит из каталога — тапом</span></button>
-        <button class="gstep" data-go="calc"><span class="gn">4 · Расчёт + PDF</span><span class="gd">Длина по маркам → «Чистый PDF»</span></button>
+        <button class="gstep" data-go="calc"><span class="gn">4 · Расчёт + PDF</span><span class="gd">Длина по маркам → «Скачать PDF»</span></button>
       </div>
     </div>
   </div>
@@ -552,7 +557,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
         <div class="help-step"><span class="sn">3</span><span class="stx"><b>Линия.</b> Инструмент «Линия» слева — рисуй трассы (провода): клик-клик или включи «Карандаш». Сверху выбери «Марку» — это тип и сечение кабеля (заодно задаёт цвет).</span></div>
         <div class="help-step"><span class="sn">4</span><span class="stx"><b>Знаки.</b> Инструмент «Знаки» — ставь розетки, выключатели, щиты, светильники тапом по плану.</span></div>
         <div class="help-step"><span class="sn">5</span><span class="stx"><b>Расчёт.</b> Вкладка «Расчёт» справа — длина кабеля, счётчики и спецификация считаются сами.</span></div>
-        <div class="help-step"><span class="sn">6</span><span class="stx"><b>Результат.</b> «Смета» — PDF со списком кабеля по типам; «Чистый PDF» — итоговый исполнительный чертёж.</span></div>
+        <div class="help-step"><span class="sn">6</span><span class="stx"><b>Результат.</b> «Смета» — PDF со списком кабеля по типам; «Скачать PDF» — весь чертёж с внесёнными правками; «Печать» — открыть его для печати.</span></div>
       </div>
 
       <h2><span class="hn">Способ 2</span> У меня однолинейная схема (линейка)</h2>
@@ -575,7 +580,7 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
         <div class="help-row"><span class="bk">Ведомость</span><span class="bd">Список всех объектов — пройтись и выставить каждому свойства (марку, концы, высоты), привязать линии к щитам. Довести проект до 100%.</span></div>
         <div class="help-row"><span class="bk">Линейка</span><span class="bd">Авто-чтение длин кабеля из однолинейной схемы (Способ 2).</span></div>
         <div class="help-row"><span class="bk">Смета</span><span class="bd">PDF-смета: сколько кабеля по типам, розетки, итоги.</span></div>
-        <div class="help-row"><span class="bk">Чистый PDF</span><span class="bd">Итоговый исполнительный чертёж со схемой и спецификацией.</span></div>
+        <div class="help-row"><span class="bk">Скачать PDF / Печать</span><span class="bd">Сохранить весь исходный файл с графическими правками или открыть его для печати.</span></div>
       </div>
 
       <h2>Инструменты слева</h2>
@@ -1600,30 +1605,53 @@ function drawSheetSpec(cc,pn,W,H){
   cc.fillText('Кабель — итого (запас '+S.slack+'%)',x0+pad,y);cc.textAlign='right';cc.fillText(r.mpp?r.total.toFixed(1)+' м':'—',x0+boxW-pad,y);cc.textAlign='left';
   cc.restore();
 }
-$('btnExport').onclick=async()=>{
-  toast('Собираю чистый PDF…');let pdf=null;
-  for(const pn of S.pageList){
-    const pg=S.data.pages[pn];
-    const img=new Image();await new Promise(r=>{img.onload=r;img.src='data:image/jpeg;base64,'+pg.u;});
+function drawEditedObjects(cc,objs,rPage,sx,sy){
+  cc.save();cc.scale(sx||1,sy||1);
+  (objs||[]).forEach(o=>{cc.save();
+    if(o.type==='line'){cc.strokeStyle=o.color;cc.lineWidth=o.width;cc.lineCap='round';cc.lineJoin='round';if(o.cat==='mop15')cc.setLineDash([o.width*3.2,o.width*2.2]);try{cc.stroke(new Path2D(smoothPath(o.pts)));}catch(e){cc.beginPath();o.pts.forEach((p,i)=>i?cc.lineTo(p.x,p.y):cc.moveTo(p.x,p.y));cc.stroke();}}
+    else if(o.type==='symbol'){drawSymbolCanvas(cc,o);}
+    else if(o.type==='rect'){cc.strokeStyle=o.color;cc.lineWidth=o.width;cc.strokeRect(o.x,o.y,o.w,o.h);}
+    else if(o.type==='text'){cc.fillStyle=o.color;cc.font='600 '+o.size+'px Inter,sans-serif';cc.fillText(o.text,o.x,o.y);}
+    else if(o.type==='field'){cc.fillStyle=o.color||'#10151c';cc.font='600 '+o.size+'px Inter,sans-serif';cc.fillText(fieldValue(o,rPage),o.x,o.y);}
+    cc.restore();});
+  cc.restore();
+}
+function pdfAddCanvas(pdf,c,wpt,hpt){const orient=wpt>=hpt?'l':'p';
+  if(!pdf)pdf=new jsPDF({orientation:orient,unit:'pt',format:[wpt,hpt],compress:true});else pdf.addPage([wpt,hpt],orient);
+  const ps=pdf.internal.pageSize;pdf.addImage(c.toDataURL('image/jpeg',0.9),'JPEG',0,0,ps.getWidth(),ps.getHeight(),undefined,'FAST');return pdf;}
+async function buildStandaloneEditedPdf(){let pdf=null,n=0;
+  for(const pn of S.pageList){n++;lkBusy('Собираю PDF с правками…','лист '+n+' из '+S.pageList.length);
+    const pg=S.data.pages[pn],img=new Image();await new Promise(r=>{img.onload=r;img.src='data:image/jpeg;base64,'+pg.u;});
     const W=img.naturalWidth,H=img.naturalHeight,sx=W/pg.wpt,sy=H/pg.hpt;
-    const c=document.createElement('canvas');c.width=W;c.height=H;const cc=c.getContext('2d');
-    cc.fillStyle='#fff';cc.fillRect(0,0,W,H);cc.drawImage(img,0,0);
-    const objs=S.objects[pn]||importObjects(pg.objs,sx,sy);
-    const rPage=calcPage(pn);
-    objs.forEach(o=>{cc.save();
-      if(o.type==='line'){cc.strokeStyle=o.color;cc.lineWidth=o.width;cc.lineCap='round';cc.lineJoin='round';if(o.cat==='mop15')cc.setLineDash([o.width*3.2,o.width*2.2]);try{cc.stroke(new Path2D(smoothPath(o.pts)));}catch(e){cc.beginPath();o.pts.forEach((p,i)=>i?cc.lineTo(p.x,p.y):cc.moveTo(p.x,p.y));cc.stroke();}}
-      else if(o.type==='symbol'){drawSymbolCanvas(cc,o);}
-      else if(o.type==='rect'){cc.strokeStyle=o.color;cc.lineWidth=o.width;cc.strokeRect(o.x,o.y,o.w,o.h);}
-      else if(o.type==='text'){cc.fillStyle=o.color;cc.font='600 '+o.size+'px Inter,sans-serif';cc.fillText(o.text,o.x,o.y);}
-      else if(o.type==='field'){cc.fillStyle=o.color||'#10151c';cc.font='600 '+o.size+'px Inter,sans-serif';cc.fillText(fieldValue(o,rPage),o.x,o.y);}
-      cc.restore();});
-    drawSheetSpec(cc,pn,W,H);
-    const data=c.toDataURL('image/jpeg',0.85);const orient=W>=H?'l':'p';
-    if(!pdf)pdf=new jsPDF({orientation:orient,unit:'pt',format:[pg.wpt,pg.hpt]});else pdf.addPage([pg.wpt,pg.hpt],orient);
-    const ps=pdf.internal.pageSize;pdf.addImage(data,'JPEG',0,0,ps.getWidth(),ps.getHeight());
-  }
-  pdf.save((S.data.name||'plan')+'_ИСПОЛНИТЕЛЬНЫЙ.pdf');toast('Готово — чистый PDF скачан');
-};
+    const c=document.createElement('canvas');c.width=W;c.height=H;const cc=c.getContext('2d');cc.fillStyle='#fff';cc.fillRect(0,0,W,H);cc.drawImage(img,0,0);
+    drawEditedObjects(cc,S.objects[pn]||importObjects(pg.objs,sx,sy),calcPage(pn),1,1);drawSheetSpec(cc,pn,W,H);
+    pdf=pdfAddCanvas(pdf,c,pg.wpt,pg.hpt);}
+  return{pdf,name:(S.data.name||'plan')+'_ИСПОЛНИТЕЛЬНЫЙ.pdf'};}
+async function buildLinkedEditedPdf(){await lkPersistDrawingNow();const rec=await archGet(S.linkedLkDocId);if(!rec||!rec.buf)throw new Error('исходный PDF не найден');
+  const ds=rec.drawingState||{},source=await pdfjsLib.getDocument({data:rec.buf.slice(0)}).promise;let pdf=null;
+  try{for(let pn=1;pn<=source.numPages;pn++){lkBusy('Собираю весь PDF с правками…','лист '+pn+' из '+source.numPages);
+      const page=await source.getPage(pn),v0=page.getViewport({scale:1}),sc=Math.min(5.5,4400/Math.max(v0.width,v0.height)),vp2=page.getViewport({scale:sc});
+      const c=document.createElement('canvas');c.width=Math.max(1,Math.round(vp2.width));c.height=Math.max(1,Math.round(vp2.height));const cc=c.getContext('2d');cc.fillStyle='#fff';cc.fillRect(0,0,c.width,c.height);
+      await page.render({canvasContext:cc,viewport:vp2}).promise;
+      const objs=ds.objects&&ds.objects[pn],sz=ds.pageSizes&&ds.pageSizes[pn];if(Array.isArray(objs)&&objs.length){const ow=sz&&sz.w||c.width,oh=sz&&sz.h||c.height;drawEditedObjects(cc,objs,calcPage(pn),c.width/ow,c.height/oh);}
+      drawSheetSpec(cc,pn,c.width,c.height);pdf=pdfAddCanvas(pdf,c,v0.width,v0.height);}}
+  finally{try{source.destroy();}catch(_){}}
+  return{pdf,name:String(rec.name||S.data.name||'plan').replace(/\.pdf$/i,'')+'_С_ПРАВКАМИ.pdf'};}
+async function buildEditedPdf(){return S.linkedLkDocId?buildLinkedEditedPdf():buildStandaloneEditedPdf();}
+function setPdfButtonsBusy(on){['btnExport','btnDownloadEdited','btnPrintEdited'].forEach(id=>{const b=$(id);if(b)b.disabled=!!on;});}
+async function outputEditedPdf(mode){const printWin=mode==='print'?window.open('','_blank'):null;
+  if(printWin){printWin.document.title='Подготовка PDF';printWin.document.body.innerHTML='<p style="font:16px system-ui;padding:24px">Собираю PDF с правками…</p>';}
+  setPdfButtonsBusy(true);
+  try{const out=await buildEditedPdf();if(!out.pdf)throw new Error('не удалось собрать PDF');
+    if(mode==='print'){try{out.pdf.autoPrint();}catch(_){}const url=URL.createObjectURL(out.pdf.output('blob'));
+      if(printWin){printWin.location.href=url;setTimeout(()=>{try{printWin.focus();printWin.print();}catch(_){}},1800);setTimeout(()=>URL.revokeObjectURL(url),120000);toast('PDF с правками открыт для печати');}
+      else{out.pdf.save(out.name);URL.revokeObjectURL(url);toast('Окно печати заблокировано браузером — PDF скачан');}}
+    else{out.pdf.save(out.name);toast('Готово — весь PDF с правками скачан');}}
+  catch(e){if(printWin)try{printWin.close();}catch(_){}console.error(e);toast('Не удалось собрать PDF: '+(e&&e.message||e));}
+  finally{lkBusy(false);setPdfButtonsBusy(false);}}
+$('btnExport').onclick=()=>outputEditedPdf('save');
+$('btnDownloadEdited').onclick=()=>outputEditedPdf('save');
+$('btnPrintEdited').onclick=()=>outputEditedPdf('print');
 
 /* ---- смета (спецификация кабеля) в отдельный PDF ---- */
 function computeAll(){
@@ -1756,7 +1784,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v452';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v453';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v425';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -3692,7 +3720,8 @@ async function lkPersistDrawingNow(){clearTimeout(_lkDrawingSaveT);if(!S.linkedL
     rec.drawingState={updated:Date.now(),seq:S.seq,objects:S.objects,cal:S.cal,pageSizes:S.drawingPageSizes,vectorPages:S.drawingVectorPages||{},settings:lkDrawingSettings()};LK.drawingState=rec.drawingState;await archPut(rec);
   }catch(e){console.warn('drawing save',e);toast('Не удалось сохранить графические правки');}}
 function lkLeaveDrawingContext(restore){clearTimeout(_lkDrawingSaveT);const prev=S._lkPrevEditor;
-  $('btnBackLkDraw').classList.remove('on');S.linkedLkDocId=null;S.linkedLkPage=null;S.threePointMode=false;S._lkPrevEditor=null;
+  $('btnBackLkDraw').classList.remove('on');$('btnDownloadEdited').classList.remove('on');$('btnPrintEdited').classList.remove('on');document.body.classList.remove('lk-drawing-context');
+  S.linkedLkDocId=null;S.linkedLkPage=null;S.threePointMode=false;S._lkPrevEditor=null;
   if(!restore||!prev)return;
   Object.assign(S,prev.state);S._lkPrevEditor=null;$('docname').textContent=prev.docname||'';
   if(S.data&&S.pageList&&S.pageList.length){$('loader').classList.add('hide');$('stage').style.display=prev.stageDisplay||'flex';buildStrip();goPage(S.pageNum||S.pageList[0]);setTool(S.tool||'select');}
@@ -3711,7 +3740,8 @@ async function lkOpenDrawingEditor(){if(!LK.docId||!LK.pages||!LK.pages.length){
     S.objects=ds.objects||{};S.cal=ds.cal||{};S.drawingPageSizes=ds.pageSizes||{};S.drawingVectorPages=vectorPages;S.seq=ds.seq||1;S.history={};S.selected=null;S.draft=null;S.calPts=null;S.dark={};S.cluster=[];
     S.projId=null;S.filter='all';S.sideTab='obj';S.armSym=null;S.cat=CATS[0].k;S.width=4;S.penMode=false;S.dim=1;
     lkApplyDrawingSettings(ds.settings);S.linkedLkDocId=LK.docId;S.linkedLkPage=pg.page;S.threePointMode=true;
-    $('lineyka').style.display='none';$('loader').classList.add('hide');$('stage').style.display='flex';$('btnBackLkDraw').classList.add('on');
+    $('lineyka').style.display='none';$('loader').classList.add('hide');$('stage').style.display='flex';document.body.classList.add('lk-drawing-context');
+    $('btnBackLkDraw').classList.add('on');$('btnDownloadEdited').classList.add('on');$('btnPrintEdited').classList.add('on');
     $('docname').textContent=((rec&&rec.name)||'Схема')+' · лист '+pg.page+' · правка линий';buildStrip();goPage(pg.page);hideGuide();setTool('select');
     const src=vectorPages[pg.page],n=((src&&src.objs)||[]).length+((src&&src.dark)||[]).length;
     toast(n?'Нажмите исходную линию — появятся узлы для правки. Новая линия: A → C → B.':'Векторных линий на листе нет — новую линию задайте точками A → C → B.');
