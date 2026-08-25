@@ -2334,16 +2334,18 @@ function projectFinanceChartBuckets(granularity, points = 8, now = Date.now()) {
     const month = localNow.getUTCMonth();
     const monthLabel = new Intl.DateTimeFormat("ru-RU", {
       timeZone: "Asia/Almaty",
-      month: "short",
+      day: "2-digit",
+      month: "2-digit",
       year: "2-digit",
     });
     for (let i = count - 1; i >= 0; i -= 1) {
       const start = Date.UTC(year, month - i, 1) - shiftMs;
-      const end = Date.UTC(year, month - i + 1, 1) - shiftMs;
+      const calendarEnd = Date.UTC(year, month - i + 1, 1) - shiftMs;
+      const end = i === 0 ? Math.min(calendarEnd, now) : calendarEnd;
       buckets.push({
         start,
         end,
-        label: monthLabel.format(new Date(start)).replace(" г.", ""),
+        label: monthLabel.format(new Date(start)).replace(/\s*г\.?$/, ""),
         partial: i === 0,
       });
     }
