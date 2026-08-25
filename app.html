@@ -699,6 +699,20 @@ body {
 .mm-add { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .mm-add input { flex: 1; min-width: 108px; }
 .mm-add button { background: var(--green); color: #fff; font-weight: 700; font-size: 13px; padding: 9px 15px; border-radius: 9px; border: none; cursor: pointer; }
+.money-modal.payment-plan-modal { max-width: 680px; }
+.mm-plan { margin-top:14px; border:1px solid var(--line-2); border-radius:12px; overflow:hidden; background:color-mix(in srgb,var(--surface) 96%,var(--green) 4%); }
+.mm-plan-head { display:flex; align-items:center; gap:8px; padding:11px 12px; border-bottom:1px solid var(--line-2); }
+.mm-plan-head strong { font-size:12px; font-weight:800; }
+.mm-auto-badge,.auto-badge { display:inline-flex; align-items:center; width:max-content; border-radius:999px; background:#ecfdf3; color:#15803d; border:1px solid #bbf7d0; padding:2px 7px; font-size:9px; line-height:1.35; font-weight:800; white-space:nowrap; }
+.mm-plan-head button { margin-left:auto; border:0; background:transparent; color:var(--bronze-deep); font:700 10px/1.2 inherit; cursor:pointer; }
+.mm-plan-note { padding:9px 12px 3px; color:var(--text-3); font-size:10.5px; line-height:1.45; }
+.mm-plan-row { display:grid; grid-template-columns:minmax(0,1fr) max-content minmax(175px,.7fr); align-items:center; gap:12px; padding:11px 12px; border-top:1px solid var(--line-2); }
+.mm-plan-row .name { min-width:0; }
+.mm-plan-row .name strong { display:block; font-size:12px; }
+.mm-plan-row .name span { display:block; margin-top:3px; color:var(--text-3); font-size:10px; }
+.mm-plan-row .sum { font-size:12px; font-weight:800; color:var(--green); white-space:nowrap; }
+.mm-plan-row input { padding:7px 9px; font-size:11.5px; }
+.mm-plan-empty { padding:12px; color:var(--text-3); font-size:11px; line-height:1.45; }
 .mm-f { padding: 12px 20px; border-top: 1px solid var(--line-2); display: flex; gap: 8px; justify-content: flex-end; }
 .mm-f button { font-weight: 700; font-size: 13px; padding: 9px 16px; border-radius: 9px; border: 1px solid var(--line-2); background: var(--surface); color: var(--text); cursor: pointer; }
 .money-summary-modal { max-width:720px; }
@@ -793,6 +807,7 @@ body {
 .fc-week-task-actions button { border:0; background:transparent; color:var(--text-3); min-width:23px; min-height:23px; padding:2px 4px; border-radius:5px; cursor:pointer; font:800 13px/1 inherit; }
 .fc-week-task-actions .move:hover { color:var(--bronze-deep); background:#fff7ed; }
 .fc-week-task-actions .del:hover { color:#dc2626; background:var(--surface-2); }
+.fc-week-task-actions .auto-badge { margin:0 2px; }
 .fc-week-tasks-empty { color:var(--text-3); font-size:10px; padding:7px 0 2px; }
 .fc-week-task-editor input { width:100%; }
 .fc-week-task-fields { display:grid; grid-template-columns:minmax(0,1fr) minmax(150px,.42fr); gap:12px; margin-top:14px; }
@@ -813,7 +828,12 @@ body {
 .fc-week-history-list .carry:hover { border-color:var(--bronze-deep); background:#fff7ed; }
 .fc-week-history-empty { color:var(--text-3); font-size:13px; padding:18px 2px; text-align:center; }
 .fc-week-history-note { color:var(--text-3); font-size:12px; margin-top:10px; }
-@media (max-width:640px){ .fc-week-task-fields{grid-template-columns:1fr;} .fc-week-tasks-head .plan{order:3;margin-left:0;width:100%;} }
+@media (max-width:640px){
+  .fc-week-task-fields{grid-template-columns:1fr;}
+  .fc-week-tasks-head .plan{order:3;margin-left:0;width:100%;}
+  .mm-plan-row{grid-template-columns:minmax(0,1fr) max-content;gap:8px;}
+  .mm-plan-row input{grid-column:1/-1;}
+}
 .fc-point-comments { margin-top:14px; border:1px solid #ead8c2; border-radius:11px; background:#fffaf4; padding:11px 12px; }
 .fc-point-comments-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
 .fc-point-comments-head strong { font-size:12px; }
@@ -3943,12 +3963,144 @@ function shortT(n){ n=Math.round(n||0); return n>=1e6 ? (n/1e6).toFixed(n%1e6? 1
 function fmtD(iso){ if(!iso) return ''; const p=String(iso).split('-'); return p.length===3 ? p[2]+'.'+p[1]+'.'+p[0] : iso; }
 function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function nowLocalInput(){ const d=new Date(Date.now()-new Date().getTimezoneOffset()*60000); return d.toISOString().slice(0,16); }
+function almatyInputFromAt(at){ return Number(at)>0 ? new Date(Number(at)+5*60*60*1000).toISOString().slice(0,16) : ''; }
+function almatyAtFromInput(raw){
+  const value=String(raw||'').trim();
+  if(!value) return 0;
+  return Date.parse(value+(value.length===16?':00':'')+'+05:00')||0;
+}
 function fmtPayWhen(p){
   if(!p?.at) return fmtD(p?.d);
   return new Date(Number(p.at)).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
 }
 function mCard(id){ return document.querySelector('.tool-card[data-app-id="'+CSS.escape(id)+'"]'); }
 function projName(id){ const c=mCard(id); return ((c && c.querySelector('h3') && c.querySelector('h3').textContent) || id).trim(); }
+
+const PAYMENT_PLAN_STAGES = [
+  {id:'second',label:'Второй платёж',percent:45,weeks:2},
+  {id:'final',label:'Финальный платёж',percent:45,weeks:6}
+];
+const PAYMENT_PLAN_SYNC_TIMERS = {};
+let PAYMENT_PLANS_BOOTSTRAPPED = false;
+function firstProjectPayment(id){
+  return [...(MONEY[id]?.pays||[])].filter(pay=>Number(pay?.sum)>0).sort((a,b)=>(Number(a.at)||Date.parse(String(a.d||''))||0)-(Number(b.at)||Date.parse(String(b.d||''))||0))[0]||null;
+}
+function firstProjectPaymentAt(id){
+  const pay=firstProjectPayment(id);
+  if(!pay) return 0;
+  return Number(pay.at)||Date.parse(String(pay.d||'')+'T14:00:00+05:00')||0;
+}
+function paymentPlanStage(id,stageId){ return (MONEY[id]?.paymentPlan||[]).find(stage=>stage.id===stageId); }
+function paymentPlanAmount(id,stage){ return Math.max(0,Math.round(mDeal(id)*(Number(stage?.percent)||0)/100)); }
+function ensurePaymentPlan(id,{resetDates=false}={}){
+  const item=MONEY[id];
+  const baseAt=firstProjectPaymentAt(id);
+  if(!item || !baseAt || mDeal(id)<=0){
+    if(item && Array.isArray(item.paymentPlan) && item.paymentPlan.length){ item.paymentPlan=[]; return true; }
+    return false;
+  }
+  const old=Array.isArray(item.paymentPlan)?item.paymentPlan:[];
+  if(!old.length && projectIsAutoComplete(id)) return false;
+  let changed=old.length!==PAYMENT_PLAN_STAGES.length;
+  item.paymentPlan=PAYMENT_PLAN_STAGES.map(def=>{
+    const current=old.find(stage=>stage.id===def.id)||{};
+    const defaultDueAt=baseAt+def.weeks*7*24*60*60*1000;
+    const dueAt=!resetDates && Number(current.dueAt)>0 ? Number(current.dueAt) : defaultDueAt;
+    const next={id:def.id,label:def.label,percent:def.percent,weeks:def.weeks,dueAt};
+    if(current.id!==next.id || current.label!==next.label || Number(current.percent)!==next.percent || Number(current.weeks)!==next.weeks || Number(current.dueAt)!==next.dueAt) changed=true;
+    return next;
+  });
+  item.paymentPlanBaseAt=baseAt;
+  return changed;
+}
+function paymentPlanTaskId(projectId,kind,stageId){ return `payment-plan:${kind}:${encodeURIComponent(projectId)}:${stageId}`; }
+function paymentPlanProjectToken(projectId){ return encodeURIComponent(String(projectId)).replace(/'/g,'%27'); }
+function openPaymentPlanSource(token){
+  const projectId=decodeURIComponent(String(token||''));
+  if(canSeeProjectMoney()) openMoneyModal(projectId);
+}
+function financeWeekBoundsAt(timestamp){
+  const offset=5*60*60*1000, week=7*24*60*60*1000;
+  const local=new Date(Number(timestamp)+offset);
+  const daysSinceThursday=(local.getUTCDay()-4+7)%7;
+  let localStart=Date.UTC(local.getUTCFullYear(),local.getUTCMonth(),local.getUTCDate()-daysSinceThursday,14,0,0,0);
+  if(Number(timestamp)+offset<localStart) localStart-=week;
+  const start=localStart-offset;
+  return {start,end:start+week};
+}
+function schedulePaymentPlanTaskSync(id){
+  clearTimeout(PAYMENT_PLAN_SYNC_TIMERS[id]);
+  PAYMENT_PLAN_SYNC_TIMERS[id]=setTimeout(()=>syncPaymentPlanTasks(id).catch(error=>console.error('payment plan tasks:',error)),650);
+}
+function paymentPlanTaskNeedsUpdate(next,current){
+  if(!current) return true;
+  const keys=['kind','start','end','text','amount','done','completedAt','dueAt','deleted','automatic','source','autoType','sourceProjectId','sourcePlanId'];
+  return keys.some(key=>String(next?.[key]??'')!==String(current?.[key]??''));
+}
+async function syncPaymentPlanTasks(id){
+  if(!canSeeProjectMoney()) return;
+  await loadFinanceWeekTasks();
+  const item=MONEY[id]||{};
+  const stages=Array.isArray(item.paymentPlan)?item.paymentPlan.filter(stage=>Number(stage.dueAt)>0):[];
+  const existingAuto=FINANCE_WEEK_TASKS.filter(task=>task?.automatic===true && task.source==='payment-plan' && task.sourceProjectId===id);
+  const desired=[];
+  const firstPay=firstProjectPayment(id);
+  const received=mRecv(id);
+  stages.forEach(stage=>{
+    const bounds=financeWeekBoundsAt(stage.dueAt);
+    const amount=paymentPlanAmount(id,stage);
+    const cashId=paymentPlanTaskId(id,'cash',stage.id);
+    const oldCash=FINANCE_WEEK_TASKS.find(task=>task.id===cashId);
+    const reached=stage.id==='final' ? projectIsAutoComplete(id) : received>=(Number(firstPay?.sum)||0)+amount;
+    desired.push({
+      ...(oldCash||{}),id:cashId,kind:'cash',start:bounds.start,end:bounds.end,
+      text:`${projName(id)} · ${stage.label.toLowerCase()} ${stage.percent}%`,amount:toKZT(id,amount),
+      done:Boolean(oldCash?.done)||reached,completedAt:(Boolean(oldCash?.done)||reached)?(Number(oldCash?.completedAt)||Date.now()):0,
+      automatic:true,source:'payment-plan',autoType:'planned-payment',sourceProjectId:id,sourcePlanId:stage.id,dueAt:Number(stage.dueAt),
+      author:oldCash?.author||CURRENT?.email||'',authorName:oldCash?.authorName||CURRENT?.name||CURRENT?.email||'',
+      createdAt:Number(oldCash?.createdAt)||Date.now(),updatedAt:Date.now(),updatedBy:CURRENT?.email||'',deleted:false,
+      movedToStart:0,movedToEnd:0,movedToTaskId:''
+    });
+    if(stage.id==='final'){
+      const releaseId=paymentPlanTaskId(id,'releases',stage.id);
+      const oldRelease=FINANCE_WEEK_TASKS.find(task=>task.id===releaseId);
+      const completed=projectIsComplete(id);
+      desired.push({
+        ...(oldRelease||{}),id:releaseId,kind:'releases',start:bounds.start,end:bounds.end,
+        text:`${projName(id)} · плановый выпуск`,amount:0,
+        done:Boolean(oldRelease?.done)||completed,completedAt:(Boolean(oldRelease?.done)||completed)?(Number(oldRelease?.completedAt)||Date.now()):0,
+        automatic:true,source:'payment-plan',autoType:'planned-release',sourceProjectId:id,sourcePlanId:stage.id,dueAt:Number(stage.dueAt),
+        author:oldRelease?.author||CURRENT?.email||'',authorName:oldRelease?.authorName||CURRENT?.name||CURRENT?.email||'',
+        createdAt:Number(oldRelease?.createdAt)||Date.now(),updatedAt:Date.now(),updatedBy:CURRENT?.email||'',deleted:false,
+        movedToStart:0,movedToEnd:0,movedToTaskId:''
+      });
+    }
+  });
+  const desiredIds=new Set(desired.map(task=>task.id));
+  const stale=existingAuto.filter(task=>!desiredIds.has(task.id) && !task.deleted).map(task=>({...task,deleted:true,updatedAt:Date.now(),updatedBy:CURRENT?.email||''}));
+  const desiredUpdates=desired.filter(task=>paymentPlanTaskNeedsUpdate(task,FINANCE_WEEK_TASKS.find(existing=>existing.id===task.id)));
+  const updates=[...desiredUpdates,...stale];
+  if(!updates.length) return;
+  await apiFetch('/store/push',{method:'POST',body:{ops:updates.map(task=>({type:'upsert',collection:'chart_week_tasks',item:task}))}});
+  updates.forEach(task=>{
+    const index=FINANCE_WEEK_TASKS.findIndex(existing=>existing.id===task.id);
+    if(index>=0) FINANCE_WEEK_TASKS[index]=task; else FINANCE_WEEK_TASKS.push(task);
+  });
+  refreshFinanceWeekTaskBlock('cash');
+  refreshFinanceWeekTaskBlock('releases');
+}
+async function bootstrapPaymentPlans(){
+  if(PAYMENT_PLANS_BOOTSTRAPPED || !canSeeProjectMoney()) return;
+  PAYMENT_PLANS_BOOTSTRAPPED=true;
+  const projectIds=Object.keys(MONEY).filter(id=>mDeal(id)>0 && firstProjectPaymentAt(id)>0 && (!projectIsAutoComplete(id) || (MONEY[id].paymentPlan||[]).length));
+  let changed=false;
+  projectIds.forEach(id=>{ if(ensurePaymentPlan(id)) changed=true; });
+  if(changed) saveMoney();
+  for(const id of projectIds){
+    try{ await syncPaymentPlanTasks(id); }
+    catch(error){ console.warn('payment plan bootstrap:',id,error); }
+  }
+}
 
 async function injectMoney(){
   if (!canSeeProjectMoney()) return;
@@ -3982,7 +4134,7 @@ async function injectMoney(){
   ensureMoneySummary();
   renderMoneySummary();
   applyFinanceChartsFold();
-  renderFinanceCharts();
+  renderFinanceCharts().finally(()=>bootstrapPaymentPlans().catch(error=>console.warn('payment plan bootstrap:',error)));
 }
 function syncProjectMoneyVisibility(){
   if (canSeeProjectMoney()) {
@@ -3996,6 +4148,7 @@ function syncProjectMoneyVisibility(){
   MONEY = {};
   MONEY_LOADED = false;
   MONEY_LOAD_PROMISE = null;
+  PAYMENT_PLANS_BOOTSTRAPPED = false;
   clearTimeout(MONEY_SAVE_TIMER);
   renderFinanceCharts();
 }
@@ -4033,6 +4186,7 @@ function toggleProjectComplete(id){
   MONEY[id].completedAt=Number(MONEY[id].completedAt)>0?0:Date.now();
   renderProjectComplete(id);
   saveMoney();
+  schedulePaymentPlanTaskSync(id);
   renderFinanceCharts();
 }
 function ensureMoneySummary(){
@@ -4131,6 +4285,10 @@ function openMoneyModal(id){
   MONEY[id] = MONEY[id] || { deal:0, pays:[], cur:'KZT' };
   MONEY[id].pays = MONEY[id].pays || [];
   MONEY[id].cur = MONEY[id].cur || 'KZT';
+  if(ensurePaymentPlan(id)){
+    saveMoney();
+    schedulePaymentPlanTaskSync(id);
+  }
   let ovl = document.getElementById('moneyOvl');
   if (!ovl){ ovl=document.createElement('div'); ovl.id='moneyOvl'; ovl.className='money-ovl'; ovl.addEventListener('click', e=>{ if(e.target===ovl) closeMoney(); }); document.body.appendChild(ovl); }
   renderMoneyModal();
@@ -4143,7 +4301,7 @@ function renderMoneyModal(){
   const id=_mmId, ovl=document.getElementById('moneyOvl'); if(!id||!ovl) return;
   const usd = curOf(id)==='USD';
   const pays=(MONEY[id].pays||[]).map((p,i)=>({d:p.d,sum:p.sum,at:p.at,i})).sort((a,b)=>(Number(b.at)||0)-(Number(a.at)||0)||String(b.d||'').localeCompare(String(a.d||'')));
-  ovl.innerHTML = '<div class="money-modal">'
+  ovl.innerHTML = '<div class="money-modal payment-plan-modal">'
     + '<div class="mm-h"><h3>💰 '+mEsc(projName(id))+'</h3><span class="mm-x" onclick="closeMoney()">✕</span></div>'
     + '<div class="mm-b">'
     + '<div class="mm-cur"><span class="l">Валюта проекта</span>'
@@ -4158,40 +4316,80 @@ function renderMoneyModal(){
         : '<div class="mm-pay empty">Платежей ещё не было — добавьте первый.</div>')
     + '</div>'
     + '<div class="mm-add"><input id="mmPaySum" type="number" min="0" placeholder="сумма, '+symOf(id)+'"><input id="mmPayDate" type="datetime-local" value="'+nowLocalInput()+'"><button onclick="addMoneyPay()">＋ Платёж</button></div>'
+    + paymentPlanMarkup(id)
     + '</div><div class="mm-f"><button onclick="closeMoney()">Готово</button></div></div>';
+}
+function paymentPlanMarkup(id){
+  const stages=Array.isArray(MONEY[id]?.paymentPlan)?MONEY[id].paymentPlan:[];
+  if(!firstProjectPaymentAt(id) || mDeal(id)<=0){
+    return '<div class="mm-plan" id="mmPlan"><div class="mm-plan-head"><strong>План платежей</strong></div><div class="mm-plan-empty">План появится автоматически, когда указана сумма сделки и добавлен первый платёж.</div></div>';
+  }
+  if(!stages.length && projectIsAutoComplete(id)){
+    return '<div class="mm-plan" id="mmPlan"><div class="mm-plan-head"><strong>План платежей</strong></div><div class="mm-plan-empty">Сделка уже оплачена полностью — новых плановых платежей нет.</div></div>';
+  }
+  const rows=stages.map(stage=>{
+    const amount=paymentPlanAmount(id,stage);
+    const detail=stage.id==='final'?'Создаёт дело в кассе и плановый выпуск':'Создаёт дело в недельном плане кассы';
+    return '<div class="mm-plan-row"><div class="name"><strong>'+mEsc(stage.label)+' · '+Number(stage.percent)+'%</strong><span>'+mEsc(detail)+'</span></div>'
+      +'<div class="sum">'+mEsc(fmtCur(id,amount))+(curOf(id)==='USD'?'<span class="ke2"> ≈ '+mEsc(fmtT(toKZT(id,amount)))+'</span>':'')+'</div>'
+      +'<input type="datetime-local" value="'+mEsc(almatyInputFromAt(stage.dueAt))+'" onchange="setPaymentPlanDate(\''+mEsc(stage.id)+'\',this.value)" aria-label="Дата: '+mEsc(stage.label)+'"></div>';
+  }).join('');
+  return '<div class="mm-plan" id="mmPlan"><div class="mm-plan-head"><strong>План платежей</strong><span class="mm-auto-badge">Автоматически</span><button type="button" onclick="resetPaymentPlanDates()">Вернуть даты +2 / +6 недель</button></div>'
+    +'<div class="mm-plan-note">Даты можно менять. Плановые суммы и дела недели обновляются автоматически без дублей.</div>'+rows+'</div>';
 }
 function moneyGrid(id){ const usd=curOf(id)==='USD';
   const cell=(cls,label,nat,kzt)=>'<div class="c '+cls+'"><div class="l">'+label+'</div><div class="v">'+nat+'</div>'+(usd?'<div class="ke">≈ '+fmtT(kzt)+'</div>':'')+'</div>';
   return cell('','Сумма сделки',fmtCur(id,mDeal(id)),toKZT(id,mDeal(id)))
     + cell('g','Получено',fmtCur(id,mRecv(id)),toKZT(id,mRecv(id)))
     + cell('r','Остаток',fmtCur(id,mDebt(id)),toKZT(id,mDebt(id))); }
-function setMoneyCur(c){ if(!canSeeProjectMoney()||!_mmId) return; MONEY[_mmId].cur=c; saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
+function setMoneyCur(c){ if(!canSeeProjectMoney()||!_mmId) return; MONEY[_mmId].cur=c; saveMoney(); schedulePaymentPlanTaskSync(_mmId); renderMoneyModal(); renderMoneyStrip(_mmId); renderMoneySummary(); }
 function setMoneyDeal(v){
   if(!canSeeProjectMoney()||!_mmId) return;
   const item=MONEY[_mmId];
   item.deal=Math.max(0,parseInt(v)||0);
   if(item.deal>0 && item.pays.length && !item.orderCreatedAt) item.orderCreatedAt=Date.now();
   if(item.deal<=0) item.orderCreatedAt=0;
-  saveMoney(); const g=document.getElementById('mmGrid'); if(g)g.innerHTML=moneyGrid(_mmId); renderMoneyStrip(_mmId); renderProjectComplete(_mmId); renderMoneySummary(); renderFinanceCharts();
+  ensurePaymentPlan(_mmId);
+  saveMoney(); schedulePaymentPlanTaskSync(_mmId);
+  const g=document.getElementById('mmGrid'); if(g) g.innerHTML=moneyGrid(_mmId);
+  const plan=document.getElementById('mmPlan'); if(plan) plan.outerHTML=paymentPlanMarkup(_mmId);
+  renderMoneyStrip(_mmId); renderProjectComplete(_mmId); renderMoneySummary(); renderFinanceCharts();
 }
 function addMoneyPay(){
   if(!canSeeProjectMoney()||!_mmId) return;
   const sum=parseInt(document.getElementById('mmPaySum').value)||0;
   const raw=document.getElementById('mmPayDate').value||nowLocalInput();
-  const at=new Date(raw).getTime()||Date.now();
-  const local=new Date(at-new Date(at).getTimezoneOffset()*60000);
-  const d=local.toISOString().slice(0,10);
+  const at=almatyAtFromInput(raw)||Date.now();
+  const d=new Date(at+5*60*60*1000).toISOString().slice(0,10);
   if(sum<=0) return;
   const item=MONEY[_mmId];
   item.pays.push({d,sum,at});
   if(item.deal>0 && !item.orderCreatedAt) item.orderCreatedAt=Date.now();
-  saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderProjectComplete(_mmId); renderMoneySummary(); renderFinanceCharts();
+  ensurePaymentPlan(_mmId);
+  saveMoney(); schedulePaymentPlanTaskSync(_mmId); renderMoneyModal(); renderMoneyStrip(_mmId); renderProjectComplete(_mmId); renderMoneySummary(); renderFinanceCharts();
 }
 function delMoneyPay(i){
   if(!canSeeProjectMoney()||!_mmId) return;
   MONEY[_mmId].pays.splice(i,1);
-  if(!MONEY[_mmId].pays.length) MONEY[_mmId].orderCreatedAt=0;
-  saveMoney(); renderMoneyModal(); renderMoneyStrip(_mmId); renderProjectComplete(_mmId); renderMoneySummary(); renderFinanceCharts();
+  if(!MONEY[_mmId].pays.length){ MONEY[_mmId].orderCreatedAt=0; MONEY[_mmId].paymentPlan=[]; }
+  else ensurePaymentPlan(_mmId);
+  saveMoney(); schedulePaymentPlanTaskSync(_mmId); renderMoneyModal(); renderMoneyStrip(_mmId); renderProjectComplete(_mmId); renderMoneySummary(); renderFinanceCharts();
+}
+function setPaymentPlanDate(stageId,raw){
+  if(!canSeeProjectMoney()||!_mmId) return;
+  const stage=paymentPlanStage(_mmId,stageId);
+  const dueAt=almatyAtFromInput(raw);
+  if(!stage || !dueAt){ alert('Укажите корректную дату платежа.'); renderMoneyModal(); return; }
+  stage.dueAt=dueAt;
+  saveMoney();
+  schedulePaymentPlanTaskSync(_mmId);
+}
+function resetPaymentPlanDates(){
+  if(!canSeeProjectMoney()||!_mmId) return;
+  ensurePaymentPlan(_mmId,{resetDates:true});
+  saveMoney();
+  schedulePaymentPlanTaskSync(_mmId);
+  renderMoneyModal();
 }
 
 const FINANCE_CHART_META = {
@@ -4455,13 +4653,17 @@ function financeWeekTaskHistoryBlock(kind,currentPoint){
   const options=weeks.map(start=>`<option value="${start}"${start===selected?' selected':''}>${mEsc(financeWeekTaskPeriod({start,end:start+7*86400000}))}</option>`).join('');
   const rows=tasks.length ? tasks.map(task=>{
     const moved=Number(task.movedToStart)>0;
-    const status=moved
+    const automatic=financeWeekTaskIsAutomatic(task);
+    const status=automatic
+      ? financeWeekTaskAutoBadge(task)
+      : moved
       ? `<span class="moved-badge">Перенесено ${mEsc(financeWeekShortDate(task.movedToStart))}</span>`
       : (!task.done && canConfigureFinanceChart(kind) && !task._virtual
         ? `<button class="carry" type="button" onclick="carryFinanceWeekTaskToCurrent('${mEsc(task.id)}')" title="Создать это дело в текущей неделе">В текущую →</button>`
         : '');
-    const remove=canConfigureFinanceChart(kind) && !task._virtual ? `<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button>` : '';
-    return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${moved?' moved':''}"><input type="checkbox"${task.done?' checked':''}${task._virtual||moved||!canConfigureFinanceChart(kind)?' disabled':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" title="${mEsc(task.text)}">${mEsc(task.text)}</span>${showAmounts?`<span class="amount">${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}<span class="fc-week-task-actions">${status}${remove}</span></div>`;
+    const remove=canConfigureFinanceChart(kind) && !task._virtual && !automatic ? `<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button>` : '';
+    const openAction=automatic?` onclick="openPaymentPlanSource('${paymentPlanProjectToken(task.sourceProjectId)}')"`:'';
+    return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${moved?' moved':''}${automatic?' automatic':''}"><input type="checkbox"${task.done?' checked':''}${task._virtual||moved||!canConfigureFinanceChart(kind)?' disabled':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text"${openAction} title="${mEsc(task.text)}">${mEsc(task.text)}</span>${showAmounts?`<span class="amount"${openAction}>${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}<span class="fc-week-task-actions">${status}${remove}</span></div>`;
   }).join('') : '<div class="fc-week-history-empty">В эту неделю дел не было.</div>';
   return `<div class="fc-week-history"><div class="fc-week-history-toolbar"><label for="financeWeekHistory-${kind}">Прошлая неделя</label><select id="financeWeekHistory-${kind}" onchange="selectFinanceWeekTaskHistory('${kind}',this.value)">${options}</select></div><div class="fc-week-history-list">${rows}</div><div class="fc-week-history-note">История открывается только по запросу. Перенос создаёт дело в текущей неделе и сохраняет исходную запись здесь.</div></div>`;
 }
@@ -4477,6 +4679,16 @@ function selectFinanceWeekTaskHistory(kind,start){
 function financeWeekTaskAmount(value){
   return fmtT(Math.max(0,Number(value)||0));
 }
+function financeWeekTaskIsAutomatic(task){ return task?.automatic===true && task?.source==='payment-plan'; }
+function financeWeekTaskAutoBadge(task){
+  if(!financeWeekTaskIsAutomatic(task)) return '';
+  return `<span class="auto-badge" title="Создано автоматически из плана платежей">Авто · ${task.autoType==='planned-release'?'выпуск':'платёж'}</span>`;
+}
+function financeWeekTaskOpenAction(task,kind,start,end){
+  return financeWeekTaskIsAutomatic(task)
+    ? `openPaymentPlanSource('${paymentPlanProjectToken(task.sourceProjectId)}')`
+    : `openFinanceWeekTaskEditor('${kind}',${Number(start)},${Number(end)},'${mEsc(task.id)}')`;
+}
 function financeWeekTaskBlock(kind,series){
   return financeWeekTaskBlockForPoint(kind,financeCurrentWeekPoint(series));
 }
@@ -4490,10 +4702,14 @@ function financeWeekTaskBlockForPoint(kind,point){
   const history=`<button class="history" type="button" onclick="toggleFinanceWeekTaskHistory('${kind}')">${FINANCE_WEEK_TASK_HISTORY_OPEN.has(kind)?'Скрыть историю':'История'}</button>`;
   const rows=tasks.length
     ? tasks.map(task=>{
-      const actions=canConfigureFinanceChart(kind)
+      const automatic=financeWeekTaskIsAutomatic(task);
+      const openAction=financeWeekTaskOpenAction(task,kind,point.start,point.end);
+      const actions=automatic
+        ? `<span class="fc-week-task-actions">${financeWeekTaskAutoBadge(task)}</span>`
+        : canConfigureFinanceChart(kind)
         ? `<span class="fc-week-task-actions">${task.done?'':`<button class="move" type="button" onclick="moveFinanceWeekTaskForward('${mEsc(task.id)}')" aria-label="Перенести дело на следующую неделю" title="Перенести на следующую неделю">→</button>`}<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button></span>`
         : '<span></span>';
-      return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}"><input type="checkbox"${task.done?' checked':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="openFinanceWeekTaskEditor('${kind}',${Number(point.start)},${Number(point.end)},'${mEsc(task.id)}')" title="${mEsc(task.text)}">${mEsc(task.text)}</span>${showAmounts?`<span class="amount" onclick="openFinanceWeekTaskEditor('${kind}',${Number(point.start)},${Number(point.end)},'${mEsc(task.id)}')" title="Изменить сумму">${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}${actions}</div>`;
+      return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${automatic?' automatic':''}"><input type="checkbox"${task.done?' checked':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="${openAction}" title="${mEsc(task.text)}">${mEsc(task.text)}</span>${showAmounts?`<span class="amount" onclick="${openAction}" title="${automatic?'Открыть план платежей':'Изменить сумму'}">${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}${actions}</div>`;
     }).join('')
     : '<div class="fc-week-tasks-empty">На текущую неделю дел пока нет.</div>';
   const plan=showAmounts?`<span class="plan">План недели: ${mEsc(financeWeekTaskAmount(planTotal))}</span>`:'';
@@ -4507,6 +4723,10 @@ function refreshFinanceWeekTaskBlock(kind){
 function openFinanceWeekTaskEditor(kind,start,end,taskId=''){
   if(!canConfigureFinanceChart(kind)) return;
   const existing=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
+  if(financeWeekTaskIsAutomatic(existing)){
+    openPaymentPlanSource(paymentPlanProjectToken(existing.sourceProjectId));
+    return;
+  }
   const showAmount=kind==='cash';
   document.getElementById('financeWeekTaskOvl')?.remove();
   const ovl=document.createElement('div');
@@ -4553,7 +4773,7 @@ async function toggleFinanceWeekTask(taskId,done){
 }
 async function moveFinanceWeekTaskForward(taskId){
   const task=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
-  if(!task || task.done || !canConfigureFinanceChart(task.kind)) return;
+  if(!task || task.done || financeWeekTaskIsAutomatic(task) || !canConfigureFinanceChart(task.kind)) return;
   const week=7*24*60*60*1000;
   const nextStart=Number(task.start)+week;
   const nextEnd=(Number(task.end)>Number(task.start)?Number(task.end):Number(task.start)+week)+week;
@@ -4561,7 +4781,7 @@ async function moveFinanceWeekTaskForward(taskId){
 }
 async function carryFinanceWeekTaskToCurrent(taskId){
   const task=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
-  if(!task || task.done || Number(task.movedToStart)>0 || !canConfigureFinanceChart(task.kind)) return;
+  if(!task || task.done || financeWeekTaskIsAutomatic(task) || Number(task.movedToStart)>0 || !canConfigureFinanceChart(task.kind)) return;
   const current=document.getElementById('financeWeekTasks-'+task.kind);
   if(!current) return;
   const currentStart=Number(current.dataset.start), currentEnd=Number(current.dataset.end);
@@ -4569,7 +4789,7 @@ async function carryFinanceWeekTaskToCurrent(taskId){
   await copyFinanceWeekTask(task,currentStart,currentEnd);
 }
 async function copyFinanceWeekTask(task,targetStart,targetEnd){
-  if(!task || task.done || Number(task.movedToStart)>0 || !canConfigureFinanceChart(task.kind)) return;
+  if(!task || task.done || financeWeekTaskIsAutomatic(task) || Number(task.movedToStart)>0 || !canConfigureFinanceChart(task.kind)) return;
   if(!Number.isFinite(targetStart)||!Number.isFinite(targetEnd)) return;
   const period=financeWeekTaskPeriod({start:targetStart,end:targetEnd});
   if(!confirm(`Перенести «${String(task.text||'Дело')}» на неделю ${period}? Исходная запись останется в истории.`)) return;
@@ -4588,7 +4808,7 @@ async function copyFinanceWeekTask(task,targetStart,targetEnd){
 }
 async function deleteFinanceWeekTask(taskId){
   const task=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
-  if(!task || !canConfigureFinanceChart(task.kind) || !confirm('Удалить это дело?')) return;
+  if(!task || financeWeekTaskIsAutomatic(task) || !canConfigureFinanceChart(task.kind) || !confirm('Удалить это дело?')) return;
   const item={...task,deleted:true,updatedAt:Date.now(),updatedBy:CURRENT?.email||''};
   try{
     await apiFetch('/store/push',{method:'POST',body:{ops:[{type:'upsert',collection:'chart_week_tasks',item}]}});
@@ -5326,7 +5546,7 @@ async function saveFinanceAccess(kind){
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTask, moveFinanceWeekTaskForward, carryFinanceWeekTaskToCurrent, toggleFinanceWeekTaskHistory, selectFinanceWeekTaskHistory, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, openLeadAnalyticsExternalAccess, copyLeadAnalyticsExternalLink, addLeadAnalyticsExternalViewer, removeLeadAnalyticsExternalViewer, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
+Object.assign(window, { openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, setPaymentPlanDate, resetPaymentPlanDates, openPaymentPlanSource, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTask, moveFinanceWeekTaskForward, carryFinanceWeekTaskToCurrent, toggleFinanceWeekTaskHistory, selectFinanceWeekTaskHistory, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, openLeadAnalyticsExternalAccess, copyLeadAnalyticsExternalLink, addLeadAnalyticsExternalViewer, removeLeadAnalyticsExternalViewer, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
 
 function applyProjectFilters(){
   sortProjectCards();
