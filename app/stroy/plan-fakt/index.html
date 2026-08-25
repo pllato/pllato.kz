@@ -412,7 +412,58 @@ body.lk-drawing-context #btnExport{display:none;}
 .lk-chip.small{font-size:11px;padding:3px 8px;}
 .lk-chip.small.tot{background:var(--steel);color:#fff;border-color:var(--steel);}
 .lk-chip.small.tot b{color:#fff;}
-@media(max-width:760px){.lk-nav{width:120px;}.lk-pg img{display:none;}}
+/* На телефоне Линейка — это сначала сам чертёж. Листы, итоги и редкие команды
+   открываются отдельными панелями и больше не отнимают постоянное место. */
+.lk-mobile-tools,.lk-mobile-panel-head,.lk-mobile-menu,.lk-mobile-shade{display:none;}
+@media(max-width:760px){
+  #lineyka{height:100dvh;overflow:hidden;}
+  #lineyka>.lg-head{min-height:58px;padding:7px max(8px,env(safe-area-inset-right)) 7px max(8px,env(safe-area-inset-left));gap:9px;align-items:center;}
+  #lineyka>.lg-head .lg-title{min-width:0;flex:1;font-size:14px;line-height:1.18;}
+  #lineyka>.lg-head .lg-sub{display:block;margin:3px 0 0;max-width:72vw;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #lineyka>.lg-head #lkBack{flex:0 0 44px;width:44px;height:44px;padding:0;font-size:0;border-radius:11px;}
+  #lineyka>.lg-head #lkBack:after{content:'\2190';font-size:23px;line-height:1;}
+  #lineyka>.lg-head .lk-docs,#lineyka>.lg-head #lkTeachTop,#lineyka>.lg-head #lkVisSheet,
+  #lineyka>.lg-head #lkIssues,#lineyka>.lg-head #lkReport,#lineyka>.lg-head #lkReportAll,
+  #lineyka>.lg-head #lkCopy,#lineyka>.lg-head #lkClose{display:none!important;}
+  .lk-mobile-tools{display:grid;grid-template-columns:1.15fr 1fr 1.15fr .72fr;gap:5px;padding:6px max(7px,env(safe-area-inset-right)) 6px max(7px,env(safe-area-inset-left));background:#fff;border-bottom:1px solid var(--line);flex:0 0 auto;}
+  .lk-mobile-tools button{min-width:0;height:40px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);color:var(--steel);font:800 11.5px/1.1 var(--sans);padding:0 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .lk-mobile-tools button.primary{background:var(--steel);color:#fff;border-color:var(--steel);}
+  .lk-mobile-tools button[aria-expanded="true"]{background:var(--amber);color:#241505;border-color:var(--amber);}
+  .lk-main{min-width:0;width:100%;}
+  .lk-page{width:100%;min-width:0;padding:6px 6px calc(34px + env(safe-area-inset-bottom));overflow-x:hidden;}
+  .lk-nav{display:flex;position:fixed;z-index:184;left:0;top:0;bottom:0;width:min(88vw,350px);padding:0 9px calc(14px + env(safe-area-inset-bottom));gap:7px;transform:translateX(-104%);transition:transform .18s ease;box-shadow:10px 0 34px rgba(16,21,28,.28);border-right:0;}
+  .lk-nav.mobile-open{transform:translateX(0);}
+  .lk-pg{min-height:62px;padding:8px 10px;}.lk-pg img{display:none;}.lk-pgt{font-size:13px;}.lk-pgn,.lk-pgm{font-size:10.5px;}
+  .lk-mobile-panel-head{display:flex;position:sticky;z-index:2;top:0;align-items:center;justify-content:space-between;gap:10px;margin:0 -9px 2px;padding:calc(12px + env(safe-area-inset-top)) 14px 11px;background:#fff;border-bottom:1px solid var(--line);font-size:15px;color:var(--steel);}
+  .lk-mobile-panel-head button{width:38px;height:38px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--steel);font-size:20px;}
+  #lineyka>.lk-sum{display:none;}
+  #lineyka>.lk-sum.mobile-open{display:flex;position:fixed;z-index:184;left:0;right:0;bottom:0;max-height:min(76dvh,650px);overflow:auto;padding:0 12px calc(18px + env(safe-area-inset-bottom));gap:7px;background:#fff;border:0;border-radius:16px 16px 0 0;box-shadow:0 -10px 36px rgba(16,21,28,.28);align-content:flex-start;}
+  #lineyka>.lk-sum .lk-mobile-panel-head{flex:0 0 calc(100% + 24px);margin:0 -12px 4px;padding-top:13px;}
+  #lineyka>.lk-sum .lk-break{flex-basis:100%;height:0;}
+  #lineyka>.lk-sum .lk-chip{font-size:11px;padding:6px 9px;}
+  .lk-mobile-shade{position:fixed;z-index:180;inset:0;border:0;background:rgba(16,21,28,.44);}
+  .lk-mobile-shade.on{display:block;}
+  .lk-mobile-menu{position:fixed;z-index:184;left:7px;right:7px;bottom:calc(7px + env(safe-area-inset-bottom));max-height:78dvh;overflow:auto;padding:0 12px 14px;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 40px rgba(16,21,28,.32);}
+  .lk-mobile-menu.mobile-open{display:block;}
+  .lk-mobile-menu .lk-mobile-panel-head{margin:0 -12px 10px;padding:11px 12px;}
+  .lk-mobile-docs{display:flex;gap:6px;overflow-x:auto;margin:0 0 10px;padding:2px 0 5px;scrollbar-width:none;}
+  .lk-mobile-docs::-webkit-scrollbar{display:none;}
+  .lk-mobile-docs button{flex:0 0 auto;max-width:76vw;height:38px;padding:0 10px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);color:var(--steel);font:700 11px/1 var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .lk-mobile-docs button.on{background:var(--steel);color:#fff;border-color:var(--steel);}
+  .lk-mobile-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+  .lk-mobile-actions button{min-height:48px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--steel);font:750 12px/1.2 var(--sans);padding:8px;}
+  .lk-split{gap:8px;}.lk-imgcol{position:static;width:100%;}
+  .lk-pgwrap{margin-bottom:6px;}.lk-pgimg{height:calc(100dvh - 168px);min-height:360px;border-radius:8px;}
+  .lk-zoom{left:6px;right:6px;top:auto;bottom:6px;justify-content:center;padding:4px;background:rgba(16,21,28,.82);}
+  .lk-zoom button{height:40px;min-width:42px;font-size:17px;padding:0 9px;}
+  .lk-zoom #lkDrawPage{flex:1;max-width:190px;font-size:12px;background:var(--amber);color:#231403;}
+  .lk-zoom #lkOpenPdf,.lk-zoom #lkSeqBtn{display:none;}
+  .lk-mk-note{display:none;}.lk-datacol{width:100%;}
+  .lk-check{margin:4px 0 9px;padding:9px;}.lk-check-h{font-size:13px;gap:6px;}.lk-check .lk-copybtn{display:none;}
+  .lk-rep-note{font-size:11.5px;}.lk-rtab{flex:1;padding:9px 10px;}.lk-grp{padding:8px 7px;}
+  .lg-row{gap:8px;padding:9px 8px;}.lg-cell{min-width:0;}.lg-cell input,.lg-cell select{max-width:42vw;}
+  .lk-chat-box{width:calc(100vw - 8px)!important;max-width:none;left:4px!important;right:4px!important;top:4px!important;transform:none!important;}
+}
 .lk-st{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle;background:var(--gray);}
 .lk-st.ok{background:var(--green);}.lk-st.warn{background:var(--amber);}.lk-st.none{background:#c2ccd6;}
 .lk-check{border-radius:11px;padding:11px 13px;margin-bottom:14px;border:1px solid var(--line);}
@@ -675,6 +726,27 @@ body.lk-drawing-context #btnExport{display:none;}
     <button class="lk-tb" id="lkReportAll" title="Свод по ВСЕМ открытым файлам сразу">📚 Отчёт по всем</button>
     <button class="lk-tb" id="lkCopy">⧉ Копировать для Excel</button>
     <button class="lg-x" id="lkClose">✕ Закрыть</button>
+  </div>
+  <div class="lk-mobile-tools" id="lkMobileTools">
+    <button id="lkMobileSheets" aria-expanded="false">☰ <span id="lkMobileSheet">Листы</span></button>
+    <button id="lkMobileSummary" aria-expanded="false">Σ <span id="lkMobileTotal">Итоги</span></button>
+    <button class="primary" id="lkMobileTeach">🎓 Правки</button>
+    <button id="lkMobileMore" aria-expanded="false" aria-label="Ещё действия">•••</button>
+  </div>
+  <button class="lk-mobile-shade" id="lkMobileShade" aria-label="Закрыть панель"></button>
+  <div class="lk-mobile-menu" id="lkMobileMenu" aria-hidden="true">
+    <div class="lk-mobile-panel-head"><b>Файлы и действия</b><button id="lkMobileMenuClose" aria-label="Закрыть">×</button></div>
+    <div class="lk-mobile-docs" id="lkMobileDocs"></div>
+    <div class="lk-mobile-actions">
+      <button data-lk-action="lkVisSheet">👁 Прочитать лист ИИ</button>
+      <button data-lk-action="lkIssues">⚑ Правки по файлу</button>
+      <button data-lk-action="lkOpenPdf">PDF текущего листа</button>
+      <button data-lk-action="lkSeqBtn">①→② Порядок строк</button>
+      <button data-lk-action="lkReport">📊 Отчёт по файлу</button>
+      <button data-lk-action="lkReportAll">📚 Свод по всем</button>
+      <button data-lk-action="lkCopy">⧉ Копировать Excel</button>
+      <button data-lk-file-add>＋ Добавить PDF</button>
+    </div>
   </div>
   <div class="lk-iss-modal" id="lkIssModal" style="display:none">
     <div class="lk-iss-box">
@@ -1881,7 +1953,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v457';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v458';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v425';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -3779,6 +3851,27 @@ async function lkGatherAll(){
   return out;
 }
 $('lkCopy').onclick=()=>{if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}lkCopyExcel();};
+/* Мобильная Линейка: один рабочий экран и временные панели вместо сжатого desktop-вида. */
+function lkMobileClosePanels(){
+  ['lkNav','lkSum','lkMobileMenu'].forEach(id=>{const el=$(id);if(el)el.classList.remove('mobile-open');});
+  const sh=$('lkMobileShade');if(sh)sh.classList.remove('on');
+  ['lkMobileSheets','lkMobileSummary','lkMobileMore'].forEach(id=>{const el=$(id);if(el)el.setAttribute('aria-expanded','false');});
+  const mm=$('lkMobileMenu');if(mm)mm.setAttribute('aria-hidden','true');
+}
+function lkMobileOpen(id,buttonId){
+  const already=$(id)&&$(id).classList.contains('mobile-open');lkMobileClosePanels();if(already)return;
+  const el=$(id),btn=$(buttonId),sh=$('lkMobileShade');if(!el)return;
+  el.classList.add('mobile-open');if(btn)btn.setAttribute('aria-expanded','true');if(sh)sh.classList.add('on');
+  if(id==='lkMobileMenu')el.setAttribute('aria-hidden','false');
+}
+$('lkMobileSheets').onclick=()=>lkMobileOpen('lkNav','lkMobileSheets');
+$('lkMobileSummary').onclick=()=>lkMobileOpen('lkSum','lkMobileSummary');
+$('lkMobileMore').onclick=()=>lkMobileOpen('lkMobileMenu','lkMobileMore');
+$('lkMobileTeach').onclick=()=>{lkMobileClosePanels();$('lkTeachTop').click();};
+$('lkMobileShade').onclick=lkMobileClosePanels;$('lkMobileMenuClose').onclick=lkMobileClosePanels;
+$('lkMobileMenu').querySelectorAll('[data-lk-action]').forEach(b=>b.onclick=()=>{const id=b.dataset.lkAction;lkMobileClosePanels();setTimeout(()=>{const el=$(id);if(el)el.click();},0);});
+$('lkMobileMenu').querySelector('[data-lk-file-add]').onclick=()=>{lkMobileClosePanels();$('lkFile').click();};
+window.addEventListener('resize',()=>{if(innerWidth>760)lkMobileClosePanels();});
 /* ---- несколько документов + автосохранение правок (IndexedDB) + восстановление после перезагрузки ---- */
 LK.docId=null;LK.docs=[];LK.issues=[];
 function lkSerialize(){return {sel:LK.sel,view:LK.view,pages:LK.pages.map(pg=>({page:pg.page,wpt:pg.wpt,hpt:pg.hpt,vru:pg.vru,shields:pg.shields,potreb:pg.potreb,pipes:pg.pipes,
@@ -3900,7 +3993,9 @@ function lkDocsBar(){const el=$('lkDocs');if(!el)return;
     +`<button class="lk-doc-add" id="lkDocAdd" title="Добавить PDF (можно несколько сразу)">+ PDF</button>`;
   el.querySelectorAll('.lk-doc').forEach(b=>b.onclick=e=>{if(e.target.dataset.del)return;lkSwitchDoc(b.dataset.doc);});
   el.querySelectorAll('.x').forEach(x=>x.onclick=e=>{e.stopPropagation();lkDelDoc(x.dataset.del);});
-  const add=$('lkDocAdd');if(add)add.onclick=()=>$('lkFile').click();}
+  const add=$('lkDocAdd');if(add)add.onclick=()=>$('lkFile').click();
+  const mob=$('lkMobileDocs');if(mob){mob.innerHTML=LK.docs.map(d=>`<button class="${d.id===LK.docId?'on':''}" data-doc="${esc(d.id)}" title="${esc(d.name)}">${esc(d.name.replace(/\.pdf$/i,''))}</button>`).join('');
+    mob.querySelectorAll('[data-doc]').forEach(b=>b.onclick=()=>{lkMobileClosePanels();lkSwitchDoc(b.dataset.doc);});}}
 async function lkSwitchDoc(id){
   if(id===LK.docId&&LK.pages.length){$('lineyka').style.display='flex';return;}
   clearTimeout(_lkSaveT);if(LK.docId&&LK.pages&&LK.pages.length)await lkPersistNow();
@@ -4970,18 +5065,22 @@ function renderLineyka(){
   // сводка по блокам (пятнам): суммы кабеля каждого блока + «весь проект» (строки без блока)
   const bt={};let btAny=false;lkAllRows().forEach(r=>{if(r.section==='шина')return;const k=r.block?'Блок '+r.block:'Весь проект';bt[k]=(bt[k]||0)+(+r.len||0);if(r.block)btAny=true;});
   const blkChips=btAny?`<span class="lk-break"></span><span class="lk-rep-lbl">По блокам:</span> `+Object.keys(bt).sort().map(k=>`<span class="lk-chip">${esc(k)} <b>${Math.round(bt[k])} м</b></span>`).join(''):'';
-  $('lkSum').innerHTML=Object.keys(g.s).sort().map(k=>`<span class="lk-chip">${esc(k)} <b>${Math.round(g.s[k])}</b></span>`).join('')
+  $('lkSum').innerHTML=`<div class="lk-mobile-panel-head"><b>Итоги по файлу</b><button id="lkMobileSummaryClose" aria-label="Закрыть">×</button></div>`+Object.keys(g.s).sort().map(k=>`<span class="lk-chip">${esc(k)} <b>${Math.round(g.s[k])}</b></span>`).join('')
     +`<span class="lk-chip tot">Всего кабеля <b>${Math.round(g.t)} м</b></span>`
     +(Object.keys(g.c).length?`<span class="lk-break"></span>`+Object.keys(g.c).sort().map(k=>`<span class="lk-chip cond">${esc(k)} <b>${Math.round(g.c[k])}</b></span>`).join('')+`<span class="lk-chip tot cond">Всего труб <b>${Math.round(ct)} м</b></span>`:'')
     +blkChips;
   // листы строго ПО ПОРЯДКУ (1..N), как в PDF: группировка по ВРУ вырывала листы из
   // последовательности («нет всех страниц») — ВРУ показываем подписью на самом листе
-  let navH='';LK.pages.forEach((pg,i)=>{const pt=lkSum(pg.rows).t;
+  const mobilePg=LK.pages[LK.sel];if($('lkMobileSheet'))$('lkMobileSheet').textContent=mobilePg?'Лист '+mobilePg.page:'Листы';
+  if($('lkMobileTotal'))$('lkMobileTotal').textContent=Math.round(g.t)+' м';
+  const sumClose=$('lkMobileSummaryClose');if(sumClose)sumClose.onclick=lkMobileClosePanels;
+  let navH=`<div class="lk-mobile-panel-head"><b>Выберите лист</b><button id="lkMobileNavClose" aria-label="Закрыть">×</button></div>`;LK.pages.forEach((pg,i)=>{const pt=lkSum(pg.rows).t;
     navH+=`<button class="lk-pg ${i===LK.sel?'on':''} ${(pg.rows||[]).length?'has':''}" data-pg="${i}"><div class="lk-pgi"><div class="lk-pgt">Лист ${pg.page}${pg.vru?` <span style="font-weight:600;opacity:.65">· ${esc(pg.vru)}</span>`:''}</div><div class="lk-pgn">${pg.shields.length?esc(pg.shields.join(', ')):'линейка'}</div><div class="lk-pgm">${Math.round(pt)} м · ${pg.rows.length} лин.</div></div></button>`;});
   if(LK.stale)navH=`<div class="lk-stale">⚠ Разбор сделан <b>старой версией</b> парсера. Сейчас — <b>${LK_PARSER_VER}</b>: исправления не видны, пока файл не перечитан.<button class="lk-add" id="lkStaleRe">⟳ Перечитать файл сейчас</button><div class="lk-stale-sub">Ручные правки строк будут заменены свежим разбором; пометки ⚑ останутся.</div></div>`+navH;
   $('lkNav').innerHTML=navH;
+  const navClose=$('lkMobileNavClose');if(navClose)navClose.onclick=lkMobileClosePanels;
   const _sre=$('lkStaleRe');if(_sre)_sre.onclick=()=>lkReparse();
-  $('lkNav').querySelectorAll('.lk-pg').forEach(b=>b.onclick=()=>{LK.sel=+b.dataset.pg;LK.view='pages';renderLineyka();$('lkPage').scrollTop=0;});
+  $('lkNav').querySelectorAll('.lk-pg').forEach(b=>b.onclick=()=>{LK.sel=+b.dataset.pg;LK.view='pages';lkMobileClosePanels();renderLineyka();$('lkPage').scrollTop=0;});
   if(LK.view==='report'){$('lkPage').innerHTML=lkReportHtml();bindReport();return;}
   if(LK.view==='reportall'){$('lkPage').innerHTML=lkReportAllHtml();bindReportAll();return;}
   const pg=LK.pages[LK.sel];
