@@ -8849,7 +8849,6 @@ function buildChartBuckets(period, points) {
   const shiftMs = 5 * 3600 * 1000;
   const dayMs = 86400000;
   const localNow = new Date(now.getTime() + shiftMs);
-  const RU_MON = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
   const buckets = [];
   if (period === 'week') {
     // Неделя: четверг 14:00 → следующий четверг 14:00 (Алматы). Последний бакет —
@@ -8867,7 +8866,8 @@ function buildChartBuckets(period, points) {
   } else if (period === 'month') {
     for (let i = points - 1; i >= 0; i--) {
       const startMs = Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth() - i, 1) - shiftMs;
-      const endMs = Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth() - i + 1, 1) - shiftMs;
+      const calendarEndMs = Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth() - i + 1, 1) - shiftMs;
+      const endMs = i === 0 ? Math.min(calendarEndMs, now.getTime()) : calendarEndMs;
       const localStart = new Date(startMs + shiftMs);
       const key = `${localStart.getUTCFullYear()}-${String(localStart.getUTCMonth() + 1).padStart(2, '0')}`;
       buckets.push({
@@ -8875,7 +8875,7 @@ function buildChartBuckets(period, points) {
         start: new Date(startMs).toISOString(),
         startMs,
         endMs,
-        label: RU_MON[localStart.getUTCMonth()] + ' ' + String(localStart.getUTCFullYear()).slice(-2),
+        label: '01.' + String(localStart.getUTCMonth() + 1).padStart(2, '0') + '.' + String(localStart.getUTCFullYear()).slice(-2),
         partial: i === 0,
       });
     }
