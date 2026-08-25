@@ -868,7 +868,9 @@ function lkUpgradeSourceReplacements(){if(!S.linkedLkDocId)return false;const sr
   (cur()||[]).slice().filter(o=>o&&o.type==='line'&&!o._lkSourceDecoration).forEach(o=>{const keys=(o._lkVectorKeys&&o._lkVectorKeys.length?o._lkVectorKeys:null)||(o._lkVectorKey?[o._lkVectorKey]:null);if(!keys)return;let rep=o._lkOriginal;if(!rep){rep=lkReplacementFromKeys(keys,sx,sy);if(!rep)return;o._lkOriginal=rep;o._lkSource=true;o.width=rep.width;changed=true;}if(!o._lkEndAttachmentsReady){lkAttachSourceEnds(o,rep,sx,sy);changed=true;}});
   if(changed)lkQueueDrawingSave();return changed;
 }
-function lkSelectDrawingVectorAt(p){if(!S.linkedLkDocId)return false;const hit=lkDrawingVectorAt(p);if(!hit){toast('Чуть точнее нажмите на саму линию');return false;}
+function lkSelectDrawingVectorAt(p){if(!S.linkedLkDocId)return false;const src=S.drawingVectorPages&&S.drawingVectorPages[S.pageNum];
+  if(!src||!src.ready){toast(_lkVectorJobs[S.linkedLkDocId]?'Исходные линии ещё готовятся в фоне; новые линии уже можно рисовать':'Для этого листа нет выбираемых исходных линий');return false;}
+  const hit=lkDrawingVectorAt(p);if(!hit){toast('Чуть точнее нажмите на саму линию');return false;}
   pushHistory();const chain=lkDrawingVectorChain(hit),raw=Object.assign({},chain.raw,{c:chain.raw.c||'#10151c'});const n=importObjects([raw],hit.sx,hit.sy)[0],rep=lkReplacementFromKeys(chain.keys,hit.sx,hit.sy);n._lkVectorKey=chain.keys[0];n._lkVectorKeys=chain.keys;n._lkSource=true;if(rep){n._lkOriginal=rep;n.width=rep.width;}cur().push(n);const attached=rep?lkAttachSourceEnds(n,rep,hit.sx,hit.sy):0;redrawAll();selectObj(n.id);lkQueueDrawingSave();
   toast(attached?'Исходная линия заменена; знаки закреплены за её концами':'Исходная линия заменена — меняйте её только точками');return true;
 }
@@ -985,11 +987,12 @@ async function loadData(file){
   try{const txt=await file.text();const j=JSON.parse(txt);if(j&&j._planfakt)openProject(j);else initData(j);}
   catch(e){console.error(e);toast('Не удалось прочитать файл данных');$('spin').style.display='none';}
 }
-async function serverConvert(file){
+async function serverConvert(file,opt){
+  opt=opt||{};
   if(!CONVERT_URL)return null;
-  const ctrl=new AbortController();const t=setTimeout(()=>ctrl.abort(),300000);
+  const ctrl=new AbortController(),timeoutMs=Math.max(1000,+opt.timeoutMs||300000);const t=setTimeout(()=>ctrl.abort(),timeoutMs);
   try{
-    $('spinTxt').textContent='Разбираю чертёж на сервере…';
+    if(!opt.quiet&&$('spinTxt'))$('spinTxt').textContent='Разбираю чертёж на сервере…';
     const fd=new FormData();fd.append('file',file);
     const r=await fetch(CONVERT_URL+'/convert',{method:'POST',body:fd,signal:ctrl.signal});
     if(!r.ok)return null;
@@ -1878,7 +1881,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v456';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v457';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v425';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -3801,14 +3804,59 @@ function lkApplyDrawingSettings(st){st=st||{};
   S.zones=st.zones||{apt:{name:'Квартиры',socket:.4,switch:.9,panel:1.5},mop:{name:'МОПы',socket:.4,switch:.9,panel:1.5},park:{name:'Паркинг',socket:.5,switch:1.1,panel:1.8}};
   S.zoneByPage=st.zoneByPage||{};S.outletsPer=st.outletsPer!=null?st.outletsPer:2;S.tailLen=st.tailLen!=null?st.tailLen:.3;
   S.outletCorrByPage=st.outletCorrByPage||{};S.lightTail=st.lightTail!=null?st.lightTail:.3;S.switchLen=st.switchLen!=null?st.switchLen:1.5;S.applianceByPage=st.applianceByPage||{};}
+/* Выбираемые линии текущего листа получаем прямо из уже открытого PDF.js.
+   Раньше ради одного листа телефон повторно отправлял на сервер весь PDF (у реального файла — 52 листа,
+   7,3 МБ) и держал блокирующее окно до пяти минут. OperatorList строится только для текущего листа,
+   локально и обычно за доли секунды; результат сохраняется рядом с графическими правками. */
+async function lkLocalPageVectors(pg){
+  if(!LK.pdf||!window.pdfjsLib)throw new Error('локальный PDF-движок недоступен');
+  const page=await LK.pdf.getPage(pg.page),vp0=page.getViewport({scale:1}),ol=await page.getOperatorList(),O=pdfjsLib.OPS,U=pdfjsLib.Util;
+  let ctm=[1,0,0,1,0,0],lineWidth=1,stroke='#10151c',stack=[],paths=[],curPath=null,cx=0,cy=0,sx0=0,sy0=0;
+  const out=[],num=x=>Number.isFinite(+x)?+x:0,mat=()=>U.transform(vp0.transform,ctm),pt=(x,y)=>{const m=mat();return{x:m[0]*x+m[2]*y+m[4],y:m[1]*x+m[3]*y+m[5]};};
+  const rgb=a=>{a=Array.from(a||[]);let r=num(a[0]),g=num(a[1]),b=num(a[2]);if(Math.max(r,g,b)<=1){r*=255;g*=255;b*=255;}return'#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');};
+  const addPoint=(x,y)=>{const q=pt(x,y),p=curPath&&curPath[curPath.length-1];if(!p||Math.hypot(q.x-p[0],q.y-p[1])>.02)curPath.push([q.x,q.y]);cx=x;cy=y;};
+  const start=(x,y)=>{curPath=[];paths.push(curPath);sx0=cx=x;sy0=cy=y;addPoint(x,y);};
+  const cubic=(x1,y1,x2,y2,x3,y3)=>{const x0=cx,y0=cy;for(let k=1;k<=6;k++){const t=k/6,u=1-t;addPoint(u*u*u*x0+3*u*u*t*x1+3*u*t*t*x2+t*t*t*x3,u*u*u*y0+3*u*u*t*y1+3*u*t*t*y2+t*t*t*y3);}};
+  const construct=a=>{const ops=Array.from(a&&a[0]||[]),v=Array.from(a&&a[1]||[]);let j=0;
+    for(const op of ops){if(op===O.moveTo)start(num(v[j++]),num(v[j++]));
+      else if(op===O.lineTo){if(!curPath)start(cx,cy);addPoint(num(v[j++]),num(v[j++]));}
+      else if(op===O.curveTo){if(!curPath)start(cx,cy);cubic(num(v[j++]),num(v[j++]),num(v[j++]),num(v[j++]),num(v[j++]),num(v[j++]));}
+      else if(op===O.curveTo2){if(!curPath)start(cx,cy);const x2=num(v[j++]),y2=num(v[j++]),x3=num(v[j++]),y3=num(v[j++]);cubic(cx,cy,x2,y2,x3,y3);}
+      else if(op===O.curveTo3){if(!curPath)start(cx,cy);const x1=num(v[j++]),y1=num(v[j++]),x3=num(v[j++]),y3=num(v[j++]);cubic(x1,y1,x3,y3,x3,y3);}
+      else if(op===O.rectangle){const x=num(v[j++]),y=num(v[j++]),w=num(v[j++]),h=num(v[j++]);start(x,y);addPoint(x+w,y);addPoint(x+w,y+h);addPoint(x,y+h);addPoint(x,y);}
+      else if(op===O.closePath&&curPath){addPoint(sx0,sy0);}}
+  };
+  const flush=()=>{const m=mat(),scale=Math.sqrt(Math.abs(m[0]*m[3]-m[1]*m[2]))||1,w=Math.max(.15,lineWidth*scale);
+    paths.forEach(p=>{if(p.length<2)return;let len=0;for(let i=1;i<p.length;i++)len+=Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]);if(len>.08)out.push({t:'line',c:stroke,w,p});});paths=[];curPath=null;};
+  for(let i=0;i<ol.fnArray.length;i++){const fn=ol.fnArray[i],a=ol.argsArray[i]||[];
+    if(fn===O.save)stack.push({ctm:ctm.slice(),lineWidth,stroke});
+    else if(fn===O.restore){const s=stack.pop();if(s){ctm=s.ctm;lineWidth=s.lineWidth;stroke=s.stroke;}}
+    else if(fn===O.transform)ctm=U.transform(ctm,Array.from(a));
+    else if(fn===O.setLineWidth)lineWidth=Math.max(.01,num(a[0]));
+    else if(fn===O.setStrokeRGBColor)stroke=rgb(a);
+    else if(fn===O.setStrokeGray){const g=Math.round(Math.max(0,Math.min(1,num(a[0])))*255).toString(16).padStart(2,'0');stroke='#'+g+g+g;}
+    else if(fn===O.setStrokeCMYKColor){const c=num(a[0]),m=num(a[1]),y=num(a[2]),k=num(a[3]);stroke=rgb([1-Math.min(1,c+k),1-Math.min(1,m+k),1-Math.min(1,y+k)]);}
+    else if(fn===O.setGState)(a[0]||[]).forEach(g=>{if(g&&g[0]==='LW')lineWidth=Math.max(.01,num(g[1]));});
+    else if(fn===O.constructPath)construct(a);
+    else if(fn===O.closeStroke||fn===O.closeFillStroke||fn===O.closeEOFillStroke){if(curPath)addPoint(sx0,sy0);flush();}
+    else if(fn===O.stroke||fn===O.fillStroke||fn===O.eoFillStroke)flush();
+    else if(fn===O.endPath||fn===O.fill||fn===O.eoFill){paths=[];curPath=null;}
+  }
+  if(out.length>80000)throw new Error('слишком много векторов на одном листе');
+  return{ready:1,local:1,wpt:vp0.width||pg.wpt,hpt:vp0.height||pg.hpt,objs:[],dark:out};
+}
+async function lkStoreDrawingVectors(rec,ds,pg,cp){const fresh=await archGet(rec.id)||rec,fds=Object.assign({},ds,fresh.drawingState||{}),pages=Object.assign({},fds.vectorPages||{});
+  pages[pg.page]={ready:1,local:cp.local?1:0,wpt:cp.wpt||pg.wpt,hpt:cp.hpt||pg.hpt,objs:Array.isArray(cp.objs)?cp.objs:[],dark:Array.isArray(cp.dark)?cp.dark:[]};
+  fresh.drawingState=Object.assign({},fds,{updated:Date.now(),vectorPages:pages});await archPut(fresh);if(LK.docId===rec.id)LK.drawingState=fresh.drawingState;return pages;}
+const _lkVectorJobs={};
+function lkServerDrawingVectors(rec,ds,pg){const key=rec.id||LK.docId;if(_lkVectorJobs[key])return _lkVectorJobs[key];
+  const job=(async()=>{try{const file=new File([rec.buf],rec.name||'drawing.pdf',{type:'application/pdf'}),conv=await serverConvert(file,{quiet:true}),cp=conv&&conv.pages&&conv.pages[pg.page];
+      if(!cp)throw new Error('векторный слой не получен');const pages=await lkStoreDrawingVectors(rec,ds,pg,cp);
+      if(S.linkedLkDocId===key){S.drawingVectorPages=pages;toast('Исходные линии готовы — нажмите на линию для правки');}return pages;
+    }catch(e){console.warn('drawing vectors server fallback',e);return ds.vectorPages||{};}finally{delete _lkVectorJobs[key];}})();_lkVectorJobs[key]=job;return job;}
 async function lkEnsureDrawingVectors(rec,ds,pg){const pages=ds.vectorPages||{};if(pages[pg.page]&&pages[pg.page].ready)return pages;
-  lkBusy('Подготавливаю линии чертежа…','первый раз PDF разбирается на выбираемые векторы; затем лист откроется из локального кэша');
-  try{const file=new File([rec.buf],rec.name||'drawing.pdf',{type:'application/pdf'}),conv=await serverConvert(file),cp=conv&&conv.pages&&conv.pages[pg.page];
-    if(!cp)throw new Error('векторный слой не получен');
-    pages[pg.page]={ready:1,wpt:cp.wpt||pg.wpt,hpt:cp.hpt||pg.hpt,objs:Array.isArray(cp.objs)?cp.objs:[],dark:Array.isArray(cp.dark)?cp.dark:[]};
-    ds.vectorPages=pages;rec.drawingState=Object.assign({},ds,{updated:Date.now(),vectorPages:pages});await archPut(rec);return pages;
-  }catch(e){console.warn('drawing vectors',e);toast('Исходные линии не удалось подготовить — новые линии всё равно можно рисовать поверх');return pages;}
-  finally{lkBusy(false);}}
+  try{return await lkStoreDrawingVectors(rec,ds,pg,await lkLocalPageVectors(pg));}
+  catch(e){console.warn('drawing vectors local',e);lkServerDrawingVectors(rec,ds,pg);toast('Редактор открыт сразу; исходные линии готовятся в фоне');return pages;}}
 function lkQueueDrawingSave(){if(!S.linkedLkDocId)return;clearTimeout(_lkDrawingSaveT);_lkDrawingSaveT=setTimeout(lkPersistDrawingNow,650);}
 async function lkPersistDrawingNow(){clearTimeout(_lkDrawingSaveT);if(!S.linkedLkDocId)return;
   const id=S.linkedLkDocId;try{const rec=await archGet(id);if(!rec)return;
