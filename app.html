@@ -4705,7 +4705,7 @@ function financeWeekTaskBlockForPoint(kind,point){
       const automatic=financeWeekTaskIsAutomatic(task);
       const openAction=financeWeekTaskOpenAction(task,kind,point.start,point.end);
       const actions=automatic
-        ? `<span class="fc-week-task-actions">${financeWeekTaskAutoBadge(task)}</span>`
+        ? `<span class="fc-week-task-actions">${financeWeekTaskAutoBadge(task)}${task.done||!canConfigureFinanceChart(kind)?'':`<button class="move" type="button" onclick="moveFinanceWeekTaskForward('${mEsc(task.id)}')" aria-label="Перенести автоматическое дело на следующую неделю" title="Перенести плановый платёж на следующую неделю">→</button>`}</span>`
         : canConfigureFinanceChart(kind)
         ? `<span class="fc-week-task-actions">${task.done?'':`<button class="move" type="button" onclick="moveFinanceWeekTaskForward('${mEsc(task.id)}')" aria-label="Перенести дело на следующую неделю" title="Перенести на следующую неделю">→</button>`}<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button></span>`
         : '<span></span>';
@@ -4773,11 +4773,39 @@ async function toggleFinanceWeekTask(taskId,done){
 }
 async function moveFinanceWeekTaskForward(taskId){
   const task=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
-  if(!task || task.done || financeWeekTaskIsAutomatic(task) || !canConfigureFinanceChart(task.kind)) return;
+  if(!task || task.done || !canConfigureFinanceChart(task.kind)) return;
+  if(financeWeekTaskIsAutomatic(task)){
+    await moveAutomaticPaymentPlanTaskForward(task);
+    return;
+  }
   const week=7*24*60*60*1000;
   const nextStart=Number(task.start)+week;
   const nextEnd=(Number(task.end)>Number(task.start)?Number(task.end):Number(task.start)+week)+week;
   await copyFinanceWeekTask(task,nextStart,nextEnd);
+}
+async function moveAutomaticPaymentPlanTaskForward(task){
+  const projectId=String(task?.sourceProjectId||'');
+  const stage=paymentPlanStage(projectId,task?.sourcePlanId);
+  if(!projectId || !stage || !Number(stage.dueAt)){
+    alert('Не удалось найти связанный платёж в плане проекта.');
+    return;
+  }
+  const week=7*24*60*60*1000;
+  const nextDueAt=Number(stage.dueAt)+week;
+  const nextBounds=financeWeekBoundsAt(nextDueAt);
+  const period=financeWeekTaskPeriod(nextBounds);
+  const linkedRelease=stage.id==='final' ? ' Связанный плановый выпуск будет перенесён вместе с платежом.' : '';
+  if(!confirm(`Перенести «${String(stage.label||'Плановый платёж')}» на неделю ${period}?${linkedRelease}`)) return;
+  stage.dueAt=nextDueAt;
+  saveMoney();
+  try{
+    await syncPaymentPlanTasks(projectId);
+    if(_mmId===projectId) renderMoneyModal();
+  }catch(error){
+    stage.dueAt=nextDueAt-week;
+    saveMoney();
+    alert('Не удалось перенести плановый платёж: '+error.message);
+  }
 }
 async function carryFinanceWeekTaskToCurrent(taskId){
   const task=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
