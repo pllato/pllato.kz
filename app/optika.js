@@ -5,28 +5,34 @@ const tg=n=>fmt(n)+' ₸';
 const sgn=n=>(n>0?'+':'')+n.toFixed(2).replace('.',',');
 
 const ROLES={
- 'Владелец сети':{n:'Владелец сети',av:'ВЛ',note:'Салоны, деньги, аналитика, персонал',s:['dash','orders','clients','sales','stock','lab','staff','analytics','settings']},
- 'Врач-оптометрист':{n:'Врач-оптометрист',av:'ВР',note:'Журнал приёмов, осмотр, рецепты',s:['sched','exam','clients','stock']},
- 'Продавец-консультант':{n:'Продавец · зал',av:'ПР',note:'Заказ очков, касса, подбор оправ',s:['orders','neworder','clients','sales','stock','sched']},
- 'Мастер · сборка':{n:'Мастер мастерской',av:'МС',note:'Очередь сборки, этапы, ОТК',s:['lab','stock']},
+ 'Владелец сети':{n:'Владелец сети',av:'ВЛ',note:'12 салонов, деньги, аналитика, персонал',s:['dash','orders','clients','sales','stock','rfid','supply','lab','staff','analytics','tasks','admin','settings']},
+ 'Врач-оптометрист':{n:'Врач-оптометрист',av:'ВР',note:'Журнал приёмов, осмотр, рецепты, медкарта',s:['sched','exam','clients','stock','tasks']},
+ 'Продавец-консультант':{n:'Продавец · зал',av:'ПР',note:'Заказ очков, касса, подбор оправ',s:['orders','neworder','clients','sales','stock','rfid','sched','tasks']},
+ 'Работник склада':{n:'Склад и закупки',av:'СК',note:'Поставки, трансферы, ревизия, метки',s:['supply','stock','rfid','tasks']},
+ 'Мастер · цех':{n:'Мастер цеха',av:'МС',note:'Очередь изготовления, этапы, ОТК',s:['lab','stock','tasks']},
  'Клиент':{n:'Клиент',av:'КЛ',note:'Что клиент видит в WhatsApp',s:['client']}
 };
 const NAV=[
  ['ЗАЛ И ПРИЁМ',[['dash','DSH','Пульт сети'],['sched','ZAP','Журнал записи',4],['exam','VRA','Кабинет врача'],['neworder','NEW','Новый заказ']]],
- ['ЗАКАЗЫ',[['orders','ZAK','Заказы',3],['lab','MST','Мастерская',5],['clients','KLI','Клиенты']]],
- ['ТОВАР И ДЕНЬГИ',[['stock','SKL','Склад и линзы',2],['sales','KAS','Касса и продажи'],['analytics','ANL','Аналитика'],['staff','PER','Персонал и KPI']]],
- ['СЕРВИС',[['client','WAP','Глазами клиента'],['settings','SET','Настройки']]]
+ ['ЗАКАЗЫ И КЛИЕНТЫ',[['orders','ZAK','Заказы',3],['lab','CEH','Цех и ремонт',5],['clients','KLI','Клиенты']]],
+ ['ТОВАР И СКЛАД',[['stock','SKL','Склад и номенклатура',2],['rfid','RFD','RFID и этикетки'],['supply','POS','Поставки и трансферы',2]]],
+ ['ДЕНЬГИ И УПРАВЛЕНИЕ',[['sales','KAS','Касса и смена'],['analytics','ANL','Аналитика'],['staff','PER','Персонал и KPI'],['tasks','ZAD','Задачи и новости',3]]],
+ ['СИСТЕМА',[['client','WAP','Глазами клиента'],['admin','ADM','Организация и доступы'],['settings','SET','Настройки']]]
 ];
 const TITLES={
+ rfid:['RFID и этикетки','UHF-метки вместо ручного ввода: инвентаризация зала за минуты, печать этикеток и штрихкодов'],
+ supply:['Поставки и трансферы','Поставщики, приход по накладной, перемещения между 12 салонами, ревизия и списания'],
+ tasks:['Задачи и новости','Внутренние задачи по клиентам и заказам, задачи на обзвон, новости сети'],
+ admin:['Организация и доступы','Юрлица, подразделения, роли и права, журнал действий пользователей'],
  dash:['Пульт сети','Четыре салона: приёмы, заказы, выручка и что требует внимания прямо сейчас'],
  sched:['Журнал записи','Запись к врачу по кабинетам и салонам, онлайн-запись и напоминания клиентам'],
  exam:['Кабинет оптометриста','Карта осмотра, рецепт OD/OS, история и динамика зрения клиента'],
  neworder:['Новый заказ','Конструктор: оправа + линзы + покрытия, расчёт цены и проверка совместимости'],
  orders:['Заказы','Все заказы сети от оформления до выдачи, сроки и статусы'],
- lab:['Мастерская','Очередь сборки по этапам: раскрой, обточка, сборка, ОТК'],
+ lab:['Цех и ремонт','Очередь изготовления по этапам, ремонт очков, брак и переделки, выработка мастеров'],
  clients:['Клиенты','Карточка с рецептами, заказами, гарантией и напоминаниями о замене линз'],
- stock:['Склад и линзы','Оправы со штрихкодами, матрица линз по диоптриям, партии контактных линз'],
- sales:['Касса и продажи','Чеки, оплаты, возвраты, сертификаты и рассрочка'],
+ stock:['Склад и номенклатура','~15 000 позиций: оправы, линзы, контактные линзы, аксессуары. Матрица линз по диоптриям и партии КЛ'],
+ sales:['Касса и смена','Рабочее место кассира: смена, X-отчёт, инкассация, возвраты, чек коррекции'],
  analytics:['Аналитика','Выручка, средний чек, конверсия «приём → заказ», топ оправ, оборачиваемость'],
  staff:['Персонал и KPI','Выработка врачей и продавцов, проценты и зарплата'],
  client:['Глазами клиента','Вся цепочка в WhatsApp: запись, готовность очков, замена линз, приём через год'],
@@ -35,7 +41,8 @@ const TITLES={
 let role='Владелец сети',cur='dash';
 
 /* ===== СПРАВОЧНИКИ ===== */
-const SALONS=['ул. Горького, 42','ТРЦ «Мега», 2 этаж','пр. Абая, 118','ул. Сатпаева, 7'];
+const SALONS=['ул. Горького, 42','ТРЦ «Мега», 2 этаж','пр. Абая, 118','ул. Сатпаева, 7','ТРЦ «Хан Шатыр»','пр. Туран, 55','ул. Кенесары, 40','ТРЦ «Сарыарка»','пр. Мангилик Ел, 20','ул. Кабанбай батыра, 13','ТРЦ «Астана Молл»','ул. Бейбитшилик, 25'];
+const LEGAL=[{n:'ТОО «Оптик Сеть»',bin:'180340012345',vat:'НДС 12%',sal:'салоны 1–7'},{n:'ИП Даурен',bin:'900101300123',vat:'без НДС',sal:'салоны 8–12'}];
 const DOCS=['Ахметова А. К.','Ким С. В.','Нурланова Ж. Б.'];
 const SELLERS=['Дана','Тимур','Алия','Ерлан'];
 const MASTERS=['Олжас','Виктор'];
@@ -64,13 +71,14 @@ const SERV=[{id:'s1',n:'Изготовление и сборка',p:8000},{id:'s
 /* статусы заказа */
 let STATUS=[
  {k:'new',n:'Оформлен',c:'#3b82f6'},
- {k:'lens',n:'Ожидаем линзы',c:'#8b7cf6'},
- {k:'lab',n:'В мастерской',c:'#06b6d4'},
+ {k:'lens',n:'Ожидает товар / линзы',c:'#8b7cf6'},
+ {k:'lab',n:'В работе (цех)',c:'#06b6d4'},
  {k:'otk',n:'Контроль качества',c:'#f59e0b'},
- {k:'ready',n:'Готов к выдаче',c:'#22c55e'},
+ {k:'ready',n:'Готов · клиент уведомлён',c:'#22c55e'},
  {k:'done',n:'Выдан',c:'#10b981'},
- {k:'fix',n:'Переделка',c:'#ef4444'}
+ {k:'fix',n:'Переделка / возврат',c:'#ef4444'}
 ];
+const OTYPES=[['glasses','Изготовление очков'],['goods','Продажа товара'],['cl','Контактные линзы'],['exam','Проверка зрения'],['repair','Ремонт очков'],['repair_s','Ремонт у продавца'],['cert','Подарочный сертификат'],['lens_order','Заказная линза'],['other_dep','Заказ из другого салона']];
 const ST=k=>STATUS.find(s=>s.k===k)||STATUS[0];
 /* этапы мастерской */
 const LSTAGES=[['cut','РАСКРОЙ','#8b7cf6'],['edge','ОБТОЧКА','#06b6d4'],['assy','СБОРКА','#f59e0b'],['qc','ОТК','#3b82f6'],['ok','ГОТОВО','#22c55e']];
@@ -163,15 +171,25 @@ SC.dash=()=>`
     .map(a=>`<div style="display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--line)"><span style="width:26px;height:26px;background:var(--panel2);display:grid;place-items:center;flex:none;border-radius:8px;font-size:12px;color:${a[3]}">${a[0]}</span><div><b style="font-size:9.8px">${a[1]}</b><p class="mini" style="margin:2px 0 0">${a[2]}</p></div></div>`).join('')}
   </div>
  </div>
- <div class="g3">
+ <div class="g4">
   <div class="panel"><div class="ph-title">Салоны · выручка за месяц</div>
-   ${SALONS.map((s,i)=>{const v=[9200000,7400000,5100000,3800000][i];return `<div class="fr" style="grid-template-columns:150px 1fr 74px"><span style="font-size:9px">${s}</span><div class="ftrack" style="height:15px"><i style="--w:${v/9200000*100}%"></i></div><b>${fmt(v/1000000*10)/10} млн</b></div>`}).join('')}
-   <div class="kpi-mini"><div style="--tone:var(--acc)"><small>ИТОГО ЗА МЕСЯЦ</small><b>25,5 млн ₸</b></div><div style="--tone:var(--green)"><small>ЗАКАЗОВ</small><b>214</b></div></div>
+   ${SALONS.slice(0,7).map((s,i)=>{const v=[9200000,7400000,6300000,5100000,4600000,3800000,3100000][i];return `<div class="fr" style="grid-template-columns:150px 1fr 74px"><span style="font-size:9px">${s}</span><div class="ftrack" style="height:14px"><i style="--w:${v/9200000*100}%"></i></div><b>${fmt(v/1000000*10)/10} млн</b></div>`}).join('')}
+   <div class="mini" style="margin-top:5px">Показаны 7 из 12 салонов · полный рейтинг — в аналитике</div>
+   <div class="kpi-mini"><div style="--tone:var(--acc)"><small>ИТОГО ЗА МЕСЯЦ</small><b>62,4 млн ₸</b></div><div style="--tone:var(--green)"><small>ЗАКАЗОВ</small><b>586</b></div></div>
   </div>
   <div class="panel"><div class="ph-title">Из чего складывается чек</div>
    ${[['Линзы и покрытия',46,'var(--acc)'],['Оправы',34,'var(--violet)'],['Контактные линзы',11,'var(--blue)'],['Приём врача',5,'#22c55e'],['Аксессуары и уход',4,'var(--amber)']]
      .map(r=>`<div class="fr" style="grid-template-columns:130px 1fr 40px"><span>${r[0]}</span><div class="ftrack" style="height:15px"><i style="--w:${r[1]/46*100}%;background:${r[2]}"></i></div><b>${r[1]}%</b></div>`).join('')}
    <div class="hint" style="margin-top:9px"><b>Инсайт:</b> где продавец предлагает покрытие от синего света, чек выше на 21 000 ₸. Система подсказывает это прямо в конструкторе заказа.</div>
+  </div>
+  <div class="panel"><div class="ph-title">Своя система вместо аренды</div>
+   <div class="kpi-mini" style="margin-top:4px">
+    <div style="--tone:var(--red)"><small>ПЛАТИТЕ СЕЙЧАС</small><b>~$1 000/мес</b></div>
+    <div style="--tone:var(--amber)"><small>ЗА ГОД</small><b>≈ 6,2 млн ₸</b></div>
+    <div style="--tone:#22c55e"><small>ПОСЛЕ ПЕРЕХОДА</small><b>0 ₸/мес</b></div>
+   </div>
+   <div class="hint"><b>Разработка окупается примерно за год</b> и дальше просто перестаёт быть статьёй расходов. Плюс система не может подорожать, закрыться или изменить условия — она ваша, на вашем сервере, с вашими данными.</div>
+   <div class="mini" style="margin-top:7px">Из платного остаётся только WhatsApp-канал (~5 000 ₸/мес) и, при желании, доработки по часам.</div>
   </div>
   <div class="panel"><div class="ph-title">Возвраты клиентов</div>
    <div class="kpi-mini" style="margin-top:4px">
@@ -323,6 +341,10 @@ SC.orders=()=>{const list=ORDERS.filter(o=>ordF==='all'||o.st===ordF);
   <div><small>ПРОСРОЧЕНО</small><b class="bad">${ORDERS.filter(o=>o.over).length}</b><span>сроки под контролем</span></div>
   <div><small>СУММА В РАБОТЕ</small><b>${tg(ORDERS.filter(o=>o.st!=='done').reduce((a,o)=>a+o.sum,0))}</b><span>оплачено ${tg(ORDERS.reduce((a,o)=>a+o.paid,0))}</span></div>
  </div>
+ <div class="filters" style="margin-bottom:6px">
+  <span class="mini" style="align-self:center;margin-right:4px">Типы заказов:</span>
+  ${OTYPES.map(t=>`<button class="filter" onclick="toast('Тип «${t[1]}»: свой набор полей, печатные формы и маршрут по статусам. Все девять типов из вашего ТЗ поддержаны.')">${t[1]}</button>`).join('')}
+ </div>
  <div class="filters">
   <button class="filter ${ordF==='all'?'on':''}" onclick="ordF='all';render()">Все</button>
   ${STATUS.map(s=>`<button class="filter ${ordF===s.k?'on':''}" onclick="ordF='${s.k}';render()" style="${ordF===s.k?`background:${s.c};border-color:${s.c};color:#04222b`:''}">${s.n}</button>`).join('')}
@@ -465,7 +487,17 @@ SC.stock=()=>`
 /* ---- КАССА ---- */
 SC.sales=()=>`
  <div class="head"><div><h2>Касса и продажи</h2><p>Чеки, оплаты и возвраты по всем салонам. Касса работает даже без интернета — при восстановлении связи всё синхронизируется.</p></div>
- <div class="btns"><button class="btn" onclick="toast('Смена закрыта, Z-отчёт сформирован и ушёл в 1С.')">Закрыть смену</button><button class="btn acc" onclick="toast('Новая продажа: сканируем товар или выбираем заказ клиента — чек печатается и уходит в WhatsApp.')">+ Продажа</button></div></div>
+ <div class="btns"><button class="btn" onclick="toast('X-отчёт: промежуточные итоги смены без её закрытия — наличные, карта, возвраты, внесения и изъятия.')">X-отчёт</button>
+ <button class="btn" onclick="toast('Инкассация: сумма изъята из кассы, зафиксирован автор и остаток в денежном ящике.')">Инкассация</button>
+ <button class="btn" onclick="toast('Смена закрыта: Z-отчёт сформирован, расхождений нет. Все чеки отправлены оператору фискальных данных.')">Закрыть смену</button>
+ <button class="btn acc" onclick="toast('Новая продажа: сканируем товар (штрихкод или RFID) либо выбираем заказ клиента — чек печатается и уходит в WhatsApp.')">+ Продажа</button></div></div>
+ <div class="panel" style="margin-bottom:10px"><div class="ph"><div><div class="ph-title">Кассовая смена · Горького, 42</div><div class="ph-sub">открыта 09:58 · кассир Дана · ТОО «Оптик Сеть»</div></div><span class="tag green">смена открыта</span></div>
+  <div class="g4">
+   ${[['НАЛИЧНЫЕ В КАССЕ','274 000 ₸','var(--acc)'],['БЕЗНАЛИЧНЫЕ','756 000 ₸','var(--blue)'],['ВОЗВРАТЫ','−12 000 ₸','var(--red)'],['ЧЕКОВ ЗА СМЕНУ','28','var(--violet)']]
+    .map(x=>`<div style="background:var(--panel2);border-left:2px solid ${x[2]};border-radius:0 9px 9px 0;padding:10px 12px"><small class="mono" style="color:var(--muted2);font-size:7.4px">${x[0]}</small><b style="display:block;font-size:17px;margin-top:4px">${x[1]}</b></div>`).join('')}
+  </div>
+  <div class="hint"><b>Работа без интернета:</b> если связь пропала, касса продолжает продавать локально и досылает чеки, когда сеть вернётся. Продажа не встаёт из-за интернета — это принципиально для 12 салонов.</div>
+ </div>
  <div class="strip">
   <div><small>ВЫРУЧКА ДНЯ · СЕТЬ</small><b>1,24 млн ₸</b><span>наличные 22% · карта 61% · Kaspi 17%</span></div>
   <div><small>ЧЕКОВ</small><b>28</b><span>средний 44 300 ₸</span></div>
@@ -577,6 +609,173 @@ SC.client=()=>`
   </div>
  </div>
  <div class="hint"><b>Это и есть разница с текущей программой:</b> вместо email- и SMS-рассылок «в никуда» — цепочка сообщений в WhatsApp, привязанная к рецепту и заказу конкретного человека. Возврат клиентов через год вырос с 38% до 61%.</div>`;
+
+
+/* ---- RFID И ЭТИКЕТКИ (запрос клиента со встречи) ---- */
+let rfidScan=0,rfidRun=0;
+SC.rfid=()=>`
+ <div class="head"><div><h2>RFID и этикетки</h2><p>То, о чём вы говорили: UHF-метка внутри бирки вместо ручного ввода штрихкода. Считыватель «видит» товар через пространство — на полке, в коробке, в сумке. Инвентаризация зала из полудня превращается в 6 минут.</p></div>
+ <div class="btns"><button class="btn" onclick="toast('Печать этикеток: размер, поля, шрифт, что печатать (название, модель, старая цена, цена, дата). Предпросмотр и пробная печать — на рулонном принтере или листом A4.')">Шаблон этикетки</button>
+ <button class="btn acc" onclick="rfidStart()">▶ Запустить сканирование зала</button></div></div>
+ <div class="strip">
+  <div><small>ПОЗИЦИЙ С RFID-МЕТКОЙ</small><b>${rfidRun?'2 148':'2 106'}</b><span>оправы и солнцезащитные</span></div>
+  <div><small>ИНВЕНТАРИЗАЦИЯ ЗАЛА</small><b class="good">6 минут</b><span>вместо 4–5 часов вручную</span></div>
+  <div><small>НАЙДЕНО ЗА СЕАНС</small><b>${fmt(rfidScan)}</b><span>${rfidRun?'идёт считывание…':(rfidScan?'сеанс завершён · 6 минут':'нажмите «Запустить сканирование»')}</span></div>
+  <div><small>РАСХОЖДЕНИЙ</small><b class="warn">${rfidScan>1800?'3':'—'}</b><span>недостача подсветится сразу</span></div>
+  <div><small>ЦЕНА МЕТКИ</small><b>~35 ₸</b><span>дешевле потерянной оправы</span></div>
+ </div>
+ <div class="g21">
+  <div class="panel"><div class="ph"><div><div class="ph-title">Сканирование зала · салон на Горького</div><div class="ph-sub">сотрудник проходит с ручным считывателем вдоль витрин — руками ничего вводить не нужно</div></div>${rfidRun?'<span class="tag acc">идёт считывание</span>':'<span class="tag">готово к запуску</span>'}</div>
+   <div class="bar" style="height:16px;margin-bottom:12px"><i style="--w:${Math.min(100,rfidScan/21)}%;--tone:var(--acc)"></i></div>
+   <div class="g4">
+    <div class="benefit" style="background:var(--panel2);border:1px solid var(--line2);border-radius:var(--rs);padding:11px"><small class="mono" style="color:var(--muted2);font-size:7.4px">СЧИТАНО МЕТОК</small><b style="display:block;font-size:18px;margin-top:4px;color:var(--acc2)">${fmt(rfidScan)}</b></div>
+    <div class="benefit" style="background:var(--panel2);border:1px solid var(--line2);border-radius:var(--rs);padding:11px"><small class="mono" style="color:var(--muted2);font-size:7.4px">СОВПАЛО С УЧЁТОМ</small><b style="display:block;font-size:18px;margin-top:4px">${fmt(Math.max(0,rfidScan-(rfidScan>1800?3:0)))}</b></div>
+    <div class="benefit" style="background:var(--panel2);border:1px solid var(--line2);border-radius:var(--rs);padding:11px"><small class="mono" style="color:var(--muted2);font-size:7.4px">НЕ НАЙДЕНО</small><b style="display:block;font-size:18px;margin-top:4px;color:${rfidScan>1800?'#f87171':'inherit'}">${rfidScan>1800?3:0}</b></div>
+    <div class="benefit" style="background:var(--panel2);border:1px solid var(--line2);border-radius:var(--rs);padding:11px"><small class="mono" style="color:var(--muted2);font-size:7.4px">ЧУЖИЕ МЕТКИ</small><b style="display:block;font-size:18px;margin-top:4px">0</b></div>
+   </div>
+   ${rfidScan>1800?`<div class="note" style="--tone:var(--red)"><b>Не найдены 3 позиции</b><p>Ray-Ban RB5154 (метка 0453), Vogue VO5285 (0891), Police VPL887 (1120). Система показывает, когда каждая последний раз «светилась» и кто был на смене — дальше решаете вы: поиск, списание или перенос в другой салон.</p></div>`:''}
+   <div class="hint"><b>Как это меняет работу:</b> ревизия по всей сети из 12 салонов перестаёт быть событием на выходные. Проходите с считывателем раз в неделю — расхождения видны сразу, а не в конце квартала.</div>
+  </div>
+  <div>
+   <div class="panel"><div class="ph-title">Что даёт RFID вдобавок</div>
+    ${[['Витрина без пересчёта','узнать, есть ли модель в зале, — секунда вместо обхода полок'],
+       ['Приёмка коробкой','поставка считывается целиком, не по одной позиции'],
+       ['Антикража на выходе','рамка ловит метку, если оправа ушла без продажи'],
+       ['Поиск конкретной оправы','считыватель «пикает» громче по мере приближения'],
+       ['Трансфер между салонами','отправили и приняли — сканированием, без ручной сверки']]
+     .map(x=>`<div class="note" style="--tone:var(--acc)"><b>${x[0]}</b><p>${x[1]}</p></div>`).join('')}
+   </div>
+   <div class="panel" style="margin-top:10px"><div class="ph-title">Печать этикеток и штрихкодов</div>
+    <p class="mini" style="margin-top:6px">Для товаров без RFID остаётся обычный штрихкод. Система генерирует уникальные коды, печатает этикетки по категориям, на рулонном принтере или листом A4 с настройкой полей и колонок, а после переоценки печатает заново.</p>
+    <div class="btns" style="margin-top:9px"><button class="btn" onclick="toast('Предпросмотр этикетки: название, модель, категория, старая цена зачёркнута, новая цена, дата. Пробная печать — одна этикетка.')">Предпросмотр</button><button class="btn" onclick="toast('Печать партии: 240 этикеток по поставке № 1182, рулонный принтер.')">Печать партии</button></div>
+   </div>
+  </div>
+ </div>`;
+function rfidStart(){if(rfidRun)return;rfidRun=1;rfidScan=0;keepScroll();
+ toast('Сканирование запущено — сотрудник идёт вдоль витрин, метки считываются пачками.');
+ const t=setInterval(()=>{rfidScan+=Math.round(120+Math.random()*180);
+  if(rfidScan>=2106){rfidScan=2106;clearInterval(t);rfidRun=0;keepScroll();sparks();
+   toast('Инвентаризация зала завершена за <b>6 минут</b>: считано 2 106 меток, расхождений — 3 позиции. Вручную этот пересчёт занимал полдня.')}
+  else if(cur==='rfid')keepScroll()},450)}
+
+/* ---- ПОСТАВКИ И ТРАНСФЕРЫ ---- */
+SC.supply=()=>`
+ <div class="head"><div><h2>Поставки и трансферы</h2><p>Приход от поставщика по накладной или из Excel, распределение по 12 салонам, ревизия, списания и возвраты. Остатки, партии и сроки годности ведутся сами.</p></div>
+ <div class="btns"><button class="btn" onclick="toast('Создание поставки: вручную, загрузкой Excel или электронной накладной от поставщика. Позиции сопоставляются с номенклатурой автоматически.')">+ Поставка</button>
+ <button class="btn" onclick="toast('Трансфер: отправитель собирает и сканирует, получатель принимает одной кнопкой. Расхождения фиксируются отдельно.')">+ Трансфер</button>
+ <button class="btn acc" onclick="toast('Ревизия: контрольная версия остатков фиксируется, сотрудник сканирует товар (или проходит с RFID), система показывает недостачу, излишек и неизвестные коды.')">Ревизия</button></div></div>
+ <div class="strip">
+  <div><small>ПОСТАВОК В МЕСЯЦ</small><b>18</b><span>7 поставщиков</span></div>
+  <div><small>В ПУТИ</small><b class="warn">2</b><span>линзы 1.67 и оправы</span></div>
+  <div><small>ТРАНСФЕРОВ</small><b>34</b><span>между 12 салонами</span></div>
+  <div><small>ДОЛГ ПОСТАВЩИКАМ</small><b>4,2 млн ₸</b><span>по графику платежей</span></div>
+  <div><small>СПИСАНО ЗА МЕСЯЦ</small><b>186 000 ₸</b><span>брак и просрочка КЛ</span></div>
+ </div>
+ <div class="g21">
+  <div class="panel"><div class="ph-title">Последние операции</div>
+   <div class="tw"><table class="data" style="min-width:760px"><thead><tr><th>Документ</th><th>Тип</th><th>Контрагент / направление</th><th>Позиций</th><th class="right">Сумма</th><th>Статус</th></tr></thead><tbody>
+   ${[['ПС-1182','Поставка','Essilor · линзы',86,3240000,'принята','green'],
+      ['ТР-0455','Трансфер','Горького → Хан Шатыр',12,540000,'в пути','amber'],
+      ['ПС-1181','Поставка','Luxottica · оправы',120,5800000,'принята','green'],
+      ['ТР-0454','Трансфер','Склад → Абая',31,1120000,'принят','green'],
+      ['РВ-0092','Ревизия','ТРЦ «Мега»',340,0,'расхождений 4','amber'],
+      ['СП-0231','Списание','Просрочка КЛ · 6 уп.',6,84000,'проведено','red'],
+      ['ВП-0044','Возврат поставщику','CooperVision · брак',3,52000,'ожидает компенсации','amber']]
+    .map(r=>`<tr onclick="toast('${r[0]}: позиции, цены, НДС, партии и сроки годности, история изменений и автор каждой правки.')">
+     <td class="mono"><b>${r[0]}</b></td><td>${r[1]}</td><td class="mini">${r[2]}</td><td class="right mono">${r[3]}</td>
+     <td class="right mono">${r[4]?tg(r[4]):'—'}</td><td><span class="tag ${r[6]}">${r[5]}</span></td></tr>`).join('')}
+   </tbody></table></div>
+   <div class="hint"><b>Правило системы:</b> проведённый документ нельзя молча отредактировать — только сторнировать с указанием причины и автора. Поэтому остатки и деньги всегда сходятся.</div>
+  </div>
+  <div class="panel"><div class="ph-title">Поставщики</div>
+   ${[['Essilor','линзы','по графику',0],['Luxottica','оправы','долг 2,1 млн ₸',2100000],['CooperVision','контактные линзы','долг 1,4 млн ₸',1400000],['Hoya','линзы','по графику',0],['Safilo','оправы','долг 700 тыс ₸',700000]]
+     .map(p=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
+      <div><b style="font-size:10.4px">${p[0]}</b><div class="sub">${p[1]}</div></div>
+      <div style="text-align:right"><span class="tag ${p[3]?'amber':'green'}">${p[2]}</span></div></div>`).join('')}
+   <div class="hint"><b>Электронный обмен</b> с поставщиками остаётся: заявка уходит из системы, накладная приходит файлом и превращается в поставку без ручного набора 15 000 позиций.</div>
+  </div>
+ </div>`;
+
+/* ---- ЗАДАЧИ И НОВОСТИ ---- */
+SC.tasks=()=>`
+ <div class="head"><div><h2>Задачи и новости</h2><p>Внутренние коммуникации сети: задачи по клиентам и заказам, обзвоны, новости для всех салонов. Не нужен отдельный мессенджер — всё привязано к клиенту и заказу.</p></div>
+ <div class="btns"><button class="btn" onclick="toast('Новость публикуется на выбранные роли и салоны, видно, кто прочитал.')">+ Новость</button><button class="btn acc" onclick="toast('Задача: исполнитель, срок, приоритет, связь с клиентом или заказом, напоминание.')">+ Задача</button></div></div>
+ <div class="strip">
+  <div><small>ЗАДАЧ НА СЕГОДНЯ</small><b>14</b><span>по 12 салонам</span></div>
+  <div><small>ПРОСРОЧЕНО</small><b class="bad">3</b><span>видно руководителю</span></div>
+  <div><small>ОБЗВОН</small><b>28</b><span>клиенты на замену линз</span></div>
+  <div><small>НОВОСТЕЙ</small><b>2</b><span>прочитали 9 из 14</span></div>
+  <div><small>ВЫПОЛНЕНО ЗА НЕДЕЛЮ</small><b class="good">86</b><span>средний срок 1,2 дня</span></div>
+ </div>
+ <div class="g21">
+  <div class="panel"><div class="ph-title">Мои задачи</div>
+   ${[['Позвонить Динаре — линзы заканчиваются','обзвон','сегодня','var(--red)','Динара Оспанова · КЛ Biofinity'],
+      ['Уточнить срок линз 1.67 у Essilor','поставка','сегодня','var(--amber)','Заказ З-4821'],
+      ['Извиниться перед клиентом за просрочку','сервис','просрочено','var(--red)','Заказ З-4809 · 3 дня'],
+      ['Переоценить залежавшиеся оправы','склад','до 28.08','var(--acc)','37 позиций на 2,1 млн ₸'],
+      ['Обучить Алию продаже покрытий','персонал','до 30.08','var(--violet)','конверсия ниже средней'],
+      ['Принять трансфер ТР-0455','склад','завтра','var(--blue)','Хан Шатыр · 12 позиций']]
+    .map(t=>`<div class="note" style="--tone:${t[3]}"><b>${t[0]}</b><p>${t[1]} · срок: ${t[2]} · ${t[4]}</p></div>`).join('')}
+  </div>
+  <div class="panel"><div class="ph-title">Новости сети</div>
+   ${[['Новая коллекция Tom Ford в продаже','Поступила в салоны на Горького и в Хан Шатыр. Обучающие материалы по моделям — во вложении.','25.08 · прочитали 9 из 14'],
+      ['С 1 сентября — акция «вторая пара −40%»','Условия и правила в приложении. Скидка настраивается автоматически, вручную вводить не нужно.','24.08 · прочитали 12 из 14']]
+    .map(n=>`<div style="border:1px solid var(--line2);background:var(--panel2);border-radius:var(--rs);padding:11px;margin-bottom:8px">
+     <b style="font-size:10.6px">${n[0]}</b><p class="mini" style="margin:5px 0">${n[1]}</p><div class="sub mono">${n[2]}</div></div>`).join('')}
+   <div class="hint"><b>Связь с работой:</b> задача может быть привязана к клиенту, заказу или складской операции — из неё сразу открывается нужная карточка.</div>
+  </div>
+ </div>`;
+
+/* ---- ОРГАНИЗАЦИЯ И ДОСТУПЫ ---- */
+SC.admin=()=>`
+ <div class="head"><div><h2>Организация и доступы</h2><p>Сеть из 12 салонов и двух юрлиц в одной системе. Права выдаются не «ролью вообще», а ролью в конкретном салоне и юрлице.</p></div>
+ <div class="btns"><button class="btn" onclick="toast('Журнал действий: кто, когда, что изменил, с какого IP. Проведённые документы не редактируются без сторно.')">Журнал действий</button><button class="btn acc" onclick="toast('Новый сотрудник: должность, салоны, роли, лимит скидки, доступ к себестоимости и медданным.')">+ Сотрудник</button></div></div>
+ <div class="strip">
+  <div><small>САЛОНОВ</small><b>12</b><span>Астана · + склад и цех</span></div>
+  <div><small>ЮРЛИЦ</small><b>2</b><span>ТОО и ИП на одной кассе</span></div>
+  <div><small>СОТРУДНИКОВ</small><b>38</b><span>активных учётных записей</span></div>
+  <div><small>СЕССИЙ СЕЙЧАС</small><b>21</b><span>видно, кто в системе</span></div>
+  <div><small>СОБЫТИЙ В ЖУРНАЛЕ</small><b>12 480</b><span>за месяц · хранится всё</span></div>
+ </div>
+ <div class="g2">
+  <div class="panel"><div class="ph-title">Юридические лица и подразделения</div>
+   ${LEGAL.map(l=>`<div style="border:1px solid var(--line2);background:var(--panel2);border-radius:var(--rs);padding:11px;margin-bottom:8px">
+    <b style="font-size:10.6px">${l.n}</b><div class="sub">БИН ${l.bin} · ${l.vat} · ${l.sal}</div>
+    <p class="mini" style="margin:5px 0 0">Своя нумерация документов, свои кассы и счета, свои печати и подписи в печатных формах.</p></div>`).join('')}
+   <div class="tw" style="margin-top:8px"><table class="data" style="min-width:420px"><thead><tr><th>Подразделение</th><th>Тип</th><th class="right">Сотрудников</th></tr></thead><tbody>
+   ${SALONS.slice(0,6).map((s,i)=>`<tr style="cursor:default"><td>${s}</td><td class="mini">магазин + кабинет врача</td><td class="right mono">${3+i%3}</td></tr>`).join('')}
+   <tr style="cursor:default"><td>Центральный склад</td><td class="mini">склад</td><td class="right mono">4</td></tr>
+   <tr style="cursor:default"><td>Цех изготовления</td><td class="mini">мастерская</td><td class="right mono">3</td></tr>
+   </tbody></table></div>
+   <div class="mini" style="margin-top:6px">Показаны первые 6 из 12 салонов.</div>
+  </div>
+  <div class="panel"><div class="ph-title">Роли и что они видят</div>
+   <div class="tw"><table class="data" style="min-width:520px"><thead><tr><th>Роль</th><th>Доступ</th><th>Ограничения</th></tr></thead><tbody>
+   ${[['Владелец / топ-менеджмент','всё по всем салонам','—'],
+      ['Управляющий салоном','свой салон целиком','нет себестоимости других салонов'],
+      ['Продавец','клиенты, заказы, касса, остатки','лимит скидки, не видит закупочные цены'],
+      ['Офтальмолог','приёмы, медкарты, рецепты','не видит финансы сети'],
+      ['Работник склада','поставки, трансферы, ревизии','не видит медданные и выручку'],
+      ['Мастер цеха','очередь изготовления','видит только свои заказы'],
+      ['Бухгалтер','юрлица, кассы, задолженности','не меняет статусы заказов'],
+      ['Внешний API','статус заказа, остатки, запись','без доступа в интерфейс']]
+    .map(r=>`<tr style="cursor:default"><td><b>${r[0]}</b></td><td class="mini">${r[1]}</td><td class="mini">${r[2]}</td></tr>`).join('')}
+   </tbody></table></div>
+   <div class="hint"><b>Замещение и переключение:</b> сотрудник может работать в нескольких салонах и переключать активный без повторного входа; на время отпуска настраивается временное замещение.</div>
+  </div>
+ </div>
+ <div class="panel"><div class="ph-title">Журнал действий · последние события</div>
+  <div class="tw"><table class="data" style="min-width:700px"><thead><tr><th>Время</th><th>Пользователь</th><th>Действие</th><th>Объект</th><th>Салон</th></tr></thead><tbody>
+  ${[['18:42','Дана','Принята доплата 136 000 ₸','Заказ З-4821','Горького'],
+     ['18:30','Тимур','Скидка 10% сверх стандартной','Заказ З-4830','Мега'],
+     ['17:55','Ахметова А. К.','Изменён рецепт','Клиент Оспанова Д.','Горького'],
+     ['17:20','Склад','Проведена поставка ПС-1182','86 позиций','Склад'],
+     ['16:48','Ерлан','Возврат товара','Чек #4119','Сатпаева'],
+     ['16:05','Администратор','Изменён лимит скидки продавца','Роль «Продавец»','—']]
+   .map(r=>`<tr style="cursor:default"><td class="mono">${r[0]}</td><td><b>${r[1]}</b></td><td class="mini">${r[2]}</td><td class="mini">${r[3]}</td><td class="mini">${r[4]}</td></tr>`).join('')}
+  </tbody></table></div>
+  <div class="hint"><b>Зачем это владельцу:</b> любая скидка сверх лимита, возврат, изменение цены или правка рецепта остаются в журнале навсегда. Спорные ситуации разбираются за минуту, а не «по памяти».</div>
+ </div>`;
 
 /* ---- НАСТРОЙКИ ---- */
 SC.settings=()=>`
