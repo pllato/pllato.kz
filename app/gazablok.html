@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
+<title>ТК Газаблок · Мобильная система заявок — Демо</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0f172a;--bg2:#1e293b;--paper:#f1f5f9;--card:#ffffff;--card2:#f8fafc;--line:#e2e8f0;--line2:#cbd5e1;--txt:#0f172a;--muted:#64748b;--muted2:#94a3b8;--acc:#ea580c;--acc2:#f97316;--accs:#ea580c14;--blue:#2563eb;--green:#16a34a;--amber:#d97706;--red:#dc2626;--violet:#7c3aed;--wa:#25d366;--r:14px;--rs:10px}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{font-family:Manrope,system-ui,sans-serif;background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}a{text-decoration:none;color:inherit}.hidden{display:none!important}
+.mono{font-family:'IBM Plex Mono',monospace}
+/* ---------- ГЕЙТ ---------- */
+.gate{position:fixed;inset:0;z-index:100;background:var(--bg);display:grid;grid-template-columns:minmax(380px,1fr) .85fr;overflow:auto;color:#e2e8f0}
+.gate-copy{padding:clamp(24px,5vw,60px);display:flex;flex-direction:column;justify-content:center;position:relative;z-index:2}
+.gate-brand{display:flex;align-items:center;gap:12px;position:absolute;top:30px;left:clamp(24px,5vw,60px)}
+.rmark{width:46px;height:46px;flex:none;background:linear-gradient(135deg,var(--acc),#c2410c);border-radius:13px;display:grid;place-items:center;font-size:22px}
+.gate-brand b{font-size:15px;letter-spacing:.03em;display:block;color:#fff}
+.gate-brand small{display:block;color:#64748b;font:600 7.4px 'IBM Plex Mono',monospace;letter-spacing:.14em;margin-top:3px}
+.kicker{font:600 9.4px 'IBM Plex Mono',monospace;color:var(--acc2);letter-spacing:.16em;text-transform:uppercase}
+.gate h1{font-size:clamp(31px,4.2vw,52px);line-height:1.06;letter-spacing:-.03em;margin:16px 0 14px;max-width:620px;font-weight:800;color:#fff}
+.gate h1 span{color:var(--acc2)}
+.gate-lead{font-size:14px;line-height:1.7;color:#94a3b8;max-width:600px;margin:0}
+.roles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:22px;max-width:640px}
+.role{border:1px solid #334155;background:#1e293b;color:#e2e8f0;text-align:left;padding:12px 13px;min-height:74px;transition:.16s;border-radius:var(--rs)}
+.role:hover{transform:translateY(-3px);border-color:var(--acc);background:#263449}
+.role code{color:var(--acc2);font:600 7.8px 'IBM Plex Mono',monospace;letter-spacing:.1em}
+.role b{display:block;font-size:12.4px;margin-top:7px;color:#fff}
+.role span{display:block;font-size:9.4px;color:#94a3b8;margin-top:3px;line-height:1.4}
+.gate-foot{font:600 7.8px 'IBM Plex Mono',monospace;color:#475569;margin-top:18px;letter-spacing:.04em;line-height:1.7}
+.gate-art{position:relative;overflow:hidden;background:#111c31;display:grid;place-items:center}
+.gate-art:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 55% 45%,#ea580c22,transparent 60%)}
+.gart-phone{position:relative;z-index:1;width:250px;border:9px solid #0b1220;border-radius:34px;background:#fff;box-shadow:0 30px 70px rgba(0,0,0,.55);overflow:hidden}
+.gart-phone .gp-top{background:var(--bg);color:#fff;padding:12px 14px 11px}
+.gart-phone .gp-top b{font-size:12px;display:block}
+.gart-phone .gp-top small{font-size:8.4px;color:#94a3b8}
+.gart-phone .gp-body{padding:11px;background:var(--paper)}
+.gart-row{background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 9px;margin-bottom:6px}
+.gart-row b{font-size:9.6px;display:block}
+.gart-row small{font-size:8.2px;color:var(--muted);display:block;margin-top:2px}
+.gart-calc{background:#0f172a;color:#fff;border-radius:9px;padding:9px 10px;margin-bottom:6px}
+.gart-calc .gc-l{font:600 7px 'IBM Plex Mono',monospace;color:#94a3b8;letter-spacing:.08em}
+.gart-calc .gc-v{font-size:15px;font-weight:800;margin-top:2px;color:var(--acc2)}
+.gart-calc .gc-s{font-size:8px;color:#cbd5e1;margin-top:2px}
+.gate-stats{position:absolute;left:6%;right:6%;bottom:5%;background:#0f172aee;border:1px solid #334155;backdrop-filter:blur(8px);padding:13px;display:grid;grid-template-columns:1.1fr repeat(3,1fr);border-radius:var(--r);z-index:2}
+.gs{border-left:1px solid #334155;padding-left:11px}.gs:first-child{border:0;padding-left:0}
+.gs small{display:block;color:#64748b;font:600 6.8px 'IBM Plex Mono',monospace;letter-spacing:.08em}
+.gs b{display:block;font-size:14px;margin-top:4px;color:#fff}.gs:first-child b{color:var(--acc2)}
+/* ---------- СТЕНД ---------- */
+.stand{display:grid;grid-template-columns:1fr minmax(300px,340px) 1fr;gap:22px;align-items:start;padding:20px;min-height:100vh;background:radial-gradient(circle at 50% 0%,#1e293b,#0f172a 60%)}
+.side{color:#cbd5e1;padding-top:26px}
+.side h3{font-size:15px;color:#fff;margin:0 0 5px;letter-spacing:-.01em}
+.side p{font-size:11.4px;line-height:1.6;color:#94a3b8;margin:0 0 12px}
+.side .box{border:1px solid #334155;background:#1e293bcc;border-radius:var(--r);padding:12px 13px;margin-bottom:9px}
+.side .box b{font-size:10.6px;color:#fff;display:block;margin-bottom:3px}
+.side .box p{font-size:9.6px;margin:0;color:#94a3b8}
+.side .box.acc{border-color:#7c2d12;background:#2a180c}
+.side .box.acc b{color:var(--acc2)}
+.side-h{font:600 8px 'IBM Plex Mono',monospace;color:#64748b;letter-spacing:.14em;margin:0 0 8px;text-transform:uppercase}
+.tbtns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tbtn{border:1px solid #334155;background:#1e293b;color:#e2e8f0;padding:8px 11px;font-size:10.4px;font-weight:700;border-radius:9px}
+.tbtn:hover{border-color:var(--acc)}
+.tbtn.acc{background:var(--acc);border-color:var(--acc);color:#fff}
+.rsel{width:100%;border:1px solid #334155;background:#1e293b;color:#e2e8f0;padding:9px 10px;font-size:11px;border-radius:9px;margin-bottom:12px}
+/* телефон */
+.phone{border:10px solid #0b1220;border-radius:36px;background:var(--paper);box-shadow:0 30px 80px rgba(0,0,0,.55);overflow:hidden;position:sticky;top:20px;display:flex;flex-direction:column;height:min(780px,calc(100vh - 40px))}
+.ph-status{background:var(--bg);color:#fff;display:flex;justify-content:space-between;align-items:center;padding:7px 16px 3px;font:600 8.4px 'IBM Plex Mono',monospace;color:#94a3b8}
+.ph-head{background:var(--bg);color:#fff;padding:6px 15px 12px;display:flex;align-items:center;gap:10px}
+.ph-head .av{width:32px;height:32px;border-radius:50%;background:var(--acc);display:grid;place-items:center;font:800 10px 'IBM Plex Mono',monospace;flex:none;color:#fff}
+.ph-head b{font-size:12.4px;display:block;line-height:1.2}
+.ph-head small{font-size:8.8px;color:#94a3b8}
+.ph-head .bell{margin-left:auto;font-size:15px;position:relative}
+.ph-head .bell i{position:absolute;top:-2px;right:-3px;width:14px;height:14px;background:var(--red);border-radius:50%;font:700 7px 'IBM Plex Mono',monospace;display:grid;place-items:center;font-style:normal}
+.ph-body{flex:1;overflow-y:auto;overflow-x:hidden;background:var(--paper);padding:12px 12px 16px}
+.ph-tabs{display:grid;background:#fff;border-top:1px solid var(--line);flex:none}
+.ph-tab{border:0;background:transparent;padding:8px 2px 11px;font-size:8.6px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px;font-weight:600}
+.ph-tab i{font-size:16px;font-style:normal;line-height:1}
+.ph-tab.on{color:var(--acc)}
+/* компоненты внутри телефона */
+.scr{animation:fade .22s ease}
+@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.h1{font-size:16px;font-weight:800;letter-spacing:-.02em;margin:0 0 3px}
+.sub{font-size:9.6px;color:var(--muted);margin:0 0 11px;line-height:1.5}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:11px 12px;margin-bottom:8px}
+.card.tap{cursor:pointer;transition:.14s}.card.tap:active{transform:scale(.985)}
+.card.tap:hover{border-color:var(--line2)}
+.crow{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.cno{font:700 10px 'IBM Plex Mono',monospace;color:var(--acc)}
+.ctitle{font-size:11.6px;font-weight:800;margin-top:2px}
+.cmeta{font-size:9.2px;color:var(--muted);margin-top:3px;line-height:1.5}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;font:700 7.6px 'IBM Plex Mono',monospace;border-radius:20px;white-space:nowrap;background:#f1f5f9;color:var(--muted)}
+.badge.b{background:#dbeafe;color:#1d4ed8}.badge.g{background:#dcfce7;color:#15803d}.badge.a{background:#fef3c7;color:#b45309}
+.badge.r{background:#fee2e2;color:#b91c1c}.badge.v{background:#ede9fe;color:#6d28d9}.badge.o{background:#ffedd5;color:#c2410c}
+.kv{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:10.2px}
+.kv:last-child{border:0}
+.kv span{color:var(--muted)}.kv b{text-align:right;font-weight:700}
+.fld{margin-bottom:9px}
+.fld label{display:block;font:600 8px 'IBM Plex Mono',monospace;color:var(--muted);margin-bottom:4px;letter-spacing:.03em;text-transform:uppercase}
+.fld input,.fld select,.fld textarea{width:100%;border:1px solid var(--line2);background:#fff;padding:10px 11px;font-size:12.4px;border-radius:10px;outline:none;font-family:inherit}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--accs)}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{width:100%;border:0;background:var(--acc);color:#fff;padding:13px;font-size:12.6px;font-weight:800;border-radius:12px;margin-top:4px}
+.btn:active{transform:scale(.99)}
+.btn.sec{background:#fff;color:var(--txt);border:1px solid var(--line2)}
+.btn.gr{background:var(--green)}.btn.rd{background:var(--red)}.btn.bl{background:var(--blue)}.btn.dk{background:var(--bg)}
+.btn2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.btn.sm{padding:9px;font-size:10.8px;border-radius:10px;margin:0}
+.calc{background:var(--bg);color:#fff;border-radius:var(--r);padding:12px 13px;margin-bottom:9px}
+.calc .cl{font:600 7.4px 'IBM Plex Mono',monospace;color:#94a3b8;letter-spacing:.09em}
+.calc .cgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.calc .cg b{display:block;font-size:17px;font-weight:800;color:var(--acc2);letter-spacing:-.02em}
+.calc .cg small{display:block;font-size:8px;color:#94a3b8;margin-top:1px}
+.calc .cnote{font-size:8.6px;color:#cbd5e1;margin-top:8px;border-top:1px solid #334155;padding-top:7px;line-height:1.5}
+.steps{display:flex;gap:0;margin:2px 0 10px}
+.st{flex:1;text-align:center;position:relative;padding-top:20px;font-size:8.2px;color:var(--muted);line-height:1.3}
+.st:before{content:"";position:absolute;top:6px;left:50%;width:100%;height:2px;background:var(--line)}
+.st:last-child:before{display:none}
+.st i{position:absolute;top:0;left:50%;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--line2);font-style:normal;z-index:1}
+.st.done i{background:var(--green);border-color:var(--green)}
+.st.cur i{background:var(--acc);border-color:var(--acc);box-shadow:0 0 0 4px var(--accs)}
+.st.done,.st.cur{color:var(--txt);font-weight:700}
+.tl{border-left:2px solid var(--line);margin-left:6px;padding-left:13px;margin-top:4px}
+.tli{position:relative;padding-bottom:11px}
+.tli:before{content:"";position:absolute;left:-19px;top:2px;width:9px;height:9px;border-radius:50%;background:var(--acc);border:2px solid #fff}
+.tli b{font-size:10.2px;display:block}
+.tli p{font-size:9px;color:var(--muted);margin:2px 0 0;line-height:1.5}
+.tli time{font:600 7.6px 'IBM Plex Mono',monospace;color:var(--muted2)}
+.alert{border-radius:12px;padding:10px 12px;font-size:9.8px;line-height:1.55;margin-bottom:9px;border-left:3px solid}
+.alert b{display:block;margin-bottom:2px;font-size:10.2px}
+.alert.warn{background:#fffbeb;border-color:var(--amber);color:#78350f}
+.alert.info{background:#eff6ff;border-color:var(--blue);color:#1e3a8a}
+.alert.ok{background:#f0fdf4;border-color:var(--green);color:#14532d}
+.alert.err{background:#fef2f2;border-color:var(--red);color:#7f1d1d}
+.ttn{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:9px}
+.ttn-h{background:var(--bg);color:#fff;padding:9px 12px;display:flex;justify-content:space-between;align-items:center}
+.ttn-h b{font-size:11px}.ttn-h small{font:600 8px 'IBM Plex Mono',monospace;color:#94a3b8}
+.ttn-b{padding:10px 12px}
+.tbl{width:100%;border-collapse:collapse;font-size:9.4px}
+.tbl th{text-align:left;font:600 7.4px 'IBM Plex Mono',monospace;color:var(--muted);padding:5px 4px;border-bottom:1px solid var(--line);text-transform:uppercase}
+.tbl td{padding:6px 4px;border-bottom:1px solid var(--line)}
+.tbl tr:last-child td{border:0}
+.tbl .r{text-align:right;font-family:'IBM Plex Mono',monospace}
+.photo{aspect-ratio:4/3;border-radius:10px;background:linear-gradient(135deg,#cbd5e1,#94a3b8);display:grid;place-items:center;font-size:22px;color:#fff;border:1px solid var(--line2)}
+.photos{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:9px}
+.stat{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:9px}
+.stat div{background:#fff;border:1px solid var(--line);border-radius:11px;padding:9px 10px}
+.stat small{display:block;font:600 7.2px 'IBM Plex Mono',monospace;color:var(--muted);letter-spacing:.04em}
+.stat b{display:block;font-size:16px;margin-top:3px;letter-spacing:-.02em}
+.stat .g{color:var(--green)}.stat .r{color:var(--red)}.stat .a{color:var(--amber)}
+.seg{display:flex;gap:5px;background:#e2e8f0;padding:3px;border-radius:11px;margin-bottom:10px}
+.seg button{flex:1;border:0;background:transparent;padding:7px 4px;font-size:9.8px;font-weight:700;border-radius:9px;color:var(--muted)}
+.seg button.on{background:#fff;color:var(--txt);box-shadow:0 1px 3px rgba(15,23,42,.12)}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,26px);z-index:200;background:#0f172a;color:#fff;border:1px solid #334155;padding:12px 16px;box-shadow:0 18px 40px rgba(0,0,0,.4);font-size:11px;opacity:0;transition:.22s;pointer-events:none;max-width:min(520px,92vw);line-height:1.55;border-radius:12px}
+.toast.show{opacity:1;transform:translate(-50%,0)}.toast b{color:var(--acc2)}
+.spark{position:fixed;z-index:300;width:6px;height:10px;pointer-events:none;animation:sf 1.7s ease-in forwards;border-radius:2px}
+@keyframes sf{to{transform:translateY(102vh) rotate(620deg);opacity:.2}}
+@media(max-width:1100px){.stand{grid-template-columns:1fr minmax(300px,340px);gap:16px}.side.right{display:none}}
+@media(max-width:820px){.gate{grid-template-columns:1fr}.gate-art{display:none}
+ .stand{display:block;padding:0;background:var(--paper)}
+ .side{display:none}
+ .phone{border:0;border-radius:0;height:100vh;box-shadow:none;position:static}
+ .mob-bar{display:flex!important}
+}
+.mob-bar{display:none;position:fixed;top:0;left:0;right:0;z-index:90;background:#0f172a;color:#fff;padding:6px 10px;gap:6px;align-items:center;font-size:10px}
+.mob-bar select{flex:1;background:#1e293b;color:#fff;border:1px solid #334155;border-radius:8px;padding:6px}
+@media(max-width:820px){.ph-status{padding-top:44px}}
+</style>
+</head>
+<body>
+
+<section class="gate" id="gate">
+  <div class="gate-copy">
+    <div class="gate-brand"><div class="rmark">🧱</div><div><b>ТК Газаблок</b><small>МОБИЛЬНАЯ СИСТЕМА ЗАЯВОК · ДЕМО</small></div></div>
+    <div class="kicker">Демо по вашему ТЗ · первая версия</div>
+    <h1>Заявка с телефона —<br>и до <span>подписи в ТТН</span>.</h1>
+    <p class="gate-lead">Менеджер компании-перекупа оформляет заявку в телефоне за минуту: ввёл объём в м³ — система сама посчитала блоки и поддоны по вашим нормам и присвоила номер заказа. ТК Газаблок подтверждает, завсклада получает готовую ТТН без переписывания данных, водитель ведёт рейс кнопками «Принял → Выехал → Доставлено» с фото. Поддоны считаются отдельно: сколько выдано, сколько вернули, сколько осталось. Ставить приложение не нужно — это сайт, который открывается в браузере телефона.</p>
+    <div class="roles" id="roles"></div>
+    <div class="gate-foot">ДЕМО ПО ТЗ «МОБИЛЬНАЯ СИСТЕМА ЗАЯВОК НА ГАЗОБЛОК» · данные вымышленные · Pllato · 25.08.2026<br>ПЕРВАЯ КОМПАНИЯ ДЛЯ ТЕСТА — «АЛИВИА» · ЛОГОТИП И ЦВЕТА ПОДСТАВИМ ВАШИ</div>
+  </div>
+  <div class="gate-art">
+    <div class="gart-phone">
+      <div class="gp-top"><b>Новая заявка</b><small>Аливиа · менеджер Асель</small></div>
+      <div class="gp-body">
+        <div class="gart-row"><b>ЖК «Алатау», блок 3</b><small>ул. Жандосова, 58 · 26.08, рейс 1</small></div>
+        <div class="gart-calc">
+          <div class="gc-l">ВВЕДЕНО, М³</div><div class="gc-v">24,0</div>
+          <div class="cnote" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;border-top:1px solid #334155;padding-top:7px">
+            <div><div class="gc-l">БЛОКОВ</div><div style="font-size:13px;font-weight:800;color:#fff">700</div></div>
+            <div><div class="gc-l">ПОДДОНОВ</div><div style="font-size:13px;font-weight:800;color:#fff">14</div></div>
+            <div><div class="gc-l">К ОТГРУЗКЕ</div><div style="font-size:13px;font-weight:800;color:#fff">25,2</div></div>
+          </div>
+        </div>
+        <div class="gart-row"><b>600×300×200 · D500</b><small>норма 50 блоков на поддон</small></div>
+        <div class="gart-row" style="background:#ea580c;border-color:#ea580c;color:#fff;text-align:center"><b style="color:#fff">Отправить заявку</b></div>
+      </div>
+    </div>
+    <div class="gate-stats">
+      <div class="gs"><small>РОЛЕЙ В СИСТЕМЕ</small><b>5 · всё с телефона</b></div>
+      <div class="gs"><small>ЗАЯВКА ЗА</small><b>60 секунд</b></div>
+      <div class="gs"><small>ТТН</small><b>из заказа</b></div>
+      <div class="gs"><small>УСТАНОВКА</small><b>не нужна</b></div>
+    </div>
+  </div>
+</section>
+
+<div class="stand hidden" id="app">
+  <aside class="side left" id="sideL"></aside>
+  <div class="phone" id="phone">
+    <div class="ph-status"><span id="clock">09:41</span><span>▂▄▆ ⌁ 100%</span></div>
+    <div class="ph-head">
+      <div class="av" id="pav">АС</div>
+      <div><b id="pname">Асель</b><small id="prole">Аливиа · менеджер</small></div>
+      <div class="bell" id="bell">🔔<i id="bellN">2</i></div>
+    </div>
+    <div class="ph-body" id="body"></div>
+    <nav class="ph-tabs" id="tabs"></nav>
+  </div>
+  <aside class="side right" id="sideR"></aside>
+</div>
+
+<div class="mob-bar"><span>Роль:</span><select id="mrsel"></select><button class="tbtn" onclick="tour()" style="padding:6px 9px">▶</button></div>
+<div class="toast" id="toast"></div>
+<script src="/app/gazablok.js"></script>
+</body>
+</html>
