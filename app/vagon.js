@@ -760,6 +760,20 @@ function tour(){if(tourT){stopTour();return}tourI=0;document.getElementById('tou
 function step(){if(tourI>=TOUR.length){stopTour();sparks();toast('<b>Весь жизненный цикл вагона</b> из вашего ТЗ — от письма на почту до АВР и оплаты — работает в одной системе.');return}
  const [scr,txt,ms]=TOUR[tourI++];if(ROLES[role].s.includes(scr))go(scr);toast(txt);tourT=setTimeout(step,ms)}
 function stopTour(){clearTimeout(tourT);tourT=null;const b=document.getElementById('tourBtn');if(b)b.textContent='▶ Сценарий'}
+/* ===== ТЕМА: тёмная / светлая ===== */
+function applyTheme(t){const light=t==='light';
+ document.body.classList.toggle('light',light);
+ const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',light?'#f4f7fb':'#081320');
+ const lbl=light?'🌙 Тёмная':'☀ Светлая';
+ const b=document.getElementById('themeBtn');if(b)b.textContent=lbl;
+ const g=document.getElementById('themeBtnGate');if(g)g.textContent=light?'🌙 Тёмная версия':'☀ Светлая версия';
+ try{localStorage.setItem('aps-theme',t)}catch(e){}}
+function toggleTheme(){const light=document.body.classList.contains('light');
+ applyTheme(light?'dark':'light');
+ toast(light?'Тёмная версия включена.':'Светлая версия включена — та же система в светлом оформлении. Выбор запомнится.')}
+(function(){let t='dark';try{t=localStorage.getItem('aps-theme')||'dark'}catch(e){}
+ const q=new URLSearchParams(location.search).get('theme');if(q==='light'||q==='dark')t=q;
+ applyTheme(t)})();
 document.getElementById('menuBtn').onclick=()=>document.getElementById('rail').classList.toggle('open');
 renderRoles();
 (function(){const q=new URLSearchParams(location.search).get('s');if(q&&TITLES[q]){const r=q==='client'?'Клиент':q==='mobile'?'Мастер в депо':q==='buh'?'Бухгалтерия':(q==='boss'||q==='norms'||q==='archive'||q==='fin')?'Руководитель':'Администратор';enter(r)}})();
