@@ -1,0 +1,1064 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#081320">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%23f37a20%22/%3E%3Ctext x=%2216%22 y=%2223%22 font-size=%2218%22 text-anchor=%22middle%22%3E%F0%9F%9A%83%3C/text%3E%3C/svg%3E">
+<title>AsiaPartnerService · Учёт ремонта вагонов — Демо (автономный файл)</title>
+<!-- Автономная версия демо: один файл, работает без интернета и без сервера. Шрифты подгружаются из сети, при её отсутствии подставляются системные. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#081320;--bg2:#0c1b2c;--panel:#0f2338;--panel2:#143049;--line:#173d5e;--line2:#255a8a;--txt:#e9f0f7;--muted:#93aac2;--muted2:#5f7c99;--acc:#f37a20;--acc2:#f9a05a;--accs:#f37a201f;--green:#22c55e;--emerald:#10b981;--amber:#f59e0b;--red:#ef4444;--blue:#2f7fd0;--cyan:#22d3ee;--violet:#a855f7;--wa:#25d366;--radius:14px;--rs:10px;--shadow:0 10px 30px -12px rgba(0,0,0,.6);--track:#12314c;--track2:#1d456b;--glass:#0c1b2cea;--overlay:rgba(3,6,10,.66);--code:var(--bg2);--thbg:var(--panel);--okline:#1e4a2e;--overbg:#ef444410;--greenbg:#14532d;--greenln:#166534;--greentx:#86efac;--cgood:#4ade80;--cwarn:#fbbf24;--cbad:#f87171;--cblue:#93b8f8;--cviolet:#d8b4fe;--ccyan:#67e8f9;--acch:var(--acc2);--hinttx:#f6e0cc;--logopad:7px 12px;--logobg:#fff}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{font-family:Manrope,system-ui,sans-serif;background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}a{text-decoration:none;color:inherit}.hidden{display:none!important}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:10px}
+.mono{font-family:'IBM Plex Mono',monospace}.muted{color:var(--muted)}.good{color:var(--cgood)!important}.warn{color:var(--cwarn)!important}.bad{color:var(--cbad)!important}
+/* ГЕЙТ */
+.gate{position:fixed;inset:0;z-index:100;background:var(--bg);display:grid;grid-template-columns:minmax(400px,1fr) .9fr;overflow:auto}
+.gate-copy{padding:clamp(26px,5vw,66px);display:flex;flex-direction:column;justify-content:center;position:relative;z-index:2}
+.gate-brand{display:flex;align-items:center;gap:12px;position:absolute;top:32px;left:clamp(26px,5vw,66px)}
+.rmark{width:46px;height:46px;flex:none;background:linear-gradient(135deg,var(--acc),#c25a08);border-radius:13px;display:grid;place-items:center;font-size:22px}
+.logo-full{height:52px;width:auto;background:var(--logobg);border-radius:10px;padding:var(--logopad);box-shadow:0 6px 20px rgba(0,0,0,.35)}
+.logo-mark{width:36px;height:36px;object-fit:contain;background:var(--logobg);border-radius:9px;padding:2px;flex:none}
+.brand-txt{border-left:1px solid var(--line2);padding-left:12px}
+.gate-brand b{font-size:13px;letter-spacing:.04em;display:block}
+.gate-brand small{display:block;color:var(--muted2);font:600 7.6px 'IBM Plex Mono',monospace;letter-spacing:.14em;margin-top:3px}
+.kicker{font:600 9.6px 'IBM Plex Mono',monospace;color:var(--acc2);letter-spacing:.16em;text-transform:uppercase}
+.gate h1{font-size:clamp(33px,4.4vw,55px);line-height:1.05;letter-spacing:-.032em;margin:18px 0 15px;max-width:640px;font-weight:800}
+.gate h1 span{color:var(--acc2)}
+.gate-lead{font-size:14.4px;line-height:1.7;color:var(--muted);max-width:610px;margin:0}
+.roles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:24px;max-width:660px}
+.role{border:1px solid var(--line2);background:var(--panel);color:var(--txt);text-align:left;padding:13px 14px;min-height:78px;transition:.16s;border-radius:var(--rs)}
+.role:hover{transform:translateY(-3px);border-color:var(--acc);background:var(--panel2)}
+.role code{color:var(--acc2);font:600 8px 'IBM Plex Mono',monospace;letter-spacing:.1em}
+.role b{display:block;font-size:12.6px;margin-top:8px}.role span{display:block;font-size:9.6px;color:var(--muted);margin-top:3px;line-height:1.4}
+.theme-gate{position:absolute;top:34px;right:clamp(26px,5vw,66px);border:1px solid var(--line2);background:var(--panel);color:var(--txt);padding:9px 13px;font-size:10.6px;font-weight:700;border-radius:10px;z-index:3}
+.theme-gate:hover{border-color:var(--acc)}
+.gate-foot{font:600 8px 'IBM Plex Mono',monospace;color:var(--muted2);margin-top:20px;letter-spacing:.04em;line-height:1.7}
+.gate-art{position:relative;overflow:hidden;background:var(--bg2)}
+.gate-art:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 58% 42%,#f37a2022,transparent 58%)}
+.flow{position:absolute;left:8%;right:8%;top:50%;transform:translateY(-50%)}
+.fstep{display:grid;grid-template-columns:30px 1fr;gap:11px;align-items:start;position:relative;padding-bottom:15px}
+.fstep:before{content:"";position:absolute;left:14px;top:30px;bottom:0;width:1.5px;background:linear-gradient(180deg,var(--line2),transparent)}
+.fstep:last-child:before{display:none}
+.fstep i{width:30px;height:30px;border-radius:9px;background:var(--panel);border:1px solid var(--line2);display:grid;place-items:center;font-style:normal;font-size:13px;flex:none;z-index:1}
+.fstep.on i{background:linear-gradient(135deg,var(--acc),#c25a08);border-color:var(--acc)}
+.fstep b{font-size:11.4px;display:block}
+.fstep p{font-size:9.4px;color:var(--muted);margin:3px 0 0;line-height:1.5}
+.gate-stats{position:absolute;left:7%;right:7%;bottom:5%;background:var(--glass);border:1px solid var(--line2);backdrop-filter:blur(9px);padding:14px;display:grid;grid-template-columns:1.15fr repeat(3,1fr);border-radius:var(--radius)}
+.gs{border-left:1px solid var(--line);padding-left:12px}.gs:first-child{border:0;padding-left:0}
+.gs small{display:block;color:var(--muted2);font:600 7px 'IBM Plex Mono',monospace;letter-spacing:.08em}
+.gs b{display:block;font-size:15px;margin-top:5px}.gs:first-child b{color:var(--acc2)}
+/* КАРКАС */
+.shell{display:grid;grid-template-columns:238px 1fr;height:100vh}
+.rail{background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+.rail-top{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.rail-top .rmark{width:34px;height:34px;font-size:16px;border-radius:10px}
+.rail-top b{font-size:12.6px;display:block}.rail-top small{display:block;font:600 6.8px 'IBM Plex Mono',monospace;color:var(--muted2);letter-spacing:.1em;margin-top:2px}
+.nav{flex:1;overflow:auto;padding:8px 9px 14px}
+.nav-group{font:600 7.6px 'IBM Plex Mono',monospace;letter-spacing:.13em;color:var(--muted2);margin:15px 0 5px;padding-left:10px}
+.nav-item{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:8px;width:100%;border:0;background:transparent;color:var(--muted);text-align:left;padding:9px 10px;margin:1px 0;position:relative;font-size:12.4px;font-weight:500;transition:.14s;border-radius:10px}
+.nav-item:hover{background:var(--panel);color:var(--txt)}.nav-item.on{background:linear-gradient(90deg,var(--accs),transparent);color:#fff}
+.nav-item.on:before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--acc);border-radius:0 3px 3px 0}
+.nav-code{font:600 7.4px 'IBM Plex Mono',monospace;color:var(--acc2);opacity:.9}
+.nav-badge{font:600 7.4px 'IBM Plex Mono',monospace;background:var(--red);color:#fff;padding:2px 6px;border-radius:9px}
+.rail-user{padding:11px 14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:9px}
+.rail-av{width:31px;height:31px;flex:none;background:var(--acc);color:#2b1000;display:grid;place-items:center;font:800 9.4px 'IBM Plex Mono',monospace;border-radius:50%}
+.rail-user b{font-size:11.6px;display:block}.rail-user small{font-size:9.2px;color:var(--muted2)}
+.work{display:flex;flex-direction:column;height:100vh;min-width:0}
+.top{height:60px;background:var(--bg2);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 20px;z-index:20;flex:none}
+.menu{display:none;border:1px solid var(--line2);background:var(--panel);width:34px;height:34px;border-radius:10px}
+.top h1{font-size:17px;margin:0;font-weight:800;letter-spacing:-.01em}.top p{font-size:10.6px;color:var(--muted);margin:3px 0 0}
+.spacer{flex:1}
+.pill{display:flex;align-items:center;gap:6px;font:600 9.2px 'IBM Plex Mono',monospace;color:var(--acc2);border:1px solid #7a3f10;background:#f37a2012;padding:7px 9px;border-radius:20px}
+.pill i{width:6px;height:6px;border-radius:50%;background:var(--acc);animation:bl 2s infinite}
+@keyframes bl{50%{opacity:.3}}
+.tbtn{border:1px solid var(--line2);background:var(--panel);padding:9px 12px;font-size:11px;font-weight:700;border-radius:10px}
+.tbtn.acc{background:var(--acc);border-color:var(--acc);color:#fff}
+.rsel{border:1px solid var(--line2);background:var(--panel);padding:8px 9px;font-size:11px;max-width:200px;border-radius:10px}
+.content{flex:1;overflow:auto;padding:17px 20px 40px}
+.screen{animation:fade .24s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:13px;flex-wrap:wrap}
+.head h2{font-size:23px;margin:0;letter-spacing:-.025em}.head p{font-size:11.4px;color:var(--muted);margin:5px 0 0;max-width:900px;line-height:1.55}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.btn{border:1px solid var(--line2);background:var(--panel);padding:8px 12px;font-size:10.6px;font-weight:700;border-radius:10px;transition:.14s}
+.btn:hover{border-color:var(--acc)}.btn.acc{background:var(--acc);border-color:var(--acc);color:#fff}.btn.red{border-color:#5c2626;color:#f87171}.btn.violet{background:var(--violet);border-color:var(--violet);color:#fff}.btn.green{background:var(--greenbg);border-color:var(--greenln);color:var(--greentx)}
+.strip{display:grid;grid-template-columns:1.3fr repeat(4,1fr);border:1px solid var(--line);background:var(--panel);margin-bottom:11px;border-radius:var(--radius);overflow:hidden}
+.strip>div{padding:13px 14px;border-left:1px solid var(--line)}.strip>div:first-child{border-left:0;background:var(--panel2)}
+.strip small{display:block;font:600 8px 'IBM Plex Mono',monospace;color:var(--muted2);letter-spacing:.06em}
+.strip b{display:block;font-size:20px;margin-top:6px;letter-spacing:-.02em}.strip span{font-size:9.2px;color:var(--muted)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
+.g12{display:grid;grid-template-columns:1fr 1.55fr;gap:10px;margin-bottom:10px}
+.g21{display:grid;grid-template-columns:1.55fr 1fr;gap:10px;margin-bottom:10px}
+.panel{background:var(--panel);border:1px solid var(--line);padding:14px;min-width:0;border-radius:var(--radius);box-shadow:var(--shadow)}
+.ph{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:11px}
+.ph-title{font-size:14px;font-weight:800;letter-spacing:-.01em}.ph-sub{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.45}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;font:600 7.6px 'IBM Plex Mono',monospace;background:var(--track);color:var(--muted);border-radius:12px;white-space:nowrap}
+.tag.green{background:#22c55e22;color:var(--cgood)}.tag.red{background:#ef444422;color:var(--cbad)}.tag.amber{background:#f59e0b22;color:var(--cwarn)}
+.tag.blue{background:#3b82f622;color:var(--cblue)}.tag.violet{background:#a855f722;color:var(--cviolet)}.tag.cyan{background:#22d3ee1c;color:var(--ccyan)}.tag.acc{background:var(--accs);color:var(--acc2)}.tag.wa{background:#25d36618;color:var(--wa)}
+.tw{overflow:auto}
+table.data{width:100%;border-collapse:collapse;min-width:640px}
+.data th{text-align:left;padding:8px 9px;border-bottom:1px solid var(--line2);font:600 8px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;background:var(--thbg);position:sticky;top:0;z-index:2}
+.data td{padding:9px;border-bottom:1px solid var(--line);font-size:10.4px;vertical-align:middle;white-space:nowrap}
+.data tbody tr{cursor:pointer}.data tbody tr:hover{background:var(--panel2)}
+.right{text-align:right!important}
+.sub{font-size:8.8px;color:var(--muted);margin-top:3px}
+.mini{font-size:9.2px;color:var(--muted);line-height:1.55}
+.hint{background:var(--accs);border-left:3px solid var(--acc);padding:10px 12px;font-size:9.8px;line-height:1.6;margin-top:11px;color:var(--hinttx);border-radius:0 10px 10px 0}
+.hint b{color:var(--acch)}
+.note{padding:10px 12px;background:var(--panel2);border-left:3px solid var(--tone,var(--acc));margin-top:8px;border-radius:0 10px 10px 0}
+.note b{font-size:10px}.note p{font-size:9.4px;color:var(--muted);margin:4px 0 0;line-height:1.55}
+.bar{height:9px;background:var(--track);overflow:hidden;border-radius:5px}.bar i{display:block;height:100%;width:var(--w);background:var(--tone,var(--acc));transition:.4s}
+.kpi-mini{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px}
+.kpi-mini div{flex:1;min-width:92px;background:var(--panel2);padding:9px 10px;border-left:2px solid var(--tone,var(--acc));border-radius:0 8px 8px 0}
+.kpi-mini small{display:block;font:600 7.4px 'IBM Plex Mono',monospace;color:var(--muted2)}
+.kpi-mini b{display:block;font-size:15px;margin-top:4px}
+.filters{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.search{flex:1;min-width:180px;border:1px solid var(--line2);background:var(--panel);padding:9px 11px;font-size:10.6px;outline:none;border-radius:10px;color:var(--txt)}
+.search:focus{border-color:var(--acc)}
+.filter{border:1px solid var(--line2);background:var(--panel);padding:8px 11px;font-size:9.8px;border-radius:10px;color:var(--muted)}
+.filter.on{background:var(--acc);color:#2b1000;border-color:var(--acc);font-weight:700}
+.fld{margin-bottom:9px}
+.fld small{display:block;font:600 7.8px 'IBM Plex Mono',monospace;color:var(--muted2);margin-bottom:5px;letter-spacing:.03em}
+.fld input,.fld select,.fld textarea{width:100%;border:1px solid var(--line2);background:var(--bg2);padding:9px 10px;font-size:11.4px;outline:none;border-radius:10px;color:var(--txt);font-family:inherit}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--acc)}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.f3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+/* СТАТУСЫ ВАГОНОВ */
+.st{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;font:700 8.4px 'IBM Plex Mono',monospace;border-radius:9px;white-space:nowrap;background:var(--c,#12314c)22;color:var(--c,#8fa3b8);border:1px solid transparent}
+.st i{width:6px;height:6px;border-radius:50%;background:var(--c);flex:none;font-style:normal}
+tr.row-st{border-left:3px solid var(--c,transparent)}
+tr.over td:first-child{box-shadow:inset 3px 0 0 var(--red)}
+tr.over{background:var(--overbg)}
+.stbtn{border:1px solid var(--line2);background:var(--panel2);padding:9px 11px;font-size:10.2px;font-weight:700;border-radius:10px;text-align:left;display:flex;align-items:center;gap:7px;width:100%;margin-bottom:5px}
+.stbtn:hover{border-color:var(--c)}
+.stbtn i{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none;font-style:normal}
+.stbtn.cur{border-color:var(--c);background:var(--panel2)}
+/* НАСТРОЙКА СТОЛБЦОВ */
+.cols{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px}
+.colchip{border:1px solid var(--line2);background:var(--panel);padding:6px 10px;font-size:9.4px;border-radius:9px;color:var(--muted2);display:flex;align-items:center;gap:5px}
+.colchip.on{background:var(--panel2);color:var(--txt);border-color:var(--line2)}
+.colchip.pin{border-color:var(--acc);color:var(--acc2)}
+/* ПОЧТА / БОТ */
+.mail{border:1px solid var(--line2);background:var(--panel2);border-radius:var(--rs);padding:12px;margin-bottom:8px;cursor:pointer;transition:.14s}
+.mail:hover{border-color:var(--acc)}
+.mail.fresh{border-color:var(--acc);box-shadow:0 0 24px #f37a2022;animation:leadin .4s ease}
+@keyframes leadin{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.mail-h{display:flex;justify-content:space-between;gap:10px;align-items:start}
+.mail b{font-size:11px}
+.mailbody{font-size:9.4px;color:var(--muted);line-height:1.6;background:var(--code);border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-top:8px;font-family:'IBM Plex Mono',monospace;white-space:pre-wrap}
+.parsed{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin-top:8px}
+.pf{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+.pf small{display:block;font:600 7px 'IBM Plex Mono',monospace;color:var(--muted2)}
+.pf b{font-size:10px;display:block;margin-top:3px}
+.pf.ok{border-color:var(--okline)}
+/* ТАЙМЛАЙН */
+.tl{border-left:1px solid var(--line2);margin-left:7px;padding-left:16px}
+.tli{position:relative;margin-bottom:12px}
+.tli:before{content:"";position:absolute;width:7px;height:7px;border-radius:50%;background:var(--c,var(--acc));left:-20px;top:3px;border:2px solid var(--panel)}
+.tli b{font-size:10px}.tli p{font-size:9.4px;color:var(--muted);line-height:1.55;margin:4px 0}
+.tli time{font:600 8px 'IBM Plex Mono',monospace;color:var(--muted2)}
+/* ДОКУМЕНТЫ */
+.doc{display:flex;gap:9px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--line);font-size:10.2px}
+.doc:last-child{border:0}
+.doc i{width:19px;height:19px;flex:none;border:1.5px solid var(--line2);border-radius:6px;display:grid;place-items:center;font-size:11px;font-style:normal;cursor:pointer}
+.doc.done i{background:var(--green);border-color:var(--green);color:#03180a}
+.doc time{margin-left:auto;font:600 7.6px 'IBM Plex Mono',monospace;color:var(--muted2)}
+/* СКЛАД */
+.part{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line)}
+.part:last-child{border:0}
+.pnum{font:700 9.4px 'IBM Plex Mono',monospace;color:var(--acc2)}
+/* МОБИЛЬНОЕ МЕСТО */
+.phone{width:290px;margin:0 auto;border:9px solid var(--line2);border-radius:30px;background:var(--bg2);padding:12px 11px 16px;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.phone-h{text-align:center;font:600 7.6px 'IBM Plex Mono',monospace;color:var(--muted2);margin-bottom:9px;letter-spacing:.1em}
+.mrow{background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:9px 10px;margin-bottom:7px;font-size:10px}
+.mbtn{width:100%;border:1px solid var(--line2);background:var(--panel2);padding:10px;font-size:10.4px;font-weight:700;border-radius:10px;margin-bottom:6px;text-align:left}
+.mbtn.acc{background:var(--acc);border-color:var(--acc);color:#fff}
+/* ДРОУЭР */
+.dbg{position:fixed;inset:0;background:var(--overlay);z-index:70;opacity:0;pointer-events:none;transition:.2s}
+.dbg.show{opacity:1;pointer-events:auto}
+.drawer{position:absolute;right:0;top:0;bottom:0;width:min(740px,100%);background:var(--bg2);transform:translateX(100%);transition:.28s;display:flex;flex-direction:column;box-shadow:-20px 0 50px rgba(0,0,0,.5);border-left:1px solid var(--line2)}
+.dbg.show .drawer{transform:none}
+.drawer-h{background:var(--panel2);padding:16px 18px;display:flex;gap:10px;border-bottom:1px solid var(--line2)}
+.drawer-h div{flex:1}.drawer-h h3{font-size:18px;margin:0}.drawer-h p{font-size:9.6px;color:var(--muted);margin:5px 0 0}
+.dclose{border:1px solid var(--line2);background:transparent;color:var(--txt);width:31px;height:31px;flex:none;border-radius:10px}
+.dtabs{display:flex;gap:3px;padding:9px 15px 0;background:var(--bg2);border-bottom:1px solid var(--line);overflow:auto}
+.dtab{border:0;background:transparent;padding:8px 10px;font-size:10px;border-bottom:2px solid transparent;white-space:nowrap;color:var(--muted)}
+.dtab.on{border-color:var(--acc);font-weight:800;color:var(--txt)}
+.dbody{padding:15px 18px;overflow:auto;flex:1}
+.dg{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:11px}
+.det{border:1px solid var(--line);background:var(--panel);padding:10px;border-radius:var(--rs)}
+.det small{display:block;font:600 7.6px 'IBM Plex Mono',monospace;color:var(--muted2);letter-spacing:.03em}
+.det b{font-size:11px;display:block;margin-top:5px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,26px);z-index:120;background:var(--panel2);border:1px solid var(--line2);color:var(--txt);padding:13px 17px;box-shadow:var(--shadow);font-size:11px;opacity:0;transition:.22s;pointer-events:none;max-width:92vw;line-height:1.55;border-radius:12px}
+.toast.show{opacity:1;transform:translate(-50%,0)}.toast b{color:var(--acc2)}
+.spark{position:fixed;z-index:200;width:6px;height:10px;pointer-events:none;animation:sf 1.7s ease-in forwards;border-radius:2px}
+@keyframes sf{to{transform:translateY(102vh) rotate(620deg);opacity:.2}}
+.chart{height:140px;display:flex;align-items:flex-end;gap:7px;padding-top:14px}
+.chart-col{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px}
+.chart-col i{width:72%;height:var(--h);background:var(--track2);position:relative;border-radius:4px 4px 0 0;transition:.4s}
+.chart-col i:after{content:"";position:absolute;left:0;right:0;bottom:0;height:var(--p);background:var(--acc);border-radius:0 0 4px 4px}
+.chart-col span{font-size:8px;color:var(--muted2)}
+.fr{display:grid;grid-template-columns:130px 1fr 76px;gap:8px;align-items:center;margin-bottom:6px}
+.fr span{font-size:9.6px}
+.ftrack{height:18px;background:var(--track);border-radius:5px;overflow:hidden}.ftrack i{display:block;height:100%;width:var(--w);background:linear-gradient(90deg,#b57209,var(--acc))}
+.fr b{text-align:right;font:600 8.6px 'IBM Plex Mono',monospace}
+
+/* ===== СВЕТЛАЯ ТЕМА ===== */
+body.light{--bg:#f4f7fb;--bg2:#ffffff;--panel:#ffffff;--panel2:#f1f5fa;--line:#dfe7f0;--line2:#c3d3e4;--txt:#10263d;--muted:#5a7690;--muted2:#8199b0;--acc:#f37a20;--acc2:#c25a08;--accs:#f37a2014;--blue:#1f6fc4;--violet:#8b3fd6;--shadow:0 6px 20px -10px rgba(16,38,61,.28);--track:#e3ebf4;--track2:#dbe6f2;--glass:#ffffffee;--overlay:rgba(16,38,61,.35);--code:#f5f8fc;--thbg:#ffffff;--okline:#8fd3a8;--overbg:#ef444412;--greenbg:#e6f7ed;--greenln:#a7e2c0;--greentx:#0f7a45;--cgood:#12864f;--cwarn:#b06a06;--cbad:#c62828;--cblue:#1f6fc4;--cviolet:#7b35c2;--ccyan:#0f7f95;--acch:#c25a08;--hinttx:#5b3a1b;--logopad:0;--logobg:transparent}
+body.light .gate-art:before{background:radial-gradient(circle at 58% 42%,#f37a2018,transparent 60%)}
+body.light .logo-full{box-shadow:none;border:1px solid var(--line)}
+body.light .logo-mark{background:transparent;padding:0}
+body.light .nav-item.on{background:linear-gradient(90deg,var(--accs),transparent);color:#0d3f6e}
+body.light .rail-av,body.light .tbtn.acc,body.light .btn.acc,body.light .filter.on{color:#fff}
+body.light .mailbody{border-color:var(--line)}
+body.light .phone{border-color:#dfe7f0;background:#eef3f9}
+body.light .st{border:1px solid currentColor}
+@media(max-width:1250px){.g12,.g21{grid-template-columns:1fr}.g4{grid-template-columns:1fr 1fr}.dg{grid-template-columns:1fr 1fr}}
+@media(max-width:1050px){.gate{grid-template-columns:1fr}.gate-art{display:none}.g2,.g3{grid-template-columns:1fr}.strip{grid-template-columns:repeat(3,1fr)}.strip>div:first-child{grid-column:span 3}}
+@media(max-width:760px){.shell{grid-template-columns:1fr}.rail{position:fixed;z-index:50;left:0;top:0;bottom:0;width:238px;transform:translateX(-102%);transition:.22s}.rail.open{transform:none}.menu{display:block}.top{height:56px;padding:0 11px}.top .pill,.top .tbtn{display:none}.content{padding:13px 10px 32px}.strip{grid-template-columns:1fr 1fr}.strip>div:first-child{grid-column:span 2}.roles,.g4{grid-template-columns:1fr}.gate h1{font-size:31px}.dg{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<section class="gate" id="gate">
+  <div class="gate-copy">
+    <div class="gate-brand"><img class="logo-full" src="data:image/jpeg;base64,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" alt="AsiaPartnerService"><div class="brand-txt"><b>Учёт ремонта вагонов</b><small>ДЕМО ПО ТЗ ВЕРСИЯ 1.4</small></div></div>
+    <button class="theme-gate" id="themeBtnGate" onclick="toggleTheme()">☀ Светлая версия</button>
+    <div class="kicker">AsiaPartnerService · демо по техническому заданию · Астана</div>
+    <h1>Каждый вагон — <span>одна карточка</span> от письма до оплаты.</h1>
+    <p class="gate-lead">Заявка приходит на выделенную почту — бот разбирает письмо, определяет род вагона, код неисправности и станцию по классификаторам и создаёт заявку. Администратор принимает её одним нажатием, дальше вагон живёт в единой карточке: статусы с полной историей, таймер нормативного срока с остановкой на ожидании запчастей, согласования с клиентом, документы ВУ-36/ВУ-23/ВУ-22, передача в бухгалтерию на АВР и фиксация оплаты. Плюс склад номерных запчастей и мобильное место мастера в депо.</p>
+    <div class="roles" id="roles"></div>
+    <div class="gate-foot">ДЕМО ДЛЯ ASIAPARTNERSERVICE ПО ТЗ «УЧЁТ РЕМОНТА ВАГОНОВ» ВЕР. 1.4 · АВТОНОМНЫЙ ФАЙЛ<br>данные вымышленные · Pllato · 25.08.2026 · открывается двойным кликом, интернет не нужен</div>
+  </div>
+  <div class="gate-art">
+    <div class="flow">
+      <div class="fstep on"><i>✉</i><div><b>Письмо на выделенный адрес</b><p>бот отслеживает ящик, помнит обработанные письма и не создаёт дублей</p></div></div>
+      <div class="fstep on"><i>🤖</i><div><b>Бот разбирает заявку</b><p>номер вагона → род по классификатору, код → название неисправности, станция отцепки</p></div></div>
+      <div class="fstep on"><i>✓</i><div><b>Администратор принимает</b><p>создаётся карточка вагона, дата заявки — точка отсчёта дней в работе</p></div></div>
+      <div class="fstep"><i>🔧</i><div><b>Ремонт и согласования</b><p>статусы с историей, таймер просрочки, согласование дорогих запчастей с клиентом</p></div></div>
+      <div class="fstep"><i>📄</i><div><b>Документы и АВР</b><p>ВУ-36, ВУ-23, ВУ-22, калькуляция депо → бухгалтерия → АВР клиенту → оплата</p></div></div>
+    </div>
+    <div class="gate-stats">
+      <div class="gs"><small>ВАГОНОВ В РАБОТЕ</small><b>48 · 6 просрочено</b></div>
+      <div class="gs"><small>ЗАЯВОК ОТ БОТА</small><b>12 за сутки</b></div>
+      <div class="gs"><small>ДЕПО</small><b>10</b></div>
+      <div class="gs"><small>СОБСТВЕННИКОВ</small><b>5</b></div>
+    </div>
+  </div>
+</section>
+
+<div class="shell hidden" id="app">
+  <aside class="rail" id="rail">
+    <div class="rail-top"><img class="logo-mark" src="data:image/png;base64,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" alt="AsiaPartnerService"><div><b>AsiaPartnerService</b><small>УЧЁТ РЕМОНТА ВАГОНОВ</small></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="rail-user"><div class="rail-av" id="rav">АД</div><div><b id="rname">Администратор</b><small id="rrole">Вся оперативная работа</small></div></div>
+  </aside>
+  <main class="work">
+    <header class="top">
+      <button class="menu" id="menuBtn">☰</button>
+      <div><h1 id="ttl">Вагоны</h1><p id="sub">Основная таблица</p></div>
+      <div class="spacer"></div>
+      <span class="pill"><i></i>Бот почты активен</span>
+      <button class="tbtn" id="themeBtn" onclick="toggleTheme()" title="Светлая / тёмная тема">☀ Светлая</button>
+      <button class="tbtn" id="tourBtn" onclick="tour()">▶ Сценарий</button>
+      <button class="tbtn acc" onclick="simMail()">✉ Новое письмо</button>
+      <select class="rsel" id="rsel"></select>
+    </header>
+    <div class="content" id="content"></div>
+  </main>
+</div>
+
+<div class="dbg" id="dbg" onclick="if(event.target===this)closeD()"><aside class="drawer"><div class="drawer-h"><div><h3 id="dt">—</h3><p id="ds">—</p></div><button class="dclose" onclick="closeD()">×</button></div><div class="dtabs" id="dtabs"></div><div class="dbody" id="db"></div></aside></div>
+<div class="toast" id="toast"></div>
+<script>
+/* Система учёта ремонта вагонов — демо по ТЗ вер. 1.4. Данные вымышленные, суммы в тенге. */
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const fmt=n=>new Intl.NumberFormat('ru-RU').format(Math.round(n));
+const tg=n=>fmt(n)+' ₸';
+
+const ROLES={
+ 'Администратор':{n:'Администратор',av:'АД',note:'Заявки, вагоны, статусы, согласования, документы',s:['table','inbox','appr','docs','stock','depo','buh','settings']},
+ 'Руководитель':{n:'Руководитель',av:'РК',note:'Статистика, деньги, нормативы, цены, архив',s:['boss','table','fin','depo','stock','norms','archive']},
+ 'Бухгалтерия':{n:'Бухгалтерия',av:'БХ',note:'Только вагоны, переданные на АВР',s:['buh']},
+ 'Клиент':{n:'Клиент · собственник',av:'КЛ',note:'Свои вагоны, статусы, документы, согласования',s:['client']},
+ 'Мастер в депо':{n:'Мастер в депо',av:'МС',note:'Телефон: статус вагона и дефектная ведомость',s:['mobile']}
+};
+const NAV=[
+ ['ОПЕРАТИВНАЯ РАБОТА',[['table','TBL','Вагоны · таблица'],['inbox','BOT','Заявки от бота',3],['appr','SOG','Согласования',2],['docs','DOC','Документы']]],
+ ['РЕСУРСЫ',[['stock','SKL','Склад запчастей',1],['depo','DEP','Депо и загрузка'],['mobile','MOB','Мастер в депо']]],
+ ['ДЕНЬГИ И КОНТРОЛЬ',[['boss','STA','Статистика'],['fin','FIN','Финансы'],['buh','AVR','Бухгалтерия · АВР',2],['client','LKK','Кабинет клиента']]],
+ ['СИСТЕМА',[['norms','NRM','Нормативы и цены'],['archive','ARH','Архив'],['settings','SET','Настройки']]]
+];
+const TITLES={
+ table:['Вагоны','Основная таблица: настраиваемые столбцы, цвет строки по статусу, подсветка просрочки'],
+ inbox:['Заявки от бота','Письма с выделенного адреса: бот разобрал — администратор проверяет и принимает'],
+ appr:['Согласования запчастей','Дорогие запчасти согласуются с клиентом; пока нет ответа — ремонт стоит'],
+ docs:['Документы','Комплект по вагону: акт осмотра, ВУ-36, ВУ-23, ВУ-22, калькуляция депо, АВР, РДВ'],
+ stock:['Склад запчастей','Номерной учёт: приход, расход на вагон, инвентаризация, остатки по депо'],
+ depo:['Депо и загрузка','Десять ремонтных депо: сколько вагонов, сроки, цены и расчёты'],
+ boss:['Статистика','Экран руководителя: в работе, отработано, просрочено, оплачено — за период'],
+ fin:['Финансы','Оплата клиентом и оплата работы депо по каждому вагону; клиент этого не видит'],
+ buh:['Бухгалтерия · АВР','Только вагоны, переданные администратором на составление АВР'],
+ client:['Кабинет клиента','Что видит собственник: свои вагоны, статусы, документы, согласования'],
+ mobile:['Мастер в депо','Телефон: смена статуса и дефектная ведомость с фото — без компьютера'],
+ norms:['Нормативы и цены','Сроки ТОР / деповской / капитальный и цены — меняет руководитель'],
+ archive:['Архив','Ошибочные вагоны не удаляются, а переносятся в архив с полной историей'],
+ settings:['Настройки','Почта бота, срок доработки, цвета статусов, классификаторы, права ролей']
+};
+let role='Администратор',cur='table';
+
+/* ===== СПРАВОЧНИКИ (ТЗ п.18) ===== */
+const RODS=[['2','Крытый'],['4','Платформа'],['6','Полувагон'],['7','Цистерна'],['8','Изотермический']];
+const rodByNo=no=>(RODS.find(r=>String(no)[0]===r[0])||['','Прочий'])[1];
+const FAULTS={102:'Тонкий гребень',107:'Выщербина обода колеса',116:'Ползун на поверхности катания',157:'Грение буксового узла',205:'Излом пружины рессорного комплекта',214:'Трещина/излом боковой рамы',225:'Износ фрикционных планок',301:'Неисправность автосцепного устройства',305:'Неисправность поглощающего аппарата',912:'Повреждение кузова вагона'};
+const STATIONS=['Астана-1','Караганда-Сортировочная','Экибастуз-1','Актобе','Кандыагаш','Шу','Арыс','Достык','Атырау','Жезказган'];
+const OWNERS=['ТОО «Казтемiр-Логистик»','АО «Каспий Ойл Транс»','ТОО «Степной Экспресс»','ТОО «Alem Rail»','ТОО «KZ Wagon»'];
+const DEPOS=[
+ {n:'ВЧДР Астана',v:11,avg:6.2,pay:'по графику',debt:0},
+ {n:'ВЧДР Караганда',v:9,avg:7.8,pay:'по графику',debt:1240000},
+ {n:'ВЧДР Экибастуз',v:7,avg:6.9,pay:'просрочка 4 дн.',debt:860000},
+ {n:'ВЧДР Актобе',v:5,avg:9.1,pay:'по графику',debt:0},
+ {n:'ВЧДР Павлодар',v:4,avg:5.6,pay:'по графику',debt:410000},
+ {n:'ВЧДР Атырау',v:4,avg:8.4,pay:'по графику',debt:0},
+ {n:'ВЧДР Шу',v:3,avg:7.2,pay:'по графику',debt:0},
+ {n:'ВЧДР Арыс',v:2,avg:6.0,pay:'по графику',debt:0},
+ {n:'ВЧДР Кызылорда',v:2,avg:10.3,pay:'просрочка 9 дн.',debt:520000},
+ {n:'ЧТО «Темир Сервис»',v:1,avg:5.0,pay:'по графику',debt:0}
+];
+/* Статусы (ТЗ п.5) — цвета настраиваемые (ТЗ п.3.2) */
+let STATUS=[
+ {k:'new',n:'Принят в работу',c:'#3b82f6'},
+ {k:'rep',n:'В ремонте',c:'#f5a524'},
+ {k:'appr',n:'Ожидает согласования',c:'#a855f7'},
+ {k:'part',n:'Ожидаем запчасти от клиента',c:'#22d3ee'},
+ {k:'out',n:'Выпущен из ремонта',c:'#22c55e'},
+ {k:'rdy',n:'Готов',c:'#10b981'},
+ {k:'fix',n:'Ожидает корректировки',c:'#ef4444'}
+];
+const ST=k=>STATUS.find(s=>s.k===k)||STATUS[0];
+const REP=[['tor','ТОР',7],['dep','Деповской',10],['kap','Капитальный',15]];
+let NORMS={tor:7,dep:10,kap:15};
+let PRICES={tor:180000,dep:640000,kap:1450000};
+let FIXDAYS=7; // срок подачи заявки на доработку (ТЗ п.11.1)
+const repName=k=>(REP.find(r=>r[0]===k)||['','—'])[1];
+
+/* ===== ВАГОНЫ ===== */
+let CARS=[
+ {no:'61294857',own:0,rep:'tor',st:'rep',got:'18.08.2026',days:6,fault:107,stn:1,depo:0,gl:'ГП-2026/418',gld:'18.08.2026',out:'',pc:0,pd:1,avr:0,sent:0,
+  hist:[['new','Принят в работу','19.08.2026 09:14','Сергей А.'],['rep','В ремонте','19.08.2026 15:02','Сергей А.']],
+  docs:{act:1},appr:[],parts:[]},
+ {no:'74183920',own:1,rep:'dep',st:'appr',got:'14.08.2026',days:10,fault:205,stn:2,depo:2,gl:'ГП-2026/402',gld:'14.08.2026',out:'',pc:0,pd:0,avr:0,sent:0,
+  hist:[['new','Принят в работу','14.08.2026 11:20','Сергей А.'],['rep','В ремонте','15.08.2026 08:40','Сергей А.'],['appr','Ожидает согласования','21.08.2026 16:10','Сергей А.']],
+  docs:{act:1},appr:[{id:1,part:'Комплект пружин рессорного подвешивания',qty:4,price:96000,st:'wait',cr:'21.08.2026 16:10',act:'Акт браковки № 88 от 21.08',cmt:'Излом двух пружин, требуется замена комплекта'}],parts:[]},
+ {no:'24765103',own:2,rep:'tor',st:'part',got:'12.08.2026',days:12,fault:301,stn:0,depo:0,gl:'ГП-2026/395',gld:'12.08.2026',out:'',pc:0,pd:0,avr:0,sent:0,
+  hist:[['new','Принят в работу','12.08.2026 10:05','Сергей А.'],['rep','В ремонте','12.08.2026 14:30','Сергей А.'],['appr','Ожидает согласования','16.08.2026 09:12','Сергей А.'],['part','Ожидаем запчасти от клиента','18.08.2026 11:45','Сергей А.']],
+  docs:{act:1},appr:[{id:2,part:'Автосцепка СА-3 в сборе',qty:1,price:310000,st:'own',cr:'16.08.2026 09:12',act:'Акт браковки № 79 от 16.08',cmt:'Клиент предоставляет свою автосцепку'}],parts:[],wait:'Автосцепка СА-3 — 1 шт., отгрузка из Караганды'},
+ {no:'61330288',own:0,rep:'dep',st:'rep',got:'09.08.2026',days:15,fault:214,stn:3,depo:1,gl:'ГП-2026/388',gld:'09.08.2026',out:'',pc:0,pd:0,avr:0,sent:0,
+  hist:[['new','Принят в работу','09.08.2026 08:50','Сергей А.'],['rep','В ремонте','09.08.2026 16:20','Сергей А.']],
+  docs:{act:1},appr:[],parts:[]},
+ {no:'42019876',own:3,rep:'tor',st:'out',got:'16.08.2026',days:8,fault:116,stn:5,depo:4,gl:'ГП-2026/409',gld:'16.08.2026',out:'22.08.2026',pc:0,pd:1,avr:0,sent:0,
+  hist:[['new','Принят в работу','16.08.2026 09:30','Сергей А.'],['rep','В ремонте','16.08.2026 13:15','Сергей А.'],['out','Выпущен из ремонта','23.08.2026 10:02','Сергей А.']],
+  docs:{act:1,vu36:1,vu23:1},appr:[],parts:[]},
+ {no:'74556201',own:1,rep:'kap',st:'rdy',got:'02.08.2026',days:22,fault:912,stn:8,depo:5,gl:'ГП-2026/371',gld:'02.08.2026',out:'21.08.2026',pc:0,pd:1,avr:1,sent:1,rdyAt:'22.08.2026',
+  hist:[['new','Принят в работу','02.08.2026 10:11','Сергей А.'],['rep','В ремонте','03.08.2026 09:00','Сергей А.'],['out','Выпущен из ремонта','21.08.2026 17:40','Сергей А.'],['rdy','Готов','22.08.2026 12:05','Сергей А.']],
+  docs:{act:1,vu36:1,vu23:1,vu22:1,calc:1,avr:1,rdv:1},appr:[],parts:[]},
+ {no:'61402993',own:4,rep:'tor',st:'rdy',got:'10.08.2026',days:14,fault:102,stn:6,depo:6,gl:'ГП-2026/390',gld:'10.08.2026',out:'19.08.2026',pc:1,pd:1,avr:1,sent:1,rdyAt:'20.08.2026',
+  hist:[['new','Принят в работу','10.08.2026 09:05','Сергей А.'],['rep','В ремонте','10.08.2026 15:30','Сергей А.'],['out','Выпущен из ремонта','19.08.2026 16:00','Сергей А.'],['rdy','Готов','20.08.2026 10:20','Сергей А.']],
+  docs:{act:1,vu36:1,vu23:1,vu22:1,calc:1,avr:1,rdv:1},appr:[],parts:[]},
+ {no:'24880154',own:2,rep:'dep',st:'fix',got:'05.08.2026',days:19,fault:157,stn:4,depo:3,gl:'ГП-2026/378',gld:'05.08.2026',out:'20.08.2026',pc:0,pd:1,avr:1,sent:1,
+  hist:[['new','Принят в работу','05.08.2026 08:30','Сергей А.'],['rep','В ремонте','05.08.2026 14:00','Сергей А.'],['out','Выпущен из ремонта','20.08.2026 15:10','Сергей А.'],['rdy','Готов','21.08.2026 09:40','Сергей А.'],['fix','Ожидает корректировки','23.08.2026 14:22','Сергей А.']],
+  docs:{act:1,vu36:1,vu23:1,vu22:1,calc:1,avr:1},appr:[],parts:[],fixWhy:'В ВУ-23 указан неверный номер гарантийного письма — просим исправить и приложить заново.'},
+ {no:'61775430',own:0,rep:'tor',st:'new',got:'23.08.2026',days:1,fault:107,stn:1,depo:0,gl:'ГП-2026/424',gld:'23.08.2026',out:'',pc:0,pd:0,avr:0,sent:0,
+  hist:[['new','Принят в работу','23.08.2026 16:40','Сергей А.']],docs:{},appr:[],parts:[]},
+ {no:'74902117',own:1,rep:'dep',st:'rep',got:'20.08.2026',days:4,fault:305,stn:7,depo:1,gl:'ГП-2026/419',gld:'20.08.2026',out:'',pc:0,pd:0,avr:0,sent:0,
+  hist:[['new','Принят в работу','20.08.2026 09:55','Сергей А.'],['rep','В ремонте','20.08.2026 14:10','Сергей А.']],docs:{act:1},appr:[],parts:[]}
+];
+const isOver=c=>['out','rdy'].includes(c.st)?false:(c.st==='part'?false:c.days>NORMS[c.rep]);
+
+/* ===== ЗАЯВКИ ОТ БОТА (ТЗ п.2) ===== */
+let MAILS=[
+ {id:1,from:'zayavki@kaspiy-oil.kz',subj:'Отцепка вагона 74338205 — ст. Кандыагаш',t:'сегодня 08:42',state:'ok',
+  body:'Добрый день!\nПросим принять в ремонт вагон № 74338205.\nОтцеплен 23.08.2026 на ст. Кандыагаш.\nНеисправность: код 157 (грение буксового узла).\nСобственник: АО «Каспий Ойл Транс».\nГарантийное письмо прилагаем.',
+  parsed:{no:'74338205',rod:'Цистерна',fault:157,stn:'Кандыагаш',own:'АО «Каспий Ойл Транс»',date:'23.08.2026'}},
+ {id:2,from:'logistics@alemrail.kz',subj:'Заявка на ТОР — вагон 42887301',t:'сегодня 10:15',state:'ok',
+  body:'Здравствуйте.\nВагон 42887301, ст. Арыс, дефект — ползун на поверхности катания (116).\nПросим выполнить текущий отцепочный ремонт.\nТОО «Alem Rail»',
+  parsed:{no:'42887301',rod:'Платформа',fault:116,stn:'Арыс',own:'ТОО «Alem Rail»',date:'24.08.2026'}},
+ {id:3,from:'d.serikov@kztl.kz',subj:'Re: вагоны на август',t:'сегодня 11:03',state:'bad',
+  body:'Добрый день, коллеги!\nПо нашей переписке — вагон нужно посмотреть, номер уточню позже.\nСтанция как в прошлый раз.\nС уважением, Дамир',
+  parsed:null},
+ {id:4,from:'zayavki@kaspiy-oil.kz',subj:'Отцепка вагона 74183920',t:'сегодня 11:40',state:'dup',
+  body:'Просим принять в ремонт вагон № 74183920, ст. Караганда-Сортировочная, код 205.',
+  parsed:{no:'74183920',rod:'Цистерна',fault:205,stn:'Караганда-Сортировочная',own:'АО «Каспий Ойл Транс»',date:'24.08.2026'}}
+];
+let mailSeq=5;
+
+/* ===== СКЛАД (добавлено по итогам встречи) ===== */
+let PARTS=[
+ {n:'Колёсная пара РУ1Ш-957-Г',num:'КП-0084512',yr:2021,q:1,st:'ok',loc:'ВЧДР Астана',price:820000,note:'толщина гребня 30 мм, обточена'},
+ {n:'Колёсная пара РУ1Ш-957-Г',num:'КП-0084518',yr:2019,q:1,st:'ok',loc:'ВЧДР Астана',price:790000,note:'толщина гребня 28 мм'},
+ {n:'Боковая рама 9758-01',num:'БР-118472',yr:2018,q:1,st:'ok',loc:'ВЧДР Караганда',price:640000,note:'клеймо завода, дефектоскопия пройдена'},
+ {n:'Надрессорная балка 9758-02',num:'НБ-227105',yr:2020,q:1,st:'ok',loc:'ВЧДР Караганда',price:580000,note:''},
+ {n:'Автосцепка СА-3 в сборе',num:'АС-40921',yr:2022,q:1,st:'res',loc:'ВЧДР Астана',price:310000,note:'зарезервирована под вагон 24765103'},
+ {n:'Поглощающий аппарат ПМК-110А',num:'ПА-77310',yr:2021,q:1,st:'ok',loc:'ВЧДР Экибастуз',price:265000,note:''},
+ {n:'Воздухораспределитель 483М',num:'ВР-51188',yr:2023,q:1,st:'ok',loc:'ВЧДР Астана',price:148000,note:''},
+ {n:'Комплект пружин рессорного подвешивания',num:'—',yr:0,q:6,st:'low',loc:'ВЧДР Астана',price:96000,note:'⚠ ниже минимума (8 компл.) — заявка поставщику'},
+ {n:'Тормозной цилиндр 188Б',num:'ТЦ-30442',yr:2022,q:1,st:'ok',loc:'ВЧДР Павлодар',price:112000,note:''},
+ {n:'Фрикционные планки (комплект)',num:'—',yr:0,q:24,st:'ok',loc:'ВЧДР Астана',price:38000,note:''}
+];
+let MOVES=[
+ {t:'Расход',what:'Колёсная пара КП-0084507',to:'вагон 61294857 · ТОР',d:'23.08.2026 14:20',who:'Сергей А.',sum:815000},
+ {t:'Приход',what:'Колёсная пара КП-0084518 · 1 шт.',to:'от ТОО «КолесоСервис», накл. 2211',d:'22.08.2026 10:05',who:'Сергей А.',sum:790000},
+ {t:'Расход',what:'Комплект пружин · 2 компл.',to:'вагон 61330288 · деповской',d:'21.08.2026 16:40',who:'Сергей А.',sum:192000},
+ {t:'Инвентаризация',what:'ВЧДР Астана · 34 позиции',to:'расхождений нет',d:'20.08.2026 09:00',who:'Сергей А.',sum:0},
+ {t:'Приход',what:'Автосцепка СА-3 · 1 шт.',to:'от АО «Каспий Ойл Транс» (запчасть клиента)',d:'19.08.2026 12:30',who:'Сергей А.',sum:0}
+];
+
+/* ===== СТОЛБЦЫ ТАБЛИЦЫ (ТЗ п.3.1) ===== */
+let COLS=[
+ {k:'no',n:'№ вагона',on:1,pin:1},{k:'rod',n:'Род',on:1,pin:0},{k:'own',n:'Собственник',on:1,pin:0},
+ {k:'st',n:'Статус',on:1,pin:0},{k:'got',n:'Дата заявки',on:1,pin:0},{k:'days',n:'Дней в работе',on:1,pin:0},
+ {k:'rep',n:'Вид ремонта',on:1,pin:0},{k:'fault',n:'Код / неисправность',on:1,pin:0},{k:'stn',n:'Станция отцепки',on:0,pin:0},
+ {k:'depo',n:'Депо',on:1,pin:0},{k:'gl',n:'Гарант. письмо',on:0,pin:0},{k:'out',n:'Выпуск из ремонта',on:1,pin:0},
+ {k:'appr',n:'Согласование',on:1,pin:0},{k:'avr',n:'АВР',on:1,pin:0},{k:'pc',n:'Оплата клиента',on:1,pin:0},{k:'pd',n:'Оплата депо',on:0,pin:0}
+];
+let filt={q:'',st:'all',over:0};
+
+/* ===== ЭКРАНЫ ===== */
+const SC={};
+const stChip=k=>{const s=ST(k);return `<span class="st" style="--c:${s.c};background:${s.c}22;color:${s.c}"><i></i>${s.n}</span>`};
+
+SC.table=()=>{
+ let list=CARS.filter(c=>{
+  const q=filt.q.toLowerCase();
+  const hay=(c.no+' '+OWNERS[c.own]+' '+c.gl+' '+FAULTS[c.fault]+' '+STATIONS[c.stn]+' '+DEPOS[c.depo].n).toLowerCase();
+  return (!q||hay.includes(q))&&(filt.st==='all'||c.st===filt.st)&&(!filt.over||isOver(c))});
+ const on=COLS.filter(c=>c.on);
+ const cell=(c,k)=>({
+  no:`<b class="mono" style="font-size:11px">${c.no}</b>`,
+  rod:rodByNo(c.no),
+  own:`<span class="mini">${esc(OWNERS[c.own])}</span>`,
+  st:stChip(c.st),
+  got:`<span class="mono">${c.got}</span>`,
+  days:`<b class="mono ${isOver(c)?'bad':''}">${c.days}</b><span class="mini"> / ${NORMS[c.rep]}</span>${c.st==='part'?'<div class="sub" style="color:#67e8f9">таймер остановлен</div>':''}`,
+  rep:repName(c.rep),
+  fault:`<b class="mono">${c.fault}</b><div class="sub">${FAULTS[c.fault]}</div>`,
+  stn:STATIONS[c.stn],
+  depo:`<span class="mini">${DEPOS[c.depo].n}</span>`,
+  gl:`<span class="mono">${c.gl}</span><div class="sub">${c.gld}</div>`,
+  out:c.out?`<span class="mono">${c.out}</span>`:'<span class="mini">—</span>',
+  appr:c.appr.length?(c.appr.some(a=>a.st==='wait')?'<span class="tag violet">ждём ответ</span>':'<span class="tag green">решено</span>'):'<span class="mini">—</span>',
+  avr:c.avr?'<span class="tag green">приложена</span>':(c.st==='rdy'||c.st==='out'?'<span class="tag amber">нужна</span>':'<span class="mini">—</span>'),
+  pc:c.pc?'<span class="tag green">оплачено</span>':'<span class="tag red">не оплачено</span>',
+  pd:c.pd?'<span class="tag green">оплачено</span>':'<span class="tag red">не оплачено</span>'
+ }[k]);
+ return `<div class="head"><div><h2>Вагоны · основная таблица</h2><p>Оперативный контроль: строка окрашена по статусу, просроченные подсвечены отдельно. Столбцы можно скрывать, закреплять и менять местами — настройка сохраняется за пользователем. Статус меняется только в карточке вагона.</p></div>
+ <div class="btns"><button class="btn" onclick="toast('Экспорт таблицы в Excel с текущими столбцами и фильтрами.')">Экспорт</button><button class="btn acc" onclick="go('inbox')">✉ Заявки от бота · 3</button></div></div>
+ <div class="strip">
+  <div><small>ВАГОНОВ В РАБОТЕ</small><b>${CARS.filter(c=>!['rdy'].includes(c.st)).length} из ${CARS.length}</b><span>показано ${list.length} по фильтру</span></div>
+  <div><small>ПРОСРОЧЕНО</small><b class="bad">${CARS.filter(isOver).length}</b><span>сверх норматива вида ремонта</span></div>
+  <div><small>ЖДУТ СОГЛАСОВАНИЯ</small><b class="warn">${CARS.filter(c=>c.st==='appr').length}</b><span>ремонт остановлен</span></div>
+  <div><small>ГОТОВЫ</small><b class="good">${CARS.filter(c=>c.st==='rdy').length}</b><span>документы у клиента</span></div>
+  <div><small>НЕ ОПЛАЧЕНО КЛИЕНТОМ</small><b>${CARS.filter(c=>!c.pc).length}</b><span>видно только вам</span></div>
+ </div>
+ <div class="filters">
+  <input class="search" placeholder="Номер вагона, собственник, гарантийное письмо, станция, депо…" value="${esc(filt.q)}" oninput="filt.q=this.value;render();this.focus();this.setSelectionRange(this.value.length,this.value.length)">
+  <button class="filter ${filt.st==='all'&&!filt.over?'on':''}" onclick="filt.st='all';filt.over=0;render()">Все</button>
+  ${STATUS.map(s=>`<button class="filter ${filt.st===s.k?'on':''}" onclick="filt.st='${s.k}';filt.over=0;render()" style="${filt.st===s.k?`background:${s.c};border-color:${s.c};color:#0b0f14`:''}">${s.n}</button>`).join('')}
+  <button class="filter ${filt.over?'on':''}" onclick="filt.over=filt.over?0:1;filt.st='all';render()" style="${filt.over?'background:var(--red);border-color:var(--red);color:#fff':''}">⚠ Просроченные</button>
+ </div>
+ <div class="panel">
+  <div class="ph"><div><div class="ph-title">Настройка таблицы</div><div class="ph-sub">нажмите на столбец, чтобы скрыть или показать · 📌 — закрепить слева · настройка сохранится за вами</div></div><button class="btn" onclick="colsReset()">Сбросить</button></div>
+  <div class="cols">${COLS.map(c=>`<button class="colchip ${c.on?'on':''} ${c.pin?'pin':''}" onclick="colToggle('${c.k}')">${c.on?'👁':'—'} ${c.n}${c.pin?' 📌':''}</button>`).join('')}</div>
+  <div class="tw" style="max-height:520px">
+  <table class="data" style="min-width:${on.length*130}px"><thead><tr>${on.map(c=>`<th>${c.n}</th>`).join('')}</tr></thead><tbody>
+  ${list.map(c=>`<tr class="row-st ${isOver(c)?'over':''}" style="--c:${ST(c.st).c}" onclick="openCar('${c.no}')">${on.map(col=>`<td>${cell(c,col.k)}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${on.length}"><p class="mini" style="padding:14px">Ничего не найдено по фильтру.</p></td></tr>`}
+  </tbody></table></div>
+  <div class="hint"><b>Как в вашем ТЗ:</b> таблица — для оперативного контроля, а не копия карточки. Цвет строки зависит от статуса (цвета настраиваются), просрочка — не отдельный статус, а подсветка. Клик по строке открывает полную карточку вагона.</div>
+ </div>`};
+function colToggle(k){const c=COLS.find(x=>x.k===k);if(c.k==='no'){c.pin=c.pin?0:1;toast('Столбец «№ вагона» '+(c.pin?'закреплён слева':'откреплён')+'. Настройка сохранена за вашим пользователем.');return keepScroll()}
+ c.on=c.on?0:1;keepScroll();toast(`Столбец «${c.n}» ${c.on?'показан':'скрыт'}. Данные не удаляются — только отображение.`)}
+function colsReset(){COLS.forEach(c=>c.on=['no','rod','own','st','got','days','rep','fault','depo','out','appr','avr','pc'].includes(c.k)?1:0);keepScroll();toast('Настройка столбцов сброшена к стандартной.')}
+
+/* ---- КАРТОЧКА ВАГОНА (ТЗ п.4) ---- */
+let dCar=null,dTab=0;
+function openCar(no,tab=0){const c=CARS.find(x=>x.no===no);if(!c)return;dCar=no;dTab=tab;
+ const tabs=['Основное','Статус и история','Согласования','Документы','Финансы'];
+ document.getElementById('dt').textContent='Вагон № '+c.no;
+ document.getElementById('ds').innerHTML=`${rodByNo(c.no)} · ${esc(OWNERS[c.own])} · ${repName(c.rep)} · ${isOver(c)?'<b style="color:#f87171">просрочен</b>':'в норме'}`;
+ document.getElementById('dtabs').innerHTML=tabs.map((t,i)=>`<button class="dtab ${i===tab?'on':''}" onclick="openCar('${no}',${i})">${t}</button>`).join('');
+ document.getElementById('db').innerHTML=carBody(c,tab);
+ document.getElementById('dbg').classList.add('show')}
+function carBody(c,tab){
+ if(tab===0)return `<div class="dg">
+  <div class="det"><small>НОМЕР / РОД</small><b>${c.no} · ${rodByNo(c.no)}</b></div>
+  <div class="det"><small>СОБСТВЕННИК</small><b>${esc(OWNERS[c.own])}</b></div>
+  <div class="det"><small>ТЕКУЩИЙ СТАТУС</small><b>${stChip(c.st)}</b></div>
+  <div class="det"><small>ДАТА ЗАЯВКИ</small><b>${c.got}</b></div>
+  <div class="det"><small>ДНЕЙ В РАБОТЕ</small><b class="${isOver(c)?'bad':''}">${c.days} из ${NORMS[c.rep]} по нормативу</b></div>
+  <div class="det"><small>ВИД РЕМОНТА</small><b>${repName(c.rep)}</b></div>
+  <div class="det"><small>НЕИСПРАВНОСТЬ</small><b>${c.fault} · ${FAULTS[c.fault]}</b></div>
+  <div class="det"><small>СТАНЦИЯ ОТЦЕПКИ</small><b>${STATIONS[c.stn]}</b></div>
+  <div class="det"><small>ДЕПО РЕМОНТА</small><b>${DEPOS[c.depo].n}</b></div>
+  <div class="det"><small>ГАРАНТИЙНОЕ ПИСЬМО</small><b>${c.gl} от ${c.gld}</b></div>
+  <div class="det"><small>ВЫПУСК ИЗ РЕМОНТА</small><b>${c.out||'—'}</b></div>
+  <div class="det"><small>ПЕРЕДАН В БУХГАЛТЕРИЮ</small><b>${c.sent?'да · АВР '+(c.avr?'приложена':'готовится'):'нет'}</b></div>
+ </div>
+ ${c.st==='part'?`<div class="note" style="--tone:#22d3ee"><b>Ожидаем запчасти от клиента</b><p>${esc(c.wait||'')} — на время этого статуса таймер нормативной просрочки остановлен, календарное время сохраняется в истории.</p></div>`:''}
+ ${c.st==='fix'?`<div class="note" style="--tone:var(--red)"><b>Клиент вернул на доработку</b><p>${esc(c.fixWhy||'')}</p></div>`:''}
+ ${isOver(c)?`<div class="note" style="--tone:var(--red)"><b>Просрочен на ${c.days-NORMS[c.rep]} дн.</b><p>Норматив для «${repName(c.rep)}» — ${NORMS[c.rep]} дней с даты заявки. Просрочка не является отдельным статусом: строка просто подсвечивается в таблице.</p></div>`:''}
+ <div class="btns" style="margin-top:12px">
+  <button class="btn acc" onclick="openCar('${c.no}',1)">Изменить статус</button>
+  <button class="btn violet" onclick="openCar('${c.no}',2)">Согласование запчасти</button>
+  <button class="btn" onclick="openCar('${c.no}',3)">Документы</button>
+  ${c.st==='rdy'&&!c.sent?`<button class="btn green" onclick="toBuh('${c.no}')">→ Передать в бухгалтерию на АВР</button>`:''}
+ </div>`;
+ if(tab===1)return `<div class="ph-title" style="margin-bottom:8px">Изменить статус</div>
+  <p class="mini" style="margin-bottom:9px">Статус меняет только администратор и только здесь — из таблицы изменить нельзя. Каждое изменение пишется в историю с датой, временем и пользователем.</p>
+  ${STATUS.map(s=>`<button class="stbtn ${c.st===s.k?'cur':''}" style="--c:${s.c}" onclick="setSt('${c.no}','${s.k}')"><i></i>${s.n}${c.st===s.k?' · текущий':''}</button>`).join('')}
+  <div class="ph-title" style="margin:14px 0 9px">История изменения статусов</div>
+  <div class="tl">${[...c.hist].reverse().map(h=>`<div class="tli" style="--c:${ST(h[0]).c}"><b>${esc(h[1])}</b><p>Пользователь: ${esc(h[3])}</p><time>${h[2]}</time></div>`).join('')}</div>
+  <div class="note" style="--tone:var(--acc)"><b>Историю нельзя редактировать или удалять</b><p>Для статуса «Выпущен из ремонта» отдельно хранится фактическая дата выпуска (по ВУ-36), которую указал администратор, и отдельно — дата и время внесения записи в систему.</p></div>`;
+ if(tab===2)return `<div class="btns" style="margin-bottom:11px"><button class="btn acc" onclick="newAppr('${c.no}')">+ Создать согласование</button></div>
+  ${c.appr.length?c.appr.map(a=>`<div class="panel" style="margin-bottom:8px">
+   <div class="ph"><div><div class="ph-title">${esc(a.part)}</div><div class="ph-sub">${a.qty} шт. × ${tg(a.price)} = <b>${tg(a.qty*a.price)}</b> · создано ${a.cr}</div></div>
+   ${a.st==='wait'?'<span class="tag violet">ждём ответ клиента</span>':a.st==='ok'?'<span class="tag green">согласовано</span>':a.st==='own'?'<span class="tag cyan">запчасть клиента</span>':'<span class="tag red">отказ</span>'}</div>
+   <div class="mini">Основание: ${esc(a.act)}<br>Комментарий: ${esc(a.cmt)}</div>
+   ${a.st==='wait'?`<div class="note" style="--tone:var(--amber)"><b>Напоминания клиенту</b><p>Ответа нет более 2 суток — система напоминает клиенту ежедневно, вы получаете уведомление о просроченном согласовании.</p></div>
+   <div class="btns" style="margin-top:9px"><button class="btn green" onclick="apprAns('${c.no}',${a.id},'ok')">Клиент согласовал</button><button class="btn" onclick="apprAns('${c.no}',${a.id},'own')">Даёт свою запчасть</button><button class="btn red" onclick="apprAns('${c.no}',${a.id},'no')">Отказ</button></div>`:''}
+  </div>`).join(''):'<p class="mini">По этому вагону согласований не было.</p>'}
+  <div class="hint"><b>По ТЗ:</b> одно согласование может содержать несколько позиций, а по одному вагону может быть несколько согласований. Вся история сохраняется: запчасть, количество, цена, акт, предложение, ответ клиента с датой и временем, комментарии и документы.</div>`;
+ if(tab===3){const D=[['act','Первичный акт осмотра'],['vu36','ВУ-36'],['vu23','ВУ-23'],['calc','Калькуляция от депо'],['vu22','ВУ-22'],['avr','АВР от бухгалтерии'],['rdv','РДВ']];
+  const has=D.filter(d=>c.docs[d[0]]).length;
+  return `<div class="ph"><div><div class="ph-title">Обязательный комплект · ${has} из ${D.length}</div><div class="ph-sub">контрольный список — он не блокирует перевод вагона в «Готов»</div></div></div>
+  <div class="bar" style="margin-bottom:10px"><i style="--w:${has/D.length*100}%;--tone:var(--green)"></i></div>
+  ${D.map(d=>`<div class="doc ${c.docs[d[0]]?'done':''}"><i onclick="docToggle('${c.no}','${d[0]}')">${c.docs[d[0]]?'✓':''}</i><span>${d[1]}</span><time>${c.docs[d[0]]?'загружен':'не загружен'}</time></div>`).join('')}
+  <div class="btns" style="margin-top:11px"><button class="btn" onclick="toast('Дополнительный документ добавлен: название, комментарий и файл — список не ограничен.')">+ Ситуационный документ</button><button class="btn" onclick="toast('Фото и видео прикреплены к карточке вагона.')">+ Фото / видео</button></div>
+  <div class="note" style="--tone:var(--acc)"><b>Файл гарантийного письма не загружаем</b><p>Как в ТЗ: в системе хранятся только номер и дата гарантийного письма.</p></div>`}
+ return `<div class="dg" style="grid-template-columns:1fr 1fr">
+  <div class="det"><small>ОПЛАТА КЛИЕНТОМ</small><b>${c.pc?'<span class="tag green">оплачено</span>':'<span class="tag red">не оплачено</span>'}</b></div>
+  <div class="det"><small>ОПЛАТА РАБОТЫ ДЕПО</small><b>${c.pd?'<span class="tag green">оплачено</span>':'<span class="tag red">не оплачено</span>'}</b></div>
+  <div class="det"><small>ЦЕНА ПО ВИДУ РЕМОНТА</small><b>${tg(PRICES[c.rep])}</b></div>
+  <div class="det"><small>СОГЛАСОВАННЫЕ ЗАПЧАСТИ</small><b>${tg(c.appr.filter(a=>a.st==='ok').reduce((s,a)=>s+a.qty*a.price,0))}</b></div>
+ </div>
+ <div class="btns"><button class="btn ${c.pc?'':'green'}" onclick="payToggle('${c.no}','pc')">${c.pc?'Снять отметку оплаты клиента':'Отметить оплату клиента'}</button>
+ <button class="btn ${c.pd?'':'green'}" onclick="payToggle('${c.no}','pd')">${c.pd?'Снять отметку оплаты депо':'Отметить оплату депо'}</button></div>
+ <div class="note" style="--tone:var(--red)"><b>Клиент этого не видит</b><p>Внутренняя финансовая информация доступна только администратору и руководителю: оплата клиентом, оплата работы депо, цены и внутренние комментарии.</p></div>`}
+function setSt(no,k){const c=CARS.find(x=>x.no===no);const old=ST(c.st).n;
+ if(k==='out'){const d=prompt('Фактическая дата выпуска из ремонта (по ВУ-36), можно задним числом:','23.08.2026');if(!d)return;c.out=d}
+ if(k==='part'&&!c.wait)c.wait='Запчасть клиента — ожидаем поставку';
+ c.st=k;c.hist.push([k,ST(k).n,'сейчас · '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}),'Сергей А.']);
+ if(k==='rdy')c.rdyAt='сегодня';
+ openCar(no,1);render();
+ toast(`Вагон <b>${no}</b>: «${old}» → «<b>${ST(k).n}</b>». Запись добавлена в историю, цвет строки в таблице обновлён${k==='part'?', таймер просрочки остановлен':''}${k==='rdy'?`, клиенту открылись документы и пошёл срок ${FIXDAYS} дн. на доработку`:''}.`)}
+function docToggle(no,k){const c=CARS.find(x=>x.no===no);c.docs[k]=c.docs[k]?0:1;openCar(no,3);
+ toast(c.docs[k]?'Документ загружен — сохранены дата, время и пользователь.':'Отметка снята.')}
+function payToggle(no,k){const c=CARS.find(x=>x.no===no);c[k]=c[k]?0:1;openCar(no,4);render();
+ toast(k==='pc'?(c.pc?'Отмечена оплата клиентом.':'Отметка оплаты клиента снята.'):(c.pd?'Отмечена оплата работы депо.':'Отметка оплаты депо снята.'))}
+function toBuh(no){const c=CARS.find(x=>x.no===no);c.sent=1;closeD();render();sparks();
+ toast(`Вагон <b>${no}</b> передан в бухгалтерию на составление АВР. Основной статус ремонта не изменился, бухгалтер получил уведомление.`)}
+function newAppr(no){const c=CARS.find(x=>x.no===no);
+ openD('Новое согласование · вагон '+no,'Дорогая запчасть — ремонт встанет до ответа клиента',['Согласование'],
+ `<div class="fld"><small>НАИМЕНОВАНИЕ ЗАПЧАСТИ</small><input id="apName" value="Колёсная пара РУ1Ш-957-Г"></div>
+  <div class="f3"><div class="fld"><small>КОЛИЧЕСТВО</small><input id="apQty" value="1"></div>
+  <div class="fld"><small>ЦЕНА ЗА ЕД., ₸</small><input id="apPrice" value="820000"></div>
+  <div class="fld"><small>ПОСТАВКА</small><select id="apSup"><option>Наша поставка со склада</option><option>Закуп у поставщика</option><option>Запчасть клиента</option></select></div></div>
+  <div class="fld"><small>АКТ, ПОДТВЕРЖДАЮЩИЙ НЕОБХОДИМОСТЬ ЗАМЕНЫ / БРАК</small><input id="apAct" value="Акт браковки № 91 от 24.08.2026"></div>
+  <div class="fld"><small>КОММЕНТАРИЙ КЛИЕНТУ</small><textarea id="apCmt" rows="2">Толщина гребня ниже нормы, требуется замена колёсной пары.</textarea></div>
+  <div class="note" style="--tone:var(--violet)"><b>Что произойдёт после создания</b><p>Вагон получит статус «Ожидает согласования», клиент получит уведомление в кабинете, ремонт до ответа не продолжается. Через 2 суток без ответа — ежедневные напоминания клиенту и уведомление вам.</p></div>
+  <div class="btns" style="margin-top:11px"><button class="btn acc" onclick="saveAppr('${no}')">Создать и отправить клиенту</button><button class="btn" onclick="closeD()">Отмена</button></div>`)}
+function saveAppr(no){const c=CARS.find(x=>x.no===no);
+ c.appr.push({id:Date.now(),part:document.getElementById('apName').value,qty:+document.getElementById('apQty').value||1,
+  price:+document.getElementById('apPrice').value||0,st:'wait',cr:'сейчас',act:document.getElementById('apAct').value,cmt:document.getElementById('apCmt').value});
+ c.st='appr';c.hist.push(['appr','Ожидает согласования','сейчас','Сергей А.']);
+ openCar(no,2);render();
+ toast(`Согласование создано и отправлено клиенту. Вагон <b>${no}</b> переведён в «Ожидает согласования» — ремонт остановлен до ответа.`)}
+function apprAns(no,id,ans){const c=CARS.find(x=>x.no===no);const a=c.appr.find(x=>x.id===id);a.st=ans;
+ if(ans==='ok'){c.st='rep';c.hist.push(['rep','В ремонте','сейчас','Сергей А.'])}
+ if(ans==='own'){c.st='part';c.wait=a.part+' — '+a.qty+' шт., ожидаем от клиента';c.hist.push(['part','Ожидаем запчасти от клиента','сейчас','Сергей А.'])}
+ if(ans==='no'){c.st='rep';c.hist.push(['rep','В ремонте','сейчас','Сергей А.'])}
+ openCar(no,2);render();
+ toast(ans==='ok'?'Клиент согласовал — вагон вернулся «В ремонте», запчасть зарезервирована на складе.':ans==='own'?'Клиент предоставляет свою запчасть — статус «Ожидаем запчасти от клиента», <b>таймер просрочки остановлен</b>.':'Клиент отказался — ремонт продолжается без этой позиции, решение сохранено в истории.')}
+
+/* ---- ЗАЯВКИ ОТ БОТА ---- */
+SC.inbox=()=>`
+ <div class="head"><div><h2>Заявки от бота</h2><p>Один выделенный адрес <b class="mono">remont@vagon-service.kz</b> — бот следит за ящиком, разбирает письма по классификаторам и складывает сюда. Обработанные письма помнит, дубли не создаёт, после простоя догоняет пропущенное.</p></div>
+ <div class="btns"><button class="btn" onclick="toast('Журнал бота: обработано 486 писем за месяц, 12 не распознано, 9 дублей.')">Журнал бота</button><button class="btn acc" onclick="simMail()">✉ Симулировать письмо</button></div></div>
+ <div class="strip">
+  <div><small>ЗА СУТКИ</small><b>12 писем</b><span>распознано 9 · дублей 2 · ошибок 1</span></div>
+  <div><small>ЖДУТ ПРИЁМКИ</small><b>${MAILS.filter(m=>m.state==='ok').length}</b><span>проверить и принять</span></div>
+  <div><small>НЕ РАСПОЗНАНО</small><b class="bad">${MAILS.filter(m=>m.state==='bad').length}</b><span>завести вручную</span></div>
+  <div><small>ПОВТОРНЫЕ</small><b class="warn">${MAILS.filter(m=>m.state==='dup').length}</b><span>вагон уже в работе</span></div>
+  <div><small>СРЕДНЕЕ ВРЕМЯ РАЗБОРА</small><b>4 сек</b><span>от письма до заявки</span></div>
+ </div>
+ <div id="mailList">${MAILS.map(mailRow).join('')||'<div class="panel"><p class="mini">Новых писем нет — все заявки приняты.</p></div>'}</div>
+ <div class="hint"><b>Три случая из вашего ТЗ отработаны:</b> заявка распознана → администратор принимает одним нажатием; письмо не распознано → уведомление и ручное заведение карточки; вагон уже в системе → дубликат не создаётся, приходит уведомление о повторной заявке.</div>`;
+function mailRow(m){return `<div class="mail ${m.fresh?'fresh':''}">
+ <div class="mail-h"><div><b>${esc(m.subj)}</b><div class="sub mono">${esc(m.from)} · ${m.t}</div></div>
+ ${m.state==='ok'?'<span class="tag green">бот разобрал</span>':m.state==='bad'?'<span class="tag red">не распознано</span>':'<span class="tag amber">повторная заявка</span>'}</div>
+ <div class="mailbody">${esc(m.body)}</div>
+ ${m.parsed?`<div class="parsed">
+  <div class="pf ok"><small>№ ВАГОНА</small><b class="mono">${m.parsed.no}</b></div>
+  <div class="pf ok"><small>РОД ВАГОНА</small><b>${m.parsed.rod}</b></div>
+  <div class="pf ok"><small>КОД / НЕИСПРАВНОСТЬ</small><b>${m.parsed.fault} · ${FAULTS[m.parsed.fault]}</b></div>
+  <div class="pf ok"><small>СТАНЦИЯ ОТЦЕПКИ</small><b>${m.parsed.stn}</b></div>
+  <div class="pf ok"><small>СОБСТВЕННИК</small><b style="font-size:9px">${esc(m.parsed.own)}</b></div>
+  <div class="pf ok"><small>ДАТА ЗАЯВКИ</small><b>${m.parsed.date}</b></div>
+ </div>`:'<div class="note" style="--tone:var(--red)"><b>Бот не смог разобрать письмо</b><p>Нет номера вагона и станции. Администратор получил уведомление — карточку можно завести вручную.</p></div>'}
+ <div class="btns" style="margin-top:10px">
+  ${m.state==='ok'?`<button class="btn acc" onclick="accept(${m.id})">✓ Принять заявку</button><button class="btn" onclick="toast('Поля заявки можно поправить до принятия — бот подставил их по классификаторам.')">Исправить данные</button>`:''}
+  ${m.state==='bad'?`<button class="btn acc" onclick="toast('Открыта форма ручного создания карточки вагона на основании письма.')">Завести вручную</button>`:''}
+  ${m.state==='dup'?`<button class="btn" onclick="openCar('74183920')">Открыть карточку вагона 74183920</button><button class="btn" onclick="dropMail(${m.id})">Отметить обработанным</button>`:''}
+ </div></div>`}
+function accept(id){const m=MAILS.find(x=>x.id===id);if(!m)return;
+ const own=OWNERS.findIndex(o=>o===m.parsed.own);
+ CARS.unshift({no:m.parsed.no,own:own<0?0:own,rep:'tor',st:'new',got:m.parsed.date,days:1,fault:m.parsed.fault,
+  stn:Math.max(0,STATIONS.indexOf(m.parsed.stn)),depo:0,gl:'ГП-2026/'+(425+Math.floor(CARS.length)),gld:m.parsed.date,out:'',pc:0,pd:0,avr:0,sent:0,
+  hist:[['new','Принят в работу','сейчас','Сергей А.']],docs:{},appr:[],parts:[]});
+ MAILS=MAILS.filter(x=>x.id!==id);
+ const nb=NAV[0][1].find(x=>x[0]==='inbox');if(nb)nb[3]=MAILS.filter(m=>m.state!=='done').length||'';
+ buildNav();document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('on',x.dataset.go===cur));
+ render();sparks();
+ toast(`Заявка принята: создана карточка вагона <b>${m.parsed.no}</b>, вагон появился в основной таблице и стал доступен клиенту. Дата заявки ${m.parsed.date} сохранена как точка отсчёта дней в работе.`)}
+function dropMail(id){MAILS=MAILS.filter(x=>x.id!==id);render();toast('Письмо отмечено обработанным — повторная карточка не создавалась.')}
+function simMail(){const m={id:mailSeq++,from:'zayavki@stepnoy-exp.kz',subj:'Отцепка вагона 61558402 — ст. Экибастуз-1',t:'только что',state:'ok',fresh:1,
+ body:'Добрый день!\nПросим принять в ремонт полувагон № 61558402.\nОтцеплен 24.08.2026 на ст. Экибастуз-1.\nКод неисправности 214 — трещина боковой рамы.\nТОО «Степной Экспресс»',
+ parsed:{no:'61558402',rod:'Полувагон',fault:214,stn:'Экибастуз-1',own:'ТОО «Степной Экспресс»',date:'24.08.2026'}};
+ MAILS.unshift(m);
+ const nb=NAV[0][1].find(x=>x[0]==='inbox');if(nb)nb[3]=MAILS.length;
+ if(cur!=='inbox'&&ROLES[role].s.includes('inbox'))go('inbox');else render();
+ buildNav();document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('on',x.dataset.go===cur));
+ sparks();
+ toast('✉ <b>Письмо пришло на выделенный адрес.</b> Бот за 4 секунды разобрал его: номер вагона → род по классификатору, код 214 → «трещина боковой рамы», станция и собственник. Осталось нажать «Принять заявку».');
+ setTimeout(()=>{delete m.fresh},2600)}
+
+/* ---- СОГЛАСОВАНИЯ (общий экран) ---- */
+SC.appr=()=>{const all=[];CARS.forEach(c=>c.appr.forEach(a=>all.push({c,a})));
+ return `<div class="head"><div><h2>Согласования запчастей</h2><p>Пока клиент не ответил — ремонт вагона не продолжается. Нет ответа более 2 суток: система ежедневно напоминает клиенту, вы получаете уведомление о просрочке.</p></div></div>
+ <div class="strip">
+  <div><small>ОТКРЫТЫХ СОГЛАСОВАНИЙ</small><b>${all.filter(x=>x.a.st==='wait').length}</b><span>ремонт по ним остановлен</span></div>
+  <div><small>ПРОСРОЧЕНО СВЫШЕ 2 СУТОК</small><b class="bad">1</b><span>напоминания идут ежедневно</span></div>
+  <div><small>СУММА НА СОГЛАСОВАНИИ</small><b>${tg(all.filter(x=>x.a.st==='wait').reduce((s,x)=>s+x.a.qty*x.a.price,0))}</b><span>по открытым позициям</span></div>
+  <div><small>СОГЛАСОВАНО ЗА МЕСЯЦ</small><b>18</b><span>средний ответ 1,6 суток</span></div>
+  <div><small>СВОИ ЗАПЧАСТИ КЛИЕНТА</small><b>4</b><span>таймер остановлен</span></div>
+ </div>
+ <div class="panel"><div class="tw"><table class="data" style="min-width:820px"><thead><tr><th>Вагон</th><th>Собственник</th><th>Запчасть</th><th class="right">Кол-во</th><th class="right">Сумма</th><th>Основание</th><th>Создано</th><th>Ответ клиента</th></tr></thead><tbody>
+ ${all.map(({c,a})=>`<tr onclick="openCar('${c.no}',2)"><td class="mono"><b>${c.no}</b></td><td class="mini">${esc(OWNERS[c.own])}</td>
+  <td><b>${esc(a.part)}</b></td><td class="right mono">${a.qty}</td><td class="right mono"><b>${tg(a.qty*a.price)}</b></td>
+  <td class="mini">${esc(a.act)}</td><td class="mono">${a.cr}</td>
+  <td>${a.st==='wait'?'<span class="tag violet">ждём · напоминаем</span>':a.st==='ok'?'<span class="tag green">согласовано</span>':a.st==='own'?'<span class="tag cyan">своя запчасть</span>':'<span class="tag red">отказ</span>'}</td></tr>`).join('')}
+ </tbody></table></div>
+ <div class="hint"><b>История не теряется:</b> по каждому согласованию сохраняются дата и время создания, запчасть, количество, цена, акт браковки, предложение администратора, ответ клиента с датой и временем, его комментарий, приложенные документы и итоговое решение.</div></div>`};
+
+/* ---- ДОКУМЕНТЫ ---- */
+SC.docs=()=>{const D=[['act','Первичный акт осмотра'],['vu36','ВУ-36'],['vu23','ВУ-23'],['calc','Калькуляция от депо'],['vu22','ВУ-22'],['avr','АВР от бухгалтерии'],['rdv','РДВ']];
+ const rel=CARS.filter(c=>['out','rdy','fix'].includes(c.st));
+ return `<div class="head"><div><h2>Документы</h2><p>Комплект собирается после выпуска из ремонта. Перечень — контрольный список: он показывает, чего не хватает, но не блокирует перевод вагона в «Готов».</p></div></div>
+ <div class="strip">
+  <div><small>ВАГОНОВ С ДОКУМЕНТАМИ</small><b>${rel.length}</b><span>выпущены / готовы / на корректировке</span></div>
+  <div><small>КОМПЛЕКТ СОБРАН</small><b class="good">${rel.filter(c=>D.every(d=>c.docs[d[0]])).length}</b><span>все 7 документов</span></div>
+  <div><small>НЕ ХВАТАЕТ ДОКУМЕНТОВ</small><b class="warn">${rel.filter(c=>!D.every(d=>c.docs[d[0]])).length}</b><span>видно построчно</span></div>
+  <div><small>ФОТО И ВИДЕО</small><b>146</b><span>привязаны к вагонам</span></div>
+  <div><small>ХРАНЕНИЕ</small><b>с историей</b><span>дата, время, пользователь</span></div>
+ </div>
+ <div class="panel"><div class="tw"><table class="data" style="min-width:${240+D.length*90}px"><thead><tr><th>Вагон · собственник</th><th>Статус</th>${D.map(d=>`<th>${d[1]}</th>`).join('')}<th>Готовность</th></tr></thead><tbody>
+ ${rel.map(c=>{const has=D.filter(d=>c.docs[d[0]]).length;
+  return `<tr onclick="openCar('${c.no}',3)"><td><b class="mono">${c.no}</b><div class="sub">${esc(OWNERS[c.own])}</div></td><td>${stChip(c.st)}</td>
+  ${D.map(d=>`<td style="text-align:center">${c.docs[d[0]]?'<span style="color:#4ade80">✓</span>':'<span style="color:#5d7186">—</span>'}</td>`).join('')}
+  <td><b class="mono ${has===D.length?'good':'warn'}">${has}/${D.length}</b></td></tr>`}).join('')}
+ </tbody></table></div>
+ <div class="hint"><b>Дополнительно:</b> к любому вагону можно приложить ситуационные документы (название, комментарий, файл) без ограничений списка, а также фотографии и видеозаписи с осмотра.</div></div>`};
+
+/* ---- СКЛАД (по итогам встречи) ---- */
+SC.stock=()=>`
+ <div class="head"><div><h2>Склад запчастей</h2><p>Добавлено по итогам встречи: номерной учёт узлов — у каждой колёсной пары, боковой рамы и автосцепки свой номер, год и история. Расход всегда привязан к конкретному вагону, поэтому себестоимость ремонта считается точно.</p></div>
+ <div class="btns"><button class="btn" onclick="stForm('Приход')">+ Приход</button><button class="btn" onclick="stForm('Расход')">− Расход на вагон</button><button class="btn acc" onclick="stInv()">Инвентаризация</button></div></div>
+ <div class="strip">
+  <div><small>НОМЕРНЫХ УЗЛОВ</small><b>${PARTS.filter(p=>p.num!=='—').length} шт.</b><span>колёсные пары, рамы, автосцепки</span></div>
+  <div><small>СТОИМОСТЬ ОСТАТКОВ</small><b>${tg(PARTS.reduce((s,p)=>s+p.price*p.q,0))}</b><span>по 4 депо</span></div>
+  <div><small>НИЖЕ МИНИМУМА</small><b class="bad">${PARTS.filter(p=>p.st==='low').length}</b><span>заявка поставщику сформирована</span></div>
+  <div><small>ЗАРЕЗЕРВИРОВАНО</small><b class="warn">${PARTS.filter(p=>p.st==='res').length}</b><span>под согласованные вагоны</span></div>
+  <div><small>ИНВЕНТАРИЗАЦИЯ</small><b>20.08.2026</b><span>расхождений нет</span></div>
+ </div>
+ <div class="g21">
+  <div class="panel"><div class="ph"><div><div class="ph-title">Остатки · номерной учёт</div><div class="ph-sub">каждый узел — отдельная строка со своим номером и историей</div></div></div>
+   <div class="tw"><table class="data" style="min-width:700px"><thead><tr><th>Наименование</th><th>Номер узла</th><th class="right">Год</th><th class="right">Кол-во</th><th>Депо хранения</th><th class="right">Цена</th><th>Состояние</th></tr></thead><tbody>
+   ${PARTS.map((p,i)=>`<tr onclick="partCard(${i})"><td><b>${esc(p.n)}</b>${p.note?`<div class="sub">${esc(p.note)}</div>`:''}</td>
+    <td class="pnum">${p.num}</td><td class="right mono">${p.yr||'—'}</td><td class="right mono"><b>${p.q}</b></td>
+    <td class="mini">${p.loc}</td><td class="right mono">${tg(p.price)}</td>
+    <td>${p.st==='low'?'<span class="tag red">заказать</span>':p.st==='res'?'<span class="tag amber">резерв</span>':'<span class="tag green">на складе</span>'}</td></tr>`).join('')}
+   </tbody></table></div>
+   <div class="hint"><b>Зачем номерной учёт:</b> при постановке колёсной пары на вагон в системе остаётся, какой именно узел куда ушёл — с номером, годом и актом. Это закрывает вопросы по гарантии и претензиям депо.</div>
+  </div>
+  <div class="panel"><div class="ph-title">Движение по складу</div>
+   ${MOVES.map(m=>`<div style="display:flex;gap:9px;padding:9px 0;border-bottom:1px solid var(--line)">
+    <span class="mono" style="width:44px;height:26px;background:var(--panel2);display:grid;place-items:center;font-size:6.6px;font-weight:700;flex:none;border-radius:7px;color:${m.t==='Приход'?'#4ade80':m.t==='Расход'?'#fbbf24':'#93b8f8'}">${m.t.toUpperCase().slice(0,6)}</span>
+    <div style="flex:1"><b style="font-size:9.8px">${esc(m.what)}</b><p class="mini" style="margin:2px 0 0">${esc(m.to)}</p><p class="mini" style="margin:2px 0 0;color:var(--muted2)">${m.d} · ${m.who}</p></div>
+    ${m.sum?`<b class="mono" style="font-size:9.4px;white-space:nowrap">${tg(m.sum)}</b>`:''}</div>`).join('')}
+  </div>
+ </div>`;
+function partCard(i){const p=PARTS[i];
+ openD(p.n,`${p.num!=='—'?'Номер узла '+p.num+' · ':''}${p.yr||'—'} г. · ${p.loc}`,['Узел'],
+ `<div class="dg" style="grid-template-columns:1fr 1fr">
+  <div class="det"><small>НОМЕР</small><b class="mono">${p.num}</b></div>
+  <div class="det"><small>ГОД</small><b>${p.yr||'—'}</b></div>
+  <div class="det"><small>КОЛИЧЕСТВО</small><b>${p.q}</b></div>
+  <div class="det"><small>ЦЕНА</small><b>${tg(p.price)}</b></div>
+ </div>
+ ${p.note?`<div class="note" style="--tone:var(--acc)"><b>Отметка</b><p>${esc(p.note)}</p></div>`:''}
+ <div class="ph-title" style="margin:12px 0 8px">История узла</div>
+ <div class="tl">
+  <div class="tli"><b>Поступил на склад</b><p>Накладная от поставщика, дефектоскопия пройдена</p><time>22.08.2026</time></div>
+  ${p.st==='res'?'<div class="tli" style="--c:#f59e0b"><b>Зарезервирован</b><p>Под согласованное с клиентом решение по вагону 24765103</p><time>23.08.2026</time></div>':''}
+ </div>
+ <div class="btns" style="margin-top:11px"><button class="btn acc" onclick="closeD();stForm('Расход')">Списать на вагон</button><button class="btn" onclick="closeD()">Закрыть</button></div>`)}
+function stForm(t){openD(t==='Приход'?'Приход на склад':'Расход на вагон',t==='Приход'?'Поступление узлов и материалов':'Списание узла на конкретный вагон',[t],
+ t==='Приход'?`<div class="f2"><div class="fld"><small>НАИМЕНОВАНИЕ</small><input value="Колёсная пара РУ1Ш-957-Г"></div><div class="fld"><small>НОМЕР УЗЛА</small><input value="КП-0084525"></div></div>
+  <div class="f3"><div class="fld"><small>ГОД</small><input value="2022"></div><div class="fld"><small>КОЛИЧЕСТВО</small><input value="1"></div><div class="fld"><small>ЦЕНА, ₸</small><input value="835000"></div></div>
+  <div class="f2"><div class="fld"><small>ДЕПО ХРАНЕНИЯ</small><select>${DEPOS.map(d=>`<option>${d.n}</option>`).join('')}</select></div><div class="fld"><small>ДОКУМЕНТ</small><input value="Накладная № 2214 от 24.08.2026"></div></div>
+  <div class="btns" style="margin-top:11px"><button class="btn acc" onclick="stSave('Приход')">Оприходовать</button><button class="btn" onclick="closeD()">Отмена</button></div>`
+ :`<div class="f2"><div class="fld"><small>УЗЕЛ СО СКЛАДА</small><select id="stPart">${PARTS.map((p,i)=>`<option value="${i}">${p.n}${p.num!=='—'?' · '+p.num:''}</option>`).join('')}</select></div>
+   <div class="fld"><small>НА ВАГОН</small><select id="stCar">${CARS.map(c=>`<option value="${c.no}">${c.no} · ${repName(c.rep)} · ${OWNERS[c.own]}</option>`).join('')}</select></div></div>
+  <div class="f2"><div class="fld"><small>КОЛИЧЕСТВО</small><input id="stQty" value="1"></div><div class="fld"><small>ОСНОВАНИЕ</small><input value="Дефектная ведомость от мастера"></div></div>
+  <div class="note" style="--tone:var(--acc)"><b>Что произойдёт</b><p>Узел спишется со склада с привязкой к вагону: в карточке вагона появится запись «установлена колёсная пара № …», а себестоимость ремонта пересчитается.</p></div>
+  <div class="btns" style="margin-top:11px"><button class="btn acc" onclick="stSave('Расход')">Списать на вагон</button><button class="btn" onclick="closeD()">Отмена</button></div>`)}
+function stSave(t){
+ if(t==='Приход'){PARTS.unshift({n:'Колёсная пара РУ1Ш-957-Г',num:'КП-0084525',yr:2022,q:1,st:'ok',loc:'ВЧДР Астана',price:835000,note:'приход 24.08.2026, накл. 2214'});
+  MOVES.unshift({t:'Приход',what:'Колёсная пара КП-0084525 · 1 шт.',to:'накладная № 2214',d:'сейчас',who:'Сергей А.',sum:835000});
+  closeD();render();toast('Узел оприходован на склад с номером <b>КП-0084525</b> — теперь его можно списать на конкретный вагон.');return}
+ const i=+document.getElementById('stPart').value,no=document.getElementById('stCar').value,q=+document.getElementById('stQty').value||1;
+ const p=PARTS[i];p.q=Math.max(0,p.q-q);
+ MOVES.unshift({t:'Расход',what:p.n+(p.num!=='—'?' · '+p.num:'')+' · '+q+' шт.',to:'вагон '+no,d:'сейчас',who:'Сергей А.',sum:p.price*q});
+ if(!p.q)PARTS.splice(i,1);
+ closeD();render();sparks();
+ toast(`Списано на вагон <b>${no}</b>: ${esc(p.n)}${p.num!=='—'?' № '+p.num:''}. Запись ушла в карточку вагона и в себестоимость ремонта.`)}
+function stInv(){openD('Инвентаризация склада','Сверка фактических остатков с учётными',['Инвентаризация'],
+ `<div class="fld"><small>ДЕПО</small><select>${DEPOS.slice(0,4).map(d=>`<option>${d.n}</option>`).join('')}</select></div>
+  <div class="panel" style="margin:8px 0">
+  ${PARTS.slice(0,5).map(p=>`<div class="part"><div><b style="font-size:10px">${esc(p.n)}</b><div class="sub pnum">${p.num}</div></div>
+   <div style="text-align:right"><small class="mono" style="color:var(--muted2);font-size:7px">УЧЁТ</small><div class="mono">${p.q}</div></div>
+   <div style="width:70px"><input class="search" style="min-width:0;padding:6px 8px;text-align:center" value="${p.q}"></div></div>`).join('')}
+  </div>
+  <div class="btns"><button class="btn acc" onclick="closeD();sparks();toast('Инвентаризация проведена: расхождений не найдено, акт сформирован и сохранён в системе.')">Провести и сформировать акт</button><button class="btn" onclick="closeD()">Отмена</button></div>`)}
+
+/* ---- ДЕПО ---- */
+SC.depo=()=>`
+ <div class="head"><div><h2>Депо и загрузка</h2><p>Вы работаете с десятком ремонтных депо по Казахстану. Здесь видно, сколько вагонов в каждом, как оно держит сроки и есть ли расчёты с ним.</p></div></div>
+ <div class="strip">
+  <div><small>ДЕПО-ПОДРЯДЧИКОВ</small><b>${DEPOS.length}</b><span>по всей стране</span></div>
+  <div><small>ВАГОНОВ РАЗМЕЩЕНО</small><b>${DEPOS.reduce((s,d)=>s+d.v,0)}</b><span>в работе прямо сейчас</span></div>
+  <div><small>СРЕДНИЙ СРОК РЕМОНТА</small><b>7,2 дн.</b><span>по всем депо</span></div>
+  <div><small>ДОЛГ ПЕРЕД ДЕПО</small><b class="warn">${tg(DEPOS.reduce((s,d)=>s+d.debt,0))}</b><span>по актам выполненных работ</span></div>
+  <div><small>ПРОБЛЕМНЫХ</small><b class="bad">${DEPOS.filter(d=>d.pay.includes('просрочка')).length}</b><span>просрочки по расчётам</span></div>
+ </div>
+ <div class="panel"><div class="tw"><table class="data" style="min-width:640px"><thead><tr><th>Депо</th><th class="right">Вагонов сейчас</th><th class="right">Средний срок</th><th>Соблюдение сроков</th><th>Расчёты</th><th class="right">Задолженность</th></tr></thead><tbody>
+ ${DEPOS.map(d=>`<tr onclick="toast('${d.n}: список вагонов, сроки, калькуляции и акты — открываются по клику.')">
+  <td><b>${d.n}</b></td><td class="right mono">${d.v}</td><td class="right mono ${d.avg>9?'bad':d.avg>7.5?'warn':''}">${String(d.avg).replace('.',',')} дн.</td>
+  <td><div class="bar" style="width:110px"><i style="--w:${Math.max(10,100-(d.avg-5)*18)}%;--tone:${d.avg>9?'var(--red)':d.avg>7.5?'var(--amber)':'var(--green)'}"></i></div></td>
+  <td class="mini">${d.pay}</td><td class="right mono">${d.debt?tg(d.debt):'<span class="mini">—</span>'}</td></tr>`).join('')}
+ </tbody></table></div>
+ <div class="hint"><b>Полезный вывод из данных:</b> ВЧДР Кызылорда держит вагоны в среднем 10,3 дня — дольше норматива деповского ремонта. Система показывает это сама, без ручного сведения таблиц.</div></div>`;
+
+/* ---- СТАТИСТИКА РУКОВОДИТЕЛЯ (ТЗ п.14) ---- */
+let period='Август 2026';
+SC.boss=()=>`
+ <div class="head"><div><h2>Статистика</h2><p>Экран руководителя по ТЗ: вагоны в работе, отработанные, просроченные и оплаченные — с выбором периода. Из любой цифры можно провалиться в список и открыть карточку вагона.</p></div>
+ <div class="btns"><select class="rsel" onchange="period=this.value;render()"><option>Август 2026</option><option>Июль 2026</option><option>II квартал 2026</option><option>Год 2026</option></select><button class="btn" onclick="toast('Отчёт за период выгружен в Excel.')">Экспорт</button></div></div>
+ <div class="strip">
+  <div><small>ПЕРИОД</small><b style="font-size:15px">${period}</b><span>данные пересчитываются на лету</span></div>
+  <div><small>ВАГОНОВ В РАБОТЕ</small><b>${CARS.filter(c=>!['rdy'].includes(c.st)).length}</b><span>из них ждут согласования ${CARS.filter(c=>c.st==='appr').length}</span></div>
+  <div><small>ОТРАБОТАНО</small><b class="good">64</b><span>выпущено и сдано клиенту</span></div>
+  <div><small>ПРОСРОЧЕНО</small><b class="bad">${CARS.filter(isOver).length}</b><span>сверх норматива</span></div>
+  <div><small>ОПЛАЧЕНО КЛИЕНТАМИ</small><b>51</b><span>из 64 сданных</span></div>
+ </div>
+ <div class="g21">
+  <div class="panel"><div class="ph-title">Вагоны по месяцам · принято и сдано</div>
+   <div class="chart">${[['мар',58,46],['апр',66,55],['май',72,60],['июн',80,68],['июл',92,76],['авг',100,64]].map(m=>`<div class="chart-col"><i style="--h:${m[1]}%;--p:${m[2]}%"></i><span>${m[0]}</span></div>`).join('')}</div>
+   <div class="kpi-mini"><div style="--tone:var(--acc)"><small>ПРИНЯТО В АВГУСТЕ</small><b>78</b></div><div style="--tone:var(--green)"><small>СДАНО</small><b>64</b></div><div style="--tone:var(--red)"><small>ПРОСРОЧЕНО</small><b>6</b></div><div style="--tone:var(--blue)"><small>СРЕДНИЙ СРОК</small><b>7,4 дн.</b></div></div>
+  </div>
+  <div class="panel"><div class="ph-title">Распределение по статусам</div>
+   ${STATUS.map(s=>{const n=CARS.filter(c=>c.st===s.k).length;return `<div class="fr" style="grid-template-columns:150px 1fr 30px"><span>${s.n}</span><div class="ftrack" style="height:15px"><i style="--w:${n/Math.max(1,CARS.length)*100*2.2}%;background:${s.c}"></i></div><b>${n}</b></div>`}).join('')}
+   <div class="hint" style="margin-top:9px"><b>Клик по статусу</b> в таблице вагонов фильтрует список — руководитель видит, где именно затык.</div>
+  </div>
+ </div>
+ <div class="g3">
+  <div class="panel"><div class="ph-title">Виды ремонта</div>
+   ${REP.map(r=>{const n=CARS.filter(c=>c.rep===r[0]).length;return `<div class="fr" style="grid-template-columns:96px 1fr 60px"><span>${r[1]}</span><div class="ftrack" style="height:15px"><i style="--w:${n/Math.max(1,CARS.length)*100*2.4}%"></i></div><b>${n} шт.</b></div>`}).join('')}
+   <div class="mini" style="margin-top:7px">Нормативы: ТОР ${NORMS.tor} дн. · деповской ${NORMS.dep} дн. · капитальный ${NORMS.kap} дн.</div>
+  </div>
+  <div class="panel"><div class="ph-title">Собственники</div>
+   ${OWNERS.map((o,i)=>{const n=CARS.filter(c=>c.own===i).length;return `<div class="fr" style="grid-template-columns:150px 1fr 30px"><span style="font-size:9px">${o}</span><div class="ftrack" style="height:14px"><i style="--w:${n/Math.max(1,CARS.length)*100*2.6}%"></i></div><b>${n}</b></div>`}).join('')}
+  </div>
+  <div class="panel"><div class="ph-title">Причины просрочки</div>
+   ${[['Ожидание ответа по согласованию',42,'var(--violet)'],['Запчасти клиента',24,'var(--cyan)'],['Загрузка депо',21,'var(--amber)'],['Прочее',13,'#5d7186']]
+     .map(r=>`<div class="fr" style="grid-template-columns:150px 1fr 36px"><span>${r[0]}</span><div class="ftrack" style="height:15px"><i style="--w:${r[1]/42*100}%;background:${r[2]}"></i></div><b>${r[1]}%</b></div>`).join('')}
+   <div class="hint" style="margin-top:9px"><b>Главный резерв:</b> 42% просрочек — ожидание ответа клиента. Автонапоминания по согласованиям бьют ровно в эту точку.</div>
+  </div>
+ </div>`;
+
+/* ---- ФИНАНСЫ ---- */
+SC.fin=()=>`
+ <div class="head"><div><h2>Финансы</h2><p>Внутренняя информация: оплата клиентом и оплата работы депо по каждому вагону. Клиенту это не показывается.</p></div>
+ <div class="btns"><button class="btn" onclick="toast('Выгрузка для бухгалтерии в Excel.')">Экспорт</button></div></div>
+ <div class="strip">
+  <div><small>ВЫСТАВЛЕНО КЛИЕНТАМ</small><b>${tg(CARS.reduce((s,c)=>s+PRICES[c.rep],0))}</b><span>по текущим вагонам</span></div>
+  <div><small>ОПЛАЧЕНО КЛИЕНТАМИ</small><b class="good">${CARS.filter(c=>c.pc).length} ваг.</b><span>${tg(CARS.filter(c=>c.pc).reduce((s,c)=>s+PRICES[c.rep],0))}</span></div>
+  <div><small>НЕ ОПЛАЧЕНО</small><b class="bad">${CARS.filter(c=>!c.pc).length} ваг.</b><span>${tg(CARS.filter(c=>!c.pc).reduce((s,c)=>s+PRICES[c.rep],0))}</span></div>
+  <div><small>ОПЛАЧЕНО ДЕПО</small><b>${CARS.filter(c=>c.pd).length} ваг.</b><span>долг ${tg(DEPOS.reduce((s,d)=>s+d.debt,0))}</span></div>
+  <div><small>ЗАПЧАСТИ ПО СОГЛАСОВАНИЯМ</small><b>${tg(CARS.reduce((s,c)=>s+c.appr.filter(a=>a.st==='ok').reduce((x,a)=>x+a.qty*a.price,0),0))}</b><span>перевыставляется клиенту</span></div>
+ </div>
+ <div class="panel"><div class="tw"><table class="data" style="min-width:760px"><thead><tr><th>Вагон</th><th>Собственник</th><th>Вид ремонта</th><th class="right">Стоимость</th><th>Оплата клиента</th><th>Оплата депо</th><th>АВР</th><th>Статус</th></tr></thead><tbody>
+ ${CARS.map(c=>`<tr onclick="openCar('${c.no}',4)"><td class="mono"><b>${c.no}</b></td><td class="mini">${esc(OWNERS[c.own])}</td><td>${repName(c.rep)}</td>
+  <td class="right mono"><b>${tg(PRICES[c.rep])}</b></td>
+  <td>${c.pc?'<span class="tag green">оплачено</span>':'<span class="tag red">не оплачено</span>'}</td>
+  <td>${c.pd?'<span class="tag green">оплачено</span>':'<span class="tag red">не оплачено</span>'}</td>
+  <td>${c.avr?'<span class="tag green">есть</span>':'<span class="mini">—</span>'}</td><td>${stChip(c.st)}</td></tr>`).join('')}
+ </tbody></table></div></div>`;
+
+/* ---- БУХГАЛТЕРИЯ (ТЗ п.12) ---- */
+SC.buh=()=>{const list=CARS.filter(c=>c.sent);
+ return `<div class="head"><div><h2>Бухгалтерия · составление АВР</h2><p>Бухгалтер видит только те вагоны, которые администратор подтвердил и передал на АВР. Менять статусы, данные, цены и согласования бухгалтер не может — только приложить готовый АВР и поставить отметку.</p></div></div>
+ <div class="strip">
+  <div><small>ПЕРЕДАНО НА АВР</small><b>${list.length}</b><span>только эти вагоны видны бухгалтеру</span></div>
+  <div><small>АВР ПРИЛОЖЕНА</small><b class="good">${list.filter(c=>c.avr).length}</b><span>ждёт подтверждения администратора</span></div>
+  <div><small>В РАБОТЕ У БУХГАЛТЕРА</small><b class="warn">${list.filter(c=>!c.avr).length}</b><span>уведомление отправлено</span></div>
+  <div><small>ОТПРАВЛЕНО КЛИЕНТУ</small><b>${list.filter(c=>c.avr&&c.pc).length}</b><span>после подтверждения</span></div>
+  <div><small>СРЕДНИЙ СРОК АВР</small><b>1,2 дн.</b><span>от передачи до готовности</span></div>
+ </div>
+ <div class="panel">${list.length?`<div class="tw"><table class="data" style="min-width:760px"><thead><tr><th>Вагон</th><th>Собственник</th><th>Вид ремонта</th><th>Документы</th><th class="right">Сумма</th><th>АВР</th><th>Действие</th></tr></thead><tbody>
+ ${list.map(c=>`<tr><td class="mono"><b>${c.no}</b></td><td class="mini">${esc(OWNERS[c.own])}</td><td>${repName(c.rep)}</td>
+  <td class="mini">${Object.values(c.docs).filter(Boolean).length} документов доступно</td>
+  <td class="right mono"><b>${tg(PRICES[c.rep])}</b></td>
+  <td>${c.avr?'<span class="tag green">приложена</span>':'<span class="tag amber">нужна</span>'}</td>
+  <td>${c.avr?`<button class="btn" onclick="toast('Администратор подтверждает корректность АВР, после чего может нажать «Отправить АВР клиенту».')">Ждёт подтверждения</button>`:`<button class="btn acc" onclick="avrUp('${c.no}')">Приложить АВР</button>`}</td></tr>`).join('')}
+ </tbody></table></div>`:'<p class="mini">Пока администратор ничего не передал на составление АВР. В карточке вагона со статусом «Готов» есть кнопка «Передать в бухгалтерию».</p>'}
+ <div class="hint"><b>По ТЗ бухгалтер не может:</b> менять статусы, редактировать данные вагона и цены, трогать согласования и финансовую информацию, отправлять вагон на доработку, удалять или архивировать вагоны, изменять чужие документы. Передача вагона в бухгалтерию не меняет основной статус ремонта.</div></div>`};
+function avrUp(no){const c=CARS.find(x=>x.no===no);c.avr=1;c.docs.avr=1;render();sparks();
+ toast(`АВР приложена к вагону <b>${no}</b> и отмечена. Администратор получил уведомление: после подтверждения он сможет отправить АВР клиенту.`)}
+
+/* ---- КАБИНЕТ КЛИЕНТА (ТЗ п.10, 11) ---- */
+SC.client=()=>{const my=CARS.filter(c=>c.own===0);
+ return `<div class="head"><div><h2>Кабинет клиента · ${esc(OWNERS[0])}</h2><p>Собственник видит только свои вагоны: статус, полную историю, документы и согласования. Внутренние финансы, оплату депо и данные других клиентов — не видит.</p></div></div>
+ <div class="strip">
+  <div><small>МОИХ ВАГОНОВ В РАБОТЕ</small><b>${my.filter(c=>c.st!=='rdy').length}</b><span>из ${my.length} всего</span></div>
+  <div><small>ТРЕБУЕТ МОЕГО РЕШЕНИЯ</small><b class="warn">${CARS.filter(c=>c.own===0&&c.st==='appr').length}</b><span>согласование запчастей</span></div>
+  <div><small>ГОТОВЫ</small><b class="good">${my.filter(c=>c.st==='rdy').length}</b><span>документы доступны</span></div>
+  <div><small>СРОК НА ДОРАБОТКУ</small><b>${FIXDAYS} дн.</b><span>с момента «Готов»</span></div>
+  <div><small>УВЕДОМЛЕНИЯ</small><b>вкл.</b><span>согласования, документы, статусы</span></div>
+ </div>
+ <div class="panel"><div class="tw"><table class="data" style="min-width:700px"><thead><tr><th>Вагон</th><th>Род</th><th>Статус</th><th>Дней в ремонте</th><th>Неисправность</th><th>Документы</th><th>Действие</th></tr></thead><tbody>
+ ${my.map(c=>`<tr><td class="mono"><b>${c.no}</b></td><td>${rodByNo(c.no)}</td><td>${stChip(c.st)}</td>
+  <td class="mono">${c.days}</td><td class="mini">${c.fault} · ${FAULTS[c.fault]}</td>
+  <td class="mini">${Object.values(c.docs).filter(Boolean).length} доступно</td>
+  <td>${c.st==='appr'?`<button class="btn violet" onclick="toast('Клиент открывает согласование: видит запчасть, количество, цену, акт браковки — и отвечает согласием, отказом или предлагает свою запчасть.')">Ответить по согласованию</button>`
+   :c.st==='rdy'?`<button class="btn red" onclick="clientFix('${c.no}')">Вернуть на доработку</button>`
+   :`<button class="btn" onclick="openCar('${c.no}',1)">История статусов</button>`}</td></tr>`).join('')}
+ </tbody></table></div>
+ <div class="hint"><b>Кнопка «Вернуть на доработку»</b> доступна ${FIXDAYS} календарных дней после перехода вагона в «Готов», потом гаснет. Клиент обязательно указывает причину, статус меняет администратор — сам клиент статусы не трогает.</div></div>
+ <div class="g2">
+  <div class="panel"><div class="ph-title">Уведомления клиента</div>
+   ${[['Требуется согласование по вагону 61294857','запчасть на 820 000 ₸ · ответьте в течение 2 суток','var(--violet)'],
+      ['Документы по вагону 61402993 доступны','ВУ-36, ВУ-23, ВУ-22, калькуляция, АВР','var(--green)'],
+      ['Ваш запрос на доработку принят','вагон 24880154 переведён в «Ожидает корректировки»','var(--red)'],
+      ['Напоминание: ждём ваше решение','согласование по вагону 74183920 просрочено на 1 сутки','var(--amber)']]
+    .map(n=>`<div class="note" style="--tone:${n[2]}"><b>${n[0]}</b><p>${n[1]}</p></div>`).join('')}
+  </div>
+  <div class="panel"><div class="ph-title">Что клиент не видит</div>
+   ${['Внутренняя финансовая информация','Оплата работы депо','Цены закупа запчастей и маржа','Внутренние комментарии администратора','Вагоны других собственников','Возможность менять статусы']
+     .map(x=>`<div style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:10px"><span style="color:#f87171">✕</span><span>${x}</span></div>`).join('')}
+   <div class="hint"><b>Разграничение доступа — на уровне системы,</b> а не «договорённостей»: клиент физически не получает эти данные, даже зная ссылку.</div>
+  </div>
+ </div>`};
+function clientFix(no){const c=CARS.find(x=>x.no===no);
+ openD('Вернуть вагон '+no+' на доработку','Причина обязательна · статус меняет администратор',['Запрос'],
+ `<div class="fld"><small>ПРИЧИНА ВОЗВРАТА</small><textarea rows="3">В ВУ-23 указан неверный номер гарантийного письма — просим исправить и приложить документ заново.</textarea></div>
+  <div class="note" style="--tone:var(--amber)"><b>Срок подачи</b><p>Заявка подаётся в течение ${FIXDAYS} календарных дней после перехода вагона в «Готов». Если вы успели в срок — запрос считается поданным вовремя, даже если администратор обработает его позже.</p></div>
+  <div class="btns" style="margin-top:11px"><button class="btn acc" onclick="doFix('${no}')">Отправить запрос</button><button class="btn" onclick="closeD()">Отмена</button></div>`)}
+function doFix(no){const c=CARS.find(x=>x.no===no);c.st='fix';c.fixWhy='В ВУ-23 указан неверный номер гарантийного письма — просим исправить и приложить заново.';
+ c.hist.push(['fix','Ожидает корректировки','сейчас','Администратор по запросу клиента']);closeD();render();
+ toast(`Запрос на доработку отправлен. Администратор получил уведомление и перевёл вагон <b>${no}</b> в «Ожидает корректировки».`)}
+
+/* ---- МОБИЛЬНОЕ МЕСТО МАСТЕРА ---- */
+SC.mobile=()=>`
+ <div class="head"><div><h2>Мастер в депо · телефон</h2><p>По вашей просьбе на встрече: люди в депо не садятся за компьютер. С телефона мастер меняет статус вагона, составляет дефектную ведомость и снимает фото — данные сразу попадают в карточку.</p></div></div>
+ <div class="g12">
+  <div class="panel">
+   <div class="phone">
+    <div class="phone-h">ВЧДР АСТАНА · МАСТЕР ЖАНАТ</div>
+    <div class="mrow"><b class="mono" style="font-size:12px">61294857</b><div class="sub">Полувагон · ТОР · код 107</div><div style="margin-top:6px">${stChip('rep')}</div></div>
+    <button class="mbtn acc" onclick="mobSt()">▸ Изменить статус вагона</button>
+    <button class="mbtn" onclick="mobDef()">📋 Дефектная ведомость</button>
+    <button class="mbtn" onclick="toast('Камера открыта: фото узла привяжется к вагону и дефектной ведомости.')">📷 Фото узла</button>
+    <button class="mbtn" onclick="toast('Список вагонов этого депо: 11 в работе, 2 готовы к выпуску.')">🚃 Вагоны моего депо · 11</button>
+    <div class="mrow" style="margin-top:9px;background:var(--bg2)"><div class="sub">Последнее действие</div><b style="font-size:9.6px">Статус «В ремонте» · сегодня 09:12</b></div>
+   </div>
+  </div>
+  <div>
+   <div class="panel"><div class="ph-title">Что мастер может с телефона</div>
+    ${[['Сменить статус вагона','из ограниченного набора — например «В ремонте» или «Выпущен из ремонта»; запись уходит в общую историю с его именем'],
+       ['Составить дефектную ведомость','список выявленных неисправностей с фото — администратор на её основании делает согласование с клиентом'],
+       ['Приложить фото и видео','узлы, клейма, повреждения — всё сразу в карточке вагона'],
+       ['Видеть только своё депо','мастер не видит финансы, чужие депо и данные клиентов']]
+     .map(x=>`<div class="note" style="--tone:var(--acc)"><b>${x[0]}</b><p>${x[1]}</p></div>`).join('')}
+   </div>
+   <div class="panel" style="margin-top:10px"><div class="ph-title">Почему это важно для сроков</div>
+    <p class="mini" style="margin-top:6px">Сейчас информация из депо доходит звонками и сообщениями, а в таблицу попадает вечером или на следующий день. Когда мастер отмечает статус на месте, администратор видит реальную картину в ту же минуту — а таймер норматива считается по факту, а не «по памяти».</p>
+    <div class="kpi-mini"><div style="--tone:var(--green)"><small>ЗАДЕРЖКА ДАННЫХ</small><b>минуты</b></div><div style="--tone:var(--blue)"><small>БЕЗ КОМПЬЮТЕРА</small><b>да</b></div><div style="--tone:var(--acc)"><small>ФОТО К ВАГОНУ</small><b>сразу</b></div></div>
+   </div>
+  </div>
+ </div>`;
+function mobSt(){openD('Смена статуса с телефона','Мастер Жанат · ВЧДР Астана · вагон 61294857',['Статус'],
+ `${STATUS.filter(s=>['rep','out'].includes(s.k)).map(s=>`<button class="stbtn" style="--c:${s.c}" onclick="closeD();sparks();toast('Мастер отметил статус «${s.n}» с телефона. Запись ушла в историю вагона с его именем и точным временем, администратор видит изменение сразу.')"><i></i>${s.n}</button>`).join('')}
+ <div class="note" style="--tone:var(--acc)"><b>Ограниченный набор</b><p>Мастеру доступны только рабочие статусы. Согласования, финансы и передачу в бухгалтерию делает администратор.</p></div>`)}
+function mobDef(){openD('Дефектная ведомость','Вагон 61294857 · ВЧДР Астана',['Ведомость'],
+ `<div class="fld"><small>ВЫЯВЛЕННЫЕ НЕИСПРАВНОСТИ</small>
+  ${[['107','Выщербина обода колеса — 2 шт.'],['225','Износ фрикционных планок'],['205','Просадка пружин рессорного комплекта']].map(d=>`<div class="doc done"><i>✓</i><span><b class="mono">${d[0]}</b> · ${d[1]}</span></div>`).join('')}</div>
+ <div class="fld"><small>ТРЕБУЕТСЯ ЗАМЕНА</small><textarea rows="2">Колёсная пара — 1 шт. (по браковке), комплект фрикционных планок.</textarea></div>
+ <div class="btns" style="margin-top:10px"><button class="btn" onclick="toast('Фото прикреплены к ведомости.')">📷 Фото (4)</button>
+ <button class="btn acc" onclick="closeD();sparks();toast('Дефектная ведомость отправлена администратору. На её основании создаётся согласование с клиентом по колёсной паре — вагон встанет в «Ожидает согласования».')">Отправить администратору</button></div>`)}
+
+/* ---- НОРМАТИВЫ И ЦЕНЫ (ТЗ п.15, 16.2) ---- */
+SC.norms=()=>`
+ <div class="head"><div><h2>Нормативы и цены</h2><p>Права руководителя: нормативные сроки по видам ремонта и цены. Новые значения применяются к новым вагонам — уже начатые сроки не пересчитываются.</p></div></div>
+ <div class="g2">
+  <div class="panel"><div class="ph-title">Нормативные сроки ремонта</div>
+   ${REP.map(r=>`<div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)">
+    <div style="flex:1"><b style="font-size:11px">${r[1]}</b><div class="sub">просрочка считается с даты получения заявки</div></div>
+    <button class="btn" onclick="normSet('${r[0]}',-1)">−</button>
+    <b class="mono" style="width:64px;text-align:center;font-size:14px">${NORMS[r[0]]} дн.</b>
+    <button class="btn" onclick="normSet('${r[0]}',1)">+</button></div>`).join('')}
+   <div class="hint"><b>Сейчас под нормативом:</b> ${CARS.filter(c=>!isOver(c)).length} вагонов, просрочено ${CARS.filter(isOver).length}. Поменяйте норматив — пересчёт видно сразу в таблице.</div>
+  </div>
+  <div class="panel"><div class="ph-title">Цены по видам ремонта</div>
+   ${REP.map(r=>`<div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)">
+    <div style="flex:1"><b style="font-size:11px">${r[1]}</b><div class="sub">базовая стоимость для расчётов с клиентом</div></div>
+    <b class="mono" style="font-size:13px">${tg(PRICES[r[0]])}</b>
+    <button class="btn" onclick="toast('Цена «${r[1]}» изменена — новые вагоны считаются по новой цене, ранее выставленное не пересчитывается.')">Изменить</button></div>`).join('')}
+   <div class="note" style="--tone:var(--acc)"><b>Только руководитель</b><p>Изменение цен, нормативов, корректировка данных и финансовой информации, перенос ошибочного вагона в архив — права руководителя. Администратор этого не может.</p></div>
+  </div>
+ </div>`;
+function normSet(k,d){NORMS[k]=Math.max(1,NORMS[k]+d);keepScroll();
+ toast(`Норматив «${repName(k)}» — ${NORMS[k]} дн. Новые значения применяются к новым вагонам; уже начатые сроки не пересчитываются.`)}
+
+/* ---- АРХИВ (ТЗ п.23) ---- */
+SC.archive=()=>`
+ <div class="head"><div><h2>Архив</h2><p>Вагоны не удаляются из базы физически. Руководитель может перенести в архив ошибочно созданную карточку — с полной историей, документами и согласованиями.</p></div></div>
+ <div class="strip">
+  <div><small>В АРХИВЕ</small><b>7 вагонов</b><span>ошибочные и закрытые карточки</span></div>
+  <div><small>УДАЛЕНО ФИЗИЧЕСКИ</small><b class="good">0</b><span>физическое удаление не производится</span></div>
+  <div><small>ДОСТУП</small><b>руководитель</b><span>с подтверждением действия</span></div>
+  <div><small>ВИДНО КЛИЕНТУ</small><b>нет</b><span>архивные вагоны скрыты</span></div>
+  <div><small>ХРАНИТСЯ</small><b>всё</b><span>карточка, история, документы, финансы</span></div>
+ </div>
+ <div class="panel"><div class="tw"><table class="data" style="min-width:640px"><thead><tr><th>Вагон</th><th>Собственник</th><th>Причина архивации</th><th>Кто перенёс</th><th>Дата</th><th></th></tr></thead><tbody>
+ ${[['61118240','ТОО «Alem Rail»','Дубль заявки — карточка создана повторно вручную','Владимир Р.','18.08.2026'],
+    ['74009315','АО «Каспий Ойл Транс»','Ошибочный номер вагона в письме клиента','Владимир Р.','12.08.2026'],
+    ['24551007','ТОО «KZ Wagon»','Заявка отозвана собственником до начала ремонта','Владимир Р.','05.08.2026']]
+  .map(a=>`<tr onclick="toast('Архивная карточка ${a[0]}: доступна вся история, документы и согласования. Восстановление — по подтверждению руководителя.')">
+  <td class="mono"><b>${a[0]}</b></td><td class="mini">${a[1]}</td><td class="mini">${a[2]}</td><td>${a[3]}</td><td class="mono">${a[4]}</td>
+  <td><span class="tag">в архиве</span></td></tr>`).join('')}
+ </tbody></table></div></div>`;
+
+/* ---- НАСТРОЙКИ ---- */
+SC.settings=()=>`
+ <div class="head"><div><h2>Настройки</h2><p>Всё, что в ТЗ помечено как настраиваемое: адрес почты бота, срок подачи заявки на доработку, цвета статусов, классификаторы и права ролей.</p></div></div>
+ <div class="g2">
+  <div class="panel"><div class="ph-title">Цвета статусов</div>
+   <p class="mini" style="margin-bottom:8px">Нажмите на статус — цвет строки в основной таблице поменяется сразу. Цвет ни на что не влияет, кроме визуального контроля.</p>
+   ${STATUS.map((s,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)">
+    <span style="width:20px;height:20px;border-radius:6px;background:${s.c};flex:none"></span>
+    <b style="flex:1;font-size:10.4px">${s.n}</b>
+    <button class="btn" onclick="colorNext(${i})">Сменить цвет</button></div>`).join('')}
+  </div>
+  <div class="panel"><div class="ph-title">Правила системы</div>
+   <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)">
+    <div style="flex:1"><b style="font-size:10.4px">Срок подачи заявки на доработку</b><div class="sub">после перехода вагона в «Готов»</div></div>
+    <button class="btn" onclick="fixSet(-1)">−</button><b class="mono" style="width:56px;text-align:center">${FIXDAYS} дн.</b><button class="btn" onclick="fixSet(1)">+</button></div>
+   ${[['Почта для заявок','remont@vagon-service.kz · задаётся при настройке'],['Добавление ящиков через интерфейс','не предусмотрено — один выделенный адрес'],['Классификатор рода вагонов','загружен · 5 групп'],['Классификатор неисправностей','загружен · ' + Object.keys(FAULTS).length + ' кодов'],['Классификатор станций','загружен · ' + STATIONS.length + ' станций'],['Напоминание по согласованию','ежедневно после 2 суток без ответа'],['Уведомления','администратор, бухгалтерия, клиент — по своим событиям']]
+    .map(x=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:10px"><span class="muted">${x[0]}</span><b style="text-align:right;max-width:60%">${x[1]}</b></div>`).join('')}
+   <div class="hint"><b>Классификаторы</b> вы передаёте Excel-файлами — мы загружаем их в систему, дальше бот и карточка заполняются по ним автоматически.</div>
+  </div>
+ </div>
+ <div class="panel"><div class="ph-title">Роли и доступ</div>
+  <div class="tw"><table class="data" style="min-width:700px"><thead><tr><th>Возможность</th><th>Администратор</th><th>Руководитель</th><th>Бухгалтерия</th><th>Клиент</th><th>Мастер</th></tr></thead><tbody>
+  ${[['Заявки от бота и приём в работу',1,1,0,0,0],['Изменение статусов',1,1,0,0,'частично'],['Согласования с клиентом',1,1,0,'ответ',0],
+     ['Документы вагона',1,1,'только АВР','просмотр','фото'],['Внутренние финансы',1,1,0,0,0],['Цены и нормативы',0,1,0,0,0],
+     ['Передача в бухгалтерию',1,1,0,0,0],['Архив',0,1,0,0,0],['Вагоны других клиентов',1,1,'переданные',0,'своё депо']]
+   .map(r=>`<tr style="cursor:default"><td><b>${r[0]}</b></td>${r.slice(1).map(v=>`<td style="text-align:center">${v===1?'<span style="color:#4ade80">✓</span>':v===0?'<span style="color:#5d7186">—</span>':`<span class="tag amber">${v}</span>`}</td>`).join('')}</tr>`).join('')}
+  </tbody></table></div>
+ </div>`;
+function colorNext(i){const P=['#3b82f6','#f5a524','#a855f7','#22d3ee','#22c55e','#10b981','#ef4444','#ec4899','#eab308','#64748b'];
+ const s=STATUS[i];s.c=P[(P.indexOf(s.c)+1)%P.length];keepScroll();
+ toast(`Цвет статуса «${s.n}» изменён — строки в основной таблице перекрасились сразу.`)}
+function fixSet(d){FIXDAYS=Math.max(1,FIXDAYS+d);keepScroll();
+ toast(`Срок подачи заявки на доработку — ${FIXDAYS} дн. Новое значение применяется только к вагонам, которые перейдут в «Готов» после изменения.`)}
+
+/* ===== КАРКАС ===== */
+function keepScroll(){const el=document.getElementById('content');const s=el.scrollTop;render();el.scrollTop=s}
+function renderRoles(){document.getElementById('roles').innerHTML=Object.entries(ROLES).map(([n,r],i)=>`<button class="role" onclick="enter('${n}')"><code>0${i+1}</code><b>${n}</b><span>${r.note}</span></button>`).join('')}
+function enter(n){role=n;const r=ROLES[n];
+ document.getElementById('gate').classList.add('hidden');document.getElementById('app').classList.remove('hidden');
+ document.getElementById('rav').textContent=r.av;document.getElementById('rname').textContent=n;document.getElementById('rrole').textContent=r.note;
+ buildNav();const q=new URLSearchParams(location.search).get('s');go(q&&r.s.includes(q)?q:r.s[0]);
+ toast(`Роль <b>${n}</b>: показаны только разделы, доступные этой роли по ТЗ.`)}
+function buildNav(){const al=ROLES[role].s;
+ document.getElementById('nav').innerHTML=NAV.map(([g,items])=>{const x=items.filter(i=>al.includes(i[0]));
+  return x.length?`<div class="nav-group">${g}</div>`+x.map(i=>`<button class="nav-item" data-go="${i[0]}" onclick="go('${i[0]}')"><span class="nav-code">${i[1]}</span><span>${i[2]}</span>${i[3]?`<span class="nav-badge">${i[3]}</span>`:'<span></span>'}</button>`).join(''):''}).join('');
+ const s=document.getElementById('rsel');s.innerHTML=Object.keys(ROLES).map(n=>`<option ${n===role?'selected':''}>${n}</option>`).join('');s.onchange=()=>enter(s.value)}
+function go(s){if(!ROLES[role].s.includes(s))s=ROLES[role].s[0];cur=s;
+ document.getElementById('ttl').textContent=TITLES[s][0];document.getElementById('sub').textContent=TITLES[s][1];
+ document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('on',x.dataset.go===s));
+ render();document.getElementById('rail').classList.remove('open');document.getElementById('content').scrollTop=0;
+ try{const u=new URL(location.href);u.searchParams.set('s',s);history.replaceState(null,'',u.pathname+'?'+u.searchParams.toString())}catch(e){}}
+function render(){document.getElementById('content').innerHTML=`<div class="screen">${SC[cur]?SC[cur]():'<p class="mini">Раздел в разработке.</p>'}</div>`}
+function openD(t,s,tabs,body){document.getElementById('dt').textContent=t;document.getElementById('ds').textContent=s;
+ document.getElementById('dtabs').innerHTML=tabs.map((x,i)=>`<button class="dtab ${i===0?'on':''}">${x}</button>`).join('');
+ document.getElementById('db').innerHTML=body;document.getElementById('dbg').classList.add('show')}
+function closeD(){document.getElementById('dbg').classList.remove('show')}
+let tt;function toast(h){const t=document.getElementById('toast');t.innerHTML=h;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),5200)}
+function sparks(){const c=['#f5a524','#fbbf24','#22d3ee','#a855f7','#e8eef5','#22c55e'];
+ for(let i=0;i<70;i++){const s=document.createElement('i');s.className='spark';
+  s.style.cssText=`left:${Math.random()*100}vw;top:-14px;background:${c[i%6]};animation-delay:${Math.random()*.45}s;transform:rotate(${Math.random()*360}deg)`;
+  document.body.appendChild(s);setTimeout(()=>s.remove(),2400)}}
+const TOUR=[
+ ['inbox','<b>Шаг 1.</b> Письмо приходит на выделенный адрес — бот за секунды разбирает его: номер вагона → род по классификатору, код → название неисправности, станция и собственник. Дубли и нераспознанное подсвечены отдельно.',6000],
+ ['table','<b>Шаг 2.</b> Принятая заявка становится строкой в основной таблице. Цвет — по статусу, просроченные подсвечены, столбцы настраиваются под себя. Именно список, а не доска — как вы и просили.',6000],
+ ['appr','<b>Шаг 3.</b> Нужна дорогая запчасть — создаётся согласование, вагон встаёт в «Ожидает согласования». Нет ответа 2 суток — система напоминает клиенту сама.',5600],
+ ['stock','<b>Шаг 4.</b> Склад с номерным учётом: у каждой колёсной пары свой номер и история. Списание — всегда на конкретный вагон, поэтому себестоимость точная.',5600],
+ ['mobile','<b>Шаг 5.</b> Мастер в депо работает с телефона: меняет статус и отправляет дефектную ведомость с фото. Данные в системе в ту же минуту, а не вечером.',5600],
+ ['buh','<b>Шаг 6.</b> Готовый вагон передаётся в бухгалтерию: бухгалтер видит только его, прикладывает АВР и ставит отметку. Ни статусы, ни цены он трогать не может.',5600],
+ ['boss','<b>Итог.</b> Руководитель видит за период: в работе, отработано, просрочено, оплачено — и причины просрочек. Каждый вагон — одна карточка от письма до оплаты.',6000]
+];
+let tourT=null,tourI=0;
+function tour(){if(tourT){stopTour();return}tourI=0;document.getElementById('tourBtn').textContent='■ Остановить';step()}
+function step(){if(tourI>=TOUR.length){stopTour();sparks();toast('<b>Весь жизненный цикл вагона</b> из вашего ТЗ — от письма на почту до АВР и оплаты — работает в одной системе.');return}
+ const [scr,txt,ms]=TOUR[tourI++];if(ROLES[role].s.includes(scr))go(scr);toast(txt);tourT=setTimeout(step,ms)}
+function stopTour(){clearTimeout(tourT);tourT=null;const b=document.getElementById('tourBtn');if(b)b.textContent='▶ Сценарий'}
+/* ===== ТЕМА: тёмная / светлая ===== */
+function applyTheme(t){const light=t==='light';
+ document.body.classList.toggle('light',light);
+ const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',light?'#f4f7fb':'#081320');
+ const lbl=light?'🌙 Тёмная':'☀ Светлая';
+ const b=document.getElementById('themeBtn');if(b)b.textContent=lbl;
+ const g=document.getElementById('themeBtnGate');if(g)g.textContent=light?'🌙 Тёмная версия':'☀ Светлая версия';
+ try{localStorage.setItem('aps-theme',t)}catch(e){}}
+function toggleTheme(){const light=document.body.classList.contains('light');
+ applyTheme(light?'dark':'light');
+ toast(light?'Тёмная версия включена.':'Светлая версия включена — та же система в светлом оформлении. Выбор запомнится.')}
+(function(){let t='dark';try{t=localStorage.getItem('aps-theme')||'dark'}catch(e){}
+ const q=new URLSearchParams(location.search).get('theme');if(q==='light'||q==='dark')t=q;
+ applyTheme(t)})();
+document.getElementById('menuBtn').onclick=()=>document.getElementById('rail').classList.toggle('open');
+renderRoles();
+(function(){const q=new URLSearchParams(location.search).get('s');if(q&&TITLES[q]){const r=q==='client'?'Клиент':q==='mobile'?'Мастер в депо':q==='buh'?'Бухгалтерия':(q==='boss'||q==='norms'||q==='archive'||q==='fin')?'Руководитель':'Администратор';enter(r)}})();
+
+</script>
+</body>
+</html>
