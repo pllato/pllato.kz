@@ -891,6 +891,16 @@ function lkDrawingVectorAt(p){const src=S.drawingVectorPages&&S.drawingVectorPag
       if(d<bd-.15||(Math.abs(d-bd)<=.15&&best&&len>best.len)){bd=d;best={raw:o,key,prefix,index:i,sx,sy,len};}});};
   scan(src.objs,'o:');scan(src.dark,'d:');return best;
 }
+function lkPromoteDrawingObjectAt(p){const src=S.drawingVectorPages&&S.drawingVectorPages[S.pageNum];if(!src||!src.ready){toast('Исходные объекты ещё готовятся');return false;}const hit=lkDrawingVectorAt(p);if(!hit){toast('Чуть точнее нажмите на сам знак');return false;}
+  const seed=lkVectorPart(hit.raw,hit.key,hit.sx,hit.sy);if(!seed)return false;const radius=Math.max(18,Math.min(S.W,S.H)*.022),gap=Math.max(5,seed.width*4,radius*.14),taken=lkTakenDrawingVectorKeys(),parts=[];
+  const scan=(arr,prefix)=>{(arr||[]).forEach((o,i)=>{const key=prefix+i;if(taken.has(key))return;const q=lkVectorPart(o,key,hit.sx,hit.sy);if(!q||String(q.color).toLowerCase()!==String(seed.color).toLowerCase())return;const b=q.box,diag=Math.hypot(b.x1-b.x0,b.y1-b.y0),far=Math.max(...q.pts.map(a=>Math.hypot(a.x-p.x,a.y-p.y)));if(diag<=radius*2.25&&far<=radius*1.75)parts.push(q);});};
+  scan(src.objs,'o:');scan(src.dark,'d:');let group=[seed],rest=parts.filter(q=>q.key!==seed.key),changed=true;while(changed&&group.length<40){changed=false;for(let i=rest.length-1;i>=0;i--){if(!group.some(q=>lkPathsGap(q.pts,rest[i].pts)<=gap))continue;group.push(rest.splice(i,1)[0]);changed=true;}}
+  const xs=group.flatMap(q=>q.pts.map(a=>a.x)),ys=group.flatMap(q=>q.pts.map(a=>a.y));if(!group.length||Math.hypot(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys))>radius*3.2){toast('Это длинная линия; для неё используйте «Выбор»');return false;}
+  pushHistory();const gid='bg_'+(GRP_SEQ++),made=[];group.forEach(part=>{const original=part.pts.map(a=>({x:a.x,y:a.y}));const n=addObj({type:'line',cat:'other',color:part.color,width:part.width,pts:original.map(a=>({x:a.x,y:a.y})),ea:{kind:'free',h:0},eb:{kind:'free',h:0},nocalc:true,src:'pdf',grp:gid,_lkSource:true,_lkSourceDecoration:true,_lkVectorKey:part.key,_lkVectorKeys:[part.key],_lkOriginal:{paths:[original],pts:original,width:part.width,color:part.color}});made.push(n);});
+  let bestRoute=null,bestSide=null,best=radius*1.45;(cur()||[]).forEach(o=>{if(!o||o._lkDeleted||o.type!=='line'||o._lkSourceDecoration||!o._lkOriginal||!Array.isArray(o._lkOriginal.pts))return;[['a',o._lkOriginal.pts[0]],['b',o._lkOriginal.pts[o._lkOriginal.pts.length-1]]].forEach(([side,end])=>{const d=Math.min(...group.flatMap(q=>q.pts.map(a=>Math.hypot(a.x-end.x,a.y-end.y))));if(d<best){best=d;bestRoute=o;bestSide=side;}});});
+  if(bestRoute){bestRoute._lkEndAttachments=bestRoute._lkEndAttachments||{a:[],b:[]};made.forEach(o=>{o._lkAttachedTo=bestRoute.id;o._lkAttachedEnd=bestSide;bestRoute._lkEndAttachments[bestSide].push(o.id);});}
+  redrawAll();selectObj(made[0].id);lkQueueDrawingSave();toast(bestRoute?'Знак отделён от фона и закреплён за линией — его можно двигать или удалить':'Знак отделён от фона — его можно двигать или удалить');return true;
+}
 function lkTakenDrawingVectorKeys(){const out=new Set();(cur()||[]).forEach(o=>{if(!o)return;if(o._lkVectorKey)out.add(o._lkVectorKey);(o._lkVectorKeys||[]).forEach(k=>out.add(k));});return out;}
 function lkDrawingVectorChain(hit){if(!hit||hit.raw.t!=='line')return{raw:hit.raw,keys:[hit.key]};
   const src=S.drawingVectorPages&&S.drawingVectorPages[S.pageNum],arr=hit.prefix==='o:'?src&&src.objs:src&&src.dark;if(!arr)return{raw:hit.raw,keys:[hit.key]};
@@ -924,20 +934,22 @@ function lkVectorPart(o,key,sx,sy){if(!o)return null;let pts;
   return{key,pts,color:o.c||'#10151c',width,box:{x0:Math.min(...xs),y0:Math.min(...ys),x1:Math.max(...xs),y1:Math.max(...ys)}};
 }
 function lkPathsGap(a,b){let best=1e18;for(const p of a)for(let i=0;i<b.length-1;i++)best=Math.min(best,dSeg(p,b[i],b[i+1]));for(const p of b)for(let i=0;i<a.length-1;i++)best=Math.min(best,dSeg(p,a[i],a[i+1]));return best;}
+const LK_END_ATTACH_VER=2;
+function lkEndDecorationColor(routeColor,partColor){const a=String(routeColor||'#10151c').toLowerCase(),b=String(partColor||'#10151c').toLowerCase();if(a===b)return true;const m=b.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);if(!m)return false;const rgb=m.slice(1).map(x=>parseInt(x,16));return Math.max(...rgb)<=105&&Math.max(...rgb)-Math.min(...rgb)<=22;}
 function lkEndDecorationParts(rep,keys,sx,sy,end){const src=S.drawingVectorPages&&S.drawingVectorPages[S.pageNum];if(!src||!end)return[];const skip=new Set(keys||[]),taken=lkTakenDrawingVectorKeys(),color=String(rep.color||'#10151c').toLowerCase();
   const radius=Math.max(16,Math.min(S.W,S.H)*.018),gap=Math.max(4,(+rep.width||1)*3,radius*.16),candidates=[];
-  const scan=(arr,prefix)=>{(arr||[]).forEach((o,i)=>{const key=prefix+i;if(skip.has(key)||taken.has(key))return;const part=lkVectorPart(o,key,sx,sy);if(!part||String(part.color||'#10151c').toLowerCase()!==color)return;const b=part.box,diag=Math.hypot(b.x1-b.x0,b.y1-b.y0),far=Math.max(...part.pts.map(p=>Math.hypot(p.x-end.x,p.y-end.y)));if(diag>radius*2.2||far>radius*1.55)return;candidates.push(part);});};
+  const scan=(arr,prefix)=>{(arr||[]).forEach((o,i)=>{const key=prefix+i;if(skip.has(key)||taken.has(key))return;const part=lkVectorPart(o,key,sx,sy);if(!part||!lkEndDecorationColor(color,part.color))return;const b=part.box,diag=Math.hypot(b.x1-b.x0,b.y1-b.y0),far=Math.max(...part.pts.map(p=>Math.hypot(p.x-end.x,p.y-end.y)));if(diag>radius*2.2||far>radius*1.55)return;candidates.push(part);});};
   scan(src.objs,'o:');scan(src.dark,'d:');const out=[];let changed=true;
   while(changed){changed=false;for(let i=candidates.length-1;i>=0;i--){const p=candidates[i],nearAnchor=lkPathsGap([{x:end.x-gap*.1,y:end.y},{x:end.x+gap*.1,y:end.y}],p.pts)<=gap,nearPart=out.some(q=>lkPathsGap(q.pts,p.pts)<=gap);if(!nearAnchor&&!nearPart)continue;out.push(p);candidates.splice(i,1);changed=true;}}
   return out;
 }
-function lkAttachSourceEnds(route,rep,sx,sy){if(!route||!rep||route._lkEndAttachmentsReady)return 0;route._lkEndAttachments={a:[],b:[]};let made=0;
+function lkAttachSourceEnds(route,rep,sx,sy){if(!route||!rep||route._lkEndAttachmentsVer===LK_END_ATTACH_VER)return 0;route._lkEndAttachments={a:[],b:[]};(cur()||[]).forEach(o=>{if(!o||o._lkAttachedTo!==route.id)return;const side=o._lkAttachedEnd==='a'?'a':'b';route._lkEndAttachments[side].push(o.id);});let made=0;
   [['a',0],['b',route.pts.length-1]].forEach(([side,idx])=>{const oi=side==='a'?0:rep.pts.length-1,origin=rep.pts[oi],now=route.pts[idx],dx=now.x-origin.x,dy=now.y-origin.y,grp='end_'+route.id+'_'+side;
     lkEndDecorationParts(rep,route._lkVectorKeys||[],sx,sy,origin).forEach(part=>{const original=part.pts.map(p=>({x:p.x,y:p.y})),pts=original.map(p=>({x:p.x+dx,y:p.y+dy}));const n=addObj({type:'line',cat:'other',color:part.color,width:part.width,pts,ea:{kind:'free',h:0},eb:{kind:'free',h:0},nocalc:true,src:'pdf',grp,_lkSource:true,_lkSourceDecoration:true,_lkAttachedTo:route.id,_lkAttachedEnd:side,_lkVectorKey:part.key,_lkVectorKeys:[part.key],_lkOriginal:{paths:[original],pts:original,width:part.width,color:part.color}});route._lkEndAttachments[side].push(n.id);made++;});});
-  route._lkEndAttachmentsReady=1;return made;
+  route._lkEndAttachmentsReady=1;route._lkEndAttachmentsVer=LK_END_ATTACH_VER;return made;
 }
 function lkUpgradeSourceReplacements(){if(!S.linkedLkDocId)return false;const src=S.drawingVectorPages&&S.drawingVectorPages[S.pageNum];if(!src)return false;const sx=S.W/(src.wpt||S.data.pages[S.pageNum].wpt||S.W),sy=S.H/(src.hpt||S.data.pages[S.pageNum].hpt||S.H);let changed=false;
-  (cur()||[]).slice().filter(o=>o&&o.type==='line'&&!o._lkSourceDecoration).forEach(o=>{const keys=(o._lkVectorKeys&&o._lkVectorKeys.length?o._lkVectorKeys:null)||(o._lkVectorKey?[o._lkVectorKey]:null);if(!keys)return;let rep=o._lkOriginal;if(!rep){rep=lkReplacementFromKeys(keys,sx,sy);if(!rep)return;o._lkOriginal=rep;o._lkSource=true;o.width=rep.width;changed=true;}if(!o._lkEndAttachmentsReady){lkAttachSourceEnds(o,rep,sx,sy);changed=true;}});
+  (cur()||[]).slice().filter(o=>o&&!o._lkDeleted&&o.type==='line'&&!o._lkSourceDecoration).forEach(o=>{const keys=(o._lkVectorKeys&&o._lkVectorKeys.length?o._lkVectorKeys:null)||(o._lkVectorKey?[o._lkVectorKey]:null);if(!keys)return;let rep=o._lkOriginal;if(!rep){rep=lkReplacementFromKeys(keys,sx,sy);if(!rep)return;o._lkOriginal=rep;o._lkSource=true;o.width=rep.width;changed=true;}if(o._lkEndAttachmentsVer!==LK_END_ATTACH_VER){lkAttachSourceEnds(o,rep,sx,sy);changed=true;}});
   if(changed)lkQueueDrawingSave();return changed;
 }
 function lkSelectDrawingVectorAt(p){if(!S.linkedLkDocId)return false;const src=S.drawingVectorPages&&S.drawingVectorPages[S.pageNum];
@@ -1012,7 +1024,7 @@ function drawSymbolCanvas(cc,o){const def=symDef(o.sym);const s=o.size/22;cc.sav
 function symPreviewSVG(s){const inner=s.parts.map(pt=>{const col=pt.c||s.col;return `<path d="${pt.p}" stroke="${pt.f?'none':col}" fill="${pt.f?col:'none'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;}).join('');return `<svg viewBox="-14 -14 28 28">${inner}</svg>`;}
 function placeSymbol(p){const def=symDef(S.armSym);const size=Math.max(22,S.W*0.016);pushHistory();
   addObj({type:'symbol',sym:S.armSym,x:p.x,y:p.y,size,rot:0,color:def.col,src:'mine'});redrawAll();renderSide();toast(def.n+' поставлен');}
-function eraseAt(target){const el=target&&target.closest&&target.closest('[data-id]');if(!el)return;const id=el.dataset.id;const o=getObj(id);if(!o||isRef(o))return;pushHistory();const ids=moveCluster(o);ids.forEach(i=>delObj(i));if(ids.includes(S.selected))S.selected=null;redrawAll();renderSide();toast(ids.length>1?'Удалено вместе со знаком ('+ids.length+')':'Удалено');}
+function eraseAt(target){const el=target&&target.closest&&target.closest('[data-id]');if(!el)return;const id=el.dataset.id;const o=getObj(id);if(!o||isRef(o))return;pushHistory();const ids=moveCluster(o);deleteObjectIds(ids);if(ids.includes(S.selected))S.selected=null;redrawAll();renderSide();toast(ids.length>1?'Удалено вместе со знаком ('+ids.length+')':'Удалено');}
 function renderCatalog(){const body=$('sideBody');
   let h='<div class="catgrid">'+SYMS.map(s=>`<button class="catcell ${S.armSym===s.k?'on':''}" data-sym="${s.k}"><span class="catico">${symPreviewSVG(s)}</span><span class="catnm">${s.n}</span><span class="catdesc">${s.d}</span></button>`).join('')+'</div>';
   h+='<div class="emptyhint" style="text-align:left">Выберите знак и тапайте по плану, чтобы расставить. Каждый знак — <b>один объект</b>: двигается, вращается (ручка сверху), масштабируется (угол) и удаляется целиком. Розетки/выключатели/щит также считаются в «Расчёте».</div>';
@@ -1269,11 +1281,12 @@ function cur(){return S.objects[S.pageNum];}
 function addObj(o){o.id='o'+(S.seq++);cur().push(o);return o;}
 function getObj(id){return cur().find(o=>o.id===id);}
 function delObj(id){const a=cur();const i=a.findIndex(o=>o.id===id);if(i>=0)a.splice(i,1);}
+function deleteObjectIds(ids){(ids||[]).forEach(id=>{const o=getObj(id);if(!o)return;if(o._lkSource&&o._lkOriginal)o._lkDeleted=true;else delObj(id);});}
 function isRef(o){return S.importMode==='ref'&&o.src==='pdf';}
 function visible(o){return S.filter==='all'||(S.filter==='mine'&&o.src!=='pdf')||(S.filter==='pdf'&&o.src==='pdf');}
 
 function renderReplacementMask(o){const rep=o&&o._lkOriginal;if(!rep||!Array.isArray(rep.paths)||!rep.paths.length)return null;const g=document.createElementNS(SVGNS,'g');g.style.pointerEvents='none';rep.paths.forEach(pts=>{if(!pts||pts.length<2)return;const p=document.createElementNS(SVGNS,'path');p.dataset.ui='replacement-mask';p.dataset.basew=String(Math.max(.7,+rep.width||1));p.setAttribute('d',linePath(pts));p.setAttribute('fill','none');p.setAttribute('stroke','#fff');p.setAttribute('stroke-width',Math.max(.7,+rep.width||1)+1.5/Math.max(.1,S.scale));p.setAttribute('stroke-linecap','round');p.setAttribute('stroke-linejoin','round');g.appendChild(p);});return g.childNodes.length?g:null;}
-function redrawAll(){gMask.innerHTML='';gObj.innerHTML='';cur().forEach(o=>{if(!visible(o))return;const m=renderReplacementMask(o);if(m)gMask.appendChild(m);gObj.appendChild(renderObj(o));});drawSelUI();$('objN').textContent=cur().length;if(S.sideTab==='calc')renderSide();}
+function redrawAll(){gMask.innerHTML='';gObj.innerHTML='';cur().forEach(o=>{const m=renderReplacementMask(o);if(o._lkDeleted){if(m)gMask.appendChild(m);return;}if(!visible(o))return;if(m)gMask.appendChild(m);gObj.appendChild(renderObj(o));});drawSelUI();$('objN').textContent=cur().filter(o=>!o._lkDeleted).length;if(S.sideTab==='calc')renderSide();}
 function renderObj(o){
   let el;
   if(o.type==='line'){
@@ -1455,7 +1468,7 @@ function renderOpt(){const bar=$('optbar');let h='';
   }
   else if(S.tool==='erase')h=`<span class="tip"><b>Ластик.</b> Тапайте лишние объекты — удаляются сразу. Удобно чистить дробные фрагменты из чертежа.</span>`;
   else if(S.tool==='sym')h=`<span class="tip"><b>Каталог знаков.</b> Выберите знак справа и тапайте по плану. Знак — единый объект (двигать/вращать/масштабировать/удалять целиком).</span>`;
-  else if(S.tool==='promo')h=`<span class="tip"><b>Из фона.</b> Тапните по чёрной линии/рамке/выноске на чертеже — она станет редактируемым объектом. Линию меняйте по точкам. Так оживляем нецветные элементы по требованию, не нагружая планшет.</span>`;
+  else if(S.tool==='promo')h=`<span class="tip"><b>Из фона.</b> Тапните по оставшемуся знаку, рамке или выноске — объект отделится от PDF. После этого его можно передвинуть целиком или удалить; исходное место будет аккуратно закрыто.</span>`;
   else if(S.tool==='field')h=`<span class="tip"><b>Значение в таблицу.</b> Тапните над ячейкой «кол-во» в таблице чертежа — появится число. Выделив, выберите, что показывать: марку кабеля / доп.позицию / итог / счётчик (авто из расчёта) или впишите вручную. На экспорте число встанет в таблицу.</span>`;
   else if(S.tool==='pan')h=`<span class="tip">Двигайте холст, щипок/колесо — масштаб.</span>`;
   else if(S.tool==='cal'){const c=S.cal[S.pageNum];h=`<span class="tip"><b>Калибровка масштаба.</b> Кликните две точки вдоль известного размера на плане (например стену), затем введите длину в метрах.</span>`+(c?`<span class="grp" style="font-family:var(--mono);font-size:11px;color:var(--green)">✓ 1 м = ${(1/c).toFixed(0)} px</span>`:'');}
@@ -1500,7 +1513,7 @@ function bindBar(){
 function resetSourceLine(){const o=getObj(S.selected),rep=o&&o._lkOriginal;if(!o||o.type!=='line'||!rep||!Array.isArray(rep.pts)||rep.pts.length<2)return;pushHistory();o.pts=rep.pts.map(p=>({x:+p.x,y:+p.y}));o.width=Math.max(.7,+rep.width||o.width);o.color=rep.color||o.color;o.cat=colorToCat(o.color);cur().forEach(x=>{if(x._lkAttachedTo!==o.id||!x._lkOriginal||!Array.isArray(x._lkOriginal.pts))return;x.pts=x._lkOriginal.pts.map(p=>({x:+p.x,y:+p.y}));});redrawAll();selectObj(o.id);renderSide();renderOpt();toast('Исходная линия и её знаки восстановлены');}
 function simplifySel(){const o=getObj(S.selected);if(!o||o.type!=='line')return;pushHistory();const raw=o.pts.map(p=>[p.x,p.y]);o.pts=capPts(raw,MAX_NODES).map(p=>({x:p[0],y:p[1]}));redrawOne(o);drawSelUI();renderSide();toast('Линия упрощена до '+o.pts.length+' точек');}
 function dup(){const ids=(S.cluster&&S.cluster.length?S.cluster:[S.selected]).filter(id=>getObj(id));if(!ids.length)return;pushHistory();const off=Math.max(18,S.W*0.012);let firstId=null;ids.forEach(id=>{const o=getObj(id);const c=JSON.parse(JSON.stringify(o));delete c.id;delete c._lkOriginal;delete c._lkVectorKey;delete c._lkVectorKeys;delete c._lkSource;delete c._lkSourceDecoration;delete c._lkAttachedTo;delete c._lkAttachedEnd;delete c._lkEndAttachments;delete c._lkEndAttachmentsReady;c.src='mine';if(c.type==='line')c.pts=c.pts.map(p=>({x:p.x+off,y:p.y+off}));else{c.x+=off;c.y+=off;}const n=addObj(c);if(!firstId)firstId=n.id;});redrawAll();if(firstId)selectObj(firstId);toast('Дубликат');}
-function delSel(){const o=getObj(S.selected);if(!o)return;pushHistory();const ids=moveCluster(o);ids.forEach(i=>delObj(i));S.selected=null;S.cluster=[];redrawAll();renderSide();renderOpt();toast(ids.length>1?'Удалено ('+ids.length+')':'Удалено');}
+function delSel(){const o=getObj(S.selected);if(!o)return;pushHistory();const ids=moveCluster(o);deleteObjectIds(ids);S.selected=null;S.cluster=[];redrawAll();renderSide();renderOpt();toast(ids.length>1?'Удалено ('+ids.length+')':'Удалено');}
 
 /* ---- canvas pointer ---- */
 let panning=false,lastX,lastY,moved=0;const ptrs=new Map();let pinching=false,pinchSerial=0,pd0=0,ps0=1,pmid=null;
@@ -1512,7 +1525,7 @@ vp.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')e.preventDefaul
   if(S.tool==='pan'){panning=true;moved=0;lastX=e.clientX;lastY=e.clientY;vp.setPointerCapture(e.pointerId);return;}
   if(!inBase(e.clientX,e.clientY))return;const p=toImg(e.clientX,e.clientY);
   if(S.tool==='cal'){calClick(p);}
-  else if(S.tool==='promo'){promoteAt(p);}
+  else if(S.tool==='promo'){if(S.linkedLkDocId&&S.drawingVectorPages&&S.drawingVectorPages[S.pageNum])lkPromoteDrawingObjectAt(p);else promoteAt(p);}
   else if(S.tool==='sym'){if(S.armSym)placeSymbol(p);else toast('Выберите знак в каталоге справа');}
   else if(S.tool==='line'){if(S.penMode){startPenDraw(p,e);}else{if(!S.draft)S.draft={pts:[{x:p.x,y:p.y},{x:p.x,y:p.y}]};else{S.draft.pts.push({x:p.x,y:p.y});if(S.threePointMode&&S.draft.pts.length>=4){finishLine();return;}}drawDraft();}}
   else if(S.tool==='text'){const t=prompt('Текст подписи:');if(t){pushHistory();const o=addObj({type:'text',x:p.x,y:p.y,text:t,color:S.textColor,size:S.fontSize,src:'mine'});redrawAll();selectObj(o.id);setTool('select');}}
@@ -1581,14 +1594,14 @@ $('tabCalc').onclick=()=>{S.sideTab='calc';syncTabs();renderSide();};
 function syncTabs(){$('tabObj').classList.toggle('on',S.sideTab==='obj');$('tabSym').classList.toggle('on',S.sideTab==='sym');$('tabCalc').classList.toggle('on',S.sideTab==='calc');}
 function renderSide(){if(S.sideTab==='calc')renderCalc();else if(S.sideTab==='sym')renderCatalog();else renderObjList();}
 
-function renderObjList(){const body=$('sideBody');const list=cur()||[];$('objN').textContent=list.length;
+function renderObjList(){const body=$('sideBody');const list=(cur()||[]).filter(o=>!o._lkDeleted);$('objN').textContent=list.length;
   let html=`<div class="filterbar"><button class="${S.filter==='all'?'on':''}" data-f="all">Все</button><button class="${S.filter==='pdf'?'on':''}" data-f="pdf">Из чертежа</button><button class="${S.filter==='mine'?'on':''}" data-f="mine">Мои</button></div>`;
   const vis=list.filter(visible);
   if(!vis.length)html+=`<div class="emptyhint">Нет объектов в этой группе.</div>`;
   else html+=vis.slice(0,400).map(o=>row(o)).join('')+(vis.length>400?`<div class="emptyhint">…и ещё ${vis.length-400}. Используйте чертёж напрямую.</div>`:'');
   body.innerHTML=html;
   body.querySelectorAll('.filterbar button').forEach(b=>b.onclick=()=>{S.filter=b.dataset.f;redrawAll();renderSide();});
-  body.querySelectorAll('.objrow').forEach(r=>{r.onclick=ev=>{if(ev.target.closest('.del'))return;setTool('select');selectObj(r.dataset.id);center(r.dataset.id);};const d=r.querySelector('.del');if(d)d.onclick=ev=>{ev.stopPropagation();pushHistory();delObj(r.dataset.id);if(S.selected===r.dataset.id)S.selected=null;redrawAll();renderSide();};});}
+  body.querySelectorAll('.objrow').forEach(r=>{r.onclick=ev=>{if(ev.target.closest('.del'))return;setTool('select');selectObj(r.dataset.id);center(r.dataset.id);};const d=r.querySelector('.del');if(d)d.onclick=ev=>{ev.stopPropagation();const o=getObj(r.dataset.id);if(!o)return;pushHistory();const ids=moveCluster(o);deleteObjectIds(ids);if(ids.includes(S.selected))S.selected=null;redrawAll();renderSide();};});}
 function row(o){const sel=o.id===S.selected?'sel':'';let t1,t2,col=o.color;if(o.type==='line'){t1=catN(o.cat)+(o.src==='pdf'?' · чертёж':'');const ends=[o.ea,o.eb].filter(e=>e&&e.kind!=='free').map(e=>kindN(e.kind)).join(', ');t2=o.pts.length+' тчк'+(ends?' · '+ends:'');}else if(o.type==='symbol'){t1=symDef(o.sym).n;t2='знак'+(o.rot?' · '+Math.round(o.rot)+'°':'');}else if(o.type==='rect'){t1='Область';t2=Math.round(o.w)+'×'+Math.round(o.h);}else if(o.type==='field'){t1='Значение: '+fieldValue(o,calcPage(S.pageNum));t2=fieldLabel(o);col='#10151c';}else{t1='Подпись';t2=(o.text||'').slice(0,18);}return `<div class="objrow ${sel}" data-id="${o.id}"><div class="sw" style="background:${col}"></div><div class="info"><div class="t1">${esc(t1)}</div><div class="t2">${esc(t2)}</div></div><button class="del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div>`;}
 function center(id){const o=getObj(id);if(!o)return;const b=bbox(o);const w=$('cwrap');S.scale=Math.max(S.scale,S.fitScale*2.2);S.pan.x=w.clientWidth/2-(b.x+b.w/2)*S.scale;S.pan.y=w.clientHeight/2-(b.y+b.h/2)*S.scale;applyTransform();}
 
@@ -1596,12 +1609,12 @@ function center(id){const o=getObj(id);if(!o)return;const b=bbox(o);const w=$('c
 function planLenPx(pts){let L=0;for(let i=1;i<pts.length;i++)L+=Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y);return L;}
 function effH(e){if(!e||!e.kind||e.kind==='free')return 0;if(e.kind==='panel')return S.panelH;return e.h||0;}
 function calcPage(pn){const objs=S.objects[pn]||[];const mpp=S.cal[pn];const cats={};CATS.forEach(c=>cats[c.k]={len:0,n:0,drops:0});const cnt={socket:0,switch:0,light:0,panel:0,jbox:0};
-  objs.forEach(o=>{if(o.type!=='line'||isRef(o)||o.nocalc)return;const c=cats[o.cat]||cats.other;c.n++;
+  objs.forEach(o=>{if(o._lkDeleted||o.type!=='line'||isRef(o)||o.nocalc)return;const c=cats[o.cat]||cats.other;c.n++;
     const drops=effH(o.ea)+effH(o.eb);c.drops+=drops;
     if(mpp)c.len+=planLenPx(o.pts)*mpp+drops;
     [o.ea,o.eb].forEach(e=>{if(e&&cnt[e.kind]!=null)cnt[e.kind]++;});});
   // считаем расставленные знаки из каталога
-  objs.forEach(o=>{if(o.type!=='symbol')return;const k=o.sym||'';
+  objs.forEach(o=>{if(o._lkDeleted||o.type!=='symbol')return;const k=o.sym||'';
     if(k.indexOf('socket')===0)cnt.socket+=(k==='socket2'?2:1);
     else if(k.indexOf('switch')===0)cnt.switch++;
     else if(k.indexOf('lum')===0||k.indexOf('led')===0||k==='spot')cnt.light++;
@@ -1776,7 +1789,7 @@ function strokeCanvasPts(cc,pts,smooth){if(!pts||pts.length<2)return;if(smooth){
 function drawEditedObjects(cc,objs,rPage,sx,sy){
   cc.save();cc.scale(sx||1,sy||1);const list=objs||[],maskExtra=1.5/Math.max(.1,Math.abs(sx||1),Math.abs(sy||1));
   list.forEach(o=>{const rep=o&&o._lkOriginal;if(!rep||!Array.isArray(rep.paths))return;cc.save();cc.strokeStyle='#fff';cc.lineWidth=Math.max(.7,+rep.width||1)+maskExtra;cc.lineCap='round';cc.lineJoin='round';cc.setLineDash([]);rep.paths.forEach(p=>strokeCanvasPts(cc,p,false));cc.restore();});
-  list.forEach(o=>{cc.save();
+  list.forEach(o=>{if(o&&o._lkDeleted)return;cc.save();
     if(o.type==='line'){cc.strokeStyle=o.color;cc.lineWidth=o.width;cc.lineCap='round';cc.lineJoin='round';if(o.cat==='mop15')cc.setLineDash([o.width*3.2,o.width*2.2]);strokeCanvasPts(cc,o.pts,!o._lkSource);}
     else if(o.type==='symbol'){drawSymbolCanvas(cc,o);}
     else if(o.type==='rect'){cc.strokeStyle=o.color;cc.lineWidth=o.width;cc.strokeRect(o.x,o.y,o.w,o.h);}
@@ -1953,7 +1966,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v458';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v459';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v425';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -3751,12 +3764,12 @@ function lkSeqSvg(pg){
 }
 function lkDrawingOverlayHtml(pg){const ds=LK.drawingState,sz=ds&&ds.pageSizes&&ds.pageSizes[pg.page],arr=ds&&ds.objects&&ds.objects[pg.page];
   if(!sz||!sz.w||!sz.h||!Array.isArray(arr)||!arr.length)return '';
-  const lineObjs=arr.filter(o=>o&&o.type==='line'&&Array.isArray(o.pts)&&o.pts.length>=2);
-  const masks=lineObjs.map(o=>{const rep=o._lkOriginal;if(!rep||!Array.isArray(rep.paths))return '';return rep.paths.filter(p=>p&&p.length>1).map(p=>`<path d="${linePath(p)}" fill="none" stroke="#fff" stroke-width="${Math.max(.7,+rep.width||1)+1.2}" stroke-linecap="round" stroke-linejoin="round"/>`).join('');}).join('');
+  const lineObjs=arr.filter(o=>o&&!o._lkDeleted&&o.type==='line'&&Array.isArray(o.pts)&&o.pts.length>=2);
+  const masks=arr.map(o=>{const rep=o&&o._lkOriginal;if(!rep||!Array.isArray(rep.paths))return '';return rep.paths.filter(p=>p&&p.length>1).map(p=>`<path d="${linePath(p)}" fill="none" stroke="#fff" stroke-width="${Math.max(.7,+rep.width||1)+1.2}" stroke-linecap="round" stroke-linejoin="round"/>`).join('');}).join('');
   const lines=lineObjs.map(o=>{
     const dash=o.cat==='mop15'?` stroke-dasharray="${(+o.width||4)*3.2} ${(+o.width||4)*2.2}"`:'';
     return `<path d="${o._lkSource?linePath(o.pts):smoothPath(o.pts)}" fill="none" stroke="${esc(o.color||'#1b4f9c')}" stroke-width="${Math.max(.7,+o.width||4)}" stroke-linecap="round" stroke-linejoin="round"${dash}/>`;}).join('');
-  return lines?`<svg class="lk-drawing-overlay" viewBox="0 0 ${sz.w} ${sz.h}" preserveAspectRatio="none" aria-label="Графические правки листа">${masks}${lines}</svg>`:'';}
+  return (masks||lines)?`<svg class="lk-drawing-overlay" viewBox="0 0 ${sz.w} ${sz.h}" preserveAspectRatio="none" aria-label="Графические правки листа">${masks}${lines}</svg>`:'';}
 function lkImgBoxHtml(pg){
   if(!pg.img)return '<div class="lk-spin" style="padding:22px">рендерю лист…</div>';
   return `<div class="lk-imgbox" id="lkImgBox"><img id="lkImg" src="${pg.img}" alt="Лист ${pg.page}" draggable="false"><div class="lk-text" id="lkTextLayer"></div><div class="lk-overlay">${lkDrawingOverlayHtml(pg)}${lkMarkersHtml(pg)}</div></div>`;
