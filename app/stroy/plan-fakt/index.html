@@ -680,7 +680,7 @@ body.lk-drawing-context #btnExport{display:none;}
 
       <h2>Инструменты слева</h2>
       <div class="help-list">
-        <div class="help-row"><span class="bk">Выбор</span><span class="bd">Выбирать объекты. Линии меняются только по точкам.</span></div>
+        <div class="help-row"><span class="bk">Выбор</span><span class="bd">Выбирать объекты. В Линейке у трассы три точки: начало, изгиб и конец.</span></div>
         <div class="help-row"><span class="bk">Холст</span><span class="bd">Двигать сам лист (щипок/колесо — масштаб).</span></div>
         <div class="help-row"><span class="bk">Стереть</span><span class="bd">Удалять лишние объекты тапом.</span></div>
         <div class="help-row"><span class="bk">Масштаб</span><span class="bd">Калибровка размера (как в шаге 2).</span></div>
@@ -1361,8 +1361,9 @@ function bindObj(el,o){
       cluster.forEach(id=>{const co=getObj(id),og=origs[id];if(co&&og){moveObjBy(co,og,dx,dy);live(co);}});},
     ()=>{if(moved){drawSelUI();renderSide();}});
   });
-  // двойной тап по телу линии — вставить узел (изгиб)
-  if(o.type==='line'){el.addEventListener('dblclick',ev=>{if(S.tool!=='select')return;ev.stopPropagation();insertNode(o,toImg(ev.clientX,ev.clientY));});}
+  // В обычном редакторе двойной тап добавляет технический узел. В Линейке
+  // управление намеренно ограничено тремя понятными ручками A/C/B.
+  if(o.type==='line'&&!S.threePointMode){el.addEventListener('dblclick',ev=>{if(S.tool!=='select')return;ev.stopPropagation();insertNode(o,toImg(ev.clientX,ev.clientY));});}
 }
 function live(o){const el=gObj.querySelector(`[data-id="${o.id}"]`);if(!el)return;
   if(o.type==='line'||o.type==='symbol'){redrawOne(o);}
@@ -1384,6 +1385,29 @@ function deleteNode(o,i){
   pushHistory();o.pts.splice(i,1);redrawOne(o);drawSelUI();renderSide();toast('Узел удалён');
 }
 
+/* Упрощённое управление трассой в редакторе Линейки: независимо от числа исходных
+   PDF-вершин пользователь видит только A, C и B. C лежит на половине длины трассы;
+   при её перемещении внутренние вершины смещаются плавно, а концы остаются на месте. */
+function lineHalfPoint(pts){
+  if(!pts||!pts.length)return{x:0,y:0};if(pts.length===1)return{x:pts[0].x,y:pts[0].y};
+  const lens=[];let total=0;for(let i=0;i<pts.length-1;i++){const d=Math.hypot(pts[i+1].x-pts[i].x,pts[i+1].y-pts[i].y);lens.push(d);total+=d;}
+  if(total<1e-6)return{x:pts[0].x,y:pts[0].y};let left=total/2;
+  for(let i=0;i<lens.length;i++){if(left<=lens[i]||i===lens.length-1){const t=lens[i]?left/lens[i]:0,a=pts[i],b=pts[i+1];return{x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};}left-=lens[i];}
+  return{x:pts[pts.length-1].x,y:pts[pts.length-1].y};
+}
+function linePtsWithHalf(pts){
+  const raw=(pts||[]).map(p=>({x:+p.x,y:+p.y}));if(raw.length<2)return{pts:raw,mid:0};
+  const lens=[];let total=0;for(let i=0;i<raw.length-1;i++){const d=Math.hypot(raw[i+1].x-raw[i].x,raw[i+1].y-raw[i].y);lens.push(d);total+=d;}
+  if(total<1e-6)return{pts:raw,mid:Math.floor((raw.length-1)/2)};let left=total/2;
+  for(let i=0;i<lens.length;i++){if(left<=lens[i]||i===lens.length-1){const t=lens[i]?left/lens[i]:0;if(t<1e-4)return{pts:raw,mid:i};if(t>1-1e-4)return{pts:raw,mid:i+1};const a=raw[i],b=raw[i+1],p={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};raw.splice(i+1,0,p);return{pts:raw,mid:i+1};}left-=lens[i];}
+  return{pts:raw,mid:raw.length-1};
+}
+function lineBendSetup(pts){const split=linePtsWithHalf(pts),base=split.pts,mid=split.mid,along=[];let total=0;along[0]=0;for(let i=1;i<base.length;i++){total+=Math.hypot(base[i].x-base[i-1].x,base[i].y-base[i-1].y);along[i]=total;}return{base,mid,along,total};}
+function lineBendPoints(setup,dx,dy){const{base,mid,along,total}=setup;return base.map((q,i)=>{const t=total>1e-6?along[i]/total:(i===mid ? .5 : i/(base.length-1)),w=i===mid?1:Math.sin(Math.PI*Math.max(0,Math.min(1,t)));return{x:q.x+dx*w,y:q.y+dy*w};});}
+function lineMidDrag(ev,o){ev.stopPropagation();const start=lineHalfPoint(o.pts),setup=lineBendSetup(o.pts);let pushed=false;
+  pointerDrag(ev,e=>{if(!pushed){pushHistory();pushed=true;}const p=toImg(e.clientX,e.clientY),dx=p.x-start.x,dy=p.y-start.y;
+    o.pts=lineBendPoints(setup,dx,dy);redrawOne(o);drawSelUI();},()=>{drawSelUI();renderSide();if(pushed)toast('Изгиб линии изменён');});
+}
 /* ---- selection UI ---- */
 function bbox(o){if(o.type==='line'){const xs=o.pts.map(p=>p.x),ys=o.pts.map(p=>p.y);return{x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys)};}if(o.type==='rect')return{x:o.x,y:o.y,w:o.w,h:o.h};if(o.type==='symbol'){const hf=o.size*0.66;return{x:o.x-hf,y:o.y-hf,w:hf*2,h:hf*2};}if(o.type==='field'){const v=fieldValue(o,calcPage(S.pageNum));return{x:o.x,y:o.y-o.size,w:(v.length*o.size*0.6)||30,h:o.size*1.2};}return{x:o.x,y:o.y-o.size,w:((o.text||'').length*o.size*0.55)||20,h:o.size*1.2};}
 function drawSelUI(){gUI.innerHTML='';drawCalUI();if(!S.selected){S.cluster=[];return;}const o=getObj(S.selected);if(!o)return;const k=1/S.scale;
@@ -1392,13 +1416,18 @@ function drawSelUI(){gUI.innerHTML='';drawCalUI();if(!S.selected){S.cluster=[];r
   if(cl.length>1){const b=clusterBBox(cl);const r=document.createElementNS(SVGNS,'rect');r.dataset.ui='bb';r.setAttribute('x',b.x-6*k);r.setAttribute('y',b.y-6*k);r.setAttribute('width',b.w+12*k);r.setAttribute('height',b.h+12*k);r.setAttribute('fill','none');r.setAttribute('stroke','#0a84ff');r.setAttribute('stroke-width',1.6*k);r.setAttribute('stroke-dasharray',`${6*k} ${4*k}`);gUI.appendChild(r);}
   if(rigid)return;
   if(o.type==='line'){
-    // ручки «добавить изгиб» (точка C) на середине каждого сегмента
-    for(let i=0;i<o.pts.length-1;i++){const a=o.pts[i],b=o.pts[i+1];const ah=mkAdd((a.x+b.x)/2,(a.y+b.y)/2,k);ah.addEventListener('pointerdown',ev=>addBendDrag(ev,o,i));gUI.appendChild(ah);}
-    // узлы (концы A/B крупнее)
-    o.pts.forEach((p,i)=>{const end=(i===0||i===o.pts.length-1);const h=mkH(p.x,p.y,k,end);
-      h.addEventListener('pointerdown',ev=>nodeDrag(ev,o,i));
-      h.addEventListener('dblclick',ev=>{ev.stopPropagation();if(!end)deleteNode(o,i);});
-      gUI.appendChild(h);});
+    if(S.threePointMode){
+      const last=o.pts.length-1,mid=lineHalfPoint(o.pts),handles=[[o.pts[0],0,true],[mid,-1,false],[o.pts[last],last,true]];
+      handles.forEach(([p,i,end])=>{const h=mkH(p.x,p.y,k,end);h.dataset.role=i<0?'bend':(i===0?'start':'finish');h.addEventListener('pointerdown',ev=>i<0?lineMidDrag(ev,o):nodeDrag(ev,o,i));gUI.appendChild(h);});
+    }else{
+      // ручки «добавить изгиб» (точка C) на середине каждого сегмента
+      for(let i=0;i<o.pts.length-1;i++){const a=o.pts[i],b=o.pts[i+1];const ah=mkAdd((a.x+b.x)/2,(a.y+b.y)/2,k);ah.addEventListener('pointerdown',ev=>addBendDrag(ev,o,i));gUI.appendChild(ah);}
+      // узлы (концы A/B крупнее)
+      o.pts.forEach((p,i)=>{const end=(i===0||i===o.pts.length-1);const h=mkH(p.x,p.y,k,end);
+        h.addEventListener('pointerdown',ev=>nodeDrag(ev,o,i));
+        h.addEventListener('dblclick',ev=>{ev.stopPropagation();if(!end)deleteNode(o,i);});
+        gUI.appendChild(h);});
+    }
   }
   else if(o.type==='symbol'){const b=bbox(o);
     const r=document.createElementNS(SVGNS,'rect');r.dataset.ui='bb';r.setAttribute('x',b.x-4*k);r.setAttribute('y',b.y-4*k);r.setAttribute('width',b.w+8*k);r.setAttribute('height',b.h+8*k);r.setAttribute('fill','none');r.setAttribute('stroke','#0a84ff');r.setAttribute('stroke-width',1.4*k);r.setAttribute('stroke-dasharray',`${5*k} ${4*k}`);gUI.appendChild(r);
@@ -1435,8 +1464,8 @@ function renderOpt(){const bar=$('optbar');let h='';
       if(o&&o.type==='line'){
         h=`<div class="grp"><span class="lbl">Марка</span>${CATS.map(c=>catBtn(c,o.cat)).join('')}</div>`
          +endBox('A','ea',o)+endBox('B','eb',o)
-         +`<div class="grp"><button class="mini" id="simBtn">Упростить</button>${o._lkOriginal?'<button class="mini" id="resetSourceBtn">↶ Исходная</button>':''}<button class="mini" id="dupBtn">⧉ Дубль</button><button class="mini danger" id="delBtn">Удалить</button></div>`
-         +`<span class="tip">Линия целиком не двигается. Тяните бело-синие точки; крайние точки двигают закреплённые знаки вместе с собой. Зелёная «+» добавляет изгиб. «↶ Исходная» возвращает форму из PDF.</span>`;
+         +`<div class="grp">${S.threePointMode?'':'<button class="mini" id="simBtn">Упростить</button>'}${o._lkOriginal?'<button class="mini" id="resetSourceBtn">↶ Исходная</button>':''}<button class="mini" id="dupBtn">⧉ Дубль</button><button class="mini danger" id="delBtn">Удалить</button></div>`
+         +`<span class="tip">${S.threePointMode?'У линии только три ручки: первая — начало, белая средняя — изгиб всей трассы, последняя — конец. Крайние ручки двигают закреплённые знаки вместе с собой.':'Линия целиком не двигается. Тяните бело-синие точки; крайние точки двигают закреплённые знаки вместе с собой. Зелёная «+» добавляет изгиб.'}${o._lkOriginal?' «↶ Исходная» возвращает форму из PDF.':''}</span>`;
       }else if(o&&o.type==='symbol'){
         h=`<div class="grp"><span class="lbl">${symDef(o.sym).n}</span></div>`
          +`<div class="grp"><span class="lbl">Цвет</span>${['#1b4f9c','#c0392b','#2f7d4f','#000000'].map(c=>swt(c,o.color)).join('')}</div>`
@@ -1966,7 +1995,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v459';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v460';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v425';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
