@@ -4569,8 +4569,12 @@ function ensureFinanceCharts(){
   (summary||tabs).insertAdjacentElement('afterend',el);
   return el;
 }
+function cashChartValue(n){
+  n=Math.round(n||0);
+  return n>=1e6 ? (n/1e6).toFixed(2).replace('.',',')+' млн' : n>=1000 ? Math.round(n/1000)+'к' : String(n);
+}
 function financeValue(kind,n){
-  return kind==='cash' ? shortT(n)+' ₸' : String(Math.round(n||0));
+  return kind==='cash' ? cashChartValue(n)+' ₸' : String(Math.round(n||0));
 }
 function financeChartSvg(kind,series){
   const count=series.length||1, vw=count*100, vh=650, top=66, bottom=32;
