@@ -1067,7 +1067,7 @@ const _bd=$('btnDemo');if(_bd)_bd.onclick=e=>{e.preventDefault();loadDemo();};
 if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 // сервер-конвертер (Cloudflare Container): разбирает PDF в активные линии
 const CONVERT_URL='https://planfakt-convert.uurraa.workers.dev';
-function closeStandalonePdf(){const src=S.standalonePdf;S.standalonePdf=null;if(src&&src.pdf)try{src.pdf.destroy();}catch(_){}}
+function closeStandalonePdf(){const src=S.standalonePdf;S.standalonePdf=null;if(src&&src.pdf)try{src.pdf.destroy();}catch(_){}if(src&&src.objectUrl)try{URL.revokeObjectURL(src.objectUrl);}catch(_){}}
 async function renderStandalonePdfPage(pn,source){
   const src=source||S.standalonePdf,pg=src&&src.data&&src.data.pages&&src.data.pages[pn];
   if(!src||!src.pdf||!pg)throw new Error('исходный PDF уже закрыт');
@@ -1133,19 +1133,23 @@ async function loadPdf(file){
   // Старый редактор должен открываться сразу: серверный разбор всего файла и рендер всех
   // страниц блокировали 52-листовой PDF на минуты. Листы теперь рендерятся локально по запросу.
   if(!window.pdfjsLib){toast('PDF-движок не загрузился (нет сети?)');$('spin').style.display='none';return;}
+  let objectUrl='';
   try{
     closeStandalonePdf();
-    $('spinTxt').textContent='Открываю первый лист локально…';
-    const buf=await file.arrayBuffer();
-    const pdf=await pdfjsLib.getDocument({data:buf}).promise,N=pdf.numPages,pages={};
+    $('spinTxt').textContent='Читаю структуру PDF локально…';
+    // Blob URL отдаёт PDF.js файл потоково и не заставляет мобильный браузер сначала
+    // создавать в основной памяти полную копию ArrayBuffer большого многостраничного PDF.
+    objectUrl=URL.createObjectURL(file);
+    const pdf=await pdfjsLib.getDocument({url:objectUrl}).promise,N=pdf.numPages,pages={};
     for(let i=1;i<=N;i++)pages[i]={wpt:1,hpt:1,objs:[],u:'',mime:'image/jpeg',title:'Лист '+i,_pdfPending:true};
-    const data={name:(file.name||'Чертёж').replace(/\.pdf$/i,''),pages},src={pdf,data,jobs:{},vectorJobs:{}};
+    const data={name:(file.name||'Чертёж').replace(/\.pdf$/i,''),pages},src={pdf,data,jobs:{},vectorJobs:{},objectUrl,totalPages:N};
+    objectUrl='';
     S.standalonePdf=src;
-    await renderStandalonePdfPage(1,src);
-    $('spinTxt').textContent='Загрузка…';
+    // Рабочий экран и все номера листов показываем сразу после чтения оглавления PDF.
+    // Первый лист рисуется уже внутри редактора, поэтому стартовое окно больше не висит.
     initData(data,{keepStandalonePdf:true});
-    toast(N>1?'Первый лист открыт · остальные загрузятся при выборе':'PDF открыт локально');
-  }catch(e){console.error(e);closeStandalonePdf();toast('Не удалось открыть PDF');$('spin').style.display='none';}
+    toast(N>1?'PDF открыт · рисую первый лист локально':'PDF открыт локально');
+  }catch(e){console.error(e);if(objectUrl)try{URL.revokeObjectURL(objectUrl);}catch(_){}closeStandalonePdf();toast('Не удалось открыть PDF');$('spin').style.display='none';}
 }
 function initData(j,opt){
   if(!(opt&&opt.keepStandalonePdf))closeStandalonePdf();
@@ -2045,7 +2049,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v462';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v463';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v425';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
