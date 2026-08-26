@@ -329,7 +329,14 @@ async function loadDash(wrap,qs){
     const d2=r.data, r2=d2.r2||{}, d1=d2.d1||{}; const at=wrap.querySelector('#dashStorageAt');
     if(at&&d2.at) at.textContent='обновлено '+new Date(d2.at).toLocaleString('ru-RU',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
     const usageRow=(label,used,limit)=>{ const pct=limit?Math.min(100,Math.round(used/limit*1000)/10):0; const col=pct>85?'#dc2626':pct>60?'#d97706':'var(--accent)'; return `<div style="padding:11px 0;border-top:1px solid var(--line)"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><b>${label}</b><span class="muted2">${fmtBytes(used)} / ${fmtBytes(limit)} (${pct}%)</span></div><div style="height:7px;background:var(--bg2);border-radius:4px;overflow:hidden"><div style="width:${Math.max(0.4,pct)}%;height:100%;background:${col}"></div></div></div>`; };
-    let h=(d1.bytes>0?usageRow('D1 база', d1.bytes, d1.limit||0):'<div style="padding:11px 0;border-top:1px solid var(--line)"><div style="display:flex;justify-content:space-between;font-size:13px"><b>D1 база</b><span class="muted2">активна · размер не отдаётся через D1 (лимит 5 ГБ)</span></div></div>')+usageRow('R2 файлы', r2.bytes||0, r2.limit||0);
+    const d1Paid=d1.plan==='paid';
+    let h=(d1.bytes>0?usageRow('D1 база', d1.bytes, d1.limit||0):'<div style="padding:11px 0;border-top:1px solid var(--line)"><div style="display:flex;justify-content:space-between;font-size:13px"><b>D1 база</b><span class="muted2">активна · размер уточняется (лимит '+fmtBytes(d1.limit||0)+')</span></div></div>')
+      +`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:2px 2px 6px;font-size:12.5px">
+        <span class="muted2">План D1: <b style="color:${d1Paid?'var(--accent)':'var(--amber)'}">${d1Paid?'Paid · 5 ГБ':'Free · 500 МБ'}</b></span>
+        <button class="btn sm" id="d1Buy">${ic('i-plus','sm')} Купить доп. место</button>
+        <button class="btn sm" id="d1Plan">${d1Paid?'Вернуть Free (500 МБ)':'Оплатил Paid → 5 ГБ'}</button>
+      </div>`
+      +usageRow('R2 файлы', r2.bytes||0, r2.limit||0);
     if((r2.byType||[]).length){ h+='<div class="muted2" style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:14px 0 4px">Разбивка R2 по типам</div><table class="tbl"><tbody>'+r2.byType.map(t=>`<tr><td>${esc(t.name)}</td><td class="num muted2" style="font-size:12px">${t.files} ${plural(t.files,'файл','файла','файлов')}</td><td class="num"><b>${fmtBytes(t.bytes)}</b></td></tr>`).join('')+'</tbody></table>'; }
     h+=`<div class="muted2" style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:16px 0 6px">🧹 Очистка старых файлов R2</div>
       <div style="font-size:13px;line-height:1.8">
@@ -348,6 +355,8 @@ async function loadDash(wrap,qs){
         </div>
       </div>`;
     sb.innerHTML=h;
+    const d1BuyB=wrap.querySelector('#d1Buy'); if(d1BuyB) d1BuyB.onclick=()=>window.open(d1.upgrade_url||'https://dash.cloudflare.com/','_blank');
+    const d1PlanB=wrap.querySelector('#d1Plan'); if(d1PlanB) d1PlanB.onclick=async()=>{ const np=(d1.plan==='paid')?'free':'paid'; if(np==='paid'&&!confirm('Подтвердите: план Workers Paid уже оплачен в Cloudflare?\n\nЛимит D1 в CRM станет 5 ГБ (включено в Paid). Включайте только после реальной оплаты — иначе база снова упрётся в 500 МБ и запись остановится.'))return; if(np==='free'&&!confirm('Вернуть план Free (лимит 500 МБ)? Нужно только если отменили оплату в Cloudflare.'))return; const rr=await api('/api/admin/storage/plan',{method:'POST',body:JSON.stringify({plan:np})}); if(rr.ok){ toast(np==='paid'?'Лимит D1 = 5 ГБ':'Лимит D1 = 500 МБ','i-check2'); renderPage(); } else toast(rr.status===403?'Нужен админ':'Ошибка','i-x','#dc2626'); };
     const r2cDel=wrap.querySelector('#r2cDelete'), r2cRes=wrap.querySelector('#r2cResult');
     const r2cParams=()=>({ days:Math.max(7,parseInt((wrap.querySelector('#r2cDays')||{}).value,10)||7), prefixes:[...wrap.querySelectorAll('.r2cP:checked')].map(x=>x.value) });
     const r2cBtn=wrap.querySelector('#r2cPreview');
@@ -1120,7 +1129,7 @@ let __ibCur=null, __ibThreads=[], __ibMsgsCache={}, __ibDeal={}, __ibWrap=null, 
 // Дорисовываем ТОЛЬКО новые сообщения и обновляем изменённые (реакции/правки/удаления) точечно,
 // не перерисовывая весь чат и не трогая поле ввода. Работает даже пока пользователь печатает.
 function chatNearBottom(box){ return !box || (box.scrollHeight - box.scrollTop - box.clientHeight) < 140; }
-function ibMsgSig(m){ return String(m.body==null?'':m.body)+'|'+(m.edited_at||0)+'|'+(m.deleted?1:0)+'|'+(m.reactions||'')+'|'+(m.media_key||''); }
+function ibMsgSig(m){ return String(m.body==null?'':m.body)+'|'+(m.edited_at||0)+'|'+(m.deleted?1:0)+'|'+(m.reactions||'')+'|'+(m.media_key||'')+'|'+(m.ad_ref?1:0); }
 function chatReconcile(box, fresh, opts){
   if(!box) return false;
   const byE=replyMap(fresh);
@@ -1145,7 +1154,7 @@ function ibMsgBubble(m, t, byE){
     const c=(__ibChannels.length>1 && m.dir==='out' && m.channel_id)?(__ibChannels.find(x=>x.id===m.channel_id)):null;
     const via=c?` <span class="cw-via">через ${esc(c.name||'WhatsApp')}</span>`:'';
     const cls=m.dir==='out'?'out':m.dir==='ai'?'ai':'in';
-    return `<div class="msg ${cls}" data-mid="${esc(String(m.id||''))}" data-ext="${esc(String(m.ext_id||''))}" data-sig="${esc(ibMsgSig(m))}">${igCommentHtml(m,esc)}${replyBlockHtml(m,byE,esc)}${msgActBtn(m,t.id)}${msgReplyBtn(m,t.id)}${waMediaHtml(m)}${msgTxt(m,esc)}<div class="mt">${esc(cwFmtTimeFull(m.ts))}${msgWho(m,esc)}${via}</div>${reactionBadgeHtml(m,esc)}</div>`;
+    return `<div class="msg ${cls}" data-mid="${esc(String(m.id||''))}" data-ext="${esc(String(m.ext_id||''))}" data-sig="${esc(ibMsgSig(m))}">${adRefHtml(m)}${igCommentHtml(m,esc)}${replyBlockHtml(m,byE,esc)}${msgActBtn(m,t.id)}${msgReplyBtn(m,t.id)}${waMediaHtml(m)}${msgTxt(m,esc)}<div class="mt">${esc(cwFmtTimeFull(m.ts))}${msgWho(m,esc)}${via}</div>${reactionBadgeHtml(m,esc)}</div>`;
   }catch(e){ // одно «битое» сообщение не должно ронять весь чат
     const cls=(m&&m.dir==='out')?'out':(m&&m.dir==='ai')?'ai':'in';
     return `<div class="msg ${cls}" data-mid="${esc(String((m&&m.id)||''))}" data-ext="${esc(String((m&&m.ext_id)||''))}">${esc((m&&m.body)||'[сообщение]')}</div>`;
@@ -1268,12 +1277,14 @@ function ibChat(){
   const bodyHtml = (msgs===undefined) ? '<div class="cw-empty" style="margin:auto">Загрузка…</div>'
     : (msgs.length ? msgs.map(m=>ibMsgBubble(m,t,__ibByE)).join('')
       : '<div class="cw-empty" style="margin:auto">Сообщений пока нет — напишите первым ↓</div>');
+  // Подсказка для диалога с комментариями Instagram: куда уйдёт ответ (под пост / в Директ).
+  const igCommentHint = (t.ch==='ig' && Array.isArray(msgs) && msgs.some(m=>m&&m.ig_post)) ? `<div style="font-size:11px;color:var(--muted);padding:5px 12px;line-height:1.45;border-top:1px solid var(--line);background:rgba(225,48,108,.06)">💬 В диалоге есть <b>комментарии</b>. Ответ <b>с цитатой</b> на комментарий уйдёт <b>публично под пост</b> (только текст), <b>без цитаты</b> — лично в <b>Директ</b>.</div>` : '';
   const fromBar = (hasCh && (multi || isWa))?`<div class="cw-from">${ic('i-phone','sm')} <span class="muted2">Отправитель:</span> <select class="sel sm" id="ibFrom">${sendChans.map(c=>`<option value="${esc(c.id)}" ${c.id===t._sendCh?'selected':''}>${esc(c.name||(isWa?'WhatsApp':'Instagram'))}${c.phone?(' · +'+esc(c.phone)):''}${c.funnel&&FUNNELS.find(f=>f.id===c.funnel)?(' · '+esc((FUNNELS.find(f=>f.id===c.funnel)||{}).name)):''}</option>`).join('')}${isWa?'<option disabled>──────────</option><option value="__add">＋ нужен доп. номер? добавьте в «Интеграции»</option>':''}</select></div>`:'';
   box.innerHTML=`<div class="chat-h"><button class="ib-back" title="К списку диалогов"><svg class="svg-i sm" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button><div class="av" style="background:${avBg(nm)}">${esc(initials(nm))}</div>
       <div><div style="font-weight:700;font-size:14px">${esc(nm)}</div><div class="muted" style="font-size:11.5px">${ibChanTag(t)}<span class="muted2">${ibChanNum(t)?('на '+esc(ibChanNum(t))):(t.ch==='ig'?'Instagram · Wazzup':'WhatsApp · GreenAPI')}${t.phone?(' · клиент +'+esc(t.phone)):''}</span></div></div>
       <div class="spacer"></div></div>
     <div class="chat-body" id="ibChatBody">${bodyHtml}</div>
-    ${fromBar}
+    ${fromBar}${igCommentHint}
     <div class="chat-input"><input type="file" id="ibFile" accept="image/*,video/*,audio/*,application/pdf" style="display:none"><button class="btn" id="ibAttach" title="Прикрепить фото/видео/файл">${ic('i-paperclip','sm')}</button><div class="ci-box"><textarea id="ibMsgInput" rows="1" placeholder="Сообщение в ${t.ch==='ig'?'Instagram':'WhatsApp'}…"></textarea></div><button class="btn" id="ibEmoji" title="Смайлики">😊</button><button class="btn" id="ibTpl" title="Вставить шаблон">${ic('i-doc','sm')}</button>${__ibAllowAudio?`<button class="btn primary" id="ibMic" title="Голосовое: тап — запись, тап ещё раз — отправить">${ic('i-mic','sm')}</button>`:''}<button class="btn primary" id="ibSendBtn">${ic('i-send','sm')}</button></div>`;
   const cb=box.querySelector('#ibChatBody'); if(cb)cb.scrollTop=cb.scrollHeight;
   const inp=box.querySelector('#ibMsgInput'), sb=box.querySelector('#ibSendBtn');
@@ -4582,6 +4593,16 @@ function waMediaHtml(m){
     +`<iframe src="${url}#toolbar=0&navpanes=0&view=FitH" loading="lazy" title="PDF" style="width:230px;height:250px;border:0;display:block;pointer-events:none;background:#fff"></iframe>`
     +`<a href="${url}" target="_blank" style="display:flex;align-items:center;gap:6px;padding:7px 9px;font-size:12.5px;color:#166534;background:#f0fdf4;text-decoration:none;font-weight:600">📄 Открыть PDF</a></div>`;
   return `<a href="${url}" target="_blank" style="display:inline-block;margin-bottom:4px">📎 Файл</a>`;
+}
+// Плашка «Пришёл с рекламы» (Click-to-WhatsApp): ad_ref = JSON {app,url,title,thumb} из вебхука GreenAPI.
+function adRefHtml(m){
+  if(!m||!m.ad_ref) return '';
+  let a; try{ a=JSON.parse(m.ad_ref); }catch(e){ return ''; }
+  if(!a||(!a.url&&!a.title)) return '';
+  const app=a.app==='instagram'?'Instagram':a.app==='facebook'?'Facebook':'';
+  const thumb=a.thumb?`<img src="${esc(a.thumb)}" loading="lazy" style="width:34px;height:34px;border-radius:6px;object-fit:cover;flex:none" onerror="this.style.display='none'">`:'';
+  const link=a.url?`<a href="${esc(a.url)}" target="_blank" rel="noopener" style="color:#e1306c;font-weight:700;text-decoration:none;white-space:nowrap">Открыть пост ↗</a>`:'';
+  return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;padding:6px 8px;border-radius:9px;background:linear-gradient(135deg,rgba(245,133,41,.12),rgba(221,42,123,.12));border:1px solid rgba(221,42,123,.35);font-size:11.5px">${thumb}<span style="flex:1;min-width:0"><b>🔗 Пришёл с рекламы${app?(' '+app):''}</b>${a.title?(' · '+esc(a.title)):''}</span>${link}</div>`;
 }
 function cwFmtTime(ts){
   if(!ts) return '';
