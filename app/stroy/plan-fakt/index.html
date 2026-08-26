@@ -1264,7 +1264,8 @@ function importObjects(raw,sx,sy){
 }
 function fitPage(){const w=$('cwrap'),pad=44;S.fitScale=Math.min((w.clientWidth-pad)/S.W,(w.clientHeight-pad)/S.H);S.scale=S.fitScale;S.pan.x=(w.clientWidth-S.W*S.scale)/2;S.pan.y=(w.clientHeight-S.H*S.scale)/2;}
 function applyTransform(){const cssW=S.W*S.scale,cssH=S.H*S.scale;baseimg.style.width=cssW+'px';baseimg.style.height=cssH+'px';baseimg.style.opacity=(S.dim==null?1:S.dim);svg.style.width=cssW+'px';svg.style.height=cssH+'px';stack.style.transform=`translate(${S.pan.x}px,${S.pan.y}px)`;$('zlab').textContent=Math.round(S.scale/S.fitScale*100)+'%';scaleUI();}
-function scaleUI(){const k=1/S.scale,coarse=isCoarsePointer();gMask.querySelectorAll('[data-ui=replacement-mask]').forEach(el=>el.setAttribute('stroke-width',(+el.dataset.basew||1)+1.5*k));gUI.querySelectorAll('[data-ui=handle]').forEach(el=>{el.setAttribute('r',(coarse?14:7)*k);el.setAttribute('stroke-width',(coarse?2.6:2)*k);});gUI.querySelectorAll('[data-ui=add]').forEach(el=>{el.setAttribute('r',(coarse?12:6)*k);el.setAttribute('stroke-width',(coarse?2.4:1.6)*k);});gUI.querySelectorAll('[data-ui=end]').forEach(el=>{el.setAttribute('r',(coarse?16:9)*k);el.setAttribute('stroke-width',(coarse?3:2.4)*k);});gUI.querySelectorAll('[data-ui=bb]').forEach(el=>{el.setAttribute('stroke-width',1.4*k);el.setAttribute('stroke-dasharray',`${5*k} ${4*k}`);});gUI.querySelectorAll('[data-ui=cal]').forEach(el=>{el.setAttribute('stroke-width',2*k);});}
+const REPLACEMENT_MASK_PAD_PX=10;
+function scaleUI(){const k=1/S.scale,coarse=isCoarsePointer();gMask.querySelectorAll('[data-ui=replacement-mask]').forEach(el=>el.setAttribute('stroke-width',(+el.dataset.basew||1)+REPLACEMENT_MASK_PAD_PX*k));gUI.querySelectorAll('[data-ui=handle]').forEach(el=>{el.setAttribute('r',(coarse?14:7)*k);el.setAttribute('stroke-width',(coarse?2.6:2)*k);});gUI.querySelectorAll('[data-ui=add]').forEach(el=>{el.setAttribute('r',(coarse?12:6)*k);el.setAttribute('stroke-width',(coarse?2.4:1.6)*k);});gUI.querySelectorAll('[data-ui=end]').forEach(el=>{el.setAttribute('r',(coarse?16:9)*k);el.setAttribute('stroke-width',(coarse?3:2.4)*k);});gUI.querySelectorAll('[data-ui=bb]').forEach(el=>{el.setAttribute('stroke-width',1.4*k);el.setAttribute('stroke-dasharray',`${5*k} ${4*k}`);});gUI.querySelectorAll('[data-ui=cal]').forEach(el=>{el.setAttribute('stroke-width',2*k);});}
 
 function toImg(cx,cy){const r=baseimg.getBoundingClientRect();return{x:(cx-r.left)/r.width*S.W,y:(cy-r.top)/r.height*S.H};}
 function inBase(cx,cy){const r=baseimg.getBoundingClientRect();return cx>=r.left&&cx<=r.right&&cy>=r.top&&cy<=r.bottom;}
@@ -1285,7 +1286,7 @@ function deleteObjectIds(ids){(ids||[]).forEach(id=>{const o=getObj(id);if(!o)re
 function isRef(o){return S.importMode==='ref'&&o.src==='pdf';}
 function visible(o){return S.filter==='all'||(S.filter==='mine'&&o.src!=='pdf')||(S.filter==='pdf'&&o.src==='pdf');}
 
-function renderReplacementMask(o){const rep=o&&o._lkOriginal;if(!rep||!Array.isArray(rep.paths)||!rep.paths.length)return null;const g=document.createElementNS(SVGNS,'g');g.style.pointerEvents='none';rep.paths.forEach(pts=>{if(!pts||pts.length<2)return;const p=document.createElementNS(SVGNS,'path');p.dataset.ui='replacement-mask';p.dataset.basew=String(Math.max(.7,+rep.width||1));p.setAttribute('d',linePath(pts));p.setAttribute('fill','none');p.setAttribute('stroke','#fff');p.setAttribute('stroke-width',Math.max(.7,+rep.width||1)+1.5/Math.max(.1,S.scale));p.setAttribute('stroke-linecap','round');p.setAttribute('stroke-linejoin','round');g.appendChild(p);});return g.childNodes.length?g:null;}
+function renderReplacementMask(o){const rep=o&&o._lkOriginal;if(!rep||!Array.isArray(rep.paths)||!rep.paths.length)return null;const g=document.createElementNS(SVGNS,'g');g.style.pointerEvents='none';rep.paths.forEach(pts=>{if(!pts||pts.length<2)return;const p=document.createElementNS(SVGNS,'path');p.dataset.ui='replacement-mask';p.dataset.basew=String(Math.max(.7,+rep.width||1));p.setAttribute('d',linePath(pts));p.setAttribute('fill','none');p.setAttribute('stroke','#fff');p.setAttribute('stroke-width',Math.max(.7,+rep.width||1)+REPLACEMENT_MASK_PAD_PX/Math.max(.1,S.scale));p.setAttribute('stroke-linecap','round');p.setAttribute('stroke-linejoin','round');g.appendChild(p);});return g.childNodes.length?g:null;}
 function redrawAll(){gMask.innerHTML='';gObj.innerHTML='';cur().forEach(o=>{const m=renderReplacementMask(o);if(o._lkDeleted){if(m)gMask.appendChild(m);return;}if(!visible(o))return;if(m)gMask.appendChild(m);gObj.appendChild(renderObj(o));});drawSelUI();$('objN').textContent=cur().filter(o=>!o._lkDeleted).length;if(S.sideTab==='calc')renderSide();}
 function renderObj(o){
   let el;
@@ -1816,7 +1817,7 @@ function drawSheetSpec(cc,pn,W,H){
 }
 function strokeCanvasPts(cc,pts,smooth){if(!pts||pts.length<2)return;if(smooth){try{cc.stroke(new Path2D(smoothPath(pts)));return;}catch(_){}}cc.beginPath();pts.forEach((p,i)=>i?cc.lineTo(p.x,p.y):cc.moveTo(p.x,p.y));cc.stroke();}
 function drawEditedObjects(cc,objs,rPage,sx,sy){
-  cc.save();cc.scale(sx||1,sy||1);const list=objs||[],maskExtra=1.5/Math.max(.1,Math.abs(sx||1),Math.abs(sy||1));
+  cc.save();cc.scale(sx||1,sy||1);const list=objs||[],maskExtra=REPLACEMENT_MASK_PAD_PX/Math.max(.1,Math.abs(sx||1),Math.abs(sy||1));
   list.forEach(o=>{const rep=o&&o._lkOriginal;if(!rep||!Array.isArray(rep.paths))return;cc.save();cc.strokeStyle='#fff';cc.lineWidth=Math.max(.7,+rep.width||1)+maskExtra;cc.lineCap='round';cc.lineJoin='round';cc.setLineDash([]);rep.paths.forEach(p=>strokeCanvasPts(cc,p,false));cc.restore();});
   list.forEach(o=>{if(o&&o._lkDeleted)return;cc.save();
     if(o.type==='line'){cc.strokeStyle=o.color;cc.lineWidth=o.width;cc.lineCap='round';cc.lineJoin='round';if(o.cat==='mop15')cc.setLineDash([o.width*3.2,o.width*2.2]);strokeCanvasPts(cc,o.pts,!o._lkSource);}
@@ -1995,7 +1996,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v460';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v461';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v425';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -3794,7 +3795,7 @@ function lkSeqSvg(pg){
 function lkDrawingOverlayHtml(pg){const ds=LK.drawingState,sz=ds&&ds.pageSizes&&ds.pageSizes[pg.page],arr=ds&&ds.objects&&ds.objects[pg.page];
   if(!sz||!sz.w||!sz.h||!Array.isArray(arr)||!arr.length)return '';
   const lineObjs=arr.filter(o=>o&&!o._lkDeleted&&o.type==='line'&&Array.isArray(o.pts)&&o.pts.length>=2);
-  const masks=arr.map(o=>{const rep=o&&o._lkOriginal;if(!rep||!Array.isArray(rep.paths))return '';return rep.paths.filter(p=>p&&p.length>1).map(p=>`<path d="${linePath(p)}" fill="none" stroke="#fff" stroke-width="${Math.max(.7,+rep.width||1)+1.2}" stroke-linecap="round" stroke-linejoin="round"/>`).join('');}).join('');
+  const masks=arr.map(o=>{const rep=o&&o._lkOriginal;if(!rep||!Array.isArray(rep.paths))return '';return rep.paths.filter(p=>p&&p.length>1).map(p=>`<path d="${linePath(p)}" fill="none" stroke="#fff" stroke-width="${Math.max(.7,+rep.width||1)+REPLACEMENT_MASK_PAD_PX}" stroke-linecap="round" stroke-linejoin="round"/>`).join('');}).join('');
   const lines=lineObjs.map(o=>{
     const dash=o.cat==='mop15'?` stroke-dasharray="${(+o.width||4)*3.2} ${(+o.width||4)*2.2}"`:'';
     return `<path d="${o._lkSource?linePath(o.pts):smoothPath(o.pts)}" fill="none" stroke="${esc(o.color||'#1b4f9c')}" stroke-width="${Math.max(.7,+o.width||4)}" stroke-linecap="round" stroke-linejoin="round"${dash}/>`;}).join('');
