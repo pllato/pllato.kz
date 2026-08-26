@@ -4,19 +4,27 @@ const ROLES={
   s:['orders','reis','wh','pallets','reports']},
  'Завсклада':{av:'НБ',n:'Нурбек',r:'Склад · завсклада',note:'Отгрузка, ТТН на печать, история изменений',
   s:['wh','ttn','pallets','hist']},
- 'Руководитель':{av:'РК',n:'Руководитель',r:'ТК Газаблок · собственник',note:'Сводка по сети, объёмы, отчёты в Excel',
-  s:['dash','orders','reports','pallets','admin']},
+ 'Руководитель':{av:'РК',n:'Руководитель',r:'ТК Газаблок · собственник',note:'Сводка, деньги, отчёты и дебиторка',
+  s:['dash','orders','bill','debt','reports','pallets','admin']},
  'Менеджер · Аливиа':{av:'АС',n:'Асель',r:'Аливиа · менеджер',note:'Свои заявки и создание с компьютера',
   s:['my','newpc','pallets']},
+ 'Бухгалтер':{av:'БХ',n:'Бухгалтерия',r:'ТК Газаблок · бухгалтер',note:'Счета, оплаты, дебиторка, акты сверки, прайс',
+  s:['bill','pay','debt','prices','acct','hist']},
  'Администратор':{av:'АД',n:'Администратор',r:'ТК Газаблок · настройки',note:'Нормы, компании, пользователи, журнал',
   s:['admin','norms','hist','reports']}
 };
 const NAV=[
  ['ОПЕРАТИВНАЯ РАБОТА',[['dash','📊','Сводка'],['orders','📋','Заявки',2],['my','📋','Мои заявки'],['newpc','➕','Новая заявка'],['reis','🚚','Рейсы']]],
  ['СКЛАД И ДОКУМЕНТЫ',[['wh','✅','К отгрузке',2],['ttn','📄','ТТН'],['pallets','🧱','Поддоны'],['hist','🕘','История изменений']]],
+ ['БУХГАЛТЕРИЯ',[['bill','🧾','Счета и реализация',2],['pay','💳','Поступления'],['debt','⚖️','Взаиморасчёты',1],['prices','🏷','Прайс и тарифы'],['acct','📑','Отчёты бухгалтерии']]],
  ['УПРАВЛЕНИЕ',[['reports','📈','Отчёты'],['norms','⚙️','Нормы и размеры'],['admin','🏢','Компании и доступы']]]
 ];
 const TITLES={
+ bill:['Счета и реализация','Счёт формируется из заказа: объём × цена компании + доставка + залог за поддоны'],
+ pay:['Поступления оплат','Банк и касса: разнесение платежей по счетам и компаниям'],
+ debt:['Взаиморасчёты','Отгружено, оплачено, долг по каждой компании. Акт сверки за период'],
+ prices:['Прайс и тарифы','Цена за м³ по компаниям, стоимость доставки, залог за поддон, НДС'],
+ acct:['Отчёты бухгалтерии','Реализация, дебиторка, НДС, залоги — выгрузка в Excel и 1С'],
  dash:['Сводка по сети','Заявки, объёмы, рейсы и поддоны — одним экраном для руководителя'],
  orders:['Заявки компаний','Все заявки списком: фильтры, поиск, массовая обработка'],
  my:['Мои заявки','Заявки компании «Аливиа» — те же данные, что и в телефоне менеджера'],
@@ -385,6 +393,224 @@ SC.admin=()=>`
   <div class="hint"><b>Важно:</b> это не две разные программы. База данных, заявки, ТТН и права — общие. Один и тот же сотрудник может утром работать с телефона, а днём сесть за компьютер и увидеть ровно то же самое.</div>
  </div>`;
 
+
+/* ================= БУХГАЛТЕРИЯ ================= */
+const invSt=k=>({paid:['оплачен','g'],part:['частично','a'],over:['просрочен','r'],new:['выставлен','b']}[k]||['—','']);
+
+SC.bill=()=>{const ship=ORDERS.filter(o=>['ttn','road','done'].includes(o.st));
+ const noInv=ship.filter(o=>!INVOICES.some(i=>i.order===o.no));
+ return `<div class="head"><div><h2>Счета и реализация</h2><p>Счёт собирается из заказа автоматически: объём к отгрузке × цена этой компании + доставка + возвратный залог за поддоны. Бухгалтеру не нужно пересчитывать вручную и сверяться с ТТН.</p></div>
+ <div class="btns"><button class="btn" onclick="toast('Пакет закрывающих документов за август по компании сформирован: счета, накладные, акты, счета-фактуры — одним архивом.')">Пакет документов за месяц</button>
+ <button class="btn" onclick="toast('Реестр счетов выгружен в Excel.')">⬇ Excel</button></div></div>
+ <div class="strip">
+  <div><small>ВЫСТАВЛЕНО ЗА МЕСЯЦ</small><b>${fmt(INVOICES.reduce((a,i)=>a+i.sum,0))} ₸</b><span>${INVOICES.length} счетов</span></div>
+  <div><small>ОПЛАЧЕНО</small><b class="g">${fmt(INVOICES.reduce((a,i)=>a+i.paid,0))} ₸</b><span>${Math.round(INVOICES.reduce((a,i)=>a+i.paid,0)/INVOICES.reduce((a,i)=>a+i.sum,0)*100)}% от выставленного</span></div>
+  <div><small>ДОЛГ ПО СЧЕТАМ</small><b class="r">${fmt(INVOICES.reduce((a,i)=>a+(i.sum-i.paid),0))} ₸</b><span>из них просрочено ${fmt(INVOICES.filter(i=>i.st==='over').reduce((a,i)=>a+(i.sum-i.paid),0))} ₸</span></div>
+  <div><small>ОТГРУЖЕНО БЕЗ СЧЁТА</small><b class="a">${noInv.length}</b><span>нужно выставить</span></div>
+  <div><small>ЗАЛОГ ЗА ПОДДОНЫ</small><b>192 500 ₸</b><span>возвратный, у клиентов</span></div>
+ </div>
+ ${noInv.length?`<div class="panel" style="margin-bottom:11px"><div class="ph"><div><div class="ph-title">Отгружено, но счёт не выставлен</div><div class="ph-sub">система сама находит такие заказы — деньги не теряются</div></div><span class="badge a">${noInv.length}</span></div>
+  <div class="tw"><table class="data" style="min-width:820px"><thead><tr><th>Заказ</th><th>Компания</th><th>Клиент · объект</th><th class="right">Объём</th><th class="right">Цена за м³</th><th class="right">Сумма с НДС</th><th></th></tr></thead><tbody>
+  ${noInv.map(o=>{const m=orderSum(o);return `<tr onclick="openOrder('${o.no}')">
+   <td class="mono"><b>${o.no}</b><div class="sub">${o.date}</div></td><td><b>${COMPANIES[o.co]}</b></td>
+   <td class="mini">${esc(o.cl)}<div class="sub">${esc(o.obj)}</div></td>
+   <td class="right mono">${num(m.vol)} м³<div class="sub">${m.pal} подд.</div></td>
+   <td class="right mono">${fmt(coPrice(o.co))} ₸</td>
+   <td class="right mono"><b>${fmt(m.total)} ₸</b><div class="sub">+ залог ${fmt(m.dep)}</div></td>
+   <td><button class="btn acc" onclick="event.stopPropagation();makeInvoice('${o.no}')">Выставить счёт</button></td></tr>`}).join('')}
+  </tbody></table></div></div>`:''}
+ <div class="panel" style="padding:0"><div class="tw"><table class="data" style="min-width:900px"><thead><tr>
+  <th>Счёт</th><th>Заказ</th><th>Компания</th><th>Выставлен</th><th>Оплатить до</th><th class="right">Сумма</th><th class="right">Оплачено</th><th class="right">Остаток</th><th>Статус</th></tr></thead><tbody>
+ ${INVOICES.map(i=>{const t=invSt(i.st);return `<tr onclick="openInvoice('${i.no}')">
+  <td class="mono"><b>${i.no}</b></td><td class="mono" style="font-size:10px">${i.order}</td>
+  <td>${COMPANIES[i.co]}</td><td class="mono" style="font-size:10px">${i.date}</td>
+  <td class="mono" style="font-size:10px;${i.st==='over'?'color:var(--red);font-weight:700':''}">${i.due}</td>
+  <td class="right mono"><b>${fmt(i.sum)} ₸</b></td>
+  <td class="right mono">${fmt(i.paid)} ₸</td>
+  <td class="right mono ${i.sum-i.paid?'':''}" style="${i.sum-i.paid?'color:var(--red);font-weight:700':'color:var(--green)'}">${i.sum-i.paid?fmt(i.sum-i.paid)+' ₸':'—'}</td>
+  <td><span class="badge ${t[1]}">${t[0]}</span></td></tr>`}).join('')}
+ </tbody></table></div></div>
+ <div class="hint"><b>Откуда берутся цифры:</b> объём — из ТТН по факту отгрузки, цена — из прайса конкретной компании, доставка — по тарифу за рейс, залог — по числу поддонов. Если завсклада изменил количество, счёт пересчитается, а в истории останется, кто и когда правил.</div>`};
+
+function makeInvoice(no){const o=ORDERS.find(x=>x.no===no);const m=orderSum(o);
+ const inv={no:'СЧ-2026-0'+(invSeq++),order:o.no,co:o.co,date:'25.08.2026',due:'01.09.2026',sum:m.total,paid:0,st:'new'};
+ INVOICES.unshift(inv);
+ o.hist.push(['Выставлен счёт','Бухгалтерия','сейчас',`${inv.no} на ${fmt(m.total)} ₸ (товар ${fmt(m.goods)} + доставка ${fmt(m.deliv)} + НДС ${fmt(m.vat)})`]);
+ render();sparks();
+ toast(`Счёт <b>${inv.no}</b> на ${fmt(m.total)} ₸ выставлен компании «${COMPANIES[o.co]}» и отправлен ей в кабинет и на почту. Залог за поддоны ${fmt(m.dep)} ₸ учтён отдельной строкой.`)}
+
+function openInvoice(no){const i=INVOICES.find(x=>x.no===no);const o=ORDERS.find(x=>x.no===i.order);
+ const m=o?orderSum(o):{goods:i.sum,deliv:0,vat:0,total:i.sum,dep:0,vol:0,pal:0};
+ openD('Счёт '+i.no,`${COMPANIES[i.co]} · заказ ${i.order} · ${invSt(i.st)[0]}`,
+ `<div class="ttn" style="max-width:none">
+   <div class="ttn-top"><div><div class="t">Счёт на оплату № ${i.no}</div><div class="mini">от ${i.date} · ТК «Газаблок»</div></div>
+    <div class="n"><b style="font-size:15px;color:var(--txt)">${fmt(i.sum)} ₸</b><div>оплатить до ${i.due}</div></div></div>
+   <div class="g2" style="margin:0">
+    <div><h4>Поставщик</h4><div style="font-size:11px"><b>ТК «Газаблок»</b><br>г. Астана · БИН 000000000000<br>счёт KZ00 000 0000 0000 0000</div></div>
+    <div><h4>Покупатель</h4><div style="font-size:11px"><b>${COMPANIES[i.co]}</b><br>договор поставки № ${20+i.co}/2026<br>основание: заказ ${i.order}</div></div>
+   </div>
+   <h4>Расчёт</h4>
+   <table class="tt"><tr><th>Наименование</th><th class="r">Кол-во</th><th class="r">Цена</th><th class="r">Сумма</th></tr>
+    <tr><td>Газоблок автоклавный${o?' '+sz(o.size).n:''}</td><td class="r">${num(m.vol)} м³</td><td class="r">${fmt(coPrice(i.co))} ₸</td><td class="r">${fmt(m.goods)} ₸</td></tr>
+    <tr><td>Доставка манипулятором</td><td class="r">1 рейс</td><td class="r">${fmt(m.deliv)} ₸</td><td class="r">${fmt(m.deliv)} ₸</td></tr>
+    <tr><td colspan="3"><b>Итого без НДС</b></td><td class="r"><b>${fmt(m.net)} ₸</b></td></tr>
+    <tr><td colspan="3">НДС 12%</td><td class="r">${fmt(m.vat)} ₸</td></tr>
+    <tr><td colspan="3"><b>Всего к оплате</b></td><td class="r"><b style="font-size:12px">${fmt(m.total)} ₸</b></td></tr>
+    <tr><td colspan="3">Залог за поддоны (${m.pal} шт × ${fmt(PRICE.deposit)} ₸) — возвратный</td><td class="r">${fmt(m.dep)} ₸</td></tr></table>
+   <div class="sig"><div><u></u>Руководитель</div><div><u></u>Главный бухгалтер</div></div>
+  </div>
+  <div class="btns" style="margin-top:12px">
+   <button class="btn" onclick="window.print()">🖨 Печать</button>
+   <button class="btn" onclick="toast('Счёт отправлен компании в кабинет и на почту, дублируется в WhatsApp менеджеру.')">📤 Отправить компании</button>
+   ${i.sum-i.paid>0?`<button class="btn gr" onclick="payInv('${i.no}')">💳 Отметить оплату ${fmt(i.sum-i.paid)} ₸</button>`:''}
+   <button class="btn" onclick="toast('Сформированы накладная и электронная счёт-фактура по этой реализации.')">Накладная и ЭСФ</button>
+  </div>
+  ${i.st==='over'?'<div class="note" style="--tone:var(--red)"><b>Просрочен</b><p>Срок оплаты прошёл. Система напоминает менеджеру компании и показывает долг в разделе «Взаиморасчёты».</p></div>':''}`)}
+function payInv(no){const i=INVOICES.find(x=>x.no===no);const был=i.sum-i.paid;
+ i.paid=i.sum;i.st='paid';
+ PAYMENTS.unshift({d:'25.08.2026',co:i.co,sum:был,src:'Банк · Kaspi',inv:i.no,note:'оплата по счёту'});
+ closeD();render();sparks();
+ toast(`Оплата ${fmt(был)} ₸ по счёту <b>${no}</b> проведена: счёт закрыт, долг компании «${COMPANIES[i.co]}» уменьшился, платёж попал в поступления.`)}
+
+SC.pay=()=>`
+ <div class="head"><div><h2>Поступления оплат</h2><p>Банк и касса в одном списке. Платёж привязывается к счёту и компании — сальдо пересчитывается сразу, без ручной сверки в конце месяца.</p></div>
+ <div class="btns"><button class="btn" onclick="toast('Загрузка банковской выписки: файл из клиент-банка разносится по счетам автоматически, спорные платежи подсвечиваются.')">⬆ Загрузить выписку</button>
+ <button class="btn acc" onclick="toast('Ручное поступление: сумма, дата, компания, счёт, источник — банк или касса.')">+ Поступление</button></div></div>
+ <div class="strip">
+  <div><small>ПОСТУПИЛО ЗА МЕСЯЦ</small><b>${fmt(PAYMENTS.reduce((a,p)=>a+p.sum,0))} ₸</b><span>${PAYMENTS.length} платежей</span></div>
+  <div><small>ЧЕРЕЗ БАНК</small><b>${fmt(PAYMENTS.filter(p=>p.src.includes('Банк')).reduce((a,p)=>a+p.sum,0))} ₸</b><span>Kaspi и Halyk</span></div>
+  <div><small>НАЛИЧНЫМИ</small><b>${fmt(PAYMENTS.filter(p=>p.src==='Касса').reduce((a,p)=>a+p.sum,0))} ₸</b><span>приходный ордер</span></div>
+  <div><small>НЕ РАЗНЕСЕНО</small><b class="a">0</b><span>все платежи привязаны</span></div>
+  <div><small>СРЕДНИЙ СРОК ОПЛАТЫ</small><b>4,2 дня</b><span>от счёта до денег</span></div>
+ </div>
+ <div class="panel" style="padding:0"><div class="tw"><table class="data" style="min-width:760px"><thead><tr><th>Дата</th><th>Компания</th><th>Счёт</th><th>Источник</th><th>Назначение</th><th class="right">Сумма</th></tr></thead><tbody>
+ ${PAYMENTS.map(p=>`<tr onclick="toast('Платёж ${fmt(p.sum)} ₸ от ${COMPANIES[p.co]}: привязан к счёту ${p.inv}, виден в сальдо и в акте сверки.')">
+  <td class="mono" style="font-size:10px">${p.d}</td><td><b>${COMPANIES[p.co]}</b></td>
+  <td class="mono" style="font-size:10px">${p.inv}</td>
+  <td><span class="badge ${p.src==='Касса'?'a':'b'}">${p.src}</span></td>
+  <td class="mini">${p.note}</td><td class="right mono"><b>${fmt(p.sum)} ₸</b></td></tr>`).join('')}
+ </tbody></table></div></div>
+ <div class="hint"><b>Разнесение по счетам:</b> при загрузке выписки система сама сопоставляет платёж со счётом по номеру в назначении. Если совпадения нет — платёж подсвечивается, и бухгалтер привязывает его вручную в один клик.</div>`;
+
+SC.debt=()=>`
+ <div class="head"><div><h2>Взаиморасчёты с компаниями</h2><p>Сколько отгружено, сколько оплачено и сколько должны — по каждому партнёру. Акт сверки формируется за любой период одной кнопкой.</p></div>
+ <div class="btns"><button class="btn" onclick="toast('Напоминания о задолженности отправлены менеджерам компаний в WhatsApp с приложением акта сверки.')">Напомнить должникам</button>
+ <button class="btn" onclick="toast('Выгрузка взаиморасчётов в Excel и 1С.')">⬇ Excel / 1С</button></div></div>
+ <div class="strip">
+  <div><small>ОТГРУЖЕНО ЗА МЕСЯЦ</small><b>${fmt(CO_BALANCE.reduce((a,b)=>a+b.ship,0))} ₸</b><span>по трём компаниям</span></div>
+  <div><small>ОПЛАЧЕНО</small><b class="g">${fmt(CO_BALANCE.reduce((a,b)=>a+b.pay,0))} ₸</b><span>${Math.round(CO_BALANCE.reduce((a,b)=>a+b.pay,0)/CO_BALANCE.reduce((a,b)=>a+b.ship,0)*100)}%</span></div>
+  <div><small>ДЕБИТОРКА</small><b class="r">${fmt(CO_BALANCE.reduce((a,b)=>a+(b.ship-b.pay),0))} ₸</b><span>текущая задолженность</span></div>
+  <div><small>ПРОСРОЧЕНО</small><b class="r">864 000 ₸</b><span>1 счёт, 7 дней</span></div>
+  <div><small>ЗАЛОГ ЗА ПОДДОНЫ</small><b>${fmt(CO_BALANCE.reduce((a,b)=>a+b.dep,0))} ₸</b><span>к возврату при сдаче</span></div>
+ </div>
+ <div class="panel" style="margin-bottom:11px"><div class="ph"><div><div class="ph-title">Сальдо по компаниям · август</div><div class="ph-sub">клик по строке — акт сверки за период</div></div></div>
+  <div class="tw"><table class="data" style="min-width:860px"><thead><tr><th>Компания</th><th>Договор</th><th class="right">Отгружено</th><th class="right">Оплачено</th><th class="right">Долг</th><th class="right">Залог поддонов</th><th>Платёжная дисциплина</th></tr></thead><tbody>
+  ${COMPANIES.map((c,i)=>{const b=CO_BALANCE[i];const debt=b.ship-b.pay;const pct=Math.round(b.pay/b.ship*100);
+   return `<tr onclick="sverka(${i})"><td><b>${c}</b></td><td class="mono" style="font-size:10px">№ ${20+i}/2026</td>
+   <td class="right mono">${fmt(b.ship)} ₸</td><td class="right mono">${fmt(b.pay)} ₸</td>
+   <td class="right mono"><b style="color:${debt>1000000?'var(--red)':'var(--amber)'}">${fmt(debt)} ₸</b></td>
+   <td class="right mono">${fmt(b.dep)} ₸</td>
+   <td><div style="display:flex;align-items:center;gap:8px"><div class="bar" style="width:90px"><i style="--w:${pct}%;background:${pct>90?'var(--green)':pct>80?'var(--amber)':'var(--red)'}"></i></div><b class="mono" style="font-size:10px">${pct}%</b></div></td></tr>`}).join('')}
+  </tbody></table></div>
+ </div>
+ <div class="g2">
+  <div class="panel"><div class="ph-title">Дебиторка по срокам</div>
+   ${[['Текущая (срок не наступил)',1652000,'var(--green)'],['До 7 дней просрочки',864000,'var(--amber)'],['8–30 дней',0,'var(--red)'],['Больше 30 дней',0,'#7f1d1d']]
+     .map(r=>`<div class="fr"><span>${r[0]}</span><div class="bar"><i style="--w:${r[1]/1652000*100}%;background:${r[2]}"></i></div><b>${r[1]?fmt(r[1])+' ₸':'—'}</b></div>`).join('')}
+   <div class="hint"><b>Просроченных долгов старше месяца нет.</b> Как только счёт перешагивает срок оплаты, менеджеру компании автоматически уходит напоминание, а долг подсвечивается здесь.</div>
+  </div>
+  <div class="panel"><div class="ph-title">Акт сверки</div>
+   <p class="mini" style="margin-bottom:9px">Формируется за любой период: остаток на начало, отгрузки по датам и накладным, оплаты, остаток на конец. Готовый документ на подпись обеим сторонам.</p>
+   ${COMPANIES.map((c,i)=>`<div class="kv" style="cursor:pointer" onclick="sverka(${i})"><span><b style="color:var(--txt);font-size:10.8px">${c}</b><div class="sub">договор № ${20+i}/2026</div></span><b style="color:var(--blue)">Сформировать →</b></div>`).join('')}
+  </div>
+ </div>`;
+function sverka(i){const b=CO_BALANCE[i];
+ openD('Акт сверки · '+COMPANIES[i],'ТК «Газаблок» и '+COMPANIES[i]+' · август 2026',
+ `<div class="ttn" style="max-width:none">
+   <div class="ttn-top"><div><div class="t">Акт сверки взаимных расчётов</div><div class="mini">за период 01.08.2026 — 31.08.2026</div></div>
+    <div class="n"><b style="font-size:15px;color:var(--txt)">${fmt(b.ship-b.pay)} ₸</b><div>задолженность на конец</div></div></div>
+   <div class="g2" style="margin:0">
+    <div><h4>Сторона 1</h4><div style="font-size:11px"><b>ТК «Газаблок»</b><br>договор поставки № ${20+i}/2026</div></div>
+    <div><h4>Сторона 2</h4><div style="font-size:11px"><b>${COMPANIES[i]}</b><br>менеджеры: ${MANAGERS.slice(0,2).join(', ')}</div></div>
+   </div>
+   <h4>Движение за период</h4>
+   <table class="tt"><tr><th>Показатель</th><th class="r">Сумма, ₸</th></tr>
+    <tr><td>Остаток на начало периода</td><td class="r">0</td></tr>
+    <tr><td>Отгружено (реализация с НДС)</td><td class="r">${fmt(b.ship)}</td></tr>
+    <tr><td>Оплачено</td><td class="r">${fmt(b.pay)}</td></tr>
+    <tr><td><b>Остаток на конец периода (долг покупателя)</b></td><td class="r"><b>${fmt(b.ship-b.pay)}</b></td></tr>
+    <tr><td>Справочно: залог за поддоны у покупателя</td><td class="r">${fmt(b.dep)}</td></tr></table>
+   <div class="sig"><div><u></u>ТК «Газаблок»</div><div><u></u>${COMPANIES[i]}</div></div>
+  </div>
+  <div class="btns" style="margin-top:12px"><button class="btn" onclick="window.print()">🖨 Печать</button>
+  <button class="btn" onclick="toast('Акт сверки отправлен компании на подпись — в кабинет и на почту.')">📤 Отправить на подпись</button>
+  <button class="btn" onclick="toast('Расшифровка: все отгрузки и платежи периода построчно с номерами ТТН и счетов.')">Расшифровка построчно</button></div>`)}
+
+SC.prices=()=>`
+ <div class="head"><div><h2>Прайс и тарифы</h2><p>У каждой компании-перекупа своя договорная цена за м³. Здесь же тариф доставки, залог за поддон и ставка НДС — от них считаются все счета.</p></div>
+ <div class="btns"><button class="btn" onclick="toast('История цен: когда и кем менялась цена по каждой компании. Старые счета не пересчитываются.')">История изменений цен</button></div></div>
+ <div class="g2">
+  <div class="panel"><div class="ph-title">Цена за м³ по компаниям</div>
+   ${COMPANIES.map((c,i)=>`<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)">
+    <div style="flex:1"><b style="font-size:11.4px">${c}</b><div class="sub">договор № ${20+i}/2026 · объём за месяц ${[612,428,244][i]} м³</div></div>
+    <button class="btn" onclick="priceSet(${i},-500)">−500</button>
+    <div style="width:110px;text-align:center"><b class="mono" style="font-size:17px">${fmt(PRICE.co[i])}</b><div class="sub">₸ за м³</div></div>
+    <button class="btn" onclick="priceSet(${i},500)">+500</button></div>`).join('')}
+   <div class="hint"><b>Пример:</b> заказ на 24 м³ размера 600×300×200 для «${COMPANIES[0]}» → 14 поддонов = 25,2 м³ × ${fmt(PRICE.co[0])} ₸ = <b>${fmt(Math.round(25.2*PRICE.co[0]))} ₸</b> + доставка ${fmt(PRICE.delivery)} ₸ + НДС.</div>
+  </div>
+  <div class="panel"><div class="ph-title">Общие тарифы</div>
+   <div class="kv"><span>Доставка манипулятором (за рейс)</span><b class="mono">${fmt(PRICE.delivery)} ₸</b></div>
+   <div class="kv"><span>Залог за поддон (возвратный)</span><b class="mono">${fmt(PRICE.deposit)} ₸</b></div>
+   <div class="kv"><span>Ставка НДС</span><b class="mono">${PRICE.vat*100}%</b></div>
+   <div class="kv"><span>Отсрочка платежа по умолчанию</span><b class="mono">7 дней</b></div>
+   <div class="kv"><span>Штраф за невозврат поддона</span><b class="mono">залог удерживается</b></div>
+   <div class="note" style="--tone:var(--amber)"><b>Как работают изменения</b><p>Новая цена применяется к заказам, созданным после изменения. Уже выставленные счета и подписанные документы не пересчитываются — иначе разъедется бухгалтерия.</p></div>
+   <div class="note" style="--tone:var(--blue)"><b>Индивидуальные условия</b><p>Для отдельной компании можно задать свою отсрочку, скидку от объёма или бесплатную доставку от N м³ — это настраивается без разработчика.</p></div>
+  </div>
+ </div>`;
+function priceSet(i,d){PRICE.co[i]=Math.max(1000,PRICE.co[i]+d);render();
+ toast(`Цена для «${COMPANIES[i]}»: <b>${fmt(PRICE.co[i])} ₸ за м³</b>. Применяется к новым заказам, выставленные счета не меняются.`)}
+
+SC.acct=()=>`
+ <div class="head"><div><h2>Отчёты бухгалтерии</h2><p>Всё, что обычно собирается вручную в конце месяца, считается на живых данных: реализация, дебиторка, НДС, залоги и закрывающие документы.</p></div>
+ <div class="btns"><select class="rsel"><option>Август 2026</option><option>Июль 2026</option><option>Квартал</option><option>Произвольный период</option></select>
+ <button class="btn acc" onclick="toast('Выгрузка для 1С: реализация, оплаты, контрагенты и номенклатура — файлом для загрузки в бухгалтерскую программу.')">⬇ Выгрузка в 1С</button></div></div>
+ <div class="strip">
+  <div><small>РЕАЛИЗАЦИЯ ЗА МЕСЯЦ</small><b>21,03 млн ₸</b><span>с НДС</span></div>
+  <div><small>НДС К УПЛАТЕ</small><b>2,25 млн ₸</b><span>12% от базы</span></div>
+  <div><small>ПОСТУПИЛО ДЕНЕГ</small><b class="g">18,53 млн ₸</b><span>банк + касса</span></div>
+  <div><small>ДЕБИТОРКА НА КОНЕЦ</small><b class="r">2,50 млн ₸</b><span>по трём компаниям</span></div>
+  <div><small>ЗАЛОГИ У КЛИЕНТОВ</small><b>192 500 ₸</b><span>обязательство к возврату</span></div>
+ </div>
+ <div class="g2">
+  <div class="panel"><div class="ph-title">Готовые отчёты</div>
+   ${[['Реализация за период','дата, счёт, компания, объём, сумма, НДС'],
+      ['Дебиторская задолженность','по компаниям и срокам просрочки'],
+      ['Поступления оплат','банк и касса с разнесением по счетам'],
+      ['Книга продаж / НДС','база, ставка, сумма налога по документам'],
+      ['Залоги за поддоны','начислено, возвращено, остаток обязательств'],
+      ['Акты сверки пакетом','по всем компаниям за период — одним архивом'],
+      ['Закрывающие документы','счета, накладные, ЭСФ и акты за месяц']]
+    .map(r=>`<div class="kv" style="cursor:pointer" onclick="toast('Отчёт «${r[0]}» выгружен в Excel: ${r[1]}.')"><span><b style="color:var(--txt);font-size:10.8px">${r[0]}</b><div class="sub">${r[1]}</div></span><b style="color:var(--green)">⬇ XLSX</b></div>`).join('')}
+  </div>
+  <div>
+   <div class="panel"><div class="ph-title">Реализация по месяцам, млн ₸</div>
+    <div style="display:flex;align-items:flex-end;gap:9px;height:130px;padding-top:12px">
+     ${[['мар',12.6],['апр',14.4],['май',16.5],['июн',18.4],['июл',17.6],['авг',21.0]].map(m=>`<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px;height:100%">
+      <b class="mono" style="font-size:9.2px">${String(m[1]).replace('.',',')}</b><div style="width:70%;height:${m[1]/21*100}%;background:var(--acc);border-radius:4px 4px 0 0"></div>
+      <span style="font-size:8.4px;color:var(--muted)">${m[0]}</span></div>`).join('')}
+    </div>
+   </div>
+   <div class="panel" style="margin-top:11px"><div class="ph-title">Что даёт бухгалтеру эта система</div>
+    ${[['Счёт из отгрузки','не нужно переносить объёмы из ТТН в счёт руками'],
+       ['Цена подтягивается сама','по договору конкретной компании, без поиска в переписке'],
+       ['Дебиторка в реальном времени','видно долг сразу, а не в конце месяца'],
+       ['Акт сверки за минуту','вместо ручного сведения таблиц']]
+     .map(x=>`<div class="note" style="--tone:var(--acc)"><b>${x[0]}</b><p>${x[1]}</p></div>`).join('')}
+   </div>
+  </div>
+ </div>`;
+
 /* ===== КАРТОЧКА ЗАКАЗА ===== */
 function openOrder(no){const o=ORDERS.find(x=>x.no===no);if(!o)return;const c=calcOrder(o.m3,o.size);
  const isTK=role.startsWith('ТК'),isWH=role==='Завсклада';
@@ -402,6 +628,15 @@ function openOrder(no){const o=ORDERS.find(x=>x.no===no);if(!o)return;const c=ca
   <div class="calc"><div class="cl">РАСЧЁТ ПО ЗАЯВКЕ</div>
    <div class="cg"><div><b>${fmt(c.blocks)}</b><small>блоков</small></div><div><b>${c.pal}</b><small>поддонов</small></div><div><b>${num(c.vol)}</b><small>к отгрузке, м³</small></div></div>
    <div class="cn">Заявлено ${num(o.m3)} м³ → округление вверх до целого поддона · норма ${c.perPal} блоков на поддон · поддон ${num(c.palVol)} м³</div></div>
+  <div class="panel" style="margin-bottom:11px"><div class="ph-title" style="font-size:11.6px;margin-bottom:7px">Деньги по заказу</div>
+   ${(()=>{const m=orderSum(o);const inv=INVOICES.find(x=>x.order===o.no);return `
+   <div class="kv"><span>Товар · ${num(m.vol)} м³ × ${fmt(coPrice(o.co))} ₸</span><b>${fmt(m.goods)} ₸</b></div>
+   <div class="kv"><span>Доставка манипулятором</span><b>${fmt(m.deliv)} ₸</b></div>
+   <div class="kv"><span>НДС 12%</span><b>${fmt(m.vat)} ₸</b></div>
+   <div class="kv"><span><b style="color:var(--txt)">Итого к оплате</b></span><b style="font-size:12.6px">${fmt(m.total)} ₸</b></div>
+   <div class="kv"><span>Залог за поддоны (${m.pal} × ${fmt(PRICE.deposit)} ₸)</span><b>${fmt(m.dep)} ₸ · возвратный</b></div>
+   <div class="kv"><span>Счёт</span><b>${inv?`${inv.no} · ${invSt(inv.st)[0]}`:'не выставлен'}</b></div>`})()}
+  </div>
   ${o.pallets.out?`<div class="panel" style="margin-bottom:11px"><div class="ph-title" style="font-size:11.6px;margin-bottom:7px">Поддоны</div>
    <div class="kv"><span>Выдано</span><b>${o.pallets.out}</b></div><div class="kv"><span>Возвращено</span><b>${o.pallets.back}</b></div>
    <div class="kv"><span>У клиента</span><b style="color:${o.pallets.out-o.pallets.back?'var(--red)':'var(--green)'}">${o.pallets.out-o.pallets.back}</b></div></div>`:''}
@@ -455,6 +690,8 @@ const TOUR=[
  ['Завсклада','wh','<b>Шаг 3.</b> Завсклада работает только с подтверждёнными заявками: блоки и поддоны уже посчитаны, остаётся сформировать ТТН одной кнопкой.',5600],
  ['Завсклада','ttn','<b>Шаг 4.</b> ТТН на печать: грузоотправитель, получатель, перевозчик, груз с количеством и подписи. Ни одно поле не набрано руками — всё из заявки.',6000],
  ['Руководитель','dash','<b>Шаг 5.</b> Руководитель видит сводку: объёмы по компаниям, отгрузки по дням, что требует внимания и сколько поддонов зависло у клиентов.',5800],
+ ['Бухгалтер','bill','<b>Шаг 6.</b> Бухгалтерия: счёт собирается из отгрузки — объём × цена этой компании + доставка + залог за поддоны. Система сама находит отгрузки без счёта.',6000],
+ ['Бухгалтер','debt','<b>Шаг 7.</b> Взаиморасчёты: отгружено, оплачено, долг и платёжная дисциплина по каждой компании. Акт сверки формируется за минуту.',5800],
  ['Администратор','norms','<b>Итог.</b> Нормы блоков на поддон задаёт администратор — от них считается вся система. Мобильная и компьютерная версии работают на одной базе.',5800]
 ];
 let tourT=null,tourI=0;

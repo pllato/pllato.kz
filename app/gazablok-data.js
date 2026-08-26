@@ -57,3 +57,48 @@ let ORDERS=[
 let seq=148;
 const co=i=>COMPANIES[i];
 
+
+/* ===== ДЕНЬГИ (бухгалтерия) ===== */
+/* Цена за м³ у каждой компании своя — договорная. Доставка и залог за поддон — общие тарифы. */
+let PRICE={co:[26500,25800,27200],delivery:18000,deposit:2500,vat:0.12};
+const coPrice=i=>PRICE.co[i]||PRICE.co[0];
+function orderSum(o){const c=calcOrder(o.m3,o.size);
+ const goods=Math.round(c.vol*coPrice(o.co));           // товар по факту отгрузки
+ const deliv=PRICE.delivery;                             // доставка за рейс
+ const dep=c.pal*PRICE.deposit;                          // залог за поддоны (возвратный)
+ const net=goods+deliv;                                  // облагаемая база
+ const vat=Math.round(net*PRICE.vat);
+ return {goods,deliv,dep,net,vat,total:net+vat,withDep:net+vat+dep,pal:c.pal,vol:c.vol}}
+/* выставленные счета и оплаты */
+let INVOICES=[
+ {no:'СЧ-2026-0212',order:'ГБ-2026-0145',co:1,date:'25.08.2026',due:'01.09.2026',sum:1120000,paid:1120000,st:'paid'},
+ {no:'СЧ-2026-0211',order:'ГБ-2026-0144',co:0,date:'25.08.2026',due:'01.09.2026',sum:552000,paid:300000,st:'part'},
+ {no:'СЧ-2026-0209',order:'ГБ-2026-0143',co:2,date:'24.08.2026',due:'31.08.2026',sum:292000,paid:292000,st:'paid'},
+ {no:'СЧ-2026-0205',order:'ГБ-2026-0138',co:1,date:'18.08.2026',due:'25.08.2026',sum:864000,paid:0,st:'over'},
+ {no:'СЧ-2026-0201',order:'ГБ-2026-0132',co:0,date:'15.08.2026',due:'22.08.2026',sum:1340000,paid:1340000,st:'paid'}
+];
+let PAYMENTS=[
+ {d:'25.08.2026',co:1,sum:1120000,src:'Банк · Halyk',inv:'СЧ-2026-0212',note:'п/п №418'},
+ {d:'25.08.2026',co:0,sum:300000,src:'Банк · Kaspi',inv:'СЧ-2026-0211',note:'частичная оплата'},
+ {d:'24.08.2026',co:2,sum:292000,src:'Касса',inv:'СЧ-2026-0209',note:'наличными от ИП'},
+ {d:'22.08.2026',co:0,sum:1340000,src:'Банк · Kaspi',inv:'СЧ-2026-0201',note:'п/п №1201'},
+ {d:'20.08.2026',co:1,sum:640000,src:'Банк · Halyk',inv:'СЧ-2026-0198',note:'п/п №402'}
+];
+let invSeq=213;
+/* сальдо по компаниям: отгружено / оплачено за месяц */
+const CO_BALANCE=[
+ {ship:9840000,pay:8500000,dep:67500},
+ {ship:7210000,pay:6346000,dep:60000},
+ {ship:3980000,pay:3688000,dep:65000}
+];
+
+/* Суммы счетов, у которых есть заказ в системе, считаем из самого заказа —
+   чтобы список счетов и печатная форма никогда не расходились. */
+(function syncInvoices(){INVOICES.forEach(i=>{
+ const o=ORDERS.find(x=>x.no===i.order);if(!o)return;
+ const total=orderSum(o).total;
+ if(i.paid>=i.sum)i.paid=total;                 // был оплачен полностью — остаётся полностью
+ else if(i.paid>total)i.paid=total;
+ i.sum=total;
+ i.st=i.paid>=i.sum?'paid':(i.paid>0?'part':(i.st==='over'?'over':'new'));
+})})();
