@@ -2,15 +2,15 @@
 /* ===== РОЛИ ===== */
 const ROLES={
  'Менеджер · Аливиа':{av:'АС',n:'Асель',r:'Аливиа · менеджер',note:'Создаёт заявки с телефона, следит за своими',
-  tabs:[['my','📋','Заявки'],['new','➕','Новая'],['pal','🧱','Поддоны'],['me','👤','Профиль']]},
+  tabs:[['my','📋','Заявки'],['new','➕','Новая'],['mcalc','🧮','Расчёт'],['pal','🧱','Поддоны'],['tsk','📌','Задачи']]},
  'ТК Газаблок':{av:'АЙ',n:'Айдана',r:'ТК Газаблок · диспетчер',note:'Подтверждает, отклоняет, возвращает на исправление',
-  tabs:[['inbox','📥','Заявки'],['reis','🚚','Рейсы'],['palall','🧱','Поддоны'],['rep','📊','Отчёты']]},
+  tabs:[['inbox','📥','Заявки'],['reis','🚚','Рейсы'],['tsk','📌','Задачи'],['palall','🧱','Поддоны'],['rep','📊','Отчёты']]},
  'Завсклада':{av:'НБ',n:'Нурбек',r:'Склад · завсклада',note:'Видит подтверждённые, формирует ТТН из заказа',
-  tabs:[['wh','✅','К отгрузке'],['ttn','📄','ТТН'],['whpal','🧱','Поддоны'],['whist','🕘','История']]},
+  tabs:[['stk','📦','Склад'],['wh','✅','К отгрузке'],['ttn','📄','ТТН'],['tsk','📌','Задачи'],['whist','🕘','История']]},
  'Водитель':{av:'МО',n:'Марат Ошақбаев',r:'Манипулятор · 774 ABC 02',note:'Свой рейс, статусы и фото доставки',
   tabs:[['trip','🚚','Мой рейс'],['tdone','✅','Выполнено'],['tpal','🧱','Поддоны'],['tme','👤','Профиль']]},
  'Администратор':{av:'АД',n:'Администратор',r:'ТК Газаблок · настройки',note:'Нормы блоков на поддон, компании, отчёты',
-  tabs:[['norms','⚙️','Нормы'],['cos','🏢','Компании'],['rep','📊','Отчёты'],['log','🕘','Журнал']]}
+  tabs:[['norms','⚙️','Нормы'],['cos','🏢','Компании'],['stk','📦','Склад'],['rep','📊','Отчёты'],['log','🕘','Журнал']]}
 };
 let role='Менеджер · Аливиа',tab='my',view=null;
 
@@ -104,6 +104,154 @@ SC.me=()=>`<div class="scr"><h2 class="h1">Профиль</h2><p class="sub">М�
   <div class="kv"><span>Заявки других компаний</span><b style="color:var(--red)">нет</b></div>
   <div class="kv"><span>Цены и склад ТК</span><b style="color:var(--red)">нет</b></div>
   <div class="kv"><span>Поддоны своей компании</span><b>да</b></div></div></div>`;
+
+
+/* --- КАЛЬКУЛЯТОР (менеджер) --- */
+let MC={mode:'wall',size:'s1',m3:'24',L:'40',H:'3',T:'300',open:'18',co:0};
+SC.mcalc=()=>{const s0=sz(MC.size);let vol=0,note='';
+ if(MC.mode==='vol'){vol=parseFloat(String(MC.m3).replace(',','.'))||0;note='Объём задан вручную'}
+ else{const L=parseFloat(MC.L)||0,H=parseFloat(MC.H)||0,T=(parseFloat(MC.T)||0)/1000,op=parseFloat(MC.open)||0;
+  vol=Math.max(0,(L*H-op)*T);note=`(${num(L)} × ${num(H)} − ${num(op)} м² проёмов) × ${num(T)} м`}
+ const c=calcOrder(vol,MC.size);const goods=Math.round(c.vol*coPrice(MC.co));
+ const trips=Math.ceil(c.pal/14);const deliv=trips*PRICE.delivery;const vat=Math.round((goods+deliv)*PRICE.vat);
+ return `<div class="scr"><h2 class="h1">Калькулятор</h2><p class="sub">Клиент спрашивает «сколько нужно и сколько стоит» — считаем при нём за минуту, прямо в телефоне.</p>
+ <div class="seg"><button class="${MC.mode==='wall'?'on':''}" onclick="MC.mode='wall';render()">По стенам</button>
+  <button class="${MC.mode==='vol'?'on':''}" onclick="MC.mode='vol';render()">По объёму</button></div>
+ ${MC.mode==='wall'?`
+ <div class="f2"><div class="fld"><label>Длина стен, м</label><input inputmode="decimal" value="${esc(MC.L)}" oninput="MC.L=this.value;mcRe()"></div>
+  <div class="fld"><label>Высота, м</label><input inputmode="decimal" value="${esc(MC.H)}" oninput="MC.H=this.value;mcRe()"></div></div>
+ <div class="f2"><div class="fld"><label>Толщина кладки</label><select onchange="MC.T=this.value;render()">${[100,150,200,250,300,375].map(t=>`<option value="${t}" ${String(MC.T)===String(t)?'selected':''}>${t} мм</option>`).join('')}</select></div>
+  <div class="fld"><label>Проёмы, м²</label><input inputmode="decimal" value="${esc(MC.open)}" oninput="MC.open=this.value;mcRe()"></div></div>`
+ :`<div class="fld"><label>Объём, м³</label><input inputmode="decimal" value="${esc(MC.m3)}" oninput="MC.m3=this.value;mcRe()"></div>`}
+ <div class="fld"><label>Размер газоблока</label><select onchange="MC.size=this.value;render()">${SIZES.map(x=>`<option value="${x.id}" ${MC.size===x.id?'selected':''}>${x.n} · ${x.d}</option>`).join('')}</select></div>
+ <div class="calc"><div class="cl">РАСЧЁТ ДЛЯ КЛИЕНТА</div>
+  <div class="cgrid"><div class="cg"><b>${fmt(c.blocks)}</b><small>блоков</small></div><div class="cg"><b>${c.pal}</b><small>поддонов</small></div><div class="cg"><b>${num(c.vol)}</b><small>к отгрузке, м³</small></div></div>
+  <div class="cnote">${note} = <b style="color:#fff">${num(vol)} м³</b> кладки → округляем вверх до целого поддона: <b style="color:#fff">${c.pal} подд. = ${num(c.vol)} м³</b>.<br>Норма: ${s0.per} блоков на поддон · поддон ${num(palVol(s0))} м³.</div></div>
+ <div class="card"><b style="font-size:11px">Сколько это стоит</b>
+  <div class="kv"><span>Газоблок · ${num(c.vol)} м³</span><b>${fmt(goods)} ₸</b></div>
+  <div class="kv"><span>Доставка · ${trips} ${trips===1?'рейс':'рейса'}</span><b>${fmt(deliv)} ₸</b></div>
+  <div class="kv"><span>НДС 12%</span><b>${fmt(vat)} ₸</b></div>
+  <div class="kv"><span><b style="color:var(--txt)">Итого</b></span><b style="font-size:13px">${fmt(goods+deliv+vat)} ₸</b></div>
+  <div class="kv"><span>Залог за поддоны (возвратный)</span><b>${fmt(c.pal*PRICE.deposit)} ₸</b></div></div>
+ <div class="alert info"><b>Манипулятор берёт 14 поддонов</b>Значит, нужно ${trips} ${trips===1?'заезд':'заезда'} — клиенту сразу называем и срок, и стоимость доставки, не перезванивая.</div>
+ <div class="btn2"><button class="btn sm dk" onclick="toast('Расчёт отправлен клиенту в WhatsApp: объём, поддоны, число машин и сумма.')">📤 Клиенту</button>
+  <button class="btn sm" onclick="mcToOrder()">→ В заявку</button></div></div>`};
+function mcRe(){const el=document.querySelector('.calc');if(!el)return;const b=SC.mcalc();
+ const tmp=document.createElement('div');tmp.innerHTML=b;
+ el.innerHTML=tmp.querySelector('.calc').innerHTML;
+ const cards=document.querySelectorAll('.card');if(cards[0])cards[0].innerHTML=tmp.querySelectorAll('.card')[0].innerHTML}
+function mcToOrder(){let vol=MC.mode==='vol'?(parseFloat(String(MC.m3).replace(',','.'))||0)
+ :Math.max(0,((parseFloat(MC.L)||0)*(parseFloat(MC.H)||0)-(parseFloat(MC.open)||0))*((parseFloat(MC.T)||0)/1000));
+ if(!vol)return toast('Заполните размеры стен — тогда расчёт можно перенести в заявку.');
+ NF.size=MC.size;NF.m3=String(Math.round(vol*10)/10);NF.cmt='Расчёт по калькулятору';
+ go('new');toast(`Расчёт перенесён в заявку: <b>${num(vol)} м³</b> размера ${sz(MC.size).n}. Осталось указать клиента и адрес.`)}
+
+/* --- СКЛАД (завсклада) --- */
+SC.stk=()=>{recalcReserve();
+ const totPal=STOCK.reduce((a,x)=>a+x.pal,0),low=STOCK.filter(x=>stockFree(x)<x.min);
+ return `<div class="scr"><h2 class="h1">Склад газоблока</h2><p class="sub">Остатки ведём в поддонах — м³ и блоки система считает сама. Под подтверждённые заявки товар резервируется.</p>
+ <div class="stat">
+  <div><small>НА СКЛАДЕ</small><b>${totPal}</b></div>
+  <div><small>ЗАРЕЗЕРВИРОВАНО</small><b class="a">${STOCK.reduce((a,x)=>a+x.res,0)}</b></div>
+  <div><small>СВОБОДНО</small><b class="g">${STOCK.reduce((a,x)=>a+stockFree(x),0)}</b></div>
+  <div><small>НИЖЕ МИНИМУМА</small><b class="${low.length?'r':'g'}">${low.length}</b></div>
+ </div>
+ ${low.length?`<div class="alert warn"><b>⚠ Заканчивается</b>${low.map(x=>sz(x.size).n+' — свободно '+stockFree(x)+' подд. при минимуме '+x.min).join('; ')}. Система уже подготовила заявку на завод.</div>`:''}
+ <div class="card"><b style="font-size:11px">Остатки по размерам</b>
+  ${STOCK.map(x=>{const s0=sz(x.size);const free=stockFree(x);
+   return `<div class="srow" onclick="stkCard('${x.size}')"><div><div class="sn">${s0.n}</div>
+    <div class="ss">${x.loc} · ${fmt(x.pal*s0.per)} блоков · ${num(stockVol(x))} м³${x.res?' · резерв '+x.res:''}</div></div>
+    <div style="text-align:right"><b style="font-size:15px;color:${free<x.min?'var(--red)':'var(--green)'}">${free}</b>
+    <div class="ss">свободно</div></div></div>`}).join('')}</div>
+ <div class="btn2"><button class="btn sm" onclick="stkForm('Приход')">+ Приход</button>
+  <button class="btn sm sec" onclick="stkForm('Списание')">− Списание</button></div>
+ <div class="card" style="margin-top:9px"><b style="font-size:11px">Последние движения</b>
+  ${STOCK_MOVES.slice(0,6).map(m=>`<div class="kv"><span>${m.d.split(' ')[0]} · ${m.t}${m.size!=='—'?' · '+sz(m.size).n:''}</span><b>${m.pal?m.pal+' подд.':'—'}</b></div>`).join('')}</div>
+ <div class="alert ok"><b>Отгрузка списывается сама</b>Когда формируется ТТН, поддоны уходят со склада автоматически — вручную списывать ничего не нужно, поэтому остаток на экране всегда совпадает с площадкой.</div></div>`};
+function stkCard(id){recalcReserve();const x=stockOf(id),s0=sz(id);
+ const orders=ORDERS.filter(o=>o.size===id&&['ok','ttn'].includes(o.st));
+ openView(`<div class="scr"><h2 class="h1">${s0.n}</h2><p class="sub">${s0.d} · ${x.loc}</p>
+ <div class="card">
+  <div class="kv"><span>На складе</span><b>${x.pal} подд. · ${num(stockVol(x))} м³</b></div>
+  <div class="kv"><span>Блоков</span><b>${fmt(x.pal*s0.per)}</b></div>
+  <div class="kv"><span>Зарезервировано</span><b>${x.res} подд.</b></div>
+  <div class="kv"><span>Свободно</span><b style="color:${stockFree(x)<x.min?'var(--red)':'var(--green)'}">${stockFree(x)} подд.</b></div>
+  <div class="kv"><span>Минимальный остаток</span><b>${x.min} подд.</b></div>
+  <div class="kv"><span>Норма на поддон</span><b>${s0.per} блоков · ${num(palVol(s0))} м³</b></div></div>
+ ${orders.length?`<div class="card"><b style="font-size:11px">Резерв под заявки</b>
+  ${orders.map(o=>`<div class="kv"><span>${o.no} · ${esc(o.cl)}</span><b>${calcOrder(o.m3,o.size).pal} подд.</b></div>`).join('')}</div>`:''}
+ <div class="btn2"><button class="btn sm" onclick="closeView();stkForm('Приход','${id}')">+ Приход</button>
+  <button class="btn sm sec" onclick="closeView();stkForm('Списание','${id}')">− Списание</button></div>
+ <button class="btn sec" style="margin-top:7px" onclick="closeView()">Назад</button></div>`)}
+function stkForm(t,id){const cur=id||STOCK[0].size;
+ openView(`<div class="scr"><h2 class="h1">${t==='Приход'?'Приход с завода':'Списание'}</h2>
+ <p class="sub">${t==='Приход'?'Поступила партия — вводим поддоны, остальное система пересчитает.':'Бой, брак или пересорт — обязательно с причиной и актом.'}</p>
+ <div class="fld"><label>Размер</label><select id="skS" onchange="skPrev()">${STOCK.map(x=>`<option value="${x.size}" ${x.size===cur?'selected':''}>${sz(x.size).n} · ${sz(x.size).d}</option>`).join('')}</select></div>
+ <div class="fld"><label>Поддонов</label><input id="skN" inputmode="numeric" value="${t==='Приход'?'40':'2'}" oninput="skPrev()"></div>
+ <div class="fld"><label>${t==='Приход'?'Партия / документ':'Причина и акт'}</label><input id="skD" value="${t==='Приход'?'Партия №П-419 с завода':'Бой при погрузке, акт №15'}"></div>
+ <div class="calc"><div class="cl">ЧТО ИЗМЕНИТСЯ НА СКЛАДЕ</div><div class="cgrid" id="skC"></div>
+  <div class="cnote">Поддоны пересчитываются в блоки и м³ по норме этого размера.</div></div>
+ <button class="btn" onclick="skSave('${t}')">${t==='Приход'?'Оприходовать':'Списать'}</button>
+ <button class="btn sec" style="margin-top:7px" onclick="closeView()">Отмена</button></div>`);skPrev()}
+function skPrev(){const id=document.getElementById('skS').value,n=parseInt(document.getElementById('skN').value)||0,s0=sz(id);
+ document.getElementById('skC').innerHTML=`<div class="cg"><b>${n}</b><small>поддонов</small></div><div class="cg"><b>${fmt(n*s0.per)}</b><small>блоков</small></div><div class="cg"><b>${num(n*palVol(s0))}</b><small>м³</small></div>`}
+function skSave(t){const id=document.getElementById('skS').value,n=parseInt(document.getElementById('skN').value)||0,doc=document.getElementById('skD').value;
+ if(!n)return toast('Укажите количество поддонов.');
+ const x=stockOf(id);x.pal=t==='Приход'?x.pal+n:Math.max(0,x.pal-n);
+ STOCK_MOVES.unshift({t,d:'сейчас',size:id,pal:n,who:'Нурбек',doc,sum:0});
+ closeView();go('stk');if(t==='Приход')sparks();
+ toast(`${t}: <b>${n} подд.</b> ${sz(id).n} — это ${fmt(n*sz(id).per)} блоков и ${num(n*palVol(sz(id)))} м³. Остаток ${x.pal} поддонов.`)}
+
+/* --- ЗАДАЧИ --- */
+let tcol='work';
+SC.tsk=()=>{const list=TASKS.filter(t=>t.col===tcol);
+ return `<div class="scr"><h2 class="h1">Задачи</h2><p class="sub">Доска как в Trello: колонки, чек-лист внутри задачи и обсуждение. Задача привязана к заказу, компании или складу.</p>
+ <div class="seg">${TCOLS.map(([k,n])=>`<button class="${tcol===k?'on':''}" style="font-size:9px" onclick="tcol='${k}';render()">${({new:'Новые',work:'В работе',wait:'Ждём',done:'Готово'})[k]} · ${TASKS.filter(t=>t.col===k).length}</button>`).join('')}</div>
+ ${list.map(t=>{const col=TCOLS.find(c=>c[0]===t.col)[2];const done=t.sub.filter(s=>s[1]).length;
+  return `<div class="tcm" style="border-left-color:${col}" onclick="tskCard(${t.id})">
+   <div style="display:flex;justify-content:space-between;gap:7px;align-items:flex-start"><b>${esc(t.t)}</b>
+    ${t.pri==='высокий'?'<span class="tag" style="color:var(--red);border-color:#fecaca;background:#fef2f2;flex:none">!</span>':''}</div>
+   <div style="margin-top:6px">${t.link?`<span class="tag">${esc(t.link)}</span> `:''}<span class="tag">до ${t.due}</span></div>
+   ${t.sub.length?`<div style="display:flex;align-items:center;gap:7px;margin-top:8px">
+    <div class="pbar"><i style="--w:${done/t.sub.length*100}%;background:${done===t.sub.length?'var(--green)':col}"></i></div>
+    <span style="font:700 8px 'IBM Plex Mono',monospace;color:var(--muted)">${done}/${t.sub.length}</span></div>`:''}
+   <div class="tm"><span>${t.who}</span>${t.chat.length?`<span>💬 ${t.chat.length}</span>`:''}</div></div>`}).join('')
+  ||'<div class="card"><p class="sub" style="margin:0">В этой колонке пусто.</p></div>'}
+ <button class="btn" onclick="tskNew()">➕ Новая задача</button>
+ <div class="alert info" style="margin-top:9px"><b>Зачем это здесь</b>«Перезвонить по долгу», «разбить перегруженный рейс», «заказать поддоны» — сейчас это живёт в голове и в переписке. Здесь у задачи есть срок, ответственный и связь с конкретным заказом.</div></div>`};
+function tskCard(id){const t=TASKS.find(x=>x.id===id);const done=t.sub.filter(s=>s[1]).length;
+ openView(`<div class="scr"><h2 class="h1" style="font-size:16px">${esc(t.t)}</h2>
+ <p class="sub">${t.who} · до ${t.due} · приоритет ${t.pri}${t.link?' · '+esc(t.link):''}</p>
+ <div class="card"><b style="font-size:11px">Чек-лист ${done}/${t.sub.length}</b>
+  ${t.sub.map((s,i)=>`<div class="chkm ${s[1]?'on':''}" onclick="tskSub(${id},${i})"><i>${s[1]?'✓':''}</i><span>${esc(s[0])}</span></div>`).join('')||'<p class="sub" style="margin:6px 0 0">Пунктов пока нет.</p>'}</div>
+ <div class="card"><b style="font-size:11px">Обсуждение</b>
+  <div style="margin-top:8px">${t.chat.map(c=>`<div class="msgm"><div class="mh"><b>${c[0]}</b><time>${c[2]}</time></div><p>${esc(c[1])}</p></div>`).join('')||'<p class="sub" style="margin:0">Сообщений пока нет.</p>'}</div>
+  <div class="fld" style="margin:9px 0 0"><input id="tmsgm" placeholder="Написать в задачу…" onkeydown="if(event.key==='Enter')tskMsg(${id})"></div>
+  <button class="btn sm" onclick="tskMsg(${id})">Отправить</button></div>
+ <b style="font-size:9px;font-family:'IBM Plex Mono',monospace;color:var(--muted)">ПЕРЕНЕСТИ В КОЛОНКУ</b>
+ <div class="btn2" style="margin-top:6px">${TCOLS.filter(c=>c[0]!==t.col).map(c=>`<button class="btn sm sec" onclick="tskMove(${id},'${c[0]}')">${c[1]}</button>`).join('')}</div>
+ <button class="btn sec" style="margin-top:7px" onclick="closeView()">Назад к доске</button></div>`)}
+function tskSub(id,i){const t=TASKS.find(x=>x.id===id);t.sub[i][1]=t.sub[i][1]?0:1;tskCard(id);
+ const done=t.sub.filter(s=>s[1]).length;
+ if(done===t.sub.length)toast('Все пункты выполнены — можно переносить задачу в «Готово».')}
+function tskMsg(id){const el=document.getElementById('tmsgm');const v=el.value.trim();if(!v)return;
+ TASKS.find(x=>x.id===id).chat.push([ROLES[role].n,v,'сейчас']);tskCard(id);
+ toast('Сообщение добавлено — ответственный получит уведомление.')}
+function tskMove(id,col){const t=TASKS.find(x=>x.id===id);const was=TCOLS.find(c=>c[0]===t.col)[1];t.col=col;tcol=col;
+ closeView();go('tsk');toast(`Задача перенесена: <b>${was} → ${TCOLS.find(c=>c[0]===col)[1]}</b>.`)}
+function tskNew(){openView(`<div class="scr"><h2 class="h1">Новая задача</h2><p class="sub">Кому, до какого срока и по какому заказу.</p>
+ <div class="fld"><label>Что нужно сделать</label><input id="tnTm" placeholder="Перезвонить по долгу за поддоны"></div>
+ <div class="f2"><div class="fld"><label>Ответственный</label><select id="tnWm"><option>Айдана</option><option>Нурбек</option><option>Бухгалтерия</option><option>Асель</option></select></div>
+  <div class="fld"><label>Срок</label><input id="tnDm" value="28.08"></div></div>
+ <div class="f2"><div class="fld"><label>Приоритет</label><select id="tnPm"><option>обычный</option><option>высокий</option></select></div>
+  <div class="fld"><label>Связать с</label><select id="tnLm"><option value="">— без связи —</option>${ORDERS.slice(0,5).map(o=>`<option>${o.no}</option>`).join('')}<option>Склад</option></select></div></div>
+ <button class="btn" onclick="tskSave()">Создать задачу</button>
+ <button class="btn sec" style="margin-top:7px" onclick="closeView()">Отмена</button></div>`)}
+function tskSave(){const t=document.getElementById('tnTm').value.trim();if(!t)return toast('Опишите задачу.');
+ TASKS.unshift({id:taskSeq++,col:'new',t,who:document.getElementById('tnWm').value,due:document.getElementById('tnDm').value,
+  pri:document.getElementById('tnPm').value,link:document.getElementById('tnLm').value,sub:[],chat:[]});
+ tcol='new';closeView();go('tsk');sparks();
+ toast('Задача создана и назначена — ответственный увидит её у себя и получит уведомление.')}
 
 /* --- ТК ГАЗАБЛОК --- */
 SC.inbox=()=>{const nw=ORDERS.filter(o=>o.st==='new');
@@ -346,6 +494,8 @@ function setSt(no,k){const o=ORDERS.find(x=>x.no===no);o.st=k;
  o.hist.push([t[0],'ТК Газаблок · Айдана','сейчас','']);
  closeView();render();toast(`<b>${no}</b>: ${t[1]}`)}
 function makeTTN(no){const o=ORDERS.find(x=>x.no===no);const c=calcOrder(o.m3,o.size);
+ const x=stockOf(o.size);if(x){x.pal=Math.max(0,x.pal-c.pal);
+  STOCK_MOVES.unshift({t:'Отгрузка',d:'сейчас',size:o.size,pal:c.pal,who:'Нурбек',doc:`ТТН по заказу ${o.no} · ${esc(o.cl)}`,sum:0})}
  o.st='ttn';o.ttn='ТТН-2026-0'+(389+ORDERS.filter(x=>x.ttn).length);
  o.hist.push(['ТТН сформирована','Завсклада Нурбек','сейчас',`${o.ttn} · ${c.pal} поддонов, ${fmt(c.blocks)} блоков`]);
  closeView();render();sparks();
@@ -387,6 +537,9 @@ function side(){
   tme:['Профиль водителя','Видит только свой рейс — чужие заказы недоступны.'],
   norms:['Нормы блоков на поддон','Настраиваются администратором — от них считаются поддоны во всех заявках. Попробуйте изменить.'],
   cos:['Компании и доступы','Партнёры подключаются по одному. Первая — «Аливиа», дальше остальные.'],
+  mcalc:['Калькулятор для клиента','Считает от стен объекта или от объёма: блоки, поддоны, число машин и сумму. Одной кнопкой переносится в заявку.'],
+  stk:['Склад газоблока','Остатки в поддонах по размерам, резерв под подтверждённые заявки, приход с завода и списание брака.'],
+  tsk:['Задачи','Доска в стиле Trello: колонки, чек-лист, сроки, ответственные и обсуждение внутри задачи.'],
   log:['Журнал действий','Полный аудит: кто что сделал и когда.']}[tab]||['',''];
  document.getElementById('sideL').innerHTML=`<div class="side-h">Что на экране</div>
   <h3>${L[0]}</h3><p>${L[1]}</p>
@@ -409,10 +562,13 @@ function sparks(){const c=['#ea580c','#f97316','#2563eb','#16a34a','#ffffff','#f
 const TOUR=[
  ['Менеджер · Аливиа','new','<b>Шаг 1.</b> Менеджер «Аливиа» создаёт заявку с телефона. Вводит только м³ — блоки, поддоны и объём считаются сами по нормам ТК Газаблок.',6000],
  ['ТК Газаблок','inbox','<b>Шаг 2.</b> ТК Газаблок видит заявки всех компаний: кто, для кого, сколько кубов, какой размер и рейс. Подтверждает, отклоняет или возвращает на исправление.',6000],
- ['Завсклада','ttn','<b>Шаг 3.</b> Завсклада работает только с подтверждёнными и получает готовую ТТН из заказа — ничего не переписывает руками.',5800],
- ['Завсклада','whist','<b>Шаг 4.</b> Если склад меняет количество или размер — предупреждение и запись в историю: кто, когда и что изменил.',5600],
- ['Водитель','trip','<b>Шаг 5.</b> Водитель получает свой рейс: адрес, груз, поддоны, контакт. Отмечает «Принял → Выехал → Доставлено» и прикладывает фото.',6000],
- ['ТК Газаблок','palall','<b>Шаг 6.</b> Поддоны считаются отдельно: сколько выдано, сколько вернули, сколько осталось у клиента и компании.',5400],
+ ['Менеджер · Аливиа','mcalc','<b>Шаг 3.</b> Клиент спрашивает «сколько нужно на дом» — менеджер считает прямо от стен: объём, поддоны, число машин и сумма. Оттуда же создаётся заявка.',6200],
+ ['Завсклада','stk','<b>Шаг 4.</b> Склад: остатки по размерам в поддонах, резерв под подтверждённые заявки и свободный остаток. Отгрузка списывается автоматически при ТТН.',6000],
+ ['ТК Газаблок','tsk','<b>Шаг 5.</b> Задачи в стиле Trello: перезвонить по долгу, заказать поддоны, разбить перегруженный рейс — со сроком, ответственным и связью с заказом.',5800],
+ ['Завсклада','ttn','<b>Шаг 6.</b> Завсклада работает только с подтверждёнными и получает готовую ТТН из заказа — ничего не переписывает руками.',5800],
+ ['Завсклада','whist','<b>Шаг 7.</b> Если склад меняет количество или размер — предупреждение и запись в историю: кто, когда и что изменил.',5600],
+ ['Водитель','trip','<b>Шаг 8.</b> Водитель получает свой рейс: адрес, груз, поддоны, контакт. Отмечает «Принял → Выехал → Доставлено» и прикладывает фото.',6000],
+ ['ТК Газаблок','palall','<b>Шаг 9.</b> Поддоны считаются отдельно: сколько выдано, сколько вернули, сколько осталось у клиента и компании.',5400],
  ['Администратор','norms','<b>Итог.</b> Нормы блоков на поддон настраивает администратор, а любой отчёт выгружается в Excel за нужный период.',5600]
 ];
 let tourT=null,tourI=0;

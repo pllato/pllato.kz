@@ -95,6 +95,26 @@ button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}a{
 .strip .g{color:var(--green)}.strip .r{color:var(--red)}.strip .a{color:var(--amber)}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px}
 .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-bottom:11px}
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;align-items:start}
+.tcol{background:var(--card2);border:1px solid var(--line);border-radius:var(--r);padding:11px;min-height:150px;transition:.15s}
+.tcol.over{border-color:var(--acc);background:#fff7ed}
+.tcol-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+.tcol-h b{font:600 8.6px 'IBM Plex Mono',monospace;letter-spacing:.08em}
+.tcard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 11px;margin-bottom:8px;cursor:grab;transition:.14s}
+.tcard:hover{border-color:var(--line2);box-shadow:0 6px 18px rgba(15,23,42,.09);transform:translateY(-1px)}
+.tcard:active{cursor:grabbing}
+.tcard.drag{opacity:.4}
+.tcard b{font-size:10.8px;line-height:1.35;display:block}
+.tcard .trow{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.chk{display:flex;gap:9px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.chk i{width:19px;height:19px;border:1.5px solid var(--line2);border-radius:6px;display:grid;place-items:center;font-size:11px;font-style:normal;color:#fff;flex:none}
+.chk.on i{background:var(--green);border-color:var(--green)}
+.chk span{font-size:10.6px}.chk.on span{color:var(--muted);text-decoration:line-through}
+.msg{padding:9px 11px;background:var(--card2);border-radius:10px;margin-bottom:7px}
+.msg .mh{display:flex;justify-content:space-between;gap:8px}.msg b{font-size:10px}
+.msg time{font:600 8px 'IBM Plex Mono',monospace;color:var(--muted2)}
+.msg p{font-size:10.2px;margin:4px 0 0;line-height:1.5}
+@media(max-width:1180px){.board{grid-template-columns:1fr 1fr}}
 .g21{display:grid;grid-template-columns:1.6fr 1fr;gap:11px;margin-bottom:11px}
 .panel{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:15px;min-width:0}
 .ph{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:11px}
