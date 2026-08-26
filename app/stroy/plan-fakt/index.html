@@ -41,6 +41,8 @@ body.lk-drawing-context #btnExport{display:none;}
 .thumb{position:relative;border:2px solid transparent;border-radius:7px;background:var(--panel2);margin-bottom:8px;cursor:pointer;overflow:hidden;transition:.12s;min-height:50px;display:flex;align-items:center;justify-content:center;}
 .thumb:hover{border-color:var(--line);}.thumb.active{border-color:var(--steel2);box-shadow:0 0 0 3px rgba(45,81,131,.14);}
 .thumb img{display:block;width:100%;}
+.thumb.pending{color:var(--gray);background:linear-gradient(145deg,#fbfaf6,#eeebe2);}
+.thumb-wait{display:flex;min-height:58px;padding:17px 5px 8px;align-items:center;justify-content:center;text-align:center;font-size:8.5px;font-weight:700;line-height:1.25;color:var(--gray);}
 .thumb .pg{position:absolute;top:4px;left:4px;font-family:var(--mono);font-size:9.5px;background:rgba(16,21,28,.78);color:#fff;padding:1px 5px;border-radius:4px;}
 .thumb .cal{position:absolute;bottom:4px;right:4px;font-family:var(--mono);font-size:8.5px;background:var(--green);color:#fff;padding:1px 4px;border-radius:4px;}
 .tools{width:60px;background:var(--steel);display:flex;flex-direction:column;align-items:center;padding:9px 0;gap:4px;flex-shrink:0;z-index:30;overflow-y:auto;}
@@ -125,7 +127,7 @@ body.lk-drawing-context #btnExport{display:none;}
 .lb-open-t{font-size:17px;font-weight:700;margin-bottom:6px;}
 .lb-open-d{font-size:12.5px;color:var(--gray);line-height:1.6;margin-bottom:16px;max-width:300px;}.lb-open-d b{color:var(--ink);}
 .lb-open .tbtn.primary{font-size:14px;padding:11px 18px;}
-.lb-demo{margin-top:12px;font-size:12px;color:var(--gray);}.lb-demo a{color:var(--amber);font-weight:600;text-decoration:none;cursor:pointer;}
+.lb-demo{margin-top:12px;font-size:12px;color:var(--gray);}.lb-demo a,.lb-demo label{color:var(--amber);font-weight:600;text-decoration:none;cursor:pointer;}
 .lb-arch{width:312px;flex-shrink:0;padding:20px 20px;background:var(--panel2);display:flex;flex-direction:column;}
 .lb-arch-h{font-size:13px;font-weight:700;color:var(--steel);margin-bottom:12px;display:flex;align-items:center;gap:7px;}
 .lb-arch-n{font-family:var(--mono);font-size:11px;color:#fff;background:var(--steel2);border-radius:10px;padding:1px 7px;font-weight:600;}
@@ -805,7 +807,7 @@ body.lk-drawing-context #btnExport{display:none;}
         <div class="lb-open-d">Выберите <b>PDF</b> однолинейной схемы (ЩСР / ЩК / ЩО…) — программа сама прочитает длины кабеля по сечениям, посчитает и покажет отчёт. Открывается сразу.</div>
         <button class="tbtn primary" id="btnOpenLk">Открыть схему (Линейка)</button>
         <input type="file" id="fileInput" accept=".json,application/json,.pdf,application/pdf" hidden>
-        <div class="lb-demo">нужен графический редактор чертежа-плана? <a id="btnOpen" href="#">открыть план (PDF/проект)</a> · <a id="btnDemo" href="#">демо-план</a></div>
+        <div class="lb-demo">нужен графический редактор чертежа-плана? <label id="btnOpen" for="fileInput" role="button" tabindex="0">открыть план (PDF/проект)</label> · <a id="btnDemo" href="#">демо-план</a></div>
         <div class="spin" id="spin"><div class="sp-bar"><i></i></div><div class="sp-row"><span class="sp-ring"></span><span id="spinTxt">Загрузка…</span></div></div>
       </div>
       <div class="lb-arch">
@@ -824,7 +826,8 @@ const baseimg=$('baseimg'),svg=$('svg'),gMask=$('gMasks'),gObj=$('gObjects'),gUI
 const S={data:null,pageNum:null,pageList:[],W:0,H:0,sx:1,sy:1,scale:1,fitScale:1,pan:{x:0,y:0},
   tool:'select',width:4,fontSize:30,objects:{},selected:null,seq:1,history:{},draft:null,filter:'all',
   cal:{},importMode:'edit',cat:'socket',slack:12,panelH:1.5,sideTab:'obj',
-  textColor:'#c0392b',calPts:null,linkedLkDocId:null,linkedLkPage:null,threePointMode:false,drawingPageSizes:{},drawingVectorPages:{},_lkPrevEditor:null};
+  textColor:'#c0392b',calPts:null,linkedLkDocId:null,linkedLkPage:null,threePointMode:false,drawingPageSizes:{},drawingVectorPages:{},_lkPrevEditor:null,
+  standalonePdf:null};
 const isCoarsePointer=()=>window.matchMedia&&matchMedia('(pointer:coarse)').matches;
 function closeMobileDrawers(){const st=$('stage'),strip=$('strip'),side=document.querySelector('.side');if(strip)strip.classList.remove('mobile-open');if(side)side.classList.remove('mobile-open');if(st)st.classList.remove('mobile-drawer-open');const p=$('btnMobilePages'),s=$('btnMobileSide');if(p)p.setAttribute('aria-expanded','false');if(s)s.setAttribute('aria-expanded','false');}
 function toggleMobileDrawer(which){const st=$('stage'),strip=$('strip'),side=document.querySelector('.side'),openEl=which==='pages'?strip:side,other=which==='pages'?side:strip;if(!st||!openEl)return;const open=!openEl.classList.contains('mobile-open');if(other)other.classList.remove('mobile-open');openEl.classList.toggle('mobile-open',open);st.classList.toggle('mobile-drawer-open',open);$('btnMobilePages').setAttribute('aria-expanded',String(open&&which==='pages'));$('btnMobileSide').setAttribute('aria-expanded',String(open&&which==='side'));}
@@ -869,6 +872,7 @@ function buildDark(pg,sx,sy){return (pg.dark||[]).map(o=>o.t==='line'
 function dSeg(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;let t=l2?((p.x-a.x)*dx+(p.y-a.y)*dy)/l2:0;t=t<0?0:t>1?1:t;return Math.hypot(p.x-(a.x+t*dx),p.y-(a.y+t*dy));}
 function dDark(p,o){if(o.type==='line'){let m=1e18;for(let i=0;i<o.pts.length-1;i++)m=Math.min(m,dSeg(p,o.pts[i],o.pts[i+1]));return m;}const x0=o.x,y0=o.y,x1=o.x+o.w,y1=o.y+o.h;let m=1e18;[[{x:x0,y:y0},{x:x1,y:y0}],[{x:x1,y:y0},{x:x1,y:y1}],[{x:x1,y:y1},{x:x0,y:y1}],[{x:x0,y:y1},{x:x0,y:y0}]].forEach(e=>m=Math.min(m,dSeg(p,e[0],e[1])));return m;}
 function promoteAt(p){const arr=S.dark[S.pageNum]||[];let best=-1,bd=Math.max(8,S.W*0.02);
+  const pg=S.data&&S.data.pages&&S.data.pages[S.pageNum];if(pg&&pg._vectorsLoading&&!pg._vectorsReady){toast('Линии этого листа ещё подготавливаются локально…');return;}
   for(let i=0;i<arr.length;i++){const d=dDark(p,arr[i]);if(d<bd){bd=d;best=i;}}
   if(best<0){toast('Рядом нет элемента чертежа');return;}
   const o=arr[best];pushHistory();let n;
@@ -1042,7 +1046,7 @@ function symScale(ev,o){ev.stopPropagation();pushHistory();pointerDrag(ev,e=>{co
 function symRotate(ev,o){ev.stopPropagation();pushHistory();pointerDrag(ev,e=>{const p=toImg(e.clientX,e.clientY);o.rot=Math.round(Math.atan2(p.y-o.y,p.x-o.x)*180/Math.PI+90);redrawOne(o);drawSelUI();},()=>{drawSelUI();renderSide();renderOpt();});}
 
 /* ---- load JSON package ---- */
-$('btnOpen').onclick=()=>$('fileInput').click();
+const _bop=$('btnOpen');if(_bop)_bop.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('fileInput').click();}};
 const _bol=$('btnOpenLk');if(_bol)_bol.onclick=()=>$('lkFile').click();  // главный вход — Линейка (клиентское чтение, без сервер-разбора)
 $('fileInput').onchange=e=>e.target.files[0]&&loadData(e.target.files[0]);
 const dbox=$('dropbox');
@@ -1063,6 +1067,45 @@ const _bd=$('btnDemo');if(_bd)_bd.onclick=e=>{e.preventDefault();loadDemo();};
 if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 // сервер-конвертер (Cloudflare Container): разбирает PDF в активные линии
 const CONVERT_URL='https://planfakt-convert.uurraa.workers.dev';
+function closeStandalonePdf(){const src=S.standalonePdf;S.standalonePdf=null;if(src&&src.pdf)try{src.pdf.destroy();}catch(_){}}
+async function renderStandalonePdfPage(pn,source){
+  const src=source||S.standalonePdf,pg=src&&src.data&&src.data.pages&&src.data.pages[pn];
+  if(!src||!src.pdf||!pg)throw new Error('исходный PDF уже закрыт');
+  if(pg.u){pg._pdfPending=false;return pg;}
+  if(src.jobs[pn])return src.jobs[pn];
+  src.jobs[pn]=(async()=>{
+    const page=await src.pdf.getPage(pn),v=page.getViewport({scale:1});
+    const sc=Math.min(3,Math.max(1,2000/Math.max(v.width,v.height))),rv=page.getViewport({scale:sc});
+    const c=document.createElement('canvas');c.width=Math.max(1,Math.round(rv.width));c.height=Math.max(1,Math.round(rv.height));
+    const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
+    await page.render({canvasContext:ctx,viewport:rv}).promise;
+    pg.wpt=+v.width.toFixed(2);pg.hpt=+v.height.toFixed(2);pg.mime='image/jpeg';
+    pg.u=c.toDataURL('image/jpeg',0.78).split(',')[1];pg._pdfPending=false;
+    try{page.cleanup();}catch(_){}
+    prepareStandalonePdfVectors(pn,src);
+    return pg;
+  })();
+  try{return await src.jobs[pn];}finally{delete src.jobs[pn];}
+}
+function prepareStandalonePdfVectors(pn,source){
+  const src=source||S.standalonePdf,pg=src&&src.data&&src.data.pages&&src.data.pages[pn];
+  if(!src||!src.pdf||!pg)return Promise.resolve(null);if(pg._vectorsReady)return Promise.resolve(pg.dark||[]);
+  if(src.vectorJobs[pn])return src.vectorJobs[pn];pg._vectorsLoading=true;
+  src.vectorJobs[pn]=lkLocalPageVectors({page:pn,wpt:pg.wpt,hpt:pg.hpt},src.pdf).then(cp=>{
+    pg.dark=cp&&Array.isArray(cp.dark)?cp.dark:[];pg._vectorsReady=true;
+    if(S.standalonePdf===src&&S.pageNum===pn&&S.W&&S.H)S.dark[pn]=buildDark(pg,S.W/pg.wpt,S.H/pg.hpt);
+    return pg.dark;
+  }).catch(e=>{pg._vectorsError=true;console.warn('local page vectors',e);return null;}).finally(()=>{pg._vectorsLoading=false;delete src.vectorJobs[pn];});
+  return src.vectorJobs[pn];
+}
+async function renderAllStandalonePdfPages(title){
+  if(!S.standalonePdf)return;
+  let done=0;for(const pn of S.pageList){done++;
+    lkBusy(title||'Подготавливаю все листы…','лист '+done+' из '+S.pageList.length);
+    if(!S.data.pages[pn].u)await renderStandalonePdfPage(pn);
+    await prepareStandalonePdfVectors(pn);
+  }
+}
 async function loadData(file){
   if(S.linkedLkDocId)await lkPersistDrawingNow();
   $('spin').style.display='block';
@@ -1087,32 +1130,27 @@ async function serverConvert(file,opt){
 }
 async function loadPdf(file){
   $('spin').style.display='block';
-  // 1) сервер-разбор → АКТИВНЫЕ линии (тапаешь/правишь/удаляешь)
-  const conv=await serverConvert(file);
-  if(conv){$('spinTxt').textContent='Загрузка…';initData(conv);return;}
-  // 2) фолбэк: рендер в браузере — только фон (рисуешь поверх)
-  toast('Разбор недоступен — открываю как фон, рисуйте поверх');
+  // Старый редактор должен открываться сразу: серверный разбор всего файла и рендер всех
+  // страниц блокировали 52-листовой PDF на минуты. Листы теперь рендерятся локально по запросу.
   if(!window.pdfjsLib){toast('PDF-движок не загрузился (нет сети?)');$('spin').style.display='none';return;}
   try{
+    closeStandalonePdf();
+    $('spinTxt').textContent='Открываю первый лист локально…';
     const buf=await file.arrayBuffer();
-    const pdf=await pdfjsLib.getDocument({data:buf}).promise;const N=pdf.numPages;const pages={};
-    for(let i=1;i<=N;i++){
-      $('spinTxt').textContent=`Рендер листа ${i} из ${N}…`;
-      const page=await pdf.getPage(i);const v=page.getViewport({scale:1});
-      const sc=Math.min(3,Math.max(1,2000/Math.max(v.width,v.height)));
-      const vp=page.getViewport({scale:sc});
-      const c=document.createElement('canvas');c.width=Math.round(vp.width);c.height=Math.round(vp.height);
-      const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
-      await page.render({canvasContext:ctx,viewport:vp}).promise;
-      pages[i]={wpt:+v.width.toFixed(2),hpt:+v.height.toFixed(2),objs:[],u:c.toDataURL('image/jpeg',0.78).split(',')[1],title:'Лист '+i};
-    }
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise,N=pdf.numPages,pages={};
+    for(let i=1;i<=N;i++)pages[i]={wpt:1,hpt:1,objs:[],u:'',mime:'image/jpeg',title:'Лист '+i,_pdfPending:true};
+    const data={name:(file.name||'Чертёж').replace(/\.pdf$/i,''),pages},src={pdf,data,jobs:{},vectorJobs:{}};
+    S.standalonePdf=src;
+    await renderStandalonePdfPage(1,src);
     $('spinTxt').textContent='Загрузка…';
-    initData({name:(file.name||'Чертёж').replace(/\.pdf$/i,''),pages});
-  }catch(e){console.error(e);toast('Не удалось открыть PDF');$('spin').style.display='none';}
+    initData(data,{keepStandalonePdf:true});
+    toast(N>1?'Первый лист открыт · остальные загрузятся при выборе':'PDF открыт локально');
+  }catch(e){console.error(e);closeStandalonePdf();toast('Не удалось открыть PDF');$('spin').style.display='none';}
 }
-function initData(j){
+function initData(j,opt){
+  if(!(opt&&opt.keepStandalonePdf))closeStandalonePdf();
   lkLeaveDrawingContext(false);
-  S.projId=null;S.extraPos=[];S.zoneByPage={};S.dark={};S.outletCorrByPage={};S.applianceByPage={};
+  S.projId=null;S.objects={};S.history={};S.cal={};S.selected=null;S.seq=1;S.extraPos=[];S.zoneByPage={};S.dark={};S.outletCorrByPage={};S.applianceByPage={};
   S.data=j;S.pageList=Object.keys(j.pages).map(Number).sort((a,b)=>a-b);
   $('docname').textContent=j.name||'План';
   $('loader').classList.add('hide');$('stage').style.display='flex';closeMobileDrawers();
@@ -1144,6 +1182,9 @@ async function cloudDel(id){const r=await fetch(ARCH_URL+'/'+encodeURIComponent(
 async function saveProject(){
   if(!S.data){toast('Нет открытого плана');return;}
   if(S.linkedLkDocId){await lkPersistDrawingNow();toast('Графические правки сохранены вместе с PDF Линейки');return;}
+  try{await renderAllStandalonePdfPages('Подготавливаю проект…');}
+  catch(e){console.error(e);lkBusy(false);toast('Не удалось подготовить все листы проекта');return;}
+  lkBusy(false);
   const proj=buildProj();
   if(!S.projId)S.projId='p'+Date.now();
   const thumb=await projThumb();
@@ -1172,6 +1213,7 @@ async function renderArchive(){const list=$('archList');if(!list)return;
   });
 }
 function openProject(j,projId){
+  closeStandalonePdf();
   lkLeaveDrawingContext(false);
   S.projId=projId||null;S.dark={};
   S.data=j.data;
@@ -1205,8 +1247,8 @@ renderArchive();  // показать архив на стартовом экр�
 function buildStrip(){
   const strip=$('strip');strip.innerHTML='<h4>Листы</h4>';
   S.pageList.forEach(pn=>{
-    const d=document.createElement('div');d.className='thumb';d.dataset.pg=pn;d.title=S.data.pages[pn].title||('Лист '+pn);
-    d.innerHTML=`<span class="pg">${pn}</span><img src="data:${S.data.pages[pn].mime||'image/jpeg'};base64,${S.data.pages[pn].u}">`+
+    const pg=S.data.pages[pn],d=document.createElement('div');d.className='thumb'+(pg.u?'':' pending');d.dataset.pg=pn;d.title=pg.title||('Лист '+pn);
+    d.innerHTML=`<span class="pg">${pn}</span>`+(pg.u?`<img src="data:${pg.mime||'image/jpeg'};base64,${pg.u}">`:'<span class="thumb-wait">загрузится<br>при открытии</span>')+
       (S.cal[pn]?`<span class="cal">М</span>`:'');
     d.onclick=()=>{closeMobileDrawers();goPage(pn);};strip.appendChild(d);
   });
@@ -1238,6 +1280,12 @@ function goPage(pn){
   S.pageNum=pn;S.selected=null;S.draft=null;S.calPts=null;loadZone();
   document.querySelectorAll('.thumb').forEach(t=>t.classList.toggle('active',+t.dataset.pg===pn));
   const pg=S.data.pages[pn];
+  if(pg&&pg._pdfPending&&!pg.u&&S.standalonePdf){
+    lkBusy('Открываю лист '+pn+'…','локально, только выбранную страницу');
+    renderStandalonePdfPage(pn).then(()=>{buildStrip();if(S.pageNum===pn){lkBusy(false);goPage(pn);}})
+      .catch(e=>{if(S.pageNum===pn)lkBusy(false);console.error(e);toast('Не удалось открыть лист '+pn);});
+    return;
+  }
   baseimg.onload=()=>{
     S.W=baseimg.naturalWidth;S.H=baseimg.naturalHeight;
     S.sx=S.W/pg.wpt;S.sy=S.H/pg.hpt;
@@ -1833,7 +1881,8 @@ function pdfAddCanvas(pdf,c,wpt,hpt){const orient=wpt>=hpt?'l':'p';
   const ps=pdf.internal.pageSize;pdf.addImage(c.toDataURL('image/jpeg',0.9),'JPEG',0,0,ps.getWidth(),ps.getHeight(),undefined,'FAST');return pdf;}
 async function buildStandaloneEditedPdf(){let pdf=null,n=0;
   for(const pn of S.pageList){n++;lkBusy('Собираю PDF с правками…','лист '+n+' из '+S.pageList.length);
-    const pg=S.data.pages[pn],img=new Image();await new Promise(r=>{img.onload=r;img.src='data:image/jpeg;base64,'+pg.u;});
+    const pg=S.data.pages[pn];if(!pg.u&&S.standalonePdf)await renderStandalonePdfPage(pn);if(!pg.u)throw new Error('не загружен лист '+pn);
+    const img=new Image();await new Promise((r,rej)=>{img.onload=r;img.onerror=()=>rej(new Error('не удалось прочитать лист '+pn));img.src='data:image/jpeg;base64,'+pg.u;});
     const W=img.naturalWidth,H=img.naturalHeight,sx=W/pg.wpt,sy=H/pg.hpt;
     const c=document.createElement('canvas');c.width=W;c.height=H;const cc=c.getContext('2d');cc.fillStyle='#fff';cc.fillRect(0,0,W,H);cc.drawImage(img,0,0);
     drawEditedObjects(cc,S.objects[pn]||importObjects(pg.objs,sx,sy),calcPage(pn),1,1);drawSheetSpec(cc,pn,W,H);
@@ -1996,7 +2045,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v461';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v462';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v425';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -3944,9 +3993,9 @@ function lkApplyDrawingSettings(st){st=st||{};
    Раньше ради одного листа телефон повторно отправлял на сервер весь PDF (у реального файла — 52 листа,
    7,3 МБ) и держал блокирующее окно до пяти минут. OperatorList строится только для текущего листа,
    локально и обычно за доли секунды; результат сохраняется рядом с графическими правками. */
-async function lkLocalPageVectors(pg){
-  if(!LK.pdf||!window.pdfjsLib)throw new Error('локальный PDF-движок недоступен');
-  const page=await LK.pdf.getPage(pg.page),vp0=page.getViewport({scale:1}),ol=await page.getOperatorList(),O=pdfjsLib.OPS,U=pdfjsLib.Util;
+async function lkLocalPageVectors(pg,pdfSource){
+  const pdf=pdfSource||LK.pdf;if(!pdf||!window.pdfjsLib)throw new Error('локальный PDF-движок недоступен');
+  const page=await pdf.getPage(pg.page),vp0=page.getViewport({scale:1}),ol=await page.getOperatorList(),O=pdfjsLib.OPS,U=pdfjsLib.Util;
   let ctm=[1,0,0,1,0,0],lineWidth=1,stroke='#10151c',stack=[],paths=[],curPath=null,cx=0,cy=0,sx0=0,sy0=0;
   const out=[],num=x=>Number.isFinite(+x)?+x:0,mat=()=>U.transform(vp0.transform,ctm),pt=(x,y)=>{const m=mat();return{x:m[0]*x+m[2]*y+m[4],y:m[1]*x+m[3]*y+m[5]};};
   const rgb=a=>{a=Array.from(a||[]);let r=num(a[0]),g=num(a[1]),b=num(a[2]);if(Math.max(r,g,b)<=1){r*=255;g*=255;b*=255;}return'#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');};
@@ -4326,7 +4375,7 @@ async function lkVisionSheet(){
 /* стойкий индикатор долгой операции (зрение 10–40с): тост исчезает за 2.6с — этого мало */
 function lkBusy(title,sub){let el=$('lkBusy');
   if(title===false){if(el)el.remove();return;}
-  if(!el){el=document.createElement('div');el.id='lkBusy';el.className='lk-busy';($('lineyka')||document.body).appendChild(el);}
+  if(!el){el=document.createElement('div');el.id='lkBusy';el.className='lk-busy';const lk=$('lineyka'),host=lk&&getComputedStyle(lk).display!=='none'?lk:document.body;host.appendChild(el);}
   el.innerHTML=`<div class="lk-busy-card"><div class="lk-spin2"></div><b>${esc(title)}</b>${sub?`<span>${esc(sub)}</span>`:''}</div>`;}
 async function lkTeachStart(){
   if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}
