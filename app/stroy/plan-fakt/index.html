@@ -122,12 +122,16 @@ body.lk-drawing-context #btnExport{display:none;}
 .lb-feat b{display:block;font-size:12px;color:var(--ink);}
 .lb-feat span{font-size:10.5px;color:var(--gray);}
 .lb-body{display:flex;}
-.lb-open{flex:1;padding:26px 24px;text-align:center;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;}
-.dropico{width:44px;height:44px;color:var(--steel2);margin-bottom:8px;}
-.lb-open-t{font-size:17px;font-weight:700;margin-bottom:6px;}
-.lb-open-d{font-size:12.5px;color:var(--gray);line-height:1.6;margin-bottom:16px;max-width:300px;}.lb-open-d b{color:var(--ink);}
-.lb-open .tbtn.primary{font-size:14px;padding:11px 18px;}
-.lb-demo{margin-top:12px;font-size:12px;color:var(--gray);}.lb-demo a,.lb-demo label{color:var(--amber);font-weight:600;text-decoration:none;cursor:pointer;}
+.lb-open{flex:1;padding:22px 20px;text-align:center;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;}
+.lb-mode-head{font-size:16px;font-weight:750;margin-bottom:14px;color:var(--steel);}
+.lb-modes{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.lb-mode{min-width:0;border:1px solid var(--line);border-radius:13px;background:var(--panel2);padding:16px 14px;display:flex;flex-direction:column;text-align:left;transition:.15s;}
+.lb-mode:hover{border-color:var(--amber);box-shadow:0 4px 14px rgba(16,21,28,.08);}
+.lb-mode-icon{width:38px;height:38px;border-radius:10px;background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:21px;margin-bottom:10px;}
+.lb-mode-title{font-size:15px;font-weight:750;line-height:1.25;margin-bottom:7px;}
+.lb-mode-desc{font-size:11.5px;color:var(--gray);line-height:1.45;flex:1;}.lb-mode-desc b{color:var(--ink);}
+.lb-mode .tbtn.primary{font-size:12.5px;padding:10px 11px;justify-content:center;width:100%;margin-top:13px;text-decoration:none;}
+.lb-demo{margin-top:8px;font-size:11px;color:var(--gray);text-align:center;}.lb-demo a{color:var(--amber);font-weight:650;text-decoration:none;cursor:pointer;}
 .lb-arch{width:312px;flex-shrink:0;padding:20px 20px;background:var(--panel2);display:flex;flex-direction:column;}
 .lb-arch-h{font-size:13px;font-weight:700;color:var(--steel);margin-bottom:12px;display:flex;align-items:center;gap:7px;}
 .lb-arch-n{font-family:var(--mono);font-size:11px;color:#fff;background:var(--steel2);border-radius:10px;padding:1px 7px;font-weight:600;}
@@ -141,7 +145,7 @@ body.lk-drawing-context #btnExport{display:none;}
 .arch-item .adl,.arch-item .adel{border:none;background:none;cursor:pointer;color:var(--gray);padding:4px 5px;border-radius:6px;flex-shrink:0;font-size:14px;line-height:1;}
 .arch-item .adel:hover{color:var(--red);background:#fff;}.arch-item .adl:hover{color:var(--steel);background:#fff;}
 .lb-arch-empty{font-size:12px;color:var(--gray);text-align:center;padding:26px 10px;line-height:1.6;}
-@media(max-width:700px){.lb-body{flex-direction:column;}.lb-open{border-right:none;border-bottom:1px solid var(--line);}.lb-arch{width:auto;}.lb-feats{display:none;}}
+@media(max-width:700px){.loader{align-items:flex-start;overflow:auto;padding:10px}.dropbox{margin:auto 0}.lb-head{padding:14px 16px}.lb-title{font-size:18px}.lb-body{flex-direction:column;}.lb-open{border-right:none;border-bottom:1px solid var(--line);padding:16px 14px}.lb-modes{gap:8px}.lb-mode{padding:12px 10px}.lb-mode-icon{width:32px;height:32px;font-size:18px;margin-bottom:7px}.lb-mode-title{font-size:13px}.lb-mode-desc{font-size:10.5px}.lb-mode .tbtn.primary{font-size:11.5px;padding:9px 7px}.lb-arch{width:auto;}.lb-feats{display:none;}}
 .spin{margin-top:18px;display:none;text-align:center;}
 .spin .sp-bar{width:210px;height:5px;border-radius:3px;background:var(--panel2);overflow:hidden;position:relative;margin:0 auto 11px;}
 .spin .sp-bar i{position:absolute;left:-42%;width:42%;height:100%;border-radius:3px;background:var(--amber);animation:spbar 1.05s ease-in-out infinite;}
@@ -792,22 +796,33 @@ body.lk-drawing-context #btnExport{display:none;}
       <img src="rl-logo.png" alt="RL SYSTEM" class="lb-logo">
       <div>
         <div class="lb-title">Линейка · План-Факт</div>
-        <div class="lb-sub">Чтение однолинейных схем (ЭОМ): длины кабеля из PDF · расчёт · отчёт · Excel</div>
+        <div class="lb-sub">Два режима работы с PDF: графический подсчёт или автоматическое чтение схем</div>
       </div>
     </div>
     <div class="lb-feats">
-      <div class="lb-feat"><b>PDF схемы → длины кабеля</b><span>читает линейки сам</span></div>
-      <div class="lb-feat"><b>Расчёт и отчёт</b><span>по сечениям · по файлу</span></div>
-      <div class="lb-feat"><b>Экспорт в Excel</b><span>вся таблица</span></div>
+      <div class="lb-feat"><b>Графический формат</b><span>линии на плане · длины по масштабу</span></div>
+      <div class="lb-feat"><b>Формат Линейки</b><span>кабели из однолинейных схем</span></div>
+      <div class="lb-feat"><b>Результат</b><span>расчёт · отчёт · PDF · Excel</span></div>
     </div>
     <div class="lb-body">
       <div class="lb-open" id="lbOpen">
-        <svg class="dropico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13l2 2 4-4" stroke="var(--amber)"/></svg>
-        <div class="lb-open-t">Откройте линейку (однолинейную схему)</div>
-        <div class="lb-open-d">Выберите <b>PDF</b> однолинейной схемы (ЩСР / ЩК / ЩО…) — программа сама прочитает длины кабеля по сечениям, посчитает и покажет отчёт. Открывается сразу.</div>
-        <button class="tbtn primary" id="btnOpenLk">Открыть схему (Линейка)</button>
+        <div class="lb-mode-head">Выберите формат работы</div>
+        <div class="lb-modes">
+          <section class="lb-mode">
+            <div class="lb-mode-icon" aria-hidden="true">✎</div>
+            <div class="lb-mode-title">Работа в графическом формате</div>
+            <div class="lb-mode-desc">Откройте чертёж-план, задайте масштаб и работайте с линиями вручную. Программа посчитает их длину.</div>
+            <label class="tbtn primary" id="btnOpen" for="fileInput" role="button" tabindex="0">Открыть графический формат</label>
+            <div class="lb-demo"><a id="btnDemo" href="#">Посмотреть демо</a></div>
+          </section>
+          <section class="lb-mode">
+            <div class="lb-mode-icon" aria-hidden="true">⚡</div>
+            <div class="lb-mode-title">Работа в формате Линейки</div>
+            <div class="lb-mode-desc">Откройте однолинейную схему (ЩСР / ЩК / ЩО…). Программа сама найдёт кабели, сечения и длины.</div>
+            <button class="tbtn primary" id="btnOpenLk">Открыть формат Линейки</button>
+          </section>
+        </div>
         <input type="file" id="fileInput" accept=".json,application/json,.pdf,application/pdf" hidden>
-        <div class="lb-demo">нужен графический редактор чертежа-плана? <label id="btnOpen" for="fileInput" role="button" tabindex="0">открыть план (PDF/проект)</label> · <a id="btnDemo" href="#">демо-план</a></div>
         <div class="spin" id="spin"><div class="sp-bar"><i></i></div><div class="sp-row"><span class="sp-ring"></span><span id="spinTxt">Загрузка…</span></div></div>
       </div>
       <div class="lb-arch">
@@ -1047,7 +1062,7 @@ function symRotate(ev,o){ev.stopPropagation();pushHistory();pointerDrag(ev,e=>{c
 
 /* ---- load JSON package ---- */
 const _bop=$('btnOpen');if(_bop)_bop.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('fileInput').click();}};
-const _bol=$('btnOpenLk');if(_bol)_bol.onclick=()=>$('lkFile').click();  // главный вход — Линейка (клиентское чтение, без сервер-разбора)
+const _bol=$('btnOpenLk');if(_bol)_bol.onclick=()=>$('lkFile').click();  // отдельный вход Линейки: клиентское чтение без сервер-разбора
 $('fileInput').onchange=e=>e.target.files[0]&&loadData(e.target.files[0]);
 const dbox=$('dropbox');
 ['dragenter','dragover'].forEach(ev=>dbox.addEventListener(ev,e=>{e.preventDefault();dbox.classList.add('over');}));
@@ -2049,7 +2064,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v463';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v464';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v425';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
