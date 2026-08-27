@@ -1107,8 +1107,19 @@ function prepareStandalonePdfVectors(pn,source){
   if(!src||!src.pdf||!pg)return Promise.resolve(null);if(pg._vectorsReady)return Promise.resolve(pg.dark||[]);
   if(src.vectorJobs[pn])return src.vectorJobs[pn];pg._vectorsLoading=true;
   src.vectorJobs[pn]=lkLocalPageVectors({page:pn,wpt:pg.wpt,hpt:pg.hpt},src.pdf).then(cp=>{
-    pg.dark=cp&&Array.isArray(cp.dark)?cp.dark:[];pg._vectorsReady=true;
-    if(S.standalonePdf===src&&S.pageNum===pn&&S.W&&S.H)S.dark[pn]=buildDark(pg,S.W/pg.wpt,S.H/pg.hpt);
+    pg.dark=cp&&Array.isArray(cp.dark)?cp.dark:[];
+    pg.objs=standaloneCableObjects(pg.dark,pg.wpt,pg.hpt);pg._vectorsReady=true;
+    if(S.standalonePdf===src&&S.pageNum===pn&&S.W&&S.H){
+      S.dark[pn]=buildDark(pg,S.W/pg.wpt,S.H/pg.hpt);
+      // В v462 быстрый локальный вход оставил цветные трассы только фоном. Возвращаем
+      // их в модель сразу после готовности OperatorList, не ожидая серверный конвертер.
+      const existing=S.objects[pn]||[];
+      if(pg.objs.length&&!existing.some(o=>o&&o._autoVector)){
+        S.objects[pn]=existing.concat(importObjects(pg.objs,S.W/pg.wpt,S.H/pg.hpt));assignGroups(S.objects[pn]);
+        redrawAll();renderSide();updateUndo();
+        toast('Найдено линий чертежа: '+pg.objs.length+' · можно править и считать');
+      }
+    }
     return pg.dark;
   }).catch(e=>{pg._vectorsError=true;console.warn('local page vectors',e);return null;}).finally(()=>{pg._vectorsLoading=false;delete src.vectorJobs[pn];});
   return src.vectorJobs[pn];
@@ -1277,6 +1288,38 @@ function buildStrip(){
 function hex2rgb(h){h=h.replace('#','');return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
 function colorToCat(hex){let best='other',bd=1e9;for(const c of CATS){const[a,b,d]=hex2rgb(c.c),[x,y,z]=hex2rgb(hex);const dist=(a-x)**2+(b-y)**2+(d-z)**2;if(dist<bd){bd=dist;best=c.k;}}return best;}
 
+/* Автообъекты самостоятельного графического режима.
+   Берём только насыщенные цвета кабельных трасс и только длинные незамкнутые пути.
+   Чёрная/серая архитектура и розовые размерные линии остаются фоном и не портят метраж. */
+function standaloneVectorCat(hex){
+  if(!/^#[0-9a-f]{6}$/i.test(hex||''))return null;
+  const[r,g,b]=hex2rgb(hex),mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn,s=mx?d/mx:0;
+  if(mx<75||s<.48)return null;
+  let h=0;if(d){if(mx===r)h=60*((g-b)/d%6);else if(mx===g)h=60*((b-r)/d+2);else h=60*((r-g)/d+4);if(h<0)h+=360;}
+  // Пурпурные 290–340° в ЭОМ почти всегда размеры; кабельные цвета — красный,
+  // жёлто-коричневый, зелёный, синий или фиолетовый ПНД.
+  const cableHue=h<=14||h>=348||(h>=20&&h<=58)||(h>=82&&h<=166)||(h>=188&&h<=286);
+  if(!cableHue)return null;
+  let best=null,bd=1e9;for(const c of CATS){if(c.k==='other')continue;const[x,y,z]=hex2rgb(c.c),dist=(r-x)**2+(g-y)**2+(b-z)**2;if(dist<bd){bd=dist;best=c.k;}}
+  if(Math.sqrt(bd)>136)return null;
+  // Отсекаем бирюзовые логотипы/штампы, но пропускаем как чистый синий AutoCAD,
+  // так и точные проектные оттенки из каталога.
+  if(h>=188&&h<=250&&Math.sqrt(bd)>35&&g>100&&g>b*.55)return null;
+  return best;
+}
+function standaloneCableObjects(raw,wpt,hpt){
+  const minLen=Math.max(18,Math.min(+wpt||1000,+hpt||1000)*.018),out=[];
+  (raw||[]).forEach(o=>{if(!o||o.t!=='line'||!Array.isArray(o.p)||o.p.length<2)return;
+    const cat=standaloneVectorCat(o.c);if(!cat)return;
+    let len=0,x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+    o.p.forEach((p,i)=>{x0=Math.min(x0,+p[0]);y0=Math.min(y0,+p[1]);x1=Math.max(x1,+p[0]);y1=Math.max(y1,+p[1]);if(i)len+=Math.hypot(+p[0]-+o.p[i-1][0],+p[1]-+o.p[i-1][1]);});
+    const endGap=Math.hypot(+o.p[0][0]-+o.p[o.p.length-1][0],+o.p[0][1]-+o.p[o.p.length-1][1]);
+    if(len<minLen||Math.max(x1-x0,y1-y0)<minLen*.9||endGap<Math.max(1.2,(+o.w||.6)*2.2))return;
+    out.push({t:'line',c:o.c,w:o.w,p:o.p,cat,auto:1});
+  });
+  return out;
+}
+
 /* ---- упрощение полилинии (Douglas–Peucker) + жёсткий лимит узлов ---- */
 const SIMPLIFY_TOL_PT=2.4, MAX_NODES=4, IMPORT_MAX=10;
 function simplifyPts(pts,tol){
@@ -1321,10 +1364,12 @@ function importObjects(raw,sx,sy){
   sx=sx||S.sx;sy=sy||S.sy;
   return raw.map(o=>{
     if(o.t==='line'){
-      const cat=colorToCat(o.c);
+      const cat=o.cat||colorToCat(o.c);
       const pts=capPts(o.p,IMPORT_MAX).map(p=>({x:p[0]*sx,y:p[1]*sy}));
-      return{id:'o'+(S.seq++),type:'line',cat,color:o.c,width:Math.max(2.4,(o.w||1)*sx),pts,
+      const n={id:'o'+(S.seq++),type:'line',cat,color:o.c,width:Math.max(2.4,(o.w||1)*sx),pts,
         ea:{kind:'free',h:0},eb:{kind:'free',h:0},src:'pdf'};
+      if(o.auto){const original=o.p.map(p=>({x:p[0]*sx,y:p[1]*sy}));n._autoVector=true;n._lkSource=true;n._lkOriginal={paths:[original],pts:original,width:n.width,color:n.color};}
+      return n;
     }
     return{id:'o'+(S.seq++),type:'rect',color:o.c,width:Math.max(2,(o.w||1)*sx),x:o.x*sx,y:o.y*sy,w:o.rw*sx,h:o.rh*sy,src:'pdf'};
   });
@@ -2064,7 +2109,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v464';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v465';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v425';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
