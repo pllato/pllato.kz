@@ -1554,10 +1554,25 @@ function lineMidDrag(ev,o){ev.stopPropagation();const start=lineHalfPoint(o.pts)
 }
 /* ---- selection UI ---- */
 function bbox(o){if(o.type==='line'){const xs=o.pts.map(p=>p.x),ys=o.pts.map(p=>p.y);return{x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys)};}if(o.type==='rect')return{x:o.x,y:o.y,w:o.w,h:o.h};if(o.type==='symbol'){const hf=o.size*0.66;return{x:o.x-hf,y:o.y-hf,w:hf*2,h:hf*2};}if(o.type==='field'){const v=fieldValue(o,calcPage(S.pageNum));return{x:o.x,y:o.y-o.size,w:(v.length*o.size*0.6)||30,h:o.size*1.2};}return{x:o.x,y:o.y-o.size,w:((o.text||'').length*o.size*0.55)||20,h:o.size*1.2};}
+/* круглая кнопка-действие поверх выделения (масштаб-независимая, крупная для пальца) */
+function mkRoundBtn(cx,cy,k,icon,fill,onTap){const g=document.createElementNS(SVGNS,'g');const R=isCoarsePointer()?16:12;
+  g.dataset.ui='act';g.setAttribute('transform',`translate(${cx} ${cy}) scale(${k})`);g.style.cursor='pointer';g.style.touchAction='none';
+  const c=document.createElementNS(SVGNS,'circle');c.setAttribute('r',R);c.setAttribute('fill',fill);c.setAttribute('stroke','#fff');c.setAttribute('stroke-width','2.6');
+  const t=document.createElementNS(SVGNS,'text');t.setAttribute('x',0);t.setAttribute('y',R*0.38);t.setAttribute('text-anchor','middle');t.setAttribute('fill','#fff');t.setAttribute('font-size',R*1.15);t.setAttribute('font-weight','800');t.setAttribute('font-family','Inter,Arial,sans-serif');t.textContent=icon;
+  g.append(c,t);g.addEventListener('pointerdown',ev=>{ev.stopPropagation();ev.preventDefault();onTap();});return g;}
+/* плашка-длина у выбранной линии; тап при незаданном масштабе — открыть калибровку */
+function mkLenBadge(cx,cy,k,o){const mpp=S.cal[S.pageNum];const has=mpp&&!o.nocalc;const text=has?fmtMeters(lineMeters(o))+' м':'⌖ задайте масштаб';
+  const w=Math.max(64,text.length*7.6+22),g=document.createElementNS(SVGNS,'g');g.dataset.ui='act';g.setAttribute('transform',`translate(${cx} ${cy}) scale(${k})`);g.style.cursor='pointer';g.style.touchAction='none';
+  const r=document.createElementNS(SVGNS,'rect');r.setAttribute('x',-w/2);r.setAttribute('y',-15);r.setAttribute('width',w);r.setAttribute('height',30);r.setAttribute('rx',10);r.setAttribute('fill',has?'#0a84ff':'#d98324');r.setAttribute('stroke','#fff');r.setAttribute('stroke-width','1.8');
+  const t=document.createElementNS(SVGNS,'text');t.setAttribute('x',0);t.setAttribute('y',6);t.setAttribute('text-anchor','middle');t.setAttribute('fill','#fff');t.setAttribute('font-size','15');t.setAttribute('font-weight','800');t.setAttribute('font-family','Inter,Arial,sans-serif');t.textContent=text;
+  g.append(r,t);g.addEventListener('pointerdown',ev=>{ev.stopPropagation();ev.preventDefault();if(!has){setTool('cal');toast('Отметьте два конца известного размера и впишите метры — длина посчитается');}else toast('Линия'+(lineNo(o)!=null?' №'+lineNo(o):'')+' · '+fmtMeters(lineMeters(o))+' м');});return g;}
 function drawSelUI(){gUI.innerHTML='';drawCalUI();if(!S.selected){S.cluster=[];return;}const o=getObj(S.selected);if(!o)return;const k=1/S.scale;
   const cl=(S.cluster&&S.cluster.length?S.cluster:[S.selected]).filter(id=>getObj(id));
   const rigid=o.grp!=null;
   if(cl.length>1){const b=clusterBBox(cl);const r=document.createElementNS(SVGNS,'rect');r.dataset.ui='bb';r.setAttribute('x',b.x-6*k);r.setAttribute('y',b.y-6*k);r.setAttribute('width',b.w+12*k);r.setAttribute('height',b.h+12*k);r.setAttribute('fill','none');r.setAttribute('stroke','#0a84ff');r.setAttribute('stroke-width',1.6*k);r.setAttribute('stroke-dasharray',`${6*k} ${4*k}`);gUI.appendChild(r);}
+  // над любым выделением: удалить одним тапом; у линии — плашка длины (тап открывает масштаб)
+  {const bb=bbox(o);gUI.appendChild(mkRoundBtn(bb.x+bb.w+10*k,bb.y-10*k,k,'✕','#c0392b',()=>delSel()));
+   if(o.type==='line'&&!rigid)gUI.appendChild(mkLenBadge(bb.x+bb.w/2,bb.y-28*k,k,o));}
   if(rigid)return;
   if(o.type==='line'){
     if(S.threePointMode){
@@ -1570,7 +1585,9 @@ function drawSelUI(){gUI.innerHTML='';drawCalUI();if(!S.selected){S.cluster=[];r
       o.pts.forEach((p,i)=>{const end=(i===0||i===o.pts.length-1);const h=mkH(p.x,p.y,k,end);
         h.addEventListener('pointerdown',ev=>nodeDrag(ev,o,i));
         h.addEventListener('dblclick',ev=>{ev.stopPropagation();if(!end)deleteNode(o,i);});
-        gUI.appendChild(h);});
+        gUI.appendChild(h);
+        // ✕ у промежуточного узла — удалить узел пальцем (двойной тап на мобиле недоступен)
+        if(!end){const off=(isCoarsePointer()?24:18)*k;gUI.appendChild(mkRoundBtn(p.x+off,p.y-off,k,'−','#8a5a00',()=>deleteNode(o,i)));}});
     }
   }
   else if(o.type==='symbol'){const b=bbox(o);
@@ -1771,11 +1788,11 @@ $('guide').querySelectorAll('.gstep').forEach(s=>s.onclick=()=>{const g=s.datase
 
 /* ---- zoom ---- */
 vp.addEventListener('wheel',e=>{e.preventDefault();zoomAt(e.clientX,e.clientY,e.deltaY<0?1.12:0.89);},{passive:false});
-function zoomAt(cx,cy,f){const w=$('cwrap').getBoundingClientRect();const px=cx-w.left,py=cy-w.top;const ox=(px-S.pan.x)/S.scale,oy=(py-S.pan.y)/S.scale;S.scale=Math.max(S.fitScale*0.5,Math.min(S.scale*f,20));S.pan.x=px-ox*S.scale;S.pan.y=py-oy*S.scale;applyTransform();}
+function zoomAt(cx,cy,f){const w=$('cwrap').getBoundingClientRect();const px=cx-w.left,py=cy-w.top;const ox=(px-S.pan.x)/S.scale,oy=(py-S.pan.y)/S.scale;S.scale=Math.max(S.fitScale*0.5,Math.min(S.scale*f,20));S.pan.x=px-ox*S.scale;S.pan.y=py-oy*S.scale;applyTransform();if(S.selected)drawSelUI();}
 $('zin').onclick=()=>{const r=$('cwrap').getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,1.3);};
 $('zout').onclick=()=>{const r=$('cwrap').getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,0.77);};
 $('zfit').onclick=()=>{fitPage();applyTransform();};
-function doPinch(){const[a,b]=[...ptrs.values()];const dist=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);const mid={x:(a.clientX+b.clientX)/2,y:(a.clientY+b.clientY)/2};if(!pmid){pd0=dist;ps0=S.scale;pmid=mid;return;}const f=dist/pd0;const w=$('cwrap').getBoundingClientRect();const px=pmid.x-w.left,py=pmid.y-w.top;const ox=(px-S.pan.x)/S.scale,oy=(py-S.pan.y)/S.scale;S.scale=Math.max(S.fitScale*0.5,Math.min(ps0*f,20));S.pan.x=px-ox*S.scale;S.pan.y=py-oy*S.scale;applyTransform();}
+function doPinch(){const[a,b]=[...ptrs.values()];const dist=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);const mid={x:(a.clientX+b.clientX)/2,y:(a.clientY+b.clientY)/2};if(!pmid){pd0=dist;ps0=S.scale;pmid=mid;return;}const f=dist/pd0;const w=$('cwrap').getBoundingClientRect();const px=pmid.x-w.left,py=pmid.y-w.top;const ox=(px-S.pan.x)/S.scale,oy=(py-S.pan.y)/S.scale;S.scale=Math.max(S.fitScale*0.5,Math.min(ps0*f,20));S.pan.x=px-ox*S.scale;S.pan.y=py-oy*S.scale;applyTransform();if(S.selected)drawSelUI();}
 
 /* ---- side panel: tabs ---- */
 $('tabObj').onclick=()=>{S.sideTab='obj';syncTabs();renderSide();};
