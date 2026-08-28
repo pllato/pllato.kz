@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
 <script src="/app/gate.js"></script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RL · Фонды проектов</title>
@@ -237,6 +238,35 @@
   .subtask-row{display:grid;grid-template-columns:22px 1fr 28px;gap:7px;align-items:center;margin-bottom:6px}.subtask-row:last-child{margin-bottom:0}
   .subtask-row input[type=checkbox]{width:17px;height:17px;margin:0;accent-color:var(--green)}.subtask-row input[type=text]{padding:7px 9px;background:#fff}
   .subtask-add{display:flex;gap:7px;margin-top:8px}.subtask-add input{background:#fff}.subtask-add button{white-space:nowrap;padding:7px 11px;font-size:11px}
+  /* вложения */
+  .att-box{grid-column:1/-1}
+  .att-list{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0}
+  .att{display:flex;align-items:center;gap:8px;background:#f4f6f9;border:1px solid #e0e4ea;border-radius:9px;padding:7px 10px;max-width:100%}
+  .att .ic{width:30px;height:30px;border-radius:7px;background:var(--blue-bg);color:var(--blue);display:grid;place-items:center;font-size:14px;flex:none}
+  .att .nm{min-width:0}.att .nm a{font-size:12px;font-weight:700;color:var(--ink);text-decoration:none;display:block;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .att .nm a:hover{color:var(--blue);text-decoration:underline}.att .nm span{font-size:10px;color:var(--muted)}
+  .att .del{margin-left:2px}
+  .att-drop{border:1.5px dashed #c4cbd6;border-radius:9px;padding:12px;text-align:center;font-size:12px;color:var(--muted);cursor:pointer;transition:.15s}
+  .att-drop:hover,.att-drop.over{border-color:var(--blue);background:var(--blue-bg);color:var(--blue)}
+  .att-up{font-size:11px;color:var(--blue);margin-top:6px}
+  /* лента комментариев */
+  .cmt-box{grid-column:1/-1;border-top:1px solid var(--line);margin-top:4px;padding-top:12px}
+  .cmt-box>label{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:9px}
+  .cmt{display:flex;gap:9px;margin-bottom:11px}
+  .cmt .avatar{width:28px;height:28px;font-size:9.5px}
+  .cmt .body{flex:1;min-width:0}
+  .cmt .head{display:flex;align-items:baseline;gap:8px;margin-bottom:2px}
+  .cmt .head b{font-size:12px}.cmt .head span{font-size:10px;color:var(--muted)}
+  .cmt .txt{font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:break-word;background:#f5f7f9;border-radius:9px;border-top-left-radius:2px;padding:8px 11px}
+  .cmt .txt.mine{background:var(--blue-bg)}
+  .cmt-add{display:flex;gap:8px;align-items:flex-end;margin-top:6px}
+  .cmt-add textarea{flex:1;min-height:38px!important;max-height:140px}
+  .cmt-empty{font-size:12px;color:var(--muted);font-style:italic;padding:2px 0 10px}
+  .task-tabs{display:flex;gap:4px;background:#eef0f3;border-radius:9px;padding:3px;margin:14px 0 12px}
+  .task-tab{flex:1;border:none;background:none;font:600 12.5px inherit;color:var(--muted);padding:7px;border-radius:7px;cursor:pointer}
+  .task-tab.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .task-tab .b{display:inline-block;min-width:16px;font-size:10px;background:#dfe3ea;border-radius:8px;padding:0 5px;margin-left:4px}
+  .task-tab.on .b{background:var(--blue-bg);color:var(--blue)}
   @media(max-width:900px){.task-board{display:grid;grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:260px;overflow-x:auto}.task-filters{grid-template-columns:1fr 1fr}.task-filters input{grid-column:1/-1}}
   @media(max-width:820px){.portal-tabs{order:10;width:100%}.portal-tab{flex:1}.task-topbar h1{width:100%}.task-form-grid{grid-template-columns:1fr}.task-form-grid .wide{grid-column:auto}}
 </style>
@@ -285,7 +315,7 @@ function ensureBank(){
 }
 function migrateProject(p){
   p.tasks=p.tasks||[];p.finIn=p.finIn||[];p.finOut=p.finOut||[];
-  p.tasks.forEach(t=>{t.status=t.status||'todo';t.priority=t.priority||'normal';t.assignee=t.assignee||'';t.description=t.description||'';t.subtasks=Array.isArray(t.subtasks)?t.subtasks:[]});
+  p.tasks.forEach(t=>{t.status=t.status||'todo';t.priority=t.priority||'normal';t.assignee=t.assignee||'';t.description=t.description||'';t.subtasks=Array.isArray(t.subtasks)?t.subtasks:[];t.comments=Array.isArray(t.comments)?t.comments:[];t.files=Array.isArray(t.files)?t.files:[]});
   // старая пометка «исполнено» (строка превращалась в операцию) → закрытая строка плана
   ['planIn','planOut','finIn','finOut'].forEach(k=>(p[k]||[]).forEach(r=>{
     if(r.closed){r.done=true;r.doneAt=r.closedAt||todayIso();delete r.closed;delete r.closedAt}
@@ -886,9 +916,11 @@ function renderTasks(host){
 }
 function taskCard(p,t,today){
   const person=taskPerson(t.assignee),late=t.due&&t.due<today&&t.status!=='done'&&!t.done,pr=taskPriority(t.priority),subs=t.subtasks||[],subDone=subs.filter(x=>x.done).length;
+  const nC=(t.comments||[]).length,nF=(t.files||[]).length;
+  const badges=[nC?`<span class="task-chip" title="комментарии">💬 ${nC}</span>`:'',nF?`<span class="task-chip" title="вложения">📎 ${nF}</span>`:''].filter(Boolean).join('');
   return `<div class="task-card" style="--task-color:${pr[1]}" draggable="true" data-task="${t.id}" data-project="${p.id}" ondragstart="taskDragStart(event,'${p.id}','${t.id}')" ondragend="taskDragEnd(event)" onclick="openTaskEditor('${p.id}','${t.id}')">
     <div class="task-project">${esc(p.name)}</div><div class="task-title">${esc(t.title)}</div>
-    <div class="task-meta">${person?`<span class="avatar" style="width:23px;height:23px;font-size:8.5px" title="${esc(person.name)}">${esc(taskInitials(person.name))}</span>`:''}${t.due?`<span class="task-chip ${late?'late':''}">${late?'⚠ ':''}${dRu(t.due)}</span>`:''}<span style="margin-left:auto;color:${pr[1]};font-weight:800">${pr[0]}</span></div>${subs.length?`<div class="subtask-progress"><span>✓ ${subDone}/${subs.length}</span><span class="subtask-bar"><i style="width:${Math.round(subDone/subs.length*100)}%"></i></span></div>`:''}</div>`
+    <div class="task-meta">${person?`<span class="avatar" style="width:23px;height:23px;font-size:8.5px" title="${esc(person.name)}">${esc(taskInitials(person.name))}</span>`:''}${t.due?`<span class="task-chip ${late?'late':''}">${late?'⚠ ':''}${dRu(t.due)}</span>`:''}${badges}<span style="margin-left:auto;color:${pr[1]};font-weight:800">${pr[0]}</span></div>${subs.length?`<div class="subtask-progress"><span>✓ ${subDone}/${subs.length}</span><span class="subtask-bar"><i style="width:${Math.round(subDone/subs.length*100)}%"></i></span></div>`:''}</div>`
 }
 function openTaskCreate(){window._taskCreate=true;render();setTimeout(()=>document.getElementById('boardTaskTitle')?.focus(),0)}
 function taskCreateHtml(){
@@ -897,8 +929,20 @@ function taskCreateHtml(){
     <div class="task-form-grid"><div class="wide"><label>Что нужно сделать *</label><input id="boardTaskTitle" placeholder="Короткое и понятное название"></div><div><label>Проект *</label><select id="boardTaskProject">${projectOpts}</select></div><div><label>Ответственный</label><select id="boardTaskAssignee"><option value="">Не назначен</option>${personOpts}</select></div><div><label>Срок</label><input id="boardTaskDue" type="date"></div><div><label>Приоритет</label><select id="boardTaskPriority"><option value="low">Низкий</option><option value="normal" selected>Обычный</option><option value="high">Высокий</option><option value="urgent">Срочно</option></select></div><div class="wide"><label>Описание / результат</label><textarea id="boardTaskDescription" placeholder="Подробности и ожидаемый результат"></textarea></div>${subtaskEditorHtml([], 'createSubtasks')}</div>
     <div style="display:flex;gap:8px;margin-top:14px"><button class="btn grn" onclick="createBoardTask()">Создать задачу</button><button class="btn ghost" onclick="window._taskCreate=null;render()">Отмена</button></div></div></div>`
 }
-function teamModalHtml(){const team=DB.team.length?DB.team.map(x=>`<div class="team-row"><span class="avatar">${esc(taskInitials(x.name))}</span><span style="flex:1;min-width:0"><b style="font-size:12.5px">${esc(x.name)}</b><span style="display:block;font-size:10px;color:var(--muted)">${esc(x.email||'без email')}</span></span><span class="del" onclick="deleteTeamMember('${x.id}')">×</span></div>`).join(''):'<div class="task-empty">Сотрудников пока нет.</div>';
-  return `<div class="task-modal-bg" onclick="if(event.target===this){window._teamPanel=null;render()}"><div class="task-modal" style="max-width:480px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><b style="font-size:17px">Сотрудники · ${DB.team.length}</b><span style="flex:1"></span><span class="del" onclick="window._teamPanel=null;render()">×</span></div>${team}<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px"><input id="teamName" placeholder="Имя и фамилия"><input id="teamEmail" type="email" placeholder="email"><button class="btn ghost" style="grid-column:1/-1" onclick="addTeamMember()">+ Добавить сотрудника</button></div></div></div>`}
+function teamModalHtml(){const team=DB.team.length?DB.team.map(x=>{
+    const cnt=allTasks().filter(r=>r.t.assignee===x.id&&r.t.status!=='done'&&!r.t.done).length;
+    return `<div class="team-row"><span class="avatar">${esc(taskInitials(x.name))}</span>
+    <span style="flex:1;min-width:0;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <input value="${esc(x.name)}" onchange="updTeamMember('${x.id}','name',this.value)" style="font-size:12.5px;padding:6px 8px">
+      <input value="${esc(x.email||'')}" type="email" placeholder="email" onchange="updTeamMember('${x.id}','email',this.value)" style="font-size:11.5px;padding:6px 8px"></span>
+    <span style="font-size:10px;color:var(--muted);white-space:nowrap" title="открытых задач">${cnt?cnt+' задач':'—'}</span>
+    <span class="del" onclick="deleteTeamMember('${x.id}')">×</span></div>`}).join(''):'<div class="task-empty">Сотрудников пока нет.</div>';
+  return `<div class="task-modal-bg" onclick="if(event.target===this){window._teamPanel=null;render()}"><div class="task-modal" style="max-width:520px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><b style="font-size:17px">Сотрудники · ${DB.team.length}</b><span style="flex:1"></span><span class="del" onclick="window._teamPanel=null;render()">×</span></div>
+  <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px">Имя и email можно менять на месте. Если email совпадает с аккаунтом, под которым человек входит в программу, его комментарии подпишутся именем.</div>
+  ${team}<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px"><input id="teamName" placeholder="Имя и фамилия" onkeydown="if(event.key==='Enter')addTeamMember()"><input id="teamEmail" type="email" placeholder="email (необязательно)"><button class="btn ghost" style="grid-column:1/-1" onclick="addTeamMember()">+ Добавить сотрудника</button></div></div></div>`}
+function updTeamMember(id,key,val){const x=taskPerson(id);if(!x)return;
+  if(key==='name'){if(!val.trim())return;x.name=val.trim()}else x.email=val.trim();
+  auditLog('Изменён сотрудник',x.name,null);save()}
 function createBoardTask(){
   const title=document.getElementById('boardTaskTitle')?.value.trim(),pid=document.getElementById('boardTaskProject')?.value,p=DB.projects.find(x=>x.id===pid);
   if(!title||!p){toast('Укажите задачу и проект','err');return}
@@ -910,21 +954,89 @@ function taskDragStart(e,pid,tid){window._taskDrag={pid,tid};e.currentTarget.cla
 function taskDragEnd(e){e.currentTarget.classList.remove('dragging');document.querySelectorAll('.task-col').forEach(x=>x.classList.remove('drop-hot'));setTimeout(()=>window._taskDrag=null,0)}
 function taskDragOver(e){e.preventDefault();e.currentTarget.classList.add('drop-hot');e.dataTransfer.dropEffect='move'}
 function taskDrop(e,status){e.preventDefault();const d=window._taskDrag;if(!d)return;const p=DB.projects.find(x=>x.id===d.pid),t=taskArr(p||{}).find(x=>x.id===d.tid);if(!p||!t)return;t.status=status;t.done=status==='done';auditLog('Изменён статус задачи',t.title+' → '+(taskStages().find(x=>x.id===status)?.name||status),p);window._taskDropAt=Date.now();window._taskDrag=null;render()}
-function openTaskEditor(pid,tid){if(window._taskDrag||Date.now()-(window._taskDropAt||0)<400)return;window._taskEdit={pid,tid};render()}
+function openTaskEditor(pid,tid){if(window._taskDrag||Date.now()-(window._taskDropAt||0)<400)return;window._taskEdit={pid,tid};window._taskTab='details';render()}
 function subtaskEditorHtml(items,listId){return `<div class="subtask-box"><label>Подзадачи · чек-лист</label><div id="${listId}">${(items||[]).map(x=>subtaskRowHtml(x)).join('')}</div><div class="subtask-add"><input id="${listId}New" placeholder="Добавить подзадачу" onkeydown="if(event.key==='Enter'){event.preventDefault();addSubtaskRow('${listId}')}"><button type="button" class="btn ghost" onclick="addSubtaskRow('${listId}')">+ Добавить</button></div></div>`}
 function subtaskRowHtml(x){return `<div class="subtask-row" data-id="${esc(x.id||uid())}"><input class="subtask-done" type="checkbox"${x.done?' checked':''} title="выполнено"><input class="subtask-title" type="text" value="${esc(x.title||'')}" placeholder="Что сделать"><span class="del" onclick="this.parentNode.remove()">×</span></div>`}
 function addSubtaskRow(listId){const box=document.getElementById(listId),input=document.getElementById(listId+'New'),title=input?.value.trim();if(!box||!title){input?.focus();return}box.insertAdjacentHTML('beforeend',subtaskRowHtml({id:uid(),title,done:false}));input.value='';input.focus()}
 function readSubtasks(listId){return [...document.querySelectorAll('#'+listId+' .subtask-row')].map(r=>({id:r.dataset.id||uid(),title:r.querySelector('.subtask-title')?.value.trim()||'',done:!!r.querySelector('.subtask-done')?.checked})).filter(x=>x.title)}
 function taskModalHtml(x){
   const p=DB.projects.find(z=>z.id===x.pid),t=taskArr(p||{}).find(z=>z.id===x.tid);if(!p||!t)return '';
-  return `<div class="task-modal-bg" onclick="if(event.target===this){window._taskEdit=null;render()}"><div class="task-modal"><div style="display:flex;align-items:center;gap:8px;margin-bottom:15px"><b style="font-size:17px">Карточка задачи</b><span style="flex:1"></span><span class="del" onclick="window._taskEdit=null;render()">×</span></div>
-    <div class="task-form-grid"><div class="wide"><label>Задача *</label><input id="editTaskTitle" value="${esc(t.title)}"></div>
+  t.comments=t.comments||[];t.files=t.files||[];
+  const tab=window._taskTab||'details';
+  const nC=t.comments.length,nF=t.files.length;
+  const tabBtn=(id,label,n)=>`<button class="task-tab${tab===id?' on':''}" onclick="window._taskTab='${id}';render()">${label}${n?`<span class="b">${n}</span>`:''}</button>`;
+  const details=`<div class="task-form-grid"><div class="wide"><label>Задача *</label><input id="editTaskTitle" value="${esc(t.title)}"></div>
     <div><label>Проект</label><select id="editTaskProject">${taskOptions(p.id,DB.projects)}</select></div><div><label>Статус</label><select id="editTaskStatus">${taskOptions(t.status||'todo',taskStages())}</select></div>
     <div><label>Ответственный</label><select id="editTaskAssignee">${taskOptions(t.assignee||'',DB.team||[],'Не назначен')}</select></div><div><label>Срок</label><input id="editTaskDue" type="date" value="${t.due||''}"></div>
     <div><label>Приоритет</label><select id="editTaskPriority"><option value="low"${t.priority==='low'?' selected':''}>Низкий</option><option value="normal"${t.priority==='normal'?' selected':''}>Обычный</option><option value="high"${t.priority==='high'?' selected':''}>Высокий</option><option value="urgent"${t.priority==='urgent'?' selected':''}>Срочно</option></select></div>
     <div class="wide"><label>Описание / результат</label><textarea id="editTaskDescription" placeholder="Подробности, ссылки, ожидаемый результат">${esc(t.description||'')}</textarea></div>${subtaskEditorHtml(t.subtasks||[], 'editSubtasks')}</div>
-    <div style="display:flex;gap:8px;margin-top:14px"><button class="btn grn" onclick="saveTaskEditor()">Сохранить</button><button class="btn ghost" onclick="window._taskEdit=null;render()">Отмена</button><span style="flex:1"></span><button class="btn red" onclick="deleteTaskEditor()">Удалить</button></div></div></div>`
+    <div style="display:flex;gap:8px;margin-top:14px"><button class="btn grn" onclick="saveTaskEditor()">Сохранить</button><button class="btn ghost" onclick="window._taskEdit=null;render()">Отмена</button><span style="flex:1"></span><button class="btn red" onclick="deleteTaskEditor()">Удалить</button></div>`;
+  return `<div class="task-modal-bg" onclick="if(event.target===this){window._taskEdit=null;render()}"><div class="task-modal"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:9.5px;color:var(--blue);font-weight:800;text-transform:uppercase">${esc(p.name)}</span><span style="flex:1"></span><span class="del" onclick="window._taskEdit=null;render()">×</span></div>
+    <b style="font-size:17px;display:block;line-height:1.3">${esc(t.title)}</b>
+    <div class="task-tabs">${tabBtn('details','Детали')}${tabBtn('comments','Комментарии',nC)}${tabBtn('files','Файлы',nF)}</div>
+    ${tab==='details'?details:tab==='comments'?commentsHtml(t):filesHtml(t)}
+  </div></div>`;
 }
+/* ---- лента комментариев ---- */
+function whoName(){const s=getSession();return s?.email||'пользователь'}
+function commentsHtml(t){
+  const me=whoName();
+  const list=t.comments.length?t.comments.map(c=>{const mine=c.user===me;
+    return `<div class="cmt"><span class="avatar" title="${esc(c.user)}">${esc(taskInitials(c.name||c.user))}</span>
+    <div class="body"><div class="head"><b>${esc(c.name||c.user)}</b><span>${esc(auditTime(c.at))}</span>${mine?`<span class="del" style="margin-left:auto" onclick="delComment('${c.id}')">×</span>`:''}</div>
+    <div class="txt ${mine?'mine':''}">${esc(c.text)}</div></div></div>`}).join(''):'<div class="cmt-empty">Обсуждения пока нет. Напишите первым.</div>';
+  return `<div class="cmt-box"><label>Лента обсуждения · ${t.comments.length}</label>${list}
+    <div class="cmt-add"><textarea id="cmtInput" placeholder="Написать комментарий… (Ctrl+Enter — отправить)" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();addComment()}"></textarea><button class="btn grn" onclick="addComment()">Отправить</button></div></div>`;
+}
+function addComment(){
+  const x=window._taskEdit,p=DB.projects.find(z=>z.id===x?.pid),t=taskArr(p||{}).find(z=>z.id===x?.tid);if(!p||!t)return;
+  const el=document.getElementById('cmtInput'),text=(el?.value||'').trim();if(!text){el?.focus();return}
+  const s=getSession();
+  t.comments=t.comments||[];t.comments.push({id:uid(),at:new Date().toISOString(),user:s?.email||'пользователь',name:teamNameByEmail(s?.email)||s?.email||'пользователь',text});
+  t.updatedAt=new Date().toISOString();auditLog('Комментарий к задаче',t.title+': '+text.slice(0,40),p);render();
+  setTimeout(()=>document.getElementById('cmtInput')?.focus(),0);
+}
+function delComment(cid){const x=window._taskEdit,p=DB.projects.find(z=>z.id===x?.pid),t=taskArr(p||{}).find(z=>z.id===x?.tid);if(!p||!t)return;
+  t.comments=(t.comments||[]).filter(c=>c.id!==cid);render()}
+function teamNameByEmail(email){if(!email)return '';const m=(DB.team||[]).find(x=>(x.email||'').toLowerCase()===email.toLowerCase());return m?m.name:''}
+/* ---- файлы ---- */
+function fileIcon(name){const e=(name||'').split('.').pop().toLowerCase();
+  if(/(jpg|jpeg|png|gif|webp|heic|bmp)/.test(e))return '🖼';if(e==='pdf')return '📕';
+  if(/(xls|xlsx|csv)/.test(e))return '📊';if(/(doc|docx)/.test(e))return '📄';if(/(zip|rar|7z)/.test(e))return '🗜';return '📎'}
+function fileHuman(n){return n<1024?n+' Б':n<1048576?(n/1024).toFixed(0)+' КБ':(n/1048576).toFixed(1)+' МБ'}
+function fileUrl(f){return API_BASE+'/api/file?key='+encodeURIComponent(f.key)+'&t='+encodeURIComponent(getKey())}
+function filesHtml(t){
+  const items=t.files.length?t.files.map(f=>`<div class="att"><span class="ic">${fileIcon(f.name)}</span>
+    <span class="nm"><a href="${fileUrl(f)}" target="_blank" rel="noopener" title="${esc(f.name)}">${esc(f.name)}</a><span>${fileHuman(f.size||0)} · ${esc((f.by||'').split('@')[0])}</span></span>
+    <span class="del" onclick="delFile('${f.id}')" title="убрать вложение">×</span></div>`).join(''):'';
+  return `<div class="att-box"><label style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--muted)">Вложения · ${t.files.length}</label>
+    <div class="att-list">${items}</div>
+    <div class="att-drop" id="attDrop" onclick="document.getElementById('attFile').click()"
+      ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')"
+      ondrop="event.preventDefault();this.classList.remove('over');uploadFiles(event.dataTransfer.files)">
+      📎 Перетащи файлы сюда или нажми, чтобы выбрать<div style="font-size:10.5px;margin-top:3px">фото с объекта, акты, счета, документы — до 25 МБ</div></div>
+    <input type="file" id="attFile" multiple style="display:none" onchange="uploadFiles(this.files);this.value=''">
+    <div class="att-up" id="attUp"></div></div>`;
+}
+async function uploadFiles(fileList){
+  const x=window._taskEdit,p=DB.projects.find(z=>z.id===x?.pid),t=taskArr(p||{}).find(z=>z.id===x?.tid);if(!p||!t)return;
+  const files=[...fileList];if(!files.length)return;
+  const up=document.getElementById('attUp');
+  for(let i=0;i<files.length;i++){const f=files[i];
+    if(f.size>25*1024*1024){toast('«'+f.name+'» больше 25 МБ — пропущено','err');continue}
+    if(up)up.textContent='Загружаю '+(i+1)+' из '+files.length+': '+f.name+'…';
+    try{
+      const r=await fetch(API_BASE+'/api/upload',{method:'POST',headers:{Authorization:'Bearer '+getKey(),'X-File-Name':encodeURIComponent(f.name),'Content-Type':f.type||'application/octet-stream'},body:f});
+      if(!r.ok)throw 0;const meta=await r.json();
+      t.files=t.files||[];t.files.push({id:uid(),key:meta.key,name:meta.name||f.name,size:meta.size||f.size,type:meta.type,by:meta.by,at:meta.at});
+      auditLog('Прикреплён файл',t.title+': '+(meta.name||f.name),p);
+    }catch(e){toast('Не загрузился: '+f.name,'err')}
+  }
+  if(up)up.textContent='';t.updatedAt=new Date().toISOString();toast('Файлы прикреплены ✓');save();render();
+}
+function delFile(fid){const x=window._taskEdit,p=DB.projects.find(z=>z.id===x?.pid),t=taskArr(p||{}).find(z=>z.id===x?.tid);if(!p||!t)return;
+  if(!confirm('Убрать вложение из задачи?'))return;
+  t.files=(t.files||[]).filter(f=>f.id!==fid);save();render()}
 function saveTaskEditor(){
   const x=window._taskEdit,p=DB.projects.find(z=>z.id===x?.pid),t=taskArr(p||{}).find(z=>z.id===x?.tid);if(!p||!t)return;
   const title=document.getElementById('editTaskTitle').value.trim();if(!title){toast('Название задачи обязательно','err');return}
