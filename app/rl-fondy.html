@@ -206,18 +206,44 @@
   .contract-edit label{font-size:10px;margin:0;color:var(--muted);white-space:nowrap}
   .contract-edit input{width:145px;padding:6px 8px;text-align:right;font-size:12.5px;font-weight:700;background:#fff}
   .contract-edit button{padding:6px 10px;font-size:11px}
+  .portal-tabs{display:flex;gap:5px;padding:4px;background:rgba(255,255,255,.08);border-radius:10px}
+  .portal-tab{border:0;background:transparent;color:#aeb9ca;padding:7px 12px;border-radius:7px;font:700 12px inherit;cursor:pointer;white-space:nowrap}
+  .portal-tab:hover{color:#fff;background:rgba(255,255,255,.08)}
+  .portal-tab.on{color:#fff;background:#3f6ea8;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+  .task-toolbar{display:grid;grid-template-columns:1.5fr 1fr 1fr 130px auto;gap:8px;align-items:end}
+  .task-board{display:flex;gap:12px;overflow-x:auto;align-items:flex-start;padding:4px 1px 14px}
+  .task-col{width:270px;min-width:270px;background:#e5e8ed;border:1px solid var(--line);border-radius:13px;padding:9px;min-height:190px}
+  .task-col.drop-hot{outline:3px solid #6b8fbe;background:#dfe9f5}
+  .task-col-head{display:flex;align-items:center;gap:7px;padding:2px 4px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.45px;color:var(--muted)}
+  .task-col-head i{width:9px;height:9px;border-radius:50%;display:block}.task-col-head .cnt{margin-left:auto;background:#fff;border-radius:10px;padding:1px 7px;font-style:normal}
+  .task-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px;margin-bottom:8px;cursor:grab;box-shadow:0 1px 2px rgba(20,30,45,.04)}
+  .task-card:hover{border-color:#8ba6c9;box-shadow:0 3px 10px rgba(20,30,45,.08)}.task-card.dragging{opacity:.4}.task-card:active{cursor:grabbing}
+  .task-title{font-size:13px;font-weight:750;line-height:1.35;margin-bottom:8px}.task-project{font-size:10px;color:var(--blue);font-weight:800;text-transform:uppercase;letter-spacing:.25px;margin-bottom:5px}
+  .task-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:10px;color:var(--muted)}
+  .task-chip{display:inline-flex;align-items:center;gap:3px;background:#f0f2f5;border-radius:5px;padding:3px 6px}.task-chip.late{background:var(--red-bg);color:var(--red)}
+  .task-priority{width:8px;height:8px;border-radius:50%;display:inline-block}.task-empty{font-size:11.5px;color:#858c98;font-style:italic;padding:8px 5px}
+  .task-layout{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:14px}.team-card{position:sticky;top:78px}
+  .team-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #edf0f3}.team-row:last-child{border-bottom:0}
+  .avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--blue-bg);color:var(--blue);font-size:11px;font-weight:900;flex:none}
+  .task-modal-bg{position:fixed;inset:0;background:rgba(13,20,32,.48);z-index:80;display:grid;place-items:center;padding:20px}
+  .task-modal{width:min(640px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:15px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .task-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.task-form-grid .wide{grid-column:1/-1}
+  .task-modal textarea{width:100%;min-height:100px;padding:10px 11px;border:1px solid var(--line);border-radius:8px;font:13.5px inherit;resize:vertical}
+  @media(max-width:820px){.portal-tabs{order:10;width:100%}.portal-tab{flex:1}.task-layout{grid-template-columns:1fr}.team-card{position:static}.task-toolbar{grid-template-columns:1fr 1fr}.task-toolbar .task-title-field{grid-column:1/-1}}
 </style>
 </head>
 <body>
 <div class="top">
-  <b>RL · Фонды проектов</b><span class="v">учёт по проектам и фондам</span>
+  <b>RL · Управление проектами</b>
+  <div class="portal-tabs"><button class="portal-tab on" id="financeTab" onclick="setAppTab('finance')">Финансовый блок</button><button class="portal-tab" id="tasksTab" onclick="setAppTab('tasks')">Задачи</button></div>
+  <span class="v" id="portalSub">учёт по проектам и фондам</span>
   <span id="syncStatus" style="font-size:11px;margin-left:4px;color:#7d8aa3"></span>
   <span id="whoami" style="font-size:11px;color:#9aa7bd"></span>
   <div class="sp"></div>
-  <button class="tbtn" id="sumModeBtn" onclick="toggleSumMode()" title="режим выделения сумм: клик по суммам — считает итог">Σ Сумма</button>
+  <button class="tbtn finance-only" id="sumModeBtn" onclick="toggleSumMode()" title="режим выделения сумм: клик по суммам — считает итог">Σ Сумма</button>
   <button class="tbtn" id="accessBtn" style="display:none" onclick="goAccess()">👥 Доступы</button>
   <button class="tbtn" onclick="changeKey()" title="сменить ключ доступа">🔑</button>
-  <button class="tbtn acc" onclick="showNew()">+ Новый проект</button>
+  <button class="tbtn acc finance-only" onclick="showNew()">+ Новый проект</button>
   <button class="tbtn" onclick="exportData()">Скачать данные</button>
   <button class="tbtn" onclick="document.getElementById('impFile').click()">Загрузить</button>
   <input type="file" id="impFile" accept=".json" style="display:none" onchange="importData(this)">
@@ -239,7 +265,8 @@ const DEFAULT_FUNDS=[
   {name:'Налоги',pct:8},
   {name:'Накладные (офис, техника, транспорт)',pct:7},
   {name:'Прибыль (резерв)',pct:10}];
-let DB={projects:[],sel:null,audit:[],bank:{name:'Главный фонд компании',ops:[]}};
+let DB={projects:[],sel:null,audit:[],bank:{name:'Главный фонд компании',ops:[]},team:[],taskStages:null};
+let APP_TAB='finance';
 let _id=1;
 const uid=()=>'x'+(_id++)+'_'+Math.random().toString(36).slice(2,6);
 function ensureBank(){
@@ -249,6 +276,7 @@ function ensureBank(){
 }
 function migrateProject(p){
   p.tasks=p.tasks||[];p.finIn=p.finIn||[];p.finOut=p.finOut||[];
+  p.tasks.forEach(t=>{t.status=t.status||'todo';t.priority=t.priority||'normal';t.assignee=t.assignee||'';t.description=t.description||''});
   // старая пометка «исполнено» (строка превращалась в операцию) → закрытая строка плана
   ['planIn','planOut','finIn','finOut'].forEach(k=>(p[k]||[]).forEach(r=>{
     if(r.closed){r.done=true;r.doneAt=r.closedAt||todayIso();delete r.closed;delete r.closedAt}
@@ -266,7 +294,7 @@ function localSave(){
 function save(){localSave();schedulePush()}
 function load(){
   try{const raw=localStorage.getItem(LS);if(!raw)return false;
-    const d=JSON.parse(raw);DB={projects:d.projects||[],stages:d.stages||null,sel:d.sel||null,audit:d.audit||[],bank:d.bank||null,impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null,dictUrl:d.dictUrl||'',fundDict:d.fundDict||null,atlSeeded:!!d.atlSeeded};_id=d._id||1000;
+    const d=JSON.parse(raw);DB={projects:d.projects||[],stages:d.stages||null,sel:d.sel||null,audit:d.audit||[],bank:d.bank||null,team:d.team||[],taskStages:d.taskStages||null,impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null,dictUrl:d.dictUrl||'',fundDict:d.fundDict||null,atlSeeded:!!d.atlSeeded};_id=d._id||1000;
     ensureBank();
     DB.projects.forEach(migrateProject);
     return DB.projects.length>0;
@@ -794,13 +822,110 @@ const mLabel=k=>{const[y,m]=k.split('-');return MR[+m]+' '+y.slice(2)};
 function render(){
   save();
   setWho();
+  document.getElementById('financeTab')?.classList.toggle('on',APP_TAB==='finance');
+  document.getElementById('tasksTab')?.classList.toggle('on',APP_TAB==='tasks');
+  document.querySelectorAll('.finance-only').forEach(x=>x.style.display=APP_TAB==='finance'?'':'none');
+  const sub=document.getElementById('portalSub');if(sub)sub.textContent=APP_TAB==='finance'?'учёт по проектам и фондам':'командная работа по задачам';
   tipReset();tipHide();
   setTimeout(()=>{updateSumBar();autoGrowAll()},0);setTimeout(autoGrowAll,220);
   const host=document.getElementById('main');
+  if(APP_TAB==='tasks')return renderTasks(host);
   if(DB.sel==='__new')return renderNew(host);
   if(DB.sel&&P())return renderProject(host,P());
   renderList(host);
 }
+function setAppTab(tab){
+  APP_TAB=tab==='tasks'?'tasks':'finance';DB.sel=null;window._taskEdit=null;render();window.scrollTo(0,0)
+}
+const TASK_STAGE_DEFAULT=[
+  {id:'todo',name:'Новые',color:'#64748b'},
+  {id:'work',name:'В работе',color:'#2563eb'},
+  {id:'review',name:'На проверке',color:'#d97706'},
+  {id:'done',name:'Готово',color:'#059669'}
+];
+function taskStages(){
+  if(!Array.isArray(DB.taskStages)||!DB.taskStages.length)DB.taskStages=TASK_STAGE_DEFAULT.map(x=>({...x}));
+  return DB.taskStages
+}
+function allTasks(){
+  return DB.projects.flatMap(p=>taskArr(p).map(t=>({p,t})))
+}
+function taskPerson(id){return (DB.team||[]).find(x=>x.id===id)}
+function taskInitials(name){return (name||'?').trim().split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()}
+function taskPriority(p){return ({urgent:['Срочно','#c43d3d'],high:['Высокий','#e47b13'],normal:['Обычный','#4772a8'],low:['Низкий','#87909f']})[p]||['Обычный','#4772a8']}
+function taskOptions(value,items,empty){return (empty?`<option value="">${esc(empty)}</option>`:'')+items.map(x=>`<option value="${x.id}"${x.id===value?' selected':''}>${esc(x.name)}</option>`).join('')}
+function renderTasks(host){
+  DB.team=Array.isArray(DB.team)?DB.team:[];const stages=taskStages(),filters=window._taskFilters||{};
+  const projectOpts=DB.projects.map(p=>`<option value="${p.id}"${filters.project===p.id?' selected':''}>${esc(p.name)}</option>`).join('');
+  const personOpts=DB.team.map(x=>`<option value="${x.id}"${filters.assignee===x.id?' selected':''}>${esc(x.name)}</option>`).join('');
+  let rows=allTasks();
+  if(filters.project)rows=rows.filter(x=>x.p.id===filters.project);
+  if(filters.assignee)rows=rows.filter(x=>x.t.assignee===filters.assignee);
+  if(filters.search)rows=rows.filter(x=>(x.t.title+' '+(x.t.description||'')+' '+x.p.name).toLowerCase().includes(filters.search.toLowerCase()));
+  const today=todayIso(),openCount=rows.filter(x=>x.t.status!=='done'&&!x.t.done).length,lateCount=rows.filter(x=>x.t.due&&x.t.due<today&&x.t.status!=='done'&&!x.t.done).length;
+  const board=stages.map(st=>{const cards=rows.filter(x=>(x.t.status||(x.t.done?'done':'todo'))===st.id);
+    return `<div class="task-col" data-task-stage="${st.id}" ondragover="taskDragOver(event)" ondragleave="this.classList.remove('drop-hot')" ondrop="taskDrop(event,'${st.id}')">
+      <div class="task-col-head"><i style="background:${st.color}"></i>${esc(st.name)}<em class="cnt">${cards.length}</em></div>
+      ${cards.length?cards.map(({p,t})=>taskCard(p,t,today)).join(''):'<div class="task-empty">Перетащите задачу сюда</div>'}
+    </div>`}).join('');
+  const team=DB.team.length?DB.team.map(x=>`<div class="team-row"><span class="avatar">${esc(taskInitials(x.name))}</span><span style="flex:1;min-width:0"><b style="font-size:12.5px">${esc(x.name)}</b><span style="display:block;font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis">${esc(x.email||'без email')}</span></span><span class="del" onclick="deleteTeamMember('${x.id}')">×</span></div>`).join(''):'<div class="task-empty">Добавьте сотрудников, чтобы назначать ответственных.</div>';
+  host.innerHTML=`<div class="kb-bar"><h2 style="margin:0">Задачи · ${rows.length}</h2><span class="task-chip">открыто: <b>${openCount}</b></span>${lateCount?`<span class="task-chip late">просрочено: <b>${lateCount}</b></span>`:''}</div>
+  <div class="explain">Общая рабочая доска по всем проектам. Перетаскивайте карточки между колонками, назначайте ответственных и сроки. Каждая задача остаётся связанной со своим проектом.</div>
+  <div class="card"><div class="task-toolbar">
+    <div class="task-title-field"><label>Новая задача *</label><input id="boardTaskTitle" placeholder="Что нужно сделать"></div>
+    <div><label>Проект *</label><select id="boardTaskProject">${projectOpts||'<option value="">Сначала создайте проект</option>'}</select></div>
+    <div><label>Ответственный</label><select id="boardTaskAssignee"><option value="">Не назначен</option>${personOpts}</select></div>
+    <div><label>Срок</label><input id="boardTaskDue" type="date"></div>
+    <button class="btn grn" onclick="createBoardTask()" ${DB.projects.length?'':'disabled'}>+ Добавить</button>
+  </div></div>
+  <div class="card" style="padding:10px 12px"><div style="display:grid;grid-template-columns:1fr 220px 220px;gap:8px;align-items:center">
+    <input placeholder="Поиск по задачам" value="${esc(filters.search||'')}" oninput="setTaskFilter('search',this.value)">
+    <select onchange="setTaskFilter('project',this.value)"><option value="">Все проекты</option>${projectOpts}</select>
+    <select onchange="setTaskFilter('assignee',this.value)"><option value="">Все сотрудники</option>${personOpts}</select>
+  </div></div>
+  <div class="task-layout"><div class="task-board">${board}</div><aside><div class="card team-card"><h2 style="margin:0 0 10px">Сотрудники · ${DB.team.length}</h2>${team}
+    <div style="margin-top:12px;display:grid;gap:7px"><input id="teamName" placeholder="Имя и фамилия"><input id="teamEmail" type="email" placeholder="email (необязательно)"><button class="btn ghost" onclick="addTeamMember()">+ Добавить сотрудника</button></div>
+  </div></aside></div>${window._taskEdit?taskModalHtml(window._taskEdit):''}`;
+}
+function taskCard(p,t,today){
+  const person=taskPerson(t.assignee),late=t.due&&t.due<today&&t.status!=='done'&&!t.done,pr=taskPriority(t.priority);
+  return `<div class="task-card" draggable="true" data-task="${t.id}" data-project="${p.id}" ondragstart="taskDragStart(event,'${p.id}','${t.id}')" ondragend="taskDragEnd(event)" onclick="openTaskEditor('${p.id}','${t.id}')">
+    <div class="task-project">${esc(p.name)}</div><div class="task-title"><span class="task-priority" style="background:${pr[1]}" title="${pr[0]}"></span> ${esc(t.title)}</div>
+    <div class="task-meta">${person?`<span class="task-chip">${esc(taskInitials(person.name))} · ${esc(person.name)}</span>`:'<span class="task-chip">не назначен</span>'}${t.due?`<span class="task-chip ${late?'late':''}">${late?'⚠ ':''}${dRu(t.due)}</span>`:''}</div></div>`
+}
+function createBoardTask(){
+  const title=document.getElementById('boardTaskTitle')?.value.trim(),pid=document.getElementById('boardTaskProject')?.value,p=DB.projects.find(x=>x.id===pid);
+  if(!title||!p){toast('Укажите задачу и проект','err');return}
+  const t={id:uid(),title,description:'',status:'todo',priority:'normal',assignee:document.getElementById('boardTaskAssignee')?.value||'',due:document.getElementById('boardTaskDue')?.value||null,done:false,createdAt:new Date().toISOString()};
+  taskArr(p).push(t);auditLog('Добавлена задача',title,p);toast('Задача добавлена ✓');render()
+}
+function setTaskFilter(k,v){window._taskFilters={...(window._taskFilters||{}),[k]:v};clearTimeout(window._taskFilterTimer);window._taskFilterTimer=setTimeout(render,k==='search'?250:0)}
+function taskDragStart(e,pid,tid){window._taskDrag={pid,tid};e.currentTarget.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',pid+'|'+tid)}
+function taskDragEnd(e){e.currentTarget.classList.remove('dragging');document.querySelectorAll('.task-col').forEach(x=>x.classList.remove('drop-hot'));setTimeout(()=>window._taskDrag=null,0)}
+function taskDragOver(e){e.preventDefault();e.currentTarget.classList.add('drop-hot');e.dataTransfer.dropEffect='move'}
+function taskDrop(e,status){e.preventDefault();const d=window._taskDrag;if(!d)return;const p=DB.projects.find(x=>x.id===d.pid),t=taskArr(p||{}).find(x=>x.id===d.tid);if(!p||!t)return;t.status=status;t.done=status==='done';auditLog('Изменён статус задачи',t.title+' → '+(taskStages().find(x=>x.id===status)?.name||status),p);window._taskDropAt=Date.now();window._taskDrag=null;render()}
+function openTaskEditor(pid,tid){if(window._taskDrag||Date.now()-(window._taskDropAt||0)<400)return;window._taskEdit={pid,tid};render()}
+function taskModalHtml(x){
+  const p=DB.projects.find(z=>z.id===x.pid),t=taskArr(p||{}).find(z=>z.id===x.tid);if(!p||!t)return '';
+  return `<div class="task-modal-bg" onclick="if(event.target===this){window._taskEdit=null;render()}"><div class="task-modal"><div style="display:flex;align-items:center;gap:8px;margin-bottom:15px"><b style="font-size:17px">Карточка задачи</b><span style="flex:1"></span><span class="del" onclick="window._taskEdit=null;render()">×</span></div>
+    <div class="task-form-grid"><div class="wide"><label>Задача *</label><input id="editTaskTitle" value="${esc(t.title)}"></div>
+    <div><label>Проект</label><select id="editTaskProject">${taskOptions(p.id,DB.projects)}</select></div><div><label>Статус</label><select id="editTaskStatus">${taskOptions(t.status||'todo',taskStages())}</select></div>
+    <div><label>Ответственный</label><select id="editTaskAssignee">${taskOptions(t.assignee||'',DB.team||[],'Не назначен')}</select></div><div><label>Срок</label><input id="editTaskDue" type="date" value="${t.due||''}"></div>
+    <div><label>Приоритет</label><select id="editTaskPriority"><option value="low"${t.priority==='low'?' selected':''}>Низкий</option><option value="normal"${t.priority==='normal'?' selected':''}>Обычный</option><option value="high"${t.priority==='high'?' selected':''}>Высокий</option><option value="urgent"${t.priority==='urgent'?' selected':''}>Срочно</option></select></div>
+    <div class="wide"><label>Описание / результат</label><textarea id="editTaskDescription" placeholder="Подробности, ссылки, ожидаемый результат">${esc(t.description||'')}</textarea></div></div>
+    <div style="display:flex;gap:8px;margin-top:14px"><button class="btn grn" onclick="saveTaskEditor()">Сохранить</button><button class="btn ghost" onclick="window._taskEdit=null;render()">Отмена</button><span style="flex:1"></span><button class="btn red" onclick="deleteTaskEditor()">Удалить</button></div></div></div>`
+}
+function saveTaskEditor(){
+  const x=window._taskEdit,p=DB.projects.find(z=>z.id===x?.pid),t=taskArr(p||{}).find(z=>z.id===x?.tid);if(!p||!t)return;
+  const title=document.getElementById('editTaskTitle').value.trim();if(!title){toast('Название задачи обязательно','err');return}
+  const target=DB.projects.find(z=>z.id===document.getElementById('editTaskProject').value)||p,status=document.getElementById('editTaskStatus').value;
+  t.title=title;t.status=status;t.done=status==='done';t.assignee=document.getElementById('editTaskAssignee').value;t.due=document.getElementById('editTaskDue').value||null;t.priority=document.getElementById('editTaskPriority').value;t.description=document.getElementById('editTaskDescription').value.trim();t.updatedAt=new Date().toISOString();
+  if(target.id!==p.id){p.tasks=taskArr(p).filter(z=>z.id!==t.id);taskArr(target).push(t)}
+  auditLog('Изменена задача',title,target);window._taskEdit=null;toast('Задача сохранена ✓');render()
+}
+function deleteTaskEditor(){const x=window._taskEdit,p=DB.projects.find(z=>z.id===x?.pid),t=taskArr(p||{}).find(z=>z.id===x?.tid);if(!p||!t||!confirm('Удалить задачу «'+t.title+'»?'))return;p.tasks=taskArr(p).filter(z=>z.id!==t.id);auditLog('Удалена задача',t.title,p);window._taskEdit=null;render()}
+function addTeamMember(){const name=document.getElementById('teamName')?.value.trim(),email=document.getElementById('teamEmail')?.value.trim();if(!name){toast('Укажите имя сотрудника','err');return}DB.team=DB.team||[];DB.team.push({id:uid(),name,email});auditLog('Добавлен сотрудник',name,null);toast('Сотрудник добавлен ✓');render()}
+function deleteTeamMember(id){const x=taskPerson(id);if(!x||!confirm('Удалить сотрудника «'+x.name+'» из списка? Задачи останутся без ответственного.'))return;allTasks().forEach(({t})=>{if(t.assignee===id)t.assignee=''});DB.team=DB.team.filter(z=>z.id!==id);auditLog('Удалён сотрудник',x.name,null);render()}
 function bankStats(){
   const bank=ensureBank();let incoming=0,outgoing=0;
   bank.ops.forEach(o=>{if(o.cancelledAt)return;if(o.dir==='in')incoming+=Math.abs(o.amt||0);else outgoing+=Math.abs(o.amt||0)});
@@ -1738,15 +1863,15 @@ function taskArr(p){p.tasks=p.tasks||[];return p.tasks}
 function addTask(){const p=P();
   const t=document.getElementById('tkTitle').value.trim();
   if(!t){toast('Напиши, что сделать','err');return}
-  taskArr(p).push({id:uid(),title:t,due:document.getElementById('tkDue').value||null,done:false});
+  taskArr(p).push({id:uid(),title:t,due:document.getElementById('tkDue').value||null,done:false,status:'todo',priority:'normal',assignee:'',description:'',createdAt:new Date().toISOString()});
   auditLog('Добавлена задача',t,p);
   toast('Задача добавлена ✓');render()}
 function quickTask(title,due){const p=P();
   if(taskArr(p).some(x=>x.title===title&&!x.done)){toast('Такая задача уже стоит','err');return}
-  taskArr(p).push({id:uid(),title,due:due||null,done:false});
+  taskArr(p).push({id:uid(),title,due:due||null,done:false,status:'todo',priority:'high',assignee:'',description:'',createdAt:new Date().toISOString()});
   auditLog('Добавлена задача',title,p);
   toast('Задача добавлена ✓');render()}
-function toggleTask(id){const p=P();const t=taskArr(p).find(x=>x.id===id);if(t){t.done=!t.done;auditLog(t.done?'Задача выполнена':'Задача возвращена в работу',t.title,p)}render()}
+function toggleTask(id){const p=P();const t=taskArr(p).find(x=>x.id===id);if(t){t.done=!t.done;t.status=t.done?'done':'todo';auditLog(t.done?'Задача выполнена':'Задача возвращена в работу',t.title,p)}render()}
 function delTask(id){const p=P();const t=taskArr(p).find(x=>x.id===id);p.tasks=taskArr(p).filter(x=>x.id!==id);auditLog('Удалена задача',t?.title||'',p);render()}
 function delOp(id){const p=P();const o=p.ops.find(x=>x.id===id);if(o?.bankTransferId){toast('Перевод с Главным фондом компании нельзя удалить из журнала проекта — отмените его на главной странице','err');return}
   const b=fundBalances(p);
@@ -1899,7 +2024,7 @@ function importData(inp){
   const rd=new FileReader();
   rd.onload=()=>{try{const d=JSON.parse(rd.result);
     if(!Array.isArray(d.projects))throw 0;
-    DB={projects:d.projects,stages:d.stages||null,sel:null,audit:d.audit||[],bank:d.bank||null,impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null,dictUrl:d.dictUrl||'',fundDict:d.fundDict||null,atlSeeded:!!d.atlSeeded};_id=d._id||9000;ensureBank();
+    DB={projects:d.projects,stages:d.stages||null,sel:null,audit:d.audit||[],bank:d.bank||null,team:d.team||[],taskStages:d.taskStages||null,impUrl:d.impUrl||'',impAuto:!!d.impAuto,impLast:d.impLast||null,dictUrl:d.dictUrl||'',fundDict:d.fundDict||null,atlSeeded:!!d.atlSeeded};_id=d._id||9000;ensureBank();
     DB.projects.forEach(migrateProject);
     ensureStages();toast('Данные загружены ✓');render();
   }catch(e){toast('Не получилось прочитать файл','err')}};
