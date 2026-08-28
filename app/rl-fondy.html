@@ -231,6 +231,12 @@
   .task-modal{width:min(640px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:15px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
   .task-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.task-form-grid .wide{grid-column:1/-1}
   .task-modal textarea{width:100%;min-height:100px;padding:10px 11px;border:1px solid var(--line);border-radius:8px;font:13.5px inherit;resize:vertical}
+  .subtask-progress{display:flex;align-items:center;gap:6px;width:100%;margin-top:7px;font-size:9.5px;color:var(--muted)}
+  .subtask-bar{height:4px;flex:1;background:#e4e7eb;border-radius:4px;overflow:hidden}.subtask-bar i{display:block;height:100%;background:var(--green);border-radius:4px}
+  .subtask-box{grid-column:1/-1;background:#f6f7f9;border:1px solid #e0e3e8;border-radius:10px;padding:11px}
+  .subtask-row{display:grid;grid-template-columns:22px 1fr 28px;gap:7px;align-items:center;margin-bottom:6px}.subtask-row:last-child{margin-bottom:0}
+  .subtask-row input[type=checkbox]{width:17px;height:17px;margin:0;accent-color:var(--green)}.subtask-row input[type=text]{padding:7px 9px;background:#fff}
+  .subtask-add{display:flex;gap:7px;margin-top:8px}.subtask-add input{background:#fff}.subtask-add button{white-space:nowrap;padding:7px 11px;font-size:11px}
   @media(max-width:900px){.task-board{display:grid;grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:260px;overflow-x:auto}.task-filters{grid-template-columns:1fr 1fr}.task-filters input{grid-column:1/-1}}
   @media(max-width:820px){.portal-tabs{order:10;width:100%}.portal-tab{flex:1}.task-topbar h1{width:100%}.task-form-grid{grid-template-columns:1fr}.task-form-grid .wide{grid-column:auto}}
 </style>
@@ -279,7 +285,7 @@ function ensureBank(){
 }
 function migrateProject(p){
   p.tasks=p.tasks||[];p.finIn=p.finIn||[];p.finOut=p.finOut||[];
-  p.tasks.forEach(t=>{t.status=t.status||'todo';t.priority=t.priority||'normal';t.assignee=t.assignee||'';t.description=t.description||''});
+  p.tasks.forEach(t=>{t.status=t.status||'todo';t.priority=t.priority||'normal';t.assignee=t.assignee||'';t.description=t.description||'';t.subtasks=Array.isArray(t.subtasks)?t.subtasks:[]});
   // старая пометка «исполнено» (строка превращалась в операцию) → закрытая строка плана
   ['planIn','planOut','finIn','finOut'].forEach(k=>(p[k]||[]).forEach(r=>{
     if(r.closed){r.done=true;r.doneAt=r.closedAt||todayIso();delete r.closed;delete r.closedAt}
@@ -879,16 +885,16 @@ function renderTasks(host){
   </div><div class="task-board">${board}</div>${window._taskCreate?taskCreateHtml():''}${window._teamPanel?teamModalHtml():''}${window._taskEdit?taskModalHtml(window._taskEdit):''}`;
 }
 function taskCard(p,t,today){
-  const person=taskPerson(t.assignee),late=t.due&&t.due<today&&t.status!=='done'&&!t.done,pr=taskPriority(t.priority);
+  const person=taskPerson(t.assignee),late=t.due&&t.due<today&&t.status!=='done'&&!t.done,pr=taskPriority(t.priority),subs=t.subtasks||[],subDone=subs.filter(x=>x.done).length;
   return `<div class="task-card" style="--task-color:${pr[1]}" draggable="true" data-task="${t.id}" data-project="${p.id}" ondragstart="taskDragStart(event,'${p.id}','${t.id}')" ondragend="taskDragEnd(event)" onclick="openTaskEditor('${p.id}','${t.id}')">
     <div class="task-project">${esc(p.name)}</div><div class="task-title">${esc(t.title)}</div>
-    <div class="task-meta">${person?`<span class="avatar" style="width:23px;height:23px;font-size:8.5px" title="${esc(person.name)}">${esc(taskInitials(person.name))}</span>`:''}${t.due?`<span class="task-chip ${late?'late':''}">${late?'⚠ ':''}${dRu(t.due)}</span>`:''}<span style="margin-left:auto;color:${pr[1]};font-weight:800">${pr[0]}</span></div></div>`
+    <div class="task-meta">${person?`<span class="avatar" style="width:23px;height:23px;font-size:8.5px" title="${esc(person.name)}">${esc(taskInitials(person.name))}</span>`:''}${t.due?`<span class="task-chip ${late?'late':''}">${late?'⚠ ':''}${dRu(t.due)}</span>`:''}<span style="margin-left:auto;color:${pr[1]};font-weight:800">${pr[0]}</span></div>${subs.length?`<div class="subtask-progress"><span>✓ ${subDone}/${subs.length}</span><span class="subtask-bar"><i style="width:${Math.round(subDone/subs.length*100)}%"></i></span></div>`:''}</div>`
 }
 function openTaskCreate(){window._taskCreate=true;render();setTimeout(()=>document.getElementById('boardTaskTitle')?.focus(),0)}
 function taskCreateHtml(){
   const projectOpts=DB.projects.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join(''),personOpts=(DB.team||[]).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');
   return `<div class="task-modal-bg" onclick="if(event.target===this){window._taskCreate=null;render()}"><div class="task-modal"><div style="display:flex;align-items:center;gap:8px;margin-bottom:15px"><b style="font-size:17px">Новая задача</b><span style="flex:1"></span><span class="del" onclick="window._taskCreate=null;render()">×</span></div>
-    <div class="task-form-grid"><div class="wide"><label>Что нужно сделать *</label><input id="boardTaskTitle" placeholder="Короткое и понятное название"></div><div><label>Проект *</label><select id="boardTaskProject">${projectOpts}</select></div><div><label>Ответственный</label><select id="boardTaskAssignee"><option value="">Не назначен</option>${personOpts}</select></div><div><label>Срок</label><input id="boardTaskDue" type="date"></div><div><label>Приоритет</label><select id="boardTaskPriority"><option value="low">Низкий</option><option value="normal" selected>Обычный</option><option value="high">Высокий</option><option value="urgent">Срочно</option></select></div><div class="wide"><label>Описание / результат</label><textarea id="boardTaskDescription" placeholder="Подробности и ожидаемый результат"></textarea></div></div>
+    <div class="task-form-grid"><div class="wide"><label>Что нужно сделать *</label><input id="boardTaskTitle" placeholder="Короткое и понятное название"></div><div><label>Проект *</label><select id="boardTaskProject">${projectOpts}</select></div><div><label>Ответственный</label><select id="boardTaskAssignee"><option value="">Не назначен</option>${personOpts}</select></div><div><label>Срок</label><input id="boardTaskDue" type="date"></div><div><label>Приоритет</label><select id="boardTaskPriority"><option value="low">Низкий</option><option value="normal" selected>Обычный</option><option value="high">Высокий</option><option value="urgent">Срочно</option></select></div><div class="wide"><label>Описание / результат</label><textarea id="boardTaskDescription" placeholder="Подробности и ожидаемый результат"></textarea></div>${subtaskEditorHtml([], 'createSubtasks')}</div>
     <div style="display:flex;gap:8px;margin-top:14px"><button class="btn grn" onclick="createBoardTask()">Создать задачу</button><button class="btn ghost" onclick="window._taskCreate=null;render()">Отмена</button></div></div></div>`
 }
 function teamModalHtml(){const team=DB.team.length?DB.team.map(x=>`<div class="team-row"><span class="avatar">${esc(taskInitials(x.name))}</span><span style="flex:1;min-width:0"><b style="font-size:12.5px">${esc(x.name)}</b><span style="display:block;font-size:10px;color:var(--muted)">${esc(x.email||'без email')}</span></span><span class="del" onclick="deleteTeamMember('${x.id}')">×</span></div>`).join(''):'<div class="task-empty">Сотрудников пока нет.</div>';
@@ -896,7 +902,7 @@ function teamModalHtml(){const team=DB.team.length?DB.team.map(x=>`<div class="t
 function createBoardTask(){
   const title=document.getElementById('boardTaskTitle')?.value.trim(),pid=document.getElementById('boardTaskProject')?.value,p=DB.projects.find(x=>x.id===pid);
   if(!title||!p){toast('Укажите задачу и проект','err');return}
-  const t={id:uid(),title,description:document.getElementById('boardTaskDescription')?.value.trim()||'',status:'todo',priority:document.getElementById('boardTaskPriority')?.value||'normal',assignee:document.getElementById('boardTaskAssignee')?.value||'',due:document.getElementById('boardTaskDue')?.value||null,done:false,createdAt:new Date().toISOString()};
+  const t={id:uid(),title,description:document.getElementById('boardTaskDescription')?.value.trim()||'',status:'todo',priority:document.getElementById('boardTaskPriority')?.value||'normal',assignee:document.getElementById('boardTaskAssignee')?.value||'',due:document.getElementById('boardTaskDue')?.value||null,subtasks:readSubtasks('createSubtasks'),done:false,createdAt:new Date().toISOString()};
   taskArr(p).push(t);auditLog('Добавлена задача',title,p);window._taskCreate=null;toast('Задача добавлена ✓');render()
 }
 function setTaskFilter(k,v){window._taskFilters={...(window._taskFilters||{}),[k]:v};clearTimeout(window._taskFilterTimer);window._taskFilterTimer=setTimeout(render,k==='search'?250:0)}
@@ -905,6 +911,10 @@ function taskDragEnd(e){e.currentTarget.classList.remove('dragging');document.qu
 function taskDragOver(e){e.preventDefault();e.currentTarget.classList.add('drop-hot');e.dataTransfer.dropEffect='move'}
 function taskDrop(e,status){e.preventDefault();const d=window._taskDrag;if(!d)return;const p=DB.projects.find(x=>x.id===d.pid),t=taskArr(p||{}).find(x=>x.id===d.tid);if(!p||!t)return;t.status=status;t.done=status==='done';auditLog('Изменён статус задачи',t.title+' → '+(taskStages().find(x=>x.id===status)?.name||status),p);window._taskDropAt=Date.now();window._taskDrag=null;render()}
 function openTaskEditor(pid,tid){if(window._taskDrag||Date.now()-(window._taskDropAt||0)<400)return;window._taskEdit={pid,tid};render()}
+function subtaskEditorHtml(items,listId){return `<div class="subtask-box"><label>Подзадачи · чек-лист</label><div id="${listId}">${(items||[]).map(x=>subtaskRowHtml(x)).join('')}</div><div class="subtask-add"><input id="${listId}New" placeholder="Добавить подзадачу" onkeydown="if(event.key==='Enter'){event.preventDefault();addSubtaskRow('${listId}')}"><button type="button" class="btn ghost" onclick="addSubtaskRow('${listId}')">+ Добавить</button></div></div>`}
+function subtaskRowHtml(x){return `<div class="subtask-row" data-id="${esc(x.id||uid())}"><input class="subtask-done" type="checkbox"${x.done?' checked':''} title="выполнено"><input class="subtask-title" type="text" value="${esc(x.title||'')}" placeholder="Что сделать"><span class="del" onclick="this.parentNode.remove()">×</span></div>`}
+function addSubtaskRow(listId){const box=document.getElementById(listId),input=document.getElementById(listId+'New'),title=input?.value.trim();if(!box||!title){input?.focus();return}box.insertAdjacentHTML('beforeend',subtaskRowHtml({id:uid(),title,done:false}));input.value='';input.focus()}
+function readSubtasks(listId){return [...document.querySelectorAll('#'+listId+' .subtask-row')].map(r=>({id:r.dataset.id||uid(),title:r.querySelector('.subtask-title')?.value.trim()||'',done:!!r.querySelector('.subtask-done')?.checked})).filter(x=>x.title)}
 function taskModalHtml(x){
   const p=DB.projects.find(z=>z.id===x.pid),t=taskArr(p||{}).find(z=>z.id===x.tid);if(!p||!t)return '';
   return `<div class="task-modal-bg" onclick="if(event.target===this){window._taskEdit=null;render()}"><div class="task-modal"><div style="display:flex;align-items:center;gap:8px;margin-bottom:15px"><b style="font-size:17px">Карточка задачи</b><span style="flex:1"></span><span class="del" onclick="window._taskEdit=null;render()">×</span></div>
@@ -912,14 +922,14 @@ function taskModalHtml(x){
     <div><label>Проект</label><select id="editTaskProject">${taskOptions(p.id,DB.projects)}</select></div><div><label>Статус</label><select id="editTaskStatus">${taskOptions(t.status||'todo',taskStages())}</select></div>
     <div><label>Ответственный</label><select id="editTaskAssignee">${taskOptions(t.assignee||'',DB.team||[],'Не назначен')}</select></div><div><label>Срок</label><input id="editTaskDue" type="date" value="${t.due||''}"></div>
     <div><label>Приоритет</label><select id="editTaskPriority"><option value="low"${t.priority==='low'?' selected':''}>Низкий</option><option value="normal"${t.priority==='normal'?' selected':''}>Обычный</option><option value="high"${t.priority==='high'?' selected':''}>Высокий</option><option value="urgent"${t.priority==='urgent'?' selected':''}>Срочно</option></select></div>
-    <div class="wide"><label>Описание / результат</label><textarea id="editTaskDescription" placeholder="Подробности, ссылки, ожидаемый результат">${esc(t.description||'')}</textarea></div></div>
+    <div class="wide"><label>Описание / результат</label><textarea id="editTaskDescription" placeholder="Подробности, ссылки, ожидаемый результат">${esc(t.description||'')}</textarea></div>${subtaskEditorHtml(t.subtasks||[], 'editSubtasks')}</div>
     <div style="display:flex;gap:8px;margin-top:14px"><button class="btn grn" onclick="saveTaskEditor()">Сохранить</button><button class="btn ghost" onclick="window._taskEdit=null;render()">Отмена</button><span style="flex:1"></span><button class="btn red" onclick="deleteTaskEditor()">Удалить</button></div></div></div>`
 }
 function saveTaskEditor(){
   const x=window._taskEdit,p=DB.projects.find(z=>z.id===x?.pid),t=taskArr(p||{}).find(z=>z.id===x?.tid);if(!p||!t)return;
   const title=document.getElementById('editTaskTitle').value.trim();if(!title){toast('Название задачи обязательно','err');return}
   const target=DB.projects.find(z=>z.id===document.getElementById('editTaskProject').value)||p,status=document.getElementById('editTaskStatus').value;
-  t.title=title;t.status=status;t.done=status==='done';t.assignee=document.getElementById('editTaskAssignee').value;t.due=document.getElementById('editTaskDue').value||null;t.priority=document.getElementById('editTaskPriority').value;t.description=document.getElementById('editTaskDescription').value.trim();t.updatedAt=new Date().toISOString();
+  t.title=title;t.status=status;t.done=status==='done';t.assignee=document.getElementById('editTaskAssignee').value;t.due=document.getElementById('editTaskDue').value||null;t.priority=document.getElementById('editTaskPriority').value;t.description=document.getElementById('editTaskDescription').value.trim();t.subtasks=readSubtasks('editSubtasks');t.updatedAt=new Date().toISOString();
   if(target.id!==p.id){p.tasks=taskArr(p).filter(z=>z.id!==t.id);taskArr(target).push(t)}
   auditLog('Изменена задача',title,target);window._taskEdit=null;toast('Задача сохранена ✓');render()
 }
