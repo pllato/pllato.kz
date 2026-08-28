@@ -1426,7 +1426,7 @@ function cur(){return S.objects[S.pageNum];}
 function addObj(o){o.id='o'+(S.seq++);cur().push(o);return o;}
 function getObj(id){return cur().find(o=>o.id===id);}
 function delObj(id){const a=cur();const i=a.findIndex(o=>o.id===id);if(i>=0)a.splice(i,1);}
-function deleteObjectIds(ids){(ids||[]).forEach(id=>{const o=getObj(id);if(!o)return;if(o._lkSource&&o._lkOriginal)o._lkDeleted=true;else delObj(id);});}
+function deleteObjectIds(ids){(ids||[]).forEach(id=>{if(getObj(id))delObj(id);});}   // чистое удаление ОБЪЕКТА (векторно), без белой маски-«выреза» на растре
 function isRef(o){return S.importMode==='ref'&&o.src==='pdf';}
 function visible(o){return S.filter==='all'||(S.filter==='mine'&&o.src!=='pdf')||(S.filter==='pdf'&&o.src==='pdf');}
 
