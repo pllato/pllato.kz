@@ -1502,7 +1502,11 @@ function endpointFollowerIds(o,i){if(!o||o.type!=='line'||(i!==0&&i!==o.pts.leng
 }
 function bindObj(el,o){
   el.addEventListener('pointerdown',ev=>{
-    if(S.tool!=='select')return;ev.stopPropagation();ev.preventDefault();
+    if(S.tool!=='select')return;
+    // на ПАЛЬЦЕ линию выбирают ДВОЙНЫМ тапом (обрабатывает vp): тело линии НЕ перехватывает
+    // одиночное касание — иначе оно мешает пану и зуму («хватает линию»). Знаки/ручки — как прежде.
+    if(isCoarsePointer()&&o.type==='line'&&!o.grp)return;
+    ev.stopPropagation();ev.preventDefault();
     selectObj(o.id);
     if(o.type==='line'&&!o.grp)return; // трассу меняют только её узлами; целиком не перетаскиваем
     const cluster=moveCluster(o);
@@ -1513,7 +1517,7 @@ function bindObj(el,o){
   });
   // В обычном редакторе двойной тап добавляет технический узел. В Линейке
   // управление намеренно ограничено тремя понятными ручками A/C/B.
-  if(o.type==='line'&&!S.threePointMode){el.addEventListener('dblclick',ev=>{if(S.tool!=='select')return;ev.stopPropagation();insertNode(o,toImg(ev.clientX,ev.clientY));});}
+  if(o.type==='line'&&!S.threePointMode&&!isCoarsePointer()){el.addEventListener('dblclick',ev=>{if(S.tool!=='select')return;ev.stopPropagation();insertNode(o,toImg(ev.clientX,ev.clientY));});}
 }
 function live(o){const el=gObj.querySelector(`[data-id="${o.id}"]`);if(!el)return;
   if(o.type==='line'||o.type==='symbol'){redrawOne(o);}
@@ -1718,24 +1722,35 @@ let panning=false,lastX,lastY,moved=0;const ptrs=new Map();let pinching=false,pi
 /* линии рядом с точкой (в координатах изображения), ближе — раньше. Для тапа по тонкой
    линии на пальце: попадать не обязательно точно, берём ближайшую в радиусе. */
 function nearLines(p,rad){const out=[];(cur()||[]).forEach(o=>{if(!o||o._lkDeleted||o.type!=='line'||isRef(o)||!visible(o)||!o.pts||o.pts.length<2)return;let m=1e18;for(let i=0;i<o.pts.length-1;i++)m=Math.min(m,dSeg(p,o.pts[i],o.pts[i+1]));if(m<=rad)out.push({id:o.id,d:m});});out.sort((a,b)=>a.d-b.d);return out;}
+// ПАЛЕЦ: выбор линии ДВОЙНЫМ тапом (одиночные касания оставлены пану/зуму). Повторный двойной тап
+// рядом перебирает пересекающиеся линии. Одиночный тап по пустому — снять выделение.
+function coarseTapSelect(ip){const rad=26/Math.max(.1,S.scale),cand=nearLines(ip,rad),t=Date.now();
+  const dbl=S._dTapT&&(t-S._dTapT)<330&&S._dTapPt&&Math.hypot(ip.x-S._dTapPt.x,ip.y-S._dTapPt.y)<rad*1.6;
+  if(dbl&&cand.length){let idx=0;const ci=cand.findIndex(c=>c.id===S.selected);if(ci>=0)idx=(ci+1)%cand.length;S._dTapT=0;S._dTapPt=null;selectObj(cand[idx].id);
+    if(cand.length>1)toast('Линия'+(lineNo(getObj(cand[idx].id))!=null?' №'+lineNo(getObj(cand[idx].id)):'')+' · двойной тап — следующая');return;}
+  S._dTapT=t;S._dTapPt={x:ip.x,y:ip.y};
+  if(cand.length){toast('Двойной тап — выбрать линию');}
+  else{if(S.selected){S.selected=null;drawSelUI();renderOpt();if(S.sideTab==='obj')renderSide();}if(S.linkedLkDocId)lkSelectDrawingVectorAt(ip);}}
 // пальцы считаем в ФАЗЕ ЗАХВАТА — иначе объект (ручка/линия) гасит событие stopPropagation, vp не
 // узнаёт о первом пальце, и щипок не стартует (ptrs не доходит до 2, а drag продолжает тянуть линию)
 vp.addEventListener('pointerdown',e=>{ptrs.set(e.pointerId,e);if(ptrs.size===2){pinching=true;pinchSerial++;panning=false;cancelDraft();}},true);
 vp.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')e.preventDefault();ptrs.set(e.pointerId,e);if(ptrs.size===2){pinching=true;pinchSerial++;panning=false;cancelDraft();return;}
   const onObj=e.target.closest('[data-id]');
   if(S.tool==='erase'){if(onObj)eraseAt(e.target);else bgPan(e);return;}
-  if(S.tool==='select'){if(!onObj){
-      // тап рядом (не точно) выбирает ближайшую линию; повторный тап рядом — следующую под ней;
-      // снятие выделения и пан — только если рядом линий нет. Пан больше не сбрасывает выделение.
-      bgPan(e,ip=>{const rad=(isCoarsePointer()?26:14)/Math.max(.1,S.scale),cand=nearLines(ip,rad);
+  if(S.tool==='select'){
+    // ПАЛЕЦ: любой одиночный жест по холсту/линии = пан; два пальца = зум; выбор линии — ДВОЙНЫМ тапом.
+    // Так навигация свободна и линия не «хватается» при увеличении.
+    if(isCoarsePointer()){bgPan(e,ip=>coarseTapSelect(ip));return;}
+    if(!onObj){
+      // МЫШЬ: тап рядом выбирает ближайшую линию; повторный тап рядом — следующую под ней
+      bgPan(e,ip=>{const rad=14/Math.max(.1,S.scale),cand=nearLines(ip,rad);
         if(cand.length){let idx=0;
           if(S._lastTapPt&&Math.hypot(ip.x-S._lastTapPt.x,ip.y-S._lastTapPt.y)<rad&&S.selected){const ci=cand.findIndex(c=>c.id===S.selected);if(ci>=0)idx=(ci+1)%cand.length;}
-          S._lastTapPt={x:ip.x,y:ip.y};selectObj(cand[idx].id);
-          if(cand.length>1)toast('Выбрана линия'+(lineNo(getObj(cand[idx].id))!=null?' №'+lineNo(getObj(cand[idx].id)):'')+' · тапните ещё раз — следующая');
-          return;}
+          S._lastTapPt={x:ip.x,y:ip.y};selectObj(cand[idx].id);return;}
         S._lastTapPt=null;S.selected=null;drawSelUI();renderOpt();if(S.sideTab==='obj')renderSide();
         if(S.linkedLkDocId&&inBase(e.clientX,e.clientY))lkSelectDrawingVectorAt(ip);
-      });}return;}
+      });}
+    return;}
   if(S.tool==='pan'){panning=true;moved=0;lastX=e.clientX;lastY=e.clientY;vp.setPointerCapture(e.pointerId);return;}
   if(!inBase(e.clientX,e.clientY))return;const p=toImg(e.clientX,e.clientY);
   if(S.tool==='cal'){calClick(p);}
