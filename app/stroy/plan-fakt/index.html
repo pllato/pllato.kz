@@ -1692,11 +1692,24 @@ function delSel(){const o=getObj(S.selected);if(!o)return;pushHistory();const id
 
 /* ---- canvas pointer ---- */
 let panning=false,lastX,lastY,moved=0;const ptrs=new Map();let pinching=false,pinchSerial=0,pd0=0,ps0=1,pmid=null;
+/* линии рядом с точкой (в координатах изображения), ближе — раньше. Для тапа по тонкой
+   линии на пальце: попадать не обязательно точно, берём ближайшую в радиусе. */
+function nearLines(p,rad){const out=[];(cur()||[]).forEach(o=>{if(!o||o._lkDeleted||o.type!=='line'||isRef(o)||!visible(o)||!o.pts||o.pts.length<2)return;let m=1e18;for(let i=0;i<o.pts.length-1;i++)m=Math.min(m,dSeg(p,o.pts[i],o.pts[i+1]));if(m<=rad)out.push({id:o.id,d:m});});out.sort((a,b)=>a.d-b.d);return out;}
 vp.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')e.preventDefault();ptrs.set(e.pointerId,e);if(ptrs.size===2){pinching=true;pinchSerial++;panning=false;cancelDraft();return;}
   const onObj=e.target.closest('[data-id]');
   if(S.tool==='erase'){if(onObj)eraseAt(e.target);else bgPan(e);return;}
-  if(S.tool==='select'){if(!onObj){S.selected=null;drawSelUI();renderOpt();if(S.sideTab==='obj')renderSide();
-      bgPan(e,S.linkedLkDocId&&inBase(e.clientX,e.clientY)?p=>lkSelectDrawingVectorAt(p):null);}return;}
+  if(S.tool==='select'){if(!onObj){
+      // тап рядом (не точно) выбирает ближайшую линию; повторный тап рядом — следующую под ней;
+      // снятие выделения и пан — только если рядом линий нет. Пан больше не сбрасывает выделение.
+      bgPan(e,ip=>{const rad=(isCoarsePointer()?26:14)/Math.max(.1,S.scale),cand=nearLines(ip,rad);
+        if(cand.length){let idx=0;
+          if(S._lastTapPt&&Math.hypot(ip.x-S._lastTapPt.x,ip.y-S._lastTapPt.y)<rad&&S.selected){const ci=cand.findIndex(c=>c.id===S.selected);if(ci>=0)idx=(ci+1)%cand.length;}
+          S._lastTapPt={x:ip.x,y:ip.y};selectObj(cand[idx].id);
+          if(cand.length>1)toast('Выбрана линия'+(lineNo(getObj(cand[idx].id))!=null?' №'+lineNo(getObj(cand[idx].id)):'')+' · тапните ещё раз — следующая');
+          return;}
+        S._lastTapPt=null;S.selected=null;drawSelUI();renderOpt();if(S.sideTab==='obj')renderSide();
+        if(S.linkedLkDocId&&inBase(e.clientX,e.clientY))lkSelectDrawingVectorAt(ip);
+      });}return;}
   if(S.tool==='pan'){panning=true;moved=0;lastX=e.clientX;lastY=e.clientY;vp.setPointerCapture(e.pointerId);return;}
   if(!inBase(e.clientX,e.clientY))return;const p=toImg(e.clientX,e.clientY);
   if(S.tool==='cal'){calClick(p);}
