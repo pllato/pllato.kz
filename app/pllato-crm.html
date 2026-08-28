@@ -3597,6 +3597,90 @@ function readPllatoAppSession() {
   } catch { return null; }
 }
 const pllatoAppSession = readPllatoAppSession();
+const PLLATO_APP_ACCESS_API = 'https://pllato-comm.uurraa.workers.dev';
+const ROOT_SUPER_ADMIN_EMAIL = 'uurraa@gmail.com';
+const appPortalAccess = {
+  resolved: false,
+  canUseCrm: !pllatoAppSession,
+  canViewCalendar: !pllatoAppSession,
+  canCreateCalendarEvents: !pllatoAppSession,
+};
+
+function isAppPortalFullAdmin(profile = pllatoAppSession?.user) {
+  const email = String(profile?.email || '').trim().toLowerCase();
+  return email === ROOT_SUPER_ADMIN_EMAIL || profile?.isAdmin === true || profile?.isSuperAdmin === true;
+}
+
+function applyAppPortalAccess(profile) {
+  const fullAdmin = isAppPortalFullAdmin(profile) || window.currentUser?.role === 'admin';
+  // Старые прямые входы в CRM сохраняют прежние права. Новые права с плашки
+  // применяем только к пользователям, которые вошли через App-сессию.
+  if (!pllatoAppSession) {
+    appPortalAccess.canUseCrm = true;
+    appPortalAccess.canViewCalendar = true;
+    appPortalAccess.canCreateCalendarEvents = true;
+  } else {
+    appPortalAccess.canUseCrm = fullAdmin || Boolean(profile?.apps?.pllato_sales_crm);
+    appPortalAccess.canViewCalendar = fullAdmin || Boolean(profile?.apps?.pllato_shared_calendar);
+    appPortalAccess.canCreateCalendarEvents = appPortalAccess.canViewCalendar
+      && (fullAdmin || Boolean(profile?.calendarAccess?.canCreate));
+  }
+  appPortalAccess.resolved = true;
+}
+
+applyAppPortalAccess(pllatoAppSession?.user);
+
+async function refreshAppPortalAccess() {
+  if (!pllatoAppSession?.token) {
+    applyAppPortalAccess(pllatoAppSession?.user);
+    return;
+  }
+  try {
+    const response = await fetch(`${PLLATO_APP_ACCESS_API}/users/list`, {
+      headers: { Authorization: `Bearer ${pllatoAppSession.token}` },
+      cache: 'no-store',
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const email = String(pllatoAppSession.user?.email || '').trim().toLowerCase();
+    const id = String(pllatoAppSession.user?.id || '');
+    const profile = (data?.users || []).find((item) =>
+      (id && String(item?.id || '') === id)
+      || String(item?.email || '').trim().toLowerCase() === email
+    );
+    if (!profile) throw new Error('Пользователь App не найден');
+    applyAppPortalAccess(profile);
+    try {
+      const stored = JSON.parse(localStorage.getItem('pllato_session') || 'null');
+      if (stored?.user) {
+        stored.user = {
+          ...stored.user,
+          isAdmin: Boolean(profile.isAdmin),
+          isSuperAdmin: Boolean(profile.isSuperAdmin),
+          apps: { ...(profile.apps || {}) },
+          calendarAccess: { canCreate: Boolean(profile.calendarAccess?.canCreate) },
+        };
+        localStorage.setItem('pllato_session', JSON.stringify(stored));
+      }
+    } catch (_) {}
+  } catch (error) {
+    console.warn('[App access] Не удалось обновить права, используем сохранённые:', error);
+    applyAppPortalAccess(pllatoAppSession?.user);
+  }
+}
+
+function canOpenSharedCalendar() {
+  return appPortalAccess.canViewCalendar || window.currentUser?.role === 'admin';
+}
+
+function canManageSharedCalendar() {
+  return canOpenSharedCalendar()
+    && (appPortalAccess.canCreateCalendarEvents || window.currentUser?.role === 'admin');
+}
+
+function canUseStandaloneCrm() {
+  return appPortalAccess.canUseCrm || window.currentUser?.role === 'admin';
+}
 const app = initializeApp(firebaseConfig);
 const firebaseAuth = getAuth(app);
 const auth = pllatoAppSession ? {
@@ -4050,9 +4134,24 @@ async function initApp(user) {
   // Мониторинг связи WhatsApp-каналов — баннер сверху админам, если канал отвалился.
   try { startChannelHealthMonitor(); } catch (e) { console.warn('[initApp] channel monitor failed:', e); }
 
+  // Права плашки календаря хранятся в App. Обновляем их перед выбором
+  // стартового раздела, чтобы прямой URL не обходил запрет на просмотр.
+  await refreshAppPortalAccess();
+  const dealsNav = document.querySelector('.nav-item[data-page="deals"]');
+  const calendarNav = document.querySelector('.nav-item[data-page="calendar"]');
+  if (dealsNav) dealsNav.style.display = canUseStandaloneCrm() ? '' : 'none';
+  if (calendarNav) calendarNav.style.display = canOpenSharedCalendar() ? '' : 'none';
+
   // Default page — восстанавливаем последнюю открытую (persist в localStorage
   // через navigate). Deep-link в hash (#deal/, #contact/, #task/) приоритетнее.
-  const VALID_PAGES = ['deals', 'calendar'];
+  const VALID_PAGES = [
+    ...(canUseStandaloneCrm() ? ['deals'] : []),
+    ...(canOpenSharedCalendar() ? ['calendar'] : []),
+  ];
+  if (!VALID_PAGES.length) {
+    location.replace('/app.html');
+    return;
+  }
   // Старая страница 'users' переехала в 'settings' → редирект сохранённого значения
   // Дефолт при ПЕРВОМ входе (нет сохранённой страницы) — «Чаты» (team-chat).
   // Для вернувшихся пользователей ниже восстанавливаем их последнюю страницу.
@@ -4065,10 +4164,8 @@ async function initApp(user) {
     qpChannel = sp.get('channel');
   } catch {}
 
-  let startPage = 'deals';
-  if (location.hash.startsWith('#deal/')) startPage = 'deals';
-  else if (location.hash.startsWith('#contact/')) startPage = 'contacts';
-  else if (location.hash.startsWith('#task/')) startPage = 'tasks';
+  let startPage = VALID_PAGES[0];
+  if (canUseStandaloneCrm() && location.hash.startsWith('#deal/')) startPage = 'deals';
   else if (qpPage && VALID_PAGES.includes(qpPage)) startPage = qpPage;
   else {
     try {
@@ -4083,7 +4180,7 @@ async function initApp(user) {
   navigate(startPage);
 
   // Deep-link открываем после загрузки страницы
-  if (location.hash.startsWith('#deal/') || location.hash.startsWith('#contact/') || location.hash.startsWith('#task/') || location.hash.startsWith('#invite/')) {
+  if (canUseStandaloneCrm() && (location.hash.startsWith('#deal/') || location.hash.startsWith('#contact/') || location.hash.startsWith('#task/') || location.hash.startsWith('#invite/'))) {
     setTimeout(() => handleDeepLink(), 500);
   }
 
@@ -4181,6 +4278,14 @@ function toggleTheme() {
 }
 
 function navigate(page) {
+  if (page === 'calendar' && !canOpenSharedCalendar()) {
+    if (typeof showToast === 'function') showToast('Нет доступа к общему календарю', true);
+    return;
+  }
+  if (page === 'deals' && !canUseStandaloneCrm()) {
+    if (typeof showToast === 'function') showToast('Нет доступа к CRM', true);
+    return;
+  }
   // на мобильном при переходе закрываем выезжающее меню
   const appEl = document.getElementById('app');
   if (appEl) appEl.classList.remove('drawer-open');
@@ -16567,7 +16672,7 @@ const calendarState = {
   showAll: (() => { try { return localStorage.getItem('cal-show-all') !== '0'; } catch { return true; } })(),
 };
 function calCanSeeAll() {
-  return window.currentUser?.role === 'admin' || !!window.currentUser?.orgPerms?.isDirector;
+  return canOpenSharedCalendar() || window.currentUser?.role === 'admin' || !!window.currentUser?.orgPerms?.isDirector;
 }
 
 function ensureCalendarStylesInjected() {
@@ -16687,6 +16792,10 @@ function ensureCalendarStylesInjected() {
 }
 
 async function renderCalendar(el) {
+  if (!canOpenSharedCalendar()) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔒</div><div class="empty-text">Нет доступа к общему календарю.</div></div>';
+    return;
+  }
   ensureCalendarStylesInjected();
   const now = new Date();
   if (!calendarState.cursorDate) calendarState.cursorDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -16704,7 +16813,9 @@ async function renderCalendar(el) {
         <button class="btn btn-sm" id="cal-today">Сегодня</button>
         <button class="btn btn-sm" id="cal-next">→</button>
         <button class="btn btn-sm" id="cal-reload" title="Перезагрузить события">🔄</button>
-        <button class="btn btn-sm" id="cal-add-event" title="Создать событие" style="background:linear-gradient(135deg,#5b6dff,#8a5cff);color:#fff">➕ Событие</button>
+        ${canManageSharedCalendar()
+          ? '<button class="btn btn-sm" id="cal-add-event" title="Создать событие" style="background:linear-gradient(135deg,#5b6dff,#8a5cff);color:#fff">➕ Событие</button>'
+          : '<span class="btn btn-sm" title="Администратор дал доступ только на просмотр" style="cursor:default;color:var(--t3)">👁 Только просмотр</span>'}
         <span class="cal-month-label" id="cal-label"></span>
         <div class="cal-view-toggle">
           <button class="cal-view-btn ${calendarState.view === 'day' ? 'active' : ''}" data-cal-view="day">День</button>
@@ -16740,7 +16851,8 @@ async function renderCalendar(el) {
     await loadCalendarEvents({ force: true });
     renderCalendarView();
   };
-  document.getElementById('cal-add-event').onclick = () => openCalEventForm(new Date());
+  const addEventButton = document.getElementById('cal-add-event');
+  if (addEventButton) addEventButton.onclick = () => openCalEventForm(new Date());
   // Переключатель видов
   el.querySelectorAll('.cal-view-btn[data-cal-view]').forEach(b => {
     b.addEventListener('click', () => {
@@ -17418,6 +17530,13 @@ function calLocalDT(d) {
 // ── Drag&drop переноса событий по времени/дням + создание события ──────────
 let _calDragUid = null;
 function attachCalDragHandlers(grid) {
+  if (!canManageSharedCalendar()) {
+    grid.querySelectorAll('.cal-event[data-cal-uid]').forEach((eventEl) => {
+      eventEl.draggable = false;
+      eventEl.removeAttribute('draggable');
+    });
+    return;
+  }
   const HOUR_H = 44, START_H = 6, SNAP = 15;
   grid.querySelectorAll('.cal-event[data-cal-uid]').forEach(el => {
     el.addEventListener('dragstart', (e) => {
@@ -17453,6 +17572,10 @@ function attachCalDragHandlers(grid) {
 }
 
 async function rescheduleEvent(uid, newStart) {
+  if (!canManageSharedCalendar()) {
+    if (typeof showToast === 'function') showToast('Календарь доступен только для просмотра', true);
+    return;
+  }
   const ev = (calendarState.events || []).find(e => e.uid === uid);
   if (!ev) return;
   const oldDate = ev.date, oldEnd = ev.endDate;
@@ -17494,6 +17617,10 @@ async function rescheduleEvent(uid, newStart) {
 
 // Форма создания события в календаре (встреча) с привязкой к сделке.
 function openCalEventForm(prefillDate) {
+  if (!canManageSharedCalendar()) {
+    if (typeof showToast === 'function') showToast('Нет права создавать события', true);
+    return;
+  }
   document.getElementById('_cal-event-modal')?.remove();
   const start = prefillDate instanceof Date && !isNaN(prefillDate) ? prefillDate : new Date();
   const evUsers = (typeof orgSortedUsers === 'function') ? orgSortedUsers() : [];
@@ -17627,9 +17754,10 @@ function openCalEventEdit(uid) {
   durOpts.sort((a, b) => a - b);
   const durLabel = (m) => m === 60 ? '1 час' : m === 90 ? '1.5 ч' : m === 120 ? '2 ч' : m + ' мин';
   const myUid = window.currentUser?.canonicalUid || '';
-  const editable = isTask
+  const editableByEvent = isTask
     ? (ev.createdByUid === myUid || ev.responsibleUid === myUid || (ev.accomplices || []).includes(myUid))
     : true;
+  const editable = canManageSharedCalendar() && editableByEvent;
   const dis = editable ? '' : 'disabled';
   const eeUsers = (typeof orgSortedUsers === 'function') ? orgSortedUsers() : [];
   const curVis = ev.eventPublic ? 'all' : ((ev.accomplices && ev.accomplices.length) ? 'people' : 'me');
@@ -17651,13 +17779,13 @@ function openCalEventEdit(uid) {
       </div>` : ''}
       <label style="font-size:12px;color:var(--t3)">Название</label>
       ${canEditTitle
-        ? `<input id="ee-title" value="${escapeHtml(titleVal)}" style="width:100%;margin:5px 0 12px;padding:10px 12px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);font-size:14px">`
+        ? `<input id="ee-title" ${dis} value="${escapeHtml(titleVal)}" style="width:100%;margin:5px 0 12px;padding:10px 12px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);font-size:14px">`
         : `<div style="margin:5px 0 12px;padding:10px 12px;border:1px solid var(--b1);border-radius:8px;background:var(--bg3);color:var(--t2);font-size:14px">${escapeHtml(titleVal)}<div style="font-size:11px;color:var(--t3);margin-top:3px">Название берётся из сделки — измените в карточке.</div></div>`}
       <div style="display:flex;gap:10px;margin-bottom:12px">
         <div style="flex:1"><label style="font-size:12px;color:var(--t3)">Дата</label>
-          <input id="ee-date" type="date" value="${calYMD(start)}" style="width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)"></div>
+          <input id="ee-date" ${dis} type="date" value="${calYMD(start)}" style="width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)"></div>
         <div style="width:100px"><label style="font-size:12px;color:var(--t3)">Время</label>
-          <input id="ee-time" type="time" value="${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}" style="width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)"></div>
+          <input id="ee-time" ${dis} type="time" value="${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}" style="width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)"></div>
         ${canDuration ? `<div style="width:96px"><label style="font-size:12px;color:var(--t3)">Длит.</label>
           <select id="ee-dur" ${dis} style="width:100%;margin-top:5px;padding:9px 6px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)">
             ${durOpts.map(m => `<option value="${m}" ${m === durMin ? 'selected' : ''}>${durLabel(m)}</option>`).join('')}</select></div>` : ''}
@@ -17669,12 +17797,12 @@ function openCalEventEdit(uid) {
         <option value="all" ${curVis === 'all' ? 'selected' : ''}>Все (общий календарь)</option>
       </select>
       <select id="ee-people" multiple size="4" ${dis} style="width:100%;margin-top:6px;padding:8px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);display:${curVis === 'people' ? '' : 'none'}">${eePeopleOpts}</select>` : ''}
-      ${editable ? '' : '<div style="font-size:12px;color:var(--yl);margin-top:10px">👁 Событие другого сотрудника — только просмотр.</div>'}
+      ${editable ? '' : `<div style="font-size:12px;color:var(--yl);margin-top:10px">👁 ${canManageSharedCalendar() ? 'Событие другого сотрудника' : 'Календарь доступен только для просмотра'}.</div>`}
       <div id="ee-err" style="color:var(--rd);font-size:12px;min-height:16px;margin-top:8px"></div>
     </div>
     <div style="padding:12px 18px;border-top:1px solid var(--b1);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
       <div style="display:flex;gap:8px">
-        ${ev.dealBitrixId ? `<button id="ee-deal" class="tbtn">🔗 Сделка</button>` : ''}
+        ${ev.dealBitrixId && canUseStandaloneCrm() ? `<button id="ee-deal" class="tbtn">🔗 Сделка</button>` : ''}
         ${canDelete && editable ? `<button id="ee-del" class="tbtn" style="color:var(--rd)">🗑 Удалить</button>` : ''}
       </div>
       <div style="display:flex;gap:8px">

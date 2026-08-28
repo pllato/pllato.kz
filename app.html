@@ -2672,6 +2672,16 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
         <span class="tool-badge new">CRM</span>
       </a>
 
+      <a href="app/pllato-crm.html?page=calendar" class="tool-card" data-app-id="pllato_shared_calendar">
+        <div class="tool-icon color-indigo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+        </div>
+        <h3>Общий календарь</h3>
+        <p>Общий календарь команды: встречи из сделок и события сотрудников. Права на просмотр и создание событий настраиваются отдельно.</p>
+        <span class="tool-cta">Открыть календарь →</span>
+        <span class="tool-badge new">Календарь</span>
+      </a>
+
       <a href="contact-center.html" class="tool-card" data-app-id="contact_center">
         <div class="tool-icon color-green">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
@@ -2882,6 +2892,7 @@ const APPS_CATALOG = [
   { id: "team_tasks",       label: "Задачи команды" },
   { id: "ai_tasks",         label: "AI Мониторинг" },
   { id: "pllato_sales_crm", label: "CRM Pllato — Старт и Производство" },
+  { id: "pllato_shared_calendar", label: "Общий календарь Pllato" },
   { id: "ukolova_call_trainer", label: "Тренажёр звонков · база LANDPR" },
   { id: "gazablok_tk",      label: "ТК Газаблок · Мобильная система заявок на газоблок — Демо по ТЗ" },
   { id: "optika_oko",       label: "ОКО · CRM для сети салонов оптики (замена ИТигрис Оптима) — Демо" },
@@ -3117,6 +3128,7 @@ function buildEmergencyCurrent(userAuth) {
     isSuperAdmin: false,
     isRootSuper: isRootSuper(userAuth.email),
     apps: allAppsEnabled(),
+    calendarAccess: { canCreate: false },
     emergencyBypass: true,
   };
 }
@@ -3139,7 +3151,24 @@ function buildCurrent(userAuth, foundUser, foundUid) {
     crmUid: foundUid,
     isAdmin, isSuperAdmin: isSuper, isRootSuper: isRoot,
     apps,
+    calendarAccess: isAdmin ? { canCreate: true } : { canCreate: Boolean(foundUser?.calendarAccess?.canCreate) },
   };
+}
+
+function syncCurrentAccessToSession() {
+  if (!CURRENT) return;
+  try {
+    const raw = JSON.parse(localStorage.getItem('pllato_session') || 'null');
+    if (!raw?.user || String(raw.user.email || '').toLowerCase() !== String(CURRENT.email || '').toLowerCase()) return;
+    raw.user = {
+      ...raw.user,
+      isAdmin: Boolean(CURRENT.isAdmin),
+      isSuperAdmin: Boolean(CURRENT.isSuperAdmin),
+      apps: { ...(CURRENT.apps || {}) },
+      calendarAccess: { canCreate: Boolean(CURRENT.isAdmin || CURRENT.calendarAccess?.canCreate) },
+    };
+    localStorage.setItem('pllato_session', JSON.stringify(raw));
+  } catch (_) {}
 }
 
 function writeUsersRegistryCache(users) {
@@ -3197,6 +3226,7 @@ onAuthStateChanged(auth, async (user) => {
       isSuperAdmin: cachedUser.flags?.isSuperAdmin || isRootSuper(user.email),
       isRootSuper: isRootSuper(user.email),
       apps: cachedUser.apps || {},
+      calendarAccess: cachedUser.calendarAccess || { canCreate: false },
     };
     showApp({
       email: user.email,
@@ -3230,6 +3260,7 @@ onAuthStateChanged(auth, async (user) => {
       },
       flags: { isAdmin: CURRENT.isAdmin, isSuperAdmin: CURRENT.isSuperAdmin },
       apps: CURRENT.apps,
+      calendarAccess: CURRENT.calendarAccess,
       cachedAt: Date.now(),
     };
     try { localStorage.setItem('pllato_user_cache', JSON.stringify(userData)); } catch (_) {}
@@ -3255,6 +3286,7 @@ onAuthStateChanged(auth, async (user) => {
       isSuperAdmin: true,
       isRootSuper: true,
       apps: rootApps,
+      calendarAccess: { canCreate: true },
     };
     const userData = {
       email: user.email,
@@ -3269,6 +3301,7 @@ onAuthStateChanged(auth, async (user) => {
       },
       flags: { isAdmin: true, isSuperAdmin: true },
       apps: rootApps,
+      calendarAccess: { canCreate: true },
       cachedAt: Date.now(),
     };
     localStorage.setItem('pllato_user_cache', JSON.stringify(userData));
@@ -3346,6 +3379,7 @@ onAuthStateChanged(auth, async (user) => {
       },
       flags: { isAdmin: CURRENT.isAdmin, isSuperAdmin: CURRENT.isSuperAdmin },
       apps: CURRENT.apps,
+      calendarAccess: CURRENT.calendarAccess,
       cachedAt: Date.now(),
     };
     localStorage.setItem('pllato_user_cache', JSON.stringify(userData));
@@ -3374,6 +3408,7 @@ onAuthStateChanged(auth, async (user) => {
         },
         flags: { isAdmin: false, isSuperAdmin: false },
         apps: CURRENT.apps,
+        calendarAccess: CURRENT.calendarAccess,
         cachedAt: Date.now(),
       };
       localStorage.setItem('pllato_user_cache', JSON.stringify(userData));
@@ -3456,6 +3491,7 @@ async function refreshUserDataInBackground(user) {
       },
       flags: { isAdmin: CURRENT.isAdmin, isSuperAdmin: CURRENT.isSuperAdmin },
       apps: CURRENT.apps,
+      calendarAccess: CURRENT.calendarAccess,
       cachedAt: Date.now(),
     };
     localStorage.setItem('pllato_user_cache', JSON.stringify(userData));
@@ -3499,6 +3535,7 @@ async function syncAdminEmailsRegistry(users) {
 
 function applyPermissionsAndAdminUI() {
   if (!CURRENT) return;
+  syncCurrentAccessToSession();
   initProjectGroups();
   syncProjectMoneyVisibility();
   applyProjectFilters();
@@ -3790,6 +3827,21 @@ function initProjectGroups(){
       openCrmTileAccess();
     });
     crmCard.appendChild(accessBtn);
+  }
+  const calendarCard = document.querySelector('.tool-card[data-app-id="pllato_shared_calendar"]');
+  if (calendarCard && CURRENT?.isAdmin && !calendarCard.querySelector('.tile-access-btn')) {
+    const accessBtn = document.createElement('button');
+    accessBtn.type = 'button';
+    accessBtn.className = 'tile-access-btn';
+    accessBtn.innerHTML = '⚙';
+    accessBtn.title = 'Настроить доступ к общему календарю';
+    accessBtn.setAttribute('aria-label', 'Настроить доступ к общему календарю');
+    accessBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openCalendarTileAccess();
+    });
+    calendarCard.appendChild(accessBtn);
   }
   const sdrCard = document.querySelector('.tool-card[data-app-id="sdr_training"]');
   if (sdrCard && CURRENT?.isAdmin && !sdrCard.querySelector('.sdr-results-btn')) {
@@ -5850,6 +5902,94 @@ async function saveCrmTileAccess() {
     saveButton.disabled = false;
     saveButton.textContent = 'Сохранить';
     alert('Не удалось сохранить права CRM: ' + (error.message || error));
+  }
+}
+
+async function openCalendarTileAccess() {
+  if (!CURRENT?.isAdmin) return;
+  try {
+    const users = await loadUsersMap();
+    adminUsersCache = users;
+    const overlay = document.createElement('div');
+    overlay.id = 'calendarTileAccessOverlay';
+    overlay.className = 'money-ovl show';
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) overlay.remove();
+    });
+    const rows = Object.entries(users)
+      .filter(([, user]) => user?.email)
+      .sort((a, b) => String(a[1].name || a[1].email).localeCompare(String(b[1].name || b[1].email), 'ru'))
+      .map(([uid, user]) => {
+        const isFullAdmin = Boolean(user.isAdmin || user.isSuperAdmin || isRootSuper(user.email));
+        const canView = isFullAdmin || Boolean(user.apps?.pllato_shared_calendar);
+        const canCreate = isFullAdmin || Boolean(user.calendarAccess?.canCreate);
+        return `<div class="crm-tile-user ${canView ? '' : 'no-access'}" data-calendar-tile-user="${escapeHtml(uid)}">
+          <div class="crm-tile-user-head">
+            <div class="crm-tile-user-name">
+              <div class="n">${escapeHtml(user.name || user.email)}${isFullAdmin ? ' · полный доступ' : ''}</div>
+              <div class="e">${escapeHtml(user.email)}</div>
+            </div>
+          </div>
+          <div class="crm-tile-detail" style="grid-template-columns:1fr 1fr">
+            <label><input type="checkbox" data-calendar-view ${canView ? 'checked' : ''} ${isFullAdmin ? 'disabled' : ''}> Открывать и видеть общий календарь</label>
+            <label><input type="checkbox" data-calendar-create ${canCreate ? 'checked' : ''} ${(!canView || isFullAdmin) ? 'disabled' : ''}> Создавать, менять и переносить события</label>
+          </div>
+        </div>`;
+      }).join('');
+    overlay.innerHTML = `<div class="money-modal" style="max-width:680px">
+      <div class="mm-h"><h3>Доступ к общему календарю</h3><span class="mm-x" data-calendar-close>✕</span></div>
+      <div class="mm-b">
+        <div style="font-size:12px;color:var(--text-2)">Просмотр и изменение событий задаются независимо. Администраторы всегда имеют полный доступ.</div>
+        <div class="fc-modal-list">${rows || '<div class="fc-empty" style="padding:14px">Пользователей пока нет.</div>'}</div>
+      </div>
+      <div class="mm-f"><button data-calendar-close>Отмена</button><button style="background:var(--navy);color:#fff" data-calendar-save>Сохранить</button></div>
+    </div>`;
+    overlay.querySelectorAll('[data-calendar-close]').forEach((button) => button.addEventListener('click', () => overlay.remove()));
+    overlay.querySelectorAll('[data-calendar-view]').forEach((checkbox) => {
+      checkbox.addEventListener('change', () => {
+        const row = checkbox.closest('[data-calendar-tile-user]');
+        const create = row?.querySelector('[data-calendar-create]');
+        row?.classList.toggle('no-access', !checkbox.checked);
+        if (!create || create.dataset.adminLocked === '1') return;
+        create.disabled = !checkbox.checked;
+        if (!checkbox.checked) create.checked = false;
+      });
+    });
+    overlay.querySelector('[data-calendar-save]')?.addEventListener('click', saveCalendarTileAccess);
+    document.body.appendChild(overlay);
+  } catch (error) {
+    alert('Не удалось загрузить права календаря: ' + (error.message || error));
+  }
+}
+
+async function saveCalendarTileAccess() {
+  const overlay = document.getElementById('calendarTileAccessOverlay');
+  const saveButton = overlay?.querySelector('[data-calendar-save]');
+  if (!overlay || !saveButton) return;
+  saveButton.disabled = true;
+  saveButton.textContent = 'Сохраняем…';
+  try {
+    for (const row of overlay.querySelectorAll('[data-calendar-tile-user]')) {
+      const uid = row.dataset.calendarTileUser;
+      const current = adminUsersCache[uid];
+      if (!current || current.isAdmin || current.isSuperAdmin || isRootSuper(current.email)) continue;
+      const canView = Boolean(row.querySelector('[data-calendar-view]')?.checked);
+      const canCreate = canView && Boolean(row.querySelector('[data-calendar-create]')?.checked);
+      const next = {
+        ...current,
+        apps: { ...(current.apps || {}), pllato_shared_calendar: canView },
+        calendarAccess: { ...(current.calendarAccess || {}), canCreate },
+      };
+      await apiFetch('/users/save', { method: 'POST', body: next });
+      adminUsersCache[uid] = next;
+    }
+    writeUsersRegistryCache(adminUsersCache);
+    overlay.remove();
+    showAdminMsg('Права общего календаря сохранены', 'ok');
+  } catch (error) {
+    saveButton.disabled = false;
+    saveButton.textContent = 'Сохранить';
+    alert('Не удалось сохранить права календаря: ' + (error.message || error));
   }
 }
 
