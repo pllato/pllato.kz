@@ -202,6 +202,10 @@
   .htitle{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
   .htitle h1{font-size:22px;letter-spacing:-.5px}
   .htitle .cu{font-size:12.5px;color:var(--muted)}
+  .contract-edit{display:flex;align-items:center;gap:6px;background:#f4f7fb;border:1px solid #d8e1ed;border-radius:9px;padding:5px 6px 5px 10px}
+  .contract-edit label{font-size:10px;margin:0;color:var(--muted);white-space:nowrap}
+  .contract-edit input{width:145px;padding:6px 8px;text-align:right;font-size:12.5px;font-weight:700;background:#fff}
+  .contract-edit button{padding:6px 10px;font-size:11px}
 </style>
 </head>
 <body>
@@ -1318,6 +1322,15 @@ function delProject(){
   auditLog('Удалён проект','Проект и все его данные',p);
   DB.projects=DB.projects.filter(x=>x.id!==p.id);DB.sel=null;render();
 }
+function updateContract(){
+  const p=P(),el=document.getElementById('projectContract');if(!p||!el)return;
+  const next=Math.abs(impNum(el.value)),old=Math.abs(p.contract||0);
+  if(!next){toast('Сумма договора должна быть больше нуля','err');el.value=old;formatMoneyInputs(document);return}
+  if(Math.round(next)===Math.round(old)){toast('Сумма договора не изменилась');return}
+  p.contract=next;
+  auditLog('Изменена сумма договора',fmt(old)+' ₸ → '+fmt(next)+' ₸',p);
+  save();toast('Сумма договора обновлена ✓');render();
+}
 
 /* ============ КАРТОЧКА ПРОЕКТА ============ */
 function renderProject(host,p){
@@ -1458,7 +1471,8 @@ function renderProject(host,p){
   </div>`).join(''):'<div style="color:var(--muted);font-size:12.5px;padding:8px 0">Действий пока нет.</div>';
 
   host.innerHTML=`<span class="back" onclick="goList()">← к списку проектов</span>
-  <div class="htitle"><h1>${esc(p.name)}</h1><span class="cu">${esc(p.customer||'заказчик не указан')} · договор <b>${fmt(p.contract)} ₸</b></span>
+  <div class="htitle"><h1>${esc(p.name)}</h1><span class="cu">${esc(p.customer||'заказчик не указан')}</span>
+    <div class="contract-edit"><label for="projectContract">Сумма договора, ₸</label><input type="text" class="money-input" id="projectContract" inputmode="numeric" value="${Math.abs(p.contract||0)}" onkeydown="if(event.key==='Enter'){event.preventDefault();updateContract()}"><button type="button" class="btn" onclick="updateContract()">Сохранить</button></div>
     <select onchange="setStage(this.value)" style="width:auto;padding:6px 10px;font-size:12px" title="этап проекта">${(DB.stages||[]).map(s=>`<option value="${s.id}"${p.stage===s.id?' selected':''}>${esc(s.name)}</option>`).join('')}</select>
     <span style="flex:1"></span><button class="btn red" style="padding:7px 13px;font-size:12px" onclick="delProject()">удалить проект</button></div>
 
