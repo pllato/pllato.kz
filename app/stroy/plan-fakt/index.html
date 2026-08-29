@@ -642,7 +642,7 @@ body.lk-drawing-context #btnExport{display:none;}
     <div class="optbar" id="optbar"></div>
     <div class="vp" id="vp"><div class="pstack" id="pstack">
       <img id="baseimg" alt="">
-      <svg id="svg" xmlns="http://www.w3.org/2000/svg"><g id="gMasks"></g><g id="gObjects"></g><g id="gUI"></g></svg>
+      <svg id="svg" xmlns="http://www.w3.org/2000/svg"><g id="gPlan" style="pointer-events:none"></g><g id="gMasks"></g><g id="gObjects"></g><g id="gUI"></g></svg>
     </div></div>
     <div class="float"><div class="zoomgrp"><button id="zin">+</button><div class="zlab" id="zlab">100%</div><button id="zout">−</button><button id="zfit">FIT</button></div></div>
     <div class="guide" id="guide" style="display:none">
@@ -866,7 +866,7 @@ body.lk-drawing-context #btnExport{display:none;}
 const {jsPDF}=window.jspdf;
 const $=id=>document.getElementById(id);
 const SVGNS='http://www.w3.org/2000/svg';
-const baseimg=$('baseimg'),svg=$('svg'),gMask=$('gMasks'),gObj=$('gObjects'),gUI=$('gUI'),stack=$('pstack'),vp=$('vp');
+const baseimg=$('baseimg'),svg=$('svg'),gPlan=$('gPlan'),gMask=$('gMasks'),gObj=$('gObjects'),gUI=$('gUI'),stack=$('pstack'),vp=$('vp');
 const S={data:null,pageNum:null,pageList:[],W:0,H:0,sx:1,sy:1,scale:1,fitScale:1,pan:{x:0,y:0},
   tool:'select',width:4,fontSize:30,objects:{},selected:null,seq:1,history:{},draft:null,filter:'all',
   cal:{},importMode:'edit',cat:'socket',slack:12,panelH:1.5,sideTab:'obj',
@@ -911,8 +911,30 @@ const APPLIANCES=[
 const ZONE_KEYS=['apt','mop','park'];
 /* чёрный слой чертежа (рамка/выноски) — кандидаты на промоут в объект по тапу */
 function buildDark(pg,sx,sy){return (pg.dark||[]).map(o=>o.t==='line'
-  ?{type:'line',pts:o.p.map(p=>({x:p[0]*sx,y:p[1]*sy})),width:Math.max(1.6,(o.w||0.6)*sx)}
-  :{type:'rect',x:o.x*sx,y:o.y*sy,w:o.rw*sx,h:o.rh*sy,width:Math.max(1.6,(o.w||0.6)*sx)});}
+  ?{type:'line',color:o.c,pts:o.p.map(p=>({x:p[0]*sx,y:p[1]*sy})),width:Math.max(1.6,(o.w||0.6)*sx)}
+  :{type:'rect',color:o.c,x:o.x*sx,y:o.y*sy,w:o.rw*sx,h:o.rh*sy,width:Math.max(1.6,(o.w||0.6)*sx)});}
+/* Векторный «скелет» плана: все НЕ-трассовые линии чертежа одним <path> (один DOM-узел, дёшево).
+   Трассы (standaloneVectorCat!=null) — уже отдельные объекты, в скелет их НЕ берём, поэтому после
+   удаления/сдвига трассы под ней не остаётся серого следа. Текст и заливки PDF в скелет не входят —
+   это цена «чистого вектора». Тонкая линия на любом зуме через non-scaling-stroke. */
+function renderPlanSkeleton(){
+  if(!gPlan)return;
+  if(!S.vectorLayer){gPlan.innerHTML='';return;}
+  const darks=S.dark[S.pageNum]||[];let d='',n=0;
+  for(const o of darks){if(n>60000)break;
+    if(o.type==='line'){if(!o.pts||o.pts.length<2)continue;if(standaloneVectorCat(o.color))continue;
+      d+='M'+o.pts.map(p=>p.x.toFixed(1)+' '+p.y.toFixed(1)).join('L');n++;}
+    else if(o.type==='rect'){const x=+o.x,y=+o.y,w=+o.w,h=+o.h;d+='M'+x.toFixed(1)+' '+y.toFixed(1)+'h'+w.toFixed(1)+'v'+h.toFixed(1)+'h'+(-w).toFixed(1)+'Z';n++;}
+  }
+  gPlan.innerHTML='';
+  if(!d)return;
+  const P=document.createElementNS('http://www.w3.org/2000/svg','path');
+  P.setAttribute('d',d);P.setAttribute('fill','none');P.setAttribute('stroke','#7d8a97');
+  P.setAttribute('stroke-width','1.1');P.setAttribute('vector-effect','non-scaling-stroke');
+  P.setAttribute('stroke-linecap','round');P.setAttribute('stroke-linejoin','round');
+  P.setAttribute('pointer-events','none');
+  gPlan.appendChild(P);
+}
 function dSeg(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;let t=l2?((p.x-a.x)*dx+(p.y-a.y)*dy)/l2:0;t=t<0?0:t>1?1:t;return Math.hypot(p.x-(a.x+t*dx),p.y-(a.y+t*dy));}
 function dDark(p,o){if(o.type==='line'){let m=1e18;for(let i=0;i<o.pts.length-1;i++)m=Math.min(m,dSeg(p,o.pts[i],o.pts[i+1]));return m;}const x0=o.x,y0=o.y,x1=o.x+o.w,y1=o.y+o.h;let m=1e18;[[{x:x0,y:y0},{x:x1,y:y0}],[{x:x1,y:y0},{x:x1,y:y1}],[{x:x1,y:y1},{x:x0,y:y1}],[{x:x0,y:y1},{x:x0,y:y0}]].forEach(e=>m=Math.min(m,dSeg(p,e[0],e[1])));return m;}
 function promoteAt(p){const arr=S.dark[S.pageNum]||[];let best=-1,bd=Math.max(8,S.W*0.02);
@@ -1139,7 +1161,7 @@ function prepareStandalonePdfVectors(pn,source){
     pg.dark=cp&&Array.isArray(cp.dark)?cp.dark:[];
     pg.objs=standaloneCableObjects(pg.dark,pg.wpt,pg.hpt);pg._vectorsReady=true;
     if(S.standalonePdf===src&&S.pageNum===pn&&S.W&&S.H){
-      S.dark[pn]=buildDark(pg,S.W/pg.wpt,S.H/pg.hpt);
+      S.dark[pn]=buildDark(pg,S.W/pg.wpt,S.H/pg.hpt);if(S.vectorLayer)renderPlanSkeleton();
       // В v462 быстрый локальный вход оставил цветные трассы только фоном. Возвращаем
       // их в модель сразу после готовности OperatorList, не ожидая серверный конвертер.
       const existing=S.objects[pn]||[];
@@ -1385,7 +1407,7 @@ function goPage(pn){
     if(!S.dark[pn])S.dark[pn]=buildDark(pg,S.sx,S.sy);
     if(!S.history[pn]) S.history[pn]=[];
     lkUpgradeSourceReplacements();
-    fitPage();applyTransform();redrawAll();renderSide();updateUndo();updateScalePill();
+    fitPage();applyTransform();redrawAll();renderPlanSkeleton();renderSide();updateUndo();updateScalePill();
   };
   baseimg.src='data:'+(pg.mime||'image/jpeg')+';base64,'+pg.u;
 }
@@ -1404,7 +1426,7 @@ function importObjects(raw,sx,sy){
   });
 }
 function fitPage(){const w=$('cwrap'),pad=44;S.fitScale=Math.min((w.clientWidth-pad)/S.W,(w.clientHeight-pad)/S.H);S.scale=S.fitScale;S.pan.x=(w.clientWidth-S.W*S.scale)/2;S.pan.y=(w.clientHeight-S.H*S.scale)/2;}
-function applyTransform(){const cssW=S.W*S.scale,cssH=S.H*S.scale;baseimg.style.width=cssW+'px';baseimg.style.height=cssH+'px';baseimg.style.opacity=(S.dim==null?1:S.dim);svg.style.width=cssW+'px';svg.style.height=cssH+'px';stack.style.transform=`translate(${S.pan.x}px,${S.pan.y}px)`;$('zlab').textContent=Math.round(S.scale/S.fitScale*100)+'%';scaleUI();}
+function applyTransform(){const cssW=S.W*S.scale,cssH=S.H*S.scale;baseimg.style.width=cssW+'px';baseimg.style.height=cssH+'px';baseimg.style.opacity=S.vectorLayer?0:(S.dim==null?1:S.dim);svg.style.width=cssW+'px';svg.style.height=cssH+'px';stack.style.transform=`translate(${S.pan.x}px,${S.pan.y}px)`;$('zlab').textContent=Math.round(S.scale/S.fitScale*100)+'%';scaleUI();}
 const REPLACEMENT_MASK_PAD_PX=3;
 /* сдвинута ли линия от своего оригинала (из PDF). Если НЕ сдвинута — своя (синяя) линия и так
    накрывает оригинал, белую маску рисовать не нужно (иначе она глушит соседние линии на фоне). */
@@ -1426,7 +1448,7 @@ function cur(){return S.objects[S.pageNum];}
 function addObj(o){o.id='o'+(S.seq++);cur().push(o);return o;}
 function getObj(id){return cur().find(o=>o.id===id);}
 function delObj(id){const a=cur();const i=a.findIndex(o=>o.id===id);if(i>=0)a.splice(i,1);}
-function deleteObjectIds(ids){(ids||[]).forEach(id=>{if(getObj(id))delObj(id);});}   // чистое удаление ОБЪЕКТА (векторно), без белой маски-«выреза» на растре
+function deleteObjectIds(ids){(ids||[]).forEach(id=>{const o=getObj(id);if(!o)return;if(o._lkSource&&o._lkOriginal)o._lkDeleted=true;else delObj(id);});}
 function isRef(o){return S.importMode==='ref'&&o.src==='pdf';}
 function visible(o){return S.filter==='all'||(S.filter==='mine'&&o.src!=='pdf')||(S.filter==='pdf'&&o.src==='pdf');}
 
@@ -1799,8 +1821,15 @@ $('scaleApply').onclick=applyScale;$('scaleCancel').onclick=()=>closeScaleDialog
 function updateScalePill(){const c=S.cal[S.pageNum],el=$('scaleVal'),pill=$('scalePill'),mob=$('btnMobileScale');if(c){const tx='1 м = '+(1/c).toFixed(0)+' px';el.textContent=tx;pill.classList.add('set');if(mob){mob.textContent='Масштаб · 1м='+(1/c).toFixed(0)+'px';mob.title=tx;mob.classList.add('scale-set');mob.classList.remove('scale-missing');}}else{el.textContent='не задан';pill.classList.remove('set');if(mob){mob.textContent='Масштаб: не задан';mob.title='Нажмите и задайте масштаб по двум точкам';mob.classList.add('scale-missing');mob.classList.remove('scale-set');}}}
 
 /* ---- подложка: яркость ---- */
-S.dim=1;const DIMS=[1,0.55,0.3];
-$('btnDim').onclick=()=>{const i=(DIMS.indexOf(S.dim)+1)%DIMS.length;S.dim=DIMS[i];baseimg.style.opacity=S.dim;$('btnDim').textContent='Подложка: '+Math.round(S.dim*100)+'%';};
+S.dim=1;S.vectorLayer=false;const DIMS=[1,0.55,0.3];
+function applyUnderlay(){baseimg.style.opacity=S.vectorLayer?0:S.dim;renderPlanSkeleton();$('btnDim').textContent='Подложка: '+(S.vectorLayer?'вектор':Math.round(S.dim*100)+'%');}
+// Цикл: картинка 100% → 55% → 30% → ВЕКТОР (растр скрыт, план из линий) → снова 100%.
+$('btnDim').onclick=()=>{
+  if(!S.vectorLayer){const i=DIMS.indexOf(S.dim);if(i>=0&&i<DIMS.length-1)S.dim=DIMS[i+1];
+    else{S.vectorLayer=true;if(!(S.dark[S.pageNum]||[]).length)toast('Векторный слой ещё готовится — потяните лист или подождите пару секунд');}}
+  else{S.vectorLayer=false;S.dim=1;}
+  applyUnderlay();
+};
 
 /* ---- гид «с чего начать» ---- */
 function showGuide(){$('guide').style.display='block';}
@@ -4238,7 +4267,7 @@ async function lkOpenDrawingEditor(){if(!LK.docId||!LK.pages||!LK.pages.length){
     S.data.pages[pg.page]={wpt:pg.wpt,hpt:pg.hpt,objs:[],u:String(img).replace(/^data:image\/[^;]+;base64,/,''),mime:(String(img).match(/^data:(image\/[^;]+)/)||[])[1]||'image/png',title:'Лист '+pg.page};
     S.pageNum=pg.page;S.pageList=[pg.page];S.W=S.H=0;S.sx=S.sy=1;S.scale=S.fitScale=1;S.pan={x:0,y:0};
     S.objects=ds.objects||{};S.cal=ds.cal||{};S.drawingPageSizes=ds.pageSizes||{};S.drawingVectorPages=vectorPages;S.seq=ds.seq||1;S.history={};S.selected=null;S.draft=null;S.calPts=null;S.dark={};S.cluster=[];
-    S.projId=null;S.filter='all';S.sideTab='obj';S.armSym=null;S.cat=CATS[0].k;S.width=4;S.penMode=false;S.dim=1;
+    S.projId=null;S.filter='all';S.sideTab='obj';S.armSym=null;S.cat=CATS[0].k;S.width=4;S.penMode=false;S.dim=1;S.vectorLayer=false;
     lkApplyDrawingSettings(ds.settings);S.linkedLkDocId=LK.docId;S.linkedLkPage=pg.page;S.threePointMode=true;
     $('lineyka').style.display='none';$('loader').classList.add('hide');$('stage').style.display='flex';closeMobileDrawers();document.body.classList.add('lk-drawing-context');
     $('btnBackLkDraw').classList.add('on');$('btnDownloadEdited').classList.add('on');$('btnPrintEdited').classList.add('on');
