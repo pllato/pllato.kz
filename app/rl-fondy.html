@@ -3,6 +3,7 @@
 <head>
 <script src="/app/gate.js"></script>
 
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RL · Фонды проектов</title>
@@ -179,6 +180,15 @@
   .tip .tp-sum{border-top:1px solid rgba(255,255,255,.16);margin-top:8px;padding-top:7px;display:flex;justify-content:space-between;gap:12px;font-weight:800}
   .tip .tp-f{color:#93a4c2;font-size:11px;margin-top:6px}
   .hint-num{cursor:help;border-bottom:1px dotted rgba(90,110,140,.5)}
+  /* распределение планового поступления по фондам суммами */
+  .pa-panel{background:#eef1f5;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:2px 0 10px}
+  .pa-top{display:flex;gap:14px;align-items:flex-end;margin-bottom:10px;flex-wrap:wrap}
+  .pa-top label{display:block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:4px}
+  .pa-top input{width:170px;text-align:right;font-size:15px;font-weight:700;padding:8px 11px}
+  .pa-fund{display:flex;align-items:center;gap:9px;margin-bottom:5px}
+  .pa-fund .pa-name{flex:1;font-size:12.5px;min-width:0}
+  .pa-fund input{width:160px;text-align:right;padding:7px 9px}
+  .pa-left{font-size:12px;font-weight:700;color:var(--green);margin:7px 0 2px}
   body.sum-mode .money-input,body.sum-mode .oprow .am{cursor:pointer;box-shadow:inset 0 0 0 1px #b9cbe6}
   body.sum-mode .money-input:hover,body.sum-mode .oprow .am:hover{background:var(--blue-bg)!important}
   #sumModeBtn.on{background:#3f6ea8;color:#fff}
@@ -1653,17 +1663,21 @@ function renderProject(host,p){
         <div class="pf-bar"><i style="width:${st.pct.toFixed(1)}%;--barc:${barC}"></i></div>
         <label class="pf ${st.cls}" title="галочка — пометить строку выполненной вручную"><input type="checkbox" style="width:auto;margin-right:4px;vertical-align:-1px" ${r.done?'checked':''} onchange="planDone('${kind}','${r.id}')">${st.text}</label>
       </div>
-      <span class="mv"><button onclick="pfOpen('${kind}','${r.id}')" title="внести факт по этой строке">факт</button><button onclick="movePlan('${kind}','${r.id}',-7)" title="на неделю раньше">◀</button><button onclick="movePlan('${kind}','${r.id}',7)" title="на неделю позже">▶</button>${isIncome?`<button onclick="paOpen('${kind}','${r.id}')" title="распределить плановое поступление по фондам">⚙ фонды</button>`:''}</span>
+      <span class="mv"><button onclick="pfOpen('${kind}','${r.id}')" title="внести факт по этой строке">факт</button><button onclick="movePlan('${kind}','${r.id}',-7)" title="на неделю раньше">◀</button><button onclick="movePlan('${kind}','${r.id}',7)" title="на неделю позже">▶</button>${isIncome?`<button onclick="paOpen('${kind}','${r.id}')" title="${r.alloc&&Object.keys(r.alloc).length?'разложено по фондам вручную — изменить':'распределить сумму по фондам'}" style="${r.alloc&&Object.keys(r.alloc).length?'color:var(--green);border-color:var(--green);font-weight:700':''}">⚙ фонды${r.alloc&&Object.keys(r.alloc).length?' ✓':''}</button>`:''}</span>
       <span class="del" onclick="delPlan('${kind}','${r.id}')">×</span>
     </div>`;
     if(window._pfPlan===planKey(kind,r.id))return row+pfPanelHtml(p,kind,r,cas);
     if(!isIncome||window._reallocPlan!==kind+':'+r.id)return row;
-    const alloc=planAllocation(p,r);
-    return row+`<div style="background:#eef1f5;border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin:2px 0 8px">
-      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">Распределение планового поступления ${fmt(Math.abs(r.amt))} ₸ по фондам</div>
-      ${p.funds.map(f=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span class="fdot" style="background:${f.color}"></span><span style="flex:1;font-size:12px">${esc(f.name)}</span><input type="text" class="pa-amt money-input" inputmode="numeric" data-fid="${f.id}" value="${alloc[f.id]||''}" style="width:135px;text-align:right;padding:6px 8px" oninput="paLeft('${kind}','${r.id}')"></div>`).join('')}
-      <div id="paLeft" style="font-size:11.5px;color:var(--green);font-weight:700;margin:4px 0 8px">распределено полностью ✓</div>
-      <div style="display:flex;gap:8px"><button class="btn grn" style="padding:7px 14px;font-size:12px" onclick="paSave('${kind}','${r.id}')">Сохранить точно</button><button class="btn ghost" style="padding:7px 14px;font-size:12px" onclick="paPct('${kind}','${r.id}')">По долям %</button></div>
+    const alloc=planAllocation(p,r);const manual=!!(r.alloc&&Object.keys(r.alloc).length);
+    return row+`<div class="pa-panel">
+      <div class="pa-top">
+        <div><label>Сумма поступления, ₸</label><input type="text" class="money-input" id="paAmt" inputmode="numeric" value="${Math.abs(r.amt)||''}" placeholder="0" oninput="paAmtChange('${kind}','${r.id}')"></div>
+        <div style="flex:1"><label>Куда распределить по фондам</label><div style="font-size:11px;color:var(--muted)">${manual?'разложено вручную суммами':'разложится по долям фондов — можно поправить суммы'}</div></div>
+        <button class="btn ghost" style="padding:6px 11px;font-size:11.5px" onclick="paEqual('${kind}','${r.id}')" title="разложить по долям фондов">↺ по долям %</button>
+      </div>
+      ${p.funds.map(f=>`<div class="pa-fund"><span class="fdot" style="background:${f.color}"></span><span class="pa-name">${esc(f.name)}</span><input type="text" class="pa-amt money-input" inputmode="numeric" data-fid="${f.id}" value="${alloc[f.id]||''}" placeholder="0" oninput="paLeft('${kind}','${r.id}')"></div>`).join('')}
+      <div id="paLeft" class="pa-left">распределено полностью ✓</div>
+      <div style="display:flex;gap:8px;margin-top:9px"><button class="btn grn" style="padding:7px 15px;font-size:12.5px" onclick="paSave('${kind}','${r.id}')">Сохранить</button><button class="btn ghost" style="padding:7px 14px;font-size:12px" onclick="window._reallocPlan=null;render()">Свернуть</button></div>
     </div>`};
 
   const casIn=planCascade(p,'in'),casOut=planCascade(p,'out'),casFinIn=planCascade(p,'finin'),casFinOut=planCascade(p,'finout');
@@ -2026,7 +2040,10 @@ function addPlan(kind){const p=P();
   if((kind==='out'||kind==='finout')&&!p.funds.length){toast('Сначала создай фонд','err');return}
   const r={id:uid(),date:todayIso(),amt:0,note:''};
   if(kind==='out'||kind==='finout')r.fund=p.funds[0].id;
-  planArr(p,kind).push(r);auditLog('Добавлена строка плана',kind==='out'||kind==='finout'?'Расход привязан к фонду '+p.funds[0].name:'Плановое поступление',p);render()}
+  planArr(p,kind).push(r);
+  if(kind==='in'||kind==='finin')window._reallocPlan=planKey(kind,r.id); // новая строка поступления сразу открывает распределение по фондам
+  auditLog('Добавлена строка плана',kind==='out'||kind==='finout'?'Расход привязан к фонду '+p.funds[0].name:'Плановое поступление',p);render();
+  setTimeout(()=>document.getElementById('paAmt')?.focus(),0)}
 function updPlan(kind,id,key,val){const p=P();const r=planArr(p,kind).find(x=>x.id===id);if(!r)return;
   const old=key==='fund'?(p.funds.find(f=>f.id===r.fund)?.name||'—'):key==='amt'?fmt(Math.abs(r.amt||0)):String(r[key]||'');
   const sign=(kind==='in'||kind==='finin')?1:-1;
@@ -2038,18 +2055,27 @@ function updPlan(kind,id,key,val){const p=P();const r=planArr(p,kind).find(x=>x.
   if(old!==now)auditLog('Изменён план '+(kind==='out'||kind==='finout'?'расходов':'поступлений'),key+': '+old+' → '+now,p);
   render()}
 function paOpen(kind,id){window._reallocPlan=kind+':'+id;render()}
+function paTargetAmt(r){const v=impNum(document.getElementById('paAmt')?.value);return v||Math.abs(r.amt||0)}
 function paLeft(kind,id){const p=P();const r=planArr(p,kind).find(x=>x.id===id);if(!r)return;
   const s=[...document.querySelectorAll('.pa-amt')].reduce((x,i)=>x+Math.abs(impNum(i.value)),0);
-  const d=Math.abs(r.amt)-s,el=document.getElementById('paLeft');if(!el)return;
+  const d=paTargetAmt(r)-s,el=document.getElementById('paLeft');if(!el)return;
   el.style.color=Math.round(d)===0?'var(--green)':d>0?'var(--muted)':'var(--red)';
-  el.innerHTML=Math.round(d)===0?'распределено полностью ✓':d>0?'осталось распределить: '+fmt(d)+' ₸':'перебор на '+fmt(-d)+' ₸'}
+  el.innerHTML=Math.round(d)===0?'распределено полностью ✓':d>0?'осталось распределить: <b>'+fmt(d)+' ₸</b>':'<b>перебор на '+fmt(-d)+' ₸</b>'}
+function paAmtChange(kind,id){const p=P();const r=planArr(p,kind).find(x=>x.id===id);if(!r)return;
+  // пока фонды не тронуты вручную — подсказываем разбивку по долям от новой суммы
+  const touched=[...document.querySelectorAll('.pa-amt')].some(i=>i.value.trim());
+  if(!touched||!r.alloc){const a=allocByPct(p,paTargetAmt(r));document.querySelectorAll('.pa-amt').forEach(i=>{const v=a[i.dataset.fid]||0;i.value=v?fmt(v):''})}
+  paLeft(kind,id)}
+function paEqual(kind,id){const p=P();const r=planArr(p,kind).find(x=>x.id===id);if(!r)return;
+  const a=allocByPct(p,paTargetAmt(r));document.querySelectorAll('.pa-amt').forEach(i=>{const v=a[i.dataset.fid]||0;i.value=v?fmt(v):''});paLeft(kind,id)}
 function paSave(kind,id){const p=P();const r=planArr(p,kind).find(x=>x.id===id);if(!r)return;
+  const amt=paTargetAmt(r);
+  if(!amt){toast('Укажи сумму поступления','err');return}
   const alloc={};let s=0;
   document.querySelectorAll('.pa-amt').forEach(i=>{const v=Math.abs(impNum(i.value));if(v){alloc[i.dataset.fid]=v;s+=v}});
-  if(Math.round(s)!==Math.round(Math.abs(r.amt))){toast('Разложи всю сумму: распределено '+fmt(s)+' из '+fmt(Math.abs(r.amt))+' ₸','err');return}
-  r.alloc=alloc;window._reallocPlan=null;auditLog('Изменено распределение планового поступления',fmt(Math.abs(r.amt))+' ₸ · вручную',p);toast('Плановое поступление распределено точно ✓');render()}
-function paPct(kind,id){const p=P();const r=planArr(p,kind).find(x=>x.id===id);if(!r)return;
-  delete r.alloc;window._reallocPlan=null;auditLog('Изменено распределение планового поступления',fmt(Math.abs(r.amt))+' ₸ · по плановым процентам',p);toast('Плановое поступление распределяется по долям фондов ✓');render()}
+  if(Math.round(s)!==Math.round(amt)){toast('Разложи всю сумму: распределено '+fmt(s)+' из '+fmt(amt)+' ₸','err');return}
+  r.amt=(kind==='in'||kind==='finin'?1:-1)*amt;r.alloc=alloc;window._reallocPlan=null;
+  auditLog('План поступления распределён по фондам',fmt(amt)+' ₸',p);toast('Поступление распределено по фондам ✓');render()}
 /* ручное пополнение / снятие из фонда — любая транзакция идёт через фонд */
 function addFundAdj(){const p=P();
   const fund=document.getElementById('faFund').value,dir=document.getElementById('faDir').value;
