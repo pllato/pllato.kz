@@ -4,6 +4,7 @@
 <script src="/app/gate.js"></script>
 
 
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RL · Фонды проектов</title>
@@ -213,6 +214,12 @@
   .htitle{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
   .htitle h1{font-size:22px;letter-spacing:-.5px}
   .htitle .cu{font-size:12.5px;color:var(--muted)}
+  .htitle .pname{font-size:22px;font-weight:700;letter-spacing:-.5px;border:1px solid transparent;background:transparent;border-radius:8px;padding:3px 8px;min-width:220px;max-width:min(560px,70vw);color:var(--ink)}
+  .htitle .pname:hover{border-color:var(--line);background:#fafbfc}
+  .htitle .pname:focus{outline:none;border-color:var(--blue);background:#fff}
+  .htitle .pcust{font-size:12.5px;color:var(--muted);border:1px solid transparent;background:transparent;border-radius:7px;padding:4px 8px;min-width:160px}
+  .htitle .pcust:hover{border-color:var(--line);background:#fafbfc}
+  .htitle .pcust:focus{outline:none;border-color:var(--blue);background:#fff;color:var(--ink)}
   .contract-edit{display:flex;align-items:center;gap:6px;background:#f4f7fb;border:1px solid #d8e1ed;border-radius:9px;padding:5px 6px 5px 10px}
   .contract-edit label{font-size:10px;margin:0;color:var(--muted);white-space:nowrap}
   .contract-edit input{width:145px;padding:6px 8px;text-align:right;font-size:12.5px;font-weight:700;background:#fff}
@@ -1589,6 +1596,13 @@ function updateContract(){
   save();toast('Сумма договора обновлена ✓');render();
 }
 
+function updProjectField(key,val){const p=P();if(!p)return;val=(val||'').trim();
+  if(key==='name'){if(!val){toast('Название проекта не может быть пустым','err');render();return}
+    if(val===p.name)return;const old=p.name;p.name=val;auditLog('Переименован проект','«'+old+'» → «'+val+'»',p);toast('Название проекта обновлено ✓');}
+  else{if(val===(p.customer||''))return;p.customer=val;auditLog('Изменён заказчик',val||'—',p);toast('Заказчик обновлён ✓');}
+  save();render();
+}
+
 /* ============ КАРТОЧКА ПРОЕКТА ============ */
 function renderProject(host,p){
   p.funds.forEach((f,i)=>f.color=fundColorFor(f,i));
@@ -1732,7 +1746,7 @@ function renderProject(host,p){
   </div>`).join(''):'<div style="color:var(--muted);font-size:12.5px;padding:8px 0">Действий пока нет.</div>';
 
   host.innerHTML=`<span class="back" onclick="goList()">← к списку проектов</span>
-  <div class="htitle"><h1>${esc(p.name)}</h1><span class="cu">${esc(p.customer||'заказчик не указан')}</span>
+  <div class="htitle"><input class="pname" value="${esc(p.name)}" title="название проекта — можно изменить" onchange="updProjectField('name',this.value)"><input class="pcust" value="${esc(p.customer||'')}" placeholder="заказчик не указан" title="заказчик — можно изменить" onchange="updProjectField('customer',this.value)">
     <div class="contract-edit"><label for="projectContract">Сумма договора, ₸</label><input type="text" class="money-input" id="projectContract" inputmode="numeric" value="${Math.abs(p.contract||0)}" onkeydown="if(event.key==='Enter'){event.preventDefault();updateContract()}"><button type="button" class="btn" onclick="updateContract()">Сохранить</button></div>
     <select onchange="setStage(this.value)" style="width:auto;padding:6px 10px;font-size:12px" title="этап проекта">${(DB.stages||[]).map(s=>`<option value="${s.id}"${p.stage===s.id?' selected':''}>${esc(s.name)}</option>`).join('')}</select>
     <span style="flex:1"></span><button class="btn red" style="padding:7px 13px;font-size:12px" onclick="delProject()">удалить проект</button></div>
