@@ -644,7 +644,7 @@ body.lk-drawing-context #btnExport{display:none;}
     <div class="optbar" id="optbar"></div>
     <div class="vp" id="vp"><div class="pstack" id="pstack">
       <img id="baseimg" alt="">
-      <svg id="svg" xmlns="http://www.w3.org/2000/svg"><g id="gPlan" style="pointer-events:none"></g><g id="gMasks"></g><g id="gObjects"></g><g id="gUI"></g></svg>
+      <svg id="svg" xmlns="http://www.w3.org/2000/svg"><g id="gPlan" style="pointer-events:none"></g><g id="gText" style="pointer-events:none"></g><g id="gMasks"></g><g id="gObjects"></g><g id="gUI"></g></svg>
     </div></div>
     <div class="float"><div class="zoomgrp"><button id="zin">+</button><div class="zlab" id="zlab">100%</div><button id="zout">−</button><button id="zfit">FIT</button></div></div>
     <div class="guide" id="guide" style="display:none">
@@ -868,7 +868,7 @@ body.lk-drawing-context #btnExport{display:none;}
 const {jsPDF}=window.jspdf;
 const $=id=>document.getElementById(id);
 const SVGNS='http://www.w3.org/2000/svg';
-const baseimg=$('baseimg'),svg=$('svg'),gPlan=$('gPlan'),gMask=$('gMasks'),gObj=$('gObjects'),gUI=$('gUI'),stack=$('pstack'),vp=$('vp');
+const baseimg=$('baseimg'),svg=$('svg'),gPlan=$('gPlan'),gText=$('gText'),gMask=$('gMasks'),gObj=$('gObjects'),gUI=$('gUI'),stack=$('pstack'),vp=$('vp');
 const S={data:null,pageNum:null,pageList:[],W:0,H:0,sx:1,sy:1,scale:1,fitScale:1,pan:{x:0,y:0},
   tool:'select',width:4,fontSize:30,objects:{},selected:null,seq:1,history:{},draft:null,filter:'all',
   cal:{},importMode:'edit',cat:'socket',slack:12,panelH:1.5,sideTab:'obj',
@@ -921,6 +921,7 @@ function buildDark(pg,sx,sy){return (pg.dark||[]).map(o=>o.t==='line'
    это цена «чистого вектора». Тонкая линия на любом зуме через non-scaling-stroke. */
 function renderPlanSkeleton(){
   if(!gPlan)return;
+  renderTextLayer();
   if(!S.vectorLayer){gPlan.innerHTML='';return;}
   const darks=S.dark[S.pageNum]||[];let d='',n=0;
   for(const o of darks){if(n>60000)break;
@@ -936,6 +937,35 @@ function renderPlanSkeleton(){
   P.setAttribute('stroke-linecap','round');P.setAttribute('stroke-linejoin','round');
   P.setAttribute('pointer-events','none');
   gPlan.appendChild(P);
+}
+/* Текстовый слой для векторного режима: подписи/цифры размеров из PDF, чтобы при чистой
+   правке (растр скрыт) не терялись числа. Тонкий серый, некликабельный, кэш по листу. */
+function buildTextItems(pn){
+  if(!S.textItems)S.textItems={};S._textJobs=S._textJobs||{};
+  if(S.textItems[pn])return Promise.resolve(S.textItems[pn]);
+  if(S._textJobs[pn])return S._textJobs[pn];
+  const src=S.standalonePdf,pg=src&&src.data&&src.data.pages&&src.data.pages[pn];
+  if(!src||!src.pdf||!pg||!window.pdfjsLib||!S.W||!S.H){S.textItems[pn]=[];return Promise.resolve([]);}
+  const job=(async()=>{
+    const page=await src.pdf.getPage(pn),vp0=page.getViewport({scale:1}),U=pdfjsLib.Util;
+    const tc=await page.getTextContent(),sx=S.W/(pg.wpt||vp0.width),sy=S.H/(pg.hpt||vp0.height),out=[];
+    for(const it of (tc.items||[])){const s=(it.str||'').trim();if(!s)continue;
+      const m=U.transform(vp0.transform,it.transform),size=Math.hypot(m[2],m[3])||Math.hypot(m[0],m[1]);
+      if(size<3)continue;
+      out.push({x:m[4]*sx,y:m[5]*sy,size:size*sy,str:s,rot:Math.atan2(m[1],m[0])*180/Math.PI});
+      if(out.length>=3000)break;}
+    S.textItems[pn]=out;return out;
+  })().catch(e=>{console.warn('text layer',e);S.textItems[pn]=[];return [];}).finally(()=>{delete S._textJobs[pn];});
+  S._textJobs[pn]=job;return job;
+}
+function renderTextLayer(){
+  if(!gText)return;
+  if(!S.vectorLayer){gText.innerHTML='';return;}
+  const items=S.textItems&&S.textItems[S.pageNum];
+  if(!items){buildTextItems(S.pageNum).then(()=>{if(S.vectorLayer)renderTextLayer();});return;}
+  const NS='http://www.w3.org/2000/svg',frag=document.createDocumentFragment();
+  items.forEach(t=>{const el=document.createElementNS(NS,'text');el.setAttribute('x',t.x.toFixed(1));el.setAttribute('y',t.y.toFixed(1));el.setAttribute('font-size',t.size.toFixed(1));el.setAttribute('fill','#8a949e');el.setAttribute('font-family','Arial,sans-serif');el.setAttribute('pointer-events','none');if(Math.abs(t.rot)>1)el.setAttribute('transform','rotate('+t.rot.toFixed(1)+' '+t.x.toFixed(1)+' '+t.y.toFixed(1)+')');el.textContent=t.str;frag.appendChild(el);});
+  gText.innerHTML='';gText.appendChild(frag);
 }
 function dSeg(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;let t=l2?((p.x-a.x)*dx+(p.y-a.y)*dy)/l2:0;t=t<0?0:t>1?1:t;return Math.hypot(p.x-(a.x+t*dx),p.y-(a.y+t*dy));}
 function dDark(p,o){if(o.type==='line'){let m=1e18;for(let i=0;i<o.pts.length-1;i++)m=Math.min(m,dSeg(p,o.pts[i],o.pts[i+1]));return m;}const x0=o.x,y0=o.y,x1=o.x+o.w,y1=o.y+o.h;let m=1e18;[[{x:x0,y:y0},{x:x1,y:y0}],[{x:x1,y:y0},{x:x1,y:y1}],[{x:x1,y:y1},{x:x0,y:y1}],[{x:x0,y:y1},{x:x0,y:y0}]].forEach(e=>m=Math.min(m,dSeg(p,e[0],e[1])));return m;}
@@ -1169,8 +1199,12 @@ function prepareStandalonePdfVectors(pn,source){
       const existing=S.objects[pn]||[];
       if(pg.objs.length&&!existing.some(o=>o&&o._autoVector)){
         S.objects[pn]=existing.concat(importObjects(pg.objs,S.W/pg.wpt,S.H/pg.hpt));assignGroups(S.objects[pn]);
+        // Чертёж распознан как вектор — сразу показываем векторный режим (растр скрыт, план из
+        // линий + текстовый слой), чтобы под трассами не было «двойных» растровых линий. Один
+        // раз за сессию; вернуть картинку — кнопка «Подложка».
+        if(!S._autoVecOnce){S._autoVecOnce=1;S.vectorLayer=true;applyUnderlay();toast('Векторный режим: чертёж из линий, правка трасс без следов на фоне. Вернуть картинку — кнопка «Подложка» вверху.');}
         redrawAll();renderSide();updateUndo();
-        toast('Найдено линий чертежа: '+pg.objs.length+' · можно править и считать');
+        if(S.vectorLayer)renderPlanSkeleton();
       }
     }
     return pg.dark;
