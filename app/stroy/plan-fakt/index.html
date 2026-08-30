@@ -1571,9 +1571,10 @@ function endpointFollowerIds(o,i){if(!o||o.type!=='line'||(i!==0&&i!==o.pts.leng
 function bindObj(el,o){
   el.addEventListener('pointerdown',ev=>{
     if(S.tool!=='select')return;
-    // на ПАЛЬЦЕ линию выбирают ДВОЙНЫМ тапом (обрабатывает vp): тело линии НЕ перехватывает
-    // одиночное касание — иначе оно мешает пану и зуму («хватает линию»). Знаки/ручки — как прежде.
-    if(isCoarsePointer()&&o.type==='line'&&!o.grp)return;
+    // на ПАЛЬЦЕ выбирают ДВОЙНЫМ тапом (обрабатывает vp): тело объекта НЕ перехватывает одиночное
+    // касание, пока объект НЕ выбран — иначе мешает пану/зуму. Линия — всегда двойным (правится
+    // ручками); уже выбранный объект можно тащить одним касанием.
+    if(isCoarsePointer()){if(o.type==='line'&&!o.grp)return;if(!(S.cluster&&S.cluster.includes(o.id))&&S.selected!==o.id)return;}
     ev.stopPropagation();ev.preventDefault();
     selectObj(o.id);
     if(o.type==='line'&&!o.grp)return; // трассу меняют только её узлами; целиком не перетаскиваем
@@ -1791,19 +1792,24 @@ let panning=false,lastX,lastY,moved=0;const ptrs=new Map();let pinching=false,pi
 /* линии рядом с точкой (в координатах изображения), ближе — раньше. Для тапа по тонкой
    линии на пальце: попадать не обязательно точно, берём ближайшую в радиусе. */
 function nearLines(p,rad){const out=[];(cur()||[]).forEach(o=>{if(!o||o._lkDeleted||o.type!=='line'||isRef(o)||!visible(o)||!o.pts||o.pts.length<2)return;let m=1e18;for(let i=0;i<o.pts.length-1;i++)m=Math.min(m,dSeg(p,o.pts[i],o.pts[i+1]));if(m<=rad)out.push({id:o.id,d:m});});out.sort((a,b)=>a.d-b.d);return out;}
-// ПАЛЕЦ: выбор линии ДВОЙНЫМ тапом (одиночные касания оставлены пану/зуму). Повторный двойной тап
-// рядом перебирает пересекающиеся линии. Одиночный тап по пустому — снять выделение.
-function coarseTapSelect(ip){const rad=26/Math.max(.1,S.scale),cand=nearLines(ip,rad),t=Date.now();
+// Ближайшие объекты ЛЮБОГО типа (линии — по сегментам, знаки/прямоугольники/подписи — по рамке).
+function nearObjects(p,rad){const out=[];(cur()||[]).forEach(o=>{if(!o||o._lkDeleted||isRef(o)||!visible(o))return;let d=1e18;
+  if(o.type==='line'){if(!o.pts||o.pts.length<2)return;for(let i=0;i<o.pts.length-1;i++)d=Math.min(d,dSeg(p,o.pts[i],o.pts[i+1]));}
+  else{const b=bbox(o);const cx=Math.max(b.x,Math.min(p.x,b.x+b.w)),cy=Math.max(b.y,Math.min(p.y,b.y+b.h));d=Math.hypot(p.x-cx,p.y-cy);}
+  if(d<=rad)out.push({id:o.id,d});});out.sort((a,b)=>a.d-b.d);return out;}
+// ПАЛЕЦ: выбор ЛЮБОГО объекта ДВОЙНЫМ тапом (одиночные касания оставлены пану/зуму). Повторный
+// двойной тап рядом перебирает наложенные объекты. Одиночный тап по пустому — снять выделение.
+function coarseTapSelect(ip){const rad=26/Math.max(.1,S.scale),cand=nearObjects(ip,rad),t=Date.now();
   const dbl=S._dTapT&&(t-S._dTapT)<330&&S._dTapPt&&Math.hypot(ip.x-S._dTapPt.x,ip.y-S._dTapPt.y)<rad*1.6;
   if(dbl){S._dTapT=0;S._dTapPt=null;
     if(cand.length){let idx=0;const ci=cand.findIndex(c=>c.id===S.selected);if(ci>=0)idx=(ci+1)%cand.length;selectObj(cand[idx].id);
-      if(cand.length>1)toast('Линия'+(lineNo(getObj(cand[idx].id))!=null?' №'+lineNo(getObj(cand[idx].id)):'')+' · двойной тап — следующая');return;}
+      if(cand.length>1)toast('Двойной тап — следующий из наложенных');return;}
     // своей линии рядом нет — «поднимаем» линию AutoCAD из фона в редактируемый объект (гибрид):
     // остальные линии остаются в фоне, поднятую двигаем/правим как обычный объект
     if(S.linkedLkDocId&&S.drawingVectorPages&&S.drawingVectorPages[S.pageNum])lkPromoteDrawingObjectAt(ip);
     else promoteAt(ip);return;}
   S._dTapT=t;S._dTapPt={x:ip.x,y:ip.y};
-  if(cand.length){toast('Двойной тап — выбрать линию');}
+  if(cand.length){toast('Двойной тап — выбрать объект');}
   else{toast('Двойной тап — взять линию с чертежа');if(S.selected){S.selected=null;drawSelUI();renderOpt();if(S.sideTab==='obj')renderSide();}if(S.linkedLkDocId)lkSelectDrawingVectorAt(ip);}}
 // пальцы считаем в ФАЗЕ ЗАХВАТА — иначе объект (ручка/линия) гасит событие stopPropagation, vp не
 // узнаёт о первом пальце, и щипок не стартует (ptrs не доходит до 2, а drag продолжает тянуть линию)
