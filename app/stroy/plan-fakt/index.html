@@ -670,9 +670,9 @@ body.lk-drawing-context #btnExport{display:none;}
 </div>
 <div class="scale-dialog" id="scaleDialog" role="dialog" aria-modal="true" aria-labelledby="scaleTitle">
   <div class="scale-card">
-    <h3 id="scaleTitle">Укажите реальную длину</h3>
+    <h3 id="scaleTitle">Укажите реальную длину, мм</h3>
     <p>Вы отметили две точки на размере чертежа. Введите, сколько метров между ними — после этого каждая линия будет сразу подписываться и попадать в таблицу.</p>
-    <div class="scale-input"><input id="scaleMeters" type="text" inputmode="decimal" autocomplete="off" placeholder="например, 6,14"><b>м</b></div>
+    <div class="scale-input"><input id="scaleMeters" type="text" inputmode="numeric" autocomplete="off" placeholder="например, 1500"><b>мм</b></div>
     <div class="scale-actions"><button id="scaleCancel" type="button">Отмена</button><button class="primary" id="scaleApply" type="button">Сохранить масштаб</button></div>
   </div>
 </div>
@@ -1212,6 +1212,7 @@ function prepareStandalonePdfVectors(pn,source){
         if(!S._autoVecHint){S._autoVecHint=1;toast('Трассы распознаны — можно править и считать. Для правки без следов: «Подложка» → «вектор».');}
         redrawAll();renderSide();updateUndo();
         if(S.vectorLayer)renderPlanSkeleton();
+        erasePgRoutes(pn); // убрать трассы из растра — под ними не останется старой линии при удалении
       }
     }
     return pg.dark;
@@ -1368,6 +1369,29 @@ function openProject(j,projId){
 $('btnSaveProj').onclick=saveProject;
 $('btnOpenProj').onclick=()=>$('fileInput').click();
 renderArchive();  // показать архив на стартовом экране
+/* «Стираем» распознанные трассы из растра-подложки: план (стены/текст/размеры/штриховка) остаётся,
+   а трассы становятся ТОЛЬКО объектами. Тогда удаление/сдвиг трассы не открывает старую линию из
+   картинки — чистая векторная работа, но с полными данными плана. Координаты трасс — в системе
+   вьюпорта (как и растр), поэтому масштаб = размер_канваса / wpt|hpt. */
+function erasePgRoutes(pn){
+  const src=S.standalonePdf,pg=src&&src.data&&src.data.pages&&src.data.pages[pn];
+  if(!pg||!pg.u||pg._routesErased||!Array.isArray(pg.objs)||!pg.objs.length)return;
+  pg._routesErased=true;
+  const img=new Image();
+  img.onload=()=>{try{
+    const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;
+    const ctx=c.getContext('2d');ctx.drawImage(img,0,0);
+    const sx=c.width/(pg.wpt||c.width),sy=c.height/(pg.hpt||c.height),s=Math.max(sx,sy);
+    ctx.strokeStyle='#ffffff';ctx.lineCap='round';ctx.lineJoin='round';
+    pg.objs.forEach(o=>{if(!o||o.t!=='line'||!Array.isArray(o.p)||o.p.length<2)return;
+      ctx.lineWidth=Math.max(2.5,(+o.w||1)*s*1.5+2.5);
+      ctx.beginPath();o.p.forEach((p,i)=>{const x=+p[0]*sx,y=+p[1]*sy;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();});
+    pg.u=c.toDataURL('image/jpeg',0.85).split(',')[1];
+    if(S.pageNum===pn){baseimg.onload=null;baseimg.src='data:image/jpeg;base64,'+pg.u;}
+  }catch(e){console.warn('erasePgRoutes',e);}};
+  img.onerror=()=>{pg._routesErased=false;};
+  img.src='data:'+(pg.mime||'image/jpeg')+';base64,'+pg.u;
+}
 /* Лёгкие превью листов: низкое разрешение (~220px, q0.6), ленивая отрисовка ПО ОДНОМУ
    (IntersectionObserver + очередь concurrency=1) — полоса листов видна, но мобильный не грузится.
    Кэш в pg.thumb; когда лист откроют полностью (pg.u) — используем его. */
@@ -1777,7 +1801,7 @@ function renderOpt(){const bar=$('optbar');let h='';
   else if(S.tool==='promo')h=`<span class="tip"><b>Из фона.</b> Тапните по оставшемуся знаку, рамке или выноске — объект отделится от PDF. После этого его можно передвинуть целиком или удалить; исходное место будет аккуратно закрыто.</span>`;
   else if(S.tool==='field')h=`<span class="tip"><b>Значение в таблицу.</b> Тапните над ячейкой «кол-во» в таблице чертежа — появится число. Выделив, выберите, что показывать: марку кабеля / доп.позицию / итог / счётчик (авто из расчёта) или впишите вручную. На экспорте число встанет в таблицу.</span>`;
   else if(S.tool==='pan')h=`<span class="tip">Двигайте холст, щипок/колесо — масштаб.</span>`;
-  else if(S.tool==='cal'){const c=S.cal[S.pageNum];h=`<span class="tip"><b>Калибровка масштаба.</b> Кликните две точки вдоль известного размера на плане (например стену), затем введите длину в метрах.</span>`+(c?`<span class="grp" style="font-family:var(--mono);font-size:11px;color:var(--green)">✓ 1 м = ${(1/c).toFixed(0)} px</span>`:'');}
+  else if(S.tool==='cal'){const c=S.cal[S.pageNum];h=`<span class="tip"><b>Калибровка масштаба.</b> Кликните две точки вдоль известного размера на плане (например стену), затем введите длину в мм (как на размерах чертежа).</span>`+(c?`<span class="grp" style="font-family:var(--mono);font-size:11px;color:var(--green)">✓ 1 м = ${(1/c).toFixed(0)} px</span>`:'');}
   else if(S.tool==='line'){const fixed=S.draft?Math.max(1,S.draft.pts.length-1):0,status=S.penMode?'Проведите пальцем — отпустите, чтобы закончить':(fixed?`Точек ${fixed}${S.threePointMode?' / 3':''}`:'Тапните начало линии');h=`<div class="grp"><span class="line-now">${status}</span><button class="mini ${S.penMode?'mobile-primary':''}" id="penBtn">${S.penMode?'✓ Карандаш':'✎ Карандаш'}</button>${S.penMode?'':`<button class="mini mobile-primary" id="finLine">✓ Готово</button>`}<button class="mini danger" id="cancelLine">✕ Отмена</button></div>`
     +`<div class="grp"><span class="lbl">Марка</span>${CATS.map(c=>catBtn(c,S.cat)).join('')}</div>`
     +`<div class="grp"><span class="lbl">Толщина</span><input type="range" id="wr" min="1" max="14" value="${S.width}"><span class="wval" id="wv">${S.width}px</span></div>`
@@ -1845,6 +1869,12 @@ function coarseTapSelect(ip){const rad=26/Math.max(.1,S.scale),cand=nearObjects(
   S._dTapT=t;S._dTapPt={x:ip.x,y:ip.y};
   if(cand.length){toast('Двойной тап — выбрать объект');}
   else{toast('Двойной тап — взять линию с чертежа');if(S.selected){S.selected=null;drawSelUI();renderOpt();if(S.sideTab==='obj')renderSide();}if(S.linkedLkDocId)lkSelectDrawingVectorAt(ip);}}
+// СТИЛУС (перо): выбор линии/объекта ОДНИМ касанием (перо точное). Повтор по тому же месту —
+// перебор наложенных. Тап по пустому — снять выделение (и поднять линию с чертежа, если есть).
+function penTapSelect(ip){const rad=22/Math.max(.1,S.scale),cand=nearObjects(ip,rad);
+  if(cand.length){let idx=0;const ci=cand.findIndex(c=>c.id===S.selected);if(ci>=0&&S._penTapPt&&Math.hypot(ip.x-S._penTapPt.x,ip.y-S._penTapPt.y)<rad*1.6)idx=(ci+1)%cand.length;S._penTapPt={x:ip.x,y:ip.y};selectObj(cand[idx].id);return;}
+  S._penTapPt=null;if(S.selected){S.selected=null;drawSelUI();renderOpt();if(S.sideTab==='obj')renderSide();}
+  if(S.linkedLkDocId&&S.drawingVectorPages&&S.drawingVectorPages[S.pageNum])lkSelectDrawingVectorAt(ip);}
 // пальцы считаем в ФАЗЕ ЗАХВАТА — иначе объект (ручка/линия) гасит событие stopPropagation, vp не
 // узнаёт о первом пальце, и щипок не стартует (ptrs не доходит до 2, а drag продолжает тянуть линию)
 vp.addEventListener('pointerdown',e=>{ptrs.set(e.pointerId,e);if(ptrs.size===2){pinching=true;pinchSerial++;panning=false;cancelDraft();}},true);
@@ -1858,8 +1888,11 @@ vp.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')e.preventDefaul
   const onObj=e.target.closest('[data-id]');
   if(S.tool==='erase'){if(onObj)eraseAt(e.target);else bgPan(e);return;}
   if(S.tool==='select'){
-    // ПАЛЕЦ: любой одиночный жест по холсту/линии = пан; два пальца = зум; выбор линии — ДВОЙНЫМ тапом.
-    // Так навигация свободна и линия не «хватается» при увеличении.
+    // ПЕРО в режиме «правит»: выбор линии/объекта ОДНИМ касанием (перо точное). Перетаскивание
+    // холста — тоже пером (bgPan), выбранный объект тащится телом. Палец — двойным тапом (ниже).
+    if(e.pointerType==='pen'){bgPan(e,ip=>penTapSelect(ip));return;}
+    // ПАЛЕЦ: любой одиночный жест по холсту/линии = пан; два пальца = зум; выбор — ДВОЙНЫМ тапом.
+    // Так навигация свободна и объект не «хватается» при увеличении.
     if(isCoarsePointer()){bgPan(e,ip=>coarseTapSelect(ip));return;}
     if(!onObj){
       // МЫШЬ: тап рядом выбирает ближайшую линию; повторный тап рядом — следующую под ней
@@ -1908,7 +1941,7 @@ function calClick(p){if(!S.calPts||S.calPts.length>=2)S.calPts=[];S.calPts.push(
   if(S.calPts.length===2){const dx=S.calPts[1].x-S.calPts[0].x,dy=S.calPts[1].y-S.calPts[0].y;S.calPx=Math.hypot(dx,dy);$('scaleMeters').value='';$('scaleDialog').style.display='flex';setTimeout(()=>$('scaleMeters').focus(),40);}
 }
 function closeScaleDialog(cancel){$('scaleDialog').style.display='none';if(cancel){S.calPts=null;S.calPx=0;S.afterCalTool=null;setTool('select');toast('Масштаб не изменён');}}
-function applyScale(){const m=parseFloat(String($('scaleMeters').value||'').replace(',','.')),px=S.calPx;if(!(m>0&&px>0)){toast('Введите реальную длину больше нуля');$('scaleMeters').focus();return;}S.cal[S.pageNum]=m/px;const next=S.afterCalTool;S.afterCalTool=null;S.calPts=null;S.calPx=0;$('scaleDialog').style.display='none';buildStrip();updateScalePill();redrawAll();renderSide();lkQueueDrawingSave();if(next==='line'&&isCoarsePointer())S.penMode=true;setTool(next||'select');toast('Масштаб готов: 1 м = '+(px/m).toFixed(0)+' px'+(next==='line'?' · рисуйте линию':''));}
+function applyScale(){const mm=parseFloat(String($('scaleMeters').value||'').replace(',','.')),px=S.calPx;if(!(mm>0&&px>0)){toast('Введите длину больше нуля');$('scaleMeters').focus();return;}const m=mm/1000;S.cal[S.pageNum]=m/px;const next=S.afterCalTool;S.afterCalTool=null;S.calPts=null;S.calPx=0;$('scaleDialog').style.display='none';buildStrip();updateScalePill();redrawAll();renderSide();lkQueueDrawingSave();if(next==='line'&&isCoarsePointer())S.penMode=true;setTool(next||'select');toast('Масштаб готов: 1 м = '+(px/m).toFixed(0)+' px'+(next==='line'?' · рисуйте линию':''));}
 $('scaleApply').onclick=applyScale;$('scaleCancel').onclick=()=>closeScaleDialog(true);$('scaleDialog').addEventListener('click',e=>{if(e.target===$('scaleDialog'))closeScaleDialog(true);});$('scaleMeters').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applyScale();}});
 function updateScalePill(){const c=S.cal[S.pageNum],el=$('scaleVal'),pill=$('scalePill'),mob=$('btnMobileScale');if(c){const tx='1 м = '+(1/c).toFixed(0)+' px';el.textContent=tx;pill.classList.add('set');if(mob){mob.textContent='Масштаб · 1м='+(1/c).toFixed(0)+'px';mob.title=tx;mob.classList.add('scale-set');mob.classList.remove('scale-missing');}}else{el.textContent='не задан';pill.classList.remove('set');if(mob){mob.textContent='Масштаб: не задан';mob.title='Нажмите и задайте масштаб по двум точкам';mob.classList.add('scale-missing');mob.classList.remove('scale-set');}}}
 
