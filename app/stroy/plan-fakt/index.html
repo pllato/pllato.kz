@@ -1206,10 +1206,10 @@ function prepareStandalonePdfVectors(pn,source){
       const existing=S.objects[pn]||[];
       if(pg.objs.length&&!existing.some(o=>o&&o._autoVector)){
         S.objects[pn]=existing.concat(importObjects(pg.objs,S.W/pg.wpt,S.H/pg.hpt));assignGroups(S.objects[pn]);
-        // Чертёж распознан как вектор — сразу показываем векторный режим (растр скрыт, план из
-        // линий + текстовый слой), чтобы под трассами не было «двойных» растровых линий. Один
-        // раз за сессию; вернуть картинку — кнопка «Подложка».
-        if(!S._autoVecOnce){S._autoVecOnce=1;S.vectorLayer=true;applyUnderlay();toast('Векторный режим: чертёж из линий, правка трасс без следов на фоне. Вернуть картинку — кнопка «Подложка» вверху.');}
+        // НЕ включаем вектор автоматически: лист открывается как ОРИГИНАЛ (все данные — размеры,
+        // штриховки, легенда — как в превью). Для чистой правки трасс без следов на фоне есть
+        // кнопка «Подложка» → «вектор». Подсказываем один раз.
+        if(!S._autoVecHint){S._autoVecHint=1;toast('Трассы распознаны — можно править и считать. Для правки без следов: «Подложка» → «вектор».');}
         redrawAll();renderSide();updateUndo();
         if(S.vectorLayer)renderPlanSkeleton();
       }
@@ -1368,14 +1368,48 @@ function openProject(j,projId){
 $('btnSaveProj').onclick=saveProject;
 $('btnOpenProj').onclick=()=>$('fileInput').click();
 renderArchive();  // показать архив на стартовом экране
+/* Лёгкие превью листов: низкое разрешение (~220px, q0.6), ленивая отрисовка ПО ОДНОМУ
+   (IntersectionObserver + очередь concurrency=1) — полоса листов видна, но мобильный не грузится.
+   Кэш в pg.thumb; когда лист откроют полностью (pg.u) — используем его. */
+function renderStandalonePdfThumb(pn){
+  const src=S.standalonePdf,pg=src&&src.data&&src.data.pages&&src.data.pages[pn];
+  if(!src||!src.pdf||!pg)return Promise.resolve(null);
+  if(pg.thumb||pg.u)return Promise.resolve(pg.thumb||null);
+  if(!src.thumbJobs)src.thumbJobs={};
+  if(src.thumbJobs[pn])return src.thumbJobs[pn];
+  const job=(async()=>{
+    const page=await src.pdf.getPage(pn),v=page.getViewport({scale:1});
+    const sc=Math.min(0.5,220/Math.max(v.width,v.height,1)),rv=page.getViewport({scale:sc});
+    const c=document.createElement('canvas');c.width=Math.max(1,Math.round(rv.width));c.height=Math.max(1,Math.round(rv.height));
+    const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
+    await page.render({canvasContext:ctx,viewport:rv}).promise;
+    pg.thumb=c.toDataURL('image/jpeg',0.6).split(',')[1];
+    try{page.cleanup();}catch(_){}
+    const el=document.querySelector('#strip .thumb[data-pg="'+pn+'"]');
+    if(el&&!el.querySelector('img')){const ni=document.createElement('img');ni.src='data:image/jpeg;base64,'+pg.thumb;const w=el.querySelector('.thumb-wait');if(w)w.replaceWith(ni);else el.appendChild(ni);el.classList.remove('pending');}
+    return pg.thumb;
+  })().catch(e=>{console.warn('thumb',pn,e);return null;}).finally(()=>{delete src.thumbJobs[pn];});
+  src.thumbJobs[pn]=job;return job;
+}
+let _thumbObs=null;const _thumbQ=[];let _thumbBusy=false;
+function pumpThumbs(){if(_thumbBusy||!_thumbQ.length)return;_thumbBusy=true;const pn=_thumbQ.shift();renderStandalonePdfThumb(pn).finally(()=>{_thumbBusy=false;pumpThumbs();});}
+function observeThumbs(){
+  if(!S.standalonePdf||!('IntersectionObserver'in window))return;
+  if(_thumbObs)_thumbObs.disconnect();_thumbQ.length=0;
+  _thumbObs=new IntersectionObserver(ents=>{ents.forEach(en=>{if(en.isIntersecting){const pn=+en.target.dataset.pg,pg=S.data.pages[pn];if(pg&&!pg.u&&!pg.thumb&&_thumbQ.indexOf(pn)<0)_thumbQ.push(pn);_thumbObs.unobserve(en.target);}});pumpThumbs();},{rootMargin:'300px'});
+  document.querySelectorAll('#strip .thumb.pending').forEach(el=>_thumbObs.observe(el));
+}
 function buildStrip(){
   const strip=$('strip');strip.innerHTML='<h4>Листы</h4>';
   S.pageList.forEach(pn=>{
-    const pg=S.data.pages[pn],d=document.createElement('div');d.className='thumb'+(pg.u?'':' pending');d.dataset.pg=pn;d.title=pg.title||('Лист '+pn);
-    d.innerHTML=`<span class="pg">${pn}</span>`+(pg.u?`<img src="data:${pg.mime||'image/jpeg'};base64,${pg.u}">`:'<span class="thumb-wait">загрузится<br>при открытии</span>')+
+    const pg=S.data.pages[pn],d=document.createElement('div');
+    const src=pg.u?('data:'+(pg.mime||'image/jpeg')+';base64,'+pg.u):(pg.thumb?('data:image/jpeg;base64,'+pg.thumb):'');
+    d.className='thumb'+(src?'':' pending');d.dataset.pg=pn;d.title=pg.title||('Лист '+pn);
+    d.innerHTML=`<span class="pg">${pn}</span>`+(src?`<img src="${src}">`:'<span class="thumb-wait">…</span>')+
       (S.cal[pn]?`<span class="cal">М</span>`:'');
     d.onclick=()=>{closeMobileDrawers();goPage(pn);};strip.appendChild(d);
   });
+  observeThumbs();
 }
 
 /* ---- color -> category (для импорта из PDF) ---- */
