@@ -305,6 +305,7 @@
       <li>На телефоне — джойстик и кнопки</li>
       <li>🌐 Игроки онлайн видят друг друга!</li>
     </ul>
+    <p id="buildInfo" style="margin-top:12px; font-size:13px; color:#8a93c4;">Версия <b>0.4.1</b> · сборка 2026-08-30 · <span id="netInfo">сеть: —</span></p>
     <div class="btnRow"><button id="musicBtn">🎵 Музыка: вкл</button><button id="resumeBtn">Продолжить</button></div>
   </div>
 </div>
@@ -2038,15 +2039,28 @@ try {
 function updateNetStatus() {
   const el = $('netStatus');
   if (!el) return;
-  if (!mpStarted) { el.textContent = '🌐 оффлайн'; return; }
-  let open = 0, total = 0;
-  try {
-    const socks = getRelaySockets();
-    for (const k in socks) { total++; if (socks[k] && socks[k].readyState === 1) open++; }
-  } catch (e) { }
-  if (open > 0) el.textContent = `🌐 онлайн · сеть: ${open}/${RELAYS.length}`;
-  else if (performance.now() - mpStartedAt < 12000) el.textContent = '🌐 подключение…';
-  else el.textContent = '⚠️ сеть недоступна';
+  let text, info;
+  if (!mpStarted) {
+    text = '🌐 оффлайн'; info = 'сеть: не запущена';
+  } else {
+    let open = 0;
+    try {
+      const socks = getRelaySockets();
+      for (const k in socks) if (socks[k] && socks[k].readyState === 1) open++;
+    } catch (e) { }
+    if (open > 0) {
+      text = `🌐 онлайн · сеть: ${open}/${RELAYS.length}`;
+      info = `сеть: ${open}/${RELAYS.length} · игроков рядом: ${remotes.size}`;
+    } else if (performance.now() - mpStartedAt < 12000) {
+      text = '🌐 подключение…'; info = 'сеть: подключение…';
+    } else {
+      text = '⚠️ сеть недоступна';
+      info = 'сеть: недоступна' + (mpError ? ` (${mpError})` : '');
+    }
+  }
+  el.textContent = text;
+  const ni = $('netInfo');
+  if (ni) ni.textContent = info;
 }
 let mpStartedAt = 0;
 
