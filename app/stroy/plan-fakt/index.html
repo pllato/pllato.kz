@@ -1469,7 +1469,7 @@ function importObjects(raw,sx,sy){
   });
 }
 function fitPage(){const w=$('cwrap'),pad=44;S.fitScale=Math.min((w.clientWidth-pad)/S.W,(w.clientHeight-pad)/S.H);S.scale=S.fitScale;S.pan.x=(w.clientWidth-S.W*S.scale)/2;S.pan.y=(w.clientHeight-S.H*S.scale)/2;}
-function applyTransform(){const cssW=S.W*S.scale,cssH=S.H*S.scale;baseimg.style.width=cssW+'px';baseimg.style.height=cssH+'px';baseimg.style.opacity=S.vectorLayer?0:(S.dim==null?1:S.dim);svg.style.width=cssW+'px';svg.style.height=cssH+'px';stack.style.transform=`translate(${S.pan.x}px,${S.pan.y}px)`;$('zlab').textContent=Math.round(S.scale/S.fitScale*100)+'%';scaleUI();}
+function applyTransform(){const cssW=S.W*S.scale,cssH=S.H*S.scale;baseimg.style.width=cssW+'px';baseimg.style.height=cssH+'px';baseimg.style.opacity=S.vectorLayer?0:(S.dim==null?1:S.dim);svg.style.background=S.vectorLayer?'#ffffff':'';svg.style.width=cssW+'px';svg.style.height=cssH+'px';stack.style.transform=`translate(${S.pan.x}px,${S.pan.y}px)`;$('zlab').textContent=Math.round(S.scale/S.fitScale*100)+'%';scaleUI();}
 const REPLACEMENT_MASK_PAD_PX=3;
 /* сдвинута ли линия от своего оригинала (из PDF). Если НЕ сдвинута — своя (синяя) линия и так
    накрывает оригинал, белую маску рисовать не нужно (иначе она глушит соседние линии на фоне). */
@@ -1880,7 +1880,7 @@ function updateScalePill(){const c=S.cal[S.pageNum],el=$('scaleVal'),pill=$('sca
 
 /* ---- подложка: яркость ---- */
 S.dim=1;S.vectorLayer=false;const DIMS=[1,0.55,0.3];
-function applyUnderlay(){baseimg.style.opacity=S.vectorLayer?0:S.dim;renderPlanSkeleton();$('btnDim').textContent='Подложка: '+(S.vectorLayer?'вектор':Math.round(S.dim*100)+'%');}
+function applyUnderlay(){baseimg.style.opacity=S.vectorLayer?0:S.dim;svg.style.background=S.vectorLayer?'#ffffff':'';renderPlanSkeleton();$('btnDim').textContent='Подложка: '+(S.vectorLayer?'вектор':Math.round(S.dim*100)+'%');}
 // Цикл: картинка 100% → 55% → 30% → ВЕКТОР (растр скрыт, план из линий) → снова 100%.
 $('btnDim').onclick=()=>{
   if(!S.vectorLayer){const i=DIMS.indexOf(S.dim);if(i>=0&&i<DIMS.length-1)S.dim=DIMS[i+1];
