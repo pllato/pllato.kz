@@ -919,13 +919,16 @@ function buildDark(pg,sx,sy){return (pg.dark||[]).map(o=>o.t==='line'
    Трассы (standaloneVectorCat!=null) — уже отдельные объекты, в скелет их НЕ берём, поэтому после
    удаления/сдвига трассы под ней не остаётся серого следа. Текст и заливки PDF в скелет не входят —
    это цена «чистого вектора». Тонкая линия на любом зуме через non-scaling-stroke. */
+// Насыщенный цвет = трасса/цветная аннотация, а не серая архитектура. В скелет НЕ берём,
+// иначе трасса, не попавшая в объекты (редкий цвет), торчит серым «призраком» под трассами.
+function skelSkip(hex){if(!/^#[0-9a-f]{6}$/i.test(hex||''))return false;const c=hex2rgb(hex),mx=Math.max(c[0],c[1],c[2]),mn=Math.min(c[0],c[1],c[2]);return mx>60&&(mx-mn)/(mx||1)>0.33;}
 function renderPlanSkeleton(){
   if(!gPlan)return;
   renderTextLayer();
   if(!S.vectorLayer){gPlan.innerHTML='';return;}
   const darks=S.dark[S.pageNum]||[];let d='',n=0;
   for(const o of darks){if(n>60000)break;
-    if(o.type==='line'){if(!o.pts||o.pts.length<2)continue;if(standaloneVectorCat(o.color))continue;
+    if(o.type==='line'){if(!o.pts||o.pts.length<2)continue;if(standaloneVectorCat(o.color)||skelSkip(o.color))continue;
       d+='M'+o.pts.map(p=>p.x.toFixed(1)+' '+p.y.toFixed(1)).join('L');n++;}
     else if(o.type==='rect'){const x=+o.x,y=+o.y,w=+o.w,h=+o.h;d+='M'+x.toFixed(1)+' '+y.toFixed(1)+'h'+w.toFixed(1)+'v'+h.toFixed(1)+'h'+(-w).toFixed(1)+'Z';n++;}
   }
@@ -1510,7 +1513,7 @@ function renderObj(o){
     if(!ref){const lab=makeLineLabel(o);if(lab)g.appendChild(lab);}
     if(!ref){
       const hit=document.createElementNS(SVGNS,'path');
-      hit.setAttribute('d',dPath);hit.setAttribute('fill','none');hit.setAttribute('stroke','transparent');hit.setAttribute('stroke-width',Math.max(o.width,(isCoarsePointer()?34:18)/Math.max(.1,S.scale)));hit.style.cursor=o.grp?'move':'pointer';hit.style.touchAction='none';
+      hit.setAttribute('d',dPath);hit.setAttribute('fill','none');hit.setAttribute('stroke','transparent');hit.setAttribute('stroke-width',Math.max(o.width,(isCoarsePointer()?48:28)/Math.max(.1,S.scale)));hit.style.cursor=o.grp?'move':'pointer';hit.style.touchAction='none';
       g.appendChild(hit);bindObj(g,o);
     }else{g.style.pointerEvents='none';}
     return g;
