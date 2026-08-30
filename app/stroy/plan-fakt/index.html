@@ -617,6 +617,7 @@ body.lk-drawing-context #btnExport{display:none;}
   <span class="sp"></span><span class="docname" id="docname"></span>
   <div class="scalepill" id="scalePill" title="Калибровка масштаба">⌖ Масштаб: <b id="scaleVal">не задан</b></div>
   <button class="tbtn ghost" id="btnDim" title="Приглушить чертёж-подложку, чтобы ваши линии были видны">Подложка: 100%</button>
+  <button class="tbtn ghost" id="btnPenMode" title="Что делает стилус: рисовать линии или выбирать/двигать. Палец — всегда как обычно" style="display:none">✍️ Стилус: рисует</button>
   <button class="tbtn ghost" id="btnHelp" title="Как вносить правки">? Как это работает</button>
   <button class="tbtn ghost" id="btnSaveProj" title="Сохранить проект (план + ваши правки) в файл — продолжить позже или передать">Сохранить</button>
   <button class="tbtn ghost" id="btnOpenProj" title="Открыть проект или другой план">Открыть</button>
@@ -875,7 +876,7 @@ const baseimg=$('baseimg'),svg=$('svg'),gPlan=$('gPlan'),gText=$('gText'),gMask=
 const S={data:null,pageNum:null,pageList:[],W:0,H:0,sx:1,sy:1,scale:1,fitScale:1,pan:{x:0,y:0},
   tool:'select',width:4,fontSize:30,objects:{},selected:null,seq:1,history:{},draft:null,filter:'all',
   cal:{},importMode:'edit',cat:'socket',slack:12,panelH:1.5,sideTab:'obj',
-  textColor:'#c0392b',calPts:null,calPx:0,afterCalTool:null,linkedLkDocId:null,linkedLkPage:null,threePointMode:false,drawingPageSizes:{},drawingVectorPages:{},_lkPrevEditor:null,
+  textColor:'#c0392b',calPts:null,calPx:0,afterCalTool:null,linkedLkDocId:null,linkedLkPage:null,threePointMode:true,drawingPageSizes:{},drawingVectorPages:{},_lkPrevEditor:null,
   standalonePdf:null};
 const isCoarsePointer=()=>window.matchMedia&&matchMedia('(pointer:coarse)').matches;
 function closeMobileDrawers(){const st=$('stage'),strip=$('strip'),side=document.querySelector('.side');if(strip)strip.classList.remove('mobile-open');if(side)side.classList.remove('mobile-open');if(st)st.classList.remove('mobile-drawer-open');const p=$('btnMobilePages'),s=$('btnMobileSide');if(p)p.setAttribute('aria-expanded','false');if(s)s.setAttribute('aria-expanded','false');}
@@ -1808,9 +1809,12 @@ function coarseTapSelect(ip){const rad=26/Math.max(.1,S.scale),cand=nearLines(ip
 // узнаёт о первом пальце, и щипок не стартует (ptrs не доходит до 2, а drag продолжает тянуть линию)
 vp.addEventListener('pointerdown',e=>{ptrs.set(e.pointerId,e);if(ptrs.size===2){pinching=true;pinchSerial++;panning=false;cancelDraft();}},true);
 vp.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')e.preventDefault();ptrs.set(e.pointerId,e);if(ptrs.size===2){pinching=true;pinchSerial++;panning=false;cancelDraft();return;}
-  // СТИЛУС/ПЕРО: сразу рисуем линию с живой длиной (масштаб — из калибровки). Палец/мышь — как
-  // обычно (пан, выбор, зум). Работает в режимах «Выбор»/«Рука»/«Линия», не мешая калибровке/знакам.
-  if(e.pointerType==='pen'&&inBase(e.clientX,e.clientY)&&(S.tool==='select'||S.tool==='pan'||S.tool==='line')){e.preventDefault();startPenDraw(toImg(e.clientX,e.clientY),e);return;}
+  // Стилус замечен — показываем переключатель режима пера.
+  if(e.pointerType==='pen'){const pb=$('btnPenMode');if(pb&&pb.style.display==='none')pb.style.display='';}
+  // СТИЛУС/ПЕРО в режиме «рисует»: сразу рисуем линию с живой длиной (масштаб — из калибровки).
+  // В режиме «правит» перо проваливается ниже и работает как палец (выбор/движение). Палец/мышь —
+  // всегда как обычно. Активно в режимах «Выбор»/«Рука»/«Линия», не мешая калибровке/знакам.
+  if(e.pointerType==='pen'&&S.penDraw!==false&&inBase(e.clientX,e.clientY)&&(S.tool==='select'||S.tool==='pan'||S.tool==='line')){e.preventDefault();startPenDraw(toImg(e.clientX,e.clientY),e);return;}
   const onObj=e.target.closest('[data-id]');
   if(S.tool==='erase'){if(onObj)eraseAt(e.target);else bgPan(e);return;}
   if(S.tool==='select'){
@@ -1878,6 +1882,9 @@ $('btnDim').onclick=()=>{
   else{S.vectorLayer=false;S.dim=1;}
   applyUnderlay();
 };
+// Переключатель режима стилуса: рисует линии / правит (выбор-движение, как палец). По умолчанию — рисует.
+S.penDraw=true;
+$('btnPenMode').onclick=()=>{S.penDraw=!S.penDraw;$('btnPenMode').textContent='✍️ Стилус: '+(S.penDraw?'рисует':'правит');$('btnPenMode').classList.toggle('primary',!S.penDraw);toast(S.penDraw?'Стилус рисует линии':'Стилус выбирает и двигает — как палец');};
 
 /* ---- гид «с чего начать» ---- */
 function showGuide(){$('guide').style.display='block';}
@@ -4298,7 +4305,7 @@ async function lkPersistDrawingNow(){clearTimeout(_lkDrawingSaveT);if(!S.linkedL
   }catch(e){console.warn('drawing save',e);toast('Не удалось сохранить графические правки');}}
 function lkLeaveDrawingContext(restore){clearTimeout(_lkDrawingSaveT);const prev=S._lkPrevEditor;
   closeMobileDrawers();$('btnBackLkDraw').classList.remove('on');$('btnDownloadEdited').classList.remove('on');$('btnPrintEdited').classList.remove('on');document.body.classList.remove('lk-drawing-context');
-  S.linkedLkDocId=null;S.linkedLkPage=null;S.threePointMode=false;S._lkPrevEditor=null;
+  S.linkedLkDocId=null;S.linkedLkPage=null;S.threePointMode=true;S._lkPrevEditor=null;  // 3-точечная правка (A→C→B) и в самостоятельном редакторе
   if(!restore||!prev)return;
   Object.assign(S,prev.state);S._lkPrevEditor=null;$('docname').textContent=prev.docname||'';
   if(S.data&&S.pageList&&S.pageList.length){$('loader').classList.add('hide');$('stage').style.display=prev.stageDisplay||'flex';buildStrip();goPage(S.pageNum||S.pageList[0]);setTool(S.tool||'select');}
