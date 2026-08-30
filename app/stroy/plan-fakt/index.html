@@ -21,6 +21,9 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:var(--sans);color:var
 .lk-draw-output{display:none!important;}
 .lk-draw-output.on{display:flex!important;}
 body.lk-drawing-context #btnExport{display:none;}
+/* По решению: графическое редактирование — только в графическом редакторе, не из Линейки.
+   Кнопку «✎ Править линии» на листе Линейки скрываем. */
+#lkDrawPage{display:none!important;}
 .brand{display:flex;align-items:baseline;gap:8px;font-weight:700;font-size:15px;}
 .brand .mark{font-family:var(--mono);font-size:11px;background:var(--amber);color:#1a1205;padding:3px 7px;border-radius:5px;letter-spacing:1px;}
 .brand .mark-img{height:30px;width:auto;display:block;border-radius:6px;}
@@ -1805,6 +1808,9 @@ function coarseTapSelect(ip){const rad=26/Math.max(.1,S.scale),cand=nearLines(ip
 // узнаёт о первом пальце, и щипок не стартует (ptrs не доходит до 2, а drag продолжает тянуть линию)
 vp.addEventListener('pointerdown',e=>{ptrs.set(e.pointerId,e);if(ptrs.size===2){pinching=true;pinchSerial++;panning=false;cancelDraft();}},true);
 vp.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')e.preventDefault();ptrs.set(e.pointerId,e);if(ptrs.size===2){pinching=true;pinchSerial++;panning=false;cancelDraft();return;}
+  // СТИЛУС/ПЕРО: сразу рисуем линию с живой длиной (масштаб — из калибровки). Палец/мышь — как
+  // обычно (пан, выбор, зум). Работает в режимах «Выбор»/«Рука»/«Линия», не мешая калибровке/знакам.
+  if(e.pointerType==='pen'&&inBase(e.clientX,e.clientY)&&(S.tool==='select'||S.tool==='pan'||S.tool==='line')){e.preventDefault();startPenDraw(toImg(e.clientX,e.clientY),e);return;}
   const onObj=e.target.closest('[data-id]');
   if(S.tool==='erase'){if(onObj)eraseAt(e.target);else bgPan(e);return;}
   if(S.tool==='select'){
