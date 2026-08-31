@@ -991,9 +991,15 @@ function promoteAt(p){const arr=S.dark[S.pageNum]||[];
   if(best<0){toast('Рядом нет линии чертежа');return;}
   const o0=arr[best];
   if(diag(o0.pts)<=R*2.2){
-    // ЗНАК: собираем ВСЕ компактные штрихи рядом (любого цвета) в ОДИН сгруппированный объект → один тап
-    const cl=[];arr.forEach((o,i)=>{if(!o||o.type!=='line'||!o.pts||o.pts.length<2||diag(o.pts)>R*2.2)return;if(dTo(o)<=R*1.6)cl.push(i);});
-    if(cl.length){pushHistory();const gid='sym'+(GRP_SEQ++),made=[];cl.sort((a,b)=>b-a).forEach(i=>{const d=arr[i],pts=d.pts.map(q=>({x:q.x,y:q.y})),orig=d.pts.map(q=>({x:q.x,y:q.y})),w=Math.max(1.2,d.width||1.5);made.push(addObj({type:'line',color:d.color||'#10151c',width:w,pts,ea:{kind:'free',h:0},eb:{kind:'free',h:0},src:'pdf',grp:gid,nocalc:true,_lkSource:true,_lkOriginal:{paths:[orig],pts:orig,width:w,color:d.color||'#10151c'}}).id);arr.splice(i,1);});redrawAll();setTool('select');selectObj(made[0]);toast('Знак поднят одним объектом — можно двигать/удалять');return;}
+    // ЗНАК: растём ТОЛЬКО по СВЯЗНОСТИ от тапнутого штриха (соединённые касанием), среди компактных
+    // рядом — берётся именно этот знак, а не соседние стены/размеры/другие знаки.
+    const gap=Math.max(2.5,S.W*0.0018),cand=[];
+    arr.forEach((o,i)=>{if(!o||o.type!=='line'||!o.pts||o.pts.length<2||diag(o.pts)>R*2.2)return;if(dTo(o)<=R*3)cand.push(i);});
+    const touch=(a,b)=>{const A=arr[a].pts,B=arr[b].pts;for(let x=0;x<A.length;x++)for(let y=0;y<B.length;y++)if(Math.hypot(A[x].x-B[y].x,A[x].y-B[y].y)<=gap)return true;return false;};
+    const cset=new Set([best]);let grew=true,guard=0;
+    while(grew&&cset.size<40&&guard++<80){grew=false;for(const i of cand){if(cset.has(i))continue;for(const j of cset){if(touch(i,j)){cset.add(i);grew=true;break;}}}}
+    const cl=[...cset];
+    if(cl.length){pushHistory();const gid='sym'+(GRP_SEQ++),made=[];cl.sort((a,b)=>b-a).forEach(i=>{const d=arr[i],pts=d.pts.map(q=>({x:q.x,y:q.y})),orig=d.pts.map(q=>({x:q.x,y:q.y})),w=Math.max(1.2,d.width||1.5);made.push(addObj({type:'line',color:d.color||'#10151c',width:w,pts,ea:{kind:'free',h:0},eb:{kind:'free',h:0},src:'pdf',grp:gid,nocalc:true,_lkSource:true,_lkOriginal:{paths:[orig],pts:orig,width:w,color:d.color||'#10151c'}}).id);arr.splice(i,1);});redrawAll();setTool('select');selectObj(made[0]);toast('Знак поднят одним объектом — двигать/удалять');return;}
   }
   // ТРАССА: длинная линия ВЫБРАННОЙ марки
   if(standaloneVectorCat(o0.color)!==S.cat){const cc=standaloneVectorCat(o0.color);toast(cc?('Это трасса марки «'+catN(cc)+'» — выбери её цвет вверху'):'Рядом нет трассы выбранной марки');return;}
