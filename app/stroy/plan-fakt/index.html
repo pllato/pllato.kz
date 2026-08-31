@@ -1210,6 +1210,7 @@ function prepareStandalonePdfVectors(pn,source){
       // Рисуешь свои трассы/знаки поверх («по факту»), длина считается сама. Нужна геометрия
       // существующей трассы — тапни её (promoteAt поднимет ТОЛЬКО линию выбранного цвета).
       if(pg.objs.length&&!S._tapHint){S._tapHint=1;toast('Чертёж — точный фон. Рисуй трассы поверх; чтобы переиспользовать линию с чертежа — тапни её.');}
+      if(pg.objs.length)renderCleanPlan(pn); // фоном готовим «чистый план» для чистого удаления/сдвига поднятых трасс
     }
     return pg.dark;
   }).catch(e=>{pg._vectorsError=true;console.warn('local page vectors',e);return null;}).finally(()=>{pg._vectorsLoading=false;delete src.vectorJobs[pn];});
@@ -1374,10 +1375,14 @@ function isRouteColor(css){
   if(hex[0]!=='#'){const m=hex.match(/\d+(\.\d+)?/g);if(m&&m.length>=3){const to=n=>Math.max(0,Math.min(255,Math.round(+n))).toString(16).padStart(2,'0');hex='#'+to(m[0])+to(m[1])+to(m[2]);}}
   return /^#[0-9a-f]{6}$/i.test(hex)&&!!standaloneVectorCat(hex);
 }
-function erasePgRoutes(pn){
+/* «Чистый план» = лист, перерисованный БЕЗ трасс (пропускаем штрихи/заливки цвета трасс). Кладём в
+   ОТДЕЛЬНЫЙ pg.uClean, дисплей-подложку (pg.u) НЕ трогаем — чертёж остаётся 1-в-1 со всеми знаками.
+   Этот «чистый план» вскрываем ТОЛЬКО по пути удалённой/сдвинутой трассы (renderRevealLayer) —
+   тогда под трассой видно настоящий чертёж (стены/размеры целые), а не белый вырез. */
+function renderCleanPlan(pn){
   const src=S.standalonePdf,pg=src&&src.data&&src.data.pages&&src.data.pages[pn];
-  if(!src||!src.pdf||!pg||pg._routesErased||!Array.isArray(pg.objs)||!pg.objs.length)return;
-  pg._routesErased=true;
+  if(!src||!src.pdf||!pg||pg.uClean||pg._cleanJob)return;
+  pg._cleanJob=true;
   (async()=>{try{
     const page=await src.pdf.getPage(pn),v=page.getViewport({scale:1});
     const sc=Math.min(3,Math.max(1,2000/Math.max(v.width,v.height))),rv=page.getViewport({scale:sc});
@@ -1385,13 +1390,26 @@ function erasePgRoutes(pn){
     const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
     const origStroke=ctx.stroke.bind(ctx),origFill=ctx.fill.bind(ctx);
     ctx.stroke=function(...a){if(isRouteColor(ctx.strokeStyle))return;return origStroke(...a);};
-    ctx.fill=function(...a){if(isRouteColor(ctx.fillStyle))return;return origFill(...a);};  // знаки-заливки трасс тоже убираем — они станут объектами
+    ctx.fill=function(...a){if(isRouteColor(ctx.fillStyle))return;return origFill(...a);};
     await page.render({canvasContext:ctx,viewport:rv}).promise;
-    ctx.stroke=origStroke;
-    pg.u=c.toDataURL('image/jpeg',0.85).split(',')[1];
+    ctx.stroke=origStroke;ctx.fill=origFill;
+    pg.uClean=c.toDataURL('image/jpeg',0.85).split(',')[1];
     try{page.cleanup();}catch(_){}
-    if(S.pageNum===pn){baseimg.onload=null;baseimg.src='data:image/jpeg;base64,'+pg.u;}
-  }catch(e){console.warn('erasePgRoutes',e);pg._routesErased=false;}})();
+    if(S.pageNum===pn)redrawAll(); // если уже есть удалённые/сдвинутые трассы — покажем чистый план под ними
+  }catch(e){console.warn('renderCleanPlan',e);pg._cleanJob=false;}})();
+}
+// Слой «вскрытия»: чистый план, показанный маской ТОЛЬКО по путям удалённых/сдвинутых трасс.
+function renderRevealLayer(){
+  const pg=S.data&&S.data.pages&&S.data.pages[S.pageNum];if(!pg||!pg.uClean||!S.W)return null;
+  const reps=[];(cur()||[]).forEach(o=>{if(o&&o._lkSource&&o._lkOriginal&&(o._lkDeleted||lineMovedFromOriginal(o)))reps.push(o._lkOriginal);});
+  if(!reps.length)return null;
+  const NS='http://www.w3.org/2000/svg',mid='rev'+(S._revSeq=(S._revSeq||0)+1),k=1/Math.max(.1,S.scale);
+  const g=document.createElementNS(NS,'g');g.style.pointerEvents='none';
+  const defs=document.createElementNS(NS,'defs'),mask=document.createElementNS(NS,'mask');mask.setAttribute('id',mid);mask.setAttribute('maskUnits','userSpaceOnUse');mask.setAttribute('x',0);mask.setAttribute('y',0);mask.setAttribute('width',S.W);mask.setAttribute('height',S.H);
+  reps.forEach(rep=>{(rep.paths||[rep.pts]).forEach(pts=>{if(!pts||pts.length<2)return;const pt=document.createElementNS(NS,'path');pt.setAttribute('d',linePath(pts));pt.setAttribute('fill','none');pt.setAttribute('stroke','#fff');pt.setAttribute('stroke-width',(Math.max(1.5,+rep.width||2))+(REPLACEMENT_MASK_PAD_PX+1)*k);pt.setAttribute('stroke-linecap','round');pt.setAttribute('stroke-linejoin','round');mask.appendChild(pt);});});
+  defs.appendChild(mask);g.appendChild(defs);
+  const img=document.createElementNS(NS,'image');img.setAttribute('x',0);img.setAttribute('y',0);img.setAttribute('width',S.W);img.setAttribute('height',S.H);img.setAttribute('preserveAspectRatio','none');img.setAttribute('href','data:image/jpeg;base64,'+pg.uClean);img.setAttribute('mask','url(#'+mid+')');g.appendChild(img);
+  return g;
 }
 /* Лёгкие превью листов: низкое разрешение (~220px, q0.6), ленивая отрисовка ПО ОДНОМУ
    (IntersectionObserver + очередь concurrency=1) — полоса листов видна, но мобильный не грузится.
@@ -1589,7 +1607,7 @@ function cur(){return S.objects[S.pageNum];}
 function addObj(o){o.id='o'+(S.seq++);cur().push(o);return o;}
 function getObj(id){return cur().find(o=>o.id===id);}
 function delObj(id){const a=cur();const i=a.findIndex(o=>o.id===id);if(i>=0)a.splice(i,1);}
-function deleteObjectIds(ids){(ids||[]).forEach(id=>{if(getObj(id))delObj(id);});}   // чистое удаление: подложка-без-трасс уже не содержит линию, чертёж под ней целый — маска-«вырез» не нужна
+function deleteObjectIds(ids){(ids||[]).forEach(id=>{const o=getObj(id);if(!o)return;if(o._lkSource&&o._lkOriginal)o._lkDeleted=true;else delObj(id);});}   // поднятые из PDF — мягко: под их путём вскрываем «чистый план» (чертёж целый, без выреза)
 function isRef(o){return S.importMode==='ref'&&o.src==='pdf';}
 function visible(o){return S.filter==='all'||(S.filter==='mine'&&o.src!=='pdf')||(S.filter==='pdf'&&o.src==='pdf');}
 
@@ -1599,7 +1617,7 @@ function renderReplacementMask(o){const rep=o&&o._lkOriginal;if(!rep||!Array.isA
   return null; // белую маску не рисуем: подложка перерисована без трасс, чертёж под трассой целый
   const g=document.createElementNS(SVGNS,'g');g.style.pointerEvents='none';rep.paths.forEach(pts=>{if(!pts||pts.length<2)return;const p=document.createElementNS(SVGNS,'path');p.dataset.ui='replacement-mask';p.dataset.basew=String(Math.max(.7,+rep.width||1));p.setAttribute('d',linePath(pts));p.setAttribute('fill','none');p.setAttribute('stroke','#fff');p.setAttribute('stroke-width',Math.max(.7,+rep.width||1)+REPLACEMENT_MASK_PAD_PX/Math.max(.1,S.scale));p.setAttribute('stroke-linecap','round');p.setAttribute('stroke-linejoin','round');g.appendChild(p);});return g.childNodes.length?g:null;}
 function makeLineLabel(o,pn=S.pageNum){const tx=lineLabelText(o,pn);if(!tx)return null;const p=lineHalfPoint(o.pts),k=1/Math.max(.1,S.scale),w=Math.max(62,tx.length*7.2+18);const g=document.createElementNS(SVGNS,'g');g.dataset.lineLabel='1';g.dataset.x=p.x;g.dataset.y=p.y;g.setAttribute('transform',`translate(${p.x} ${p.y}) scale(${k})`);g.style.pointerEvents='none';const r=document.createElementNS(SVGNS,'rect');r.setAttribute('x',-w/2);r.setAttribute('y',-35);r.setAttribute('width',w);r.setAttribute('height',25);r.setAttribute('rx',7);r.setAttribute('fill','rgba(255,255,255,.94)');r.setAttribute('stroke',o.color||'#1b4f9c');r.setAttribute('stroke-width','1.5');const t=document.createElementNS(SVGNS,'text');t.setAttribute('x','0');t.setAttribute('y','-18');t.setAttribute('text-anchor','middle');t.setAttribute('fill','#183455');t.setAttribute('font-size','13');t.setAttribute('font-family','Inter,Arial,sans-serif');t.setAttribute('font-weight','800');t.textContent=tx;g.append(r,t);return g;}
-function redrawAll(){gMask.innerHTML='';gObj.innerHTML='';cur().forEach(o=>{const m=renderReplacementMask(o);if(o._lkDeleted){if(m)gMask.appendChild(m);return;}if(!visible(o))return;if(m)gMask.appendChild(m);gObj.appendChild(renderObj(o));});drawSelUI();$('objN').textContent=cur().filter(o=>!o._lkDeleted).length;if(S.sideTab==='calc')renderSide();}
+function redrawAll(){gMask.innerHTML='';gObj.innerHTML='';const rv=renderRevealLayer();if(rv)gMask.appendChild(rv);cur().forEach(o=>{if(o._lkDeleted)return;if(!visible(o))return;gObj.appendChild(renderObj(o));});drawSelUI();$('objN').textContent=cur().filter(o=>!o._lkDeleted).length;if(S.sideTab==='calc')renderSide();}
 function renderObj(o){
   let el;
   if(o.type==='line'){
