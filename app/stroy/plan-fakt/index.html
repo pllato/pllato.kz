@@ -1206,12 +1206,18 @@ function prepareStandalonePdfVectors(pn,source){
     pg.objs=standaloneCableObjects(pg.dark,pg.wpt,pg.hpt);pg.syms=standaloneSymbolObjects(pg.fills,pg.wpt,pg.hpt);pg._vectorsReady=true;
     if(S.standalonePdf===src&&S.pageNum===pn&&S.W&&S.H){
       S.dark[pn]=buildDark(pg,S.W/pg.wpt,S.H/pg.hpt);if(S.vectorLayer)renderPlanSkeleton();
-      // В v462 быстрый локальный вход оставил цветные трассы только фоном. Возвращаем
-      // их в модель сразу после готовности OperatorList, не ожидая серверный конвертер.
-      // Режим 1-в-1 с PDF: трассы НЕ превращаем в объекты автоматически и НЕ трогаем растр — лист
-      // показывается ТОЧНО как в PDF. Линия становится редактируемой по ТАПУ (promoteAt), остальной
-      // чертёж не меняется. Для чистой массовой правки есть «Подложка» → «вектор».
-      if(pg.objs.length&&!S._tapHint){S._tapHint=1;toast('Тапни по трассе, чтобы её редактировать — остальной чертёж остаётся точно как в PDF.');}
+      // Подложка БЕЗ трасс: растр перерисован с пропуском штрихов/заливок цвета трасс — стены,
+      // размеры, текст под трассой рисуются ЦЕЛИКОМ (не режутся), трасса просто не проводится.
+      // Трассы и знаки на концах — тонкие объекты точного цвета из PDF: видно как в PDF, можно
+      // выделять/двигать/удалять, и под удалённой трассой чертёж остаётся ровным (маска не нужна).
+      const existing=S.objects[pn]||[];
+      if(pg.objs.length&&!existing.some(o=>o&&o._autoVector)){
+        const impd=importObjects(pg.objs,S.W/pg.wpt,S.H/pg.hpt).concat(importObjects(pg.syms||[],S.W/pg.wpt,S.H/pg.hpt));
+        S.objects[pn]=existing.concat(impd);assignGroups(S.objects[pn]);captureEndpointSymbols(pn);
+        redrawAll();renderSide();updateUndo();
+        if(S.vectorLayer)renderPlanSkeleton();
+        erasePgRoutes(pn);
+      }
     }
     return pg.dark;
   }).catch(e=>{pg._vectorsError=true;console.warn('local page vectors',e);return null;}).finally(()=>{pg._vectorsLoading=false;delete src.vectorJobs[pn];});
@@ -1591,14 +1597,14 @@ function cur(){return S.objects[S.pageNum];}
 function addObj(o){o.id='o'+(S.seq++);cur().push(o);return o;}
 function getObj(id){return cur().find(o=>o.id===id);}
 function delObj(id){const a=cur();const i=a.findIndex(o=>o.id===id);if(i>=0)a.splice(i,1);}
-function deleteObjectIds(ids){(ids||[]).forEach(id=>{const o=getObj(id);if(!o)return;if((o._symFrag||o._lkSource)&&o._lkOriginal)o._lkDeleted=true;else delObj(id);});}   // поднятые из PDF (_lkSource) и знаки — мягко: белая маска прячет оригинал в растре
+function deleteObjectIds(ids){(ids||[]).forEach(id=>{if(getObj(id))delObj(id);});}   // чистое удаление: подложка-без-трасс уже не содержит линию, чертёж под ней целый — маска-«вырез» не нужна
 function isRef(o){return S.importMode==='ref'&&o.src==='pdf';}
 function visible(o){return S.filter==='all'||(S.filter==='mine'&&o.src!=='pdf')||(S.filter==='pdf'&&o.src==='pdf');}
 
 function renderReplacementMask(o){const rep=o&&o._lkOriginal;if(!rep||!Array.isArray(rep.paths)||!rep.paths.length)return null;
   // белая маска — «ластик»: прячет исходную линию из растра, когда поднятую трассу СДВИНУЛИ или
   // УДАЛИЛИ (иначе на картинке остаётся старая линия). Невыровненную (не тронутую) не маскируем.
-  if(!o._lkDeleted&&!lineMovedFromOriginal(o))return null;
+  return null; // белую маску не рисуем: подложка перерисована без трасс, чертёж под трассой целый
   const g=document.createElementNS(SVGNS,'g');g.style.pointerEvents='none';rep.paths.forEach(pts=>{if(!pts||pts.length<2)return;const p=document.createElementNS(SVGNS,'path');p.dataset.ui='replacement-mask';p.dataset.basew=String(Math.max(.7,+rep.width||1));p.setAttribute('d',linePath(pts));p.setAttribute('fill','none');p.setAttribute('stroke','#fff');p.setAttribute('stroke-width',Math.max(.7,+rep.width||1)+REPLACEMENT_MASK_PAD_PX/Math.max(.1,S.scale));p.setAttribute('stroke-linecap','round');p.setAttribute('stroke-linejoin','round');g.appendChild(p);});return g.childNodes.length?g:null;}
 function makeLineLabel(o,pn=S.pageNum){const tx=lineLabelText(o,pn);if(!tx)return null;const p=lineHalfPoint(o.pts),k=1/Math.max(.1,S.scale),w=Math.max(62,tx.length*7.2+18);const g=document.createElementNS(SVGNS,'g');g.dataset.lineLabel='1';g.dataset.x=p.x;g.dataset.y=p.y;g.setAttribute('transform',`translate(${p.x} ${p.y}) scale(${k})`);g.style.pointerEvents='none';const r=document.createElementNS(SVGNS,'rect');r.setAttribute('x',-w/2);r.setAttribute('y',-35);r.setAttribute('width',w);r.setAttribute('height',25);r.setAttribute('rx',7);r.setAttribute('fill','rgba(255,255,255,.94)');r.setAttribute('stroke',o.color||'#1b4f9c');r.setAttribute('stroke-width','1.5');const t=document.createElementNS(SVGNS,'text');t.setAttribute('x','0');t.setAttribute('y','-18');t.setAttribute('text-anchor','middle');t.setAttribute('fill','#183455');t.setAttribute('font-size','13');t.setAttribute('font-family','Inter,Arial,sans-serif');t.setAttribute('font-weight','800');t.textContent=tx;g.append(r,t);return g;}
 function redrawAll(){gMask.innerHTML='';gObj.innerHTML='';cur().forEach(o=>{const m=renderReplacementMask(o);if(o._lkDeleted){if(m)gMask.appendChild(m);return;}if(!visible(o))return;if(m)gMask.appendChild(m);gObj.appendChild(renderObj(o));});drawSelUI();$('objN').textContent=cur().filter(o=>!o._lkDeleted).length;if(S.sideTab==='calc')renderSide();}
