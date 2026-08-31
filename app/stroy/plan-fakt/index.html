@@ -1518,7 +1518,7 @@ function standaloneCableObjects(raw,wpt,hpt){
 }
 
 /* ---- упрощение полилинии (Douglas–Peucker) + жёсткий лимит узлов ---- */
-const SIMPLIFY_TOL_PT=2.4, MAX_NODES=4, IMPORT_MAX=10;
+const SIMPLIFY_TOL_PT=0.6, MAX_NODES=4, IMPORT_MAX=600;  // импорт БЕЗ огрубления: трасса повторяет линию PDF точно
 function simplifyPts(pts,tol){
   const n=pts.length;if(n<=2)return pts;
   const keep=new Uint8Array(n);keep[0]=keep[n-1]=1;const t2=tol*tol;const stack=[[0,n-1]];
