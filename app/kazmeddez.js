@@ -8,7 +8,7 @@ const mln=(n,d)=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:d||1}).for
 /* ===== РОЛИ ===== */
 const ROLES={
  'Руководитель':{av:'РК',n:'Асылхан',r:'собственник',note:'Деньги, оба направления, производство и склад — одним взглядом',
-  s:['dash','deals','prod','stock','fin','debt','reports','docs','tasks']},
+  s:['dash','deals','prod','stock','fin','debt','odata','reports','docs','tasks']},
  'Менеджер отдела продаж':{av:'МП',n:'Алиса',r:'продажи · B2B',note:'Обращения из WhatsApp и звонков, сделки, счета, тендеры',
   s:['inbox','deals','clients','tenders','catalog','tasks','bill']},
  'Технолог производства':{av:'ТП',n:'Гульнар',r:'производство',note:'Партии от сырья до выпуска, рецептуры, лаборатория, себестоимость',
@@ -22,7 +22,7 @@ const ROLES={
  'Бухгалтерия':{av:'БУ',n:'Жанна',r:'финансы и документы',note:'Счета, ЭСФ, оплаты, дебиторка и обмен с 1С 8.3',
   s:['bill','pay','debt','odata','docs','fin']},
  'Администратор':{av:'АД',n:'Администратор',r:'настройки портала',note:'Роли и права, интеграции, каталог, журнал действий',
-  s:['users','integr','catalog','audit','shop']},
+  s:['users','integr','odata','catalog','audit','shop']},
  'Кабинет клиента':{av:'КЛ',n:'ГКП «Поликлиника №4»',r:'клиент компании',note:'Витрина, повторный заказ, свои документы и заявки',
   s:['shop','myorders','mydocs']}
 };
@@ -454,7 +454,13 @@ function openDeal(id,tab){const d=DEALS.find(x=>x.id===id);if(!d)return;if(tab!=
   ${[['Коммерческое предложение №КП-2026-318','29.08.2026','Отправлено'],['Счёт на оплату СЧ-2026-2431','31.08.2026','Выставлен'],['Договор поставки ДП-2026-118','12.01.2026','Действует'],['Накладная и ЭСФ','—','После отгрузки']]
    .map(r=>`<tr onclick="toast('Документ открыт: печать, PDF и отправка клиенту. Выгружается в 1С.')"><td><b>${r[0]}</b></td><td class="mono">${r[1]}</td><td><span class="badge ${r[2]==='Действует'?'g':r[2]==='Выставлен'?'b':''}">${r[2]}</span></td></tr>`).join('')}
   </tbody></table></div></div>
-  <div class="note" style="--tone:var(--acc)"><b>Документы формируются из сделки</b><p>Данные подставляются из карточки контрагента и состава заказа — переписывать реквизиты вручную не нужно, ошибок в счетах не будет.</p></div>`}
+  <div class="note" style="--tone:var(--acc)"><b>Документы формируются из сделки</b><p>Данные подставляются из карточки контрагента и состава заказа — переписывать реквизиты вручную не нужно, ошибок в счетах не будет.</p></div>
+  <div class="panel" style="border-left:3px solid var(--acc)"><div class="ph"><div><div class="ph-title">Что уходит в 1С по этой сделке</div>
+   <div class="ph-sub">обмен по OData, без ручного переноса</div></div><span class="badge g">на связи</span></div>
+   ${[['Контрагент и договор','портал → 1С «Бухгалтерия»','выгружено'],['Счёт на оплату','портал → 1С «Бухгалтерия»','выгружено'],
+      ['Реализация и накладная','портал → 1С «Торговля»','после отгрузки'],['Оплата по банку','1С → портал','ожидается'],['ЭСФ','1С → портал','после отгрузки']]
+    .map(r=>`<div class="kv"><span>${r[0]}<div class="sub">${r[1]}</div></span><b><span class="badge ${r[2]==='выгружено'?'g':''}">${r[2]}</span></b></div>`).join('')}
+  </div>`}
  if(dealTab===3){body=`<div class="panel" style="padding:0"><div class="tw"><table class="data"><thead><tr><th>Отгрузка</th><th>Дата</th><th>Статус</th><th>Кто собирает</th></tr></thead><tbody>
   ${SHIPS.filter(s=>s.deal===id).map(s=>`<tr onclick="closeD();go('ship')"><td class="mono"><b>${s.id}</b></td><td class="mono">${s.date}</td><td><span class="badge ${s.st==='Отгружено'?'g':s.st==='Сборка'?'b':'a'}">${s.st}</span></td><td>${s.who}</td></tr>`).join('')
    ||'<tr style="cursor:default"><td colspan="4" class="mini">Отгрузок пока нет — появятся, когда сделка дойдёт до этапа «К отгрузке».</td></tr>'}
@@ -656,7 +662,7 @@ function openBatch(id,tab){const b=batch(id);if(!b)return;if(tab!==undefined)bTa
   </tbody></table></div></div>
   <div class="note" style="--tone:var(--violet)"><b>Отзыв партии одной кнопкой</b><p>Если по партии выявлено несоответствие, система показывает всех клиентов, кому она ушла, и готовит уведомления. Для медицинских изделий и дезсредств это требование, которое обычно закрывают вручную по журналам.</p></div>`}
  openD(`Партия ${b.id}`,`${esc(n.n)} · запущена ${b.started} · технолог ${b.who} · годен до ${b.exp}`,tabs.map((t,i)=>[t,`openBatch('${id}',${i})`,i===bTab]),body)}
-function labRelease(id){const b=batch(id);b.st='ready';b.qty=b.qty||b.plan;
+function labRelease(id){const b=batch(id);b.st='ready';b.qty=b.qty||b.plan;c1Flash();
  STOCK.unshift({nom:b.nom,lot:b.id,qty:b.qty,res:0,exp:b.exp,wh:'Основной',in:'31.08.2026'});
  closeD();go('stock');sparks();
  toast(`Лаборатория выпустила протокол — партия <b>${id}</b> разрешена к отгрузке и встала на склад: ${fmt(b.qty)} ${nom(b.nom).u}, срок годности ${b.exp}.`)}
@@ -864,10 +870,11 @@ SC.ship=()=>`
     ${s.st==='Сборка'?`<button class="btn acc" onclick="shipDone('${s.id}')">Отгрузить и списать со склада</button>`:''}
     ${s.st==='Ожидает оплату'?`<button class="btn" onclick="toast('Клиенту отправлено напоминание об оплате счёта в WhatsApp.')">Напомнить об оплате</button>`:''}
     <button class="btn" onclick="toast('Печатается комплект: накладная, счёт-фактура, ЭСФ, паспорта качества и сертификаты по каждой партии.')">Печать документов</button>
+    <button class="btn" onclick="go('odata')">⇄ ${s.st==='Отгружено'?'Выгружено в 1С':'Уйдёт в 1С при отгрузке'}</button>
     <button class="btn" onclick="toast('Заявка на доставку создана — логист видит её в маршрутах.')">Заявка на доставку</button></div>
   </div>`}).join('')}
  <div class="hint"><b>Комплект документов собирается сам:</b> к отгрузке медизделий нужны накладная, счёт-фактура, а к каждой партии — паспорт качества и копия РУ. Сейчас это собирает менеджер вручную; в портале документы прикреплены к партии и печатаются одной кнопкой.</div>`;
-function shipDone(id){const s=SHIPS.find(x=>x.id===id);s.st='Отгружено';
+function shipDone(id){const s=SHIPS.find(x=>x.id===id);s.st='Отгружено';c1Flash();
  s.pos.forEach(p=>{let need=p[1];stockOf(p[0]).sort((a,b)=>a.exp.localeCompare(b.exp)).forEach(st=>{
   const take=Math.min(need,st.qty);st.qty-=take;st.res=Math.max(0,st.res-take);need-=take})});
  render();sparks();
@@ -1108,6 +1115,15 @@ function openInv(id){const i=INV.find(x=>x.id===id);const c=co(i.co);
    <div><small>ОПЛАЧЕНО</small><b class="g">${fmt(i.paid)} ₸</b><span>${Math.round(i.paid/i.sum*100)}%</span></div>
    <div><small>ОСТАТОК</small><b class="${i.sum-i.paid?'r':'g'}">${fmt(i.sum-i.paid)} ₸</b><span>${i.st}</span></div>
   </div>
+  <div class="panel" style="border-left:3px solid var(--acc)"><div class="ph"><div><div class="ph-title">Обмен с 1С по этому счёту</div>
+    <div class="ph-sub">документ живёт в портале и в 1С одновременно — вводить второй раз не нужно</div></div>
+    <span class="badge g">синхронизировано</span></div>
+   <div class="kv"><span>Контрагент и договор</span><b>выгружены в базу «Бухгалтерия» · ${i.date}</b></div>
+   <div class="kv"><span>Счёт на оплату</span><b>выгружен · номер ${i.id} совпадает в обеих системах</b></div>
+   <div class="kv"><span>Оплата</span><b>${i.paid?'загружена из 1С по банковской выписке':'подтянется из 1С после поступления'}</b></div>
+   <div class="kv"><span>ЭСФ</span><b>${i.esf?'выписана в 1С, статус вернулся в портал':'после отгрузки'}</b></div>
+   <button class="btn" style="margin-top:9px" onclick="closeD();go('odata')">Открыть журнал обмена</button>
+  </div>
   <div class="panel"><div class="ph-title">Документы по счёту</div>
    ${[['Счёт на оплату',i.date,1],['Накладная',i.paid?i.date:'—',i.paid?1:0],['Электронная счёт-фактура (ЭСФ)',i.esf?i.date:'—',i.esf],['Акт сверки','по запросу',0]]
     .map(d=>`<div class="kv"><span>${d[0]}</span><b>${d[2]?'<span style="color:var(--green)">готов</span> · ':''}${d[1]}</b></div>`).join('')}
@@ -1116,7 +1132,7 @@ function openInv(id){const i=INV.find(x=>x.id===id);const c=co(i.co);
   <button class="btn" onclick="toast('ЭСФ выписана и отправлена в ИС ЭСФ.')">Выписать ЭСФ</button>
   <button class="btn" onclick="payInv('${id}')">Отметить оплату</button>
   <button class="btn" onclick="toast('Печатная форма счёта открыта: PDF, печать, отправка.')">Печать</button></div>`)}
-function payInv(id){const i=INV.find(x=>x.id===id);i.paid=i.sum;i.st='Оплачен';
+function payInv(id){const i=INV.find(x=>x.id===id);i.paid=i.sum;i.st='Оплачен';c1Flash();
  closeD();render();sparks();
  toast(`Оплата по счёту <b>${id}</b> зачтена на ${tg(i.sum)}. Отгрузка разблокирована, менеджер и склад получили уведомление.`)}
 
@@ -1241,6 +1257,12 @@ SC.odata=()=>`
     <td><b>${r[0]}</b></td><td><span class="badge ${r[1].startsWith('портал')?'c':r[1]==='двусторонне'?'v':'b'}">${r[1]}</span></td>
     <td class="mini">${r[2]}</td><td class="mini">${r[3]}</td><td><span class="badge g">работает</span></td></tr>`).join('')}
    </tbody></table></div>
+   <div class="chain" style="margin:12px 0">
+    <div class="st done"><code>ПОРТАЛ</code><b>Документ создан</b><small>сделка, счёт, отгрузка, партия</small></div>
+    <div class="st done"><code>ОЧЕРЕДЬ</code><b>Проверка и отправка</b><small>сопоставление справочников</small></div>
+    <div class="st now"><code>1С 8.3 · ODATA</code><b>Проведён в базе</b><small>Торговля · Бухгалтерия · Производство</small></div>
+    <div class="st done"><code>ОБРАТНО</code><b>Оплаты, ЭСФ, остатки</b><small>возвращаются в портал</small></div>
+   </div>
    <div class="hint"><b>Про «подключить OData за пять секунд»:</b> включить протокол действительно быстро. Работа начинается дальше — сопоставить справочники, договориться о том, что считается главным источником по каждому объекту, обработать ошибки проведения и протестировать под реальной нагрузкой. Именно за это отвечает интеграция, и именно поэтому у прошлых подрядчиков «ссылка есть, а поля пустые».</div>
   </div>
   <div>
@@ -1519,6 +1541,9 @@ function sparks(){const c=['#0d9488','#14b8a6','#2563eb','#16a34a','#ffffff','#f
  for(let i=0;i<56;i++){const s=document.createElement('i');s.className='spark';
   s.style.cssText=`left:${Math.random()*100}vw;background:${c[i%6]};animation-delay:${Math.random()*.45}s;transform:rotate(${Math.random()*360}deg)`;
   document.body.appendChild(s);setTimeout(()=>s.remove(),2300)}}
+function c1Flash(){const b=document.getElementById('c1Btn');if(!b)return;
+ b.classList.add('sync');b.textContent='⇄ 1С 8.3 · документ уходит в базу…';
+ setTimeout(()=>{b.classList.remove('sync');b.textContent='⇄ 1С 8.3 · 3 базы · синхронно'},2400)}
 function waPing(){toast('WhatsApp и телефония работают внутри портала: переписка и звонки — в карточке клиента, а не в личном телефоне менеджера. <b>3 канала по 5 000 ₸</b> вместо 36 000 ₸ за канал.')}
 /* тема */
 function applyTheme(){document.body.classList.toggle('dark',theme==='dark');
@@ -1536,7 +1561,8 @@ const TOUR=[
  ['Заведующий складом','stock','<b>Шаг 5.</b> Склад по партиям и срокам годности. Отгрузка идёт по FEFO — первым уходит то, что раньше истекает, поэтому товар не списывается по сроку.',6200],
  ['Диспетчер услуг ДДД','ddd','<b>Шаг 6.</b> Второе направление — обработки на объектах. Договор задаёт периодичность, система ставит выезды, считает препараты и следит за актами.',6200],
  ['Диспетчер услуг ДДД','calcd','<b>Шаг 7.</b> Клиент спрашивает цену обработки 1 400 м² — ответ сразу, вместе с себестоимостью и суммой годового договора.',5800],
- ['Бухгалтерия','odata','<b>Шаг 8.</b> Обмен с 1С 8.3 по OData: три ваши базы, документы в обе стороны. Нажмите «Запустить обмен» — покажу, как это выглядит.',6400],
+ ['Бухгалтерия','odata','<b>Шаг 8.</b> Обмен с 1С 8.3 по OData: три ваши базы, документы в обе стороны — контрагенты, счета, реализация, оплаты, ЭСФ и остатки. Сейчас запущу обмен.',3000],
+ ['Бухгалтерия','odata','__SYNC__',7000],
  ['Руководитель','dash','<b>Итог.</b> Одна система вместо Битрикса, таблиц и разрозненных баз: продажи, производство, склад, услуги, деньги и документы — с прослеживаемостью от сырья до клиента.',6600]
 ];
 let tourT=null,tourI=0;
@@ -1545,7 +1571,7 @@ function step(){if(tourI>=TOUR.length){stopTour();sparks();
   toast('<b>Это демо, собранное под вашу компанию.</b> Всё, что вы видели, делается под ваши процессы: два направления, три базы 1С, производство с себестоимостью и B2B-кабинет для клиник.');return}
  const [r,s,txt,ms]=TOUR[tourI++];
  if(role!==r)enter(r);
- setTimeout(()=>{go(s);toast(txt)},role!==r?380:0);
+ setTimeout(()=>{go(s);if(txt==='__SYNC__')runSync();else toast(txt)},role!==r?380:0);
  tourT=setTimeout(step,ms)}
 function stopTour(){clearTimeout(tourT);tourT=null;const b=document.getElementById('tourBtn');if(b)b.textContent='▶ Сценарий'}
 renderRoles();
