@@ -1482,12 +1482,14 @@ function captureEndpointSymbols(pn){
     if(!shared)ends.push(p);});});
   ends.forEach(p=>{const near=[];
     darks.forEach((d,i)=>{if(used.has(i)||!d||d.type!=='line'||!d.pts||d.pts.length<2||standaloneVectorCat(d.color))return;
-      let len=0;for(let k=1;k<d.pts.length;k++)len+=Math.hypot(d.pts[k].x-d.pts[k-1].x,d.pts[k].y-d.pts[k-1].y);
-      if(len>R*3.2)return;
-      if(d.pts.some(q=>Math.hypot(q.x-p.x,q.y-p.y)<=R))near.push(i);});
+      // фильтр по РАМКЕ штриха, а не по длине: контур знака компактен, даже если периметр большой;
+      // стена — длинная в одну сторону, её рамка велика.
+      let bx0=1e18,by0=1e18,bx1=-1e18,by1=-1e18;for(const q of d.pts){if(q.x<bx0)bx0=q.x;if(q.y<by0)by0=q.y;if(q.x>bx1)bx1=q.x;if(q.y>by1)by1=q.y;}
+      if(Math.hypot(bx1-bx0,by1-by0)>R*2.2)return;
+      if(d.pts.some(q=>Math.hypot(q.x-p.x,q.y-p.y)<=R*1.5))near.push(i);});
     if(!near.length||near.length>40)return;
     let x0=1e18,y0=1e18,x1=-1e18,y1=-1e18;near.forEach(i=>darks[i].pts.forEach(q=>{if(q.x<x0)x0=q.x;if(q.y<y0)y0=q.y;if(q.x>x1)x1=q.x;if(q.y>y1)y1=q.y;}));
-    if(Math.hypot(x1-x0,y1-y0)>R*2.6)return; // слишком разбросано — это не знак (стена)
+    if(Math.hypot(x1-x0,y1-y0)>R*3.2)return; // слишком разбросано — это не знак (стена)
     const gid='sym'+(GRP_SEQ++);
     near.forEach(i=>{used.add(i);const d=darks[i],pts=d.pts.map(q=>({x:q.x,y:q.y})),orig=d.pts.map(q=>({x:q.x,y:q.y})),w=Math.max(1.4,d.width||2);
       addObj({type:'line',color:d.color||'#10151c',width:w,pts,ea:{kind:'free',h:0},eb:{kind:'free',h:0},src:'pdf',grp:gid,nocalc:true,_symFrag:true,_lkSource:true,_lkOriginal:{paths:[orig],pts:orig,width:w,color:d.color||'#10151c'}});});
