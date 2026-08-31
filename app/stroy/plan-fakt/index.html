@@ -982,13 +982,12 @@ function dSeg(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;let t=l2?((p.x-a
 function dDark(p,o){if(o.type==='line'){let m=1e18;for(let i=0;i<o.pts.length-1;i++)m=Math.min(m,dSeg(p,o.pts[i],o.pts[i+1]));return m;}const x0=o.x,y0=o.y,x1=o.x+o.w,y1=o.y+o.h;let m=1e18;[[{x:x0,y:y0},{x:x1,y:y0}],[{x:x1,y:y0},{x:x1,y:y1}],[{x:x1,y:y1},{x:x0,y:y1}],[{x:x0,y:y1},{x:x0,y:y0}]].forEach(e=>m=Math.min(m,dSeg(p,e[0],e[1])));return m;}
 function promoteAt(p){const arr=S.dark[S.pageNum]||[];let best=-1,bd=Math.max(8,S.W*0.02);
   const pg=S.data&&S.data.pages&&S.data.pages[S.pageNum];if(pg&&pg._vectorsLoading&&!pg._vectorsReady){toast('Линии этого листа ещё подготавливаются локально…');return;}
-  for(let i=0;i<arr.length;i++){const d=dDark(p,arr[i]);if(d<bd){bd=d;best=i;}}
-  if(best<0){toast('Рядом нет элемента чертежа');return;}
-  const o=arr[best];pushHistory();let n;
-  if(o.type==='line'){const col=o.color||'#10151c',w=Math.max(0.75,o.width),cp=o.pts.map(q=>({x:q.x,y:q.y})),orig=o.pts.map(q=>({x:q.x,y:q.y}));
-    n=addObj({type:'line',cat:colorToCat(col),color:col,width:w,pts:cp,ea:{kind:'free',h:0},eb:{kind:'free',h:0},src:'mine',_lkSource:true,_lkOriginal:{paths:[orig],pts:orig,width:w,color:col}});}
-  else n=addObj({type:'rect',color:'#10151c',width:Math.max(2,o.width),x:o.x,y:o.y,w:o.w,h:o.h,nocalc:true,src:'mine'});
-  arr.splice(best,1);redrawAll();setTool('select');selectObj(n.id);toast('Элемент стал объектом — линию меняйте по точкам');}
+  // Поднимаем ТОЛЬКО линию цвета ВЫБРАННОЙ марки (кабельный цвет). Стены/размеры/другие цвета — мимо.
+  for(let i=0;i<arr.length;i++){const o=arr[i];if(!o||o.type!=='line'||standaloneVectorCat(o.color)!==S.cat)continue;const d=dDark(p,o);if(d<bd){bd=d;best=i;}}
+  if(best<0){toast('Рядом нет трассы марки «'+catN(S.cat)+'» — выбери нужную марку по цвету вверху');return;}
+  const o=arr[best];pushHistory();const col=o.color||drawColor(),w=Math.max(0.75,o.width),cp=o.pts.map(q=>({x:q.x,y:q.y})),orig=o.pts.map(q=>({x:q.x,y:q.y}));
+  const n=addObj({type:'line',cat:S.cat,color:col,width:w,pts:cp,ea:{kind:'free',h:0},eb:{kind:'free',h:0},src:'mine',_lkSource:true,_lkOriginal:{paths:[orig],pts:orig,width:w,color:col}});
+  arr.splice(best,1);redrawAll();setTool('select');selectObj(n.id);toast('Трасса «'+catN(S.cat)+'» поднята — правьте узлами');}
 /* В режиме, открытом из Линейки, исходный PDF остаётся лёгкой растровой подложкой.
    Векторы листа держим отдельно и превращаем в SVG-объект только после точного клика.
    Так сложный AutoCAD-лист с десятками тысяч фрагментов не подвешивает браузер. */
@@ -1839,7 +1838,10 @@ function renderOpt(){const bar=$('optbar');let h='';
         h=`<div class="grp"><span class="lbl">Цвет</span>${COLORS_LEGACY.map(c=>swt(c,o&&o.color)).join('')}</div><div class="grp"><button class="mini" id="dupBtn">⧉ Дубль</button><button class="mini danger" id="delBtn">Удалить</button></div>`;
       }
     }else{const mine=(cur()||[]).some(o=>o.src!=='pdf'),hasPdf=S.linkedLkDocId&&S.drawingVectorPages&&S.drawingVectorPages[S.pageNum];
-      h=hasPdf?`<span class="tip"><b>Нажмите исходную линию на чертеже</b> — она заменится редактируемой линией и получит узлы. Форму меняйте только точками. Новая трасса — инструмент «Линия».</span>`
+      if(S.standalonePdf&&!hasPdf){
+        h=`<div class="grp"><span class="lbl">Цвет трассы</span>${CATS.filter(c=>c.k!=='other').map(c=>catBtn(c,S.cat)).join('')}</div>`
+         +`<span class="tip">Выбери марку <b>по цвету</b>, затем тапни трассу этого цвета — она станет редактируемой. Стены и другие цвета не трогаются.</span>`;
+      }else h=hasPdf?`<span class="tip"><b>Нажмите исходную линию на чертеже</b> — она заменится редактируемой линией и получит узлы. Форму меняйте только точками. Новая трасса — инструмент «Линия».</span>`
         :mine?`<span class="tip">Тапните трассу — появятся точки для изменения формы. Знаки и подписи можно двигать целиком.</span>`
         :`<span class="tip">Чертёж — это фон, его не двигают. <b>Рисуйте поверх:</b> «Масштаб» → «Линия»/«Карандаш» → «Знаки». Нажмите <b>«? Как это работает»</b> вверху.</span>`;}
   }
@@ -1867,7 +1869,7 @@ function endBox(label,ek,o){const e=o[ek]||{kind:'free',h:0};const isPanel=e.kin
 function bindBar(){
   const bar=$('optbar');
   bar.querySelectorAll('.swatch').forEach(s=>s.onclick=()=>{const c=s.dataset.c;if(S.tool==='text')S.textColor=c;if(S.selected){const o=getObj(S.selected);if(o&&'color'in o&&o.type!=='line'){pushHistory();o.color=c;redrawOne(o);}}renderOpt();});
-  bar.querySelectorAll('.catsw').forEach(b=>b.onclick=()=>{const k=b.dataset.cat;if(S.tool==='line')S.cat=k;if(S.selected){const o=getObj(S.selected);if(o&&o.type==='line'){pushHistory();o.cat=k;o.color=markColor(k);redrawOne(o);renderSide();}}renderOpt();drawSelUI();});
+  bar.querySelectorAll('.catsw').forEach(b=>b.onclick=()=>{const k=b.dataset.cat;if(S.tool==='line'||(S.tool==='select'&&!S.selected))S.cat=k;if(S.selected){const o=getObj(S.selected);if(o&&o.type==='line'){pushHistory();o.cat=k;o.color=markColor(k);redrawOne(o);renderSide();}}renderOpt();drawSelUI();});
   bar.querySelectorAll('select[data-end],input[data-end]').forEach(ctl=>{ctl.onchange=()=>{const o=getObj(S.selected);if(!o)return;const ek=ctl.dataset.end,fld=ctl.dataset.fld;pushHistory();if(fld==='kind'){o[ek].kind=ctl.value;o[ek].h=kindDefH(ctl.value);}else if(fld==='appl'){if(ctl.value!==''){o[ek].kind='socket';o[ek].h=APPLIANCES[+ctl.value].h;}}else{o[ek].h=Math.max(0,parseFloat(ctl.value)||0);}redrawOne(o);drawSelUI();renderOpt();renderSide();};});
   const wr=$('wr');if(wr)wr.oninput=()=>{S.width=+wr.value;$('wv').textContent=wr.value+'px';if(S.selected){const o=getObj(S.selected);if(o&&'width'in o){o.width=S.width;redrawOne(o);}}};
   const fsr=$('fsr');if(fsr)fsr.oninput=()=>{S.fontSize=+fsr.value;$('fsv').textContent=fsr.value;};
