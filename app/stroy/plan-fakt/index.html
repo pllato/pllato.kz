@@ -1210,7 +1210,7 @@ function prepareStandalonePdfVectors(pn,source){
       // их в модель сразу после готовности OperatorList, не ожидая серверный конвертер.
       const existing=S.objects[pn]||[];
       if(pg.objs.length&&!existing.some(o=>o&&o._autoVector)){
-        const impd=importObjects(pg.objs,S.W/pg.wpt,S.H/pg.hpt).concat(importObjects(pg.syms||[],S.W/pg.wpt,S.H/pg.hpt));S.objects[pn]=existing.concat(impd);assignGroups(S.objects[pn]);
+        const impd=importObjects(pg.objs,S.W/pg.wpt,S.H/pg.hpt).concat(importObjects(pg.syms||[],S.W/pg.wpt,S.H/pg.hpt));S.objects[pn]=existing.concat(impd);assignGroups(S.objects[pn]);captureEndpointSymbols(pn);
         // НЕ включаем вектор автоматически: лист открывается как ОРИГИНАЛ (все данные — размеры,
         // штриховки, легенда — как в превью). Для чистой правки трасс без следов на фоне есть
         // кнопка «Подложка» → «вектор». Подсказываем один раз.
@@ -1470,6 +1470,29 @@ function standaloneVectorCat(hex){
   return best;
 }
 // Знаки/оборудование из заливок цвета трасс: каждая подходящая заливка → объект-фигура.
+// Знаки-контуры (чёрные розетки/выключатели у концов трасс): группируем мелкие тёмные штрихи
+// возле СВОБОДНЫХ концов трасс в объект-знак. Удаляются мягко (белая маска прячет оригинал).
+function captureEndpointSymbols(pn){
+  const objs=S.objects[pn]||[],darks=S.dark[pn]||[];if(!darks.length||!S.W)return;
+  const routes=objs.filter(o=>o&&o._autoVector&&o.type==='line'&&o.pts&&o.pts.length>=2);
+  if(!routes.length)return;
+  const R=Math.max(14,S.W*0.012),used=new Set(),ends=[];
+  routes.forEach(o=>{[o.pts[0],o.pts[o.pts.length-1]].forEach(p=>{
+    const shared=routes.some(q=>q!==o&&(Math.hypot(q.pts[0].x-p.x,q.pts[0].y-p.y)<R*0.6||Math.hypot(q.pts[q.pts.length-1].x-p.x,q.pts[q.pts.length-1].y-p.y)<R*0.6));
+    if(!shared)ends.push(p);});});
+  ends.forEach(p=>{const near=[];
+    darks.forEach((d,i)=>{if(used.has(i)||!d||d.type!=='line'||!d.pts||d.pts.length<2||standaloneVectorCat(d.color))return;
+      let len=0;for(let k=1;k<d.pts.length;k++)len+=Math.hypot(d.pts[k].x-d.pts[k-1].x,d.pts[k].y-d.pts[k-1].y);
+      if(len>R*3.2)return;
+      if(d.pts.some(q=>Math.hypot(q.x-p.x,q.y-p.y)<=R))near.push(i);});
+    if(!near.length||near.length>40)return;
+    let x0=1e18,y0=1e18,x1=-1e18,y1=-1e18;near.forEach(i=>darks[i].pts.forEach(q=>{if(q.x<x0)x0=q.x;if(q.y<y0)y0=q.y;if(q.x>x1)x1=q.x;if(q.y>y1)y1=q.y;}));
+    if(Math.hypot(x1-x0,y1-y0)>R*2.6)return; // слишком разбросано — это не знак (стена)
+    const gid='sym'+(GRP_SEQ++);
+    near.forEach(i=>{used.add(i);const d=darks[i],pts=d.pts.map(q=>({x:q.x,y:q.y})),orig=d.pts.map(q=>({x:q.x,y:q.y})),w=Math.max(1.4,d.width||2);
+      addObj({type:'line',color:d.color||'#10151c',width:w,pts,ea:{kind:'free',h:0},eb:{kind:'free',h:0},src:'pdf',grp:gid,nocalc:true,_symFrag:true,_lkSource:true,_lkOriginal:{paths:[orig],pts:orig,width:w,color:d.color||'#10151c'}});});
+  });
+}
 function standaloneSymbolObjects(fills,wpt,hpt){
   if(!Array.isArray(fills)||!fills.length)return [];
   const minD=Math.max(6,Math.min(+wpt||1000,+hpt||1000)*.006),out=[];
@@ -1573,7 +1596,7 @@ function cur(){return S.objects[S.pageNum];}
 function addObj(o){o.id='o'+(S.seq++);cur().push(o);return o;}
 function getObj(id){return cur().find(o=>o.id===id);}
 function delObj(id){const a=cur();const i=a.findIndex(o=>o.id===id);if(i>=0)a.splice(i,1);}
-function deleteObjectIds(ids){(ids||[]).forEach(id=>{if(getObj(id))delObj(id);});}   // чистое удаление ОБЪЕКТА (векторно), без белой маски-«выреза» на растре
+function deleteObjectIds(ids){(ids||[]).forEach(id=>{const o=getObj(id);if(!o)return;if(o._symFrag&&o._lkOriginal)o._lkDeleted=true;else delObj(id);});}   // трассы — чисто; знаки-контуры мягко (маска прячет оригинал в растре)
 function isRef(o){return S.importMode==='ref'&&o.src==='pdf';}
 function visible(o){return S.filter==='all'||(S.filter==='mine'&&o.src!=='pdf')||(S.filter==='pdf'&&o.src==='pdf');}
 
