@@ -1202,14 +1202,15 @@ function prepareStandalonePdfVectors(pn,source){
   if(src.vectorJobs[pn])return src.vectorJobs[pn];pg._vectorsLoading=true;
   src.vectorJobs[pn]=lkLocalPageVectors({page:pn,wpt:pg.wpt,hpt:pg.hpt},src.pdf).then(cp=>{
     pg.dark=cp&&Array.isArray(cp.dark)?cp.dark:[];
-    pg.objs=standaloneCableObjects(pg.dark,pg.wpt,pg.hpt);pg._vectorsReady=true;
+    pg.fills=cp&&Array.isArray(cp.fills)?cp.fills:[];
+    pg.objs=standaloneCableObjects(pg.dark,pg.wpt,pg.hpt);pg.syms=standaloneSymbolObjects(pg.fills,pg.wpt,pg.hpt);pg._vectorsReady=true;
     if(S.standalonePdf===src&&S.pageNum===pn&&S.W&&S.H){
       S.dark[pn]=buildDark(pg,S.W/pg.wpt,S.H/pg.hpt);if(S.vectorLayer)renderPlanSkeleton();
       // В v462 быстрый локальный вход оставил цветные трассы только фоном. Возвращаем
       // их в модель сразу после готовности OperatorList, не ожидая серверный конвертер.
       const existing=S.objects[pn]||[];
       if(pg.objs.length&&!existing.some(o=>o&&o._autoVector)){
-        S.objects[pn]=existing.concat(importObjects(pg.objs,S.W/pg.wpt,S.H/pg.hpt));assignGroups(S.objects[pn]);
+        const impd=importObjects(pg.objs,S.W/pg.wpt,S.H/pg.hpt).concat(importObjects(pg.syms||[],S.W/pg.wpt,S.H/pg.hpt));S.objects[pn]=existing.concat(impd);assignGroups(S.objects[pn]);
         // НЕ включаем вектор автоматически: лист открывается как ОРИГИНАЛ (все данные — размеры,
         // штриховки, легенда — как в превью). Для чистой правки трасс без следов на фоне есть
         // кнопка «Подложка» → «вектор». Подсказываем один раз.
@@ -1391,8 +1392,9 @@ function erasePgRoutes(pn){
     const sc=Math.min(3,Math.max(1,2000/Math.max(v.width,v.height))),rv=page.getViewport({scale:sc});
     const c=document.createElement('canvas');c.width=Math.max(1,Math.round(rv.width));c.height=Math.max(1,Math.round(rv.height));
     const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
-    const origStroke=ctx.stroke.bind(ctx);
+    const origStroke=ctx.stroke.bind(ctx),origFill=ctx.fill.bind(ctx);
     ctx.stroke=function(...a){if(isRouteColor(ctx.strokeStyle))return;return origStroke(...a);};
+    ctx.fill=function(...a){if(isRouteColor(ctx.fillStyle))return;return origFill(...a);};  // знаки-заливки трасс тоже убираем — они станут объектами
     await page.render({canvasContext:ctx,viewport:rv}).promise;
     ctx.stroke=origStroke;
     pg.u=c.toDataURL('image/jpeg',0.85).split(',')[1];
@@ -1467,6 +1469,16 @@ function standaloneVectorCat(hex){
   if(h>=188&&h<=250&&Math.sqrt(bd)>35&&g>100&&g>b*.55)return null;
   return best;
 }
+// Знаки/оборудование из заливок цвета трасс: каждая подходящая заливка → объект-фигура.
+function standaloneSymbolObjects(fills,wpt,hpt){
+  if(!Array.isArray(fills)||!fills.length)return [];
+  const minD=Math.max(6,Math.min(+wpt||1000,+hpt||1000)*.006),out=[];
+  fills.forEach(o=>{if(!o||!Array.isArray(o.p)||o.p.length<3)return;
+    let x0=1e18,y0=1e18,x1=-1e18,y1=-1e18;o.p.forEach(q=>{x0=Math.min(x0,+q[0]);y0=Math.min(y0,+q[1]);x1=Math.max(x1,+q[0]);y1=Math.max(y1,+q[1]);});
+    if(Math.hypot(x1-x0,y1-y0)<minD)return;
+    out.push({t:'fill',c:o.c,p:o.p});});
+  return out;
+}
 function standaloneCableObjects(raw,wpt,hpt){
   const minLen=Math.max(18,Math.min(+wpt||1000,+hpt||1000)*.018),out=[];
   (raw||[]).forEach(o=>{if(!o||o.t!=='line'||!Array.isArray(o.p)||o.p.length<2)return;
@@ -1523,6 +1535,10 @@ function goPage(pn){
 function importObjects(raw,sx,sy){
   sx=sx||S.sx;sy=sy||S.sy;
   return raw.map(o=>{
+    if(o.t==='fill'){  // знак/оборудование — заливка-фигура: двигаем/удаляем как объект, длину не считаем
+      const pts=o.p.map(p=>({x:p[0]*sx,y:p[1]*sy}));
+      return{id:'o'+(S.seq++),type:'line',_symbol:true,_fill:true,cat:'other',color:o.c,width:Math.max(1.2,sx*0.8),pts,ea:{kind:'free',h:0},eb:{kind:'free',h:0},src:'pdf',nocalc:true};
+    }
     if(o.t==='line'){
       const cat=o.cat||colorToCat(o.c);if(o.c){S.catPdfColor=S.catPdfColor||{};if(!S.catPdfColor[cat])S.catPdfColor[cat]=o.c;}
       const pts=capPts(o.p,IMPORT_MAX).map(p=>({x:p[0]*sx,y:p[1]*sy}));
@@ -1571,16 +1587,17 @@ function redrawAll(){gMask.innerHTML='';gObj.innerHTML='';cur().forEach(o=>{cons
 function renderObj(o){
   let el;
   if(o.type==='line'){
-    const g=document.createElementNS(SVGNS,'g');g.dataset.id=o.id;const ref=isRef(o);const dPath=o._lkSource?linePath(o.pts):smoothPath(o.pts);
+    const g=document.createElementNS(SVGNS,'g');g.dataset.id=o.id;const ref=isRef(o);const dPath=o._fill?(linePath(o.pts)+'Z'):(o._lkSource?linePath(o.pts):smoothPath(o.pts));
     el=document.createElementNS(SVGNS,'path');
     el.setAttribute('d',dPath);
-    el.setAttribute('fill','none');el.setAttribute('stroke',o.color);el.setAttribute('stroke-width',o.width);el.setAttribute('stroke-linecap','round');el.setAttribute('stroke-linejoin','round');
+    if(o._fill){el.setAttribute('fill',o.color);el.setAttribute('stroke','none');}
+    else{el.setAttribute('fill','none');el.setAttribute('stroke',o.color);el.setAttribute('stroke-width',o.width);el.setAttribute('stroke-linecap','round');el.setAttribute('stroke-linejoin','round');}
     if(o.cat==='mop15')el.setAttribute('stroke-dasharray',(o.width*3.2)+' '+(o.width*2.2));
     if(ref){el.setAttribute('opacity','0.22');}
     g.appendChild(el);
     // маркеры выпусков на концах
     [['ea',0],['eb',o.pts.length-1]].forEach(([ek,idx])=>{const e=o[ek];if(e&&e.kind&&e.kind!=='free'){const p=o.pts[idx];const m=document.createElementNS(SVGNS,'circle');m.setAttribute('cx',p.x);m.setAttribute('cy',p.y);m.setAttribute('r',Math.max(o.width*1.7,7));m.setAttribute('fill','#fff');m.setAttribute('stroke',o.color);m.setAttribute('stroke-width',Math.max(o.width*0.7,2.5));if(ref)m.setAttribute('opacity','0.22');g.appendChild(m);}});
-    if(!ref){const lab=makeLineLabel(o);if(lab)g.appendChild(lab);}
+    if(!ref&&!o._fill){const lab=makeLineLabel(o);if(lab)g.appendChild(lab);}
     if(!ref){
       const hit=document.createElementNS(SVGNS,'path');
       hit.setAttribute('d',dPath);hit.setAttribute('fill','none');hit.setAttribute('stroke','transparent');hit.setAttribute('stroke-width',Math.max(o.width,(isCoarsePointer()?48:28)/Math.max(.1,S.scale)));hit.style.cursor=o.grp?'move':'pointer';hit.style.touchAction='none';
@@ -1640,10 +1657,10 @@ function bindObj(el,o){
     // на ПАЛЬЦЕ выбирают ДВОЙНЫМ тапом (обрабатывает vp): тело объекта НЕ перехватывает одиночное
     // касание, пока объект НЕ выбран — иначе мешает пану/зуму. Линия — всегда двойным (правится
     // ручками); уже выбранный объект можно тащить одним касанием.
-    if(isCoarsePointer()){if(o.type==='line'&&!o.grp)return;if(!(S.cluster&&S.cluster.includes(o.id))&&S.selected!==o.id)return;}
+    if(isCoarsePointer()){if(o.type==='line'&&!o.grp&&!o._fill)return;if(!(S.cluster&&S.cluster.includes(o.id))&&S.selected!==o.id)return;}
     ev.stopPropagation();ev.preventDefault();
     selectObj(o.id);
-    if(o.type==='line'&&!o.grp)return; // трассу меняют только её узлами; целиком не перетаскиваем
+    if(o.type==='line'&&!o.grp&&!o._fill)return; // трассу меняют узлами; знак-заливку двигаем целиком
     const cluster=moveCluster(o);
     const start=toImg(ev.clientX,ev.clientY);const origs={};cluster.forEach(id=>origs[id]=JSON.parse(JSON.stringify(getObj(id))));let moved=false,pushed=false;
     pointerDrag(ev,e=>{const p=toImg(e.clientX,e.clientY);const dx=p.x-start.x,dy=p.y-start.y;if(Math.abs(dx)+Math.abs(dy)>2&&!pushed){pushHistory();pushed=true;}if(Math.abs(dx)+Math.abs(dy)>2)moved=true;
@@ -1719,6 +1736,9 @@ function drawSelUI(){gUI.innerHTML='';drawCalUI();if(!S.selected){S.cluster=[];r
   {const bb=bbox(o);gUI.appendChild(mkRoundBtn(bb.x+bb.w+10*k,bb.y-10*k,k,'✕','#c0392b',()=>delSel()));
    if(o.type==='line'&&!rigid)gUI.appendChild(mkLenBadge(bb.x+bb.w/2,bb.y-28*k,k,o));}
   if(rigid)return;
+  if(o._fill||o._symbol){  // знак/оборудование — рамка выделения, двигаем/удаляем целиком (без узлов)
+    const b=bbox(o),r=document.createElementNS(SVGNS,'rect');r.dataset.ui='bb';r.setAttribute('x',b.x-4*k);r.setAttribute('y',b.y-4*k);r.setAttribute('width',b.w+8*k);r.setAttribute('height',b.h+8*k);r.setAttribute('fill','none');r.setAttribute('stroke','#0a84ff');r.setAttribute('stroke-width',1.6*k);r.setAttribute('stroke-dasharray',`${5*k} ${4*k}`);gUI.appendChild(r);return;
+  }
   if(o.type==='line'){
     if(S.threePointMode){
       const last=o.pts.length-1,mid=lineHalfPoint(o.pts),handles=[[o.pts[0],0,true],[mid,-1,false],[o.pts[last],last,true]];
@@ -1860,7 +1880,7 @@ let panning=false,lastX,lastY,moved=0;const ptrs=new Map();let pinching=false,pi
 function nearLines(p,rad){const out=[];(cur()||[]).forEach(o=>{if(!o||o._lkDeleted||o.type!=='line'||isRef(o)||!visible(o)||!o.pts||o.pts.length<2)return;let m=1e18;for(let i=0;i<o.pts.length-1;i++)m=Math.min(m,dSeg(p,o.pts[i],o.pts[i+1]));if(m<=rad)out.push({id:o.id,d:m});});out.sort((a,b)=>a.d-b.d);return out;}
 // Ближайшие объекты ЛЮБОГО типа (линии — по сегментам, знаки/прямоугольники/подписи — по рамке).
 function nearObjects(p,rad){const out=[];(cur()||[]).forEach(o=>{if(!o||o._lkDeleted||isRef(o)||!visible(o))return;let d=1e18;
-  if(o.type==='line'){if(!o.pts||o.pts.length<2)return;for(let i=0;i<o.pts.length-1;i++)d=Math.min(d,dSeg(p,o.pts[i],o.pts[i+1]));}
+  if(o.type==='line'&&!o._fill){if(!o.pts||o.pts.length<2)return;for(let i=0;i<o.pts.length-1;i++)d=Math.min(d,dSeg(p,o.pts[i],o.pts[i+1]));}
   else{const b=bbox(o);const cx=Math.max(b.x,Math.min(p.x,b.x+b.w)),cy=Math.max(b.y,Math.min(p.y,b.y+b.h));d=Math.hypot(p.x-cx,p.y-cy);}
   if(d<=rad)out.push({id:o.id,d});});out.sort((a,b)=>a.d-b.d);return out;}
 // ПАЛЕЦ: выбор ЛЮБОГО объекта ДВОЙНЫМ тапом (одиночные касания оставлены пану/зуму). Повторный
@@ -4332,8 +4352,8 @@ function lkApplyDrawingSettings(st){st=st||{};
 async function lkLocalPageVectors(pg,pdfSource){
   const pdf=pdfSource||LK.pdf;if(!pdf||!window.pdfjsLib)throw new Error('локальный PDF-движок недоступен');
   const page=await pdf.getPage(pg.page),vp0=page.getViewport({scale:1}),ol=await page.getOperatorList(),O=pdfjsLib.OPS,U=pdfjsLib.Util;
-  let ctm=[1,0,0,1,0,0],lineWidth=1,stroke='#10151c',stack=[],paths=[],curPath=null,cx=0,cy=0,sx0=0,sy0=0;
-  const out=[],num=x=>Number.isFinite(+x)?+x:0,mat=()=>U.transform(vp0.transform,ctm),pt=(x,y)=>{const m=mat();return{x:m[0]*x+m[2]*y+m[4],y:m[1]*x+m[3]*y+m[5]};};
+  let ctm=[1,0,0,1,0,0],lineWidth=1,stroke='#10151c',fill='#10151c',stack=[],paths=[],curPath=null,cx=0,cy=0,sx0=0,sy0=0;
+  const out=[],fills=[],num=x=>Number.isFinite(+x)?+x:0,mat=()=>U.transform(vp0.transform,ctm),pt=(x,y)=>{const m=mat();return{x:m[0]*x+m[2]*y+m[4],y:m[1]*x+m[3]*y+m[5]};};
   const rgb=a=>{a=Array.from(a||[]);let r=num(a[0]),g=num(a[1]),b=num(a[2]);if(Math.max(r,g,b)<=1){r*=255;g*=255;b*=255;}return'#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');};
   const addPoint=(x,y)=>{const q=pt(x,y),p=curPath&&curPath[curPath.length-1];if(!p||Math.hypot(q.x-p[0],q.y-p[1])>.02)curPath.push([q.x,q.y]);cx=x;cy=y;};
   const start=(x,y)=>{curPath=[];paths.push(curPath);sx0=cx=x;sy0=cy=y;addPoint(x,y);};
@@ -4349,22 +4369,31 @@ async function lkLocalPageVectors(pg,pdfSource){
   };
   const flush=()=>{const m=mat(),scale=Math.sqrt(Math.abs(m[0]*m[3]-m[1]*m[2]))||1,w=Math.max(.15,lineWidth*scale);
     paths.forEach(p=>{if(p.length<2)return;let len=0;for(let i=1;i<p.length;i++)len+=Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]);if(len>.08)out.push({t:'line',c:stroke,w,p});});paths=[];curPath=null;};
+  // Заливки цвета трасс = знаки/оборудование (розетки, выключатели). Ловим небольшие фигуры.
+  const flushFill=()=>{if(!standaloneVectorCat(fill))return;const lim=Math.min(vp0.width||1e9,vp0.height||1e9)*0.06;
+    paths.forEach(p=>{if(!p||p.length<3)return;let x0=1e18,y0=1e18,x1=-1e18,y1=-1e18;for(const q of p){if(q[0]<x0)x0=q[0];if(q[1]<y0)y0=q[1];if(q[0]>x1)x1=q[0];if(q[1]>y1)y1=q[1];}const dg=Math.hypot(x1-x0,y1-y0);if(dg>2&&dg<lim)fills.push({t:'fill',c:fill,p:p.slice()});});};
   for(let i=0;i<ol.fnArray.length;i++){const fn=ol.fnArray[i],a=ol.argsArray[i]||[];
-    if(fn===O.save)stack.push({ctm:ctm.slice(),lineWidth,stroke});
-    else if(fn===O.restore){const s=stack.pop();if(s){ctm=s.ctm;lineWidth=s.lineWidth;stroke=s.stroke;}}
+    if(fn===O.save)stack.push({ctm:ctm.slice(),lineWidth,stroke,fill});
+    else if(fn===O.restore){const s=stack.pop();if(s){ctm=s.ctm;lineWidth=s.lineWidth;stroke=s.stroke;fill=s.fill;}}
     else if(fn===O.transform)ctm=U.transform(ctm,Array.from(a));
     else if(fn===O.setLineWidth)lineWidth=Math.max(.01,num(a[0]));
     else if(fn===O.setStrokeRGBColor)stroke=rgb(a);
     else if(fn===O.setStrokeGray){const g=Math.round(Math.max(0,Math.min(1,num(a[0])))*255).toString(16).padStart(2,'0');stroke='#'+g+g+g;}
     else if(fn===O.setStrokeCMYKColor){const c=num(a[0]),m=num(a[1]),y=num(a[2]),k=num(a[3]);stroke=rgb([1-Math.min(1,c+k),1-Math.min(1,m+k),1-Math.min(1,y+k)]);}
+    else if(fn===O.setFillRGBColor)fill=rgb(a);
+    else if(fn===O.setFillGray){const g=Math.round(Math.max(0,Math.min(1,num(a[0])))*255).toString(16).padStart(2,'0');fill='#'+g+g+g;}
+    else if(fn===O.setFillCMYKColor){const c=num(a[0]),m=num(a[1]),y=num(a[2]),k=num(a[3]);fill=rgb([1-Math.min(1,c+k),1-Math.min(1,m+k),1-Math.min(1,y+k)]);}
     else if(fn===O.setGState)(a[0]||[]).forEach(g=>{if(g&&g[0]==='LW')lineWidth=Math.max(.01,num(g[1]));});
     else if(fn===O.constructPath)construct(a);
-    else if(fn===O.closeStroke||fn===O.closeFillStroke||fn===O.closeEOFillStroke){if(curPath)addPoint(sx0,sy0);flush();}
-    else if(fn===O.stroke||fn===O.fillStroke||fn===O.eoFillStroke)flush();
-    else if(fn===O.endPath||fn===O.fill||fn===O.eoFill){paths=[];curPath=null;}
+    else if(fn===O.closeStroke){if(curPath)addPoint(sx0,sy0);flush();}
+    else if(fn===O.closeFillStroke||fn===O.closeEOFillStroke){if(curPath)addPoint(sx0,sy0);flushFill();flush();}
+    else if(fn===O.stroke)flush();
+    else if(fn===O.fillStroke||fn===O.eoFillStroke){flushFill();flush();}
+    else if(fn===O.fill||fn===O.eoFill){flushFill();paths=[];curPath=null;}
+    else if(fn===O.endPath){paths=[];curPath=null;}
   }
   if(out.length>80000)throw new Error('слишком много векторов на одном листе');
-  return{ready:1,local:1,wpt:vp0.width||pg.wpt,hpt:vp0.height||pg.hpt,objs:[],dark:out};
+  return{ready:1,local:1,wpt:vp0.width||pg.wpt,hpt:vp0.height||pg.hpt,objs:[],dark:out,fills};
 }
 async function lkStoreDrawingVectors(rec,ds,pg,cp){const fresh=await archGet(rec.id)||rec,fds=Object.assign({},ds,fresh.drawingState||{}),pages=Object.assign({},fds.vectorPages||{});
   pages[pg.page]={ready:1,local:cp.local?1:0,wpt:cp.wpt||pg.wpt,hpt:cp.hpt||pg.hpt,objs:Array.isArray(cp.objs)?cp.objs:[],dark:Array.isArray(cp.dark)?cp.dark:[]};
