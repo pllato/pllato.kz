@@ -1480,7 +1480,7 @@ function captureEndpointSymbols(pn){
     const shared=routes.some(q=>q!==o&&(Math.hypot(q.pts[0].x-p.x,q.pts[0].y-p.y)<R*0.6||Math.hypot(q.pts[q.pts.length-1].x-p.x,q.pts[q.pts.length-1].y-p.y)<R*0.6));
     if(!shared)ends.push(p);});});
   ends.forEach(p=>{const near=[];
-    darks.forEach((d,i)=>{if(used.has(i)||!d||d.type!=='line'||!d.pts||d.pts.length<2||standaloneVectorCat(d.color))return;
+    darks.forEach((d,i)=>{if(used.has(i)||!d||d.type!=='line'||!d.pts||d.pts.length<2)return;  // знак ЛЮБОГО цвета (в т.ч. синий): длинную трассу отсечёт фильтр по рамке ниже
       // фильтр по РАМКЕ штриха, а не по длине: контур знака компактен, даже если периметр большой;
       // стена — длинная в одну сторону, её рамка велика.
       let bx0=1e18,by0=1e18,bx1=-1e18,by1=-1e18;for(const q of d.pts){if(q.x<bx0)bx0=q.x;if(q.y<by0)by0=q.y;if(q.x>bx1)bx1=q.x;if(q.y>by1)by1=q.y;}
