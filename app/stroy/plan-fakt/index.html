@@ -1369,28 +1369,32 @@ function openProject(j,projId){
 $('btnSaveProj').onclick=saveProject;
 $('btnOpenProj').onclick=()=>$('fileInput').click();
 renderArchive();  // показать архив на стартовом экране
-/* «Стираем» распознанные трассы из растра-подложки: план (стены/текст/размеры/штриховка) остаётся,
-   а трассы становятся ТОЛЬКО объектами. Тогда удаление/сдвиг трассы не открывает старую линию из
-   картинки — чистая векторная работа, но с полными данными плана. Координаты трасс — в системе
-   вьюпорта (как и растр), поэтому масштаб = размер_канваса / wpt|hpt. */
+/* Подложку перерисовываем БЕЗ трасс: при повторном рендере PDF пропускаем штрихи цвета кабельных
+   трасс (перо pdf.js не проводит их линии), а стены/размеры/текст/штриховку и знаки-заливки рисует
+   как обычно. Под трассой остаётся ЦЕЛЫЙ чертёж (стена/размер продолжаются), а не белый вырез.
+   Трассы показываем отдельными объектами. Разово на лист, результат кладём в pg.u. */
+function isRouteColor(css){
+  if(typeof css!=='string')return false;let hex=css.trim();
+  if(hex[0]!=='#'){const m=hex.match(/\d+(\.\d+)?/g);if(m&&m.length>=3){const to=n=>Math.max(0,Math.min(255,Math.round(+n))).toString(16).padStart(2,'0');hex='#'+to(m[0])+to(m[1])+to(m[2]);}}
+  return /^#[0-9a-f]{6}$/i.test(hex)&&!!standaloneVectorCat(hex);
+}
 function erasePgRoutes(pn){
   const src=S.standalonePdf,pg=src&&src.data&&src.data.pages&&src.data.pages[pn];
-  if(!pg||!pg.u||pg._routesErased||!Array.isArray(pg.objs)||!pg.objs.length)return;
+  if(!src||!src.pdf||!pg||pg._routesErased||!Array.isArray(pg.objs)||!pg.objs.length)return;
   pg._routesErased=true;
-  const img=new Image();
-  img.onload=()=>{try{
-    const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;
-    const ctx=c.getContext('2d');ctx.drawImage(img,0,0);
-    const sx=c.width/(pg.wpt||c.width),sy=c.height/(pg.hpt||c.height),s=Math.max(sx,sy);
-    ctx.strokeStyle='#ffffff';ctx.lineCap='round';ctx.lineJoin='round';
-    pg.objs.forEach(o=>{if(!o||o.t!=='line'||!Array.isArray(o.p)||o.p.length<2)return;
-      ctx.lineWidth=Math.max(2.5,(+o.w||1)*s*1.5+2.5);
-      ctx.beginPath();o.p.forEach((p,i)=>{const x=+p[0]*sx,y=+p[1]*sy;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();});
+  (async()=>{try{
+    const page=await src.pdf.getPage(pn),v=page.getViewport({scale:1});
+    const sc=Math.min(3,Math.max(1,2000/Math.max(v.width,v.height))),rv=page.getViewport({scale:sc});
+    const c=document.createElement('canvas');c.width=Math.max(1,Math.round(rv.width));c.height=Math.max(1,Math.round(rv.height));
+    const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
+    const origStroke=ctx.stroke.bind(ctx);
+    ctx.stroke=function(...a){if(isRouteColor(ctx.strokeStyle))return;return origStroke(...a);};
+    await page.render({canvasContext:ctx,viewport:rv}).promise;
+    ctx.stroke=origStroke;
     pg.u=c.toDataURL('image/jpeg',0.85).split(',')[1];
+    try{page.cleanup();}catch(_){}
     if(S.pageNum===pn){baseimg.onload=null;baseimg.src='data:image/jpeg;base64,'+pg.u;}
-  }catch(e){console.warn('erasePgRoutes',e);}};
-  img.onerror=()=>{pg._routesErased=false;};
-  img.src='data:'+(pg.mime||'image/jpeg')+';base64,'+pg.u;
+  }catch(e){console.warn('erasePgRoutes',e);pg._routesErased=false;}})();
 }
 /* Лёгкие превью листов: низкое разрешение (~220px, q0.6), ленивая отрисовка ПО ОДНОМУ
    (IntersectionObserver + очередь concurrency=1) — полоса листов видна, но мобильный не грузится.
