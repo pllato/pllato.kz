@@ -1206,18 +1206,10 @@ function prepareStandalonePdfVectors(pn,source){
     pg.objs=standaloneCableObjects(pg.dark,pg.wpt,pg.hpt);pg.syms=standaloneSymbolObjects(pg.fills,pg.wpt,pg.hpt);pg._vectorsReady=true;
     if(S.standalonePdf===src&&S.pageNum===pn&&S.W&&S.H){
       S.dark[pn]=buildDark(pg,S.W/pg.wpt,S.H/pg.hpt);if(S.vectorLayer)renderPlanSkeleton();
-      // Подложка БЕЗ трасс: растр перерисован с пропуском штрихов/заливок цвета трасс — стены,
-      // размеры, текст под трассой рисуются ЦЕЛИКОМ (не режутся), трасса просто не проводится.
-      // Трассы и знаки на концах — тонкие объекты точного цвета из PDF: видно как в PDF, можно
-      // выделять/двигать/удалять, и под удалённой трассой чертёж остаётся ровным (маска не нужна).
-      const existing=S.objects[pn]||[];
-      if(pg.objs.length&&!existing.some(o=>o&&o._autoVector)){
-        const impd=importObjects(pg.objs,S.W/pg.wpt,S.H/pg.hpt).concat(importObjects(pg.syms||[],S.W/pg.wpt,S.H/pg.hpt));
-        S.objects[pn]=existing.concat(impd);assignGroups(S.objects[pn]);captureEndpointSymbols(pn);
-        redrawAll();renderSide();updateUndo();
-        if(S.vectorLayer)renderPlanSkeleton();
-        erasePgRoutes(pn);
-      }
+      // PDF — ТОЧНЫЙ ФОН 1-в-1 (все трассы и знаки как есть), его НЕ трогаем и НЕ перерисовываем.
+      // Рисуешь свои трассы/знаки поверх («по факту»), длина считается сама. Нужна геометрия
+      // существующей трассы — тапни её (promoteAt поднимет ТОЛЬКО линию выбранного цвета).
+      if(pg.objs.length&&!S._tapHint){S._tapHint=1;toast('Чертёж — точный фон. Рисуй трассы поверх; чтобы переиспользовать линию с чертежа — тапни её.');}
     }
     return pg.dark;
   }).catch(e=>{pg._vectorsError=true;console.warn('local page vectors',e);return null;}).finally(()=>{pg._vectorsLoading=false;delete src.vectorJobs[pn];});
