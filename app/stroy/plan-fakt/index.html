@@ -985,7 +985,8 @@ function promoteAt(p){const arr=S.dark[S.pageNum]||[];let best=-1,bd=Math.max(8,
   for(let i=0;i<arr.length;i++){const d=dDark(p,arr[i]);if(d<bd){bd=d;best=i;}}
   if(best<0){toast('Рядом нет элемента чертежа');return;}
   const o=arr[best];pushHistory();let n;
-  if(o.type==='line')n=addObj({type:'line',cat:'other',color:'#10151c',width:Math.max(2.4,o.width),pts:o.pts.map(q=>({x:q.x,y:q.y})),ea:{kind:'free',h:0},eb:{kind:'free',h:0},nocalc:true,src:'mine'});
+  if(o.type==='line'){const col=o.color||'#10151c',w=Math.max(0.75,o.width),cp=o.pts.map(q=>({x:q.x,y:q.y})),orig=o.pts.map(q=>({x:q.x,y:q.y}));
+    n=addObj({type:'line',cat:colorToCat(col),color:col,width:w,pts:cp,ea:{kind:'free',h:0},eb:{kind:'free',h:0},src:'mine',_lkSource:true,_lkOriginal:{paths:[orig],pts:orig,width:w,color:col}});}
   else n=addObj({type:'rect',color:'#10151c',width:Math.max(2,o.width),x:o.x,y:o.y,w:o.w,h:o.h,nocalc:true,src:'mine'});
   arr.splice(best,1);redrawAll();setTool('select');selectObj(n.id);toast('Элемент стал объектом — линию меняйте по точкам');}
 /* В режиме, открытом из Линейки, исходный PDF остаётся лёгкой растровой подложкой.
@@ -1208,17 +1209,10 @@ function prepareStandalonePdfVectors(pn,source){
       S.dark[pn]=buildDark(pg,S.W/pg.wpt,S.H/pg.hpt);if(S.vectorLayer)renderPlanSkeleton();
       // В v462 быстрый локальный вход оставил цветные трассы только фоном. Возвращаем
       // их в модель сразу после готовности OperatorList, не ожидая серверный конвертер.
-      const existing=S.objects[pn]||[];
-      if(pg.objs.length&&!existing.some(o=>o&&o._autoVector)){
-        const impd=importObjects(pg.objs,S.W/pg.wpt,S.H/pg.hpt).concat(importObjects(pg.syms||[],S.W/pg.wpt,S.H/pg.hpt));S.objects[pn]=existing.concat(impd);assignGroups(S.objects[pn]);captureEndpointSymbols(pn);
-        // НЕ включаем вектор автоматически: лист открывается как ОРИГИНАЛ (все данные — размеры,
-        // штриховки, легенда — как в превью). Для чистой правки трасс без следов на фоне есть
-        // кнопка «Подложка» → «вектор». Подсказываем один раз.
-        if(!S._autoVecHint){S._autoVecHint=1;toast('Трассы распознаны — можно править и считать. Для правки без следов: «Подложка» → «вектор».');}
-        redrawAll();renderSide();updateUndo();
-        if(S.vectorLayer)renderPlanSkeleton();
-        erasePgRoutes(pn); // убрать трассы из растра — под ними не останется старой линии при удалении
-      }
+      // Режим 1-в-1 с PDF: трассы НЕ превращаем в объекты автоматически и НЕ трогаем растр — лист
+      // показывается ТОЧНО как в PDF. Линия становится редактируемой по ТАПУ (promoteAt), остальной
+      // чертёж не меняется. Для чистой массовой правки есть «Подложка» → «вектор».
+      if(pg.objs.length&&!S._tapHint){S._tapHint=1;toast('Тапни по трассе, чтобы её редактировать — остальной чертёж остаётся точно как в PDF.');}
     }
     return pg.dark;
   }).catch(e=>{pg._vectorsError=true;console.warn('local page vectors',e);return null;}).finally(()=>{pg._vectorsLoading=false;delete src.vectorJobs[pn];});
@@ -1927,7 +1921,7 @@ function coarseTapSelect(ip){const rad=26/Math.max(.1,S.scale),cand=nearObjects(
 function penTapSelect(ip){const rad=22/Math.max(.1,S.scale),cand=nearObjects(ip,rad);
   if(cand.length){let idx=0;const ci=cand.findIndex(c=>c.id===S.selected);if(ci>=0&&S._penTapPt&&Math.hypot(ip.x-S._penTapPt.x,ip.y-S._penTapPt.y)<rad*1.6)idx=(ci+1)%cand.length;S._penTapPt={x:ip.x,y:ip.y};selectObj(cand[idx].id);return;}
   S._penTapPt=null;if(S.selected){S.selected=null;drawSelUI();renderOpt();if(S.sideTab==='obj')renderSide();}
-  if(S.linkedLkDocId&&S.drawingVectorPages&&S.drawingVectorPages[S.pageNum])lkSelectDrawingVectorAt(ip);}
+  if(S.linkedLkDocId&&S.drawingVectorPages&&S.drawingVectorPages[S.pageNum])lkSelectDrawingVectorAt(ip);else if(S.standalonePdf)promoteAt(ip);}
 // пальцы считаем в ФАЗЕ ЗАХВАТА — иначе объект (ручка/линия) гасит событие stopPropagation, vp не
 // узнаёт о первом пальце, и щипок не стартует (ptrs не доходит до 2, а drag продолжает тянуть линию)
 vp.addEventListener('pointerdown',e=>{ptrs.set(e.pointerId,e);if(ptrs.size===2){pinching=true;pinchSerial++;panning=false;cancelDraft();}},true);
@@ -1954,7 +1948,7 @@ vp.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')e.preventDefaul
           if(S._lastTapPt&&Math.hypot(ip.x-S._lastTapPt.x,ip.y-S._lastTapPt.y)<rad&&S.selected){const ci=cand.findIndex(c=>c.id===S.selected);if(ci>=0)idx=(ci+1)%cand.length;}
           S._lastTapPt={x:ip.x,y:ip.y};selectObj(cand[idx].id);return;}
         S._lastTapPt=null;S.selected=null;drawSelUI();renderOpt();if(S.sideTab==='obj')renderSide();
-        if(S.linkedLkDocId&&inBase(e.clientX,e.clientY))lkSelectDrawingVectorAt(ip);
+        if(S.linkedLkDocId&&inBase(e.clientX,e.clientY))lkSelectDrawingVectorAt(ip);else if(S.standalonePdf)promoteAt(ip);
       });}
     return;}
   if(S.tool==='pan'){panning=true;moved=0;lastX=e.clientX;lastY=e.clientY;vp.setPointerCapture(e.pointerId);return;}
