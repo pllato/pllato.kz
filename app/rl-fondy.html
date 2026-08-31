@@ -5,6 +5,7 @@
 
 
 
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RL · Фонды проектов</title>
@@ -316,10 +317,12 @@ const RESERVE_COLOR='#059669';
 function fundColorFor(f,i){return /прибыл|резерв/i.test(f?.name||'')?RESERVE_COLOR:FUND_COLORS[i%FUND_COLORS.length]}
 // базовый набор фондов строительного проекта — редактируется в каждом проекте
 const DEFAULT_FUNDS=[
-  {name:'Материалы и субподряд',pct:55},
+  {name:'Материалы и субподряд',pct:50},
   {name:'ФОТ рабочих',pct:20},
+  {name:'Услуги',pct:4},
+  {name:'Транспортные услуги',pct:3},
   {name:'Налоги',pct:8},
-  {name:'Накладные (офис, техника, транспорт)',pct:7},
+  {name:'Накладные (офис, техника, транспорт)',pct:5},
   {name:'Прибыль (резерв)',pct:10}];
 let DB={projects:[],sel:null,audit:[],bank:{name:'Главный фонд компании',ops:[]},team:[],taskStages:null};
 let APP_TAB='finance';
