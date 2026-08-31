@@ -902,6 +902,7 @@ const catC=k=>(CATS.find(c=>c.k===k)||CATS[CATS.length-1]).c;
 // чтобы нарисованная линия совпадала с трассами плана. Иначе — цвет марки из легенды.
 const markColor=k=>(S.catPdfColor&&S.catPdfColor[k])||catC(k);
 const drawColor=()=>markColor(S.cat);
+const drawWidth=()=>(S.catPdfWidth&&S.catPdfWidth[S.cat])||S.width;  // толщина как у трасс PDF этой марки
 const catN=k=>(CATS.find(c=>c.k===k)||CATS[CATS.length-1]).n;
 const catFull=k=>{const c=CATS.find(c=>c.k===k)||CATS[CATS.length-1];return c.full||c.n;};
 S.cat=CATS[0].k;S.penMode=false;S.printSpec=true;S.cluster=[];S.heights={socket:0.40,switch:0.90};S.panelH=1.50;S.projId=null;S.extraPos=[];
@@ -980,12 +981,23 @@ function renderTextLayer(){
 }
 function dSeg(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;let t=l2?((p.x-a.x)*dx+(p.y-a.y)*dy)/l2:0;t=t<0?0:t>1?1:t;return Math.hypot(p.x-(a.x+t*dx),p.y-(a.y+t*dy));}
 function dDark(p,o){if(o.type==='line'){let m=1e18;for(let i=0;i<o.pts.length-1;i++)m=Math.min(m,dSeg(p,o.pts[i],o.pts[i+1]));return m;}const x0=o.x,y0=o.y,x1=o.x+o.w,y1=o.y+o.h;let m=1e18;[[{x:x0,y:y0},{x:x1,y:y0}],[{x:x1,y:y0},{x:x1,y:y1}],[{x:x1,y:y1},{x:x0,y:y1}],[{x:x0,y:y1},{x:x0,y:y0}]].forEach(e=>m=Math.min(m,dSeg(p,e[0],e[1])));return m;}
-function promoteAt(p){const arr=S.dark[S.pageNum]||[];let best=-1,bd=Math.max(8,S.W*0.02);
+function promoteAt(p){const arr=S.dark[S.pageNum]||[];
   const pg=S.data&&S.data.pages&&S.data.pages[S.pageNum];if(pg&&pg._vectorsLoading&&!pg._vectorsReady){toast('Линии этого листа ещё подготавливаются локально…');return;}
-  // Поднимаем ТОЛЬКО линию цвета ВЫБРАННОЙ марки (кабельный цвет). Стены/размеры/другие цвета — мимо.
-  for(let i=0;i<arr.length;i++){const o=arr[i];if(!o||o.type!=='line'||standaloneVectorCat(o.color)!==S.cat)continue;const d=dDark(p,o);if(d<bd){bd=d;best=i;}}
-  if(best<0){toast('Рядом нет трассы марки «'+catN(S.cat)+'» — выбери нужную марку по цвету вверху');return;}
-  const o=arr[best];pushHistory();const col=o.color||drawColor(),w=Math.max(0.75,o.width),cp=o.pts.map(q=>({x:q.x,y:q.y})),orig=o.pts.map(q=>({x:q.x,y:q.y}));
+  const R=Math.max(14,S.W*0.012),diag=pts=>{let x0=1e18,y0=1e18,x1=-1e18,y1=-1e18;for(const q of pts){if(q.x<x0)x0=q.x;if(q.y<y0)y0=q.y;if(q.x>x1)x1=q.x;if(q.y>y1)y1=q.y;}return Math.hypot(x1-x0,y1-y0);};
+  const dTo=o=>{let m=1e18;for(let k=0;k<o.pts.length-1;k++)m=Math.min(m,dSeg(p,o.pts[k],o.pts[k+1]));return m;};
+  // ближайший штрих к тапу
+  let best=-1,bdist=Math.max(8,S.W*0.02);
+  for(let i=0;i<arr.length;i++){const o=arr[i];if(!o||o.type!=='line'||!o.pts||o.pts.length<2)continue;const m=dTo(o);if(m<bdist){bdist=m;best=i;}}
+  if(best<0){toast('Рядом нет линии чертежа');return;}
+  const o0=arr[best];
+  if(diag(o0.pts)<=R*2.2){
+    // ЗНАК: собираем ВСЕ компактные штрихи рядом (любого цвета) в ОДИН сгруппированный объект → один тап
+    const cl=[];arr.forEach((o,i)=>{if(!o||o.type!=='line'||!o.pts||o.pts.length<2||diag(o.pts)>R*2.2)return;if(dTo(o)<=R*1.6)cl.push(i);});
+    if(cl.length){pushHistory();const gid='sym'+(GRP_SEQ++),made=[];cl.sort((a,b)=>b-a).forEach(i=>{const d=arr[i],pts=d.pts.map(q=>({x:q.x,y:q.y})),orig=d.pts.map(q=>({x:q.x,y:q.y})),w=Math.max(1.2,d.width||1.5);made.push(addObj({type:'line',color:d.color||'#10151c',width:w,pts,ea:{kind:'free',h:0},eb:{kind:'free',h:0},src:'pdf',grp:gid,nocalc:true,_lkSource:true,_lkOriginal:{paths:[orig],pts:orig,width:w,color:d.color||'#10151c'}}).id);arr.splice(i,1);});redrawAll();setTool('select');selectObj(made[0]);toast('Знак поднят одним объектом — можно двигать/удалять');return;}
+  }
+  // ТРАССА: длинная линия ВЫБРАННОЙ марки
+  if(standaloneVectorCat(o0.color)!==S.cat){const cc=standaloneVectorCat(o0.color);toast(cc?('Это трасса марки «'+catN(cc)+'» — выбери её цвет вверху'):'Рядом нет трассы выбранной марки');return;}
+  pushHistory();const col=o0.color||drawColor(),w=Math.max(0.75,o0.width),cp=o0.pts.map(q=>({x:q.x,y:q.y})),orig=o0.pts.map(q=>({x:q.x,y:q.y}));
   const n=addObj({type:'line',cat:S.cat,color:col,width:w,pts:cp,ea:{kind:'free',h:0},eb:{kind:'free',h:0},src:'mine',_lkSource:true,_lkOriginal:{paths:[orig],pts:orig,width:w,color:col}});
   arr.splice(best,1);redrawAll();setTool('select');selectObj(n.id);toast('Трасса «'+catN(S.cat)+'» поднята — правьте узлами');}
 /* В режиме, открытом из Линейки, исходный PDF остаётся лёгкой растровой подложкой.
@@ -1211,6 +1223,8 @@ function prepareStandalonePdfVectors(pn,source){
       // существующей трассы — тапни её (promoteAt поднимет ТОЛЬКО линию выбранного цвета).
       if(pg.objs.length&&!S._tapHint){S._tapHint=1;toast('Чертёж — точный фон. Рисуй трассы поверх; чтобы переиспользовать линию с чертежа — тапни её.');}
       if(pg.objs.length)renderCleanPlan(pn); // фоном готовим «чистый план» для чистого удаления/сдвига поднятых трасс
+      // цвет и толщина трасс из PDF по маркам — чтобы нарисованная линия совпадала с чертежом
+      (pg.objs||[]).forEach(o=>{if(o&&o.t==='line'&&o.c){const cat=standaloneVectorCat(o.c);if(cat){S.catPdfColor=S.catPdfColor||{};S.catPdfWidth=S.catPdfWidth||{};if(!S.catPdfColor[cat])S.catPdfColor[cat]=o.c;if(!S.catPdfWidth[cat])S.catPdfWidth[cat]=Math.max(1,(+o.w||1)*(S.W/pg.wpt));}}});
     }
     return pg.dark;
   }).catch(e=>{pg._vectorsError=true;console.warn('local page vectors',e);return null;}).finally(()=>{pg._vectorsLoading=false;delete src.vectorJobs[pn];});
@@ -1985,13 +1999,13 @@ function vpPointerEnd(e){ptrs.delete(e.pointerId);if(ptrs.size<2){pinching=false
 vp.addEventListener('pointerup',vpPointerEnd);vp.addEventListener('pointercancel',vpPointerEnd);
 function bgPan(e,onTap){const TAP=isCoarsePointer()?14:5;let sx=e.clientX,sy=e.clientY,m=0,cancelTap=false,pinchAtStart=pinchSerial;pointerDrag(e,ev=>{if(pinching||pinchSerial!==pinchAtStart){cancelTap=true;return;}const dx=ev.clientX-sx,dy=ev.clientY-sy;m+=Math.abs(dx)+Math.abs(dy);if(m>TAP){S.pan.x+=dx;S.pan.y+=dy;sx=ev.clientX;sy=ev.clientY;applyTransform();}},ev=>{if(!cancelTap&&pinchSerial===pinchAtStart&&m<=TAP&&onTap&&inBase(ev.clientX,ev.clientY))onTap(toImg(ev.clientX,ev.clientY));});}
 function drawDraftMeasure(){const old=gUI.querySelector('#draftMeasure');if(old)old.remove();if(!S.draft||S.draft.pts.length<2)return;const mpp=S.cal[S.pageNum],p=lineHalfPoint(S.draft.pts),tx=mpp?'≈ '+fmtMeters(planLenPx(S.draft.pts)*mpp)+' м':'Нужен масштаб',k=1/Math.max(.1,S.scale),w=Math.max(72,tx.length*7.4+20),g=document.createElementNS(SVGNS,'g');g.id='draftMeasure';g.dataset.lineLabel='1';g.dataset.x=p.x;g.dataset.y=p.y;g.setAttribute('transform',`translate(${p.x} ${p.y}) scale(${k})`);g.style.pointerEvents='none';const r=document.createElementNS(SVGNS,'rect');r.setAttribute('x',-w/2);r.setAttribute('y',-35);r.setAttribute('width',w);r.setAttribute('height',25);r.setAttribute('rx',7);r.setAttribute('fill','#fff8ed');r.setAttribute('stroke',drawColor());r.setAttribute('stroke-width','1.5');const t=document.createElementNS(SVGNS,'text');t.setAttribute('x','0');t.setAttribute('y','-18');t.setAttribute('text-anchor','middle');t.setAttribute('fill','#183455');t.setAttribute('font-size','13');t.setAttribute('font-family','Inter,Arial,sans-serif');t.setAttribute('font-weight','800');t.textContent=tx;g.append(r,t);gUI.appendChild(g);}
-function drawDraft(){let el=gUI.querySelector('#draftLine');if(!el){el=document.createElementNS(SVGNS,'path');el.id='draftLine';el.setAttribute('fill','none');el.setAttribute('stroke-dasharray','2 6');el.setAttribute('stroke-linecap','round');el.setAttribute('stroke-linejoin','round');gUI.appendChild(el);}el.setAttribute('d',smoothPath(S.draft.pts));el.setAttribute('stroke',drawColor());el.setAttribute('stroke-width',S.width);drawDraftMeasure();}
+function drawDraft(){let el=gUI.querySelector('#draftLine');if(!el){el=document.createElementNS(SVGNS,'path');el.id='draftLine';el.setAttribute('fill','none');el.setAttribute('stroke-dasharray','2 6');el.setAttribute('stroke-linecap','round');el.setAttribute('stroke-linejoin','round');gUI.appendChild(el);}el.setAttribute('d',smoothPath(S.draft.pts));el.setAttribute('stroke',drawColor());el.setAttribute('stroke-width',drawWidth());drawDraftMeasure();}
 function clearDraftVisual(){['draftLine','draftMeasure'].forEach(id=>{const d=gUI.querySelector('#'+id);if(d)d.remove();});}
-function finishLine(){let made=null;if(S.draft&&S.draft.pts.length){const pts=S.draft.pts.slice();pts.pop();if(pts.length>=2){pushHistory();made=addObj({type:'line',cat:S.cat,color:drawColor(),width:S.width,pts,ea:{kind:'free',h:0},eb:{kind:'free',h:0},src:'mine'});}}S.draft=null;clearDraftVisual();setTool('select');if(made){redrawAll();selectObj(made.id);renderSide();lkQueueDrawingSave();toast('Линия '+(lineNo(made)!=null?'№'+lineNo(made)+' · ':'')+fmtMeters(lineMeters(made))+' м добавлена');}else toast('Поставьте минимум две точки линии');}
+function finishLine(){let made=null;if(S.draft&&S.draft.pts.length){const pts=S.draft.pts.slice();pts.pop();if(pts.length>=2){pushHistory();made=addObj({type:'line',cat:S.cat,color:drawColor(),width:drawWidth(),pts,ea:{kind:'free',h:0},eb:{kind:'free',h:0},src:'mine'});}}S.draft=null;clearDraftVisual();setTool('select');if(made){redrawAll();selectObj(made.id);renderSide();lkQueueDrawingSave();toast('Линия '+(lineNo(made)!=null?'№'+lineNo(made)+' · ':'')+fmtMeters(lineMeters(made))+' м добавлена');}else toast('Поставьте минимум две точки линии');}
 function startPenDraw(p,ev0){S.draft={pts:[{x:p.x,y:p.y}]};drawDraft();
   pointerDrag(ev0,ev=>{const q=toImg(ev.clientX,ev.clientY);const last=S.draft.pts[S.draft.pts.length-1];if(Math.hypot(q.x-last.x,q.y-last.y)>2){S.draft.pts.push({x:q.x,y:q.y});drawDraft();}},finalizePen);}
 function finalizePen(){
-  let made=null;if(S.draft&&S.draft.pts.length>=2){const raw=S.draft.pts.map(p=>[p.x,p.y]);const simp=capPts(raw,8).map(p=>({x:p[0],y:p[1]}));pushHistory();made=addObj({type:'line',cat:S.cat,color:drawColor(),width:S.width,pts:simp,ea:{kind:'free',h:0},eb:{kind:'free',h:0},src:'mine'});}
+  let made=null;if(S.draft&&S.draft.pts.length>=2){const raw=S.draft.pts.map(p=>[p.x,p.y]);const simp=capPts(raw,8).map(p=>({x:p[0],y:p[1]}));pushHistory();made=addObj({type:'line',cat:S.cat,color:drawColor(),width:drawWidth(),pts:simp,ea:{kind:'free',h:0},eb:{kind:'free',h:0},src:'mine'});}
   S.draft=null;clearDraftVisual();setTool('select');if(made){redrawAll();selectObj(made.id);renderSide();lkQueueDrawingSave();toast('Линия '+(lineNo(made)!=null?'№'+lineNo(made)+' · ':'')+fmtMeters(lineMeters(made))+' м добавлена');}}
 vp.addEventListener('dblclick',()=>{if(S.tool==='line'&&!S.penMode)finishLine();});
 window.addEventListener('keydown',e=>{const tag=(document.activeElement&&document.activeElement.tagName)||'',editing=/^(INPUT|TEXTAREA|SELECT)$/.test(tag);if((e.ctrlKey||e.metaKey)&&String(e.key).toLowerCase()==='z'&&!editing&&$('stage').style.display!=='none'){e.preventDefault();undoLast();return;}if(e.key==='Enter'&&S.tool==='line')finishLine();if(e.key==='Escape'){if($('scaleDialog').style.display==='flex'){closeScaleDialog(true);return;}cancelDraft();S.calPts=null;drawSelUI();renderOpt();}if((e.key==='Delete'||e.key==='Backspace')&&S.selected&&S.tool==='select'&&!editing)delSel();});
