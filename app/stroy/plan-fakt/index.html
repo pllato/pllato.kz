@@ -1567,7 +1567,7 @@ function importObjects(raw,sx,sy){
     if(o.t==='line'){
       const cat=o.cat||colorToCat(o.c);if(o.c){S.catPdfColor=S.catPdfColor||{};if(!S.catPdfColor[cat])S.catPdfColor[cat]=o.c;}
       const pts=capPts(o.p,IMPORT_MAX).map(p=>({x:p[0]*sx,y:p[1]*sy}));
-      const n={id:'o'+(S.seq++),type:'line',cat,color:o.c,width:Math.max(2.4,(o.w||1)*sx),pts,
+      const n={id:'o'+(S.seq++),type:'line',cat,color:o.c,width:Math.max(0.75,(o.w||1)*sx),pts,
         ea:{kind:'free',h:0},eb:{kind:'free',h:0},src:'pdf'};
       if(o.auto){const original=o.p.map(p=>({x:p[0]*sx,y:p[1]*sy}));n._autoVector=true;n._lkSource=true;n._lkOriginal={paths:[original],pts:original,width:n.width,color:n.color};}
       return n;
