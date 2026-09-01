@@ -1902,6 +1902,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
             <a class="is-pdf" href="app/schet-rl-crm-final.pdf" target="_blank" rel="noopener"><span class="dot"></span>Счёт № RL-2026-008 — финал CRM 650 000 + обучение 100 000 + чтение счетов 200 000 = 950 000 ₸ · PDF</a>
             <a class="is-pdf" href="app/schet-rl-fondy-1000000.pdf" target="_blank" rel="noopener"><span class="dot"></span>Счёт № RL-2026-006 — 1 000 000 ₸ · PDF</a>
             <a class="is-pdf" href="app/kp-rl-fondy.pdf" target="_blank" rel="noopener"><span class="dot"></span>Коммерческое предложение · PDF</a>
+            <a class="is-pdf" href="app/sverka-rl.pdf" target="_blank" rel="noopener"><span class="dot"></span>Акт сверки по трём проектам RL-system на 01.09.2026 · PDF</a>
           </div>
         </details>
         <span class="tool-badge new">Новое</span>
@@ -4054,12 +4055,32 @@ async function persistMoney(){
   await apiFetch('/project-finance',{method:'PUT',body:{money:MONEY,rate:RATE,chartVisibility:CHART_VISIBILITY,chartScale:CHART_SCALE}});
   renderFinanceCharts();
 }
+let MONEY_SAVE_PENDING = false;
+let MONEY_SAVE_WARNED = false;
 function scheduleMoneySave(){
   if(!canSeeProjectMoney() || !MONEY_LOADED) return;
   clearTimeout(MONEY_SAVE_TIMER);
-  MONEY_SAVE_TIMER=setTimeout(()=>persistMoney().catch(e=>console.error('project finance save:',e)),450);
+  MONEY_SAVE_PENDING=true;
+  MONEY_SAVE_TIMER=setTimeout(()=>{
+    MONEY_SAVE_PENDING=false;
+    persistMoney().catch(e=>{
+      console.error('project finance save:',e);
+      if(!MONEY_SAVE_WARNED){
+        MONEY_SAVE_WARNED=true;
+        alert('Не удалось сохранить изменения по проекту: '+(e?.message||e)+'\nОбновите страницу и повторите — иначе правка потеряется.');
+      }
+    });
+  },450);
 }
 function saveMoney(){ scheduleMoneySave(); }
+// Немедленно записывает отложенные правки: используется там, где потеря
+// изменения после перезагрузки страницы недопустима (даты плановых платежей).
+async function flushMoneySave(){
+  if(!canSeeProjectMoney() || !MONEY_LOADED) return;
+  clearTimeout(MONEY_SAVE_TIMER);
+  MONEY_SAVE_PENDING=false;
+  await persistMoney();
+}
 function saveRate(){ scheduleMoneySave(); }
 async function loadMoney(){
   if (MONEY_LOADED || !canSeeProjectMoney()) return;
@@ -4227,6 +4248,20 @@ async function syncPaymentPlanTasks(id){
   refreshFinanceWeekTaskBlock('cash');
   refreshFinanceWeekTaskBlock('releases');
 }
+// Если пользователь закрывает или перезагружает вкладку, пока отложенное
+// сохранение ещё не сработало, дописываем данные немедленно.
+if(typeof window!=='undefined' && !window.__moneyFlushBound){
+  window.__moneyFlushBound=true;
+  const flushOnLeave=()=>{
+    if(!MONEY_SAVE_PENDING) return;
+    clearTimeout(MONEY_SAVE_TIMER);
+    MONEY_SAVE_PENDING=false;
+    persistMoney().catch(e=>console.error('project finance flush:',e));
+  };
+  window.addEventListener('pagehide',flushOnLeave);
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushOnLeave(); });
+}
+
 async function bootstrapPaymentPlans(){
   if(PAYMENT_PLANS_BOOTSTRAPPED || !canSeeProjectMoney()) return;
   PAYMENT_PLANS_BOOTSTRAPPED=true;
@@ -4518,9 +4553,16 @@ function setPaymentPlanDate(stageId,raw){
   const stage=paymentPlanStage(_mmId,stageId);
   const dueAt=almatyAtFromInput(raw);
   if(!stage || !dueAt){ alert('Укажите корректную дату платежа.'); renderMoneyModal(); return; }
+  const prevDueAt=Number(stage.dueAt);
   stage.dueAt=dueAt;
-  saveMoney();
-  schedulePaymentPlanTaskSync(_mmId);
+  const projectId=_mmId;
+  flushMoneySave()
+    .then(()=>schedulePaymentPlanTaskSync(projectId))
+    .catch(error=>{
+      stage.dueAt=prevDueAt;
+      renderMoneyModal();
+      alert('Не удалось сохранить дату платежа: '+(error?.message||error));
+    });
 }
 function resetPaymentPlanDates(){
   if(!canSeeProjectMoney()||!_mmId) return;
@@ -4938,15 +4980,18 @@ async function moveAutomaticPaymentPlanTaskForward(task){
   const period=financeWeekTaskPeriod(nextBounds);
   const linkedRelease=stage.id==='final' ? ' Связанный плановый выпуск будет перенесён вместе с платежом.' : '';
   if(!confirm(`Перенести «${String(stage.label||'Плановый платёж')}» на неделю ${period}?${linkedRelease}`)) return;
+  const prevDueAt=Number(stage.dueAt);
   stage.dueAt=nextDueAt;
-  saveMoney();
   try{
+    // Дату пишем на сервер сразу, а не отложенным сохранением: иначе перенос
+    // теряется, если страницу обновить раньше, чем сработает дебаунс.
+    await flushMoneySave();
     await syncPaymentPlanTasks(projectId);
     if(_mmId===projectId) renderMoneyModal();
   }catch(error){
-    stage.dueAt=nextDueAt-week;
-    saveMoney();
-    alert('Не удалось перенести плановый платёж: '+error.message);
+    stage.dueAt=prevDueAt;
+    try{ await flushMoneySave(); }catch(rollbackError){ console.error('payment plan rollback:',rollbackError); }
+    alert('Не удалось перенести плановый платёж: '+(error?.message||error));
   }
 }
 async function carryFinanceWeekTaskToCurrent(taskId){
