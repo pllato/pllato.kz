@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#046058">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
 :root{--ink:#10151c;--steel:#1f3a5f;--steel2:#2d5183;--amber:#d98324;--line:#cfc8b8;--paper:#eceae3;--panel:#fff;--panel2:#f7f5ef;--gray:#79828f;--red:#c0392b;--sel:#0a84ff;--green:#2f7d4f;--cyan:#0891b2;--violet:#7c3aed;--sans:'Inter','Segoe UI',system-ui,sans-serif;--mono:'IBM Plex Mono',monospace;--shadow:0 6px 24px rgba(16,21,28,.12);}
@@ -1282,7 +1283,7 @@ async function loadPdf(file){
     objectUrl=URL.createObjectURL(file);
     const pdf=await pdfjsLib.getDocument({url:objectUrl}).promise,N=pdf.numPages,pages={};
     for(let i=1;i<=N;i++)pages[i]={wpt:1,hpt:1,objs:[],u:'',mime:'image/jpeg',title:'Лист '+i,_pdfPending:true};
-    const data={name:(file.name||'Чертёж').replace(/\.pdf$/i,''),pages},src={pdf,data,jobs:{},vectorJobs:{},objectUrl,totalPages:N};
+    const data={name:(file.name||'Чертёж').replace(/\.pdf$/i,''),pages},src={pdf,data,jobs:{},vectorJobs:{},objectUrl,totalPages:N,file};
     objectUrl='';
     S.standalonePdf=src;
     // Рабочий экран и все номера листов показываем сразу после чтения оглавления PDF.
@@ -1428,7 +1429,7 @@ function renderRevealLayer(){
   const NS='http://www.w3.org/2000/svg',mid='rev'+(S._revSeq=(S._revSeq||0)+1),k=1/Math.max(.1,S.scale);
   const g=document.createElementNS(NS,'g');g.style.pointerEvents='none';
   const defs=document.createElementNS(NS,'defs'),mask=document.createElementNS(NS,'mask');mask.setAttribute('id',mid);mask.setAttribute('maskUnits','userSpaceOnUse');mask.setAttribute('x',0);mask.setAttribute('y',0);mask.setAttribute('width',S.W);mask.setAttribute('height',S.H);
-  reps.forEach(rep=>{(rep.paths||[rep.pts]).forEach(pts=>{if(!pts||pts.length<2)return;const pt=document.createElementNS(NS,'path');pt.setAttribute('d',linePath(pts));pt.setAttribute('fill','none');pt.setAttribute('stroke','#fff');pt.setAttribute('stroke-width',(Math.max(1.5,+rep.width||2))*1.8+Math.max(5,(REPLACEMENT_MASK_PAD_PX+1)*k));pt.setAttribute('stroke-linecap','round');pt.setAttribute('stroke-linejoin','round');mask.appendChild(pt);});});
+  reps.forEach(rep=>{(rep.paths||[rep.pts]).forEach(pts=>{if(!pts||pts.length<2)return;const pt=document.createElementNS(NS,'path');pt.setAttribute('d',linePath(pts));pt.setAttribute('fill','none');pt.setAttribute('stroke','#fff');pt.setAttribute('stroke-width',(Math.max(1.5,+rep.width||2))+(REPLACEMENT_MASK_PAD_PX+1)*k);pt.setAttribute('stroke-linecap','round');pt.setAttribute('stroke-linejoin','round');mask.appendChild(pt);});});
   defs.appendChild(mask);g.appendChild(defs);
   const img=document.createElementNS(NS,'image');img.setAttribute('x',0);img.setAttribute('y',0);img.setAttribute('width',S.W);img.setAttribute('height',S.H);img.setAttribute('preserveAspectRatio','none');img.setAttribute('href','data:image/jpeg;base64,'+pg.uClean);img.setAttribute('mask','url(#'+mid+')');g.appendChild(img);
   return g;
@@ -2309,12 +2310,43 @@ async function buildLinkedEditedPdf(){await lkPersistDrawingNow();const rec=awai
       drawSheetSpec(cc,pn,c.width,c.height);pdf=pdfAddCanvas(pdf,c,v0.width,v0.height);}}
   finally{try{source.destroy();}catch(_){}}
   return{pdf,name:String(rec.name||S.data.name||'plan').replace(/\.pdf$/i,'')+'_С_ПРАВКАМИ.pdf'};}
+function _imgLoad(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('img'));i.src=src;});}
+function _pdfHex(h){h=String(h||'#000').replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');if(!/^[0-9a-f]{6}$/i.test(h))return PDFLib.rgb(0,0,0);const n=parseInt(h,16);return PDFLib.rgb(((n>>16)&255)/255,((n>>8)&255)/255,(n&255)/255);}
+function _pdfPoly(page,pts,fx,fy,H,color,thickness){if(!pts||pts.length<2)return;const th=Math.max(0.3,thickness);for(let i=0;i<pts.length-1;i++)page.drawLine({start:{x:pts[i].x*fx,y:H-pts[i].y*fy},end:{x:pts[i+1].x*fx,y:H-pts[i+1].y*fy},thickness:th,color});}
+/* ВЕКТОРНЫЙ экспорт: за основу берём ИСХОДНЫЙ PDF (все его векторы сохраняются как есть — открывается
+   и правится в AutoCAD), а сверху рисуем ваши правки вектором. Поднятые из PDF линии/знаки, которые вы
+   сдвинули/удалили, закрываем белым по их исходному пути и рисуем в новом виде. */
+async function buildVectorPdf(){
+  const src=S.standalonePdf;if(!src||!src.file||!window.PDFLib)return null;
+  lkBusy('Собираю ВЕКТОРНЫЙ PDF…','исходные линии сохраняются, правки — вектором');
+  const bytes=await src.file.arrayBuffer(),doc=await PDFLib.PDFDocument.load(bytes,{ignoreEncryption:true});
+  const font=await doc.embedFont(PDFLib.StandardFonts.Helvetica),pages=doc.getPages();
+  for(const pn of S.pageList){const page=pages[pn-1];if(!page)continue;const pg=S.data.pages[pn],sz=page.getSize(),W=sz.width,H=sz.height;
+    if(!pg.u&&S.standalonePdf)await renderStandalonePdfPage(pn);
+    let iw=W,ih=H;try{const im=await _imgLoad('data:image/jpeg;base64,'+pg.u);iw=im.naturalWidth;ih=im.naturalHeight;}catch(_){}
+    const fx=W/iw,fy=H/ih;
+    (S.objects[pn]||[]).forEach(o=>{if(!o)return;
+      if(o._lkSource&&o._lkOriginal){ // поднятая из PDF: закрыть оригинал белым, нарисовать текущую (если не удалена)
+        (o._lkOriginal.paths||[o._lkOriginal.pts]).forEach(pts=>_pdfPoly(page,pts,fx,fy,H,PDFLib.rgb(1,1,1),((o._lkOriginal.width||2)*fx)*2+3));
+        if(!o._lkDeleted&&o.type==='line'&&o.pts)_pdfPoly(page,o.pts,fx,fy,H,_pdfHex(o.color),Math.max(0.5,(o.width||1)*fx));return;}
+      if(o.src==='pdf'||o._lkDeleted)return; // прочие исходные линии уже есть в векторе PDF
+      if(o.type==='line'&&o.pts)_pdfPoly(page,o.pts,fx,fy,H,_pdfHex(o.color),Math.max(0.5,(o.width||1)*fx));
+      else if(o.type==='rect')page.drawRectangle({x:o.x*fx,y:H-(o.y+o.h)*fy,width:o.w*fx,height:o.h*fy,borderColor:_pdfHex(o.color),borderWidth:Math.max(0.5,(o.width||1)*fx)});
+      else if(o.type==='text'||o.type==='field'){const t=o.type==='field'?fieldValue(o,calcPage(pn)):o.text;if(t)page.drawText(String(t),{x:o.x*fx,y:H-o.y*fy,size:Math.max(4,(o.size||12)*fx),font,color:_pdfHex(o.color||'#10151c')});}
+    });}
+  return await doc.save();
+}
 async function buildEditedPdf(){return S.linkedLkDocId?buildLinkedEditedPdf():buildStandaloneEditedPdf();}
 function setPdfButtonsBusy(on){['btnExport','btnDownloadEdited','btnPrintEdited'].forEach(id=>{const b=$(id);if(b)b.disabled=!!on;});}
 async function outputEditedPdf(mode){const printWin=mode==='print'?window.open('','_blank'):null;
   if(printWin){printWin.document.title='Подготовка PDF';printWin.document.body.innerHTML='<p style="font:16px system-ui;padding:24px">Собираю PDF с правками…</p>';}
   setPdfButtonsBusy(true);
-  try{const out=await buildEditedPdf();if(!out.pdf)throw new Error('не удалось собрать PDF');
+  try{
+    if(mode==='save'&&!S.linkedLkDocId&&S.standalonePdf&&S.standalonePdf.file&&window.PDFLib){
+      const vb=await buildVectorPdf();
+      if(vb){const blob=new Blob([vb],{type:'application/pdf'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(S.data.name||'plan')+'_ИСПОЛНИТЕЛЬНЫЙ_вектор.pdf';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);toast('Готово — ВЕКТОРНЫЙ PDF с правками скачан (открывается в AutoCAD)');lkBusy(false);setPdfButtonsBusy(false);return;}
+    }
+    const out=await buildEditedPdf();if(!out.pdf)throw new Error('не удалось собрать PDF');
     if(mode==='print'){try{out.pdf.autoPrint();}catch(_){}const url=URL.createObjectURL(out.pdf.output('blob'));
       if(printWin){printWin.location.href=url;setTimeout(()=>{try{printWin.focus();printWin.print();}catch(_){}},1800);setTimeout(()=>URL.revokeObjectURL(url),120000);toast('PDF с правками открыт для печати');}
       else{out.pdf.save(out.name);URL.revokeObjectURL(url);toast('Окно печати заблокировано браузером — PDF скачан');}}
