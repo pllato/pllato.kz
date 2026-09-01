@@ -993,8 +993,10 @@ function promoteAt(p){const arr=S.dark[S.pageNum]||[];
   if(diag(o0.pts)<=R*2.2){
     // ЗНАК: растём ТОЛЬКО по СВЯЗНОСТИ от тапнутого штриха (соединённые касанием), среди компактных
     // рядом — берётся именно этот знак, а не соседние стены/размеры/другие знаки.
-    const gap=Math.max(2.5,S.W*0.0018),cand=[];
-    arr.forEach((o,i)=>{if(!o||o.type!=='line'||!o.pts||o.pts.length<2||diag(o.pts)>R*2.2)return;if(dTo(o)<=R*3)cand.push(i);});
+    const gap=Math.max(2.5,S.W*0.0018),cand=[],seedCol=(o0.color||'').toLowerCase();
+    // только ТОТ ЖЕ цвет, что у тапнутого штриха — чтобы знак не цеплял стены/размеры/чужие цвета
+    const colorClose=(a)=>{a=(a||'').toLowerCase();if(a===seedCol)return true;if(!/^#[0-9a-f]{6}$/.test(a)||!/^#[0-9a-f]{6}$/.test(seedCol))return false;const p=hex2rgb(a),q=hex2rgb(seedCol);return (p[0]-q[0])**2+(p[1]-q[1])**2+(p[2]-q[2])**2<1600;};
+    arr.forEach((o,i)=>{if(!o||o.type!=='line'||!o.pts||o.pts.length<2||diag(o.pts)>R*2.2||!colorClose(o.color))return;if(dTo(o)<=R*3)cand.push(i);});
     const touch=(a,b)=>{const A=arr[a].pts,B=arr[b].pts;for(let x=0;x<A.length;x++)for(let y=0;y<B.length;y++)if(Math.hypot(A[x].x-B[y].x,A[x].y-B[y].y)<=gap)return true;return false;};
     const cset=new Set([best]);let grew=true,guard=0;
     while(grew&&cset.size<40&&guard++<80){grew=false;for(const i of cand){if(cset.has(i))continue;for(const j of cset){if(touch(i,j)){cset.add(i);grew=true;break;}}}}
