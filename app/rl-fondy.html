@@ -6,6 +6,7 @@
 
 
 
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RL · Фонды проектов</title>
@@ -58,6 +59,8 @@
   .pcard .row span:last-child{font-weight:600;font-variant-numeric:tabular-nums}
   .gap-warn{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--red-bg);color:var(--red);margin-top:8px}
   .gap-ok{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--green-bg);color:var(--green);margin-top:8px}
+  .fin-badge{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;padding:5px 9px;border-radius:7px;background:var(--amber-bg);color:var(--amber);margin-top:8px;border:1px solid #e3d3ba}
+  .kb-card.has-fin{border-left:4px solid var(--amber);box-shadow:0 1px 0 rgba(138,111,74,.12)}
   .fund-head,.fund-row{display:grid;grid-template-columns:14px minmax(135px,1fr) 150px 150px 92px 92px minmax(130px,1fr) 58px 14px;gap:8px;align-items:center}
   .fund-head>* , .fund-row>*{min-width:0}
   .fund-head{padding:0 0 8px;border-bottom:1px solid var(--line);font-size:10px;line-height:1.25;font-weight:700;letter-spacing:.35px;text-transform:uppercase;color:var(--muted)}
@@ -137,6 +140,10 @@
   .kb-head{display:flex;align-items:center;gap:5px;padding:2px 4px 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
   .kb-head .cnt{background:#fff;border-radius:10px;padding:1px 7px;font-size:10.5px}
   .kb-head input{padding:5px 8px;font-size:12px;border-radius:6px;min-width:0}
+  .kb-head-edit{display:block;padding-bottom:8px}
+  .kb-head-edit input{display:block;width:100%;box-sizing:border-box;text-transform:none;letter-spacing:0;font-weight:600}
+  .kb-head-edit .st-btns{display:flex;gap:5px;margin-top:5px}
+  .kb-head-edit .st-btns .st-btn:last-child{margin-left:auto}
   .kb-head .st-btn{border:1px solid var(--line);background:#fff;border-radius:5px;font-size:10px;padding:3px 7px;cursor:pointer;color:var(--muted);flex-shrink:0}
   .kb-head .st-btn:hover{color:var(--blue);border-color:var(--blue)}
   .kb-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:7px;cursor:grab;touch-action:none}
@@ -1158,23 +1165,27 @@ function renderList(host){
   const card=p=>{
     const fb=fundBalances(p);const cash=Object.values(fb).reduce((s,x)=>s+x.bal,0);
     const got=p.ops.filter(o=>o.type==='in'&&o.src!=='fin'&&o.src!=='bank').reduce((s,o)=>s+o.amt,0);
+    const finGot=p.ops.filter(o=>o.type==='in'&&(o.src==='fin'||o.src==='bank')).reduce((s,o)=>s+o.amt,0);
+    const finRet=p.ops.filter(o=>o.type==='out'&&(o.src==='fin'||o.src==='bank')).reduce((s,o)=>s+Math.abs(o.amt),0);
+    const finDebt=finGot-finRet;
     const gap=firstGap(p);
-    return `<div class="kb-card" data-pid="${p.id}">
+    return `<div class="kb-card${finDebt>0?' has-fin':''}" data-pid="${p.id}">
       <div class="nm">${esc(p.name)}</div><div class="cu">${esc(p.customer||'заказчик не указан')}</div>
       <div class="row"><span>Договор</span><b>${fmtM(p.contract)}</b></div>
       <div class="row"><span>Поступило</span><b class="pos">${fmtM(got)}</b></div>
       <div class="row"><span>Касса</span><b class="${cash>=0?'pos':'neg'}">${fmtM(cash)}</b></div>
+      ${finDebt>0?`<span class="fin-badge" title="в проект вложено финансирование (займы / из Главного фонда), не возвращённый остаток">💰 Финансирование · долг ${fmtM(finDebt)}</span>`:''}
       ${gap?`<span class="gap-warn">⚠ разрыв ${mLabel(gap.m)}: ${fmtM(gap.short)}</span>`:`<span class="gap-ok">✓ без разрывов</span>`}
       <button type="button" class="kb-open" onclick="openProject('${p.id}')">Открыть проект →</button>
     </div>`};
   const cols=DB.stages.map(st=>{
     const ps=DB.projects.filter(p=>p.stage===st.id);
     const head=_kbEdit
-      ?`<div class="kb-head"><input value="${esc(st.name)}" onchange="renameStage('${st.id}',this.value)">
-         <button class="st-btn" onclick="moveStage('${st.id}',-1)" title="левее">◀</button>
+      ?`<div class="kb-head kb-head-edit"><input value="${esc(st.name)}" onchange="renameStage('${st.id}',this.value)">
+         <div class="st-btns"><button class="st-btn" onclick="moveStage('${st.id}',-1)" title="левее">◀</button>
          <button class="st-btn" onclick="moveStage('${st.id}',1)" title="правее">▶</button>
-         <button class="st-btn" onclick="delStage('${st.id}')" title="удалить этап">×</button></div>`
-      :`<div class="kb-head"><span style="flex:1">${esc(st.name)}</span><span class="cnt">${ps.length}</span></div>`;
+         <button class="st-btn" onclick="delStage('${st.id}')" title="удалить этап">× удалить</button></div></div>`
+      :`<div class="kb-head"><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${esc(st.name)}</span><span class="cnt">${ps.length}</span></div>`;
     return `<div class="kb-col" data-st="${st.id}">${head}${ps.map(card).join('')||'<div class="kb-empty">перетащи сюда проект</div>'}</div>`;
   }).join('');
   host.innerHTML=`${bankSectionHtml()}<div class="kb-bar"><h2 style="margin:0">Проекты · ${DB.projects.length}</h2><span style="flex:1"></span>
