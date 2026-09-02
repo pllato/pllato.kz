@@ -8,25 +8,26 @@ const CDN='https://img.101kz.kz';
 /* ===== РОЛИ ===== */
 const ROLES={
  'Администратор хранилища':{av:'АД',n:'Администратор',r:'медиа-сервис',note:'Загрузка, обработка, ошибки, ключи API и бэкапы',
-  s:['dash','upload','catalog','pipeline','api','keys','c1','shop','mp','logs','backup','perf','stack','users']},
+  s:['dash','tasks','upload','catalog','pipeline','api','keys','c1','shop','mp','logs','backup','perf','stack','users']},
  'Контент-менеджер':{av:'КМ',n:'Асель',r:'карточки товаров',note:'Загружает фото по артикулу, следит за покрытием каталога',
-  s:['upload','catalog','pipeline','logs']},
+  s:['tasks','upload','catalog','pipeline','logs']},
  'Программист 1С':{av:'1С',n:'Ерлан',r:'1С:Управление торговлей',note:'API, ключи, обмен с 1С и разбор ошибок передачи',
-  s:['api','keys','c1','logs','stack','perf']},
+  s:['tasks','api','keys','c1','logs','stack','perf']},
  'Менеджер интернет-магазина':{av:'ИМ',n:'Дана',r:'магазин и площадки',note:'Фото на витрине, выгрузка на Kaspi и другие площадки',
-  s:['shop','mp','catalog','api']},
+  s:['tasks','shop','mp','catalog','api']},
  'Руководитель':{av:'РК',n:'Руководитель',r:'101kz',note:'Покрытие каталога фотографиями, объёмы, сроки и стоимость',
-  s:['dash','catalog','perf','backup','stack']}
+  s:['dash','tasks','catalog','perf','backup','stack']}
 };
 let role='Администратор хранилища',cur='dash',theme='light';
 
 const NAV=[
- ['РАБОТА С ФОТО',[['dash','◧','Сводка'],['upload','⇧','Загрузка'],['catalog','▦','Каталог по SKU'],['pipeline','⚙','Очередь обработки',2]]],
+ ['РАБОТА С ФОТО',[['dash','◧','Сводка'],['tasks','☑','Задачи',4],['upload','⇧','Загрузка'],['catalog','▦','Каталог по SKU'],['pipeline','⚙','Очередь обработки',2]]],
  ['ИНТЕГРАЦИИ',[['api','⌘','API'],['keys','⚿','Ключи и доступ'],['c1','⇄','Обмен с 1С'],['shop','⌸','Интернет-магазин'],['mp','◈','Торговые площадки']]],
  ['ЭКСПЛУАТАЦИЯ',[['logs','☰','Журнал',3],['backup','⛁','Резервные копии'],['perf','⏱','Производительность'],['stack','⛭','Архитектура'],['users','◍','Пользователи']]]
 ];
 const TITLES={
  dash:['Сводка','Сколько товаров с фотографиями, что обработано и где ошибки'],
+ tasks:['Задачи','Доска задач по контенту, ошибкам и интеграциям — с исполнителями и сроками'],
  upload:['Загрузка фотографий','Перетащите файл — обработка и WebP считаются прямо в браузере'],
  catalog:['Каталог по артикулам','Товары и их фотографии; идентификатор — SKU, не название'],
  pipeline:['Очередь обработки','Стадии конвейера, воркеры, ошибки и повторная обработка'],
@@ -151,6 +152,12 @@ SC.dash=()=>`
     <div class="kv"><span>Последняя резервная копия</span><b>сегодня 03:00</b></div>
     <button class="btn acc" style="width:100%;margin-top:9px" onclick="go('pipeline')">Очередь обработки</button>
    </div>
+   <div class="panel"><div class="ph"><div><div class="ph-title">Задачи</div><div class="ph-sub">то, что требует человека, а не сервиса</div></div>
+    <button class="btn" onclick="go('tasks')">Доска →</button></div>
+    ${TASKS.filter(t=>t.col!=='done').slice(0,4).map(t=>`<div class="kv" style="cursor:pointer" onclick="go('tasks')">
+     <span>${esc(t.t)}<div class="sub">${t.who} · до ${t.due}${t.auto?' · поставлена системой':''}</div></span>
+     <span class="badge ${dueState(t.due)==='late'?'r':t.pr==='high'?'a':'b'}">${dueState(t.due)==='late'?'просрочена':PRN[t.pr]}</span></div>`).join('')}
+   </div>
    <div class="panel"><div class="ph-title">Интеграции</div>
     ${[['1С:Управление торговлей','обмен по расписанию, 5 мин','g'],['Интернет-магазин','читает по API','g'],['Kaspi','каркас готов, подключение — этап 2','a'],['Другие площадки','по одному коннектору','b']].map(r=>
      `<div class="kv"><span>${r[0]}<div class="sub">${r[1]}</div></span><span class="badge ${r[2]}">${r[2]==='g'?'работает':r[2]==='a'?'в плане':'позже'}</span></div>`).join('')}
@@ -210,6 +217,7 @@ SC.upload=()=>`
 SC.catalog=()=>`
  <div class="head"><div><h2>Каталог по артикулам</h2><p>Идентификатор товара — артикул, как и требует ТЗ. Название может меняться сколько угодно: ссылки на фотографии от него не зависят.</p></div>
  <div class="btns"><button class="btn" onclick="toast('Фильтр «без фото»: ${fmt(2616)} товаров, которые не видно на витрине. Это рабочий список для контент-менеджера и фотографа.')">Показать без фото</button>
+ <button class="btn" onclick="taskForPhoto('')">Задача фотографу</button>
  <button class="btn acc" onclick="go('upload')">Загрузить фото</button></div></div>
  <div class="panel" style="padding:0"><div class="tw"><table class="data" style="min-width:900px"><thead><tr>
   <th>Артикул</th><th>Товар</th><th>Категория</th><th class="right">Фото</th><th>Основное</th><th>Статус</th><th>Изменено</th><th>URL основного</th></tr></thead><tbody>
@@ -238,7 +246,8 @@ function itemBody(sku,t){const g=GOODS.find(x=>x.sku===sku);const n=g.ph||0;
     <div class="pim"><img src="${ph(sku,i+1,g.w)}" alt=""><span class="tag">${i===0?'ОСНОВНОЕ':'№'+(i+1)}</span></div>
     <div class="pb"><div class="pn">${sku}_${i+1}</div><div class="pu">/products/${sku}/${i===0?'main':'img-'+(i+1)}.webp</div></div>
    </div>`).join('')}</div>`
-   :`<div class="note" style="--tone:var(--red)"><b>У товара нет ни одной фотографии</b><p>Такие позиции собраны в отдельный список — по нему работают контент-менеджер и фотограф.</p></div>`}
+   :`<div class="note" style="--tone:var(--red)"><b>У товара нет ни одной фотографии</b><p>Такие позиции собраны в отдельный список — по нему работают контент-менеджер и фотограф.</p></div>
+   <div class="btns" style="margin-top:9px"><button class="btn acc" onclick="taskForPhoto('${sku}')">Поставить задачу фотографу</button></div>`}
   <div class="btns" style="margin-top:11px">
    <button class="btn acc" onclick="toast('Загрузка фото к товару ${sku}: файл попадёт в очередь и через секунду будет доступен по постоянной ссылке.')">Добавить фото</button>
    <button class="btn" onclick="replacePhoto('${sku}')">Заменить основное</button>
@@ -286,6 +295,7 @@ function replacePhoto(sku){
 SC.pipeline=()=>`
  <div class="head"><div><h2>Очередь обработки</h2><p>Конвейер из пункта 3 ТЗ в работе. Загрузка не ждёт обработки: файл принимается сразу, а варианты создаются фоновыми воркерами. Любую ошибку можно повторить одной кнопкой.</p></div>
  <div class="btns"><button class="btn" onclick="toast('Настройки конвейера: форматы, лимит размера, набор вариантов (1600/800/400/120), качество WebP и число воркеров — меняются без переписывания кода.')">Настройки конвейера</button>
+ <button class="btn" onclick="taskFromError()">Поставить задачу по ошибкам</button>
  <button class="btn acc" onclick="retryAll()">Повторить все ошибки</button></div></div>
  <div class="strip">
   <div><small>В ОЧЕРЕДИ</small><b>${QUEUE.filter(q=>q.st==='wait').length}</b><span>ждут воркера</span></div>
@@ -736,6 +746,206 @@ SC.users=()=>`
   </div>
  </div>`;
 
+/* ===== ЗАДАЧИ (стандартный блок CRM) ===== */
+const TCOLS=[['new','НОВЫЕ'],['work','В РАБОТЕ'],['check','НА ПРОВЕРКЕ'],['done','ГОТОВО']];
+const USERS={'Асель':['АС',''],'Ерлан':['ЕР','c'],'Дана':['ДА','v'],'Тимур':['ТМ','g'],'Администратор':['АД','a']};
+const PRC={high:'var(--red)',mid:'var(--amber)',low:'var(--line2)'};
+const PRN={high:'высокий',mid:'обычный',low:'низкий'};
+let TASKS=[
+ {id:'T-241',t:'Снять товары категории «Хозтовары» без фото',col:'work',who:'Тимур',from:'Руководитель',due:'05.09',pr:'high',sku:'',auto:true,
+  d:'В категории 1 350 товаров без единой фотографии — они не видны покупателю. Список выгружен из отчёта покрытия каталога.',
+  chk:[['Согласовать список с закупом',1],['Отснять первые 300 позиций',1],['Загрузить пакетом по артикулам',0],['Проверить обработку и ошибки',0]],
+  cm:[['Руководитель','01.09 10:12','Начинаем с ходовых позиций — список приоритета в файле.'],
+      ['Тимур','01.09 15:40','Снял 300 штук, завтра залью пакетом через имя файла.']],
+  hist:[['01.09 10:10','создана автоматически из отчёта «товары без фото»'],['01.09 10:12','назначена Тимуру'],['01.09 15:41','перенесена в «В работе»']]},
+ {id:'T-240',t:'Разобрать ошибки обработки по товару KRP-3',col:'new',who:'Асель',from:'система',due:'02.09',pr:'high',sku:'KRP-3',auto:true,
+  d:'Два файла не прошли конвейер: формат TIFF не поддерживается и файл больше лимита 25 МБ. Нужно пересохранить и загрузить заново.',
+  chk:[['Пересохранить krp-3_2.tiff в JPEG',0],['Уменьшить krp-3_3.jpg до 25 МБ',0],['Повторить обработку',0]],
+  cm:[['система','02.09 09:28','Задача создана автоматически: 2 ошибки в очереди обработки.']],
+  hist:[['02.09 09:28','создана автоматически по событию «ошибка обработки»']]},
+ {id:'T-239',t:'Проверить обмен с 1С после обновления конфигурации',col:'work',who:'Ерлан',from:'Администратор',due:'03.09',pr:'mid',sku:'',auto:false,
+  d:'После обновления 1С:УТ проверить, что регламентное задание работает и ссылки обновляются у номенклатуры.',
+  chk:[['Проверить регламентное задание',1],['Сверить 20 товаров вручную',0],['Проверить журнал обменов на ошибки',0]],
+  cm:[['Ерлан','02.09 08:20','Задание работает, вчерашняя ошибка 401 была из-за истёкшего токена — обновил.']],
+  hist:[['01.09 17:00','создана'],['02.09 08:15','перенесена в «В работе»']]},
+ {id:'T-242',t:'Обновить фото после смены упаковки — 18 товаров',col:'work',who:'Дана',from:'Руководитель',due:'29.08',pr:'high',sku:'',auto:false,
+  d:'Поставщик сменил упаковку у 18 позиций — на витрине и на Kaspi фото старые. Нужно переснять и заменить, ссылки при этом не меняются.',
+  chk:[['Получить образцы новой упаковки',1],['Отснять 18 позиций',0],['Заменить фото и проверить витрину',0]],
+  cm:[['Руководитель','28.08 11:30','Покупатели жалуются, что приходит не то, что на фото. Нужно закрыть на этой неделе.'],
+      ['Дана','29.08 16:10','Образцы получила, съёмка в понедельник — сдвигаю срок.']],
+  hist:[['27.08 09:40','создана'],['28.08 11:31','приоритет повышен до высокого'],['29.08 16:12','срок истёк, задача просрочена']]},
+ {id:'T-238',t:'Подготовить каталог к выгрузке на Kaspi',col:'new',who:'Дана',from:'Руководитель',due:'12.09',pr:'mid',sku:'',auto:false,
+  d:'Проверить, сколько товаров проходит по требованиям площадки: белый фон, от 400×400, до 8 фото. Остальным поставить задачу на пересъёмку.',
+  chk:[['Выгрузить отчёт соответствия',0],['Согласовать список на пересъёмку',0],['Передать в работу фотографу',0]],
+  cm:[],hist:[['02.09 09:05','создана']]},
+ {id:'T-237',t:'Заменить фото OP-5 на студийное',col:'check',who:'Асель',from:'Дана',due:'02.09',pr:'mid',sku:'OP-5',auto:false,
+  d:'Прислали студийную съёмку опрыскивателя. Заменить основное фото — URL должен остаться прежним.',
+  chk:[['Загрузить новый файл',1],['Проверить, что URL не изменился',1],['Проверить карточку на витрине',0]],
+  cm:[['Асель','02.09 09:15','Заменила, версия 3. Ссылка та же, в 1С ничего не правили.'],
+      ['Дана','02.09 09:40','Смотрю на витрине — обновилось. Проверю ещё мобильную версию.']],
+  hist:[['31.08 14:20','создана'],['02.09 09:14','фото заменено, версия 3'],['02.09 09:16','перенесена на проверку']]},
+ {id:'T-236',t:'Ежемесячная проверка восстановления из резервной копии',col:'new',who:'Администратор',from:'регламент',due:'05.09',pr:'mid',sku:'',auto:true,
+  d:'Развернуть последнюю копию на тестовый сервер и убедиться, что база и файлы восстанавливаются. Повторяется 5-го числа каждого месяца.',
+  chk:[['Развернуть копию базы',0],['Проверить выборку файлов',0],['Записать результат в журнал',0]],
+  cm:[['система','01.09 03:00','Повторяющаяся задача создана по расписанию.']],
+  hist:[['01.09 03:00','создана автоматически по расписанию']]},
+ {id:'T-235',t:'Перенести старые фотографии с файлового сервера',col:'done',who:'Асель',from:'Администратор',due:'30.08',pr:'high',sku:'',auto:false,
+  d:'38 940 файлов из папок вида «Товар_название» разложить по артикулам и залить пакетно.',
+  chk:[['Сопоставить папки с артикулами',1],['Залить пакетом',1],['Проверить ошибки и повторить',1]],
+  cm:[['Асель','30.08 18:02','Перенос закончен: 38 940 файлов, 214 ошибок исправлено повтором.']],
+  hist:[['20.08 11:00','создана'],['30.08 18:05','закрыта']]},
+ {id:'T-234',t:'Выдать ключ API подрядчику-фотографу',col:'done',who:'Ерлан',from:'Дана',due:'28.08',pr:'low',sku:'',auto:false,
+  d:'Нужен ключ только на загрузку, без прав на удаление и без доступа к остальному API.',
+  chk:[['Создать ключ с правом upload',1],['Ограничить лимит запросов',1],['Передать безопасным каналом',1]],
+  cm:[['Ерлан','28.08 12:30','Ключ выдан, права только на загрузку, 10 запросов в секунду.']],
+  hist:[['27.08 16:00','создана'],['28.08 12:31','закрыта']]}
+];
+let tFilter='all',tSeq=243;
+const ME={'Администратор хранилища':'Администратор','Контент-менеджер':'Асель','Программист 1С':'Ерлан','Менеджер интернет-магазина':'Дана','Руководитель':'Руководитель'};
+const dueDays=d=>{if(!d)return 99;const [dd,mm]=d.split('.').map(Number);const t=new Date(2026,mm-1,dd),now=new Date(2026,8,2);
+ return Math.round((t-now)/86400000)};
+const dueState=d=>{const df=dueDays(d);return df<0?'late':df<=1?'soon':''};
+const dueText=(d,col)=>{if(col==='done')return 'закрыта';const df=dueDays(d);
+ return df<0?`просрочена на ${-df} дн.`:df===0?'истекает сегодня':df===1?'истекает завтра':'в срок'};
+function visTasks(){const me=ME[role];
+ return TASKS.filter(t=>tFilter==='all'?true:tFilter==='me'?t.who===me:tFilter==='late'?(dueState(t.due)==='late'&&t.col!=='done'):tFilter==='auto'?t.auto:true)}
+SC.tasks=()=>{const me=ME[role];const open=TASKS.filter(t=>t.col!=='done');
+ const late=open.filter(t=>dueState(t.due)==='late');const mine=open.filter(t=>t.who===me);
+ const vis=visTasks();
+ return `
+ <div class="head"><div><h2>Задачи</h2><p>Обычный блок задач, как в CRM: постановка, исполнитель, срок, приоритет, чек-лист, комментарии и история. Карточка тянется мышью между колонками. Часть задач система ставит сама — по ошибкам обработки, товарам без фото и расписанию.</p></div>
+ <div class="btns"><button class="btn" onclick="toast('Уведомления: исполнителю приходит сообщение при назначении, за день до срока и при просрочке. Постановщику — когда задачу перевели на проверку.')">Уведомления</button>
+ <button class="btn acc" onclick="newTask()">+ Задача</button></div></div>
+ <div class="strip">
+  <div><small>ОТКРЫТЫХ ЗАДАЧ</small><b>${open.length}</b><span>всего в работе</span></div>
+  <div><small>МОИ</small><b class="a">${mine.length}</b><span>${me}</span></div>
+  <div><small>ПРОСРОЧЕНО</small><b class="r">${late.length}</b><span>${late.length?late.map(t=>t.id).join(', '):'нет'}</span></div>
+  <div><small>ПОСТАВЛЕНО СИСТЕМОЙ</small><b class="c">${TASKS.filter(t=>t.auto).length}</b><span>по событиям и расписанию</span></div>
+  <div><small>ЗАКРЫТО ЗА НЕДЕЛЮ</small><b class="g">11</b><span>среднее время 2,4 дня</span></div>
+ </div>
+ <div class="tflt">
+  ${[['all','Все задачи'],['me','Мои'],['late','Просроченные'],['auto','Созданные системой']].map(f=>
+   `<button class="tf ${tFilter===f[0]?'on':''}" onclick="tFilter='${f[0]}';render()">${f[1]}</button>`).join('')}
+ </div>
+ <div class="board" style="grid-template-columns:repeat(4,1fr)">
+ ${TCOLS.map(([k,n])=>{const list=vis.filter(t=>t.col===k);
+  return `<div class="col" id="col-${k}" ondragover="colOver(event,'${k}')" ondragleave="colOut('${k}')" ondrop="taskDrop(event,'${k}')">
+   <div class="col-h"><b style="color:${k==='done'?'var(--green)':k==='check'?'var(--violet)':k==='work'?'var(--acc)':'var(--muted)'}">${n}</b><span>${list.length}</span></div>
+   ${list.map(t=>{const ds=dueState(t.due);const u=USERS[t.who]||['??',''];
+    return `<div class="kc" draggable="true" style="--pr:${PRC[t.pr]}" ondragstart="taskDrag(event,'${t.id}')" ondragend="this.classList.remove('drag')" onclick="openTask('${t.id}')">
+     <b>${esc(t.t)}</b>
+     <div class="kmeta">${t.sku?`<span class="mono">${t.sku}</span> · `:''}${t.id}${t.auto?' · <span style="color:var(--cyan)">поставлена системой</span>':''}</div>
+     <div class="krow">
+      <span style="display:flex;align-items:center;gap:6px"><span class="ava ${u[1]}">${u[0]}</span><span style="font-size:9.2px;color:var(--muted)">${t.who}</span></span>
+      <span class="due ${ds}">${t.col==='done'?'закрыта':'до '+t.due}</span>
+     </div>
+     ${t.chk.length?`<div class="kmeta">чек-лист ${t.chk.filter(c=>c[1]).length} из ${t.chk.length}${t.cm.length?` · ${t.cm.length} комм.`:''}</div>`:''}
+    </div>`}).join('')||'<div class="mini" style="text-align:center;padding:14px 0;color:var(--muted2)">пусто</div>'}
+  </div>`}).join('')}
+ </div>
+ <div class="g11" style="margin-top:11px">
+  <div class="panel"><div class="ph-title">Что система ставит сама</div>
+   ${[['Ошибка обработки файла','задача контент-менеджеру с причиной и списком файлов'],
+      ['Ошибка передачи в 1С','задача программисту, если повтор не помог'],
+      ['Товары без фотографий','задача фотографу по категории, раз в неделю'],
+      ['Проверка резервной копии','повторяющаяся задача администратору, 5-го числа'],
+      ['Фото не соответствует требованиям площадки','задача на пересъёмку перед выгрузкой']]
+    .map(r=>`<div class="kv"><span>${r[0]}<div class="sub">${r[1]}</div></span></div>`).join('')}
+   <div class="note" style="--tone:var(--cyan)"><b>Смысл автозадач</b><p>Ошибка в очереди сама по себе никого не будит. Задача с исполнителем и сроком — будит. Поэтому всё, что требует человека, становится задачей, а не строкой в журнале.</p></div>
+  </div>
+  <div class="panel"><div class="ph-title">Что есть в карточке задачи</div>
+   ${['Описание, постановщик и исполнитель','Срок с подсветкой просрочки','Приоритет: высокий, обычный, низкий','Чек-лист с отметками','Комментарии с историей переписки','Привязка к артикулу и файлам','История изменений — кто что менял','Повторение по расписанию для регламентных задач']
+    .map(t=>`<div class="chk"><i>✓</i><span>${t}</span></div>`).join('')}
+   <button class="btn" style="width:100%;margin-top:9px" onclick="openTask('T-237')">Открыть пример карточки</button>
+  </div>
+ </div>`};
+let dragId=null;
+function taskDrag(e,id){dragId=id;e.target.classList.add('drag');try{e.dataTransfer.setData('text/plain',id)}catch(x){}}
+function colOver(e,k){e.preventDefault();const el=document.getElementById('col-'+k);if(el)el.classList.add('over')}
+function colOut(k){const el=document.getElementById('col-'+k);if(el)el.classList.remove('over')}
+function taskDrop(e,k){e.preventDefault();colOut(k);const t=TASKS.find(x=>x.id===dragId);if(!t)return;
+ const was=t.col;t.col=k;t.hist.push(['02.09 сейчас',`перенесена из «${TCOLS.find(c=>c[0]===was)[1].toLowerCase()}» в «${TCOLS.find(c=>c[0]===k)[1].toLowerCase()}»`]);
+ render();
+ if(k==='done'){sparks();toast(`Задача <b>${t.id}</b> закрыта. Постановщику (${t.from}) ушло уведомление, время выполнения записано в статистику.`)}
+ else if(k==='check')toast(`Задача <b>${t.id}</b> отправлена на проверку постановщику — ${t.from}.`);
+ else toast(`Задача <b>${t.id}</b> перенесена в «${TCOLS.find(c=>c[0]===k)[1].toLowerCase()}». Изменение записано в историю карточки.`)}
+function openTask(id){const t=TASKS.find(x=>x.id===id);if(!t)return;
+ openD(`${t.id} · ${esc(t.t)}`,`${t.who} · срок ${t.due} · приоритет ${PRN[t.pr]}${t.sku?' · товар '+t.sku:''}`,
+ [['Задача',`taskTab('${id}','m')`,true],[`Комментарии (${t.cm.length})`,`taskTab('${id}','c')`],['История',`taskTab('${id}','h')`]],
+ taskBody(id,'m'))}
+function taskTab(id,tab){const t=TASKS.find(x=>x.id===id);
+ document.getElementById('dtabs').innerHTML=[['Задача','m'],[`Комментарии (${t.cm.length})`,'c'],['История','h']]
+  .map(x=>`<button class="dtab ${x[1]===tab?'on':''}" onclick="taskTab('${id}','${x[1]}')">${x[0]}</button>`).join('');
+ document.getElementById('db').innerHTML=taskBody(id,tab)}
+function taskBody(id,tab){const t=TASKS.find(x=>x.id===id);const ds=dueState(t.due);
+ if(tab==='m')return `
+  <div class="strip" style="grid-template-columns:repeat(3,1fr)">
+   <div><small>ИСПОЛНИТЕЛЬ</small><b style="font-size:14px">${t.who}</b><span>поставил: ${t.from}</span></div>
+   <div><small>СРОК</small><b style="font-size:14px;color:${ds==='late'?'var(--red)':ds==='soon'?'var(--amber)':'inherit'}">${t.due}</b><span>${dueText(t.due,t.col)}</span></div>
+   <div><small>ПРИОРИТЕТ</small><b style="font-size:14px;color:${PRC[t.pr]}">${PRN[t.pr]}</b><span>${t.auto?'поставлена системой':'поставлена вручную'}</span></div>
+  </div>
+  <div class="panel"><div class="ph-title">Описание</div><p class="mini" style="margin-top:4px">${esc(t.d)}</p></div>
+  <div class="panel"><div class="ph"><div><div class="ph-title">Чек-лист</div><div class="ph-sub">${t.chk.filter(c=>c[1]).length} из ${t.chk.length} выполнено</div></div></div>
+   ${t.chk.map((c,i)=>`<div class="chk click ${c[1]?'':'no'}" onclick="toggleChk('${id}',${i})"><i>${c[1]?'✓':'○'}</i><span style="${c[1]?'color:var(--muted)':''}">${esc(c[0])}</span></div>`).join('')}
+   <div class="bar" style="margin-top:9px"><i style="--w:${Math.round(t.chk.filter(c=>c[1]).length/t.chk.length*100)}%;background:var(--green)"></i></div>
+  </div>
+  <div class="btns">
+   ${t.col!=='done'?`<button class="btn g" onclick="moveTask('${id}','done')">Закрыть задачу</button>`:''}
+   ${t.col==='new'?`<button class="btn acc" onclick="moveTask('${id}','work')">Взять в работу</button>`:''}
+   ${t.col==='work'?`<button class="btn acc" onclick="moveTask('${id}','check')">На проверку</button>`:''}
+   <button class="btn" onclick="toast('Исполнитель изменён. Новому исполнителю ушло уведомление, прежний остаётся в наблюдателях.')">Переназначить</button>
+   <button class="btn" onclick="toast('Срок перенесён. Перенос виден в истории задачи вместе с автором — сроки не переписываются задним числом незаметно.')">Перенести срок</button>
+   ${t.sku?`<button class="btn" onclick="closeD();go('catalog');setTimeout(()=>openItem('${t.sku}'),200)">Открыть товар ${t.sku}</button>`:''}
+  </div>`;
+ if(tab==='c')return `
+  <div class="panel"><div class="ph-title">Комментарии</div>
+   ${t.cm.length?t.cm.map(c=>{const u=USERS[c[0]]||['СИ','c'];
+    return `<div class="cmt"><span class="ava ${u[1]}">${u[0]}</span><div class="cb"><div class="ch"><b>${c[0]}</b><span>${c[1]}</span></div><p>${esc(c[2])}</p></div></div>`}).join('')
+    :'<p class="mini">Комментариев пока нет.</p>'}
+   <div class="cinput"><input id="ci-${id}" placeholder="Написать комментарий…" onkeydown="if(event.key==='Enter')addComment('${id}')">
+    <button class="btn acc" onclick="addComment('${id}')">Отправить</button></div>
+   <div class="note" style="--tone:var(--acc)"><b>Переписка остаётся в задаче</b><p>Не в личном чате и не в переписке по почте. Через полгода видно, почему фотографию переснимали и кто это согласовал.</p></div>
+  </div>`;
+ return `
+  <div class="panel"><div class="ph-title">История</div>
+   ${t.hist.map(h=>`<div class="kv"><span class="mono" style="font-size:9.4px">${h[0]}</span><span style="flex:1;text-align:left;font-size:10px;color:var(--muted)">${esc(h[1])}</span></div>`).join('')}
+   <div class="note" style="--tone:var(--green)"><b>Записи не удаляются</b><p>Перенос срока, смена исполнителя, закрытие — всё фиксируется с автором и временем.</p></div>
+  </div>`}
+function toggleChk(id,i){const t=TASKS.find(x=>x.id===id);t.chk[i][1]=t.chk[i][1]?0:1;
+ t.hist.push(['02.09 сейчас',`${t.chk[i][1]?'отмечен':'снят'} пункт «${t.chk[i][0]}»`]);
+ taskTab(id,'m');if(cur==='tasks')render();
+ const done=t.chk.filter(c=>c[1]).length;
+ if(done===t.chk.length)toast(`Все пункты чек-листа задачи <b>${id}</b> выполнены. Можно переводить на проверку.`)}
+function addComment(id){const el=document.getElementById('ci-'+id);const v=(el&&el.value||'').trim();
+ const t=TASKS.find(x=>x.id===id);
+ t.cm.push([ME[role]==='Руководитель'?'Администратор':ME[role],'02.09 сейчас',v||'Принято, беру в работу.']);
+ t.hist.push(['02.09 сейчас','добавлен комментарий']);
+ taskTab(id,'c');
+ toast('Комментарий добавлен. Исполнителю и постановщику ушло уведомление — переписка по задаче хранится в самой задаче.')}
+function moveTask(id,col){const t=TASKS.find(x=>x.id===id);const was=t.col;t.col=col;
+ t.hist.push(['02.09 сейчас',`перенесена из «${TCOLS.find(c=>c[0]===was)[1].toLowerCase()}» в «${TCOLS.find(c=>c[0]===col)[1].toLowerCase()}»`]);
+ closeD();if(cur==='tasks')render();
+ if(col==='done'){sparks();toast(`Задача <b>${id}</b> закрыта. Уведомление ушло постановщику (${t.from}).`)}
+ else toast(`Задача <b>${id}</b> перенесена в «${TCOLS.find(c=>c[0]===col)[1].toLowerCase()}».`)}
+function newTask(){const id='T-'+(tSeq++);
+ TASKS.unshift({id,t:'Новая задача по контенту',col:'new',who:ME[role]==='Руководитель'?'Асель':ME[role],from:ME[role],due:'08.09',pr:'mid',sku:'',auto:false,
+  d:'Задача создана вручную. В реальной системе здесь заполняются название, описание, исполнитель, срок, приоритет и связь с товаром.',
+  chk:[['Уточнить задачу',0],['Выполнить',0]],cm:[],hist:[['02.09 сейчас','создана вручную']]});
+ if(cur==='tasks')render();
+ toast(`Задача <b>${id}</b> создана и назначена. Исполнителю ушло уведомление, задача появилась в его списке «Мои».`)}
+function taskFromError(){const id='T-'+(tSeq++);
+ TASKS.unshift({id,t:'Исправить файлы, не прошедшие обработку',col:'new',who:'Асель',from:ME[role],due:'03.09',pr:'high',sku:'KRP-3',auto:false,
+  d:'Из очереди обработки: формат TIFF и превышение лимита 25 МБ. Пересохранить и загрузить заново.',
+  chk:[['Пересохранить файлы',0],['Загрузить заново',0],['Проверить результат',0]],cm:[],
+  hist:[['02.09 сейчас','создана из карточки ошибки в очереди обработки']]});
+ toast(`Задача <b>${id}</b> создана прямо из ошибки обработки и назначена контент-менеджеру. Ошибка перестаёт быть строкой в журнале и получает срок.`)}
+function taskForPhoto(sku){const id='T-'+(tSeq++);
+ TASKS.unshift({id,t:sku?`Снять фотографии товара ${sku}`:'Снять товары без фотографий',col:'new',who:'Тимур',from:ME[role],due:'09.09',pr:'high',sku:sku||'',auto:false,
+  d:sku?`У товара ${sku} нет ни одной фотографии — на витрине он не виден.`:'Список товаров без фото выгружен из отчёта покрытия каталога.',
+  chk:[['Отснять',0],['Загрузить по артикулу',0],['Проверить на витрине',0]],cm:[],
+  hist:[['02.09 сейчас','создана из каталога']]});
+ toast(`Задача <b>${id}</b> поставлена фотографу${sku?' по товару '+sku:''}. Срок 09.09, приоритет высокий.`)}
+
 /* ===== РЕАЛЬНАЯ ОБРАБОТКА В БРАУЗЕРЕ ===== */
 let UP=[];
 function handleFiles(files){
@@ -860,7 +1070,8 @@ const TOUR=[
  ['Программист 1С','c1','<b>Шаг 6.</b> Обмен с 1С:УТ. В базу передаются артикул, ссылки, порядок и дата изменения — файлы в 1С не попадают, база не растёт.',6600],
  ['Менеджер интернет-магазина','shop','<b>Шаг 7.</b> Витрина берёт картинки по постоянной ссылке. Заменили фото — обновилось везде, править карточки вручную не нужно.',6400],
  ['Менеджер интернет-магазина','mp','<b>Шаг 8.</b> Площадки: единый слой выгрузки. Kaspi первым, остальные подключаются по одному — ядро не переписывается.',6200],
- ['Администратор хранилища','backup','<b>Шаг 9.</b> Резервные копии базы, оригиналов и настроек, с проверкой восстановления и инструкцией, которую мы передаём вам.',6200],
+ ['Контент-менеджер','tasks','<b>Шаг 9.</b> Задачи — обычный блок CRM: доска с перетаскиванием, исполнители, сроки, чек-листы и комментарии. Ошибка обработки и товар без фото сами превращаются в задачу с ответственным.',6800],
+ ['Администратор хранилища','backup','<b>Шаг 10.</b> Резервные копии базы, оригиналов и настроек, с проверкой восстановления и инструкцией, которую мы передаём вам.',6200],
  ['Руководитель','dash','<b>Итог.</b> Одно фото — один раз, дальше его берут 1С, магазин и площадки. И главная цифра для руководителя: у скольких товаров каталога вообще нет фотографий.',7000]
 ];
 let tourT=null,tourI=0;
