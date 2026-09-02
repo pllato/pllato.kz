@@ -539,7 +539,7 @@ async function dealModalLive(d){
   const bg=openModal(`<div class="modal-h"><div class="cell-name"><span class="avatar-xs" style="width:40px;height:40px;font-size:14px;background:${avBg(d.client_name||'?')}">${initials(d.client_name||'?')}</span><div><h3>${esc(d.client_name||'—')}</h3><div class="mh-sub">${esc(d.phone||'')} ${d.client_ref?'· привязан к 1С':''}</div></div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
   <div class="dm-tabs" style="display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--line)">
     <button class="dm-tab" data-tab="details" style="background:none;border:none;border-bottom:2px solid var(--accent);color:var(--txt);font-weight:700;font-size:13px;padding:11px 12px;cursor:pointer">Детали</button>
-    <button class="dm-tab" data-tab="chat" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-weight:700;font-size:13px;padding:11px 12px;cursor:pointer;display:flex;align-items:center;gap:6px">${ic('i-phone','sm')} Чат WhatsApp</button>
+    <button class="dm-tab" data-tab="chat" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-weight:700;font-size:13px;padding:11px 12px;cursor:pointer;display:flex;align-items:center;gap:6px">${ic('i-phone','sm')} ${d.source==='Instagram'?'Чат Instagram':'Чат'}</button>
   </div>
   <div class="modal-b" id="dmTabDetails">
     <div class="fld"><label>Клиент</label><div id="dmClientZone"></div></div>
@@ -621,6 +621,8 @@ async function dealChatLoad(bg,d){
   const data=r.data||{};
   window.__waMsgReload=()=>dealChatLoad(bg,d);
   const chans=data.channels||[]; const multi=chans.length>1; const hasCh=chans.length>=1;
+  const isIg = data.ch_type==='ig';                                   // Instagram-диалог (шлём через Wazzup, GreenAPI не нужен)
+  const noContact = data.reason==='no_contact' || data.reason==='no_phone';
   const chById=Object.fromEntries(chans.map(c=>[c.id,c]));
   const dealStore=(d&&d.store_key)||data.store_key||null;
   const stores=hasCh?await fetchStores():[]; const storeName=(k)=>{ if(!k)return'без точки'; const s=stores.find(x=>x.ref_key===k); return s?s.name:'точка'; };
@@ -633,9 +635,9 @@ async function dealChatLoad(bg,d){
   const render=()=>{
     const msgs=data.messages||[]; const byE=replyMap(msgs);
     if(!msgs.length){
-      const m = data.reason==='no_phone'
-        ? 'У сделки нет телефона — укажите номер во вкладке «Детали», и переписка привяжется автоматически.'
-        : (data.connected ? 'Переписки пока нет. Напишите первым ↓'
+      const m = noContact
+        ? (isIg ? 'Диалог Instagram не найден.' : 'У сделки нет телефона — укажите номер во вкладке «Детали», и переписка привяжется автоматически.')
+        : ((isIg || data.connected) ? 'Переписки пока нет. Напишите первым ↓'
             : 'Здесь появится переписка WhatsApp с клиентом — после подключения GreenAPI в разделе «Интеграции».');
       box.innerHTML='<div class="cw-empty">'+m+'</div>';
     } else {
@@ -646,9 +648,10 @@ async function dealChatLoad(bg,d){
   };
   render();
   const ta=bg.querySelector('#dmChatInput'), sb=bg.querySelector('#dmChatSend');
-  const canSend = data.connected && data.reason!=='no_phone';
-  // селектор номера-отправителя (показываем всегда, даже если номер один)
-  if(hasCh && canSend){
+  // Instagram: слать можно, если есть привязанный тред (GreenAPI не требуется). WhatsApp: нужен подключённый GreenAPI и контакт.
+  const canSend = isIg ? !!data.thread_id : (data.connected && !noContact);
+  // селектор номера-отправителя (только для WhatsApp — у Instagram один канал)
+  if(hasCh && canSend && !isIg){
     const comp=bg.querySelector('#dmChatComp');
     if(comp && !bg.querySelector('#dmChatFrom')){
       const opts=chans.map(c=>`<option value="${esc(c.id)}" ${c.id===curChannel?'selected':''}>${esc(c.name||'WhatsApp')}${c.phone?(' · +'+esc(c.phone)):''}${c.funnel&&FUNNELS.find(f=>f.id===c.funnel)?(' · '+esc((FUNNELS.find(f=>f.id===c.funnel)||{}).name)):''}</option>`).join('')
@@ -670,12 +673,12 @@ async function dealChatLoad(bg,d){
     }
   }
   if(!canSend){
-    if(ta){ ta.disabled=true; ta.style.opacity=.55; ta.placeholder = data.reason==='no_phone' ? 'Нет телефона у сделки' : 'WhatsApp не подключён (GreenAPI)'; }
+    if(ta){ ta.disabled=true; ta.style.opacity=.55; ta.placeholder = noContact ? (isIg?'Диалог Instagram не найден':'Нет телефона у сделки') : 'WhatsApp не подключён (GreenAPI)'; }
     if(sb){ sb.disabled=true; sb.style.opacity=.45; sb.style.cursor='default'; }
     return;
   }
-  // Микрофон — только если в интеграциях GreenAPI включена отправка аудио
-  if(data.allow_audio){
+  // Микрофон — только WhatsApp (голосовые через GreenAPI) и если включена отправка аудио
+  if(data.allow_audio && !isIg){
     const comp=bg.querySelector('#dmChatComp');
     if(comp && !comp.querySelector('#dmChatMic')){
       const mic=el(`<button class="cw-send" id="dmChatMic" title="Голосовое: тап — начать запись, тап ещё раз — отправить" style="margin-right:6px">${ic('i-mic')}</button>`);
@@ -1125,6 +1128,11 @@ const _legacyInboxDemo=(c)=>{   // старый демо-инбокс (не ис
 };
 // ---------- ЧАТЫ (live · омни-чат WhatsApp/GreenAPI) ----------
 let __ibCur=null, __ibThreads=[], __ibMsgsCache={}, __ibDeal={}, __ibWrap=null, __ibChannelFilter=null, __ibAllowAudio=false, __ibChannels=[], __ibStores=[], __ibPollTimer=null;
+let __ibTotal=0, __ibHasMore=false, __ibQuery='', __ibSearchT=null, __ibLoadingMore=false;
+const IB_PAGE=60; // диалогов на страницу (пагинация «Показать ещё»)
+function ibThreadsUrl(off){ return '/api/inbox/threads?limit='+IB_PAGE+'&offset='+(off||0)+(__ibQuery?('&q='+encodeURIComponent(__ibQuery)):''); }
+async function ibLoadMore(btn){ if(__ibLoadingMore)return; __ibLoadingMore=true; if(btn){btn.disabled=true;btn.textContent='Загрузка…';} const r=await api(ibThreadsUrl(__ibThreads.length)); __ibLoadingMore=false; if(r&&r.ok&&r.data&&Array.isArray(r.data.items)){ const have=new Set(__ibThreads.map(x=>x.id)); __ibThreads=__ibThreads.concat(r.data.items.filter(x=>!have.has(x.id))); __ibTotal=r.data.total||__ibThreads.length; __ibHasMore=!!r.data.has_more; ibRenderRows(); } else if(btn){ btn.disabled=false; btn.textContent='Показать ещё'; } }
+async function ibSearchApply(q){ __ibQuery=(q||'').trim(); const r=await api(ibThreadsUrl(0)); if(!(r&&r.ok&&r.data&&Array.isArray(r.data.items)))return; __ibThreads=r.data.items; __ibTotal=r.data.total||__ibThreads.length; __ibHasMore=!!r.data.has_more; window.__inboxUnread=__ibThreads.reduce((a,t)=>a+(t.unread||0),0); renderNav(); ibRenderRows(); }
 // --- Живое обновление чата без мигания и без сброса ввода ---
 // Дорисовываем ТОЛЬКО новые сообщения и обновляем изменённые (реакции/правки/удаления) точечно,
 // не перерисовывая весь чат и не трогая поле ввода. Работает даже пока пользователь печатает.
@@ -1183,16 +1191,18 @@ async function liveInbox(c){
   __ibWrap=el(`<div class="inbox"></div>`);
   __ibWrap.innerHTML='<div class="ib-threads"></div><div class="ib-chat"></div><div class="ib-context"></div>';
   c.appendChild(__ibWrap);
-  __ibMsgsCache={}; __ibDeal={};
-  let r=await api('/api/inbox/threads'), tries=0;
+  __ibMsgsCache={}; __ibDeal={}; __ibQuery=''; __ibChannelFilter=null;
+  let r=await api(ibThreadsUrl(0)), tries=0;
   // при ошибке загрузки — НЕ показываем «нет диалогов», а авто-повторяем (транзиентный сбой)
   while(!(r&&r.ok&&r.data&&Array.isArray(r.data.items)) && tries<3 && ibAlive()){
     tries++;
     const tb=__ibWrap.querySelector('.ib-threads'); if(tb) tb.innerHTML=`<div class="empty" style="padding:34px 14px;text-align:center"><div>Загрузка диалогов…</div><div class="muted2" style="font-size:12px;margin-top:6px">попытка ${tries+1}</div></div>`;
     await new Promise(res=>setTimeout(res,1500));
-    r=await api('/api/inbox/threads');
+    r=await api(ibThreadsUrl(0));
   }
   __ibThreads=(r&&r.ok&&r.data&&Array.isArray(r.data.items))?r.data.items:[];
+  __ibTotal=(r&&r.ok&&r.data&&r.data.total)||__ibThreads.length;
+  __ibHasMore=!!(r&&r.ok&&r.data&&r.data.has_more);
   __ibAllowAudio=!!(r&&r.ok&&r.data&&r.data.allow_audio);
   __ibChannels=(r&&r.ok&&r.data&&Array.isArray(r.data.channels))?r.data.channels:[];
   if(__ibChannels.length>1) __ibStores=await fetchStores();
@@ -1206,17 +1216,17 @@ function ibAlive(){ return __ibWrap && document.body.contains(__ibWrap); }
 function ibSig(){ return (__ibThreads||[]).map(t=>t.id+':'+(t.last_ts||0)+':'+(t.unread||0)).join('|'); }
 async function ibPoll(){
   if(!ibAlive()){ if(__ibPollTimer){clearInterval(__ibPollTimer);__ibPollTimer=null;} return; }
-  const r=await api('/api/inbox/threads'); if(!(r&&r.ok&&r.data&&Array.isArray(r.data.items))) return;
+  // обновляем ВЕСЬ загруженный диапазон (не только первую страницу), сохраняя текущий поиск
+  const lim=Math.min(Math.max(__ibThreads.length,IB_PAGE),200);
+  const r=await api('/api/inbox/threads?limit='+lim+'&offset=0'+(__ibQuery?('&q='+encodeURIComponent(__ibQuery)):'')); if(!(r&&r.ok&&r.data&&Array.isArray(r.data.items))) return;
   const before=ibSig(); const prevOpenTs=(__ibThreads.find(x=>x.id===__ibCur)||{}).last_ts||0;
-  __ibThreads=r.data.items;
+  __ibThreads=r.data.items; __ibTotal=r.data.total||__ibThreads.length; __ibHasMore=!!r.data.has_more;
   if(ibSig()===before) return;
   window.__inboxUnread=__ibThreads.reduce((a,t)=>a+(t.unread||0),0); renderNav();
-  const sInp=__ibWrap.querySelector('#ibSearch'), sq=sInp?sInp.value:'';
-  ibThreadList();
-  if(sq){ const s2=__ibWrap.querySelector('#ibSearch'); if(s2){ s2.value=sq; s2.dispatchEvent(new Event('input')); } }
+  ibRenderRows();  // только строки — поле поиска не пересоздаём, фокус/ввод сохраняются
+  const hb=__ibWrap.querySelector('.ib-thead .b'); if(hb) hb.textContent=window.__inboxUnread||'';
   const openT=__ibThreads.find(x=>x.id===__ibCur);
-  // Живое обновление открытого чата — инкрементально: не мигает и НЕ сбрасывает набранный текст,
-  // даже пока менеджер печатает ответ (раньше тут стояла блокировка на inp.value — из-за неё чат «замирал»).
+  // Живое обновление открытого чата — инкрементально: не мигает и НЕ сбрасывает набранный текст.
   if(openT && (openT.last_ts||0)>prevOpenTs){ ibSyncOpen(); }
 }
 function ibChannels(){
@@ -1240,13 +1250,6 @@ function ibChanTag(t){ if(!t.channel_id && !t.chName) return ''; const ch=ibChan
 function ibChanNum(t){ const ch=ibChanOf(t); return ch&&ch.phone?('+'+ch.phone):''; }
 function ibThreadList(){
   const box=__ibWrap&&__ibWrap.querySelector('.ib-threads'); if(!box)return;
-  const flt=__ibChannelFilter?__ibThreads.filter(t=>t.channel_id===__ibChannelFilter):__ibThreads;
-  const rows=flt.map(t=>{ const nm=t.title||t.phone||'Диалог'; const on=t.id===__ibCur?'on':'';
-    return `<button class="thread ${on}" data-t="${esc(t.id)}">
-      <div class="av" style="background:${avBg(nm)}">${esc(initials(nm))}<span class="src" style="background:${ibChanColor(t.channel_id)}">${ic('i-phone','sm')}</span></div>
-      <div class="ti"><div class="tn">${esc(nm)}</div><div class="tm">${ibChanTag(t)}${esc((t.preview_dir==='out'?'✓ ':'')+(t.preview||''))}</div></div>
-      <div class="tt">${esc(cwFmtTime(t.last_ts))}</div>${t.unread?`<span class="un">${t.unread}</span>`:''}</button>`;
-  }).join('');
   const unread=__ibThreads.reduce((a,t)=>a+(t.unread||0),0);
   // Фильтр «по номеру»: чипы каналов (номеров). Показываем, когда номеров больше одного.
   const chans=(__ibChannels||[]).filter(ch=>ch&&ch.id);
@@ -1255,11 +1258,26 @@ function ibThreadList(){
       <button class="btn sm ${__ibChannelFilter==null?'primary':''}" data-chf="">Все номера${unread?(' · '+unread):''}</button>
       ${chans.map(ch=>{const u=chUnread(ch.id);return `<button class="btn sm ${__ibChannelFilter===ch.id?'primary':''}" data-chf="${esc(ch.id)}" title="${esc(ch.phone?('номер +'+ch.phone):'')}">${esc(ch.name||'WhatsApp')}${u?(' · '+u):''}</button>`;}).join('')}
     </div>`:'';
-  const emptyMsg=__ibChannelFilter?'На этом номере диалогов нет':'Пока нет диалогов';
-  box.innerHTML=`<div class="ib-thead"><span>Мессенджеры</span>${unread?`<span class="b">${unread}</span>`:''}</div>${chipRow}<div class="ib-search"><div class="fld-in">${ic('i-search','sm')}<input id="ibSearch" placeholder="Поиск диалога…"></div></div>`+(rows||('<div class="empty" style="padding:34px 14px"><div>'+emptyMsg+'</div></div>'));
-  box.querySelectorAll('.thread').forEach(b=>b.onclick=()=>{ ibOpen(b.dataset.t); if(__ibWrap && window.matchMedia('(max-width:760px)').matches) __ibWrap.classList.add('mob-chat'); });
-  const s=box.querySelector('#ibSearch'); if(s)s.oninput=()=>{const q=s.value.toLowerCase();box.querySelectorAll('.thread').forEach(b=>{const t=__ibThreads.find(x=>x.id===b.dataset.t);b.style.display=(!q||((t.title||'')+' '+(t.phone||'')).toLowerCase().includes(q))?'':'none';});};
+  box.innerHTML=`<div class="ib-thead"><span>Мессенджеры</span>${unread?`<span class="b">${unread}</span>`:''}</div>${chipRow}<div class="ib-search"><div class="fld-in">${ic('i-search','sm')}<input id="ibSearch" placeholder="Поиск по всем диалогам…" value="${esc(__ibQuery||'')}"></div></div><div class="ib-rows"></div>`;
   box.querySelectorAll('[data-chf]').forEach(b=>b.onclick=()=>{ __ibChannelFilter=b.dataset.chf||null; ibThreadList(); });
+  const s=box.querySelector('#ibSearch'); if(s){ s.oninput=()=>{ clearTimeout(__ibSearchT); __ibSearchT=setTimeout(()=>ibSearchApply(s.value), 350); }; }
+  ibRenderRows();
+}
+// Только строки диалогов (+ «Показать ещё») — вызывается при поиске/пагинации/поллинге, НЕ пересоздавая поле поиска (фокус сохраняется).
+function ibRenderRows(){
+  const box=__ibWrap&&__ibWrap.querySelector('.ib-rows'); if(!box)return;
+  const flt=__ibChannelFilter?__ibThreads.filter(t=>t.channel_id===__ibChannelFilter):__ibThreads;
+  const rows=flt.map(t=>{ const nm=t.title||t.phone||'Диалог'; const on=t.id===__ibCur?'on':'';
+    return `<button class="thread ${on}" data-t="${esc(t.id)}">
+      <div class="av" style="background:${avBg(nm)}">${esc(initials(nm))}<span class="src" style="background:${ibChanColor(t.channel_id)}">${ic('i-phone','sm')}</span></div>
+      <div class="ti"><div class="tn">${esc(nm)}</div><div class="tm">${ibChanTag(t)}${esc((t.preview_dir==='out'?'✓ ':'')+(t.preview||''))}</div></div>
+      <div class="tt">${esc(cwFmtTime(t.last_ts))}</div>${t.unread?`<span class="un">${t.unread}</span>`:''}</button>`;
+  }).join('');
+  const moreBtn=__ibHasMore?`<button class="btn sm" id="ibMore" style="margin:10px auto 8px;display:block">Показать ещё${(__ibTotal>__ibThreads.length)?(' ('+(__ibTotal-__ibThreads.length)+')'):''}</button>`:'';
+  const emptyMsg=__ibQuery?'Ничего не найдено по запросу':(__ibChannelFilter?'На этом номере диалогов нет':'Пока нет диалогов');
+  box.innerHTML=(rows||('<div class="empty" style="padding:34px 14px"><div>'+emptyMsg+'</div></div>'))+moreBtn;
+  box.querySelectorAll('.thread').forEach(b=>b.onclick=()=>{ ibOpen(b.dataset.t); if(__ibWrap && window.matchMedia('(max-width:760px)').matches) __ibWrap.classList.add('mob-chat'); });
+  const mb=box.querySelector('#ibMore'); if(mb)mb.onclick=()=>ibLoadMore(mb);
 }
 function ibChat(){
   const box=__ibWrap&&__ibWrap.querySelector('.ib-chat'); if(!box)return;
