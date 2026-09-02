@@ -5017,6 +5017,47 @@ function initGoogleBtn(tries=0){
   }catch(e){ /* GIS не загрузился (офлайн/блокировка) — остаётся вход по паролю */ }
 }
 
+// Что делать при неуспехе /api/auth/me. Токен стираем ТОЛЬКО при явном отказе авторизации (401/403).
+// Сетевой сбой (status 0) и ошибки сервера (5xx) — временные (радио спит после фона, сервер моргнул,
+// лимит D1): стирать 30-дневный вход из-за них нельзя, иначе каждое сворачивание приложения =
+// повторный ввод логина/пароля.
+function authFailAction(status){ return (status===401 || status===403) ? 'clear' : 'retry'; }
+
+// Экран «нет связи» вместо формы входа: сессия сохранена, повторный вход не потребуется.
+function showReconnect(){
+  hideLogin();
+  document.getElementById('reconnectScreen')?.remove();
+  const s=el(`<div id="reconnectScreen" style="position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:var(--bg,#0b0b0c);padding:24px">
+    <div style="max-width:320px;text-align:center;color:var(--t,#111)">
+      <div style="font-size:34px;margin-bottom:12px">📡</div>
+      <h3 style="margin:0 0 8px;font-size:18px">Нет связи с сервером</h3>
+      <p style="color:var(--muted,#888);font-size:14px;line-height:1.5;margin:0 0 18px">Вы остаётесь в системе — как только связь восстановится, повторный вход не потребуется.</p>
+      <button id="reconnectBtn" class="btn primary" style="width:100%">Повторить</button>
+    </div></div>`);
+  document.body.appendChild(s);
+  s.querySelector('#reconnectBtn').onclick=()=>{ s.querySelector('#reconnectBtn').disabled=true; restoreSession(); };
+}
+function hideReconnect(){ document.getElementById('reconnectScreen')?.remove(); }
+
+// Восстановление сессии по сохранённому токену. 3 попытки с нарастающей паузой — на случай, что при
+// возврате из фона сеть ещё не проснулась. Возвращает true при успехе.
+let __restoring=false;
+async function restoreSession(){
+  const t=getToken();
+  if(!t){ AUTH.token=null; hideReconnect(); showLogin(); return false; }
+  if(__restoring) return false; __restoring=true;
+  AUTH.token=t;
+  try{
+    for(let attempt=0; attempt<3; attempt++){
+      const me=await api('/api/auth/me');
+      if(me.ok){ hideReconnect(); applyUser(me.data.user); hideLogin(); return true; }
+      if(authFailAction(me.status)==='clear'){ setToken(null); AUTH.token=null; hideReconnect(); showLogin(); return false; }
+      await new Promise(r=>setTimeout(r, 700*(attempt+1)));  // временный сбой — подождём и повторим
+    }
+    showReconnect(); return false;   // токен валиден, но связи нет — НЕ разлогиниваем и НЕ просим пароль
+  } finally { __restoring=false; }
+}
+
 async function bootAuth(){
   const form=$('#loginForm');
   if(form) form.addEventListener('submit', e=>{ e.preventDefault();
@@ -5026,15 +5067,14 @@ async function bootAuth(){
   const uchip=document.querySelector('.user-chip .ui'); if(uchip){ uchip.style.cursor='pointer'; uchip.title='Профиль · сменить пароль'; uchip.onclick=openUserMenu; }
   const uav=document.querySelector('.user-chip #userAv'); if(uav){ uav.style.cursor='pointer'; uav.onclick=openUserMenu; }
   initGoogleBtn();
-
-  const t=getToken();
-  if(t){ AUTH.token=t; const me=await api('/api/auth/me');
-    if(me.ok){ applyUser(me.data.user); hideLogin(); return; }
-    setToken(null); AUTH.token=null;
-  }
-  showLogin();
+  await restoreSession();
 }
 bootAuth();
+
+// Возврат из фона / восстановление сети: если токен есть, а сессия ещё не поднята — тихо пробуем снова,
+// БЕЗ формы входа. Это и есть лечение «свернул приложение → снова просит логин».
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && !AUTH.user && getToken()) restoreSession(); });
+window.addEventListener('online', ()=>{ if(!AUTH.user && getToken()) restoreSession(); });
 
 // ═══════════ Web Push (пуш-уведомления на телефон) ═══════════
 (function () {
