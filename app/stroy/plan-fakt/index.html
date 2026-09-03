@@ -3563,16 +3563,20 @@ function lkAssignGroupNames(rows,labels){
   rows.forEach(r=>{if(r.group&&r.group!=='—')return;let best=null,bd=90;labels.forEach(l=>{const d=Math.abs((r.x||0)-l.x);if(d<bd){bd=d;best=l;}});if(best)r.group=best.name;});
 }
 async function lkRenderPage(page){
-  const v0=page.getViewport({scale:1});const sc=Math.min(5.5,4400/Math.max(v0.width,v0.height));
-  const vp=page.getViewport({scale:sc});const c=document.createElement('canvas');
-  c.width=Math.round(vp.width);c.height=Math.round(vp.height);const ctx=c.getContext('2d');
-  ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
-  // таймаут: титульники САПР с тысячами глифов рендерятся минутами и вешают очередь —
-  // отменяем и показываем заглушку (кнопка «Обновить» перезапустит, «PDF ⤢» откроет оригинал)
-  const task=page.render({canvasContext:ctx,viewport:vp});
-  const to=setTimeout(()=>{try{task.cancel();}catch(_){}},60000);
-  try{await task.promise;}finally{clearTimeout(to);}
-  return c.toDataURL('image/png');
+  const v0=page.getViewport({scale:1});
+  // Рендерим в УМЕРЕННОМ разрешении: холст 4400px (≈14 млн пикселей) тяжёлые вектор-листы САПР
+  // рисуют дольше таймаута и лист остаётся ПУСТЫМ. 2400px читается и на зуме, но рисуется быстро.
+  // Если и это не успело (очень тяжёлый лист) — падаем на низкое разрешение, чтобы был хоть какой-то лист.
+  const attempt=async(maxpx,timeoutMs)=>{
+    const sc=Math.min(3,maxpx/Math.max(v0.width,v0.height)),vp=page.getViewport({scale:sc});
+    const c=document.createElement('canvas');c.width=Math.round(vp.width);c.height=Math.round(vp.height);
+    const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
+    const task=page.render({canvasContext:ctx,viewport:vp});
+    const to=setTimeout(()=>{try{task.cancel();}catch(_){}},timeoutMs);
+    try{await task.promise;}finally{clearTimeout(to);}
+    return c.toDataURL('image/jpeg',0.85);
+  };
+  try{return await attempt(1800,50000);}catch(e){return await attempt(1100,40000);}
 }
 /* Источник листа. Приоритет — имя из ШТАМПА («…однолинейная схема ЩО-2(1).» → ЩО-2(1)):
    так источник есть и у щитовых листов, не только у ВРУ. Дальше — прежние правила ВРУ */
