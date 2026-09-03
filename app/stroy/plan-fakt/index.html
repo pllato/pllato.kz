@@ -2491,8 +2491,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v470';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v426';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v471';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v427';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -2649,7 +2649,7 @@ function lkParseLines(lines,hmeta){
   // геометрические сегменты строго начинаются с «имя;». Проверяем такие сегменты тоже —
   // иначе из ряда «0,7 … гр.ОЛ17-н2 … гр.ОЛ19-н2» читался только одиночный соседний паспорт.
   const isName=(l,idx)=>LK_NAME.test(l)||!!(hmeta&&hmeta[idx]&&hmeta[idx].segs&&hmeta[idx].segs.some(sg=>LK_NAME.test(sg.s)));
-  function pushCell(cell,x,y){
+  function pushCell(cell,x,y,strict){
     const nm=cell[0].match(LK_NAME);if(!nm)return;const name=lkName(nm),blob=cell.join('  ');
     let sect=null,mark='';for(const c of cell){if(LK_MARK.test(c)){const s=c.match(LK_SECT);if(s){sect=s[1]+'x'+s[2];mark=lkMarkName(c);break;}}}
     if(!sect){const s=blob.match(LK_SECT);if(s)sect=s[1]+'x'+s[2];}
@@ -2657,7 +2657,9 @@ function lkParseLines(lines,hmeta){
     let L=null;const dm=[...cell[0].matchAll(LK_LEN_DASH)];if(dm.length)L=dm[dm.length-1][1];
     if(L==null){for(let k=1;k<cell.length;k++){if(/п\.?г|з\.?п|т\.?с|г\.?т|п\.?п/i.test(cell[k]))continue;const mm=cell[k].match(/(\d+(?:[,.]\d+)?)\s*м/);if(mm){L=mm[1];break;}}}
     const conds=[];for(const c of cell){let m;LK_COND_RX.lastIndex=0;while((m=LK_COND_RX.exec(c)))conds.push({t:lkCondName(m[1])+m[2],len:parseFloat(m[3].replace(',','.'))});}
-    if(sect&&L!=null)rows.push({group:name,mark,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:x||0,y:y||0,mult:lkMult(blob)});
+    // strict (одиночное имя за чужими колонками): без НАСТОЯЩЕЙ марки кабеля не пишем — иначе
+    // из соседней колонки размеров рождается фантом («ЩРА9.3 · 500x500 · 170», 022 л.37)
+    if(sect&&L!=null&&(!strict||mark))rows.push({group:name,mark,section:sect.replace('.',','),len:parseFloat(String(L).replace(',','.')),conds,x:x||0,y:y||0,mult:lkMult(blob)});
   }
   let i=0;
   while(i<lines.length){
@@ -2665,7 +2667,13 @@ function lkParseLines(lines,hmeta){
     const meta=hmeta&&hmeta[i];
     const segs=(meta&&meta.segs&&meta.segs.length)?meta.segs:[{x:(meta&&meta.pos?meta.pos.x:0),y:(meta&&meta.pos?meta.pos.y:0),s:lines[i]}];
     const nameSegs=segs.filter(sg=>isName(sg.s));
-    if(nameSegs.length>=2){
+    // Колоночный разбор нужен и когда имя ОДНО, но перед ним в той же физической строке стоят
+    // ЧУЖИЕ колонки (2724 л.5: паспорт «ПД17-н2;…» на одной высоте с полосой «Пятно 17 Пятно 18…»
+    // и рядами «ШУ-ПУНВ(Ж)…» — целой строкой марка/длина тонут в чужом тексте, фидер терялся).
+    // Условие «имя НЕ первый сегмент» отсекает обычные подписи (имя слева, данные за ним) — их
+    // по-прежнему читает ветка целой строки; берём только сегмент-колонку имени и X-выровненные ниже.
+    const _nameNotFirst=nameSegs.length===1&&segs.length>=2&&nameSegs[0].x>segs[0].x+1;
+    if(nameSegs.length>=2 || _nameNotFirst){
       // колоночный ряд: несколько фидеров бок о бок в одной строке — разбить по колонкам
       used.add(i);const body=[];let j=i+1;
       // осколок ТОГО ЖЕ ряда: имя-строка в ≤5пт по Y — y-бакеты (±2пт) разносят один физический ряд
@@ -2677,7 +2685,7 @@ function lkParseLines(lines,hmeta){
       while(j<lines.length&&!isName(lines[j],j)&&body.length<3){body.push((hmeta[j]&&hmeta[j].segs)||[{x:0,y:0,s:lines[j]}]);used.add(j);j++;}
       nameSegs.forEach(ns=>{const cell=[ns.s];
         body.forEach(bs=>{const m=bs.filter(sg=>Math.abs(sg.x-ns.x)<75).sort((a,b)=>Math.abs(a.x-ns.x)-Math.abs(b.x-ns.x))[0];if(m)cell.push(m.s);});
-        pushCell(cell,ns.x,ns.y);});
+        pushCell(cell,ns.x,ns.y,_nameNotFirst);});
       i=j;
     } else {
       const cell=[lines[i]];used.add(i);let j=i+1;
