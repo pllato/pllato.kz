@@ -268,6 +268,15 @@ function dashDayChart(rows){
   return `<div class="day-chart" style="display:flex;align-items:flex-end;gap:3px;height:120px;padding:10px 2px 4px">${rows.map(p=>`<div class="day-bar" data-d="${esc(p.d)}" data-rev="${p.revenue||0}" onmouseenter="dcTip(event,this)" onmousemove="dcTip(event,this)" onmouseleave="dcTipHide()" style="flex:1;min-width:3px;background:linear-gradient(180deg,var(--accent2),var(--accent));border-radius:3px 3px 0 0;height:${Math.max(2,Math.round((p.revenue||0)/max*100))}%;cursor:pointer;transition:filter .1s"></div>`).join('')}</div>`;
 }
 function fmtBytes(b){ b=Number(b)||0; if(b<1024)return b+' Б'; const u=['КБ','МБ','ГБ','ТБ']; let i=-1; do{ b/=1024; i++; }while(b>=1024&&i<u.length-1); return (b<10?b.toFixed(1):Math.round(b))+' '+u[i]; }
+// Предупреждение, если номер-отправитель не работает (истекла подписка GreenAPI / слетела авторизация).
+// Состояние приходит с бэка в channels[].state (обновляет cron). Показываем ДО попытки отправки.
+function chWarnHtml(c){
+  if(!c || !c.state || c.state==='authorized') return '';
+  const msg = /expired/i.test(c.state)
+    ? '<b>Подписка GreenAPI для этого номера истекла.</b> Оплатите (продлите) её в личном кабинете GreenAPI — пока она не оплачена, сообщения не отправляются и входящие не приходят.'
+    : 'Номер не подключён (<b>'+esc(c.state)+'</b>) — переподключите его в разделе «Интеграции».';
+  return `<div style="margin:6px 10px;padding:9px 11px;border-radius:9px;background:rgba(220,38,38,.13);border:1px solid #dc2626;color:#fca5a5;font-size:12px;line-height:1.45">⚠️ ${msg}</div>`;
+}
 async function loadDash(wrap,qs){
   const fmt=(n)=>(n||0).toLocaleString('ru-RU');
   wrap.innerHTML=`<div class="muted2" style="padding:10px">Загрузка…</div>`;
@@ -658,6 +667,8 @@ async function dealChatLoad(bg,d){
         +`<option disabled>──────────</option><option value="__add">＋ нужен доп. номер? добавьте в «Интеграции»</option>`;
       const fromBar=el(`<div class="cw-from" id="dmChatFrom">${ic('i-phone','sm')} <span class="muted2">Отправитель:</span> <select class="sel sm">${opts}</select></div>`);
       comp.parentNode.insertBefore(fromBar, comp);
+      // предупреждение о нерабочем номере (истекла подписка / нет авторизации) — до попытки отправки
+      { const w=chWarnHtml(chById[curChannel]); if(w) comp.parentNode.insertBefore(el(`<div id="dmChWarn">${w}</div>`), comp); }
       const sel=fromBar.querySelector('select'); let prevVal=curChannel;
       sel.onchange=async()=>{
         if(sel.value==='__add'){ sel.value=prevVal||''; closeModal(); go('integrations'); toast('Добавьте номер: «Добавить номер»','i-phone'); return; }
@@ -1301,6 +1312,7 @@ function ibChat(){
   box.innerHTML=`<div class="chat-h"><button class="ib-back" title="К списку диалогов"><svg class="svg-i sm" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button><div class="av" style="background:${avBg(nm)}">${esc(initials(nm))}</div>
       <div><div style="font-weight:700;font-size:14px">${esc(nm)}</div><div class="muted" style="font-size:11.5px">${ibChanTag(t)}<span class="muted2">${ibChanNum(t)?('на '+esc(ibChanNum(t))):(t.ch==='ig'?'Instagram · Wazzup':'WhatsApp · GreenAPI')}${t.phone?(' · клиент +'+esc(t.phone)):''}</span></div></div>
       <div class="spacer"></div></div>
+    ${chWarnHtml(sendChans.find(c=>c.id===t._sendCh))}
     <div class="chat-body" id="ibChatBody">${bodyHtml}</div>
     ${fromBar}${igCommentHint}
     <div class="chat-input"><input type="file" id="ibFile" accept="image/*,video/*,audio/*,application/pdf" style="display:none"><button class="btn" id="ibAttach" title="Прикрепить фото/видео/файл">${ic('i-paperclip','sm')}</button><div class="ci-box"><textarea id="ibMsgInput" rows="1" placeholder="Сообщение в ${t.ch==='ig'?'Instagram':'WhatsApp'}…"></textarea></div><button class="btn" id="ibEmoji" title="Смайлики">😊</button><button class="btn" id="ibTpl" title="Вставить шаблон">${ic('i-doc','sm')}</button>${__ibAllowAudio?`<button class="btn primary" id="ibMic" title="Голосовое: тап — запись, тап ещё раз — отправить">${ic('i-mic','sm')}</button>`:''}<button class="btn primary" id="ibSendBtn">${ic('i-send','sm')}</button></div>`;
