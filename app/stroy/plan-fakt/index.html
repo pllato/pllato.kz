@@ -2491,8 +2491,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v468';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v425';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v470';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v426';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -3499,6 +3499,16 @@ function lkParseMarkFeedersH(items){
       ||jc.match(/-\s*(\d+(?:[,.]\d+)?)\s*м(?!м)/i)||jc.match(/L\s*=\s*(\d+(?:[,.]\d+)?)\s*м(?!м)/i)
       ||jc.match(/(?:^|\s)(\d+(?:[,.]\d+)?)\s*м(?![А-Яа-яЁёA-Za-z0-9])/);   // голое «55м» в строке фидера (2435 S1)
     if(lm){len=parseFloat(lm[1].replace(',','.'));clean=true;}
+    if(!clean){ // 2435: длина = САМОЕ ПРАВОЕ число паспорта («длина берётся сверху справа» — правило юзера).
+      // Достоверность: момент (крайнее ЛЕВОЕ поле) ≈ P (среднее поле) × L (правое). Момент подтверждает,
+      // что правое поле — это длина, а не «пг40 10м»-труба под маркой (S2/S5 л.7) и не число жил
+      // (022: справа «3», но момент 43 = P×3 отсутствует → правило молчит, читает прежняя логика).
+      const pn=s=>{const t=String(s).trim().replace(/\s+/g,'.');return /^\d+(?:\.\d+)?$/.test(t)?parseFloat(t):NaN;};
+      const nums=It.filter(o=>o.rot==='H'&&Math.abs(o.y-mk.y)<=17&&o.x>mk.x-70&&o.x<mk.x+95)
+        .map(o=>({v:pn(o.s),x:o.x})).filter(o=>Number.isFinite(o.v)&&o.v>0).sort((a,b)=>a.x-b.x);
+      if(nums.length>=3){const left=nums[0],right=nums[nums.length-1];
+        if(right.v>5&&right.v<=300&&nums.slice(1,-1).some(m=>{const w=m.v*right.v;return w>=10&&Math.abs(w-left.v)<=Math.max(1,w*0.03);})){
+          len=right.v;clean=true;}}}
     if(!clean){ // длина в строке-ПЕРЕНОСЕ той же подписи (S5-2435 л.7: «пг40 10м» строкой ниже марки); только слитное «10м»
       const cand=It.filter(o=>o.rot==='H'&&o!==mk&&Math.abs(o.x-mk.x)<150&&Math.abs(o.y-mk.y)>=6&&Math.abs(o.y-mk.y)<=16
         &&/^-?\d+(?:[,.]\d+)?м$/.test(o.s.replace(LK_COND_RX,'').trim()))
