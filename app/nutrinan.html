@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>NUTRINAN · портал управления пекарней · демо</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍞</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+ --bg:#f6f3ea;--card:#fff;--card2:#faf8f2;--card3:#efeade;--rail:#17261d;--rail2:#1f3327;
+ --text:#16211a;--muted:#5f6d63;--muted2:#8b978d;--line:#e3ddcd;--line2:#d3cbb7;
+ --acc:#27714a;--acc2:#3d9466;--accl:#e5f0e8;--wheat:#c98a25;--green:#2e9e5f;--amber:#d98324;--red:#c9453f;--violet:#7c5bd6;--blue:#2f6fb8;--r:12px;--shadow:0 8px 24px #16211a12;
+}
+body.dark{
+ --bg:#0f1613;--card:#17211c;--card2:#1d2a23;--card3:#243228;--rail:#0a100d;--rail2:#131e18;
+ --text:#e8f0ea;--muted:#93a399;--muted2:#6d7c73;--line:#25332b;--line2:#314237;--accl:#132a1f;--shadow:0 8px 24px #0006;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Manrope,system-ui,sans-serif;-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden;transition:background .2s}
+button,select,input{font-family:inherit;color:inherit;cursor:pointer}
+button{border:0;background:none}
+a{text-decoration:none;color:inherit}
+.mono{font-family:'IBM Plex Mono',monospace}
+.hidden{display:none!important}
+
+/* ГЕЙТ */
+.gate{height:100vh;display:grid;grid-template-columns:1.05fr .95fr;background:var(--rail);color:#dfe8e1;overflow:auto}
+.gate-l{padding:44px 46px;display:flex;flex-direction:column;justify-content:center}
+.logo{font:800 34px Manrope,sans-serif;letter-spacing:-.03em;color:#4ea87a}
+.logo span{color:#8fd0a9}
+.gate h1{font-size:34px;line-height:1.08;letter-spacing:-.03em;margin:16px 0 11px;color:#fff}
+.gate h1 em{font-style:normal;color:#8fd0a9}
+.gate p{font-size:12.4px;line-height:1.72;color:#a6b6ac;max-width:566px;margin:0 0 9px}
+.gtag{display:inline-block;font:700 8.4px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#e0b871;text-transform:uppercase;border:1px solid #4a3c1e;background:#2a2113;padding:5px 9px;border-radius:20px}
+.gstat{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-top:20px;border-top:1px solid #2a3b31;padding-top:16px}
+.gstat small{display:block;font:700 6.8px 'IBM Plex Mono',monospace;color:#6d8175;letter-spacing:.08em}
+.gstat b{display:block;font-size:15.5px;margin-top:4px;color:#fff}
+.gstat b.a{color:#8fd0a9}
+.gate-r{background:var(--rail2);padding:34px;overflow:auto;border-left:1px solid #2a3b31}
+.gate-r h2{font-size:12.6px;margin:0 0 4px;color:#fff}
+.gate-r>p{font-size:10.4px;color:#8d9c93;margin:0 0 15px}
+.roles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.role{text-align:left;background:#1b2c22;border:1px solid #2c4034;border-radius:11px;padding:12px 13px;transition:.14s}
+.role:hover{border-color:var(--acc2);background:#22362a;transform:translateY(-1px)}
+.role code{font:700 7px 'IBM Plex Mono',monospace;color:#8fd0a9;letter-spacing:.1em}
+.role b{display:block;font-size:11.8px;color:#fff;margin:5px 0 3px}
+.role span{font-size:9.4px;color:#8d9c93;line-height:1.5;display:block}
+
+/* ОБОЛОЧКА */
+.shell{display:grid;grid-template-columns:244px 1fr;height:100%}
+.rail{background:var(--rail);color:#c6d3ca;display:flex;flex-direction:column;overflow:hidden}
+.rail-top{padding:14px 15px 11px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #2a3b31}
+.rail-top .lg{font:800 17px Manrope,sans-serif;color:#4ea87a;letter-spacing:-.02em;line-height:1}
+.rail-top small{font:600 6.8px 'IBM Plex Mono',monospace;color:#6d8175;letter-spacing:.12em;display:block;margin-top:3px}
+.scope{padding:9px 12px;border-bottom:1px solid #2a3b31}
+.scope select{width:100%;border:1px solid #2c4034;background:#1b2c22;color:#e2ede6;padding:7px 9px;font-size:10.4px;border-radius:8px;font-weight:700}
+.nav{flex:1;overflow-y:auto;padding:8px 9px 14px}
+.nav-g{font:700 6.8px 'IBM Plex Mono',monospace;color:#5d7166;letter-spacing:.14em;padding:11px 10px 5px}
+.nav a{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:9px;font-size:11.5px;color:#bccdc2;transition:.13s;cursor:pointer;font-weight:600}
+.nav a i{width:19px;font-style:normal;font-size:13px;text-align:center;flex:none}
+.nav a:hover{background:#22362a;color:#fff}
+.nav a.on{background:var(--acc);color:#fff}
+.nav a .b{margin-left:auto;background:var(--red);color:#fff;font:700 7.6px 'IBM Plex Mono',monospace;padding:2px 6px;border-radius:20px}
+.nav a.on .b{background:#ffffff33}
+.rail-user{padding:11px 13px;border-top:1px solid #2a3b31;display:flex;align-items:center;gap:9px}
+.rail-av{width:31px;height:31px;border-radius:50%;background:var(--acc);display:grid;place-items:center;font:800 9.6px 'IBM Plex Mono',monospace;color:#fff;flex:none}
+.rail-user b{font-size:11px;color:#fff;display:block}
+.rail-user small{font-size:8.6px;color:#6d8175;display:block}
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.topbar{background:var(--card);border-bottom:1px solid var(--line);padding:11px 20px;display:flex;align-items:center;gap:12px;flex:none}
+.topbar h1{font-size:16px;margin:0;letter-spacing:-.02em}
+.topbar p{margin:1px 0 0;font-size:10.4px;color:var(--muted)}
+.tb-r{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tbtn{border:1px solid var(--line2);background:var(--card2);padding:8px 11px;font-size:10.6px;font-weight:700;border-radius:9px;white-space:nowrap}
+.tbtn:hover{border-color:var(--acc)}
+.tbtn.acc{background:var(--acc);border-color:var(--acc);color:#fff}
+.tbtn.wa{background:#e7f6ec;border-color:#a9dfbe;color:#166534}
+body.dark .tbtn.wa{background:#0d2a1b;border-color:#1d5333;color:#7ee2a8}
+.rsel{border:1px solid var(--line2);background:var(--card2);padding:8px 10px;font-size:10.8px;border-radius:9px;font-weight:600}
+.content{flex:1;overflow-y:auto;padding:17px 20px 30px}
+.screen{animation:fade .22s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ТИПОГРАФИКА */
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:13px;flex-wrap:wrap}
+.head h2{font-size:20px;margin:0 0 4px;letter-spacing:-.024em}
+.head p{margin:0;font-size:11.4px;color:var(--muted);line-height:1.6;max-width:900px}
+.btns{display:flex;gap:7px;flex-wrap:wrap}
+.btn{border:1px solid var(--line2);background:var(--card);padding:8px 12px;font-size:10.8px;font-weight:700;border-radius:9px}
+.btn:hover{border-color:var(--acc)}
+.btn.acc{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.g{background:var(--green);border-color:var(--green);color:#fff}
+.btn.r{background:var(--red);border-color:var(--red);color:#fff}
+.btn.w{background:var(--wheat);border-color:var(--wheat);color:#fff}
+.mini{font-size:10px;color:var(--muted);line-height:1.55}
+.sub{font-size:9.4px;color:var(--muted2);margin-top:2px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 15px;margin-bottom:11px}
+.ph{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
+.ph-title{font-size:12.6px;font-weight:800;letter-spacing:-.01em}
+.ph-sub{font-size:9.6px;color:var(--muted);margin-top:2px}
+.g21{display:grid;grid-template-columns:1.6fr 1fr;gap:11px;margin-bottom:11px}
+.g12{display:grid;grid-template-columns:1fr 1.6fr;gap:11px;margin-bottom:11px}
+.g11{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-bottom:11px}
+@media(max-width:1240px){.g21,.g12,.g11,.g3{grid-template-columns:1fr}}
+
+/* МЕТРИКИ */
+.strip{display:grid;grid-template-columns:repeat(5,1fr);background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:11px}
+.strip>div{padding:12px 14px;border-left:1px solid var(--line)}
+.strip>div:first-child{border-left:0}
+.strip small{display:block;font:700 6.8px 'IBM Plex Mono',monospace;color:var(--muted2);letter-spacing:.08em}
+.strip b{display:block;font-size:20px;margin-top:5px;letter-spacing:-.03em}
+.strip b.a{color:var(--acc)}.strip b.w{color:var(--wheat)}.strip b.g{color:var(--green)}.strip b.r{color:var(--red)}.strip b.v{color:var(--violet)}
+.strip span{font-size:9.2px;color:var(--muted);display:block;margin-top:2px}
+.strip span.g{color:var(--green)}.strip span.r{color:var(--red)}
+@media(max-width:1240px){.strip{grid-template-columns:repeat(2,1fr)}.strip>div{border-bottom:1px solid var(--line)}}
+
+/* ТАБЛИЦЫ */
+.tw{overflow-x:auto}
+table.data{width:100%;border-collapse:collapse}
+table.data th{text-align:left;font:700 7.6px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;padding:9px 11px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card2)}
+table.data td{padding:10px 11px;border-bottom:1px solid var(--line);font-size:10.6px;vertical-align:middle}
+table.data tr{cursor:pointer}
+table.data tbody tr:hover{background:var(--card2)}
+table.data td.right,table.data th.right{text-align:right}
+.mono,td.mono{font-family:'IBM Plex Mono',monospace;font-size:10px}
+.badge{display:inline-block;font:700 7.6px 'IBM Plex Mono',monospace;padding:3px 7px;border-radius:20px;background:var(--card3);color:var(--muted);white-space:nowrap}
+.badge.g{background:#dff2e6;color:#14663f}.badge.a{background:#fbeed9;color:#8a5312}.badge.r{background:#fbe4e3;color:#9e2f2b}
+.badge.b{background:#e2edf9;color:#1c4f8b}.badge.v{background:#eee8fc;color:#5b3bb0}.badge.w{background:#fbf0dc;color:#8a5f12}
+body.dark .badge.g{background:#0d2a1b;color:#6fe0a8}body.dark .badge.a{background:#33240d;color:#f0b160}
+body.dark .badge.r{background:#331716;color:#f0908b}body.dark .badge.b{background:#12233a;color:#8bb8e8}
+body.dark .badge.v{background:#221a3d;color:#bfa3ff}body.dark .badge.w{background:#2e230e;color:#e0b871}
+
+/* ЗАМЕТКИ */
+.note{border-left:3px solid var(--tone,var(--acc));background:var(--card2);border-radius:0 10px 10px 0;padding:9px 12px;margin-top:10px}
+.note b{font-size:10.4px;display:block;margin-bottom:2px}
+.note p{margin:0;font-size:10px;color:var(--muted);line-height:1.6}
+.hint{background:var(--accl);border-left:3px solid var(--acc);border-radius:0 10px 10px 0;padding:10px 13px;font-size:10.4px;line-height:1.65;margin-top:11px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:10.6px}
+.kv:last-child{border:0}
+.kv b{font-weight:800;text-align:right}
+.bar{height:9px;background:var(--card3);border-radius:5px;overflow:hidden}
+.bar i{display:block;height:100%;width:var(--w);background:var(--acc);border-radius:5px}
+.fr{display:grid;grid-template-columns:200px 1fr 104px;gap:10px;align-items:center;margin-bottom:8px}
+.fr span{font-size:10.2px}.fr b{text-align:right;font:700 9.8px 'IBM Plex Mono',monospace}
+
+/* КАНБАН */
+.board{display:grid;gap:10px;align-items:start}
+.col{background:var(--card2);border:1px solid var(--line);border-radius:var(--r);padding:10px;min-height:150px;transition:.15s}
+.col.over{border-color:var(--acc);background:var(--accl)}
+.col-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+.col-h b{font:600 8.2px 'IBM Plex Mono',monospace;letter-spacing:.07em}
+.col-h span{font:700 8px 'IBM Plex Mono',monospace;color:var(--muted2);background:var(--card3);padding:2px 7px;border-radius:20px}
+.kc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 10px;margin-bottom:7px;cursor:grab;transition:.14s;border-left:3px solid var(--pr,var(--line2))}
+.kc:hover{border-color:var(--line2);box-shadow:var(--shadow);transform:translateY(-1px)}
+.kc.drag{opacity:.4}
+.kc b{font-size:10.6px;line-height:1.35;display:block}
+.kc .kmeta{font-size:9px;color:var(--muted);margin-top:4px;line-height:1.45}
+.kc .krow{display:flex;justify-content:space-between;align-items:center;margin-top:7px;gap:6px}
+.ava{width:20px;height:20px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;font:700 7.6px 'IBM Plex Mono',monospace;flex:none}
+.ava.w{background:var(--wheat)}.ava.v{background:var(--violet)}.ava.b{background:var(--blue)}.ava.r{background:var(--red)}
+.due{font:700 8.2px 'IBM Plex Mono',monospace;color:var(--muted)}
+.due.late{color:var(--red)}.due.soon{color:var(--amber)}
+.tflt{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+.tf{border:1px solid var(--line2);background:var(--card);padding:6px 11px;font-size:10.2px;font-weight:700;border-radius:20px}
+.tf.on{background:var(--acc);border-color:var(--acc);color:#fff}
+
+/* ЦЕПОЧКА / СХОДИМОСТЬ */
+.chain{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:9px 0}
+.chain .cs{border:1px solid var(--line);background:var(--card2);border-radius:9px;padding:7px 11px;font-size:9.8px;font-weight:700}
+.chain .cs.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.chain .ca{color:var(--muted2);font-size:12px}
+.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin:10px 0}
+.fb{border:1px solid var(--line);border-radius:11px;padding:11px;background:var(--card2);position:relative}
+.fb.on{background:var(--rail);border-color:var(--rail);color:#fff}
+.fb code{font:700 6.8px 'IBM Plex Mono',monospace;color:var(--acc);letter-spacing:.1em}
+.fb.on code{color:#8fd0a9}
+.fb b{display:block;font-size:15px;margin:5px 0 2px;letter-spacing:-.02em}
+.fb p{margin:0;font-size:9px;line-height:1.5;color:var(--muted)}
+.fb.on p{color:#a6b6ac}
+@media(max-width:1240px){.flow{grid-template-columns:1fr 1fr}}
+.gap{background:#fbe4e3;border:1px solid #f2c4c1;border-radius:11px;padding:11px 13px;margin:9px 0}
+body.dark .gap{background:#331716;border-color:#4a2321}
+.gap b{font-size:11px;display:block;color:var(--red)}
+.gap p{margin:3px 0 0;font-size:10px;line-height:1.55;color:var(--muted)}
+
+/* ЧЕК-ЛИСТ */
+.chk{display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+.chk:last-child{border:0}
+.chk i{width:19px;height:19px;border-radius:6px;display:grid;place-items:center;font-size:11px;font-style:normal;color:#fff;flex:none;background:var(--green)}
+.chk.no i{background:var(--muted2)}
+.chk span{font-size:10.4px;line-height:1.55}
+.chk .sub{display:block}
+.chk.click{cursor:pointer}
+
+/* КАЛЬКУЛЯТОР / ПОЗИЦИИ */
+.rows{border:1px solid var(--line);border-radius:11px;overflow:hidden}
+.rrow{display:grid;grid-template-columns:1fr 84px 96px 104px 34px;gap:9px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line);font-size:10.4px}
+.rrow:last-child{border:0}
+.rrow.h{background:var(--card2);font:700 7.6px 'IBM Plex Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em}
+.rrow input{width:100%;border:1px solid var(--line2);background:var(--card);border-radius:7px;padding:6px 8px;font-size:10.2px;text-align:right;font-family:'IBM Plex Mono',monospace}
+.rtot{display:flex;justify-content:space-between;padding:11px 12px;background:var(--card2);border-top:1px solid var(--line);font-size:12px;font-weight:800}
+.pill{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line2);background:var(--card);border-radius:20px;padding:5px 11px;font-size:10px;font-weight:700;cursor:pointer}
+.pill.on{background:var(--acc);border-color:var(--acc);color:#fff}
+
+/* ТЕЛЕФОН ВОДИТЕЛЯ */
+.phone{width:290px;border:9px solid #16211a;border-radius:28px;overflow:hidden;background:var(--card);box-shadow:var(--shadow)}
+.phone .ph-top{background:var(--acc);color:#fff;padding:11px 13px}
+.phone .ph-top b{font-size:12px;display:block}
+.phone .ph-top small{font-size:9px;opacity:.85}
+.phone .pt-item{padding:10px 13px;border-bottom:1px solid var(--line);font-size:10.4px}
+.phone .pt-item b{display:block;font-size:10.8px}
+.phone .pt-item span{font-size:9.4px;color:var(--muted)}
+.phone .pt-item.on{background:var(--accl)}
+
+/* ЧАТ AI */
+.chat{border:1px solid var(--line);border-radius:12px;background:var(--card);overflow:hidden}
+.msg{padding:11px 13px;border-bottom:1px solid var(--line);font-size:10.6px;line-height:1.6}
+.msg.u{background:var(--card2);font-weight:700}
+.msg.a b{color:var(--acc)}
+.msg .mono{font-size:9.6px}
+.cin{display:flex;gap:7px;padding:10px 12px}
+.cin input{flex:1;border:1px solid var(--line2);background:var(--card2);border-radius:9px;padding:9px 11px;font-size:10.4px}
+
+/* ДРОУЭР */
+.dbg{position:fixed;inset:0;background:#0f1613aa;backdrop-filter:blur(3px);z-index:60;opacity:0;pointer-events:none;transition:.18s}
+.dbg.show{opacity:1;pointer-events:auto}
+.drawer{position:absolute;right:0;top:0;bottom:0;width:min(720px,94vw);background:var(--bg);box-shadow:-18px 0 50px #0004;display:flex;flex-direction:column;transform:translateX(22px);transition:.2s}
+.dbg.show .drawer{transform:none}
+.drawer-h{padding:15px 19px;border-bottom:1px solid var(--line);background:var(--card);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.drawer-h h3{margin:0;font-size:15px;letter-spacing:-.02em}
+.drawer-h p{margin:3px 0 0;font-size:10.2px;color:var(--muted)}
+.dclose{font-size:19px;color:var(--muted);padding:0 4px;line-height:1}
+.dtabs{display:flex;gap:6px;padding:9px 19px;border-bottom:1px solid var(--line);background:var(--card);overflow-x:auto}
+.dtab{font-size:10.2px;font-weight:700;padding:6px 11px;border-radius:8px;color:var(--muted);white-space:nowrap}
+.dtab.on{background:var(--acc);color:#fff}
+.dbody{padding:15px 19px 30px;overflow-y:auto;flex:1}
+
+/* ТОСТ */
+.toast{position:fixed;bottom:19px;left:50%;transform:translate(-50%,16px);background:var(--rail);color:#fff;padding:12px 17px;border-radius:11px;font-size:11px;max-width:min(700px,92vw);line-height:1.6;z-index:80;opacity:0;pointer-events:none;transition:.22s;box-shadow:0 12px 36px #0005}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast b{color:#8fd0a9}
+.spark{position:fixed;width:8px;height:8px;top:-12px;z-index:90;pointer-events:none;animation:fall 2.1s linear forwards}
+@keyframes fall{to{transform:translateY(104vh) rotate(560deg);opacity:0}}
+
+@media(max-width:900px){
+ .shell{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+ .rail{flex-direction:row;align-items:center;gap:7px;padding:8px 10px;overflow-x:auto;overflow-y:hidden}
+ .rail-top{border:0;padding:0 6px 0 0;flex:none}.rail-top small{display:none}
+ .scope{border:0;padding:0;flex:none}.scope select{min-width:150px}
+ .nav{display:flex;flex-direction:row;gap:6px;padding:0;overflow:visible;flex:none}
+ .nav-g{display:none}.nav a{white-space:nowrap;padding:7px 11px}
+ .rail-user{display:none}
+ .topbar{padding:9px 13px;flex-wrap:wrap}.topbar h1{font-size:14.4px}.topbar p{display:none}
+ .tb-r{margin-left:auto;flex-wrap:wrap}.tbtn.wa{display:none}
+ .content{padding:13px 13px 22px}
+ .head h2{font-size:17px}
+ .gate{grid-template-columns:1fr}.gate-l{padding:28px 22px}.roles{grid-template-columns:1fr}
+ .drawer{width:100%}
+ .strip{grid-template-columns:1fr 1fr}
+ .flow{grid-template-columns:1fr}
+ .rrow{grid-template-columns:1fr 60px 78px 88px 28px;gap:6px;font-size:9.6px}
+}
+@media(max-width:560px){.strip{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<section class="gate" id="gate">
+ <div class="gate-l">
+  <div class="logo">NUTRINAN</div>
+  <h1>Портал управления<br>пекарней: от мешка муки<br>до <em>денег на счёте</em></h1>
+  <span class="gtag">демо по итогам встречи 3 сентября 2026 · Гульдана, Камила</span>
+  <p style="margin-top:14px">Один контур вместо таблиц и переписки: закуп и склад сырья, цех с техкартами и себестоимостью, заказы партнёров из всех каналов, отгрузки и возвраты, маршруты экспедиторов, дебиторка с актами сверки и финансы — включая расходы, которых нет в бухгалтерии.</p>
+  <p style="color:#8fd0a9">Главный экран демо — <b>«Сходимость»</b>: замесили на 300 буханок, выпустили 292, отгрузили 285, вернули 21, продали 264. Видно, где именно теряется и на какую сумму. Это ответ на вопрос, который вы задали на встрече.</p>
+  <div class="gstat">
+   <div><small>ТОЧЕК-ПАРТНЁРОВ</small><b>21</b></div>
+   <div><small>РОЛЕЙ</small><b>7</b></div>
+   <div><small>ЭКРАНОВ</small><b class="a">22</b></div>
+   <div><small>СРОК ЗАПУСКА</small><b>4–6 недель</b></div>
+  </div>
+ </div>
+ <div class="gate-r">
+  <h2>Войдите под ролью</h2>
+  <p>Каждый видит только своё: экспедитор — маршрут, технолог — цех, бухгалтер — документы. Зарплаты и себестоимость — только у руководителя.</p>
+  <div class="roles" id="roles"></div>
+  <div class="note" style="--tone:#4ea87a;background:#1b2c22;border-color:#2c4034">
+   <b style="color:#fff">Это демо-макет, а не готовая коробка</b>
+   <p style="color:#8d9c93">Мы собрали его по вашему рассказу, чтобы было что обсуждать предметно: по каждому экрану вы говорите «это нужно, это не нужно, здесь по-другому». Кнопка «Сценарий» в шапке проходит всю цепочку за 12 шагов.</p>
+  </div>
+ </div>
+</section>
+
+<div class="shell hidden" id="app">
+  <aside class="rail">
+    <div class="rail-top"><div><div class="lg">NUTRINAN</div><small>ПОРТАЛ ПЕКАРНИ</small></div></div>
+    <div class="scope"><select id="scopeSel" onchange="setScope(this.value)"></select></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="rail-user"><div class="rail-av" id="rav">СБ</div><div><b id="rname">Гульдана</b><small id="rrole">собственник</small></div></div>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <div><h1 id="ttl">Сводка</h1><p id="sub">—</p></div>
+      <div class="tb-r">
+        <button class="tbtn wa" onclick="waPing()">● WhatsApp · Instagram · телефония</button>
+        <button class="tbtn" id="themeBtn" onclick="toggleTheme()">◐ Тема</button>
+        <button class="tbtn" id="tourBtn" onclick="tour()">▶ Сценарий</button>
+        <select class="rsel" id="rsel"></select>
+      </div>
+    </header>
+    <div class="content" id="content"></div>
+  </main>
+</div>
+
+<div class="dbg" id="dbg" onclick="if(event.target===this)closeD()">
+  <aside class="drawer">
+    <div class="drawer-h"><div><h3 id="dt">—</h3><p id="ds">—</p></div><button class="dclose" onclick="closeD()">×</button></div>
+    <div class="dtabs" id="dtabs"></div>
+    <div class="dbody" id="db"></div>
+  </aside>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/app/nutrinan.js"></script>
+</body>
+</html>
