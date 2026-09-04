@@ -537,6 +537,9 @@ body.lk-drawing-context #btnExport{display:none;}
 .lk-text{position:absolute;inset:0;}
 .lk-text span{position:absolute;color:transparent;white-space:pre;cursor:text;transform-origin:0 0;line-height:1;user-select:text;font-family:sans-serif;}
 .lk-text span::selection{background:rgba(46,110,255,.4);}
+/* подсветка цифры-длины, которую взял парсер (для быстрой сверки по чертежу) */
+.lk-text span.lk-len-hl{background:rgba(47,125,79,.30);outline:1.5px solid rgba(47,125,79,.95);border-radius:2px;box-shadow:0 0 0 1.5px #fff;color:transparent;}
+.lk-text span.lk-len-hl.warn{background:rgba(217,131,36,.32);outline-color:rgba(217,131,36,.98);}
 .lk-mk{position:absolute;width:14px;height:14px;border-radius:50%;background:rgba(47,125,79,.55);border:2px solid #fff;box-shadow:0 0 0 1px rgba(47,125,79,.9);pointer-events:auto;cursor:pointer;transition:background .1s,box-shadow .1s;transform:translate(-50%,-50%) scale(var(--mks,1));transform-origin:center;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;text-shadow:0 0 2px rgba(0,0,0,.6);line-height:1;}
 .lk-seq{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
 .lk-seq path{fill:none;stroke:rgba(37,99,235,.5);stroke-width:1.4px;stroke-dasharray:6 4;vector-effect:non-scaling-stroke;stroke-linejoin:round;}
@@ -2491,7 +2494,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v473';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v474';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v429';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -4369,15 +4372,41 @@ async function lkBuildTextLayer(pg){
     const v0=page.getViewport({scale:1});
     const sc=Math.min(5.5,4400/Math.max(v0.width,v0.height));
     const tc=await page.getTextContent();
+    const lenMap=lkLenHighlight(pg,tc.items);   // индекс item → {n,len,warn}: цифра-длина, которую взял парсер
     let h='';
-    tc.items.forEach(it=>{const s=lkFixEnc(it.str||'');if(!s.trim())return;
+    tc.items.forEach((it,ii)=>{const s=lkFixEnc(it.str||'');if(!s.trim())return;
       const m=pdfjsLib.Util.transform(v0.transform,it.transform);
       const fh=Math.hypot(m[2],m[3]);if(fh*sc<2)return;
       const ang=Math.atan2(m[1],m[0]);
-      h+=`<span style="left:${(m[4]*sc).toFixed(1)}px;top:${(m[5]*sc).toFixed(1)}px;font-size:${(fh*sc).toFixed(1)}px;transform:rotate(${ang.toFixed(4)}rad) translateY(-0.85em)">${esc(s)}</span>`;});
+      const hit=lenMap[ii];
+      const cls=hit?` class="lk-len-hl${hit.warn?' warn':''}"`:'';
+      const ttl=hit?` title="взято как длина №${hit.n} = ${hit.len} м${hit.warn?' (проверить)':''}"`:'';
+      h+=`<span${cls}${ttl} style="left:${(m[4]*sc).toFixed(1)}px;top:${(m[5]*sc).toFixed(1)}px;font-size:${(fh*sc).toFixed(1)}px;transform:rotate(${ang.toFixed(4)}rad) translateY(-0.85em)">${esc(s)}</span>`;});
     pg._tl=h;
     if($('lkTextLayer'))$('lkTextLayer').innerHTML=h;
   }catch(e){console.warn('lk text layer',e);}
+}
+/* Сопоставляем каждой строке ту цифру на чертеже, что стала её длиной: ближайший к марке
+   (r.x/r.y) отдельный числовой item со значением = r.len. Пробел внутри числа = потерянная
+   запятая («0 85»→0.85), поэтому паспортные дроби не путаются с целой длиной. Подсветку рисует
+   текстовый слой (span получает класс .lk-len-hl). Для быстрой глазами сверки: та ли цифра взята. */
+function lkLenHighlight(pg,items){
+  const map={};if(!pg||!pg.rows)return map;
+  // значение-длина item'а: (1) чистое число («93», пробел=потерянная запятая «0 85»→0.85 — дроби
+  // паспорта не путаются с целой длиной); (2) целое в КОНЦЕ подписи после «-»/пробела перед «м»
+  // («…3х4-85м»→85, «- 85м»→85, «10м»→10) — когда длина слитно в марке, а не отдельным item'ом.
+  const ilen=s=>{const t=String(s).trim();const pure=t.replace(/\s*м$/i,'').replace(/\s+/g,'.');
+    if(/^\d+(?:\.\d+)?$/.test(pure))return parseFloat(pure);
+    const m=t.match(/[-\s](\d{1,4})\s*м$/i)||t.match(/^(\d{1,4})\s*м$/i);return m?parseInt(m[1]):NaN;};
+  const vals=items.map(it=>ilen(lkFixEnc(it.str||'')));
+  const rn={};{let n=0;(pg.groups||[]).forEach(g=>g.rows.forEach(r=>{n++;rn[r._id]=n;}));}
+  (pg.rows||[]).forEach(r=>{const L=+r.len;if(!(L>0)||r.x==null||r.y==null)return;
+    let best=-1,bd=1e9;
+    for(let i=0;i<items.length;i++){if(map[i]!=null||!Number.isFinite(vals[i])||Math.abs(vals[i]-L)>0.01)continue;
+      const dx=items[i].transform[4]-r.x,dy=items[i].transform[5]-r.y;if(Math.abs(dx)>180||Math.abs(dy)>180)continue;
+      const d=Math.hypot(dx,dy);if(d<bd){bd=d;best=i;}}
+    if(best>=0)map[best]={n:rn[r._id]||'',len:r.len,warn:!!r.needsCheck};});
+  return map;
 }
 {const _vch=$('lkVer');if(_vch)_vch.textContent=LK_VER;}
 $('btnLineyka').onclick=()=>{
