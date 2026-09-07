@@ -2590,7 +2590,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v485';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v486';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:'',aiMode:false};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -4935,7 +4935,7 @@ async function openDxf(file){
   }catch(e){$('lkPage').innerHTML='<div class="lk-spin">Не удалось разобрать DXF: '+esc(String(e&&e.message||e))+'</div>';return;}
   const pages=_lkDxfPages(res.labels||[],name);
   if(!pages.length){$('lkPage').innerHTML='<div class="lk-spin">В DXF не нашёл кабельных подписей (марка + сечение + длина, напр. «АсВВГ 3х2,5 - 34м»). Возможно, это не однолинейка или другой формат — пришли файл, настрою.</div>';return;}
-  LK._dxfGeo=res.geo||null;LK.dxfView='draw';LK.dxfZoom=1;   // геометрия для отрисовки чертежа + режим показа
+  LK._dxfGeo=res.geo||null;LK.dxfView='text';LK.dxfZoom=1;   // ПО УМОЛЧАНИЮ — список подписей-источник (линейки), чертёж по кнопке
   LK.docId='dxf_'+name;LK.pdf=null;LK.pages=pages;LK.byId={};LK.aiMode=false;
   let id0=0;pages.forEach(pg=>pg.rows.forEach(r=>{r._id='r'+(id0++);LK.byId[r._id]=r;r.page=pg.page;}));
   LK.issues=[];LK.drawingState=null;LK.view='pages';LK.stale=false;LK.docs=[];
