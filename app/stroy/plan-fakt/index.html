@@ -442,6 +442,9 @@ body.lk-drawing-context #btnExport{display:none;}
 .lk-dxf-src.on{background:rgba(96,165,250,.22);border-radius:4px;}
 .lk-dxf-hl{color:#26c281;font-weight:800;background:rgba(38,194,129,.14);padding:0 3px;border-radius:3px;}
 .lg-row.dxf-lit{background:rgba(96,165,250,.14);border-radius:8px;}
+.lk-dxf-draw{position:relative;height:100%;overflow:hidden;background:#fff;border-radius:8px;}
+.lk-dxf-draw canvas{display:block;touch-action:none;cursor:grab;}
+.lk-dxf-drawtip{position:absolute;left:0;right:0;bottom:0;padding:5px 10px;font-size:11px;line-height:1.4;color:#5a6b78;background:rgba(255,255,255,.92);border-top:1px solid #e5e9ee;pointer-events:none;}
 .lk-groups{display:flex;flex-direction:column;gap:12px;}
 .lk-rtabs{display:flex;gap:7px;margin:0 0 4px;}
 .lk-rtab{padding:8px 18px;border:1px solid var(--line);border-radius:9px;background:#fff;font-weight:700;font-size:13px;cursor:pointer;color:var(--steel);}
@@ -2587,7 +2590,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v484';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v485';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:'',aiMode:false};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -4433,8 +4436,65 @@ function lkDxfSrcHtml(pg){
   }).join('');
   return `<div class="lk-dxf-srcwrap"><div class="lk-dxf-srchdr">📐 Подписи из чертежа · источник (${(pg.rows||[]).length}) — наведи на строку справа, подсветится здесь. <b class="lk-dxf-hl">зелёным</b> — взятая длина.</div><div class="lk-dxf-srclist">${rowsH}</div></div>`;
 }
+/* Отрисовка ЧЕРТЕЖА листа из вектора DXF на CANVAS (десятки тысяч линий — SVG-DOM не тянет).
+   Геометрия режется по bbox листа (кэш на pg). Колесо — зум к курсору, тянуть — двигать. Кабельные
+   подписи зелёным и крупнее. Блоки-символы (автоматы) не разворачиваем — линий и подписей хватает
+   для сверки длин глазами. */
+function lkDxfDrawHtml(pg){
+  if(!LK._dxfGeo||!pg._bbox)return lkDxfSrcHtml(pg);
+  return '<div class="lk-dxf-draw" id="lkDxfDrawWrap"><canvas id="lkDxfCanvas"></canvas>'
+    +'<div class="lk-dxf-drawtip">📐 Чертёж из вектора · колесо — зум, тяни — двигать · <b class="lk-dxf-hl">зелёным</b> — кабельные подписи</div></div>';
+}
+function lkDxfDraw(pg){
+  const cv=$('lkDxfCanvas'),wrap=$('lkDxfDrawWrap');if(!cv||!wrap)return;
+  const cam=pg._cam;if(!cam)return;const ctx=cv.getContext('2d');
+  const dpr=window.devicePixelRatio||1, cw=cam.cw, ch=cam.ch, bb=pg._bbox;
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#fff';ctx.fillRect(0,0,cw,ch);
+  const s=cam.s,ox=cam.ox,oy=cam.oy, X=wx=>(wx-bb.x0)*s+ox, Y=wy=>(bb.y1-wy)*s+oy;
+  const S=pg._segs;ctx.strokeStyle='#3a4657';ctx.lineWidth=Math.max(0.5,20*s);ctx.beginPath();
+  for(let i=0;i+3<S.length;i+=4){const ax=X(S[i]),ay=Y(S[i+1]),bx=X(S[i+2]),by=Y(S[i+3]);
+    if((ax<0&&bx<0)||(ax>cw&&bx>cw)||(ay<0&&by<0)||(ay>ch&&by>ch))continue;ctx.moveTo(ax,ay);ctx.lineTo(bx,by);}
+  ctx.stroke();
+  const C=pg._circs;ctx.beginPath();for(let i=0;i+2<C.length;i+=3){const cx=X(C[i]),cy=Y(C[i+1]),r=C[i+2]*s;if(r<0.7||cx<-r||cx>cw+r||cy<-r||cy>ch+r)continue;ctx.moveTo(cx+r,cy);ctx.arc(cx,cy,r,0,6.2832);}ctx.stroke();
+  const T=pg._txts;for(let i=0;i<T.length;i++){const o=T[i],x=X(o.x),y=Y(o.y);if(x<-60||x>cw+20||y<-8||y>ch+16)continue;
+    const fh=(o.c?32:26)*s;if(!o.c&&fh<7)continue;if(o.c&&fh<6)continue;
+    ctx.font=(o.c?'700 ':'')+Math.max(6,fh).toFixed(0)+'px Arial';ctx.fillStyle=o.c?'#0a7d33':'#94a0ae';ctx.fillText(o.s,x,y);}
+}
+function lkDxfCanvasInit(pg){
+  const cv=$('lkDxfCanvas'),wrap=$('lkDxfDrawWrap');if(!cv||!wrap||!LK._dxfGeo||!pg._bbox)return;
+  const bb=pg._bbox,W=Math.max(1,bb.x1-bb.x0),H=Math.max(1,bb.y1-bb.y0);
+  // один раз режем геометрию по bbox листа и кэшируем на pg
+  if(!pg._segs){const inb=(x,y)=>x>=bb.x0&&x<=bb.x1&&y>=bb.y0&&y<=bb.y1;
+    const g=LK._dxfGeo,S=[],C=[],Tx=[];const L=g.L||[];
+    for(let i=0;i+3<L.length;i+=4){if(inb(L[i],L[i+1])||inb(L[i+2],L[i+3])){S.push(L[i],L[i+1],L[i+2],L[i+3]);}}
+    const cc=g.C||[];for(let i=0;i+2<cc.length;i+=3){if(inb(cc[i],cc[i+1])&&cc[i+2]>0&&cc[i+2]<W)C.push(cc[i],cc[i+1],cc[i+2]);}
+    (g.T||[]).forEach(o=>{if(inb(o.x,o.y))Tx.push(o);});
+    pg._segs=S;pg._circs=C;pg._txts=Tx;}
+  const dpr=window.devicePixelRatio||1,cw=wrap.clientWidth||600,ch=wrap.clientHeight||400;
+  cv.width=Math.round(cw*dpr);cv.height=Math.round(ch*dpr);cv.style.width=cw+'px';cv.style.height=ch+'px';
+  const sFit=Math.min(cw/W,ch/H)*0.97;                   // вписать весь лист
+  const sRead=13/32;                                     // читаемый зум (кабельный текст ~13px)
+  const s0=(32*sFit>=9)?sFit:sRead, fit=(s0===sFit);     // мелкие листы влезают читаемо → fit, крупные → зум на подписи
+  let ox,oy;
+  if(fit){ox=(cw-W*s0)/2;oy=(ch-H*s0)/2;}
+  else{const lx=bb.lx0!=null?bb.lx0:bb.x0, ly=bb.ly1!=null?bb.ly1:bb.y1;ox=40-(lx-bb.x0)*s0;oy=30-(bb.y1-ly)*s0;}   // на левый-верх подписей
+  pg._cam={s:s0,s0:sFit,ox:ox,oy:oy,cw:cw,ch:ch};
+  lkDxfDraw(pg);
+  cv.onwheel=e=>{e.preventDefault();const r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top,c=pg._cam;
+    const f=e.deltaY<0?1.2:1/1.2,ns=Math.max(c.s0*0.6,Math.min(c.s0*60,c.s*f));
+    c.ox=mx-(mx-c.ox)/c.s*ns;c.oy=my-(my-c.oy)/c.s*ns;c.s=ns;lkDxfDraw(pg);};
+  let drag=null;
+  cv.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY,ox:pg._cam.ox,oy:pg._cam.oy};try{cv.setPointerCapture(e.pointerId);}catch(_){}cv.style.cursor='grabbing';};
+  cv.onpointermove=e=>{if(!drag)return;pg._cam.ox=drag.ox+(e.clientX-drag.x);pg._cam.oy=drag.oy+(e.clientY-drag.y);lkDxfDraw(pg);};
+  cv.onpointerup=cv.onpointercancel=()=>{drag=null;cv.style.cursor='grab';};
+  cv.style.cursor='grab';
+}
+function lkDxfZoom(dir){const pg=LK.pages[LK.sel];if(!pg||!pg._cam)return;const c=pg._cam;
+  if(dir==='fit'){c.s=c.s0;c.ox=(c.cw-(pg._bbox.x1-pg._bbox.x0)*c.s)/2;c.oy=(c.ch-(pg._bbox.y1-pg._bbox.y0)*c.s)/2;}
+  else{const f=dir==='in'?1.4:1/1.4,ns=Math.max(c.s0*0.6,Math.min(c.s0*60,c.s*f)),mx=c.cw/2,my=c.ch/2;c.ox=mx-(mx-c.ox)/c.s*ns;c.oy=my-(my-c.oy)/c.s*ns;c.s=ns;}
+  lkDxfDraw(pg);}
 function lkImgBoxHtml(pg){
-  if(pg._dxf)return lkDxfSrcHtml(pg);
+  if(pg._dxf)return LK.dxfView==='text'?lkDxfSrcHtml(pg):lkDxfDrawHtml(pg);
   if(!pg.img)return '<div class="lk-spin" style="padding:22px">рендерю лист…</div>';
   return `<div class="lk-imgbox" id="lkImgBox"><img id="lkImg" src="${pg.img}" alt="Лист ${pg.page}" draggable="false"><div class="lk-text" id="lkTextLayer"></div><div class="lk-overlay">${lkDrawingOverlayHtml(pg)}${lkMarkersHtml(pg)}</div></div>`;
 }
@@ -4791,23 +4851,34 @@ self.onmessage=function(e){
   var piperx=/(п\\.?\\s*г\\.?|г\\.?\\s*т\\.?)\\s*(\\d+)\\s*-\\s*(\\d+)\\s*м/g;
   var splitrx=/п\\.?\\s*г|г\\.?\\s*т|п25/;
   var lenrx=/-\\s*(\\d+)\\s*м/g, lenrx2=/(\\d+)\\s*м/g;
-  var out=[],type='',r1='',r3='',x=null,y=null,have=false,cnt=0;
-  function proc(){ if(!have)return; if(type!=='MTEXT'&&type!=='TEXT')return;
-    var t=plain(r3?(r3+r1):r1); var mk=markrx.exec(t); if(!mk)return;   // ВСЕ подписи с маркой+сечением, не только паспорта
-    var sec=mk[2].replace(/\\s/g,'').replace(/x/g,'х');
-    var head=t.split(splitrx)[0], L=null, m2;                          // длина кабеля = до труб (п.г/г.т)
-    lenrx.lastIndex=0; while((m2=lenrx.exec(head)))L=m2[1];            // предпочитаем «-Nм»
-    if(L===null){ lenrx2.lastIndex=0; while((m2=lenrx2.exec(head)))L=m2[1]; }
-    if(L===null)return; L=parseInt(L,10); if(!(L>0))return;
-    var pm2=passp.exec(t), grp=pm2?pm2[1]:'';                          // обозначение, если это паспорт
-    var conds=[],pm; piperx.lastIndex=0; while((pm=piperx.exec(t))){ var nm=(pm[1].indexOf('г.т')>=0||pm[1].indexOf('гт')>=0)?('г.т.'+pm[2]):('п.г.'+pm[2]); conds.push({t:nm,len:parseInt(pm[3],10)}); }
-    out.push({s:sec,L:L,grp:grp,mark:mk[1],x:x,y:y,raw:t,conds:conds}); cnt++;
+  var out=[],geoL=[],geoC=[],geoT=[];   // подписи-кабели / линии / окружности / тексты (для отрисовки)
+  var type='',r1='',r3='',xs=[],ys=[],x1v=null,y1v=null,rad=null,a0=null,a1=null,have=false,cnt=0;
+  function grab(){ // текст: если кабельная подпись — в out (для листов); вернуть {t,cab}
+    var t=plain(r3?(r3+r1):r1); if(!t)return null; var mk=markrx.exec(t);
+    if(mk){ var sec=mk[2].replace(/\\s/g,'').replace(/x/g,'х'); var head=t.split(splitrx)[0], L=null, m2;
+      lenrx.lastIndex=0; while((m2=lenrx.exec(head)))L=m2[1];
+      if(L===null){ lenrx2.lastIndex=0; while((m2=lenrx2.exec(head)))L=m2[1]; }
+      if(L!==null){ L=parseInt(L,10); if(L>0){ var pm2=passp.exec(t), grp=pm2?pm2[1]:'';
+        var conds=[],pm; piperx.lastIndex=0; while((pm=piperx.exec(t))){ var nm=(pm[1].indexOf('г.т')>=0||pm[1].indexOf('гт')>=0)?('г.т.'+pm[2]):('п.г.'+pm[2]); conds.push({t:nm,len:parseInt(pm[3],10)}); }
+        if(xs.length)out.push({s:sec,L:L,grp:grp,mark:mk[1],x:xs[0],y:ys[0],raw:t,conds:conds}); cnt++; } } }
+    return {t:t,cab:!!mk};
+  }
+  function proc(){ if(!have)return;
+    if(type==='LINE'){ if(xs.length&&ys.length&&x1v!==null)geoL.push(xs[0],ys[0],x1v,y1v); }
+    else if(type==='LWPOLYLINE'){ for(var q=0;q+1<xs.length&&q+1<ys.length;q++)geoL.push(xs[q],ys[q],xs[q+1],ys[q+1]); }
+    else if(type==='CIRCLE'){ if(xs.length&&rad!==null)geoC.push(xs[0],ys[0],rad); }
+    else if(type==='ARC'){ if(xs.length&&rad!==null&&a0!==null){ var st=a0*Math.PI/180,en=(a1===null?a0+10:a1)*Math.PI/180; if(en<st)en+=2*Math.PI; var steps=Math.max(2,Math.min(24,Math.round((en-st)/0.35))),px=xs[0]+rad*Math.cos(st),py=ys[0]+rad*Math.sin(st),qq; for(qq=1;qq<=steps;qq++){var ang=st+(en-st)*qq/steps,nx=xs[0]+rad*Math.cos(ang),ny=ys[0]+rad*Math.sin(ang);geoL.push(px,py,nx,ny);px=nx;py=ny;} } }
+    else if(type==='MTEXT'||type==='TEXT'){ var g=grab(); if(g&&xs.length&&g.t.length<=44)geoT.push({x:xs[0],y:ys[0],s:g.t,c:g.cab?1:0}); }
   }
   var code; while((code=line())!==null){ var val=line(); if(val===null)break; var c=code.trim();
-    if(c==='0'){ proc(); type=val; r1='';r3='';x=null;y=null;have=true; }
-    else if(have){ if(c==='1')r1=val; else if(c==='3')r3+=val; else if(c==='10'&&x===null)x=parseFloat(val); else if(c==='20'&&y===null)y=parseFloat(val); } }
+    if(c==='0'){ proc(); type=val; r1='';r3='';xs=[];ys=[];x1v=null;y1v=null;rad=null;a0=null;a1=null;have=true; }
+    else if(have){ if(c==='1')r1=val; else if(c==='3')r3+=val;
+      else if(c==='10'){var fa=parseFloat(val);if(fa===fa)xs.push(fa);}
+      else if(c==='20'){var fb=parseFloat(val);if(fb===fb)ys.push(fb);}
+      else if(c==='11')x1v=parseFloat(val); else if(c==='21')y1v=parseFloat(val);
+      else if(c==='40'&&rad===null)rad=parseFloat(val); else if(c==='50')a0=parseFloat(val); else if(c==='51')a1=parseFloat(val); } }
   proc();
-  self.postMessage({ok:true,labels:out,seen:cnt});
+  self.postMessage({ok:true,labels:out,geo:{L:geoL,C:geoC,T:geoT},seen:cnt});
  }catch(err){ self.postMessage({ok:false,error:String(err&&err.message||err)}); }
 };`;}
 function _lkDxfPages(labels,name){
@@ -4832,11 +4903,17 @@ function _lkDxfPages(labels,name){
   const pref=g=>String(g||'').replace(/[-–]?\s*н?\d+([а-яё])?$/i,'').replace(/\d+$/,'')||g;
   return regs.map((g,idx)=>{
     g.sort((a,b)=>b.y-a.y||a.x-b.x);                    // строки листа в порядке чтения
+    // bbox для отрисовки чертежа: границы по подписям (с отсечкой выбросов по перцентилям, чтобы
+    // одиночная далёкая подпись не растягивала лист), расширяем ВВЕРХ — там шина/автоматы (больший Y)
+    const gx=g.map(o=>o.x).sort((a,b)=>a-b),gy=g.map(o=>o.y).sort((a,b)=>a-b);
+    const pct=(a,p)=>a[Math.min(a.length-1,Math.max(0,Math.round((a.length-1)*p)))];
+    const bx0=pct(gx,0.02),bx1=pct(gx,0.98),by0=pct(gy,0.03),by1=pct(gy,0.97),hh=Math.max(800,by1-by0);
+    const bbox={x0:bx0-1500,x1:bx1+1500,y0:by0-Math.max(1000,hh*0.4),y1:by1+Math.max(2600,hh*1.4),lx0:bx0,lx1:bx1,ly0:by0,ly1:by1};
     const rows=g.map(o=>({group:o.grp||'',mark:o.mark||'',section:String(o.s).replace('.',','),
       len:+o.L||0,conds:Array.isArray(o.conds)?o.conds:[],mult:1,needsCheck:false,_src:'dxf',x:o.x,y:o.y,_passport:o.raw||''}));
     const byp={},order=[];rows.forEach(r=>{const k=r.group?pref(r.group):'—';if(!(k in byp)){byp[k]=[];order.push(k);}byp[k].push(r);});
     const groups=order.map(k=>({name:k,rows:byp[k]}));
-    return {page:idx+1,rows,groups,vru:'',shields:[],potreb:{},pipes:{},_dxf:true};
+    return {page:idx+1,rows,groups,vru:'',shields:[],potreb:{},pipes:{},_dxf:true,_bbox:bbox};
   });
 }
 async function openDxf(file){
@@ -4858,6 +4935,7 @@ async function openDxf(file){
   }catch(e){$('lkPage').innerHTML='<div class="lk-spin">Не удалось разобрать DXF: '+esc(String(e&&e.message||e))+'</div>';return;}
   const pages=_lkDxfPages(res.labels||[],name);
   if(!pages.length){$('lkPage').innerHTML='<div class="lk-spin">В DXF не нашёл кабельных подписей (марка + сечение + длина, напр. «АсВВГ 3х2,5 - 34м»). Возможно, это не однолинейка или другой формат — пришли файл, настрою.</div>';return;}
+  LK._dxfGeo=res.geo||null;LK.dxfView='draw';LK.dxfZoom=1;   // геометрия для отрисовки чертежа + режим показа
   LK.docId='dxf_'+name;LK.pdf=null;LK.pages=pages;LK.byId={};LK.aiMode=false;
   let id0=0;pages.forEach(pg=>pg.rows.forEach(r=>{r._id='r'+(id0++);LK.byId[r._id]=r;r.page=pg.page;}));
   LK.issues=[];LK.drawingState=null;LK.view='pages';LK.stale=false;LK.docs=[];
@@ -6061,7 +6139,9 @@ function renderLineyka(){
   if(LK.view==='reportall'){$('lkPage').innerHTML=lkReportAllHtml();bindReportAll();return;}
   const pg=LK.pages[LK.sel];
   const drawN=(((LK.drawingState||{}).objects||{})[pg.page]||[]).filter(o=>o&&o.type==='line').length;
-  const _zoomBar=pg._dxf?'':`<div class="lk-zoom"><button data-z="out" title="Уменьшить">−</button><button data-z="fit" title="По ширине">↔</button><button data-z="in" title="Увеличить">+</button><button id="lkDrawPage" title="Открыть этот же лист в графическом редакторе без повторной загрузки PDF">✎ Править линии${drawN?' · '+drawN:''}</button><button id="lkOpenPdf" title="Открыть этот лист в PDF — текст можно выделять и копировать">PDF ⤢</button><button id="lkSeqBtn" title="Линия последовательности: показывает, в каком порядке идут строки по схеме" style="${LK.seqLine===false?'opacity:.45':''}">①→②</button></div>`;
+  const _zoomBar=pg._dxf
+    ?`<div class="lk-zoom"><button id="lkDxfViewToggle" title="Чертёж ⟷ список подписей">${LK.dxfView==='text'?'📐 Чертёж':'📝 Подписи'}</button>${LK.dxfView==='text'?'':`<button data-dz="out" title="Уменьшить">−</button><button data-dz="fit" title="Вписать">↔</button><button data-dz="in" title="Увеличить">+</button>`}</div>`
+    :`<div class="lk-zoom"><button data-z="out" title="Уменьшить">−</button><button data-z="fit" title="По ширине">↔</button><button data-z="in" title="Увеличить">+</button><button id="lkDrawPage" title="Открыть этот же лист в графическом редакторе без повторной загрузки PDF">✎ Править линии${drawN?' · '+drawN:''}</button><button id="lkOpenPdf" title="Открыть этот лист в PDF — текст можно выделять и копировать">PDF ⤢</button><button id="lkSeqBtn" title="Линия последовательности: показывает, в каком порядке идут строки по схеме" style="${LK.seqLine===false?'opacity:.45':''}">①→②</button></div>`;
   const _mkNote=pg._dxf?`<div class="lk-mk-note">📐 <b>Режим DXF.</b> Длины и сечения прочитаны прямо из вектора AutoCAD — чистый текст, без картинки. Каждый фидер дедуплицирован по обозначению (копии однолинейки схлопнуты). Сверь суммы по сечениям; любую длину можно поправить вручную.</div>`:`<div class="lk-mk-note">На страницах с чертежом нажмите <b>«✎ Править линии»</b>: этот же лист откроется в редакторе, новая линия задаётся тремя точками A–C–B и сохраняется вместе с PDF.<br>🟢 точка — попало в подсчёт · 🔴 «проверить длину» — взята ненадёжно · <b style="color:#c0392b">🔴 «?» / «впишите длину»</b> — длины НЕТ, внеси вручную по схеме (жирная красная точка). Поправишь длину — пометка снимется. Наведи на строку справа — подсветит точку; клик по точке — перейти к строке. Где точки нет — пропуск, добавь строку.</div>`;
   let h=`<div class="lk-split"><div class="lk-imgcol"><div class="lk-pgwrap">${_zoomBar}<div class="lk-pgimg" id="lkPgImg">${lkImgBoxHtml(pg)}</div></div>${_mkNote}</div><div class="lk-datacol">`+lkCheckHtml(pg);
   // #v359 вкладки «Кабели / Трубы»: трубы правятся в своей вкладке — строки кабелей компактнее
@@ -6124,6 +6204,9 @@ function lkRegroup(pg){
 /* DXF-режим: сверка вживую — наведение на строку таблицы подсвечивает её подпись слева и наоборот */
 function lkBindDxfSync(P){
   const pg=LK.pages[LK.sel];if(!pg||!pg._dxf)return;
+  const tg=$('lkDxfViewToggle');if(tg)tg.onclick=()=>{LK.dxfView=LK.dxfView==='text'?'draw':'text';renderLineyka();};
+  P.querySelectorAll('[data-dz]').forEach(b=>b.onclick=()=>lkDxfZoom(b.dataset.dz));
+  if(LK.dxfView!=='text'&&$('lkDxfCanvas'))requestAnimationFrame(()=>lkDxfCanvasInit(pg));   // отрисовать чертёж после вставки в DOM
   const lit=(id,on)=>{P.querySelectorAll('.lk-dxf-src[data-id="'+id+'"]').forEach(e=>e.classList.toggle('on',on));
     P.querySelectorAll('.lg-row[data-id="'+id+'"]').forEach(e=>e.classList.toggle('dxf-lit',on));};
   const bring=(sel,id)=>{const e=P.querySelector(sel+'[data-id="'+id+'"]');if(e)e.scrollIntoView({block:'nearest'});};
