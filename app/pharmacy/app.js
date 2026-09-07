@@ -1285,7 +1285,7 @@ function ibThreadList(){
       <button class="btn sm ${__ibChannelFilter==null?'primary':''}" data-chf="">Все номера${unread?(' · '+unread):''}</button>
       ${chans.map(ch=>{const u=chUnread(ch.id);return `<button class="btn sm ${__ibChannelFilter===ch.id?'primary':''}" data-chf="${esc(ch.id)}" title="${esc(ch.phone?('номер +'+ch.phone):'')}">${esc(ch.name||'WhatsApp')}${u?(' · '+u):''}</button>`;}).join('')}
     </div>`:'';
-  box.innerHTML=`<div class="ib-thead"><span>Мессенджеры</span>${unread?`<span class="b">${unread}</span>`:''}</div>${chipRow}<div class="ib-search"><div class="fld-in">${ic('i-search','sm')}<input id="ibSearch" placeholder="Поиск по всем диалогам…" value="${esc(__ibQuery||'')}"></div></div><div class="ib-rows"></div>`;
+  box.innerHTML=`<div class="ib-thead"><span>Мессенджеры</span>${unread?`<span class="b">${unread}</span>`:''}</div>${chipRow}<div class="ib-search"><div class="fld-in">${ic('i-search','sm')}<input id="ibSearch" placeholder="Поиск: имя, телефон или слово из переписки…" value="${esc(__ibQuery||'')}"></div></div><div class="ib-rows"></div>`;
   box.querySelectorAll('[data-chf]').forEach(b=>b.onclick=()=>{ __ibChannelFilter=b.dataset.chf||null; ibThreadList(); });
   const s=box.querySelector('#ibSearch'); if(s){ s.oninput=()=>{ clearTimeout(__ibSearchT); __ibSearchT=setTimeout(()=>ibSearchApply(s.value), 350); }; }
   ibRenderRows();
@@ -1297,7 +1297,7 @@ function ibRenderRows(){
   const rows=flt.map(t=>{ const nm=t.title||t.phone||'Диалог'; const on=t.id===__ibCur?'on':'';
     return `<button class="thread ${on}" data-t="${esc(t.id)}">
       <div class="av" style="background:${avBg(nm)}">${esc(initials(nm))}<span class="src" style="background:${ibChanColor(t.channel_id)}">${ic('i-phone','sm')}</span></div>
-      <div class="ti"><div class="tn">${esc(nm)}</div><div class="tm">${ibChanTag(t)}${esc((t.preview_dir==='out'?'✓ ':'')+(t.preview||''))}</div></div>
+      <div class="ti"><div class="tn">${esc(nm)}</div><div class="tm">${ibChanTag(t)}${t.match_snippet?('<span style="opacity:.85">🔍 '+esc(t.match_snippet)+'</span>'):esc((t.preview_dir==='out'?'✓ ':'')+(t.preview||''))}</div></div>
       <div class="tt">${esc(cwFmtTime(t.last_ts))}</div>${t.unread?`<span class="un">${t.unread}</span>`:''}</button>`;
   }).join('');
   const moreBtn=__ibHasMore?`<button class="btn sm" id="ibMore" style="margin:10px auto 8px;display:block">Показать ещё${(__ibTotal>__ibThreads.length)?(' ('+(__ibTotal-__ibThreads.length)+')'):''}</button>`:'';
