@@ -2561,7 +2561,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v476';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v477';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -4460,21 +4460,23 @@ async function lkBuildTextLayer(pg){
    текстовый слой (span получает класс .lk-len-hl). Для быстрой глазами сверки: та ли цифра взята. */
 function lkLenHighlight(pg,items){
   const map={};if(!pg||!pg.rows)return map;
-  // Подсвечиваем ТОЛЬКО отдельную цифру-длину, не целую подпись кабеля. Два вида токенов:
-  // (M) явный «Nм»: «19м», «- 85м», «10м» — строка целиком есть длина с «м» (НЕ «…3х4-50м» с маркой);
-  // (B) чистое число: «93», «88» (фрагментированный паспорт 2435, где длина без «м»).
-  // Приоритет у M — иначе голое число могло совпасть с током/мощностью/счётчиком рядом.
+  // Подсвечиваем взятую длину ВСЕГДА — чтобы при проверке было видно, какая цифра взята.
+  // Три вида токенов, по приоритету: (M) отдельный «Nм» («19м», «- 85м») — сама цифра;
+  // (B) голое число паспорта («93», «88» — фрагментированный 2435); (E) длина В КОНЦЕ подписи
+  // кабеля («АсВВГнг-LS 3х4-50м»→50, «DEVIsnow 30T-14м»→14) — там цифру не выделить отдельно,
+  // подсвечиваем всю подпись. Приоритет M/B над E — иначе голое число ловило ток/мощность рядом.
   const mTok=s=>{const m=String(s).trim().match(/^[-\s]*(\d{1,4})\s*м$/i);return m?parseInt(m[1]):NaN;};
   const bTok=s=>{const t=String(s).trim().replace(/\s+/g,'.');return /^\d{1,4}(?:\.\d+)?$/.test(t)?parseFloat(t):NaN;};
-  const mVals=items.map(it=>mTok(lkFixEnc(it.str||''))),bVals=items.map(it=>bTok(lkFixEnc(it.str||'')));
+  const eTok=s=>{const t=String(s).trim();if(!/ВВГ|КВВГ|DEVI|ШВВП|ВБ[бБ]?Шв/i.test(t))return NaN;const m=t.match(/[-\s](\d{1,4})\s*м$/i);return m?parseInt(m[1]):NaN;};   // только подпись С МАРКОЙ (не труба «Т25 - 9м»)
+  const mVals=items.map(it=>mTok(lkFixEnc(it.str||''))),bVals=items.map(it=>bTok(lkFixEnc(it.str||''))),eVals=items.map(it=>eTok(lkFixEnc(it.str||'')));
   const rn={};{let n=0;(pg.groups||[]).forEach(g=>g.rows.forEach(r=>{n++;rn[r._id]=n;}));}
   (pg.rows||[]).forEach(r=>{const L=+r.len;if(!(L>0)||r.x==null||r.y==null)return;
     let best=-1;
-    for(const vals of [mVals,bVals]){let bd=1e9;
+    for(const vals of [mVals,bVals,eVals]){let bd=1e9;
       for(let i=0;i<items.length;i++){if(map[i]!=null||!Number.isFinite(vals[i])||Math.abs(vals[i]-L)>0.01)continue;
-        const dx=items[i].transform[4]-r.x,dy=items[i].transform[5]-r.y;if(Math.abs(dx)>75||Math.abs(dy)>120)continue;   // длина рядом с маркой (свой столбец/паспорт справа), не из таблиц ниже
+        const dx=items[i].transform[4]-r.x,dy=items[i].transform[5]-r.y;if(Math.abs(dx)>75||Math.abs(dy)>120)continue;   // длина рядом с маркой (свой столбец/паспорт справа/своя подпись), не из таблиц ниже
         const d=Math.hypot(dx,dy);if(d<bd){bd=d;best=i;}}
-      if(best>=0)break;}   // нашли явный «Nм» — голое число не ищем
+      if(best>=0)break;}   // нашли явный «Nм»/число — целую подпись не трогаем
     if(best>=0)map[best]={n:rn[r._id]||'',len:r.len,warn:!!r.needsCheck};});
   return map;
 }
