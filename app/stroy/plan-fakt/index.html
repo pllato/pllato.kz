@@ -881,7 +881,7 @@ body.lk-drawing-context #btnExport{display:none;}
           <section class="lb-mode">
             <div class="lb-mode-icon" aria-hidden="true">📐</div>
             <div class="lb-mode-title">DXF из AutoCAD</div>
-            <div class="lb-mode-desc">Есть исходный <b>DXF</b> (экспорт из DWG)? Читаем длины прямо из вектора — <b>чистый текст, без битой кодировки PDF и без картинки</b>. Самый точный путь. Длина каждого фидера из его паспорта на чертеже.</div>
+            <div class="lb-mode-desc">Есть исходный <b>DXF</b> (экспорт из DWG)? Читаем длины прямо из вектора — <b>чистый текст, без битой кодировки PDF</b>. Файл режется на <b>листы</b> (как в PDF): считаешь нужные, копии/детали игнорируешь.</div>
             <button class="tbtn primary" id="btnOpenDxf">Открыть DXF</button>
           </section>
         </div>
@@ -2587,7 +2587,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v483';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v484';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:'',aiMode:false};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -4773,11 +4773,12 @@ async function openLineyka(file){
   lkRefreshDocs();
 }
 /* ============ DXF-РЕЖИМ: чтение однолинейки прямо из вектора AutoCAD ============
-   PDF-экспорт этих проектов рвёт и коверкает текст (см. lkFixEnc); в исходном DXF текст ЧИСТЫЙ,
-   и каждый фидер лежит одной подписью-паспортом: «ВДФ2-н1; Pуст - Kс - Pрасч - Lм  I - cos - МАРКА
-   NxM; г.т.. п.г..». Читаем эти паспорта, длина = 4-е число (после Pрасч), дедуп по обозначению
-   фидера (чертёж часто нарисован дважды — копии схлопываются по имени). 100МБ парсим в Web Worker,
-   чтобы не морозить вкладку. */
+   PDF-экспорт этих проектов рвёт и коверкает текст (см. lkFixEnc); в исходном DXF текст ЧИСТЫЙ.
+   Читаем ВСЕ кабельные подписи (и паспорта «ВДФ2-н1; Pу-Kс-Pр-Lм … марка NxM», и короткие
+   «АсВВГ 3х4мм-34м; п.г.25»), длина — до труб. НЕ схлопываем копии: однолинейку в DWG рисуют по
+   несколько раз (схема/монтажная/разрезы), поэтому РЕЖЕМ на листы по координатным кластерам
+   (широкие по X, разделены по Y — копии стоят одна над другой) и считаем КАЖДЫЙ ЛИСТ отдельно.
+   Юзер сам выбирает нужные листы и игнорирует копии/детали. 100МБ парсим в Web Worker. */
 function _lkDxfWorkerSrc(){return `
 self.onmessage=function(e){
  try{
@@ -4786,34 +4787,57 @@ self.onmessage=function(e){
   function line(){ if(i>=n)return null; var j=s.indexOf('\\n',i); if(j<0)j=n; var v=s.slice(i,j); if(v.charCodeAt(v.length-1)===13)v=v.slice(0,-1); i=j+1; return v; }
   function plain(t){ t=t.replace(/\\\\P/g,' ').replace(/\\n/g,' '); t=t.replace(/\\\\[A-Za-z]\\d?[^;\\\\]*;/g,''); t=t.replace(/[{}^]/g,'').replace(/\\\\S/g,''); return t.replace(/[ \\t]+/g,' ').trim(); }
   var passp=/^\\s*([0-9A-Za-zА-Яа-яЁё().\\-]+?)\\s*;\\s*[\\d,]+\\s*-\\s*[\\d,]+\\s*-\\s*[\\d,]+\\s*-\\s*(\\d+)\\s*м/;
-  var markrx=/(АсВВГ|ВВГ|КВВГ|ПвПГ|ВБбШв|ПуГВ|NYM|DEVI)[^ ;]*\\s*(\\d+\\s*[хx]\\s*[\\d,]+)/;
+  var markrx=/(АсВВГ|ВВГ|КВВГ|ПвПГ|ВБбШв|ПуГВ|ПВС|ПВ|ШВВП|NYM|DEVI)[^ ;]*\\s*(\\d+\\s*[хx]\\s*[\\d,]+)/;
   var piperx=/(п\\.?\\s*г\\.?|г\\.?\\s*т\\.?)\\s*(\\d+)\\s*-\\s*(\\d+)\\s*м/g;
-  var feed={},type='',r1='',r3='',x=null,y=null,have=false,cnt=0;
+  var splitrx=/п\\.?\\s*г|г\\.?\\s*т|п25/;
+  var lenrx=/-\\s*(\\d+)\\s*м/g, lenrx2=/(\\d+)\\s*м/g;
+  var out=[],type='',r1='',r3='',x=null,y=null,have=false,cnt=0;
   function proc(){ if(!have)return; if(type!=='MTEXT'&&type!=='TEXT')return;
-    var t=plain(r3?(r3+r1):r1); var m=passp.exec(t); if(!m)return;
-    var grp=m[1], L=parseInt(m[2],10); var mk=markrx.exec(t);
-    var mark=mk?mk[1]:'', sec=mk?mk[2].replace(/\\s/g,'').replace(/x/g,'х'):'';
+    var t=plain(r3?(r3+r1):r1); var mk=markrx.exec(t); if(!mk)return;   // ВСЕ подписи с маркой+сечением, не только паспорта
+    var sec=mk[2].replace(/\\s/g,'').replace(/x/g,'х');
+    var head=t.split(splitrx)[0], L=null, m2;                          // длина кабеля = до труб (п.г/г.т)
+    lenrx.lastIndex=0; while((m2=lenrx.exec(head)))L=m2[1];            // предпочитаем «-Nм»
+    if(L===null){ lenrx2.lastIndex=0; while((m2=lenrx2.exec(head)))L=m2[1]; }
+    if(L===null)return; L=parseInt(L,10); if(!(L>0))return;
+    var pm2=passp.exec(t), grp=pm2?pm2[1]:'';                          // обозначение, если это паспорт
     var conds=[],pm; piperx.lastIndex=0; while((pm=piperx.exec(t))){ var nm=(pm[1].indexOf('г.т')>=0||pm[1].indexOf('гт')>=0)?('г.т.'+pm[2]):('п.г.'+pm[2]); conds.push({t:nm,len:parseInt(pm[3],10)}); }
-    if(!feed[grp]||!feed[grp].sec){ feed[grp]={grp:grp,sec:sec||(feed[grp]&&feed[grp].sec)||'',len:L,mark:mark,conds:conds,x:x,y:y,raw:t}; }
-    cnt++;
+    out.push({s:sec,L:L,grp:grp,mark:mk[1],x:x,y:y,raw:t,conds:conds}); cnt++;
   }
   var code; while((code=line())!==null){ var val=line(); if(val===null)break; var c=code.trim();
     if(c==='0'){ proc(); type=val; r1='';r3='';x=null;y=null;have=true; }
     else if(have){ if(c==='1')r1=val; else if(c==='3')r3+=val; else if(c==='10'&&x===null)x=parseFloat(val); else if(c==='20'&&y===null)y=parseFloat(val); } }
   proc();
-  var arr=[]; for(var k in feed)arr.push(feed[k]);
-  self.postMessage({ok:true,feeders:arr,seen:cnt});
+  self.postMessage({ok:true,labels:out,seen:cnt});
  }catch(err){ self.postMessage({ok:false,error:String(err&&err.message||err)}); }
 };`;}
-function _lkDxfPages(feeders,name){
-  // одна «страница»: все фидеры файла. Группируем по префиксу обозначения (НЩО-17/18/19 → НЩО),
-  // чтобы отчёт читался; секции-итоги считаются из строк независимо от групп.
-  const rows=feeders.filter(f=>+f.len>0&&f.sec).map(f=>({group:f.grp,mark:f.mark||'',section:String(f.sec).replace('.',','),
-    len:+f.len||0,conds:Array.isArray(f.conds)?f.conds:[],mult:1,needsCheck:false,_src:'dxf',x:f.x,y:f.y,_passport:f.raw||''}));
-  const pref=g=>String(g).replace(/[-–]?\s*н?\d+([а-яё])?$/i,'').replace(/\d+$/,'')||g;
-  const byp={},order=[]; rows.forEach(r=>{const k=pref(r.group)||'—';if(!(k in byp)){byp[k]=[];order.push(k);}byp[k].push(r);});
-  const groups=order.map(k=>({name:k,rows:byp[k]}));
-  return [{page:1,rows,groups,vru:'',shields:[],potreb:{},pipes:{},_dxf:true}];
+function _lkDxfPages(labels,name){
+  const L=(labels||[]).filter(o=>+o.L>0&&o.s&&typeof o.x==='number'&&typeof o.y==='number');
+  // 1) дедуп точных дублей (артефакты экспорта: одна подпись записана несколько раз в той же точке)
+  const dd={};L.forEach(o=>{dd[o.s+'|'+o.L+'|'+Math.round(o.x)+'|'+Math.round(o.y)]=o;});
+  const labs=Object.values(dd);
+  if(!labs.length)return [];
+  // 2) РЕЗ НА ЛИСТЫ: union-find, соединяем подписи, близкие по X (в пределах строки) и Y (в пределах
+  //    листа), но НЕ через вертикальный разрыв между копиями. Dx широкий, Dy узкий.
+  const Dx=3500,Dy=1600,par=labs.map((_,i)=>i);
+  const find=i=>{while(par[i]!==i){par[i]=par[par[i]];i=par[i];}return i;};
+  const grid={};labs.forEach((o,i)=>{const k=Math.floor(o.x/Dx)+','+Math.floor(o.y/Dx);(grid[k]=grid[k]||[]).push(i);});
+  labs.forEach((o,i)=>{const gx=Math.floor(o.x/Dx),gy=Math.floor(o.y/Dx);
+    for(let ax=-1;ax<=1;ax++)for(let ay=-1;ay<=1;ay++){const arr=grid[(gx+ax)+','+(gy+ay)];if(!arr)continue;
+      for(const j of arr){if(j<=i)continue;if(Math.abs(labs[j].x-o.x)<=Dx&&Math.abs(labs[j].y-o.y)<=Dy)par[find(i)]=find(j);}}});
+  const cl={};labs.forEach((o,i)=>{const r=find(i);(cl[r]=cl[r]||[]).push(o);});
+  let regs=Object.values(cl).filter(g=>g.length>=3);   // одиночные осколки (детали/разрезы/выноски) отсекаем
+  if(!regs.length)regs=Object.values(cl);              // но если всё мелкое — показываем как есть
+  regs.forEach(g=>{g._cy=g.reduce((a,o)=>a+o.y,0)/g.length;g._cx=g.reduce((a,o)=>a+o.x,0)/g.length;});
+  regs.sort((a,b)=>b._cy-a._cy||a._cx-b._cx);           // листы: сверху вниз, слева направо
+  const pref=g=>String(g||'').replace(/[-–]?\s*н?\d+([а-яё])?$/i,'').replace(/\d+$/,'')||g;
+  return regs.map((g,idx)=>{
+    g.sort((a,b)=>b.y-a.y||a.x-b.x);                    // строки листа в порядке чтения
+    const rows=g.map(o=>({group:o.grp||'',mark:o.mark||'',section:String(o.s).replace('.',','),
+      len:+o.L||0,conds:Array.isArray(o.conds)?o.conds:[],mult:1,needsCheck:false,_src:'dxf',x:o.x,y:o.y,_passport:o.raw||''}));
+    const byp={},order=[];rows.forEach(r=>{const k=r.group?pref(r.group):'—';if(!(k in byp)){byp[k]=[];order.push(k);}byp[k].push(r);});
+    const groups=order.map(k=>({name:k,rows:byp[k]}));
+    return {page:idx+1,rows,groups,vru:'',shields:[],potreb:{},pipes:{},_dxf:true};
+  });
 }
 async function openDxf(file){
   const name=file.name||'чертёж.dxf';
@@ -4832,14 +4856,16 @@ async function openDxf(file){
       w.postMessage(buf,[buf]);   // передаём буфер (transferable) — без копии
     });
   }catch(e){$('lkPage').innerHTML='<div class="lk-spin">Не удалось разобрать DXF: '+esc(String(e&&e.message||e))+'</div>';return;}
-  const pages=_lkDxfPages(res.feeders||[],name);
-  if(!pages[0].rows.length){$('lkPage').innerHTML='<div class="lk-spin">В DXF не нашёл кабельных паспортов (подписей вида «Гр-н1; … - Lм … марка NxM»). Возможно, это не однолинейка или другой формат подписей — пришли файл, настрою.</div>';return;}
+  const pages=_lkDxfPages(res.labels||[],name);
+  if(!pages.length){$('lkPage').innerHTML='<div class="lk-spin">В DXF не нашёл кабельных подписей (марка + сечение + длина, напр. «АсВВГ 3х2,5 - 34м»). Возможно, это не однолинейка или другой формат — пришли файл, настрою.</div>';return;}
   LK.docId='dxf_'+name;LK.pdf=null;LK.pages=pages;LK.byId={};LK.aiMode=false;
   let id0=0;pages.forEach(pg=>pg.rows.forEach(r=>{r._id='r'+(id0++);LK.byId[r._id]=r;r.page=pg.page;}));
-  LK.issues=[];LK.drawingState=null;LK.sel=0;LK.view='pages';LK.stale=false;LK.docs=[];
+  LK.issues=[];LK.drawingState=null;LK.view='pages';LK.stale=false;LK.docs=[];
+  // открываемся на самом крупном листе (обычно основная однолинейка)
+  let big=0;pages.forEach((pg,i)=>{if(lkSum(pg.rows).t>lkSum(pages[big].rows).t)big=i;});LK.sel=big;
   renderLineyka();
-  const g=lkSum(pages[0].rows);
-  toast('✓ DXF: '+pages[0].rows.length+' фидеров · '+Math.round(g.t)+' м'+(res.seen>pages[0].rows.length?(' · схлопнуто дублей: '+(res.seen-pages[0].rows.length)):''));
+  const tot=Math.round(lkSum(pages[big].rows).t);
+  toast('✓ DXF: '+pages.length+' лист'+(pages.length===1?'':(pages.length<5?'а':'ов'))+' — выбери нужный слева. Самый крупный: '+pages[big].rows.length+' каб · '+tot+' м');
 }
 /* восстановление после перезагрузки: тот же документ, тот же лист */
 /* автопроверка свежей сборки: GitHub Pages и Chrome могут держать сам index.html до 10 минут.
@@ -6007,10 +6033,18 @@ function renderLineyka(){
   // сводка по блокам (пятнам): суммы кабеля каждого блока + «весь проект» (строки без блока)
   const bt={};let btAny=false;lkAllRows().forEach(r=>{if(r.section==='шина')return;const k=r.block?'Блок '+r.block:'Весь проект';bt[k]=(bt[k]||0)+(+r.len||0);if(r.block)btAny=true;});
   const blkChips=btAny?`<span class="lk-break"></span><span class="lk-rep-lbl">По блокам:</span> `+Object.keys(bt).sort().map(k=>`<span class="lk-chip">${esc(k)} <b>${Math.round(bt[k])} м</b></span>`).join(''):'';
+  const _isDxf=(LK.pages||[]).some(pg=>pg._dxf);
+  if(_isDxf){
+    // DXF режем на листы, среди них бывают КОПИИ однолинейки — сумма по всему файлу задвоила бы.
+    // Поэтому файл-итог не показываем: считаем по каждому листу отдельно (справа).
+    $('lkSum').innerHTML=`<div class="lk-mobile-panel-head"><b>Итоги по файлу</b><button id="lkMobileSummaryClose" aria-label="Закрыть">×</button></div>`
+      +`<span class="lk-chip" style="border-color:#7c3aed;color:#7c3aed">📐 DXF: ${LK.pages.length} лист${LK.pages.length===1?'':(LK.pages.length<5?'а':'ов')} — итог считай <b>по листу</b> (слева выбери нужный). Среди листов бывают копии/детали, поэтому общей суммы по файлу нет.</span>`;
+  }else{
   $('lkSum').innerHTML=`<div class="lk-mobile-panel-head"><b>Итоги по файлу</b><button id="lkMobileSummaryClose" aria-label="Закрыть">×</button></div>`+Object.keys(g.s).sort().map(k=>`<span class="lk-chip">${esc(k)} <b>${Math.round(g.s[k])}</b></span>`).join('')
     +`<span class="lk-chip tot">Всего кабеля <b>${Math.round(g.t)} м</b></span>`
     +(Object.keys(g.c).length?`<span class="lk-break"></span>`+Object.keys(g.c).sort().map(k=>`<span class="lk-chip cond">${esc(k)} <b>${Math.round(g.c[k])}</b></span>`).join('')+`<span class="lk-chip tot cond">Всего труб <b>${Math.round(ct)} м</b></span>`:'')
     +blkChips;
+  }
   // листы строго ПО ПОРЯДКУ (1..N), как в PDF: группировка по ВРУ вырывала листы из
   // последовательности («нет всех страниц») — ВРУ показываем подписью на самом листе
   const mobilePg=LK.pages[LK.sel];if($('lkMobileSheet'))$('lkMobileSheet').textContent=mobilePg?'Лист '+mobilePg.page:'Листы';
