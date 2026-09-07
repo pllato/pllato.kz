@@ -445,6 +445,10 @@ body.lk-drawing-context #btnExport{display:none;}
 .lk-dxf-misshdr{font-size:11.5px;color:#c0392b;font-weight:700;margin-bottom:5px;line-height:1.4;}
 .lk-dxf-miss{font-size:11.5px;color:#8a3b34;padding:2px 0;word-break:break-word;font-variant-numeric:tabular-nums;}
 .lg-row.dxf-lit{background:rgba(96,165,250,.14);border-radius:8px;}
+.lg-row.dxfflag{background:rgba(230,126,34,.10);border:1px solid rgba(230,126,34,.4);border-radius:8px;}
+.lk-dxfchk{font-size:11px;font-weight:700;color:#b9600c;background:rgba(230,126,34,.12);border-radius:6px;padding:3px 8px;white-space:nowrap;}
+.lk-dxfsug{cursor:pointer;color:#1e7e34;border-bottom:1px dashed #1e7e34;padding:0 1px;}
+.lk-dxfsug:hover{background:#1e7e34;color:#fff;border-radius:3px;}
 .lk-dxf-draw{position:relative;height:100%;overflow:hidden;background:#fff;border-radius:8px;}
 .lk-dxf-draw canvas{display:block;touch-action:none;cursor:grab;}
 .lk-dxf-drawtip{position:absolute;left:0;right:0;bottom:0;padding:5px 10px;font-size:11px;line-height:1.4;color:#5a6b78;background:rgba(255,255,255,.92);border-top:1px solid #e5e9ee;pointer-events:none;}
@@ -787,6 +791,7 @@ body.lk-drawing-context #btnExport{display:none;}
     <button class="lk-tb" id="lkIssues" title="Пометки «что исправить» с привязкой к файлу и листу">⚑ Правки<span id="lkIssN"></span></button>
     <button class="lk-tb" id="lkReport">📊 Отчёт по файлу</button>
     <button class="lk-tb" id="lkReportAll" title="Свод по ВСЕМ открытым файлам сразу">📚 Отчёт по всем</button>
+    <button class="lk-tb" id="lkDxfCheck" title="Подгрузить DXF того же объекта и подсветить в таблице кабели, где длина PDF не совпала с чистой длиной из DXF (ловит те самые ошибки чтения PDF)">🔗 Сверка с DXF</button>
     <button class="lk-tb" id="lkCopy">⧉ Копировать для Excel</button>
     <button class="lg-x" id="lkClose">✕ Закрыть</button>
   </div>
@@ -1212,8 +1217,8 @@ function symRotate(ev,o){ev.stopPropagation();pushHistory();pointerDrag(ev,e=>{c
 const _bop=$('btnOpen');if(_bop){_bop.addEventListener('click',()=>{LK.aiMode=false;});_bop.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();LK.aiMode=false;$('fileInput').click();}};}
 const _bol=$('btnOpenLk');if(_bol)_bol.onclick=()=>{LK.aiMode=false;$('lkFile').click();};  // отдельный вход Линейки: клиентское чтение без сервер-разбора
 const _boa=$('btnOpenAi');if(_boa)_boa.onclick=()=>{LK.aiMode=true;$('lkFile').click();};   // третий режим: ИИ читает лист картинкой и сам заполняет поля
-const _bod=$('btnOpenDxf');if(_bod)_bod.onclick=()=>{LK.aiMode=false;$('lkDxfFile').click();};  // четвёртый режим: чтение вектора DXF
-const _dxi=$('lkDxfFile');if(_dxi)_dxi.onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)openDxf(f);};
+const _bod=$('btnOpenDxf');if(_bod)_bod.onclick=()=>{LK.aiMode=false;LK._dxfCheckPending=false;$('lkDxfFile').click();};  // четвёртый режим: чтение вектора DXF
+const _dxi=$('lkDxfFile');if(_dxi)_dxi.onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;if(LK._dxfCheckPending){LK._dxfCheckPending=false;lkDxfCrossCheck(f);}else openDxf(f);};
 $('fileInput').onchange=e=>e.target.files[0]&&loadData(e.target.files[0]);
 const dbox=$('dropbox');
 ['dragenter','dragover'].forEach(ev=>dbox.addEventListener(ev,e=>{e.preventDefault();dbox.classList.add('over');}));
@@ -2593,7 +2598,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v489';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v490';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:'',aiMode:false};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -4642,6 +4647,7 @@ async function lkGatherAll(){
   return out;
 }
 $('lkCopy').onclick=()=>{if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}lkCopyExcel();};
+{const _dc=$('lkDxfCheck');if(_dc)_dc.onclick=()=>{if(!LK.pages||!LK.pages.length){toast('Сначала откройте PDF-схему');return;}LK._dxfCheckPending=true;$('lkDxfFile').click();};}
 /* Мобильная Линейка: один рабочий экран и временные панели вместо сжатого desktop-вида. */
 function lkMobileClosePanels(){
   ['lkNav','lkSum','lkMobileMenu'].forEach(id=>{const el=$(id);if(el)el.classList.remove('mobile-open');});
@@ -4968,6 +4974,33 @@ async function openDxf(file){
   renderLineyka();
   const tot=Math.round(lkSum(pages[big].rows).t);
   toast('✓ DXF: '+pages.length+' лист'+(pages.length===1?'':(pages.length<5?'а':'ов'))+' — выбери нужный слева. Самый крупный: '+pages[big].rows.length+' каб · '+tot+' м');
+}
+/* ГИБРИД: PDF-Линейка (читаемая схема + кружки) сверяется с чистыми длинами из DXF того же объекта.
+   Строим множество длин по сечению из DXF и подсвечиваем строки PDF, где длины нет в DXF — это те
+   самые ошибки чтения PDF (взята не та цифра). DXF-вектор не рисуем, берём только числа. */
+async function lkDxfCrossCheck(file){
+  if(!LK.pages||!LK.pages.length){toast('Сначала откройте PDF-схему в Линейке');return;}
+  lkBusy('🔗 Читаю DXF для сверки длин…','это 10–40 секунд, не закрывай');
+  let buf;try{buf=await file.arrayBuffer();}catch(e){lkBusy(false);toast('Не удалось прочитать DXF');return;}
+  let res;
+  try{res=await new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(new Blob([_lkDxfWorkerSrc()],{type:'text/javascript'}));const w=new Worker(url);
+    const to=setTimeout(()=>{try{w.terminate();}catch(_){}reject(new Error('слишком долго (большой файл)'));},180000);
+    w.onmessage=ev=>{clearTimeout(to);w.terminate();URL.revokeObjectURL(url);ev.data&&ev.data.ok?resolve(ev.data):reject(new Error(ev.data&&ev.data.error||'ошибка разбора'));};
+    w.onerror=er=>{clearTimeout(to);w.terminate();URL.revokeObjectURL(url);reject(new Error(er.message||'ошибка worker'));};
+    w.postMessage(buf,[buf]);});
+  }catch(e){lkBusy(false);toast('Не удалось разобрать DXF: '+(e&&e.message||e));return;}
+  lkBusy(false);
+  const bySec={};(res.labels||[]).forEach(o=>{const k=_lkNrmSec(o.s);if(+o.L>0){(bySec[k]=bySec[k]||new Set()).add(Math.round(+o.L));}});
+  if(!Object.keys(bySec).length){toast('В DXF не нашёл кабельных длин для сверки');return;}
+  LK._dxfCheck=bySec;LK._dxfCheckName=(file.name||'DXF');
+  let flagged=0,checked=0;
+  LK.pages.forEach(pg=>pg.rows.forEach(r=>{const set=bySec[_lkNrmSec(r.section)];
+    if(set&&+r.len>0){checked++;const L=Math.round(+r.len);const arr=[...set];const has=arr.some(v=>Math.abs(v-L)<=1);   // ±1 — гасим шум округления (расч./монтажная длина)
+      r._dxfFlag=!has;r._dxfSug=has?[]:arr.sort((a,b)=>Math.abs(a-L)-Math.abs(b-L));if(!has)flagged++;}   // подсказки — от ближайших
+    else{r._dxfFlag=false;r._dxfSug=[];}}));
+  renderLineyka();
+  toast(flagged?('🔗 Сверка с DXF: '+flagged+' из '+checked+' — длина НЕ совпала (подсвечены). Клик по строке — кружок на схеме; клик по числу — подставить из DXF.'):('✓ Сверка с DXF: все '+checked+' длин совпали'));
 }
 /* восстановление после перезагрузки: тот же документ, тот же лист */
 /* автопроверка свежей сборки: GitHub Pages и Chrome могут держать сам index.html до 10 минут.
@@ -6192,13 +6225,14 @@ function lkCondsHtml(r){return (r.conds||[]).map((c,i)=>{const co=LK_CONDS.conca
   +`<button class="lk-cadd" data-id="${r._id}">+ труба</button>`;}
 function lkRow(r,noConds,idx,src){const opts=(r.section?[]:['']).concat(LK_SECTIONS).concat(r.section&&LK_SECTIONS.indexOf(r.section)<0?[r.section]:[]);
   const condsTxt=(r.conds||[]).map(c=>c.t+' '+c.len+'м').join(', ');
-  return `<div class="lg-row${r.needsCheck?' warn':''}" data-id="${r._id}">`
+  return `<div class="lg-row${r.needsCheck?' warn':''}${r._dxfFlag?' dxfflag':''}" data-id="${r._id}">`
     +(idx?`<div class="lg-cell" style="min-width:56px"><label>№ · бл.</label><span style="display:flex;align-items:center;gap:4px"><b style="font-size:12px;color:var(--steel)">${idx}</b><input class="lk-blk" data-id="${r._id}" value="${esc(r.block||'')}" maxlength="1" style="width:24px;text-align:center" title="№ блока (пятна) строки — можно поправить; пусто = весь проект" placeholder="–"></span></div>`:'')
     +(src?`<div class="lg-cell"><label>Источник</label><span class="lk-pipe-cab" title="Источник листа — правится в шапке отчёта листа (⚡)">${esc(src)}</span></div>`:'')
     +`<div class="lg-cell"><label>Потребитель</label><input class="lk-g" data-id="${r._id}" value="${esc(r.group||'')}" style="width:96px"></div>`
     +`<div class="lg-cell"><label>Марка (кабель)</label><input class="lk-m" data-id="${r._id}" value="${esc(r.mark||'')}" style="width:132px" placeholder="—"></div>`
     +`<div class="lg-cell"><label>Сечение</label><select class="lk-s" data-id="${r._id}">${opts.map(s=>`<option ${s===r.section?'selected':''}>${esc(s)}</option>`).join('')}</select></div>`
     +`<div class="lg-cell"><label>Длина, м</label><input class="lk-l" data-id="${r._id}" type="number" step="0.1" min="0" value="${r.len}"></div>`
+    +(r._dxfFlag?`<div class="lg-cell" style="justify-content:flex-end"><span class="lk-dxfchk" title="Длины ${r.len}м нет в DXF для сечения ${esc(r.section)} — вероятно, PDF прочитал не ту цифру. Клик по числу — подставить длину из DXF.">🔗 в DXF нет ${r.len}м${(r._dxfSug||[]).length?' → есть: '+(r._dxfSug||[]).slice(0,7).map(v=>`<b class="lk-dxfsug" data-id="${r._id}" data-v="${v}">${v}</b>`).join('·'):''}</span></div>`:'')
     +(r.illegible?`<div class="lg-cell" style="justify-content:flex-end"><span class="lk-recheck" style="background:#c0392b;color:#fff" title="Длина не проставлена — участок неразборчив на чертеже. Впиши длину вручную, если разберёшь.">⚠ неразборчиво — длина не проставлена</span></div>`
       :r.needsCheck&&!(+r.len>0)?`<div class="lg-cell" style="justify-content:flex-end"><span class="lk-recheck" style="background:#c0392b;color:#fff" title="Длина НЕ определена — впиши её вручную по схеме">⚠ нет длины — впишите</span></div>`
       :r.needsCheck?`<div class="lg-cell" style="justify-content:flex-end"><span class="lk-recheck" title="Длину не удалось прочитать точно (голое число на схеме) — сверь со схемой и поправь">⚠ проверить длину</span></div>`:'')
@@ -6245,7 +6279,8 @@ function lkBindDxfSync(P){
 function bindLineyka(){const P=$('lkPage');
   lkBindDxfSync(P);
   P.querySelectorAll('.lk-s').forEach(el=>el.onchange=()=>{LK.byId[el.dataset.id].section=el.value;renderLineyka();});
-  P.querySelectorAll('.lk-l').forEach(el=>el.onchange=()=>{const r=LK.byId[el.dataset.id];r.len=Math.max(0,parseFloat(el.value)||0);r.needsCheck=false;renderLineyka();});
+  P.querySelectorAll('.lk-l').forEach(el=>el.onchange=()=>{const r=LK.byId[el.dataset.id];r.len=Math.max(0,parseFloat(el.value)||0);r.needsCheck=false;r._dxfFlag=false;renderLineyka();});
+  P.querySelectorAll('.lk-dxfsug').forEach(el=>el.onclick=()=>{const r=LK.byId[el.dataset.id];if(!r)return;r.len=+el.dataset.v;r.needsCheck=false;r._dxfFlag=false;r._dxfSug=[];renderLineyka();toast('Длина из DXF: '+el.dataset.v+'м');});   // подставить длину из DXF
   P.querySelectorAll('.lk-g').forEach(el=>el.onchange=()=>{LK.byId[el.dataset.id].group=el.value;lkPersist();});
   P.querySelectorAll('.lk-m').forEach(el=>el.onchange=()=>{LK.byId[el.dataset.id].mark=el.value;lkPersist();});
   P.querySelectorAll('.lk-del').forEach(el=>el.onclick=()=>{lkDelRow(el.dataset.id);renderLineyka();});
