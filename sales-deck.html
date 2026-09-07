@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Сценарий продаж · две встречи · Pllato · Партнёр по операционной оцифровке — презентация услуг</title>
+<meta name="description" content="Pllato разрабатывает системы управления под бизнес и передаёт их в собственность: CRM и ERP-порталы, производство и склад, интеграции с 1С, WhatsApp и телефонией, сайты и B2B-кабинеты.">
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+ --paper:#f2ede0;--card:#f8f5ec;--card2:#ebe5d4;--line:#d9d2bd;--line2:#c3b99e;
+ --ink:#15201c;--ink2:#243530;--green:#2f6b4f;--green2:#3f8a66;--gl:#e3efe7;
+ --text:#1b2420;--muted:#6f7a72;--faint:#98a29a;--red:#b4472f;--amber:#a9741f;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Manrope,system-ui,sans-serif;color:var(--text);background:#ddd8ca;-webkit-font-smoothing:antialiased}
+.serif{font-family:Georgia,'Times New Roman',serif}
+.mono{font-family:'IBM Plex Mono',monospace}
+.slide{width:338.667mm;height:190.5mm;background:var(--paper);margin:0 auto 7mm;padding:15mm 17mm 13mm;position:relative;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 14px 44px rgba(20,25,22,.2)}
+.slide.dark{background:var(--ink);color:#efeade}
+.slide.green{background:var(--green);color:#f0f6f1}
+/* шапка слайда */
+.sh{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1.5px solid var(--line2);padding-bottom:8px;margin-bottom:14px;flex:none}
+.slide.dark .sh,.slide.green .sh{border-color:rgba(255,255,255,.18)}
+.sh-l{display:flex;align-items:baseline;gap:11px}
+.sh-n{font:700 9px 'IBM Plex Mono',monospace;color:var(--green);letter-spacing:.16em}
+.slide.dark .sh-n,.slide.green .sh-n{color:#8fc4a6}
+.sh h2{font-size:24px;letter-spacing:-.025em;font-weight:800}
+.sh-r{font:600 8.4px 'IBM Plex Mono',monospace;color:var(--faint);letter-spacing:.1em;text-align:right;line-height:1.6;text-transform:uppercase}
+.slide.dark .sh-r,.slide.green .sh-r{color:rgba(255,255,255,.45)}
+.sub{font-size:13.4px;color:var(--muted);line-height:1.6;max-width:250mm;margin-bottom:12px}
+.slide.dark .sub,.slide.green .sub{color:rgba(255,255,255,.72)}
+.body{flex:1;display:flex;flex-direction:column;justify-content:flex-start;min-height:0}
+.foot{flex:none;border-top:1px solid var(--line);padding-top:8px;margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;font-size:8.6px;color:var(--faint)}
+.slide.dark .foot,.slide.green .foot{border-color:rgba(255,255,255,.15);color:rgba(255,255,255,.45)}
+.foot b{color:var(--text);font-size:9.4px}
+.slide.dark .foot b,.slide.green .foot b{color:#fff}
+.pg{font:700 8.4px 'IBM Plex Mono',monospace}
+/* титул */
+.cover{justify-content:center;padding:0 22mm}
+.logo{font-size:56px;font-weight:700;letter-spacing:-.015em;line-height:1}
+.logo span{color:var(--green2)}
+.cover .ctag{font:600 9.6px 'IBM Plex Mono',monospace;color:#8fc4a6;letter-spacing:.22em;text-transform:uppercase;margin-top:14px}
+.cover h1{font-size:40px;line-height:1.1;letter-spacing:-.03em;font-weight:800;margin:20px 0 14px;max-width:230mm}
+.cover h1 em{font-style:normal;color:#8fc4a6}
+.cover p{font-size:14px;line-height:1.65;color:rgba(255,255,255,.75);max-width:205mm}
+.cover-meta{display:flex;gap:34px;margin-top:26px;padding-top:18px;border-top:1px solid rgba(255,255,255,.16)}
+.cover-meta div small{display:block;font:700 7.6px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.42);letter-spacing:.12em}
+.cover-meta div b{display:block;font-size:16px;margin-top:5px;color:#fff}
+.cover-meta div:first-child b{color:#8fc4a6}
+.cover-srv{margin-top:26px;font:600 10.4px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.42);letter-spacing:.04em;line-height:2}
+.cover-srv i{color:#8fc4a6;font-style:normal;margin:0 4px}
+/* сетки */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.g21{display:grid;grid-template-columns:1.5fr 1fr;gap:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:15px 17px}
+.card.on{background:var(--gl);border-color:#a9cdb8}
+.card.ink{background:var(--ink);border-color:var(--ink);color:#efeade}
+.slide.dark .card,.slide.green .card{color:var(--text)}
+.slide.dark .card.ink,.slide.green .card.ink{color:#efeade}
+.slide.dark .fb,.slide.green .fb{color:var(--text)}
+.slide.dark .fb.on,.slide.green .fb.on{color:#efeade}
+.slide.dark .cmp,.slide.green .cmp{color:var(--text)}
+.slide.dark .card.ink,.slide.dark .fb.on{background:#1e2d28;border-color:rgba(255,255,255,.15)}
+.slide.dark .fb{border-color:rgba(255,255,255,.15)}
+.slide.dark .metrics{background:#1e2d28;border-color:rgba(255,255,255,.15)}
+.slide.dark .metrics div{border-color:rgba(255,255,255,.12)}
+.slide.dark .metrics small,.slide.dark .metrics span{color:rgba(255,255,255,.5)}
+.slide.dark .metrics b{color:#efeade}.slide.dark .metrics div:first-child b{color:#8fc4a6}
+.srv-card{display:flex;flex-direction:column}
+.card code{font:700 8.2px 'IBM Plex Mono',monospace;color:var(--green);letter-spacing:.11em}
+.card.ink code{color:#8fc4a6}
+.card h3{font-size:14.4px;font-weight:800;margin:6px 0 5px;letter-spacing:-.015em}
+.card p{font-size:11.4px;line-height:1.62;color:#4e574f}
+.card.ink p{color:rgba(255,255,255,.7)}
+.card ul{margin:6px 0 0 13px}
+.card li{font-size:11.2px;line-height:1.62;color:#4e574f;margin-bottom:2px}
+/* метрики */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:12px}
+.metrics div{padding:15px 16px;border-right:1px solid var(--line)}
+.metrics div:last-child{border:0}
+.metrics small{display:block;font:700 8px 'IBM Plex Mono',monospace;color:var(--muted);letter-spacing:.09em}
+.metrics b{display:block;font-size:26px;margin-top:6px;letter-spacing:-.03em}
+.metrics span{display:block;font-size:10.4px;color:var(--muted);margin-top:4px}
+.metrics div:first-child b{color:var(--green)}
+/* список услуг */
+.srv{display:flex;gap:13px;align-items:flex-start;padding:13px 0;border-bottom:1px solid var(--line)}
+.srv:last-child{border:0}
+.srv i{width:30px;height:30px;flex:none;background:var(--ink);color:#8fc4a6;border-radius:6px;display:grid;place-items:center;font:800 11px 'IBM Plex Mono',monospace;font-style:normal}
+.srv b{font-size:13.4px;display:block}
+.srv p{font-size:11.4px;color:#4e574f;line-height:1.58;margin-top:3px}
+.srv .price{margin-left:auto;text-align:right;flex:none;font:700 11px 'IBM Plex Mono',monospace;color:var(--green);white-space:nowrap}
+.srv .price small{display:block;font:600 8.2px 'IBM Plex Mono',monospace;color:var(--faint);margin-top:3px}
+/* поток */
+.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin:12px 0}
+.fb{background:var(--card);border:1px solid var(--line);padding:14px 14px;position:relative}
+.fb:first-child{border-radius:6px 0 0 6px}.fb:last-child{border-radius:0 6px 6px 0}
+.fb.on{background:var(--ink);border-color:var(--ink);color:#efeade}
+.fb code{font:700 7.2px 'IBM Plex Mono',monospace;color:var(--green);letter-spacing:.1em}
+.fb.on code{color:#8fc4a6}
+.fb b{display:block;font-size:12.4px;margin-top:5px}
+.fb p{font-size:10.4px;line-height:1.55;color:#4e574f;margin-top:4px}
+.fb.on p{color:rgba(255,255,255,.68)}
+/* сравнение */
+.cmp{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.cmp>div{padding:14px 16px}
+.cmp .was{background:var(--card2)}
+.cmp .now{background:var(--gl);border-left:1px solid var(--line)}
+.cmp h4{font:700 8.8px 'IBM Plex Mono',monospace;letter-spacing:.11em;margin-bottom:9px;color:var(--muted)}
+.cmp .now h4{color:var(--green)}
+.cmp .row{font-size:11.6px;padding:7px 0;border-bottom:1px solid rgba(0,0,0,.06);line-height:1.5}
+.cmp .row:last-child{border:0}
+/* отрасли */
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
+.tag{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:8px 15px;font-size:11.4px;font-weight:600}
+.tag.on{background:var(--ink);border-color:var(--ink);color:#efeade}
+.cases{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.case{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:13px 14px}
+.case b{font-size:12px;display:block;letter-spacing:-.01em}
+.case small{display:block;font:600 7.6px 'IBM Plex Mono',monospace;color:var(--green);letter-spacing:.06em;margin-top:4px}
+.case p{font-size:10.4px;color:#4e574f;line-height:1.55;margin-top:5px}
+/* цитата */
+.q{border-left:3px solid var(--green);background:var(--gl);padding:14px 17px;border-radius:0 6px 6px 0;margin-top:11px}
+.q p{font-size:12px;line-height:1.62}
+.q b{color:var(--green)}
+.slide.dark .q{background:rgba(255,255,255,.06);border-color:#8fc4a6}
+.slide.dark .q p{color:rgba(255,255,255,.82)}
+/* контакты */
+.contact{display:grid;grid-template-columns:1.1fr 1fr;gap:26px;align-items:center;flex:1}
+.contact h1{font-size:34px;line-height:1.12;letter-spacing:-.03em;font-weight:800;margin-bottom:14px}
+.contact h1 em{font-style:normal;color:#8fc4a6}
+.contact p{font-size:12.6px;line-height:1.68;color:rgba(255,255,255,.75)}
+.cbox{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);border-radius:8px;padding:20px 22px}
+.crow{display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:11.6px}
+.crow:last-child{border:0}
+.crow span{color:rgba(255,255,255,.5)}
+.crow b{text-align:right}
+@media print{
+ @page{size:338.667mm 190.5mm;margin:0}
+ body{background:#fff}
+ .slide{margin:0;box-shadow:none;page-break-after:always;height:190.5mm}
+ .slide:last-child{page-break-after:auto}
+}
+@media screen and (max-width:1320px){body{zoom:.72}}
+@media screen and (max-width:1000px){body{zoom:.5}}
+
+.shots{display:grid;gap:9px;margin:2px 0 0}
+.shots.two{grid-template-columns:1fr 1fr}
+.shots.three{grid-template-columns:repeat(3,1fr)}
+.shots.four{grid-template-columns:repeat(4,1fr)}
+.shot{border:1px solid var(--line);border-radius:7px;overflow:hidden;background:#fff}
+.shot img{width:100%;display:block}
+.shot .cap{font-size:9.6px;color:var(--muted);padding:7px 10px;border-top:1px solid var(--line);line-height:1.45;background:var(--card)}
+.shot .cap b{color:var(--text)}
+.slide.dark .shot,.slide.green .shot{border-color:rgba(255,255,255,.16)}
+.slide.dark .shot .cap,.slide.green .shot .cap{background:rgba(255,255,255,.05);color:rgba(255,255,255,.62);border-color:rgba(255,255,255,.14)}
+.slide.dark .shot .cap b,.slide.green .shot .cap b{color:#fff}
+.gal{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.gal .shot img{height:196px;object-fit:cover;object-position:top left}
+.shots.three .shot img{height:238px;object-fit:cover;object-position:top}
+.shots.four .shot img{height:226px;object-fit:cover;object-position:top}
+.split{display:grid;grid-template-columns:1.28fr 1fr;gap:13px;align-items:start}
+.split.rev{grid-template-columns:1fr 1.28fr}
+.pts{margin:0}
+.pt{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line)}
+.pt:last-child{border:0}
+.pt i{width:6px;height:6px;border-radius:50%;background:var(--green);flex:none;margin-top:6px;font-style:normal}
+.pt b{font-size:12.4px;display:block}
+.pt span{font-size:11px;color:var(--muted);display:block;margin-top:2px;line-height:1.5}
+.slide.dark .pt{border-color:rgba(255,255,255,.12)}
+.slide.dark .pt span{color:rgba(255,255,255,.6)}
+.slide.dark .pt i{background:#8fc4a6}
+.phone-shot{max-width:196px;margin:0 auto;display:block;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+</style>
+
+<style>
+.step-tag{display:inline-flex;align-items:center;gap:7px;font:700 8.6px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--green);text-transform:uppercase;border:1px solid var(--line2);border-radius:20px;padding:5px 11px;background:var(--card)}
+.slide.dark .step-tag,.slide.green .step-tag{color:#bfe3cd;border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.07)}
+.goal{border-left:3px solid var(--green);background:var(--gl);padding:9px 13px;border-radius:0 8px 8px 0;margin-top:auto;font-size:11.4px;line-height:1.5}
+.goal b{color:var(--green)}
+.slide.dark .goal,.slide.green .goal{background:rgba(255,255,255,.07);border-color:#8fc4a6}
+.slide.dark .goal b,.slide.green .goal b{color:#bfe3cd}
+.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.gcard{border:1px solid var(--line);background:var(--card);border-radius:9px;padding:12px 13px}
+.gcard.acc{background:var(--gl);border-color:#b9d6c5}
+.gcard.dk{background:var(--ink);border-color:var(--ink);color:#fff}
+.gcard code{font:700 7.6px 'IBM Plex Mono',monospace;color:var(--green);letter-spacing:.1em}
+.gcard.dk code{color:#8fc4a6}
+.gcard h4{font-size:12.6px;margin:5px 0 4px;font-weight:800}
+.gcard p{font-size:10.4px;line-height:1.5;color:var(--muted)}
+.gcard.dk p{color:rgba(255,255,255,.66)}
+.slide.dark .gcard{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15);color:#fff}
+.slide.dark .gcard p{color:rgba(255,255,255,.66)}
+.qqs{margin-top:4px}
+.qq{display:flex;gap:9px;padding:7px 0;border-bottom:1px solid var(--line);font-size:11.6px;line-height:1.45;background:none;border-left:0;border-radius:0;margin:0}
+.qq:last-child{border-bottom:0}
+.qq i{font-style:normal;color:var(--green);font:800 9.6px 'IBM Plex Mono',monospace;flex:none;margin-top:2px}
+.slide.dark .qq,.slide.green .qq{border-color:rgba(255,255,255,.18)}
+.slide.dark .qq i,.slide.green .qq i{color:#bfe3cd}
+.tl{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:6px 0 0;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.tl div{padding:11px 13px;border-left:1px solid var(--line);background:var(--card)}
+.tl div:first-child{border-left:0}
+.tl small{display:block;font:700 7.6px 'IBM Plex Mono',monospace;color:var(--green);letter-spacing:.08em}
+.tl b{display:block;font-size:12.6px;margin-top:4px}
+.tl span{display:block;font-size:10px;color:var(--muted);margin-top:3px;line-height:1.45}
+.money{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px}
+.money div{border:1px solid var(--line);border-radius:9px;padding:12px 13px;background:var(--card)}
+.money div.big{background:var(--ink);border-color:var(--ink);color:#fff}
+.money small{display:block;font:700 7.6px 'IBM Plex Mono',monospace;color:var(--muted);letter-spacing:.08em}
+.money div.big small{color:#8fc4a6}
+.money b{display:block;font-size:23px;margin:6px 0 3px;letter-spacing:-.03em}
+.money span{font-size:10.2px;color:var(--muted);line-height:1.45;display:block}
+.money div.big span{color:rgba(255,255,255,.66)}
+.fill{border:1px dashed var(--line2);border-radius:9px;padding:10px 12px;background:var(--card2);font-size:11px;color:var(--muted)}
+.fill b{color:var(--text);display:block;margin-bottom:3px;font-size:11.6px}
+table.d{width:100%;border-collapse:collapse;margin-top:4px}
+table.d th{text-align:left;font:700 8px 'IBM Plex Mono',monospace;color:var(--muted);letter-spacing:.06em;padding:7px 10px;border-bottom:1.5px solid var(--ink);text-transform:uppercase}
+table.d td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:11px;vertical-align:top}
+table.d td.r{text-align:right;font-family:'IBM Plex Mono',monospace;white-space:nowrap;font-weight:700}
+.slide.dark table.d td,.slide.dark table.d th{border-color:rgba(255,255,255,.14)}
+.chk2{display:flex;gap:8px;align-items:flex-start;padding:6px 0;font-size:11.4px;line-height:1.45}
+.chk2 i{color:var(--green);font-style:normal;font-weight:800;font-size:11px;flex:none}
+.slide.dark .chk2 i{color:#8fc4a6}
+.big-num{font:800 40px Manrope,sans-serif;letter-spacing:-.04em;color:var(--green);line-height:1}
+.act{border:2px dashed var(--green);background:var(--gl);border-radius:11px;padding:13px 15px}
+.act b{display:block;font-size:13px;margin-bottom:4px;color:var(--green)}
+.act p{font-size:11.2px;line-height:1.55}
+.slide.dark .tl,.slide.green .tl{border-color:rgba(255,255,255,.18)}
+.slide.dark .tl div,.slide.green .tl div{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.18);color:#fff}
+.slide.dark .tl small,.slide.green .tl small{color:#bfe3cd}
+.slide.dark .tl span,.slide.green .tl span{color:rgba(255,255,255,.66)}
+.slide.dark table.d th,.slide.green table.d th{color:rgba(255,255,255,.6);border-bottom-color:rgba(255,255,255,.35)}
+.slide.dark table.d td,.slide.green table.d td{color:#fff}
+.slide.dark .money div,.slide.green .money div{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.18);color:#fff}
+.slide.dark .money div.big,.slide.green .money div.big{background:#0f1a16;border-color:#0f1a16}
+.slide.dark .money small,.slide.green .money small{color:#bfe3cd}
+.slide.dark .money span,.slide.green .money span{color:rgba(255,255,255,.66)}
+.slide.green .gcard{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.18);color:#fff}
+.slide.green .gcard p{color:rgba(255,255,255,.7)}
+.slide.green .gcard code{color:#bfe3cd}
+.slide.green .gcard.dk{background:#0f1a16;border-color:#0f1a16}
+.slide.green .act{background:rgba(255,255,255,.08);border-color:#8fc4a6}
+.slide.green .act b{color:#bfe3cd}
+.slide.dark .chk2 i,.slide.green .chk2 i{color:#bfe3cd}
+.slide.green .shot .cap,.slide.dark .shot .cap{background:#163024!important;color:#cfe3d7!important;border-color:rgba(255,255,255,.2)!important}
+.slide.green .shot .cap b,.slide.dark .shot .cap b{color:#fff!important}
+#s10shots .shot img{height:250px;object-fit:cover;object-position:top}
+@media print{body{zoom:1!important}}
+</style>
+</head><body>
+
+<!-- ============ ЧАСТЬ 1 · ВСТРЕЧА 1 ============ -->
+<section class="slide dark cover">
+ <div class="logo serif">Pllato<span>.</span></div>
+ <div class="ctag">Встреча 1 из 2 · знакомство и разбор вашего бизнеса · 45 минут</div>
+ <h1>Разберём, как устроен<br>ваш бизнес — и где он<br><em>теряет деньги</em></h1>
+ <p>Сегодня мы не продаём программу. Сегодня мы собираем картину: как у вас проходит путь от заявки до денег, где рвётся и сколько это стоит. К следующей встрече соберём демо вашей системы — бесплатно.</p>
+ <div class="cover-meta">
+  <div><small>СИСТЕМ И ПРОТОТИПОВ</small><b>80+</b></div>
+  <div><small>СРОК ЗАПУСКА</small><b>4–6 недель</b></div>
+  <div><small>АБОНЕНТСКАЯ ПЛАТА</small><b>0 ₸</b></div>
+  <div><small>СИСТЕМА ОСТАЁТСЯ</small><b>у вас</b></div>
+ </div>
+ <div class="cover-srv">CRM и ERP-порталы <i>·</i> Производство и склад <i>·</i> Мобильные места <i>·</i> 1С по OData <i>·</i> WhatsApp и телефония <i>·</i> Магазины и B2B-кабинеты</div>
+</section>
+
+<!-- 02 · ПЛАН ВСТРЕЧИ -->
+<section class="slide">
+ <span class="step-tag">Шаг 1 · рамка встречи</span>
+ <h2 style="margin-top:11px">Как пройдёт эта встреча</h2>
+ <p class="lead">Чтобы никто не тратил время: сначала вы, потом мы, в конце — план. Записываю разговор, чтобы ничего не потерять при подготовке демо.</p>
+ <div class="tl" style="margin-top:12px">
+  <div><small>15 МИНУТ</small><b>Вы рассказываете</b><span>как устроен бизнес, что в каких системах ведёте, что горит прямо сейчас</span></div>
+  <div><small>10 МИНУТ</small><b>Считаем потери</b><span>переводим «неудобно» в деньги: сколько стоит текущий порядок вещей</span></div>
+  <div><small>15 МИНУТ</small><b>Показываем похожее</b><span>живые системы, которые мы делали для бизнесов с такой же механикой</span></div>
+  <div><small>5 МИНУТ</small><b>Договариваемся о шаге</b><span>что и когда мы соберём под вас к следующей встрече</span></div>
+ </div>
+ <div class="goal"><b>Зачем этот слайд:</b> клиент понимает структуру и не ждёт презентации-продажи. Разрешение на запись и на вопросы получено в первую минуту.</div>
+</section>
+
+<!-- 03 · КТО МЫ -->
+<section class="slide">
+ <span class="step-tag">Шаг 2 · кто мы · 90 секунд</span>
+ <h2 style="margin-top:11px">Мы выросли из собственной боли</h2>
+ <div class="split" style="margin-top:10px">
+  <div>
+   <div class="pts">
+    <div class="pt"><i></i><div><b>Начали с себя</b><span>У нас сеть офлайн-школ английского в Алматы и Астане плюс онлайн-школа. Пятнадцать лет назад мы построили портал, чтобы управлять ею — расписание, филиалы, деньги, преподаватели. Оттуда и выросла команда разработки.</span></div></div>
+    <div class="pt"><i></i><div><b>Делаем только под задачу</b><span>Готовых коробок у нас нет. Приходят два клиента из одной отрасли — получаются две разные системы, потому что у собственников разные задачи.</span></div></div>
+    <div class="pt"><i></i><div><b>Сейчас в работе 24 клиента</b><span>Вагоны и логистика, склады, производство, сети точек, медицина, автосалоны, пекарни. Часть — на сопровождении и доработках после сдачи.</span></div></div>
+   </div>
+  </div>
+  <div class="grid2" style="grid-template-columns:1fr 1fr">
+   <div class="gcard dk"><code>КОМАНДА</code><h4>15 человек</h4><p>На ваш проект выделяем двоих: технического лидера и разработчика</p></div>
+   <div class="gcard"><code>ГЕОГРАФИЯ</code><h4>Алматы</h4><p>Работаем по всему Казахстану и в Кыргызстане, встречаемся онлайн</p></div>
+   <div class="gcard"><code>ФОРМАТ</code><h4>1–2 созвона в неделю</h4><p>Показали — обсудили — поправили. Так собирается система</p></div>
+   <div class="gcard acc"><code>РЕЗУЛЬТАТ</code><h4>Код у вас</h4><p>Сервер, база и исходники передаются заказчику</p></div>
+  </div>
+ </div>
+ <div class="goal"><b>Зачем этот слайд:</b> снять вопрос «кто вы такие», не уходя в самопрезентацию. Главный аргумент — мы сами управляем бизнесом, а не только пишем код.</div>
+</section>
+
+<!-- 04 · КАРТА БИЗНЕСА -->
+<section class="slide green">
+ <span class="step-tag">Шаг 3 · диагностика · 15 минут</span>
+ <h2 style="margin-top:11px">Покажите, где у вас рвётся эта цепочка</h2>
+ <p class="lead">У любого бизнеса — от вагонов до пекарни — один и тот же путь. Разница в том, где именно он рвётся и кто держит его на себе.</p>
+ <div class="tl" style="margin-top:12px;grid-template-columns:repeat(6,1fr)">
+  <div><small>1 · ВХОД</small><b>Заявка</b><span>WhatsApp, звонок, почта, Instagram, сайт</span></div>
+  <div><small>2 · СДЕЛКА</small><b>Расчёт и договор</b><span>цена, счёт, согласование</span></div>
+  <div><small>3 · РЕСУРС</small><b>Склад и закуп</b><span>что есть, чего не хватает</span></div>
+  <div><small>4 · РАБОТА</small><b>Производство или услуга</b><span>кто делает, в каком статусе</span></div>
+  <div><small>5 · ВЫХОД</small><b>Отгрузка и документы</b><span>накладные, акты, возвраты</span></div>
+  <div><small>6 · ДЕНЬГИ</small><b>Оплата и долги</b><span>кто должен, сколько, с какого числа</span></div>
+ </div>
+ <div class="qqs" style="margin-top:12px">
+  <div class="qq"><i>01</i><span>Где сейчас живёт каждый из этих шагов — таблица, 1С, тетрадь, голова конкретного человека?</span></div>
+  <div class="qq"><i>02</i><span>Что уже пробовали внедрять и почему не прижилось?</span></div>
+  <div class="qq"><i>03</i><span>Что горит прямо сейчас — то, из-за чего вы согласились на эту встречу?</span></div>
+ </div>
+ <div class="goal"><b>Цель шага:</b> собрать реальную картину и услышать боль словами клиента. Слайд — это карта для разговора, а не то, что мы читаем вслух.</div>
+</section>
+
+<!-- 05 · ГДЕ УТЕКАЮТ ДЕНЬГИ -->
+<section class="slide">
+ <span class="step-tag">Шаг 4 · оцифровка боли</span>
+ <h2 style="margin-top:11px">Пять мест, где обычно утекают деньги</h2>
+ <p class="lead">Мы видим это в каждом втором проекте. Отметьте, что из этого про вас — дальше посчитаем в деньгах.</p>
+ <div class="grid5" style="margin-top:11px">
+  <div class="gcard"><code>01 · ВХОД</code><h4>Потерянные заявки</h4><p>Заявка пришла в личный WhatsApp менеджера и не дошла до расчёта. Реклама оплачена, клиент ушёл к соседям</p></div>
+  <div class="gcard"><code>02 · РАСЧЁТ</code><h4>Цена «на глаз»</h4><p>Каждый считает по-своему, скидки дают на ходу. Маржа по сделке выясняется постфактум, если выясняется вообще</p></div>
+  <div class="gcard"><code>03 · РЕСУРС</code><h4>Склад в тетради</h4><p>Остатки не списываются вовремя, излишки копятся год, недостача всплывает на инвентаризации</p></div>
+  <div class="gcard"><code>04 · РАБОТА</code><h4>Двойной ввод</h4><p>Одни и те же данные заносят в две системы, чтобы «сходилось». Ошибки и время сотрудников — каждый день</p></div>
+  <div class="gcard"><code>05 · ДЕНЬГИ</code><h4>Дебиторка вслепую</h4><p>Кто и сколько должен — знает бухгалтер раз в квартал. Споры с клиентами решаются памятью, а не документом</p></div>
+ </div>
+ <div class="goal"><b>Цель шага:</b> клиент сам выбирает 2–3 пункта и начинает рассказывать примеры. Дальше переводим примеры в цифры на следующем слайде.</div>
+</section>
+
+<!-- 06 · СЧИТАЕМ НА ВАШИХ ЦИФРАХ -->
+<section class="slide dark">
+ <span class="step-tag">Шаг 4 · продолжение</span>
+ <h2 style="margin-top:11px">Считаем на ваших цифрах — прямо сейчас</h2>
+ <p class="lead">Мы не подставляем свои проценты. Мы спрашиваем ваши и считаем вместе — вслух, на этом экране.</p>
+ <table class="d" style="margin-top:8px">
+  <thead><tr><th style="width:26%">Что теряется</th><th>Что спрашиваем у вас</th><th style="width:22%">Формула</th><th style="width:16%" class="r">Ваша цифра</th></tr></thead>
+  <tbody>
+   <tr><td><b>Заявки</b></td><td>Сколько обращений в неделю и сколько из них теряется или отвечается позже часа</td><td>потерянные × средний чек</td><td class="r">заполняем</td></tr>
+   <tr><td><b>Сырьё и остатки</b></td><td>Какое расхождение показывает последняя инвентаризация</td><td>расхождение × цена</td><td class="r">заполняем</td></tr>
+   <tr><td><b>Возвраты и брак</b></td><td>Какой процент возвращается или списывается</td><td>% × месячная отгрузка</td><td class="r">заполняем</td></tr>
+   <tr><td><b>Время сотрудников</b></td><td>Сколько часов в месяц уходит на сведение таблиц и сверки</td><td>часы × стоимость часа</td><td class="r">заполняем</td></tr>
+   <tr><td><b>Дебиторка</b></td><td>Сколько денег висит у клиентов дольше срока по договору</td><td>сумма × срок</td><td class="r">заполняем</td></tr>
+  </tbody>
+ </table>
+ <div class="goal"><b>Цель шага:</b> получить от клиента произнесённую вслух сумму потерь. С этого момента разговор о цене системы идёт не «дорого или дёшево», а «окупается или нет».</div>
+</section>
+
+<!-- 07 · КЕЙС · ЛОГИСТИКА -->
+<section class="slide">
+ <span class="step-tag">Шаг 5 · компетентность · кейс 1</span>
+ <h2 style="margin-top:11px">Вагоны и логистика: учёт по каждой единице</h2>
+ <p class="lead">Компания восемь лет возила грузы по железной дороге и вела всё в Excel и тетрадях. Забыли выставить счёт на четыре вагона — и потом долго доказывали клиенту, что услуга была оказана.</p>
+ <div class="split" style="margin-top:9px">
+  <div class="shots"><div class="shot"><img src="/img/deck/vagon.jpg" alt="Реестр вагонов"><div class="cap"><b>Реестр вагонов по номерам.</b> Заявка, подача, дислокация, расходы и маржа по каждому вагону, счета к выставлению</div></div></div>
+  <div>
+   <div class="pts">
+    <div class="pt"><i></i><div><b>Было</b><span>Заявки в переписке, расходы по вагону в отдельном файле, счета выставляли по памяти</span></div></div>
+    <div class="pt"><i></i><div><b>Стало</b><span>Заявка → подача → в пути → выгрузка → счёт. Каждый вагон с расходами и маржой, отдельный экран «счета к выставлению»</span></div></div>
+    <div class="pt"><i></i><div><b>Что решилось в деньгах</b><span>Ни одна перевозка не остаётся без счёта. Видно, какие направления и партнёры реально прибыльные, а какие возят в ноль</span></div></div>
+   </div>
+  </div>
+ </div>
+ <div class="goal"><b>Цель шага:</b> показать не «красивый интерфейс», а механику, похожую на бизнес клиента. Кейс выбирается заранее — под его отрасль.</div>
+</section>
+
+<!-- 08 · КЕЙС · СКЛАД И ПРОИЗВОДСТВО -->
+<section class="slide">
+ <span class="step-tag">Шаг 5 · компетентность · кейс 2</span>
+ <h2 style="margin-top:11px">Склад и производство: от сырья до готовой партии</h2>
+ <div class="shots three" style="margin-top:9px">
+  <div class="shot"><img src="/img/deck/stock.jpg" alt="Склад"><div class="cap"><b>Склад с партиями и сроками.</b> Остатки, минимальные запасы, автозаявка поставщику</div></div>
+  <div class="shot"><img src="/img/deck/batch.jpg" alt="Партии"><div class="cap"><b>Производственный цикл.</b> Партия по этапам со списанием сырья по техкарте</div></div>
+  <div class="shot"><img src="/img/deck/prod.jpg" alt="Себестоимость"><div class="cap"><b>Себестоимость по факту.</b> Не «в среднем», а по каждой партии и смене</div></div>
+ </div>
+ <div class="grid4" style="margin-top:10px">
+  <div class="gcard"><code>ПРОБЛЕМА</code><h4>Списание раз в период</h4><p>Остатки копятся, недостача всплывает раз в год</p></div>
+  <div class="gcard"><code>РЕШЕНИЕ</code><h4>Списание в момент</h4><p>Запустили партию — сырьё ушло со склада по норме</p></div>
+  <div class="gcard"><code>ЭФФЕКТ</code><h4>Видно перерасход</h4><p>Отклонение от техкарты заметно в тот же день</p></div>
+  <div class="gcard acc"><code>БОНУС</code><h4>Цены прихода</h4><p>Подорожало сырьё — сразу видно, какие позиции стали убыточными</p></div>
+ </div>
+ <div class="goal"><b>Цель шага:</b> дать клиенту узнать свою ситуацию в чужом кейсе. Реакция «о, у нас так же» — сигнал, что можно переходить к следующему шагу.</div>
+</section>
+
+<!-- 09 · КЕЙС · ПРОДАЖИ И КАНАЛЫ -->
+<section class="slide">
+ <span class="step-tag">Шаг 5 · компетентность · кейс 3</span>
+ <h2 style="margin-top:11px">Продажи: все каналы в одном окне и расчёт за 30 секунд</h2>
+ <div class="shots three" style="margin-top:9px">
+  <div class="shot"><img src="/img/deck/funnel.jpg" alt="Воронка"><div class="cap"><b>Воронка сделок.</b> Карточка тянется мышью, у каждой — ответственный и срок</div></div>
+  <div class="shot"><img src="/img/deck/calc.jpg" alt="Калькулятор"><div class="cap"><b>Калькулятор заказа.</b> Цены из прайса клиента, сумма и ссылка на оплату сразу</div></div>
+  <div class="shot"><img src="/img/deck/calls.jpg" alt="Звонки"><div class="cap"><b>Звонки и переписка.</b> Записи разговоров и WhatsApp внутри карточки, а не в личном телефоне</div></div>
+ </div>
+ <div class="grid2" style="margin-top:10px">
+  <div class="gcard dk"><code>ГЛАВНОЕ ПРО КАЛЬКУЛЯТОР</code><h4>Скорость ответа решает</h4><p>Чем быстрее клиент получает цену и ссылку на оплату, тем меньше у него времени передумать. Менеджер не считает на ходу и не придумывает скидки — он собирает заказ по вашему прайсу.</p></div>
+  <div class="gcard"><code>ГЛАВНОЕ ПРО КАНАЛЫ</code><h4>Переписка остаётся в компании</h4><p>Менеджер уходит — история клиента остаётся. Видно, кто ответил, за сколько минут и чем закончилось.</p></div>
+ </div>
+ <div class="goal"><b>Цель шага:</b> показать блок, который нужен почти всем. Обычно именно здесь клиент говорит: «а можно нам такой калькулятор».</div>
+</section>
+
+<!-- 10 · КЕЙС · СЕТЬ И РУКОВОДИТЕЛЬ -->
+<section class="slide green">
+ <span class="step-tag">Шаг 5 · компетентность · кейс 4</span>
+ <h2 style="margin-top:11px">Экран собственника: одна картина вместо десяти отчётов</h2>
+ <div class="shots two" style="margin-top:9px" id="s10shots">
+  <div class="shot"><img src="/img/deck/kmd-dash.jpg" alt="Сводка"><div class="cap"><b>Сводка сети.</b> Точки, производство, деньги и то, что требует решения — на одном экране</div></div>
+  <div class="shot"><img src="/img/deck/gazablok.jpg" alt="Производство"><div class="cap"><b>Отраслевая специфика.</b> Терминология и логика — ваши: замес, привоз, вагон, партия, обмен</div></div>
+ </div>
+ <div class="qqs" style="margin-top:10px">
+  <div class="qq"><i>→</i><span><b>Цифры собираются из работы сотрудников</b>, а не из отчётов, которые они пишут для вас</span></div>
+  <div class="qq"><i>→</i><span><b>Права настраиваются по ролям:</b> себестоимость, маржа и зарплаты видит только тот, кому положено</span></div>
+  <div class="qq"><i>→</i><span><b>Каждое действие в журнале:</b> кто дал скидку, кто списал, кто изменил цену — с именем и временем</span></div>
+ </div>
+ <div class="goal"><b>Цель шага:</b> закрепить позицию «мы делаем инструмент управления, а не программу для сотрудников». Это то, за что платит собственник.</div>
+</section>
+
+<!-- 11 · СТАНДАРТНЫЙ ПАКЕТ -->
+<section class="slide">
+ <span class="step-tag">Шаг 6 · как мы работаем</span>
+ <h2 style="margin-top:11px">Что входит в стандартный пакет разработки</h2>
+ <p class="lead">Мы не считаем каждую кнопку. Есть объём работ, который закрывает бизнес целиком — и он фиксируется ценой заранее.</p>
+ <div class="grid4" style="margin-top:11px">
+  <div class="gcard"><code>ВХОД</code><h4>Каналы связи</h4><p>WhatsApp, Instagram, почта, сайт, IP-телефония с записью разговоров — в одну ленту обращений</p></div>
+  <div class="gcard"><code>ПРОДАЖИ</code><h4>Воронка и калькулятор</h4><p>Сделки по этапам, расчёт по вашему прайсу, коммерческое и ссылка на оплату клиенту</p></div>
+  <div class="gcard"><code>РЕСУРСЫ</code><h4>Склад и закуп</h4><p>Остатки, приход, расход, инвентаризация, заявки поставщикам</p></div>
+  <div class="gcard"><code>РАБОТА</code><h4>Производство или услуга</h4><p>Этапы, ответственные, сроки, себестоимость, брак и списания</p></div>
+  <div class="gcard"><code>ЛЮДИ</code><h4>Задачи и KPI</h4><p>Поручения с исполнителями и сроками, показатели по сотрудникам</p></div>
+  <div class="gcard"><code>ДЕНЬГИ</code><h4>Отчётность руководителя</h4><p>Сводка, аналитика, выгрузки в Excel по любому срезу</p></div>
+  <div class="gcard"><code>ДОСТУП</code><h4>Роли и журнал</h4><p>Кто что видит и кто что сделал — настраивается под вашу структуру</p></div>
+  <div class="gcard acc"><code>ОТДЕЛЬНО</code><h4>1С и маркетплейсы</h4><p>Интеграция с 1С считается отдельно — это работа с чужой системой и её бухгалтерской логикой</p></div>
+ </div>
+ <div class="goal"><b>Цель шага:</b> показать границы объёма до разговора о цене. Клиент должен понимать, что покупает систему целиком, а не набор экранов.</div>
+</section>
+
+<!-- 12 · ПРОЦЕСС -->
+<section class="slide">
+ <span class="step-tag">Шаг 6 · как мы работаем</span>
+ <h2 style="margin-top:11px">4–6 недель, полтора десятка созвонов, три сдачи</h2>
+ <div class="tl" style="margin-top:12px">
+  <div><small>НЕДЕЛЯ 1</small><b>Ядро и справочники</b><span>Переносим ваши прайсы, номенклатуру, точки и справочники. Показываем каркас, вы правите на месте</span></div>
+  <div><small>НЕДЕЛИ 2–3</small><b>Основные блоки</b><span>Идём по списку: продажи, склад, производство, деньги. Каждый блок — показали, обсудили, закрыли</span></div>
+  <div><small>НЕДЕЛЯ 4</small><b>Сдача ядра</b><span>Система работает на ваших данных. Это точка второго платежа — принимаете и платите после того, как увидели</span></div>
+  <div><small>НЕДЕЛИ 5–6</small><b>Полировка и запуск</b><span>Правки по реальной работе, обучение сотрудников, перенос на ваш сервер, передача</span></div>
+ </div>
+ <div class="grid2" style="margin-top:12px">
+  <div class="gcard"><code>ПОЧЕМУ НЕ ПО ТЗ НА 20 СТРАНИЦ</code><h4>Вы не обязаны описывать систему словами</h4><p>Мы приносим готовый экран, вы говорите «это нужно, это лишнее, здесь по-другому». Так техническое задание собирается само — из ваших правок, а не из фантазий на старте.</p></div>
+  <div class="gcard acc"><code>ПОЧЕМУ ЭТО НЕ РАСТЯНЕТСЯ</code><h4>Правки заложены в цену заранее</h4><p>Мы закладываем 10–15% часов сверх объёма: собственник всегда что-то добавляет по ходу. Эти доработки не превращаются в дополнительные счета.</p></div>
+ </div>
+ <div class="goal"><b>Цель шага:</b> снять два главных страха — «я не смогу объяснить, что мне нужно» и «мне выставят счёт за каждое изменение».</div>
+</section>
+
+<!-- 13 · ЦЕНА И ОПЛАТА -->
+<section class="slide dark">
+ <span class="step-tag">Шаг 6 · деньги</span>
+ <h2 style="margin-top:11px">Сколько это стоит и как мы берём деньги</h2>
+ <div class="money" style="margin-top:10px">
+  <div class="big"><small>СТАНДАРТНЫЙ ПАКЕТ</small><b>1,5–2,5 млн ₸</b><span>Зависит от объёма блоков. Точная цифра — после демо, когда состав согласован</span></div>
+  <div><small>СРОК</small><b>4–6 недель</b><span>Ядро — на третьей неделе, полный запуск — к шестой</span></div>
+  <div><small>ЕЖЕМЕСЯЧНО ЗА СИСТЕМУ</small><b>0 ₸</b><span>Платите только за сервер — 10–25 тыс. ₸ в месяц напрямую хостингу</span></div>
+ </div>
+ <div class="tl" style="margin-top:12px;grid-template-columns:repeat(3,1fr)">
+  <div><small>ПЛАТЁЖ 1 · 10%</small><b>Символическая предоплата</b><span>Запускает работу. Мы сознательно работаем постоплатой: 90% суммы вы платите после того, как увидите результат</span></div>
+  <div><small>ПЛАТЁЖ 2 · 45%</small><b>После сдачи ядра</b><span>Система работает на ваших данных. Не приняли — не платите дальше</span></div>
+  <div><small>ПЛАТЁЖ 3 · 45%</small><b>После запуска</b><span>Полировка, обучение, перенос на ваш сервер, передача кода и доступов</span></div>
+ </div>
+ <div class="goal"><b>Цель шага:</b> назвать вилку до демо, чтобы на второй встрече обсуждать не «сколько», а «что входит». Схема 10/45/45 снимает риск с клиента и говорит о нашей уверенности.</div>
+</section>
+
+<!-- 14 · ЗАКРЫТИЕ НА ДЕМО -->
+<section class="slide green">
+ <span class="step-tag">Шаг 7 · закрытие первой встречи</span>
+ <h2 style="margin-top:11px">Следующий шаг: соберём демо вашей системы — бесплатно</h2>
+ <p class="lead">Не презентацию и не картинки из интернета. Кликабельный макет с вашим логотипом, вашими экранами и вашей терминологией. Обычно — за 1–3 дня.</p>
+ <div class="split" style="margin-top:11px">
+  <div>
+   <div class="qqs">
+    <div class="qq"><i>1</i><span><b>Мы соберём</b> ключевые экраны под ваш бизнес: обращения, сделки, склад или производство, отчёт руководителя</span></div>
+    <div class="qq"><i>2</i><span><b>Вы посмотрите и скажете</b>, что нужно, чего не хватает и что лишнее — прямо на экране</span></div>
+    <div class="qq"><i>3</i><span><b>Из ваших правок</b> получится состав работ и точная цена. Это ни к чему не обязывает</span></div>
+   </div>
+  </div>
+  <div class="gcard acc">
+   <code>ЧТО НУЖНО ОТ ВАС СЕГОДНЯ</code>
+   <div class="chk2" style="margin-top:6px"><i>✓</i><span>Логотип — забрендируем демо под вас</span></div>
+   <div class="chk2"><i>✓</i><span>Скриншоты того, чем пользуетесь сейчас, и ваш прайс</span></div>
+   <div class="chk2"><i>✓</i><span>Кто ещё должен быть на показе — руководитель, технолог, бухгалтер</span></div>
+   <div class="chk2"><i>✓</i><span>Дата и время: предлагаю через 2–3 дня, 30–40 минут</span></div>
+  </div>
+ </div>
+ <div class="goal"><b>Цель первого этапа достигнута, если:</b> в календаре стоит вторая встреча с конкретной датой и временем, получен логотип и материалы, известно, кто принимает решение и в какой бюджет клиент себя видит.</div>
+</section>
+
+<!-- ============ ЧАСТЬ 2 · ВСТРЕЧА 2 ============ -->
+<section class="slide dark cover">
+ <div class="logo serif">Pllato<span>.</span></div>
+ <div class="ctag">Встреча 2 из 2 · демо вашей системы и старт · 40 минут</div>
+ <h1>Мы собрали вашу систему.<br>Посмотрите и скажите,<br><em>что поменять</em></h1>
+ <p>Сегодня вы увидите свой бизнес на экране: вашими словами, с вашими позициями и ролями. Наша задача — собрать ваши правки и договориться о старте.</p>
+ <div class="cover-meta">
+  <div><small>ЭКРАНОВ В ДЕМО</small><b>под вас</b></div>
+  <div><small>СТОИМОСТЬ ДЕМО</small><b>0 ₸</b></div>
+  <div><small>СРОК ЗАПУСКА</small><b>4–6 недель</b></div>
+  <div><small>ПРЕДОПЛАТА</small><b>10%</b></div>
+ </div>
+ <div class="cover-srv">Что услышали <i>·</i> Показ демо <i>·</i> Ваши правки <i>·</i> Эффект в деньгах <i>·</i> Условия и гарантия <i>·</i> Старт</div>
+</section>
+
+<!-- 16 · ЧТО МЫ УСЛЫШАЛИ -->
+<section class="slide">
+ <span class="step-tag">Шаг 1 · возврат к боли · 3 минуты</span>
+ <h2 style="margin-top:11px">Что мы услышали от вас в прошлый раз</h2>
+ <p class="lead">Прежде чем показывать экраны — сверим, правильно ли мы поняли. Если что-то не так, лучше исправить сейчас.</p>
+ <div class="grid2" style="margin-top:11px">
+  <div class="gcard dk"><code>ГЛАВНАЯ БОЛЬ</code><h4>«Ваша фраза с прошлой встречи»</h4><p>Дословная цитата клиента — то, как он сам описал проблему. Не наш пересказ и не наши формулировки.</p></div>
+  <div class="gcard"><code>ЧТО ЭТО СТОИТ</code><h4>Сумма, которую вы назвали</h4><p>Цифра потерь, которую клиент произнёс сам на первой встрече. Здесь мы её просто напоминаем.</p></div>
+  <div class="gcard"><code>ЧТО ДОЛЖНО ИЗМЕНИТЬСЯ</code><h4>Три-четыре пункта</h4><p>Конкретные вещи, которые клиент назвал как «вот это надо решить в первую очередь».</p></div>
+  <div class="gcard acc"><code>ЧТО МЫ УЧЛИ В ДЕМО</code><h4>Как это выглядит на экране</h4><p>По каждому пункту — экран, который сейчас покажем. Демо собрано именно под эти задачи.</p></div>
+ </div>
+ <div class="goal"><b>Цель шага:</b> клиент слышит собственные слова и понимает, что его слушали. Это самый сильный момент второй встречи — сильнее любого интерфейса.</div>
+</section>
+
+<!-- 17 · ПРАВИЛА ДЕМО -->
+<section class="slide">
+ <span class="step-tag">Шаг 2 · рамка показа · 1 минута</span>
+ <h2 style="margin-top:11px">Что такое это демо и как его смотреть</h2>
+ <div class="grid4" style="margin-top:12px">
+  <div class="gcard"><code>ЭТО</code><h4>Кликабельный макет</h4><p>Экраны, роли, кнопки, переходы. Можно нажимать и ходить внутри</p></div>
+  <div class="gcard"><code>ЭТО НЕ</code><h4>Готовая программа</h4><p>Данные не сохраняются, цифры демонстрационные. Это макет для обсуждения</p></div>
+  <div class="gcard"><code>ЗАЧЕМ</code><h4>Чтобы спорить предметно</h4><p>Проще сказать «здесь не так» глядя на экран, чем описывать словами на бумаге</p></div>
+  <div class="gcard acc"><code>ВАША ЗАДАЧА</code><h4>Перебивать</h4><p>Каждый раз, когда видите не своё, — говорите. Мы записываем все правки</p></div>
+ </div>
+ <div class="act" style="margin-top:12px">
+  <b>Действие ведущего: отправить прямую ссылку в чат</b>
+  <p>Клиент открывает демо у себя, а не только смотрит наш экран. Человек, который сам кликает, вовлекается в разы сильнее — и начинает примерять систему на свою работу. Пусть на показе будут те, кто будет в ней работать.</p>
+ </div>
+ <div class="goal"><b>Цель шага:</b> снять ожидание «сейчас продадут готовое» и получить разрешение на диалог вместо монолога.</div>
+</section>
+
+<!-- 18 · МАРШРУТ ПОКАЗА -->
+<section class="slide green">
+ <span class="step-tag">Шаг 3 · показ демо · 15–20 минут</span>
+ <h2 style="margin-top:11px">Маршрут показа: начинаем с той боли, о которой он говорил</h2>
+ <p class="lead">Не с титульного экрана и не «по порядку». Первым показываем то, из-за чего он согласился на встречу.</p>
+ <div class="tl" style="margin-top:11px;grid-template-columns:repeat(5,1fr)">
+  <div><small>1 · КРЮЧОК</small><b>Экран его боли</b><span>То, что горит: потерянные заявки, склад, дебиторка, сходимость</span></div>
+  <div><small>2 · РОЛИ</small><b>Глазами его людей</b><span>Что видит менеджер, кладовщик, водитель, бухгалтер</span></div>
+  <div><small>3 · ГЛУБИНА</small><b>Один сценарий целиком</b><span>Заявка → расчёт → работа → отгрузка → деньги, без перескоков</span></div>
+  <div><small>4 · ВЛАСТЬ</small><b>Экран собственника</b><span>Сводка, права, журнал действий — то, за что платит он</span></div>
+  <div><small>5 · ВОПРОС</small><b>«Что здесь не так?»</b><span>После каждого блока — пауза и вопрос. Молчание тоже ответ</span></div>
+ </div>
+ <div class="grid2" style="margin-top:12px">
+  <div class="gcard"><code>ЧЕГО НЕ ДЕЛАТЬ</code><h4>Не показывать всё подряд</h4><p>Двадцать экранов за двадцать минут — это утомляет и обесценивает. Три экрана, разобранные глубоко, продают лучше.</p></div>
+  <div class="gcard"><code>ЧТО ДЕЛАТЬ ОБЯЗАТЕЛЬНО</code><h4>Записывать правки при клиенте</h4><p>«Записал: убрать это поле, добавить статус». Клиент видит, что его слышат — и его вовлечённость растёт с каждой правкой.</p></div>
+ </div>
+ <div class="goal"><b>Цель шага:</b> клиент должен увидеть на экране свой бизнес и начать говорить «а вот здесь бы нам ещё…». Это момент, когда он мысленно уже работает в системе.</div>
+</section>
+
+<!-- 19 · ПРАВКИ -->
+<section class="slide">
+ <span class="step-tag">Шаг 4 · фиксация объёма · 5 минут</span>
+ <h2 style="margin-top:11px">Ваши правки — это и есть техническое задание</h2>
+ <p class="lead">Всё, что вы сейчас назвали, мы собрали в список. Он станет приложением к договору: по нему принимается работа.</p>
+ <table class="d" style="margin-top:8px">
+  <thead><tr><th style="width:28%">Блок</th><th>Что меняем по вашим словам</th><th style="width:18%">Входит в пакет</th></tr></thead>
+  <tbody>
+   <tr><td><b>Заявки и каналы</b></td><td>Заполняется на встрече со слов клиента</td><td>да</td></tr>
+   <tr><td><b>Сделки и расчёт</b></td><td>Заполняется на встрече со слов клиента</td><td>да</td></tr>
+   <tr><td><b>Склад / производство</b></td><td>Заполняется на встрече со слов клиента</td><td>да</td></tr>
+   <tr><td><b>Деньги и отчётность</b></td><td>Заполняется на встрече со слов клиента</td><td>да</td></tr>
+   <tr><td><b>1С, маркетплейсы, особые интеграции</b></td><td>Обсуждается отдельно — это работа с чужой системой</td><td>отдельно</td></tr>
+  </tbody>
+ </table>
+ <div class="goal"><b>Цель шага:</b> превратить показ в согласованный объём. Пока правки не записаны и не подтверждены вслух — разговор о цене преждевременный.</div>
+</section>
+
+<!-- 20 · ЭФФЕКТ -->
+<section class="slide dark">
+ <span class="step-tag">Шаг 5 · экономика · 5 минут</span>
+ <h2 style="margin-top:11px">Что вы получите в деньгах</h2>
+ <p class="lead">Считаем по цифрам, которые вы назвали на первой встрече. Без «роста продаж на 30%» — только то, что можно проверить.</p>
+ <table class="d" style="margin-top:8px">
+  <thead><tr><th style="width:30%">Статья</th><th>Как считаем</th><th style="width:15%" class="r">В месяц</th><th style="width:15%" class="r">За год</th></tr></thead>
+  <tbody>
+   <tr><td><b>Потерянные заявки</b></td><td>Обращения без ответа × ваш средний чек × конверсия</td><td class="r">по вашим</td><td class="r">по вашим</td></tr>
+   <tr><td><b>Потери на складе</b></td><td>Расхождения и излишки, которые сейчас списываются в конце периода</td><td class="r">по вашим</td><td class="r">по вашим</td></tr>
+   <tr><td><b>Возвраты и брак</b></td><td>Снижение доли на 1–2 процентных пункта от месячной отгрузки</td><td class="r">по вашим</td><td class="r">по вашим</td></tr>
+   <tr><td><b>Время сотрудников</b></td><td>Часы на сведение таблиц, сверки и двойной ввод</td><td class="r">по вашим</td><td class="r">по вашим</td></tr>
+   <tr><td><b>Дебиторка</b></td><td>Ускорение сбора: деньги перестают лежать у клиентов</td><td class="r">по вашим</td><td class="r">по вашим</td></tr>
+  </tbody>
+ </table>
+ <div class="money" style="margin-top:11px">
+  <div class="big"><small>ОКУПАЕМОСТЬ</small><b>4–8 месяцев</b><span>Типичная для наших проектов при консервативном счёте</span></div>
+  <div><small>СТОИМОСТЬ</small><b>один раз</b><span>Со второго года платежей за систему нет вообще</span></div>
+  <div><small>ЕСЛИ ЭФФЕКТ ВДВОЕ МЕНЬШЕ</small><b>всё равно окупится</b><span>Мы считаем осторожно и говорим об этом прямо</span></div>
+ </div>
+ <div class="goal"><b>Цель шага:</b> перевести разговор из «дорого» в «окупается». Цифры должны быть его, а не наши — тогда с ними не спорят.</div>
+</section>
+
+<!-- 21 · СОСТАВ И ПОДАРКИ -->
+<section class="slide">
+ <span class="step-tag">Шаг 6 · условия</span>
+ <h2 style="margin-top:11px">Что входит в вашу цену — и что мы добавляем сверх</h2>
+ <div class="split" style="margin-top:10px">
+  <div>
+   <table class="d">
+    <thead><tr><th>Состав</th><th style="width:24%" class="r">Обычная цена</th><th style="width:20%" class="r">Для вас</th></tr></thead>
+    <tbody>
+     <tr><td><b>Стандартный пакет</b> — все блоки, которые мы согласовали по вашим правкам</td><td class="r">1,5–2,5 млн ₸</td><td class="r">по договору</td></tr>
+     <tr><td><b>Калькулятор под ваш прайс</b> — расчёт заказа и коммерческое клиенту</td><td class="r">≈ 200 000 ₸</td><td class="r" style="color:var(--green)">в подарок</td></tr>
+     <tr><td><b>Показатели сотрудников</b> — KPI по вашим формулам</td><td class="r">≈ 150 000 ₸</td><td class="r" style="color:var(--green)">в подарок</td></tr>
+     <tr><td><b>Правки в процессе</b> — 10–15% часов заложены заранее</td><td class="r">по часам</td><td class="r" style="color:var(--green)">включено</td></tr>
+     <tr><td><b>Интеграция с 1С</b> — документы из портала уходят в вашу базу</td><td class="r">от 800 000 ₸</td><td class="r">отдельно</td></tr>
+    </tbody>
+   </table>
+  </div>
+  <div class="gcard dk">
+   <code>ПОЧЕМУ 1С СЧИТАЕТСЯ ОТДЕЛЬНО</code>
+   <h4>Это работа с чужой системой</h4>
+   <p>1С построена вокруг бухгалтерской логики, и обмен нужно согласовывать с вашим бухгалтером: какие документы, в каком виде, на какой базе. Сначала настраиваем на тестовой копии, показываем бухгалтеру, и только потом переключаемся на рабочую.</p>
+   <p style="margin-top:6px">Мы делаем это параллельно основным работам — срок проекта от этого не растёт.</p>
+  </div>
+ </div>
+ <div class="goal"><b>Цель шага:</b> показать ценность через «обычная цена / для вас». Подарки называются в момент, когда объём уже согласован — тогда они читаются как жест, а не как уценка.</div>
+</section>
+
+<!-- 22 · ДАННЫЕ И КОД -->
+<section class="slide">
+ <span class="step-tag">Шаг 6 · снятие рисков</span>
+ <h2 style="margin-top:11px">Ваши данные, ваш сервер, ваш код</h2>
+ <div class="grid4" style="margin-top:12px">
+  <div class="gcard"><code>ГДЕ ЛЕЖИТ</code><h4>На вашем сервере</h4><p>Облачный сервер оформляется на вас. Как почтовый ящик: есть адрес, логин и пароль — и они ваши</p></div>
+  <div class="gcard"><code>НАШ ДОСТУП</code><h4>Только на время работ</h4><p>После сдачи вы меняете пароль. Мы показываем, как это сделать и как управлять сервером дальше</p></div>
+  <div class="gcard"><code>КОПИИ</code><h4>Каждый день</h4><p>Резервное копирование базы и файлов на отдельное хранилище с проверкой восстановления</p></div>
+  <div class="gcard acc"><code>ПОСЛЕ ОПЛАТЫ</code><h4>Исходный код — ваш</h4><p>Код, база, доступы и инструкции передаются заказчику. Систему нельзя отключить и нельзя «сделать дороже»</p></div>
+ </div>
+ <div class="grid2" style="margin-top:12px">
+  <div class="gcard"><code>ВОПРОС, КОТОРЫЙ ЗАДАЮТ ВСЕ</code><h4>«А если мы захотим другого разработчика?»</h4><p>Сможете. Стек общепринятый, код в вашем репозитории с первого дня, документация передаётся. Мы специально делаем систему такой, чтобы её мог поддерживать любой специалист — это принципиальная позиция, а не любезность.</p></div>
+  <div class="gcard"><code>ПРО АБОНЕНТСКУЮ ПЛАТУ</code><h4>Её нет</h4><p>Платите за сервер напрямую хостингу — 10–25 тыс. ₸ в месяц. Никаких лицензий, платы за пользователей и ежегодных продлений.</p></div>
+ </div>
+ <div class="goal"><b>Цель шага:</b> закрыть страхи о зависимости и данных до того, как клиент их озвучит. Если он спросил сам — отвечаем и переходим к старту.</div>
+</section>
+
+<!-- 23 · ГАРАНТИЯ -->
+<section class="slide">
+ <span class="step-tag">Шаг 6 · после запуска</span>
+ <h2 style="margin-top:11px">Что происходит после сдачи</h2>
+ <div class="tl" style="margin-top:12px;grid-template-columns:repeat(3,1fr)">
+  <div><small>ПЕРВЫЙ МЕСЯЦ</small><b>Усиленное сопровождение</b><span>Сотрудники начинают работать, вылезают мелочи — правим бесплатно. Это самая нагруженная часть внедрения, и она входит в стоимость</span></div>
+  <div><small>ДАЛЬШЕ</small><b>Ошибки — бесплатно</b><span>Если что-то работает не так, как договорились, исправляем без счетов. Это обязательство по сделанной работе, а не абонемент</span></div>
+  <div><small>НОВЫЕ ИДЕИ</small><b>По часам, без абонплаты</b><span>Через полгода работы у вас появится десяток идей. Оцениваем и делаем по согласованной ставке — обязательного платежа нет</span></div>
+ </div>
+ <div class="act" style="margin-top:13px">
+  <b>Что сказать вслух</b>
+  <p>«Первые полгода у вас каждую неделю будут рождаться идеи — так у всех собственников. Мы это знаем и закладываем запас часов заранее. Считать каждую мелочь отдельным счётом — не наш формат работы».</p>
+ </div>
+ <div class="goal"><b>Цель шага:</b> показать, что мы не исчезаем после оплаты, и одновременно установить границу: гарантия — это про ошибки, новые функции — это про часы.</div>
+</section>
+
+<!-- 24 · СТАРТ -->
+<section class="slide green">
+ <span class="step-tag">Шаг 7 · закрытие · 5 минут</span>
+ <h2 style="margin-top:11px">Начинаем сегодня — и вы фиксируете скидку</h2>
+ <div class="money" style="margin-top:11px">
+  <div class="big"><small>ПРЕДОПЛАТА 10%</small><b>запускает работу</b><span>Символическая сумма. Остальные 90% — после того, как увидите ядро и результат</span></div>
+  <div><small>СКИДКА ЗА СЕГОДНЯ</small><b>5%</b><span>Действует, если предоплата вносится в течение суток после встречи</span></div>
+  <div><small>ПЕРВЫЙ РЕЗУЛЬТАТ</small><b>через 7 дней</b><span>Каркас на ваших данных, первый созвон по правкам</span></div>
+ </div>
+ <div class="split" style="margin-top:12px">
+  <div>
+   <div class="qqs">
+    <div class="qq"><i>1</i><span><b>Сейчас:</b> вы даёте реквизиты, мы выставляем счёт на предоплату прямо в чат</span></div>
+    <div class="qq"><i>2</i><span><b>Сегодня:</b> создаём рабочий чат с техническим лидером — там идёт вся работа</span></div>
+    <div class="qq"><i>3</i><span><b>Завтра:</b> присылаете справочники и прайсы, мы начинаем переносить ваши данные</span></div>
+    <div class="qq"><i>4</i><span><b>Через неделю:</b> первый созвон по каркасу — вы правите на месте</span></div>
+   </div>
+  </div>
+  <div class="gcard acc">
+   <code>ЧТО ВЫ ПОЛУЧАЕТЕ ЗА ПРЕДОПЛАТУ</code>
+   <div class="chk2" style="margin-top:6px"><i>✓</i><span>Зафиксированную цену и объём — они не изменятся</span></div>
+   <div class="chk2"><i>✓</i><span>Скидку 5%, которая действует только сегодня</span></div>
+   <div class="chk2"><i>✓</i><span>Место в графике команды: мы ведём ограниченное число проектов одновременно</span></div>
+   <div class="chk2"><i>✓</i><span>Право остановиться после ядра, если результат не устроит</span></div>
+  </div>
+ </div>
+ <div class="goal"><b>Цель второго этапа достигнута, если:</b> получены реквизиты и выставлен счёт, создан рабочий чат, назначен первый созвон по каркасу. Не «мы подумаем», а конкретное действие сегодня.</div>
+</section>
+
+<!-- 25 · ЕСЛИ НЕ ЗАКРЫЛИ -->
+<section class="slide dark">
+ <span class="step-tag">Шаг 8 · если решение откладывается</span>
+ <h2 style="margin-top:11px">Не закрыли сегодня — закрываем следующий шаг</h2>
+ <p class="lead">Худший финал встречи — «мы посоветуемся и позвоним». Он означает потерю сделки в 8 случаях из 10. Вместо него — всегда конкретика.</p>
+ <div class="grid4" style="margin-top:11px">
+  <div class="gcard"><code>ЕСЛИ «НАДО ПОСОВЕТОВАТЬСЯ»</code><h4>Назначаем дату совета</h4><p>«Когда вы обсуждаете? Давайте я буду на связи в этот день и отвечу на вопросы партнёра прямо в чате»</p></div>
+  <div class="gcard"><code>ЕСЛИ «ДЕНЬГИ ПОЗЖЕ»</code><h4>Фиксируем цену и место</h4><p>«Скидка и цена держатся до конкретного числа. Счёт выставим сейчас, оплатите, когда придут деньги»</p></div>
+  <div class="gcard"><code>ЕСЛИ «ДОРОГО»</code><h4>Режем объём, не цену</h4><p>«Давайте уберём блок, который сейчас не горит, и начнём с ядра. Добавим позже, когда система начнёт приносить»</p></div>
+  <div class="gcard acc"><code>В ЛЮБОМ СЛУЧАЕ</code><h4>Резюме в чат в тот же день</h4><p>Что обсудили, что входит, сколько стоит, что дальше и до какого числа держим условия — письменно, одним сообщением</p></div>
+ </div>
+ <div class="goal"><b>Правило:</b> встреча не заканчивается без назначенного следующего действия с датой. Если следующего шага нет — сделки нет, как бы хорошо ни прошёл показ.</div>
+</section>
+
+<!-- 26 · ФИНАЛ -->
+<section class="slide">
+ <div style="display:flex;flex-direction:column;justify-content:center;flex:1">
+  <span class="step-tag" style="align-self:flex-start">Итог двух встреч</span>
+  <h2 style="margin-top:13px;font-size:32px">Клиент проходит путь, а не слушает презентацию</h2>
+  <div class="tl" style="margin-top:16px">
+   <div><small>ВСТРЕЧА 1 · ЦЕЛЬ</small><b>Контакт и картина</b><span>Он рассказал, как устроен бизнес, и сам назвал сумму потерь</span></div>
+   <div><small>ВСТРЕЧА 1 · РЕЗУЛЬТАТ</small><b>Дата демо в календаре</b><span>Есть логотип, материалы и список участников показа</span></div>
+   <div><small>ВСТРЕЧА 2 · ЦЕЛЬ</small><b>Своя система на экране</b><span>Он увидел свой бизнес и внёс правки — объём согласован</span></div>
+   <div><small>ВСТРЕЧА 2 · РЕЗУЛЬТАТ</small><b>Счёт и рабочий чат</b><span>Предоплата внесена, проект в графике команды</span></div>
+  </div>
+  <div class="goal" style="margin-top:18px"><b>Главный принцип:</b> мы не убеждаем купить программу. Мы помогаем собственнику увидеть свои деньги — сначала те, что утекают, потом те, что он вернёт. Продажа — это следствие.</div>
+ </div>
+</section>
+
+</body>
+</html>
