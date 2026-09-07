@@ -2598,7 +2598,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v490';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v491';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:'',aiMode:false};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -3700,15 +3700,17 @@ async function lkRenderPage(page){
   // рисуют дольше таймаута и лист остаётся ПУСТЫМ. 2400px читается и на зуме, но рисуется быстро.
   // Если и это не успело (очень тяжёлый лист) — падаем на низкое разрешение, чтобы был хоть какой-то лист.
   const attempt=async(maxpx,timeoutMs)=>{
-    const sc=Math.min(3,maxpx/Math.max(v0.width,v0.height)),vp=page.getViewport({scale:sc});
+    const sc=Math.min(4,maxpx/Math.max(v0.width,v0.height)),vp=page.getViewport({scale:sc});
     const c=document.createElement('canvas');c.width=Math.round(vp.width);c.height=Math.round(vp.height);
     const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
     const task=page.render({canvasContext:ctx,viewport:vp});
     const to=setTimeout(()=>{try{task.cancel();}catch(_){}},timeoutMs);
     try{await task.promise;}finally{clearTimeout(to);}
-    return {url:c.toDataURL('image/jpeg',0.85),sc};   // sc — чтобы текстовый слой встал ТОЧНО поверх (иначе подсветка/выделение уезжают)
+    return {url:c.toDataURL('image/jpeg',0.88),sc};   // sc — чтобы текстовый слой встал ТОЧНО поверх (иначе подсветка/выделение уезжают)
   };
-  try{return await attempt(1800,50000);}catch(e){return await attempt(1100,40000);}
+  // ЧЁТКОСТЬ: 3200px — подписи читаются на зуме (было 1800 → мылило). Тяжёлые вектор-листы могут не
+  // успеть → падаем на 2000, затем 1200, чтобы был хоть какой-то лист.
+  try{return await attempt(3200,28000);}catch(e){try{return await attempt(2000,20000);}catch(e2){return await attempt(1200,15000);}}
 }
 /* Источник листа. Приоритет — имя из ШТАМПА («…однолинейная схема ЩО-2(1).» → ЩО-2(1)):
    так источник есть и у щитовых листов, не только у ВРУ. Дальше — прежние правила ВРУ */
