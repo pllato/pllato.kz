@@ -552,7 +552,7 @@ async function dealModalLive(d){
   </div>
   <div class="modal-b" id="dmTabDetails">
     <div class="fld"><label>Клиент</label><div id="dmClientZone"></div></div>
-    <div class="fld-row"><div class="fld"><label>Воронка <span class="muted2">(сменить — перемещает сделку)</span></label><select data-dm="funnel" id="dmFunnelSel">${FUNNELS.map(f=>`<option value="${esc(f.id)}" ${f.id===dmFunnel?'selected':''}>${esc(f.name)}</option>`).join('')}</select></div><div class="fld"><label>Этап</label><select data-dm="stage" id="dmStageSel">${stages.map(s=>`<option ${s===d.stage?'selected':''}>${esc(s)}</option>`).join('')}</select></div></div>
+    <div class="fld-row"><div class="fld"><label>Воронка <span class="muted2">(сменить — перемещает сделку)</span></label><select data-dm="funnel" id="dmFunnelSel">${FUNNELS.map(f=>`<option value="${esc(f.id)}" ${f.id===dmFunnel?'selected':''}>${esc(f.name)}</option>`).join('')}</select></div><div class="fld"><label>Этап</label><div class="row" style="gap:6px"><select data-dm="stage" id="dmStageSel" style="flex:1">${stages.map(s=>`<option ${s===d.stage?'selected':''}>${esc(s)}</option>`).join('')}</select><button type="button" class="btn" id="dmNextStage" style="white-space:nowrap;display:none" title="Перевести на следующий этап и сохранить"></button></div></div></div>
     <div class="fld"><label>Телефон</label><div class="row" style="gap:6px"><input data-dm="phone" value="${esc(d.phone||'')}" placeholder="+996…" style="flex:1">${TELEPHONY_ON?`<button type="button" class="btn" id="dmCallBtn" title="Позвонить" style="flex:none">${ic('i-phone','sm')} Позвонить</button>`:''}</div></div>
     <div class="fld-row"><div class="fld"><label>Сумма, с</label><input data-dm="amount" type="number" value="${d.amount||0}"></div><div class="fld"><label>Ответственный</label>${userSelectHtml(dmUsers,d.mgr,'data-dm="mgr"')}</div></div>
     <div class="fld-row"><div class="fld"><label>Источник</label>${dmSourceSel}</div><div class="fld"><label>Точка</label>${storeSelectHtml(dmStores,d.store_key,'data-dm="store_key"','— точка —')}</div></div>
@@ -607,7 +607,23 @@ async function dealModalLive(d){
     if(tab==='chat' && !chatLoaded){ chatLoaded=true; dealChatLoad(bg,d); }
   });
   const dmFunSel=bg.querySelector('#dmFunnelSel'), dmStgSel=bg.querySelector('#dmStageSel');
+  // Кнопка-передвигатель: сама показывает СЛЕДУЮЩИЙ этап воронки и переводит одним кликом
+  // (раньше менеджеру приходилось открывать список и выбирать этап руками на каждом шаге).
+  // Сохраняем через существующую кнопку #dmSave — чтобы логика сохранения была одна на всех.
+  const dmNextBtn=bg.querySelector('#dmNextStage');
+  const dmSyncNext=()=>{
+    if(!dmNextBtn||!dmStgSel) return;
+    const list=STAGES[(dmFunSel&&dmFunSel.value)||d.funnel||state.funnel]||[];
+    const i=list.indexOf(dmStgSel.value);
+    const nxt=(i>=0&&i<list.length-1)?list[i+1]:null;   // на последнем этапе кнопки нет
+    if(nxt){ dmNextBtn.textContent='→ '+nxt; dmNextBtn.dataset.next=nxt; dmNextBtn.style.display=''; }
+    else { dmNextBtn.dataset.next=''; dmNextBtn.style.display='none'; }
+  };
+  if(dmStgSel) dmStgSel.addEventListener('change',dmSyncNext);
+  if(dmNextBtn) dmNextBtn.onclick=()=>{ const n=dmNextBtn.dataset.next; if(!n||!dmStgSel)return; dmStgSel.value=n; bg.querySelector('#dmSave').click(); };
+  dmSyncNext();
   if(dmFunSel&&dmStgSel) dmFunSel.onchange=()=>{ const st=STAGES[dmFunSel.value]||[]; dmStgSel.innerHTML=st.map(s=>`<option>${esc(s)}</option>`).join(''); toast('Этап сброшен на первый для новой воронки','i-info','#d97706'); };
+  if(dmFunSel) dmFunSel.addEventListener('change',dmSyncNext);   // после смены воронки этап сбрасывается — пересчитать кнопку
   const dmPromo=bg.querySelector('#dmPromoInp'), dmHint=bg.querySelector('#dmPromoHint'), dmSrc=bg.querySelector('[data-dm=source]');
   if(dmPromo){ let pt=null; const chk=async()=>{ const c=dmPromo.value.trim(); if(!c){ if(dmHint){dmHint.textContent='— если клиент назвал';dmHint.style.color='';} return; }
     const r=await api('/api/promos/resolve?code='+encodeURIComponent(c)); if(!r.ok)return;
