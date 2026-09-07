@@ -289,16 +289,21 @@ async function loadDash(wrap,qs){
   const d=r.data;
   if(d.empty){ wrap.innerHTML=`<div class="note blue">${ic('i-info','sm')} Нет данных продаж в 1С — запустите синхронизацию.</div>`; return; }
   const cur=d.cur, dl=d.delta, t=d.totals, n=d.days||30;
+  // Период показываем ЯВНЫМИ датами: «30 дн» вводило в заблуждение — клиент сверял скользящее окно
+  // с отчётом 1С за календарный месяц и получал расхождение на ровном месте.
+  const perD=(x)=>{ const p=String(x||'').split('-'); return p.length===3?(p[2]+'.'+p[1]):x; };
+  const perLabel=(d.from&&d.to)?(perD(d.from)+'–'+perD(d.to)):(n+' дн');
   // отразить фактическое окно в полях дат (когда выбран быстрый диапазон)
   const fi=document.querySelector('[data-dh=from]'), ti=document.querySelector('[data-dh=to]');
   if(fi&&ti&&!fi.value&&d.from&&d.to){ fi.value=d.from; ti.value=d.to; }
   wrap.innerHTML=
    `<div class="cards-row">
-      ${dashKpi('i-money','#10b981','Выручка · '+n+' дн',money(cur.revenue),dashDelta(dl.revenue),dl.revenue)}
+      ${dashKpi('i-money','#10b981','Выручка · '+perLabel,money(cur.revenue),dashDelta(dl.revenue),dl.revenue)}
       ${dashKpi('i-chart','#2563eb','Прибыль · '+cur.margin+'%',money(cur.profit),dashDelta(dl.profit),dl.profit)}
       ${dashKpi('i-doc','#7c3aed','Документов',fmt(cur.docs),dashDelta(dl.docs),dl.docs)}
       ${dashKpi('i-cart','#0891b2','Средний чек',money(cur.avg),'розница',0)}
       ${dashKpi('i-box','#db2777','Продано позиций',fmt(cur.qty),'за '+n+' дн',0)}
+      ${(cur.returns&&cur.returns<0)?dashKpi('i-x','#dc2626','Возвраты (уже вычтены)',money(Math.abs(cur.returns)),'валовая '+money(cur.gross||0),0):''}
     </div>
     <div class="cards-row section-gap">
       ${dashKpi('i-users','#16a34a','Покупателей',fmt(t.buyers),'в базе 1С',0)}
@@ -1755,7 +1760,11 @@ PAGES.sales=async(c)=>{ if(noRevAccess()){ noRevBlock(c); return; }
     return miniStat('i-money','#10b981','Выручка',money(t.revenue||0))
       + miniStat('i-chart','#2563eb','Прибыль · '+(t.margin||0)+'%',money(t.profit||0))
       + miniStat('i-cart','#7c3aed','Продано позиций',fmtN(t.qty||0))
-      + miniStat('i-doc','#db2777','Средний чек',money(t.avg||0));
+      + miniStat('i-doc','#db2777','Средний чек',money(t.avg||0))
+      // Возвраты видны отдельно: раньше они молча вычитались из выручки, и при сверке с 1С
+      // расхождение выглядело необъяснимым (у клиента так и вышло — вся разница была в них).
+      + ((t.returns&&t.returns<0)?miniStat('i-x','#dc2626','Возвраты (уже вычтены)',money(Math.abs(t.returns))):'')
+      + ((t.gross&&t.returns&&t.returns<0)?miniStat('i-money','#65806f','Выручка валовая',money(t.gross)):'');
   }
   function topHTML(rows){
     const body=rows.length?rows.map((p,i)=>`<tr><td class="muted2">${i+1}</td><td>${esc(p.name||'—')}</td><td class="num">${fmtN(p.qty)}</td><td class="num">${money(p.revenue||0)}</td><td class="num">${money(p.profit||0)}</td></tr>`).join(''):'<tr><td colspan="5" class="muted2" style="padding:16px">Нет данных</td></tr>';
