@@ -2593,7 +2593,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v487';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v488';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:'',aiMode:false};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -4450,7 +4450,7 @@ function lkDxfSrcHtml(pg){
 function lkDxfDrawHtml(pg){
   if(!LK._dxfGeo||!pg._bbox)return lkDxfSrcHtml(pg);
   return '<div class="lk-dxf-draw" id="lkDxfDrawWrap"><canvas id="lkDxfCanvas"></canvas>'
-    +'<div class="lk-dxf-drawtip">📐 Чертёж из вектора · колесо — зум, тяни — двигать · <b class="lk-dxf-hl">зелёным</b> — кабельные подписи</div></div>';
+    +'<div class="lk-dxf-drawtip">📐 Чертёж · <b style="color:#1e7e34">зелёные №</b> = кабели (совпадают с таблицей), <b style="color:#c0392b">красные ?</b> = длина не распозналась · наведи строку справа — загорится · клик по № — прыжок к строке · колесо/тяни — зум/двигать</div></div>';
 }
 function lkDxfDraw(pg){
   const cv=$('lkDxfCanvas'),wrap=$('lkDxfDrawWrap');if(!cv||!wrap)return;
@@ -4466,6 +4466,20 @@ function lkDxfDraw(pg){
   const T=pg._txts;for(let i=0;i<T.length;i++){const o=T[i],x=X(o.x),y=Y(o.y);if(x<-60||x>cw+20||y<-8||y>ch+16)continue;
     const fh=(o.c?32:26)*s;if(!o.c&&fh<7)continue;if(o.c&&fh<6)continue;
     ctx.font=(o.c?'700 ':'')+Math.max(6,fh).toFixed(0)+'px Arial';ctx.fillStyle=o.c?'#0a7d33':'#94a0ae';ctx.fillText(o.s,x,y);}
+  // ПРОНУМЕРОВАННЫЕ МАРКЕРЫ на каждом кабеле (как в PDF-Линейке): № совпадает с таблицей, наведёшь
+  // строку — кружок загорится; клик по кружку — прыжок к строке. Красные «?» — возможные пропуски.
+  const mk=[];let n=0;const seen={};
+  (pg.groups||[]).forEach(g=>(g.rows||[]).forEach(r=>{n++;if(typeof r.x!=='number')return;
+    let mx=X(r.x),my=Y(r.y);const key=Math.round(mx/6)+','+Math.round(my/6);const off=(seen[key]=(seen[key]||0)+1)-1;my-=off*17;   // разносим наложенные (многокабельные)
+    mk.push({id:r._id,n:n,mx:mx,my:my});}));
+  const R=9,hov=LK._dxfHoverId;ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=1.5;
+  mk.forEach(m=>{if(m.mx<-R||m.mx>cw+R||m.my<-R||m.my>ch+R)return;const hot=m.id===hov;
+    ctx.beginPath();ctx.arc(m.mx,m.my,hot?R+3:R,0,6.2832);ctx.fillStyle=hot?'#f39c12':'#1e7e34';ctx.fill();ctx.strokeStyle='#fff';ctx.stroke();
+    ctx.fillStyle='#fff';ctx.font='700 '+(hot?13:11)+'px Arial';ctx.fillText(m.n,m.mx,m.my);});
+  (pg._miss||[]).forEach(m=>{if(typeof m.x!=='number')return;const mx=X(m.x),my=Y(m.y);if(mx<-R||mx>cw+R||my<-R||my>ch+R)return;
+    ctx.beginPath();ctx.arc(mx,my,R,0,6.2832);ctx.fillStyle='#c0392b';ctx.fill();ctx.strokeStyle='#fff';ctx.stroke();
+    ctx.fillStyle='#fff';ctx.font='700 12px Arial';ctx.fillText('?',mx,my);});
+  ctx.textAlign='left';ctx.textBaseline='alphabetic';pg._mk=mk;
 }
 function lkDxfCanvasInit(pg){
   const cv=$('lkDxfCanvas'),wrap=$('lkDxfDrawWrap');if(!cv||!wrap||!LK._dxfGeo||!pg._bbox)return;
@@ -4479,21 +4493,20 @@ function lkDxfCanvasInit(pg){
     pg._segs=S;pg._circs=C;pg._txts=Tx;}
   const dpr=window.devicePixelRatio||1,cw=wrap.clientWidth||600,ch=wrap.clientHeight||400;
   cv.width=Math.round(cw*dpr);cv.height=Math.round(ch*dpr);cv.style.width=cw+'px';cv.style.height=ch+'px';
-  const sFit=Math.min(cw/W,ch/H)*0.97;                   // вписать весь лист
-  const sRead=13/32;                                     // читаемый зум (кабельный текст ~13px)
-  const s0=(32*sFit>=9)?sFit:sRead, fit=(s0===sFit);     // мелкие листы влезают читаемо → fit, крупные → зум на подписи
-  let ox,oy;
-  if(fit){ox=(cw-W*s0)/2;oy=(ch-H*s0)/2;}
-  else{const lx=bb.lx0!=null?bb.lx0:bb.x0, ly=bb.ly1!=null?bb.ly1:bb.y1;ox=40-(lx-bb.x0)*s0;oy=30-(bb.y1-ly)*s0;}   // на левый-верх подписей
-  pg._cam={s:s0,s0:sFit,ox:ox,oy:oy,cw:cw,ch:ch};
+  const s0=Math.min(cw/W,ch/H)*0.97;                     // ВПИСАТЬ весь лист: номера-кружки фикс.размера видны все сразу (как в PDF), текст читаешь зумом
+  pg._cam={s:s0,s0:s0,ox:(cw-W*s0)/2,oy:(ch-H*s0)/2,cw:cw,ch:ch};
   lkDxfDraw(pg);
   cv.onwheel=e=>{e.preventDefault();const r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top,c=pg._cam;
     const f=e.deltaY<0?1.2:1/1.2,ns=Math.max(c.s0*0.6,Math.min(c.s0*60,c.s*f));
     c.ox=mx-(mx-c.ox)/c.s*ns;c.oy=my-(my-c.oy)/c.s*ns;c.s=ns;lkDxfDraw(pg);};
-  let drag=null;
-  cv.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY,ox:pg._cam.ox,oy:pg._cam.oy};try{cv.setPointerCapture(e.pointerId);}catch(_){}cv.style.cursor='grabbing';};
-  cv.onpointermove=e=>{if(!drag)return;pg._cam.ox=drag.ox+(e.clientX-drag.x);pg._cam.oy=drag.oy+(e.clientY-drag.y);lkDxfDraw(pg);};
-  cv.onpointerup=cv.onpointercancel=()=>{drag=null;cv.style.cursor='grab';};
+  let drag=null,moved=0;
+  cv.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY,ox:pg._cam.ox,oy:pg._cam.oy};moved=0;try{cv.setPointerCapture(e.pointerId);}catch(_){}cv.style.cursor='grabbing';};
+  cv.onpointermove=e=>{if(!drag)return;moved+=Math.abs(e.clientX-drag.x-(pg._cam.ox-drag.ox))+Math.abs(e.clientY-drag.y-(pg._cam.oy-drag.oy));pg._cam.ox=drag.ox+(e.clientX-drag.x);pg._cam.oy=drag.oy+(e.clientY-drag.y);lkDxfDraw(pg);};
+  cv.onpointerup=e=>{const wasClick=drag&&Math.abs(e.clientX-drag.x)<5&&Math.abs(e.clientY-drag.y)<5;drag=null;cv.style.cursor='grab';
+    if(wasClick){const r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top;   // клик по кружку → прыжок к строке таблицы
+      let best=null,bd=1e9;(pg._mk||[]).forEach(m=>{const d=Math.hypot(m.mx-px,m.my-py);if(d<14&&d<bd){bd=d;best=m;}});
+      if(best){const el=$('lkPage').querySelector('.lg-row[data-id="'+best.id+'"]');if(el){el.scrollIntoView({block:'center'});el.classList.add('dxf-lit');setTimeout(()=>el.classList.remove('dxf-lit'),1400);}}}};
+  cv.onpointercancel=()=>{drag=null;cv.style.cursor='grab';};
   cv.style.cursor='grab';
 }
 function lkDxfZoom(dir){const pg=LK.pages[LK.sel];if(!pg||!pg._cam)return;const c=pg._cam;
@@ -4898,7 +4911,7 @@ function _lkDxfPages(labels,name,misses){
   if(!labs.length)return [];
   // 2) РЕЗ НА ЛИСТЫ: union-find, соединяем подписи, близкие по X (в пределах строки) и Y (в пределах
   //    листа), но НЕ через вертикальный разрыв между копиями. Dx широкий, Dy узкий.
-  const Dx=3500,Dy=1600,par=labs.map((_,i)=>i);
+  const Dx=2200,Dy=1200,par=labs.map((_,i)=>i);   // щиты разъезжаются на отдельные листы (как страницы PDF), но одна однолинейка не рвётся
   const find=i=>{while(par[i]!==i){par[i]=par[par[i]];i=par[i];}return i;};
   const grid={};labs.forEach((o,i)=>{const k=Math.floor(o.x/Dx)+','+Math.floor(o.y/Dx);(grid[k]=grid[k]||[]).push(i);});
   labs.forEach((o,i)=>{const gx=Math.floor(o.x/Dx),gy=Math.floor(o.y/Dx);
@@ -4946,7 +4959,7 @@ async function openDxf(file){
   }catch(e){$('lkPage').innerHTML='<div class="lk-spin">Не удалось разобрать DXF: '+esc(String(e&&e.message||e))+'</div>';return;}
   const pages=_lkDxfPages(res.labels||[],name,res.miss||[]);
   if(!pages.length){$('lkPage').innerHTML='<div class="lk-spin">В DXF не нашёл кабельных подписей (марка + сечение + длина, напр. «АсВВГ 3х2,5 - 34м»). Возможно, это не однолинейка или другой формат — пришли файл, настрою.</div>';return;}
-  LK._dxfGeo=res.geo||null;LK.dxfView='text';LK.dxfZoom=1;   // ПО УМОЛЧАНИЮ — список подписей-источник (линейки), чертёж по кнопке
+  LK._dxfGeo=res.geo||null;LK.dxfView='draw';LK.dxfZoom=1;LK._dxfHoverId=null;   // ПО УМОЛЧАНИЮ — чертёж с номерами (как PDF-Линейка); список подписей по кнопке
   LK.docId='dxf_'+name;LK.pdf=null;LK.pages=pages;LK.byId={};LK.aiMode=false;
   let id0=0;pages.forEach(pg=>pg.rows.forEach(r=>{r._id='r'+(id0++);LK.byId[r._id]=r;r.page=pg.page;}));
   LK.issues=[];LK.drawingState=null;LK.view='pages';LK.stale=false;LK.docs=[];
@@ -6221,9 +6234,10 @@ function lkBindDxfSync(P){
   const lit=(id,on)=>{P.querySelectorAll('.lk-dxf-src[data-id="'+id+'"]').forEach(e=>e.classList.toggle('on',on));
     P.querySelectorAll('.lg-row[data-id="'+id+'"]').forEach(e=>e.classList.toggle('dxf-lit',on));};
   const bring=(sel,id)=>{const e=P.querySelector(sel+'[data-id="'+id+'"]');if(e)e.scrollIntoView({block:'nearest'});};
+  const redraw=()=>{if(LK.dxfView!=='text'&&$('lkDxfCanvas'))lkDxfDraw(pg);};
   P.querySelectorAll('.lg-row[data-id]').forEach(row=>{const id=row.dataset.id;
-    row.addEventListener('mouseenter',()=>{lit(id,true);bring('.lk-dxf-src',id);});
-    row.addEventListener('mouseleave',()=>lit(id,false));});
+    row.addEventListener('mouseenter',()=>{lit(id,true);bring('.lk-dxf-src',id);LK._dxfHoverId=id;redraw();});   // подсветить кружок на чертеже
+    row.addEventListener('mouseleave',()=>{lit(id,false);LK._dxfHoverId=null;redraw();});});
   P.querySelectorAll('.lk-dxf-src[data-id]').forEach(s=>{const id=s.dataset.id;s.style.cursor='pointer';
     s.addEventListener('mouseenter',()=>{lit(id,true);bring('.lg-row',id);});
     s.addEventListener('mouseleave',()=>lit(id,false));});
