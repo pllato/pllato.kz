@@ -461,7 +461,7 @@ body {
 }
 .tool-card:hover .tile-access-btn { opacity:1; }
 .tile-access-btn:hover { background:var(--bronze-tint); color:var(--bronze-deep); }
-.tile-access-btn.sdr-access-btn {
+.tile-access-btn.wide-access-btn {
   position:relative; top:auto; right:auto; align-self:flex-start;
   width:auto; height:30px; margin-top:8px; padding:6px 10px;
   border:1px solid var(--line-2); background:var(--surface);
@@ -4035,20 +4035,23 @@ function initProjectGroups(){
     });
     sdrCard.appendChild(resultsBtn);
   }
-  if (sdrCard && CURRENT?.isAdmin && !sdrCard.querySelector('.tile-access-btn')) {
+  // Плашки с собственной кнопкой «Доступы»: список из TILE_ACCESS_APPS.
+  Object.keys(TILE_ACCESS_APPS).forEach((appId) => {
+    const card = document.querySelector(`.tool-card[data-app-id="${appId}"]`);
+    if (!card || !CURRENT?.isAdmin || card.querySelector('.tile-access-btn')) return;
     const accessBtn = document.createElement('button');
     accessBtn.type = 'button';
-    accessBtn.className = 'tile-access-btn sdr-access-btn';
+    accessBtn.className = 'tile-access-btn wide-access-btn';
     accessBtn.innerHTML = '⚙ Доступы';
-    accessBtn.title = 'Настроить доступ к тренажёру лид-менеджера';
-    accessBtn.setAttribute('aria-label', 'Настроить доступ к тренажёру лид-менеджера');
+    accessBtn.title = TILE_ACCESS_APPS[appId].title;
+    accessBtn.setAttribute('aria-label', TILE_ACCESS_APPS[appId].title);
     accessBtn.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      openSdrTileAccess();
+      openAppTileAccess(appId);
     });
-    sdrCard.appendChild(accessBtn);
-  }
+    card.appendChild(accessBtn);
+  });
   buildProjectTabs();
   injectMoney();
 }
@@ -6216,14 +6219,39 @@ async function saveCalendarTileAccess() {
   }
 }
 
-async function openSdrTileAccess() {
-  if (!CURRENT?.isAdmin) return;
+// Плашки, у которых доступ настраивается прямо с карточки, без захода в админку.
+const TILE_ACCESS_APPS = {
+  sdr_training: {
+    title: 'Доступ к тренажёру лид-менеджера',
+    note: 'Отметьте сотрудников, которым видна плашка и открыт вход в тренажёр. Администраторы имеют доступ всегда.',
+  },
+  closer_training: {
+    title: 'Доступ к тренажёру клоузера',
+    note: 'Отметьте сотрудников, которым видна плашка и открыт вход в тренажёр. Администраторы имеют доступ всегда.',
+  },
+};
+
+function renderTileAccessSummary(overlay) {
+  const rows = [...overlay.querySelectorAll('[data-tile-user]')];
+  const granted = rows.filter((row) => row.querySelector('[data-tile-enabled]')?.checked);
+  const named = granted.map((row) => row.dataset.tileName).filter(Boolean);
+  const summary = overlay.querySelector('[data-tile-summary]');
+  if (!summary) return;
+  summary.innerHTML = granted.length
+    ? `<b>Доступ открыт: ${granted.length} из ${rows.length}</b><div style="margin-top:4px;color:var(--text-2)">${escapeHtml(named.join(', '))}</div>`
+    : '<b>Доступ пока никому не открыт</b>';
+}
+
+async function openAppTileAccess(appId) {
+  const config = TILE_ACCESS_APPS[appId];
+  if (!CURRENT?.isAdmin || !config) return;
   try {
     const users = await loadUsersMap();
     adminUsersCache = users;
     const overlay = document.createElement('div');
-    overlay.id = 'sdrTileAccessOverlay';
+    overlay.id = 'appTileAccessOverlay';
     overlay.className = 'money-ovl show';
+    overlay.dataset.tileApp = appId;
     overlay.addEventListener('click', (event) => {
       if (event.target === overlay) overlay.remove();
     });
@@ -6232,25 +6260,38 @@ async function openSdrTileAccess() {
       .sort((a, b) => String(a[1].name || a[1].email).localeCompare(String(b[1].name || b[1].email), 'ru'))
       .map(([uid, user]) => {
         const isFullAdmin = Boolean(user.isAdmin || user.isSuperAdmin || isRootSuper(user.email));
-        const enabled = isFullAdmin || Boolean(user.apps?.sdr_training);
-        return `<label class="fc-person" data-sdr-tile-user="${escapeHtml(uid)}">
-          <input type="checkbox" data-sdr-enabled ${enabled ? 'checked' : ''} ${isFullAdmin ? 'disabled' : ''}>
-          <span><div class="n">${escapeHtml(user.name || user.email)}${isFullAdmin ? ' · полный доступ' : ''}</div><div class="e">${escapeHtml(user.email)}</div></span>
+        const enabled = isFullAdmin || Boolean(user.apps?.[appId]);
+        const name = user.name || user.email;
+        return `<label class="fc-person" data-tile-user="${escapeHtml(uid)}" data-tile-name="${escapeHtml(name)}" data-tile-search="${escapeHtml(String(name + ' ' + user.email).toLowerCase())}">
+          <input type="checkbox" data-tile-enabled ${enabled ? 'checked' : ''} ${isFullAdmin ? 'disabled' : ''}>
+          <span><div class="n">${escapeHtml(name)}${isFullAdmin ? ' · полный доступ' : ''}</div><div class="e">${escapeHtml(user.email)}</div></span>
         </label>`;
       }).join('');
     overlay.innerHTML = `<div class="money-modal" style="max-width:620px">
-      <div class="mm-h"><h3>Доступ к тренажёру лид-менеджера</h3><span class="mm-x" data-sdr-close>✕</span></div>
+      <div class="mm-h"><h3>${escapeHtml(config.title)}</h3><span class="mm-x" data-tile-close>✕</span></div>
       <div class="mm-b">
-        <div style="font-size:12px;color:var(--text-2);margin-bottom:10px">Отметьте пользователей App, которым доступна эта плашка и вход в тренажёр. Супер-админ имеет доступ всегда.</div>
+        <div style="font-size:12px;color:var(--text-2);margin-bottom:10px">${escapeHtml(config.note)}</div>
+        <div data-tile-summary style="font-size:12px;line-height:1.5;padding:9px 11px;border:1px solid var(--line-2);border-radius:9px;background:var(--surface-2);margin-bottom:10px"></div>
+        <input data-tile-search-input placeholder="Поиск по имени или почте" style="width:100%;box-sizing:border-box;margin-bottom:8px;padding:9px 11px;border:1px solid var(--line-2);border-radius:9px;font:inherit;font-size:12px">
         <div class="fc-modal-list">${rows || '<div class="fc-empty" style="padding:14px">Пользователей пока нет.</div>'}</div>
       </div>
-      <div class="mm-f"><button data-sdr-close>Отмена</button><button style="background:var(--navy);color:#fff" data-sdr-save>Сохранить</button></div>
+      <div class="mm-f"><button data-tile-close>Отмена</button><button style="background:var(--navy);color:#fff" data-tile-save>Сохранить</button></div>
     </div>`;
-    overlay.querySelectorAll('[data-sdr-close]').forEach((button) => button.addEventListener('click', () => overlay.remove()));
-    overlay.querySelector('[data-sdr-save]')?.addEventListener('click', saveSdrTileAccess);
+    overlay.querySelectorAll('[data-tile-close]').forEach((button) => button.addEventListener('click', () => overlay.remove()));
+    overlay.querySelectorAll('[data-tile-enabled]').forEach((checkbox) => {
+      checkbox.addEventListener('change', () => renderTileAccessSummary(overlay));
+    });
+    overlay.querySelector('[data-tile-search-input]')?.addEventListener('input', (event) => {
+      const query = String(event.target.value || '').trim().toLowerCase();
+      overlay.querySelectorAll('[data-tile-user]').forEach((row) => {
+        row.style.display = !query || row.dataset.tileSearch.includes(query) ? '' : 'none';
+      });
+    });
+    overlay.querySelector('[data-tile-save]')?.addEventListener('click', () => saveAppTileAccess(appId));
     document.body.appendChild(overlay);
+    renderTileAccessSummary(overlay);
   } catch (error) {
-    alert('Не удалось загрузить права тренажёра: ' + (error.message || error));
+    alert('Не удалось загрузить права доступа: ' + (error.message || error));
   }
 }
 
@@ -6290,25 +6331,26 @@ async function openSdrTrainingResults() {
   }
 }
 
-async function saveSdrTileAccess() {
-  const overlay = document.getElementById('sdrTileAccessOverlay');
-  const saveButton = overlay?.querySelector('[data-sdr-save]');
-  if (!overlay || !saveButton) return;
+async function saveAppTileAccess(appId) {
+  const overlay = document.getElementById('appTileAccessOverlay');
+  const saveButton = overlay?.querySelector('[data-tile-save]');
+  if (!overlay || !saveButton || !TILE_ACCESS_APPS[appId]) return;
   saveButton.disabled = true;
   saveButton.textContent = 'Сохраняем…';
   try {
-    for (const row of overlay.querySelectorAll('[data-sdr-tile-user]')) {
-      const uid = row.dataset.sdrTileUser;
+    for (const row of overlay.querySelectorAll('[data-tile-user]')) {
+      const uid = row.dataset.tileUser;
       const current = adminUsersCache[uid];
       if (!current || current.isAdmin || current.isSuperAdmin || isRootSuper(current.email)) continue;
-      const enabled = Boolean(row.querySelector('[data-sdr-enabled]')?.checked);
-      const next = { ...current, apps: { ...(current.apps || {}), sdr_training: enabled } };
+      const enabled = Boolean(row.querySelector('[data-tile-enabled]')?.checked);
+      if (Boolean(current.apps?.[appId]) === enabled) continue;   // не дёргаем бэкенд без изменений
+      const next = { ...current, apps: { ...(current.apps || {}), [appId]: enabled } };
       await apiFetch('/users/save', { method: 'POST', body: next });
       adminUsersCache[uid] = next;
     }
     writeUsersRegistryCache(adminUsersCache);
     overlay.remove();
-    showAdminMsg('Доступ к тренажёру лид-менеджера сохранён', 'ok');
+    showAdminMsg(TILE_ACCESS_APPS[appId].title + ' сохранён', 'ok');
   } catch (error) {
     saveButton.disabled = false;
     saveButton.textContent = 'Сохранить';
