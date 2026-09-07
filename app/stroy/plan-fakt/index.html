@@ -2561,7 +2561,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v477';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v478';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -3669,7 +3669,7 @@ async function lkRenderPage(page){
     const task=page.render({canvasContext:ctx,viewport:vp});
     const to=setTimeout(()=>{try{task.cancel();}catch(_){}},timeoutMs);
     try{await task.promise;}finally{clearTimeout(to);}
-    return c.toDataURL('image/jpeg',0.85);
+    return {url:c.toDataURL('image/jpeg',0.85),sc};   // sc — чтобы текстовый слой встал ТОЧНО поверх (иначе подсветка/выделение уезжают)
   };
   try{return await attempt(1800,50000);}catch(e){return await attempt(1100,40000);}
 }
@@ -4429,7 +4429,7 @@ function lkInitViewer(){
     st.x=vw/2-mx*st.w*st.s;st.y=vh/2-my*st.h*st.s;apply();};
   if(img.complete&&img.naturalWidth)fit();else img.onload=fit;
 }
-async function lkEnsureImg(pg){if(pg.img||!LK.pdf)return pg.img;const page=await LK.pdf.getPage(pg.page);pg.img=await lkRenderPage(page);return pg.img;}
+async function lkEnsureImg(pg){if(pg.img||!LK.pdf)return pg.img;const page=await LK.pdf.getPage(pg.page);const r=await lkRenderPage(page);pg.img=r.url;pg._imgSc=r.sc;return pg.img;}
 /* текстовый слой листа: прозрачные span-ы по координатам текста PDF — выделение/копирование
    прямо на листе. Координаты в px канвы (тот же sc, что в lkRenderPage), битый шрифт чинится lkFixEnc */
 async function lkBuildTextLayer(pg){
@@ -4438,7 +4438,9 @@ async function lkBuildTextLayer(pg){
   try{
     const page=await LK.pdf.getPage(pg.page);
     const v0=page.getViewport({scale:1});
-    const sc=Math.min(5.5,4400/Math.max(v0.width,v0.height));
+    // ТОТ ЖЕ масштаб, что у картинки листа (lkRenderPage): иначе текст-слой и подсветка длин
+    // уезжают вниз/вбок (картинка 1800px, а слой считался по 4400px — рассинхрон после PR #707).
+    const sc=pg._imgSc||Math.min(3,1800/Math.max(v0.width,v0.height));
     const tc=await page.getTextContent();
     const lenMap=lkLenHighlight(pg,tc.items);   // индекс item → {n,len,warn}: цифра-длина, которую взял парсер
     let h='';
