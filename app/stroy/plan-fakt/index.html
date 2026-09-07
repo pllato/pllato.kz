@@ -135,7 +135,7 @@ body.lk-drawing-context #btnExport{display:none;}
 .lb-body{display:flex;}
 .lb-open{flex:1;padding:22px 20px;text-align:center;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;}
 .lb-mode-head{font-size:16px;font-weight:750;margin-bottom:14px;color:var(--steel);}
-.lb-modes{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.lb-modes{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
 .lb-mode{min-width:0;border:1px solid var(--line);border-radius:13px;background:var(--panel2);padding:16px 14px;display:flex;flex-direction:column;text-align:left;transition:.15s;}
 .lb-mode:hover{border-color:var(--amber);box-shadow:0 4px 14px rgba(16,21,28,.08);}
 .lb-mode-icon{width:38px;height:38px;border-radius:10px;background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:21px;margin-bottom:10px;}
@@ -156,7 +156,7 @@ body.lk-drawing-context #btnExport{display:none;}
 .arch-item .adl,.arch-item .adel{border:none;background:none;cursor:pointer;color:var(--gray);padding:4px 5px;border-radius:6px;flex-shrink:0;font-size:14px;line-height:1;}
 .arch-item .adel:hover{color:var(--red);background:#fff;}.arch-item .adl:hover{color:var(--steel);background:#fff;}
 .lb-arch-empty{font-size:12px;color:var(--gray);text-align:center;padding:26px 10px;line-height:1.6;}
-@media(max-width:700px){.loader{align-items:flex-start;overflow:auto;padding:10px}.dropbox{margin:auto 0}.lb-head{padding:14px 16px}.lb-title{font-size:18px}.lb-body{flex-direction:column;}.lb-open{border-right:none;border-bottom:1px solid var(--line);padding:16px 14px}.lb-modes{gap:8px}.lb-mode{padding:12px 10px}.lb-mode-icon{width:32px;height:32px;font-size:18px;margin-bottom:7px}.lb-mode-title{font-size:13px}.lb-mode-desc{font-size:10.5px}.lb-mode .tbtn.primary{font-size:11.5px;padding:9px 7px}.lb-arch{width:auto;}.lb-feats{display:none;}}
+@media(max-width:700px){.loader{align-items:flex-start;overflow:auto;padding:10px}.dropbox{margin:auto 0}.lb-head{padding:14px 16px}.lb-title{font-size:18px}.lb-body{flex-direction:column;}.lb-open{border-right:none;border-bottom:1px solid var(--line);padding:16px 14px}.lb-modes{grid-template-columns:1fr;gap:8px}.lb-mode{padding:12px 10px}.lb-mode-icon{width:32px;height:32px;font-size:18px;margin-bottom:7px}.lb-mode-title{font-size:13px}.lb-mode-desc{font-size:10.5px}.lb-mode .tbtn.primary{font-size:11.5px;padding:9px 7px}.lb-arch{width:auto;}.lb-feats{display:none;}}
 .spin{margin-top:18px;display:none;text-align:center;}
 .spin .sp-bar{width:210px;height:5px;border-radius:3px;background:var(--panel2);overflow:hidden;position:relative;margin:0 auto 11px;}
 .spin .sp-bar i{position:absolute;left:-42%;width:42%;height:100%;border-radius:3px;background:var(--amber);animation:spbar 1.05s ease-in-out infinite;}
@@ -837,7 +837,7 @@ body.lk-drawing-context #btnExport{display:none;}
       <img src="rl-logo.png" alt="RL SYSTEM" class="lb-logo">
       <div>
         <div class="lb-title">Линейка · План-Факт</div>
-        <div class="lb-sub">Два режима работы с PDF: графический подсчёт или автоматическое чтение схем</div>
+        <div class="lb-sub">Три режима работы с PDF: графический подсчёт, чтение схем парсером или чтение целиком ИИ</div>
       </div>
     </div>
     <div class="lb-feats">
@@ -861,6 +861,12 @@ body.lk-drawing-context #btnExport{display:none;}
             <div class="lb-mode-title">Работа в формате Линейки</div>
             <div class="lb-mode-desc">Откройте однолинейную схему (ЩСР / ЩК / ЩО…). Программа сама найдёт кабели, сечения и длины.</div>
             <button class="tbtn primary" id="btnOpenLk">Открыть формат Линейки</button>
+          </section>
+          <section class="lb-mode">
+            <div class="lb-mode-icon" aria-hidden="true">🤖</div>
+            <div class="lb-mode-title">ИИ-чтение листа</div>
+            <div class="lb-mode-desc">Откройте схему — <b>ИИ прочитает лист по картинке</b> и сам заполнит все поля справа: потребители, сечения, длины. Для файлов с битым текстом. <b>Платно</b> (≈2–4¢ за лист, нужен ключ).</div>
+            <button class="tbtn primary" id="btnOpenAi">Открыть с чтением ИИ</button>
           </section>
         </div>
         <input type="file" id="fileInput" accept=".json,application/json,.pdf,application/pdf" hidden>
@@ -1181,8 +1187,9 @@ function symScale(ev,o){ev.stopPropagation();pushHistory();pointerDrag(ev,e=>{co
 function symRotate(ev,o){ev.stopPropagation();pushHistory();pointerDrag(ev,e=>{const p=toImg(e.clientX,e.clientY);o.rot=Math.round(Math.atan2(p.y-o.y,p.x-o.x)*180/Math.PI+90);redrawOne(o);drawSelUI();},()=>{drawSelUI();renderSide();renderOpt();});}
 
 /* ---- load JSON package ---- */
-const _bop=$('btnOpen');if(_bop)_bop.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('fileInput').click();}};
-const _bol=$('btnOpenLk');if(_bol)_bol.onclick=()=>$('lkFile').click();  // отдельный вход Линейки: клиентское чтение без сервер-разбора
+const _bop=$('btnOpen');if(_bop){_bop.addEventListener('click',()=>{LK.aiMode=false;});_bop.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();LK.aiMode=false;$('fileInput').click();}};}
+const _bol=$('btnOpenLk');if(_bol)_bol.onclick=()=>{LK.aiMode=false;$('lkFile').click();};  // отдельный вход Линейки: клиентское чтение без сервер-разбора
+const _boa=$('btnOpenAi');if(_boa)_boa.onclick=()=>{LK.aiMode=true;$('lkFile').click();};   // третий режим: ИИ читает лист картинкой и сам заполняет поля
 $('fileInput').onchange=e=>e.target.files[0]&&loadData(e.target.files[0]);
 const dbox=$('dropbox');
 ['dragenter','dragover'].forEach(ev=>dbox.addEventListener(ev,e=>{e.preventDefault();dbox.classList.add('over');}));
@@ -2562,9 +2569,9 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v479';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v480';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
-const LK={pages:[],name:''};
+const LK={pages:[],name:'',aiMode:false};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
    не вернёт, поэтому дробные сечения дочиниваем по паттерну «…х2 5» отдельной заменой. */
@@ -4493,10 +4500,12 @@ $('btnLineyka').onclick=()=>{
 $('lkFile').onchange=async e=>{const fs=[...e.target.files];e.target.value='';if(!fs.length)return;
   // несколько PDF сразу: остальные — в реестр документов (распарсятся при переключении), первый открываем
   for(let i=1;i<fs.length;i++){try{const b=await fs[i].arrayBuffer();await archPut({id:'lk_'+(fs[i].name||('схема'+i)),_lk:1,name:fs[i].name||('схема'+i),date:Date.now()-i,buf:b});}catch(err){console.warn('lk store',err);}}
-  openLineyka(fs[0]);
+  await openLineyka(fs[0]);
+  // режим ИИ-чтения: открытый лист прочитается сам — триггер в renderLineyka (openLineyka его вызвал);
+  // дальше при переключении на непрочитанный лист чтение тоже запускается автоматически
 };
-$('lkClose').onclick=()=>{$('lineyka').style.display='none';localStorage.removeItem('lkLast');};
-$('lkBack').onclick=()=>{if(LK.view==='report'||LK.view==='reportall'){LK.view='pages';renderLineyka();}else{$('lineyka').style.display='none';localStorage.removeItem('lkLast');}};
+$('lkClose').onclick=()=>{LK.aiMode=false;$('lineyka').style.display='none';localStorage.removeItem('lkLast');};
+$('lkBack').onclick=()=>{if(LK.view==='report'||LK.view==='reportall'){LK.view='pages';renderLineyka();}else{LK.aiMode=false;$('lineyka').style.display='none';localStorage.removeItem('lkLast');}};
 $('lkReport').onclick=()=>{if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}LK.view=LK.view==='report'?'pages':'report';renderLineyka();};
 $('lkReportAll').onclick=async()=>{
   if(LK.view==='reportall'){LK.view='pages';renderLineyka();return;}
@@ -4909,6 +4918,38 @@ function lkVisionCost(u){if(!u)return null;const c=(u.input_tokens||0)*2e-6+(u.o
 function lkVisionConds(x){const out=[],seen=new Set();(x&&Array.isArray(x.conds)?x.conds:[]).forEach(c=>{
   const t=String(c&&c.t||'').trim(),len=parseFloat(String(c&&c.len||0).replace(',','.'))||0;
   if(!t)return;const k=t.toLowerCase()+'|'+len;if(!seen.has(k)){seen.add(k);out.push({t,len});}});return out;}
+/* Разложить строки ЗРЕНИЯ по листу: позицию берём у совпавшей подписи из текстового слоя (имя
+   линейки стоит на своём месте) → иначе по координатам ИИ → иначе сеткой. opts.replace=true —
+   очистить лист ПОЛНОСТЬЮ (режим ИИ-чтения: ИИ = единственный читатель); иначе убираем только
+   прежние vision-строки (кнопка «👁», парсерные строки остаются). opts.groupByConsumer=true —
+   каждая строка в группу своего потребителя (нативный вид Линейки), иначе одна общая группа. */
+async function _lkPlaceVision(pg,rows,opts){
+  opts=opts||{};
+  const nrm=s=>String(s).replace(/[\s.()\-;:]/g,'').toLowerCase().replace(/ц/g,'с');
+  let labels=[];
+  try{let pdf=LK.pdf;if(!pdf&&LK.docId){const rc=await archGet(LK.docId);if(rc&&rc.buf)pdf=await pdfjsLib.getDocument({data:rc.buf.slice(0)}).promise;}
+    if(pdf){const page=await pdf.getPage(pg.page);const tc=await page.getTextContent();const v=page.getViewport({scale:1});
+      tc.items.forEach(it=>{const s=lkFixEnc(it.str||'').trim();if(!s||s.length>16)return;if(!/[А-ЯЁA-Z].*\d|\d/.test(s))return;
+        const q=v.convertToViewportPoint(it.transform[4],it.transform[5]);labels.push({n:nrm(s),mx:q[0]/v.width,my:q[1]/v.height,used:false});});}
+  }catch(e){}
+  const findPos=g=>{const gn=nrm(g);if(!gn)return null;
+    let l=labels.find(o=>!o.used&&o.n===gn);
+    if(!l)l=labels.find(o=>!o.used&&o.n.length>2&&(o.n.indexOf(gn)>=0||gn.indexOf(o.n)>=0));
+    if(l){l.used=true;return [l.mx,l.my];}return null;};
+  if(opts.replace){pg.rows=[];pg.groups=[];}
+  else{pg.rows=pg.rows.filter(r=>r._src!=='vision');pg.groups=pg.groups.filter(g=>g.name!=='👁 по картинке (весь лист)');}
+  const n=rows.length,cols=Math.ceil(Math.sqrt(n*1.6));
+  let noLen=0,placed=0;rows.forEach((x,i)=>{const L=+x.len||0;if(!(L>0))noLen++;
+    let g=findPos(x.group||'');
+    if(!g&&typeof x.x==='number'&&typeof x.y==='number'&&x.x>=0&&x.x<=100&&x.y>=0&&x.y<=100)g=[x.x/100,x.y/100];
+    if(g)placed++;
+    if(!g)g=[0.06+0.88*((i%cols)/Math.max(1,cols-1)),0.10+0.80*(Math.floor(i/cols)/Math.max(1,Math.ceil(n/cols)-1))];
+    const row={_id:'r'+(_lkVid++),page:pg.page,group:x.group||'—',mark:x.mark||'',section:String(x.section).replace('.',','),
+      len:L,conds:lkVisionConds(x),mult:1,needsCheck:!(L>0),_src:'vision',mx:g[0],my:g[1]};
+    const gname=opts.groupByConsumer?(x.group||'—'):'👁 по картинке (весь лист)';
+    pg.rows.push(row);LK.byId[row._id]=row;pg.groups.push({name:gname,rows:[row]});});
+  return {placed,noLen};
+}
 /* ЗРЕНИЕ на ВЕСЬ ЛИСТ одним кликом — для файлов с битым текстом (таблица-картинка) */
 async function lkVisionSheet(){
   if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}
@@ -4930,35 +4971,40 @@ async function lkVisionSheet(){
     const source=String(d.source||'').trim();
     if(!rows.length&&!source){toast('ИИ не увидел на этом листе ни источника, ни кабельных линий');return;}
     if(source)pg.vru=source;
-    // прежние «зрение»-строки заменяем (повтор не дублирует)
-    pg.rows=pg.rows.filter(r=>r._src!=='vision');pg.groups=pg.groups.filter(g=>g.name!=='👁 по картинке (весь лист)');
-    // ПОЗИЦИИ ПОДПИСЕЙ ЛИСТА: имена линеек (Гр.1, СТ1, ЩС…) в тексте стоят на СВОИХ местах —
-    // ставим точку у подписи, совпавшей с именем строки (норм.: убрать пробелы/точки, ц→с)
-    const nrm=s=>String(s).replace(/[\s.()\-;:]/g,'').toLowerCase().replace(/ц/g,'с');
-    let labels=[];
-    try{let pdf=LK.pdf;if(!pdf&&LK.docId){const rc=await archGet(LK.docId);if(rc&&rc.buf)pdf=await pdfjsLib.getDocument({data:rc.buf.slice(0)}).promise;}
-      if(pdf){const page=await pdf.getPage(pg.page);const tc=await page.getTextContent();const v=page.getViewport({scale:1});
-        tc.items.forEach(it=>{const s=lkFixEnc(it.str||'').trim();if(!s||s.length>16)return;if(!/[А-ЯЁA-Z].*\d|\d/.test(s))return;
-          const q=v.convertToViewportPoint(it.transform[4],it.transform[5]);labels.push({n:nrm(s),mx:q[0]/v.width,my:q[1]/v.height,used:false});});}
-    }catch(e){}
-    const findPos=g=>{const gn=nrm(g);if(!gn)return null;
-      let l=labels.find(o=>!o.used&&o.n===gn);                         // точное совпадение имени
-      if(!l)l=labels.find(o=>!o.used&&o.n.length>2&&(o.n.indexOf(gn)>=0||gn.indexOf(o.n)>=0));  // вложение
-      if(l){l.used=true;return [l.mx,l.my];}return null;};
-    const n=rows.length,cols=Math.ceil(Math.sqrt(n*1.6));
-    let noLen=0,placed=0;rows.forEach((x,i)=>{const L=+x.len||0;if(!(L>0))noLen++;
-      let g=findPos(x.group||'');   // 1) точная позиция подписи из текста листа
-      if(!g&&typeof x.x==='number'&&typeof x.y==='number'&&x.x>=0&&x.x<=100&&x.y>=0&&x.y<=100)g=[x.x/100,x.y/100]; // 2) координаты от ЗРЕНИЯ
-      if(g)placed++;
-      if(!g)g=[0.06+0.88*((i%cols)/Math.max(1,cols-1)),0.10+0.80*(Math.floor(i/cols)/Math.max(1,Math.ceil(n/cols)-1))]; // 3) сетка (крайний случай)
-      const row={_id:'r'+(_lkVid++),page:pg.page,group:x.group||'—',mark:x.mark||'',section:String(x.section).replace('.',','),
-        len:L,conds:lkVisionConds(x),mult:1,needsCheck:!(L>0),_src:'vision',mx:g[0],my:g[1]};
-      pg.rows.push(row);LK.byId[row._id]=row;pg.groups.push({name:'👁 по картинке (весь лист)',rows:[row]});});
+    // прежние «зрение»-строки заменяем (повтор не дублирует), парсерные строки листа остаются
+    const {placed,noLen}=await _lkPlaceVision(pg,rows,{replace:false});
     LK.view='pages';renderLineyka();lkPersist();
     const cost=lkVisionCost(d._usage);
     const pipes=rows.reduce((a,x)=>a+lkVisionConds(x).length,0);
     toast('✓ Прочитано зрением: '+rows.length+' линий'+(source?(' · источник '+source):'')+(pipes?(' · труб '+pipes):'')+(placed?(' · '+placed+' у своих линеек'):'')+(noLen?(' · у '+noLen+' нет длины (красные «впишите»)'):'')+(cost?(' · ≈'+cost+'¢'):''));
   }catch(e){lkBusy(false);if(btn){btn.disabled=false;btn.textContent=btn.dataset.t;}toast('Не получилось: '+(e&&e.message||e));}
+}
+/* РЕЖИМ ИИ-ЧТЕНИЯ (третий на главном экране): ИИ читает лист картинкой и САМ заполняет все поля
+   листа — заменяет разбор целиком (replace:true). Читается лист, который сейчас открыт; при
+   переключении на непрочитанный лист чтение запускается автоматически (см. renderLineyka). */
+async function lkAiReadSheet(pg){
+  if(!pg||pg._aiRead)return;
+  pg._aiRead=true;   // ставим сразу — чтобы авто-триггер из renderLineyka не запустил повтор
+  lkBusy('🤖 ИИ читает лист '+pg.page+'…','это 10–40 секунд, не закрывай');
+  try{
+    const img=await lkAreaImage(pg,{x0:0,y0:0,x1:1,y1:1},2200);
+    if(!img){lkBusy(false);pg._aiRead=false;pg._aiFail=true;toast('Лист '+pg.page+': пока не отрисовался — открой его и нажми «👁 Прочитать лист целиком»');renderLineyka();return;}
+    lkBusy('🤖 ИИ читает лист '+pg.page+'…','обычно 10–30 секунд');
+    const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
+    const ac=new AbortController();const to=setTimeout(()=>ac.abort(),120000);
+    let d;try{const r=await fetch(LK_AI+'/vision',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({image:img,file:name,page:pg.page}),signal:ac.signal});d=await r.json();}
+    finally{clearTimeout(to);}
+    lkBusy(false);
+    if(d.error){pg._aiRead=false;pg._aiFail=true;toast('Лист '+pg.page+': ИИ не ответил — '+d.error+'. Проверь ключ/кредиты; можно нажать «👁 Прочитать лист целиком».');renderLineyka();return;}
+    const rows=(d.rows||[]).filter(x=>x&&x.section);
+    const source=String(d.source||'').trim();if(source)pg.vru=source;
+    if(!rows.length){toast('Лист '+pg.page+': ИИ не увидел кабельных линий');renderLineyka();return;}
+    const {noLen}=await _lkPlaceVision(pg,rows,{replace:true,groupByConsumer:true});
+    LK.view='pages';renderLineyka();lkPersist();
+    const cost=lkVisionCost(d._usage);
+    toast('🤖 Лист '+pg.page+': ИИ заполнил '+rows.length+' линий'+(source?(' · источник '+source):'')+(noLen?(' · у '+noLen+' нет длины'):'')+(cost?(' · ≈'+cost+'¢'):''));
+  }catch(e){lkBusy(false);pg._aiRead=false;pg._aiFail=true;toast('Лист '+pg.page+': '+(e&&e.message||e));renderLineyka();}
 }
 /* ИИ-СВЕРКА: ИИ читает лист картинкой, но строки НЕ трогаем — сравниваем построчно с обычным
    разбором. Где ОБА читателя дали одну длину — уверенно (зелёное). Где разошлись/один не увидел
@@ -5812,11 +5858,18 @@ function lkCheckHtml(pg){const st=lkSum(pg.rows);const proj=pg.potreb||{};
     +(fromTbl.length?` <span class="lk-rep-lbl">— ${fromTbl.length===Object.keys(pc).length?'из':'частично из'} таблицы «Потребность в трубах» листа</span>`:'');
   const empty=pg.rows.filter(r=>!r.group||r.group==='—').length;
   const projTxt=Object.keys(proj).length?`Печатная сводка на схеме (черновая): ${Object.keys(proj).sort().map(k=>esc(k)+'='+proj[k]).join(', ')}. `:'';
-  return `<div class="lk-check report"><div class="lk-check-h">📋 Отчёт по листу ${pg.page}<span class="lk-check-sub">${pg.rows.length} линий · ${Math.round(st.t)} м всего</span><span class="lk-chip small" title="Источник питания листа (общий для всех строк листа) — можно поправить">⚡ <input id="lkVruEdit" value="${esc(pg.vru||'')}" placeholder="ВРУ-?" style="width:86px;border:none;background:transparent;font:inherit;color:inherit;outline:none;border-bottom:1px dashed var(--steel2)"></span><button class="lk-copybtn" id="lkCopySheet" title="Скопировать строки листа для Excel (Ctrl+V)">⧉ Скопировать лист</button></div>`
+  return `<div class="lk-check report"><div class="lk-check-h">📋 Отчёт по листу ${pg.page}<span class="lk-check-sub">${pg.rows.length} линий · ${Math.round(st.t)} м всего</span>${LK.aiMode?`<span class="lk-chip small" title="Режим ИИ-чтения: строки этого листа прочитал ИИ по картинке. Проверь длины по схеме." style="border-color:#7c3aed;color:#7c3aed">${pg._aiFail?'🤖 ИИ не смог — нажми «👁 Прочитать лист целиком»':pg._aiRead?'🤖 заполнено ИИ':'🤖 читаю лист…'}</span>`:''}<span class="lk-chip small" title="Источник питания листа (общий для всех строк листа) — можно поправить">⚡ <input id="lkVruEdit" value="${esc(pg.vru||'')}" placeholder="ВРУ-?" style="width:86px;border:none;background:transparent;font:inherit;color:inherit;outline:none;border-bottom:1px dashed var(--steel2)"></span><button class="lk-copybtn" id="lkCopySheet" title="Скопировать строки листа для Excel (Ctrl+V)">⧉ Скопировать лист</button></div>`
     +`<div class="lk-rep-sec">${secChips}</div>`
     +(condChips?`<div class="lk-rep-sec cond-row"><span class="lk-rep-lbl">Трубы:</span> ${condChips}</div>`:`<div class="lk-rep-sec cond-row"><span class="lk-rep-lbl">Трубы:</span> <span class="lk-chip small cond">не распознаны</span></div>`)
     +`<div class="lk-rep-note"><b>Как понять, всё ли прочитано:</b> сверь эти суммы с таблицей <b>«Потребность кабелей»</b> на схеме выше. Сходится по всем сечениям — лист прочитан полностью; где у сечения меньше — часть не распозналась, добавь строку кнопкой ниже. ${projTxt}${empty?`<br><b>${empty}</b> строк без потребителя (в этом формате имени нет в тексте — впиши вручную при необходимости).`:''}</div></div>`;}
 function renderLineyka(){
+  // РЕЖИМ ИИ-ЧТЕНИЯ: как только показан лист, который ИИ ещё не читал — читаем его сами.
+  // Отложенно (setTimeout) и под флагом _aiBusy — чтобы не зациклить рендер (lkAiReadSheet сам
+  // зовёт renderLineyka в конце) и не запустить два чтения разом. Текущий лист берём в момент
+  // срабатывания (юзер мог переключиться), после — до-триггерим, если он всё ещё не прочитан.
+  if(LK.aiMode&&!LK._aiBusy&&(LK.pages||[]).length){const _cp=LK.pages[LK.sel];
+    if(_cp&&!_cp._aiRead&&!_cp._aiFail){LK._aiBusy=true;setTimeout(async()=>{try{await lkAiReadSheet(LK.pages[LK.sel]);}
+      finally{LK._aiBusy=false;const q=LK.pages[LK.sel];if(LK.aiMode&&q&&!q._aiRead&&!q._aiFail)renderLineyka();}},60);}}
   // Ручные/ИИ-строки могут добавиться после первоначального разбора; перед любой нумерацией
   // снова приводим все листы к единому порядку сверху вниз / слева направо. Функция идемпотентна.
   (LK.pages||[]).forEach(lkOrderPageReading);
