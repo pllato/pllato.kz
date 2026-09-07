@@ -178,8 +178,13 @@ textarea{min-height:80px;resize:vertical}
       <h1>Клоузер: доводит клиента от первой встречи до предоплаты</h1>
       <p class="lead">Лид-менеджер приводит квалифицированного клиента на первую встречу. Дальше работает клоузер: две встречи, пятнадцать шагов, одна цель — деньги на счёте и запуск проекта. Этот тренажёр собран по разбору двенадцати записей реальных встреч.</p>
       <div class="grid" style="margin-top:22px">
-        <div class="card accent"><div class="label" style="color:#8fc4a6">Продукт поста</div><h3 style="color:#fff;margin-top:6px">Оплаченная предоплата и запущенный проект</h3><p>Не «проведённая встреча» и не «отправленное КП». Пост считается сработавшим, когда счёт оплачен и создан рабочий чат с техлидом.</p></div>
-        <div class="card"><div class="label">Статистика поста</div><div class="metric">%</div><p style="margin-top:6px">Доля вторых встреч, закрытых в предоплату в течение суток. Считается по неделям.</p></div>
+        <div class="card accent"><div class="label" style="color:#8fc4a6">Продукт поста</div><h3 style="color:#fff;margin-top:6px">Подписанный договор и деньги на счёте</h3><p>Не «проведённая встреча» и не «отправленное КП». Пост считается сработавшим, когда договор подписан, предоплата поступила и создан рабочий чат с техлидом.</p></div>
+        <div class="card"><div class="label">Статистика поста</div>
+          <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:6px">
+            <div><div class="metric">Договоры</div><p style="margin-top:2px;font-size:13px">количество новых подписанных договоров</p></div>
+            <div><div class="metric">Касса</div><p style="margin-top:2px;font-size:13px">сумма денег, поступивших на счёт</p></div>
+          </div>
+          <p style="margin-top:10px">Считаются по неделям. Не «проведённые встречи» и не «отправленные КП» — только договоры и деньги.</p></div>
         <div class="card"><div class="label">Норматив тренажёра</div><div class="metric">80</div><p style="margin-top:6px">Из 100 баллов, с минимумом по каждому модулю. Ниже — повтор слабых блоков.</p></div>
       </div>
       <div class="grid two" style="margin-top:16px">
@@ -242,7 +247,7 @@ textarea{min-height:80px;resize:vertical}
 
     <!-- 06 АТТЕСТАЦИЯ -->
     <section class="screen" id="screen-exam">
-      <div class="section-head"><div class="num">06</div><div><h2>Итоговая аттестация</h2><p class="lead">Пятнадцать вопросов по логике двух встреч. Открывается после того, как пройдены шаги, формулировки, возражения и оба прогона симулятора.</p></div></div>
+      <div class="section-head"><div class="num">06</div><div><h2>Итоговая аттестация</h2><p class="lead">Шестнадцать вопросов по логике двух встреч. Открывается после того, как пройдены шаги, формулировки, возражения и оба прогона симулятора.</p></div></div>
       <div id="examLock"></div>
       <div id="examWrap" style="display:none">
         <div id="finalExam"></div>
@@ -620,7 +625,8 @@ const FINAL_Q=[
  ['Что фиксируется как объём работ',['Устные договорённости','Список правок клиента, собранный на показе демо и подтверждённый вслух','Наше видение','Пункты презентации'],1],
  ['Ответ на «а если вы пропадёте?»',['«Мы работаем 15 лет»','«Код в вашем репозитории, стек общепринятый, поддержит любой разработчик»','«Заключим договор с гарантиями»','«Такого не будет»'],1],
  ['Что нужно забрать с первой встречи',['Только контакты','Дату демо, логотип, материалы и состав участников показа','Подписанный договор','Техническое задание'],1],
- ['Признак того, что вторая встреча отработана',['Клиент сказал, что ему понравилось','Счёт выставлен в чат, создан рабочий чат, назначен созвон по каркасу','Отправлено КП','Клиент обещал оплатить на следующей неделе'],1]
+ ['Признак того, что вторая встреча отработана',['Клиент сказал, что ему понравилось','Счёт выставлен в чат, создан рабочий чат, назначен созвон по каркасу','Отправлено КП','Клиент обещал оплатить на следующей неделе'],1],
+ ['Статистика поста клоузера',['Количество проведённых встреч','Количество новых договоров и сумма денег в кассе','Количество отправленных коммерческих предложений','Количество собранных демо'],1]
 ];
 function gatesOk(){return {steps:(state.scores.steps||0)>=14,script:(state.scores.script||0)>=14,obj:(state.scores.obj||0)>=13,sim:!!(state.sim.m1&&state.sim.m2)}}
 function renderExamAccess(){const g=gatesOk(),ok=Object.values(g).every(Boolean);
@@ -634,10 +640,10 @@ function renderExamAccess(){const g=gatesOk(),ok=Object.values(g).every(Boolean)
  $('#examWrap').style.display=ok?'block':'none';
  if(ok&&!$('#finalExam').innerHTML)$('#finalExam').innerHTML=FINAL_Q.map((q,i)=>`<div class="quiz-q" data-q="${i}"><b>${i+1}. ${esc(q[0])}</b>${q[1].map((o,j)=>`<button class="option ${state.examAnswers[i]==j?'selected':''}" onclick="pick('exam',${i},${j},this)">${esc(o)}</button>`).join('')}</div>`).join('')}
 function checkFinalExam(){let c=0;FINAL_Q.forEach((q,i)=>{if(state.examAnswers[i]===q[2])c++});
- state.scores.exam=c;state.examChecked=true;state.completedAt=new Date().toISOString();save();
+ state.scores.exam=Math.min(15,c);state.examRight=c;state.examChecked=true;state.completedAt=new Date().toISOString();save();
  $$('#finalExam .quiz-q').forEach((box,i)=>{box.querySelectorAll('.option').forEach((o,j)=>{o.classList.remove('correct','wrong');
   if(j===FINAL_Q[i][2])o.classList.add('correct');else if(state.examAnswers[i]===j)o.classList.add('wrong')})});
- $('#examScore').textContent=`Результат: ${c}/15`;showScreen('result')}
+ $('#examScore').textContent=`Верных ${c} из ${FINAL_Q.length} · засчитано ${state.scores.exam}/15 баллов`;showScreen('result')}
 
 /* ===== РЕЗУЛЬТАТ ===== */
 function total(){return Object.values(state.scores).reduce((a,b)=>a+(Number(b)||0),0)}
@@ -667,10 +673,10 @@ function buildReport(pass){const s=state.scores;
 Симулятор встреч: ${s.sim||0}/25 (оба прогона обязательны)
   · первая встреча: ${state.sim.m1?state.sim.m1.score+'/'+state.sim.m1.max+(state.sim.m1.win?' — пройден':' — не засчитан'):'не пройден'}
   · вторая встреча: ${state.sim.m2?state.sim.m2.score+'/'+state.sim.m2.max+(state.sim.m2.win?' — пройден':' — не засчитан'):'не пройден'}
-Аттестация: ${s.exam||0}/15 (минимум 10)
+Аттестация: ${s.exam||0}/15 баллов, верных ${state.examRight||0} из ${FINAL_Q.length} (минимум 10)
 
 Продукт поста: оплаченная предоплата и запущенный проект.
-Статистика поста: доля вторых встреч, закрытых в предоплату в течение суток.
+Статистика поста: количество новых договоров и сумма денег в кассе за неделю.
 Решение о самостоятельных встречах принимает руководитель после двух встреч в паре.
 
 Комментарий проверяющего: ${document.querySelector('#managerComment')?.value||'—'}`}
