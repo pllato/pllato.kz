@@ -441,6 +441,9 @@ body.lk-drawing-context #btnExport{display:none;}
 .lk-dxf-src .p{color:#c9d4e0;word-break:break-word;font-variant-numeric:tabular-nums;}
 .lk-dxf-src.on{background:rgba(96,165,250,.22);border-radius:4px;}
 .lk-dxf-hl{color:#26c281;font-weight:800;background:rgba(38,194,129,.14);padding:0 3px;border-radius:3px;}
+.lk-dxf-missbox{margin:0 0 8px;padding:8px 12px;background:rgba(192,57,43,.10);border-bottom:1px solid rgba(192,57,43,.25);}
+.lk-dxf-misshdr{font-size:11.5px;color:#c0392b;font-weight:700;margin-bottom:5px;line-height:1.4;}
+.lk-dxf-miss{font-size:11.5px;color:#8a3b34;padding:2px 0;word-break:break-word;font-variant-numeric:tabular-nums;}
 .lg-row.dxf-lit{background:rgba(96,165,250,.14);border-radius:8px;}
 .lk-dxf-draw{position:relative;height:100%;overflow:hidden;background:#fff;border-radius:8px;}
 .lk-dxf-draw canvas{display:block;touch-action:none;cursor:grab;}
@@ -2590,7 +2593,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v486';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v487';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:'',aiMode:false};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -4434,7 +4437,11 @@ function lkDxfSrcHtml(pg){
     hl=hl.replace(new RegExp('(-?\\s*)('+tok+')(\\s*м)'),'$1<b class="lk-dxf-hl">$2$3</b>');   // подсветить взятую длину (первое вхождение — до труб)
     return `<div class="lk-dxf-src" data-id="${r._id}"><span class="g">${esc(r.group||'—')}</span><span class="p">${hl||'<i style="opacity:.5">нет исходной подписи</i>'}</span></div>`;
   }).join('');
-  return `<div class="lk-dxf-srcwrap"><div class="lk-dxf-srchdr">📐 Подписи из чертежа · источник (${(pg.rows||[]).length}) — наведи на строку справа, подсветится здесь. <b class="lk-dxf-hl">зелёным</b> — взятая длина.</div><div class="lk-dxf-srclist">${rowsH}</div></div>`;
+  // СИГНАЛ ПОЛНОТЫ: подписи с кабельной маркой, из которых НЕ вышло вытащить длину — возможные пропуски
+  const miss=(pg._miss||[]);
+  const missH=miss.length?`<div class="lk-dxf-missbox"><div class="lk-dxf-misshdr">⚠ ${miss.length} подпис${miss.length===1?'ь':(miss.length<5?'и':'ей')} с кабелем, но <b>без распознанной длины</b> — проверь, не пропущено ли:</div>`
+    +miss.map(m=>`<div class="lk-dxf-miss">${esc(String(m.raw||'').slice(0,90))}</div>`).join('')+`</div>`:'';
+  return `<div class="lk-dxf-srcwrap"><div class="lk-dxf-srchdr">📐 Подписи из чертежа · источник (${(pg.rows||[]).length}) — наведи на строку справа, подсветится здесь. <b class="lk-dxf-hl">зелёным</b> — взятая длина.${miss.length?'':' <b style="color:#1e7e34">✓ подписей без длины не осталось</b>'}</div><div class="lk-dxf-srclist">${missH}${rowsH}</div></div>`;
 }
 /* Отрисовка ЧЕРТЕЖА листа из вектора DXF на CANVAS (десятки тысяч линий — SVG-DOM не тянет).
    Геометрия режется по bbox листа (кэш на pg). Колесо — зум к курсору, тянуть — двигать. Кабельные
@@ -4851,17 +4858,19 @@ self.onmessage=function(e){
   var piperx=/(п\\.?\\s*г\\.?|г\\.?\\s*т\\.?)\\s*(\\d+)\\s*-\\s*(\\d+)\\s*м/g;
   var splitrx=/п\\.?\\s*г|г\\.?\\s*т|п25/;
   var lenrx=/-\\s*(\\d+)\\s*м/g, lenrx2=/(\\d+)\\s*м/g;
-  var out=[],geoL=[],geoC=[],geoT=[];   // подписи-кабели / линии / окружности / тексты (для отрисовки)
+  var out=[],miss=[],geoL=[],geoC=[],geoT=[];   // кабели / возможные пропуски / линии / окружн. / тексты
+  var pairrx=/(\\d+\\s*[хx]\\s*[\\d,]+)\\s*мм[²³]?\\s*-?\\s*(\\d+)\\s*м/g;   // «сечение-длина» подряд (короткая/многокабельная форма)
   var type='',r1='',r3='',xs=[],ys=[],x1v=null,y1v=null,rad=null,a0=null,a1=null,have=false,cnt=0;
-  function grab(){ // текст: если кабельная подпись — в out (для листов); вернуть {t,cab}
-    var t=plain(r3?(r3+r1):r1); if(!t)return null; var mk=markrx.exec(t);
-    if(mk){ var sec=mk[2].replace(/\\s/g,'').replace(/x/g,'х'); var head=t.split(splitrx)[0], L=null, m2;
-      lenrx.lastIndex=0; while((m2=lenrx.exec(head)))L=m2[1];
-      if(L===null){ lenrx2.lastIndex=0; while((m2=lenrx2.exec(head)))L=m2[1]; }
-      if(L!==null){ L=parseInt(L,10); if(L>0){ var pm2=passp.exec(t), grp=pm2?pm2[1]:'';
-        var conds=[],pm; piperx.lastIndex=0; while((pm=piperx.exec(t))){ var nm=(pm[1].indexOf('г.т')>=0||pm[1].indexOf('гт')>=0)?('г.т.'+pm[2]):('п.г.'+pm[2]); conds.push({t:nm,len:parseInt(pm[3],10)}); }
-        if(xs.length)out.push({s:sec,L:L,grp:grp,mark:mk[1],x:xs[0],y:ys[0],raw:t,conds:conds}); cnt++; } } }
-    return {t:t,cab:!!mk};
+  function grab(){ // кабельная подпись → строки в out (многокабельные — несколько); вернуть {t,cab}
+    var t=plain(r3?(r3+r1):r1); if(!t)return null; var mk=markrx.exec(t); if(!mk)return {t:t,cab:false};
+    var head=t.split(splitrx)[0], mark0=mk[1], pm2=passp.exec(t), grp=pm2?pm2[1]:'';
+    var conds=[],pm; piperx.lastIndex=0; while((pm=piperx.exec(t))){ var nm=(pm[1].indexOf('г.т')>=0||pm[1].indexOf('гт')>=0)?('г.т.'+pm[2]):('п.г.'+pm[2]); conds.push({t:nm,len:parseInt(pm[3],10)}); }
+    var got=0, pairs=[], pp; pairrx.lastIndex=0; while((pp=pairrx.exec(head)))pairs.push([pp[1].replace(/\\s/g,'').replace(/x/g,'х'),parseInt(pp[2],10)]);
+    if(pairs.length){ for(var q=0;q<pairs.length;q++){ if(pairs[q][1]>0&&xs.length){ out.push({s:pairs[q][0],L:pairs[q][1],grp:grp,mark:mark0,x:xs[0],y:ys[0],raw:t,conds:q===0?conds:[]}); cnt++; got++; } } }
+    else { var L=null,m2; lenrx.lastIndex=0; while((m2=lenrx.exec(head)))L=m2[1]; if(L===null){ lenrx2.lastIndex=0; while((m2=lenrx2.exec(head)))L=m2[1]; }
+      if(L!==null){ L=parseInt(L,10); if(L>0&&xs.length){ out.push({s:mk[2].replace(/\\s/g,'').replace(/x/g,'х'),L:L,grp:grp,mark:mark0,x:xs[0],y:ys[0],raw:t,conds:conds}); cnt++; got++; } } }
+    if(!got&&xs.length)miss.push({s:mk[2].replace(/\\s/g,'').replace(/x/g,'х'),x:xs[0],y:ys[0],raw:t});   // марка есть, длину не вытащили — возможный пропуск
+    return {t:t,cab:got>0};
   }
   function proc(){ if(!have)return;
     if(type==='LINE'){ if(xs.length&&ys.length&&x1v!==null)geoL.push(xs[0],ys[0],x1v,y1v); }
@@ -4878,10 +4887,10 @@ self.onmessage=function(e){
       else if(c==='11')x1v=parseFloat(val); else if(c==='21')y1v=parseFloat(val);
       else if(c==='40'&&rad===null)rad=parseFloat(val); else if(c==='50')a0=parseFloat(val); else if(c==='51')a1=parseFloat(val); } }
   proc();
-  self.postMessage({ok:true,labels:out,geo:{L:geoL,C:geoC,T:geoT},seen:cnt});
+  self.postMessage({ok:true,labels:out,miss:miss,geo:{L:geoL,C:geoC,T:geoT},seen:cnt});
  }catch(err){ self.postMessage({ok:false,error:String(err&&err.message||err)}); }
 };`;}
-function _lkDxfPages(labels,name){
+function _lkDxfPages(labels,name,misses){
   const L=(labels||[]).filter(o=>+o.L>0&&o.s&&typeof o.x==='number'&&typeof o.y==='number');
   // 1) дедуп точных дублей (артефакты экспорта: одна подпись записана несколько раз в той же точке)
   const dd={};L.forEach(o=>{dd[o.s+'|'+o.L+'|'+Math.round(o.x)+'|'+Math.round(o.y)]=o;});
@@ -4913,7 +4922,9 @@ function _lkDxfPages(labels,name){
       len:+o.L||0,conds:Array.isArray(o.conds)?o.conds:[],mult:1,needsCheck:false,_src:'dxf',x:o.x,y:o.y,_passport:o.raw||''}));
     const byp={},order=[];rows.forEach(r=>{const k=r.group?pref(r.group):'—';if(!(k in byp)){byp[k]=[];order.push(k);}byp[k].push(r);});
     const groups=order.map(k=>({name:k,rows:byp[k]}));
-    return {page:idx+1,rows,groups,vru:'',shields:[],potreb:{},pipes:{},_dxf:true,_bbox:bbox};
+    // возможные пропуски (марка без длины) в области подписей этого листа — сигнал полноты
+    const mrows=(misses||[]).filter(m=>typeof m.x==='number'&&m.x>=bx0-1500&&m.x<=bx1+1500&&m.y>=by0-Math.max(1000,hh*0.4)&&m.y<=by1+Math.max(2600,hh*1.4));
+    return {page:idx+1,rows,groups,vru:'',shields:[],potreb:{},pipes:{},_dxf:true,_bbox:bbox,_miss:mrows};
   });
 }
 async function openDxf(file){
@@ -4933,7 +4944,7 @@ async function openDxf(file){
       w.postMessage(buf,[buf]);   // передаём буфер (transferable) — без копии
     });
   }catch(e){$('lkPage').innerHTML='<div class="lk-spin">Не удалось разобрать DXF: '+esc(String(e&&e.message||e))+'</div>';return;}
-  const pages=_lkDxfPages(res.labels||[],name);
+  const pages=_lkDxfPages(res.labels||[],name,res.miss||[]);
   if(!pages.length){$('lkPage').innerHTML='<div class="lk-spin">В DXF не нашёл кабельных подписей (марка + сечение + длина, напр. «АсВВГ 3х2,5 - 34м»). Возможно, это не однолинейка или другой формат — пришли файл, настрою.</div>';return;}
   LK._dxfGeo=res.geo||null;LK.dxfView='text';LK.dxfZoom=1;   // ПО УМОЛЧАНИЮ — список подписей-источник (линейки), чертёж по кнопке
   LK.docId='dxf_'+name;LK.pdf=null;LK.pages=pages;LK.byId={};LK.aiMode=false;
