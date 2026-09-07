@@ -2561,8 +2561,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v475';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
-const LK_PARSER_VER='v429';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
+const LK_VER='v476';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
    пунктуация — в control-зону (−0x20). Битые «,»/«-» (0x0C/0x0D) pdf.js отдаёт пробелом — код их
@@ -3252,11 +3252,12 @@ function lkParseBrokenDecimalLen(vitems,items){
 /* второй формат (квартирные щиты): марка+сечение без имени «X-н1;»; длину ищем рядом (nearest-neighbor) */
 function lkParseOneLine(items,keepNoLen){const rows=[];const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   items.forEach(it=>{const s=it.s;if(LK_NAME.test(s)||!LK_MARK.test(s))return;
+    const isHeat=/DEVI/i.test(s);   // греющий кабель (DEVIsnow 30T-14м): сечения нет, длина «-Nм» в самой подписи
     let sm=s.match(LK_SECT),carrier=it;
-    if(!sm){ // перенос подписи: сечение во ВТОРОЙ строке рядом (±20 по X), ближайшей по Y (P9 л.12: «ВВГнг-FRLS»+«4х1,5 - 12м»)
+    if(!sm&&!isHeat){ // перенос подписи: сечение во ВТОРОЙ строке рядом (±20 по X), ближайшей по Y (P9 л.12: «ВВГнг-FRLS»+«4х1,5 - 12м»)
       const sc=items.filter(o=>o!==it&&Math.abs(o.x-it.x)<20&&!LK_MARK.test(o.s)&&LK_SECT.test(o.s)).sort((a,b)=>Math.abs(a.y-it.y)-Math.abs(b.y-it.y))[0];
       if(sc){sm=sc.s.match(LK_SECT);carrier=sc;}}
-    if(!sm)return;
+    if(!sm&&!isHeat)return;
     const near=items.filter(o=>o!==it&&dist(o,it)<44).sort((a,b)=>dist(a,it)-dist(b,it));
     if(near.some(o=>LK_NAME.test(o.s)))return;                 // это марка именованной ячейки — уже посчитана
     // длину «-Nм» берём после вырезания подстрок труб: булев lkIsCond ложно бил по марке «ПГ1-…» (022)
@@ -3317,7 +3318,7 @@ function lkParseOneLine(items,keepNoLen){const rows=[];const dist=(a,b)=>Math.hy
     // склеенный паспорт в одном токене: «С20 0.5 0.80 2.8» → «С20» (хвост из одних чисел — не имя)
     {const mn=gname.match(/^(\S+)((?:\s+\d+(?:[.,]\d+)?)+)$/);if(mn)gname=mn[1];}
     if(/^M\s?[А-ЯЁ]/.test(gname))gname='т'+gname.replace(/^M\s?/,'');   // латинская M битого шрифта = «т» («MЩРС»→тЩРС)
-    rows.push({group:gname,mark,section:sm[1]+'x'+sm[2],len:parseFloat(String(L).replace(',','.')),conds,x:it.x,y:it.y,mult:lkMult(s),needsCheck:ncFlag});});
+    rows.push({group:gname,mark,section:isHeat?'греющий':sm[1]+'x'+sm[2],len:parseFloat(String(L).replace(',','.')),conds,x:it.x,y:it.y,mult:lkMult(s),needsCheck:ncFlag});});
   return rows;
 }
 /* названия линеек (щитов) на листе: ЩСР/ЩК/ЩО/ЩАО/ЩР (не ЩЭ — это источник) */
@@ -4459,19 +4460,21 @@ async function lkBuildTextLayer(pg){
    текстовый слой (span получает класс .lk-len-hl). Для быстрой глазами сверки: та ли цифра взята. */
 function lkLenHighlight(pg,items){
   const map={};if(!pg||!pg.rows)return map;
-  // значение-длина item'а: (1) чистое число («93», пробел=потерянная запятая «0 85»→0.85 — дроби
-  // паспорта не путаются с целой длиной); (2) целое в КОНЦЕ подписи после «-»/пробела перед «м»
-  // («…3х4-85м»→85, «- 85м»→85, «10м»→10) — когда длина слитно в марке, а не отдельным item'ом.
-  const ilen=s=>{const t=String(s).trim();const pure=t.replace(/\s*м$/i,'').replace(/\s+/g,'.');
-    if(/^\d+(?:\.\d+)?$/.test(pure))return parseFloat(pure);
-    const m=t.match(/[-\s](\d{1,4})\s*м$/i)||t.match(/^(\d{1,4})\s*м$/i);return m?parseInt(m[1]):NaN;};
-  const vals=items.map(it=>ilen(lkFixEnc(it.str||'')));
+  // Подсвечиваем ТОЛЬКО отдельную цифру-длину, не целую подпись кабеля. Два вида токенов:
+  // (M) явный «Nм»: «19м», «- 85м», «10м» — строка целиком есть длина с «м» (НЕ «…3х4-50м» с маркой);
+  // (B) чистое число: «93», «88» (фрагментированный паспорт 2435, где длина без «м»).
+  // Приоритет у M — иначе голое число могло совпасть с током/мощностью/счётчиком рядом.
+  const mTok=s=>{const m=String(s).trim().match(/^[-\s]*(\d{1,4})\s*м$/i);return m?parseInt(m[1]):NaN;};
+  const bTok=s=>{const t=String(s).trim().replace(/\s+/g,'.');return /^\d{1,4}(?:\.\d+)?$/.test(t)?parseFloat(t):NaN;};
+  const mVals=items.map(it=>mTok(lkFixEnc(it.str||''))),bVals=items.map(it=>bTok(lkFixEnc(it.str||'')));
   const rn={};{let n=0;(pg.groups||[]).forEach(g=>g.rows.forEach(r=>{n++;rn[r._id]=n;}));}
   (pg.rows||[]).forEach(r=>{const L=+r.len;if(!(L>0)||r.x==null||r.y==null)return;
-    let best=-1,bd=1e9;
-    for(let i=0;i<items.length;i++){if(map[i]!=null||!Number.isFinite(vals[i])||Math.abs(vals[i]-L)>0.01)continue;
-      const dx=items[i].transform[4]-r.x,dy=items[i].transform[5]-r.y;if(Math.abs(dx)>180||Math.abs(dy)>180)continue;
-      const d=Math.hypot(dx,dy);if(d<bd){bd=d;best=i;}}
+    let best=-1;
+    for(const vals of [mVals,bVals]){let bd=1e9;
+      for(let i=0;i<items.length;i++){if(map[i]!=null||!Number.isFinite(vals[i])||Math.abs(vals[i]-L)>0.01)continue;
+        const dx=items[i].transform[4]-r.x,dy=items[i].transform[5]-r.y;if(Math.abs(dx)>75||Math.abs(dy)>120)continue;   // длина рядом с маркой (свой столбец/паспорт справа), не из таблиц ниже
+        const d=Math.hypot(dx,dy);if(d<bd){bd=d;best=i;}}
+      if(best>=0)break;}   // нашли явный «Nм» — голое число не ищем
     if(best>=0)map[best]={n:rn[r._id]||'',len:r.len,warn:!!r.needsCheck};});
   return map;
 }
