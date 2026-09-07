@@ -767,6 +767,7 @@ body.lk-drawing-context #btnExport{display:none;}
     <div class="lk-docs" id="lkDocs"></div>
     <button class="lk-tb" id="lkTeachTop" style="margin-left:auto" title="Постоянный ИИ-агент видит файл, помнит диалог и проверяет каждую правку локальным парсером">🎓 ИИ-агент Правок</button>
     <button class="lk-tb" id="lkVisSheet" title="ИИ прочитает ВЕСЬ лист по картинке — для файлов с битым текстом (таблица нарисована картинкой). ≈2–4 цента за лист">👁 Прочитать лист целиком</button>
+    <button class="lk-tb" id="lkVisVerify" title="ИИ читает лист картинкой и СВЕРЯЕТ с обычным разбором построчно: где обе прочитали одинаково — уверенно (зелёное), где разошлись — на проверку (красное). ≈2–4 цента за лист">🤖 ИИ-сверка листа</button>
     <button class="lk-tb" id="lkIssues" title="Пометки «что исправить» с привязкой к файлу и листу">⚑ Правки<span id="lkIssN"></span></button>
     <button class="lk-tb" id="lkReport">📊 Отчёт по файлу</button>
     <button class="lk-tb" id="lkReportAll" title="Свод по ВСЕМ открытым файлам сразу">📚 Отчёт по всем</button>
@@ -2561,7 +2562,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v478';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v479';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -4959,6 +4960,87 @@ async function lkVisionSheet(){
     toast('✓ Прочитано зрением: '+rows.length+' линий'+(source?(' · источник '+source):'')+(pipes?(' · труб '+pipes):'')+(placed?(' · '+placed+' у своих линеек'):'')+(noLen?(' · у '+noLen+' нет длины (красные «впишите»)'):'')+(cost?(' · ≈'+cost+'¢'):''));
   }catch(e){lkBusy(false);if(btn){btn.disabled=false;btn.textContent=btn.dataset.t;}toast('Не получилось: '+(e&&e.message||e));}
 }
+/* ИИ-СВЕРКА: ИИ читает лист картинкой, но строки НЕ трогаем — сравниваем построчно с обычным
+   разбором. Где ОБА читателя дали одну длину — уверенно (зелёное). Где разошлись/один не увидел
+   — на проверку. Два независимых читателя: совпали = доверяем, разошлись = смотрим глазами. */
+function _lkNrmG(s){return String(s||'').replace(/[\s.()\-;:№]/g,'').toLowerCase().replace(/ц/g,'с').replace(/[a-z]/g,c=>({c:'с',p:'р',o:'о',a:'а',e:'е',x:'х',y:'у',k:'к',m:'м',t:'т',h:'н',b:'в'}[c]||c));}
+function _lkNrmSec(s){return String(s||'').replace(/\s/g,'').replace(/х/g,'x').replace(/,/g,'.').toLowerCase();}
+async function lkVisionVerify(){
+  if(!LK.pages||!LK.pages.length){toast('Сначала откройте схему');return;}
+  const pg=LK.pages[LK.sel];if(!pg){toast('Нет листа');return;}
+  const parser=(pg.rows||[]).filter(r=>r&&r._src!=='vision'&&+r.len>0);
+  if(!parser.length){toast('На этом листе парсер не нашёл ни одной длины — сверять не с чем. Попробуй «Прочитать лист целиком».');return;}
+  const btn=$('lkVisVerify');if(btn){btn.disabled=true;btn.dataset.t=btn.textContent;btn.textContent='🤖 сверяю…';}
+  lkBusy('🤖 Рисую лист и показываю ИИ для сверки…','это 10–40 секунд, не закрывай');
+  try{
+    const img=await lkAreaImage(pg,{x0:0,y0:0,x1:1,y1:1},2200);
+    if(!img){lkBusy(false);toast('Не удалось отрисовать лист — подожди, пока прорисуется картинка, и повтори');if(btn){btn.disabled=false;btn.textContent=btn.dataset.t;}return;}
+    lkBusy('🤖 ИИ читает лист для сверки…','обычно 10–30 секунд');
+    const name=(LK.docs.find(d=>d.id===LK.docId)||{}).name||LK.name||'';
+    const ac=new AbortController();const to=setTimeout(()=>ac.abort(),120000);
+    let d;try{const r=await fetch(LK_AI+'/vision',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({image:img,file:name,page:pg.page}),signal:ac.signal});d=await r.json();}
+    finally{clearTimeout(to);}
+    lkBusy(false);if(btn){btn.disabled=false;btn.textContent=btn.dataset.t;}
+    if(d.error){toast('Не вышло: '+d.error);return;}
+    const ai=(d.rows||[]).filter(x=>x&&x.section&&+x.len>0);
+    if(!ai.length){toast('ИИ не увидел на этом листе кабельных длин — сверять нечего');return;}
+    // Сводим обе стороны к ключу нормализ.(потребитель)+сечение и суммируем длины (у потребителя
+    // может быть несколько кабелей одного сечения). Так сравнение устойчиво к порядку строк.
+    const P={},A={};
+    parser.forEach(r=>{const k=_lkNrmG(r.group)+'|'+_lkNrmSec(r.section);(P[k]=P[k]||{group:r.group,section:r.section,len:0,n:0}),P[k].len+=(+r.len||0),P[k].n++;});
+    ai.forEach(r=>{const k=_lkNrmG(r.group)+'|'+_lkNrmSec(r.section);(A[k]=A[k]||{group:r.group,section:r.section,len:0,n:0}),A[k].len+=(+r.len||0),A[k].n++;});
+    const keys=[...new Set([...Object.keys(P),...Object.keys(A)])];
+    const cmp=keys.map(k=>{const p=P[k],a=A[k];let st;
+      if(p&&a)st=Math.abs(p.len-a.len)<=1?'ok':'diff';else if(p)st='ponly';else st='aonly';
+      return{group:(p||a).group,section:(p||a).section,plen:p?p.len:null,alen:a?a.len:null,st};});
+    const rank={diff:0,ponly:1,aonly:2,ok:3};
+    cmp.sort((x,y)=>rank[x.st]-rank[y.st]||String(x.group).localeCompare(String(y.group),'ru'));
+    const nOk=cmp.filter(r=>r.st==='ok').length,nDiff=cmp.filter(r=>r.st==='diff').length,
+          nPo=cmp.filter(r=>r.st==='ponly').length,nAo=cmp.filter(r=>r.st==='aonly').length;
+    const pTot=parser.reduce((a,r)=>a+(+r.len||0),0),aTot=ai.reduce((a,r)=>a+(+r.len||0),0);
+    const conf=cmp.length?Math.round(100*nOk/cmp.length):0;
+    lkVerifyModal({cmp,nOk,nDiff,nPo,nAo,pTot,aTot,conf,page:pg.page,cost:lkVisionCost(d._usage),source:String(d.source||'').trim()});
+  }catch(e){lkBusy(false);if(btn){btn.disabled=false;btn.textContent=btn.dataset.t;}toast('Не получилось: '+(e&&e.message||e));}
+}
+function lkVerifyModal(v){
+  let m=$('lkVerModal');if(m)m.remove();
+  m=document.createElement('div');m.className='lk-iss-modal';m.id='lkVerModal';m.style.display='flex';
+  const verdict=v.conf>=90?{c:'#1e7e34',t:'Высокое доверие'}:v.conf>=70?{c:'#b45309',t:'Среднее доверие'}:{c:'#c0392b',t:'Много расхождений — смотри глазами'};
+  const badge=(st)=>({ok:'<span style="color:#1e7e34;font-weight:700">✓ совпало</span>',
+    diff:'<span style="color:#c0392b;font-weight:700">✗ разошлись</span>',
+    ponly:'<span style="color:#b45309;font-weight:700">ИИ не увидел</span>',
+    aonly:'<span style="color:#2471a3;font-weight:700">парсер пропустил</span>'}[st]);
+  const bg={ok:'rgba(30,126,52,.07)',diff:'rgba(192,57,43,.10)',ponly:'rgba(180,83,9,.08)',aonly:'rgba(36,113,163,.08)'};
+  const rowsH=v.cmp.map(r=>`<tr style="background:${bg[r.st]}">
+      <td style="padding:5px 8px;border-bottom:1px solid #eee">${esc(r.group||'—')}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #eee;white-space:nowrap">${esc(r.section||'')}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right;font-variant-numeric:tabular-nums">${r.plen!=null?Math.round(r.plen)+' м':'—'}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right;font-variant-numeric:tabular-nums">${r.alen!=null?Math.round(r.alen)+' м':'—'}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #eee;white-space:nowrap">${badge(r.st)}</td></tr>`).join('');
+  m.innerHTML=`<div class="lk-iss-box" style="max-width:760px;width:94%">
+    <div class="lk-iss-head"><b>🤖 ИИ-сверка · лист ${v.page}</b><span class="lk-iss-sub">парсер ⟷ ИИ по картинке${v.source?(' · источник '+esc(v.source)):''}${v.cost?(' · ≈'+v.cost+'¢'):''}</span><button class="lg-x" id="lkVerClose">✕</button></div>
+    <div style="padding:10px 14px 4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:22px;font-weight:800;color:${verdict.c}">${v.conf}%</span>
+      <span style="font-weight:700;color:${verdict.c}">${verdict.t}</span>
+      <span class="lk-chip small okc">✓ совпало <b>${v.nOk}</b></span>
+      ${v.nDiff?`<span class="lk-chip small" style="border-color:#c0392b;color:#c0392b">✗ разошлись <b>${v.nDiff}</b></span>`:''}
+      ${v.nPo?`<span class="lk-chip small" style="border-color:#b45309;color:#b45309">ИИ не увидел <b>${v.nPo}</b></span>`:''}
+      ${v.nAo?`<span class="lk-chip small" style="border-color:#2471a3;color:#2471a3">парсер пропустил <b>${v.nAo}</b></span>`:''}
+    </div>
+    <div style="padding:2px 14px 8px;color:#666;font-size:12.5px">Итого длины: парсер <b>${Math.round(v.pTot)} м</b> · ИИ <b>${Math.round(v.aTot)} м</b>. Строки, где оба читателя дали одну длину — надёжны; где ✗ или «не увидел» — проверь глазами по схеме.</div>
+    <div class="lk-iss-list" style="max-height:52vh;overflow:auto;padding:0 14px 12px">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="text-align:left;color:#888;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em">
+          <th style="padding:4px 8px">Потребитель</th><th style="padding:4px 8px">Сечение</th>
+          <th style="padding:4px 8px;text-align:right">Парсер</th><th style="padding:4px 8px;text-align:right">ИИ</th><th style="padding:4px 8px">Итог</th></tr></thead>
+        <tbody>${rowsH}</tbody></table></div>
+    <div class="lk-iss-note">Сверка ничего не меняет в результате — только показывает, где два независимых чтения совпали, а где нет. Если ИИ явно прав там, где парсер ошибся — обведи это место кнопкой «⚑ Правки» → ИИ-агент запомнит правило.</div>
+  </div>`;
+  document.body.appendChild(m);
+  $('lkVerClose').onclick=()=>m.remove();
+  m.onclick=e=>{if(e.target===m)m.remove();};
+}
 /* стойкий индикатор долгой операции (зрение 10–40с): тост исчезает за 2.6с — этого мало */
 function lkBusy(title,sub){let el=$('lkBusy');
   if(title===false){if(el)el.remove();return;}
@@ -4980,6 +5062,7 @@ async function lkTeachStart(){
 $('lkTeach').onclick=()=>lkTeachStart();      // в модале «Правки»
 $('lkTeachTop').onclick=()=>lkTeachStart();   // в верхней панели — основной вход
 $('lkVisSheet').onclick=lkVisionSheet;  // зрение на весь лист
+$('lkVisVerify').onclick=lkVisionVerify;  // ИИ-сверка: парсер ⟷ зрение построчно
 /* ОПОРА ДЛЯ ИИ: линии этого же листа, прочитанные верно (с их исходной подписью) — по ним видно,
    какой столбец безымянного паспорта «… 5.7 95 95 2.1 …» является длиной. Без опоры ИИ гадает
    и иногда решает, что длины в подписи нет вовсе (ФА-009-3.4 л.4, первая попытка). */
