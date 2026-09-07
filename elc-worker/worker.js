@@ -8913,6 +8913,20 @@ function countIntoBuckets(dates, buckets, period) {
   return buckets.map((b, i) => ({ label: b.label, value: counts[i], partial: !!b.partial }));
 }
 
+// То же разложение по периодам, но копится сумма сделок, а не их количество.
+function sumIntoBuckets(rows, buckets) {
+  const sums = buckets.map(() => 0);
+  for (const row of rows) {
+    if (!row || !row.d) continue;
+    const timestamp = Date.parse(row.d);
+    const idx = Number.isFinite(timestamp)
+      ? buckets.findIndex(b => timestamp >= b.startMs && timestamp < b.endMs)
+      : -1;
+    if (idx >= 0) sums[idx] += Number(row.a) || 0;
+  }
+  return buckets.map((b, i) => ({ label: b.label, value: Math.round(sums[i]), partial: !!b.partial }));
+}
+
 async function handleChartsConfigGet(request, env) {
   const auth = await requireAuth(request, env);
   if (auth.error) return json({ error: auth.error }, auth.status, request);
@@ -8946,6 +8960,9 @@ async function handleChartsSeries(request, env) {
   const stage = (url.searchParams.get('stage') || '__new__').trim();
   const period = ['day', 'week', 'month'].includes(url.searchParams.get('period')) ? url.searchParams.get('period') : 'day';
   const points = Math.min(24, Math.max(2, parseInt(url.searchParams.get('points') || '7', 10) || 7));
+  // metric=sum — сумма сделок (deals.opportunity) вместо их количества.
+  // Нужна для денежных графиков: «сколько денег пришло», а не «сколько сделок».
+  const metric = url.searchParams.get('metric') === 'sum' ? 'sum' : 'count';
   if (!pipeline) return json({ ok: false, error: "pipeline required" }, 400, request);
   // Первая стадия воронки — для неё «вход» эквивалентен созданию (точная история).
   let firstStage = null;
@@ -8965,15 +8982,21 @@ async function handleChartsSeries(request, env) {
     // Полный таймстамп (не substr): для недельных бакетов нужна точность до
     // времени (граница четверг 14:00). Для day/month countIntoBuckets режет сам.
     if (usesCreated) {
-      const r = await env.DB.prepare("SELECT bitrix_date_create AS d FROM deals WHERE pipeline_id = ? AND bitrix_date_create >= ?").bind(pipeline, minDate).all();
+      const r = metric === 'sum'
+        ? await env.DB.prepare("SELECT bitrix_date_create AS d, opportunity AS a FROM deals WHERE pipeline_id = ? AND bitrix_date_create >= ?").bind(pipeline, minDate).all()
+        : await env.DB.prepare("SELECT bitrix_date_create AS d FROM deals WHERE pipeline_id = ? AND bitrix_date_create >= ?").bind(pipeline, minDate).all();
       rows = r.results || [];
     } else {
-      const r = await env.DB.prepare("SELECT entered_at AS d FROM deal_stage_events WHERE pipeline_id = ? AND stage_id = ? AND entered_at >= ?").bind(pipeline, stage, minDate).all();
+      const r = metric === 'sum'
+        ? await env.DB.prepare("SELECT e.entered_at AS d, d.opportunity AS a FROM deal_stage_events e JOIN deals d ON d.id = e.deal_id WHERE e.pipeline_id = ? AND e.stage_id = ? AND e.entered_at >= ?").bind(pipeline, stage, minDate).all()
+        : await env.DB.prepare("SELECT entered_at AS d FROM deal_stage_events WHERE pipeline_id = ? AND stage_id = ? AND entered_at >= ?").bind(pipeline, stage, minDate).all();
       rows = r.results || [];
     }
   } catch (e) { return json({ ok: false, error: String(e && e.message || e) }, 500, request); }
-  const series = countIntoBuckets(rows.map(x => x.d), buckets, period);
-  return json({ ok: true, series, period, usesCreated }, 200, request);
+  const series = metric === 'sum'
+    ? sumIntoBuckets(rows, buckets)
+    : countIntoBuckets(rows.map(x => x.d), buckets, period);
+  return json({ ok: true, series, period, usesCreated, metric }, 200, request);
 }
 
 // Публичная агрегированная серия для внутреннего App Pllato.

@@ -414,6 +414,33 @@ body {
 .date-filter-reset:hover { border-color:var(--bronze); color:var(--bronze-deep); }
 .date-filter-summary { margin:7px 0 0; color:var(--text-3); font-size:11px; }
 .project-tabs { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0 4px; }
+/* ===== Рабочие пространства: Pllato и Pixel English ===== */
+.ws-bar { display:flex; gap:4px; align-items:flex-end; margin:0 0 22px; border-bottom:1px solid var(--line); }
+.ws-tab {
+  position:relative; padding:11px 20px 13px; margin-bottom:-1px;
+  border:0; background:none; cursor:pointer; font-family:inherit;
+  font-size:16px; font-weight:700; letter-spacing:-.01em;
+  color:var(--text-3); border-bottom:2px solid transparent; transition:.14s;
+}
+.ws-tab:hover { color:var(--text-2); }
+.ws-tab.on { color:var(--text); border-bottom-color:var(--bronze); }
+.ws-tab .ws-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--bronze); margin-right:8px; vertical-align:1px; opacity:0; transition:.14s; }
+.ws-tab.on .ws-dot { opacity:1; }
+.px-block { margin:0 0 26px; }
+.px-crm-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:0 0 12px; }
+.px-crm-head h2 { margin:0; font-size:19px; font-weight:800; letter-spacing:-.02em; color:var(--text); }
+.px-crm-head p { margin:3px 0 0; font-size:12.5px; color:var(--text-2); }
+.px-crm-frame { position:relative; border:1px solid var(--line-2); border-radius:var(--r-lg); overflow:hidden; background:var(--surface); box-shadow:var(--shadow-sm); }
+.px-crm-frame iframe { display:block; width:100%; height:720px; border:0; }
+.px-crm-frame .px-frame-msg { padding:44px 22px; text-align:center; color:var(--text-3); font-size:13px; }
+.px-open-btn { border:1px solid var(--line-2); border-radius:9px; background:var(--surface); color:var(--bronze-deep); font:800 12px/1 inherit; padding:9px 13px; cursor:pointer; white-space:nowrap; }
+.px-open-btn:hover { border-color:var(--bronze); background:var(--bronze-tint); }
+.px-empty { padding:20px 22px; border:1px dashed var(--line); border-radius:var(--r-lg); background:var(--surface); color:var(--text-2); font-size:13px; line-height:1.6; }
+.px-stage-pick { display:grid; gap:9px; }
+.px-stage-pick label { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--text-3); }
+.px-stage-pick select, .px-stage-pick input { width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid var(--line-2); border-radius:9px; font:inherit; font-size:13px; background:var(--surface); color:var(--text); }
+.px-hint { font-size:11.5px; color:var(--text-3); line-height:1.5; }
+.fc-card.px-unbound .fc-plot { opacity:.45; }
 .ptab {
   display:inline-flex; align-items:center; gap:6px;
   padding:8px 14px; border-radius:9px;
@@ -1142,6 +1169,14 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
         <button class="btn-logout" id="btn-logout">Выйти</button>
       </div>
     </div>
+
+    <!-- Рабочие пространства: у каждого проекта свой набор вкладок ниже. -->
+    <div class="ws-bar" id="wsBar" role="tablist" aria-label="Проекты">
+      <button class="ws-tab on" type="button" role="tab" data-ws="pllato" aria-selected="true" onclick="switchWorkspace('pllato')"><span class="ws-dot"></span>Pllato</button>
+      <button class="ws-tab" type="button" role="tab" data-ws="pixel" aria-selected="false" onclick="switchWorkspace('pixel')"><span class="ws-dot"></span>Pixel English</button>
+    </div>
+
+    <div id="ws-pllato">
 
     <div class="welcome">
       <h1 id="welcome-text">С возвращением!</h1>
@@ -2974,6 +3009,42 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
     <!-- Аналитика лидов вынесена в самый низ страницы: после всех плашек. -->
     <div class="lead-analytics-slot" id="leadAnalyticsSlot"></div>
 
+    </div><!-- /#ws-pllato -->
+
+    <!-- ===== Рабочее пространство Pixel English ===== -->
+    <div id="ws-pixel" hidden>
+      <div class="welcome">
+        <h1>Pixel English</h1>
+        <p>Воронка проекта, показатели по неделям и найм персонала.</p>
+      </div>
+
+      <div class="project-tabs" id="pxTabs">
+        <button class="ptab on" type="button" data-px="main" onclick="switchPixelTab('main')">Главная</button>
+        <button class="ptab" type="button" data-px="hr" onclick="switchPixelTab('hr')">Найм и направление персонала</button>
+      </div>
+
+      <section id="px-main">
+        <div class="finance-charts px-block" id="pxCharts"></div>
+
+        <div class="px-block">
+          <div class="px-crm-head">
+            <div>
+              <h2>CRM · воронка Pixel English</h2>
+              <p>Живой канбан из общей CRM: сделки, стадии и суммы те же, что в «Панели команды».</p>
+            </div>
+            <button class="px-open-btn" type="button" onclick="openPixelCrm()">Открыть в полном окне ↗</button>
+          </div>
+          <div class="px-crm-frame" id="pxCrmFrame">
+            <div class="px-frame-msg">Загружаю воронку…</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="px-hr" hidden>
+        <div class="px-block" id="pxHrSlot"></div>
+      </section>
+    </div>
+
   </div>
 
   <!-- ===== Admin Modal ===== -->
@@ -4054,6 +4125,7 @@ function initProjectGroups(){
   });
   buildProjectTabs();
   injectMoney();
+  restoreWorkspace();
 }
 
 function buildProjectTabs(){
@@ -5881,8 +5953,338 @@ async function saveFinanceAccess(kind){
     ovl.remove(); renderFinanceCharts();
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }
+/* ===== Рабочее пространство Pixel English =====
+   Проект живёт в общей CRM: воронка, стадии и сделки — те же, что в «Панели
+   команды». Здесь только показатели по этой воронке и встроенный канбан.
+   Каждый показатель привязывается к стадии воронки: серия = сколько сделок
+   вошло в стадию за период (для денег — сумма сделок). Привязки задаёт
+   администратор, они общие для всей команды. */
+const PX_WORKER='https://pllato-elc-worker.uurraa.workers.dev';
+const PX_PIPELINE_NAME='Pixel English';
+const PX_METRICS=[
+  { key:'inquiries', title:'Количество новых обращений',          color:'#373d8d', fallback:'__new__' },
+  { key:'trial',     title:'Количество людей на Пробном уроке',   color:'#0891b2' },
+  { key:'starts',    title:'Количество новых стартов',            color:'#4f46e5' },
+  { key:'restarts',  title:'Количество перестартов',              color:'#7c3aed' },
+  { key:'cash',      title:'Количество денег в кассе',            color:'#16a34a', money:true },
+  { key:'lessons',   title:'Количество проведённых занятий',      color:'#d97706' },
+];
+let ACTIVE_WORKSPACE='pllato';
+let PX_TAB='main';
+let PX_PIPELINE=null;
+let PX_BINDINGS={};
+let PX_PERIOD='week';
+let PX_SERIES={};
+let PX_REQUEST=0;
+let PX_META_LOADED=false;
+let PX_META_READY=false;
+let PX_CRM_MOUNTED=false;
+
+function pxMetric(key){ return PX_METRICS.find(item=>item.key===key)||PX_METRICS[0]; }
+function pxBinding(key){
+  const saved=PX_BINDINGS[key]||{};
+  return { stage:String(saved.stage||pxMetric(key).fallback||''), max:Math.max(0,Number(saved.max)||0) };
+}
+function pxCanConfigure(){ return !!CURRENT?.isAdmin; }
+function pxStageName(stage){
+  if(!stage) return 'Стадия не выбрана';
+  if(stage==='__new__') return 'Новые сделки воронки';
+  const found=(PX_PIPELINE?.stages||[]).find(item=>item.id===stage);
+  return found?found.name:stage;
+}
+function pxValue(metric,value){
+  return metric.money ? cashChartValue(value)+' ₸' : String(Math.round(Number(value)||0));
+}
+
+function switchWorkspace(workspace){
+  ACTIVE_WORKSPACE = workspace==='pixel' ? 'pixel' : 'pllato';
+  document.querySelectorAll('#wsBar .ws-tab').forEach(button=>{
+    const on=button.dataset.ws===ACTIVE_WORKSPACE;
+    button.classList.toggle('on',on);
+    button.setAttribute('aria-selected',String(on));
+  });
+  const pllato=document.getElementById('ws-pllato');
+  const pixel=document.getElementById('ws-pixel');
+  if(pllato) pllato.hidden = ACTIVE_WORKSPACE!=='pllato';
+  if(pixel) pixel.hidden = ACTIVE_WORKSPACE!=='pixel';
+  try{ localStorage.setItem('pllato_workspace',ACTIVE_WORKSPACE); }catch(e){}
+  if(ACTIVE_WORKSPACE==='pixel') initPixelWorkspace();
+}
+function restoreWorkspace(){
+  let requested='';
+  try{ requested=new URLSearchParams(location.search).get('ws')||''; }catch(e){}
+  if(!requested){ try{ requested=localStorage.getItem('pllato_workspace')||''; }catch(e){} }
+  try{ PX_TAB=localStorage.getItem('pllato_workspace_px_tab')==='hr'?'hr':'main'; }catch(e){}
+  switchWorkspace(requested==='pixel'?'pixel':'pllato');
+}
+function switchPixelTab(tab){
+  PX_TAB = tab==='hr' ? 'hr' : 'main';
+  document.querySelectorAll('#pxTabs .ptab').forEach(button=>button.classList.toggle('on',button.dataset.px===PX_TAB));
+  const main=document.getElementById('px-main');
+  const hr=document.getElementById('px-hr');
+  if(main) main.hidden = PX_TAB!=='main';
+  if(hr) hr.hidden = PX_TAB!=='hr';
+  try{ localStorage.setItem('pllato_workspace_px_tab',PX_TAB); }catch(e){}
+  if(PX_TAB==='main') mountPixelCrm(); else renderPixelHr();
+}
+
+async function initPixelWorkspace(){
+  renderPixelCharts();
+  switchPixelTab(PX_TAB);
+  if(PX_META_LOADED) return;
+  PX_META_LOADED=true;
+  try{ await loadPixelPipeline(); }catch(e){ console.warn('воронка Pixel English:',e); }
+  try{ await loadPixelBindings(); }catch(e){ console.warn('привязки графиков Pixel English:',e); }
+  // Канбан монтируем только после того, как узнали id воронки: ссылка по id
+  // переживает переименование воронки в CRM, ссылка по названию — нет.
+  PX_META_READY=true;
+  renderPixelCharts();
+  if(PX_TAB==='main') mountPixelCrm();
+  loadPixelSeries();
+}
+
+async function loadPixelPipeline(){
+  const token=getSession()?.token;
+  if(!token) throw new Error('Сессия App не найдена');
+  const response=await fetch(`${PX_WORKER}/api/rtdb/pipelines.json?auth=${encodeURIComponent(token)}`,{cache:'no-store'});
+  if(!response.ok) throw new Error('Воронки не загрузились ('+response.status+')');
+  const data=await response.json();
+  const found=Object.entries(data||{})
+    .map(([id,value])=>({...(value||{}),id:(value&&value.id)||id}))
+    .find(item=>String(item.name||'').trim().toLowerCase()===PX_PIPELINE_NAME.toLowerCase());
+  if(!found){ PX_PIPELINE=null; return; }
+  PX_PIPELINE={
+    id:found.id,
+    name:found.name,
+    stages:Object.entries(found.stages||{})
+      .map(([id,value])=>({ id:(value&&value.statusId)||id, name:(value&&value.name)||id, sort:Number(value&&value.sort)||0 }))
+      .sort((a,b)=>a.sort-b.sort),
+  };
+}
+async function loadPixelBindings(){
+  const data=await apiFetch('/store/pull',{method:'POST',body:{collections:['portal_settings'],limitPerCollection:50}});
+  const items=Array.isArray(data?.collections?.portal_settings)?data.collections.portal_settings:[];
+  const row=items.find(item=>item?.id==='pixel_charts');
+  PX_BINDINGS = (row && row.charts && typeof row.charts==='object') ? row.charts : {};
+}
+async function savePixelBindings(){
+  await apiFetch('/store/push',{method:'POST',body:{ops:[{type:'upsert',collection:'portal_settings',item:{
+    id:'pixel_charts', charts:PX_BINDINGS, updatedAt:Date.now(), updatedBy:CURRENT?.email||''
+  }}]}});
+}
+
+async function loadPixelSeries(){
+  if(!PX_PIPELINE) return;
+  const token=getSession()?.token;
+  if(!token) return;
+  const requestId=++PX_REQUEST;
+  const results={};
+  await Promise.all(PX_METRICS.map(async metric=>{
+    const binding=pxBinding(metric.key);
+    if(!binding.stage){ results[metric.key]={unbound:true}; return; }
+    try{
+      const params=new URLSearchParams({pipeline:PX_PIPELINE.id,stage:binding.stage,period:PX_PERIOD,points:'8'});
+      if(metric.money) params.set('metric','sum');
+      const response=await fetch(`${PX_WORKER}/api/charts/series?${params.toString()}`,{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok||!data.ok) throw new Error(data.error||('Ошибка '+response.status));
+      // Денежный график требует суммовой метрики. Если сервер её ещё не умеет,
+      // показываем это прямо на карточке, а не выдаём количество сделок за сумму.
+      if(metric.money && data.metric!=='sum'){
+        results[metric.key]={error:'CRM пока отдаёт только количество сделок. Сумма появится после обновления сервера.'};
+        return;
+      }
+      results[metric.key]={series:Array.isArray(data.series)?data.series:[]};
+    }catch(error){
+      results[metric.key]={error:error.message||String(error)};
+    }
+  }));
+  if(requestId!==PX_REQUEST) return;
+  PX_SERIES=results;
+  renderPixelCharts();
+}
+function setPixelChartPeriod(period){
+  if(!FINANCE_CHART_PERIOD_META[period] || period===PX_PERIOD) return;
+  PX_PERIOD=period;
+  PX_SERIES={};
+  renderPixelCharts();
+  loadPixelSeries();
+}
+
+function pxChartsHeader(){
+  const meta=FINANCE_CHART_PERIOD_META[PX_PERIOD]||FINANCE_CHART_PERIOD_META.week;
+  const periods=Object.entries(FINANCE_CHART_PERIOD_META)
+    .map(([key,item])=>`<button type="button" class="${key===PX_PERIOD?'active':''}" onclick="setPixelChartPeriod('${key}')" aria-pressed="${key===PX_PERIOD}">${item.label}</button>`)
+    .join('');
+  return `<div class="fc-head"><div><h2>${meta.heading}</h2><p>${meta.description}</p></div>
+    <div class="fc-head-actions"><div class="fc-period-switch" role="group" aria-label="Масштаб графиков">${periods}</div></div></div>`;
+}
+function pxChartSvg(metric,series){
+  const count=series.length||1, vw=count*100, vh=650, top=66, bottom=32;
+  const binding=pxBinding(metric.key);
+  const autoMax=Math.max(1,...series.map(point=>Number(point.value)||0));
+  const max=Math.max(1,binding.max||autoMax);
+  const x=i=>(i+.5)*100;
+  const y=value=>top+(1-Math.min(1,(Number(value)||0)/max))*(vh-top-bottom);
+  const completed=series.map((point,i)=>point.partial?null:`${x(i)},${y(point.value).toFixed(1)}`).filter(Boolean).join(' ');
+  const dots=series.map((point,i)=>{
+    const title=`${point.label}: ${metric.money?fmtT(point.value):point.value}${point.partial?' · текущий период':''}`;
+    return `<g><circle cx="${x(i)}" cy="${y(point.value).toFixed(1)}" r="19" fill="transparent"><title>${mEsc(title)}</title></circle>
+      <circle cx="${x(i)}" cy="${y(point.value).toFixed(1)}" r="4.5" fill="${point.partial?'var(--surface)':metric.color}" stroke="${metric.color}" stroke-width="2" vector-effect="non-scaling-stroke"/>
+      <text x="${x(i)}" y="${Math.max(10,y(point.value)-14).toFixed(1)}" text-anchor="middle" fill="var(--text)" font-size="20" font-weight="700">${mEsc(pxValue(metric,point.value))}</text></g>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${vw} ${vh}" preserveAspectRatio="xMidYMid meet" aria-label="${mEsc(metric.title)}">
+    <line x1="0" y1="${top}" x2="${vw}" y2="${top}" stroke="var(--line-2)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
+    <text x="${vw-8}" y="28" text-anchor="end" fill="var(--text-3)" font-size="18" font-weight="700">${mEsc('Максимум шкалы: '+pxValue(metric,max))}</text>
+    <line x1="0" y1="${vh-bottom}" x2="${vw}" y2="${vh-bottom}" stroke="var(--line-2)" vector-effect="non-scaling-stroke"/>
+    <polyline points="${completed}" fill="none" stroke="${metric.color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    ${dots}</svg>`;
+}
+function pxChartCard(metric){
+  const state=PX_SERIES[metric.key]||{};
+  const binding=pxBinding(metric.key);
+  const periodMeta=FINANCE_CHART_PERIOD_META[PX_PERIOD]||FINANCE_CHART_PERIOD_META.week;
+  const settings=pxCanConfigure()?`<button class="fc-access" onclick="openPixelChartSettings('${metric.key}')">Настройки</button>`:'';
+  let plot;
+  if(!binding.stage) plot='<div class="fc-unavailable">Стадия воронки не выбрана.<br>Укажите её в «Настройках» — график начнёт считаться.</div>';
+  else if(state.error) plot=`<div class="fc-unavailable">${mEsc(state.error)}</div>`;
+  else if(!Array.isArray(state.series)) plot='<div class="fc-unavailable">Загружаю данные…</div>';
+  else plot=pxChartSvg(metric,state.series);
+  const labels=Array.isArray(state.series)?state.series.map(point=>`<span>${mEsc(point.label)}</span>`).join(''):'';
+  return `<article class="fc-card${binding.stage?'':' px-unbound'}">
+    <div class="fc-card-head"><div><div class="fc-card-title">${mEsc(metric.title)}</div>
+      <div class="fc-card-sub">${mEsc(pxStageName(binding.stage))} · ${mEsc(periodMeta.suffix)}</div></div>${settings}</div>
+    <div class="fc-plot">${plot}</div>
+    <div class="fc-labels">${labels}</div>
+  </article>`;
+}
+function renderPixelCharts(){
+  const el=document.getElementById('pxCharts');
+  if(!el) return;
+  if(PX_META_LOADED && !PX_PIPELINE){
+    el.innerHTML=pxChartsHeader()+`<div class="px-empty">Воронка «${mEsc(PX_PIPELINE_NAME)}» не найдена в CRM или к ней нет доступа.
+      Создайте воронку с таким названием в СРМ — показатели подхватятся автоматически.</div>`;
+    return;
+  }
+  el.innerHTML=pxChartsHeader()+`<div class="fc-grid">${PX_METRICS.map(pxChartCard).join('')}</div>`;
+}
+
+function openPixelChartSettings(key){
+  if(!pxCanConfigure()) return;
+  const metric=pxMetric(key);
+  const binding=pxBinding(key);
+  const stages=PX_PIPELINE?.stages||[];
+  const options=['<option value="">— не выбрана —</option>',
+    `<option value="__new__"${binding.stage==='__new__'?' selected':''}>Новые сделки воронки</option>`]
+    .concat(stages.map(stage=>`<option value="${mEsc(stage.id)}"${binding.stage===stage.id?' selected':''}>${mEsc(stage.name)}</option>`))
+    .join('');
+  const overlay=document.createElement('div');
+  overlay.id='pixelChartSettingsOverlay';
+  overlay.className='money-ovl show';
+  overlay.addEventListener('click',event=>{ if(event.target===overlay) overlay.remove(); });
+  overlay.innerHTML=`<div class="money-modal" style="max-width:520px">
+    <div class="mm-h"><h3>${mEsc(metric.title)}</h3><span class="mm-x" data-px-close>✕</span></div>
+    <div class="mm-b"><div class="px-stage-pick">
+      <div><label for="pxStageSelect">Стадия воронки «${mEsc(PX_PIPELINE_NAME)}»</label>
+        <select id="pxStageSelect">${options}</select></div>
+      <p class="px-hint">${metric.money
+        ? 'График считает сумму сделок, попавших в эту стадию за период.'
+        : 'График считает, сколько сделок вошло в эту стадию за период.'}
+        Для «Новых сделок воронки» берётся дата создания сделки.</p>
+      <div><label for="pxMaxInput">Максимум шкалы (0 — по данным)</label>
+        <input id="pxMaxInput" type="number" min="0" step="1" value="${binding.max||0}"></div>
+    </div></div>
+    <div class="mm-f"><button data-px-close>Отмена</button>
+      <button style="background:var(--navy);color:#fff" data-px-save>Сохранить</button></div>
+  </div>`;
+  overlay.querySelectorAll('[data-px-close]').forEach(button=>button.addEventListener('click',()=>overlay.remove()));
+  overlay.querySelector('[data-px-save]')?.addEventListener('click',()=>savePixelChartSettings(key));
+  document.body.appendChild(overlay);
+}
+async function savePixelChartSettings(key){
+  const overlay=document.getElementById('pixelChartSettingsOverlay');
+  const saveButton=overlay?.querySelector('[data-px-save]');
+  if(!overlay||!saveButton) return;
+  saveButton.disabled=true;
+  saveButton.textContent='Сохраняем…';
+  const stage=String(overlay.querySelector('#pxStageSelect')?.value||'');
+  const max=Math.max(0,parseInt(overlay.querySelector('#pxMaxInput')?.value,10)||0);
+  const previous=PX_BINDINGS[key];
+  PX_BINDINGS={...PX_BINDINGS,[key]:{stage,max}};
+  try{
+    await savePixelBindings();
+    overlay.remove();
+    PX_SERIES={...PX_SERIES,[key]:{}};
+    renderPixelCharts();
+    loadPixelSeries();
+  }catch(error){
+    if(previous===undefined) delete PX_BINDINGS[key]; else PX_BINDINGS[key]=previous;
+    saveButton.disabled=false;
+    saveButton.textContent='Сохранить';
+    alert('Не удалось сохранить настройку графика: '+(error.message||error));
+  }
+}
+
+function pixelCrmUrl(){
+  return `team.html?page=deals&pipeline=${encodeURIComponent(PX_PIPELINE?.id||PX_PIPELINE_NAME)}`;
+}
+function mountPixelCrm(){
+  const box=document.getElementById('pxCrmFrame');
+  if(!box||PX_CRM_MOUNTED||!PX_META_READY) return;
+  PX_CRM_MOUNTED=true;
+  const frame=document.createElement('iframe');
+  frame.src=pixelCrmUrl();
+  frame.title='CRM · воронка Pixel English';
+  frame.loading='lazy';
+  box.innerHTML='';
+  box.appendChild(frame);
+}
+function openPixelCrm(){ window.open(pixelCrmUrl(),'_blank','noopener'); }
+
+function renderPixelHr(){
+  const slot=document.getElementById('pxHrSlot');
+  if(!slot||slot.dataset.ready==='1') return;
+  slot.dataset.ready='1';
+  const stages=[
+    ['Этап 1 — анализ личности · 12–15 минут','https://pllato.kz/app/hr/?stage=personality&tests=personality'],
+    ['Этап 2 — способности и логика','https://pllato.kz/app/hr/?stage=aptitude&tests=aptitude'],
+    ['Этап 3 — мотивация и ценности','https://pllato.kz/app/hr/?stage=values&tests=values'],
+  ];
+  slot.innerHTML=`
+    <div class="px-crm-head"><div>
+      <h2>Найм и направление персонала</h2>
+      <p>Кандидаты Pixel English проходят те же этапы отбора, что и команда Pllato: тесты, разбор результатов, тренажёры после выхода.</p>
+    </div></div>
+    <div class="px-empty" style="border-style:solid;margin-bottom:16px">
+      <b>Ссылки для кандидата</b> — отправляются в чат, авторизация не нужна.
+      ${stages.map(([label,url])=>`<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:9px 0;border-top:1px solid var(--line-2);margin-top:9px">
+        <div style="flex:1;min-width:220px">
+          <div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;font-weight:700">${mEsc(label)}</div>
+          <code style="font-size:12.5px;color:var(--text);overflow-wrap:anywhere">${mEsc(url)}</code>
+        </div>
+        <button class="px-open-btn" type="button" onclick="copyPixelHrLink(this,'${mEsc(url)}')">Копировать</button>
+      </div>`).join('')}
+    </div>
+    <div class="tools-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+      ${[
+        ['Панель найма','app/hr/admin.html','Кандидаты, результаты тестов, сравнение и решение по каждому.'],
+        ['Тренажёр лид-менеджера','app/sdr-training.html','Первые встречи: терминология, скрипт квалификации, симулятор CRM.'],
+        ['Тренажёр клоузера','app/closer-training.html','Две встречи до предоплаты: шаги, возражения, симулятор, аттестация.'],
+      ].map(([title,href,text])=>`<a class="tool-card" href="${href}" style="position:relative">
+        <h3>${mEsc(title)}</h3><p>${mEsc(text)}</p><span class="tool-cta">Открыть →</span></a>`).join('')}
+    </div>
+    <p class="px-hint" style="margin-top:14px">Кандидаты и результаты пока общие для всех проектов. Разделение по проектам добавим, когда появится первая вакансия Pixel English.</p>`;
+}
+function copyPixelHrLink(button,url){
+  navigator.clipboard.writeText(url).then(()=>{
+    const original=button.textContent;
+    button.textContent='Скопировано ✓';
+    setTimeout(()=>{ button.textContent=original; },1500);
+  }).catch(()=>alert(url));
+}
+
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, setPaymentPlanDate, resetPaymentPlanDates, openPaymentPlanSource, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTask, moveFinanceWeekTaskForward, carryFinanceWeekTaskToCurrent, toggleFinanceWeekTaskHistory, selectFinanceWeekTaskHistory, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, openLeadAnalyticsExternalAccess, copyLeadAnalyticsExternalLink, addLeadAnalyticsExternalViewer, removeLeadAnalyticsExternalViewer, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
+Object.assign(window, { switchWorkspace, switchPixelTab, setPixelChartPeriod, openPixelChartSettings, savePixelChartSettings, openPixelCrm, copyPixelHrLink, openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, setPaymentPlanDate, resetPaymentPlanDates, openPaymentPlanSource, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTask, moveFinanceWeekTaskForward, carryFinanceWeekTaskToCurrent, toggleFinanceWeekTaskHistory, selectFinanceWeekTaskHistory, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, openLeadAnalyticsExternalAccess, copyLeadAnalyticsExternalLink, addLeadAnalyticsExternalViewer, removeLeadAnalyticsExternalViewer, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
 
 function applyProjectFilters(){
   sortProjectCards();

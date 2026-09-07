@@ -8785,6 +8785,19 @@ function setPipelineOrder(ids) {
 // показываем её тоже.
 // Доступна ли воронка сотруднику. Админ/директор и «все воронки» (pipelineIds
 // === null) — видят всё. Иначе — только воронки из whitelist orgPerms.pipelineIds.
+// ?pipeline=<id|название> — открыть СРМ сразу на нужной воронке. Ссылками
+// пользуется App (встроенный канбан проекта), поэтому имя воронки принимается
+// наравне с id: в App известно название, а не внутренний идентификатор.
+function resolveRequestedPipelineId() {
+  let requested = '';
+  try { requested = (new URLSearchParams(location.search).get('pipeline') || '').trim(); } catch { return null; }
+  if (!requested) return null;
+  if (dealsState.pipelines?.[requested]) return requested;
+  const byName = Object.values(dealsState.pipelines || {})
+    .find(p => String(p?.name || '').trim().toLowerCase() === requested.toLowerCase());
+  return byName ? byName.id : null;
+}
+
 function isPipelineAllowed(pid) {
   if (window.currentUser?.role === 'admin') return true;
   const allowed = window.currentUser?.orgPerms?.pipelineIds;
@@ -9062,12 +9075,15 @@ async function loadDealsMeta() {
     dealsState.customSchema = schema || {};
     dealsState.users = users || {};
 
-    // Восстанавливаем активный pipeline: localStorage → первая ДОСТУПНАЯ воронка.
-    // Если в localStorage осталась воронка без доступа — игнорируем её.
-    const saved = localStorage.getItem(ACTIVE_PIPELINE_LS_KEY);
+    // Восстанавливаем активный pipeline: ссылка ?pipeline= → localStorage →
+    // первая ДОСТУПНАЯ воронка. Если в localStorage осталась воронка без
+    // доступа — игнорируем её.
+    const requested = resolveRequestedPipelineId();
+    const saved = requested || localStorage.getItem(ACTIVE_PIPELINE_LS_KEY);
     const allowed = Object.values(dealsState.pipelines).filter(p => isPipelineAllowed(p.id));
     if (saved && dealsState.pipelines[saved] && isPipelineAllowed(saved)) {
       dealsState.activePipelineId = saved;
+      if (requested === saved) localStorage.setItem(ACTIVE_PIPELINE_LS_KEY, saved);
     } else {
       const firstActive = allowed.find(p => p.isActive) || allowed[0];
       dealsState.activePipelineId = firstActive ? firstActive.id : null;
