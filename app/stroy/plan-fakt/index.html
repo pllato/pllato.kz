@@ -643,6 +643,7 @@ body.lk-drawing-context #btnExport{display:none;}
     <div class="tdiv"></div>
     <button class="tool" data-tool="cal" title="Калибровка масштаба"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20M2 9v6M22 9v6M7 10v4M12 10v4M17 10v4"/></svg>Масштаб</button>
     <button class="tool" data-tool="line" title="Новая линия (кабель)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18l5-9 4 5 7-9"/><circle cx="4" cy="18" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="13" cy="14" r="1.6"/><circle cx="20" cy="5" r="1.6"/></svg>Линия</button>
+    <button class="tool" data-tool="split" title="Разделить: тапните трассу в нужном месте — линия разрежется на две (от розетки до розетки)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.6"/><circle cx="6" cy="18" r="2.6"/><path d="M8 8l12 8M8 16L20 8M8.5 7l9 6"/></svg>Разрезать</button>
     <button class="tool" data-tool="sym" title="Каталог знаков"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Знаки</button>
     <button class="tool" data-tool="promo" title="Из фона: тап по чёрной линии/рамке/выноске — станет объектом"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h7v7H3zM14 3l7 7-4 4-7-7zM3 14h7v7H3z"/><path d="M14 17l3 3"/></svg>Из фона</button>
     <button class="tool" data-tool="field" title="Значение в таблицу: ставь над ячейкой «кол-во» — авто или вручную"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M9 4v16M9 14h12"/></svg>Значение</button>
@@ -1208,12 +1209,14 @@ async function renderStandalonePdfPage(pn,source){
   if(src.jobs[pn])return src.jobs[pn];
   src.jobs[pn]=(async()=>{
     const page=await src.pdf.getPage(pn),v=page.getViewport({scale:1});
-    const sc=Math.min(3,Math.max(1,2000/Math.max(v.width,v.height))),rv=page.getViewport({scale:sc});
+    // Фон редактора — ЧЁТКИЙ: рендерим до 3400px (было 2000) и качество JPEG 0.92 (было 0.78),
+    // чтобы линии/текст чертежа не мылились при увеличении. S.W следует за этим размером.
+    const sc=Math.min(4,Math.max(1,3400/Math.max(v.width,v.height))),rv=page.getViewport({scale:sc});
     const c=document.createElement('canvas');c.width=Math.max(1,Math.round(rv.width));c.height=Math.max(1,Math.round(rv.height));
     const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
     await page.render({canvasContext:ctx,viewport:rv}).promise;
     pg.wpt=+v.width.toFixed(2);pg.hpt=+v.height.toFixed(2);pg.mime='image/jpeg';
-    pg.u=c.toDataURL('image/jpeg',0.78).split(',')[1];pg._pdfPending=false;
+    pg.u=c.toDataURL('image/jpeg',0.92).split(',')[1];pg._pdfPending=false;
     try{page.cleanup();}catch(_){}
     prepareStandalonePdfVectors(pn,src);
     return pg;
@@ -1411,7 +1414,7 @@ function renderCleanPlan(pn){
   pg._cleanJob=true;
   (async()=>{try{
     const page=await src.pdf.getPage(pn),v=page.getViewport({scale:1});
-    const sc=Math.min(3,Math.max(1,2000/Math.max(v.width,v.height))),rv=page.getViewport({scale:sc});
+    const sc=Math.min(4,Math.max(1,3400/Math.max(v.width,v.height))),rv=page.getViewport({scale:sc});   // как pg.u — чтобы вскрытие совпадало
     const c=document.createElement('canvas');c.width=Math.max(1,Math.round(rv.width));c.height=Math.max(1,Math.round(rv.height));
     const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
     const origStroke=ctx.stroke.bind(ctx),origFill=ctx.fill.bind(ctx);
@@ -1419,7 +1422,7 @@ function renderCleanPlan(pn){
     ctx.fill=function(...a){if(isRouteColor(ctx.fillStyle))return;return origFill(...a);};
     await page.render({canvasContext:ctx,viewport:rv}).promise;
     ctx.stroke=origStroke;ctx.fill=origFill;
-    pg.uClean=c.toDataURL('image/jpeg',0.85).split(',')[1];
+    pg.uClean=c.toDataURL('image/jpeg',0.9).split(',')[1];
     try{page.cleanup();}catch(_){}
     if(S.pageNum===pn)redrawAll(); // если уже есть удалённые/сдвинутые трассы — покажем чистый план под ними
   }catch(e){console.warn('renderCleanPlan',e);pg._cleanJob=false;}})();
@@ -1584,6 +1587,13 @@ function goPage(pn){
     S.W=baseimg.naturalWidth;S.H=baseimg.naturalHeight;
     S.sx=S.W/pg.wpt;S.sy=S.H/pg.hpt;
     svg.setAttribute('viewBox',`0 0 ${S.W} ${S.H}`);svg.setAttribute('width',S.W);svg.setAttribute('height',S.H);
+    // Линка: восстановленные трассы могли быть сохранены при ДРУГОМ разрешении фона (мы подняли до
+    // 3400px) — координаты в px старого S.W. Подгоняем к текущему, чтобы трассы не разъехались.
+    if(S.linkedLkDocId&&S.objects[pn]&&S.objects[pn].length&&S.drawingPageSizes&&S.drawingPageSizes[pn]&&S.drawingPageSizes[pn].w&&Math.abs(S.drawingPageSizes[pn].w-S.W)>1){
+      const rx=S.W/S.drawingPageSizes[pn].w,ry=S.H/(S.drawingPageSizes[pn].h||S.H);
+      S.objects[pn].forEach(o=>{if(o&&Array.isArray(o.pts))o.pts.forEach(p=>{p.x*=rx;p.y*=ry;});if(o&&typeof o.width==='number')o.width*=rx;});
+      S.drawingPageSizes[pn]={w:S.W,h:S.H};S.dark[pn]=null;
+    }
     if(!S.objects[pn]){S.objects[pn]=importObjects(pg.objs);assignGroups(S.objects[pn]);}
     if(!S.dark[pn])S.dark[pn]=buildDark(pg,S.sx,S.sy);
     if(!S.history[pn]) S.history[pn]=[];
@@ -1750,6 +1760,30 @@ function deleteNode(o,i){
   if(o.pts.length<=2){toast('У линии минимум 2 точки');return;}
   pushHistory();o.pts.splice(i,1);redrawOne(o);drawSelUI();renderSide();toast('Узел удалён');
 }
+/* Разделить трассу в тапнутой точке на ДВЕ независимые линии (например от розетки до розетки).
+   Точку проецируем на ближайший сегмент ближайшей линии; голова остаётся исходным объектом,
+   хвост — новый. Внутренние концы разреза — свободные; знаки/выпуски конца B уходят на хвост. */
+function splitLineAt(p){
+  const rad=(isCoarsePointer()?34:18)/S.scale;let best=null;
+  (cur()||[]).forEach(o=>{if(!o||o.type!=='line'||o.grp!=null||o._fill||o._symbol||!Array.isArray(o.pts)||o.pts.length<2)return;
+    for(let i=0;i<o.pts.length-1;i++){const a=o.pts[i],b=o.pts[i+1],dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;let t=l2?((p.x-a.x)*dx+(p.y-a.y)*dy)/l2:0;t=t<0?0:t>1?1:t;const cx=a.x+t*dx,cy=a.y+t*dy,d=Math.hypot(cx-p.x,cy-p.y);
+      if(!best||d<best.d)best={o,i,x:cx,y:cy,d};}});
+  if(!best||best.d>rad){toast('Тапните точнее ПО линии, где разделить');return;}
+  const o=best.o,head=o.pts.slice(0,best.i+1).map(q=>({x:q.x,y:q.y})),tail=o.pts.slice(best.i+1).map(q=>({x:q.x,y:q.y}));
+  head.push({x:best.x,y:best.y});tail.unshift({x:best.x,y:best.y});
+  const len=a=>{let s=0;for(let i=0;i<a.length-1;i++)s+=Math.hypot(a[i+1].x-a[i].x,a[i+1].y-a[i].y);return s;};
+  if(len(head)<2||len(tail)<2){toast('Слишком близко к концу трассы — сдвиньте точку разреза');return;}
+  pushHistory();
+  const clone=JSON.parse(JSON.stringify(o));delete clone.id;
+  clone.pts=tail;clone.ea={kind:'free',h:0};clone.eb=o.eb?JSON.parse(JSON.stringify(o.eb)):{kind:'free',h:0};
+  o.pts=head;o.eb={kind:'free',h:0};
+  const nw=addObj(clone);
+  // знаки/выпуски конца B исходной линии — теперь на хвосте
+  cur().forEach(x=>{if(x&&x._lkAttachedTo===o.id&&x._lkAttachedEnd==='b')x._lkAttachedTo=nw.id;});
+  if(o._lkEndAttachments&&o._lkEndAttachments.b){nw._lkEndAttachments={a:[],b:o._lkEndAttachments.b.slice()};o._lkEndAttachments.b=[];}
+  redrawAll();selectObj(nw.id);renderSide();renderOpt();lkQueueDrawingSave();
+  toast('Линия разделена на две');
+}
 
 /* Упрощённое управление трассой в редакторе Линейки: независимо от числа исходных
    PDF-вершин пользователь видит только A, C и B. C лежит на половине длины трассы;
@@ -1773,6 +1807,33 @@ function lineBendPoints(setup,dx,dy){const{base,mid,along,total}=setup;return ba
 function lineMidDrag(ev,o){ev.stopPropagation();const start=lineHalfPoint(o.pts),setup=lineBendSetup(o.pts);let pushed=false;
   pointerDrag(ev,e=>{if(!pushed){pushHistory();pushed=true;}const p=toImg(e.clientX,e.clientY),dx=p.x-start.x,dy=p.y-start.y;
     o.pts=lineBendPoints(setup,dx,dy);redrawOne(o);drawSelUI();},()=>{if(o._lkSource)redrawAll();else drawSelUI();renderSide();renderOpt();lkQueueDrawingSave();if(pushed)toast('Изгиб линии изменён · '+fmtMeters(lineMeters(o))+' м');});
+}
+/* Точка на доле f (0..1) длины трассы — как lineHalfPoint, но для любой доли (нужно для 4–5 ручек). */
+function lineFracPoint(pts,f){
+  if(!pts||!pts.length)return{x:0,y:0};if(pts.length===1||f<=0)return{x:pts[0].x,y:pts[0].y};
+  const lens=[];let total=0;for(let i=0;i<pts.length-1;i++){const d=Math.hypot(pts[i+1].x-pts[i].x,pts[i+1].y-pts[i].y);lens.push(d);total+=d;}
+  if(total<1e-6)return{x:pts[0].x,y:pts[0].y};if(f>=1)return{x:pts[pts.length-1].x,y:pts[pts.length-1].y};
+  let left=total*f;for(let i=0;i<lens.length;i++){if(left<=lens[i]||i===lens.length-1){const t=lens[i]?left/lens[i]:0,a=pts[i],b=pts[i+1];return{x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};}left-=lens[i];}
+  return{x:pts[pts.length-1].x,y:pts[pts.length-1].y};
+}
+/* Вставляет вершину на доле f (в КОПИЮ), возвращает {pts,idx}. Без вставки, если уже у вершины. */
+function linePtsAtFrac(pts,f){
+  const raw=(pts||[]).map(p=>({x:+p.x,y:+p.y}));if(raw.length<2)return{pts:raw,idx:0};
+  const lens=[];let total=0;for(let i=0;i<raw.length-1;i++){const d=Math.hypot(raw[i+1].x-raw[i].x,raw[i+1].y-raw[i].y);lens.push(d);total+=d;}
+  if(total<1e-6)return{pts:raw,idx:Math.round((raw.length-1)*f)};let left=total*f;
+  for(let i=0;i<lens.length;i++){if(left<=lens[i]||i===lens.length-1){const t=lens[i]?left/lens[i]:0;if(t<1e-3)return{pts:raw,idx:i};if(t>1-1e-3)return{pts:raw,idx:i+1};const a=raw[i],b=raw[i+1],p={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};raw.splice(i+1,0,p);return{pts:raw,idx:i+1};}left-=lens[i];}
+  return{pts:raw,idx:raw.length-1};
+}
+/* Перетаскивание промежуточной ручки: локальный изгиб — двигаются только вершины в пределах ±span
+   по доле длины (приподнятый косинус, пик в ручке, ноль у СОСЕДНИХ ручек), концы закреплены.
+   Так 4–5 ручек дают точную форму, а не один общий изгиб на всю линию. */
+function lineFracDrag(ev,o,f,span){ev.stopPropagation();
+  const ins=linePtsAtFrac(o.pts,f),base=ins.pts,idx=ins.idx,along=[];let total=0;along[0]=0;
+  for(let i=1;i<base.length;i++){total+=Math.hypot(base[i].x-base[i-1].x,base[i].y-base[i-1].y);along[i]=total;}
+  const fc=total>1e-6?along[idx]/total:f,start={x:base[idx].x,y:base[idx].y};let pushed=false;
+  pointerDrag(ev,e=>{if(!pushed){pushHistory();pushed=true;}const p=toImg(e.clientX,e.clientY),dx=p.x-start.x,dy=p.y-start.y;
+    o.pts=base.map((q,i)=>{const t=total>1e-6?along[i]/total:0;let w=0;const d=Math.abs(t-fc);if(d<span)w=0.5*(1+Math.cos(Math.PI*d/span));if(i===0||i===base.length-1)w=0;if(i===idx)w=1;return{x:q.x+dx*w,y:q.y+dy*w};});
+    redrawOne(o);drawSelUI();},()=>{if(o._lkSource)redrawAll();else drawSelUI();renderSide();renderOpt();lkQueueDrawingSave();if(pushed)toast('Изгиб линии изменён · '+fmtMeters(lineMeters(o))+' м');});
 }
 /* ---- selection UI ---- */
 function bbox(o){if(o.type==='line'){const xs=o.pts.map(p=>p.x),ys=o.pts.map(p=>p.y);return{x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys)};}if(o.type==='rect')return{x:o.x,y:o.y,w:o.w,h:o.h};if(o.type==='symbol'){const hf=o.size*0.66;return{x:o.x-hf,y:o.y-hf,w:hf*2,h:hf*2};}if(o.type==='field'){const v=fieldValue(o,calcPage(S.pageNum));return{x:o.x,y:o.y-o.size,w:(v.length*o.size*0.6)||30,h:o.size*1.2};}return{x:o.x,y:o.y-o.size,w:((o.text||'').length*o.size*0.55)||20,h:o.size*1.2};}
@@ -1801,8 +1862,12 @@ function drawSelUI(){gUI.innerHTML='';drawCalUI();if(!S.selected){S.cluster=[];r
   }
   if(o.type==='line'){
     if(S.threePointMode){
-      const last=o.pts.length-1,mid=lineHalfPoint(o.pts),handles=[[o.pts[0],0,true],[mid,-1,false],[o.pts[last],last,true]];
-      handles.forEach(([p,i,end])=>{const h=mkH(p.x,p.y,k,end);h.dataset.role=i<0?'bend':(i===0?'start':'finish');h.addEventListener('pointerdown',ev=>i<0?lineMidDrag(ev,o):nodeDrag(ev,o,i));gUI.appendChild(h);});
+      // 5 точек правки: концы A/B + 3 ручки изгиба на равных долях длины (было 3 точки — мало).
+      // Каждая ручка изгибает ЛОКАЛЬНО (между соседними ручками), концы закреплены.
+      const last=o.pts.length-1,N=5,span=1/(N-1);
+      const eA=mkH(o.pts[0].x,o.pts[0].y,k,true);eA.dataset.role='start';eA.addEventListener('pointerdown',ev=>nodeDrag(ev,o,0));gUI.appendChild(eA);
+      const eB=mkH(o.pts[last].x,o.pts[last].y,k,true);eB.dataset.role='finish';eB.addEventListener('pointerdown',ev=>nodeDrag(ev,o,last));gUI.appendChild(eB);
+      for(let m=1;m<=N-2;m++){const f=m/(N-1),p=lineFracPoint(o.pts,f),h=mkH(p.x,p.y,k,false);h.dataset.role='bend';h.addEventListener('pointerdown',ev=>lineFracDrag(ev,o,f,span));gUI.appendChild(h);}
     }else{
       // ручки «добавить изгиб» (точка C) на середине каждого сегмента
       for(let i=0;i<o.pts.length-1;i++){const a=o.pts[i],b=o.pts[i+1];const ah=mkAdd((a.x+b.x)/2,(a.y+b.y)/2,k);ah.addEventListener('pointerdown',ev=>addBendDrag(ev,o,i));gUI.appendChild(ah);}
@@ -1890,6 +1955,7 @@ function renderOpt(){const bar=$('optbar');let h='';
   else if(S.tool==='erase')h=`<span class="tip"><b>Ластик.</b> Тапайте лишние объекты — удаляются сразу. Удобно чистить дробные фрагменты из чертежа.</span>`;
   else if(S.tool==='sym')h=`<span class="tip"><b>Каталог знаков.</b> Выберите знак справа и тапайте по плану. Знак — единый объект (двигать/вращать/масштабировать/удалять целиком).</span>`;
   else if(S.tool==='promo')h=`<span class="tip"><b>Из фона.</b> Тапните по оставшемуся знаку, рамке или выноске — объект отделится от PDF. После этого его можно передвинуть целиком или удалить; исходное место будет аккуратно закрыто.</span>`;
+  else if(S.tool==='split')h=`<span class="tip"><b>Разрезать трассу.</b> Тапните по линии в том месте, где нужно разделить — станут две отдельные линии (например от розетки до розетки). Дальше каждую можно выделять, двигать и удалять по-отдельности.</span>`;
   else if(S.tool==='field')h=`<span class="tip"><b>Значение в таблицу.</b> Тапните над ячейкой «кол-во» в таблице чертежа — появится число. Выделив, выберите, что показывать: марку кабеля / доп.позицию / итог / счётчик (авто из расчёта) или впишите вручную. На экспорте число встанет в таблицу.</span>`;
   else if(S.tool==='pan')h=`<span class="tip">Двигайте холст, щипок/колесо — масштаб.</span>`;
   else if(S.tool==='cal'){const c=S.cal[S.pageNum];h=`<span class="tip"><b>Калибровка масштаба.</b> Кликните две точки вдоль известного размера на плане (например стену), затем введите длину в мм (как на размерах чертежа).</span>`+(c?`<span class="grp" style="font-family:var(--mono);font-size:11px;color:var(--green)">✓ 1 м = ${(1/c).toFixed(0)} px</span>`:'');}
@@ -1999,6 +2065,7 @@ vp.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')e.preventDefaul
   if(!inBase(e.clientX,e.clientY))return;const p=toImg(e.clientX,e.clientY);
   if(S.tool==='cal'){calClick(p);}
   else if(S.tool==='promo'){if(S.linkedLkDocId&&S.drawingVectorPages&&S.drawingVectorPages[S.pageNum])lkPromoteDrawingObjectAt(p);else promoteAt(p);}
+  else if(S.tool==='split'){splitLineAt(p);}
   else if(S.tool==='sym'){if(S.armSym)placeSymbol(p);else toast('Выберите знак в каталоге справа');}
   else if(S.tool==='line'){if(S.penMode){startPenDraw(p,e);}else{if(!S.draft)S.draft={pts:[{x:p.x,y:p.y},{x:p.x,y:p.y}]};else{S.draft.pts.push({x:p.x,y:p.y});if(S.threePointMode&&S.draft.pts.length>=4){finishLine();return;}}drawDraft();renderOpt();}}
   else if(S.tool==='text'){const t=prompt('Текст подписи:');if(t){pushHistory();const o=addObj({type:'text',x:p.x,y:p.y,text:t,color:S.textColor,size:S.fontSize,src:'mine'});redrawAll();selectObj(o.id);setTool('select');}}
@@ -2494,7 +2561,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v474';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v475';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v429';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:''};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
