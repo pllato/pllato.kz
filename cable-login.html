@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Вход в КабельКонтроль AI</title>
+  <style>
+    :root { color-scheme: dark; font-family: Arial, Helvetica, sans-serif; }
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: #111213;
+      color: #f1f2f4;
+    }
+    main {
+      width: min(430px, 100%);
+      padding: 32px;
+      border: 1px solid #303236;
+      border-radius: 18px;
+      background: #1b1c1e;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, .35);
+      text-align: center;
+    }
+    .mark {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: #69baf0;
+      color: #10202b;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    h1 { margin: 0; font-size: 25px; letter-spacing: -.03em; }
+    p { margin: 12px 0 24px; color: #a6aab0; line-height: 1.5; }
+    #google-button { min-height: 44px; display: flex; justify-content: center; }
+    #status { min-height: 22px; margin: 18px 0 0; color: #8f949b; font-size: 13px; }
+    #status.error { color: #ff8849; }
+    button {
+      min-height: 42px;
+      margin-top: 14px;
+      padding: 0 18px;
+      border: 1px solid #3b3d42;
+      border-radius: 10px;
+      background: #25272a;
+      color: inherit;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="mark">КК</div>
+    <h1>Вход в КабельКонтроль AI</h1>
+    <p>Выберите разрешённый Google-аккаунт. После входа это окно закроется автоматически.</p>
+    <div id="google-button" aria-label="Войти через Google"></div>
+    <div id="status" role="status">Загружаю безопасный вход Google…</div>
+    <button id="close-button" type="button" hidden>Закрыть окно</button>
+  </main>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    (() => {
+      const GOOGLE_CLIENT_ID = "690738857241-oechm85eio8np7hepafta8opn9jev6uj.apps.googleusercontent.com";
+      const ALLOWED_TARGET_ORIGINS = new Set([
+        "https://cable-control-ai.uniqb.chatgpt.site",
+      ]);
+      const targetOrigin = new URLSearchParams(location.search).get("target_origin") || "";
+      const status = document.getElementById("status");
+      const closeButton = document.getElementById("close-button");
+
+      function fail(message) {
+        status.textContent = message;
+        status.classList.add("error");
+        closeButton.hidden = false;
+      }
+
+      function start() {
+        if (!ALLOWED_TARGET_ORIGINS.has(targetOrigin)) {
+          fail("Адрес программы не разрешён для входа.");
+          return;
+        }
+        if (!window.opener) {
+          fail("Откройте вход из программы КабельКонтроль AI.");
+          return;
+        }
+        if (!window.google?.accounts?.id) {
+          window.setTimeout(start, 100);
+          return;
+        }
+
+        status.textContent = "Выберите аккаунт Google";
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          auto_select: false,
+          cancel_on_tap_outside: false,
+          callback: (response) => {
+            if (!response?.credential) {
+              fail("Google не вернул данные входа. Попробуйте ещё раз.");
+              return;
+            }
+            status.textContent = "Вход выполнен. Возвращаюсь в программу…";
+            window.opener.postMessage({
+              type: "cable-control-google-credential",
+              credential: response.credential,
+            }, targetOrigin);
+            window.setTimeout(() => window.close(), 250);
+          },
+        });
+        google.accounts.id.renderButton(
+          document.getElementById("google-button"),
+          { theme: "filled_black", size: "large", shape: "rectangular", text: "signin_with", locale: "ru", width: 320 },
+        );
+      }
+
+      closeButton.addEventListener("click", () => window.close());
+      window.addEventListener("load", start);
+    })();
+  </script>
+</body>
+</html>
