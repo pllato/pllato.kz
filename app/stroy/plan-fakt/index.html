@@ -2598,7 +2598,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v491';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v492';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:'',aiMode:false};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -4530,7 +4530,35 @@ function lkInitViewer(){
   const vp=$('lkPgImg'),box=$('lkImgBox'),img=$('lkImg');
   if(!vp||!box||!img)return;
   const st={s:1,x:0,y:0,fit:1,w:0,h:0};
-  function apply(){box.style.transform='translate('+st.x+'px,'+st.y+'px) scale('+st.s+')';box.style.setProperty('--mks',1/st.s);}
+  // ЧЁТКОСТЬ ПОД ЗУМ: базовая картинка листа — растр; при увеличении апскейлится и мылит. На стопе
+  // зума дорисовываем ВИДИМУЮ область резко: pdf.js рендерит только видимый кусок в разрешение экрана
+  // (×dpr) и кладём поверх. Рендерится быстро (кусок с вьюпорт), вектор → чётко на любом зуме.
+  let sharp=vp.querySelector('.lk-sharpc');
+  if(!sharp){sharp=document.createElement('canvas');sharp.className='lk-sharpc';sharp.style.cssText='position:absolute;pointer-events:none;z-index:6;display:none';vp.appendChild(sharp);}
+  let sharpTok=0,sharpTimer=null;
+  const hideSharp=()=>{sharp.style.display='none';};
+  const scheduleSharp=()=>{clearTimeout(sharpTimer);sharpTimer=setTimeout(renderSharp,240);};
+  async function renderSharp(){
+    const pg=LK.pages[LK.sel];if(!pg||pg._dxf||!LK.pdf||!st.w){hideSharp();return;}
+    if(st.s<=1.12){hideSharp();return;}                       // не апскейлено — база и так резкая
+    const my=++sharpTok,vw=vp.clientWidth,vh=vp.clientHeight,dpr=Math.min(2,window.devicePixelRatio||1),imgSc=pg._imgSc||1;
+    const iX0=Math.max(0,(0-st.x)/st.s),iY0=Math.max(0,(0-st.y)/st.s),iX1=Math.min(st.w,(vw-st.x)/st.s),iY1=Math.min(st.h,(vh-st.y)/st.s);   // видимая область картинки (px)
+    if(iX1-iX0<3||iY1-iY0<3){hideSharp();return;}
+    const rs=Math.min(imgSc*st.s*dpr,16);                     // масштаб рендера = экранные px×dpr
+    const x0=iX0*rs/imgSc,y0=iY0*rs/imgSc,cw=Math.round((iX1-iX0)*rs/imgSc),ch=Math.round((iY1-iY0)*rs/imgSc);
+    if(cw<3||ch<3||cw>4000||ch>4000){hideSharp();return;}
+    try{
+      const page=await LK.pdf.getPage(pg.page),vpr=page.getViewport({scale:rs});
+      const c=document.createElement('canvas');c.width=cw;c.height=ch;const ctx=c.getContext('2d');
+      ctx.fillStyle='#fff';ctx.fillRect(0,0,cw,ch);ctx.translate(-x0,-y0);
+      await page.render({canvasContext:ctx,viewport:vpr}).promise;
+      if(my!==sharpTok||LK.pages[LK.sel]!==pg)return;          // устарело (новый зум/лист)
+      const sx=st.x+iX0*st.s,sy=st.y+iY0*st.s,sw=(iX1-iX0)*st.s,sh=(iY1-iY0)*st.s;
+      sharp.width=cw;sharp.height=ch;sharp.style.left=sx+'px';sharp.style.top=sy+'px';sharp.style.width=sw+'px';sharp.style.height=sh+'px';
+      sharp.getContext('2d').drawImage(c,0,0);sharp.style.display='block';
+    }catch(e){hideSharp();}
+  }
+  function apply(){box.style.transform='translate('+st.x+'px,'+st.y+'px) scale('+st.s+')';box.style.setProperty('--mks',1/st.s);hideSharp();scheduleSharp();}
   function fit(){st.w=img.naturalWidth||img.width;st.h=img.naturalHeight||img.height;if(!st.w){return;}
     const vw=vp.clientWidth,vh=vp.clientHeight;st.fit=Math.min(vw/st.w,vh/st.h)||1;st.s=st.fit;
     st.x=(vw-st.w*st.s)/2;st.y=(vh-st.h*st.s)/2;apply();}
@@ -4874,7 +4902,7 @@ self.onmessage=function(e){
   var i=0,n=s.length;
   function line(){ if(i>=n)return null; var j=s.indexOf('\\n',i); if(j<0)j=n; var v=s.slice(i,j); if(v.charCodeAt(v.length-1)===13)v=v.slice(0,-1); i=j+1; return v; }
   function plain(t){ t=t.replace(/\\\\P/g,' ').replace(/\\n/g,' '); t=t.replace(/\\\\[A-Za-z]\\d?[^;\\\\]*;/g,''); t=t.replace(/[{}^]/g,'').replace(/\\\\S/g,''); return t.replace(/[ \\t]+/g,' ').trim(); }
-  var passp=/^\\s*([0-9A-Za-zА-Яа-яЁё().\\-]+?)\\s*;\\s*[\\d,]+\\s*-\\s*[\\d,]+\\s*-\\s*[\\d,]+\\s*-\\s*(\\d+)\\s*м/;
+  var passp=/^\\s*([0-9A-Za-zА-Яа-яЁё().\\-]+?)\\s*[;:]\\s*[\\d,]+\\s*-\\s*[\\d,]+\\s*-\\s*[\\d,]+\\s*-\\s*(\\d+)\\s*м/;   // разделитель обозначения — «;» ИЛИ «:» (у гр.ОЛ через двоеточие)
   var markrx=/(АсВВГ|ВВГ|КВВГ|ПвПГ|ВБбШв|ПуГВ|ПВС|ПВ|ШВВП|NYM|DEVI)[^ ;]*\\s*(\\d+\\s*[хx]\\s*[\\d,]+)/;
   var piperx=/(п\\.?\\s*г\\.?|г\\.?\\s*т\\.?)\\s*(\\d+)\\s*-\\s*(\\d+)\\s*м/g;
   var splitrx=/п\\.?\\s*г|г\\.?\\s*т|п25/;
@@ -4899,10 +4927,11 @@ self.onmessage=function(e){
     else if(type==='CIRCLE'){ if(xs.length&&rad!==null)geoC.push(xs[0],ys[0],rad); }
     else if(type==='ARC'){ if(xs.length&&rad!==null&&a0!==null){ var st=a0*Math.PI/180,en=(a1===null?a0+10:a1)*Math.PI/180; if(en<st)en+=2*Math.PI; var steps=Math.max(2,Math.min(24,Math.round((en-st)/0.35))),px=xs[0]+rad*Math.cos(st),py=ys[0]+rad*Math.sin(st),qq; for(qq=1;qq<=steps;qq++){var ang=st+(en-st)*qq/steps,nx=xs[0]+rad*Math.cos(ang),ny=ys[0]+rad*Math.sin(ang);geoL.push(px,py,nx,ny);px=nx;py=ny;} } }
     else if(type==='MTEXT'||type==='TEXT'){ var g=grab(); if(g&&xs.length&&g.t.length<=44)geoT.push({x:xs[0],y:ys[0],s:g.t,c:g.cab?1:0}); }
+    else if(r1||r3){ grab(); }   // прочие типы с текстом (MULTILEADER/ACAD_TABLE — код 304): часть подписей-паспортов (-н2) лежит в них; для листов/сверки, без geoT (координаты выноски далеко)
   }
   var code; while((code=line())!==null){ var val=line(); if(val===null)break; var c=code.trim();
     if(c==='0'){ proc(); type=val; r1='';r3='';xs=[];ys=[];x1v=null;y1v=null;rad=null;a0=null;a1=null;have=true; }
-    else if(have){ if(c==='1')r1=val; else if(c==='3')r3+=val;
+    else if(have){ if(c==='1')r1=val; else if(c==='3'||c==='304')r3+=val;
       else if(c==='10'){var fa=parseFloat(val);if(fa===fa)xs.push(fa);}
       else if(c==='20'){var fb=parseFloat(val);if(fb===fb)ys.push(fb);}
       else if(c==='11')x1v=parseFloat(val); else if(c==='21')y1v=parseFloat(val);
@@ -4993,16 +5022,24 @@ async function lkDxfCrossCheck(file){
     w.postMessage(buf,[buf]);});
   }catch(e){lkBusy(false);toast('Не удалось разобрать DXF: '+(e&&e.message||e));return;}
   lkBusy(false);
-  const bySec={};(res.labels||[]).forEach(o=>{const k=_lkNrmSec(o.s);if(+o.L>0){(bySec[k]=bySec[k]||new Set()).add(Math.round(+o.L));}});
+  // ПОФИДЕРНО: сравниваем ТУ ЖЕ линию (обозначение+сечение) в PDF и DXF — иначе ловим ложные (длина
+  // верная, но её нет у ДРУГИХ фидеров этого сечения). byKey — по обозначению; bySec — набор длин
+  // сечения (мягкий сигнал, когда обозначения нет в DXF).
+  const byKey={},bySec={};
+  (res.labels||[]).forEach(o=>{if(!(+o.L>0))return;const L=Math.round(+o.L),ns=_lkNrmSec(o.s);
+    (bySec[ns]=bySec[ns]||new Set()).add(L);
+    if(o.grp){const gk=_lkNrmG(o.grp)+'|'+ns;if(byKey[gk]==null)byKey[gk]=L;}});
   if(!Object.keys(bySec).length){toast('В DXF не нашёл кабельных длин для сверки');return;}
-  LK._dxfCheck=bySec;LK._dxfCheckName=(file.name||'DXF');
-  let flagged=0,checked=0;
-  LK.pages.forEach(pg=>pg.rows.forEach(r=>{const set=bySec[_lkNrmSec(r.section)];
-    if(set&&+r.len>0){checked++;const L=Math.round(+r.len);const arr=[...set];const has=arr.some(v=>Math.abs(v-L)<=1);   // ±1 — гасим шум округления (расч./монтажная длина)
-      r._dxfFlag=!has;r._dxfSug=has?[]:arr.sort((a,b)=>Math.abs(a-L)-Math.abs(b-L));if(!has)flagged++;}   // подсказки — от ближайших
-    else{r._dxfFlag=false;r._dxfSug=[];}}));
+  LK._dxfCheck={byKey,bySec};LK._dxfCheckName=(file.name||'DXF');
+  let flagged=0,checked=0,noMatch=0;
+  LK.pages.forEach(pg=>pg.rows.forEach(r=>{r._dxfFlag=false;r._dxfSug=[];
+    if(!(+r.len>0))return;
+    const L=Math.round(+r.len),ns=_lkNrmSec(r.section),dxfL=byKey[_lkNrmG(r.group)+'|'+ns];
+    if(dxfL!=null){checked++;if(Math.abs(dxfL-L)>1){r._dxfFlag=true;r._dxfSug=[dxfL];flagged++;}}   // тот же фидер, длина иная
+    else noMatch++;   // обозначения нет в DXF — не флагуем (нельзя надёжно сверить), чтобы не ложить
+  }));
   renderLineyka();
-  toast(flagged?('🔗 Сверка с DXF: '+flagged+' из '+checked+' — длина НЕ совпала (подсвечены). Клик по строке — кружок на схеме; клик по числу — подставить из DXF.'):('✓ Сверка с DXF: все '+checked+' длин совпали'));
+  toast(flagged?('🔗 Сверка по обозначению: '+flagged+' из '+checked+' — DXF даёт другую длину (подсвечены). Клик по строке — кружок на схеме; клик по числу — взять из DXF.'):('✓ Сверка по обозначению: все '+checked+' совпали'+(noMatch?(' · '+noMatch+' без пары в DXF (не сверял)'):'')));
 }
 /* восстановление после перезагрузки: тот же документ, тот же лист */
 /* автопроверка свежей сборки: GitHub Pages и Chrome могут держать сам index.html до 10 минут.
@@ -6234,7 +6271,7 @@ function lkRow(r,noConds,idx,src){const opts=(r.section?[]:['']).concat(LK_SECTI
     +`<div class="lg-cell"><label>Марка (кабель)</label><input class="lk-m" data-id="${r._id}" value="${esc(r.mark||'')}" style="width:132px" placeholder="—"></div>`
     +`<div class="lg-cell"><label>Сечение</label><select class="lk-s" data-id="${r._id}">${opts.map(s=>`<option ${s===r.section?'selected':''}>${esc(s)}</option>`).join('')}</select></div>`
     +`<div class="lg-cell"><label>Длина, м</label><input class="lk-l" data-id="${r._id}" type="number" step="0.1" min="0" value="${r.len}"></div>`
-    +(r._dxfFlag?`<div class="lg-cell" style="justify-content:flex-end"><span class="lk-dxfchk" title="Длины ${r.len}м нет в DXF для сечения ${esc(r.section)} — вероятно, PDF прочитал не ту цифру. Клик по числу — подставить длину из DXF.">🔗 в DXF нет ${r.len}м${(r._dxfSug||[]).length?' → есть: '+(r._dxfSug||[]).slice(0,7).map(v=>`<b class="lk-dxfsug" data-id="${r._id}" data-v="${v}">${v}</b>`).join('·'):''}</span></div>`:'')
+    +(r._dxfFlag?`<div class="lg-cell" style="justify-content:flex-end"><span class="lk-dxfchk" title="Для этого фидера (${esc(r.group||'')} ${esc(r.section)}) в DXF длина ${(r._dxfSug||[])[0]}м, а PDF прочитал ${r.len}м — вероятно, PDF взял не ту цифру. Клик по числу — подставить длину из DXF.">🔗 в DXF этот фидер = ${(r._dxfSug||[]).map(v=>`<b class="lk-dxfsug" data-id="${r._id}" data-v="${v}">${v}м</b>`).join('')} (PDF: ${r.len})</span></div>`:'')
     +(r.illegible?`<div class="lg-cell" style="justify-content:flex-end"><span class="lk-recheck" style="background:#c0392b;color:#fff" title="Длина не проставлена — участок неразборчив на чертеже. Впиши длину вручную, если разберёшь.">⚠ неразборчиво — длина не проставлена</span></div>`
       :r.needsCheck&&!(+r.len>0)?`<div class="lg-cell" style="justify-content:flex-end"><span class="lk-recheck" style="background:#c0392b;color:#fff" title="Длина НЕ определена — впиши её вручную по схеме">⚠ нет длины — впишите</span></div>`
       :r.needsCheck?`<div class="lg-cell" style="justify-content:flex-end"><span class="lk-recheck" title="Длину не удалось прочитать точно (голое число на схеме) — сверь со схемой и поправь">⚠ проверить длину</span></div>`:'')
