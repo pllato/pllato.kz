@@ -1192,7 +1192,13 @@ function igCommentHtml(m, esc){
 function ibMsgBubble(m, t, byE){
   try{
     const c=(__ibChannels.length>1 && m.dir==='out' && m.channel_id)?(__ibChannels.find(x=>x.id===m.channel_id)):null;
-    const via=c?` <span class="cw-via">через ${esc(c.name||'WhatsApp')}</span>`:'';
+    let via=c?` <span class="cw-via">через ${esc(c.name||'WhatsApp')}</span>`:'';
+    // ВХОДЯЩИЕ: показываем, НА КАКОЙ филиал клиент написал. Только если он писал в несколько номеров —
+    // иначе плашка на каждом сообщении была бы лишним шумом.
+    if(!via && m.dir==='in' && m.channel_id && t && Array.isArray(t.branches) && t.branches.length>1){
+      const b=t.branches.find(x=>x.id===m.channel_id);
+      if(b&&b.name) via=` <span class="cw-via">на ${esc(b.name)}</span>`;
+    }
     const cls=m.dir==='out'?'out':m.dir==='ai'?'ai':'in';
     return `<div class="msg ${cls}" data-mid="${esc(String(m.id||''))}" data-ext="${esc(String(m.ext_id||''))}" data-sig="${esc(ibMsgSig(m))}">${adRefHtml(m)}${igCommentHtml(m,esc)}${replyBlockHtml(m,byE,esc)}${msgActBtn(m,t.id)}${msgReplyBtn(m,t.id)}${waMediaHtml(m)}${msgTxt(m,esc)}<div class="mt">${esc(cwFmtTimeFull(m.ts))}${msgWho(m,esc)}${via}</div>${reactionBadgeHtml(m,esc)}</div>`;
   }catch(e){ // одно «битое» сообщение не должно ронять весь чат
@@ -1276,9 +1282,18 @@ function ibChannels(){
   box.querySelectorAll('[data-ch]').forEach(b=>b.onclick=()=>{ __ibChannelFilter=b.dataset.ch||null; ibChannels(); ibThreadList(); });
 }
 // Канал (номер) диалога: имя канала + хвост телефона + стабильный цвет — чтобы видеть, на какой номер переписка.
-function ibChanOf(t){ return (__ibChannels||[]).find(c=>c.id===t.channel_id) || null; }
+// Филиал диалога = канал ПОСЛЕДНЕГО сообщения. Раньше брали канал треда — он проставлялся при первом
+// сообщении и «залипал»: клиент давно пишет в Медерову, а в списке значилась Ала-Арча.
+function ibChanOf(t){ const id=t.last_ch_id||t.channel_id; return (__ibChannels||[]).find(c=>c.id===id) || null; }
+// Остальные филиалы, куда клиент тоже писал (кроме текущего) — чтобы было видно, что диалог «общий».
+function ibBranchesTag(t){
+  const list=Array.isArray(t.branches)?t.branches:[]; if(list.length<2) return '';
+  const cur=t.last_ch_id||t.channel_id;
+  const others=list.filter(b=>b.id!==cur&&b.name);
+  return others.length?`<span class="muted2" style="font-size:11px"> · также писал: ${others.map(b=>esc(b.name)).join(', ')}</span>`:'';
+}
 function ibChanColor(id){ const P=['#25d366','#2563eb','#7c3aed','#d97706','#db2777','#0891b2','#16a34a']; let h=0; const s=String(id||''); for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0; return P[h%P.length]; }
-function ibChanTag(t){ if(!t.channel_id && !t.chName) return ''; const ch=ibChanOf(t); const nm=(ch&&ch.name)||t.chName||'WhatsApp'; const col=ibChanColor(t.channel_id); return `<span class="ib-chtag" title="${esc((ch&&ch.phone)?('номер +'+ch.phone):nm)}" style="display:inline-block;font-size:10px;font-weight:700;padding:0 6px;border-radius:6px;background:${col}22;color:${col};white-space:nowrap;vertical-align:middle;margin-right:5px">${esc(nm)}</span>`; }
+function ibChanTag(t){ if(!t.channel_id && !t.last_ch_id && !t.chName) return ''; const ch=ibChanOf(t); const nm=(ch&&ch.name)||t.chName||'WhatsApp'; const col=ibChanColor(t.last_ch_id||t.channel_id); return `<span class="ib-chtag" title="${esc((ch&&ch.phone)?('номер +'+ch.phone):nm)}" style="display:inline-block;font-size:10px;font-weight:700;padding:0 6px;border-radius:6px;background:${col}22;color:${col};white-space:nowrap;vertical-align:middle;margin-right:5px">${esc(nm)}</span>`; }
 function ibChanNum(t){ const ch=ibChanOf(t); return ch&&ch.phone?('+'+ch.phone):''; }
 function ibThreadList(){
   const box=__ibWrap&&__ibWrap.querySelector('.ib-threads'); if(!box)return;
@@ -1320,7 +1335,9 @@ function ibChat(){
   const isWa=(t.ch||'wa')==='wa'; const sendChans=__ibChannels.filter(c=>(c.type||'wa')===(t.ch||'wa'));
   const multi=sendChans.length>1; const hasCh=sendChans.length>=1;
   const chById=Object.fromEntries(__ibChannels.map(c=>[c.id,c]));
-  if(!t._sendCh) t._sendCh=t.send_channel_id||t.channel_id||(sendChans[0]&&sendChans[0].id)||null;
+  // Отвечаем с того номера, куда клиент написал последним: иначе ответ уходит с «залипшего» первого
+  // филиала и клиент получает сообщение с чужого номера (так ушло 648 ответов).
+  if(!t._sendCh) t._sendCh=t.last_in_ch_id||t.send_channel_id||t.last_ch_id||t.channel_id||(sendChans[0]&&sendChans[0].id)||null;
   const chTag=(id)=>{ const c=chById[id]; return c?` <span class="cw-via">через ${esc(c.name||'WhatsApp')}</span>`:''; };
   const msgs=__ibMsgsCache[t.id];
   const __ibByE=replyMap(msgs);
@@ -1331,7 +1348,7 @@ function ibChat(){
   const igCommentHint = (t.ch==='ig' && Array.isArray(msgs) && msgs.some(m=>m&&m.ig_post)) ? `<div style="font-size:11px;color:var(--muted);padding:5px 12px;line-height:1.45;border-top:1px solid var(--line);background:rgba(225,48,108,.06)">💬 В диалоге есть <b>комментарии</b>. Ответ <b>с цитатой</b> на комментарий уйдёт <b>публично под пост</b> (только текст), <b>без цитаты</b> — лично в <b>Директ</b>.</div>` : '';
   const fromBar = (hasCh && (multi || isWa))?`<div class="cw-from">${ic('i-phone','sm')} <span class="muted2">Отправитель:</span> <select class="sel sm" id="ibFrom">${sendChans.map(c=>`<option value="${esc(c.id)}" ${c.id===t._sendCh?'selected':''}>${esc(c.name||(isWa?'WhatsApp':'Instagram'))}${c.phone?(' · +'+esc(c.phone)):''}${c.funnel&&FUNNELS.find(f=>f.id===c.funnel)?(' · '+esc((FUNNELS.find(f=>f.id===c.funnel)||{}).name)):''}</option>`).join('')}${isWa?'<option disabled>──────────</option><option value="__add">＋ нужен доп. номер? добавьте в «Интеграции»</option>':''}</select></div>`:'';
   box.innerHTML=`<div class="chat-h"><button class="ib-back" title="К списку диалогов"><svg class="svg-i sm" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button><div class="av" style="background:${avBg(nm)}">${esc(initials(nm))}</div>
-      <div><div style="font-weight:700;font-size:14px">${esc(nm)}</div><div class="muted" style="font-size:11.5px">${ibChanTag(t)}<span class="muted2">${ibChanNum(t)?('на '+esc(ibChanNum(t))):(t.ch==='ig'?'Instagram · Wazzup':'WhatsApp · GreenAPI')}${t.phone?(' · клиент +'+esc(t.phone)):''}</span></div></div>
+      <div><div style="font-weight:700;font-size:14px">${esc(nm)}</div><div class="muted" style="font-size:11.5px">${ibChanTag(t)}<span class="muted2">${ibChanNum(t)?('на '+esc(ibChanNum(t))):(t.ch==='ig'?'Instagram · Wazzup':'WhatsApp · GreenAPI')}${t.phone?(' · клиент +'+esc(t.phone)):''}</span>${ibBranchesTag(t)}</div></div>
       <div class="spacer"></div></div>
     ${chWarnHtml(sendChans.find(c=>c.id===t._sendCh))}
     <div class="chat-body" id="ibChatBody">${bodyHtml}</div>
