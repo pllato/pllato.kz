@@ -3120,7 +3120,12 @@ function assigneeMulti(users, selected, opts){
   node.appendChild(btn); node.appendChild(pop);
   const lblEl=btn.querySelector('.asg-lbl');
   function updateLbl(){ const a=Array.from(sel); lblEl.textContent = !a.length?empty : (a.length<=2 ? a.join(', ') : (a.length+' выбрано')); lblEl.style.color=a.length?'':'var(--muted)'; lblEl.title=a.join(', '); }
-  pop.innerHTML=(users.length?users.map(u=>`<label class="asg-opt" style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;cursor:pointer;font-size:13px"><input type="checkbox" data-n="${esc(u.name)}" ${sel.has(u.name)?'checked':''} style="width:16px;height:16px;flex:none;accent-color:var(--accent)"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name)}${u.roleName?(' · <span class="muted2" style="font-size:11px">'+esc(u.roleName)+'</span>'):''}</span></label>`).join(''):'<div class="muted2" style="padding:8px;font-size:12px">Нет пользователей</div>');
+  // В сохранённом списке могут остаться уволенные/переименованные сотрудники: их нет среди users,
+  // поэтому чекбокс не рисовался, а счётчик их считал («3 выбрано» при двух галочках) — и снять их
+  // было нельзя вообще. Показываем такие записи отдельно с пометкой, чтобы админ мог убрать.
+  const _known=new Set(users.map(u=>u.name));
+  const _list=users.concat(Array.from(sel).filter(n=>!_known.has(n)).map(n=>({name:n, roleName:'нет в системе'})));
+  pop.innerHTML=(_list.length?_list.map(u=>`<label class="asg-opt" style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;cursor:pointer;font-size:13px"><input type="checkbox" data-n="${esc(u.name)}" ${sel.has(u.name)?'checked':''} style="width:16px;height:16px;flex:none;accent-color:var(--accent)"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name)}${u.roleName?(' · <span class="muted2" style="font-size:11px">'+esc(u.roleName)+'</span>'):''}</span></label>`).join(''):'<div class="muted2" style="padding:8px;font-size:12px">Нет пользователей</div>');
   pop.onclick=(e)=>e.stopPropagation();
   pop.querySelectorAll('input[data-n]').forEach(cb=>cb.onchange=()=>{ const n=cb.dataset.n; if(cb.checked)sel.add(n); else sel.delete(n); updateLbl(); if(opts.onChange)opts.onChange(Array.from(sel)); });
   btn.onclick=(e)=>{ e.stopPropagation(); pop.style.display = pop.style.display==='none' ? 'block' : 'none'; };
