@@ -414,6 +414,36 @@ body {
 .date-filter-reset:hover { border-color:var(--bronze); color:var(--bronze-deep); }
 .date-filter-summary { margin:7px 0 0; color:var(--text-3); font-size:11px; }
 .project-tabs { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0 4px; }
+/* ===== Виджет «встречи сегодня» ===== */
+.cal-widget{display:none;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 18px;padding:11px 14px;
+  background:var(--surface);border:1px solid var(--line-2);border-radius:12px;box-shadow:var(--shadow-sm)}
+.cal-widget.on{display:flex}
+.cal-widget .cw-head{display:flex;align-items:baseline;gap:9px;white-space:nowrap}
+.cal-widget .cw-title{font-size:12.5px;font-weight:800;color:var(--text)}
+.cal-widget .cw-sub{font-size:11px;color:var(--text-3)}
+.cal-widget .cw-list{display:flex;gap:7px;flex-wrap:wrap;flex:1;min-width:0}
+.cw-chip{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid var(--line-2);
+  border-radius:9px;background:var(--surface-2);text-decoration:none;color:var(--text);max-width:340px}
+.cw-chip:hover{border-color:var(--bronze);background:var(--bronze-tint)}
+.cw-chip .t{font:800 12px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--bronze-deep);white-space:nowrap}
+.cw-chip .n{font-size:11.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cw-chip.next{border-color:var(--bronze);background:var(--bronze-tint)}
+.cw-chip.now{border-color:var(--green);background:#e9f7ee}
+.cw-chip.now .t{color:#12703c}
+.cw-chip.past{opacity:.5}
+.cw-chip .mk{font:700 9px/1 'IBM Plex Mono',ui-monospace,monospace;padding:3px 6px;border-radius:20px;
+  background:var(--bronze);color:#fff;white-space:nowrap}
+.cw-chip.now .mk{background:#12703c}
+.cal-widget .cw-more{font-size:11px;color:var(--text-3);white-space:nowrap}
+.cal-widget .cw-open{margin-left:auto;font-size:11.5px;font-weight:800;color:var(--bronze-deep);
+  text-decoration:none;white-space:nowrap;border:1px solid var(--line-2);border-radius:9px;padding:7px 11px}
+.cal-widget .cw-open:hover{border-color:var(--bronze);background:var(--bronze-tint)}
+.cal-widget.empty .cw-title{color:var(--text-2)}
+@media (max-width:720px){
+  .cal-widget{align-items:flex-start}
+  .cal-widget .cw-open{margin-left:0;width:100%;text-align:center}
+  .cw-chip{max-width:100%}
+}
 /* ===== Рабочие пространства: Pllato и Pixel English ===== */
 .ws-bar { display:flex; gap:4px; align-items:flex-end; margin:0 0 22px; border-bottom:1px solid var(--line); }
 .ws-tab {
@@ -1182,6 +1212,9 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
       <h1 id="welcome-text">С возвращением!</h1>
       <p>Все инструменты для работы команды Pllato в одном месте.</p>
     </div>
+
+    <!-- Встречи на сегодня: одной строкой, чтобы не заходить в календарь -->
+    <div class="cal-widget" id="calWidget"></div>
 
     <div class="project-search-row">
       <div class="project-search-wrap">
@@ -4189,6 +4222,7 @@ function initProjectGroups(){
   buildProjectTabs();
   injectMoney();
   restoreWorkspace();
+  loadTodayCalendar();
 }
 
 function buildProjectTabs(){
@@ -6016,6 +6050,144 @@ async function saveFinanceAccess(kind){
     ovl.remove(); renderFinanceCharts();
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }
+/* ===== Виджет «встречи сегодня» =====
+   Данные те же, что в Календаре team.html: задачи с меткой zoom_meeting
+   и «первый Zoom» из карточек сделок. Одна строка вместо захода в календарь. */
+const CAL_WORKER='https://pllato-elc-worker.uurraa.workers.dev';
+let CAL_EVENTS=null, CAL_TIMER=null, CAL_TICK=null;
+
+function calCanSee(){ return !!(CURRENT?.isAdmin || CURRENT?.apps?.pllato_shared_calendar); }
+function calDayKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function calCacheKey(){ return `pllato_today_meetings:${String(CURRENT?.email||'guest').toLowerCase()}:${calDayKey(new Date())}`; }
+function calReadCache(){
+  try{
+    const c=JSON.parse(localStorage.getItem(calCacheKey())||'null');
+    return c && Date.now()-Number(c.savedAt||0)<20*60000 ? c.items : null;
+  }catch(e){ return null; }
+}
+function calSaveCache(items){
+  try{ localStorage.setItem(calCacheKey(),JSON.stringify({savedAt:Date.now(),items})); }catch(e){}
+}
+
+async function calFetchToday(){
+  const token=getSession()?.token;
+  if(!token) throw new Error('нет сессии App');
+  const today=new Date();
+  const shift=n=>{ const d=new Date(today); d.setDate(d.getDate()+n); return calDayKey(d); };
+  const events=[];
+
+  // 1. Задачи-встречи. Окно ±1 день по дедлайну: у Zoom-задачи время встречи
+  // лежит в startDatePlan, который может отличаться от дедлайна.
+  try{
+    const url=`${CAL_WORKER}/api/list/tasks?page=1&pageSize=300&status=active&sort=deadline`
+      +`&deadlineFrom=${shift(-1)}&deadlineTo=${shift(1)}T23:59:59&includePublic=1&auth=${encodeURIComponent(token)}`;
+    const response=await fetch(url,{cache:'no-store'});
+    const data=response.ok?await response.json():{items:[]};
+    for(const task of (data.items||[])){
+      if(task.mark!=='zoom_meeting') continue;                 // нужны встречи, а не дедлайны задач
+      const when=new Date(task.startDatePlan||task.deadline||'');
+      if(isNaN(when)||calDayKey(when)!==calDayKey(today)) continue;
+      const end=task.endDatePlan?new Date(task.endDatePlan):null;
+      events.push({ at:when.getTime(), end:(end&&!isNaN(end))?end.getTime():when.getTime()+60*60000,
+        title:task.title||'Встреча', href:`team.html?page=calendar#task/${encodeURIComponent(task.id||task.bitrixKey||'')}` });
+    }
+  }catch(e){ console.warn('встречи · задачи:',e); }
+
+  // 2. «Первый Zoom» из сделок — так встречи ставит отдел продаж.
+  try{
+    const pipesResponse=await fetch(`${CAL_WORKER}/api/rtdb/pipelines.json?auth=${encodeURIComponent(token)}`,{cache:'no-store'});
+    const pipes=pipesResponse.ok?await pipesResponse.json():null;
+    const ids=Object.entries(pipes||{}).map(([id,value])=>(value&&value.id)||id);
+    const chunks=await Promise.all(ids.map(id=>
+      fetch(`${CAL_WORKER}/api/list/deals?page=1&pageSize=200&pipeline=${encodeURIComponent(id)}&sort=modified&auth=${encodeURIComponent(token)}`,{cache:'no-store'})
+        .then(r=>r.ok?r.json():{items:[]}).catch(()=>({items:[]}))));
+    for(const chunk of chunks){
+      for(const deal of (chunk.items||[])){
+        const raw=deal?.customFields?.firstZoomAt;
+        if(!raw) continue;
+        const when=new Date(raw);
+        if(isNaN(when)||calDayKey(when)!==calDayKey(today)) continue;
+        events.push({ at:when.getTime(), end:when.getTime()+60*60000,
+          title:'Zoom: '+(deal.title||'сделка'),
+          href:`team.html?page=calendar#deal/${encodeURIComponent(deal.recordId||deal.id||'')}` });
+      }
+    }
+  }catch(e){ console.warn('встречи · сделки:',e); }
+
+  // Один и тот же Zoom может прийти и задачей, и полем сделки — схлопываем по времени и названию.
+  const seen=new Set();
+  return events.filter(item=>{
+    const key=item.at+'|'+item.title;
+    if(seen.has(key)) return false;
+    seen.add(key); return true;
+  }).sort((a,b)=>a.at-b.at);
+}
+
+function calTimeLabel(ms){
+  const d=new Date(ms);
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function renderTodayCalendar(){
+  const box=document.getElementById('calWidget');
+  if(!box) return;
+  if(!calCanSee()){ box.classList.remove('on'); return; }
+  const open='<a class="cw-open" href="team.html?page=calendar">Открыть календарь →</a>';
+  if(CAL_EVENTS===null){
+    box.className='cal-widget on empty';
+    box.innerHTML='<div class="cw-head"><span class="cw-title">📅 Сегодня</span><span class="cw-sub">загружаю встречи…</span></div>'+open;
+    return;
+  }
+  const now=Date.now();
+  const running=CAL_EVENTS.find(e=>e.at<=now&&e.end>now);   // встреча идёт прямо сейчас
+  const upcoming=CAL_EVENTS.filter(e=>e.at>now);            // ещё не начались
+  if(!CAL_EVENTS.length){
+    box.className='cal-widget on empty';
+    box.innerHTML='<div class="cw-head"><span class="cw-title">📅 Сегодня встреч нет</span>'
+      +'<span class="cw-sub">календарь свободен</span></div>'+open;
+    return;
+  }
+  const nextItem=upcoming[0];
+  const status=running
+    ? (nextItem?`идёт сейчас · следующая в ${calTimeLabel(nextItem.at)}`:'идёт сейчас · последняя на сегодня')
+    : (nextItem?`ближайшая в ${calTimeLabel(nextItem.at)}`:'все прошли');
+  const shown=CAL_EVENTS.slice(0,4);
+  const chips=shown.map(item=>{
+    const isNow=item.at<=now&&item.end>now;
+    const isNext=!isNow&&item===nextItem;
+    const isPast=item.end<=now;
+    const mins=Math.round((item.at-now)/60000);
+    const mark=isNow?'<span class="mk">идёт</span>'
+      :isNext&&mins<=90?`<span class="mk">через ${mins<1?'минуту':mins+' мин'}</span>`:'';
+    return `<a class="cw-chip${isNow?' now':isNext?' next':isPast?' past':''}" href="${escapeHtml(item.href)}" title="${escapeHtml(item.title)}">
+      <span class="t">${calTimeLabel(item.at)}</span><span class="n">${escapeHtml(item.title)}</span>${mark}</a>`;
+  }).join('');
+  const rest=CAL_EVENTS.length-shown.length;
+  const word=n=>n%10===1&&n%100!==11?'встреча':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'встречи':'встреч');
+  box.className='cal-widget on';
+  box.innerHTML=`<div class="cw-head"><span class="cw-title">📅 Сегодня</span>
+      <span class="cw-sub">${CAL_EVENTS.length} ${word(CAL_EVENTS.length)} · ${status}</span></div>
+    <div class="cw-list">${chips}${rest>0?`<span class="cw-more">и ещё ${rest}</span>`:''}</div>${open}`;
+}
+async function loadTodayCalendar(){
+  if(!calCanSee()) return;
+  const cached=calReadCache();
+  if(cached){ CAL_EVENTS=cached; renderTodayCalendar(); }
+  else renderTodayCalendar();
+  try{
+    const items=await calFetchToday();
+    CAL_EVENTS=items;
+    calSaveCache(items);
+  }catch(e){
+    console.warn('виджет встреч:',e);
+    if(CAL_EVENTS===null) CAL_EVENTS=[];
+  }
+  renderTodayCalendar();
+  clearInterval(CAL_TICK);
+  CAL_TICK=setInterval(renderTodayCalendar,60000);          // «идёт» и «через N мин» — без новых запросов
+  clearTimeout(CAL_TIMER);
+  CAL_TIMER=setTimeout(loadTodayCalendar,10*60000);          // свежие данные раз в 10 минут
+}
+
 /* ===== Рабочее пространство Pixel English =====
    Проект живёт в общей CRM: воронка, стадии и сделки — те же, что в «Панели
    команды». Здесь только показатели по этой воронке и встроенный канбан.
@@ -6347,7 +6519,7 @@ function copyPixelHrLink(button,url){
 }
 
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { switchWorkspace, switchPixelTab, setPixelChartPeriod, openPixelChartSettings, savePixelChartSettings, openPixelCrm, copyPixelHrLink, openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, setPaymentPlanDate, resetPaymentPlanDates, openPaymentPlanSource, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTask, moveFinanceWeekTaskForward, carryFinanceWeekTaskToCurrent, toggleFinanceWeekTaskHistory, selectFinanceWeekTaskHistory, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, openLeadAnalyticsExternalAccess, copyLeadAnalyticsExternalLink, addLeadAnalyticsExternalViewer, removeLeadAnalyticsExternalViewer, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
+Object.assign(window, { renderTodayCalendar, loadTodayCalendar, switchWorkspace, switchPixelTab, setPixelChartPeriod, openPixelChartSettings, savePixelChartSettings, openPixelCrm, copyPixelHrLink, openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, setPaymentPlanDate, resetPaymentPlanDates, openPaymentPlanSource, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTask, moveFinanceWeekTaskForward, carryFinanceWeekTaskToCurrent, toggleFinanceWeekTaskHistory, selectFinanceWeekTaskHistory, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, openLeadAnalyticsExternalAccess, copyLeadAnalyticsExternalLink, addLeadAnalyticsExternalViewer, removeLeadAnalyticsExternalViewer, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
 
 function applyProjectFilters(){
   sortProjectCards();
