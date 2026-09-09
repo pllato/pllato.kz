@@ -66,6 +66,23 @@ window.HR_POSITIONS = {
     redFlags: { integrityBelow: 50, personalityRisk: ['C', 'H'] },
     recommendWorkSample: true, // панель советует практическую пробу + проверку допусков
   },
+  teacher: {
+    id: 'teacher',
+    label: 'Преподаватель',
+    short: 'Преподаватель',
+    icon: '📚',
+    time: '~35–40 мин',
+    // Без SJT/профзнаний (специфичных банков под преподавание пока нет) —
+    // ключевое для учителя: характер (энергия, доброжелательность, стабильность,
+    // добросовестность) + вербальные способности (объяснять) + надёжность.
+    modules: ['personality', 'cognitive', 'integrity', 'biodata'],
+    sjtBank: null,
+    knowledgeProfile: null,
+    moduleWeights: { personality: 0.35, cognitive: 0.25, integrity: 0.15, biodata: 0.25 },
+    personalityWeights: { C: 0.25, E: 0.20, A: 0.20, ES: 0.20, O: 0.10, H: 0.05 },
+    cognitive: { recommend: 55, min: 40, note: 'Вербальная секция ≥50 (речь и объяснение материала).' },
+    redFlags: { integrityBelow: 50, personalityRisk: ['ES', 'A'] },
+  },
 };
 
 /* Интерпретационные полосы (перцентили / 0–100) — общие. */
