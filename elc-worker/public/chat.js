@@ -267,6 +267,9 @@
         try { window.dispatchEvent(new CustomEvent('elc:notification', { detail: n })); } catch (e) {}
         break;
       }
+      case 'deal_created':
+        try { window.dispatchEvent(new CustomEvent('elc:deal-created', { detail: msg.deal || {} })); } catch (e) {}
+        break;
     }
   }
 
