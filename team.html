@@ -14331,6 +14331,7 @@ async function openDealCard(dealKey) {
             ${deal.customFields?.trialLessonAt ? `<button class="tbtn tbtn-xs" style="margin-left:8px" onclick="navigate('calendar')">📅 Открыть календарь</button>` : ''}
           </div>` : ''}
 
+          ${renderMetaLeadFormBlock(deal.customFields)}
           ${renderCustomFieldsBlock(deal.customFields, { dealId: dealRecordId, editable: true })}
         </div>
 
@@ -15006,6 +15007,41 @@ function handleDeepLink() {
   }
 }
 
+function renderMetaLeadFormBlock(cfData) {
+  const answers = cfData?.answers;
+  if (!answers || typeof answers !== 'object' || Array.isArray(answers)) return '';
+
+  const labels = {
+    full_name: 'Имя клиента', name: 'Имя клиента', first_name: 'Имя', last_name: 'Фамилия',
+    phone_number: 'Телефон', phone: 'Телефон', mobile_phone: 'Телефон', email: 'Email',
+    work_email: 'Рабочий email', city: 'Город', company_name: 'Компания', job_title: 'Должность',
+  };
+  const humanize = (key) => {
+    const normalized = String(key || '').trim();
+    if (labels[normalized]) return labels[normalized];
+    return normalized.replace(/_/g, ' ').replace(/^./, ch => ch.toUpperCase());
+  };
+  const displayValue = (value) => Array.isArray(value)
+    ? value.map(item => String(item ?? '').trim()).filter(Boolean).join(', ')
+    : String(value ?? '').trim();
+  const rows = Object.entries(answers)
+    .map(([key, value]) => [key, displayValue(value)])
+    .filter(([, value]) => value)
+    .map(([key, value]) => `<div class="fl">${escapeHtml(humanize(key))}</div><div class="fv" style="white-space:pre-wrap">${escapeHtml(value)}</div>`)
+    .join('');
+  if (!rows) return '';
+
+  const formName = String(cfData?.formName || '').trim();
+  const submittedAt = cfData?.submittedAt
+    ? new Date(cfData.submittedAt).toLocaleString('ru')
+    : '';
+  const meta = [formName && `Форма: ${formName}`, submittedAt && `Отправлена: ${submittedAt}`]
+    .filter(Boolean).join(' · ');
+  return `<div class="dc-section-h" style="margin-top:18px">📝 Анкета клиента</div>
+    ${meta ? `<div style="font-size:11px;color:var(--t3);margin:-4px 0 8px">${escapeHtml(meta)}</div>` : ''}
+    <div class="field-grid" style="background:var(--bg3);padding:12px 14px;border-radius:8px">${rows}</div>`;
+}
+
 function renderCustomFieldsBlock(cfData, opts = {}) {
   // opts.dealId — если передан, поля становятся editable inline (для контакта
   //                здесь это contact-key — переиспользуем те же атрибуты)
@@ -15039,7 +15075,14 @@ function renderCustomFieldsBlock(cfData, opts = {}) {
   const showHidden = !!opts.showHidden;  // для «Показать все поля» кнопки
 
   // Объединяем: все из schema + те что есть в cfData но не в schema
-  const allKeys = new Set([...Object.keys(schema), ...Object.keys(cfData)]);
+  const metaLeadSystemKeys = new Set([
+    'metaLeadId', 'metaLeadSourceId', 'pageId', 'formId', 'formName',
+    'marketingAccount', 'targetologist', 'adId', 'adName', 'adsetId',
+    'adsetName', 'campaignId', 'campaignName', 'platform', 'isOrganic',
+    'answers', 'submittedAt',
+  ]);
+  const customDataKeys = Object.keys(cfData).filter(k => !metaLeadSystemKeys.has(k));
+  const allKeys = new Set([...Object.keys(schema), ...customDataKeys]);
   let entries = [...allKeys].map(k => [k, cfData[k]]);
   // Фильтр hidden (если не showHidden)
   let hiddenCount = 0;
