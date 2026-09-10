@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pllato · Партнёрская программа — комиссия 10–35% за рекомендации</title>
+<meta name="description" content="Партнёрская программа Pllato: рекомендуйте нас бизнесу с похожими задачами и получайте 10–35% от стоимости заказов в зависимости от объёма. Продажу, демо и разработку ведём мы.">
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+ --paper:#f2ede0;--card:#f8f5ec;--card2:#ebe5d4;--line:#d9d2bd;--line2:#c3b99e;
+ --ink:#15201c;--ink2:#243530;--green:#2f6b4f;--green2:#3f8a66;--gl:#e3efe7;
+ --text:#1b2420;--muted:#6f7a72;--faint:#98a29a;--red:#b4472f;--amber:#a9741f;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Manrope,system-ui,sans-serif;color:var(--text);background:#ddd8ca;-webkit-font-smoothing:antialiased}
+.serif{font-family:Georgia,'Times New Roman',serif}
+.mono{font-family:'IBM Plex Mono',monospace}
+.slide{width:338.667mm;height:190.5mm;background:var(--paper);margin:0 auto 7mm;padding:15mm 17mm 13mm;position:relative;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 14px 44px rgba(20,25,22,.2)}
+.slide.dark{background:var(--ink);color:#efeade}
+.slide.green{background:var(--green);color:#f0f6f1}
+/* шапка слайда */
+.sh{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1.5px solid var(--line2);padding-bottom:8px;margin-bottom:14px;flex:none}
+.slide.dark .sh,.slide.green .sh{border-color:rgba(255,255,255,.18)}
+.sh-l{display:flex;align-items:baseline;gap:11px}
+.sh-n{font:700 9px 'IBM Plex Mono',monospace;color:var(--green);letter-spacing:.16em}
+.slide.dark .sh-n,.slide.green .sh-n{color:#8fc4a6}
+.sh h2{font-size:24px;letter-spacing:-.025em;font-weight:800}
+.sh-r{font:600 8.4px 'IBM Plex Mono',monospace;color:var(--faint);letter-spacing:.1em;text-align:right;line-height:1.6;text-transform:uppercase}
+.slide.dark .sh-r,.slide.green .sh-r{color:rgba(255,255,255,.45)}
+.sub{font-size:13.4px;color:var(--muted);line-height:1.6;max-width:250mm;margin-bottom:12px}
+.slide.dark .sub,.slide.green .sub{color:rgba(255,255,255,.72)}
+.body{flex:1;display:flex;flex-direction:column;justify-content:flex-start;min-height:0}
+.foot{flex:none;border-top:1px solid var(--line);padding-top:8px;margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;font-size:8.6px;color:var(--faint)}
+.slide.dark .foot,.slide.green .foot{border-color:rgba(255,255,255,.15);color:rgba(255,255,255,.45)}
+.foot b{color:var(--text);font-size:9.4px}
+.slide.dark .foot b,.slide.green .foot b{color:#fff}
+.pg{font:700 8.4px 'IBM Plex Mono',monospace}
+/* титул */
+.cover{justify-content:center;padding:0 22mm}
+.logo{font-size:56px;font-weight:700;letter-spacing:-.015em;line-height:1}
+.logo span{color:var(--green2)}
+.cover .ctag{font:600 9.6px 'IBM Plex Mono',monospace;color:#8fc4a6;letter-spacing:.22em;text-transform:uppercase;margin-top:14px}
+.cover h1{font-size:40px;line-height:1.1;letter-spacing:-.03em;font-weight:800;margin:20px 0 14px;max-width:230mm}
+.cover h1 em{font-style:normal;color:#8fc4a6}
+.cover p{font-size:14px;line-height:1.65;color:rgba(255,255,255,.75);max-width:205mm}
+.cover-meta{display:flex;gap:34px;margin-top:26px;padding-top:18px;border-top:1px solid rgba(255,255,255,.16)}
+.cover-meta div small{display:block;font:700 7.6px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.42);letter-spacing:.12em}
+.cover-meta div b{display:block;font-size:16px;margin-top:5px;color:#fff}
+.cover-meta div:first-child b{color:#8fc4a6}
+.cover-srv{margin-top:26px;font:600 10.4px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.42);letter-spacing:.04em;line-height:2}
+.cover-srv i{color:#8fc4a6;font-style:normal;margin:0 4px}
+/* сетки */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.g21{display:grid;grid-template-columns:1.5fr 1fr;gap:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:15px 17px}
+.card.on{background:var(--gl);border-color:#a9cdb8}
+.card.ink{background:var(--ink);border-color:var(--ink);color:#efeade}
+.slide.dark .card,.slide.green .card{color:var(--text)}
+.slide.dark .card.ink,.slide.green .card.ink{color:#efeade}
+.slide.dark .fb,.slide.green .fb{color:var(--text)}
+.slide.dark .fb.on,.slide.green .fb.on{color:#efeade}
+.slide.dark .cmp,.slide.green .cmp{color:var(--text)}
+.slide.dark .card.ink,.slide.dark .fb.on{background:#1e2d28;border-color:rgba(255,255,255,.15)}
+.slide.dark .fb{border-color:rgba(255,255,255,.15)}
+.slide.dark .metrics{background:#1e2d28;border-color:rgba(255,255,255,.15)}
+.slide.dark .metrics div{border-color:rgba(255,255,255,.12)}
+.slide.dark .metrics small,.slide.dark .metrics span{color:rgba(255,255,255,.5)}
+.slide.dark .metrics b{color:#efeade}.slide.dark .metrics div:first-child b{color:#8fc4a6}
+.srv-card{display:flex;flex-direction:column}
+.card code{font:700 8.2px 'IBM Plex Mono',monospace;color:var(--green);letter-spacing:.11em}
+.card.ink code{color:#8fc4a6}
+.card h3{font-size:14.4px;font-weight:800;margin:6px 0 5px;letter-spacing:-.015em}
+.card p{font-size:11.4px;line-height:1.62;color:#4e574f}
+.card.ink p{color:rgba(255,255,255,.7)}
+.card ul{margin:6px 0 0 13px}
+.card li{font-size:11.2px;line-height:1.62;color:#4e574f;margin-bottom:2px}
+/* метрики */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:12px}
+.metrics div{padding:15px 16px;border-right:1px solid var(--line)}
+.metrics div:last-child{border:0}
+.metrics small{display:block;font:700 8px 'IBM Plex Mono',monospace;color:var(--muted);letter-spacing:.09em}
+.metrics b{display:block;font-size:26px;margin-top:6px;letter-spacing:-.03em}
+.metrics span{display:block;font-size:10.4px;color:var(--muted);margin-top:4px}
+.metrics div:first-child b{color:var(--green)}
+/* список услуг */
+.srv{display:flex;gap:13px;align-items:flex-start;padding:13px 0;border-bottom:1px solid var(--line)}
+.srv:last-child{border:0}
+.srv i{width:30px;height:30px;flex:none;background:var(--ink);color:#8fc4a6;border-radius:6px;display:grid;place-items:center;font:800 11px 'IBM Plex Mono',monospace;font-style:normal}
+.srv b{font-size:13.4px;display:block}
+.srv p{font-size:11.4px;color:#4e574f;line-height:1.58;margin-top:3px}
+.srv .price{margin-left:auto;text-align:right;flex:none;font:700 11px 'IBM Plex Mono',monospace;color:var(--green);white-space:nowrap}
+.srv .price small{display:block;font:600 8.2px 'IBM Plex Mono',monospace;color:var(--faint);margin-top:3px}
+/* поток */
+.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin:12px 0}
+.fb{background:var(--card);border:1px solid var(--line);padding:14px 14px;position:relative}
+.fb:first-child{border-radius:6px 0 0 6px}.fb:last-child{border-radius:0 6px 6px 0}
+.fb.on{background:var(--ink);border-color:var(--ink);color:#efeade}
+.fb code{font:700 7.2px 'IBM Plex Mono',monospace;color:var(--green);letter-spacing:.1em}
+.fb.on code{color:#8fc4a6}
+.fb b{display:block;font-size:12.4px;margin-top:5px}
+.fb p{font-size:10.4px;line-height:1.55;color:#4e574f;margin-top:4px}
+.fb.on p{color:rgba(255,255,255,.68)}
+/* сравнение */
+.cmp{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.cmp>div{padding:14px 16px}
+.cmp .was{background:var(--card2)}
+.cmp .now{background:var(--gl);border-left:1px solid var(--line)}
+.cmp h4{font:700 8.8px 'IBM Plex Mono',monospace;letter-spacing:.11em;margin-bottom:9px;color:var(--muted)}
+.cmp .now h4{color:var(--green)}
+.cmp .row{font-size:11.6px;padding:7px 0;border-bottom:1px solid rgba(0,0,0,.06);line-height:1.5}
+.cmp .row:last-child{border:0}
+/* отрасли */
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
+.tag{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:8px 15px;font-size:11.4px;font-weight:600}
+.tag.on{background:var(--ink);border-color:var(--ink);color:#efeade}
+.cases{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.case{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:13px 14px}
+.case b{font-size:12px;display:block;letter-spacing:-.01em}
+.case small{display:block;font:600 7.6px 'IBM Plex Mono',monospace;color:var(--green);letter-spacing:.06em;margin-top:4px}
+.case p{font-size:10.4px;color:#4e574f;line-height:1.55;margin-top:5px}
+/* цитата */
+.q{border-left:3px solid var(--green);background:var(--gl);padding:14px 17px;border-radius:0 6px 6px 0;margin-top:11px}
+.q p{font-size:12px;line-height:1.62}
+.q b{color:var(--green)}
+.slide.dark .q{background:rgba(255,255,255,.06);border-color:#8fc4a6}
+.slide.dark .q p{color:rgba(255,255,255,.82)}
+/* контакты */
+.contact{display:grid;grid-template-columns:1.1fr 1fr;gap:26px;align-items:center;flex:1}
+.contact h1{font-size:34px;line-height:1.12;letter-spacing:-.03em;font-weight:800;margin-bottom:14px}
+.contact h1 em{font-style:normal;color:#8fc4a6}
+.contact p{font-size:12.6px;line-height:1.68;color:rgba(255,255,255,.75)}
+.cbox{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);border-radius:8px;padding:20px 22px}
+.crow{display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:11.6px}
+.crow:last-child{border:0}
+.crow span{color:rgba(255,255,255,.5)}
+.crow b{text-align:right}
+@media print{
+ @page{size:338.667mm 190.5mm;margin:0}
+ body{background:#fff}
+ .slide{margin:0;box-shadow:none;page-break-after:always;height:190.5mm}
+ .slide:last-child{page-break-after:auto}
+}
+@media screen and (max-width:1320px){body{zoom:.72}}
+@media screen and (max-width:1000px){body{zoom:.5}}
+
+.shots{display:grid;gap:9px;margin:2px 0 0}
+.shots.two{grid-template-columns:1fr 1fr}
+.shots.three{grid-template-columns:repeat(3,1fr)}
+.shots.four{grid-template-columns:repeat(4,1fr)}
+.shot{border:1px solid var(--line);border-radius:7px;overflow:hidden;background:#fff}
+.shot img{width:100%;display:block}
+.shot .cap{font-size:9.6px;color:var(--muted);padding:7px 10px;border-top:1px solid var(--line);line-height:1.45;background:var(--card)}
+.shot .cap b{color:var(--text)}
+.slide.dark .shot,.slide.green .shot{border-color:rgba(255,255,255,.16)}
+.slide.dark .shot .cap,.slide.green .shot .cap{background:rgba(255,255,255,.05);color:rgba(255,255,255,.62);border-color:rgba(255,255,255,.14)}
+.slide.dark .shot .cap b,.slide.green .shot .cap b{color:#fff}
+.gal{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.gal .shot img{height:196px;object-fit:cover;object-position:top left}
+.shots.three .shot img{height:238px;object-fit:cover;object-position:top}
+.shots.four .shot img{height:226px;object-fit:cover;object-position:top}
+.split{display:grid;grid-template-columns:1.28fr 1fr;gap:13px;align-items:start}
+.split.rev{grid-template-columns:1fr 1.28fr}
+.pts{margin:0}
+.pt{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line)}
+.pt:last-child{border:0}
+.pt i{width:6px;height:6px;border-radius:50%;background:var(--green);flex:none;margin-top:6px;font-style:normal}
+.pt b{font-size:12.4px;display:block}
+.pt span{font-size:11px;color:var(--muted);display:block;margin-top:2px;line-height:1.5}
+.slide.dark .pt{border-color:rgba(255,255,255,.12)}
+.slide.dark .pt span{color:rgba(255,255,255,.6)}
+.slide.dark .pt i{background:#8fc4a6}
+.phone-shot{max-width:196px;margin:0 auto;display:block;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+</style>
+</head>
+<body>
+
+<!-- 01 ТИТУЛ -->
+<section class="slide dark cover">
+ <div class="logo serif">Pllato<span>.</span></div>
+ <div class="ctag">Партнёрская программа · рекомендуйте и зарабатывайте</div>
+ <h1>Приводите клиентов —<br>получайте <em>от 10 до 35%</em> с каждого заказа</h1>
+ <p>Мы разрабатываем системы управления под бизнес и передаём их в собственность клиенту. Вы рекомендуете нас тем, у кого похожие задачи, — и получаете комиссию с каждого оплаченного заказа. Продажу, демо и работу ведём мы.</p>
+ <div class="cover-meta">
+  <div><small>КОМИССИЯ</small><b>10–35%</b></div>
+  <div><small>СРЕДНИЙ ЗАКАЗ</small><b>1,5–2,5 млн ₸</b></div>
+  <div><small>ВЫПЛАТА</small><b>после оплаты клиента</b></div>
+  <div><small>РИСКА НЕТ</small><b>демо до договора</b></div>
+ </div>
+ <div class="cover-srv">Агентства и маркетологи <i>·</i> 1С-франчайзи и бухгалтеры <i>·</i> Интеграторы и вебстудии <i>·</i> Поставщики оборудования и ПО <i>·</i> Отраслевые консультанты</div>
+</section>
+
+<!-- 02 КОГО ВЫ РЕКОМЕНДУЕТЕ -->
+<section class="slide">
+ <div class="sh"><div class="sh-l"><span class="sh-n">01</span><h2>Кого вы рекомендуете</h2></div><div class="sh-r">Pllato коротко</div></div>
+ <div class="body">
+  <p class="sub">Заказные системы управления для среднего бизнеса — производств, дистрибьюторов, торговых и сервисных компаний. Не подписка на чужую платформу, а своя система с исходным кодом, которую клиент получает в собственность. Всё ниже — рабочие интерфейсы наших проектов.</p>
+  <div class="shots four" style="margin-bottom:11px">
+   <div class="shot"><img src="/img/deck/kmd-dash.jpg" alt=""><div class="cap"><b>Медизделия и дезсредства.</b> Сводка компании</div></div>
+   <div class="shot"><img src="/img/deck/es-dash.jpg" alt=""><div class="cap"><b>Автосалон.</b> Отдел продаж и звонки</div></div>
+   <div class="shot"><img src="/img/deck/optika.jpg" alt=""><div class="cap"><b>Сеть оптик.</b> Пульт 12 салонов</div></div>
+   <div class="shot"><img src="/img/deck/prod.jpg" alt=""><div class="cap"><b>Производство.</b> Партии и себестоимость</div></div>
+  </div>
+  <div class="metrics" style="margin-bottom:0">
+   <div><small>СИСТЕМ И ПРОТОТИПОВ</small><b>80+</b><span>Казахстан и Кыргызстан</span></div>
+   <div><small>СРОК ЗАПУСКА</small><b>4–6 недель</b><span>ядро — за 2–3 недели</span></div>
+   <div><small>АБОНЕНТСКАЯ ПЛАТА</small><b>0 ₸</b><span>код и данные у клиента</span></div>
+   <div><small>ОПЛАТА КЛИЕНТА</small><b>10 / 45 / 45</b><span>основное — за результат</span></div>
+  </div>
+ </div>
+ <div class="foot"><span><b>Pllato</b> · партнёрская программа · pllato.kz</span><span class="pg">02 / 09</span></div>
+</section>
+
+<!-- 03 КОМУ ПОДХОДИТ -->
+<section class="slide">
+ <div class="sh"><div class="sh-l"><span class="sh-n">02</span><h2>Кому подходит партнёрство</h2></div><div class="sh-r">У кого есть доступ<br>к среднему бизнесу</div></div>
+ <div class="body">
+  <p class="sub">Если среди ваших клиентов есть производства, дистрибьюторы, торговые и сервисные компании — вы уже слышите от них «CRM не то», «1С отдельно», «склад в Excel», «отчёты вручную». Это и есть наши клиенты. Вам не нужно ничего продавать — достаточно свести.</p>
+  <div class="g3">
+   <div class="card"><code>МАРКЕТИНГ</code><h3>Агентства и маркетологи</h3><p>Ведёте рекламу и лидов клиенту, а заявки теряются в WhatsApp менеджеров. Предложите систему, которая считает деньги, а не «лиды».</p></div>
+   <div class="card"><code>1С · УЧЁТ</code><h3>1С-франчайзи и бухгалтеры</h3><p>Клиенту нужен фронт над 1С: заявки, продажи, склад, кабинеты. Бухгалтерия остаётся в 1С — мы делаем обмен по OData.</p></div>
+   <div class="card"><code>IT · ВЕБ</code><h3>Интеграторы и вебстудии</h3><p>К вам приходят за сайтом или доработкой, а нужна система под процесс. Отдаёте нам ядро — забираете свою часть и комиссию.</p></div>
+   <div class="card"><code>ОБОРУДОВАНИЕ</code><h3>Поставщики оборудования и ПО</h3><p>Ставите весы, кассы, оборудование на производство или склад — рядом нужна система учёта партий и себестоимости.</p></div>
+   <div class="card"><code>ЭКСПЕРТИЗА</code><h3>Отраслевые консультанты</h3><p>Наводите порядок в процессах клиента — а закрепить его нужно в системе. Мы оцифруем то, что вы выстроили.</p></div>
+   <div class="card"><code>СООБЩЕСТВА</code><h3>Ассоциации и бизнес-клубы</h3><p>Вокруг вас десятки владельцев с одинаковой болью. Одна рекомендация — и это ваш регулярный доход.</p></div>
+  </div>
+ </div>
+ <div class="foot"><span><b>Pllato</b> · партнёрская программа · pllato.kz</span><span class="pg">03 / 09</span></div>
+</section>
+
+<!-- 04 КАК ЭТО РАБОТАЕТ -->
+<section class="slide">
+ <div class="sh"><div class="sh-l"><span class="sh-n">03</span><h2>Как это работает</h2></div><div class="sh-r">От вас — знакомство,<br>остальное на нас</div></div>
+ <div class="body">
+  <p class="sub">Пять шагов от рекомендации до выплаты. Продажу, демо, договор и разработку ведём мы — вам не нужно разбираться в технике и торговаться о цене.</p>
+  <div class="flow">
+   <div class="fb"><code>ШАГ 1</code><b>Знакомите</b><p>Передаёте нам контакт или представляете лично. Фиксируем клиента за вами.</p></div>
+   <div class="fb"><code>ШАГ 2</code><b>Демо</b><p>Созваниваемся, разбираем процессы, за 3–5 дней собираем прототип на его данных.</p></div>
+   <div class="fb"><code>ШАГ 3</code><b>Договор</b><p>Клиент увидел систему до оплаты, согласовали объём и цену, подписали.</p></div>
+   <div class="fb"><code>ШАГ 4</code><b>Запуск</b><p>За 4–6 недель делаем и внедряем. Клиент платит 10 / 45 / 45.</p></div>
+   <div class="fb on"><code>ШАГ 5</code><b>Комиссия вам</b><p>С каждой оплаты клиента переводим вашу долю — 10–35%.</p></div>
+  </div>
+  <div class="q"><p><b>Ваша репутация не в риске.</b> Клиент принимает рабочее ядро до основного платежа и получает исходный код в собственность. Вы рекомендуете не «подрядчика на удачу», а систему, которую человек видит своими глазами прежде, чем платить.</p></div>
+ </div>
+ <div class="foot"><span><b>Pllato</b> · партнёрская программа · pllato.kz</span><span class="pg">04 / 09</span></div>
+</section>
+
+<!-- 05 КОМИССИЯ 10-35% -->
+<section class="slide green">
+ <div class="sh"><div class="sh-l"><span class="sh-n">04</span><h2>Сколько вы получаете</h2></div><div class="sh-r">10–35% с оплаченных<br>заказов · по объёму</div></div>
+ <div class="body">
+  <p class="sub">Ставка зависит от объёма приведённых заказов за год. Чем больше клиентов и оборота — тем выше процент, и он применяется ко всем вашим сделкам этого года.</p>
+  <div class="g4" style="margin-bottom:12px">
+   <div class="card ink"><code>СТАРТ · ДО 3 МЛН ₸/ГОД</code><h3 style="color:#8fc4a6;font-size:30px;margin:8px 0 4px">10%</h3><p>Разовая рекомендация — передали контакт, дальше ведём мы.</p></div>
+   <div class="card ink"><code>ПАРТНЁР · 3–10 МЛН ₸/ГОД</code><h3 style="color:#8fc4a6;font-size:30px;margin:8px 0 4px">20%</h3><p>Регулярно приводите или тёпло знакомите — 2–4 проекта в год.</p></div>
+   <div class="card ink"><code>АКТИВНЫЙ · 10–25 МЛН ₸/ГОД</code><h3 style="color:#8fc4a6;font-size:30px;margin:8px 0 4px">30%</h3><p>Стабильный поток клиентов, участвуете в продаже.</p></div>
+   <div class="card ink"><code>КЛЮЧЕВОЙ · ОТ 25 МЛН ₸/ГОД</code><h3 style="color:#8fc4a6;font-size:30px;margin:8px 0 4px">35%</h3><p>Ведёте клиента вместе с нами или эксклюзив по нише.</p></div>
+  </div>
+  <div class="g2">
+   <div class="card ink"><h3>Что попадает в комиссию</h3><p>Стоимость всего, что клиент у нас заказал: система под ключ, интеграция с 1С, интернет-магазин и B2B-кабинет, доработки и новые направления того же клиента — в первый год и дальше.</p></div>
+   <div class="card ink"><h3>Ставка растёт задним числом</h3><p>Перешли порог по обороту в течение года — новый процент применяем ко всем оплаченным заказам этого года, а не только к следующим. Активное участие поднимает на ступень.</p></div>
+  </div>
+ </div>
+ <div class="foot"><span><b>Pllato</b> · партнёрская программа · pllato.kz</span><span class="pg">05 / 09</span></div>
+</section>
+
+<!-- 06 ПРИМЕРЫ ВЫПЛАТ -->
+<section class="slide">
+ <div class="sh"><div class="sh-l"><span class="sh-n">05</span><h2>Примеры выплат</h2></div><div class="sh-r">На реальных ценах<br>наших проектов</div></div>
+ <div class="body">
+  <p class="sub">Средний заказ «система под ключ» — 1,5–2,5 млн ₸. Интеграция с 1С — от 800 000 ₸, интернет-магазин с B2B-кабинетом — от 1 000 000 ₸. Считаем комиссию на этих цифрах.</p>
+  <div class="g3" style="margin-bottom:11px">
+   <div class="card"><code>ОДНА СДЕЛКА</code><h3>Система под ключ · 2 000 000 ₸</h3><ul><li>Ставка 10% → <b>200 000 ₸</b></li><li>Ставка 20% → <b>400 000 ₸</b></li><li>Ставка 30% → <b>600 000 ₸</b></li><li>Ставка 35% → <b>700 000 ₸</b></li></ul></div>
+   <div class="card"><code>ОДИН КЛИЕНТ · НЕСКОЛЬКО ЗАКАЗОВ</code><h3>Система + 1С + магазин · 3 800 000 ₸</h3><ul><li>Система 2 000 000 ₸</li><li>Интеграция 1С 800 000 ₸</li><li>Магазин и B2B 1 000 000 ₸</li><li>Ставка 25% → <b>950 000 ₸</b></li></ul></div>
+   <div class="card"><code>ГОД РАБОТЫ · 5 КЛИЕНТОВ</code><h3>≈ 10 000 000 ₸ приведённого оборота</h3><ul><li>Попадаете в ставку 30%</li><li>Комиссия за год → <b>3 000 000 ₸</b></li><li>Применяется ко всем 5 сделкам</li><li>Плюс доработки этих клиентов</li></ul></div>
+  </div>
+  <div class="metrics" style="margin-bottom:0">
+   <div><small>С ОДНОЙ СДЕЛКИ</small><b>200–700 тыс. ₸</b><span>при заказе 2 млн ₸</span></div>
+   <div><small>С КЛИЕНТА С ИНТЕГРАЦИЯМИ</small><b>до ~1,3 млн ₸</b><span>система + 1С + магазин</span></div>
+   <div><small>ПОТОК 5 КЛИЕНТОВ/ГОД</small><b>от 3 млн ₸</b><span>на ставке 30%</span></div>
+   <div><small>КОГДА ПЛАТИМ</small><b>с каждой оплаты</b><span>10 / 45 / 45 клиента</span></div>
+  </div>
+ </div>
+ <div class="foot"><span><b>Pllato</b> · партнёрская программа · pllato.kz</span><span class="pg">06 / 09</span></div>
+</section>
+
+<!-- 07 ПОЧЕМУ БЕЗОПАСНО РЕКОМЕНДОВАТЬ -->
+<section class="slide">
+ <div class="sh"><div class="sh-l"><span class="sh-n">06</span><h2>Почему за нас не стыдно рекомендовать</h2></div><div class="sh-r">Клиент защищён —<br>значит и вы</div></div>
+ <div class="body">
+  <p class="sub">Рекомендация — это ваша репутация. Мы выстроили работу так, чтобы клиент не мог «попасть»: он платит малую часть на входе и видит систему до основных денег.</p>
+  <div class="cmp" style="margin-bottom:11px">
+   <div class="was"><h4>ЧЕГО БОЯТСЯ, РЕКОМЕНДУЯ ПОДРЯДЧИКА</h4>
+    <div class="row">Заплатят вперёд — и получат «долгострой»</div>
+    <div class="row">Полгода обследования вместо результата</div>
+    <div class="row">Привяжут к себе, не отдадут код и данные</div>
+    <div class="row">Сделают не то, что нужно бизнесу</div>
+   </div>
+   <div class="now"><h4>КАК У НАС</h4>
+    <div class="row">На входе только 10% — остальное за результат</div>
+    <div class="row">Рабочее ядро за 2–3 недели, демо до договора</div>
+    <div class="row">Исходный код, база и сервер — у клиента</div>
+    <div class="row">Систему собираем на его данных и процессах</div>
+   </div>
+  </div>
+  <div class="g3">
+   <div class="card"><code>ОПЫТ</code><h3>80+ систем</h3><p>Производства, дистрибуция, медицина, логистика, розница, услуги — есть похожий кейс почти под любую нишу.</p></div>
+   <div class="card"><code>ГАРАНТИЯ</code><h3>Месяц отладки в цене</h3><p>После запуска бесплатно правим всё, что вылезает под нагрузкой. Клиент не остаётся один.</p></div>
+   <div class="card"><code>ВЛАДЕНИЕ</code><h3>Система — актив клиента</h3><p>Платит один раз, без подписки и платы за пользователей. Продолжить сможет любая команда: React, Node.js, PostgreSQL.</p></div>
+  </div>
+ </div>
+ <div class="foot"><span><b>Pllato</b> · партнёрская программа · pllato.kz</span><span class="pg">07 / 09</span></div>
+</section>
+
+<!-- 08 УСЛОВИЯ И ПРОЗРАЧНОСТЬ -->
+<section class="slide">
+ <div class="sh"><div class="sh-l"><span class="sh-n">07</span><h2>Условия и прозрачность</h2></div><div class="sh-r">Всё письменно,<br>без сюрпризов</div></div>
+ <div class="body">
+  <p class="sub">Партнёрство оформляем короткой договорённостью. Никаких обязательств по объёму — приводите, когда есть кого.</p>
+  <div class="g2" style="margin-bottom:11px">
+   <div class="card"><code>ЗАКРЕПЛЕНИЕ</code><h3>Клиент за вами 12 месяцев</h3><p>Как только вы передали контакт и мы его зафиксировали — этот клиент ваш. Все его заказы в течение года идут с вашей комиссией, включая новые направления и доработки.</p></div>
+   <div class="card"><code>ВЫПЛАТА</code><h3>С каждого платежа клиента</h3><p>Клиент платит нам 10 / 45 / 45 — с каждого поступления в течение 5 рабочих дней переводим вашу долю. Показываем сумму заказа и расчёт комиссии.</p></div>
+   <div class="card"><code>СТАВКА</code><h3>Пересчёт по итогам объёма</h3><p>Раз в квартал сверяем приведённый оборот и поднимаем ставку, если перешли порог, — на все сделки года. Вниз в течение года не опускаем.</p></div>
+   <div class="card"><code>ФОРМАТ</code><h3>Рекомендация или соведение</h3><p>Можно просто свести и получать базовую ставку, а можно участвовать в продаже и вести клиента вместе с нами — это поднимает процент.</p></div>
+  </div>
+  <div class="q"><p><b>Что от вас нужно:</b> знакомство с человеком, который принимает решение. Техническую часть, расчёт цены, демо и договор берём на себя. Вы в копии переписки — видите, что происходит с вашим клиентом.</p></div>
+ </div>
+ <div class="foot"><span><b>Pllato</b> · партнёрская программа · pllato.kz</span><span class="pg">08 / 09</span></div>
+</section>
+
+<!-- 09 КОНТАКТЫ -->
+<section class="slide dark">
+ <div class="sh"><div class="sh-l"><span class="sh-n">08</span><h2>Давайте начнём с одного клиента</h2></div><div class="sh-r">Первый шаг —<br>без обязательств</div></div>
+ <div class="contact">
+  <div>
+   <h1>Есть на примете компания, которой <em>«всё в Excel и WhatsApp»</em>?</h1>
+   <p>Познакомьте нас — мы соберём демо под неё и покажем, прежде чем кто-то что-то заплатит. Если пойдёт в работу, вы получаете свою комиссию с каждой оплаты. Обсудим условия и вашу ставку на созвоне за 15 минут.</p>
+   <p style="margin-top:12px;color:#8fc4a6;font-weight:600">Комиссия 10–35% · выплата после оплаты клиента · клиент закреплён за вами</p>
+  </div>
+  <div class="cbox">
+   <div class="crow"><span>Телефон и WhatsApp</span><b>+7 701 123 99 99</b></div>
+   <div class="crow"><span>Почта</span><b>uurraa@gmail.com</b></div>
+   <div class="crow"><span>Сайт и портфолио</span><b>pllato.kz</b></div>
+   <div class="crow"><span>Кто ведёт проекты</span><b>Цай Платон</b></div>
+   <div class="crow"><span>Юридическое лицо</span><b>ИП «STUDYSTORIES.APP»</b></div>
+   <div class="crow"><span>Город</span><b>Алматы</b></div>
+  </div>
+ </div>
+ <div class="foot"><span><b>Pllato</b> · партнёрская программа · pllato.kz</span><span class="pg">09 / 09</span></div>
+</section>
+
+</body>
+</html>
