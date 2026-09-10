@@ -9172,6 +9172,7 @@ function getMetaLeadSources(env) {
       responsibleUid: String(source?.responsibleUid || '').trim(),
       marketingAccount: String(source?.marketingAccount || '').trim().slice(0, 120),
       targetologist: String(source?.targetologist || '').trim().slice(0, 120),
+      sourceDescription: String(source?.sourceDescription || '').trim().slice(0, 160),
       tokenBinding,
     };
   }).filter((source) => {
@@ -9317,7 +9318,8 @@ async function findOrCreateMetaLeadContact(env, lead, fields, nowIso, source) {
     ) VALUES (?, ?, ?, 'CLIENT', 'META_LEAD_AD', ?, 1, 0, ?, ?, ?, ?, ?)
   `).bind(
     contactId, firstName.slice(0, 120), lastName.slice(0, 120),
-    `Facebook лид-форма · ${String(source?.formName || lead.form_id || '').slice(0, 120)}`,
+    source?.sourceDescription
+      || `Facebook лид-форма · ${String(source?.formName || lead.form_id || '').slice(0, 120)}`,
     nowIso, nowIso,
     phoneRaw ? JSON.stringify([{ type: 'MOBILE', value: phoneRaw.slice(0, 40) }]) : null,
     email ? JSON.stringify([{ type: 'WORK', value: email.slice(0, 200) }]) : null,
@@ -9369,6 +9371,7 @@ async function processMetaLeadEvent(env, value, rawEvent) {
       || metaFieldValue(fields, ['phone_number', 'phone', 'mobile_phone', 'номер_телефона', 'номер_телефона_', 'email'])
       || 'Новый лид';
     const formName = source.formName;
+    const sourceDescription = source.sourceDescription || `Facebook лид-форма · ${formName}`;
     const details = {
       metaLeadId: leadgenId,
       metaLeadSourceId: source.id,
@@ -9399,7 +9402,7 @@ async function processMetaLeadEvent(env, value, rawEvent) {
       dealId, `Facebook Lead · ${name}`.slice(0, 240),
       source.pipelineId,
       source.stageId, contactId, responsibleUid,
-      `Facebook лид-форма · ${formName}`, lead.ad_id || value.ad_id || null,
+      sourceDescription, lead.ad_id || value.ad_id || null,
       nowIso, nowIso, nowIso, JSON.stringify(details),
     ).run();
     if (dealInsert?.meta?.changes > 0) {
