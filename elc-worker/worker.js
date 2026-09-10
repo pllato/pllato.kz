@@ -9173,6 +9173,7 @@ function getMetaLeadSources(env) {
       marketingAccount: String(source?.marketingAccount || '').trim().slice(0, 120),
       targetologist: String(source?.targetologist || '').trim().slice(0, 120),
       sourceDescription: String(source?.sourceDescription || '').trim().slice(0, 160),
+      dealTitlePrefix: String(source?.dealTitlePrefix || '').trim().slice(0, 80),
       tokenBinding,
     };
   }).filter((source) => {
@@ -9372,6 +9373,8 @@ async function processMetaLeadEvent(env, value, rawEvent) {
       || 'Новый лид';
     const formName = source.formName;
     const sourceDescription = source.sourceDescription || `Facebook лид-форма · ${formName}`;
+    const dealTitle = [source.dealTitlePrefix, 'Facebook Lead', name]
+      .filter(Boolean).join(' · ').slice(0, 240);
     const details = {
       metaLeadId: leadgenId,
       metaLeadSourceId: source.id,
@@ -9399,7 +9402,7 @@ async function processMetaLeadEvent(env, value, rawEvent) {
         bitrix_date_create, bitrix_date_modify, stage_changed_at, custom_fields
       ) VALUES (?, ?, 0, 'KZT', ?, ?, 0, ?, ?, 'META_LEAD_AD', ?, ?, ?, ?, ?, ?)
     `).bind(
-      dealId, `Facebook Lead · ${name}`.slice(0, 240),
+      dealId, dealTitle,
       source.pipelineId,
       source.stageId, contactId, responsibleUid,
       sourceDescription, lead.ad_id || value.ad_id || null,
@@ -9410,6 +9413,16 @@ async function processMetaLeadEvent(env, value, rawEvent) {
         env, dealId, source.pipelineId,
         source.stageId, nowIso,
       );
+      // Моментально обновляем открытые CRM-вкладки ответственного и админов.
+      // В WS передаём только идентификаторы: сама карточка подгружается через
+      // авторизованный /api/list/deals с действующими правами пользователя.
+      try {
+        const recipients = new Set([responsibleUid, ...(await getAdminUids(env))].filter(Boolean));
+        await Promise.all([...recipients].map((uid) => broadcastToUser(env, uid, {
+          kind: 'deal_created',
+          deal: { id: dealId, pipelineId: source.pipelineId, stageId: source.stageId },
+        })));
+      } catch {}
     }
     await env.DB.prepare(`
       UPDATE meta_lead_events SET

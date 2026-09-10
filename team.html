@@ -5156,7 +5156,7 @@ async function renderTeamChat(el) {
     return;
   }
   const s = document.createElement('script');
-  s.src = `${WORKER_BASE_URL}/chat.js?v=22`;
+  s.src = `${WORKER_BASE_URL}/chat.js?v=23`;
   s.onload = () => {
     _teamChatScriptLoaded = true;
     if (window.TeamChat?.mount) window.TeamChat.mount('#team-chat-mount');
@@ -6929,6 +6929,33 @@ const dealsState = {
   // Структура: { [pipelineId]: { counts: {stageId: n}, total, at } }
   stageCountsByPipeline: {},
 };
+
+// Новая сделка из внешнего источника (Meta Lead Ads и следующие интеграции)
+// появляется в открытой воронке сразу после WS-события, без ручного refresh.
+let dealsRealtimeRefreshTimer = null;
+window.addEventListener('elc:deal-created', (ev) => {
+  const deal = (ev && ev.detail) || {};
+  const pipelineId = String(deal.pipelineId || '');
+  if (!pipelineId) return;
+  delete dealsState.dealsByPipeline[pipelineId];
+  delete dealsState.stageCountsByPipeline[pipelineId];
+  if (pipelineId !== dealsState.activePipelineId) return;
+  clearTimeout(dealsRealtimeRefreshTimer);
+  dealsRealtimeRefreshTimer = setTimeout(async () => {
+    const main = document.getElementById('main');
+    if (!main || !document.querySelector('[data-page="deals"].active')) return;
+    try {
+      if (dealsState.view === 'kanban') {
+        await loadDealsForPipeline(pipelineId, { force: true });
+      } else {
+        await loadDealsPage(dealsPagedState.page || 1);
+        renderDealsLayoutPaged(main);
+      }
+    } catch (e) {
+      console.warn('deal realtime refresh:', e && e.message);
+    }
+  }, 250);
+});
 
 // Единый внутренний id сделки. Новые сделки из Meta не имеют bitrixId,
 // поэтому любые привязки должны опираться на deals.id (например,
