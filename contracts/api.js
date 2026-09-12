@@ -26,8 +26,8 @@ export function generateSignLinks(id, count = 1) {
   return apiFetch(`/api/contracts/${encodeURIComponent(id)}/signers`, { method: "POST", body: { count } });
 }
 
-export function signOwner(id, { cmsBase64, signer, tsp = false }) {
-  return apiFetch(`/api/contracts/${encodeURIComponent(id)}/sign`, { method: "POST", body: { cmsBase64, signer, tsp } });
+export function signOwner(id, { cmsBase64, signer }) {
+  return apiFetch(`/api/contracts/${encodeURIComponent(id)}/sign`, { method: "POST", body: { cmsBase64, signer } });
 }
 
 export function sendContract(id) {
@@ -85,4 +85,10 @@ export function signLinkForToken(token) {
 // Общая (универсальная) ссылка на договор — одна на всех подписантов.
 export function signLinkForContract(publicToken) {
   return `${location.origin}/sign.html?c=${encodeURIComponent(publicToken)}`;
+}
+
+// Постоянная ссылка-просмотр (read-only): договор + кто подписал. Подписать нельзя.
+// Работает в любом режиме — её можно выслать кому угодно в любой момент.
+export function viewLinkForContract(publicToken) {
+  return `${location.origin}/sign.html?v=${encodeURIComponent(publicToken)}`;
 }

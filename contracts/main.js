@@ -1,9 +1,9 @@
 import { requireSession } from "../pllato-kz-shared/pllato-api.js";
 import {
   listContracts, createContract, signOwner, sendContract, deleteContract, addSigners, setContractMode,
-  fetchContractFileBlob, fetchSignatureBlob, fileToBase64, signLinkForToken, signLinkForContract,
-} from "./api.js";
-import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20260806-1";
+  fetchContractFileBlob, fetchSignatureBlob, fileToBase64, signLinkForToken, signLinkForContract, viewLinkForContract,
+} from "./api.js?v=20260912-1";
+import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20260722-2";
 
 const session = requireSession({ redirectTo: "login.html" });
 
@@ -158,6 +158,14 @@ function renderContract(c) {
       ${canSend ? `<button class="btn sm" data-act="send" data-id="${c.id}">Отправить</button>` : ""}
       <button class="btn sm danger" data-act="delete" data-id="${c.id}">Удалить</button>
     </div>
+    ${c.publicToken ? `<div class="viewlink-row">
+      <span class="vl-label">🔗 Постоянная ссылка-просмотр (кому угодно, только чтение — договор и кто подписал):</span>
+      <div class="link-box">
+        <input readonly value="${esc(viewLinkForContract(c.publicToken))}">
+        <button class="btn sm" data-act="copy" data-link="${esc(viewLinkForContract(c.publicToken))}">Копировать</button>
+        <a class="btn sm" href="${esc(viewLinkForContract(c.publicToken))}" target="_blank" rel="noopener">Открыть</a>
+      </div>
+    </div>` : ""}
     <div class="signers">${signers}</div>
   </div>`;
 }

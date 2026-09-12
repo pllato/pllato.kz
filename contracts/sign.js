@@ -1,5 +1,5 @@
 // Публичная страница подписания договора по персональной ссылке (без логина).
-import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20260806-1";
+import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20260722-2";
 
 const $ = (s) => document.querySelector(s);
 const root = $("#root");
@@ -12,13 +12,23 @@ function apiBase() {
 const params = new URLSearchParams(location.search);
 const token = params.get("t") || "";
 const ctoken = params.get("c") || "";
+const vtoken = params.get("v") || "";        // постоянная ссылка-просмотр (read-only)
 const universal = !!ctoken;
+const viewMode = !!vtoken;
 
 // Базовый путь API: общая ссылка договора (?c=) или персональная (?t=).
 function signApi(suffix = "") {
   return universal
     ? `${apiBase()}/api/sign/c/${encodeURIComponent(ctoken)}${suffix}`
     : `${apiBase()}/api/sign/${encodeURIComponent(token)}${suffix}`;
+}
+// Read-only просмотр статуса договора по постоянной ссылке (?v=).
+function viewApi(suffix = "") {
+  return `${apiBase()}/api/view/${encodeURIComponent(vtoken)}${suffix}`;
+}
+// Активный базовый путь: в режиме просмотра — /api/view, иначе — подписание.
+function baseApi(suffix = "") {
+  return viewMode ? viewApi(suffix) : signApi(suffix);
 }
 
 function toast(msg, isErr = false) {
@@ -41,10 +51,30 @@ function fmtDate(ms) {
 }
 
 async function apiGet() {
-  const res = await fetch(signApi());
+  const res = await fetch(baseApi());
   const data = await res.json().catch(() => null);
   if (!res.ok || !data?.ok) throw new Error(data?.error || `Ошибка ${res.status}`);
   return data;
+}
+
+// Блок «кто подписал» — общий для формы, экрана «подписано» и режима просмотра.
+function partyChip(p) {
+  if (p.status === "signed") return `<span class="s-status signed">✓ подписал${p.signerCn ? " · " + esc(p.signerCn) : ""}${p.signedAt ? " · " + fmtDate(p.signedAt) : ""}</span>`;
+  if (p.status === "declined") return `<span class="s-status declined">✕ отклонил${p.declineReason ? " · " + esc(p.declineReason) : ""}</span>`;
+  return `<span class="s-status pending">⏳ ожидает</span>`;
+}
+function partiesBlock(parties, title = "Кто подписал") {
+  const list = Array.isArray(parties) ? parties : [];
+  if (!list.length) return "";
+  const signed = list.filter((p) => p.status === "signed").length;
+  const rows = list.map((p) => `<div class="party">
+      <div class="party-who">${esc(p.fullName || "—")} <span class="role-tag">${p.role === "owner" ? "компания" : "подписант"}</span></div>
+      ${partyChip(p)}
+    </div>`).join("");
+  return `<div class="parties card">
+      <div class="parties-h">${esc(title)} <span class="parties-count">${signed} из ${list.length}</span></div>
+      ${rows}
+    </div>`;
 }
 
 async function apiPost(body) {
@@ -59,7 +89,7 @@ async function apiPost(body) {
 }
 
 async function fileBlobUrl() {
-  const res = await fetch(signApi("/file"));
+  const res = await fetch(baseApi("/file"));
   if (!res.ok) throw new Error(`Не удалось загрузить файл (${res.status})`);
   const blob = await res.blob();
   return { url: URL.createObjectURL(blob), mime: blob.type, blob };
@@ -74,7 +104,7 @@ async function refreshNcaBadge() {
 let currentBlob = null;
 let currentFileInfo = null;
 
-function renderDone(signer, contract) {
+function renderDone(signer, contract, parties) {
   const fileInfo = currentFileInfo;
   if (signer.status === "signed") {
     const isPdf = contract && ((contract.fileMime || "").includes("pdf") || /\.pdf$/i.test(contract.fileName || ""));
@@ -88,6 +118,7 @@ function renderDone(signer, contract) {
     </div>
     ${contract ? `<h2 style="font-size:20px;margin:24px 0 4px">${esc(contract.title)}</h2>` : ""}
     ${contract ? `<div class="summary"><div><span>Файл</span><b>${esc(contract.fileName)} · ${fmtSize(contract.fileSize)}</b></div></div>` : ""}
+    ${partiesBlock(parties, "Кто подписал")}
     ${preview}
     <div class="sign-actions" style="margin-top:18px">
       <button class="btn bronze" id="btn-dl-done"${fileInfo ? "" : " disabled"}>Скачать договор</button>
@@ -117,7 +148,7 @@ async function render(data) {
   catch (e) { fileInfo = null; }
 
   if (!universal && (signer.status === "signed" || signer.status === "declined")) {
-    renderDone(signer, contract);
+    renderDone(signer, contract, data.parties);
     return;
   }
 
@@ -133,13 +164,7 @@ async function render(data) {
   const type = signer.signerType || signer.requisites?.type || "";
   const val = (k) => esc(r[k] || "");
 
-  const parties = Array.isArray(data.parties) ? data.parties.filter((p) => p.status === "signed") : [];
-  const partiesHtml = universal && parties.length
-    ? `<div class="summary"><div style="flex-direction:column;align-items:flex-start">
-         <span>Уже подписали (${parties.length})</span>
-         <b style="font-weight:500">${parties.map((p) => esc(p.fullName) + (p.role === "owner" ? " · компания" : "")).join(", ")}</b>
-       </div></div>`
-    : "";
+  const partiesHtml = partiesBlock(data.parties, "Кто уже подписал");
 
   root.innerHTML = `
     <h1 style="font-size:24px;margin:6px 0 4px">${esc(contract.title)}</h1>
@@ -252,7 +277,9 @@ async function onSign(contract) {
     const { cms, signer, tsp } = await signBase64(base64);
     btn.textContent = "Сохраняю подпись…";
     const res = await apiPost({ cmsBase64: cms, signer, tsp, signerType: reqs.signerType, requisites: reqs.requisites });
-    renderDone(res.signer, contract);
+    let parties;
+    try { parties = (await apiGet()).parties; } catch (_) { /* список подтянем позже */ }
+    renderDone(res.signer, contract, parties);
   } catch (e) {
     const msg = e instanceof NcaLayerError ? e.message : (e.message || String(e));
     toast(msg, true);
@@ -271,7 +298,58 @@ async function onDecline() {
   }
 }
 
+// Read-only просмотр статуса по постоянной ссылке: документ + кто подписал. Подписать нельзя.
+async function renderView(data) {
+  const nca = $("#nca-badge");
+  if (nca) nca.style.display = "none";
+  const { contract } = data;
+
+  let fileInfo;
+  try { fileInfo = await fileBlobUrl(); currentFileInfo = fileInfo; }
+  catch (e) { fileInfo = null; }
+
+  const isPdf = (contract.fileMime || "").includes("pdf") || /\.pdf$/i.test(contract.fileName || "");
+  const preview = fileInfo && isPdf
+    ? `<iframe class="doc-frame" src="${fileInfo.url}" style="margin-top:14px"></iframe>`
+    : "";
+
+  root.innerHTML = `
+    <div class="view-tag">👁 Просмотр статуса · только чтение</div>
+    <h1 style="font-size:24px;margin:6px 0 4px">${esc(contract.title)}</h1>
+    <div class="summary">
+      <div><span>Файл</span><b>${esc(contract.fileName)} · ${fmtSize(contract.fileSize)}</b></div>
+      <div><span>Подписей</span><b>${data.signedCount || 0} из ${data.total || 0}</b></div>
+    </div>
+    ${contract.note ? `<div class="hint" style="margin-bottom:14px">${esc(contract.note)}</div>` : ""}
+    ${partiesBlock(data.parties, "Кто подписал")}
+    ${preview}
+    <div class="sign-actions" style="margin-top:16px">
+      <button class="btn bronze" id="btn-view-dl"${fileInfo ? "" : " disabled"}>Скачать договор</button>
+    </div>`;
+
+  const b = $("#btn-view-dl");
+  if (b && fileInfo) {
+    b.addEventListener("click", () => {
+      const a = document.createElement("a");
+      a.href = fileInfo.url;
+      a.download = contract.fileName || "contract";
+      document.body.appendChild(a); a.click(); a.remove();
+    });
+  }
+}
+
 async function init() {
+  if (viewMode) {
+    try {
+      const data = await apiGet();
+      await renderView(data);
+    } catch (e) {
+      const nca = $("#nca-badge");
+      if (nca) nca.style.display = "none";
+      root.innerHTML = `<div class="empty">${esc(e.message || "Ссылка недействительна или истекла")}</div>`;
+    }
+    return;
+  }
   refreshNcaBadge();
   if (!token && !ctoken) {
     root.innerHTML = `<div class="empty">Ссылка недействительна — отсутствует токен.</div>`;

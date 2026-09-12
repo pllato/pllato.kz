@@ -1735,7 +1735,13 @@ async function handleSignGet(env, token) {
       signerType: signer.signer_type || "",
       requisites: parseRequisites(signer),
     },
-    parties: others.map((s) => ({ fullName: s.full_name, role: s.role, status: s.status })),
+    parties: others.map((s) => ({
+      fullName: (parseRequisites(s)?.data?.name) || s.full_name,
+      role: s.role,
+      status: s.status,
+      signedAt: Number(s.signed_at) || 0,
+      signerCn: s.signer_cn || "",
+    })),
   };
 }
 
@@ -1832,6 +1838,50 @@ async function handleSignGetByContract(env, token) {
 }
 
 async function handleSignFileByContract(request, env, token) {
+  const contract = await loadContractByPublicTokenOr404(env, token);
+  const r2 = requireContractsBucket(env);
+  const obj = await r2.get(contract.file_key);
+  if (!obj) throw new HttpError(404, "Файл не найден в хранилище");
+  const buf = await obj.arrayBuffer();
+  const download = new URL(request.url).searchParams.get("download") === "1";
+  return fileResponse(request, env, buf, contract.file_mime, contract.file_name, { download });
+}
+
+// ---- Постоянная ссылка-просмотр (read-only): показать договор и список подписавших ----
+// Работает по общему public_token в ЛЮБОМ режиме (общая/именные). Подписать нельзя —
+// только смотреть сам документ и кто уже подписал. Персональные реквизиты (ИИН, банк,
+// адрес) не раскрываем — только имя, роль, статус и дату подписания.
+async function handleContractViewByPublicToken(env, token) {
+  const contract = await loadContractByPublicTokenOr404(env, token);
+  const others = await loadContractSigners(env, contract.id);
+  return {
+    ok: true,
+    view: true,
+    contract: {
+      title: contract.title,
+      note: contract.note || "",
+      fileName: contract.file_name,
+      fileMime: contract.file_mime,
+      fileSize: Number(contract.file_size) || 0,
+      fileHash: contract.file_hash,
+      status: contract.status,
+      linkMode: contract.link_mode === "named" ? "named" : "universal",
+    },
+    signedCount: others.filter((s) => s.status === "signed").length,
+    total: others.length,
+    parties: others.map((s) => ({
+      fullName: (parseRequisites(s)?.data?.name) || s.full_name || "",
+      role: s.role,
+      status: s.status,
+      signedAt: Number(s.signed_at) || 0,
+      signerCn: s.signer_cn || "",
+      signerType: s.signer_type || "",
+      declineReason: s.decline_reason || "",
+    })),
+  };
+}
+
+async function handleViewFileByPublicToken(request, env, token) {
   const contract = await loadContractByPublicTokenOr404(env, token);
   const r2 = requireContractsBucket(env);
   const obj = await r2.get(contract.file_key);
@@ -8639,6 +8689,16 @@ export default {
       if (request.method === "DELETE" && contractIdMatch) {
         await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleContractDelete(env, contractIdMatch[1]));
+      }
+
+      // Публичная ручка просмотра (read-only): договор + кто подписал, любая ссылка/режим.
+      const viewFileMatch = path.match(/^\/api\/view\/([a-zA-Z0-9_-]+)\/file$/);
+      if (request.method === "GET" && viewFileMatch) {
+        return await handleViewFileByPublicToken(request, env, viewFileMatch[1]);
+      }
+      const viewMatch = path.match(/^\/api\/view\/([a-zA-Z0-9_-]+)$/);
+      if (request.method === "GET" && viewMatch) {
+        return json(request, env, await handleContractViewByPublicToken(env, viewMatch[1]));
       }
 
       // Публичные ручки подписания по общей ссылке договора (без логина):
