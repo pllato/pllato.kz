@@ -13,7 +13,7 @@ const SEC=[
  {k:'risk', ic:'⚖', n:'Скоринг',    sub:[['scoring','Прескоринг'],['calc','Калькулятор'],['pledge','Залоги']]},
  {k:'loans',ic:'▤', n:'Займы',      sub:[['portfolio','Портфель'],['payments','Платежи'],['overdue','Просрочка'],['docs','Документы']]},
  {k:'cl',   ic:'☺', n:'Клиенты',    sub:[['clients','База клиентов'],['lk','Личный кабинет']]},
- {k:'chan', ic:'✆', n:'Каналы',     sub:[['comms','WhatsApp и звонки'],['site','Сайт и заявка']]},
+ {k:'chan', ic:'✆', n:'Каналы',     sub:[['comms','WhatsApp и звонки'],['site','Сайт и заявка'],['landing','Как на сайте']]},
  {k:'int',  ic:'⇆', n:'Интеграции', sub:[['integr','Внешние сервисы'],['c1','Обмен с 1С']]},
  {k:'mgmt', ic:'★', n:'Управление', sub:[['kpi','KPI специалистов'],['tasks','Задачи'],['reports','Отчётность']]},
  {k:'setup',ic:'⚙', n:'Настройки',  sub:[['settings','Поля и этапы'],['users','Пользователи'],['economy','Экономика'],['stack','Передача']]}
@@ -26,7 +26,7 @@ const ROLES={
  'Кредитный специалист':{av:'АЙ',n:'Айгерим',r:'продажи',note:'Свои заявки, прескоринг, залог, документы',
   s:['inbox','funnel','scoring','calc','pledge','docs','clients','lk','comms','tasks']},
  'Руководитель продаж':{av:'ДН',n:'Данияр',r:'отдел продаж',note:'Воронка, план, распределение заявок, скорость ответа',
-  s:['dash','inbox','funnel','path','analytics','calc','clients','kpi','tasks','site','comms']},
+  s:['dash','inbox','funnel','path','analytics','calc','clients','kpi','tasks','site','landing','comms']},
  'Риск-менеджер':{av:'МД',n:'Мадина',r:'андеррайтинг',note:'Скоринг, пороги, залоги, решения и лимиты',
   s:['scoring','funnel','pledge','calc','portfolio','overdue','analytics','reports','settings']},
  'Юрист по залогам':{av:'ЕР',n:'Ерлан',r:'договоры и обременения',note:'Договоры займа и залога, регистрация обременений',
@@ -36,7 +36,7 @@ const ROLES={
  'Специалист по взысканию':{av:'ТМ',n:'Тимур',r:'просрочка',note:'Корзины просрочки, обзвон, досудебная работа',
   s:['overdue','payments','clients','comms','tasks']},
  'Директор':{av:'СР',n:'Серик',r:'руководство',note:'Портфель, деньги, риск, отчётность и стоимость владения',
-  s:['dash','analytics','path','portfolio','overdue','kpi','reports','economy','integr','users','stack','settings','lk','site']}
+  s:['dash','analytics','path','portfolio','overdue','kpi','reports','economy','integr','users','stack','settings','lk','site','landing']}
 };
 let role='Директор',cur='dash',theme='light';
 
@@ -1385,6 +1385,95 @@ function step(){if(!tRun)return;ti++;
  setTimeout(step,ti===0?5200:6400);
 }
 function stopTour(){tRun=false;ti=-1;const b=document.getElementById('tourBtn');if(b)b.textContent='▶'}
+
+
+
+/* ====== КАК ЭТО ВЫГЛЯДИТ НА САЙТЕ ====== */
+const TICK='<svg class="tick" viewBox="0 0 100 112"><path d="M0 24 C14 28 31 50 43 94 C56 54 74 20 99 1 C86 30 70 66 51 110 C44 74 20 38 0 24 Z" fill="currentColor"/></svg>';
+SC.landing=()=>`${head('Как это выглядит на сайте','Ваш сайт остаётся вашим — мы не переделываем его и не переносим на другой движок. На страницу встраиваются два блока портала: калькулятор и форма заявки. Ниже — пример того, как это выглядит.',
+ '<button class="bt p" onclick="landSend()">Отправить заявку с сайта</button>')}
+ <div class="brw">
+  <div class="brw-bar"><i></i><i></i><i></i><u>https://invescore.kz/zaim-pod-zalog</u></div>
+  <div class="site">
+   <div class="site-hd">
+    <span class="wm"><em>In</em>${TICK}<em>esCore</em></span>
+    <div class="site-nav"><span>Главная</span><b>Займы под залог</b><span>Условия</span><span>Калькулятор</span><span>О компании</span><span>Контакты</span></div>
+    <div class="site-r"><span>+7 727 ••• 00 00</span><span class="site-btn">Подать заявку</span></div>
+   </div>
+   <div class="site-hero">
+    <div>
+     <h4>Займ под залог недвижимости и автомобиля<br>до 60 000 000 ₸</h4>
+     <p>Предварительное решение за 5 минут: проверяем по государственной базе и кредитному бюро, перезваниваем сразу. Деньги — после оценки залога и регистрации обременения.</p>
+     <div class="site-ul">
+      <div><b>до 70%</b>от стоимости залога</div>
+      <div><b>от 3% / мес</b>ставка</div>
+      <div><b>6–36 мес</b>срок</div>
+      <div><b>5 минут</b>до решения</div>
+     </div>
+     <div class="emb" data-lab="БЛОК ПОРТАЛА · КАЛЬКУЛЯТОР" style="margin-top:16px">
+      <h5>Посчитайте платёж</h5>
+      <div class="erow"><span>Сумма займа</span><b>16 000 000 ₸</b></div>
+      <div class="erow"><span>Срок</span><b>24 месяца</b></div>
+      <div class="erow"><span>Тип залога</span><b>Квартира</b></div>
+      <div class="erow"><span>Ежемесячный платёж</span><b>${fmt(annuity(16000000,24,3.0))} ₸</b></div>
+      <div class="erow"><span>ГЭСВ</span><b>${num(gesv(3.0))}%</b></div>
+      <div class="ebtn" onclick="go('calc')">Получить решение за 5 минут</div>
+     </div>
+    </div>
+    <div class="emb" data-lab="БЛОК ПОРТАЛА · ФОРМА ЗАЯВКИ">
+     <h5>Заявка на займ</h5>
+     <div class="efield"><b>Байтасов Алихан</b></div>
+     <div class="efield"><b>+7 701 ••• 44 90</b></div>
+     <div class="efield"><b>18 000 000 ₸</b></div>
+     <div class="efield">Что готовы оставить в залог <b>· Квартира</b></div>
+     <div class="efield">Город <b>· Алматы</b></div>
+     <div style="font-size:9.4px;color:#8c98a3;line-height:1.5;margin:2px 0 4px">☑ Согласен с политикой обработки персональных данных</div>
+     <div class="ebtn" onclick="landSend()">Отправить заявку</div>
+     <div style="font-size:9.2px;color:#8c98a3;text-align:center;margin-top:7px">Перезвоним в течение 5 минут</div>
+    </div>
+   </div>
+   <div class="site-foot"><span>© InvesCore · лицензия МФО · Алматы</span><span>Политика обработки персональных данных</span></div>
+  </div>
+ </div>
+ <div class="g3">
+  <div class="pan"><h3>Что именно встраивается</h3>
+   <div class="li b"><i>1</i><span><b>Калькулятор</b> — считает по вашим ставкам и продуктам<span class="sub">меняете ставку в портале — на сайте она меняется сама</span></span></div>
+   <div class="li b"><i>2</i><span><b>Форма заявки</b> — пять полей и согласие<span class="sub">меньше полей — больше заявок, остальное уточняет специалист</span></span></div>
+   <div class="li"><i>✓</i><span>Оба блока — одна строка кода на странице<span class="sub">верстальщик вставляет её за десять минут</span></span></div>
+   <div class="li"><i>✓</i><span>Шрифты и цвета подстраиваются под ваш сайт<span class="sub">блок выглядит родным, а не вставленным</span></span></div>
+   <div class="li"><i>✓</i><span>Работает на любом движке и на конструкторе<span class="sub">Tilde, WordPress, Bitrix, самописный — без разницы</span></span></div>
+   <div class="li"><i>✓</i><span>С телефона тоже — блоки адаптивные</span></div>
+  </div>
+  <div class="pan"><h3>Что происходит после «Отправить»</h3>
+   <div class="tl">
+    <div class="tli ok"><b>0 сек · заявка в портале</b><p>Канал «Сайт», страница и рекламный источник записаны. Не письмо на почту, а карточка с номером.</p></div>
+    <div class="tli ok"><b>2 сек · назначен специалист</b><p>По правилу распределения. Пошёл таймер норматива в пять минут.</p></div>
+    <div class="tli ok"><b>10 сек · клиенту ушло в WhatsApp</b><p>«Заявка принята, Айгерим свяжется с вами в течение 5 минут».</p></div>
+    <div class="tli on"><b>до 5 минут · звонок и согласие</b><p>Специалист звонит, берёт согласие на обработку ПД — и запускает прескоринг.</p></div>
+    <div class="tli"><b>Дальше — по «Пути заявки»</b><p>ГБД ФЛ, кредитное бюро, балл, решение.</p></div>
+   </div>
+   <div class="btns" style="margin-top:10px">
+    <button class="bt p" onclick="go('inbox')">Посмотреть во «Входящих»</button>
+    <button class="bt" onclick="go('path')">Путь заявки</button>
+   </div>
+  </div>
+  <div class="pan"><h3>Сайт остаётся вашим</h3>
+   <div class="kv"><span>Кто владеет сайтом</span><b>вы</b></div>
+   <div class="kv"><span>Меняем ли мы движок</span><b style="color:var(--ok)">нет</b></div>
+   <div class="kv"><span>Меняем ли дизайн страниц</span><b style="color:var(--ok)">нет</b></div>
+   <div class="kv"><span>Что добавляем</span><b>два блока и одну строку кода</b></div>
+   <div class="kv"><span>Срок подключения</span><b>1 день</b></div>
+   <div class="kv"><span>Входит в блок</span><b>«Сайт, скоринг и передача заявки»</b></div>
+   <div class="note" style="--tone:var(--acc)"><b>Сайт у вас в предзапуске — это удачный момент</b>
+    <p>Блоки лучше заложить сразу, до запуска рекламы: тогда с первого дня видно, с какой страницы и по какому объявлению пришёл клиент, и сколько из этих заявок дошло до выдачи.</p></div>
+   <div class="hint">Если страницы ещё нет, мы соберём такую посадочную страницу под займы под залог — это отдельная небольшая работа, оценим по часам.</div>
+  </div>
+ </div>`;
+function landSend(){
+ const l={id:seq++,c:'Байтасов Алихан',iin:'8905••••••90',s:'new',ch:'Сайт',mg:'Айгерим',sum:18000000,pl:'Квартира · Алматы',t:'0 мин',hot:1};
+ LEADS.unshift(l);sparks(14);
+ toast('<b>Заявка № '+l.id+' создана в портале.</b> Канал «Сайт», страница /zaim-pod-zalog, специалист Айгерим, таймер пяти минут пошёл. Клиенту ушло подтверждение в WhatsApp. Откройте «Входящие» — она первая в списке.');
+}
 
 /* ====== СТАРТ ====== */
 (function(){
