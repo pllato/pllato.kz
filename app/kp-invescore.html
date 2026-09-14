@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Коммерческое предложение · InvesCore · система залогового кредитования</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0f2c3e;--ink2:#143b52;--y:#d8232c;--y2:#b0161f;--paper:#f2f4f6;--white:#fff;--text:#1a2530;--muted:#68788a;--line:#dde3e9;--green:#2e9e6b;--red:#c9453f;--blue:#2f7bc4}
+*{box-sizing:border-box}body{margin:0;background:#d6dce1;font-family:Manrope,system-ui,sans-serif;color:var(--text);-webkit-font-smoothing:antialiased}
+.page{width:210mm;min-height:297mm;margin:0 auto 8mm;background:var(--white);padding:15mm 16mm 12mm;position:relative;box-shadow:0 12px 40px rgba(15,44,62,.18);display:flex;flex-direction:column}
+.mono{font-family:'IBM Plex Mono',monospace}
+h1{font-size:31px;line-height:1.04;letter-spacing:-.03em;margin:0 0 10px;font-weight:800}
+h2{font-size:16px;margin:0 0 9px;letter-spacing:-.02em;font-weight:800}
+h3{font-size:11.5px;margin:0 0 5px;font-weight:800}
+p{font-size:10.2px;line-height:1.62;margin:0 0 8px}
+.lead{font-size:11.4px;line-height:1.66;color:#33414f}
+.kicker{font:700 8.4px 'IBM Plex Mono',monospace;color:var(--y2);letter-spacing:.15em;text-transform:uppercase}
+/* фирменный знак */
+.wm{display:inline-flex;align-items:baseline;font-family:'Playfair Display',Georgia,'Times New Roman',serif;font-weight:500;line-height:1;color:var(--wmc,var(--ink));white-space:nowrap}
+.wm em{font-style:normal}
+.wm .tick{width:1.09em;height:1.13em;color:var(--y);margin:0 -.47em 0 -.10em;position:relative;z-index:1;flex:none;overflow:visible}
+.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--ink);padding-bottom:11px;margin-bottom:15px}
+.hd .wm{font-size:19px}
+.hd small{display:block;font:600 7.2px 'IBM Plex Mono',monospace;color:var(--muted);letter-spacing:.1em;margin-top:5px}
+.hd-r{text-align:right;font-size:9px;color:var(--muted);line-height:1.55}
+.cover{background:var(--ink);color:#fff;margin:-15mm -16mm 0;padding:19mm 16mm 15mm;position:relative;overflow:hidden}
+.cover:after{content:"";position:absolute;right:-40px;top:20px;width:300px;height:200px;background:repeating-linear-gradient(135deg,rgba(216,35,44,.22) 0 8px,transparent 8px 16px);border-radius:4px}
+.cover .wm{font-size:30px;--wmc:#fff;margin-bottom:14px;position:relative;z-index:1}
+.cover h1{color:#fff;font-size:34px;max-width:134mm;position:relative;z-index:1}
+.cover h1 span{color:#f2555c}
+.cover .lead{color:#a9bccb;max-width:128mm;position:relative;z-index:1}
+.cover .kicker{color:#f2555c}
+.cvs{display:grid;grid-template-columns:repeat(4,1fr);margin-top:15px;border-top:1px solid rgba(255,255,255,.15);padding-top:12px;position:relative;z-index:1}
+.cvs div{border-left:1px solid rgba(255,255,255,.15);padding-left:11px}
+.cvs div:first-child{border:0;padding-left:0}
+.cvs small{display:block;font:700 6.8px 'IBM Plex Mono',monospace;color:#8fa4b5;letter-spacing:.08em}
+.cvs b{display:block;font-size:15px;margin-top:5px}
+.cvs div:first-child b{color:#f2555c}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.card{border:1px solid var(--line);background:#f7f9fa;padding:11px 12px;border-radius:4px}
+.card.dark{background:var(--ink);border-color:var(--ink);color:#fff}
+.card.dark p{color:#a9bccb}
+.card.y{background:#fdeef0;border-color:#f4c8cc}
+.card code{font:700 7px 'IBM Plex Mono',monospace;color:var(--y2);letter-spacing:.1em}
+.card.dark code{color:#f2555c}
+.card p{font-size:9.4px;line-height:1.55;margin:4px 0 0;color:#46525e}
+.num{display:flex;gap:11px;margin-bottom:9px}
+.num i{width:24px;height:24px;flex:none;background:var(--ink);color:#f2555c;display:grid;place-items:center;font:800 8.4px 'IBM Plex Mono',monospace;font-style:normal;border-radius:3px}
+.num b{font-size:10.6px;display:block}
+.num p{font-size:9.4px;margin:3px 0 0;color:#46525e;line-height:1.52}
+table{width:100%;border-collapse:collapse;margin:9px 0}
+th{text-align:left;font:700 7.4px 'IBM Plex Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:7px 8px;border-bottom:1.5px solid var(--ink)}
+td{padding:8px;border-bottom:1px solid #ecf0f3;font-size:9.6px;vertical-align:top}
+td.r{text-align:right;font-family:'IBM Plex Mono',monospace;white-space:nowrap}
+tr.total td{border-top:1.5px solid var(--ink);border-bottom:0;font-weight:800;font-size:11.4px;padding-top:10px}
+tr.total td.r{font-size:14px;color:var(--y2)}
+.badge{display:inline-block;font:700 7px 'IBM Plex Mono',monospace;padding:3px 6px;background:#eaeef1;color:#65707c;border-radius:3px}
+.badge.green{background:#dcf0e6;color:var(--green)}.badge.y{background:#fbdcde;color:var(--y2)}.badge.blue{background:#dce9f6;color:var(--blue)}
+.pay{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:10px 0}
+.pay div{border:1px solid var(--line);padding:11px;background:#f7f9fa;border-radius:4px}
+.pay div:first-child{border-color:var(--y);background:#fdeef0}
+.pay small{font:700 7px 'IBM Plex Mono',monospace;color:var(--muted);letter-spacing:.06em}
+.pay b{display:block;font-size:19px;margin:5px 0 2px;letter-spacing:-.02em}
+.pay span{font-size:8.8px;color:#46525e;line-height:1.45;display:block}
+.strip{background:var(--ink);color:#fff;padding:13px 15px;margin:11px 0;display:grid;grid-template-columns:repeat(4,1fr);border-radius:4px}
+.strip div{border-left:1px solid rgba(255,255,255,.15);padding-left:12px}
+.strip div:first-child{border:0;padding-left:0}
+.strip small{display:block;font:700 6.8px 'IBM Plex Mono',monospace;color:#8fa4b5}
+.strip b{display:block;font-size:14px;margin-top:4px}
+.strip div:first-child b{color:#f2555c}
+.quote{border-left:3px solid var(--y);background:#fdeef0;padding:10px 12px;margin:10px 0;border-radius:0 4px 4px 0}
+.quote p{font-size:9.6px;margin:0;line-height:1.6}
+.quote b{color:var(--y2)}
+.said{border-left:3px solid var(--ink);background:#f4f7f9;padding:9px 12px;margin:9px 0;border-radius:0 4px 4px 0}
+.said p{font-size:9.6px;margin:0;line-height:1.6;font-style:italic;color:#33414f}
+.foot{margin-top:auto;padding-top:11px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-end;font-size:8.4px;color:var(--muted)}
+.foot b{color:var(--text);font-size:9.4px}
+.pnum{font:700 7.4px 'IBM Plex Mono',monospace;color:var(--muted)}
+.chk{display:flex;gap:7px;align-items:flex-start;margin-bottom:6px}
+.chk i{color:var(--green);font-style:normal;font-weight:800;font-size:10px;line-height:1.5}
+.chk.no i{color:var(--muted)}
+.chk.r i{color:var(--y2)}
+.chk span{font-size:9.5px;line-height:1.55}
+.shots{display:grid;gap:8px;margin:9px 0 5px}
+.shots.two{grid-template-columns:1fr 1fr}
+.shot{border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#f7f9fa;break-inside:avoid}
+.shot img{width:100%;display:block}
+.shot.wide img{height:372px;object-fit:cover;object-position:top}
+.shot.mid img{height:290px;object-fit:cover;object-position:top}
+.shot.tall img{height:236px;object-fit:cover;object-position:top}
+.shot .cap{font-size:8.4px;color:var(--muted);padding:6px 10px;border-top:1px solid var(--line);line-height:1.45;background:#fff}
+.shot .cap b{color:var(--text)}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:4px;overflow:hidden;margin:10px 0}
+.compare>div{padding:11px 13px}
+.compare .was{background:#f7f9fa;border-right:1px solid var(--line)}
+.compare .now{background:#fdeef0}
+.compare h4{font:700 7.4px 'IBM Plex Mono',monospace;letter-spacing:.08em;margin:0 0 7px;color:var(--muted)}
+.compare .now h4{color:var(--y2)}
+.compare .row{font-size:9.4px;padding:5px 0;border-bottom:1px solid #ecf0f3;line-height:1.45}
+.compare .row:last-child{border:0}
+.tl{border-left:2px solid var(--line);margin-left:9px;padding-left:15px}
+.tli{position:relative;padding:7px 0 8px}
+.tli:before{content:'';position:absolute;left:-21px;top:11px;width:9px;height:9px;border-radius:50%;background:var(--ink);border:2px solid #fff}
+.tli b{font-size:10.6px;display:block}
+.tli p{margin:2px 0 0;font-size:9.4px;color:#46525e;line-height:1.52}
+@media print{
+ @page{size:A4;margin:0}
+ body{background:#fff}
+ .page{margin:0;box-shadow:none;min-height:auto;padding:12mm 14mm 9mm;page-break-after:always}
+ .page:last-child{page-break-after:auto}
+ p,.chk span{font-size:9.4px;line-height:1.55}
+ .card p{font-size:8.8px}
+ h1{font-size:28px}.cover h1{font-size:31px}h2{font-size:15px;margin-bottom:7px}
+ td{font-size:9px;padding:5.5px 7px}
+ .pay div{padding:9px}.pay b{font-size:17px}.pay span{font-size:8.4px}
+ .quote{padding:9px 11px;margin:8px 0}.quote p{font-size:9.2px}
+ .grid3 .card p{font-size:8.6px}
+}
+</style>
+</head><body>
+
+<!-- 1 · обложка -->
+<section class="page">
+ <div class="cover">
+  <span class="wm"><em>In</em><svg class="tick" viewBox="0 0 100 112"><path d="M0 24 C14 28 31 50 43 94 C56 54 74 20 99 1 C86 30 70 66 51 110 C44 74 20 38 0 24 Z" fill="currentColor"/></svg><em>esCore</em></span>
+  <div class="kicker">Коммерческое предложение · 14 сентября 2026</div>
+  <h1>Система залогового<br>кредитования: заявка →<br>прескоринг → <span>залог → выдача</span></h1>
+  <p class="lead">Разработка под InvesCore по итогам встречи 14 сентября. Не универсальная CRM с доработками сверху, а система, собранная вокруг вашего процесса: 98% займов под залог, средний чек 16 млн ₸, прескоринг через ГБД ФЛ и кредитное бюро с нормативом в пять минут, залог как отдельная сущность с оценкой и обременениями, график платежей, корзины просрочки, личный кабинет заёмщика и обмен с 1С.</p>
+  <div class="cvs">
+   <div><small>СТОИМОСТЬ</small><b>3 600 000 ₸</b></div>
+   <div><small>СРОК</small><b>4–6 недель</b></div>
+   <div><small>ОПЛАТА</small><b>10 / 45 / 45</b></div>
+   <div><small>ДЕМО</small><b>25 экранов</b></div>
+  </div>
+ </div>
+ <h2 style="margin-top:16px">Что мы услышали на встрече</h2>
+ <p class="lead">Слева — ваши формулировки, справа — что из каждой получается в системе. Демо уже собрано и работает: его можно открыть и прокликать до подписания договора.</p>
+ <table>
+  <thead><tr><th style="width:43%">Вы сказали</th><th>Что в системе</th></tr></thead>
+  <tbody>
+  <tr><td>«Заявка зашла → зафиксировали → кредитный специалист забрал → согласие на обработку персональных данных → прескоринг → отказ либо одобрено → запрашивают документы»</td><td>Это буквально этапы воронки. Экран «Путь заявки» разбирает всю цепочку по шагам: что делает система, что человек и сколько времени занимает каждый шаг</td></tr>
+  <tr><td>«В течение пяти минут нужно позвонить»</td><td>Норматив зашит в систему: таймер на карточке, автоэскалация руководителю при превышении, отчёт по каждому специалисту</td></tr>
+  <tr><td>«Пять минут, конечно, лучше, чем пять часов — за пять часов уже потеряешь»</td><td>Прескоринг идёт параллельно звонку: ГБД ФЛ и кредитное бюро отвечают за секунды, балл считается сразу, специалист звонит уже с решением</td></tr>
+  <tr><td>Прескоринг через ГБД ФЛ и кредитное бюро</td><td>Две интеграции в одном шаге: личность и документ из ГБД ФЛ, кредитная история и долговая нагрузка из бюро. Ответы целиком сохраняются в заявке</td></tr>
+  <tr><td>Свой скоринговый движок поднимают отдельные разработчики</td><td>Мы не переписываем его: собираем пакет данных, отдаём одним запросом, принимаем балл и рекомендацию, применяем ваши пороги. До готовности движка работает встроенная модель по правилам</td></tr>
+  <tr><td>Заявка с сайта, сайт в предзапуске</td><td>Форма на сайте заводит заявку напрямую в систему, назначает специалиста и запускает таймер. Клиенту сразу уходит подтверждение в WhatsApp</td></tr>
+  <tr><td>«Чтобы клиент заходил и видел, сколько у него осталось, есть ли просрочка»</td><td>Личный кабинет заёмщика: остаток долга, дата и сумма платежа, просрочка и пеня, график, документы и оплата онлайн</td></tr>
+  <tr><td>Обмен с 1С</td><td>1С остаётся главной по бухгалтерии. Договоры, начисления и пени уходят туда, поступления и кассовые операции приходят обратно — каждые 15 минут, без ручного ввода</td></tr>
+  <tr><td>WhatsApp, телефония, Telegram</td><td>Переписка и звонки в карточке клиента, а не в телефоне сотрудника. Номер компании, а не личный — сотрудник уходит, история остаётся</td></tr>
+  <tr><td>«Полная кастомизация внутри карточки — то, чего не получить в коробке»</td><td>Поля, этапы, продукты, пороги и правила меняете сами в интерфейсе. Журнал фиксирует, кто и когда изменил</td></tr>
+  <tr><td>Семь кредитных специалистов, план — пятнадцать</td><td>Лицензии за пользователей не платятся. Новый сотрудник садится за готовый процесс с чек-листами и подсказками</td></tr>
+  <tr><td>Выбирали между Битриксом и нами</td><td>На странице 10 — расчёт стоимости владения на три года с вашими цифрами и перечень того, что в коробку не входит</td></tr>
+  </tbody>
+ </table>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">01</span></div>
+</section>
+
+<!-- 2 · путь заявки -->
+<section class="page">
+ <div class="hd"><div><span class="wm"><em>In</em><svg class="tick" viewBox="0 0 100 112"><path d="M0 24 C14 28 31 50 43 94 C56 54 74 20 99 1 C86 30 70 66 51 110 C44 74 20 38 0 24 Z" fill="currentColor"/></svg><em>esCore</em></span><small>СИСТЕМА ЗАЛОГОВОГО КРЕДИТОВАНИЯ</small></div>
+  <div class="hd-r">Коммерческое предложение<br>14 сентября 2026</div></div>
+ <div class="kicker">Раздел 1</div>
+ <h2>Путь заявки: десять шагов от кнопки на сайте до выдачи денег</h2>
+ <p class="lead">Это главный экран демо. Он показывает вашу же цепочку по шагам — и отвечает на вопрос, за счёт чего пять минут получаются не на словах. Семь шагов из десяти проходят без участия человека.</p>
+ <div class="shot mid"><img src="/app/img/kp-invescore/path.jpg" alt="Путь заявки">
+  <div class="cap"><b>Путь заявки.</b> Слева — шаги с отметкой «сделала система» или «участие человека», справа — карточка клиента, которая заполняется сама по мере прохождения шагов. Сверху — счётчик времени с нормативом пять минут и отметка, сколько шагов прошло без человека.</div></div>
+ <div class="grid3" style="margin-top:9px">
+  <div class="card"><code>ШАГИ 1–3</code><h3 style="margin-top:5px">Заявка и согласие</h3>
+   <p>Клиент нажал кнопку на сайте → заявка в системе через 8 секунд, канал проставлен, специалист назначен, таймер пошёл. Клиент подтверждает согласие на обработку ПД кодом в WhatsApp.</p></div>
+  <div class="card"><code>ШАГИ 4–7</code><h3 style="margin-top:5px">Прескоринг и решение</h3>
+   <p>Запрос в ГБД ФЛ, запрос в кредитное бюро, расчёт балла, применение порогов. Предварительное решение и лимит — до того, как специалист набрал номер.</p></div>
+  <div class="card"><code>ШАГИ 8–10</code><h3 style="margin-top:5px">Залог, документы, выдача</h3>
+   <p>Оценка залога и LTV, запрос документов по списку продукта, договоры по шаблонам, регистрация обременения и только потом выдача денег.</p></div>
+ </div>
+ <div class="quote"><p><b>Почему это важно именно вам.</b> Сейчас скорость держится на дисциплине: специалист должен вспомнить, что заявка пришла, и успеть перезвонить. В системе это норматив: таймер виден на карточке, при превышении заявка подсвечивается руководителю, в конце месяца видно, кто и в какой час дня не укладывался. Из 312 заявок за месяц вне норматива оказались 37 — и по ним видно, что именно произошло.</p></div>
+ <h3 style="margin-top:11px">Что происходит без участия человека</h3>
+ <div class="grid2">
+  <div>
+   <div class="chk"><i>✓</i><span>Заявка заводится, канал и источник проставляются сами</span></div>
+   <div class="chk"><i>✓</i><span>Специалист назначается по правилу распределения</span></div>
+   <div class="chk"><i>✓</i><span>Клиенту уходит подтверждение в WhatsApp</span></div>
+   <div class="chk"><i>✓</i><span>Ссылка на согласие с подписью кодом из SMS</span></div>
+  </div>
+  <div>
+   <div class="chk"><i>✓</i><span>Запросы в ГБД ФЛ и кредитное бюро</span></div>
+   <div class="chk"><i>✓</i><span>Расчёт балла и применение порогов</span></div>
+   <div class="chk"><i>✓</i><span>Задача специалисту с обратным отсчётом</span></div>
+   <div class="chk"><i>✓</i><span>Проверка дублей по телефону и ИИН</span></div>
+  </div>
+ </div>
+ <div class="said"><p>«Заявка зашла, мы её зафиксировали, кредитный специалист её забрал, взял согласие на обработку персональных данных, отправил на прескоринг — и пришёл отказ либо одобрение».</p></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">02</span></div>
+</section>
+
+<!-- 3 · прескоринг -->
+<section class="page">
+ <div class="hd"><div><span class="wm"><em>In</em><svg class="tick" viewBox="0 0 100 112"><path d="M0 24 C14 28 31 50 43 94 C56 54 74 20 99 1 C86 30 70 66 51 110 C44 74 20 38 0 24 Z" fill="currentColor"/></svg><em>esCore</em></span><small>СИСТЕМА ЗАЛОГОВОГО КРЕДИТОВАНИЯ</small></div>
+  <div class="hd-r">Коммерческое предложение<br>14 сентября 2026</div></div>
+ <div class="kicker">Раздел 2</div>
+ <h2>Прескоринг: ГБД ФЛ, кредитное бюро и ваш скоринговый движок</h2>
+ <p class="lead">В демо этот экран работает по-настоящему: нажимаете кнопку — идут запросы, приходят ответы, считается балл, выносится решение. Так это будет выглядеть у специалиста.</p>
+ <div class="shot mid"><img src="/app/img/kp-invescore/scoring.jpg" alt="Прескоринг">
+  <div class="cap"><b>Прескоринг.</b> Три шага сверху — согласие, ГБД ФЛ, кредитное бюро. Ниже — разбор балла по составляющим с вашими весами и порог одобрения. Справа — причины, по которым заявки отсеиваются: это поля, а не текст в примечании, поэтому отчёт собирается сам.</div></div>
+ <div class="grid3" style="margin-top:9px">
+  <div class="card"><code>ГБД ФЛ</code><h3 style="margin-top:5px">8–20 секунд</h3>
+   <p>ФИО, дата рождения, документ, адрес прописки, статус документа. Данные подставляются в карточку — специалист не набирает их руками и не ошибается в ИИН.</p></div>
+  <div class="card"><code>КРЕДИТНОЕ БЮРО</code><h3 style="margin-top:5px">20–60 секунд</h3>
+   <p>Действующие кредиты, сумма обязательств, просрочки за пять лет, долговая нагрузка, исполнительные производства. Ответ сохраняется целиком — для разбора и аудита.</p></div>
+  <div class="card dark"><code>ВАШ ДВИЖОК</code><h3 style="margin-top:5px">до 5 секунд</h3>
+   <p>Мы отдаём собранный пакет одним запросом и принимаем балл, класс риска и рекомендацию. Движок остаётся у ваших разработчиков — мы к нему подключаемся.</p></div>
+ </div>
+ <h3 style="margin-top:12px">Пороги и веса — ваши, и меняете их вы</h3>
+ <div class="grid2">
+  <div>
+   <div class="chk"><i>✓</i><span>Порог одобрения по баллу</span></div>
+   <div class="chk"><i>✓</i><span>Максимальная долговая нагрузка (КДН)</span></div>
+   <div class="chk"><i>✓</i><span>Максимальный LTV по каждому типу залога</span></div>
+  </div>
+  <div>
+   <div class="chk"><i>✓</i><span>Допустимая просрочка в кредитной истории</span></div>
+   <div class="chk"><i>✓</i><span>Автоотказ при исполнительном производстве</span></div>
+   <div class="chk"><i>✓</i><span>Веса составляющих балла</span></div>
+  </div>
+ </div>
+ <div class="quote"><p><b>Половина заявок отсеивается до звонка — и это правильно.</b> Из 312 заявок за месяц 158 не прошли прескоринг: они не дошли до специалиста и не съели его время. Но видно и обратное: из 154 прошедших до денег дошёл 51. Разрыв в 103 заявки — это то место, где лежат деньги, и система показывает по каждой, на каком шаге и почему она остановилась.</p></div>
+ <h3>Если внешний сервис не ответил</h3>
+ <div class="chk r"><i>!</i><span><b>Бюро молчит</b> — заявка не отказывается, встаёт в очередь с пометкой «ожидает бюро», повтор каждые 2 минуты до получаса</span></div>
+ <div class="chk r"><i>!</i><span><b>ГБД ФЛ недоступна</b> — можно продолжить вручную с пометкой «проверка отложена», при этом решение заблокировано до проверки</span></div>
+ <div class="chk"><i>✓</i><span>Все обращения к внешним сервисам пишутся в журнал: кто, когда, что запросил и что получил в ответ</span></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">03</span></div>
+</section>
+
+<!-- 4 · воронка и залог -->
+<section class="page">
+ <div class="hd"><div><span class="wm"><em>In</em><svg class="tick" viewBox="0 0 100 112"><path d="M0 24 C14 28 31 50 43 94 C56 54 74 20 99 1 C86 30 70 66 51 110 C44 74 20 38 0 24 Z" fill="currentColor"/></svg><em>esCore</em></span><small>СИСТЕМА ЗАЛОГОВОГО КРЕДИТОВАНИЯ</small></div>
+  <div class="hd-r">Коммерческое предложение<br>14 сентября 2026</div></div>
+ <div class="kicker">Раздел 3</div>
+ <h2>Воронка заявок и залог как отдельная сущность</h2>
+ <p class="lead">Девять этапов — те, что вы описали. Карточки перетаскиваются мышью, этап меняется вместе с задачами и правами. 98% ваших займов залоговые, поэтому залог здесь не текст в примечании, а объект со своей карточкой.</p>
+ <div class="shots two">
+  <div class="shot tall"><img src="/app/img/kp-invescore/funnel.jpg" alt="Воронка заявок">
+   <div class="cap"><b>Воронка.</b> Суммы по этапам считаются сами. Внизу — где именно теряются заявки после прескоринга.</div></div>
+  <div class="shot tall"><img src="/app/img/kp-invescore/pledge.jpg" alt="Залоги">
+   <div class="cap"><b>Залоги.</b> Оценка, LTV, обременения, срок действия отчёта оценщика и связь с договором займа.</div></div>
+ </div>
+ <div class="grid2" style="margin-top:9px">
+  <div class="card"><code>ВОРОНКА</code><h3 style="margin-top:5px">Этапы, которые вы назвали</h3>
+   <p>Новая заявка · Согласие на обработку ПД · Прескоринг · Скоринг и решение · Оценка залога · Одобрено · Документы · Подписание и обременение · Выдача. Порядок меняется перетаскиванием, этап можно выключить.</p></div>
+  <div class="card y"><code>ЗАЛОГ</code><h3 style="margin-top:5px">Что система проверяет сама</h3>
+   <p>LTV не выше лимита продукта — одобрить сверх лимита нельзя. Обременения третьих лиц. Срок действия отчёта об оценке. Комплектность документов. Регистрация обременения до выдачи денег.</p></div>
+ </div>
+ <table>
+  <thead><tr><th style="width:40%">Отказы после прескоринга</th><th style="width:18%">За месяц</th><th>Что с этим делает система</th></tr></thead>
+  <tbody>
+  <tr><td>Залог не подошёл по ликвидности</td><td><span class="badge y">28</span></td><td>Видно, по каким типам залога отказы повторяются — либо менять требования, либо не брать такие заявки в работу</td></tr>
+  <tr><td>Клиента не устроила сумма или ставка</td><td><span class="badge">24</span></td><td>Калькулятор с ГЭСВ и графиком показывает клиенту точные цифры сразу, а не «мы перезвоним»</td></tr>
+  <tr><td>Клиент не вышел на связь</td><td><span class="badge">17</span></td><td>Автонапоминания в WhatsApp и задачи специалисту с отсчётом</td></tr>
+  <tr><td>Обременение на залоге</td><td><span class="badge">11</span></td><td>Проверка обременений до оценки, а не после сбора документов</td></tr>
+  <tr><td>Решение риск-менеджера</td><td><span class="badge">6</span></td><td>Решение с автором и временем в журнале — всегда видно, кто и на каком основании отказал</td></tr>
+  </tbody>
+ </table>
+ <div class="said"><p>«Полная кастомизация внутри карточки — то, чего не получить в коробке».</p></div>
+ <p>Карточка заявки собрана под залоговое кредитование: данные из ГБД ФЛ и бюро подставляются, скоринговый балл и решение — прямо в карточке, блок залога с оценкой и LTV, калькулятор с ГЭСВ и графиком, переписка WhatsApp и записи звонков, документы по шаблонам, таймер норматива и полная история действий.</p>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">04</span></div>
+</section>
+
+<!-- 5 · займы, платежи, просрочка -->
+<section class="page">
+ <div class="hd"><div><span class="wm"><em>In</em><svg class="tick" viewBox="0 0 100 112"><path d="M0 24 C14 28 31 50 43 94 C56 54 74 20 99 1 C86 30 70 66 51 110 C44 74 20 38 0 24 Z" fill="currentColor"/></svg><em>esCore</em></span><small>СИСТЕМА ЗАЛОГОВОГО КРЕДИТОВАНИЯ</small></div>
+  <div class="hd-r">Коммерческое предложение<br>14 сентября 2026</div></div>
+ <div class="kicker">Раздел 4</div>
+ <h2>Займы, графики и просрочка</h2>
+ <p class="lead">После выдачи заявка становится договором: график, начисления, платежи, пени и корзины просрочки. Это то, чего нет ни в 1С, ни в универсальной CRM.</p>
+ <div class="shots two">
+  <div class="shot tall"><img src="/app/img/kp-invescore/portfolio.jpg" alt="Портфель займов">
+   <div class="cap"><b>Портфель.</b> Остаток долга, ставка, платежи, залог и LTV по каждому договору. Структура и качество портфеля — сразу под таблицей.</div></div>
+  <div class="shot tall"><img src="/app/img/kp-invescore/overdue.jpg" alt="Просрочка">
+   <div class="cap"><b>Просрочка.</b> Четыре корзины по дням, сценарий работы на каждой и история контактов с обещаниями клиента.</div></div>
+ </div>
+ <div class="grid3" style="margin-top:9px">
+  <div class="card"><code>ГРАФИК</code><h3 style="margin-top:5px">Считается при выдаче</h3>
+   <p>Аннуитет или дифференцированный платёж, ГЭСВ по требованию регулятора, график на весь срок. Клиент получает его сразу, копия — в личном кабинете.</p></div>
+  <div class="card"><code>ПЛАТЕЖИ</code><h3 style="margin-top:5px">Разносятся сами</h3>
+   <p>Поступление разносится по правилу очерёдности: пеня, вознаграждение, основной долг. Правило задаёте вы. Проводки уходят в 1С.</p></div>
+  <div class="card"><code>ПРОСРОЧКА</code><h3 style="margin-top:5px">Задача на первый день</h3>
+   <p>На следующий день после пропущенного платежа договор попадает в корзину, а специалисту по взысканию падает задача. Не в конце месяца, а сразу.</p></div>
+ </div>
+ <div class="quote"><p><b>Главное — первые тридцать дней.</b> Из корзины 1–30 дней возвращается почти четыре договора из пяти, если позвонить вовремя. Дальше стоимость возврата растёт: 31–60 — звонок и письмо, 61–90 — досудебная претензия и выезд, 90+ — обращение взыскания на залог. Система ведёт каждый договор по этому сценарию сама, а не напоминает о нём на планёрке.</p></div>
+ <h3 style="margin-top:11px">Что система делает без бухгалтера</h3>
+ <div class="grid2">
+  <div>
+   <div class="num"><i>1</i><div><b>Строит график при выдаче</b><p>С ГЭСВ и полной стоимостью для клиента</p></div></div>
+   <div class="num"><i>2</i><div><b>Начисляет вознаграждение и пеню</b><p>По расписанию, по вашим правилам</p></div></div>
+   <div class="num"><i>3</i><div><b>Разносит поступления</b><p>Из 1С и из личного кабинета</p></div></div>
+  </div>
+  <div>
+   <div class="num"><i>4</i><div><b>Напоминает клиенту</b><p>За три дня и в день платежа, в WhatsApp</p></div></div>
+   <div class="num"><i>5</i><div><b>Переводит в корзину просрочки</b><p>На следующий день, с задачей на обзвон</p></div></div>
+   <div class="num"><i>6</i><div><b>Сверяет остатки с 1С</b><p>Расхождения подсвечиваются, а не тонут</p></div></div>
+  </div>
+ </div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">05</span></div>
+</section>
+
+<!-- 6 · клиент, кабинет, каналы -->
+<section class="page">
+ <div class="hd"><div><span class="wm"><em>In</em><svg class="tick" viewBox="0 0 100 112"><path d="M0 24 C14 28 31 50 43 94 C56 54 74 20 99 1 C86 30 70 66 51 110 C44 74 20 38 0 24 Z" fill="currentColor"/></svg><em>esCore</em></span><small>СИСТЕМА ЗАЛОГОВОГО КРЕДИТОВАНИЯ</small></div>
+  <div class="hd-r">Коммерческое предложение<br>14 сентября 2026</div></div>
+ <div class="kicker">Раздел 5</div>
+ <h2>Личный кабинет заёмщика, сайт и каналы связи</h2>
+ <p class="lead">Вы просили кабинет, в котором клиент видит остаток и просрочку. Он снимает с офиса самый частый звонок — «сколько я должен» — и одновременно поднимает долю онлайн-оплат.</p>
+ <div class="shots two">
+  <div class="shot tall"><img src="/app/img/kp-invescore/lk.jpg" alt="Личный кабинет">
+   <div class="cap"><b>Личный кабинет.</b> Остаток, дата и сумма платежа, просрочка, график, документы и оплата в одно нажатие. Вход по номеру телефона и коду из SMS.</div></div>
+  <div class="shot tall"><img src="/app/img/kp-invescore/comms.jpg" alt="WhatsApp и звонки">
+   <div class="cap"><b>Каналы.</b> Переписка и звонки в карточке клиента, с записями и временем. Номер компании, а не личный телефон сотрудника.</div></div>
+ </div>
+ <div class="grid2" style="margin-top:9px">
+  <div class="card"><code>СЧИТАЕМ НАГРУЗКУ</code><h3 style="margin-top:5px">428 действующих договоров</h3>
+   <p>Даже один звонок на договор в месяц — это больше четырёхсот обращений, которые принимают ваши сотрудники. Кабинет забирает большую их часть: остаток, дата платежа, справка и оплата доступны клиенту круглосуточно.</p></div>
+  <div class="card y"><code>САЙТ В ПРЕДЗАПУСКЕ</code><h3 style="margin-top:5px">Форма, которая заводит заявку</h3>
+   <p>Не письмо на почту, а заявка в системе с номером, каналом, ответственным и таймером. Минимум полей: ФИО, телефон, сумма, тип залога и согласие. ИИН спрашивает специалист по телефону — вместе с согласием на запрос в бюро.</p></div>
+ </div>
+ <h3 style="margin-top:11px">Что клиент делает сам, без звонка вам</h3>
+ <div class="grid2">
+  <div>
+   <div class="chk"><i>✓</i><span>Видит остаток долга и дату ближайшего платежа</span></div>
+   <div class="chk"><i>✓</i><span>Видит просрочку и начисленную пеню</span></div>
+   <div class="chk"><i>✓</i><span>Скачивает график, договор и справку об остатке</span></div>
+  </div>
+  <div>
+   <div class="chk"><i>✓</i><span>Платит онлайн и сразу видит зачёт платежа</span></div>
+   <div class="chk"><i>✓</i><span>Подаёт заявку на новый заём за минуту</span></div>
+   <div class="chk"><i>✓</i><span>Загружает запрошенные документы</span></div>
+  </div>
+ </div>
+ <div class="quote"><p><b>Повторные клиенты — деньги, которые уже ваши.</b> 47 займов закрываются в ближайшие 60 дней, 39 из них — без единой просрочки за весь срок. За 30 дней до закрытия система сама поставит специалисту задачу предложить новый заём. Средний чек повторного клиента на треть выше первого.</p></div>
+ <div class="said"><p>«Чтобы клиент заходил и видел, сколько у него осталось, есть ли просрочка».</p></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">06</span></div>
+</section>
+
+<!-- 7 · интеграции и 1С -->
+<section class="page">
+ <div class="hd"><div><span class="wm"><em>In</em><svg class="tick" viewBox="0 0 100 112"><path d="M0 24 C14 28 31 50 43 94 C56 54 74 20 99 1 C86 30 70 66 51 110 C44 74 20 38 0 24 Z" fill="currentColor"/></svg><em>esCore</em></span><small>СИСТЕМА ЗАЛОГОВОГО КРЕДИТОВАНИЯ</small></div>
+  <div class="hd-r">Коммерческое предложение<br>14 сентября 2026</div></div>
+ <div class="kicker">Раздел 6</div>
+ <h2>Интеграции и обмен с 1С</h2>
+ <p class="lead">Восемь подключений. Каждое — не галочка в списке, а конкретное действие в конкретной точке процесса.</p>
+ <table>
+  <thead><tr><th style="width:26%">Сервис</th><th>Что даёт</th><th style="width:19%">Когда</th><th style="width:14%">Ответ</th></tr></thead>
+  <tbody>
+  <tr><td><b>ГБД ФЛ</b></td><td>Личность, ИИН, документ, адрес прописки</td><td>На прескоринге</td><td class="r">8–20 сек</td></tr>
+  <tr><td><b>Кредитное бюро</b></td><td>Кредитная история, обязательства, КДН</td><td>На прескоринге</td><td class="r">20–60 сек</td></tr>
+  <tr><td><b>Скоринговый движок</b><br><span class="badge blue">ваш подрядчик</span></td><td>Итоговый балл, класс риска, рекомендация</td><td>После сбора пакета</td><td class="r">до 5 сек</td></tr>
+  <tr><td><b>1С: Бухгалтерия</b></td><td>Двусторонний обмен документами и остатками</td><td>По расписанию и событию</td><td class="r">15 мин</td></tr>
+  <tr><td><b>WhatsApp Business API</b></td><td>Переписка, уведомления, напоминания</td><td>Весь цикл</td><td class="r">мгновенно</td></tr>
+  <tr><td><b>Телефония</b></td><td>Звонок из карточки, запись, пропущенные</td><td>Весь цикл</td><td class="r">мгновенно</td></tr>
+  <tr><td><b>Реестр обременений</b></td><td>Проверка чистоты залога до одобрения</td><td>На оценке залога</td><td class="r">1–3 мин</td></tr>
+  <tr><td><b>Платёжный шлюз</b><br><span class="badge blue">ваш подрядчик</span></td><td>Погашение из личного кабинета</td><td>По графику платежей</td><td class="r">мгновенно</td></tr>
+  </tbody>
+ </table>
+ <div class="shot tall" style="margin-top:4px"><img src="/app/img/kp-invescore/c1.jpg" alt="Обмен с 1С">
+  <div class="cap"><b>Обмен с 1С.</b> Слева — что уходит в 1С, справа — что приходит обратно. Ниже — журнал обмена с результатом по каждому документу и подсветкой расхождений.</div></div>
+ <div class="compare">
+  <div class="was"><h4>СЕЙЧАС</h4>
+   <div class="row">Всё живёт только в 1С</div>
+   <div class="row">Заявки, скоринг, залоги и просрочка — вне системы</div>
+   <div class="row">Около 45 документов в день вводятся руками</div>
+   <div class="row">Сверка остатков — в конце месяца</div>
+   <div class="row">Расхождения находят случайно</div>
+  </div>
+  <div class="now"><h4>ПОСЛЕ ЗАПУСКА</h4>
+   <div class="row">1С остаётся главной по бухгалтерии</div>
+   <div class="row">Заявки, скоринг, залоги и просрочка — в системе</div>
+   <div class="row">Ручной ввод — ноль документов</div>
+   <div class="row">Сверка каждые 15 минут</div>
+   <div class="row">Расхождения подсвечиваются сразу</div>
+  </div>
+ </div>
+ <p>1С — про бухгалтерию, а не про заявки, скоринг, залоги и просрочку. Поэтому она остаётся на своём месте, но перестаёт быть единственным местом, куда всё вбивают руками.</p>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">07</span></div>
+</section>
+
+<!-- 8 · роли и управление -->
+<section class="page">
+ <div class="hd"><div><span class="wm"><em>In</em><svg class="tick" viewBox="0 0 100 112"><path d="M0 24 C14 28 31 50 43 94 C56 54 74 20 99 1 C86 30 70 66 51 110 C44 74 20 38 0 24 Z" fill="currentColor"/></svg><em>esCore</em></span><small>СИСТЕМА ЗАЛОГОВОГО КРЕДИТОВАНИЯ</small></div>
+  <div class="hd-r">Коммерческое предложение<br>14 сентября 2026</div></div>
+ <div class="kicker">Раздел 7</div>
+ <h2>Роли, права и управление специалистами</h2>
+ <p class="lead">20 сотрудников, у каждого своя часть работы. Бухгалтер не видит кредитную историю, специалист не видит чужие заявки, взыскание не меняет условия договора. В демо можно войти любой из семи ролей и увидеть систему её глазами.</p>
+ <table>
+  <thead><tr><th style="width:27%">Роль</th><th>Что видит и делает</th><th style="width:30%">Чего не может</th></tr></thead>
+  <tbody>
+  <tr><td><b>Кредитный специалист</b></td><td>Свои заявки, прескоринг, залог, документы, переписка</td><td>Видеть чужие заявки, менять ставку и сумму после одобрения</td></tr>
+  <tr><td><b>Руководитель продаж</b></td><td>Воронка отдела, план, распределение заявок, скорость ответа</td><td>Менять пороги скоринга</td></tr>
+  <tr><td><b>Риск-менеджер</b></td><td>Скоринг, пороги, лимиты, залоги, решения</td><td>Выдавать деньги</td></tr>
+  <tr><td><b>Юрист по залогам</b></td><td>Договоры займа и залога, регистрация обременений</td><td>Видеть финансовые показатели компании</td></tr>
+  <tr><td><b>Бухгалтер</b></td><td>Выдачи, погашения, сверка и обмен с 1С</td><td>Видеть скоринг и кредитную историю</td></tr>
+  <tr><td><b>Специалист по взысканию</b></td><td>Корзины просрочки, обзвон, досудебная работа</td><td>Менять условия договора</td></tr>
+  <tr><td><b>Директор</b></td><td>Портфель, деньги, риск, отчётность, стоимость владения</td><td>—</td></tr>
+  </tbody>
+ </table>
+ <div class="shot tall"><img src="/app/img/kp-invescore/kpi.jpg" alt="KPI специалистов">
+  <div class="cap"><b>KPI специалистов.</b> План-факт по сумме и количеству выдач, конверсия и скорость первого ответа по каждому. Считается из заявок и договоров, а не из таблицы, которую кто-то ведёт параллельно.</div></div>
+ <div class="grid2" style="margin-top:9px">
+  <div class="card"><code>СЕЙЧАС 7 СПЕЦИАЛИСТОВ</code><h3 style="margin-top:5px">Можно держать в голове</h3>
+   <p>45 заявок в месяц на человека, руководитель помнит, у кого что в работе. Потери видны только по ощущениям и по выручке в конце месяца.</p></div>
+  <div class="card y"><code>ПЛАН — 15</code><h3 style="margin-top:5px">В голове уже не удержать</h3>
+   <p>Кто не перезвонил за пять минут, у кого заявки висят сутки, у кого много отказов после прескоринга — это должно быть видно на экране, а не выясняться на планёрке.</p></div>
+ </div>
+ <div class="quote"><p><b>Лицензии за людей вы не платите.</b> Когда штат вырастет с 20 до 35 человек, стоимость владения не изменится — ни на тенге. В коробочных системах каждый новый пользователь увеличивает годовой платёж.</p></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">08</span></div>
+</section>
+
+<!-- 9 · стоимость -->
+<section class="page">
+ <div class="hd"><div><span class="wm"><em>In</em><svg class="tick" viewBox="0 0 100 112"><path d="M0 24 C14 28 31 50 43 94 C56 54 74 20 99 1 C86 30 70 66 51 110 C44 74 20 38 0 24 Z" fill="currentColor"/></svg><em>esCore</em></span><small>СИСТЕМА ЗАЛОГОВОГО КРЕДИТОВАНИЯ</small></div>
+  <div class="hd-r">Коммерческое предложение<br>14 сентября 2026</div></div>
+ <div class="kicker">Раздел 8</div>
+ <h2>Стоимость и состав работ</h2>
+ <table>
+  <thead><tr><th style="width:34%">Блок</th><th>Что входит</th><th style="width:20%">Стоимость</th></tr></thead>
+  <tbody>
+  <tr><td><b>Ядро системы</b></td><td>Заявки и воронка, карточка клиента и залога, займы, графики, платежи, просрочка, документы по шаблонам, задачи, роли и права, отчётность, настройки полей и этапов</td><td class="r">2 000 000 ₸</td></tr>
+  <tr><td><b>Сайт, скоринг и передача заявки</b></td><td>Форма на вашем сайте, приём заявки в систему, прескоринг, интеграции с ГБД ФЛ и кредитным бюро, подключение вашего скорингового движка, пороги и решение</td><td class="r">800 000 ₸</td></tr>
+  <tr><td><b>Интеграция с 1С</b></td><td>Двусторонний обмен с вашей конфигурацией: договоры, начисления, пени, поступления, кассовые операции, справочники и сверка остатков</td><td class="r">800 000 ₸</td></tr>
+  <tr class="total"><td>Итого разработка</td><td></td><td class="r">3 600 000 ₸</td></tr>
+  </tbody>
+ </table>
+ <div class="grid3" style="margin-top:4px">
+  <div class="card"><code>ДОРАБОТКИ</code><h3 style="margin-top:5px">20 $ / час</h3><p>После запуска, по факту и по вашим задачам. Оценка по каждой задаче до начала работ.</p></div>
+  <div class="card"><code>СОПРОВОЖДЕНИЕ</code><h3 style="margin-top:5px">от 35 000 ₸ / мес</h3><p>Хостинг, обновления, ежедневные резервные копии, поддержка пользователей.</p></div>
+  <div class="card"><code>ЛИЦЕНЗИИ</code><h3 style="margin-top:5px">0 ₸</h3><p>Количество пользователей не ограничено и не влияет на стоимость. Никогда.</p></div>
+ </div>
+ <h3 style="margin-top:12px">Оплата по этапам</h3>
+ <div class="pay">
+  <div><small>ЭТАП 1 · СТАРТ</small><b>360 000 ₸</b><span>10% — фиксация процесса, полей и продуктов, согласование макетов, перенос клиентов и договоров</span></div>
+  <div><small>ЭТАП 2 · ЗАЯВКИ И ПРЕСКОРИНГ</small><b>1 620 000 ₸</b><span>45% — по готовности блока «заявка → прескоринг → решение»: с этого момента им уже можно пользоваться</span></div>
+  <div><small>ЭТАП 3 · ПРИЁМКА</small><b>1 620 000 ₸</b><span>45% — займы, платежи, просрочка, кабинет, 1С, обучение и запуск</span></div>
+ </div>
+ <div class="quote"><p><b>Что вы платите и когда.</b> Первый платёж — 360 000 ₸ на старте. Основная часть привязана к результату: 45% вы платите, когда блок «заявка → прескоринг → решение» уже работает и им можно пользоваться, остальные 45% — при приёмке всей системы.</p></div>
+ <h3 style="margin-top:11px">Состав системы: 25 экранов в 9 разделах</h3>
+ <table style="margin-top:5px">
+  <thead><tr><th style="width:22%">Раздел</th><th>Экраны</th></tr></thead>
+  <tbody>
+  <tr><td><b>Пульт</b></td><td>Сводка по портфелю и выдачам · Аналитика каналов, отказов и скорости</td></tr>
+  <tr><td><b>Заявки</b></td><td>Входящие с таймером норматива · Воронка по девяти этапам · Путь заявки</td></tr>
+  <tr><td><b>Скоринг</b></td><td>Прескоринг через ГБД ФЛ и бюро · Калькулятор с ГЭСВ и графиком · Залоги</td></tr>
+  <tr><td><b>Займы</b></td><td>Портфель договоров · Платежи и разнос · Просрочка по корзинам · Документы</td></tr>
+  <tr><td><b>Клиенты</b></td><td>База клиентов с полной историей · Личный кабинет заёмщика</td></tr>
+  <tr><td><b>Каналы</b></td><td>WhatsApp, телефония и Telegram · Сайт и форма заявки</td></tr>
+  <tr><td><b>Интеграции</b></td><td>Внешние сервисы и их состояние · Обмен с 1С с журналом</td></tr>
+  <tr><td><b>Управление</b></td><td>KPI специалистов · Задачи · Отчётность управленческая и регуляторная</td></tr>
+  <tr><td><b>Настройки</b></td><td>Поля, этапы, продукты и пороги · Пользователи и права · Экономика · Передача</td></tr>
+  </tbody>
+ </table>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">09</span></div>
+</section>
+
+<!-- 10 · сравнение с коробкой -->
+<section class="page">
+ <div class="hd"><div><span class="wm"><em>In</em><svg class="tick" viewBox="0 0 100 112"><path d="M0 24 C14 28 31 50 43 94 C56 54 74 20 99 1 C86 30 70 66 51 110 C44 74 20 38 0 24 Z" fill="currentColor"/></svg><em>esCore</em></span><small>СИСТЕМА ЗАЛОГОВОГО КРЕДИТОВАНИЯ</small></div>
+  <div class="hd-r">Коммерческое предложение<br>14 сентября 2026</div></div>
+ <div class="kicker">Раздел 8 · продолжение</div>
+ <h2>Сравнение с коробочной CRM на три года</h2>
+ <p class="lead">Вы сравнивали нас с Битриксом — посчитаем честно, на ваших цифрах. Подписка взята 1 500 000 ₸ в год с ростом 15%, как вы и называли.</p>
+ <div class="shot tall"><img src="/app/img/kp-invescore/economy.jpg" alt="Стоимость владения">
+  <div class="cap"><b>Экран «Экономика» в демо.</b> Двигаете ползунки — цену подписки, её ежегодный рост, горизонт и стоимость сопровождения — и видите разницу на ваших цифрах.</div></div>
+ <table>
+  <thead><tr><th style="width:46%">Три года владения</th><th>Коробочная CRM</th><th>Своя система</th></tr></thead>
+  <tbody>
+  <tr><td>Подписка / разработка</td><td class="r">5 208 750 ₸</td><td class="r">3 600 000 ₸</td></tr>
+  <tr><td>Сопровождение и хостинг</td><td class="r">входит</td><td class="r">1 260 000 ₸</td></tr>
+  <tr><td>Интеграции с ГБД ФЛ, бюро и 1С</td><td class="r">отдельно</td><td class="r">входит</td></tr>
+  <tr><td>Залоги, графики, пени, кабинет</td><td class="r">отдельно</td><td class="r">входит</td></tr>
+  <tr><td>Новые сотрудники (плюс 8 человек)</td><td class="r">за каждого</td><td class="r">0 ₸</td></tr>
+  <tr class="total"><td>Итого за три года</td><td class="r" style="color:var(--text);font-size:12px">5 208 750 ₸ <span style="font-size:8px;color:var(--muted)">+ доработки</span></td><td class="r">4 860 000 ₸</td></tr>
+  </tbody>
+ </table>
+ <p style="margin-top:4px">Разработка платится один раз. На четвёртый год подписка коробки составит уже 2 281 312 ₸, наше сопровождение — 420 000 ₸. Дальше разрыв растёт каждый год.</p>
+ <h3 style="margin-top:11px">Что в подписку коробки не входит</h3>
+ <div class="chk r"><i>!</i><span><b>Интеграция с ГБД ФЛ и кредитным бюро</b> — отдельная разработка сторонней компании поверх коробки</span></div>
+ <div class="chk r"><i>!</i><span><b>Залог как отдельная сущность</b> с оценкой, LTV и обременениями — делается кастомом</span></div>
+ <div class="chk r"><i>!</i><span><b>График погашения, начисление пени и разнос платежей</b> — это не функции CRM</span></div>
+ <div class="chk r"><i>!</i><span><b>Личный кабинет заёмщика</b> — отдельный продукт или отдельная разработка</span></div>
+ <div class="chk r"><i>!</i><span><b>Обмен с 1С по вашим документам</b> — типовой обмен не покрывает микрокредиты</span></div>
+ <div class="chk r"><i>!</i><span><b>Новые сотрудники</b> — лицензии считаются по людям, а штат вы планируете удвоить</span></div>
+ <div class="quote"><p><b>Главный риск коробки.</b> Половину нужного всё равно придётся заказывать отдельно — и платить и за подписку, и за разработку. Подписка при этом растёт каждый год, доработки остаются у стороннего подрядчика, а система так и не становится вашей.</p></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">10</span></div>
+</section>
+
+<!-- 11 · сроки и передача -->
+<section class="page">
+ <div class="hd"><div><span class="wm"><em>In</em><svg class="tick" viewBox="0 0 100 112"><path d="M0 24 C14 28 31 50 43 94 C56 54 74 20 99 1 C86 30 70 66 51 110 C44 74 20 38 0 24 Z" fill="currentColor"/></svg><em>esCore</em></span><small>СИСТЕМА ЗАЛОГОВОГО КРЕДИТОВАНИЯ</small></div>
+  <div class="hd-r">Коммерческое предложение<br>14 сентября 2026</div></div>
+ <div class="kicker">Раздел 9</div>
+ <h2>Сроки, гарантии и что вы получаете на выходе</h2>
+ <div class="strip">
+  <div><small>СРОК</small><b>4–6 недель</b></div>
+  <div><small>ПЕРВЫЙ РАБОЧИЙ БЛОК</small><b>3-я неделя</b></div>
+  <div><small>ПАРАЛЛЕЛЬНАЯ РАБОТА</small><b>1 неделя</b></div>
+  <div><small>ПОКАЗ РАБОТЫ</small><b>каждую неделю</b></div>
+ </div>
+ <div class="tl">
+  <div class="tli"><b>Неделя 1 · Процесс и данные</b><p>Фиксируем этапы, поля, продукты и пороги. Переносим клиентов и действующие договоры из 1С. Согласуем макеты.</p></div>
+  <div class="tli"><b>Неделя 2 · Заявки и воронка</b><p>Заявки, распределение, задачи, карточки клиента и залога, права ролей. Специалисты уже могут работать.</p></div>
+  <div class="tli"><b>Неделя 3 · Прескоринг</b><p>ГБД ФЛ, кредитное бюро, согласие на обработку ПД, пороги, решение. Тот самый блок «пять минут».</p></div>
+  <div class="tli"><b>Неделя 4 · Займы и платежи</b><p>Договоры, графики, начисления, платежи, корзины просрочки, документы по шаблонам.</p></div>
+  <div class="tli"><b>Неделя 5 · Сайт, 1С и кабинет</b><p>Форма на сайте, обмен с 1С, личный кабинет заёмщика, WhatsApp и телефония.</p></div>
+  <div class="tli"><b>Неделя 6 · Обучение и запуск</b><p>Обучение сотрудников, неделя параллельной работы со старым процессом, полный переход.</p></div>
+ </div>
+ <h3 style="margin-top:12px">Что остаётся у вас после сдачи</h3>
+ <div class="grid3">
+  <div class="card"><code>КОД</code><h3 style="margin-top:5px">Ваш, с правами</h3>
+   <p>Исходный код в вашем репозитории, исключительные права по договору, техническая документация и схема базы. Без скрытых модулей и лицензионных ключей.</p></div>
+  <div class="card"><code>ДАННЫЕ</code><h3 style="margin-top:5px">На вашем сервере</h3>
+   <p>База на вашем сервере или в вашем облаке, персональные данные клиентов не уходят за периметр, ежедневные резервные копии, полная выгрузка в любой момент.</p></div>
+  <div class="card"><code>РАЗВИТИЕ</code><h3 style="margin-top:5px">С нами или без нас</h3>
+   <p>Дальше развиваете с нами по 20 $ в час или своей командой — код и документация у вас. Гарантия на разработанное по договору.</p></div>
+ </div>
+ <div class="quote" style="margin-top:12px"><p><b>Начать можно с одного блока.</b> Если 3,6 млн сразу — много, стартуем с ядра и прескоринга за 2 800 000 ₸: это заявки, воронка, карточки, залоги, прескоринг через ГБД ФЛ и бюро, решение и документы. Займы, платежи, просрочка, кабинет и 1С добавляются потом на той же базе, без переделки.</p></div>
+ <h3 style="margin-top:11px">Чем вы рискуете</h3>
+ <div class="grid2">
+  <div>
+   <div class="chk"><i>✓</i><span>Оплата по этапам — не всё вперёд</span></div>
+   <div class="chk"><i>✓</i><span>Демо собрано до начала работ — вы уже видите, что получите</span></div>
+  </div>
+  <div>
+   <div class="chk"><i>✓</i><span>Работу показываем каждую неделю живьём, а не в отчёте</span></div>
+   <div class="chk"><i>✓</i><span>Старый процесс не выключаем сразу — неделя параллельно</span></div>
+  </div>
+ </div>
+ <h3 style="margin-top:12px">Следующий шаг</h3>
+ <p>Открыть демо и пройти по экранам вместе: по каждому вы говорите «это нужно», «это не нужно», «здесь по-другому». Из этого за два-три дня получается техническое задание — приложение к договору с описанием каждого экрана, поля и правила. Оно фиксирует объём работ и защищает обе стороны.</p>
+ <div class="card dark" style="margin-top:10px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px">
+   <div><code>СВЯЗЬ</code><h3 style="margin-top:6px;font-size:14px">Платон Цай</h3>
+    <p style="margin-top:3px">Pllato · студия разработки · pllato.kz</p></div>
+   <div style="text-align:right"><code>ДЕМО</code><p style="margin-top:6px;font-size:10px;color:#fff">pllato.kz/app/mfo.html</p>
+    <p style="font-size:8.6px">Доступ по ссылке, которую мы отправили</p></div>
+  </div>
+ </div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">11</span></div>
+</section>
+
+</body></html>
