@@ -5,25 +5,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>Кредитный портал · залоговое кредитование · демо</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏦</text></svg>">
+<title>InvesCore · система залогового кредитования · демо</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f2c3e'/><path d='M18 34 C27 38 39 53 47 78 C57 49 72 24 88 10 C75 30 61 56 51 88 C45 64 31 43 18 34 Z' fill='%23d8232c'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
 <style>
 :root{
- --rail:#161d26;--rail2:#0f151c;--rail-h:#242e3a;--rail-a:#b9761f;
+ --rail:#0d2b3c;--rail2:#08202e;--rail-h:#17475f;--rail-a:#d8232c;
+ --brand:#d8232c;--brand2:#f2555c;--brandl:#fceaeb;--navy:#0f2c3e;
  --bg:#f1f3f6;--card:#fff;--card2:#f8f9fb;--card3:#eef1f5;
  --text:#1a2029;--muted:#69748a;--muted2:#95a0b3;--line:#e2e6ed;--line2:#ccd3de;
- --acc:#b9761f;--acc2:#d89033;--accl:#fbf1e2;
+ --acc:#12506e;--acc2:#8ec6e0;--accl:#e9f1f6;
  --ok:#2f8f5b;--ok-l:#e6f4ec;--bad:#c33c32;--bad-l:#fbeae8;--warn:#d98324;--warn-l:#fdf0df;
- --info:#2b6cb0;--info-l:#e7effa;--violet:#6b4ea8;
+ --info:#2e7cc4;--info-l:#e8f1fb;--violet:#6b4ea8;
  --r:6px;--sh:0 1px 3px rgba(22,29,38,.10);--sh2:0 6px 20px rgba(22,29,38,.14);
 }
 body.dark{
  --bg:#12171e;--card:#1a212a;--card2:#212a35;--card3:#2a3542;
  --text:#e8edf4;--muted:#95a3b8;--muted2:#6f7e94;--line:#2a333f;--line2:#3a4655;
- --accl:#2e2213;--ok-l:#14291d;--bad-l:#2e1715;--warn-l:#2e2212;--info-l:#132437;
+ --accl:#10262f;--brandl:#2e1416;--ok-l:#14291d;--bad-l:#2e1715;--warn-l:#2e2212;--info-l:#132437;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font-family:Manrope,system-ui,sans-serif;-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden;font-size:13px}
@@ -37,14 +38,18 @@ a{text-decoration:none;color:inherit}
 /* ====== ВХОД ====== */
 .gate{height:100vh;display:grid;grid-template-columns:1.05fr .95fr;background:var(--rail);color:#dde4ee;overflow:auto}
 .gate-l{padding:44px 48px;display:flex;flex-direction:column;justify-content:center}
-.glogo{display:flex;align-items:center;gap:11px}
-.glogo i{width:42px;height:42px;border-radius:9px;background:var(--acc);display:grid;place-items:center;font-style:normal;font-size:18px;font-weight:800;color:#fff;letter-spacing:-.02em}
-.glogo b{font-size:15px;letter-spacing:.07em;color:#fff}
-.glogo small{display:block;font:600 8.6px 'IBM Plex Mono',monospace;color:#8593a8;letter-spacing:.13em;margin-top:3px}
+.glogo{display:flex;align-items:center;gap:16px;padding-top:14px}
+.glogo small{display:block;font:600 8.6px 'IBM Plex Mono',monospace;color:#8593a8;letter-spacing:.13em;margin-top:7px}
+/* фирменный знак */
+.wm{display:inline-flex;align-items:baseline;font-family:'Playfair Display',Georgia,'Times New Roman',serif;font-weight:500;line-height:1;color:var(--wmc,var(--navy));white-space:nowrap}
+.wm em{font-style:normal;letter-spacing:-.004em}
+.wm .tick{width:1.09em;height:1.13em;color:var(--brand);margin:0 -.47em 0 -.10em;position:relative;z-index:1;flex:none;overflow:visible}
+.glogo .wm{font-size:37px;--wmc:#fff}
+.rail-logo .tick{width:23px;height:24px;color:var(--brand)}
 .gate h1{font-size:33px;line-height:1.1;letter-spacing:-.028em;margin:20px 0 12px;color:#fff;font-weight:800}
-.gate h1 em{font-style:normal;color:var(--acc2)}
+.gate h1 em{font-style:normal;color:var(--brand2)}
 .gate p{font-size:12.6px;line-height:1.75;color:#9dabc0;max-width:570px;margin:0 0 10px}
-.gtag{display:inline-block;font:700 8.6px 'IBM Plex Mono',monospace;letter-spacing:.15em;color:#7fd3a5;text-transform:uppercase;border:1px solid #235640;background:#112a1e;padding:5px 11px;border-radius:4px}
+.gtag{display:inline-block;align-self:flex-start;font:700 8.6px 'IBM Plex Mono',monospace;letter-spacing:.15em;color:#7fd3a5;text-transform:uppercase;border:1px solid #235640;background:#112a1e;padding:5px 11px;border-radius:4px}
 .gstat{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:24px;border-top:1px solid #2a3543;padding-top:18px}
 .gstat small{display:block;font:600 7.4px 'IBM Plex Mono',monospace;color:#7d8b9f;letter-spacing:.1em;text-transform:uppercase}
 .gstat b{display:block;font-size:17px;margin-top:5px;color:#fff;font-variant-numeric:tabular-nums}
@@ -67,7 +72,7 @@ a{text-decoration:none;color:inherit}
 .rail{width:78px;background:var(--rail);display:flex;flex-direction:column;align-items:center;padding:0 0 10px;overflow-y:auto}
 .rail::-webkit-scrollbar{width:0}
 .rail-logo{width:100%;height:52px;display:grid;place-items:center;background:var(--rail2);flex:none;margin-bottom:6px}
-.rail-logo i{width:30px;height:30px;border-radius:7px;background:var(--acc);display:grid;place-items:center;font-style:normal;font-size:13px;font-weight:800;color:#fff}
+.rail-logo svg{display:block}
 .ri{width:66px;padding:10px 3px 8px;border-radius:7px;display:grid;place-items:center;gap:4px;margin-bottom:3px;transition:.12s;position:relative;flex:none}
 .ri i{font-style:normal;font-size:17px;line-height:1;color:#8593a8;transition:.12s}
 .ri span{font-size:8.4px;color:#8593a8;text-align:center;line-height:1.22;font-weight:600}
@@ -75,7 +80,7 @@ a{text-decoration:none;color:inherit}
 .ri:hover i,.ri:hover span{color:#fff}
 .ri.on{background:var(--rail2)}
 .ri.on i,.ri.on span{color:#fff}
-.ri.on:before{content:'';position:absolute;left:-7px;top:7px;bottom:7px;width:3px;border-radius:0 3px 3px 0;background:var(--acc)}
+.ri.on:before{content:'';position:absolute;left:-7px;top:7px;bottom:7px;width:3px;border-radius:0 3px 3px 0;background:var(--brand)}
 .ri .cnt{position:absolute;top:5px;right:8px;background:var(--bad);color:#fff;font:700 8px 'IBM Plex Mono',monospace;padding:1px 5px;border-radius:9px}
 .rail-bot{margin-top:auto;padding-top:12px}
 .me{width:34px;height:34px;border-radius:9px;background:var(--acc);color:#fff;display:grid;place-items:center;font:700 10px 'IBM Plex Mono',monospace}
@@ -96,7 +101,7 @@ a{text-decoration:none;color:inherit}
 .srch{display:flex;align-items:center;gap:7px;border:1px solid var(--line2);border-radius:6px;padding:0 10px;height:32px;background:var(--card2)}
 .srch i{font-style:normal;color:var(--muted2);font-size:13px}
 .srch input{border:0;background:none;outline:none;font-size:11.8px;width:150px}
-.ab{background:var(--acc);color:#fff;border-radius:6px;padding:0 14px;height:32px;font-size:11px;font-weight:800;letter-spacing:.03em;white-space:nowrap}
+.ab{background:var(--brand);color:#fff;border-radius:6px;padding:0 14px;height:32px;font-size:11px;font-weight:800;letter-spacing:.03em;white-space:nowrap}
 .ab:hover{background:#a3661a}
 .ib{width:32px;height:32px;border:1px solid var(--line2);border-radius:6px;background:var(--card);color:var(--muted);font-size:13px;display:grid;place-items:center}
 .ib:hover{border-color:var(--acc);color:var(--acc)}
@@ -112,7 +117,7 @@ a{text-decoration:none;color:inherit}
 .btns{display:flex;gap:7px;flex-wrap:wrap}
 .bt{border:1px solid var(--line2);background:var(--card);border-radius:6px;padding:8px 13px;font-size:11.4px;font-weight:700}
 .bt:hover{border-color:var(--acc);color:var(--acc)}
-.bt.p{background:var(--acc);border-color:var(--acc);color:#fff}.bt.p:hover{background:#a3661a;color:#fff}
+.bt.p{background:var(--brand);border-color:var(--brand);color:#fff}.bt.p:hover{background:#b91c24;border-color:#b91c24;color:#fff}
 .bt.g{background:var(--ok);border-color:var(--ok);color:#fff}.bt.g:hover{color:#fff}
 .bt.r{background:var(--bad);border-color:var(--bad);color:#fff}.bt.r:hover{color:#fff}
 .pan{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:15px 17px;margin-bottom:12px}
@@ -126,6 +131,7 @@ h4{font-size:11.8px;font-weight:800;margin:14px 0 7px}
 @media(max-width:1300px){.g2,.g21,.g12,.g3{grid-template-columns:1fr}}
 .mini{font-size:11px;color:var(--muted);line-height:1.6}
 .sub,.sub2{font-size:10.2px;color:var(--muted);margin-top:2px;font-weight:400;line-height:1.45}
+.li .sub,.srow .sub,.res .sub2{display:block}
 
 /* метрики */
 .wid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px}
@@ -257,7 +263,7 @@ input[type=range]{width:100%;accent-color:var(--acc);height:4px}
 .phone .pi{padding:10px 0;border-bottom:1px solid var(--line);font-size:11.4px;display:flex;justify-content:space-between}
 .phone .pi:last-child{border:0}
 .phone .pi b{font-variant-numeric:tabular-nums}
-.phone .pbtn{background:var(--acc);color:#fff;border-radius:7px;padding:11px;text-align:center;font-weight:800;font-size:12px;margin-top:12px}
+.phone .pbtn{background:var(--brand);color:#fff;border-radius:7px;padding:11px;text-align:center;font-weight:800;font-size:12px;margin-top:12px}
 
 /* настройки */
 .srow{display:flex;align-items:center;gap:11px;padding:8px 11px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;background:var(--card2);font-size:11.8px}
@@ -309,7 +315,7 @@ input[type=range]{width:100%;accent-color:var(--acc);height:4px}
 
 <section class="gate" id="gate">
  <div class="gate-l">
-  <div class="glogo"><i>К</i><div><b>КРЕДИТНЫЙ ПОРТАЛ</b><small>ЗАЛОГОВОЕ КРЕДИТОВАНИЕ · МФО</small></div></div>
+  <div class="glogo"><span class="wm"><em>In</em><svg class="tick" viewBox="0 0 100 112" aria-hidden="true"><path d="M0 24 C14 28 31 50 43 94 C56 54 74 20 99 1 C86 30 70 66 51 110 C44 74 20 38 0 24 Z" fill="currentColor"/></svg><em>esCore</em></span><div><small>ЗАЛОГОВОЕ КРЕДИТОВАНИЕ · МФО · АЛМАТЫ</small></div></div>
   <h1>Заявка → прескоринг →<br>залог → выдача →<br><em>портфель и просрочка</em></h1>
   <span class="gtag">демо по итогам встречи 14 сентября 2026 · Серик</span>
   <p style="margin-top:15px">Собрано под залоговую МФО: 98% займов под залог недвижимости и авто, средний чек 16 млн ₸, семь кредитных специалистов с планом роста до пятнадцати. Прескоринг через ГБД ФЛ и кредитное бюро за минуты, свой скоринговый движок с настраиваемыми порогами, оценка залога и LTV, договоры и обременения, график платежей, просрочка по корзинам, личный кабинет заёмщика и обмен с 1С.</p>
@@ -327,14 +333,14 @@ input[type=range]{width:100%;accent-color:var(--acc);height:4px}
    <p>Выберите сотрудника — разделы и права переключатся под него. Кредитный специалист видит свои заявки, риск-менеджер — решения и лимиты, взыскание — просрочку, директор — портфель и деньги.</p>
    <div class="roles" id="roles"></div>
    <div class="lnote"><b>Это демо-макет, а не готовая система</b>
-    Название, логотип и цвета — заглушка, ставим ваши по вашему логотипу. Все цифры вымышленные, но порядок величин взят с вашей встречи: средний заём 16 млн ₸, залоговых 98%. По каждому экрану вы говорите «это нужно, это не нужно, здесь по-другому» — из этого получается техническое задание.</div>
+    Логотип и фирменные цвета InvesCore уже в интерфейсе. Все цифры вымышленные, но порядок величин взят с вашей встречи: средний заём 16 млн ₸, залоговых 98%. По каждому экрану вы говорите «это нужно, это не нужно, здесь по-другому» — из этого получается техническое задание.</div>
   </div>
  </div>
 </section>
 
 <div class="app hidden" id="app">
  <aside class="rail">
-  <div class="rail-logo"><i>К</i></div>
+  <div class="rail-logo" title="InvesCore"><svg class="tick" viewBox="0 0 100 112" aria-hidden="true"><path d="M0 24 C14 28 31 50 43 94 C56 54 74 20 99 1 C86 30 70 66 51 110 C44 74 20 38 0 24 Z" fill="currentColor"/></svg></div>
   <nav id="rail" style="display:flex;flex-direction:column;align-items:center"></nav>
   <div class="rail-bot"><div class="me" id="me">КС</div></div>
  </aside>
