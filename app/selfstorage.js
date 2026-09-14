@@ -1,4 +1,4 @@
-/* ZIPSKLAD · демо системы управления сетью self storage. Данные вымышленные. */
+/* Демо системы управления сетью складов индивидуального хранения (self storage). Данные вымышленные. */
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const fmt=n=>new Intl.NumberFormat('ru-RU').format(Math.round(n));
 const mln=n=>n>=1e6?(n/1e6).toFixed(2).replace('.',',').replace(/,?0+$/,'')+' млн ₸':fmt(n)+' ₸';
@@ -87,7 +87,7 @@ const ACCESS=[
 ];
 const LEADS=[
  {n:'Марат Досжанов',ch:'WhatsApp',need:'Бокс 6 м² на 3 месяца, район Абая',st:0,t:'10:41',note:'Спрашивает цену и есть ли свободные'},
- {n:'Куралай Абенова',ch:'Сайт',need:'Хранение мебели после переезда, 9 м²',st:1,t:'10:12',note:'Заявка с формы на zipsklad.kz'},
+ {n:'Куралай Абенова',ch:'Сайт',need:'Хранение мебели после переезда, 9 м²',st:1,t:'10:12',note:'Заявка с формы на сайте сети'},
  {n:'ТОО «Мебель Хаус»',ch:'Instagram',need:'Два бокса по 18 м² под товар',st:2,t:'вчера',note:'Юрлицо, нужен договор и счёт на оплату'},
  {n:'Азамат Токтаров',ch:'Звонок',need:'Бокс 3 м², спрашивает про Face ID',st:1,t:'вчера',note:'Запись разговора 2:14'},
  {n:'Жанна Смагулова',ch:'WhatsApp',need:'Продление на полгода со скидкой',st:3,t:'сегодня',note:'Действующий клиент, бокс shr-008'}
@@ -139,7 +139,7 @@ SC.dash=()=>{const s=stat();
    <div class="hint" style="margin-top:9px"><b>Вывод:</b> 41% клиентов уходят в интервале 1–3 месяцев. Автопродление и напоминание за 5 дней до конца периода — прямой рост выручки.</div>
   </div>
   <div class="panel"><div class="ph"><div><div class="ph-title">Откуда приходят клиенты</div><div class="ph-sub">источник фиксируется в заявке</div></div></div>
-   ${[['Instagram / реклама',38,'var(--y)'],['Сайт zipsklad.kz',27,'var(--blue)'],['2ГИС и карты',18,'var(--green)'],['Рекомендации',12,'var(--violet)'],['Прочее',5,'#b8b6b0']]
+   ${[['Instagram / реклама',38,'var(--y)'],['Сайт сети',27,'var(--blue)'],['2ГИС и карты',18,'var(--green)'],['Рекомендации',12,'var(--violet)'],['Прочее',5,'#b8b6b0']]
      .map(r=>`<div class="fr" style="grid-template-columns:118px 1fr 40px"><span>${r[0]}</span><div class="ftrack" style="height:16px"><i style="--w:${r[1]/38*100}%;background:${r[2]}"></i></div><b>${r[1]}%</b></div>`).join('')}
    <div class="kpi-mini"><div style="--tone:var(--y)"><small>ЗАЯВОК В МЕСЯЦ</small><b>146</b></div><div style="--tone:var(--green)"><small>ЗАСЕЛЕНИЕ</small><b>31%</b></div></div>
   </div>
@@ -443,7 +443,7 @@ SC.lk=()=>`
  <div class="g2">
   <div class="panel" style="display:grid;place-items:center;padding:20px">
    <div class="phone"><div class="phone-screen">
-    <div class="phone-top"><span>09:41</span><span>ZIPSKLAD</span></div>
+    <div class="phone-top"><span>09:41</span><span>SELF STORAGE</span></div>
     <div class="lk-head"><small>МОЙ БОКС</small><h3>Бухар Жырау · № 14</h3><p>6 м² · второй ряд слева · Face ID подключён</p></div>
     <div class="lk-body">
      ${lkPaid?`<div class="lk-card" style="border-color:#a9d6bd;background:#eef7f2"><b class="good">✓ Оплачено до 30 сентября</b><div class="row"><span>Доступ на склад</span><b class="good">открыт</b></div><div class="row"><span>Следующий платёж</span><b>01.10.2026</b></div></div>`
@@ -547,7 +547,7 @@ SC.admin=()=>`
   <div class="panel"><div class="ph"><div><div class="ph-title">Интеграции</div><div class="ph-sub">то, что связывает систему с внешним миром</div></div></div>
    ${[['KSP','Kaspi · платежи и счета','Kaspi Платежи для квитанций, QR и ссылка на оплату; резервный разбор писем об оплате',1],
       ['WA','WhatsApp Business','счета, напоминания и переписка с арендаторами из карточки клиента',1],
-      ['SITE','Сайт zipsklad.kz','свободные боксы, онлайн-бронь и заявки приходят прямо в систему',1],
+      ['SITE','Сайт сети','свободные боксы, онлайн-бронь и заявки приходят прямо в систему',1],
       ['GSM','GSM-замки · вход по звонку','определение номера, проверка оплаты, открытие замка; свой номер у каждой двери',1],
       ['FACE','Face ID и домофоны','Hikvision на двух складах в той же системе, разовые проходы, журнал',1],
       ['TEL','IP-телефония','входящие звонки с записью и привязкой к клиенту',0],
@@ -564,7 +564,7 @@ SC.admin=()=>`
   <div class="flow" style="margin-top:11px">
    <div class="fbox"><code>ИП ПЕРВОЕ</code><b>3 склада</b><p>Свои реквизиты и свой Kaspi для приёма оплат.</p></div>
    <div class="farr">→</div>
-   <div class="fbox main"><code>ZIPSKLAD</code><b>Единая система</b><p>Боксы, клиенты, счета и доступы всех складов в одном окне.</p></div>
+   <div class="fbox main"><code>SELF STORAGE</code><b>Единая система</b><p>Боксы, клиенты, счета и доступы всех складов в одном окне.</p></div>
    <div class="farr">←</div>
    <div class="fbox"><code>ИП ВТОРОЕ</code><b>2 склада</b><p>Отдельный расчётный счёт, счета уходят от его имени.</p></div>
    <div class="farr">←</div>
