@@ -15,6 +15,7 @@ const SEC=[
  {k:'cl',   ic:'☺', n:'Клиенты',    sub:[['clients','База клиентов'],['lk','Личный кабинет']]},
  {k:'chan', ic:'✆', n:'Каналы',     sub:[['comms','WhatsApp и звонки'],['site','Сайт и заявка'],['landing','Как на сайте']]},
  {k:'int',  ic:'⇆', n:'Интеграции', sub:[['integr','Внешние сервисы'],['c1','Обмен с 1С']]},
+ {k:'br',   ic:'⌂', n:'Отделения', sub:[['branches','Сеть отделений']]},
  {k:'mgmt', ic:'★', n:'Управление', sub:[['kpi','KPI специалистов'],['tasks','Задачи'],['reports','Отчётность']]},
  {k:'setup',ic:'⚙', n:'Настройки',  sub:[['settings','Поля и этапы'],['users','Пользователи'],['economy','Экономика'],['stack','Передача']]}
 ];
@@ -26,7 +27,7 @@ const ROLES={
  'Кредитный специалист':{av:'АЙ',n:'Айгерим',r:'продажи',note:'Свои заявки, прескоринг, залог, документы',
   s:['inbox','funnel','scoring','calc','pledge','docs','clients','lk','comms','tasks']},
  'Руководитель продаж':{av:'ДН',n:'Данияр',r:'отдел продаж',note:'Воронка, план, распределение заявок, скорость ответа',
-  s:['dash','inbox','funnel','path','analytics','calc','clients','kpi','tasks','site','landing','comms']},
+  s:['dash','inbox','funnel','path','analytics','calc','clients','kpi','tasks','branches','site','landing','comms']},
  'Риск-менеджер':{av:'МД',n:'Мадина',r:'андеррайтинг',note:'Скоринг, пороги, залоги, решения и лимиты',
   s:['scoring','funnel','pledge','calc','portfolio','overdue','analytics','reports','settings']},
  'Юрист по залогам':{av:'ЕР',n:'Ерлан',r:'договоры и обременения',note:'Договоры займа и залога, регистрация обременений',
@@ -36,7 +37,7 @@ const ROLES={
  'Специалист по взысканию':{av:'ТМ',n:'Тимур',r:'просрочка',note:'Корзины просрочки, обзвон, досудебная работа',
   s:['overdue','payments','clients','comms','tasks']},
  'Директор':{av:'СР',n:'Серик',r:'руководство',note:'Портфель, деньги, риск, отчётность и стоимость владения',
-  s:['dash','analytics','path','portfolio','overdue','kpi','reports','economy','integr','users','stack','settings','lk','site','landing']}
+  s:['dash','analytics','path','portfolio','overdue','branches','kpi','reports','economy','integr','users','stack','settings','lk','site','landing']}
 };
 let role='Директор',cur='dash',theme='light';
 
@@ -1474,6 +1475,87 @@ function landSend(){
  LEADS.unshift(l);sparks(14);
  toast('<b>Заявка № '+l.id+' создана в портале.</b> Канал «Сайт», страница /zaim-pod-zalog, специалист Айгерим, таймер пяти минут пошёл. Клиенту ушло подтверждение в WhatsApp. Откройте «Входящие» — она первая в списке.');
 }
+
+
+
+/* ====== СЕТЬ ОТДЕЛЕНИЙ ====== */
+const BRN=[
+ {n:'Алматы · головной офис',a:'ул. Гоголя, 86 · 4 кредитных специалиста',port:2480000000,iss:531000000,cnt:33,leads:186,npl:77000000,sla:'3 мин',st:'Работает'},
+ {n:'Астана',a:'пр. Кабанбай батыра, 12 · 2 специалиста',port:890000000,iss:212000000,cnt:13,leads:89,npl:35000000,sla:'7 мин',st:'Работает'},
+ {n:'Шымкент',a:'ул. Тауке хана, 40 · 1 специалист',port:270000000,iss:73000000,cnt:5,leads:37,npl:14000000,sla:'14 мин',st:'Запуск'},
+ {n:'Караганда',a:'помещение подбирается',port:0,iss:0,cnt:0,leads:0,npl:0,sla:'—',st:'В планах'}
+];
+SC.branches=()=>`${head('Сеть отделений','Каждое отделение — самостоятельная единица со своими заявками, клиентами и показателями. У вас — сводная картина по всей сети и по каждому городу отдельно.',
+ '<button class="bt p" onclick="toast(\'Новое отделение заводится за минуту: город, адрес, специалисты, свой номер WhatsApp и телефония. Продукты, пороги скоринга и этапы копируются из головного — отделение сразу работает по тому же процессу.\')">+ ОТДЕЛЕНИЕ</button>')}
+ <div class="wid">
+  <div><small>Отделений</small><b class="a">${BRN.filter(b=>b.port).length}</b><span>ещё одно в планах</span></div>
+  <div><small>Портфель сети</small><b>${mln(BRN.reduce((a,b)=>a+b.port,0))} ₸</b><span>${F.active} договоров</span></div>
+  <div><small>Выдано за месяц</small><b>${mln(BRN.reduce((a,b)=>a+b.iss,0))} ₸</b><span>${BRN.reduce((a,b)=>a+b.cnt,0)} ${plural(BRN.reduce((a,b)=>a+b.cnt,0),['заём','займа','займов'])}</span></div>
+  <div><small>Специалистов</small><b>${F.specialists}</b><span>план по штату — 15</span></div>
+  <div><small>Разброс NPL</small><b class="w">3,1% → 5,2%</b><span>по отделениям</span></div>
+ </div>
+ <div class="tw"><table class="t" style="min-width:1020px">
+  <thead><tr><th>Отделение</th><th class="r">Портфель</th><th class="r">Выдано за месяц</th><th class="r">Заявок</th><th class="r">Конверсия</th><th class="r">NPL 90+</th><th class="r">Ответ</th><th>Статус</th></tr></thead>
+  <tbody>${BRN.map(b=>`<tr onclick="${b.port?`openBrn('${esc(b.n)}')`:`toast('Отделение можно завести в системе до открытия: заранее настроить специалистов, продукты и пороги, а на старте просто включить.')`}">
+   <td><b>${esc(b.n)}</b><div class="sub2">${esc(b.a)}</div></td>
+   <td class="r">${b.port?mln(b.port)+' ₸':'—'}</td>
+   <td class="r"><b>${b.iss?mln(b.iss)+' ₸':'—'}</b></td>
+   <td class="r">${b.leads||'—'}</td>
+   <td class="r">${b.leads?`<span class="tag ${b.cnt/b.leads>.16?'g':b.cnt/b.leads>.14?'':'w'}">${num(b.cnt/b.leads*100)}%</span>`:'—'}</td>
+   <td class="r">${b.port?`<span class="tag ${b.npl/b.port>.045?'r':b.npl/b.port>.035?'w':'g'}">${num(b.npl/b.port*100)}%</span>`:'—'}</td>
+   <td class="r">${esc(b.sla)}</td>
+   <td><span class="tag ${b.st==='Работает'?'g':b.st==='Запуск'?'w':''}">${esc(b.st)}</span></td></tr>`).join('')}</tbody>
+ </table></div>
+ <div class="g2" style="margin-top:12px">
+  <div class="pan"><h3>Что даёт разделение по отделениям</h3>
+   <div class="li"><i>✓</i><span>Свои заявки, клиенты, договоры и касса у каждого города<span class="sub">специалист видит только своё отделение</span></span></div>
+   <div class="li"><i>✓</i><span>Свои номера WhatsApp и телефония<span class="sub">клиент пишет и звонит в своё отделение</span></span></div>
+   <div class="li"><i>✓</i><span>Продукты, ставки и пороги — общие или свои, на выбор<span class="sub">в регионах ставка и максимальный LTV могут отличаться</span></span></div>
+   <div class="li"><i>✓</i><span>Руководитель отделения — отдельный кабинет с урезанными правами<span class="sub">свои люди и план, без доступа к сети целиком</span></span></div>
+   <div class="li w"><i>!</i><span>Лимит одобрения на отделение<span class="sub">суммы свыше лимита уходят на согласование риск-менеджеру и вам</span></span></div>
+   <div class="li b"><i>★</i><span><b>У вас — сводная по всей сети и по каждому городу</b><span class="sub">портфель, выдачи, качество и скорость в одном месте</span></span></div>
+  </div>
+  <div class="pan"><h3>Что видно сразу</h3>
+   <div class="kv"><span>Лучшая конверсия</span><b style="color:var(--ok)">Алматы · ${num(33/186*100)}%</b></div>
+   <div class="kv"><span>Худшая скорость ответа</span><b style="color:var(--bad)">Шымкент · 14 мин</b></div>
+   <div class="kv"><span>Худшее качество портфеля</span><b style="color:var(--bad)">Шымкент · ${num(14/270*100)}% NPL</b></div>
+   <div class="kv"><span>Выдач на специалиста</span><b>Алматы 8,3 · Астана 6,5 · Шымкент 5,0</b></div>
+   <div class="kv"><span>Средний чек по сети</span><b>${mln(BRN.reduce((a,b)=>a+b.iss,0)/BRN.reduce((a,b)=>a+b.cnt,0))} ₸</b></div>
+   <div class="note" style="--tone:var(--brand)"><b>Разброс — это не «регион слабее»</b>
+    <p>У Шымкента ответ в четыре раза медленнее, чем в Алматы, и худший NPL. Первое лечится нормативом и эскалацией, второе — порогами скоринга. Без разделения по отделениям оба показателя тонут в среднем по сети и выглядят нормально.</p></div>
+   <div class="hint">Разделение закладывается в основание системы, а не пристраивается сверху: добавить второе отделение к готовому порталу на одну точку — это переразобрать клиентов, договоры, кассу и права.</div>
+  </div>
+ </div>`;
+function openBrn(n){
+ const b=BRN.find(x=>x.n===n)||BRN[0];
+ openM(esc(b.n),`${esc(b.a)} · ${esc(b.st)}`,`
+  <div class="wid" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px">
+   <div><small>Портфель</small><b class="a">${mln(b.port)} ₸</b><span>${pct(b.port,BRN.reduce((x,y)=>x+y.port,0))} сети</span></div>
+   <div><small>Выдано за месяц</small><b>${mln(b.iss)} ₸</b><span>${b.cnt} ${plural(b.cnt,['заём','займа','займов'])}</span></div>
+   <div><small>Конверсия</small><b>${num(b.cnt/b.leads*100)}%</b><span>из ${b.leads} заявок</span></div>
+   <div><small>NPL 90+</small><b class="${b.npl/b.port>.045?'r':'w'}">${num(b.npl/b.port*100)}%</b><span>${mln(b.npl)} ₸</span></div>
+  </div>
+  <div class="g2" style="margin-bottom:0">
+   <div class="pan"><h3>Права руководителя отделения</h3>
+    <div class="li"><i>✓</i><span>Все заявки и договоры своего города</span></div>
+    <div class="li"><i>✓</i><span>План-факт по выдачам и скорость ответа своих специалистов</span></div>
+    <div class="li"><i>✓</i><span>Распределение заявок внутри отделения</span></div>
+    <div class="li no"><i>·</i><span>Не видит другие отделения и сводную по сети</span></div>
+    <div class="li no"><i>·</i><span>Не меняет продукты, ставки и пороги скоринга</span></div>
+    <div class="li w"><i>!</i><span>Одобрение свыше лимита отделения — через риск-менеджера</span></div>
+   </div>
+   <div class="pan"><h3>Показатели отделения</h3>
+    <div class="kv"><span>Специалистов</span><b>${b.n.indexOf('Алматы')>=0?4:b.n.indexOf('Астана')>=0?2:1}</b></div>
+    <div class="kv"><span>Выдач на специалиста</span><b>${num(b.cnt/(b.n.indexOf('Алматы')>=0?4:b.n.indexOf('Астана')>=0?2:1))}</b></div>
+    <div class="kv"><span>Среднее время первого ответа</span><b>${esc(b.sla)}</b></div>
+    <div class="kv"><span>Средний заём</span><b>${mln(b.iss/b.cnt)} ₸</b></div>
+    <div class="kv"><span>Лимит одобрения без согласования</span><b>${b.n.indexOf('Алматы')>=0?'30 млн ₸':'15 млн ₸'}</b></div>
+    <div class="btns" style="margin-top:12px">
+     <button class="bt p" onclick="closeM();go('kpi')">Специалисты отделения</button>
+     <button class="bt" onclick="closeM();go('portfolio')">Портфель</button>
+    </div>
+   </div>
+  </div>`)}
 
 /* ====== СТАРТ ====== */
 (function(){
