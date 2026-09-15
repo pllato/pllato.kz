@@ -1,0 +1,1358 @@
+/* Мукомольное производство · Бишкек · Шымкент · Андижан · демо */
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const fmt=n=>new Intl.NumberFormat('ru-RU').format(Math.round(n));
+const num=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(n);
+const num2=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(n);
+const pct=(a,b)=>num(a/b*100)+'%';
+const mln=n=>num(n/1000000)+' млн';
+const plural=(n,f)=>{const a=Math.abs(n)%100,b=a%10;return f[(a>10&&a<20)||b>4||b===0?2:b===1?0:1]};
+
+const SEC=[
+ {k:'dash', ic:'▦', n:'Пульт',    sub:[['dash','Сводка'],['analytics','Аналитика']]},
+ {k:'calc', ic:'∑', n:'Расчёты',  sub:[['calc','Калькулятор партии'],['deals','Партии и сделки'],['prices','Цены и рынок']]},
+ {k:'sale', ic:'⇄', n:'Продажи',  sub:[['inbox','Заявки'],['funnel','Воронка'],['clients','Клиенты'],['debt','Долги']]},
+ {k:'prod', ic:'⚙', n:'Мельница', sub:[['cycle','Цикл партии'],['mill','Помол и смены'],['quality','Лаборатория']]},
+ {k:'wh',   ic:'⬢', n:'Склады',   sub:[['raw','Склад зерна'],['fin','Готовая продукция'],['ship','Отгрузки']]},
+ {k:'task', ic:'☑', n:'Задачи',   sub:[['tasks','Документооборот'],['phone','На телефоне']]},
+ {k:'br',   ic:'⌖', n:'Филиалы',  sub:[['branches','Три филиала'],['bcab','Кабинет директора']]},
+ {k:'setup',ic:'⚒', n:'Настройки',sub:[['users','Пользователи'],['integr','Интеграции'],['economy','Стоимость'],['stack','Что получаете']]}
+];
+const SECOF={},SUBN={};
+SEC.forEach(s=>s.sub.forEach(x=>{SECOF[x[0]]=s.k;SUBN[x[0]]=x[1]}));
+
+const ROLES={
+ 'Собственник':{av:'ЗА',n:'Замирбек',r:'все три филиала',note:'Калькулятор, деньги, задачи по филиалам, аналитика и права',
+  s:['dash','analytics','calc','deals','prices','inbox','funnel','clients','debt','cycle','mill','quality','raw','fin','ship','tasks','phone','branches','bcab','users','integr','economy','stack']},
+ 'Директор филиала':{av:'НБ',n:'Нурбек',r:'Бишкек',note:'Свой филиал целиком: продажи, склады, помол, задачи',
+  s:['bcab','inbox','funnel','clients','debt','cycle','mill','quality','raw','fin','ship','tasks','phone']},
+ 'Менеджер по продажам':{av:'АЙ',n:'Айгуль',r:'продажи',note:'Заявки, воронка, клиенты, отгрузки и долги покупателей',
+  s:['inbox','funnel','clients','debt','fin','ship','tasks','phone']},
+ 'Снабженец':{av:'МР',n:'Марат',r:'закуп зерна',note:'Калькулятор партии, цены рынка, приёмка зерна, логистика',
+  s:['calc','deals','prices','raw','ship','cycle','tasks','phone']},
+ 'Начальник мельницы':{av:'БК',n:'Бакыт',r:'производство',note:'Помол, смены, выход продукции, лаборатория, склады',
+  s:['cycle','mill','quality','raw','fin','tasks','phone']},
+ 'Кладовщик':{av:'НР',n:'Нурия',r:'склады',note:'Приём зерна, выдача в помол, готовая продукция, отгрузки',
+  s:['raw','fin','ship','tasks','phone']},
+ 'Бухгалтер':{av:'ГМ',n:'Гульмира',r:'деньги',note:'Сделки, дебиторка и кредиторка, отчёты, задачи по оплатам',
+  s:['deals','debt','clients','analytics','tasks','phone']}
+};
+let role='Собственник',cur='dash',theme='light';
+
+/* ===== ДАННЫЕ ===== */
+const F={
+ staff:50, br:3, wagT:69,
+ grind:2840,        /* переработано тонн за месяц */
+ revenue:412000000, /* реализация за месяц, ₸ */
+ margin:41800000,   /* валовая маржа за месяц */
+ debt:28600000,     /* дебиторка покупателей */
+ kred:36400000,     /* кредиторская задолженность */
+ stockT:1180,       /* зерно на складах, т */
+ dayT:96            /* суточная переработка, т */
+};
+/* выходы помола — цифры клиента */
+const Y=[['Мука',72,'#c9911f'],['Отруби',23,'#8a6a3a'],['Мучка',3,'#b9ae95'],['Отход',2,'#d6d0c2']];
+/* параметры калькулятора */
+const C0={t:69,buy:78,log1:2500,log2:9800,log3:3400,proc:7200,pack:2200,
+ yMuka:72,yOtr:23,yMuchka:3,yOthod:2,pMuka:148,pOtr:48,pMuchka:32,nakl:4};
+let C=Object.assign({},C0);
+const CMEET={t:69,buy:100,log1:2500,log2:9800,log3:3400,proc:7200,pack:2200,
+ yMuka:72,yOtr:23,yMuchka:3,yOthod:2,pMuka:140,pOtr:45,pMuchka:30,nakl:4};
+
+/* филиалы */
+const BR=[
+ {n:'Бишкек',c:'Кыргызстан',dir:'Нурбек',cur:'сом',t:1240,rev:168000000,marg:17900000,st:'работает',men:21,mill:'2 линии · 60 т/сутки'},
+ {n:'Шымкент',c:'Казахстан',dir:'Ерлан',cur:'тенге',t:1180,rev:172000000,marg:18600000,st:'работает',men:19,mill:'1 линия · 50 т/сутки'},
+ {n:'Андижан',c:'Узбекистан',dir:'Азиз',cur:'сум',t:420,rev:72000000,marg:5300000,st:'запуск по новому контракту',men:10,mill:'1 линия · 30 т/сутки'}
+];
+/* партии */
+const DEAL=[
+ {id:'П-2609',from:'КХ «Тобол» · Костанай',t:69,buy:78,sell:148,st:'Продано',br:'Шымкент',plan:1066740,fact:1013200,d:'02.09'},
+ {id:'П-2612',from:'ТОО «Северное зерно» · Костанай',t:138,buy:81,sell:150,st:'Продано',br:'Шымкент',plan:1842000,fact:1912400,d:'05.09'},
+ {id:'П-2615',from:'КХ Ибраев · Кокшетау',t:69,buy:76,sell:146,st:'В помоле',br:'Бишкек',plan:1121000,fact:0,d:'09.09'},
+ {id:'П-2618',from:'Элеватор Тайынша',t:207,buy:83,sell:149,st:'В пути',br:'Бишкек',plan:2489000,fact:0,d:'12.09'},
+ {id:'П-2621',from:'КХ «Дала» · Костанай',t:69,buy:88,sell:148,st:'Расчёт',br:'Андижан',plan:381000,fact:0,d:'15.09'}
+];
+/* заявки покупателей */
+const ST=[
+ ['new','Новая','#7a7466'],['talk','Уточнение','#3f7396'],['calc','Расчёт цены','#4a7c59'],
+ ['appr','Согласование','#c9911f'],['pay','Ожидаем оплату','#b8801a'],['ship','Отгружено','#2f8f5b']
+];
+const STN=Object.fromEntries(ST.map(s=>[s[0],s[1]]));
+const STC=Object.fromEntries(ST.map(s=>[s[0],s[2]]));
+let LEADS=[
+ {id:4101,c:'Пекарня «Нан Ата»',ph:'+996 555 ••• 12',it:'Мука в/с · 12 т в месяц',s:'new',ch:'WhatsApp',mg:'Айгуль',sum:1776000,t:'18 мин',hot:1,br:'Бишкек'},
+ {id:4102,c:'ТОО «Дастархан Трейд»',ph:'+7 701 ••• 44 08',it:'Мука 1 сорт · 40 т',s:'new',ch:'Instagram',mg:'Айгуль',sum:5680000,t:'41 мин',hot:1,br:'Шымкент'},
+ {id:4098,c:'ИП Сатыбалдиев',ph:'+996 700 ••• 76',it:'Отруби · 25 т',s:'talk',ch:'Звонок',mg:'Айгуль',sum:1200000,br:'Бишкек'},
+ {id:4094,c:'ООО «Андижон Нон»',ph:'+998 90 ••• 31',it:'Мука в/с · 60 т в месяц',s:'calc',ch:'Контракт',mg:'Айгуль',sum:8880000,br:'Андижан'},
+ {id:4090,c:'Сеть магазинов «Береке»',ph:'+7 707 ••• 19 55',it:'Мука фасовка 2 и 5 кг',s:'appr',ch:'Рекомендация',mg:'Айгуль',sum:3420000,br:'Шымкент'},
+ {id:4086,c:'Птицефабрика «Ак-Куу»',ph:'+996 312 ••• 04',it:'Отруби и мучка · 80 т',s:'pay',ch:'Звонок',mg:'Айгуль',sum:3840000,br:'Бишкек'},
+ {id:4081,c:'ТОО «Нан Өнім»',ph:'+7 775 ••• 62 30',it:'Мука 1 сорт · 25 т',s:'ship',ch:'WhatsApp',mg:'Айгуль',sum:3550000,br:'Шымкент'}
+];
+/* клиенты */
+const CLI=[
+ {n:'ООО «Андижон Нон»',reg:'Андижан',ord:4,sum:31200000,debt:9400000,d:0,seg:'Контракт'},
+ {n:'ТОО «Дастархан Трейд»',reg:'Шымкент',ord:11,sum:68400000,debt:7200000,d:12,seg:'Постоянный'},
+ {n:'Пекарня «Нан Ата»',reg:'Бишкек',ord:19,sum:24600000,debt:1800000,d:0,seg:'Постоянный'},
+ {n:'Сеть «Береке»',reg:'Шымкент',ord:7,sum:29800000,debt:6100000,d:34,seg:'Постоянный'},
+ {n:'Птицефабрика «Ак-Куу»',reg:'Бишкек',ord:14,sum:21300000,debt:4100000,d:0,seg:'Отруби'},
+ {n:'ИП Сатыбалдиев',reg:'Бишкек',ord:5,sum:7400000,debt:0,d:0,seg:'Мелкий опт'}
+];
+/* склад зерна */
+const SILO=[
+ {n:'Склад №1 · пшеница 3 класс',br:'Бишкек',t:420,cap:600,q:'кл. 24,1 · вл. 13,2',pr:78},
+ {n:'Склад №2 · пшеница 3 класс',br:'Бишкек',t:180,cap:600,q:'кл. 23,4 · вл. 13,8',pr:81},
+ {n:'Силос А · пшеница 4 класс',br:'Шымкент',t:310,cap:500,q:'кл. 21,0 · вл. 12,9',pr:74},
+ {n:'Силос Б · пшеница 3 класс',br:'Шымкент',t:190,cap:500,q:'кл. 25,2 · вл. 13,0',pr:83},
+ {n:'Склад приёмки',br:'Андижан',t:80,cap:300,q:'кл. 23,8 · вл. 13,4',pr:86}
+];
+/* готовая продукция */
+const FIN=[
+ {n:'Мука высший сорт',u:'т',q:148,res:96,pr:152,br:'Бишкек'},
+ {n:'Мука 1 сорт',u:'т',q:212,res:140,pr:148,br:'Бишкек'},
+ {n:'Мука 2 сорт',u:'т',q:64,res:18,pr:132,br:'Шымкент'},
+ {n:'Мука высший сорт',u:'т',q:126,res:88,pr:154,br:'Шымкент'},
+ {n:'Отруби',u:'т',q:180,res:74,pr:48,br:'Бишкек'},
+ {n:'Мучка кормовая',u:'т',q:32,res:12,pr:32,br:'Шымкент'}
+];
+/* задачи-документооборот */
+let TASKS=[
+ {id:901,t:'Оплатить кредит в банке до 18 сентября',who:'Гульмира',from:'Замирбек',br:'Бишкек',st:'go',due:'18.09',ty:'Финансы',
+  chain:[['Замирбек','Поставил задачу · 15.09 09:10','ok'],['Гульмира','Приняла в работу · 15.09 09:26','ok'],['Гульмира','Готовит платёжное поручение','go'],['Гульмира','Приложить чек и номер платежа','']]},
+ {id:902,t:'Согласовать контракт с «Андижон Нон» на 60 т в месяц',who:'Азиз',from:'Замирбек',br:'Андижан',st:'go',due:'17.09',ty:'Продажи',
+  chain:[['Замирбек','Поставил задачу · 14.09 18:40','ok'],['Азиз','Принял, ведёт переговоры','go'],['Азиз','Приложить подписанный контракт','']]},
+ {id:903,t:'Проверить качество партии П-2618 при приёмке',who:'Бакыт',from:'Нурбек',br:'Бишкек',st:'ok',due:'15.09',ty:'Производство',
+  chain:[['Нурбек','Поставил задачу · 15.09 07:30','ok'],['Бакыт','Отобрал пробы, лаборатория','ok'],['Бакыт','Клейковина 23,4 · влажность 13,8 · принято','ok']]},
+ {id:904,t:'Закрыть долг сети «Береке» — просрочка 34 дня',who:'Айгуль',from:'Замирбек',br:'Шымкент',st:'late',due:'12.09',ty:'Финансы',
+  chain:[['Замирбек','Поставил задачу · 10.09','ok'],['Айгуль','Созвонилась, обещали 12.09','ok'],['Айгуль','Оплата не поступила — задача просрочена','late']]},
+ {id:905,t:'Подготовить расчёт по вагону из Тайынши',who:'Марат',from:'Замирбек',br:'Бишкек',st:'ok',due:'15.09',ty:'Закуп',
+  chain:[['Замирбек','Поставил задачу · 15.09 11:00','ok'],['Марат','Посчитал в калькуляторе: маржа 2,49 млн ₸','ok']]},
+ {id:906,t:'Провести инвентаризацию склада №2',who:'Нурия',from:'Нурбек',br:'Бишкек',st:'new',due:'20.09',ty:'Склады',
+  chain:[['Нурбек','Поставил задачу · 15.09 12:15','ok'],['Нурия','Ожидает начала','']]}
+];
+const TSTC={ok:'var(--ok)',go:'var(--warn)',late:'var(--bad)',new:'var(--muted2)'};
+const TSTN={ok:'Выполняется по плану',go:'В работе',late:'Просрочена',new:'Новая'};
+
+let fMine=false,seq=4110,cycleStep=0;
+let ECON={base:2500000,disc:10,host:12000,men:50,vyh:0.3,dt:10,bad:0.5};
+const SC={};
+
+const ini=n=>n.replace(/[«»"]/g,'').split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+const AVC=['','a','i','v','g'];
+const avc=n=>AVC[(n.charCodeAt(0)+n.length)%5];
+const avatar=n=>`<span class="av ${avc(n)}" title="${esc(n)}">${esc(ini(n))}</span>`;
+const head=(h,p,btns)=>`<div class="hd"><div><h2>${h}</h2><p>${p}</p></div>${btns?`<div class="btns">${btns}</div>`:''}</div>`;
+
+/* ===== РАСЧЁТ ПАРТИИ ===== */
+function calcAll(c){
+ const kg=c.t*1000;
+ const buy=kg*c.buy;
+ const log=c.t*(c.log1+c.log2+c.log3);
+ const proc=c.t*(c.proc+c.pack);
+ const muka=kg*c.yMuka/100, otr=kg*c.yOtr/100, much=kg*c.yMuchka/100, oth=kg*c.yOthod/100;
+ const rev=muka*c.pMuka+otr*c.pOtr+much*c.pMuchka;
+ const nakl=rev*c.nakl/100;
+ const cost=buy+log+proc+nakl;
+ const prof=rev-cost;
+ /* цена закупа, при которой ноль */
+ const be=(rev-log-proc-nakl)/kg;
+ /* цена муки, при которой ноль */
+ const beM=(buy+log+proc+nakl-otr*c.pOtr-much*c.pMuchka)/muka;
+ return {kg,buy,log,proc,nakl,muka,otr,much,oth,rev,cost,prof,be,beM,
+  perKg:prof/kg, perT:prof/c.t, marg:rev?prof/rev*100:0};
+}
+
+/* ====== ПУЛЬТ ====== */
+SC.dash=()=>{
+ const r=calcAll(C);
+ return `${head('Пульт собственника','Три филиала, переработка, маржа и задачи — на одном экране. Открывается с телефона: вы сказали, что хотите видеть результат, а не искать его по документам.',
+  '<button class="bt p" onclick="go(\'calc\')">Калькулятор партии →</button><button class="bt" onclick="go(\'tasks\')">Задачи</button>')}
+ <div class="wid">
+  <div><small>Реализация за месяц</small><b class="a">${mln(F.revenue)} ₸</b><span>три филиала</span></div>
+  <div><small>Переработано</small><b>${fmt(F.grind)} т</b><span>${F.dayT} т в сутки</span></div>
+  <div><small>Валовая маржа</small><b class="g">${mln(F.margin)} ₸</b><span>${pct(F.margin,F.revenue)} от выручки</span></div>
+  <div><small>Зерно на складах</small><b class="i">${fmt(F.stockT)} т</b><span>на ${num(F.stockT/F.dayT)} ${plural(Math.round(F.stockT/F.dayT),['день','дня','дней'])} помола</span></div>
+  <div><small>Задачи</small><b class="w">${TASKS.filter(t=>t.st!=='ok').length}</b><span>${TASKS.filter(t=>t.st==='late').length} просрочено</span></div>
+ </div>
+ <div class="g21">
+  <div class="pan"><h3>Партии в работе</h3><p>Каждая партия зерна — от закупа до реализации, с плановой и фактической маржой.</p>
+   <div class="tw" style="border:0"><table class="t">
+    <thead><tr><th>Партия</th><th>Откуда</th><th class="r">Тонн</th><th class="r">Закуп</th><th>Филиал</th><th>Стадия</th><th class="r">Маржа план</th><th class="r">Факт</th></tr></thead>
+    <tbody>${DEAL.map(d=>`<tr onclick="openDeal('${d.id}')">
+     <td class="mono"><b>${esc(d.id)}</b></td><td class="sub2">${esc(d.from)}</td>
+     <td class="r">${d.t}</td><td class="r">${d.buy} ₸/кг</td><td>${esc(d.br)}</td>
+     <td><span class="tag ${d.st==='Продано'?'g':d.st==='В помоле'?'b':d.st==='В пути'?'a':'w'}">${esc(d.st)}</span></td>
+     <td class="r">${fmt(d.plan)} ₸</td>
+     <td class="r">${d.fact?`<b style="color:${d.fact>=d.plan?'var(--ok)':'var(--warn)'}">${fmt(d.fact)} ₸</b>`:'<span class="sub2">—</span>'}</td></tr>`).join('')}</tbody>
+   </table></div>
+   <div class="note" style="--tone:var(--brand)"><b>План и факт по каждому вагону</b>
+    <p>Калькулятор считает маржу до сделки, а система потом показывает, сколько получилось на самом деле. По партии П-2609 план был 1 066 740 ₸, вышло 1 013 200 ₸ — разница в логистике и в фактическом выходе муки. Через три месяца ваш калькулятор считает точнее любого опыта.</p></div>
+   <h3 style="margin-top:16px">Что требует решения сегодня</h3>
+   <div class="li b"><i>!</i><span><b>Сеть «Береке» просрочила 6,1 млн ₸ на 34 дня</b><span class="sub">задача Айгуль просрочена · новые отгрузки заблокированы</span></span></div>
+   <div class="li w"><i>!</i><span><b>Оплата кредита — до 18 сентября</b><span class="sub">задача бухгалтеру в работе, чек ещё не приложен</span></span></div>
+   <div class="li w"><i>!</i><span><b>Партия П-2621 по 88 ₸/кг даёт маржу вдвое ниже обычной</b><span class="sub">калькулятор предупредил до покупки — решение за вами</span></span></div>
+   <div class="li"><i>✓</i><span>Контракт «Андижон Нон» на 60 т в месяц — на согласовании у Азиза</span></div>
+  </div>
+  <div>
+   <div class="pan"><h3>Выход с тонны зерна</h3><p>Ваши цифры: 72 / 23 / 3 / 2.</p>
+    <div class="yld">${Y.map(y=>`<div style="width:${y[1]}%;background:${y[2]}" title="${esc(y[0])} ${y[1]}%">${y[1]>=7?y[1]+'%':''}${y[1]>=14?`<small>${esc(y[0])}</small>`:''}</div>`).join('')}</div>
+    <div class="yld-l">${Y.map(y=>`<span><i style="background:${y[2]}"></i>${esc(y[0])} ${y[1]}%</span>`).join('')}</div>
+    <div class="kv" style="margin-top:10px"><span>Из вагона 69 т выходит муки</span><b>${num(69*0.72)} т</b></div>
+    <div class="kv"><span>Отрубей</span><b>${num(69*0.23)} т</b></div>
+    <div class="kv"><span>Мучки</span><b>${num(69*0.03)} т</b></div>
+    <div class="kv"><span>Отхода</span><b>${num(69*0.02)} т</b></div>
+    <div class="hint">Проценты выхода вы задаёте сами и меняете под каждое зерно: из пшеницы с клейковиной 21 муки высшего сорта выйдет меньше, и калькулятор это учтёт.</div>
+   </div>
+   <div class="pan"><h3>Деньги</h3>
+    <div class="kv"><span>Реализация за месяц</span><b>${mln(F.revenue)} ₸</b></div>
+    <div class="kv"><span>Закуп зерна</span><b>${mln(262000000)} ₸</b></div>
+    <div class="kv"><span>Логистика</span><b>${mln(54000000)} ₸</b></div>
+    <div class="kv"><span>Переработка и упаковка</span><b>${mln(33000000)} ₸</b></div>
+    <div class="kv"><span>Дебиторка покупателей</span><b style="color:var(--warn)">${mln(F.debt)} ₸</b></div>
+    <div class="kv"><span>Кредиторская задолженность</span><b style="color:var(--bad)">${mln(F.kred)} ₸</b></div>
+    <div class="kv"><span>Маржа на тонну зерна</span><b style="color:var(--ok)">${fmt(F.margin/F.grind)} ₸</b></div>
+   </div>
+  </div>
+ </div>`;
+};
+
+/* ====== АНАЛИТИКА ====== */
+SC.analytics=()=>`${head('Аналитика','Где вы зарабатываете, а где только крутите деньги. По филиалам, по продукции, по поставщикам и по покупателям — из тех же данных, которыми вы работаете.',
+ '<button class="bt" onclick="toast(\'Любой отчёт выгружается в Excel и ставится на расписание: приходит вам в WhatsApp утром в понедельник, без запроса.\')">Выгрузить</button>')}
+ <div class="wid">
+  <div><small>Маржа за месяц</small><b class="g">${mln(F.margin)} ₸</b><span>${pct(F.margin,F.revenue)} от выручки</span></div>
+  <div><small>Маржа на тонну</small><b>${fmt(F.margin/F.grind)} ₸</b><span>при закупе 78 ₸/кг</span></div>
+  <div><small>Лучший филиал</small><b class="a" style="font-size:16px">Шымкент</b><span>${pct(18600000,172000000)} маржи</span></div>
+  <div><small>Простои мельниц</small><b class="w">64 ч</b><span>за месяц по трём линиям</span></div>
+  <div><small>Отклонение выхода</small><b class="r">−1,4%</b><span>факт против нормы 72%</span></div>
+ </div>
+ <div class="g2">
+  <div class="pan"><h3>Маржа по филиалам</h3>
+   ${BR.map(b=>`<div class="fr"><span>${esc(b.n)} <span class="sub2">${esc(b.c)}</span></span>
+    <div class="bar" style="--w:${b.marg/b.rev*100/12*100}%"><i class="${b.marg/b.rev>0.1?'g':'w'}"></i></div>
+    <b>${mln(b.marg)} ₸ · ${pct(b.marg,b.rev)}</b></div>`).join('')}
+   <div class="kv" style="margin-top:10px"><span>Переработано всего</span><b>${fmt(BR.reduce((a,b)=>a+b.t,0))} т</b></div>
+   <div class="kv"><span>Выручка всего</span><b>${mln(BR.reduce((a,b)=>a+b.rev,0))} ₸</b></div>
+   <div class="kv"><span>Маржа всего</span><b>${mln(BR.reduce((a,b)=>a+b.marg,0))} ₸</b></div>
+   <div class="note" style="--tone:var(--bad)"><b>Андижан работает в минус по марже</b>
+    <p>7,4% против 11% у остальных: новый контракт, дорогая логистика через границу и низкая загрузка линии. Это видно на второй месяц работы системы, а не через год по итогам баланса.</p></div>
+  </div>
+  <div class="pan"><h3>Что приносит деньги</h3><p>Маржа по видам продукции за месяц.</p>
+   ${[['Мука высший сорт',18400000,'g'],['Мука 1 сорт',15900000,'g'],['Отруби',5100000,'b'],['Мука 2 сорт',1900000,'a'],['Мучка',500000,'']].map(x=>
+    `<div class="fr"><span>${esc(x[0])}</span><div class="bar" style="--w:${x[1]/18400000*100}%"><i class="${x[2]}"></i></div><b>${mln(x[1])} ₸</b></div>`).join('')}
+   <div class="hint">Отруби кажутся побочным продуктом, но дают 5,1 млн ₸ маржи в месяц — больше, чем мука второго сорта. С птицефабриками имеет смысл заключать годовой контракт, а не продавать по случаю.</div>
+  </div>
+ </div>
+ <div class="pan"><h3>Цена закупа и маржа: связь, которую видно только в цифрах</h3>
+  <p>Каждая точка — реальная партия. Видно, при какой цене зерна бизнес перестаёт зарабатывать.</p>
+  <div class="tw" style="border:0"><table class="t">
+   <thead><tr><th>Цена закупа</th><th class="r">Партий</th><th class="r">Средняя маржа с тонны</th><th style="width:220px">Уровень</th><th>Вывод</th></tr></thead>
+   <tbody>
+   ${[[74,3,21400],[78,6,15500],[82,5,9800],[86,2,3900],[90,1,-1800]].map(r=>`<tr>
+    <td><b>${r[0]} ₸/кг</b></td><td class="r">${r[1]}</td><td class="r"><b style="color:${r[2]>0?'var(--ok)':'var(--bad)'}">${fmt(r[2])} ₸</b></td>
+    <td><div class="bar" style="--w:${Math.max(r[2],0)/21400*100}%"><i class="${r[2]>12000?'g':r[2]>0?'w':'r'}"></i></div></td>
+    <td class="sub2">${r[2]>12000?'работаем':r[2]>0?'на грани':'в минус — не берём'}</td></tr>`).join('')}
+   </tbody></table></div>
+  <div class="note" style="--tone:var(--acc)"><b>Порог закупа — 86,9 ₸ за килограмм</b>
+   <p>При текущих ценах реализации и расходах выше этой цены партия перестаёт приносить деньги. Система считает этот порог заново каждый раз, когда меняется цена муки или тариф на перевозку — и показывает его снабженцу прямо в момент разговора с хозяйством.</p></div>
+ </div>`;
+
+/* ====== КАЛЬКУЛЯТОР ПАРТИИ ====== */
+const CF=[
+ ['t','Объём партии','т',1,'вагон 69 т, фура 20–25 т'],
+ ['buy','Цена закупа зерна','₸/кг',0.5,'у хозяйства или на элеваторе'],
+ ['log1','Доставка от хозяйства до элеватора','₸/т',100,'машины хозяйства или наёмные'],
+ ['log2','Перевозка до мельницы','₸/т',200,'вагон или фура, с учётом простоя'],
+ ['log3','Погрузка, приёмка, хранение','₸/т',100,'элеватор, весовая, лаборатория'],
+ ['proc','Переработка','₸/т',200,'электроэнергия, зарплата смены, амортизация'],
+ ['pack','Упаковка и фасовка','₸/т',100,'мешки, нитки, поддоны'],
+ ['nakl','Накладные и налоги','% от выручки',0.5,'аренда, управление, банк, налоги']
+];
+const CY=[['yMuka','Мука','%'],['yOtr','Отруби','%'],['yMuchka','Мучка','%'],['yOthod','Отход','%']];
+const CP=[['pMuka','Цена муки','₸/кг'],['pOtr','Цена отрубей','₸/кг'],['pMuchka','Цена мучки','₸/кг']];
+
+SC.calc=()=>`${head('Калькулятор партии','Вы описали его дословно: «закуп — логистика — погрузка — приёмка — переработка на мельнице — готовая продукция — реализация — сколько маржи». Забиваете цифры, программа считает результат сама.',
+ '<button class="bt p" onclick="calcPreset(\'meet\')">Ваш пример со встречи</button><button class="bt" onclick="calcPreset(\'base\')">Текущая закупка</button>')}
+ <div class="calc">
+  <div>
+   <div class="pan"><h3>Закуп и логистика</h3><p>Все статьи расходов, которые вы называли. Список меняется под вас: можно добавить экспедитора, страховку, простой вагона, комиссию.</p>
+    ${CF.slice(0,5).map(f=>`<div class="fld"><label>${esc(f[1])}<span class="sub">${esc(f[4])}</span></label>
+     <input type="number" step="${f[3]}" value="${C[f[0]]}" oninput="calcSet('${f[0]}',this.value)"><u>${esc(f[2])}</u></div>`).join('')}
+   </div>
+   <div class="pan"><h3>Переработка</h3>
+    ${CF.slice(5).map(f=>`<div class="fld"><label>${esc(f[1])}<span class="sub">${esc(f[4])}</span></label>
+     <input type="number" step="${f[3]}" value="${C[f[0]]}" oninput="calcSet('${f[0]}',this.value)"><u>${esc(f[2])}</u></div>`).join('')}
+   </div>
+   <div class="pan"><h3>Выход продукции</h3><p>Ваши цифры со встречи: 72 / 23 / 3 / 2. Под каждое зерно можно поставить свои.</p>
+    ${CY.map(f=>`<div class="fld"><label>${esc(f[1])}</label>
+     <input type="number" step="0.5" value="${C[f[0]]}" oninput="calcSet('${f[0]}',this.value)"><u>${esc(f[2])}</u></div>`).join('')}
+    <div id="ysum"></div>
+   </div>
+   <div class="pan"><h3>Цены реализации</h3>
+    ${CP.map(f=>`<div class="fld"><label>${esc(f[1])}</label>
+     <input type="number" step="1" value="${C[f[0]]}" oninput="calcSet('${f[0]}',this.value)"><u>${esc(f[2])}</u></div>`).join('')}
+    <div class="mini">Мешок 50 кг по 7 000 ₸ — это 140 ₸ за килограмм. Калькулятор умеет считать и в мешках, и в тоннах.</div>
+   </div>
+  </div>
+  <div id="cres"></div>
+ </div>`;
+
+function calcRes(){
+ const r=calcAll(C),ys=C.yMuka+C.yOtr+C.yMuchka+C.yOthod;
+ const Yn=[['Мука',C.yMuka,'#c9911f'],['Отруби',C.yOtr,'#8a6a3a'],['Мучка',C.yMuchka,'#b9ae95'],['Отход',C.yOthod,'#d6d0c2']];
+ return `<div class="pan" style="position:sticky;top:0"><h3>Что получается</h3><p>Пересчитывается в момент ввода — ничего нажимать не нужно.</p>
+  <div class="yld">${Yn.map(y=>y[1]>0?`<div style="width:${y[1]/ys*100}%;background:${y[2]}" title="${esc(y[0])} ${num(y[1])}%">${y[1]/ys*100>=7?num(y[1])+'%':''}${y[1]/ys*100>=14?`<small>${esc(y[0])}</small>`:''}</div>`:'').join('')}</div>
+  <div class="yld-l">${Yn.map(y=>`<span><i style="background:${y[2]}"></i>${esc(y[0])} ${num(C.t*10*y[1])} кг</span>`).join('')}</div>
+  ${ys!==100?`<div class="note" style="--tone:var(--bad)"><b>Сумма выходов ${num(ys)}%</b><p>Должно быть 100%. Система не даст сохранить расчёт с неверными процентами — это защита от ошибки, из-за которой вся маржа считается неправильно.</p></div>`:''}
+  <div class="res" style="margin-top:12px">
+   <div class="rr"><span>Стоимость зерна · ${num(C.t)} т по ${num2(C.buy)} ₸/кг</span><b>${fmt(r.buy)} ₸</b></div>
+   <div class="rr"><span>Логистика · ${fmt(C.log1+C.log2+C.log3)} ₸/т</span><b>${fmt(r.log)} ₸</b></div>
+   <div class="rr"><span>Переработка и упаковка · ${fmt(C.proc+C.pack)} ₸/т</span><b>${fmt(r.proc)} ₸</b></div>
+   <div class="rr"><span>Накладные и налоги · ${num(C.nakl)}%</span><b>${fmt(r.nakl)} ₸</b></div>
+   <div class="rr"><span><b>Полная себестоимость</b></span><b>${fmt(r.cost)} ₸</b></div>
+  </div>
+  <div class="res" style="margin-top:10px">
+   <div class="rr"><span>Мука · ${num(r.muka/1000)} т по ${num(C.pMuka)} ₸</span><b>${fmt(r.muka*C.pMuka)} ₸</b></div>
+   <div class="rr"><span>Отруби · ${num(r.otr/1000)} т по ${num(C.pOtr)} ₸</span><b>${fmt(r.otr*C.pOtr)} ₸</b></div>
+   <div class="rr"><span>Мучка · ${num(r.much/1000)} т по ${num(C.pMuchka)} ₸</span><b>${fmt(r.much*C.pMuchka)} ₸</b></div>
+   <div class="rr"><span><b>Выручка с партии</b></span><b>${fmt(r.rev)} ₸</b></div>
+   <div class="rr hi" style="background:${r.prof>=0?'var(--ok-l)':'var(--bad-l)'};color:${r.prof>=0?'var(--ok)':'var(--bad)'}">
+    <span>${r.prof>=0?'Чистая прибыль с партии':'Убыток с партии'}</span><b>${fmt(r.prof)} ₸</b></div>
+  </div>
+  <div class="wid" style="grid-template-columns:repeat(2,1fr);margin-top:12px">
+   <div><small>На килограмм зерна</small><b class="${r.perKg>=0?'g':'r'}">${num2(r.perKg)} ₸</b><span>маржинальность ${num(r.marg)}%</span></div>
+   <div><small>На тонну</small><b class="${r.perT>=0?'g':'r'}">${fmt(r.perT)} ₸</b><span>${num(C.t)} т в партии</span></div>
+  </div>
+  <div class="pan" style="margin:12px 0 0;box-shadow:none"><h3>Пороги, после которых партия не нужна</h3>
+   <div class="kv"><span>Максимальная цена закупа</span><b style="color:${C.buy<=r.be?'var(--ok)':'var(--bad)'}">${num2(r.be)} ₸/кг</b></div>
+   <div class="kv"><span>Минимальная цена муки</span><b style="color:${C.pMuka>=r.beM?'var(--ok)':'var(--bad)'}">${num2(r.beM)} ₸/кг · ${fmt(r.beM*50)} ₸ за мешок 50 кг</b></div>
+   <div class="kv"><span>Запас по цене зерна</span><b style="color:${r.be-C.buy>=0?'var(--ok)':'var(--bad)'}">${num2(r.be-C.buy)} ₸/кг</b></div>
+   <div class="mini" style="margin-top:8px">Эти два числа — главное, что нужно снабженцу в момент разговора с хозяйством. Он видит их на телефоне и называет цену, а не обещает «перезвонить, посчитаю».</div>
+  </div>
+  <div class="btns" style="margin-top:12px">
+   <button class="bt p" onclick="calcSave()">Сохранить как партию</button>
+   <button class="bt" onclick="toast('Расчёт ушёл в WhatsApp одним сообщением: объём, цена закупа, логистика, выход, выручка и прибыль. Так его видит директор филиала или партнёр — без доступа в систему.')">Отправить в WhatsApp</button>
+  </div>
+  ${C.buy>=100?`<div class="note" style="--tone:var(--brand)"><b>Это ваш пример со встречи</b>
+   <p>Зерно по ${num(C.buy)} ₸ за килограмм и мука по ${fmt(C.pMuka*50)} ₸ за мешок 50 кг. При таких цифрах и текущей логистике партия даёт ${r.prof>=0?'прибыль '+fmt(r.prof)+' ₸':'убыток '+fmt(-r.prof)+' ₸'}. Цифры логистики и переработки здесь — наши предположения; вы назовёте свои, и картинка изменится. Но считать это должна программа до покупки вагона, а не бухгалтер через месяц после.</p></div>`:''}
+ </div>`;
+}
+function paintCalc(){const el=document.getElementById('cres');if(el)el.innerHTML=calcRes()}
+function calcSet(k,v){C[k]=parseFloat(String(v).replace(',','.'))||0;paintCalc()}
+function calcPreset(k){C=Object.assign({},k==='meet'?CMEET:C0);render();
+ toast(k==='meet'?'Подставлены ваши цифры со встречи: закуп 100 ₸/кг, мука 7 000 ₸ за мешок 50 кг, выход 72 / 23 / 3 / 2.':'Подставлены параметры текущей закупки: зерно 78 ₸/кг, мука 148 ₸/кг.')}
+function calcSave(){const r=calcAll(C);
+ DEAL.unshift({id:'П-'+(2622+DEAL.length),from:'Новая партия · уточняется',t:C.t,buy:C.buy,sell:C.pMuka,
+  st:'Расчёт',br:'Бишкек',plan:Math.round(r.prof),fact:0,d:'15.09'});
+ sparks(14);
+ toast(`Партия сохранена с плановой прибылью <b>${fmt(r.prof)} ₸</b>. Дальше система сама сравнит план с фактом: по приёмке, по выходу муки и по реальной цене продажи.`)}
+
+/* ====== ПАРТИИ И СДЕЛКИ ====== */
+SC.deals=()=>{
+ const done=DEAL.filter(d=>d.fact);
+ return `${head('Партии и сделки','История всех расчётов и того, чем они закончились. Через три месяца это и есть ваша настоящая себестоимость — не по ощущению, а по фактам.',
+  '<button class="bt p" onclick="go(\'calc\')">Новый расчёт →</button>')}
+ <div class="wid" style="grid-template-columns:repeat(4,1fr)">
+  <div><small>Партий в работе</small><b class="a">${DEAL.filter(d=>!d.fact).length}</b><span>из ${DEAL.length} за месяц</span></div>
+  <div><small>Плановая маржа</small><b>${mln(DEAL.reduce((a,d)=>a+d.plan,0))} ₸</b><span>по всем партиям</span></div>
+  <div><small>Факт по закрытым</small><b class="g">${mln(done.reduce((a,d)=>a+d.fact,0))} ₸</b><span>план был ${mln(done.reduce((a,d)=>a+d.plan,0))} ₸</span></div>
+  <div><small>Точность расчёта</small><b class="i">${num(done.reduce((a,d)=>a+d.fact,0)/done.reduce((a,d)=>a+d.plan,0)*100)}%</b><span>факт к плану</span></div>
+ </div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>Партия</th><th>Поставщик</th><th class="r">Тонн</th><th class="r">Закуп</th><th class="r">Мука</th><th>Филиал</th><th>Стадия</th><th class="r">План</th><th class="r">Факт</th></tr></thead>
+  <tbody>${DEAL.map(d=>`<tr onclick="openDeal('${d.id}')">
+   <td class="mono"><b>${esc(d.id)}</b><span class="sub">${esc(d.d)}</span></td>
+   <td>${esc(d.from)}</td><td class="r">${d.t}</td>
+   <td class="r">${d.buy} ₸/кг</td><td class="r">${d.sell} ₸/кг</td>
+   <td>${esc(d.br)}</td>
+   <td><span class="tag ${d.st==='Продано'?'g':d.st==='В помоле'?'b':d.st==='В пути'?'a':'w'}">${esc(d.st)}</span></td>
+   <td class="r">${fmt(d.plan)} ₸</td>
+   <td class="r">${d.fact?`<b style="color:${d.fact>=d.plan?'var(--ok)':'var(--warn)'}">${fmt(d.fact)} ₸</b>`:'—'}</td></tr>`).join('')}</tbody>
+ </table></div>
+ <div class="g2">
+  <div class="pan"><h3>Почему факт отличается от плана</h3>
+   <div class="li w"><i>1</i><span><b>Фактический выход муки ниже расчётного</b><span class="sub">72% по норме, 70,6% по факту — зерно оказалось влажнее, чем в документах поставщика</span></span></div>
+   <div class="li w"><i>2</i><span><b>Простой вагона</b><span class="sub">2 суток на станции — 46 000 ₸ сверх тарифа, которые обычно нигде не учитываются</span></span></div>
+   <div class="li w"><i>3</i><span><b>Часть муки продана со скидкой</b><span class="sub">145 ₸ вместо 148 ₸ — крупному покупателю, решение менеджера</span></span></div>
+   <div class="li"><i>✓</i><span><b>Отруби продались дороже плана</b><span class="sub">51 ₸ вместо 48 ₸ — птицефабрика забрала весь объём сразу</span></span></div>
+   <div class="hint">Именно из этих отклонений собирается точный калькулятор. Через три месяца он будет ошибаться на 2–3%, и вы сможете принимать решение по вагону за минуту.</div>
+  </div>
+  <div class="pan"><h3>Сравнение поставщиков</h3><p>Кто на самом деле выгоднее с учётом качества зерна и логистики.</p>
+   ${[['ТОО «Северное зерно»',2,13900,'g'],['КХ «Тобол»',3,14700,'g'],['Элеватор Тайынша',4,12000,'b'],['КХ «Дала»',1,5500,'w']].map(x=>
+    `<div class="fr"><span>${esc(x[0])} <span class="sub2">${x[1]} ${plural(x[1],['партия','партии','партий'])}</span></span>
+     <div class="bar" style="--w:${x[2]/14700*100}%"><i class="${x[3]}"></i></div><b>${fmt(x[2])} ₸/т маржи</b></div>`).join('')}
+   <div class="note" style="--tone:var(--acc)"><b>Дешевле не значит выгоднее</b>
+    <p>«Дала» продаёт зерно на 2 ₸ дешевле, но клейковина ниже, выход муки высшего сорта падает — и маржа с тонны получается вдвое меньше. Без учёта по партиям это невидимо: в тетради записана только цена закупа.</p></div>
+  </div>
+ </div>`;
+};
+function openDeal(id){const d=DEAL.find(x=>x.id===id);if(!d)return;
+ const c=Object.assign({},C0,{t:d.t,buy:d.buy,pMuka:d.sell}),r=calcAll(c);
+ openM(`Партия ${esc(d.id)}`,`${esc(d.from)} · ${d.t} т · закуп ${d.buy} ₸/кг · филиал ${esc(d.br)}`,`
+ <div class="wid" style="grid-template-columns:repeat(3,1fr)">
+  <div><small>Плановая прибыль</small><b class="a">${fmt(d.plan)} ₸</b><span>${fmt(d.plan/d.t)} ₸ с тонны</span></div>
+  <div><small>Фактическая</small><b class="${d.fact?(d.fact>=d.plan?'g':'w'):''}">${d.fact?fmt(d.fact)+' ₸':'ещё в работе'}</b><span>${d.fact?(d.fact>=d.plan?'лучше плана':'ниже плана на '+fmt(d.plan-d.fact)+' ₸'):esc(d.st)}</span></div>
+  <div><small>Выход муки</small><b>${num(d.t*0.72)} т</b><span>отрубей ${num(d.t*0.23)} т</span></div>
+ </div>
+ <div class="pan"><h3>Расчёт по партии</h3>
+  <div class="kv"><span>Зерно</span><b>${fmt(r.buy)} ₸</b></div>
+  <div class="kv"><span>Логистика</span><b>${fmt(r.log)} ₸</b></div>
+  <div class="kv"><span>Переработка и упаковка</span><b>${fmt(r.proc)} ₸</b></div>
+  <div class="kv"><span>Накладные</span><b>${fmt(r.nakl)} ₸</b></div>
+  <div class="kv"><span>Выручка</span><b>${fmt(r.rev)} ₸</b></div>
+  <div class="kv"><span><b>Прибыль</b></span><b style="color:var(--ok)">${fmt(r.prof)} ₸ · ${num(r.marg)}%</b></div>
+ </div>
+ <div class="pan"><h3>Движение партии</h3>
+  <div class="tl">
+   <div class="tli ok"><span class="who">ЗАКУП · МАРАТ</span><b>Договорились с поставщиком</b><p>Цена ${d.buy} ₸/кг зафиксирована, расчёт сохранён в системе до оплаты.</p></div>
+   <div class="tli ok"><span class="who">ЛОГИСТИКА</span><b>Погрузка и отправка</b><p>Вагон опломбирован, документы прикреплены к партии — не лежат в папке у экспедитора.</p></div>
+   <div class="tli ${['В помоле','Продано'].includes(d.st)?'ok':'on'}"><span class="who">ПРИЁМКА · ЛАБОРАТОРИЯ</span><b>Взвешивание и анализ</b><p>Фактический вес и качество: клейковина, влажность, натура. Если хуже документов — расчёт пересчитывается сразу.</p></div>
+   <div class="tli ${d.st==='Продано'?'ok':''}"><span class="who">МЕЛЬНИЦА · БАКЫТ</span><b>Помол</b><p>Фактический выход по каждому продукту фиксируется по смене.</p></div>
+   <div class="tli ${d.st==='Продано'?'ok':''}"><span class="who">ПРОДАЖИ</span><b>Реализация</b><p>Отгрузки по этой партии, фактические цены, итоговая маржа.</p></div>
+  </div>
+ </div>
+ <div class="btns"><button class="bt p" onclick="closeM();go('calc')">Пересчитать в калькуляторе</button>
+  <button class="bt" onclick="closeM();go('cycle')">Цикл партии</button></div>`)}
+
+/* ====== ЦЕНЫ И РЫНОК ====== */
+SC.prices=()=>`${head('Цены и рынок','История закупочных и отпускных цен. Чтобы решение «брать вагон или подождать» принималось по цифрам, а не по слухам на рынке.',
+ '<button class="bt" onclick="toast(\'Цены вносит снабженец с телефона за 10 секунд — или они подтягиваются из ваших же сделок автоматически.\')">Как ведётся</button>')}
+ <div class="wid" style="grid-template-columns:repeat(4,1fr)">
+  <div><small>Пшеница 3 класс сегодня</small><b class="a">78 ₸/кг</b><span>Костанай, на элеваторе</span></div>
+  <div><small>Изменение за месяц</small><b class="w">+6 ₸</b><span>+8,3%</span></div>
+  <div><small>Мука 1 сорт</small><b>148 ₸/кг</b><span>7 400 ₸ за мешок 50 кг</span></div>
+  <div><small>Запас по марже</small><b class="g">8,9 ₸/кг</b><span>до порога 86,9 ₸</span></div>
+ </div>
+ <div class="g2">
+  <div class="pan"><h3>Закуп зерна по регионам</h3>
+   ${[['Костанай · 3 класс',78,'g'],['Кокшетау · 3 класс',76,'g'],['Тайынша · 3 класс',83,'w'],['Петропавловск · 4 класс',71,'g'],['Местное · Чуйская долина',92,'r']].map(x=>
+    `<div class="fr"><span>${esc(x[0])}</span><div class="bar" style="--w:${x[1]/92*100}%"><i class="${x[2]}"></i></div><b>${x[1]} ₸/кг</b></div>`).join('')}
+   <div class="note" style="--tone:var(--acc)"><b>Разница в 21 ₸ за килограмм</b>
+    <p>На вагоне 69 т это 1,4 млн ₸. Но местное зерно не нужно везти — логистика съедает часть разницы. Именно поэтому решение принимается в калькуляторе целиком, а не по одной цене закупа.</p></div>
+  </div>
+  <div class="pan"><h3>Отпускные цены по филиалам</h3>
+   <div class="tw" style="border:0"><table class="t">
+    <thead><tr><th>Продукт</th><th class="r">Бишкек</th><th class="r">Шымкент</th><th class="r">Андижан</th></tr></thead>
+    <tbody>
+    ${[['Мука высший сорт',152,154,161],['Мука 1 сорт',146,148,156],['Мука 2 сорт',128,132,138],['Отруби',48,46,52],['Мучка',32,30,34]].map(r=>
+     `<tr><td><b>${esc(r[0])}</b></td><td class="r">${r[1]} ₸</td><td class="r">${r[2]} ₸</td><td class="r"><b style="color:var(--ok)">${r[3]} ₸</b></td></tr>`).join('')}
+    </tbody></table></div>
+   <div class="hint">В Андижане цена выше, но логистика через границу и НДС съедают разницу. Калькулятор считает по каждому направлению отдельно — и показывает, куда партию выгоднее везти прямо сейчас.</div>
+  </div>
+ </div>
+ <div class="pan"><h3>Динамика за полгода</h3><p>Синий — закуп зерна, оранжевый — мука 1 сорт. Когда линии сходятся, маржа исчезает.</p>
+  <div class="plan">${[['апр',68,140],['май',70,142],['июн',73,143],['июл',69,141],['авг',72,144],['сен',78,148]].map((m,i)=>
+   `<div class="${i===5?'hi':''}"><u>${m[1]}</u><i style="height:${m[1]/92*100}%"></i></div>`).join('')}
+   ${[['апр',140],['май',142],['июн',143],['июл',141],['авг',144],['сен',148]].map((m,i)=>
+   `<div><u>${m[1]}</u><i style="height:${m[1]/165*100}%;background:var(--brand)"></i></div>`).join('')}</div>
+  <div class="plan-l">${['апр','май','июн','июл','авг','сен','апр','май','июн','июл','авг','сен'].map(m=>`<span>${m}</span>`).join('')}</div>
+  <div class="note" style="--tone:var(--warn)"><b>Зерно за полгода подорожало на 15%, мука — на 5,7%</b>
+   <p>Маржа с тонны сжалась почти вдвое, и это происходит незаметно: каждая отдельная сделка выглядит нормально. Видно только на графике — и только если цены где-то записаны.</p></div>
+ </div>`;
+
+/* ====== ЗАЯВКИ ====== */
+SC.inbox=()=>{
+ const L=LEADS.filter(l=>!fMine||l.mg===ROLES[role].n);
+ return `${head('Заявки покупателей','Пекарни, оптовики, магазины, птицефабрики — все обращения в одном списке, с филиалом и суммой. Ни одна не живёт только в телефоне менеджера.',
+  `<button class="bt ${fMine?'':'p'}" onclick="setMine(false)">Все</button><button class="bt ${fMine?'p':''}" onclick="setMine(true)">Мои</button><button class="bt p" onclick="addLead()">+ Заявка</button>`)}
+ <div class="wid">
+  <div><small>Новых без ответа</small><b class="a">${L.filter(l=>l.s==='new').length}</b><span>самая старая — 41 минута</span></div>
+  <div><small>В работе</small><b>${L.filter(l=>l.s!=='ship').length}</b><span>на ${mln(L.filter(l=>l.s!=='ship').reduce((a,l)=>a+l.sum,0))} ₸</span></div>
+  <div><small>Средний чек</small><b>${fmt(L.reduce((a,l)=>a+l.sum,0)/L.length)} ₸</b><span>по заявкам месяца</span></div>
+  <div><small>Постоянные покупатели</small><b class="g">61%</b><span>берут каждый месяц</span></div>
+  <div><small>Законтрактовано</small><b class="i">185 т</b><span>муки на октябрь</span></div>
+ </div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>№</th><th>Покупатель</th><th>Что нужно</th><th>Филиал</th><th>Канал</th><th>Менеджер</th><th class="r">Сумма</th><th>Этап</th><th></th></tr></thead>
+  <tbody>${L.map(l=>`<tr onclick="openLead(${l.id})">
+   <td class="mono sub2">${l.id}</td>
+   <td><b>${esc(l.c)}</b><span class="sub">${esc(l.ph)}</span></td>
+   <td>${esc(l.it)}</td><td class="sub2">${esc(l.br)}</td>
+   <td><span class="tag ${l.ch==='Контракт'?'g':l.ch==='Instagram'?'b':'a'}">${esc(l.ch)}</span></td>
+   <td>${avatar(l.mg)}</td>
+   <td class="r">${fmt(l.sum)} ₸</td>
+   <td><span class="tag" style="background:${STC[l.s]}1f;color:${STC[l.s]}">${esc(STN[l.s])}</span></td>
+   <td class="r">${l.t?`<span class="tag ${l.hot?'r':''}">${esc(l.t)}</span>`:''}</td></tr>`).join('')}</tbody>
+ </table></div>
+ <div class="note" style="--tone:var(--brand)"><b>Цена покупателю считается из той же партии</b>
+  <p>Менеджер не назначает цену «по прайсу из головы»: система знает, по какой цене куплено зерно в этой партии и какая нужна маржа. Если покупатель просит скидку, видно, до какой цены можно опуститься и где начинается работа в ноль.</p></div>`;
+};
+function setMine(v){fMine=v;render();toast(v?`Фильтр «Мои» — только заявки, где менеджер ${ROLES[role].n}.`:'Показаны все заявки.')}
+function searchDemo(q){if(!q)return;
+ const l=LEADS.find(x=>[String(x.id),x.c,x.it,x.br,x.ph].join(' ').toLowerCase().includes(q.toLowerCase()));
+ if(l){openLead(l.id);return}
+ const d=DEAL.find(x=>(x.id+' '+x.from).toLowerCase().includes(q.toLowerCase()));
+ if(d){openDeal(d.id);return}
+ toast(`Поиск идёт по партиям, вагонам, покупателям и задачам сразу. В демо заведено ${LEADS.length} заявок и ${DEAL.length} партий — попробуйте «П-2612» или «Береке».`)}
+function addLead(){const l={id:seq++,c:'Новая заявка',ph:'—',it:'уточняется',s:'new',ch:'WhatsApp',mg:ROLES[role].n,sum:0,t:'0 мин',hot:0,br:'Бишкек'};
+ LEADS.unshift(l);if(!['inbox','funnel'].includes(cur))go('inbox');else render();
+ toast('Заявка создана. В жизни она появляется сама — из сообщения в WhatsApp, звонка или формы на сайте.')}
+
+/* ====== ВОРОНКА ====== */
+let dragId=null;
+SC.funnel=()=>{
+ const L=LEADS.filter(l=>!fMine||l.mg===ROLES[role].n);
+ return `${head('Воронка продаж','Шесть этапов от обращения до отгрузки. Карточка перетаскивается мышью — этап меняется вместе с задачами и сообщением покупателю.',
+  `<button class="bt ${fMine?'':'p'}" onclick="setMine(false)">Все</button><button class="bt ${fMine?'p':''}" onclick="setMine(true)">Мои</button>`)}
+ <div style="display:flex;justify-content:flex-end;font-size:11px;color:var(--muted);margin-bottom:7px">
+  ${L.length} ${plural(L.length,['заявка','заявки','заявок'])} на ${fmt(L.reduce((a,l)=>a+l.sum,0))} ₸</div>
+ <div class="pipe">${ST.map(s=>{const c=L.filter(l=>l.s===s[0]);
+  return `<div>
+   <div class="phead" style="background:${s[2]}">${esc(s[1])}</div>
+   <div class="pmeta"><span>${c.length} ${plural(c.length,['заявка','заявки','заявок'])}</span><b>${c.reduce((a,l)=>a+l.sum,0)?mln(c.reduce((a,l)=>a+l.sum,0))+' ₸':''}</b></div>
+   <div class="pbody" id="col-${s[0]}" ondragover="colOver(event,'${s[0]}')" ondragleave="colOut('${s[0]}')" ondrop="drop(event,'${s[0]}')">
+    ${c.map(l=>`<div class="pc" draggable="true" ondragstart="dragS(event,${l.id})" ondragend="dragE(event)" onclick="openLead(${l.id})">
+     <b>${esc(l.c)}</b><span class="pn">${esc(l.it)}</span>
+     <span class="pp">${fmt(l.sum)} ₸</span>
+     <span class="prow">${avatar(l.mg)}<span class="tag">${esc(l.br)}</span>${l.hot?'<span class="tag r">горит</span>':''}</span>
+    </div>`).join('')}
+   </div></div>`}).join('')}</div>
+ <div class="g2">
+  <div class="pan"><h3>Что происходит при переносе карточки</h3>
+   <div class="li n"><i>1</i><span><b>Расчёт цены</b><span class="sub">цена берётся из партии: известна себестоимость тонны муки и нужная маржа, менеджер видит нижнюю границу</span></span></div>
+   <div class="li n"><i>2</i><span><b>Согласование</b><span class="sub">скидка больше установленной уходит вам на подтверждение — в задачу, а не в устный разговор</span></span></div>
+   <div class="li b"><i>3</i><span><b>Ожидаем оплату</b><span class="sub">счёт сформирован, срок оплаты на контроле, при просрочке задача создаётся сама</span></span></div>
+   <div class="li"><i>4</i><span><b>Отгружено</b><span class="sub">списание со склада готовой продукции, накладная, фиксация фактической цены в партии</span></span></div>
+  </div>
+  <div class="pan"><h3>Контракты против разовых продаж</h3>
+   <div class="kv"><span>Продаж по контракту</span><b>62% объёма</b></div>
+   <div class="kv"><span>Разовых</span><b>38%</b></div>
+   <div class="kv"><span>Средняя маржа по контракту</span><b style="color:var(--ok)">11,4%</b></div>
+   <div class="kv"><span>Средняя маржа разовой</span><b style="color:var(--warn)">8,1%</b></div>
+   <div class="kv"><span>Просрочки по контрактам</span><b>реже в 3 раза</b></div>
+   <div class="hint">Контракт «Андижон Нон» на 60 т в месяц — это загрузка линии на треть и предсказуемая маржа. Система показывает, сколько ещё объёма нужно законтрактовать, чтобы мельница не работала вполсилы.</div>
+  </div>
+ </div>`;
+};
+function dragS(e,id){dragId=id;e.target.classList.add('drag');try{e.dataTransfer.setData('text/plain',String(id))}catch(x){}}
+function dragE(e){e.target.classList.remove('drag')}
+function colOver(e,k){e.preventDefault();const c=document.getElementById('col-'+k);if(c)c.classList.add('over')}
+function colOut(k){const c=document.getElementById('col-'+k);if(c)c.classList.remove('over')}
+function drop(e,k){e.preventDefault();colOut(k);const l=LEADS.find(x=>x.id===dragId);if(!l)return;
+ const was=l.s;l.s=k;render();
+ const M={talk:'Покупателю ушло сообщение: «Здравствуйте! Заявку получили, уточняю объём и сроки отгрузки».',
+  calc:'Цена рассчитана из себестоимости партии. Менеджер видит нижнюю границу, ниже которой продавать нельзя.',
+  appr:'Скидка выше лимита — ушла вам на согласование отдельной задачей.',
+  pay:'Счёт сформирован и отправлен. Срок оплаты на контроле, напоминание уйдёт за день.',
+  ship:'Отгружено: накладная сформирована, мука списана со склада, фактическая цена записана в партию.'};
+ toast(`<b>${esc(l.c)}</b> · ${esc(STN[was])} → ${esc(STN[k])}. ${M[k]||'Этап изменён.'}`);
+ if(k==='ship')sparks(16)}
+function openLead(id){const l=LEADS.find(x=>x.id===id);if(!l)return;
+ const cl=CLI.find(c=>c.n.replace(/[«»]/g,'')===l.c.replace(/[«»]/g,''))||CLI.find(c=>l.c.includes(c.n.split(' ')[1]||'###'));
+ openM(`Заявка № ${l.id} · ${esc(l.c)}`,`${esc(l.it)} · канал «${esc(l.ch)}» · филиал ${esc(l.br)}`,`
+ <div class="wid" style="grid-template-columns:repeat(3,1fr)">
+  <div><small>Сумма</small><b class="a">${fmt(l.sum)} ₸</b><span>${esc(l.it)}</span></div>
+  <div><small>Этап</small><b style="font-size:15px;color:${STC[l.s]}">${esc(STN[l.s])}</b><span>менеджер ${esc(l.mg)}</span></div>
+  <div><small>История</small><b>${cl?cl.ord:0}</b><span>${cl?'сделок на '+mln(cl.sum)+' ₸':'обращается впервые'}</span></div>
+ </div>
+ <div class="pan"><h3>Расчёт цены для покупателя</h3><p>Из фактической себестоимости партии, а не из прайса «по памяти».</p>
+  <div class="kv"><span>Себестоимость тонны муки</span><b>131 400 ₸</b></div>
+  <div class="kv"><span>Цена в заявке</span><b>148 000 ₸</b></div>
+  <div class="kv"><span>Маржа сделки</span><b style="color:var(--ok)">16 600 ₸ с тонны · 11,2%</b></div>
+  <div class="kv"><span>Нижняя граница для менеджера</span><b style="color:var(--warn)">139 000 ₸</b></div>
+  <div class="kv"><span>Ниже границы</span><b>только с вашим подтверждением</b></div>
+ </div>
+ ${cl?`<div class="pan"><h3>Покупатель</h3>
+  <div class="kv"><span>Сделок</span><b>${cl.ord}</b></div>
+  <div class="kv"><span>Куплено на</span><b>${mln(cl.sum)} ₸</b></div>
+  <div class="kv"><span>Долг</span><b style="color:${cl.d>30?'var(--bad)':cl.debt?'var(--warn)':'var(--ok)'}">${cl.debt?fmt(cl.debt)+' ₸'+(cl.d?' · просрочка '+cl.d+' дн.':''):'нет'}</b></div>
+  ${cl.d>30?'<div class="note" style="--tone:var(--bad)"><b>Отгрузка заблокирована</b><p>Просрочка больше 30 дней. Менеджер не может отгрузить без вашего подтверждения — правило одинаковое для всех покупателей.</p></div>':''}
+ </div>`:''}
+ <div class="btns"><button class="bt p" onclick="closeM();go('funnel')">Открыть в воронке</button>
+  <button class="bt" onclick="toast('Счёт сформирован по шаблону и отправлен покупателю в WhatsApp. Оплата встанет на контроль автоматически.')">Выставить счёт</button></div>`)}
+
+/* ====== КЛИЕНТЫ ====== */
+SC.clients=()=>`${head('Покупатели','Пекарни, оптовики, магазины, птицефабрики — с историей закупок, ценами, долгами и тем, сколько они берут каждый месяц.',
+ '<button class="bt p" onclick="toast(\'Рассылка по сегменту: например, всем пекарням — новая цена на муку первого сорта с понедельника. Уходит в WhatsApp списком, с вашим текстом.\')">Рассылка</button>')}
+ <div class="wid" style="grid-template-columns:repeat(4,1fr)">
+  <div><small>Покупателей</small><b class="a">${CLI.length*14}</b><span>${CLI.length} показаны в демо</span></div>
+  <div><small>Повторные закупки</small><b class="g">61%</b><span>основа выручки</span></div>
+  <div><small>Долг покупателей</small><b class="w">${mln(CLI.reduce((a,c)=>a+c.debt,0))} ₸</b><span>${CLI.filter(c=>c.debt).length} из ${CLI.length}</span></div>
+  <div><small>Просрочено</small><b class="r">${mln(CLI.filter(c=>c.d>0).reduce((a,c)=>a+c.debt,0))} ₸</b><span>${CLI.filter(c=>c.d>0).length} покупателя</span></div>
+ </div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>Покупатель</th><th>Город</th><th>Сегмент</th><th class="r">Сделок</th><th class="r">Куплено на</th><th class="r">Долг</th><th>Состояние</th></tr></thead>
+  <tbody>${CLI.map(c=>`<tr onclick="openCli('${esc(c.n)}')">
+   <td><b>${esc(c.n)}</b></td><td class="sub2">${esc(c.reg)}</td>
+   <td><span class="tag ${c.seg==='Контракт'?'g':'a'}">${esc(c.seg)}</span></td>
+   <td class="r">${c.ord}</td><td class="r">${mln(c.sum)} ₸</td>
+   <td class="r">${c.debt?fmt(c.debt)+' ₸':'—'}</td>
+   <td>${c.d>30?'<span class="tag r">просрочка '+c.d+' дн.</span>':c.debt?'<span class="tag w">в сроке</span>':'<span class="tag g">рассчитался</span>'}</td></tr>`).join('')}</tbody>
+ </table></div>
+ <div class="g2">
+  <div class="pan"><h3>Кто сколько берёт каждый месяц</h3>
+   ${CLI.slice(0,5).map(c=>`<div class="fr"><span>${esc(c.n)}</span><div class="bar" style="--w:${c.sum/68400000*100}%"><i class="${c.d>30?'r':'g'}"></i></div><b>${mln(c.sum)} ₸</b></div>`).join('')}
+   <div class="note" style="--tone:var(--acc)"><b>Регулярность важнее размера</b>
+    <p>Пекарня «Нан Ата» берёт понемногу, но 19 раз — и всегда платит вовремя. Сеть «Береке» берёт крупно, но просрочила на 34 дня. Без истории эти два покупателя выглядят одинаково.</p></div>
+  </div>
+  <div class="pan"><h3>Что это даёт вам</h3>
+   <div class="li"><i>✓</i><span><b>Менеджер уходит — покупатели остаются</b><span class="sub">вся переписка, цены и договорённости в системе, а не в личном телефоне</span></span></div>
+   <div class="li"><i>✓</i><span><b>Цена не выторговывается второй раз</b><span class="sub">видно, какую скидку покупатель уже получил и почему</span></span></div>
+   <div class="li"><i>✓</i><span><b>Видно, кто перестал брать</b><span class="sub">не покупал два месяца — задача менеджеру позвонить, пока не ушёл к соседней мельнице</span></span></div>
+   <div class="li"><i>✓</i><span><b>Прогноз загрузки мельницы</b><span class="sub">из регулярных закупок видно, сколько тонн нужно смолоть в следующем месяце</span></span></div>
+  </div>
+ </div>`;
+function openCli(n){const c=CLI.find(x=>x.n===n);if(!c)return;
+ openM(esc(c.n),`${esc(c.reg)} · ${esc(c.seg)} · ${c.ord} ${plural(c.ord,['сделка','сделки','сделок'])} на ${mln(c.sum)} ₸`,`
+ <div class="wid" style="grid-template-columns:repeat(3,1fr)">
+  <div><small>Куплено всего</small><b class="a">${mln(c.sum)} ₸</b><span>${c.ord} ${plural(c.ord,['сделка','сделки','сделок'])}</span></div>
+  <div><small>Средняя сделка</small><b>${fmt(c.sum/c.ord)} ₸</b><span>по этому покупателю</span></div>
+  <div><small>Долг</small><b class="${c.d>30?'r':c.debt?'w':'g'}">${c.debt?fmt(c.debt)+' ₸':'нет'}</b><span>${c.d?'просрочка '+c.d+' дней':'в сроке'}</span></div>
+ </div>
+ <div class="pan"><h3>Что и по какой цене берёт</h3>
+  <div class="kv"><span>Мука высший сорт</span><b>18 т в месяц · 152 ₸/кг</b></div>
+  <div class="kv"><span>Мука 1 сорт</span><b>24 т в месяц · 146 ₸/кг</b></div>
+  <div class="kv"><span>Индивидуальная скидка</span><b>2% · с 12.05.2026</b></div>
+  <div class="kv"><span>Отсрочка платежа</span><b>${c.seg==='Контракт'?'30 дней по контракту':'14 дней'}</b></div>
+  <div class="kv"><span>Средняя маржа по клиенту</span><b style="color:var(--ok)">10,8%</b></div>
+ </div>
+ <div class="btns"><button class="bt p" onclick="closeM();go('debt')">Долги</button>
+  <button class="bt" onclick="toast('Покупателю ушло сообщение с новой ценой и остатком муки на складе. Такие сообщения уходят списком по сегменту.')">Написать</button></div>`)}
+
+/* ====== ДОЛГИ ====== */
+SC.debt=()=>{
+ const D=CLI.filter(c=>c.debt).sort((a,b)=>b.d-a.d);
+ return `${head('Долги: кто должен вам и кому должны вы','Дебиторка покупателей и кредиторская задолженность в одном месте. Вы говорили про кредиторку — здесь она не «где-то в голове», а с датами и задачами.',
+  '<button class="bt p" onclick="sparks(10);toast(\'Напоминания ушли покупателям в WhatsApp: сумма, номер счёта, дата. Это возвращает 30–40% просрочки без единого звонка.\')">Напомнить должникам</button>')}
+ <div class="wid">
+  <div><small>Должны вам</small><b class="a">${mln(F.debt)} ₸</b><span>${D.length} покупателя</span></div>
+  <div><small>Из них просрочено</small><b class="r">${mln(D.filter(c=>c.d>0).reduce((a,c)=>a+c.debt,0))} ₸</b><span>старшая просрочка 34 дня</span></div>
+  <div><small>Должны вы</small><b class="w">${mln(F.kred)} ₸</b><span>поставщики, банк, аренда</span></div>
+  <div><small>Ближайший платёж</small><b>18.09</b><span>кредит · задача бухгалтеру</span></div>
+  <div><small>Чистая позиция</small><b class="${F.debt-F.kred>=0?'g':'r'}">${mln(F.debt-F.kred)} ₸</b><span>дебиторка минус кредиторка</span></div>
+ </div>
+ <div class="g2">
+  <div class="pan"><h3>Должны вам</h3>
+   <div class="tw" style="border:0"><table class="t">
+    <thead><tr><th>Покупатель</th><th class="r">Долг</th><th class="r">Просрочка</th><th>Что делает система</th></tr></thead>
+    <tbody>${D.map(c=>`<tr onclick="openCli('${esc(c.n)}')">
+     <td><b>${esc(c.n)}</b><span class="sub">${esc(c.reg)}</span></td>
+     <td class="r"><b>${fmt(c.debt)} ₸</b></td>
+     <td class="r">${c.d?c.d+' дн.':'в сроке'}</td>
+     <td class="sub2">${c.d>30?'<span class="tag r">отгрузки заблокированы</span>':c.d>0?'<span class="tag w">напоминание отправлено</span>':'<span class="tag g">напомнит за 3 дня</span>'}</td></tr>`).join('')}</tbody>
+   </table></div>
+  </div>
+  <div class="pan"><h3>Должны вы</h3>
+   ${[['Кредит в банке · платёж 18.09',8400000,'go'],['ТОО «Северное зерно» · за партию П-2612',11200000,''],['Элеватор Тайынша · хранение и перевалка',3900000,''],['Перевозчик · вагоны, сентябрь',6100000,''],['Аренда и коммунальные',2800000,''],['Прочие поставщики',4000000,'']].map(x=>
+    `<div class="li ${x[2]==='go'?'w':''}"><i>${x[2]==='go'?'!':'·'}</i><span><b>${esc(x[0])}</b><span class="sub">${fmt(x[1])} ₸</span></span></div>`).join('')}
+   <div class="note" style="--tone:var(--brand)"><b>Каждый платёж — это задача с ответственным</b>
+    <p>Вы ставите задачу бухгалтеру «оплатить кредит», она отвечает «оплачено, чек №…», и вы видите это со своего телефона — не спрашивая и не напоминая. Ровно то, что вы описали на встрече.</p></div>
+  </div>
+ </div>
+ <div class="pan"><h3>Календарь платежей на две недели</h3><p>Что нужно заплатить и что должно прийти. Кассовый разрыв виден заранее, а не в день платежа.</p>
+  <div class="tw" style="border:0"><table class="t">
+   <thead><tr><th>Дата</th><th>Событие</th><th>Кто</th><th class="r">Приход</th><th class="r">Расход</th><th class="r">Остаток</th></tr></thead>
+   <tbody>
+   ${[['16.09','Оплата от «Дастархан Трейд»','покупатель',7200000,0],
+     ['18.09','Платёж по кредиту','банк',0,8400000],
+     ['20.09','Оплата за партию П-2612','поставщик',0,11200000],
+     ['22.09','Оплата от «Андижон Нон»','покупатель',9400000,0],
+     ['25.09','Зарплата','сотрудники',0,7600000],
+     ['28.09','Оплата от «Береке» (просрочено)','покупатель',6100000,0]].reduce((acc,r,i)=>{
+      const prev=i?acc.bal:14200000;const bal=prev+r[3]-r[4];acc.bal=bal;
+      acc.html+=`<tr><td class="mono">${r[0]}</td><td>${esc(r[1])}</td><td class="sub2">${esc(r[2])}</td>
+       <td class="r">${r[3]?'<span style="color:var(--ok)">+'+fmt(r[3])+'</span>':'—'}</td>
+       <td class="r">${r[4]?'<span style="color:var(--bad)">−'+fmt(r[4])+'</span>':'—'}</td>
+       <td class="r"><b style="color:${bal<0?'var(--bad)':'inherit'}">${fmt(bal)} ₸</b></td></tr>`;
+      return acc},{html:'',bal:0}).html}
+   </tbody></table></div>
+  <div class="note" style="--tone:var(--warn)"><b>20 сентября касса уходит в минус</b>
+   <p>Если «Дастархан» заплатит на три дня позже, платёж поставщику нечем закрыть. Это видно за неделю — можно перенести, договориться или ускорить отгрузку. Сегодня такие вещи выясняются в день платежа.</p></div>
+ </div>`;
+};
+
+/* ====== ЦИКЛ ПАРТИИ ====== */
+const CYC=[
+ {t:'Расчёт до покупки',w:'СНАБЖЕНЕЦ',d:'Марат забивает в калькулятор: КХ «Тобол», 69 т, 78 ₸/кг, доставка до элеватора, вагон до Шымкента, выход 72 / 23 / 3 / 2.',r:'Через 40 секунд видна прибыль 1 066 740 ₸ и порог закупа 86,9 ₸. Решение принимается в разговоре, а не «я перезвоню».',tm:'40 сек'},
+ {t:'Договор и оплата',w:'СИСТЕМА',d:'Партия сохранена, создана задача бухгалтеру на оплату, к партии прикреплены договор и счёт.',r:'Документы живут в партии, а не в папке у трёх разных людей.',tm:'1 день'},
+ {t:'Доставка до элеватора',w:'ЛОГИСТИКА',d:'Машины хозяйства везут зерно на элеватор, фактические расходы вносятся в партию.',r:'Каждый лишний рейс сразу виден в марже, а не в итогах месяца.',tm:'2 дня'},
+ {t:'Погрузка в вагон',w:'ЛОГИСТИКА',d:'Погрузка, пломбы, железнодорожные документы. Фактический вес по накладной.',r:'Разница между весом хозяйства и весом на элеваторе фиксируется — обычно это 200–400 кг с вагона.',tm:'3 дня'},
+ {t:'Перевозка',w:'ЛОГИСТИКА',d:'Вагон в пути. Простой на станции, если он есть, вносится в расходы партии.',r:'Простой в 46 000 ₸ перестаёт быть невидимым.',tm:'7 дней'},
+ {t:'Приёмка и лаборатория',w:'ЧЕЛОВЕК',d:'Взвешивание, отбор проб: клейковина 24,1, влажность 13,2, натура 780. Результат заносится с телефона.',r:'Если качество ниже заявленного — калькулятор пересчитывает выход и маржу сразу, до помола.',tm:'8 дней'},
+ {t:'Хранение',w:'СИСТЕМА',d:'Зерно на складе №1. Стоимость хранения капает в партию по дням.',r:'Видно, сколько стоит «полежать ещё неделю» — обычно об этом никто не думает.',tm:'9 дней'},
+ {t:'Помол',w:'ЧЕЛОВЕК',d:'Мельница за 18 часов перерабатывает партию. Фактический выход: мука 70,6%, отруби 23,8%, мучка 3,1%, отход 2,5%.',r:'Отклонение от нормы 72% сразу видно и объяснено качеством зерна, а не «так получилось».',tm:'10 дней'},
+ {t:'Приём на склад готовой',w:'СИСТЕМА',d:'48,7 т муки, 16,4 т отрубей, 2,1 т мучки приняты на склад с привязкой к партии.',r:'Всегда известно, из какого зерна сделана каждая тонна муки.',tm:'10 дней'},
+ {t:'Реализация',w:'ПРОДАЖИ',d:'Мука уходит трём покупателям, отруби — птицефабрике. Фактические цены записываются в партию.',r:'Итоговая маржа 1 013 200 ₸ против плановых 1 066 740 ₸ — и точно понятно, почему разница.',tm:'14–25 дней'}
+];
+SC.cycle=()=>{const p=CYC[cycleStep],sys=CYC.filter(x=>x.w==='СИСТЕМА').length;
+ return `${head('Цикл партии','Весь путь одного вагона: от расчёта до денег. Нажимайте «Следующий шаг» — на каждом шаге видно, кто что делает и какие расходы попадают в маржу.',
+  '<button class="bt p" onclick="cycNext()">Следующий шаг →</button><button class="bt" onclick="cycReset()">Сбросить</button>')}
+ <div class="wid" style="grid-template-columns:repeat(4,1fr)">
+  <div><small>Шаг</small><b class="a">${cycleStep+1} / ${CYC.length}</b><span>${esc(p.tm)} от начала</span></div>
+  <div><small>Кто делает</small><b style="font-size:15px">${esc(p.w)}</b><span>${p.w==='СИСТЕМА'?'без участия людей':'человек в системе'}</span></div>
+  <div><small>Цикл вагона</small><b>25 дней</b><span>от оплаты зерна до денег</span></div>
+  <div><small>Деньги в обороте</small><b class="i">6,9 млн ₸</b><span>заморожены на этот срок</span></div>
+ </div>
+ <div class="g21">
+  <div class="pan"><h3>${esc(p.t)}</h3><p>${esc(p.tm)} · ${esc(p.w)}</p>
+   <div style="font-size:13px;line-height:1.72;margin-bottom:11px">${esc(p.d)}</div>
+   <div class="note" style="--tone:${p.w==='СИСТЕМА'?'var(--ok)':'var(--acc)'}"><b>Что это даёт</b><p>${esc(p.r)}</p></div>
+   <div style="margin-top:13px"><div class="bar" style="--w:${(cycleStep+1)/CYC.length*100}%"><i class="b"></i></div></div>
+  </div>
+  <div class="pan"><h3>Все шаги</h3>
+   <div class="tl">${CYC.map((x,i)=>`<div class="tli ${i<cycleStep?'ok':i===cycleStep?'on':''}" style="cursor:pointer" onclick="cycGo(${i})">
+    <span class="who">${esc(x.w)} · ${esc(x.tm)}</span><b style="${i===cycleStep?'color:var(--brand)':''}">${esc(x.t)}</b></div>`).join('')}</div>
+  </div>
+ </div>
+ <div class="pan"><h3>Куда уходят деньги в одном вагоне</h3><p>Расходы, которые редко считают целиком — а они и съедают маржу.</p>
+  ${(()=>{const r=calcAll(C0);return [['Зерно',r.buy],['Доставка до элеватора',C0.t*C0.log1],['Перевозка до мельницы',C0.t*C0.log2],['Погрузка, приёмка, хранение',C0.t*C0.log3],['Переработка',C0.t*C0.proc],['Упаковка',C0.t*C0.pack],['Накладные и налоги',r.nakl]].map(x=>
+   `<div class="fr"><span>${esc(x[0])}</span><div class="bar" style="--w:${x[1]/r.buy*100}%"><i class="${x[0]==='Зерно'?'b':''}"></i></div><b>${fmt(x[1])} ₸</b></div>`).join('')})()}
+  <div class="hint">Зерно — три четверти себестоимости, поэтому цена закупа решает всё. Но оставшаяся четверть — логистика и переработка — это как раз то, чем можно управлять: маршрут, перевозчик, загрузка мельницы, простои.</div>
+ </div>`;
+};
+function cycNext(){cycleStep=(cycleStep+1)%CYC.length;render();if(cycleStep===CYC.length-1)sparks(14)}
+function cycReset(){cycleStep=0;render()}
+function cycGo(i){cycleStep=i;render()}
+
+/* ====== ПОМОЛ И СМЕНЫ ====== */
+const SHIFT=[
+ {d:'15.09 · день',br:'Бишкек',who:'Бакыт',t:32,norm:72,fact:71.4,dt:0,kw:11200},
+ {d:'15.09 · ночь',br:'Бишкек',who:'Эрмек',t:28,norm:72,fact:70.1,dt:2.5,kw:10400},
+ {d:'15.09 · день',br:'Шымкент',who:'Серик',t:26,norm:72,fact:72.6,dt:0,kw:9100},
+ {d:'14.09 · день',br:'Бишкек',who:'Бакыт',t:31,norm:72,fact:71.9,dt:0,kw:10900},
+ {d:'14.09 · ночь',br:'Бишкек',who:'Эрмек',t:22,norm:72,fact:69.4,dt:4,kw:9800}
+];
+SC.mill=()=>`${head('Помол и смены','Сколько смололи за смену, какой вышел выход, были ли простои и сколько ушло электроэнергии. Мастер отмечает с телефона — отдельный журнал вести не нужно.',
+ '<button class="bt p" onclick="sparks(12);toast(\'Смена закрыта: тонны, выход по каждому продукту, простои с причинами и расход электроэнергии записаны в партию. Всё это сразу попадает в фактическую маржу.\')">Закрыть смену</button>')}
+ <div class="wid">
+  <div><small>Переработано за сутки</small><b class="a">${SHIFT.filter(s=>s.d.startsWith('15')).reduce((a,s)=>a+s.t,0)} т</b><span>по трём линиям</span></div>
+  <div><small>Средний выход муки</small><b class="${SHIFT.reduce((a,s)=>a+s.fact,0)/SHIFT.length<72?'w':'g'}">${num(SHIFT.reduce((a,s)=>a+s.fact,0)/SHIFT.length)}%</b><span>норма 72%</span></div>
+  <div><small>Простои</small><b class="r">${num(SHIFT.reduce((a,s)=>a+s.dt,0))} ч</b><span>за два дня</span></div>
+  <div><small>Электроэнергия</small><b>${fmt(SHIFT.reduce((a,s)=>a+s.kw,0))} кВт·ч</b><span>${num(SHIFT.reduce((a,s)=>a+s.kw,0)/SHIFT.reduce((a,s)=>a+s.t,0))} на тонну</span></div>
+  <div><small>Потеря на выходе</small><b class="w">${fmt(139000*3)} ₸</b><span>за два дня недовыход муки</span></div>
+ </div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>Смена</th><th>Филиал</th><th>Мастер</th><th class="r">Переработано</th><th class="r">Норма</th><th class="r">Факт выхода</th><th style="width:150px">Отклонение</th><th class="r">Простой</th><th class="r">кВт·ч на тонну</th></tr></thead>
+  <tbody>${SHIFT.map(s=>`<tr onclick="toast('Открывается смена: выход по каждому продукту, причины простоя, кто работал, какая партия зерна молола и сколько ушло электроэнергии.')">
+   <td><b>${esc(s.d)}</b></td><td class="sub2">${esc(s.br)}</td><td>${avatar(s.who)} ${esc(s.who)}</td>
+   <td class="r"><b>${s.t} т</b></td><td class="r sub2">${s.norm}%</td>
+   <td class="r"><b style="color:${s.fact>=s.norm?'var(--ok)':'var(--warn)'}">${num(s.fact)}%</b></td>
+   <td><div class="bar" style="--w:${Math.min(s.fact/s.norm*100,100)}%"><i class="${s.fact>=s.norm?'g':s.fact>=71?'w':'r'}"></i></div></td>
+   <td class="r">${s.dt?`<span class="tag r">${num(s.dt)} ч</span>`:'—'}</td>
+   <td class="r">${num(s.kw/s.t)}</td></tr>`).join('')}</tbody>
+ </table></div>
+ <div class="g2">
+  <div class="pan"><h3>Сколько стоит один процент выхода</h3>
+   <div class="kv"><span>Переработка за месяц</span><b>${fmt(F.grind)} т</b></div>
+   <div class="kv"><span>1% выхода муки</span><b>28,4 т</b></div>
+   <div class="kv"><span>В деньгах по цене 148 ₸</span><b style="color:var(--ok)">${fmt(28400*148)} ₸ в месяц</b></div>
+   <div class="kv"><span>Сейчас средний выход</span><b class="w">70,6%</b></div>
+   <div class="kv"><span>Потери против нормы</span><b style="color:var(--bad)">${fmt(28400*148*1.4)} ₸ в месяц</b></div>
+   <div class="note" style="--tone:var(--brand)"><b>Полтора процента выхода — это 5,9 млн ₸ в месяц</b>
+    <p>Причины разные: влажное зерно, износ вальцов, ночная смена работает хуже дневной. Пока выход нигде не фиксируется, эти деньги просто не существуют — ни в отчёте, ни в разговоре.</p></div>
+  </div>
+  <div class="pan"><h3>Простои и их причины</h3>
+   ${[['Замена и перевалка вальцов',2.5,'w'],['Ожидание зерна со склада',2,'r'],['Отключение электроэнергии',1.5,'' ],['Чистка и профилактика',3,'g']].map(x=>
+    `<div class="fr"><span>${esc(x[0])}</span><div class="bar" style="--w:${x[1]/3*100}%"><i class="${x[2]}"></i></div><b>${num(x[1])} ч</b></div>`).join('')}
+   <div class="kv" style="margin-top:10px"><span>Стоимость часа простоя</span><b>${fmt(96/24*1000*15.5)} ₸ недополученной маржи</b></div>
+   <div class="kv"><span>Простоев за месяц</span><b style="color:var(--bad)">64 ч</b></div>
+   <div class="kv"><span>В деньгах</span><b style="color:var(--bad)">${fmt(64*96/24*1000*15.5)} ₸</b></div>
+   <div class="hint">«Ожидание зерна со склада» — это не поломка, а несогласованность между складом и мельницей. Такие простои убираются планированием, и система показывает их отдельно от технических.</div>
+  </div>
+ </div>`;
+
+/* ====== ЛАБОРАТОРИЯ ====== */
+SC.quality=()=>`${head('Лаборатория и качество зерна','Клейковина, влажность, натура — по каждой партии при приёмке. Это то, что напрямую определяет выход муки, а значит и вашу маржу.',
+ '<button class="bt p" onclick="toast(\'Анализ вносится с телефона прямо в лаборатории. Если качество ниже заявленного поставщиком — система пересчитывает маржу партии и предлагает пересмотреть цену.\')">Внести анализ</button>')}
+ <div class="wid" style="grid-template-columns:repeat(4,1fr)">
+  <div><small>Проб за месяц</small><b class="a">48</b><span>по всем партиям</span></div>
+  <div><small>Средняя клейковина</small><b>23,6%</b><span>3 класс — от 23%</span></div>
+  <div><small>Средняя влажность</small><b class="w">13,4%</b><span>норма до 14%</span></div>
+  <div><small>Партий ниже заявленного</small><b class="r">6</b><span>пересчитаны по цене</span></div>
+ </div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>Партия</th><th>Поставщик</th><th class="r">Клейковина</th><th class="r">Влажность</th><th class="r">Натура</th><th class="r">Ожидаемый выход</th><th>Вывод</th></tr></thead>
+  <tbody>
+  ${[['П-2609','КХ «Тобол»',24.1,13.2,780,72.4,'g'],['П-2612','Северное зерно',25.2,12.9,788,73.1,'g'],
+    ['П-2615','КХ Ибраев',23.4,13.8,772,71.2,'w'],['П-2618','Элеватор Тайынша',22.6,14.2,765,70.1,'r'],
+    ['П-2621','КХ «Дала»',21.0,13.5,758,68.9,'r']].map(r=>`<tr onclick="openDeal('${r[0]}')">
+   <td class="mono"><b>${r[0]}</b></td><td>${esc(r[1])}</td>
+   <td class="r">${num(r[2])}%</td><td class="r">${num(r[3])}%</td><td class="r">${r[4]}</td>
+   <td class="r"><b style="color:${r[6]==='g'?'var(--ok)':r[6]==='w'?'var(--warn)':'var(--bad)'}">${num(r[5])}%</b></td>
+   <td class="sub2">${r[6]==='g'?'<span class="tag g">высший сорт</span>':r[6]==='w'?'<span class="tag w">1 сорт, выход ниже</span>':'<span class="tag r">пересчитать цену закупа</span>'}</td></tr>`).join('')}
+  </tbody></table></div>
+ <div class="g2">
+  <div class="pan"><h3>Как качество превращается в деньги</h3>
+   <div class="li"><i>✓</i><span><b>Клейковина 25 против 21</b><span class="sub">разница выхода муки высшего сорта — до 4 процентных пунктов, это 6 ₸ на каждом килограмме зерна</span></span></div>
+   <div class="li w"><i>!</i><span><b>Влажность 14,2% вместо 13%</b><span class="sub">лишняя вода, за которую заплачено как за зерно: на вагоне это 80 000 ₸</span></span></div>
+   <div class="li w"><i>!</i><span><b>Натура 758</b><span class="sub">мельница работает медленнее, растёт расход электроэнергии на тонну</span></span></div>
+   <div class="li b"><i>!</i><span><b>Заявлено одно, приехало другое</b><span class="sub">шесть партий из сорока восьми. С анализом в системе это основание для пересчёта цены, а не повод для ссоры</span></span></div>
+  </div>
+  <div class="pan"><h3>Качество по поставщикам</h3><p>Кто регулярно привозит то, что обещал.</p>
+   ${[['ТОО «Северное зерно»',98,'g'],['КХ «Тобол»',94,'g'],['Элеватор Тайынша',81,'w'],['КХ «Дала»',62,'r']].map(x=>
+    `<div class="fr"><span>${esc(x[0])}</span><div class="bar" style="--w:${x[1]}%"><i class="${x[2]}"></i></div><b>${x[1]}% совпадений</b></div>`).join('')}
+   <div class="note" style="--tone:var(--acc)"><b>Через полгода у вас появится объективный рейтинг</b>
+    <p>Не по памяти снабженца, а по анализам: кто привозит заявленное качество, кто систематически завышает. С этим рейтингом разговор о цене становится совсем другим.</p></div>
+  </div>
+ </div>`;
+
+/* ====== СКЛАД ЗЕРНА ====== */
+SC.raw=()=>{
+ const t=SILO.reduce((a,s)=>a+s.t,0),val=SILO.reduce((a,s)=>a+s.t*1000*s.pr,0);
+ return `${head('Склад зерна','Сколько зерна, где, какого качества и по какой цене куплено. Остаток меняется сам: при приёмке партии и при выдаче в помол.',
+  '<button class="bt p" onclick="toast(\'Приёмка: вес по весовой, анализ из лаборатории, привязка к партии. Кладовщик делает это с телефона за минуту, и остаток обновляется у всех сразу.\')">Принять зерно</button>')}
+ <div class="wid">
+  <div><small>Зерна на складах</small><b class="a">${fmt(t)} т</b><span>на ${mln(val)} ₸</span></div>
+  <div><small>Хватит на</small><b>${num(t/F.dayT)} ${plural(Math.round(t/F.dayT),['день','дня','дней'])}</b><span>помола при ${F.dayT} т в сутки</span></div>
+  <div><small>Средняя цена закупа</small><b class="i">${num(val/t/1000)} ₸/кг</b><span>по остатку</span></div>
+  <div><small>В пути</small><b>207 т</b><span>партия П-2618, придёт 19.09</span></div>
+  <div><small>Свободная ёмкость</small><b class="g">${fmt(SILO.reduce((a,s)=>a+s.cap-s.t,0))} т</b><span>из ${fmt(SILO.reduce((a,s)=>a+s.cap,0))} т</span></div>
+ </div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>Склад</th><th>Филиал</th><th class="r">Остаток</th><th class="r">Ёмкость</th><th style="width:170px">Заполнение</th><th>Качество</th><th class="r">Цена закупа</th><th class="r">Стоимость</th></tr></thead>
+  <tbody>${SILO.map(s=>`<tr onclick="toast('По складу видно: все приходы с партиями и ценами, выдачи в помол по сменам, движение за любой период и фактические потери при хранении.')">
+   <td><b>${esc(s.n)}</b></td><td class="sub2">${esc(s.br)}</td>
+   <td class="r"><b>${s.t} т</b></td><td class="r sub2">${s.cap} т</td>
+   <td><div class="bar" style="--w:${s.t/s.cap*100}%"><i class="${s.t/s.cap>0.8?'w':'g'}"></i></div><span class="sub2">${pct(s.t,s.cap)}</span></td>
+   <td class="sub2">${esc(s.q)}</td>
+   <td class="r">${s.pr} ₸/кг</td><td class="r">${mln(s.t*1000*s.pr)} ₸</td></tr>`).join('')}
+  <tr class="total"><td>Итого</td><td></td><td class="r">${fmt(t)} т</td><td class="r">${fmt(SILO.reduce((a,s)=>a+s.cap,0))} т</td><td></td><td></td><td></td><td class="r">${mln(val)} ₸</td></tr>
+  </tbody></table></div>
+ <div class="g2">
+  <div class="pan"><h3>Выдача в помол</h3>
+   <div class="li n"><i>1</i><span><b>Зерно выдаётся под конкретную партию</b><span class="sub">не «в мельницу», а «партия П-2615, 69 т со склада №1» — поэтому потом известна себестоимость каждой тонны муки</span></span></div>
+   <div class="li n"><i>2</i><span><b>Смешивание партий фиксируется</b><span class="sub">если мелют из двух складов, система считает средневзвешенную цену зерна</span></span></div>
+   <div class="li n"><i>3</i><span><b>Потери при хранении видны</b><span class="sub">усушка и подработка — отдельной строкой, а не «куда-то делось 700 кг»</span></span></div>
+   <div class="hint">Именно здесь чаще всего теряется учёт: зерно приняли, зерно смололи, а сколько именно ушло на конкретную муку — никто не скажет. И тогда себестоимость считается «в среднем по мельнице».</div>
+  </div>
+  <div class="pan"><h3>Сигналы по складу</h3>
+   <div class="li w"><i>!</i><span><b>Склад приёмки в Андижане заполнен на 27%</b><span class="sub">линия встанет через 2,5 дня, если не отправить партию</span></span></div>
+   <div class="li"><i>✓</i><span><b>Силос А · зерно 4 класса лежит 41 день</b><span class="sub">по нему считается стоимость хранения — 340 000 ₸ уже набежало</span></span></div>
+   <div class="li"><i>✓</i><span><b>Склад №1 · зерно с лучшей клейковиной</b><span class="sub">система предложит молоть именно его под заказ муки высшего сорта</span></span></div>
+   <div class="li b"><i>!</i><span><b>Общий запас — 12 дней помола</b><span class="sub">при текущих ценах закупа стоит добрать 2 вагона, пока зерно не подорожало</span></span></div>
+  </div>
+ </div>`;
+};
+
+/* ====== ГОТОВАЯ ПРОДУКЦИЯ ====== */
+SC.fin=()=>{
+ const val=FIN.reduce((a,f)=>a+f.q*1000*f.pr,0);
+ return `${head('Готовая продукция','Мука по сортам, отруби и мучка — по филиалам, с резервом под подтверждённые заказы и свободным остатком.',
+  '<button class="bt p" onclick="toast(\'Отгрузка: выбираете покупателя и позиции, система печатает накладную и счёт-фактуру, списывает со склада и ставит оплату на контроль.\')">Оформить отгрузку</button>')}
+ <div class="wid" style="grid-template-columns:repeat(4,1fr)">
+  <div><small>На складах</small><b class="a">${fmt(FIN.reduce((a,f)=>a+f.q,0))} т</b><span>на ${mln(val)} ₸</span></div>
+  <div><small>Зарезервировано</small><b>${fmt(FIN.reduce((a,f)=>a+f.res,0))} т</b><span>под оплаченные заказы</span></div>
+  <div><small>Свободно</small><b class="g">${fmt(FIN.reduce((a,f)=>a+f.q-f.res,0))} т</b><span>можно продать сегодня</span></div>
+  <div><small>Оборачиваемость</small><b class="i">9 дней</b><span>мука не залёживается</span></div>
+ </div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>Продукция</th><th>Филиал</th><th class="r">Всего</th><th class="r">Резерв</th><th class="r">Свободно</th><th class="r">Цена</th><th class="r">Сумма</th><th>Из партии</th></tr></thead>
+  <tbody>${FIN.map((f,i)=>`<tr onclick="toast('Каждая тонна муки привязана к партии зерна: известно, из чего сделана, какого качества было зерно и какая у неё реальная себестоимость.')">
+   <td><b>${esc(f.n)}</b></td><td class="sub2">${esc(f.br)}</td>
+   <td class="r">${f.q} т</td><td class="r sub2">${f.res} т</td>
+   <td class="r"><b style="color:${f.q-f.res?'var(--ok)':'var(--muted2)'}">${f.q-f.res} т</b></td>
+   <td class="r">${f.pr} ₸/кг</td><td class="r">${mln(f.q*1000*f.pr)} ₸</td>
+   <td class="mono sub2">${['П-2609','П-2612','П-2612','П-2615','П-2609','П-2612'][i]}</td></tr>`).join('')}
+  <tr class="total"><td>Итого</td><td></td><td class="r">${fmt(FIN.reduce((a,f)=>a+f.q,0))} т</td><td class="r">${fmt(FIN.reduce((a,f)=>a+f.res,0))} т</td><td class="r">${fmt(FIN.reduce((a,f)=>a+f.q-f.res,0))} т</td><td></td><td class="r">${mln(val)} ₸</td><td></td></tr>
+  </tbody></table></div>
+ <div class="g2">
+  <div class="pan"><h3>Себестоимость тонны муки</h3><p>Считается из партии, а не «в среднем по мельнице».</p>
+   ${(()=>{const r=calcAll(C0);const share=r.muka*C0.pMuka/r.rev;const cm=r.cost*share/(r.muka/1000);
+    return `<div class="kv"><span>Затраты на партию</span><b>${fmt(r.cost)} ₸</b></div>
+    <div class="kv"><span>Выход муки</span><b>${num(r.muka/1000)} т</b></div>
+    <div class="kv"><span>Доля выручки от муки</span><b>${pct(r.muka*C0.pMuka,r.rev)}</b></div>
+    <div class="kv"><span>Себестоимость тонны муки</span><b>${fmt(cm)} ₸</b></div>
+    <div class="kv"><span>Цена продажи</span><b>${fmt(C0.pMuka*1000)} ₸</b></div>
+    <div class="kv"><span>Маржа с тонны</span><b style="color:var(--ok)">${fmt(C0.pMuka*1000-cm)} ₸</b></div>`})()}
+   <div class="hint">Отруби и мучка тоже приносят выручку, поэтому не вся себестоимость ложится на муку. Система распределяет затраты по продуктам так, как договоримся: пропорционально выручке или по вашей методике.</div>
+  </div>
+  <div class="pan"><h3>Фасовка и остатки</h3>
+   <div class="kv"><span>Мешок 50 кг</span><b>76% объёма</b></div>
+   <div class="kv"><span>Фасовка 5 кг</span><b>14%</b></div>
+   <div class="kv"><span>Фасовка 2 кг</span><b>6%</b></div>
+   <div class="kv"><span>Навалом</span><b>4%</b></div>
+   <div class="kv"><span>Маржа с фасовки 2 кг</span><b style="color:var(--ok)">выше на 22%</b></div>
+   <div class="note" style="--tone:var(--ok)"><b>Мелкая фасовка выгоднее</b>
+    <p>Но требует упаковки, места и учёта. Система показывает, сколько именно вы зарабатываете на каждом виде фасовки — и можно осознанно решить, куда двигаться.</p></div>
+  </div>
+ </div>`;
+};
+
+/* ====== ОТГРУЗКИ ====== */
+SC.ship=()=>`${head('Отгрузки и логистика','Что уехало, что едет и что ждёт машину. Вместе с расходами на доставку, которые обычно всплывают уже после сделки.',
+ '<button class="bt p" onclick="toast(\'Рейс создан: машина, водитель, груз, покупатель, расходы. Документы прикрепляются фотографией с телефона прямо на погрузке.\')">+ Рейс</button>')}
+ <div class="wid" style="grid-template-columns:repeat(4,1fr)">
+  <div><small>Отгружено за месяц</small><b class="a">2 640 т</b><span>${mln(F.revenue)} ₸</span></div>
+  <div><small>Рейсов</small><b>118</b><span>машины и вагоны</span></div>
+  <div><small>Средняя доставка</small><b class="i">4 100 ₸/т</b><span>по покупателям</span></div>
+  <div><small>В пути сейчас</small><b class="w">6</b><span>4 машины, 2 вагона</span></div>
+ </div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>Рейс</th><th>Куда</th><th>Покупатель</th><th class="r">Груз</th><th class="r">Сумма</th><th class="r">Доставка</th><th>Статус</th><th>Документы</th></tr></thead>
+  <tbody>
+  ${[['Р-8841','Бишкек → Ош','Пекарня «Нан Ата»','12 т муки в/с',1824000,48000,'В пути','ТТН, счёт'],
+    ['Р-8840','Шымкент → Туркестан','Сеть «Береке»','24 т муки 1с',3552000,96000,'Доставлено','ТТН, счёт, акт'],
+    ['Р-8839','Бишкек → Кант','Птицефабрика «Ак-Куу»','40 т отрубей',1920000,84000,'Доставлено','ТТН, счёт'],
+    ['Р-8838','Шымкент → Андижан','ООО «Андижон Нон»','60 т муки в/с',9660000,540000,'Таможня','ТТН, инвойс, декларация'],
+    ['Р-8837','Костанай → Шымкент','приход зерна П-2618','207 т пшеницы',17181000,2028600,'В пути','ЖД накладная']].map(r=>`<tr onclick="toast('Открывается рейс: маршрут, водитель, фактические расходы, фото документов и время в пути. Расходы сразу попадают в маржу партии.')">
+   <td class="mono"><b>${r[0]}</b></td><td>${esc(r[1])}</td><td class="sub2">${esc(r[2])}</td>
+   <td>${esc(r[3])}</td><td class="r">${fmt(r[4])} ₸</td><td class="r">${fmt(r[5])} ₸</td>
+   <td><span class="tag ${r[6]==='Доставлено'?'g':r[6]==='Таможня'?'w':'a'}">${esc(r[6])}</span></td>
+   <td class="sub2">${esc(r[7])}</td></tr>`).join('')}
+  </tbody></table></div>
+ <div class="g2">
+  <div class="pan"><h3>Стоимость доставки по направлениям</h3>
+   ${[['Бишкек → по городу',1200,'g'],['Бишкек → Ош',4000,'w'],['Шымкент → Туркестан',4000,'w'],['Шымкент → Андижан (через границу)',9000,'r'],['Костанай → Шымкент (вагон)',9800,'r']].map(x=>
+    `<div class="fr"><span>${esc(x[0])}</span><div class="bar" style="--w:${x[1]/9800*100}%"><i class="${x[2]}"></i></div><b>${fmt(x[1])} ₸/т</b></div>`).join('')}
+   <div class="note" style="--tone:var(--warn)"><b>Андижан: 9 000 ₸ за тонну доставки</b>
+    <p>Цена муки там выше на 7 ₸ за килограмм, то есть 7 000 ₸ с тонны, а доставка стоит 9 000 ₸. Это значит, что возить муку в Андижан из Шымкента невыгодно — выгодно молоть на месте. Такие выводы видны только когда логистика посчитана по направлениям.</p></div>
+  </div>
+  <div class="pan"><h3>Документы по отгрузке</h3>
+   <div class="li"><i>✓</i><span><b>Накладная и счёт — по шаблону</b><span class="sub">формируются из заказа, реквизиты подставляются, ничего не набирается заново</span></span></div>
+   <div class="li"><i>✓</i><span><b>Фото документов с телефона</b><span class="sub">водитель или кладовщик прикладывает подписанную ТТН прямо на погрузке</span></span></div>
+   <div class="li"><i>✓</i><span><b>Экспортные документы для Андижана</b><span class="sub">инвойс, декларация, сертификат — отдельный комплект под каждую страну</span></span></div>
+   <div class="li b"><i>!</i><span><b>Нет документа — нет закрытия рейса</b><span class="sub">это правило системы, а не дисциплина конкретного человека</span></span></div>
+  </div>
+ </div>`;
+
+/* ====== ДОКУМЕНТООБОРОТ: ЗАДАЧИ ====== */
+SC.tasks=()=>{
+ const T=TASKS;
+ return `${head('Задачи в стиле документооборота','Вы ставите задачу директору филиала, он — своим подчинённым, и вы видите, на какой стадии она стоит. Бухгалтер оплатил — приложил чек с номером. Ровно то, что вы описали на встрече.',
+  '<button class="bt p" onclick="addTask()">+ Поставить задачу</button><button class="bt" onclick="go(\'phone\')">Как видит сотрудник →</button>')}
+ <div class="wid">
+  <div><small>Задач в работе</small><b class="a">${T.filter(t=>t.st!=='ok').length}</b><span>из ${T.length} за неделю</span></div>
+  <div><small>Просрочено</small><b class="r">${T.filter(t=>t.st==='late').length}</b><span>уведомление ушло вам</span></div>
+  <div><small>Выполняется</small><b class="w">${T.filter(t=>t.st==='go').length}</b><span>с отметками по шагам</span></div>
+  <div><small>Закрыто с подтверждением</small><b class="g">${T.filter(t=>t.st==='ok').length}</b><span>чек, фото или документ приложены</span></div>
+  <div><small>Среднее время ответа</small><b class="i">26 мин</b><span>от постановки до «принял»</span></div>
+ </div>
+ ${T.map(t=>`<div class="tsk" style="--c:${TSTC[t.st]}">
+  <div class="th">
+   <b>${esc(t.t)}</b>
+   <span class="tag" style="background:${TSTC[t.st]}1f;color:${TSTC[t.st]}">${esc(TSTN[t.st])}</span>
+  </div>
+  <div class="meta">
+   <span>№ ${t.id}</span><span>от: ${esc(t.from)}</span><span>кому: ${avatar(t.who)} ${esc(t.who)}</span>
+   <span>филиал: ${esc(t.br)}</span><span>тип: ${esc(t.ty)}</span><span>срок: <b style="color:${t.st==='late'?'var(--bad)':'inherit'}">${esc(t.due)}</b></span>
+  </div>
+  <div class="chain">
+   ${t.chain.map(c=>`<div><span class="st ${c[2]}">${c[2]==='ok'?'ГОТОВО':c[2]==='go'?'В РАБОТЕ':c[2]==='late'?'ПРОСРОЧЕНО':'ОЖИДАЕТ'}</span>
+    <span><b>${esc(c[0])}</b> · ${esc(c[1])}</span></div>`).join('')}
+  </div>
+  <div class="btns" style="margin-top:10px">
+   <button class="bt" onclick="taskStep(${t.id})">Отметить шаг</button>
+   <button class="bt" onclick="toast('Сотруднику ушло напоминание на телефон. Если он не ответит за два часа, уведомление придёт его руководителю — и вам.')">Напомнить</button>
+   ${t.ty==='Финансы'?`<button class="bt" onclick="taskPay(${t.id})">Приложить чек</button>`:''}
+  </div>
+ </div>`).join('')}
+ <div class="pan"><h3>Как это работает в вашем случае</h3>
+  <div class="li n"><i>1</i><span><b>Вы ставите задачу с телефона</b><span class="sub">«Директору Бишкека: согласовать контракт до 17 сентября». Одна строка, один адресат, один срок</span></span></div>
+  <div class="li n"><i>2</i><span><b>Ему приходит уведомление</b><span class="sub">как сообщение, с кнопками «принял» и «выполнил» — открывать компьютер не нужно</span></span></div>
+  <div class="li n"><i>3</i><span><b>Он ставит подзадачи своим</b><span class="sub">цепочка видна целиком: вы → директор → бухгалтер → результат</span></span></div>
+  <div class="li n"><i>4</i><span><b>Результат прикладывается</b><span class="sub">чек, номер платежа, скан контракта, фото — задача не закрывается пустой отпиской «сделано»</span></span></div>
+  <div class="li b"><i>5</i><span><b>Вы видите стадию, не спрашивая</b><span class="sub">«на каком этапе» — это экран, а не звонок. Просроченное подсвечивается само</span></span></div>
+  <div class="note" style="--tone:var(--brand)"><b>Ваша фраза со встречи</b>
+   <p>«Задачу поставил бухгалтеру, чтобы кредит оплатил — на какой стадии, оплачено, чтобы написал: оплачено, чек номер. Вот такие процессы, как документооборот, чтобы программа сама». Это этот экран.</p></div>
+ </div>`;
+};
+function taskStep(id){const t=TASKS.find(x=>x.id===id);if(!t)return;
+ const i=t.chain.findIndex(c=>c[2]!=='ok');
+ if(i<0){toast('Задача уже закрыта: все шаги отмечены, результат приложен.');return}
+ t.chain[i][2]='ok';t.chain[i][1]+=' · отмечено сейчас';
+ if(t.chain.every(c=>c[2]==='ok'))t.st='ok';else if(t.st!=='late')t.st='go';
+ const nx=t.chain.findIndex(c=>c[2]!=='ok');
+ if(nx>=0)t.chain[nx][2]='go';
+ render();
+ toast(t.st==='ok'?`Задача «${esc(t.t)}» закрыта. Уведомление ушло постановщику — вам не нужно спрашивать, сделано или нет.`:'Шаг отмечен. Следующий исполнитель получил уведомление на телефон.')}
+function taskPay(id){const t=TASKS.find(x=>x.id===id);if(!t)return;
+ t.chain.forEach(c=>c[2]='ok');t.st='ok';
+ t.chain.push(['Гульмира','Оплачено · чек № 4471902 от 15.09 · сумма 8 400 000 ₸','ok']);
+ render();sparks(14);
+ toast('Чек приложен к задаче. Вы видите номер платежа и сумму со своего телефона — без звонка бухгалтеру и без «сейчас пришлю в вотсап».')}
+function addTask(){
+ TASKS.unshift({id:907+TASKS.length,t:'Новая задача — опишите, что нужно сделать',who:'Нурбек',from:ROLES[role].n,br:'Бишкек',st:'new',due:'18.09',ty:'Административная',
+  chain:[[ROLES[role].n,'Поставил задачу · сейчас','ok'],['Нурбек','Уведомление отправлено на телефон','go']]});
+ render();
+ toast('Задача создана и ушла адресату уведомлением. Постановка занимает 15 секунд: кому, что, до какого числа.')}
+
+/* ====== НА ТЕЛЕФОНЕ ====== */
+let PH=0;
+const PHS=[
+ {t:'Пришло уведомление',b:'ЗАДАЧА ОТ ЗАМИРБЕКА',x:'Оплатить кредит в банке до 18 сентября',a:'ПРИНЯТЬ В РАБОТУ',
+  n:'Сотрудник видит задачу как обычное сообщение — открывать компьютер не нужно. Уведомление приходит в браузер и дублируется в WhatsApp.'},
+ {t:'Принял в работу',b:'В РАБОТЕ · СРОК 18.09',x:'Оплатить кредит в банке до 18 сентября',a:'ОТМЕТИТЬ ВЫПОЛНЕНИЕ',
+  n:'Постановщик сразу видит: задачу приняли в 09:26. Если бы не приняли за два часа — пришло бы напоминание, а потом уведомление руководителю.'},
+ {t:'Прикладывает результат',b:'РЕЗУЛЬТАТ',x:'Оплачено · чек № 4471902 · 8 400 000 ₸',a:'ОТПРАВИТЬ',
+  n:'Задача не закрывается словом «сделано»: нужен результат — номер чека, фото документа, скан контракта. Тип результата настраивается под вид задачи.'},
+ {t:'Задача закрыта',b:'ВЫПОЛНЕНО · 15.09 14:12',x:'Оплачено · чек № 4471902 · 8 400 000 ₸',a:'ВЕРНУТЬСЯ К СПИСКУ',
+  n:'Вы видите закрытую задачу с чеком со своего телефона. История остаётся навсегда: кто поставил, кто выполнил, когда и чем подтвердил.'}
+];
+SC.phone=()=>{const p=PHS[PH];
+ return `${head('Как это выглядит у сотрудника','Портал открывается в браузере телефона — ничего устанавливать не нужно. Нажимайте кнопку на экране телефона и смотрите, что происходит на каждом шаге.',
+  '<button class="bt" onclick="PH=0;render()">Сначала</button>')}
+ <div class="g12">
+  <div style="display:flex;justify-content:center">
+   <div class="phone">
+    <div class="pht"><b>Мои задачи</b><small>Гульмира · бухгалтер · Бишкек</small></div>
+    <div class="pb">
+     <div style="font:700 8.4px 'IBM Plex Mono',monospace;color:var(--brand);letter-spacing:.08em">${esc(p.b)}</div>
+     <div style="font-size:13px;font-weight:800;margin:8px 0 4px;line-height:1.4">${esc(p.x)}</div>
+     <div class="pi"><span>Поставил</span><b>Замирбек</b></div>
+     <div class="pi"><span>Срок</span><b>18 сентября</b></div>
+     <div class="pi"><span>Филиал</span><b>Бишкек</b></div>
+     <div class="pi"><span>Статус</span><b style="color:${PH===3?'var(--ok)':PH?'var(--warn)':'var(--muted)'}">${['Новая','В работе','Готовит результат','Выполнено'][PH]}</b></div>
+     ${PH>=2?'<div class="pi"><span>Чек</span><b>№ 4471902</b></div>':''}
+     <div class="pbtn" onclick="phNext()">${esc(p.a)}</div>
+     <div style="font-size:9.6px;color:var(--muted);text-align:center;margin-top:9px">портал открыт в браузере телефона</div>
+    </div>
+   </div>
+  </div>
+  <div>
+   <div class="pan"><h3>Шаг ${PH+1} из 4 · ${esc(p.t)}</h3>
+    <div style="font-size:12.4px;line-height:1.7">${esc(p.n)}</div>
+    <div style="margin-top:12px"><div class="bar" style="--w:${(PH+1)/4*100}%"><i class="b"></i></div></div>
+   </div>
+   <div class="pan"><h3>Что важно про телефон</h3>
+    <div class="kv"><span>Это приложение из магазина?</span><b>нет, обычная ссылка</b></div>
+    <div class="kv"><span>Нужно устанавливать?</span><b style="color:var(--ok)">нет</b></div>
+    <div class="kv"><span>Android и iPhone</span><b>работает одинаково</b></div>
+    <div class="kv"><span>Значок на экране телефона</span><b>добавляется в два нажатия</b></div>
+    <div class="kv"><span>Уведомления</span><b>в браузер и в WhatsApp</b></div>
+    <div class="kv"><span>Медленный интернет</span><b>экраны лёгкие, работает</b></div>
+    <div class="hint">Вы сказали: «чтобы все мои сотрудники заходили, посмотрели, задачу поставил, чтобы работали — по телефону». Это оно и есть: у каждого своя ссылка и свой вход, у каждого свои задачи и свои права.</div>
+   </div>
+   <div class="pan"><h3>Кто что видит на телефоне</h3>
+    <div class="li"><i>✓</i><span><b>Вы</b><span class="sub">все задачи по трём филиалам, калькулятор, деньги, аналитика</span></span></div>
+    <div class="li"><i>✓</i><span><b>Директор филиала</b><span class="sub">задачи своего филиала, свои склады, свои продажи — чужой филиал не видит</span></span></div>
+    <div class="li"><i>✓</i><span><b>Бухгалтер</b><span class="sub">задачи по оплатам, долги, отчёты</span></span></div>
+    <div class="li"><i>✓</i><span><b>Кладовщик и мастер</b><span class="sub">приёмка, выдача, смены — без доступа к деньгам</span></span></div>
+   </div>
+  </div>
+ </div>`;
+};
+function phNext(){PH=(PH+1)%4;render();if(PH===3)sparks(12)}
+
+/* ====== ФИЛИАЛЫ ====== */
+SC.branches=()=>`${head('Три филиала в одной системе','Бишкек, Шымкент и Андижан: общий пульт у вас, разделённые данные у директоров. Вы говорили — Шымкент и Андижан нужно объединить в одной программе. Здесь их три.',
+ '<button class="bt p" onclick="go(\'bcab\')">Кабинет директора →</button>')}
+ <div class="wid">
+  <div><small>Филиала</small><b class="a">${BR.length}</b><span>три страны, три валюты</span></div>
+  <div><small>Переработка</small><b>${fmt(BR.reduce((a,b)=>a+b.t,0))} т</b><span>за месяц</span></div>
+  <div><small>Выручка</small><b>${mln(BR.reduce((a,b)=>a+b.rev,0))} ₸</b><span>в пересчёте на тенге</span></div>
+  <div><small>Маржа</small><b class="g">${mln(BR.reduce((a,b)=>a+b.marg,0))} ₸</b><span>${pct(BR.reduce((a,b)=>a+b.marg,0),BR.reduce((a,b)=>a+b.rev,0))}</span></div>
+  <div><small>Сотрудников</small><b class="i">${BR.reduce((a,b)=>a+b.men,0)}</b><span>у каждого свой вход</span></div>
+ </div>
+ <div class="brs">${BR.map(b=>`<div class="br ${b.n==='Андижан'?'new':''}">
+  <h4>${esc(b.n)}</h4>
+  <div class="loc">${esc(b.c)} · директор ${esc(b.dir)} · ${esc(b.mill)}</div>
+  <div class="mt">
+   <div><small>ПЕРЕРАБОТКА</small><b>${fmt(b.t)} т</b></div>
+   <div><small>ВЫРУЧКА</small><b>${mln(b.rev)}</b></div>
+   <div><small>МАРЖА</small><b style="color:${b.marg/b.rev>0.1?'var(--ok)':'var(--warn)'}">${pct(b.marg,b.rev)}</b></div>
+   <div><small>ЛЮДЕЙ</small><b>${b.men}</b></div>
+  </div>
+  <div class="kv" style="margin-top:10px"><span>Валюта учёта</span><b>${esc(b.cur)}</b></div>
+  <div class="kv"><span>Состояние</span><b style="color:${b.st==='работает'?'var(--ok)':'var(--warn)'}">${esc(b.st)}</b></div>
+  <div class="btns" style="margin-top:10px"><button class="bt" onclick="go('bcab')">Открыть филиал</button></div>
+ </div>`).join('')}</div>
+ <div class="g2">
+  <div class="pan"><h3>Как разделены данные</h3>
+   <div class="li"><i>✓</i><span><b>Директор видит только свой филиал</b><span class="sub">свои склады, свои продажи, своих людей. Данные соседнего филиала недоступны</span></span></div>
+   <div class="li"><i>✓</i><span><b>Вы видите всё и сравниваете</b><span class="sub">маржа, переработка, простои, долги — по каждому филиалу и в сумме</span></span></div>
+   <div class="li"><i>✓</i><span><b>Задачи ходят между филиалами</b><span class="sub">вы ставите задачу директору Андижана, он — своим. Цепочка видна вам целиком</span></span></div>
+   <div class="li"><i>✓</i><span><b>Общие справочники</b><span class="sub">продукция, сорта, шаблоны документов — заводятся один раз на всю компанию</span></span></div>
+   <div class="li b"><i>!</i><span><b>Разные валюты и правила</b><span class="sub">сом, тенге, сум — с курсом на дату операции. Сводный отчёт приводится к одной валюте по вашему выбору</span></span></div>
+  </div>
+  <div class="pan"><h3>Сравнение филиалов</h3><p>Одинаковые показатели по одинаковым правилам — иначе сравнивать бессмысленно.</p>
+   <div class="tw" style="border:0"><table class="t">
+    <thead><tr><th>Показатель</th><th class="r">Бишкек</th><th class="r">Шымкент</th><th class="r">Андижан</th></tr></thead>
+    <tbody>
+    ${[['Маржа, %','10,7','10,8','7,4'],['Маржа на тонну, ₸','14 435','15 763','12 619'],['Выход муки, %','70,9','72,1','69,8'],['Простои, ч','28','14','22'],['Долг покупателей, млн ₸','5,9','13,3','9,4']].map(r=>
+     `<tr><td>${esc(r[0])}</td><td class="r">${esc(r[1])}</td><td class="r">${esc(r[2])}</td><td class="r"><b style="color:var(--warn)">${esc(r[3])}</b></td></tr>`).join('')}
+    </tbody></table></div>
+   <div class="note" style="--tone:var(--acc)"><b>Андижан отстаёт по всем показателям</b>
+    <p>Это нормально для запуска — но теперь понятно, где именно: выход муки ниже на 2,3 пункта, простои выше, долг покупателя 9,4 млн ₸ при обороте 72 млн. Три конкретные задачи вместо общего ощущения «там пока не идёт».</p></div>
+  </div>
+ </div>`;
+
+/* ====== КАБИНЕТ ДИРЕКТОРА ====== */
+SC.bcab=()=>`${head('Кабинет директора филиала','Что видит Нурбек в Бишкеке: свой филиал целиком и ничего чужого. Ваши общие цифры, маржа компании и другие филиалы ему не показываются.',
+ '<button class="bt" onclick="switchRole(\'Директор филиала\')">Войти как директор</button>')}
+ <div class="wid">
+  <div><small>Переработка за месяц</small><b class="a">${fmt(BR[0].t)} т</b><span>план 1 300 т</span></div>
+  <div><small>Выручка филиала</small><b>${mln(BR[0].rev)} ₸</b><span>${BR[0].men} сотрудников</span></div>
+  <div><small>Зерно на складах</small><b class="i">600 т</b><span>на 6 дней помола</span></div>
+  <div><small>Задачи филиала</small><b class="w">4</b><span>1 просрочена</span></div>
+  <div><small>Долг покупателей</small><b class="w">${mln(5900000)} ₸</b><span>по своему филиалу</span></div>
+ </div>
+ <div class="g2">
+  <div class="pan"><h3>Что директор может</h3>
+   <div class="li"><i>✓</i><span><b>Вести продажи филиала</b><span class="sub">заявки, воронка, покупатели, отгрузки — свои</span></span></div>
+   <div class="li"><i>✓</i><span><b>Управлять складами и помолом</b><span class="sub">приёмка зерна, выдача в помол, смены, готовая продукция</span></span></div>
+   <div class="li"><i>✓</i><span><b>Ставить задачи своим сотрудникам</b><span class="sub">и отчитываться по вашим задачам</span></span></div>
+   <div class="li"><i>✓</i><span><b>Видеть маржу своего филиала</b><span class="sub">если вы это разрешите — настраивается галочкой</span></span></div>
+  </div>
+  <div class="pan"><h3>Чего директор не может</h3>
+   <div class="li no"><i>×</i><span><b>Видеть другие филиалы</b><span class="sub">ни выручку, ни клиентов, ни цены</span></span></div>
+   <div class="li no"><i>×</i><span><b>Видеть цены закупа по компании</b><span class="sub">калькулятор закупа — только у вас и у снабженца</span></span></div>
+   <div class="li no"><i>×</i><span><b>Менять цены ниже границы</b><span class="sub">скидка выше лимита уходит вам на согласование</span></span></div>
+   <div class="li no"><i>×</i><span><b>Удалять документы и закрытые сделки</b><span class="sub">только архивировать — история остаётся</span></span></div>
+   <div class="hint">Права настраиваются галочками под вашу структуру: где-то директору можно показывать маржу, где-то — только объёмы. Это решается на этапе согласования ядра, не программированием.</div>
+  </div>
+ </div>
+ <div class="pan"><h3>Задачи филиала Бишкек</h3>
+  ${TASKS.filter(t=>t.br==='Бишкек').map(t=>`<div class="li ${t.st==='late'?'b':t.st==='go'?'w':''}">
+   <i>${t.st==='ok'?'✓':'!'}</i><span><b>${esc(t.t)}</b><span class="sub">${esc(t.who)} · срок ${esc(t.due)} · ${esc(TSTN[t.st])}</span></span></div>`).join('')}
+ </div>`;
+
+/* ====== ПОЛЬЗОВАТЕЛИ ====== */
+SC.users=()=>`${head('Пользователи и права','Кто что видит и что может менять. Настраивается галочками под вашу структуру — без программиста и без доработок.',
+ '<button class="bt p" onclick="toast(\'Новый сотрудник заводится за минуту: имя, роль, филиал, телефон. Права подтягиваются из роли, ссылка на вход уходит ему в WhatsApp.\')">+ Сотрудник</button>')}
+ <div class="tw"><table class="t">
+  <thead><tr><th>Роль</th><th>Кто это</th><th class="r">Разделов</th><th>Деньги</th><th>Калькулятор</th><th>Все филиалы</th><th>Что делает</th></tr></thead>
+  <tbody>${Object.entries(ROLES).map(([k,v])=>`<tr onclick="switchRole('${esc(k)}');go('${v.s[0]}')">
+   <td><b>${esc(k)}</b></td><td>${avatar(v.n)} ${esc(v.n)}<span class="sub">${esc(v.r)}</span></td>
+   <td class="r">${v.s.length}</td>
+   <td>${v.s.includes('debt')||v.s.includes('dash')?'<span class="tag w">да</span>':'<span class="tag">нет</span>'}</td>
+   <td>${v.s.includes('calc')?'<span class="tag b">да</span>':'<span class="tag">нет</span>'}</td>
+   <td>${v.s.includes('branches')?'<span class="tag a">да</span>':'<span class="tag">только свой</span>'}</td>
+   <td class="sub2">${esc(v.note)}</td></tr>`).join('')}</tbody>
+ </table></div>
+ <div class="g2">
+  <div class="pan"><h3>Права на действия, а не только на экраны</h3>
+   ${[['Видеть цену закупа зерна','Собственник и снабженец',1],['Видеть маржу партии','Собственник, бухгалтер',1],['Давать скидку больше 3%','Только собственник',1],['Ставить задачи другому филиалу','Собственник',1],['Списывать зерно в помол','Кладовщик и мастер',1],['Менять проценты выхода','Собственник и технолог',1],['Удалять закрытые сделки','Никто — только архив',0]].map(r=>
+    `<div class="srow"><span class="nm">${esc(r[0])}<span class="sub">${esc(r[1])}</span></span>
+     <span class="sw ${r[2]?'on':''}" onclick="event.stopPropagation();this.classList.toggle('on');toast('Право изменено. Все такие изменения пишутся в журнал: кто, когда и что разрешил.')"></span></div>`).join('')}
+  </div>
+  <div class="pan"><h3>Журнал действий</h3><p>Кто что сделал в системе. Нужен редко — но тогда очень сильно.</p>
+   <div class="li"><i>·</i><span><b>Айгуль изменила цену в заявке 4090</b><span class="sub">148 → 145 ₸/кг · скидка согласована · сегодня 11:24</span></span></div>
+   <div class="li"><i>·</i><span><b>Марат сохранил расчёт партии П-2621</b><span class="sub">закуп 88 ₸/кг · плановая прибыль 381 000 ₸ · сегодня 10:02</span></span></div>
+   <div class="li"><i>·</i><span><b>Нурия приняла 207 т по партии П-2618</b><span class="sub">вес по весовой 206,4 т — недостача 600 кг зафиксирована</span></span></div>
+   <div class="li w"><i>!</i><span><b>Попытка списать зерно без партии</b><span class="sub">отклонена системой · вчера 15:10</span></span></div>
+   <div class="hint">Вы сами говорили, что работали с государственным учётом и знаете, как важна первичка. Здесь она одна на всю компанию: первичные документы и финансовый результат в одной платформе, а не в двух разных программах.</div>
+  </div>
+ </div>`;
+
+/* ====== ИНТЕГРАЦИИ ====== */
+SC.integr=()=>`${head('Интеграции','Что подключается к порталу. Главное: всё первичное и весь финансовый результат живут в одной платформе — вы сказали, что именно этого не хватило в прошлом предложении.',
+ '<button class="bt" onclick="toast(\'Каждая интеграция включается отдельно и не обязательна. Портал полностью работает сам по себе.\')">Как подключается</button>')}
+ <div class="g3">
+  ${[['WhatsApp','Заявки из переписки становятся карточками. Уведомления по задачам, счета и напоминания об оплате уходят туда же.','входит','g'],
+    ['Уведомления на телефон','Задачи, просрочки, новые заявки — приходят как сообщения. Ничего устанавливать не нужно.','входит','g'],
+    ['Банк и Kaspi','Выписка подтягивается, оплаты разносятся по счетам и партиям, долги обновляются сами.','входит','g'],
+    ['Excel','Выгрузка любого отчёта и загрузка справочников: покупатели, цены, номенклатура.','входит','g'],
+    ['Весовая и лаборатория','Вес и анализы вносятся с телефона или подтягиваются с оборудования, если оно это умеет.','по вашему оборудованию','a'],
+    ['1С','Можно подключить обменом, но не обязательно: первичка и финансовый результат и так в одной платформе.','по необходимости','w']].map(x=>
+   `<div class="pan"><h3>${esc(x[0])}</h3><p>${esc(x[2])}</p>
+    <div style="font-size:11.4px;line-height:1.65;color:var(--text)">${esc(x[1])}</div>
+    <div style="margin-top:10px"><span class="tag ${x[3]}">${x[3]==='g'?'входит в пакет':x[3]==='w'?'опция':'настраивается'}</span></div></div>`).join('')}
+ </div>
+ <div class="g2">
+  <div class="pan"><h3>Почему одна платформа, а не связка программ</h3>
+   <div class="li"><i>✓</i><span><b>Первичка и результат в одном месте</b><span class="sub">партия, приёмка, помол, отгрузка и прибыль — одни и те же данные, а не две базы, которые нужно сверять</span></span></div>
+   <div class="li"><i>✓</i><span><b>Никакой «маршрутизации» между системами</b><span class="sub">то, из-за чего в прошлом предложении выросла цена и появились два подрядчика</span></span></div>
+   <div class="li"><i>✓</i><span><b>Один подрядчик — один ответ</b><span class="sub">не «это к программисту 1С, а это к нам»</span></span></div>
+   <div class="li"><i>✓</i><span><b>Меньше денег на поддержку</b><span class="sub">одна система дешевле в обслуживании, чем две плюс обмен между ними</span></span></div>
+  </div>
+  <div class="pan"><h3>Ваш сервер, ваши данные, ваш код</h3>
+   <div class="kv"><span>Где стоит система</span><b>на вашем сервере</b></div>
+   <div class="kv"><span>Кому принадлежат данные</span><b style="color:var(--ok)">вам</b></div>
+   <div class="kv"><span>Исходный код</span><b style="color:var(--ok)">передаётся вам</b></div>
+   <div class="kv"><span>Наш доступ после сдачи</span><b>только на время обслуживания</b></div>
+   <div class="kv"><span>Абонентская плата</span><b style="color:var(--ok)">нет</b></div>
+   <div class="kv"><span>Хостинг</span><b>от 12 000 ₸ в месяц</b></div>
+   <div class="note" style="--tone:var(--brand)"><b>Вас не «выключат», если что-то пойдёт не так</b>
+    <p>Вы говорили: программисты получают деньги, а потом меняют коды и просят ещё. Поэтому система разворачивается на вашем сервере, доступы у вас, исходники передаются вам по акту. Даже если мы разойдёмся — система продолжит работать, и любой другой программист сможет её поддерживать.</p></div>
+  </div>
+ </div>`;
+
+/* ====== СТОИМОСТЬ ====== */
+SC.economy=()=>{
+ const base=ECON.base, disc=base*ECON.disc/100, total=base-disc;
+ const start=Math.round(total*0.1), core=Math.round(total*0.4), rest=total-start-core, part=Math.round(rest/3);
+ const g1=F.grind*(ECON.vyh/100)*1000*C0.pMuka;      /* прибавка выхода муки */
+ const g2=ECON.dt*4*15500;                            /* сокращение простоев, т/ч × маржа */
+ const g3=ECON.bad*900000/3;                          /* отсечённые убыточные партии */
+ const gain=g1+g2+g3, pay=total/gain;
+ return `${head('Стоимость и условия','Стандартный пакет разработки — 2 500 000 ₸, срок 4–6 недель. Ниже — специальные условия по итогам встречи: скидка и рассрочка, чтобы платежи не били по обороту.',
+  '<button class="bt p" onclick="go(\'stack\')">Что входит в пакет →</button>')}
+ <div class="wid">
+  <div><small>Стандартный пакет</small><b>${fmt(base)} ₸</b><span>разработка, 4–6 недель</span></div>
+  <div><small>Скидка по итогам встречи</small><b class="a">− ${fmt(disc)} ₸</b><span>${ECON.disc}%</span></div>
+  <div><small>Итого к оплате</small><b class="i">${fmt(total)} ₸</b><span>без абонентской платы</span></div>
+  <div><small>Первый платёж</small><b class="g">${fmt(start)} ₸</b><span>10% — старт работ</span></div>
+  <div><small>Окупаемость</small><b class="g">${num(pay)} мес</b><span>по расчёту ниже</span></div>
+ </div>
+ <div class="g2">
+  <div class="pan"><h3>График платежей: половина — после сдачи</h3>
+   <p>Ровно то, что обсуждали на встрече: 1 250 000 ₸ до полной сдачи, остальное — частями, пока вы уже работаете в системе.</p>
+   <div class="res">
+    <div class="rr"><span><b>1.</b> Старт работ · 10%</span><b>${fmt(start)} ₸</b></div>
+    <div class="rr"><span><b>2.</b> Ядро развёрнуто на вашем сервере · 40%<span class="sub2">через 2–3 недели, когда систему уже можно открыть и потрогать</span></span><b>${fmt(core)} ₸</b></div>
+    <div class="rr"><span><b>3.</b> Первый месяц работы</span><b>${fmt(part)} ₸</b></div>
+    <div class="rr"><span><b>4.</b> Второй месяц работы</span><b>${fmt(part)} ₸</b></div>
+    <div class="rr"><span><b>5.</b> Третий месяц работы</span><b>${fmt(rest-part*2)} ₸</b></div>
+    <div class="rr hi"><span>Итого</span><b>${fmt(total)} ₸</b></div>
+   </div>
+   <div class="kv" style="margin-top:12px"><span>До полной сдачи вы платите</span><b>${fmt(start+core)} ₸ · ${pct(start+core,total)}</b></div>
+   <div class="kv"><span>После сдачи, тремя частями</span><b>${fmt(rest)} ₸</b></div>
+   <div class="kv"><span>Сопровождение в это время</span><b style="color:var(--ok)">включено</b></div>
+   <div class="kv"><span>Поддержка после запуска</span><b style="color:var(--ok)">полгода бесплатно</b></div>
+   <div class="kv"><span>Абонентская плата</span><b style="color:var(--ok)">нет</b></div>
+   <div class="kv"><span>Хостинг сервера</span><b>от ${fmt(ECON.host)} ₸ в месяц</b></div>
+   <div class="note" style="--tone:var(--acc)"><b>Почему так</b>
+    <p>Вы сказали прямо: сейчас есть кредиторская задолженность, и платить всё сразу тяжело. Разбивка по месяцам решает это: крупный платёж приходит тогда, когда система уже развёрнута и работает, а хвост гасится частями с оборота.</p></div>
+  </div>
+  <div>
+   <div class="pan"><h3>Окупаемость на ваших цифрах</h3><p>Двигайте ползунки. Мы специально берём скромные значения.</p>
+    <div class="crow"><label><span>Прибавка выхода муки</span><b>+${num(ECON.vyh)} п.п.</b></label>
+     <input type="range" min="0" max="1.5" step="0.1" value="${ECON.vyh}" oninput="ECON.vyh=+this.value;render()">
+     <div class="mini">Сейчас фактический выход 70,6% против нормы 72%. Когда выход фиксируется по сменам и партиям, он подтягивается сам.</div></div>
+    <div class="crow"><label><span>Сокращение простоев</span><b>${ECON.dt} ч в месяц</b></label>
+     <input type="range" min="0" max="40" step="2" value="${ECON.dt}" oninput="ECON.dt=+this.value;render()">
+     <div class="mini">Из 64 часов простоя часть — это ожидание зерна со склада, а не поломки.</div></div>
+    <div class="crow"><label><span>Убыточных партий, отсечённых калькулятором</span><b>${num(ECON.bad)} в квартал</b></label>
+     <input type="range" min="0" max="3" step="0.5" value="${ECON.bad}" oninput="ECON.bad=+this.value;render()">
+     <div class="mini">Один вагон, купленный по цене выше порога, — это около 900 000 ₸ упущенной прибыли.</div></div>
+    <div class="res" style="margin-top:6px">
+     <div class="rr"><span>Прибавка выхода муки</span><b>${fmt(g1)} ₸</b></div>
+     <div class="rr"><span>Сокращение простоев</span><b>${fmt(g2)} ₸</b></div>
+     <div class="rr"><span>Отсечённые убыточные партии</span><b>${fmt(g3)} ₸</b></div>
+     <div class="rr hi"><span>Эффект в месяц</span><b>${fmt(gain)} ₸</b></div>
+     <div class="rr"><span>Стоимость проекта</span><b>${fmt(total)} ₸</b></div>
+     <div class="rr"><span>Окупаемость</span><b>${num(pay)} ${plural(Math.round(pay)||1,['месяц','месяца','месяцев'])}</b></div>
+     <div class="rr"><span>Если эффект окажется втрое меньше</span><b>${num(pay*3)} мес</b></div>
+    </div>
+   </div>
+  </div>
+ </div>
+ <div class="note" style="--tone:var(--brand)"><b>Что входит в эти ${fmt(total)} ₸</b>
+  <p>Калькулятор партии, отдел продаж с воронкой, покупатели, два склада, помол и смены, лаборатория, отгрузки, документооборот-задачи с уведомлениями на телефон, три филиала с разделением доступа, аналитика и отчёты, права, мобильная версия, развёртывание на вашем сервере, обучение сотрудников и полгода поддержки. Ничего из перечисленного не является «дополнительной опцией за отдельные деньги».</p></div>`;
+};
+
+/* ====== ЧТО ПОЛУЧАЕТЕ ====== */
+SC.stack=()=>`${head('Что входит в пакет','Всё, что вы видите в этом демо, входит в стандартный пакет. Ниже — полный список и то, как идёт работа.',
+ '<button class="bt p" onclick="sparks(20);toast(\'Следующий шаг: садимся вместе, проходим по экранам и вычёркиваем ненужное, дописываем ваше. Из этого получается техническое задание на ядро.\')">Что дальше</button>')}
+ <div class="g3">
+  ${[['Расчёты',['Калькулятор партии: закуп, логистика, переработка, реализация','Пороги: максимальная цена закупа и минимальная цена муки','История партий: план против факта','Цены закупа и реализации по регионам и филиалам','Расчёт себестоимости тонны муки из партии']],
+    ['Продажи',['Заявки из WhatsApp, звонков и переписки','Воронка из шести этапов','Покупатели с историей, ценами и скидками','Счета и накладные по шаблону','Долги: кто должен вам и кому должны вы']],
+    ['Производство',['Цикл партии от закупа до денег','Помол и смены с фактическим выходом','Простои с причинами и стоимостью','Лаборатория: клейковина, влажность, натура','Качество поставщиков по фактам, а не по памяти']],
+    ['Склады',['Склад зерна по филиалам и складам','Выдача в помол под конкретную партию','Готовая продукция по сортам и фасовке','Резерв под оплаченные заказы','Отгрузки, рейсы и документы']],
+    ['Задачи',['Документооборот: задача → подзадача → результат','Уведомления на телефон исполнителю','Обязательный результат: чек, фото, документ','Просрочки подсвечиваются и эскалируются','История: кто поставил, кто сделал, когда']],
+    ['Управление',['Пульт по трём филиалам с телефона','Разделение доступа между филиалами','Аналитика по марже, продукции и поставщикам','Права на действия, а не только на экраны','Журнал действий и архив вместо удаления']]].map(b=>
+   `<div class="pan"><h3>${esc(b[0])}</h3>
+    ${b[1].map(x=>`<div class="li"><i>✓</i><span>${esc(x)}</span></div>`).join('')}</div>`).join('')}
+ </div>
+ <div class="g2">
+  <div class="pan"><h3>Как идёт работа</h3>
+   <div class="tl">
+    <div class="tli on"><span class="who">СЕЙЧАС</span><b>Демо и разбор</b><p>Вы смотрите этот макет и калькулятор, говорите по каждому экрану «нужно / не нужно / по-другому». Бесплатно и ни к чему не обязывает.</p></div>
+    <div class="tli"><span class="who">НЕДЕЛЯ 1</span><b>Техническое задание на ядро</b><p>Собираем ваши статьи расходов, формулы, проценты выхода и структуру филиалов в документ. Вы его подтверждаете.</p></div>
+    <div class="tli"><span class="who">НЕДЕЛИ 2–3</span><b>Разработка ядра</b><p>Калькулятор, склады, партии, задачи, роли. Показываем промежуточные результаты — не пропадаем на месяц.</p></div>
+    <div class="tli"><span class="who">НЕДЕЛЯ 3–4</span><b>Развёртывание на вашем сервере</b><p>Система работает у вас, с вашими доступами. Здесь второй платёж — не раньше.</p></div>
+    <div class="tli"><span class="who">НЕДЕЛИ 4–6</span><b>Обучение и полировка</b><p>Учим сотрудников в трёх филиалах, правим то, что вылезет в первую неделю реальной работы. Дальше — полгода поддержки.</p></div>
+   </div>
+  </div>
+  <div class="pan"><h3>Честно о рисках</h3>
+   <div class="li w"><i>!</i><span><b>Калькулятор точен настолько, насколько точны ваши цифры</b><span class="sub">статьи расходов и тарифы даёте вы. Первый месяц будем уточнять формулы по факту — это нормально</span></span></div>
+   <div class="li w"><i>!</i><span><b>Сотрудники в трёх странах — это обучение</b><span class="sub">заложены обучение и поддержка, но первый месяц будет напряжённым</span></span></div>
+   <div class="li w"><i>!</i><span><b>Если данные не вносить — система бесполезна</b><span class="sub">поэтому все экраны сделаны под телефон и на минимум нажатий</span></span></div>
+   <div class="li"><i>✓</i><span><b>Что снижает риск для вас</b><span class="sub">платежи по этапам, половина суммы — уже после сдачи, исходники и сервер ваши, абонплаты нет</span></span></div>
+  </div>
+ </div>`;
+
+/* ====== ИНФРАСТРУКТУРА ====== */
+function renderRoles(){
+ const r=document.getElementById('roles');if(!r)return;
+ r.innerHTML=Object.entries(ROLES).map(([k,v])=>`<div class="role" onclick="enter('${esc(k)}')">
+  <div class="rav">${esc(v.av)}</div><div><b>${esc(k)}</b><span>${esc(v.n)} · ${esc(v.note)}</span></div></div>`).join('');
+ const s=document.getElementById('rsel');
+ if(s)s.innerHTML=Object.keys(ROLES).map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join('');
+}
+const allowed=k=>ROLES[role].s.indexOf(k)>=0;
+function enter(k){
+ role=ROLES[k]?k:'Собственник';
+ document.getElementById('gate').classList.add('hidden');
+ document.getElementById('app').classList.remove('hidden');
+ const s=document.getElementById('rsel');if(s)s.value=role;
+ document.getElementById('me').textContent=ROLES[role].av;
+ if(!allowed(cur))cur=ROLES[role].s[0];
+ build();
+ toast(`Вы вошли как «${role}» · ${ROLES[role].n}. Показаны только те разделы, которые нужны этой роли.`);
+}
+function switchRole(k){role=k;document.getElementById('me').textContent=ROLES[role].av;
+ const s=document.getElementById('rsel');if(s)s.value=role;
+ if(!allowed(cur))cur=ROLES[role].s[0];build();
+ toast(`Роль: ${role}. Разделов доступно: ${ROLES[role].s.length}. ${ROLES[role].note}.`)}
+const ownerOf=k=>SECOF[k];
+function buildRail(){
+ const on=ownerOf(cur);
+ document.getElementById('rail').innerHTML=SEC.filter(s=>s.sub.some(x=>allowed(x[0]))).map(s=>{
+  const n=s.sub.filter(x=>allowed(x[0])).length;
+  return `<div class="ri ${s.k===on?'on':''}" onclick="go('${s.sub.filter(x=>allowed(x[0]))[0][0]}')" title="${esc(s.n)}">
+   <i>${s.ic}</i><span>${esc(s.n)}</span>${n>1?`<b class="cnt">${n}</b>`:''}</div>`}).join('');
+}
+function buildSub(){
+ const on=ownerOf(cur),s=SEC.find(x=>x.k===on);if(!s)return;
+ document.getElementById('sub').innerHTML=`<h4>${esc(s.n)}</h4>`+
+  s.sub.filter(x=>allowed(x[0])).map(x=>`<a class="${x[0]===cur?'on':''}" onclick="go('${x[0]}')">${esc(x[1])}</a>`).join('')+
+  `<div class="shint"><b>${esc(role)}</b><br>${esc(ROLES[role].note)}</div>`;
+}
+function build(){buildRail();buildSub();render()}
+function render(){
+ const f=SC[cur]||SC.dash;
+ document.getElementById('ttl').textContent=SUBN[cur]||'Пульт';
+ document.getElementById('content').innerHTML=`<div class="screen">${f()}</div>`;
+ if(cur==='calc')paintCalc();
+ const a=document.getElementById('addBtn');if(a)a.style.display=allowed('calc')?'':'none';
+ try{history.replaceState(null,'','?s='+cur)}catch(e){}
+}
+function go(k){if(!allowed(k)){toast('Этой роли раздел недоступен — так работают права доступа.');return}
+ cur=k;build();const c=document.querySelector('.content');if(c)c.scrollTop=0}
+function openM(t,s,b){
+ document.getElementById('mt').innerHTML=t;
+ document.getElementById('ms').innerHTML=s;
+ document.getElementById('mbody').innerHTML=b;
+ document.getElementById('mbg').classList.add('show');
+}
+function closeM(){document.getElementById('mbg').classList.remove('show')}
+let tt=null;
+function toast(m){const t=document.getElementById('toast');
+ t.innerHTML=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),5600)}
+function sparks(n){for(let i=0;i<n;i++){const s=document.createElement('i');s.className='spark';
+ s.style.left=(14+Math.random()*72)+'vw';
+ s.style.background=['#c9911f','#2a2721','#4a7c59','#e8b44a'][i%4];
+ s.style.borderRadius=i%2?'50%':'2px';
+ s.style.animationDelay=(Math.random()*.4)+'s';document.body.appendChild(s);setTimeout(()=>s.remove(),1400)}}
+function applyTheme(){document.body.classList.toggle('dark',theme==='dark')}
+function toggleTheme(){theme=theme==='dark'?'light':'dark';applyTheme();
+ toast(theme==='dark'?'Тёмная тема — для вечера и для проектора.':'Светлая тема.')}
+
+/* ====== СЦЕНАРИЙ ПОКАЗА ====== */
+const TOUR=[
+ ['calc','Калькулятор партии — то, ради чего всё затевалось. Забиваете закуп, логистику, переработку, выходы 72 / 23 / 3 / 2 — и видите прибыль по вагону. Нажмите «Ваш пример со встречи».'],
+ ['dash','Пульт: три филиала, переработка, маржа и задачи на одном экране. Открывается с телефона.'],
+ ['tasks','Документооборот-задачи: вы ставите задачу директору филиала, он своим, бухгалтер прикладывает чек. Видно, на какой стадии всё стоит.'],
+ ['phone','Как это выглядит у сотрудника в телефоне. Понажимайте кнопку на экране телефона.'],
+ ['cycle','Цикл партии: десять шагов от расчёта до денег, с расходами, которые обычно теряются.'],
+ ['deals','Партии и сделки: план против факта. Через три месяца ваш калькулятор ошибается на 2–3%.'],
+ ['mill','Помол и смены: фактический выход муки против нормы. Полтора процента выхода — это 5,9 млн ₸ в месяц.'],
+ ['raw','Склад зерна: сколько, где, какого качества и по какой цене куплено.'],
+ ['debt','Долги: кто должен вам и кому должны вы, с календарём платежей и кассовым разрывом заранее.'],
+ ['branches','Три филиала в одной системе: Бишкек, Шымкент, Андижан. Директор видит только свой.'],
+ ['economy','И условия: стандартный пакет 2 500 000 ₸, скидка по итогам встречи, половина суммы — платежами уже после сдачи.']
+];
+let ti=-1,tRun=false;
+function tour(){if(tRun){stopTour();return}tRun=true;ti=-1;
+ document.getElementById('tourBtn').textContent='■';step()}
+function step(){if(!tRun)return;ti++;
+ if(ti>=TOUR.length){stopTour();toast('Сценарий показа закончен. Дальше можно листать разделы вручную — всё кликается.');return}
+ const [k,m]=TOUR[ti];
+ if(!allowed(k)){step();return}
+ cur=k;build();toast(m);
+ setTimeout(step,ti===0?6000:6600);
+}
+function stopTour(){tRun=false;ti=-1;const b=document.getElementById('tourBtn');if(b)b.textContent='▶'}
+
+/* ====== СТАРТ ====== */
+(function(){
+ renderRoles();applyTheme();
+ const s=document.getElementById('rsel');
+ if(s)s.addEventListener('change',e=>switchRole(e.target.value));
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeM();stopTour()}});
+ let q='';try{q=new URLSearchParams(location.search).get('s')||''}catch(e){}
+ if(q&&SECOF[q]){
+  const r=Object.keys(ROLES).find(k=>ROLES[k].s.indexOf(q)>=0);
+  if(r){cur=q;enter(r)}
+ }
+})();
