@@ -434,6 +434,8 @@ body {
 .cw-chip:hover{border-color:var(--bronze);background:var(--bronze-tint)}
 .cw-chip .t{font:800 12px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--bronze-deep);white-space:nowrap}
 .cw-chip .n{font-size:11.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cw-chip.task{border-style:dashed}
+.cw-chip.task .t{color:#7c3aed}
 .cw-chip.next{border-color:var(--bronze);background:var(--bronze-tint)}
 .cw-chip.now{border-color:var(--green);background:#e9f7ee}
 .cw-chip.now .t{color:#12703c}
@@ -6388,8 +6390,11 @@ async function saveFinanceAccess(kind){
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }
 /* ===== Виджет «встречи сегодня» =====
-   Данные те же, что в Календаре team.html: задачи с меткой zoom_meeting
-   и «первый Zoom» из карточек сделок. Одна строка вместо захода в календарь. */
+   Источники те же, что в Календаре team.html, и собираются так же:
+   события-встречи и задачи с дедлайном + «первый Zoom» из карточек сделок.
+   Важно: запрос задач идёт с allEvents=1 и широким окном по дедлайну —
+   иначе видны только свои задачи, а встречи, поставленные другими
+   сотрудниками, в виджет не попадают (а в календаре они есть). */
 const CAL_WORKER='https://pllato-elc-worker.uurraa.workers.dev';
 let CAL_EVENTS=null, CAL_TIMER=null, CAL_TICK=null;
 
@@ -6411,38 +6416,49 @@ function calFetch(url,ms=12000){
   const timer=setTimeout(()=>ctrl.abort(),ms);
   return fetch(url,{cache:'no-store',signal:ctrl.signal}).finally(()=>clearTimeout(timer));
 }
+/* Ссылка на сделку из crm_links задачи. Форматы встречаются разные:
+   "deal_353226", "deal_local_abc123", "D_353226", "353226",
+   а также объект вида {"D":["353226"]} — разбираем все. */
+function calLinkedDealId(task){
+  const sources=[task.crmLinks,task.bitrixCrmLinks,task.crm_links,task.bitrix_crm_links];
+  for(const links of sources){
+    if(!links) continue;
+    let values=[];
+    if(Array.isArray(links)) values=links;
+    else if(typeof links==='object'){
+      for(const [k,v] of Object.entries(links)){
+        if(k==='D'||k==='DEAL') values.push(...(Array.isArray(v)?v:[v]));
+        else values.push(v);
+      }
+    } else values=[links];
+    for(const l of values){
+      const s=String(l||'');
+      const m=s.match(/(?:deal_|D_)([a-zA-Z0-9_-]+)/i)||s.match(/^([a-zA-Z0-9_-]+)$/);
+      if(m) return m[1];
+    }
+  }
+  return null;
+}
+function calDealRecordId(deal){
+  const raw=String(deal?.id||deal?.bitrixId||'').trim();
+  if(!raw||raw==='null'||raw==='undefined') return '';
+  return raw.startsWith('deal_')?raw:'deal_'+raw;
+}
 async function calFetchToday(){
   const token=getSession()?.token;
   if(!token) throw new Error('нет сессии App');
   const today=new Date();
   const shift=n=>{ const d=new Date(today); d.setDate(d.getDate()+n); return calDayKey(d); };
   const events=[];
+  const dealsById=new Map();
+  const pipeBook={};
 
-  // 1. Задачи-встречи. Окно ±1 день по дедлайну: у Zoom-задачи время встречи
-  // лежит в startDatePlan, который может отличаться от дедлайна.
-  try{
-    const url=`${CAL_WORKER}/api/list/tasks?page=1&pageSize=300&status=active&sort=deadline`
-      +`&deadlineFrom=${shift(-1)}&deadlineTo=${shift(1)}T23:59:59&includePublic=1&auth=${encodeURIComponent(token)}`;
-    const response=await calFetch(url);
-    const data=response.ok?await response.json():{items:[]};
-    for(const task of (data.items||[])){
-      if(task.mark!=='zoom_meeting') continue;                 // нужны встречи, а не дедлайны задач
-      const when=new Date(task.startDatePlan||task.deadline||'');
-      if(isNaN(when)||calDayKey(when)!==calDayKey(today)) continue;
-      const end=task.endDatePlan?new Date(task.endDatePlan):null;
-      events.push({ at:when.getTime(), end:(end&&!isNaN(end))?end.getTime():when.getTime()+60*60000,
-        title:task.title||'Встреча', src:'задача',
-        href:`team.html?page=calendar#task/${encodeURIComponent(task.id||task.bitrixKey||'')}` });
-    }
-  }catch(e){ console.warn('встречи · задачи:',e); }
-
-  // 2. «Первый Zoom» из сделок — так встречи ставит отдел продаж.
+  // 1. Сделки по всем воронкам: и ради «первого Zoom», и чтобы подставить
+  // название сделки в события-задачи, которые на неё ссылаются.
   try{
     const pipesResponse=await calFetch(`${CAL_WORKER}/api/rtdb/pipelines.json?auth=${encodeURIComponent(token)}`);
     const pipes=pipesResponse.ok?await pipesResponse.json():null;
     const ids=Object.entries(pipes||{}).map(([id,value])=>(value&&value.id)||id);
-    // Справочник воронок и стадий: нужен для карточки встречи при наведении.
-    const pipeBook={};
     for(const [id,value] of Object.entries(pipes||{})){
       const pid=(value&&value.id)||id;
       pipeBook[pid]={ name:(value&&value.name)||'', stages:(value&&value.stages)||{} };
@@ -6452,19 +6468,23 @@ async function calFetchToday(){
     const chunks=[];
     for(let i=0;i<ids.length;i+=2){
       const part=await Promise.all(ids.slice(i,i+2).map(id=>
-        calFetch(`${CAL_WORKER}/api/list/deals?page=1&pageSize=120&pipeline=${encodeURIComponent(id)}&sort=modified&auth=${encodeURIComponent(token)}`)
+        calFetch(`${CAL_WORKER}/api/list/deals?page=1&pageSize=200&pipeline=${encodeURIComponent(id)}&sort=modified&allEvents=1&auth=${encodeURIComponent(token)}`)
           .then(r=>r.ok?r.json():{items:[]}).catch(()=>({items:[]}))));
       chunks.push(...part);
     }
     for(const chunk of chunks){
       for(const deal of (chunk.items||[])){
+        const recordId=calDealRecordId(deal);
+        if(recordId) dealsById.set(recordId.replace(/^deal_/,''),deal);
+        if(deal?.bitrixId!=null) dealsById.set(String(deal.bitrixId),deal);
         const raw=deal?.customFields?.firstZoomAt;
         if(!raw) continue;
         const when=new Date(raw);
         if(isNaN(when)||calDayKey(when)!==calDayKey(today)) continue;
         const book=pipeBook[deal.pipelineId]||null;
         events.push({ at:when.getTime(), end:when.getTime()+60*60000,
-          title:'Zoom: '+(deal.title||'сделка'), src:'сделка',
+          title:'Zoom: '+(deal.title||'сделка'), src:'первый Zoom', kind:'meet',
+          deal:recordId,
           pipe:book?book.name:'', stage:(book&&book.stages&&book.stages[deal.stageId]&&book.stages[deal.stageId].name)||'',
           sum:Number(deal.opportunity)||0,
           href:`team.html?page=calendar#deal/${encodeURIComponent(deal.recordId||deal.id||'')}` });
@@ -6472,9 +6492,44 @@ async function calFetchToday(){
     }
   }catch(e){ console.warn('встречи · сделки:',e); }
 
-  // Один и тот же Zoom может прийти и задачей, и полем сделки — схлопываем по времени и названию.
+  // 2. События и задачи. Окно по дедлайну широкое (как в Календаре): у события
+  // время лежит в startDatePlan и может сильно расходиться с дедлайном.
+  // allEvents=1 — иначе не видно встреч, поставленных другими сотрудниками.
+  try{
+    const url=`${CAL_WORKER}/api/list/tasks?page=1&pageSize=500&status=active&sort=deadline`
+      +`&deadlineFrom=${shift(-90)}&deadlineTo=${shift(90)}T23:59:59&includePublic=1&allEvents=1&auth=${encodeURIComponent(token)}`;
+    const response=await calFetch(url);
+    const data=response.ok?await response.json():{items:[]};
+    for(const task of (data.items||[])){
+      const isMeet=task.mark==='zoom_meeting';
+      const when=new Date((isMeet?(task.startDatePlan||task.deadline):task.deadline)||'');
+      if(isNaN(when)||calDayKey(when)!==calDayKey(today)) continue;
+      const end=task.endDatePlan?new Date(task.endDatePlan):null;
+      const dealId=calLinkedDealId(task);
+      const deal=dealId?dealsById.get(String(dealId)):null;
+      const dealTitle=deal?.title||task.calendarDealTitle||'';
+      const book=deal?pipeBook[deal.pipelineId]:null;
+      events.push({ at:when.getTime(),
+        end:(end&&!isNaN(end))?end.getTime():when.getTime()+(isMeet?60:30)*60000,
+        title:dealTitle?('Сделка: '+dealTitle):(task.title||(isMeet?'Встреча':'Задача')),
+        note:dealTitle&&task.title?task.title:'',
+        src:isMeet?'встреча':'задача', kind:isMeet?'meet':'task',
+        deal:deal?calDealRecordId(deal):'',
+        pipe:book?book.name:'', stage:(book&&book.stages&&book.stages[deal.stageId]&&book.stages[deal.stageId].name)||'',
+        sum:deal?Number(deal.opportunity)||0:0,
+        href:deal
+          ? `team.html?page=calendar#deal/${encodeURIComponent(deal.recordId||deal.id||'')}`
+          : `team.html?page=calendar#task/${encodeURIComponent(task.id||task.bitrixKey||'')}` });
+    }
+  }catch(e){ console.warn('встречи · задачи:',e); }
+
+  // Один и тот же Zoom приходит и задачей, и полем сделки: если они по одной
+  // сделке и в одну минуту — оставляем событие-задачу, у него есть название.
+  const byDeal=new Set();
+  for(const e of events) if(e.kind==='meet'&&e.deal&&e.src==='встреча') byDeal.add(e.deal+'|'+e.at);
   const seen=new Set();
   return events.filter(item=>{
+    if(item.src==='первый Zoom'&&item.deal&&byDeal.has(item.deal+'|'+item.at)) return false;
     const key=item.at+'|'+item.title;
     if(seen.has(key)) return false;
     seen.add(key); return true;
@@ -6496,8 +6551,11 @@ function renderTodayCalendar(){
     return;
   }
   const now=Date.now();
-  const running=CAL_EVENTS.find(e=>e.at<=now&&e.end>now);   // встреча идёт прямо сейчас
-  const upcoming=CAL_EVENTS.filter(e=>e.at>now);            // ещё не начались
+  // Статус строки считаем по встречам: дедлайн задачи — не «идёт сейчас».
+  const meetList=CAL_EVENTS.filter(e=>e.kind!=='task');
+  const base=meetList.length?meetList:CAL_EVENTS;
+  const running=base.find(e=>e.at<=now&&e.end>now);   // встреча идёт прямо сейчас
+  const upcoming=base.filter(e=>e.at>now);            // ещё не начались
   if(!CAL_EVENTS.length){
     box.className='cal-widget on empty';
     box.innerHTML='<div class="cw-head"><span class="cw-title">📅 Сегодня встреч нет</span>'
@@ -6508,7 +6566,8 @@ function renderTodayCalendar(){
   const status=running
     ? (nextItem?`идёт сейчас · следующая в ${calTimeLabel(nextItem.at)}`:'идёт сейчас · последняя на сегодня')
     : (nextItem?`ближайшая в ${calTimeLabel(nextItem.at)}`:'все прошли');
-  // Показываем все встречи дня: список прокручивается, ничего не прячем за «и ещё N».
+  // Показываем всё, что есть на сегодня в календаре: список прокручивается,
+  // ничего не прячем за «и ещё N».
   const chips=CAL_EVENTS.map((item,i)=>{
     const isNow=item.at<=now&&item.end>now;
     const isNext=!isNow&&item===nextItem;
@@ -6516,13 +6575,17 @@ function renderTodayCalendar(){
     const mins=Math.round((item.at-now)/60000);
     const mark=isNow?'<span class="mk">идёт</span>'
       :isNext&&mins<=90?`<span class="mk">через ${mins<1?'минуту':mins+' мин'}</span>`:'';
-    return `<a class="cw-chip${isNow?' now':isNext?' next':isPast?' past':''}" href="${escapeHtml(item.href)}" data-cw="${i}">
+    return `<a class="cw-chip${item.kind==='task'?' task':''}${isNow?' now':isNext?' next':isPast?' past':''}" href="${escapeHtml(item.href)}" data-cw="${i}">
       <span class="t">${calTimeLabel(item.at)}</span><span class="n">${escapeHtml(item.title)}</span>${mark}</a>`;
   }).join('');
   const word=n=>n%10===1&&n%100!==11?'встреча':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'встречи':'встреч');
+  const tword=n=>n%10===1&&n%100!==11?'дело':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'дела':'дел');
+  const meets=CAL_EVENTS.filter(e=>e.kind!=='task').length;
+  const tasks=CAL_EVENTS.length-meets;
+  const counts=[meets?`${meets} ${word(meets)}`:'',tasks?`${tasks} ${tword(tasks)}`:''].filter(Boolean).join(' · ');
   box.className='cal-widget on';
   box.innerHTML=`<div class="cw-head"><span class="cw-title">📅 Сегодня</span>
-      <span class="cw-sub">${CAL_EVENTS.length} ${word(CAL_EVENTS.length)} · ${status}</span></div>
+      <span class="cw-sub">${counts} · ${status}</span></div>
     <div class="cw-list">${chips}</div>${open}`;
   calBindTips(box);
 }
@@ -6544,17 +6607,20 @@ function calHideTip(){ const tip=document.getElementById('cwTip'); if(tip) tip.c
 function calShowTip(chip,item){
   const tip=calTipBox();
   const now=Date.now();
-  const state=item.at<=now&&item.end>now?'идёт сейчас':item.end<=now?'прошла':'впереди';
+  const isTask=item.kind==='task';
+  const state=item.at<=now&&item.end>now?(isTask?'срок сегодня':'идёт сейчас')
+    :item.end<=now?(isTask?'срок прошёл':'прошла'):'впереди';
   const rows=[];
+  if(item.note) rows.push(['Событие',item.note]);
   if(item.pipe) rows.push(['Воронка',item.pipe]);
   if(item.stage) rows.push(['Стадия',item.stage]);
   if(item.sum) rows.push(['Сумма',new Intl.NumberFormat('ru-RU').format(item.sum)+' ₸']);
-  rows.push(['Время',calTimeLabel(item.at)+'–'+calTimeLabel(item.end)]);
+  rows.push([isTask?'Дедлайн':'Время',isTask?calTimeLabel(item.at):calTimeLabel(item.at)+'–'+calTimeLabel(item.end)]);
   rows.push(['Статус',state]);
   tip.innerHTML=`<div class="tt"><b>${calTimeLabel(item.at)}</b><span>${escapeHtml(item.src||'встреча')}</span></div>
     <div class="tn">${escapeHtml(item.title)}</div>
     <div class="tm">${rows.map(r=>`<div><span>${escapeHtml(r[0])}</span><b>${escapeHtml(String(r[1]))}</b></div>`).join('')}</div>
-    <div class="th">Нажмите, чтобы открыть в календаре команды</div>`;
+    <div class="th">Нажмите, чтобы открыть ${item.deal?'сделку':'дело'} в календаре команды</div>`;
   tip.classList.add('on');
   const r=chip.getBoundingClientRect(),t=tip.getBoundingClientRect();
   let left=r.left, top=r.bottom+8;
