@@ -1,0 +1,1927 @@
+/* JM Corporation · DAYIN — демо портала завода полного цикла бытовой химии и косметики.
+   Собрано по встрече 16.09.2026 (Аброр, операционный и коммерческий директор)
+   и по данным сайта dayin.kz: 6 000 м², 24 т/сутки, 513 наименований, OEM/ODM, PET, HoReCa. */
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const fmt=n=>new Intl.NumberFormat('ru-RU').format(Math.round(n));
+const num=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(n);
+const num2=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(n);
+const pct=(a,b)=>num(a/b*100)+'%';
+const mln=n=>num(n/1000000)+' млн';
+const plural=(n,f)=>{const a=Math.abs(n)%100,b=a%10;return f[(a>10&&a<20)||b>4||b===0?2:b===1?0:1]};
+
+const SEC=[
+ {k:'dash', ic:'▦', n:'Пульт',      sub:[['dash','Пульт завода'],['day','Сценарий дня']]},
+ {k:'sales',ic:'◎', n:'Продажи',    sub:[['funnel','Воронки сделок'],['clients','Клиенты и сети'],['order','Заявка → накладная'],['price','Прайс и уровни цен'],['oem','OEM-проекты']]},
+ {k:'prod', ic:'⚙', n:'Производство',sub:[['calendar','Календарь загрузки'],['batch','Производственная партия'],['shift','Сменные задания'],['qc','Контроль качества']]},
+ {k:'rec',  ic:'⚗', n:'Рецептуры',  sub:[['recipe','Рецептуры и спецификации'],['cost','Себестоимость и маржа']]},
+ {k:'wh',   ic:'⬢', n:'Склады',     sub:[['raw','Склад сырья'],['pack','ПЭТ и упаковка'],['fg','Готовая продукция']]},
+ {k:'buy',  ic:'⇪', n:'Закупки',    sub:[['purch','Закуп сырья и импорт']]},
+ {k:'ship', ic:'➤', n:'Доставка',   sub:[['ship','Отгрузки и маршруты'],['route','Маршрут водителя'],['returns','Возвраты и брак']]},
+ {k:'money',ic:'₸', n:'Деньги',     sub:[['debt','Дебиторка и лимиты'],['pay','Оплаты и сверки'],['fin','Финансы завода']]},
+ {k:'an',   ic:'▥', n:'Аналитика',  sub:[['ansku','Прибыль по SKU'],['ancl','Клиенты · ABC'],['cap','Загрузка мощности']]},
+ {k:'set',  ic:'⚙', n:'Настройки',  sub:[['tasks','Задачи и согласования'],['roles','Права доступа'],['docs','Документы и сертификаты'],['integr','Переход с Битрикса'],['stack','Состав релиза']]}
+];
+const SECOF={},SUBN={};
+SEC.forEach(s=>s.sub.forEach(x=>{SECOF[x[0]]=s.k;SUBN[x[0]]=x[1]}));
+
+const ROLES={
+ 'Коммерческий директор':{av:'АБ',n:'Аброр',r:'операционный и коммерческий директор',note:'Весь завод: продажи, производство, склады, деньги и аналитика',
+  s:['dash','day','funnel','clients','order','price','oem','calendar','batch','shift','qc','recipe','cost','raw','pack','fg','purch','ship','route','returns','debt','pay','fin','ansku','ancl','cap','tasks','roles','docs','integr','stack']},
+ 'Собственник':{av:'СБ',n:'партнёр',r:'смотрит сверху',note:'Деньги, загрузка мощности, прибыль по продуктам и клиентам — без операционки',
+  s:['dash','calendar','cap','fg','debt','pay','fin','ansku','ancl','oem','clients','stack','integr']},
+ 'Менеджер по продажам':{av:'ДН',n:'Данияр',r:'сети и опт',note:'Свои клиенты, заявки, накладные, отгрузки и долги. Себестоимость не видит',
+  s:['funnel','clients','order','price','oem','fg','ship','returns','debt','tasks','day']},
+ 'Начальник производства':{av:'ЕР',n:'Ержан',r:'цех и линии',note:'Календарь загрузки, партии, сменные задания, сырьё под план',
+  s:['day','calendar','batch','shift','qc','recipe','raw','pack','fg','tasks','cap']},
+ 'Технолог':{av:'ГУ',n:'Гульнара',r:'лаборатория и рецептуры',note:'Рецептуры, спецификации, контроль качества, паспорта партий, OEM-разработка',
+  s:['recipe','qc','batch','raw','oem','docs','tasks']},
+ 'Кладовщик':{av:'МР',n:'Марат',r:'склады сырья и ГП',note:'Приёмка сырья, остатки, партии и сроки, отгрузка по накладным',
+  s:['raw','pack','fg','purch','ship','returns','tasks','day']},
+ 'Логист':{av:'БК',n:'Бекзат',r:'доставка по городу и регионам',note:'Маршруты, машины, подтверждение доставки, возврат подписанных накладных',
+  s:['ship','route','returns','fg','clients','tasks','day']},
+ 'Бухгалтер':{av:'АЛ',n:'Алия',r:'деньги и документы',note:'Дебиторка, оплаты, акты сверки, документы и закрытие месяца',
+  s:['debt','pay','fin','docs','clients','purch','returns']}
+};
+let role='Коммерческий директор',cur='dash',theme='light';
+
+/* ====== ДАННЫЕ ЗАВОДА ====== */
+const F={
+ sku:513, area:6000, capDay:24, capMonth:500, lines:6,
+ rev:412000000, tons:386, orders:214, clients:148, avgOrd:1925000,
+ debt:78400000, debtOver:9600000, oem:11, oemSum:96000000,
+ loadPct:64, manual:18
+};
+
+/* каталог: цена дистрибьютора и себестоимость за единицу */
+const SKU=[
+ {k:'dish',  n:'DAYIN Dish · гель для посуды 1 л',      g:'DAYIN',   u:'шт', p:690,  c:412, st:8400, box:12, w:1.06},
+ {k:'floor', n:'DAYIN Floor · средство для полов 1 л',  g:'DAYIN',   u:'шт', p:620,  c:358, st:6100, box:12, w:1.04},
+ {k:'glass', n:'DAYIN Glass · спрей для стекол 500 мл', g:'DAYIN',   u:'шт', p:540,  c:301, st:2300, box:16, w:0.53},
+ {k:'wash',  n:'DAYIN · гель для стирки 1,5 л',         g:'DAYIN',   u:'шт', p:1390, c:822, st:3950, box:8,  w:1.58},
+ {k:'toilet',n:'DAYIN Toilet · чистящее 750 мл',        g:'DAYIN',   u:'шт', p:610,  c:344, st:4700, box:12, w:0.79},
+ {k:'kitch', n:'DAYIN Kitchen · антижир 500 мл',        g:'DAYIN',   u:'шт', p:650,  c:357, st:1850, box:16, w:0.54},
+ {k:'scale', n:'DAYIN · антиналёт 500 мл',              g:'DAYIN',   u:'шт', p:690,  c:381, st:1240, box:16, w:0.53},
+ {k:'hand',  n:'DAYIN · крем-гель для рук 500 мл',      g:'DAYIN',   u:'шт', p:580,  c:312, st:2960, box:16, w:0.52},
+ {k:'ela',   n:'ELAROSE · интимный уход 250 мл',        g:'Косметика',u:'шт',p:1250, c:642, st:1120, box:24, w:0.27},
+ {k:'sak',   n:'SAKURA · крем для лица 50 мл',          g:'Косметика',u:'шт',p:2350, c:1084,st:640,  box:48, w:0.08},
+ {k:'aru',   n:'ARUMEE · мицеллярная вода 400 мл',      g:'Косметика',u:'шт',p:1180, c:561, st:880,  box:24, w:0.43},
+ {k:'horeca',n:'Концентрат для пола 5 л · HoReCa',      g:'HoReCa',  u:'шт', p:2900, c:1615,st:410,  box:4,  w:5.2},
+ {k:'prof',  n:'Дезсредство концентрат 5 л · HoReCa',   g:'HoReCa',  u:'шт', p:3400, c:1880,st:260,  box:4,  w:5.2},
+ {k:'pet1',  n:'ПЭТ-флакон 1 л с крышкой (продажа)',    g:'PET',     u:'шт', p:96,   c:54,  st:48000,box:100,w:0.05},
+ {k:'pet5',  n:'Канистра 5 л (продажа)',                g:'PET',     u:'шт', p:390,  c:214, st:6200, box:12, w:0.18}
+];
+const SMAP={};SKU.forEach(s=>SMAP[s.k]=s);
+
+/* уровни цен: как договариваются с разными каналами */
+const TIER={
+ dist:{n:'Дистрибьютор',k:1,     note:'от 1 000 000 ₸, отсрочка 21 день'},
+ net: {n:'Сеть',        k:1.12,  note:'полка, ретро-бонус, отсрочка 30 дней'},
+ hor: {n:'HoReCa / клининг',k:1.24,note:'концентраты, отсрочка 14 дней'},
+ opt: {n:'Опт / рынок', k:1.08,  note:'предоплата или 7 дней'},
+ mp:  {n:'Маркетплейс', k:1.34,  note:'предоплата, доставка на склад'}
+};
+let tier='net';
+
+/* воронки: обычные продажи и OEM-контракты */
+const FUNNELS={
+ b2b:{n:'Продажи B2B', st:[
+  ['new','Новый контакт','#6b4ea8'],['spec','Подбор и образцы','#2f6f9e'],['calc','Расчёт и КП','#d1861f'],
+  ['deal','Договор и полка','#0d8f95'],['first','Первая отгрузка','#6ba32e'],['reg','Регулярные заказы','#12222c']]},
+ oem:{n:'OEM / контрактное производство', st:[
+  ['brief','Бриф от клиента','#6b4ea8'],['lab','Разработка формулы','#2f6f9e'],['sample','Образец и тест','#d1861f'],
+  ['pack','Упаковка и этикетка','#0d8f95'],['cert','Сертификация','#c33c32'],['batch','Первый тираж','#6ba32e']]},
+ tend:{n:'Тендеры и госзакуп', st:[
+  ['find','Найден лот','#6b4ea8'],['calc2','Расчёт цены','#2f6f9e'],['doc','Подача заявки','#d1861f'],['win','Итог','#6ba32e']]}
+};
+let funnel='b2b';
+
+let DEALS=[
+ {id:'D-4120',n:'Сеть «Magnum»',ph:'Алматы · 62 магазина',s:'reg',  f:'b2b',src:'сеть',   proc:'DAYIN · 6 SKU на полке',sum:14800000,d:'заказ раз в 2 недели',hot:0},
+ {id:'D-4118',n:'Сеть «Small»',  ph:'Алматы · 38 точек',  s:'first',f:'b2b',src:'сеть',   proc:'DAYIN Dish, Floor, Glass',sum:6400000, d:'первая отгрузка 18.09',hot:1},
+ {id:'D-4115',n:'ТОО «Клин Сервис»',ph:'клининг · Астана',s:'deal', f:'b2b',src:'HoReCa', proc:'Концентраты 5 л',      sum:4900000, d:'договор на подписи',hot:1},
+ {id:'D-4112',n:'Отель «Rixos»',  ph:'HoReCa · Алматы',   s:'calc', f:'b2b',src:'HoReCa', proc:'Гостиничная линейка',  sum:3200000, d:'расчёт отправлен',hot:1},
+ {id:'D-4108',n:'ИП Ержанов',     ph:'опт · Шымкент',     s:'spec', f:'b2b',src:'опт',    proc:'Гель для стирки',      sum:2100000, d:'образцы у клиента',hot:0},
+ {id:'D-4104',n:'Kaspi Магазин',  ph:'маркетплейс',       s:'calc', f:'b2b',src:'МП',     proc:'DAYIN наборы',         sum:1800000, d:'считаем юнит-экономику',hot:0},
+ {id:'D-4101',n:'Сеть «Galmart»', ph:'Астана · 9 магазинов',s:'new',f:'b2b',src:'сеть',   proc:'Первичный контакт',    sum:5200000, d:'встреча 19.09',hot:0},
+ {id:'D-4098',n:'Дистрибьютор «Нур Опт»',ph:'Караганда',  s:'reg',  f:'b2b',src:'дистр.', proc:'Весь ассортимент',     sum:9600000, d:'регулярно, отсрочка 21',hot:0},
+ {id:'O-318', n:'ZEREEL · гель для посуды',ph:'ТОО «Зерил»',s:'batch',f:'oem',src:'OEM',  proc:'тираж 40 000 шт',      sum:18400000,d:'в производстве',hot:0},
+ {id:'O-315', n:'AinaDay · линейка 5 SKU',ph:'ТОО «Айна»', s:'cert', f:'oem',src:'OEM',   proc:'декларация ЕАЭС',      sum:22600000,d:'документы в работе',hot:1},
+ {id:'O-312', n:'LEVORA London · шампунь',ph:'ИП Левора',  s:'pack', f:'oem',src:'OEM',   proc:'флакон 400 мл, этикетка',sum:8900000,d:'макет на утверждении',hot:1},
+ {id:'O-309', n:'MIORE · кондиционер',   ph:'ТОО «Миоре»', s:'sample',f:'oem',src:'OEM',  proc:'образец 2-я итерация', sum:6200000, d:'тест у клиента',hot:0},
+ {id:'O-305', n:'Beauty Asia · шампунь проф.',ph:'салонная сеть',s:'lab',f:'oem',src:'OEM',proc:'формула по образцу',  sum:11400000,d:'лаборатория',hot:1},
+ {id:'O-301', n:'Новый бренд · гель для стирки',ph:'ИП Садыков',s:'brief',f:'oem',src:'OEM',proc:'бриф получен',       sum:4800000, d:'считаем минимальный тираж',hot:0},
+ {id:'T-77',  n:'Больница · дезсредства',ph:'госзакуп',    s:'doc',  f:'tend',src:'тендер',proc:'лот 8,4 млн',         sum:8400000, d:'заявка подана',hot:1},
+ {id:'T-74',  n:'Школы · моющие средства',ph:'госзакуп',   s:'calc2',f:'tend',src:'тендер',proc:'лот 5,1 млн',         sum:5100000, d:'считаем цену',hot:0}
+];
+
+const CLIENTS=[
+ {id:'C-018',n:'Сеть «Magnum»',t:'net',city:'Алматы',pts:62,limit:20000000,debt:14200000,over:0,     terms:'отсрочка 30 дней',ship:'на РЦ',man:'Данияр',rev:168000000},
+ {id:'C-022',n:'Дистрибьютор «Нур Опт»',t:'dist',city:'Караганда',pts:1,limit:12000000,debt:8900000,over:0,terms:'отсрочка 21 день',ship:'самовывоз',man:'Данияр',rev:96000000},
+ {id:'C-031',n:'Сеть «Small»',t:'net',city:'Алматы',pts:38,limit:8000000,debt:3100000,over:0,       terms:'отсрочка 30 дней',ship:'по точкам',man:'Данияр',rev:41000000},
+ {id:'C-044',n:'ТОО «Клин Сервис»',t:'hor',city:'Астана',pts:1,limit:5000000,debt:5400000,over:1200000,terms:'отсрочка 14 дней',ship:'доставка',man:'Асель',rev:28000000},
+ {id:'C-051',n:'ИП Ержанов',t:'opt',city:'Шымкент',pts:1,limit:3000000,debt:3400000,over:2400000,   terms:'7 дней',ship:'самовывоз',man:'Асель',rev:19000000},
+ {id:'C-063',n:'Отель «Rixos»',t:'hor',city:'Алматы',pts:1,limit:4000000,debt:820000,over:0,        terms:'отсрочка 14 дней',ship:'доставка',man:'Асель',rev:12000000},
+ {id:'C-070',n:'Kaspi Магазин',t:'mp',city:'маркетплейс',pts:1,limit:0,debt:0,over:0,               terms:'предоплата',ship:'на склад МП',man:'Данияр',rev:9400000}
+];
+
+/* производственные линии и реакторы */
+const LINES=[
+ {k:'r1',n:'Реактор Р-1',s:'варка · 5 т',c:'#0d8f95',cap:5},
+ {k:'r2',n:'Реактор Р-2',s:'варка · 3 т',c:'#2f6f9e',cap:3},
+ {k:'r3',n:'Реактор Р-3',s:'косметика · 1 т',c:'#6b4ea8',cap:1},
+ {k:'l1',n:'Розлив Л-1',s:'флаконы 0,5–1,5 л',c:'#6ba32e',cap:9},
+ {k:'l2',n:'Розлив Л-2',s:'канистры 1,5–5 л',c:'#d1861f',cap:6},
+ {k:'pet',n:'Выдув ПЭТ',s:'преформа → флакон',c:'#12222c',cap:12}
+];
+const DAYS=['ПН 15','ВТ 16','СР 17','ЧТ 18','ПТ 19','СБ 20'];
+let JOBS=[
+ {id:'J1',l:'r1',d:1,n:'Гель для посуды',q:'4,8 т',cl:'DAYIN · на склад',c:'#0d8f95'},
+ {id:'J2',l:'r1',d:2,n:'ZEREEL посуда',q:'5,0 т',cl:'OEM · тираж 40 000',c:'#6b4ea8'},
+ {id:'J3',l:'r2',d:1,n:'Средство для полов',q:'2,8 т',cl:'DAYIN · под заказ Magnum',c:'#2f6f9e'},
+ {id:'J4',l:'r2',d:3,n:'Концентрат HoReCa',q:'3,0 т',cl:'Клин Сервис',c:'#d1861f'},
+ {id:'J5',l:'r3',d:2,n:'ARUMEE мицеллярка',q:'0,9 т',cl:'косметика',c:'#6b4ea8'},
+ {id:'J6',l:'l1',d:1,n:'Розлив 1 л',q:'9 200 шт',cl:'DAYIN Dish',c:'#6ba32e'},
+ {id:'J7',l:'l1',d:2,n:'Розлив 1 л',q:'8 000 шт',cl:'ZEREEL',c:'#6ba32e'},
+ {id:'J8',l:'l2',d:3,n:'Канистры 5 л',q:'600 шт',cl:'HoReCa',c:'#d1861f'},
+ {id:'J9',l:'pet',d:1,n:'Выдув флакон 1 л',q:'18 000 шт',cl:'под розлив Л-1',c:'#12222c'},
+ {id:'J10',l:'pet',d:4,n:'Выдув канистра 5 л',q:'1 200 шт',cl:'под Л-2',c:'#12222c'}
+];
+
+/* рецептура: сырьё и упаковка на 1 000 кг геля для посуды */
+const RECIPE=[
+ {n:'ЛАБС (ПАВ, Корея)',       q:120, u:'кг', p:820,  g:'сырьё'},
+ {n:'SLES 70%',                q:95,  u:'кг', p:760,  g:'сырьё'},
+ {n:'Кокамидопропилбетаин',    q:42,  u:'кг', p:1180, g:'сырьё'},
+ {n:'Загуститель (соль)',      q:18,  u:'кг', p:110,  g:'сырьё'},
+ {n:'Консервант',              q:3.2, u:'кг', p:3400, g:'сырьё'},
+ {n:'Отдушка (Корея)',         q:4.5, u:'кг', p:7200, g:'сырьё'},
+ {n:'Краситель',               q:0.4, u:'кг', p:5600, g:'сырьё'},
+ {n:'Лимонная кислота',        q:2.1, u:'кг', p:640,  g:'сырьё'},
+ {n:'Вода очищенная',          q:714.8,u:'кг',p:18,   g:'сырьё'},
+ {n:'ПЭТ-флакон 1 л',          q:962, u:'шт', p:41,   g:'упаковка'},
+ {n:'Крышка флип-топ',         q:962, u:'шт', p:13,   g:'упаковка'},
+ {n:'Этикетка',                q:962, u:'шт', p:7.5,  g:'упаковка'},
+ {n:'Короб 12 шт',             q:81,  u:'шт', p:210,  g:'упаковка'},
+ {n:'Стрейч и паллета (доля)', q:1,   u:'компл',p:2400,g:'упаковка'}
+];
+
+const RAW=[
+ {n:'ЛАБС (ПАВ)',        lot:'LB-2409',left:4200,min:2500,unit:'кг',exp:'06.2027',price:820, from:'Корея', lead:45,st:'ok'},
+ {n:'SLES 70%',          lot:'SL-1182',left:1850,min:2000,unit:'кг',exp:'04.2027',price:760, from:'Иран',  lead:35,st:'low'},
+ {n:'Кокамидопропилбетаин',lot:'CB-0742',left:980,min:600,unit:'кг',exp:'11.2026',price:1180,from:'Китай', lead:30,st:'exp'},
+ {n:'Отдушка «Цитрус»',  lot:'FR-3310',left:180, min:120, unit:'кг',exp:'08.2027',price:7200,from:'Корея', lead:50,st:'ok'},
+ {n:'Консервант',        lot:'PR-0090',left:95,  min:120, unit:'кг',exp:'02.2027',price:3400,from:'Китай', lead:28,st:'low'},
+ {n:'Каустическая сода', lot:'NA-2201',left:2600,min:1500,unit:'кг',exp:'—',      price:210, from:'Казахстан',lead:5,st:'ok'},
+ {n:'ПЭТ-преформа 28 г', lot:'PF-7712',left:126000,min:60000,unit:'шт',exp:'—',   price:22,  from:'Китай', lead:40,st:'ok'},
+ {n:'Крышка флип-топ',   lot:'CP-5540',left:38000,min:40000,unit:'шт',exp:'—',    price:13,  from:'Китай', lead:35,st:'low'}
+];
+
+/* производственная партия — этапы цикла */
+const STEPS=[
+ ['Навеска сырья','кладовщик выдал сырьё по рецептуре, партии зафиксированы'],
+ ['Варка и смешение','реактор Р-1, 4,8 т, температура и время по регламенту'],
+ ['Контроль качества','pH, вязкость, плотность, внешний вид — лаборатория'],
+ ['Розлив','линия Л-1, флакон 1 л, 9 200 шт'],
+ ['Укупорка и этикетировка','крышка, этикетка, дата и номер партии'],
+ ['Контроль веса и герметичности','выборка 1 из 200, автоматическая отбраковка'],
+ ['Паллетирование','81 короб по 12 шт, 7 паллет'],
+ ['Приход на склад ГП','партия доступна к отгрузке, срок годности 24 месяца']
+];
+let batchStep=2;
+
+const SHIPS=[
+ {id:'S-881',car:'Газель · 934 ALM',drv:'Асхат',stops:4,tons:2.4,st:'в пути',  sum:4860000,done:2},
+ {id:'S-880',car:'Фургон · 217 ALM',drv:'Руслан',stops:6,tons:3.8,st:'загрузка',sum:7240000,done:0},
+ {id:'S-879',car:'Фура · 508 KZ',   drv:'перевозчик',stops:1,tons:14,st:'межгород',sum:9600000,done:0},
+ {id:'S-877',car:'Газель · 934 ALM',drv:'Асхат',stops:5,tons:2.1,st:'завершён',sum:3980000,done:5}
+];
+const STOPS=[
+ {n:'Magnum · РЦ Алматы',   ad:'ул. Бекмаханова, 96',sum:2480000,box:186,st:'доставлено',pay:'отсрочка 30 дней',t:'09:40'},
+ {n:'Small · маг. № 12',    ad:'мкр. Аксай-3, 18',   sum:640000, box:48, st:'доставлено',pay:'отсрочка 30 дней',t:'11:05'},
+ {n:'ТОО «Клин Сервис»',    ad:'ул. Розыбакиева, 247',sum:1180000,box:24, st:'в пути',   pay:'наличные при получении',t:'~13:30'},
+ {n:'ИП Ержанов · склад',   ad:'ул. Северное кольцо, 8',sum:560000,box:36,st:'в пути',   pay:'предоплата получена',t:'~15:00'}
+];
+
+const TASKS=[
+ {n:'Согласовать цену для сети «Galmart»',c:'#d1861f',who:'Данияр → Аброр',due:'сегодня 18:00',st:'go',
+  chain:[['Данияр','расчёт приложен, маржа 34%','ok'],['Аброр','нужно решение по ретро-бонусу','go'],['Бухгалтер','проверит лимит и отсрочку','']]},
+ {n:'Закуп SLES: остаток ниже минимума',c:'#c33c32',who:'Кладовщик → Снабжение',due:'просрочено 1 день',st:'go',
+  chain:[['Марат','остаток 1 850 кг при минимуме 2 000','ok'],['Снабжение','плечо поставки 35 дней — заявка нужна сегодня','go'],['Аброр','согласовать бюджет','']]},
+ {n:'Декларация ЕАЭС на линейку AinaDay',c:'#2f6f9e',who:'Технолог → Аброр',due:'до 24.09',st:'',
+  chain:[['Гульнара','протоколы испытаний получены','ok'],['Аброр','подписать заявление','go'],['Клиент','оплата сертификации','']]},
+ {n:'Остановить отгрузки ИП Ержанову',c:'#c33c32',who:'автоматически',due:'сработало',st:'go',
+  chain:[['Система','просрочка 2,4 млн ₸ больше 14 дней','ok'],['Данияр','связаться и получить график оплаты','go'],['Аброр','решение: отгружать или нет','']]}
+];
+
+const SC={};
+/* ====== ПУЛЬТ ====== */
+const seeCost=()=>['Коммерческий директор','Собственник','Технолог','Начальник производства','Бухгалтер'].indexOf(role)>=0;
+const seeMoney=()=>['Коммерческий директор','Собственник','Бухгалтер'].indexOf(role)>=0;
+
+SC.dash=()=>`<div class="hd"><div><h2>Завод за сентябрь</h2>
+ <p>Один экран вместо Битрикса, Excel и звонков в цех. Слева — деньги и заказы, справа — что происходит на производстве и на складе прямо сейчас. Всё считается само: из заявок, накладных, партий и списаний.</p></div>
+ <div class="btns"><button class="bt" onclick="go('day')">Сценарий дня</button><button class="bt p" onclick="go('order')">Заявка → накладная</button></div></div>
+<div class="wid">
+ <div><small>Отгружено</small><b class="a">${mln(F.rev)} ₸</b><span>${F.tons} т · ${F.orders} заказов</span></div>
+ <div><small>Загрузка мощности</small><b class="l">${F.loadPct}%</b><span>из ${F.capDay} т в сутки</span></div>
+ <div><small>Средний заказ</small><b>${fmt(F.avgOrd)} ₸</b><span>${F.clients} активных клиентов</span></div>
+ <div><small>Дебиторка</small><b class="w">${mln(F.debt)} ₸</b><span>просрочено ${mln(F.debtOver)} ₸</span></div>
+ <div><small>OEM-контракты</small><b class="i">${F.oem}</b><span>на ${mln(F.oemSum)} ₸</span></div>
+</div>
+<div class="g21">
+ <div class="pan"><h3>Путь заказа — и где он рвётся сегодня</h3>
+  <p>Вы описали цепочку на встрече. Здесь она целиком, и видно, на каком шаге сколько заказов стоит.</p>
+  <div class="flow" style="grid-template-columns:repeat(6,1fr)">
+   <div class="fbx done"><code>1 · ЗАЯВКА</code><b>12</b><p>менеджер собрал заказ по прайсу клиента</p></div>
+   <div class="fbx done"><code>2 · РЕЗЕРВ</code><b>9</b><p>товар на складе есть и закреплён за заказом</p></div>
+   <div class="fbx on"><code>3 · ПРОИЗВОДСТВО</code><b>4</b><p>чего не хватило — ушло в план цеха</p></div>
+   <div class="fbx"><code>4 · НАКЛАДНАЯ</code><b>7</b><p>печатается из заявки, без ручного счёта</p></div>
+   <div class="fbx"><code>5 · МАРШРУТ</code><b>3</b><p>точка попала водителю в телефон</p></div>
+   <div class="fbx"><code>6 · ДЕНЬГИ</code><b>21</b><p>оплата и отсрочка под контролем</p></div>
+  </div>
+  <div class="said"><b>Вы сказали на встрече</b><i>«Продажник оформляет заявку, это всё считается вручную, накладные заполняются вручную, потом передаётся доставщику, доставщик едет на завод, забирает и развозит по магазинам»</i>. Ровно эта цепочка и собрана в портале — от заявки до подписанной накладной в руках водителя.</div>
+ </div>
+ <div>
+  <div class="pan"><h3>Цех сейчас</h3>
+   ${LINES.slice(0,4).map((l,i)=>`<div class="fr" style="grid-template-columns:120px 1fr 66px"><span>${esc(l.n)}</span>
+    <div class="bar"><i class="${[ 'b','l','','w'][i]}" style="--w:${[92,64,38,71][i]}%"></i></div><b>${[92,64,38,71][i]}%</b></div>`).join('')}
+   <button class="bt" style="margin-top:9px;width:100%" onclick="go('calendar')">Календарь загрузки</button>
+  </div>
+  <div class="pan"><h3>Требует вас</h3>
+   <div class="li r"><i>!</i><span><b>ИП Ержанов · просрочка 2,4 млн ₸</b><span class="sub">отгрузки остановлены автоматически — нужно ваше решение</span></span></div>
+   <div class="li w"><i>!</i><span><b>SLES: 1 850 кг при минимуме 2 000</b><span class="sub">плечо поставки из Ирана — 35 дней, заявку нужно дать сегодня</span></span></div>
+   <div class="li w"><i>!</i><span><b>Galmart ждёт цену</b><span class="sub">расчёт готов, нужно решение по ретро-бонусу</span></span></div>
+   <div class="li n"><i>·</i><span><b>AinaDay: декларация ЕАЭС</b><span class="sub">протоколы получены, подписать заявление до 24.09</span></span></div>
+  </div>
+ </div>
+</div>
+${seeMoney()?`<div class="g3">
+ <div class="pan"><h3>Деньги за месяц</h3>
+  <div class="kv"><span>Отгружено</span><b>${fmt(F.rev)} ₸</b></div>
+  <div class="kv"><span>Поступило на счёт</span><b>337 400 000 ₸</b></div>
+  <div class="kv"><span>Сырьё и упаковка (списано)</span><b>214 800 000 ₸</b></div>
+  <div class="kv"><span>ФОТ, энергия, логистика</span><b>61 200 000 ₸</b></div>
+  <div class="kv"><span>Валовая прибыль</span><b style="color:var(--ok)">136 000 000 ₸</b></div>
+ </div>
+ <div class="pan"><h3>Свои бренды против OEM</h3>
+  <div class="yld">
+   <div style="flex:46;background:#0d8f95">46%<small>DAYIN и косметика</small></div>
+   <div style="flex:38;background:#6b4ea8">38%<small>OEM-контракты</small></div>
+   <div style="flex:11;background:#d1861f">11%<small>HoReCa</small></div>
+   <div style="flex:5;background:#6ba32e">5%<small>ПЭТ и сырьё</small></div>
+  </div>
+  <div class="kv"><span>Маржа своих брендов</span><b>41%</b></div>
+  <div class="kv"><span>Маржа OEM</span><b>27%</b></div>
+  <div class="kv"><span>Маржа HoReCa-концентратов</span><b>44%</b></div>
+  <div class="note"><b>Зачем это видеть</b><p>OEM даёт загрузку линий, свои бренды — маржу. Когда обе цифры на одном экране, понятно, какой контракт брать, а какой — только если линия простаивает.</p></div>
+ </div>
+ <div class="pan"><h3>Что заменяет портал</h3>
+  <div class="li"><i>✓</i><span><b>Битрикс в отделе продаж</b><span class="sub">воронка, клиенты, задачи — но с накладными, складом и производством</span></span></div>
+  <div class="li"><i>✓</i><span><b>Excel с расчётом заявок</b><span class="sub">сумма, скидка, вес, объём и паллеты считаются сами</span></span></div>
+  <div class="li"><i>✓</i><span><b>Накладные от руки</b><span class="sub">печатаются из заявки, номер и дата не повторяются</span></span></div>
+  <div class="li"><i>✓</i><span><b>Звонки в цех «что готово»</b><span class="sub">остаток и план производства видны менеджеру</span></span></div>
+  <div class="li n"><i>+</i><span><b>Появляется сверху</b><span class="sub">себестоимость SKU, дебиторка с лимитами, загрузка мощности, OEM-контур</span></span></div>
+ </div>
+</div>`:''}`;
+
+SC.day=()=>`<div class="hd"><div><h2>Сценарий дня: от утренней планёрки до закрытия смены</h2>
+ <p>Система сама собирает день и сама его закрывает. Никто не обзванивает цех, склад и водителей, чтобы понять, что происходит.</p></div></div>
+<div class="g2">
+ <div class="pan"><h3>08:00 · Начало смены</h3>
+  <div class="tl">
+   <div class="tli ok"><span class="who">автоматически</span><b>Собран план производства</b><p>По заявкам на неделю: 4 варки, 2 линии розлива, выдув ПЭТ под розлив. Загрузка — 64% мощности.</p></div>
+   <div class="tli ok"><span class="who">склад</span><b>Проверено сырьё под план</b><p>SLES и консерванта не хватает на послезавтра — заявка снабжению создана автоматически, с учётом плеча поставки.</p></div>
+   <div class="tli ok"><span class="who">логистика</span><b>Собраны маршруты</b><p>Три машины, 16 точек. Водители видят маршрут в телефоне, накладные уже прикреплены.</p></div>
+   <div class="tli on"><span class="who">продажи</span><b>Разобрать заявки со вчера</b><p>12 заявок: 9 закрываются со склада, 4 — уходят в производство. Одна заблокирована долгом клиента.</p></div>
+  </div>
+ </div>
+ <div class="pan"><h3>18:30 · Закрытие смены</h3>
+  <div class="tl">
+   <div class="tli ok"><span class="who">цех</span><b>Партии закрыты</b><p>4,8 т геля для посуды и 2,8 т средства для полов пришли на склад готовой продукции с номерами партий и сроками годности.</p></div>
+   <div class="tli ok"><span class="who">доставка</span><b>16 из 16 точек отмечены</b><p>Подписанные накладные сфотографированы водителями, 2 возврата оформлены, наличные сданы в кассу.</p></div>
+   <div class="tli on"><span class="who">требует решения</span><b>Одна партия на карантине</b><p>Вязкость ниже нормы — технолог не пропустил. Партия не попадёт в отгрузку, пока не будет решения.</p></div>
+   <div class="tli"><span class="who">завтра в 08:00</span><b>Сводка собственнику</b><p>Отгрузка, производство в тоннах, дебиторка, что застряло. Одно сообщение в WhatsApp, без входа в систему.</p></div>
+  </div>
+  <div class="hint"><b>Смысл в том,</b> что вам не нужно помнить, что проверить: утром и вечером система показывает один и тот же короткий список — и он всегда актуален.</div>
+ </div>
+</div>
+<div class="pan"><h3>Задачи и согласования на сегодня</h3>
+ ${TASKS.slice(0,3).map((t,i)=>`<div class="li ${i===0?'w':i===1?'r':'n'}"><i>${i+1}</i><span><b>${esc(t.n)}</b><span class="sub">${esc(t.who)} · ${esc(t.due)}</span></span></div>`).join('')}
+ <button class="bt" style="margin-top:9px" onclick="go('tasks')">Все задачи и цепочки согласований</button>
+</div>`;
+
+/* ====== ВОРОНКИ ====== */
+SC.funnel=()=>{
+ const F0=FUNNELS[funnel];
+ const list=DEALS.filter(d=>d.f===funnel);
+ return `<div class="hd"><div><h2>Воронки сделок</h2>
+  <p>У завода не одна воронка: продажи в сети и опт идут по одним правилам, контрактное производство — по другим, тендеры — по третьим. Карточки перетаскиваются мышкой, стадия сама меняет задачи и запускает следующий шаг.</p></div>
+  <div class="btns"><button class="bt" onclick="addDeal()">+ Сделка</button><button class="bt p" onclick="go('order')">Оформить заявку</button></div></div>
+ <div class="ptabs">
+  ${Object.entries(FUNNELS).map(([k,v])=>`<button class="ptab ${k===funnel?'on':''}" onclick="setFunnel('${k}')">${esc(v.n)} · ${DEALS.filter(d=>d.f===k).length}</button>`).join('')}
+  <button class="ptab add" onclick="addFunnel()">+ Создать воронку</button>
+ </div>
+ <div class="pipe">
+  ${F0.st.map(([k,n,c])=>{const d=list.filter(x=>x.s===k);
+   return `<div><div class="phead" style="background:${c}">${esc(n)}</div>
+    <div class="pmeta"><span>${d.length} ${plural(d.length,['сделка','сделки','сделок'])}</span><b>${fmt(d.reduce((a,x)=>a+x.sum,0))} ₸</b></div>
+    <div class="pbody" ondragover="colOver(event,this)" ondragleave="this.classList.remove('over')" ondrop="dropDeal(event,'${k}',this)">
+     ${d.map(x=>`<div class="pc" draggable="true" ondragstart="dragDeal(event,'${x.id}')" ondragend="this.classList.remove('drag')" onclick="openDeal('${x.id}')">
+      <b>${esc(x.n)} ${x.hot?'<span class="tag r">важно</span>':''}</b>
+      <span class="pn">${esc(x.ph)}</span>
+      <span class="pp">${fmt(x.sum)} ₸</span>
+      <span class="prow"><span class="tag ${x.src==='OEM'?'a':x.src==='сеть'?'b':'l'}">${esc(x.src)}</span></span>
+      <span class="pn" style="margin-top:5px">${esc(x.proc)} · ${esc(x.d)}</span></div>`).join('')}
+    </div></div>`}).join('')}
+ </div>
+ <div class="g2">
+  <div class="pan"><h3>Почему воронка завода — не воронка магазина</h3>
+   <div class="li"><i>✓</i><span><b>Сделка знает про склад</b><span class="sub">менеджер видит остаток и дату ближайшей варки, а не звонит в цех</span></span></div>
+   <div class="li"><i>✓</i><span><b>Сделка знает про долг</b><span class="sub">при превышении лимита система не даст оформить отгрузку без вашего решения</span></span></div>
+   <div class="li"><i>✓</i><span><b>Сделка знает про производство</b><span class="sub">если товара нет, из сделки создаётся задание в план цеха, и дата отгрузки считается от него</span></span></div>
+   <div class="li"><i>✓</i><span><b>Регулярные заказы не теряются</b><span class="sub">сеть заказывает раз в две недели — система напомнит менеджеру за три дня</span></span></div>
+  </div>
+  <div class="pan"><h3>Правила стадий — вы настраиваете сами</h3>
+   <div class="kv"><span>Заявка без ответа 2 часа</span><b>задача менеджеру</b></div>
+   <div class="kv"><span>Образцы у клиента дольше 10 дней</span><b>напоминание и звонок</b></div>
+   <div class="kv"><span>Договор подписан</span><b>карточка клиента и лимит открываются</b></div>
+   <div class="kv"><span>Первая отгрузка прошла</span><b>сделка переходит в «регулярные»</b></div>
+   <div class="kv"><span>Нет заказа 30 дней</span><b>клиент подсвечивается как «уходит»</b></div>
+   <div class="hint">Это и есть «тысяча мелочей», о которых шла речь: в чужой системе каждая такая мелочь — либо не делается, либо стоит отдельных денег и отдельного настройщика.</div>
+  </div>
+ </div>`};
+
+SC.clients=()=>`<div class="hd"><div><h2>Клиенты, сети и точки</h2>
+ <p>Одна карточка на клиента: договор, уровень цен, лимит долга и отсрочка, точки доставки, история заказов и документы. Менеджер видит своих, директор — всех.</p></div>
+ <div class="btns"><button class="bt" onclick="go('debt')">Дебиторка</button><button class="bt p" onclick="go('order')">Новая заявка</button></div></div>
+<div class="tw"><table class="t">
+ <thead><tr><th>Клиент</th><th>Канал</th><th>Город</th><th class="r">Точек</th><th>Условия</th><th class="r">Лимит</th><th class="r">Долг</th><th class="r">Отгружено за год</th><th>Менеджер</th></tr></thead>
+ <tbody>${CLIENTS.map(c=>`<tr onclick="openClient('${c.id}')">
+  <td><span class="av ${c.t==='net'?'a':c.t==='hor'?'l':''}">${esc(c.n.replace(/[^А-ЯA-Zа-яa-z]/g,'').slice(0,2).toUpperCase())}</span> <b>${esc(c.n)}</b></td>
+  <td><span class="tag ${c.t==='net'?'b':c.t==='hor'?'l':'a'}">${esc(TIER[c.t].n)}</span></td>
+  <td>${esc(c.city)}</td><td class="r">${c.pts}</td><td>${esc(c.terms)}</td>
+  <td class="r">${c.limit?fmt(c.limit):'предоплата'}</td>
+  <td class="r"><b style="color:${c.over?'var(--bad)':'inherit'}">${fmt(c.debt)}</b>${c.over?`<span class="sub">просрочено ${fmt(c.over)}</span>`:''}</td>
+  <td class="r">${fmt(c.rev)}</td><td>${esc(c.man)}</td></tr>`).join('')}
+ </tbody></table></div>
+<div class="g3" style="margin-top:12px">
+ <div class="pan"><h3>Что в карточке клиента</h3>
+  <div class="li"><i>✓</i><span><b>Коммерция</b><span class="sub">уровень цен, индивидуальные цены на отдельные SKU, ретро-бонус сети, акции</span></span></div>
+  <div class="li"><i>✓</i><span><b>Деньги</b><span class="sub">лимит долга, отсрочка, история платежей, акты сверки одной кнопкой</span></span></div>
+  <div class="li"><i>✓</i><span><b>Логистика</b><span class="sub">точки доставки с адресами и окнами приёмки, кто принимает, нужен ли пропуск</span></span></div>
+  <div class="li"><i>✓</i><span><b>Документы</b><span class="sub">договор, спецификации, сертификаты, декларации — то, что регулярно просят сети</span></span></div>
+ </div>
+ <div class="pan"><h3>Сети требуют отдельного</h3>
+  <div class="kv"><span>Заказ приходит по расписанию</span><b>раз в 1–2 недели</b></div>
+  <div class="kv"><span>Своя форма накладной</span><b>шаблон под сеть</b></div>
+  <div class="kv"><span>Окно приёмки на РЦ</span><b>учитывается в маршруте</b></div>
+  <div class="kv"><span>Ретро-бонус</span><b>считается от оборота</b></div>
+  <div class="kv"><span>Возвраты по срокам</span><b>отдельный процесс</b></div>
+ </div>
+ <div class="pan"><h3>Кто что видит</h3>
+  <div class="kv"><span>Менеджер</span><b>своих клиентов</b></div>
+  <div class="kv"><span>Логист</span><b>адреса и окна приёмки</b></div>
+  <div class="kv"><span>Бухгалтер</span><b>деньги и документы</b></div>
+  <div class="kv"><span>Директор</span><b>всех и всё</b></div>
+  <div class="note" style="--tone:var(--bad)"><b>База остаётся заводу</b><p>Уходит менеджер — клиенты, переписка и история заказов остаются в системе, а не в его телефоне и не в его Excel.</p></div>
+ </div>
+</div>`;
+/* ====== ЗАЯВКА → НАКЛАДНАЯ (главный экран) ====== */
+let ORD={dish:600,floor:400,glass:300};
+let ordCl='C-031';
+const BOX_PER_PAL=32;
+function curCl(){return CLIENTS.find(c=>c.id===ordCl)||CLIENTS[0]}
+function ordCalc(){
+ const cl=curCl(),k=TIER[cl.t].k;
+ const items=Object.keys(ORD).filter(x=>ORD[x]>0).map(x=>{
+  const s=SMAP[x],q=ORD[x],price=Math.round(s.p*k);
+  return {k:x,n:s.n,u:s.u,q,price,sum:price*q,cost:s.c*q,stock:s.st,short:Math.max(0,q-s.st),
+   boxes:Math.ceil(q/s.box),weight:+(q*s.w).toFixed(1)}});
+ const sum=items.reduce((a,x)=>a+x.sum,0);
+ const cost=items.reduce((a,x)=>a+x.cost,0);
+ const boxes=items.reduce((a,x)=>a+x.boxes,0);
+ const weight=+items.reduce((a,x)=>a+x.weight,0).toFixed(1);
+ const pallets=Math.ceil(boxes/BOX_PER_PAL);
+ const marg=sum?Math.round((sum-cost)/sum*100):0;
+ const short=items.filter(x=>x.short>0);
+ const free=cl.limit-cl.debt;
+ const over=cl.limit>0&&sum>free;
+ return {cl,items,sum,cost,boxes,weight,pallets,marg,short,free,over};
+}
+SC.order=()=>{
+ const r=ordCalc(),groups=[...new Set(SKU.map(s=>s.g))];
+ return `<div class="hd"><div><h2>Заявка → накладная: то, что сейчас считают вручную</h2>
+  <p>Менеджер выбирает клиента и набирает позиции. Цена подставляется по уровню клиента, система сразу показывает вес, коробы и паллеты, проверяет остаток на складе и лимит долга. Дальше — одна кнопка: накладная, задание в цех и точка в маршруте водителя.</p></div>
+  <div class="btns"><button class="bt" onclick="clearOrd()">Очистить</button><button class="bt v" onclick="toProd()">В производство</button><button class="bt p" onclick="makeTTN()">Сформировать накладную</button></div></div>
+ <div class="said"><b>Вы сказали на встрече</b><i>«Продажник оформляет заявку, это всё считается вручную, накладные заполняются вручную»</i>. Ручной счёт — это не только время: это пересорт, неверная цена сети, забытая отсрочка и отгрузка тому, кто уже должен.</div>
+ <div class="g2">
+  <div class="pan"><h3>1. Клиент и позиции</h3>
+   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:11px">
+    <select class="rsel" style="height:34px;min-width:230px" onchange="setCl(this.value)">
+     ${CLIENTS.map(c=>`<option value="${c.id}" ${c.id===ordCl?'selected':''}>${esc(c.n)} · ${esc(TIER[c.t].n)}</option>`).join('')}
+    </select>
+    <span class="tag ${r.cl.over?'r':'b'}">${esc(r.cl.terms)}</span>
+    <span class="tag ${r.cl.limit?(r.free>0?'g':'r'):'a'}">${r.cl.limit?'свободный лимит '+fmt(r.free)+' ₸':'предоплата'}</span>
+   </div>
+   ${groups.map(g=>`<div style="margin-bottom:11px">
+    <div style="font:700 9px 'IBM Plex Mono',monospace;letter-spacing:.09em;text-transform:uppercase;color:var(--muted2);margin-bottom:6px">${esc(g)}</div>
+    <div class="cat">${SKU.filter(s=>s.g===g).map(s=>`<button class="pb2 ${ORD[s.k]>0?'on':''}" onclick="addSku('${s.k}')">
+     <b>${esc(s.n)}</b><span>короб ${s.box} шт · ${num2(s.w)} кг</span>
+     <u>${fmt(s.p*TIER[r.cl.t].k)} ₸</u>
+     <span class="st">склад ${fmt(s.st)} ${esc(s.u)}</span>
+     ${ORD[s.k]>0?`<span class="qn">${fmt(ORD[s.k])}</span>`:''}</button>`).join('')}</div></div>`).join('')}
+  </div>
+  <div>
+   <div class="pan"><h3>2. Заявка считается сама</h3>
+    <div class="cart">
+     <div class="ci h"><span>Позиция</span><span class="r">Кол-во</span><span class="r">Сумма</span><span></span></div>
+     ${r.items.length?r.items.map(x=>`<div class="ci">
+      <span><b>${esc(x.n)}</b><span class="sub">${fmt(x.price)} ₸ × ${fmt(x.q)} ${esc(x.u)} · ${x.boxes} ${plural(x.boxes,['короб','короба','коробов'])} · ${num2(x.weight)} кг${x.short?` · <b style="color:var(--bad)">не хватает ${fmt(x.short)}</b>`:''}</span></span>
+      <span class="qbtn"><button onclick="incS('${x.k}',-100)">−</button><button onclick="incS('${x.k}',100)">+</button></span>
+      <span class="r"><b>${fmt(x.sum)} ₸</b></span>
+      <span class="r"><button onclick="incS('${x.k}',-999999)" title="Убрать" style="color:var(--muted2)">×</button></span></div>`).join(''):
+      '<div class="empty">Нажмите на позицию слева — заявка начнёт собираться</div>'}
+     <div class="tot"><span>Позиций / коробов / паллет</span><b>${r.items.length} · ${r.boxes} · ${r.pallets}</b></div>
+     <div class="tot"><span>Общий вес</span><b>${num2(r.weight)} кг</b></div>
+     <div class="tot hi"><span>Сумма заявки</span><b>${fmt(r.sum)} ₸</b></div>
+     ${seeCost()?`<div class="tot"><span>Себестоимость</span><b>${fmt(r.cost)} ₸</b></div>
+      <div class="tot"><span>Маржа заявки</span><b style="color:${r.marg>30?'var(--ok)':'var(--warn)'}">${r.marg}%</b></div>`:
+      '<div class="tot"><span>Себестоимость</span><b class="mini">скрыта для вашей роли</b></div>'}
+    </div>
+
+    ${r.over?`<div class="note" style="--tone:var(--bad)"><b>Отгрузка заблокирована: превышен лимит</b>
+     <p>Долг клиента ${fmt(r.cl.debt)} ₸ при лимите ${fmt(r.cl.limit)} ₸. Свободно ${fmt(r.free)} ₸, заявка на ${fmt(r.sum)} ₸. Накладная не сформируется, пока директор не разрешит отгрузку или клиент не оплатит. Именно так и должно быть — вручную это правило не соблюдается никогда.</p></div>`:''}
+
+    ${r.short.length?`<div class="note" style="--tone:var(--warn)"><b>Не всё есть на складе</b>
+     <p>${r.short.map(x=>esc(x.n)+' — не хватает '+fmt(x.short)+' '+esc(x.u)).join('; ')}. Нажмите «В производство» — недостающее уйдёт в план цеха, а дата отгрузки пересчитается от даты варки.</p></div>`:
+     '<div class="note" style="--tone:var(--ok)"><b>Всё есть на складе</b><p>Позиции резервируются за этой заявкой: другому клиенту их уже не продадут.</p></div>'}
+
+    <div class="btns" style="margin-top:12px;justify-content:flex-start">
+     <button class="bt p" onclick="makeTTN()">Сформировать накладную</button>
+     <button class="bt v" onclick="toProd()">Отправить в производство</button>
+     <button class="bt l" onclick="toRoute()">Поставить в маршрут</button>
+    </div>
+   </div>
+   <div class="pan"><h3>Что происходит после нажатия</h3>
+    <div class="li"><i>1</i><span><b>Накладная и счёт печатаются из заявки</b><span class="sub">номер, дата, реквизиты, цены клиента, НДС — без ручного ввода и без опечаток</span></span></div>
+    <div class="li"><i>2</i><span><b>Товар списывается с резерва</b><span class="sub">остаток на складе меняется в тот же момент, а не вечером в Excel</span></span></div>
+    <div class="li"><i>3</i><span><b>Точка появляется в маршруте</b><span class="sub">водитель видит адрес, окно приёмки, сумму к сбору и накладную в телефоне</span></span></div>
+    <div class="li"><i>4</i><span><b>Долг клиента растёт на сумму отгрузки</b><span class="sub">с датой оплаты по отсрочке; просрочка сама попадёт в стоп-лист</span></span></div>
+   </div>
+  </div>
+ </div>`};
+
+/* ====== ПРАЙС ====== */
+SC.price=()=>`<div class="hd"><div><h2>Прайс и уровни цен</h2>
+ <p>Один товар — пять цен: дистрибьютор, сеть, HoReCa, опт и маркетплейс. Менеджер не считает в уме и не помнит наизусть: цена подставляется от клиента, а отклонение вниз требует согласования.</p></div>
+ <div class="btns"><button class="bt" onclick="toast('Изменение цены — с датой начала. Заявки, оформленные до изменения, считаются по старой цене — это важно для сетей и для споров по сверкам.')">История цен</button></div></div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px">
+ ${Object.entries(TIER).map(([k,v])=>`<button class="ptab ${k===tier?'on':''}" onclick="setTier('${k}')">${esc(v.n)}</button>`).join('')}
+ <span class="mini" style="align-self:center;margin-left:6px">${esc(TIER[tier].note)}</span>
+</div>
+<div class="tw"><table class="t">
+ <thead><tr><th>Наименование</th><th>Группа</th><th class="r">В коробе</th><th class="r">Вес, кг</th><th class="r">Цена ${esc(TIER[tier].n)}</th>${seeCost()?'<th class="r">Себестоимость</th><th class="r">Маржа</th>':''}<th class="r">Остаток</th></tr></thead>
+ <tbody>${SKU.map(s=>{const p=Math.round(s.p*TIER[tier].k),m=Math.round((p-s.c)/p*100);
+  return `<tr onclick="openSku('${s.k}')">
+  <td><b>${esc(s.n)}</b></td><td><span class="tag ${s.g==='DAYIN'?'b':s.g==='PET'?'':'a'}">${esc(s.g)}</span></td>
+  <td class="r">${s.box}</td><td class="r">${num2(s.w)}</td><td class="r"><b>${fmt(p)} ₸</b></td>
+  ${seeCost()?`<td class="r">${fmt(s.c)} ₸</td><td class="r"><b style="color:${m>35?'var(--ok)':'var(--warn)'}">${m}%</b></td>`:''}
+  <td class="r">${fmt(s.st)} ${esc(s.u)}</td></tr>`}).join('')}
+ </tbody></table></div>
+<div class="g3" style="margin-top:12px">
+ <div class="pan"><h3>Кто может отклониться от прайса</h3>
+  <div class="kv"><span>Менеджер</span><b>0%</b></div>
+  <div class="kv"><span>Руководитель отдела</span><b>до 5%</b></div>
+  <div class="kv"><span>Коммерческий директор</span><b>до 15%</b></div>
+  <div class="kv"><span>Ниже себестоимости</span><b style="color:var(--bad)">запрещено системой</b></div>
+  <div class="note"><b>Каждое отклонение именное</b><p>Видно, кто дал скидку, кому и сколько на этом потеряли за месяц. Сейчас эта цифра не считается нигде.</p></div>
+ </div>
+ <div class="pan"><h3>Сетевые условия</h3>
+  <div class="kv"><span>Ретро-бонус</span><b>считается от оборота</b></div>
+  <div class="kv"><span>Промо-цена на период</span><b>ставится датами</b></div>
+  <div class="kv"><span>Логистическая скидка</span><b>при самовывозе</b></div>
+  <div class="kv"><span>Индивидуальные цены</span><b>по отдельным SKU</b></div>
+  <div class="hint">Реальная цена сети — это прайс минус бонусы минус промо. В портале видно и «бумажную» цену, и фактическую после всех вычетов.</div>
+ </div>
+ <div class="pan"><h3>Цена и себестоимость связаны</h3>
+  <p>Себестоимость берётся из рецептуры и последних приходов сырья. Подорожал ЛАБС или вырос курс — маржа в прайсе пересчиталась, и вы видите это до того, как отгрузили месяц в минус.</p>
+  <button class="bt p" style="width:100%;margin-top:8px" onclick="go('cost')">Калькулятор себестоимости</button>
+ </div>
+</div>`;
+
+/* ====== OEM ====== */
+SC.oem=()=>`<div class="hd"><div><h2>OEM и контрактное производство</h2>
+ <p>Отдельный контур: чужой бренд, ваша формула и ваши линии. Здесь у сделки другой цикл — бриф, лаборатория, образцы, упаковка, сертификация и только потом тираж. И другая экономика: маржа ниже, но линии загружены.</p></div>
+ <div class="btns"><button class="bt" onclick="setFunnel('oem');go('funnel')">Воронка OEM</button></div></div>
+<div class="wid">
+ <div><small>Активных проектов</small><b class="a">${F.oem}</b><span>на ${mln(F.oemSum)} ₸</span></div>
+ <div><small>В лаборатории</small><b>3</b><span>разработка формулы</span></div>
+ <div><small>Ждут решения клиента</small><b class="w">2</b><span>образцы на тесте</span></div>
+ <div><small>В сертификации</small><b class="i">2</b><span>декларации ЕАЭС</span></div>
+ <div><small>Доля в выручке</small><b class="l">38%</b><span>маржа 27%</span></div>
+</div>
+<div class="g21">
+ <div class="pan"><h3>Путь OEM-проекта</h3>
+  <div class="flow" style="grid-template-columns:repeat(6,1fr)">
+   <div class="fbx done"><code>1 · БРИФ</code><b>Что нужно</b><p>образец-ориентир, объём, упаковка, бюджет, срок</p></div>
+   <div class="fbx done"><code>2 · ЛАБОРАТОРИЯ</code><b>Формула</b><p>рецептура и расчёт себестоимости до старта</p></div>
+   <div class="fbx on"><code>3 · ОБРАЗЕЦ</code><b>Тест</b><p>образец клиенту, итерации, протокол испытаний</p></div>
+   <div class="fbx"><code>4 · УПАКОВКА</code><b>Флакон и этикетка</b><p>ПЭТ со своего выдува, макет, тираж этикетки</p></div>
+   <div class="fbx"><code>5 · ДОКУМЕНТЫ</code><b>Сертификация</b><p>декларация ЕАЭС, СТ РК, халал при необходимости</p></div>
+   <div class="fbx"><code>6 · ТИРАЖ</code><b>Производство</b><p>партия, паспорт качества, отгрузка</p></div>
+  </div>
+  <div class="tw" style="margin-top:12px"><table class="t">
+   <thead><tr><th>Проект</th><th>Клиент</th><th>Стадия</th><th class="r">Сумма</th><th>Что ждём</th></tr></thead>
+   <tbody>${DEALS.filter(d=>d.f==='oem').map(d=>`<tr onclick="openDeal('${d.id}')">
+    <td><b>${esc(d.n)}</b></td><td>${esc(d.ph)}</td>
+    <td><span class="tag a">${esc((FUNNELS.oem.st.find(s=>s[0]===d.s)||['','—'])[1])}</span></td>
+    <td class="r">${fmt(d.sum)} ₸</td><td>${esc(d.proc)} · ${esc(d.d)}</td></tr>`).join('')}
+   </tbody></table></div>
+ </div>
+ <div>
+  <div class="pan"><h3>Что считается до старта</h3>
+   <div class="kv"><span>Себестоимость формулы</span><b>из рецептуры</b></div>
+   <div class="kv"><span>Упаковка</span><b>свой ПЭТ дешевле покупного</b></div>
+   <div class="kv"><span>Минимальный тираж</span><b>от объёма реактора</b></div>
+   <div class="kv"><span>Время линии</span><b>в часах и в деньгах</b></div>
+   <div class="kv"><span>Цена для клиента</span><b>с нужной маржой</b></div>
+   <div class="note" style="--tone:var(--ok)"><b>Зачем это</b><p>Сейчас цена OEM-контракта считается «на глаз» и в Excel. В портале она считается от рецептуры и загрузки линии — и видно, что контракт не убыточен ещё до того, как вы его подписали.</p></div>
+  </div>
+  <div class="pan"><h3>Чужие марки и ваша ответственность</h3>
+   <div class="li"><i>✓</i><span><b>Формула — ваша тайна</b><span class="sub">доступ к рецептуре только у технолога и директора, с журналом просмотров</span></span></div>
+   <div class="li"><i>✓</i><span><b>Партия привязана к заказчику</b><span class="sub">при рекламации видно, из какого сырья и когда сделан этот тираж</span></span></div>
+   <div class="li"><i>✓</i><span><b>Документы в одном месте</b><span class="sub">протоколы, декларации, макеты этикеток, спецификации</span></span></div>
+  </div>
+ </div>
+</div>`;
+/* ====== КАЛЕНДАРЬ ЗАГРУЗКИ ====== */
+SC.calendar=()=>{
+ const cell=(lk,d)=>{const j=JOBS.filter(x=>x.l===lk&&x.d===d);
+  return `<div class="cell ${d===5?'off':''}" ondragover="cellOver(event,this)" ondragleave="this.classList.remove('over')" ondrop="dropJob(event,'${lk}',${d},this)">
+   ${j.map(x=>`<div class="job" draggable="true" ondragstart="dragJob(event,'${x.id}')" ondragend="this.classList.remove('drag')" style="background:${x.c}" onclick="openJob('${x.id}')">
+    <b>${esc(x.n)}</b><small>${esc(x.q)} · ${esc(x.cl)}</small></div>`).join('')}</div>`};
+ const load=d=>Math.min(140,Math.round(JOBS.filter(x=>x.d===d).length/6*100+18));
+ return `<div class="hd"><div><h2>Календарь загрузки линий</h2>
+  <p>Вы назвали это «календарь нагрузки». Шесть единиц оборудования — три реактора, две линии розлива и выдув ПЭТ. Задания перетаскиваются мышкой: система сразу проверяет, хватает ли сырья и не превышена ли суточная мощность ${F.capDay} тонн.</p></div>
+  <div class="btns"><button class="bt" onclick="go('cap')">Мощность</button><button class="bt p" onclick="planWeek()">Собрать план по заявкам</button></div></div>
+ <div class="wid">
+  <div><small>Загрузка недели</small><b class="l">${F.loadPct}%</b><span>резерв ${100-F.loadPct}% под срочные заказы</span></div>
+  <div><small>Заданий в плане</small><b>${JOBS.length}</b><span>из них OEM — 3</span></div>
+  <div><small>Плановый выпуск</small><b class="a">86,4 т</b><span>за неделю</span></div>
+  <div><small>Сырья хватает</small><b class="w">до четверга</b><span>SLES — узкое место</span></div>
+  <div><small>Просроченных заданий</small><b class="g">0</b><span>все в графике</span></div>
+ </div>
+ <div class="pan"><h3>Перетащите задание на другой день или другую линию</h3>
+  <div class="calw"><div class="cal" style="--d:${DAYS.length}">
+   <div class="hcell"></div>${DAYS.map((d,i)=>`<div class="hcell">${d}<div class="loadbar"><i class="${load(i)>100?'over':load(i)>85?'full':''}" style="width:${Math.min(100,load(i))}%"></i></div></div>`).join('')}
+   ${LINES.map(l=>`<div class="lcell">${esc(l.n)}<small>${esc(l.s)}</small></div>${DAYS.map((_,i)=>cell(l.k,i)).join('')}`).join('')}
+  </div></div>
+  <div class="said"><b>Вы сказали на встрече</b><i>«Воронка нужна, календарь нагрузки нужен, производственный цикл, контроль производства, склады сырья и готовой продукции»</i>. Это тот самый календарь: он связан с заявками с одной стороны и со складом сырья — с другой.</div>
+ </div>
+ <div class="g3">
+  <div class="pan"><h3>Что система проверяет при переносе</h3>
+   <div class="li"><i>✓</i><span><b>Мощность реактора</b><span class="sub">в Р-2 не встанет варка на 5 тонн — система не даст</span></span></div>
+   <div class="li"><i>✓</i><span><b>Сырьё на дату</b><span class="sub">с учётом уже запланированных варок и срока поставки</span></span></div>
+   <div class="li"><i>✓</i><span><b>Упаковку и преформу</b><span class="sub">выдув ПЭТ должен успеть до розлива</span></span></div>
+   <div class="li"><i>✓</i><span><b>Дату отгрузки по заявке</b><span class="sub">если срываем — менеджер узнаёт сразу, а не за день до отгрузки</span></span></div>
+  </div>
+  <div class="pan"><h3>Откуда берутся задания</h3>
+   <div class="li n"><i>1</i><span><b>Из заявок клиентов</b><span class="sub">чего не хватило на складе — уходит в план</span></span></div>
+   <div class="li b"><i>2</i><span><b>Из точки заказа склада</b><span class="sub">ходовые SKU производятся «на полку» до минимального остатка</span></span></div>
+   <div class="li l"><i>3</i><span><b>Из OEM-контрактов</b><span class="sub">тираж ставится на дату по договору</span></span></div>
+   <div class="li"><i>4</i><span><b>Вручную</b><span class="sub">когда решили догрузить линию</span></span></div>
+  </div>
+  <div class="pan"><h3>Смены и люди</h3>
+   <div class="kv"><span>Режим</span><b>круглосуточно, 3 смены</b></div>
+   <div class="kv"><span>Смена А (08:00–16:00)</span><b>Р-1, Л-1, ПЭТ</b></div>
+   <div class="kv"><span>Смена Б (16:00–00:00)</span><b>Р-2, Л-2</b></div>
+   <div class="kv"><span>Смена В (00:00–08:00)</span><b>ПЭТ и мойка</b></div>
+   <button class="bt" style="width:100%;margin-top:8px" onclick="go('shift')">Сменные задания</button>
+  </div>
+ </div>`};
+
+/* ====== ПРОИЗВОДСТВЕННАЯ ПАРТИЯ ====== */
+SC.batch=()=>{
+ const p=Math.round(batchStep/(STEPS.length-1)*100);
+ return `<div class="hd"><div><h2>Производственная партия № B-26-0914</h2>
+  <p>Гель для посуды DAYIN, 4,8 тонны, реактор Р-1. Это и есть «производственный цикл»: от навески сырья до прихода готовой продукции на склад. Каждый шаг — с исполнителем, временем и документом.</p></div>
+  <div class="btns"><button class="bt" onclick="resetBatch()">Сначала</button><button class="bt p" onclick="nextStep()">Следующий этап →</button></div></div>
+ <div class="wid">
+  <div><small>Партия</small><b class="a">B-26-0914</b><span>дата выпуска 16.09.2026</span></div>
+  <div><small>Продукт</small><b style="font-size:14px">DAYIN Dish 1 л</b><span>рецептура R-118 вер. 4</span></div>
+  <div><small>Объём</small><b>4,8 т</b><span>≈ 4 620 флаконов</span></div>
+  <div><small>Готовность</small><b class="l">${p}%</b><span>этап ${batchStep+1} из ${STEPS.length}</span></div>
+  <div><small>Срок годности</small><b class="i">24 мес.</b><span>до 09.2028</span></div>
+ </div>
+ <div class="g21">
+  <div class="pan"><h3>Цикл партии</h3>
+   <div class="tl">${STEPS.map(([n,d],i)=>`<div class="tli ${i<batchStep?'ok':i===batchStep?'on':''}">
+    <span class="who">${i<batchStep?'выполнено':i===batchStep?'идёт сейчас':'впереди'}</span><b>${i+1}. ${esc(n)}</b><p>${esc(d)}</p></div>`).join('')}</div>
+   <div class="hint"><b>Почему это важнее, чем кажется:</b> пока цикл не оцифрован, «сделали или не сделали» знает только мастер. В портале каждый этап закрывает конкретный человек — и себестоимость с остатками сходятся без ручной сверки в конце месяца.</div>
+  </div>
+  <div>
+   <div class="pan"><h3>Списано по рецептуре</h3>
+    ${RECIPE.filter(r=>r.g==='сырьё').slice(0,6).map(r=>`<div class="kv"><span>${esc(r.n)}</span><b>${num2(r.q*4.8)} ${esc(r.u)}</b></div>`).join('')}
+    <div class="kv"><span>Партии сырья зафиксированы</span><b>6 из 6</b></div>
+    <div class="note"><b>Прослеживаемость</b><p>Если у клиента претензия к партии — за минуту видно, из какого сырья и какими партиями она сделана, кто варил и кто принял по качеству.</p></div>
+   </div>
+   <div class="pan"><h3>Выход и потери</h3>
+    <div class="kv"><span>План</span><b>4 800 кг</b></div>
+    <div class="kv"><span>Факт</span><b>4 762 кг</b></div>
+    <div class="kv"><span>Потери (остатки в реакторе, промывка)</span><b>0,8%</b></div>
+    <div class="kv"><span>Брак розлива</span><b>18 флаконов</b></div>
+    <div class="kv"><span>Себестоимость тонны</span><b>${seeCost()?'388 400 ₸':'скрыта'}</b></div>
+   </div>
+  </div>
+ </div>`};
+
+/* ====== СМЕННЫЕ ЗАДАНИЯ ====== */
+SC.shift=()=>`<div class="hd"><div><h2>Сменные задания и контроль производства</h2>
+ <p>Мастер смены видит, что нужно сделать, и отмечает факт. Не «в конце месяца по бумажкам», а в момент, когда партия закрыта — тогда и остатки, и зарплата, и себестоимость считаются сами.</p></div></div>
+<div class="bays">
+ <div class="bay" style="--c:#0d8f95"><small>РЕАКТОР Р-1 · СМЕНА А</small><b>Гель для посуды</b><div class="who">партия B-26-0914 · 4,8 т</div><div class="prg"><i style="--w:78%"></i></div><div class="tm"><span>розлив</span><span>78%</span></div></div>
+ <div class="bay" style="--c:#2f6f9e"><small>РЕАКТОР Р-2 · СМЕНА А</small><b>Средство для полов</b><div class="who">партия B-26-0915 · 2,8 т</div><div class="prg"><i style="--w:45%"></i></div><div class="tm"><span>варка</span><span>45%</span></div></div>
+ <div class="bay" style="--c:#6ba32e"><small>ЛИНИЯ Л-1 · СМЕНА А</small><b>Розлив 1 л</b><div class="who">9 200 шт · DAYIN Dish</div><div class="prg"><i style="--w:62%"></i></div><div class="tm"><span>5 700 / 9 200</span><span>62%</span></div></div>
+ <div class="bay" style="--c:#12222c"><small>ВЫДУВ ПЭТ · СМЕНА В</small><b>Флакон 1 л</b><div class="who">18 000 шт под Л-1</div><div class="prg"><i style="--w:100%"></i></div><div class="tm"><span>выполнено</span><span>100%</span></div></div>
+</div>
+<div class="g2">
+ <div class="pan"><h3>Что отмечает мастер</h3>
+  <div class="li"><i>✓</i><span><b>Начало и конец этапа</b><span class="sub">время фиксируется само, вручную вводить не нужно</span></span></div>
+  <div class="li"><i>✓</i><span><b>Фактический выход</b><span class="sub">сколько получилось — отсюда считаются потери и себестоимость</span></span></div>
+  <div class="li"><i>✓</i><span><b>Брак и причину</b><span class="sub">недолив, кривая этикетка, негерметичность — по списку, а не текстом</span></span></div>
+  <div class="li"><i>✓</i><span><b>Простой и причину</b><span class="sub">нет преформы, нет сырья, мойка, поломка — за месяц видно, что съедает мощность</span></span></div>
+  <div class="li n"><i>+</i><span><b>С планшета или телефона</b><span class="sub">в цеху, а не «потом за компьютером»</span></span></div>
+ </div>
+ <div class="pan"><h3>Простои за неделю — где теряется мощность</h3>
+  <div class="fr"><span>Переналадка и мойка</span><div class="bar"><i class="w" style="--w:62%"></i></div><b>9,4 ч</b></div>
+  <div class="fr"><span>Ждали преформу с выдува</span><div class="bar"><i class="r" style="--w:41%"></i></div><b>6,2 ч</b></div>
+  <div class="fr"><span>Не было этикетки</span><div class="bar"><i class="r" style="--w:28%"></i></div><b>4,1 ч</b></div>
+  <div class="fr"><span>Поломка укупорочного узла</span><div class="bar"><i style="--w:18%"></i></div><b>2,7 ч</b></div>
+  <div class="fr"><span>Ждали решения по качеству</span><div class="bar"><i style="--w:11%"></i></div><b>1,6 ч</b></div>
+  <div class="note" style="--tone:var(--bad)"><b>24,0 часа простоя в неделю</b><p>Это примерно 14% мощности — при 24 тоннах в сутки речь о десятках тонн в месяц. Пока причины не фиксируются, их не с чем сравнивать и нечего исправлять.</p></div>
+ </div>
+</div>`;
+
+/* ====== КАЧЕСТВО ====== */
+SC.qc=()=>`<div class="hd"><div><h2>Контроль качества и паспорт партии</h2>
+ <p>Лаборатория проверяет каждую варку до розлива. Партия без положительного заключения физически не может уйти в отгрузку — это правило системы, а не договорённость на словах.</p></div>
+ <div class="btns"><button class="bt" onclick="qcPass()">Пропустить партию</button><button class="bt" style="border-color:var(--bad);color:var(--bad)" onclick="qcHold()">На карантин</button></div></div>
+<div class="g21">
+ <div class="pan"><h3>Партия B-26-0914 · гель для посуды</h3>
+  <div class="tw"><table class="t">
+   <thead><tr><th>Показатель</th><th class="r">Норма</th><th class="r">Факт</th><th>Метод</th><th>Результат</th></tr></thead>
+   <tbody>
+    <tr><td><b>Внешний вид</b></td><td class="r">однородный гель</td><td class="r">соответствует</td><td>визуально</td><td><span class="tag g">норма</span></td></tr>
+    <tr><td><b>Цвет и запах</b></td><td class="r">по эталону</td><td class="r">соответствует</td><td>органолептика</td><td><span class="tag g">норма</span></td></tr>
+    <tr><td><b>pH (10% раствор)</b></td><td class="r">6,0–7,5</td><td class="r">6,8</td><td>pH-метр</td><td><span class="tag g">норма</span></td></tr>
+    <tr><td><b>Вязкость, мПа·с</b></td><td class="r">1800–2600</td><td class="r">1740</td><td>вискозиметр</td><td><span class="tag w">ниже нормы</span></td></tr>
+    <tr><td><b>Плотность, г/см³</b></td><td class="r">1,02–1,06</td><td class="r">1,04</td><td>ареометр</td><td><span class="tag g">норма</span></td></tr>
+    <tr><td><b>Массовая доля ПАВ</b></td><td class="r">не менее 15%</td><td class="r">16,2%</td><td>титрование</td><td><span class="tag g">норма</span></td></tr>
+    <tr><td><b>Пенообразование</b></td><td class="r">не менее 150 мм</td><td class="r">168 мм</td><td>по методике</td><td><span class="tag g">норма</span></td></tr>
+   </tbody></table></div>
+  <div class="note" style="--tone:var(--warn)"><b>Вязкость ниже нормы на 60 единиц</b>
+   <p>Решение технолога: добавить загуститель и перемерить, либо пропустить с отклонением по разрешению — но тогда отклонение зафиксируется в паспорте партии и будет видно при рекламации. Оба варианта делаются кнопкой, оба остаются в истории.</p></div>
+ </div>
+ <div>
+  <div class="pan"><h3>Паспорт качества</h3>
+   <p>Формируется из этих же данных — не перепечатывается вручную. Уходит клиенту вместе с накладной, сетям и в тендеры.</p>
+   <div class="kv"><span>Номер партии</span><b>B-26-0914</b></div>
+   <div class="kv"><span>Дата выпуска</span><b>16.09.2026</b></div>
+   <div class="kv"><span>Срок годности</span><b>24 месяца</b></div>
+   <div class="kv"><span>Нормативный документ</span><b>СТ РК ГОСТ</b></div>
+   <div class="kv"><span>Декларация ЕАЭС</span><b>приложена</b></div>
+   <button class="bt p" style="width:100%;margin-top:9px" onclick="openPassport()">Показать паспорт партии</button>
+  </div>
+  <div class="pan"><h3>Качество за месяц</h3>
+   <div class="kv"><span>Проверено партий</span><b>84</b></div>
+   <div class="kv"><span>С первого раза в норме</span><b>79 · 94%</b></div>
+   <div class="kv"><span>Доработано</span><b>4</b></div>
+   <div class="kv"><span>Забраковано</span><b style="color:var(--bad)">1</b></div>
+   <div class="kv"><span>Рекламаций от клиентов</span><b>2</b></div>
+   <div class="hint">Каждая рекламация связывается с партией, сырьём и сменой. Через три месяца видно закономерность — например, что проблемы идут с конкретной партией ПАВ.</div>
+  </div>
+ </div>
+</div>`;
+/* ====== РЕЦЕПТУРЫ ====== */
+SC.recipe=()=>{
+ const raw=RECIPE.filter(r=>r.g==='сырьё'),pk=RECIPE.filter(r=>r.g==='упаковка');
+ const sumRaw=raw.reduce((a,r)=>a+r.q*r.p,0),sumPk=pk.reduce((a,r)=>a+r.q*r.p,0);
+ return `<div class="hd"><div><h2>Рецептуры и спецификации</h2>
+  <p>Рецептура — это не файл у технолога в компьютере, а объект системы: состав, нормы, версия, кто и когда менял. От неё считается себестоимость, по ней списывается сырьё и по ней же собирается заявка снабжению.</p></div>
+  <div class="btns"><button class="bt" onclick="toast('Версии рецептуры хранятся: видно, какая партия сделана по какой версии. При рекламации это первое, что смотрят.')">Версии</button><button class="bt p" onclick="go('cost')">Посчитать себестоимость</button></div></div>
+ <div class="wid">
+  <div><small>Рецептура</small><b class="a">R-118 · в.4</b><span>DAYIN Dish 1 л</span></div>
+  <div><small>Компонентов</small><b>${raw.length}</b><span>+ ${pk.length} позиций упаковки</span></div>
+  <div><small>Сырьё на 1 т</small><b>${fmt(sumRaw)} ₸</b><span>по ценам последних партий</span></div>
+  <div><small>Упаковка на 1 т</small><b>${fmt(sumPk)} ₸</b><span>962 флакона</span></div>
+  <div><small>Себестоимость 1 л</small><b class="l">${fmt((sumRaw+sumPk)/962)} ₸</b><span>без учёта энергии и ФОТ</span></div>
+ </div>
+ <div class="g2">
+  <div class="pan"><h3>Состав на 1 000 кг</h3>
+   <div class="yld">
+    <div style="flex:12;background:#0d8f95">12%<small>ЛАБС</small></div>
+    <div style="flex:9.5;background:#2f6f9e">9,5%<small>SLES</small></div>
+    <div style="flex:4.2;background:#6b4ea8">4%<small>бетаин</small></div>
+    <div style="flex:3;background:#d1861f">3%<small>прочее</small></div>
+    <div style="flex:71.3;background:#6ba32e">71%<small>вода очищенная</small></div>
+   </div>
+   <div class="tw"><table class="t">
+    <thead><tr><th>Компонент</th><th class="r">Норма</th><th class="r">Цена</th>${seeCost()?'<th class="r">Сумма</th>':''}<th>Остаток</th></tr></thead>
+    <tbody>${raw.map(r=>`<tr><td><b>${esc(r.n)}</b></td><td class="r">${num2(r.q)} ${esc(r.u)}</td>
+     <td class="r">${fmt(r.p)} ₸</td>${seeCost()?`<td class="r">${fmt(r.q*r.p)} ₸</td>`:''}
+     <td><span class="tag ${/SLES|Консервант/.test(r.n)?'r':'g'}">${/SLES|Консервант/.test(r.n)?'ниже минимума':'норма'}</span></td></tr>`).join('')}
+     ${seeCost()?`<tr class="total"><td>Сырьё на тонну</td><td class="r"></td><td class="r"></td><td class="r">${fmt(sumRaw)} ₸</td><td></td></tr>`:''}
+    </tbody></table></div>
+  </div>
+  <div class="pan"><h3>Упаковка на партию</h3>
+   <div class="tw"><table class="t">
+    <thead><tr><th>Позиция</th><th class="r">На 1 т</th><th class="r">Цена</th>${seeCost()?'<th class="r">Сумма</th>':''}</tr></thead>
+    <tbody>${pk.map(r=>`<tr><td><b>${esc(r.n)}</b></td><td class="r">${fmt(r.q)} ${esc(r.u)}</td><td class="r">${num2(r.p)} ₸</td>${seeCost()?`<td class="r">${fmt(r.q*r.p)} ₸</td>`:''}</tr>`).join('')}
+     ${seeCost()?`<tr class="total"><td>Упаковка на тонну</td><td class="r"></td><td class="r"></td><td class="r">${fmt(sumPk)} ₸</td></tr>`:''}
+    </tbody></table></div>
+   <div class="note" style="--tone:var(--ok)"><b>Свой ПЭТ — это преимущество в расчёте</b>
+    <p>Флакон со своего выдува стоит 41 ₸ против 96 ₸ покупного. На партии в 4,8 тонны это экономия около 250 000 ₸ — и именно поэтому выдув должен стоять в том же календаре загрузки, что и розлив.</p></div>
+   <div class="said"><b>С вашего сайта</b><i>«Первый в Казахстане завод полного цикла: разработка формулы, производство, ПЭТ-упаковка»</i>. Полный цикл имеет смысл считать целиком — портал и считает: от компонента до паллеты.</div>
+  </div>
+ </div>`};
+
+/* ====== СЕБЕСТОИМОСТЬ ====== */
+const COST={usd:498,labs:820,pref:22,batch:4.8,energy:38000,fot:52000};
+function costCalc(){
+ const kUsd=COST.usd/498;
+ const imported=['ЛАБС (ПАВ, Корея)','SLES 70%','Кокамидопропилбетаин','Консервант','Отдушка (Корея)','Краситель'];
+ let raw=0;
+ RECIPE.filter(r=>r.g==='сырьё').forEach(r=>{
+  let p=r.p;
+  if(r.n==='ЛАБС (ПАВ, Корея)')p=COST.labs;
+  else if(imported.indexOf(r.n)>=0)p=r.p*kUsd;
+  raw+=r.q*p;
+ });
+ let pack=0;
+ RECIPE.filter(r=>r.g==='упаковка').forEach(r=>{
+  let p=r.n==='ПЭТ-флакон 1 л'?COST.pref+19:r.p*(r.n==='Крышка флип-топ'?kUsd:1);
+  pack+=r.q*p;
+ });
+ const perTon=raw+pack+COST.energy+COST.fot;
+ const units=962*COST.batch;
+ const perUnit=perTon*COST.batch/units;
+ const price=Math.round(SMAP.dish.p*TIER[tier].k);
+ const marg=Math.round((price-perUnit)/price*100);
+ return {raw,pack,perTon,perUnit,price,marg,units:Math.round(units),batchCost:perTon*COST.batch,
+  revenue:price*units, profit:(price-perUnit)*units};
+}
+SC.cost=()=>{const r=costCalc();
+ return `<div class="hd"><div><h2>Себестоимость и маржа — пересчитываются сами</h2>
+  <p>Курс вырос, ЛАБС подорожал, преформа стала дешевле — маржа меняется в тот же момент. Подвигайте ползунки: это тот расчёт, который сейчас живёт в Excel у одного человека и устаревает через неделю.</p></div></div>
+ <div class="calc">
+  <div class="pan"><h3>Входные данные</h3>
+   <div class="crow"><label>Курс доллара <b>${COST.usd} ₸</b></label>
+    <input type="range" min="440" max="620" step="2" value="${COST.usd}" oninput="costSet('usd',this.value)"></div>
+   <div class="crow"><label>Цена ЛАБС (ПАВ), ₸/кг <b>${fmt(COST.labs)}</b></label>
+    <input type="range" min="600" max="1300" step="10" value="${COST.labs}" oninput="costSet('labs',this.value)"></div>
+   <div class="crow"><label>Преформа ПЭТ, ₸/шт <b>${COST.pref}</b></label>
+    <input type="range" min="14" max="40" step="1" value="${COST.pref}" oninput="costSet('pref',this.value)"></div>
+   <div class="crow"><label>Объём партии, тонн <b>${num2(COST.batch)}</b></label>
+    <input type="range" min="1" max="5" step="0.2" value="${COST.batch}" oninput="costSet('batch',this.value)"></div>
+   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+    ${Object.entries(TIER).map(([k,v])=>`<button class="ptab ${k===tier?'on':''}" onclick="setTier('${k}')">${esc(v.n)}</button>`).join('')}
+   </div>
+   <div class="note" style="--tone:${r.marg<25?'var(--bad)':'var(--ok)'}"><b>${r.marg<25?'Маржа опасно низкая':'Маржа в норме'}</b>
+    <p>${r.marg<25?'При таких входных данных цена канала «'+TIER[tier].n+'» почти не окупает производство. Система заранее подсветит такие SKU — до того, как вы отгрузите месяц в минус.':'При текущих ценах SKU держит '+r.marg+'% маржи в канале «'+TIER[tier].n+'». Порог сигнала — 25%, он настраивается.'}</p></div>
+  </div>
+  <div>
+   <div class="res">
+    <div class="rr"><span>Сырьё на 1 тонну</span><b>${fmt(r.raw)} ₸</b></div>
+    <div class="rr"><span>Упаковка на 1 тонну</span><b>${fmt(r.pack)} ₸</b></div>
+    <div class="rr"><span>Энергия и вода</span><b>${fmt(COST.energy)} ₸</b></div>
+    <div class="rr"><span>ФОТ производства</span><b>${fmt(COST.fot)} ₸</b></div>
+    <div class="rr hi"><span>Полная себестоимость тонны</span><b>${fmt(r.perTon)} ₸</b></div>
+    <div class="rr"><span>Себестоимость флакона 1 л</span><b>${fmt(r.perUnit)} ₸</b></div>
+    <div class="rr"><span>Цена канала «${esc(TIER[tier].n)}»</span><b>${fmt(r.price)} ₸</b></div>
+    <div class="rr hi"><span>Маржа</span><b style="color:${r.marg<25?'var(--bad)':'var(--ok)'}">${r.marg}%</b></div>
+   </div>
+   <div class="pan" style="margin-top:12px"><h3>Партия ${num2(COST.batch)} т целиком</h3>
+    <div class="kv"><span>Выпуск</span><b>${fmt(r.units)} флаконов</b></div>
+    <div class="kv"><span>Себестоимость партии</span><b>${fmt(r.batchCost)} ₸</b></div>
+    <div class="kv"><span>Выручка при полной продаже</span><b>${fmt(r.revenue)} ₸</b></div>
+    <div class="kv"><span>Валовая прибыль с партии</span><b style="color:${r.profit>0?'var(--ok)':'var(--bad)'}">${fmt(r.profit)} ₸</b></div>
+    <div class="hint"><b>Что это даёт в переговорах:</b> когда сеть просит минус 8%, вы за секунду видите, остаётся ли на этом SKU прибыль, и торгуетесь цифрами, а не ощущениями.</div>
+   </div>
+  </div>
+ </div>
+ <div class="g3">
+  <div class="pan"><h3>Откуда берутся цены</h3>
+   <div class="li"><i>✓</i><span><b>Из приходов сырья</b><span class="sub">цена последней партии или средневзвешенная — как решите</span></span></div>
+   <div class="li"><i>✓</i><span><b>С учётом курса</b><span class="sub">импортное сырьё пересчитывается автоматически</span></span></div>
+   <div class="li"><i>✓</i><span><b>Из рецептуры</b><span class="sub">меняете норму — себестоимость меняется у всех SKU на этой формуле</span></span></div>
+   <div class="li"><i>✓</i><span><b>Из факта производства</b><span class="sub">реальные потери и брак, а не нормативные</span></span></div>
+  </div>
+  <div class="pan"><h3>Сигналы, которые приходят сами</h3>
+   <div class="li w"><i>!</i><span><b>Маржа SKU ниже порога</b><span class="sub">после подорожания сырья или изменения курса</span></span></div>
+   <div class="li w"><i>!</i><span><b>Цена в договоре ниже себестоимости</b><span class="sub">по конкретному клиенту и SKU</span></span></div>
+   <div class="li n"><i>·</i><span><b>Рост потерь на линии</b><span class="sub">если фактический выход падает по сравнению с прошлыми партиями</span></span></div>
+  </div>
+  <div class="pan"><h3>Где это ещё работает</h3>
+   <p>Тот же расчёт лежит под ценой OEM-контракта и под тендерной заявкой: прежде чем назвать цену, вы видите, при каком объёме и курсе контракт остаётся прибыльным.</p>
+   <button class="bt" style="width:100%;margin-top:6px" onclick="go('oem')">OEM-проекты</button>
+  </div>
+ </div>`};
+
+/* ====== СКЛАД СЫРЬЯ ====== */
+SC.raw=()=>`<div class="hd"><div><h2>Склад сырья</h2>
+ <p>Сырьё импортное, плечо поставки — от месяца. Поэтому склад здесь не «сколько осталось», а «на сколько дней хватит с учётом плана производства и сроков поставки».</p></div>
+ <div class="btns"><button class="bt p" onclick="makePurch()">Собрать заявку снабжению</button></div></div>
+<div class="wid">
+ <div><small>Позиций</small><b>${RAW.length}</b><span>сырьё и упаковка</span></div>
+ <div><small>Стоимость остатка</small><b class="a">42,6 млн ₸</b><span>по ценам приходов</span></div>
+ <div><small>Ниже минимума</small><b class="r">${RAW.filter(r=>r.st==='low').length}</b><span>нужна заявка</span></div>
+ <div><small>Истекает за 90 дней</small><b class="w">${RAW.filter(r=>r.st==='exp').length}</b><span>использовать первым</span></div>
+ <div><small>Хватит производству</small><b class="w">до 18.09</b><span>узкое место — SLES</span></div>
+</div>
+<div class="tw"><table class="t">
+ <thead><tr><th>Позиция</th><th>Партия</th><th class="r">Остаток</th><th class="r">Минимум</th><th class="r">Хватит на</th><th>Срок годности</th><th>Поставщик</th><th class="r">Плечо</th><th>Состояние</th></tr></thead>
+ <tbody>${RAW.map(r=>{const days=Math.max(1,Math.round(r.left/(r.min/6)));
+  return `<tr onclick="openRaw('${esc(r.n)}')">
+  <td><b>${esc(r.n)}</b></td><td class="mono">${esc(r.lot)}</td>
+  <td class="r"><b>${fmt(r.left)}</b> ${esc(r.unit)}</td><td class="r">${fmt(r.min)}</td>
+  <td class="r">${days} дн.</td><td>${esc(r.exp)}</td><td>${esc(r.from)}</td><td class="r">${r.lead} дн.</td>
+  <td>${r.st==='ok'?'<span class="tag g">норма</span>':r.st==='low'?'<span class="tag r">ниже минимума</span>':'<span class="tag w">истекает</span>'}</td></tr>`}).join('')}
+ </tbody></table></div>
+<div class="g3" style="margin-top:12px">
+ <div class="pan"><h3>Точка заказа считается с плечом</h3>
+  <p>Обычный склад сигналит, когда остаток кончился. Здесь сигнал приходит раньше — с учётом того, что сырьё едет из Кореи 45 дней, а из Ирана 35.</p>
+  <div class="kv"><span>SLES · плечо 35 дней</span><b style="color:var(--bad)">заказывать сегодня</b></div>
+  <div class="kv"><span>Консервант · плечо 28 дней</span><b style="color:var(--bad)">заказывать сегодня</b></div>
+  <div class="kv"><span>Крышка флип-топ · 35 дней</span><b style="color:var(--warn)">в течение недели</b></div>
+  <div class="kv"><span>ЛАБС · плечо 45 дней</span><b>запас 21 день</b></div>
+ </div>
+ <div class="pan"><h3>Партии и прослеживаемость</h3>
+  <div class="li"><i>✓</i><span><b>Приход по партиям</b><span class="sub">номер, срок годности, цена, документы поставщика</span></span></div>
+  <div class="li"><i>✓</i><span><b>Списание в производство</b><span class="sub">по рецептуре, с фиксацией партии в паспорте продукции</span></span></div>
+  <div class="li"><i>✓</i><span><b>FIFO по срокам</b><span class="sub">система предлагает старшую партию первой</span></span></div>
+  <div class="li w"><i>!</i><span><b>Бетаин истекает 11.2026</b><span class="sub">980 кг — поставить в ближайшие варки</span></span></div>
+ </div>
+ <div class="pan"><h3>Инвентаризация</h3>
+  <div class="kv"><span>Последняя</span><b>31.08.2026</b></div>
+  <div class="kv"><span>Расхождений</span><b>4 позиции</b></div>
+  <div class="kv"><span>На сумму</span><b>312 000 ₸</b></div>
+  <div class="hint">Пересчёт делается с телефона: сканируете позицию, вводите факт, расхождение подсвечивается сразу. Акт формируется сам.</div>
+ </div>
+</div>`;
+
+/* ====== ПЭТ И УПАКОВКА ====== */
+SC.pack=()=>`<div class="hd"><div><h2>ПЭТ-упаковка и комплектующие</h2>
+ <p>Своё производство упаковки — это отдельный передел внутри завода: преформа превращается во флакон, флакон идёт на розлив или продаётся отдельно. Поэтому выдув стоит в общем календаре, а не «когда успеем».</p></div></div>
+<div class="wid">
+ <div><small>Преформа на складе</small><b>126 000 шт</b><span>28 г · хватит на 7 дней розлива</span></div>
+ <div><small>Флакон 1 л готовый</small><b class="a">34 200 шт</b><span>после выдува</span></div>
+ <div><small>Канистра 5 л</small><b>6 200 шт</b><span>+ 1 200 в плане на ЧТ</span></div>
+ <div><small>Крышки</small><b class="r">38 000 шт</b><span>ниже минимума 40 000</span></div>
+ <div><small>Продажа упаковки на сторону</small><b class="l">5%</b><span>выручки завода</span></div>
+</div>
+<div class="g2">
+ <div class="pan"><h3>Выдув как передел</h3>
+  <div class="flow" style="grid-template-columns:repeat(4,1fr)">
+   <div class="fbx done"><code>1 · ПРЕФОРМА</code><b>Приход</b><p>импорт, партия, вес 28 г</p></div>
+   <div class="fbx on"><code>2 · ВЫДУВ</code><b>Флакон</b><p>18 000 шт/смена, брак 0,7%</p></div>
+   <div class="fbx"><code>3 · РОЗЛИВ</code><b>В линию</b><p>передача внутри завода, без «продажи себе»</p></div>
+   <div class="fbx"><code>4 · ПРОДАЖА</code><b>На сторону</b><p>флаконы и канистры другим производителям</p></div>
+  </div>
+  <div class="note"><b>Зачем считать отдельно</b><p>Когда выдув — отдельный передел со своей себестоимостью, видно: выгоднее ли лить самим или купить готовый флакон под конкретный проект. Сейчас этот вопрос решается ощущением.</p></div>
+ </div>
+ <div class="pan"><h3>Номенклатура упаковки</h3>
+  <div class="tw"><table class="t">
+   <thead><tr><th>Позиция</th><th class="r">Остаток</th><th class="r">Себестоимость</th><th class="r">Цена на сторону</th><th>Под что</th></tr></thead>
+   <tbody>
+    <tr><td><b>Флакон 500 мл</b></td><td class="r">21 400</td><td class="r">34 ₸</td><td class="r">78 ₸</td><td>Glass, Kitchen, антиналёт</td></tr>
+    <tr><td><b>Флакон 700 мл</b></td><td class="r">9 800</td><td class="r">38 ₸</td><td class="r">86 ₸</td><td>Toilet</td></tr>
+    <tr><td><b>Флакон 1 л</b></td><td class="r">34 200</td><td class="r">41 ₸</td><td class="r">96 ₸</td><td>Dish, Floor</td></tr>
+    <tr><td><b>Канистра 1,5 л</b></td><td class="r">4 100</td><td class="r">96 ₸</td><td class="r">190 ₸</td><td>гель для стирки</td></tr>
+    <tr><td><b>Канистра 5 л</b></td><td class="r">6 200</td><td class="r">214 ₸</td><td class="r">390 ₸</td><td>HoReCa-концентраты</td></tr>
+    <tr><td><b>Триггер-спрей</b></td><td class="r">12 600</td><td class="r">62 ₸</td><td class="r">135 ₸</td><td>Glass, Kitchen</td></tr>
+    <tr><td><b>Дой-пак с дозатором</b></td><td class="r">3 400</td><td class="r">74 ₸</td><td class="r">160 ₸</td><td>запаски, эко-линейка</td></tr>
+   </tbody></table></div>
+ </div>
+</div>`;
+
+/* ====== СКЛАД ГОТОВОЙ ПРОДУКЦИИ ====== */
+SC.fg=()=>`<div class="hd"><div><h2>Склад готовой продукции</h2>
+ <p>То, что менеджер должен видеть, не выходя из заявки: сколько есть, сколько уже зарезервировано под чужие заказы и когда ближайшая варка, если не хватает.</p></div>
+ <div class="btns"><button class="bt" onclick="go('order')">Оформить заявку</button></div></div>
+<div class="wid">
+ <div><small>Позиций на складе</small><b>${SKU.length}</b><span>из ${F.sku} в каталоге</span></div>
+ <div><small>Стоимость запаса</small><b class="a">58,4 млн ₸</b><span>по себестоимости</span></div>
+ <div><small>Зарезервировано</small><b class="w">19,2 млн ₸</b><span>под подтверждённые заявки</span></div>
+ <div><small>Свободно к продаже</small><b class="g">39,2 млн ₸</b><span>можно обещать клиентам</span></div>
+ <div><small>Паллетомест занято</small><b class="i">312 из 480</b><span>65% склада</span></div>
+</div>
+<div class="tw"><table class="t">
+ <thead><tr><th>Наименование</th><th class="r">Всего</th><th class="r">Резерв</th><th class="r">Свободно</th><th class="r">Коробов</th><th class="r">Паллет</th><th>Ближайшая варка</th><th>Партии</th></tr></thead>
+ <tbody>${SKU.slice(0,12).map((s,i)=>{const res=Math.round(s.st*[0.22,0.31,0.12,0.18,0.09,0.24,0.05,0.14,0.3,0.1,0.16,0.4][i]);
+  return `<tr onclick="openSku('${s.k}')">
+  <td><b>${esc(s.n)}</b></td><td class="r">${fmt(s.st)}</td><td class="r">${fmt(res)}</td>
+  <td class="r"><b style="color:${s.st-res<800?'var(--bad)':'inherit'}">${fmt(s.st-res)}</b></td>
+  <td class="r">${fmt(Math.ceil(s.st/s.box))}</td><td class="r">${Math.ceil(s.st/s.box/BOX_PER_PAL)}</td>
+  <td>${i%3===0?'<span class="tag b">17.09 · Р-1</span>':i%3===1?'<span class="tag">не запланирована</span>':'<span class="tag a">19.09 · Р-2</span>'}</td>
+  <td class="mono">${i%2?'2':'3'} шт</td></tr>`}).join('')}
+ </tbody></table></div>
+<div class="g3" style="margin-top:12px">
+ <div class="pan"><h3>Паллеты и адресное хранение</h3>
+  <div class="pal">${Array.from({length:30},(_,i)=>`<div class="${i<19?'f':i<24?'h':i===27?'r':''}">${i<19?'П':i<24?'½':i===27?'!':''}</div>`).join('')}</div>
+  <div class="yld-l"><span><i style="background:var(--brand)"></i>Полная паллета</span><span><i style="background:var(--brand2)"></i>Неполная</span><span><i style="background:var(--bad)"></i>Карантин / брак</span><span><i style="background:var(--card3)"></i>Свободно</span></div>
+  <div class="hint">Кладовщик видит, где физически стоит партия. Отбор по накладной — по адресам, а не «поищи где-то там».</div>
+ </div>
+ <div class="pan"><h3>Сроки годности</h3>
+  <div class="kv"><span>Партий на складе</span><b>62</b></div>
+  <div class="kv"><span>Старше 6 месяцев</span><b>7</b></div>
+  <div class="kv"><span>Осталось меньше 25% срока</span><b style="color:var(--warn)">3 партии</b></div>
+  <div class="kv"><span>Отбор</span><b>FIFO по сроку</b></div>
+  <div class="note" style="--tone:var(--warn)"><b>Сети не примут короткий срок</b><p>Большинство сетей требуют не менее 70% остаточного срока годности. Система не даст поставить в отгрузку сети партию, которая не проходит по сроку.</p></div>
+ </div>
+ <div class="pan"><h3>Что видит менеджер в заявке</h3>
+  <div class="li"><i>✓</i><span><b>Свободный остаток</b><span class="sub">не общий, а за вычетом чужих резервов</span></span></div>
+  <div class="li"><i>✓</i><span><b>Дату ближайшей варки</b><span class="sub">чтобы честно назвать срок клиенту</span></span></div>
+  <div class="li"><i>✓</i><span><b>Остаточный срок годности</b><span class="sub">по каждой партии</span></span></div>
+  <div class="li n"><i>+</i><span><b>Резерв на 48 часов</b><span class="sub">если клиент не подтвердил — товар освобождается автоматически</span></span></div>
+ </div>
+</div>`;
+
+/* ====== ЗАКУПКИ ====== */
+SC.purch=()=>`<div class="hd"><div><h2>Закуп сырья и импорт</h2>
+ <p>Сырьё идёт из Кореи, Ирана и Китая — деньги замораживаются на месяцы. Поэтому закуп здесь не «заявка в WhatsApp», а процесс со сроками, курсом, предоплатой и таможней.</p></div>
+ <div class="btns"><button class="bt p" onclick="makePurch()">Создать заявку по дефициту</button></div></div>
+<div class="tw"><table class="t">
+ <thead><tr><th>Заявка</th><th>Позиция</th><th class="r">Объём</th><th>Поставщик</th><th class="r">Сумма</th><th>Этап</th><th>Ожидается</th></tr></thead>
+ <tbody>
+  <tr><td><b>Z-2026-118</b></td><td>ЛАБС (ПАВ)</td><td class="r">20 т</td><td>Корея</td><td class="r">16 400 000 ₸</td><td><span class="tag b">в пути</span></td><td>28.09 · растаможка</td></tr>
+  <tr><td><b>Z-2026-121</b></td><td>ПЭТ-преформа 28 г</td><td class="r">400 000 шт</td><td>Китай</td><td class="r">8 800 000 ₸</td><td><span class="tag a">оплачено</span></td><td>12.10</td></tr>
+  <tr><td><b>Z-2026-124</b></td><td>SLES 70%</td><td class="r">12 т</td><td>Иран</td><td class="r">9 120 000 ₸</td><td><span class="tag r">нужна оплата</span></td><td>срок сорвётся без оплаты сегодня</td></tr>
+  <tr><td><b>Z-2026-125</b></td><td>Консервант</td><td class="r">600 кг</td><td>Китай</td><td class="r">2 040 000 ₸</td><td><span class="tag w">согласование</span></td><td>—</td></tr>
+  <tr><td><b>Z-2026-126</b></td><td>Крышка флип-топ</td><td class="r">200 000 шт</td><td>Китай</td><td class="r">2 600 000 ₸</td><td><span class="tag w">согласование</span></td><td>—</td></tr>
+  <tr class="total"><td>В работе</td><td></td><td class="r"></td><td></td><td class="r">38 960 000 ₸</td><td></td><td></td></tr>
+ </tbody></table></div>
+<div class="g2" style="margin-top:12px">
+ <div class="pan"><h3>Цепочка импорта</h3>
+  <div class="flow" style="grid-template-columns:repeat(5,1fr)">
+   <div class="fbx done"><code>1 · ЗАЯВКА</code><b>Дефицит</b><p>формируется из плана производства и точки заказа</p></div>
+   <div class="fbx done"><code>2 · ЦЕНА</code><b>Поставщик</b><p>сравнение предложений и курса</p></div>
+   <div class="fbx on"><code>3 · ОПЛАТА</code><b>Предоплата</b><p>согласование с директором, платёж</p></div>
+   <div class="fbx"><code>4 · ДОСТАВКА</code><b>В пути</b><p>срок, документы, таможня</p></div>
+   <div class="fbx"><code>5 · ПРИЁМКА</code><b>Партия</b><p>вес, качество, цена в себестоимость</p></div>
+  </div>
+  <div class="note" style="--tone:var(--bad)"><b>Почему это критично</b>
+   <p>Просроченная на неделю оплата поставщику превращается в остановленную линию через месяц. В портале заявка, платёж и план производства связаны — и срыв виден заранее, а не по факту.</p></div>
+ </div>
+ <div class="pan"><h3>Деньги в закупе</h3>
+  <div class="kv"><span>Заморожено в пути</span><b>25 200 000 ₸</b></div>
+  <div class="kv"><span>Требует оплаты на этой неделе</span><b style="color:var(--bad)">11 160 000 ₸</b></div>
+  <div class="kv"><span>Среднее плечо поставки</span><b>37 дней</b></div>
+  <div class="kv"><span>Запас сырья в днях</span><b>24 дня</b></div>
+  <div class="kv"><span>Влияние курса на себестоимость</span><b>±1 ₸ курса = ±0,4 ₸ на флакон</b></div>
+  <div class="hint">Эта связка — курс, закуп и себестоимость — даёт ответ на вопрос «поднимать ли цены» раньше, чем поднимут конкуренты.</div>
+ </div>
+</div>`;
+/* ====== ОТГРУЗКИ И МАРШРУТЫ ====== */
+SC.ship=()=>`<div class="hd"><div><h2>Отгрузки и маршруты</h2>
+ <p>Вы сказали: «доставщик едет на завод, забирает и развозит по магазинам». Здесь водитель приезжает к собранному заказу: накладные напечатаны, паллеты подписаны, маршрут построен, а сумма к сбору посчитана.</p></div>
+ <div class="btns"><button class="bt" onclick="go('route')">Как видит водитель</button><button class="bt p" onclick="buildRoute()">Собрать маршрут на завтра</button></div></div>
+<div class="wid">
+ <div><small>Рейсов сегодня</small><b>${SHIPS.length}</b><span>16 точек доставки</span></div>
+ <div><small>Отгружено тонн</small><b class="a">22,3 т</b><span>из них межгород 14 т</span></div>
+ <div><small>Сумма отгрузок</small><b>${fmt(SHIPS.reduce((a,s)=>a+s.sum,0))} ₸</b><span>по накладным</span></div>
+ <div><small>Собрать наличными</small><b class="w">1 740 000 ₸</b><span>3 точки</span></div>
+ <div><small>Подписанных накладных</small><b class="g">7 из 16</b><span>фото приходят в систему</span></div>
+</div>
+<div class="g21">
+ <div class="pan"><h3>Рейсы</h3>
+  <div class="tw"><table class="t">
+   <thead><tr><th>Рейс</th><th>Машина и водитель</th><th class="r">Точек</th><th class="r">Тонн</th><th class="r">Сумма</th><th>Статус</th><th class="r">Выполнено</th></tr></thead>
+   <tbody>${SHIPS.map(s=>`<tr onclick="openShip('${s.id}')">
+    <td><b>${esc(s.id)}</b></td><td>${esc(s.car)} · ${esc(s.drv)}</td>
+    <td class="r">${s.stops}</td><td class="r">${num2(s.tons)}</td><td class="r">${fmt(s.sum)} ₸</td>
+    <td><span class="tag ${s.st==='завершён'?'g':s.st==='в пути'?'b':s.st==='загрузка'?'w':'a'}">${esc(s.st)}</span></td>
+    <td class="r">${s.done} / ${s.stops}</td></tr>`).join('')}
+   </tbody></table></div>
+  <div class="hint"><b>Сборка заказа на складе:</b> кладовщик видит лист отбора по адресам хранения, отмечает собранное, система печатает накладные и стикеры на паллеты. Водитель получает уже готовый комплект, а не «сейчас посчитаем».</div>
+ </div>
+ <div>
+  <div class="pan"><h3>Что решает маршрут</h3>
+   <div class="li"><i>✓</i><span><b>Окна приёмки сетей</b><span class="sub">РЦ принимает до 12:00 — точка ставится первой</span></span></div>
+   <div class="li"><i>✓</i><span><b>Вес и объём машины</b><span class="sub">по паллетам, а не «на глаз влезет»</span></span></div>
+   <div class="li"><i>✓</i><span><b>Наличные точки</b><span class="sub">водитель видит, где и сколько собрать</span></span></div>
+   <div class="li"><i>✓</i><span><b>Межгород отдельно</b><span class="sub">перевозчик, номер ТТН, срок доставки</span></span></div>
+  </div>
+  <div class="pan"><h3>Возврат документов</h3>
+   <div class="kv"><span>Подписано и сфотографировано</span><b>7</b></div>
+   <div class="kv"><span>Оригиналы сданы в офис</span><b>5</b></div>
+   <div class="kv"><span>Не вернулись дольше 3 дней</span><b style="color:var(--bad)">2</b></div>
+   <div class="note" style="--tone:var(--bad)"><b>Это деньги</b><p>Без подписанной накладной сеть не начнёт отсчёт отсрочки и не оплатит. Система сама напомнит водителю и менеджеру — каждая неделя задержки документа сдвигает оплату.</p></div>
+  </div>
+ </div>
+</div>`;
+
+SC.route=()=>`<div class="hd"><div><h2>Маршрут водителя — в телефоне, без бумаг и звонков</h2>
+ <p>Открывается ссылкой в браузере телефона, устанавливать ничего не нужно. Водитель отмечает доставку, фотографирует подписанную накладную и фиксирует наличные — всё это сразу видно в офисе.</p></div></div>
+<div class="g21">
+ <div class="pan"><h3>Рейс S-881 · Газель 934 ALM · Асхат</h3>
+  <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start">
+   <div class="phone">
+    <div class="pht"><b>Рейс S-881 · 16 сентября</b><small>4 точки · 2,4 т · собрать 1 180 000 ₸</small></div>
+    <div class="pb">
+     ${STOPS.map((s,i)=>`<div class="stop" style="--c:${s.st==='доставлено'?'var(--ok)':'var(--acc)'}">
+      <b>${i+1}. ${esc(s.n)}</b>
+      <div class="rw"><span>${esc(s.ad)}</span><span>${esc(s.t)}</span></div>
+      <div class="rw"><span>${s.box} ${plural(s.box,['короб','короба','коробов'])} · ${fmt(s.sum)} ₸</span><span class="tag ${s.st==='доставлено'?'g':'b'}">${esc(s.st)}</span></div>
+      <div class="rw"><span>${esc(s.pay)}</span></div></div>`).join('')}
+     <div class="pbtn g" onclick="deliverStop()">Отметить доставку</div>
+     <div class="pbtn o" onclick="toast('Водитель фотографирует подписанную накладную — фото прикрепляется к отгрузке, менеджер и бухгалтер видят его сразу. Оригинал везётся в офис, но отсчёт отсрочки начинается с фото.')">📷 Фото накладной</div>
+     <div class="pbtn o" onclick="toast('Если клиент не принял часть товара — водитель отмечает возврат прямо в точке: позиция, количество, причина. Возврат приезжает на завод уже оформленным.')">Оформить возврат</div>
+    </div>
+   </div>
+   <div style="flex:1;min-width:250px">
+    <div class="li"><i>1</i><span><b>Маршрут приходит с вечера</b><span class="sub">водитель знает, во сколько быть на заводе и что грузить</span></span></div>
+    <div class="li"><i>2</i><span><b>Накладные уже в телефоне</b><span class="sub">не нужно ждать, пока менеджер «сейчас распечатает»</span></span></div>
+    <div class="li"><i>3</i><span><b>Отметка о доставке — в момент</b><span class="sub">офис видит статус, менеджер не звонит «ты доехал?»</span></span></div>
+    <div class="li"><i>4</i><span><b>Наличные под контролем</b><span class="sub">сколько собрал, сколько сдал в кассу — сходится по каждому рейсу</span></span></div>
+    <div class="li n"><i>+</i><span><b>Геометка точки</b><span class="sub">подтверждение, что доставка была именно на адрес</span></span></div>
+    <div class="said" style="margin-top:12px"><b>Вы сказали на встрече</b><i>«Потом передаётся доставщику, доставщик едет на завод, забирает и развозит по магазинам»</i>. Вот этот кусок цепочки — и он же обычно самый «слепой»: пока водитель в рейсе, в офисе никто не знает, что происходит.</div>
+   </div>
+  </div>
+ </div>
+ <div>
+  <div class="pan"><h3>Итог рейса</h3>
+   <div class="kv"><span>Доставлено точек</span><b>2 из 4</b></div>
+   <div class="kv"><span>Отгружено на сумму</span><b>3 120 000 ₸</b></div>
+   <div class="kv"><span>Собрано наличными</span><b>0 ₸ из 1 180 000 ₸</b></div>
+   <div class="kv"><span>Возвратов</span><b>0</b></div>
+   <div class="kv"><span>Время в рейсе</span><b>3 ч 20 мин</b></div>
+  </div>
+  <div class="pan"><h3>Что это даёт заводу</h3>
+   <div class="li"><i>✓</i><span><b>Доставка перестаёт быть чёрным ящиком</b><span class="sub">видно, где машина и что уже отдано</span></span></div>
+   <div class="li"><i>✓</i><span><b>Документы возвращаются</b><span class="sub">фото сразу, оригинал под контролем</span></span></div>
+   <div class="li"><i>✓</i><span><b>Наличные не теряются</b><span class="sub">сверка по рейсу, а не по памяти</span></span></div>
+   <div class="li"><i>✓</i><span><b>Клиент получает уведомление</b><span class="sub">«машина выехала, будет в интервале 13:00–15:00»</span></span></div>
+  </div>
+ </div>
+</div>`;
+
+SC.returns=()=>`<div class="hd"><div><h2>Возвраты, брак и рекламации</h2>
+ <p>У бытовой химии возвраты неизбежны: не приняли по сроку, повредили упаковку, сеть вернула неликвид. Важно не «принять обратно», а понять, сколько это стоит и чья это ответственность.</p></div></div>
+<div class="wid">
+ <div><small>Возвратов за месяц</small><b>14</b><span>на 3,2 млн ₸</span></div>
+ <div><small>Доля от отгрузки</small><b class="g">0,8%</b><span>норма до 1,5%</span></div>
+ <div><small>Вернулось в продажу</small><b class="a">61%</b><span>после переупаковки</span></div>
+ <div><small>Списано</small><b class="r">1,2 млн ₸</b><span>брак и срок</span></div>
+ <div><small>Рекламаций по качеству</small><b class="w">2</b><span>обе связаны с партией BR-3310</span></div>
+</div>
+<div class="tw"><table class="t">
+ <thead><tr><th>Возврат</th><th>Клиент</th><th>Позиция</th><th class="r">Кол-во</th><th class="r">Сумма</th><th>Причина</th><th>Решение</th></tr></thead>
+ <tbody>
+  <tr><td><b>R-214</b></td><td>Сеть «Magnum»</td><td>DAYIN Glass 500 мл</td><td class="r">120 шт</td><td class="r">72 000 ₸</td><td>остаточный срок меньше 70%</td><td><span class="tag a">на переупаковку</span></td></tr>
+  <tr><td><b>R-213</b></td><td>Сеть «Small»</td><td>DAYIN Dish 1 л</td><td class="r">36 шт</td><td class="r">24 800 ₸</td><td>повреждена упаковка при перевозке</td><td><span class="tag w">на логиста</span></td></tr>
+  <tr><td><b>R-211</b></td><td>ТОО «Клин Сервис»</td><td>Концентрат 5 л</td><td class="r">12 шт</td><td class="r">40 800 ₸</td><td>претензия: слабое пенообразование</td><td><span class="tag r">рекламация · лаборатория</span></td></tr>
+  <tr><td><b>R-208</b></td><td>ИП Ержанов</td><td>Гель для стирки 1,5 л</td><td class="r">48 шт</td><td class="r">66 700 ₸</td><td>не продалось, договор допускает</td><td><span class="tag g">принято на склад</span></td></tr>
+ </tbody></table></div>
+<div class="g2" style="margin-top:12px">
+ <div class="pan"><h3>Как разбирается рекламация</h3>
+  <div class="flow" style="grid-template-columns:repeat(4,1fr)">
+   <div class="fbx done"><code>1 · ПАРТИЯ</code><b>Находится за секунду</b><p>по номеру на этикетке — какое сырьё, какая смена, какие анализы</p></div>
+   <div class="fbx on"><code>2 · ЛАБОРАТОРИЯ</code><b>Арбитражная проба</b><p>контрольный образец партии хранится на заводе</p></div>
+   <div class="fbx"><code>3 · РЕШЕНИЕ</code><b>Замена или возврат денег</b><p>с фиксацией причины: сырьё, процесс, хранение у клиента</p></div>
+   <div class="fbx"><code>4 · ВЫВОД</code><b>Что поменять</b><p>норма, поставщик, инструкция — чтобы не повторилось</p></div>
+  </div>
+  <div class="note" style="--tone:var(--bad)"><b>Обе рекламации месяца — по одной партии сырья</b>
+   <p>Партия бетаина BR-3310. Пока это не было связано в системе, случаи выглядели как «две разные жалобы». Связанные — это уже основание для претензии поставщику.</p></div>
+ </div>
+ <div class="pan"><h3>Кто платит за возврат</h3>
+  <div class="kv"><span>Повреждение при перевозке</span><b>логистика</b></div>
+  <div class="kv"><span>Просрочен срок на полке</span><b>коммерция</b></div>
+  <div class="kv"><span>Несоответствие качества</span><b>производство / поставщик</b></div>
+  <div class="kv"><span>Неликвид по договору</span><b>плановые потери</b></div>
+  <div class="hint">Когда каждый возврат помечен причиной, в конце квартала видно не «возвратов на 3 миллиона», а «полтора миллиона — это логистика, и вот на каких машинах».</div>
+ </div>
+</div>`;
+
+/* ====== ДЕНЬГИ ====== */
+SC.debt=()=>{
+ const tot=CLIENTS.reduce((a,c)=>a+c.debt,0),over=CLIENTS.reduce((a,c)=>a+c.over,0);
+ return `<div class="hd"><div><h2>Дебиторка и лимиты</h2>
+  <p>Вы сказали, что процесс должен доходить «до учёта финансового клиента». Вот он: сколько должен каждый, сколько просрочено, какой лимит и когда система сама остановит отгрузку.</p></div>
+  <div class="btns"><button class="bt" onclick="go('pay')">Оплаты и сверки</button></div></div>
+ <div class="wid">
+  <div><small>Дебиторка всего</small><b class="a">${fmt(tot)} ₸</b><span>по ${CLIENTS.length} клиентам</span></div>
+  <div><small>Просрочено</small><b class="r">${fmt(over)} ₸</b><span>${pct(over,tot)} портфеля</span></div>
+  <div><small>Средняя отсрочка</small><b>24 дня</b><span>по договорам</span></div>
+  <div><small>Оборачиваемость</small><b class="i">31 день</b><span>фактически</span></div>
+  <div><small>В стоп-листе</small><b class="w">2 клиента</b><span>отгрузки заблокированы</span></div>
+ </div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>Клиент</th><th class="r">Лимит</th><th class="r">Долг</th><th class="r">Свободно</th><th class="r">Просрочено</th><th>Отсрочка</th><th>Состояние</th><th>Действие</th></tr></thead>
+  <tbody>${CLIENTS.map(c=>{const free=c.limit-c.debt;
+   return `<tr onclick="openClient('${c.id}')">
+   <td><b>${esc(c.n)}</b><span class="sub">${esc(c.city)} · ${esc(c.man)}</span></td>
+   <td class="r">${c.limit?fmt(c.limit):'—'}</td><td class="r">${fmt(c.debt)}</td>
+   <td class="r"><b style="color:${free<0?'var(--bad)':free<1000000?'var(--warn)':'var(--ok)'}">${c.limit?fmt(free):'предоплата'}</b></td>
+   <td class="r">${c.over?'<b style="color:var(--bad)">'+fmt(c.over)+'</b>':'—'}</td>
+   <td>${esc(c.terms)}</td>
+   <td>${c.over?'<span class="tag r">стоп-отгрузка</span>':free<1000000&&c.limit?'<span class="tag w">лимит почти выбран</span>':'<span class="tag g">норма</span>'}</td>
+   <td>${c.over?'<span class="tag">нужно решение директора</span>':'<span class="tag g">отгружаем</span>'}</td></tr>`}).join('')}
+  </tbody></table></div>
+ <div class="g3" style="margin-top:12px">
+  <div class="pan"><h3>Как работает стоп-отгрузка</h3>
+   <div class="li r"><i>1</i><span><b>Просрочка больше 7 дней</b><span class="sub">клиент попадает в стоп-лист автоматически</span></span></div>
+   <div class="li w"><i>2</i><span><b>Менеджер не может выписать накладную</b><span class="sub">кнопка не работает, видно причину</span></span></div>
+   <div class="li n"><i>3</i><span><b>Директор может разрешить</b><span class="sub">разово, с комментарием и на конкретную сумму — решение остаётся в истории</span></span></div>
+   <div class="li"><i>4</i><span><b>Оплата снимает блок</b><span class="sub">в тот момент, когда деньги отражены в системе</span></span></div>
+   <div class="note" style="--tone:var(--bad)"><b>Зачем это правило</b><p>Отгрузка должнику — это не «поддержка клиента», а рост кассового разрыва. Вручную это правило не соблюдается: менеджеру всегда «надо выполнить план».</p></div>
+  </div>
+  <div class="pan"><h3>Старение долга</h3>
+   <div class="fr"><span>Текущий (срок не наступил)</span><div class="bar"><i class="g" style="--w:74%"></i></div><b>58 200 000 ₸</b></div>
+   <div class="fr"><span>1–15 дней просрочки</span><div class="bar"><i class="w" style="--w:14%"></i></div><b>10 600 000 ₸</b></div>
+   <div class="fr"><span>16–30 дней</span><div class="bar"><i class="r" style="--w:8%"></i></div><b>6 200 000 ₸</b></div>
+   <div class="fr"><span>Больше 30 дней</span><div class="bar"><i class="r" style="--w:5%"></i></div><b>3 400 000 ₸</b></div>
+   <div class="hint">Долг старше 30 дней — это уже работа юриста, а не менеджера. Система переводит такие карточки в отдельную воронку взыскания.</div>
+  </div>
+  <div class="pan"><h3>Напоминания клиентам</h3>
+   <div class="li"><i>✓</i><span><b>За 3 дня до срока оплаты</b><span class="sub">письмо или WhatsApp с суммой и номером накладной</span></span></div>
+   <div class="li"><i>✓</i><span><b>В день срока</b><span class="sub">напоминание и задача менеджеру</span></span></div>
+   <div class="li w"><i>!</i><span><b>Через 3 дня после срока</b><span class="sub">уведомление о приближении стоп-листа</span></span></div>
+   <div class="li r"><i>!</i><span><b>Через 7 дней</b><span class="sub">стоп-отгрузка и задача директору</span></span></div>
+  </div>
+ </div>`};
+
+SC.pay=()=>`<div class="hd"><div><h2>Оплаты и акты сверки</h2>
+ <p>Платёж привязывается к накладным, а не «просто пришли деньги». Поэтому в любой момент видно, какие отгрузки закрыты, какие нет и что показывать клиенту в сверке.</p></div>
+ <div class="btns"><button class="bt p" onclick="openAkt()">Сформировать акт сверки</button></div></div>
+<div class="g21">
+ <div class="pan"><h3>Поступления за неделю</h3>
+  <div class="tw"><table class="t">
+   <thead><tr><th>Дата</th><th>Клиент</th><th>Основание</th><th>Способ</th><th class="r">Сумма</th><th>Закрыто накладных</th></tr></thead>
+   <tbody>
+    <tr><td>16.09</td><td><b>Сеть «Magnum»</b></td><td>по реестру за август</td><td><span class="tag a">банк</span></td><td class="r">12 400 000 ₸</td><td>18 накладных</td></tr>
+    <tr><td>15.09</td><td><b>Дистрибьютор «Нур Опт»</b></td><td>частичная оплата</td><td><span class="tag a">банк</span></td><td class="r">4 800 000 ₸</td><td>6 из 9</td></tr>
+    <tr><td>15.09</td><td><b>Отель «Rixos»</b></td><td>счёт № 2114</td><td><span class="tag a">банк</span></td><td class="r">820 000 ₸</td><td>1 накладная</td></tr>
+    <tr><td>14.09</td><td><b>ИП Ержанов</b></td><td>наличные у водителя</td><td><span class="tag l">наличные</span></td><td class="r">560 000 ₸</td><td>частично</td></tr>
+    <tr><td>13.09</td><td><b>Сеть «Small»</b></td><td>по реестру</td><td><span class="tag a">банк</span></td><td class="r">3 100 000 ₸</td><td>7 накладных</td></tr>
+    <tr class="total"><td>Итого</td><td></td><td></td><td></td><td class="r">21 680 000 ₸</td><td></td></tr>
+   </tbody></table></div>
+  <div class="hint"><b>Разнесение платежа:</b> если клиент заплатил «кучей» — система предлагает распределение по старым накладным, бухгалтер подтверждает. Это минуты вместо часа в Excel.</div>
+ </div>
+ <div>
+  <div class="pan"><h3>Акт сверки</h3>
+   <p>Формируется на любую дату по любому клиенту: отгрузки, оплаты, возвраты, остаток. Уходит клиенту PDF-файлом.</p>
+   <div class="kv"><span>Сверок за месяц</span><b>23</b></div>
+   <div class="kv"><span>Расхождений найдено</span><b>4</b></div>
+   <div class="kv"><span>На сумму</span><b>1 840 000 ₸</b></div>
+   <div class="kv"><span>Причина расхождений</span><b>непроведённые возвраты</b></div>
+   <button class="bt p" style="width:100%;margin-top:9px" onclick="openAkt()">Показать акт</button>
+  </div>
+  <div class="pan"><h3>Кассовый календарь</h3>
+   <div class="kv"><span>Ожидается на этой неделе</span><b style="color:var(--ok)">28 400 000 ₸</b></div>
+   <div class="kv"><span>Нужно заплатить поставщикам</span><b style="color:var(--bad)">11 160 000 ₸</b></div>
+   <div class="kv"><span>ФОТ 20-го числа</span><b>18 600 000 ₸</b></div>
+   <div class="kv"><span>Прогноз остатка на 25.09</span><b>+9 200 000 ₸</b></div>
+   <div class="note" style="--tone:var(--warn)"><b>Разрыв виден заранее</b><p>Если крупная сеть задержит платёж на неделю, прогноз сразу станет отрицательным — и это будет видно до того, как наступит день зарплаты.</p></div>
+  </div>
+ </div>
+</div>`;
+
+SC.fin=()=>`<div class="hd"><div><h2>Финансы завода</h2>
+ <p>Не бухгалтерия, а управленческая картина: сколько заработали, на чём именно и куда ушло. Собирается из отгрузок, списаний и расходов — отдельную таблицу вести не нужно.</p></div></div>
+<div class="wid">
+ <div><small>Отгружено</small><b class="a">${fmt(F.rev)} ₸</b><span>+14% к августу</span></div>
+ <div><small>Сырьё и упаковка</small><b>214 800 000 ₸</b><span>52% выручки</span></div>
+ <div><small>ФОТ и производство</small><b>38 400 000 ₸</b><span>9%</span></div>
+ <div><small>Логистика и склад</small><b>22 800 000 ₸</b><span>6%</span></div>
+ <div><small>Валовая прибыль</small><b class="g">136 000 000 ₸</b><span>33%</span></div>
+</div>
+<div class="g21">
+ <div class="pan"><h3>Куда уходит каждый тенге</h3>
+  <div class="yld">
+   <div style="flex:52;background:#0d8f95">52%<small>сырьё и упаковка</small></div>
+   <div style="flex:9;background:#6b4ea8">9%<small>ФОТ</small></div>
+   <div style="flex:6;background:#d1861f">6%<small>логистика</small></div>
+   <div style="flex:33;background:#6ba32e">33%<small>валовая прибыль</small></div>
+  </div>
+  <div class="tw" style="margin-top:14px"><table class="t">
+   <thead><tr><th>Статья</th><th class="r">Июль</th><th class="r">Август</th><th class="r">Сентябрь</th><th class="r">Доля</th></tr></thead>
+   <tbody>
+    <tr><td><b>Отгружено</b></td><td class="r">338 000 000</td><td class="r">361 000 000</td><td class="r"><b>412 000 000</b></td><td class="r">100%</td></tr>
+    <tr><td>Сырьё и упаковка</td><td class="r">179 000 000</td><td class="r">191 000 000</td><td class="r">214 800 000</td><td class="r">52%</td></tr>
+    <tr><td>ФОТ производства</td><td class="r">33 200 000</td><td class="r">35 100 000</td><td class="r">38 400 000</td><td class="r">9%</td></tr>
+    <tr><td>Логистика и склад</td><td class="r">19 400 000</td><td class="r">20 600 000</td><td class="r">22 800 000</td><td class="r">6%</td></tr>
+    <tr class="total"><td>Валовая прибыль</td><td class="r">106 400 000</td><td class="r">114 300 000</td><td class="r">136 000 000</td><td class="r">33%</td></tr>
+   </tbody></table></div>
+ </div>
+ <div>
+  <div class="pan"><h3>Сводка собственнику</h3>
+   <p>Каждое утро — одно сообщение в WhatsApp. Без входа в систему и без просьб «скинь отчёт».</p>
+   <div class="msg" style="max-width:100%;background:var(--ok-l);border:1px solid #cfe7da;border-radius:9px;padding:9px 11px;font-size:11px;line-height:1.55">
+    Вчера: отгружено 18,4 млн ₸ · 21,6 т<br>
+    Произведено 23,1 т · загрузка 71%<br>
+    Дебиторка 78,4 млн ₸ (просрочка 9,6)<br>
+    Требует решения: 2 позиции<br>
+    <span style="font-size:9.4px;opacity:.7">сегодня 08:00 · портал</span>
+   </div>
+  </div>
+  <div class="pan"><h3>Что считается автоматически</h3>
+   <div class="li"><i>✓</i><span><b>Выручка</b><span class="sub">из накладных, а не из «примерно отгрузили»</span></span></div>
+   <div class="li"><i>✓</i><span><b>Сырьё</b><span class="sub">из списаний по рецептурам и партиям</span></span></div>
+   <div class="li"><i>✓</i><span><b>Логистика</b><span class="sub">из рейсов, с распределением на клиентов</span></span></div>
+   <div class="li n"><i>+</i><span><b>Постоянные расходы</b><span class="sub">вносятся раз в месяц вручную</span></span></div>
+  </div>
+ </div>
+</div>`;
+/* ====== АНАЛИТИКА ====== */
+SC.ansku=()=>`<div class="hd"><div><h2>Прибыль по продуктам и брендам</h2>
+ <p>513 наименований в каталоге — но деньги приносят не все. Здесь видно, какое SKU кормит завод, какое просто занимает линию, а какое продаётся в минус после подорожания сырья.</p></div></div>
+<div class="tw"><table class="t">
+ <thead><tr><th>Наименование</th><th>Группа</th><th class="r">Продано, шт</th><th class="r">Выручка</th>${seeCost()?'<th class="r">Себестоимость</th><th class="r">Прибыль</th><th class="r">Маржа</th>':''}<th class="r">Доля выручки</th></tr></thead>
+ <tbody>${SKU.slice(0,12).map((s,i)=>{const q=[42000,31000,18000,12400,16800,9600,7200,11400,4200,1900,3100,2600][i];
+  const rev=q*Math.round(s.p*1.06),cost=q*s.c,pr=rev-cost;
+  return `<tr onclick="openSku('${s.k}')">
+  <td><b>${esc(s.n)}</b></td><td><span class="tag ${s.g==='DAYIN'?'b':s.g==='PET'?'':'a'}">${esc(s.g)}</span></td>
+  <td class="r">${fmt(q)}</td><td class="r">${fmt(rev)} ₸</td>
+  ${seeCost()?`<td class="r">${fmt(cost)} ₸</td><td class="r"><b>${fmt(pr)} ₸</b></td>
+   <td class="r"><b style="color:${pr/rev>.35?'var(--ok)':pr/rev>.25?'var(--warn)':'var(--bad)'}">${Math.round(pr/rev*100)}%</b></td>`:''}
+  <td class="r">${num(rev/F.rev*100)}%</td></tr>`}).join('')}
+ </tbody></table></div>
+<div class="g3" style="margin-top:12px">
+ <div class="pan"><h3>Правило 80/20 на вашем каталоге</h3>
+  <div class="fr"><span>Топ-12 SKU</span><div class="bar"><i class="g" style="--w:71%"></i></div><b>71% выручки</b></div>
+  <div class="fr"><span>Следующие 40 SKU</span><div class="bar"><i class="b" style="--w:21%"></i></div><b>21%</b></div>
+  <div class="fr"><span>Остальные 460 SKU</span><div class="bar"><i class="w" style="--w:8%"></i></div><b>8%</b></div>
+  <div class="note" style="--tone:var(--warn)"><b>Хвост каталога дорого стоит</b>
+   <p>Каждое редкое SKU — это своя этикетка, своя преформа, переналадка линии и остатки сырья. Когда видно вклад каждой позиции, разговор «оставить или снять» становится арифметикой.</p></div>
+ </div>
+ <div class="pan"><h3>Свои бренды против контракта</h3>
+  <div class="kv"><span>DAYIN и косметика</span><b>46% выручки · маржа 41%</b></div>
+  <div class="kv"><span>OEM-контракты</span><b>38% · маржа 27%</b></div>
+  <div class="kv"><span>HoReCa-концентраты</span><b>11% · маржа 44%</b></div>
+  <div class="kv"><span>ПЭТ и сырьё на сторону</span><b>5% · маржа 31%</b></div>
+  <div class="hint">OEM держит загрузку линий, свои бренды — маржу. Правильная пропорция — вопрос стратегии, но принимать его лучше по цифрам.</div>
+ </div>
+ <div class="pan"><h3>Что подсвечивает система</h3>
+  <div class="li r"><i>!</i><span><b>Маржа ниже 25%</b><span class="sub">после роста цен на сырьё или курса</span></span></div>
+  <div class="li w"><i>!</i><span><b>SKU без продаж 60 дней</b><span class="sub">остатки и сырьё заморожены</span></span></div>
+  <div class="li n"><i>·</i><span><b>Рост доли одного клиента</b><span class="sub">зависимость — это риск</span></span></div>
+  <div class="li"><i>✓</i><span><b>Растущие позиции</b><span class="sub">на что имеет смысл ставить производство</span></span></div>
+ </div>
+</div>`;
+
+SC.ancl=()=>`<div class="hd"><div><h2>Клиенты: ABC и оборачиваемость</h2>
+ <p>Кто приносит деньги, кто — оборот без прибыли, а кто просто занимает время менеджера. И главное — кто начал заказывать реже.</p></div></div>
+<div class="tw"><table class="t">
+ <thead><tr><th>Клиент</th><th>Группа</th><th class="r">Отгружено за год</th><th class="r">Средний заказ</th><th class="r">Частота</th>${seeCost()?'<th class="r">Маржа</th>':''}<th class="r">Оплата</th><th>Тренд</th></tr></thead>
+ <tbody>
+  <tr><td><b>Сеть «Magnum»</b></td><td><span class="tag b">A</span></td><td class="r">168 000 000 ₸</td><td class="r">14 800 000 ₸</td><td class="r">раз в 2 недели</td>${seeCost()?'<td class="r">29%</td>':''}<td class="r">30 дней</td><td><span class="tag g">рост +18%</span></td></tr>
+  <tr><td><b>Дистрибьютор «Нур Опт»</b></td><td><span class="tag b">A</span></td><td class="r">96 000 000 ₸</td><td class="r">9 600 000 ₸</td><td class="r">раз в 3 недели</td>${seeCost()?'<td class="r">33%</td>':''}<td class="r">21 день</td><td><span class="tag g">стабильно</span></td></tr>
+  <tr><td><b>Сеть «Small»</b></td><td><span class="tag a">B</span></td><td class="r">41 000 000 ₸</td><td class="r">6 400 000 ₸</td><td class="r">раз в месяц</td>${seeCost()?'<td class="r">27%</td>':''}<td class="r">30 дней</td><td><span class="tag g">рост +9%</span></td></tr>
+  <tr><td><b>ТОО «Клин Сервис»</b></td><td><span class="tag a">B</span></td><td class="r">28 000 000 ₸</td><td class="r">4 900 000 ₸</td><td class="r">раз в месяц</td>${seeCost()?'<td class="r">44%</td>':''}<td class="r">14 дней</td><td><span class="tag w">просрочка</span></td></tr>
+  <tr><td><b>ИП Ержанов</b></td><td><span class="tag">C</span></td><td class="r">19 000 000 ₸</td><td class="r">2 100 000 ₸</td><td class="r">раз в 2 недели</td>${seeCost()?'<td class="r">22%</td>':''}<td class="r">7 дней</td><td><span class="tag r">падение −34%</span></td></tr>
+  <tr><td><b>Отель «Rixos»</b></td><td><span class="tag">C</span></td><td class="r">12 000 000 ₸</td><td class="r">820 000 ₸</td><td class="r">раз в месяц</td>${seeCost()?'<td class="r">46%</td>':''}<td class="r">14 дней</td><td><span class="tag g">стабильно</span></td></tr>
+ </tbody></table></div>
+<div class="g2" style="margin-top:12px">
+ <div class="pan"><h3>Сигналы по клиентам</h3>
+  <div class="li r"><i>!</i><span><b>ИП Ержанов: −34% и просрочка 2,4 млн</b><span class="sub">заказывает реже и платит хуже — классический признак ухода к конкуренту</span></span></div>
+  <div class="li w"><i>!</i><span><b>Зависимость от «Magnum» — 41% выручки</b><span class="sub">потеря одной сети обвалит месяц; система показывает эту долю постоянно</span></span></div>
+  <div class="li n"><i>·</i><span><b>Клин Сервис: маржа 44%, но платит с просрочкой</b><span class="sub">выгодный клиент, с которым нужно менять условия, а не расставаться</span></span></div>
+  <div class="li"><i>✓</i><span><b>HoReCa растёт быстрее розницы</b><span class="sub">концентраты дают лучшую маржу при меньшем объёме логистики</span></span></div>
+ </div>
+ <div class="pan"><h3>Что делать с этим</h3>
+  <div class="kv"><span>Клиент не заказывал 30 дней</span><b>задача менеджеру</b></div>
+  <div class="kv"><span>Средний заказ падает 3 месяца</span><b>сигнал директору</b></div>
+  <div class="kv"><span>Доля клиента больше 35%</span><b>риск концентрации</b></div>
+  <div class="kv"><span>Маржа клиента ниже 20%</span><b>пересмотр условий</b></div>
+  <div class="hint">Эти правила настраиваются вами. Смысл в том, чтобы система замечала изменения раньше, чем это заметит отчёт за квартал.</div>
+ </div>
+</div>`;
+
+SC.cap=()=>`<div class="hd"><div><h2>Загрузка мощности</h2>
+ <p>По вашему сайту — 24 тонны в сутки и 500 тонн в месяц. Вопрос не в мощности, а в том, сколько из неё реально используется и что мешает использовать больше.</p></div></div>
+<div class="g21">
+ <div class="pan"><h3>Сентябрь</h3>
+  <div class="odo">
+   <div class="gauge" style="--p:${F.loadPct};--gc:var(--lime)"><div><b>${F.loadPct}%</b><small>загрузка мощности</small></div></div>
+   <div>
+    <div class="kv"><span>Мощность в месяц</span><b>${F.capMonth} т</b></div>
+    <div class="kv"><span>Произведено</span><b>${F.tons} т</b></div>
+    <div class="kv"><span>Недоиспользовано</span><b style="color:var(--warn)">${F.capMonth-F.tons} т</b></div>
+    <div class="kv"><span>В деньгах по средней цене</span><b>≈ 121 000 000 ₸</b></div>
+    <div class="kv"><span>Из них из-за простоев</span><b>≈ 38 т</b></div>
+   </div>
+  </div>
+  <div class="fr" style="margin-top:14px"><span>Заказы клиентов</span><div class="bar"><i class="b" style="--w:46%"></i></div><b>178 т</b></div>
+  <div class="fr"><span>OEM-контракты</span><div class="bar"><i style="--w:38%"></i></div><b>146 т</b></div>
+  <div class="fr"><span>Производство на склад</span><div class="bar"><i class="l" style="--w:16%"></i></div><b>62 т</b></div>
+  <div class="fr"><span>Свободная мощность</span><div class="bar"><i class="w" style="--w:23%"></i></div><b>114 т</b></div>
+  <div class="note" style="--tone:var(--ok)"><b>114 свободных тонн — это и есть аргумент в переговорах</b>
+   <p>Когда вы точно знаете, сколько мощности свободно и до какой даты, вы можете брать OEM-контракт с меньшей маржой осознанно: он не мешает своим брендам, а закрывает простой линии.</p></div>
+ </div>
+ <div>
+  <div class="pan"><h3>Что ограничивает выпуск</h3>
+   <div class="fr" style="grid-template-columns:150px 1fr 56px"><span>Переналадки</span><div class="bar"><i class="w" style="--w:62%"></i></div><b>38 ч</b></div>
+   <div class="fr" style="grid-template-columns:150px 1fr 56px"><span>Нет сырья вовремя</span><div class="bar"><i class="r" style="--w:48%"></i></div><b>29 ч</b></div>
+   <div class="fr" style="grid-template-columns:150px 1fr 56px"><span>Выдув не успевает</span><div class="bar"><i class="r" style="--w:31%"></i></div><b>19 ч</b></div>
+   <div class="fr" style="grid-template-columns:150px 1fr 56px"><span>Нет заказов</span><div class="bar"><i style="--w:24%"></i></div><b>15 ч</b></div>
+   <div class="fr" style="grid-template-columns:150px 1fr 56px"><span>Ремонт</span><div class="bar"><i style="--w:14%"></i></div><b>9 ч</b></div>
+   <div class="hint">Самая дорогая строка — не поломки, а переналадки и несвоевременное сырьё. И то и другое лечится планированием, а не деньгами.</div>
+  </div>
+  <div class="pan"><h3>Если убрать простои</h3>
+   <div class="kv"><span>Сейчас</span><b>386 т/мес</b></div>
+   <div class="kv"><span>−50% простоев по сырью</span><b>+14 т</b></div>
+   <div class="kv"><span>Группировка переналадок</span><b>+18 т</b></div>
+   <div class="kv"><span>Синхронизация выдува</span><b>+9 т</b></div>
+   <div class="kv"><span>Итого потенциал</span><b style="color:var(--ok)">427 т/мес</b></div>
+   <div class="note"><b>Это не обещание системы</b><p>Портал не производит тонны. Он показывает, где именно теряется время, — а решение принимаете вы. Но без цифр это обсуждение невозможно.</p></div>
+  </div>
+ </div>
+</div>`;
+
+/* ====== ЗАДАЧИ ====== */
+SC.tasks=()=>`<div class="hd"><div><h2>Задачи и согласования</h2>
+ <p>Не «чат, где всё теряется», а задачи с цепочкой: кто сделал, кто согласовал, чего ждём. Каждый шаг с временем — видно, где встало.</p></div>
+ <div class="btns"><button class="bt p" onclick="toast('Задачи создаются и вручную, и автоматически: из дефицита сырья, из просрочки долга, из зависшей сделки, из партии на карантине.')">+ Задача</button></div></div>
+${TASKS.map((t,i)=>`<div class="tsk" style="--c:${t.c}">
+ <div class="th"><b>${esc(t.n)}</b><span class="tag ${t.st==='go'?'w':''}">${esc(t.due)}</span></div>
+ <div class="meta"><span>Цепочка: <b>${esc(t.who)}</b></span></div>
+ <div class="chain">${t.chain.map(([who,what,st])=>`<div><span class="st ${st}">${esc(who)}</span><span class="mini">${esc(what)}</span></div>`).join('')}</div>
+</div>`).join('')}
+<div class="g2">
+ <div class="pan"><h3>Откуда задачи берутся сами</h3>
+  <div class="li r"><i>·</i><span><b>Сырьё ниже минимума</b><span class="sub">с учётом плеча поставки — снабжению и директору</span></span></div>
+  <div class="li w"><i>·</i><span><b>Просрочка по клиенту</b><span class="sub">менеджеру, потом директору</span></span></div>
+  <div class="li n"><i>·</i><span><b>Партия на карантине</b><span class="sub">технологу — решение по качеству</span></span></div>
+  <div class="li b"><i>·</i><span><b>Накладная не вернулась 3 дня</b><span class="sub">водителю и логисту</span></span></div>
+  <div class="li"><i>·</i><span><b>Сделка без движения 7 дней</b><span class="sub">менеджеру</span></span></div>
+ </div>
+ <div class="pan"><h3>Согласования с суммой</h3>
+  <div class="kv"><span>Скидка больше 5%</span><b>коммерческий директор</b></div>
+  <div class="kv"><span>Отгрузка сверх лимита</span><b>коммерческий директор</b></div>
+  <div class="kv"><span>Закуп сырья дороже 5 млн ₸</span><b>директор + собственник</b></div>
+  <div class="kv"><span>Списание брака больше 300 тыс. ₸</span><b>директор</b></div>
+  <div class="kv"><span>Новая рецептура в производство</span><b>технолог + директор</b></div>
+  <div class="hint">Согласование — это кнопка в системе, а не звонок. Решение и его автор остаются в истории: через полгода видно, кто и на каких условиях разрешил отгрузку должнику.</div>
+ </div>
+</div>`;
+
+/* ====== НАСТРОЙКИ ====== */
+SC.roles=()=>{
+ const rows=[['Воронки и клиенты',1,0,1,0,0,0,0,0],['Оформить заявку и накладную',1,0,1,0,0,0,0,0],
+  ['Цены и скидки',1,1,'смотрит',0,0,0,0,0],['Себестоимость и маржа',1,1,0,1,1,0,0,1],
+  ['Рецептуры',1,0,0,'смотрит',1,0,0,0],['Календарь и задания',1,'смотрит',0,1,0,0,0,0],
+  ['Склад сырья',1,0,0,1,'смотрит',1,0,0],['Склад готовой продукции',1,'смотрит','смотрит',1,0,1,'смотрит',0],
+  ['Маршруты и доставка',1,0,'смотрит',0,0,'смотрит',1,0],['Дебиторка и лимиты',1,1,'свои',0,0,0,0,1],
+  ['Финансы завода',1,1,0,0,0,0,0,1],['Выгрузка базы клиентов',1,0,0,0,0,0,0,0]];
+ const cols=['Ком. директор','Собственник','Менеджер','Нач. произв.','Технолог','Кладовщик','Логист','Бухгалтер'];
+ const cell=v=>v===1?'<span class="tag g">да</span>':v===0?'<span class="tag">нет</span>':`<span class="tag w">${v}</span>`;
+ return `<div class="hd"><div><h2>Права доступа</h2>
+  <p>Восемь ролей — это старт, роли добавляются без разработки. Права — не только «видно или не видно меню», но и запрет на действие: менеджер не отгрузит должнику, кладовщик не увидит цены клиента, технолог не выгрузит базу.</p></div></div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>Что можно</th>${cols.map(c=>`<th class="r">${c}</th>`).join('')}</tr></thead>
+  <tbody>${rows.map(r=>`<tr><td><b>${r[0]}</b></td>${r.slice(1).map(v=>`<td class="r">${cell(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+ <div class="g3" style="margin-top:12px">
+  <div class="pan"><h3>Журнал действий</h3>
+   <div class="li"><i>·</i><span><b>Данияр выписал накладную № 2147</b><span class="sub">сегодня 10:24 · Сеть «Small» · 640 000 ₸</span></span></div>
+   <div class="li w"><i>!</i><span><b>Попытка отгрузки сверх лимита</b><span class="sub">ИП Ержанов · заблокировано системой · 09:58</span></span></div>
+   <div class="li"><i>·</i><span><b>Гульнара изменила рецептуру R-118</b><span class="sub">вчера 17:05 · версия 4 · загуститель +0,4%</span></span></div>
+   <div class="li"><i>·</i><span><b>Аброр разрешил скидку 7%</b><span class="sub">вчера 15:30 · Отель «Rixos» · комментарий приложен</span></span></div>
+  </div>
+  <div class="pan"><h3>Что это защищает</h3>
+   <div class="li"><i>✓</i><span><b>База клиентов</b><span class="sub">выгрузка только у директора, попытки фиксируются</span></span></div>
+   <div class="li"><i>✓</i><span><b>Рецептуры</b><span class="sub">формула — коммерческая тайна завода, доступ ограничен</span></span></div>
+   <div class="li"><i>✓</i><span><b>Цены и скидки</b><span class="sub">никто не отгрузит «по-дружески» дешевле себестоимости</span></span></div>
+   <div class="li"><i>✓</i><span><b>Деньги</b><span class="sub">лимиты и стоп-листы работают без исключений</span></span></div>
+  </div>
+  <div class="pan"><h3>Второй бизнес — отдельно</h3>
+   <p>У вас есть академия на Битриксе — обучение и производство мультфильмов. Это другой процесс: ученики, кураторы, преподаватели, материалы и расписание. Такой модуль делается отдельным этапом и живёт в том же портале со своими правами, либо как отдельная система.</p>
+   <button class="bt" style="width:100%;margin-top:8px" onclick="go('stack')">Что входит в первый релиз</button>
+  </div>
+ </div>`};
+
+SC.docs=()=>`<div class="hd"><div><h2>Документы, сертификаты и паспорта</h2>
+ <p>Завод живёт на документах: декларации ЕАЭС, СТ РК, халал, ISO, паспорта партий, спецификации, договоры с сетями. Их регулярно просят — и обычно ищут в папках и в почте.</p></div></div>
+<div class="tw"><table class="t">
+ <thead><tr><th>Документ</th><th>Объект</th><th>Действует до</th><th>Кто просит</th><th>Состояние</th></tr></thead>
+ <tbody>
+  <tr><td><b>Декларация ЕАЭС</b></td><td>Бытовая химия · DAYIN</td><td>14.03.2029</td><td>сети, тендеры</td><td><span class="tag g">действует</span></td></tr>
+  <tr><td><b>Декларация ЕАЭС</b></td><td>Косметика · SAKURA, ARUMEE</td><td>02.11.2026</td><td>сети, маркетплейсы</td><td><span class="tag w">истекает через 47 дней</span></td></tr>
+  <tr><td><b>СТ РК ГОСТ</b></td><td>Средства моющие</td><td>бессрочно</td><td>госзакуп</td><td><span class="tag g">действует</span></td></tr>
+  <tr><td><b>Сертификат ISO 9001</b></td><td>Система менеджмента</td><td>19.06.2028</td><td>тендеры, OEM-клиенты</td><td><span class="tag g">действует</span></td></tr>
+  <tr><td><b>Халал</b></td><td>Линейка косметики</td><td>30.04.2027</td><td>экспорт, сети</td><td><span class="tag g">действует</span></td></tr>
+  <tr><td><b>Паспорт партии</b></td><td>B-26-0914 · гель для посуды</td><td>—</td><td>клиент с каждой отгрузкой</td><td><span class="tag a">формируется автоматически</span></td></tr>
+  <tr><td><b>Декларация · AinaDay</b></td><td>OEM · 5 SKU</td><td>—</td><td>заказчик OEM</td><td><span class="tag w">в работе</span></td></tr>
+ </tbody></table></div>
+<div class="g2" style="margin-top:12px">
+ <div class="pan"><h3>Что даёт хранение документов в системе</h3>
+  <div class="li"><i>✓</i><span><b>Напоминание об окончании</b><span class="sub">за 60 дней — задача ответственному, чтобы не встать без декларации</span></span></div>
+  <div class="li"><i>✓</i><span><b>Отправка клиенту в один клик</b><span class="sub">комплект документов к отгрузке собирается сам</span></span></div>
+  <div class="li"><i>✓</i><span><b>Тендерный пакет</b><span class="sub">все документы в одной папке, с актуальными сроками</span></span></div>
+  <div class="li"><i>✓</i><span><b>Связь с партией</b><span class="sub">паспорт качества, сертификат и накладная — один комплект</span></span></div>
+ </div>
+ <div class="pan"><h3>Подписание документов</h3>
+  <p>Договоры с клиентами можно подписывать по ссылке — получатель открывает её на телефоне, подписывает ЭЦП, и подписанный документ остаётся в карточке клиента.</p>
+  <div class="kv"><span>Договор поставки</span><b>ЭЦП по ссылке</b></div>
+  <div class="kv"><span>Спецификация к договору</span><b>формируется из прайса</b></div>
+  <div class="kv"><span>Акт сверки</span><b>PDF из системы</b></div>
+  <div class="hint">Модуль подписания по ЭЦП — отдельная опция, в стандартный пакет разработки не входит. Но он уже готов и подключается к порталу.</div>
+ </div>
+</div>`;
+
+SC.integr=()=>`<div class="hd"><div><h2>Переход с Битрикса и интеграции</h2>
+ <p>Вы сказали: «Битрикс очень сложно гнётся под мои нужды». Мы не уговариваем отключать его в один день — ядро запускается за 2–3 недели, месяц вы работаете параллельно, и только потом отказываетесь.</p></div></div>
+<div class="bays">
+ <div class="bay" style="--c:#0d8f95"><small>НЕДЕЛИ 1–3</small><b>Ядро</b><div class="who">Воронка, клиенты, заявка → накладная, склад ГП, календарь загрузки</div><div class="prg"><i style="--w:100%"></i></div><div class="tm"><span>перенос клиентов и сделок</span><span>готово</span></div></div>
+ <div class="bay" style="--c:#6ba32e"><small>НЕДЕЛИ 3–5</small><b>Производство и склады</b><div class="who">Партии, рецептуры, сырьё, ПЭТ, качество, себестоимость</div><div class="prg"><i style="--w:58%"></i></div><div class="tm"><span>параллельно с Битриксом</span><span>идёт</span></div></div>
+ <div class="bay" style="--c:#d1861f"><small>НЕДЕЛИ 5–6</small><b>Деньги и доставка</b><div class="who">Дебиторка, оплаты, маршруты, телефон водителя, отчёты</div><div class="prg"><i style="--w:24%"></i></div><div class="tm"><span>полировка по вашему списку</span><span>—</span></div></div>
+ <div class="bay" style="--c:#6b4ea8"><small>ПОСЛЕ ЗАПУСКА</small><b>Отказ от Битрикса</b><div class="who">Когда всё работает и команда привыкла</div><div class="prg"><i style="--w:0%"></i></div><div class="tm"><span>по вашему решению</span><span>—</span></div></div>
+</div>
+<div class="g21">
+ <div class="pan"><h3>Что переносим</h3>
+  <div class="tw"><table class="t">
+   <thead><tr><th>Что</th><th>Откуда</th><th class="r">Объём</th><th>Как</th><th>Статус</th></tr></thead>
+   <tbody>
+    <tr><td><b>Клиенты и контакты</b></td><td>Битрикс24</td><td class="r">148</td><td>выгрузка + склейка дублей</td><td><span class="tag g">перенесено</span></td></tr>
+    <tr><td><b>Сделки и история</b></td><td>Битрикс24</td><td class="r">612</td><td>раскладываем по новым воронкам</td><td><span class="tag g">перенесено</span></td></tr>
+    <tr><td><b>Каталог и прайсы</b></td><td>Excel</td><td class="r">513 SKU</td><td>с группами, коробами, весами</td><td><span class="tag w">идёт</span></td></tr>
+    <tr><td><b>Рецептуры</b></td><td>файлы технолога</td><td class="r">84</td><td>переводим в спецификации с нормами</td><td><span class="tag w">идёт</span></td></tr>
+    <tr><td><b>Остатки складов</b></td><td>Excel и 1С</td><td class="r">на дату запуска</td><td>инвентаризация + загрузка</td><td><span class="tag">при запуске</span></td></tr>
+    <tr><td><b>Дебиторка</b></td><td>Excel</td><td class="r">148 клиентов</td><td>с разбивкой по накладным</td><td><span class="tag">при запуске</span></td></tr>
+   </tbody></table></div>
+  <div class="said"><b>Вы сказали на встрече</b><i>«Есть два пути: писать ТЗ досконально — и потом разочароваться процентов на тридцать-сорок, или выкатить ядро и править вживую»</i>. Мы идём вторым путём: серия зумов, три-четыре версии, месяц полировки.</div>
+ </div>
+ <div>
+  <div class="pan"><h3>Интеграции</h3>
+   <div class="kv"><span>WhatsApp для клиентов</span><b>Green API · 5 000 ₸/мес</b></div>
+   <div class="kv"><span>Телефония</span><b>ваш оператор, по желанию</b></div>
+   <div class="kv"><span>Почта</span><b>заявки из писем</b></div>
+   <div class="kv"><span>1С (бухгалтерия)</span><b>обмен файлами, опция</b></div>
+   <div class="kv"><span>Сайт dayin.kz</span><b>заявки в воронку</b></div>
+   <div class="kv"><span>Маркетплейсы</span><b>выгрузка остатков, опция</b></div>
+   <div class="note"><b>Про 1С</b><p>На встрече вы сказали, что 1С не нужна. Портал самодостаточен: первичка, склады, деньги и отчёты внутри. Если бухгалтерии понадобится обмен — делается отдельно и не ломает остальное.</p></div>
+  </div>
+  <div class="pan"><h3>Почему не SaaS</h3>
+   <div class="kv"><span>Аренда готовой системы</span><b>от 1 млн ₸ в год</b></div>
+   <div class="kv"><span>За 10 лет</span><b>около 10 млн ₸</b></div>
+   <div class="kv"><span>Доработки под вас</span><b>обычно не делаются</b></div>
+   <div class="kv"><span>Своя разработка</span><b>разово, код ваш</b></div>
+   <div class="hint">Главное отличие даже не в деньгах: чужая система угадывает процессы примерно на половину, а оставшаяся половина превращается в «палки в колёсах», которые никто не уберёт.</div>
+  </div>
+ </div>
+</div>`;
+
+SC.stack=()=>`<div class="hd"><div><h2>Состав первого релиза и стоимость</h2>
+ <p>Стандартный пакет разработки — 2 500 000 ₸. Разово: абонентской платы за систему нет, количество сотрудников на цену не влияет, код и сервер ваши. Срок — 6 недель, ядро вы увидите через 2–3 недели.</p></div>
+ <div class="btns"><button class="bt p" onclick="go('integr')">Как проходит переход</button></div></div>
+<div class="g2">
+ <div class="pan"><h3>Что входит</h3>
+  <div class="li"><i>✓</i><span><b>Воронки и клиенты</b><span class="sub">B2B, OEM и тендеры; карточка клиента с условиями, точками и документами</span></span></div>
+  <div class="li"><i>✓</i><span><b>Заявка → накладная</b><span class="sub">расчёт цены по уровню клиента, вес и паллеты, проверка остатка и лимита долга, печать накладной и счёта</span></span></div>
+  <div class="li"><i>✓</i><span><b>Прайс и уровни цен</b><span class="sub">пять каналов, скидки с ограничением по ролям, история цен</span></span></div>
+  <div class="li"><i>✓</i><span><b>Календарь загрузки линий</b><span class="sub">реакторы, розлив, выдув ПЭТ; перенос заданий мышкой с проверкой сырья и мощности</span></span></div>
+  <div class="li"><i>✓</i><span><b>Производственная партия</b><span class="sub">цикл от навески до склада, списание по рецептуре, выход и потери</span></span></div>
+  <div class="li"><i>✓</i><span><b>Рецептуры и спецификации</b><span class="sub">версии, нормы, доступ по правам</span></span></div>
+  <div class="li"><i>✓</i><span><b>Контроль качества</b><span class="sub">показатели, карантин, паспорт партии, рекламации с привязкой к сырью</span></span></div>
+  <div class="li"><i>✓</i><span><b>Склады</b><span class="sub">сырьё с партиями и сроками, ПЭТ и упаковка, готовая продукция с резервами и адресным хранением</span></span></div>
+  <div class="li"><i>✓</i><span><b>Закуп и импорт</b><span class="sub">точка заказа с учётом плеча поставки, заявки, оплаты, приёмка с ценой в себестоимость</span></span></div>
+  <div class="li"><i>✓</i><span><b>Доставка</b><span class="sub">рейсы, маршруты, телефон водителя, фото накладных, сбор наличных, возвраты</span></span></div>
+  <div class="li"><i>✓</i><span><b>Деньги</b><span class="sub">дебиторка с лимитами и стоп-отгрузкой, оплаты, акты сверки, кассовый календарь</span></span></div>
+  <div class="li"><i>✓</i><span><b>Себестоимость и аналитика</b><span class="sub">расчёт от рецептуры и курса, прибыль по SKU и клиентам, загрузка мощности</span></span></div>
+  <div class="li"><i>✓</i><span><b>Задачи и права</b><span class="sub">цепочки согласований, восемь ролей, журнал действий</span></span></div>
+  <div class="li"><i>✓</i><span><b>Перенос данных и обучение</b><span class="sub">из Битрикса и Excel, обучение команды, видеоинструкции</span></span></div>
+ </div>
+ <div>
+  <div class="pan"><h3>Стоимость и платежи</h3>
+   <div class="kv"><span>Стандартный пакет разработки</span><b>2 500 000 ₸</b></div>
+   <div class="kv"><span>Старт работ — 10%</span><b>250 000 ₸</b></div>
+   <div class="kv"><span>Ядро принято — 45%</span><b>1 125 000 ₸</b></div>
+   <div class="kv"><span>Полная сдача — 45%</span><b>1 125 000 ₸</b></div>
+   <div class="kv"><span>Абонентская плата за систему</span><b style="color:var(--ok)">нет</b></div>
+   <div class="kv"><span>Плата за сотрудников</span><b style="color:var(--ok)">нет</b></div>
+   <div class="kv"><span>Сервер и обслуживание</span><b>12 000 ₸/мес</b></div>
+   <div class="note" style="--tone:var(--ok)"><b>Почему 10% в начале</b><p>Символическая сумма на старт — подтверждение намерений с обеих сторон. Основные деньги вы платите за результат: после того, как увидели и приняли ядро.</p></div>
+  </div>
+  <div class="pan"><h3>Сроки и гарантии</h3>
+   <div class="kv"><span>Ядро системы</span><b>2–3 недели</b></div>
+   <div class="kv"><span>Полная сдача</span><b>6 недель</b></div>
+   <div class="kv"><span>Полировка после ядра</span><b>3–4 версии, входит</b></div>
+   <div class="kv"><span>Гарантия</span><b>6 месяцев</b></div>
+   <div class="kv"><span>Права на код</span><b>передаются вам</b></div>
+   <div class="kv"><span>Сервер</span><b>ваш</b></div>
+   <div class="hint">Срок держится при одном условии: согласования проходят за 1–2 дня. Это единственное, что реально сдвигает сроки.</div>
+  </div>
+  <div class="pan"><h3>Что считается отдельно</h3>
+   <div class="li w"><i>·</i><span><b>Модуль академии</b><span class="sub">ученики, кураторы, преподаватели, материалы — второй проект</span></span></div>
+   <div class="li w"><i>·</i><span><b>Подписание документов ЭЦП</b><span class="sub">готовый модуль, подключается опцией</span></span></div>
+   <div class="li w"><i>·</i><span><b>Обмен с 1С</b><span class="sub">если понадобится бухгалтерии</span></span></div>
+   <div class="li w"><i>·</i><span><b>Маркетплейсы</b><span class="sub">выгрузка остатков и заказов</span></span></div>
+   <div class="li w"><i>·</i><span><b>Новый функционал после сдачи</b><span class="sub">по часам; если объём больше половины первого релиза — считается как отдельный проект</span></span></div>
+  </div>
+ </div>
+</div>`;
+/* ====== ИНТЕРАКТИВ ====== */
+function setFunnel(k){funnel=k;if(cur==='funnel')render();
+ toast(`Воронка «${FUNNELS[k].n}». У каждой воронки свои стадии и свои правила: у OEM это лаборатория и сертификация, у тендеров — сроки подачи.`)}
+let newF=0;
+function addFunnel(){
+ newF++;const k='f'+newF;
+ FUNNELS[k]={n:'Новая воронка '+newF,st:[['s1','Первый контакт','#6b4ea8'],['s2','В работе','#2f6f9e'],['s3','Успех','#6ba32e']]};
+ funnel=k;render();
+ toast('Воронка создана за секунду: задайте стадии и правила перехода. <b>Без программиста и без доплаты за каждое поле</b> — так запускаются новые направления, например продажа сырья или экспорт.');
+}
+let dragId=null;
+function dragDeal(e,id){dragId=id;e.target.classList.add('drag');try{e.dataTransfer.setData('text/plain',id)}catch(_){}}
+function colOver(e,el){e.preventDefault();el.classList.add('over')}
+function dropDeal(e,st,el){e.preventDefault();el.classList.remove('over');
+ const d=DEALS.find(x=>x.id===dragId);if(!d)return;
+ const was=(FUNNELS[d.f].st.find(s=>s[0]===d.s)||['','—'])[1];
+ const now=(FUNNELS[funnel].st.find(s=>s[0]===st)||['',st])[1];
+ d.s=st;render();
+ const msg={deal:'карточка клиента открылась, лимит и отсрочка заданы, можно оформлять заявку',
+  first:'создана заявка, товар зарезервирован, точка попала в маршрут',
+  reg:'клиент переведён в регулярные — система будет напоминать менеджеру о заказе за три дня',
+  batch:'тираж поставлен в календарь загрузки, сырьё зарезервировано',
+  cert:'создана задача технологу: собрать протоколы и подать декларацию',
+  sample:'образец отгружен, запущен таймер ожидания ответа клиента — 10 дней'}[st];
+ toast(`«${esc(d.n)}»: ${was} → <b>${now}</b>.${msg?' Автоматически: '+msg+'.':''}`);
+}
+const NAMES=['Сеть «Дастархан»','ТОО «Химпром Опт»','ИП Абдуллаев','Клининг «Астана Сервис»','Сеть аптек «Europharma»','ТОО «Мега Дистрибьюшн»'];
+let did=4200;
+function addDeal(){
+ const n=NAMES[Math.floor(Math.random()*NAMES.length)];
+ const d={id:'D-'+(++did),n,ph:'новый контакт',s:FUNNELS[funnel].st[0][0],f:funnel,src:'входящий',
+  proc:'уточняем потребность',sum:Math.floor(8+Math.random()*40)*100000,d:'только что',hot:0};
+ DEALS.unshift(d);render();
+ const c=document.querySelector('.pc');if(c)c.classList.add('new');
+ sparks(12);
+ toast(`Сделка «${esc(n)}» создана. Заявка с сайта dayin.kz, из письма или из WhatsApp попадает сюда так же — с источником и без ручного переноса.`);
+}
+function openDeal(id){const d=DEALS.find(x=>x.id===id);if(!d)return;
+ openM(esc(d.n)+' · '+esc(d.id),esc(d.proc)+' · '+esc(d.ph),`
+  <div class="wid" style="grid-template-columns:repeat(3,1fr)">
+   <div><small>Сумма сделки</small><b class="a">${fmt(d.sum)} ₸</b><span>из расчёта по прайсу</span></div>
+   <div><small>Канал</small><b style="font-size:14px">${esc(d.src)}</b><span>проставлен автоматически</span></div>
+   <div><small>Состояние</small><b style="font-size:14px">${esc(d.d)}</b><span>${d.hot?'требует внимания':'в работе'}</span></div>
+  </div>
+  <div class="pan"><h3>Что в карточке</h3>
+   <div class="kv"><span>Клиент</span><b>${esc(d.ph)}</b></div>
+   <div class="kv"><span>Предмет</span><b>${esc(d.proc)}</b></div>
+   <div class="kv"><span>Ответственный</span><b>Данияр</b></div>
+   <div class="kv"><span>Последний контакт</span><b>вчера · WhatsApp</b></div>
+   <div class="kv"><span>Следующий шаг</span><b>${d.f==='oem'?'получить ответ по образцу':'согласовать цену и отгрузку'}</b></div>
+   <div class="kv"><span>Документы</span><b>${d.f==='oem'?'бриф, протокол испытаний':'договор, спецификация'}</b></div>
+  </div>
+  <div class="pan"><h3>Действия отсюда</h3>
+   <div class="btns" style="justify-content:flex-start">
+    <button class="bt p" onclick="closeM();go('order')">Оформить заявку</button>
+    <button class="bt" onclick="closeM();go('price')">Посчитать по прайсу</button>
+    <button class="bt v" onclick="closeM();go('calendar')">Поставить в план цеха</button>
+    <button class="bt" onclick="toast('История переписки, звонков и документов хранится в сделке — она остаётся заводу, даже если менеджер уволится.')">История</button>
+   </div>
+   <div class="hint">Сейчас для этого нужно: открыть Битрикс, посчитать в Excel, позвонить в цех, спросить у склада, напечатать накладную в Word. Здесь это одна карточка и четыре кнопки.</div>
+  </div>`);
+}
+function openClient(id){const c=CLIENTS.find(x=>x.id===id);if(!c)return;
+ const free=c.limit-c.debt;
+ openM(esc(c.n),esc(TIER[c.t].n)+' · '+esc(c.city)+' · менеджер '+esc(c.man),`
+  <div class="wid" style="grid-template-columns:repeat(3,1fr)">
+   <div><small>Отгружено за год</small><b class="a">${fmt(c.rev)} ₸</b><span>${c.pts} ${plural(c.pts,['точка','точки','точек'])} доставки</span></div>
+   <div><small>Долг</small><b class="${c.over?'r':''}">${fmt(c.debt)} ₸</b><span>${c.over?'просрочено '+fmt(c.over)+' ₸':'в пределах срока'}</span></div>
+   <div><small>Свободный лимит</small><b class="${free<0?'r':'g'}">${c.limit?fmt(free)+' ₸':'предоплата'}</b><span>${esc(c.terms)}</span></div>
+  </div>
+  ${c.over?`<div class="note" style="--tone:var(--bad)"><b>Клиент в стоп-листе</b><p>Просрочка ${fmt(c.over)} ₸. Новые отгрузки заблокированы до оплаты или до разрешения директора. Решение фиксируется в истории клиента.</p></div>`:''}
+  <div class="pan"><h3>Условия работы</h3>
+   <div class="kv"><span>Уровень цен</span><b>${esc(TIER[c.t].n)}</b></div>
+   <div class="kv"><span>Отсрочка</span><b>${esc(c.terms)}</b></div>
+   <div class="kv"><span>Доставка</span><b>${esc(c.ship)}</b></div>
+   <div class="kv"><span>Ретро-бонус</span><b>${c.t==='net'?'2,5% от оборота':'нет'}</b></div>
+   <div class="kv"><span>Требование к сроку годности</span><b>${c.t==='net'?'не менее 70%':'стандартное'}</b></div>
+  </div>
+  <div class="pan"><h3>Последние отгрузки</h3>
+   <div class="li"><i>✓</i><span><b>Накладная № 2147 · 16.09</b><span class="sub">640 000 ₸ · доставлено, накладная подписана</span></span></div>
+   <div class="li"><i>✓</i><span><b>Накладная № 2131 · 09.09</b><span class="sub">1 240 000 ₸ · оплачено 15.09</span></span></div>
+   <div class="li n"><i>·</i><span><b>Накладная № 2118 · 02.09</b><span class="sub">980 000 ₸ · срок оплаты 02.10</span></span></div>
+  </div>
+  <div class="btns" style="justify-content:flex-start">
+   <button class="bt p" onclick="closeM();setCl('${c.id}');go('order')">Новая заявка</button>
+   <button class="bt" onclick="closeM();openAkt()">Акт сверки</button>
+   <button class="bt" onclick="closeM();go('debt')">Дебиторка</button></div>`);
+}
+
+/* заявка */
+function setCl(id){ordCl=id;if(cur==='order')render();
+ const c=curCl();toast(`Клиент «${esc(c.n)}» · уровень цен «${esc(TIER[c.t].n)}», ${esc(c.terms)}. Цены в заявке пересчитались автоматически.`)}
+function addSku(k){ORD[k]=(ORD[k]||0)+(SMAP[k].box*10);render()}
+function incS(k,d){ORD[k]=Math.max(0,(ORD[k]||0)+d);if(ORD[k]===0)delete ORD[k];render()}
+function clearOrd(){ORD={};render()}
+function setTier(t){tier=t;render();toast(`Уровень цен «${TIER[t].n}» — ${TIER[t].note}. Себестоимость не меняется, меняется только цена и маржа.`)}
+function toProd(){const r=ordCalc();
+ if(!r.short.length){toast('Всё есть на складе — производство не требуется. Товар уже зарезервирован под эту заявку.');return}
+ sparks(14);
+ toast(`В план цеха ушло ${r.short.length} ${plural(r.short.length,['позиция','позиции','позиций'])}: ${esc(r.short.map(x=>x.n.split('·')[0].trim()).join(', '))}. Задание встало в календарь загрузки, сырьё зарезервировано, дата отгрузки пересчитана от даты варки.`);
+}
+function toRoute(){const r=ordCalc();
+ if(!r.items.length){toast('Сначала соберите заявку.');return}
+ if(r.over){toast('Точку нельзя поставить в маршрут: клиент превысил лимит долга. Нужно решение директора.');return}
+ sparks(12);
+ toast(`Точка добавлена в маршрут на завтра: ${esc(r.cl.n)}, ${r.boxes} ${plural(r.boxes,['короб','короба','коробов'])}, ${r.pallets} ${plural(r.pallets,['паллета','паллеты','паллет'])}, ${num2(r.weight)} кг. Водитель увидит её в телефоне вместе с накладной.`);
+}
+function makeTTN(){
+ const r=ordCalc();
+ if(!r.items.length){toast('Сначала соберите заявку — нажмите на позиции слева.');return}
+ if(r.over){
+  openM('Накладная не сформирована','превышен лимит долга клиента',`
+   <div class="note" style="--tone:var(--bad)"><b>Отгрузка заблокирована</b>
+    <p>Клиент «${esc(r.cl.n)}»: долг ${fmt(r.cl.debt)} ₸ при лимите ${fmt(r.cl.limit)} ₸. Заявка на ${fmt(r.sum)} ₸ выходит за свободный остаток ${fmt(r.free)} ₸.</p></div>
+   <div class="pan"><h3>Что можно сделать</h3>
+    <div class="li"><i>1</i><span><b>Дождаться оплаты</b><span class="sub">после поступления денег блок снимается автоматически</span></span></div>
+    <div class="li"><i>2</i><span><b>Уменьшить заявку</b><span class="sub">до ${fmt(Math.max(0,r.free))} ₸ — система подскажет, какие позиции убрать</span></span></div>
+    <div class="li"><i>3</i><span><b>Разрешение директора</b><span class="sub">разово, с комментарием и на конкретную сумму. Решение останется в истории клиента</span></span></div>
+   </div>
+   <div class="btns" style="justify-content:flex-start">
+    <button class="bt p" onclick="closeM();toast('Разрешение директора зафиксировано: отгрузка на 1 200 000 ₸ сверх лимита, комментарий «под гарантийное письмо до 25.09». В отчёте по просрочке это решение будет видно.')">Разрешить как директор</button>
+    <button class="bt" onclick="closeM()">Отмена</button></div>
+   <div class="hint">Именно это правило вручную никогда не работает: менеджеру нужно выполнить план, и отгрузка должнику происходит «под честное слово». Здесь без решения директора — нельзя.</div>`);
+  return;
+ }
+ sparks(18);
+ const d=new Date();
+ openM('Накладная № 2148 сформирована','из заявки, без ручного ввода — вместе со счётом и паспортами качества',`
+  <div class="doc">
+   <div class="dh">
+    <div><div class="dl">JM CORPORATION<small>ЗАВОД ПОЛНОГО ЦИКЛА · DAYIN</small></div></div>
+    <div style="text-align:right;font-size:9.6px;color:#5f7280;line-height:1.6">с.о. Энергетический, Отеген Батыр,<br>Промзона 214 · Алматы<br>+7 747 070 84 60 · dayin.kz</div>
+   </div>
+   <h4>Накладная на отпуск товара № 2148</h4>
+   <div style="font-size:10.4px;color:#5f7280;margin-bottom:11px">от 16.09.2026 · Покупатель: <b style="color:#122430">${esc(r.cl.n)}</b> · ${esc(r.cl.city)} · условия: ${esc(r.cl.terms)}</div>
+   <div class="drow h"><span>№</span><span>Наименование</span><span class="r">Кол-во</span><span class="r">Кор.</span><span class="r">Цена</span><span class="r">Сумма</span></div>
+   ${r.items.map((x,i)=>`<div class="drow"><span>${i+1}</span><span>${esc(x.n)}</span><span class="r">${fmt(x.q)}</span><span class="r">${x.boxes}</span><span class="r">${fmt(x.price)}</span><span class="r">${fmt(x.sum)}</span></div>`).join('')}
+   <div class="dsum"><span>Итого к оплате</span><span>${fmt(r.sum)} ₸</span></div>
+   <div style="font-size:10px;color:#5f7280;margin-top:8px">Всего ${r.items.length} ${plural(r.items.length,['наименование','наименования','наименований'])}, ${r.boxes} ${plural(r.boxes,['коробка','коробки','коробок'])}, ${r.pallets} ${plural(r.pallets,['паллета','паллеты','паллет'])}, вес брутто ${num2(r.weight)} кг. Оплата: ${esc(r.cl.terms)}. К накладной приложены паспорта качества по каждой партии.</div>
+   <div class="dfoot">
+    <div><b style="color:#122430">Отпустил</b><br>кладовщик Марат · склад ГП<br>партии: B-26-0914, B-26-0902</div>
+    <div class="qr">QR<br>накладная<br>№ 2148</div>
+   </div>
+   <div class="sgn"><span>Отпустил: <u></u></span><span>Получил: <u></u></span></div>
+  </div>
+  <div class="pan" style="margin-top:14px"><h3>Что произошло в этот момент</h3>
+   <div class="li"><i>✓</i><span><b>Товар списан с резерва</b><span class="sub">остаток склада изменился сразу, без вечернего Excel</span></span></div>
+   <div class="li"><i>✓</i><span><b>Долг клиента вырос на ${fmt(r.sum)} ₸</b><span class="sub">с датой оплаты по отсрочке ${esc(r.cl.terms)}</span></span></div>
+   <div class="li"><i>✓</i><span><b>Точка встала в маршрут</b><span class="sub">${r.boxes} ${plural(r.boxes,['короб','короба','коробов'])} · ${num2(r.weight)} кг · водитель видит адрес и окно приёмки</span></span></div>
+   <div class="li"><i>✓</i><span><b>Паспорта качества приложены</b><span class="sub">по каждой партии в отгрузке — то, что регулярно просят сети</span></span></div>
+   ${seeCost()?`<div class="li n"><i>+</i><span><b>Маржа отгрузки ${r.marg}%</b><span class="sub">себестоимость ${fmt(r.cost)} ₸ — видна вам, менеджеру нет</span></span></div>`:''}
+  </div>`);
+}
+function openSku(k){const s=SMAP[k];
+ openM(esc(s.n),esc(s.g)+' · короб '+s.box+' шт · '+num2(s.w)+' кг',`
+  <div class="wid" style="grid-template-columns:repeat(3,1fr)">
+   <div><small>Цена «${esc(TIER[tier].n)}»</small><b class="a">${fmt(s.p*TIER[tier].k)} ₸</b><span>за ${esc(s.u)}</span></div>
+   <div><small>Себестоимость</small><b>${seeCost()?fmt(s.c)+' ₸':'скрыта'}</b><span>из рецептуры и партий сырья</span></div>
+   <div><small>Остаток</small><b class="g">${fmt(s.st)}</b><span>${Math.ceil(s.st/s.box)} коробов</span></div>
+  </div>
+  <div class="pan"><h3>Карточка позиции</h3>
+   <div class="kv"><span>Рецептура</span><b>${s.g==='PET'?'выдув ПЭТ':'R-118 вер. 4'}</b></div>
+   <div class="kv"><span>Упаковка</span><b>${s.g==='PET'?'—':'флакон, крышка, этикетка, короб'}</b></div>
+   <div class="kv"><span>Срок годности</span><b>${s.g==='PET'?'не ограничен':'24 месяца'}</b></div>
+   <div class="kv"><span>Партий на складе</span><b>3</b></div>
+   <div class="kv"><span>Продаётся каналам</span><b>сети, опт, HoReCa</b></div>
+   <div class="kv"><span>Минимальный остаток</span><b>${fmt(Math.round(s.st*0.2))} ${esc(s.u)}</b></div>
+  </div>
+  <div class="pan"><h3>Цены по каналам</h3>
+   ${Object.entries(TIER).map(([kk,v])=>`<div class="kv"><span>${esc(v.n)}</span><b>${fmt(s.p*v.k)} ₸${seeCost()?' · маржа '+Math.round((s.p*v.k-s.c)/(s.p*v.k)*100)+'%':''}</b></div>`).join('')}
+  </div>`);
+}
+
+/* календарь */
+let dragJ=null;
+function dragJob(e,id){dragJ=id;e.target.classList.add('drag')}
+function cellOver(e,el){e.preventDefault();el.classList.add('over')}
+function dropJob(e,l,d,el){e.preventDefault();el.classList.remove('over');
+ const j=JOBS.find(x=>x.id===dragJ);if(!j)return;
+ const line=LINES.find(x=>x.k===l),was=LINES.find(x=>x.k===j.l);
+ const tons=parseFloat(String(j.q).replace(',','.'))||0;
+ if(line&&/Реактор/.test(line.n)&&/Реактор/.test(was?was.n:'')&&tons>line.cap){
+  toast(`Не поместится: «${esc(j.n)}» — ${esc(j.q)}, а ёмкость ${esc(line.n)} — ${line.cap} т. Система не даст поставить задание на оборудование, которое его не тянет.`);render();return}
+ j.l=l;j.d=d;render();
+ toast(`«${esc(j.n)}» перенесено: ${esc(line?line.n:l)} · ${DAYS[d]}. Проверено: ёмкость оборудования, наличие сырья на эту дату и срок отгрузки по заявке. ${d>=4?'<b>Внимание: сдвигается отгрузка сети «Small» — менеджер уведомлён.</b>':'Сроки отгрузок не нарушены.'}`);
+}
+function openJob(id){const j=JOBS.find(x=>x.id===id);if(!j)return;
+ openM(esc(j.n),esc(j.q)+' · '+esc(j.cl),`
+  <div class="pan"><h3>Задание на производство</h3>
+   <div class="kv"><span>Оборудование</span><b>${esc((LINES.find(l=>l.k===j.l)||{}).n||'—')}</b></div>
+   <div class="kv"><span>День</span><b>${esc(DAYS[j.d]||'—')}</b></div>
+   <div class="kv"><span>Объём</span><b>${esc(j.q)}</b></div>
+   <div class="kv"><span>Основание</span><b>${esc(j.cl)}</b></div>
+   <div class="kv"><span>Сырьё зарезервировано</span><b>да, по рецептуре</b></div>
+   <div class="kv"><span>Упаковка</span><b>флакон со своего выдува</b></div>
+  </div>
+  <div class="btns" style="justify-content:flex-start">
+   <button class="bt p" onclick="closeM();go('batch')">Открыть цикл партии</button>
+   <button class="bt" onclick="closeM();go('recipe')">Рецептура</button></div>`);
+}
+function planWeek(){sparks(14);
+ toast('План собран по подтверждённым заявкам и точкам заказа склада: 11 заданий, загрузка 64%, дефицит сырья — SLES и консервант. Заявки снабжению созданы автоматически с учётом плеча поставки.');}
+
+/* партия */
+function nextStep(){
+ if(batchStep>=STEPS.length-1){toast('Партия закрыта: продукция на складе готовой продукции, доступна к отгрузке. Себестоимость посчитана по факту.');return}
+ batchStep++;render();
+ const m=['','','Лаборатория подтвердила: партия соответствует. Без этого шага розлив не начнётся.',
+  'Розлив пошёл: списывается флакон, крышка и этикетка — каждая позиция со своей партией.',
+  'На этикетку нанесены номер партии и дата — по ним потом находится вся история.',
+  'Выборочный контроль: недолив и негерметичность отбраковываются автоматически.',
+  'Паллеты подписаны, стикеры напечатаны — кладовщик знает, где это будет стоять.',
+  'Партия пришла на склад: остаток вырос, менеджеры видят её в заявках, себестоимость посчитана по факту.'][batchStep];
+ if(m)toast(m);
+}
+function resetBatch(){batchStep=0;render();toast('Партия сброшена в начало — нажимайте «Следующий этап», чтобы пройти цикл целиком.')}
+function qcPass(){sparks(12);
+ toast('Партия пропущена с отклонением по вязкости. Отклонение зафиксировано в паспорте партии и в журнале: если придёт рекламация, будет видно, кто и на каком основании принял это решение.');}
+function qcHold(){
+ toast('Партия отправлена на карантин: в отгрузку не попадёт, в свободном остатке не числится. Технологу поставлена задача — добавить загуститель и перемерить.');}
+function openPassport(){
+ openM('Паспорт качества · партия B-26-0914','формируется из данных лаборатории, уходит клиенту с накладной',`
+  <div class="doc">
+   <div class="dh"><div><div class="dl">JM CORPORATION<small>ПАСПОРТ КАЧЕСТВА</small></div></div>
+    <div style="text-align:right;font-size:9.6px;color:#5f7280;line-height:1.6">Партия B-26-0914<br>16.09.2026<br>ISO 9001 · СТ РК ГОСТ</div></div>
+   <h4>Гель для мытья посуды DAYIN Dish, 1 л</h4>
+   <div class="drow h"><span></span><span>Показатель</span><span class="r">Норма</span><span class="r">Факт</span><span class="r"></span><span class="r">Итог</span></div>
+   ${[['Внешний вид','однородный гель','соответствует'],['pH (10%)','6,0–7,5','6,8'],['Вязкость, мПа·с','1800–2600','1740'],['Плотность, г/см³','1,02–1,06','1,04'],['Доля ПАВ','не менее 15%','16,2%'],['Пенообразование','не менее 150 мм','168 мм']].map((x,i)=>
+    `<div class="drow"><span>${i+1}</span><span>${x[0]}</span><span class="r">${x[1]}</span><span class="r">${x[2]}</span><span class="r"></span><span class="r">${i===2?'откл.':'норма'}</span></div>`).join('')}
+   <div style="font-size:10px;color:#5f7280;margin-top:10px">Дата выпуска 16.09.2026 · срок годности 24 месяца · отклонение по вязкости согласовано технологом, на потребительские свойства не влияет.</div>
+   <div class="sgn"><span>Технолог: <u></u></span><span>ОТК: <u></u></span></div>
+  </div>
+  <div class="hint" style="margin-top:12px">Сейчас такой документ печатают вручную под каждую отгрузку. Здесь он собирается из данных лаборатории и прикладывается к накладной автоматически.</div>`);
+}
+
+/* себестоимость */
+function costSet(k,v){COST[k]=+v;render()}
+
+/* склады и закуп */
+function openRaw(n){const r=RAW.find(x=>x.n===n)||RAW[0];
+ openM('Сырьё · '+esc(r.n),'партии, движение и точка заказа',`
+  <div class="wid" style="grid-template-columns:repeat(3,1fr)">
+   <div><small>Остаток</small><b class="${r.st==='low'?'r':'a'}">${fmt(r.left)} ${esc(r.unit)}</b><span>минимум ${fmt(r.min)}</span></div>
+   <div><small>Поставщик</small><b style="font-size:14px">${esc(r.from)}</b><span>плечо ${r.lead} дней</span></div>
+   <div><small>Цена партии</small><b>${fmt(r.price)} ₸</b><span>за ${esc(r.unit)}</span></div>
+  </div>
+  <div class="pan"><h3>Движение</h3>
+   <div class="li"><i>+</i><span><b>Приход · партия ${esc(r.lot)}</b><span class="sub">цена ${fmt(r.price)} ₸ · срок ${esc(r.exp)} · документы поставщика приложены</span></span></div>
+   <div class="li"><i>−</i><span><b>Списание в партию B-26-0914</b><span class="sub">по рецептуре R-118, зафиксировано в паспорте продукции</span></span></div>
+   <div class="li"><i>−</i><span><b>Списание в партию B-26-0902</b><span class="sub">11.09 · смена А</span></span></div>
+   <div class="li w"><i>!</i><span><b>Зарезервировано под план</b><span class="sub">варки 17.09 и 19.09</span></span></div>
+  </div>
+  ${r.st==='low'?`<div class="note" style="--tone:var(--bad)"><b>Ниже минимума</b><p>С учётом плеча поставки ${r.lead} дней заявку нужно создать сегодня, иначе линия встанет. Система уже поставила задачу снабжению.</p></div>`:''}`);
+}
+function makePurch(){sparks(12);
+ toast('Заявка снабжению собрана по дефициту: SLES 12 т (Иран, 35 дней), консервант 600 кг (Китай, 28 дней), крышка флип-топ 200 000 шт. Сумма 13 760 000 ₸ — уходит на согласование директору.');}
+
+/* доставка */
+function openShip(id){const s=SHIPS.find(x=>x.id===id)||SHIPS[0];
+ openM('Рейс '+esc(s.id),esc(s.car)+' · '+esc(s.drv),`
+  <div class="wid" style="grid-template-columns:repeat(3,1fr)">
+   <div><small>Точек</small><b>${s.stops}</b><span>выполнено ${s.done}</span></div>
+   <div><small>Вес</small><b>${num2(s.tons)} т</b><span>загрузка машины 78%</span></div>
+   <div><small>Сумма отгрузок</small><b class="a">${fmt(s.sum)} ₸</b><span>по накладным</span></div>
+  </div>
+  <div class="pan"><h3>Точки маршрута</h3>
+   ${STOPS.map((x,i)=>`<div class="li ${x.st==='доставлено'?'':'n'}"><i>${i+1}</i><span><b>${esc(x.n)}</b><span class="sub">${esc(x.ad)} · ${fmt(x.sum)} ₸ · ${esc(x.pay)} · ${esc(x.st)}</span></span></div>`).join('')}
+  </div>
+  <div class="btns" style="justify-content:flex-start">
+   <button class="bt p" onclick="closeM();go('route')">Открыть телефон водителя</button>
+   <button class="bt" onclick="toast('Клиентам отправлено уведомление: «Машина выехала, ориентировочное время прибытия — интервал 2 часа».')">Уведомить клиентов</button></div>`);
+}
+function buildRoute(){sparks(14);
+ toast('Маршруты на завтра собраны: 3 машины, 18 точек, 24,6 т. Учтены окна приёмки сетей, вес и объём машин, точки с наличными и межгород. Водителям отправлены ссылки.');}
+function deliverStop(){sparks(10);
+ toast('Точка отмечена как доставленная. Накладная сфотографирована, отсрочка пошла с этой минуты, менеджер и бухгалтер видят статус. Остаток по рейсу пересчитан.');}
+function openAkt(){
+ openM('Акт сверки · Сеть «Magnum»','период 01.08.2026 — 16.09.2026',`
+  <div class="doc">
+   <div class="dh"><div><div class="dl">JM CORPORATION<small>АКТ СВЕРКИ ВЗАИМНЫХ РАСЧЁТОВ</small></div></div>
+    <div style="text-align:right;font-size:9.6px;color:#5f7280;line-height:1.6">с ТОО «Magnum Cash&Carry»<br>01.08.2026 — 16.09.2026</div></div>
+   <div class="drow h"><span>№</span><span>Документ</span><span class="r">Дата</span><span class="r"></span><span class="r">Отгрузка</span><span class="r">Оплата</span></div>
+   ${[['Накладная № 2044','04.08','4 820 000',''],['Оплата по реестру','12.08','','4 820 000'],
+      ['Накладная № 2071','19.08','6 140 000',''],['Возврат R-198','22.08','−180 000',''],
+      ['Оплата по реестру','02.09','','5 960 000'],['Накладная № 2118','02.09','980 000',''],
+      ['Накладная № 2131','09.09','1 240 000',''],['Оплата по реестру','16.09','','12 400 000']]
+     .map((x,i)=>`<div class="drow"><span>${i+1}</span><span>${x[0]}</span><span class="r">${x[1]}</span><span class="r"></span><span class="r">${x[2]}</span><span class="r">${x[3]}</span></div>`).join('')}
+   <div class="dsum"><span>Задолженность в пользу JM Corporation</span><span>14 200 000 ₸</span></div>
+   <div style="font-size:10px;color:#5f7280;margin-top:8px">Акт сформирован автоматически из накладных, оплат и возвратов. Расхождения подсвечиваются до отправки клиенту.</div>
+   <div class="sgn"><span>JM Corporation: <u></u></span><span>Покупатель: <u></u></span></div>
+  </div>
+  <div class="hint" style="margin-top:12px">Такой акт собирается за секунду по любому клиенту и на любую дату. Сейчас это несколько часов в Excel и всегда спор о том, чьи цифры правильные.</div>`);
+}
+
+function searchDemo(v){
+ if(!v)return;
+ toast(`Поиск «${esc(v)}»: сквозной по клиентам, SKU, партиям, накладным, сырью и задачам. Например, по номеру партии сразу видно, из какого сырья она сделана и каким клиентам отгружена.`);
+}
+
+/* ====== ИНФРАСТРУКТУРА ====== */
+function renderRoles(){
+ const r=document.getElementById('roles');if(!r)return;
+ r.innerHTML=Object.entries(ROLES).map(([k,v])=>`<div class="role" onclick="enter('${esc(k)}')">
+  <div class="rav">${esc(v.av)}</div><div><b>${esc(k)}</b><span>${esc(v.n)} · ${esc(v.note)}</span></div></div>`).join('');
+ const s=document.getElementById('rsel');
+ if(s)s.innerHTML=Object.keys(ROLES).map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join('');
+}
+const allowed=k=>ROLES[role].s.indexOf(k)>=0;
+function enter(k){
+ role=ROLES[k]?k:'Коммерческий директор';
+ document.getElementById('gate').classList.add('hidden');
+ document.getElementById('app').classList.remove('hidden');
+ const s=document.getElementById('rsel');if(s)s.value=role;
+ document.getElementById('me').textContent=ROLES[role].av;
+ if(!allowed(cur))cur=ROLES[role].s[0];
+ build();
+ toast(`Вы вошли как «${role}» · ${ROLES[role].n}. Показаны только те разделы, которые нужны этой роли — так же будет и у ваших сотрудников.`);
+}
+function switchRole(k){role=k;document.getElementById('me').textContent=ROLES[role].av;
+ const s=document.getElementById('rsel');if(s)s.value=role;
+ if(!allowed(cur))cur=ROLES[role].s[0];build();
+ toast(`Роль: ${role}. Разделов доступно: ${ROLES[role].s.length}. ${ROLES[role].note}.`)}
+const ownerOf=k=>SECOF[k];
+function buildRail(){
+ const on=ownerOf(cur);
+ document.getElementById('rail').innerHTML=SEC.filter(s=>s.sub.some(x=>allowed(x[0]))).map(s=>{
+  const n=s.sub.filter(x=>allowed(x[0])).length;
+  return `<div class="ri ${s.k===on?'on':''}" onclick="go('${s.sub.filter(x=>allowed(x[0]))[0][0]}')" title="${esc(s.n)}">
+   <i>${s.ic}</i><span>${esc(s.n)}</span>${n>1?`<b class="cnt">${n}</b>`:''}</div>`}).join('');
+}
+function buildSub(){
+ const on=ownerOf(cur),s=SEC.find(x=>x.k===on);if(!s)return;
+ document.getElementById('sub').innerHTML=`<h4>${esc(s.n)}</h4>`+
+  s.sub.filter(x=>allowed(x[0])).map(x=>`<a class="${x[0]===cur?'on':''}" onclick="go('${x[0]}')">${esc(x[1])}</a>`).join('')+
+  `<div class="shint"><b>${esc(role)}</b><br>${esc(ROLES[role].note)}</div>`;
+}
+function build(){buildRail();buildSub();render()}
+function render(){
+ const f=SC[cur]||SC.dash;
+ document.getElementById('ttl').textContent=SUBN[cur]||'Пульт завода';
+ document.getElementById('content').innerHTML=`<div class="screen">${f()}</div>`;
+ const a=document.getElementById('addBtn');if(a)a.style.display=allowed('order')?'':'none';
+ try{history.replaceState(null,'','?s='+cur)}catch(e){}
+}
+function go(k){if(!allowed(k)){toast('Этой роли раздел недоступен — так работают права доступа. Переключите роль в правом верхнем углу, чтобы посмотреть.');return}
+ cur=k;build();const c=document.querySelector('.content');if(c)c.scrollTop=0}
+function openM(t,s,b){
+ document.getElementById('mt').innerHTML=t;
+ document.getElementById('ms').innerHTML=s;
+ document.getElementById('mbody').innerHTML=b;
+ document.getElementById('mbg').classList.add('show');
+}
+function closeM(){document.getElementById('mbg').classList.remove('show')}
+let tt=null;
+function toast(m){const t=document.getElementById('toast');
+ t.innerHTML=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),6400)}
+function sparks(n){for(let i=0;i<n;i++){const s=document.createElement('i');s.className='spark';
+ s.style.left=(14+Math.random()*72)+'vw';
+ s.style.background=['#0d8f95','#4fd6cf','#6ba32e','#12222c'][i%4];
+ s.style.borderRadius=i%2?'50%':'2px';
+ s.style.animationDelay=(Math.random()*.4)+'s';document.body.appendChild(s);setTimeout(()=>s.remove(),2300)}}
+function applyTheme(){document.body.classList.toggle('dark',theme==='dark')}
+function toggleTheme(){theme=theme==='dark'?'light':'dark';applyTheme();
+ toast(theme==='dark'?'Тёмная тема — для цеха и для проектора.':'Светлая тема.')}
+
+/* ====== СЦЕНАРИЙ ПОКАЗА ====== */
+const TOUR=[
+ ['dash','Пульт завода: отгрузка, загрузка мощности, дебиторка и путь заказа с местами, где он рвётся. Сейчас эти цифры собираются вручную по трём источникам.'],
+ ['order','Главный экран: заявка → накладная. Выберите клиента и нажмите на позиции — цена, вес, паллеты, остаток и лимит долга считаются сами.'],
+ ['order','Нажмите «Сформировать накладную» — увидите готовый документ. Для клиента с просрочкой система его не выпустит без решения директора.'],
+ ['calendar','Календарь загрузки линий: три реактора, розлив и выдув ПЭТ. Перетащите задание — система проверит ёмкость оборудования и сырьё.'],
+ ['batch','Производственный цикл партии: от навески сырья до прихода на склад. Нажимайте «Следующий этап».'],
+ ['qc','Контроль качества: партия с отклонением по вязкости не уйдёт в отгрузку без решения технолога. Паспорт качества формируется сам.'],
+ ['recipe','Рецептуры и спецификации — от них считается всё: списание сырья, себестоимость и заявка снабжению.'],
+ ['cost','Себестоимость: подвигайте курс и цену ЛАБСа — маржа пересчитается. Это тот Excel, который сейчас устаревает через неделю.'],
+ ['raw','Склад сырья: точка заказа считается с плечом поставки — из Кореи 45 дней, из Ирана 35.'],
+ ['route','Маршрут водителя в телефоне: отметка о доставке, фото накладной, наличные. Кусок цепочки, который сейчас самый слепой.'],
+ ['debt','Дебиторка с лимитами: при просрочке система сама останавливает отгрузки. Вручную это правило не соблюдается никогда.'],
+ ['cap','Загрузка мощности: 24 тонны в сутки — и честный ответ, сколько из них используется и что мешает.'],
+ ['integr','Переход с Битрикса: ядро за 2–3 недели, месяц параллельной работы, потом отказ.'],
+ ['stack','И состав первого релиза: 2 500 000 ₸, оплата 10 / 45 / 45, срок 6 недель, абонплаты нет, код ваш.']
+];
+let ti=-1,tRun=false;
+function tour(){if(tRun){stopTour();return}tRun=true;ti=-1;
+ document.getElementById('tourBtn').textContent='■';step()}
+function step(){if(!tRun)return;ti++;
+ if(ti>=TOUR.length){stopTour();toast('Сценарий показа закончен. Дальше можно листать разделы вручную — всё кликается: карточки, календарь, ползунки, накладная.');return}
+ const [k,m]=TOUR[ti];
+ if(!allowed(k)){step();return}
+ cur=k;build();toast(m);
+ setTimeout(step,ti===0?5800:6800);
+}
+function stopTour(){tRun=false;ti=-1;const b=document.getElementById('tourBtn');if(b)b.textContent='▶'}
+
+/* ====== СТАРТ ====== */
+(function(){
+ renderRoles();applyTheme();
+ const s=document.getElementById('rsel');
+ if(s)s.addEventListener('change',e=>switchRole(e.target.value));
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeM();stopTour()}});
+ let q='';try{q=new URLSearchParams(location.search).get('s')||''}catch(e){}
+ if(q&&SECOF[q]){
+  const r=Object.keys(ROLES).find(k=>ROLES[k].s.indexOf(q)>=0);
+  if(r){cur=q;enter(r)}
+ }
+})();
