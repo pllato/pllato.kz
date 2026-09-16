@@ -1,0 +1,1496 @@
+/* LAB optic · Retail · демо по ТЗ LABOS Retail v3 */
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const fmt=n=>new Intl.NumberFormat('ru-RU').format(Math.round(n));
+const num=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(n);
+const num2=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(n);
+const pct=(a,b)=>num(a/b*100)+'%';
+const mln=n=>num(n/1000000)+' млн';
+const plural=(n,f)=>{const a=Math.abs(n)%100,b=a%10;return f[(a>10&&a<20)||b>4||b===0?2:b===1?0:1]};
+
+const SEC=[
+ {k:'dash', ic:'▦', n:'Пульт',    sub:[['dash','Сводка сети'],['analytics','Показатели']]},
+ {k:'cust', ic:'☺', n:'Клиенты',  sub:[['clients','База клиентов'],['consult','Консультация'],['rx','Оптометрия и рецепт']]},
+ {k:'goods',ic:'⬢', n:'Товар',    sub:[['catalog','Каталог и карта'],['stock','Склад и RFID'],['reserve','Платный резерв']]},
+ {k:'ord',  ic:'⇄', n:'Заказы',   sub:[['orders','Журнал заказов'],['path','Путь заказа'],['price','Цены и скидки']]},
+ {k:'money',ic:'₸', n:'Деньги',   sub:[['pay','Оплата и возврат'],['cash','Касса и сейф'],['acct','Сверка бухгалтера']]},
+ {k:'proc', ic:'⇪', n:'Закупка',  sub:[['proc','Доска логиста']]},
+ {k:'shop', ic:'⚒', n:'Цех',      sub:[['shop','Мастерская'],['qc','Контроль качества']]},
+ {k:'ful',  ic:'➤', n:'Выдача',   sub:[['ship','Рейсы и упаковка'],['pickup','Выдача клиенту'],['service','Сервис и возвраты']]},
+ {k:'net',  ic:'⌖', n:'Сеть',     sub:[['branches','Салоны и франчайзи'],['tasks','Задачи и согласования']]},
+ {k:'setup',ic:'⚙', n:'Настройки',sub:[['roles','Права и политики'],['edge','Устройства и offline'],['stack','Состав релиза']]}
+];
+const SECOF={},SUBN={};
+SEC.forEach(s=>s.sub.forEach(x=>{SECOF[x[0]]=s.k;SUBN[x[0]]=x[1]}));
+
+const ROLES={
+ 'Собственник':{av:'СБ',n:'Собственник',r:'вся сеть',note:'Сводка сети, деньги, показатели, политики и права',
+  s:['dash','analytics','clients','consult','rx','catalog','stock','reserve','orders','path','price','pay','cash','acct','proc','shop','qc','ship','pickup','service','branches','tasks','roles','edge','stack']},
+ 'Продавец-консультант':{av:'АС',n:'Асель',r:'салон «Мега»',note:'Консультация, заказ, оплата, резерв, выдача — без цеха и денег сети',
+  s:['consult','clients','rx','catalog','stock','reserve','orders','path','price','pay','pickup','service','tasks']},
+ 'Оптометрист':{av:'ДН',n:'Данияр',r:'кабинет приёма',note:'Приём, измерения, рецепт и совместимость. Медицинские данные',
+  s:['rx','clients','consult','tasks']},
+ 'Мастер цеха':{av:'ЕР',n:'Ержан',r:'мастерская',note:'Очередь заданий, комплект, изготовление, контроль качества',
+  s:['shop','qc','stock','tasks']},
+ 'Логист':{av:'МР',n:'Марат',r:'закупка линз',note:'Доска закупки из семи этапов, поставщики, приёмка, рейсы',
+  s:['proc','stock','catalog','ship','orders','tasks']},
+ 'Руководитель филиалов':{av:'ГМ',n:'Гульмира',r:'МФ · Астана',note:'Резервы, скидки, кассовые кейсы, рекламации в своих салонах',
+  s:['dash','orders','reserve','price','cash','service','pickup','branches','tasks','clients','stock']},
+ 'Бухгалтер':{av:'АЛ',n:'Алия',r:'деньги и сверка',note:'Сверка кассы и банка, неизвестные оплаты, чеки, возвраты',
+  s:['acct','cash','pay','orders','analytics','tasks']},
+ 'Курьер':{av:'БК',n:'Бекзат',r:'перевозки',note:'Только назначенные перевозки. Сумму в денежном пакете не видит',
+  s:['ship','tasks']}
+};
+let role='Собственник',cur='dash',theme='light';
+
+/* ===== ДАННЫЕ ===== */
+const F={
+ salons:12, staff:86, revenue:184000000, orders:1246, avg:147600,
+ conv:41, rx:512, jobs:389, debt:12400000, reserveSum:1840000,
+ rfidTags:2106, rfidMin:6, itigris:6200000
+};
+const BR=[
+ {n:'Мега Silk Way',c:'Астана',mf:'Гульмира',rev:26400000,ord:184,conv:44,st:'работает',lab:1,men:9},
+ {n:'Хан Шатыр',c:'Астана',mf:'Гульмира',rev:22100000,ord:161,conv:39,st:'работает',lab:0,men:7},
+ {n:'Керуен',c:'Астана',mf:'Гульмира',rev:19800000,ord:142,conv:42,st:'работает',lab:0,men:7},
+ {n:'Сарыарка',c:'Караганда',mf:'Ерлан',rev:14900000,ord:118,conv:37,st:'работает',lab:1,men:6},
+ {n:'EXPO · пилот',c:'Астана',mf:'Гульмира',rev:12600000,ord:96,conv:46,st:'пилот перехода',lab:0,men:6},
+ {n:'Партнёр · Павлодар',c:'Павлодар',mf:'франчайзи',rev:9400000,ord:74,conv:35,st:'франчайзи',lab:0,men:5}
+];
+/* заказы: шесть независимых состояний по R11.03 */
+const ST={
+ com:{draft:'Черновик',confirmed:'Подтверждён',changing:'Изменение',cancelled:'Отменён',completed:'Завершён'},
+ pay:{unpaid:'Не оплачен',partial:'Частично',paid:'Оплачен',credit:'Переплата'},
+ prc:{none:'Не нужна',demand:'Нужна закупка',requested:'Запрошено',ordered:'Заказано',transit:'В пути',received:'Получено'},
+ prod:{none:'Без цеха',planned:'В плане',waiting:'Ждёт компоненты',progress:'В работе',qc:'На контроле',hold:'Доработка',done:'Готово'},
+ ful:{none:'—',ready:'Готов к выдаче',issued:'Выдан',partial:'Выдан частично'},
+ srv:{none:'—',open:'Рекламация',remedy:'Замена',closed:'Закрыт'}
+};
+const STC={confirmed:'#2f6f9e',changing:'#d98324',completed:'#2f8f5b',cancelled:'#c33c32',draft:'#69757f',
+ unpaid:'#c33c32',partial:'#d98324',paid:'#2f8f5b',credit:'#6b4ea8',
+ demand:'#d98324',requested:'#2f6f9e',ordered:'#1b93ae',transit:'#6b4ea8',received:'#2f8f5b',none:'#93a2ad',
+ planned:'#69757f',waiting:'#d98324',progress:'#1b93ae',qc:'#6b4ea8',hold:'#c33c32',done:'#2f8f5b',
+ ready:'#2f8f5b',issued:'#1c6b44',open:'#c33c32',remedy:'#d98324',closed:'#2f8f5b'};
+let ORD=[
+ {id:'ЗК-4821',c:'Ахметова Асем',ph:'+7 701 ••• 22 41',br:'Мега Silk Way',sum:284000,paid:284000,
+  it:'Оправа Ray-Ban RX5154 + линзы Essilor 1.67 с покрытием',pairs:1,wearer:'Ахметова Асем',
+  com:'confirmed',pay:'paid',prc:'received',prod:'qc',ful:'none',srv:'none',due:'18.09',rx:'OD −3.25 · OS −3.75'},
+ {id:'ЗК-4820',c:'Сыздыков Тимур',ph:'+7 707 ••• 08 19',br:'Хан Шатыр',sum:196000,paid:98000,
+  it:'Оправа Police VPL + линзы Hoya 1.60 прогрессив',pairs:1,wearer:'Сыздыков Тимур',
+  com:'confirmed',pay:'partial',prc:'transit',prod:'waiting',ful:'none',srv:'none',due:'22.09',rx:'OD −1.50 ADD +2.00'},
+ {id:'ЗК-4819',c:'Нурланова Айгерим',ph:'+7 717 ••• 55 03',br:'Керуен',sum:412000,paid:412000,
+  it:'Две пары: очки для работы и солнцезащитные с диоптриями',pairs:2,wearer:'Нурланова Айгерим',
+  com:'confirmed',pay:'paid',prc:'none',prod:'progress',ful:'none',srv:'none',due:'19.09',rx:'OD −2.00 · OS −2.25'},
+ {id:'ЗК-4815',c:'Мукашев Даулет',ph:'+7 747 ••• 31 76',br:'Мега Silk Way',sum:86000,paid:86000,
+  it:'Контактные линзы Acuvue Oasys · 4 упаковки',pairs:0,wearer:'Мукашев Даулет',
+  com:'confirmed',pay:'paid',prc:'none',prod:'none',ful:'ready',srv:'none',due:'готово',rx:'OD −4.00 · OS −4.00'},
+ {id:'ЗК-4811',c:'Тлеубаева Динара',ph:'+7 700 ••• 12 88',br:'EXPO · пилот',sum:238000,paid:238000,
+  it:'Оправа Vogue + линзы 1.74 для ребёнка',pairs:1,wearer:'Тлеубаева Амина · 9 лет',
+  com:'confirmed',pay:'paid',prc:'none',prod:'done',ful:'ready',srv:'none',due:'готово',rx:'OD −5.50 · OS −5.25'},
+ {id:'ЗК-4802',c:'Оспанов Ержан',ph:'+7 708 ••• 74 20',br:'Сарыарка',sum:164000,paid:164000,
+  it:'Оправа Levis + линзы 1.56 антиблик',pairs:1,wearer:'Оспанов Ержан',
+  com:'confirmed',pay:'paid',prc:'none',prod:'done',ful:'issued',srv:'open',due:'выдан 12.09',rx:'OD −1.25 · OS −1.00'},
+ {id:'ЗК-4798',c:'Ким Валерия',ph:'+7 705 ••• 66 12',br:'Хан Шатыр',sum:322000,paid:161000,
+  it:'Безободковая оправа + линзы 1.67',pairs:1,wearer:'Ким Валерия',
+  com:'changing',pay:'partial',prc:'demand',prod:'planned',ful:'none',srv:'none',due:'26.09',rx:'OD −6.00 · OS −5.75'}
+];
+/* клиенты */
+const CLI=[
+ {n:'Ахметова Асем',ph:'+7 701 ••• 22 41',br:'Мега Silk Way',ord:6,sum:1240000,rxn:4,last:'сегодня',card:'Серебро',rx:'OD −3.25 · OS −3.75'},
+ {n:'Тлеубаева Динара',ph:'+7 700 ••• 12 88',br:'EXPO · пилот',ord:9,sum:1860000,rxn:7,last:'вчера',card:'Золото',rx:'семья · 3 носителя'},
+ {n:'Сыздыков Тимур',ph:'+7 707 ••• 08 19',br:'Хан Шатыр',ord:3,sum:540000,rxn:2,last:'4 дня назад',card:'—',rx:'OD −1.50 ADD +2.00'},
+ {n:'Ким Валерия',ph:'+7 705 ••• 66 12',br:'Хан Шатыр',ord:11,sum:2640000,rxn:9,last:'неделю назад',card:'Золото',rx:'OD −6.00 · OS −5.75'},
+ {n:'Оспанов Ержан',ph:'+7 708 ••• 74 20',br:'Сарыарка',ord:2,sum:298000,rxn:1,last:'12.09',card:'—',rx:'OD −1.25 · OS −1.00'},
+ {n:'Мукашев Даулет',ph:'+7 747 ••• 31 76',br:'Мега Silk Way',ord:14,sum:820000,rxn:5,last:'сегодня',card:'Серебро',rx:'КЛ · −4.00'}
+];
+/* склад */
+const STOCK=[
+ {n:'Оправы Ray-Ban',k:'оправа',q:186,res:14,cell:'A-1 · витрина 3',rfid:1,pr:78000},
+ {n:'Оправы Vogue',k:'оправа',q:142,res:9,cell:'A-2 · витрина 1',rfid:1,pr:52000},
+ {n:'Оправы детские',k:'оправа',q:64,res:6,cell:'A-4 · витрина 5',rfid:1,pr:34000},
+ {n:'Линзы Essilor 1.67 склад',k:'линза',q:248,res:31,cell:'B-1 · ячейки по диоптриям',rfid:1,pr:41000},
+ {n:'Линзы Hoya 1.60 прогрессив',k:'линза',q:36,res:12,cell:'B-2',rfid:1,pr:96000},
+ {n:'Линзы заказные под заказ',k:'линза',q:18,res:18,cell:'B-5 · привязаны к заказам',rfid:1,pr:64000},
+ {n:'Контактные линзы Acuvue',k:'КЛ',q:412,res:24,cell:'C-1 · партии и сроки',rfid:1,pr:9800},
+ {n:'Футляры и салфетки',k:'аксессуар',q:680,res:0,cell:'D-2',rfid:0,pr:2400},
+ {n:'Расходники цеха',k:'расходник',q:94,res:0,cell:'E-1 · склад цеха',rfid:0,pr:5600}
+];
+/* резервы */
+let RES=[
+ {id:'РЗ-318',c:'Ким Валерия',it:'Оправа Lindberg · безободковая',sum:15000,days:7,left:-2,br:'Хан Шатыр',st:'overdue'},
+ {id:'РЗ-322',c:'Ахметова Асем',it:'Оправа Ray-Ban RX5154',sum:5000,days:5,left:3,br:'Мега Silk Way',st:'active'},
+ {id:'РЗ-325',c:'Сыздыков Тимур',it:'Оправа Police VPL',sum:5000,days:5,left:4,br:'Хан Шатыр',st:'active'},
+ {id:'РЗ-311',c:'Оспанов Ержан',it:'Оправа Levis · акция до 15.09',sum:2000,days:3,left:0,br:'Сарыарка',st:'overdue'}
+];
+/* закупка */
+const STG=['Подбор поставщика','Запрос отправлен','Предложение подтверждено','Заказ оформлен','Сборка отправки','В пути','Приёмка'];
+let DEM=[
+ {id:'ПТ-914',ord:'ЗК-4798',it:'Линза 1.67 OD −6.00 асферика',sup:'Essilor · официальный',stg:0,need:'20.09',sum:64000,t:''},
+ {id:'ПТ-915',ord:'ЗК-4798',it:'Линза 1.67 OS −5.75 асферика',sup:'Essilor · официальный',stg:0,need:'20.09',sum:64000,t:''},
+ {id:'ПТ-912',ord:'ЗК-4820',it:'Hoya 1.60 прогрессив OD',sup:'Hoya · представительство',stg:1,need:'19.09',sum:96000,t:'38 мин'},
+ {id:'ПТ-913',ord:'ЗК-4820',it:'Hoya 1.60 прогрессив OS',sup:'Hoya · представительство',stg:1,need:'19.09',sum:96000,t:'38 мин'},
+ {id:'ПТ-908',ord:'ЗК-4812',it:'Линза 1.74 OD −8.00',sup:'Оптик-Трейд',stg:2,need:'23.09',sum:112000,t:''},
+ {id:'ПТ-905',ord:'ЗК-4809',it:'Линзы 1.56 · 2 шт',sup:'ЛинзаKZ',stg:3,need:'21.09',sum:38000,t:''},
+ {id:'ПТ-901',ord:'ЗК-4805',it:'Линзы 1.60 фотохром · 2 шт',sup:'Оптик-Трейд',stg:5,need:'18.09',sum:84000,t:''},
+ {id:'ПТ-896',ord:'ЗК-4801',it:'Линзы 1.67 · 2 шт',sup:'Essilor · официальный',stg:6,need:'17.09',sum:128000,t:''}
+];
+/* цех */
+const JOBS=[
+ {id:'КМ-2291',ord:'ЗК-4819',it:'Очки для работы · Vogue + 1.60',mas:'Ержан',stg:'progress',due:'19.09',op:'Обточка по шаблону',ver:3},
+ {id:'КМ-2292',ord:'ЗК-4819',it:'Солнцезащитные с диоптриями',mas:'Ержан',stg:'waiting',due:'19.09',op:'Ждём тонировку',ver:1},
+ {id:'КМ-2288',ord:'ЗК-4821',it:'Ray-Ban RX5154 + Essilor 1.67',mas:'Ержан',stg:'qc',due:'18.09',op:'Контроль качества',ver:2},
+ {id:'КМ-2285',ord:'ЗК-4811',it:'Vogue детская + 1.74',mas:'Ержан',stg:'done',due:'17.09',op:'Принято продавцом',ver:1},
+ {id:'КМ-2280',ord:'ЗК-4796',it:'Безободковая · переделка',mas:'Ержан',stg:'hold',due:'20.09',op:'Скол при обточке · повтор',ver:4}
+];
+/* задачи и согласования */
+let TASKS=[
+ {id:701,t:'Согласовать скидку 22% на заказ ЗК-4798 сверх лимита продавца',who:'Гульмира',from:'Асель',ty:'Скидка',due:'сегодня',st:'go',br:'Хан Шатыр'},
+ {id:702,t:'Резерв РЗ-318 просрочен на 2 дня — снять или продлить',who:'Гульмира',from:'система',ty:'Резерв',due:'просрочено',st:'late',br:'Хан Шатыр'},
+ {id:703,t:'Неизвестный результат оплаты по ЗК-4817 — провести сверку',who:'Алия',from:'система',ty:'Деньги',due:'сегодня',st:'go',br:'Мега Silk Way'},
+ {id:704,t:'Расхождение кассы 8 400 ₸ — разобрать за 24 часа',who:'Алия',from:'система',ty:'Касса',due:'осталось 6 ч',st:'late',br:'Керуен'},
+ {id:705,t:'Рекламация по ЗК-4802: клиент жалуется на блики',who:'Гульмира',from:'Асель',ty:'Сервис',due:'завтра',st:'go',br:'Сарыарка'},
+ {id:706,t:'Поставщик Hoya не ответил 38 минут — связаться',who:'Марат',from:'система',ty:'Закупка',due:'через 2 мин',st:'new',br:'—'}
+];
+const TSTC={ok:'var(--ok)',go:'var(--warn)',late:'var(--bad)',new:'var(--muted2)'};
+const TSTN={ok:'Выполнено',go:'В работе',late:'Просрочено',new:'Новая'};
+
+let fMine=false,pathStep=0,seq=4822;
+let RF={run:0,found:0,miss:0,sec:0};
+let PAY={cash:0,card:0,own:1,unknown:0};
+let DISC={frame:78000,lens:82000,coat:24000,own:100,rop:0};
+const SC={};
+
+const ini=n=>n.replace(/[«»"]/g,'').split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+const AVC=['','a','i','v','g'];
+const avc=n=>AVC[(n.charCodeAt(0)+n.length)%5];
+const avatar=n=>`<span class="av ${avc(n)}" title="${esc(n)}">${esc(ini(n))}</span>`;
+const head=(h,p,btns)=>`<div class="hd"><div><h2>${h}</h2><p>${p}</p></div>${btns?`<div class="btns">${btns}</div>`:''}</div>`;
+const ref=r=>`<span class="tag a" title="требование технического задания">${r}</span>`;
+
+/* ====== ПУЛЬТ ====== */
+SC.dash=()=>`${head('Сводка сети','Двенадцать салонов, касса, цех и закупка на одном экране. Показатели считаются из тех же данных, которыми работают сотрудники — отдельного «отчётного» ввода нет.',
+ '<button class="bt p" onclick="go(\'orders\')">Журнал заказов →</button><button class="bt" onclick="go(\'analytics\')">Показатели</button>')}
+ <div class="wid">
+  <div><small>Выручка за месяц</small><b class="a">${mln(F.revenue)} ₸</b><span>${F.salons} салонов</span></div>
+  <div><small>Заказов</small><b>${fmt(F.orders)}</b><span>средний чек ${fmt(F.avg)} ₸</span></div>
+  <div><small>Конверсия приём → заказ</small><b class="g">${F.conv}%</b><span>${F.rx} приёмов у врача</span></div>
+  <div><small>В цеху</small><b class="i">${F.jobs}</b><span>пар за месяц</span></div>
+  <div><small>Долг клиентов</small><b class="w">${mln(F.debt)} ₸</b><span>выдача с долгом выключена</span></div>
+ </div>
+ <div class="g21">
+  <div class="pan"><h3>Заказы в работе</h3><p>Шесть состояний живут отдельно: заказ может быть оплачен и при этом стоять из-за одной линзы. ${ref('R11.03')}</p>
+   <div class="tw" style="border:0"><table class="t">
+    <thead><tr><th>Заказ</th><th>Клиент</th><th>Салон</th><th class="r">Сумма</th><th>Деньги</th><th>Закупка</th><th>Цех</th><th>Выдача</th></tr></thead>
+    <tbody>${ORD.slice(0,6).map(o=>`<tr onclick="openOrd('${o.id}')">
+     <td class="mono"><b>${esc(o.id)}</b></td>
+     <td>${esc(o.c)}</td><td class="sub2">${esc(o.br)}</td>
+     <td class="r">${fmt(o.sum)} ₸</td>
+     <td><span class="tag" style="background:${STC[o.pay]}1f;color:${STC[o.pay]}">${esc(ST.pay[o.pay])}</span></td>
+     <td><span class="tag" style="background:${STC[o.prc]}1f;color:${STC[o.prc]}">${esc(ST.prc[o.prc])}</span></td>
+     <td><span class="tag" style="background:${STC[o.prod]}1f;color:${STC[o.prod]}">${esc(ST.prod[o.prod])}</span></td>
+     <td><span class="tag" style="background:${STC[o.ful]}1f;color:${STC[o.ful]}">${esc(ST.ful[o.ful])}</span></td></tr>`).join('')}</tbody>
+   </table></div>
+   <div class="note" style="--tone:var(--brand)"><b>Почему состояний шесть, а не один статус</b>
+    <p>В вашем ТЗ это требование R11.03: коммерческое, денежное, закупочное, производственное, выдачи и сервисное состояния хранятся отдельно, а журнал показывает текущий блокирующий этап, ответственного и следующий шаг. Один общий статус всегда врёт: «в работе» может означать и ожидание линзы, и очередь в цеху.</p></div>
+   <h3 style="margin-top:16px">Что требует решения сегодня</h3>
+   <div class="li b"><i>!</i><span><b>Резерв РЗ-318 просрочен на два дня</b><span class="sub">товар остаётся закреплённым: автоматического освобождения нет, решение за МФ ${ref('R09.02')}</span></span></div>
+   <div class="li b"><i>!</i><span><b>Неизвестный результат оплаты по ЗК-4817</b><span class="sub">сверка идёт первой, повторное списание запрещено ${ref('R12.05')}</span></span></div>
+   <div class="li w"><i>!</i><span><b>Расхождение кассы 8 400 ₸ в салоне «Керуен»</b><span class="sub">на разбор 24 часа, иначе внеплановая проверка ${ref('R13.09')}</span></span></div>
+   <div class="li w"><i>!</i><span><b>Скидка 22% ждёт согласования</b><span class="sub">выше лимита продавца — ушла МФ отдельной задачей ${ref('R10.02')}</span></span></div>
+  </div>
+  <div>
+   <div class="pan"><h3>Аренда, которую заменяет система</h3>
+    <div class="kv"><span>Плата за «Оптиму» сейчас</span><b>${mln(F.itigris)} ₸ в год</b></div>
+    <div class="kv"><span>Стоимость разработки</span><b>2 000 000 ₸ один раз</b></div>
+    <div class="kv"><span>Абонентская плата после</span><b style="color:var(--ok)">0 ₸</b></div>
+    <div class="kv"><span>Окупаемость</span><b style="color:var(--ok)">≈ 4 месяца</b></div>
+    <div class="kv"><span>Код, база и сервер</span><b>ваши</b></div>
+    <div class="hint">Демо собрано по вашему ТЗ LABOS Retail версии 3: 20 разделов, 159 требований, 70 приёмочных сценариев. На экранах стоят ссылки на конкретные пункты — так видно, что реализовано именно ваше правило, а не «как обычно делают».</div>
+   </div>
+   <div class="pan"><h3>Сеть за месяц</h3>
+    <div class="kv"><span>Приёмов у оптометриста</span><b>${F.rx}</b></div>
+    <div class="kv"><span>Изготовлено пар</span><b>${F.jobs}</b></div>
+    <div class="kv"><span>Первый контроль без доработки</span><b style="color:var(--ok)">94,1%</b></div>
+    <div class="kv"><span>Повторные линзы</span><b style="color:var(--warn)">17 · из них 6 по вине цеха</b></div>
+    <div class="kv"><span>Средний срок изготовления</span><b>3,4 дня</b></div>
+    <div class="kv"><span>Резервов активно</span><b>${RES.length} на ${fmt(RES.reduce((a,r)=>a+r.sum,0))} ₸</b></div>
+   </div>
+  </div>
+ </div>`;
+
+/* ====== ПОКАЗАТЕЛИ ====== */
+SC.analytics=()=>`${head('Показатели','Раздел R18 вашего ТЗ: у каждого показателя есть формула, покрытие данных и свежесть. Если данных не хватает — показывается «неизвестно», а не ноль и не зелёный.',
+ '<button class="bt" onclick="toast(\'Любой отчёт выгружается в Excel и ставится на расписание. Из отчёта можно перейти к конкретному факту, правилу и доказательству — в пределах ваших прав.\')">Выгрузить</button>')}
+ <div class="wid">
+  <div><small>Конверсия приём → заказ</small><b class="g">${F.conv}%</b><span>покрытие данных 100%</span></div>
+  <div><small>Первый QC без доработки</small><b>94,1%</b><span>покрытие 97%</span></div>
+  <div><small>Ответ поставщика</small><b class="w">51 мин</b><span>норматив 40 минут</span></div>
+  <div><small>Неопределённые оплаты</small><b class="r">3</b><span>на 42 800 ₸, старшей 2 часа</span></div>
+  <div><small>Точность наличия</small><b class="i">неизвестно</b><span>нет данных RFID по 4 салонам</span></div>
+ </div>
+ <div class="g2">
+  <div class="pan"><h3>Конверсия по оптометристам</h3><p>Сколько приёмов превращается в заказ. Показатель управленческий, но считается из фактов, а не из ручного отчёта.</p>
+   ${[['Данияр · Мега',52,'g'],['Асем · Хан Шатыр',46,'g'],['Руслан · Керуен',38,'w'],['Мадина · Сарыарка',31,'r'],['Айжан · EXPO',49,'g']].map(x=>
+    `<div class="fr"><span>${esc(x[0])}</span><div class="bar" style="--w:${x[1]/52*100}%"><i class="${x[2]}"></i></div><b>${x[1]}%</b></div>`).join('')}
+   <div class="note" style="--tone:var(--acc)"><b>Разница в 21 пункт — это деньги</b>
+    <p>При среднем чеке ${fmt(F.avg)} ₸ и 90 приёмах в месяц разница между 52% и 31% даёт около 2,8 млн ₸ выручки на одного специалиста. Сейчас этой цифры нет нигде: в арендованной программе работа врачей не видна.</p></div>
+  </div>
+  <div class="pan"><h3>Честность показателей ${ref('R18.08')}</h3>
+   <div class="li n"><i>1</i><span><b>Неизвестно — это не ноль и не зелёный</b><span class="sub">если по салону нет данных RFID, показатель покрытия падает, а не рисуется среднее</span></span></div>
+   <div class="li n"><i>2</i><span><b>Видна формула и версия расчёта</b><span class="sub">при изменении методики создаётся новая версия, старые отчёты не переписываются задним числом</span></span></div>
+   <div class="li n"><i>3</i><span><b>Из отчёта можно дойти до факта</b><span class="sub">клик на цифру открывает заказы, движения и документы, из которых она собрана</span></span></div>
+   <div class="li b"><i>4</i><span><b>Критическая проблема видна даже при нехватке данных</b><span class="sub">три неопределённые оплаты подсвечиваются отдельным флагом, а не тонут в «покрытие 71%»</span></span></div>
+  </div>
+ </div>
+ <div class="pan"><h3>Салоны сети</h3><p>Одинаковые показатели по одинаковым правилам — иначе сравнение бессмысленно.</p>
+  <div class="tw" style="border:0"><table class="t">
+   <thead><tr><th>Салон</th><th>Город</th><th class="r">Выручка</th><th class="r">Заказов</th><th class="r">Конверсия</th><th>Цех</th><th>Состояние</th></tr></thead>
+   <tbody>${BR.map(b=>`<tr onclick="go('branches')">
+    <td><b>${esc(b.n)}</b></td><td class="sub2">${esc(b.c)}</td>
+    <td class="r">${mln(b.rev)} ₸</td><td class="r">${b.ord}</td>
+    <td class="r"><b style="color:${b.conv>=42?'var(--ok)':b.conv>=37?'var(--warn)':'var(--bad)'}">${b.conv}%</b></td>
+    <td>${b.lab?'<span class="tag a">свой цех</span>':'<span class="tag">центральный</span>'}</td>
+    <td>${b.st==='франчайзи'?'<span class="tag w">франчайзи</span>':b.st==='пилот перехода'?'<span class="tag b">пилот перехода</span>':'<span class="tag g">работает</span>'}</td></tr>`).join('')}</tbody>
+  </table></div>
+ </div>`;
+
+/* ====== КЛИЕНТЫ ====== */
+SC.clients=()=>`${head('База клиентов','Раздел R04: покупатель, носитель и представитель — разные роли. Общий семейный телефон не доказывает, что это один человек, и не открывает доступ к чужим медицинским данным.',
+ '<button class="bt p" onclick="toast(\'Новый клиент заводится за 20 секунд: имя, телефон, согласия. Для покупки футляра медицинские сведения не требуются — обязательность полей зависит от сценария.\')">+ Клиент</button>')}
+ <div class="wid" style="grid-template-columns:repeat(4,1fr)">
+  <div><small>Клиентов в сети</small><b class="a">18 420</b><span>единая база по 12 салонам</span></div>
+  <div><small>Повторные покупки</small><b class="g">58%</b><span>проверился в одном, заказал в другом</span></div>
+  <div><small>Дубли на объединение</small><b class="w">34</b><span>решает человек, не телефон</span></div>
+  <div><small>Согласий в базе</small><b>4 типа</b><span>маркетинг, клиника, фото, AI</span></div>
+ </div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>Клиент</th><th>Телефон</th><th>Салон</th><th class="r">Заказов</th><th class="r">Сумма</th><th class="r">Рецептов</th><th>Карта</th><th>Последний контакт</th></tr></thead>
+  <tbody>${CLI.map(c=>`<tr onclick="openCli('${esc(c.n)}')">
+   <td><b>${esc(c.n)}</b><span class="sub">${esc(c.rx)}</span></td>
+   <td class="mono sub2">${esc(c.ph)}</td><td class="sub2">${esc(c.br)}</td>
+   <td class="r">${c.ord}</td><td class="r">${fmt(c.sum)} ₸</td><td class="r">${c.rxn}</td>
+   <td>${c.card==='—'?'<span class="sub2">—</span>':`<span class="tag ${c.card==='Золото'?'w':'a'}">${esc(c.card)}</span>`}</td>
+   <td class="sub2">${esc(c.last)}</td></tr>`).join('')}</tbody>
+ </table></div>
+ <div class="g2">
+  <div class="pan"><h3>Согласия хранятся по целям ${ref('R04.03')}</h3>
+   <div class="srow"><span class="nm">Клиническое обслуживание<span class="sub">осмотр, рецепт, хранение медицинских данных</span></span><span class="sw on"></span></div>
+   <div class="srow"><span class="nm">Маркетинговые сообщения<span class="sub">акции, новые коллекции, поздравления</span></span><span class="sw on"></span></div>
+   <div class="srow"><span class="nm">Фото и видео<span class="sub">примерка, публикация в социальных сетях</span></span><span class="sw"></span></div>
+   <div class="srow"><span class="nm">Внешние AI-сервисы<span class="sub">виртуальная примерка, подбор по фото</span></span><span class="sw"></span></div>
+   <div class="hint">Это четыре разных согласия, а не один общий флажок. Отзыв действует на свою цель и не стирает историю уже исполненного заказа — так записано в вашем ТЗ.</div>
+  </div>
+  <div class="pan"><h3>Объединение дублей ${ref('R04.04')}</h3>
+   <div class="li w"><i>!</i><span><b>Ахметова Асем · +7 701 ••• 22 41</b><span class="sub">две карточки: одна из «Мега», вторая из «Керуен». Совпадают телефон и фамилия</span></span></div>
+   <div class="li"><i>✓</i><span><b>Что объединяется</b><span class="sub">контакты, заказы, карта лояльности — с записью исходных ссылок</span></span></div>
+   <div class="li b"><i>!</i><span><b>Что не объединяется автоматически</b><span class="sub">рецепты, задолженности и обращения: только по проверенному решению человека</span></span></div>
+   <div class="li"><i>✓</i><span><b>Ошибку можно исправить</b><span class="sub">связи восстанавливаются, чужая история не удаляется</span></span></div>
+  </div>
+ </div>`;
+function openCli(n){const c=CLI.find(x=>x.n===n);if(!c)return;
+ openM(esc(c.n),`${esc(c.ph)} · ${esc(c.br)} · ${c.ord} ${plural(c.ord,['заказ','заказа','заказов'])} на ${fmt(c.sum)} ₸`,`
+ <div class="wid" style="grid-template-columns:repeat(3,1fr)">
+  <div><small>Куплено всего</small><b class="a">${fmt(c.sum)} ₸</b><span>${c.ord} ${plural(c.ord,['заказ','заказа','заказов'])}</span></div>
+  <div><small>Рецептов в истории</small><b>${c.rxn}</b><span>с динамикой зрения</span></div>
+  <div><small>Карта лояльности</small><b style="font-size:15px">${esc(c.card)}</b><span>последний контакт ${esc(c.last)}</span></div>
+ </div>
+ <div class="pan"><h3>Носители и представители ${ref('R04.01')}</h3>
+  <div class="kv"><span>Покупатель</span><b>${esc(c.n)}</b></div>
+  <div class="kv"><span>Носитель по умолчанию</span><b>тот же человек</b></div>
+  <div class="kv"><span>Связанные носители</span><b>${c.n==='Тлеубаева Динара'?'дочь Амина, 9 лет · сын Алихан, 14 лет':'нет'}</b></div>
+  <div class="kv"><span>Медицинский доступ</span><b>проверяется по каждому носителю отдельно</b></div>
+  ${c.n==='Тлеубаева Динара'?'<div class="hint">Один плательщик, три носителя, в одном заказе могут быть две пары для разных людей. Кнопка «Очки для другого человека» открывает выбор носителя — это требование R04.01.</div>':''}
+ </div>
+ <div class="pan"><h3>История</h3>
+  <div class="tl">
+   <div class="tli ok"><span class="who">РЕЦЕПТ</span><b>${esc(c.rx)}</b><p>Подтверждён оптометристом, версия неизменяема. Все изменения — это новая версия, а не правка старой.</p></div>
+   <div class="tli ok"><span class="who">ЗАКАЗЫ</span><b>${c.ord} ${plural(c.ord,['заказ','заказа','заказов'])} на ${fmt(c.sum)} ₸</b><p>С составом, ценами, скидками и тем, кто их согласовал.</p></div>
+   <div class="tli ${c.card==='—'?'':'ok'}"><span class="who">ЛОЯЛЬНОСТЬ</span><b>${esc(c.card)}</b><p>Скидка по карте складывается с другими только по решению РОП, ОД или CEO.</p></div>
+  </div>
+ </div>
+ <div class="btns"><button class="bt p" onclick="closeM();go('consult')">Начать консультацию</button>
+  <button class="bt" onclick="closeM();go('orders')">Заказы клиента</button></div>`)}
+
+/* ====== КОНСУЛЬТАЦИЯ ====== */
+SC.consult=()=>`${head('Консультация и планшет клиента','Раздел R05: продавец работает на своём экране, клиент видит на планшете только разрешённую часть — подборку, характеристики, комплектацию и цену. Закупочные цены и служебные пометки туда не попадают.',
+ '<button class="bt p" onclick="sparks(12);toast(\'Состав подтверждён клиентом на планшете. Подтверждение привязано к конкретной версии предложения — подтвердить старую цену, когда продавец уже видит новую, невозможно.\')">Подтвердить состав</button>')}
+ <div class="g12">
+  <div style="display:flex;justify-content:center">
+   <div class="phone">
+    <div class="pht"><b>Ваш заказ</b><small>Ахметова Асем · салон «Мега Silk Way»</small></div>
+    <div class="pb">
+     <div style="font:700 8.4px 'IBM Plex Mono',monospace;color:var(--brand);letter-spacing:.08em">ВЫБРАННАЯ КОМПЛЕКТАЦИЯ</div>
+     <div class="pi"><span>Оправа Ray-Ban RX5154</span><b>78 000 ₸</b></div>
+     <div class="pi"><span>Линзы Essilor 1.67</span><b>82 000 ₸</b></div>
+     <div class="pi"><span>Покрытие Crizal</span><b>24 000 ₸</b></div>
+     <div class="pi"><span>Изготовление</span><b>8 000 ₸</b></div>
+     <div class="pi"><span>Скидка 15% на линзы</span><b style="color:var(--ok)">− 12 300 ₸</b></div>
+     <div class="pi"><span><b>Итого</b></span><b>179 700 ₸</b></div>
+     <div class="pi"><span>Готовность</span><b>3–4 дня</b></div>
+     <div class="pbtn" onclick="sparks(10);toast('Клиент подтвердил состав на планшете. Версия предложения зафиксирована — дальше изменения только через согласованное изменение заказа.')">ПОДТВЕРДИТЬ</div>
+     <div style="font-size:9.6px;color:var(--muted);text-align:center;margin-top:9px">после завершения сессии планшет очищается</div>
+    </div>
+   </div>
+  </div>
+  <div>
+   <div class="pan"><h3>Что видит продавец и чего не видит клиент</h3>
+    <div class="tw" style="border:0"><table class="t">
+     <thead><tr><th>Данные</th><th>Продавец</th><th>Планшет клиента</th></tr></thead>
+     <tbody>
+     ${[['Подборка оправ и характеристики','да','да'],['Итоговая цена и состав','да','да'],['Срок готовности','да','да'],
+        ['Закупочная цена и маржа','да','нет'],['Служебные пометки о клиенте','да','нет'],['Данные другого клиента','нет','нет'],
+        ['История рецептов носителя','по праву доступа','нет']].map(r=>`<tr>
+      <td>${esc(r[0])}</td>
+      <td>${r[1]==='да'?'<span class="tag g">да</span>':r[1]==='нет'?'<span class="tag r">нет</span>':'<span class="tag w">'+esc(r[1])+'</span>'}</td>
+      <td>${r[2]==='да'?'<span class="tag g">да</span>':'<span class="tag r">нет</span>'}</td></tr>`).join('')}
+     </tbody></table></div>
+   </div>
+   <div class="pan"><h3>Считывание оправы со стола ${ref('R05.03')}</h3>
+    <div class="li n"><i>1</i><span><b>Метка прочитана — товар предложен в сессии</b><span class="sub">создаётся наблюдение, карточка товара подставляется в подборку</span></span></div>
+    <div class="li b"><i>!</i><span><b>Но остаток и заказ не меняются</b><span class="sub">чтение метки — это не продажа и не резерв: остаток меняет только официальное действие</span></span></div>
+    <div class="li b"><i>!</i><span><b>Прочитано несколько меток</b><span class="sub">система просит выбрать нужные предметы — соседние оправы в покупку не попадают</span></span></div>
+    <div class="li"><i>✓</i><span><b>Виртуальная примерка и AI</b><span class="sub">помогают подбору, но не определяют рецепт, посадочную высоту и центровку. При сбое сервиса консультация работает полностью ${ref('R05.04')}</span></span></div>
+   </div>
+  </div>
+ </div>
+ <div class="pan"><h3>Связь экрана и планшета ${ref('R05.05')}</h3>
+  <div class="g3">
+   <div class="card" style="border:1px solid var(--line);border-radius:6px;padding:11px 13px"><b style="font-size:11.6px">Версия предложения</b>
+    <p style="font-size:10.4px;color:var(--muted);margin:4px 0 0;line-height:1.55">Каждое изменение состава создаёт новую версию. Клиент подтверждает конкретную версию, а не «то, что было на экране».</p></div>
+   <div class="card" style="border:1px solid var(--line);border-radius:6px;padding:11px 13px"><b style="font-size:11.6px">Потеря связи</b>
+    <p style="font-size:10.4px;color:var(--muted);margin:4px 0 0;line-height:1.55">Планшет честно показывает, что данные устарели, и после восстановления запрашивает актуальный снимок.</p></div>
+   <div class="card" style="border:1px solid var(--line);border-radius:6px;padding:11px 13px"><b style="font-size:11.6px">Завершение сессии</b>
+    <p style="font-size:10.4px;color:var(--muted);margin:4px 0 0;line-height:1.55">Временный доступ и локальная копия очищаются: следующий клиент не увидит предыдущего.</p></div>
+  </div>
+ </div>`;
+
+/* ====== ОПТОМЕТРИЯ ====== */
+SC.rx=()=>`${head('Оптометрия и рецепт','Раздел R06: измерение прибора, профессиональное назначение и снимок в заказе — три разных объекта. Прибор и AI не подписывают рецепт от имени человека.',
+ '<button class="bt p" onclick="sparks(10);toast(\'Рецепт подтверждён оптометристом. Подтверждённая версия неизменяема: исправление создаёт новую версию, а снимок в уже принятом заказе не меняется.\')">Подтвердить рецепт</button>')}
+ <div class="g2">
+  <div class="pan"><h3>Рецепт · Ахметова Асем</h3><p>Параметры хранятся структурированно по каждой стороне. «Неприменимо» и «неизвестно» — разные значения. ${ref('R06.02')}</p>
+   <div class="tw" style="border:0"><table class="t">
+    <thead><tr><th>Параметр</th><th class="r">OD · правый</th><th class="r">OS · левый</th></tr></thead>
+    <tbody>
+    ${[['Сфера (Sph)','−3.25','−3.75'],['Цилиндр (Cyl)','−0.75','−0.50'],['Ось (Ax)','170°','15°'],
+      ['Призма','неприменимо','неприменимо'],['Аддидация (Add)','неприменимо','неприменимо'],
+      ['Межзрачковое (PD)','32,0 мм','31,5 мм'],['Высота установки','21 мм','21 мм']].map(r=>`<tr>
+     <td>${esc(r[0])}</td><td class="r"><b>${esc(r[1])}</b></td><td class="r"><b>${esc(r[2])}</b></td></tr>`).join('')}
+    </tbody></table></div>
+   <div class="kv" style="margin-top:8px"><span>Источник измерений</span><b>авторефкератометр · 16.09 10:12</b></div>
+   <div class="kv"><span>Подтвердил</span><b>Данияр · оптометрист</b></div>
+   <div class="kv"><span>Версия рецепта</span><b>№ 4 от 16.09.2026</b></div>
+   <div class="kv"><span>Классификация данных</span><b style="color:var(--bad)">ограниченный доступ</b></div>
+  </div>
+  <div>
+   <div class="pan"><h3>Проверка совместимости ${ref('R06.03')}</h3><p>Связывает рецепт, оправу, тип крепления, индекс и диаметр. У результата есть правило и его версия.</p>
+    <div class="li"><i>✓</i><span><b>Ray-Ban RX5154 + Essilor 1.67</b><span class="sub">годится: диаметр достаточен, крепление ободковое</span></span></div>
+    <div class="li w"><i>!</i><span><b>Безободковая оправа + индекс 1.56</b><span class="sub">предупреждение: при таких диоптриях толщина края превысит допустимую — предложен индекс 1.67</span></span></div>
+    <div class="li b"><i>×</i><span><b>Леска + линза с большим минусом</b><span class="sub">запрещено правилом: выпуск заблокирован до решения специалиста</span></span></div>
+    <div class="li no"><i>?</i><span><b>Новая оправа без подтверждённых параметров</b><span class="sub">результат «неизвестно» — не «годится». Свойство уходит в очередь подтверждения</span></span></div>
+    <div class="note" style="--tone:var(--bad)"><b>Коммерческое решение не отменяет профессиональный запрет</b>
+     <p>Требование R06.04: руководитель отдела продаж отвечает за управленческое разрешение ситуации и работу с клиентом, но не может отменить запрет специалиста при недоказанной пригодности. Разрешённая альтернатива сначала проходит проверку, затем согласуется с клиентом.</p></div>
+   </div>
+   <div class="pan"><h3>Внешний рецепт ${ref('R06.05')}</h3>
+    <div class="kv"><span>Скан загружен</span><b>да · 2 файла</b></div>
+    <div class="kv"><span>Автор переноса</span><b>Асель · продавец</b></div>
+    <div class="kv"><span>Распознавание исправлено</span><b>оригинал сохранён</b></div>
+    <div class="kv"><span>Подтверждение специалистом</span><b style="color:var(--warn)">требуется до запуска в цех</b></div>
+    <div class="hint">Исправление распознанного текста не перезаписывает оригинал. Подмена рецепта после изготовления — это новый клинический факт и сервисный процесс, а не редактирование прошлого результата контроля.</div>
+   </div>
+  </div>
+ </div>
+ <div class="pan"><h3>Динамика зрения носителя</h3><p>История подтверждённых версий рецепта за четыре года. То, чего в арендованной программе нет.</p>
+  <div class="plan">${[['2022',2.0],['2022',2.25],['2023',2.5],['2023',2.5],['2024',2.75],['2024',3.0],['2025',3.0],['2025',3.25],['2026',3.25],['2026',3.25],['2026',3.25],['2026',3.25]].map((m,i)=>
+   `<div class="${i===11?'hi':''}"><u>${num(m[1])}</u><i style="height:${m[1]/3.5*100}%"></i></div>`).join('')}</div>
+  <div class="plan-l">${['I·22','II·22','I·23','II·23','I·24','II·24','I·25','II·25','I·26','II·26','III·26','IV·26'].map(m=>`<span>${m}</span>`).join('')}</div>
+  <div class="note" style="--tone:var(--ok)"><b>За последний год зрение стабильно</b>
+   <p>Врачу это видно за секунду, клиенту — понятно и убедительно. Для детских носителей график показывает скорость прогрессирования — это отдельный повод для разговора о методах контроля.</p></div>
+ </div>`;
+
+/* ====== КАТАЛОГ ====== */
+SC.catalog=()=>`${head('Каталог и цифровая карта','Раздел R07: модель, SKU, партия, экземпляр и физическая метка — пять разных вещей. Цифровая карта ассортимента и физическая карта склада тоже разные: ячейка ассортимента не доказывает, что оправа лежит именно там.',
+ '<button class="bt p" onclick="toast(\'Новая позиция заводится с признаками, происхождением и статусом подтверждения. «Титан» не превращается в «чистый титан» сам по себе — неподтверждённое свойство уходит в очередь проверки.\')">+ Позиция</button>')}
+ <div class="wid">
+  <div><small>Позиций в каталоге</small><b class="a">15 240</b><span>оправы, линзы, КЛ, услуги</span></div>
+  <div><small>С подтверждёнными признаками</small><b class="g">82%</b><span>остальные в очереди проверки</span></div>
+  <div><small>Заполнение карты</small><b class="w">74%</b><span>норматив формата салона</span></div>
+  <div><small>Позиций без движения 90 дней</small><b class="r">318</b><span>на 14,2 млн ₸</span></div>
+  <div><small>Категорий</small><b>9</b><span>включая услуги и расходники</span></div>
+ </div>
+ <div class="g2">
+  <div class="pan"><h3>Цифровая карта ассортимента ${ref('R07.03')}</h3><p>Чем салон должен торговать по формату. Показывает дефицит и излишек без двойного счёта одного экземпляра.</p>
+   ${[['Оправы мужские классика',92,'g'],['Оправы женские',88,'g'],['Детские оправы',54,'r'],['Солнцезащитные с диоптриями',71,'w'],['Линзы складские по диоптриям',96,'g'],['Контактные линзы',83,'g']].map(x=>
+    `<div class="fr"><span>${esc(x[0])}</span><div class="bar" style="--w:${x[1]}%"><i class="${x[2]}"></i></div><b>${x[1]}% нормы</b></div>`).join('')}
+   <div class="note" style="--tone:var(--bad)"><b>Детские оправы заполнены на 54%</b>
+    <p>Это ассортиментная ячейка, а не конкретный артикул: китайский SKU может больше не повториться, а ячейка останется. Прогноз закупки строится именно по ячейке — так записано в требовании R07.07.</p></div>
+  </div>
+  <div class="pan"><h3>Пять разных сущностей ${ref('R07.01')}</h3>
+   <div class="li n"><i>1</i><span><b>Модель</b><span class="sub">Ray-Ban RX5154 — то, что клиент называет «оправа»</span></span></div>
+   <div class="li n"><i>2</i><span><b>SKU</b><span class="sub">та же модель в размере 52 и цвете «гавана» — отдельная продаваемая вариация</span></span></div>
+   <div class="li n"><i>3</i><span><b>Партия</b><span class="sub">поставка от 12.08 с датой прихода и сроком годности для контактных линз</span></span></div>
+   <div class="li n"><i>4</i><span><b>Экземпляр</b><span class="sub">конкретная оправа на витрине салона «Керуен»; две одинаковые — это две единицы</span></span></div>
+   <div class="li b"><i>5</i><span><b>Метка</b><span class="sub">RFID-код на бирке. Метка не является кодом товара и не содержит рецепт и персональные данные ${ref('R08.04')}</span></span></div>
+   <div class="hint">Контактные линзы: коробка имеет коэффициент пересчёта. Продажа одного блистера не списывает всю упаковку и не теряет партию и срок годности после вскрытия внешней коробки.</div>
+  </div>
+ </div>`;
+
+/* ====== СКЛАД И RFID ====== */
+SC.stock=()=>{
+ const val=STOCK.reduce((a,s)=>a+s.q*s.pr,0);
+ return `${head('Склад и RFID','Раздел R08: чтение метки — это наблюдение, а не движение товара. Остаток меняется только официальным действием с проверкой состояния и полномочий.',
+  '<button class="bt p" onclick="rfidRun()">Запустить инвентаризацию зала</button><button class="bt" onclick="toast(\'Приёмка коробкой: система читает все метки в упаковке сразу, сверяет с накладной и показывает пересорт, недовложение и излишек отдельными расхождениями.\')">Приёмка коробкой</button>')}
+ <div class="wid">
+  <div><small>Позиций на складе</small><b class="a">${fmt(STOCK.reduce((a,s)=>a+s.q,0))}</b><span>на ${mln(val)} ₸</span></div>
+  <div><small>В резерве</small><b>${fmt(STOCK.reduce((a,s)=>a+s.res,0))}</b><span>под заказы и платные резервы</span></div>
+  <div><small>Инвентаризация зала</small><b class="g">${F.rfidMin} минут</b><span>вместо полудня вручную</span></div>
+  <div><small>Меток прочитано</small><b class="i">${RF.run?fmt(RF.found):fmt(F.rfidTags)}</b><span>${RF.run?'идёт проверка':'последняя ревизия 12.09'}</span></div>
+  <div><small>Расхождений</small><b class="${RF.run||RF.miss?'r':'g'}">${RF.run||RF.miss?RF.miss:3}</b><span>подсвечены сразу</span></div>
+ </div>
+ ${RF.run?`<div class="pan" style="border-color:var(--brand)"><h3>Идёт инвентаризация зала</h3>
+  <p>Сотрудник проходит по залу со считывателем. Метки накапливаются как уникальные наблюдения по ожидаемому участку.</p>
+  <div class="bar" style="height:14px"><i class="b" style="width:${Math.min(RF.found/F.rfidTags*100,100)}%"></i></div>
+  <div class="kv" style="margin-top:8px"><span>Прочитано меток</span><b>${fmt(RF.found)} из ${fmt(F.rfidTags)}</b></div>
+  <div class="kv"><span>Прошло времени</span><b>${num(RF.sec)} сек · в реальности ${F.rfidMin} минут</b></div>
+  <div class="kv"><span>Найдено расхождений</span><b style="color:var(--bad)">${RF.miss}</b></div>
+ </div>`:''}
+ <div class="tw"><table class="t">
+  <thead><tr><th>Позиция</th><th>Тип</th><th class="r">Всего</th><th class="r">В резерве</th><th class="r">Свободно</th><th>Где лежит</th><th>Метки</th><th class="r">Сумма</th></tr></thead>
+  <tbody>${STOCK.map(s=>`<tr onclick="toast('По позиции видно: приходы с партиями и ценами, движения между салонами, резервы под конкретные заказы и историю каждой единицы. Использованная линза не станет доступной от одного чтения метки.')">
+   <td><b>${esc(s.n)}</b></td><td class="sub2">${esc(s.k)}</td>
+   <td class="r">${s.q}</td><td class="r sub2">${s.res}</td>
+   <td class="r"><b style="color:${s.q-s.res>0?'var(--ok)':'var(--muted2)'}">${s.q-s.res}</b></td>
+   <td class="sub2">${esc(s.cell)}</td>
+   <td>${s.rfid?'<span class="tag a">RFID</span>':'<span class="tag">штрихкод</span>'}</td>
+   <td class="r">${fmt(s.q*s.pr)} ₸</td></tr>`).join('')}</tbody>
+ </table></div>
+ <div class="g2">
+  <div class="pan"><h3>Что RFID меняет в работе</h3>
+   <div class="li"><i>✓</i><span><b>Инвентаризация зала за ${F.rfidMin} минут</b><span class="sub">${fmt(F.rfidTags)} меток вместо полудня ручного пересчёта</span></span></div>
+   <div class="li"><i>✓</i><span><b>Приёмка коробкой целиком</b><span class="sub">все метки читаются разом и сверяются с накладной</span></span></div>
+   <div class="li"><i>✓</i><span><b>Поиск конкретной оправы в зале</b><span class="sub">по сигналу, а не перебором витрин</span></span></div>
+   <div class="li"><i>✓</i><span><b>Каждая линза маркируется при поступлении</b><span class="sub">на индивидуальной упаковке — оптическая поверхность не используется ${ref('R08.03')}</span></span></div>
+   <div class="li b"><i>!</i><span><b>Заказная линза помнит свой заказ</b><span class="sub">сходство параметров не разрешает незаметно подменить её складской</span></span></div>
+  </div>
+  <div class="pan"><h3>Чего RFID не делает ${ref('R08.01')}</h3>
+   <div class="li no"><i>×</i><span><b>Наблюдение не равно продаже, приёмке или расходу</b><span class="sub">это принципиальное требование вашего ТЗ: остаток меняет только официальное действие</span></span></div>
+   <div class="li no"><i>×</i><span><b>Соседние метки не попадают в операцию</b><span class="sub">при чтении нескольких мастер подтверждает именно выбранные две линзы и стороны OD/OS</span></span></div>
+   <div class="li no"><i>×</i><span><b>Пропуск чтения — не доказанная недостача</b><span class="sub">ревизия различает «метку не прочитали» и «товара действительно нет»</span></span></div>
+   <div class="li no"><i>×</i><span><b>Точное положение по одному чтению не обещается</b><span class="sub">честная формулировка из ТЗ, а не маркетинговое «видим всё в реальном времени»</span></span></div>
+   <div class="note" style="--tone:var(--warn)"><b>Оборудование проверяется на пилоте ${ref('R08.12')}</b>
+    <p>Модели считывателей и принтера, частоты, мощность и совместимость рулонов не подтверждены наличием брошюры поставщика. Заявления вендора, цена и результат испытания хранятся раздельно — это ваша же формулировка.</p></div>
+  </div>
+ </div>`;
+};
+function rfidRun(){
+ if(RF.run){toast('Инвентаризация уже идёт.');return}
+ RF={run:1,found:0,miss:0,sec:0};render();
+ const t=setInterval(()=>{
+  RF.found=Math.min(RF.found+Math.round(F.rfidTags/14),F.rfidTags);
+  RF.sec+=0.9;
+  if(RF.found>F.rfidTags*0.35&&RF.miss<1)RF.miss=1;
+  if(RF.found>F.rfidTags*0.62&&RF.miss<2)RF.miss=2;
+  if(RF.found>F.rfidTags*0.88&&RF.miss<3)RF.miss=3;
+  if(RF.found>=F.rfidTags){clearInterval(t);RF.run=0;sparks(14);
+   toast(`Ревизия закончена: <b>${fmt(F.rfidTags)} меток за ${F.rfidMin} минут</b>, три расхождения подсвечены. Корректировка количества не проходит автоматически — нужны основание, проверяющий и утверждённая область.`);}
+  if(cur==='stock')render();
+ },420);
+}
+
+/* ====== ПЛАТНЫЙ РЕЗЕРВ ====== */
+SC.reserve=()=>`${head('Платный резерв','Раздел R09: резерв закрепляет конкретный экземпляр за клиентом. По истечении срока товар не освобождается автоматически — решение принимает руководитель филиалов или роль выше.',
+ '<button class="bt p" onclick="toast(\'Новый резерв: выбирается конкретный экземпляр, срок и принятая плата. Минимальная сумма и число дней настраиваются суперадмином — в ТЗ стартовые значения пока не выбраны.\')">+ Резерв</button>')}
+ <div class="wid" style="grid-template-columns:repeat(4,1fr)">
+  <div><small>Активных резервов</small><b class="a">${RES.filter(r=>r.st==='active').length}</b><span>на ${fmt(RES.filter(r=>r.st==='active').reduce((a,r)=>a+r.sum,0))} ₸</span></div>
+  <div><small>Просрочено</small><b class="r">${RES.filter(r=>r.st==='overdue').length}</b><span>товар остаётся закреплённым</span></div>
+  <div><small>Снято за месяц</small><b>7</b><span>все — решением МФ</span></div>
+  <div><small>Превратилось в покупку</small><b class="g">68%</b><span>плата засчитывается полностью</span></div>
+ </div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>Резерв</th><th>Клиент</th><th>Товар</th><th>Салон</th><th class="r">Плата</th><th class="r">Срок</th><th>Состояние</th><th></th></tr></thead>
+  <tbody>${RES.map(r=>`<tr>
+   <td class="mono"><b>${esc(r.id)}</b></td><td>${esc(r.c)}</td>
+   <td>${esc(r.it)}</td><td class="sub2">${esc(r.br)}</td>
+   <td class="r">${fmt(r.sum)} ₸</td>
+   <td class="r">${r.left>0?`осталось ${r.left} дн.`:r.left===0?'сегодня':`<b style="color:var(--bad)">просрочен ${-r.left} дн.</b>`}</td>
+   <td>${r.st==='overdue'?'<span class="tag r">просрочен</span>':'<span class="tag g">активен</span>'}</td>
+   <td class="r"><button class="bt" onclick="event.stopPropagation();relRes('${r.id}')">Снять</button></td></tr>`).join('')}</tbody>
+ </table></div>
+ <div class="g2">
+  <div class="pan"><h3>Три разных действия ${ref('R09.03')}</h3>
+   <div class="li n"><i>1</i><span><b>Снять товар с резерва</b><span class="sub">экземпляр становится доступным для продажи — право МФ и выше</span></span></div>
+   <div class="li n"><i>2</i><span><b>Разрешить возврат денег</b><span class="sub">отдельное решение: снятие товара не означает, что деньги возвращаются</span></span></div>
+   <div class="li n"><i>3</i><span><b>Признать доход</b><span class="sub">если клиент не пришёл и плата не возвращена — вопрос учётной политики, а не операционного правила</span></span></div>
+   <div class="note" style="--tone:var(--acc)"><b>Кнопка снятия живёт в дополнительных действиях</b>
+    <p>Требование R09.03 прямо говорит: размещение кнопки — не среди случайно нажимаемых основных кнопок продажи. Это защита от снятия резерва одним неверным кликом.</p></div>
+  </div>
+  <div class="pan"><h3>Зачёт платы и акции</h3>
+   <div class="kv"><span>Плата засчитывается в покупку</span><b>полностью</b></div>
+   <div class="kv"><span>Повторное поступление тех же денег</span><b style="color:var(--bad)">исключено</b></div>
+   <div class="kv"><span>Возврат платы</span><b>исходным способом оплаты</b></div>
+   <div class="kv"><span>Предел возврата</span><b>фактически внесённая сумма</b></div>
+   <div class="kv"><span>Резерв продлевает акцию?</span><b style="color:var(--bad)">нет ${ref('R09.05')}</b></div>
+   <div class="hint">До внесения платы продавец и клиент видят дату окончания промо и предупреждение: после неё покупка считается по обычной цене. При покупке делается новый расчёт с понятной доплатой — до того, как деньги приняты.</div>
+  </div>
+ </div>`;
+function relRes(id){const r=RES.find(x=>x.id===id);if(!r)return;
+ const ok=['Собственник','Руководитель филиалов'].includes(role);
+ if(!ok){toast('Снять платный резерв может только руководитель филиалов и разрешённые роли выше. Продавцу это действие недоступно — требование R09.03.');return}
+ openM(`Снятие резерва ${esc(r.id)}`,`${esc(r.c)} · ${esc(r.it)} · плата ${fmt(r.sum)} ₸`,`
+ <div class="note" style="--tone:var(--warn)"><b>Это три отдельных решения, а не одно</b>
+  <p>Система спрашивает по каждому отдельно и сохраняет, кто и на каком основании принял решение.</p></div>
+ <div class="pan"><h3>Что делаем</h3>
+  <div class="srow"><span class="nm">Освободить экземпляр для продажи<span class="sub">товар вернётся в свободный остаток салона</span></span><span class="sw on"></span></div>
+  <div class="srow"><span class="nm">Разрешить возврат платы клиенту<span class="sub">исходным способом оплаты, не больше ${fmt(r.sum)} ₸</span></span><span class="sw"></span></div>
+  <div class="srow"><span class="nm">Уведомить клиента<span class="sub">сообщение об истечении срока и условиях</span></span><span class="sw on"></span></div>
+  <div class="kv" style="margin-top:8px"><span>Основание</span><b>срок истёк, клиент не вышел на связь</b></div>
+  <div class="kv"><span>Решение принимает</span><b>${esc(role)} · ${esc(ROLES[role].n)}</b></div>
+ </div>
+ <div class="btns"><button class="bt p" onclick="doRel('${r.id}')">Подтвердить снятие</button><button class="bt" onclick="closeM()">Отмена</button></div>`)}
+function doRel(id){RES=RES.filter(r=>r.id!==id);closeM();render();sparks(10);
+ toast('Резерв снят, экземпляр вернулся в свободный остаток. Возврат денег остался отдельным неразрешённым основанием — он не выполняется автоматически вместе со снятием товара.')}
+
+/* ====== ЖУРНАЛ ЗАКАЗОВ ====== */
+SC.orders=()=>{
+ const L=ORD.filter(o=>!fMine||o.br==='Мега Silk Way');
+ return `${head('Журнал заказов','Список с сохранёнными видами, фильтрами по периоду, салону, ответственному и стадии. Дата всегда объясняет смысл: создано, обещано, оплачено или выдано — это разные даты.',
+  `<button class="bt ${fMine?'':'p'}" onclick="setMine(false)">Все салоны</button><button class="bt ${fMine?'p':''}" onclick="setMine(true)">Мой салон</button><button class="bt p" onclick="addLead()">+ Заказ</button>`)}
+ <div class="wid">
+  <div><small>Заказов в работе</small><b class="a">${L.filter(o=>o.ful!=='issued').length}</b><span>на ${fmt(L.filter(o=>o.ful!=='issued').reduce((a,o)=>a+o.sum,0))} ₸</span></div>
+  <div><small>Ждут закупку</small><b class="w">${L.filter(o=>['demand','requested','ordered','transit'].includes(o.prc)).length}</b><span>блокирующий этап виден</span></div>
+  <div><small>В цеху</small><b class="i">${L.filter(o=>['planned','waiting','progress','qc','hold'].includes(o.prod)).length}</b><span>из них 1 в доработке</span></div>
+  <div><small>Готовы к выдаче</small><b class="g">${L.filter(o=>o.ful==='ready').length}</b><span>клиенты уведомлены</span></div>
+  <div><small>Неполная оплата</small><b class="r">${L.filter(o=>o.pay!=='paid').length}</b><span>предоплата от 50% ${ref('R11.05')}</span></div>
+ </div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>Заказ</th><th>Клиент и носитель</th><th>Состав</th><th>Салон</th><th class="r">Сумма</th><th class="r">Оплачено</th><th>Блокирующий этап</th><th class="r">Обещано</th></tr></thead>
+  <tbody>${L.map(o=>{
+   const blk=o.prod==='hold'?['Доработка после контроля','r']:o.prc==='demand'?['Нет линзы — нужна закупка','r']:
+    o.prc==='transit'?['Линзы в пути','w']:o.prod==='waiting'?['Ждёт компоненты','w']:
+    o.prod==='progress'?['В работе у мастера','a']:o.prod==='qc'?['На контроле качества','a']:
+    o.ful==='ready'?['Готов, ждём клиента','g']:o.ful==='issued'?['Выдан','g']:['Идёт по плану','g'];
+   return `<tr onclick="openOrd('${o.id}')">
+   <td class="mono"><b>${esc(o.id)}</b><span class="sub">${o.pairs?o.pairs+' '+plural(o.pairs,['пара','пары','пар']):'без цеха'}</span></td>
+   <td><b>${esc(o.c)}</b>${o.wearer!==o.c?`<span class="sub">носитель: ${esc(o.wearer)}</span>`:''}</td>
+   <td class="sub2">${esc(o.it)}</td>
+   <td class="sub2">${esc(o.br)}</td>
+   <td class="r">${fmt(o.sum)} ₸</td>
+   <td class="r"><b style="color:${o.paid>=o.sum?'var(--ok)':'var(--warn)'}">${fmt(o.paid)} ₸</b></td>
+   <td><span class="tag ${blk[1]}">${esc(blk[0])}</span></td>
+   <td class="r">${esc(o.due)}</td></tr>`}).join('')}</tbody>
+ </table></div>
+ <div class="note" style="--tone:var(--brand)"><b>Девять типов заказов из вашего КП живут в одном журнале</b>
+  <p>Продажа товара, изготовление очков, контактные линзы, проверка зрения, ремонт очков, ремонт у продавца, подарочный сертификат, заказная линза и заказ из другого салона. При этом продажа футляра не создаёт фиктивный рецепт и производственное задание — маршрут выбирается только для тех строк, которым он нужен ${ref('R11.01')}.</p></div>`;
+};
+function setMine(v){fMine=v;render();toast(v?'Фильтр «Мой салон» — только заказы вашего салона. Область филиалов проверяется на сервере, а не скрытием строк в интерфейсе.':'Показаны заказы всех салонов сети.')}
+function addLead(){ORD.unshift({id:'ЗК-'+(seq++),c:'Новый клиент',ph:'—',br:'Мега Silk Way',sum:0,paid:0,
+ it:'состав уточняется',pairs:0,wearer:'Новый клиент',com:'draft',pay:'unpaid',prc:'none',prod:'none',ful:'none',srv:'none',due:'—',rx:'—'});
+ if(cur!=='orders')go('orders');else render();
+ toast('Черновик заказа создан. Подтверждение возможно только при принятом расчёте и заполненных обязательных данных по типу строк.')}
+function searchDemo(q){if(!q)return;
+ const o=ORD.find(x=>[x.id,x.c,x.ph,x.it].join(' ').toLowerCase().includes(q.toLowerCase()));
+ if(o){openOrd(o.id);return}
+ const c=CLI.find(x=>(x.n+' '+x.ph).toLowerCase().includes(q.toLowerCase()));
+ if(c){openCli(c.n);return}
+ toast(`Поиск идёт по номеру заказа, клиенту, телефону, метке и SKU сразу. В демо заведено ${ORD.length} заказов и ${CLI.length} клиентов — попробуйте «ЗК-4821» или «Ким».`)}
+
+/* ====== КАРТОЧКА ЗАКАЗА ====== */
+function openOrd(id){const o=ORD.find(x=>x.id===id);if(!o)return;
+ const S=[['Коммерческое',o.com,ST.com],['Деньги',o.pay,ST.pay],['Закупка',o.prc,ST.prc],
+          ['Производство',o.prod,ST.prod],['Выдача',o.ful,ST.ful],['Сервис',o.srv,ST.srv]];
+ openM(`Заказ ${esc(o.id)} · ${esc(o.c)}`,`${esc(o.it)} · салон ${esc(o.br)} · обещано ${esc(o.due)}`,`
+ <div class="wid" style="grid-template-columns:repeat(3,1fr)">
+  <div><small>Сумма заказа</small><b class="a">${fmt(o.sum)} ₸</b><span>${o.pairs?o.pairs+' '+plural(o.pairs,['пара','пары','пар'])+' в изготовление':'без производства'}</span></div>
+  <div><small>Оплачено</small><b class="${o.paid>=o.sum?'g':'w'}">${fmt(o.paid)} ₸</b><span>остаток ${fmt(Math.max(o.sum-o.paid,0))} ₸</span></div>
+  <div><small>Носитель</small><b style="font-size:14px">${esc(o.wearer)}</b><span>${esc(o.rx)}</span></div>
+ </div>
+ <div class="pan"><h3>Шесть состояний заказа ${ref('R11.03')}</h3><p>Хранятся отдельно и меняются независимо. Одного общего статуса в системе нет.</p>
+  <div class="route" style="grid-template-columns:repeat(3,1fr)">
+   ${S.map(x=>`<div class="rst" style="--c:${STC[x[1]]||'#93a2ad'}">
+    <small>${esc(x[0])}</small><b>${esc(x[2][x[1]])}</b></div>`).join('')}
+  </div>
+ </div>
+ <div class="pan"><h3>Состав и деньги</h3>
+  <div class="ord">
+   <div class="orow h"><span>Позиция</span><span>Кол-во</span><span>Цена</span><span>Сумма</span></div>
+   <div class="orow"><span>Оправа${o.pairs?'':' / товар'}</span><span>1</span><span>${fmt(Math.round(o.sum*0.34))}</span><span>${fmt(Math.round(o.sum*0.34))}</span></div>
+   ${o.pairs?`<div class="orow"><span>Линзы OD + OS</span><span>2</span><span>${fmt(Math.round(o.sum*0.24))}</span><span>${fmt(Math.round(o.sum*0.48))}</span></div>
+   <div class="orow"><span>Покрытие и тонировка</span><span>1</span><span>${fmt(Math.round(o.sum*0.11))}</span><span>${fmt(Math.round(o.sum*0.11))}</span></div>
+   <div class="orow"><span>Изготовление</span><span>${o.pairs}</span><span>${fmt(Math.round(o.sum*0.07/o.pairs))}</span><span>${fmt(Math.round(o.sum*0.07))}</span></div>`:
+   `<div class="orow"><span>Товар по позициям</span><span>4</span><span>${fmt(Math.round(o.sum*0.165))}</span><span>${fmt(Math.round(o.sum*0.66))}</span></div>`}
+   <div class="orow tot"><span>Итого по принятому снимку цены</span><span></span><span></span><span>${fmt(o.sum)} ₸</span></div>
+  </div>
+  <div class="kv" style="margin-top:9px"><span>Обязательство</span><b>${fmt(o.sum)} ₸</b></div>
+  <div class="kv"><span>Чистая оплата</span><b>${fmt(o.paid)} ₸</b></div>
+  <div class="kv"><span>Остаток к оплате</span><b style="color:${o.sum-o.paid>0?'var(--warn)':'var(--ok)'}">${fmt(Math.max(o.sum-o.paid,0))} ₸</b></div>
+  <div class="kv"><span>Снимок цены</span><b>неизменяем ${ref('R10.10')}</b></div>
+ </div>
+ <div class="pan"><h3>История заказа</h3>
+  <div class="tl">
+   <div class="tli ok"><span class="who">КОНСУЛЬТАЦИЯ · АСЕЛЬ</span><b>Состав подтверждён клиентом</b><p>Клиент подтвердил версию предложения на планшете. Цена зафиксирована неизменяемым снимком.</p></div>
+   <div class="tli ok"><span class="who">РЕЦЕПТ · ДАНИЯР</span><b>Совместимость проверена</b><p>${esc(o.rx)} · оправа и индекс проходят по правилу версии 3.</p></div>
+   <div class="tli ${o.paid>0?'ok':'on'}"><span class="who">ДЕНЬГИ</span><b>${o.paid>=o.sum?'Оплачено полностью':o.paid>0?'Принята предоплата '+fmt(o.paid)+' ₸':'Ожидаем предоплату'}</b><p>Минимум 50% по политике, предпочтительно 100%. Каждая часть оплаты — отдельный подтверждённый факт.</p></div>
+   <div class="tli ${['received','none'].includes(o.prc)?'ok':'on'}"><span class="who">ЗАКУПКА</span><b>${esc(ST.prc[o.prc])}</b><p>${o.prc==='demand'?'Потребность создана автоматически после выполнения условий состава и предоплаты. Повторная доплата не создаёт вторую заявку.':o.prc==='none'?'Всё есть на складе, закупка не нужна.':'Заявка у логиста, срок поставщика виден в заказе.'}</p></div>
+   <div class="tli ${o.prod==='done'?'ok':o.prod==='none'?'ok':'on'}"><span class="who">ЦЕХ</span><b>${esc(ST.prod[o.prod])}</b><p>${o.prod==='hold'?'Контроль качества не пройден: комплект в доработке с указанием причины, выдача закрыта до новой проверки.':'Мастер подтверждает актуальную версию задания и физический состав перед началом работы.'}</p></div>
+   <div class="tli ${o.ful==='issued'?'ok':o.ful==='ready'?'on':''}"><span class="who">ВЫДАЧА</span><b>${esc(ST.ful[o.ful])}</b><p>Выдача требует нулевого остатка долга, принятого качества и подтверждения получателя. Выдача с долгом по умолчанию выключена.</p></div>
+   ${o.srv==='open'?'<div class="tli on"><span class="who">СЕРВИС</span><b>Открыта рекламация</b><p>Помощь клиенту и расследование причины идут параллельно. Замена может быть разрешена до вывода о виновности.</p></div>':''}
+  </div>
+ </div>
+ <div class="btns">
+  <button class="bt p" onclick="closeM();go('pay')">Оплата и возврат</button>
+  <button class="bt" onclick="closeM();go('shop')">Цех</button>
+  <button class="bt" onclick="toast('Изменение заказа: система показывает разницу состава, цены, сроков и затронутых физических действий. Если мастер уже обрабатывает линзу — запрос остановки и подтверждение остановки разные события.')">Изменить заказ</button>
+ </div>`)}
+
+/* ====== ПУТЬ ЗАКАЗА ====== */
+const PATH=[
+ {t:'Клиент пришёл в салон',w:'САЛОН',d:'Визит зафиксирован. Система отличает «кто-то зашёл» от подтверждённого визита и от консультации — отказ от покупки визит не стирает.',r:'Конверсия считается от честной базы, а не от количества чеков.',tm:'0 мин'},
+ {t:'Подбор оправы',w:'ЧЕЛОВЕК',d:'Продавец собирает подборку, клиент видит её на планшете: характеристики, сравнение, цена. Метка оправы со стола подставляет карточку товара.',r:'Клиент участвует в выборе, но не видит закупочных цен и служебных пометок.',tm:'5 мин'},
+ {t:'Приём у оптометриста',w:'ЧЕЛОВЕК',d:'Измерения прибора сохраняются с источником и временем. Специалист подтверждает версию рецепта — она становится неизменяемой.',r:'Ни прибор, ни AI не подписывают рецепт от имени человека.',tm:'25 мин'},
+ {t:'Проверка совместимости',w:'СИСТЕМА',d:'Рецепт, оправа, тип крепления, индекс и диаметр проверяются правилом с версией: годится, предупреждение, запрещено или неизвестно.',r:'Безободковая оправа с большим минусом не уйдёт в цех «на авось».',tm:'25 мин'},
+ {t:'Расчёт цены и скидки',w:'СИСТЕМА',d:'Скидка 15% применяется только к очковым линзам и только к допустимой части оплаты собственными средствами.',r:'Скидка не расползается на оправу и изготовление.',tm:'30 мин'},
+ {t:'Заказ подтверждён',w:'СИСТЕМА',d:'Состав и цена фиксируются неизменяемым снимком. Создаются производственные комплекты по числу пар с требованиями OD и OS.',r:'Через месяц никто не спорит, о чём договаривались.',tm:'35 мин'},
+ {t:'Предоплата',w:'ДЕНЬГИ',d:'Минимум 50%, предпочтительно 100%. Оплата может быть смешанной: часть наличными, часть картой.',r:'Каждая часть подтверждается отдельно, неуспех одной не отменяет другую.',tm:'40 мин'},
+ {t:'Потребность ушла логисту',w:'СИСТЕМА',d:'Чего нет на складе — попадает в доску закупки автоматически, отдельной строкой на каждую линзу.',r:'Повторная доплата не создаёт вторую заявку на те же линзы.',tm:'41 мин'},
+ {t:'Запрос поставщику',w:'ЧЕЛОВЕК',d:'Текст запроса готовится системой, логист отправляет и отмечает факт отправки. Отсчёт 40 минут идёт от реальной отправки.',r:'Молчание поставщика становится задачей, а не выдуманным отказом.',tm:'1 час'},
+ {t:'Линзы приехали и приняты',w:'ЧЕЛОВЕК',d:'Приёмка сверяет накладную, фактические экземпляры и качество. Каждая линза маркируется на индивидуальной упаковке.',r:'Пересорт и недовложение фиксируются отдельными расхождениями.',tm:'2–5 дней'},
+ {t:'Комплект собран',w:'ЧЕЛОВЕК',d:'Мастер подтверждает актуальную версию задания, оправу, фактические линзы и назначение сторон OD и OS.',r:'Соседние метки в комплект не попадают.',tm:'+1 день'},
+ {t:'Изготовление',w:'ЧЕЛОВЕК',d:'Обточка, сборка, фиксируется начало необратимой обработки и расход конкретных линз.',r:'Испорченная линза остаётся в истории как расход, а не исчезает.',tm:'+1 день'},
+ {t:'Контроль качества',w:'ЧЕЛОВЕК',d:'Измерения по сторонам, центровка, край, крепление, геометрия. Протокол с прибором, исполнителем и нормой.',r:'Без полного обязательного набора результат «прошёл» не ставится.',tm:'+1 день'},
+ {t:'Приёмка продавцом',w:'ЧЕЛОВЕК',d:'Продавец сверяет заказ, носителя и версию, проверяет внешний вид и комплектность по чек-листу.',r:'Двойная проверка: мастер отвечает за технику, продавец — за то, что увидит клиент.',tm:'+1 день'},
+ {t:'Клиенту ушло «готово»',w:'СИСТЕМА',d:'Готовность и сообщение — разные факты. Если WhatsApp не доставил, заказ остаётся готовым, а система ставит задачу связаться.',r:'Недоставленное сообщение не откатывает физическую готовность.',tm:'3–4 дня'},
+ {t:'Выдача',w:'ЧЕЛОВЕК',d:'Нулевой остаток долга, принятое качество, подтверждение получателя. Примерка, регулировка и объяснение ухода.',r:'Выдача с долгом возможна только как отдельное разрешение, с видимым реальным остатком.',tm:'3–5 дней'},
+ {t:'Сервис и гарантия',w:'СИСТЕМА',d:'Пожизненная гарантия на собственные оправы, сервисное обслуживание, история обращений по этому заказу.',r:'При рекламации видно, из чего сделана пара, кто варил и кто принимал.',tm:'дальше'}
+];
+SC.path=()=>{const p=PATH[pathStep],sys=PATH.filter(x=>x.w==='СИСТЕМА').length;
+ return `${head('Путь заказа','Семнадцать шагов от прихода клиента до сервиса — то, что в вашем ТЗ называется Golden Flow. Нажимайте «Следующий шаг»: видно, что делает человек, а что система.',
+  '<button class="bt p" onclick="pathNext()">Следующий шаг →</button><button class="bt" onclick="pathReset()">Сбросить</button>')}
+ <div class="wid" style="grid-template-columns:repeat(4,1fr)">
+  <div><small>Шаг</small><b class="a">${pathStep+1} / ${PATH.length}</b><span>${esc(p.tm)} от начала</span></div>
+  <div><small>Делает</small><b style="font-size:15px">${esc(p.w)}</b><span>${p.w==='СИСТЕМА'?'без участия людей':'человек в системе'}</span></div>
+  <div><small>Шагов делает система</small><b class="g">${sys} из ${PATH.length}</b><span>снятая с людей работа</span></div>
+  <div><small>Обычный цикл заказа</small><b>3–5 дней</b><span>со складскими линзами</span></div>
+ </div>
+ <div class="g21">
+  <div class="pan"><h3>${esc(p.t)}</h3><p>${esc(p.tm)} · ${esc(p.w)}</p>
+   <div style="font-size:13px;line-height:1.72;margin-bottom:11px">${esc(p.d)}</div>
+   <div class="note" style="--tone:${p.w==='СИСТЕМА'?'var(--ok)':'var(--acc)'}"><b>Что это даёт</b><p>${esc(p.r)}</p></div>
+   <div style="margin-top:13px"><div class="bar" style="--w:${(pathStep+1)/PATH.length*100}%"><i class="b"></i></div></div>
+  </div>
+  <div class="pan"><h3>Все шаги</h3>
+   <div class="tl">${PATH.map((x,i)=>`<div class="tli ${i<pathStep?'ok':i===pathStep?'on':''}" style="cursor:pointer" onclick="pathGo(${i})">
+    <span class="who">${esc(x.w)} · ${esc(x.tm)}</span><b style="${i===pathStep?'color:var(--brand)':''}">${esc(x.t)}</b></div>`).join('')}</div>
+  </div>
+ </div>`;
+};
+function pathNext(){pathStep=(pathStep+1)%PATH.length;render();if(pathStep===PATH.length-1)sparks(14)}
+function pathReset(){pathStep=0;render()}
+function pathGo(i){pathStep=i;render()}
+
+/* ====== ЦЕНЫ И СКИДКИ ====== */
+SC.price=()=>{
+ const base=DISC.lens, own=DISC.own/100;
+ const eligible=Math.round(base*(DISC.rop?1:own));
+ const d=Math.round(eligible*15/100);
+ const tot=DISC.frame+DISC.lens+DISC.coat, fin=tot-d;
+ return `${head('Цены и скидки','Раздел R10 вашего ТЗ. Скидка 15% — только на очковые линзы и только при оплате собственными средствами. «Живые деньги» не сужаются до наличных.',
+  '<button class="bt p" onclick="go(\'orders\')">К заказам</button>')}
+ <div class="calc">
+  <div class="pan"><h3>Расчёт скидки на конкретном заказе</h3><p>Двигайте долю оплаты собственными средствами — расчёт справа меняется сразу.</p>
+   <div class="crow"><label><span>Оправа Ray-Ban RX5154</span><b>${fmt(DISC.frame)} ₸</b></label>
+    <input type="range" min="30000" max="150000" step="1000" value="${DISC.frame}" oninput="DISC.frame=+this.value;render()"></div>
+   <div class="crow"><label><span>Очковые линзы Essilor 1.67 · пара</span><b>${fmt(DISC.lens)} ₸</b></label>
+    <input type="range" min="20000" max="200000" step="1000" value="${DISC.lens}" oninput="DISC.lens=+this.value;render()"></div>
+   <div class="crow"><label><span>Покрытие и изготовление</span><b>${fmt(DISC.coat)} ₸</b></label>
+    <input type="range" min="0" max="60000" step="1000" value="${DISC.coat}" oninput="DISC.coat=+this.value;render()"></div>
+   <div class="crow"><label><span>Доля оплаты собственными средствами</span><b>${DISC.own}%</b></label>
+    <input type="range" min="0" max="100" step="5" value="${DISC.own}" oninput="DISC.own=+this.value;render()">
+    <div class="mini">Остальное — рассрочка банка. Скидка 15% на эту часть по умолчанию не распространяется.</div></div>
+   <div class="srow"><span class="nm">РОП разрешил всю допустимую базу линз<span class="sub">требование R10.06: по умолчанию действует только допустимая часть</span></span>
+    <span class="sw ${DISC.rop?'on':''}" onclick="DISC.rop=DISC.rop?0:1;render()"></span></div>
+  </div>
+  <div>
+   <div class="res">
+    <div class="rr"><span>Оправа</span><b>${fmt(DISC.frame)} ₸</b></div>
+    <div class="rr"><span>Очковые линзы <span class="tag a">база скидки</span></span><b>${fmt(DISC.lens)} ₸</b></div>
+    <div class="rr"><span>Покрытие и изготовление</span><b>${fmt(DISC.coat)} ₸</b></div>
+    <div class="rr"><span>Сумма до скидки</span><b>${fmt(tot)} ₸</b></div>
+    <div class="rr"><span>Допустимая база скидки</span><b>${fmt(eligible)} ₸</b></div>
+    <div class="rr"><span>Скидка 15%</span><b style="color:var(--ok)">− ${fmt(d)} ₸</b></div>
+    <div class="rr hi"><span>Итого к оплате</span><b>${fmt(fin)} ₸</b></div>
+   </div>
+   <div class="pan" style="margin-top:12px"><h3>Правила, которые проверяет система ${ref('R10.07')}</h3>
+    <div class="li"><i>✓</i><span>База скидки не превышает стоимость подходящих строк</span></div>
+    <div class="li"><i>✓</i><span>Сумма скидок и итог по строкам сходятся с заказом</span></div>
+    <div class="li"><i>✓</i><span>Повторная оплата не даёт повторную скидку</span></div>
+    <div class="li"><i>✓</i><span>Округление воспроизводимо и сохраняется для возврата</span></div>
+    <div class="li b"><i>!</i><span>Вычисления в копейках целыми числами — дробная арифметика с плавающей точкой запрещена</span></div>
+   </div>
+   ${DISC.own<100&&!DISC.rop?`<div class="note" style="--tone:var(--warn)"><b>Смешанная оплата: точная формула ещё не утверждена</b>
+    <p>В ТЗ это открытый вопрос Q231. До его закрытия автоматический расчёт смешанного сценария включать нельзя: система отвечает «политика не настроена», а не считает по догадке разработчика. В демо показан вариант «скидка на долю собственных средств» — на встрече решаем, какой из вариантов ваш.</p></div>`:''}
+  </div>
+ </div>
+ <div class="g2">
+  <div class="pan"><h3>Кто и что может менять ${ref('R10.01')}</h3>
+   <div class="tw" style="border:0"><table class="t">
+    <thead><tr><th>Действие</th><th>Кто может</th><th>Условие</th></tr></thead>
+    <tbody>
+    ${[['Изменить обычную цену','рук. логистики, ОД, CEO','суперадмин может отключить первых двоих'],
+      ['Разные цены по салонам','—','флаг суперадмина, по умолчанию выключен'],
+      ['Лимиты скидок продавцам','РОП','по категориям, с версией и историей'],
+      ['Скидка сверх лимита','МФ и выше','в пределах, которые задаёт ОД'],
+      ['Сложить две скидки','РОП, ОД, CEO','автоматического сложения нет ни для кого'],
+      ['Создать вид скидки','РОП и выше','маркетолог согласует обязательно — даже вид от CEO'],
+      ['Запустить акцию','маркетолог или РОП','второй подтверждает ту же версию']].map(r=>
+     `<tr><td>${esc(r[0])}</td><td><b>${esc(r[1])}</b></td><td class="sub2">${esc(r[2])}</td></tr>`).join('')}
+    </tbody></table></div>
+  </div>
+  <div class="pan"><h3>Рассрочка и пересчёт ${ref('R10.08')}</h3>
+   <div class="kv"><span>Остаток перевели в рассрочку</span><b>скидка задним числом не пересчитывается</b></div>
+   <div class="kv"><span>Пересчёт можно включить</span><b>флаг суперадмина, по умолчанию выкл.</b></div>
+   <div class="kv"><span>При включении</span><b>показ изменения и согласие клиента до оплаты</b></div>
+   <div class="kv"><span>Уже проведённые деньги и чеки</span><b style="color:var(--bad)">не редактируются</b></div>
+   <div class="hint">Отдельно: совместимость ценовой политики с реальными договорами банков — внешнее условие. Правило Kaspi Магазина нельзя без проверки переносить на офлайн-терминал, но и желание бизнеса само по себе не доказывает разрешённость конкретного банковского продукта.</div>
+  </div>
+ </div>`;
+};
+
+/* ====== ОПЛАТА И ВОЗВРАТ ====== */
+SC.pay=()=>{
+ const o=ORD.find(x=>x.id==='ЗК-4820')||ORD[0];
+ const total=PAY.cash+PAY.card;
+ return `${head('Оплата и возврат','Раздел R12: успешный ответ сервера — ещё не списание. При неизвестном результате сначала сверка исходной операции, и только потом новая попытка.',
+  '<button class="bt p" onclick="payRun(1)">Принять оплату</button><button class="bt" onclick="payRun(0)">Смоделировать обрыв связи</button>')}
+ <div class="wid">
+  <div><small>Заказ</small><b class="a" style="font-size:16px">${esc(o.id)}</b><span>${esc(o.c)}</span></div>
+  <div><small>Обязательство</small><b>${fmt(o.sum)} ₸</b><span>по принятому снимку цены</span></div>
+  <div><small>Подтверждено внесено</small><b class="g">${fmt(o.paid+total)} ₸</b><span>наличные + карта</span></div>
+  <div><small>Ожидают подтверждения</small><b class="${PAY.unknown?'r':''}">${PAY.unknown?fmt(PAY.unknown)+' ₸':'нет'}</b><span>${PAY.unknown?'неизвестный результат':'все попытки закрыты'}</span></div>
+  <div><small>Остаток к оплате</small><b class="w">${fmt(Math.max(o.sum-o.paid-total,0))} ₸</b><span>переплаты нет</span></div>
+ </div>
+ <div class="g2">
+  <div class="pan"><h3>Экран оплаты ${ref('R12.03')}</h3><p>Показывает организацию, заказ, принятое обязательство, подтверждённо внесённое, ожидающие и неизвестные попытки, остаток и действующую скидку.</p>
+   <div class="ord">
+    <div class="orow h"><span>Способ</span><span>Статус</span><span>Сумма</span><span>Время</span></div>
+    <div class="orow"><span>Наличные · касса салона</span><span><span class="tag g">подтверждено</span></span><span>${fmt(o.paid)}</span><span>14:02</span></div>
+    ${PAY.cash?`<div class="orow"><span>Наличные · доплата</span><span><span class="tag g">подтверждено</span></span><span>${fmt(PAY.cash)}</span><span>сейчас</span></div>`:''}
+    ${PAY.card?`<div class="orow"><span>Карта · Kaspi терминал</span><span><span class="tag g">подтверждено</span></span><span>${fmt(PAY.card)}</span><span>сейчас</span></div>`:''}
+    ${PAY.unknown?`<div class="orow"><span>Карта · Halyk терминал</span><span><span class="tag r">неизвестно</span></span><span>${fmt(PAY.unknown)}</span><span>сейчас</span></div>`:''}
+    <div class="orow tot"><span>Остаток к оплате</span><span></span><span></span><span>${fmt(Math.max(o.sum-o.paid-total,0))} ₸</span></div>
+   </div>
+   ${PAY.unknown?`<div class="note" style="--tone:var(--bad)"><b>Связь с банком оборвалась — результат неизвестен</b>
+    <p>Система не объявляет это неуспехом и не предлагает «провести ещё раз». Запущена сверка: запрос статуса операции, обработка уведомления банка, поиск исходной операции по идентификатору. Новая попытка станет доступна только после подтверждённого неуспеха.</p>
+    <div class="btns" style="margin-top:8px"><button class="bt p" onclick="payRecon(1)">Сверка: платёж прошёл</button><button class="bt" onclick="payRecon(0)">Сверка: платежа не было</button></div></div>`:''}
+   <div class="hint">Скриншот клиента сам по себе не является банковским подтверждением — это прямая формулировка вашего ТЗ. Подтверждением считается ответ провайдера или разрешённый кассовый факт.</div>
+  </div>
+  <div>
+   <div class="pan"><h3>Четыре величины, которые нельзя путать ${ref('R12.07')}</h3>
+    <div class="kv"><span>Обязательство</span><b>${fmt(o.sum)} ₸</b></div>
+    <div class="kv"><span>Чистая оплата</span><b>${fmt(o.paid+total)} ₸</b></div>
+    <div class="kv"><span>Остаток к оплате</span><b>${fmt(Math.max(o.sum-o.paid-total,0))} ₸</b></div>
+    <div class="kv"><span>Кредит клиента</span><b>${fmt(Math.max(o.paid+total-o.sum,0))} ₸</b></div>
+    <div class="note" style="--tone:var(--acc)"><b>Пример из вашего ТЗ</b>
+     <p>Оплатили 100 000 ₸, вернули товар на 20 000 ₸ и выдали эти 20 000 ₸. Правильный результат: обязательство 80 000, чистая оплата 80 000, долг ноль. Частая ошибка систем — показать «частично оплачен» и придумать несуществующий долг.</p></div>
+   </div>
+   <div class="pan"><h3>Возврат ${ref('R12.09')}</h3>
+    <div class="li n"><i>1</i><span><b>Лимит резервируется сразу на всю заявку</b><span class="sub">нельзя вернуть одну сумму дважды — наличными и через банк</span></span></div>
+    <div class="li n"><i>2</i><span><b>Частичный возврат смешанной покупки</b><span class="sub">по умолчанию пропорционально, но клиент может попросить иначе — если позволяет договор банка</span></span></div>
+    <div class="li n"><i>3</i><span><b>Возврат резерва</b><span class="sub">исходным способом оплаты и не больше фактически внесённой суммы</span></span></div>
+    <div class="li b"><i>!</i><span><b>Выдача наличных не закрывает рассрочку клиента у банка</b><span class="sub">это отдельный факт, и система его не путает</span></span></div>
+   </div>
+  </div>
+ </div>
+ <div class="pan"><h3>Фискальный чек — отдельный объект ${ref('R12.10')}</h3>
+  <div class="g3">
+   <div class="card" style="border:1px solid var(--line);border-radius:6px;padding:11px 13px"><b style="font-size:11.6px">Терминал банка</b>
+    <p style="font-size:10.4px;color:var(--muted);margin:4px 0 0;line-height:1.55">Принимает деньги и возвращает результат операции. Kaspi и Halyk — разные адаптеры с разными статусами.</p></div>
+   <div class="card" style="border:1px solid var(--line);border-radius:6px;padding:11px 13px"><b style="font-size:11.6px">Кассовое ПО</b>
+    <p style="font-size:10.4px;color:var(--muted);margin:4px 0 0;line-height:1.55">Формирует чек по строкам, налогам и способам оплаты. Смена, X-отчёт, чек коррекции.</p></div>
+   <div class="card" style="border:1px solid var(--line);border-radius:6px;padding:11px 13px"><b style="font-size:11.6px">Оператор фискальных данных</b>
+    <p style="font-size:10.4px;color:var(--muted);margin:4px 0 0;line-height:1.55">Отдельный контур. Ошибка чека после успешной оплаты создаёт фискальный инцидент — деньги повторно не списываются.</p></div>
+  </div>
+ </div>`;
+};
+function payRun(ok){const o=ORD.find(x=>x.id==='ЗК-4820')||ORD[0];
+ const left=Math.max(o.sum-o.paid-PAY.cash-PAY.card,0);
+ if(left<=0){toast('Заказ уже оплачен полностью. Переплата стала бы кредитом клиента, а не второй продажей.');return}
+ if(ok){PAY.cash+=Math.round(left*0.4);PAY.card+=left-Math.round(left*0.4);render();sparks(12);
+  toast('Оплата принята двумя частями: наличные и карта. Части независимы — неуспех одной не отменяет другую. Чек сформирован отдельным документом.');}
+ else{PAY.unknown=left;render();
+  toast('Связь с терминалом оборвалась. Результат <b>неизвестен</b> — система не объявляет его неуспехом и не предлагает повторить вслепую.');}
+}
+function payRecon(ok){const o=ORD.find(x=>x.id==='ЗК-4820')||ORD[0];
+ if(ok){PAY.card+=PAY.unknown;PAY.unknown=0;render();sparks(10);
+  toast('Сверка подтвердила: деньги списаны. Один платёж, одно увеличение оплаты — дубликат уведомления и ответа на запрос статуса дедуплицированы по операции провайдера.');}
+ else{PAY.unknown=0;render();
+  toast('Сверка подтвердила: списания не было. Теперь новая попытка разрешена — и это единственный безопасный порядок действий.');}
+}
+
+/* ====== КАССА ====== */
+SC.cash=()=>`${head('Касса и сейф','Раздел R13: маршрут денег от кассы салона до головного офиса, где на каждом шаге есть конкретный человек и подтверждённый факт.',
+ '<button class="bt p" onclick="sparks(10);toast(\'Пересчёт закрыт: ожидаемая сумма из журнала движений, фактическая из пересчёта, разница зафиксирована. Ожидаемую сумму нельзя отредактировать под фактическую.\')">Закрыть смену</button>')}
+ <div class="flow" style="grid-template-columns:repeat(5,1fr)">
+  <div class="on"><code>1 · САЛОН</code><b>Касса</b><p>Одна общая касса салона, но каждый работает под личной сессией. Индивидуальные кассы поддерживаются.</p></div>
+  <div><code>2 · ВЕЧЕР</code><b>Сейф салона</b><p>МФ назначает сотрудника для переноса. Требование ежедневного назначения можно выключить — тогда действует сотрудник смены с правом.</p></div>
+  <div><code>3 · ПЕРЕДАЧА</code><b>Запечатанный пакет</b><p>Курьер подтверждает упаковку, <b>а не сумму внутри</b>.</p></div>
+  <div><code>4 · ДОРОГА</code><b>Деньги в пути</b><p>Сумма уходит из остатка салона в отдельное состояние — двойного счёта нет.</p></div>
+  <div><code>5 · ОФИС</code><b>Приёмка</b><p>Принимает и пересчитывает бухгалтер <b>или</b> CEO. Обязательной двойной подписи нет.</p></div>
+ </div>
+ <div class="g2">
+  <div class="pan"><h3>Смена салона «Мега Silk Way» · 16 сентября</h3>
+   <div class="kv"><span>Открытие смены</span><b>09:02 · Асель</b></div>
+   <div class="kv"><span>Размен из сейфа</span><b>18 000 ₸ из 20 000 ₸ лимита</b></div>
+   <div class="kv"><span>Наличная выручка</span><b>412 600 ₸</b></div>
+   <div class="kv"><span>Безналичная выручка</span><b>1 284 000 ₸</b></div>
+   <div class="kv"><span>Возвраты клиентам</span><b>−32 000 ₸</b></div>
+   <div class="kv"><span>Ожидаемая сумма в кассе</span><b>398 600 ₸</b></div>
+   <div class="kv"><span>Фактически пересчитано</span><b style="color:var(--ok)">398 600 ₸</b></div>
+   <div class="kv"><span>Расхождение</span><b style="color:var(--ok)">нет</b></div>
+   <div class="note" style="--tone:var(--bad)"><b>Расходы салона из кассы запрещены ${ref('R13.03')}</b>
+    <p>Возврат клиенту и передача денег в сейф — не расходы на хозяйственные нужды. Отдельного тумблера «разрешить руководителю» в системе нет: это правило, а не настройка.</p></div>
+  </div>
+  <div>
+   <div class="pan"><h3>Что видит курьер ${ref('R13.07')}</h3>
+    <div class="ord">
+     <div class="orow h"><span>Поле</span><span></span><span></span><span>Курьеру</span></div>
+     <div class="orow"><span>Номер отправки</span><span></span><span></span><span><span class="tag g">видит</span></span></div>
+     <div class="orow"><span>Упаковка и пломба</span><span></span><span></span><span><span class="tag g">видит</span></span></div>
+     <div class="orow"><span>Получатель и адрес</span><span></span><span></span><span><span class="tag g">видит</span></span></div>
+     <div class="orow"><span>Сумма в пакете</span><span></span><span></span><span><span class="tag r">нет</span></span></div>
+     <div class="orow"><span>Касса салона</span><span></span><span></span><span><span class="tag r">нет</span></span></div>
+     <div class="orow"><span>Рецепты и клиенты</span><span></span><span></span><span><span class="tag r">нет</span></span></div>
+    </div>
+    <div class="hint">Сумма скрыта на уровне выдаваемых данных: в документах, QR, уведомлениях и в API. Убрать её с экрана, оставив в ответе сервера, — не выполнение требования.</div>
+   </div>
+   <div class="pan"><h3>Расхождение — 24 часа на разбор ${ref('R13.09')}</h3>
+    <div class="li b"><i>!</i><span><b>Салон «Керуен» · 8 400 ₸ излишек</b><span class="sub">зафиксировано вчера в 20:14, осталось 6 часов</span></span></div>
+    <div class="li n"><i>1</i><span>Проверяются связанные кассовые, банковские и товарные операции</span></div>
+    <div class="li n"><i>2</i><span>Если не закрыто за сутки — создаётся внеплановая проверка с причиной</span></div>
+    <div class="li no"><i>×</i><span><b>Излишек товара не зачитывается против недостачи денег</b> — два разных акта</span></div>
+    <div class="li no"><i>×</i><span>Система не назначает виновного за день и не начисляет коллективный долг</span></div>
+   </div>
+  </div>
+ </div>`;
+
+/* ====== СВЕРКА БУХГАЛТЕРА ====== */
+SC.acct=()=>`${head('Рабочее место бухгалтера','Отдельный экран внутри Retail: кассовая и банковская сверка, неизвестные оплаты, возвраты, фискальные чеки, кейсы 24 часов и акты корректировки.',
+ '<button class="bt p" onclick="toast(\'Выгрузка для Finance: подтверждённые денежные факты, документы и ссылки на исходные операции. Проводки формируются в Finance — Retail не ведёт бухгалтерский учёт.\')">Выгрузить в Finance</button>')}
+ <div class="wid">
+  <div><small>Неизвестных оплат</small><b class="r">3</b><span>на 42 800 ₸</span></div>
+  <div><small>Ошибок фискализации</small><b class="w">1</b><span>деньги списаны, чек не создан</span></div>
+  <div><small>Возвратов в работе</small><b>4</b><span>на 86 400 ₸</span></div>
+  <div><small>Кассовых кейсов</small><b class="w">2</b><span>один просрочен</span></div>
+  <div><small>Расхождение сверки</small><b class="g">0 ₸</b><span>банк и касса сошлись</span></div>
+ </div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>Операция</th><th>Заказ</th><th>Салон</th><th>Способ</th><th class="r">Сумма</th><th>Статус</th><th>Что делать</th></tr></thead>
+  <tbody>
+  ${[['ОП-8841','ЗК-4817','Мега Silk Way','Halyk терминал',18400,'unknown','Запрос статуса отправлен, ждём ответ банка'],
+    ['ОП-8838','ЗК-4813','Керуен','Kaspi QR',12600,'unknown','Уведомление не пришло — ищем операцию по идентификатору'],
+    ['ОП-8830','ЗК-4809','Хан Шатыр','Kaspi терминал',11800,'unknown','Клиент показал скриншот — этого недостаточно, идёт сверка'],
+    ['ЧК-2291','ЗК-4821','Мега Silk Way','фискальный чек',284000,'fiscal','Оплата прошла, чек не создан — фискальный инцидент'],
+    ['ВЗ-411','ЗК-4802','Сарыарка','возврат',32000,'refund','Лимит зарезервирован, исполняется одной частью']].map(r=>`<tr>
+   <td class="mono"><b>${esc(r[0])}</b></td><td class="mono sub2">${esc(r[1])}</td>
+   <td class="sub2">${esc(r[2])}</td><td>${esc(r[3])}</td>
+   <td class="r">${fmt(r[4])} ₸</td>
+   <td>${r[5]==='unknown'?'<span class="tag r">неизвестно</span>':r[5]==='fiscal'?'<span class="tag w">инцидент чека</span>':'<span class="tag a">возврат</span>'}</td>
+   <td class="sub2">${esc(r[6])}</td></tr>`).join('')}
+  </tbody></table></div>
+ <div class="g2">
+  <div class="pan"><h3>Порядок при неизвестном результате ${ref('R12.05')}</h3>
+   <div class="li n"><i>1</i><span><b>Запрос статуса у провайдера</b><span class="sub">по идентификатору операции, а не по сумме и времени</span></span></div>
+   <div class="li n"><i>2</i><span><b>Обработка уведомления банка</b><span class="sub">дубликаты уведомления и ответа на запрос дедуплицируются как один факт</span></span></div>
+   <div class="li n"><i>3</i><span><b>Поиск исходной операции</b><span class="sub">если она нашлась — новая попытка не нужна</span></span></div>
+   <div class="li b"><i>4</i><span><b>Только после подтверждённого неуспеха — повтор</b><span class="sub">либо специальная процедура, исключающая двойное списание</span></span></div>
+  </div>
+  <div class="pan"><h3>Что остаётся у Finance ${ref('R01.01')}</h3>
+   <div class="kv"><span>Бухгалтерские и управленческие проводки</span><b>Finance</b></div>
+   <div class="kv"><span>Банковская сверка зачислений</span><b>Finance</b></div>
+   <div class="kv"><span>Эквайринговая комиссия</span><b>Finance</b></div>
+   <div class="kv"><span>Расчёт прибыли и зарплата</span><b>Finance</b></div>
+   <div class="kv"><span>Операционные денежные факты</span><b style="color:var(--ok)">Retail</b></div>
+   <div class="hint">Получение аванса, выручка, фискальный чек, зачисление банка и комиссия продавцу — это разные факты. Комиссия банка уменьшила зачисление, но клиентская оплата от этого не стала неполной.</div>
+  </div>
+ </div>`;
+
+/* ====== ДОСКА ЛОГИСТА ====== */
+let dragId=null;
+SC.proc=()=>`${head('Доска закупки линз','Раздел R14: семь этапов, стабильный заказ поставщику и отдельная строка потребности на каждую линзу. Карточки перетаскиваются мышью — перенос вызывает проверяемое действие, а не просто меняет колонку.',
+ '<button class="bt p" onclick="toast(\'Текст запроса готовится системой по каждой потребности: параметры, стороны, количество и срок. Логист отправляет его в WhatsApp и отмечает факт отправки — с этого момента идёт отсчёт 40 минут.\')">Подготовить запросы</button>')}
+ <div class="wid">
+  <div><small>Потребностей в работе</small><b class="a">${DEM.length}</b><span>на ${fmt(DEM.reduce((a,d)=>a+d.sum,0))} ₸</span></div>
+  <div><small>Ждут ответа поставщика</small><b class="w">${DEM.filter(d=>d.stg===1).length}</b><span>38 минут из 40</span></div>
+  <div><small>В пути</small><b class="i">${DEM.filter(d=>d.stg===5).length}</b><span>приедут завтра</span></div>
+  <div><small>Просрочено поставщиком</small><b class="r">0</b><span>по нормативу 40 минут</span></div>
+  <div><small>Официальные бренды</small><b>Essilor · Hoya</b><span>только представительство</span></div>
+ </div>
+ <div class="pipe">${STG.map((s,i)=>{const c=DEM.filter(d=>d.stg===i);
+  return `<div>
+   <div class="phead" style="background:${['#69757f','#2f6f9e','#1b93ae','#6b4ea8','#d98324','#b8801a','#2f8f5b'][i]}">${i+1}. ${esc(s)}</div>
+   <div class="pmeta"><span>${c.length} ${plural(c.length,['позиция','позиции','позиций'])}</span><b>${c.length?fmt(c.reduce((a,d)=>a+d.sum,0))+' ₸':''}</b></div>
+   <div class="pbody" id="col-${i}" ondragover="colOver(event,${i})" ondragleave="colOut(${i})" ondrop="drop(event,${i})">
+    ${c.map(d=>`<div class="pc" draggable="true" ondragstart="dragS(event,'${d.id}')" ondragend="dragE(event)" onclick="openDem('${d.id}')">
+     <b>${esc(d.it)}</b><span class="pn">${esc(d.sup)}</span>
+     <span class="pp">${fmt(d.sum)} ₸</span>
+     <span class="prow"><span class="tag">${esc(d.ord)}</span><span class="tag ${d.need<='19.09'?'w':''}">к ${esc(d.need)}</span>${d.t?`<span class="tag r">${esc(d.t)}</span>`:''}</span>
+    </div>`).join('')}
+   </div></div>`}).join('')}</div>
+ <div class="g2">
+  <div class="pan"><h3>Правила закупки из вашего ТЗ</h3>
+   <div class="li"><i>✓</i><span><b>Заказывает логист</b><span class="sub">при отсутствии логистов — операционный директор. Замещение по перевозкам сюда не переносится ${ref('R14.01')}</span></span></div>
+   <div class="li"><i>✓</i><span><b>Очередь примерно пяти поставщиков по группам</b><span class="sub">для официальных брендов — только закреплённое представительство</span></span></div>
+   <div class="li w"><i>!</i><span><b>40 минут без ответа — задача логисту</b><span class="sub">связаться, позвонить при срочности, решить о следующем запросе. Это не автоматический отказ и не самовольная закупка у следующего ${ref('R14.04')}</span></span></div>
+   <div class="li"><i>✓</i><span><b>Нет нужной линзы — фиксируется отказ с причиной</b><span class="sub">аналог проходит совместимость, пересчёт цены и согласие клиента</span></span></div>
+   <div class="li b"><i>!</i><span><b>Каждому поставщику платим отдельно</b><span class="sub">общий физический сбор у одного поставщика не переносит на него долг перед остальными ${ref('R14.06')}</span></span></div>
+  </div>
+  <div class="pan"><h3>Частичная поставка ${ref('R14.03')}</h3>
+   <div class="kv"><span>Одна линза приехала, вторая задержалась</span><b>карточка не закрывается целиком</b></div>
+   <div class="kv"><span>Стадия закупки и статус оплаты</span><b>независимы</b></div>
+   <div class="kv"><span>Поставщик с отсрочкой</span><b>не висит на этапе «заказ оформлен»</b></div>
+   <div class="kv"><span>Ответ без связи с параметрами</span><b style="color:var(--bad)">не считается подтверждённой поставкой</b></div>
+   <div class="note" style="--tone:var(--acc)"><b>Почему это важно именно для линз</b>
+    <p>Заказ на очки стоит ровно столько, сколько ждёт самая поздняя линза. Если карточка поставщика показывает одну общую стадию, то задержка одной линзы прячется за благополучным статусом остальных — и срок клиенту называется неверно.</p></div>
+  </div>
+ </div>`;
+function dragS(e,id){dragId=id;e.target.classList.add('drag');try{e.dataTransfer.setData('text/plain',id)}catch(x){}}
+function dragE(e){e.target.classList.remove('drag')}
+function colOver(e,k){e.preventDefault();const c=document.getElementById('col-'+k);if(c)c.classList.add('over')}
+function colOut(k){const c=document.getElementById('col-'+k);if(c)c.classList.remove('over')}
+function drop(e,k){e.preventDefault();colOut(k);const d=DEM.find(x=>x.id===dragId);if(!d)return;
+ const was=d.stg;d.stg=k;if(k!==1)d.t='';else d.t='0 мин';render();
+ const M=['Потребность вернулась к подбору поставщика: прежний исход сохранён, история не потеряна.',
+  'Запрос отправлен. Отсчёт 40 минут пошёл от фактической отправки, а не от создания черновика.',
+  'Предложение подтверждено: параметры, цена и срок сверены, строки заказа поставщику сформированы.',
+  'Заказ оформлен. Платёжный статус виден отдельно — отсрочка не задерживает движение по доске.',
+  'Сборка отправки: упаковки привязаны к общему отправлению, документы и оплаты остаются раздельными.',
+  'В пути: зафиксированы перевозчик, отправка и прогноз. Задержка станет видна отдельным событием.',
+  'Приёмка: сверяются накладная, реальные экземпляры и качество. Закрываются только выполненные строки.'];
+ toast(`<b>${esc(d.it)}</b> · ${esc(STG[was])} → ${esc(STG[k])}. ${M[k]}`);
+ if(k===6)sparks(12)}
+function openDem(id){const d=DEM.find(x=>x.id===id);if(!d)return;
+ openM(`Потребность ${esc(d.id)}`,`${esc(d.it)} · заказ ${esc(d.ord)} · нужно к ${esc(d.need)}`,`
+ <div class="wid" style="grid-template-columns:repeat(3,1fr)">
+  <div><small>Стадия</small><b class="a" style="font-size:15px">${esc(STG[d.stg])}</b><span>${d.stg+1} из 7</span></div>
+  <div><small>Поставщик</small><b style="font-size:14px">${esc(d.sup)}</b><span>${d.sup.includes('официальный')||d.sup.includes('представительство')?'закреплённый бренд':'из очереди по группе'}</span></div>
+  <div><small>Стоимость</small><b>${fmt(d.sum)} ₸</b><span>закуп по прайсу поставщика</span></div>
+ </div>
+ <div class="pan"><h3>Текст запроса поставщику</h3><p>Готовится системой, отправляется логистом. Постоянный номер запроса позволяет сопоставить ответ даже в общем диалоге.</p>
+  <div class="chat">
+   <div class="msg out">Здравствуйте! Запрос ${esc(d.id)}.<br>${esc(d.it)}<br>Количество: 1 шт. Нужно к ${esc(d.need)}.<br>Подтвердите, пожалуйста, наличие, цену и срок.<small>отправлено логистом · отсчёт 40 минут пошёл</small></div>
+   ${d.stg>=2?'<div class="msg in">Есть в наличии, отгрузим завтра. Цена прежняя.<small>ответ разобран: наличие, цена, срок — в структурированный итог</small></div>':
+    '<div class="msg sys">Ответа нет 38 минут. Через 2 минуты появится задача логисту: связаться, позвонить при срочности, решить о следующем запросе.</div>'}
+  </div>
+ </div>
+ <div class="pan"><h3>Связь с заказом клиента</h3>
+  <div class="kv"><span>Заказ</span><b>${esc(d.ord)}</b></div>
+  <div class="kv"><span>Что встанет без этой линзы</span><b>изготовление пары целиком</b></div>
+  <div class="kv"><span>Обещано клиенту</span><b>${esc(d.need)}</b></div>
+  <div class="kv"><span>Наличие у поставщика</span><b>${d.stg>=2?'подтверждено':'не подтверждено — это не резерв'}</b></div>
+ </div>
+ <div class="btns"><button class="bt p" onclick="closeM();go('orders')">Открыть заказ клиента</button>
+  <button class="bt" onclick="toast('Предложение альтернативы: аналог проходит проверку совместимости, пересчёт цены и согласие клиента. Скрытая подмена параметров запрещена требованием R11.08.')">Предложить аналог</button></div>`)}
+
+/* ====== МАСТЕРСКАЯ ====== */
+SC.shop=()=>`${head('Мастерская','Раздел R15: начать изготовление можно только при актуальном задании, проверенных компонентах, подтверждённой совместимости и нужной компетенции мастера.',
+ '<button class="bt p" onclick="toast(\'Подтверждение комплекта: мастер сверяет действующий бланк и версию, оправу, фактические линзы и назначение сторон OD и OS. Чужие метки не привязываются автоматически.\')">Подтвердить комплект</button>')}
+ <div class="wid">
+  <div><small>В очереди</small><b class="a">${JOBS.length}</b><span>по двум цехам сети</span></div>
+  <div><small>В работе</small><b class="i">${JOBS.filter(j=>j.stg==='progress').length}</b><span>у мастера Ержана</span></div>
+  <div><small>Ждут компоненты</small><b class="w">${JOBS.filter(j=>j.stg==='waiting').length}</b><span>причина и владелец указаны</span></div>
+  <div><small>В доработке</small><b class="r">${JOBS.filter(j=>j.stg==='hold').length}</b><span>скол при обточке</span></div>
+  <div><small>Готово сегодня</small><b class="g">${JOBS.filter(j=>j.stg==='done').length}</b><span>принято продавцом</span></div>
+ </div>
+ <div class="bays">${JOBS.map(j=>`<div class="bay" style="--c:${STC[j.stg]}">
+  <small>${esc(j.id)} · ${esc(j.ord)}</small>
+  <b>${esc(j.it)}</b>
+  <div class="who">${esc(j.op)} · версия задания № ${j.ver}</div>
+  <div class="prg"><i style="--w:${{planned:10,waiting:25,progress:60,qc:85,hold:45,done:100}[j.stg]}%"></i></div>
+  <div class="tm"><span>${esc(ST.prod[j.stg])}</span><b>к ${esc(j.due)}</b></div>
+ </div>`).join('')}</div>
+ <div class="g2">
+  <div class="pan"><h3>Причины остановки ${ref('R15.02')}</h3><p>У каждой есть владелец и ожидаемое действие, а не только красная отметка.</p>
+   ${[['Нет материала или линзы','логист','ждём поставку 18.09'],
+     ['Недостаточная квалификация для конструкции','начальник цеха','передать другому мастеру'],
+     ['Недостаточный диаметр линзы','оптометрист','пересчитать или заменить индекс'],
+     ['Неподходящая пара оправа и линза','оптометрист','проверка совместимости не пройдена'],
+     ['Нехватка цвета тонировки','логист','заказать или согласовать замену с клиентом'],
+     ['Брак при обработке','мастер','повторная линза по лимиту'],
+     ['Новая версия заказа','продавец','подтвердить актуальное задание']].map(r=>
+    `<div class="li ${r[0].includes('Брак')?'b':''}"><i>${r[0].includes('Брак')?'!':'·'}</i><span><b>${esc(r[0])}</b><span class="sub">владелец: ${esc(r[1])} · ${esc(r[2])}</span></span></div>`).join('')}
+  </div>
+  <div class="pan"><h3>Срочная замена линзы ${ref('R15.04')}</h3>
+   <div class="kv"><span>Кто разрешает</span><b>МФ, РОП, ОД, HR, CEO</b></div>
+   <div class="kv"><span>Если никто не ответил 10 минут</span><b>старший продавец, ограниченно</b></div>
+   <div class="kv"><span>Предел старшего продавца</span><b style="color:var(--warn)">2 линзы на OD и 2 на OS</b></div>
+   <div class="kv"><span>Считается по</span><b>исходному заказу, а не по новому кейсу</b></div>
+   <div class="kv"><span>Только складские линзы</span><b>да</b></div>
+   <div class="kv"><span>Попытки связаться</span><b>фиксируются в истории</b></div>
+   <div class="note" style="--tone:var(--brand)"><b>Замена идёт параллельно расследованию ${ref('R17.02')}</b>
+    <p>Клиент получает помощь сразу, не дожидаясь вывода о том, кто виноват. Но закрыть рекламацию только потому, что человек уже получил новые очки, нельзя: расследование остаётся открытым до проверки эффекта.</p></div>
+  </div>
+ </div>`;
+
+/* ====== КОНТРОЛЬ КАЧЕСТВА ====== */
+SC.qc=()=>`${head('Контроль качества и приёмка продавцом','Раздел R15: сначала технический контроль мастера с измерениями и протоколом, затем приёмка продавцом по чек-листу. Это две разные проверки.',
+ '<button class="bt p" onclick="sparks(12);toast(\'Протокол принят: измерения, прибор, исполнитель, время, норма и результат сохранены. Результат «прошёл» не ставится без полного обязательного набора измерений.\')">Принять протокол</button>')}
+ <div class="g2">
+  <div class="pan"><h3>Технический контроль мастера · КМ-2288</h3>
+   <div class="tw" style="border:0"><table class="t">
+    <thead><tr><th>Проверка</th><th class="r">Норма</th><th class="r">OD</th><th class="r">OS</th><th>Результат</th></tr></thead>
+    <tbody>
+    ${[['Сфера (Sph)','±0.12','−3.25','−3.75','ok'],['Цилиндр (Cyl)','±0.12','−0.75','−0.50','ok'],
+      ['Ось (Ax)','±2°','170°','15°','ok'],['Межзрачковое (PD)','±0.5 мм','32,0','31,5','ok'],
+      ['Высота установки','±0.5 мм','21,0','21,0','ok'],['Толщина края','по конструкции','2,1 мм','2,3 мм','ok'],
+      ['Качество края и крепления','визуально + прибор','—','—','ok'],['Напряжения в линзе','полярископ','нет','нет','ok']].map(r=>`<tr>
+     <td>${esc(r[0])}</td><td class="r sub2">${esc(r[1])}</td>
+     <td class="r">${esc(r[2])}</td><td class="r">${esc(r[3])}</td>
+     <td><span class="tag g">прошёл</span></td></tr>`).join('')}
+    </tbody></table></div>
+   <div class="kv" style="margin-top:8px"><span>Прибор</span><b>диоптриметр · поверка до 03.2027</b></div>
+   <div class="kv"><span>Исполнитель</span><b>Ержан · мастер</b></div>
+   <div class="kv"><span>Версия нормы</span><b>№ 2 от 01.09.2026</b></div>
+   <div class="note" style="--tone:var(--warn)"><b>Числовые допуски утверждает ваш специалист ${ref('R15.05')}</b>
+    <p>В демо стоят реалистичные значения, но окончательные допуски до выпуска утверждает квалифицированный оптометрист или технолог. Это одно из двенадцати условий запуска в вашем ТЗ.</p></div>
+  </div>
+  <div>
+   <div class="pan"><h3>Приёмка продавцом ${ref('R15.06')}</h3><p>Продавец принимает комплект после мастера — до того, как его увидит клиент.</p>
+    ${['Заказ, носитель и версия задания совпадают','Принятый протокол измерений приложен','Линзы и оправа визуально соответствуют заказу','Царапины, сколы и дефекты покрытия отсутствуют','Винты и крепления затянуты, симметрия в норме','Комплектность: футляр, салфетка, гарантийный талон','Изделие чистое и готово к примерке'].map(x=>
+     `<div class="li"><i>✓</i><span>${esc(x)}</span></div>`).join('')}
+    <div class="hint">Если продавец не обучен и без прибора, отсутствие технической проверки нельзя заменить галочкой «похоже правильно» — это прямая формулировка вашего ТЗ. Перед клиентом выполняются примерка, разрешённая регулировка и объяснение ухода.</div>
+   </div>
+   <div class="pan"><h3>Если контроль не пройден ${ref('R15.07')}</h3>
+    <div class="li b"><i>1</i><span><b>Комплект уходит в доработку с причиной</b><span class="sub">не «переделать», а «скол по краю OS при обточке»</span></span></div>
+    <div class="li b"><i>2</i><span><b>Выдача закрыта</b><span class="sub">до нового результата по затронутым проверкам</span></span></div>
+    <div class="li b"><i>3</i><span><b>Повторная линза считается по лимиту</b><span class="sub">2 на каждую сторону исходного заказа; новый кейс счётчик не обнуляет</span></span></div>
+    <div class="li"><i>4</i><span><b>Причина попадает в показатели</b><span class="sub">первый контроль без доработки — 94,1% по сети, с разбивкой по мастерам и причинам</span></span></div>
+   </div>
+  </div>
+ </div>`;
+
+/* ====== РЕЙСЫ И УПАКОВКА ====== */
+SC.ship=()=>`${head('Рейсы, упаковка и перевозка','Раздел R16: тара постоянна, а её содержимое — нет. Метка коробки не доказывает, что внутри именно этот заказ: при упаковке и приёмке проверяется фактический состав.',
+ '<button class="bt p" onclick="toast(\'Манифест сформирован: ожидаемый состав, фактически упакованное и принятое хранятся отдельно. Перепаковка создаёт новую версию и новые доказательства.\')">Сформировать манифест</button>')}
+ <div class="wid" style="grid-template-columns:repeat(4,1fr)">
+  <div><small>Рейсов сегодня</small><b class="a">3</b><span>по маршруту салонов Астаны</span></div>
+  <div><small>Мест в рейсе</small><b>28</b><span>очки, линзы, денежные пакеты</span></div>
+  <div><small>Расхождений при приёмке</small><b class="w">1</b><span>разбирается</span></div>
+  <div><small>Изменений адреса после упаковки</small><b>1</b><span>требует физической перекладки</span></div>
+ </div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>Рейс</th><th>Маршрут</th><th>Курьер</th><th>Содержимое</th><th class="r">Мест</th><th>Статус</th><th>Документы</th></tr></thead>
+  <tbody>
+  ${[['РЕ-1841','Цех «Мега» → Хан Шатыр → Керуен','Бекзат','Готовые очки · 9 заказов',9,'in_transit','манифест v2'],
+    ['РЕ-1840','Склад → цех «Мега»','Бекзат','Линзы от Essilor · приёмка',14,'received','накладная, приёмка'],
+    ['РЕ-1839','Керуен → офис','Бекзат','Денежный пакет · сумма скрыта',1,'sealed','пломба № 7741'],
+    ['РЕ-1838','Хан Шатыр → Сарыарка','внешний','Перемещение оправ между салонами',4,'discrepancy','манифест, акт расхождения']].map(r=>`<tr onclick="toast('Открывается рейс: план, фактический состав, подтверждения передачи и приёмки, фото документов. Ожидаемое, наблюдаемое и принятое содержимое хранятся раздельно.')">
+   <td class="mono"><b>${esc(r[0])}</b></td><td>${esc(r[1])}</td>
+   <td>${avatar(r[2])} ${esc(r[2])}</td><td class="sub2">${esc(r[3])}</td>
+   <td class="r">${r[4]}</td>
+   <td>${r[5]==='received'?'<span class="tag g">принято</span>':r[5]==='discrepancy'?'<span class="tag r">расхождение</span>':r[5]==='sealed'?'<span class="tag w">опечатано</span>':'<span class="tag a">в пути</span>'}</td>
+   <td class="sub2">${esc(r[6])}</td></tr>`).join('')}
+  </tbody></table></div>
+ <div class="g2">
+  <div class="pan"><h3>Правила перевозки</h3>
+   <div class="li"><i>✓</i><span><b>Общий рейс идёт по плану</b><span class="sub">неготовый заказ получает причину исключения и следующий маршрут, а не блокирует все готовые заказы сети ${ref('R16.02')}</span></span></div>
+   <div class="li w"><i>!</i><span><b>Сменили салон выдачи после упаковки</b><span class="sub">нужно физически найти, переложить и пересверить манифесты. Поменять только адрес в записи нельзя ${ref('R16.03')}</span></span></div>
+   <div class="li"><i>✓</i><span><b>Мастерская в том же салоне</b><span class="sub">локальная передача и приёмка продавцом заменяют перевозку, но не заменяют контроль качества ${ref('R15.08')}</span></span></div>
+   <div class="li b"><i>!</i><span><b>Курьер не получает доступ к кассе, рецептам и базе клиентов</b><span class="sub">только назначенные перевозки; в денежном пакете сумма скрыта ${ref('R16.04')}</span></span></div>
+  </div>
+  <div class="pan"><h3>Расхождение по рейсу РЕ-1838</h3>
+   <div class="kv"><span>Ожидалось по манифесту</span><b>4 оправы</b></div>
+   <div class="kv"><span>Фактически принято</span><b style="color:var(--warn)">3 оправы</b></div>
+   <div class="kv"><span>Одна единица</span><b style="color:var(--bad)">не найдена в таре</b></div>
+   <div class="kv"><span>Что делает система</span><b>создаёт расхождение, а не списывает</b></div>
+   <div class="kv"><span>Кто разбирает</span><b>МФ · срок 24 часа</b></div>
+   <div class="hint">Учётная корректировка делается отдельным актом с основанием и проверяющим. Метка тары не доказывает содержимое — поэтому при приёмке проверяется именно фактическое вложение.</div>
+  </div>
+ </div>`;
+
+/* ====== ВЫДАЧА ====== */
+SC.pickup=()=>`${head('Выдача клиенту','Раздел R16.07: выдача требует нулевого остатка долга, принятого качества, доступного комплекта и подтверждения получателя. Выдача с долгом по умолчанию выключена.',
+ '<button class="bt p" onclick="sparks(14);toast(\'Заказ выдан. Зафиксированы получатель, фактический результат и время. Строки и количество записаны — при частичной выдаче остальное остаётся в работе.\')">Выдать заказ</button>')}
+ <div class="wid" style="grid-template-columns:repeat(4,1fr)">
+  <div><small>Готовы к выдаче</small><b class="g">${ORD.filter(o=>o.ful==='ready').length}</b><span>клиенты уведомлены</span></div>
+  <div><small>Ждут дольше 5 дней</small><b class="w">1</b><span>задача связаться повторно</span></div>
+  <div><small>Перенесённых выдач</small><b>2</b><span>с причиной и новой датой</span></div>
+  <div><small>Выдач с долгом</small><b class="r">0</b><span>функция выключена суперадмином</span></div>
+ </div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>Заказ</th><th>Клиент</th><th>Салон выдачи</th><th class="r">Долг</th><th>Контроль качества</th><th>Уведомление</th><th>Что дальше</th></tr></thead>
+  <tbody>${ORD.filter(o=>['ready','issued'].includes(o.ful)).map(o=>`<tr onclick="openOrd('${o.id}')">
+   <td class="mono"><b>${esc(o.id)}</b></td><td>${esc(o.c)}</td><td class="sub2">${esc(o.br)}</td>
+   <td class="r"><b style="color:${o.sum-o.paid>0?'var(--bad)':'var(--ok)'}">${fmt(Math.max(o.sum-o.paid,0))} ₸</b></td>
+   <td><span class="tag g">принят</span></td>
+   <td>${o.ful==='issued'?'<span class="tag">доставлено</span>':'<span class="tag a">отправлено в WhatsApp</span>'}</td>
+   <td class="sub2">${o.ful==='issued'?'выдан 12.09, открыта рекламация':'примерка и регулировка при выдаче'}</td></tr>`).join('')}</tbody>
+ </table></div>
+ <div class="g2">
+  <div class="pan"><h3>Готовность и уведомление — разные факты ${ref('R16.06')}</h3>
+   <div class="li n"><i>1</i><span><b>Заказ становится готовым</b><span class="sub">после принятого контроля качества, нахождения в разрешённой точке выдачи и приёмки продавцом</span></span></div>
+   <div class="li n"><i>2</i><span><b>Сообщение уходит отдельно</b><span class="sub">через модуль связи, с собственным статусом доставки</span></span></div>
+   <div class="li b"><i>3</i><span><b>Сообщение не доставлено</b><span class="sub">физическая готовность не откатывается — создаётся задача связаться другим способом</span></span></div>
+   <div class="li"><i>4</i><span><b>Клиент не пришёл</b><span class="sub">попытка выдачи сохраняется с причиной, заказ возвращается в расписание с новой датой; история попыток остаётся</span></span></div>
+  </div>
+  <div class="pan"><h3>Выдача с долгом ${ref('R16.07')}</h3>
+   <div class="kv"><span>По умолчанию</span><b style="color:var(--bad)">выключена</b></div>
+   <div class="kv"><span>Кто может включить</span><b>суперадмин, для МФ и выше</b></div>
+   <div class="kv"><span>Что требуется при выдаче</span><b>отдельное решение по каждому случаю</b></div>
+   <div class="kv"><span>Остаток долга</span><b>остаётся видимым и реальным</b></div>
+   <div class="kv"><span>Фиктивная оплата</span><b style="color:var(--bad)">не создаётся</b></div>
+   <div class="note" style="--tone:var(--acc)"><b>Доставка домой тоже выключена по умолчанию ${ref('R16.05')}</b>
+    <p>До включения нужно определить адресную зону, стоимость, подтверждение вручения и сценарий невручения. Выключенная доставка домой не отключает межфилиальные маршруты.</p></div>
+  </div>
+ </div>`;
+
+/* ====== СЕРВИС ====== */
+SC.service=()=>`${head('Сервис, возвраты и гарантия','Раздел R17: помощь клиенту и расследование причины — два независимых процесса. Срочную замену можно разрешить до вывода о виновности.',
+ '<button class="bt p" onclick="toast(\'Обращение зарегистрировано: симптом, исходный заказ и комплект, доказательства и время события. Исходная продажа не удаляется и не переписывается.\')">+ Обращение</button>')}
+ <div class="wid" style="grid-template-columns:repeat(4,1fr)">
+  <div><small>Открытых обращений</small><b class="r">6</b><span>по сети за две недели</span></div>
+  <div><small>Замена выдана</small><b class="g">4</b><span>до окончания расследования</span></div>
+  <div><small>Причина не установлена</small><b class="w">2</b><span>так и помечены, без назначения</span></div>
+  <div><small>Повторных линз за месяц</small><b>17</b><span>6 по вине цеха, 5 поставщик</span></div>
+ </div>
+ <div class="g2">
+  <div class="pan"><h3>Обращение по заказу ЗК-4802</h3><p>Клиент жалуется на блики после замены линз.</p>
+   <div class="g2" style="gap:8px">
+    <div>
+     <div style="font:700 8.4px 'IBM Plex Mono',monospace;color:var(--brand);letter-spacing:.08em;margin-bottom:6px">ПОМОЩЬ КЛИЕНТУ</div>
+     <div class="li"><i>✓</i><span>Обращение принято, назначен осмотр</span></div>
+     <div class="li"><i>✓</i><span>Разрешена складская линза с покрытием</span></div>
+     <div class="li n"><i>·</i><span>Изготовление замены — в очереди цеха</span></div>
+     <div class="li no"><i>·</i><span>Проверка эффекта после выдачи</span></div>
+    </div>
+    <div>
+     <div style="font:700 8.4px 'IBM Plex Mono',monospace;color:var(--acc);letter-spacing:.08em;margin-bottom:6px">РАССЛЕДОВАНИЕ</div>
+     <div class="li"><i>✓</i><span>Собраны фото, протокол контроля, накладная</span></div>
+     <div class="li n"><i>·</i><span>Запрос поставщику о партии покрытия</span></div>
+     <div class="li no"><i>·</i><span>Решение о причине и расходах</span></div>
+     <div class="li no"><i>·</i><span>Проверка, что повтор исключён</span></div>
+    </div>
+   </div>
+   <div class="note" style="--tone:var(--brand)"><b>Два трека живут отдельно ${ref('R17.02')}</b>
+    <p>Клиент получает помощь сразу. Но закрыть рекламацию только потому, что он уже носит новые очки, нельзя: расследование и проверка эффекта остаются обязательными.</p></div>
+  </div>
+  <div>
+   <div class="pan"><h3>Кто может принимать решения ${ref('R17.05')}</h3>
+    <div class="kv"><span>Разрешить срочную замену</span><b>МФ, РОП, ОД, HR, CEO</b></div>
+    <div class="kv"><span>Определить внутреннюю ответственность</span><b>те же роли, продавец — нет</b></div>
+    <div class="kv"><span>Коммерческое исключение для клиента</span><b>РОП, ОД, CEO</b></div>
+    <div class="kv"><span>AI предлагает версии причины</span><b>с доказательствами за и против</b></div>
+    <div class="kv"><span>AI назначает виновного</span><b style="color:var(--bad)">никогда</b></div>
+    <div class="kv"><span>Автоматическое удержание из зарплаты</span><b style="color:var(--bad)">запрещено</b></div>
+   </div>
+   <div class="pan"><h3>Возврат товара ${ref('R17.06')}</h3>
+    <div class="li n"><i>1</i><span><b>Принять товар обратно</b><span class="sub">единица попадает в карантин или на проверку, а не сразу в продажу</span></span></div>
+    <div class="li n"><i>2</i><span><b>Разрешить деньги</b><span class="sub">сумма считается по снимку исходной сделки и подтверждённым корректировкам</span></span></div>
+    <div class="li n"><i>3</i><span><b>Фактически вернуть деньги</b><span class="sub">в пределах зарезервированного лимита, выбранным маршрутом</span></span></div>
+    <div class="li"><i>4</i><span><b>Решить судьбу единицы</b><span class="sub">повторная продажа, ремонт, возврат поставщику или списание — с сохранением решения</span></span></div>
+    <div class="hint">Пожизненная гарантия на собственные оправы сохраняется. Точные исключения, доказательство происхождения и платные случаи фиксируются отдельным документом до применения.</div>
+   </div>
+  </div>
+ </div>`;
+
+/* ====== САЛОНЫ И ФРАНЧАЙЗИ ====== */
+SC.branches=()=>`${head('Салоны и франчайзи','Раздел R02: партнёр — это изолированная область данных, а не ещё один филиал. Общий каталог передаёт стандарты, но не раскрывает чужие остатки, себестоимость и клиентов.',
+ '<button class="bt" onclick="toast(\'Новый салон подключается за день: юрлицо, адрес, касса, склад, сотрудники и права. Общие справочники наследуются, локальные цены настраиваются отдельно при включённом флаге.\')">Как подключается салон</button>')}
+ <div class="wid">
+  <div><small>Салонов сети</small><b class="a">${F.salons}</b><span>${BR.length} показаны в демо</span></div>
+  <div><small>Собственных</small><b>11</b><span>одно юрлицо по умолчанию</span></div>
+  <div><small>Франчайзи</small><b class="w">1</b><span>Павлодар · отдельная область</span></div>
+  <div><small>Своих цехов</small><b class="i">2</b><span>остальные через центральный</span></div>
+  <div><small>Сотрудников</small><b>${F.staff}</b><span>у каждого свой вход</span></div>
+ </div>
+ <div class="brs">${BR.map(b=>`<div class="br ${b.st==='франчайзи'?'new':''}">
+  <h4>${esc(b.n)}</h4>
+  <div class="loc">${esc(b.c)} · руководитель ${esc(b.mf)} · ${b.men} ${plural(b.men,['сотрудник','сотрудника','сотрудников'])}</div>
+  <div class="mt">
+   <div><small>ВЫРУЧКА</small><b>${mln(b.rev)}</b></div>
+   <div><small>ЗАКАЗОВ</small><b>${b.ord}</b></div>
+   <div><small>КОНВЕРСИЯ</small><b style="color:${b.conv>=42?'var(--ok)':'var(--warn)'}">${b.conv}%</b></div>
+   <div><small>ЦЕХ</small><b style="font-size:12px">${b.lab?'свой':'центр.'}</b></div>
+  </div>
+  <div class="kv" style="margin-top:10px"><span>Состояние</span><b style="color:${b.st==='франчайзи'?'var(--warn)':b.st==='пилот перехода'?'var(--acc)':'var(--ok)'}">${esc(b.st)}</b></div>
+ </div>`).join('')}</div>
+ <div class="g2">
+  <div class="pan"><h3>Что видит франчайзи ${ref('R02.02')}</h3>
+   <div class="li"><i>✓</i><span><b>Свои продажи, склад, заказы и кассу</b><span class="sub">полный рабочий контур в своей области</span></span></div>
+   <div class="li"><i>✓</i><span><b>Общие стандарты и шаблоны</b><span class="sub">по подписке или договору: определения, правила, печатные формы</span></span></div>
+   <div class="li no"><i>×</i><span><b>Не видит остатки и себестоимость сети</b><span class="sub">и сеть не видит его клиентов и медицинские данные</span></span></div>
+   <div class="li no"><i>×</i><span><b>Перемещение товара между сетью и партнёром</b><span class="sub">оформляется как договорная операция двух сторон, а не сменой филиала в записи</span></span></div>
+   <div class="li b"><i>!</i><span><b>Роялти считается по версии договора</b><span class="sub">с базой, исключениями, ставкой и периодом — а не по примеру из презентации ${ref('R02.04')}</span></span></div>
+  </div>
+  <div class="pan"><h3>Пилот перехода ${ref('R01.05')}</h3>
+   <div class="kv"><span>Первым переходит</span><b>салон EXPO</b></div>
+   <div class="kv"><span>Работает на</span><b>реальных товарах и заказах</b></div>
+   <div class="kv"><span>Центральный склад</span><b>остаётся в прежней системе</b></div>
+   <div class="kv"><span>Передача со склада в EXPO</span><b>сверяется как операция границы</b></div>
+   <div class="kv"><span>Одна единица в двух системах</span><b style="color:var(--bad)">исключено</b></div>
+   <div class="kv"><span>Дальше</span><b>офис и остальные салоны одним переходом</b></div>
+   <div class="hint">После общего переключения старая система не продолжает параллельно редактировать переданную область. Это бизнес-порядок из вашего ТЗ, а не техническое обновление серверов.</div>
+  </div>
+ </div>`;
+
+/* ====== ЗАДАЧИ ====== */
+SC.tasks=()=>`${head('Задачи и согласования','Часть задач система ставит сама: по этапу заказа, остатку, просрочке резерва или расхождению кассы. Согласование привязано к версии — если данные изменились, нужно новое.',
+ '<button class="bt p" onclick="toast(\'Задача поставлена и ушла исполнителю уведомлением. Согласование хранит неизменяемое содержание, его хеш, версию цели, срок и область действия.\')">+ Задача</button>')}
+ <div class="wid">
+  <div><small>Задач в работе</small><b class="a">${TASKS.filter(t=>t.st!=='ok').length}</b><span>из ${TASKS.length} за неделю</span></div>
+  <div><small>Просрочено</small><b class="r">${TASKS.filter(t=>t.st==='late').length}</b><span>уведомление ушло руководителю</span></div>
+  <div><small>Создано системой</small><b class="g">4 из ${TASKS.length}</b><span>без участия людей</span></div>
+  <div><small>Согласований скидок</small><b class="w">1</b><span>22% сверх лимита продавца</span></div>
+  <div><small>Среднее время ответа</small><b>18 мин</b><span>от постановки до «принял»</span></div>
+ </div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>Задача</th><th>Кому</th><th>От кого</th><th>Тип</th><th>Салон</th><th>Срок</th><th>Состояние</th><th></th></tr></thead>
+  <tbody>${TASKS.map(t=>`<tr>
+   <td><b>${esc(t.t)}</b></td>
+   <td>${avatar(t.who)} ${esc(t.who)}</td><td class="sub2">${esc(t.from)}</td>
+   <td><span class="tag ${t.ty==='Деньги'||t.ty==='Касса'?'w':t.ty==='Сервис'?'r':'a'}">${esc(t.ty)}</span></td>
+   <td class="sub2">${esc(t.br)}</td>
+   <td class="${t.st==='late'?'':''}"><b style="color:${t.st==='late'?'var(--bad)':'inherit'}">${esc(t.due)}</b></td>
+   <td><span class="tag" style="background:${TSTC[t.st]}1f;color:${TSTC[t.st]}">${esc(TSTN[t.st])}</span></td>
+   <td class="r"><button class="bt" onclick="event.stopPropagation();doneTask(${t.id})">Закрыть</button></td></tr>`).join('')}</tbody>
+ </table></div>
+ <div class="g2">
+  <div class="pan"><h3>Какие задачи система ставит сама</h3>
+   <div class="li n"><i>1</i><span><b>Платный резерв просрочен</b><span class="sub">задача МФ: снять, продлить или разрешить возврат. Автоматического освобождения нет</span></span></div>
+   <div class="li n"><i>2</i><span><b>Неизвестный результат оплаты</b><span class="sub">задача бухгалтеру на сверку, повторное списание заблокировано</span></span></div>
+   <div class="li n"><i>3</i><span><b>Расхождение кассы</b><span class="sub">24 часа на разбор, дальше внеплановая проверка с причиной</span></span></div>
+   <div class="li n"><i>4</i><span><b>Поставщик молчит 40 минут</b><span class="sub">задача логисту, а не выдуманный отказ поставщика</span></span></div>
+   <div class="li n"><i>5</i><span><b>Скидка выше лимита</b><span class="sub">согласование уходит МФ или РОП в зависимости от размера</span></span></div>
+  </div>
+  <div class="pan"><h3>Согласование привязано к версии ${ref('R03.06')}</h3>
+   <div class="kv"><span>Что хранится</span><b>содержание, хеш, версия цели, срок, область</b></div>
+   <div class="kv"><span>Изменили состав после согласования</span><b style="color:var(--bad)">нужно новое согласование</b></div>
+   <div class="kv"><span>Старое согласование</span><b>не исполняется на новой версии</b></div>
+   <div class="kv"><span>Кто и когда согласовал</span><b>сохраняется бессрочно</b></div>
+   <div class="hint">Это защищает от классической схемы: согласовали скидку на одну сумму, потом изменили состав заказа, а согласование «поехало» вместе с ним. В вашем ТЗ это отдельное требование.</div>
+  </div>
+ </div>`;
+function doneTask(id){const t=TASKS.find(x=>x.id===id);if(!t)return;
+ t.st='ok';render();
+ toast(`Задача «${esc(t.t)}» закрыта. В истории остались автор, исполнитель, время и основание — этот след хранится бессрочно.`)}
+
+/* ====== ПРАВА И ПОЛИТИКИ ====== */
+SC.roles=()=>`${head('Права и политики','Раздел R03 и приложение Г: явное разрешение конкретной операции важнее догадки о старшинстве. Должность руководителя не заменяет компетенцию.',
+ '<button class="bt p" onclick="toast(\'Новый сотрудник заводится за минуту: имя, роль, салон, телефон. Права подтягиваются из роли, ссылка на вход уходит ему в WhatsApp.\')">+ Сотрудник</button>')}
+ <div class="tw"><table class="t">
+  <thead><tr><th>Роль</th><th>Кто это</th><th class="r">Разделов</th><th>Деньги сети</th><th>Медданные</th><th>Все салоны</th><th>Что делает</th></tr></thead>
+  <tbody>${Object.entries(ROLES).map(([k,v])=>`<tr onclick="switchRole('${esc(k)}');go('${v.s[0]}')">
+   <td><b>${esc(k)}</b></td><td>${avatar(v.n)} ${esc(v.n)}<span class="sub">${esc(v.r)}</span></td>
+   <td class="r">${v.s.length}</td>
+   <td>${v.s.includes('acct')||v.s.includes('dash')?'<span class="tag w">да</span>':'<span class="tag">нет</span>'}</td>
+   <td>${v.s.includes('rx')?'<span class="tag r">да</span>':'<span class="tag">нет</span>'}</td>
+   <td>${v.s.includes('branches')?'<span class="tag a">да</span>':'<span class="tag">свой салон</span>'}</td>
+   <td class="sub2">${esc(v.note)}</td></tr>`).join('')}</tbody>
+ </table></div>
+ <div class="g2">
+  <div class="pan"><h3>Политики суперадмина ${ref('Г.02')}</h3><p>Каждая настройка хранит значение, область, дату вступления в силу, автора и основание. Неустановленное значение блокирует только свою функцию.</p>
+   ${[['Выдача с долгом','OFF','R16.07'],['Возврат в другом салоне','OFF','R17.07'],['Доставка домой','OFF','R16.05'],
+     ['Разные цены по салонам','OFF','R10.01'],['Ежедневное назначение переноса денег','ON','R13.05'],
+     ['Пересчёт скидки при переходе в рассрочку','OFF','R10.08'],['Самостоятельные изменения продавца','ON','R03.03']].map(r=>
+    `<div class="srow"><span class="nm">${esc(r[0])}<span class="sub">требование ${esc(r[2])}</span></span>
+     <span class="sw ${r[1]==='ON'?'on':''}" onclick="event.stopPropagation();this.classList.toggle('on');toast('Политика изменена. В рабочей системе такое изменение записывается в журнал: кто, когда, что и на каком основании, с показом влияния до применения.')"></span></div>`).join('')}
+   <div class="kv" style="margin-top:8px"><span>Минимальная предоплата</span><b>50% · настраивается по трём типам линз</b></div>
+   <div class="kv"><span>Размен из сейфа</span><b>20 000 ₸ на одно открытие</b></div>
+   <div class="kv"><span>Срок экстренной эскалации</span><b>10 минут</b></div>
+   <div class="kv"><span>Ожидание поставщика</span><b>40 минут</b></div>
+   <div class="kv"><span>Разбор расхождения кассы</span><b>24 часа</b></div>
+   <div class="kv"><span>Минимальная сумма резерва</span><b style="color:var(--warn)">не выбрана · обсуждались 2000 и 5000 ₸</b></div>
+  </div>
+  <div class="pan"><h3>Чего не отключает ни один флаг ${ref('Г.03')}</h3>
+   <div class="li no"><i>×</i><span><b>Историю действий</b><span class="sub">хранится бессрочно, включая действия суперадмина и AI</span></span></div>
+   <div class="li no"><i>×</i><span><b>Изоляцию франчайзи</b><span class="sub">проверяется в каждом запросе, поиске, выгрузке и вложении</span></span></div>
+   <div class="li no"><i>×</i><span><b>Проверку факта оплаты</b><span class="sub">никакая настройка не создаёт подтверждение из намерения</span></span></div>
+   <div class="li no"><i>×</i><span><b>Уникальность экземпляра</b><span class="sub">одна оправа не может быть продана или зарезервирована дважды</span></span></div>
+   <div class="li no"><i>×</i><span><b>Обязательную профессиональную проверку</b><span class="sub">рецепт и контроль качества требуют компетенции, а не должности</span></span></div>
+   <div class="note" style="--tone:var(--acc)"><b>Что осталось открытым ${ref('G01')}</b>
+    <p>За формулировкой «МФ и выше» должна стоять точная таблица: какое действие, какие роли, какие ограничения. Это первое из двенадцати условий запуска — и первое, что мы закрываем на рабочей сессии.</p></div>
+  </div>
+ </div>`;
+
+/* ====== УСТРОЙСТВА И OFFLINE ====== */
+SC.edge=()=>`${head('Устройства и работа без интернета','Раздел R19: система честно различает «сохранено локально», «ждёт подтверждения», «подтверждено» и «конфликт». Правило «побеждает последний» для денег, рецептов и остатков запрещено.',
+ '<button class="bt" onclick="toast(\'Диагностика устройства: версия прошивки, очередь загрузки, свободное место, последняя синхронизация и результаты печати. Секреты и ключи в диагностику не попадают.\')">Диагностика</button>')}
+ <div class="wid">
+  <div><small>Устройств в сети</small><b class="a">38</b><span>кассы, сканеры, принтеры</span></div>
+  <div><small>RFID-считывателей</small><b>6</b><span>по одному на салон с залом</span></div>
+  <div><small>Очередь на отправку</small><b class="w">12</b><span>салон «Сарыарка» без связи 14 мин</span></div>
+  <div><small>Конфликтов версий</small><b class="r">1</b><span>разбирается человеком</span></div>
+  <div><small>Неизвестных результатов печати</small><b>2</b><span>сначала проверка, не слепой повтор</span></div>
+ </div>
+ <div class="tw"><table class="t">
+  <thead><tr><th>Что делает сотрудник</th><th>Без связи</th><th>После восстановления</th></tr></thead>
+  <tbody>
+  ${[['Черновик консультации, фото, заметка','сохраняется локально','загружается и подтверждается'],
+    ['Сканирование и пересчёт','наблюдения копятся','корректировка ждёт разрешённого действия'],
+    ['Шаг изготовления по актуальному заданию','возможен','проверяется конфликт версии'],
+    ['Оплата картой или возврат','только через провайдера','локальная запись деньгами не становится'],
+    ['Резерв в другом салоне, смена прав','запрос сохраняется','итог требует центральной проверки'],
+    ['Работа с наличными и фискальным устройством','по подтверждённой политике','сверка кассовой смены']].map(r=>`<tr>
+   <td><b>${esc(r[0])}</b></td><td>${esc(r[1])}</td><td class="sub2">${esc(r[2])}</td></tr>`).join('')}
+  </tbody></table></div>
+ <div class="g2">
+  <div class="pan"><h3>Печать бланка и клиентской копии ${ref('R08.06')}</h3>
+   <div class="li n"><i>1</i><span><b>Одна команда — два независимых задания</b><span class="sub">клиентская копия и внутренний бланк с RFID печатаются отдельно</span></span></div>
+   <div class="li n"><i>2</i><span><b>Не напечаталась одна копия</b><span class="sub">повторяется только она; производственный комплект не дублируется</span></span></div>
+   <div class="li b"><i>3</i><span><b>Результат неизвестен</b><span class="sub">сначала проверяется фактически выполненная печать. Слепой повтор запрещён — иначе появятся две активные метки на один заказ</span></span></div>
+   <div class="li"><i>4</i><span><b>Бланк повреждён</b><span class="sub">новая метка активируется, старая выводится в той же операции; заказ, оплаты и комплект сохраняются</span></span></div>
+  </div>
+  <div class="pan"><h3>Технические цели ${ref('R20.02')}</h3>
+   <div class="kv"><span>Целевая нагрузка</span><b>1000 одновременных сессий</b></div>
+   <div class="kv"><span>Отклик обычного запроса</span><b>до 500 мс</b></div>
+   <div class="kv"><span>Основной экран</span><b>до 2 секунд</b></div>
+   <div class="kv"><span>Доступность критического контура</span><b>99,9% после стабилизации</b></div>
+   <div class="kv"><span>Где стоит система</span><b>на вашем сервере</b></div>
+   <div class="kv"><span>Код и данные</span><b style="color:var(--ok)">ваши</b></div>
+   <div class="note" style="--tone:var(--warn)"><b>Это цели, а не измеренные результаты</b>
+    <p>Так же честно, как написано в вашем ТЗ. Нагрузочный тест, испытание RFID-оборудования и банковских терминалов проводятся отдельно — и их результаты фиксируются протоколом, а не обещанием.</p></div>
+  </div>
+ </div>`;
+
+/* ====== СОСТАВ РЕЛИЗА ====== */
+SC.stack=()=>`${head('Состав первого релиза','Всё, что вы видите в этом демо, входит в стоимость 2 000 000 ₸. Ниже — полный список и то, что остаётся на следующие этапы.',
+ '<button class="bt p" onclick="sparks(18);toast(\'Следующий шаг: проходим демо вместе, отмечаем что убрать и что добавить — и этот список становится приложением № 1 к договору.\')">Что дальше</button>')}
+ <div class="g3">
+  ${[['Клиенты и приём',['Единая база клиентов по всей сети','Покупатель, носитель и представитель','Согласия по целям, а не один флаг','Журнал записи и приём оптометриста','Рецепт OD/OS с историей и динамикой зрения','Проверка совместимости рецепта, оправы и линзы']],
+    ['Товар и склад',['Каталог ~15 000 позиций','Цифровая карта ассортимента и физическая карта склада','RFID: инвентаризация зала, приёмка коробкой, поиск','Партии и сроки годности контактных линз','Платный резерв с правилами снятия','Ревизии, списания, переоценка']],
+    ['Заказы и деньги',['Девять типов заказов','Шесть независимых состояний заказа','Снимок цены и изменения заказа','Скидки, лимиты и согласования','Смешанная оплата, предоплата и доплата','Возвраты с общим лимитом','Касса, смена, сейф и инкассация']],
+    ['Закупка и цех',['Доска логиста из семи этапов','Запросы поставщикам и разбор ответов','Приёмка с расхождениями','Очередь мастерской и версии заданий','Контроль качества с измерениями','Приёмка продавцом по чек-листу']],
+    ['Выдача и сервис',['Рейсы, тара и манифесты','Готовность и уведомление как разные факты','Выдача с проверкой долга и качества','Обращения, замена и расследование','Гарантия и история по каждой паре']],
+    ['Управление',['12 салонов, юрлица и франчайзи','Роли и права на действия','Политики суперадмина с журналом','Показатели с покрытием и свежестью','Работа без интернета и очередь синхронизации','Перенос данных, обучение и запуск']]].map(b=>
+   `<div class="pan"><h3>${esc(b[0])}</h3>
+    ${b[1].map(x=>`<div class="li"><i>✓</i><span>${esc(x)}</span></div>`).join('')}</div>`).join('')}
+ </div>
+ <div class="g2">
+  <div class="pan"><h3>Стоимость и этапы</h3>
+   <div class="res">
+    <div class="rr"><span>Первый релиз — всё перечисленное выше</span><b>2 000 000 ₸</b></div>
+    <div class="rr"><span>Программная часть RFID</span><b style="color:var(--ok)">включено</b></div>
+    <div class="rr"><span>Развёртывание на вашем сервере, копии, вики</span><b style="color:var(--ok)">включено</b></div>
+    <div class="rr"><span>Интеграция с 1С</span><b>опция + 500 000 ₸</b></div>
+    <div class="rr"><span>Абонентская плата</span><b style="color:var(--ok)">нет</b></div>
+    <div class="rr hi"><span>Итого первый релиз</span><b>2 000 000 ₸</b></div>
+   </div>
+   <div class="kv" style="margin-top:10px"><span>Старт работ</span><b>10% · 200 000 ₸</b></div>
+   <div class="kv"><span>Ядро принято на приёмке</span><b>45% · 900 000 ₸</b></div>
+   <div class="kv"><span>Запуск и передача</span><b>45% · 900 000 ₸</b></div>
+   <div class="kv"><span>Срок разработки</span><b>4–6 недель</b></div>
+   <div class="kv"><span>После запуска</span><b>месяц отладки и гарантия 6 месяцев</b></div>
+  </div>
+  <div class="pan"><h3>Что остаётся за рамками первого релиза</h3>
+   <div class="li w"><i>·</i><span><b>Полный медицинский контур</b><span class="sub">расширенная карта осмотра, специализированные исследования</span></span></div>
+   <div class="li w"><i>·</i><span><b>Бонусы, сегменты и массовые рассылки</b><span class="sub">маркетинговый модуль отдельным этапом</span></span></div>
+   <div class="li w"><i>·</i><span><b>Управленческий учёт и расширенная аналитика</b><span class="sub">после того, как накопятся данные первых месяцев</span></span></div>
+   <div class="li w"><i>·</i><span><b>Кабинет клиента и контроль доступа</b><span class="sub">третий этап, оценивается по объёму</span></span></div>
+   <div class="note" style="--tone:var(--bad)"><b>Двенадцать условий запуска из вашего ТЗ</b>
+    <p>Матрица полномочий, формула смешанной скидки, банковские терминалы и фискализация, профессиональные нормы, параметры резерва, испытание RFID-оборудования, общие контракты, франшиза, offline, миграция, нагрузка и метрики. Часть закрывается решением бизнеса за один день, часть требует испытаний — и они идут параллельно разработке ядра.</p></div>
+  </div>
+ </div>`;
+
+/* ====== ИНФРАСТРУКТУРА ====== */
+function renderRoles(){
+ const r=document.getElementById('roles');if(!r)return;
+ r.innerHTML=Object.entries(ROLES).map(([k,v])=>`<div class="role" onclick="enter('${esc(k)}')">
+  <div class="rav">${esc(v.av)}</div><div><b>${esc(k)}</b><span>${esc(v.n)} · ${esc(v.note)}</span></div></div>`).join('');
+ const s=document.getElementById('rsel');
+ if(s)s.innerHTML=Object.keys(ROLES).map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join('');
+}
+const allowed=k=>ROLES[role].s.indexOf(k)>=0;
+function enter(k){
+ role=ROLES[k]?k:'Собственник';
+ document.getElementById('gate').classList.add('hidden');
+ document.getElementById('app').classList.remove('hidden');
+ const s=document.getElementById('rsel');if(s)s.value=role;
+ document.getElementById('me').textContent=ROLES[role].av;
+ if(!allowed(cur))cur=ROLES[role].s[0];
+ build();
+ toast(`Вы вошли как «${role}» · ${ROLES[role].n}. Показаны только те разделы, которые нужны этой роли.`);
+}
+function switchRole(k){role=k;document.getElementById('me').textContent=ROLES[role].av;
+ const s=document.getElementById('rsel');if(s)s.value=role;
+ if(!allowed(cur))cur=ROLES[role].s[0];build();
+ toast(`Роль: ${role}. Разделов доступно: ${ROLES[role].s.length}. ${ROLES[role].note}.`)}
+const ownerOf=k=>SECOF[k];
+function buildRail(){
+ const on=ownerOf(cur);
+ document.getElementById('rail').innerHTML=SEC.filter(s=>s.sub.some(x=>allowed(x[0]))).map(s=>{
+  const n=s.sub.filter(x=>allowed(x[0])).length;
+  return `<div class="ri ${s.k===on?'on':''}" onclick="go('${s.sub.filter(x=>allowed(x[0]))[0][0]}')" title="${esc(s.n)}">
+   <i>${s.ic}</i><span>${esc(s.n)}</span>${n>1?`<b class="cnt">${n}</b>`:''}</div>`}).join('');
+}
+function buildSub(){
+ const on=ownerOf(cur),s=SEC.find(x=>x.k===on);if(!s)return;
+ document.getElementById('sub').innerHTML=`<h4>${esc(s.n)}</h4>`+
+  s.sub.filter(x=>allowed(x[0])).map(x=>`<a class="${x[0]===cur?'on':''}" onclick="go('${x[0]}')">${esc(x[1])}</a>`).join('')+
+  `<div class="shint"><b>${esc(role)}</b><br>${esc(ROLES[role].note)}</div>`;
+}
+function build(){buildRail();buildSub();render()}
+function render(){
+ const f=SC[cur]||SC.dash;
+ document.getElementById('ttl').textContent=SUBN[cur]||'Пульт';
+ document.getElementById('content').innerHTML=`<div class="screen">${f()}</div>`;
+ const a=document.getElementById('addBtn');if(a)a.style.display=allowed('orders')?'':'none';
+ try{history.replaceState(null,'','?s='+cur)}catch(e){}
+}
+function go(k){if(!allowed(k)){toast('Этой роли раздел недоступен — так работают права доступа из раздела R03.');return}
+ cur=k;build();const c=document.querySelector('.content');if(c)c.scrollTop=0}
+function openM(t,s,b){
+ document.getElementById('mt').innerHTML=t;
+ document.getElementById('ms').innerHTML=s;
+ document.getElementById('mbody').innerHTML=b;
+ document.getElementById('mbg').classList.add('show');
+}
+function closeM(){document.getElementById('mbg').classList.remove('show')}
+let tt=null;
+function toast(m){const t=document.getElementById('toast');
+ t.innerHTML=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),5600)}
+function sparks(n){for(let i=0;i<n;i++){const s=document.createElement('i');s.className='spark';
+ s.style.left=(14+Math.random()*72)+'vw';
+ s.style.background=['#1b93ae','#0d1b2a','#4fd0e8','#2f8f5b'][i%4];
+ s.style.borderRadius=i%2?'50%':'2px';
+ s.style.animationDelay=(Math.random()*.4)+'s';document.body.appendChild(s);setTimeout(()=>s.remove(),1400)}}
+function applyTheme(){document.body.classList.toggle('dark',theme==='dark')}
+function toggleTheme(){theme=theme==='dark'?'light':'dark';applyTheme();
+ toast(theme==='dark'?'Тёмная тема — для вечерней смены и для проектора.':'Светлая тема.')}
+
+/* ====== СЦЕНАРИЙ ПОКАЗА ====== */
+const TOUR=[
+ ['dash','Сводка сети: двенадцать салонов, деньги, цех и закупка на одном экране. У заказа шесть независимых состояний, а не один статус.'],
+ ['path','Путь заказа из семнадцати шагов — Golden Flow из вашего ТЗ. Нажимайте «Следующий шаг».'],
+ ['consult','Консультация: продавец на своём экране, клиент на планшете видит только разрешённую часть — без закупочных цен.'],
+ ['rx','Рецепт и совместимость: измерение, подтверждённая версия и снимок в заказе — три разных объекта.'],
+ ['stock','Склад и RFID: нажмите «Запустить инвентаризацию зала» — две тысячи меток за шесть минут, расхождения подсвечиваются.'],
+ ['reserve','Платный резерв: по истечении срока товар не освобождается сам. Снять может только руководитель филиалов.'],
+ ['price','Скидка 15%: только очковые линзы и только собственные средства. Подвигайте долю оплаты.'],
+ ['pay','Оплата: нажмите «Смоделировать обрыв связи» — видно, как система ведёт себя при неизвестном ответе банка.'],
+ ['cash','Касса и сейф: маршрут денег до офиса, где курьер нигде не видит сумму.'],
+ ['proc','Доска закупки: семь этапов, карточки перетаскиваются, отсчёт сорока минут идёт от фактической отправки.'],
+ ['qc','Контроль качества: измерения с прибором и нормой, затем приёмка продавцом по чек-листу.'],
+ ['branches','Салоны и франчайзи: партнёр — изолированная область данных, а не ещё один филиал.'],
+ ['stack','И состав первого релиза: 2 000 000 ₸, оплата 10 / 45 / 45, срок 4–6 недель, без абонентской платы.']
+];
+let ti=-1,tRun=false;
+function tour(){if(tRun){stopTour();return}tRun=true;ti=-1;
+ document.getElementById('tourBtn').textContent='■';step()}
+function step(){if(!tRun)return;ti++;
+ if(ti>=TOUR.length){stopTour();toast('Сценарий показа закончен. Дальше можно листать разделы вручную — всё кликается.');return}
+ const [k,m]=TOUR[ti];
+ if(!allowed(k)){step();return}
+ cur=k;build();toast(m);
+ setTimeout(step,ti===0?5600:6600);
+}
+function stopTour(){tRun=false;ti=-1;const b=document.getElementById('tourBtn');if(b)b.textContent='▶'}
+
+/* ====== СТАРТ ====== */
+(function(){
+ renderRoles();applyTheme();
+ const s=document.getElementById('rsel');
+ if(s)s.addEventListener('change',e=>switchRole(e.target.value));
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeM();stopTour()}});
+ let q='';try{q=new URLSearchParams(location.search).get('s')||''}catch(e){}
+ if(q&&SECOF[q]){
+  const r=Object.keys(ROLES).find(k=>ROLES[k].s.indexOf(q)>=0);
+  if(r){cur=q;enter(r)}
+ }
+})();
