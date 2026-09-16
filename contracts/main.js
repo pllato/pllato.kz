@@ -1,8 +1,8 @@
 import { requireSession } from "../pllato-kz-shared/pllato-api.js";
 import {
-  listContracts, createContract, signOwner, sendContract, deleteContract, addSigners, setContractMode,
-  fetchContractFileBlob, fetchSignatureBlob, fileToBase64, signLinkForToken, signLinkForContract, viewLinkForContract,
-} from "./api.js?v=20260912-1";
+  listContracts, createContract, signOwner, sendContract, deleteContract, setContractMode,
+  fetchContractFileBlob, fetchSignatureBlob, fileToBase64, signLinkForToken, contractLink,
+} from "./api.js?v=20260916-1";
 import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20260722-2";
 
 const session = requireSession({ redirectTo: "login.html" });
@@ -131,10 +131,22 @@ function renderContract(c) {
   const pct = total ? Math.round((signed / total) * 100) : 0;
   const signers = (c.signers || []).map((s) => renderSigner(c, s)).join("");
   const canSend = c.status === "draft";
-  const mode = c.linkMode === "named" ? "named" : "universal";
-  const linkBtn = mode === "named"
-    ? `<button class="btn sm bronze" data-act="add-named" data-id="${c.id}">+ Подписант</button>`
-    : (c.publicToken ? `<button class="btn sm bronze" data-act="copy" data-link="${esc(signLinkForContract(c.publicToken))}">Ссылка для подписантов</button>` : "");
+  // Одна ссылка на договор — для всех и навсегда: по ней видно, кто подписал, и по ней же подписывают.
+  const named = c.linkMode === "named";          // старый режим именных ссылок
+  const link = !named && c.publicToken ? contractLink(c.publicToken) : "";
+  const linkRow = link
+    ? `<div class="viewlink-row">
+        <span class="vl-label">🔗 Ссылка на договор — одна на всех: по ней видно, кто подписал, и по ней же подписывают</span>
+        <div class="link-box">
+          <input readonly value="${esc(link)}">
+          <button class="btn sm bronze" data-act="copy" data-link="${esc(link)}">Копировать</button>
+          <a class="btn sm" href="${esc(link)}" target="_blank" rel="noopener">Открыть</a>
+        </div>
+      </div>`
+    : `<div class="viewlink-row">
+        <span class="vl-label">🔗 ${named ? "Договор в старом режиме именных ссылок — по ссылке на каждого подписанта" : "Ссылка на договор ещё не создана"}</span>
+        <button class="btn sm bronze" data-act="make-link" data-id="${c.id}">${named ? "Перейти на одну общую ссылку" : "Создать ссылку"}</button>
+      </div>`;
   return `<div class="card contract-row" data-id="${c.id}">
     <div class="contract-top">
       <div>
@@ -143,29 +155,15 @@ function renderContract(c) {
       </div>
       <span class="badge ${c.status}">${STATUS_LABEL[c.status] || c.status}</span>
     </div>
-    <div class="mode-row">
-      <span class="mode-label">Режим:</span>
-      <button class="mode-btn ${mode === "universal" ? "on" : ""}" data-act="set-mode" data-id="${c.id}" data-mode="universal">Общая ссылка</button>
-      <button class="mode-btn ${mode === "named" ? "on" : ""}" data-act="set-mode" data-id="${c.id}" data-mode="named">Именные ссылки</button>
-      <span class="mode-hint">${mode === "named" ? "по ссылке на каждого подписанта отдельно" : "одна ссылка на всех — каждый заводит себя сам"}</span>
-    </div>
     <div class="progress">
       <div class="bar"><i style="width:${pct}%"></i></div>
       <span>${signed} из ${total} подписали</span>
       <span style="flex:1"></span>
       <button class="btn sm" data-act="download" data-id="${c.id}">Скачать оригинал</button>
-      ${linkBtn}
       ${canSend ? `<button class="btn sm" data-act="send" data-id="${c.id}">Отправить</button>` : ""}
       <button class="btn sm danger" data-act="delete" data-id="${c.id}">Удалить</button>
     </div>
-    ${c.publicToken ? `<div class="viewlink-row">
-      <span class="vl-label">🔗 Постоянная ссылка-просмотр (кому угодно, только чтение — договор и кто подписал):</span>
-      <div class="link-box">
-        <input readonly value="${esc(viewLinkForContract(c.publicToken))}">
-        <button class="btn sm" data-act="copy" data-link="${esc(viewLinkForContract(c.publicToken))}">Копировать</button>
-        <a class="btn sm" href="${esc(viewLinkForContract(c.publicToken))}" target="_blank" rel="noopener">Открыть</a>
-      </div>
-    </div>` : ""}
+    ${linkRow}
     <div class="signers">${signers}</div>
   </div>`;
 }
@@ -274,14 +272,9 @@ listEl.addEventListener("click", async (e) => {
       await doDownload(id);
     } else if (act === "dl-sig") {
       await doDownloadSignature(id, btn.dataset.sid);
-    } else if (act === "set-mode") {
-      await setContractMode(id, btn.dataset.mode);
-      await loadList();
-    } else if (act === "add-named") {
-      const name = prompt("ФИО подписанта (для подписи именной ссылкой):", "");
-      if (!name || !name.trim()) return;
-      await addSigners(id, [{ fullName: name.trim() }]);
-      toast("Именная ссылка создана — скопируйте её у подписанта ниже");
+    } else if (act === "make-link") {
+      await setContractMode(id, "universal");
+      toast("Ссылка на договор создана");
       await loadList();
     } else if (act === "send") {
       await sendContract(id);

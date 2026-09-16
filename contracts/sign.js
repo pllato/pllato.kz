@@ -1,4 +1,6 @@
-// Публичная страница подписания договора по персональной ссылке (без логина).
+// Публичная страница договора (без логина).
+// ЕДИНАЯ ссылка на договор: по ней видно документ и кто уже подписал,
+// и по ней же подписывают. Старые ссылки-просмотры (?v=) ведут сюда же.
 import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20260722-2";
 
 const $ = (s) => document.querySelector(s);
@@ -11,24 +13,27 @@ function apiBase() {
 
 const params = new URLSearchParams(location.search);
 const token = params.get("t") || "";
-const ctoken = params.get("c") || "";
-const vtoken = params.get("v") || "";        // постоянная ссылка-просмотр (read-only)
+// ?c= — единая ссылка договора. ?v= — то же самое: старые разосланные
+// ссылки-просмотры продолжают работать и теперь тоже дают подписать.
+const ctoken = params.get("c") || params.get("v") || "";
 const universal = !!ctoken;
-const viewMode = !!vtoken;
+// Включается, только если сервер не разрешает подписание по этой ссылке
+// (например, договор уже подписан всеми или отменён) — тогда показываем статус.
+let readOnly = false;
 
-// Базовый путь API: общая ссылка договора (?c=) или персональная (?t=).
+// Базовый путь API: единая ссылка договора (?c=) или персональная (?t=).
 function signApi(suffix = "") {
   return universal
     ? `${apiBase()}/api/sign/c/${encodeURIComponent(ctoken)}${suffix}`
     : `${apiBase()}/api/sign/${encodeURIComponent(token)}${suffix}`;
 }
-// Read-only просмотр статуса договора по постоянной ссылке (?v=).
+// Резервный путь — только чтение статуса договора по тому же токену.
 function viewApi(suffix = "") {
-  return `${apiBase()}/api/view/${encodeURIComponent(vtoken)}${suffix}`;
+  return `${apiBase()}/api/view/${encodeURIComponent(ctoken)}${suffix}`;
 }
-// Активный базовый путь: в режиме просмотра — /api/view, иначе — подписание.
+// Активный базовый путь.
 function baseApi(suffix = "") {
-  return viewMode ? viewApi(suffix) : signApi(suffix);
+  return readOnly ? viewApi(suffix) : signApi(suffix);
 }
 
 function toast(msg, isErr = false) {
@@ -55,6 +60,23 @@ async function apiGet() {
   const data = await res.json().catch(() => null);
   if (!res.ok || !data?.ok) throw new Error(data?.error || `Ошибка ${res.status}`);
   return data;
+}
+
+// Загрузка по единой ссылке: сначала пробуем режим подписания и, только если
+// сервер его не даёт (договор закрыт/отменён), показываем статус без подписи.
+async function loadContract() {
+  try {
+    return await apiGet();
+  } catch (e) {
+    if (!universal) throw e;
+    readOnly = true;
+    try {
+      return await apiGet();
+    } catch (_) {
+      readOnly = false;
+      throw e;
+    }
+  }
 }
 
 // Блок «кто подписал» — общий для формы, экрана «подписано» и режима просмотра.
@@ -119,10 +141,14 @@ function renderDone(signer, contract, parties) {
     ${contract ? `<h2 style="font-size:20px;margin:24px 0 4px">${esc(contract.title)}</h2>` : ""}
     ${contract ? `<div class="summary"><div><span>Файл</span><b>${esc(contract.fileName)} · ${fmtSize(contract.fileSize)}</b></div></div>` : ""}
     ${partiesBlock(parties, "Кто подписал")}
+    ${universal ? `<div class="hint one-link">🔗 Ссылка та же — сохраните её: по ней в любой момент видно статус договора. Если с этого устройства должен подписать ещё один участник — нажмите «Подписать другой ЭЦП».</div>` : ""}
     ${preview}
     <div class="sign-actions" style="margin-top:18px">
       <button class="btn bronze" id="btn-dl-done"${fileInfo ? "" : " disabled"}>Скачать договор</button>
+      ${universal ? `<button class="btn" id="btn-again">Подписать другой ЭЦП</button>` : ""}
     </div>`;
+    const again = $("#btn-again");
+    if (again) again.addEventListener("click", () => location.reload());
     const b = $("#btn-dl-done");
     if (b && fileInfo) {
       b.addEventListener("click", () => {
@@ -174,6 +200,7 @@ async function render(data) {
       <div><span>Файл</span><b>${esc(contract.fileName)} · ${fmtSize(contract.fileSize)}</b></div>
     </div>
     ${partiesHtml}
+    ${universal ? `<div class="hint one-link">🔗 Эта ссылка — одна на весь договор и на всех участников: здесь видно, кто уже подписал, и здесь же вы подписываете своей ЭЦП. Ссылка работает всегда — по ней в любой момент можно вернуться и посмотреть статус.</div>` : ""}
     ${contract.note ? `<div class="hint" style="margin-bottom:16px">${esc(contract.note)}</div>` : ""}
     ${preview}
 
@@ -298,7 +325,7 @@ async function onDecline() {
   }
 }
 
-// Read-only просмотр статуса по постоянной ссылке: документ + кто подписал. Подписать нельзя.
+// Резервный экран: договор закрыт для подписания — показываем документ и кто подписал.
 async function renderView(data) {
   const nca = $("#nca-badge");
   if (nca) nca.style.display = "none";
@@ -314,7 +341,7 @@ async function renderView(data) {
     : "";
 
   root.innerHTML = `
-    <div class="view-tag">👁 Просмотр статуса · только чтение</div>
+    <div class="view-tag">👁 Договор закрыт для подписания · доступен просмотр и скачивание</div>
     <h1 style="font-size:24px;margin:6px 0 4px">${esc(contract.title)}</h1>
     <div class="summary">
       <div><span>Файл</span><b>${esc(contract.fileName)} · ${fmtSize(contract.fileSize)}</b></div>
@@ -339,28 +366,25 @@ async function renderView(data) {
 }
 
 async function init() {
-  if (viewMode) {
-    try {
-      const data = await apiGet();
-      await renderView(data);
-    } catch (e) {
-      const nca = $("#nca-badge");
-      if (nca) nca.style.display = "none";
-      root.innerHTML = `<div class="empty">${esc(e.message || "Ссылка недействительна или истекла")}</div>`;
-    }
-    return;
-  }
-  refreshNcaBadge();
   if (!token && !ctoken) {
     root.innerHTML = `<div class="empty">Ссылка недействительна — отсутствует токен.</div>`;
     return;
   }
+  let data;
   try {
-    const data = await apiGet();
-    await render(data);
+    data = await loadContract();
   } catch (e) {
+    const nca = $("#nca-badge");
+    if (nca) nca.style.display = "none";
     root.innerHTML = `<div class="empty">${esc(e.message || "Ссылка недействительна или истекла")}</div>`;
+    return;
   }
+  if (readOnly) {
+    await renderView(data);
+    return;
+  }
+  refreshNcaBadge();
+  await render(data);
 }
 
 init();

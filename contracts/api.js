@@ -82,13 +82,12 @@ export function signLinkForToken(token) {
   return `${location.origin}/sign.html?t=${encodeURIComponent(token)}`;
 }
 
-// Общая (универсальная) ссылка на договор — одна на всех подписантов.
-export function signLinkForContract(publicToken) {
+// ЕДИНАЯ ссылка на договор — одна на всех и навсегда.
+// По ней видно сам документ и кто уже подписал, и по ней же можно подписать.
+export function contractLink(publicToken) {
   return `${location.origin}/sign.html?c=${encodeURIComponent(publicToken)}`;
 }
 
-// Постоянная ссылка-просмотр (read-only): договор + кто подписал. Подписать нельзя.
-// Работает в любом режиме — её можно выслать кому угодно в любой момент.
-export function viewLinkForContract(publicToken) {
-  return `${location.origin}/sign.html?v=${encodeURIComponent(publicToken)}`;
-}
+// Старые имена — на них ссылается ранее написанный код. Теперь обе дают одну и ту же ссылку.
+export const signLinkForContract = contractLink;
+export const viewLinkForContract = contractLink;
