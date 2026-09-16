@@ -1,0 +1,908 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260726">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LABOS Retail · что нужно и понятное ТЗ · Pllato</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#13202c;--ink2:#2c3e4f;--acc:#1f7a8c;--accD:#14606f;--accL:#e9f4f6;--ok:#2f8f5b;--warn:#c1801a;--warnL:#fdf4e3;--bad:#c0453c;--badL:#fbeceb;--text:#1c2b38;--muted:#6b7b88;--faint:#a8b5bf;--line:#e2e8ec;--off:#f6f9fa}
+*{margin:0;padding:0;box-sizing:border-box}
+@page{size:A4;margin:0}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Inter',system-ui,sans-serif;color:var(--text);font-size:10.4px;line-height:1.55;background:#dfe5e9}
+.page{width:210mm;min-height:297mm;position:relative;padding:14mm 15mm 16mm;margin:0 auto 8mm;background:#fff;display:flex;flex-direction:column}
+.runfoot{position:absolute;left:15mm;right:15mm;bottom:9mm;display:flex;justify-content:space-between;font-size:8px;color:var(--faint);border-top:1px solid var(--line);padding-top:6px}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:11px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .bm{width:38px;height:38px;background:var(--ink);border-radius:10px;display:grid;place-items:center;flex:none}
+.brand .bt{font-size:17px;font-weight:800;color:var(--ink);letter-spacing:-.01em}
+.brand .bs{font-size:8.4px;color:var(--muted);letter-spacing:.03em;margin-top:1px}
+.hr{text-align:right}.hr .t{font-size:12px;font-weight:800;color:var(--ink)}.hr .dt{font-size:9.2px;color:var(--muted);margin-top:2px}
+.rule{height:2px;background:var(--acc);margin-bottom:13px}
+h1{font-size:21px;font-weight:900;letter-spacing:-.015em;line-height:1.14;margin-bottom:8px;color:var(--ink)}
+h2{font-size:15px;font-weight:800;letter-spacing:-.01em;line-height:1.2;margin-bottom:7px;color:var(--ink)}
+.lead{font-size:10.8px;color:var(--ink2);margin-bottom:10px;line-height:1.55}.lead b{color:var(--ink)}
+.sec{font-size:8.6px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--acc);margin:12px 0 7px;display:flex;align-items:center;gap:9px}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.sec.first{margin-top:2px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mod{border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-bottom:6px;break-inside:avoid}
+.mod .mt{font-weight:800;font-size:11px;color:var(--ink);margin-bottom:5px;display:flex;align-items:center;gap:8px}
+.mod .mt .n{width:19px;height:19px;border-radius:5px;background:var(--ink);color:#fff;font-size:9px;display:grid;place-items:center;flex:none;font-weight:700}
+.mod.key{border-color:#bcd9de;background:var(--accL)}
+.mod.key .mt .n{background:var(--acc)}
+.mod ul{margin:0;padding-left:14px}
+.mod li{font-size:9.8px;color:var(--ink2);margin-bottom:2.5px;line-height:1.5}.mod li b{color:var(--ink)}
+.mod p{font-size:9.8px;color:var(--ink2);line-height:1.52}
+.stat{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:11px}
+.stat div{border:1px solid var(--line);border-radius:8px;padding:8px 9px;background:var(--off)}
+.stat small{display:block;font-size:7.6px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.stat b{display:block;font-size:17px;font-weight:800;margin-top:4px;letter-spacing:-.02em;color:var(--ink)}
+.stat b.a{color:var(--acc)}.stat b.w{color:var(--warn)}.stat b.r{color:var(--bad)}.stat b.g{color:var(--ok)}
+.stat span{display:block;font-size:8.4px;color:var(--muted);margin-top:2px;line-height:1.35}
+table{width:100%;border-collapse:collapse;margin:6px 0}
+th{text-align:left;font-size:7.6px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:5px 7px;border-bottom:1.5px solid var(--ink)}
+td{padding:5px 7px;font-size:9.5px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.5}
+td.r{text-align:right;white-space:nowrap}
+tr:nth-child(even) td{background:var(--off)}
+td b{color:var(--ink)}
+.callout{background:var(--accL);border:1px solid #bcd9de;border-radius:8px;padding:8px 11px;font-size:9.7px;color:#14505c;line-height:1.5;margin:7px 0}
+.callout b{color:#0d3d47}
+.callout.w{background:var(--warnL);border-color:#f0dcb0;color:#7a5410}.callout.w b{color:#5e3f06}
+.callout.r{background:var(--badL);border-color:#f2cfcc;color:#8a2f28}.callout.r b{color:#6d211b}
+.chk{display:flex;gap:7px;align-items:flex-start;margin-bottom:3.6px}
+.chk i{font-style:normal;font-weight:800;font-size:9.5px;line-height:1.5;color:var(--ok);flex:none}
+.chk.q i{color:var(--warn)}.chk.x i{color:var(--bad)}.chk.n i{color:var(--acc)}
+.chk span{font-size:9.7px;line-height:1.5;color:var(--ink2)}.chk span b{color:var(--ink)}
+.flow{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:9px 0}
+.flow div{border:1px solid var(--line);border-radius:7px;padding:8px 9px;background:#fff}
+.flow div.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.flow code{font-size:7.4px;font-weight:800;letter-spacing:.08em;color:var(--acc)}
+.flow div.on code{color:#7fd4e2}
+.flow b{display:block;font-size:9.8px;margin:4px 0 2px;color:var(--ink)}
+.flow div.on b{color:#fff}
+.flow p{font-size:8.2px;line-height:1.42;color:var(--muted)}
+.flow div.on p{color:#a9c0cb}
+.tl{border-left:2px solid var(--line);margin-left:8px;padding-left:14px}
+.tli{position:relative;padding:5px 0 6px}
+.tli:before{content:'';position:absolute;left:-20px;top:10px;width:9px;height:9px;border-radius:50%;background:var(--acc);border:2px solid #fff}
+.tli b{font-size:10.4px;display:block;color:var(--ink)}
+.tli p{margin:2px 0 0;font-size:9.5px;color:var(--ink2);line-height:1.5}
+.tli .w{font-size:7.8px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.gloss{columns:2;column-gap:16px}
+.gloss div{break-inside:avoid;margin-bottom:5px;font-size:9.4px;line-height:1.45}
+.gloss b{color:var(--ink)}
+.signs{display:flex;gap:36px;margin-top:12px}
+.signs .s{flex:1}.signs .sl{font-size:8.6px;color:var(--muted);margin-bottom:10px}
+.signs .snm{font-weight:700;font-size:10.2px;margin-bottom:10px}.signs .ln{font-size:9.6px;color:var(--ink2)}
+.signs .ln u{display:inline-block;width:76px;border-bottom:1px solid #c3ccd4;text-decoration:none}
+.tag{display:inline-block;font-size:7.6px;font-weight:800;letter-spacing:.05em;padding:2px 6px;border-radius:4px;background:var(--off);color:var(--muted);border:1px solid var(--line)}
+.tag.a{background:var(--accL);color:var(--accD);border-color:#bcd9de}
+.tag.w{background:var(--warnL);color:var(--warn);border-color:#f0dcb0}
+.tag.r{background:var(--badL);color:var(--bad);border-color:#f2cfcc}
+.tag.g{background:#e6f4ec;color:var(--ok);border-color:#c5e4d2}
+.p1 .sec{margin:9px 0 5px}
+.p1 .lead{margin-bottom:8px}
+.p1 .flow{margin:7px 0}
+.p1 .chk{margin-bottom:3.2px}
+.p1 .stat div{padding:8px 9px}
+.p1 .stat b{font-size:16px;margin-top:3px}
+.p1 .flow div{padding:7px 8px}
+.p1 .callout{padding:8px 11px;margin:7px 0}
+@media print{body{background:#fff}.page{margin:0;box-shadow:none;page-break-after:always}.page:last-child{page-break-after:auto}}
+</style></head>
+<body>
+
+<!-- ===== 1 · ОДНА СТРАНИЦА ===== -->
+<section class="page p1">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><ellipse cx="7" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><ellipse cx="17" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><path d="M12 11.4h0" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M11.4 11.6c.4-.5 1.2-.5 1.6 0" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">LABOS · модуль Retail</div><div class="bs">розница сети оптик · разбор технического задания версии 3</div></div>
+    </div>
+    <div class="hr"><div class="t">ЧТО НУЖНО · ОДНА СТРАНИЦА</div><div class="dt">16 сентября 2026</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h1 style="font-size:19px;margin-bottom:6px">Что заказчик хочет получить и что для этого нужно</h1>
+  <p class="lead">Пакет <b>LABOS Retail v3</b> от 15 сентября: основное ТЗ на 20 разделов, реестр из 500 вопросов, 100 ответов с аудитом и три машиночитаемых файла. Ниже — выжимка: что за система, что решено, что не решено и что нужно, чтобы начать разработку.</p>
+
+  <div class="stat">
+    <div><small>Разделов ТЗ</small><b class="a">20</b><span>R01–R20</span></div>
+    <div><small>Требований</small><b>159</b><span>проверяемых правил</span></div>
+    <div><small>Приёмочных сценариев</small><b>70</b><span>AC01–AC70</span></div>
+    <div><small>Открытых вопросов</small><b class="w">400</b><span>из них 100 критичных</span></div>
+    <div><small>Условий запуска</small><b class="r">12</b><span>release gates G01–G12</span></div>
+  </div>
+
+  <div class="sec first" style="margin-top:0">Что это за система</div>
+  <p class="lead" style="margin-bottom:6px">Retail — один из девяти модулей платформы LABOS для сети салонов оптики. Он закрывает <b>всё, что происходит в салоне и вокруг заказа очков</b>: консультация, оптометрия и рецепт, каталог и склад с RFID-метками, платный резерв, цены и скидки, заказ, оплаты и фискализация, касса и инкассация, закупка линз, мастерская и контроль качества, перевозка между филиалами, выдача, возвраты и гарантия. Бухгалтерия и зарплата остаются за модулем Finance, задачи и согласования — за Work, сотрудники и права — за People и IAM. Каждый франчайзи — изолированная область данных.</p>
+
+  <div class="sec">Что уже решено собственником и не обсуждается</div>
+  <div class="two">
+    <div>
+      <div class="chk"><i>✓</i><span><b>Скидка 15%</b> — только на очковые линзы и только при оплате собственными средствами (не только наличными)</span></div>
+      <div class="chk"><i>✓</i><span><b>Предоплата от 50%</b>, предпочтительно 100%; настраивается отдельно для трёх типов линз</span></div>
+      <div class="chk"><i>✓</i><span><b>40 минут</b> ожидания ответа поставщика, затем задача логисту; <b>10 минут</b> на экстренную эскалацию</span></div>
+    </div>
+    <div>
+      <div class="chk"><i>✓</i><span><b>RFID</b> на каждую линзу и полный внутренний бланк 80 × 180–220 мм на каждую изготавливаемую пару</span></div>
+      <div class="chk"><i>✓</i><span><b>Размен из сейфа</b> — не более 20 000 ₸ на одно открытие кассы; расходы салона из кассы запрещены</span></div>
+      <div class="chk"><i>✓</i><span><b>Выдача с долгом, доставка домой, возврат в другом филиале</b> — по умолчанию выключены</span></div>
+    </div>
+  </div>
+
+  <div class="sec">Что мешает начать разработку прямо сейчас</div>
+  <div class="two">
+    <div>
+      <div class="chk q"><i>!</i><span><b>Матрица полномочий.</b> За формулировкой «МФ и выше» нужен точный список ролей по каждому согласованию — <span class="tag">CEO, HR, IAM</span></span></div>
+      <div class="chk q"><i>!</i><span><b>Расчёт смешанной скидки.</b> Нет формулы, как распределяются собственные деньги между строками заказа — <span class="tag">РОП, бухгалтер, банк</span></span></div>
+      <div class="chk q"><i>!</i><span><b>Банк и фискализация.</b> Реальные терминалы Kaspi и Halyk, чек аванса и зачёта, поведение при неизвестном ответе банка — <span class="tag">интегратор, банк</span></span></div>
+    </div>
+    <div>
+      <div class="chk q"><i>!</i><span><b>Профессиональные нормы.</b> Параметры рецепта, допуски контроля качества, требования к оборудованию — <span class="tag">оптометрист, мастер, ОД</span></span></div>
+      <div class="chk q"><i>!</i><span><b>Параметры резерва.</b> Минимальная сумма (обсуждались 2000 и 5000 ₸) и срок в днях не выбраны — <span class="tag">собственник, бухгалтер</span></span></div>
+      <div class="chk q"><i>!</i><span><b>RFID-оборудование.</b> Принтер, метки и считыватели не испытаны: есть брошюры, нет протокола теста — <span class="tag">поставщик, инженер</span></span></div>
+    </div>
+  </div>
+  <p style="font-size:9.5px;color:var(--ink2);line-height:1.45">Всего таких условий двенадцать (G01–G12): плюс франшиза, offline, миграция из Itigris, нагрузочный тест и общие контракты с Work, Platform и Finance. 400 открытых вопросов адресованы: <b>РОП — 100, ОД — 90, CEO — 43, бухгалтер — 36, логистика — 31, юрист — 22, оптометрист — 22</b>, остальные — мастер, HR, маркетолог, банк и поставщик RFID.</p>
+
+  <div class="callout"><b>Главное про этот документ.</b> Это не готовое ТЗ «под ключ», и автор честно это пишет: логическая схема данных — не физическая схема базы, каталог действий — не готовый API, а 1000 пользователей — цель испытания, а не измеренная характеристика. При этом ядро описано достаточно подробно, чтобы начинать: <b>бо́льшую часть объёма можно разрабатывать параллельно</b> с закрытием вопросов — каждый незакрытый пункт блокирует свою функцию, а не весь модуль.</div>
+
+  <div class="sec" style="margin-top:8px">Что делать дальше — четыре шага</div>
+  <div class="flow" style="grid-template-columns:repeat(4,1fr)">
+    <div class="on"><code>ШАГ 1 · 3–5 ДНЕЙ</code><b>Сессия по 100 вопросам</b><p>CEO, ОД, РОП, бухгалтер и логист закрывают критичные вопросы. Большинство — решения бизнеса на одну строку.</p></div>
+    <div><code>ШАГ 2 · 1 НЕДЕЛЯ</code><b>Ядро и границы</b><p>Зафиксировать состав первого выпуска для пилотного салона EXPO: что входит, что временно делается руками.</p></div>
+    <div><code>ШАГ 3 · ПАРАЛЛЕЛЬНО</code><b>Испытания</b><p>RFID-оборудование, терминалы банков и фискальный контур проверяются на стенде, а не по брошюрам.</p></div>
+    <div><code>ШАГ 4</code><b>Разработка ядра</b><p>Клиент, заказ, склад, деньги, закупка, мастерская, выдача — по 70 приёмочным сценариям.</p></div>
+  </div>
+
+  <p style="font-size:9.3px;color:var(--muted);line-height:1.4;margin-top:0">Дальше — то же ТЗ понятным языком: как система работает по шагам, кто что делает, правила по деньгам и товару, экраны и что открыто.</p>
+
+  <div class="runfoot"><span>LABOS Retail v3 · разбор и понятное ТЗ · Pllato</span><span>стр. 1 из 15</span></div>
+</section>
+
+<!-- ===== 2 · СИСТЕМА И РОЛИ ===== -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><ellipse cx="7" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><ellipse cx="17" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><path d="M11.4 11.6c.4-.5 1.2-.5 1.6 0" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">LABOS · модуль Retail</div><div class="bs">понятное техническое задание · версия разбора от 16.09.2026</div></div>
+    </div>
+    <div class="hr"><div class="t">РАЗДЕЛ 1 · УСТРОЙСТВО</div><div class="dt">что такое Retail и кто в нём работает</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h2>Что такое Retail и где проходят его границы</h2>
+  <p class="lead" style="margin-bottom:9px">LABOS состоит из девяти приложений. Retail — то, что видит салон: клиент, консультация, товар, заказ, деньги в кассе, производство очков и выдача. Он не заводит собственную бухгалтерию, кадры и мессенджер — данные берутся у соседних модулей по ссылке, а не копируются.</p>
+
+  <div class="three">
+    <div class="mod key"><div class="mt"><span class="n">R</span>Retail владеет</div>
+      <ul><li>Клиент, согласия, консультация</li><li>Рецепт и проверка совместимости</li><li>Каталог, склад, RFID-метки</li><li>Цены, скидки, резерв</li><li>Заказ, оплаты, фискальный чек</li><li>Касса и движение наличных</li><li>Закупка линз у поставщиков</li><li>Мастерская и контроль качества</li><li>Перевозка, выдача, сервис</li></ul></div>
+    <div class="mod"><div class="mt"><span class="n">W</span>Соседние модули</div>
+      <ul><li><b>Work</b> — задачи, согласования, координация отклонений</li><li><b>Finance</b> — проводки, банковская сверка, прибыль, зарплата</li><li><b>People + Org + IAM</b> — сотрудники, назначения, доступы</li><li><b>Connect</b> — WhatsApp и другие каналы связи</li><li><b>Marketing</b> — акции, <b>Intelligence</b> — видеоаналитика, <b>Brain</b> — только для собственника</li></ul></div>
+    <div class="mod"><div class="mt"><span class="n">!</span>Ключевое правило</div>
+      <p>У каждого факта <b>один владелец</b>. Заказ принадлежит Retail: Work хранит ссылку и вызывает команду Retail, но не меняет статус заказа у себя. Оплата подтверждается Retail, а проводка по ней делается в Finance. Одна операция, запущенная из двух интерфейсов, не должна создать два заказа или две оплаты.</p></div>
+  </div>
+
+  <div class="sec">Кто работает в системе</div>
+  <table>
+    <thead><tr><th style="width:21%">Роль</th><th>Что делает</th><th style="width:29%">Чего не может</th></tr></thead>
+    <tbody>
+      <tr><td><b>ПК</b> — продавец-консультант<br><span style="color:var(--muted)">старший ПК — с расширением</span></td><td>Консультация, подбор, заказ, оплата, выдача, свои правильные изменения заказа. Старший ПК дополнительно — экстренная замена линзы, если руководители не ответили 10 минут</td><td>Определять виновного в браке, снимать резерв, складывать скидки; больше двух повторных линз на глаз</td></tr>
+      <tr><td><b>МФ</b> — руководитель группы филиалов</td><td>Снятие резерва, разрешение возврата, кассовые исключения, назначение переноса денег</td><td>Выходить за пределы своего списка филиалов — он проверяется на сервере</td></tr>
+      <tr><td><b>РОП</b></td><td>Лимиты скидок, виды скидок, акции, управление технической ситуацией заказа</td><td>Отменить профессиональный запрет оптометриста коммерческим решением</td></tr>
+      <tr><td><b>ОД</b> — операционный директор</td><td>Предел дополнительных скидок, обычные цены, заказ линз при отсутствии логиста</td><td>—</td></tr>
+      <tr><td><b>Логист</b></td><td>Закупка линз: подбор поставщика, запросы, заказы, приёмка, товарные перевозки</td><td>Назначать денежные перевозки — это МФ</td></tr>
+      <tr><td><b>Мастер</b></td><td>Изготовление пары, расход линз, технический контроль качества</td><td>Выпустить пару без измерений и протокола</td></tr>
+      <tr><td><b>Бухгалтер</b></td><td>Рабочее место сверки в Retail: касса, банк, неизвестные оплаты, чеки, корректировки</td><td>—</td></tr>
+      <tr><td><b>Курьер</b></td><td>Мобильное место: назначенные перевозки товара, линз и денежных пакетов</td><td>Видеть сумму в пакете, кассу, рецепты и клиентов</td></tr>
+      <tr><td><b>Суперадмин</b></td><td>Включает и выключает политики, выдаёт права, меняет область филиалов МФ</td><td>Отключить историю, изоляцию франчайзи и обязательные проверки</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout"><b>Должность не выдаёт компетенцию.</b> Кадровик, замещающий кассира, работает под своим именем и не получает права подтверждать рецепт. Руководитель, который «выше по должности», не получает автоматически прав, которые ему явно не выданы. Всё проверяется на сервере, а не скрытием кнопки в интерфейсе.</div>
+
+  <p style="font-size:9.6px;color:var(--ink2);line-height:1.5;margin-top:9px"><b>Внутри модуль разбит на двенадцать областей</b> со своими таблицами и своим владельцем данных: клиенты, консультация, оптометрия, каталог, склад, цены, заказ, линзы, закупка, мастерская, выдача, салон и касса. На старте это один сервис с честными транзакциями внутри, но с жёстко разделёнными зонами — чтобы позже части можно было вынести отдельно без переписывания.</p>
+  <div class="runfoot"><span>LABOS Retail v3 · разбор и понятное ТЗ · Pllato</span><span>стр. 2 из 15</span></div>
+</section>
+
+
+<!-- ===== 3 · СКВОЗНОЙ ПРОЦЕСС ===== -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><ellipse cx="7" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><ellipse cx="17" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><path d="M11.4 11.6c.4-.5 1.2-.5 1.6 0" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">LABOS · модуль Retail</div><div class="bs">понятное техническое задание · версия разбора от 16.09.2026</div></div>
+    </div>
+    <div class="hr"><div class="t">РАЗДЕЛ 2 · ПУТЬ ЗАКАЗА</div><div class="dt">от входа клиента до выдачи и сервиса</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h2>Как проходит заказ: семнадцать шагов от посетителя до выдачи</h2>
+  <p class="lead" style="margin-bottom:9px">В ТЗ это называется Golden Flow, и это <b>не один линейный статус</b>: у заказа параллельно живут шесть независимых состояний — коммерческое, денежное, закупочное, производственное, выдачи и сервисное. Заказ может быть оплачен полностью и стоять из-за одной линзы, которую не привёз поставщик.</p>
+
+  <div class="tl">
+    <div class="tli"><span class="w">ШАГИ 1–3 · САЛОН</span><b>Посетитель, визит, консультация</b>
+      <p>Система отличает «кто-то вошёл» от подтверждённого визита и консультации: отказ и перенос не стирают визит. Пока определение визита не утверждено, конверсия не публикуется как точный показатель.</p></div>
+    <div class="tli"><span class="w">ШАГИ 4–8 · ПОДБОР</span><b>Выбор оправы, примерка, рецепт, совместимость, линзы</b>
+      <p>Клиент видит на планшете разрешённую часть: подборку, характеристики, комплектацию и цену — без закупочных цен и служебных пометок. Рецепт подтверждает уполномоченный специалист, прибор и AI его не подписывают. Совместимость рецепта, оправы и линзы проверяется правилом с версией: «годится», «предупреждение», «запрещено» или «неизвестно».</p></div>
+    <div class="tli"><span class="w">ШАГИ 9–10 · ДЕНЬГИ</span><b>Заказ и оплата</b>
+      <p>Состав и цена фиксируются неизменяемым снимком. Предоплата от 50%, желательно 100%. Оплата может быть смешанной: наличные, карта, рассрочка — каждая часть живёт отдельно, неуспех одной не отменяет другую.</p></div>
+    <div class="tli"><span class="w">ШАГИ 11–12</span><b>Задание на пару и комплектование</b>
+      <p>На каждую пару создаётся производственный комплект с требованиями по левому и правому глазу. Чего нет на складе — уходит в закупку автоматически после выполнения условий состава и предоплаты. Повторная доплата не создаёт вторую заявку.</p></div>
+    <div class="tli"><span class="w">ШАГИ 13–14</span><b>Изготовление и контроль качества</b>
+      <p>Мастер подтверждает задание и физический состав: та ли оправа, те ли линзы, верно ли назначены левая и правая. Дальше — обработка, расход линз и протокол контроля с цифрами, прибором, исполнителем и нормой.</p></div>
+    <div class="tli"><span class="w">ШАГИ 15–17 · ВЫДАЧА</span><b>Передача, готовность, выдача клиенту</b>
+      <p>Продавец принимает работу после мастера по чек-листу. Готовность и отправка сообщения клиенту — разные факты: если WhatsApp не доставил, заказ остаётся готовым, а система ставит задачу связаться. Выдача требует нулевого долга.</p></div>
+  </div>
+
+  <div class="sec" style="margin-top:9px">Что происходит, когда что-то идёт не так</div>
+  <div class="two">
+    <div class="mod"><div class="mt"><span class="n">1</span>Поставщик молчит 40 минут</div>
+      <p>Логисту приходит задача: связаться, позвонить при срочности, решить о следующем запросе. Система <b>не выдумывает отказ</b> и не уходит к другому самовольно.</p></div>
+    <div class="mod"><div class="mt"><span class="n">2</span>Нужной линзы нет</div>
+      <p>Фиксируется отказ с причиной. Аналог проходит совместимость, пересчёт цены и согласие клиента. <b>Тихая подмена параметров запрещена.</b></p></div>
+    <div class="mod"><div class="mt"><span class="n">3</span>Мастер испортил линзу</div>
+      <p>Компонент выбирается внутри активного заказа, опасный осколок не нужно подносить к считывателю. Новая линза проходит свою проверку, старая остаётся в истории как расход.</p></div>
+    <div class="mod"><div class="mt"><span class="n">4</span>Брак, претензия или изменение на ходу</div>
+      <p>Запрос остановки станка и подтверждение остановки — разные события, выполненный расход сохраняется. Комплект уходит в доработку с причиной, выдача закрыта до новой проверки. Помощь клиенту и расследование идут <b>параллельно</b>: замену можно разрешить до вывода о виновности.</p></div>
+  </div>
+
+  <div class="callout w" style="margin-bottom:0"><b>Частое возражение — «у нас всё равно будут исключения».</b> В этом ТЗ исключения описаны как штатные пути: у каждой остановки есть причина, владелец и ожидаемое действие, а не просто красная строка в списке. Это и отличает рабочую систему от демонстрации счастливого пути.</div>
+  <div class="runfoot"><span>LABOS Retail v3 · разбор и понятное ТЗ · Pllato</span><span>стр. 3 из 15</span></div>
+</section>
+
+
+<!-- ===== 4 · КЛИЕНТ И РЕЦЕПТ ===== -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><ellipse cx="7" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><ellipse cx="17" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><path d="M11.4 11.6c.4-.5 1.2-.5 1.6 0" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">LABOS · модуль Retail</div><div class="bs">понятное техническое задание · версия разбора от 16.09.2026</div></div>
+    </div>
+    <div class="hr"><div class="t">РАЗДЕЛ 3 · КЛИЕНТ</div><div class="dt">карточка, согласия, консультация, оптометрия</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h2>Клиент, консультация и рецепт</h2>
+
+  <div class="sec first">Клиент, покупатель и носитель — разные люди</div>
+  <p class="lead" style="margin-bottom:8px">По умолчанию покупатель и есть носитель очков — лишнего шага нет. Кнопка «Очки для другого человека» открывает выбор носителя. У одного плательщика может быть несколько носителей, у одного заказа — несколько пар. <b>Общий семейный телефон не доказывает, что это один человек</b>, и не открывает доступ к чужим медицинским данным.</p>
+  <div class="two">
+    <div>
+      <div class="chk n"><i>›</i><span><b>Карточка клиента</b> — личность, контакты, язык и предпочтительный канал связи, источник создания, связи представителей, разрешённая история</span></div>
+      <div class="chk n"><i>›</i><span><b>Обязательные поля зависят от сценария:</b> для покупки футляра не нужны медицинские сведения</span></div>
+      <div class="chk n"><i>›</i><span><b>Объединение дублей</b> — отдельная операция с записью исходных ссылок и возможностью исправить ошибку без удаления чужой истории</span></div>
+    </div>
+    <div>
+      <div class="chk q"><i>!</i><span><b>Согласия хранятся по целям</b>: маркетинг, клиническое обслуживание, фото и видео, внешние AI-сервисы — это четыре разных согласия, а не один общий флажок</span></div>
+      <div class="chk q"><i>!</i><span><b>Отзыв согласия</b> действует на свою цель и не стирает историю уже исполненного заказа</span></div>
+      <div class="chk x"><i>×</i><span><b>Контактные и денежные данные — конфиденциальные, медицинские — с ограниченным доступом.</b> Производные отчёты наследуют ту же защиту</span></div>
+    </div>
+  </div>
+
+  <div class="sec">Консультация и планшет клиента</div>
+  <table>
+    <thead><tr><th style="width:30%">Что</th><th>Как должно работать</th></tr></thead>
+    <tbody>
+      <tr><td><b>Экран продавца</b></td><td>Основное рабочее место: потребность, подборка, реальные линзы и сроки, рецепт, сравнение, расчёт, подтверждение состава</td></tr>
+      <tr><td><b>Планшет клиента</b></td><td>Только разрешённая часть той же консультации. Закупочные цены, служебные заметки и данные другого клиента туда не попадают; после сессии временный доступ очищается</td></tr>
+      <tr><td><b>Считывание оправы со стола</b></td><td>Создаёт наблюдение и может предложить карточку товара. Не меняет само по себе клиента, заказ и складской остаток; при чтении нескольких меток система просит уточнить, какие предметы нужны</td></tr>
+      <tr><td><b>Камера, виртуальная примерка, AI</b></td><td>Помогают подбору, но <b>не определяют рецепт, посадочную высоту и центровку</b>. При сбое этих сервисов обычная консультация работает полностью</td></tr>
+      <tr><td><b>Связь экрана и планшета</b></td><td>Версионируется: клиент не должен подтверждать старую цену, пока продавец видит новую. Потерявшая связь сторона показывает, что данные устарели</td></tr>
+    </tbody>
+  </table>
+
+  <div class="sec">Оптометрия: измерение, назначение и снимок заказа</div>
+  <div class="three">
+    <div class="mod"><div class="mt"><span class="n">1</span>Измерение прибора</div><p>Хранит источник, единицы, время и качество. Само по себе не является назначением.</p></div>
+    <div class="mod"><div class="mt"><span class="n">2</span>Версия рецепта</div><p>Подтверждает уполномоченный специалист. Подтверждённая версия неизменяема; исправление — это новая версия.</p></div>
+    <div class="mod"><div class="mt"><span class="n">3</span>Снимок в заказе</div><p>Копия параметров на момент заказа. Не меняется, даже если рецепт потом уточнили.</p></div>
+  </div>
+  <div class="two" style="margin-top:2px">
+    <div>
+      <div class="chk"><i>✓</i><span>По каждому глазу отдельно: сфера, цилиндр, ось, призма и база, аддидация, тип коррекции; отдельно — центровка, межзрачковые расстояния, требования к конструкции и материалу</span></div>
+      <div class="chk"><i>✓</i><span><b>«Неприменимо» и «неизвестно» — разные значения.</b> Пустое поле не считается нулём</span></div>
+    </div>
+    <div>
+      <div class="chk"><i>✓</i><span>Внешний рецепт сохраняется со сканом и указанием, кто его перенёс; исправление распознанного текста <b>не затирает оригинал</b></span></div>
+      <div class="chk q"><i>!</i><span>Окончательный перечень параметров и допустимые нормы должен утвердить профильный специалист — это открытый вопрос Q131–Q140</span></div>
+    </div>
+  </div>
+
+  <div class="callout r"><b>Здесь проходит граница ответственности.</b> Система не имеет права ставить медицинское решение автоматически: ни прибор, ни AI, ни руководитель по должности не подписывают рецепт и не отменяют профессиональный запрет. Управленческое решение по технической ситуации принимает РОП, но если специалист сказал «эта конструкция не годится», коммерческим распоряжением это не отменяется.</div>
+  <div class="runfoot"><span>LABOS Retail v3 · разбор и понятное ТЗ · Pllato</span><span>стр. 4 из 15</span></div>
+</section>
+
+
+<!-- ===== 5 · КАТАЛОГ И СКЛАД ===== -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><ellipse cx="7" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><ellipse cx="17" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><path d="M11.4 11.6c.4-.5 1.2-.5 1.6 0" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">LABOS · модуль Retail</div><div class="bs">понятное техническое задание · версия разбора от 16.09.2026</div></div>
+    </div>
+    <div class="hr"><div class="t">РАЗДЕЛ 4 · ТОВАР</div><div class="dt">каталог, склад, RFID-метки, ревизия</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h2>Каталог, склад и RFID</h2>
+
+  <div class="sec first">Что считается товаром</div>
+  <p class="lead" style="margin-bottom:8px">Каталог охватывает оправы, очковые линзы, контактные линзы, аксессуары, услуги, ремонтные детали, производственные расходники, хозяйственные запасы и оборудование. Система различает <b>модель, SKU, партию, конкретный экземпляр и физическую метку</b> — это пять разных вещей. Услуга не получает фиктивный складской код, а коробка контактных линз имеет коэффициент пересчёта: продажа одного блистера не списывает всю упаковку и не теряет партию и срок годности.</p>
+
+  <div class="two">
+    <div class="mod key"><div class="mt"><span class="n">A</span>Цифровая карта ассортимента</div>
+      <p>Чем салон должен торговать: признаки, нормативы покрытия по формату салона, плановое количество. Показывает дефицит и излишек без двойного счёта одного экземпляра.</p>
+      <p style="margin-top:4px"><b>Отдельно показываются:</b> доступно, в резерве, в перемещении, на проверке, отсутствует, данных недостаточно.</p></div>
+    <div class="mod"><div class="mt"><span class="n">Б</span>Физическая карта склада</div>
+      <p>Где вещь лежит: помещение, зона, стеллаж, полка, ячейка. <b>Это другая карта.</b> Ячейка ассортимента не доказывает, что оправа физически там.</p>
+      <p style="margin-top:4px">Непрерывное точное позиционирование по одному чтению RFID не обещается — только зафиксированные наблюдения.</p></div>
+  </div>
+
+  <div class="callout"><b>Свойства товара имеют происхождение.</b> «Титан» не превращается в «чистый титан» сам по себе, спортивное назначение не выводится из одного материала оправы. Неподтверждённые свойства попадают в очередь проверки, а изменение справочника создаёт новую версию — уже принятый заказ при этом не меняется.</div>
+
+  <div class="sec">RFID: что помечается и что это даёт</div>
+  <table>
+    <thead><tr><th style="width:24%">Носитель</th><th>Назначение и правило</th></tr></thead>
+    <tbody>
+      <tr><td><b>Метка на оправе</b></td><td>Каждый экземпляр уникален. Две одинаковые оправы — две единицы с разными метками</td></tr>
+      <tr><td><b>Метка на линзе</b></td><td>Каждая линза маркируется <b>при поступлении на индивидуальной упаковке</b> — оптическая поверхность не используется. Заказная линза сохраняет связь со своим заказом: похожие параметры не разрешают подменить её складской</td></tr>
+      <tr><td><b>Внутренний бланк заказа</b></td><td>Полный бланк 80 мм шириной и 180–220 мм длиной с одной встроенной меткой на каждую изготавливаемую пару. Не заменяется наклейкой на обычном листе или биркой</td></tr>
+      <tr><td><b>Метка тары</b></td><td>Постоянная тара с постоянной меткой, но <b>непостоянным содержимым</b>: метка коробки не доказывает, что внутри именно этот заказ</td></tr>
+    </tbody>
+  </table>
+  <div class="two">
+    <div>
+      <div class="chk x"><i>×</i><span><b>Чтение метки — не движение товара.</b> Остаток меняется только официальным действием с проверкой прав, а не фактом, что сканер что-то увидел</span></div>
+      <div class="chk x"><i>×</i><span><b>Соседние метки не добавляются в операцию.</b> При чтении пяти меток система просит выбрать нужные две и подтвердить левую и правую</span></div>
+      <div class="chk"><i>✓</i><span><b>Печать бланка и клиентской копии — два независимых задания.</b> Если не напечатался внутренний бланк, повторяется только он</span></div>
+    </div>
+    <div>
+      <div class="chk"><i>✓</i><span><b>Неизвестный результат печати сначала проверяется</b>, а не перепечатывается вслепую: иначе появятся две активные метки на один заказ</span></div>
+      <div class="chk"><i>✓</i><span><b>Замена повреждённого бланка</b> — одна операция: новая метка активна, старая выведена, заказ и оплаты те же. При чтении старой показывается «Заменён»</span></div>
+      <div class="chk q"><i>!</i><span><b>Оборудование не проверено.</b> Модели принтера, считывателей, частоты, совместимость рулонов — по брошюрам поставщиков; нужен пилот</span></div>
+    </div>
+  </div>
+
+  <div class="sec">Ревизия и расхождения</div>
+  <p style="font-size:9.7px;color:var(--ink2);line-height:1.55">Ревизия собирает уникальные наблюдения по участку и <b>отличает «метку не прочитали» от «товара действительно нет»</b>. Продажи во время ревизии учитываются через согласованный срез и движения. Корректировка количества требует основания, проверяющего и утверждённой области. Одна единица не может числиться в двух местах одновременно — спорная позиция показывается как расхождение, а не исправляется молча. Отбор товара в перемещение начинается с физического отделения упаковок и только потом подтверждается — выбрать две метки из общей кучи нельзя.</p>
+  <div class="runfoot"><span>LABOS Retail v3 · разбор и понятное ТЗ · Pllato</span><span>стр. 5 из 15</span></div>
+</section>
+
+
+<!-- ===== 6 · РЕЗЕРВ И СКИДКИ ===== -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><ellipse cx="7" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><ellipse cx="17" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><path d="M11.4 11.6c.4-.5 1.2-.5 1.6 0" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">LABOS · модуль Retail</div><div class="bs">понятное техническое задание · версия разбора от 16.09.2026</div></div>
+    </div>
+    <div class="hr"><div class="t">РАЗДЕЛ 5 · ЦЕНЫ</div><div class="dt">платный резерв, цены, скидки, акции</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h2>Платный резерв, цены и скидки</h2>
+
+  <div class="sec first">Платный резерв</div>
+  <div class="two">
+    <div>
+      <div class="chk"><i>✓</i><span>Резерв закрепляет <b>конкретный экземпляр</b> за клиентом на срок, с принятой платой и условиями</span></div>
+      <div class="chk"><i>✓</i><span>По истечении срока — статус «просрочен», уведомление продавцу и руководителю. <b>Товар остаётся закреплённым</b>, пока МФ или старше не примет решение</span></div>
+      <div class="chk"><i>✓</i><span>Снять товар с резерва, вернуть деньги и признать доход — <b>три разных действия</b>, а не одна кнопка</span></div>
+      <div class="chk"><i>✓</i><span>Кнопка снятия резерва живёт в дополнительных действиях карточки, а не рядом с обычными кнопками продажи</span></div>
+    </div>
+    <div>
+      <div class="chk"><i>✓</i><span>Плата <b>полностью засчитывается</b> в покупку: деньги не поступают второй раз, старое распределение закрывается и создаётся новое</span></div>
+      <div class="chk"><i>✓</i><span>Возврат резерва — <b>исходным способом оплаты</b> и не больше фактически внесённой суммы</span></div>
+      <div class="chk"><i>✓</i><span><b>Резерв не продлевает акцию.</b> До внесения платы клиент видит дату окончания промо и предупреждение, что потом цена будет обычной</span></div>
+      <div class="chk q"><i>!</i><span>Минимальная сумма (обсуждались 2000 ₸ и 5000 ₸) и срок в днях — <b>не выбраны</b>. Настраивает суперадмин после решения бизнеса</span></div>
+    </div>
+  </div>
+
+  <div class="sec">Кто и что может менять в ценах</div>
+  <table>
+    <thead><tr><th style="width:34%">Действие</th><th style="width:34%">Кто может</th><th>Условие</th></tr></thead>
+    <tbody>
+      <tr><td>Изменить обычную цену</td><td>Руководитель логистики и ОД — по умолчанию; CEO — всегда</td><td>Суперадмин может отключить первых двоих; РОП по умолчанию не может</td></tr>
+      <tr><td>Разные цены по филиалам</td><td>—</td><td>Флаг суперадмина, по умолчанию <b>выключен</b></td></tr>
+      <tr><td>Лимиты скидок продавцам</td><td>РОП</td><td>По каждой категории, с версией и историей</td></tr>
+      <tr><td>Дополнительная скидка сверх лимита</td><td>МФ и разрешённые роли выше</td><td>В пределах, которые задаёт ОД</td></tr>
+      <tr><td>Сложить две скидки</td><td>РОП, ОД или CEO</td><td><b>Автоматического сложения нет ни для кого</b></td></tr>
+      <tr><td>Создать вид скидки</td><td>РОП и разрешённые выше</td><td>Каждый новый вид обязательно согласует маркетолог — даже если его создал CEO</td></tr>
+      <tr><td>Запустить акцию</td><td>Маркетолог или РОП</td><td>Второй подтверждает ту же версию: один инициирует, другой согласует</td></tr>
+    </tbody>
+  </table>
+
+  <div class="sec">Скидка 15% — главное денежное правило</div>
+  <div class="two">
+    <div class="mod key"><div class="mt"><span class="n">✓</span>Что решено</div>
+      <ul><li>Только на <b>очковые линзы</b> — не на оправу и не на изготовление</li><li>Только при оплате <b>собственными средствами</b>; «живые деньги» — это не только наличные</li><li>Банковский продукт определяется отдельно от банка и канала оплаты: неизвестный продукт не объявляется собственными средствами</li><li>При смешанной оплате по умолчанию скидка действует <b>только на допустимую часть</b>; РОП может разрешить всю допустимую базу линз</li><li>Если остаток после предоплаты переводят в рассрочку, скидка <b>задним числом не пересчитывается</b> (флаг суперадмина, по умолчанию выключен)</li></ul></div>
+    <div class="mod"><div class="mt"><span class="n">!</span>Что не решено и почему это важно</div>
+      <p><b>Нет формулы распределения</b> собственных денег между строками заказа и между суммами до и после скидки. Пока её нет, автоматический расчёт смешанного сценария включать нельзя — система должна честно отвечать «политика не настроена», а не считать по догадке разработчика.</p>
+      <p style="margin-top:5px">Обязательные проверки для любой будущей формулы: база не больше стоимости подходящих строк; суммы по строкам сходятся с заказом; итог не отрицательный; повторная оплата не даёт вторую скидку; округление воспроизводимо и сохраняется для возврата. <b>Дробные вычисления с плавающей точкой запрещены.</b></p></div>
+  </div>
+
+  <div class="callout w"><b>Отдельный внешний риск.</b> Совместимость скидочной политики с реальными договорами банков — вопрос к банку, а не к разработчику. Правило Kaspi Магазина нельзя автоматически переносить на офлайн-терминал, но и желание бизнеса само по себе не доказывает, что конкретный банковский продукт это разрешает.</div>
+  <div class="runfoot"><span>LABOS Retail v3 · разбор и понятное ТЗ · Pllato</span><span>стр. 6 из 15</span></div>
+</section>
+
+<!-- ===== 7 · ЗАКАЗ И ОПЛАТЫ ===== -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><ellipse cx="7" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><ellipse cx="17" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><path d="M11.4 11.6c.4-.5 1.2-.5 1.6 0" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">LABOS · модуль Retail</div><div class="bs">понятное техническое задание · версия разбора от 16.09.2026</div></div>
+    </div>
+    <div class="hr"><div class="t">РАЗДЕЛ 6 · ДЕНЬГИ</div><div class="dt">заказ, изменения, оплаты, возвраты</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h2>Заказ, оплаты и возвраты</h2>
+
+  <div class="sec first">Как устроен заказ</div>
+  <div class="two">
+    <div>
+      <div class="chk n"><i>›</i><span>В заказе — <b>типизированные строки</b>: товар, услуга, изготавливаемая пара. Продажа готовых очков или футляра не создаёт фиктивный рецепт и производственное задание</span></div>
+      <div class="chk n"><i>›</i><span>У одного заказа может быть <b>несколько пар и несколько носителей</b>, но один юридический продавец и одно денежное обязательство</span></div>
+      <div class="chk n"><i>›</i><span>Прогресс считается по маршруту: при ожидании двух линз срок определяет <b>более поздняя</b> из веток, затем загрузка мастерской и контроль качества</span></div>
+      <div class="chk n"><i>›</i><span>Если срок поставщика неизвестен, показывается <b>неопределённый прогноз</b>, а не выдуманная дата</span></div>
+    </div>
+    <div>
+      <div class="chk"><i>✓</i><span>Продавец <b>по умолчанию может сам</b> вносить правильные изменения; руководители видят уведомление и историю. Право ограничить это есть только у РОП и только если его включил суперадмин</span></div>
+      <div class="chk"><i>✓</i><span>Изменение состава хранит предложенную разницу, влияние на цену и сроки, согласования и согласие клиента</span></div>
+      <div class="chk x"><i>×</i><span><b>Материальная подмена того, что обещали клиенту, не делается скрытно.</b> Нет товара у поставщика — это остановка и запрос решения, а не тихая замена параметров</span></div>
+      <div class="chk"><i>✓</i><span>Отмена оплаченного заказа — право МФ и выше: останавливается производство, освобождается только пригодный товар, меняется обязательство и оформляется возврат</span></div>
+    </div>
+  </div>
+
+  <div class="sec">Деньги: четыре величины, которые нельзя путать</div>
+  <table>
+    <thead><tr><th style="width:23%">Величина</th><th>Что означает</th></tr></thead>
+    <tbody>
+      <tr><td><b>Обязательство</b></td><td>Сколько клиент должен по действующему составу заказа с учётом согласованных уменьшений</td></tr>
+      <tr><td><b>Чистая оплата</b></td><td>Подтверждённые поступления минус исполненные возвраты минус подтверждённые банковские отмены</td></tr>
+      <tr><td><b>Остаток к оплате</b></td><td>Обязательство минус чистая оплата, но не меньше нуля</td></tr>
+      <tr><td><b>Переплата клиента</b></td><td>Чистая оплата минус обязательство, если она больше. Это кредит клиента, а не вторая продажа</td></tr>
+    </tbody>
+  </table>
+  <div class="callout"><b>Пример из ТЗ.</b> Клиент оплатил 100 000 ₸, потом вернул товар на 20 000 ₸ и получил эти 20 000 ₸ обратно. Правильный результат: обязательство 80 000, чистая оплата 80 000, долг ноль. Частая ошибка систем — показать «частично оплачен» и придумать несуществующий долг в 20 000 ₸.</div>
+
+  <div class="sec">Оплаты и что делать при сбое банка</div>
+  <div class="three">
+    <div class="mod"><div class="mt"><span class="n">1</span>Намерение и попытка</div><p>Сначала фиксируется ожидаемая сумма и назначение, затем каждая попытка оплаты с провайдером, продуктом, ключом повтора и статусом. <b>Успешный ответ сервера — ещё не списание.</b></p></div>
+    <div class="mod key"><div class="mt"><span class="n">2</span>Неизвестный результат</div><p>Сначала сверка: запрос статуса, обработка уведомления банка, поиск исходной операции. Новая попытка — только после подтверждённого неуспеха. <b>Второго слепого списания быть не должно.</b></p></div>
+    <div class="mod"><div class="mt"><span class="n">3</span>Смешанная оплата</div><p>Части независимы: наличные приняты, карта отказала — наличный факт сохраняется, виден реальный остаток, заказ не обнуляется.</p></div>
+  </div>
+  <div class="two">
+    <div>
+      <div class="chk"><i>✓</i><span><b>Фискальный чек — отдельный объект.</b> Ошибка чека после успешной оплаты создаёт инцидент; деньги повторно не списываются</span></div>
+      <div class="chk"><i>✓</i><span>Терминал банка, кассовое ПО и оператор фискальных данных — <b>три разных компонента</b>, а не один</span></div>
+      <div class="chk x"><i>×</i><span><b>Скриншот клиента не является подтверждением оплаты</b></span></div>
+    </div>
+    <div>
+      <div class="chk"><i>✓</i><span>Возврат: лимит резервируется сразу на всю заявку, поэтому <b>нельзя вернуть одну сумму дважды</b> — наличными и через банк</span></div>
+      <div class="chk"><i>✓</i><span>Частичный возврат смешанной покупки по умолчанию пропорциональный, но клиент может попросить иначе — если это позволяет договор банка</span></div>
+      <div class="chk q"><i>!</i><span>Отмена операции и спор с банком приходят через сверку: <b>уведомление о споре ещё не означает потерю денег</b></span></div>
+    </div>
+  </div>
+  <div class="runfoot"><span>LABOS Retail v3 · разбор и понятное ТЗ · Pllato</span><span>стр. 7 из 15</span></div>
+</section>
+
+
+<!-- ===== 8 · КАССА ===== -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><ellipse cx="7" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><ellipse cx="17" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><path d="M11.4 11.6c.4-.5 1.2-.5 1.6 0" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">LABOS · модуль Retail</div><div class="bs">понятное техническое задание · версия разбора от 16.09.2026</div></div>
+    </div>
+    <div class="hr"><div class="t">РАЗДЕЛ 7 · КАССА</div><div class="dt">смена, сейф, инкассация, расхождения</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h2>Касса, сейф и движение наличных до офиса</h2>
+  <p class="lead">Это раздел, который чаще всего ломается в рознице: деньги проходят через несколько рук, а ответственность размывается. В ТЗ описан маршрут, на каждом шаге которого есть конкретный человек и подтверждённый факт.</p>
+
+  <div class="flow" style="grid-template-columns:repeat(5,1fr)">
+    <div class="on"><code>1 · САЛОН</code><b>Касса филиала</b><p>По умолчанию одна общая касса, но каждый работает под личной сессией. Индивидуальные кассы поддерживаются.</p></div>
+    <div><code>2 · ВЕЧЕР</code><b>Сейф филиала</b><p>МФ назначает сотрудника для переноса денег; можно выключить требование ежедневного назначения — тогда это делает сотрудник смены с действующим правом.</p></div>
+    <div><code>3 · ПЕРЕДАЧА</code><b>Запечатанный пакет</b><p>МФ или назначенный продавец передаёт пакет курьеру. Курьер подтверждает упаковку, <b>а не сумму внутри</b>.</p></div>
+    <div><code>4 · ДОРОГА</code><b>Деньги в пути</b><p>Отправка уменьшает остаток источника и переводит сумму в отдельное состояние «в пути», чтобы её нельзя было посчитать дважды.</p></div>
+    <div><code>5 · ОФИС</code><b>Приёмка и пересчёт</b><p>Принимает и пересчитывает бухгалтер <b>или</b> CEO — обязательной двойной подписи нет.</p></div>
+  </div>
+
+  <div class="two">
+    <div>
+      <div class="sec first">Правила, которые нельзя обойти</div>
+      <div class="chk x"><i>×</i><span><b>Расходы салона из кассы запрещены.</b> Отдельного тумблера «разрешить руководителю» не предусмотрено</span></div>
+      <div class="chk x"><i>×</i><span><b>Размен при открытии кассы — не более 20 000 ₸</b> суммарно. Разбить на две выдачи по 15 и 10 тысяч нельзя</span></div>
+      <div class="chk x"><i>×</i><span><b>Курьер нигде не видит сумму</b> — ни в интерфейсе, ни в документах, ни в уведомлениях, ни в API</span></div>
+      <div class="chk"><i>✓</i><span>Ожидаемая сумма строится из журнала движений и <b>не редактируется под фактическую</b></span></div>
+      <div class="chk"><i>✓</i><span>Пересчёт делается вечером при сдаче и утром при приёме смены</span></div>
+    </div>
+    <div>
+      <div class="sec first">Если сумма не сошлась</div>
+      <div class="chk q"><i>!</i><span>Расхождение фиксируется сразу, на разбор даётся <b>24 часа</b></span></div>
+      <div class="chk q"><i>!</i><span>Незакрытый случай автоматически создаёт внеплановую проверку с причиной «расхождение кассы»</span></div>
+      <div class="chk q"><i>!</i><span>Проверяются связанные кассовые, банковские и товарные операции; область расширяется только при основаниях</span></div>
+      <div class="chk x"><i>×</i><span><b>Излишек товара не зачитывается против недостачи денег.</b> Это два разных акта с разными основаниями</span></div>
+      <div class="chk x"><i>×</i><span>Система не назначает одного виновного за день и не начисляет коллективный долг без разбора</span></div>
+    </div>
+  </div>
+
+  <div class="sec">Рабочее место бухгалтера внутри Retail</div>
+  <p style="font-size:9.7px;color:var(--ink2);line-height:1.55">Отдельный экран для сверки: кассовые и банковские операции, неизвестные оплаты, возвраты, фискальные чеки, 24-часовые кейсы и акты корректировки. Кассовая корректировка и товарная корректировка — разные документы. Право сверки можно расширить на МФ и конкретные роли выше, но оно не достаётся всем кадровым назначениям автоматически.</p>
+
+  <div class="callout w"><b>Что ещё не решено по кассе.</b> Конкретные даты инкассации (обсуждалось «два раза в месяц»), возможность внутридневного пополнения размена и то, изменяем ли сам лимит в 20 000 ₸. Это вопросы к бизнесу, а не к разработчику — но без ответа функция настраивается «как есть» и потом переделывается.</div>
+  <div class="runfoot"><span>LABOS Retail v3 · разбор и понятное ТЗ · Pllato</span><span>стр. 8 из 15</span></div>
+</section>
+
+
+<!-- ===== 9 · ЗАКУПКА ЛИНЗ ===== -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><ellipse cx="7" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><ellipse cx="17" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><path d="M11.4 11.6c.4-.5 1.2-.5 1.6 0" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">LABOS · модуль Retail</div><div class="bs">понятное техническое задание · версия разбора от 16.09.2026</div></div>
+    </div>
+    <div class="hr"><div class="t">РАЗДЕЛ 8 · ЗАКУПКА</div><div class="dt">поставщики, семь этапов, переписка</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h2>Закупка линз: доска логиста из семи этапов</h2>
+  <p class="lead">Линзы заказывают логисты, при их отсутствии — операционный директор. Как только заказ прошёл условия состава и предоплаты, потребность появляется у логиста <b>автоматически</b>, отдельной заявкой на каждый компонент, а не общей суммой заказа.</p>
+
+  <table>
+    <thead><tr><th style="width:20%">Этап</th><th>Что делает логист</th></tr></thead>
+    <tbody>
+      <tr><td><b>1 · Подбор поставщика</b></td><td>Смотрит потребности и очередь разрешённых поставщиков; невыбранные строки лежат в группе подбора</td></tr>
+      <tr><td><b>2 · Запрос отправлен</b></td><td>Отправляет подготовленный текст по каждой паре; отсчёт 40 минут начинается <b>с фактической отправки</b>, а не с создания черновика</td></tr>
+      <tr><td><b>3 · Предложение подтверждено</b></td><td>Сверяет параметры, цену и срок, принимает предложение или запускает согласование альтернативы</td></tr>
+      <tr><td><b>4 · Заказ оформлен</b></td><td>Получает документы и согласует оплату по условиям конкретного поставщика; платёжный статус виден отдельно</td></tr>
+      <tr><td><b>5 · Сборка отправки</b></td><td>Проверяет готовность у поставщиков, связывает упаковки с общим отправлением</td></tr>
+      <tr><td><b>6 · В пути</b></td><td>Фиксирует перевозчика, прогноз и задержки, при необходимости назначает курьера</td></tr>
+      <tr><td><b>7 · Приёмка</b></td><td>Сверяет накладную, реальные экземпляры и качество; принимает пригодное, оформляет расхождения и закрывает <b>только выполненные строки</b></td></tr>
+    </tbody>
+  </table>
+
+  <div class="two">
+    <div class="mod key"><div class="mt"><span class="n">✓</span>Решено собственником</div>
+      <ul><li>Для Алатау — <b>очередь примерно из пяти поставщиков</b> по группам товаров</li><li>Для Essilor, Hoya и других закреплённых брендов — только официальное представительство</li><li><b>40 минут</b> без ответа → задача логисту связаться, при срочности позвонить</li><li>Физически линзы можно собрать у одного поставщика и отправить одним рейсом, но <b>платим каждому отдельно</b></li></ul></div>
+    <div class="mod"><div class="mt"><span class="n">!</span>Что это значит технически</div>
+      <p><b>Потребность, партия поставщика и заказ поставщику — три разных объекта.</b> Карточка поставщика на доске удобна, но одна задержавшаяся строка не должна маскировать статус остальных: если одна линза приехала, а вторая нет, карточка не закрывается целиком.</p>
+      <p style="margin-top:5px">Стадия закупки и статус оплаты независимы: поставщик с отсрочкой не висит на этапе «заказ оформлен» только потому, что счёт ещё не оплачен.</p></div>
+  </div>
+
+  <div class="sec">Переписка с поставщиками</div>
+  <div class="two">
+    <div>
+      <div class="chk n"><i>›</i><span>На каждую пару создаётся <b>черновик сообщения</b> с постоянным номером запроса, версией параметров, сторонами, количеством и сроком</span></div>
+      <div class="chk n"><i>›</i><span><b>Первый рабочий путь:</b> предпросмотр и копирование в WhatsApp вручную, логист отмечает реальную отправку</span></div>
+      <div class="chk n"><i>›</i><span><b>Целевой путь:</b> канал логистов в модуле Connect с подключённым провайдером WhatsApp</span></div>
+    </div>
+    <div>
+      <div class="chk"><i>✓</i><span>В одном диалоге может быть несколько заказов: сообщение сопоставляется по номерам строк</span></div>
+      <div class="chk"><i>✓</i><span>AI может предложить разбор ответа, но <b>спорное подтверждает человек</b>; исходный текст доступен по защищённой ссылке</span></div>
+      <div class="chk q"><i>!</i><span>Наличие товара у поставщика <b>не равно резерву</b>: у наблюдения есть время проверки и срок годности данных</span></div>
+    </div>
+  </div>
+
+  <div class="callout r"><b>Про автоматический заказ через AI.</b> ТЗ прямо запрещает делать это по умолчанию: автономная закупка требует отдельного режима с лимитами, списком разрешённых инструментов и проверкой результата. Содержимое письма или сайта поставщика — это данные, а не команда системе.</div>
+  <div class="runfoot"><span>LABOS Retail v3 · разбор и понятное ТЗ · Pllato</span><span>стр. 9 из 15</span></div>
+</section>
+
+
+<!-- ===== 10 · МАСТЕРСКАЯ И ВЫДАЧА ===== -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><ellipse cx="7" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><ellipse cx="17" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><path d="M11.4 11.6c.4-.5 1.2-.5 1.6 0" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">LABOS · модуль Retail</div><div class="bs">понятное техническое задание · версия разбора от 16.09.2026</div></div>
+    </div>
+    <div class="hr"><div class="t">РАЗДЕЛ 9 · ПРОИЗВОДСТВО</div><div class="dt">изготовление, контроль качества, перевозка, выдача</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h2>Мастерская, контроль качества и выдача</h2>
+
+  <div class="sec first">Очередь мастера и начало работы</div>
+  <p class="lead" style="margin-bottom:8px">Очередь группируется по филиалам и маршрутам и показывает задание, требования, фактический комплект, текущую версию, срок и остановки. Начать изготовление можно только при совпадении четырёх условий: <b>актуальное задание, проверенные физические компоненты, подтверждённая совместимость и компетенция мастера с нужным оборудованием.</b></p>
+  <div class="two">
+    <div>
+      <div class="chk n"><i>›</i><span><b>Причины остановки:</b> нет материала, недостаточная квалификация для конструкции, малый диаметр, неподходящая пара оправа-линза, нехватка цвета тонировки, брак, новая версия заказа</span></div>
+      <div class="chk n"><i>›</i><span>У каждой причины есть <b>владелец и ожидаемое действие</b>, а не только красная отметка в списке</span></div>
+      <div class="chk n"><i>›</i><span>Мастер фиксирует исходное состояние оправы (в том числе клиентской), фактические линзы, начало необратимой обработки и результат</span></div>
+    </div>
+    <div>
+      <div class="chk"><i>✓</i><span><b>Расход линзы и завершение изготовления — разные события.</b> Испорченная линза остаётся в истории как расход</span></div>
+      <div class="chk"><i>✓</i><span>Фотографии и измерения вносит тот, кто обнаружил отклонение, и в момент обнаружения</span></div>
+      <div class="chk"><i>✓</i><span>Срочная замена идёт <b>параллельно расследованию</b>: предел старшего продавца — две складские линзы на каждый глаз исходного заказа, новый кейс счётчик не обнуляет</span></div>
+    </div>
+  </div>
+
+  <div class="sec">Двухступенчатый контроль качества</div>
+  <div class="two">
+    <div class="mod key"><div class="mt"><span class="n">1</span>Технический контроль мастера</div>
+      <ul><li>Марка, материал, индекс и покрытие — сверка с заданием</li><li>Оптические параметры по каждой стороне</li><li>Центровка и посадочные значения</li><li>Качество края, крепление, отсутствие повреждений и напряжений, геометрия и устойчивость сборки</li></ul>
+      <p style="margin-top:5px">Протокол содержит конкретные измерения, прибор, исполнителя, время, норму и результат «прошёл/не прошёл».</p></div>
+    <div class="mod"><div class="mt"><span class="n">2</span>Приёмка продавца</div>
+      <ul><li>Заказ, носитель и версия — те ли</li><li>Наличие принятого протокола измерений</li><li>Внешний вид: царапины, сколы, покрытие, винты, симметрия, комплектность, чистота</li><li>Примерка, разрешённая регулировка, объяснение ухода клиенту</li></ul>
+      <p style="margin-top:5px"><b>Если продавец не компетентен и без прибора</b>, отсутствие технической проверки нельзя заменить галочкой «выглядит правильно».</p></div>
+  </div>
+  <div class="callout w"><b>Числовые допуски не определены.</b> Конкретные значения, при которых пара считается годной, должен утвердить квалифицированный специалист до выпуска — сейчас это открытый вопрос. Отдельный контролёр качества как самостоятельная роль предусмотрен на будущее и не требует переписывать журнал мастера.</div>
+
+  <div class="sec">Перевозка между филиалами и выдача клиенту</div>
+  <table>
+    <thead><tr><th style="width:27%">Ситуация</th><th>Как должно работать</th></tr></thead>
+    <tbody>
+      <tr><td><b>Мастерская в том же филиале</b></td><td>Локальная передача и приёмка продавцом заменяют физическую перевозку, но <b>не заменяют контроль качества</b></td></tr>
+      <tr><td><b>Общий рейс между филиалами</b></td><td>Неготовый заказ получает причину исключения и следующий маршрут, а не блокирует все готовые заказы компании</td></tr>
+      <tr><td><b>Сменили филиал выдачи после упаковки</b></td><td>Нужно физически найти, переложить и пересверить манифесты. Поменять только адрес в записи и считать дело сделанным нельзя</td></tr>
+      <tr><td><b>Клиенту сообщили о готовности</b></td><td>Готовность и отправка сообщения — разные факты. Недоставленное сообщение не отменяет готовность, а создаёт задачу связаться</td></tr>
+      <tr><td><b>Выдача</b></td><td>По умолчанию нужен нулевой долг, принятое качество, доступный комплект и подтверждение получателя. Выдача с долгом включается суперадмином для МФ и выше, с отдельным решением и <b>видимым реальным остатком</b> — без фиктивной оплаты</td></tr>
+      <tr><td><b>Клиент не пришёл</b></td><td>Попытка выдачи сохраняется с причиной переноса и возвращается в расписание с новой датой; история попыток не стирается</td></tr>
+      <tr><td><b>Доставка домой</b></td><td>По умолчанию выключена. До включения нужно определить адресную зону, стоимость, подтверждение вручения и сценарий невручения</td></tr>
+    </tbody>
+  </table>
+  <div class="runfoot"><span>LABOS Retail v3 · разбор и понятное ТЗ · Pllato</span><span>стр. 10 из 15</span></div>
+</section>
+
+<!-- ===== 11 · СЕРВИС И ФРАНШИЗА ===== -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><ellipse cx="7" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><ellipse cx="17" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><path d="M11.4 11.6c.4-.5 1.2-.5 1.6 0" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">LABOS · модуль Retail</div><div class="bs">понятное техническое задание · версия разбора от 16.09.2026</div></div>
+    </div>
+    <div class="hr"><div class="t">РАЗДЕЛ 10 · СЕРВИС</div><div class="dt">возвраты, гарантия, франчайзи, права</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h2>Возвраты, гарантия, франшиза и права доступа</h2>
+
+  <div class="sec first">Рекламация: помощь клиенту и расследование идут параллельно</div>
+  <div class="two">
+    <div>
+      <div class="chk n"><i>›</i><span>Сервисное дело связывает обращение, исходный заказ и комплект, симптом, доказательства, помощь клиенту, расследование, решение по расходам и проверку результата</span></div>
+      <div class="chk n"><i>›</i><span><b>Исходная продажа не удаляется</b> и не переписывается</span></div>
+      <div class="chk n"><i>›</i><span>Доказательства собираются по этапам: фото при приёмке, накладная поставщика, комплектование, работа мастера, контроль качества, упаковка, передача, обращение клиента</span></div>
+      <div class="chk n"><i>›</i><span>Различаются <b>время события и время внесения записи</b>. Отсутствие фотографии не заменяется сгенерированной картинкой</span></div>
+    </div>
+    <div>
+      <div class="chk q"><i>!</i><span>Причина может быть у продавца, мастера, логиста, поставщика, перевозки, самого товара — либо <b>не установлена или совместная</b></span></div>
+      <div class="chk x"><i>×</i><span><b>Ответственный за стадию не объявляется виновным автоматически</b></span></div>
+      <div class="chk x"><i>×</i><span><b>AI не назначает виновного.</b> Он предлагает версии с доказательствами за и против; решение принимают МФ, РОП, ОД, HR или CEO — продавец не может</span></div>
+      <div class="chk x"><i>×</i><span><b>Автоматическое удержание из зарплаты запрещено.</b> Решение о расходах и удержание — разные процессы в разных модулях</span></div>
+    </div>
+  </div>
+  <div class="callout"><b>Возврат — это три отдельных действия:</b> принять товар обратно, разрешить деньги и фактически вернуть деньги. Принятая единица сначала попадает в карантин или на проверку, а не сразу в продажу. Решение о повторной продаже, ремонте, возврате поставщику или списании сохраняется отдельно.</div>
+  <p style="font-size:9.7px;color:var(--ink2);line-height:1.55"><b>Гарантия.</b> Пожизненная гарантия на собственные оправы сохраняется, но точные исключения, доказательство происхождения, платные случаи и условия замены модели нужно зафиксировать отдельным документом до применения. Повторные линзы клиент обычно оплачивает; исключение может согласовать РОП, ОД или CEO — это коммерческое решение и оно <b>не смешивается</b> с решением о внутренней ответственности сотрудника.</p>
+
+  <div class="sec">Франчайзи и филиалы</div>
+  <div class="three">
+    <div class="mod key"><div class="mt"><span class="n">1</span>Изоляция</div><p>Каждый партнёр — отдельная область данных. Филиал, город и юрлицо этого не заменяют. Руководитель собственной сети <b>не получает автоматически</b> доступ к медицинским данным, сотрудникам и деньгам партнёра.</p></div>
+    <div class="mod"><div class="mt"><span class="n">2</span>Что уходит в центр</div><p>Только разрешённые договором агрегаты. Общий каталог передаёт стандарты и правила, но <b>локальные цены, остатки, себестоимость и клиенты партнёра остаются его</b>.</p></div>
+    <div class="mod"><div class="mt"><span class="n">3</span>Деньги</div><p>Заказ закреплён за юридическим продавцом. Оплата на терминал другого ИП не считается корректной автоматически. Роялти считается по версии договора, а не по примеру из презентации.</p></div>
+  </div>
+
+  <div class="sec">Права: что именно проверяется</div>
+  <table>
+    <thead><tr><th style="width:30%">Проверка</th><th>Пример</th></tr></thead>
+    <tbody>
+      <tr><td><b>Область данных партнёра</b></td><td>Поиск, выгрузка, вложения и подсказки AI проходят ту же проверку, что и экран — нельзя закрыть кнопку и оставить доступ в API</td></tr>
+      <tr><td><b>Филиалы руководителя</b></td><td>Область МФ — явный список филиалов; исключённый филиал перестаёт быть доступным <b>и в поиске, и в кэше</b>, история при этом сохраняется</td></tr>
+      <tr><td><b>Компетенция</b></td><td>Кадровик с назначением не подтверждает рецепт: нужна компетенция, а не должность</td></tr>
+      <tr><td><b>Сумма и тип действия</b></td><td>Скидка сверх лимита, возврат, выдача с долгом — каждое требует своего разрешения, а не общего «руководитель выше»</td></tr>
+      <tr><td><b>Согласование привязано к версии</b></td><td>Если после согласования изменили состав или сумму — <b>нужно новое согласование</b>, старое не исполняется</td></tr>
+      <tr><td><b>История</b></td><td>Хранится бессрочно: вход, разрешённое и отклонённое действие, изменение настроек, согласование, выгрузка, доступ к чувствительным данным. Пароли и реквизиты карт не пишутся</td></tr>
+    </tbody>
+  </table>
+  <div class="callout w"><b>Здесь главный открытый вопрос всего ТЗ.</b> За формулировкой «МФ и выше» должна стоять точная таблица: какое действие, какие роли, какие ограничения, какие исключения. Без неё разработчик будет вынужден сравнивать названия должностей строками — а это ровно то, что ТЗ запрещает.</div>
+  <div class="runfoot"><span>LABOS Retail v3 · разбор и понятное ТЗ · Pllato</span><span>стр. 11 из 15</span></div>
+</section>
+
+
+<!-- ===== 12 · ЭКРАНЫ И ТЕХНИКА ===== -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><ellipse cx="7" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><ellipse cx="17" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><path d="M11.4 11.6c.4-.5 1.2-.5 1.6 0" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">LABOS · модуль Retail</div><div class="bs">понятное техническое задание · версия разбора от 16.09.2026</div></div>
+    </div>
+    <div class="hr"><div class="t">РАЗДЕЛ 11 · РЕАЛИЗАЦИЯ</div><div class="dt">экраны, offline, нагрузка, миграция</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h2>Экраны, offline и технические требования</h2>
+
+  <div class="sec first">Двадцать четыре рабочих экрана</div>
+  <table>
+    <thead><tr><th style="width:25%">Группа</th><th>Экраны</th></tr></thead>
+    <tbody>
+      <tr><td><b>Продажи</b></td><td>Рабочий стол продавца · Консультация · Планшет клиента · Журнал заказов · Карточка заказа · Оплата и возврат · Резерв · Управление МФ и РОП</td></tr>
+      <tr><td><b>Цены</b></td><td>Конструктор скидок · Прайс и ассортимент</td></tr>
+      <tr><td><b>Товар</b></td><td>Логистика закупки (семь этапов) · Приёмка поставщика · Склад и ревизия</td></tr>
+      <tr><td><b>Производство</b></td><td>Мастерская · Контроль качества и приёмка продавца</td></tr>
+      <tr><td><b>Логистика</b></td><td>Упаковка и маршруты · Курьер (мобильный) · Выдача</td></tr>
+      <tr><td><b>Деньги</b></td><td>Касса и сейф · Рабочее место бухгалтера</td></tr>
+      <tr><td><b>Сервис и админ</b></td><td>Сервис · Политики суперадмина · Интеграции и устройства · Отчёты и здоровье</td></tr>
+    </tbody>
+  </table>
+  <div class="two">
+    <div>
+      <div class="chk n"><i>›</i><span>У каждого экрана обязательны состояния: пусто, загрузка, нет связи, данные устарели, доступ запрещён, конфликт версий, ошибка</span></div>
+      <div class="chk n"><i>›</i><span>Фильтр по дате объясняет смысл: <b>создано, обещано, оплачено, выдано или принято</b> — это разные даты</span></div>
+    </div>
+    <div>
+      <div class="chk n"><i>›</i><span>Обязательны <b>русский и казахский</b> языки, работа с клавиатуры, видимый фокус, признаки не только цветом</span></div>
+    </div>
+  </div>
+
+  <div class="sec">Работа без интернета</div>
+  <table>
+    <thead><tr><th style="width:34%">Что делает сотрудник</th><th>Что происходит без связи</th></tr></thead>
+    <tbody>
+      <tr><td>Черновик консультации, фото, заметка</td><td>Сохраняется локально и загружается после восстановления связи</td></tr>
+      <tr><td>Сканирование и пересчёт</td><td>Наблюдения сохраняются, окончательная корректировка ждёт подтверждённого действия</td></tr>
+      <tr><td>Шаг изготовления</td><td>Возможен по подписанному актуальному заданию, конфликт версий проверяется после связи</td></tr>
+      <tr><td>Оплата картой или возврат</td><td><b>Только через действующего провайдера.</b> Локальная запись намерения — это не деньги</td></tr>
+      <tr><td>Резерв в другом филиале, смена прав</td><td>Запрос сохраняется, результат требует центральной проверки</td></tr>
+    </tbody>
+  </table>
+  <div class="callout"><b>Интерфейс обязан честно различать</b> «сохранено локально», «ждёт подтверждения», «подтверждено» и «конфликт». Правило «побеждает последний» для денег, рецептов, серийных единиц и прав <b>запрещено</b>: два филиала без связи не могут зарезервировать одну оправу.</div>
+
+  <div class="sec">Нагрузка, миграция и запуск</div>
+  <div class="three">
+    <div class="mod"><div class="mt"><span class="n">1</span>Нагрузка</div><p>Цель — 1000 одновременных <b>сессий</b>, а не 1000 списаний в одной кассе. Профиль: около 100 запросов в секунду, 80% чтение, пик 200 на 15 минут, прогон не менее двух часов. Отклик: 500 мс на обычный запрос, 2 с на основной экран.</p></div>
+    <div class="mod"><div class="mt"><span class="n">2</span>Миграция</div><p>Переносятся не только справочники: активные заказы, права, резервы с деньгами, долги, возвраты, товар в пути и кассы. <b>Отсутствующее поле остаётся пустым с пометкой</b>, а не заполняется выдуманным значением.</p></div>
+    <div class="mod key"><div class="mt"><span class="n">3</span>Пилот</div><p>Первым запускается салон <b>EXPO</b> с реальными товарами и заказами. Центральный склад остаётся в старой системе Itigris до общего переключения. Одна единица не может числиться доступной в двух системах одновременно.</p></div>
+  </div>
+  <div class="callout r" style="margin-bottom:0"><b>Честная оговорка автора ТЗ.</b> Ни нагрузка, ни банковские интеграции, ни RFID-оборудование, ни миграция не испытаны — это цели и требования, а не измеренные результаты. Поэтому обещание «никаких потерь при любом сбое» сознательно не даётся, пока не определены и не проверены допустимое время простоя и допустимая потеря данных.</div>
+  <div class="runfoot"><span>LABOS Retail v3 · разбор и понятное ТЗ · Pllato</span><span>стр. 12 из 15</span></div>
+</section>
+
+
+<!-- ===== 13 · ЧТО ОТКРЫТО ===== -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><ellipse cx="7" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><ellipse cx="17" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><path d="M11.4 11.6c.4-.5 1.2-.5 1.6 0" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">LABOS · модуль Retail</div><div class="bs">понятное техническое задание · версия разбора от 16.09.2026</div></div>
+    </div>
+    <div class="hr"><div class="t">РАЗДЕЛ 12 · ИТОГ</div><div class="dt">условия запуска, вопросы, план работ</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h2>Что нужно закрыть и в каком порядке двигаться</h2>
+
+  <div class="sec first">Двенадцать условий рабочего выпуска</div>
+  <table>
+    <thead><tr><th style="width:5%">№</th><th style="width:25%">Условие</th><th>Что нужно</th><th style="width:19%">Кто закрывает</th></tr></thead>
+    <tbody>
+      <tr><td>G01</td><td><b>Матрица полномочий</b></td><td>Точный список ролей за каждым согласованием и разделение обязанностей</td><td>CEO, HR, IAM</td></tr>
+      <tr><td>G02</td><td><b>Смешанная скидка</b></td><td>База, распределение, округление, допустимые банковские продукты</td><td>РОП, бухгалтер, банк</td></tr>
+      <tr><td>G03</td><td><b>Деньги и чеки</b></td><td>Терминал, подтверждения, чек аванса и зачёта, неизвестный ответ банка</td><td>интегратор, банк</td></tr>
+      <tr><td>G04</td><td><b>Профессиональные нормы</b></td><td>Параметры рецепта, допуски контроля, оборудование, компетенции</td><td>оптометрист, ОД</td></tr>
+      <tr><td>G05</td><td><b>Платный резерв</b></td><td>Стартовая сумма и срок, последствия невыкупа</td><td>собственник, юрист</td></tr>
+      <tr><td>G06</td><td><b>RFID</b></td><td>Метка, носитель, устройство, прошивка и тест отказов</td><td>поставщик, инженер</td></tr>
+      <tr><td>G07</td><td><b>Общие контракты</b></td><td>Совместимость событий с Work, владельцы данных, схемы команд</td><td>архитекторы</td></tr>
+      <tr><td>G08</td><td><b>Франшиза</b></td><td>Список партнёров, что публикуется, база роялти</td><td>CEO, юрист</td></tr>
+      <tr><td>G09</td><td><b>Offline</b></td><td>Локальный набор, автономность, допустимая потеря данных, восстановление</td><td>ОД, архитектура</td></tr>
+      <tr><td>G10</td><td><b>Данные и запуск</b></td><td>Выгрузка из Itigris, сверка денег и товара, полевой прогон, обучение</td><td>ОД, бухгалтер</td></tr>
+      <tr><td>G11</td><td><b>Нагрузка</b></td><td>Набор данных, тест 1000 сессий, изоляция крупного партнёра</td><td>разработка</td></tr>
+      <tr><td>G12</td><td><b>Метрики и AI</b></td><td>Формулы, покрытие данных, качество источников, точность</td><td>владельцы процессов</td></tr>
+    </tbody>
+  </table>
+
+  <div class="sec">Кому и сколько вопросов адресовано</div>
+  <div class="stat" style="grid-template-columns:repeat(7,1fr);margin-bottom:7px">
+    <div><small>РОП</small><b class="w">100</b></div>
+    <div><small>ОД</small><b class="w">90</b></div>
+    <div><small>CEO</small><b>43</b></div>
+    <div><small>Бухгалтер</small><b>36</b></div>
+    <div><small>Логистика</small><b>31</b></div>
+    <div><small>Юрист</small><b>22</b></div>
+    <div><small>Оптометрист</small><b>22</b></div>
+  </div>
+  <p style="font-size:9.5px;color:var(--ink2);line-height:1.45;margin-bottom:2px">Ещё 13 вопросов у мастера, 12 у HR, 10 у маркетолога, 10 к банку, 6 к поставщику RFID. Из 400 открытых <b>100 имеют высший приоритет</b> — по пять в каждом разделе; именно они блокируют функции, остальные закрываются по ходу работы.</p>
+
+  <div class="callout" style="margin-bottom:0"><b>Итог одной фразой.</b> Документ качественный и необычно честный: отделяет решения собственника от технических предположений и прямо помечает непроверенное. Начинать разработку ядра по нему можно, но <b>оценивать проект целиком в деньгах и сроках — только после того, как определён состав первого выпуска</b> и закрыты сто критичных вопросов: от них зависит объём работ по деньгам, правам и профессиональным нормам.</div>
+
+  <div class="runfoot"><span>LABOS Retail v3 · разбор и понятное ТЗ · Pllato</span><span>стр. 13 из 15</span></div>
+</section>
+
+
+<!-- ===== 14 · СЛОВАРЬ ===== -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><ellipse cx="7" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><ellipse cx="17" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><path d="M11.4 11.6c.4-.5 1.2-.5 1.6 0" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">LABOS · модуль Retail</div><div class="bs">понятное техническое задание · версия разбора от 16.09.2026</div></div>
+    </div>
+    <div class="hr"><div class="t">РАЗДЕЛ 13 · ПЛАН</div><div class="dt">что делать дальше и что в пакете</div></div>
+  </header>
+  <div class="rule"></div>
+
+  <h2>Как двигаться дальше и из чего состоит пакет</h2>
+  <div class="sec">Из чего состоит присланный пакет</div>
+  <table>
+    <thead><tr><th style="width:38%">Файл</th><th>Что внутри и зачем нужен</th></tr></thead>
+    <tbody>
+      <tr><td><b>LABOS_Retail_TZ_v3.md</b></td><td>Основное ТЗ: 20 разделов, 159 требований, модель данных, состояния, права, экраны, события, 70 приёмочных сценариев</td></tr>
+      <tr><td><b>Questions_500_v3.md</b></td><td>500 вопросов по разделам: 100 с техническим ответом, 400 открытых с указанием ответственного</td></tr>
+      <tr><td><b>Answers_100_and_Audit_v3.md</b></td><td>Сто ответов, сверка с решениями собственника, 28 выявленных противоречий, условия запуска и честная оценка полноты</td></tr>
+      <tr><td><b>Questions_v3.json</b></td><td>Машиночитаемый реестр вопросов — можно сразу завести задачи в трекере без перепечатывания</td></tr>
+      <tr><td><b>Contract_Registry_v3.json</b></td><td>Логические требования и таблицы, извлечённые из ТЗ. <b>Это не готовый API</b></td></tr>
+      <tr><td><b>Source_Coverage_v3.json</b></td><td>Какие исходные документы прочитаны и насколько глубоко; непрочитанное помечено честно</td></tr>
+      <tr><td><b>Document_Checks_v3.json</b></td><td>Структурная проверка документов. Прямо указано: программа не запускалась, банк и оборудование не испытаны</td></tr>
+    </tbody>
+  </table>
+  <div class="sec">Как двигаться</div>
+  <div class="tl">
+    <div class="tli"><span class="w">НЕДЕЛЯ 1</span><b>Рабочая сессия по 100 критичным вопросам</b><p>Не переписка, а встречи по ролям: деньги и скидки (РОП, бухгалтер), процессы и границы (ОД, CEO), нормы (оптометрист, мастер), закупка (логисты).</p></div>
+    <div class="tli"><span class="w">НЕДЕЛЯ 1–2</span><b>Состав первого выпуска для EXPO</b><p>Что входит в пилот, а что временно делается подтверждаемым ручным действием. Без этого объём не оценить: в ТЗ описана целевая система, а не минимальный запуск.</p></div>
+    <div class="tli"><span class="w">ПАРАЛЛЕЛЬНО</span><b>Испытания оборудования и интеграций</b><p>RFID-принтер, метки и считыватели, терминалы Kaspi и Halyk, фискальный контур. Эту часть нельзя ускорить разработкой: без протокола теста функции остаются закрытыми.</p></div>
+    <div class="tli"><span class="w">ДАЛЬШЕ</span><b>Разработка ядра и сквозных сценариев</b><p>Приёмка — по 70 сценариям из ТЗ: одновременный резерв последней оправы, повторная оплата после обрыва связи, неизвестный ответ банка, двойной возврат, чтение соседних меток, конфликт offline-команд.</p></div>
+  </div>
+
+  <div class="signs">
+    <div class="s"><div class="sl">Подготовил</div><div class="snm">Pllato · студия разработки</div><div class="ln">pllato.kz · +7 701 123 99 99</div></div>
+    <div class="s"><div class="sl">Ознакомлен</div><div class="snm">Заказчик</div><div class="ln"><u></u> / ______________ / 2026 г.</div></div>
+  </div>
+  <div class="runfoot"><span>LABOS Retail v3 · разбор и понятное ТЗ · Pllato</span><span>стр. 14 из 15</span></div>
+</section>
+
+
+
+<!-- ===== 15 · СЛОВАРЬ ===== -->
+<section class="page">
+  <header>
+    <div class="brand">
+      <div class="bm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><ellipse cx="7" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><ellipse cx="17" cy="12" rx="5" ry="4.2" stroke="#1f7a8c" stroke-width="1.9"/><path d="M11.4 11.6c.4-.5 1.2-.5 1.6 0" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div><div class="bt">LABOS · модуль Retail</div><div class="bs">понятное техническое задание · версия разбора от 16.09.2026</div></div>
+    </div>
+    <div class="hr"><div class="t">ПРИЛОЖЕНИЕ · СЛОВАРЬ</div><div class="dt">термины ТЗ простыми словами</div></div>
+  </header>
+  <div class="rule"></div>
+  <h2>Словарь: что означают термины из исходного ТЗ</h2>
+  <p class="lead">Исходный документ написан плотным техническим языком. Этот словарь нужен, чтобы читать его без переводчика — и чтобы на встрече все понимали под словом одно и то же.</p>
+  <div class="gloss">
+    <div><b>ПК</b> — продавец-консультант. В соседнем модуле то же сокращение ошибочно подписано как менеджер филиала; в Retail это именно продавец.</div>
+    <div><b>МФ</b> — руководитель закреплённой группы филиалов, обычно города.</div>
+    <div><b>РОП</b> — руководитель отдела продаж. <b>ОД</b> — операционный директор. <b>SA</b> — суперадмин.</div>
+    <div><b>Tenant</b> — изолированная область данных одной организации или франчайзи. Филиал и юрлицо её не заменяют.</div>
+    <div><b>Scope</b> — разрешённая область данных для роли: филиалы, организации, типы объектов.</div>
+    <div><b>Owner context</b> — единственная область, которая имеет право менять конкретный факт. У каждого факта один владелец.</div>
+    <div><b>Guard</b> — обязательное условие, без которого действие не выполняется.</div>
+    <div><b>Projection</b> — производная копия данных для чтения. Всегда помечена источником и свежестью.</div>
+    <div><b>Snapshot</b> — неизменяемый снимок состояния: например, состав и цена заказа на момент подтверждения.</div>
+    <div><b>JobKit</b> — производственный комплект одной изготавливаемой пары очков: задание, требования по глазам, фактические компоненты.</div>
+    <div><b>SKU</b> — конкретная продаваемая вариация товара: модель плюс размер, цвет, параметры.</div>
+    <div><b>EPC</b> — код RFID-метки. Не содержит рецепт и персональные данные.</div>
+    <div><b>QC</b> — контроль качества с измерениями и протоколом.</div>
+    <div><b>Handoff</b> — передача результата с приёмкой второй стороной.</div>
+    <div><b>Release gate</b> — условие, без выполнения которого функция не включается в рабочий выпуск. В ТЗ их двенадцать.</div>
+    <div><b>Cutover</b> — момент переключения владельца данных со старой системы на новую.</div>
+    <div><b>Golden Flow</b> — сквозной путь заказа из семнадцати шагов; модель процесса, а не единственный статус.</div>
+    <div><b>Idempotency key</b> — ключ повтора: защищает от двойного списания при обрыве связи и повторной отправке.</div>
+    <div><b>Outbox</b> — механизм, который гарантирует, что событие уйдёт получателям ровно один раз после сохранения факта.</div>
+    <div><b>RBAC + ABAC</b> — проверка прав по роли и по атрибутам: сумма, филиал, состояние объекта, компетенция.</div>
+    <div><b>RLS</b> — разграничение доступа к строкам таблицы на уровне базы данных.</div>
+    <div><b>Edge</b> — оборудование и локальный узел в филиале: считыватели, принтеры, локальная очередь при отсутствии связи.</div>
+    <div><b>RPO / RTO</b> — допустимая потеря данных и допустимое время восстановления после сбоя. В ТЗ пока не определены.</div>
+    <div><b>Itigris</b> — текущая система учёта, из которой переносятся данные.</div>
+    <div><b>U / A / T / OPEN</b> — статусы оснований: решение собственника, архитектурное ограничение, техническое уточнение версии 3, нет решения.</div>
+    <div><b>R01–R20</b> — разделы ТЗ. <b>AC01–AC70</b> — приёмочные сценарии. <b>Q001–Q500</b> — вопросы реестра.</div>
+  </div>
+
+  <div class="runfoot"><span>LABOS Retail v3 · разбор и понятное ТЗ · Pllato</span><span>стр. 15 из 15</span></div>
+</section>
+
+</body></html>
