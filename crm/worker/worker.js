@@ -1219,7 +1219,7 @@ async function ensureContractsTables(env) {
   ];
   for (const s of stmts) await db.prepare(s).run();
   // Миграция для ранее созданных таблиц: добавить недостающие колонки (SQLite без IF NOT EXISTS).
-  for (const col of ["signer_type TEXT", "requisites TEXT"]) {
+  for (const col of ["signer_type TEXT", "requisites TEXT", "sig_tsp INTEGER"]) {
     try { await db.prepare(`ALTER TABLE contract_signers ADD COLUMN ${col}`).run(); }
     catch (_e) { /* колонка уже есть */ }
   }
@@ -1344,6 +1344,7 @@ function signerRowToDto(row, { includeToken = false } = {}) {
     signedAt: Number(row.signed_at) || 0,
     declineReason: row.decline_reason || "",
     hasSignature: Boolean(row.sig_key),
+    tsp: row.sig_tsp ? 1 : 0,
   };
   if (includeToken) dto.token = row.token || "";
   return dto;
@@ -1610,20 +1611,72 @@ async function handleContractFile(request, env, id) {
   return fileResponse(request, env, buf, row.file_mime, row.file_name, { download });
 }
 
-// Скачать ЭЦП-подпись (detached CMS / .p7s) конкретного подписанта.
-async function handleContractSignatureFile(request, env, id, signerId) {
-  await ensureContractsTables(env);
-  const row = await loadContractOr404(env, id);
+// Отдать файл подписи (detached CMS / .p7s) по уже найденному договору и подписанту.
+async function signatureFileResponse(request, env, contractRow, signerId) {
   const db = requireStoreDb(env);
-  const signer = await db.prepare(`SELECT * FROM contract_signers WHERE id = ? AND contract_id = ?`).bind(signerId, id).first();
+  const signer = await db
+    .prepare(`SELECT * FROM contract_signers WHERE id = ? AND contract_id = ?`)
+    .bind(signerId, contractRow.id)
+    .first();
   if (!signer || !signer.sig_key) throw new HttpError(404, "Подпись не найдена");
   const r2 = requireContractsBucket(env);
   const obj = await r2.get(signer.sig_key);
   if (!obj) throw new HttpError(404, "Файл подписи не найден в хранилище");
   const buf = await obj.arrayBuffer();
-  const base = (row.file_name || "contract").replace(/\.[^.]+$/, "");
-  const who = (signer.full_name || "signer").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 40);
+  const base = (contractRow.file_name || "contract").replace(/\.[^.]+$/, "");
+  const who = (signer.signer_cn || signer.full_name || "signer").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 40);
   return fileResponse(request, env, buf, "application/pkcs7-signature", `${base}__${who}.p7s`, { download: true });
+}
+
+// Скачать ЭЦП-подпись конкретного подписанта из реестра (с авторизацией).
+async function handleContractSignatureFile(request, env, id, signerId) {
+  await ensureContractsTables(env);
+  const row = await loadContractOr404(env, id);
+  return signatureFileResponse(request, env, row, signerId);
+}
+
+// Скачать ЭЦП-подпись по публичной ссылке договора. Доступ такой же, как
+// к самому документу: у кого есть ссылка — тот сторона договора и вправе
+// проверить подписи всех участников.
+async function handlePublicSignatureFileByContract(request, env, token, signerId) {
+  const contract = await loadContractByPublicTokenOr404(env, token);
+  return signatureFileResponse(request, env, contract, signerId);
+}
+
+// То же по персональной ссылке подписанта (именной режим).
+async function handlePublicSignatureFileByToken(request, env, token, signerId) {
+  const { contract } = await loadSignerByTokenOr404(env, token);
+  return signatureFileResponse(request, env, contract, signerId);
+}
+
+// ИИН/БИН в публичном списке показываем частично: вторая сторона сверяет
+// номер с договором, а случайно попавшая ссылка не раскрывает его целиком.
+// Полные данные сертификата — внутри файла подписи, который можно скачать.
+function maskIinBin(value) {
+  const s = String(value || "").replace(/\D/g, "");
+  if (s.length !== 12) return "";
+  return `${s.slice(0, 6)}••••${s.slice(10)}`;
+}
+
+// Публичное описание стороны договора: кто подписал, чьей ЭЦП и когда.
+function publicPartyDto(row) {
+  const named = (parseRequisites(row)?.data?.name) || row.full_name || "";
+  // Владелец в реестре может быть записан логином аккаунта («pllato») — второй
+  // стороне это ничего не говорит. Если в сертификате есть имя — показываем его.
+  const display = row.role === "owner" && row.signer_cn && !/\s/.test(named) ? row.signer_cn : named;
+  return {
+    id: row.id,
+    fullName: display,
+    role: row.role,
+    status: row.status,
+    signedAt: Number(row.signed_at) || 0,
+    signerCn: row.signer_cn || "",
+    signerIinMasked: maskIinBin(row.signer_iin),
+    signerType: row.signer_type || "",
+    tsp: row.sig_tsp ? 1 : 0,
+    hasSignature: Boolean(row.sig_key),
+    declineReason: row.decline_reason || "",
+  };
 }
 
 // Применить подпись к строке подписанта (общая логика для владельца и сотрудника).
@@ -1652,6 +1705,9 @@ async function applySignature(env, request, contractRow, signerRow, body) {
     const cn = String(body?.signer?.cn || "").trim().slice(0, 200);
     const iin = String(body?.signer?.iin || "").replace(/[^\d]/g, "").slice(0, 12);
     const serial = String(body?.signer?.serial || "").trim().slice(0, 120);
+    // Метка времени НУЦ РК (CAdES-T): фиксируем, чтобы вторая сторона видела,
+    // чем подтверждён момент подписания — меткой TSA или временем сервера.
+    const tsp = body?.tsp ? 1 : 0;
     const req = normalizeRequisites(body?.requisites, body?.signerType);
     const reqJson = req.data || req.type ? JSON.stringify(req) : (signerRow.requisites || null);
     const reqType = req.type || signerRow.signer_type || null;
@@ -1659,9 +1715,9 @@ async function applySignature(env, request, contractRow, signerRow, body) {
     try {
       await db
         .prepare(
-          `UPDATE contract_signers SET status = 'signed', full_name = ?, sig_key = ?, signer_cn = ?, signer_iin = ?, signer_serial = ?, signer_type = ?, requisites = ?, signed_at = ?, signed_ip = ?, updated_at = ? WHERE id = ?`
+          `UPDATE contract_signers SET status = 'signed', full_name = ?, sig_key = ?, signer_cn = ?, signer_iin = ?, signer_serial = ?, signer_type = ?, requisites = ?, sig_tsp = ?, signed_at = ?, signed_ip = ?, updated_at = ? WHERE id = ?`
         )
-        .bind(fullName, sigKey, cn, iin, serial, reqType, reqJson, now, clientIp(request), now, signerRow.id)
+        .bind(fullName, sigKey, cn, iin, serial, reqType, reqJson, tsp, now, clientIp(request), now, signerRow.id)
         .run();
     } catch (e) {
       // Не оставляем в R2 бесхозную подпись, если метаданные не записались.
@@ -1735,13 +1791,7 @@ async function handleSignGet(env, token) {
       signerType: signer.signer_type || "",
       requisites: parseRequisites(signer),
     },
-    parties: others.map((s) => ({
-      fullName: (parseRequisites(s)?.data?.name) || s.full_name,
-      role: s.role,
-      status: s.status,
-      signedAt: Number(s.signed_at) || 0,
-      signerCn: s.signer_cn || "",
-    })),
+    parties: others.map((s) => publicPartyDto(s)),
   };
 }
 
@@ -1831,9 +1881,11 @@ async function handleSignGetByContract(env, token) {
       status: contract.status,
     },
     signer: { fullName: "", iin: "", status: "pending", signerType: "", requisites: { data: {} } },
+    // Владельца показываем всегда (в том числе «ожидает»), остальных — когда
+    // они уже подписали или отказались: пустые заготовки второй стороне не нужны.
     parties: others
-      .filter((s) => s.status === "signed")
-      .map((s) => ({ fullName: s.full_name, role: s.role, status: s.status, signedAt: Number(s.signed_at) || 0 })),
+      .filter((s) => s.role === "owner" || s.status === "signed" || s.status === "declined")
+      .map((s) => publicPartyDto(s)),
   };
 }
 
@@ -1869,15 +1921,7 @@ async function handleContractViewByPublicToken(env, token) {
     },
     signedCount: others.filter((s) => s.status === "signed").length,
     total: others.length,
-    parties: others.map((s) => ({
-      fullName: (parseRequisites(s)?.data?.name) || s.full_name || "",
-      role: s.role,
-      status: s.status,
-      signedAt: Number(s.signed_at) || 0,
-      signerCn: s.signer_cn || "",
-      signerType: s.signer_type || "",
-      declineReason: s.decline_reason || "",
-    })),
+    parties: others.map((s) => publicPartyDto(s)),
   };
 }
 
@@ -8689,6 +8733,22 @@ export default {
       if (request.method === "DELETE" && contractIdMatch) {
         await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleContractDelete(env, contractIdMatch[1]));
+      }
+
+      // Публичное скачивание подписи (.p7s) любой из сторон — по той же ссылке,
+      // по которой доступен сам договор. Нужно, чтобы вторая сторона могла
+      // проверить подпись в стороннем сервисе, а не верить статусу на слово.
+      const viewSigMatch = path.match(/^\/api\/view\/([a-zA-Z0-9_-]+)\/signature\/([a-zA-Z0-9_-]+)$/);
+      if (request.method === "GET" && viewSigMatch) {
+        return await handlePublicSignatureFileByContract(request, env, viewSigMatch[1], viewSigMatch[2]);
+      }
+      const signCSigMatch = path.match(/^\/api\/sign\/c\/([a-zA-Z0-9_-]+)\/signature\/([a-zA-Z0-9_-]+)$/);
+      if (request.method === "GET" && signCSigMatch) {
+        return await handlePublicSignatureFileByContract(request, env, signCSigMatch[1], signCSigMatch[2]);
+      }
+      const signTokenSigMatch = path.match(/^\/api\/sign\/([a-zA-Z0-9_-]+)\/signature\/([a-zA-Z0-9_-]+)$/);
+      if (request.method === "GET" && signTokenSigMatch) {
+        return await handlePublicSignatureFileByToken(request, env, signTokenSigMatch[1], signTokenSigMatch[2]);
       }
 
       // Публичная ручка просмотра (read-only): договор + кто подписал, любая ссылка/режим.

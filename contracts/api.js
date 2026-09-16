@@ -26,8 +26,10 @@ export function generateSignLinks(id, count = 1) {
   return apiFetch(`/api/contracts/${encodeURIComponent(id)}/signers`, { method: "POST", body: { count } });
 }
 
-export function signOwner(id, { cmsBase64, signer }) {
-  return apiFetch(`/api/contracts/${encodeURIComponent(id)}/sign`, { method: "POST", body: { cmsBase64, signer } });
+// tsp — признак метки времени НУЦ РК (CAdES-T). Пробрасываем на сервер:
+// по нему вторая сторона видит, чем подтверждён момент подписания.
+export function signOwner(id, { cmsBase64, signer, tsp }) {
+  return apiFetch(`/api/contracts/${encodeURIComponent(id)}/sign`, { method: "POST", body: { cmsBase64, signer, tsp: !!tsp } });
 }
 
 export function sendContract(id) {

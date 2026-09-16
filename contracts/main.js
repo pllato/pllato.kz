@@ -2,7 +2,7 @@ import { requireSession } from "../pllato-kz-shared/pllato-api.js";
 import {
   listContracts, createContract, signOwner, sendContract, deleteContract, setContractMode,
   fetchContractFileBlob, fetchSignatureBlob, fileToBase64, signLinkForToken, contractLink,
-} from "./api.js?v=20260916-1";
+} from "./api.js?v=20260916-2";
 import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20260722-2";
 
 const session = requireSession({ redirectTo: "login.html" });
@@ -85,6 +85,19 @@ function signerStatusText(s) {
   return `<span class="s-status pending">⏳ ожидает</span>`;
 }
 
+// Данные сертификата, которым подписан договор: кто, чей ИИН/БИН и есть ли
+// метка времени НУЦ. Без этого в реестре видно только «подписал».
+function renderCert(s) {
+  if (s.status !== "signed") return "";
+  const rows = [
+    ["Сертификат ЭЦП", s.signerCn],
+    ["ИИН/БИН в сертификате", s.signerIin],
+    ["Метка времени НУЦ", s.tsp ? "есть (CAdES-T)" : "нет (CAdES-BES)"],
+  ].filter(([, v]) => v);
+  if (!rows.length) return "";
+  return `<div class="requisites">${rows.map(([k, v]) => `<div><span>${k}</span><b>${esc(v)}</b></div>`).join("")}</div>`;
+}
+
 function renderRequisites(s) {
   const r = s.requisites?.data;
   if (!r || !Object.keys(r).length) return "";
@@ -119,6 +132,7 @@ function renderSigner(contract, s) {
     <div class="signer-main">
       <div class="who">${esc(s.fullName)} <span class="role-tag">${isOwner ? "компания" : "подписант"}</span></div>
       <div class="sub">${s.iin ? "ИИН " + esc(s.iin) + " · " : ""}${signerStatusText(s)}${s.signedAt ? " · " + fmtDate(s.signedAt) : ""}</div>
+      ${renderCert(s)}
       ${renderRequisites(s)}
     </div>
     <div class="actions">${actions}</div>

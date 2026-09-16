@@ -80,24 +80,78 @@ async function loadContract() {
 }
 
 // Блок «кто подписал» — общий для формы, экрана «подписано» и режима просмотра.
+// Показываем не только факт подписи, но и чьей именно ЭЦП она поставлена:
+// ФИО или организация из сертификата, ИИН/БИН, время и метка времени НУЦ.
+// Рядом — кнопка скачивания самой подписи: статус можно проверить, а не верить.
 function partyChip(p) {
-  if (p.status === "signed") return `<span class="s-status signed">✓ подписал${p.signerCn ? " · " + esc(p.signerCn) : ""}${p.signedAt ? " · " + fmtDate(p.signedAt) : ""}</span>`;
+  if (p.status === "signed") return `<span class="s-status signed">✓ подписал${p.signedAt ? " · " + fmtDate(p.signedAt) : ""}</span>`;
   if (p.status === "declined") return `<span class="s-status declined">✕ отклонил${p.declineReason ? " · " + esc(p.declineReason) : ""}</span>`;
   return `<span class="s-status pending">⏳ ожидает</span>`;
+}
+function partyTypeLabel(p) {
+  if (p.role === "owner") return "компания";
+  if (p.signerType === "ip") return "ИП";
+  if (p.signerType === "individual") return "физлицо";
+  return "подписант";
+}
+function partyCert(p) {
+  if (p.status !== "signed") return "";
+  const rows = [
+    ["Подписано ЭЦП", p.signerCn || "—"],
+    ["ИИН / БИН в сертификате", p.signerIinMasked || "—"],
+    ["Время подписания", p.signedAt ? fmtDate(p.signedAt) : "—"],
+    ["Метка времени НУЦ РК", p.tsp ? "есть (CAdES-T)" : "нет (CAdES-BES)"],
+  ];
+  const dl = p.hasSignature && p.id
+    ? `<button class="btn sm" data-act="dl-sig" data-sid="${esc(p.id)}" data-who="${esc(p.signerCn || p.fullName || "signer")}">Скачать подпись (.p7s)</button>`
+    : "";
+  return `<div class="party-cert">
+      ${rows.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}
+      ${dl ? `<div class="party-cert-act">${dl}</div>` : ""}
+    </div>`;
 }
 function partiesBlock(parties, title = "Кто подписал") {
   const list = Array.isArray(parties) ? parties : [];
   if (!list.length) return "";
   const signed = list.filter((p) => p.status === "signed").length;
-  const rows = list.map((p) => `<div class="party">
-      <div class="party-who">${esc(p.fullName || "—")} <span class="role-tag">${p.role === "owner" ? "компания" : "подписант"}</span></div>
-      ${partyChip(p)}
+  const rows = list.map((p) => `<div class="party${p.status === "signed" ? " is-signed" : ""}">
+      <div class="party-row">
+        <div class="party-who">${esc(p.fullName || p.signerCn || (p.role === "owner" ? "Компания" : "Вторая сторона"))} <span class="role-tag">${esc(partyTypeLabel(p))}</span></div>
+        ${partyChip(p)}
+      </div>
+      ${partyCert(p)}
     </div>`).join("");
+  const anySig = list.some((p) => p.status === "signed" && p.hasSignature);
   return `<div class="parties card">
       <div class="parties-h">${esc(title)} <span class="parties-count">${signed} из ${list.length}</span></div>
       ${rows}
+      ${anySig ? `<div class="parties-note">Подпись — отдельный файл <b>.p7s</b> к этому же документу. Скачайте договор и подпись и проверьте их в любом сервисе проверки ЭЦП или в NCALayer: там будут видны сертификат подписанта, издатель (НУЦ РК) и точное время.</div>` : ""}
     </div>`;
 }
+
+// Скачивание подписи по той же публичной ссылке, что и сам договор.
+async function downloadSignature(signerId, who) {
+  try {
+    const res = await fetch(baseApi(`/signature/${encodeURIComponent(signerId)}`));
+    if (!res.ok) throw new Error(`Не удалось загрузить подпись (${res.status})`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `podpis_${String(who || "signer").replace(/[^a-zA-Zа-яА-Я0-9._-]+/g, "_").slice(0, 40)}.p7s`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast("Подпись скачана");
+  } catch (e) {
+    toast(e.message || "Не удалось скачать подпись", true);
+  }
+}
+root.addEventListener("click", (e) => {
+  const b = e.target.closest('[data-act="dl-sig"]');
+  if (!b) return;
+  e.preventDefault();
+  downloadSignature(b.dataset.sid, b.dataset.who);
+});
 
 async function apiPost(body) {
   const res = await fetch(signApi(), {
@@ -139,7 +193,8 @@ function renderDone(signer, contract, parties) {
       <div class="muted" style="margin-top:8px">${fmtDate(signer.signedAt)}</div>
     </div>
     ${contract ? `<h2 style="font-size:20px;margin:24px 0 4px">${esc(contract.title)}</h2>` : ""}
-    ${contract ? `<div class="summary"><div><span>Файл</span><b>${esc(contract.fileName)} · ${fmtSize(contract.fileSize)}</b></div></div>` : ""}
+    ${contract ? `<div class="summary"><div><span>Файл</span><b>${esc(contract.fileName)} · ${fmtSize(contract.fileSize)}</b></div>
+      ${contract.fileHash ? `<div><span>SHA-256 документа</span><b class="hash">${esc(contract.fileHash)}</b></div>` : ""}</div>` : ""}
     ${partiesBlock(parties, "Кто подписал")}
     ${universal ? `<div class="hint one-link">🔗 Ссылка та же — сохраните её: по ней в любой момент видно статус договора. Если с этого устройства должен подписать ещё один участник — нажмите «Подписать другой ЭЦП».</div>` : ""}
     ${preview}
@@ -198,9 +253,10 @@ async function render(data) {
       ${signer.fullName ? `<div><span>Подписант</span><b>${esc(signer.fullName)}</b></div>` : ""}
       ${signer.iin ? `<div><span>ИИН</span><b>${esc(signer.iin)}</b></div>` : ""}
       <div><span>Файл</span><b>${esc(contract.fileName)} · ${fmtSize(contract.fileSize)}</b></div>
+      ${contract.fileHash ? `<div><span>SHA-256 документа</span><b class="hash">${esc(contract.fileHash)}</b></div>` : ""}
     </div>
     ${partiesHtml}
-    ${universal ? `<div class="hint one-link">🔗 Эта ссылка — одна на весь договор и на всех участников: здесь видно, кто уже подписал, и здесь же вы подписываете своей ЭЦП. Ссылка работает всегда — по ней в любой момент можно вернуться и посмотреть статус.</div>` : ""}
+    ${universal ? `<div class="hint one-link">🔗 Эта ссылка — одна на весь договор и на всех участников: здесь видно, кто и какой ЭЦП уже подписал, отсюда же скачиваются сам договор и файлы подписей всех сторон. Здесь же вы подписываете своей ЭЦП. Ссылка работает всегда — по ней в любой момент можно вернуться и посмотреть статус.</div>` : ""}
     ${contract.note ? `<div class="hint" style="margin-bottom:16px">${esc(contract.note)}</div>` : ""}
     ${preview}
 
@@ -346,6 +402,7 @@ async function renderView(data) {
     <div class="summary">
       <div><span>Файл</span><b>${esc(contract.fileName)} · ${fmtSize(contract.fileSize)}</b></div>
       <div><span>Подписей</span><b>${data.signedCount || 0} из ${data.total || 0}</b></div>
+      ${contract.fileHash ? `<div><span>SHA-256 документа</span><b class="hash">${esc(contract.fileHash)}</b></div>` : ""}
     </div>
     ${contract.note ? `<div class="hint" style="margin-bottom:14px">${esc(contract.note)}</div>` : ""}
     ${partiesBlock(data.parties, "Кто подписал")}

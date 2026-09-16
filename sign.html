@@ -7,7 +7,7 @@
 <meta name="robots" content="noindex,nofollow">
 <link rel="icon" type="image/svg+xml" href="pllato_favicon_64.svg">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="contracts/styles.css?v=20260916-1">
+<link rel="stylesheet" href="contracts/styles.css?v=20260916-2">
 <style>
   .sign-wrap { max-width: 820px; margin: 0 auto; padding: 24px 18px 80px; }
   .doc-frame { width: 100%; height: 560px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
@@ -24,9 +24,23 @@
   .parties { padding: 14px 16px; margin: 14px 0 4px; }
   .parties-h { font-size: 13px; font-weight: 800; color: var(--text-1); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
   .parties-count { font-size: 12px; font-weight: 600; color: var(--text-3); background: var(--surface-2); padding: 2px 9px; border-radius: 999px; }
-  .party { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--line); }
-  .party:first-of-type { border-top: none; }
+  .party { padding: 10px 0; border-top: 1px solid var(--line); }
+  .party:first-of-type { border-top: none; padding-top: 2px; }
+  .party-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
   .party-who { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  /* Данные сертификата: кто именно и какой ЭЦП подписал */
+  .party-cert {
+    margin-top: 9px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px;
+    font-size: 12.5px; background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 12px;
+  }
+  .party-cert > div { display: flex; gap: 8px; align-items: baseline; }
+  .party-cert span { color: var(--text-3); flex: none; }
+  .party-cert b { color: var(--text-1); font-weight: 700; word-break: break-word; }
+  .party-cert-act { grid-column: 1 / -1; margin-top: 4px; }
+  .parties-note { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--text-2); line-height: 1.6; }
+  .summary b.hash { font-size: 11.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; display: block; max-width: 420px; color: var(--text-2); }
+  @media (max-width: 560px) { .party-cert { grid-template-columns: 1fr; } }
   .hint.one-link { margin: 6px 0 16px; border: 1px solid var(--line); line-height: 1.55; }
   .view-tag { display: inline-block; font-size: 12px; font-weight: 700; color: var(--text-3); background: var(--surface-2); border: 1px solid var(--line); padding: 5px 11px; border-radius: 999px; margin-bottom: 6px; }
 </style>
@@ -44,6 +58,6 @@
   <div class="toast" id="toast"></div>
 
   <script src="app.config.js"></script>
-  <script type="module" src="contracts/sign.js?v=20260916-1"></script>
+  <script type="module" src="contracts/sign.js?v=20260916-2"></script>
 </body>
 </html>
