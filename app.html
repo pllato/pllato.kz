@@ -421,9 +421,16 @@ body {
 .cal-widget .cw-head{display:flex;align-items:baseline;gap:9px;white-space:nowrap}
 .cal-widget .cw-title{font-size:12.5px;font-weight:800;color:var(--text)}
 .cal-widget .cw-sub{font-size:11px;color:var(--text-3)}
-.cal-widget .cw-list{display:flex;gap:7px;flex-wrap:wrap;flex:1;min-width:0}
+/* flex-basis 440px: если в строке с заголовком места мало, список переносится
+   на свою строку во всю ширину — так на экран помещаются все встречи дня. */
+.cal-widget .cw-list{display:flex;gap:7px;flex-wrap:wrap;flex:1 1 440px;min-width:0;
+  max-height:118px;overflow-y:auto;overscroll-behavior:contain;padding-right:4px;align-content:flex-start}
+.cal-widget .cw-list::-webkit-scrollbar{width:7px}
+.cal-widget .cw-list::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:7px}
+.cal-widget .cw-list::-webkit-scrollbar-thumb:hover{background:var(--bronze)}
+.cal-widget .cw-list::-webkit-scrollbar-track{background:transparent}
 .cw-chip{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid var(--line-2);
-  border-radius:9px;background:var(--surface-2);text-decoration:none;color:var(--text);max-width:340px}
+  border-radius:9px;background:var(--surface-2);text-decoration:none;color:var(--text);max-width:320px}
 .cw-chip:hover{border-color:var(--bronze);background:var(--bronze-tint)}
 .cw-chip .t{font:800 12px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--bronze-deep);white-space:nowrap}
 .cw-chip .n{font-size:11.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -439,10 +446,25 @@ body {
   text-decoration:none;white-space:nowrap;border:1px solid var(--line-2);border-radius:9px;padding:7px 11px}
 .cal-widget .cw-open:hover{border-color:var(--bronze);background:var(--bronze-tint)}
 .cal-widget.empty .cw-title{color:var(--text-2)}
+/* карточка встречи при наведении — чтобы не открывать сделку ради одной строки */
+#cwTip{position:fixed;z-index:1200;max-width:360px;padding:11px 13px;border-radius:11px;
+  background:var(--surface);border:1px solid var(--line-2);box-shadow:0 10px 30px rgba(20,24,30,.18);
+  opacity:0;pointer-events:none;transform:translateY(4px);transition:opacity .12s,transform .12s;visibility:hidden}
+#cwTip.on{opacity:1;transform:none;visibility:visible}
+#cwTip .tt{display:flex;align-items:baseline;gap:8px;margin-bottom:5px}
+#cwTip .tt b{font:800 13px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--bronze-deep)}
+#cwTip .tt span{font-size:10.5px;color:var(--text-3);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+#cwTip .tn{font-size:12.5px;font-weight:700;line-height:1.45;color:var(--text);white-space:normal;word-break:break-word}
+#cwTip .tm{margin-top:7px;padding-top:7px;border-top:1px solid var(--line);display:grid;gap:3px}
+#cwTip .tm div{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--text-3)}
+#cwTip .tm div b{color:var(--text-2);font-weight:700;text-align:right}
+#cwTip .th{margin-top:7px;font-size:10.5px;color:var(--text-3)}
 @media (max-width:720px){
   .cal-widget{align-items:flex-start}
   .cal-widget .cw-open{margin-left:0;width:100%;text-align:center}
+  .cal-widget .cw-list{max-height:none;overflow:visible}
   .cw-chip{max-width:100%}
+  #cwTip{display:none}
 }
 /* ===== Рабочие пространства: Pllato и Pixel English ===== */
 .ws-bar { display:flex; gap:4px; align-items:flex-end; margin:0 0 22px; border-bottom:1px solid var(--line); }
@@ -6403,7 +6425,8 @@ async function calFetchToday(){
       if(isNaN(when)||calDayKey(when)!==calDayKey(today)) continue;
       const end=task.endDatePlan?new Date(task.endDatePlan):null;
       events.push({ at:when.getTime(), end:(end&&!isNaN(end))?end.getTime():when.getTime()+60*60000,
-        title:task.title||'Встреча', href:`team.html?page=calendar#task/${encodeURIComponent(task.id||task.bitrixKey||'')}` });
+        title:task.title||'Встреча', src:'задача',
+        href:`team.html?page=calendar#task/${encodeURIComponent(task.id||task.bitrixKey||'')}` });
     }
   }catch(e){ console.warn('встречи · задачи:',e); }
 
@@ -6412,6 +6435,12 @@ async function calFetchToday(){
     const pipesResponse=await calFetch(`${CAL_WORKER}/api/rtdb/pipelines.json?auth=${encodeURIComponent(token)}`);
     const pipes=pipesResponse.ok?await pipesResponse.json():null;
     const ids=Object.entries(pipes||{}).map(([id,value])=>(value&&value.id)||id);
+    // Справочник воронок и стадий: нужен для карточки встречи при наведении.
+    const pipeBook={};
+    for(const [id,value] of Object.entries(pipes||{})){
+      const pid=(value&&value.id)||id;
+      pipeBook[pid]={ name:(value&&value.name)||'', stages:(value&&value.stages)||{} };
+    }
     // Не больше двух параллельных запросов: воронок может быть много,
     // а залп на восемь тяжёлых выборок мешает остальным данным портала.
     const chunks=[];
@@ -6427,8 +6456,11 @@ async function calFetchToday(){
         if(!raw) continue;
         const when=new Date(raw);
         if(isNaN(when)||calDayKey(when)!==calDayKey(today)) continue;
+        const book=pipeBook[deal.pipelineId]||null;
         events.push({ at:when.getTime(), end:when.getTime()+60*60000,
-          title:'Zoom: '+(deal.title||'сделка'),
+          title:'Zoom: '+(deal.title||'сделка'), src:'сделка',
+          pipe:book?book.name:'', stage:(book&&book.stages&&book.stages[deal.stageId]&&book.stages[deal.stageId].name)||'',
+          sum:Number(deal.opportunity)||0,
           href:`team.html?page=calendar#deal/${encodeURIComponent(deal.recordId||deal.id||'')}` });
       }
     }
@@ -6470,23 +6502,72 @@ function renderTodayCalendar(){
   const status=running
     ? (nextItem?`идёт сейчас · следующая в ${calTimeLabel(nextItem.at)}`:'идёт сейчас · последняя на сегодня')
     : (nextItem?`ближайшая в ${calTimeLabel(nextItem.at)}`:'все прошли');
-  const shown=CAL_EVENTS.slice(0,4);
-  const chips=shown.map(item=>{
+  // Показываем все встречи дня: список прокручивается, ничего не прячем за «и ещё N».
+  const chips=CAL_EVENTS.map((item,i)=>{
     const isNow=item.at<=now&&item.end>now;
     const isNext=!isNow&&item===nextItem;
     const isPast=item.end<=now;
     const mins=Math.round((item.at-now)/60000);
     const mark=isNow?'<span class="mk">идёт</span>'
       :isNext&&mins<=90?`<span class="mk">через ${mins<1?'минуту':mins+' мин'}</span>`:'';
-    return `<a class="cw-chip${isNow?' now':isNext?' next':isPast?' past':''}" href="${escapeHtml(item.href)}" title="${escapeHtml(item.title)}">
+    return `<a class="cw-chip${isNow?' now':isNext?' next':isPast?' past':''}" href="${escapeHtml(item.href)}" data-cw="${i}">
       <span class="t">${calTimeLabel(item.at)}</span><span class="n">${escapeHtml(item.title)}</span>${mark}</a>`;
   }).join('');
-  const rest=CAL_EVENTS.length-shown.length;
   const word=n=>n%10===1&&n%100!==11?'встреча':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'встречи':'встреч');
   box.className='cal-widget on';
   box.innerHTML=`<div class="cw-head"><span class="cw-title">📅 Сегодня</span>
       <span class="cw-sub">${CAL_EVENTS.length} ${word(CAL_EVENTS.length)} · ${status}</span></div>
-    <div class="cw-list">${chips}${rest>0?`<span class="cw-more">и ещё ${rest}</span>`:''}</div>${open}`;
+    <div class="cw-list">${chips}</div>${open}`;
+  calBindTips(box);
+}
+
+/* Карточка встречи при наведении: полное название, воронка, стадия и сумма —
+   чтобы посмотреть, о чём встреча, не открывая сделку в CRM. */
+function calTipBox(){
+  let tip=document.getElementById('cwTip');
+  if(!tip){
+    tip=document.createElement('div');
+    tip.id='cwTip';
+    document.body.appendChild(tip);
+    window.addEventListener('scroll',calHideTip,true);
+    window.addEventListener('resize',calHideTip);
+  }
+  return tip;
+}
+function calHideTip(){ const tip=document.getElementById('cwTip'); if(tip) tip.classList.remove('on'); }
+function calShowTip(chip,item){
+  const tip=calTipBox();
+  const now=Date.now();
+  const state=item.at<=now&&item.end>now?'идёт сейчас':item.end<=now?'прошла':'впереди';
+  const rows=[];
+  if(item.pipe) rows.push(['Воронка',item.pipe]);
+  if(item.stage) rows.push(['Стадия',item.stage]);
+  if(item.sum) rows.push(['Сумма',new Intl.NumberFormat('ru-RU').format(item.sum)+' ₸']);
+  rows.push(['Время',calTimeLabel(item.at)+'–'+calTimeLabel(item.end)]);
+  rows.push(['Статус',state]);
+  tip.innerHTML=`<div class="tt"><b>${calTimeLabel(item.at)}</b><span>${escapeHtml(item.src||'встреча')}</span></div>
+    <div class="tn">${escapeHtml(item.title)}</div>
+    <div class="tm">${rows.map(r=>`<div><span>${escapeHtml(r[0])}</span><b>${escapeHtml(String(r[1]))}</b></div>`).join('')}</div>
+    <div class="th">Нажмите, чтобы открыть в календаре команды</div>`;
+  tip.classList.add('on');
+  const r=chip.getBoundingClientRect(),t=tip.getBoundingClientRect();
+  let left=r.left, top=r.bottom+8;
+  if(left+t.width>window.innerWidth-12) left=Math.max(12,window.innerWidth-t.width-12);
+  if(top+t.height>window.innerHeight-12) top=Math.max(12,r.top-t.height-8);
+  tip.style.left=left+'px';
+  tip.style.top=top+'px';
+}
+function calBindTips(box){
+  box.querySelectorAll('.cw-chip[data-cw]').forEach(chip=>{
+    const item=(CAL_EVENTS||[])[Number(chip.dataset.cw)];
+    if(!item) return;
+    chip.addEventListener('mouseenter',()=>calShowTip(chip,item));
+    chip.addEventListener('focus',()=>calShowTip(chip,item));
+    chip.addEventListener('mouseleave',calHideTip);
+    chip.addEventListener('blur',calHideTip);
+  });
+  const list=box.querySelector('.cw-list');
+  if(list) list.addEventListener('scroll',calHideTip);
 }
 async function loadTodayCalendar(){
   if(!calCanSee()) return;
