@@ -3336,21 +3336,34 @@ async function createDemoForDeal(env, dealId, me) {
 // Сами ключи и права на них живут в воркере портала (там же, где записи
 // пользователей) — здесь ключ только проверяется через service binding,
 // как это делает проверка сессии портала ниже.
+// Возвращает { email } либо { error } с различимой причиной: «ключ не тот»
+// и «проверка не дозвонилась» — это разные поломки, и по одинаковому тексту
+// в виджете их не отличить.
 async function widgetKeyEmail(env, key) {
   const clean = String(key || "").trim();
-  if (!clean) return null;
+  if (!clean) return { error: "Нет ключа виджета" };
   const req = new Request(
     `https://pllato-comm.uurraa.workers.dev/api/widget/verify?key=${encodeURIComponent(clean)}`
   );
-  let response = env.PLLATO_COMM
-    ? await env.PLLATO_COMM.fetch(req.clone())
-    : await fetch(req.clone());
-  // Привязка может смотреть на старый деплой — тогда пробуем публичный адрес.
-  if (!response.ok && env.PLLATO_COMM) response = await fetch(req);
-  if (!response.ok) return null;
+  let response = null;
+  try {
+    response = env.PLLATO_COMM
+      ? await env.PLLATO_COMM.fetch(req.clone())
+      : await fetch(req.clone());
+    // Привязка может смотреть на старый деплой — тогда пробуем публичный адрес.
+    if (!response.ok && env.PLLATO_COMM) response = await fetch(req);
+  } catch (e) {
+    return { error: "Проверка ключа недоступна — попробуйте позже" };
+  }
+  if (response.status === 401 || response.status === 403) {
+    const body = await response.json().catch(() => null);
+    return { error: body?.error || "Ключ виджета недействителен или отозван" };
+  }
+  if (!response.ok) return { error: `Проверка ключа недоступна (${response.status})` };
   const data = await response.json().catch(() => null);
   const email = String(data?.email || "").toLowerCase().trim();
-  return data?.ok && email ? email : null;
+  if (!data?.ok || !email) return { error: "Проверка ключа вернула пустой ответ" };
+  return { email };
 }
 
 // Границы дня. Телефон присылает свою дату и смещение (getTimezoneOffset),
@@ -3401,8 +3414,8 @@ async function handleWidgetToday(request, env) {
   const url = new URL(request.url);
   const key = String(url.searchParams.get("key") || "").trim();
   if (!key) return json({ error: "missing key" }, 401, request);
-  const email = await widgetKeyEmail(env, key);
-  if (!email) return json({ error: "Ключ виджета недействителен или отозван" }, 401, request);
+  const owner = await widgetKeyEmail(env, key);
+  if (!owner.email) return json({ error: owner.error }, 401, request);
 
   const { date, dayStart, dayEnd } = widgetDayBounds(url);
   // В SQL берём окно шире на сутки и фильтруем точно уже в JS: в базе лежат
