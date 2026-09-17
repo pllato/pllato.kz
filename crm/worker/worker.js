@@ -2693,6 +2693,75 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
   };
 }
 
+// ── Виджет «Статистика» для iPhone ────────────────────────────────────
+// Ключи виджетов живут в соседнем воркере (там же, где встречи), поэтому
+// здесь ключ проверяется запросом к нему. Права на деньги и графики —
+// те же, что в портале: кому не видно в браузере, тому не видно и в виджете.
+async function widgetEmailByKey(key) {
+  const response = await fetch(
+    `https://pllato-elc-worker.uurraa.workers.dev/api/widget/verify?key=${encodeURIComponent(key)}`,
+    { cf: { cacheTtl: 0 } },
+  );
+  if (!response.ok) throw new HttpError(401, "Ключ виджета недействителен или отозван");
+  const data = await response.json().catch(() => null);
+  const email = String(data?.email || "").toLowerCase().trim();
+  if (!data?.ok || !email) throw new HttpError(401, "Ключ виджета недействителен или отозван");
+  return email;
+}
+
+async function handleWidgetStats(env, url) {
+  const key = String(url.searchParams.get("key") || "").trim();
+  if (!key) throw new HttpError(401, "Нет ключа виджета");
+  const email = await widgetEmailByKey(key);
+  const user = await d1GetUserByEmail(env, email);
+  const actor = {
+    email,
+    user,
+    isAdmin: Boolean(user?.isAdmin || user?.isSuperAdmin),
+    isRoot: email === ROOT_SUPER_ADMIN,
+  };
+
+  const chartsPayload = await handleProjectFinanceChartsGet(env, actor, url);
+  const compact = {};
+  for (const [kind, series] of Object.entries(chartsPayload.charts || {})) {
+    compact[kind] = (series || []).map((point) => ({
+      label: point.label || "",
+      value: Number(point.value) || 0,
+      partial: Boolean(point.partial),
+    }));
+  }
+
+  // Деньги — только тем, кому открыты финансы проектов.
+  let totals = null;
+  if (canAccessProjectFinance(actor)) {
+    const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
+    const finance = normalizeProjectFinance(stored || {});
+    const rate = Number(finance.rate) || 530;
+    let deal = 0;
+    let got = 0;
+    for (const item of Object.values(finance.money || {})) {
+      const k = item?.cur === "USD" ? rate : 1;
+      deal += (Number(item?.deal) || 0) * k;
+      got += ((item?.pays || []).reduce((acc, pay) => acc + (Number(pay?.sum) || 0), 0)) * k;
+    }
+    totals = {
+      deal: Math.round(deal),
+      got: Math.round(got),
+      debt: Math.max(0, Math.round(deal - got)),
+      rate,
+    };
+  }
+
+  return {
+    ok: true,
+    period: chartsPayload.period,
+    totals,
+    charts: compact,
+    visible: chartsPayload.visible,
+    updatedAt: Date.now(),
+  };
+}
+
 async function handleProjectFinanceChartsPut(request, env, actor) {
   const body = await readRequestBodyAsJson(request);
   const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
@@ -8482,6 +8551,11 @@ export default {
       if (request.method === "PUT" && path === "/project-finance") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleProjectFinancePut(request, env, actor));
+      }
+
+      // Виджет статистики на iPhone: авторизация по ключу в ?key=, без сессии.
+      if (request.method === "GET" && path === "/api/widget/stats") {
+        return json(request, env, await handleWidgetStats(env, url));
       }
 
       if (request.method === "GET" && path === "/project-finance/charts") {

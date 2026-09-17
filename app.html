@@ -444,8 +444,10 @@ body {
   background:var(--bronze);color:#fff;white-space:nowrap}
 .cw-chip.now .mk{background:#12703c}
 .cal-widget .cw-more{font-size:11px;color:var(--text-3);white-space:nowrap}
-.cal-widget .cw-open{margin-left:auto;font-size:11.5px;font-weight:800;color:var(--bronze-deep);
+.cal-widget .cw-open{font-size:11.5px;font-weight:800;color:var(--bronze-deep);
   text-decoration:none;white-space:nowrap;border:1px solid var(--line-2);border-radius:9px;padding:7px 11px}
+.cal-widget .cw-open:first-of-type{margin-left:auto}
+.cal-widget .cw-open + .cw-open{margin-left:6px}
 .cal-widget .cw-open:hover{border-color:var(--bronze);background:var(--bronze-tint)}
 .cal-widget.empty .cw-title{color:var(--text-2)}
 /* карточка встречи при наведении — чтобы не открывать сделку ради одной строки */
@@ -6544,7 +6546,8 @@ function renderTodayCalendar(){
   const box=document.getElementById('calWidget');
   if(!box) return;
   if(!calCanSee()){ box.classList.remove('on'); return; }
-  const open='<a class="cw-open" href="team.html?page=calendar">Открыть календарь →</a>';
+  const open='<a class="cw-open" href="ios-widget.html" title="Тот же список виджетом на домашнем экране iPhone">📱 На iPhone</a>'
+    +'<a class="cw-open" href="team.html?page=calendar">Открыть календарь →</a>';
   if(CAL_EVENTS===null){
     box.className='cal-widget on empty';
     box.innerHTML='<div class="cw-head"><span class="cw-title">📅 Сегодня</span><span class="cw-sub">загружаю встречи…</span></div>'+open;

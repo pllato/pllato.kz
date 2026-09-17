@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Виджет на iPhone — Pllato</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="pllato_favicon_64.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="contracts/styles.css?v=20260916-2">
+<style>
+  .wrap { max-width: 900px; }
+  .steps { counter-reset: st; display: grid; gap: 12px; margin: 18px 0 6px; }
+  .step { display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: start; }
+  .step::before {
+    counter-increment: st; content: counter(st);
+    width: 26px; height: 26px; border-radius: 50%; background: var(--navy); color: #fff;
+    display: grid; place-items: center; font-size: 13px; font-weight: 800;
+  }
+  .step h3 { margin: 2px 0 4px; font-size: 15px; }
+  .step p { margin: 0; font-size: 13.5px; color: var(--text-2); line-height: 1.6; }
+  .keys { display: grid; gap: 10px; margin-top: 10px; }
+  .keyrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 11px 13px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); }
+  .keyrow .k { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; word-break: break-all; flex: 1; min-width: 220px; }
+  .keyrow .meta { font-size: 12px; color: var(--text-3); }
+  .keyrow.off { opacity: .5; }
+  .code {
+    margin-top: 12px; background: #0f131c; color: #e8e4dc; border-radius: 12px; padding: 14px 16px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; line-height: 1.55;
+    max-height: 320px; overflow: auto; white-space: pre; -webkit-overflow-scrolling: touch;
+  }
+  .note { font-size: 13px; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--line); border-radius: 11px; padding: 12px 14px; line-height: 1.6; margin-top: 14px; }
+  .note b { color: var(--text-1); }
+  .row-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-top: 12px; flex-wrap: wrap; }
+  .tab { border: 0; background: var(--surface-2); color: var(--text-2); font: inherit; font-size: 13.5px; padding: 9px 15px; cursor: pointer; }
+  .tab + .tab { border-left: 1px solid var(--line); }
+  .tab.on { background: var(--navy); color: #fff; }
+  .wdesc { margin: 10px 0 0; font-size: 13px; color: var(--text-2); line-height: 1.6; }
+  code { background: var(--surface-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; font-size: 12.5px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="brand" href="app.html">
+      <img src="pllato_logo_transparent_navy.svg" alt="Pllato" onerror="this.style.display='none'">
+      <span>Виджет на iPhone</span>
+    </a>
+  </div>
+
+  <div class="wrap">
+    <div class="page-head">
+      <div>
+        <h1>Встречи дня на домашнем экране</h1>
+        <p>Виджет показывает те же встречи и дела, что и блок «Сегодня» в портале, — на домашнем экране или экране блокировки iPhone. Приложение в App Store для этого не нужно: iOS не умеет делать виджеты из веб-приложения, поэтому виджет рисует бесплатное приложение Scriptable, а данные берёт из портала по вашему ключу.</p>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div>
+          <h3>Установите Scriptable</h3>
+          <p>Бесплатное приложение в App Store — <a href="https://apps.apple.com/app/scriptable/id1405459188" target="_blank" rel="noopener">apps.apple.com/app/scriptable</a>. Оно умеет рисовать виджеты по скрипту; своё приложение публиковать не нужно.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div>
+          <h3>Создайте ключ</h3>
+          <p>Ключ привязан к вам и даёт доступ только к списку встреч на сегодня — ни задач, ни сделок, ни сумм по клиентам через него не открыть. Любой ключ можно отозвать, если потеряли телефон.</p>
+          <div class="row-actions">
+            <button class="btn bronze" id="btn-new-key">Создать ключ</button>
+            <button class="btn" id="btn-refresh">Обновить список</button>
+          </div>
+          <div class="keys" id="keys"><div class="empty">Загрузка…</div></div>
+        </div>
+      </div>
+      <div class="step">
+        <div>
+          <h3>Скопируйте скрипт и вставьте в Scriptable</h3>
+          <p>Виджета два и они независимы: можно поставить оба, разными размерами. Ключ уже подставлен в текст ниже. В Scriptable нажмите «+» вверху справа, вставьте скрипт, дайте ему имя и нажмите «Готово».</p>
+          <div class="tabs" id="tabs">
+            <button class="tab on" data-w="calendar">📅 Календарь — встречи дня</button>
+            <button class="tab" data-w="stats">📈 Статистика — деньги и динамика</button>
+          </div>
+          <p class="wdesc" id="wdesc"></p>
+          <div class="row-actions">
+            <button class="btn bronze" id="btn-copy">Скопировать скрипт</button>
+            <a class="btn" id="btn-src" href="ios/pllato-calendar.js" target="_blank" rel="noopener">Открыть исходник</a>
+          </div>
+          <div class="code" id="code">Сначала создайте ключ — он подставится в скрипт.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div>
+          <h3>Поставьте виджет на экран</h3>
+          <p>Долгое нажатие на пустом месте домашнего экрана → «+» вверху слева → найдите <b>Scriptable</b> → выберите размер → «Добавить виджет». Затем долгое нажатие на сам виджет → «Изменить виджет» → Script: выберите нужный скрипт.</p>
+          <p style="margin-top:8px"><b>Интервал у статистики</b> задаётся там же, в поле <b>Parameter</b>: <code>день</code>, <code>неделя</code> или <code>месяц</code>. Можно добавить метрику через двоеточие — <code>неделя:заказы</code>. Метрики: заказы, обращения, кэп, деньги, сдано. Так на экран кладутся несколько виджетов с разными интервалами — например, «день» рядом с «месяцем».</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <b>Как часто обновляется.</b> Расписание задаёт iOS — обычно раз в 15–30 минут, и чаще система не позволяет ни одному виджету. Тап по виджету открывает портал в браузере. Если телефон без сети, виджет покажет последние загруженные данные и пометит время обновления.
+    </div>
+    <div class="note">
+      <b>Почему не «настоящее» приложение.</b> Виджеты на iOS умеет делать только нативный код (WidgetKit), и он распространяется через App Store или TestFlight. Scriptable — легальный обходной путь: приложение уже в App Store, а мы даём ему свой скрипт. Никаких публикаций, ревью и ежегодных $99 это не требует.
+    </div>
+    <div class="note">
+      <b>Что видит ключ.</b> Только встречи и дела на текущий день: время, название, воронку и стадию. Ключ не даёт входить в портал, менять данные или смотреть что-то ещё. Если ключ утёк — нажмите «Отозвать», виджет на том телефоне перестанет получать данные сразу же.
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="app.config.js"></script>
+  <script type="module">
+    import { requireSession } from "./pllato-kz-shared/pllato-api.js";
+
+    const WORKER = "https://pllato-elc-worker.uurraa.workers.dev";
+    const session = requireSession({ redirectTo: "login.html" });
+    if (!session) throw new Error("no session");
+
+    const $ = (s) => document.querySelector(s);
+    const toastEl = $("#toast");
+    let keys = [];
+    // Два независимых виджета: календарь и статистика.
+    const WIDGETS = {
+      calendar: {
+        file: "ios/pllato-calendar.js",
+        name: "Pllato Календарь",
+        desc: "Встречи и дела на сегодня: время, название сделки, отметка «идёт сейчас». Маленький размер — ближайшая встреча и счётчик, средний — три события, большой — восемь.",
+      },
+      stats: {
+        file: "ios/pllato-stats.js",
+        name: "Pllato Статистика",
+        desc: "Динамика по выбранному интервалу графиком плюс деньги: сумма сделок, получено, остаток. Интервал (день / неделя / месяц) и метрика задаются в поле Parameter при настройке виджета — можно поставить несколько виджетов с разными интервалами.",
+      },
+    };
+    let current = "calendar";
+    const templates = {};
+
+    function toast(msg, isErr = false) {
+      toastEl.textContent = msg;
+      toastEl.className = "toast show" + (isErr ? " err" : "");
+      setTimeout(() => { toastEl.className = "toast"; }, 3200);
+    }
+    function esc(s) {
+      return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+    function fmtDate(ms) {
+      if (!ms) return "—";
+      return new Date(ms).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    }
+    function api(path, opts = {}) {
+      const sep = path.includes("?") ? "&" : "?";
+      return fetch(`${WORKER}${path}${sep}auth=${encodeURIComponent(session.token)}`, opts)
+        .then(async (r) => {
+          const data = await r.json().catch(() => null);
+          if (!r.ok || !data?.ok) throw new Error(data?.error || `Ошибка ${r.status}`);
+          return data;
+        });
+    }
+
+    function activeKey() {
+      return keys.find((k) => !k.revoked) || null;
+    }
+    function renderCode() {
+      const k = activeKey();
+      const box = $("#code");
+      const w = WIDGETS[current];
+      $("#wdesc").textContent = w.desc;
+      $("#btn-src").href = w.file;
+      [...document.querySelectorAll(".tab")].forEach((t) => t.classList.toggle("on", t.dataset.w === current));
+      const template = templates[current];
+      if (!template) { box.textContent = "Загружаю скрипт…"; return; }
+      if (!k) { box.textContent = "Сначала создайте ключ — он подставится в скрипт."; return; }
+      box.textContent = template.replace('const KEY = "ВСТАВЬТЕ_КЛЮЧ_ИЗ_ПОРТАЛА";', `const KEY = "${k.key}";`);
+    }
+    function renderKeys() {
+      const box = $("#keys");
+      if (!keys.length) { box.innerHTML = `<div class="empty">Ключей пока нет</div>`; return; }
+      box.innerHTML = keys.map((k) => `<div class="keyrow${k.revoked ? " off" : ""}">
+          <span class="k">${esc(k.key)}</span>
+          <span class="meta">${esc(k.label || "iPhone")} · создан ${fmtDate(k.createdAt)} · ${k.lastUsedAt ? "последний запрос " + fmtDate(k.lastUsedAt) : "ещё не использовался"}</span>
+          ${k.revoked ? `<span class="s-status declined">отозван</span>`
+            : `<button class="btn sm" data-copy="${esc(k.key)}">Копировать</button>
+               <button class="btn sm danger" data-revoke="${esc(k.id)}">Отозвать</button>`}
+        </div>`).join("");
+    }
+
+    async function load() {
+      try {
+        const data = await api("/api/widget/keys");
+        keys = data.keys || [];
+        renderKeys();
+        renderCode();
+      } catch (e) {
+        $("#keys").innerHTML = `<div class="empty">${esc(e.message || "Не удалось загрузить ключи")}</div>`;
+      }
+    }
+
+    $("#btn-new-key").addEventListener("click", async () => {
+      try {
+        const data = await api("/api/widget/keys", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label: "iPhone" }),
+        });
+        keys.unshift(data.key);
+        renderKeys();
+        renderCode();
+        toast("Ключ создан — скрипт ниже уже с ним");
+      } catch (e) { toast(e.message || "Не удалось создать ключ", true); }
+    });
+    $("#btn-refresh").addEventListener("click", load);
+    $("#btn-copy").addEventListener("click", async () => {
+      const text = $("#code").textContent;
+      if (!activeKey()) return toast("Сначала создайте ключ", true);
+      try { await navigator.clipboard.writeText(text); toast("Скрипт скопирован — вставьте его в Scriptable"); }
+      catch (e) { toast("Не удалось скопировать — выделите текст вручную", true); }
+    });
+    $("#keys").addEventListener("click", async (e) => {
+      const copy = e.target.closest("[data-copy]");
+      if (copy) {
+        try { await navigator.clipboard.writeText(copy.dataset.copy); toast("Ключ скопирован"); }
+        catch (_) { toast("Не удалось скопировать", true); }
+        return;
+      }
+      const rev = e.target.closest("[data-revoke]");
+      if (!rev) return;
+      if (!confirm("Отозвать ключ? Виджет на этом телефоне перестанет получать данные.")) return;
+      try {
+        await api(`/api/widget/keys/${encodeURIComponent(rev.dataset.revoke)}`, { method: "DELETE" });
+        await load();
+        toast("Ключ отозван");
+      } catch (err) { toast(err.message || "Не удалось отозвать", true); }
+    });
+
+    $("#tabs").addEventListener("click", (e) => {
+      const b = e.target.closest(".tab");
+      if (!b || !WIDGETS[b.dataset.w]) return;
+      current = b.dataset.w;
+      renderCode();
+    });
+
+    // Тексты скриптов берём из репозитория — правки в них подхватятся сами.
+    Object.entries(WIDGETS).forEach(([id, w]) => {
+      fetch(`${w.file}?v=20260917-1`)
+        .then((r) => (r.ok ? r.text() : Promise.reject(new Error("нет файла"))))
+        .then((t) => { templates[id] = t; renderCode(); })
+        .catch(() => { templates[id] = ""; renderCode(); });
+    });
+
+    load();
+  </script>
+</body>
+</html>

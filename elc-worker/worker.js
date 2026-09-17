@@ -3326,6 +3326,254 @@ async function createDemoForDeal(env, dealId, me) {
   return { id, slug, demoUrl, message, profile, niche, logo };
 }
 
+// ── Виджет «Встречи сегодня» для iPhone ───────────────────────────────
+// iOS не умеет виджеты из веб-приложения: WidgetKit — только нативный код.
+// Поэтому виджет рисует Scriptable (бесплатное приложение), а данные берёт
+// отсюда по долгоживущему ключу: сессионный JWT живёт 7 дней и для виджета
+// не годится. Ключ выдаёт сам сотрудник в портале и может отозвать.
+let widgetKeysTableReady = false;
+async function ensureWidgetKeysTable(env) {
+  if (widgetKeysTableReady) return;
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS widget_keys (
+      id           TEXT PRIMARY KEY,
+      key          TEXT NOT NULL UNIQUE,
+      email        TEXT NOT NULL,
+      uid          TEXT,
+      label        TEXT,
+      revoked      INTEGER NOT NULL DEFAULT 0,
+      created_at   INTEGER NOT NULL,
+      last_used_at INTEGER
+    )
+  `).run();
+  try { await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_widget_keys_email ON widget_keys(email)`).run(); } catch (_e) {}
+  widgetKeysTableReady = true;
+}
+
+// Ключ выдаём только тем, кому общий календарь виден и в портале:
+// виджет показывает встречи всей команды, а не только свои.
+async function widgetCalendarAllowed(env, email, role) {
+  if (role === "admin") return true;
+  const row = await env.DB.prepare(`SELECT apps FROM users WHERE lower(email) = ? LIMIT 1`).bind(email).first();
+  if (!row) return false;
+  let apps = {};
+  try { apps = row.apps ? JSON.parse(row.apps) : {}; } catch (_e) { apps = {}; }
+  return Boolean(apps && apps.pllato_shared_calendar);
+}
+
+function newWidgetKey() {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return "wk_" + [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// GET /api/widget/keys — свои ключи виджета.
+async function handleWidgetKeysList(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureWidgetKeysTable(env);
+  const email = String(auth.email || "").toLowerCase();
+  if (!email) return json({ error: "no email in token" }, 403, request);
+  const res = await env.DB.prepare(
+    `SELECT id, key, label, revoked, created_at, last_used_at FROM widget_keys WHERE email = ? ORDER BY created_at DESC LIMIT 20`
+  ).bind(email).all();
+  return json({ ok: true, keys: (res.results || []).map((r) => ({
+    id: r.id, key: r.key, label: r.label || "", revoked: !!r.revoked,
+    createdAt: Number(r.created_at) || 0, lastUsedAt: Number(r.last_used_at) || 0,
+  })) }, 200, request);
+}
+
+// POST /api/widget/keys — выдать новый ключ себе.
+async function handleWidgetKeyCreate(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureWidgetKeysTable(env);
+  const email = String(auth.email || "").toLowerCase();
+  if (!email) return json({ error: "no email in token" }, 403, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  if (!(await widgetCalendarAllowed(env, email, me.role))) {
+    return json({ error: "общий календарь не открыт для вашей учётной записи" }, 403, request);
+  }
+  let body = {};
+  try { body = await request.json(); } catch (_e) { body = {}; }
+  const label = String(body.label || "iPhone").trim().slice(0, 60);
+  const id = "wkid_" + Math.random().toString(36).slice(2, 10);
+  const key = newWidgetKey();
+  await env.DB.prepare(
+    `INSERT INTO widget_keys (id, key, email, uid, label, revoked, created_at) VALUES (?,?,?,?,?,0,?)`
+  ).bind(id, key, email, auth.uid || "", label, Date.now()).run();
+  return json({ ok: true, key: { id, key, label, revoked: false, createdAt: Date.now(), lastUsedAt: 0 } }, 200, request);
+}
+
+// DELETE /api/widget/keys/{id} — отозвать ключ.
+async function handleWidgetKeyRevoke(request, env, id) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  await ensureWidgetKeysTable(env);
+  const email = String(auth.email || "").toLowerCase();
+  const row = await env.DB.prepare(`SELECT id FROM widget_keys WHERE id = ? AND email = ?`).bind(id, email).first();
+  if (!row) return json({ error: "not found" }, 404, request);
+  await env.DB.prepare(`UPDATE widget_keys SET revoked = 1 WHERE id = ?`).bind(id).run();
+  return json({ ok: true, revoked: id }, 200, request);
+}
+
+// GET /api/widget/verify?key=... — проверка ключа для соседнего воркера
+// (финансовая статистика живёт в pllato-comm, а ключи — здесь).
+async function handleWidgetVerify(request, env) {
+  await ensureWidgetKeysTable(env);
+  const url = new URL(request.url);
+  const key = String(url.searchParams.get("key") || "").trim();
+  if (!key) return json({ error: "missing key" }, 401, request);
+  const row = await env.DB.prepare(`SELECT email FROM widget_keys WHERE key = ? AND revoked = 0`).bind(key).first();
+  if (!row) return json({ error: "invalid or revoked key" }, 401, request);
+  return json({ ok: true, email: String(row.email || "").toLowerCase() }, 200, request);
+}
+
+// Границы дня. Телефон присылает свою дату и смещение (getTimezoneOffset),
+// поэтому «сегодня» считается по часам владельца, а не по UTC воркера.
+// Без параметров — Алматы (UTC+5).
+function widgetDayBounds(url) {
+  const raw = String(url.searchParams.get("date") || "").trim();
+  // Number(null) === 0, поэтому отсутствие параметра проверяем отдельно:
+  // иначе запрос без tzo считал бы день по UTC, а не по Алматы.
+  const tzoRaw = url.searchParams.get("tzo");
+  const tzoNum = Number(tzoRaw);
+  const tzo = tzoRaw !== null && tzoRaw !== "" && Number.isFinite(tzoNum)
+    ? Math.max(-840, Math.min(840, tzoNum))
+    : -300;
+  let date = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : "";
+  if (!date) date = new Date(Date.now() - tzo * 60000).toISOString().slice(0, 10);
+  const start = Date.parse(`${date}T00:00:00.000Z`) + tzo * 60000;
+  return { date, tzo, dayStart: start, dayEnd: start + 24 * 3600 * 1000 };
+}
+
+// Ссылка задачи на сделку: форматы deal_123, deal_local_ab12, D_123, 123.
+function widgetLinkedDealId(task) {
+  const sources = [task.crm_links, task.bitrix_crm_links];
+  for (const src of sources) {
+    if (!src) continue;
+    let links = src;
+    if (typeof links === "string") { try { links = JSON.parse(links); } catch (_e) { links = [links]; } }
+    let values = [];
+    if (Array.isArray(links)) values = links;
+    else if (links && typeof links === "object") {
+      for (const [k, v] of Object.entries(links)) {
+        if (k === "D" || k === "DEAL") values.push(...(Array.isArray(v) ? v : [v]));
+        else values.push(v);
+      }
+    } else values = [links];
+    for (const l of values) {
+      const s = String(l || "");
+      const m = s.match(/(?:deal_|D_)([a-zA-Z0-9_-]+)/i) || s.match(/^([a-zA-Z0-9_-]+)$/);
+      if (m) return m[1];
+    }
+  }
+  return null;
+}
+
+// GET /api/widget/today?key=...&date=YYYY-MM-DD&tzo=-300
+// Отдаёт встречи и дела на день — то же, что видно в виджете портала.
+async function handleWidgetToday(request, env) {
+  await ensureWidgetKeysTable(env);
+  const url = new URL(request.url);
+  const key = String(url.searchParams.get("key") || "").trim();
+  if (!key) return json({ error: "missing key" }, 401, request);
+  const row = await env.DB.prepare(`SELECT * FROM widget_keys WHERE key = ? AND revoked = 0`).bind(key).first();
+  if (!row) return json({ error: "invalid or revoked key" }, 401, request);
+  try { await env.DB.prepare(`UPDATE widget_keys SET last_used_at = ? WHERE id = ?`).bind(Date.now(), row.id).run(); } catch (_e) {}
+
+  const { date, dayStart, dayEnd } = widgetDayBounds(url);
+  // В SQL берём окно шире на сутки и фильтруем точно уже в JS: в базе лежат
+  // ISO-строки, у части записей — со смещением, лексикографика тут неточна.
+  const wideFrom = new Date(dayStart - 86400000).toISOString();
+  const wideTo = new Date(dayEnd + 86400000).toISOString();
+
+  const events = [];
+  const pipeBook = {};
+  try {
+    const pipes = await env.DB.prepare(`SELECT id, name, stages FROM pipelines`).all();
+    for (const p of (pipes.results || [])) {
+      let stages = {};
+      try { stages = p.stages ? JSON.parse(p.stages) : {}; } catch (_e) { stages = {}; }
+      pipeBook[p.id] = { name: p.name || "", stages };
+    }
+  } catch (_e) { /* без названий воронок виджет всё равно полезен */ }
+
+  const dealsById = new Map();
+  try {
+    const deals = await env.DB.prepare(
+      `SELECT id, title, pipeline_id, stage_id, opportunity, custom_fields, bitrix_id
+         FROM deals
+        WHERE archived = 0 AND custom_fields IS NOT NULL AND custom_fields LIKE '%firstZoomAt%'
+        LIMIT 800`
+    ).all();
+    for (const d of (deals.results || [])) {
+      dealsById.set(String(d.id).replace(/^deal_/, ""), d);
+      if (d.bitrix_id) dealsById.set(String(d.bitrix_id), d);
+      let cf = {};
+      try { cf = d.custom_fields ? JSON.parse(d.custom_fields) : {}; } catch (_e) { cf = {}; }
+      const at = Date.parse(cf.firstZoomAt || "");
+      if (!Number.isFinite(at) || at < dayStart || at >= dayEnd) continue;
+      const book = pipeBook[d.pipeline_id] || null;
+      events.push({
+        at, end: at + 3600000, kind: "meet", src: "первый Zoom",
+        title: "Zoom: " + (d.title || "сделка"), note: "",
+        pipe: book ? book.name : "", stage: (book && book.stages && book.stages[d.stage_id] && book.stages[d.stage_id].name) || "",
+        sum: Number(d.opportunity) || 0, deal: String(d.id),
+      });
+    }
+  } catch (_e) { /* сделки недоступны — покажем хотя бы задачи */ }
+
+  try {
+    const tasks = await env.DB.prepare(
+      `SELECT id, title, mark, start_date_plan, end_date_plan, deadline, crm_links, bitrix_crm_links, calendar_deal_title
+         FROM tasks
+        WHERE status IN (1,2,3) AND archived_at IS NULL
+          AND ((start_date_plan IS NOT NULL AND start_date_plan >= ? AND start_date_plan <= ?)
+            OR (deadline IS NOT NULL AND deadline >= ? AND deadline <= ?))
+        LIMIT 400`
+    ).bind(wideFrom, wideTo, wideFrom, wideTo).all();
+    for (const t of (tasks.results || [])) {
+      const isMeet = t.mark === "zoom_meeting";
+      const at = Date.parse((isMeet ? (t.start_date_plan || t.deadline) : t.deadline) || "");
+      if (!Number.isFinite(at) || at < dayStart || at >= dayEnd) continue;
+      const endRaw = Date.parse(t.end_date_plan || "");
+      const dealId = widgetLinkedDealId(t);
+      const deal = dealId ? dealsById.get(String(dealId)) : null;
+      const dealTitle = (deal && deal.title) || t.calendar_deal_title || "";
+      const book = deal ? pipeBook[deal.pipeline_id] : null;
+      events.push({
+        at,
+        end: Number.isFinite(endRaw) ? endRaw : at + (isMeet ? 3600000 : 1800000),
+        kind: isMeet ? "meet" : "task",
+        src: isMeet ? "встреча" : "задача",
+        title: dealTitle ? "Сделка: " + dealTitle : (t.title || (isMeet ? "Встреча" : "Задача")),
+        note: dealTitle && t.title ? t.title : "",
+        pipe: book ? book.name : "",
+        stage: (book && book.stages && book.stages[deal.stage_id] && book.stages[deal.stage_id].name) || "",
+        sum: deal ? Number(deal.opportunity) || 0 : 0,
+        deal: deal ? String(deal.id) : "",
+      });
+    }
+  } catch (_e) { /* задачи недоступны — отдадим то, что собрали */ }
+
+  // «Первый Zoom» и событие-задача по той же сделке в ту же минуту — одно и то же.
+  const taskMeets = new Set();
+  for (const e of events) if (e.kind === "meet" && e.src === "встреча" && e.deal) taskMeets.add(e.deal + "|" + e.at);
+  const out = events
+    .filter((e) => !(e.src === "первый Zoom" && e.deal && taskMeets.has(e.deal + "|" + e.at)))
+    .sort((a, b) => a.at - b.at);
+
+  return json({
+    ok: true,
+    date,
+    updatedAt: Date.now(),
+    meets: out.filter((e) => e.kind === "meet").length,
+    tasks: out.filter((e) => e.kind === "task").length,
+    events: out,
+  }, 200, request);
+}
+
 // GET /api/demos — список плашек для Канбана (auth).
 async function handleDemosList(request, env) {
   const auth = await requireAuthFlexible(request, env);
@@ -11835,6 +12083,26 @@ export default {
     // /api/tasks — создать новую задачу в портале
     if (path === "/api/tasks" && request.method === "POST") {
       return handleCreateTask(request, env);
+    }
+
+    // ── Виджет «Встречи сегодня» для iPhone (Scriptable) ──────────────
+    // Данные — по ключу в ?key=, без сессии: виджет живёт на телефоне
+    // и обновляется по расписанию iOS, когда портал не открыт.
+    if (path === "/api/widget/today" && request.method === "GET") {
+      return handleWidgetToday(request, env);
+    }
+    if (path === "/api/widget/verify" && request.method === "GET") {
+      return handleWidgetVerify(request, env);
+    }
+    if (path === "/api/widget/keys" && request.method === "GET") {
+      return handleWidgetKeysList(request, env);
+    }
+    if (path === "/api/widget/keys" && request.method === "POST") {
+      return handleWidgetKeyCreate(request, env);
+    }
+    const widgetKeyMatch = path.match(/^\/api\/widget\/keys\/([a-zA-Z0-9_-]+)$/);
+    if (widgetKeyMatch && request.method === "DELETE") {
+      return handleWidgetKeyRevoke(request, env, widgetKeyMatch[1]);
     }
 
     // ── Демо-конструктор ──────────────────────────────────────────────
