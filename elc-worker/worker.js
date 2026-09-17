@@ -3345,16 +3345,15 @@ async function widgetKeyEmail(env, key) {
   const req = new Request(
     `https://pllato-comm.uurraa.workers.dev/api/widget/verify?key=${encodeURIComponent(clean)}`
   );
-  // Сначала публичный адрес: он заведомо отвечает на этот маршрут.
-  // Service binding — запасной путь, он может смотреть на другой деплой.
+  // Только service binding. Публичный адрес соседнего воркера изнутри
+  // Worker'а недоступен: Cloudflare отвечает «error code: 1042» со статусом
+  // 404. Поэтому запасного пути через fetch по URL здесь нет, и отказ
+  // проверки нельзя путать с ответом «ключ не подошёл».
   let response = null;
-  let via = "url";
   try {
-    response = await fetch(req.clone());
-    if (!response.ok && env.PLLATO_COMM) {
-      const alt = await env.PLLATO_COMM.fetch(req.clone());
-      if (alt.ok) { response = alt; via = "binding"; }
-    }
+    response = env.PLLATO_COMM
+      ? await env.PLLATO_COMM.fetch(req.clone())
+      : await fetch(req.clone());
   } catch (e) {
     return { error: "Проверка ключа недоступна — попробуйте позже" };
   }
@@ -3364,7 +3363,7 @@ async function widgetKeyEmail(env, key) {
   }
   if (!response.ok) {
     const text = await response.text().catch(() => "");
-    return { error: `Проверка ключа недоступна (${response.status}, ${via}): ${text.slice(0, 120)}` };
+    return { error: `Проверка ключа недоступна (${response.status}): ${text.slice(0, 100)}` };
   }
   const data = await response.json().catch(() => null);
   const email = String(data?.email || "").toLowerCase().trim();
