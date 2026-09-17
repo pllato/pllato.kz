@@ -2825,8 +2825,34 @@ async function handleWidgetStats(env, url) {
       label: point.label || "",
       value: Number(point.value) || 0,
       partial: Boolean(point.partial),
+      start: Number(point.start) || 0,
+      end: Number(point.end) || 0,
     }));
   }
+
+  // «Дела недели» — те же, что под графиками в портале: они привязаны
+  // к началу текущего периода и к виду графика.
+  const tasks = {};
+  try {
+    const rows = await d1ListCollection(env, "chart_week_tasks", 500, null);
+    for (const [kind, series] of Object.entries(compact)) {
+      const point = series.length ? series[series.length - 1] : null;
+      if (!point?.start) continue;
+      tasks[kind] = (rows || [])
+        .filter((item) => !item?.deleted
+          && item?.kind === kind
+          && Number(item?.start) === point.start
+          && String(item?.text || "").trim()
+          && !Number(item?.movedToStart))
+        .sort((a, b) => Number(Boolean(a.done)) - Number(Boolean(b.done)) || (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0))
+        .slice(0, 12)
+        .map((item) => ({
+          text: String(item.text).trim().slice(0, 120),
+          done: Boolean(item.done),
+          amount: Number(item.amount) || 0,
+        }));
+    }
+  } catch (_e) { /* дела не критичны для виджета */ }
 
   // Деньги — только тем, кому открыты финансы проектов.
   let totals = null;
@@ -2854,6 +2880,7 @@ async function handleWidgetStats(env, url) {
     period: chartsPayload.period,
     totals,
     charts: compact,
+    tasks,
     visible: chartsPayload.visible,
     updatedAt: Date.now(),
   };

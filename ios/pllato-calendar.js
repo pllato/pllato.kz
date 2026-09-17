@@ -89,6 +89,53 @@ function statusLine(events) {
   return meets.length ? "все прошли" : "встреч нет";
 }
 
+// Линия дня: где мы сейчас и как расставлены встречи. Прошедшие — тусклые,
+// текущее время — красная риска, как в календаре команды.
+function timeline(w, events, now) {
+  const meets = events.filter((e) => e.kind !== "task");
+  if (!meets.length) return;
+  const dayStart = new Date(now); dayStart.setHours(8, 0, 0, 0);
+  const dayEnd = new Date(now); dayEnd.setHours(21, 0, 0, 0);
+  let from = Math.min(dayStart.getTime(), ...meets.map((e) => e.at));
+  let to = Math.max(dayEnd.getTime(), ...meets.map((e) => e.end));
+  if (to <= from) to = from + 3600000;
+  const W = 300, H = 16;
+  const x = (ms) => Math.max(0, Math.min(W, ((ms - from) / (to - from)) * W));
+
+  const ctx = new DrawContext();
+  ctx.size = new Size(W, H);
+  ctx.opaque = false;
+  ctx.respectScreenScale = true;
+
+  ctx.setFillColor(new Color("#ffffff", 0.08));
+  const track = new Path();
+  track.addRoundedRect(new Rect(0, H / 2 - 1.5, W, 3), 1.5, 1.5);
+  ctx.addPath(track); ctx.fillPath();
+
+  meets.forEach((e) => {
+    const past = e.end <= now;
+    const running = e.at <= now && e.end > now;
+    const left = x(e.at);
+    const width = Math.max(4, x(e.end) - left);
+    ctx.setFillColor(running ? new Color("#46d18a") : past ? new Color("#cfa46c", 0.3) : new Color("#cfa46c"));
+    const bar = new Path();
+    bar.addRoundedRect(new Rect(left, H / 2 - 3.5, width, 7), 3, 3);
+    ctx.addPath(bar); ctx.fillPath();
+  });
+
+  const nx = x(now);
+  ctx.setFillColor(new Color("#f87171"));
+  const mark = new Path();
+  mark.addRoundedRect(new Rect(Math.max(0, nx - 1), 0, 2, H), 1, 1);
+  ctx.addPath(mark); ctx.fillPath();
+  const head = new Path();
+  head.addEllipse(new Rect(Math.max(0, nx - 3), 0, 6, 6));
+  ctx.addPath(head); ctx.fillPath();
+
+  const img = w.addImage(ctx.getImage());
+  img.resizable = false;
+}
+
 function header(w, data) {
   const row = w.addStack();
   row.centerAlignContent();
@@ -116,7 +163,9 @@ function header(w, data) {
 function eventRow(w, ev, now) {
   const isNow = ev.at <= now && ev.end > now;
   const isPast = ev.end <= now;
-  const accent = ev.kind === "task" ? C.violet : isNow ? C.green : C.bronze;
+  const accent = isPast ? new Color("#8e94a3", 0.55)
+    : ev.kind === "task" ? C.violet
+    : isNow ? C.green : C.bronze;
 
   const box = card(w, 6);
   const bar = box.addStack();
@@ -156,6 +205,21 @@ function eventRow(w, ev, now) {
   if (isPast) box.addSpacer(0);
 }
 
+// Через сколько минут просить следующее обновление.
+function nextRefreshMinutes(data) {
+  const events = (data && data.events) || [];
+  if (!events.length) return 60;
+  const now = Date.now();
+  const running = events.some((e) => e.at <= now && e.end > now);
+  if (running) return 10;
+  const next = events.find((e) => e.at > now);
+  if (!next) return 60;                       // всё прошло — до конца дня тишина
+  const mins = (next.at - now) / 60000;
+  if (mins <= 30) return 5;                   // встреча на носу
+  if (mins <= 120) return 15;
+  return 30;
+}
+
 function buildWidget(data, errorText) {
   const w = new ListWidget();
   const g = new LinearGradient();
@@ -164,7 +228,10 @@ function buildWidget(data, errorText) {
   w.backgroundGradient = g;
   w.setPadding(13, 13, 11, 13);
   w.url = OPEN_URL;
-  w.refreshAfterDate = new Date(Date.now() + 15 * 60 * 1000);
+  // Обновляемся часто только тогда, когда это имеет смысл: рядом со
+  // встречей — раз в 5 минут, в пустой день — раз в час. iOS всё равно
+  // решает сам, но частые просьбы в тихое время просто тратят батарею.
+  w.refreshAfterDate = new Date(Date.now() + nextRefreshMinutes(data) * 60 * 1000);
 
   if (errorText) {
     const t = w.addText("Pllato · Календарь");
@@ -214,7 +281,9 @@ function buildWidget(data, errorText) {
   }
 
   header(w, data);
-  w.addSpacer(8);
+  w.addSpacer(7);
+  timeline(w, events, now);
+  w.addSpacer(7);
   const limit = size === "large" ? 8 : 3;
   const shown = events.slice(0, limit);
   if (!shown.length) {
