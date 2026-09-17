@@ -6410,7 +6410,8 @@ let CAL_EVENTS=null, CAL_TIMER=null, CAL_TICK=null;
 
 function calCanSee(){ return !!(CURRENT?.isAdmin || CURRENT?.apps?.pllato_shared_calendar); }
 // Кнопку «На iPhone» видит тот, кому её открыли в правах общего календаря.
-function calCanSeeWidget(){ return !!(CURRENT?.isAdmin || CURRENT?.calendarAccess?.canWidget); }
+// Право хранится в apps: calendarAccess воркер портала не сохраняет.
+function calCanSeeWidget(){ return !!(CURRENT?.isAdmin || CURRENT?.apps?.pllato_ios_widget); }
 function calDayKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function calCacheKey(){ return `pllato_today_meetings:${String(CURRENT?.email||'guest').toLowerCase()}:${calDayKey(new Date())}`; }
 function calReadCache(){
@@ -7275,7 +7276,7 @@ async function openCalendarTileAccess() {
         const isFullAdmin = Boolean(user.isAdmin || user.isSuperAdmin || isRootSuper(user.email));
         const canView = isFullAdmin || Boolean(user.apps?.pllato_shared_calendar);
         const canCreate = isFullAdmin || Boolean(user.calendarAccess?.canCreate);
-        const canWidget = isFullAdmin || Boolean(user.calendarAccess?.canWidget);
+        const canWidget = isFullAdmin || Boolean(user.apps?.pllato_ios_widget);
         return `<div class="crm-tile-user ${canView ? '' : 'no-access'}" data-calendar-tile-user="${escapeHtml(uid)}">
           <div class="crm-tile-user-head">
             <div class="crm-tile-user-name">

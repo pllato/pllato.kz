@@ -66,7 +66,7 @@
       <div class="step">
         <div>
           <h3>Создайте ключ</h3>
-          <p>Ключ привязан к вам и даёт доступ только к списку встреч на сегодня — ни задач, ни сделок, ни сумм по клиентам через него не открыть. Любой ключ можно отозвать, если потеряли телефон.</p>
+          <p>Один ключ работает для обоих виджетов. Он привязан к вам и открывает ровно то, что вы и так видите в портале: встречи дня, а в статистике — только те графики и суммы, к которым у вас есть доступ. Войти в портал или что-то изменить по ключу нельзя. Любой ключ можно отозвать, если потеряли телефон.</p>
           <div class="row-actions">
             <button class="btn bronze" id="btn-new-key">Создать ключ</button>
             <button class="btn" id="btn-refresh">Обновить список</button>
@@ -106,7 +106,7 @@
       <b>Почему не «настоящее» приложение.</b> Виджеты на iOS умеет делать только нативный код (WidgetKit), и он распространяется через App Store или TestFlight. Scriptable — легальный обходной путь: приложение уже в App Store, а мы даём ему свой скрипт. Никаких публикаций, ревью и ежегодных $99 это не требует.
     </div>
     <div class="note">
-      <b>Что видит ключ.</b> Только встречи и дела на текущий день: время, название, воронку и стадию. Ключ не даёт входить в портал, менять данные или смотреть что-то ещё. Если ключ утёк — нажмите «Отозвать», виджет на том телефоне перестанет получать данные сразу же.
+      <b>Что видит ключ.</b> Встречи и дела на текущий день — время, название, воронку и стадию — и статистику в пределах ваших прав: деньги в виджете покажутся только тем, кому открыты финансы проектов. Ключ не даёт входить в портал и менять данные. Если ключ утёк — нажмите «Отозвать», оба виджета на том телефоне перестанут получать данные сразу же. Снятие галочки администратором тоже отключает ключ немедленно.
     </div>
   </div>
 
@@ -114,16 +114,15 @@
 
   <script src="app.config.js"></script>
   <script type="module">
-    import { requireSession } from "./pllato-kz-shared/pllato-api.js";
+    import { requireSession, apiFetch } from "./pllato-kz-shared/pllato-api.js";
 
-    const WORKER = "https://pllato-elc-worker.uurraa.workers.dev";
     const session = requireSession({ redirectTo: "login.html" });
     if (!session) throw new Error("no session");
 
     // Право на виджет выдаёт администратор в правах общего календаря.
     // Здесь это только подсказка: ключ всё равно выдаёт сервер и проверяет сам.
     const me = session.user || {};
-    if (!(me.isAdmin || me.isSuperAdmin || me.calendarAccess?.canWidget)) {
+    if (!(me.isAdmin || me.isSuperAdmin || me.apps?.pllato_ios_widget)) {
       document.querySelector(".wrap").innerHTML = `
         <div class="page-head"><div>
           <h1>Виджет пока не открыт для вас</h1>
@@ -165,14 +164,9 @@
       if (!ms) return "—";
       return new Date(ms).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
     }
+    // Ключи живут в воркере портала — там же, где записи пользователей и права.
     function api(path, opts = {}) {
-      const sep = path.includes("?") ? "&" : "?";
-      return fetch(`${WORKER}${path}${sep}auth=${encodeURIComponent(session.token)}`, opts)
-        .then(async (r) => {
-          const data = await r.json().catch(() => null);
-          if (!r.ok || !data?.ok) throw new Error(data?.error || `Ошибка ${r.status}`);
-          return data;
-        });
+      return apiFetch(path, opts);
     }
 
     function activeKey() {
@@ -215,11 +209,7 @@
 
     $("#btn-new-key").addEventListener("click", async () => {
       try {
-        const data = await api("/api/widget/keys", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ label: "iPhone" }),
-        });
+        const data = await api("/api/widget/keys", { method: "POST", body: { label: "iPhone" } });
         keys.unshift(data.key);
         renderKeys();
         renderCode();

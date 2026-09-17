@@ -2693,26 +2693,105 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
   };
 }
 
-// ── Виджет «Статистика» для iPhone ────────────────────────────────────
-// Ключи виджетов живут в соседнем воркере (там же, где встречи), поэтому
-// здесь ключ проверяется запросом к нему. Права на деньги и графики —
-// те же, что в портале: кому не видно в браузере, тому не видно и в виджете.
-async function widgetEmailByKey(key) {
-  const response = await fetch(
-    `https://pllato-elc-worker.uurraa.workers.dev/api/widget/verify?key=${encodeURIComponent(key)}`,
-    { cf: { cacheTtl: 0 } },
-  );
-  if (!response.ok) throw new HttpError(401, "Ключ виджета недействителен или отозван");
-  const data = await response.json().catch(() => null);
-  const email = String(data?.email || "").toLowerCase().trim();
-  if (!data?.ok || !email) throw new HttpError(401, "Ключ виджета недействителен или отозван");
-  return email;
+// ── Ключи виджетов для iPhone ─────────────────────────────────────────
+// Ключи живут здесь же, где записи пользователей и их права: иначе
+// проверку пришлось бы делать запросом в соседний воркер, а это лишняя
+// точка отказа. Сессия портала живёт 7 дней и для виджета не годится,
+// поэтому ключ отдельный, долгоживущий и отзываемый.
+let widgetKeysTableReady = false;
+async function ensureWidgetKeysTable(env) {
+  if (widgetKeysTableReady) return;
+  const db = requireStoreDb(env);
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS widget_keys (
+      id           TEXT PRIMARY KEY,
+      key          TEXT NOT NULL UNIQUE,
+      email        TEXT NOT NULL,
+      label        TEXT,
+      revoked      INTEGER NOT NULL DEFAULT 0,
+      created_at   INTEGER NOT NULL,
+      last_used_at INTEGER
+    )
+  `).run();
+  try { await db.prepare(`CREATE INDEX IF NOT EXISTS idx_widget_keys_email ON widget_keys(email)`).run(); } catch (_e) {}
+  widgetKeysTableReady = true;
 }
 
-async function handleWidgetStats(env, url) {
-  const key = String(url.searchParams.get("key") || "").trim();
-  if (!key) throw new HttpError(401, "Нет ключа виджета");
-  const email = await widgetEmailByKey(key);
+function newWidgetKey() {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return "wk_" + [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Право на виджет выдаёт администратор галочкой в правах общего календаря.
+function widgetAllowedForUser(user, actor) {
+  if (actor?.isRoot || user?.isAdmin || user?.isSuperAdmin) return true;
+  return Boolean(user?.apps?.pllato_ios_widget);
+}
+
+async function handleWidgetKeysList(env, actor) {
+  await ensureWidgetKeysTable(env);
+  const email = String(actor?.email || "").toLowerCase();
+  if (!email) throw new HttpError(403, "Нет email в сессии");
+  const res = await requireStoreDb(env)
+    .prepare(`SELECT id, key, label, revoked, created_at, last_used_at FROM widget_keys WHERE email = ? ORDER BY created_at DESC LIMIT 20`)
+    .bind(email)
+    .all();
+  return {
+    ok: true,
+    allowed: widgetAllowedForUser(actor.user, actor),
+    keys: (res.results || []).map((r) => ({
+      id: r.id,
+      key: r.key,
+      label: r.label || "",
+      revoked: Boolean(r.revoked),
+      createdAt: Number(r.created_at) || 0,
+      lastUsedAt: Number(r.last_used_at) || 0,
+    })),
+  };
+}
+
+async function handleWidgetKeyCreate(request, env, actor) {
+  await ensureWidgetKeysTable(env);
+  const email = String(actor?.email || "").toLowerCase();
+  if (!email) throw new HttpError(403, "Нет email в сессии");
+  if (!widgetAllowedForUser(actor.user, actor)) {
+    throw new HttpError(403, "Виджет на iPhone не открыт для вашей учётной записи. Попросите администратора включить его в правах общего календаря.");
+  }
+  const body = await readRequestBodyAsJson(request).catch(() => ({}));
+  const label = String(body?.label || "iPhone").trim().slice(0, 60);
+  const id = "wkid_" + Math.random().toString(36).slice(2, 10);
+  const key = newWidgetKey();
+  const now = Date.now();
+  await requireStoreDb(env)
+    .prepare(`INSERT INTO widget_keys (id, key, email, label, revoked, created_at) VALUES (?,?,?,?,0,?)`)
+    .bind(id, key, email, label, now)
+    .run();
+  return { ok: true, key: { id, key, label, revoked: false, createdAt: now, lastUsedAt: 0 } };
+}
+
+async function handleWidgetKeyRevoke(env, actor, id) {
+  await ensureWidgetKeysTable(env);
+  const email = String(actor?.email || "").toLowerCase();
+  const db = requireStoreDb(env);
+  const row = await db.prepare(`SELECT id FROM widget_keys WHERE id = ? AND email = ?`).bind(id, email).first();
+  if (!row) throw new HttpError(404, "Ключ не найден");
+  await db.prepare(`UPDATE widget_keys SET revoked = 1 WHERE id = ?`).bind(id).run();
+  return { ok: true, revoked: id };
+}
+
+// Проверка ключа — для соседнего воркера, где лежат встречи.
+// Заодно снимаем право на лету: администратор выключил галочку — ключ мёртв.
+async function widgetKeyOwner(env, key) {
+  await ensureWidgetKeysTable(env);
+  const clean = String(key || "").trim();
+  if (!clean) throw new HttpError(401, "Нет ключа виджета");
+  const row = await requireStoreDb(env)
+    .prepare(`SELECT * FROM widget_keys WHERE key = ? AND revoked = 0`)
+    .bind(clean)
+    .first();
+  if (!row) throw new HttpError(401, "Ключ виджета недействителен или отозван");
+  const email = String(row.email || "").toLowerCase();
   const user = await d1GetUserByEmail(env, email);
   const actor = {
     email,
@@ -2720,7 +2799,25 @@ async function handleWidgetStats(env, url) {
     isAdmin: Boolean(user?.isAdmin || user?.isSuperAdmin),
     isRoot: email === ROOT_SUPER_ADMIN,
   };
+  if (!widgetAllowedForUser(user, actor)) {
+    throw new HttpError(403, "Виджет на iPhone отключён для этой учётной записи");
+  }
+  try {
+    await requireStoreDb(env).prepare(`UPDATE widget_keys SET last_used_at = ? WHERE id = ?`).bind(Date.now(), row.id).run();
+  } catch (_e) { /* отметка использования не критична */ }
+  return { email, user, actor };
+}
 
+async function handleWidgetVerify(env, url) {
+  const { email } = await widgetKeyOwner(env, url.searchParams.get("key"));
+  return { ok: true, email };
+}
+
+// ── Виджет «Статистика» для iPhone ────────────────────────────────────
+// Права на деньги и графики — те же, что в портале: кому не видно
+// в браузере, тому не видно и в виджете.
+async function handleWidgetStats(env, url) {
+  const { actor } = await widgetKeyOwner(env, url.searchParams.get("key"));
   const chartsPayload = await handleProjectFinanceChartsGet(env, actor, url);
   const compact = {};
   for (const [kind, series] of Object.entries(chartsPayload.charts || {})) {
@@ -8553,9 +8650,26 @@ export default {
         return json(request, env, await handleProjectFinancePut(request, env, actor));
       }
 
-      // Виджет статистики на iPhone: авторизация по ключу в ?key=, без сессии.
+      // Виджеты на iPhone. Статистика и проверка ключа — без сессии,
+      // по ключу в ?key=; выдача и отзыв ключей — под обычной авторизацией.
       if (request.method === "GET" && path === "/api/widget/stats") {
         return json(request, env, await handleWidgetStats(env, url));
+      }
+      if (request.method === "GET" && path === "/api/widget/verify") {
+        return json(request, env, await handleWidgetVerify(env, url));
+      }
+      if (request.method === "GET" && path === "/api/widget/keys") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleWidgetKeysList(env, actor));
+      }
+      if (request.method === "POST" && path === "/api/widget/keys") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleWidgetKeyCreate(request, env, actor));
+      }
+      const widgetKeyMatch = path.match(/^\/api\/widget\/keys\/([a-zA-Z0-9_-]+)$/);
+      if (request.method === "DELETE" && widgetKeyMatch) {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleWidgetKeyRevoke(env, actor, widgetKeyMatch[1]));
       }
 
       if (request.method === "GET" && path === "/project-finance/charts") {

@@ -3332,110 +3332,25 @@ async function createDemoForDeal(env, dealId, me) {
 
 // ── Виджет «Встречи сегодня» для iPhone ───────────────────────────────
 // iOS не умеет виджеты из веб-приложения: WidgetKit — только нативный код.
-// Поэтому виджет рисует Scriptable (бесплатное приложение), а данные берёт
-// отсюда по долгоживущему ключу: сессионный JWT живёт 7 дней и для виджета
-// не годится. Ключ выдаёт сам сотрудник в портале и может отозвать.
-let widgetKeysTableReady = false;
-async function ensureWidgetKeysTable(env) {
-  if (widgetKeysTableReady) return;
-  await env.DB.prepare(`
-    CREATE TABLE IF NOT EXISTS widget_keys (
-      id           TEXT PRIMARY KEY,
-      key          TEXT NOT NULL UNIQUE,
-      email        TEXT NOT NULL,
-      uid          TEXT,
-      label        TEXT,
-      revoked      INTEGER NOT NULL DEFAULT 0,
-      created_at   INTEGER NOT NULL,
-      last_used_at INTEGER
-    )
-  `).run();
-  try { await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_widget_keys_email ON widget_keys(email)`).run(); } catch (_e) {}
-  widgetKeysTableReady = true;
-}
-
-// Кому можно завести ключ виджета. Решает админка портала: галочка
-// «Виджет встреч на iPhone» в правах общего календаря. Администраторы —
-// всегда. Портальная сессия приносит права в claims, сессия CRM
-// (Firebase) — смотрим свою таблицу пользователей.
-async function widgetCalendarAllowed(env, email, role, claims) {
-  if (role === "admin" || claims?.app_is_admin) return true;
-  if (claims?.app_session) {
-    return Boolean(claims.app_calendar?.canWidget);
-  }
-  const row = await env.DB.prepare(`SELECT apps FROM users WHERE lower(email) = ? LIMIT 1`).bind(email).first();
-  if (!row) return false;
-  let apps = {};
-  try { apps = row.apps ? JSON.parse(row.apps) : {}; } catch (_e) { apps = {}; }
-  return Boolean(apps && apps.pllato_ios_widget);
-}
-
-function newWidgetKey() {
-  const bytes = new Uint8Array(24);
-  crypto.getRandomValues(bytes);
-  return "wk_" + [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-// GET /api/widget/keys — свои ключи виджета.
-async function handleWidgetKeysList(request, env) {
-  const auth = await requireAuthFlexible(request, env);
-  if (auth.error) return json({ error: auth.error }, auth.status, request);
-  await ensureWidgetKeysTable(env);
-  const email = String(auth.email || "").toLowerCase();
-  if (!email) return json({ error: "no email in token" }, 403, request);
-  const res = await env.DB.prepare(
-    `SELECT id, key, label, revoked, created_at, last_used_at FROM widget_keys WHERE email = ? ORDER BY created_at DESC LIMIT 20`
-  ).bind(email).all();
-  return json({ ok: true, keys: (res.results || []).map((r) => ({
-    id: r.id, key: r.key, label: r.label || "", revoked: !!r.revoked,
-    createdAt: Number(r.created_at) || 0, lastUsedAt: Number(r.last_used_at) || 0,
-  })) }, 200, request);
-}
-
-// POST /api/widget/keys — выдать новый ключ себе.
-async function handleWidgetKeyCreate(request, env) {
-  const auth = await requireAuthFlexible(request, env);
-  if (auth.error) return json({ error: auth.error }, auth.status, request);
-  await ensureWidgetKeysTable(env);
-  const email = String(auth.email || "").toLowerCase();
-  if (!email) return json({ error: "no email in token" }, 403, request);
-  const me = await resolveCanonicalUser(env, auth.claims);
-  if (!(await widgetCalendarAllowed(env, email, me.role, auth.claims))) {
-    return json({ error: "Виджет на iPhone не открыт для вашей учётной записи. Попросите администратора включить его в правах общего календаря." }, 403, request);
-  }
-  let body = {};
-  try { body = await request.json(); } catch (_e) { body = {}; }
-  const label = String(body.label || "iPhone").trim().slice(0, 60);
-  const id = "wkid_" + Math.random().toString(36).slice(2, 10);
-  const key = newWidgetKey();
-  await env.DB.prepare(
-    `INSERT INTO widget_keys (id, key, email, uid, label, revoked, created_at) VALUES (?,?,?,?,?,0,?)`
-  ).bind(id, key, email, auth.uid || "", label, Date.now()).run();
-  return json({ ok: true, key: { id, key, label, revoked: false, createdAt: Date.now(), lastUsedAt: 0 } }, 200, request);
-}
-
-// DELETE /api/widget/keys/{id} — отозвать ключ.
-async function handleWidgetKeyRevoke(request, env, id) {
-  const auth = await requireAuthFlexible(request, env);
-  if (auth.error) return json({ error: auth.error }, auth.status, request);
-  await ensureWidgetKeysTable(env);
-  const email = String(auth.email || "").toLowerCase();
-  const row = await env.DB.prepare(`SELECT id FROM widget_keys WHERE id = ? AND email = ?`).bind(id, email).first();
-  if (!row) return json({ error: "not found" }, 404, request);
-  await env.DB.prepare(`UPDATE widget_keys SET revoked = 1 WHERE id = ?`).bind(id).run();
-  return json({ ok: true, revoked: id }, 200, request);
-}
-
-// GET /api/widget/verify?key=... — проверка ключа для соседнего воркера
-// (финансовая статистика живёт в pllato-comm, а ключи — здесь).
-async function handleWidgetVerify(request, env) {
-  await ensureWidgetKeysTable(env);
-  const url = new URL(request.url);
-  const key = String(url.searchParams.get("key") || "").trim();
-  if (!key) return json({ error: "missing key" }, 401, request);
-  const row = await env.DB.prepare(`SELECT email FROM widget_keys WHERE key = ? AND revoked = 0`).bind(key).first();
-  if (!row) return json({ error: "invalid or revoked key" }, 401, request);
-  return json({ ok: true, email: String(row.email || "").toLowerCase() }, 200, request);
+// Поэтому виджет рисует Scriptable, а данные берёт отсюда по ключу.
+// Сами ключи и права на них живут в воркере портала (там же, где записи
+// пользователей) — здесь ключ только проверяется через service binding,
+// как это делает проверка сессии портала ниже.
+async function widgetKeyEmail(env, key) {
+  const clean = String(key || "").trim();
+  if (!clean) return null;
+  const req = new Request(
+    `https://pllato-comm.uurraa.workers.dev/api/widget/verify?key=${encodeURIComponent(clean)}`
+  );
+  let response = env.PLLATO_COMM
+    ? await env.PLLATO_COMM.fetch(req.clone())
+    : await fetch(req.clone());
+  // Привязка может смотреть на старый деплой — тогда пробуем публичный адрес.
+  if (!response.ok && env.PLLATO_COMM) response = await fetch(req);
+  if (!response.ok) return null;
+  const data = await response.json().catch(() => null);
+  const email = String(data?.email || "").toLowerCase().trim();
+  return data?.ok && email ? email : null;
 }
 
 // Границы дня. Телефон присылает свою дату и смещение (getTimezoneOffset),
@@ -3483,13 +3398,11 @@ function widgetLinkedDealId(task) {
 // GET /api/widget/today?key=...&date=YYYY-MM-DD&tzo=-300
 // Отдаёт встречи и дела на день — то же, что видно в виджете портала.
 async function handleWidgetToday(request, env) {
-  await ensureWidgetKeysTable(env);
   const url = new URL(request.url);
   const key = String(url.searchParams.get("key") || "").trim();
   if (!key) return json({ error: "missing key" }, 401, request);
-  const row = await env.DB.prepare(`SELECT * FROM widget_keys WHERE key = ? AND revoked = 0`).bind(key).first();
-  if (!row) return json({ error: "invalid or revoked key" }, 401, request);
-  try { await env.DB.prepare(`UPDATE widget_keys SET last_used_at = ? WHERE id = ?`).bind(Date.now(), row.id).run(); } catch (_e) {}
+  const email = await widgetKeyEmail(env, key);
+  if (!email) return json({ error: "Ключ виджета недействителен или отозван" }, 401, request);
 
   const { date, dayStart, dayEnd } = widgetDayBounds(url);
   // В SQL берём окно шире на сутки и фильтруем точно уже в JS: в базе лежат
@@ -12100,20 +12013,6 @@ export default {
     if (path === "/api/widget/today" && request.method === "GET") {
       return handleWidgetToday(request, env);
     }
-    if (path === "/api/widget/verify" && request.method === "GET") {
-      return handleWidgetVerify(request, env);
-    }
-    if (path === "/api/widget/keys" && request.method === "GET") {
-      return handleWidgetKeysList(request, env);
-    }
-    if (path === "/api/widget/keys" && request.method === "POST") {
-      return handleWidgetKeyCreate(request, env);
-    }
-    const widgetKeyMatch = path.match(/^\/api\/widget\/keys\/([a-zA-Z0-9_-]+)$/);
-    if (widgetKeyMatch && request.method === "DELETE") {
-      return handleWidgetKeyRevoke(request, env, widgetKeyMatch[1]);
-    }
-
     // ── Демо-конструктор ──────────────────────────────────────────────
     // Публичная отдача демо по временной ссылке (без auth — токен в ?t=).
     const demoLogoMatch = path.match(/^\/api\/demo\/([^/]+)\/logo$/);
