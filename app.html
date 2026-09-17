@@ -3808,7 +3808,7 @@ function buildEmergencyCurrent(userAuth) {
     isSuperAdmin: false,
     isRootSuper: isRootSuper(userAuth.email),
     apps: allAppsEnabled(),
-    calendarAccess: { canCreate: false },
+    calendarAccess: { canCreate: false, canWidget: false },
     emergencyBypass: true,
   };
 }
@@ -3831,7 +3831,12 @@ function buildCurrent(userAuth, foundUser, foundUid) {
     crmUid: foundUid,
     isAdmin, isSuperAdmin: isSuper, isRootSuper: isRoot,
     apps,
-    calendarAccess: isAdmin ? { canCreate: true } : { canCreate: Boolean(foundUser?.calendarAccess?.canCreate) },
+    calendarAccess: isAdmin
+      ? { canCreate: true, canWidget: true }
+      : {
+          canCreate: Boolean(foundUser?.calendarAccess?.canCreate),
+          canWidget: Boolean(foundUser?.calendarAccess?.canWidget),
+        },
   };
 }
 
@@ -3845,7 +3850,10 @@ function syncCurrentAccessToSession() {
       isAdmin: Boolean(CURRENT.isAdmin),
       isSuperAdmin: Boolean(CURRENT.isSuperAdmin),
       apps: { ...(CURRENT.apps || {}) },
-      calendarAccess: { canCreate: Boolean(CURRENT.isAdmin || CURRENT.calendarAccess?.canCreate) },
+      calendarAccess: {
+        canCreate: Boolean(CURRENT.isAdmin || CURRENT.calendarAccess?.canCreate),
+        canWidget: Boolean(CURRENT.isAdmin || CURRENT.calendarAccess?.canWidget),
+      },
     };
     localStorage.setItem('pllato_session', JSON.stringify(raw));
   } catch (_) {}
@@ -3906,7 +3914,7 @@ onAuthStateChanged(auth, async (user) => {
       isSuperAdmin: cachedUser.flags?.isSuperAdmin || isRootSuper(user.email),
       isRootSuper: isRootSuper(user.email),
       apps: cachedUser.apps || {},
-      calendarAccess: cachedUser.calendarAccess || { canCreate: false },
+      calendarAccess: cachedUser.calendarAccess || { canCreate: false, canWidget: false },
     };
     showApp({
       email: user.email,
@@ -3966,7 +3974,7 @@ onAuthStateChanged(auth, async (user) => {
       isSuperAdmin: true,
       isRootSuper: true,
       apps: rootApps,
-      calendarAccess: { canCreate: true },
+      calendarAccess: { canCreate: true, canWidget: true },
     };
     const userData = {
       email: user.email,
@@ -3981,7 +3989,7 @@ onAuthStateChanged(auth, async (user) => {
       },
       flags: { isAdmin: true, isSuperAdmin: true },
       apps: rootApps,
-      calendarAccess: { canCreate: true },
+      calendarAccess: { canCreate: true, canWidget: true },
       cachedAt: Date.now(),
     };
     localStorage.setItem('pllato_user_cache', JSON.stringify(userData));
@@ -6401,6 +6409,8 @@ const CAL_WORKER='https://pllato-elc-worker.uurraa.workers.dev';
 let CAL_EVENTS=null, CAL_TIMER=null, CAL_TICK=null;
 
 function calCanSee(){ return !!(CURRENT?.isAdmin || CURRENT?.apps?.pllato_shared_calendar); }
+// Кнопку «На iPhone» видит тот, кому её открыли в правах общего календаря.
+function calCanSeeWidget(){ return !!(CURRENT?.isAdmin || CURRENT?.calendarAccess?.canWidget); }
 function calDayKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function calCacheKey(){ return `pllato_today_meetings:${String(CURRENT?.email||'guest').toLowerCase()}:${calDayKey(new Date())}`; }
 function calReadCache(){
@@ -6546,7 +6556,9 @@ function renderTodayCalendar(){
   const box=document.getElementById('calWidget');
   if(!box) return;
   if(!calCanSee()){ box.classList.remove('on'); return; }
-  const open='<a class="cw-open" href="ios-widget.html" title="Тот же список виджетом на домашнем экране iPhone">📱 На iPhone</a>'
+  const open=(calCanSeeWidget()
+      ? '<a class="cw-open" href="ios-widget.html" title="Тот же список виджетом на домашнем экране iPhone">📱 На iPhone</a>'
+      : '')
     +'<a class="cw-open" href="team.html?page=calendar">Открыть календарь →</a>';
   if(CAL_EVENTS===null){
     box.className='cal-widget on empty';
@@ -7263,6 +7275,7 @@ async function openCalendarTileAccess() {
         const isFullAdmin = Boolean(user.isAdmin || user.isSuperAdmin || isRootSuper(user.email));
         const canView = isFullAdmin || Boolean(user.apps?.pllato_shared_calendar);
         const canCreate = isFullAdmin || Boolean(user.calendarAccess?.canCreate);
+        const canWidget = isFullAdmin || Boolean(user.calendarAccess?.canWidget);
         return `<div class="crm-tile-user ${canView ? '' : 'no-access'}" data-calendar-tile-user="${escapeHtml(uid)}">
           <div class="crm-tile-user-head">
             <div class="crm-tile-user-name">
@@ -7273,13 +7286,14 @@ async function openCalendarTileAccess() {
           <div class="crm-tile-detail" style="grid-template-columns:1fr 1fr">
             <label><input type="checkbox" data-calendar-view ${canView ? 'checked' : ''} ${isFullAdmin ? 'disabled' : ''}> Открывать и видеть общий календарь</label>
             <label><input type="checkbox" data-calendar-create ${canCreate ? 'checked' : ''} ${(!canView || isFullAdmin) ? 'disabled' : ''}> Создавать, менять и переносить события</label>
+            <label><input type="checkbox" data-calendar-widget ${canWidget ? 'checked' : ''} ${(!canView || isFullAdmin) ? 'disabled' : ''}> Виджет встреч на iPhone (кнопка и ключ)</label>
           </div>
         </div>`;
       }).join('');
     overlay.innerHTML = `<div class="money-modal" style="max-width:680px">
       <div class="mm-h"><h3>Доступ к общему календарю</h3><span class="mm-x" data-calendar-close>✕</span></div>
       <div class="mm-b">
-        <div style="font-size:12px;color:var(--text-2)">Просмотр и изменение событий задаются независимо. Администраторы всегда имеют полный доступ.</div>
+        <div style="font-size:12px;color:var(--text-2)">Просмотр, изменение событий и виджет на iPhone задаются независимо. Виджет выносит встречи дня на домашний экран телефона и требует открытого просмотра календаря. Администраторы всегда имеют полный доступ.</div>
         <div class="fc-modal-list">${rows || '<div class="fc-empty" style="padding:14px">Пользователей пока нет.</div>'}</div>
       </div>
       <div class="mm-f"><button data-calendar-close>Отмена</button><button style="background:var(--navy);color:#fff" data-calendar-save>Сохранить</button></div>
@@ -7290,9 +7304,12 @@ async function openCalendarTileAccess() {
         const row = checkbox.closest('[data-calendar-tile-user]');
         const create = row?.querySelector('[data-calendar-create]');
         row?.classList.toggle('no-access', !checkbox.checked);
-        if (!create || create.dataset.adminLocked === '1') return;
-        create.disabled = !checkbox.checked;
-        if (!checkbox.checked) create.checked = false;
+        const widget = row?.querySelector('[data-calendar-widget]');
+        [create, widget].forEach((box) => {
+          if (!box || box.dataset.adminLocked === '1') return;
+          box.disabled = !checkbox.checked;
+          if (!checkbox.checked) box.checked = false;
+        });
       });
     });
     overlay.querySelector('[data-calendar-save]')?.addEventListener('click', saveCalendarTileAccess);
@@ -7315,10 +7332,13 @@ async function saveCalendarTileAccess() {
       if (!current || current.isAdmin || current.isSuperAdmin || isRootSuper(current.email)) continue;
       const canView = Boolean(row.querySelector('[data-calendar-view]')?.checked);
       const canCreate = canView && Boolean(row.querySelector('[data-calendar-create]')?.checked);
+      const canWidget = canView && Boolean(row.querySelector('[data-calendar-widget]')?.checked);
       const next = {
         ...current,
-        apps: { ...(current.apps || {}), pllato_shared_calendar: canView },
-        calendarAccess: { ...(current.calendarAccess || {}), canCreate },
+        // pllato_ios_widget дублируется в apps: его читает воркер CRM,
+        // когда сотрудник заходит по сессии Firebase, а не по сессии портала.
+        apps: { ...(current.apps || {}), pllato_shared_calendar: canView, pllato_ios_widget: canWidget },
+        calendarAccess: { ...(current.calendarAccess || {}), canCreate, canWidget },
       };
       await apiFetch('/users/save', { method: 'POST', body: next });
       adminUsersCache[uid] = next;

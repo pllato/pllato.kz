@@ -114,6 +114,10 @@ async function verifyPllatoAppToken(token, env) {
     app_session: true,
     crm_access: user.crmAccess || { pipelines: ["start", "production"], dealScope: "own" },
     app_is_admin: Boolean(user.isAdmin || user.isSuperAdmin),
+    // Права портала нужны там, где решение принимается не по роли в CRM,
+    // а по галочкам в админке (например, виджет встреч на iPhone).
+    app_apps: user.apps || {},
+    app_calendar: user.calendarAccess || {},
   };
 }
 
@@ -3350,15 +3354,20 @@ async function ensureWidgetKeysTable(env) {
   widgetKeysTableReady = true;
 }
 
-// Ключ выдаём только тем, кому общий календарь виден и в портале:
-// виджет показывает встречи всей команды, а не только свои.
-async function widgetCalendarAllowed(env, email, role) {
-  if (role === "admin") return true;
+// Кому можно завести ключ виджета. Решает админка портала: галочка
+// «Виджет встреч на iPhone» в правах общего календаря. Администраторы —
+// всегда. Портальная сессия приносит права в claims, сессия CRM
+// (Firebase) — смотрим свою таблицу пользователей.
+async function widgetCalendarAllowed(env, email, role, claims) {
+  if (role === "admin" || claims?.app_is_admin) return true;
+  if (claims?.app_session) {
+    return Boolean(claims.app_calendar?.canWidget);
+  }
   const row = await env.DB.prepare(`SELECT apps FROM users WHERE lower(email) = ? LIMIT 1`).bind(email).first();
   if (!row) return false;
   let apps = {};
   try { apps = row.apps ? JSON.parse(row.apps) : {}; } catch (_e) { apps = {}; }
-  return Boolean(apps && apps.pllato_shared_calendar);
+  return Boolean(apps && apps.pllato_ios_widget);
 }
 
 function newWidgetKey() {
@@ -3391,8 +3400,8 @@ async function handleWidgetKeyCreate(request, env) {
   const email = String(auth.email || "").toLowerCase();
   if (!email) return json({ error: "no email in token" }, 403, request);
   const me = await resolveCanonicalUser(env, auth.claims);
-  if (!(await widgetCalendarAllowed(env, email, me.role))) {
-    return json({ error: "общий календарь не открыт для вашей учётной записи" }, 403, request);
+  if (!(await widgetCalendarAllowed(env, email, me.role, auth.claims))) {
+    return json({ error: "Виджет на iPhone не открыт для вашей учётной записи. Попросите администратора включить его в правах общего календаря." }, 403, request);
   }
   let body = {};
   try { body = await request.json(); } catch (_e) { body = {}; }

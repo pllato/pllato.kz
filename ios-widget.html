@@ -120,6 +120,20 @@
     const session = requireSession({ redirectTo: "login.html" });
     if (!session) throw new Error("no session");
 
+    // Право на виджет выдаёт администратор в правах общего календаря.
+    // Здесь это только подсказка: ключ всё равно выдаёт сервер и проверяет сам.
+    const me = session.user || {};
+    if (!(me.isAdmin || me.isSuperAdmin || me.calendarAccess?.canWidget)) {
+      document.querySelector(".wrap").innerHTML = `
+        <div class="page-head"><div>
+          <h1>Виджет пока не открыт для вас</h1>
+          <p>Виджет встреч на iPhone включается администратором: «⚙ Пользователи» → «Доступ к общему календарю» → галочка «Виджет встреч на iPhone». Напишите администратору — после включения страница заработает.</p>
+        </div></div>
+        <div class="note"><b>Почему так.</b> Виджет показывает встречи всей команды на день и работает по долгоживущему ключу с телефона. Поэтому список тех, у кого он есть, держим под контролем.</div>
+        <div class="row-actions"><a class="btn bronze" href="app.html">← В портал</a></div>`;
+      throw new Error("widget access denied");
+    }
+
     const $ = (s) => document.querySelector(s);
     const toastEl = $("#toast");
     let keys = [];
