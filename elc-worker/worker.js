@@ -3345,13 +3345,16 @@ async function widgetKeyEmail(env, key) {
   const req = new Request(
     `https://pllato-comm.uurraa.workers.dev/api/widget/verify?key=${encodeURIComponent(clean)}`
   );
+  // Сначала публичный адрес: он заведомо отвечает на этот маршрут.
+  // Service binding — запасной путь, он может смотреть на другой деплой.
   let response = null;
+  let via = "url";
   try {
-    response = env.PLLATO_COMM
-      ? await env.PLLATO_COMM.fetch(req.clone())
-      : await fetch(req.clone());
-    // Привязка может смотреть на старый деплой — тогда пробуем публичный адрес.
-    if (!response.ok && env.PLLATO_COMM) response = await fetch(req);
+    response = await fetch(req.clone());
+    if (!response.ok && env.PLLATO_COMM) {
+      const alt = await env.PLLATO_COMM.fetch(req.clone());
+      if (alt.ok) { response = alt; via = "binding"; }
+    }
   } catch (e) {
     return { error: "Проверка ключа недоступна — попробуйте позже" };
   }
@@ -3359,7 +3362,10 @@ async function widgetKeyEmail(env, key) {
     const body = await response.json().catch(() => null);
     return { error: body?.error || "Ключ виджета недействителен или отозван" };
   }
-  if (!response.ok) return { error: `Проверка ключа недоступна (${response.status})` };
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    return { error: `Проверка ключа недоступна (${response.status}, ${via}): ${text.slice(0, 120)}` };
+  }
   const data = await response.json().catch(() => null);
   const email = String(data?.email || "").toLowerCase().trim();
   if (!data?.ok || !email) return { error: "Проверка ключа вернула пустой ответ" };
