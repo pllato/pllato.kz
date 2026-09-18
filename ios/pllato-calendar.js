@@ -81,12 +81,10 @@ function statusLine(events) {
   const meets = events.filter((e) => e.kind !== "task");
   const running = meets.find((e) => e.at <= now && e.end > now);
   const next = meets.find((e) => e.at > now);
-  if (running) return next ? `идёт · дальше в ${hhmm(next.at)}` : "идёт сейчас";
-  if (next) {
-    const mins = Math.round((next.at - now) / 60000);
-    return mins <= 90 ? `через ${mins < 1 ? "минуту" : mins + " мин"}` : `ближайшая в ${hhmm(next.at)}`;
-  }
-  return meets.length ? "все прошли" : "встреч нет";
+  const short = (e) => (e.title || "").replace(/^Сделка:\s*/, "").slice(0, 34);
+  if (running) return `идёт · ${short(running)}` + (next ? ` · дальше в ${hhmm(next.at)}` : "");
+  if (next) return `дальше ${inLabel(next.at, now)} · ${short(next)}`;
+  return meets.length ? "все встречи прошли" : "встреч нет";
 }
 
 // Линия дня: где мы сейчас и как расставлены встречи. Прошедшие — тусклые,
@@ -159,8 +157,18 @@ function header(w, data) {
   st.lineLimit = 1;
 }
 
-// Строка события: цветная полоска слева, время, название, отметка «сейчас».
-function eventRow(w, ev, now) {
+// Через сколько — коротко, для плашки у ближайшей встречи.
+function inLabel(ms, now) {
+  const mins = Math.round((ms - now) / 60000);
+  if (mins < 1) return "сейчас";
+  if (mins < 60) return `через ${mins} мин`;
+  if (mins < 180) { const h = Math.floor(mins / 60), m = mins % 60; return m ? `через ${h} ч ${m} мин` : `через ${h} ч`; }
+  return `в ${hhmm(ms)}`;
+}
+
+// Строка события: цветная полоска слева, время, название, отметка «сейчас»
+// или «дальше» — чтобы ближайшая встреча читалась с первого взгляда.
+function eventRow(w, ev, now, isNext) {
   const isNow = ev.at <= now && ev.end > now;
   const isPast = ev.end <= now;
   const accent = isPast ? new Color("#8e94a3", 0.55)
@@ -193,16 +201,19 @@ function eventRow(w, ev, now) {
     sub.lineLimit = 1;
   }
   box.addSpacer();
-  if (isNow) {
+  if (isNow || isNext) {
     const pill = box.addStack();
-    pill.backgroundColor = new Color("#46d18a", 0.18);
+    pill.backgroundColor = new Color(isNow ? "#46d18a" : "#cfa46c", 0.18);
     pill.cornerRadius = 6;
     pill.setPadding(2, 6, 2, 6);
-    const p = pill.addText("сейчас");
+    const p = pill.addText(isNow ? "сейчас" : inLabel(ev.at, now));
     p.font = Font.boldSystemFont(9);
-    p.textColor = C.green;
+    p.textColor = isNow ? C.green : C.bronze;
   }
-  if (isPast) box.addSpacer(0);
+  if (isPast) {
+    name.textColor = C.dim;
+    t.textOpacity = 0.7;
+  }
 }
 
 // Через сколько минут просить следующее обновление.
@@ -263,9 +274,10 @@ function buildWidget(data, errorText) {
     w.addSpacer(7);
     if (upcoming) {
       const isNow = upcoming.at <= now && upcoming.end > now;
-      const t = w.addText(hhmm(upcoming.at) + (isNow ? "  · идёт" : ""));
+      const isPast = upcoming.end <= now;
+      const t = w.addText(hhmm(upcoming.at) + (isNow ? "  · идёт" : isPast ? "  · прошла" : "  · " + inLabel(upcoming.at, now)));
       t.font = new Font("Menlo", 12);
-      t.textColor = isNow ? C.green : C.bronze;
+      t.textColor = isNow ? C.green : isPast ? C.dim : C.bronze;
       w.addSpacer(2);
       const n = w.addText(upcoming.title || "—");
       n.font = Font.mediumSystemFont(11);
@@ -285,7 +297,15 @@ function buildWidget(data, errorText) {
   timeline(w, events, now);
   w.addSpacer(7);
   const limit = size === "large" ? 8 : 3;
-  const shown = events.slice(0, limit);
+  // Ближайшая встреча — та, что идёт или ещё не началась. Прошедшие не
+  // должны вытеснять её за край виджета: если день длинный, список
+  // начинается с одной прошедшей строки для контекста, дальше — актуальное.
+  const meets = events.filter((e) => e.kind !== "task");
+  const nextMeet = meets.find((e) => e.at > now && !meets.some((m) => m.at <= now && m.end > now)) || null;
+  let firstLive = events.findIndex((e) => e.end > now);
+  if (firstLive < 0) firstLive = events.length;
+  const start = events.length > limit ? Math.max(0, Math.min(firstLive - 1, events.length - limit)) : 0;
+  const shown = events.slice(start, start + limit);
   if (!shown.length) {
     const t = w.addText("Календарь свободен");
     t.font = Font.systemFont(12);
@@ -293,14 +313,18 @@ function buildWidget(data, errorText) {
   }
   shown.forEach((ev, i) => {
     if (i) w.addSpacer(5);
-    eventRow(w, ev, now);
+    eventRow(w, ev, now, ev === nextMeet);
   });
-  const rest = events.length - shown.length;
+  const skipped = start;
+  const rest = events.length - start - shown.length;
   w.addSpacer();
   const foot = w.addStack();
   foot.centerAlignContent();
-  if (rest > 0) {
-    const more = foot.addText(`и ещё ${rest}`);
+  const tail = [];
+  if (skipped > 0) tail.push(`прошло ещё ${skipped}`);
+  if (rest > 0) tail.push(`дальше ещё ${rest}`);
+  if (tail.length) {
+    const more = foot.addText(tail.join(" · "));
     more.font = Font.systemFont(9.5);
     more.textColor = C.dim;
   }

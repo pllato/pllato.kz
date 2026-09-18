@@ -1,35 +1,37 @@
 // ─────────────────────────────────────────────────────────────────────
-// Pllato · Статистика — динамика и деньги на домашнем экране iPhone.
+// Pllato · Статистика — один график портала на домашнем экране iPhone.
 //
 // Виджет рисует бесплатное приложение Scriptable; своё приложение в
 // App Store не нужно. Данные берутся из портала по ключу.
 //
+// КАЖДЫЙ ГРАФИК — ОТДЕЛЬНЫЙ ВИДЖЕТ. В портале на странице «Виджет на
+// iPhone» у каждого графика своя вкладка: обращения, КЭП, заказы,
+// поступления, сдано. Скрипт с той вкладки уже знает свой график (METRIC
+// ниже) — добавьте его в Scriptable под своим именем и поставьте виджет.
+// Пять графиков — пять скриптов и пять виджетов рядом на экране.
+//
 // Установка:
 //   1. Scriptable из App Store (бесплатно).
-//   2. В портале: «Виджет на iPhone» → «Создать ключ» → вкладка
-//      «Статистика» → «Скопировать скрипт» (ключ уже подставлен).
-//   3. Scriptable → «+» → вставить → назвать как угодно → Готово.
+//   2. В портале: «Виджет на iPhone» → «Создать ключ» → вкладка нужного
+//      графика → «Скопировать скрипт» (ключ и график уже подставлены).
+//   3. Scriptable → «+» → вставить → назвать по графику → Готово.
 //   4. Домашний экран: долгое нажатие → «+» → Scriptable → размер →
 //      «Добавить виджет» → долгое нажатие на виджет → «Изменить виджет»
 //      → Script: выбрать этот скрипт.
 //
-// ПЕРИОД И МЕТРИКА — поле «Parameter» в том же окне «Изменить виджет»:
-//     день · неделя · месяц          — интервал (по умолчанию неделя)
-//     неделя:заказы                  — интервал и метрика через двоеточие
-//   Метрики: обращения, кэп, заказы, деньги, сдано.
-//   Без параметра показывается первый график портала — новые обращения.
+// ИНТЕРВАЛ — поле «Parameter» в том же окне «Изменить виджет»:
+//     день · неделя · месяц          (по умолчанию неделя)
+//   Если METRIC пуст, там же можно задать и график: «неделя:заказы».
 //
-// КАК ЛИСТАТЬ ГРАФИКИ. Сам виджет iOS листать не умеет: это картинка,
-// которую система перерисовывает по своему расписанию, ни прокрутки, ни
-// свайпов внутри неё не бывает. Поэтому:
-//   • ТАП по виджету открывает полноэкранный режим — там все графики
-//     листаются свайпом влево-вправо, переключаются день/неделя/месяц
-//     и под каждым графиком видны дела недели;
-//   • несколько виджетов можно сложить в смарт-стопку (перетащить один
-//     на другой) и листать свайпом прямо на экране.
+// ТАП по виджету открывает полноэкранный режим: все графики свайпом,
+// переключение день/неделя/месяц, дела недели под каждым. Открывается
+// сразу на графике этого виджета.
 // ─────────────────────────────────────────────────────────────────────
 
 const KEY = "ВСТАВЬТЕ_КЛЮЧ_ИЗ_ПОРТАЛА";
+// График этого виджета: inquiries · kep · orders · cash · releases.
+// Портал подставляет его сам при копировании с вкладки графика.
+const METRIC = "";
 
 const API = "https://pllato-comm.uurraa.workers.dev/api/widget/stats";
 
@@ -68,12 +70,15 @@ function parseParam(raw) {
     деньги: "cash", поступления: "cash", cash: "cash",
     сдано: "releases", releases: "releases",
   };
-  return { period: periods[p] || "week", metric: metrics[m] || "" };
+  // График закреплён в скрипте (METRIC); параметр задаёт его только если
+  // скрипт общий, без закреплённого графика.
+  const fixed = METRICS[METRIC] ? METRIC : "";
+  return { period: periods[p] || "week", metric: fixed || metrics[m] || "" };
 }
 
 const fm = FileManager.local();
 const opts = parseParam(args.widgetParameter);
-const CACHE = fm.joinPath(fm.cacheDirectory(), `pllato-stats-${opts.period}.json`);
+const CACHE = fm.joinPath(fm.cacheDirectory(), `pllato-stats-${opts.period}-${opts.metric || "auto"}.json`);
 
 const pad = (n) => String(n).padStart(2, "0");
 const hhmm = (ms) => { const d = new Date(ms); return pad(d.getHours()) + ":" + pad(d.getMinutes()); };
@@ -302,7 +307,8 @@ function buildWidget(data, errorText) {
   w.setPadding(14, 14, 12, 14);
   // Тап открывает полноэкранный режим этого же скрипта — как бы он ни
   // назывался: имя берём у самого скрипта, а не просим вписать вручную.
-  w.url = `scriptable:///run?scriptName=${encodeURIComponent(Script.name())}`;
+  w.url = `scriptable:///run?scriptName=${encodeURIComponent(Script.name())}`
+    + (opts.metric ? `&openMetric=${encodeURIComponent(opts.metric)}` : "");
   w.refreshAfterDate = new Date(Date.now() + 30 * 60 * 1000);
 
   if (errorText) {
@@ -365,10 +371,13 @@ function buildWidget(data, errorText) {
   }
   valRow.addSpacer();
 
+  // Деньги (сумма сделок, получено, остаток) — только у графика
+  // поступлений: у остальных виджетов это место занимает сам график.
+  const showTotals = kind === "cash" && !!data.totals;
   if (series.length) {
     w.addSpacer(size === "small" ? 4 : 6);
     const width = size === "small" ? 132 : 302;
-    const height = size === "small" ? 42 : size === "large" ? 96 : 78;
+    const height = size === "small" ? 42 : size === "large" ? 112 : showTotals ? 78 : 96;
     const img = w.addImage(chartImage(series, meta.color, width, height, {
       showValues: size !== "small",
       showLabels: size !== "small",
@@ -379,7 +388,7 @@ function buildWidget(data, errorText) {
 
   if (size === "small") { w.addSpacer(); return w; }
 
-  if (data.totals) {
+  if (showTotals) {
     w.addSpacer(9);
     divider(w);
     w.addSpacer(8);
@@ -422,6 +431,7 @@ function fullScreenHtml(byPeriod) {
     order: ORDER,
     periodRu: PERIOD_RU,
     periodShort: PERIOD_SHORT,
+    openMetric: String(args.queryParameters?.openMetric || opts.metric || ""),
   }).replace(/</g, "\\u003c");
 
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
@@ -552,9 +562,13 @@ function render(){
       +'</div></section>';
   }).join("");
 
-  document.getElementById("dots").innerHTML = kinds.map((k,i)=>'<i'+(i===0?' class="on"':'')+'></i>').join("");
+  // Открываемся на графике того виджета, по которому нажали.
+  const startAt = Math.max(0, kinds.indexOf(D.openMetric));
+  document.getElementById("dots").innerHTML = kinds.map((k,i)=>'<i'+(i===startAt?' class="on"':'')+'></i>').join("");
   document.getElementById("upd").textContent = "обновлено " + pad(new Date(data.fetchedAt).getHours()) + ":" + pad(new Date(data.fetchedAt).getMinutes());
-  document.getElementById("rail").scrollLeft = 0;
+  const rail = document.getElementById("rail");
+  const first = rail.querySelector(".card");
+  rail.scrollLeft = first ? startAt * (first.offsetWidth + 12) : 0;
 }
 
 document.getElementById("seg").addEventListener("click", e => {

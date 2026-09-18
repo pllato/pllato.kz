@@ -3389,6 +3389,23 @@ function widgetDayBounds(url) {
   return { date, tzo, dayStart: start, dayEnd: start + 24 * 3600 * 1000 };
 }
 
+// Время события — по часам владельца, а не воркера.
+// «Первый Zoom» в карточке сделки хранится так, как его отдало поле
+// datetime-local: «2026-09-18T11:00», без смещения. Портал читает такую
+// строку в браузере как местное время, а Date.parse в воркере считает её
+// UTC — и встреча в 11:00 показывалась в виджете в 16:00, вчерашняя
+// вечерняя уезжала на 02:00 сегодняшнего дня, а сегодняшняя вечерняя
+// пропадала в завтра. Строки со смещением (Z, +05:00) читаются как есть.
+function widgetParseWhen(raw, tzo) {
+  const s = String(raw || "").trim();
+  if (!s) return NaN;
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(s)) {
+    const t = Date.parse(s.replace(" ", "T") + "Z");
+    return Number.isFinite(t) ? t + tzo * 60000 : NaN;
+  }
+  return Date.parse(s);
+}
+
 // Ссылка задачи на сделку: форматы deal_123, deal_local_ab12, D_123, 123.
 function widgetLinkedDealId(task) {
   const sources = [task.crm_links, task.bitrix_crm_links];
@@ -3422,7 +3439,7 @@ async function handleWidgetToday(request, env) {
   const owner = await widgetKeyEmail(env, key);
   if (!owner.email) return json({ error: owner.error }, 401, request);
 
-  const { date, dayStart, dayEnd } = widgetDayBounds(url);
+  const { date, tzo, dayStart, dayEnd } = widgetDayBounds(url);
   // В SQL берём окно шире на сутки и фильтруем точно уже в JS: в базе лежат
   // ISO-строки, у части записей — со смещением, лексикографика тут неточна.
   const wideFrom = new Date(dayStart - 86400000).toISOString();
@@ -3452,12 +3469,14 @@ async function handleWidgetToday(request, env) {
       if (d.bitrix_id) dealsById.set(String(d.bitrix_id), d);
       let cf = {};
       try { cf = d.custom_fields ? JSON.parse(d.custom_fields) : {}; } catch (_e) { cf = {}; }
-      const at = Date.parse(cf.firstZoomAt || "");
+      const at = widgetParseWhen(cf.firstZoomAt, tzo);
       if (!Number.isFinite(at) || at < dayStart || at >= dayEnd) continue;
       const book = pipeBook[d.pipeline_id] || null;
+      // Название — как чип в календаре команды: «Сделка: …»; что это первый
+      // Zoom, видно во второй строке. Так виджет и календарь читаются одинаково.
       events.push({
         at, end: at + 3600000, kind: "meet", src: "первый Zoom",
-        title: "Zoom: " + (d.title || "сделка"), note: "",
+        title: "Сделка: " + (d.title || "сделка"), note: "первый Zoom",
         pipe: book ? book.name : "", stage: (book && book.stages && book.stages[d.stage_id] && book.stages[d.stage_id].name) || "",
         sum: Number(d.opportunity) || 0, deal: String(d.id),
       });
@@ -3475,9 +3494,9 @@ async function handleWidgetToday(request, env) {
     ).bind(wideFrom, wideTo, wideFrom, wideTo).all();
     for (const t of (tasks.results || [])) {
       const isMeet = t.mark === "zoom_meeting";
-      const at = Date.parse((isMeet ? (t.start_date_plan || t.deadline) : t.deadline) || "");
+      const at = widgetParseWhen(isMeet ? (t.start_date_plan || t.deadline) : t.deadline, tzo);
       if (!Number.isFinite(at) || at < dayStart || at >= dayEnd) continue;
-      const endRaw = Date.parse(t.end_date_plan || "");
+      const endRaw = widgetParseWhen(t.end_date_plan, tzo);
       const dealId = widgetLinkedDealId(t);
       const deal = dealId ? dealsById.get(String(dealId)) : null;
       const dealTitle = (deal && deal.title) || t.calendar_deal_title || "";
