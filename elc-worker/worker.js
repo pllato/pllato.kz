@@ -2972,7 +2972,7 @@ async function handleCreateTask(request, env) {
   const responsible = body.responsibleUid ? String(body.responsibleUid) : uid;
   const accomplices = Array.isArray(body.accomplices) ? [...new Set(body.accomplices.filter(Boolean).map(String))] : [];
   const auditors = Array.isArray(body.auditors) ? [...new Set(body.auditors.filter(Boolean).map(String))] : [];
-  // Поля события календаря (mark='zoom_meeting' → показывается как встреча):
+  // Поля события календаря (mark = zoom_meeting · offline_meeting · demo_meeting → показывается как встреча):
   const mark = body.mark ? String(body.mark).slice(0, 40) : null;
   const startDatePlan = body.startDatePlan ? String(body.startDatePlan) : null;
   const endDatePlan = body.endDatePlan ? String(body.endDatePlan) : null;
@@ -3475,7 +3475,7 @@ async function handleWidgetToday(request, env) {
       // Название — как чип в календаре команды: «Сделка: …»; что это первый
       // Zoom, видно во второй строке. Так виджет и календарь читаются одинаково.
       events.push({
-        at, end: at + 3600000, kind: "meet", src: "первый Zoom",
+        at, end: at + 3600000, kind: "meet", meet: "zoom", src: "первый Zoom",
         title: "Сделка: " + (d.title || "сделка"), note: "первый Zoom",
         pipe: book ? book.name : "", stage: (book && book.stages && book.stages[d.stage_id] && book.stages[d.stage_id].name) || "",
         sum: Number(d.opportunity) || 0, deal: String(d.id),
@@ -3493,7 +3493,10 @@ async function handleWidgetToday(request, env) {
         LIMIT 400`
     ).bind(wideFrom, wideTo, wideFrom, wideTo).all();
     for (const t of (tasks.results || [])) {
-      const isMeet = t.mark === "zoom_meeting";
+      // Виды встреч: Zoom · физическая · показ демо — для виджета все «meet», но с подписью и цветом по виду.
+      const MEET = { zoom_meeting: ["zoom", "Zoom"], offline_meeting: ["offline", "встреча"], demo_meeting: ["demo", "показ демо"] };
+      const meetInfo = MEET[t.mark] || null;
+      const isMeet = !!meetInfo;
       const at = widgetParseWhen(isMeet ? (t.start_date_plan || t.deadline) : t.deadline, tzo);
       if (!Number.isFinite(at) || at < dayStart || at >= dayEnd) continue;
       const endRaw = widgetParseWhen(t.end_date_plan, tzo);
@@ -3505,7 +3508,8 @@ async function handleWidgetToday(request, env) {
         at,
         end: Number.isFinite(endRaw) ? endRaw : at + (isMeet ? 3600000 : 1800000),
         kind: isMeet ? "meet" : "task",
-        src: isMeet ? "встреча" : "задача",
+        meet: isMeet ? meetInfo[0] : "",
+        src: isMeet ? meetInfo[1] : "задача",
         title: dealTitle ? "Сделка: " + dealTitle : (t.title || (isMeet ? "Встреча" : "Задача")),
         note: dealTitle && t.title ? t.title : "",
         pipe: book ? book.name : "",
@@ -3518,7 +3522,7 @@ async function handleWidgetToday(request, env) {
 
   // «Первый Zoom» и событие-задача по той же сделке в ту же минуту — одно и то же.
   const taskMeets = new Set();
-  for (const e of events) if (e.kind === "meet" && e.src === "встреча" && e.deal) taskMeets.add(e.deal + "|" + e.at);
+  for (const e of events) if (e.kind === "meet" && e.src !== "первый Zoom" && e.deal) taskMeets.add(e.deal + "|" + e.at);
   const out = events
     .filter((e) => !(e.src === "первый Zoom" && e.deal && taskMeets.has(e.deal + "|" + e.at)))
     .sort((a, b) => a.at - b.at);

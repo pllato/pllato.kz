@@ -12029,15 +12029,29 @@ function openAddDeedModal(deal, onDone) {
       <div class="qad-body">
         <div>
           <div class="qad-label">Тип</div>
-          <div style="display:flex;gap:6px">
-            <label class="ad-kind-pill" data-kind="task" style="flex:1;cursor:pointer;border:2px solid var(--ac);background:var(--acbg);border-radius:8px;padding:8px 10px;text-align:center;font-size:13px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <label class="ad-kind-pill" data-kind="task" style="cursor:pointer;border:2px solid var(--ac);background:var(--acbg);border-radius:8px;padding:8px 10px;text-align:center;font-size:13px">
               <input type="radio" name="ad-kind" value="task" checked style="display:none">
               ✅ Обычное дело
             </label>
-            <label class="ad-kind-pill" data-kind="zoom" style="flex:1;cursor:pointer;border:2px solid var(--b1);background:var(--bg3);border-radius:8px;padding:8px 10px;text-align:center;font-size:13px">
+            <label class="ad-kind-pill" data-kind="zoom" style="cursor:pointer;border:2px solid var(--b1);background:var(--bg3);border-radius:8px;padding:8px 10px;text-align:center;font-size:13px">
               <input type="radio" name="ad-kind" value="zoom" style="display:none">
-              📹 Zoom-встреча
+              📹 Zoom
             </label>
+            <label class="ad-kind-pill" data-kind="meet" style="cursor:pointer;border:2px solid var(--b1);background:var(--bg3);border-radius:8px;padding:8px 10px;text-align:center;font-size:13px">
+              <input type="radio" name="ad-kind" value="meet" style="display:none">
+              🤝 Физическая встреча
+            </label>
+            <label class="ad-kind-pill" data-kind="demo" style="cursor:pointer;border:2px solid var(--b1);background:var(--bg3);border-radius:8px;padding:8px 10px;text-align:center;font-size:13px">
+              <input type="radio" name="ad-kind" value="demo" style="display:none">
+              🖥 Показ демо
+            </label>
+          </div>
+          <div id="ad-kind-legend" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;font-size:11px;color:var(--t3)">
+            <span><span style="display:inline-block;width:9px;height:9px;background:#2563eb;border-radius:2px;vertical-align:middle"></span> Zoom</span>
+            <span><span style="display:inline-block;width:9px;height:9px;background:#16a34a;border-radius:2px;vertical-align:middle"></span> Физическая встреча</span>
+            <span><span style="display:inline-block;width:9px;height:9px;background:#ea580c;border-radius:2px;vertical-align:middle"></span> Показ демо</span>
+            <span><span style="display:inline-block;width:9px;height:9px;background:#a855f7;border-radius:2px;vertical-align:middle"></span> Дело</span>
           </div>
         </div>
         <div><div class="qad-label">Название *</div><input id="ad-title" class="qad-input" placeholder="Например: Перезвонить клиенту"></div>
@@ -12046,7 +12060,7 @@ function openAddDeedModal(deal, onDone) {
           <div class="qad-label">Дедлайн</div>
           <input id="ad-deadline" class="qad-input" type="datetime-local" value="${defStr}">
         </div>
-        <!-- Поля для Zoom-встречи -->
+        <!-- Поля для встречи (Zoom · физическая · показ демо) -->
         <div id="ad-zoom-fields" style="display:none">
           <div style="display:flex;gap:10px">
             <div style="flex:2">
@@ -12065,7 +12079,14 @@ function openAddDeedModal(deal, onDone) {
               </select>
             </div>
           </div>
-          <div style="font-size:11px;color:var(--t3);margin-top:6px">📅 Встреча отобразится в Календаре синей плашкой и привяжется к сделке.</div>
+          <div id="ad-kind-hint" style="font-size:11px;color:var(--t3);margin-top:6px">📅 Встреча отобразится в Календаре синей плашкой и привяжется к сделке.</div>
+          <div style="margin-top:10px">
+            <div class="qad-label">Кто видит в календаре</div>
+            <select id="ad-vis" class="qad-input">
+              <option value="all" selected>Все (общий календарь)</option>
+              <option value="me">Только я</option>
+            </select>
+          </div>
         </div>
         <div><div class="qad-label">Описание</div><textarea id="ad-desc" class="qad-input" rows="3" placeholder="(необязательно)"></textarea></div>
         <div class="dialer-hint">Привяжется к сделке #${escapeHtml(deal.bitrixId)} — будет видно во вкладке Задачи и в карточке сделки.</div>
@@ -12093,12 +12114,20 @@ function openAddDeedModal(deal, onDone) {
         p.style.borderColor = active ? 'var(--ac)' : 'var(--b1)';
         p.style.background = active ? 'var(--acbg)' : 'var(--bg3)';
       });
-      taskFields.style.display = kind === 'task' ? '' : 'none';
-      zoomFields.style.display = kind === 'zoom' ? '' : 'none';
-      // Меняем дефолтное название для Zoom если поле пустое
+      const isMeeting = kind !== 'task';
+      taskFields.style.display = isMeeting ? 'none' : '';
+      zoomFields.style.display = isMeeting ? '' : 'none';
+      // Подсказка и placeholder под тип встречи
       const titleInput = document.getElementById('ad-title');
-      if (kind === 'zoom' && !titleInput.value.trim()) {
-        titleInput.placeholder = 'Например: Zoom с клиентом по курсу A1';
+      const mk = calMeetingKind(CAL_MARK_BY_KEY[kind]);
+      const hint = document.getElementById('ad-kind-hint');
+      if (mk) {
+        hint.innerHTML = `📅 <b style="color:${mk.color}">${mk.emoji} ${escapeHtml(mk.label)}</b> — отобразится в общем календаре своим цветом и привяжется к сделке.`;
+        titleInput.placeholder = kind === 'zoom' ? 'Например: Zoom с клиентом по курсу A1'
+          : kind === 'meet' ? 'Например: Встреча в офисе с клиентом'
+          : 'Например: Показ демо CRM клиенту';
+      } else {
+        titleInput.placeholder = 'Например: Перезвонить клиенту';
       }
     });
   });
@@ -12112,7 +12141,8 @@ function openAddDeedModal(deal, onDone) {
     let dlIso = null;
     let startIso = null, endIso = null;
     let mark = null;
-    if (kind === 'zoom') {
+    const isMeetingKind = kind !== 'task';
+    if (isMeetingKind) {
       const start = document.getElementById('ad-zoom-start').value;
       const durMin = parseInt(document.getElementById('ad-zoom-duration').value, 10) || 30;
       if (!start) { alert('Укажи время начала встречи'); return; }
@@ -12121,7 +12151,7 @@ function openAddDeedModal(deal, onDone) {
       startIso = startDt.toISOString();
       endIso = new Date(startDt.getTime() + durMin * 60000).toISOString();
       dlIso = startIso;  // deadline = старт встречи (чтобы попадало в существующие фильтры дедлайнов)
-      mark = 'zoom_meeting';
+      mark = CAL_MARK_BY_KEY[kind] || 'zoom_meeting';   // zoom_meeting · offline_meeting · demo_meeting
     } else {
       const deadline = document.getElementById('ad-deadline').value;
       dlIso = deadline ? new Date(deadline).toISOString() : null;
@@ -12146,10 +12176,13 @@ function openAddDeedModal(deal, onDone) {
         bitrixCreatedDate: nowIso,
         bitrixChangedDate: nowIso,
       };
-      if (kind === 'zoom') {
+      if (isMeetingKind) {
         body.startDatePlan = startIso;
         body.endDatePlan = endIso;
         body.mark = mark;
+        // Дефолт — общий календарь: встречу видят все сотрудники с доступом к календарю.
+        const vis = document.getElementById('ad-vis')?.value || 'all';
+        body.eventPublic = vis === 'all' ? 1 : 0;
       }
       const r = await fetch(`${WORKER_RTDB_URL}/tasks/${encodeURIComponent(id)}.json?auth=${idToken}`, {
         method: 'PUT',
@@ -12161,7 +12194,8 @@ function openAddDeedModal(deal, onDone) {
         throw new Error(j.error || `HTTP ${r.status}`);
       }
       ov.remove();
-      showToast(kind === 'zoom' ? '📹 Zoom-встреча создана — смотри в Календаре' : 'Дело создано');
+      const mkDone = calMeetingKind(mark);
+      showToast(mkDone ? `${mkDone.emoji} ${mkDone.label} создана — смотри в Календаре` : 'Дело создано');
       if (typeof onDone === 'function') onDone();
     } catch (e) {
       alert('Ошибка: ' + e.message);
@@ -16715,10 +16749,14 @@ function ensureCalendarStylesInjected() {
     }
     .cal-event-zoom { background: rgba(37, 99, 235, 0.15); color: #1e40af; border-left: 3px solid #2563eb; }
     .cal-event-task { background: rgba(168, 85, 247, 0.12); color: #6b21a8; border-left: 3px solid #a855f7; }
+    .cal-event-meet { background: rgba(22, 163, 74, 0.14); color: #166534; border-left: 3px solid #16a34a; }
+    .cal-event-demo { background: rgba(234, 88, 12, 0.14); color: #9a3412; border-left: 3px solid #ea580c; }
     .cal-event:hover { filter: brightness(0.95); }
     .cal-day-more { font-size: 10px; color: var(--t3); margin-top: 2px; }
     [data-theme="dark"] .cal-event-zoom { color: #bfdbfe; }
     [data-theme="dark"] .cal-event-task { color: #ddd6fe; }
+    [data-theme="dark"] .cal-event-meet { color: #bbf7d0; }
+    [data-theme="dark"] .cal-event-demo { color: #fed7aa; }
 
     /* ──── Hourly views (day / week) ──── */
     .cal-hourly-wrap { display: flex; border: 1px solid var(--b1); border-radius: 8px; overflow: hidden; background: var(--bg2); }
@@ -16765,11 +16803,15 @@ function ensureCalendarStylesInjected() {
     }
     .cal-hourly-event.zoom { background: rgba(37,99,235,0.15); color: #1e40af; border-left-color: #2563eb; }
     .cal-hourly-event.task { background: rgba(168,85,247,0.12); color: #6b21a8; border-left-color: #a855f7; }
+    .cal-hourly-event.meet { background: rgba(22,163,74,0.14); color: #166534; border-left-color: #16a34a; }
+    .cal-hourly-event.demo { background: rgba(234,88,12,0.14); color: #9a3412; border-left-color: #ea580c; }
     .cal-hourly-event-time { font-weight: 600; font-size: 10px; }
     .cal-hourly-event-title { font-size: 11px; font-weight: 600; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .cal-hourly-event-manager { font-size: 9px; opacity: .82; font-weight: 500; }
     [data-theme="dark"] .cal-hourly-event.zoom { color: #bfdbfe; }
     [data-theme="dark"] .cal-hourly-event.task { color: #ddd6fe; }
+    [data-theme="dark"] .cal-hourly-event.meet { color: #bbf7d0; }
+    [data-theme="dark"] .cal-hourly-event.demo { color: #fed7aa; }
     /* Линия "текущее время" — только в day-view today / week-view today-col */
     .cal-now-line {
       position: absolute; left: 0; right: 0;
@@ -16807,7 +16849,7 @@ async function renderCalendar(el) {
       <div class="page-head" style="margin-bottom:10px">
         <h1 style="margin:0">📅 Календарь</h1>
       </div>
-      <div class="page-sub">Встречи Zoom из сделок + задачи с дедлайном. Клик на событие открывает запись.</div>
+      <div class="page-sub">Zoom, физические встречи и показы демо — каждый вид своим цветом, плюс задачи с дедлайном. Клик на событие открывает запись.</div>
       <div class="cal-toolbar">
         <button class="btn btn-sm" id="cal-prev">←</button>
         <button class="btn btn-sm" id="cal-today">Сегодня</button>
@@ -16828,6 +16870,8 @@ async function renderCalendar(el) {
         </div>` : ''}
         <span id="cal-stats" style="margin-left:auto;font-size:11px;color:var(--t3);display:flex;gap:14px;align-items:center">
           <span><span style="display:inline-block;width:10px;height:10px;background:#2563eb;border-radius:2px;vertical-align:middle"></span> Zoom</span>
+          <span><span style="display:inline-block;width:10px;height:10px;background:#16a34a;border-radius:2px;vertical-align:middle"></span> Встреча</span>
+          <span><span style="display:inline-block;width:10px;height:10px;background:#ea580c;border-radius:2px;vertical-align:middle"></span> Показ демо</span>
           <span><span style="display:inline-block;width:10px;height:10px;background:#a855f7;border-radius:2px;vertical-align:middle"></span> Задача</span>
         </span>
       </div>
@@ -16888,9 +16932,23 @@ function renderCalendarView() {
 // (1) красная линия «сейчас» двигается каждые 30с; (2) новые встречи
 // подтягиваются тихо каждые 90с (только при видимой вкладке) и вид
 // перерисовывается лишь если состав событий изменился.
+// Виды встреч в календаре: mark задачи → тип события, подпись, эмодзи, цвет.
+// Три категории встреч + обычное дело; цвета одинаковые во всех видах календаря.
+const CAL_MEETING_KINDS = {
+  zoom_meeting:    { key: 'zoom', label: 'Zoom-встреча',       emoji: '📹', color: '#2563eb' },
+  offline_meeting: { key: 'meet', label: 'Физическая встреча', emoji: '🤝', color: '#16a34a' },
+  demo_meeting:    { key: 'demo', label: 'Показ демо',         emoji: '🖥', color: '#ea580c' },
+};
+const CAL_MARK_BY_KEY = { zoom: 'zoom_meeting', meet: 'offline_meeting', demo: 'demo_meeting' };
+function calMeetingKind(mark) { return CAL_MEETING_KINDS[mark] || null; }
+function calKindOptionsHtml(selectedKey) {
+  return Object.values(CAL_MEETING_KINDS).map(k =>
+    `<option value="${k.key}" ${k.key === selectedKey ? 'selected' : ''}>${k.emoji} ${k.label}</option>`).join('');
+}
+
 function calEventsSig(events) {
   if (!Array.isArray(events)) return '';
-  return events.map(e => `${e.date ? e.date.getTime() : ''}|${e.title || ''}|${e.dealTitle || ''}|${e.scheduledByName || ''}`).sort().join(';');
+  return events.map(e => `${e.date ? e.date.getTime() : ''}|${e.type || ''}|${e.title || ''}|${e.dealTitle || ''}|${e.scheduledByName || ''}`).sort().join(';');
 }
 
 function calCalendarUserLabel(uid) {
@@ -17020,8 +17078,9 @@ async function loadCalendarEvents(opts = {}) {
       const tasksR = await tasksP;
       const events = [];
     for (const t of (tasksR.items || [])) {
-      const isZoom = t.mark === 'zoom_meeting';
-      // Для Zoom приоритет startDatePlan, для обычных — deadline.
+      const mk = calMeetingKind(t.mark);       // zoom · meet · demo или null для обычного дела
+      const isZoom = !!mk;                      // «встреча» любого вида
+      // Для встреч приоритет startDatePlan, для обычных — deadline.
       const dateField = isZoom ? (t.startDatePlan || t.deadline) : t.deadline;
       if (!dateField) continue;
       const d = new Date(dateField);
@@ -17071,21 +17130,23 @@ async function loadCalendarEvents(opts = {}) {
       const linkedDeal = linkedDealBitrixId ? dealsById.get(String(linkedDealBitrixId)) : null;
       const scheduledByUid = isZoom ? (t.createdByUid || t.responsibleUid || null) : null;
       events.push({
-        type: isZoom ? 'zoom' : 'task',
+        type: mk ? mk.key : 'task',
+        mark: t.mark || null,
+        kindLabel: mk ? mk.label : 'Дело',
         date: d,
         endDate,
-        title: (isZoom ? '📹 ' : '') + (t.title || '(без названия)') + durLabel,
+        title: (mk ? mk.emoji + ' ' : '') + (t.title || '(без названия)') + durLabel,
         taskId: t.id || t.bitrixKey,
         bitrixId: t.bitrixId,
         dealBitrixId: linkedDealBitrixId,
         source: 'task',
-        subtype: isZoom ? 'zoom' : 'deadline',
+        subtype: isZoom ? 'meeting' : 'deadline',
         uid: 'task:' + (t.id || t.bitrixKey),
         rawTitle: (t.title || '(без названия)'),
         dealTitle: linkedDeal?.title || t.calendarDealTitle || '',
         scheduledByUid,
         scheduledByName: calCalendarUserLabel(scheduledByUid),
-        isMeeting: isZoom && t.mark === 'zoom_meeting',
+        isMeeting: isZoom,
         createdByUid: t.createdByUid || null,
         responsibleUid: t.responsibleUid || null,
         accomplices: Array.isArray(t.accomplices) ? t.accomplices : [],
@@ -17227,9 +17288,9 @@ function renderCalendarGrid() {
     const overflow = dayEvents.length - visible.length;
     const eventsHtml = visible.map(ev => {
       const time = ev.date.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
-      const cls = ev.type === 'zoom' ? 'cal-event-zoom' : 'cal-event-task';
-      // Zoom-событие может быть из сделки (firstZoomAt → dealBitrixId)
-      // или из задачи (mark='zoom_meeting' → taskId + dealBitrixId через crmLinks).
+      const cls = 'cal-event-' + (['zoom', 'meet', 'demo'].includes(ev.type) ? ev.type : 'task');
+      // Событие-встреча может быть из сделки (firstZoomAt → dealBitrixId)
+      // или из задачи (mark = zoom_meeting · offline_meeting · demo_meeting → taskId + dealBitrixId через crmLinks).
       const parts = [];
       if (ev.taskId) parts.push(`data-cal-task="${escapeHtml(ev.taskId)}"`);
       if (ev.dealBitrixId) {
@@ -17489,7 +17550,7 @@ function calHourlyEventHtml(ev, START_H, HOUR_H, isAlone, layout) {
     `width:calc(${widthPct}% - ${gap * 2}px)`,
     'right:auto',  // override default right:4px
   ];
-  const cls = ev.type === 'zoom' ? 'zoom' : 'task';
+  const cls = ['zoom', 'meet', 'demo'].includes(ev.type) ? ev.type : 'task';
   const time = ev.date.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
   const parts = [];
   if (ev.taskId) parts.push(`data-cal-task="${escapeHtml(ev.taskId)}"`);
@@ -17586,7 +17647,7 @@ async function rescheduleEvent(uid, newStart) {
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
     if (ev.source === 'task') {
-      const patch = ev.subtype === 'zoom'
+      const patch = ev.subtype === 'meeting'
         ? { startDatePlan: newStart.toISOString(), endDatePlan: newEnd.toISOString(), deadline: newStart.toISOString(), bitrixChangedDate: new Date().toISOString() }
         : { deadline: newStart.toISOString(), bitrixChangedDate: new Date().toISOString() };
       const r = await fetch(`${WORKER_RTDB_URL}/tasks/${encodeURIComponent(ev.taskId)}.json?auth=${idToken}`, {
@@ -17634,6 +17695,8 @@ function openCalEventForm(prefillDate) {
       <b style="font-size:16px">➕ Новое событие</b><button id="ce-x" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--t3)">×</button>
     </div>
     <div style="padding:16px 18px;max-height:76vh;overflow:auto">
+      <label style="font-size:12px;color:var(--t3)">Тип встречи</label>
+      <select id="ce-kind" style="width:100%;margin:5px 0 12px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)">${calKindOptionsHtml('zoom')}</select>
       <label style="font-size:12px;color:var(--t3)">Название события</label>
       <input id="ce-title" placeholder="Напр. Zoom с клиентом" style="width:100%;margin:5px 0 12px;padding:10px 12px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);font-size:14px">
       <div style="display:flex;gap:10px;margin-bottom:12px">
@@ -17708,8 +17771,9 @@ function openCalEventForm(prefillDate) {
     const startDt = new Date(yy, mm - 1, dd, hh, mi, 0, 0);
     const dur = parseInt(ov.querySelector('#ce-dur').value) || 60;
     const endDt = new Date(startDt.getTime() + dur * 60000);
+    const kindKey = ov.querySelector('#ce-kind')?.value || 'zoom';
     const payload = {
-      title, status: 2, mark: 'zoom_meeting',
+      title, status: 2, mark: CAL_MARK_BY_KEY[kindKey] || 'zoom_meeting',
       startDatePlan: startDt.toISOString(), endDatePlan: endDt.toISOString(),
       deadline: startDt.toISOString(),   // календарь тянет задачи по окну deadline
     };
@@ -17742,7 +17806,8 @@ function openCalEventEdit(uid) {
   const ev = (calendarState.events || []).find(e => e.uid === uid);
   if (!ev) return;
   const isTask = ev.source === 'task';
-  const isZoomTask = isTask && ev.subtype === 'zoom';
+  const isZoomTask = isTask && ev.subtype === 'meeting';   // встреча любого вида (zoom · физическая · демо)
+  const curKindKey = (calMeetingKind(ev.mark) || {}).key || 'zoom';
   const canEditTitle = isTask;                 // у deal-событий имя = название сделки
   const canDuration = ev.endDate != null && ev.subtype !== 'deadline';
   const canDelete = isTask && ev.isMeeting;    // удалять можно только события-встречи, не рабочие задачи
@@ -17790,6 +17855,8 @@ function openCalEventEdit(uid) {
           <select id="ee-dur" ${dis} style="width:100%;margin-top:5px;padding:9px 6px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)">
             ${durOpts.map(m => `<option value="${m}" ${m === durMin ? 'selected' : ''}>${durLabel(m)}</option>`).join('')}</select></div>` : ''}
       </div>
+      ${isZoomTask ? `<label style="font-size:12px;color:var(--t3)">Тип встречи</label>
+      <select id="ee-kind" ${dis} style="width:100%;margin:5px 0 12px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)">${calKindOptionsHtml(curKindKey)}</select>` : ''}
       ${isTask ? `<label style="font-size:12px;color:var(--t3)">Кто видит событие</label>
       <select id="ee-vis" ${dis} style="width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)">
         <option value="me" ${curVis === 'me' ? 'selected' : ''}>Только я</option>
@@ -17852,7 +17919,11 @@ function openCalEventEdit(uid) {
       if (isTask) {
         const patch = { bitrixChangedDate: new Date().toISOString() };
         if (newTitle) patch.title = newTitle;
-        if (isZoomTask) { patch.startDatePlan = startDt.toISOString(); patch.endDatePlan = endDt.toISOString(); patch.deadline = startDt.toISOString(); }
+        if (isZoomTask) {
+          patch.startDatePlan = startDt.toISOString(); patch.endDatePlan = endDt.toISOString(); patch.deadline = startDt.toISOString();
+          const kindSel = ov.querySelector('#ee-kind');
+          if (kindSel && CAL_MARK_BY_KEY[kindSel.value]) patch.mark = CAL_MARK_BY_KEY[kindSel.value];
+        }
         else { patch.deadline = startDt.toISOString(); }
         // Видимость события: общий календарь / выбранные / только я.
         if (eeVis) {

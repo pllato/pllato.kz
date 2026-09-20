@@ -34,6 +34,8 @@ const C = {
   green: new Color("#46d18a"),
   violet: new Color("#a78bfa"),
   red: new Color("#f87171"),
+  blue: new Color("#60a5fa"),    // Zoom
+  orange: new Color("#fb923c"),  // показ демо
 };
 
 const fm = FileManager.local();
@@ -171,8 +173,13 @@ function inLabel(ms, now) {
 function eventRow(w, ev, now, isNext) {
   const isNow = ev.at <= now && ev.end > now;
   const isPast = ev.end <= now;
+  // Цвет по виду: дело — фиолетовый, Zoom — синий, физическая встреча — зелёный,
+  // показ демо — оранжевый (те же цвета, что в календаре CRM).
   const accent = isPast ? new Color("#8e94a3", 0.55)
     : ev.kind === "task" ? C.violet
+    : ev.meet === "offline" ? C.green
+    : ev.meet === "demo" ? C.orange
+    : ev.meet === "zoom" ? C.blue
     : isNow ? C.green : C.bronze;
 
   const box = card(w, 6);

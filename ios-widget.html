@@ -261,7 +261,7 @@
     // Тексты скриптов берём из репозитория — правки в них подхватятся сами.
     // Файлов два, вкладок шесть: скрипт статистики общий для пяти графиков.
     [...new Set(Object.values(WIDGETS).map((w) => w.file))].forEach((file) => {
-      fetch(`${file}?v=20260918-1`)
+      fetch(`${file}?v=20260920-1`)
         .then((r) => (r.ok ? r.text() : Promise.reject(new Error("нет файла"))))
         .then((t) => { templates[file] = t; renderCode(); })
         .catch(() => { templates[file] = ""; renderCode(); });
