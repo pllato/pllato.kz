@@ -7718,7 +7718,7 @@ function renderWaWidgetChat(root) {
       const r = await fetch(`${WORKER_BASE_URL}/api/wa/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-        body: JSON.stringify({ chatId: chat.id || chat.chatId, instanceId: chat.instanceId, phone: chat.phone, text }),
+        body: JSON.stringify({ chatId: chat.id?.startsWith('wa:virtual:') ? chat.chatId : (chat.id || chat.chatId), instanceId: chat.instanceId, phone: chat.phone, text }),
       });
       if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || `HTTP ${r.status}`); }
       input.value = '';
@@ -10972,6 +10972,11 @@ document.addEventListener('click', (e) => {
 // Состояние открытой модалки (на случай повторного клика по той же кнопке)
 window.__waOpenState = null;
 
+// A shared contact/deal is not proof of the WhatsApp recipient.
+function findWaRecipientChat(items, rawChatId) {
+  return (items || []).find(c => c.chatId === rawChatId || c.id === rawChatId) || null;
+}
+
 async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }) {
   // Нормализуем chatId (если передан только phone)
   const digits = String(phone || '').replace(/\D/g, '').replace(/^8(\d{10})$/, '7$1');
@@ -10991,14 +10996,13 @@ async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }
   let channelName = '';
   let chatAvatar = '';
   let canonicalChatId = chatId;
+  let match = null;
   try {
     const idToken0 = await fbAuth.currentUser.getIdToken();
-    const list = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=500`, {
+    const list = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=500${digits ? `&phone=${encodeURIComponent(digits)}` : ''}`, {
       headers: { 'Authorization': `Bearer ${idToken0}` },
     }).then(r => r.ok ? r.json() : null).catch(() => null);
-    const match = list?.items?.find(c => c.chatId === chatId
-      || (contactId && c.contactId === contactId)
-      || (dealId && c.dealId === dealId));
+    match = findWaRecipientChat(list?.items, chatId);
     if (match) { canonicalChatId = match.id; chatAvatar = match.avatar || ''; }
     // Канал — берём первый активный (или по имени из match.instanceId)
     const ch = await fetch(`${WORKER_BASE_URL}/api/wa/channels`, {
@@ -11321,7 +11325,7 @@ async function sendWaMediaFile(chatRef, blob, fileName, caption, onSent) {
   const upload = await uploadWaMediaFile(blob, fileName);
   const idToken = await fbAuth.currentUser.getIdToken();
   const body = {
-    chatId: chatRef.canonicalChatId || chatRef.rawChatId,
+    chatId: chatRef.canonicalChatId?.startsWith('wa:virtual:') ? chatRef.rawChatId : (chatRef.canonicalChatId || chatRef.rawChatId),
     instanceId: chatRef.instanceId,
     phone: chatRef.phone,
     mediaUrl: upload.publicUrl,
@@ -11527,7 +11531,7 @@ function renderWaMessageHtml(m, isGroup) {
     </a>`;
   }
   const text = m.text || m.caption || '';
-  const tick = cls === 'out' ? '<span class="wa-tick">✓✓</span>' : '';
+  const tick = cls === 'out' ? '<span class="wa-tick" style="color:#8a8a8a" title="Отправлено в сервис WhatsApp; доставка не подтверждена">✓</span>' : '';
   return `<div class="wa-msg ${cls}">
     ${senderHtml}
     ${mediaHtml}
@@ -11563,15 +11567,10 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
   let canonicalChatId = null;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const list = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=500`, {
+    const list = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=500${digits ? `&phone=${encodeURIComponent(digits)}` : ''}`, {
       headers: { 'Authorization': `Bearer ${idToken}` },
     }).then(r => r.ok ? r.json() : null).catch(() => null);
-    const match = list?.items?.find(c =>
-      c.chatId === rawChatId
-      || c.dealId === deal.bitrixId
-      || (c.contactId && deal.contactId && c.contactId === deal.contactId)
-      || c.phone === digits
-    );
+    const match = findWaRecipientChat(list?.items, rawChatId);
     if (match) canonicalChatId = match.id;
   } catch {}
 

@@ -5569,10 +5569,16 @@ async function handleWaSend(request, env) {
     const saved = await env.DB.prepare(
       "SELECT instance_id, chat_id FROM wa_chats WHERE id = ? LIMIT 1"
     ).bind(chatId).first();
-    if (saved?.chat_id) {
-      chatId = saved.chat_id;
-      instanceId = instanceId || String(saved.instance_id || '');
+    if (!saved?.chat_id) return json({ error: 'Чат не найден. Обновите страницу и откройте получателя заново.' }, 409, request);
+    if (instanceId && instanceId !== String(saved.instance_id)) {
+      return json({ error: 'Канал не совпадает с выбранным чатом.' }, 409, request);
     }
+    chatId = saved.chat_id;
+    instanceId = String(saved.instance_id || '');
+  }
+  // Also protect stale frontends: never send to a chat that differs from the displayed phone.
+  if (phone && chatId && !chatId.endsWith('@g.us') && chatId !== waChatIdFromPhone(phone)) {
+    return json({ error: 'Номер получателя не совпадает с чатом. Обновите страницу и откройте карточку заново.' }, 409, request);
   }
   if (!chatId && phone) chatId = waChatIdFromPhone(phone);
   if (!chatId) return json({ error: "chatId or phone required" }, 400, request);
@@ -5584,7 +5590,7 @@ async function handleWaSend(request, env) {
     // Старые версии фронтенда не передавали instanceId. Находим его по
     // сохранённому чату, а не выбираем первый активный канал наугад.
     const saved = await env.DB.prepare(
-      "SELECT instance_id FROM wa_chats WHERE chat_id = ? ORDER BY updated_at DESC LIMIT 1"
+      "SELECT c.instance_id FROM wa_chats c JOIN wa_channels ch ON ch.id_instance = c.instance_id WHERE c.chat_id = ? AND ch.active = 1 ORDER BY CASE WHEN ch.conn_state = 'up' THEN 0 ELSE 1 END, c.updated_at DESC LIMIT 1"
     ).bind(chatId).first();
     if (saved?.instance_id) channel = await getWaChannelByInstance(env, saved.instance_id);
   }
@@ -5599,6 +5605,9 @@ async function handleWaSend(request, env) {
     `).first();
   }
   if (!channel) return json({ error: "no active WhatsApp channel configured" }, 503, request);
+
+  if (!channel.active) return json({ error: 'Выбранный канал WhatsApp отключён.' }, 503, request);
+  if (instanceId && String(channel.id_instance) !== instanceId) return json({ error: 'Канал не совпадает с выбранным чатом.' }, 409, request);
 
   let result;
   try {
@@ -5851,10 +5860,18 @@ async function handleWaListChats(request, env) {
   }
 
   const archivedCond = `COALESCE(c.archived, 0) = ${wantArchived ? 1 : 0}`;
-  const finalWhere = whereSQL ? `${whereSQL} AND ${archivedCond}` : `WHERE ${archivedCond}`;
+  let finalWhere = whereSQL ? `${whereSQL} AND ${archivedCond}` : `WHERE ${archivedCond}`;
+  const recipientPhone = normalizeWaPhone(url.searchParams.get('phone'));
+  if (recipientPhone) {
+    finalWhere += ' AND c.chat_id = ?';
+    params.push(waChatIdFromPhone(recipientPhone));
+  }
   const { results } = await env.DB.prepare(`
-    SELECT c.* FROM wa_chats c ${finalWhere}
-    ORDER BY c.last_message_at DESC LIMIT ?
+    SELECT c.* FROM wa_chats c
+    LEFT JOIN wa_channels ch ON ch.id_instance = c.instance_id
+    ${finalWhere}
+    ORDER BY ${recipientPhone ? "CASE WHEN ch.active = 1 AND ch.conn_state = 'up' THEN 0 ELSE 1 END," : ''}
+      c.last_message_at DESC LIMIT ?
   `).bind(...params, limit).all();
 
   const items = results.map(r => ({
