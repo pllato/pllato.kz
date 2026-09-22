@@ -7661,7 +7661,7 @@ function renderWaWidgetChat(root) {
   const name = chat.name && chat.name.trim() ? chat.name : (chat.phone ? '+' + chat.phone : (isGroup ? 'Группа' : '?'));
   const msgsHtml = waWidget.messages.length
     ? waWidget.messages.map(m => renderWaMessageHtml(m, isGroup)).join('')
-    : '<div class="wa-w-empty">📭 История пуста</div>';
+    : waHistoryEmptyHtml();
   // Поиск deal для контакта (если есть) — для групп не показываем (не привязаны)
   const dealId = !isGroup && chat.dealId;
   const dealOpenBtn = dealId
@@ -7905,27 +7905,46 @@ function openWaScheduleModal(chat, text, onDone) {
   };
 }
 
+function waHistoryEmptyHtml(status) {
+  const message = status === 'provider_empty'
+    ? 'GREEN-API пока не передал историю этого чата. Повторная синхронизация выполняется автоматически. Можно отправить новое сообщение.'
+    : status === 'error'
+      ? 'Не удалось загрузить историю WhatsApp. Повторим автоматически.'
+      : status === 'unavailable'
+        ? 'Канал WhatsApp недоступен. Проверьте его подключение в настройках.'
+      : 'Загружаем сообщения WhatsApp…';
+  return `<div class="wa-w-empty">${message}</div>`;
+}
+
 async function loadWaWidgetMessages(opts = {}) {
-  if (!waWidget.activeChatId) return;
+  const chatId = waWidget.activeChatId;
+  if (!chatId) return;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const r = await fetch(`${WORKER_BASE_URL}/api/wa/messages?chatId=${encodeURIComponent(waWidget.activeChatId)}&limit=100`, {
+    const r = await fetch(`${WORKER_BASE_URL}/api/wa/messages?chatId=${encodeURIComponent(chatId)}&limit=100`, {
       headers: { 'Authorization': `Bearer ${idToken}` },
     });
-    if (!r.ok) return;
+    if (!r.ok) throw new Error('history unavailable');
     const data = await r.json();
+    if (chatId !== waWidget.activeChatId) return;
     const items = data.items || [];
-    if (opts.silent && items.length === waWidget.messages.length) return;
+    const signature = JSON.stringify([items, data.historySync?.status]);
+    if (opts.silent && signature === waWidget.messageSignature) return;
+    waWidget.messageSignature = signature;
     waWidget.messages = items;
     if (waWidget.view === 'chat') {
       const body = document.getElementById('wa-w-msgs');
       if (body) {
         const isGroup = waWidget.activeChatMeta?.isGroup === true;
-        body.innerHTML = items.length ? items.map(m => renderWaMessageHtml(m, isGroup)).join('') : '<div class="wa-w-empty">📭 История пуста</div>';
+        body.innerHTML = items.length ? items.map(m => renderWaMessageHtml(m, isGroup)).join('') : waHistoryEmptyHtml(data.historySync?.status);
         body.scrollTop = body.scrollHeight;
       }
     }
-  } catch {}
+  } catch {
+    if (chatId !== waWidget.activeChatId || waWidget.messages.length) return;
+    const body = document.getElementById('wa-w-msgs');
+    if (body) body.innerHTML = waHistoryEmptyHtml('error');
+  }
 }
 
 async function refreshWaWidgetChats() {
@@ -8737,7 +8756,7 @@ async function preloadDealPhones(deals, idToken) {
   }
   if (need.size === 0) return;
   const ids = [...need];
-  const chunkSize = 200;
+  const chunkSize = 80;
   for (let i = 0; i < ids.length; i += chunkSize) {
     const chunk = ids.slice(i, i + chunkSize);
     try {
