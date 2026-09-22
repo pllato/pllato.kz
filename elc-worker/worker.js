@@ -6,6 +6,7 @@ import { jwtVerify, createRemoteJWKSet } from "jose";
 import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket, broadcastToUser, downloadFile as downloadChatFile, setWaNotifier } from "./chat-module.js";
 import { sendWebPush, VAPID_PUBLIC_KEY } from "./webpush.js";
 import { imapList, imapFetchMessage, imapFetchAttachment, smtpSend, mailTestConnection, imapFolders, imapUnreadCount } from "./mail.js";
+import { ensureWaHistorySchema, syncWaHistory, recoverWaHistory } from "./wa-history.js";
 import { canChangeAnyDealStage } from "./stage-permissions.js";
 
 // ctx последнего fetch/scheduled — чтобы фоновую рассылку пушей (несколько
@@ -5325,79 +5326,6 @@ async function ensureWaMetaAdColumns(env) {
   _waMetaAdColsEnsured = true;
 }
 
-function metaAdAttributionFromHistoryMessage(message) {
-  const ext = message?.extendedTextMessage || {};
-  if (!(ext.showAdAttribution || ext.sourceId || ext.sourceType === 'ad')) return null;
-  const ts = (message?.timestamp || Math.floor(Date.now() / 1000)) * 1000;
-  return {
-    adId: ext.sourceId ? String(ext.sourceId) : null,
-    sourceType: ext.sourceType || null,
-    sourceUrl: ext.sourceUrl || null,
-    title: ext.title || null,
-    description: ext.description || null,
-    thumbnailUrl: ext.thumbnailUrl || null,
-    mediaType: ext.mediaType || null,
-    conversionSource: ext.conversionSource || null,
-    entryPointConversionApp: ext.entryPointConversionApp || null,
-    containsAutoReply: !!ext.containsAutoReply,
-    receivedAt: new Date(ts).toISOString(),
-  };
-}
-
-// Старые рекламные сообщения были сохранены без sourceId. При первом открытии
-// чата один раз читаем историю Green-API и восстанавливаем атрибуцию в сообщение
-// и сделку. После успешной проверки больше провайдера для этого чата не вызываем.
-async function backfillWaMetaAttributionFromHistory(env, chatDocId) {
-  const chat = await env.DB.prepare(`
-    SELECT c.id, c.chat_id, c.deal_id, c.meta_attribution_checked_at,
-           ch.id_instance, ch.api_url, ch.api_token_instance
-    FROM wa_chats c
-    JOIN wa_channels ch ON ch.id_instance = c.instance_id
-    WHERE c.id = ? LIMIT 1
-  `).bind(chatDocId).first();
-  if (!chat || chat.meta_attribution_checked_at) return;
-
-  const baseUrl = String(chat.api_url || 'https://api.green-api.com').replace(/\/$/, '');
-  const response = await fetch(
-    `${baseUrl}/waInstance${chat.id_instance}/getChatHistory/${chat.api_token_instance}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chatId: chat.chat_id, count: 100 }),
-    },
-  );
-  if (!response.ok) throw new Error(`Green-API history HTTP ${response.status}`);
-  const history = await response.json();
-  const adMessage = Array.isArray(history)
-    ? history.find(m => m?.type === 'incoming' && metaAdAttributionFromHistoryMessage(m))
-    : null;
-  const attribution = metaAdAttributionFromHistoryMessage(adMessage);
-
-  if (attribution) {
-    const adId = attribution.adId || null;
-    const attributionJson = JSON.stringify(attribution);
-    if (adMessage?.idMessage) {
-      await env.DB.prepare(`
-        UPDATE wa_messages SET meta_ad_id = ?, meta_ad_attribution = ?
-        WHERE chat_id = ? AND wa_message_id = ?
-      `).bind(adId, attributionJson, chat.id, adMessage.idMessage).run();
-    }
-    if (chat.deal_id) {
-      const sourceDescription = adId
-        ? `Instagram → WhatsApp · объявление ${adId}`
-        : 'Instagram → WhatsApp · реклама';
-      await env.DB.prepare(`
-        UPDATE deals SET source_id = 'META_AD', source_description = ?,
-          meta_ad_id = ?, meta_ad_attribution = ?
-        WHERE id = ? AND meta_ad_attribution IS NULL
-      `).bind(sourceDescription, adId, attributionJson, chat.deal_id).run();
-    }
-  }
-  await env.DB.prepare(
-    "UPDATE wa_chats SET meta_attribution_checked_at = datetime('now') WHERE id = ?"
-  ).bind(chat.id).run();
-}
-
 // POST /api/wa/webhook?token=XXX — приёмник от Green-API.
 // Без Firebase auth — Green-API не умеет Bearer.
 async function handleWaWebhook(request, env) {
@@ -5414,6 +5342,13 @@ async function handleWaWebhook(request, env) {
     return json({ error: "invalid webhook token" }, 401, request);
   }
   if (!channel.active) return json({ ok: true, ignored: true, reason: "channel inactive" }, 200, request);
+  // Повторная доставка или история, восстановленная до webhook: не увеличивать
+  // непрочитанные повторно и не возвращать старую сделку в начало воронки.
+  if (evt.waMessageId) {
+    const duplicate = await env.DB.prepare("SELECT id FROM wa_messages WHERE id = ?")
+      .bind(waMessageDocId(evt.instanceId, evt.waMessageId)).first();
+    if (duplicate) return json({ ok: true, duplicate: true }, 200, request);
+  }
   await ensureWaMetaAdColumns(env);
 
   const isGroup = evt.chatId?.endsWith('@g.us') || false;
@@ -5942,8 +5877,11 @@ async function handleWaListMessages(request, env) {
   const url = new URL(request.url);
   const chatId = (url.searchParams.get("chatId") || "").trim();
   if (!chatId) return json({ error: "chatId required" }, 400, request);
-  try { await backfillWaMetaAttributionFromHistory(env, chatId); }
-  catch (e) { console.warn('[wa-meta-backfill] failed:', e?.message || e); }
+  await ensureWaSenderColumn(env);
+  await ensureWaHistorySchema(env.DB);
+  let historySync = { status: 'pending' };
+  try { historySync = await syncWaHistory(env.DB, chatId); }
+  catch { historySync = { status: 'error' }; }
   const limit = Math.min(500, Math.max(10, parseInt(url.searchParams.get("limit") || "200", 10) || 200));
   const before = parseInt(url.searchParams.get("before") || "0", 10) || 0;
   const since = parseInt(url.searchParams.get("since") || "0", 10) || 0;
@@ -5971,7 +5909,7 @@ async function handleWaListMessages(request, env) {
     metaAdAttribution: r.meta_ad_attribution ? tryParseJson(r.meta_ad_attribution) : null,
     ts: r.ts,
   }));
-  return json({ items, total: items.length, chatId }, 200, request);
+  return json({ items, total: items.length, chatId, historySync }, 200, request);
 }
 
 // POST /api/wa/mark-read { chatId }
@@ -11175,10 +11113,15 @@ async function handleContactsPhonesBulk(request, env) {
   if (!raw) return json({ items: {} }, 200, request);
   const ids = raw.split(",").map(s => s.trim()).filter(Boolean).slice(0, 200);
   if (ids.length === 0) return json({ items: {} }, 200, request);
-  const ph = ids.map(() => "?").join(",");
-  const { results } = await env.DB.prepare(
-    `SELECT id, phones FROM contacts WHERE id IN (${ph})`
-  ).bind(...ids).all();
+  const results = [];
+  for (let offset = 0; offset < ids.length; offset += 80) {
+    const chunk = ids.slice(offset, offset + 80);
+    const ph = chunk.map(() => "?").join(",");
+    const batch = await env.DB.prepare(
+      `SELECT id, phones FROM contacts WHERE id IN (${ph})`
+    ).bind(...chunk).all();
+    results.push(...batch.results);
+  }
   const items = {};
   for (const r of results) {
     if (!r.phones) continue;
@@ -12716,6 +12659,11 @@ export default {
       } catch (e) {
         console.error("[cron] syncWaChatShells failed:", e.message);
       }
+      try {
+        await ensureWaSenderColumn(env);
+        await ensureWaMetaAdColumns(env);
+        await recoverWaHistory(env.DB);
+      } catch { console.warn('[cron] WhatsApp history recovery failed'); }
       try {
         const meta = await pollMetaLeadForms(env);
         if (!meta.skipped) {
