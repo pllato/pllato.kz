@@ -3,28 +3,32 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Тренажёр клоузера · две встречи — Pllato</title>
+<title>Тренажёр клоузера · первый зум по паттерну Pllato — Pllato</title>
 <meta name="robots" content="noindex,nofollow">
 <link rel="icon" href="../pllato_favicon_64.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#111827;--muted:#667085;--soft:#f6f6f1;--paper:#fff;--line:#e7e2d6;--navy:#0b1728;--gold:#a8753d;--green:#119c4b;--purple:#7146e8;--red:#d92d20;--amber:#e9a008}
+:root{--ink:#111827;--muted:#667085;--soft:#f6f6f1;--paper:#fff;--line:#e7e2d6;--navy:#0b1728;--gold:#a8753d;--green:#119c4b;--purple:#7146e8;--red:#d92d20;--amber:#e9a008;--blue:#2563eb}
 *{box-sizing:border-box}html{scroll-behavior:smooth}
-body{margin:0;background:#fafaf7;color:var(--ink);font:15px/1.55 Inter,system-ui,sans-serif}
+body{margin:0;background:#fafaf7;color:var(--ink);font:15px/1.55 'Golos Text',system-ui,sans-serif}
 button,input,textarea,select{font:inherit}button{cursor:pointer}
-.shell{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:100vh}
-.side{position:sticky;top:0;height:100vh;padding:24px 18px;background:var(--navy);color:#fff}
+.shell{display:grid;grid-template-columns:262px minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:0;height:100vh;padding:22px 16px;background:var(--navy);color:#fff;overflow:auto}
 .brand{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:800}
 .brand-mark{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#fff;color:var(--navy)}
-.role{margin:24px 0 16px;padding:14px;border:1px solid #28384d;border-radius:14px;background:#122238}
+.role{margin:18px 0 12px;padding:12px 14px;border:1px solid #28384d;border-radius:14px;background:#122238}
 .role small{display:block;color:#aebbd0;text-transform:uppercase;letter-spacing:.08em;font-size:11px}
-.role strong{display:block;margin-top:5px}
-.nav{display:grid;gap:7px}
-.nav button{width:100%;border:0;border-radius:10px;padding:10px 12px;background:transparent;color:#cdd6e4;text-align:left}
+.role strong{display:block;margin-top:5px;font-size:14px}
+.nav{display:grid;gap:5px}
+.nav .grp{margin:8px 0 2px;padding:0 10px;color:#7f93ad;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.1em}
+.nav button{width:100%;border:0;border-radius:10px;padding:8px 11px;background:transparent;color:#cdd6e4;text-align:left;font-size:13.5px;display:flex;justify-content:space-between;align-items:center;gap:6px}
 .nav button.on,.nav button:hover{background:#fff;color:var(--navy);font-weight:700}
-.side-score{position:absolute;left:18px;right:18px;bottom:22px}
+.nav button i{font-style:normal;font:700 10.5px JetBrains Mono;color:#7f93ad}
+.nav button.on i{color:var(--gold)}
+.nav button i.ok{color:#47d782}
+.side-score{margin-top:16px;padding-top:14px;border-top:1px solid #28384d}
 .score-ring{display:flex;align-items:center;gap:12px}
 .score-ring b{font:800 28px/1 JetBrains Mono}
 .side-score small{color:#aebbd0}
@@ -37,9 +41,10 @@ button,input,textarea,select{font:inherit}button{cursor:pointer}
 .content{max-width:1180px;margin:auto;padding:34px 34px 90px}
 .screen{display:none}.screen.on{display:block}
 .eyebrow{color:var(--gold);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.12em}
-h1{max-width:900px;margin:7px 0 12px;font-size:clamp(28px,4vw,46px);line-height:1.07;letter-spacing:-.04em}
+h1{max-width:900px;margin:7px 0 12px;font-size:clamp(28px,4vw,44px);line-height:1.07;letter-spacing:-.04em}
 h2{margin:0 0 10px;font-size:24px;line-height:1.2}
 h3{margin:0 0 7px;font-size:16px}
+h4{margin:0 0 6px;font-size:14px}
 p{color:var(--muted)}
 .lead{max-width:820px;font-size:17px}
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
@@ -50,29 +55,33 @@ p{color:var(--muted)}
 .card.accent p{color:#c9d4e4}
 .card.warn{background:#fff8ec;border-color:#e9d9b4}
 .card.good{background:#f0fbf4;border-color:#bfe6cd}
+.card.soft{background:#f7f5ef}
 .metric{font:800 30px/1.1 JetBrains Mono;color:var(--green)}
 .label{color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
 .btn{border:0;border-radius:11px;padding:11px 16px;font-weight:750;background:var(--navy);color:#fff}
 .btn:hover{transform:translateY(-1px)}
 .btn.secondary{background:#f1eee7;color:var(--ink)}
-.btn.green{background:var(--green)}.btn.purple{background:var(--purple)}
+.btn.green{background:var(--green)}.btn.purple{background:var(--purple)}.btn.gold{background:var(--gold)}
 .btn.outline{border:1px solid var(--line);background:#fff;color:var(--ink)}
+.btn.sm{padding:7px 12px;font-size:13px;border-radius:9px}
 .actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}
 .section-head{display:flex;align-items:flex-start;gap:18px;margin-bottom:22px}
-.section-head .num{display:grid;place-items:center;flex:0 0 48px;height:48px;border-radius:14px;background:var(--navy);color:#fff;font:800 18px JetBrains Mono}
+.section-head .num{display:grid;place-items:center;flex:0 0 48px;height:48px;border-radius:14px;background:var(--navy);color:#fff;font:800 16px JetBrains Mono}
 .section-head p{margin:4px 0}
 .step-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);gap:18px}
 .flash{min-height:340px;display:flex;flex-direction:column;justify-content:center}
 .flash .counter{font:700 12px JetBrains Mono;color:var(--muted)}
 .flash .tag{display:inline-block;margin-top:10px;padding:4px 10px;border-radius:99px;background:#eef2ff;color:#3730a3;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
 .flash .name{margin:12px 0 8px;font-size:27px;font-weight:800;letter-spacing:-.02em}
-.flash .goal{padding:12px 14px;border-left:3px solid var(--green);background:#f0fbf4;border-radius:0 10px 10px 0;color:#14532d;font-size:14px}
-.flash .say{margin-top:12px;padding:12px 14px;border-radius:10px;background:#f7f5ef;color:#475467;font-style:italic;font-size:14px}
+.flash .goal{padding:12px 14px;border-left:3px solid var(--blue);background:#eef3ff;border-radius:0 10px 10px 0;color:#1e3a8a;font-size:14px}
+.flash .prod{margin-top:8px;padding:12px 14px;border-left:3px solid var(--green);background:#f0fbf4;border-radius:0 10px 10px 0;color:#14532d;font-size:14px}
+.flash .say{margin-top:12px;padding:12px 14px;border-radius:10px;background:#f7f5ef;color:#475467;font-style:italic;font-size:14px;white-space:pre-line}
 .flash .crit{margin-top:12px;padding:11px 13px;border:1px dashed var(--line);border-radius:10px;font-size:13px;color:#475467}
+.flash .err{margin-top:8px;padding:11px 13px;border-radius:10px;background:#fff1f0;color:#7a271a;font-size:13px}
 .confidence{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:18px}
 .confidence button{border:1px solid var(--line);border-radius:10px;padding:10px 5px;background:#fff;font-size:13px}
 .confidence button:hover{border-color:var(--gold)}
-.step-list{max-height:470px;overflow:auto;padding-right:5px}
+.step-list{max-height:520px;overflow:auto;padding-right:5px}
 .step-row{display:grid;grid-template-columns:9px 1fr;gap:10px;padding:9px 4px;border-bottom:1px solid #eee;cursor:pointer;align-items:start}
 .step-row b{font-size:13.5px}
 .step-row small{display:block;color:var(--muted);font-size:12px}
@@ -88,6 +97,10 @@ p{color:var(--muted)}
 .sim-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .sim-head b{font-size:17px}
 .sim-meter{display:flex;gap:6px;align-items:center;font:700 13px JetBrains Mono;color:var(--purple)}
+.stagebar{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap}
+.stagebar span{flex:1;min-width:70px;padding:5px 7px;border-radius:8px;background:#efeaff;color:#5b3fc0;font-size:10.5px;font-weight:800;text-align:center;text-transform:uppercase;letter-spacing:.04em}
+.stagebar span.on{background:var(--purple);color:#fff}
+.stagebar span.done{background:#dff5e7;color:#14532d}
 .client{padding:14px 16px;border-radius:12px;background:#f3ecff;color:#3b2168;font-weight:600;font-size:15px;line-height:1.5}
 .client small{display:block;color:#7c6ba5;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
 .choices{display:grid;gap:8px;margin-top:14px}
@@ -108,14 +121,14 @@ textarea{min-height:80px;resize:vertical}
 .result-hero{padding:28px;border-radius:20px;background:linear-gradient(145deg,#0b1728,#193654);color:#fff}
 .result-hero p{color:#d5dfec}
 .big-score{font:800 clamp(56px,9vw,96px)/1 JetBrains Mono}
-.modules{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:20px}
-.module-score{padding:14px;border-radius:12px;background:rgba(255,255,255,.09)}
-.module-score b{display:block;font:800 21px JetBrains Mono}
+.modules{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:20px}
+.module-score{padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.09)}
+.module-score b{display:block;font:800 20px JetBrains Mono}
 .module-score small{color:#c9d4e4;font-size:11px}
 .status.pass{color:#65e59c}.status.fail{color:#ffbdad}
 .report{white-space:pre-wrap;padding:18px;border:1px solid var(--line);border-radius:13px;background:#fff;font:12px/1.6 JetBrains Mono}
 .lock{padding:24px;text-align:center;border:1px solid #e6d59a;border-radius:17px;background:#fff9e8}
-.lock-list{display:grid;gap:9px;max-width:560px;margin:16px auto;text-align:left}
+.lock-list{display:grid;gap:9px;max-width:620px;margin:16px auto;text-align:left}
 .lock-item{padding:11px 13px;border-radius:10px;background:#fff}
 .lock-item.done{color:var(--green);background:#ecfdf3}
 .toast{position:fixed;right:22px;bottom:22px;z-index:30;padding:11px 15px;border-radius:10px;background:#111827;color:#fff;opacity:0;transform:translateY(12px);pointer-events:none;transition:.2s}
@@ -123,19 +136,59 @@ textarea{min-height:80px;resize:vertical}
 .tbl{width:100%;border-collapse:collapse;margin-top:10px}
 .tbl th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line)}
 .tbl td{padding:10px;border-bottom:1px solid #f0ede4;font-size:14px;vertical-align:top}
+.tbl td.c{font:700 12px JetBrains Mono;white-space:nowrap}
+/* новые блоки */
+.stages7{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:16px}
+.stage-tile{padding:12px 10px;border:1px solid var(--line);border-radius:13px;background:#fff;font-size:12.5px;line-height:1.35}
+.stage-tile i{display:block;font:800 11px JetBrains Mono;color:var(--gold);margin-bottom:4px}
+.stage-tile b{display:block;font-size:13px;margin-bottom:5px}
+.stage-tile small{display:block;color:var(--muted);font-size:11.5px}
+.video{position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;background:#0b1728;border:1px solid var(--line)}
+.video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.tc{display:grid;gap:6px}
+.tc-row{display:grid;grid-template-columns:78px 1fr;gap:10px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:13.5px;align-items:start}
+.tc-row code{font:700 12px JetBrains Mono;color:var(--purple);padding-top:2px}
+.tc-row b{display:block;font-size:13.5px}
+.tc-row small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+.tc-row.note{background:#fff8ec;border-color:#e9d9b4}
+.term{padding:16px;border:1px solid var(--line);border-radius:13px;background:#fff;margin-bottom:12px}
+.term .def{margin:6px 0 8px;color:#344054;font-size:14px}
+.term .use{padding:9px 12px;border-radius:9px;background:#f7f5ef;font-size:13px;color:#475467;font-style:italic}
+.chk{display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0ede4;font-size:14px}
+.chk:last-child{border:0}
+.chk input{width:18px;height:18px;margin-top:2px;flex:none}
+.drill{padding:18px;border:1px solid #f0d9a8;border-radius:16px;background:linear-gradient(145deg,#fff9ec,#fff);margin-bottom:16px}
+.drill .who{display:inline-block;padding:4px 10px;border-radius:99px;background:#fff3d6;color:#8a5a2b;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.drill .say{margin:10px 0;padding:12px 14px;border-radius:10px;background:#f3ecff;color:#3b2168;font-weight:600}
+.drill details{margin-top:8px}
+.drill summary{cursor:pointer;font-weight:700;color:var(--gold)}
+.drill .etalon{margin-top:8px;padding:11px 13px;border-left:3px solid var(--green);background:#f0fbf4;color:#14532d;font-size:13.5px;white-space:pre-line}
+.projects{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.proj{padding:14px 16px;border:1px solid var(--line);border-radius:13px;background:#fff}
+.proj b{display:block;font-size:14px}
+.proj small{display:block;color:var(--muted);font-size:12.5px;margin-top:4px;line-height:1.45}
+.proj a{color:var(--blue);font-size:12.5px;font-weight:700;text-decoration:none}
+.proj .fx{margin-top:6px;font-size:12.5px;color:#344054}
+.att{display:grid;grid-template-columns:1.3fr repeat(2,110px) 1fr;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #f0ede4;font-size:13.5px}
+.att.h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+.att select{padding:7px 8px}
+.att input{padding:7px 9px}
+.mini{font-size:12.5px;color:var(--muted)}
 @media(max-width:900px){
  html,body{max-width:100%;overflow-x:hidden}
  .shell{grid-template-columns:minmax(0,1fr)}
  .side,.main{min-width:0;max-width:100%}
  .side{position:relative;height:auto;padding:12px}
  .role{display:none}
- .nav{display:flex;gap:6px;margin-top:10px;overflow-x:auto}
- .nav{min-width:0;max-width:100%}
+ .nav{display:flex;gap:6px;margin-top:10px;overflow-x:auto;min-width:0;max-width:100%}
+ .nav .grp{display:none}
  .nav button{flex:0 0 auto;width:auto;white-space:nowrap;background:#122238;min-height:42px}
  .nav button.on{background:#fff}
  .side-score{display:none}
- .grid,.grid.two,.grid.four,.step-layout{grid-template-columns:1fr}
+ .grid,.grid.two,.grid.four,.step-layout,.projects{grid-template-columns:1fr}
+ .stages7{grid-template-columns:repeat(2,1fr)}
  .modules{grid-template-columns:1fr 1fr}
+ .att{grid-template-columns:1fr 1fr}
  .content{padding:20px 12px 70px}
  .top{padding:10px 12px;flex-wrap:wrap;gap:8px}
  .top a{font-size:13px}
@@ -151,14 +204,24 @@ textarea{min-height:80px;resize:vertical}
 <div class="shell">
   <aside class="side">
     <div class="brand"><span class="brand-mark">P</span>Pllato Academy</div>
-    <div class="role"><small>Тренажёр поста</small><strong>Клоузер · две встречи до предоплаты</strong></div>
+    <div class="role"><small>Тренажёр поста</small><strong>Клоузер · первый зум по паттерну Pllato</strong></div>
     <nav class="nav" id="nav">
-      <button data-screen="passport" class="on">01 · Пост</button>
-      <button data-screen="steps">02 · 15 шагов</button>
-      <button data-screen="script">03 · Формулировки</button>
-      <button data-screen="obj">04 · Возражения</button>
-      <button data-screen="sim">05 · Симулятор</button>
-      <button data-screen="exam">06 · Аттестация</button>
+      <button data-screen="passport" class="on">01 · Пост и продукт <i id="n-passport"></i></button>
+      <div class="grp">Подготовка</div>
+      <button data-screen="aro">02 · АРО <i id="n-aro"></i></button>
+      <button data-screen="words">03 · Список слов <i id="n-words"></i></button>
+      <button data-screen="projects">04 · 10 проектов в App <i id="n-projects"></i></button>
+      <div class="grp">Паттерн встречи</div>
+      <button data-screen="stages">05 · Семь этапов <i id="n-stages"></i></button>
+      <button data-screen="video">06 · Демо-видео и разбор <i id="n-video"></i></button>
+      <button data-screen="check">07 · Проверка по этапам <i id="n-check"></i></button>
+      <div class="grp">Практика</div>
+      <button data-screen="drills">08 · Тренировки этапов <i id="n-drills"></i></button>
+      <button data-screen="obj">09 · Возражения <i id="n-obj"></i></button>
+      <button data-screen="sim">10 · Симулятор зума <i id="n-sim"></i></button>
+      <div class="grp">Аттестация</div>
+      <button data-screen="exam">11 · Тест <i id="n-exam"></i></button>
+      <button data-screen="live">12 · Постановочный зум <i id="n-live"></i></button>
       <button data-screen="result">Результат</button>
     </nav>
     <div class="side-score"><div class="score-ring"><b id="totalScore">0</b><div><small>из 100 баллов</small><div id="sideStatus">стажировка начата</div></div></div><div class="progress"><i id="progressFill"></i></div></div>
@@ -166,7 +229,7 @@ textarea{min-height:80px;resize:vertical}
   <main class="main">
     <header class="top">
       <a href="../app.html">← Вернуться в App</a><span class="spacer"></span>
-      <a href="../sales-deck.pdf" target="_blank" rel="noopener">Презентация</a>
+      <a href="https://docs.google.com/document/d/1J3uB_mCOwQCDwZZkD2FiQhUlf66akn1787NbtpctdOk/edit" target="_blank" rel="noopener">Паттерн зума · документ</a>
       <a href="../sales-playbook.pdf" target="_blank" rel="noopener">Плейбук</a>
       <span class="pill" id="saveState">Прогресс сохраняется</span>
     </header>
@@ -174,28 +237,26 @@ textarea{min-height:80px;resize:vertical}
 
     <!-- 01 ПОСТ -->
     <section class="screen on" id="screen-passport">
-      <div class="eyebrow">Паспорт поста</div>
-      <h1>Клоузер: доводит клиента от первой встречи до предоплаты</h1>
-      <p class="lead">Лид-менеджер приводит квалифицированного клиента на первую встречу. Дальше работает клоузер: две встречи, пятнадцать шагов, одна цель — деньги на счёте и запуск проекта. Этот тренажёр собран по разбору двенадцати записей реальных встреч.</p>
+      <div class="eyebrow">Паспорт поста · тренажёр v2</div>
+      <h1>Клоузер: проводит первый зум по паттерну и продаёт следующую встречу — показ демо</h1>
+      <p class="lead">Лид-менеджер приводит клиента на первый зум. Дальше работает клоузер: за 30–45 минут он узнаёт реальность клиента, показывает компетентность компании и закрывает на демо. Тренажёр собран по документу «Паттерн проведения зум-встречи Pllato» и по записи эталонной встречи с руководителем бухгалтерской компании.</p>
       <div class="grid" style="margin-top:22px">
-        <div class="card accent"><div class="label" style="color:#8fc4a6">Продукт поста</div><h3 style="color:#fff;margin-top:6px">Подписанный договор и деньги на счёте</h3><p>Не «проведённая встреча» и не «отправленное КП». Пост считается сработавшим, когда договор подписан, предоплата поступила и создан рабочий чат с техлидом.</p></div>
-        <div class="card"><div class="label">Статистика поста</div>
-          <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:6px">
-            <div><div class="metric">Договоры</div><p style="margin-top:2px;font-size:13px">количество новых подписанных договоров</p></div>
-            <div><div class="metric">Касса</div><p style="margin-top:2px;font-size:13px">сумма денег, поступивших на счёт</p></div>
-          </div>
-          <p style="margin-top:10px">Считаются по неделям. Не «проведённые встречи» и не «отправленные КП» — только договоры и деньги.</p></div>
-        <div class="card"><div class="label">Норматив тренажёра</div><div class="metric">80</div><p style="margin-top:6px">Из 100 баллов, с минимумом по каждому модулю. Ниже — повтор слабых блоков.</p></div>
+        <div class="card accent"><div class="label" style="color:#8fc4a6">Цель встречи</div><h3 style="color:#fff;margin-top:6px">Узнать реальность клиента и продемонстрировать компетентность компании</h3><p>Продать следующую встречу — показ демо. Не «провести созвон», не «рассказать о себе».</p></div>
+        <div class="card good"><div class="label">Продукт встречи</div><h3 style="margin-top:6px">Клиент знает, что с нами он получит желаемую программу, и готов работать с нами</h3><p style="color:#14532d">Признаки: клиент ждёт демо, прислал материалы, знает состав пакета, сроки и схему оплаты.</p></div>
+        <div class="card"><div class="label">Норматив тренажёра</div><div class="metric">80</div><p style="margin-top:6px">Из 100 баллов, с минимумом по каждому модулю и постановочным зумом на 7 этапов перед проверяющим. Ниже — повтор слабых блоков.</p></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h3>Семь этапов и продукт каждого</h3>
+        <p>Общее правило на всю встречу: двустороннее общение. Каждый этап вы проводите и добиваетесь его продукта, потом ведёте клиента в следующий. Вы говорите — клиент говорит — вы подтверждаете — идёте дальше.</p>
+        <div class="stages7" id="stagesOverview"></div>
       </div>
       <div class="grid two" style="margin-top:16px">
-        <div class="card good"><h3>Встреча 1 · знакомство и диагностика</h3><p style="color:#14532d"><b>Цель:</b> он должен захотеть увидеть демо.</p><p>Собираем картину бизнеса, доводим боль до цифры, показываем кейсы под его отрасль. Продажа на этом этапе — согласие на вторую встречу и материалы для демо.</p><p style="margin-top:8px"><b>Результат:</b> дата демо в календаре, логотип и материалы получены, известен ЛПР.</p></div>
-        <div class="card good"><h3>Встреча 2 · демо и старт</h3><p style="color:#14532d"><b>Цель:</b> он должен увидеть свой бизнес и начать.</p><p>Показываем собранное под него демо, собираем правки — так рождается объём. Считаем эффект, снимаем риски, закрываем на предоплату здесь же.</p><p style="margin-top:8px"><b>Результат:</b> счёт выставлен в чат, создан рабочий чат, назначен созвон по каркасу.</p></div>
-      </div>
-      <div class="grid two" style="margin-top:16px">
-        <div class="card"><h3>Что клоузер делает</h3>
-          <p>Ведёт встречу по шагам и держит структуру · задаёт вопросы и слушает больше, чем говорит · переводит боль в деньги · подбирает кейс под отрасль · фиксирует правки при клиенте · называет цену после объёма · закрывает каждый разговор датой следующего шага</p></div>
+        <div class="card"><h3>Прежде чем выйти на зум — три предварительных требования</h3>
+          <div class="chk"><input type="checkbox" disabled> <span><b>АРО</b> — посмотреть видео и сдать проверку (модуль 02)</span></div>
+          <div class="chk"><input type="checkbox" disabled> <span><b>Список слов</b> — восемь терминов, фронтальная проверка у руководителя (модуль 03)</span></div>
+          <div class="chk"><input type="checkbox" disabled> <span><b>10 последних проектов в App</b> — знать основной функционал каждого портала и уметь подобрать демо под запрос (модуль 04)</span></div></div>
         <div class="card warn"><h3>Что клоузер не делает</h3>
-          <p>Не обещает сроки и функции, которых нет в пакете · не называет цену раньше, чем услышал сумму потерь · не показывает двадцать экранов подряд · не заканчивает встречу словами «мы вам перезвоним» · не уходит со встречи без записанного резюме в чат</p></div>
+          <p>Не читает монолог о компании дольше минуты · не переходит к следующему этапу, пока не получен продукт текущего · не называет цену раньше, чем показана компетентность · не показывает двадцать экранов вместо трёх-пяти пунктов · не отпускает клиента без резюме и договорённости о демо</p></div>
       </div>
       <div class="card" style="margin-top:16px">
         <h3>Прежде чем начать</h3>
@@ -207,52 +268,155 @@ textarea{min-height:80px;resize:vertical}
       </div>
     </section>
 
-    <!-- 02 ШАГИ -->
-    <section class="screen" id="screen-steps">
-      <div class="section-head"><div class="num">02</div><div><h2>Пятнадцать шагов двух встреч</h2><p class="lead">У каждого шага одна цель и один признак, по которому понятно: можно идти дальше. Пройдите карточки и отметьте те, что можете провести без подсказки.</p></div></div>
+    <!-- 02 АРО -->
+    <section class="screen" id="screen-aro">
+      <div class="section-head"><div class="num">02</div><div><h2>АРО — с чего начинается любая встреча</h2><p class="lead">Первое предварительное требование из паттерна: прояснить АРО по видео и сдать проверку. Пока АРО не налажено, клиент не слышит ни компетентность, ни предложение.</p></div></div>
+      <div class="grid two">
+        <div class="card"><h3>Треугольник АРО</h3>
+          <p><b>А — аффинити</b>: расположение, симпатия, готовность быть рядом и слушать. <b>Р — реальность</b>: то, с чем оба согласны, общая картина «что здесь происходит». <b>О — общение</b>: обмен идеями туда и обратно с подтверждением.</p>
+          <p>Три угла связаны: поднимаете один — растут остальные. На зуме проще всего начать с общения: назвать клиента по имени, коротко сказать, кто вы и что сейчас будет, получить подтверждение. Реальность растёт, когда вы точно повторяете его слова о бизнесе. Аффинити растёт, когда вы слушаете больше, чем говорите.</p></div>
+        <div class="card"><h3>Как АРО выглядит на встрече</h3>
+          <div class="chk"><input type="checkbox" onchange="aroChk(0,this.checked)" id="aro0"> <span>Клиент назван по имени, вы представились одной фразой, сказали, что делаете</span></div>
+          <div class="chk"><input type="checkbox" onchange="aroChk(1,this.checked)" id="aro1"> <span>Вы объявили, что сейчас произойдёт: посмотрю карточку, задам вопросы, покажу примеры</span></div>
+          <div class="chk"><input type="checkbox" onchange="aroChk(2,this.checked)" id="aro2"> <span>Каждую реплику клиента вы подтверждаете: «понял», «ок», «записал»</span></div>
+          <div class="chk"><input type="checkbox" onchange="aroChk(3,this.checked)" id="aro3"> <span>Вы повторяете факты клиента его словами, а не своими терминами</span></div>
+          <div class="chk"><input type="checkbox" onchange="aroChk(4,this.checked)" id="aro4"> <span>Если связь пропала или клиент отвлёкся — вы восстанавливаете общение, а не продолжаете говорить</span></div>
+          <p class="mini" style="margin-top:8px">Отметьте, когда каждый пункт понятен и вы можете объяснить его своими словами.</p></div>
+      </div>
+      <div class="card" style="margin-top:16px"><h3>Видео по АРО</h3>
+        <p>Посмотрите видео, которое выдаёт руководитель (ссылка в чате стажировки), затем эталонную встречу в модуле 06: первые две минуты — чистая работа по АРО. После просмотра сдайте проверку ниже.</p>
+        <div class="field"><label>Ссылка на видео по АРО (вставьте, если выдали)</label><input id="aroVideo" placeholder="https://…" oninput="state.aroVideo=this.value;save()"></div>
+      </div>
+      <h3 style="margin-top:20px">Проверка по АРО</h3>
+      <div id="aroQuiz"></div>
+      <div class="actions"><button class="btn green" onclick="checkAro()">Проверить</button></div>
+      <p id="aroScore" style="margin-top:10px;font-weight:700"></p>
+    </section>
+
+    <!-- 03 СЛОВА -->
+    <section class="screen" id="screen-words">
+      <div class="section-head"><div class="num">03</div><div><h2>Список слов — фронтальная проверка</h2><p class="lead">Восемь терминов паттерна. Для каждого: определение, как оно звучит на встрече, и ваше объяснение своими словами. Руководитель проверяет фронтально: спрашивает термин — вы отвечаете без подсказки.</p></div></div>
+      <div id="wordsList"></div>
+      <h3 style="margin-top:20px">Тест на термины</h3>
+      <div id="wordsQuiz"></div>
+      <div class="actions"><button class="btn green" onclick="checkWords()">Проверить</button></div>
+      <p id="wordsScore" style="margin-top:10px;font-weight:700"></p>
+    </section>
+
+    <!-- 04 ПРОЕКТЫ -->
+    <section class="screen" id="screen-projects">
+      <div class="section-head"><div class="num">04</div><div><h2>Десять последних проектов в App</h2><p class="lead">Третье предварительное требование: посмотреть десять последних реальных проектов и сдать проверку на знание основного функционала каждого портала. На этапе «Демонстрация компетентности» вы подбираете из них 2–3 демо под запрос клиента и показываете 3–5 главных пунктов.</p></div></div>
+      <div class="projects" id="projList"></div>
+      <h3 style="margin-top:20px">Проверка: какое демо показать под запрос</h3>
+      <div id="projQuiz"></div>
+      <div class="actions"><button class="btn green" onclick="checkProjects()">Проверить</button></div>
+      <p id="projScore" style="margin-top:10px;font-weight:700"></p>
+    </section>
+
+    <!-- 05 ЭТАПЫ -->
+    <section class="screen" id="screen-stages">
+      <div class="section-head"><div class="num">05</div><div><h2>Семь этапов первого зума</h2><p class="lead">У каждого этапа есть цель, продукт, скрипт из паттерна и признак, по которому понятно, что продукт получен. Пройдите карточки и отметьте те, что проведёте без подсказки.</p></div></div>
       <div class="step-layout">
         <div class="card flash" id="flashCard"></div>
         <div class="card">
-          <h3>Отмечено: <span id="knownCount">0</span> из 15</h3>
-          <p style="font-size:13px">Кликните на шаг в списке, чтобы открыть его карточку.</p>
+          <h3>Отмечено: <span id="knownCount">0</span> из 7</h3>
+          <p style="font-size:13px">Кликните на этап в списке, чтобы открыть его карточку.</p>
           <div class="step-list" id="stepList"></div>
-          <div class="actions"><button class="btn green" onclick="gradeSteps()">Проверить знание шагов</button></div>
+          <div class="actions"><button class="btn green" onclick="gradeSteps()">Проверить знание этапов</button></div>
           <p id="stepsScore" style="margin-top:8px;font-weight:700;color:var(--ink)"></p>
         </div>
       </div>
     </section>
 
-    <!-- 03 ФОРМУЛИРОВКИ -->
-    <section class="screen" id="screen-script">
-      <div class="section-head"><div class="num">03</div><div><h2>Формулировки: что сказать в этот момент</h2><p class="lead">Десять ситуаций из реальных встреч. В каждой — выберите реплику, которая ведёт к цели шага. После проверки появится разбор.</p></div></div>
-      <div id="scriptCases"></div>
-      <div class="actions"><button class="btn green" onclick="checkScript()">Проверить ответы</button></div>
-      <p id="scriptScore" style="margin-top:10px;font-weight:700"></p>
+    <!-- 06 ВИДЕО -->
+    <section class="screen" id="screen-video">
+      <div class="section-head"><div class="num">06</div><div><h2>Эталонная встреча: видео и разбор по этапам</h2><p class="lead">Запись первого зума руководителя студии с Гульнар — руководителем бухгалтерской компании из Астаны (бухуслуги, аудит, обучение; 8 сотрудников в офисе и 3 удалённо; CRM нет, Битрикс не прижился). Смотрите с таймкодами: каждый этап паттерна виден в живом разговоре, включая отклонения от идеала.</p></div></div>
+      <div class="video"><iframe src="https://drive.google.com/file/d/1BhyhfHEpxDCwQ_50a5G3kHaxEwy7OQqk/preview" allow="autoplay; fullscreen" allowfullscreen loading="lazy" title="Эталонная встреча · первый зум"></iframe></div>
+      <p class="mini" style="margin-top:8px">Если видео не открывается во вкладке — <a href="https://drive.google.com/file/d/1BhyhfHEpxDCwQ_50a5G3kHaxEwy7OQqk/view" target="_blank" rel="noopener">откройте его на Google Диске</a>. Доступ выдаёт руководитель.</p>
+      <div class="grid two" style="margin-top:16px">
+        <div class="card"><h3>Таймкоды по этапам</h3><div class="tc" id="timecodes"></div></div>
+        <div>
+          <div class="card"><h3>Что смотреть в этой записи</h3>
+            <div class="chk"><input type="checkbox" onchange="vidChk(0,this.checked)" id="vid0"> <span><b>00:00–01:03 · Приветствие и обзор бизнеса.</b> Имя, «руководитель студии, мы программисты», карточка от Ирины, вопросы про CRM и сотрудников. Продукт: контакт налажен, картина бизнеса есть.</span></div>
+            <div class="chk"><input type="checkbox" onchange="vidChk(1,this.checked)" id="vid1"> <span><b>01:03–03:30 · Основной запрос.</b> Предположение «контроль бухгалтеров?» — клиент поправляет: «продажи и порядок внутри». Боли: Битрикс не прижился, звонки и WhatsApp теряются, споры с клиентами.</span></div>
+            <div class="chk"><input type="checkbox" onchange="vidChk(2,this.checked)" id="vid2"> <span><b>03:45–09:00 · Компетентность.</b> Демо бухгалтерии из Шымкента: нагрузка, дедлайны, календарь, задачи, клиенты, мультиворонка. Реакция: «примерно вот это мне надо».</span></div>
+            <div class="chk"><input type="checkbox" onchange="vidChk(3,this.checked)" id="vid3"> <span><b>09:39–15:05 · Стандартный пакет.</b> 1,5 млн, что входит и что отдельно (1С 500–800 тыс., сайт, боты), 4–6 недель, три этапа: старт, ядро, полировка.</span></div>
+            <div class="chk"><input type="checkbox" onchange="vidChk(4,this.checked)" id="vid4"> <span><b>19:15–24:45 · Ещё компетентность и предложение демо.</b> Хели-ски и склад, потом «два пути»: долгий с ТЗ и быстрый с ядром, 3–4 круга правок.</span></div>
+            <div class="chk"><input type="checkbox" onchange="vidChk(5,this.checked)" id="vid5"> <span><b>24:49–28:05 · «Что нужно, чтобы начать?»</b> Возражение про закредитованность → гибкая схема 10/30/30/30. Продукт этапа получен: «Давайте, вообще шикарно».</span></div>
+            <div class="chk"><input type="checkbox" onchange="vidChk(6,this.checked)" id="vid6"> <span><b>40:06–44:20 · Резюме и завершение.</b> Реквизиты, логотип, договор по ядру, ТЗ тезисно, подпись ЭЦП, «спасибо за доверие».</span></div>
+          </div>
+          <div class="card warn" style="margin-top:12px"><h3>Отклонения от паттерна — тоже учебный материал</h3>
+            <p>Клиент «горячий», поэтому встреча ушла дальше продукта первого зума: сразу договор и счёт. Отклонения: часть цены прозвучала по вопросу клиента до второго показа; резюме в конце не перечисляет состав демо пунктами; в середине длинное отступление про школу английского. Ваша задача в тесте ниже — отличить, что было по паттерну, а что нет.</p></div>
+        </div>
+      </div>
+      <h3 style="margin-top:20px">Проверка по видео</h3>
+      <div id="videoQuiz"></div>
+      <div class="actions"><button class="btn green" onclick="checkVideo()">Проверить</button></div>
+      <p id="videoScore" style="margin-top:10px;font-weight:700"></p>
     </section>
 
-    <!-- 04 ВОЗРАЖЕНИЯ -->
+    <!-- 07 ПРОВЕРКА ПО ЭТАПАМ -->
+    <section class="screen" id="screen-check">
+      <div class="section-head"><div class="num">07</div><div><h2>Проверка по каждому этапу</h2><p class="lead">Три вопроса на каждый из семи этапов: цель, продукт, что сказать и типичная ошибка. Засчитывается, когда по каждому этапу минимум два из трёх.</p></div></div>
+      <div id="checkQuiz"></div>
+      <div class="actions"><button class="btn green" onclick="checkStages()">Проверить</button></div>
+      <p id="checkScore" style="margin-top:10px;font-weight:700"></p>
+      <div id="checkByStage" style="margin-top:10px"></div>
+    </section>
+
+    <!-- 08 ТРЕНИРОВКИ -->
+    <section class="screen" id="screen-drills">
+      <div class="section-head"><div class="num">08</div><div><h2>Постановочные тренировки каждого этапа</h2><p class="lead">Семь тренировок — по одной на этап. Партнёр (руководитель или коллега) читает реплику клиента, вы отвечаете вслух и добиваетесь продукта этапа. Потом записываете свою формулировку, сверяете с эталоном и отмечаете чек-лист. Тренировка засчитана, когда все пункты чек-листа выполнены и партнёр подтвердил продукт.</p></div></div>
+      <div id="drillList"></div>
+      <div class="actions"><button class="btn green" onclick="gradeDrills()">Засчитать тренировки</button></div>
+      <p id="drillScore" style="margin-top:10px;font-weight:700"></p>
+    </section>
+
+    <!-- 09 ВОЗРАЖЕНИЯ -->
     <section class="screen" id="screen-obj">
-      <div class="section-head"><div class="num">04</div><div><h2>Возражения: десять самых частых</h2><p class="lead">Сначала выберите ответ, потом сформулируйте своими словами — сравните с эталоном. Возражение почти никогда не о том, о чём оно звучит.</p></div></div>
+      <div class="section-head"><div class="num">09</div><div><h2>Возражения первого зума</h2><p class="lead">Десять самых частых — и на каком этапе они обычно звучат. Сначала выберите ответ, потом сформулируйте своими словами. Возражение почти никогда не о том, о чём оно звучит.</p></div></div>
       <div id="objCases"></div>
       <div class="actions"><button class="btn green" onclick="checkObj()">Проверить ответы</button></div>
       <p id="objScore" style="margin-top:10px;font-weight:700"></p>
     </section>
 
-    <!-- 05 СИМУЛЯТОР -->
+    <!-- 10 СИМУЛЯТОР -->
     <section class="screen" id="screen-sim">
-      <div class="section-head"><div class="num">05</div><div><h2>Симулятор встречи</h2><p class="lead">Два прогона: первая встреча с производственной компанией и вторая встреча с показом демо. Каждое решение влияет на исход. Пройдите оба.</p></div></div>
+      <div class="section-head"><div class="num">10</div><div><h2>Симулятор первого зума</h2><p class="lead">Два прогона по семи этапам. Первый — Гульнар, бухгалтерская компания: реплики взяты из записи эталонной встречи. Второй — производство хлеба. Каждое решение даёт или отнимает очки; продукт каждого этапа отмечается в полосе сверху.</p></div></div>
       <div class="grid two" id="simPicker"></div>
       <div id="simBox" style="margin-top:16px"></div>
     </section>
 
-    <!-- 06 АТТЕСТАЦИЯ -->
+    <!-- 11 ТЕСТ -->
     <section class="screen" id="screen-exam">
-      <div class="section-head"><div class="num">06</div><div><h2>Итоговая аттестация</h2><p class="lead">Шестнадцать вопросов по логике двух встреч. Открывается после того, как пройдены шаги, формулировки, возражения и оба прогона симулятора.</p></div></div>
+      <div class="section-head"><div class="num">11</div><div><h2>Аттестация · тест</h2><p class="lead">Двадцать вопросов по паттерну, продуктам этапов, стандартному пакету и эталонной встрече. Открывается после подготовки, этапов, проверки, тренировок, возражений и обоих прогонов симулятора.</p></div></div>
       <div id="examLock"></div>
       <div id="examWrap" style="display:none">
         <div id="finalExam"></div>
-        <div class="actions"><button class="btn green" onclick="checkFinalExam()">Завершить аттестацию</button></div>
+        <div class="actions"><button class="btn green" onclick="checkFinalExam()">Завершить тест</button></div>
         <p id="examScore" style="margin-top:10px;font-weight:700"></p>
+      </div>
+    </section>
+
+    <!-- 12 ПОСТАНОВОЧНЫЙ ЗУМ -->
+    <section class="screen" id="screen-live">
+      <div class="section-head"><div class="num">12</div><div><h2>Аттестация · постановочный зум перед проверяющим</h2><p class="lead">Проверяющий играет клиента по легенде, стажёр ведёт все семь этапов подряд, 30–40 минут. По каждому этапу проверяющий ставит две оценки: <b>знает</b> (цель, продукт, скрипт) и <b>умеет</b> (продукт этапа получен в живом разговоре). Отдельно — общий продукт встречи.</p></div></div>
+      <div class="grid two">
+        <div class="card soft"><h3>Легенда для проверяющего</h3>
+          <p id="liveLegend"></p>
+          <div class="actions"><button class="btn sm outline" onclick="nextLegend()">Другая легенда</button></div></div>
+        <div class="card"><h3>Правила</h3>
+          <div class="chk"><input type="checkbox" disabled checked> <span>Стажёр не видит легенду до начала; карточку клиента получает как от лид-менеджера: сфера, город, число сотрудников, что есть из систем</span></div>
+          <div class="chk"><input type="checkbox" disabled checked> <span>Проверяющий даёт информацию только в ответ на вопросы и держит два возражения из легенды</span></div>
+          <div class="chk"><input type="checkbox" disabled checked> <span>Этап «умеет» засчитывается, только если продукт этапа получен: клиент подтвердил, а не стажёр объявил</span></div>
+          <div class="chk"><input type="checkbox" disabled checked> <span>Порог: «умеет» по всем семи этапам и общий продукт получен. Иначе — повтор через тренировки слабых этапов</span></div></div>
+      </div>
+      <div class="card" style="margin-top:16px"><h3>Лист проверяющего</h3>
+        <div class="att h"><span>Этап · продукт</span><span>Знает</span><span>Умеет</span><span>Заметка</span></div>
+        <div id="liveSheet"></div>
+        <div class="att" style="border-top:2px solid var(--line);margin-top:6px;padding-top:12px"><span><b>Общий продукт встречи:</b> клиент знает, что получит желаемую программу, и готов работать с нами — ждёт демо</span><span></span><select id="liveTotal" onchange="liveSet('total',this.value)"><option value="">—</option><option value="1">получен</option><option value="0">нет</option></select><input id="liveTotalNote" placeholder="Что именно подтвердил клиент" oninput="liveSet('totalNote',this.value)"></div>
+        <div class="actions"><button class="btn green" onclick="gradeLive()">Зафиксировать результат зума</button></div>
+        <p id="liveScore" style="margin-top:10px;font-weight:700"></p>
       </div>
     </section>
 
@@ -267,8 +431,9 @@ textarea{min-height:80px;resize:vertical}
       </div>
       <div class="grid two" style="margin-top:18px">
         <div class="card"><h3>Обязательные минимумы</h3><div id="gateList"></div></div>
-        <div class="card"><h3>Комментарий проверяющего</h3><textarea id="managerComment" placeholder="Что усилить перед боевыми встречами"></textarea><div class="actions"><button class="btn" onclick="copyReport()">Скопировать отчёт</button></div></div>
+        <div class="card"><h3>Что знает и умеет по этапам</h3><div id="stageMatrix"></div></div>
       </div>
+      <div class="card" style="margin-top:16px"><h3>Комментарий проверяющего</h3><textarea id="managerComment" placeholder="Что усилить перед боевыми зумами" oninput="state.managerComment=this.value;save()"></textarea><div class="actions"><button class="btn" onclick="copyReport()">Скопировать отчёт</button></div></div>
       <h3 style="margin-top:22px">Отчёт</h3>
       <div class="report" id="reportText">—</div>
     </section>
@@ -278,417 +443,526 @@ textarea{min-height:80px;resize:vertical}
 </div>
 <div class="toast" id="toast"></div>
 <script>
-const KEY='pllato-closer-training-v1';
+const KEY='pllato-closer-training-v2';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 let state=JSON.parse(localStorage.getItem(KEY)||'{}');
-state.profile=state.profile||{};state.known=state.known||{};state.scriptAnswers=state.scriptAnswers||{};
-state.objAnswers=state.objAnswers||{};state.objText=state.objText||{};state.examAnswers=state.examAnswers||{};
-state.scores=state.scores||{steps:0,script:0,obj:0,sim:0,exam:0};state.sim=state.sim||{};
+state.profile=state.profile||{};state.known=state.known||{};state.aroChk=state.aroChk||{};state.vidChk=state.vidChk||{};
+state.a=state.a||{};                       // ответы тестов по ключу модуля: a.aro, a.words, a.proj, a.video, a.check, a.exam, a.obj
+['aro','words','proj','video','check','exam','obj'].forEach(k=>state.a[k]=state.a[k]||{});
+state.wordsText=state.wordsText||{};state.objText=state.objText||{};state.drills=state.drills||{};state.live=state.live||{};state.sim=state.sim||{};
+state.scores=state.scores||{};
+const MAX={aro:5,words:5,projects:5,stages:10,video:10,check:15,drills:10,obj:10,sim:10,exam:10,live:10};
+const MIN={aro:4,words:4,projects:4,stages:7,video:7,check:11,drills:8,obj:7,sim:7,exam:7,live:8};
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function save(){localStorage.setItem(KEY,JSON.stringify(state));updateScore();$('#saveState').textContent='Сохранено · '+new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}
-function toast(t){$('#toast').textContent=t;$('#toast').classList.add('on');setTimeout(()=>$('#toast').classList.remove('on'),1800)}
-function showScreen(id){$$('.screen').forEach(x=>x.classList.toggle('on',x.id==='screen-'+id));$$('#nav button').forEach(x=>x.classList.toggle('on',x.dataset.screen===id));if(id==='exam')renderExamAccess();if(id==='result')renderResult();if(id==='sim')renderSimPicker();window.scrollTo(0,0)}
+function toast(t){$('#toast').textContent=t;$('#toast').classList.add('on');setTimeout(()=>$('#toast').classList.remove('on'),2000)}
+function showScreen(id){$$('.screen').forEach(x=>x.classList.toggle('on',x.id==='screen-'+id));$$('#nav button').forEach(x=>x.classList.toggle('on',x.dataset.screen===id));if(id==='exam')renderExamAccess();if(id==='result')renderResult();if(id==='sim')renderSimPicker();if(id==='live')renderLive();window.scrollTo(0,0)}
 $$('#nav button').forEach(b=>b.onclick=()=>showScreen(b.dataset.screen));
-function saveProfile(){state.profile.name=$('#traineeName').value.trim();state.profile.manager=$('#managerName').value.trim()||'Руководитель';state.profile.startedAt=state.profile.startedAt||new Date().toISOString();save();showScreen('steps')}
+function saveProfile(){state.profile.name=$('#traineeName').value.trim();state.profile.manager=$('#managerName').value.trim()||'Руководитель';state.profile.startedAt=state.profile.startedAt||new Date().toISOString();save();showScreen('aro')}
 
-/* ===== ДАННЫЕ: 15 ШАГОВ ===== */
-const STEPS=[
- ['Встреча 1','Рамка встречи','Снять ожидание «сейчас будут впаривать», задать структуру и получить разрешение на запись.',
-  '«Предлагаю так: сначала 15 минут вы рассказываете, как всё устроено, потом считаем, где теряются деньги, потом покажу похожие системы. Разговор записываю, чтобы ничего не потерять при подготовке — вы не против?»',
-  'Клиент согласился со структурой и разрешил запись.'],
- ['Встреча 1','Кто мы за 90 секунд','Дать основание доверять, не уходя в самопрезентацию.',
-  '«Мы выросли из своей боли: у нас сеть школ английского, и портал мы построили, чтобы управлять ею. Сейчас в работе 24 клиента. Готовых коробок у нас нет — задачи у собственников разные».',
-  'Клиент не спрашивает «а кто вы вообще». Дольше двух минут о себе — ошибка.'],
- ['Встреча 1','Диагностика бизнеса','Собрать реальную картину и услышать боль словами клиента.',
-  '«Расскажите, как у вас всё устроено. Где сейчас живёт каждый шаг — таблица, 1С, тетрадь, голова конкретного человека? Какую-то систему уже начинали делать?»',
-  'Клиент назвал минимум две конкретные болевые истории, и понятно, какой блок для него главный.'],
- ['Встреча 1','Перевод боли в деньги','Добиться, чтобы клиент сам произнёс сумму потерь.',
-  '«Сколько обращений в неделю? Сколько остаётся без ответа? Какой средний чек? То есть примерно столько-то в месяц вы просто не берёте, правильно?»',
-  'Прозвучала сумма в тенге, названная клиентом. Повторяем её вслух и получаем подтверждение.'],
- ['Встреча 1','Кейсы под отрасль','Клиент должен подумать «они уже решали ровно мою задачу».',
-  '«Склад — это ячейки: занято, свободно. У вас то же самое, только вместо ячеек — транспорт и даты».',
-  'Реакция узнавания: «а у нас так же», «а можно нам такой калькулятор».'],
- ['Встреча 1','Объём, процесс, цена','Назвать вилку и схему оплаты так, чтобы снять риск. Порядок: сначала объём, потом процесс, только потом деньги.',
-  '«Стандартный пакет — от полутора до двух с половиной миллионов. Всю сумму сразу не берём: десять процентов на старте, сорок пять после ядра, сорок пять после запуска».',
-  'Клиент не спорит с вилкой, а уточняет состав. Цена до шага 4 — грубая ошибка.'],
- ['Встреча 1','Закрытие на демо','Получить дату, участников и материалы.',
-  '«Мы за пару дней соберём демо вашей системы — бесплатно, вас ни к чему не обязывает. Когда удобно: в четверг в 15:00 или в пятницу утром?»',
-  'Дата в календаре, логотип и материалы получены, известен состав участников показа.'],
- ['Встреча 2','Возврат к боли','Клиент слышит собственные формулировки — самый сильный момент второй встречи.',
-  '«Вы сказали: не видим, кто сколько заплатил, приходится сидеть с бухгалтером. И второе — сырьё копится и списывается раз в год. По вашим цифрам это примерно столько-то. Всё верно?»',
-  'Клиент подтвердил и, скорее всего, добавил ещё одну боль — её надо записать.'],
- ['Встреча 2','Рамка показа','Снять ожидание готовой программы и получить разрешение на диалог.',
-  '«Это кликабельный макет: данные не сохраняются, цифры демонстрационные. Перебивайте каждый раз, когда видите не своё. Сейчас пришлю ссылку — откройте у себя».',
-  'Клиент открыл демо у себя и понимает, что от него ждут правок.'],
- ['Встреча 2','Показ по маршруту','Клиент видит свой бизнес и начинает говорить «а вот здесь бы нам ещё…».',
-  'Порядок: экран его боли → роли его сотрудников → один сценарий целиком → экран собственника → пауза и вопрос «что здесь не так?».',
-  'Клиент сам начал предлагать изменения. Три экрана глубоко лучше двадцати пролистанных.'],
- ['Встреча 2','Фиксация правок','Превратить показ в согласованный объём работ.',
-  '«Зафиксирую: в заявках добавляем источник и ответственного, в складе — инвентаризацию с расхождениями. Это входит в пакет. Отдельно только обмен с 1С. Ничего не пропустил?»',
-  'Клиент подтвердил список и не добавляет нового. Список идёт приложением к договору.'],
- ['Встреча 2','Эффект в деньгах','Перевести разговор из «дорого» в «окупается» на его же цифрах.',
-  '«Вы говорили: возврат около семи процентов. Снижаем на полтора пункта — это столько-то в месяц. Даже если эффект вдвое меньше нашей оценки, система окупается за первый год».',
-  'Клиент согласился с расчётом или поправил цифру — в обоих случаях он в него включился.'],
- ['Встреча 2','Условия и снятие рисков','Закрыть страхи до того, как клиент их озвучит: зависимость, данные, «а что потом».',
-  '«Сервер оформляется на вас, после сдачи вы меняете пароль. Обычно спрашивают, можно ли передать другому разработчику — можно, мы специально так делаем».',
-  'Клиент не задаёт тревожных вопросов — они уже отвечены. Подарки называются только здесь, когда объём согласован.'],
- ['Встреча 2','Закрытие на предоплату','Действие сегодня, а не «мы подумаем». Просим не решение, а реквизиты.',
-  '«Предлагаю начинать. Если предоплата сегодня — пять процентов скидки на весь заказ. Скажите реквизиты, я выставлю счёт прямо сейчас в чат».',
-  'Счёт выставлен, рабочий чат создан, назначен первый созвон по каркасу.'],
- ['Встреча 2','Если решение откладывается','Не выпустить встречу в тишину: любой финал имеет дату.',
-  '«Когда вы обсуждаете? Давайте я буду на связи в этот день. Цену и скидку держим до такого-то числа» — и резюме в чат в тот же день.',
-  'Есть конкретная дата следующего контакта и письменное резюме в чате.']
+/* ===== СЕМЬ ЭТАПОВ (из документа «Паттерн проведения зум-встречи Pllato») ===== */
+const STAGES=[
+ {n:'Приветствие',goal:'Наладить АРО.',prod:'Контакт есть: клиент расположен, знает, кто вы и что сейчас будет.',
+  say:'«Добрый день, Гульнара. Меня зовут ______. Очень приятно с вами познакомиться. Я менеджер вашего проекта. Мы студия программного обеспечения — мы программисты, пишем программы под задачи бизнеса, различные задачи».',
+  crit:'Клиент ответил, подтвердил, что слышит и видит, и сам начал говорить. Разговор двусторонний с первой минуты.',
+  err:'Монолог о компании дольше минуты. Или «ну давайте, показывайте» — и вы сразу открываете демо без контакта.'},
+ {n:'Обзор бизнеса клиента',goal:'Наладить больший контакт.',prod:'Точная текущая картина бизнеса: чем занимается, какая система или её нет, сколько сотрудников и филиалов, объёмы.',
+  say:'«Я открою вашу карточку. Ок, вы занимаетесь ______. У вас ______ (такая-то система или отсутствие системы). Столько-то сотрудников. Сколько у вас сотрудников? Филиалов?»',
+  crit:'Вы можете повторить картину бизнеса тремя фразами, и клиент её подтвердил. Каждый ответ подтверждён: «понял», «ок».',
+  err:'Анкета без интереса — вопросы подряд без подтверждений. Или додумать за клиента вместо того, чтобы спросить.'},
+ {n:'Основной запрос клиента',goal:'Установить реальность клиента относительно его запроса на разработку и выявить основную боль.',prod:'Клиент расположен к нам и готов выслушать нас.',
+  say:'«Уважаемая Гульнара, прошу, скажите, в чём сейчас основной запрос? Вы хотите структурировать работу бухгалтеров? Или это продажи? В чём текущие сложности? Что вы хотите реализовать?»\nПримечание: на основании обзора бизнеса сделайте предположение о самом важном — и дайте клиенту рассказать. Он рассказывает про себя и высказывает боли.',
+  crit:'Клиент сам назвал главную боль и два-три запроса. Вы их подтвердили и записали — технический список начат.',
+  err:'Предложить решение вместо того, чтобы слушать. Спорить с запросом. Перебивать, когда клиент рассказывает историю.'},
+ {n:'Демонстрация компетентности',goal:'Продемонстрировать компетентность, превышающую запрос клиента.',prod:'Клиент уверен в нашей компетентности.',
+  say:'«Мы делаем множество различных проектов, в среднем 2–3 новых проекта в неделю к нам заходит. Хочу показать вам: к нам ранее обращались с похожим запросом. Вы поймёте, какую глубину мы можем сделать».\nПримечание: работаете со списком демо в App. Под запрос подбираете 2–3 демо и показываете 3–5 основных пунктов. Добиваетесь «Уау» — клиент видит примеры, которые будут у него.',
+  crit:'Реакция узнавания: «примерно это мне и надо», «а можно нам так же?», вопросы про функции. Компетентность превысила запрос.',
+  err:'Показывать всё подряд, двадцать экранов. Демо не по запросу. Рассказ о технологиях вместо показа.'},
+ {n:'Предложение — Стандартный пакет разработки',goal:'Дать реальность относительно Стандартного пакета: состав, сроки, стоимость.',prod:'Клиент проявляет большой интерес к разработке своего приложения с нами.',
+  say:'«У нас есть понятие Стандартного пакета разработки. Всё, что мы с вами проговорили, входит в него: 4–6 недель, мы выкатываем несколько билдов, вносим с вами правки и полируем. Стоимость — 1,5 млн тенге. Отдельно всегда считаем 1С-интеграцию, прикладные программы, разработку сайта. Я подготовлю КП и пропишу все договорённости.\nТри этапа: старт — готовим демо и показываем видео системы по итогам встречи; ядро — основные пункты, утверждаем; полировка — правки. Оплата: 10 % на старте, 45 % после согласования и сдачи ядра, 45 % при полной сдаче».',
+  crit:'Клиент уточняет состав и этапы, а не спорит с ценой. Понимает, что входит и что считается отдельно.',
+  err:'Цена без состава. Обещать 1С или сайт внутри пакета. Забыть про три этапа и схему 10/45/45.'},
+ {n:'Предложение — Создание демо',goal:'Закрыть клиента на следующую встречу.',prod:'Клиент готов к разработке и ждёт демо.',
+  say:'«Мы создадим для вас демо, чтобы вы могли вживую увидеть и кликать, как мы реализуем ваш запрос. Существует два подхода. Первый — писать сейчас полное ТЗ: долгий путь, и в конце вы чуть разочаруетесь — собственники всегда хотят что-то доделать. Второй — выкатить ядро и править его: 2–3 версии, и вы получите то, что хотите. Скажите, Гульнара, что нам нужно, чтобы мы могли начать?»\nПримечание: демо — это не бесплатная работа, а начало разработки. Клиент должен это понимать и быть готовым.',
+  crit:'Клиент ответил на «что нужно, чтобы начать» конкретикой: материалы, реквизиты, участники, дата показа. Дата демо согласована.',
+  err:'«Подумайте, я на связи» без даты. Демо как подарок без обязательств. Закрытие до того, как показана компетентность.'},
+ {n:'Резюме и завершение',goal:'Подвести итог встречи, сжато дать то, что будет реализовано в демо.',prod:'Клиент полностью ориентирован и ждёт продолжения.',
+  say:'«Я подведу небольшой итог. Мы включаем в демо: ______, ______, ______. Спасибо большое, что пришли. Ждём вас завтра в то же время».',
+  crit:'Клиент подтвердил перечень и дату. Резюме тем же днём отправлено в чат.',
+  err:'Закончить без перечня — клиент не знает, чего ждать. Не назначить время следующей встречи.'}
 ];
+$('#stagesOverview').innerHTML=STAGES.map((s,i)=>`<div class="stage-tile"><i>ЭТАП ${i+1}</i><b>${esc(s.n)}</b><small><b>Продукт:</b> ${esc(s.prod)}</small></div>`).join('');
 let stepIndex=0;
-function renderStep(){const s=STEPS[stepIndex];
- $('#flashCard').innerHTML=`<div class="counter">Шаг ${stepIndex+1} из 15</div><span class="tag">${esc(s[0])}</span>
- <div class="name">${esc(s[1])}</div>
- <div class="goal"><b>Цель шага:</b> ${esc(s[2])}</div>
- <div class="say">${esc(s[3])}</div>
- <div class="crit"><b>Переход дальше, когда:</b> ${esc(s[4])}</div>
+function renderStep(){const s=STAGES[stepIndex];
+ $('#flashCard').innerHTML=`<div class="counter">Этап ${stepIndex+1} из 7</div><span class="tag">первый зум</span>
+ <div class="name">${esc(s.n)}</div>
+ <div class="goal"><b>Цель:</b> ${esc(s.goal)}</div>
+ <div class="prod"><b>Продукт этапа:</b> ${esc(s.prod)}</div>
+ <div class="say">${esc(s.say)}</div>
+ <div class="crit"><b>Продукт получен, когда:</b> ${esc(s.crit)}</div>
+ <div class="err"><b>Типичная ошибка:</b> ${esc(s.err)}</div>
  <div class="confidence"><button onclick="markStep(0)">Повторить</button><button onclick="markStep(1)">Понимаю</button><button onclick="markStep(2)">Проведу сам</button></div>
  <div class="actions" style="justify-content:center"><button class="btn secondary" onclick="moveStep(-1)">←</button><button class="btn secondary" onclick="moveStep(1)">→</button></div>`;
  renderStepList()}
-function moveStep(d){stepIndex=(stepIndex+d+STEPS.length)%STEPS.length;renderStep()}
-function markStep(l){state.known[stepIndex]=l;if(l>0&&stepIndex<STEPS.length-1)stepIndex++;save();renderStep()}
+function moveStep(d){stepIndex=(stepIndex+d+STAGES.length)%STAGES.length;renderStep()}
+function markStep(l){state.known[stepIndex]=l;if(l>0&&stepIndex<STAGES.length-1)stepIndex++;save();renderStep()}
 function renderStepList(){$('#knownCount').textContent=Object.values(state.known).filter(x=>x>0).length;
- $('#stepList').innerHTML=STEPS.map((s,i)=>`<div class="step-row" onclick="stepIndex=${i};renderStep()"><span class="dot ${state.known[i]>0?'ok':''}"></span><div><b>${i+1}. ${esc(s[1])}</b><small>${esc(s[0])} · ${esc(s[2]).slice(0,64)}…</small></div></div>`).join('')}
+ $('#stepList').innerHTML=STAGES.map((s,i)=>`<div class="step-row" onclick="stepIndex=${i};renderStep()"><span class="dot ${state.known[i]>0?'ok':''}"></span><div><b>${i+1}. ${esc(s.n)}</b><small>${esc(s.prod).slice(0,70)}…</small></div></div>`).join('')}
 function gradeSteps(){const full=Object.values(state.known).filter(x=>x===2).length,any=Object.values(state.known).filter(x=>x>0).length;
- state.scores.steps=Math.min(20,Math.round(full*1.1+any*0.25));save();
- $('#stepsScore').textContent=`Результат: ${state.scores.steps}/20 · «проведу сам» отмечено на ${full} шагах из 15`;
- toast(full>=12?'Норматив по шагам выполнен':'Отметьте «проведу сам» минимум на 12 шагах')}
+ state.scores.stages=Math.min(MAX.stages,Math.round(full*1.3+any*0.15));save();
+ $('#stepsScore').textContent=`Результат: ${state.scores.stages}/${MAX.stages} · «проведу сам» отмечено на ${full} этапах из 7`;
+ toast(state.scores.stages>=MIN.stages?'Норматив по этапам выполнен':'Отметьте «проведу сам» минимум на 6 этапах');markNav()}
 
-/* ===== ФОРМУЛИРОВКИ ===== */
-const SCRIPT_CASES=[
- ['Начало первой встречи','Клиент подключился и сразу: «Ну давайте, показывайте, что там у вас».',
-  ['«Конечно, сейчас покажу нашу презентацию и кейсы».',
-   '«Покажу обязательно. Но чтобы показать именно то, что вам полезно, дайте мне десять минут на вопросы: как у вас всё устроено и что горит».',
-   '«У нас 24 клиента, сейчас расскажу про каждого».',
-   '«Сначала обсудим бюджет, чтобы не тратить время».'],1,
-  'Показ без диагностики превращается в лотерею. Мягко разворачиваем на вопросы, обещая показ дальше — клиент почти всегда соглашается.'],
- ['Диагностика','Клиент говорит: «Да у нас всё нормально, просто хотим автоматизировать».',
-  ['«Отлично, тогда предлагаю стандартный пакет за два миллиона».',
-   '«А что именно автоматизировать? Давайте по шагам: заявка, сделка, склад, отгрузка, деньги — где сейчас живёт каждый шаг?»',
-   '«Хорошо, я пришлю коммерческое предложение».',
-   '«Значит, у вас нет проблем? Тогда зачем вам система?»'],1,
-  '«Всё нормально» — это не отсутствие боли, а отсутствие вопроса. Карта цепочки заставляет клиента самому найти разрыв.'],
- ['Диагностика','Клиент: «Мы уже пробовали внедрять, не пошло».',
-  ['«Значит, у вас плохие подрядчики были».',
-   '«У нас такого не бывает».',
-   '«Расскажите, что именно пробовали и на чём застряло? Мне важно не повторить это».',
-   '«Забудьте, у нас другой подход».'],2,
-  'Прошлый неудачный опыт — самая ценная информация встречи: в нём и страхи, и требования. Никогда не обесцениваем предыдущего подрядчика.'],
- ['Перевод боли в деньги','Клиент рассказал, что заявки теряются в личных телефонах менеджеров.',
-  ['«Понятно, это мы решим, у нас есть общая лента обращений».',
-   '«Сколько заявок в неделю приходит? Сколько примерно теряется? Какой средний чек? Значит, речь про такую-то сумму в месяц — верно?»',
-   '«Это классическая проблема, у всех так».',
-   '«Тогда вам точно нужна CRM».'],1,
-  'Пока боль не названа в тенге, цена системы не с чем сравнивать. Цифру должен произнести клиент, а мы — повторить её вслух.'],
- ['Показ кейса','Клиент — пекарня, а у нас под рукой кейс по вагонам.',
-  ['Не показывать: отрасль не совпадает.',
-   'Показать и сказать: «это вагоны, но механика ваша — учёт по каждой единице: что отгрузили, что вернулось, кто сколько должен».',
-   'Показать и подробно рассказать про железную дорогу.',
-   'Показать все кейсы подряд, вдруг что-то подойдёт.'],1,
-  'Клиент покупает не отрасль, а механику. Наша задача — перевести чужой кейс на его язык, тогда он достраивает картину сам.'],
- ['Цена','Клиент на первой встрече: «Сколько это будет стоить?» — но сумму потерь мы ещё не считали.',
-  ['«От полутора до двух с половиной миллионов».',
-   '«Пока не могу сказать точно, надо считать».',
-   '«Скажу вилку через пару минут — сначала уточню два момента, от которых она зависит: сколько у вас сотрудников в системе и нужен ли обмен с 1С».',
-   '«Это зависит от вашего бюджета — сколько вы готовы потратить?»'],2,
-  'Не уходим от вопроса и не отвечаем сразу: берём короткую паузу на два уточнения, чтобы вилка прозвучала уже после понимания объёма.'],
- ['Закрытие первой встречи','Встреча прошла хорошо, клиент доволен и говорит: «Спасибо, было полезно, мы подумаем».',
-  ['«Хорошо, ждём вашего решения».',
-   '«Давайте так: мы за пару дней соберём демо под ваш бизнес — бесплатно. Вам удобнее в четверг в три или в пятницу утром?»',
-   '«Я пришлю коммерческое предложение на почту».',
-   '«А что вас смущает?»'],1,
-  'Думать клиенту не над чем — предложения ещё нет. Следующий шаг должен быть маленьким, бесплатным и с конкретной датой.'],
- ['Начало второй встречи','Клиент пришёл на показ демо. С чего начинаем?',
-  ['С титульного экрана и обзора всех разделов по порядку.',
-   'С экрана, который закрывает боль, о которой он говорил в прошлый раз.',
-   'С прайса и условий, чтобы сразу понимать, интересно ли ему.',
-   'С рассказа о нашей команде и технологиях.'],1,
-  'Первые две минуты решают всё. Экран его боли включает узнавание, а обзор по порядку — усыпляет.'],
- ['Показ демо','Клиент молчит уже пять минут, пока вы показываете экраны.',
-  ['Продолжать показ — значит, всё нравится.',
-   'Ускориться и показать больше экранов.',
-   'Остановиться: «Давайте я замолчу. Что из этого не про вас? Где мы промахнулись?»',
-   'Спросить: «Ну как, нравится?»'],2,
-  'Молчание — это не согласие. Вопрос «где мы промахнулись» разрешает критиковать и почти всегда возвращает клиента в диалог.'],
- ['Закрытие второй встречи','Демо показано, правки собраны, эффект посчитан. Клиент кивает.',
-  ['«Подумайте, я на связи».',
-   '«Отправить вам договор на почту?»',
-   '«Предлагаю начинать. Предоплата десять процентов, и если сегодня — пять процентов скидки на весь заказ. Скажите реквизиты, выставлю счёт прямо сейчас в чат».',
-   '«Когда вам перезвонить?»'],2,
-  'Просим не решение, а действие — реквизиты. Счёт в чат при клиенте, пока он на связи, а не «отправим позже».']
+/* ===== ОБЩИЙ ДВИЖОК ТЕСТОВ ===== */
+function renderQuiz(sel,key,Q,withSit){$(sel).innerHTML=Q.map((q,i)=>`<div class="quiz-q" data-q="${i}"><b>${i+1}. ${esc(q.q)}</b>${withSit&&q.sit?`<div class="sit">${esc(q.sit)}</div>`:''}
+ ${q.o.map((o,j)=>`<button class="option ${state.a[key][i]==j?'selected':''}" onclick="pickA('${key}',${i},${j},this)">${esc(o)}</button>`).join('')}</div>`).join('')}
+function pickA(key,qi,oi,el){state.a[key][qi]=oi;el.parentElement.querySelectorAll('.option').forEach(x=>x.classList.remove('selected'));el.classList.add('selected');save()}
+function gradeQuiz(sel,key,Q){let c=0;Q.forEach((q,i)=>{if(state.a[key][i]===q.c)c++});
+ $$(sel+' .quiz-q').forEach((box,i)=>{box.querySelectorAll('.option').forEach((o,j)=>{o.classList.remove('correct','wrong');if(j===Q[i].c)o.classList.add('correct');else if(state.a[key][i]===j)o.classList.add('wrong')});
+  if(Q[i].x&&!box.querySelector('.quote'))box.insertAdjacentHTML('beforeend',`<div class="quote"><b>Разбор:</b> ${esc(Q[i].x)}</div>`)});
+ return c}
+
+/* ===== 02 АРО ===== */
+const ARO_Q=[
+ {q:'Что такое АРО?',o:['Треугольник: аффинити (расположение), реальность (согласие о том, что происходит), общение — три угла, которые растут вместе','Анализ, риск, оценка проекта','Алгоритм разбора обращений клиента','Автоматизация, разработка, обслуживание'],c:0,x:'Поднимаете один угол — растут остальные. Это и есть «наладить контакт».'},
+ {q:'С какого угла проще всего начать на зуме?',o:['С общения: назвать по имени, сказать одной фразой, кто вы, объявить, что сейчас будет, получить подтверждение','С аффинити: сделать пару комплиментов бизнесу','С реальности: сразу рассказать факты о компании и ценах','С предложения скидки, чтобы расположить'],c:0,x:'Общение — самый управляемый угол. Приветствие в паттерне построено именно так.'},
+ {q:'Что растёт, когда вы точно повторяете слова клиента о его бизнесе?',o:['Реальность — и вместе с ней аффинити и общение','Только длительность встречи','Ничего, это вежливость','Ваш статус эксперта'],c:0,x:'Клиент слышит, что его поняли. Поэтому обзор бизнеса делается его словами, а не нашими терминами.'},
+ {q:'Клиент отвлёкся на наушники, связь оборвалась. Что делать?',o:['Продолжить показ, потом повторить','Восстановить общение: подождать, переспросить «слышно?», повторить последнее и получить подтверждение','Перенести встречу','Написать в WhatsApp и закончить'],c:1,x:'В эталонной записи это случается трижды. Каждый раз руководитель сначала восстанавливает общение и только потом продолжает.'},
+ {q:'Признак того, что АРО налажено после приветствия',o:['Клиент ответил, подтвердил, что слышит и видит, и сам начал говорить о себе','Клиент молчит и слушает','Вы рассказали о компании три минуты без перебиваний','Клиент сразу спросил цену'],c:0,x:'Продукт приветствия — двустороннее общение, а не выслушанная презентация.'}
 ];
-function renderScript(){$('#scriptCases').innerHTML=SCRIPT_CASES.map((q,i)=>`<div class="quiz-q" data-q="${i}">
- <b>${i+1}. ${esc(q[0])}</b><div class="sit">${esc(q[1])}</div>
- ${q[2].map((o,j)=>`<button class="option ${state.scriptAnswers[i]==j?'selected':''}" onclick="pick('script',${i},${j},this)">${esc(o)}</button>`).join('')}</div>`).join('')}
-function pick(kind,qi,oi,el){const map=kind==='script'?state.scriptAnswers:kind==='obj'?state.objAnswers:state.examAnswers;
- map[qi]=oi;el.parentElement.querySelectorAll('.option').forEach(x=>x.classList.remove('selected'));el.classList.add('selected');save()}
-function paint(sel,qs,ans,correctIdx){$$(sel+' .quiz-q').forEach((box,i)=>{box.querySelectorAll('.option').forEach((o,j)=>{
- o.classList.remove('correct','wrong');
- if(j===qs[i][correctIdx])o.classList.add('correct');else if(ans[i]===j)o.classList.add('wrong')})})}
-function checkScript(){let c=0;SCRIPT_CASES.forEach((q,i)=>{if(state.scriptAnswers[i]===q[3])c++});
- state.scores.script=c*2;save();paint('#scriptCases',SCRIPT_CASES,state.scriptAnswers,3);
- $$('#scriptCases .quiz-q').forEach((box,i)=>{if(!box.querySelector('.quote'))box.insertAdjacentHTML('beforeend',`<div class="quote"><b>Разбор:</b> ${esc(SCRIPT_CASES[i][4])}</div>`)});
- $('#scriptScore').textContent=`Результат: ${state.scores.script}/20 · верных ${c} из 10`;
- toast(c>=7?'Норматив по формулировкам выполнен':'Нужно минимум 7 из 10 — перечитайте разборы')}
+function aroChk(i,v){state.aroChk[i]=v;save()}
+function checkAro(){const c=gradeQuiz('#aroQuiz','aro',ARO_Q);const chk=Object.values(state.aroChk).filter(Boolean).length;
+ state.scores.aro=Math.min(MAX.aro,c);save();
+ $('#aroScore').textContent=`Результат: ${state.scores.aro}/${MAX.aro} · верных ${c} из 5 · пунктов АРО отмечено ${chk} из 5`;
+ toast(c>=MIN.aro?'АРО сдано':'Нужно минимум 4 из 5');markNav()}
 
-/* ===== ВОЗРАЖЕНИЯ ===== */
+/* ===== 03 СЛОВА ===== */
+const WORDS=[
+ ['Подтверждение','Сигнал собеседнику, что его сообщение получено и понято. Завершает цикл общения: без подтверждения клиент не знает, услышали ли его, и повторяет или замолкает.','«Ок, понял. Восемь в офисе и три удалённо — записал». «Да, звонки и WhatsApp сохраняются — это стандартные вещи».'],
+ ['Реальность','То, с чем человек согласен, что для него существует. «Установить реальность клиента» — узнать, как он видит свою ситуацию и запрос. «Дать реальность» — донести факты о пакете, сроках и цене так, чтобы клиент с ними согласился.','Этап 3: «В чём сейчас основной запрос?» — устанавливаем его реальность. Этап 5: «Стандартный пакет — 1,5 млн, 4–6 недель» — даём свою.'],
+ ['АРО','Треугольник аффинити (расположение), реальность (согласие) и общение. Три угла связаны: поднимаете один — растут остальные. «Наладить АРО» — установить контакт, при котором клиент слышит и говорит.','Приветствие целиком — это работа по АРО: имя, кто вы, что будет, подтверждение.'],
+ ['Компетентность','Способность сделать то, что нужно клиенту, и показать это. На встрече демонстрируется не словами о себе, а примерами реализованных проектов, которые превышают запрос клиента.','Этап 4: «К нам обращались с похожим запросом — покажу, какую глубину мы можем сделать».'],
+ ['Двустороннее общение','Цикл: вы говорите — клиент отвечает — вы подтверждаете — ведёте дальше. Не монолог и не допрос. На этапах 2–3 клиент говорит больше половины времени.','Общее правило всей встречи. Проверка: если три минуты говорите только вы — этап сбился.'],
+ ['Технический список','Перечень пунктов, которые клиент хочет получить: «первый пункт, второй пункт», тезисно. Начинается на этапе «Основной запрос», дополняется на показе компетентности, ложится в демо и КП.','«Значит: воронка, клиенты, WhatsApp и телефония, календарь отчётности, права доступа, аналитика. Ничего не пропустил?»'],
+ ['Дебаг','Исправление ошибок в сданной системе. Первые полгода после сдачи — бесплатно, если ошибка по нашей вине. Доработки нового функционала — отдельно и соразмерно объёму.','«Первые полгода дебаг оказываем: если какие-то ошибки выйдут по нашей вине — исправляем бесплатно».'],
+ ['Стандартная разработка (состав)','Стандартный пакет: 1,5 млн ₸, 4–6 недель, несколько билдов. Входит: воронка и мультиворонка, клиенты, задачи, календарь, WhatsApp и IP-телефония, права доступа, рассылки по триггерам, аналитика, портал на сервере клиента. Отдельно: 1С-интеграция (500–800 тыс.), сайт, чат-боты и прикладные программы. Три этапа: старт (демо), ядро, полировка. Оплата 10/45/45.','Этап 5 целиком. Признак знания: можете за минуту перечислить, что входит, что отдельно, три этапа и схему оплаты.']
+];
+const WORDS_Q=[
+ {q:'«Ок, понял, записал» после каждой реплики клиента — это',o:['Подтверждение','Реальность','Компетентность','Дебаг'],c:0},
+ {q:'Узнать, как клиент видит свою ситуацию и запрос — это',o:['Дать реальность','Установить реальность клиента','Технический список','АРО'],c:1},
+ {q:'Что превышает запрос клиента на этапе 4?',o:['Цена','Компетентность, показанная примерами проектов','Скидка','Количество экранов'],c:1},
+ {q:'Тезисный перечень «первый пункт, второй пункт», который ложится в демо и КП',o:['Дебаг','Технический список','Полировка','Ядро'],c:1},
+ {q:'Что не входит в Стандартный пакет?',o:['WhatsApp и IP-телефония','Мультиворонка','Интеграция с 1С','Права доступа'],c:2},
+ {q:'Первые полгода после сдачи бесплатно исправляются ошибки по нашей вине — это',o:['Полировка','Дебаг','Ядро','Старт'],c:1},
+ {q:'Три этапа стандартной разработки',o:['ТЗ, разработка, сдача','Старт (демо), ядро, полировка','Аналитика, дизайн, код','Демо, договор, оплата'],c:1},
+ {q:'Если три минуты подряд говорите только вы, нарушено',o:['Подтверждение','Двустороннее общение','Реальность','Компетентность'],c:1}
+];
+function renderWords(){$('#wordsList').innerHTML=WORDS.map((w,i)=>`<div class="term"><b>${i+1}. ${esc(w[0])}</b><div class="def">${esc(w[1])}</div><div class="use">${esc(w[2])}</div>
+ <div class="field" style="margin-top:10px"><label>Своими словами — так, как ответите руководителю на фронтальной проверке</label><textarea oninput="state.wordsText[${i}]=this.value;save()" placeholder="Определение и пример с встречи">${esc(state.wordsText[i]||'')}</textarea></div></div>`).join('')}
+function checkWords(){const c=gradeQuiz('#wordsQuiz','words',WORDS_Q);const written=Object.values(state.wordsText).filter(t=>(t||'').trim().length>=30).length;
+ state.scores.words=Math.min(MAX.words,Math.round(c*0.5+written*0.25));save();
+ $('#wordsScore').textContent=`Результат: ${state.scores.words}/${MAX.words} · верных ${c} из 8 · своими словами записано ${written} из 8`;
+ toast(state.scores.words>=MIN.words?'Список слов сдан — дальше фронтальная проверка у руководителя':'Нужно 7 верных и все 8 терминов своими словами');markNav()}
+
+/* ===== 04 ПРОЕКТЫ ===== */
+const PROJECTS=[
+ ['Реестр 01 · стоун-подрядчик (Астана)','uss.html','Объекты по адресам, виды работ и себестоимость, бригады и транши, склад со сверкой «вышло 100 — дошло 98», касса по юрлицам, план финансирования, заявки с резервом, задачи службам, WhatsApp.','подрядчик, стройка, бригады, склад, касса'],
+ ['ЦБК · Центр банкротства Казахстана','cbk.html','Единая карточка клиента, воронка с распределением лидов, WhatsApp из CRM, ИИ-бот и квалификация, договоры и графики платежей, процедуры банкротства с этапами, три филиала, дашборды, API.','услуги, юристы, филиалы, WhatsApp, ИИ'],
+ ['ЦЕХ · производство полуфабрикатов (Бишкек)','ceh.html','Смена закрывается бригадиром с телефона, приход на склад, списание по техкарте, выработка и себестоимость, экран водителя, агенты и магазины, касса, ABC-анализ.','производство, склад, доставка, агенты'],
+ ['Мегатекс · подрядчик слаботочных систем','megatex.html','Объекты, сметы и ПТО, склад с резервом под объекты, табель бригад, деньги по объектам, акты и закрывающие документы.','подрядчик, сметы, объекты, склад'],
+ ['US School · агентство зачисления','usschool.html','Воронка с семьями, документы и статусы зачисления, платежи, коммуникации с родителями, отчёты по агентам.','агентство, документы, воронка, оплаты'],
+ ['Палата налоговых консультантов','pnk.html','Реестр членов, заявки на консультации, оплата взносов, документы и статусы, кабинет консультанта, рассылки.','ассоциация, реестр, заявки, взносы'],
+ ['Объект · подрядчик коммерческой отделки (Алматы)','stroy.html','Смета против факта, заявки со сверкой по смете, факт через WhatsApp от прорабов, график работ, скрытые работы, маржа по объектам.','подрядчик, смета, прорабы, объекты'],
+ ['Сальдо KZ · бухгалтерский аутсорсинг','saldo.html','Клиенты с абонентской платой, календарь отчётности и дедлайны, нагрузка на бухгалтеров, задачи и статусы, лента «требует внимания», финансы, права.','бухгалтерия, аутсорсинг, отчётность, задачи'],
+ ['Dayin · завод бытовой химии','dayin.html','Заказы, производство по партиям, склад сырья и готовой продукции, отгрузки, дилеры, финансы.','производство, партии, склад, дилеры'],
+ ['Клиника эстетической медицины','estet.html','Запись и расписание врачей, карточка пациента, услуги и курсы, касса и абонементы, WhatsApp-напоминания, аналитика загрузки.','клиника, запись, расписание, пациенты']
+];
+const PROJ_Q=[
+ {q:'Клиент: бухгалтерская компания, 11 сотрудников, нужен контроль отчётности и продажи. Какое демо показать первым?',o:['Сальдо KZ — календарь отчётности, нагрузка, задачи, воронка','ЦЕХ — производство','Dayin — завод','Клиника — расписание врачей'],c:0,x:'Так и сделано в эталонной записи: показан бухгалтерский портал, реакция «примерно вот это мне надо».'},
+ {q:'Клиент: строительный подрядчик, бригады, склад, касса «половина там, половина тут». Что показать?',o:['US School','Реестр 01 и Мегатекс','Клиника','Палата консультантов'],c:1,x:'Два демо подрядчиков: объекты, бригады, склад со сверкой, касса по юрлицам.'},
+ {q:'Клиент: производство с доставкой по магазинам, агенты, водители. Что показать?',o:['ЦЕХ и Dayin','ЦБК','Сальдо KZ','Объект'],c:0,x:'Смена с телефона, склад, экран водителя, агенты — ровно его механика.'},
+ {q:'Клиент: юридические услуги, три города, много входящих из Instagram и WhatsApp. Что показать?',o:['Мегатекс','ЦБК — воронка, WhatsApp, ИИ, филиалы','Dayin','Объект'],c:1,x:'Услуги с филиалами и потоком лидов — показываем ЦБК: воронку, WhatsApp из CRM и распределение по филиалам.'},
+ {q:'Клиент: салон услуг с записью по времени и абонементами. Что показать?',o:['Клиника эстетической медицины','Реестр 01','ЦЕХ','Мегатекс'],c:0,x:'Расписание, карточка клиента, абонементы, напоминания.'},
+ {q:'В каком демо есть сверка «со склада вышло 100 м², на объект дошло 98»?',o:['Реестр 01','US School','ЦБК','Клиника'],c:0},
+ {q:'В каком демо смена закрывается бригадиром с телефона и списывает сырьё по техкарте?',o:['Сальдо KZ','ЦЕХ','Палата консультантов','US School'],c:1},
+ {q:'Сколько пунктов показывать в одном демо на этапе компетентности?',o:['Все разделы подряд','3–5 основных пунктов под запрос клиента','Один экран','Только главную страницу'],c:1,x:'Из паттерна: 2–3 демо, 3–5 пунктов. Глубина важнее охвата.'}
+];
+function renderProjects(){$('#projList').innerHTML=PROJECTS.map((p,i)=>`<div class="proj"><b>${i+1}. ${esc(p[0])}</b><div class="fx"><b>Основной функционал:</b> ${esc(p[2])}</div><small>Под какой запрос: ${esc(p[3])}</small><div style="margin-top:6px"><a href="${esc(p[1])}" target="_blank" rel="noopener">Открыть демо ↗</a> <label style="margin-left:12px;font-size:12.5px"><input type="checkbox" ${state.projSeen&&state.projSeen[i]?'checked':''} onchange="state.projSeen=state.projSeen||{};state.projSeen[${i}]=this.checked;save()"> просмотрел</label></div></div>`).join('')}
+function checkProjects(){const c=gradeQuiz('#projQuiz','proj',PROJ_Q);const seen=Object.values(state.projSeen||{}).filter(Boolean).length;
+ state.scores.projects=Math.min(MAX.projects,Math.round(c*0.5+seen*0.1));save();
+ $('#projScore').textContent=`Результат: ${state.scores.projects}/${MAX.projects} · верных ${c} из 8 · просмотрено демо ${seen} из 10`;
+ toast(state.scores.projects>=MIN.projects?'Проекты сданы':'Нужно 7 верных и все 10 демо просмотрены');markNav()}
+
+/* ===== 06 ВИДЕО ===== */
+const TIMECODES=[
+ ['00:00','Этап 1 · Приветствие','«Меня зовут Платон. Я руководитель, у нас студия, мы программисты, разрабатываем программное обеспечение под бизнесы».'],
+ ['00:24','Этап 2 · Обзор бизнеса','«Открою вашу карточку, мне Ирина вас передаёт». Бухуслуги, обучение, Астана. «Какую CRM используете?» — «Пока никакую». «Сколько сотрудников?» — «Восемь в офисе, три удалённо».'],
+ ['01:03','Этап 3 · Основной запрос','Предположение «контроль бухгалтеров?» — «Нет, продажи и порядок внутри». Битрикс купили — не подружились. Аудит, бухуслуги, подключает обучение. Боль: звонки и WhatsApp теряются, споры с клиентами.'],
+ ['03:45','Этап 4 · Компетентность','«К нам обращались бухгалтеры из Шымкента — покажу демо, поймёте глубину». Нагрузка, дедлайны, календарь, задачи, клиенты, мультиворонка. «Это всегда будет моё?» — «Совершенно верно».'],
+ ['09:39','Этап 5 · Стандартный пакет','«Сколько будет стоить?» — «Стандартный пакет — 1,5 млн». Что отдельно: 1С 500–800 тыс., сайты, боты. Рассылки по триггерам — стандарт. 4–6 недель. «Мы делаем КП».'],
+ ['14:02','Этап 5 · Три этапа','Старт → ядро (архитектура, воронка, клиенты, интеграции) → полировка («кнопочку туда, оформили сюда — доплату не берём»).'],
+ ['15:06','Вопросы клиента','Компания казахстанская, режим налогообложения, сервер «forever free», оплата 10/45/45, дебаг полгода, ограничений по пользователям нет.'],
+ ['19:15','Этап 4 · Ещё компетентность','Хели-ски: календарь, брони, чекин-чекаут, эквайринг, сайт. Склад B2B: кабинеты контрагентов, заявки, температурное хранение. «Вот такую глубину мы можем делать».'],
+ ['22:48','Этап 6 · Предложение демо','«Два пути: долгий и дорогой — ждать ТЗ; быстрый и надёжный — выкатим ядро, зум через неделю, 3–4 круга правок». «Скажите, что нужно, чтобы начать?»'],
+ ['24:54','Возражение','«Высокая закредитованность, жду ставку». — «Без проблем: следующий платёж через две недели, график согласуем». Итог: 10/30/30/30, последние 30 спустя месяц. «Давайте, вообще шикарно».'],
+ ['28:05','Показ ядра','Бухгалтерский портал как ядро: карточки клиентов, отчётности, задачи, календарь, мультиворонка одной кнопкой, конверсия считается сама. «Мне нужно ваше видение» — ТЗ тезисно.'],
+ ['32:55','Отступление','Разговор про ELC, масштабирование и контроль: «всё, что в портале — правда, чего нет в портале — неправда». Полезно для аффинити, но длинно.'],
+ ['40:06','Этап 7 · Резюме и завершение','Реквизиты, логотип, «сегодня подготовлю договор по ядру», ТЗ тезисно вдогонку, подписание ЭЦП в нашей системе. «Спасибо за доверие».']
+];
+$('#timecodes').innerHTML=TIMECODES.map(t=>`<div class="tc-row ${/Отступление|Возражение|Вопросы/.test(t[1])?'note':''}"><code>${t[0]}</code><div><b>${esc(t[1])}</b><small>${esc(t[2])}</small></div></div>`).join('');
+const VIDEO_Q=[
+ {q:'Что было у клиента из систем до встречи?',o:['Никакой CRM: Битрикс купили, но не прижился; уведомления по отчётности сделаны на базе 1С','amoCRM с телефонией','Битрикс внедрён и работает','Ничего, даже 1С'],c:0},
+ {q:'Какое предположение о запросе сделал руководитель на этапе 3 и что ответил клиент?',o:['«Контроль бухгалтеров и их загрузка?» — «Нет, продажи и порядок внутри»','«Сайт?» — «Да»','«Обучение?» — «Нет»','«Склад?» — «Да»'],c:0,x:'Предположение из обзора бизнеса — и клиент его поправляет. Так и должен работать этап 3.'},
+ {q:'Что клиента «зацепило» сильнее всего?',o:['«Это всегда будет моё, не надо платить за доступ» — остаётся на всю жизнь','Цена','Скорость 4–6 недель','Дизайн экранов'],c:0},
+ {q:'Какие демо показаны на этапе компетентности?',o:['Бухгалтерский портал (Шымкент), хели-ски (EastPole), склад B2B','Только бухгалтерский портал','Пекарня и автосалон','Ничего не показали'],c:0},
+ {q:'Что по словам руководителя не входит в стандартный пакет?',o:['Интеграция с 1С (500–800 тыс.), сайт, чат-боты и прикладные программы','WhatsApp и телефония','Мультиворонка','Права доступа'],c:0},
+ {q:'Какое отклонение от паттерна есть в записи?',o:['Цена прозвучала по прямому вопросу до второго показа компетентности, а перечень «что входит» пришлось давать после вопроса клиента','Руководитель не представился','Не спросил про сотрудников','Не назвал три этапа'],c:0,x:'Правильный порядок этапа 5: состав → сроки → цена → этапы → оплата. Вопрос клиента ускорил порядок.'},
+ {q:'Как отработано возражение про закредитованность?',o:['Скидкой 15 %','Переносом встречи на месяц','Гибкой схемой оплаты с привязкой к этапам: 10/30/30/30, последние 30 спустя месяц','Отказом от проекта'],c:2},
+ {q:'Получен ли продукт встречи и по каким признакам?',o:['Да: клиент присылает реквизиты и логотип, ждёт договор и счёт, готовит ТЗ тезисно — готов работать с нами','Нет: клиент сказал «подумаю»','Неизвестно','Частично: договорились только о КП'],c:0}
+];
+function vidChk(i,v){state.vidChk[i]=v;save()}
+function checkVideo(){const c=gradeQuiz('#videoQuiz','video',VIDEO_Q);const w=Object.values(state.vidChk).filter(Boolean).length;
+ state.scores.video=Math.min(MAX.video,Math.round(c*1+w*0.3));save();
+ $('#videoScore').textContent=`Результат: ${state.scores.video}/${MAX.video} · верных ${c} из 8 · отмечено фрагментов ${w} из 7`;
+ toast(state.scores.video>=MIN.video?'Разбор видео сдан':'Нужно минимум 6 верных и все фрагменты просмотрены');markNav()}
+</script>
+<script>
+/* ===== 07 ПРОВЕРКА ПО КАЖДОМУ ЭТАПУ · 3 вопроса на этап ===== */
+const CHECK_Q=[
+ {s:0,q:'Цель приветствия',o:['Рассказать о компании','Наладить АРО','Узнать бюджет','Показать демо'],c:1},
+ {s:0,q:'Что обязательно звучит в приветствии по паттерну',o:['Имя клиента, ваше имя, «я менеджер вашего проекта», «мы студия ПО — программисты, пишем программы под задачи бизнеса»','Список кейсов и цены','Вопрос «сколько у вас сотрудников?»','Ссылка на демо'],c:0},
+ {s:0,q:'Клиент: «Давайте покороче, показывайте». Что делаете?',o:['Открываете демо','Подтверждаете, представляетесь одной фразой и говорите, что сейчас откроете его карточку и зададите два вопроса — потом покажете','Спрашиваете бюджет','Извиняетесь и отменяете структуру'],c:1},
+ {s:1,q:'Продукт этапа «Обзор бизнеса»',o:['Клиент купил','Точная картина бизнеса: чем занимается, система или её нет, сотрудники, филиалы, объёмы','Список возражений','Согласие на демо'],c:1},
+ {s:1,q:'Откуда берётся стартовая информация для обзора',o:['Из карточки клиента, которую заполнил лид-менеджер: «я открою вашу карточку»','Из Google','Из презентации','Из вопросов о бюджете'],c:0},
+ {s:1,q:'Клиент назвал «восемь в офисе и три удалённо». Ваша реплика',o:['Идти к следующему вопросу молча','«Понял, восемь и три удалённо. А филиалы есть?» — подтверждение и следующий вопрос','«Мало, для CRM нужно больше»','Сразу назвать цену за 11 пользователей'],c:1},
+ {s:2,q:'Цель этапа «Основной запрос»',o:['Продать пакет','Установить реальность клиента относительно запроса и выявить основную боль','Показать три демо','Назначить дату'],c:1},
+ {s:2,q:'Как открывается этап по паттерну',o:['«Что вам нужно?»','Предположение на основе обзора: «Вы хотите структурировать работу бухгалтеров? Или это продажи? В чём сложности?» — и дать клиенту рассказать','Перечислением наших услуг','Вопросом о бюджете'],c:1},
+ {s:2,q:'Клиент рассказывает историю про Битрикс, который не прижился. Что делаете?',o:['Перебиваете: «у нас лучше»','Слушаете, подтверждаете, уточняете, на чём застряло, и записываете как боль в технический список','Говорите, что Битрикс — прошлый век','Переходите к цене'],c:1},
+ {s:3,q:'Продукт этапа «Демонстрация компетентности»',o:['Клиент уверен в нашей компетентности','Клиент знает цену','Клиент прислал реквизиты','Клиент посмотрел все демо'],c:0},
+ {s:3,q:'Сколько демо и пунктов',o:['Одно демо целиком','2–3 демо под запрос, 3–5 основных пунктов в каждом, «Уау»','Все десять проектов','Только скриншоты'],c:1},
+ {s:3,q:'Клиент: «А это будет моё? Не надо платить за доступ?»',o:['«Да, совершенно верно» — подтверждаем и продолжаем','«Обсудим позже»','«Абонплата небольшая»','Игнорируем'],c:0},
+ {s:4,q:'Порядок внутри этапа «Стандартный пакет»',o:['Цена → состав → сроки','Состав («всё, что проговорили») → сроки 4–6 недель → цена 1,5 млн → что отдельно → три этапа → оплата 10/45/45 → «подготовлю КП»','Три этапа → цена','Оплата → цена → состав'],c:1},
+ {s:4,q:'Что считается отдельно от стандартного пакета',o:['Мультиворонка','1С-интеграция, прикладные программы, разработка сайта','Права доступа','WhatsApp'],c:1},
+ {s:4,q:'Продукт этапа',o:['Клиент проявляет большой интерес к разработке с нами: уточняет состав и этапы, а не спорит с ценой','Клиент оплатил','Клиент попросил скидку','Клиент прочитал КП'],c:0},
+ {s:5,q:'Цель этапа «Создание демо»',o:['Закрыть клиента на следующую встречу','Написать ТЗ','Получить оплату полностью','Показать ещё демо'],c:0},
+ {s:5,q:'«Два пути» — это',o:['Дорого и дёшево','Полное ТЗ (долго, разочарование) против ядра с правками (2–3 версии, получаете то, что хотите)','Свой сервер и облако','Битрикс и своя разработка'],c:1},
+ {s:5,q:'Ключевая фраза этапа',o:['«Подумайте и напишите»','«Скажите, что нам нужно, чтобы мы могли начать?»','«Мы вам перезвоним»','«Какой у вас бюджет?»'],c:1},
+ {s:6,q:'Продукт этапа «Резюме и завершение»',o:['Клиент полностью ориентирован и ждёт продолжения','Клиент устал','Договор подписан','КП отправлено'],c:0},
+ {s:6,q:'Что входит в резюме',o:['Пересказ всей встречи','Сжатый перечень того, что будет в демо, благодарность, время следующей встречи','Только цена','Список возражений'],c:1},
+ {s:6,q:'Встреча закончилась, клиент доволен, но дата не названа. Продукт этапа',o:['Получен','Не получен — нет договорённости о продолжении','Получен частично','Неважно'],c:1}
+];
+function renderCheck(){$('#checkQuiz').innerHTML=CHECK_Q.map((q,i)=>`<div class="quiz-q" data-q="${i}"><span class="label">Этап ${q.s+1} · ${esc(STAGES[q.s].n)}</span><b style="display:block;margin-top:4px">${i+1}. ${esc(q.q)}</b>
+ ${q.o.map((o,j)=>`<button class="option ${state.a.check[i]==j?'selected':''}" onclick="pickA('check',${i},${j},this)">${esc(o)}</button>`).join('')}</div>`).join('')}
+function checkStages(){const c=gradeQuiz('#checkQuiz','check',CHECK_Q);const per=[0,0,0,0,0,0,0];CHECK_Q.forEach((q,i)=>{if(state.a.check[i]===q.c)per[q.s]++});
+ state.checkPer=per;const okAll=per.every(x=>x>=2);
+ state.scores.check=Math.min(MAX.check,Math.round(c*15/21));save();
+ $('#checkScore').textContent=`Результат: ${state.scores.check}/${MAX.check} · верных ${c} из 21`;
+ $('#checkByStage').innerHTML=`<table class="tbl"><tr><th>Этап</th><th>Верно</th><th>Знает</th></tr>${STAGES.map((s,i)=>`<tr><td>${i+1}. ${esc(s.n)}</td><td class="c">${per[i]}/3</td><td class="${per[i]>=2?'status pass':'status fail'}">${per[i]>=2?'✓ знает':'× повторить карточку этапа'}</td></tr>`).join('')}</table>`;
+ toast(okAll&&c>=15?'Проверка по этапам сдана':'Нужно минимум 2 из 3 по каждому этапу');markNav()}
+
+/* ===== 08 ПОСТАНОВОЧНЫЕ ТРЕНИРОВКИ ===== */
+const DRILLS=[
+ {s:0,partner:'Партнёр подключается с телефона, звук плохой: «Алло, да, слышу… это кто?»',task:'Проведите приветствие и получите подтверждение, что клиент вас слышит, знает, кто вы, и готов говорить.',
+  chk:['Назвал клиента по имени и представился одной фразой','Сказал «я менеджер вашего проекта» и что мы делаем','Объявил, что сейчас будет: открою карточку, задам вопросы, покажу примеры','Получил подтверждение: «да, слышу, давайте»'],
+  et:'«Гульнара, добрый день! Меня зовут Асель, очень приятно познакомиться. Я менеджер вашего проекта. Мы студия программного обеспечения — программисты, пишем программы под задачи бизнеса. Слышно меня хорошо? Отлично. Сейчас я открою вашу карточку, задам пару вопросов, а потом покажу примеры — договорились?»'},
+ {s:1,partner:'Партнёр отвечает только на вопросы, коротко: «Бухуслуги и обучение. Астана. Никакой системы. Восемь и три удалённо».',task:'Соберите картину бизнеса и повторите её клиенту так, чтобы он подтвердил.',
+  chk:['Опирался на карточку от лид-менеджера: «я открою вашу карточку, вы занимаетесь…»','Спросил про систему, сотрудников, филиалы, объёмы — с подтверждением каждого ответа','Повторил картину тремя фразами словами клиента','Клиент подтвердил: «да, всё так»'],
+  et:'«Открываю карточку: бухгалтерские услуги и обучение, Астана. Какую CRM сейчас используете? — Понял, никакую. Сколько сотрудников? — Восемь в офисе и три удалённо, записал. Филиалы есть? Итого: бухуслуги, аудит и обучение, одиннадцать человек, системы нет — верно?»'},
+ {s:2,partner:'Партнёр на предположение отвечает «нет» и рассказывает: «Продажи скорее. И вообще порядок внутри. Битрикс покупали — не подружились. Звонки и WhatsApp теряются, потом спорим с клиентом».',task:'Установите реальность запроса и выявите основную боль; начните технический список.',
+  chk:['Сделал предположение из обзора бизнеса, а не спросил «что вам нужно?»','Дал клиенту рассказать, не перебивал, подтверждал','Уточнил боль до конкретики: что именно теряется, к чему приводит','Проговорил технический список тезисно и получил «да»'],
+  et:'«Гульнара, скажите, в чём сейчас основной запрос: структурировать работу бухгалтеров или это продажи? — Понял, продажи и порядок внутри. Расскажите про Битрикс — на чём застряло? … То есть главное: чтобы звонки и переписка сохранялись в системе и не было споров с клиентами. Записываю: первое — продажи и воронка, второе — звонки и WhatsApp в карточке, третье — порядок в задачах. Так?»'},
+ {s:3,partner:'Партнёр: «Ну покажите, что вы для бухгалтеров делали». Потом молчит и смотрит.',task:'Покажите 2 демо по 3–5 пунктов под запрос и добейтесь реакции узнавания.',
+  chk:['Открыл вступление: «2–3 проекта в неделю, обращались с похожим запросом, покажу глубину»','Выбрал демо под запрос (Сальдо KZ), показал 3–5 пунктов, а не все разделы','Связал каждый пункт с болью клиента: «вот здесь звонки и WhatsApp в карточке»','Получил реакцию: «примерно это мне и надо» или вопросы про функции; при молчании спросил «что из этого про вас?»'],
+  et:'«Мы делаем много проектов, в среднем 2–3 новых в неделю. К нам обращались бухгалтеры из Шымкента — покажу их портал, вы поймёте, какую глубину мы можем сделать. Первое — нагрузка на команду и дедлайны по отчётности. Второе — карточка клиента, где живут звонки и WhatsApp: то самое, из-за чего у вас споры. Третье — задачи между сотрудниками. Четвёртое — мультиворонка: обучение отдельно, новые клиенты отдельно. Что из этого про вас?»'},
+ {s:4,partner:'Партнёр: «Во сколько такое разработать? И что входит?»',task:'Дайте реальность о стандартном пакете в правильном порядке и получите интерес, а не спор о цене.',
+  chk:['Сначала состав: «всё, что проговорили, входит в стандартный пакет», потом 4–6 недель, потом 1,5 млн','Назвал, что считается отдельно: 1С, сайт, прикладные','Рассказал три этапа: старт (демо), ядро, полировка — и оплату 10/45/45','Сказал «подготовлю КП и пропишу договорённости»; клиент уточняет состав, а не торгуется'],
+  et:'«Всё, что мы с вами проговорили, входит в стандартный пакет разработки: 4–6 недель, несколько билдов, правки и полировка. Стоимость пакета — 1,5 млн тенге. Отдельно мы всегда считаем 1С-интеграцию, сайты и прикладные программы — у вас я их пока не вижу. Работаем в три этапа: старт — готовим демо по итогам сегодняшней встречи; ядро — основные пункты, утверждаем; полировка. Оплата: 10 % на старте, 45 % после ядра, 45 % при сдаче. Я подготовлю КП и пропишу все договорённости».'},
+ {s:5,partner:'Партнёр: «Предложение заманчивое, но… у меня закредитованность, я подумаю».',task:'Закройте на демо: два пути, «что нужно, чтобы начать», снимите возражение схемой, а не скидкой, получите дату.',
+  chk:['Предложил демо как начало разработки: «увидите вживую и покликаете»','Рассказал два пути: полное ТЗ против ядра с правками','Спросил «что нам нужно, чтобы начать?» и отработал возражение графиком оплаты по этапам','Получил конкретику: материалы, реквизиты, дату показа демо'],
+  et:'«Мы создадим демо, чтобы вы вживую увидели и покликали, как реализуем ваш запрос. Есть два пути: писать полное ТЗ — долго и в конце разочарование; или выкатить ядро и править — 2–3 версии, и вы получите то, что хотите. Про деньги: 10 % — символическая предоплата, следующий платёж после ядра, график согласуем под ваш кэшфлоу, хоть 10/30/30/30. Скажите, что нам нужно, чтобы начать? Реквизиты и логотип — и завтра показываем демо в это же время?»'},
+ {s:6,partner:'Партнёр: «Хорошо, давайте». И ждёт.',task:'Подведите итог: перечень того, что будет в демо, благодарность, время следующей встречи. Клиент должен подтвердить.',
+  chk:['Сказал «подведу итог» и перечислил состав демо пунктами из технического списка','Назвал дату и время следующей встречи','Поблагодарил и попрощался без «мы перезвоним»','Клиент подтвердил перечень и дату; резюме ушло в чат'],
+  et:'«Подведу небольшой итог. В демо включаем: воронку продаж с обучением отдельной воронкой, карточку клиента со звонками и WhatsApp, задачи между сотрудниками, календарь отчётности и права доступа. Спасибо большое, что пришли. Ждём вас завтра в 11:00, в это же время. Резюме сейчас пришлю в чат».'}
+];
+function renderDrills(){$('#drillList').innerHTML=DRILLS.map((d,i)=>{const st=state.drills[i]||{};return `<div class="drill"><span class="who">Тренировка ${i+1} · этап ${d.s+1} · ${esc(STAGES[d.s].n)}</span>
+ <div style="margin-top:8px;font-size:13.5px;color:#475467"><b>Продукт этапа:</b> ${esc(STAGES[d.s].prod)}</div>
+ <div class="say">${esc(d.partner)}</div>
+ <div style="font-size:14px"><b>Задача:</b> ${esc(d.task)}</div>
+ <div class="field" style="margin-top:10px"><label>Ваша формулировка (запишите после того, как проговорили вслух с партнёром)</label><textarea oninput="drillSet(${i},'text',this.value)" placeholder="Как вы это сказали">${esc(st.text||'')}</textarea></div>
+ <details><summary>Эталон</summary><div class="etalon">${esc(d.et)}</div></details>
+ <div style="margin-top:10px"><b style="font-size:13px">Чек-лист (отмечает партнёр)</b>${d.chk.map((c,j)=>`<div class="chk"><input type="checkbox" ${st['c'+j]?'checked':''} onchange="drillSet(${i},'c${j}',this.checked)"><span>${esc(c)}</span></div>`).join('')}
+ <div class="chk" style="background:#f0fbf4;border-radius:8px;padding:8px 10px;margin-top:6px"><input type="checkbox" ${st.prod?'checked':''} onchange="drillSet(${i},'prod',this.checked)"><span><b>Партнёр подтверждает: продукт этапа получен</b></span></div></div></div>`}).join('')}
+function drillSet(i,k,v){state.drills[i]=state.drills[i]||{};state.drills[i][k]=v;save()}
+function drillDone(i){const st=state.drills[i]||{};return st.prod&&[0,1,2,3].every(j=>st['c'+j])&&(st.text||'').trim().length>=40}
+function gradeDrills(){const done=DRILLS.map((d,i)=>drillDone(i));const n=done.filter(Boolean).length;
+ state.scores.drills=Math.min(MAX.drills,Math.round(n*10/7));state.drillDone=done;save();
+ $('#drillScore').textContent=`Засчитано тренировок: ${n} из 7 · ${state.scores.drills}/${MAX.drills} баллов`+(n<7?' · не засчитаны: '+done.map((x,i)=>x?null:'этап '+(i+1)).filter(Boolean).join(', '):'');
+ toast(n===7?'Все семь тренировок засчитаны':'Тренировка засчитывается при всех пунктах чек-листа, подтверждении продукта и записанной формулировке');markNav()}
+
+/* ===== 09 ВОЗРАЖЕНИЯ ===== */
 const OBJ=[
- ['«От чего строится стоимость?»','Не видит объёма и боится переплатить за воздух.',
-  ['«Это фиксированная цена стандартного пакета, у всех так».',
-   '«Показываю перечень блоков и часы: это не только код — аналитика, созвоны, тестирование, перенос данных, обучение и месяц сопровождения. Всего около 200–250 часов команды».',
-   '«Стоимость зависит от вашего бюджета».'],1,
-  'Отвечаем структурой работ, а не оправданием. Клиент должен увидеть, что покупает не строчки кода, а результат под ключ.'],
- ['«Час стоит 20 долларов, работы на 80 часов. Почему два миллиона?»','Считает по ставке доработок и не видит разницы между проектом и часом.',
-  ['«Ну там ещё налоги, аренда, зарплаты».',
-   '«Ставка по часам — это доработки после запуска, когда система уже есть и погружаться не нужно. Разработка с нуля — это аналитика, проектирование, тестирование, внедрение и обязательство сдать в срок за фиксированную цену. Полный объём — 200–250 часов команды».',
-   '«Двадцать долларов — это была примерная цифра».'],1,
-  'Не спорим с арифметикой клиента, а объясняем, что он сравнивает разные вещи. И сразу переводим в часы полного объёма.'],
- ['«Дорого»','Не связал цену с потерями.',
-  ['«Могу дать скидку десять процентов».',
-   '«Вы называли потери около такой-то суммы в месяц. Система стоит столько-то один раз. Если для старта сумма великовата — уберём блок, который сейчас не горит, и начнём с ядра».',
-   '«Это рыночная цена, дешевле никто не сделает».'],1,
-  'Сначала возвращаем к его же цифре потерь. Если не помогает — режем объём, а не цену: скидка без причины обесценивает работу.'],
- ['«У нас есть 1С, может, там доделать?»','Боится второй системы и лишних трат.',
-  ['«1С — это прошлый век».',
-   '«1С рождена для бухгалтерии. Кастомизация под ваши процессы обходится дороже, чем сделать рядом то, что нужно, и за неё придётся платить ещё и абонентски. Бухгалтерию оставляем в 1С и связываем обменом».',
-   '«Можно и там, но мы этим не занимаемся».'],1,
-  'Не воюем с 1С — оставляем ей её роль. Клиенту важно услышать, что мы не заставляем ничего ломать.'],
- ['«А вдруг мы не доберём до этой суммы функционала?»','Боится заплатить за неиспользуемое.',
-  ['«Доберёте, у всех добирают».',
-   '«Перечень работ становится приложением к договору. Если какой-то блок окажется не нужен, мы заменим его на тот, что нужнее, а не выставим счёт за замену».',
-   '«Тогда сделаем меньше и дешевле».'],1,
-  'Отвечаем документом, а не обещанием. Приложение с перечнем — то, что делает разговор проверяемым.'],
- ['«Это не растянется навсегда?»','Опыт неудачных внедрений.',
-  ['«У нас так не бывает».',
-   '«Идём по списку блоков сверху вниз: показали — обсудили — поправили — закрыли. Закрытый блок не переоткрывается. Ядро вы видите на третьей неделе — до второго платежа».',
-   '«Срок в договоре, если что — штрафы».'],1,
-  'Против страха бесконечности работает механика, а не обещание. И сдача ядра до платежа — материальное доказательство.'],
- ['«Я не смогу описать, что мне нужно»','Страх ответственности за техническое задание.',
-  ['«Тогда пришлите хотя бы примерный список функций».',
-   '«Вам и не нужно. Мы приносим готовый экран, вы говорите, что не так. Техническое задание собирается из ваших правок».',
-   '«Мы сделаем на своё усмотрение, вы потом посмотрите».'],1,
-  'Это возражение чаще всего звучит у тех, кто уже обжёгся на ТЗ. Снимаем с клиента работу, которую он не умеет делать.'],
- ['«Где будут наши данные? У вас есть доступ?»','Боится утечки и зависимости.',
-  ['«У нас надёжные серверы, не переживайте».',
-   '«Сервер оформляется на вас. После сдачи вы меняете пароль — доступ остаётся только у вас. Копии делаются ежедневно на отдельное хранилище».',
-   '«Данные хранятся у нас, так надёжнее».'],1,
-  'Отвечаем конкретикой владения, а не заверениями. «Вы меняете пароль» — самая убедительная фраза в этом блоке.'],
- ['«А если вы пропадёте?»','Боится остаться с мёртвой системой.',
-  ['«Мы работаем пятнадцать лет, никуда не денемся».',
-   '«Код в вашем репозитории с первого дня, стек общепринятый, документация передаётся. Систему сможет поддерживать любой backend-разработчик — мы специально так делаем».',
-   '«Заключим договор с гарантиями».'],1,
-  'Отвечаем не про нас, а про его независимость от нас. Это парадоксально повышает доверие именно к нам.'],
- ['«Нам надо посоветоваться»','Либо нет ЛПР на встрече, либо есть невысказанное сомнение.',
-  ['«Хорошо, ждём вашего решения».',
-   '«Конечно. Когда вы обсуждаете? Давайте я буду на связи в этот день — если у партнёра появятся вопросы, отвечу сразу в чате. И скажите честно: если дело не только в согласовании — что смущает?»',
-   '«А кто ещё принимает решение?»'],1,
-  'Назначаем дату обсуждения и одновременно проверяем, нет ли за фразой скрытого возражения. Отпускать без даты — терять сделку.']
+ ['«А сколько это стоит?» — на этапе 2, до показа компетентности','Хочет сразу понять, по карману ли. Настоящий вопрос — «стоит ли тратить время».',
+  ['«1,5 миллиона тенге»','«Скажу через несколько минут с составом — сначала два вопроса, от которых зависит объём, и покажу, как это уже сделано. Обычно такие задачи входят в стандартный пакет»','«Это зависит от вашего бюджета»'],1,
+  'Не уходим от вопроса и не даём голую цифру: обещаем цену с составом через пару минут и возвращаем клиента в этап. В эталонной записи цена прозвучала по вопросу — и перечень пришлось давать после.'],
+ ['«Это будет моё? Не надо платить за доступ?»','Обжёгся на подписках и коробках; боится зависимости.',
+  ['«Есть небольшая абонплата»','«Совершенно верно: разворачиваем на вашем сервере, код передаём, доступ меняете вы. Это ваша программа на всю жизнь»','«Обсудим в договоре»'],1,
+  'Самый сильный аргумент Pllato — владение. В записи именно это «зацепило» клиента.'],
+ ['«У нас есть 1С, там всё сделано. Может, доделать?»','Боится второй системы и лишних трат.',
+  ['«1С — прошлый век»','«1С рождена для бухгалтерии — оставляем ей её роль. Объединить иногда сложнее, чем сделать рядом то, что нужно. Интеграцию по протоколу OData сделаем, но она считается отдельно, 500–800 тысяч»','«Тогда мы вам не нужны»'],1,
+  'Не воюем с 1С. Честно про сложность объединения и про то, что интеграция — отдельная позиция.'],
+ ['«Пришлите перечень, что входит в 1,5 млн»','Хочет проверяемости, боится «воздуха».',
+  ['«Всё входит»','«Перечень — это то, что мы сейчас проговорили: воронка, клиенты, WhatsApp и телефония, задачи, календарь, права, аналитика. Я подготовлю КП, где всё это будет прописано, плюс три этапа и оплата»','«Перечня нет, работаем по часам»'],1,
+  'Отвечаем техническим списком из встречи и обещанием КП. Клиент должен уйти с ощущением, что состав зафиксирован.'],
+ ['«Заманчиво, но у меня сейчас закредитованность»','Реальный кэшфлоу, а не отказ. Хочет обязательства, которые выполнит.',
+  ['«Дам скидку 15 %»','«Без проблем. 10 % — символическая предоплата, следующий платёж после ядра через две-три недели, график подгоним под вас: хоть 10/30/30/30, последние 30 — спустя месяц после сдачи»','«Тогда давайте отложим до весны»'],1,
+  'Снимаем риск графиком, привязанным к этапам, а не скидкой. Ровно так закрыто в записи: «Давайте, вообще шикарно».'],
+ ['«Мы уже покупали Битрикс — не пошло»','Страх повторить неудачу; продавец тогда обещал научить и пропал.',
+  ['«У нас другое, не сравнивайте»','«Расскажите, на чём застряло? … Понял: система не была рождена для ваших процессов, и вас оставили одних. Мы делаем наоборот: сначала демо под ваш бизнес, потом ядро и правки с вами, полгода дебага после сдачи»','«Битрикс — плохая система»'],1,
+  'Прошлый опыт — самая ценная информация. Не обесцениваем, а показываем, чем наш процесс отличается.'],
+ ['«Мне надо подумать / нарисовать, что я хочу»','Не хочет отвечать за ТЗ; боится сказать не то.',
+  ['«Хорошо, ждём ТЗ»','«Не углубляйтесь: пришлите тезисно — первый пункт, второй пункт. Мы поднимем ядро, вы покликаете и внесёте правки — так быстрее, чем расписывать каждый пункт сейчас»','«Тогда мы сделаем на своё усмотрение»'],1,
+  'Снимаем с клиента работу, которую он не умеет делать. Тезисы вместо ТЗ — путь номер два.'],
+ ['«Компания казахстанская? Какой режим налогообложения?»','Бухгалтер проверяет контрагента и зачёт расходов.',
+  ['«Это неважно»','«Да, казахстанская. Работаем на упрощёнке через ИП; если вам нужен счёт от ТОО на общеустановленном режиме — выставим от него, этот вопрос решим»','«Не знаю, спрошу»'],1,
+  'Отвечаем честно и по делу, вопрос закрываем сразу — в записи это заняло минуту.'],
+ ['«А если вы пропадёте? Кто будет поддерживать?»','Боится остаться с мёртвой системой, как с Битриксом.',
+  ['«Мы 15 лет на рынке»','«Сервер ваш, код ваш, доступ меняете вы. Первые полгода — дебаг бесплатно, дальше доработки соразмерно объёму. Систему сможет поддерживать любой разработчик»','«Заключим договор с гарантиями»'],1,
+  'Отвечаем про его независимость от нас — это парадоксально повышает доверие.'],
+ ['«Сколько пользователей может быть максимально?»','Планирует масштабироваться, боится лимитов как в коробках.',
+  ['«До десяти»','«Ограничений нет — это ваша программа. Пятьдесят точно, сто — небольшой рефакторинг, тысяча — усилить сервер. Лицензий на пользователей нет»','«Зависит от тарифа»'],1,
+  'Ответ из записи. Ключевая мысль: лимиты — свойство коробок, у собственной программы их нет.']
 ];
 function renderObj(){$('#objCases').innerHTML=OBJ.map((q,i)=>`<div class="quiz-q" data-q="${i}">
  <b>${i+1}. ${esc(q[0])}</b><div class="sit"><b>Что за этим стоит:</b> ${esc(q[1])}</div>
- ${q[2].map((o,j)=>`<button class="option ${state.objAnswers[i]==j?'selected':''}" onclick="pick('obj',${i},${j},this)">${esc(o)}</button>`).join('')}
- <div class="field" style="margin-top:10px"><label>Как вы скажете это своими словами</label><textarea data-obj="${i}" oninput="saveObjText(${i},this.value)" placeholder="Одна-две фразы, как вы произнесёте это на встрече">${esc(state.objText[i]||'')}</textarea></div></div>`).join('')}
-function saveObjText(i,v){state.objText[i]=v;save()}
-function checkObj(){let c=0;OBJ.forEach((q,i)=>{if(state.objAnswers[i]===q[3])c++});
+ ${q[2].map((o,j)=>`<button class="option ${state.a.obj[i]==j?'selected':''}" onclick="pickA('obj',${i},${j},this)">${esc(o)}</button>`).join('')}
+ <div class="field" style="margin-top:10px"><label>Как вы скажете это своими словами</label><textarea oninput="state.objText[${i}]=this.value;save()" placeholder="Одна-две фразы, как произнесёте на встрече">${esc(state.objText[i]||'')}</textarea></div></div>`).join('')}
+function checkObj(){let c=0;OBJ.forEach((q,i)=>{if(state.a.obj[i]===q[3])c++});
  const written=Object.values(state.objText).filter(t=>(t||'').trim().length>=40).length;
- state.scores.obj=Math.min(20,c*1.5+Math.min(5,written*0.5));state.scores.obj=Math.round(state.scores.obj);save();
- paint('#objCases',OBJ,state.objAnswers,3);
- $$('#objCases .quiz-q').forEach((box,i)=>{if(!box.querySelector('.quote'))box.insertAdjacentHTML('beforeend',`<div class="quote"><b>Почему так:</b> ${esc(OBJ[i][4])}</div>`)});
- $('#objScore').textContent=`Результат: ${state.scores.obj}/20 · верных ${c} из 10, своими словами записано ${written}`;
- toast(c>=7&&written>=5?'Норматив по возражениям выполнен':'Нужно 7 верных и 5 формулировок своими словами')}
+ state.scores.obj=Math.min(MAX.obj,Math.round(c*0.7+Math.min(3,written*0.3)));save();
+ $$('#objCases .quiz-q').forEach((box,i)=>{box.querySelectorAll('.option').forEach((o,j)=>{o.classList.remove('correct','wrong');if(j===OBJ[i][3])o.classList.add('correct');else if(state.a.obj[i]===j)o.classList.add('wrong')});
+  if(!box.querySelector('.quote'))box.insertAdjacentHTML('beforeend',`<div class="quote"><b>Почему так:</b> ${esc(OBJ[i][4])}</div>`)});
+ $('#objScore').textContent=`Результат: ${state.scores.obj}/${MAX.obj} · верных ${c} из 10, своими словами записано ${written}`;
+ toast(c>=8&&written>=6?'Норматив по возражениям выполнен':'Нужно 8 верных и 6 формулировок своими словами');markNav()}
 
-/* ===== СИМУЛЯТОР ===== */
+/* ===== 10 СИМУЛЯТОР · 7 этапов ===== */
 const SIMS={
- m1:{title:'Прогон 1 · первая встреча',sub:'Производство хлеба, 21 точка-партнёр. На встрече собственник и операционный директор.',
+ g:{title:'Прогон 1 · Гульнар, бухгалтерская компания',sub:'Астана. Бухуслуги, аудит, подключает обучение. 8 в офисе и 3 удалённо. CRM нет, Битрикс не прижился. Подключилась с телефона, звук плохой. Реплики — из записи эталонной встречи.',
   steps:[
-   {c:'Здравствуйте. Мне Ирина сказала, у вас программы какие-то. У нас пекарня, если честно, времени мало — давайте покороче.',
-    o:[['Принять темп и сразу показать презентацию компании',-2,'Клиент не понимает, зачем ему смотреть на вас. Показ без картины бизнеса не цепляет.'],
-       ['Договориться о структуре: 15 минут вопросов, потом показ, потом план — и попросить разрешение на запись',3,'Рамка задана, темп под контролем. Клиент почти всегда соглашается, если слышит конкретный тайминг.'],
-       ['Спросить бюджет, чтобы не тратить время',-3,'Разговор о деньгах до разговора о бизнесе выглядит как торговля, а не как помощь.']]},
-   {c:'Ну, у нас производство хлеба, возим по магазинам. Всё вроде работает, просто хотим оцифровать.',
-    o:[['«Понял, у нас есть стандартный пакет — расскажу, что входит»',-2,'Вы начали продавать продукт, не зная, что болит. Дальше разговор пойдёт про цену, а не про ценность.'],
-       ['Пройти по цепочке: где живёт заявка, склад, производство, отгрузка, деньги',3,'Карта заставляет клиента самому показать разрывы — и он начинает рассказывать истории.'],
-       ['«А сколько у вас сотрудников и точек?» и записать в бриф',1,'Полезно, но это анкета. Разрывы так не всплывают — нужен разбор по шагам.']]},
-   {c:'Ну вот сырьё... покупаем, оно копится, потом бухгалтер списывает раз в год. И магазины возвращают хлеб, а сколько — толком не считаем.',
-    o:[['«Это мы закроем: склад с техкартами и учёт возвратов»',0,'Решение названо слишком рано. Боль ещё не измерена, ценность решения непонятна.'],
-       ['«А какое расхождение показала последняя инвентаризация? И сколько процентов возвращается от отгрузки?»',3,'Вы переводите историю в цифры. Дальше эти цифры станут основанием для цены.'],
-       ['«У всех пекарен так, это нормально»',-2,'Нормализация боли снижает мотивацию что-то менять.']]},
-   {c:'Ну, семечек тогда почти сто килограмм не нашли. А возврат... процентов семь, наверное. Отгружаем миллионов на двенадцать в месяц.',
-    o:[['Записать и идти дальше к показу кейсов',0,'Цифры прозвучали, но клиент их не осознал. Нужно проговорить сумму вслух.'],
-       ['Посчитать вслух: «семь процентов от двенадцати миллионов — это около 840 тысяч в месяц, из них безвозвратные потери примерно половина. Плюс склад. Верно считаю?»',4,'Клиент услышал свою потерю в тенге и подтвердил её. С этого момента цена системы сравнивается с этой суммой.'],
-       ['«Это много, у ваших конкурентов меньше»',-2,'Сравнение с конкурентами без данных вызывает защиту, а не желание считать.']]},
-   {c:'Ну да, деньги приличные получаются. А вы вообще с пекарнями работали?',
-    o:[['«Нет, но разберёмся»',-1,'Честно, но пусто. Клиент остаётся без доказательства компетентности.'],
-       ['«Работали с производством и складами. Смотрите: вот система, где партия списывает сырьё по техкарте, а вот учёт возвратов по точкам — механика ровно ваша, только продукт другой»',3,'Кейс переведён на язык клиента. Он достраивает картину сам.'],
-       ['Показать все кейсы подряд, включая вагоны и автосалон',-1,'Много и мимо. Внимание уходит, ощущение «нам показывают всё подряд».']]},
-   {c:'Понятно. А сколько это стоит?',
-    o:[['«От полутора до двух с половиной миллионов»',1,'Ответ честный, но без объёма: клиент не знает, за что.'],
-       ['Сначала назвать состав пакета и процесс, потом вилку и схему 10/45/45',3,'Порядок «объём → процесс → деньги» снимает вопрос «а почему столько».'],
-       ['«Давайте сначала соберём демо, потом о деньгах»',-1,'Уход от прямого вопроса читается как неуверенность или как «будет дорого».']]},
-   {c:'Хорошо, спасибо. Мы подумаем и свяжемся.',
-    o:[['«Конечно, ждём вашего решения»',-3,'Встреча ушла в тишину. Это худший финал: думать клиенту не над чем, предложения ещё нет.'],
-       ['«Думать пока не над чем — предложения нет. Давайте мы за пару дней соберём демо вашей пекарни, бесплатно. Вам удобнее в четверг в 15:00 или в пятницу утром?»',4,'Следующий шаг маленький, бесплатный и с выбором из двух дат. Так закрывается большинство первых встреч.'],
-       ['«Я пришлю коммерческое предложение на почту»',-1,'КП без демо читают по диагонали и откладывают.']]}
+   {s:0,c:'Алло… да, слышу. Ещё раз — как вас зовут?',
+    o:[['Сразу открыть экран с демо и начать показ',-3,'Контакта нет, звук плохой — клиент не увидит и не услышит. Приветствие пропущено.'],
+       ['«Меня зовут Асель, очень приятно. Я менеджер вашего проекта. Мы студия, программисты — пишем программы под задачи бизнеса. Слышно хорошо? Сейчас открою вашу карточку и задам пару вопросов»',3,'Имя, роль, что делаем, что будет — и подтверждение. АРО налажено.'],
+       ['Рассказать историю компании на три минуты',-2,'Монолог вместо общения. Клиент с плохим звуком выпадет.']]},
+   {s:1,c:'Бухгалтерские услуги, обучение подключаю. Астана. Систему? Пока никакую.',
+    o:[['«Понял: бухуслуги и обучение, Астана, системы нет. А сколько сотрудников? Филиалы?»',3,'Подтверждение и следующий вопрос — картина собирается.'],
+       ['«Без системы сейчас нельзя, вы теряете деньги»',-2,'Оценка вместо вопроса. Реальность клиента не узнана, аффинити падает.'],
+       ['«Ок» и перейти к показу демо',-1,'Картина неполная: не знаем ни объёма, ни людей. Демо будет мимо.']]},
+   {s:2,c:'Восемь в офисе, три удалённо. Битрикс покупали, кто продал — обещал научить, так и не получилось. Мне важно, чтобы звонки и WhatsApp сохранялись — потом с клиентом спорим, а я и не слышала, как мой сотрудник говорил.',
+    o:[['«Это стандартные вещи, сделаем. Сколько будет пользователей?»',0,'Подтверждение есть, но боль не углублена и не записана. Технический список не начат.'],
+       ['«Понял. То есть основной запрос — продажи и порядок внутри: звонки и переписка в карточке, чтобы не было споров. Плюс аудит, бухуслуги и обучение как отдельные направления. Записываю первым пунктом. Что ещё горит?»',4,'Реальность установлена словами клиента, боль подтверждена, технический список начат, клиент готов слушать.'],
+       ['«Битрикс — это тяжёлая система, у нас лучше»',-2,'Спор с прошлым опытом вместо того, чтобы услышать, на чём застряло.']]},
+   {s:3,c:'Покажите, пожалуйста, что вы для бухгалтеров разработали, как вы говорите.',
+    o:[['Открыть портал Сальдо KZ и показать четыре пункта: нагрузка и дедлайны, карточка клиента со звонками и WhatsApp, задачи между сотрудниками, мультиворонка — связывая каждый с её словами',4,'2–3 демо по 3–5 пунктов под запрос. Реакция в записи: «примерно вот это мне надо».'],
+       ['Показать все десять проектов из App по очереди',-2,'Охват вместо глубины. Клиент устанет и не увидит своё.'],
+       ['Рассказать словами, без экрана, что мы умеем',-1,'Компетентность демонстрируется показом, а не рассказом.']]},
+   {s:3,c:'А это вот в рекламе было — что вы для меня разработаете и это всегда будет моё, не надо кому-то платить за доступ?',
+    o:[['«Совершенно верно. Разворачиваем на вашем сервере, код передаём — это ваша программа. Смотрите дальше: вот WhatsApp-переписка в карточке, вот звонки»',4,'Подтверждение главного аргумента и продолжение показа. В записи это «зацепило» клиента.'],
+       ['«Есть небольшая абонплата за сервер»',-3,'Неправда и удар по главному преимуществу.'],
+       ['«Обсудим позже, сейчас про функции»',-1,'Ушли от вопроса, который для клиента главный.']]},
+   {s:4,c:'Во сколько будет стоить такое разработать? И что вообще входит?',
+    o:[['«Полтора миллиона»',0,'Цифра без состава. Дальше клиент будет торговаться, а не уточнять.'],
+       ['«Всё, что мы проговорили, входит в стандартный пакет: 4–6 недель, несколько билдов и правки. Стоимость 1,5 млн. Отдельно считаем 1С, сайт, прикладные — у вас их не вижу. Три этапа: старт с демо, ядро, полировка. Оплата 10 / 45 / 45. Подготовлю КП со всеми договорённостями»',4,'Состав → сроки → цена → что отдельно → этапы → оплата → КП. Продукт: интерес, а не спор.'],
+       ['«А какой у вас бюджет?»',-3,'Вопрос о бюджете вместо реальности о пакете. Клиент закрывается.']]},
+   {s:5,c:'Предложение заманчивое, но у меня сейчас высокая закредитованность, жду, что ставка поменяется… Мне важно свои обязательства выполнять.',
+    o:[['«Понимаю, тогда давайте вернёмся к этому через пару месяцев»',-3,'Сделка ушла в тишину. Возражение про кэшфлоу — не отказ.'],
+       ['«Без проблем: мы сделаем демо и начнём с ядра. 10 % — символическая предоплата, следующий платёж после ядра через две-три недели, график подгоним: хоть 10/30/30/30, последние 30 спустя месяц. Скажите, что нужно, чтобы начать — реквизиты, логотип?»',4,'Два пути, «что нужно, чтобы начать», риск снят графиком по этапам. В записи ответ: «Давайте, вообще шикарно».'],
+       ['«Могу дать скидку 15 %, если сегодня»',-2,'Скидка обесценивает цену и не отвечает на суть: клиент боится не суммы, а графика.']]},
+   {s:6,c:'Давайте, вообще шикарно. Мне реквизиты скинуть, да?',
+    o:[['«Да, скидывайте. До свидания»',-1,'Продолжение не зафиксировано: нет перечня демо и времени встречи.'],
+       ['«Да: реквизиты и логотип в чат. Подведу итог: в демо включаем воронку с обучением отдельно, карточку клиента со звонками и WhatsApp, задачи, календарь отчётности, права доступа. Спасибо, что пришли — ждём вас завтра в это же время, резюме пришлю в чат»',4,'Перечень, дата, благодарность, резюме в чат. Клиент ориентирован и ждёт продолжения.'],
+       ['Ещё раз пересказать всю встречу с начала',-1,'Резюме должно быть сжатым. Длинный пересказ размывает договорённость.']]}
   ],
-  win:'Демо назначено на конкретную дату, получены логотип и материалы. Первая встреча отработана.',
-  lose:'Клиент ушёл «подумать» без даты. По статистике это восемь потерянных сделок из десяти.'},
- m2:{title:'Прогон 2 · вторая встреча с демо',sub:'Та же пекарня. Демо собрано, на встрече собственник, операционный директор и технолог.',
+  win:'Продукт встречи получен: клиент знает, что получит желаемую программу, присылает реквизиты и ждёт демо завтра.',
+  lose:'Продукт встречи не получен: без даты, перечня и подтверждения клиент уходит «подумать».'},
+ b:{title:'Прогон 2 · Пекарня, 21 точка-партнёр',sub:'Производство хлеба и доставка по магазинам. На зуме собственник и операционный директор. Времени мало, «давайте покороче».',
   steps:[
-   {c:'Здравствуйте! Ну что, показывайте, что получилось.',
-    o:[['Открыть демо и начать с обзора всех разделов',0,'Обзор по порядку усыпляет. Первые две минуты решают всё.'],
-       ['Сначала проговорить, что услышали в прошлый раз, их же словами и с их цифрой потерь',3,'Клиент слышит собственные слова — это сильнее любого интерфейса. И сразу вспоминает, зачем всё это.'],
-       ['Сразу назвать финальную цену, раз объём понятен',-2,'Деньги до демонстрации ценности превращают встречу в торг.']]},
-   {c:'Да, всё так. Ну, показывайте.',
-    o:[['Сказать: «это кликабельный макет, данные не сохраняются — перебивайте, если видите не своё» и прислать ссылку клиенту',3,'Рамка снимает ожидание готовой программы, а своя ссылка вовлекает — клиент кликает сам.'],
-       ['Показывать со своего экрана без пояснений',0,'Клиент может решить, что это готовая программа, и потом расстроиться.'],
-       ['Предупредить, что демо сырое и многое ещё не работает',-2,'Самообесценивание. Клиент начнёт искать недостатки вместо возможностей.']]},
-   {c:'(смотрит) Ага... а это что за экран?',
-    o:[['Начать с экрана «Сходимость»: сырьё → выпуск → отгрузка → возврат → продажа, с суммой потерь',4,'Это ответ на его главный вопрос с первой встречи. Узнавание и вовлечение мгновенные.'],
-       ['Начать с настроек и справочников',-2,'Скучно и не про его боль. Внимание уходит в первые минуты.'],
-       ['Начать со списка всех модулей',-1,'Обзорность вместо глубины. Клиент не понимает, что из этого его.']]},
-   {c:'О, вот это интересно. А возвраты тут по каждому магазину видно? У нас Магазин №7 вечно всё возвращает.',
-    o:[['«Да, конечно» и продолжить показ дальше',0,'Упущен момент: клиент назвал конкретную боль, её надо показать на экране.'],
-       ['Открыть экран возвратов, найти точку с высоким процентом и проговорить, сколько это стоит в месяц',4,'Клиент видит свою ситуацию своими глазами. Это момент, когда он мысленно начинает работать в системе.'],
-       ['«Это можно добавить в доработках»',-2,'Вы только что превратили входящую функцию в платную опцию и посеяли сомнение.']]},
-   {c:'Слушайте, а можно, чтобы в заявках было видно, кто из менеджеров принял и во сколько? И ещё нам нужен обмен с 1С.',
-    o:[['«Всё сделаем, не проблема»',-1,'Обещание без фиксации. Позже возникнет спор, входило это или нет.'],
-       ['Записать при клиенте: «фиксирую — источник и ответственный в заявках, это входит в пакет. Обмен с 1С считается отдельно, о нём скажу отдельно»',4,'Правки становятся объёмом работ, а граница с 1С проведена сразу — без неё будет конфликт на этапе счёта.'],
-       ['«1С мы вам тоже включим бесплатно»',-3,'Потеря 800 тысяч и обесценивание сложной работы. Такие уступки не ускоряют сделку.']]},
-   {c:'Понятно. Сумма-то какая в итоге?',
-    o:[['Назвать цену',1,'Ответ есть, но без связи с эффектом он звучит как «дорого».'],
-       ['Сначала показать расчёт эффекта на их цифрах, потом цену и схему 10/45/45',4,'Цена звучит после того, как названа сумма возврата. Разговор идёт про окупаемость.'],
-       ['Дать скидку заранее, чтобы не спорить',-2,'Скидка без причины снижает ценность и провоцирует торг дальше.']]},
-   {c:'Хорошо. Дорого, конечно. Нам надо посоветоваться с партнёром.',
-    o:[['«Конечно, подумайте»',-3,'Сделка уходит в тишину без даты и без понимания реального возражения.'],
-       ['«Когда вы обсуждаете? Давайте я буду на связи в этот день. И скажите честно: если дело не только в согласовании — что смущает?» Плюс зафиксировать цену и скидку до конкретного числа',3,'Дата назначена, скрытое возражение вскрыто, условия зафиксированы письменно.'],
-       ['«Если решите сегодня, дам пятнадцать процентов скидки»',-2,'Давление скидкой рушит доверие к цене: значит, можно было и дешевле.']]},
-   {c:'Да нет, партнёр в целом за. Просто сумма ощутимая.',
-    o:[['«Понимаю» и закончить встречу',-2,'Возражение названо, но не обработано. Клиент остался один на один с сомнением.'],
-       ['«Поэтому мы и не берём всю сумму сразу: десять процентов на старте, остальное после того, как увидите ядро на своих данных. И если предоплата сегодня — пять процентов скидки. Скажите реквизиты, выставлю счёт прямо сейчас»',4,'Риск снят схемой оплаты, а не скидкой. Просим не решение, а действие — реквизиты.'],
-       ['«Можем разбить на пять платежей»',0,'Не вредно, но не отвечает на суть: клиент боится не графика, а результата.']]}
+   {s:0,c:'Здравствуйте. Нам Ирина сказала, у вас программы какие-то. Времени мало — давайте покороче.',
+    o:[['Принять темп и сразу показать демо',-2,'Показ без контакта и картины бизнеса не цепляет.'],
+       ['«Добрый день, Марат. Меня зовут ___, я менеджер вашего проекта, мы студия — пишем программы под задачи бизнеса. Уложимся в полчаса: открою карточку, два вопроса, покажу похожие системы — идёт?»',3,'Приветствие с тайм-рамкой: клиент получил, что хотел, вы — структуру.'],
+       ['Спросить бюджет, чтобы не тратить время',-3,'Деньги до контакта выглядят как торговля.']]},
+   {s:1,c:'Производство хлеба, возим по 21 магазину. Таблицы и 1С у бухгалтера. Человек тридцать.',
+    o:[['«Понял: производство, доставка по 21 точке, тридцать человек, учёт в таблицах и 1С. Склад и заказы тоже в таблицах? Филиалов нет?»',3,'Подтверждение и добор картины: где живёт каждый шаг.'],
+       ['«Тридцать человек — большая компания, нужна серьёзная система»',-1,'Оценка вместо вопроса.'],
+       ['Перейти к запросу, не уточняя',0,'Картина есть, но неполная — демо может пойти мимо склада.']]},
+   {s:2,c:'Всё вроде работает, просто хотим оцифровать.',
+    o:[['«Отлично, тогда стандартный пакет за 1,5 млн»',-2,'Решение до боли. Дальше разговор пойдёт про цену.'],
+       ['«Предположу: главное — видеть, что отгрузили, что вернулось и где теряется сырьё? Или заявки от магазинов? Расскажите, где сейчас живёт заявка, склад, отгрузка, деньги»',4,'Предположение из обзора и разбор по шагам — клиент сам находит разрыв.'],
+       ['«Значит, проблем нет? Тогда зачем система?»',-3,'Обесценивание запроса.']]},
+   {s:3,c:'Ну, сырьё копится, списываем раз в год. Магазины возвращают хлеб — сколько, толком не считаем. А вы с пекарнями работали?',
+    o:[['«Нет, но разберёмся»',-1,'Честно, но без доказательства компетентности.'],
+       ['Показать ЦЕХ: смена с телефона, списание по техкарте, экран водителя с возвратами по точкам, и Dayin: партии и склад — по 3–4 пункта, связывая с его словами',4,'Два демо под механику клиента: производство, склад, возвраты. Клиент видит своё.'],
+       ['Показать все десять проектов',-2,'Много и мимо.']]},
+   {s:3,c:'О, возвраты по каждому магазину видно? У нас Магазин №7 вечно всё возвращает.',
+    o:[['Открыть экран возвратов, найти точку с высоким процентом и проговорить, сколько это в месяц',4,'Клиент увидел свою боль на экране — компетентность превысила запрос.'],
+       ['«Да, конечно» и продолжить обзор',0,'Момент узнавания упущен.'],
+       ['«Это можно добавить в доработках»',-2,'Входящая функция превратилась в платную опцию.']]},
+   {s:4,c:'Понятно. А сколько это стоит?',
+    o:[['«От полутора до двух с половиной миллионов»',0,'Вилка без состава и этапов.'],
+       ['«Всё, что проговорили — производство, склад, возвраты, водители, заявки, деньги — входит в стандартный пакет: 4–6 недель, 1,5 млн. Отдельно только обмен с 1С. Три этапа: демо, ядро, полировка. Оплата 10/45/45. Подготовлю КП»',4,'Порядок этапа соблюдён, граница с 1С проведена сразу.'],
+       ['«Давайте сначала соберём демо, потом о деньгах»',-1,'Уход от прямого вопроса читается как «будет дорого».']]},
+   {s:5,c:'Хорошо, спасибо. Мы подумаем и свяжемся.',
+    o:[['«Конечно, ждём вашего решения»',-3,'Встреча ушла в тишину.'],
+       ['«Думать пока не над чем — предложения ещё нет. Мы соберём демо вашей пекарни: два пути — писать ТЗ долго, или выкатить ядро и править вместе. Скажите, что нужно, чтобы начать? Логотип, прайс и список точек — и в четверг в 15:00 показываем?»',4,'Два пути, «что нужно, чтобы начать», конкретная дата.'],
+       ['«Пришлю КП на почту»',-1,'КП без демо читают по диагонали.']]},
+   {s:6,c:'Ладно, в четверг давайте. Что вы там покажете?',
+    o:[['«Увидите, будет интересно»',-2,'Клиент не ориентирован: не знает, чего ждать.'],
+       ['«Подведу итог: в демо включаем закрытие смены с телефона, склад со списанием по техкарте, возвраты по каждой точке, экран водителя и деньги по точкам. Спасибо, что нашли время — четверг, 15:00. Резюме в чат отправлю сейчас»',4,'Перечень, дата, резюме в чат.'],
+       ['Ещё раз показать демо',-1,'Резюме — это слова, а не повторный показ.']]}
   ],
-  win:'Счёт на предоплату выставлен в чат, создан рабочий чат с техлидом, назначен первый созвон по каркасу.',
-  lose:'Встреча закончилась без счёта и без даты. Вернуть такого клиента стоит в разы дороже, чем закрыть сейчас.'}
+  win:'Продукт встречи получен: дата демо назначена, материалы запрошены, клиент знает состав демо.',
+  lose:'Клиент ушёл «подумать» без даты и перечня — продукт встречи не получен.'}
 };
-let simKey=null,simStep=0,simScore=0,simTrail=[];
-function renderSimPicker(){$('#simPicker').innerHTML=Object.entries(SIMS).map(([k,s])=>{
- const done=state.sim[k];
- return `<div class="card ${done?'good':''}"><h3>${esc(s.title)}</h3><p>${esc(s.sub)}</p>
- ${done?`<p style="color:var(--green);font-weight:700;margin-top:8px">Пройдено · ${done.score} из ${done.max} очков</p>`:''}
+let simKey=null,simStep=0,simScore=0,simTrail=[],simStageOk={};
+function renderSimPicker(){$('#simPicker').innerHTML=Object.entries(SIMS).map(([k,s])=>{const done=state.sim[k];
+ return `<div class="card ${done&&done.win?'good':''}"><h3>${esc(s.title)}</h3><p>${esc(s.sub)}</p>
+ ${done?`<p style="color:${done.win?'var(--green)':'var(--red)'};font-weight:700;margin-top:8px">${done.win?'Пройдено':'Не засчитано'} · ${done.score} из ${done.max} очков</p>`:''}
  <div class="actions"><button class="btn purple" onclick="startSim('${k}')">${done?'Пройти заново':'Начать прогон'}</button></div></div>`}).join('')}
-function startSim(k){simKey=k;simStep=0;simScore=0;simTrail=[];renderSim()}
+function startSim(k){simKey=k;simStep=0;simScore=0;simTrail=[];simStageOk={};renderSim()}
 function maxSim(k){return SIMS[k].steps.reduce((a,s)=>a+Math.max(...s.o.map(o=>o[1])),0)}
-function renderSim(){const s=SIMS[simKey];
- if(simStep>=s.steps.length)return finishSim();
- const st=s.steps[simStep];
- $('#simBox').innerHTML=`<div class="sim">
-  <div class="sim-head"><b>${esc(s.title)}</b><span class="sim-meter">шаг ${simStep+1} из ${s.steps.length} · очки ${simScore}</span></div>
+function stageBar(cur){return `<div class="stagebar">${STAGES.map((s,i)=>`<span class="${i===cur?'on':simStageOk[i]?'done':''}">${i+1} · ${esc(s.n.split(' ')[0])}</span>`).join('')}</div>`}
+function renderSim(){const s=SIMS[simKey];if(simStep>=s.steps.length)return finishSim();const st=s.steps[simStep];
+ $('#simBox').innerHTML=`<div class="sim"><div class="sim-head"><b>${esc(s.title)}</b><span class="sim-meter">реплика ${simStep+1} из ${s.steps.length} · очки ${simScore}</span></div>${stageBar(st.s)}
+  <div style="font-size:12.5px;color:#5b3fc0;margin-bottom:8px"><b>Этап ${st.s+1} · ${esc(STAGES[st.s].n)}.</b> Продукт: ${esc(STAGES[st.s].prod)}</div>
   <div class="client"><small>Клиент говорит</small>${esc(st.c)}</div>
   <div class="choices">${st.o.map((o,i)=>`<button class="choice" onclick="answerSim(${i})">${esc(o[0])}</button>`).join('')}</div>
-  ${simTrail.length?`<div class="trail">${simTrail.map(t=>`<div class="${t.p>0?'plus':t.p<0?'minus':''}">${t.p>0?'+':''}${t.p} · ${esc(t.f)}</div>`).join('')}</div>`:''}
- </div>`}
-function answerSim(i){const st=SIMS[simKey].steps[simStep],o=st.o[i];
- simScore+=o[1];simTrail.unshift({p:o[1],f:o[2]});
+  ${simTrail.length?`<div class="trail">${simTrail.map(t=>`<div class="${t.p>0?'plus':t.p<0?'minus':''}">${t.p>0?'+':''}${t.p} · ${esc(t.f)}</div>`).join('')}</div>`:''}</div>`}
+function answerSim(i){const st=SIMS[simKey].steps[simStep],o=st.o[i];simScore+=o[1];simTrail.unshift({p:o[1],f:o[2]});if(o[1]>=3)simStageOk[st.s]=true;
  $('#simBox').insertAdjacentHTML('afterbegin',`<div class="fb ${o[1]>=3?'good':o[1]<0?'bad':'mid'}"><b>${o[1]>0?'+':''}${o[1]} очков.</b> ${esc(o[2])}</div>`);
  simStep++;setTimeout(()=>{renderSim();window.scrollTo({top:$('#simBox').offsetTop-90,behavior:'smooth'})},1400)}
 function finishSim(){const s=SIMS[simKey],max=maxSim(simKey),pct=simScore/max,win=pct>=0.7;
- state.sim[simKey]={score:simScore,max,win};
- const both=state.sim.m1&&state.sim.m2;
- if(both){const tot=(state.sim.m1.score/state.sim.m1.max+state.sim.m2.score/state.sim.m2.max)/2;
-  state.scores.sim=Math.max(state.scores.sim||0,Math.round(Math.max(0,tot)*25))}
+ state.sim[simKey]={score:simScore,max,win,stages:Object.keys(simStageOk).length};
+ const both=state.sim.g&&state.sim.b;
+ if(both){const tot=(state.sim.g.score/state.sim.g.max+state.sim.b.score/state.sim.b.max)/2;state.scores.sim=Math.max(state.scores.sim||0,Math.round(Math.max(0,tot)*MAX.sim))}
  save();
- $('#simBox').innerHTML=`<div class="card ${win?'good':'warn'}">
-  <h3>${win?'Прогон пройден':'Прогон не засчитан'}</h3>
-  <p style="font-size:16px;color:var(--ink)"><b>${simScore} из ${max} очков</b></p>
-  <p>${esc(win?s.win:s.lose)}</p>
+ $('#simBox').innerHTML=`<div class="card ${win?'good':'warn'}"><h3>${win?'Прогон пройден':'Прогон не засчитан'}</h3>
+  <p style="font-size:16px;color:var(--ink)"><b>${simScore} из ${max} очков</b> · продукт получен на ${Object.keys(simStageOk).length} этапах из 7</p><p>${esc(win?s.win:s.lose)}</p>
   <div class="trail" style="margin-top:12px">${simTrail.slice().reverse().map(t=>`<div class="${t.p>0?'plus':t.p<0?'minus':''}">${t.p>0?'+':''}${t.p} · ${esc(t.f)}</div>`).join('')}</div>
   <div class="actions"><button class="btn purple" onclick="startSim('${simKey}')">Пройти заново</button><button class="btn secondary" onclick="renderSimPicker();$('#simBox').innerHTML=''">К списку прогонов</button></div></div>`;
- renderSimPicker();toast(win?'Прогон засчитан':'Порог 70% очков не набран')}
-
-/* ===== АТТЕСТАЦИЯ ===== */
+ renderSimPicker();toast(win?'Прогон засчитан':'Порог 70 % очков не набран');markNav()}
+</script>
+<script>
+/* ===== 11 АТТЕСТАЦИЯ · ТЕСТ ===== */
 const FINAL_Q=[
- ['Главная цель первой встречи',['Продать систему','Назначить вторую встречу с демо','Отправить коммерческое предложение','Узнать бюджет'],1],
- ['Когда можно называть цену',['В самом начале, чтобы отсеять неплатёжеспособных','После того как клиент назвал сумму своих потерь и услышал состав пакета','В конце второй встречи','В коммерческом предложении, на встрече не называть'],1],
- ['Что делать, если клиент говорит «всё нормально, просто хотим автоматизировать»',['Предложить стандартный пакет','Пройти с ним по цепочке процессов и найти разрыв','Отправить КП','Спросить бюджет'],1],
- ['С какого экрана начинать показ демо',['С титульного','С экрана, закрывающего боль, о которой он говорил','С настроек и справочников','Со списка всех модулей'],1],
- ['Клиент молчит пять минут во время показа',['Значит, всё нравится — продолжать','Ускориться','Остановиться и спросить, где промахнулись','Спросить «нравится?»'],2],
- ['Что делает фразу «мы подумаем» опасной',['Клиент теряет интерес','Нет даты следующего шага, сделка уходит в тишину','Он пойдёт к конкурентам','Это отказ'],1],
- ['Правильная реакция на «дорого»',['Дать скидку','Вернуться к его сумме потерь, при необходимости урезать объём','Сказать, что это рыночная цена','Предложить рассрочку на год'],1],
- ['Зачем нужен расчёт потерь на первой встрече',['Чтобы показать экспертность','Чтобы клиент сам произнёс сумму, с которой потом сравнивается цена','Чтобы заполнить бриф','Чтобы обосновать скидку'],1],
- ['Что входит в стандартный пакет по умолчанию',['Интеграция с 1С','Каналы связи, воронка с калькулятором, склад, производство, задачи, отчётность и права','Только CRM','Разработка сайта'],1],
- ['Когда называются подарки (калькулятор, KPI)',['В начале первой встречи','В момент закрытия, когда объём уже согласован','В коммерческом предложении','Никогда'],1],
- ['Схема оплаты и её смысл',['100% предоплата — так надёжнее','10/45/45: 90% клиент платит после того, как увидит результат','50/50','Оплата по факту сдачи'],1],
- ['Что фиксируется как объём работ',['Устные договорённости','Список правок клиента, собранный на показе демо и подтверждённый вслух','Наше видение','Пункты презентации'],1],
- ['Ответ на «а если вы пропадёте?»',['«Мы работаем 15 лет»','«Код в вашем репозитории, стек общепринятый, поддержит любой разработчик»','«Заключим договор с гарантиями»','«Такого не будет»'],1],
- ['Что нужно забрать с первой встречи',['Только контакты','Дату демо, логотип, материалы и состав участников показа','Подписанный договор','Техническое задание'],1],
- ['Признак того, что вторая встреча отработана',['Клиент сказал, что ему понравилось','Счёт выставлен в чат, создан рабочий чат, назначен созвон по каркасу','Отправлено КП','Клиент обещал оплатить на следующей неделе'],1],
- ['Статистика поста клоузера',['Количество проведённых встреч','Количество новых договоров и сумма денег в кассе','Количество отправленных коммерческих предложений','Количество собранных демо'],1]
+ {q:'Цель первого зума по паттерну',o:['Продать систему и получить оплату','Узнать реальность клиента, показать компетентность и продать следующую встречу — показ демо','Отправить КП','Собрать ТЗ'],c:1},
+ {q:'Продукт первого зума',o:['Подписанный договор','Клиент знает, что с нами получит желаемую программу, и готов работать с нами','Клиент посмотрел презентацию','Клиент назвал бюджет'],c:1},
+ {q:'Правило на всю встречу',o:['Говорить уверенно и без пауз','Двустороннее общение: каждый этап проводится до его продукта, потом переход к следующему','Показывать как можно больше экранов','Не называть цену'],c:1},
+ {q:'Три предварительных требования к клоузеру',o:['Знать цены, знать конкурентов, знать 1С','АРО (видео и проверка), список из восьми слов, 10 последних проектов в App','Пройти тест по Битриксу','Прочитать плейбук'],c:1},
+ {q:'Продукт этапа «Приветствие»',o:['Клиент знает цену','АРО налажено: клиент расположен, знает, кто вы, разговор двусторонний','Клиент прислал ТЗ','Показано демо'],c:1},
+ {q:'Продукт этапа «Обзор бизнеса»',o:['Список возражений','Точная картина бизнеса: чем занимается, система или её нет, сотрудники, филиалы, объёмы','Согласие на демо','Договор'],c:1},
+ {q:'Как открывается этап «Основной запрос»',o:['«Что вам нужно?»','Предположением из обзора бизнеса, после которого клиент рассказывает и высказывает боли','Списком наших услуг','Ценой'],c:1},
+ {q:'Продукт этапа «Основной запрос»',o:['Клиент расположен к нам и готов выслушать нас; главная боль выявлена','Клиент оплатил','Клиент выбрал тариф','Клиент получил КП'],c:0},
+ {q:'Что показывается на этапе «Компетентность»',o:['Презентация о компании','2–3 демо из App под запрос, по 3–5 пунктов, чтобы компетентность превысила запрос','Прайс','Все проекты за год'],c:1},
+ {q:'Продукт этапа «Компетентность»',o:['Клиент уверен в нашей компетентности','Клиент знает цену','Клиент устал','Клиент подписал'],c:0},
+ {q:'Стоимость и срок стандартного пакета',o:['800 000 ₸, 2 недели','1,5 млн ₸, 4–6 недель','2,5 млн ₸, 3 месяца','По часам'],c:1},
+ {q:'Что всегда считается отдельно',o:['WhatsApp','1С-интеграция, прикладные программы, сайт','Воронка','Права доступа'],c:1},
+ {q:'Три этапа разработки',o:['Старт (демо) → ядро → полировка','ТЗ → код → тест','Договор → оплата → сдача','Демо → КП → счёт'],c:0},
+ {q:'Схема оплаты',o:['100 % предоплата','10 % на старте, 45 % после ядра, 45 % при полной сдаче','50/50','По факту'],c:1},
+ {q:'Продукт этапа «Создание демо»',o:['Клиент готов к разработке и ждёт демо; дата назначена','Клиент получил бесплатное демо без обязательств','Клиент написал ТЗ','Клиент подумает'],c:0},
+ {q:'«Два пути» — какой предлагаем',o:['Полное ТЗ сначала','Выкатить ядро и править: 2–3 версии, клиент получает то, что хочет','Купить коробку','Начать с сайта'],c:1},
+ {q:'Ключевая фраза закрытия на демо',o:['«Подумайте»','«Скажите, что нам нужно, чтобы мы могли начать?»','«Какой бюджет?»','«Мы перезвоним»'],c:1},
+ {q:'Что входит в резюме',o:['Пересказ всей встречи','Сжатый перечень того, что будет в демо, благодарность и время следующей встречи','Только цена','Возражения'],c:1},
+ {q:'Клиент: «Закредитованность, подумаю». Правильная реакция',o:['Скидка','Гибкий график оплаты по этапам и вопрос «что нужно, чтобы начать?»','Перенести на месяц','Согласиться и попрощаться'],c:1},
+ {q:'Как отработано в эталонной записи главное «зацепило» клиента',o:['Ценой','Подтверждением «это будет ваше навсегда, на вашем сервере, без платы за доступ»','Скоростью','Скидкой'],c:1}
 ];
-function gatesOk(){return {steps:(state.scores.steps||0)>=14,script:(state.scores.script||0)>=14,obj:(state.scores.obj||0)>=13,sim:!!(state.sim.m1&&state.sim.m2)}}
-function renderExamAccess(){const g=gatesOk(),ok=Object.values(g).every(Boolean);
- $('#examLock').innerHTML=ok?'':`<div class="lock"><h3>Аттестация откроется после базовых модулей</h3>
-  <div class="lock-list">
-   <div class="lock-item ${g.steps?'done':''}">${g.steps?'✓':'○'} Шаги — минимум 14 из 20 баллов</div>
-   <div class="lock-item ${g.script?'done':''}">${g.script?'✓':'○'} Формулировки — минимум 14 из 20</div>
-   <div class="lock-item ${g.obj?'done':''}">${g.obj?'✓':'○'} Возражения — минимум 13 из 20</div>
-   <div class="lock-item ${g.sim?'done':''}">${g.sim?'✓':'○'} Оба прогона симулятора пройдены</div>
-  </div></div>`;
+function allGates(){const s=state.scores;return {
+ aro:(s.aro||0)>=MIN.aro,words:(s.words||0)>=MIN.words,projects:(s.projects||0)>=MIN.projects,stages:(s.stages||0)>=MIN.stages,video:(s.video||0)>=MIN.video,
+ check:(s.check||0)>=MIN.check&&(state.checkPer||[]).length===7&&state.checkPer.every(x=>x>=2),drills:(state.drillDone||[]).length===7&&state.drillDone.every(Boolean),
+ obj:(s.obj||0)>=MIN.obj,sim:!!(state.sim.g&&state.sim.g.win&&state.sim.b&&state.sim.b.win)}}
+const GATE_LABEL={aro:'АРО · 4 из 5',words:'Список слов · 4 из 5',projects:'10 проектов · 4 из 5',stages:'Семь этапов · 7 из 10',video:'Разбор видео · 7 из 10',check:'Проверка по этапам · 2 из 3 на каждом',drills:'Тренировки · все семь засчитаны',obj:'Возражения · 7 из 10',sim:'Симулятор · оба прогона пройдены'};
+function renderExamAccess(){const g=allGates(),ok=Object.values(g).every(Boolean);
+ $('#examLock').innerHTML=ok?'':`<div class="lock"><h3>Тест откроется после всех модулей подготовки и практики</h3><div class="lock-list">${Object.entries(g).map(([k,v])=>`<div class="lock-item ${v?'done':''}">${v?'✓':'○'} ${GATE_LABEL[k]}</div>`).join('')}</div></div>`;
  $('#examWrap').style.display=ok?'block':'none';
- if(ok&&!$('#finalExam').innerHTML)$('#finalExam').innerHTML=FINAL_Q.map((q,i)=>`<div class="quiz-q" data-q="${i}"><b>${i+1}. ${esc(q[0])}</b>${q[1].map((o,j)=>`<button class="option ${state.examAnswers[i]==j?'selected':''}" onclick="pick('exam',${i},${j},this)">${esc(o)}</button>`).join('')}</div>`).join('')}
-function checkFinalExam(){let c=0;FINAL_Q.forEach((q,i)=>{if(state.examAnswers[i]===q[2])c++});
- state.scores.exam=Math.min(15,c);state.examRight=c;state.examChecked=true;state.completedAt=new Date().toISOString();save();
- $$('#finalExam .quiz-q').forEach((box,i)=>{box.querySelectorAll('.option').forEach((o,j)=>{o.classList.remove('correct','wrong');
-  if(j===FINAL_Q[i][2])o.classList.add('correct');else if(state.examAnswers[i]===j)o.classList.add('wrong')})});
- $('#examScore').textContent=`Верных ${c} из ${FINAL_Q.length} · засчитано ${state.scores.exam}/15 баллов`;showScreen('result')}
+ if(ok&&!$('#finalExam').innerHTML)renderQuiz('#finalExam','exam',FINAL_Q)}
+function checkFinalExam(){const c=gradeQuiz('#finalExam','exam',FINAL_Q);state.scores.exam=Math.min(MAX.exam,Math.round(c*10/20));state.examRight=c;state.examChecked=true;state.completedAt=new Date().toISOString();save();
+ $('#examScore').textContent=`Верных ${c} из ${FINAL_Q.length} · засчитано ${state.scores.exam}/${MAX.exam} баллов`;markNav();toast(c>=14?'Тест сдан — дальше постановочный зум':'Нужно минимум 14 из 20')}
+
+/* ===== 12 ПОСТАНОВОЧНЫЙ ЗУМ ===== */
+const LEGENDS=[
+ 'Клиент: Гульнар, руководитель бухгалтерской компании, Астана. Карточка от лид-менеджера: бухуслуги, аудит, подключает обучение; 8 в офисе и 3 удалённо; CRM нет. Скрытые факты (только по вопросам): Битрикс покупали — не прижился; на 1С сделаны уведомления по отчётности; главная боль — звонки и WhatsApp теряются, споры с клиентами; хочет мультиворонку под направления. Возражения, которые держит проверяющий: «это будет моё или платить за доступ?» и «закредитованность, подумаю». Продукт получен, если клиент присылает реквизиты и ждёт демо в согласованное время.',
+ 'Клиент: Марат, собственник производства мебели на заказ, Караганда. Карточка: 24 человека, замерщики и цех, учёт в таблицах, amoCRM бросили через полгода. Скрытые факты: заказы теряются между замерщиком и цехом; сроки срываются, клиенты звонят собственнику; хочет видеть загрузку цеха. Возражения: «сколько стоит?» на второй минуте и «у нас есть 1С, там доделать?». Продукт получен, если согласована дата демо и присланы прайс и фото цеха.',
+ 'Клиент: Айгерим, директор сети из четырёх салонов оптики, Астана. Карточка: 30 сотрудников, Kaspi, запись по телефону и в тетради, склад оправ в Excel. Скрытые факты: остатки по салонам не сходятся; врачи ведут пациентов в WhatsApp; хочет абонементы на линзы. Возражения: «мы уже пробовали программу — сотрудники не пользовались» и «а если вы пропадёте?». Продукт получен, если названы участники показа, дата и присланы логотип и список салонов.'
+];
+state.legend=state.legend||0;
+function nextLegend(){state.legend=(state.legend+1)%LEGENDS.length;save();renderLive()}
+function renderLive(){$('#liveLegend').textContent=LEGENDS[state.legend];
+ $('#liveSheet').innerHTML=STAGES.map((s,i)=>{const l=state.live[i]||{};return `<div class="att"><span><b>${i+1}. ${esc(s.n)}</b><br><span class="mini">${esc(s.prod)}</span></span>
+  <select onchange="liveSet('${i}k',this.value)"><option value="">—</option><option value="1" ${l.k==='1'?'selected':''}>знает</option><option value="0" ${l.k==='0'?'selected':''}>нет</option></select>
+  <select onchange="liveSet('${i}u',this.value)"><option value="">—</option><option value="1" ${l.u==='1'?'selected':''}>умеет</option><option value="0" ${l.u==='0'?'selected':''}>нет</option></select>
+  <input value="${esc(l.n||'')}" placeholder="Что сказал клиент, что упущено" oninput="liveSet('${i}n',this.value)"></div>`}).join('');
+ $('#liveTotal').value=state.live.total||'';$('#liveTotalNote').value=state.live.totalNote||''}
+function liveSet(k,v){if(k==='total'||k==='totalNote'){state.live[k]=v}else{const i=+k.slice(0,-1),f=k.slice(-1);state.live[i]=state.live[i]||{};state.live[i][f]=v}save()}
+function liveCounts(){let k=0,u=0;for(let i=0;i<7;i++){const l=state.live[i]||{};if(l.k==='1')k++;if(l.u==='1')u++}return {k,u,total:state.live.total==='1'}}
+function gradeLive(){const c=liveCounts();const filled=[...Array(7).keys()].every(i=>state.live[i]&&state.live[i].k&&state.live[i].u)&&state.live.total;
+ if(!filled){toast('Заполните «знает» и «умеет» по всем семи этапам и общий продукт');return}
+ state.scores.live=Math.min(MAX.live,Math.round(c.k*0.5+c.u*1+(c.total?0:0)));state.liveDone=true;state.liveAt=new Date().toISOString();save();
+ $('#liveScore').textContent=`Зафиксировано: знает ${c.k}/7, умеет ${c.u}/7, общий продукт ${c.total?'получен':'не получен'} · ${state.scores.live}/${MAX.live} баллов`;
+ markNav();toast(c.u===7&&c.total?'Постановочный зум пройден':'Умеет не по всем этапам — тренировки слабых этапов и повтор');showScreen('result')}
 
 /* ===== РЕЗУЛЬТАТ ===== */
 function total(){return Object.values(state.scores).reduce((a,b)=>a+(Number(b)||0),0)}
-function updateScore(){const t=total();$('#totalScore').textContent=t;$('#progressFill').style.width=Math.min(100,t)+'%';
- $('#sideStatus').textContent=t>=80?'порог набран':t?'обучение продолжается':'стажировка начата'}
-function renderResult(){const s=state.scores,t=total(),g=gatesOk(),
- gates={...g,exam:(s.exam||0)>=10},pass=t>=80&&Object.values(gates).every(Boolean);
+function updateScore(){const t=total();$('#totalScore').textContent=t;$('#progressFill').style.width=Math.min(100,t)+'%';$('#sideStatus').textContent=t>=80?'порог набран':t?'обучение продолжается':'стажировка начата'}
+function markNav(){const g=allGates(),s=state.scores,c=liveCounts();const m={passport:!!state.profile.name,aro:g.aro,words:g.words,projects:g.projects,stages:g.stages,video:g.video,check:g.check,drills:g.drills,obj:g.obj,sim:g.sim,exam:(s.exam||0)>=MIN.exam,live:state.liveDone&&c.u===7&&c.total};
+ Object.entries(m).forEach(([k,v])=>{const el=$('#n-'+k);if(el){el.textContent=v?'✓':(s[k]!=null&&k!=='passport'?s[k]+'/'+(MAX[k]||''):'');el.className=v?'ok':''}})}
+function renderResult(){const s=state.scores,t=total(),g=allGates(),c=liveCounts();
+ const gates={...g,exam:(s.exam||0)>=MIN.exam,live:!!state.liveDone&&c.u===7&&c.total};const pass=t>=80&&Object.values(gates).every(Boolean);
  $('#resultScore').textContent=t;
- $('#resultVerdict').textContent=pass?'Готов вести встречи под наблюдением руководителя':'Требуется доработка модулей';
- $('#resultExplanation').textContent=pass?'Норматив выполнен по общему баллу и по каждому модулю. Следующий шаг — две встречи в паре с руководителем: первая на слушание, вторая на ведение.':'Общий балл или один из модулей ниже норматива. Повторите слабые блоки и пройдите проверку снова.';
- $('#moduleScores').innerHTML=[['Шаги',s.steps||0,20],['Формулировки',s.script||0,20],['Возражения',s.obj||0,20],['Симулятор',s.sim||0,25],['Аттестация',s.exam||0,15]]
-  .map(x=>`<div class="module-score"><small>${x[0]}</small><b>${x[1]}/${x[2]}</b></div>`).join('');
- $('#gateList').innerHTML=Object.entries({'Шаги · 14 из 20':gates.steps,'Формулировки · 14 из 20':gates.script,'Возражения · 13 из 20':gates.obj,'Оба прогона симулятора':gates.sim,'Аттестация · 10 из 15':gates.exam})
-  .map(([k,v])=>`<p class="status ${v?'pass':'fail'}">${v?'✓':'×'} ${k}</p>`).join('');
+ $('#resultVerdict').textContent=pass?'Готов проводить первые зумы самостоятельно':'Требуется доработка модулей';
+ $('#resultExplanation').textContent=pass?'Норматив выполнен по общему баллу, по каждому модулю и по постановочному зуму: сотрудник знает и умеет проводить все семь этапов, добивается продукта каждого этапа и общего продукта встречи. Первые три боевых зума — с руководителем в наблюдателях.':'Общий балл, один из модулей или постановочный зум ниже норматива. Повторите слабые блоки, пройдите тренировки этих этапов и повторите постановочный зум.';
+ $('#moduleScores').innerHTML=[['АРО',s.aro,MAX.aro],['Слова',s.words,MAX.words],['Проекты',s.projects,MAX.projects],['Этапы',s.stages,MAX.stages],['Видео',s.video,MAX.video],['Проверка',s.check,MAX.check],['Тренировки',s.drills,MAX.drills],['Возражения',s.obj,MAX.obj],['Симулятор',s.sim,MAX.sim],['Тест',s.exam,MAX.exam],['Пост. зум',s.live,MAX.live]].map(x=>`<div class="module-score"><small>${x[0]}</small><b>${x[1]||0}/${x[2]}</b></div>`).join('');
+ const gl={...GATE_LABEL,exam:'Тест · 7 из 10',live:'Постановочный зум · умеет по всем этапам и общий продукт'};
+ $('#gateList').innerHTML=Object.entries(gates).map(([k,v])=>`<p class="status ${v?'pass':'fail'}">${v?'✓':'×'} ${gl[k]}</p>`).join('');
+ $('#stageMatrix').innerHTML=`<table class="tbl"><tr><th>Этап</th><th>Тест</th><th>Тренировка</th><th>Знает</th><th>Умеет</th></tr>${STAGES.map((st,i)=>{const per=(state.checkPer||[])[i],dd=(state.drillDone||[])[i],l=state.live[i]||{};
+  return `<tr><td>${i+1}. ${esc(st.n)}</td><td class="c">${per!=null?per+'/3':'—'}</td><td>${dd?'✓':'—'}</td><td class="${l.k==='1'?'status pass':l.k==='0'?'status fail':''}">${l.k==='1'?'✓':l.k==='0'?'×':'—'}</td><td class="${l.u==='1'?'status pass':l.u==='0'?'status fail':''}">${l.u==='1'?'✓':l.u==='0'?'×':'—'}</td></tr>`}).join('')}</table>`;
+ $('#managerComment').value=state.managerComment||'';
  $('#reportText').textContent=buildReport(pass)}
-function buildReport(pass){const s=state.scores;
- return `ОТЧЁТ О СТАЖИРОВКЕ КЛОУЗЕРА · PLLATO
+function buildReport(pass){const s=state.scores,c=liveCounts();
+ return `ОТЧЁТ О СТАЖИРОВКЕ КЛОУЗЕРА · PLLATO · ПЕРВЫЙ ЗУМ ПО ПАТТЕРНУ
 
 Сотрудник: ${state.profile.name||'не указано'}
 Проверяющий: ${state.profile.manager||'руководитель'}
 Дата: ${new Date().toLocaleDateString('ru')}
 
 ИТОГ: ${total()}/100 — ${pass?'НОРМАТИВ ВЫПОЛНЕН':'ТРЕБУЕТСЯ ДОРАБОТКА'}
-Шаги двух встреч: ${s.steps||0}/20 (минимум 14)
-Формулировки: ${s.script||0}/20 (минимум 14)
-Возражения: ${s.obj||0}/20 (минимум 13)
-Симулятор встреч: ${s.sim||0}/25 (оба прогона обязательны)
-  · первая встреча: ${state.sim.m1?state.sim.m1.score+'/'+state.sim.m1.max+(state.sim.m1.win?' — пройден':' — не засчитан'):'не пройден'}
-  · вторая встреча: ${state.sim.m2?state.sim.m2.score+'/'+state.sim.m2.max+(state.sim.m2.win?' — пройден':' — не засчитан'):'не пройден'}
-Аттестация: ${s.exam||0}/15 баллов, верных ${state.examRight||0} из ${FINAL_Q.length} (минимум 10)
 
-Продукт поста: оплаченная предоплата и запущенный проект.
-Статистика поста: количество новых договоров и сумма денег в кассе за неделю.
-Решение о самостоятельных встречах принимает руководитель после двух встреч в паре.
+Подготовка
+  АРО: ${s.aro||0}/${MAX.aro} (мин. ${MIN.aro})
+  Список слов: ${s.words||0}/${MAX.words} (мин. ${MIN.words}) — фронтальная проверка у руководителя: ${state.live.total?'проведена':'отметить'}
+  10 проектов в App: ${s.projects||0}/${MAX.projects} (мин. ${MIN.projects})
+Паттерн встречи
+  Семь этапов: ${s.stages||0}/${MAX.stages}
+  Разбор эталонного видео: ${s.video||0}/${MAX.video}
+  Проверка по этапам: ${s.check||0}/${MAX.check} · по этапам: ${(state.checkPer||[]).map((x,i)=>(i+1)+':'+x+'/3').join(' ')||'—'}
+Практика
+  Тренировки этапов: ${s.drills||0}/${MAX.drills} · засчитано ${(state.drillDone||[]).filter(Boolean).length}/7
+  Возражения: ${s.obj||0}/${MAX.obj}
+  Симулятор: ${s.sim||0}/${MAX.sim} · Гульнар ${state.sim.g?state.sim.g.score+'/'+state.sim.g.max+(state.sim.g.win?' пройден':' не засчитан'):'не пройден'} · Пекарня ${state.sim.b?state.sim.b.score+'/'+state.sim.b.max+(state.sim.b.win?' пройден':' не засчитан'):'не пройден'}
+Аттестация
+  Тест: ${s.exam||0}/${MAX.exam}, верных ${state.examRight||0} из ${FINAL_Q.length}
+  Постановочный зум: знает ${c.k}/7, умеет ${c.u}/7, общий продукт встречи ${c.total?'ПОЛУЧЕН':'не получен'}
+${STAGES.map((st,i)=>{const l=state.live[i]||{};return '    '+(i+1)+'. '+st.n+' — знает: '+(l.k==='1'?'да':l.k==='0'?'нет':'—')+', умеет: '+(l.u==='1'?'да':l.u==='0'?'нет':'—')+(l.n?' · '+l.n:'')}).join('\n')}
 
-Комментарий проверяющего: ${document.querySelector('#managerComment')?.value||'—'}`}
+Цель встречи: узнать реальность клиента и продемонстрировать компетентность — продать показ демо.
+Продукт встречи: клиент знает, что с нами получит желаемую программу, и готов работать с нами.
+Решение о самостоятельных зумах принимает руководитель после постановочного зума и трёх боевых встреч в наблюдении.
+
+Комментарий проверяющего: ${state.managerComment||'—'}`}
 async function copyReport(){renderResult();try{await navigator.clipboard.writeText($('#reportText').textContent);toast('Отчёт скопирован')}catch(e){toast('Скопируйте текст вручную')}}
 function resetTraining(){if(!confirm('Начать заново и удалить текущие ответы?'))return;localStorage.removeItem(KEY);location.reload()}
 
 /* ===== СТАРТ ===== */
-$('#traineeName').value=state.profile.name||'';$('#managerName').value=state.profile.manager||'';
-renderStep();renderScript();renderObj();renderSimPicker();updateScore();
-if(state.scores.steps)$('#stepsScore').textContent=`Результат: ${state.scores.steps}/20`;
-if(state.scores.script)$('#scriptScore').textContent=`Результат: ${state.scores.script}/20`;
-if(state.scores.obj)$('#objScore').textContent=`Результат: ${state.scores.obj}/20`;
+$('#traineeName').value=state.profile.name||'';$('#managerName').value=state.profile.manager||'';$('#aroVideo').value=state.aroVideo||'';
+for(let i=0;i<5;i++)if(state.aroChk[i])$('#aro'+i).checked=true;for(let i=0;i<7;i++)if(state.vidChk[i])$('#vid'+i).checked=true;
+renderStep();renderQuiz('#aroQuiz','aro',ARO_Q);renderWords();renderQuiz('#wordsQuiz','words',WORDS_Q);renderProjects();renderQuiz('#projQuiz','proj',PROJ_Q);renderQuiz('#videoQuiz','video',VIDEO_Q);renderCheck();renderDrills();renderObj();renderSimPicker();renderLive();updateScore();markNav();
+[['aro','#aroScore'],['words','#wordsScore'],['projects','#projScore'],['stages','#stepsScore'],['video','#videoScore'],['check','#checkScore'],['drills','#drillScore'],['obj','#objScore'],['exam','#examScore'],['live','#liveScore']].forEach(([k,sel])=>{if(state.scores[k]!=null)$(sel).textContent=`Результат: ${state.scores[k]}/${MAX[k]}`});
 </script>
 </body>
 </html>
