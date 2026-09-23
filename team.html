@@ -11318,6 +11318,10 @@ document.addEventListener('click', (e) => {
 // Состояние открытой модалки (на случай повторного клика по той же кнопке)
 window.__waOpenState = null;
 
+function findWaRecipientChat(items, rawChatId) {
+  return (items || []).find(c => c.chatId === rawChatId || c.id === rawChatId) || null;
+}
+
 async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }) {
   // Нормализуем chatId (если передан только phone)
   const digits = String(phone || '').replace(/\D/g, '').replace(/^8(\d{10})$/, '7$1');
@@ -11337,14 +11341,13 @@ async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }
   let channelName = '';
   let chatAvatar = '';
   let canonicalChatId = chatId;
+  let match = null;
   try {
     const idToken0 = await fbAuth.currentUser.getIdToken();
-    const list = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=500`, {
+    const list = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=500${digits ? `&phone=${encodeURIComponent(digits)}` : ''}`, {
       headers: { 'Authorization': `Bearer ${idToken0}` },
     }).then(r => r.ok ? r.json() : null).catch(() => null);
-    const match = list?.items?.find(c => c.chatId === chatId
-      || (contactId && c.contactId === contactId)
-      || (dealId && c.dealId === dealId));
+    match = findWaRecipientChat(list?.items, chatId);
     if (match) { canonicalChatId = match.id; chatAvatar = match.avatar || ''; }
     // Канал — берём первый активный (или по имени из match.instanceId)
     const ch = await fetch(`${WORKER_BASE_URL}/api/wa/channels`, {
@@ -11481,7 +11484,7 @@ async function openWaChatModal({ phone, contactId, dealId, contactName, chatId }
       const r = await fetch(`${WORKER_BASE_URL}/api/wa/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-        body: JSON.stringify({ chatId: window.__waOpenState.rawChatId, phone: window.__waOpenState.phone, instanceId: window.__waOpenState.instanceId, text, mediaUrl, fileName }),
+        body: JSON.stringify({ chatId: window.__waOpenState.canonicalChatId || window.__waOpenState.rawChatId, phone: window.__waOpenState.phone, instanceId: window.__waOpenState.instanceId, text, mediaUrl, fileName }),
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
@@ -11968,7 +11971,7 @@ function renderWaMessageHtml(m, isGroup) {
     </a>`;
   }
   const text = m.text || m.caption || '';
-  const tick = cls === 'out' ? '<span class="wa-tick">✓✓</span>' : '';
+  const tick = cls === 'out' ? '<span class="wa-tick" style="color:#8a8a8a" title="Отправлено в сервис WhatsApp; доставка не подтверждена">✓</span>' : '';
   return `<div class="wa-msg ${cls}">
     ${senderHtml}
     ${renderMetaAdAttributionHtml(m.metaAdAttribution, { adId: m.metaAdId, compact: true })}
@@ -11997,7 +12000,7 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
     body.innerHTML = '<div class="dc-wa-empty">Неверный номер</div>';
     return;
   }
-  let rawChatId = `${digits}@c.us`;
+  const rawChatId = `${digits}@c.us`;
 
   // Резолвим canonicalChatId через worker (нужен instanceId) — ищем существующий
   // чат, иначе используем "wa::{phone}@c.us" как фолбэк. Send всё равно сработает —
@@ -12006,18 +12009,12 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
   let instanceId = null;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    const list = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=500`, {
+    const list = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=500${digits ? `&phone=${encodeURIComponent(digits)}` : ''}`, {
       headers: { 'Authorization': `Bearer ${idToken}` },
     }).then(r => r.ok ? r.json() : null).catch(() => null);
-    const match = list?.items?.find(c =>
-      c.chatId === rawChatId
-      || c.dealId === deal.bitrixId
-      || (c.contactId && deal.contactId && c.contactId === deal.contactId)
-      || c.phone === digits
-    );
+    const match = findWaRecipientChat(list?.items, rawChatId);
     if (match) {
       canonicalChatId = match.id;
-      rawChatId = match.chatId || rawChatId;
       instanceId = match.instanceId || null;
     }
   } catch {}
@@ -12069,7 +12066,7 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
           body: JSON.stringify({
-            chatId: pane._waState.rawChatId,
+            chatId: pane._waState.canonicalChatId || pane._waState.rawChatId,
             phone: pane._waState.phone,
             instanceId: pane._waState.instanceId,
             text, mediaUrl, fileName,

@@ -77,3 +77,30 @@ assert.equal(listing.items.length,2);
 assert.equal(listing.items[0].instanceId,'current');
 assert.ok(listing.items.every(c=>c.chatId==='77011239999@c.us'));
 console.log('Recipient SQL lookup selects connected line and excludes unrelated chats');
+
+// Exercise both live entry points: the ELC page must never regress independently.
+for (const file of ['../app/pllato-crm.html', '../team.html']) {
+  const source=readFileSync(new URL(file,import.meta.url),'utf8');
+  const helperStart=source.indexOf('function findWaRecipientChat(');
+  const mountStart=source.indexOf('async function mountWhatsappPaneInDeal(');
+  const mountEnd=source.indexOf('  // Первый рендер',mountStart);
+  for (const includeRecipient of [true,false]) {
+    const pane={};
+    const body={};
+    const recipient={id:'wa:current:77075263383@c.us',chatId:'77075263383@c.us',instanceId:'current'};
+    const context=vm.createContext({
+      fbAuth:{currentUser:{getIdToken:async()=>'test-only'}},WORKER_BASE_URL:'https://test',
+      fetch:async url=>{
+        assert.equal(new URL(url).searchParams.get('phone'),'77075263383');
+        return {ok:true,json:async()=>({items:[{...wrong,dealId:null},...(includeRecipient?[recipient]:[])]})};
+      }
+    });
+    vm.runInContext(source.slice(helperStart,source.indexOf('async function openWaChatModal(',helperStart)),context);
+    vm.runInContext(source.slice(mountStart,mountEnd)+'return pane._waState;\n}',context);
+    const state=await context.mountWhatsappPaneInDeal({querySelector:id=>id==='#dc-wa-pane'?pane:id==='#dc-wa-body'?body:null},{bitrixId:null},null,'+77075263383','Бейбут');
+    assert.equal(state.rawChatId,'77075263383@c.us',file);
+    assert.equal(state.phone,'77075263383',file);
+    assert.equal(state.canonicalChatId,includeRecipient?recipient.id:null,file);
+  }
+}
+console.log('Pllato and ELC deal panes: new lead cannot inherit unrelated history or recipient');
