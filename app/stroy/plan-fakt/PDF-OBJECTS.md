@@ -117,3 +117,23 @@ Validation: 2400% zoom on the user's PDF at DPR=2, pan/page races, actual crop
 pixels after deletion (crossing blue remains, removed line reveals background),
 dimming and vector mode. Core pixel regressions additionally compare 8x crops
 against independently generated expected PDFs, including rotation and clipping.
+
+## Matching new route appearance (v499)
+
+`pdf-line-style.js` samples long saturated cable strokes on the current PDF sheet,
+excluding fills and short symbols. It selects the closest category colour and
+its representative stroke weighted by length. No cable type is inferred from
+colour: the user's chosen calculation category remains unchanged. Width converts
+from PDF units to the existing editor coordinate system. Dash, cap, join and alpha
+are stored in each new line's `pdfLineStyle`; old projects remain compatible.
+
+New lines match automatically. Existing user lines have a `Как в PDF` action with
+undo. Persistent large length labels are omitted for matched lines; selection
+measurement and calculation remain available. A manually chosen drawing width is
+stored per category/page, and the match action resets that override. Matched
+lines use raster PDF export so curves/strokes agree with the editor. Source PDF
+and editable geometry remain in the saved project.
+
+Browser validation: actual page 19 selects #0000ff and 0.84 PDF-unit stroke
+(1.69596 editor pixels at width 3400). New-line creation, restyling, undo,
+project reload and export pixels were checked; exported stroke is blue (1,1,254).

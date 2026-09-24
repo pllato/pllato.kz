@@ -1,0 +1,15 @@
+/* New routes inherit a representative cable stroke from the current PDF sheet. */
+(function(){
+'use strict';
+const cache=new WeakMap();
+function style(cat,ignoreManual=false){const live=S._pdfScene;if(S.linkedLkDocId||!S.standalonePdf||!live||live.src!==S.standalonePdf||live.pn!==S.pageNum)return null;const scene=live.scene;let samples=cache.get(scene);if(!samples){const buckets=new Map();for(const o of scene.objects){const st=o.style,k=st.stroke&&standaloneVectorCat(st.stroke);if(!k||st.fill||o.p.length<2||Math.hypot(o.box[2]-o.box[0],o.box[3]-o.box[1])<20||st.width<=0)continue;const key=[st.stroke,st.width.toFixed(3),st.dash.join(','),st.cap,st.join,st.alpha].join('|');let b=buckets.get(key);if(!b)buckets.set(key,b={cat:k,style:st,weight:0});b.weight+=Math.min(500,Math.hypot(o.box[2]-o.box[0],o.box[3]-o.box[1]));}samples=[...buckets.values()];cache.set(scene,samples);}if(!samples.length)return null;
+ const wanted=hex2rgb(catC(cat)),distance=b=>hex2rgb(b.style.stroke).reduce((sum,v,i)=>sum+(v-wanted[i])**2,0),same=samples.filter(b=>b.cat===cat),pool=same.length?same:samples;const best=pool.slice().sort((a,b)=>distance(a)-distance(b)||b.weight-a.weight)[0],colors=pool.filter(b=>b.style.stroke===best.style.stroke).sort((a,b)=>b.weight-a.weight),st=colors[0].style,sx=S.W/scene.width,manual=!ignoreManual&&S.data.pages[S.pageNum].lineManualWidths?.[cat];return {color:st.stroke,width:(manual||st.width)*sx,dash:st.dash.map(v=>v*sx),dashOffset:st.dashOffset*sx,cap:st.cap,join:st.join,alpha:st.alpha};
+}
+function match(o,s){o.color=s.color;o.width=s.width;o.pdfLineStyle={dash:s.dash,dashOffset:s.dashOffset,cap:s.cap,join:s.join,alpha:s.alpha};}
+const oldAdd=addObj;addObj=function(o){if(o.type==='line'&&o.src==='mine'&&!o.pdfLineStyle&&!o._pdfIds&&!o._lkSource){const s=style(o.cat);if(s)match(o,s);}return oldAdd(o);};
+const oldOpt=renderOpt;renderOpt=function(){oldOpt();const o=S.selected&&getObj(S.selected),cat=o?.cat||S.cat,s=style(cat);if(!s||!(S.tool==='line'||o?.type==='line'&&o.src==='mine'&&!o._pdfIds))return;const b=document.createElement('button');b.type='button';b.className='mini';b.id='matchPdfStyle';b.textContent='Как в PDF';b.title='Цвет и толщина как у кабельных линий текущего листа';b.onclick=()=>{if(S.data.pages[S.pageNum].lineManualWidths)delete S.data.pages[S.pageNum].lineManualWidths[cat];const next=style(cat,true);if(o){pushHistory();match(o,next);redrawAll();renderSide();lkQueueDrawingSave();}renderOpt();};$('optbar').append(b);
+ const wr=$('wr');if(wr&&!o){wr.min='.1';wr.step='.1';wr.value=s.width;$('wv').textContent=s.width.toFixed(2)+'px';const old=wr.oninput;wr.oninput=()=>{old();const pg=S.data.pages[S.pageNum];pg.lineManualWidths=pg.lineManualWidths||{};pg.lineManualWidths[S.cat]=S.width*S._pdfScene.scene.width/S.W;};}
+};
+const oldVector=buildVectorPdf;buildVectorPdf=async function(){if(Object.values(S.objects).some(list=>list.some(o=>!o._lkDeleted&&o.pdfLineStyle)))return null;return oldVector();};
+window.PdfLineStyle={style};
+})();
