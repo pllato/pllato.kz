@@ -678,8 +678,8 @@ body.lk-drawing-context #btnExport{display:none;}
     <div class="float"><div class="zoomgrp"><button id="zin">+</button><div class="zlab" id="zlab">100%</div><button id="zout">−</button><button id="zfit">FIT</button></div></div>
     <div class="guide" id="guide" style="display:none">
       <button class="gx" id="guideX" title="Скрыть">×</button>
-      <h3>С чего начать — чертёж это фон, рисуете поверх «по факту»</h3>
-      <div class="gsub">Старый чертёж — подложка (его не двигают). Вы рисуете свои трассы, ставите знаки — длина кабеля и спецификация считаются сами.</div>
+      <h3>С чего начать — выберите объект или нарисуйте новую трассу</h3>
+      <div class="gsub">В векторном PDF нажмите линию или контур: его можно изменить или удалить отдельно. Новые трассы и знаки добавляйте поверх чертежа. Для расчёта длины задайте масштаб.</div>
       <div class="gsteps">
         <button class="gstep" data-go="cal"><span class="gn">1 · Масштаб</span><span class="gd">2 клика по известному размеру + метры</span></button>
         <button class="gstep" data-go="line"><span class="gn">2 · Трассы</span><span class="gd">На телефоне проведи пальцем — отпустил, готово</span></button>
@@ -907,6 +907,7 @@ body.lk-drawing-context #btnExport{display:none;}
   </div>
 </div>
 <div class="toast" id="toast"></div>
+<script src="pdf-objects.js?v=493"></script>
 <script>
 const {jsPDF}=window.jspdf;
 const $=id=>document.getElementById(id);
@@ -1802,7 +1803,7 @@ function deleteNode(o,i){
    хвост — новый. Внутренние концы разреза — свободные; знаки/выпуски конца B уходят на хвост. */
 function splitLineAt(p){
   const rad=(isCoarsePointer()?34:18)/S.scale;let best=null;
-  (cur()||[]).forEach(o=>{if(!o||o.type!=='line'||o.grp!=null||o._fill||o._symbol||!Array.isArray(o.pts)||o.pts.length<2)return;
+  (cur()||[]).forEach(o=>{if(!o||o._lkDeleted||o.type!=='line'||o.grp!=null||o._fill||o._symbol||!Array.isArray(o.pts)||o.pts.length<2)return;
     for(let i=0;i<o.pts.length-1;i++){const a=o.pts[i],b=o.pts[i+1],dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;let t=l2?((p.x-a.x)*dx+(p.y-a.y)*dy)/l2:0;t=t<0?0:t>1?1:t;const cx=a.x+t*dx,cy=a.y+t*dy,d=Math.hypot(cx-p.x,cy-p.y);
       if(!best||d<best.d)best={o,i,x:cx,y:cy,d};}});
   if(!best||best.d>rad){toast('Тапните точнее ПО линии, где разделить');return;}
@@ -2598,7 +2599,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v492';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v493';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:'',aiMode:false};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -6458,5 +6459,6 @@ function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'
 let tt;function toast(m){const el=$('toast');el.textContent=m;el.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('show'),2600);}
 window.addEventListener('resize',()=>{if(S.data&&S.pageNum){fitPage();applyTransform();}});
 </script>
+<script src="pdf-editor.js?v=493"></script>
 </body>
 </html>

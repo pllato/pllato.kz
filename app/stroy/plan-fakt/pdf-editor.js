@@ -1,0 +1,74 @@
+/* Object editing for vector PDFs. Rasterisation is only a display cache, not the model. */
+(function(){
+'use strict';
+const contexts=new WeakMap();
+let backgroundTicket=0;
+const original={prepare:prepareStandalonePdfVectors,promote:promoteAt,linkedPick:lkSelectDrawingVectorAt,linkedPromote:lkPromoteDrawingObjectAt,redraw:redrawAll,one:redrawOne,render:renderObj,load:loadPdf,open:openProject,close:closeStandalonePdf,export:buildEditedPdf,canvas:drawEditedObjects,vector:buildVectorPdf,all:renderAllStandalonePdfPages,cluster:moveCluster,followers:endpointFollowerIds,dup,split:splitLineAt,reveal:renderRevealLayer,opt:renderOpt,clean:renderCleanPlan};
+function currentSource(){return S.linkedLkDocId?null:S.standalonePdf;}
+function context(src){let c=contexts.get(src);if(c)return c;c={scenes:new Map(),background:new Map(),jobs:new Map()};
+  c.doc=(async()=>{const bytes=src.file?await src.file.arrayBuffer():src.bytes.slice(0);const doc=await pdfjsLib.getDocument({data:new Uint8Array(bytes)}).promise;const cfg=await doc.getOptionalContentConfig();c.layers=Object.fromEntries(Object.entries(cfg.getGroups()||{}).map(([id,g])=>[id,{name:g.name,visible:g.visible}]));return doc;})();
+  contexts.set(src,c);return c;}
+async function sceneFor(src,pn){const c=context(src);if(!c.scenes.has(pn))c.scenes.set(pn,(async()=>{const doc=await c.doc,page=await doc.getPage(pn),view=page.getViewport({scale:1});const ol=await page.getOperatorList({annotationMode:pdfjsLib.AnnotationMode.DISABLE});const scene=PdfObjects.analyse(ol,view,pdfjsLib,c.layers);scene.page=page;scene.byId=new Map(scene.objects.map(o=>[o.id,o]));if(c.jobs.size===0)for(const [other,job] of c.scenes){if(c.scenes.size<2)break;if(other!==pn&&other!==S.pageNum){c.scenes.delete(other);job.then(old=>old.page.cleanup()).catch(()=>{});}}return scene;})());return c.scenes.get(pn);}
+function liveScene(){return S._pdfScene&&S._pdfScene.pn===S.pageNum&&S._pdfScene.src===currentSource()?S._pdfScene.scene:null;}
+function updateLayers(scene){let label=$('pdfLayerLabel');if(!label){label=document.createElement('label');label.id='pdfLayerLabel';label.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:10px;font-size:14px;border-bottom:1px solid #cfc8b8';label.textContent='Выбирать: ';const select=document.createElement('select');select.id='pdfLayerSelect';select.setAttribute('aria-label','Слой для выбора объектов PDF');select.style.cssText='width:100%;min-width:0;padding:6px;font-size:14px';select.onchange=()=>{S.pdfPickLayer=select.value;};label.appendChild(select);$('sideBody').before(label);}
+  label.firstChild.nodeValue='В PDF: '+scene.objects.length.toLocaleString('ru-RU')+' объектов';const select=$('pdfLayerSelect'),names=[...new Set(scene.objects.map(o=>o.layer))].sort((a,b)=>a.localeCompare(b,'ru'));select.replaceChildren(new Option('Все слои',''),...names.map(n=>new Option(n,n)));select.value=names.includes(S.pdfPickLayer)?S.pdfPickLayer:'';S.pdfPickLayer=select.value;label.style.display='flex';label.title=scene.objects.length+' графических объектов в PDF';}
+prepareStandalonePdfVectors=function(pn,source){const src=source||S.standalonePdf;if(!src||pn!==S.pageNum)return Promise.resolve(null);const pg=src.data.pages[pn];pg._vectorsLoading=true;
+  return sceneFor(src,pn).then(scene=>{pg._vectorsReady=true;pg._pdfObjectModel=1;pg.objs=[];pg.dark=[];if(currentSource()===src&&S.pageNum===pn){S._pdfScene={pn,src,scene};updateLayers(scene);queueBackground();}return [];}).catch(e=>{console.error(e);toast('Не удалось подготовить объекты: '+e.message);return null;}).finally(()=>{pg._vectorsLoading=false;});};
+renderCleanPlan=function(pn){if(!currentSource())return original.clean(pn);};
+renderRevealLayer=function(){return currentSource()?null:original.reveal();};
+function idsFor(objs){return new Set((objs||[]).flatMap(o=>o._pdfIds||[]));}
+function basePoints(o){return o._pdfOriginalPts||[];}
+function exactPlacement(o){const p=basePoints(o);if(p.length!==o.pts.length||!p.length)return null;const dx=o.pts[0].x-p[0].x,dy=o.pts[0].y-p[0].y;return p.every((q,i)=>Math.abs(o.pts[i].x-q.x-dx)<.001&&Math.abs(o.pts[i].y-q.y-dy)<.001)?{dx,dy}:null;}
+function geometry(o){const pos=exactPlacement(o);return pos?{d:o._pdfD,transform:`translate(${pos.dx} ${pos.dy}) scale(${o._pdfSx} ${o._pdfSy})`}:{d:linePath(o.pts),transform:null};}
+function stylePath(path,o){const st=o._pdfStyle;path.setAttribute('fill',st.fill||'none');path.setAttribute('stroke',st.stroke?o.color:'none');path.setAttribute('fill-rule',st.evenOdd?'evenodd':'nonzero');path.setAttribute('stroke-width',exactPlacement(o)?o.width/o._pdfSx:o.width);path.setAttribute('stroke-linecap',['butt','round','square'][st.cap]||'butt');path.setAttribute('stroke-linejoin',['miter','round','bevel'][st.join]||'miter');path.setAttribute('opacity',st.alpha);if(st.dash.length)path.setAttribute('stroke-dasharray',st.dash.map(v=>exactPlacement(o)?v:v*o._pdfSx).join(' '));path.setAttribute('stroke-dashoffset',st.dashOffset||0);}
+renderObj=function(o){if(!o._pdfIds)return original.render(o);const g=document.createElementNS(SVGNS,'g');g.dataset.id=o.id;const path=document.createElementNS(SVGNS,'path'),geo=geometry(o);path.setAttribute('d',geo.d);if(geo.transform)path.setAttribute('transform',geo.transform);stylePath(path,o);g.appendChild(path);
+  const hit=path.cloneNode();hit.setAttribute('fill',o._fill?'transparent':'none');hit.setAttribute('stroke','transparent');hit.setAttribute('opacity','1');hit.removeAttribute('stroke-dasharray');hit.setAttribute('stroke-width',Math.max(o.width,16/Math.max(.1,S.scale))/(geo.transform?o._pdfSx:1));hit.style.cursor='pointer';g.appendChild(hit);bindObj(g,o);return g;};
+async function queueBackground(){const src=currentSource(),pn=S.pageNum,pg=S.data&&S.data.pages[pn];if(!src||!pg||!S.W)return;const scene=liveScene();if(!scene){prepareStandalonePdfVectors(pn,src);return;}
+  const c=context(src),ids=idsFor(cur()),key=[pn,S.W,S.H,[...ids].sort().join(',')].join('|'),ticket=++backgroundTicket,W=S.W,H=S.H;
+  const show=url=>{if(ticket!==backgroundTicket||currentSource()!==src||S.pageNum!==pn)return;gMask.replaceChildren();if(!url)return;const im=document.createElementNS(SVGNS,'image');im.setAttribute('width',W);im.setAttribute('height',H);im.setAttribute('href',url);im.setAttribute('preserveAspectRatio','none');im.style.pointerEvents='none';gMask.appendChild(im);};
+  if(!ids.size){show(null);return;}if(c.background.has(key)){show(c.background.get(key));return;}
+  try{if(!c.jobs.has(key)){const job=(async()=>{const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;const viewport=scene.page.getViewport({scale:W/scene.width});await PdfObjects.render(scene.page,scene,ids,{canvasContext:canvas.getContext('2d'),viewport,background:'#ffffff'},pdfjsLib);const url=canvas.toDataURL('image/png');c.background.set(key,url);while(c.background.size>4)c.background.delete(c.background.keys().next().value);return url;})().finally(()=>c.jobs.delete(key));c.jobs.set(key,job);}show(await c.jobs.get(key));}
+  catch(e){console.error(e);toast('Не удалось обновить чертёж: '+e.message);}
+}
+redrawAll=function(){original.redraw();queueBackground();};
+redrawOne=function(o){original.one(o);if(o._pdfIds)queueBackground();};
+function distance(p,raw,sx,sy){let d=Infinity;for(const path of raw.paths)for(let i=1;i<path.length;i++)d=Math.min(d,dSeg(p,{x:path[i-1][0]*sx,y:path[i-1][1]*sy},{x:path[i][0]*sx,y:path[i][1]*sy}));return d;}
+function pick(p){const scene=liveScene();if(!scene){toast('Объекты листа ещё подготавливаются');return false;}const sx=S.W/scene.width,sy=S.H/scene.height,rad=(isCoarsePointer()?24:9)/Math.max(.1,S.scale),taken=idsFor(cur());let best=null,bestD=Infinity;
+  for(const raw of scene.objects){if(taken.has(raw.id)||S.pdfPickLayer&&raw.layer!==S.pdfPickLayer)continue;const b=raw.box;if(p.x<b[0]*sx-rad||p.y<b[1]*sy-rad||p.x>b[2]*sx+rad||p.y>b[3]*sy+rad)continue;const d=distance(p,raw,sx,sy);if(d<=rad&&(d<bestD-.01||Math.abs(d-bestD)<.01&&raw.paint>(best&&best.paint||0))){best=raw;bestD=d;}}
+  if(!best){toast('Нажмите точнее на линию выбранного слоя');return false;}
+  pushHistory();const pts=best.p.map(p=>({x:p[0]*sx,y:p[1]*sy})),cat=standaloneVectorCat(best.style.stroke)||'other';
+  const o=addObj({type:'line',src:'pdf',color:best.style.stroke||best.style.fill,width:Math.max(.15,best.style.width*sx),pts,cat,nocalc:cat==='other'||!!best.style.fill,_fill:!!best.style.fill,_lkSource:true,_pdfIds:[best.id],_pdfD:best.d,_pdfStyle:best.style,_pdfSx:sx,_pdfSy:sy,_pdfLayer:best.layer,_pdfOriginalPts:pts.map(p=>({...p})),ea:{kind:'free',h:0},eb:{kind:'free',h:0}});
+  redrawAll();setTool('select');selectObj(o.id);lkQueueDrawingSave();toast('Объект выбран · '+best.layer);return true;}
+promoteAt=function(p){return currentSource()?pick(p):original.promote(p);};
+lkSelectDrawingVectorAt=function(p){return currentSource()?pick(p):original.linkedPick(p);};
+lkPromoteDrawingObjectAt=function(p){return currentSource()?pick(p):original.linkedPromote(p);};
+// Deletion never infers ownership from geometric proximity.
+moveCluster=function(o){return o&&o._pdfIds?[o.id]:original.cluster(o);};
+endpointFollowerIds=function(o,i){return o&&o._pdfIds?[]:original.followers(o,i);};
+deleteObjectIds=function(ids){for(const id of ids||[]){const o=getObj(id);if(!o)continue;if(o._pdfIds||o._lkSource&&o._lkOriginal)o._lkDeleted=true;else delObj(id);}};
+const oldDup=dup;dup=function(){const before=new Set((cur()||[]).map(o=>o.id));oldDup();for(const o of cur())if(!before.has(o.id)&&o._pdfIds){o._pdfIds=[];o.src='mine';delete o._lkSource;}redrawAll();};
+// Keep IDs on both halves: their shared source is omitted once; halves are independent edits.
+splitLineAt=function(p){original.split(p);redrawAll();};
+function toBase64(bytes){let out='';const a=new Uint8Array(bytes);for(let i=0;i<a.length;i+=32768)out+=String.fromCharCode(...a.subarray(i,i+32768));return btoa(out);}
+function fromBase64(s){return Uint8Array.from(atob(s),c=>c.charCodeAt(0));}
+loadPdf=async function(file){await original.load(file);const src=S.standalonePdf;if(src&&src.file===file)src.data.pdfSource=toBase64(await file.arrayBuffer());};
+openProject=async function(j,id){original.open(j,id);if(!j.data.pdfSource){toast('Старый проект: для независимой правки исходных линий откройте исходный PDF');return;}try{const bytes=fromBase64(j.data.pdfSource),file=new File([bytes],(j.name||'План')+'.pdf',{type:'application/pdf'});const pdf=await pdfjsLib.getDocument({data:bytes.slice()}).promise;if(S.data!==j.data){await pdf.destroy();return;}S.standalonePdf={pdf,file,data:S.data,jobs:{},vectorJobs:{},totalPages:pdf.numPages};await prepareStandalonePdfVectors(S.pageNum);redrawAll();}catch(e){toast('Не удалось восстановить исходный PDF: '+e.message);}};
+closeStandalonePdf=function(){const src=S.standalonePdf,c=src&&contexts.get(src);backgroundTicket++;S._pdfScene=null;S.pdfPickLayer='';const label=$('pdfLayerLabel');if(label)label.style.display='none';if(c)c.doc.then(doc=>doc.destroy()).catch(()=>{});original.close();};
+// Do not extract sixty thousand objects on every sheet merely to save a project.
+renderAllStandalonePdfPages=async function(title){if(!S.standalonePdf)return;for(const pn of S.pageList){if(!S.data.pages[pn].u){lkBusy(title||'Подготавливаю проект…','лист '+pn+' из '+S.pageList.length);await renderStandalonePdfPage(pn);}}};
+function drawPdfObject(cc,o){const st=o._pdfStyle,pos=exactPlacement(o);cc.save();if(pos){cc.translate(pos.dx,pos.dy);cc.scale(o._pdfSx,o._pdfSy);}const path=new Path2D(pos?o._pdfD:linePath(o.pts));cc.globalAlpha=st.alpha;cc.lineWidth=pos?o.width/o._pdfSx:o.width;cc.lineCap=['butt','round','square'][st.cap]||'butt';cc.lineJoin=['miter','round','bevel'][st.join]||'miter';cc.setLineDash(st.dash.map(v=>pos?v:v*o._pdfSx));cc.lineDashOffset=st.dashOffset||0;if(st.fill){cc.fillStyle=st.fill;cc.fill(path,st.evenOdd?'evenodd':'nonzero');}if(st.stroke){cc.strokeStyle=o.color;cc.stroke(path);}cc.restore();}
+drawEditedObjects=function(cc,objs,r,sx=1,sy=1){const own=(objs||[]).filter(o=>!o._pdfIds);original.canvas(cc,own,r,sx,sy);cc.save();cc.scale(sx,sy);for(const o of objs||[])if(o._pdfIds&&!o._lkDeleted)drawPdfObject(cc,o);cc.restore();};
+// White overlays are never a valid vector export for a deleted source object.
+buildVectorPdf=async function(){if(Object.values(S.objects).some(a=>a.some(o=>o._pdfIds||o._lkSource&&o._lkOriginal)))return null;return original.vector();};
+buildEditedPdf=async function(){const src=currentSource();if(!src)return original.export();const doc=await context(src).doc;let out=null;
+  for(let pn=1;pn<=doc.numPages;pn++){lkBusy('Собираю PDF с правками…','лист '+pn+' из '+doc.numPages);const page=await doc.getPage(pn),v=page.getViewport({scale:1}),scale=Math.min(4,3400/Math.max(v.width,v.height)),view=page.getViewport({scale}),canvas=document.createElement('canvas');canvas.width=Math.round(view.width);canvas.height=Math.round(view.height);const cc=canvas.getContext('2d'),objs=S.objects[pn]||[],ids=idsFor(objs);
+    if(ids.size){const scene=await sceneFor(src,pn);await PdfObjects.render(page,scene,ids,{canvasContext:cc,viewport:view,background:'#fff'},pdfjsLib);}else await page.render({canvasContext:cc,viewport:view,background:'#fff'}).promise;
+    const sz=S.drawingPageSizes&&S.drawingPageSizes[pn],o=objs.find(o=>o._pdfIds),w=sz&&sz.w||(o?o._pdfSx*v.width:canvas.width),h=sz&&sz.h||(o?o._pdfSy*v.height:canvas.height);drawEditedObjects(cc,objs,calcPage(pn),canvas.width/w,canvas.height/h);drawSheetSpec(cc,pn,canvas.width,canvas.height);out=pdfAddCanvas(out,canvas,v.width,v.height);}
+  return {pdf:out,name:(S.data.name||'План')+'_ИСПОЛНИТЕЛЬНЫЙ.pdf'};};
+// A direct erase click promotes exactly one source object, then removes its ID.
+vp.addEventListener('pointerdown',e=>{if(!currentSource()||ptrs.size>1||!inBase(e.clientX,e.clientY))return;if(S.tool==='erase'&&!e.target.closest('[data-id]')){e.stopImmediatePropagation();bgPan(e,p=>{if(pick(p)){delSel();setTool('erase');}});}else if(S.tool==='select'&&e.altKey){e.stopImmediatePropagation();bgPan(e,p=>pick(p));}},true);
+// Explain object selection without changing the separate Lineyka workflow.
+renderOpt=function(){original.opt();if(!currentSource())return;if(!S.selected&&(S.tool==='select'||S.tool==='promo')){const tip=document.createElement('span');tip.className='tip';tip.textContent='Нажмите линию или контур PDF — появятся точки для правки. Слой выбирается справа. Alt + клик на пересечении — выбрать другой объект.';$('optbar').replaceChildren(tip);}};
+$('btnExport').title='PDF для печати. Для продолжения редактирования используйте «Сохранить».';
+$('btnOpen').onclick=()=>$('fileInput').click();
+})();
