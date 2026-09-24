@@ -1946,7 +1946,7 @@ function drawCalUI(){if(!S.calPts||!S.calPts.length)return;const k=1/S.scale;
 
 /* ---- tools ---- */
 $('toolbar').querySelectorAll('.tool').forEach(b=>b.onclick=()=>activateEditorTool(b.dataset.tool));
-function activateEditorTool(t){closeMobileDrawers();if(t==='cal'){startCalibration(null);return;}if(t==='line'&&!S.cal[S.pageNum]){startCalibration('line');toast('Сначала задайте масштаб — две точки по известному размеру');return;}if(t==='line'&&isCoarsePointer())S.penMode=true;setTool(t);}
+function activateEditorTool(t){closeMobileDrawers();if(t==='cal'){startCalibration(null);return;}if(t==='line'&&!S.cal[S.pageNum]){startCalibration('line');if(!S.standalonePdf||S.linkedLkDocId)toast('Сначала задайте масштаб — две точки по известному размеру');return;}if(t==='line'&&isCoarsePointer())S.penMode=true;setTool(t);}
 function setTool(t){clearDraftVisual();S.tool=t;S.draft=null;S.calPts=null;if(t!=='select')S.selected=null;if(t!=='sym')S.armSym=null;$('toolbar').querySelectorAll('.tool').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));vp.style.cursor=t==='pan'?'grab':(t==='select'?'default':'crosshair');renderOpt();drawSelUI();if(t==='sym'){S.sideTab='sym';syncTabs();renderSide();}}
 
 function renderOpt(){const bar=$('optbar');let h='';
@@ -2599,7 +2599,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v494';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v495';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:'',aiMode:false};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -6461,6 +6461,7 @@ window.addEventListener('resize',()=>{if(S.data&&S.pageNum){fitPage();applyTrans
 </script>
 <script src="pdf-editor.js?v=493"></script>
 <script src="pdf-scale.js?v=494"></script>
-<script src="pdf-scale-ui.js?v=494"></script>
+<script src="pdf-scale-ui.js?v=495"></script>
+<script src="pdf-pages.js?v=495"></script>
 </body>
 </html>
