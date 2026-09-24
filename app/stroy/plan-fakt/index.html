@@ -28,6 +28,10 @@ body.lk-drawing-context #btnExport{display:none;}
 .brand{display:flex;align-items:baseline;gap:8px;font-weight:700;font-size:15px;}
 .brand .mark{font-family:var(--mono);font-size:11px;background:var(--amber);color:#1a1205;padding:3px 7px;border-radius:5px;letter-spacing:1px;}
 .brand .mark-img{height:30px;width:auto;display:block;border-radius:6px;}
+.brand-title{display:inline-flex;flex-direction:column;gap:2px;line-height:1.15;}
+.app-version{font:700 11px var(--mono);white-space:nowrap;}
+.brand .app-version{color:#ffd390;}
+.lb-title .app-version{display:block;margin-top:5px;color:#ffd390;}
 .brand .sub{font-weight:500;font-size:11px;opacity:.65;}
 .top .sp{flex:1;}
 .docname{font-family:var(--mono);font-size:11px;opacity:.8;max-width:16vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -633,7 +637,7 @@ body.lk-drawing-context #btnExport{display:none;}
 </head>
 <body>
 <div class="top">
-  <div class="brand"><img class="mark-img" src="rl-mark.png" alt="RL SYSTEM"><span>План-Факт</span><span class="sub">исполнительные чертежи</span></div>
+  <div class="brand"><img class="mark-img" src="rl-mark.png" alt="RL SYSTEM"><span class="brand-title"><span>План-Факт</span><span class="app-version" data-app-version></span></span><span class="sub">исполнительные чертежи</span></div>
   <button class="tbtn lk-draw-back" id="btnBackLkDraw" title="Сохранить графические правки и вернуться к этому же листу Линейки">← К Линейке</button>
   <button class="tbtn primary lk-draw-output" id="btnDownloadEdited" title="Скачать весь исходный PDF со всеми внесёнными графическими правками"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>Скачать PDF</button>
   <button class="tbtn lk-draw-output" id="btnPrintEdited" title="Открыть весь PDF с правками для печати"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg>Печать</button>
@@ -857,7 +861,7 @@ body.lk-drawing-context #btnExport{display:none;}
     <div class="lb-head">
       <img src="rl-logo.png" alt="RL SYSTEM" class="lb-logo">
       <div>
-        <div class="lb-title">Линейка · План-Факт</div>
+        <div class="lb-title">Линейка · План-Факт <span class="app-version" data-app-version></span></div>
         <div class="lb-sub">Три режима работы с PDF: графический подсчёт, чтение схем парсером или чтение целиком ИИ</div>
       </div>
     </div>
@@ -2599,7 +2603,8 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v495';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v496';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+document.querySelectorAll('[data-app-version]').forEach(el=>{el.textContent='Версия '+LK_VER;});
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:'',aiMode:false};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
