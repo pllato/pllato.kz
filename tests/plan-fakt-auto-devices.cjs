@@ -1,0 +1,6 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const noop=()=>{},node=()=>({setAttribute:noop,style:{},append:noop,replaceChildren:noop,addEventListener:noop});
+const ctx={document:{createElementNS:node,addEventListener:noop},SVGNS:'svg',svg:{insertBefore:noop},gObj:{},prepareStandalonePdfVectors:noop,goPage:noop,closeStandalonePdf:noop,redrawAll:noop,renderOpt:noop};ctx.window=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync('app/stroy/plan-fakt/pdf-auto-devices.js','utf8'),ctx);
+const o=(id,box,layer='ЭЛ_Розетки',fill='#000000')=>({id,box,layer,style:{fill},d:'M0 0L1 1'});
+const scene={objects:[o('a',[0,0,5,5]),o('b',[5,0,7,5]),o('c',[15,0,20,5]),o('d',[20,0,22,5]),o('wall',[0,0,7,5],'Стены'),o('wire',[0,0,30,5],'ЭЛ'),o('text',[0,0,7,5],'ЭЛ_Текст'),o('large',[0,0,90,90]),o('speck',[40,40,40.1,40.1]),o('switch',[60,0,65,5],'ЭЛ_Выключатели'),o('line',[70,0,74,4],'ЭЛ_Розетки',null)]};
+const groups=ctx.PdfAutoDevices.detect(scene);assert.equal(groups.length,3);assert.deepEqual(Array.from(groups,g=>Array.from(g.parts,o=>o.id)),[['a','b'],['c','d'],['switch']]);assert.equal(ctx.PdfAutoDevices.detect(scene),groups);console.log('PASS separate devices, switch layer, excluded walls/wires/text/large/specks/open strokes, cached analysis');
