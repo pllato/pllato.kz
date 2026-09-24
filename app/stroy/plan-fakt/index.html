@@ -28,7 +28,8 @@ body.lk-drawing-context #btnExport{display:none;}
 .brand{display:flex;align-items:baseline;gap:8px;font-weight:700;font-size:15px;}
 .brand .mark{font-family:var(--mono);font-size:11px;background:var(--amber);color:#1a1205;padding:3px 7px;border-radius:5px;letter-spacing:1px;}
 .brand .mark-img{height:30px;width:auto;display:block;border-radius:6px;}
-.brand-title{display:inline-flex;flex-direction:column;gap:2px;line-height:1.15;}
+.brand-title>span:first-child{white-space:nowrap;}
+.brand-title{flex-shrink:0;display:inline-flex;flex-direction:column;gap:2px;line-height:1.15;}
 .app-version{font:700 11px var(--mono);white-space:nowrap;}
 .brand .app-version{color:#ffd390;}
 .lb-title .app-version{display:block;margin-top:5px;color:#ffd390;}
@@ -2603,7 +2604,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v496';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v497';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 document.querySelectorAll('[data-app-version]').forEach(el=>{el.textContent='Версия '+LK_VER;});
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:'',aiMode:false};
@@ -6468,5 +6469,6 @@ window.addEventListener('resize',()=>{if(S.data&&S.pageNum){fitPage();applyTrans
 <script src="pdf-scale.js?v=494"></script>
 <script src="pdf-scale-ui.js?v=495"></script>
 <script src="pdf-pages.js?v=495"></script>
+<script src="pdf-zoom.js?v=497"></script>
 </body>
 </html>

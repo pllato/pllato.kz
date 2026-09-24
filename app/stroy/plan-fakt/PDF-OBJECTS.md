@@ -98,3 +98,22 @@ PDF пользователя и временные тестовые страни
 При выборе инструмента «Линия» окно масштаба предлагает «Применить и рисовать».
 Проверены реальный PDF, ручной перенос туда/обратно, сворачивание, восстановление
 проекта, мобильное окно и переход от подтверждения масштаба к рисованию.
+
+## Sharp zoom (v497)
+
+`pdf-zoom.js` renders the visible PDF area at screen resolution after a 140 ms
+zoom/pan debounce. Canvas allocation is limited to 8 MP and 4096 pixels per side,
+with 32 screen pixels of overscan. Original PDF vectors/text are rendered again;
+a scan cannot acquire detail absent from its source. During motion the ordinary
+preview remains visible. Editing coordinates and calibration never change.
+
+The crop sits above the background/masks and below editable SVG objects. It uses
+the same filtered PDF operator list to omit promoted/deleted originals. Rendering
+is serialized, pending requests coalesced, and stale results rejected after edits,
+page/source changes or movement. Dimming is applied once against the canvas-area
+background. Vector-only mode hides this layer.
+
+Validation: 2400% zoom on the user's PDF at DPR=2, pan/page races, actual crop
+pixels after deletion (crossing blue remains, removed line reveals background),
+dimming and vector mode. Core pixel regressions additionally compare 8x crops
+against independently generated expected PDFs, including rotation and clipping.
