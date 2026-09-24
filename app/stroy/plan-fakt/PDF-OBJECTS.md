@@ -153,3 +153,7 @@ scale controls. Existing PDF filtering removes originals without erasing crossin
 Validation: synthetic crossing wall/cable fixture, review toggles, rigid drag,
 independent duplicate, delete/undo and project restore. On the user's page 19, a
 22-path black symbol groups accurately even after one path was promoted earlier.
+
+## Reference column visibility (v502)
+
+Paired notes and legend headings in the rightmost 35 percent identify a reference column on first opening a sheet. An optional scheme heading extends it upward; a text gap after legend rows ends it before the title block. Other layouts can use manual area selection. A per-page checked flag preserves a decision to restore content. Export inclusion remains selectable. Validated on actual page 19 without preview presets, restoration after project reopen and both export pixel checks.
