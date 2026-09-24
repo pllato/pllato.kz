@@ -946,8 +946,8 @@ const catC=k=>(CATS.find(c=>c.k===k)||CATS[CATS.length-1]).c;
 // Цвет как НА ЧЕРТЕЖЕ: если для этой марки уже встречалась трасса из PDF — берём её цвет,
 // чтобы нарисованная линия совпадала с трассами плана. Иначе — цвет марки из легенды.
 const markColor=k=>(S.catPdfColor&&S.catPdfColor[k])||catC(k);
-const drawColor=()=>markColor(S.cat);
-const drawWidth=()=>(S.catPdfWidth&&S.catPdfWidth[S.cat])||S.width;  // толщина как у трасс PDF этой марки
+const drawColor=()=>window.PdfLineStyle?.style(S.cat)?.color||markColor(S.cat);
+const drawWidth=()=>window.PdfLineStyle?.style(S.cat)?.width||(S.catPdfWidth&&S.catPdfWidth[S.cat])||S.width;  // толщина как у трасс PDF этой марки
 const catN=k=>(CATS.find(c=>c.k===k)||CATS[CATS.length-1]).n;
 const catFull=k=>{const c=CATS.find(c=>c.k===k)||CATS[CATS.length-1];return c.full||c.n;};
 S.cat=CATS[0].k;S.penMode=false;S.printSpec=true;S.cluster=[];S.heights={socket:0.40,switch:0.90};S.panelH=1.50;S.projId=null;S.extraPos=[];
@@ -1705,12 +1705,12 @@ function renderObj(o){
     el.setAttribute('d',dPath);
     if(o._fill){el.setAttribute('fill',o.color);el.setAttribute('stroke','none');}
     else{el.setAttribute('fill','none');el.setAttribute('stroke',o.color);el.setAttribute('stroke-width',o.width);el.setAttribute('stroke-linecap','round');el.setAttribute('stroke-linejoin','round');}
-    if(o.cat==='mop15')el.setAttribute('stroke-dasharray',(o.width*3.2)+' '+(o.width*2.2));
+    if(o.pdfLineStyle){const st=o.pdfLineStyle;el.setAttribute('stroke-dasharray',st.dash.join(' '));el.setAttribute('stroke-dashoffset',st.dashOffset||0);el.setAttribute('stroke-linecap',['butt','round','square'][st.cap]||'round');el.setAttribute('stroke-linejoin',['miter','round','bevel'][st.join]||'round');el.setAttribute('opacity',st.alpha);}else if(o.cat==='mop15')el.setAttribute('stroke-dasharray',(o.width*3.2)+' '+(o.width*2.2));
     if(ref){el.setAttribute('opacity','0.22');}
     g.appendChild(el);
     // маркеры выпусков на концах
     [['ea',0],['eb',o.pts.length-1]].forEach(([ek,idx])=>{const e=o[ek];if(e&&e.kind&&e.kind!=='free'){const p=o.pts[idx];const m=document.createElementNS(SVGNS,'circle');m.setAttribute('cx',p.x);m.setAttribute('cy',p.y);m.setAttribute('r',Math.max(o.width*1.7,7));m.setAttribute('fill','#fff');m.setAttribute('stroke',o.color);m.setAttribute('stroke-width',Math.max(o.width*0.7,2.5));if(ref)m.setAttribute('opacity','0.22');g.appendChild(m);}});
-    if(!ref&&!o._fill){const lab=makeLineLabel(o);if(lab)g.appendChild(lab);}
+    if(!ref&&!o._fill&&!o.pdfLineStyle){const lab=makeLineLabel(o);if(lab)g.appendChild(lab);}
     if(!ref){
       const hit=document.createElementNS(SVGNS,'path');
       hit.setAttribute('d',dPath);hit.setAttribute('fill','none');hit.setAttribute('stroke','transparent');hit.setAttribute('stroke-width',Math.max(o.width,(isCoarsePointer()?48:28)/Math.max(.1,S.scale)));hit.style.cursor=o.grp?'move':'pointer';hit.style.touchAction='none';
@@ -2393,7 +2393,7 @@ function drawEditedObjects(cc,objs,rPage,sx,sy){
   cc.save();cc.scale(sx||1,sy||1);const list=objs||[],countable=list.filter(isMeasuredLineObject),lineNos=new Map(countable.map((o,i)=>[o.id,i+1])),baseW=cc.canvas.width/Math.max(.1,Math.abs(sx||1)),maskExtra=REPLACEMENT_MASK_PAD_PX/Math.max(.1,Math.abs(sx||1),Math.abs(sy||1));
   list.forEach(o=>{const rep=o&&o._lkOriginal;if(!rep||!Array.isArray(rep.paths)||!o._lkDeleted)return;cc.save();cc.strokeStyle='#fff';cc.lineWidth=Math.max(.7,+rep.width||1)+maskExtra;cc.lineCap='round';cc.lineJoin='round';cc.setLineDash([]);rep.paths.forEach(p=>strokeCanvasPts(cc,p,false));cc.restore();});
   list.forEach(o=>{if(o&&o._lkDeleted)return;cc.save();
-    if(o.type==='line'){cc.strokeStyle=o.color;cc.lineWidth=o.width;cc.lineCap='round';cc.lineJoin='round';if(o.cat==='mop15')cc.setLineDash([o.width*3.2,o.width*2.2]);strokeCanvasPts(cc,o.pts,!o._lkSource);const m=lineMetersWithScale(o,rPage&&rPage.mpp),n=lineNos.get(o.id);if(m!=null&&n!=null)drawCanvasLineLabel(cc,o,'№'+n+' · '+fmtMeters(m)+' м',baseW);}
+    if(o.type==='line'){cc.strokeStyle=o.color;cc.lineWidth=o.width;cc.lineCap='round';cc.lineJoin='round';if(o.pdfLineStyle){const st=o.pdfLineStyle;cc.setLineDash(st.dash);cc.lineDashOffset=st.dashOffset||0;cc.lineCap=['butt','round','square'][st.cap]||'round';cc.lineJoin=['miter','round','bevel'][st.join]||'round';cc.globalAlpha=st.alpha;}else if(o.cat==='mop15')cc.setLineDash([o.width*3.2,o.width*2.2]);strokeCanvasPts(cc,o.pts,!o._lkSource);const m=lineMetersWithScale(o,rPage&&rPage.mpp),n=lineNos.get(o.id);if(m!=null&&n!=null&&!o.pdfLineStyle)drawCanvasLineLabel(cc,o,'№'+n+' · '+fmtMeters(m)+' м',baseW);}
     else if(o.type==='symbol'){drawSymbolCanvas(cc,o);}
     else if(o.type==='rect'){cc.strokeStyle=o.color;cc.lineWidth=o.width;cc.strokeRect(o.x,o.y,o.w,o.h);}
     else if(o.type==='text'){cc.fillStyle=o.color;cc.font='600 '+o.size+'px Inter,sans-serif';cc.fillText(o.text,o.x,o.y);}
@@ -2604,7 +2604,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v497';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v499';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 document.querySelectorAll('[data-app-version]').forEach(el=>{el.textContent='Версия '+LK_VER;});
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:'',aiMode:false};
@@ -6470,5 +6470,6 @@ window.addEventListener('resize',()=>{if(S.data&&S.pageNum){fitPage();applyTrans
 <script src="pdf-scale-ui.js?v=495"></script>
 <script src="pdf-pages.js?v=495"></script>
 <script src="pdf-zoom.js?v=497"></script>
+<script src="pdf-line-style.js?v=499"></script>
 </body>
 </html>
