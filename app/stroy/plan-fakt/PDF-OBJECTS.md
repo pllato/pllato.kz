@@ -167,3 +167,24 @@ Tests cover independent groups, excluded cable/wall/text layers, switch layers, 
 ## Immediate manual grouping (v505)
 
 Manual rectangle selection now commits the group on pointer release, removing the confirmation step. All colours are enabled by default since v504. Undo returns the original ungrouped objects; empty rectangles keep the tool active with guidance. Browser validation covers immediate selection, subsequent rigid drag, duplicate/delete/undo and project reopen.
+
+## Sheet composition (v506)
+
+`pdf-sheet-layout.js` stores normalized crop bounds, quarter-turn rotation, title,
+signature rows and an optional TSV table or embedded table image in each page's
+`sheetLayout`. The source PDF and editing/calibration coordinates do not change.
+A CSS matrix and clipping display only the selected area on a composed sheet;
+inverse mapping keeps pointer editing correct. Fit/centering use sheet bounds,
+and the sharp PDF viewport now uses inverse-mapped screen corners.
+
+History includes layout changes. Export disables the vector fast path for laid-out
+projects, composes the edited source crop with matching SVG title/footer content,
+and derives output page dimensions without changing source physical scale. Sheet
+size follows crop/orientation rather than a fixed A-series paper preset. Composition
+is bounded to 4096 pixels per side and 12 MP. Other pages keep existing export.
+
+Browser integration test `tests/plan-fakt-sheet-layout.cjs` creates a synthetic PDF
+and checks crop UI, TSV/title, all four inverse rotations, actual object drag and
+undo after rotation, image table upload, exported red source/cyan image pixels and
+absence of green content outside the crop, plus project restore. Visual review
+also used the original page 19.
