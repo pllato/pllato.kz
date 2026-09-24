@@ -157,3 +157,9 @@ independent duplicate, delete/undo and project restore. On the user's page 19, a
 ## Reference column visibility (v502)
 
 Paired notes and legend headings in the rightmost 35 percent identify a reference column on first opening a sheet. An optional scheme heading extends it upward; a text gap after legend rows ends it before the title block. Other layouts can use manual area selection. A per-page checked flag preserves a decision to restore content. Export inclusion remains selectable. Validated on actual page 19 without preview presets, restoration after project reopen and both export pixel checks.
+
+## Automatic device selection (v503)
+
+Electrical device layers are partitioned into connected bounding-box components with a spatial grid and 0.25 PDF-unit tolerance. Large, tiny, elongated and stroke-only open components are excluded. Unknown layers retain manual grouping. This is conservative geometry/layer recognition, not a universal symbol classifier; adjoining socket blocks may form one device. Detection does not mutate the PDF/project. Transparent hit targets promote a complete group only on selection, allowing the first pointer gesture to move it. Source IDs prevent deleted or moved groups from reappearing. Hidden-area masks remain above targets.
+
+Tests cover independent groups, excluded cable/wall/text layers, switch layers, size and shape rejection; actual page 19 identifies 76 groups and first-drag moves a 21-contour socket rigidly. Manual grouping, duplicate/delete/undo and project restore regressions also pass.
