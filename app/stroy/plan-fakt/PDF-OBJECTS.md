@@ -163,3 +163,7 @@ Paired notes and legend headings in the rightmost 35 percent identify a referenc
 Electrical device layers are partitioned into connected bounding-box components with a spatial grid and 0.25 PDF-unit tolerance. Large, tiny, elongated and stroke-only open components are excluded. Unknown layers retain manual grouping. This is conservative geometry/layer recognition, not a universal symbol classifier; adjoining socket blocks may form one device. Detection does not mutate the PDF/project. Transparent hit targets promote a complete group only on selection, allowing the first pointer gesture to move it. Source IDs prevent deleted or moved groups from reappearing. Hidden-area masks remain above targets.
 
 Tests cover independent groups, excluded cable/wall/text layers, switch layers, size and shape rejection; actual page 19 identifies 76 groups and first-drag moves a 21-contour socket rigidly. Manual grouping, duplicate/delete/undo and project restore regressions also pass.
+
+## Immediate manual grouping (v505)
+
+Manual rectangle selection now commits the group on pointer release, removing the confirmation step. All colours are enabled by default since v504. Undo returns the original ungrouped objects; empty rectangles keep the tool active with guidance. Browser validation covers immediate selection, subsequent rigid drag, duplicate/delete/undo and project reopen.
