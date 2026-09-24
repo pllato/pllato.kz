@@ -137,3 +137,19 @@ and editable geometry remain in the saved project.
 Browser validation: actual page 19 selects #0000ff and 0.84 PDF-unit stroke
 (1.69596 editor pixels at width 3400). New-line creation, restyling, undo,
 project reload and export pixels were checked; exported stroke is blue (1,1,254).
+
+## Whole device selection (v500)
+
+`pdf-devices.js` adds an explicit rectangle-and-review tool. Only complete paths
+inside the rectangle are proposed; dark paths are the default, with an all-colours
+option. The user can exclude individual paths before confirming. This does not
+infer semantic devices automatically and does not group PDF text labels.
+
+Confirmed parts retain their original paths and styles and share a persistent
+`_pdfDevice` group. Selection, movement, duplication and deletion act on the whole
+group. The object list shows one device and the selection omits line-node and
+scale controls. Existing PDF filtering removes originals without erasing crossings.
+
+Validation: synthetic crossing wall/cable fixture, review toggles, rigid drag,
+independent duplicate, delete/undo and project restore. On the user's page 19, a
+22-path black symbol groups accurately even after one path was promoted earlier.

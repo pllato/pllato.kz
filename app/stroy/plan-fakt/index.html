@@ -2189,7 +2189,7 @@ $('tabCalc').onclick=()=>{S.sideTab='calc';syncTabs();renderSide();};
 function syncTabs(){$('tabObj').classList.toggle('on',S.sideTab==='obj');$('tabSym').classList.toggle('on',S.sideTab==='sym');$('tabCalc').classList.toggle('on',S.sideTab==='calc');}
 function renderSide(){if(S.sideTab==='calc')renderCalc();else if(S.sideTab==='sym')renderCatalog();else renderObjList();}
 
-function renderObjList(){const body=$('sideBody');const list=(cur()||[]).filter(o=>!o._lkDeleted);$('objN').textContent=list.length;
+function renderObjList(){const body=$('sideBody');const list=window.PdfDevices?PdfDevices.list(cur()||[]):(cur()||[]).filter(o=>!o._lkDeleted);$('objN').textContent=list.length;
   let html=`<div class="filterbar"><button class="${S.filter==='all'?'on':''}" data-f="all">Все</button><button class="${S.filter==='pdf'?'on':''}" data-f="pdf">Из чертежа</button><button class="${S.filter==='mine'?'on':''}" data-f="mine">Мои</button></div>`;
   const vis=list.filter(visible);
   if(!vis.length)html+=`<div class="emptyhint">Нет объектов в этой группе.</div>`;
@@ -2197,7 +2197,7 @@ function renderObjList(){const body=$('sideBody');const list=(cur()||[]).filter(
   body.innerHTML=html;
   body.querySelectorAll('.filterbar button').forEach(b=>b.onclick=()=>{S.filter=b.dataset.f;redrawAll();renderSide();});
   body.querySelectorAll('.objrow').forEach(r=>{r.onclick=ev=>{if(ev.target.closest('.del'))return;setTool('select');selectObj(r.dataset.id);center(r.dataset.id);};const d=r.querySelector('.del');if(d)d.onclick=ev=>{ev.stopPropagation();const o=getObj(r.dataset.id);if(!o)return;pushHistory();const ids=moveCluster(o);deleteObjectIds(ids);if(ids.includes(S.selected))S.selected=null;redrawAll();renderSide();};});}
-function row(o){const sel=o.id===S.selected?'sel':'';let t1,t2,col=o.color;if(o.type==='line'){t1=catN(o.cat)+(o.src==='pdf'?' · чертёж':'');const ends=[o.ea,o.eb].filter(e=>e&&e.kind!=='free').map(e=>kindN(e.kind)).join(', '),m=lineMeters(o),n=lineNo(o);t2=(n!=null?'№'+n+' · ':'')+(m!=null?fmtMeters(m)+' м':'масштаб не задан')+(ends?' · '+ends:'');}else if(o.type==='symbol'){t1=symDef(o.sym).n;t2='знак'+(o.rot?' · '+Math.round(o.rot)+'°':'');}else if(o.type==='rect'){t1='Область';t2=Math.round(o.w)+'×'+Math.round(o.h);}else if(o.type==='field'){t1='Значение: '+fieldValue(o,calcPage(S.pageNum));t2=fieldLabel(o);col='#10151c';}else{t1='Подпись';t2=(o.text||'').slice(0,18);}return `<div class="objrow ${sel}" data-id="${o.id}"><div class="sw" style="background:${col}"></div><div class="info"><div class="t1">${esc(t1)}</div><div class="t2">${esc(t2)}</div></div><button class="del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div>`;}
+function row(o){const sel=o.id===S.selected?'sel':'';let t1,t2,col=o.color;if(o._pdfDevice){t1='Прибор';t2='Перемещается целиком';}else if(o.type==='line'){t1=catN(o.cat)+(o.src==='pdf'?' · чертёж':'');const ends=[o.ea,o.eb].filter(e=>e&&e.kind!=='free').map(e=>kindN(e.kind)).join(', '),m=lineMeters(o),n=lineNo(o);t2=(n!=null?'№'+n+' · ':'')+(m!=null?fmtMeters(m)+' м':'масштаб не задан')+(ends?' · '+ends:'');}else if(o.type==='symbol'){t1=symDef(o.sym).n;t2='знак'+(o.rot?' · '+Math.round(o.rot)+'°':'');}else if(o.type==='rect'){t1='Область';t2=Math.round(o.w)+'×'+Math.round(o.h);}else if(o.type==='field'){t1='Значение: '+fieldValue(o,calcPage(S.pageNum));t2=fieldLabel(o);col='#10151c';}else{t1='Подпись';t2=(o.text||'').slice(0,18);}return `<div class="objrow ${sel}" data-id="${o.id}"><div class="sw" style="background:${col}"></div><div class="info"><div class="t1">${esc(t1)}</div><div class="t2">${esc(t2)}</div></div><button class="del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div>`;}
 function center(id){const o=getObj(id);if(!o)return;const b=bbox(o);const w=$('cwrap');S.scale=Math.max(S.scale,S.fitScale*2.2);S.pan.x=w.clientWidth/2-(b.x+b.w/2)*S.scale;S.pan.y=w.clientHeight/2-(b.y+b.h/2)*S.scale;applyTransform();}
 
 /* ---- расчёт длины кабеля и счётчики ---- */
@@ -2604,7 +2604,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v499';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v500';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 document.querySelectorAll('[data-app-version]').forEach(el=>{el.textContent='Версия '+LK_VER;});
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:'',aiMode:false};
@@ -6471,5 +6471,6 @@ window.addEventListener('resize',()=>{if(S.data&&S.pageNum){fitPage();applyTrans
 <script src="pdf-pages.js?v=495"></script>
 <script src="pdf-zoom.js?v=497"></script>
 <script src="pdf-line-style.js?v=499"></script>
+<script src="pdf-devices.js?v=500"></script>
 </body>
 </html>
