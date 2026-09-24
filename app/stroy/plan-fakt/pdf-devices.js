@@ -3,7 +3,7 @@
 'use strict';
 const button=document.createElement('button');button.type='button';button.className='tool';button.id='pdfDeviceTool';button.dataset.tool='device';button.textContent='Прибор';button.title='Обведите прибор целиком, затем проверьте детали';$('toolbar').append(button);
 const overlay=document.createElementNS(SVGNS,'g');overlay.id='pdfDevicePreview';svg.append(overlay);
-let pending=null,drag=null,allColors=false;
+let pending=null,drag=null,allColors=true;
 function scene(){const s=S._pdfScene;return s&&s.src===S.standalonePdf&&s.pn===S.pageNum&&!S.linkedLkDocId?s.scene:null;}
 const dark=color=>{if(!/^#[\da-f]{6}$/i.test(color||''))return false;return Math.max(...hex2rgb(color))<100;};
 const inside=(b,r)=>b[0]>=r.x-.05&&b[1]>=r.y-.05&&b[2]<=r.x+r.w+.05&&b[3]<=r.y+r.h+.05;
