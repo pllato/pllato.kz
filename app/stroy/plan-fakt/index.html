@@ -1675,9 +1675,9 @@ function toImg(cx,cy){const r=baseimg.getBoundingClientRect();return{x:(cx-r.lef
 function inBase(cx,cy){const r=baseimg.getBoundingClientRect();return cx>=r.left&&cx<=r.right&&cy>=r.top&&cy<=r.bottom;}
 
 /* ---- history ---- */
-function snap(){return JSON.stringify({objects:S.objects[S.pageNum]||[],hiddenAreas:S.data?.pages[S.pageNum]?.hiddenAreas||[]});}
+function snap(){return JSON.stringify({objects:S.objects[S.pageNum]||[],hiddenAreas:S.data?.pages[S.pageNum]?.hiddenAreas||[],sheetLayout:S.data?.pages[S.pageNum]?.sheetLayout||null});}
 function pushHistory(){const h=S.history[S.pageNum]||(S.history[S.pageNum]=[]);h.push(snap());if(h.length>40)h.shift();updateUndo();lkQueueDrawingSave();}
-function undoLast(){const h=S.history[S.pageNum];if(!h||!h.length)return;const saved=JSON.parse(h.pop());S.objects[S.pageNum]=Array.isArray(saved)?saved:saved.objects;if(!Array.isArray(saved)&&S.data?.pages[S.pageNum])S.data.pages[S.pageNum].hiddenAreas=saved.hiddenAreas||[];S.selected=null;S.cluster=[];redrawAll();renderSide();renderOpt();updateUndo();lkQueueDrawingSave();toast('Последнее действие отменено');}
+function undoLast(){const h=S.history[S.pageNum];if(!h||!h.length)return;const saved=JSON.parse(h.pop());S.objects[S.pageNum]=Array.isArray(saved)?saved:saved.objects;if(!Array.isArray(saved)&&S.data?.pages[S.pageNum]){S.data.pages[S.pageNum].hiddenAreas=saved.hiddenAreas||[];S.data.pages[S.pageNum].sheetLayout=saved.sheetLayout||null;}S.selected=null;S.cluster=[];redrawAll();renderSide();renderOpt();updateUndo();lkQueueDrawingSave();toast('Последнее действие отменено');}
 $('btnUndo').onclick=undoLast;
 function updateUndo(){$('btnUndo').disabled=!(S.history[S.pageNum]&&S.history[S.pageNum].length);}
 
@@ -2604,7 +2604,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v505';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v506';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 document.querySelectorAll('[data-app-version]').forEach(el=>{el.textContent='Версия '+LK_VER;});
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:'',aiMode:false};
@@ -6465,14 +6465,15 @@ function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'
 let tt;function toast(m){const el=$('toast');el.textContent=m;el.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('show'),2600);}
 window.addEventListener('resize',()=>{if(S.data&&S.pageNum){fitPage();applyTransform();}});
 </script>
-<script src="pdf-editor.js?v=501"></script>
+<script src="pdf-editor.js?v=506"></script>
 <script src="pdf-scale.js?v=494"></script>
 <script src="pdf-scale-ui.js?v=495"></script>
 <script src="pdf-pages.js?v=495"></script>
-<script src="pdf-zoom.js?v=497"></script>
+<script src="pdf-zoom.js?v=506"></script>
 <script src="pdf-line-style.js?v=499"></script>
 <script src="pdf-devices.js?v=505"></script>
 <script src="pdf-hidden-areas.js?v=502"></script>
 <script src="pdf-auto-devices.js?v=503"></script>
+<script src="pdf-sheet-layout.js?v=506"></script>
 </body>
 </html>
