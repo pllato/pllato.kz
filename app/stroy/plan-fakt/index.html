@@ -681,7 +681,7 @@ body.lk-drawing-context #btnExport{display:none;}
       <h3>С чего начать — выберите объект или нарисуйте новую трассу</h3>
       <div class="gsub">В векторном PDF нажмите линию или контур: его можно изменить или удалить отдельно. Новые трассы и знаки добавляйте поверх чертежа. Для расчёта длины задайте масштаб.</div>
       <div class="gsteps">
-        <button class="gstep" data-go="cal"><span class="gn">1 · Масштаб</span><span class="gd">2 клика по известному размеру + метры</span></button>
+        <button class="gstep" data-go="cal"><span class="gn">1 · Масштаб</span><span class="gd">Автоопределение или 2 точки + миллиметры</span></button>
         <button class="gstep" data-go="line"><span class="gn">2 · Трассы</span><span class="gd">На телефоне проведи пальцем — отпустил, готово</span></button>
         <button class="gstep" data-go="sym"><span class="gn">3 · Знаки</span><span class="gd">Розетки/щит из каталога — тапом</span></button>
         <button class="gstep" data-go="calc"><span class="gn">4 · Расчёт + PDF</span><span class="gd">Длина по маркам → «Скачать PDF»</span></button>
@@ -696,7 +696,7 @@ body.lk-drawing-context #btnExport{display:none;}
 <div class="scale-dialog" id="scaleDialog" role="dialog" aria-modal="true" aria-labelledby="scaleTitle">
   <div class="scale-card">
     <h3 id="scaleTitle">Укажите реальную длину, мм</h3>
-    <p>Вы отметили две точки на размере чертежа. Введите, сколько метров между ними — после этого каждая линия будет сразу подписываться и попадать в таблицу.</p>
+    <p>Вы отметили две точки на размере чертежа. Введите, сколько миллиметров между ними — после этого каждая линия будет сразу подписываться и попадать в таблицу.</p>
     <div class="scale-input"><input id="scaleMeters" type="text" inputmode="numeric" autocomplete="off" placeholder="например, 1500"><b>мм</b></div>
     <div class="scale-actions"><button id="scaleCancel" type="button">Отмена</button><button class="primary" id="scaleApply" type="button">Сохранить масштаб</button></div>
   </div>
@@ -714,7 +714,7 @@ body.lk-drawing-context #btnExport{display:none;}
       <p>Ты открываешь план помещения и рисуешь поверх него, как проложены провода «по факту». Программа сама меряет длину.</p>
       <div class="help-steps">
         <div class="help-step"><span class="sn">1</span><span class="stx"><b>Открыть.</b> Нажми «Открыть PDF чертежа или проект» и выбери план.</span></div>
-        <div class="help-step"><span class="sn">2</span><span class="stx"><b>Масштаб (обязательно).</b> На телефоне кнопка всегда видна над чертежом и прямо показывает, задан ли масштаб. Отметь две точки по известному размеру и впиши метры. Если сразу нажать «Линия», программа сама сначала попросит масштаб.</span></div>
+        <div class="help-step"><span class="sn">2</span><span class="stx"><b>Масштаб (обязательно).</b> На телефоне кнопка всегда видна над чертежом и прямо показывает, задан ли масштаб. Проверь предложенный масштаб PDF или отметь две точки по известному размеру и впиши миллиметры. Если сразу нажать «Линия», программа сама сначала попросит масштаб.</span></div>
         <div class="help-step"><span class="sn">3</span><span class="stx"><b>Линия.</b> На телефоне проведи трассу пальцем одним движением: отпустил палец — линия завершена и подписана в метрах. Для точного построения переключись с «Карандаша» на точки и нажми «Готово». Выбранную линию можно сразу удалить, ошибку — отменить.</span></div>
         <div class="help-step"><span class="sn">4</span><span class="stx"><b>Знаки.</b> Инструмент «Знаки» — ставь розетки, выключатели, щиты, светильники тапом по плану.</span></div>
         <div class="help-step"><span class="sn">5</span><span class="stx"><b>Расчёт.</b> Вкладка «Расчёт» справа — длина кабеля, счётчики и спецификация считаются сами.</span></div>
@@ -2137,7 +2137,7 @@ function calClick(p){if(!S.calPts||S.calPts.length>=2)S.calPts=[];S.calPts.push(
   if(S.calPts.length===2){const dx=S.calPts[1].x-S.calPts[0].x,dy=S.calPts[1].y-S.calPts[0].y;S.calPx=Math.hypot(dx,dy);$('scaleMeters').value='';$('scaleDialog').style.display='flex';setTimeout(()=>$('scaleMeters').focus(),40);}
 }
 function closeScaleDialog(cancel){$('scaleDialog').style.display='none';if(cancel){S.calPts=null;S.calPx=0;S.afterCalTool=null;setTool('select');toast('Масштаб не изменён');}}
-function applyScale(){const mm=parseFloat(String($('scaleMeters').value||'').replace(',','.')),px=S.calPx;if(!(mm>0&&px>0)){toast('Введите длину больше нуля');$('scaleMeters').focus();return;}const m=mm/1000;S.cal[S.pageNum]=m/px;const next=S.afterCalTool;S.afterCalTool=null;S.calPts=null;S.calPx=0;$('scaleDialog').style.display='none';buildStrip();updateScalePill();redrawAll();renderSide();lkQueueDrawingSave();if(next==='line'&&isCoarsePointer())S.penMode=true;setTool(next||'select');toast('Масштаб готов: 1 м = '+(px/m).toFixed(0)+' px'+(next==='line'?' · рисуйте линию':''));}
+function applyScale(){const mm=parseFloat(String($('scaleMeters').value||'').replace(',','.')),px=S.calPx;if(!(mm>0&&px>0)){toast('Введите длину больше нуля');$('scaleMeters').focus();return;}const m=mm/1000;S.cal[S.pageNum]=m/px;if(S.data&&S.data.pages[S.pageNum])S.data.pages[S.pageNum].scaleCalibration={method:'manual'};const next=S.afterCalTool;S.afterCalTool=null;S.calPts=null;S.calPx=0;$('scaleDialog').style.display='none';buildStrip();updateScalePill();redrawAll();renderSide();lkQueueDrawingSave();if(next==='line'&&isCoarsePointer())S.penMode=true;setTool(next||'select');toast('Масштаб готов: 1 м = '+(px/m).toFixed(0)+' px'+(next==='line'?' · рисуйте линию':''));}
 $('scaleApply').onclick=applyScale;$('scaleCancel').onclick=()=>closeScaleDialog(true);$('scaleDialog').addEventListener('click',e=>{if(e.target===$('scaleDialog'))closeScaleDialog(true);});$('scaleMeters').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applyScale();}});
 function updateScalePill(){const c=S.cal[S.pageNum],el=$('scaleVal'),pill=$('scalePill'),mob=$('btnMobileScale');if(c){const tx='1 м = '+(1/c).toFixed(0)+' px';el.textContent=tx;pill.classList.add('set');if(mob){mob.textContent='Масштаб · 1м='+(1/c).toFixed(0)+'px';mob.title=tx;mob.classList.add('scale-set');mob.classList.remove('scale-missing');}}else{el.textContent='не задан';pill.classList.remove('set');if(mob){mob.textContent='Масштаб: не задан';mob.title='Нажмите и задайте масштаб по двум точкам';mob.classList.add('scale-missing');mob.classList.remove('scale-set');}}}
 
@@ -2599,7 +2599,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v493';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v494';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:'',aiMode:false};
 /* битый ToUnicode из САПР (серия 2435): кириллица уехала в Latin Ext-B (сдвиг −0x247), цифры и
@@ -6460,5 +6460,7 @@ let tt;function toast(m){const el=$('toast');el.textContent=m;el.classList.add('
 window.addEventListener('resize',()=>{if(S.data&&S.pageNum){fitPage();applyTransform();}});
 </script>
 <script src="pdf-editor.js?v=493"></script>
+<script src="pdf-scale.js?v=494"></script>
+<script src="pdf-scale-ui.js?v=494"></script>
 </body>
 </html>
