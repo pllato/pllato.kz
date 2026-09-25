@@ -5,6 +5,23 @@ await p.evaluate(()=>{S.data.pages[19].sheetLayout={crop:{x:.05,y:.03,w:.6,h:.78
 await p.waitForFunction(()=>S.data.pages[19].sheetLayout.originalStamp,{},{timeout:60000});
 const info=await p.evaluate(()=>{const s=S.data.pages[19].sheetLayout.originalStamp;return{aspect:s.aspect,region:s.region,cells:s.cells.map(c=>c.text),kinds:s.cells.map(c=>c.kind)}});
 assert.ok(info.aspect>3&&info.aspect<4);assert.ok(info.cells.length>25);assert.ok(info.kinds.includes('logo'));assert.ok(info.kinds.includes('company'));assert.ok(info.cells.some(t=>/Выполнил/.test(t)));console.log('PASS original grid detected:',info.cells.length,'cells, separate logo/company');
+
+const signaturePixels=await p.evaluate(async()=>{
+ const c=S.data.pages[19].sheetLayout,t=c.originalStamp,indices=[...new Set(t.signatureLayers.map(l=>l.cell))];
+ if(indices.length!==4)throw Error('Expected four source signatures, got '+indices.length);
+ async function pixels(){
+ const g={w:3000,h:2100,m:75},w=g.w*.34,h=w/t.aspect,x=g.w-g.m-w,y=g.h-g.m-h,svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('xmlns','http://www.w3.org/2000/svg');svg.setAttribute('width','2100');svg.setAttribute('height',String(2100/t.aspect));svg.setAttribute('viewBox',[x,y,w,h].join(' '));svg.append(PdfSheetStamp.render(c,g,false));const im=new Image();im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(svg));await im.decode();const cv=document.createElement('canvas');cv.width=2100;cv.height=Math.ceil(2100/t.aspect);const ctx=cv.getContext('2d');ctx.drawImage(im,0,0,cv.width,cv.height);const data=ctx.getImageData(0,0,cv.width,cv.height).data;let blue=0,teal=0,gray=0;
+ for(let yy=Math.floor(cv.height*.63);yy<cv.height;yy++)for(let xx=Math.floor(cv.width*.20);xx<cv.width*.33;xx++){const i=(yy*cv.width+xx)*4,r=data[i],g=data[i+1],b=data[i+2];if(r<40&&g<50&&b>200)blue++;if(r<50&&g>70&&g<150&&b>140)teal++;if(Math.abs(r-152)<3&&Math.abs(g-152)<3&&Math.abs(b-152)<3)gray++;}
+ return{blue,teal,gray};
+ }
+ const before=await pixels(),first=indices.sort((a,b)=>t.cells[a].y-t.cells[b].y)[0];t.cells[first].changed=true;t.cells[first].text='';
+ const one=await pixels();indices.forEach(i=>{t.cells[i].changed=true;t.cells[i].text=''});const all=await pixels();indices.forEach(i=>{t.cells[i].changed=false;});
+ delete t.signatureVersion;delete t.signatureBaseImage;delete t.signatureLayers;delete t.signatureBounds;t.cells[first].changed=true;
+ await PdfSheetStamp.prepareForExport(c,S._pdfScene.scene);const migrated=await pixels();t.cells[first].changed=false;redrawAll();
+ return{before,one,all,migrated,layers:t.signatureLayers.length};
+});
+assert.ok(signaturePixels.before.blue>100);assert.equal(signaturePixels.one.blue,0);assert.ok(Math.abs(signaturePixels.one.teal-signaturePixels.before.teal)<5);assert.equal(signaturePixels.all.teal,0);assert.ok(signaturePixels.all.gray<signaturePixels.before.gray*.1);assert.equal(signaturePixels.migrated.blue,0);
+console.log('PASS complete signature removal across cell boundaries, adjacent signatures preserved and old-project migration',signaturePixels);
 await p.screenshot({path:'/tmp/stamp510.png'});
 const index=info.cells.findIndex(t=>/Выполнил/.test(t));
 await p.locator('[data-stamp-cell="'+index+'"]').click();await p.fill('#stampCellText','Исполнитель');await p.click('#stampCellApply');assert.equal(await p.evaluate(i=>S.data.pages[19].sheetLayout.originalStamp.cells[i].text,index),'Исполнитель');await p.evaluate(()=>undoLast());assert.equal(await p.evaluate(i=>!!S.data.pages[19].sheetLayout.originalStamp.cells[i].changed,index),false);

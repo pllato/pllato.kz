@@ -275,3 +275,17 @@ sheetLayout.sealPosition with one undo step. Outside click/Escape clears the
 transient selection. The seal is rendered above the plan on screen and export.
 Inline browser tests cover select/drag/deselect, undo, library operations, project
 restore and exported blue-pixel centroid alignment for both stamp types.
+
+### v514: complete source-signature replacement
+Source vector handwriting in the signature column is assigned to its owning row.
+The base crop is rendered with those PDF objects removed; unchanged signatures
+are separate vector overlays. A changed cell suppresses its entire original
+signature, including strokes that cross cell borders, without whitening adjacent
+cells or grid lines. Legacy originalStamp records upgrade on display and before
+export, preserving existing edits and selected images. Raster-only handwriting
+is outside this vector extraction path.
+
+The real-PDF test checks all nine handwriting paths across four rows: deleting
+the first leaves zero dark-blue pixels, while neighboring teal/gray pixel counts
+stay unchanged; clearing all rows removes colored handwriting. Legacy upgrade,
+project restore and export are also exercised.
