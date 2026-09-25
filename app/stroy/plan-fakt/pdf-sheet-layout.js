@@ -1,7 +1,7 @@
 /* Non-destructive sheet composition. Source/editor coordinates remain unchanged. */
 (function(){
 'use strict';
-let choosing=false,dragRect=null,cropDraft=null;
+let choosing=false,dragRect=null,cropDraft=null,drawingEdit=false;
 const config=pn=>S.data?.pages[pn??S.pageNum]?.sheetLayout;
 const active=()=>!choosing&&!S.linkedLkDocId&&S.standalonePdf&&config()?.crop?config():null;
 const ns='http://www.w3.org/2000/svg';
@@ -12,10 +12,11 @@ const outline=el('g',{id:'pdfSheetCropPreview'});outline.style.pointerEvents='no
 function geometry(c,W,H){const r={x:c.crop.x*W,y:c.crop.y*H,w:c.crop.w*W,h:c.crop.h*H},q=((c.rotation||0)%4+4)%4,rw=q%2?r.h:r.w,rh=q%2?r.w:r.h;
  const w=Math.max(rw/.82,rh/.40),h=w/Math.SQRT2,m=w*.025,header=w*.075,footer=w*.20,tx=(w-rw)/2,ty=header+(h-header-footer-m-rh)/2;
  const matrices=[[1,0,0,1,tx-r.x,ty-r.y],[0,1,-1,0,tx+r.h+r.y,ty-r.x],[-1,0,0,-1,tx+r.w+r.x,ty+r.h+r.y],[0,-1,1,0,tx-r.y,ty+r.w+r.x]];
- return {r,q,w,h,m,header,footer,rw,rh,matrix:matrices[q],bottom:h-m-footer};
+ const scale=Math.max(.1,Math.min(4,Number(c.drawingScale)||1)),cx=tx+rw/2,cy=ty+rh/2,matrix=matrices[q].map((v,i)=>i<4?v*scale:v*scale+(i===4?cx:cy)*(1-scale)+(i===4?(c.drawingOffset?.x||0)*w:(c.drawingOffset?.y||0)*h));
+ return {r,q,w,h,m,header,footer,rw:rw*scale,rh:rh*scale,scale,matrix,bottom:h-m-footer};
 }
 function map(p,g){const[a,b,c,d,e,f]=g.matrix;return{x:a*p.x+c*p.y+e,y:b*p.x+d*p.y+f};}
-function sourcePoint(p,g){const[a,b,c,d,e,f]=g.matrix;return{x:a*(p.x-e)+b*(p.y-f),y:c*(p.x-e)+d*(p.y-f)};}
+function sourcePoint(p,g){const[a,b,c,d,e,f]=g.matrix;const det=a*d-b*c;return{x:(d*(p.x-e)-c*(p.y-f))/det,y:(a*(p.y-f)-b*(p.x-e))/det};}
 function textFit(s,max,font){s=String(s??'');const n=Math.max(2,Math.floor(max/(font*.58)));return s.length>n?s.slice(0,n-1)+'…':s;}
 function decorations(c,g,interactive=false){const out=el('g'),stroke=g.w*.00045,ink='#111',imageOK=v=>/^data:image\/(png|jpeg|webp);base64,/.test(v||'');
  function hit(x,y,w,h,path,value){if(!interactive)return;const n=el('rect',{x,y,width:w,height:h,fill:'transparent','pointer-events':'all','data-sheet-edit':JSON.stringify(path),'data-value':value??'',tabindex:0,role:'button','aria-label':path[0]==='table'?'Ячейка таблицы '+(path[1]+1)+', '+(path[2]+1):'Редактировать '+path.join(' ')});n.style.cursor='text';out.append(n);}
@@ -56,7 +57,7 @@ function draw(){const c=active();$('optbar').style.visibility=c&&S.tool==='selec
  for(const n of[baseimg,svg]){n.style.transformOrigin='0 0';n.style.transform='';n.style.clipPath='';}baseimg.style.boxShadow='';
  if(!c||!S.W||!S.H)return;
  const g=geometry(c,S.W,S.H),z=S.scale,[a,b,d,e,x,y]=g.matrix;
- paper.setAttribute('viewBox',`0 0 ${g.w} ${g.h}`);paper.style.width=g.w*z+'px';paper.style.height=g.h*z+'px';paper.append(decorations(c,g,true));marks.setAttribute('viewBox',`0 0 ${g.w} ${g.h}`);marks.style.width=g.w*z+'px';marks.style.height=g.h*z+'px';const compass=paper.querySelector('[data-sheet-compass]');if(compass)marks.append(compass);bindCompass(g);
+ paper.setAttribute('viewBox',`0 0 ${g.w} ${g.h}`);paper.style.width=g.w*z+'px';paper.style.height=g.h*z+'px';paper.append(decorations(c,g,true));marks.setAttribute('viewBox',`0 0 ${g.w} ${g.h}`);marks.style.width=g.w*z+'px';marks.style.height=g.h*z+'px';const compass=paper.querySelector('[data-sheet-compass]');if(compass)marks.append(compass);bindCompass(g);drawDrawingControls(c,g);
  const r=g.r,clip=`inset(${r.y/S.H*100}% ${(S.W-r.x-r.w)/S.W*100}% ${(S.H-r.y-r.h)/S.H*100}% ${r.x/S.W*100}%)`;
  for(const n of[baseimg,svg]){n.style.transform=`matrix(${a},${b},${d},${e},${x*z},${y*z})`;n.style.clipPath=clip;}baseimg.style.boxShadow='none';
 }
@@ -67,16 +68,16 @@ for(const name of ['applyTransform','redrawAll','renderOpt']){const old=window[n
 const oldCenter=center;center=function(id){const c=active();if(!c)return oldCenter(id);const o=getObj(id);if(!o)return;const b=bbox(o),p=map({x:b.x+b.w/2,y:b.y+b.h/2},geometry(c,S.W,S.H)),w=$('cwrap');S.scale=Math.max(S.scale,S.fitScale*2.2);S.pan.x=w.clientWidth/2-p.x*S.scale;S.pan.y=w.clientHeight/2-p.y*S.scale;applyTransform();};
 function refresh(){fitPage();applyTransform();redrawAll();lkQueueDrawingSave();}
 function cancelCrop(){choosing=false;dragRect=null;cropDraft=null;outline.replaceChildren();setTool('select');refresh();}
-function beginCrop(){dialog.style.display='none';choosing=true;S.selected=null;S.cluster=[];setTool('sheet-crop');hideGuide();closeMobileDrawers();fitPage();applyTransform();toast('Обведите только область чертежа. Остальное будет скрыто.');}
+function beginCrop(){drawingEdit=false;dialog.style.display='none';choosing=true;S.selected=null;S.cluster=[];setTool('sheet-crop');hideGuide();closeMobileDrawers();fitPage();applyTransform();toast('Обведите только область чертежа. Остальное будет скрыто.');}
 window.addEventListener('pointerdown',e=>{if(!choosing||!vp.contains(e.target)||e.button!==0||!inBase(e.clientX,e.clientY))return;e.stopImmediatePropagation();const src=S.standalonePdf,pn=S.pageNum,a=toImg(e.clientX,e.clientY);pointerDrag(e,ev=>{if(!choosing||S.pageNum!==pn)return;const p=toImg(ev.clientX,ev.clientY),b={x:Math.max(0,Math.min(S.W,p.x)),y:Math.max(0,Math.min(S.H,p.y))};dragRect={x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),w:Math.abs(b.x-a.x),h:Math.abs(b.y-a.y)};outline.replaceChildren(el('rect',{x:dragRect.x,y:dragRect.y,width:dragRect.w,height:dragRect.h,fill:'rgba(20,130,255,.12)',stroke:'#1284ff','stroke-width':2/S.scale}));},ev=>{if(src!==S.standalonePdf||pn!==S.pageNum)return;const r=dragRect;if(ev.type==='pointercancel'||!r||r.w*S.scale<20||r.h*S.scale<20){cancelCrop();return;}pushHistory();const prior=config()||{};S.data.pages[pn].sheetLayout={...prior,...cropDraft,crop:{x:r.x/S.W,y:r.y/S.H,w:r.w/S.W,h:r.h/S.H},rotation:prior.rotation||0};cancelCrop();show();});},true);
-window.addEventListener('keydown',e=>{if(e.key==='Escape'&&choosing)cancelCrop();});
-for(const name of ['goPage','closeStandalonePdf']){const old=window[name];window[name]=function(...args){choosing=false;dragRect=null;outline.replaceChildren();dialog.style.display='none';const out=old.apply(this,args);draw();return out;};}
+window.addEventListener('keydown',e=>{if(e.key==='Escape'){if(choosing)cancelCrop();if(drawingEdit){drawingEdit=false;draw();}}});
+for(const name of ['goPage','closeStandalonePdf']){const old=window[name];window[name]=function(...args){drawingEdit=false;choosing=false;dragRect=null;outline.replaceChildren();dialog.style.display='none';const out=old.apply(this,args);draw();return out;};}
 const button=document.createElement('button');button.className=$('btnHelp').className;button.id='pdfSheetLayoutButton';button.textContent='Оформить лист';$('btnHelp').before(button);button.onclick=()=>{if(!S.standalonePdf||S.linkedLkDocId){toast('Сначала откройте PDF в графическом формате');return;}show();};
 const dialog=document.createElement('div');dialog.id='pdfSheetLayoutDialog';dialog.className='scale-dialog';dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');dialog.innerHTML=`<div class="scale-card"><h3>Оформление листа</h3><div class="sheet-actions"><button id="sheetCrop">Выбрать область чертежа</button><button id="sheetLeft">↶ 90°</button><button id="sheetRight">↷ 90°</button><button id="sheetCenter">По центру</button></div><p id="sheetStatus"></p><label>Название сверху<input id="sheetTitle" maxlength="180" placeholder="Например: Исполнительная схема освещения"></label><label>Таблица снизу слева<textarea id="sheetTable" rows="5" placeholder="Скопируйте ячейки из Excel и вставьте сюда (до 8 столбцов и 12 строк)"></textarea></label><label>Или картинка таблицы<input id="sheetImage" type="file" accept="image/png,image/jpeg,image/webp"></label><button id="sheetClearImage">Убрать картинку</button><div id="sheetImageStatus"></div><h4>Подписи снизу справа</h4><div id="sheetSignatures"></div><p id="sheetError" role="alert"></p><div class="sheet-actions"><button id="sheetReset">Вернуть исходный лист</button><button id="sheetCancel">Отмена</button><button class="primary" id="sheetSave">Применить</button></div></div>`;document.body.append(dialog);
 const extra=document.createElement('div');extra.innerHTML='<h4>Знак сторон света</h4><label><input type="checkbox" id="sheetCompassEnabled"> Добавить знак С–Ю–З–В</label><label>Поворот знака, градусы<input id="sheetCompassAngle" type="number" step="15"></label><p>Знак можно перетаскивать отдельно на листе.</p><h4>Основная надпись / штамп</h4><label>Обозначение документа<input id="stamp_code" maxlength="100"></label><label>Наименование объекта (до 3 строк)<textarea id="stamp_project" rows="3"></textarea></label><label>Название чертежа в штампе<input id="stamp_drawing" maxlength="140"></label><label>Организация<input id="stamp_organization" maxlength="100"></label><label>Номер листа<input id="stamp_sheet" maxlength="12"></label><label>Стадия<input id="stamp_stage" maxlength="12" placeholder="ИД"></label><label>Изображение вашей печати (необязательно)<input type="file" id="sheetSealImage" accept="image/png,image/jpeg,image/webp"></label><button id="sheetClearSeal">Убрать печать</button><span id="sheetSealStatus"></span>';$('sheetSignatures').after(extra);
-const quick=document.createElement('div');quick.id='sheetQuickActions';quick.hidden=true;quick.style.cssText='position:absolute;left:10px;top:10px;z-index:26;display:flex;gap:4px;flex-wrap:wrap;max-width:90%';quick.innerHTML='<button id="sheetQuickLeft" title="Повернуть чертёж налево">↶ Чертёж</button><button id="sheetQuickRight" title="Повернуть чертёж направо">↷ Чертёж</button><button id="sheetQuickCompass">Стороны света</button><button id="sheetQuickCompassTurn" title="Повернуть знак сторон света на 15 градусов">↻ Знак</button><button id="sheetQuickTable">Таблица</button><button id="sheetQuickStamp">Штамп</button>';$('cwrap').append(quick);
+const quick=document.createElement('div');quick.id='sheetQuickActions';quick.hidden=true;quick.style.cssText='position:absolute;left:10px;top:10px;z-index:26;display:flex;gap:4px;flex-wrap:wrap;max-width:90%';quick.innerHTML='<button id="sheetQuickDrawing" aria-pressed="false">Чертёж</button><span id="sheetDrawingTools" hidden><button id="sheetDrawingCenter">По центру</button><button id="sheetDrawingReset">Размер 100%</button><button id="sheetDrawingDone">Готово</button></span><button id="sheetQuickLeft" title="Повернуть чертёж налево">↶ Чертёж</button><button id="sheetQuickRight" title="Повернуть чертёж направо">↷ Чертёж</button><button id="sheetQuickCompass">Стороны света</button><button id="sheetQuickCompassTurn" title="Повернуть знак сторон света на 15 градусов">↻ Знак</button><button id="sheetQuickTable">Таблица</button><button id="sheetQuickStamp">Штамп</button>';$('cwrap').append(quick);
 
-const css=document.createElement('style');css.textContent='#sheetQuickActions[hidden]{display:none!important}#sheetQuickActions button{padding:7px 10px;border:1px solid #bac4cd;background:#fff;color:#203d59;border-radius:5px;cursor:pointer}#pdfSheetLayoutDialog input[type=checkbox]{width:auto!important}'+'#pdfSheetLayoutDialog .scale-card{max-width:760px;max-height:90dvh;overflow:auto}#pdfSheetLayoutDialog label{display:block;margin:12px 0}#pdfSheetLayoutDialog input:not([type=file]),#pdfSheetLayoutDialog textarea{width:100%;box-sizing:border-box;padding:8px;border:1px solid #b8c2cb;border-radius:5px;font:14px system-ui}#sheetSignatures{display:grid;grid-template-columns:1.1fr 1.5fr 1fr 1fr;gap:5px}#sheetSignatures input{min-width:0}#sheetError{color:#b3261e}.sheet-actions{display:flex;gap:8px;flex-wrap:wrap}.sheet-actions button{padding:9px 12px}';document.head.append(css);
+const css=document.createElement('style');css.textContent='#sheetDrawingTools[hidden]{display:none}#sheetQuickDrawing[aria-pressed=true]{background:#203d59;color:white}#sheetQuickActions[hidden]{display:none!important}#sheetQuickActions button{padding:7px 10px;border:1px solid #bac4cd;background:#fff;color:#203d59;border-radius:5px;cursor:pointer}#pdfSheetLayoutDialog input[type=checkbox]{width:auto!important}'+'#pdfSheetLayoutDialog .scale-card{max-width:760px;max-height:90dvh;overflow:auto}#pdfSheetLayoutDialog label{display:block;margin:12px 0}#pdfSheetLayoutDialog input:not([type=file]),#pdfSheetLayoutDialog textarea{width:100%;box-sizing:border-box;padding:8px;border:1px solid #b8c2cb;border-radius:5px;font:14px system-ui}#sheetSignatures{display:grid;grid-template-columns:1.1fr 1.5fr 1fr 1fr;gap:5px}#sheetSignatures input{min-width:0}#sheetError{color:#b3261e}.sheet-actions{display:flex;gap:8px;flex-wrap:wrap}.sheet-actions button{padding:9px 12px}';document.head.append(css);
 let imageDraft=null,sealDraft=null;
 function show(){const c=config()||{};imageDraft=c.tableImage||null;sealDraft=c.sealImage||null;$('sheetCompassEnabled').checked=!!c.compass?.enabled;$('sheetCompassAngle').value=c.compass?.angle||0;$('sheetSealImage').value='';$('sheetSealStatus').textContent=sealDraft?'Изображение печати добавлено':'';for(const key of ['code','project','drawing','organization','sheet','stage'])$('stamp_'+key).value=c.stamp?.[key]||'';$('sheetTitle').value=c.title||'';$('sheetTable').value=(c.table||[]).map(r=>r.join('\t')).join('\n');$('sheetImage').value='';$('sheetImageStatus').textContent=imageDraft?'Картинка таблицы добавлена':'';$('sheetError').textContent='';$('sheetStatus').textContent=c.crop?'Область выбрана. Поворот: '+((c.rotation||0)*90)+'°.':'Сначала выберите область чертежа.';for(const id of ['sheetLeft','sheetRight','sheetCenter','sheetSave'])$(id).disabled=!c.crop;
  const host=$('sheetSignatures');host.replaceChildren();['Роль','ФИО','Подпись','Дата'].forEach(t=>{const n=document.createElement('span');n.textContent=t;host.append(n);});(c.signatures||[['Выполнил','','',''],['Проверил','','',''],['Согласовал','','','']]).forEach((r,ri)=>r.forEach((v,ci)=>{const n=document.createElement('input');n.value=v;n.maxLength=80;n.dataset.row=ri;n.dataset.col=ci;n.setAttribute('aria-label',['Роль','ФИО','Подпись','Дата'][ci]+' '+(ri+1));host.append(n);}));dialog.style.display='flex';$('sheetTitle').focus();}
@@ -84,12 +85,47 @@ function fields(){const raw=$('sheetTable').value.trim(),rows=raw?raw.split(/\r?
 function commit(extra={}){try{const values=fields();pushHistory();S.data.pages[S.pageNum].sheetLayout={...config(),...values,...extra};refresh();return true;}catch(e){$('sheetError').textContent=e.message;return false;}}
 $('sheetCrop').onclick=()=>{try{cropDraft=fields();}catch(e){$('sheetError').textContent=e.message;return;}if(config()?.crop&&!commit())return;beginCrop();};
 $('sheetLeft').onclick=()=>{if(commit({rotation:((config()?.rotation||0)+3)%4}))show();};$('sheetRight').onclick=()=>{if(commit({rotation:((config()?.rotation||0)+1)%4}))show();};
-$('sheetCenter').onclick=()=>{if(commit()){dialog.style.display='none';refresh();}};
+$('sheetCenter').onclick=()=>{if(commit({drawingOffset:{x:0,y:0}})){dialog.style.display='none';refresh();}};
 $('sheetSave').onclick=()=>{if(commit()){dialog.style.display='none';toast('Оформление листа сохранено');}};
 $('sheetCancel').onclick=()=>dialog.style.display='none';$('sheetReset').onclick=()=>{pushHistory();delete S.data.pages[S.pageNum].sheetLayout;dialog.style.display='none';refresh();};
 $('sheetClearImage').onclick=()=>{imageDraft=null;$('sheetImage').value='';$('sheetImageStatus').textContent='';};
 $('sheetImage').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(!/^image\/(png|jpeg|webp)$/.test(f.type)||f.size>5*1024*1024){$('sheetError').textContent='Нужна картинка PNG, JPG или WebP до 5 МБ.';return;}const reader=new FileReader();reader.onload=()=>{imageDraft=reader.result;$('sheetImageStatus').textContent='Картинка: '+f.name;$('sheetError').textContent='';};reader.readAsDataURL(f);};
 function change(values){if(!config()?.crop)return;pushHistory();Object.assign(config(),values);refresh();}
+
+$('sheetQuickDrawing').onclick=()=>{drawingEdit=!drawingEdit;S.selected=null;S.cluster=[];setTool('select');hideGuide();redrawAll();if(drawingEdit)toast('Перетащите чертёж. Потяните за угол рамки, чтобы изменить размер.');};
+$('sheetDrawingDone').onclick=()=>{drawingEdit=false;draw();};
+$('sheetDrawingCenter').onclick=()=>change({drawingOffset:{x:0,y:0}});
+$('sheetDrawingReset').onclick=()=>change({drawingScale:1});
+function drawDrawingControls(c,g){
+ $('sheetQuickDrawing').setAttribute('aria-pressed',String(drawingEdit));$('sheetDrawingTools').hidden=!drawingEdit;
+ if(!drawingEdit)return;
+ const points=[[g.r.x,g.r.y],[g.r.x+g.r.w,g.r.y],[g.r.x+g.r.w,g.r.y+g.r.h],[g.r.x,g.r.y+g.r.h]].map(([x,y])=>map({x,y},g)),
+ x=Math.min(...points.map(p=>p.x)),y=Math.min(...points.map(p=>p.y)),w=g.rw,h=g.rh,z=S.scale;
+ const group=el('g',{'data-sheet-drawing':'1'});
+ const body=el('rect',{x,y,width:w,height:h,fill:'rgba(18,132,255,.035)',stroke:'#1284ff','stroke-width':2/z,'stroke-dasharray':6/z,'pointer-events':'all',style:'cursor:move','data-drawing-move':'1'});
+ group.append(body);
+ function bind(n,corner){n.addEventListener('pointerdown',e=>{
+  if(e.button!==0)return;e.preventDefault();e.stopPropagation();
+  const pn=S.pageNum,src=S.standalonePdf,oldScale=c.drawingScale,oldOffset=c.drawingOffset?{...c.drawingOffset}:undefined,start={x:e.clientX,y:e.clientY},offset={x:c.drawingOffset?.x||0,y:c.drawingOffset?.y||0};
+  const center={x:x+w/2,y:y+h/2},anchor=corner?{x:corner[0]?x:x+w,y:corner[1]?y:y+h}:null,v=corner?{x:(corner[0]?1:-1)*w,y:(corner[1]?1:-1)*h}:null;
+  pushHistory();
+  pointerDrag(e,ev=>{
+   if(S.pageNum!==pn||S.standalonePdf!==src)return;
+   const dx=(ev.clientX-start.x)/z,dy=(ev.clientY-start.y)/z;
+   if(!corner)c.drawingOffset={x:offset.x+dx/g.w,y:offset.y+dy/g.h};
+   else{
+    const ratio=Math.max(.1/g.scale,Math.min(4/g.scale,1+(dx*v.x+dy*v.y)/(v.x*v.x+v.y*v.y)));
+    c.drawingScale=g.scale*ratio;
+    c.drawingOffset={x:offset.x+(anchor.x+(center.x-anchor.x)*ratio-center.x)/g.w,y:offset.y+(anchor.y+(center.y-anchor.y)*ratio-center.y)/g.h};
+   }
+   applyTransform();
+  },ev=>{if(S.pageNum!==pn||S.standalonePdf!==src)return;if(ev.type==='pointercancel'){c.drawingScale=oldScale;c.drawingOffset=oldOffset;}applyTransform();lkQueueDrawingSave();});
+ });}
+ bind(body);
+ for(const [i,j]of [[0,0],[1,0],[1,1],[0,1]]){const n=el('rect',{x:x+i*w-6/z,y:y+j*h-6/z,width:12/z,height:12/z,fill:'white',stroke:'#1284ff','stroke-width':2/z,'pointer-events':'all','data-drawing-corner':i+','+j,style:'cursor:'+((i===j)?'nwse-resize':'nesw-resize')});group.append(n);bind(n,[i,j]);}
+ marks.prepend(group);
+}
+
 $('sheetQuickLeft').onclick=()=>change({rotation:((config().rotation||0)+3)%4});$('sheetQuickRight').onclick=()=>change({rotation:((config().rotation||0)+1)%4});
 $('sheetQuickCompass').onclick=()=>{if(!config().compass?.enabled)change({compass:{enabled:true,angle:0,x:.10,y:.13}});else{show();$('sheetCompassAngle').scrollIntoView({block:'center'});$('sheetCompassAngle').focus();}};
 $('sheetQuickCompassTurn').onclick=()=>{const c=config().compass||{};change({compass:{...c,enabled:true,angle:((c.angle||0)+15)%360}});};
