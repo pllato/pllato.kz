@@ -62,9 +62,7 @@ function render(c,g,interactive){
  if(imageOK(cell.image))out.append(node('image',{x:cx+pad*2,y:cy+pad*2,width:cw-pad*4,height:ch-pad*4,href:cell.image,preserveAspectRatio:'xMidYMid meet'}));
  else {const lines=String(cell.text||'').split('\n'),size=Math.min(ch/(lines.length+1)*.85,g.w*.007,cw/Math.max(1,...lines.map(l=>l.length))/.56*.94);lines.forEach((line,j)=>out.append(node('text',{x:cx+cw/2,y:cy+ch/2+(j-(lines.length-1)/2)*size*1.2+size*.35,'text-anchor':'middle','font-family':'Arial, sans-serif','font-size':size,fill:'#111'},line)));}}
  if(interactive)out.append(node('rect',{x:cx,y:cy,width:cw,height:ch,fill:'transparent','pointer-events':'all','data-stamp-cell':i,tabindex:0,role:'button','aria-label':'Ячейка штампа: '+(cell.text||'пустая'),style:'cursor:pointer'}));});
- if(c.sealImage&&imageOK(c.sealImage))out.append(node('image',{x:x+w*.66,y:y-h*.55,width:w*.32,height:w*.32,href:c.sealImage,preserveAspectRatio:'xMidYMid meet'}));
- if(interactive)out.append(node('rect',{x:x+w*.66,y:y-h*.55,width:w*.32,height:h*.45,fill:'transparent',stroke:'#718399','stroke-width':g.w*.0004,'stroke-dasharray':g.w*.002,'pointer-events':'all','data-sheet-seal':'1',tabindex:0,role:'button','aria-label':'Выбрать печать',style:'cursor:pointer'}));
- if(interactive&&!c.sealImage)out.append(node('text',{x:x+w*.82,y:y-h*.26,'text-anchor':'middle','font-family':'Arial','font-size':g.w*.008,fill:'#5f7388','pointer-events':'none'},'Печать ▾'));
+ out.append(PdfSheetLayout.renderSeal(c,g,{x:x+w*.66,y:y-h*.55,w:w*.32,h:w*.32,placeholderY:y-h*.55,placeholderH:h*.45},interactive));
  if(interactive){out.append(node('text',{x,y:y-g.w*.006,'font-family':'Arial','font-size':g.w*.008,fill:'#5f7388','pointer-events':'none'},'Исходный штамп · нажмите ячейку для изменения'));}
  return out;
 }
