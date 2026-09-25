@@ -289,3 +289,14 @@ The real-PDF test checks all nine handwriting paths across four rows: deleting
 the first leaves zero dark-blue pixels, while neighboring teal/gray pixel counts
 stay unchanged; clearing all rows removes colored handwriting. Legacy upgrade,
 project restore and export are also exercised.
+
+### v515: whole-table Excel paste
+The action above the left table and the toolbar Table button open a dedicated
+whole-table paste dialog with dimensions and a full preview. Applying replaces
+the previous matrix/image instead of inserting at a cell offset. Quoted TSV,
+CRLF and an HTML-table text fallback are accepted; the limit is 100 rows by 26
+columns. Large ranges fit the existing footer and may render with smaller text.
+Multi-cell paste into an inline cell also replaces the complete matrix; single
+cell editing remains available. Undo, project storage and export use the existing
+sheetLayout.table model. Browser tests cover old-row removal, arbitrary-cell
+paste, 20-row input, HTML fallback, editing, undo, restore and PDF export.
