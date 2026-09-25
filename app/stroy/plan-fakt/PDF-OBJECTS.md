@@ -252,3 +252,17 @@ tests/plan-fakt-stamp.cjs uses the real PDF served as /real.pdf to verify table
 recognition, separate company/logo regions, edit/undo, person record creation and
 update, signature upload/selection, company creation/deletion, project restore,
 and composition export pixels. Generic layout and inline editing regressions pass.
+
+### v511: cable callouts
+pdf-cable-labels.js adds a repeat placement tool with editable brand, section,
+optional note, size and leader side. Defaults persist in project data and local
+browser preferences. Clicks snap to nearby vector/source or edited line segments;
+a raster-only page uses the clicked source coordinate. Callouts are independent
+text objects with _cableLabel metadata and source-coordinate anchors. Dragging the
+label moves its shelf while preserving the anchor; double-click or the selection
+bar edits its content. Existing undo/delete/project persistence applies. Both SVG
+and canvas renderers draw the shelf and leader; vector-only export falls back to
+the edited PDF renderer when callouts exist. Uncalibrated pages are supported.
+
+Tests cover repeated placement, undo, anchored dragging, editing, transformed
+sheet clicks, project restore, canvas/PDF export and browser errors.
