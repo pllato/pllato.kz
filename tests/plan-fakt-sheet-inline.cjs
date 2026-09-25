@@ -13,7 +13,7 @@ const beforeMove=await p.locator('[data-seal-move]').boundingBox();
 await p.mouse.move(beforeMove.x+beforeMove.width/2,beforeMove.y+beforeMove.height/2);await p.mouse.down();await p.mouse.move(beforeMove.x+beforeMove.width/2-55,beforeMove.y+beforeMove.height/2-60,{steps:5});await p.mouse.up();
 const moved=await p.locator('[data-seal-move]').boundingBox();assert.ok(Math.abs(moved.x-beforeMove.x+55)<1);assert.ok(Math.abs(moved.y-beforeMove.y+60)<1);
 assert.equal(await p.locator('.sheet-seal-selection').count(),1);await p.keyboard.press('Escape');assert.equal(await p.locator('.sheet-seal-selection').count(),0);
-const placement=await p.evaluate(()=>S.data.pages[1].sheetLayout.sealPosition);assert.ok(placement);await p.evaluate(()=>undoLast());assert.equal(await p.evaluate(()=>S.data.pages[1].sheetLayout.sealPosition),undefined);
+const placement=await p.evaluate(()=>S.data.pages[1].sheetLayout.sealPosition);assert.ok(placement);const view=await p.evaluate(()=>{S.scale=S.fitScale*15;S.pan={x:-1250,y:-950};applyTransform();return{scale:S.scale,pan:{...S.pan},fit:S.fitScale}});await p.keyboard.press('Control+z');assert.deepEqual(await p.evaluate(()=>({scale:S.scale,pan:{...S.pan},fit:S.fitScale})),view);await p.evaluate(()=>{fitPage();applyTransform()});assert.equal(await p.evaluate(()=>S.data.pages[1].sheetLayout.sealPosition),undefined);
 await p.evaluate(pos=>{S.data.pages[1].sheetLayout.sealPosition=pos;redrawAll()},placement);
 console.log('PASS no placeholder after insertion; seal select/drag/deselect and undo');
 await p.locator('[data-seal-move]').click();assert.equal(await p.locator('[data-seal-resize]').count(),4);
