@@ -1348,7 +1348,7 @@ function initData(j,opt){
   S.data=j;S.pageList=Object.keys(j.pages).map(Number).sort((a,b)=>a-b);
   $('docname').textContent=j.name||'План';
   $('loader').classList.add('hide');$('stage').style.display='flex';closeMobileDrawers();
-  buildStrip();goPage(S.pageList[0]);setTool('select');showGuide();
+  buildStrip();goPage(S.pageList[0]);setTool('select');hideGuide();
 }
 /* ---- проект: сохранить / открыть (самодостаточный файл = план + правки) ---- */
 /* ---- архив проектов в браузере (IndexedDB — тянет большие проекты) ---- */
@@ -1432,7 +1432,7 @@ function openProject(j,projId){
   S.history={};S.selected=null;
   $('docname').textContent=(S.data.name||'План')+' · проект';
   $('loader').classList.add('hide');$('stage').style.display='flex';closeMobileDrawers();
-  buildStrip();goPage(S.pageList[0]);setTool('select');showGuide();
+  buildStrip();goPage(S.pageList[0]);setTool('select');hideGuide();
   toast('Проект открыт — правки восстановлены');
 }
 $('btnSaveProj').onclick=saveProject;
@@ -2604,7 +2604,7 @@ function bindLedger(){const body=$('lgBody');
 $('btnLedger').onclick=openLedger;
 $('lgClose').onclick=closeLedger;
 /* ==== ЛИНЕЙКА (однолинейная схема): авто-чтение длин кабеля из текста PDF ==== */
-const LK_VER='v511';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
+const LK_VER='v512';   // ПОДНИМАТЬ при каждой правке — виден в шапке, уходит в «Правки для Claude»
 document.querySelectorAll('[data-app-version]').forEach(el=>{el.textContent='Версия '+LK_VER;});
 const LK_PARSER_VER='v430';   // ПОДНИМАТЬ только когда меняется ПАРСЕР: плашка «перечитать» сравнивает с ним, UI-правки перечитку не требуют
 const LK={pages:[],name:'',aiMode:false};
