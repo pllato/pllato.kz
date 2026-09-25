@@ -188,3 +188,17 @@ and checks crop UI, TSV/title, all four inverse rotations, actual object drag an
 undo after rotation, image table upload, exported red source/cyan image pixels and
 absence of green content outside the crop, plus project restore. Visual review
 also used the original page 19.
+
+## Reference-style landscape sheet (v507)
+
+The layout now uses a landscape aspect ratio with an engineering frame, italic
+title, bottom-left quantity table and bottom-right main inscription with editable
+document, project, organization, drawing, sheet and signature fields. This is a
+visual template based on the user's example, not a certified standards template.
+No real signature or seal is synthesized; an optional user image can be uploaded.
+
+A separate compass has saved position and angle, independent of crop rotation.
+Its screen overlay and export pass sit above the drawing. Quick actions rotate
+the drawing, add/rotate the compass, or reopen the table/stamp fields at any time.
+Tests cover compass insertion/rotation/drag, table and seal image uploads, stamp
+fields, project restoration, existing crop/coordinate/export regressions.
