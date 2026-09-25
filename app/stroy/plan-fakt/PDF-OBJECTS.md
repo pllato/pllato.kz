@@ -300,3 +300,10 @@ Multi-cell paste into an inline cell also replaces the complete matrix; single
 cell editing remains available. Undo, project storage and export use the existing
 sheetLayout.table model. Browser tests cover old-row removal, arbitrary-cell
 paste, 20-row input, HTML fallback, editing, undo, restore and PDF export.
+
+
+## v516 — cable label orientation and suggestions
+
+Cable labels support horizontal/vertical text and shelf orientation independently of the cable anchor. The selected label has orientation and isolated-delete actions. Text dragging preserves the cable anchor; undo, project persistence and canvas/PDF export include orientation. Custom brands and sections are accumulated in browser localStorage when starting placement or saving an edit, and populate the datalists. This is a browser-local directory, not a shared cloud database.
+
+Validation: `tests/plan-fakt-cable-labels.cjs` covers both orientations, anchored drag, toggle, deletion/undo, custom suggestions, rotated sheets, restore and export.
