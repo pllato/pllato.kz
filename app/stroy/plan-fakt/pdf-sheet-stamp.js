@@ -36,6 +36,27 @@ function cellsFor(scene,region,items){
  const signatureHeader=result.find(c=>/^Подпис[ьи]/i.test(c.text));if(signatureHeader)for(const c of result)if(c.y>signatureHeader.y&&Math.abs(c.x-signatureHeader.x)<.003&&Math.abs(c.w-signatureHeader.w)<.003)c.kind='signature';
  return result;
 }
+
+async function signatureData(scene,t){
+ const region=t.region;if(!region)return{signatureVersion:1,signatureLayers:[]};
+ const head=t.cells.find(c=>/^Подпис[ьи]/i.test(c.originalText||c.text||''));
+ if(!head)return{signatureVersion:1,signatureLayers:[]};
+ const rows=t.cells.map((c,i)=>({...c,index:i})).filter(c=>c.y>head.y&&Math.abs(c.x-head.x)<.003&&Math.abs(c.w-head.w)<.003);
+ const r={x:region.x*scene.width,y:region.y*scene.height,w:region.w*scene.width,h:region.h*scene.height},layers=[],ids=new Set();
+ for(const o of scene.objects){
+  if(!o.style.stroke||!o.paths?.some(p=>p.length>3))continue;
+  const [x,y,right,bottom]=o.box,cx=((x+right)/2-r.x)/r.w,cy=((y+bottom)/2-r.y)/r.h;
+  if(cx<head.x-head.w*.25||cx>head.x+head.w*1.25||right-x>head.w*r.w*1.6||bottom-y>r.h*.22)continue;
+  const row=rows.reduce((best,c)=>!best||Math.abs(c.y+c.h/2-cy)<Math.abs(best.y+best.h/2-cy)?c:best,null);
+  if(!row||cy<row.y-row.h*.35||cy>row.y+row.h*1.35)continue;
+  ids.add(o.id);layers.push({cell:row.index,d:o.d,style:o.style});
+ }
+ if(!layers.length)return{signatureVersion:1,signatureLayers:[]};
+ const ratio=Math.min(4,2400/r.w,1000/r.h),cv=document.createElement('canvas');cv.width=Math.ceil(r.w*ratio);cv.height=Math.ceil(r.h*ratio);
+ await PdfObjects.render(scene.page,scene,ids,{canvasContext:cv.getContext('2d'),viewport:scene.page.getViewport({scale:ratio}),transform:[1,0,0,1,-r.x*ratio,-r.y*ratio],background:'#fff'},pdfjsLib);
+ return{signatureVersion:1,signatureLayers:layers,signatureBounds:r,signatureBaseImage:cv.toDataURL('image/png')};
+}
+async function upgradeSignatures(c,scene){const t=c.originalStamp;if(!t||t.signatureVersion)return;const data=await signatureData(scene,t);if(c.originalStamp===t)Object.assign(t,data);}
 const attempted=new WeakSet(),pending=new WeakMap();
 async function capture(c,region,manual=false){
  const live=S._pdfScene,pn=S.pageNum,src=S.standalonePdf;
@@ -45,23 +66,27 @@ async function capture(c,region,manual=false){
  const content=await scene.page.getTextContent();
  await scene.page.render({canvasContext:cv.getContext('2d'),viewport:scene.page.getViewport({scale:ratio}),transform:[1,0,0,1,-region.x*W*ratio,-region.y*H*ratio],background:'#fff',annotationMode:pdfjsLib.AnnotationMode.DISABLE}).promise;
  if(cfg()!==c||S.pageNum!==pn||S.standalonePdf!==src)return false;
- const cells=cellsFor(scene,region,content.items);if(manual)pushHistory();
- c.originalStamp={image:cv.toDataURL('image/png'),aspect:region.w*W/(region.h*H),region,cells};
+ const cells=cellsFor(scene,region,content.items),stamp={image:cv.toDataURL('image/png'),aspect:region.w*W/(region.h*H),region,cells};Object.assign(stamp,await signatureData(scene,stamp));
+ if(cfg()!==c||S.pageNum!==pn||S.standalonePdf!==src)return false;if(manual)pushHistory();c.originalStamp=stamp;
  attempted.add(c);save();return true;
 }
 function ensure(){
- const c=cfg(),live=S._pdfScene;if(!c?.crop||c.originalStamp||attempted.has(c)||pending.has(c)||!live||live.pn!==S.pageNum||live.src!==S.standalonePdf)return;
+ const c=cfg(),live=S._pdfScene;if(!c?.crop||pending.has(c)||!live||live.pn!==S.pageNum||live.src!==S.standalonePdf)return;
+ if(c.originalStamp){if(c.originalStamp.signatureVersion)return;const job=upgradeSignatures(c,live.scene).then(()=>{if(cfg()===c)save();}).catch(e=>console.warn('Stamp signature update:',e)).finally(()=>pending.delete(c));pending.set(c,job);return;}if(attempted.has(c))return;
  attempted.add(c);const r=detect(live.scene);if(!r)return;
  const job=capture(c,r).catch(e=>console.warn('Original stamp:',e)).finally(()=>pending.delete(c));pending.set(c,job);
 }
 function render(c,g,interactive){
  const t=c.originalStamp,out=node('g'),w=g.w*.34,h=w/t.aspect,x=g.w-g.m-w,y=g.h-g.m-h;
- out.append(node('image',{x,y,width:w,height:h,href:t.image,preserveAspectRatio:'none'}));
+ out.append(node('image',{x,y,width:w,height:h,href:t.signatureBaseImage||t.image,preserveAspectRatio:'none'}));
  t.cells.forEach((cell,i)=>{const cx=x+cell.x*w,cy=y+cell.y*h,cw=cell.w*w,ch=cell.h*h,pad=Math.min(g.w*.001,cw*.08,ch*.08);
  if(cell.changed){out.append(node('rect',{x:cx+pad,y:cy+pad,width:Math.max(0,cw-2*pad),height:Math.max(0,ch-2*pad),fill:'white'}));
  if(imageOK(cell.image))out.append(node('image',{x:cx+pad*2,y:cy+pad*2,width:cw-pad*4,height:ch-pad*4,href:cell.image,preserveAspectRatio:'xMidYMid meet'}));
  else {const lines=String(cell.text||'').split('\n'),size=Math.min(ch/(lines.length+1)*.85,g.w*.007,cw/Math.max(1,...lines.map(l=>l.length))/.56*.94);lines.forEach((line,j)=>out.append(node('text',{x:cx+cw/2,y:cy+ch/2+(j-(lines.length-1)/2)*size*1.2+size*.35,'text-anchor':'middle','font-family':'Arial, sans-serif','font-size':size,fill:'#111'},line)));}}
  if(interactive)out.append(node('rect',{x:cx,y:cy,width:cw,height:ch,fill:'transparent','pointer-events':'all','data-stamp-cell':i,tabindex:0,role:'button','aria-label':'Ячейка штампа: '+(cell.text||'пустая'),style:'cursor:pointer'}));});
+ const bounds=t.signatureBounds;
+ if(bounds){const layer=node('g',{transform:`translate(${x} ${y}) scale(${w/bounds.w} ${h/bounds.h}) translate(${-bounds.x} ${-bounds.y})`,'pointer-events':'none'});
+ for(const item of t.signatureLayers||[]){if(t.cells[item.cell]?.changed)continue;const st=item.style;layer.append(node('path',{d:item.d,fill:st.fill||'none',stroke:st.stroke||'none','stroke-width':st.width||.1,'stroke-linecap':['butt','round','square'][st.cap]||'round','stroke-linejoin':['miter','round','bevel'][st.join]||'round',opacity:st.alpha??1,'stroke-dasharray':(st.dash||[]).join(' ')}));}out.append(layer);}
  out.append(PdfSheetLayout.renderSeal(c,g,{x:x+w*.66,y:y-h*.55,w:w*.32,h:w*.32,placeholderY:y-h*.55,placeholderH:h*.45},interactive));
  if(interactive){out.append(node('text',{x,y:y-g.w*.006,'font-family':'Arial','font-size':g.w*.008,fill:'#5f7388','pointer-events':'none'},'Исходный штамп · нажмите ячейку для изменения'));}
  return out;
@@ -117,5 +142,5 @@ for(const name of ['goPage','closeStandalonePdf']){const old=window[name];window
 const prepare=prepareStandalonePdfVectors;prepareStandalonePdfVectors=function(...args){return Promise.resolve(prepare.apply(this,args)).then(r=>{ensure();return r;});};
 const directoryButton=document.createElement('button');directoryButton.id='sheetQuickDirectories';directoryButton.textContent='Справочники';directoryButton.onclick=()=>manager();$('sheetQuickActions').append(directoryButton);
 const sourceButton=document.createElement('button');sourceButton.id='sheetOriginalStamp';sourceButton.textContent='Взять штамп из исходного PDF';sourceButton.onclick=()=>{$('pdfSheetLayoutDialog').style.display='none';controls();};$('stamp_code').closest('label').before(sourceButton);
-window.PdfSheetStamp={ensure,render,controls,detect,cellsFor,capture};
+window.PdfSheetStamp={prepareForExport:upgradeSignatures,ensure,render,controls,detect,cellsFor,capture};
 })();
