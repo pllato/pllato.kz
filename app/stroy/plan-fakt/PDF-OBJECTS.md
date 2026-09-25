@@ -202,3 +202,21 @@ Its screen overlay and export pass sit above the drawing. Quick actions rotate
 the drawing, add/rotate the compass, or reopen the table/stamp fields at any time.
 Tests cover compass insertion/rotation/drag, table and seal image uploads, stamp
 fields, project restoration, existing crop/coordinate/export regressions.
+
+## On-sheet editing and seal library (v508)
+
+Interactive decoration rendering adds transparent hit cells for table, title,
+stamp metadata, signature and revision fields. `pdf-sheet-inline.js` opens a
+positioned text editor with Enter/blur commit, Escape cancellation and Tab movement.
+TSV clipboard ranges (including quoted fields) populate table cells from the selected
+origin, with the existing 12-row/8-column bounds. Values remain plain text.
+
+The seal region opens a selector with upload. Images are stored in the browser's
+IndexedDB `planfakt-seal-library`; the chosen image is also embedded in page layout
+so projects remain portable. Library entries are not uploaded to an external service.
+Asynchronous reads/uploads are guarded against page/project changes. Interactive
+hit targets and hints are omitted from exported SVG decorations.
+
+`tests/plan-fakt-sheet-inline.cjs` covers direct edit/undo, Excel range paste,
+stamp/signature/revision text, Escape, two uploads, saved-seal selection/removal/undo
+and project restore with library reuse. Existing layout/export tests also pass.
