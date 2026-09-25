@@ -317,3 +317,10 @@ Selected seals expose four corner handles. Dragging scales the image proportiona
 ## v518 — direct cable label sizing
 
 Selected cable labels expose four text-block corner handles, including immediately after placement. Dragging scales the font/shelf around the fixed leader elbow without moving the cable anchor. Source-coordinate pointer conversion supports rotated/scaled sheets. Custom factors survive dialog editing, project restore and export; resize supports undo and pointer cancellation. Cable label tests cover horizontal/vertical resize, fixed anchors, undo and persistence.
+
+
+## v520 — grouped device transforms
+
+PDF devices expose proportional corner scaling, a free rotation handle, quarter-turn buttons and horizontal/vertical reflection. Transforms apply to all members around the group center. `_pdfMatrix` retains exact PDF paths; sampled points follow the same matrix for hit/selection/movement. Subsequent translations are incorporated before new transforms. SVG and canvas rendering share the matrix and compensate stroke width for scale. Undo, pointer cancellation and project serialization retain transformations.
+
+Validation: `tests/plan-fakt-device-transform.cjs` exercises curved grouped symbols, rotation/reflection/resize, subsequent movement, undo, exact path retention, project restore and PDF export.
