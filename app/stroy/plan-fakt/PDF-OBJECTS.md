@@ -229,3 +229,26 @@ remain unchanged. Geometry uses a general inverse matrix; the sharp PDF layer
 accounts for the effective drawing scale. Both fields persist in sheetLayout
 and are consumed by export. Layout integration tests cover move/resize, fixed
 paper dimensions, inverse mapping, undo, center, export and project restore.
+
+### v510: source inscription and directories
+pdf-sheet-stamp.js detects a closed lower-right rectangular inscription in the
+vector scene and captures an unmodified high-resolution crop. Grid segments
+define editable cells, including blank cells; PDF text populates the editor.
+Untouched content stays in the original crop. Replacing a cell masks its interior
+only and draws its new text/image. The final logo/company cell is split when
+their positions support it. Reset restores the original cell pixels and text.
+The source stamp can also be selected manually through Штамп / source controls.
+Recognition is geometric and conservative, not OCR: scanned or unusual tables
+may require a different extraction approach; manual capture preserves their image.
+
+IndexedDB planfakt-stamp-directories stores person/company text and logo/signature
+images. Users can add, update, delete and select entries. These are browser-local
+directories, not a shared account backend. Selected content is embedded into
+sheetLayout.originalStamp for portable projects and PDF export. Existing seal
+library remains available above the original stamp. Source selection, async
+capture and dialogs are guarded against page/project changes.
+
+tests/plan-fakt-stamp.cjs uses the real PDF served as /real.pdf to verify table
+recognition, separate company/logo regions, edit/undo, person record creation and
+update, signature upload/selection, company creation/deletion, project restore,
+and composition export pixels. Generic layout and inline editing regressions pass.
