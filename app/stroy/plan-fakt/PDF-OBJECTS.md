@@ -324,3 +324,10 @@ Selected cable labels expose four text-block corner handles, including immediate
 PDF devices expose proportional corner scaling, a free rotation handle, quarter-turn buttons and horizontal/vertical reflection. Transforms apply to all members around the group center. `_pdfMatrix` retains exact PDF paths; sampled points follow the same matrix for hit/selection/movement. Subsequent translations are incorporated before new transforms. SVG and canvas rendering share the matrix and compensate stroke width for scale. Undo, pointer cancellation and project serialization retain transformations.
 
 Validation: `tests/plan-fakt-device-transform.cjs` exercises curved grouped symbols, rotation/reflection/resize, subsequent movement, undo, exact path retention, project restore and PDF export.
+
+
+## v522 — line appearance and fragmented dashes
+
+Line tool exposes color/pattern selects, per-page preferences, matching draft preview and persistent SVG/canvas styles. Existing user routes can change color/pattern. PDF-native dashed paths retain normal whole-path selection. `pdf-dash-lines.js` groups at least three collinear equal-style straight strokes with similar lengths and regular gaps; native source IDs and exact paths remain separate inside a selectable/movable/deletable group. Crossing lines, differing layers/styles, irregular spacing and non-straight fragments are not inferred as one route. No universal reconstruction of ambiguous fragmented curves is claimed.
+
+Validation: `tests/plan-fakt-line-controls.cjs` tests both PDF representations, crossing exclusion, color/style updates, grouped delete/undo, project restore and PDF export.

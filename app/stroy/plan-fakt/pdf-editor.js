@@ -36,6 +36,7 @@ function distance(p,raw,sx,sy){let d=Infinity;for(const path of raw.paths)for(le
 function pick(p){const scene=liveScene();if(!scene){toast('Объекты листа ещё подготавливаются');return false;}const sx=S.W/scene.width,sy=S.H/scene.height,rad=(isCoarsePointer()?24:9)/Math.max(.1,S.scale),taken=idsFor(cur());let best=null,bestD=Infinity;
   for(const raw of scene.objects){if(taken.has(raw.id)||S.pdfPickLayer&&raw.layer!==S.pdfPickLayer)continue;const b=raw.box;if(p.x<b[0]*sx-rad||p.y<b[1]*sy-rad||p.x>b[2]*sx+rad||p.y>b[3]*sy+rad)continue;const d=distance(p,raw,sx,sy);if(d<=rad&&(d<bestD-.01||Math.abs(d-bestD)<.01&&raw.paint>(best&&best.paint||0))){best=raw;bestD=d;}}
   if(!best){toast('Нажмите точнее на линию выбранного слоя');return false;}
+  if(window.PdfDashLines?.promote(best,scene,taken))return true;
   pushHistory();const pts=best.p.map(p=>({x:p[0]*sx,y:p[1]*sy})),cat=standaloneVectorCat(best.style.stroke)||'other';
   const o=addObj({type:'line',src:'pdf',color:best.style.stroke||best.style.fill,width:Math.max(.15,best.style.width*sx),pts,cat,nocalc:cat==='other'||!!best.style.fill,_fill:!!best.style.fill,_lkSource:true,_pdfIds:[best.id],_pdfD:best.d,_pdfStyle:best.style,_pdfSx:sx,_pdfSy:sy,_pdfLayer:best.layer,_pdfOriginalPts:pts.map(p=>({...p})),ea:{kind:'free',h:0},eb:{kind:'free',h:0}});
   redrawAll();setTool('select');selectObj(o.id);lkQueueDrawingSave();toast('Объект выбран · '+best.layer);return true;}
