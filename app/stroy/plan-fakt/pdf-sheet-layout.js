@@ -137,18 +137,28 @@ $('sheetSealImage').onchange=e=>{const f=e.target.files[0];if(!f)return;if(!/^im
 function renderSeal(c,g,b,interactive){
  const out=el('g'),has=/^data:image\/(png|jpeg|webp);base64,/.test(c.sealImage||'');
  if(!has){if(interactive){out.append(el('rect',{x:b.x,y:b.placeholderY??b.y,width:b.w,height:b.placeholderH??b.h,fill:'transparent',stroke:'#718399','stroke-width':g.w*.0004,'stroke-dasharray':g.w*.002,'pointer-events':'all','data-sheet-seal':'1',tabindex:0,role:'button','aria-label':'Выбрать печать',style:'cursor:pointer'}),el('text',{x:b.x+b.w/2,y:(b.placeholderY??b.y)+(b.placeholderH??b.h)*.6,'text-anchor':'middle','font-family':'Arial','font-size':g.w*.008,fill:'#5f7388','pointer-events':'none'},'Печать ▾'));}return out;}
+ const w=Number.isFinite(c.sealSize?.w)&&c.sealSize.w>0?c.sealSize.w*g.w:b.w,h=Number.isFinite(c.sealSize?.h)&&c.sealSize.h>0?c.sealSize.h*g.h:b.h;
  const x=Number.isFinite(c.sealPosition?.x)?c.sealPosition.x*g.w:b.x,y=Number.isFinite(c.sealPosition?.y)?c.sealPosition.y*g.h:b.y;
- out.setAttribute('data-sheet-seal-object','1');out.setAttribute('data-x',x);out.setAttribute('data-y',y);out.setAttribute('data-width',b.w);out.setAttribute('data-height',b.h);
- out.append(el('image',{x,y,width:b.w,height:b.h,href:c.sealImage,preserveAspectRatio:'xMidYMid meet'}));
- if(interactive){out.append(el('rect',{x,y,width:b.w,height:b.h,fill:'transparent','pointer-events':'all','data-seal-move':'1',style:'cursor:move;touch-action:none',tabindex:0,role:'button','aria-label':'Печать: выделить и переместить'}));
- if(selectedSeal===c){const z=S.scale;out.append(el('rect',{x,y,width:b.w,height:b.h,fill:'none',stroke:'#1284ff','stroke-width':1.5/z,'pointer-events':'none',class:'sheet-seal-selection'}));const actions=el('g',{class:'sheet-seal-actions','data-sheet-seal':'1',style:'cursor:pointer','pointer-events':'all',tabindex:0,role:'button','aria-label':'Заменить или убрать печать'});actions.append(el('rect',{x,y:y-28/z,width:100/z,height:24/z,rx:3/z,fill:'white',stroke:'#1284ff','stroke-width':1/z}),el('text',{x:x+50/z,y:y-12/z,'text-anchor':'middle','font-family':'Arial','font-size':12/z,fill:'#203d59'},'Заменить / убрать'));out.append(actions);}}
+ out.setAttribute('data-sheet-seal-object','1');out.setAttribute('data-x',x);out.setAttribute('data-y',y);out.setAttribute('data-width',w);out.setAttribute('data-height',h);
+ out.append(el('image',{x,y,width:w,height:h,href:c.sealImage,preserveAspectRatio:'xMidYMid meet'}));
+ if(interactive){out.append(el('rect',{x,y,width:w,height:h,fill:'transparent','pointer-events':'all','data-seal-move':'1',style:'cursor:move;touch-action:none',tabindex:0,role:'button','aria-label':'Печать: выделить и переместить'}));
+ if(selectedSeal===c){const z=S.scale;out.append(el('rect',{x,y,width:w,height:h,fill:'none',stroke:'#1284ff','stroke-width':1.5/z,'pointer-events':'none',class:'sheet-seal-selection'}));const actions=el('g',{class:'sheet-seal-actions','data-sheet-seal':'1',style:'cursor:pointer','pointer-events':'all',tabindex:0,role:'button','aria-label':'Заменить или убрать печать'});actions.append(el('rect',{x,y:y-28/z,width:100/z,height:24/z,rx:3/z,fill:'white',stroke:'#1284ff','stroke-width':1/z}),el('text',{x:x+50/z,y:y-12/z,'text-anchor':'middle','font-family':'Arial','font-size':12/z,fill:'#203d59'},'Заменить / убрать'));out.append(actions);for(const [corner,cx,cy]of [['nw',x,y],['ne',x+w,y],['sw',x,y+h],['se',x+w,y+h]])out.append(el('rect',{x:cx-5/z,y:cy-5/z,width:10/z,height:10/z,fill:'white',stroke:'#1284ff','stroke-width':1.5/z,'pointer-events':'all','data-seal-resize':corner,class:'sheet-seal-handle',style:'cursor:'+(['nw','se'].includes(corner)?'nwse':'nesw')+'-resize;touch-action:none'}));}}
  return out;
 }
-function clearSealSelection(){selectedSeal=null;marks.querySelectorAll('.sheet-seal-selection,.sheet-seal-actions').forEach(n=>n.remove());}
+function clearSealSelection(){selectedSeal=null;marks.querySelectorAll('.sheet-seal-selection,.sheet-seal-actions,.sheet-seal-handle').forEach(n=>n.remove());}
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('[data-sheet-seal-object],.sheet-seal-picker'))clearSealSelection();},true);
 window.addEventListener('keydown',e=>{if(e.key==='Escape')clearSealSelection();});
 function bindSeal(c,g){
  const n=marks.querySelector('[data-sheet-seal-object]'),hit=n?.querySelector('[data-seal-move]');if(!hit)return;
+ n.querySelectorAll('[data-seal-resize]').forEach(handle=>handle.addEventListener('pointerdown',e=>{
+ if(e.button!==0)return;e.preventDefault();e.stopPropagation();
+ const pn=S.pageNum,src=S.standalonePdf,oldPos=c.sealPosition?{...c.sealPosition}:undefined,oldSize=c.sealSize?{...c.sealSize}:undefined,x=+n.dataset.x,y=+n.dataset.y,w=+n.dataset.width,h=+n.dataset.height,z=S.scale,corner=handle.dataset.sealResize,sx=corner.includes('w')?-1:1,sy=corner.includes('n')?-1:1,ax=sx<0?x+w:x,ay=sy<0?y+h:y,start={x:e.clientX,y:e.clientY};let moved=false;
+ const valid=()=>config()===c&&S.pageNum===pn&&S.standalonePdf===src;
+ pointerDrag(e,ev=>{if(!valid())return;const dx=(ev.clientX-start.x)/z,dy=(ev.clientY-start.y)/z;if(!moved&&Math.hypot(dx,dy)*z<3)return;if(!moved){pushHistory();moved=true;}
+ const max=Math.min((sx<0?ax:g.w-ax)/w,(sy<0?ay:g.h-ay)/h),min=Math.min(max,Math.max(g.w*.01/w,g.h*.01/h)),factor=Math.max(min,Math.min(max,1+(sx*w*dx+sy*h*dy)/(w*w+h*h))),nw=w*factor,nh=h*factor;
+ c.sealSize={w:nw/g.w,h:nh/g.h};c.sealPosition={x:(sx<0?ax-nw:ax)/g.w,y:(sy<0?ay-nh:ay)/g.h};draw();
+ },ev=>{if(!valid())return;if(ev.type==='pointercancel'){c.sealPosition=oldPos;c.sealSize=oldSize;}draw();if(moved)lkQueueDrawingSave();});
+ }));
  hit.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectedSeal=c;draw();}});
  hit.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();e.stopPropagation();const pn=S.pageNum,src=S.standalonePdf,old=c.sealPosition?{...c.sealPosition}:undefined,x=Number(n.dataset.x),y=Number(n.dataset.y),w=Number(n.dataset.width),h=Number(n.dataset.height),z=S.scale,start={x:e.clientX,y:e.clientY};let moved=false;selectedSeal=c;draw();
  const valid=()=>config()===c&&S.pageNum===pn&&S.standalonePdf===src;

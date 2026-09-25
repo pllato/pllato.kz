@@ -16,9 +16,17 @@ assert.equal(await p.locator('.sheet-seal-selection').count(),1);await p.keyboar
 const placement=await p.evaluate(()=>S.data.pages[1].sheetLayout.sealPosition);assert.ok(placement);await p.evaluate(()=>undoLast());assert.equal(await p.evaluate(()=>S.data.pages[1].sheetLayout.sealPosition),undefined);
 await p.evaluate(pos=>{S.data.pages[1].sheetLayout.sealPosition=pos;redrawAll()},placement);
 console.log('PASS no placeholder after insertion; seal select/drag/deselect and undo');
+await p.locator('[data-seal-move]').click();assert.equal(await p.locator('[data-seal-resize]').count(),4);
+const oldSize=await p.locator('[data-seal-move]').boundingBox(),corner=await p.locator('[data-seal-resize="se"]').boundingBox();
+await p.mouse.move(corner.x+corner.width/2,corner.y+corner.height/2);await p.mouse.down();await p.mouse.move(corner.x+corner.width/2+25,corner.y+corner.height/2+25,{steps:5});await p.mouse.up();
+const enlarged=await p.locator('[data-seal-move]').boundingBox();assert.ok(enlarged.width>oldSize.width+20);assert.ok(Math.abs(enlarged.width/enlarged.height-oldSize.width/oldSize.height)<.01);assert.ok(Math.abs(enlarged.x-oldSize.x)<1);
+const savedSize=await p.evaluate(()=>S.data.pages[1].sheetLayout.sealSize);await p.evaluate(()=>undoLast());assert.equal(await p.evaluate(()=>S.data.pages[1].sheetLayout.sealSize),undefined);
+await p.evaluate(size=>{S.data.pages[1].sheetLayout.sealSize=size;redrawAll()},savedSize);await p.keyboard.press('Escape');assert.equal(await p.locator('[data-seal-resize]').count(),0);
+console.log('PASS proportional seal resize, fixed opposite corner, undo and deselection');
+
 await sealPicker();await p.waitForFunction(()=>!document.getElementById('sheetSealSelect').disabled);assert.equal(await p.locator('#sheetSealSelect option').count(),3);await p.locator('#sheetSealSelect').selectOption({label:'Company-A.png'});const selected=await p.evaluate(()=>S.data.pages[1].sheetLayout.sealId);assert.ok(selected);await sealPicker();await p.waitForFunction(()=>!document.getElementById('sheetSealSelect').disabled);await p.locator('#sheetSealSelect').selectOption('');assert.equal(await p.evaluate(()=>S.data.pages[1].sheetLayout.sealImage),null);await p.evaluate(()=>undoLast());assert.equal(await p.evaluate(()=>S.data.pages[1].sheetLayout.sealId),selected);console.log('PASS upload two seals, choose saved seal, remove and undo');
 await p.evaluate(async()=>{await openProject(JSON.parse(JSON.stringify(buildProj())));hideGuide()});await p.waitForFunction(()=>S._pdfScene&&document.querySelector('[data-sheet-edit]'));assert.equal(await p.evaluate(()=>S.data.pages[1].sheetLayout.stamp.organization),'RL System');assert.equal(await p.evaluate(()=>S.data.pages[1].sheetLayout.table[2][4]),'391');await sealPicker();await p.waitForFunction(()=>!document.getElementById('sheetSealSelect').disabled);assert.equal(await p.locator('#sheetSealSelect option').count(),3);await p.click('#sheetSealPickerClose');
-assert.deepEqual(await p.evaluate(()=>S.data.pages[1].sheetLayout.sealPosition),placement);
+assert.deepEqual(await p.evaluate(()=>S.data.pages[1].sheetLayout.sealPosition),placement);assert.deepEqual(await p.evaluate(()=>S.data.pages[1].sheetLayout.sealSize),savedSize);
 for(const original of [false,true]){
  const result=await p.evaluate(async original=>{const c=S.data.pages[1].sheetLayout;
  if(original){const blank=document.createElement('canvas');blank.width=300;blank.height=100;const ctx=blank.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,300,100);c.originalStamp={image:blank.toDataURL(),aspect:3,cells:[]};redrawAll();}
