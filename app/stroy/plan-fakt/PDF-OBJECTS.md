@@ -220,3 +220,12 @@ hit targets and hints are omitted from exported SVG decorations.
 `tests/plan-fakt-sheet-inline.cjs` covers direct edit/undo, Excel range paste,
 stamp/signature/revision text, Escape, two uploads, saved-seal selection/removal/undo
 and project restore with library reuse. Existing layout/export tests also pass.
+
+### v509: drawing placement
+The Чертёж quick action enables a whole-crop move target and four proportional
+resize handles. Done/Escape exits placement mode. Center resets the normalized
+sheet offset; Size 100% resets drawingScale. Source coordinates and calibration
+remain unchanged. Geometry uses a general inverse matrix; the sharp PDF layer
+accounts for the effective drawing scale. Both fields persist in sheetLayout
+and are consumed by export. Layout integration tests cover move/resize, fixed
+paper dimensions, inverse mapping, undo, center, export and project restore.
