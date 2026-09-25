@@ -331,3 +331,12 @@ Validation: `tests/plan-fakt-device-transform.cjs` exercises curved grouped symb
 Line tool exposes color/pattern selects, per-page preferences, matching draft preview and persistent SVG/canvas styles. Existing user routes can change color/pattern. PDF-native dashed paths retain normal whole-path selection. `pdf-dash-lines.js` groups at least three collinear equal-style straight strokes with similar lengths and regular gaps; native source IDs and exact paths remain separate inside a selectable/movable/deletable group. Crossing lines, differing layers/styles, irregular spacing and non-straight fragments are not inferred as one route. No universal reconstruction of ambiguous fragmented curves is claimed.
 
 Validation: `tests/plan-fakt-line-controls.cjs` tests both PDF representations, crossing exclusion, color/style updates, grouped delete/undo, project restore and PDF export.
+
+
+## v523 — original PDF callouts
+
+The Callout tool explicitly selects a region containing dark annotation text and fully enclosed leader paths. Named annotation layers exclude devices and dimensions; an unlayered fallback accepts short thin dark paths. Selectable text runs require an exact text-content match and nearby text-matrix origin. Unsupported text encodings/layouts are not guessed.
+
+Text removal uses invisible rendering mode around the original showText operation so cursor advancement and adjacent text remain unchanged. Original text appearance is captured as a transparent 4x image for movable/copyable rendering, while leader paths remain exact vectors. This text image is not editable text and has finite resolution. Group source IDs, image and coordinates persist in the project; copies get independent groups.
+
+Validation: `tests/plan-fakt-callouts.cjs` uses real source page 19, selects №Р1.4 and four leader parts, checks source removal, copy/delete/undo, project restore and single-sheet PDF export. Line-controls regression covers unaffected path removal.

@@ -48,7 +48,7 @@ function analyse(ol,viewport,lib,layerNames={}){
     else if(fn===O.fill||fn===O.eoFill)paint(i,false,true,fn===O.eoFill);
     else if(fn===O.endPath)paint(i,false,false,false);
   }
-  return {objects,paints,ol,width:viewport.width,height:viewport.height};
+  return {objects,paints,ol,layerNames,width:viewport.width,height:viewport.height};
 }
 function filtered(scene,ids,lib){
   const O=lib.OPS,fnArray=scene.ol.fnArray.slice(),argsArray=scene.ol.argsArray.slice(),byPaint=new Map();
@@ -59,7 +59,10 @@ function filtered(scene,ids,lib){
     for(const chunk of paint.parts){const keep=chunk.tokens.filter(t=>!set.has(String(t.part))),old=argsArray[chunk.index];
       argsArray[chunk.index]=[keep.map(t=>t.op),keep.flatMap(t=>t.a),...old.slice(2)];}
   }
-  return {...scene.ol,fnArray,argsArray,lastChunk:true};
+  if(![...ids].some(id=>id.startsWith('text:')))return {...scene.ol,fnArray,argsArray,lastChunk:true};
+  // Invisible text still advances the text cursor: following glyphs do not shift.
+  const f=[],a=[];let mode=0;const modes=[];for(let i=0;i<fnArray.length;i++){const fn=fnArray[i];if(fn===O.save)modes.push(mode);if(fn===O.restore&&modes.length)mode=modes.pop();if(fn===O.setTextRenderingMode)mode=argsArray[i][0];const hide=ids.has('text:'+i);if(hide){f.push(O.setTextRenderingMode);a.push([3]);}f.push(fn);a.push(argsArray[i]);if(hide){f.push(O.setTextRenderingMode);a.push([mode]);}}
+  return {...scene.ol,fnArray:f,argsArray:a,lastChunk:true};
 }
 async function render(page,scene,ids,params,lib){
   // Dedicated document and queue: thumbnails never share the temporary display state.
