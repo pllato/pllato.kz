@@ -312,3 +312,8 @@ Validation: `tests/plan-fakt-cable-labels.cjs` covers both orientations, anchore
 ## v517 — seal resizing
 
 Selected seals expose four corner handles. Dragging scales the image proportionally around the opposite corner, bounded by the sheet. Normalized `sealSize` dimensions are shared by generated/original stamps and PDF composition. Pointer cancellation restores size/position; resizing creates one undo entry. Inline sheet tests cover resize, undo, restore, and export alignment.
+
+
+## v518 — direct cable label sizing
+
+Selected cable labels expose four text-block corner handles, including immediately after placement. Dragging scales the font/shelf around the fixed leader elbow without moving the cable anchor. Source-coordinate pointer conversion supports rotated/scaled sheets. Custom factors survive dialog editing, project restore and export; resize supports undo and pointer cancellation. Cable label tests cover horizontal/vertical resize, fixed anchors, undo and persistence.
