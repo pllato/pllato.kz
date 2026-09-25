@@ -266,3 +266,12 @@ the edited PDF renderer when callouts exist. Uncalibrated pages are supported.
 
 Tests cover repeated placement, undo, anchored dragging, editing, transformed
 sheet clicks, project restore, canvas/PDF export and browser errors.
+
+### v513: movable seal
+Both original and generated stamps use the shared seal renderer. An empty slot
+shows the insertion placeholder; an inserted image has no dashed placeholder.
+Click selects the seal and exposes replace/remove; dragging persists normalized
+sheetLayout.sealPosition with one undo step. Outside click/Escape clears the
+transient selection. The seal is rendered above the plan on screen and export.
+Inline browser tests cover select/drag/deselect, undo, library operations, project
+restore and exported blue-pixel centroid alignment for both stamp types.
