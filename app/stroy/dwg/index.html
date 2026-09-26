@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ru"><head><script src="/app/gate.js"></script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DWG-редактор · Pllato</title>
+<link rel="icon" href="../plan-fakt/favicon.ico"><link rel="stylesheet" href="style.css">
+</head><body>
+<header><a href="../plan-fakt/">← План-факт</a><strong>DWG-редактор <small>Прототип 0.1</small></strong><span id="filename">Демонстрационный чертёж</span>
+<label class="button primary">Открыть DWG / DXF<input id="file" type="file" accept=".dwg,.dxf" hidden></label>
+<button id="save">Скачать изменения · DXF</button></header>
+<div class="notice">DWG → редактирование → DXF. Запись в DWG пока недоступна. Исходный файл не меняется, чертежи не отправляются на сервер. Только 2D-модель; не замена AutoCAD.</div>
+<nav aria-label="Инструменты чертежа"><button data-tool="select" aria-pressed="true">Выбор</button><button data-tool="pan">Двигать вид</button><button data-tool="line">Линия</button><button data-tool="text">Текст</button><button data-tool="measure">Измерить</button><span class="divider"></span><button id="undo" disabled>Отменить</button><button id="redo" disabled>Повторить</button><button id="fit">Вписать</button><button id="plus" aria-label="Приблизить">+</button><button id="minus" aria-label="Отдалить">−</button><button id="panel">Слои / свойства</button><button id="demo">Демо</button></nav>
+<main><section id="viewport" aria-label="Область чертежа"><canvas id="canvas" tabindex="0"></canvas><div id="hint">Выберите объект. Масштаб — колесом или двумя пальцами.</div><div id="busy" hidden><strong>Открываю DWG…</strong><p>Первый запуск загружает бесплатный движок. Большие файлы требуют памяти.</p><button id="cancel">Отменить загрузку</button></div></section>
+<aside id="sidebar"><h2>Объект</h2><p id="selection">Нажмите на объект на чертеже.</p><form id="props" hidden><label>Слой<input id="layer" maxlength="100" readonly></label><label>Текст<input id="text" maxlength="2000"></label><div class="pair"><label>Сдвиг X<input id="dx" type="number" value="0" step="any"></label><label>Сдвиг Y<input id="dy" type="number" value="0" step="any"></label></div><button type="submit">Применить</button><button id="delete" type="button">Удалить объект</button></form>
+<h2>Слои</h2><p class="muted">Видимость только на экране; все слои сохраняются в DXF.</p><div id="layers"></div>
+<h2>Единицы измерения</h2><select id="units" aria-label="Единицы измерения"><option value="1">Единицы чертежа (не метры)</option><option value=".001">Миллиметры → метры</option><option value=".01">Сантиметры → метры</option><option value="m">Метры</option></select>
+<h2>Проверка совместимости</h2><p id="report"></p><p class="muted">Блоки отображаются приближённо; их можно перемещать целиком. Шрифты заменяются системным. Штриховки, размеры, 3D и внешние ссылки могут не отображаться. Неотображаемые записи DXF сохраняются, но конвертация из DWG может быть неполной.</p>
+<details><summary>Движок и исходники</summary><p>LibreDWG / mlightcad 0.7.14 · GPL-3.0. <a href="vendor/COPYING">Лицензия</a>, <a href="vendor/libredwg-web-source.tar.gz">исходники движка</a>, <a href="https://github.com/pllato/pllato.kz/tree/main/app/stroy/dwg">исходники редактора</a>.</p></details></aside></main>
+<footer role="status" id="status">Готово. Демо можно редактировать и сохранить в DXF.</footer>
+<dialog id="exportDialog"><h2>Сохранить копию в DXF?</h2><p>Скачивается изменённый DXF, а не DWG. Все слои и неизвестные записи текущего DXF сохраняются. Проверяйте результат в AutoCAD: конвертация DWG, шрифты и сложные объекты могут отличаться.</p><p id="exportReport"></p><form method="dialog"><button value="cancel">Назад</button><button id="confirmExport" value="save" class="primary">Скачать DXF</button></form></dialog>
+<script type="module" src="editor.mjs"></script></body></html>
