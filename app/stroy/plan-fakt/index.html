@@ -652,6 +652,7 @@ body.lk-drawing-context #btnExport{display:none;}
   <button class="tbtn" id="btnUndo" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>Отменить</button>
   <button class="tbtn" id="btnLedger" title="Ведомость: список всех объектов — выставить свойства каждого, привязать линии к щитам, довести до 100%"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Ведомость</button>
   <button class="tbtn" id="btnLineyka" title="Линейка: авто-чтение длин кабеля из однолинейной схемы (.pdf)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/><circle cx="19" cy="19" r="2.4"/></svg>Линейка</button>
+  <a class="tbtn" href="../dwg/" style="text-decoration:none">DWG-редактор</a>
   <input type="file" id="lkFile" accept=".pdf,application/pdf" multiple hidden>
   <input type="file" id="lkDxfFile" accept=".dxf" hidden>
   <button class="tbtn" id="btnSpec" title="PDF-смета: длина кабеля по типам, розетки, итоги"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17V7m4 10V11m4 6V9M5 21h14a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1z"/></svg>Смета</button>
@@ -873,7 +874,7 @@ body.lk-drawing-context #btnExport{display:none;}
     </div>
     <div class="lb-body">
       <div class="lb-open" id="lbOpen">
-        <div class="lb-mode-head">Выберите формат работы</div>
+        <div class="lb-mode-head">Выберите формат работы · <a href="../dwg/">DWG-редактор — бесплатный прототип</a></div>
         <div class="lb-modes">
           <section class="lb-mode">
             <div class="lb-mode-icon" aria-hidden="true">✎</div>
@@ -6234,7 +6235,7 @@ function renderLineyka(){
   let navH=`<div class="lk-mobile-panel-head"><b>Выберите лист</b><button id="lkMobileNavClose" aria-label="Закрыть">×</button></div>`;LK.pages.forEach((pg,i)=>{const pt=lkSum(pg.rows).t;
     navH+=`<button class="lk-pg ${i===LK.sel?'on':''} ${(pg.rows||[]).length?'has':''}" data-pg="${i}"><div class="lk-pgi"><div class="lk-pgt">Лист ${pg.page}${pg.vru?` <span style="font-weight:600;opacity:.65">· ${esc(pg.vru)}</span>`:''}</div><div class="lk-pgn">${pg.shields.length?esc(pg.shields.join(', ')):'линейка'}</div><div class="lk-pgm">${Math.round(pt)} м · ${pg.rows.length} лин.</div></div></button>`;});
   if(LK.stale)navH=`<div class="lk-stale">⚠ Разбор сделан <b>старой версией</b> парсера. Сейчас — <b>${LK_PARSER_VER}</b>: исправления не видны, пока файл не перечитан.<button class="lk-add" id="lkStaleRe">⟳ Перечитать файл сейчас</button><div class="lk-stale-sub">Ручные правки строк будут заменены свежим разбором; пометки ⚑ останутся.</div></div>`+navH;
-  $('lkNav').innerHTML=navH;
+  $('lkNav').innerHTML='<a class="lk-add" href="../dwg/">DWG-редактор · прототип</a>'+navH;
   const navClose=$('lkMobileNavClose');if(navClose)navClose.onclick=lkMobileClosePanels;
   const _sre=$('lkStaleRe');if(_sre)_sre.onclick=()=>lkReparse();
   $('lkNav').querySelectorAll('.lk-pg').forEach(b=>b.onclick=()=>{LK.sel=+b.dataset.pg;LK.view='pages';lkMobileClosePanels();renderLineyka();$('lkPage').scrollTop=0;});
