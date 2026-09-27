@@ -1,18 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // DXF остаётся источником истины: неизвестные записи не вырезаются при экспорте.
-export const get=(r,c,d='')=>r.pairs.find(p=>p[0]===c)?.[1]??d;
+export const get=(r,c,d='')=>{for(const p of r._pairs||groups(r.raw||''))if(p[0]===c)return p[1];return r.raw===undefined?r.pairs.find(p=>p[0]===c)?.[1]??d:d;};
 export const num=(r,c,d=0)=>Number(get(r,c,d));
 export function set(r,c,v){const p=r.pairs.find(p=>p[0]===c);if(p)p[1]=String(v);else r.pairs.push([c,String(v)]);}
 export const decode=s=>String(s).replace(/\\U\+([0-9a-f]{4})/gi,(_,h)=>String.fromCharCode(parseInt(h,16)));
-export function parseDxf(text){
- if(text.startsWith('AutoCAD Binary DXF'))throw Error('Бинарный DXF пока не поддерживается. Нужен текстовый DXF.');
- if(text.length>64*1024*1024)throw Error('После преобразования файл больше 64 МБ. Откройте отдельный лист или уменьшите DWG.');
- const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/),records=[];let r={type:'PREAMBLE',pairs:[]},section='',block=null,id=0;
- const blocks=new Map(),entities=[],layers=new Map();let hasEntities=false;
- for(let i=0;i+1<lines.length;i+=2){const code=Number(lines[i].trim());if(!Number.isInteger(code)||lines[i].trim()==='')throw Error('Повреждён DXF: неверный код группы.');
- const value=lines[i+1];if(code===0){if(r.pairs.length)records.push(r);r={type:value.trim(),pairs:[],id:String(id++)};}r.pairs.push([code,value]);}
- if(r.pairs.length)records.push(r);
- if(!records.some(r=>r.type==='EOF'))throw Error('DXF не завершён: нет EOF.');
+// Проход по строкам без массива из миллионов строк. Неизвестные записи
+// остаются исходным текстом; пары материализуются только для редактирования.
+function* groups(text){let pos=text.charCodeAt(0)===0xFEFF?1:0;while(pos<text.length){const start=pos;let end=text.indexOf('\n',pos);if(end<0){if(text.slice(pos).trim())throw Error('Неполная пара DXF.');break;}const codeText=text.slice(pos,end).trim(),code=Number(codeText);pos=end+1;end=text.indexOf('\n',pos);if(end<0)end=text.length;const value=text.slice(pos,end).replace(/\r$/,'');pos=end+1;if(!codeText||!Number.isInteger(code))throw Error('Повреждён DXF: неверный код группы.');yield [code,value,start,Math.min(pos,text.length)];}}
+function record(type,id,raw,pairs){return {type,id,raw,_pairs:pairs,get pairs(){return this._pairs??=Array.from(groups(this.raw),p=>p.slice(0,2));}};}
+function indexDoc(records){
+ const blocks=new Map(),entities=[],layers=new Map();let section='',block=null,hasEntities=false;
  for(const r of records){
   if(r.type==='SECTION'){section=get(r,2).trim();if(section==='ENTITIES')hasEntities=true;}
   else if(r.type==='ENDSEC'){section='';block=null;}
@@ -25,6 +22,18 @@ export function parseDxf(text){
  if(!hasEntities)throw Error('В файле нет раздела ENTITIES.');
  return {records,entities,blocks,layers};
 }
+function* scanDxf(text){
+ if(text.startsWith('AutoCAD Binary DXF'))throw Error('Бинарный DXF пока не поддерживается. Нужен текстовый DXF.');
+ if(text.length>256*1024*1024)throw Error('DXF больше 256 МБ: превышен безопасный объём этого браузерного редактора.');
+ const records=[];let start=0,type='PREAMBLE',id=0,count=0;
+ for(const [code,value,offset,end] of groups(text)){if(code===0){if(offset>start)records.push(record(type,String(id++),text.slice(start,offset)));start=offset;type=value.trim();}if(++count%20000===0)yield end/text.length;}
+ if(start<text.length)records.push(record(type,String(id++),text.slice(start)));
+ if(!records.some(r=>r.type==='EOF'))throw Error('DXF не завершён: нет EOF.');
+ return indexDoc(records);
+}
+export function parseDxf(text){const it=scanDxf(text);let step;do{step=it.next();}while(!step.done);return step.value;}
+export async function parseDxfAsync(text,progress=()=>{},cancelled=()=>false){const it=scanDxf(text);for(;;){if(cancelled())throw Error('Загрузка отменена.');const step=it.next();if(step.done)return step.value;progress(Math.round(step.value*100));await new Promise(r=>setTimeout(r,0));}}
+export function cloneDoc(doc){return indexDoc(doc.records.map(r=>record(r.type,r.id,r.raw,r._pairs?.map(p=>[...p])||(r.raw===undefined?r.pairs.map(p=>[...p]):undefined))));}
 const point=(r,x=10)=>[num(r,x),num(r,x+10)];
 const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
 const apply=(m,p)=>[m[0]*p[0]+m[2]*p[1]+m[4],m[1]*p[0]+m[3]*p[1]+m[5]];
@@ -32,7 +41,7 @@ export function scene(doc){
  const shapes=[],unsupported=new Map();let visited=0,limited=false;
  const skip=t=>unsupported.set(t,(unsupported.get(t)||0)+1);
  function walk(records,m=[1,0,0,1,0,0],owner=null,inherited='0',depth=0){
-  for(const r of records){if(++visited>150000){limited=true;return;}const root=owner||r,layer=get(r,8,'0')==='0'?inherited:get(r,8);
+  for(const r of records){if(++visited>1000000){limited=true;return;}const root=owner||r,layer=get(r,8,'0')==='0'?inherited:get(r,8);
    if(num(r,60)===1)continue;
    const ex=[num(r,210),num(r,220),num(r,230,1)];if(ex[0]||ex[1]||ex[2]!==1){skip(r.type+' OCS');continue;}
    let pts=[],text=null;
@@ -58,7 +67,8 @@ export function scene(doc){
    }else {if(!['SEQEND','ENDBLK'].includes(r.type))skip(r.type);continue;}
    pts=pts.map(p=>apply(m,p));if(!pts.length||pts.some(p=>!p.every(Number.isFinite)))continue;
    const color=num(r,62,256),height=Math.abs(num(r,40,2.5)*Math.hypot(m[0],m[1]));
-   shapes.push({id:root.id,layer,pts,text,height,angle:Math.atan2(m[1],m[0])+num(r,50)*Math.PI/180,color:color===256?Math.abs(doc.layers.get(layer)?.color||7):Math.abs(color)});
+   const bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const [x,y] of pts){bounds[0]=Math.min(bounds[0],x);bounds[1]=Math.min(bounds[1],y);bounds[2]=Math.max(bounds[2],x);bounds[3]=Math.max(bounds[3],y);}if(text!==null){const pad=height*(text.length+2);bounds[0]-=pad;bounds[1]-=pad;bounds[2]+=pad;bounds[3]+=pad;}
+   shapes.push({id:root.id,layer,pts,bounds,text,height,angle:Math.atan2(m[1],m[0])+num(r,50)*Math.PI/180,color:color===256?Math.abs(doc.layers.get(layer)?.color||7):Math.abs(color)});
   }
  }
  walk(doc.entities);return {shapes,unsupported:[...unsupported],limited};
@@ -69,10 +79,8 @@ export function move(r,dx,dy){
  for(const p of r.pairs){if(p[0]===10||(aligned&&p[0]===11))p[1]=String(Number(p[1])+dx);if(p[0]===20||(aligned&&p[0]===21))p[1]=String(Number(p[1])+dy);}
 }
 const unicode=s=>String(s).replace(/[\u0080-\uFFFF]/g,c=>'\\U+'+c.charCodeAt(0).toString(16).toUpperCase().padStart(4,'0'));
-export function serialize(doc){
- // Никакой фильтрации неизвестных объектов, листов, таблиц и блоков.
- return doc.records.flatMap(r=>r.pairs.flatMap(([c,v])=>[String(c),unicode(v)])).join('\r\n')+'\r\n';
-}
+export function* serializeChunks(doc){for(const r of doc.records){if(r.raw!==undefined&&!r._pairs){const raw=unicode(r.raw);yield raw.endsWith('\n')?raw:raw+'\r\n';continue;}let chunk='';for(const [c,v] of r.pairs){chunk+=c+'\r\n'+unicode(v)+'\r\n';if(chunk.length>65536){yield chunk;chunk='';}}if(chunk)yield chunk;}}
+export function serialize(doc){return [...serializeChunks(doc)].join('');}
 export function addEntity(doc,type,pairs){
  const end=doc.records.findIndex((r,i)=>r.type==='ENDSEC'&&doc.records.slice(0,i).filter(t=>t.type==='SECTION').at(-1)?.pairs.some(p=>p[0]===2&&p[1]==='ENTITIES'));
  if(end<0)throw Error('Нет раздела объектов.');
