@@ -1,4 +1,6 @@
-# Experimental executive DWG gate — 0.12
+# Experimental executive DWG gate — 0.12.1
+
+0.12.1 adds redundant top-level ATTRIB selection normalization with verified parent membership, shared named DBCOLOR references, and DIMASSOC continuation-chain parsing (`dimassoc-chains.patch`). The native fixture now has attributes on both nested and model-space INSERTs. It tests an attribute-only rejection, then a reordered/duplicated parent+attribute selection. Browser regression injects a failed worker operation and verifies that selection remains retryable, then creates/saves/reopens the sheet. Unit selection tests verify whole-block bounds including attached labels.
 
 `pllato_clone_probe.c` includes the existing GNU bridge `pllato_web.c` and is linked against the same patched GNU LibreDWG 0.14 archive. The include path must contain that bridge, `include/`, `src/`, and the configured build's `src/`. Emscripten flags match the production bridge; expose `ccall` and `FS`. Do not replace the released engine with this probe.
 

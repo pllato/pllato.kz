@@ -1,0 +1,41 @@
+--- a/src/dwg2.spec
++++ b/src/dwg2.spec
+@@ -3664,15 +3664,18 @@
+   FIELD_B (trans_space_flag, 70);
+   FIELD_RC (rotated_type, 71);
+   FIELD_HANDLE (dimensionobj, 4, 330);
++  unsigned dimassoc_slot = 0;
++  FIELD_VALUE (has_lastpt_ref) = 0;
+   REPEAT_CN (6, ref, Dwg_DIMASSOC_Ref) // i.e. AcDbOsnapPointRef
+   REPEAT_BLOCK
+       // there could be more blocks, up to 5 or 6.
+       // 0 1 2 3 => 1 2 4 8. skip unset bits
+-      if (!(FIELD_VALUE (associativity) & (1 << rcount1)) && !FIELD_VALUE(has_lastpt_ref))
++      if (!(FIELD_VALUE (associativity) & (1 << dimassoc_slot)) && !FIELD_VALUE(has_lastpt_ref))
+         {
+ #ifdef IS_JSON
+           ENDHASH;
+ #endif
++          dimassoc_slot++;
+           continue;
+         }
+       LOG_HANDLE ("DIMASSOC_Ref.rcount1: %d\n", rcount1);
+@@ -3699,13 +3702,18 @@
+         {
+           SUB_FIELD_BL (ref[rcount1], num_intsectobj, 74);
+           SUB_HANDLE_VECTOR (ref[rcount1], intsectobj, num_intsectobj, 5, 332);
++          if (FIELD_VALUE (ref[rcount1].num_intsectobj))
++            {
+           SUB_FIELD_BL (ref[rcount1], intersec_subent_type, 74);
+           SUB_FIELD_BL (ref[rcount1], intersec_gsmarker, 92);
+           SUB_FIELD_BL (ref[rcount1], num_intersec_xrefpaths, 0);
+           FIELD_VECTOR_T (ref[rcount1].intersec_xrefpaths, T, ref[rcount1].num_intersec_xrefpaths, 302)
++            }
+         }
+       SUB_FIELD_B (ref[rcount1], has_lastpt_ref, 75);
+       FIELD_VALUE(has_lastpt_ref) = SUB_FIELD_VALUE(ref[rcount1], has_lastpt_ref);
++      if (!FIELD_VALUE (has_lastpt_ref))
++        dimassoc_slot++;
+       SET_PARENT_OBJ (ref[rcount1]);
+   END_REPEAT_BLOCK
+   END_REPEAT (ref)

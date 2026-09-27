@@ -31,6 +31,11 @@ int main(int argc,char **argv){
  int error=0;Dwg_Object *deviceObject=dwg_obj_generic_to_object(device,&error);assert(deviceObject&&!error);
  attribute->parent->ownerhandle=dwg_add_handleref(d,4,deviceObject->handle.value,NULL);
  assert(dwg_add_ENDBLK(outer));
- Dwg_Object *m=dwg_model_space_object(d);assert(dwg_add_INSERT(m->tio.object->tio.BLOCK_HEADER,&a,"PLAN",1,1,1,0));
+ Dwg_Object *m=dwg_model_space_object(d);Dwg_Entity_INSERT *plan=dwg_add_INSERT(m->tio.object->tio.BLOCK_HEADER,&a,"PLAN",1,1,1,0);assert(plan);
+ BITCODE_H planDefinition=plan->block_header;
+ Dwg_Entity_ATTRIB *planAttribute=dwg_add_ATTRIB(plan,5,0,&a,"PLAN_TAG","Группа 1");assert(planAttribute);plan->block_header=planDefinition;
+ Dwg_Object *planObject=dwg_obj_generic_to_object(plan,&error);assert(planObject&&!error);
+ planAttribute->parent->ownerhandle=dwg_add_handleref(d,4,planObject->handle.value,NULL);
+ planAttribute->parent->entmode=0;
  assert(dwg_write_file(argv[1],d)<128);dwg_free(d);free(d);return 0;
 }

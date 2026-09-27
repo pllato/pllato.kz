@@ -8,7 +8,11 @@ const m=await create({print:()=>{},printErr:()=>{}}),r=await reader({print:()=>{
 const read=bytes=>{const p=sdk.dwg_read_data(bytes,Dwg_File_Type.DWG);try{return sdk.convert(p);}finally{sdk.dwg_free(p);}};
 const original=read(input),root=original.entities.find(e=>e.type==='INSERT');
 m.FS.writeFile('/in.dwg',input);assert.ok(m.ccall('pllato_open','number',['string'],['/in.dwg'])<128);
-assert.equal(m.ccall('pllato_clone_selection','number',['string',...Array(5).fill('number')],[root.handle,0,0,1000,2000,Math.PI/2]),0);
+assert.ok(root.attribs.length,'Fixture must reproduce top-level attached attributes');
+const cloneArgs=['string',...Array(5).fill('number')];
+assert.equal(m.ccall('pllato_clone_selection','number',cloneArgs,[root.attribs[0].handle,0,0,1000,2000,0]),2,'Detached attribute selection must fail without dropping text');
+const selected=[root.attribs[0].handle,root.handle,...root.attribs.map(a=>a.handle)].join(',');
+assert.equal(m.ccall('pllato_clone_selection','number',cloneArgs,[selected,0,0,1000,2000,Math.PI/2]),0,'Parent + attributes must copy once regardless of order/duplicates');
 const copyHandle=m.FS.readFile('/clone-result.txt',{encoding:'utf8'});
 assert.ok(m.ccall('pllato_save','number',['string'],['/out.dwg'])<128);
 const result=read(m.FS.readFile('/out.dwg')),copy=result.entities.find(e=>e.handle===copyHandle);

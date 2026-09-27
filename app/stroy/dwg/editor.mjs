@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {parseDxfAsync,scene,serializeChunks,cloneDoc,demo,get,num,set,decode,move,addEntity} from './cad.mjs?v=0.12';
-import {paintShapes,previewTransform} from './renderer.mjs?v=0.12';
-import {loadCadFont} from './fonts.mjs?v=0.12';
-import {clampProgress,warningText} from './progress.mjs?v=0.12';
-import {isNew,additions} from './authoring.mjs?v=0.12';
-import {mountExecutiveUI} from './executive-ui.mjs';
+import {parseDxfAsync,scene,serializeChunks,cloneDoc,demo,get,num,set,decode,move,addEntity} from './cad.mjs?v=0.12.1';
+import {paintShapes,previewTransform} from './renderer.mjs?v=0.12.1';
+import {loadCadFont} from './fonts.mjs?v=0.12.1';
+import {clampProgress,warningText} from './progress.mjs?v=0.12.1';
+import {isNew,additions} from './authoring.mjs?v=0.12.1';
+import {mountExecutiveUI} from './executive-ui.mjs?v=0.12.1';
 let executiveUI;
 const $=id=>document.getElementById(id),canvas=$('canvas'),ctx=canvas.getContext('2d');
 let doc=demo(),view={x:0,y:0,s:1},drawing,selected=null,hidden=new Set(),tool='select',draft=null,history=[],future=[],dirty=false,name='demo',worker=null,loadTimer=null,loadId=0;
 let width=1,height=1,pointers=new Map(),gesture=null,sourceFile=null;
 let polyPoints=[],selectedMatrix=null;
-import {aciColors as colors} from './colors.mjs?v=0.12';
+import {aciColors as colors} from './colors.mjs?v=0.12.1';
 const status=s=>{$('status').textContent=s;if(!$('busy').hidden)$('busy').querySelector('strong').textContent=s;};
 let progressStarted=0,progressClock;
 function progress(s,n){status(s);if(n!==undefined){$('loadProgress').value=clampProgress(n);$('loadPercent').textContent=clampProgress(n)+'%';}}
@@ -85,7 +85,7 @@ async function openFile(file){if(dirty&&!confirm('Есть несохранён�
  try{const bytes=await file.arrayBuffer();if(token!==loadId)return;let text,warnings=[],next;$('save').disabled=true;
  if(/\.dwg$/i.test(file.name)){
   if(!/^AC10\d\d/.test(new TextDecoder().decode(bytes.slice(0,6))))throw Error('Это не распознанный DWG.');
-  const converted=await new Promise((resolve,reject)=>{worker=new Worker(new URL('./native-reader.mjs?v=0.12',import.meta.url),{type:'module'});worker.onmessage=e=>e.data.progress?progress(e.data.progress,e.data.percent):e.data.error?reject(Error(e.data.error)):resolve(e.data);worker.onerror=()=>reject(Error('Не удалось запустить DWG-движок. Возможно, недостаточно памяти. Попробуйте меньший файл на компьютере.'));loadTimer=setTimeout(()=>reject(Error('Чтение заняло больше 5 минут. Попробуйте отдельный лист.')),300000);worker.postMessage(bytes,[bytes]);});
+  const converted=await new Promise((resolve,reject)=>{worker=new Worker(new URL('./native-reader.mjs?v=0.12.1',import.meta.url),{type:'module'});worker.onmessage=e=>e.data.progress?progress(e.data.progress,e.data.percent):e.data.error?reject(Error(e.data.error)):resolve(e.data);worker.onerror=()=>reject(Error('Не удалось запустить DWG-движок. Возможно, недостаточно памяти. Попробуйте меньший файл на компьютере.'));loadTimer=setTimeout(()=>reject(Error('Чтение заняло больше 5 минут. Попробуйте отдельный лист.')),300000);worker.postMessage(bytes,[bytes]);});
   if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
   warnings=converted.messages;next=converted.doc;
  }else{try{text=new TextDecoder('utf-8',{fatal:true}).decode(bytes);}catch{text=new TextDecoder('windows-1251').decode(bytes);}}
@@ -95,12 +95,12 @@ $('file').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)openFile
 $('demo').onclick=()=>{if(!dirty||confirm('Заменить несохранённый чертёж демо?')){stopLoad();adopt(demo(),'demo');status('Демонстрационный чертёж.');}};
 $('save').onclick=()=>{$('exportReport').textContent=$('report').textContent;$('exportDialog').querySelector('h2').textContent='Сохранить копию в '+(doc.native?'DWG':'DXF')+'?';$('exportDescription').textContent=doc.native?'Записывается новая копия исходного DWG с изменениями. Проверка движком не заменяет проверку в AutoCAD. Новые линии, тексты и полилинии записываются в DWG. В исполнительных сохраняются оформление, трассы, выноски и поддерживаемые удаления. Исходный файл на диске не изменяется.':'Скачивается изменённый DXF. Проверьте результат в AutoCAD.';$('confirmExport').textContent='Скачать '+(doc.native?'DWG':'DXF');$('exportDialog').showModal();};
 function download(blob,extension){progress('Готово',100);const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name+'-edited.'+extension;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);dirty=false;$('filename').textContent=name;status(extension.toUpperCase()+' подготовлен к скачиванию. Проверьте копию в AutoCAD.');}
-$('confirmExport').onclick=async()=>{if(doc.executiveProject?.sheets.length){await commitExecutive(doc.executiveProject,null,true);return;}if(!doc.native){download(new Blob([...serializeChunks(doc)],{type:'application/dxf'}),'dxf');return;}if(!sourceFile)return status('Нет исходного DWG для сохранения.');stopLoad();const token=loadId,ops=doc.nativeOps.map(o=>({...o}));$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Готовлю сохранение DWG…');try{const buffer=await sourceFile.arrayBuffer();if(token!==loadId)return;const saved=await new Promise((resolve,reject)=>{worker=new Worker(new URL('./native-writer.mjs?v=0.12',import.meta.url),{type:'module'});worker.onmessage=e=>e.data.progress?progress(e.data.progress,e.data.percent):e.data.error?reject(Error(e.data.error)):resolve(e.data);worker.onerror=()=>reject(Error('Не удалось записать DWG. Возможно, недостаточно памяти.'));loadTimer=setTimeout(()=>reject(Error('Запись заняла больше 5 минут.')),300000);worker.postMessage({buffer,ops,added:additions(doc)},[buffer]);});if(token!==loadId)return;download(new Blob([saved.buffer],{type:'application/acad'}),'dwg');}catch(e){if(token===loadId)status(e.message);}finally{if(token===loadId)stopLoad();}};
+$('confirmExport').onclick=async()=>{if(doc.executiveProject?.sheets.length){await commitExecutive(doc.executiveProject,null,true);return;}if(!doc.native){download(new Blob([...serializeChunks(doc)],{type:'application/dxf'}),'dxf');return;}if(!sourceFile)return status('Нет исходного DWG для сохранения.');stopLoad();const token=loadId,ops=doc.nativeOps.map(o=>({...o}));$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Готовлю сохранение DWG…');try{const buffer=await sourceFile.arrayBuffer();if(token!==loadId)return;const saved=await new Promise((resolve,reject)=>{worker=new Worker(new URL('./native-writer.mjs?v=0.12.1',import.meta.url),{type:'module'});worker.onmessage=e=>e.data.progress?progress(e.data.progress,e.data.percent):e.data.error?reject(Error(e.data.error)):resolve(e.data);worker.onerror=()=>reject(Error('Не удалось записать DWG. Возможно, недостаточно памяти.'));loadTimer=setTimeout(()=>reject(Error('Запись заняла больше 5 минут.')),300000);worker.postMessage({buffer,ops,added:additions(doc)},[buffer]);});if(token!==loadId)return;download(new Blob([saved.buffer],{type:'application/acad'}),'dwg');}catch(e){if(token===loadId)status(e.message);}finally{if(token===loadId)stopLoad();}};
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;if(e.key==='Escape'){executiveUI?.cancel();draft=null;setTool('select');}if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo(e.shiftKey);}});
 new ResizeObserver(()=>{const r=canvas.parentElement.getBoundingClientRect(),initial=width===1;width=r.width;height=r.height;const d=Math.min(devicePixelRatio||1,2);canvas.width=width*d;canvas.height=height*d;ctx.setTransform(d,0,0,d,0,0);initial?fit():draw();}).observe(canvas.parentElement);
 async function commitExecutive(project,cloneRequest=null,exportFile=false){
- if(!$('busy').hidden)return;if(!sourceFile)return status('Откройте исходный DWG');
+ if(!$('busy').hidden)return false;if(!sourceFile){status('Откройте исходный DWG');return false;}
  const before=cloneDoc(doc),previousHistory=[...history],previousName=name;
  stopLoad();const token=loadId;$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;
  const run=(url,data,transfer)=>new Promise((resolve,reject)=>{
@@ -111,18 +111,26 @@ async function commitExecutive(project,cloneRequest=null,exportFile=false){
  });
  try{
   const buffer=await sourceFile.arrayBuffer();if(token!==loadId)return;
-  const saved=await run('./executive-worker.mjs',{buffer,ops:doc.nativeOps,added:additions(doc),project,cloneRequest},[buffer]);
+  const saved=await run('./executive-worker.mjs?v=0.12.1',{buffer,ops:doc.nativeOps,added:additions(doc),project,cloneRequest},[buffer]);
   if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
   const file=new File([saved.buffer],previousName+'.dwg',{type:'application/acad'}),readBuffer=saved.buffer;
-  const read=await run('./native-reader.mjs?v=0.12',readBuffer,[readBuffer]);
+  const read=await run('./native-reader.mjs?v=0.12.1',readBuffer,[readBuffer]);
   if(token!==loadId)return;adopt(read.doc,previousName,file);history=[...previousHistory,before].slice(-3);future=[];syncUndo();dirty=true;
   if(exportFile)download(file,'dwg');else status('Исполнительная создана. Изменения пока в памяти — скачайте DWG для сохранения.');
   const notices=[warningText(saved.warnings||0),...(read.messages||[])].filter(Boolean);
   if(notices.length)status((exportFile?'DWG подготовлен к скачиванию. ':'Исполнительная создана; скачайте DWG для сохранения. ')+'Предупреждения: '+[...new Set(notices)].join(' · '));
- }catch(e){if(token===loadId)status(e.message);}finally{if(token===loadId)stopLoad();}
+  if(cloneRequest)focusExecutive(doc.executiveProject?.sheets.find(s=>s.id===cloneRequest.sheetId));
+  return true;
+ }catch(e){if(token===loadId)status(e.message);return false;}finally{if(token===loadId)stopLoad();}
+}
+function focusExecutive(sheet){
+ if(!sheet)return;
+ const [x,y]=sheet.origin,w=420*sheet.paperUnit,h=297*sheet.paperUnit;
+ view.s=Math.max(.000001,Math.min((width-40)/w,(height-40)/h));
+ view.x=width/2-(x+w/2)*view.s;view.y=height/2+(y+h/2)*view.s;draw();
 }
 executiveUI=mountExecutiveUI({
- getDoc:()=>doc,setDoc:next=>{doc=next;},snapshot,changed,status,setTool,draw,commit:commitExecutive,shapes:()=>drawing.shapes,
+ getDoc:()=>doc,setDoc:next=>{doc=next;},snapshot,changed,status,setTool,draw,commit:commitExecutive,focus:focusExecutive,shapes:()=>drawing.shapes,
  metresPerUnit:()=>$('units').value==='1'?null:$('units').value==='m'?1:Number($('units').value),
  previewRotation:()=>rebuild(),busy:()=>!$('busy').hidden
 });

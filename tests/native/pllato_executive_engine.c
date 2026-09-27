@@ -46,7 +46,7 @@ static int clone_shared(Dwg_Object *o)
 {
  switch(o->fixedtype){
  case DWG_TYPE_LAYER:case DWG_TYPE_STYLE:case DWG_TYPE_LTYPE:
- case DWG_TYPE_DIMSTYLE:case DWG_TYPE_APPID:case DWG_TYPE_BLOCK_CONTROL:
+ case DWG_TYPE_DIMSTYLE:case DWG_TYPE_APPID:case DWG_TYPE_DBCOLOR:case DWG_TYPE_BLOCK_CONTROL:
  case DWG_TYPE_LAYER_CONTROL:case DWG_TYPE_STYLE_CONTROL:case DWG_TYPE_LTYPE_CONTROL:
  case DWG_TYPE_DIMSTYLE_CONTROL:case DWG_TYPE_APPID_CONTROL:return 1;
  case DWG_TYPE_IMAGEDEF:return 1; /* Immutable shared raster definition; not its reactor. */
@@ -111,7 +111,8 @@ API int pllato_probe_opaque(const char *handle)
 }
 API int pllato_clone_selection(const char *roots,double cx,double cy,double x,double y,double angle)
 {
- const unsigned limit=20000;
+ /* Each source object can enter the dependency graph at most once. */
+ const unsigned limit=drawing.num_objects ? drawing.num_objects : 1;
  BITCODE_HV *queue=calloc(limit,sizeof(BITCODE_HV)),*mapped=calloc(limit,sizeof(BITCODE_HV));
  unsigned *indices=calloc(limit,sizeof(unsigned)),count=0,done=0;
  dwg_inthash *seen=hash_new(limit*2);
@@ -126,10 +127,32 @@ API int pllato_clone_selection(const char *roots,double cx,double cy,double x,do
   char *end;BITCODE_HV h=strtoull(cursor,&end,16);
   if(end==cursor||(*end&&*end!=',')||!h||count==limit){error=1;break;}
   Dwg_Object *o=dwg_resolve_handle(&drawing,h);
-  if(!o||o->supertype!=DWG_SUPERTYPE_ENTITY||(o->tio.entity->entmode!=2&&(!o->tio.entity->ownerhandle||o->tio.entity->ownerhandle->absolute_ref!=modelHandle))){error=2;break;}
+  if(!o||o->supertype!=DWG_SUPERTYPE_ENTITY){fprintf(stderr,"CLONE_REJECT_ROOT %llX %s\n",(unsigned long long)h,o?o->name:"missing");error=2;break;}
   if(hash_get(seen,h)==HASH_NOT_FOUND){hash_set(seen,h,count+1);queue[count++]=h;}
   cursor=*end?end+1:end;
  }
+ /* Rectangle selection can contain a top-level INSERT and its ATTRIBs.
+    Attributes are owned children, copied through INSERT.attribs, never roots.
+    Accept a redundant child only when its verified parent is also selected. */
+ unsigned rootsCount=0;
+ for(unsigned i=0;!error&&i<count;i++){
+  Dwg_Object *o=dwg_resolve_handle(&drawing,queue[i]);Dwg_Object_Entity *ent=o->tio.entity;
+  if(o->fixedtype!=DWG_TYPE_ATTRIB&&(ent->entmode==2||(ent->ownerhandle&&ent->ownerhandle->absolute_ref==modelHandle))){queue[rootsCount++]=queue[i];continue;}
+  int attached=0;
+  if(o->fixedtype==DWG_TYPE_ATTRIB&&ent->ownerhandle){
+   Dwg_Object *parent=dwg_ref_object(&drawing,ent->ownerhandle);
+   if(parent&&parent->fixedtype==DWG_TYPE_INSERT&&hash_get(seen,parent->handle.value)!=HASH_NOT_FOUND){
+    Dwg_Object_Entity *pe=parent->tio.entity;
+    if(pe->entmode==2||(pe->ownerhandle&&pe->ownerhandle->absolute_ref==modelHandle)){
+     Dwg_Entity_INSERT *in=pe->tio.INSERT;
+     for(unsigned j=0;j<in->num_owned;j++)if(in->attribs[j]&&in->attribs[j]->absolute_ref==o->handle.value){attached=1;break;}
+    }
+   }
+  }
+  if(!attached){fprintf(stderr,"CLONE_REJECT_ROOT %llX %s owner=%llX\n",(unsigned long long)o->handle.value,o->name,(unsigned long long)(ent->ownerhandle?ent->ownerhandle->absolute_ref:0));error=2;}
+ }
+ count=rootsCount;
+ if(!error){hash_free(seen);seen=hash_new(limit*2);if(!seen)error=1;else for(unsigned i=0;i<count;i++)hash_set(seen,queue[i],i+1);}
  if(error||!count){free(queue);free(mapped);free(indices);hash_free(seen);return error?error:1;}
  BITCODE_HV nextHandle=dwg_next_handle(&drawing);
  for(unsigned i=0;i<drawing.num_objects;i++)if(drawing.object[i].handle.value>=nextHandle)nextHandle=drawing.object[i].handle.value+1;
@@ -153,8 +176,8 @@ API int pllato_clone_selection(const char *roots,double cx,double cy,double x,do
   BITCODE_HV handle=nextHandle++;
   Bit_Chain bits={0},hdl={0};bit_chain_init(&bits,65536);
   bits.version=drawing.header.version;bits.from_version=drawing.header.from_version;
-  BITCODE_RL rawBits=source->num_unknown_bits;if(typedBackup)source->num_unknown_bits=0;
-  int e=dwg_encode_add_object(source,&bits,16);source->num_unknown_bits=rawBits;hdl=bits;
+  Dwg_Object sourceHeader=*source;if(typedBackup)source->num_unknown_bits=0;
+  int e=dwg_encode_add_object(source,&bits,16);*source=sourceHeader;hdl=bits;
   if(e<128)e=dwg_decode_add_object(&drawing,&bits,&hdl,16);
   free(bits.chain);
   if(e>=128||drawing.num_objects!=newIndex+1){error=12;break;}
@@ -342,6 +365,18 @@ API int pllato_save(const char *path){
    if(ad&&ad->code==5&&(!bd||bd->code!=5||ad->u.eed_5.entity!=bd->u.eed_5.entity)){error|=DWG_ERR_INVALIDDWG;break;}
   }
   if(a->fixedtype==DWG_TYPE_INSERT){BITCODE_H ar=a->tio.entity->tio.INSERT->block_header,br=b->tio.entity->tio.INSERT->block_header;if(!ar||!br||ar->absolute_ref!=br->absolute_ref)error|=DWG_ERR_INVALIDDWG;}
+  if(a->fixedtype==DWG_TYPE_DIMASSOC){
+   Dwg_Object_DIMASSOC *ar=a->tio.object->tio.DIMASSOC,*br=b->tio.object->tio.DIMASSOC;
+   BITCODE_H ah=a->tio.object->ownerhandle,bh=b->tio.object->ownerhandle;
+   if(!ah||!bh||ah->absolute_ref!=bh->absolute_ref||!ar->dimensionobj||!br->dimensionobj||ar->dimensionobj->absolute_ref!=br->dimensionobj->absolute_ref||ar->associativity!=br->associativity||!ar->ref||!br->ref)error|=DWG_ERR_INVALIDDWG;
+   for(unsigned j=0;error<128&&j<6;j++){
+    Dwg_DIMASSOC_Ref *ap=&ar->ref[j],*bp=&br->ref[j];
+    if(ap->has_lastpt_ref!=bp->has_lastpt_ref||ap->osnap_type!=bp->osnap_type||ap->num_xrefs!=bp->num_xrefs||ap->num_intsectobj!=bp->num_intsectobj||ap->osnap_dist!=bp->osnap_dist||memcmp(&ap->osnap_pt,&bp->osnap_pt,sizeof(ap->osnap_pt))){error|=DWG_ERR_INVALIDDWG;break;}
+    if((ap->num_xrefs&&(!ap->xrefs||!bp->xrefs))||(ap->num_intsectobj&&(!ap->intsectobj||!bp->intsectobj))){error|=DWG_ERR_INVALIDDWG;break;}
+    for(unsigned k=0;k<ap->num_xrefs;k++)if(!ap->xrefs[k]||!bp->xrefs[k]||ap->xrefs[k]->absolute_ref!=bp->xrefs[k]->absolute_ref)error|=DWG_ERR_INVALIDDWG;
+    for(unsigned k=0;k<ap->num_intsectobj;k++)if(!ap->intsectobj[k]||!bp->intsectobj[k]||ap->intsectobj[k]->absolute_ref!=bp->intsectobj[k]->absolute_ref)error|=DWG_ERR_INVALIDDWG;
+   }
+  }
   if(a->fixedtype==DWG_TYPE_BLOCKREPRESENTATION){
    Dwg_Object_BLOCKREPRESENTATION *ar=a->tio.object->tio.BLOCKREPRESENTATION,*br=b->tio.object->tio.BLOCKREPRESENTATION;
    if(ar->flag!=br->flag||!ar->block||!br->block||ar->block->absolute_ref!=br->block->absolute_ref)error|=DWG_ERR_INVALIDDWG;
