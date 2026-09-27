@@ -1294,8 +1294,7 @@ class LibreEntityConverter {
       const commonAttrs = this.getCommonAttrs(entity);
       const fixedtype = libredwg.dwg_object_get_fixedtype(object_ptr);
       if (this.geometryOnly) {
-        const unsupported = fixedtype === Dwg_Object_Type.DWG_TYPE_HATCH ? 'HATCH'
-          : fixedtype === Dwg_Object_Type.DWG_TYPE_3DSOLID ? '3DSOLID' : null;
+        const unsupported = fixedtype === Dwg_Object_Type.DWG_TYPE_3DSOLID ? '3DSOLID' : null;
         if (unsupported) return {type: unsupported, ...commonAttrs};
       }
       if (fixedtype == Dwg_Object_Type.DWG_TYPE_3DFACE) {
@@ -1915,7 +1914,7 @@ class LibreEntityConverter {
       if (block_header_obj) {
         const block_header_tio = libredwg.dwg_object_to_object_tio(block_header_obj);
         if (block_header_tio) {
-          name = libredwg.dwg_entity_block_header_get_block(block_header_tio).name;
+          name = libredwg.dwg_entity_block_header_get_block(block_header_tio).name || libredwg.dwg_dynapi_entity_data(block_header_tio, "name");
         }
       }
     }
@@ -1946,6 +1945,7 @@ class LibreEntityConverter {
     return {
       type: "INSERT",
       ...commonAttrs,
+      blockRecordId: libredwg.dwg_ref_get_id(block_header_ref),
       name,
       insertionPoint,
       xScale: scale ? scale.x : 1,
