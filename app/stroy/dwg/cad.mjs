@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {cadFont} from './fonts.mjs?v=0.11';
+import {cadFont} from './fonts.mjs?v=0.12';
 // DXF остаётся источником истины: неизвестные записи не вырезаются при экспорте.
 export const get=(r,c,d='')=>{const pairs=r._pairs||(r.raw===undefined?r.pairs:null);if(pairs){for(const p of pairs)if(p[0]===c)return p[1];}else{for(const p of groups(r.raw||''))if(p[0]===c)return p[1];}return d;};
 export const num=(r,c,d=0)=>Number(get(r,c,d));
@@ -37,7 +37,7 @@ function* scanDxf(text){
 }
 export function parseDxf(text){const it=scanDxf(text);let step;do{step=it.next();}while(!step.done);return step.value;}
 export async function parseDxfAsync(text,progress=()=>{},cancelled=()=>false){const it=scanDxf(text);for(;;){if(cancelled())throw Error('Загрузка отменена.');const step=it.next();if(step.done)return step.value;progress(Math.round(step.value*100));await new Promise(r=>setTimeout(r,0));}}
-export function cloneDoc(doc){const copy=indexDoc(doc.records.map(r=>{const c=record(r.type,r.id,r.raw,r._pairs?.map(p=>[...p])||(r.raw===undefined?r.pairs.map(p=>[...p]):undefined));if(r.parts)c.parts=r.parts;if(r.hatch)c.hatch=r.hatch;return c;}));if(doc.native){copy.native=true;copy.nativeUnknown=doc.nativeUnknown;copy.recoveredBlocks=doc.recoveredBlocks;copy.nativeOps=doc.nativeOps.map(o=>({...o}));}return copy;}
+export function cloneDoc(doc){const copy=indexDoc(doc.records.map(r=>{const c=record(r.type,r.id,r.raw,r._pairs?.map(p=>[...p])||(r.raw===undefined?r.pairs.map(p=>[...p]):undefined));if(r.parts)c.parts=r.parts;if(r.hatch)c.hatch=r.hatch;return c;}));if(doc.native){copy.native=true;copy.nativeUnknown=doc.nativeUnknown;copy.recoveredBlocks=doc.recoveredBlocks;copy.nativeOps=doc.nativeOps.map(o=>({...o}));}if(doc.executiveProject)copy.executiveProject=structuredClone(doc.executiveProject);copy.sourceFile=doc.sourceFile;return copy;}
 const point=(r,x=10)=>[num(r,x),num(r,x+10)];
 const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
 const apply=(m,p)=>[m[0]*p[0]+m[2]*p[1]+m[4],m[1]*p[0]+m[3]*p[1]+m[5]];
@@ -56,7 +56,7 @@ function spline(r){
 export function scene(doc){
  const shapes=[],unsupported=new Map();let visited=0,limited=false;
  const skip=t=>unsupported.set(t,(unsupported.get(t)||0)+1);
- function walk(records,m=[1,0,0,1,0,0],owner=null,inherited='0',depth=0,blockColor={color:7}){
+ function walk(records,m=[1,0,0,1,0,0],owner=null,inherited='0',depth=0,blockColor={color:7},device=null){
   for(let ri=0;ri<records.length;ri++){const r=records[ri];if(++visited>3000000){limited=true;return;}const root=owner||r,layer=get(r,8,'0')==='0'?inherited:get(r,8);
    if(num(r,60)===1)continue;
    const aci=Math.abs(num(r,62,256)),layerStyle=doc.layers.get(layer),trueColor=get(r,420);
@@ -65,7 +65,7 @@ export function scene(doc){
    if(!wcs&&(ex[0]||ex[1]||![-1,1].includes(ex[2]))){skip(r.type+' наклонная OCS');continue;}
    if(ex[2]===-1&&['TEXT','MTEXT','ATTRIB','ATTDEF'].includes(r.type)){skip(r.type+' зеркальный текст OCS');continue;}
    let pts=[],text=null;
-   if(r.type==='HATCH'&&r.hatch){const matrix=ex[2]===-1?mul(m,[-1,0,0,1,0,0]):m,all=r.hatch.loops.flat().map(p=>apply(matrix,p)),bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const [x,y] of all){bounds[0]=Math.min(bounds[0],x);bounds[1]=Math.min(bounds[1],y);bounds[2]=Math.max(bounds[2],x);bounds[3]=Math.max(bounds[3],y);}shapes.push({id:root.id,layer,pts:all,bounds,text:null,hatch:r.hatch,matrix,...style});continue;}
+   if(r.type==='HATCH'&&r.hatch){const matrix=ex[2]===-1?mul(m,[-1,0,0,1,0,0]):m,all=r.hatch.loops.flat().map(p=>apply(matrix,p)),bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const [x,y] of all){bounds[0]=Math.min(bounds[0],x);bounds[1]=Math.min(bounds[1],y);bounds[2]=Math.max(bounds[2],x);bounds[3]=Math.max(bounds[3],y);}shapes.push({id:root.id,deviceId:device?.id,deviceMatrix:device?.matrix,layer,pts:all,bounds,text:null,hatch:r.hatch,matrix,...style});continue;}
    if(r.type==='LINE')pts=[point(r),point(r,11)];
    else if(r.type==='LWPOLYLINE'||r.type==='POLYLINE'){
     if(r.type==='POLYLINE'){
@@ -105,7 +105,7 @@ export function scene(doc){
     const t=num(r,50)*Math.PI/180,c=Math.cos(t),s=Math.sin(t),sx=num(r,41,1),sy=num(r,42,1),local=[c*sx,s*sx,-s*sy,c*sy,num(r,10),num(r,20)];
     local[4]-=local[0]*block.base[0]+local[2]*block.base[1];local[5]-=local[1]*block.base[0]+local[3]*block.base[1];
     if(ex[2]===-1){local[0]*=-1;local[2]*=-1;local[4]*=-1;}
-    walk(block.records,mul(m,local),root,layer,depth+1,style);continue;
+    walk(block.records,mul(m,local),root,layer,depth+1,style,{id:r.id,matrix:m});continue;
    }else {if(!['SEQEND','ENDBLK'].includes(r.type))skip(r.type);continue;}
    if(!wcs&&ex[2]===-1)pts=pts.map(([x,y])=>[-x,y]);
    pts=pts.map(p=>apply(m,p));if(!pts.length||pts.some(p=>!p.every(Number.isFinite)))continue;
@@ -113,25 +113,28 @@ export function scene(doc){
    const ts=doc.textStyles?.get(get(r,7,'Standard')),rawText=get(r,1),inline=rawText.match(/\\[fF]([^;]+);/),font=text!==null?cadFont(ts?.font,inline?.[1]):undefined;
    const textFormat=text!==null?{font,textScale:r.type==='MTEXT'?1:num(r,41,ts?.width||1),oblique:num(r,51,ts?.oblique||0)*Math.PI/180,halign:num(r,72),valign:num(r,73)}:{};
    const bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const [x,y] of pts){bounds[0]=Math.min(bounds[0],x);bounds[1]=Math.min(bounds[1],y);bounds[2]=Math.max(bounds[2],x);bounds[3]=Math.max(bounds[3],y);}if(text!==null){const pad=height*(text.length+2);bounds[0]-=pad;bounds[1]-=pad;bounds[2]+=pad;bounds[3]+=pad;}
-   shapes.push({id:root.id,layer,pts,bounds,text,fill:['SOLID','TRACE'].includes(r.type),height,multiline:r.type==='MTEXT',textWidth:r.type==='MTEXT'?num(r,41)*Math.hypot(m[0],m[1]):0,attachment:num(r,71,1),angle:Math.atan2(m[1],m[0])+num(r,50)*Math.PI/180,...style,...textFormat});
+   shapes.push({id:root.id,deviceId:device?.id,deviceMatrix:device?.matrix,layer,pts,bounds,text,fill:['SOLID','TRACE'].includes(r.type),height,multiline:r.type==='MTEXT',textWidth:r.type==='MTEXT'?num(r,41)*Math.hypot(m[0],m[1]):0,attachment:num(r,71,1),angle:Math.atan2(m[1],m[0])+num(r,50)*Math.PI/180,...style,...textFormat});
   }
  }
  walk(doc.entities);return {shapes,unsupported:[...unsupported],limited};
 }
 export function move(r,dx,dy){
  if(num(r,210)||num(r,220)||num(r,230,1)!==1)throw Error('Перемещение объекта в нестандартной OCS пока отключено.');
- if(!['LINE','LWPOLYLINE','CIRCLE','ARC','TEXT','MTEXT','INSERT'].includes(r.type))throw Error('Этот тип пока нельзя перемещать.');
- const aligned=['LINE','TEXT'].includes(r.type);
+ if(!['LINE','LWPOLYLINE','CIRCLE','ARC','TEXT','MTEXT','INSERT','ATTRIB'].includes(r.type))throw Error('Этот тип пока нельзя перемещать.');
+ const aligned=['LINE','TEXT','ATTRIB'].includes(r.type);
  for(const p of r.pairs){const delta=p[0]===10||(aligned&&p[0]===11)?dx:p[0]===20||(aligned&&p[0]===21)?dy:null;if(delta!==null&&!Number.isFinite(Number(p[1])+delta))throw Error('Сдвиг выходит за допустимый диапазон координат.');}
  for(const p of r.pairs){if(p[0]===10||(aligned&&p[0]===11))p[1]=String(Number(p[1])+dx);if(p[0]===20||(aligned&&p[0]===21))p[1]=String(Number(p[1])+dy);}
 }
 const unicode=s=>String(s).replace(/[\u0080-\uFFFF]/g,c=>'\\U+'+c.charCodeAt(0).toString(16).toUpperCase().padStart(4,'0'));
 export function* serializeChunks(doc){for(const r of doc.records){if(r.raw!==undefined&&!r._pairs){const raw=unicode(r.raw);yield raw.endsWith('\n')?raw:raw+'\r\n';continue;}let chunk='';for(const [c,v] of r.pairs){chunk+=c+'\r\n'+unicode(v)+'\r\n';if(chunk.length>65536){yield chunk;chunk='';}}if(chunk)yield chunk;}}
 export function serialize(doc){return [...serializeChunks(doc)].join('');}
+const appendState=new WeakMap();
 export function addEntity(doc,type,pairs){
- const end=doc.records.findIndex((r,i)=>r.type==='ENDSEC'&&doc.records.slice(0,i).filter(t=>t.type==='SECTION').at(-1)?.pairs.some(p=>p[0]===2&&p[1]==='ENTITIES'));
+ let state=appendState.get(doc);
+ if(!state||state.records!==doc.records||state.length!==doc.records.length){let section='',end=-1,max=0;for(let i=0;i<doc.records.length;i++){const r=doc.records[i];max=Math.max(max,parseInt(get(r,5,'0'),16)||0);if(r.type==='SECTION')section=get(r,2);if(r.type==='ENDSEC'&&section==='ENTITIES')end=i;}state={records:doc.records,length:doc.records.length,end,max};appendState.set(doc,state);}
+ const end=state.end;
  if(end<0)throw Error('Нет раздела объектов.');
- const max=doc.records.reduce((n,r)=>Math.max(n,parseInt(get(r,5,'0'),16)||0),0),handle=(max+1).toString(16).toUpperCase();
+ const max=state.max,handle=(max+1).toString(16).toUpperCase();state.max++;state.end++;state.length++;
  const header=doc.records.find(r=>r.type==='SECTION'&&get(r,2)==='HEADER');
  const vi=header?.pairs.findIndex(p=>p[0]===9&&p[1]==='$ACADVER');
  const modern=vi>=0&&String(header.pairs[vi+1]?.[1])>='AC1012';

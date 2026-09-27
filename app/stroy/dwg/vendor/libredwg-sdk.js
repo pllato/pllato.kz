@@ -3485,7 +3485,25 @@ class LibreDwgConverter {
               db.tables.VPORT.entries.push(this.convertViewport(tio, obj));
               break;
             case Dwg_Object_Type.DWG_TYPE_DICTIONARY:
-              if (this.geometryOnly) break;
+              if (this.geometryOnly) {
+                // Read only our named metadata, not every application XRECORD
+                // in a large DWG. The first dictionary is the NOD (GNU API).
+                if (!this.executiveMetadataChecked) {
+                  this.executiveMetadataChecked = true;
+                  const nod = this.convertDictionary(tio, obj);
+                  const handle = nod.entries.PLLATO_EXECUTIVE_V1;
+                  if (handle) {
+                    const dictObj = libredwg.dwg_resolve_handle(data, parseInt(handle, 16));
+                    if (!dictObj || libredwg.dwg_object_get_fixedtype(dictObj) !== Dwg_Object_Type.DWG_TYPE_DICTIONARY) throw Error('Invalid executive dictionary');
+                    const dict = this.convertDictionary(this.safeObjectTio(dictObj), dictObj);
+                    db.objects.DICTIONARY.push(nod, dict);
+                    const recordObj = libredwg.dwg_resolve_handle(data, parseInt(dict.entries.PROJECT || '0', 16));
+                    if (!recordObj || libredwg.dwg_object_get_fixedtype(recordObj) !== Dwg_Object_Type.DWG_TYPE_XRECORD) throw Error('Invalid executive record');
+                    db.objects.XRECORD.push(this.convertXRecord(this.safeObjectTio(recordObj), recordObj));
+                  }
+                }
+                break;
+              }
               db.objects.DICTIONARY.push(this.convertDictionary(tio, obj));
               break;
             case Dwg_Object_Type.DWG_TYPE_IMAGEDEF:

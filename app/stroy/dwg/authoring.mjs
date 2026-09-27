@@ -1,4 +1,4 @@
-import {get,num} from './cad.mjs?v=0.11';
+import {get,num} from './cad.mjs?v=0.12';
 export const isNew=r=>r?.id?.startsWith('new-');
 export function additions(doc){return doc.entities.filter(isNew).map(r=>{
  if(r.type==='LINE')return {type:r.type,values:[10,20,11,21].map(c=>num(r,c))};
@@ -6,7 +6,7 @@ export function additions(doc){return doc.entities.filter(isNew).map(r=>{
  if(r.type==='LWPOLYLINE'){const points=[];for(let i=0;i<r.pairs.length;i++)if(r.pairs[i][0]===10){const y=r.pairs.slice(i+1).find(p=>p[0]===20);if(!y)throw Error('Полилиния: отсутствует Y');points.push(Number(r.pairs[i][1]),Number(y[1]));}return {type:r.type,points,closed:!!(num(r,70)&1)};}
  throw Error('Запись нового объекта '+r.type+' пока не поддерживается');
 });}
-export function writeAdditions(m,items){
+export function writeAdditions(m,items,onCreated=()=>{}){
  if(!Array.isArray(items)||items.length>100000)throw Error('Слишком много новых объектов');
  for(const item of items){let code;
   if(item.type==='LINE'||item.type==='TEXT'){
@@ -20,5 +20,6 @@ export function writeAdditions(m,items){
    code=m.ccall('pllato_add_polyline','number',['array','number','number'],[bytes,item.points.length/2,item.closed?1:0]);
   }else throw Error('Неизвестный тип добавляемого объекта');
   if(code)throw Error('Не удалось создать '+item.type+' (код '+code+')');
+  onCreated(item);
  }
 }
