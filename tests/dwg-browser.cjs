@@ -39,6 +39,13 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');
  assert.equal(await page.locator('#report').textContent(),originalReport);
  await page.locator('#plus').click();await page.locator('#minus').click();
  console.log('PASS native DWG export / reopen / identical scene report');
+ await page.locator('#fit').click();await page.waitForTimeout(450);
+ const beforePan=await page.locator('#canvas').screenshot();
+ const viewport=await page.locator('#canvas').boundingBox();
+ await page.mouse.move(viewport.x+viewport.width/2,viewport.y+viewport.height/2);await page.mouse.down();await page.mouse.move(viewport.x+viewport.width/2+80,viewport.y+viewport.height/2+50,{steps:10});await page.mouse.up();
+ await page.locator('#fit').click();await page.waitForTimeout(450);
+ assert.deepEqual(await page.locator('#canvas').screenshot(),beforePan);
+ console.log('PASS large-view preview settles to identical exact pixels');
  fs.unlinkSync(saved);fs.rmdirSync(dir);
  }
  }

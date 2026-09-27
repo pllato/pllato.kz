@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // DXF остаётся источником истины: неизвестные записи не вырезаются при экспорте.
-export const get=(r,c,d='')=>{for(const p of r._pairs||groups(r.raw||''))if(p[0]===c)return p[1];return r.raw===undefined?r.pairs.find(p=>p[0]===c)?.[1]??d:d;};
+export const get=(r,c,d='')=>{const pairs=r._pairs||(r.raw===undefined?r.pairs:null);if(pairs){for(const p of pairs)if(p[0]===c)return p[1];}else{for(const p of groups(r.raw||''))if(p[0]===c)return p[1];}return d;};
 export const num=(r,c,d=0)=>Number(get(r,c,d));
 export function set(r,c,v){const p=r.pairs.find(p=>p[0]===c);if(p)p[1]=String(v);else r.pairs.push([c,String(v)]);}
 export const decode=s=>String(s).replace(/\\U\+([0-9a-f]{4})/gi,(_,h)=>String.fromCharCode(parseInt(h,16)));

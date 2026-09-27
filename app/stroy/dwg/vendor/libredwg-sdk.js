@@ -1293,6 +1293,12 @@ class LibreEntityConverter {
     if (entity && entity_tio) {
       const commonAttrs = this.getCommonAttrs(entity);
       const fixedtype = libredwg.dwg_object_get_fixedtype(object_ptr);
+      if (this.geometryOnly) {
+        const unsupported = fixedtype === Dwg_Object_Type.DWG_TYPE_HATCH ? 'HATCH'
+          : fixedtype === Dwg_Object_Type.DWG_TYPE_MULTILEADER ? 'MULTILEADER'
+          : fixedtype === Dwg_Object_Type.DWG_TYPE_3DSOLID ? '3DSOLID' : null;
+        if (unsupported) return {type: unsupported, ...commonAttrs};
+      }
       if (fixedtype == Dwg_Object_Type.DWG_TYPE_3DFACE) {
         return this.convert3dFace(entity_tio, commonAttrs);
       } else if (fixedtype == Dwg_Object_Type.DWG_TYPE_3DSOLID) {
@@ -3299,6 +3305,10 @@ class LibreEntityConverter {
     const layer = this.getLayerName(entity);
     const handle = libredwg.dwg_object_entity_get_handle_object(entity);
     const ownerhandle = libredwg.dwg_object_entity_get_ownerhandle_object(entity);
+    if (this.geometryOnly) return {
+      handle: idToString(handle.value), ownerBlockRecordSoftId: idToString(ownerhandle.absolute_ref),
+      layer, colorIndex, isVisible: !libredwg.dwg_object_entity_get_invisible(entity)
+    };
     const ownerDictionaryHardId = libredwg.dwg_object_entity_get_xdicobjhandle_object(entity);
     const lineType = this.getLtypeName(entity);
     const lineweight = libredwg.dwg_object_entity_get_line_weight(entity);
@@ -3354,6 +3364,7 @@ class LibreDwgConverter {
   convert(data) {
     var _a;
     this.entityConverter.clear();
+    this.entityConverter.geometryOnly = !!this.geometryOnly;
     this.orphanEntitiesByBlock = null;
     this.ownerlessOrphanIndices = null;
     this.orphanIndexDataPtr = data;
