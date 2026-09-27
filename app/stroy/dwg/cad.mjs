@@ -35,7 +35,7 @@ function* scanDxf(text){
 }
 export function parseDxf(text){const it=scanDxf(text);let step;do{step=it.next();}while(!step.done);return step.value;}
 export async function parseDxfAsync(text,progress=()=>{},cancelled=()=>false){const it=scanDxf(text);for(;;){if(cancelled())throw Error('Загрузка отменена.');const step=it.next();if(step.done)return step.value;progress(Math.round(step.value*100));await new Promise(r=>setTimeout(r,0));}}
-export function cloneDoc(doc){const copy=indexDoc(doc.records.map(r=>{const c=record(r.type,r.id,r.raw,r._pairs?.map(p=>[...p])||(r.raw===undefined?r.pairs.map(p=>[...p]):undefined));if(r.parts)c.parts=r.parts;return c;}));if(doc.native){copy.native=true;copy.nativeUnknown=doc.nativeUnknown;copy.nativeOps=doc.nativeOps.map(o=>({...o}));}return copy;}
+export function cloneDoc(doc){const copy=indexDoc(doc.records.map(r=>{const c=record(r.type,r.id,r.raw,r._pairs?.map(p=>[...p])||(r.raw===undefined?r.pairs.map(p=>[...p]):undefined));if(r.parts)c.parts=r.parts;if(r.hatch)c.hatch=r.hatch;return c;}));if(doc.native){copy.native=true;copy.nativeUnknown=doc.nativeUnknown;copy.nativeOps=doc.nativeOps.map(o=>({...o}));}return copy;}
 const point=(r,x=10)=>[num(r,x),num(r,x+10)];
 const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
 const apply=(m,p)=>[m[0]*p[0]+m[2]*p[1]+m[4],m[1]*p[0]+m[3]*p[1]+m[5]];
@@ -63,6 +63,7 @@ export function scene(doc){
    if(!wcs&&(ex[0]||ex[1]||![-1,1].includes(ex[2]))){skip(r.type+' наклонная OCS');continue;}
    if(ex[2]===-1&&['TEXT','MTEXT','ATTRIB','ATTDEF'].includes(r.type)){skip(r.type+' зеркальный текст OCS');continue;}
    let pts=[],text=null;
+   if(r.type==='HATCH'&&r.hatch){const matrix=ex[2]===-1?mul(m,[-1,0,0,1,0,0]):m,all=r.hatch.loops.flat().map(p=>apply(matrix,p)),bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const [x,y] of all){bounds[0]=Math.min(bounds[0],x);bounds[1]=Math.min(bounds[1],y);bounds[2]=Math.max(bounds[2],x);bounds[3]=Math.max(bounds[3],y);}shapes.push({id:root.id,layer,pts:all,bounds,text:null,hatch:r.hatch,matrix,...style});continue;}
    if(r.type==='LINE')pts=[point(r),point(r,11)];
    else if(r.type==='LWPOLYLINE'||r.type==='POLYLINE'){
     if(r.type==='POLYLINE'){
@@ -94,7 +95,7 @@ export function scene(doc){
    }else if(r.type==='TEXT'||r.type==='MTEXT'||r.type==='ATTRIB'||r.type==='ATTDEF'){
     pts=[point(r)];text=decode(r.pairs.filter(p=>p[0]===3||p[0]===1).map(p=>p[1]).join('')).replace(/\\P/g,'\n').replace(/\\~/g,' ').replace(/\\[LlOoKk]/g,'').replace(/\\S([^;]*);/g,(_,s)=>s.replace(/[\^#]/g,'/')).replace(/\\[ACFfHQTWpq][^;]*;/g,'').replace(/[{}]/g,'');
    }else if(r.type==='INSERT'){
-    const name=get(r,2),block=doc.blocks.get(name);if(!block||depth>=12||block.flags&12){skip('INSERT / внешняя ссылка');continue;}
+    const name=get(r,2),block=doc.blocks.get(name);if(!block){skip('INSERT: ссылка на блок не прочитана');continue;}if(depth>=12||block.flags&12){skip('INSERT / внешняя ссылка');continue;}
     if(num(r,70,1)>1||num(r,71,1)>1){skip('MINSERT');continue;}
     const t=num(r,50)*Math.PI/180,c=Math.cos(t),s=Math.sin(t),sx=num(r,41,1),sy=num(r,42,1),local=[c*sx,s*sx,-s*sy,c*sy,num(r,10),num(r,20)];
     local[4]-=local[0]*block.base[0]+local[2]*block.base[1];local[5]-=local[1]*block.base[0]+local[3]*block.base[1];

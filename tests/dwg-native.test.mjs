@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import {nativeDocument} from '../app/stroy/dwg/native-adapter.mjs';
 import {cloneDoc,get,num,move,scene} from '../app/stroy/dwg/cad.mjs';
 const database=entities=>({header:{ACADVER:'AC1032',INSUNITS:4},tables:{LAYER:{entries:[]},BLOCK_RECORD:{entries:[]}},entities});
+test('INSERT resolves empty block name by DWG block-record handle',()=>{
+ const db=database([{type:'INSERT',handle:'I',name:'',blockRecordId:'A',insertionPoint:{x:4,y:5},xScale:1,yScale:1}]);
+ db.tables.BLOCK_RECORD.entries.push({name:'*U1',handle:'A',basePoint:{x:0,y:0},entities:[{type:'LINE',handle:'L',startPoint:{x:0,y:0},endPoint:{x:1,y:0}}]});
+ assert.deepEqual(scene(nativeDocument(db)).shapes[0].pts,[[4,5],[5,5]]);
+});
 test('native LWPOLYLINE flags map closure and omitted extrusion correctly',()=>{
  const doc=nativeDocument(database([{type:'LWPOLYLINE',handle:'F',flag:512,extrusionDirection:{x:0,y:0,z:0},vertices:[{x:0,y:0},{x:1,y:0},{x:1,y:1}]}]));
  assert.equal(num(doc.entities[0],70),1);const view=scene(doc);assert.equal(view.shapes.length,1);assert.deepEqual(view.shapes[0].pts.at(-1),[0,0]);assert.deepEqual(view.unsupported,[]);
