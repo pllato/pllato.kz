@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {parseDxfAsync,scene,serializeChunks,cloneDoc,demo,get,num,set,decode,move,addEntity} from './cad.mjs?v=0.2';
+import {parseDxfAsync,scene,serializeChunks,cloneDoc,demo,get,num,set,decode,move,addEntity} from './cad.mjs?v=0.3';
 const $=id=>document.getElementById(id),canvas=$('canvas'),ctx=canvas.getContext('2d');
 let doc=demo(),view={x:0,y:0,s:1},drawing,selected=null,hidden=new Set(),tool='select',draft=null,history=[],future=[],dirty=false,name='demo',worker=null,loadTimer=null,loadId=0;
 let width=1,height=1,pointers=new Map(),gesture=null;
@@ -10,7 +10,8 @@ const local=e=>{const r=canvas.getBoundingClientRect();return[e.clientX-r.left,e
 function current(){return doc.entities.find(r=>r.id===selected);}
 function rebuild(){drawing=scene(doc);if(drawing.limited)status('Предел отображения: 1 000 000 записей. Часть чертежа не показана.');$('report').textContent=drawing.shapes.length+' видимых примитивов. Не отображаются: '+(drawing.unsupported.map(([t,n])=>t+' × '+n).join(', ')||'нет известных пропусков')+(drawing.limited?' · достигнут предел объёма':'')+'. Только пространство модели.';renderLayers();properties();draw();}
 function renderLayers(){const names=[...new Set(drawing.shapes.map(s=>s.layer))].sort();$('layers').replaceChildren();for(const layer of names){const l=document.createElement('label'),i=document.createElement('input');i.type='checkbox';i.checked=!hidden.has(layer);i.onchange=()=>{i.checked?hidden.delete(layer):hidden.add(layer);draw();};l.append(i,document.createTextNode(decode(layer)));$('layers').append(l);}}
-function properties(){const r=current();$('props').hidden=!r;$('selection').textContent=r?r.type+' · '+(get(r,5)||r.id):'Нажмите на объект на чертеже.';if(r){$('layer').value=decode(get(r,8,'0'));$('text').value=r.type==='TEXT'?decode(get(r,1)):'';$('text').disabled=r.type!=='TEXT';$('dx').value=0;$('dy').value=0;$('delete').disabled=r.type==='INSERT';}}
+const editable=r=>['LINE','LWPOLYLINE','CIRCLE','ARC','TEXT','MTEXT','INSERT'].includes(r.type)&&!num(r,210)&&!num(r,220)&&num(r,230,1)===1;
+function properties(){const r=current();$('props').hidden=!r;$('selection').textContent=r?r.type+' · '+(get(r,5)||r.id)+(editable(r)?'':' · только просмотр'):'Нажмите на объект на чертеже.';if(r){$('layer').value=decode(get(r,8,'0'));$('text').value=r.type==='TEXT'?decode(get(r,1)):'';$('text').disabled=r.type!=='TEXT'||!editable(r);$('dx').value=0;$('dy').value=0;$('props').querySelector('button[type=submit]').disabled=!editable(r);$('delete').disabled=r.type==='INSERT'||!editable(r);}}
 function changed(){dirty=true;$('filename').textContent=name+' · изменён';rebuild();}
 function snapshot(){history.push(cloneDoc(doc));while(history.length>(doc.records.length>50000?3:15))history.shift();future=[];syncUndo();}
 function syncUndo(){$('undo').disabled=!history.length;$('redo').disabled=!future.length;}
@@ -20,7 +21,7 @@ function fit(){let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;for
 function draw(){ctx.clearRect(0,0,width,height);ctx.lineWidth=1;ctx.strokeStyle='#17283a';for(let x=0;x<width;x+=50){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,height);ctx.stroke();}for(let y=0;y<height;y+=50){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(width,y);ctx.stroke();}
  for(const s of drawing?.shapes||[]){if(hidden.has(s.layer)||!inView(s))continue;const ps=s.pts.map(screen);ctx.strokeStyle=s.id===selected?'#ffbe6c':colors[s.color]||'#a9bed5';ctx.fillStyle=ctx.strokeStyle;ctx.lineWidth=s.id===selected?2.5:1;
  if(s.text!==null){const p=ps[0],size=s.height*view.s;if(size<2||size>2000||p[0]<-2000||p[0]>width+2000||p[1]<-2000||p[1]>height+2000)continue;ctx.save();ctx.translate(...p);ctx.rotate(-s.angle);ctx.font=Math.max(2,size)+'px Arial';ctx.fillText(s.text,0,0);ctx.restore();}
- else{ctx.beginPath();ps.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.stroke();}}
+ else{ctx.beginPath();ps.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));if(s.fill)ctx.fill();ctx.stroke();}}
  if(draft){const p=screen(draft);ctx.fillStyle='#ffbe6c';ctx.beginPath();ctx.arc(...p,5,0,7);ctx.fill();}
 }
 function inView(s){const b=s.bounds,p=world([-20,height+20]),q=world([width+20,-20]);return b[2]>=p[0]&&b[0]<=q[0]&&b[3]>=p[1]&&b[1]<=q[1];}
@@ -43,7 +44,7 @@ canvas.onwheel=e=>{e.preventDefault();zoom(Math.exp(-e.deltaY*.001),local(e));};
 document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
 $('fit').onclick=fit;$('plus').onclick=()=>zoom(1.3);$('minus').onclick=()=>zoom(1/1.3);$('panel').onclick=()=>$('sidebar').classList.toggle('open');$('undo').onclick=()=>undo();$('redo').onclick=()=>undo(true);
 $('props').onsubmit=e=>{e.preventDefault();const r=current();if(!r)return;const dx=Number($('dx').value),dy=Number($('dy').value);if(!Number.isFinite(dx)||!Number.isFinite(dy))return status('Введите числовой сдвиг.');snapshot();try{move(r,dx,dy);if(r.type==='TEXT')set(r,1,$('text').value);changed();status('Изменения внесены. Скачайте DXF для сохранения.');}catch(e){undo();status(e.message);}};
-$('delete').onclick=()=>{const r=current();if(!r||r.type==='INSERT')return;if(!confirm('Удалить выбранный объект?'))return;snapshot();doc.entities=doc.entities.filter(x=>x!==r);doc.records=doc.records.filter(x=>x!==r);selected=null;changed();};
+$('delete').onclick=()=>{const r=current();if(!r||r.type==='INSERT'||!editable(r))return;if(!confirm('Удалить выбранный объект?'))return;snapshot();doc.entities=doc.entities.filter(x=>x!==r);doc.records=doc.records.filter(x=>x!==r);selected=null;changed();};
 function adopt(next,fileName){doc=next;name=fileName;history=[];future=[];hidden.clear();selected=null;draft=null;dirty=false;$('filename').textContent=name;syncUndo();rebuild();fit();const h=doc.records.find(r=>r.type==='SECTION'&&get(r,2)==='HEADER'),i=h?.pairs.findIndex(p=>p[0]===9&&p[1]==='$INSUNITS');const u=i>=0?Number(h.pairs[i+1]?.[1]):0;$('units').value=({4:'.001',5:'.01',6:'m'})[u]||'1';}
 function stopLoad(){loadId++;if(worker)worker.terminate();worker=null;clearTimeout(loadTimer);$('busy').hidden=true;$('file').disabled=false;}
 $('cancel').onclick=()=>{stopLoad();status('Загрузка отменена. Предыдущий чертёж сохранён.');};
