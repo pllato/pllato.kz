@@ -31,13 +31,14 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');
  assert.doesNotMatch(await page.locator('#report').textContent(),/достигнут предел/);
  if(process.env.DWG_LARGE_ROUNDTRIP){
  const originalReport=await page.locator('#report').textContent();
- await page.locator('#save').click();const pending=page.waitForEvent('download');await page.locator('#confirmExport').click();const out=await pending;
- const fs=require('node:fs'),path=require('node:path'),dir=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'dwg-roundtrip-')),saved=path.join(dir,'large-roundtrip.dxf');await out.saveAs(saved);console.log('EXPORTED BYTES:',fs.statSync(saved).size);assert.ok(fs.statSync(saved).size>64*1024*1024);
+ await page.locator('#save').click();const pending=page.waitForEvent('download',{timeout:330000});await page.locator('#confirmExport').click();const out=await pending;
+ assert.match(out.suggestedFilename(),/\.dwg$/);
+ const fs=require('node:fs'),path=require('node:path'),dir=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'dwg-roundtrip-')),saved=path.join(dir,'large-roundtrip.dwg');await out.saveAs(saved);console.log('EXPORTED BYTES:',fs.statSync(saved).size);assert.match(fs.readFileSync(saved).subarray(0,6).toString(),/^AC10\d\d$/);
  await page.locator('#file').setInputFiles(saved);
  await page.waitForFunction(()=>document.querySelector('#filename').textContent==='large-roundtrip',{},{timeout:180000});
  assert.equal(await page.locator('#report').textContent(),originalReport);
  await page.locator('#plus').click();await page.locator('#minus').click();
- console.log('PASS large DXF export / reopen / identical scene report');
+ console.log('PASS native DWG export / reopen / identical scene report');
  fs.unlinkSync(saved);fs.rmdirSync(dir);
  }
  }
@@ -46,7 +47,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');
  await page.locator('#file').setInputFiles({name:'broken.dxf',mimeType:'application/dxf',buffer:Buffer.from('broken')});
  await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Не удалось открыть'));
  assert.equal(await page.locator('#filename').textContent(),retainedName);assert.equal(await page.locator('#report').textContent(),retainedReport);
- await page.route('**/dwg/worker.mjs*',r=>r.fulfill({body:'self.onmessage=()=>{};',contentType:'application/javascript'}));
+ await page.route('**/dwg/native-reader.mjs*',r=>r.fulfill({body:'self.onmessage=()=>{};',contentType:'application/javascript'}));
  await page.locator('#file').setInputFiles({name:'cancel.dwg',mimeType:'application/octet-stream',buffer:Buffer.from('AC1032')});await page.locator('#cancel').click();
  assert.equal(await page.locator('#filename').textContent(),retainedName);assert.equal(await page.locator('#report').textContent(),retainedReport);assert.equal(await page.locator('#file').isEnabled(),true);
  assert.deepEqual(errors,[]);console.log('PASS',mobile?'mobile':'desktop','edit / move / undo / export / reimport');await page.close();

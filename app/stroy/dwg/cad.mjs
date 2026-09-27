@@ -22,6 +22,8 @@ function indexDoc(records){
  if(!hasEntities)throw Error('В файле нет раздела ENTITIES.');
  return {records,entities,blocks,layers};
 }
+// Native DWG adapter supplies records directly; no intermediate DXF file.
+export function fromRecords(records){return indexDoc(records);}
 function* scanDxf(text){
  if(text.startsWith('AutoCAD Binary DXF'))throw Error('Бинарный DXF пока не поддерживается. Нужен текстовый DXF.');
  if(text.length>256*1024*1024)throw Error('DXF больше 256 МБ: превышен безопасный объём этого браузерного редактора.');
@@ -33,7 +35,7 @@ function* scanDxf(text){
 }
 export function parseDxf(text){const it=scanDxf(text);let step;do{step=it.next();}while(!step.done);return step.value;}
 export async function parseDxfAsync(text,progress=()=>{},cancelled=()=>false){const it=scanDxf(text);for(;;){if(cancelled())throw Error('Загрузка отменена.');const step=it.next();if(step.done)return step.value;progress(Math.round(step.value*100));await new Promise(r=>setTimeout(r,0));}}
-export function cloneDoc(doc){return indexDoc(doc.records.map(r=>record(r.type,r.id,r.raw,r._pairs?.map(p=>[...p])||(r.raw===undefined?r.pairs.map(p=>[...p]):undefined))));}
+export function cloneDoc(doc){const copy=indexDoc(doc.records.map(r=>record(r.type,r.id,r.raw,r._pairs?.map(p=>[...p])||(r.raw===undefined?r.pairs.map(p=>[...p]):undefined))));if(doc.native){copy.native=true;copy.nativeUnknown=doc.nativeUnknown;copy.nativeOps=doc.nativeOps.map(o=>({...o}));}return copy;}
 const point=(r,x=10)=>[num(r,x),num(r,x+10)];
 const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
 const apply=(m,p)=>[m[0]*p[0]+m[2]*p[1]+m[4],m[1]*p[0]+m[3]*p[1]+m[5]];
@@ -108,6 +110,7 @@ export function move(r,dx,dy){
  if(num(r,210)||num(r,220)||num(r,230,1)!==1)throw Error('Перемещение объекта в нестандартной OCS пока отключено.');
  if(!['LINE','LWPOLYLINE','CIRCLE','ARC','TEXT','MTEXT','INSERT'].includes(r.type))throw Error('Этот тип пока нельзя перемещать.');
  const aligned=['LINE','TEXT'].includes(r.type);
+ for(const p of r.pairs){const delta=p[0]===10||(aligned&&p[0]===11)?dx:p[0]===20||(aligned&&p[0]===21)?dy:null;if(delta!==null&&!Number.isFinite(Number(p[1])+delta))throw Error('Сдвиг выходит за допустимый диапазон координат.');}
  for(const p of r.pairs){if(p[0]===10||(aligned&&p[0]===11))p[1]=String(Number(p[1])+dx);if(p[0]===20||(aligned&&p[0]===21))p[1]=String(Number(p[1])+dy);}
 }
 const unicode=s=>String(s).replace(/[\u0080-\uFFFF]/g,c=>'\\U+'+c.charCodeAt(0).toString(16).toUpperCase().padStart(4,'0'));

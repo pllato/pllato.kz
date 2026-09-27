@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Geometry view only. The original DWG remains the source for saving.
+import {fromRecords} from './cad.mjs';
+export function nativeDocument(db){
+ let serial=0;
+ const record=(type,pairs=[],id)=>({type,id:id||'native-'+serial++,pairs:[[0,type],...pairs].map(([c,v])=>[c,String(v)])});
+ const point=(pairs,code,p)=>{if(p){pairs.push([code,p.x],[code+10,p.y]);if(p.z!==undefined)pairs.push([code+20,p.z]);}};
+ const degrees=r=>(r||0)*180/Math.PI;
+ function entities(list){const attached=new Set(list.flatMap(e=>(e.attribs||[]).map(a=>a.handle)));return list.filter(e=>!attached.has(e.handle)).flatMap(e=>{
+  const type=e.type==='POLYLINE2D'||e.type==='POLYLINE3D'?'POLYLINE':e.type;
+  const p=[[5,e.handle],[8,e.layer||'0'],[62,e.colorIndex??256],[330,e.ownerBlockRecordSoftId||'0']];
+  if(e.isVisible===false)p.push([60,1]);if(e.type!=='LWPOLYLINE'||(e.flag&1))point(p,210,e.extrusionDirection);
+  switch(e.type){
+   case 'LINE':point(p,10,e.startPoint);point(p,11,e.endPoint);break;
+   case 'CIRCLE':case 'ARC':point(p,10,e.center);p.push([40,e.radius],[50,degrees(e.startAngle)],[51,degrees(e.endAngle)]);break;
+   case 'LWPOLYLINE':p.push([70,(e.flag&512?1:0)|(e.flag&256?128:0)],[90,e.vertices.length]);for(const v of e.vertices){point(p,10,v);p.push([42,v.bulge||0]);}break;
+   case 'TEXT':case 'ATTRIB':case 'ATTDEF':{const t=typeof e.text==='object'?e.text:e;point(p,10,t.startPoint);point(p,11,t.endPoint);p.push([1,t.text],[40,t.textHeight],[50,degrees(t.rotation)]);break;}
+   case 'MTEXT':point(p,10,e.insertionPoint);p.push([1,e.text],[40,e.textHeight],[50,degrees(e.rotation)]);break;
+   case 'INSERT':point(p,10,e.insertionPoint);p.push([2,e.name],[41,e.xScale],[42,e.yScale],[50,degrees(e.rotation)],[70,e.columnCount||1],[71,e.rowCount||1],[66,e.attribs?.length?1:0]);break;
+   case 'ELLIPSE':point(p,10,e.center);point(p,11,e.majorAxisEndPoint);p.push([40,e.axisRatio],[41,e.startAngle],[42,e.endAngle]);break;
+   case 'SPLINE':p.push([71,e.degree]);for(const v of e.controlPoints)point(p,10,v);for(const n of e.knots)p.push([40,n]);for(const n of e.weights||[])p.push([41,n]);break;
+   case 'SOLID':case 'TRACE':case '3DFACE':for(let i=1;i<=4;i++)point(p,9+i,e['corner'+i]||e.corner3);break;
+   case 'DIMENSION':p.push([2,e.name]);break;
+   case 'POLYLINE2D':case 'POLYLINE3D':p.push([70,e.flag|(e.type==='POLYLINE3D'?8:0)]);break;
+  }
+  const result=[record(type,p,'dwg-'+e.handle)];
+  if(type==='POLYLINE'){for(const v of e.vertices||[]){const q=[[42,v.bulge||0]];point(q,10,v);result.push(record('VERTEX',q));}result.push(record('SEQEND'));}
+  if(e.type==='INSERT'&&e.attribs?.length)result.push(...entities(e.attribs));
+  return result;
+ });}
+ const records=[record('SECTION',[[2,'HEADER'],[9,'$ACADVER'],[1,db.header.ACADVER],[9,'$INSUNITS'],[70,db.header.INSUNITS||0]]),record('ENDSEC'),record('SECTION',[[2,'TABLES']])];
+ for(const l of db.tables.LAYER.entries)records.push(record('LAYER',[[2,l.name],[62,l.off?-Math.abs(l.colorIndex):l.colorIndex],[70,l.standardFlag]]));
+ records.push(record('ENDSEC'),record('SECTION',[[2,'BLOCKS']]));
+ const paper=new Set();
+ for(const b of db.tables.BLOCK_RECORD.entries){
+  if(/^\*paper_space/i.test(b.name))paper.add(b.handle);
+  const p=[[2,b.name],[70,b.flags]];point(p,10,b.basePoint);
+  records.push(record('BLOCK',p));for(const r of entities(b.entities))records.push(r);records.push(record('ENDBLK'));
+ }
+ records.push(record('ENDSEC'),record('SECTION',[[2,'ENTITIES']]));
+ for(const r of entities(db.entities.filter(e=>!e.isInPaperSpace&&!paper.has(e.ownerBlockRecordSoftId))))records.push(r);
+ records.push(record('ENDSEC'),record('EOF'));
+ return fromRecords(records);
+}
