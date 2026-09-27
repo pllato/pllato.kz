@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Geometry view only. The original DWG remains the source for saving.
-import {fromRecords} from './cad.mjs?v=0.6';
-import {leaderParts} from './mleader.mjs?v=0.6';
+import {fromRecords} from './cad.mjs?v=0.7';
+import {leaderParts} from './mleader.mjs?v=0.7';
 export function nativeDocument(db){
  let serial=0;
  const record=(type,pairs=[],id)=>({type,id:id||'native-'+serial++,pairs:[[0,type],...pairs].map(([c,v])=>[c,String(v)])});
@@ -10,6 +10,7 @@ export function nativeDocument(db){
  function entities(list){const attached=new Set(list.flatMap(e=>(e.attribs||[]).map(a=>a.handle)));return list.filter(e=>!attached.has(e.handle)).flatMap(e=>{
   const type=e.type==='POLYLINE2D'||e.type==='POLYLINE3D'?'POLYLINE':e.type;
   const p=[[5,e.handle],[8,e.layer||'0'],[62,e.colorIndex??256],[330,e.ownerBlockRecordSoftId||'0']];
+  if(Number.isInteger(e.color))p.push([420,e.color]);
   if(e.isVisible===false)p.push([60,1]);if(e.type!=='LWPOLYLINE'||(e.flag&1))point(p,210,e.extrusionDirection);
   switch(e.type){
    case 'LINE':point(p,10,e.startPoint);point(p,11,e.endPoint);break;
@@ -31,7 +32,7 @@ export function nativeDocument(db){
   return result;
  });}
  const records=[record('SECTION',[[2,'HEADER'],[9,'$ACADVER'],[1,db.header.ACADVER],[9,'$INSUNITS'],[70,db.header.INSUNITS||0]]),record('ENDSEC'),record('SECTION',[[2,'TABLES']])];
- for(const l of db.tables.LAYER.entries)records.push(record('LAYER',[[2,l.name],[62,l.off?-Math.abs(l.colorIndex):l.colorIndex],[70,l.standardFlag]]));
+ for(const l of db.tables.LAYER.entries)records.push(record('LAYER',[[2,l.name],[62,l.off?-Math.abs(l.colorIndex):l.colorIndex],[70,l.standardFlag],...(Number.isInteger(l.color)?[[420,l.color]]:[])]));
  records.push(record('ENDSEC'),record('SECTION',[[2,'BLOCKS']]));
  const paper=new Set();
  for(const b of db.tables.BLOCK_RECORD.entries){

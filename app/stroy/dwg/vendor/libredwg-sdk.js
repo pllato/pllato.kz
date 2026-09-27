@@ -3306,7 +3306,7 @@ class LibreEntityConverter {
     const ownerhandle = libredwg.dwg_object_entity_get_ownerhandle_object(entity);
     if (this.geometryOnly) return {
       handle: idToString(handle.value), ownerBlockRecordSoftId: idToString(ownerhandle.absolute_ref),
-      layer, colorIndex, isVisible: !libredwg.dwg_object_entity_get_invisible(entity)
+      layer, colorIndex, color: rgbColor, isVisible: !libredwg.dwg_object_entity_get_invisible(entity)
     };
     const ownerDictionaryHardId = libredwg.dwg_object_entity_get_xdicobjhandle_object(entity);
     const lineType = this.getLtypeName(entity);
@@ -3953,7 +3953,7 @@ class LibreDwgConverter {
     }
     const method = color.method;
     let colorIndex = 256;
-    let rgbColor = 16777215;
+    let rgbColor = void 0;
     if (method === 195 || (color.rgb >>> 24 & 255) === 195) {
       colorIndex = color.rgb & 255;
     } else if (method == 194 || (color.rgb >>> 24 & 255) === 194) {

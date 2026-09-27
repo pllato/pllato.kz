@@ -11,7 +11,7 @@ export function paintShapes(ctx,shapes,{view,width,height,hidden,selected,colors
  for(const shape of shapes){
   const b=shape.bounds;
   if(hidden.has(shape.layer)||b[2]<left||b[0]>right||b[3]<bottom||b[1]>top)continue;
-  const nextColor=shape.id===selected?'#ffbe6c':colors[shape.color]||'#a9bed5',nextWidth=shape.id===selected?2.5:1;
+  const nextColor=shape.id===selected?'#ffbe6c':shape.rgb||colors[shape.color]||'#ffffff',nextWidth=shape.id===selected?2.5:1;
   if(shape.text!==null){
    const p=shape.pts[0],x=p[0]*scale+ox,y=oy-p[1]*scale,size=shape.height*scale;
    if(size<2||size>2000||x<-2000||x>width+2000||y<-2000||y>height+2000)continue;

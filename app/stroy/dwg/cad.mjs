@@ -17,7 +17,7 @@ function indexDoc(records){
   else if(section==='BLOCKS'){
    if(r.type==='BLOCK'){block={base:[num(r,10),num(r,20)],records:[],flags:num(r,70)};blocks.set(get(r,2),block);}
    else if(r.type==='ENDBLK')block=null;else if(block)block.records.push(r);
-  }else if(section==='TABLES'&&r.type==='LAYER')layers.set(get(r,2),{color:num(r,62,7),flags:num(r,70)});
+  }else if(section==='TABLES'&&r.type==='LAYER')layers.set(get(r,2),{color:num(r,62,7),rgb:get(r,420)===''?undefined:num(r,420),flags:num(r,70)});
  }
  if(!hasEntities)throw Error('В файле нет раздела ENTITIES.');
  return {records,entities,blocks,layers};
@@ -54,9 +54,11 @@ function spline(r){
 export function scene(doc){
  const shapes=[],unsupported=new Map();let visited=0,limited=false;
  const skip=t=>unsupported.set(t,(unsupported.get(t)||0)+1);
- function walk(records,m=[1,0,0,1,0,0],owner=null,inherited='0',depth=0){
+ function walk(records,m=[1,0,0,1,0,0],owner=null,inherited='0',depth=0,blockColor={color:7}){
   for(let ri=0;ri<records.length;ri++){const r=records[ri];if(++visited>1000000){limited=true;return;}const root=owner||r,layer=get(r,8,'0')==='0'?inherited:get(r,8);
    if(num(r,60)===1)continue;
+   const aci=Math.abs(num(r,62,256)),layerStyle=doc.layers.get(layer),trueColor=get(r,420);
+   const style=trueColor!==''?{rgb:'#'+(Number(trueColor)&0xffffff).toString(16).padStart(6,'0')}:aci===0?blockColor:aci===256?(layerStyle?.rgb!==undefined?{rgb:'#'+(layerStyle.rgb&0xffffff).toString(16).padStart(6,'0')}:{color:Math.abs(layerStyle?.color||7)}):{color:aci};
    const ex=[num(r,210),num(r,220),num(r,230,1)],wcs=['LINE','POINT','ELLIPSE','3DFACE','SPLINE','DIMENSION'].includes(r.type)||(r.type==='POLYLINE'&&(num(r,70)&8));
    if(!wcs&&(ex[0]||ex[1]||![-1,1].includes(ex[2]))){skip(r.type+' наклонная OCS');continue;}
    if(ex[2]===-1&&['TEXT','MTEXT','ATTRIB','ATTDEF'].includes(r.type)){skip(r.type+' зеркальный текст OCS');continue;}
@@ -86,9 +88,9 @@ export function scene(doc){
    }else if(['SOLID','TRACE','3DFACE'].includes(r.type)){
     pts=[point(r),point(r,11),point(r,12),point(r,13)];if(r.type!=='3DFACE')[pts[2],pts[3]]=[pts[3],pts[2]];pts.push(pts[0]);
    }else if(r.type==='MULTILEADER'){
-    if(r.parts?.length&&depth<12)walk(r.parts,m,root,layer,depth+1);else skip('MULTILEADER без отображаемого содержимого');continue;
+    if(r.parts?.length&&depth<12)walk(r.parts,m,root,layer,depth+1,style);else skip('MULTILEADER без отображаемого содержимого');continue;
    }else if(r.type==='DIMENSION'){
-    const block=doc.blocks.get(get(r,2));if(!block||depth>=12){skip('DIMENSION без графического блока');continue;}walk(block.records,m,root,layer,depth+1);continue;
+    const block=doc.blocks.get(get(r,2));if(!block||depth>=12){skip('DIMENSION без графического блока');continue;}walk(block.records,m,root,layer,depth+1,style);continue;
    }else if(r.type==='TEXT'||r.type==='MTEXT'||r.type==='ATTRIB'||r.type==='ATTDEF'){
     pts=[point(r)];text=decode(r.pairs.filter(p=>p[0]===3||p[0]===1).map(p=>p[1]).join('')).replace(/\\P/g,'\n').replace(/\\~/g,' ').replace(/\\[LlOoKk]/g,'').replace(/\\S([^;]*);/g,(_,s)=>s.replace(/[\^#]/g,'/')).replace(/\\[ACFfHQTWpq][^;]*;/g,'').replace(/[{}]/g,'');
    }else if(r.type==='INSERT'){
@@ -97,13 +99,13 @@ export function scene(doc){
     const t=num(r,50)*Math.PI/180,c=Math.cos(t),s=Math.sin(t),sx=num(r,41,1),sy=num(r,42,1),local=[c*sx,s*sx,-s*sy,c*sy,num(r,10),num(r,20)];
     local[4]-=local[0]*block.base[0]+local[2]*block.base[1];local[5]-=local[1]*block.base[0]+local[3]*block.base[1];
     if(ex[2]===-1){local[0]*=-1;local[2]*=-1;local[4]*=-1;}
-    walk(block.records,mul(m,local),root,layer,depth+1);continue;
+    walk(block.records,mul(m,local),root,layer,depth+1,style);continue;
    }else {if(!['SEQEND','ENDBLK'].includes(r.type))skip(r.type);continue;}
    if(!wcs&&ex[2]===-1)pts=pts.map(([x,y])=>[-x,y]);
    pts=pts.map(p=>apply(m,p));if(!pts.length||pts.some(p=>!p.every(Number.isFinite)))continue;
    const color=num(r,62,256),height=Math.abs(num(r,40,2.5)*Math.hypot(m[0],m[1]));
    const bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const [x,y] of pts){bounds[0]=Math.min(bounds[0],x);bounds[1]=Math.min(bounds[1],y);bounds[2]=Math.max(bounds[2],x);bounds[3]=Math.max(bounds[3],y);}if(text!==null){const pad=height*(text.length+2);bounds[0]-=pad;bounds[1]-=pad;bounds[2]+=pad;bounds[3]+=pad;}
-   shapes.push({id:root.id,layer,pts,bounds,text,fill:['SOLID','TRACE'].includes(r.type),height,multiline:r.type==='MTEXT',textWidth:r.type==='MTEXT'?num(r,41)*Math.hypot(m[0],m[1]):0,attachment:num(r,71,1),angle:Math.atan2(m[1],m[0])+num(r,50)*Math.PI/180,color:color===256?Math.abs(doc.layers.get(layer)?.color||7):Math.abs(color)});
+   shapes.push({id:root.id,layer,pts,bounds,text,fill:['SOLID','TRACE'].includes(r.type),height,multiline:r.type==='MTEXT',textWidth:r.type==='MTEXT'?num(r,41)*Math.hypot(m[0],m[1]):0,attachment:num(r,71,1),angle:Math.atan2(m[1],m[0])+num(r,50)*Math.PI/180,...style});
   }
  }
  walk(doc.entities);return {shapes,unsupported:[...unsupported],limited};
