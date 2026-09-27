@@ -1,4 +1,4 @@
-# Executive DWG engine 0.12 — corresponding source
+# Executive DWG engine 0.12.1 — corresponding source
 
 GNU LibreDWG 0.14, GPL-3.0-or-later. No paid SDK. The source archive includes the already-patched library, `pllato_web.c` and `pllato_executive_engine.c`. Do not apply the reference patches a second time.
 

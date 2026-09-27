@@ -12,9 +12,18 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  await page.locator('#units').selectOption('.001');await page.locator('#exArea').click();
  let b=await page.locator('#canvas').boundingBox();await page.mouse.click(b.x+3,b.y+3);await page.mouse.click(b.x+b.width-3,b.y+b.height-3);
  assert.equal(await page.locator('#exCreate').isDisabled(),false);
+ const failWorker=route=>route.fulfill({contentType:'application/javascript',body:'self.onmessage=()=>self.postMessage({error:"Проверочная ошибка копирования"});'});
+ await page.route('**/executive-worker.mjs*',failWorker);
+ await page.locator('#exCreate').click();await page.waitForFunction(()=>document.querySelector('#busy').hidden);
+ assert.match(await page.locator('#status').textContent(),/Проверочная ошибка/);
+ assert.equal(await page.locator('#exCreate').isDisabled(),false,'Failed copy must preserve selection for retry');
+ assert.equal(await page.locator('#exSheet option').count(),0);
+ await page.unroute('**/executive-worker.mjs*',failWorker);
  await page.locator('#exCreate').click();await page.waitForFunction(()=>document.querySelector('#busy').hidden,null,{timeout:120000});
  assert.match(await page.locator('#status').textContent(),/Исполнительная создана/);
  assert.equal(await page.locator('#exSheet option').count(),1);
+ assert.equal(await page.locator('#exShow').isDisabled(),false);
+ await page.locator('#exShow').click();
  await page.locator('#exTitle').fill('Исполнительная проверка');await page.locator('#exAngle').fill('90');await page.locator('#exApply').click();
  await page.locator('#exRoute').click();b=await page.locator('#canvas').boundingBox();for(const [x,y] of [[.55,.35],[.65,.35],[.65,.45]])await page.mouse.click(b.x+b.width*x,b.y+b.height*y);
  await page.locator('#exFinish').click();assert.equal(await page.locator('#exRouteList option').count(),1);
@@ -33,7 +42,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  // Pick an actual nested device using independently decoded saved geometry.
  const target=await page.evaluate(async bytes=>{
   const doc=await new Promise((resolve,reject)=>{const w=new Worker('/app/stroy/dwg/native-reader.mjs',{type:'module'});w.onmessage=e=>{if(e.data.doc){w.terminate();resolve(e.data.doc);}else if(e.data.error){w.terminate();reject(Error(e.data.error));}};w.postMessage(Uint8Array.from(bytes).buffer);});
-  const {scene}=await import('/app/stroy/dwg/cad.mjs?v=0.12'),shapes=scene(doc).shapes,handle=doc.executiveProject.sheets[0].nativeHandles[0];
+  const {scene}=await import('/app/stroy/dwg/cad.mjs?v=0.12.1'),shapes=scene(doc).shapes,handle=doc.executiveProject.sheets[0].nativeHandles[0];
   const candidate=shapes.find(s=>s.id==='dwg-'+handle&&s.deviceId&&s.deviceId!==s.id&&s.text===null&&!s.hatch&&s.pts.length===2);
   const xs=shapes.flatMap(s=>s.pts.map(p=>p[0])),ys=shapes.flatMap(s=>s.pts.map(p=>p[1]));
   return {point:candidate.pts[0].map((v,i)=>(v+candidate.pts[1][i])/2),bounds:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]};
