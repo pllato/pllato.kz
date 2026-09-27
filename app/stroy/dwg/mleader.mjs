@@ -14,7 +14,7 @@ export function leaderParts(e,record){
   if(valid(last)&&valid(section.doglegVector)&&section.doglegVectorSet&&e.doglegEnabled){const v=section.doglegVector,d=section.doglegLength||0;line(last,{x:last.x+v.x*d,y:last.y+v.y*d,z:(last.z||0)+(v.z||0)*d});}
  }
  if(e.hasMText&&typeof e.textContent==='string'&&valid(e.textAnchor)&&e.textHeight>0){
-  const p=[[8,e.layer||'0'],...colorPairs(e.textColor),[1,e.textContent],[40,e.textHeight],[41,e.textWidth||0],[71,e.textAttachmentPoint||1],[50,(e.textRotation||0)*180/Math.PI]];
+  const p=[[8,e.layer||'0'],...colorPairs(e.textColor),[7,e.textStyleName||'Standard'],[1,e.textContent],[40,e.textHeight],[41,e.textWidth||0],[71,e.textAttachmentPoint||1],[50,(e.textRotation||0)*180/Math.PI]];
   point(p,10,e.textAnchor);if(e.normal)point(p,210,e.normal);parts.push(record('MTEXT',p));
  }
  if(e.hasBlock)parts.push(record('MULTILEADER: блок пока не отображается',base));

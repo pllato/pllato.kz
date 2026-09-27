@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import {cadFont} from './fonts.mjs?v=0.9';
 // DXF остаётся источником истины: неизвестные записи не вырезаются при экспорте.
 export const get=(r,c,d='')=>{const pairs=r._pairs||(r.raw===undefined?r.pairs:null);if(pairs){for(const p of pairs)if(p[0]===c)return p[1];}else{for(const p of groups(r.raw||''))if(p[0]===c)return p[1];}return d;};
 export const num=(r,c,d=0)=>Number(get(r,c,d));
@@ -9,7 +10,7 @@ export const decode=s=>String(s).replace(/\\U\+([0-9a-f]{4})/gi,(_,h)=>String.fr
 function* groups(text){let pos=text.charCodeAt(0)===0xFEFF?1:0;while(pos<text.length){const start=pos;let end=text.indexOf('\n',pos);if(end<0){if(text.slice(pos).trim())throw Error('Неполная пара DXF.');break;}const codeText=text.slice(pos,end).trim(),code=Number(codeText);pos=end+1;end=text.indexOf('\n',pos);if(end<0)end=text.length;const value=text.slice(pos,end).replace(/\r$/,'');pos=end+1;if(!codeText||!Number.isInteger(code))throw Error('Повреждён DXF: неверный код группы.');yield [code,value,start,Math.min(pos,text.length)];}}
 function record(type,id,raw,pairs){return {type,id,raw,_pairs:pairs,get pairs(){return this._pairs??=Array.from(groups(this.raw),p=>p.slice(0,2));}};}
 function indexDoc(records){
- const blocks=new Map(),entities=[],layers=new Map();let section='',block=null,hasEntities=false;
+ const blocks=new Map(),entities=[],layers=new Map(),textStyles=new Map();let section='',block=null,hasEntities=false;
  for(const r of records){
   if(r.type==='SECTION'){section=get(r,2).trim();if(section==='ENTITIES')hasEntities=true;}
   else if(r.type==='ENDSEC'){section='';block=null;}
@@ -18,9 +19,10 @@ function indexDoc(records){
    if(r.type==='BLOCK'){block={base:[num(r,10),num(r,20)],records:[],flags:num(r,70)};blocks.set(get(r,2),block);}
    else if(r.type==='ENDBLK')block=null;else if(block)block.records.push(r);
   }else if(section==='TABLES'&&r.type==='LAYER')layers.set(get(r,2),{color:num(r,62,7),rgb:get(r,420)===''?undefined:num(r,420),flags:num(r,70)});
+  else if(section==='TABLES'&&r.type==='STYLE')textStyles.set(get(r,2),{font:get(r,3),width:num(r,41,1),oblique:num(r,50)});
  }
  if(!hasEntities)throw Error('В файле нет раздела ENTITIES.');
- return {records,entities,blocks,layers};
+ return {records,entities,blocks,layers,textStyles};
 }
 // Native DWG adapter supplies records directly; no intermediate DXF file.
 export function fromRecords(records){return indexDoc(records);}
@@ -35,7 +37,7 @@ function* scanDxf(text){
 }
 export function parseDxf(text){const it=scanDxf(text);let step;do{step=it.next();}while(!step.done);return step.value;}
 export async function parseDxfAsync(text,progress=()=>{},cancelled=()=>false){const it=scanDxf(text);for(;;){if(cancelled())throw Error('Загрузка отменена.');const step=it.next();if(step.done)return step.value;progress(Math.round(step.value*100));await new Promise(r=>setTimeout(r,0));}}
-export function cloneDoc(doc){const copy=indexDoc(doc.records.map(r=>{const c=record(r.type,r.id,r.raw,r._pairs?.map(p=>[...p])||(r.raw===undefined?r.pairs.map(p=>[...p]):undefined));if(r.parts)c.parts=r.parts;if(r.hatch)c.hatch=r.hatch;return c;}));if(doc.native){copy.native=true;copy.nativeUnknown=doc.nativeUnknown;copy.nativeOps=doc.nativeOps.map(o=>({...o}));}return copy;}
+export function cloneDoc(doc){const copy=indexDoc(doc.records.map(r=>{const c=record(r.type,r.id,r.raw,r._pairs?.map(p=>[...p])||(r.raw===undefined?r.pairs.map(p=>[...p]):undefined));if(r.parts)c.parts=r.parts;if(r.hatch)c.hatch=r.hatch;return c;}));if(doc.native){copy.native=true;copy.nativeUnknown=doc.nativeUnknown;copy.recoveredBlocks=doc.recoveredBlocks;copy.nativeOps=doc.nativeOps.map(o=>({...o}));}return copy;}
 const point=(r,x=10)=>[num(r,x),num(r,x+10)];
 const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
 const apply=(m,p)=>[m[0]*p[0]+m[2]*p[1]+m[4],m[1]*p[0]+m[3]*p[1]+m[5]];
@@ -55,7 +57,7 @@ export function scene(doc){
  const shapes=[],unsupported=new Map();let visited=0,limited=false;
  const skip=t=>unsupported.set(t,(unsupported.get(t)||0)+1);
  function walk(records,m=[1,0,0,1,0,0],owner=null,inherited='0',depth=0,blockColor={color:7}){
-  for(let ri=0;ri<records.length;ri++){const r=records[ri];if(++visited>1000000){limited=true;return;}const root=owner||r,layer=get(r,8,'0')==='0'?inherited:get(r,8);
+  for(let ri=0;ri<records.length;ri++){const r=records[ri];if(++visited>3000000){limited=true;return;}const root=owner||r,layer=get(r,8,'0')==='0'?inherited:get(r,8);
    if(num(r,60)===1)continue;
    const aci=Math.abs(num(r,62,256)),layerStyle=doc.layers.get(layer),trueColor=get(r,420);
    const style=trueColor!==''?{rgb:'#'+(Number(trueColor)&0xffffff).toString(16).padStart(6,'0')}:aci===0?blockColor:aci===256?(layerStyle?.rgb!==undefined?{rgb:'#'+(layerStyle.rgb&0xffffff).toString(16).padStart(6,'0')}:{color:Math.abs(layerStyle?.color||7)}):{color:aci};
@@ -105,8 +107,10 @@ export function scene(doc){
    if(!wcs&&ex[2]===-1)pts=pts.map(([x,y])=>[-x,y]);
    pts=pts.map(p=>apply(m,p));if(!pts.length||pts.some(p=>!p.every(Number.isFinite)))continue;
    const color=num(r,62,256),height=Math.abs(num(r,40,2.5)*Math.hypot(m[0],m[1]));
+   const ts=doc.textStyles?.get(get(r,7,'Standard')),rawText=get(r,1),inline=rawText.match(/\\[fF]([^;]+);/),font=text!==null?cadFont(ts?.font,inline?.[1]):undefined;
+   const textFormat=text!==null?{font,textScale:r.type==='MTEXT'?1:num(r,41,ts?.width||1),oblique:num(r,51,ts?.oblique||0)*Math.PI/180,halign:num(r,72),valign:num(r,73)}:{};
    const bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const [x,y] of pts){bounds[0]=Math.min(bounds[0],x);bounds[1]=Math.min(bounds[1],y);bounds[2]=Math.max(bounds[2],x);bounds[3]=Math.max(bounds[3],y);}if(text!==null){const pad=height*(text.length+2);bounds[0]-=pad;bounds[1]-=pad;bounds[2]+=pad;bounds[3]+=pad;}
-   shapes.push({id:root.id,layer,pts,bounds,text,fill:['SOLID','TRACE'].includes(r.type),height,multiline:r.type==='MTEXT',textWidth:r.type==='MTEXT'?num(r,41)*Math.hypot(m[0],m[1]):0,attachment:num(r,71,1),angle:Math.atan2(m[1],m[0])+num(r,50)*Math.PI/180,...style});
+   shapes.push({id:root.id,layer,pts,bounds,text,fill:['SOLID','TRACE'].includes(r.type),height,multiline:r.type==='MTEXT',textWidth:r.type==='MTEXT'?num(r,41)*Math.hypot(m[0],m[1]):0,attachment:num(r,71,1),angle:Math.atan2(m[1],m[0])+num(r,50)*Math.PI/180,...style,...textFormat});
   }
  }
  walk(doc.entities);return {shapes,unsupported:[...unsupported],limited};

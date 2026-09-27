@@ -4,7 +4,7 @@
 <title>DWG-редактор · Pllato</title>
 <link rel="icon" href="../plan-fakt/favicon.ico"><link rel="stylesheet" href="style.css">
 </head><body>
-<header><a href="../plan-fakt/">← План-факт</a><strong>DWG-редактор <small>Прототип 0.8</small></strong><span id="filename">Демонстрационный чертёж</span>
+<header><a href="../plan-fakt/">← План-факт</a><strong>DWG-редактор <small>Прототип 0.9</small></strong><span id="filename">Демонстрационный чертёж</span>
 <label class="button primary">Открыть DWG / DXF<input id="file" type="file" accept=".dwg,.dxf" hidden></label>
 <button id="save">Скачать изменения · DXF</button></header>
 <div class="notice">Прямое чтение и сохранение DWG в новую копию. В DWG доступны перемещение и правка существующего TEXT; создание и удаление пока только в DXF. Исходный файл не меняется, чертежи не отправляются на сервер. Только 2D-модель; экспериментальная версия, не замена AutoCAD.</div>
@@ -13,8 +13,8 @@
 <aside id="sidebar"><h2>Объект</h2><p id="selection">Нажмите на объект на чертеже.</p><form id="props" hidden><label>Слой<input id="layer" maxlength="100" readonly></label><label>Текст<input id="text" maxlength="2000"></label><div class="pair"><label>Сдвиг X<input id="dx" type="number" value="0" step="any"></label><label>Сдвиг Y<input id="dy" type="number" value="0" step="any"></label></div><button type="submit">Применить</button><button id="delete" type="button">Удалить объект</button></form>
 <h2>Слои</h2><p class="muted">Видимость только на экране; скрытие слоя не удаляет его из файла.</p><div id="layers"></div>
 <h2>Единицы измерения</h2><select id="units" aria-label="Единицы измерения"><option value="1">Единицы чертежа (не метры)</option><option value=".001">Миллиметры → метры</option><option value=".01">Сантиметры → метры</option><option value="m">Метры</option></select>
-<h2>Проверка совместимости</h2><p id="report"></p><p class="muted">Шрифты заменяются системным; штриховки, сложные размеры, 3D и внешние ссылки могут не отображаться. Для записи используется исходный DWG, а не изображение экрана. Блоки с атрибутами пока только для просмотра. Проверяйте сохранённую копию в CAD; повторное чтение движком не гарантирует полной совместимости. DWG 2007 не записывается без смены версии и пока отклоняется.</p>
+<h2>Проверка совместимости</h2><p id="report"></p><p class="muted">Отсутствующие CAD-шрифты заменяются встроенным osifont с кириллицей. Это свободная замена, не точная копия GOST/SHX. Сложные размеры, 3D и внешние ссылки могут не отображаться. Для записи используется исходный DWG, а не изображение экрана. Блоки с атрибутами пока только для просмотра. Проверяйте сохранённую копию в CAD; повторное чтение движком не гарантирует полной совместимости. DWG 2007 не записывается без смены версии и пока отклоняется.</p>
 <details><summary>Движок и исходники</summary><p>Чтение: LibreDWG / mlightcad 0.7.14. Запись: GNU LibreDWG 0.14 с исправлениями Pllato. GPL-3.0. <a href="vendor/COPYING">Лицензия</a>, <a href="vendor/libredwg-web-source.tar.gz">исходники чтения</a>, <a href="vendor/pllato-engine-source.tar.gz">исходники записи и сборка</a>, <a href="https://github.com/pllato/pllato.kz/tree/main/app/stroy/dwg">исходники редактора</a>.</p></details></aside></main>
 <footer role="status" id="status">Готово. Демо можно редактировать и сохранить в DXF.</footer>
 <dialog id="exportDialog"><h2>Сохранить копию?</h2><p id="exportDescription"></p><p id="exportReport"></p><form method="dialog"><button value="cancel">Назад</button><button id="confirmExport" value="save" class="primary">Скачать</button></form></dialog>
-<script type="module" src="editor.mjs?v=0.8"></script></body></html>
+<script type="module" src="editor.mjs?v=0.9"></script></body></html>
