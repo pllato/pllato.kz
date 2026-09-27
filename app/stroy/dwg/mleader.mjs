@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Read-only screen geometry. Children retain their MULTILEADER selection owner.
 export function leaderParts(e,record){
- const parts=[],base=[[8,e.layer||'0'],[62,e.colorIndex??256]],point=(p,c,v)=>{p.push([c,v.x],[c+10,v.y],[c+20,v.z||0]);};
+ const colorPairs=raw=>{if(raw==null)return [[62,0]];const method=raw>>>24;return method===194?[[420,raw&0xffffff]]:[[62,method===192?256:method===193?0:method===195?raw&255:raw>=0&&raw<=256?raw:0]];};
+ const parts=[],base=[[8,e.layer||'0'],...colorPairs(e.leaderLineColor)],point=(p,c,v)=>{p.push([c,v.x],[c+10,v.y],[c+20,v.z||0]);};
  const valid=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y);
  const line=(a,b)=>{if(!valid(a)||!valid(b))return;const p=[...base];point(p,10,a);point(p,11,b);parts.push(record('LINE',p));};
  for(const section of e.leaderSections||[]){
@@ -13,7 +14,7 @@ export function leaderParts(e,record){
   if(valid(last)&&valid(section.doglegVector)&&section.doglegVectorSet&&e.doglegEnabled){const v=section.doglegVector,d=section.doglegLength||0;line(last,{x:last.x+v.x*d,y:last.y+v.y*d,z:(last.z||0)+(v.z||0)*d});}
  }
  if(e.hasMText&&typeof e.textContent==='string'&&valid(e.textAnchor)&&e.textHeight>0){
-  const p=[...base,[1,e.textContent],[40,e.textHeight],[41,e.textWidth||0],[71,e.textAttachmentPoint||1],[50,(e.textRotation||0)*180/Math.PI]];
+  const p=[[8,e.layer||'0'],...colorPairs(e.textColor),[1,e.textContent],[40,e.textHeight],[41,e.textWidth||0],[71,e.textAttachmentPoint||1],[50,(e.textRotation||0)*180/Math.PI]];
   point(p,10,e.textAnchor);if(e.normal)point(p,210,e.normal);parts.push(record('MTEXT',p));
  }
  if(e.hasBlock)parts.push(record('MULTILEADER: блок пока не отображается',base));
