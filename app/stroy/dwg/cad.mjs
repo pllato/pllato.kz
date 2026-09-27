@@ -37,17 +37,35 @@ export function cloneDoc(doc){return indexDoc(doc.records.map(r=>record(r.type,r
 const point=(r,x=10)=>[num(r,x),num(r,x+10)];
 const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
 const apply=(m,p)=>[m[0]*p[0]+m[2]*p[1]+m[4],m[1]*p[0]+m[3]*p[1]+m[5]];
+// Рациональная B-spline: контрольный многоугольник не выдаём за кривую.
+function spline(r){
+ const degree=num(r,71),cp=[],knots=[],weights=[];let p;
+ for(const [c,v] of r.pairs){const n=Number(v);if(c===10){p=[n,0];cp.push(p);}else if(c===20&&p)p[1]=n;else if(c===40)knots.push(n);else if(c===41)weights.push(n);}
+ const n=cp.length-1;if(!Number.isInteger(degree)||degree<1||degree>10||n<degree||knots.length!==n+degree+2||knots.some((v,i)=>!Number.isFinite(v)||(i&&v<knots[i-1]))||cp.some(p=>!p.every(Number.isFinite))||(weights.length&&weights.length!==cp.length))return null;
+ const start=knots[degree],end=knots[n+1];if(!(end>start))return null;const result=[],steps=Math.min(2048,Math.max(32,cp.length*12));
+ for(let s=0;s<=steps;s++){const t=start+(end-start)*s/steps;let k=n;if(s<steps){let lo=degree,hi=n+1;while(hi-lo>1){const mid=(lo+hi)>>1;if(t<knots[mid])hi=mid;else lo=mid;}k=lo;}
+  const d=[];for(let j=0;j<=degree;j++){const i=k-degree+j,w=weights[i]??1;if(!Number.isFinite(w)||w<=0)return null;d.push([cp[i][0]*w,cp[i][1]*w,w]);}
+  for(let a=1;a<=degree;a++)for(let j=degree;j>=a;j--){const i=k-degree+j,den=knots[i+degree-a+1]-knots[i],f=den?(t-knots[i])/den:0;d[j]=d[j].map((v,c)=>(1-f)*d[j-1][c]+f*v);}
+  const v=d[degree];result.push([v[0]/v[2],v[1]/v[2]]);
+ }return result;
+}
 export function scene(doc){
  const shapes=[],unsupported=new Map();let visited=0,limited=false;
  const skip=t=>unsupported.set(t,(unsupported.get(t)||0)+1);
  function walk(records,m=[1,0,0,1,0,0],owner=null,inherited='0',depth=0){
-  for(const r of records){if(++visited>1000000){limited=true;return;}const root=owner||r,layer=get(r,8,'0')==='0'?inherited:get(r,8);
+  for(let ri=0;ri<records.length;ri++){const r=records[ri];if(++visited>1000000){limited=true;return;}const root=owner||r,layer=get(r,8,'0')==='0'?inherited:get(r,8);
    if(num(r,60)===1)continue;
-   const ex=[num(r,210),num(r,220),num(r,230,1)];if(ex[0]||ex[1]||ex[2]!==1){skip(r.type+' OCS');continue;}
+   const ex=[num(r,210),num(r,220),num(r,230,1)],wcs=['LINE','POINT','ELLIPSE','3DFACE','SPLINE','DIMENSION'].includes(r.type)||(r.type==='POLYLINE'&&(num(r,70)&8));
+   if(!wcs&&(ex[0]||ex[1]||![-1,1].includes(ex[2]))){skip(r.type+' наклонная OCS');continue;}
+   if(ex[2]===-1&&['TEXT','MTEXT','ATTRIB','ATTDEF'].includes(r.type)){skip(r.type+' зеркальный текст OCS');continue;}
    let pts=[],text=null;
    if(r.type==='LINE')pts=[point(r),point(r,11)];
-   else if(r.type==='LWPOLYLINE'){
-    let cur;for(const [c,v] of r.pairs){if(c===10){cur=[Number(v),0,0];pts.push(cur);}else if(c===20&&cur)cur[1]=Number(v);else if(c===42&&cur)cur[2]=Number(v);}
+   else if(r.type==='LWPOLYLINE'||r.type==='POLYLINE'){
+    if(r.type==='POLYLINE'){
+     const flags=num(r,70);while(records[ri+1]?.type==='VERTEX'){const v=records[++ri];pts.push([num(v,10),num(v,20),num(v,42)]);}if(records[ri+1]?.type==='SEQEND')ri++;
+     if(flags&(2|4|16|64)){skip('POLYLINE mesh / fitted');continue;}
+     if(flags&8)for(const p of pts)p[2]=0;
+    }else{let cur;for(const [c,v] of r.pairs){if(c===10){cur=[Number(v),0,0];pts.push(cur);}else if(c===20&&cur)cur[1]=Number(v);else if(c===42&&cur)cur[2]=Number(v);}}
     const vs=pts;pts=[];const closed=num(r,70)&1;
     for(let i=0;i<vs.length;i++){const a=vs[i],b=vs[(i+1)%vs.length];pts.push(a.slice(0,2));if((i+1<vs.length||closed)&&a[2]&&b){
       const bulge=a[2],theta=4*Math.atan(bulge),dx=b[0]-a[0],dy=b[1]-a[1],cx=(a[0]+b[0])/2-dy*(1-bulge*bulge)/(4*bulge),cy=(a[1]+b[1])/2+dx*(1-bulge*bulge)/(4*bulge),rad=Math.hypot(a[0]-cx,a[1]-cy),start=Math.atan2(a[1]-cy,a[0]-cx),n=Math.max(4,Math.ceil(Math.abs(theta)*20));
@@ -56,6 +74,17 @@ export function scene(doc){
    }else if(r.type==='CIRCLE'||r.type==='ARC'){
     const center=point(r),rad=num(r,40),start=r.type==='CIRCLE'?0:num(r,50)*Math.PI/180;let span=r.type==='CIRCLE'?Math.PI*2:(num(r,51)*Math.PI/180-start+Math.PI*2)%(Math.PI*2);
     const n=Math.max(8,Math.ceil(span*24));for(let j=0;j<=n;j++)pts.push([center[0]+rad*Math.cos(start+span*j/n),center[1]+rad*Math.sin(start+span*j/n)]);
+   }else if(r.type==='SPLINE'){
+    pts=spline(r);if(!pts){skip('SPLINE неподдерживаемые параметры');continue;}
+   }else if(r.type==='ELLIPSE'){
+    const center=point(r),major=[num(r,11),num(r,21),num(r,31)],normal=ex,nn=Math.hypot(...normal);if(!nn){skip('ELLIPSE normal');continue;}
+    const ratio=num(r,40),minor=[(normal[1]*major[2]-normal[2]*major[1])*ratio/nn,(normal[2]*major[0]-normal[0]*major[2])*ratio/nn];
+    const a=num(r,41),end=num(r,42,Math.PI*2);let span=end-a;if(span<0)span+=Math.PI*2;if(!Number.isFinite(span)||span<0||span>Math.PI*2+1e-8||!Number.isFinite(ratio)||ratio<=0){skip('ELLIPSE неверные параметры');continue;}const count=Math.max(8,Math.ceil(span*24));
+    for(let j=0;j<=count;j++){const t=a+span*j/count;pts.push([center[0]+major[0]*Math.cos(t)+minor[0]*Math.sin(t),center[1]+major[1]*Math.cos(t)+minor[1]*Math.sin(t)]);}
+   }else if(['SOLID','TRACE','3DFACE'].includes(r.type)){
+    pts=[point(r),point(r,11),point(r,12),point(r,13)];if(r.type!=='3DFACE')[pts[2],pts[3]]=[pts[3],pts[2]];pts.push(pts[0]);
+   }else if(r.type==='DIMENSION'){
+    const block=doc.blocks.get(get(r,2));if(!block||depth>=12){skip('DIMENSION без графического блока');continue;}walk(block.records,m,root,layer,depth+1);continue;
    }else if(r.type==='TEXT'||r.type==='MTEXT'||r.type==='ATTRIB'||r.type==='ATTDEF'){
     pts=[point(r)];text=decode(r.pairs.filter(p=>p[0]===3||p[0]===1).map(p=>p[1]).join('')).replace(/\\P/g,' · ').replace(/\\[A-Za-z][^;]*;/g,'').replace(/[{}]/g,'');
    }else if(r.type==='INSERT'){
@@ -63,17 +92,20 @@ export function scene(doc){
     if(num(r,70,1)>1||num(r,71,1)>1){skip('MINSERT');continue;}
     const t=num(r,50)*Math.PI/180,c=Math.cos(t),s=Math.sin(t),sx=num(r,41,1),sy=num(r,42,1),local=[c*sx,s*sx,-s*sy,c*sy,num(r,10),num(r,20)];
     local[4]-=local[0]*block.base[0]+local[2]*block.base[1];local[5]-=local[1]*block.base[0]+local[3]*block.base[1];
+    if(ex[2]===-1){local[0]*=-1;local[2]*=-1;local[4]*=-1;}
     walk(block.records,mul(m,local),root,layer,depth+1);continue;
    }else {if(!['SEQEND','ENDBLK'].includes(r.type))skip(r.type);continue;}
+   if(!wcs&&ex[2]===-1)pts=pts.map(([x,y])=>[-x,y]);
    pts=pts.map(p=>apply(m,p));if(!pts.length||pts.some(p=>!p.every(Number.isFinite)))continue;
    const color=num(r,62,256),height=Math.abs(num(r,40,2.5)*Math.hypot(m[0],m[1]));
    const bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const [x,y] of pts){bounds[0]=Math.min(bounds[0],x);bounds[1]=Math.min(bounds[1],y);bounds[2]=Math.max(bounds[2],x);bounds[3]=Math.max(bounds[3],y);}if(text!==null){const pad=height*(text.length+2);bounds[0]-=pad;bounds[1]-=pad;bounds[2]+=pad;bounds[3]+=pad;}
-   shapes.push({id:root.id,layer,pts,bounds,text,height,angle:Math.atan2(m[1],m[0])+num(r,50)*Math.PI/180,color:color===256?Math.abs(doc.layers.get(layer)?.color||7):Math.abs(color)});
+   shapes.push({id:root.id,layer,pts,bounds,text,fill:['SOLID','TRACE'].includes(r.type),height,angle:Math.atan2(m[1],m[0])+num(r,50)*Math.PI/180,color:color===256?Math.abs(doc.layers.get(layer)?.color||7):Math.abs(color)});
   }
  }
  walk(doc.entities);return {shapes,unsupported:[...unsupported],limited};
 }
 export function move(r,dx,dy){
+ if(num(r,210)||num(r,220)||num(r,230,1)!==1)throw Error('Перемещение объекта в нестандартной OCS пока отключено.');
  if(!['LINE','LWPOLYLINE','CIRCLE','ARC','TEXT','MTEXT','INSERT'].includes(r.type))throw Error('Этот тип пока нельзя перемещать.');
  const aligned=['LINE','TEXT'].includes(r.type);
  for(const p of r.pairs){if(p[0]===10||(aligned&&p[0]===11))p[1]=String(Number(p[1])+dx);if(p[0]===20||(aligned&&p[0]===21))p[1]=String(Number(p[1])+dy);}

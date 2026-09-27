@@ -11,7 +11,7 @@ test('demo, geometry and Unicode survive DXF round trip',()=>{
 test('unknown entities and paper space are retained, not silently exported away',()=>{
  const s=serialize(demo()).replace(/\r?\n/g,'\r\n');
  const d=parseDxf(s.replace('0\r\nENDSEC\r\n0\r\nEOF','0\r\nSPLINE\r\n8\r\n0\r\n10\r\n42\r\n0\r\nLINE\r\n67\r\n1\r\n10\r\n20\r\n0\r\nENDSEC\r\n0\r\nEOF'));
- assert.ok(scene(d).unsupported.some(([t])=>t==='SPLINE'));
+ assert.ok(scene(d).unsupported.some(([t])=>t.startsWith('SPLINE')));
  assert.match(serialize(d),/SPLINE/);assert.match(serialize(d),/67\r\n1/);
 });
 test('new entities are put in ENTITIES and can be reopened',()=>{
