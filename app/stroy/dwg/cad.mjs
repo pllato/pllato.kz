@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {cadFont} from './fonts.mjs?v=0.9';
+import {cadFont} from './fonts.mjs?v=0.10';
 // DXF остаётся источником истины: неизвестные записи не вырезаются при экспорте.
 export const get=(r,c,d='')=>{const pairs=r._pairs||(r.raw===undefined?r.pairs:null);if(pairs){for(const p of pairs)if(p[0]===c)return p[1];}else{for(const p of groups(r.raw||''))if(p[0]===c)return p[1];}return d;};
 export const num=(r,c,d=0)=>Number(get(r,c,d));
@@ -95,7 +95,10 @@ export function scene(doc){
    }else if(r.type==='DIMENSION'){
     const block=doc.blocks.get(get(r,2));if(!block||depth>=12){skip('DIMENSION без графического блока');continue;}walk(block.records,m,root,layer,depth+1,style);continue;
    }else if(r.type==='TEXT'||r.type==='MTEXT'||r.type==='ATTRIB'||r.type==='ATTDEF'){
-    pts=[point(r)];text=decode(r.pairs.filter(p=>p[0]===3||p[0]===1).map(p=>p[1]).join('')).replace(/\\P/g,'\n').replace(/\\~/g,' ').replace(/\\[LlOoKk]/g,'').replace(/\\S([^;]*);/g,(_,s)=>s.replace(/[\^#]/g,'/')).replace(/\\[ACFfHQTWpq][^;]*;/g,'').replace(/[{}]/g,'');
+    // Center/right/vertical alignment uses the second alignment point.
+    // Fit/aligned text needs separate two-point layout, not this anchor rule.
+    const useAlignment=r.type!=='MTEXT'&&get(r,11)!==''&&get(r,21)!==''&&![3,5].includes(num(r,72))&&(num(r,72)!==0||num(r,73)!==0);
+    pts=[point(r,useAlignment?11:10)];text=decode(r.pairs.filter(p=>p[0]===3||p[0]===1).map(p=>p[1]).join('')).replace(/\\P/g,'\n').replace(/\\~/g,' ').replace(/\\[LlOoKk]/g,'').replace(/\\S([^;]*);/g,(_,s)=>s.replace(/[\^#]/g,'/')).replace(/\\[ACFfHQTWpq][^;]*;/g,'').replace(/[{}]/g,'');
    }else if(r.type==='INSERT'){
     const name=get(r,2),block=doc.blocks.get(name);if(!block){skip('INSERT: ссылка на блок не прочитана');continue;}if(depth>=12||block.flags&12){skip('INSERT / внешняя ссылка');continue;}
     if(num(r,70,1)>1||num(r,71,1)>1){skip('MINSERT');continue;}

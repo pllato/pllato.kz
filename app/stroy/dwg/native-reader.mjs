@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import createModule from './vendor/libredwg-web.js';
-import {LibreDwg} from './vendor/libredwg-sdk.js?v=0.9';
-import {nativeDocument} from './native-adapter.mjs?v=0.9';
+import {warningText} from './progress.mjs?v=0.10';
+import {LibreDwg} from './vendor/libredwg-sdk.js?v=0.10';
+import {nativeDocument} from './native-adapter.mjs?v=0.10';
 self.onmessage=async({data})=>{
  let sdk,pointer;
  try{
-  self.postMessage({progress:'Читаю DWG напрямую…'});
+  self.postMessage({progress:'Загружаю движок…',percent:5});
   const messages=[],engine=await createModule({print:()=>{},printErr:s=>{if(messages.length<12)messages.push(String(s));}});
   engine.FS.writeFile('input.dwg',new Uint8Array(data));
+  self.postMessage({progress:'Читаю DWG: движок не сообщает внутренний процент…',percent:15});
   const result=engine.dwg_read_file('input.dwg');pointer=result.data;
   sdk=LibreDwg.createByWasmInstance(engine);
   // ACADVER lives in the file header, not the generic header-variable table.
@@ -18,9 +20,11 @@ self.onmessage=async({data})=>{
    :field==='INSUNITS'?headerData(p,field):undefined;
   if(result.error>=128||!pointer)throw Error('Ошибка чтения DWG: '+result.error);
   self.postMessage({progress:'Подготавливаю объекты DWG для отображения…'});
-  const {database,stats}=sdk.convertEx(pointer,true),doc=nativeDocument(database);
+  const {database,stats}=sdk.convertEx(pointer,true,(done,total)=>self.postMessage({progress:'Подготавливаю объекты: '+done.toLocaleString('ru')+' / '+total.toLocaleString('ru'),percent:35+50*done/Math.max(1,total)}));
+  self.postMessage({progress:'Собираю геометрию и подписи…',percent:85});
+  const doc=nativeDocument(database);
   doc.native=true;doc.nativeOps=[];doc.nativeUnknown=stats.unknownEntityCount||0;
-  if(result.error)messages.unshift('Код предупреждений чтения: '+result.error);
+  if(result.error)messages.unshift(warningText(result.error)+' (код '+result.error+')');
   self.postMessage({doc,messages});
  }catch(e){self.postMessage({error:e.message||String(e)});}
  finally{if(sdk&&pointer)sdk.dwg_free(pointer);}
