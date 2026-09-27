@@ -1,0 +1,11 @@
+--- a/src/encode.c
++++ b/src/encode.c
+@@ -6153,2 +6153,4 @@
++size_t pllato_encoded_payload_end = 0;
++
+ int
+ dwg_encode_add_object (Dwg_Object *restrict obj, Bit_Chain *restrict dat,
+@@ -6703,1 +6705,3 @@
++  /* Pllato coverage gate: expose the end before non-semantic padding/CRC. */
++  pllato_encoded_payload_end = bit_position (dat);
+   /* Now 0 padding bits until next byte, and then a RS CRC */

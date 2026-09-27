@@ -1,0 +1,11 @@
+--- a/src/dwg2.spec
++++ b/src/dwg2.spec
+@@ -6195,3 +6195,7 @@
+   END_REPEAT (codes)
+-  AcDbBlockAction_doubles_fields;
++  FIELD_BD (action_offset_x, 140);
++  FIELD_BD (action_offset_y, 141);
++  /* Stretch's final field is an XY selector byte, not a double angle.
++     Retain the existing ABI slot; it contains the integer selector here. */
++  FIELD_CAST (angle_offset, RC, BD, 280);
+   START_OBJECT_HANDLE_STREAM;

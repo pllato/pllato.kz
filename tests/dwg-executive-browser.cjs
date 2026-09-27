@@ -1,0 +1,56 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+(async()=>{
+ const fixture=process.env.DWG_CLONE_FIXTURE;if(!fixture)throw Error('Set DWG_CLONE_FIXTURE');
+ const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'dwg-executive-ui-'));
+ try{
+ const page=await browser.newPage({viewport:{width:1600,height:1100}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/app/gate.js',r=>r.fulfill({body:'',contentType:'application/javascript'}));
+ await page.goto('http://127.0.0.1:8816/app/stroy/dwg/');
+ await page.locator('#file').setInputFiles(fixture);await page.waitForFunction(()=>document.querySelector('#busy').hidden,null,{timeout:120000});
+ assert.match(await page.locator('#status').textContent(),/Открыт/);
+ await page.locator('#units').selectOption('.001');await page.locator('#exArea').click();
+ let b=await page.locator('#canvas').boundingBox();await page.mouse.click(b.x+3,b.y+3);await page.mouse.click(b.x+b.width-3,b.y+b.height-3);
+ assert.equal(await page.locator('#exCreate').isDisabled(),false);
+ await page.locator('#exCreate').click();await page.waitForFunction(()=>document.querySelector('#busy').hidden,null,{timeout:120000});
+ assert.match(await page.locator('#status').textContent(),/Исполнительная создана/);
+ assert.equal(await page.locator('#exSheet option').count(),1);
+ await page.locator('#exTitle').fill('Исполнительная проверка');await page.locator('#exAngle').fill('90');await page.locator('#exApply').click();
+ await page.locator('#exRoute').click();b=await page.locator('#canvas').boundingBox();for(const [x,y] of [[.55,.35],[.65,.35],[.65,.45]])await page.mouse.click(b.x+b.width*x,b.y+b.height*y);
+ await page.locator('#exFinish').click();assert.equal(await page.locator('#exRouteList option').count(),1);
+ assert.match(await page.locator('#exLedger').textContent(),/Без выносок: 1/);
+ await page.locator('#exLeader').click();for(const [x,y] of [[.55,.35],[.53,.3],[.6,.3]])await page.mouse.click(b.x+b.width*x,b.y+b.height*y);
+ assert.match(await page.locator('#exLedger').textContent(),/Без выносок: 0/);
+ const ledgerBeforeMove=await page.locator('#exLedger').textContent();
+ await page.locator('#exDX').fill('2');await page.locator('#exDY').fill('3');await page.locator('#exMoveLeader').click();
+ assert.equal(await page.locator('#exLedger').textContent(),ledgerBeforeMove);
+ await page.locator('#exKnownMetres').fill('10');await page.locator('#exCalibrate').click();
+ for(const [x,y] of [[.55,.35],[.65,.35]])await page.mouse.click(b.x+b.width*x,b.y+b.height*y);
+ assert.match(await page.locator('#status').textContent(),/Масштаб метража обновлён/);
+ assert.notEqual(await page.locator('#exLedger').textContent(),ledgerBeforeMove);
+ const save=async filename=>{await page.locator('#save').click();const pending=page.waitForEvent('download',{timeout:120000});await page.locator('#confirmExport').click();const d=await pending;await d.saveAs(filename);await page.waitForFunction(()=>document.querySelector('#busy').hidden);};
+ const first=path.join(dir,'first.dwg');await save(first);
+ // Pick an actual nested device using independently decoded saved geometry.
+ const target=await page.evaluate(async bytes=>{
+  const doc=await new Promise((resolve,reject)=>{const w=new Worker('/app/stroy/dwg/native-reader.mjs',{type:'module'});w.onmessage=e=>{if(e.data.doc){w.terminate();resolve(e.data.doc);}else if(e.data.error){w.terminate();reject(Error(e.data.error));}};w.postMessage(Uint8Array.from(bytes).buffer);});
+  const {scene}=await import('/app/stroy/dwg/cad.mjs?v=0.12'),shapes=scene(doc).shapes,handle=doc.executiveProject.sheets[0].nativeHandles[0];
+  const candidate=shapes.find(s=>s.id==='dwg-'+handle&&s.deviceId&&s.deviceId!==s.id&&s.text===null&&!s.hatch&&s.pts.length===2);
+  const xs=shapes.flatMap(s=>s.pts.map(p=>p[0])),ys=shapes.flatMap(s=>s.pts.map(p=>p[1]));
+  return {point:candidate.pts[0].map((v,i)=>(v+candidate.pts[1][i])/2),bounds:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]};
+ },[...fs.readFileSync(first)]);
+ await page.locator('#fit').click();await page.locator('#exDevice').click();b=await page.locator('#canvas').boundingBox();
+ const [x1,y1,x2,y2]=target.bounds,scale=Math.min((b.width-60)/Math.max(x2-x1,1),(b.height-80)/Math.max(y2-y1,1));
+ await page.mouse.click(b.x+b.width/2+(target.point[0]-(x1+x2)/2)*scale,b.y+b.height/2-(target.point[1]-(y1+y2)/2)*scale);
+ assert.match(await page.locator('#selection').textContent(),/^INSERT/);
+ await page.locator('#dx').fill('10');await page.locator('#props button[type=submit]').click();
+ await save(path.join(dir,'device-moved.dwg'));
+ await page.locator('#file').setInputFiles(first);await page.waitForFunction(()=>document.querySelector('#busy').hidden,null,{timeout:120000});
+ assert.equal(await page.locator('#exTitle').inputValue(),'Исполнительная проверка');assert.equal(await page.locator('#exRouteList option').count(),1);
+ await page.locator('#exRemoveLeader').click();assert.match(await page.locator('#exLedger').textContent(),/Без выносок: 1/);
+ await save(path.join(dir,'second.dwg'));await page.screenshot({path:path.join(dir,'result.png')});assert.deepEqual(errors,[]);
+ await page.setViewportSize({width:390,height:844});await page.locator('#panel').click();
+ await page.locator('#exArea').click();assert.equal(await page.locator('#sidebar').isVisible(),false);
+ assert.equal(await page.locator('#canvas').isVisible(),true);
+ console.log('PASS UI create / rotation / cable / leader / DWG save / reopen / second save / mobile selection',dir);
+ }finally{await browser.close();}
+})().catch(e=>{console.error(e);process.exit(1);});

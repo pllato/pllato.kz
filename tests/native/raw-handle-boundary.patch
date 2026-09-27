@@ -1,0 +1,14 @@
+--- a/src/encode.c
++++ b/src/encode.c
+@@ -6218,5 +6218,9 @@
+     // clear stale bitsize and handlestream_size from JSON/DXF import,
+     // will be recalculated in START_HANDLE_STREAM and the fixup
+-    obj->bitsize = 0;
+-    obj->handlestream_size = 0;
++    if (!(obj->fixedtype == DWG_TYPE_BLOCKLOOKUPACTION
++          && can_emit_raw_unknown (dwg, obj)))
++      {
++        obj->bitsize = 0;
++        obj->handlestream_size = 0;
++      }
+   }

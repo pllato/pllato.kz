@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import createModule from './vendor/libredwg-web.js';
-import {warningText} from './progress.mjs?v=0.11';
-import {LibreDwg} from './vendor/libredwg-sdk.js?v=0.11';
-import {nativeDocument} from './native-adapter.mjs?v=0.11';
+import {warningText} from './progress.mjs?v=0.12';
+import {LibreDwg} from './vendor/libredwg-sdk.js?v=0.12';
+import {nativeDocument} from './native-adapter.mjs?v=0.12';
+import {readExecutiveMetadata} from './executive-metadata.mjs';
 self.onmessage=async({data})=>{
  let sdk,pointer;
  try{
@@ -23,6 +24,7 @@ self.onmessage=async({data})=>{
   const {database,stats}=sdk.convertEx(pointer,true,(done,total)=>self.postMessage({progress:'Подготавливаю объекты: '+done.toLocaleString('ru')+' / '+total.toLocaleString('ru'),percent:35+50*done/Math.max(1,total)}));
   self.postMessage({progress:'Собираю геометрию и подписи…',percent:85});
   const doc=nativeDocument(database);
+  doc.executiveProject=readExecutiveMetadata(database);
   doc.native=true;doc.nativeOps=[];doc.nativeUnknown=stats.unknownEntityCount||0;
   if(result.error)messages.unshift(warningText(result.error)+' (код '+result.error+')');
   self.postMessage({doc,messages});
