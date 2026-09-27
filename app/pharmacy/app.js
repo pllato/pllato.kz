@@ -1161,8 +1161,9 @@ const _legacyInboxDemo=(c)=>{   // старый демо-инбокс (не ис
 // ---------- ЧАТЫ (live · омни-чат WhatsApp/GreenAPI) ----------
 let __ibCur=null, __ibThreads=[], __ibMsgsCache={}, __ibDeal={}, __ibWrap=null, __ibChannelFilter=null, __ibAllowAudio=false, __ibChannels=[], __ibStores=[], __ibPollTimer=null;
 let __ibTotal=0, __ibHasMore=false, __ibQuery='', __ibSearchT=null, __ibLoadingMore=false;
+let __ibKind='';   // '' | 'direct' | 'comment' — фильтр Instagram: заявки vs комментарии под постами
 const IB_PAGE=60; // диалогов на страницу (пагинация «Показать ещё»)
-function ibThreadsUrl(off){ return '/api/inbox/threads?limit='+IB_PAGE+'&offset='+(off||0)+(__ibQuery?('&q='+encodeURIComponent(__ibQuery)):''); }
+function ibThreadsUrl(off){ return '/api/inbox/threads?limit='+IB_PAGE+'&offset='+(off||0)+(__ibQuery?('&q='+encodeURIComponent(__ibQuery)):'')+(__ibKind?('&kind='+__ibKind):''); }
 async function ibLoadMore(btn){ if(__ibLoadingMore)return; __ibLoadingMore=true; if(btn){btn.disabled=true;btn.textContent='Загрузка…';} const r=await api(ibThreadsUrl(__ibThreads.length)); __ibLoadingMore=false; if(r&&r.ok&&r.data&&Array.isArray(r.data.items)){ const have=new Set(__ibThreads.map(x=>x.id)); __ibThreads=__ibThreads.concat(r.data.items.filter(x=>!have.has(x.id))); __ibTotal=r.data.total||__ibThreads.length; __ibHasMore=!!r.data.has_more; ibRenderRows(); } else if(btn){ btn.disabled=false; btn.textContent='Показать ещё'; } }
 async function ibSearchApply(q){ __ibQuery=(q||'').trim(); const r=await api(ibThreadsUrl(0)); if(!(r&&r.ok&&r.data&&Array.isArray(r.data.items)))return; __ibThreads=r.data.items; __ibTotal=r.data.total||__ibThreads.length; __ibHasMore=!!r.data.has_more; window.__inboxUnread=__ibThreads.reduce((a,t)=>a+(t.unread||0),0); renderNav(); ibRenderRows(); }
 // --- Живое обновление чата без мигания и без сброса ввода ---
@@ -1229,7 +1230,7 @@ async function liveInbox(c){
   __ibWrap=el(`<div class="inbox"></div>`);
   __ibWrap.innerHTML='<div class="ib-threads"></div><div class="ib-chat"></div><div class="ib-context"></div>';
   c.appendChild(__ibWrap);
-  __ibMsgsCache={}; __ibDeal={}; __ibQuery=''; __ibChannelFilter=null;
+  __ibMsgsCache={}; __ibDeal={}; __ibQuery=''; __ibChannelFilter=null; __ibKind='';
   let r=await api(ibThreadsUrl(0)), tries=0;
   // при ошибке загрузки — НЕ показываем «нет диалогов», а авто-повторяем (транзиентный сбой)
   while(!(r&&r.ok&&r.data&&Array.isArray(r.data.items)) && tries<3 && ibAlive()){
@@ -1256,7 +1257,7 @@ async function ibPoll(){
   if(!ibAlive()){ if(__ibPollTimer){clearInterval(__ibPollTimer);__ibPollTimer=null;} return; }
   // обновляем ВЕСЬ загруженный диапазон (не только первую страницу), сохраняя текущий поиск
   const lim=Math.min(Math.max(__ibThreads.length,IB_PAGE),200);
-  const r=await api('/api/inbox/threads?limit='+lim+'&offset=0'+(__ibQuery?('&q='+encodeURIComponent(__ibQuery)):'')); if(!(r&&r.ok&&r.data&&Array.isArray(r.data.items))) return;
+  const r=await api('/api/inbox/threads?limit='+lim+'&offset=0'+(__ibQuery?('&q='+encodeURIComponent(__ibQuery)):'')+(__ibKind?('&kind='+__ibKind):'')); if(!(r&&r.ok&&r.data&&Array.isArray(r.data.items))) return;
   const before=ibSig(); const prevOpenTs=(__ibThreads.find(x=>x.id===__ibCur)||{}).last_ts||0;
   __ibThreads=r.data.items; __ibTotal=r.data.total||__ibThreads.length; __ibHasMore=!!r.data.has_more;
   if(ibSig()===before) return;
@@ -1305,19 +1306,37 @@ function ibThreadList(){
       <button class="btn sm ${__ibChannelFilter==null?'primary':''}" data-chf="">Все номера${unread?(' · '+unread):''}</button>
       ${chans.map(ch=>{const u=chUnread(ch.id);return `<button class="btn sm ${__ibChannelFilter===ch.id?'primary':''}" data-chf="${esc(ch.id)}" title="${esc(ch.phone?('номер +'+ch.phone):'')}">${esc(ch.name||'WhatsApp')}${u?(' · '+u):''}</button>`;}).join('')}
     </div>`:'';
-  box.innerHTML=`<div class="ib-thead"><span>Мессенджеры</span>${unread?`<span class="b">${unread}</span>`:''}</div>${chipRow}<div class="ib-search"><div class="fld-in">${ic('i-search','sm')}<input id="ibSearch" placeholder="Поиск: имя, телефон или слово из переписки…" value="${esc(__ibQuery||'')}"></div></div><div class="ib-rows"></div>`;
+  const kindRow=`<div class="ib-kindfilter" style="display:flex;gap:6px;padding:8px 10px 2px">
+      <button class="btn sm ${!__ibKind?'primary':''}" data-ibk="">Все</button>
+      <button class="btn sm ${__ibKind==='direct'?'primary':''}" data-ibk="direct" title="Переписки с живыми вопросами">Директ</button>
+      <button class="btn sm ${__ibKind==='comment'?'primary':''}" data-ibk="comment" title="Только комментарии под постами">Комментарии</button>
+    </div>`;
+  box.innerHTML=`<div class="ib-thead"><span>Мессенджеры</span>${unread?`<span class="b">${unread}</span>`:''}</div>${chipRow}${kindRow}<div class="ib-search"><div class="fld-in">${ic('i-search','sm')}<input id="ibSearch" placeholder="Поиск: имя, телефон или слово из переписки…" value="${esc(__ibQuery||'')}"></div></div><div class="ib-rows"></div>`;
   box.querySelectorAll('[data-chf]').forEach(b=>b.onclick=()=>{ __ibChannelFilter=b.dataset.chf||null; ibThreadList(); });
+  // Переключение «Все / Директ / Комментарии»: фильтрует НА СЕРВЕРЕ, иначе ломалась бы постраничная подгрузка
+  box.querySelectorAll('[data-ibk]').forEach(b=>b.onclick=async()=>{
+    __ibKind=b.dataset.ibk||'';
+    const r=await api(ibThreadsUrl(0));
+    if(r&&r.ok&&r.data&&Array.isArray(r.data.items)){ __ibThreads=r.data.items; __ibTotal=r.data.total||__ibThreads.length; __ibHasMore=!!r.data.has_more; }
+    ibThreadList();
+  });
   const s=box.querySelector('#ibSearch'); if(s){ s.oninput=()=>{ clearTimeout(__ibSearchT); __ibSearchT=setTimeout(()=>ibSearchApply(s.value), 350); }; }
   ibRenderRows();
 }
 // Только строки диалогов (+ «Показать ещё») — вызывается при поиске/пагинации/поллинге, НЕ пересоздавая поле поиска (фокус сохраняется).
+// Пометка диалога: клиент писал под постом (акции дают сотни таких) или всё же в директ.
+function ibKindTag(t){
+  if(!t.ig_comment) return '';
+  const txt = t.ig_direct ? 'комм.+директ' : 'комментарий';
+  return `<span style="background:rgba(124,58,237,.16);color:#a78bfa;border:1px solid rgba(124,58,237,.45);font-size:10px;padding:0 5px;border-radius:5px;margin-right:5px;white-space:nowrap">${txt}</span>`;
+}
 function ibRenderRows(){
   const box=__ibWrap&&__ibWrap.querySelector('.ib-rows'); if(!box)return;
   const flt=__ibChannelFilter?__ibThreads.filter(t=>t.channel_id===__ibChannelFilter):__ibThreads;
   const rows=flt.map(t=>{ const nm=t.title||t.phone||'Диалог'; const on=t.id===__ibCur?'on':'';
     return `<button class="thread ${on}" data-t="${esc(t.id)}">
       <div class="av" style="background:${avBg(nm)}">${esc(initials(nm))}<span class="src" style="background:${ibChanColor(t.channel_id)}">${ic('i-phone','sm')}</span></div>
-      <div class="ti"><div class="tn">${esc(nm)}</div><div class="tm">${ibChanTag(t)}${t.match_snippet?('<span style="opacity:.85">🔍 '+esc(t.match_snippet)+'</span>'):esc((t.preview_dir==='out'?'✓ ':'')+(t.preview||''))}</div></div>
+      <div class="ti"><div class="tn">${esc(nm)}</div><div class="tm">${ibChanTag(t)}${ibKindTag(t)}${t.match_snippet?('<span style="opacity:.85">🔍 '+esc(t.match_snippet)+'</span>'):esc((t.preview_dir==='out'?'✓ ':'')+(t.preview||''))}</div></div>
       <div class="tt">${esc(cwFmtTime(t.last_ts))}</div>${t.unread?`<span class="un">${t.unread}</span>`:''}</button>`;
   }).join('');
   const moreBtn=__ibHasMore?`<button class="btn sm" id="ibMore" style="margin:10px auto 8px;display:block">Показать ещё${(__ibTotal>__ibThreads.length)?(' ('+(__ibTotal-__ibThreads.length)+')'):''}</button>`:'';
@@ -1386,7 +1405,30 @@ function ibChat(){
   mountReplyBar(t.id, box);
 }
 // Отправка медиа/файла в чат (фото/видео/pdf) — как голосовое, но любой файл
+// Instagram принимает только jpg/gif/png/ico/bmp — WebP (скачанный из интернета) он отвергает
+// с ошибкой MESSAGES_UNSUPPORTED_CONTENT_TYPE_INSTAPI. Переводим такие картинки в JPEG прямо в
+// браузере, чтобы менеджеру не приходилось ничего пересохранять вручную.
+// HEIC с iPhone браузер декодировать не умеет — там честно говорим, что делать.
+const IG_OK_IMG=['image/jpeg','image/jpg','image/png','image/gif','image/bmp','image/x-icon'];
+async function igNormalizeImage(file){
+  const type=(file.type||'').toLowerCase();
+  if(!type.startsWith('image/') || IG_OK_IMG.includes(type)) return file;
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>rej(new Error('decode')); i.src=url; });
+    const cv=document.createElement('canvas'); cv.width=img.naturalWidth||img.width; cv.height=img.naturalHeight||img.height;
+    if(!cv.width||!cv.height) throw new Error('empty');
+    cv.getContext('2d').drawImage(img,0,0);
+    const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',0.9));
+    if(!blob) throw new Error('encode');
+    return new File([blob], (file.name||'image').replace(/\.[^.]+$/,'')+'.jpg', {type:'image/jpeg'});
+  } finally { URL.revokeObjectURL(url); }
+}
 async function ibSendMedia(t, file, caption){
+  if(t && t.ch==='ig'){
+    try{ const conv=await igNormalizeImage(file); if(conv!==file) toast('Формат не подходит для Instagram — перевёл в JPG','i-info'); file=conv; }
+    catch(e){ toast('Instagram не принимает формат этого файла (похоже, HEIC с iPhone). Пересохраните картинку в JPG или PNG.','i-info','#dc2626'); return; }
+  }
   if(file.size>16*1024*1024){ toast('Файл слишком большой (макс 16 МБ)','i-info','#dc2626'); return; }
   toast('Отправляю файл…','i-paperclip');
   let b64; try{ b64=await new Promise((res,rej)=>{ const rd=new FileReader(); rd.onload=()=>res(String(rd.result)); rd.onerror=rej; rd.readAsDataURL(file); }); }catch(e){ toast('Не удалось прочитать файл','i-x','#dc2626'); return; }
