@@ -5,7 +5,7 @@ self.onmessage=async({data})=>{
   const {buffer,ops}=data;
   if(!(buffer instanceof ArrayBuffer)||!Array.isArray(ops)||ops.length>100000)throw Error('Неверный пакет изменений.');
   self.postMessage({progress:'Открываю исходный DWG для записи изменений…'});
-  const m=await createModule({print:()=>{},printErr:()=>{}});
+  const m=await createModule({locateFile:p=>new URL('./vendor/'+p+'?v=0.9',import.meta.url).href,print:()=>{},printErr:()=>{}});
   m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
   const opened=m.ccall('pllato_open','number',['string'],['/input.dwg']);
   if(opened>=128)throw Error('DWG не прочитан: '+opened);

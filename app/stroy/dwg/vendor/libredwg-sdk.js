@@ -1945,7 +1945,7 @@ class LibreEntityConverter {
     return {
       type: "INSERT",
       ...commonAttrs,
-      blockRecordId: libredwg.dwg_ref_get_id(block_header_ref),
+      blockRecordId: libredwg.dwg_ref_get_id(block_header_ref) || commonAttrs.recoveredBlockRecordId,
       name,
       insertionPoint,
       xScale: scale ? scale.x : 1,
@@ -3302,11 +3302,20 @@ class LibreEntityConverter {
       rgbColor = color.rgb & 16777215;
     }
     const layer = this.getLayerName(entity);
+    // LibreDWG can consume a layer reference as ENC color.handle (flag C0),
+    // shifting the actual BLOCK_HEADER into layer. Recover only type-checked
+    // references for the read-only view, never manufacture a handle.
+    let recoveredBlockRecordId;
+    if (this.geometryOnly && color.flag === 192) {
+      const ref = libredwg.dwg_object_entity_get_layer_object_ref(entity);
+      const id = ref ? idToString(ref.absolute_ref || ref.handleref?.value || 0) : '';
+      if (id && !this.layers.has(id)) recoveredBlockRecordId = id;
+    }
     const handle = libredwg.dwg_object_entity_get_handle_object(entity);
     const ownerhandle = libredwg.dwg_object_entity_get_ownerhandle_object(entity);
     if (this.geometryOnly) return {
       handle: idToString(handle.value), ownerBlockRecordSoftId: idToString(ownerhandle.absolute_ref),
-      layer, colorIndex, color: rgbColor, isVisible: !libredwg.dwg_object_entity_get_invisible(entity)
+      layer, colorIndex, color: rgbColor, recoveredBlockRecordId, isVisible: !libredwg.dwg_object_entity_get_invisible(entity)
     };
     const ownerDictionaryHardId = libredwg.dwg_object_entity_get_xdicobjhandle_object(entity);
     const lineType = this.getLtypeName(entity);
@@ -3467,7 +3476,6 @@ class LibreDwgConverter {
               db.tables.DIMSTYLE.entries.push(this.convertDimStyle(tio, obj));
               break;
             case Dwg_Object_Type.DWG_TYPE_STYLE:
-              if (this.geometryOnly) break;
               db.tables.STYLE.entries.push(this.convertStyle(tio, obj));
               break;
             case Dwg_Object_Type.DWG_TYPE_VPORT:
