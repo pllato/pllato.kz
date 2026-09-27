@@ -3740,7 +3740,7 @@ Module["FS"] = FS;
 // End JS library exports
 // end include: postlibrary.js
 // Imports from the Wasm binary.
-var _pllato_close, _pllato_open, _pllato_move, _pllato_text, _pllato_save, _pllato_count, _setThrew, __emscripten_stack_restore, __emscripten_stack_alloc, _emscripten_stack_get_current, memory, __indirect_function_table, wasmMemory;
+var _pllato_close, _pllato_open, _pllato_move, _pllato_text, _pllato_save, _pllato_count, _pllato_add_line, _pllato_add_text, _pllato_add_polyline, _setThrew, __emscripten_stack_restore, __emscripten_stack_alloc, _emscripten_stack_get_current, memory, __indirect_function_table, wasmMemory;
 
 function assignWasmExports(wasmExports) {
   _pllato_close = Module["_pllato_close"] = wasmExports["pllato_close"];
@@ -3749,6 +3749,9 @@ function assignWasmExports(wasmExports) {
   _pllato_text = Module["_pllato_text"] = wasmExports["pllato_text"];
   _pllato_save = Module["_pllato_save"] = wasmExports["pllato_save"];
   _pllato_count = Module["_pllato_count"] = wasmExports["pllato_count"];
+  _pllato_add_line = Module["_pllato_add_line"] = wasmExports["pllato_add_line"];
+  _pllato_add_text = Module["_pllato_add_text"] = wasmExports["pllato_add_text"];
+  _pllato_add_polyline = Module["_pllato_add_polyline"] = wasmExports["pllato_add_polyline"];
   _setThrew = wasmExports["setThrew"];
   __emscripten_stack_restore = wasmExports["_emscripten_stack_restore"];
   __emscripten_stack_alloc = wasmExports["_emscripten_stack_alloc"];
