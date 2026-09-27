@@ -46,7 +46,7 @@ static int clone_shared(Dwg_Object *o)
 {
  switch(o->fixedtype){
  case DWG_TYPE_LAYER:case DWG_TYPE_STYLE:case DWG_TYPE_LTYPE:
- case DWG_TYPE_DIMSTYLE:case DWG_TYPE_APPID:case DWG_TYPE_DBCOLOR:case DWG_TYPE_BLOCK_CONTROL:
+ case DWG_TYPE_DIMSTYLE:case DWG_TYPE_MLEADERSTYLE:case DWG_TYPE_APPID:case DWG_TYPE_DBCOLOR:case DWG_TYPE_BLOCK_CONTROL:
  case DWG_TYPE_LAYER_CONTROL:case DWG_TYPE_STYLE_CONTROL:case DWG_TYPE_LTYPE_CONTROL:
  case DWG_TYPE_DIMSTYLE_CONTROL:case DWG_TYPE_APPID_CONTROL:return 1;
  case DWG_TYPE_IMAGEDEF:return 1; /* Immutable shared raster definition; not its reactor. */
@@ -87,6 +87,7 @@ API int pllato_probe_opaque(const char *handle)
  int trace=strncmp(handle,"trace:",6)==0;if(trace)handle+=6;
  Dwg_Object *o=dwg_resolve_handle(&drawing,strtoull(handle,NULL,16));
  if(!o)return 2;
+ if(o->type>=500&&o->type-500<drawing.num_classes)fprintf(stderr,"OPAQUE_CLASS %u %s\n",o->type,drawing.dwg_class[o->type-500].dxfname);
  fprintf(stderr,"OPAQUE %s bits=%u rest=%u common=%zu data=%u size=%u handlebits=%llu\n",o->name,o->num_unknown_bits,o->num_unknown_rest,o->common_size,o->bitsize,o->size,(unsigned long long)o->handlestream_size);
  if(o->fixedtype==DWG_TYPE_EVALUATION_GRAPH){
   Dwg_Object_EVALUATION_GRAPH *g=o->tio.object->tio.EVALUATION_GRAPH;
@@ -107,6 +108,13 @@ API int pllato_probe_opaque(const char *handle)
  size_t dataBits=rawData<typedData?rawData:typedData,firstBit=0;
  for(;firstBit<dataBits;firstBit++){size_t ra=rawAddress*8+firstBit,ta=typedAddress*8+firstBit;if(((raw.chain[ra/8]>>(7-ra%8))&1)!=((typed.chain[ta/8]>>(7-ta%8))&1))break;}
  fprintf(stderr,"OPAQUE_DATA raw=%zu typed=%zu first_difference_bit=%zu\n",rawData,typedData,firstBit);
+ if(trace){
+  for(unsigned which=0;which<2;which++){
+   Bit_Chain *chain=which?&typed:&raw;size_t address=which?typedAddress:rawAddress,end=which?typedData:rawData;
+   fprintf(stderr,"OPAQUE_TAIL %s ",which?"typed":"raw");
+   for(size_t p=end>80?end-80:0;p<end;p++){size_t at=address*8+p;fputc('0'+((chain->chain[at/8]>>(7-at%8))&1),stderr);}fputc('\n',stderr);
+  }
+ }
  free(raw.chain);free(typed.chain);return equal?0:3;
 }
 API int pllato_clone_selection(const char *roots,double cx,double cy,double x,double y,double angle)
@@ -166,7 +174,7 @@ API int pllato_clone_selection(const char *roots,double cx,double cy,double x,do
   /* Admit a raw-backup class only when its typed encoder reproduces EVERY
      semantic bit. CRC and precisely measured padding are not object fields. */
   if(!rawLookup&&source&&source->num_unknown_bits&&source->fixedtype!=DWG_TYPE_UNKNOWN_OBJ&&source->fixedtype!=DWG_TYPE_UNKNOWN_ENT){char h[32];snprintf(h,sizeof(h),"%llX",(unsigned long long)source->handle.value);typedBackup=pllato_probe_opaque(h)==0;}
-  if(!source||(!rawLookup&&!typedBackup&&source->num_unknown_bits)||source->num_unknown_rest){fprintf(stderr,"CLONE_REJECT %llX %s bits=%u rest=%u\n",(unsigned long long)queue[done],source?source->name:"missing",source?source->num_unknown_bits:0,source?source->num_unknown_rest:0);error=10;break;}
+  if(!source||(!rawLookup&&!typedBackup&&source->num_unknown_bits)||source->num_unknown_rest){fprintf(stderr,"CLONE_REJECT %llX %s bits=%u rest=%u\n",(unsigned long long)queue[done],source?source->name:"missing",source?source->num_unknown_bits:0,source?source->num_unknown_rest:0);if(source&&source->type>=500&&source->type-500<drawing.num_classes)fprintf(stderr,"CLONE_REJECT_CLASS %llX %s\n",(unsigned long long)queue[done],drawing.dwg_class[source->type-500].dxfname);error=10;break;}
   if(typedWipeout){Dwg_Entity_WIPEOUT *w=source->tio.entity->tio.WIPEOUT;if(w->class_version>10||!w->clip_verts||w->num_clip_verts<2||w->num_clip_verts>5000){error=25;break;}}
   int blockDependency=source->name&&strncmp(source->name,"BLOCK",5)==0;
   if(!typedBackup&&!blockDependency&&source->supertype!=DWG_SUPERTYPE_ENTITY && source->fixedtype!=DWG_TYPE_BLOCK_HEADER
@@ -343,6 +351,24 @@ API int pllato_remove(const char *handle){
  b->first_entity=b->num_owned?b->entities[0]:NULL;b->last_entity=b->num_owned?b->entities[b->num_owned-1]:NULL;
  dwg_free_object(o);return 0;
 }
+/* Compare every typed semantic bit, including preserved data-stream tails and
+   remapped handles, after a save/read cycle. Padding and CRC are not fields. */
+static int same_typed_record(Dwg_Object *a,Dwg_Object *b){
+ Bit_Chain bits[2]={{0},{0}};size_t ends[2]={0,0};int errors[2]={0,0};
+ Dwg_Object *objects[2]={a,b};
+ for(unsigned i=0;i<2;i++){
+  Dwg_Object *o=objects[i],saved=*o;bit_chain_init(&bits[i],65536);
+  bits[i].version=o->parent->header.version;bits[i].from_version=o->parent->header.from_version;
+  o->num_unknown_bits=0;pllato_encoded_payload_end=0;
+  errors[i]=dwg_encode_add_object(o,&bits[i],16);ends[i]=pllato_encoded_payload_end;*o=saved;
+ }
+ size_t n=ends[0]/8;unsigned partial=ends[0]%8;
+ int equal=errors[0]<128&&errors[1]<128&&ends[0]>128&&ends[0]==ends[1]
+  &&ends[0]<=bit_position(&bits[0])&&ends[1]<=bit_position(&bits[1])
+  &&!memcmp(bits[0].chain,bits[1].chain,n)
+  &&(!partial||!((bits[0].chain[n]^bits[1].chain[n])&(0xffu<<(8-partial))));
+ free(bits[0].chain);free(bits[1].chain);return equal;
+}
 API int pllato_save(const char *path){
  if(!loaded||drawing.header.version==R_2007||drawing.header.version!=drawing.header.from_version)return DWG_ERR_INVALIDDWG;
  unsigned expected=0;for(unsigned i=0;i<drawing.num_objects;i++)if(drawing.object[i].type!=DWG_TYPE_FREED&&drawing.object[i].type!=DWG_TYPE_UNUSED)expected++;
@@ -365,6 +391,7 @@ API int pllato_save(const char *path){
    if(ad&&ad->code==5&&(!bd||bd->code!=5||ad->u.eed_5.entity!=bd->u.eed_5.entity)){error|=DWG_ERR_INVALIDDWG;break;}
   }
   if(a->fixedtype==DWG_TYPE_INSERT){BITCODE_H ar=a->tio.entity->tio.INSERT->block_header,br=b->tio.entity->tio.INSERT->block_header;if(!ar||!br||ar->absolute_ref!=br->absolute_ref)error|=DWG_ERR_INVALIDDWG;}
+  if(a->fixedtype==DWG_TYPE_MULTILEADER&&!same_typed_record(a,b))error|=DWG_ERR_INVALIDDWG;
   if(a->fixedtype==DWG_TYPE_DIMASSOC){
    Dwg_Object_DIMASSOC *ar=a->tio.object->tio.DIMASSOC,*br=b->tio.object->tio.DIMASSOC;
    BITCODE_H ah=a->tio.object->ownerhandle,bh=b->tio.object->ownerhandle;
