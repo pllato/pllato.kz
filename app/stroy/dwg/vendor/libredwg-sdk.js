@@ -3420,6 +3420,7 @@ class LibreDwgConverter {
     this.entityConverter.setClasses(db.classes);
     const num_objects = libredwg.dwg_get_num_objects(data);
     for (let i = 0; i < num_objects; i++) {
+      if(i%1000===0)this.onProgress?.(i,num_objects*2);
       const obj = libredwg.dwg_get_object(data, i);
       if (obj) {
         const tio = this.safeObjectTio(obj);
@@ -3445,6 +3446,7 @@ class LibreDwgConverter {
       }
     }
     for (let i = 0; i < num_objects; i++) {
+      if(i%1000===0)this.onProgress?.(num_objects+i,num_objects*2);
       const obj = libredwg.dwg_get_object(data, i);
       if (obj) {
         const tio = this.safeObjectTio(obj);
@@ -5925,12 +5927,13 @@ const _LibreDwg = class _LibreDwg {
    * @param data Pointer to Dwg_Data instance.
    * @returns Returns the converted DwgDatabase and conversion statistics.
    */
-  convertEx(data, geometryOnly = false) {
+  convertEx(data, geometryOnly = false, onProgress) {
     const codepage = this.dwg_get_codepage(data);
     const encoding = dwgCodePageToEncoding(codepage);
     this.decoder = new TextDecoder(encoding);
     const converter = new LibreDwgConverter(this);
     converter.geometryOnly = geometryOnly;
+    converter.onProgress = onProgress;
     return {
       database: converter.convert(data),
       stats: converter.getConversionStats()
