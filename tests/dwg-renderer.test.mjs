@@ -17,3 +17,8 @@ test('color changes, fills and text preserve painter order',()=>{
 test('hidden and off-screen geometry is culled; subpixel text not drawn',()=>{
  const c=context();paintShapes(c,[{...shape(1),layer:'hidden'},{...shape(2),bounds:[1000,1000,1010,1010]},{...shape(3),text:'tiny',height:1}],{...options,hidden:new Set(['hidden'])});assert.equal(c.log.length,0);
 });
+test('Selecting an internal line does not highlight the whole executive',()=>{
+ const c=context(),colors=[];c.stroke=()=>colors.push(c.strokeStyle);
+ paintShapes(c,[{...shape('sheet'),entityKey:'one'},{...shape('sheet'),entityKey:'two'}],{...options,selected:'one'});
+ assert.deepEqual(colors,['#ffbe6c','#111']);
+});
