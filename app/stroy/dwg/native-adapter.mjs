@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Geometry view only. The original DWG remains the source for saving.
-import {fromRecords} from './cad.mjs?v=0.5';
+import {fromRecords} from './cad.mjs?v=0.6';
+import {leaderParts} from './mleader.mjs?v=0.6';
 export function nativeDocument(db){
  let serial=0;
  const record=(type,pairs=[],id)=>({type,id:id||'native-'+serial++,pairs:[[0,type],...pairs].map(([c,v])=>[c,String(v)])});
@@ -15,7 +16,7 @@ export function nativeDocument(db){
    case 'CIRCLE':case 'ARC':point(p,10,e.center);p.push([40,e.radius],[50,degrees(e.startAngle)],[51,degrees(e.endAngle)]);break;
    case 'LWPOLYLINE':p.push([70,(e.flag&512?1:0)|(e.flag&256?128:0)],[90,e.vertices.length]);for(const v of e.vertices){point(p,10,v);p.push([42,v.bulge||0]);}break;
    case 'TEXT':case 'ATTRIB':case 'ATTDEF':{const t=typeof e.text==='object'?e.text:e;point(p,10,t.startPoint);point(p,11,t.endPoint);p.push([1,t.text],[40,t.textHeight],[50,degrees(t.rotation)]);break;}
-   case 'MTEXT':point(p,10,e.insertionPoint);p.push([1,e.text],[40,e.textHeight],[50,degrees(e.rotation)]);break;
+   case 'MTEXT':point(p,10,e.insertionPoint);p.push([1,e.text],[40,e.textHeight],[41,e.rectWidth||0],[71,e.attachmentPoint||1],[50,degrees(e.rotation)]);break;
    case 'INSERT':point(p,10,e.insertionPoint);p.push([2,e.name],[41,e.xScale],[42,e.yScale],[50,degrees(e.rotation)],[70,e.columnCount||1],[71,e.rowCount||1],[66,e.attribs?.length?1:0]);break;
    case 'ELLIPSE':point(p,10,e.center);point(p,11,e.majorAxisEndPoint);p.push([40,e.axisRatio],[41,e.startAngle],[42,e.endAngle]);break;
    case 'SPLINE':p.push([71,e.degree]);for(const v of e.controlPoints)point(p,10,v);for(const n of e.knots)p.push([40,n]);for(const n of e.weights||[])p.push([41,n]);break;
@@ -24,6 +25,7 @@ export function nativeDocument(db){
    case 'POLYLINE2D':case 'POLYLINE3D':p.push([70,e.flag|(e.type==='POLYLINE3D'?8:0)]);break;
   }
   const result=[record(type,p,'dwg-'+e.handle)];
+  if(e.type==='MULTILEADER')result[0].parts=leaderParts(e,record);
   if(type==='POLYLINE'){for(const v of e.vertices||[]){const q=[[42,v.bulge||0]];point(q,10,v);result.push(record('VERTEX',q));}result.push(record('SEQEND'));}
   if(e.type==='INSERT'&&e.attribs?.length)result.push(...entities(e.attribs));
   return result;

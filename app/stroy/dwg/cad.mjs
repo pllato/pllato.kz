@@ -35,7 +35,7 @@ function* scanDxf(text){
 }
 export function parseDxf(text){const it=scanDxf(text);let step;do{step=it.next();}while(!step.done);return step.value;}
 export async function parseDxfAsync(text,progress=()=>{},cancelled=()=>false){const it=scanDxf(text);for(;;){if(cancelled())throw Error('Загрузка отменена.');const step=it.next();if(step.done)return step.value;progress(Math.round(step.value*100));await new Promise(r=>setTimeout(r,0));}}
-export function cloneDoc(doc){const copy=indexDoc(doc.records.map(r=>record(r.type,r.id,r.raw,r._pairs?.map(p=>[...p])||(r.raw===undefined?r.pairs.map(p=>[...p]):undefined))));if(doc.native){copy.native=true;copy.nativeUnknown=doc.nativeUnknown;copy.nativeOps=doc.nativeOps.map(o=>({...o}));}return copy;}
+export function cloneDoc(doc){const copy=indexDoc(doc.records.map(r=>{const c=record(r.type,r.id,r.raw,r._pairs?.map(p=>[...p])||(r.raw===undefined?r.pairs.map(p=>[...p]):undefined));if(r.parts)c.parts=r.parts;return c;}));if(doc.native){copy.native=true;copy.nativeUnknown=doc.nativeUnknown;copy.nativeOps=doc.nativeOps.map(o=>({...o}));}return copy;}
 const point=(r,x=10)=>[num(r,x),num(r,x+10)];
 const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
 const apply=(m,p)=>[m[0]*p[0]+m[2]*p[1]+m[4],m[1]*p[0]+m[3]*p[1]+m[5]];
@@ -85,10 +85,12 @@ export function scene(doc){
     for(let j=0;j<=count;j++){const t=a+span*j/count;pts.push([center[0]+major[0]*Math.cos(t)+minor[0]*Math.sin(t),center[1]+major[1]*Math.cos(t)+minor[1]*Math.sin(t)]);}
    }else if(['SOLID','TRACE','3DFACE'].includes(r.type)){
     pts=[point(r),point(r,11),point(r,12),point(r,13)];if(r.type!=='3DFACE')[pts[2],pts[3]]=[pts[3],pts[2]];pts.push(pts[0]);
+   }else if(r.type==='MULTILEADER'){
+    if(r.parts?.length&&depth<12)walk(r.parts,m,root,layer,depth+1);else skip('MULTILEADER без отображаемого содержимого');continue;
    }else if(r.type==='DIMENSION'){
     const block=doc.blocks.get(get(r,2));if(!block||depth>=12){skip('DIMENSION без графического блока');continue;}walk(block.records,m,root,layer,depth+1);continue;
    }else if(r.type==='TEXT'||r.type==='MTEXT'||r.type==='ATTRIB'||r.type==='ATTDEF'){
-    pts=[point(r)];text=decode(r.pairs.filter(p=>p[0]===3||p[0]===1).map(p=>p[1]).join('')).replace(/\\P/g,' · ').replace(/\\[A-Za-z][^;]*;/g,'').replace(/[{}]/g,'');
+    pts=[point(r)];text=decode(r.pairs.filter(p=>p[0]===3||p[0]===1).map(p=>p[1]).join('')).replace(/\\P/g,'\n').replace(/\\~/g,' ').replace(/\\[LlOoKk]/g,'').replace(/\\S([^;]*);/g,(_,s)=>s.replace(/[\^#]/g,'/')).replace(/\\[ACFfHQTWpq][^;]*;/g,'').replace(/[{}]/g,'');
    }else if(r.type==='INSERT'){
     const name=get(r,2),block=doc.blocks.get(name);if(!block||depth>=12||block.flags&12){skip('INSERT / внешняя ссылка');continue;}
     if(num(r,70,1)>1||num(r,71,1)>1){skip('MINSERT');continue;}
@@ -101,7 +103,7 @@ export function scene(doc){
    pts=pts.map(p=>apply(m,p));if(!pts.length||pts.some(p=>!p.every(Number.isFinite)))continue;
    const color=num(r,62,256),height=Math.abs(num(r,40,2.5)*Math.hypot(m[0],m[1]));
    const bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const [x,y] of pts){bounds[0]=Math.min(bounds[0],x);bounds[1]=Math.min(bounds[1],y);bounds[2]=Math.max(bounds[2],x);bounds[3]=Math.max(bounds[3],y);}if(text!==null){const pad=height*(text.length+2);bounds[0]-=pad;bounds[1]-=pad;bounds[2]+=pad;bounds[3]+=pad;}
-   shapes.push({id:root.id,layer,pts,bounds,text,fill:['SOLID','TRACE'].includes(r.type),height,angle:Math.atan2(m[1],m[0])+num(r,50)*Math.PI/180,color:color===256?Math.abs(doc.layers.get(layer)?.color||7):Math.abs(color)});
+   shapes.push({id:root.id,layer,pts,bounds,text,fill:['SOLID','TRACE'].includes(r.type),height,multiline:r.type==='MTEXT',textWidth:r.type==='MTEXT'?num(r,41)*Math.hypot(m[0],m[1]):0,attachment:num(r,71,1),angle:Math.atan2(m[1],m[0])+num(r,50)*Math.PI/180,color:color===256?Math.abs(doc.layers.get(layer)?.color||7):Math.abs(color)});
   }
  }
  walk(doc.entities);return {shapes,unsupported:[...unsupported],limited};

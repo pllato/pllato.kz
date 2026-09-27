@@ -1295,7 +1295,6 @@ class LibreEntityConverter {
       const fixedtype = libredwg.dwg_object_get_fixedtype(object_ptr);
       if (this.geometryOnly) {
         const unsupported = fixedtype === Dwg_Object_Type.DWG_TYPE_HATCH ? 'HATCH'
-          : fixedtype === Dwg_Object_Type.DWG_TYPE_MULTILEADER ? 'MULTILEADER'
           : fixedtype === Dwg_Object_Type.DWG_TYPE_3DSOLID ? '3DSOLID' : null;
         if (unsupported) return {type: unsupported, ...commonAttrs};
       }
