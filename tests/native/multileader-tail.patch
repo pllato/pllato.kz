@@ -1,0 +1,50 @@
+--- a/src/dwg2.spec
++++ b/src/dwg2.spec
+@@ -1453,6 +1453,34 @@
+     }
+   SINCE (R_2013b)
+     FIELD_B (is_text_extended, 295);
++
++  DECODER {
++    if (dat->from_version >= R_2007)
++      {
++        size_t footer = obj->has_strings
++          ? (obj->stringstream_size >= 0x8000 ? 33 : 17) : 1;
++        size_t end = obj->bitsize;
++        size_t pos = bit_position (dat);
++        if (end >= footer + obj->stringstream_size)
++          {
++            end -= footer + obj->stringstream_size;
++            if (end >= pos && end - pos <= 64)
++              {
++                FIELD_VALUE (preserved_tail_bits) = end - pos;
++                FIELD_VALUE (preserved_tail_value) = 0;
++                for (size_t i = pos; i < end; i++)
++                  FIELD_VALUE (preserved_tail_value) =
++                    (FIELD_VALUE (preserved_tail_value) << 1) | bit_read_B (dat);
++              }
++          }
++      }
++  }
++  ENCODER {
++    if (dat->version == dat->from_version
++        && FIELD_VALUE (preserved_tail_bits) <= 64)
++      for (unsigned i = FIELD_VALUE (preserved_tail_bits); i; i--)
++        bit_write_B (dat, (FIELD_VALUE (preserved_tail_value) >> (i - 1)) & 1);
++  }
+ 
+   COMMON_ENTITY_HANDLE_DATA;
+ 
+--- a/include/dwg.h
++++ b/include/dwg.h
+@@ -4293,6 +4293,10 @@
+   BITCODE_BS attach_bottom; /*!< r2010+ */
+ 
+   BITCODE_B is_text_extended; /*!< r2013+ */
++  /* Same-version bounded data-stream extension before the string footer.
++     Handle-stream coverage is verified separately by the editor bridge. */
++  BITCODE_RC preserved_tail_bits;
++  BITCODE_RLL preserved_tail_value;
+ } Dwg_Entity_MULTILEADER;
+ 
+ /**

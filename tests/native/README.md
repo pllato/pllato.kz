@@ -1,4 +1,8 @@
-# Experimental executive DWG gate — 0.12.1
+# Experimental executive DWG gate — 0.12.2
+
+0.12.2: `multileader-tail.patch` retains a bounded (0..64-bit) same-version MULTILEADER data-stream tail at measured string-stream boundaries. Full typed bit coverage must still match, including handles; unknown records and incomplete typed decodes still fail closed. MLEADERSTYLE is shared. Save/read-back compares complete typed MULTILEADER records, not just their handles. Regression handles 4831F9 and 4C00D1 now pass coverage; 4831F9 passes clone and two save/read cycles. The 2032-root probe still rejects ACAD_TABLE 4C0519; this must not be advertised as general DWG fidelity.
+
+Set `DWG_PROBE_HANDLES=4831F9,4C00D1 DWG_EXPECT_COVERAGE=1 DWG_ROOT_HANDLE=4831F9 DWG_SAVE_TWICE=1` with the local `DWG_TEST_FILE` to repeat this regression. `DWG_EXECUTIVE_MODULE` optionally selects a diagnostic build. Browser tests also exercise cancellation and retry with no partial sheet.
 
 0.12.1 adds redundant top-level ATTRIB selection normalization with verified parent membership, shared named DBCOLOR references, and DIMASSOC continuation-chain parsing (`dimassoc-chains.patch`). The native fixture now has attributes on both nested and model-space INSERTs. It tests an attribute-only rejection, then a reordered/duplicated parent+attribute selection. Browser regression injects a failed worker operation and verifies that selection remains retryable, then creates/saves/reopens the sheet. Unit selection tests verify whole-block bounds including attached labels.
 
