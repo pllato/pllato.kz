@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Geometry view only. The original DWG remains the source for saving.
-import {fromRecords} from './cad.mjs';
+import {fromRecords} from './cad.mjs?v=0.5';
 export function nativeDocument(db){
  let serial=0;
  const record=(type,pairs=[],id)=>({type,id:id||'native-'+serial++,pairs:[[0,type],...pairs].map(([c,v])=>[c,String(v)])});
@@ -34,6 +34,8 @@ export function nativeDocument(db){
  const paper=new Set();
  for(const b of db.tables.BLOCK_RECORD.entries){
   if(/^\*paper_space/i.test(b.name))paper.add(b.handle);
+  // Model entities are already supplied below; paper space is not displayed.
+  if(/^\*(model_space|paper_space)/i.test(b.name))continue;
   const p=[[2,b.name],[70,b.flags]];point(p,10,b.basePoint);
   records.push(record('BLOCK',p));for(const r of entities(b.entities))records.push(r);records.push(record('ENDBLK'));
  }
