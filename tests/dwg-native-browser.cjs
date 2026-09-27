@@ -9,7 +9,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   await page.goto('http://127.0.0.1:8816/app/stroy/dwg/');
   await page.locator('#file').setInputFiles(fixture);await page.waitForFunction(()=>document.querySelector('#busy').hidden,{},{timeout:120000});
   assert.match(await page.locator('#status').textContent(),/Открыт/);assert.match(await page.locator('#save').textContent(),/DWG/);
-  assert.equal(await page.locator('[data-tool=line]').isDisabled(),true);
+  assert.equal(await page.locator('[data-tool=line]').isDisabled(),false);
   const b=await page.locator('#canvas').boundingBox(),s=Math.min((b.width-60)/100,(b.height-80)/50);
   await page.mouse.click(b.x+b.width/2,b.y+b.height/2+25*s);
   assert.match(await page.locator('#selection').textContent(),/^LINE/);
@@ -21,6 +21,9 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   await page.mouse.click(b.x+b.width/2-25*s,b.y+b.height/2+5*s);
   assert.match(await page.locator('#selection').textContent(),/^LWPOLYLINE/);
   await page.locator('#dx').fill('2');await page.locator('#dy').fill('3');await page.locator('#props button[type=submit]').click();
+  await page.locator('[data-tool=line]').click();await page.mouse.click(b.x+100,b.y+100);await page.mouse.click(b.x+200,b.y+100);
+  await page.locator('[data-tool=poly3]').click();for(const [x,y] of [[100,150],[200,150],[200,200]])await page.mouse.click(b.x+x,b.y+y);
+  page.once('dialog',d=>d.accept('Новая подпись 3х2,5'));await page.locator('[data-tool=text]').click();await page.mouse.click(b.x+100,b.y+220);
   await page.locator('#save').click();const pending=page.waitForEvent('download',{timeout:120000});await page.locator('#confirmExport').click();const download=await pending;
   assert.match(download.suggestedFilename(),/\.dwg$/);await download.saveAs(output);assert.deepEqual(errors,[]);
  }finally{await browser.close();}
@@ -30,5 +33,6 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  const line=db.entities.find(e=>e.type==='LINE'),text=db.entities.find(e=>e.type==='TEXT');
  assert.deepEqual(line.startPoint,{x:10,y:5,z:0});assert.deepEqual(line.endPoint,{x:110,y:5,z:0});assert.equal(text.text,'Проверка DWG');sdk.dwg_free(p);
  const poly=db.entities.find(e=>e.type==='LWPOLYLINE');assert.equal(poly.vertices[0].x,22);assert.equal(poly.vertices[0].y,23);
+ assert.equal(db.entities.filter(e=>e.type==='LINE').length,2);assert.equal(db.entities.filter(e=>e.type==='LWPOLYLINE').length,2);assert.ok(db.entities.some(e=>e.type==='TEXT'&&e.text==='Новая подпись 3х2,5'));
  fs.unlinkSync(output);fs.rmdirSync(dir);console.log('PASS native DWG UI move / undo / redo / Cyrillic edit / DWG write / reread values');
 })().catch(e=>{console.error(e);process.exit(1);});
