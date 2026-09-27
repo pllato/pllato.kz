@@ -26,10 +26,29 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');
  assert.match(await page.locator('#report').textContent(),/5 видимых/);
  if(!mobile&&process.env.DWG_TEST_FILE){
  await page.locator('#file').setInputFiles(process.env.DWG_TEST_FILE);
- await page.waitForFunction(()=>document.querySelector('#busy').hidden,{},{timeout:100000});
+ await page.waitForFunction(()=>document.querySelector('#busy').hidden,{},{timeout:330000});
  const result=await page.locator('#status').textContent();assert.match(result,/Открыт/);console.log('REAL DWG:',(await page.locator('#report').textContent()).slice(0,600));
+ assert.doesNotMatch(await page.locator('#report').textContent(),/достигнут предел/);
+ if(process.env.DWG_LARGE_ROUNDTRIP){
+ const originalReport=await page.locator('#report').textContent();
+ await page.locator('#save').click();const pending=page.waitForEvent('download');await page.locator('#confirmExport').click();const out=await pending;
+ const fs=require('node:fs'),path=require('node:path'),dir=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'dwg-roundtrip-')),saved=path.join(dir,'large-roundtrip.dxf');await out.saveAs(saved);console.log('EXPORTED BYTES:',fs.statSync(saved).size);assert.ok(fs.statSync(saved).size>64*1024*1024);
+ await page.locator('#file').setInputFiles(saved);
+ await page.waitForFunction(()=>document.querySelector('#filename').textContent==='large-roundtrip',{},{timeout:180000});
+ assert.equal(await page.locator('#report').textContent(),originalReport);
+ await page.locator('#plus').click();await page.locator('#minus').click();
+ console.log('PASS large DXF export / reopen / identical scene report');
+ fs.unlinkSync(saved);fs.rmdirSync(dir);
+ }
  }
  await page.screenshot({path:'/private/tmp/dwg-prototype-'+(mobile?'mobile':'desktop')+'.png'});
+ const retainedName=await page.locator('#filename').textContent(),retainedReport=await page.locator('#report').textContent();
+ await page.locator('#file').setInputFiles({name:'broken.dxf',mimeType:'application/dxf',buffer:Buffer.from('broken')});
+ await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Не удалось открыть'));
+ assert.equal(await page.locator('#filename').textContent(),retainedName);assert.equal(await page.locator('#report').textContent(),retainedReport);
+ await page.route('**/dwg/worker.mjs*',r=>r.fulfill({body:'self.onmessage=()=>{};',contentType:'application/javascript'}));
+ await page.locator('#file').setInputFiles({name:'cancel.dwg',mimeType:'application/octet-stream',buffer:Buffer.from('AC1032')});await page.locator('#cancel').click();
+ assert.equal(await page.locator('#filename').textContent(),retainedName);assert.equal(await page.locator('#report').textContent(),retainedReport);assert.equal(await page.locator('#file').isEnabled(),true);
  assert.deepEqual(errors,[]);console.log('PASS',mobile?'mobile':'desktop','edit / move / undo / export / reimport');await page.close();
  }
  }finally{await browser.close();}
