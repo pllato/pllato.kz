@@ -29,5 +29,5 @@ export function executiveLayout({origin=[0,0],width=420,height=297,title='',stam
  rect(tx,ty,tw,th);line(tx+tw*.5,ty,tx+tw*.5,ty+th);line(tx+tw*.78,ty,tx+tw*.78,ty+th);
  text(tx+2,ty+th-5,'Кабель');text(tx+tw*.5+2,ty+th-5,'Сечение');text(tx+tw*.78+2,ty+th-5,'Длина, м');
  rows.forEach((row,i)=>{if(!Number.isFinite(row.length)||row.length<0)throw Error('Неверный метраж');const y=ty+th-(i+1)*rh;line(tx,y,tx+tw,y);text(tx+2,y-5,row.brand);text(tx+tw*.5+2,y-5,row.section);text(tx+tw*.78+2,y-5,row.length.toFixed(2));});
- return {items,planBounds:[...p(55,Math.max(65,th+15)),...p(width-20,height-55)]};
+ return {items,planBounds:[...p(20,Math.max(65,th+15)),...p(width-20,height-55)]};
 }

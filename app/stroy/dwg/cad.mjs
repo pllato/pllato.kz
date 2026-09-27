@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {cadFont} from './fonts.mjs?v=0.12.3';
+import {cadFont} from './fonts.mjs?v=0.12.4';
 // DXF остаётся источником истины: неизвестные записи не вырезаются при экспорте.
 export const get=(r,c,d='')=>{const pairs=r._pairs||(r.raw===undefined?r.pairs:null);if(pairs){for(const p of pairs)if(p[0]===c)return p[1];}else{for(const p of groups(r.raw||''))if(p[0]===c)return p[1];}return d;};
 export const num=(r,c,d=0)=>Number(get(r,c,d));
@@ -56,7 +56,7 @@ function spline(r){
 export function scene(doc){
  const shapes=[],unsupported=new Map();let visited=0,limited=false;
  const skip=t=>unsupported.set(t,(unsupported.get(t)||0)+1);
- function walk(records,m=[1,0,0,1,0,0],owner=null,inherited='0',depth=0,blockColor={color:7},device=null){
+ function walk(records,m=[1,0,0,1,0,0],owner=null,inherited='0',depth=0,blockColor={color:7},device=null,semantic=null){
   for(let ri=0;ri<records.length;ri++){const r=records[ri];if(++visited>3000000){limited=true;return;}const root=owner||r,layer=get(r,8,'0')==='0'?inherited:get(r,8);
    if(num(r,60)===1)continue;
    const aci=Math.abs(num(r,62,256)),layerStyle=doc.layers.get(layer),trueColor=get(r,420);
@@ -64,8 +64,8 @@ export function scene(doc){
    const ex=[num(r,210),num(r,220),num(r,230,1)],wcs=['LINE','POINT','ELLIPSE','3DFACE','SPLINE','DIMENSION'].includes(r.type)||(r.type==='POLYLINE'&&(num(r,70)&8));
    if(!wcs&&(ex[0]||ex[1]||![-1,1].includes(ex[2]))){skip(r.type+' наклонная OCS');continue;}
    if(ex[2]===-1&&['TEXT','MTEXT','ATTRIB','ATTDEF'].includes(r.type)){skip(r.type+' зеркальный текст OCS');continue;}
-   let pts=[],text=null;
-   if(r.type==='HATCH'&&r.hatch){const matrix=ex[2]===-1?mul(m,[-1,0,0,1,0,0]):m,all=r.hatch.loops.flat().map(p=>apply(matrix,p)),bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const [x,y] of all){bounds[0]=Math.min(bounds[0],x);bounds[1]=Math.min(bounds[1],y);bounds[2]=Math.max(bounds[2],x);bounds[3]=Math.max(bounds[3],y);}shapes.push({id:root.id,deviceId:device?.id,deviceMatrix:device?.matrix,layer,pts:all,bounds,text:null,hatch:r.hatch,matrix,...style});continue;}
+   let pts=[],text=null;const entity=semantic||{id:r.id,matrix:m},identity={entityId:entity.id,entityMatrix:entity.matrix,entityKey:root.id+'|'+entity.id+'|'+entity.matrix.join(',')};
+   if(r.type==='HATCH'&&r.hatch){const matrix=ex[2]===-1?mul(m,[-1,0,0,1,0,0]):m,all=r.hatch.loops.flat().map(p=>apply(matrix,p)),bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const [x,y] of all){bounds[0]=Math.min(bounds[0],x);bounds[1]=Math.min(bounds[1],y);bounds[2]=Math.max(bounds[2],x);bounds[3]=Math.max(bounds[3],y);}shapes.push({id:root.id,...identity,deviceId:device?.id,deviceMatrix:device?.matrix,layer,pts:all,bounds,text:null,hatch:r.hatch,matrix,...style});continue;}
    if(r.type==='LINE')pts=[point(r),point(r,11)];
    else if(r.type==='LWPOLYLINE'||r.type==='POLYLINE'){
     if(r.type==='POLYLINE'){
@@ -91,9 +91,9 @@ export function scene(doc){
    }else if(['SOLID','TRACE','3DFACE'].includes(r.type)){
     pts=[point(r),point(r,11),point(r,12),point(r,13)];if(r.type!=='3DFACE')[pts[2],pts[3]]=[pts[3],pts[2]];pts.push(pts[0]);
    }else if(r.type==='MULTILEADER'){
-    if(r.parts?.length&&depth<12)walk(r.parts,m,root,layer,depth+1,style);else skip('MULTILEADER без отображаемого содержимого');continue;
+    if(r.parts?.length&&depth<12)walk(r.parts,m,root,layer,depth+1,style,device,entity);else skip('MULTILEADER без отображаемого содержимого');continue;
    }else if(r.type==='DIMENSION'){
-    const block=doc.blocks.get(get(r,2));if(!block||depth>=12){skip('DIMENSION без графического блока');continue;}walk(block.records,m,root,layer,depth+1,style);continue;
+    const block=doc.blocks.get(get(r,2));if(!block||depth>=12){skip('DIMENSION без графического блока');continue;}walk(block.records,m,root,layer,depth+1,style,device,entity);continue;
    }else if(r.type==='TEXT'||r.type==='MTEXT'||r.type==='ATTRIB'||r.type==='ATTDEF'){
     // Center/right/vertical alignment uses the second alignment point.
     // Fit/aligned text needs separate two-point layout, not this anchor rule.
@@ -105,7 +105,7 @@ export function scene(doc){
     const t=num(r,50)*Math.PI/180,c=Math.cos(t),s=Math.sin(t),sx=num(r,41,1),sy=num(r,42,1),local=[c*sx,s*sx,-s*sy,c*sy,num(r,10),num(r,20)];
     local[4]-=local[0]*block.base[0]+local[2]*block.base[1];local[5]-=local[1]*block.base[0]+local[3]*block.base[1];
     if(ex[2]===-1){local[0]*=-1;local[2]*=-1;local[4]*=-1;}
-    walk(block.records,mul(m,local),root,layer,depth+1,style,{id:r.id,matrix:m});continue;
+    walk(block.records,mul(m,local),root,layer,depth+1,style,{id:r.id,matrix:m},semantic);continue;
    }else {if(!['SEQEND','ENDBLK'].includes(r.type))skip(r.type);continue;}
    if(!wcs&&ex[2]===-1)pts=pts.map(([x,y])=>[-x,y]);
    pts=pts.map(p=>apply(m,p));if(!pts.length||pts.some(p=>!p.every(Number.isFinite)))continue;
@@ -113,7 +113,7 @@ export function scene(doc){
    const ts=doc.textStyles?.get(get(r,7,'Standard')),rawText=get(r,1),inline=rawText.match(/\\[fF]([^;]+);/),font=text!==null?cadFont(ts?.font,inline?.[1]):undefined;
    const textFormat=text!==null?{font,textScale:r.type==='MTEXT'?1:num(r,41,ts?.width||1),oblique:num(r,51,ts?.oblique||0)*Math.PI/180,halign:num(r,72),valign:num(r,73)}:{};
    const bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const [x,y] of pts){bounds[0]=Math.min(bounds[0],x);bounds[1]=Math.min(bounds[1],y);bounds[2]=Math.max(bounds[2],x);bounds[3]=Math.max(bounds[3],y);}if(text!==null){const pad=height*(text.length+2);bounds[0]-=pad;bounds[1]-=pad;bounds[2]+=pad;bounds[3]+=pad;}
-   shapes.push({id:root.id,deviceId:device?.id,deviceMatrix:device?.matrix,layer,pts,bounds,text,fill:['SOLID','TRACE'].includes(r.type),height,multiline:r.type==='MTEXT',textWidth:r.type==='MTEXT'?num(r,41)*Math.hypot(m[0],m[1]):0,attachment:num(r,71,1),angle:Math.atan2(m[1],m[0])+num(r,50)*Math.PI/180,...style,...textFormat});
+   shapes.push({id:root.id,...identity,deviceId:device?.id,deviceMatrix:device?.matrix,layer,pts,bounds,text,fill:['SOLID','TRACE'].includes(r.type),height,multiline:r.type==='MTEXT',textWidth:r.type==='MTEXT'?num(r,41)*Math.hypot(m[0],m[1]):0,attachment:num(r,71,1),angle:Math.atan2(m[1],m[0])+num(r,50)*Math.PI/180,...style,...textFormat});
   }
  }
  walk(doc.entities);return {shapes,unsupported:[...unsupported],limited};

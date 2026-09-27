@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {paintHatch} from './hatch.mjs?v=0.12.3';
+import {paintHatch} from './hatch.mjs?v=0.12.4';
 export function previewTransform(current,cached){const scale=current.s/cached.s;return {scale,x:current.x-cached.x*scale,y:current.y-cached.y*scale};}
 export function textLines(text,width,measure){return text.split(/\r?\n/).flatMap(paragraph=>{if(!(width>0))return [paragraph];const lines=[];let line='';for(const word of paragraph.split(/\s+/)){const next=line?line+' '+word:word;if(line&&measure(next)>width){lines.push(line);line=word;}else line=next;}lines.push(line);return lines;});}
 // Последовательные линии одного цвета рисуем пачкой, сохраняя порядок цветов,
@@ -12,7 +12,8 @@ export function paintShapes(ctx,shapes,{view,width,height,hidden,selected,colors
  for(const shape of shapes){
   const b=shape.bounds;
   if(hidden.has(shape.layer)||b[2]<left||b[0]>right||b[3]<bottom||b[1]>top)continue;
-  const nextColor=shape.id===selected?'#ffbe6c':shape.rgb||colors[shape.color]||'#ffffff',nextWidth=shape.id===selected?2.5:1;
+  const isSelected=shape.id===selected||shape.entityKey===selected||shape.deviceId===selected;
+  const nextColor=isSelected?'#ffbe6c':shape.rgb||colors[shape.color]||'#ffffff',nextWidth=isSelected?2.5:1;
   if(shape.hatch){flush();paintHatch(ctx,shape,view,nextColor,width,height);continue;}
   if(shape.text!==null){
    const p=shape.pts[0],x=p[0]*scale+ox,y=oy-p[1]*scale,size=shape.height*scale;

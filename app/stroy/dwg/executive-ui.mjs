@@ -1,7 +1,8 @@
-import {fromRecords,addEntity,get} from './cad.mjs?v=0.12.3';
-import * as projectAPI from './executive-project.mjs?v=0.12.3';
-import {routeLength} from './cable-ledger.mjs?v=0.12.3';
-import {selectExecutiveRoots} from './executive-selection.mjs?v=0.12.3';
+import {fromRecords,addEntity,get} from './cad.mjs?v=0.12.4';
+import * as projectAPI from './executive-project.mjs?v=0.12.4';
+import {routeLength} from './cable-ledger.mjs?v=0.12.4';
+import {selectExecutiveRoots} from './executive-selection.mjs?v=0.12.4';
+import {executivePlacement} from './executive-placement.mjs?v=0.12.4';
 export function mountExecutiveUI(api){
  const panel=document.createElement('section');panel.id='executives';
  panel.innerHTML=`<h2>Исполнительные</h2><button id="exArea">Выделить план · 2 угла</button><p id="exAreaInfo">Откройте DWG, выберите единицы и выделите план.</p><button id="exCreate" disabled>Создать рядом</button><label>Исполнительная<select id="exSheet"></select></label><label>Заголовок<input id="exTitle" maxlength="1000"></label><label>Поворот плана, °<input id="exAngle" type="number" value="0"></label><details><summary>Редактировать штамп</summary><div id="exStamp"></div></details><button id="exApply">Применить оформление</button><h3>Кабельные трассы</h3><label>Марка<input id="exBrand" value="ВВГнг(А)-LS"></label><label>Сечение<input id="exSection" value="3×2,5"></label><label>Дополнительная длина, м<input id="exExtra" type="number" min="0" value="0" step="any"></label><button id="exRoute">Рисовать трассу</button><button id="exFinish">Завершить трассу</button><label>Трасса<select id="exRouteList"></select></label><button id="exCable">Назначить кабель</button><button id="exLeader">Выноска · 3 точки</button><button id="exRemoveLeader">Удалить выноски</button><button id="exRemoveRoute">Удалить трассу</button><div class="pair"><label>Сдвиг X<input id="exDX" type="number" value="0"></label><label>Сдвиг Y<input id="exDY" type="number" value="0"></label></div><button id="exMoveRoute">Двигать трассу</button><button id="exDevice">Выбрать прибор</button><pre id="exLedger" style="white-space:pre-wrap;font-size:12px"></pre>`;
@@ -45,14 +46,12 @@ export function mountExecutiveUI(api){
  $('exArea').onclick=guard(()=>{if(!api.getDoc().native)throw Error('Исполнительные: откройте исходный DWG');points=[];mode='area';api.setTool('executive');api.status('Укажите два противоположных угла вокруг плана. Объекты на границе не включаются.');});
  $('exCreate').onclick=guard(async()=>{
   if(!chosen.length||!area||selectionSource!==api.getDoc().sourceFile)throw Error('Сначала выделите план в текущем DWG');const metres=api.metresPerUnit();if(!metres)throw Error('Выберите миллиметры, сантиметры или метры справа');
-  const p=structuredClone(project()),unit=Math.max(Math.hypot(area[2]-area[0],area[3]-area[1])/160,1e-6);
-  const right=p.sheets.reduce((x,s)=>Math.max(x,s.origin[0]+420*s.paperUnit),area[2]);
-  const origin=[right+unit*30,area[1]],centre=[(area[0]+area[2])/2,(area[1]+area[3])/2],position=[origin[0]+unit*227.5,origin[1]+unit*158];
+  const p=structuredClone(project()),{unit,origin,centre,position}=executivePlacement(api.shapes(),chosen.map(h=>'dwg-'+h));
   const id=crypto.randomUUID();projectAPI.createExecutive(p,{id,title:'Исполнительная схема '+(p.sheets.length+1),origin,planCentre:position,metresPerUnit:metres,paperUnit:unit});
   operationError.hidden=true;operationError.textContent='';
   const previous=active;active=id;const created=await api.commit(p,{sheetId:id,handles:chosen,centre,position});
   if(!created){active=previous;operationError.textContent=api.lastStatus();operationError.hidden=false;return;}
-  chosen=[];area=null;$('exCreate').disabled=true;mode='';$('exAreaInfo').textContent='Исполнительная создана справа от плана и показана на экране.';
+  chosen=[];area=null;$('exCreate').disabled=true;mode='';$('exAreaInfo').textContent='Исполнительная создана на свободном месте справа от всех чертежей и показана на экране.';
  });
  showSheet.onclick=guard(()=>{api.focus(sheet());showCanvas();});
  $('exSheet').onchange=()=>{active=$('exSheet').value;refresh();api.focus(sheet());};$('exRouteList').onchange=()=>{routeId=$('exRouteList').value;refreshLeaders();};
