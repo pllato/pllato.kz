@@ -1,8 +1,8 @@
-import {fromRecords,addEntity,get} from './cad.mjs?v=0.12.4';
-import * as projectAPI from './executive-project.mjs?v=0.12.4';
-import {routeLength} from './cable-ledger.mjs?v=0.12.4';
-import {selectExecutiveRoots} from './executive-selection.mjs?v=0.12.4';
-import {executivePlacement} from './executive-placement.mjs?v=0.12.4';
+import {fromRecords,addEntity,get} from './cad.mjs?v=0.13';
+import * as projectAPI from './executive-project.mjs?v=0.13';
+import {routeLength} from './cable-ledger.mjs?v=0.13';
+import {selectExecutiveRoots} from './executive-selection.mjs?v=0.13';
+import {executivePlacement} from './executive-placement.mjs?v=0.13';
 export function mountExecutiveUI(api){
  const panel=document.createElement('section');panel.id='executives';
  panel.innerHTML=`<h2>Исполнительные</h2><button id="exArea">Выделить план · 2 угла</button><p id="exAreaInfo">Откройте DWG, выберите единицы и выделите план.</p><button id="exCreate" disabled>Создать рядом</button><label>Исполнительная<select id="exSheet"></select></label><label>Заголовок<input id="exTitle" maxlength="1000"></label><label>Поворот плана, °<input id="exAngle" type="number" value="0"></label><details><summary>Редактировать штамп</summary><div id="exStamp"></div></details><button id="exApply">Применить оформление</button><h3>Кабельные трассы</h3><label>Марка<input id="exBrand" value="ВВГнг(А)-LS"></label><label>Сечение<input id="exSection" value="3×2,5"></label><label>Дополнительная длина, м<input id="exExtra" type="number" min="0" value="0" step="any"></label><button id="exRoute">Рисовать трассу</button><button id="exFinish">Завершить трассу</button><label>Трасса<select id="exRouteList"></select></label><button id="exCable">Назначить кабель</button><button id="exLeader">Выноска · 3 точки</button><button id="exRemoveLeader">Удалить выноски</button><button id="exRemoveRoute">Удалить трассу</button><div class="pair"><label>Сдвиг X<input id="exDX" type="number" value="0"></label><label>Сдвиг Y<input id="exDY" type="number" value="0"></label></div><button id="exMoveRoute">Двигать трассу</button><button id="exDevice">Выбрать прибор</button><pre id="exLedger" style="white-space:pre-wrap;font-size:12px"></pre>`;
@@ -15,8 +15,9 @@ export function mountExecutiveUI(api){
  let active='',chosen=[],area=null,points=[],mode='',routeId='',selectionSource=null,hoverPoint=null;
  const project=()=>api.getDoc().executiveProject||projectAPI.createExecutiveProject();
  const sheet=()=>project().sheets.find(s=>s.id===active);
- const showCanvas=()=>{if(matchMedia('(max-width:850px)').matches)$('sidebar').classList.remove('open');};
- const guard=fn=>async()=>{if(api.busy())return;try{await fn();if(mode)showCanvas();}catch(e){api.status(e.message);}};
+ const showCanvas=()=>{if(matchMedia('(max-width:850px)').matches)$('sidebar').classList.remove('open');for(const group of document.querySelectorAll('#executiveToolbar>details'))group.open=false;};
+ let acting=false;
+ const guard=fn=>async()=>{if(api.busy()||acting)return;acting=true;try{await fn();if(mode)showCanvas();}catch(e){api.status(e.message);}finally{acting=false;}};
  function mutate(fn){const next=projectAPI.executiveTransaction(project(),fn);for(const s of next.sheets)projectAPI.executiveEntities(next,s.id);api.snapshot();api.getDoc().executiveProject=next;api.changed();}
  function refresh(){
   if(selectionSource&&selectionSource!==api.getDoc().sourceFile){chosen=[];area=null;points=[];mode='';selectionSource=null;$('exCreate').disabled=true;operationError.hidden=true;$('exAreaInfo').textContent='Выделите план в текущем DWG.';}
@@ -58,7 +59,7 @@ export function mountExecutiveUI(api){
  $('exMoveLeader').onclick=guard(()=>{const id=$('exLeaderList').value;mutate(p=>projectAPI.moveLeader(p,active,id,[Number($('exDX').value),Number($('exDY').value)]));});
  $('exDeleteLeader').onclick=guard(()=>{const id=$('exLeaderList').value;mutate(p=>projectAPI.removeLeader(p,active,id));});
  $('exCalibrate').onclick=guard(()=>{if(!sheet())throw Error('Создайте исполнительную');const metres=Number($('exKnownMetres').value);if(!Number.isFinite(metres)||metres<=0)throw Error('Укажите известную длину в метрах');mode='calibrate';points=[];api.setTool('executive');api.status('Укажите концы известного отрезка. Метраж этого листа будет пересчитан; геометрия останется на месте.');});
- $('exApply').onclick=guard(()=>{if(!sheet())throw Error('Создайте исполнительную');const title=$('exTitle').value,angle=Number($('exAngle').value)*Math.PI/180,stamp=Object.fromEntries(Object.keys(stampLabels).map(k=>[k,$('exStamp_'+k).value]));mutate(p=>{projectAPI.rotateExecutive(p,active,angle);const s=p.sheets.find(s=>s.id===active);s.title=title;s.stamp=stamp;});api.previewRotation(sheet());});
+ $('exApply').onclick=guard(async()=>{if(!sheet())throw Error('Создайте исполнительную');const title=$('exTitle').value,angle=Number($('exAngle').value)*Math.PI/180,stamp=Object.fromEntries(Object.keys(stampLabels).map(k=>[k,$('exStamp_'+k).value]));if(!Number.isFinite(angle))throw Error('Введите числовой угол');await api.checkpoint('Перед поворотом / оформлением');mutate(p=>{projectAPI.rotateExecutive(p,active,angle);const s=p.sheets.find(s=>s.id===active);s.title=title;s.stamp=stamp;});api.previewRotation(sheet());});
  $('exRoute').onclick=guard(()=>{if(!sheet())throw Error('Создайте исполнительную');mode='route';points=[];api.setTool('executive');api.status('Укажите точки трассы; затем нажмите «Завершить трассу».');});
  $('exFinish').onclick=guard(()=>{if(mode!=='route'||points.length<2)throw Error('Нужно минимум две точки');const id=crypto.randomUUID(),routePoints=points.map(p=>[...p]);mutate(p=>projectAPI.addRoute(p,active,{id,points:routePoints,brand:$('exBrand').value,section:$('exSection').value,extraMetres:Number($('exExtra').value)}));routeId=id;mode='';points=[];api.setTool('select');refresh();});
  $('exCable').onclick=guard(()=>mutate(p=>projectAPI.setCable(p,active,routeId,{brand:$('exBrand').value,section:$('exSection').value,extraMetres:Number($('exExtra').value)})));
@@ -79,5 +80,13 @@ export function mountExecutiveUI(api){
   api.draw();
  }
  function hover(w){hoverPoint=w;if(mode==='route'&&points.length&&sheet())api.status('Длина трассы: '+routeLength([...points,w],sheet().metresPerUnit).toFixed(3)+' м');api.draw();}
+ // Действия наверху, параметры — в раскрывающихся группах, без длинной ленты кнопок справа.
+ const toolbar=document.createElement('div');toolbar.id='executiveToolbar';toolbar.setAttribute('aria-label','Инструменты исполнительной');
+ const groups=[['Лист',['exTitle','exAngle','exApply']],['Кабель',['exBrand','exSection','exExtra','exRoute','exFinish','exRouteList','exCable']],['Выноски',['exLeader','exLeaderList','exMoveLeader','exDeleteLeader','exRemoveLeader']],['Перемещение',['exDX','exDY','exMoveRoute','exDevice','exRemoveRoute']],['Масштаб',['exKnownMetres','exCalibrate']]];
+ for(const [title,ids] of groups){const group=document.createElement('details'),summary=document.createElement('summary'),body=document.createElement('div');summary.textContent=title;group.append(summary,body);for(const id of ids){const el=$(id);body.append(el.closest('label')||el);}if(title==='Лист'){const stamp=$('exStamp').closest('details');body.insertBefore(stamp,$('exApply'));}toolbar.append(group);}
+ document.querySelector('main').before(toolbar);
+ toolbar.addEventListener('toggle',e=>{if(e.target.parentElement===toolbar&&e.target.open)for(const group of toolbar.children)if(group!==e.target)group.open=false;},true);
+ document.addEventListener('pointerdown',e=>{if(!toolbar.contains(e.target))for(const group of toolbar.children)group.open=false;});
+ $('exMoveLeader').textContent='Сдвинуть выноску (X/Y в «Перемещение»)';$('exMoveRoute').textContent='Сдвинуть выбранную трассу';$('exApply').textContent='Применить поворот и оформление';
  return {rebuild,tap,project,hover,preview:()=>({mode,points,hoverPoint}),cancel:()=>{points=[];mode='';},sheet};
 }

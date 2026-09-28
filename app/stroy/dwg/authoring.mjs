@@ -1,4 +1,4 @@
-import {get,num} from './cad.mjs?v=0.12.4';
+import {get,num} from './cad.mjs?v=0.13';
 export const isNew=r=>r?.id?.startsWith('new-');
 export function additions(doc){return doc.entities.filter(isNew).map(r=>{
  if(r.type==='LINE')return {type:r.type,values:[10,20,11,21].map(c=>num(r,c))};
