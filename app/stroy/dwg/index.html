@@ -2,11 +2,12 @@
 <html lang="ru"><head><script src="/app/gate.js"></script>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DWG-редактор · Pllato</title>
-<link rel="icon" href="../plan-fakt/favicon.ico"><link rel="stylesheet" href="style.css?v=0.12.4">
+<link rel="icon" href="../plan-fakt/favicon.ico"><link rel="stylesheet" href="style.css?v=0.13">
 </head><body>
-<header><a href="../plan-fakt/">← План-факт</a><strong>DWG-редактор <small>Прототип 0.12.4</small></strong><span id="filename">Демонстрационный чертёж</span>
+<header><a href="../plan-fakt/">← План-факт</a><strong>DWG-редактор <small>Прототип 0.13</small></strong><span id="filename">Демонстрационный чертёж</span>
 <label class="button primary">Открыть DWG / DXF<input id="file" type="file" accept=".dwg,.dxf" hidden></label>
-<button id="save">Скачать изменения · DXF</button></header>
+<button id="historyButton">История / восстановить</button><button id="save">Скачать изменения · DXF</button></header>
+<div id="autosaveStatus" role="status">Изменения сохраняются локально после открытия файла.</div>
 <div class="notice">Исполнительные: выделите план и создайте независимую копию через панель справа. Поворот, оформление, кабели, выноски и ведомости сохраняются в новый DWG. Неподдерживаемые связи блокируют операцию, а не удаляются. Исходный файл не меняется и не отправляется на сервер. Только 2D-модель; экспериментальная версия, не замена AutoCAD. Проверяйте сохранённую копию в CAD.</div>
 <nav aria-label="Инструменты чертежа"><button data-tool="select" aria-pressed="true">Выбор</button><button data-tool="pan">Двигать вид</button><button data-tool="line">Линия</button><button data-tool="poly3">Полилиния · 3 точки</button><button data-tool="text">Текст</button><button data-tool="measure">Измерить</button><span class="divider"></span><button id="undo" disabled>Отменить</button><button id="redo" disabled>Повторить</button><button id="fit">Вписать</button><button id="plus" aria-label="Приблизить">+</button><button id="minus" aria-label="Отдалить">−</button><button id="panel">Слои / свойства</button><button id="grid" aria-pressed="false">Сетка</button><button id="demo">Демо</button></nav>
 <main><section id="viewport" aria-label="Область чертежа"><canvas id="canvas" tabindex="0"></canvas><div id="hint">Выберите объект. Масштаб — колесом или двумя пальцами.</div><div id="busy" hidden><strong>Открываю DWG…</strong><p><progress id="loadProgress" max="100" value="0"></progress> <b id="loadPercent">0%</b></p><p id="loadElapsed" aria-live="off">Проценты по этапам загрузки</p><p>Первый запуск загружает бесплатный движок. Большие файлы требуют памяти.</p><button id="cancel">Отменить загрузку</button></div></section>
@@ -17,4 +18,5 @@
 <details><summary>Движок и исходники</summary><p>Чтение: LibreDWG / mlightcad 0.7.14. Запись: GNU LibreDWG 0.14 с исправлениями Pllato. GPL-3.0. <a href="vendor/COPYING">Лицензия</a>, <a href="vendor/libredwg-web-source.tar.gz">исходники чтения</a>, <a href="vendor/pllato-engine-source.tar.gz">исходники базовой записи</a>, <a href="vendor/pllato-executive-source.tar.gz">исходники движка исполнительных и сборка</a>, <a href="https://github.com/pllato/pllato.kz/tree/main/app/stroy/dwg">исходники редактора</a>.</p></details></aside></main>
 <footer role="status" id="status">Готово. Демо можно редактировать и сохранить в DXF.</footer>
 <dialog id="exportDialog"><h2>Сохранить копию?</h2><p id="exportDescription"></p><p id="exportReport"></p><form method="dialog"><button value="cancel">Назад</button><button id="confirmExport" value="save" class="primary">Скачать</button></form></dialog>
-<script type="module" src="editor.mjs?v=0.12.4"></script></body></html>
+<dialog id="recoveryDialog"><h2>История изменений на этом устройстве</h2><p>Выберите версию для восстановления. Это локальная резервная копия, не скачанный DWG. Очистка данных сайта и завершение инкогнито могут удалить историю. Для надёжного архива скачивайте DWG.</p><div id="recoveryList"></div><form method="dialog"><button>Закрыть</button></form></dialog>
+<script type="module" src="editor.mjs?v=0.13"></script></body></html>
