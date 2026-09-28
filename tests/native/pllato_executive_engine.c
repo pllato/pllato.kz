@@ -488,16 +488,23 @@ API int pllato_clone_selection(const char *roots,double cx,double cy,double x,do
 /* Copy an owned entity independently, then place its wrapper inside the sheet.
    Temporarily changing the source owner only prevents climbing to its enclosing
    definition. Restore it even on failure; all other dependency checks remain. */
-API int pllato_copy_object(const char *handle,const char *parent,double x,double y,double angle,double sx,double sy){
- Dwg_Object *o=entity(handle),*target=entity(parent);
- if(!o||!target||target->fixedtype!=DWG_TYPE_INSERT||!isfinite(x)||!isfinite(y)||!isfinite(angle)||!isfinite(sx)||!isfinite(sy)||!sx||!sy)return 1;
- if(o->fixedtype!=DWG_TYPE_LINE&&o->fixedtype!=DWG_TYPE_LWPOLYLINE&&o->fixedtype!=DWG_TYPE_ARC&&o->fixedtype!=DWG_TYPE_CIRCLE&&o->fixedtype!=DWG_TYPE_TEXT&&o->fixedtype!=DWG_TYPE_MTEXT&&o->fixedtype!=DWG_TYPE_INSERT)return 2;
- BITCODE_HV sourceHandle=o->handle.value,parentHandle=target->handle.value;
- BITCODE_H oldOwner=o->tio.entity->ownerhandle;unsigned oldMode=o->tio.entity->entmode;
+API int pllato_copy_objects(const char *handles,const char *parent,double x,double y,double angle,double sx,double sy){
+ Dwg_Object *target=entity(parent);
+ if(!handles||strlen(handles)>340000||!target||target->fixedtype!=DWG_TYPE_INSERT||!isfinite(x)||!isfinite(y)||!isfinite(angle)||!isfinite(sx)||!isfinite(sy)||!sx||!sy)return 1;
+ BITCODE_HV parentHandle=target->handle.value;
+ struct saved_owner{BITCODE_HV h;BITCODE_H owner;unsigned mode;} *saved=calloc(20000,sizeof(*saved));
+ char *handle_list=strdup(handles);if(!saved||!handle_list){free(saved);free(handle_list);return 1;}unsigned count=0;int code=0;
+ for(char *p=strtok(handle_list,",");p;p=strtok(NULL,",")){
+  Dwg_Object *o=entity(p);if(count>=20000||!o){code=1;break;}
+  if(o->fixedtype!=DWG_TYPE_LINE&&o->fixedtype!=DWG_TYPE_LWPOLYLINE&&o->fixedtype!=DWG_TYPE_ARC&&o->fixedtype!=DWG_TYPE_CIRCLE&&o->fixedtype!=DWG_TYPE_TEXT&&o->fixedtype!=DWG_TYPE_MTEXT&&o->fixedtype!=DWG_TYPE_INSERT){code=2;break;}
+  for(unsigned i=0;i<count;i++)if(saved[i].h==o->handle.value){code=2;break;}if(code)break;
+  saved[count++]=(struct saved_owner){o->handle.value,o->tio.entity->ownerhandle,o->tio.entity->entmode};
+ }
+ free(handle_list);if(code||!count){free(saved);return code?code:1;}
  Dwg_Object *model=dwg_model_space_object(&drawing);
- o->tio.entity->ownerhandle=dwg_add_handleref(&drawing,4,model->handle.value,NULL);o->tio.entity->entmode=2;
- int code=pllato_clone_selection(handle,0,0,x,y,angle);
- o=dwg_resolve_handle(&drawing,sourceHandle);o->tio.entity->ownerhandle=oldOwner;o->tio.entity->entmode=oldMode;
+ for(unsigned i=0;i<count;i++){Dwg_Object *o=dwg_resolve_handle(&drawing,saved[i].h);o->tio.entity->ownerhandle=dwg_add_handleref(&drawing,4,model->handle.value,NULL);o->tio.entity->entmode=2;}
+ code=pllato_clone_selection(handles,0,0,x,y,angle);
+ for(unsigned i=0;i<count;i++){Dwg_Object *o=dwg_resolve_handle(&drawing,saved[i].h);o->tio.entity->ownerhandle=saved[i].owner;o->tio.entity->entmode=saved[i].mode;}free(saved);
  if(code)return code;
  char result[40]={0};FILE *f=fopen("/clone-result.txt","r");if(!f)return 31;fgets(result,sizeof(result),f);fclose(f);
  Dwg_Object *copy=entity(result);target=dwg_resolve_handle(&drawing,parentHandle);
@@ -515,6 +522,7 @@ API int pllato_copy_object(const char *handle,const char *parent,double x,double
  copy->tio.entity->tio.INSERT->scale.x=sx;copy->tio.entity->tio.INSERT->scale.y=sy;
  return 0;
 }
+API int pllato_copy_object(const char *handle,const char *parent,double x,double y,double angle,double sx,double sy){return pllato_copy_objects(handle,parent,x,y,angle,sx,sy);}
 API const char *pllato_last_handle(void){static char value[32];if(!loaded||!drawing.num_objects)return "";snprintf(value,sizeof(value),"%llX",(unsigned long long)drawing.object[drawing.num_objects-1].handle.value);return value;}
 API int pllato_move(const char *handle,double dx,double dy){
  Dwg_Object *o=entity(handle);
@@ -532,10 +540,16 @@ API int pllato_move(const char *handle,double dx,double dy){
 }
 API int pllato_insert_angle(const char *handle,double angle){Dwg_Object *o=entity(handle);if(!o||o->fixedtype!=DWG_TYPE_INSERT||o->tio.entity->tio.INSERT->has_attribs||!isfinite(angle))return 1;o->tio.entity->tio.INSERT->rotation=angle;return 0;}
 
+API int pllato_color(const char *handle,int color){
+ Dwg_Object *o=entity(handle);if(!o||color<1||color>255)return 1;
+ o->tio.entity->color.index=color;o->tio.entity->color.raw=color;
+ o->tio.entity->color.flag=0;o->tio.entity->color.rgb=0;o->tio.entity->color.handle=NULL;
+ return 0;
+}
 /* Delete only self-contained editable entities; dependency-bearing objects reject. */
 API int pllato_remove(const char *handle){
  Dwg_Object *o=entity(handle);if(!o)return 1;
- if(o->fixedtype!=DWG_TYPE_LINE&&o->fixedtype!=DWG_TYPE_TEXT&&o->fixedtype!=DWG_TYPE_LWPOLYLINE&&o->fixedtype!=DWG_TYPE_INSERT)return 2;
+ if(o->fixedtype!=DWG_TYPE_LINE&&o->fixedtype!=DWG_TYPE_ARC&&o->fixedtype!=DWG_TYPE_CIRCLE&&o->fixedtype!=DWG_TYPE_TEXT&&o->fixedtype!=DWG_TYPE_LWPOLYLINE&&o->fixedtype!=DWG_TYPE_INSERT)return 2;
  Dwg_Object_Entity *ent=o->tio.entity;
  if(ent->num_reactors||ent->xdicobjhandle&&ent->xdicobjhandle->absolute_ref)return 3;
  Dwg_Object *owner=ent->entmode==2?dwg_model_space_object(&drawing):dwg_ref_object(&drawing,ent->ownerhandle);

@@ -1,0 +1,22 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1100}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/app/gate.js',r=>r.fulfill({body:''}));
+ await page.route('**/editor.mjs*',async r=>{const response=await r.fetch();await r.fulfill({response,body:await response.text()+'\nglobalThis.workTest={state:()=>doc,screen};'});});
+ await page.goto('http://127.0.0.1:8817/app/stroy/dwg/');
+ await page.locator('#file').setInputFiles(process.env.DWG_CLONE_FIXTURE);await page.waitForFunction(()=>document.querySelector('#busy').hidden);
+ await page.locator('#units').selectOption('.001');await page.locator('#exArea').click();let b=await page.locator('#canvas').boundingBox();await page.mouse.click(b.x+3,b.y+3);await page.mouse.click(b.x+b.width-3,b.y+b.height-3);await page.locator('#exCreate').click();await page.waitForFunction(()=>document.querySelector('#busy').hidden);assert.equal(await page.locator('#exSheet option').count(),1);
+ await page.locator('#exBrand').fill('Тестовый кабель');await page.locator('#exSection').fill('3×2,5');await page.locator('#cwDraw').click();b=await page.locator('#canvas').boundingBox();
+ for(const [x,y]of [[.35,.35],[.45,.25],[.55,.35]])await page.mouse.click(b.x+b.width*x,b.y+b.height*y);
+ await page.waitForFunction(()=>workTest.state().executiveProject.sheets[0].routes.length===1);
+ await page.waitForFunction(()=>document.querySelector('#cwLength').textContent.includes('Тестовый кабель'));assert.match(await page.locator('#exLedger').textContent(),/Без выносок: 1/);
+ await page.locator('#cwColor').selectOption('3');await page.locator('#cwApplyColor').click();assert.equal(await page.evaluate(()=>workTest.state().executiveProject.sheets[0].routes[0].color),3);
+ await page.locator('#cwShape').click();let p=await page.evaluate(()=>workTest.screen(workTest.state().executiveProject.sheets[0].routes[0].controls[1]));const before=await page.evaluate(()=>workTest.state().executiveProject.sheets[0].routes[0].points);
+ await page.mouse.move(b.x+p[0],b.y+p[1]);await page.mouse.down();await page.mouse.move(b.x+p[0]+20,b.y+p[1]+25,{steps:5});await page.mouse.up();assert.notDeepEqual(await page.evaluate(()=>workTest.state().executiveProject.sheets[0].routes[0].points),before);
+ await page.locator('#cwMove').click();p=await page.evaluate(()=>workTest.screen(workTest.state().executiveProject.sheets[0].routes[0].points[0]));const movedBefore=await page.evaluate(()=>workTest.state().executiveProject.sheets[0].routes[0].points[0]);await page.mouse.move(b.x+p[0],b.y+p[1]);await page.mouse.down();await page.mouse.move(b.x+p[0]+25,b.y+p[1],{steps:5});await page.mouse.up();assert.notDeepEqual(await page.evaluate(()=>workTest.state().executiveProject.sheets[0].routes[0].points[0]),movedBefore);
+ await page.locator('#cwLeader').click();for(const[x,y]of [[.4,.4],[.35,.45],[.5,.45]])await page.mouse.click(b.x+b.width*x,b.y+b.height*y);assert.match(await page.locator('#exLedger').textContent(),/Без выносок: 0/);
+ await page.locator('#cwCopy').click();await page.locator('#cwPaste').click();await page.mouse.click(b.x+b.width*.7,b.y+b.height*.5);assert.equal(await page.evaluate(()=>workTest.state().executiveProject.sheets[0].routes.length),2);
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'dwg-workbench-')),file=path.join(dir,'edited.dwg');await page.locator('#save').click();const downloading=page.waitForEvent('download',{timeout:120000});await page.locator('#confirmExport').click();await (await downloading).saveAs(file);await page.waitForFunction(()=>document.querySelector('#busy').hidden);
+ assert.equal(await page.evaluate(()=>workTest.state().executiveProject.sheets[0].routes.length),2);assert.equal(await page.evaluate(()=>workTest.state().executiveProject.sheets[0].routes[0].color),3);assert.ok(await page.evaluate(()=>workTest.state().entities.some(r=>r.type==='LWPOLYLINE'&&r.pairs.some(p=>p[0]===62&&Number(p[1])===3))));assert.deepEqual(errors,[]);
+ await page.screenshot({path:path.join(dir,'workbench.png')});console.log('PASS workbench draw, nodes, move, color, leader, copy, DWG round-trip',dir);
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

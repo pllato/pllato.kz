@@ -36,6 +36,16 @@ assert.equal(m.ccall('pllato_move','number',['string','number','number'],[device
 // Creation, deletion and metadata replacement must survive a second save.
 assert.equal(m.ccall('pllato_add_line','number',Array(4).fill('number'),[1,2,3,4]),0);
 const added=m.ccall('pllato_last_handle','string',[],[]);
+assert.equal(m.ccall('pllato_color','number',['string','number'],[added,3]),0);
+assert.equal(m.ccall('pllato_add_line','number',Array(4).fill('number'),[3,4,5,6]),0);
+const second=m.ccall('pllato_last_handle','string',[],[]);
+assert.equal(m.ccall('pllato_copy_objects','number',['string','string',...Array(5).fill('number')],[added+','+second,copyHandle,10,20,0,1,1]),0);
+const chainHandle=m.FS.readFile('/clone-result.txt',{encoding:'utf8'});
+assert.ok(m.ccall('pllato_save','number',['string'],['/color.dwg'])<128);
+const colored=read(m.FS.readFile('/color.dwg'));assert.equal(colored.entities.find(e=>e.handle===added).colorIndex,3);
+const pastedChain=colored.tables.BLOCK_RECORD.entries.flatMap(b=>b.entities||[]).find(e=>e.handle===chainHandle);
+assert.equal(colored.tables.BLOCK_RECORD.entries.find(b=>b.handle===pastedChain.blockRecordId).entities.length,2,'Copy chain in one CAD group');
+assert.equal(m.ccall('pllato_remove','number',['string'],[second]),0);
 assert.equal(m.ccall('pllato_remove','number',['string'],[added]),0);
 for(const text of ['{"version":1,"title":"Первый"}','{"version":1,"title":"Второй"}']){
  const bytes=new TextEncoder().encode(text);assert.equal(m.ccall('pllato_executive_metadata','number',['array','number'],[bytes,bytes.length]),0);

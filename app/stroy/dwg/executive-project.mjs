@@ -1,5 +1,5 @@
-import {routeLength,rotatePoints,cableLedger} from './cable-ledger.mjs?v=0.14.5';
-import {executiveLayout} from './executive-layout.mjs?v=0.14.5';
+import {routeLength,rotatePoints,cableLedger} from './cable-ledger.mjs?v=0.15';
+import {executiveLayout} from './executive-layout.mjs?v=0.15';
 
 // Serializable editing model. Cable data belongs to a route, not its leaders.
 // Native block handles are retained; source geometry is never flattened here.
@@ -19,11 +19,13 @@ export function createExecutive(project,{id,title='',origin=[0,0],planCentre=[0,
  const s={id,title:String(title),origin:[...origin],planCentre:[...planCentre],nativeHandles:[...nativeHandles],metresPerUnit,paperUnit,angle:0,stamp:{},routes:[],notes:[]};
  project.sheets.push(s);return s;
 }
-export function addRoute(project,sheetId,{id,points,brand='',section='',extraMetres=0,paths,sourceIds}){
+export function addRoute(project,sheetId,{id,points,brand='',section='',extraMetres=0,paths,sourceIds,color=7,controls,smooth=false}){
  const s=sheet(project,sheetId);unique(project.sheets.flatMap(s=>s.routes),id);routeLength(points,s.metresPerUnit);
  if(!Number.isFinite(extraMetres)||extraMetres<0)throw Error('Неверная дополнительная длина');
  const r={id,sheetId,points:points.map(p=>[...p]),brand:String(brand).trim(),section:String(section).trim(),extraMetres,metresPerUnit:s.metresPerUnit,leaders:[]};
  if(paths){if(!Array.isArray(paths)||paths.length>10000||!Array.isArray(sourceIds)||sourceIds.some(id=>typeof id!=='string'))throw Error('Неверная привязка кабеля');for(const p of paths)routeLength(p,s.metresPerUnit);r.paths=structuredClone(paths);r.sourceIds=[...sourceIds];}
+ if(!Number.isInteger(color)||color<1||color>255)throw Error('Неверный цвет кабеля');r.color=color;
+ if(controls){routeLength(controls,s.metresPerUnit);r.controls=structuredClone(controls);r.smooth=!!smooth;}
  s.routes.push(r);return r;
 }
 export function setCable(project,sheetId,routeId,{brand,section,extraMetres}){
@@ -59,6 +61,7 @@ export function moveRoute(project,sheetId,routeId,delta){
  const points=r.points.map(move),leaders=r.leaders.map(l=>({...l,anchor:move(l.anchor),elbow:move(l.elbow),label:move(l.label)}));
  [...points,...leaders.flatMap(l=>[l.anchor,l.elbow,l.label])].forEach(requirePoint);
  r.points=points;r.leaders=leaders;
+ if(r.controls)r.controls=r.controls.map(move);
 }
 export function rotateExecutive(project,sheetId,angle){
  const s=sheet(project,sheetId);if(!Number.isFinite(angle))throw Error('Неверный угол');
@@ -66,6 +69,7 @@ export function rotateExecutive(project,sheetId,angle){
  const routes=s.routes.map(r=>({...r,points:rotatePoints(r.points,delta,s.planCentre),leaders:r.leaders.map(l=>{const [anchor,elbow,label]=rotatePoints([l.anchor,l.elbow,l.label],delta,s.planCentre);return {...l,anchor,elbow,label};})}));
  routes.flatMap(r=>[...r.points,...r.leaders.flatMap(l=>[l.anchor,l.elbow,l.label])]).forEach(requirePoint);
  for(const r of routes)if(r.paths)r.paths=r.paths.map(points=>rotatePoints(points,delta,s.planCentre));
+ for(const r of routes)if(r.controls)r.controls=rotatePoints(r.controls,delta,s.planCentre);
  s.routes=routes;s.angle=angle;
  // Native handles require a matching native transform transaction before commit.
  return {handles:[...s.nativeHandles],centre:[...s.planCentre],angle:delta};
@@ -79,7 +83,7 @@ export function executiveEntities(project,sheetId){
  const items=[...layout.items];
  for(let i=10;i<ledger.rows.length;i+=10){const page=i/10;items.push(...executiveLayout({origin:[s.origin[0],s.origin[1]-page*310*unit],title:s.title+' — ведомость, продолжение '+page,stamp:s.stamp,rows:ledger.rows.slice(i,i+10),unit,northAngle:s.angle}).items);}
  for(const r of s.routes){
-  if(!r.sourceIds)items.push({type:'LWPOLYLINE',points:r.points.flat(),closed:false,routeId:r.id});
+  if(!r.sourceIds)items.push({type:'LWPOLYLINE',points:r.points.flat(),closed:false,routeId:r.id,color:r.color||7});
   for(const l of r.leaders){
    items.push({type:'LWPOLYLINE',points:[...l.anchor,...l.elbow,...l.label],closed:false});
    const dx=l.elbow[0]-l.anchor[0],dy=l.elbow[1]-l.anchor[1],length=Math.hypot(dx,dy);
