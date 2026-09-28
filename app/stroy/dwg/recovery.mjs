@@ -1,7 +1,7 @@
-import {get,move,set,addEntity} from './cad.mjs?v=0.13';
+import {get,move,set,addEntity} from './cad.mjs?v=0.14';
 export function captureRecovery(doc){
  if(!doc.native)throw Error('Ожидается DWG');
- return {ops:structuredClone(doc.nativeOps||[]),added:doc.entities.filter(r=>r.id.startsWith('new-')).map(r=>({type:r.type,pairs:structuredClone(r.pairs)})),project:structuredClone(doc.executiveProject||null)};
+ return {ops:structuredClone(doc.nativeOps||[]),added:doc.entities.filter(r=>r.id.startsWith('new-')).map(r=>({id:r.id,type:r.type,pairs:structuredClone(r.pairs)})),project:structuredClone(doc.executiveProject||null)};
 }
 export function replayRecovery(doc,state){
  const byHandle=new Map(doc.records.map(r=>[get(r,5),r])),removed=new Set();
@@ -11,7 +11,7 @@ export function replayRecovery(doc,state){
   if(op.text!==undefined)set(r,1,op.text);
  }
  doc.records=doc.records.filter(r=>!removed.has(r));doc.entities=doc.entities.filter(r=>!removed.has(r));for(const b of doc.blocks.values())b.records=b.records.filter(r=>!removed.has(r));
- for(const r of state.added)addEntity(doc,r.type,r.pairs);
+ for(const r of state.added){const added=addEntity(doc,r.type,r.pairs);if(r.id)added.id=r.id;}
  doc.nativeOps=structuredClone(state.ops);doc.executiveProject=structuredClone(state.project);return doc;
 }
 export function recoveryStore(){

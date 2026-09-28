@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {cadFont} from './fonts.mjs?v=0.13';
+import {cadFont} from './fonts.mjs?v=0.14';
 // DXF остаётся источником истины: неизвестные записи не вырезаются при экспорте.
 export const get=(r,c,d='')=>{const pairs=r._pairs||(r.raw===undefined?r.pairs:null);if(pairs){for(const p of pairs)if(p[0]===c)return p[1];}else{for(const p of groups(r.raw||''))if(p[0]===c)return p[1];}return d;};
 export const num=(r,c,d=0)=>Number(get(r,c,d));
@@ -139,7 +139,8 @@ export function addEntity(doc,type,pairs){
  const vi=header?.pairs.findIndex(p=>p[0]===9&&p[1]==='$ACADVER');
  const modern=vi>=0&&String(header.pairs[vi+1]?.[1])>='AC1012';
  const r={id:'new-'+handle,type,pairs:[[0,type],[5,handle],...(modern?[[100,'AcDbEntity']]:[]),[8,'0'],...(modern?[[100,type==='LINE'?'AcDbLine':type==='LWPOLYLINE'?'AcDbPolyline':'AcDbText']]:[]),...pairs.filter(p=>modern||p[0]!==100)]};
- const owner=doc.entities.map(r=>get(r,330)).find(Boolean);if(owner)r.pairs.splice(2,0,[330,owner]);
+ if(state.owner===undefined)state.owner=doc.entities.find(r=>get(r,330))?get(doc.entities.find(r=>get(r,330)),330):'';
+ const owner=state.owner;if(owner)r.pairs.splice(2,0,[330,owner]);
  if(header){const i=header.pairs.findIndex(p=>p[0]===9&&p[1]==='$HANDSEED');if(i>=0)header.pairs[i+1][1]=(max+2).toString(16).toUpperCase();}
  doc.records.splice(end,0,r);doc.entities.push(r);return r;
 }

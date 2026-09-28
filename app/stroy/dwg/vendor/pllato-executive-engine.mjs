@@ -3740,7 +3740,7 @@ Module["FS"] = FS;
 // End JS library exports
 // end include: postlibrary.js
 // Imports from the Wasm binary.
-var _pllato_close, _pllato_open, _pllato_legacy_move, _pllato_text, _pllato_legacy_save, _pllato_count, _pllato_add_line, _pllato_add_text, _pllato_add_polyline, _pllato_executive_metadata, _pllato_probe_opaque, _pllato_probe_table, _pllato_clone_selection, _pllato_last_handle, _pllato_move, _pllato_insert_angle, _pllato_remove, _pllato_save, _setThrew, __emscripten_stack_restore, __emscripten_stack_alloc, _emscripten_stack_get_current, memory, __indirect_function_table, wasmMemory;
+var _pllato_close, _pllato_open, _pllato_legacy_move, _pllato_text, _pllato_legacy_save, _pllato_count, _pllato_add_line, _pllato_add_text, _pllato_add_polyline, _pllato_executive_metadata, _pllato_probe_opaque, _pllato_probe_table, _pllato_clone_selection, _pllato_copy_object, _pllato_last_handle, _pllato_move, _pllato_insert_angle, _pllato_remove, _pllato_save, _setThrew, __emscripten_stack_restore, __emscripten_stack_alloc, _emscripten_stack_get_current, memory, __indirect_function_table, wasmMemory;
 
 function assignWasmExports(wasmExports) {
   _pllato_close = Module["_pllato_close"] = wasmExports["pllato_close"];
@@ -3756,6 +3756,7 @@ function assignWasmExports(wasmExports) {
   _pllato_probe_opaque = Module["_pllato_probe_opaque"] = wasmExports["pllato_probe_opaque"];
   _pllato_probe_table = Module["_pllato_probe_table"] = wasmExports["pllato_probe_table"];
   _pllato_clone_selection = Module["_pllato_clone_selection"] = wasmExports["pllato_clone_selection"];
+  _pllato_copy_object = Module["_pllato_copy_object"] = wasmExports["pllato_copy_object"];
   _pllato_last_handle = Module["_pllato_last_handle"] = wasmExports["pllato_last_handle"];
   _pllato_move = Module["_pllato_move"] = wasmExports["pllato_move"];
   _pllato_insert_angle = Module["_pllato_insert_angle"] = wasmExports["pllato_insert_angle"];

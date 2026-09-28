@@ -459,6 +459,36 @@ API int pllato_clone_selection(const char *roots,double cx,double cy,double x,do
 }
 
 
+/* Copy an owned entity independently, then place its wrapper inside the sheet.
+   Temporarily changing the source owner only prevents climbing to its enclosing
+   definition. Restore it even on failure; all other dependency checks remain. */
+API int pllato_copy_object(const char *handle,const char *parent,double x,double y,double angle,double sx,double sy){
+ Dwg_Object *o=entity(handle),*target=entity(parent);
+ if(!o||!target||target->fixedtype!=DWG_TYPE_INSERT||!isfinite(x)||!isfinite(y)||!isfinite(angle)||!isfinite(sx)||!isfinite(sy)||!sx||!sy)return 1;
+ if(o->fixedtype!=DWG_TYPE_LINE&&o->fixedtype!=DWG_TYPE_LWPOLYLINE&&o->fixedtype!=DWG_TYPE_ARC&&o->fixedtype!=DWG_TYPE_CIRCLE&&o->fixedtype!=DWG_TYPE_TEXT&&o->fixedtype!=DWG_TYPE_MTEXT&&o->fixedtype!=DWG_TYPE_INSERT)return 2;
+ BITCODE_HV sourceHandle=o->handle.value,parentHandle=target->handle.value;
+ BITCODE_H oldOwner=o->tio.entity->ownerhandle;unsigned oldMode=o->tio.entity->entmode;
+ Dwg_Object *model=dwg_model_space_object(&drawing);
+ o->tio.entity->ownerhandle=dwg_add_handleref(&drawing,4,model->handle.value,NULL);o->tio.entity->entmode=2;
+ int code=pllato_clone_selection(handle,0,0,x,y,angle);
+ o=dwg_resolve_handle(&drawing,sourceHandle);o->tio.entity->ownerhandle=oldOwner;o->tio.entity->entmode=oldMode;
+ if(code)return code;
+ char result[40]={0};FILE *f=fopen("/clone-result.txt","r");if(!f)return 31;fgets(result,sizeof(result),f);fclose(f);
+ Dwg_Object *copy=entity(result);target=dwg_resolve_handle(&drawing,parentHandle);
+ Dwg_Object *owner=dwg_ref_object(&drawing,target->tio.entity->tio.INSERT->block_header);
+ model=dwg_model_space_object(&drawing);
+ if(!copy||!owner||owner->fixedtype!=DWG_TYPE_BLOCK_HEADER)return 32;
+ Dwg_Object_BLOCK_HEADER *from=model->tio.object->tio.BLOCK_HEADER,*to=owner->tio.object->tio.BLOCK_HEADER;
+ unsigned found=0;
+ for(unsigned i=0;i<from->num_owned;i++)if(from->entities[i]&&from->entities[i]->absolute_ref==copy->handle.value){memmove(from->entities+i,from->entities+i+1,(from->num_owned-i-1)*sizeof(BITCODE_H));from->num_owned--;found=1;break;}
+ if(!found)return 33;
+ from->first_entity=from->num_owned?from->entities[0]:NULL;from->last_entity=from->num_owned?from->entities[from->num_owned-1]:NULL;
+ BITCODE_H *list=realloc(to->entities,(to->num_owned+1)*sizeof(BITCODE_H));if(!list)return 34;to->entities=list;
+ to->entities[to->num_owned++]=dwg_add_handleref(&drawing,4,copy->handle.value,NULL);to->first_entity=to->entities[0];to->last_entity=to->entities[to->num_owned-1];
+ copy->tio.entity->ownerhandle=dwg_add_handleref(&drawing,4,owner->handle.value,NULL);copy->tio.entity->entmode=0;
+ copy->tio.entity->tio.INSERT->scale.x=sx;copy->tio.entity->tio.INSERT->scale.y=sy;
+ return 0;
+}
 API const char *pllato_last_handle(void){static char value[32];if(!loaded||!drawing.num_objects)return "";snprintf(value,sizeof(value),"%llX",(unsigned long long)drawing.object[drawing.num_objects-1].handle.value);return value;}
 API int pllato_move(const char *handle,double dx,double dy){
  Dwg_Object *o=entity(handle);
