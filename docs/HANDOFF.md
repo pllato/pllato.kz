@@ -1,5 +1,10 @@
 # Pllato CRM — Handoff для AI-агента
 
+> Для DWG-редактора актуальная передача разработки находится в
+> [app/stroy/dwg/HANDOFF.md](../app/stroy/dwg/HANDOFF.md), инструкции — в
+> [app/stroy/dwg/AGENTS.md](../app/stroy/dwg/AGENTS.md).
+> CRM-состояние ниже не является списком задач DWG.
+
 Этот документ — единая точка входа для AI-агента (Claude Code, Cursor, Copilot Workspace, Managed Agent — любой), который продолжает разработку проекта. Прочитай его целиком ОДИН раз в начале сессии, потом обращайся к секциям по мере надобности.
 
 ---
