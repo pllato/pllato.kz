@@ -1,9 +1,11 @@
+import {overlapLinks} from './cable-overlap.mjs?v=0.14.4';
 // Selection only: never merge or explode the underlying CAD entities.
 export function cableChain(shapes,seed,hidden=new Set()){
  const eligible=s=>s.text===null&&!s.fill&&!s.hatch&&['LINE','ARC','LWPOLYLINE','POLYLINE','SPLINE'].includes(s.entityType)&&s.pts.length>1;
  if(!seed||!eligible(seed))return [];
  const scope=s=>s.deviceId?[s.id,s.deviceId,...(s.entityMatrix||[])].join('|'):null;
  const candidates=shapes.filter(s=>eligible(s)&&!hidden.has(s.layer)&&s.layer===seed.layer&&s.color===seed.color&&s.rgb===seed.rgb&&scope(s)===scope(seed));
+ if(!candidates.includes(seed))return [seed];
  // Relative to geometry, never to its world position or the screen zoom.
  // 0.001% of the picked part accommodates CAD round-off, not visible gaps.
  const span=Math.hypot(seed.bounds[2]-seed.bounds[0],seed.bounds[3]-seed.bounds[1]),eps=Math.max(1e-7,span*1e-5);
@@ -20,15 +22,21 @@ export function cableChain(shapes,seed,hidden=new Set()){
   copies.set(s,[s]);representative.set(s,s);
   for(const p of [s.pts[0],s.pts.at(-1)]){const key=cell(p).join(',');if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push({s,p});}
  }
- const first=representative.get(seed)||seed,chosen=new Set([first]),queue=[first];
- for(let i=0;i<queue.length;i++)for(const p of [queue[i].pts[0],queue[i].pts.at(-1)]){
+ const first=representative.get(seed)||seed,chosen=new Set([first]),queue=[first],overlap=overlapLinks([...copies.keys()]),trims=new Map(),joins=new Set();
+ for(let i=0;i<queue.length;i++)for(const end of [0,1]){const current=queue[i],p=end?current.pts.at(-1):current.pts[0];
   const matches=new Set(at(p));
+  const links=overlap.links(current,end);for(const link of links)matches.add(link.s);
   // A junction with three or more members is ambiguous: do not choose a branch.
   if(matches.size!==2)continue;
+  if(links.length){const link=links[0],otherPoint=link.end?link.s.pts.at(-1):link.s.pts[0],reverse=new Set(at(otherPoint));for(const x of overlap.links(link.s,link.end))reverse.add(x.s);if(reverse.size!==2)continue;
+   const pair=[current.entityKey,link.s.entityKey].sort().join(';');if(!joins.has(pair)){joins.add(pair);const target=current.entityKey>link.s.entityKey?current:link.s,targetEnd=target===current?end:link.end,t=target===current?link.ownT:link.t,range=trims.get(target)||[0,1];range[targetEnd]=t;trims.set(target,range);}
+  }
   for(const s of matches)if(!chosen.has(s)){chosen.add(s);queue.push(s);}
  }
  const result=[...chosen].map(s=>s===first?seed:s);
  const coincident=[...chosen].flatMap(s=>copies.get(s)||[s]).filter(s=>!result.includes(s));
  if(coincident.length)Object.defineProperty(result,'coincident',{value:coincident});
+ Object.defineProperty(result,'paths',{value:[...chosen].map(s=>{const range=trims.get(s);return range?overlap.geometry.get(s).cut(...range):s.pts;})});
+ Object.defineProperty(result,'overlaps',{value:joins.size});
  return result;
 }
