@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import createModule from './vendor/libredwg-web.js';
-import {warningText} from './progress.mjs?v=0.14.4';
-import {LibreDwg} from './vendor/libredwg-sdk.js?v=0.14.4';
-import {nativeDocument} from './native-adapter.mjs?v=0.14.4';
-import {readExecutiveMetadata} from './executive-metadata.mjs?v=0.14.4';
+import {warningText} from './progress.mjs?v=0.14.5';
+import {LibreDwg} from './vendor/libredwg-sdk.js?v=0.14.5';
+import {nativeDocument} from './native-adapter.mjs?v=0.14.5';
+import {readExecutiveMetadata} from './executive-metadata.mjs?v=0.14.5';
 self.onmessage=async({data})=>{
  let sdk,pointer;
  try{

@@ -13,7 +13,8 @@ if(duplicate)addEntity(doc,'ARC',[[10,100],[20,100],[40,100],[50,270],[51,360]])
 rebuild();fit();},fixture(shapes,key){drawing.shapes=shapes;const seed=shapes.find(s=>s.entityKey===key);const p=seed.pts[Math.floor(seed.pts.length/2)];view={s:.12,x:canvas.clientWidth/2-p[0]*.12,y:canvas.clientHeight/2+p[1]*.12};cached=null;draw();return screen(p);},point(){return screen([170.710678,29.289322]);},count(){return selectedShapes().length;},metrics(){return {length:pathLength(selectionPaths().paths),highlighted:renderSelection().size};}};`});});
   await page.goto((process.env.DWG_TEST_ORIGIN||'http://127.0.0.1:8817')+'/app/stroy/dwg/');
   await page.waitForFunction(()=>globalThis.chainTest);await page.evaluate(()=>chainTest.setup());
-  await page.locator('[data-tool="object"]').click();
+  assert.equal(await page.locator('[data-tool="select"]').count(),0);
+  assert.equal(await page.locator('[data-tool="object"]').getAttribute('aria-pressed'),'true');
   const b=await page.locator('#canvas').boundingBox(),p=await page.evaluate(()=>chainTest.point());
   await page.mouse.click(b.x+p[0],b.y+p[1]);
   assert.equal(await page.evaluate(()=>chainTest.count()),3);
@@ -25,8 +26,8 @@ rebuild();fit();},fixture(shapes,key){drawing.shapes=shapes;const seed=shapes.fi
   assert.equal(await page.evaluate(()=>chainTest.count()),3,'Coincident arc does not create a false junction');
   const after=await page.evaluate(()=>chainTest.metrics());assert.equal(after.highlighted,4);assert.equal(after.length,before.length);
   assert.match(await page.locator('#status').textContent(),/совпадающих копий: 1/);
-  await page.locator('[data-tool="select"]').click();await page.mouse.click(b.x+p[0],b.y+p[1]);
-  assert.equal(await page.evaluate(()=>chainTest.count()),1,'Section mode remains individual');
+  await page.locator('[data-tool="pan"]').click();await page.keyboard.press('Escape');await page.mouse.click(b.x+p[0],b.y+p[1]);
+  assert.equal(await page.evaluate(()=>chainTest.count()),3,'Escape restores whole cable selection');
   if(process.env.DWG_CHAIN_SHAPES){
    const shapes=JSON.parse(require('fs').readFileSync(process.env.DWG_CHAIN_SHAPES)),seed=shapes.find(s=>s.entityId===process.env.DWG_CHAIN_SEED);
    assert.ok(seed);const family=shapes.filter(s=>s.id===seed.id);
