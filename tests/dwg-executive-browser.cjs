@@ -5,7 +5,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'dwg-executive-ui-'));
  try{
  const page=await browser.newPage({viewport:{width:1600,height:1100}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
- const control=id=>{const locator=page.locator(id),open=()=>locator.evaluate(el=>{for(let p=el.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;});return {click:async()=>{await open();await locator.click();},fill:async value=>{await open();await locator.fill(value);}};};
+ const control=id=>{const locator=page.locator(id),open=()=>locator.evaluate(el=>{for(const group of document.querySelectorAll('#executiveToolbar>details'))if(!group.contains(el))group.open=false;for(let p=el.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;});return {click:async()=>{await open();await locator.click();},fill:async value=>{await open();await locator.fill(value);}};};
  await page.route('**/app/gate.js',r=>r.fulfill({body:'',contentType:'application/javascript'}));
  await page.route('**/editor.mjs*',async route=>{const response=await route.fetch();await route.fulfill({response,body:await response.text()+'\nglobalThis.__executiveTest={state:()=>({doc,drawing,selected}),screen,recovery};'});});
  await page.goto((process.env.DWG_TEST_ORIGIN||'http://127.0.0.1:8816')+'/app/stroy/dwg/');
@@ -101,6 +101,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  await save(path.join(dir,'device-moved.dwg'));
  await page.locator('#file').setInputFiles(first);await page.waitForFunction(()=>document.querySelector('#busy').hidden,null,{timeout:120000});
  assert.equal(await page.locator('#exTitle').inputValue(),'Исполнительная проверка');assert.equal(await page.locator('#exRouteList option').count(),1);
+ await page.locator('#exRouteList').evaluate(el=>{el.closest('details').open=true;});await page.locator('#exRouteList').selectOption({index:0});
  await control('#exRemoveLeader').click();assert.match(await page.locator('#exLedger').textContent(),/Без выносок: 1/);
  await save(path.join(dir,'second.dwg'));
  await page.locator('[data-tool="line"]').click();b=await page.locator('#canvas').boundingBox();await page.mouse.click(b.x+80,b.y+80);await page.mouse.move(b.x+180,b.y+80);assert.match(await page.locator('#status').textContent(),/Длина/);await page.mouse.click(b.x+180,b.y+80);
