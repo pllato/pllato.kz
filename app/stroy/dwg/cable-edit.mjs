@@ -24,3 +24,11 @@ export function bendCable(points,index,end){
  const distances=[0];for(let i=1;i<points.length;i++)distances.push(distances.at(-1)+Math.hypot(points[i][0]-points[i-1][0],points[i][1]-points[i-1][1]));const total=distances.at(-1)||1,centre=distances[index]/total,delta=end.map((v,k)=>v-points[index][k]);
  return points.map((p,i)=>{let weight=i===index?1:0;if(index>0&&index<points.length-1&&i>0&&i<points.length-1){const d=Math.abs(distances[i]/total-centre);if(d<.25)weight=.5*(1+Math.cos(Math.PI*d/.25));}return p.map((v,k)=>v+delta[k]*weight);});
 }
+
+// Remove the interval between two projected points, preserving the remaining path.
+export function cutCable(points,a,b){
+ const project=p=>{let best,offset=0;for(let i=1;i<points.length;i++){const x=points[i-1],y=points[i],length=Math.hypot(y[0]-x[0],y[1]-x[1]);if(!length)continue;const t=Math.max(0,Math.min(1,((p[0]-x[0])*(y[0]-x[0])+(p[1]-x[1])*(y[1]-x[1]))/length**2)),q=x.map((v,k)=>v+(y[k]-v)*t),distance=Math.hypot(q[0]-p[0],q[1]-p[1]);if(!best||distance<best.distance)best={q,index:i,s:offset+t*length,distance};offset+=length;}return best;};
+ let start=project(a),end=project(b);if(!start||!end)throw Error('Нет длины для вырезания');if(start.s>end.s)[start,end]=[end,start];if(end.s-start.s<1e-8)throw Error('Укажите две разные точки');
+ const parts=[[...points.slice(0,start.index),start.q],[end.q,...points.slice(end.index)]];
+ return parts.filter(path=>path.slice(1).reduce((n,p,i)=>n+Math.hypot(p[0]-path[i][0],p[1]-path[i][1]),0)>1e-8);
+}
