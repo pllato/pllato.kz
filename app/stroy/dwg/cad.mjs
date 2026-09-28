@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {cadFont} from './fonts.mjs?v=0.14';
+import {cadFont} from './fonts.mjs?v=0.14.1';
 // DXF остаётся источником истины: неизвестные записи не вырезаются при экспорте.
 export const get=(r,c,d='')=>{const pairs=r._pairs||(r.raw===undefined?r.pairs:null);if(pairs){for(const p of pairs)if(p[0]===c)return p[1];}else{for(const p of groups(r.raw||''))if(p[0]===c)return p[1];}return d;};
 export const num=(r,c,d=0)=>Number(get(r,c,d));
@@ -64,7 +64,7 @@ export function scene(doc){
    const ex=[num(r,210),num(r,220),num(r,230,1)],wcs=['LINE','POINT','ELLIPSE','3DFACE','SPLINE','DIMENSION'].includes(r.type)||(r.type==='POLYLINE'&&(num(r,70)&8));
    if(!wcs&&(ex[0]||ex[1]||![-1,1].includes(ex[2]))){skip(r.type+' наклонная OCS');continue;}
    if(ex[2]===-1&&['TEXT','MTEXT','ATTRIB','ATTDEF'].includes(r.type)){skip(r.type+' зеркальный текст OCS');continue;}
-   let pts=[],text=null;const entity=semantic||{id:r.id,matrix:m},identity={entityId:entity.id,entityMatrix:entity.matrix,entityKey:root.id+'|'+entity.id+'|'+entity.matrix.join(',')};
+   let pts=[],text=null;const entity=semantic||{id:r.id,matrix:m},identity={entityId:entity.id,entityType:semantic?'COMPOSITE':r.type,entityMatrix:entity.matrix,entityKey:root.id+'|'+entity.id+'|'+entity.matrix.join(',')};
    if(r.type==='HATCH'&&r.hatch){const matrix=ex[2]===-1?mul(m,[-1,0,0,1,0,0]):m,all=r.hatch.loops.flat().map(p=>apply(matrix,p)),bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const [x,y] of all){bounds[0]=Math.min(bounds[0],x);bounds[1]=Math.min(bounds[1],y);bounds[2]=Math.max(bounds[2],x);bounds[3]=Math.max(bounds[3],y);}shapes.push({id:root.id,...identity,deviceId:device?.id,deviceMatrix:device?.matrix,layer,pts:all,bounds,text:null,hatch:r.hatch,matrix,...style});continue;}
    if(r.type==='LINE')pts=[point(r),point(r,11)];
    else if(r.type==='LWPOLYLINE'||r.type==='POLYLINE'){

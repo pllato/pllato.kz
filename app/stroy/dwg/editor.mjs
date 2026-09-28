@@ -1,22 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {parseDxfAsync,scene,serializeChunks,cloneDoc,demo,get,num,set,decode,move,addEntity} from './cad.mjs?v=0.14';
-import {paintShapes,previewTransform} from './renderer.mjs?v=0.14';
-import {loadCadFont} from './fonts.mjs?v=0.14';
-import {clampProgress,warningText} from './progress.mjs?v=0.14';
-import {isNew,additions} from './authoring.mjs?v=0.14';
-import {mountExecutiveUI} from './executive-ui.mjs?v=0.14';
-import {captureRecovery,replayRecovery,recoveryStore} from './recovery.mjs?v=0.14';
-import {shapePaths,pathLength,syncLinkedRoutes} from './selection-metrics.mjs?v=0.14';
-import {copyTransform} from './object-copy.mjs?v=0.14';
+import {parseDxfAsync,scene,serializeChunks,cloneDoc,demo,get,num,set,decode,move,addEntity} from './cad.mjs?v=0.14.1';
+import {paintShapes,previewTransform} from './renderer.mjs?v=0.14.1';
+import {loadCadFont} from './fonts.mjs?v=0.14.1';
+import {clampProgress,warningText} from './progress.mjs?v=0.14.1';
+import {isNew,additions} from './authoring.mjs?v=0.14.1';
+import {mountExecutiveUI} from './executive-ui.mjs?v=0.14.1';
+import {captureRecovery,replayRecovery,recoveryStore} from './recovery.mjs?v=0.14.1';
+import {shapePaths,pathLength,syncLinkedRoutes} from './selection-metrics.mjs?v=0.14.1';
+import {copyTransform} from './object-copy.mjs?v=0.14.1';
+import {cableChain} from './cable-chain.mjs?v=0.14.1';
 let executiveUI;
 let rejectWorker=null;
 const $=id=>document.getElementById(id),canvas=$('canvas'),ctx=canvas.getContext('2d');
 let doc=demo(),view={x:0,y:0,s:1},drawing,selected=null,hidden=new Set(),tool='select',draft=null,history=[],future=[],dirty=false,name='demo',worker=null,loadTimer=null,loadId=0;
 let width=1,height=1,pointers=new Map(),gesture=null,sourceFile=null;
 let polyPoints=[],selectedMatrix=null,selectedShapeKey=null,sharedSelectedId=null;
-let clipboard=null,draftHover=null;
-const renderSelection=()=>selectedShapeKey?.includes('|'+selected+'|')?selectedShapeKey:selected;
-import {aciColors as colors} from './colors.mjs?v=0.14';
+let clipboard=null,draftHover=null,selectedChain=null;
+const renderSelection=()=>selectedChain?.anchor===selected?selectedChain.keys:selectedShapeKey?.includes('|'+selected+'|')?selectedShapeKey:selected;
+import {aciColors as colors} from './colors.mjs?v=0.14.1';
 const status=s=>{$('status').textContent=s;if(!$('busy').hidden)$('busy').querySelector('strong').textContent=s;};
 const recovery=recoveryStore();let recoveryQueue=Promise.resolve(),recoveryReady=false,recoveryRevision=0;
 function checkpoint(label='Изменение'){
@@ -34,7 +35,7 @@ function beginProgress(){progressStarted=Date.now();clearInterval(progressClock)
 const world=p=>[(p[0]-view.x)/view.s,(view.y-p[1])/view.s],screen=p=>[p[0]*view.s+view.x,view.y-p[1]*view.s];
 const local=e=>{const r=canvas.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top];};
 function current(){return doc.records.find(r=>r.id===selected);}
-function selectedShapes(){return drawing.shapes.filter(s=>selectedShapeKey?s.entityKey===selectedShapeKey:s.deviceId===selected||s.entityId===selected||s.id===selected);}
+function selectedShapes(){return drawing.shapes.filter(s=>selectedChain?.anchor===selected?selectedChain.keys.has(s.entityKey):selectedShapeKey?s.entityKey===selectedShapeKey:s.deviceId===selected||s.entityId===selected||s.id===selected);}
 function selectionPaths(){const shapes=selectedShapes(),counts=new Map();for(const s of shapes){const id=s.entityId||s.id;counts.set(id,(counts.get(id)||0)+1);}for(const s of drawing.shapes){const id=s.entityId||s.id;if(counts.has(id))counts.set(id,counts.get(id)-1);}return {paths:shapePaths(shapes),ids:[...counts.keys()],roots:[...new Set(shapes.map(s=>s.id))],shared:[...counts.values()].some(n=>n<0)};}
 function lengthLabel(paths){const u=$('units').value,f=u==='m'?1:Number(u);return 'Длина ≈ '+(pathLength(paths)*f).toLocaleString('ru-RU',{maximumFractionDigits:3})+(u==='1'?' ед.':' м');}
 function rebuild(kind='geometry'){const generated=new Set(doc.executiveProject?.generatedHandles||[]);executiveUI?.rebuild();for(const s of doc.executiveProject?.sheets||[]){const r=doc.entities.find(r=>get(r,5)===s.nativeHandles[0]);if(r)set(r,50,s.angle*180/Math.PI);}drawing=kind==='decoration'&&drawing?{...drawing,shapes:[...drawing.shapes.filter(s=>!s.id.startsWith('executive-')&&!generated.has(s.id.replace('dwg-',''))),...scene({...doc,entities:doc.entities.filter(r=>r.id.startsWith('executive-'))}).shapes]}:scene(doc);if(drawing.limited)status('Предел отображения: 3 000 000 записей. Часть чертежа не показана.');$('report').textContent=drawing.shapes.length+' видимых примитивов. Не отображаются: '+(drawing.unsupported.map(([t,n])=>t+' × '+n).join(', ')||'нет известных пропусков')+(doc.nativeUnknown?' · не разобрано движком: '+doc.nativeUnknown:'')+(drawing.limited?' · достигнут предел объёма':'')+'. Только пространство модели.';renderLayers();properties();draw();}
@@ -74,7 +75,7 @@ function paint(){ctx.clearRect(0,0,width,height);ctx.fillStyle='#000';ctx.fillRe
 function zoom(f,p=[width/2,height/2]){const w=world(p),s=Math.max(1e-8,Math.min(1e8,view.s*f));view.s=s;view.x=p[0]-w[0]*s;view.y=p[1]+w[1]*s;markInteraction();draw();}
 const distance=(p,a,b)=>{const x=b[0]-a[0],y=b[1]-a[1],t=Math.max(0,Math.min(1,((p[0]-a[0])*x+(p[1]-a[1])*y)/(x*x+y*y||1)));return Math.hypot(p[0]-a[0]-t*x,p[1]-a[1]-t*y);};
 function pick(p){
- let best=18,id=null,leaf=false;selectedMatrix=null;selectedShapeKey=null;sharedSelectedId=null;
+ let best=18,id=null,leaf=false,hit=null;selectedChain=null;selectedMatrix=null;selectedShapeKey=null;sharedSelectedId=null;
  const roots=new Set((doc.executiveProject?.sheets||[]).flatMap(sheet=>sheet.nativeHandles.map(h=>'dwg-'+h)));
  const w=world(p),pad=18/view.s;
  for(const s of drawing.shapes){
@@ -84,15 +85,17 @@ function pick(p){
   const pts=s.pts.map(screen);let d=Infinity;
   if(s.text!==null){const a=pts[0];d=distance(p,a,[a[0]+Math.max(10,s.height*view.s*s.text.length*.5),a[1]]);}
   else for(let i=1;i<pts.length;i++)d=Math.min(d,distance(p,pts[i-1],pts[i]));
-  if(d<best){best=d;const whole=tool==='device'||tool==='object'&&s.deviceId&&s.deviceId!==s.id;leaf=!whole&&executive&&!!s.entityId;id=whole?s.deviceId:leaf?s.entityId:s.id;selectedMatrix=whole?s.deviceMatrix:leaf?s.entityMatrix:null;selectedShapeKey=leaf?s.entityKey:null;}
+  if(d<best){hit=s;best=d;const whole=tool==='device'||tool==='object'&&s.deviceId&&s.deviceId!==s.id;leaf=!whole&&executive&&!!s.entityId;id=whole?s.deviceId:leaf?s.entityId:s.id;selectedMatrix=whole?s.deviceMatrix:leaf?s.entityMatrix:null;selectedShapeKey=leaf?s.entityKey:null;}
  }
  selected=id;
  if(leaf&&drawing.shapes.filter(s=>s.entityId===id).length>1)sharedSelectedId=id;
+ if(tool==='object'&&hit){const chain=cableChain(drawing.shapes,hit,hidden);if(chain.length>1){selectedChain={anchor:id,keys:new Set(chain.map(s=>s.entityKey))};sharedSelectedId=id;}}
  cached=null;properties();draw();
  if(selected){const info=selectionPaths(),label=lengthLabel(info.paths);status(label);$('selection').textContent+=' · '+label;executiveUI.selectObject(selected,info.ids);}
- if(sharedSelectedId)status('Объект входит в повторяющийся блок. Изменение общей геометрии затронет несколько экземпляров; пока доступен просмотр. Для перемещения прибора используйте «Выбрать прибор».');
+ if(selectedChain)status('Кабель: '+selectedChain.keys.size+' участков · '+lengthLabel(selectionPaths().paths)+'. Марку и сечение можно назначить всей цепочке. Для правки отдельной части выберите «Участок».');
+ else if(sharedSelectedId)status('Объект входит в повторяющийся блок. Изменение общей геометрии затронет несколько экземпляров; пока доступен просмотр. Для перемещения прибора используйте «Выбрать прибор».');
 }
-function setTool(t){draftHover=null;tool=t;draft=null;polyPoints=[];selected=null;selectedMatrix=null;selectedShapeKey=null;sharedSelectedId=null;cached=null;properties();document.querySelectorAll('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===t)));$('hint').textContent=({select:'Нажмите на отдельный объект исполнительной. Перемещение — в свойствах; перетаскивание двигает вид.',pan:'Перетаскивайте чертёж. Масштаб — колесом или двумя пальцами.',executive:'Указывайте точки на чертеже. Настройки и завершение — в панели исполнительных. Escape — отменить.',device:'Нажмите на прибор внутри исполнительной. Перемещение — в свойствах справа.', poly3:'Укажите три точки полилинии. Escape — отменить.',line:'Укажите начало и конец линии. Escape — отменить.',text:'Нажмите в точке вставки текста.',measure:'Укажите две точки. Единицы выбираются в панели справа.'})[t]||'Выберите инструмент.';draw();}
+function setTool(t){selectedChain=null;draftHover=null;tool=t;draft=null;polyPoints=[];selected=null;selectedMatrix=null;selectedShapeKey=null;sharedSelectedId=null;cached=null;properties();document.querySelectorAll('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===t)));$('hint').textContent=({select:'Нажмите на отдельный объект исполнительной. Перемещение — в свойствах; перетаскивание двигает вид.',pan:'Перетаскивайте чертёж. Масштаб — колесом или двумя пальцами.',executive:'Указывайте точки на чертеже. Настройки и завершение — в панели исполнительных. Escape — отменить.',device:'Нажмите на прибор внутри исполнительной. Перемещение — в свойствах справа.', poly3:'Укажите три точки полилинии. Escape — отменить.',line:'Укажите начало и конец линии. Escape — отменить.',text:'Нажмите в точке вставки текста.',measure:'Укажите две точки. Единицы выбираются в панели справа.'})[t]||'Выберите инструмент.';draw();}
 function tap(p){const w=world(p);if(!$('busy').hidden)return;if(tool==='paste'){const sheet=executiveUI.sheet();if(!clipboard||clipboard.file!==sourceFile||!sheet)return status('Выберите исполнительную и заново скопируйте объект');try{const request={handle:clipboard.handle,parent:sheet.nativeHandles[0],transform:copyTransform(doc,sheet,clipboard.matrix,clipboard.centre,w)};setTool('select');commitExecutive(doc.executiveProject,null,false,request).then(ok=>{if(ok)status('Независимая копия объекта вставлена в исполнительную и сохранена локально.');});}catch(e){status(e.message);}return;}if(tool==='executive'){try{executiveUI.tap(w);}catch(e){status(e.message);}return;}if(tool==='select'||tool==='device'||tool==='object'){pick(p);return;}if(tool==='pan')return;
  if(tool==='poly3'){
   polyPoints.push(w);draft=w;draw();
@@ -124,7 +127,7 @@ async function openFile(file,restore=null){if(!restore&&dirty&&!confirm('Ест�
  try{const bytes=await file.arrayBuffer();if(token!==loadId)return;let text,warnings=[],next;$('save').disabled=true;
  if(/\.dwg$/i.test(file.name)){
   if(!/^AC10\d\d/.test(new TextDecoder().decode(bytes.slice(0,6))))throw Error('Это не распознанный DWG.');
-  const converted=await new Promise((resolve,reject)=>{rejectWorker=reject;worker=new Worker(new URL('./native-reader.mjs?v=0.14',import.meta.url),{type:'module'});worker.onmessage=e=>e.data.progress?progress(e.data.progress,e.data.percent):e.data.error?reject(Error(e.data.error)):resolve(e.data);worker.onerror=()=>reject(Error('Не удалось запустить DWG-движок. Возможно, недостаточно памяти. Попробуйте меньший файл на компьютере.'));loadTimer=setTimeout(()=>reject(Error('Чтение заняло больше 5 минут. Попробуйте отдельный лист.')),300000);worker.postMessage(bytes,[bytes]);});
+  const converted=await new Promise((resolve,reject)=>{rejectWorker=reject;worker=new Worker(new URL('./native-reader.mjs?v=0.14.1',import.meta.url),{type:'module'});worker.onmessage=e=>e.data.progress?progress(e.data.progress,e.data.percent):e.data.error?reject(Error(e.data.error)):resolve(e.data);worker.onerror=()=>reject(Error('Не удалось запустить DWG-движок. Возможно, недостаточно памяти. Попробуйте меньший файл на компьютере.'));loadTimer=setTimeout(()=>reject(Error('Чтение заняло больше 5 минут. Попробуйте отдельный лист.')),300000);worker.postMessage(bytes,[bytes]);});
   if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
   warnings=converted.messages;next=converted.doc;
  }else{try{text=new TextDecoder('utf-8',{fatal:true}).decode(bytes);}catch{text=new TextDecoder('windows-1251').decode(bytes);}}
@@ -138,7 +141,7 @@ $('file').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)openFile
 $('demo').onclick=()=>{if(!dirty||confirm('Заменить несохранённый чертёж демо?')){stopLoad();adopt(demo(),'demo');status('Демонстрационный чертёж.');}};
 $('save').onclick=()=>{$('exportReport').textContent=$('report').textContent;$('exportDialog').querySelector('h2').textContent='Сохранить копию в '+(doc.native?'DWG':'DXF')+'?';$('exportDescription').textContent=doc.native?'Записывается новая копия исходного DWG с изменениями. Проверка движком не заменяет проверку в AutoCAD. Новые линии, тексты и полилинии записываются в DWG. В исполнительных сохраняются оформление, трассы, выноски и поддерживаемые удаления. Исходный файл на диске не изменяется.':'Скачивается изменённый DXF. Проверьте результат в AutoCAD.';$('confirmExport').textContent='Скачать '+(doc.native?'DWG':'DXF');$('exportDialog').showModal();};
 function download(blob,extension){progress('Готово',100);const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name+'-edited.'+extension;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);dirty=false;$('filename').textContent=name;status(extension.toUpperCase()+' подготовлен к скачиванию. Проверьте копию в AutoCAD.');}
-$('confirmExport').onclick=async()=>{if(doc.executiveProject?.sheets.length){await commitExecutive(doc.executiveProject,null,true);return;}if(!doc.native){download(new Blob([...serializeChunks(doc)],{type:'application/dxf'}),'dxf');return;}if(!sourceFile)return status('Нет исходного DWG для сохранения.');stopLoad();const token=loadId,ops=doc.nativeOps.map(o=>({...o}));$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Готовлю сохранение DWG…');try{const buffer=await sourceFile.arrayBuffer();if(token!==loadId)return;const saved=await new Promise((resolve,reject)=>{rejectWorker=reject;worker=new Worker(new URL('./native-writer.mjs?v=0.14',import.meta.url),{type:'module'});worker.onmessage=e=>e.data.progress?progress(e.data.progress,e.data.percent):e.data.error?reject(Error(e.data.error)):resolve(e.data);worker.onerror=()=>reject(Error('Не удалось записать DWG. Возможно, недостаточно памяти.'));loadTimer=setTimeout(()=>reject(Error('Запись заняла больше 5 минут.')),300000);worker.postMessage({buffer,ops,added:additions(doc)},[buffer]);});if(token!==loadId)return;download(new Blob([saved.buffer],{type:'application/acad'}),'dwg');}catch(e){if(token===loadId)status(e.message);}finally{if(token===loadId)stopLoad();}};
+$('confirmExport').onclick=async()=>{if(doc.executiveProject?.sheets.length){await commitExecutive(doc.executiveProject,null,true);return;}if(!doc.native){download(new Blob([...serializeChunks(doc)],{type:'application/dxf'}),'dxf');return;}if(!sourceFile)return status('Нет исходного DWG для сохранения.');stopLoad();const token=loadId,ops=doc.nativeOps.map(o=>({...o}));$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Готовлю сохранение DWG…');try{const buffer=await sourceFile.arrayBuffer();if(token!==loadId)return;const saved=await new Promise((resolve,reject)=>{rejectWorker=reject;worker=new Worker(new URL('./native-writer.mjs?v=0.14.1',import.meta.url),{type:'module'});worker.onmessage=e=>e.data.progress?progress(e.data.progress,e.data.percent):e.data.error?reject(Error(e.data.error)):resolve(e.data);worker.onerror=()=>reject(Error('Не удалось записать DWG. Возможно, недостаточно памяти.'));loadTimer=setTimeout(()=>reject(Error('Запись заняла больше 5 минут.')),300000);worker.postMessage({buffer,ops,added:additions(doc)},[buffer]);});if(token!==loadId)return;download(new Blob([saved.buffer],{type:'application/acad'}),'dwg');}catch(e){if(token===loadId)status(e.message);}finally{if(token===loadId)stopLoad();}};
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;if(e.key==='Escape'){executiveUI?.cancel();draft=null;setTool('select');}if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo(e.shiftKey);}});
 new ResizeObserver(()=>{const r=canvas.parentElement.getBoundingClientRect(),initial=width===1;width=r.width;height=r.height;const d=Math.min(devicePixelRatio||1,2);canvas.width=width*d;canvas.height=height*d;ctx.setTransform(d,0,0,d,0,0);initial?fit():draw();}).observe(canvas.parentElement);
@@ -158,10 +161,10 @@ async function commitExecutive(project,cloneRequest=null,exportFile=false,copyRe
  });
  try{
   const buffer=await sourceFile.arrayBuffer();if(token!==loadId)return;
-  const saved=await run('./executive-worker.mjs?v=0.14',{buffer,ops:doc.nativeOps,added:additions(doc),project,cloneRequest,copyRequest},[buffer]);
+  const saved=await run('./executive-worker.mjs?v=0.14.1',{buffer,ops:doc.nativeOps,added:additions(doc),project,cloneRequest,copyRequest},[buffer]);
   if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
   const file=new File([saved.buffer],previousName+'.dwg',{type:'application/acad'}),readBuffer=saved.buffer;
-  const read=await run('./native-reader.mjs?v=0.14',readBuffer,[readBuffer]);
+  const read=await run('./native-reader.mjs?v=0.14.1',readBuffer,[readBuffer]);
   if(token!==loadId)return;adopt(read.doc,previousName,file);history=[...previousHistory,before].slice(-15);future=[];syncUndo();dirty=true;await checkpoint('Операция DWG завершена');
   if(exportFile)download(file,'dwg');else status('Исполнительная создана. Локальная копия сохранена. Для архива скачайте DWG.');
   const notices=[warningText(saved.warnings||0),...(read.messages||[])].filter(Boolean);
@@ -184,7 +187,7 @@ executiveUI=mountExecutiveUI({
 rebuild();
 const objectButton=document.createElement('button');objectButton.textContent='Объект / кабель';objectButton.dataset.tool='object';objectButton.onclick=()=>setTool('object');document.querySelector('nav').prepend(objectButton);document.querySelector('[data-tool="select"]').textContent='Участок';
 const copyButton=document.createElement('button'),pasteButton=document.createElement('button');copyButton.textContent='Копировать';pasteButton.textContent='Вставить';document.querySelector('nav').append(copyButton,pasteButton);
-copyButton.onclick=()=>{const r=current();if(!doc.native||!r||!/^dwg-/.test(r.id)||!['LINE','LWPOLYLINE','ARC','CIRCLE','TEXT','MTEXT','INSERT'].includes(r.type))return status('Выберите исходный CAD-объект: прибор, линию, полилинию, дугу или текст. Новые объекты сначала сохраните в DWG.');const shapes=selectedShapes();let a=Infinity,b=Infinity,c=-Infinity,d=-Infinity;for(const s of shapes)for(const p of s.pts){a=Math.min(a,p[0]);b=Math.min(b,p[1]);c=Math.max(c,p[0]);d=Math.max(d,p[1]);}if(!Number.isFinite(a))return;clipboard={handle:get(r,5),matrix:selectedMatrix||[1,0,0,1,0,0],centre:[(a+c)/2,(b+d)/2],file:sourceFile};status('Объект скопирован. Нажмите «Вставить» и укажите место в исполнительной.');};
+copyButton.onclick=()=>{if(selectedChain?.anchor===selected)return status("Для копирования отдельного CAD-объекта выберите «Участок» или «Прибор». Цепочка не преобразуется в один объект.");const r=current();if(!doc.native||!r||!/^dwg-/.test(r.id)||!['LINE','LWPOLYLINE','ARC','CIRCLE','TEXT','MTEXT','INSERT'].includes(r.type))return status('Выберите исходный CAD-объект: прибор, линию, полилинию, дугу или текст. Новые объекты сначала сохраните в DWG.');const shapes=selectedShapes();let a=Infinity,b=Infinity,c=-Infinity,d=-Infinity;for(const s of shapes)for(const p of s.pts){a=Math.min(a,p[0]);b=Math.min(b,p[1]);c=Math.max(c,p[0]);d=Math.max(d,p[1]);}if(!Number.isFinite(a))return;clipboard={handle:get(r,5),matrix:selectedMatrix||[1,0,0,1,0,0],centre:[(a+c)/2,(b+d)/2],file:sourceFile};status('Объект скопирован. Нажмите «Вставить» и укажите место в исполнительной.');};
 pasteButton.onclick=()=>{if(!clipboard)return status('Сначала скопируйте объект');setTool('paste');status('Укажите центр копии в выбранной исполнительной. Исходный объект останется на месте.');};
 $('historyButton').onclick=async()=>{try{await recoveryQueue.catch(()=>{});const rows=await recovery.list(),list=$('recoveryList');list.replaceChildren();for(const row of rows){const button=document.createElement('button');button.textContent=row.name+' · '+new Date(row.time).toLocaleString()+' · '+row.label;button.onclick=async()=>{if(!$('busy').hidden)return;if(dirty&&!confirm('Восстановить эту версию? Текущие правки останутся в истории.'))return;try{await checkpoint('Перед восстановлением');const file=await recovery.source(row.sourceId);if(!file)throw Error('Исходный файл не найден');$('recoveryDialog').close();await openFile(file,await recovery.revision(row.id));}catch(e){status(e.message);}};list.append(button);}if(!rows.length)list.textContent='Сохранённых версий пока нет.';$('recoveryDialog').showModal();}catch(e){status('История недоступна: '+e.message);}};
 recovery.list().then(rows=>{if(rows.length)$('autosaveStatus').textContent='Есть сохранённая работа — откройте «История / восстановить»';}).catch(e=>{$('autosaveStatus').textContent='Локальное сохранение недоступно: '+e.message;});
