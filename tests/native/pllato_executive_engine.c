@@ -540,6 +540,13 @@ API int pllato_move(const char *handle,double dx,double dy){
 }
 API int pllato_insert_angle(const char *handle,double angle){Dwg_Object *o=entity(handle);if(!o||o->fixedtype!=DWG_TYPE_INSERT||o->tio.entity->tio.INSERT->has_attribs||!isfinite(angle))return 1;o->tio.entity->tio.INSERT->rotation=angle;return 0;}
 
+API int pllato_spline_point(const char *handle,int index,double x,double y){
+ Dwg_Object *o=entity(handle);if(!o||o->fixedtype!=DWG_TYPE_SPLINE||index<0||!isfinite(x)||!isfinite(y))return 1;
+ Dwg_Object_Entity *e=o->tio.entity;Dwg_Entity_SPLINE *s=e->tio.SPLINE;
+ if(e->num_reactors||(e->xdicobjhandle&&e->xdicobjhandle->absolute_ref)||s->scenario!=1||s->num_fit_pts||index>=s->num_ctrl_pts||!s->ctrl_pts)return 2;
+ s->ctrl_pts[index].x=x;s->ctrl_pts[index].y=y;return 0;
+}
+
 API int pllato_color(const char *handle,int color){
  Dwg_Object *o=entity(handle);if(!o||color<1||color>255)return 1;
  o->tio.entity->color.index=color;o->tio.entity->color.raw=color;
