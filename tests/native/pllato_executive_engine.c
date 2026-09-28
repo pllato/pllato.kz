@@ -549,7 +549,7 @@ API int pllato_color(const char *handle,int color){
 /* Delete only self-contained editable entities; dependency-bearing objects reject. */
 API int pllato_remove(const char *handle){
  Dwg_Object *o=entity(handle);if(!o)return 1;
- if(o->fixedtype!=DWG_TYPE_LINE&&o->fixedtype!=DWG_TYPE_ARC&&o->fixedtype!=DWG_TYPE_CIRCLE&&o->fixedtype!=DWG_TYPE_TEXT&&o->fixedtype!=DWG_TYPE_LWPOLYLINE&&o->fixedtype!=DWG_TYPE_INSERT)return 2;
+ if(o->fixedtype!=DWG_TYPE_LINE&&o->fixedtype!=DWG_TYPE_ARC&&o->fixedtype!=DWG_TYPE_CIRCLE&&o->fixedtype!=DWG_TYPE_TEXT&&o->fixedtype!=DWG_TYPE_LWPOLYLINE&&o->fixedtype!=DWG_TYPE_SPLINE&&o->fixedtype!=DWG_TYPE_INSERT)return 2;
  Dwg_Object_Entity *ent=o->tio.entity;
  if(ent->num_reactors||ent->xdicobjhandle&&ent->xdicobjhandle->absolute_ref)return 3;
  Dwg_Object *owner=ent->entmode==2?dwg_model_space_object(&drawing):dwg_ref_object(&drawing,ent->ownerhandle);
