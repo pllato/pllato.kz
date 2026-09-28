@@ -1,4 +1,4 @@
-import {cableCurve,nearestCablePoint,bendCable} from './cable-edit.mjs?v=0.16.1';
+import {cableCurve,nearestCablePoint,bendCable} from './cable-edit.mjs?v=0.16.2';
 export function mountCableWorkbench(api){
  const panel=document.createElement('section');panel.id='cableWorkbench';panel.innerHTML=`<h2>Кабель / объект</h2><p id="cwLength">Выберите кабель или прибор</p><div class="cwActions"><button id="cwDraw">Кабель · 3 точки</button><button id="cwMove">Перетащить</button><button id="cwShape">Изменить форму</button><button id="cwCopy">Копировать выбранное</button><button id="cwPaste">Вставить копию</button><button id="cwDelete">Удалить</button></div><label>Цвет линии<select id="cwColor"><option value="0">Исходный / по слою</option><option value="7">Белый</option><option value="1">Красный</option><option value="2">Жёлтый</option><option value="3">Зелёный</option><option value="4">Голубой</option><option value="5">Синий</option><option value="6">Фиолетовый</option><option value="8">Серый</option></select></label><button id="cwApplyColor">Применить цвет</button><div id="cwCableFields"></div><button id="cwAssign">Сохранить марку и сечение</button><button id="cwLeader">Поставить выноску</button><p id="cwHelp">Кабель учитывается в ведомости и без выноски. Цвет не меняет его марку.</p>`;
  document.querySelector('#viewport').append(panel);
@@ -20,7 +20,7 @@ export function mountCableWorkbench(api){
  $('cwShape').onclick=safe(()=>{let r=api.route();if(!r||r.sourceIds){if(!confirm('Для изменения формы заменить выбранную цепочку линий и дуг редактируемой полилинией? Кривые будут приближены точками. Исходный файл на диске не изменится.'))return;api.convert();r=api.route();}lastKey=r.id;mode='nodes';api.status('Перетаскивайте белые точки кабеля. Длина и ведомость обновятся.');});
  $('cwCopy').onclick=safe(()=>{api.copy();clipboard=true;mode='';api.status('Скопировано. Нажмите «Вставить» и укажите место.');});
  $('cwPaste').onclick=safe(()=>{if(!clipboard)throw Error('Сначала скопируйте объект');mode='paste';api.status('Нажмите место для копии. Исходник останется на месте.');});
- $('cwDelete').onclick=safe(async()=>{if(!movable())throw Error('Сначала выберите объект');if(!confirm('Удалить выбранный кабель / объект? Действие можно отменить.'))return;await api.remove();mode='';});
+ $('cwDelete').onclick=safe(async()=>{if(!movable())throw Error('Сначала выберите объект');await api.remove();mode='';api.status('Удалено. Вернуть объект — «Отменить».');});
  $('cwApplyColor').onclick=safe(()=>api.color(Number($('cwColor').value)));
  $('cwAssign').onclick=safe(()=>{if(api.route())$('exCable').click();else $('exAssignSelection').click();});
  $('cwLeader').onclick=safe(()=>{if(!api.route())throw Error('Сначала назначьте кабелю марку и сечение');$('exLeader').click();mode='';});
