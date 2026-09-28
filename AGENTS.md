@@ -4,6 +4,11 @@
 
 **Перед началом работы прочитай `docs/HANDOFF.md` — это твоё главное чтение.**
 
+Для DWG-редактора (`app/stroy/dwg/`) затем обязательно прочитай
+[`app/stroy/dwg/AGENTS.md`](app/stroy/dwg/AGENTS.md) и
+[`app/stroy/dwg/HANDOFF.md`](app/stroy/dwg/HANDOFF.md).
+Это актуальная передача разработки DWG; CRM-задачи ниже не являются его backlog.
+
 ## Краткая шпаргалка (если HANDOFF уже прочитан)
 
 - **Проект:** Pllato CRM — мультитенантное CRM-ядро для команды Pllato.
