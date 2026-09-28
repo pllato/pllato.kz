@@ -1,4 +1,5 @@
-import {get,move,set,addEntity} from './cad.mjs?v=0.16.3';
+import {get,move,set,addEntity} from './cad.mjs?v=0.17';
+import {setSplineControl} from './control-edit.mjs?v=0.17';
 export function captureRecovery(doc){
  if(!doc.native)throw Error('Ожидается DWG');
  return {ops:structuredClone(doc.nativeOps||[]),added:doc.entities.filter(r=>r.id.startsWith('new-')).map(r=>({id:r.id,type:r.type,pairs:structuredClone(r.pairs)})),project:structuredClone(doc.executiveProject||null)};
@@ -7,8 +8,10 @@ export function replayRecovery(doc,state){
  const byHandle=new Map(doc.records.map(r=>[get(r,5),r])),removed=new Set();
  for(const op of state.ops){const r=byHandle.get(op.handle);if(!r)throw Error('Восстановление: объект '+op.handle+' не найден');
   if(op.remove){removed.add(r);if(r.type==='INSERT')for(const a of doc.records)if(a.type==='ATTRIB'&&get(a,330)===op.handle)removed.add(a);continue;}
-  move(r,op.dx,op.dy);if(r.type==='INSERT')for(const a of doc.records)if(a.type==='ATTRIB'&&get(a,330)===op.handle)move(a,op.dx,op.dy);
+  if(op.dx||op.dy){move(r,op.dx,op.dy);if(r.type==='INSERT')for(const a of doc.records)if(a.type==='ATTRIB'&&get(a,330)===op.handle)move(a,op.dx,op.dy);}
   if(op.text!==undefined)set(r,1,op.text);
+  if(op.node)setSplineControl(r,op.node.index,op.node.x,op.node.y);
+  if(op.angle!==undefined)set(r,50,op.angle*180/Math.PI);
   if(op.color!==undefined){r.pairs=r.pairs.filter(p=>p[0]!==420);set(r,62,op.color);}
  }
  doc.records=doc.records.filter(r=>!removed.has(r));doc.entities=doc.entities.filter(r=>!removed.has(r));for(const b of doc.blocks.values())b.records=b.records.filter(r=>!removed.has(r));
