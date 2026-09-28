@@ -1,14 +1,40 @@
 /* Executive engine candidate; release gated by round-trip integration tests. */
 #define pllato_save pllato_legacy_save
 #define pllato_move pllato_legacy_move
+#define pllato_open pllato_legacy_open
 #include "pllato_web.c"
 #undef pllato_save
 #undef pllato_move
+#undef pllato_open
 #include "encode.h"
 #include "decode.h"
 #include "hash.h"
 extern int dwg_encode_add_object(Dwg_Object *,Bit_Chain *,size_t);
 extern size_t pllato_encoded_payload_end;
+/* Older builds truncated large model-space owner lists during encoding.
+   Recover only an absent list, using explicit native entity ownership. */
+API int pllato_open(const char *path){
+ int error=pllato_legacy_open(path);if(error>=128||!loaded)return error;
+ Dwg_Object *model=dwg_model_space_object(&drawing);if(!model)return error;
+ Dwg_Object_BLOCK_HEADER *b=model->tio.object->tio.BLOCK_HEADER;
+ if(b->num_owned||b->blkisxref||b->xrefoverlaid)return error;
+ unsigned count=0;
+ for(unsigned i=0;i<drawing.num_objects;i++){
+  Dwg_Object *o=&drawing.object[i];if(o->supertype!=DWG_SUPERTYPE_ENTITY||dwg_obj_is_subentity(o)||o->fixedtype==DWG_TYPE_BLOCK||o->fixedtype==DWG_TYPE_ENDBLK)continue;
+  Dwg_Object_Entity *e=o->tio.entity;
+  if(e->entmode==2||(e->entmode==0&&e->ownerhandle&&e->ownerhandle->absolute_ref==model->handle.value))count++;
+ }
+ if(!count)return error;
+ BITCODE_H *refs=calloc(count,sizeof(BITCODE_H));if(!refs)return DWG_ERR_OUTOFMEM;
+ unsigned pos=0;
+ for(unsigned i=0;i<drawing.num_objects;i++){
+  Dwg_Object *o=&drawing.object[i];if(o->supertype!=DWG_SUPERTYPE_ENTITY||dwg_obj_is_subentity(o)||o->fixedtype==DWG_TYPE_BLOCK||o->fixedtype==DWG_TYPE_ENDBLK)continue;
+  Dwg_Object_Entity *e=o->tio.entity;
+  if(e->entmode==2||(e->entmode==0&&e->ownerhandle&&e->ownerhandle->absolute_ref==model->handle.value))refs[pos++]=dwg_add_handleref(&drawing,4,o->handle.value,NULL);
+ }
+ free(b->entities);b->entities=refs;b->num_owned=count;b->first_entity=refs[0];b->last_entity=refs[count-1];
+ fprintf(stderr,"MODEL_OWNER_RECOVERED count=%u\n",count);return error;
+}
 
 /* Native executive metadata proof: UTF-8 bytes in bounded XRECORD chunks. */
 API int pllato_executive_metadata(const unsigned char *bytes, int length)
@@ -516,7 +542,7 @@ API int pllato_remove(const char *handle){
  if(!owner||owner->fixedtype!=DWG_TYPE_BLOCK_HEADER)return 4;
  Dwg_Object_BLOCK_HEADER *b=owner->tio.object->tio.BLOCK_HEADER;
  unsigned pos=b->num_owned;for(unsigned i=0;i<b->num_owned;i++)if(b->entities[i]->absolute_ref==o->handle.value){pos=i;break;}
- if(pos==b->num_owned)return 5;
+ if(pos==b->num_owned){fprintf(stderr,"REMOVE_OWNER_MISSING handle=%llX owner=%llX explicit=%llX mode=%u count=%u\n",(unsigned long long)o->handle.value,(unsigned long long)owner->handle.value,(unsigned long long)(ent->ownerhandle?ent->ownerhandle->absolute_ref:0),ent->entmode,b->num_owned);return 5;}
  if(o->fixedtype==DWG_TYPE_INSERT){
   Dwg_Entity_INSERT *in=ent->tio.INSERT;
   for(unsigned i=0;i<in->num_owned;i++){Dwg_Object *a=dwg_ref_object(&drawing,in->attribs[i]);if(!a||a->fixedtype!=DWG_TYPE_ATTRIB||a->tio.entity->num_reactors)return 6;}
@@ -570,6 +596,12 @@ API int pllato_save(const char *path){
   Dwg_Object *a=&drawing.object[i],*b=dwg_resolve_handle(&check,a->handle.value);
   if(a->type==DWG_TYPE_FREED||a->type==DWG_TYPE_UNUSED){if(b)error|=DWG_ERR_INVALIDDWG;continue;}
   if(!b||b->fixedtype!=a->fixedtype){fprintf(stderr,"SAVE_REJECT_TYPE %llX %s\n",(unsigned long long)a->handle.value,a->name);error|=DWG_ERR_INVALIDDWG;break;}
+  if(a->fixedtype==DWG_TYPE_BLOCK_HEADER){
+   Dwg_Object_BLOCK_HEADER *x=a->tio.object->tio.BLOCK_HEADER,*y=b->tio.object->tio.BLOCK_HEADER;
+   if(x->num_owned!=y->num_owned)error|=DWG_ERR_INVALIDDWG;
+   for(unsigned j=0;error<128&&j<x->num_owned;j++)if(!x->entities[j]||!y->entities[j]||x->entities[j]->absolute_ref!=y->entities[j]->absolute_ref){fprintf(stderr,"SAVE_REJECT_OWNER_REF index=%u old=%llX new=%llX\n",j,(unsigned long long)(x->entities[j]?x->entities[j]->absolute_ref:0),(unsigned long long)(y->entities[j]?y->entities[j]->absolute_ref:0));error|=DWG_ERR_INVALIDDWG;}
+   if(error>=128){fprintf(stderr,"SAVE_REJECT_OWNERS %llX %u/%u\n",(unsigned long long)a->handle.value,x->num_owned,y->num_owned);break;}
+  }
   if(raw_table(a)){
    size_t bytes=a->num_unknown_bits/8;unsigned tail=a->num_unknown_bits%8;
    if(!raw_table(b)||a->num_unknown_bits!=b->num_unknown_bits||a->handlestream_size!=b->handlestream_size
