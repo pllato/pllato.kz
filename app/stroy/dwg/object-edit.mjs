@@ -1,11 +1,11 @@
-import {get,num,move,set} from './cad.mjs?v=0.16.2';
-import {localDelta} from './cable-edit.mjs?v=0.16.2';
+import {get,num,move,set} from './cad.mjs?v=0.16.3';
+import {localDelta} from './cable-edit.mjs?v=0.16.3';
 export function editObjects(doc,targets,{delta=[0,0],remove=false,color}={}){
  if(!targets.length||!delta.every(Number.isFinite))throw Error('Выберите объект');
  if(color!==undefined&&(!Number.isInteger(color)||color<1||color>255))throw Error('Неверный цвет');
  const plans=targets.map(({id,matrix})=>{
   const r=doc.records.find(r=>r.id===id);
-  if(!r||r.id.startsWith('executive-')||!['LINE','LWPOLYLINE','ARC','CIRCLE','TEXT','MTEXT','INSERT'].includes(r.type)||num(r,210)||num(r,220)||num(r,230,1)!==1)throw Error('Этот тип объекта пока нельзя изменить');
+  if(!r||r.id.startsWith('executive-')||!['LINE','LWPOLYLINE','ARC','CIRCLE','TEXT','MTEXT','INSERT',...(remove?['SPLINE']:[])].includes(r.type)||(!remove&&(num(r,210)||num(r,220)||num(r,230,1)!==1)))throw Error('Этот тип объекта пока нельзя изменить: '+(r?.type||'не найден')+' · '+id);
   if(remove&&r.type==='MTEXT')throw Error('Удаление MTEXT пока не поддерживается');
   if(doc.executiveProject?.sheets.some(s=>s.nativeHandles.includes(get(r,5))))throw Error('Нельзя изменить весь лист этим инструментом');
   const [dx,dy]=localDelta(matrix,delta);return {r,op:{handle:get(r,5),dx,dy,...(remove?{remove:true}:{}),...(color!==undefined?{color}: {})}};
