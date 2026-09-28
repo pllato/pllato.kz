@@ -24,6 +24,14 @@ assert.equal(group.entities.length,1);assert.equal(group.entities[0].type,'INSER
 assert.notEqual(group.entities[0].blockRecordId,root.blockRecordId);
 const copiedPlan=result.tables.BLOCK_RECORD.entries.find(b=>b.handle===group.entities[0].blockRecordId);
 const device=copiedPlan.entities.find(e=>e.type==='INSERT');
+assert.equal(m.ccall('pllato_copy_object','number',['string','string',...Array(5).fill('number')],[device.handle,copyHandle,500,600,Math.PI/4,1,1]),0,'Copy owned device without copying its enclosing plan');
+const pastedHandle=m.FS.readFile('/clone-result.txt',{encoding:'utf8'});
+assert.ok(m.ccall('pllato_save','number',['string'],['/pasted.dwg'])<128);
+const pastedDoc=read(m.FS.readFile('/pasted.dwg')),pastedGroup=pastedDoc.tables.BLOCK_RECORD.entries.find(b=>b.handle===group.handle);
+assert.equal(pastedGroup.entities.length,2);
+const pasted=pastedGroup.entities.find(e=>e.handle===pastedHandle);assert.equal(pasted.insertionPoint.x,500);assert.equal(pasted.insertionPoint.y,600);
+assert.deepEqual(pastedDoc.entities.find(e=>e.handle===root.handle),root,'Copy cannot modify the source');
+const pastedDefinition=pastedDoc.tables.BLOCK_RECORD.entries.find(b=>b.handle===pasted.blockRecordId);assert.equal(pastedDefinition.entities.length,1);assert.equal(pastedDefinition.entities[0].type,'INSERT');assert.equal(pastedDefinition.entities[0].attribs.length,device.attribs.length);
 assert.equal(m.ccall('pllato_move','number',['string','number','number'],[device.handle,12,34]),0);
 // Creation, deletion and metadata replacement must survive a second save.
 assert.equal(m.ccall('pllato_add_line','number',Array(4).fill('number'),[1,2,3,4]),0);

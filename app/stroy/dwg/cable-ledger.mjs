@@ -9,7 +9,7 @@ export function cableLedger(routes,{sheetId}={}){
  for(const route of routes){
   if(sheetId!==undefined&&route.sheetId!==sheetId)continue;
   if(!route.id||ids.has(route.id))throw Error('Повторяющийся или пустой идентификатор трассы');ids.add(route.id);
-  const length=routeLength(route.points,route.metresPerUnit);
+  const length=route.paths?route.paths.reduce((n,points)=>n+routeLength(points,route.metresPerUnit),0):routeLength(route.points,route.metresPerUnit);
   if(!Number.isFinite(route.extraMetres??0)||(route.extraMetres??0)<0)throw Error('Дополнительная длина должна быть неотрицательной');
   const quantity=length+(route.extraMetres??0);
   const brand=String(route.brand||'').trim(),section=String(route.section||'').trim();

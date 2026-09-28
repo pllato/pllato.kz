@@ -1,15 +1,15 @@
-import createModule from './vendor/pllato-executive-engine.mjs?v=0.13';
-import {writeAdditions} from './authoring.mjs?v=0.13';
-import {validateExecutiveProject} from './executive-metadata.mjs?v=0.13';
-import {executiveEntities} from './executive-project.mjs?v=0.13';
+import createModule from './vendor/pllato-executive-engine.mjs?v=0.14';
+import {writeAdditions} from './authoring.mjs?v=0.14';
+import {validateExecutiveProject} from './executive-metadata.mjs?v=0.14';
+import {executiveEntities} from './executive-project.mjs?v=0.14';
 self.onmessage=async({data})=>{
  let m,diagnostic='';
  try{
-  const {buffer,ops=[],added=[],cloneRequest}=data;
+  const {buffer,ops=[],added=[],cloneRequest,copyRequest}=data;
   const project=validateExecutiveProject(data.project);
   if(!(buffer instanceof ArrayBuffer)||!Array.isArray(ops)||ops.length>100000)throw Error('Неверный пакет изменений');
   self.postMessage({progress:'Готовлю DWG исполнительных…',percent:5});
-  m=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.13',import.meta.url).href,print:()=>{},printErr:s=>{if(s.startsWith('CLONE_REJECT'))diagnostic=s.slice(0,200);}});m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
+  m=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.14',import.meta.url).href,print:()=>{},printErr:s=>{if(s.startsWith('CLONE_REJECT'))diagnostic=s.slice(0,200);}});m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
   const opened=m.ccall('pllato_open','number',['string'],['/input.dwg']);if(opened>=128)throw Error('DWG не прочитан: '+opened);
   const check=(code,label)=>{if(code){const reason=diagnostic.startsWith('CLONE_REJECT_ROOT')?'Выделен вложенный объект без его блока-владельца. Выделите блок целиком. '+diagnostic:diagnostic.includes('ACAD_TABLE')?'Исходная CAD-таблица пока не поддерживается безопасным копированием. Таблица не удалена, операция отменена целиком. '+diagnostic:diagnostic.includes('MULTILEADER')?'Связанная сложная выноска не прошла проверку точности копирования. Операция отменена целиком, выноска не удалена. '+diagnostic:diagnostic.includes('BLOCKSTRETCHACTION')?'Команда растяжения динамического блока не прошла проверку точности записи. Копирование отменено без упрощения CAD-структуры.':diagnostic;throw Error(label+' (код '+code+'). '+reason+' Исходный файл не изменён.');}};
   for(const op of ops){
@@ -20,7 +20,8 @@ self.onmessage=async({data})=>{
   }
   for(const handle of project.generatedHandles||[])check(m.ccall('pllato_remove','number',['string'],[handle]),'Не удалось обновить оформление');
   project.generatedHandles=[];
-  writeAdditions(m,added);
+  if(copyRequest){const {handle,parent,transform}=copyRequest;if(!/^[0-9a-f]+$/i.test(handle)||!project.sheets.some(s=>s.nativeHandles[0]===parent)||!Array.isArray(transform)||transform.length!==5||!transform.every(Number.isFinite))throw Error('Неверные параметры копирования');self.postMessage({progress:'Копирую объект с CAD-структурой…',percent:30});check(m.ccall('pllato_copy_object','number',['string','string',...Array(5).fill('number')],[handle,parent,...transform]),'Не удалось скопировать объект');}
+  writeAdditions(m,added,item=>{const id='dwg-'+m.ccall('pllato_last_handle','string',[],[]);for(const s of project.sheets)for(const r of s.routes)if(r.sourceIds)r.sourceIds=r.sourceIds.map(source=>source===item.sourceId?id:source);});
   if(cloneRequest){
    const {sheetId,handles,centre,position}=cloneRequest,s=project.sheets.find(s=>s.id===sheetId);
    if(!s||s.nativeHandles.length||!Array.isArray(handles)||!handles.length||handles.length>20000||handles.some(h=>!/^[0-9a-f]+$/i.test(h))||![centre,position].every(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)))throw Error('Неверная область копирования');

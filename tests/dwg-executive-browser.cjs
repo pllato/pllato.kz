@@ -49,6 +49,9 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  await page.locator('#undo').click();await page.waitForFunction(()=>document.querySelector('#busy').hidden&&!document.querySelector('#redo').disabled,null,{timeout:120000});
  await page.locator('#redo').click();await page.waitForFunction(()=>document.querySelector('#busy').hidden&&!document.querySelector('#undo').disabled,null,{timeout:120000});
  await control('#exShow').click();
+ await page.evaluate(()=>{globalThis.previousGeometry=globalThis.__executiveTest.state().drawing.shapes.find(s=>!s.id.startsWith('executive-'));});
+ await control('#exTitle').fill('Переименование без перестройки');await control('#exApply').click();await page.waitForFunction(()=>globalThis.__executiveTest.state().doc.executiveProject.sheets[0].title==='Переименование без перестройки');
+ assert.equal(await page.evaluate(()=>globalThis.__executiveTest.state().drawing.shapes.includes(globalThis.previousGeometry)),true,'Title-only change must reuse base geometry');
  await control('#exTitle').fill('Исполнительная проверка');await control('#exAngle').fill('90');await control('#exApply').click();
  await page.waitForFunction(()=>document.querySelector('#autosaveStatus').textContent.startsWith('Сохранено'));
  await page.evaluate(()=>{const r=globalThis.__executiveTest.recovery;globalThis.originalRecoverySave=r.save;r.save=async()=>{throw Error('QuotaExceededError test');};});
@@ -83,7 +86,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  // Pick an actual nested device using independently decoded saved geometry.
  const target=await page.evaluate(async bytes=>{
   const doc=await new Promise((resolve,reject)=>{const w=new Worker('/app/stroy/dwg/native-reader.mjs',{type:'module'});w.onmessage=e=>{if(e.data.doc){w.terminate();resolve(e.data.doc);}else if(e.data.error){w.terminate();reject(Error(e.data.error));}};w.postMessage(Uint8Array.from(bytes).buffer);});
-  const {scene}=await import('/app/stroy/dwg/cad.mjs?v=0.13'),shapes=scene(doc).shapes,handle=doc.executiveProject.sheets[0].nativeHandles[0];
+  const {scene}=await import('/app/stroy/dwg/cad.mjs?v=0.14'),shapes=scene(doc).shapes,handle=doc.executiveProject.sheets[0].nativeHandles[0];
   const candidate=shapes.find(s=>s.id==='dwg-'+handle&&s.deviceId&&s.deviceId!==s.id&&s.text===null&&!s.hatch&&s.pts.length===2);
   const xs=shapes.flatMap(s=>s.pts.map(p=>p[0])),ys=shapes.flatMap(s=>s.pts.map(p=>p[1]));
   return {point:candidate.pts[0].map((v,i)=>(v+candidate.pts[1][i])/2),bounds:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]};
@@ -93,11 +96,17 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  await page.mouse.click(b.x+b.width/2+(target.point[0]-(x1+x2)/2)*scale,b.y+b.height/2-(target.point[1]-(y1+y2)/2)*scale);
  assert.match(await page.locator('#selection').textContent(),/^INSERT/);
  await page.locator('#dx').fill('10');await page.locator('#props button[type=submit]').click();
+ await page.getByRole('button',{name:'Копировать',exact:true}).click();await page.getByRole('button',{name:'Вставить',exact:true}).click();
+ b=await page.locator('#canvas').boundingBox();await page.mouse.click(b.x+b.width*.7,b.y+b.height*.6);await page.waitForFunction(()=>document.querySelector('#busy').hidden&&document.querySelector('#status').textContent.includes('Независимая копия'),null,{timeout:120000});
  await save(path.join(dir,'device-moved.dwg'));
  await page.locator('#file').setInputFiles(first);await page.waitForFunction(()=>document.querySelector('#busy').hidden,null,{timeout:120000});
  assert.equal(await page.locator('#exTitle').inputValue(),'Исполнительная проверка');assert.equal(await page.locator('#exRouteList option').count(),1);
  await control('#exRemoveLeader').click();assert.match(await page.locator('#exLedger').textContent(),/Без выносок: 1/);
- await save(path.join(dir,'second.dwg'));await page.screenshot({path:path.join(dir,'result.png')});assert.deepEqual(errors,[]);
+ await save(path.join(dir,'second.dwg'));
+ await page.locator('[data-tool="line"]').click();b=await page.locator('#canvas').boundingBox();await page.mouse.click(b.x+80,b.y+80);await page.mouse.move(b.x+180,b.y+80);assert.match(await page.locator('#status').textContent(),/Длина/);await page.mouse.click(b.x+180,b.y+80);
+ await control('#exAssignSelection').click();assert.equal(await page.locator('#exRouteList option').count(),2);
+ await save(path.join(dir,'assigned.dwg'));assert.equal(await page.evaluate(()=>globalThis.__executiveTest.state().doc.executiveProject.sheets[0].routes.length),2,'Assigned line must survive save as a sheet route');
+ await page.screenshot({path:path.join(dir,'result.png')});assert.deepEqual(errors,[]);
  await page.setViewportSize({width:390,height:844});await page.locator('#panel').click();
  await control('#exArea').click();assert.equal(await page.locator('#sidebar').isVisible(),false);
  assert.equal(await page.locator('#canvas').isVisible(),true);

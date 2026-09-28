@@ -1,9 +1,9 @@
-import {get,num} from './cad.mjs?v=0.13';
+import {get,num} from './cad.mjs?v=0.14';
 export const isNew=r=>r?.id?.startsWith('new-');
 export function additions(doc){return doc.entities.filter(isNew).map(r=>{
- if(r.type==='LINE')return {type:r.type,values:[10,20,11,21].map(c=>num(r,c))};
- if(r.type==='TEXT')return {type:r.type,text:get(r,1),values:[num(r,10),num(r,20),num(r,40),num(r,50)*Math.PI/180]};
- if(r.type==='LWPOLYLINE'){const points=[];for(let i=0;i<r.pairs.length;i++)if(r.pairs[i][0]===10){const y=r.pairs.slice(i+1).find(p=>p[0]===20);if(!y)throw Error('Полилиния: отсутствует Y');points.push(Number(r.pairs[i][1]),Number(y[1]));}return {type:r.type,points,closed:!!(num(r,70)&1)};}
+ if(r.type==='LINE')return {sourceId:r.id,type:r.type,values:[10,20,11,21].map(c=>num(r,c))};
+ if(r.type==='TEXT')return {sourceId:r.id,type:r.type,text:get(r,1),values:[num(r,10),num(r,20),num(r,40),num(r,50)*Math.PI/180]};
+ if(r.type==='LWPOLYLINE'){const points=[];for(let i=0;i<r.pairs.length;i++)if(r.pairs[i][0]===10){const y=r.pairs.slice(i+1).find(p=>p[0]===20);if(!y)throw Error('Полилиния: отсутствует Y');points.push(Number(r.pairs[i][1]),Number(y[1]));}return {sourceId:r.id,type:r.type,points,closed:!!(num(r,70)&1)};}
  throw Error('Запись нового объекта '+r.type+' пока не поддерживается');
 });}
 export function writeAdditions(m,items,onCreated=()=>{}){
