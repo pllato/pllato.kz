@@ -3182,8 +3182,8 @@ function assigneeMulti(users, selected, opts){
   // В сохранённом списке могут остаться уволенные/переименованные сотрудники: их нет среди users,
   // поэтому чекбокс не рисовался, а счётчик их считал («3 выбрано» при двух галочках) — и снять их
   // было нельзя вообще. Показываем такие записи отдельно с пометкой, чтобы админ мог убрать.
-  const _known=new Set(users.map(u=>u.name));
-  const _list=users.concat(Array.from(sel).filter(n=>!_known.has(n)).map(n=>({name:n, roleName:'нет в системе'})));
+  const _known=new Set(users.map(u=>u.name)), _stale=opts.staleLabels||{};
+  const _list=users.concat(Array.from(sel).filter(n=>!_known.has(n)).map(n=>({name:n, roleName:_stale[n]||'нет в системе'})));
   pop.innerHTML=(_list.length?_list.map(u=>`<label class="asg-opt" style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;cursor:pointer;font-size:13px"><input type="checkbox" data-n="${esc(u.name)}" ${sel.has(u.name)?'checked':''} style="width:16px;height:16px;flex:none;accent-color:var(--accent)"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name)}${u.roleName?(' · <span class="muted2" style="font-size:11px">'+esc(u.roleName)+'</span>'):''}</span></label>`).join(''):'<div class="muted2" style="padding:8px;font-size:12px">Нет пользователей</div>');
   pop.onclick=(e)=>e.stopPropagation();
   pop.querySelectorAll('input[data-n]').forEach(cb=>cb.onchange=()=>{ const n=cb.dataset.n; if(cb.checked)sel.add(n); else sel.delete(n); updateLbl(); if(opts.onChange)opts.onChange(Array.from(sel)); });
@@ -3813,7 +3813,10 @@ function teamMembersPanel(){
       if(!act && !confirm('Отключить сотрудника «'+b.dataset.name+'»? Он сразу выйдет и больше не сможет войти.')) return;
       const r=await api('/api/admin/users/'+encodeURIComponent(b.dataset.uid)+'/active',{method:'POST',body:JSON.stringify({active:act})});
       if(!r.ok){toast((r.data&&r.data.error)||'Ошибка','i-x','#dc2626');return;}
-      toast(act?'Сотрудник включён':'Сотрудник отключён · сессии сброшены','i-check2'); load();
+      const pr=(r.data&&r.data.pools_removed)||0, pe=(r.data&&r.data.pools_emptied)||0;
+      toast(act?'Сотрудник включён':('Сотрудник отключён · сессии сброшены'+(pr?' · убран из распределения лидов':'')),'i-check2');
+      if(pe) toast('Внимание: '+plural(pe,'воронка','воронки','воронок')+' осталась без менеджеров — новые лиды будут без ответственного','i-info','#f59e0b');
+      load();
     });
   }
   load();
@@ -4233,10 +4236,15 @@ function leadPoolPanel(){
       <div style="margin:0 0 14px;padding:10px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;max-width:420px"><label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px">Заявки с сайта попадают в воронку</label><select id="leadsFunnelSel" class="sel" style="width:100%">${funnels.map(f=>`<option value="${esc(f.id)}" ${f.id===leadsFunnel?'selected':''}>${esc(f.name)}</option>`).join('')}</select></div>
       <div style="margin:0 0 14px;padding:10px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;max-width:420px"><label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px">Заявки из Instagram попадают в воронку</label><select id="igFunnelSel" class="sel" style="width:100%">${funnels.map(f=>`<option value="${esc(f.id)}" ${f.id===igFunnel?'selected':''}>${esc(f.name)}</option>`).join('')}</select></div>
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:6px">Менеджеры по воронкам</div>`;
+    // Уволенных в список выбора НЕ даём: лиды им всё равно не назначаются, а галочка создавала
+    // иллюзию работающего распределения. Если имя уже сохранено в пуле — покажем его с пометкой
+    // «уволен», чтобы было видно и можно было снять.
+    const actUsers=users.filter(u=>u.active!==false), fired={};
+    users.forEach(u=>{ if(u.active===false && u.name) fired[u.name]='уволен'; });
     const widgets={};
     funnels.forEach(f=>{
       const row=el(`<div style="margin:0 0 12px;max-width:420px"><label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px">${esc(f.name)}</label><div class="lp-pick"></div></div>`);
-      const w=assigneeMulti(users, pools[f.id]||[], {emptyLabel:'Выбрать менеджеров'});
+      const w=assigneeMulti(actUsers, pools[f.id]||[], {emptyLabel:'Выбрать менеджеров', staleLabels:fired});
       row.querySelector('.lp-pick').appendChild(w.node);
       widgets[f.id]=w; body.appendChild(row);
     });
