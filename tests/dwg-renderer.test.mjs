@@ -22,3 +22,8 @@ test('Selecting an internal line does not highlight the whole executive',()=>{
  paintShapes(c,[{...shape('sheet'),entityKey:'one'},{...shape('sheet'),entityKey:'two'}],{...options,selected:'one'});
  assert.deepEqual(colors,['#ffbe6c','#111']);
 });
+test('Cable chain highlights every selected key but no neighbouring object',()=>{
+ const c=context(),colors=[];c.stroke=()=>colors.push(c.strokeStyle);
+ paintShapes(c,['a','b','c'].map(entityKey=>({...shape('sheet'),entityKey})),{...options,selected:new Set(['a','b'])});
+ assert.deepEqual(colors,['#ffbe6c','#111']);
+});
