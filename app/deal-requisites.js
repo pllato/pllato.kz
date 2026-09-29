@@ -3,6 +3,7 @@ export async function mountDealRequisites(container,{dealId,canEdit,base,getToke
   const text=container.querySelector('[data-text]'),save=container.querySelector('[data-save]'),upload=container.querySelector('[data-upload]'),input=container.querySelector('[data-input]'),status=container.querySelector('[data-status]'),files=container.querySelector('[data-files]');
   if(!canEdit)container.querySelector('[data-actions]').hidden=true;
   const path=base+'/api/deals/'+encodeURIComponent(dealId)+'/requisites';
+  const changed=()=>container.dispatchEvent(new CustomEvent('elc:requisites-changed',{bubbles:true,detail:{dealId}}));
   async function api(method='GET',body,headers={}){
     const r=await fetch(path,{method,body,headers:{Authorization:'Bearer '+await getToken(),...headers}});
     const data=await r.json();if(!r.ok)throw new Error(data.error||'Не удалось сохранить реквизиты');return data;
@@ -35,6 +36,7 @@ export async function mountDealRequisites(container,{dealId,canEdit,base,getToke
         savedText=value;
       }
       saveStatus.textContent='Реквизиты сохранены';
+      changed();
     }catch(e){saveStatus.textContent='Не сохранено: '+e.message;save.hidden=false;}
     finally{saving=false;save.disabled=false;}
   }
@@ -51,7 +53,7 @@ export async function mountDealRequisites(container,{dealId,canEdit,base,getToke
     if(!file.size||file.size>15*1024*1024){status.textContent='Файл должен быть от 1 байта до 15 МБ';return;}
     upload.disabled=true;status.textContent='Загружаем '+file.name+'…';
     const types={pdf:'application/pdf',txt:'text/plain',doc:'application/msword',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',xls:'application/vnd.ms-excel',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
-    try{const data=await api('POST',file,{'Content-Type':file.type||types[file.name.split('.').pop().toLowerCase()]||'application/octet-stream','X-File-Name':encodeURIComponent(file.name)});rows.push(data.file);await renderFiles(rows);status.textContent='Файл прикреплён';}
+    try{const data=await api('POST',file,{'Content-Type':file.type||types[file.name.split('.').pop().toLowerCase()]||'application/octet-stream','X-File-Name':encodeURIComponent(file.name)});rows.push(data.file);await renderFiles(rows);status.textContent='Файл прикреплён';changed();}
     catch(e){status.textContent=e.message;}finally{upload.disabled=false;input.value='';}
   }
   input.onchange=()=>attach(input.files[0]);
