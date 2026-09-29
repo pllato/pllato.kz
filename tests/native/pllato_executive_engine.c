@@ -551,7 +551,8 @@ API int pllato_move(const char *handle,double dx,double dy){
  for(unsigned i=0;i<in->num_owned;i++){
   Dwg_Object *a=dwg_ref_object(&drawing,in->attribs[i]);if(!a||a->fixedtype!=DWG_TYPE_ATTRIB)return 2;
   Dwg_Entity_ATTRIB *t=a->tio.entity->tio.ATTRIB;
-  if(t->mtext_type||t->extrusion.x||t->extrusion.y||t->extrusion.z!=1||!isfinite(t->ins_pt.x+dx)||!isfinite(t->ins_pt.y+dy)||!isfinite(t->alignment_pt.x+dx)||!isfinite(t->alignment_pt.y+dy))return 3;
+  /* R2018 uses 1 for a normal single-line ATTRIB, not embedded MTEXT. */
+  if(t->mtext_type>1||t->extrusion.x||t->extrusion.y||t->extrusion.z!=1||!isfinite(t->ins_pt.x+dx)||!isfinite(t->ins_pt.y+dy)||!isfinite(t->alignment_pt.x+dx)||!isfinite(t->alignment_pt.y+dy)){fprintf(stderr,"MOVE_REJECT ATTRIB type=%u extrusion=%g,%g,%g\n",t->mtext_type,t->extrusion.x,t->extrusion.y,t->extrusion.z);return 3;}
  }
  in->ins_pt.x+=dx;in->ins_pt.y+=dy;
  for(unsigned i=0;i<in->num_owned;i++){Dwg_Entity_ATTRIB *t=dwg_ref_object(&drawing,in->attribs[i])->tio.entity->tio.ATTRIB;t->ins_pt.x+=dx;t->ins_pt.y+=dy;t->alignment_pt.x+=dx;t->alignment_pt.y+=dy;}

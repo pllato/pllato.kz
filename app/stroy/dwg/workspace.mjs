@@ -1,5 +1,9 @@
 // Presentation only: never changes the drawing or recovery state.
-import './tool-help.mjs?v=0.17.21';
+import './tool-help.mjs?v=0.17.22';
+import {mountSheetNavigator} from './sheet-navigator.mjs?v=0.17.22';
+import {mountCableCatalog} from './cable-catalog.mjs?v=0.17.22';
+mountCableCatalog();
+mountSheetNavigator(document.getElementById('exSheet'));
 const panel=document.getElementById('panel'),sidebar=document.getElementById('sidebar');
 panel.textContent='Листы / слои';panel.setAttribute('aria-controls','sidebar');panel.setAttribute('aria-expanded','false');
 panel.onclick=()=>{const open=sidebar.classList.toggle('open');panel.setAttribute('aria-expanded',String(open));};
