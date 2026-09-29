@@ -89,6 +89,10 @@ export async function ensureZoomForTask(env, taskId) {
   await schema(env);
   const task = await env.DB.prepare('SELECT * FROM tasks WHERE id=?').bind(taskId).first();
   if (!task || task.mark !== 'zoom_meeting') return null;
+  return ensureZoomMeeting(env, task);
+}
+async function ensureZoomMeeting(env, task) {
+  const taskId = task.id;
   const existing = await env.DB.prepare('SELECT * FROM zoom_meetings WHERE task_id=?').bind(taskId).first();
   if (existing?.meeting_id) return existing;
   if (existing?.status === 'creating' || existing?.status === 'uncertain') throw fail('Результат создания Zoom требует проверки администратором; повторная встреча не создаётся.', 409);
@@ -273,6 +277,40 @@ export async function handleZoomRequest(request, env, deps) {
       const {results}=await env.DB.prepare(`SELECT id,meeting_id,topic,recording_start,kind,extension,size,status,imported_at,deleted_at,error FROM zoom_files WHERE ${deal?'deal_id=?':'deal_id IS NULL'} ORDER BY recording_start DESC LIMIT 500`).bind(...(deal?[deal]:[])).all();
       return json({files:results},200,request);
     }
+    const dealMeetings=path.match(/^\/deals\/([^/]+)\/meetings$/);
+    if (dealMeetings && request.method==='GET') {
+      const id=decodeURIComponent(dealMeetings[1]);
+      if(!await canReadDeal(id)) throw fail('Нет доступа к сделке',403);
+      const {results}=await env.DB.prepare("SELECT m.task_id,t.title FROM zoom_meetings m JOIN tasks t ON t.id=m.task_id WHERE m.deal_id=? AND m.status!='cancelled' ORDER BY t.start_date_plan DESC LIMIT 100").bind(id).all();
+      return json({meetings:results},200,request);
+    }
+    const firstMatch = path.match(/^\/deals\/([^/]+)\/first-meeting$/);
+    if (firstMatch) {
+      const dealId = decodeURIComponent(firstMatch[1]);
+      if (!await canReadDeal(dealId)) throw fail('Нет доступа к сделке',403);
+      const taskId = 'first_zoom:' + dealId;
+      const existing = await env.DB.prepare('SELECT * FROM zoom_meetings WHERE task_id=?').bind(taskId).first();
+      if (request.method === 'GET') {
+        const deal=await env.DB.prepare('SELECT title,custom_fields FROM deals WHERE id=?').bind(dealId).first();
+        const date=parse(deal.custom_fields).firstZoomAt;
+        return json({meeting:existing ? {...existing,topic:'Первый Zoom: '+deal.title,start_time:date ? (/(?:Z|[+-]\d{2}:\d{2})$/.test(date)?date:date+'+05:00') : null} : null},200,request);
+      }
+      if (request.method !== 'POST') throw fail('Method not allowed',405);
+      if (!await canEditRecord(env,me,'deals',dealId)) throw fail('Нет права изменения сделки',403);
+      const deal = await env.DB.prepare('SELECT title,custom_fields FROM deals WHERE id=?').bind(dealId).first();
+      const date = parse(deal.custom_fields).firstZoomAt;
+      if (!date) throw fail('Сначала укажите дату первой Zoom-встречи');
+      // Legacy CRM date fields use Almaty wall time without an offset.
+      const start = new Date(/(?:Z|[+-]\d{2}:\d{2})$/.test(date) ? date : date + '+05:00');
+      if (isNaN(start)) throw fail('Некорректная дата встречи');
+      const task = {id:taskId,title:'Первый Zoom: '+deal.title,mark:'zoom_meeting',crmLinks:[dealId],
+        start_date_plan:start.toISOString(),end_date_plan:new Date(+start+3600000).toISOString()};
+      if (existing?.meeting_id) {
+        await api(env,'/meetings/'+existing.meeting_id,'PATCH',meetingBody(task));
+        return json({meeting:existing},200,request);
+      }
+      return json({meeting:await ensureZoomMeeting(env,task)},200,request);
+    }
     const fileMatch=path.match(/^\/files\/([^/]+)(\/link)?$/);
     if (fileMatch) {
       const f=await env.DB.prepare('SELECT * FROM zoom_files WHERE id=?').bind(decodeURIComponent(fileMatch[1])).first();
@@ -318,7 +356,7 @@ export async function handleZoomRequest(request, env, deps) {
         return json({meeting:await ensureZoomForTask(env,id)},200,request);
       }
       const m=await env.DB.prepare('SELECT meeting_id,join_url,status,error FROM zoom_meetings WHERE task_id=?').bind(id).first();
-      return json({meeting:m},200,request);
+      return json({meeting:m ? {...m,topic:t.title,start_time:t.start_date_plan || t.deadline} : null},200,request);
     }
     throw fail('Not found',404);
   }catch(e){return json({error:e.message},e.status||500,request);}
