@@ -553,6 +553,12 @@ API int pllato_color(const char *handle,int color){
  o->tio.entity->color.flag=0;o->tio.entity->color.rgb=0;o->tio.entity->color.handle=NULL;
  return 0;
 }
+API int pllato_rgb(const char *handle,int rgb){
+ Dwg_Object *o=entity(handle);if(!o||rgb<0||rgb>0xffffff||drawing.header.version<R_2004)return 1;
+ o->tio.entity->color.index=7;o->tio.entity->color.raw=0x8007;
+ o->tio.entity->color.flag=0x80;o->tio.entity->color.rgb=0xc2000000u|(unsigned)rgb;o->tio.entity->color.handle=NULL;
+ return 0;
+}
 API int pllato_lineweight(const char *handle,int weight){
  Dwg_Object *o=entity(handle);if(!o||weight<0||weight>211||dxf_cvt_lweight(dxf_revcvt_lweight(weight))!=weight)return 1;
  o->tio.entity->linewt=dxf_revcvt_lweight(weight);return 0;
