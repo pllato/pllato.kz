@@ -390,6 +390,11 @@ export async function handleZoomRequest(request, env, deps) {
         const headers=new Headers(deps.corsHeaders(request)); object.writeHttpMetadata(headers);
         headers.set('Cache-Control','private, no-store');headers.set('Accept-Ranges','bytes');headers.set('ETag',object.httpEtag);
         headers.set('X-Content-Type-Options','nosniff');
+        const ext=String(f.extension || '').toUpperCase();
+        const mime={MP4:'video/mp4',M4A:'audio/mp4',MP3:'audio/mpeg',WAV:'audio/wav',VTT:'text/plain; charset=utf-8',TXT:'text/plain; charset=utf-8'}[ext];
+        if(mime)headers.set('Content-Type',mime);
+        headers.set('Content-Disposition','inline');
+        headers.set('Content-Length',String(object.range?.length ?? object.size));
         if(object.range) headers.set('Content-Range',`bytes ${object.range.offset}-${object.range.offset+object.range.length-1}/${object.size}`);
         return new Response(object.body,{status:object.range?206:200,headers});
       }
