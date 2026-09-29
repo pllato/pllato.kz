@@ -79,3 +79,25 @@ test('посторонний пользователь не читает файл
 test('неподписанный webhook отклоняется',async()=>{
   const f=fixture();f.env.ZOOM_WEBHOOK_SECRET='secret';assert.equal((await f.request('/webhook','POST',{event:'recording.completed'})).status,401);
 });
+
+test('Первый Zoom из карточки создаёт одну встречу с привязкой и обновляет время',async()=>{
+  const f=fixture();await f.connect();
+  f.db.exec('ALTER TABLE deals ADD COLUMN title TEXT; ALTER TABLE deals ADD COLUMN custom_fields TEXT');
+  f.db.prepare('INSERT INTO deals(id,title,custom_fields) VALUES(?,?,?)').run('deal_first','Тест',JSON.stringify({firstZoomAt:'2026-09-29T19:57'}));
+  let posts=0,patches=0;const original=globalThis.fetch;
+  globalThis.fetch=async(url,options)=>{
+    const body=JSON.parse(options.body);
+    assert.equal(body.start_time,'2026-09-29T14:57:00.000Z');
+    if(options.method==='POST'){posts++;return Response.json({id:456,join_url:'https://zoom.us/j/456'});}
+    assert.equal(options.method,'PATCH');patches++;return new Response(null,{status:204});
+  };
+  try {
+    assert.equal((await f.request('/deals/deal_first/first-meeting','POST')).status,200);
+    assert.equal((await f.request('/deals/deal_first/first-meeting','POST')).status,200);
+    const data=await (await f.request('/deals/deal_first/first-meeting')).json();
+    assert.equal(data.meeting.join_url,'https://zoom.us/j/456');
+    assert.equal(data.meeting.deal_id,'deal_first');assert.equal(posts,1);assert.equal(patches,1);
+    f.deps.canEditRecord=async()=>false;
+    assert.equal((await f.request('/deals/deal_first/first-meeting','POST')).status,403);
+  }finally{globalThis.fetch=original;}
+});

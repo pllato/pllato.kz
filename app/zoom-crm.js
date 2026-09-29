@@ -1,3 +1,8 @@
+export function zoomInvitation(meeting) {
+  const start=new Date(meeting.start_time);
+  const time=meeting.start_time && !isNaN(start) ? new Intl.DateTimeFormat('ru-RU',{timeZone:'Asia/Almaty',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(start) : '';
+  return ['Pllato приглашает вас на встречу в Zoom.',meeting.topic ? 'Тема: '+meeting.topic : '',time ? 'Дата и время: '+time+' (Алматы, UTC+5)' : '', 'Подключиться к встрече:',meeting.join_url].filter(Boolean).join('\n');
+}
 // UI Zoom: все материалы открываются через авторизованный API CRM.
 export function zoomClient({ base, getToken }) {
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -7,26 +12,48 @@ export function zoomClient({ base, getToken }) {
     if (!r.ok) throw new Error(data.error || 'Ошибка Zoom');
     return data;
   }
-  async function event(container, taskId) {
+  async function event(container, taskId, path = '/tasks/'+encodeURIComponent(taskId)) {
     if (!container) return;
     container.textContent = 'Проверяем ссылку Zoom…';
     try {
-      const {meeting} = await api('/tasks/'+encodeURIComponent(taskId));
+      const {meeting} = await api(path);
       if (!container.isConnected) return;
       if (meeting?.join_url && /^https:\/\/([a-z0-9-]+\.)?zoom\.(us|com)\//i.test(meeting.join_url)) {
         container.innerHTML = `<a class="tbtn tbtn-a" href="${esc(meeting.join_url)}" target="_blank" rel="noopener noreferrer">Открыть Zoom</a>
+          <button type="button" class="tbtn" data-invite>Копировать приглашение</button>
           <button type="button" class="tbtn" data-copy>Копировать ссылку</button>
           <div style="font-size:12px;overflow-wrap:anywhere;margin-top:8px">${esc(meeting.join_url)}</div>`;
+        const invitation=zoomInvitation(meeting);
+        const preview=document.createElement('div');preview.style.cssText='white-space:pre-wrap;font-size:12px;margin-top:8px';preview.textContent=invitation;container.append(preview);
+        container.querySelector('[data-invite]').onclick=async e=>{try{await navigator.clipboard.writeText(invitation);e.target.textContent='Приглашение скопировано';}catch{e.target.textContent='Скопируйте приглашение ниже';}};
         container.querySelector('[data-copy]').onclick = async e => { try { await navigator.clipboard.writeText(meeting.join_url); e.target.textContent='Скопировано'; } catch { e.target.textContent='Скопируйте ссылку ниже'; } };
       } else {
         container.innerHTML = `<div>${esc(meeting?.error || 'Ссылка Zoom ещё не создана.')}</div><button type="button" class="tbtn" data-create>Создать ссылку Zoom</button>`;
         container.querySelector('[data-create]').onclick = async e => {
           e.target.disabled=true;
-          try { await api('/tasks/'+encodeURIComponent(taskId),{method:'POST'}); await event(container,taskId); }
+          try { await api(path,{method:'POST'}); await event(container,taskId,path); }
           catch(error) { container.textContent=error.message; }
         };
       }
     } catch(e) { container.textContent=e.message; }
+  }
+  async function dealMeetings(container,dealId) {
+    if(!container)return;
+    try {const data=await api('/deals/'+encodeURIComponent(dealId)+'/meetings');
+      for(const m of data.meetings){const row=document.createElement('div');row.style.cssText='padding:12px 0;border-bottom:1px solid var(--b1)';container.append(row);await event(row,m.task_id);}
+    }catch(e){container.textContent=e.message;}
+  }
+  async function syncFirst(dealId){await api('/deals/'+encodeURIComponent(dealId)+'/first-meeting',{method:'POST'});}
+  async function firstMeeting(container, dealId, date, sync = false) {
+    if (!container) return;
+    if (!date) { container.textContent='Укажите дату — ссылка Zoom появится здесь.'; return; }
+    const path='/deals/'+encodeURIComponent(dealId)+'/first-meeting';
+    if (sync) {
+      container.textContent='Создаём ссылку Zoom…';
+      try { await api(path,{method:'POST'}); }
+      catch(e) { container.textContent=e.message; return; }
+    }
+    await event(container,null,path);
   }
   function created(taskId, error) {
     const dialog=document.createElement('dialog');
@@ -99,5 +126,5 @@ export function zoomClient({ base, getToken }) {
       if(s.admin){const archive=dialog.querySelector('[data-archive]');archive.innerHTML='<h4>Записи без привязки к сделке</h4><div data-files></div>';await files(archive.querySelector('[data-files]'),null,true);}
     }catch(e){box.textContent=e.message;}
   }
-  return {event,created,files,settings};
+  return {event,firstMeeting,syncFirst,dealMeetings,created,files,settings};
 }

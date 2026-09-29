@@ -14352,6 +14352,7 @@ async function openDealCard(dealKey) {
               data-type="datetime-local"
               value="${escapeHtml(deal.customFields?.firstZoomAt || '')}"
               style="padding:6px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none">
+            <div id="dc-first-zoom-link" style="margin-top:10px"></div>
             ${deal.customFields?.firstZoomAt ? `<button class="tbtn tbtn-xs" style="margin-left:8px" onclick="navigate('calendar')">📅 Открыть календарь</button>` : ''}
           </div>` : ''}
 
@@ -14407,6 +14408,7 @@ async function openDealCard(dealKey) {
       </div>
 
       <div class="dc-section-h" style="margin-top:24px">Встречи Zoom: видео и транскрипты</div>
+      <div id="dc-zoom-meetings"></div>
       <div id="dc-zoom-files"></div>
 
       <!-- Лента событий — комменты, звонки, статусы, WA -->
@@ -14454,6 +14456,8 @@ async function openDealCard(dealKey) {
   document.body.style.overflow = 'hidden';
   mountDealSourceSelect(modal, deal);
   crmZoom.files(modal.querySelector("#dc-zoom-files"), dealRecordId, canEditDeal);
+  crmZoom.dealMeetings(modal.querySelector("#dc-zoom-meetings"), dealRecordId);
+  crmZoom.firstMeeting(modal.querySelector("#dc-first-zoom-link"), dealRecordId, deal.customFields?.firstZoomAt);
 
   // Квалификация (бриф первого звонка)
   const qualDealId = dealRecordId;
@@ -15534,6 +15538,7 @@ function wireUpCustomFieldsEditing(modal, opts = {}) {
           rec.customFields = cf;
           rec.bitrixDateModify = new Date().toISOString();
         }
+        if (entity === 'deal' && field === 'firstZoomAt') await crmZoom.firstMeeting(modal.querySelector('#dc-first-zoom-link'),recordId,value,true);
         el.style.background = 'rgba(63, 216, 142, 0.18)';
         setTimeout(() => { el.style.background = ''; }, 1200);
       } catch (e) {
@@ -18053,6 +18058,7 @@ async function rescheduleEvent(uid, newStart) {
         body: JSON.stringify({ customFields: cf, bitrixDateModify: new Date().toISOString() }),
       });
       if (!r.ok) throw new Error('HTTP ' + r.status);
+      if (ev.field === 'firstZoomAt') await crmZoom.syncFirst(dealId);
     } else { throw new Error('неизвестный источник события'); }
     if (typeof showToast === 'function') showToast('Событие перенесено');
     calendarState._sig = calEventsSig(calendarState.events);
@@ -18252,7 +18258,7 @@ function openCalEventEdit(uid) {
       </select>
       <select id="ee-people" multiple size="4" ${dis} style="width:100%;margin-top:6px;padding:8px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);display:${curVis === 'people' ? '' : 'none'}">${eePeopleOpts}</select>` : ''}
       ${editable ? '' : '<div style="font-size:12px;color:var(--yl);margin-top:10px">👁 Событие другого сотрудника — только просмотр.</div>'}
-      ${ev.mark === 'zoom_meeting' ? '<div id="ee-zoom-link" style="padding:12px 0"></div>' : ''}
+      ${(ev.mark === 'zoom_meeting' || ev.field === 'firstZoomAt') ? '<div id="ee-zoom-link" style="padding:12px 0"></div>' : ''}
       <div id="ee-err" style="color:var(--rd);font-size:12px;min-height:16px;margin-top:8px"></div>
     </div>
     <div style="padding:12px 18px;border-top:1px solid var(--b1);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
@@ -18267,6 +18273,7 @@ function openCalEventEdit(uid) {
     </div>
   </div>`;
   document.body.appendChild(ov);
+  if (ev.field === 'firstZoomAt') crmZoom.firstMeeting(ov.querySelector('#ee-zoom-link'),ev.dealRecordId || ('deal_'+ev.dealBitrixId),ev.date);
   if (ev.mark === 'zoom_meeting') crmZoom.event(ov.querySelector('#ee-zoom-link'), ev.taskId);
   ov.querySelector('#ee-x').onclick = () => ov.remove();
   ov.querySelector('#ee-cancel').onclick = () => ov.remove();
@@ -18333,6 +18340,7 @@ function openCalEventEdit(uid) {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customFields: cf, bitrixDateModify: new Date().toISOString() }),
         });
         if (!r.ok) throw new Error('HTTP ' + r.status);
+        if (ev.field === 'firstZoomAt') await crmZoom.syncFirst(dealId);
       }
       showToast?.('Событие обновлено');
       ov.remove();
