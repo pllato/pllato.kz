@@ -1,7 +1,7 @@
 // Vector PDF backend. Embedded OFL osifont; no canvas screenshot or JPEG.
-import {paintHatch} from './hatch.mjs?v=0.17.22';
-import {textLines} from './renderer.mjs?v=0.17.22';
-import {aciColors} from './colors.mjs?v=0.17.22';
+import {paintHatch} from './hatch.mjs?v=0.17.23';
+import {textLines} from './renderer.mjs?v=0.17.23';
+import {aciColors} from './colors.mjs?v=0.17.23';
 const enc=new TextEncoder(),n=v=>{if(!Number.isFinite(v))throw Error('Неверная координата PDF');return Number(v.toFixed(6)).toString();},hex=v=>v.toString(16).padStart(4,'0').toUpperCase();
 export function trueType(bytes){
  const d=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),u=o=>d.getUint16(o),s=o=>d.getInt16(o),l=o=>d.getUint32(o),tables={};
@@ -17,7 +17,7 @@ export async function vectorPdf(pages,onProgress=()=>{}){
  const textInfo=text=>{let width=0,encoded='';for(const ch of text){const cp=ch.codePointAt(0),g=font.glyph(cp);if(!g&&cp!==32)throw Error('В шрифте PDF нет символа '+ch);used.set(g,ch);width+=font.width(g);encoded+=hex(g);}return {width,encoded};};
  const color=value=>{let c=value||'#000000';if(c.toLowerCase()==='#ffffff')c='#000000';return [1,3,5].map(i=>n(parseInt(c.slice(i,i+2),16)/255)).join(' ');};
  for(let pageIndex=0;pageIndex<pages.length;pageIndex++){
-  onProgress(pageIndex,pages.length);await new Promise(r=>setTimeout(r,0));const {shapes,bounds:b}=pages[pageIndex],w=1190.551,h=841.89,pad=17,s=Math.min((w-pad*2)/(b[2]-b[0]),(h-pad*2)/(b[3]-b[1])),x=w/2-(b[0]+b[2])*s/2,y=h/2+(b[1]+b[3])*s/2,out=['q','0 0 '+n(w)+' '+n(h)+' re W n','1 0 0 -1 0 '+n(h)+' cm'];
+  onProgress(pageIndex,pages.length);await new Promise(r=>setTimeout(r,0));const {shapes,bounds:b}=pages[pageIndex],w=1190.551,h=841.89,pad=2,s=Math.min((w-pad*2)/(b[2]-b[0]),(h-pad*2)/(b[3]-b[1])),x=w/2-(b[0]+b[2])*s/2,y=h/2+(b[1]+b[3])*s/2,out=['q','0 0 '+n(w)+' '+n(h)+' re W n','1 0 0 -1 0 '+n(h)+' cm'];
   const emit=t=>out.push(t),path=pts=>{for(let i=0;i<pts.length;i++)emit(n(pts[i][0])+' '+n(pts[i][1])+(i?' l':' m'));};
   // Canvas-compatible subset for the existing CAD hatch geometry/clip algorithm.
   const hatchContext={save:()=>emit('q'),restore:()=>emit('Q'),beginPath:()=>emit('n'),moveTo:(a,b)=>emit(`${n(a)} ${n(b)} m`),lineTo:(a,b)=>emit(`${n(a)} ${n(b)} l`),closePath:()=>emit('h'),fill:rule=>emit(rule==='evenodd'?'f*':'f'),clip:rule=>emit(rule==='evenodd'?'W* n':'W n'),stroke:()=>emit('S'),transform:(...m)=>emit(m.map(n).join(' ')+' cm'),set fillStyle(c){emit(color(c)+' rg');},set strokeStyle(c){emit(color(c)+' RG');},set lineWidth(v){emit(n(v)+' w');}};

@@ -2,7 +2,7 @@ const distance=(p,a,b)=>{const dx=b[0]-a[0],dy=b[1]-a[1],t=Math.max(0,Math.min(1
 export function leaderHit(project,p,screen){
  let best=null,score=Infinity;
  for(const s of project?.sheets||[])for(const r of s.routes)for(const l of r.leaders){
-  const a=screen(l.anchor),e=screen(l.elbow),b=screen(l.label),height=Math.abs(screen([l.label[0],l.label[1]+(l.textHeight??3)*s.paperUnit])[1]-b[1]);
+  const a=screen(l.anchor),e=screen(l.elbow),b=screen(l.label),height=Math.abs(screen([l.label[0],l.label[1]+(l.textHeight??1.4)*s.paperUnit])[1]-b[1]);
   const width=Math.max(height,([r.brand,r.section].filter(Boolean).join(' ')||'Кабель не назначен').length*height*.65);
   let part='move',d=Math.min(distance(p,a,e),distance(p,e,b));
   if(p[0]>=b[0]-4&&p[0]<=b[0]+width+4&&p[1]>=b[1]-height-4&&p[1]<=b[1]+4)d=0;
@@ -30,11 +30,11 @@ export function mountLeaderWorkbench(api){
  function positions(){const l=drag.leader,delta=drag.end.map((v,i)=>v-drag.start[i]);return Object.fromEntries(['elbow','label'].map(key=>[key,drag.part==='move'||drag.part===key?l[key].map((v,i)=>v+delta[i]):l[key]]));}
  function up(){if(!drag)return false;const delta=Math.hypot(...api.screen(drag.end).map((v,i)=>v-api.screen(drag.start)[i]));if(delta>=3)edit({...selected},positions());drag=null;api.draw();return true;}
  function paint(ctx){const state=resolve();panel.hidden=!state||!api.selecting()||api.busy();if(panel.hidden)return;
-  const {s,r,l}=state,key=JSON.stringify([s.id,r.id,l.id,r.brand,r.section,l.textHeight??3]);if(shown!==key){shown=key;for(const [id,value]of [['lwBrand',r.brand],['lwSection',r.section],['lwHeight',l.textHeight??3]])if(document.activeElement!==$(id))$(id).value=value;}
+  const {s,r,l}=state,key=JSON.stringify([s.id,r.id,l.id,r.brand,r.section,l.textHeight??1.4]);if(shown!==key){shown=key;for(const [id,value]of [['lwBrand',r.brand],['lwSection',r.section],['lwHeight',l.textHeight??1.4]])if(document.activeElement!==$(id))$(id).value=value;}
   const points=drag?{...l,...positions()}:l,base=api.screen(points.label),viewport=panel.parentElement;
   panel.style.left=Math.max(8,Math.min(viewport.clientWidth-panel.offsetWidth-8,base[0]+20))+'px';panel.style.top=Math.max(8,Math.min(viewport.clientHeight-panel.offsetHeight-8,base[1]+24))+'px';
   ctx.save();ctx.strokeStyle='#9edcff';ctx.fillStyle='#9edcff';ctx.lineWidth=2;ctx.beginPath();['anchor','elbow','label'].map(k=>api.screen(points[k])).forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.stroke();for(const k of ['elbow','label']){const p=api.screen(points[k]);ctx.fillRect(p[0]-4,p[1]-4,8,8);}
-  if(drag){const h=Math.abs(api.screen([points.label[0],points.label[1]+(l.textHeight??3)*s.paperUnit])[1]-base[1]);ctx.font=h+'px Arial';ctx.fillText([r.brand,r.section].filter(Boolean).join(' '),...base);}ctx.restore();
+  if(drag){const h=Math.abs(api.screen([points.label[0],points.label[1]+(l.textHeight??1.4)*s.paperUnit])[1]-base[1]);ctx.font=h+'px Arial';ctx.fillText([r.brand,r.section].filter(Boolean).join(' '),...base);}ctx.restore();
  }
  return {down,move,up,paint,remove,active:()=>!!resolve(),cancel:()=>{selected=null;shown=null;drag=null;panel.hidden=true;}};
 }

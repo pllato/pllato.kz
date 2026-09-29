@@ -1,5 +1,5 @@
-import {executiveEntities} from './executive-project.mjs?v=0.17.22';
-import {vectorPdf} from './vector-pdf.mjs?v=0.17.22';
+import {executiveEntities} from './executive-project.mjs?v=0.17.23';
+import {vectorPdf} from './vector-pdf.mjs?v=0.17.23';
 
 export function executivePages(project,shapes,assigned){
  if(!project?.sheets.length)throw Error('Сначала создайте исполнительную');
@@ -38,7 +38,8 @@ export async function executivePdf(project,shapes,onProgress=()=>{},options={}){
  const measure=document.createElement('canvas').getContext('2d');
  // Screen text bounds are intentionally very generous for hit-testing. Use
  // font metrics here so those hit areas do not create enormous printed margins.
- const printable=shapes.map(shape=>{
+ const hidden=new Set(options.hiddenLayers||[]);
+ const printable=shapes.filter(shape=>!hidden.has(shape.layer)).map(shape=>{
   if(shape.text===null||shape.multiline)return shape;
   const f=shape.font;measure.font=(f?.italic?'italic ':'')+(f?.bold?'bold ':'')+'100px "'+(f?.family||'Arial')+'"';measure.textAlign=['left','center','right'][shape.halign]||'left';measure.textBaseline=['alphabetic','bottom','middle','top'][shape.valign]||'alphabetic';
   const metrics=measure.measureText(shape.text),k=shape.height/100,c=Math.cos(shape.angle),s=Math.sin(shape.angle),origin=shape.pts[0],points=[];

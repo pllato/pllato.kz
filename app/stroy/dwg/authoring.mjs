@@ -1,4 +1,4 @@
-import {get,num} from './cad.mjs?v=0.17.22';
+import {get,num} from './cad.mjs?v=0.17.23';
 export const isNew=r=>r?.id?.startsWith('new-');
 export function additions(doc){return doc.entities.filter(isNew).map(r=>{
  const color=num(r,62);const style=color>=1&&color<=255?{color}:{};if(r.pairs.some(p=>p[0]===370))style.lineweight=num(r,370);if(get(r,420)!=='')style.rgb=num(r,420);
@@ -21,6 +21,7 @@ export function writeAdditions(m,items,onCreated=()=>{}){
    code=m.ccall('pllato_add_polyline','number',['array','number','number'],[bytes,item.points.length/2,item.closed?1:0]);
   }else throw Error('Неизвестный тип добавляемого объекта');
   if(code)throw Error('Не удалось создать '+item.type+' (код '+code+')');
+  if(item.align!==undefined){if(item.type!=='TEXT'||item.align!==1)throw Error('Неверное выравнивание');const handle=m.ccall('pllato_last_handle','string',[],[]);if(m.ccall('pllato_text_center','number',['string'],[handle]))throw Error('Не удалось отцентрировать текст');}
   if(item.color!==undefined){if(!Number.isInteger(item.color)||item.color<1||item.color>255)throw Error('Неверный цвет');const handle=m.ccall('pllato_last_handle','string',[],[]);if(m.ccall('pllato_color','number',['string','number'],[handle,item.color]))throw Error('Не удалось записать цвет');}
   if(item.lineweight!==undefined){if(!Number.isInteger(item.lineweight)||item.lineweight<0||item.lineweight>211)throw Error('Неверная толщина');const handle=m.ccall('pllato_last_handle','string',[],[]);if(m.ccall('pllato_lineweight','number',['string','number'],[handle,item.lineweight]))throw Error('Не удалось записать толщину линии');}
   if(item.rgb!==undefined){if(!Number.isInteger(item.rgb)||item.rgb<0||item.rgb>0xffffff)throw Error('Неверный RGB цвет');const handle=m.ccall('pllato_last_handle','string',[],[]);if(m.ccall('pllato_rgb','number',['string','number'],[handle,item.rgb]))throw Error('Не удалось записать RGB цвет в эту версию DWG');}

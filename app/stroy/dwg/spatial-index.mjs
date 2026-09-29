@@ -1,6 +1,14 @@
 // Broad-phase only: exact CAD hit-testing still runs on returned candidates.
 // Wide objects live once in overflow, avoiding unbounded cell duplication.
 const indexes=new WeakMap();
+// Filter-only edits retain painter order; generated decorations are appended.
+// Reuse the immutable broad phase instead of re-bucketing a million primitives.
+export function deriveSpatialIndex(previous,next,removed,added=[]){
+ const base=indexes.get(previous);if(!base||(base.depth||0)>=8)return;
+ const intersects=(a,b)=>a[0]<=b[2]&&a[2]>=b[0]&&a[1]<=b[3]&&a[3]>=b[1];
+ const index={depth:(base.depth||0)+1,query(b){return base.query(b).filter(s=>!removed.has(s)).concat(added.filter(s=>intersects(s.bounds,b)));},viewport(b){const candidates=base.viewport(b);return candidates===previous?next:candidates.filter(s=>!removed.has(s)).concat(added.filter(s=>intersects(s.bounds,b)));}};
+ indexes.set(next,index);
+}
 export function spatialIndex(shapes){
  if(indexes.has(shapes))return indexes.get(shapes);
  const bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const s of shapes){const b=s.bounds;bounds[0]=Math.min(bounds[0],b[0]);bounds[1]=Math.min(bounds[1],b[1]);bounds[2]=Math.max(bounds[2],b[2]);bounds[3]=Math.max(bounds[3],b[3]);}

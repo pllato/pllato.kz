@@ -1,5 +1,44 @@
 # Передача разработки DWG-редактора
 
+## 0.17.23 — 30 сентября, feat/dwg-september-fixes
+
+PR: https://github.com/pllato/pllato.kz/pull/860. Локально PASS: 114 unit,
+native executive + vertices/layers, browser workbench с title/Excel roundtrip,
+compact-controls, workspace, damage pixel comparison, executive export на
+двух fixtures. PDF страницы отрендерены и просмотрены. Финальный real-file
+замер: open 19725 ms; delete 201/200/283 ms; undo 114/117/99 ms, readerStarts=0.
+Публикацию подтверждать завершением Pages и live version 0.17.23.
+
+Предыдущая 0.17.22 опубликована PR859/Pages. Новые изменения и честный статус
+каждого пункта: [SEPTEMBER-REPORT.md](SEPTEMBER-REPORT.md). Не считать весь запрос
+выполненным: исходный частный DWG всё ещё ROOT_REJECT, неизвестные INSERT,
+MTEXT+xdictionary, краш создания и общее ускорение 2× остаются открытыми.
+
+Новые модули: view-history (структурно разделяемые undo), length-overlay,
+table-paste, damage-preview. Executive UI rebuild сохраняет identity doc —
+это необходимо для fast undo, иначе условие откатывается к старому read fallback.
+spatial-index derive применяется только к фильтрации с append декораций,
+не к перестановке или изменению координат на месте; цепь ограничена 8 уровнями.
+Dirty-region cache используется только когда итоговая сцена совпала с prepared;
+изменение generated оформления использует полный repaint. Палитра lazy при
+активном рисовании. Не выдавать быстрый local repaint за ускорение экспорта.
+
+Native новые pllato_vertex, pllato_layer_off, pllato_text_center. WASM и GPL
+corresponding archive обновлены вместе. Проверка владельцев не отключена.
+tests/native/root-owner-diagnostic.c — read-only счётчики; частные файлы вне repo.
+Обнаружено 9995 неоднозначных root owners исходного большого DWG, только 6107
+с ровно одним BLOCK_HEADER membership. Это НЕ основание автоматически
+исправлять остальные. Следующий шаг — исправление декодирования/независимый
+CAD read, а не пропуск ROOT_REJECT.
+
+Основные команды: node --test tests/dwg-*.test.mjs;
+DWG_CLONE_FIXTURE=... node tests/dwg-vertices-layers-native.mjs;
+browser workbench, compact-controls, damage-preview, executive-export.
+tests/dwg-edit-performance-browser.cjs принимает DWG_PERF_FIXTURE и печатает
+только счётчик/время/CPU function samples, не геометрию. На реальном файле
+проверено отсутствие reader при обычном undo. Все исходные пользовательские
+DWG на диске оставлены неизменными.
+
 ## Кандидат 0.17.22 — 30 сентября, ветка feat/dwg-box-move
 
 PR: https://github.com/pllato/pllato.kz/pull/859. Публикацию проверять по Pages
