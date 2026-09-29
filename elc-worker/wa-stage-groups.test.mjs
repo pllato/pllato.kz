@@ -40,11 +40,11 @@ test('только будущие переходы, группа одна, ли�
  try{
   await processStageGroups(f.env);assert.equal(f.calls.length,0);
   f.stage();await processStageGroups(f.env);
-  assert.equal(f.calls.filter(x=>x.method==='createGroup').length,1);assert.equal(f.calls.filter(x=>x.method==='sendMessage').length,1);
-  assert.equal(f.calls.find(x=>x.method==='sendMessage').body.chatId,'77010000001@c.us');
+  assert.equal(f.calls.filter(x=>x.method==='createGroup').length,1);assert.equal(f.calls.filter(x=>x.method==='sendMessage'&&x.body.chatId.endsWith('@c.us')).length,1);
+  assert.equal(f.calls.find(x=>x.method==='sendMessage'&&x.body.chatId.endsWith('@c.us')).body.chatId,'77010000001@c.us');
   assert.equal(f.db.prepare('SELECT deal_id FROM wa_chats').get().deal_id,'deal_1');
   f.stage();await processStageGroups(f.env);f.stage('b');await processStageGroups(f.env);
-  assert.equal(f.calls.filter(x=>x.method==='createGroup').length,1);assert.equal(f.calls.filter(x=>x.method==='sendMessage').length,1);
+  assert.equal(f.calls.filter(x=>x.method==='createGroup').length,1);assert.equal(f.calls.filter(x=>x.method==='sendMessage'&&x.body.chatId.endsWith('@c.us')).length,1);
   assert.equal(f.db.prepare("SELECT status FROM wa_group_people WHERE chat_id='77010000003@c.us'").get().status,'member');
  }finally{globalThis.fetch=prev;}
 });
@@ -65,7 +65,7 @@ test('не больше одной новой группы за 5 минут с 
 });
 test('неопределённая отправка приглашения не рассылается повторно; отключение отменяет очередь',async()=>{
  const f=await fixture();await f.request('PUT',{rules:f.rules});f.stage();const prev=globalThis.fetch;
- let sends=0;globalThis.fetch=async(url,opt)=>{if(String(url).includes('/sendMessage/')){sends++;throw new Error('timeout');}return f.fetch(url,opt);};
+ let sends=0;globalThis.fetch=async(url,opt)=>{if(String(url).includes('/sendMessage/')&&JSON.parse(opt.body).chatId.endsWith('@c.us')){sends++;throw new Error('timeout');}return f.fetch(url,opt);};
  try{
   await processStageGroups(f.env);assert.equal(sends,1);
   f.db.exec("UPDATE wa_stage_group_jobs SET status='pending'");await processStageGroups(f.env);assert.equal(sends,1);
@@ -101,4 +101,23 @@ test('ручное создание проверяет доступ, телеф�
  f.deps.dealAccessSql=()=>({where:'',params:[]});assert.equal((await f.request('POST',{...body,channel_id:'missing'},'deals/deal_1')).status,400);
  f.db.exec("UPDATE users SET phone='' WHERE uid='manager'");assert.equal((await f.request('POST',body,'deals/deal_1')).status,400);
  assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM wa_manual_group_jobs').get().n,0);
+});
+test('приветствие первое автоматическое сообщение, однократно при ручном и автоматическом создании',async()=>{
+ for(const manual of [true,false]){
+  const f=await fixture();
+  await f.request('PUT',{rules:f.rules});
+  if(manual)await f.request('POST',{action:'create',channel_id:'ch',employee_uids:[]},'deals/deal_1');else f.stage();
+  const prev=globalThis.fetch;globalThis.fetch=f.fetch;
+  try{
+   await processStageGroups(f.env);f.stage('b');await processStageGroups(f.env);
+   const sends=f.calls.filter(c=>c.method==='sendMessage');
+   assert.equal(sends[0].body.chatId,'123456@g.us');assert.match(sends[0].body.message,/Добро пожаловать в Pllato/);
+   assert.equal(sends.filter(c=>c.body.chatId.endsWith('@g.us')).length,1);
+  }finally{globalThis.fetch=prev;}
+ }
+});
+test('при потерянном ответе приветствие не дублируется',async()=>{
+ const f=await fixture();await f.request('PUT',{rules:f.rules});f.stage();const prev=globalThis.fetch;let welcomes=0;
+ globalThis.fetch=async(url,opt)=>{if(String(url).includes('/sendMessage/')&&JSON.parse(opt.body).chatId.endsWith('@g.us')){welcomes++;throw new Error('timeout');}return f.fetch(url,opt);};
+ try{await processStageGroups(f.env);f.db.exec("UPDATE wa_stage_group_jobs SET status='pending'");await processStageGroups(f.env);assert.equal(welcomes,1);assert.equal(f.db.prepare('SELECT status FROM wa_group_welcome').get().status,'sending');}finally{globalThis.fetch=prev;}
 });
