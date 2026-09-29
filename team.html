@@ -3420,7 +3420,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 import { stageGroupsClient } from './app/wa-stage-groups.js?v=20260929-stage-rules';
 const waStageGroups=stageGroupsClient({base:'https://pllato-elc-worker.uurraa.workers.dev',getToken:()=>fbAuth.currentUser.getIdToken()});
 import { mountDealRequisites } from './app/deal-requisites.js?v=20260929-autosave';
-import { mountDealProduction, renderDealProductionBadges } from './app/deal-production.js?v=20260929-transcript-status';
+import { mountDealProduction, renderDealProductionBadges } from './app/deal-production.js?v=20260929-kanban-status';
 import { zoomClient } from './app/zoom-crm.js?v=20260929-inline-media';
 const crmZoom = zoomClient({ base: 'https://pllato-elc-worker.uurraa.workers.dev', getToken: () => fbAuth.currentUser.getIdToken() });
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
@@ -14516,7 +14516,13 @@ async function openDealCard(dealKey) {
     dealId: dealRecordId,
     base: WORKER_BASE_URL,
     getToken: () => fbAuth.currentUser.getIdToken(),
-    onChanged: () => invalidateDealsCacheForPipeline(deal.pipelineId),
+    onChanged: async () => {
+      invalidateDealsCacheForPipeline(deal.pipelineId);
+      if (dealsState.activePipelineId === deal.pipelineId) {
+        await loadDealsForPipeline(deal.pipelineId, { force: true });
+        if (document.getElementById('kanban-wrap')) renderDealsContent();
+      }
+    },
   });
   mountDealRequisites(modal.querySelector('#dc-requisites'),{dealId:dealRecordId,canEdit:canEditDeal,base:WORKER_BASE_URL,getToken:()=>fbAuth.currentUser.getIdToken()});
   crmZoom.files(modal.querySelector("#dc-zoom-files"), dealRecordId, canEditDeal);

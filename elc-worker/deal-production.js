@@ -119,17 +119,27 @@ async function artifactsFor(env, dealId) {
 function summarizeArtifacts(items) {
   const status = kind => items.find(item => item.kind === kind)?.status || 'missing';
   const invoices = items.filter(item => item.kind === 'invoice');
+  const invoiceStatus = !invoices.length ? 'missing'
+    : invoices.every(item => item.status === 'ready') ? 'ready'
+    : invoices.some(item => item.status === 'error') ? 'error'
+    : invoices.some(item => item.status === 'building') ? 'building' : 'queued';
   return {
     demo: status('demo'), kp: status('kp'),
+    invoiceStatus,
     invoicesReady: invoices.filter(item => item.status === 'ready').length,
     invoicesTotal: invoices.length,
     hasErrors: items.some(item => item.status === 'error'),
   };
 }
 
-async function updateDealProductionSummary(env, dealId) {
-  const items = await artifactsFor(env, dealId);
-  const summary = summarizeArtifacts(items);
+export async function updateDealProductionSummary(env, dealId) {
+  const [items, transcript] = await Promise.all([artifactsFor(env, dealId), latestTranscript(env, dealId)]);
+  const summary = {
+    ...summarizeArtifacts(items),
+    transcript: transcript ? 'ready' : 'missing',
+    transcriptSource: transcript?.source || null,
+    transcriptUpdatedAt: transcript?.created_at || null,
+  };
   const deal = await env.DB.prepare('SELECT custom_fields FROM deals WHERE id=?').bind(dealId).first();
   if (!deal) return summary;
   const cf = safeJson(deal.custom_fields, {});
@@ -143,6 +153,27 @@ async function updateDealProductionSummary(env, dealId) {
   await env.DB.prepare('UPDATE deals SET custom_fields=?,bitrix_date_modify=? WHERE id=?')
     .bind(JSON.stringify(cf), nowIso(), dealId).run();
   return summary;
+}
+
+// Backfills the kanban badge when a Zoom transcript arrived asynchronously.
+// Rows already marked ready are skipped, so the minute cron becomes a cheap no-op.
+export async function syncTranscriptProductionSummaries(env, options = {}) {
+  await ensureDealProductionSchema(env);
+  const limit = Math.max(1, Math.min(Number(options.limit || 50), 100));
+  const { results } = await env.DB.prepare(`SELECT sources.deal_id FROM (
+      SELECT DISTINCT deal_id FROM zoom_files
+      WHERE deal_id IS NOT NULL AND status='stored' AND r2_key IS NOT NULL
+        AND (LOWER(kind) LIKE '%transcript%' OR UPPER(extension) IN ('VTT','TXT'))
+      UNION
+      SELECT DISTINCT deal_id FROM deal_qual_recordings
+      WHERE deal_id IS NOT NULL AND r2_key IS NOT NULL
+        AND (LOWER(COALESCE(kind,''))='transcript' OR LOWER(COALESCE(content_type,'')) LIKE 'text/vtt%'
+          OR LOWER(name) LIKE '%.vtt' OR LOWER(name) LIKE '%.txt')
+    ) sources JOIN deals d ON d.id=sources.deal_id
+    WHERE COALESCE(json_extract(d.custom_fields,'$._production.transcript'),'missing')!='ready'
+    LIMIT ?`).bind(limit).all();
+  for (const row of results || []) await updateDealProductionSummary(env, row.deal_id);
+  return { updated: results?.length || 0 };
 }
 
 export async function dealProductionState(env, dealId) {
