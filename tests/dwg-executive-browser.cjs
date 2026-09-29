@@ -101,7 +101,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  await save(path.join(dir,'device-moved.dwg'));
  await page.locator('#file').setInputFiles(first);await page.waitForFunction(()=>document.querySelector('#busy').hidden,null,{timeout:120000});
  assert.equal(await page.locator('#exTitle').inputValue(),'Исполнительная проверка');assert.equal(await page.locator('#exRouteList option').count(),1);
- await page.locator('#exRouteList').evaluate(el=>{el.closest('details').open=true;});await page.locator('#exRouteList').selectOption({index:0});
+ await page.locator('#exRouteList').evaluate(el=>{el.closest('details').open=true;});await page.locator('#exRouteList').selectOption({index:0},{force:true});
  await control('#exRemoveLeader').click();assert.match(await page.locator('#exLedger').textContent(),/Без выносок: 1/);
  await save(path.join(dir,'second.dwg'));
  await page.locator('[data-tool="line"]').click();b=await page.locator('#canvas').boundingBox();await page.mouse.click(b.x+80,b.y+80);await page.mouse.move(b.x+180,b.y+80);assert.match(await page.locator('#status').textContent(),/Длина/);await page.mouse.click(b.x+180,b.y+80);
