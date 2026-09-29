@@ -65,3 +65,8 @@ const result = await pdfFromHtml({ BROWSER: { quickAction: async (name, options)
   return new Response(pdfBytes, { headers: {'Content-Type':'application/pdf'} });
 } } }, '<h1>KP</h1>');
 assert.equal(result.byteLength, pdfBytes.byteLength);
+const draft = {...blueprint, commercial: {...blueprint.commercial,complete:false,issues:['Уточнить состав интеграции']}};
+assert.throws(()=>validateBlueprint(draft),/коммерческие условия/);
+assert.equal(validateBlueprint(draft,{allowDraft:true}),true);
+assert.match(renderKpHtml(draft,'https://example.test/demo'),/ЧЕРНОВИК/);
+assert.match(renderKpHtml(draft,'https://example.test/demo'),/Уточнить состав интеграции/);
