@@ -1,6 +1,5 @@
-import {executiveEntities} from './executive-project.mjs?v=0.17.20';
-import {paintShapes} from './renderer.mjs?v=0.17.20';
-import {aciColors} from './colors.mjs?v=0.17.20';
+import {executiveEntities} from './executive-project.mjs?v=0.17.21';
+import {vectorPdf} from './vector-pdf.mjs?v=0.17.21';
 
 export function executivePages(project,shapes,assigned){
  if(!project?.sheets.length)throw Error('Сначала создайте исполнительную');
@@ -50,13 +49,5 @@ export async function executivePdf(project,shapes,onProgress=()=>{},options={}){
  if(options.whole){const bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const s of printable){bounds[0]=Math.min(bounds[0],s.bounds[0]);bounds[1]=Math.min(bounds[1],s.bounds[1]);bounds[2]=Math.max(bounds[2],s.bounds[2]);bounds[3]=Math.max(bounds[3],s.bounds[3]);}if(!bounds.every(Number.isFinite))throw Error('Нет отображаемой геометрии для PDF');if(bounds[2]===bounds[0])bounds[2]++;if(bounds[3]===bounds[1])bounds[3]++;sheets=[{shapes:printable,bounds}];}
  else sheets=executivePages(project,printable,executiveLooseRoots(project,shapes)).filter(p=>!options.ids||options.ids.includes(p.sheet.id));
  if(!sheets.length)throw Error('Не выбраны исполнительные');if(sheets.length>50)throw Error('Предел PDF: 50 исполнительных за выгрузку');
- const pages=[],width=3508,height=2481,colors=aciColors.map(c=>c==='#ffffff'?'#000000':c);colors[256]='#000000';
- for(let i=0;i<sheets.length;i++){
-  onProgress(i,sheets.length);await new Promise(r=>setTimeout(r,0));
-  const {bounds:b,shapes}=sheets[i],canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,width,height);
-  const s=Math.min((width-100)/(b[2]-b[0]),(height-100)/(b[3]-b[1])),view={s,x:width/2-(b[0]+b[2])*s/2,y:height/2+(b[1]+b[3])*s/2};
-  paintShapes(ctx,shapes.map(shape=>shape.rgb?.toLowerCase()==='#ffffff'?{...shape,rgb:'#000000'}:shape),{view,width,height,hidden:new Set(),selected:null,colors,pixelsPerMm:width/420});
-  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.97));if(!blob)throw Error('Не удалось подготовить страницу PDF');pages.push({width,height,bytes:new Uint8Array(await blob.arrayBuffer())});canvas.width=canvas.height=1;
- }
- return imagePdf(pages);
+ return vectorPdf(sheets,onProgress);
 }

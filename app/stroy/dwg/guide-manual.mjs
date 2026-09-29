@@ -1,4 +1,4 @@
-import {guideSteps} from './onboarding-steps.mjs?v=0.17.20';
+import {guideSteps} from './onboarding-steps.mjs?v=0.17.21';
 document.getElementById('printGuide').onclick=()=>window.print();
 for(const [i,step]of guideSteps.entries()){
  const link=document.createElement('a');link.href='#'+step.id;link.textContent=`${i+1}. ${step.title}`;document.getElementById('guideContents').append(link);
