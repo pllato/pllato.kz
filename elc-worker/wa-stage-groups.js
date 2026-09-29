@@ -149,7 +149,8 @@ export async function handleStageGroups(request,env,deps){
   const dealMatch=url.pathname.match(/\/deals\/([^/]+)$/);
   if(dealMatch){
    const dealId=decodeURIComponent(dealMatch[1]),access=dealAccessSql(me);
-   if(!await env.DB.prepare('SELECT id FROM deals WHERE id=?'+access.where).bind(dealId,...access.params).first())return json({error:'Нет доступа к сделке'},403,request);
+   const dealRecord=await env.DB.prepare('SELECT * FROM deals WHERE id=?'+access.where).bind(dealId,...access.params).first();
+   if(!dealRecord)return json({error:'Нет доступа к сделке'},403,request);
    if(request.method==='GET'){
     const group=await env.DB.prepare('SELECT name,group_id,invite_link,status FROM wa_deal_groups WHERE deal_id=?').bind(dealId).first();
     const {results:jobs}=await env.DB.prepare('SELECT event_id,status,error FROM wa_stage_group_jobs WHERE deal_id=? ORDER BY event_id DESC LIMIT 10').bind(dealId).all();
@@ -162,7 +163,19 @@ export async function handleStageGroups(request,env,deps){
      const {results:channels}=await env.DB.prepare('SELECT id,display_name,id_instance FROM wa_channels WHERE active=1').all();
      options={users,channels};
     }
-    return json({group,jobs:manual?[manual,...jobs]:jobs,people,chats,options,admin:me.role==='admin'},200,request);
+    const pipeline=await env.DB.prepare('SELECT id,name,stages FROM pipelines WHERE id=?').bind(dealRecord.pipeline_id||'').first();
+    const {results:rules}=await env.DB.prepare('SELECT stage_id,employee_uids FROM wa_stage_group_rules WHERE pipeline_id=?').bind(dealRecord.pipeline_id||'').all();
+    const stages=parse(pipeline?.stages,{}),stageRules=[];
+    for(const rule of rules){
+     const employees=[];
+     for(const uid of parse(rule.employee_uids,[])){
+      const u=await env.DB.prepare('SELECT name,last_name FROM users WHERE uid=?').bind(uid).first();
+      employees.push([u?.name,u?.last_name].filter(Boolean).join(' ')||'Сотрудник');
+     }
+     stageRules.push({stage:stages[rule.stage_id]?.name||rule.stage_id,sort:stages[rule.stage_id]?.sort||0,employees});
+    }
+    stageRules.sort((a,b)=>a.sort-b.sort);
+    return json({group,jobs:manual?[manual,...jobs]:jobs,people,chats,options,pipeline:pipeline?{id:pipeline.id,name:pipeline.name}:null,stageRules,admin:me.role==='admin'},200,request);
    }
    if(request.method!=='POST')return json({error:'Method not allowed'},405,request);
    const body=await request.json(),group=await env.DB.prepare('SELECT * FROM wa_deal_groups WHERE deal_id=?').bind(dealId).first();
