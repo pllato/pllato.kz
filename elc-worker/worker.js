@@ -2850,7 +2850,8 @@ async function ensureQualRecordingsTable(env) {
       content_type TEXT, uploaded_by TEXT, uploaded_at TEXT
     )`).run();
     try { await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_qual_rec_deal ON deal_qual_recordings(deal_id)`).run(); } catch {}
-    // kind: 'recording' (запись звонка) | 'logo' (логотип клиента) — материалы для демо.
+    // kind: 'recording' (запись звонка) | 'logo' (логотип клиента) |
+    // 'transcript' (ручная транскрипция встречи) — материалы для демо.
     try { await env.DB.prepare(`ALTER TABLE deal_qual_recordings ADD COLUMN kind TEXT DEFAULT 'recording'`).run(); } catch {}
   } catch (e) {}
   _qualRecTableEnsured = true;
@@ -2880,16 +2881,25 @@ async function handleQualRecordingUpload(request, env, dealId) {
   const me = await resolveCanonicalUser(env, auth.claims);
   await ensureQualRecordingsTable(env);
   const url = new URL(request.url);
-  const kind = (url.searchParams.get('kind') === 'logo') ? 'logo' : 'recording';
+  const requestedKind = url.searchParams.get('kind');
+  const kind = requestedKind === 'logo' ? 'logo' : requestedKind === 'transcript' ? 'transcript' : 'recording';
+  if (kind === 'transcript' && !await canEditRecord(env, me, 'deals', dealId)) {
+    return json({ error: 'Нет права изменять эту сделку' }, 403, request);
+  }
   const contentType = request.headers.get('Content-Type') || 'application/octet-stream';
-  let fileName = kind === 'logo' ? 'logo' : 'recording';
+  let fileName = kind === 'logo' ? 'logo' : kind === 'transcript' ? 'manual-transcript.txt' : 'recording';
   const xfn = request.headers.get('X-File-Name');
   if (xfn) { try { fileName = decodeURIComponent(xfn); } catch { fileName = xfn; } }
+  if (kind === 'transcript' && !/\.(?:txt|vtt)$/i.test(fileName) && !/^text\/(?:plain|vtt)(?:;|$)/i.test(contentType)) {
+    return json({ error: 'Для транскрипции используйте файл TXT или VTT' }, 415, request);
+  }
+  const maxBytes = kind === 'logo' ? 15 * 1024 * 1024 : kind === 'transcript' ? 5 * 1024 * 1024 : 200 * 1024 * 1024;
+  const declaredSize = Number(request.headers.get('Content-Length') || 0);
+  if (declaredSize > maxBytes) return json({ error: `file too large (max ${Math.round(maxBytes/1024/1024)}MB)` }, 413, request);
   const body = await request.arrayBuffer();
   if (!body || body.byteLength === 0) return json({ error: "empty file" }, 400, request);
-  const maxBytes = kind === 'logo' ? 15 * 1024 * 1024 : 200 * 1024 * 1024;
   if (body.byteLength > maxBytes) return json({ error: `file too large (max ${Math.round(maxBytes/1024/1024)}MB)` }, 413, request);
-  const rand = Math.random().toString(36).slice(2, 10);
+  const rand = crypto.randomUUID().replace(/-/g, '').slice(0, 12);
   const safeName = fileName.replace(/[^\w.\-]/g, '_').slice(0, 80);
   const r2Key = `qual-rec/${dealId}/${kind}-${Date.now().toString(36)}-${rand}-${safeName}`;
   await env.FILES.put(r2Key, body, {

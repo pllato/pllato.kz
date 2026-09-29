@@ -25,6 +25,7 @@ function addStyles() {
     .dp-status{font-size:10px;font-weight:700;padding:4px 7px;border-radius:99px}.dp-status.ready{background:#dcfce7;color:#15803d}.dp-status.queued{background:#e0e7ff;color:#4338ca}.dp-status.building{background:#dbeafe;color:#1d4ed8}.dp-status.error{background:#fee2e2;color:#b91c1c}.dp-status.missing{background:var(--bg3);color:var(--t3)}
     .dp-open{border:1px solid var(--b1);background:var(--bg2);color:var(--ac2);border-radius:7px;padding:6px 9px;cursor:pointer;font-size:11px;font-weight:600}.dp-open:hover{border-color:var(--ac2)}
     .dp-empty{font-size:11px;color:var(--t3);padding:8px 1px}.dp-error{font-size:10px;color:#dc2626;margin-top:3px}.dp-retry{border:0;background:#dc2626;color:#fff;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:11px}
+    .dp-transcript{margin:0 0 12px;padding:10px;background:var(--bg2);border:1px dashed var(--b1);border-radius:8px}.dp-transcript-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.dp-transcript-head span{font-size:11px;color:var(--t2)}.dp-transcript-actions{display:flex;gap:6px;flex-wrap:wrap}.dp-transcript-editor{display:none;margin-top:9px}.dp-transcript-editor.open{display:block}.dp-transcript-editor textarea{box-sizing:border-box;width:100%;min-height:150px;resize:vertical;border:1px solid var(--b1);border-radius:8px;padding:10px;background:var(--bg3);color:var(--t1);font:12px/1.5 inherit}.dp-transcript-status{min-height:16px;margin-top:6px;font-size:10px;color:var(--t3)}
     .kanban-docs{display:flex;gap:4px;flex-wrap:wrap;margin-top:7px}.kanban-doc{font-size:10px;font-weight:700;border-radius:99px;padding:3px 7px;background:#eef2ff;color:#4338ca}.kanban-doc.ready{background:#dcfce7;color:#15803d}.kanban-doc.error{background:#fee2e2;color:#b91c1c}
     @media(max-width:720px){.dp-gates{grid-template-columns:1fr}.dp-item{align-items:flex-start;flex-wrap:wrap}.dp-status{margin-left:auto}}
   `;
@@ -81,6 +82,18 @@ export function mountDealProduction(root, { dealId, base, getToken, onChanged })
     if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
     return data;
   };
+  const uploadTranscript = async file => {
+    if (!file?.size) throw new Error('Добавьте текст транскрипции или выберите файл');
+    if (file.size > 5 * 1024 * 1024) throw new Error('Размер TXT/VTT не должен превышать 5 МБ');
+    const token = await getToken();
+    const response = await fetch(`${base}/api/deals/${encodeURIComponent(dealId)}/qualification/recording?kind=transcript`, {
+      method: 'POST', body: file,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': file.type || 'text/plain; charset=utf-8', 'X-File-Name': encodeURIComponent(file.name || 'manual-transcript.txt') },
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    return data;
+  };
   const draw = data => {
     const items = data.items || [], active = items.some(x => x.status === 'queued' || x.status === 'building');
     const gates = [
@@ -88,9 +101,45 @@ export function mountDealProduction(root, { dealId, base, getToken, onChanged })
       ['Реквизиты', data.requisites?.ready, data.requisites?.ready ? (data.requisites.files ? `Файлов: ${data.requisites.files}` : 'Заполнены') : 'Нужны для счетов'],
       ['График оплат', data.commercial?.ready, data.commercial?.ready ? `${data.commercial.paymentCount} платежей` : 'Появится из КП'],
     ];
+    const transcriptReady = Boolean(data.transcript?.ready);
     root.innerHTML = `<div class="dp-wrap"><div class="dp-head"><div><b>Комплект сделки</b><p>Демо, КП и все счета создаются и хранятся здесь</p></div>${data.summary?.hasErrors ? '<button class="dp-retry">Повторить</button>' : ''}</div>
       <div class="dp-gates">${gates.map(g => `<div class="dp-gate ${g[1] ? 'ok' : 'miss'}"><strong>${g[1] ? '✓' : '○'} ${esc(g[0])}</strong>${esc(g[2])}</div>`).join('')}</div>
+      <div class="dp-transcript"><div class="dp-transcript-head"><span>${transcriptReady ? 'Если Zoom-текст неполный, можно загрузить замену.' : 'Zoom не прислал текст? Добавьте его вручную.'}</span><div class="dp-transcript-actions"><button class="dp-open" data-transcript-paste>${transcriptReady ? 'Заменить текстом' : 'Вставить текст'}</button><button class="dp-open" data-transcript-file>Загрузить TXT/VTT</button><input data-transcript-input type="file" accept=".txt,.vtt,text/plain,text/vtt" hidden></div></div><div class="dp-transcript-editor"><textarea data-transcript-text maxlength="500000" placeholder="Вставьте сюда полный текст встречи. Желательно сохранить реплики, стоимость, сроки и условия оплаты."></textarea><div style="margin-top:7px"><button class="dp-open" data-transcript-save>Сохранить транскрипцию</button></div></div><div class="dp-transcript-status" role="status"></div></div>
       <div class="dp-list">${items.length ? items.map(item => `<div class="dp-item"><span class="dp-icon">${icon(item.kind)}</span><span class="dp-copy"><b>${esc(item.title)}</b><small>${item.amount != null ? new Intl.NumberFormat('ru-RU').format(item.amount) + ' ' + esc(item.currency || '') : esc(item.fileName || (item.kind === 'demo' ? 'Интерактивная ссылка' : 'PDF'))}</small>${item.error ? `<span class="dp-error">${esc(item.error)}</span>` : ''}</span>${statusBadge(item.status)}${item.status === 'ready' ? `<button class="dp-open" data-artifact="${esc(item.id)}">Открыть</button>` : ''}</div>`).join('') : '<div class="dp-empty">Документы ещё не запускались. Они появятся после перевода сделки на соответствующую стадию.</div>'}</div></div>`;
+    const transcriptEditor = root.querySelector('.dp-transcript-editor');
+    const transcriptText = root.querySelector('[data-transcript-text]');
+    const transcriptInput = root.querySelector('[data-transcript-input]');
+    const transcriptStatus = root.querySelector('.dp-transcript-status');
+    root.querySelector('[data-transcript-paste]').onclick = () => {
+      transcriptEditor.classList.toggle('open');
+      if (transcriptEditor.classList.contains('open')) transcriptText.focus();
+    };
+    root.querySelector('[data-transcript-file]').onclick = () => transcriptInput.click();
+    const saveTranscript = async file => {
+      const buttons = root.querySelectorAll('[data-transcript-save],[data-transcript-file],[data-transcript-paste]');
+      buttons.forEach(button => { button.disabled = true; });
+      transcriptStatus.textContent = 'Сохраняем транскрипцию…';
+      try {
+        await uploadTranscript(file);
+        transcriptStatus.textContent = 'Транскрипция прикреплена к сделке';
+        polls = 0;
+        if (onChanged) onChanged();
+        await load();
+      } catch (error) {
+        transcriptStatus.textContent = error.message;
+        buttons.forEach(button => { button.disabled = false; });
+      }
+    };
+    root.querySelector('[data-transcript-save]').onclick = () => {
+      const value = transcriptText.value.trim();
+      saveTranscript(new File([value], `manual-transcript-${new Date().toISOString().slice(0, 10)}.txt`, { type: 'text/plain; charset=utf-8' }));
+    };
+    transcriptInput.onchange = () => {
+      const file = transcriptInput.files?.[0];
+      if (!file) return;
+      if (!/\.(?:txt|vtt)$/i.test(file.name)) { transcriptStatus.textContent = 'Выберите файл TXT или VTT'; transcriptInput.value = ''; return; }
+      saveTranscript(file);
+    };
     root.querySelectorAll('[data-artifact]').forEach(button => {
       button.onclick = async () => {
         const item = items.find(x => x.id === button.dataset.artifact);
