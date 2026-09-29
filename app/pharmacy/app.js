@@ -24,9 +24,17 @@ const chColor = t=> t==='wa'?'var(--wa)': t==='ig'?'var(--ig)': t==='wp'?'var(--
 const chIcon  = t=> t==='wa'?'i-phone': t==='ig'?'i-chat': 'i-doc';
 const chLabel = t=> t==='wa'?'WhatsApp': t==='ig'?'Instagram': 'Сайт';
 
-function toast(msg,icon='i-check2',color='var(--accent)'){
-  const t=el(`<div class="t"><div class="ti" style="background:${color}22;color:${color}">${ic(icon,'sm')}</div><div>${msg}</div></div>`);
-  $('#toast-root').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='.3s';setTimeout(()=>t.remove(),300);},2600);
+// Время показа зависит от длины: ошибки интеграций — это 2-3 строки «что случилось + что делать»,
+// за прежние фиксированные 2,6 с их физически нельзя было дочитать («опять что-то мелькнуло»).
+// opts.html — осознанная разметка в тексте; по умолчанию экранируем, т.к. в текст ошибки попадает
+// описание от стороннего сервиса (Wazzup), а оно идёт в innerHTML.
+function toast(msg,icon='i-check2',color='var(--accent)',opts={}){
+  const body=opts.html?String(msg):esc(String(msg));
+  const ms=opts.ms||Math.min(14000,Math.max(2600,String(msg).length*75));
+  const t=el(`<div class="t" style="cursor:pointer" title="Нажмите, чтобы скрыть"><div class="ti" style="background:${color}22;color:${color}">${ic(icon,'sm')}</div><div>${body}</div></div>`);
+  const hide=()=>{t.style.opacity='0';t.style.transition='.3s';setTimeout(()=>t.remove(),300);};
+  t.onclick=hide;                       // длинную ошибку прочитали — убрали, не ждём таймера
+  $('#toast-root').appendChild(t);setTimeout(hide,ms);
 }
 function openModal(html,cls=''){
   const bg=el(`<div class="modal-bg"><div class="modal ${cls}">${html}</div></div>`);
@@ -139,7 +147,7 @@ function renderRoleSel(){
   DB.roles.forEach(r=>sel.appendChild(el(`<option value="${r.id}" ${state.role===r.id?'selected':''}>${esc(r.name)}</option>`)));
   sel.onchange=()=>{ state.role=sel.value; const r=DB.roles.find(x=>x.id===state.role)||{name:state.role};
     const allowed=allowedSections(state.role); if(!allowed.includes(state.page)) state.page=allowed[0];
-    renderNav(); renderPage(); toast(`Просмотр как роль: <b>${esc(r.name)}</b>`,'i-shield'); };
+    renderNav(); renderPage(); toast(`Просмотр как роль: <b>${esc(r.name)}</b>`,'i-shield',undefined,{html:true}); };
 }
 function go(p, sub){
   document.getElementById('sidebar').classList.remove('open');
