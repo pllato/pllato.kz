@@ -102,6 +102,26 @@ export function zoomClient({ base, getToken }) {
         ${f.status==='stored'?`<button class="tbtn" data-open="${esc(f.id)}">${f.extension==='MP4'?'Смотреть видео':f.extension==='M4A'?'Слушать аудио':/VTT|TXT/.test(f.extension)?'Транскрипт / текст':'Открыть файл'}</button>${/^(VTT|TXT)$/.test(f.extension)?` <button type="button" class="tbtn" data-copy-text="${esc(f.id)}">Копировать текст</button>`:''}${canDelete?` <button class="tbtn" data-del="${esc(f.id)}">Удалить файл</button>`:''}`:`<span>${f.status==='deleted'?'Файл удалён':'Ожидает переноса'}</span>`}
         ${!dealId?`<button class="tbtn" data-link="${esc(f.id)}">Прикрепить к сделке</button>`:''}
         ${f.error?`<div style="color:var(--rd)">${esc(f.error)}</div>`:''}<div data-player="${esc(f.id)}"></div></div>`).join(''):'Материалов Zoom пока нет.';
+      // Show playable previews immediately, without opening a separate window.
+      const mediaFiles=rows.filter(f=>f.status==='stored' && /^(MP4|M4A|MP3|WAV)$/i.test(f.extension || ''));
+      if(mediaFiles.length){
+        const token=await getToken();
+        if(!container.isConnected)return;
+        for(const f of mediaFiles){
+          const box=[...container.querySelectorAll('[data-player]')].find(x=>x.dataset.player===f.id);
+          const video=String(f.extension).toUpperCase()==='MP4';
+          const player=document.createElement(video?'video':'audio');
+          player.controls=true;player.preload='metadata';player.setAttribute('playsinline','');
+          player.setAttribute('aria-label',video?'Видеозапись Zoom':'Аудиозапись Zoom');
+          player.style.cssText=video?'display:block;width:100%;max-width:720px;aspect-ratio:16/9;object-fit:contain;background:#111;border-radius:8px;margin:12px 0':'display:block;width:100%;max-width:720px;margin:12px 0';
+          const status=document.createElement('div');status.setAttribute('role','status');
+          player.onerror=()=>{status.textContent='Не удалось загрузить превью. Откройте запись кнопкой выше.';};
+          if(video)player.addEventListener('loadedmetadata',()=>{if(player.duration>0)player.currentTime=Math.min(0.1,player.duration/2);},{once:true});
+          player.addEventListener('click',e=>e.stopPropagation());
+          player.src=base+'/api/zoom/files/'+encodeURIComponent(f.id)+'?auth='+encodeURIComponent(token);
+          box.replaceChildren(player,status);
+        }
+      }
       async function preview(f, copyOnly=false) {
         const ext=String(f.extension || '').toUpperCase();
         const dialog=document.createElement('dialog');
