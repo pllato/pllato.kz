@@ -1,6 +1,28 @@
 # Передача разработки DWG-редактора
 
-Обновлено: 29 сентября 2026. Состояние кода: **0.17.16**.
+Обновлено: 29 сентября 2026. Состояние кода: **0.17.17**.
+
+0.17.17: оптимизация больших DWG без упрощения исходной CAD-геометрии.
+- spatial-index.mjs — uniform-grid broad phase для pick, max16 cell copies/shape,
+  крупные bounds в overflow, точный hit-test и исходный порядок кандидатов сохранены.
+- Базовый raster cache больших сцен не содержит selection; выбранное рисуется отдельным
+  overlay. Кэш selectedShapes/overlay и device classification; nativeHandles использует
+  recordById, а не собирает Map всех records заново. Контейнеры блоков классифицируются
+  по одному проходу definitions, не по каждому экземпляру. Индексы прогреваются при rebuild.
+- sceneAsync использует ту же generator-геометрию, что scene, уступает main thread
+  примерно каждые 12ms между порциями и проверяет отмену. При открытии >20k records
+  подготовка делается до adopt, старый документ остаётся при отмене. Исполнительное
+  оформление затем синхронно регенерируется как decoration. Commit/правки пока используют
+  синхронный rebuild; worker parsing/structured-clone и raster paint ещё могут давать паузы.
+- Локальный частный 88MB DWG: 972083 shapes /459957 records. До: open25575ms, pick684ms.
+  После: open25543ms, first pick356ms, repeat7.3ms, highlight5.4ms; финальный adopt1257ms
+  против промежуточного synchronous adopt3922ms. Это отдельные headless Chrome прогоны,
+  не p95 и не гарантия FPS; полное открытие НЕ ускорено существенно.
+- 100 unit, scene sync/async equality/cancel, spatial vs linear scan; interaction cache
+  browser, полный workbench/DWG roundtrip. Частный файл не публикуется.
+Chrome DevTools MCP отсутствует, web-perf audit/INP/Lighthouse не выполнены. Использован
+локальный Playwright profile. Следующий шаг: worker scene transfer/memory profiling,
+chunked rendering, инкрементальная перестройка geometry после операций; без снижения fidelity.
 
 0.17.16: прибор после poly3 в nav; существующий exSheet перенесён туда же (без копии
 и второго источника состояния), смена листа использует прежний refresh/focus.
