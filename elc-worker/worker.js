@@ -1,3 +1,4 @@
+import { handleStageGroups, processStageGroups } from './wa-stage-groups.js';
 import { handleDealRequisites } from './deal-requisites.js';
 // ── ELC CRM Worker ───────────────────────────────────────
 // Phase 0: CORS + Firebase Auth verification + /health + /api/me
@@ -11958,6 +11959,8 @@ export default {
       return handlePublicPllatoLead(request, env);
     }
 
+    if (path.startsWith('/api/wa/stage-groups/')) return handleStageGroups(request,env,{json,requireAuthFlexible,resolveCanonicalUser,dealAccessSql});
+
     if (path.startsWith("/api/zoom/")) {
       return handleZoomRequest(request, env, { json, corsHeaders, requireAuthFlexible, resolveCanonicalUser, dealAccessSql, canEditRecord });
     }
@@ -12677,6 +12680,7 @@ export default {
   // ── Cron (каждую минуту) ──────────────────────────────────────────────
   // Обрабатываем отложенные WA-сообщения которые пора слать.
   async scheduled(event, env, ctx) {
+    ctx.waitUntil(processStageGroups(env).catch(e=>console.error('[wa-stage-groups]',e.message)));
     ctx.waitUntil(processZoomJobs(env, createNotification).catch(e => console.error("[zoom] job failed", e.message)));
     CURRENT_CTX = ctx; // для фоновой рассылки Web Push из produceDeedReminders
     ctx.waitUntil((async () => {
