@@ -1,4 +1,4 @@
-import {num,spline} from './cad.mjs?v=0.17.7';
+import {num,spline} from './cad.mjs?v=0.17.8';
 export function movableSpline(record){return record?.type==='SPLINE'&&!num(record,74)&&record.pairs.some(p=>p[0]===10);}
 export function previewSpline(record,handle,point){
  const copy={...record,pairs:record.pairs.map(p=>[...p])},[a,b,c,d,e,f]=handle.matrix,det=a*d-b*c;
