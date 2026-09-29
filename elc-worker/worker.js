@@ -2010,6 +2010,11 @@ async function handleList(request, env, entity) {
     const arch = (url.searchParams.get("archived") || "").trim();
     if (arch === "1") whereParts.push("archived_at IS NOT NULL");
     else if (arch !== "all") whereParts.push("archived_at IS NULL");
+    const crmLink = (url.searchParams.get("crmLink") || "").trim();
+    if (crmLink) {
+      whereParts.push("(instr(COALESCE(crm_links,''),?)>0 OR instr(COALESCE(bitrix_crm_links,''),?)>0)");
+      whereParams.push(JSON.stringify(crmLink),JSON.stringify(crmLink));
+    }
     const dealLinked = (url.searchParams.get("dealLinked") || "").trim();
     if (dealLinked === "1") whereParts.push("(crm_links LIKE '%deal_%' OR bitrix_crm_links LIKE '%D_%')");
     else if (dealLinked === "0") whereParts.push("(crm_links IS NULL OR crm_links NOT LIKE '%deal_%') AND (bitrix_crm_links IS NULL OR bitrix_crm_links NOT LIKE '%D_%')");
