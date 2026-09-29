@@ -1,4 +1,4 @@
-import {cableCurve,nearestCablePoint,bendCable} from './cable-edit.mjs?v=0.17.6';
+import {cableCurve,nearestCablePoint,bendCable} from './cable-edit.mjs?v=0.17.7';
 export function mountCableWorkbench(api){
  const panel=document.createElement('section');panel.id='cableWorkbench';panel.innerHTML=`<h2>Кабель / объект</h2><p id="cwLength">Выберите кабель или прибор</p><div class="cwActions"><button id="cwDraw">Кабель · 3 точки</button><button id="cwMove">Перетащить</button><button id="cwShape">Изменить форму</button><button id="cwCopy">Копировать выбранное</button><button id="cwPaste">Вставить копию</button><button id="cwDelete">Удалить</button></div><label>Цвет линии<select id="cwColor"><option value="0">Исходный / по слою</option><option value="7">Белый</option><option value="1">Красный</option><option value="2">Жёлтый</option><option value="3">Зелёный</option><option value="4">Голубой</option><option value="5">Синий</option><option value="6">Фиолетовый</option><option value="8">Серый</option></select></label><button id="cwApplyColor">Применить цвет</button><div id="cwCableFields"></div><button id="cwAssign">Сохранить марку и сечение</button><button id="cwLeader">Поставить выноску</button><p id="cwHelp">Кабель учитывается в ведомости и без выноски. Цвет не меняет его марку.</p>`;
  const nav=document.querySelector('nav'),toolbar=document.createElement('div');toolbar.id='drawingToolbar';nav.before(toolbar);toolbar.append(panel,nav);
@@ -19,7 +19,7 @@ export function mountCableWorkbench(api){
  const refine=document.createElement('button');refine.id='cwRefine';panel.querySelector('.cwActions').append(refine);
  icon('cwRefine','Уточнить выбор · Shift + клик убирает или возвращает участок','<path stroke-dasharray="3 3" d="M3 3h14v14H3z"/><path d="M13 20h9"/>');
  refine.onclick=()=>{lastKey=api.route()?.id||api.selectionKey();mode=mode==='refine'?'':'refine';api.status(mode?'Нажимайте лишние участки: выбор снимается, повторный клик возвращает. Геометрия не удаляется. Для редактирования выключите «Уточнить выбор».':'Уточнение выключено. Можно редактировать выбранные участки.');refresh();api.draw();};
- icon('cwLeader','Выноска от места выбора кабеля','<path d="M3 20l8-9h10M3 15v5h5M13 4h8M13 7h5"/>');
+ icon('cwLeader','Выноска · укажите точку на выбранном кабеле','<path d="M3 20l8-9h10M3 15v5h5M13 4h8M13 7h5"/>');
  panel.querySelector('.cwActions').append($('cwLeader'));
  summary.textContent='';summary.title='Марка, сечение и цвет';summary.setAttribute('aria-label','Марка, сечение и цвет');summary.innerHTML='<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16"/><circle cx="8" cy="5" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="19" r="2"/></svg>';
  for(const id of ['exBrand','exSection','exExtra'])$('cwCableFields').append($(id).closest('label'));
@@ -40,7 +40,7 @@ export function mountCableWorkbench(api){
  $('cwApplyColor').onclick=safe(()=>api.color(Number($('cwColor').value)));
  $('cwAssign').onclick=safe(()=>{if(api.route())$('exCable').click();else $('exAssignSelection').click();});
  for(const id of ['exBrand','exSection','exExtra'])$(id).addEventListener('change',()=>{if(api.route()&&!api.busy())$('exCable').click();});
- $('cwLeader').onclick=safe(()=>{const p=(anchorWorld?api.screen(anchorWorld):anchor)||api.screen(api.paths()[0]?.[0]);if(!p)throw Error('Выберите кабель');api.leaderAt(api.world(p),api.world([p[0]+35,p[1]-35]),api.world([p[0]+100,p[1]-35]));mode='';settings.open=true;});
+ $('cwLeader').onclick=safe(()=>{lastKey=api.route()?.id||api.selectionKey();mode='leader-anchor';settings.open=false;api.status('Нажмите на выбранном кабеле точку начала выноски. Escape — отмена.');});
  cut.onclick=safe(()=>{let r=api.route();if(!r||r.sourceIds){if(!confirm('Вырезание части требует замены выбранной цепочки на приближённую полилинию. Продолжить?'))return;api.convert();}lastKey=api.route().id;mode='cut';cutStart=null;api.status('Укажите на кабеле начало и конец удаляемой части. Escape — отмена.');});
  function refresh(){const r=api.route(),key=r?.id||api.selectionKey();if(key!==lastKey){mode='';lastKey=key;settings.open=false;$('cwColor').value=String(r?.color||api.colorValue()||0);}
   const drawing=api.drawing(),enabled=!api.busy()&&api.selecting(),cap=enabled?api.capabilities():{};
@@ -52,7 +52,7 @@ export function mountCableWorkbench(api){
   quickDelete.hidden=!cap.remove||!!drag;quickDelete.disabled=!cap.remove;
   if(!quickDelete.hidden){const viewport=document.querySelector('#viewport'),path=api.paths()[0],point=(anchorWorld?api.screen(anchorWorld):anchor)||(path?.length?api.screen(path[Math.floor(path.length/2)]):[20,20]);quickDelete.style.left=Math.max(8,Math.min(viewport.clientWidth-40,point[0]-44))+'px';quickDelete.style.top=Math.max(8,Math.min(viewport.clientHeight-40,point[1]-44))+'px';}
  }
- function down(p){if(api.busy())return false;if(mode==='refine'){api.refine(p);lastKey=api.selectionKey();mode='refine';refresh();api.draw();return true;}if(mode==='paste'){safe(()=>api.paste(api.world(p)))();mode='';return true;}
+ function down(p){if(api.busy())return false;if(mode==='leader-anchor'){const near=nearestCablePoint(api.paths(),api.world(p));if(!near||Math.hypot(...api.screen(near).map((v,i)=>v-p[i]))>14){api.status('Нажмите именно на выбранный кабель. Escape — отмена.');return true;}const q=api.screen(near);safe(()=>{api.leaderAt(near,api.world([q[0]+35,q[1]-35]),api.world([q[0]+100,q[1]-35]));mode='';lastKey=api.route()?.id||api.selectionKey();settings.open=true;})();return true;}if(mode==='refine'){api.refine(p);lastKey=api.selectionKey();mode='refine';refresh();api.draw();return true;}if(mode==='paste'){safe(()=>api.paste(api.world(p)))();mode='';return true;}
   if(mode==='move'){const origin=anchorWorld||api.paths()[0]?.[0];if(origin)safe(()=>api.move(api.world(p).map((v,i)=>v-origin[i])))();mode='';return true;}
   if(!api.selecting())return false;anchor=p;anchorWorld=api.world(p);
   if(mode==='cut'){const near=nearestCablePoint(api.paths(),api.world(p));if(!near||Math.hypot(...api.screen(near).map((v,k)=>v-p[k]))>16)return false;if(!cutStart){cutStart=near;api.status('Теперь укажите конец удаляемой части');}else{safe(()=>api.cut(cutStart,near))();cutStart=null;mode='';}return true;}
@@ -70,5 +70,5 @@ export function mountCableWorkbench(api){
   if(api.selecting())for(const h of api.nativeHandles()){ctx.beginPath();ctx.arc(...api.screen(drag?.native?.id===h.id&&drag.native.index===h.index?drag.end:h.point),4,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.stroke();}
   ctx.restore();
  }
- return {down,move,up,paint,exclusive:()=>['paste','move','cut','refine'].includes(mode),cancel:()=>{mode='';drag=null;cutStart=null;anchor=null;anchorWorld=null;},refresh};
+ return {down,move,up,paint,exclusive:()=>['paste','move','cut','refine','leader-anchor'].includes(mode),cancel:()=>{mode='';drag=null;cutStart=null;anchor=null;anchorWorld=null;},refresh};
 }

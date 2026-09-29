@@ -1,4 +1,4 @@
-import {createExecutiveProject,createExecutive,addRoute,addLeader} from './executive-project.mjs?v=0.17.6';
+import {createExecutiveProject,createExecutive,addRoute,addLeader} from './executive-project.mjs?v=0.17.7';
 const handles=a=>{if(!Array.isArray(a)||a.length>100000||a.some(h=>typeof h!=='string'||!/^[0-9a-f]{1,16}$/i.test(h)))throw Error('Повреждены ссылки исполнительной');return [...a];};
 export function validateExecutiveProject(value){
  if(!value||value.version!==1||!Array.isArray(value.sheets)||value.sheets.length>100)throw Error('Неподдерживаемые данные исполнительных');
