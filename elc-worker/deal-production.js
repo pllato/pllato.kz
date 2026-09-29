@@ -33,6 +33,7 @@ export async function ensureDealProductionSchema(env) {
       attempt INTEGER NOT NULL DEFAULT 0, lease_until INTEGER, next_attempt_at INTEGER,
       error TEXT, created_by TEXT, created_at TEXT NOT NULL, started_at TEXT,
       completed_at TEXT, updated_at TEXT NOT NULL,
+      progress_stage TEXT, progress_label TEXT, progress_percent INTEGER NOT NULL DEFAULT 0,
       UNIQUE(deal_id, kind)
     )`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS deal_artifacts (
@@ -61,6 +62,15 @@ export async function ensureDealProductionSchema(env) {
       build_status TEXT DEFAULT 'ready', build_error TEXT
     )`),
   ]);
+  // Existing D1 databases predate live progress. Keep the migration inline and
+  // idempotent so every Worker isolate can safely ensure the current shape.
+  for (const sql of [
+    'ALTER TABLE deal_production_jobs ADD COLUMN progress_stage TEXT',
+    'ALTER TABLE deal_production_jobs ADD COLUMN progress_label TEXT',
+    'ALTER TABLE deal_production_jobs ADD COLUMN progress_percent INTEGER NOT NULL DEFAULT 0',
+  ]) {
+    try { await env.DB.prepare(sql).run(); } catch {}
+  }
   schemaReady = true;
 }
 
@@ -116,6 +126,18 @@ async function artifactsFor(env, dealId) {
   }));
 }
 
+async function jobsFor(env, dealId) {
+  await ensureDealProductionSchema(env);
+  const { results } = await env.DB.prepare(`SELECT id,kind,status,progress_stage,progress_label,progress_percent,error,updated_at
+    FROM deal_production_jobs WHERE deal_id=? ORDER BY updated_at DESC`).bind(dealId).all();
+  return (results || []).map(row => ({
+    id: row.id, kind: row.kind, status: row.status,
+    stage: row.progress_stage || null, label: row.progress_label || null,
+    percent: Math.max(0, Math.min(100, Number(row.progress_percent || 0))),
+    error: row.error || null, updatedAt: row.updated_at || null,
+  }));
+}
+
 function summarizeArtifacts(items) {
   const status = kind => items.find(item => item.kind === kind)?.status || 'missing';
   const invoices = items.filter(item => item.kind === 'invoice');
@@ -132,14 +154,24 @@ function summarizeArtifacts(items) {
   };
 }
 
-export async function updateDealProductionSummary(env, dealId) {
-  const [items, transcript] = await Promise.all([artifactsFor(env, dealId), latestTranscript(env, dealId)]);
-  const summary = {
+function summarizeProduction(items, transcript, jobs = []) {
+  const active = jobs.find(job => job.status === 'building') || jobs.find(job => job.status === 'queued') || null;
+  return {
     ...summarizeArtifacts(items),
     transcript: transcript ? 'ready' : 'missing',
     transcriptSource: transcript?.source || null,
     transcriptUpdatedAt: transcript?.created_at || null,
+    activeKind: active?.kind || null,
+    activeStatus: active?.status || null,
+    activeStage: active?.stage || null,
+    activeLabel: active?.label || null,
+    activePercent: active ? active.percent : null,
   };
+}
+
+export async function updateDealProductionSummary(env, dealId) {
+  const [items, transcript, jobs] = await Promise.all([artifactsFor(env, dealId), latestTranscript(env, dealId), jobsFor(env, dealId)]);
+  const summary = summarizeProduction(items, transcript, jobs);
   const deal = await env.DB.prepare('SELECT custom_fields FROM deals WHERE id=?').bind(dealId).first();
   if (!deal) return summary;
   const cf = safeJson(deal.custom_fields, {});
@@ -177,11 +209,12 @@ export async function syncTranscriptProductionSummaries(env, options = {}) {
 }
 
 export async function dealProductionState(env, dealId) {
-  const [transcript, requisites, items] = await Promise.all([
-    latestTranscript(env, dealId), requisitesState(env, dealId), artifactsFor(env, dealId),
+  const [transcript, requisites, items, jobs] = await Promise.all([
+    latestTranscript(env, dealId), requisitesState(env, dealId), artifactsFor(env, dealId), jobsFor(env, dealId),
   ]);
   const kp = items.find(item => item.kind === 'kp' && item.status === 'ready');
   const plan = Array.isArray(kp?.metadata?.paymentPlan) ? kp.metadata.paymentPlan : [];
+  const summary = summarizeProduction(items, transcript, jobs);
   return {
     transcript: {
       ready: Boolean(transcript), name: transcript?.name || null, createdAt: transcript?.created_at || null,
@@ -189,7 +222,11 @@ export async function dealProductionState(env, dealId) {
     },
     requisites: { ready: requisites.ready, files: requisites.files, updatedAt: requisites.updatedAt },
     commercial: { ready: Boolean(kp && plan.length), paymentCount: plan.length },
-    summary: summarizeArtifacts(items), items,
+    activity: summary.activeStatus ? {
+      kind: summary.activeKind, status: summary.activeStatus, stage: summary.activeStage,
+      label: summary.activeLabel, percent: summary.activePercent,
+    } : null,
+    summary, items,
   };
 }
 
@@ -255,10 +292,11 @@ export async function enqueueDemoAndKp(env, dealId, actorUid, pipelineId, stageI
   };
   const at = nowIso();
   await env.DB.prepare(`INSERT INTO deal_production_jobs
-    (id,deal_id,kind,status,payload,attempt,lease_until,next_attempt_at,error,created_by,created_at,updated_at)
-    VALUES (?,?,'demo_kp','queued',?,0,NULL,NULL,NULL,?,?,?)
+    (id,deal_id,kind,status,payload,attempt,lease_until,next_attempt_at,error,created_by,created_at,updated_at,progress_stage,progress_label,progress_percent)
+    VALUES (?,?,'demo_kp','queued',?,0,NULL,NULL,NULL,?,?,?,'queued','В очереди на создание демо и КП',5)
     ON CONFLICT(deal_id,kind) DO UPDATE SET status='queued',payload=excluded.payload,attempt=0,
-      lease_until=NULL,next_attempt_at=NULL,error=NULL,created_by=excluded.created_by,updated_at=excluded.updated_at`)
+      lease_until=NULL,next_attempt_at=NULL,error=NULL,created_by=excluded.created_by,updated_at=excluded.updated_at,
+      progress_stage='queued',progress_label='В очереди на создание демо и КП',progress_percent=5`)
     .bind(jobId, dealId, JSON.stringify(payload), actorUid || '', at, at).run();
   const token = crypto.randomUUID().replace(/-/g, '');
   await upsertArtifact(env, { id: uid('art'), dealId, jobId, kind: 'demo', title: 'Интерактивное демо', status: 'queued',
@@ -289,10 +327,11 @@ export async function enqueueInvoicePack(env, dealId, actorUid, pipelineId, stag
     commercial: kp.metadata.commercial || {}, deal: { id: dealId, title: snapshot.title, customFields: snapshot.customFields } };
   const at = nowIso();
   await env.DB.prepare(`INSERT INTO deal_production_jobs
-    (id,deal_id,kind,status,payload,attempt,lease_until,next_attempt_at,error,created_by,created_at,updated_at)
-    VALUES (?,?,'invoice_pack','queued',?,0,NULL,NULL,NULL,?,?,?)
+    (id,deal_id,kind,status,payload,attempt,lease_until,next_attempt_at,error,created_by,created_at,updated_at,progress_stage,progress_label,progress_percent)
+    VALUES (?,?,'invoice_pack','queued',?,0,NULL,NULL,NULL,?,?,?,'queued','В очереди на создание счетов',5)
     ON CONFLICT(deal_id,kind) DO UPDATE SET status='queued',payload=excluded.payload,attempt=0,
-      lease_until=NULL,next_attempt_at=NULL,error=NULL,created_by=excluded.created_by,updated_at=excluded.updated_at`)
+      lease_until=NULL,next_attempt_at=NULL,error=NULL,created_by=excluded.created_by,updated_at=excluded.updated_at,
+      progress_stage='queued',progress_label='В очереди на создание счетов',progress_percent=5`)
     .bind(jobId, dealId, JSON.stringify(payload), actorUid || '', at, at).run();
   for (let i = 0; i < plan.length && i < 12; i++) {
     const p = plan[i];
@@ -543,17 +582,30 @@ async function storeArtifact(env, artifact, body, mime, metadata = {}) {
     .bind(key, mime, JSON.stringify(metadata), nowIso(), artifact.id).run();
 }
 
+async function setJobProgress(env, job, stage, label, percent) {
+  const value = Math.max(0, Math.min(100, Number(percent || 0)));
+  await env.DB.prepare(`UPDATE deal_production_jobs SET progress_stage=?,progress_label=?,progress_percent=?,updated_at=? WHERE id=?`)
+    .bind(stage, label, value, nowIso(), job.id).run();
+  await updateDealProductionSummary(env, job.deal_id);
+}
+
 async function processDemoKp(env, job) {
   const payload = safeJson(job.payload, {});
+  await setJobProgress(env, job, 'transcript', 'Читаем транскрипцию встречи', 12);
   const transcript = await transcriptText(env, payload.transcript);
+  await setJobProgress(env, job, 'analysis', 'Анализируем встречу и проектируем систему', 25);
   const blueprint = await openAiBlueprint(env, payload, transcript);
+  await setJobProgress(env, job, 'blueprint', 'Структура системы и КП готова', 55);
   const { results } = await env.DB.prepare("SELECT * FROM deal_artifacts WHERE job_id=? AND kind IN ('demo','kp')").bind(job.id).all();
   const demo = results.find(x => x.kind === 'demo'), kp = results.find(x => x.kind === 'kp');
   if (!demo || !kp) throw new Error('Артефакты задания не найдены');
+  await setJobProgress(env, job, 'demo', 'Собираем интерактивное демо', 65);
   const demoHtml = renderDemoHtml(blueprint);
   await storeArtifact(env, demo, demoHtml, 'text/html; charset=utf-8', { blueprintVersion: 1, screens: blueprint.demo.screens.length });
   const demoUrl = demo.public_url || `${PUBLIC_ORIGIN}/demo-artifact/${demo.public_token}`;
+  await setJobProgress(env, job, 'kp', 'Формируем коммерческое предложение', 78);
   const kpHtml = renderKpHtml(blueprint, demoUrl);
+  await setJobProgress(env, job, 'pdf', 'Рендерим КП в PDF', 88);
   const kpPdf = await pdfFromHtml(env, kpHtml);
   await storeArtifact(env, kp, kpPdf, 'application/pdf', {
     blueprintVersion: 1,
@@ -562,6 +614,7 @@ async function processDemoKp(env, job) {
     timeline: blueprint.commercial.timeline,
   });
   // Keep the existing Pllato App demo registry in sync.
+  await setJobProgress(env, job, 'publish', 'Публикуем демо и прикрепляем файлы', 95);
   const slug = `auto-${fileSlug(payload.deal?.title).toLowerCase().slice(0, 45)}-${job.deal_id.replace(/^deal_/, '').slice(-8)}`;
   const at = nowIso();
   try {
@@ -585,15 +638,21 @@ async function processDemoKp(env, job) {
 async function processInvoicePack(env, job) {
   const payload = safeJson(job.payload, {}), plan = payload.paymentPlan || [];
   const { results } = await env.DB.prepare("SELECT * FROM deal_artifacts WHERE job_id=? AND kind='invoice' ORDER BY sequence").bind(job.id).all();
-  for (const artifact of results || []) {
+  const artifacts = results || [];
+  await setJobProgress(env, job, 'invoices', 'Подготавливаем комплект счетов', 12);
+  for (let index = 0; index < artifacts.length; index++) {
+    const artifact = artifacts[index];
     const payment = plan[Number(artifact.sequence || 1) - 1];
     if (!payment) throw new Error(`Не найден платёж для счёта ${artifact.sequence}`);
+    const label = cleanText(payment.label) || `Платёж ${index + 1}`;
+    await setJobProgress(env, job, 'invoice', `Создаём счёт ${index + 1} из ${artifacts.length}: ${label}`, 18 + Math.round(index / Math.max(1, artifacts.length) * 68));
     const rendered = renderInvoiceHtml({ dealTitle: payload.deal?.title || 'Проект', requisites: payload.customerRequisites,
       payment, sequence: Number(artifact.sequence), total: plan.length });
     const pdf = await pdfFromHtml(env, rendered.html);
     await storeArtifact(env, artifact, pdf, 'application/pdf', { payment, invoiceNumber: rendered.number, issuedAt: nowIso() });
   }
-  return { count: results?.length || 0 };
+  await setJobProgress(env, job, 'publish', 'Прикрепляем счета к сделке', 95);
+  return { count: artifacts.length };
 }
 
 async function maybeAdvanceStage(env, job, deps) {
@@ -619,7 +678,7 @@ async function maybeAdvanceStage(env, job, deps) {
 
 async function completeJob(env, job, result, deps) {
   const at = nowIso();
-  await env.DB.prepare("UPDATE deal_production_jobs SET status='ready',completed_at=?,updated_at=?,lease_until=NULL,error=NULL WHERE id=?")
+  await env.DB.prepare("UPDATE deal_production_jobs SET status='ready',completed_at=?,updated_at=?,lease_until=NULL,error=NULL,progress_stage='ready',progress_label='Готово',progress_percent=100 WHERE id=?")
     .bind(at, at, job.id).run();
   const summary = await updateDealProductionSummary(env, job.deal_id);
   const nextStage = await maybeAdvanceStage(env, job, deps);
@@ -638,8 +697,9 @@ async function failJob(env, job, error, deps) {
   const status = final ? 'error' : 'queued';
   const message = String(error?.message || error || 'Неизвестная ошибка').slice(0, 900);
   const retryAt = final ? null : Date.now() + Math.min(15, attempts * attempts) * 60000;
-  await env.DB.prepare('UPDATE deal_production_jobs SET status=?,error=?,lease_until=NULL,next_attempt_at=?,updated_at=? WHERE id=?')
-    .bind(status, message, retryAt, nowIso(), job.id).run();
+  const progressLabel = final ? 'Ошибка создания документов' : 'Повторная попытка будет запущена автоматически';
+  await env.DB.prepare('UPDATE deal_production_jobs SET status=?,error=?,lease_until=NULL,next_attempt_at=?,updated_at=?,progress_stage=?,progress_label=? WHERE id=?')
+    .bind(status, message, retryAt, nowIso(), final ? 'error' : 'retry', progressLabel, job.id).run();
   await env.DB.prepare("UPDATE deal_artifacts SET status=?,error=?,updated_at=? WHERE job_id=? AND status!='ready'")
     .bind(status, message, nowIso(), job.id).run();
   await updateDealProductionSummary(env, job.deal_id);
@@ -669,7 +729,8 @@ export async function processDealProductionJobs(env, deps = {}, options = {}) {
     if (!job) break;
     const lease = Date.now() + JOB_LEASE_MS;
     const claim = await env.DB.prepare(`UPDATE deal_production_jobs SET status='building',lease_until=?,started_at=COALESCE(started_at,?),
-      attempt=attempt+1,updated_at=? WHERE id=? AND status='queued' AND (lease_until IS NULL OR lease_until<?)`)
+      attempt=attempt+1,updated_at=?,progress_stage='starting',progress_label='Запускаем создание документов',progress_percent=8
+      WHERE id=? AND status='queued' AND (lease_until IS NULL OR lease_until<?)`)
       .bind(lease, nowIso(), nowIso(), job.id, Date.now()).run();
     if (!claim?.meta?.changes) continue;
     const claimed = { ...job, attempt: Number(job.attempt || 0) + 1 };
@@ -708,7 +769,7 @@ export async function handleDealProductionRetry(request, env, deps, dealId) {
   if (!await deps.canEditRecord(env, me, 'deals', dealId)) return deps.json({ error: 'Нет права изменения сделки' }, 403, request);
   await ensureDealProductionSchema(env);
   const at = nowIso();
-  const changed = await env.DB.prepare("UPDATE deal_production_jobs SET status='queued',attempt=0,lease_until=NULL,next_attempt_at=NULL,error=NULL,updated_at=? WHERE deal_id=? AND status='error'")
+  const changed = await env.DB.prepare("UPDATE deal_production_jobs SET status='queued',attempt=0,lease_until=NULL,next_attempt_at=NULL,error=NULL,updated_at=?,progress_stage='queued',progress_label='В очереди на повторный запуск',progress_percent=5 WHERE deal_id=? AND status='error'")
     .bind(at, dealId).run();
   await env.DB.prepare("UPDATE deal_artifacts SET status='queued',error=NULL,updated_at=? WHERE deal_id=? AND status='error'").bind(at, dealId).run();
   await updateDealProductionSummary(env, dealId);
