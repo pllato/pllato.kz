@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { handleZoomRequest, ensureZoomForTask, processZoomJobs, zoomRetentionDeadline, zoomMeetingPath } from './zoom.js';
+import { handleZoomRequest, ensureZoomForTask, processZoomJobs, zoomMeetingPath } from './zoom.js';
 
 function fixture() {
   const db=new DatabaseSync(':memory:');
@@ -24,12 +24,7 @@ function fixture() {
   return {db,env,deps,request,connect,objects};
 }
 
-test('28 дней от перехода; Аванс, Первый этап и другие воронки не удаляются',()=>{
-  const d={pipeline_id:'pipeline_r22lrm',stage_id:'STAGE_MPC2F',stage_changed_at:'2026-09-01T10:00:00.000Z'};
-  assert.equal(zoomRetentionDeadline(d),'2026-09-29T10:00:00.000Z');
-  for(const stage_id of ['STAGE_OLNST','STAGE_EJZMJ','NEW'])assert.equal(zoomRetentionDeadline({...d,stage_id}),null);
-  assert.equal(zoomRetentionDeadline({...d,pipeline_id:'other'}),null);
-  assert.equal(zoomRetentionDeadline({...d,stage_changed_at:null}),null);
+test('UUID встречи с косыми чертами кодируется дважды',()=>{
   assert.equal(zoomMeetingPath('/a//b='),'%252Fa%252F%252Fb%253D');
 });
 test('OAuth state одноразовый, токены не хранятся открытым текстом',async()=>{
@@ -68,14 +63,14 @@ test('ошибка копии не удаляет оригинал; успешн
     assert.ok(f.db.prepare("SELECT zoom_deleted_at FROM zoom_files WHERE id='f1'").get().zoom_deleted_at);
   }finally{globalThis.fetch=original;}
 });
-test('очистка удаляет только просроченное видео, сохраняя текст и Аванс',async()=>{
+test('архив хранит старое видео и текст на всех этапах даже с устаревшим флагом очистки',async()=>{
   const f=fixture();await f.connect();f.env.ZOOM_RETENTION_ENABLED='true';
   f.db.prepare('INSERT INTO deals VALUES(?,?,?,?)').run('deal_1','pipeline_r22lrm','STAGE_MPC2F','2020-01-01T00:00:00Z');
   f.db.prepare('INSERT INTO deals VALUES(?,?,?,?)').run('deal_2','pipeline_r22lrm','STAGE_OLNST','2020-01-01T00:00:00Z');
   for(const [id,deal,ext]of [['video','deal_1','MP4'],['text','deal_1','VTT'],['advance','deal_2','MP4']]){
     f.db.prepare("INSERT INTO zoom_files(id,meeting_uuid,meeting_id,deal_id,extension,size,status,r2_key,zoom_deleted_at,imported_at) VALUES(?,'uuid','123',?, ?,4,'stored',?,'2020-01-01','2020-01-01')").run(id,deal,ext,id);f.objects.set(id,{size:4});
   }
-  await processZoomJobs(f.env);assert.equal(f.objects.has('video'),false);assert.equal(f.objects.has('text'),true);assert.equal(f.objects.has('advance'),true);
+  await processZoomJobs(f.env);assert.equal(f.objects.has('video'),true);assert.equal(f.objects.has('text'),true);assert.equal(f.objects.has('advance'),true);
 });
 test('посторонний пользователь не читает файлы и не подключает аккаунт',async()=>{
   const f=fixture();await f.request('/status');f.deps.resolveCanonicalUser=async()=>({role:'agent'});f.deps.dealAccessSql=()=>({where:' AND 0=1',params:[]});

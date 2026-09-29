@@ -94,7 +94,7 @@ export function zoomClient({ base, getToken }) {
       const s=await api('/status');
       box.innerHTML=`<p>${s.connected?'Аккаунт подключён.':'Аккаунт ещё не подключён.'}</p>${s.admin?`<button class="tbtn" data-connect ${s.configured?'':'disabled'}>${s.connected?'Переподключить':'Подключить Zoom'}</button>`:''}${!s.configured?'<p>Ожидается настройка ключей приложения администратором.</p>':''}
         <p>После проверенного переноса: ${s.trashAfterCopy?'оригиналы перемещаются в корзину Zoom':'очистка Zoom ещё не включена'}.</p>
-        <p>«Аванс» и «Первый этап»: хранение без срока. «Центральный файл»: ${s.retentionEnabled?'видео удаляются через 28 дней после перехода, текст остаётся':'автоудаление пока не включено'}.</p>`;
+        <p>Видео, транскрипты и другие материалы хранятся в архиве CRM бессрочно, независимо от этапа сделки. Удаление — только вручную из карточки.</p>`;
       const connect=box.querySelector('[data-connect]');if(connect)connect.onclick=async()=>{connect.disabled=true;try{const r=await api('/connect',{method:'POST'});location.assign(r.url);}catch(e){box.textContent=e.message;}};
       if(s.admin){const archive=dialog.querySelector('[data-archive]');archive.innerHTML='<h4>Записи без привязки к сделке</h4><div data-files></div>';await files(archive.querySelector('[data-files]'),null,true);}
     }catch(e){box.textContent=e.message;}

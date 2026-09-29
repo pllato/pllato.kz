@@ -13,14 +13,6 @@ export function zoomMeetingPath(id) {
   const s = String(id);
   return s.startsWith('/') || s.includes('//') ? encodeURIComponent(encodeURIComponent(s)) : encodeURIComponent(s);
 }
-export function zoomRetentionDeadline(deal) {
-  // Только конкретная стадия Pllato Старт. Остальные воронки не затрагиваем.
-  if (deal?.pipeline_id !== 'pipeline_r22lrm' || deal?.stage_id !== 'STAGE_MPC2F') return null;
-  const entered = Date.parse(deal.stage_changed_at);
-  // Старую запись без даты перехода не удаляем на основании приблизительной даты.
-  if (!Number.isFinite(entered)) return null;
-  return new Date(entered + 28 * DAY).toISOString();
-}
 async function schema(env) {
   await env.DB.batch([
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS zoom_private (k TEXT PRIMARY KEY, v TEXT NOT NULL)`),
@@ -221,22 +213,7 @@ export async function processZoomJobs(env) {
       if (f) try { await trashOriginal(env, f); }
       catch(e) { await env.DB.prepare('UPDATE zoom_files SET error=?,retry_at=? WHERE id=?').bind(String(e.message).slice(0,250), new Date(Date.now()+3600000).toISOString(),f.id).run(); }
     }
-    if (env.ZOOM_RETENTION_ENABLED === 'true') {
-      const { results } = await env.DB.prepare(`SELECT z.*,d.pipeline_id,d.stage_id,d.stage_changed_at FROM zoom_files z
-        JOIN deals d ON d.id=z.deal_id WHERE z.status='stored' AND z.extension='MP4'
-        AND d.pipeline_id='pipeline_r22lrm' AND d.stage_id='STAGE_MPC2F'
-        AND d.stage_changed_at <= ? AND z.zoom_deleted_at IS NOT NULL ORDER BY d.stage_changed_at LIMIT 100`).bind(new Date(Date.now()-28*DAY).toISOString()).all();
-      for (const f of results) {
-        const deadline = zoomRetentionDeadline(f, f.imported_at);
-        if (!deadline || deadline > now()) continue;
-        // Повторная проверка прямо перед удалением: возврат сделки в работу отменяет таймер.
-        const d = await env.DB.prepare('SELECT pipeline_id,stage_id,stage_changed_at FROM deals WHERE id=?').bind(f.deal_id).first();
-        const due = zoomRetentionDeadline(d, f.imported_at);
-        if (!due || due > now()) continue;
-        await env.FILES.delete(f.r2_key);
-        await env.DB.prepare("UPDATE zoom_files SET status='deleted',deleted_at=?,r2_key=NULL WHERE id=?").bind(now(),f.id).run();
-      }
-    }
+
   } finally { await env.DB.prepare("DELETE FROM zoom_private WHERE k='job_lock' AND v=?").bind(lease).run(); }
 }
 async function webhook(request, env) {
@@ -279,7 +256,7 @@ export async function handleZoomRequest(request, env, deps) {
     if (auth.error) return json({error:auth.error},auth.status,request);
     const me = await resolveCanonicalUser(env,auth.claims);
     const admin = me.role === 'admin';
-    if (path === '/status') return json({configured:!!(env.ZOOM_CLIENT_ID && env.ZOOM_CLIENT_SECRET),connected:!!await get(env,'tokens'),admin,trashAfterCopy:env.ZOOM_TRASH_AFTER_COPY==='true',retentionEnabled:env.ZOOM_RETENTION_ENABLED==='true'},200,request);
+    if (path === '/status') return json({configured:!!(env.ZOOM_CLIENT_ID && env.ZOOM_CLIENT_SECRET),connected:!!await get(env,'tokens'),admin,trashAfterCopy:env.ZOOM_TRASH_AFTER_COPY==='true',archivePolicy:'indefinite'},200,request);
     if (path === '/connect' && request.method === 'POST') {
       if (!admin) throw fail('Подключение доступно администратору',403);
       if (!env.ZOOM_CLIENT_ID || !env.ZOOM_CLIENT_SECRET) throw fail('Администратору нужно настроить ключи Zoom',503);
