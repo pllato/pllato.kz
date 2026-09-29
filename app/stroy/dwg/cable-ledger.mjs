@@ -26,3 +26,9 @@ export function rotatePoints(points,angle,centre=[0,0]){
  const c=Math.cos(angle),s=Math.sin(angle);
  return points.map(([x,y])=>{x-=centre[0];y-=centre[1];return [centre[0]+x*c-y*s,centre[1]+x*s+y*c];});
 }
+// Group accounting only: CAD paths and route IDs remain independent.
+export function cableGroups(routes){
+ const ledger=cableLedger(routes),groups=ledger.rows.map(row=>({...row,key:JSON.stringify([row.brand,row.section])}));
+ for(const item of ledger.unassigned){const r=routes.find(r=>r.id===item.id);groups.push({key:'unassigned:'+r.id,brand:r.brand||'',section:r.section||'',length:item.length,routeIds:[r.id]});}
+ return groups;
+}
