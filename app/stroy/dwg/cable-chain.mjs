@@ -1,4 +1,4 @@
-import {overlapLinks} from './cable-overlap.mjs?v=0.17.5';
+import {overlapLinks} from './cable-overlap.mjs?v=0.17.6';
 // Selection only: never merge or explode the underlying CAD entities.
 export function cableChain(shapes,seed,hidden=new Set()){
  const eligible=s=>s.text===null&&!s.fill&&!s.hatch&&['LINE','ARC','LWPOLYLINE','POLYLINE','SPLINE'].includes(s.entityType)&&s.pts.length>1;
