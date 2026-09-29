@@ -1,3 +1,4 @@
+export const groupWelcome = 'Добро пожаловать в Pllato! 👋\nМы — студия разработки программного обеспечения. Создаём CRM-системы, сайты и приложения для бизнеса.\n\nВ этом чате будем обсуждать ваш проект, согласовывать задачи и материалы, делиться результатами и решать рабочие вопросы.\n\nРады сотрудничеству!';
 const parse=(s,fallback)=>{try{return JSON.parse(s)||fallback;}catch{return fallback;}};
 const changed=r=>Number(r.meta?.changes ?? r.changes ?? 0)>0;
 const inviteUrl=s=>/^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+$/.test(s||'')?s:'';
@@ -15,6 +16,7 @@ export async function groupSchema(env){
   env.DB.prepare("CREATE TABLE IF NOT EXISTS wa_deal_groups (deal_id TEXT PRIMARY KEY,channel_id TEXT NOT NULL,group_id TEXT,invite_link TEXT,name TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',created_at INTEGER NOT NULL)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS wa_group_people (deal_id TEXT NOT NULL,chat_id TEXT NOT NULL,label TEXT,status TEXT NOT NULL,error TEXT,PRIMARY KEY(deal_id,chat_id))"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS wa_manual_group_jobs (deal_id TEXT PRIMARY KEY,channel_id TEXT NOT NULL,employee_uids TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',error TEXT,created_at INTEGER NOT NULL)"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS wa_group_welcome (deal_id TEXT PRIMARY KEY,status TEXT NOT NULL DEFAULT 'pending',message_id TEXT)"),
   env.DB.prepare('CREATE TABLE IF NOT EXISTS wa_group_locks (id TEXT PRIMARY KEY,until_at INTEGER NOT NULL,owner TEXT)'),
   env.DB.prepare("INSERT OR IGNORE INTO wa_group_locks VALUES('runner',0,'')")
  ]);
@@ -68,7 +70,20 @@ async function processJob(env,job,rule){
   const result=await provider(channel,'createGroup',{groupName:group.name,chatIds:people.map(x=>x.chatId)});
   if(!result.created||!/^\d[\d-]*@g\.us$/.test(result.chatId||''))throw new Error('WhatsApp не подтвердил создание. Проверьте группу перед повторной попыткой.');
   group.group_id=result.chatId;group.invite_link=inviteUrl(result.groupInviteLink);
-  await env.DB.prepare("UPDATE wa_deal_groups SET group_id=?,invite_link=?,status='active' WHERE deal_id=?").bind(group.group_id,group.invite_link,deal.id).run();
+  await env.DB.batch([
+   env.DB.prepare("UPDATE wa_deal_groups SET group_id=?,invite_link=?,status='active' WHERE deal_id=?").bind(group.group_id,group.invite_link,deal.id),
+   env.DB.prepare('INSERT OR IGNORE INTO wa_group_welcome(deal_id) VALUES(?)').bind(deal.id)
+  ]);
+ }
+ // Only newly created groups have a welcome row; never post into old groups on rollout.
+ const welcome=await env.DB.prepare('SELECT status FROM wa_group_welcome WHERE deal_id=?').bind(deal.id).first();
+ if(welcome?.status==='sending')throw new Error('Отправка приветствия не подтверждена. Проверьте сообщения группы; повторная отправка остановлена, чтобы не создать дубль.');
+ if(welcome?.status==='pending'){
+  const claimed=await env.DB.prepare("UPDATE wa_group_welcome SET status='sending' WHERE deal_id=? AND status='pending'").bind(deal.id).run();
+  if(!changed(claimed))throw new Error('Приветствие уже обрабатывается');
+  const sent=await provider(channel,'sendMessage',{chatId:group.group_id,message:groupWelcome});
+  if(!sent.idMessage)throw new Error('Отправка приветствия не подтверждена. Проверьте сообщения группы.');
+  await env.DB.prepare("UPDATE wa_group_welcome SET status='sent',message_id=? WHERE deal_id=?").bind(sent.idMessage,deal.id).run();
  }
  const data=await provider(channel,'getGroupData',{groupId:group.group_id});
  if(!Array.isArray(data.participants))throw new Error('Не удалось проверить участников группы');
