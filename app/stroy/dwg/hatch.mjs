@@ -21,7 +21,7 @@ export function hatchGeometry(e){
  if(!chosen.length)return null;
  return {loops:chosen.map(l=>l.pts),solid:!!e.solidFill,lines:e.definitionLines||[]};
 }
-export function paintHatch(ctx,shape,view,color,width,height){
+export function paintHatch(ctx,shape,view,color,width,height,vector=false){
  const {hatch:h,matrix:m}=shape,s=view.s;
  ctx.save();ctx.beginPath();for(const loop of h.loops){loop.forEach((p,i)=>{const x=(m[0]*p[0]+m[2]*p[1]+m[4])*s+view.x,y=view.y-(m[1]*p[0]+m[3]*p[1]+m[5])*s;if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);});ctx.closePath();}
  ctx.fillStyle=color;if(h.solid){ctx.fill('evenodd');ctx.restore();return;}ctx.clip('evenodd');
@@ -32,11 +32,12 @@ export function paintHatch(ctx,shape,view,color,width,height){
  ctx.transform(s*m[0],-s*m[1],s*m[2],-s*m[3],view.x+s*m[4],view.y-s*m[5]);
  const pixel=1/(s*Math.max(Math.hypot(m[0],m[1]),Math.hypot(m[2],m[3])));ctx.strokeStyle=color;ctx.lineWidth=pixel;
  for(const line of h.lines){const u=[Math.cos(line.angle),Math.sin(line.angle)],n=[-u[1],u[0]],base=line.base,offset=line.offset,step=offset.x*n[0]+offset.y*n[1];if(!Number.isFinite(step)||Math.abs(step)<1e-10)continue;
-  const proj=corners.map(p=>(p[0]-base.x)*n[0]+(p[1]-base.y)*n[1]),a=Math.min(...proj)/step,b=Math.max(...proj)/step,lo=Math.floor(Math.min(a,b)),hi=Math.ceil(Math.max(a,b)),stride=Math.max(1,Math.ceil(pixel*.6/Math.abs(step)),Math.ceil((hi-lo)/4000));
+  const proj=corners.map(p=>(p[0]-base.x)*n[0]+(p[1]-base.y)*n[1]),a=Math.min(...proj)/step,b=Math.max(...proj)/step,lo=Math.floor(Math.min(a,b)),hi=Math.ceil(Math.max(a,b)),stride=vector?1:Math.max(1,Math.ceil(pixel*.6/Math.abs(step)),Math.ceil((hi-lo)/4000));
+  if(vector&&hi-lo>100000)throw Error('Слишком плотная штриховка для PDF; экспорт остановлен без пропуска линий');
   const ts=corners.map(p=>p[0]*u[0]+p[1]*u[1]),tmin=Math.min(...ts),tmax=Math.max(...ts),dash=line.dashLengths||[],period=dash.reduce((v,d)=>v+Math.abs(d),0);ctx.beginPath();
   for(let k=Math.ceil(lo/stride)*stride;k<=hi;k+=stride){const x=base.x+k*offset.x,y=base.y+k*offset.y,start=tmin-x*u[0]-y*u[1],end=tmax-x*u[0]-y*u[1];
    const segment=(a,b)=>{ctx.moveTo(x+u[0]*a,y+u[1]*a);ctx.lineTo(x+u[0]*b,y+u[1]*b);};
-   if(!period)segment(start,end);else{let budget=10000;for(let t=Math.floor(start/period)*period;t<end&&budget>0;t+=period){let q=t;for(const d of dash){if(--budget<0)break;const next=q+Math.abs(d);if(d>=0&&next>=start&&q<=end)segment(Math.max(q,start),Math.min(Math.max(next,q+pixel),end));q=next;}}}
+   if(!period)segment(start,end);else{let budget=10000;for(let t=Math.floor(start/period)*period;t<end&&budget>0;t+=period){let q=t;for(const d of dash){if(--budget<0)break;const next=q+Math.abs(d);if(d>=0&&next>=start&&q<=end)segment(Math.max(q,start),Math.min(Math.max(next,q+pixel),end));q=next;}}if(vector&&budget<=0)throw Error('Слишком сложная штриховка для PDF; экспорт остановлен без пропуска штрихов');}
   }ctx.stroke();
  }ctx.restore();
 }

@@ -36,6 +36,25 @@ API int pllato_open(const char *path){
  fprintf(stderr,"MODEL_OWNER_RECOVERED count=%u\n",count);return error;
 }
 
+/* Authoritative model/paper root inventory, independent of JS display support.
+   Unknown drawable types are included, never silently omitted from export. */
+API int pllato_root_manifest(void){
+ if(!loaded)return 1;
+ FILE *f=fopen("/root-manifest.txt","w");if(!f)return 2;
+ for(unsigned i=0;i<drawing.num_objects;i++){
+  Dwg_Object *o=&drawing.object[i];
+  if(o->supertype!=DWG_SUPERTYPE_ENTITY||o->type==DWG_TYPE_FREED||o->fixedtype==DWG_TYPE_SEQEND||dwg_obj_is_subentity(o)||o->fixedtype==DWG_TYPE_BLOCK||o->fixedtype==DWG_TYPE_ENDBLK)continue;
+  Dwg_Object_Entity *e=o->tio.entity;if(!e){fclose(f);return 3;}
+  Dwg_Object *owner=e->entmode==2?dwg_model_space_object(&drawing):dwg_ref_object(&drawing,e->ownerhandle);
+  if(e->entmode==1||e->entmode==2){fprintf(f,"%llX%s\n",(unsigned long long)o->handle.value,o->fixedtype==DWG_TYPE_VIEWPORT?",viewport":"");continue;}
+  if(!owner||owner->fixedtype!=DWG_TYPE_BLOCK_HEADER){fprintf(stderr,"ROOT_REJECT type=%s mode=%u\n",o->name,e->entmode);fclose(f);return 4;}
+  Dwg_Object_BLOCK_HEADER *b=owner->tio.object->tio.BLOCK_HEADER;
+  /* Layout block records carry a layout handle; regular definitions do not. */
+  if(owner==dwg_model_space_object(&drawing)||(b->layout&&b->layout->absolute_ref))fprintf(f,"%llX%s\n",(unsigned long long)o->handle.value,o->fixedtype==DWG_TYPE_VIEWPORT?",viewport":"");
+ }
+ return fclose(f)?5:0;
+}
+
 /* Native executive metadata proof: UTF-8 bytes in bounded XRECORD chunks. */
 API int pllato_executive_metadata(const unsigned char *bytes, int length)
 {
@@ -566,9 +585,10 @@ API int pllato_lineweight(const char *handle,int weight){
 /* Delete only self-contained editable entities; dependency-bearing objects reject. */
 API int pllato_remove(const char *handle){
  Dwg_Object *o=entity(handle);if(!o)return 1;
- if(o->fixedtype!=DWG_TYPE_LINE&&o->fixedtype!=DWG_TYPE_ARC&&o->fixedtype!=DWG_TYPE_CIRCLE&&o->fixedtype!=DWG_TYPE_TEXT&&o->fixedtype!=DWG_TYPE_LWPOLYLINE&&o->fixedtype!=DWG_TYPE_SPLINE&&o->fixedtype!=DWG_TYPE_INSERT)return 2;
+ if(o->fixedtype!=DWG_TYPE_LINE&&o->fixedtype!=DWG_TYPE_ARC&&o->fixedtype!=DWG_TYPE_CIRCLE&&o->fixedtype!=DWG_TYPE_TEXT&&o->fixedtype!=DWG_TYPE_LWPOLYLINE&&o->fixedtype!=DWG_TYPE_SPLINE&&o->fixedtype!=DWG_TYPE_INSERT&&o->fixedtype!=DWG_TYPE_MTEXT&&o->fixedtype!=DWG_TYPE_HATCH&&o->fixedtype!=DWG_TYPE_ELLIPSE&&o->fixedtype!=DWG_TYPE_POINT&&o->fixedtype!=DWG_TYPE_SOLID&&o->fixedtype!=DWG_TYPE_TRACE&&o->fixedtype!=DWG_TYPE__3DFACE){fprintf(stderr,"REMOVE_REJECT type=%s\n",o->name);return 2;}
+ if(o->fixedtype==DWG_TYPE_HATCH){Dwg_Entity_HATCH *h=o->tio.entity->tio.HATCH;if(h->is_associative){fprintf(stderr,"REMOVE_REJECT associative HATCH\n");return 3;}for(unsigned i=0;i<h->num_paths;i++)if(h->paths[i].num_boundary_handles){fprintf(stderr,"REMOVE_REJECT HATCH boundary links\n");return 3;}}
  Dwg_Object_Entity *ent=o->tio.entity;
- if(ent->num_reactors||ent->xdicobjhandle&&ent->xdicobjhandle->absolute_ref)return 3;
+ if(ent->num_reactors||ent->xdicobjhandle&&ent->xdicobjhandle->absolute_ref){fprintf(stderr,"REMOVE_REJECT type=%s reactors=%u dictionary=%u\n",o->name,ent->num_reactors,ent->xdicobjhandle&&ent->xdicobjhandle->absolute_ref?1:0);return 3;}
  Dwg_Object *owner=ent->entmode==2?dwg_model_space_object(&drawing):dwg_ref_object(&drawing,ent->ownerhandle);
  if(!owner||owner->fixedtype!=DWG_TYPE_BLOCK_HEADER)return 4;
  Dwg_Object_BLOCK_HEADER *b=owner->tio.object->tio.BLOCK_HEADER;
