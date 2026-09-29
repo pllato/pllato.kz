@@ -45,3 +45,23 @@ assert.match(invoice.html, /150[\s\u00a0]000 ₸/);
 assert.match(invoice.html, /ТОО Заказчик/);
 
 console.log('deal-production tests passed');
+
+// Model-supplied icon names must never leak into the navigation.
+const iconDemo = renderDemoHtml({ ...blueprint, demo: { ...blueprint.demo, screens: [{ ...screen, icon: 'layout-dashboard' }] } });
+assert.doesNotMatch(iconDemo, />layout-dashboard</);
+assert.match(iconDemo, /<svg aria-hidden="true"/);
+assert.match(iconDemo, /class="nav-scroll"/);
+assert.doesNotMatch(iconDemo, /toast\('Готово: '/);
+assert.match(iconDemo, /<form id="action-form"/);
+// Labels must remain escaped even in the drawer/form workflow.
+const hostileDemo = renderDemoHtml({ ...blueprint, demo: { ...blueprint.demo, screens: [{ ...screen, actions: ['"><script>alert(1)</script>'] }] } });
+assert.doesNotMatch(hostileDemo, /<script>alert\(1\)<\/script>/);
+const { pdfFromHtml } = await import('./deal-production.js');
+await assert.rejects(() => pdfFromHtml({ BROWSER: { quickAction: async () => new Response('x'.repeat(2000)) } }, '<h1>KP</h1>'), /некорректный/);
+await assert.rejects(() => pdfFromHtml({ BROWSER: { quickAction: async () => new Response('error', {status:503}) } }, '<h1>KP</h1>'), /503/);
+const pdfBytes = new TextEncoder().encode('%PDF-1.7\n'+'x'.repeat(1200));
+const result = await pdfFromHtml({ BROWSER: { quickAction: async (name, options) => {
+  assert.equal(name, 'pdf'); assert.equal(options.gotoOptions.waitUntil, 'domcontentloaded');
+  return new Response(pdfBytes, { headers: {'Content-Type':'application/pdf'} });
+} } }, '<h1>KP</h1>');
+assert.equal(result.byteLength, pdfBytes.byteLength);
