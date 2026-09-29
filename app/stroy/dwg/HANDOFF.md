@@ -2,7 +2,8 @@
 
 ## Кандидат 0.17.22 — 30 сентября, ветка feat/dwg-box-move
 
-Публикация пока не подтверждена; PR/deploy записать после проверки.
+PR: https://github.com/pllato/pllato.kz/pull/859. Публикацию проверять по Pages
+и live версии 0.17.22; на момент этой записи PR подготовлен к слиянию.
 Добавлены компактная строка cable navigator с раскрытием настроек, datalist
 марок/сечений (свободный ввод сохранён), sheet navigator с повторным переходом
 к уже выбранной исполнительной. Browser compact-controls, workspace, toolbar,
