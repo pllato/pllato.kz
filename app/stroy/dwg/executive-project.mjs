@@ -1,5 +1,5 @@
-import {routeLength,rotatePoints,cableLedger} from './cable-ledger.mjs?v=0.17.1';
-import {executiveLayout} from './executive-layout.mjs?v=0.17.1';
+import {routeLength,rotatePoints,cableLedger} from './cable-ledger.mjs?v=0.17.2';
+import {executiveLayout} from './executive-layout.mjs?v=0.17.2';
 
 // Serializable editing model. Cable data belongs to a route, not its leaders.
 // Native block handles are retained; source geometry is never flattened here.
@@ -33,10 +33,11 @@ export function setCable(project,sheetId,routeId,{brand,section,extraMetres}){
  if(typeof brand!=='string'||typeof section!=='string'||!Number.isFinite(extraMetres)||extraMetres<0)throw Error('Неверные свойства кабеля');
  Object.assign(r,{brand:brand.trim(),section:section.trim(),extraMetres});
 }
-export function addLeader(project,sheetId,routeId,{id,anchor,elbow,label}){
+export function addLeader(project,sheetId,routeId,{id,anchor,elbow,label,textHeight}){
  const s=sheet(project,sheetId),r=route(s,routeId);
  unique(s.routes.flatMap(r=>r.leaders),id);[anchor,elbow,label].forEach(requirePoint);
- r.leaders.push({id,anchor:[...anchor],elbow:[...elbow],label:[...label]});
+ if(textHeight!==undefined&&(!Number.isFinite(textHeight)||textHeight<.2||textHeight>50))throw Error('Высота текста: от 0,2 до 50 мм на листе');
+ r.leaders.push({id,anchor:[...anchor],elbow:[...elbow],label:[...label],...(textHeight!==undefined?{textHeight}:{})});
 }
 export function removeLeader(project,sheetId,leaderId){
  const s=sheet(project,sheetId),r=s.routes.find(r=>r.leaders.some(l=>l.id===leaderId));
@@ -88,7 +89,8 @@ export function executiveEntities(project,sheetId){
    items.push({type:'LWPOLYLINE',points:[...l.anchor,...l.elbow,...l.label],closed:false});
    const dx=l.elbow[0]-l.anchor[0],dy=l.elbow[1]-l.anchor[1],length=Math.hypot(dx,dy);
    if(length){const size=Math.min(3*unit,length/3),ux=dx/length,uy=dy/length;for(const side of [-1,1])items.push({type:'LINE',values:[...l.anchor,l.anchor[0]+size*(ux+side*uy*.4),l.anchor[1]+size*(uy-side*ux*.4)]});}
-   items.push({type:'TEXT',text:[r.brand,r.section].filter(Boolean).join(' ')||'Кабель не назначен',values:[...l.label,3*unit,0]});
+   const textHeight=l.textHeight??3;if(!Number.isFinite(textHeight)||textHeight<.2||textHeight>50)throw Error('Неверный размер текста выноски');
+   items.push({type:'TEXT',text:[r.brand,r.section].filter(Boolean).join(' ')||'Кабель не назначен',values:[...l.label,textHeight*unit,0]});
   }
  }
  return {items,ledger,planBounds:layout.planBounds};
