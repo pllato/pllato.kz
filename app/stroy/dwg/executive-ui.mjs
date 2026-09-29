@@ -1,13 +1,13 @@
-import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.18';
-import * as projectAPI from './executive-project.mjs?v=0.17.18';
-import {routeLength} from './cable-ledger.mjs?v=0.17.18';
-import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.18';
-import {executivePlacement} from './executive-placement.mjs?v=0.17.18';
-import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.18';
-import {drawingPreset} from './drawing-presets.mjs?v=0.17.18';
+import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.19';
+import * as projectAPI from './executive-project.mjs?v=0.17.19';
+import {routeLength} from './cable-ledger.mjs?v=0.17.19';
+import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.19';
+import {executivePlacement} from './executive-placement.mjs?v=0.17.19';
+import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.19';
+import {drawingPreset} from './drawing-presets.mjs?v=0.17.19';
 export function mountExecutiveUI(api){
  const panel=document.createElement('section');panel.id='executives';
- panel.innerHTML=`<h2>Исполнительные</h2><button id="exArea">Выделить план · 2 угла</button><p id="exAreaInfo">Откройте DWG, выберите единицы и выделите план.</p><button id="exCreate" disabled>Создать рядом</button><label>Исполнительная<select id="exSheet"></select></label><label>Заголовок<input id="exTitle" maxlength="1000"></label><label>Поворот плана, °<input id="exAngle" type="number" value="0"></label><details><summary>Редактировать штамп</summary><div id="exStamp"></div></details><button id="exApply">Применить оформление</button><h3>Кабельные трассы</h3><label>Марка<input id="exBrand" value="ВВГнг(А)-LS"></label><label>Сечение<input id="exSection" value="3×2,5"></label><label>Дополнительная длина, м<input id="exExtra" type="number" min="0" value="0" step="any"></label><button id="exRoute">Рисовать трассу</button><button id="exFinish">Завершить трассу</button><label>Трасса<select id="exRouteList"></select></label><button id="exCable">Назначить кабель</button><button id="exLeader">Выноска · 3 точки</button><button id="exRemoveLeader">Удалить выноски</button><button id="exRemoveRoute">Удалить трассу</button><div class="pair"><label>Сдвиг X<input id="exDX" type="number" value="0"></label><label>Сдвиг Y<input id="exDY" type="number" value="0"></label></div><button id="exMoveRoute">Двигать трассу</button><button id="exDevice">Выбрать прибор</button><pre id="exLedger" style="white-space:pre-wrap;font-size:12px"></pre>`;
+ panel.innerHTML=`<h2>Исполнительные</h2><button id="exArea">Выделить план рамкой</button><p id="exAreaInfo">Откройте DWG, выберите единицы и выделите план.</p><button id="exCreate" disabled>Создать рядом</button><label>Исполнительная<select id="exSheet"></select></label><label>Заголовок<input id="exTitle" maxlength="1000"></label><label>Поворот плана, °<input id="exAngle" type="number" value="0"></label><details><summary>Редактировать штамп</summary><div id="exStamp"></div></details><button id="exApply">Применить оформление</button><h3>Кабельные трассы</h3><label>Марка<input id="exBrand" value="ВВГнг(А)-LS"></label><label>Сечение<input id="exSection" value="3×2,5"></label><label>Дополнительная длина, м<input id="exExtra" type="number" min="0" value="0" step="any"></label><button id="exRoute">Рисовать трассу</button><button id="exFinish">Завершить трассу</button><label>Трасса<select id="exRouteList"></select></label><button id="exCable">Назначить кабель</button><button id="exLeader">Выноска · 3 точки</button><button id="exRemoveLeader">Удалить выноски</button><button id="exRemoveRoute">Удалить трассу</button><div class="pair"><label>Сдвиг X<input id="exDX" type="number" value="0"></label><label>Сдвиг Y<input id="exDY" type="number" value="0"></label></div><button id="exMoveRoute">Двигать трассу</button><button id="exDevice">Выбрать прибор</button><pre id="exLedger" style="white-space:pre-wrap;font-size:12px"></pre>`;
  document.querySelector('#sidebar').prepend(panel);
  const advanced=document.createElement('div');advanced.innerHTML=`<label>Отдельная выноска<select id="exLeaderList"></select></label><button id="exMoveLeader">Сдвинуть подпись · X/Y выше</button><button id="exDeleteLeader">Удалить выбранную выноску</button><label>Известная длина, м<input id="exKnownMetres" type="number" min="0" step="any" value="1"></label><button id="exCalibrate">Калибровать · 2 точки</button>`;panel.append(advanced);
  const $=id=>document.getElementById(id),stampLabels={project:'Проект',object:'Объект',drawing:'Название схемы',contractor:'Исполнитель',date:'Дата',sheet:'Лист',sheets:'Листов'};
@@ -47,9 +47,9 @@ export function mountExecutiveUI(api){
   const entities=doc.entities.filter(r=>!r.id.startsWith('executive-')&&!removed.has(get(r,5)));
   api.setDoc({...doc,records:[...records,...mini.entities],entities:[...entities,...mini.entities]});refresh();
  }
- $('exArea').onclick=guard(()=>{if(!api.getDoc().native)throw Error('Исполнительные: откройте исходный DWG');points=[];mode='area';api.setTool('executive');api.status('Укажите два противоположных угла вокруг плана. Объекты на границе не включаются.');});
+ $('exArea').onclick=guard(()=>{if(!api.getDoc().native)throw Error('Исполнительные: откройте исходный DWG');points=[];mode='area';api.setTool('executive');api.status('Зажмите мышь, обведите нужный план рамкой и отпустите — исполнительная создастся автоматически. Включайте объекты целиком.');});
  $('exCreate').onclick=guard(async()=>{
-  if(!chosen.length||!area||selectionSource!==api.getDoc().sourceFile)throw Error('Сначала выделите план в текущем DWG');const metres=api.metresPerUnit();if(!metres)throw Error('Выберите миллиметры, сантиметры или метры справа');
+  if(!chosen.length||!area||selectionSource!==api.getDoc().sourceFile)throw Error('Сначала выделите план в текущем DWG');const metres=api.metresPerUnit();if(!metres){$('sidebar').classList.add('open');$('panel').setAttribute('aria-expanded','true');$('units').scrollIntoView({block:'nearest'});$('units').focus();throw Error('Выберите единицы измерения в открытой панели, затем нажмите лист с плюсом ещё раз — область уже выделена.');}
   const p=structuredClone(project()),{unit,origin,centre,position}=executivePlacement(api.shapes(),chosen.map(h=>'dwg-'+h));
   const id=crypto.randomUUID();projectAPI.createExecutive(p,{id,title:'Исполнительная схема '+(p.sheets.length+1),origin,planCentre:position,metresPerUnit:metres,paperUnit:unit});
   operationError.hidden=true;operationError.textContent='';
@@ -59,7 +59,7 @@ export function mountExecutiveUI(api){
  });
  const createIcon=document.createElement('button');createIcon.id='exCreateIcon';createIcon.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3H4v18h16V10M14 2v8h8M17 13v6M14 16h6"/></svg>';
  document.querySelector('nav').prepend(createIcon);
- const updateCreateIcon=()=>{const ready=!$('exCreate').disabled;createIcon.disabled=api.busy();createIcon.title=ready?'Создать исполнительную из выделенного плана':'Создать исполнительную · выделите план двумя углами';createIcon.setAttribute('aria-label',createIcon.title);createIcon.classList.toggle('ready',ready);};
+ const updateCreateIcon=()=>{const ready=!$('exCreate').disabled;createIcon.disabled=api.busy();createIcon.title=ready?'Создать исполнительную из выделенного плана':'Создать исполнительную · обведите план рамкой';createIcon.setAttribute('aria-label',createIcon.title);createIcon.classList.toggle('ready',ready);};
  createIcon.onclick=()=>{if(api.busy()||acting)return;$('sidebar').classList.remove('open');$('panel').setAttribute('aria-expanded','false');($('exCreate').disabled?$('exArea'):$('exCreate')).click();};
  const createObserver=new MutationObserver(updateCreateIcon);createObserver.observe($('exCreate'),{attributes:true,attributeFilter:['disabled']});createObserver.observe($('busy'),{attributes:true,attributeFilter:['hidden']});updateCreateIcon();
  showSheet.onclick=guard(()=>{api.focus(sheet());showCanvas();});
@@ -77,15 +77,18 @@ export function mountExecutiveUI(api){
  $('exRemoveRoute').onclick=guard(()=>mutate(p=>projectAPI.removeRoute(p,active,routeId)));
  $('exMoveRoute').onclick=guard(()=>mutate(p=>projectAPI.moveRoute(p,active,routeId,[Number($('exDX').value),Number($('exDY').value)])));
  $('exDevice').onclick=()=>{if(api.busy())return;api.setTool('device');showCanvas();api.status('Нажмите на любой штрих прибора — выберется весь блок.');};
+ function finishArea(a,w){
+  if(mode!=='area'||api.busy())return;
+  area=[Math.min(a[0],w[0]),Math.min(a[1],w[1]),Math.max(a[0],w[0]),Math.max(a[1],w[1])];
+  chosen=selectExecutiveRoots(api.getDoc(),api.shapes(),area);selectionSource=api.getDoc().sourceFile;
+  $('exAreaInfo').textContent=`Выбрано объектов: ${chosen.length}. Исходник останется на месте.`;$('exCreate').disabled=!chosen.length;points=[];hoverPoint=null;mode='';api.setTool('select');
+  if(chosen.length)$('exCreate').click();else api.status('В рамке нет целых объектов. Если план — один блок, обведите его целиком. Нажмите лист с плюсом и повторите выделение.');
+ }
  function tap(w){
+  if(mode==='area'){api.status('Зажмите мышь и протяните рамку вокруг плана. Отдельные клики не создают исполнительную.');return;}
   if(mode==='leader'&&!points.length){const r=sheet()?.routes.find(r=>r.id===routeId);w=nearestCablePoint(r?.paths||[r?.points||[]],w)||w;}
   points.push(w);
-  if(mode==='area'&&points.length===2){
-   area=[Math.min(points[0][0],w[0]),Math.min(points[0][1],w[1]),Math.max(points[0][0],w[0]),Math.max(points[0][1],w[1])];
-   chosen=selectExecutiveRoots(api.getDoc(),api.shapes(),area);selectionSource=api.getDoc().sourceFile;
-   $('exAreaInfo').textContent=`Выбрано объектов: ${chosen.length}. Исходник останется на месте.`;$('exCreate').disabled=!chosen.length;points=[];mode='';api.setTool('select');
-   if(chosen.length)$('exCreate').click();else api.status('В области нет подходящих объектов. Нажмите иконку листа с плюсом и выделите план заново.');
-  }else if(mode==='calibrate'&&points.length===2){try{mutate(p=>projectAPI.calibrateExecutive(p,active,points[0],points[1],Number($('exKnownMetres').value)));api.status('Масштаб метража обновлён для всех трасс этого листа.');}catch(e){api.status(e.message);}points=[];mode='';api.setTool('select');}
+  if(mode==='calibrate'&&points.length===2){try{mutate(p=>projectAPI.calibrateExecutive(p,active,points[0],points[1],Number($('exKnownMetres').value)));api.status('Масштаб метража обновлён для всех трасс этого листа.');}catch(e){api.status(e.message);}points=[];mode='';api.setTool('select');}
   else if((['route3','broken'].includes(mode)&&points.length===3)||(mode==='straight'&&points.length===2)){createCable(points,mode==='route3');points=[];mode='';api.setTool('object');}
   else if((mode==='route'||mode==='route3')&&points.length>1)api.status('Длина трассы: '+routeLength(cableCurve(points,mode==='route3'),sheet().metresPerUnit).toFixed(3)+' м · точек '+points.length);
   else if(mode==='leader'&&points.length===3){const [anchor,elbow,label]=points;mutate(p=>projectAPI.addLeader(p,active,routeId,{id:crypto.randomUUID(),anchor,elbow,label}));points=[];mode='';api.setTool('select');}
@@ -109,7 +112,7 @@ function assignSelection(){if(!sheet())throw Error('Выберите испол�
  function selectObject(id,ids){const record=api.getDoc().records.find(r=>r.id===id);for(const s of project().sheets){const r=s.routes.find(r=>r.id===record?.routeId||r.sourceIds?.some(source=>ids.includes(source)));if(r){active=s.id;routeId=r.id;refresh();cableFields();return;}}routeId='';$('exRouteList').value='';}
  function createCable(controls,smooth){if(!sheet())throw Error('Выберите исполнительную');const id=crypto.randomUUID();mutate(p=>projectAPI.addRoute(p,active,{id,points:cableCurve(controls,smooth),controls,smooth,...drawingPreset,extraMetres:0}));routeId=id;refresh();api.status('Кабель создан и включён в ведомость. Можно изменить марку, сечение и поставить выноску.');}
  const selectedRoute=()=>sheet()?.routes.find(r=>r.id===routeId);
- return {rebuild,tap,project,hover,selectObject,preview:()=>({mode,points,hoverPoint}),cancel:()=>{points=[];mode='';},sheet,route:selectedRoute,
+ return {rebuild,tap,project,hover,selectObject,finishArea,startArea:w=>{if(mode==='area'){points=[w];hoverPoint=w;api.draw();}},clearArea:()=>{if(mode==='area'){points=[];hoverPoint=null;api.draw();}},preview:()=>({mode,points,hoverPoint}),cancel:()=>{points=[];hoverPoint=null;mode='';},sheet,route:selectedRoute,
   editLeader:(sheetId,route,leaderId,values)=>mutate(p=>{const s=p.sheets.find(s=>s.id===sheetId),r=s?.routes.find(r=>r.id===route),l=r?.leaders.find(l=>l.id===leaderId);if(!l)throw Error('Выноска не найдена');if(values.remove){r.leaders=r.leaders.filter(l=>l.id!==leaderId);return;}for(const key of ['label','elbow'])if(values[key]){if(!Array.isArray(values[key])||values[key].length!==2||!values[key].every(Number.isFinite))throw Error('Неверная точка');l[key]=[...values[key]];}if(values.textHeight!==undefined){if(!Number.isFinite(values.textHeight)||values.textHeight<.2||values.textHeight>50)throw Error('Высота текста: от 0,2 до 50 мм');l.textHeight=values.textHeight;}for(const key of ['brand','section'])if(values[key]!==undefined){if(typeof values[key]!=='string'||values[key].length>1000)throw Error('Слишком длинное название');r[key]=values[key].trim();}}),
   selectRoute:id=>{routeId=id;refresh();cableFields();},
   beginLeaderAt:(p,elbow,label)=>{if(!selectedRoute()&&!assignSelection())return;const r=selectedRoute();if(!r||!p)throw Error('Выберите кабель');const q=nearestCablePoint(r.paths||[r.points],p);mutate(next=>projectAPI.addLeader(next,active,routeId,{id:crypto.randomUUID(),anchor:q,elbow,label}));mode='';points=[];api.status('Выноска поставлена. Марку и сечение можно изменить рядом с кабелем.');},
