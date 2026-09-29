@@ -1,4 +1,4 @@
-import {routeLength,cableGroups} from './cable-ledger.mjs?v=0.17.17';
+import {routeLength,cableGroups} from './cable-ledger.mjs?v=0.17.18';
 export function mountCableNavigator(api){
  const panel=document.createElement('details');panel.id='cableNavigator';panel.open=true;
  panel.innerHTML='<summary>Кабели <span id="cnCount"></span></summary><div class="cnBody"><div id="cnList"></div><p id="cnLength"></p><div class="cnFields"><label>Марка<input id="cnBrand" maxlength="1000"></label><label>Сечение<input id="cnSection" maxlength="1000"></label></div><label>Добавочная длина, м<input id="cnExtra" type="number" min="0" step="any"></label><div class="cnActions"><button id="cnApply">Применить</button><button id="cnShow">Показать</button></div><small id="cnHint"></small></div>';
