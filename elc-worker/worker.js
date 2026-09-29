@@ -1,3 +1,4 @@
+import { DEMO_BUILD_STAGE_RE, INVOICE_BUILD_STAGE_RE } from './production-stages.js';
 import { handleStageGroups, processStageGroups } from './wa-stage-groups.js';
 import { handleDealRequisites } from './deal-requisites.js';
 // ── ELC CRM Worker ───────────────────────────────────────
@@ -3083,9 +3084,7 @@ async function handleCreateTask(request, env) {
 //  доступ к демо — по временной токен-ссылке со сроком действия.
 // ═══════════════════════════════════════════════════════════════════════
 // Поддерживаем старые названия и рабочую стадию «Готов к сбору демо».
-const DEMO_BUILD_STAGE_RE = /(?:создани\w*\s*демо|демо\s*созда\w*|готов\w*\s*(?:к\s*)?сбор\w*\s*демо)/i;
 const DEMO_READY_STAGE_RE = /демо\s*готов/i;
-const INVOICE_BUILD_STAGE_RE = /(?:создани\w*\s*сч[её]т|сч[её]т\w*\s*созда\w*)/i;
 const LPR_FOUND_STAGE_RE = /лпр\s*найден/i;
 const DEMO_TOKEN_TTL_DAYS = 30;
 // Пока DNS pllato.kz обслуживается Hoster.kz, используем рабочий адрес Worker.
@@ -3965,7 +3964,7 @@ async function handleDealStageChange(request, env, dealId) {
       }, 422, request);
     }
   }
-  if (isDemoBuildStage && isMainMove && stageActuallyChanged) {
+  if (isDemoBuildStage && isMainMove) {
     const production = await dealProductionState(env, dealId);
     if (!production.transcript.ready) {
       return json({
@@ -4025,7 +4024,7 @@ async function handleDealStageChange(request, env, dealId) {
   let productionQueued = null;
   let productionError = null;
   let completedStageId = stageId;
-  if (isDemoBuildStage && isMainMove && stageActuallyChanged) {
+  if (isDemoBuildStage && isMainMove) {
     try {
       productionQueued = await enqueueDemoAndKp(
         env, dealId, me.canonicalUid || me.firebaseUid || '', pipelineId, stageId,

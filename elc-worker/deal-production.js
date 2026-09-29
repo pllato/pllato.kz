@@ -1,3 +1,4 @@
+import { DEMO_BUILD_STAGE_RE } from './production-stages.js';
 // Deal document production: transcription gate, AI brief, interactive demo,
 // commercial proposal and invoice pack. D1 is the durable queue; R2 stores
 // every generated artifact. The minute cron retries interrupted jobs.
@@ -753,13 +754,20 @@ export async function processDealProductionJobs(env, deps = {}, options = {}) {
   return { processed };
 }
 
+async function demoStartStage(env,dealId) {
+ const row=await env.DB.prepare('SELECT d.pipeline_id,d.stage_id,p.name AS pipeline_name,p.stages FROM deals d JOIN pipelines p ON p.id=d.pipeline_id WHERE d.id=?').bind(dealId).first();
+ if(!row)return null;
+ const name=safeJson(row.stages,{})[row.stage_id]?.name||'';
+ return DEMO_BUILD_STAGE_RE.test(name)||(String(row.pipeline_name).trim().toLowerCase()==='лидген'&&row.stage_id==='LOST')?row:null;
+}
+
 export async function handleDealProductionStatus(request, env, deps, dealId) {
   const auth = await deps.requireAuthFlexible(request, env);
   if (auth.error) return deps.json({ error: auth.error }, auth.status, request);
   const me = await deps.resolveCanonicalUser(env, auth.claims), access = deps.dealAccessSql(me);
   const deal = await env.DB.prepare('SELECT id FROM deals WHERE id=?' + access.where).bind(dealId, ...access.params).first();
   if (!deal) return deps.json({ error: 'Нет доступа к сделке' }, 403, request);
-  return deps.json({ ok: true, ...(await dealProductionState(env, dealId)) }, 200, request);
+  return deps.json({ ok: true, ...(await dealProductionState(env, dealId)), canStartDemo:Boolean(await demoStartStage(env,dealId)) }, 200, request);
 }
 
 export async function handleDealProductionRetry(request, env, deps, dealId) {
@@ -768,6 +776,15 @@ export async function handleDealProductionRetry(request, env, deps, dealId) {
   const me = await deps.resolveCanonicalUser(env, auth.claims);
   if (!await deps.canEditRecord(env, me, 'deals', dealId)) return deps.json({ error: 'Нет права изменения сделки' }, 403, request);
   await ensureDealProductionSchema(env);
+  const existing=await env.DB.prepare("SELECT id FROM deal_production_jobs WHERE deal_id=? AND kind='demo_kp'").bind(dealId).first();
+  if(!existing){
+    const stage=await demoStartStage(env,dealId);
+    if(!stage)return deps.json({error:'Для запуска демо переведите сделку на «Создание Демо»'},422,request);
+    try{
+      const queued=await enqueueDemoAndKp(env,dealId,me.canonicalUid||me.uid||'',stage.pipeline_id,stage.stage_id);
+      return deps.json({ok:true,requeued:1,jobId:queued.jobId},200,request);
+    }catch(e){return deps.json({error:e.message},422,request);}
+  }
   const at = nowIso();
   const changed = await env.DB.prepare("UPDATE deal_production_jobs SET status='queued',attempt=0,lease_until=NULL,next_attempt_at=NULL,error=NULL,updated_at=?,progress_stage='queued',progress_label='В очереди на повторный запуск',progress_percent=5 WHERE deal_id=? AND status='error'")
     .bind(at, dealId).run();
