@@ -1,11 +1,14 @@
-import {get,num,move,set} from './cad.mjs?v=0.17.21';
-import {localDelta} from './cable-edit.mjs?v=0.17.21';
-import {movableSpline,splineControls,setSplineControl} from './control-edit.mjs?v=0.17.21';
+import {get,num,move,set} from './cad.mjs?v=0.17.22';
+import {localDelta} from './cable-edit.mjs?v=0.17.22';
+import {movableSpline,splineControls,setSplineControl} from './control-edit.mjs?v=0.17.22';
 export function editObjects(doc,targets,{delta=[0,0],remove=false,color}={}){
  if(!targets.length||!delta.every(Number.isFinite))throw Error('Выберите объект');
  if(color!==undefined&&(!Number.isInteger(color)||color<1||color>255))throw Error('Неверный цвет');
+ // Resolve a group in one pass, not a full-file scan per selected segment.
+ const wanted=new Set(targets.map(t=>t.id)),records=new Map();
+ for(const r of doc.records)if(wanted.has(r.id)&&!records.has(r.id)){records.set(r.id,r);if(records.size===wanted.size)break;}
  const plans=targets.map(({id,matrix})=>{
-  const r=doc.records.find(r=>r.id===id);
+  const r=records.get(id);
   if(!r||r.id.startsWith('executive-')||!['LINE','LWPOLYLINE','ARC','CIRCLE','TEXT','MTEXT','INSERT',...((remove||movableSpline(r))?['SPLINE']:[])].includes(r.type)||(!remove&&(num(r,210)||num(r,220)||num(r,230,1)!==1)))throw Error('Этот тип объекта пока нельзя изменить: '+(r?.type||'не найден')+' · '+id);
   if(remove&&r.type==='MTEXT')throw Error('Удаление MTEXT пока не поддерживается');
   if(doc.executiveProject?.sheets.some(s=>s.nativeHandles.includes(get(r,5))))throw Error('Нельзя изменить весь лист этим инструментом');

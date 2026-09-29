@@ -1,5 +1,51 @@
 # Передача разработки DWG-редактора
 
+## Кандидат 0.17.22 — 30 сентября, ветка feat/dwg-box-move
+
+Публикация пока не подтверждена; PR/deploy записать после проверки.
+Добавлены компактная строка cable navigator с раскрытием настроек, datalist
+марок/сечений (свободный ввод сохранён), sheet navigator с повторным переходом
+к уже выбранной исполнительной. Browser compact-controls, workspace, toolbar,
+box-selection и workbench (включая synthetic DWG roundtrip) PASS.
+
+Скорость: scene-translation.mjs повторно использует незатронутые примитивы при
+точном переносе LINE/ARC/CIRCLE/LWPOLYLINE/SPLINE. Неподдерживаемые/общие экземпляры,
+неполные сцены, заливки и текст используют полный rebuild. CAD records/nativeOps,
+undo и recovery по-прежнему источник истины; это не замена нативной геометрии.
+object-edit ищет записи группы одним проходом вместо полного поиска на каждый
+сегмент. Unit проверяет совпадение с scene, включая rotated/scaled block.
+Воспроизводимый тест: node tests/dwg-translation-benchmark.mjs 50000.
+Chrome synthetic 50k LINE: медиана scene 192.3 ms против translation 5.8 ms
+(5 повторов; ТОЛЬКО геометрия, без индекса, paint, recovery).
+
+Реальный локальный DWG ~43 MB / 964317 примитивов: отдельное повторное чтение
+native-reader + передача doc 23834 ms; sceneAsync 5710.5 ms. Замер сделан при уже
+открытом файле в той же вкладке, не cold-open и не baseline на чистой памяти.
+12 чередований zoom +/-: 2 RAF медиана 24.5 ms, первый 183.9 ms;
+это НЕ длительность окончательного detailed paint. Общее ускорение 2x НЕ
+доказано. Следующий приоритет: reader/conversion/transfer, затем settled zoom
+и end-to-end редактирование на большом файле. Не выдавать synthetic 33x за
+ускорение всего приложения. Частные исходники/геометрия в repo не добавлены.
+
+Локально, НЕ опубликовано: box-selection.mjs и интеграция editor — рамка целых
+CAD-объектов и совместный drag, отдельный от «Рука · обзор». Shared instances,
+generated executive geometry и частично выбранные назначенные трассы отклоняются
+целиком. Unit и локальный synthetic browser PASS. Undo сбрасывает рамку.
+
+Новый скриншот экспорта показывает MOVE code 3. В native wrapper исправлена
+слишком строгая проверка ATTRIB: mtext_type=1 означает обычный однострочный
+атрибут R2018, допустим; >1 остаётся запрещён. Host regression
+tests/native/move-attrib-regression.c подтверждает перенос type=1 и атомарный
+отказ type=2. WASM пересобран, corresponding source archive обновлён.
+Native executive roundtrip и 106 unit tests прошли. Это НЕ доказательство
+исправления экспорта частного файла: переданный edited.dwg датирован 21:43,
+а ошибка на скриншоте 22:41 может включать более поздние browser nativeOps.
+После настройки MCP и перезапуска Chrome DevTools работает. Отдельный Playwright
+запущен с разрешением, перечисленные выше browser regression PASS.
+Нужны проверка текущего экспорта пользователя и PR/deploy/live verify.
+Существующий blocker
+экспорта MTEXT+xdictionary ниже не снят; защиту не обходить.
+
 Обновлено: 29 сентября 2026. Состояние кода: **0.17.21**.
 
 0.17.21: векторный PDF и точная диагностика отдельного DWG. НЕ считать запрос

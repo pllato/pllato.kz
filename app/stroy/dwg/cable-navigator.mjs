@@ -1,10 +1,10 @@
-import {routeLength,cableGroups} from './cable-ledger.mjs?v=0.17.21';
+import {routeLength,cableGroups} from './cable-ledger.mjs?v=0.17.22';
 export function mountCableNavigator(api){
- const panel=document.createElement('details');panel.id='cableNavigator';panel.open=true;
- panel.innerHTML='<summary>Кабели <span id="cnCount"></span></summary><div class="cnBody"><div id="cnList"></div><p id="cnLength"></p><div class="cnFields"><label>Марка<input id="cnBrand" maxlength="1000"></label><label>Сечение<input id="cnSection" maxlength="1000"></label></div><label>Добавочная длина, м<input id="cnExtra" type="number" min="0" step="any"></label><div class="cnActions"><button id="cnApply">Применить</button><button id="cnShow">Показать</button></div><small id="cnHint"></small></div>';
+ const panel=document.createElement('div');panel.id='cableNavigator';
+ panel.innerHTML='<div class="cnBar"><span id="cnCount" title="Количество марок и сечений на листе"></span><div id="cnList"></div><details id="cnSettings"><summary title="Параметры кабеля: марка, сечение, цвет и выпуски" aria-label="Параметры кабеля"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/></svg></summary><div class="cnBody"><p id="cnLength"></p><div class="cnFields"><label>Марка<input id="cnBrand" maxlength="1000"></label><label>Сечение<input id="cnSection" maxlength="1000"></label></div><label>Добавочная длина, м<input id="cnExtra" type="number" min="0" step="any"></label><div class="cnActions"><button id="cnApply">Применить</button><button id="cnShow">Показать</button></div><small id="cnHint"></small></div></details></div>';
  document.getElementById('viewport').append(panel);
  const $=id=>document.getElementById(id),list=$('exRouteList');list.closest('label').hidden=true;
- const groupLabel=document.createElement('label');groupLabel.textContent='Марка и сечение · сумма по листу';const groupList=document.createElement('select');groupList.id='cnGroup';groupList.title='Одинаковые марка и сечение объединены; длина включает все участки и выпуски / отпуски';groupLabel.append(groupList);$('cnList').append(groupLabel);
+ const groupList=document.createElement('select');groupList.id='cnGroup';groupList.setAttribute('aria-label','Кабели: марка, сечение и общая длина');groupList.title='Одинаковые марка и сечение объединены; длина включает все участки и выпуски / отпуски';$('cnList').append(groupList);
  let chosenGroup='',lastSheet='',groupSignature='',groups=[],lastRouteValues=[];
  groupList.onchange=()=>{chosenGroup=groupList.value;list.value='';list.dispatchEvent(new Event('change'));api.focusCable(groups.find(g=>g.key===chosenGroup)?.routeIds);api.draw();};
  $('cnExtra').parentElement.firstChild.textContent='Выпуски / отпуски, м';
