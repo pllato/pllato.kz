@@ -2,6 +2,13 @@
 
 ## 0.17.23 — 30 сентября, feat/dwg-september-fixes
 
+PR: https://github.com/pllato/pllato.kz/pull/860. Локально PASS: 114 unit,
+native executive + vertices/layers, browser workbench с title/Excel roundtrip,
+compact-controls, workspace, damage pixel comparison, executive export на
+двух fixtures. PDF страницы отрендерены и просмотрены. Финальный real-file
+замер: open 19725 ms; delete 201/200/283 ms; undo 114/117/99 ms, readerStarts=0.
+Публикацию подтверждать завершением Pages и live version 0.17.23.
+
 Предыдущая 0.17.22 опубликована PR859/Pages. Новые изменения и честный статус
 каждого пункта: [SEPTEMBER-REPORT.md](SEPTEMBER-REPORT.md). Не считать весь запрос
 выполненным: исходный частный DWG всё ещё ROOT_REJECT, неизвестные INSERT,
