@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Geometry view only. The original DWG remains the source for saving.
-import {fromRecords} from './cad.mjs?v=0.17';
-import {leaderParts} from './mleader.mjs?v=0.17';
-import {hatchGeometry} from './hatch.mjs?v=0.17';
+import {fromRecords} from './cad.mjs?v=0.17.1';
+import {leaderParts} from './mleader.mjs?v=0.17.1';
+import {hatchGeometry} from './hatch.mjs?v=0.17.1';
 export function nativeDocument(db){
  const blockNames=new Map(db.tables.BLOCK_RECORD.entries.map(b=>[b.handle,b.name||'@'+b.handle]));
  const textStyles=db.tables.STYLE?.entries||[],styleNames=new Map(textStyles.map(s=>[s.handle,s.name]));
@@ -23,7 +23,7 @@ export function nativeDocument(db){
    case 'MTEXT':point(p,10,e.insertionPoint);p.push([1,e.text],[7,e.styleName||'Standard'],[40,e.textHeight],[41,e.rectWidth||0],[71,e.attachmentPoint||1],[50,degrees(e.rotation)]);break;
    case 'INSERT':point(p,10,e.insertionPoint);p.push([2,blockNames.get(e.blockRecordId)||blockNames.get(e.recoveredBlockRecordId)||e.name],[41,e.xScale],[42,e.yScale],[50,degrees(e.rotation)],[70,e.columnCount||1],[71,e.rowCount||1],[66,e.attribs?.length?1:0]);break;
    case 'ELLIPSE':point(p,10,e.center);point(p,11,e.majorAxisEndPoint);p.push([40,e.axisRatio],[41,e.startAngle],[42,e.endAngle]);break;
-   case 'SPLINE':p.push([71,e.degree]);for(const v of e.controlPoints)point(p,10,v);for(const n of e.knots)p.push([40,n]);for(const n of e.weights||[])p.push([41,n]);break;
+   case 'SPLINE':p.push([71,e.degree],[74,e.fitPoints?.length||0]);for(const v of e.controlPoints)point(p,10,v);for(const n of e.knots)p.push([40,n]);for(const n of e.weights||[])p.push([41,n]);for(const v of e.fitPoints||[])point(p,11,v);break;
    case 'SOLID':case 'TRACE':case '3DFACE':for(let i=1;i<=4;i++)point(p,9+i,e['corner'+i]||e.corner3);break;
    case 'DIMENSION':p.push([2,e.name]);break;
    case 'POLYLINE2D':case 'POLYLINE3D':p.push([70,e.flag|(e.type==='POLYLINE3D'?8:0)]);break;
