@@ -1,3 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {splineControls,setSplineControl} from '../app/stroy/dwg/control-edit.mjs';
+import {splineControls,setSplineControl,previewSpline} from '../app/stroy/dwg/control-edit.mjs';
+import {editObjects} from '../app/stroy/dwg/object-edit.mjs';
+const curve=()=>({id:'dwg-A',type:'SPLINE',pairs:[[5,'A'],[71,2],[10,0],[20,0],[10,5],[20,10],[10,10],[20,0],...[0,0,0,1,1,1].map(n=>[40,n])]});
+test('spline drag logs exact control edits, not a replacement polyline',()=>{const r=curve(),doc={native:true,nativeOps:[],records:[r],entities:[r],blocks:new Map()};editObjects(doc,[{id:r.id}],{delta:[2,3]});assert.deepEqual(splineControls(r).map(h=>h.point),[[2,3],[7,13],[12,3]]);assert.equal(r.type,'SPLINE');assert.equal(doc.nativeOps.length,3);assert.ok(doc.nativeOps.every(op=>op.node&&op.dx===0&&op.dy===0));});
+test('live node preview bends the curve and leaves source unchanged',()=>{const r=curve(),before=structuredClone(r.pairs),h=splineControls(r)[1],path=previewSpline(r,h,[5,20]);assert.deepEqual(path[0],[0,0]);assert.deepEqual(path.at(-1),[10,0]);assert.ok(path.some(p=>p[1]>9));assert.deepEqual(r.pairs,before);});
 test('spline control edit preserves knots, weights and other points',()=>{const r={id:'x',type:'SPLINE',pairs:[[10,1],[20,2],[10,3],[20,4],[40,.5],[41,1]]};assert.deepEqual(splineControls(r,[2,0,0,2,10,20])[1].point,[16,28]);setSplineControl(r,1,7,8);assert.deepEqual(r.pairs,[[10,1],[20,2],[10,7],[20,8],[40,.5],[41,1]]);assert.throws(()=>setSplineControl(r,3,0,0));});

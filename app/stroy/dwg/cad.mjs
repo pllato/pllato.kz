@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {cadFont} from './fonts.mjs?v=0.17';
+import {cadFont} from './fonts.mjs?v=0.17.1';
 // DXF остаётся источником истины: неизвестные записи не вырезаются при экспорте.
 export const get=(r,c,d='')=>{const pairs=r._pairs||(r.raw===undefined?r.pairs:null);if(pairs){for(const p of pairs)if(p[0]===c)return p[1];}else{for(const p of groups(r.raw||''))if(p[0]===c)return p[1];}return d;};
 export const num=(r,c,d=0)=>Number(get(r,c,d));
@@ -42,7 +42,7 @@ const point=(r,x=10)=>[num(r,x),num(r,x+10)];
 const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
 const apply=(m,p)=>[m[0]*p[0]+m[2]*p[1]+m[4],m[1]*p[0]+m[3]*p[1]+m[5]];
 // Рациональная B-spline: контрольный многоугольник не выдаём за кривую.
-function spline(r){
+export function spline(r){
  const degree=num(r,71),cp=[],knots=[],weights=[];let p;
  for(const [c,v] of r.pairs){const n=Number(v);if(c===10){p=[n,0];cp.push(p);}else if(c===20&&p)p[1]=n;else if(c===40)knots.push(n);else if(c===41)weights.push(n);}
  const n=cp.length-1;if(!Number.isInteger(degree)||degree<1||degree>10||n<degree||knots.length!==n+degree+2||knots.some((v,i)=>!Number.isFinite(v)||(i&&v<knots[i-1]))||cp.some(p=>!p.every(Number.isFinite))||(weights.length&&weights.length!==cp.length))return null;
