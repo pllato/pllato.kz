@@ -101,3 +101,16 @@ test('Первый Zoom из карточки создаёт одну встре
     assert.equal((await f.request('/deals/deal_first/first-meeting','POST')).status,403);
   }finally{globalThis.fetch=original;}
 });
+
+test('архив использует точный file ID из списка при 404 UUID',async()=>{
+  const f=fixture();await f.connect();
+  f.db.prepare("INSERT INTO zoom_files(id,meeting_uuid,meeting_id,recording_start,extension,size) VALUES('wanted','uuid','123','2026-09-29T10:00:00Z','MP4',4)").run();
+  const original=globalThis.fetch;
+  globalThis.fetch=async(url)=>{
+    if(String(url).includes('/meetings/uuid/'))return Response.json({code:3301},{status:404});
+    if(String(url).includes('/users/me/recordings'))return Response.json({meetings:[{recording_files:[{id:'wrong',status:'completed',download_url:'https://zoom.us/wrong',file_size:4},{id:'wanted',status:'completed',download_url:'https://zoom.us/wanted',file_size:4}]}]});
+    assert.equal(String(url),'https://zoom.us/wanted');return new Response(new Uint8Array(4));
+  };
+  try{await processZoomJobs(f.env);assert.equal(f.db.prepare("SELECT status FROM zoom_files WHERE id='wanted'").get().status,'stored');}
+  finally{globalThis.fetch=original;}
+});
