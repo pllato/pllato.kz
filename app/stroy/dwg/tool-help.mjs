@@ -1,0 +1,22 @@
+// Presentation only. Keep legacy command elements for existing event handlers.
+const toolbar=document.getElementById('executiveToolbar');
+toolbar.querySelector('.executiveQuick')?.remove();
+for(const group of toolbar.querySelectorAll(':scope > details')){
+ const summary=group.querySelector('summary'),name=summary.textContent;
+ if(['Выноски','Перемещение','Список кабелей'].includes(name))group.hidden=true;
+ if(name==='Лист')summary.title='Оформление исполнительной: название, штамп и поворот всего плана.';
+ if(name==='Масштаб'){summary.textContent='Калибровка длины';summary.title='Укажите известное расстояние между двумя точками, чтобы настроить расчёт метров. Геометрия не меняется.';}
+}
+document.querySelector('header').append(toolbar);
+document.querySelector('#cableWorkbench summary').title='Открыть параметры выбранного кабеля: марку, сечение, цвет и выпуски / отпуски.';
+document.querySelector('#cableNavigator summary').title='Свернуть или раскрыть навигатор кабелей текущей исполнительной.';
+const device=document.getElementById('exDevice');device.hidden=false;device.classList.add('drawingIcon');device.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="6" y="6" width="12" height="12"/><path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4"/></svg>';document.querySelector('nav').append(device);
+const descriptions={
+ undo:['← Назад','Отменить последнее изменение чертежа.'],redo:['Вперёд →','Вернуть последнее отменённое изменение.'],fit:['Показать всё','Подобрать масштаб, чтобы весь чертёж поместился на экране. Объекты не меняются.'],
+ cwDraw:[null,'Нарисовать плавный кабель: укажите три точки. Длина рассчитывается при рисовании.'],cwMove:[null,'Перенести выбранное: нажмите кнопку, затем новое место. Можно также тянуть сам объект.'],cwCopy:[null,'Скопировать выбранное и указать место для независимой копии. Исходник останется на месте.'],cwDelete:[null,'Удалить выбранный кабель или объект. «Назад» возвращает удалённое.'],cwCut:[null,'Удалить часть между двумя точками кабеля. Для исходной CAD-кривой потребуется подтверждение приближения полилинией.'],cwRotate:[null,'Повернуть выбранный поддерживаемый прибор на 90°.'],cwRefine:[null,'Снять или вернуть выбор отдельной части кабеля без удаления. Также работает Shift + клик.'],cwLeader:[null,'Выберите кабель, нажмите эту кнопку, затем точку на кабеле — от неё начнётся выноска.'],
+ exDevice:[null,'Выбрать прибор целиком внутри исполнительной, а не отдельную линию его символа.'],plus:[null,'Приблизить чертёж на экране. Размеры объектов не меняются.'],minus:[null,'Отдалить чертёж на экране. Размеры объектов не меняются.'],grid:[null,'Показать или скрыть экранную сетку. Это не привязка и не изменение чертежа.'],demo:[null,'Открыть демонстрационный чертёж вместо текущего. Сначала сохраните работу.'],
+ cnApply:[null,'Сохранить марку, сечение и выпуски / отпуски выбранного кабеля; обновить выноски и ведомость.'],cnShow:[null,'Приблизить выбранный кабель и показать его на экране.'],panel:[null,'Открыть список исполнительных, слои и свойства объектов.'],historyButton:[null,'Открыть локальную историю сохранений и восстановить выбранную версию.'],save:[null,'Сохранить изменения в новой DWG-копии. Исходный файл не перезаписывается.'],
+ exRename:[null,'Изменить название активной исполнительной.'],exApply:[null,'Применить поворот, название и штамп активной исполнительной.'],exCalibrate:[null,'Укажите две точки известного расстояния. Значение в метрах задаётся в поле выше.']
+};
+for(const [id,[label,help]]of Object.entries(descriptions)){const el=document.getElementById(id);if(!el)continue;if(label)el.textContent=label;el.title=help;el.setAttribute('aria-label',label||help);}
+for(const [tool,label,help]of [['object',null,'Выбор по умолчанию: нажмите кабель или объект. Escape возвращает к выбору.'],['pan','Рука','Перетаскивайте чертёж для обзора другой области. Объекты не перемещаются.'],['line',null,'Нарисовать прямую: укажите начало и конец.'],['poly3',null,'Нарисовать полилинию: последовательно укажите три точки.'],['text',null,'Укажите место текста на чертеже, затем введите текст в открывшемся окне.'],['measure',null,'Укажите две точки, чтобы измерить прямое расстояние между ними.']]){const el=document.querySelector(`[data-tool="${tool}"]`);if(!el)continue;if(label)el.textContent=label;el.title=help;el.setAttribute('aria-label',help);}
