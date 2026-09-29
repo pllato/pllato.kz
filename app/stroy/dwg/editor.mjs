@@ -222,7 +222,7 @@ function applyObjectEdit(options){
  const targets=editTargets(!!options.remove);snapshot();try{editObjects(doc,targets,options);if(options.delta){const ids=new Set(targets.map(t=>t.id));for(const s of doc.executiveProject?.sheets||[])for(const r of s.routes)if(r.sourceIds?.every(id=>ids.has(id)))for(const l of r.leaders)for(const key of ['anchor','elbow','label'])l[key]=l[key].map((v,i)=>v+options.delta[i]);}if(options.remove){selected=null;selectedChain=null;}changed();}catch(e){history.pop();syncUndo();throw e;}
 }
 let workCopy=null,handleCache;
-leaderWorkbench=mountLeaderWorkbench({project:()=>doc.executiveProject,screen,world,draw,status,busy:()=>!$('busy').hidden,selecting:()=>tool==='object',clearCableSelection:()=>{selected=null;selectedChain=null;selectedShapeKey=null;selectedMatrix=null;sharedSelectedId=null;cached=null;},edit:(ref,values)=>executiveUI.editLeader(ref.sheetId,ref.routeId,ref.id,values)});
+leaderWorkbench=mountLeaderWorkbench({project:()=>doc.executiveProject,screen,world,draw,status,busy:()=>!$('busy').hidden,selecting:()=>tool==='object'&&!cableWorkbench?.exclusive(),clearCableSelection:()=>{selected=null;selectedChain=null;selectedShapeKey=null;selectedMatrix=null;sharedSelectedId=null;cached=null;},edit:(ref,values)=>executiveUI.editLeader(ref.sheetId,ref.routeId,ref.id,values)});
 function nativeHandles(){
  if(handleCache?.drawing===drawing&&handleCache.selected===selected&&handleCache.chain===selectedChain&&handleCache.key===selectedShapeKey)return handleCache.handles;
  let handles=[];if(selected)try{const records=new Map(doc.records.map(r=>[r.id,r]));handles=editTargets(true).flatMap(t=>splineControls(records.get(t.id),t.matrix||[1,0,0,1,0,0]));}catch{}

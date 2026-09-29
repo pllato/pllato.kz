@@ -62,5 +62,5 @@ export function mountCableWorkbench(api){
   if(api.selecting())for(const h of api.nativeHandles()){ctx.beginPath();ctx.arc(...api.screen(drag?.native?.id===h.id&&drag.native.index===h.index?drag.end:h.point),4,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.stroke();}
   ctx.restore();
  }
- return {down,move,up,paint,cancel:()=>{mode='';drag=null;cutStart=null;anchor=null;},refresh};
+ return {down,move,up,paint,exclusive:()=>['paste','move','cut'].includes(mode),cancel:()=>{mode='';drag=null;cutStart=null;anchor=null;},refresh};
 }
