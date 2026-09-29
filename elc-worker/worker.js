@@ -11,6 +11,16 @@ import { imapList, imapFetchMessage, imapFetchAttachment, smtpSend, mailTestConn
 import { ensureWaHistorySchema, syncWaHistory, recoverWaHistory } from "./wa-history.js";
 import { handleZoomRequest, processZoomJobs, ensureZoomForTask, syncZoomTask } from "./zoom.js";
 import { canChangeAnyDealStage } from "./stage-permissions.js";
+import {
+  dealProductionState,
+  enqueueDemoAndKp,
+  enqueueInvoicePack,
+  processDealProductionJobs,
+  handleDealProductionStatus,
+  handleDealProductionRetry,
+  handleDealArtifactFile,
+  handlePublicDemoArtifact,
+} from "./deal-production.js";
 
 // ctx последнего fetch/scheduled — чтобы фоновую рассылку пушей (несколько
 // сетевых запросов к FCM/Mozilla/Apple) повесить на ctx.waitUntil и не держать
@@ -3056,6 +3066,7 @@ async function handleCreateTask(request, env) {
 // Поддерживаем старые названия и рабочую стадию «Готов к сбору демо».
 const DEMO_BUILD_STAGE_RE = /(?:создани\w*\s*демо|демо\s*созда\w*|готов\w*\s*(?:к\s*)?сбор\w*\s*демо)/i;
 const DEMO_READY_STAGE_RE = /демо\s*готов/i;
+const INVOICE_BUILD_STAGE_RE = /(?:создани\w*\s*сч[её]т|сч[её]т\w*\s*созда\w*)/i;
 const LPR_FOUND_STAGE_RE = /лпр\s*найден/i;
 const DEMO_TOKEN_TTL_DAYS = 30;
 // Пока DNS pllato.kz обслуживается Hoster.kz, используем рабочий адрес Worker.
@@ -3684,6 +3695,17 @@ async function handlePersonalDemoServe(request, env, slug) {
   }
   let snapshot = {};
   try { snapshot = JSON.parse(demo.brief_snapshot || '{}'); } catch {}
+  if (snapshot.productionR2Key && env.FILES) {
+    const generated = await env.FILES.get(snapshot.productionR2Key);
+    if (generated) return new Response(generated.body, {
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=120',
+        'X-Robots-Tag': 'noindex, nofollow',
+        'Content-Security-Policy': "default-src 'self' 'unsafe-inline'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; frame-ancestors 'self' https://pllato.kz",
+      },
+    });
+  }
   const site = snapshot.siteProfile || {};
   const config = {
     company: demo.client_name || 'Компания',
@@ -3889,12 +3911,15 @@ async function handleDealStageChange(request, env, dealId) {
   // ── Гейт «Создание Демо»: не пускаем сделку на стадию без материалов ──
   // Определяем, называется ли целевая стадия «Создание Демо».
   let isDemoBuildStage = false;
+  let isInvoiceBuildStage = false;
   let isLprFoundStage = false;
+  let targetStageName = '';
   try {
     const pipRow = await env.DB.prepare("SELECT name, stages FROM pipelines WHERE id = ?").bind(pipelineId).first();
     if (pipRow && pipRow.stages) {
       const st = JSON.parse(pipRow.stages);
       const nm = (st && st[stageId] && st[stageId].name) || '';
+      targetStageName = String(nm || '');
       // У импортированной воронки системный id этого этапа — LOST. Не
       // полагаемся только на текстовое имя: старый код/кэш мог сохранить
       // вариант названия, который не совпадает с регулярным выражением.
@@ -3902,6 +3927,7 @@ async function handleDealStageChange(request, env, dealId) {
         DEMO_BUILD_STAGE_RE.test(nm)
         || (String(pipRow.name || '').trim().toLowerCase() === 'лидген' && stageId === 'LOST')
       ) isDemoBuildStage = true;
+      if (INVOICE_BUILD_STAGE_RE.test(nm)) isInvoiceBuildStage = true;
       if (LPR_FOUND_STAGE_RE.test(nm)) isLprFoundStage = true;
     }
   } catch {}
@@ -3921,11 +3947,23 @@ async function handleDealStageChange(request, env, dealId) {
     }
   }
   if (isDemoBuildStage && isMainMove && stageActuallyChanged) {
-    const bc = await demoBriefCompleteness(env, dealId);
-    if (!bc.complete) {
+    const production = await dealProductionState(env, dealId);
+    if (!production.transcript.ready) {
       return json({
-        error: "Нельзя перевести в «Готов к сбору демо»: заполните " + bc.missing.join(', ') + ".",
-        demoGate: true, missing: bc.missing,
+        error: `Нельзя перевести на «${targetStageName || 'Создание Демо'}»: в карточке нет готовой транскрипции встречи. Дождитесь загрузки VTT/TXT из Zoom или прикрепите транскрипцию.`,
+        demoGate: true, transcriptGate: true, missing: ['транскрипция встречи'],
+      }, 422, request);
+    }
+  }
+  if (isInvoiceBuildStage && isMainMove && stageActuallyChanged) {
+    const production = await dealProductionState(env, dealId);
+    const missing = [];
+    if (!production.requisites.ready) missing.push('реквизиты заказчика');
+    if (!production.commercial.ready) missing.push('готовое КП с графиком оплат');
+    if (missing.length) {
+      return json({
+        error: `Нельзя перевести на «${targetStageName || 'Создание счета'}»: добавьте ${missing.join(' и ')}.`,
+        invoiceGate: true, missing,
       }, 422, request);
     }
   }
@@ -3962,59 +4000,42 @@ async function handleDealStageChange(request, env, dealId) {
 
   await auditLog(env, me, "deal_stage_change", "deal", dealId, { pipelineId, stageId, isMirror: deal.pipeline_id !== pipelineId });
 
-  // ── Авто-сборка демо при входе в «Готов к сбору демо» ───────────────
-  // После успешной сборки записываем ссылку и текст в сделку, затем сами
-  // переводим её в «Демо готово». При ошибке карточка остаётся в очереди.
-  let demoBuild = null;
-  let demoBuildError = null;
+  // ── Производство демо/КП и счетов ───────────────────────────────────
+  // Тяжёлая генерация выполняется минутным cron. Здесь создаём идемпотентное
+  // задание и сразу возвращаем CRM статус «в очереди».
+  let productionQueued = null;
+  let productionError = null;
   let completedStageId = stageId;
   if (isDemoBuildStage && isMainMove && stageActuallyChanged) {
     try {
-      demoBuild = await createDemoForDeal(env, dealId, me);
-      let customFields = {};
-      try { customFields = deal.custom_fields ? JSON.parse(deal.custom_fields) : {}; } catch {}
-      customFields = {
-        ...customFields,
-        demoUrl: demoBuild.demoUrl,
-        demoMessage: demoBuild.message,
-        demoStatus: 'ready',
-        demoBuiltAt: new Date().toISOString(),
-        demoSlug: demoBuild.slug,
-      };
-      const pipeline = await env.DB.prepare("SELECT stages FROM pipelines WHERE id = ? LIMIT 1").bind(pipelineId).first();
-      let readyStageId = '';
-      try {
-        const stages = JSON.parse(pipeline?.stages || '{}');
-        for (const [key, value] of Object.entries(stages || {})) {
-          if (DEMO_READY_STAGE_RE.test(String(value?.name || ''))) {
-            readyStageId = String(value?.statusId || value?.id || key);
-            break;
-          }
-        }
-      } catch {}
-      completedStageId = readyStageId || stageId;
-      const builtAt = new Date().toISOString();
-      await env.DB.prepare(
-        "UPDATE deals SET custom_fields = ?, stage_id = ?, bitrix_date_modify = ?, stage_changed_at = ? WHERE id = ?"
-      ).bind(JSON.stringify(customFields), completedStageId, builtAt, builtAt, dealId).run();
-      if (completedStageId !== stageId) await logStageEvent(env, dealId, pipelineId, completedStageId, builtAt);
-      await auditLog(env, me, "deal_demo_built", "deal", dealId, {
-        demoId: demoBuild.id,
-        demoUrl: demoBuild.demoUrl,
-        sourceWebsite: demoBuild.profile.website,
-        productsFound: demoBuild.profile.products?.length || 0,
-        stageId: completedStageId,
-      });
+      productionQueued = await enqueueDemoAndKp(
+        env, dealId, me.canonicalUid || me.firebaseUid || '', pipelineId, stageId,
+        { notify: createNotification, logStageEvent },
+      );
+      await auditLog(env, me, 'deal_demo_kp_queued', 'deal', dealId, { jobId: productionQueued.jobId, pipelineId, stageId });
     } catch (e) {
-      demoBuildError = e?.message || 'Не удалось собрать демо';
-      console.error('createDemoForDeal:', e);
-      let customFields = {};
-      try { customFields = deal.custom_fields ? JSON.parse(deal.custom_fields) : {}; } catch {}
-      customFields.demoStatus = 'error';
-      customFields.demoBuildError = demoBuildError;
-      await env.DB.prepare("UPDATE deals SET custom_fields = ?, bitrix_date_modify = ? WHERE id = ?")
-        .bind(JSON.stringify(customFields), new Date().toISOString(), dealId).run();
+      productionError = e?.message || 'Не удалось поставить демо и КП в очередь';
+      console.error('enqueueDemoAndKp:', e);
     }
+  }
+  if (isInvoiceBuildStage && isMainMove && stageActuallyChanged) {
+    try {
+      productionQueued = await enqueueInvoicePack(
+        env, dealId, me.canonicalUid || me.firebaseUid || '', pipelineId, stageId,
+        { notify: createNotification, logStageEvent },
+      );
+      await auditLog(env, me, 'deal_invoices_queued', 'deal', dealId, { jobId: productionQueued.jobId, count: productionQueued.count, pipelineId, stageId });
+    } catch (e) {
+      productionError = e?.message || 'Не удалось поставить счета в очередь';
+      console.error('enqueueInvoicePack:', e);
+    }
+  }
+  if (productionError && isMainMove && stageActuallyChanged) {
+    const revertedAt = new Date().toISOString();
+    await env.DB.prepare('UPDATE deals SET stage_id=?,stage_changed_at=?,bitrix_date_modify=? WHERE id=?')
+      .bind(deal.stage_id, revertedAt, revertedAt, dealId).run();
+    await logStageEvent(env, dealId, pipelineId, deal.stage_id, revertedAt);
+    return json({ error: productionError, productionError: true }, 500, request);
   }
 
   // ── Auto-mirror triggers ───────────────────────────────────────────
@@ -4061,10 +4082,9 @@ async function handleDealStageChange(request, env, dealId) {
     ok: true, dealId, pipelineId, stageId: completedStageId,
     isMirror: deal.pipeline_id !== pipelineId,
     autoMirrored,
-    demoCreated: demoBuild?.id || null,
-    demoUrl: demoBuild?.demoUrl || null,
-    demoMessage: demoBuild?.message || null,
-    demoError: demoBuildError,
+    productionQueued: productionQueued?.jobId || null,
+    productionStatus: productionQueued?.status || null,
+    productionCount: productionQueued?.count || null,
   }, 200, request);
 }
 
@@ -12063,6 +12083,10 @@ export default {
     if (demoServeMatch && request.method === "GET") {
       return handleDemoServe(request, env, decodeURIComponent(demoServeMatch[1]));
     }
+    const productionDemoMatch = path.match(/^\/demo-artifact\/([a-f0-9]+)$/i);
+    if (productionDemoMatch && request.method === "GET") {
+      return handlePublicDemoArtifact(request, env, productionDemoMatch[1]);
+    }
     // Управление демо (auth).
     if (path === "/api/demos" && request.method === "GET") {
       return handleDemosList(request, env);
@@ -12221,6 +12245,20 @@ export default {
     }
     const requisitesMatch=path.match(/^\/api\/deals\/([^/]+)\/requisites(?:\/files\/([^/]+))?$/);
     if(requisitesMatch)return handleDealRequisites(request,env,{json,requireAuthFlexible,resolveCanonicalUser,dealAccessSql,canEditRecord,corsHeaders},decodeURIComponent(requisitesMatch[1]),requisitesMatch[2]?decodeURIComponent(requisitesMatch[2]):null);
+
+    const productionDeps = { json, requireAuthFlexible, resolveCanonicalUser, dealAccessSql, canEditRecord, corsHeaders };
+    const dealProductionMatch = path.match(/^\/api\/deals\/([^/]+)\/production$/);
+    if (dealProductionMatch && request.method === 'GET') {
+      return handleDealProductionStatus(request, env, productionDeps, decodeURIComponent(dealProductionMatch[1]));
+    }
+    const dealProductionRetryMatch = path.match(/^\/api\/deals\/([^/]+)\/production\/retry$/);
+    if (dealProductionRetryMatch && request.method === 'POST') {
+      return handleDealProductionRetry(request, env, productionDeps, decodeURIComponent(dealProductionRetryMatch[1]));
+    }
+    const dealArtifactMatch = path.match(/^\/api\/deal-artifacts\/([^/]+)\/file$/);
+    if (dealArtifactMatch && request.method === 'GET') {
+      return handleDealArtifactFile(request, env, productionDeps, decodeURIComponent(dealArtifactMatch[1]));
+    }
 
     // /api/deals/{id}/qualification — форма квалификации (бриф первого звонка)
     const dealQualMatch = path.match(/^\/api\/deals\/([^/]+)\/qualification$/);
@@ -12681,8 +12719,10 @@ export default {
   // Обрабатываем отложенные WA-сообщения которые пора слать.
   async scheduled(event, env, ctx) {
     ctx.waitUntil(processStageGroups(env).catch(e=>console.error('[wa-stage-groups]',e.message)));
-    ctx.waitUntil(processZoomJobs(env, createNotification).catch(e => console.error("[zoom] job failed", e.message)));
     CURRENT_CTX = ctx; // для фоновой рассылки Web Push из produceDeedReminders
+    ctx.waitUntil(processZoomJobs(env, createNotification).catch(e => console.error("[zoom] job failed", e.message)));
+    ctx.waitUntil(processDealProductionJobs(env, { notify: createNotification, logStageEvent }, { limit: 1 })
+      .catch(e => console.error('[deal-production] cron failed', e.message)));
     ctx.waitUntil((async () => {
       try {
         const res = await processScheduledWaMessages(env);

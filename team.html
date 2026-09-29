@@ -3420,6 +3420,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 import { stageGroupsClient } from './app/wa-stage-groups.js?v=20260929';
 const waStageGroups=stageGroupsClient({base:'https://pllato-elc-worker.uurraa.workers.dev',getToken:()=>fbAuth.currentUser.getIdToken()});
 import { mountDealRequisites } from './app/deal-requisites.js?v=20260929-autosave';
+import { mountDealProduction, renderDealProductionBadges } from './app/deal-production.js?v=20260929';
 import { zoomClient } from './app/zoom-crm.js?v=20260929-inline-media';
 const crmZoom = zoomClient({ base: 'https://pllato-elc-worker.uurraa.workers.dev', getToken: () => fbAuth.currentUser.getIdToken() });
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
@@ -13174,6 +13175,7 @@ function buildDealCard(d, stageColor) {
   const cfPills = [];
   for (const [k, v] of Object.entries(cfs)) {
     if (cfPills.length >= 2) break;
+    if (k.startsWith('_')) continue; // служебные статусы автоматизации не являются полями клиента
     const meta = cfSchema[k];
     if (meta && meta.type === 'checklist') continue; // у чек-листа свой прогресс-блок ниже
     if (v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) continue;
@@ -13274,6 +13276,7 @@ function buildDealCard(d, stageColor) {
     ${opp > 0 ? `<div class="kanban-card-money">${opp.toLocaleString('ru')} ₸</div>` : ''}
     ${phone ? `<div class="kanban-card-phone">📱 ${escapeHtml(phone)}</div>` : ''}
     ${cfPills.length ? `<div class="kanban-card-cf">${cfPills.join('')}</div>` : ''}
+    ${renderDealProductionBadges(cfs)}
     ${clHtml}
     ${stageAgeHtml}
     <div class="kanban-card-foot">
@@ -13669,8 +13672,9 @@ async function moveDealToStage(bitrixId, newStageId) {
       throw new Error(j.error || `HTTP ${r.status}`);
     }
     const okData = await r.json().catch(() => ({}));
-    if (okData.demoCreated) {
-      showToast('✅ Демо собрано и добавлено в App (pllato.kz/app)');
+    if (okData.productionQueued) {
+      const suffix = okData.productionCount ? `: ${okData.productionCount}` : '';
+      showToast(`✨ Создание документов запущено${suffix}`);
     } else {
       showToast(isMirror ? 'Стадия зеркала обновлена' : 'Стадия обновлена');
     }
@@ -14386,6 +14390,10 @@ async function openDealCard(dealKey) {
             <div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px;line-height:1.5">${escapeHtml(deal.comments)}</div>` : ''}
 
           <div id="dc-wa-stage-group"></div>
+
+          <div class="dc-section-h">Документы сделки</div>
+          <div id="dc-production"></div>
+
           <div class="dc-section-h">Реквизиты</div>
           <div id="dc-requisites" style="padding:12px 14px;background:var(--bg3);border-radius:8px"></div>
 
@@ -14504,6 +14512,12 @@ async function openDealCard(dealKey) {
   document.body.style.overflow = 'hidden';
   mountDealSourceSelect(modal, deal);
   waStageGroups.deal(modal.querySelector('#dc-wa-stage-group'),dealRecordId);
+  mountDealProduction(modal.querySelector('#dc-production'), {
+    dealId: dealRecordId,
+    base: WORKER_BASE_URL,
+    getToken: () => fbAuth.currentUser.getIdToken(),
+    onChanged: () => invalidateDealsCacheForPipeline(deal.pipelineId),
+  });
   mountDealRequisites(modal.querySelector('#dc-requisites'),{dealId:dealRecordId,canEdit:canEditDeal,base:WORKER_BASE_URL,getToken:()=>fbAuth.currentUser.getIdToken()});
   crmZoom.files(modal.querySelector("#dc-zoom-files"), dealRecordId, canEditDeal);
   crmZoom.dealMeetings(modal.querySelector("#dc-zoom-meetings"), dealRecordId);
