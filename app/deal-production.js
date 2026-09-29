@@ -39,6 +39,12 @@ function statusBadge(status) {
 
 function icon(kind) { return kind === 'demo' ? '✨' : kind === 'kp' ? '📘' : '🧾'; }
 
+function formatDateTime(value) {
+  const date = new Date(value || '');
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
 async function openPrivateFile(item, base, getToken) {
   const popup = window.open('', '_blank');
   if (popup) popup.document.write('<title>Открываем документ…</title><p style="font-family:sans-serif;padding:24px">Открываем документ…</p>');
@@ -72,7 +78,7 @@ export function renderDealProductionBadges(customFields = {}) {
 export function mountDealProduction(root, { dealId, base, getToken, onChanged }) {
   if (!root) return () => {};
   addStyles();
-  let stopped = false, timer = null, polls = 0;
+  let stopped = false, timer = null, polls = 0, transcriptFeedback = '';
   const request = async (path = '', options = {}) => {
     const token = await getToken();
     const response = await fetch(`${base}/api/deals/${encodeURIComponent(dealId)}/production${path}`, {
@@ -96,15 +102,20 @@ export function mountDealProduction(root, { dealId, base, getToken, onChanged })
   };
   const draw = data => {
     const items = data.items || [], active = items.some(x => x.status === 'queued' || x.status === 'building');
+    const transcriptReady = Boolean(data.transcript?.ready);
+    const transcriptWhen = formatDateTime(data.transcript?.createdAt);
+    const transcriptSource = data.transcript?.source === 'manual' ? 'Вручную' : 'Zoom';
+    const transcriptDetail = transcriptReady
+      ? `${transcriptSource} · ${data.transcript.name || 'готова'}${transcriptWhen ? ` · ${transcriptWhen}` : ''}`
+      : 'Нужен VTT/TXT';
     const gates = [
-      ['Транскрипция', data.transcript?.ready, data.transcript?.ready ? (data.transcript.name || 'Готова') : 'Нужен VTT/TXT'],
+      ['Транскрипция', transcriptReady, transcriptDetail],
       ['Реквизиты', data.requisites?.ready, data.requisites?.ready ? (data.requisites.files ? `Файлов: ${data.requisites.files}` : 'Заполнены') : 'Нужны для счетов'],
       ['График оплат', data.commercial?.ready, data.commercial?.ready ? `${data.commercial.paymentCount} платежей` : 'Появится из КП'],
     ];
-    const transcriptReady = Boolean(data.transcript?.ready);
     root.innerHTML = `<div class="dp-wrap"><div class="dp-head"><div><b>Комплект сделки</b><p>Демо, КП и все счета создаются и хранятся здесь</p></div>${data.summary?.hasErrors ? '<button class="dp-retry">Повторить</button>' : ''}</div>
       <div class="dp-gates">${gates.map(g => `<div class="dp-gate ${g[1] ? 'ok' : 'miss'}"><strong>${g[1] ? '✓' : '○'} ${esc(g[0])}</strong>${esc(g[2])}</div>`).join('')}</div>
-      <div class="dp-transcript"><div class="dp-transcript-head"><span>${transcriptReady ? 'Если Zoom-текст неполный, можно загрузить замену.' : 'Zoom не прислал текст? Добавьте его вручную.'}</span><div class="dp-transcript-actions"><button class="dp-open" data-transcript-paste>${transcriptReady ? 'Заменить текстом' : 'Вставить текст'}</button><button class="dp-open" data-transcript-file>Загрузить TXT/VTT</button><input data-transcript-input type="file" accept=".txt,.vtt,text/plain,text/vtt" hidden></div></div><div class="dp-transcript-editor"><textarea data-transcript-text maxlength="500000" placeholder="Вставьте сюда полный текст встречи. Желательно сохранить реплики, стоимость, сроки и условия оплаты."></textarea><div style="margin-top:7px"><button class="dp-open" data-transcript-save>Сохранить транскрипцию</button></div></div><div class="dp-transcript-status" role="status"></div></div>
+      <div class="dp-transcript"><div class="dp-transcript-head"><span>${transcriptReady ? `Активная версия: <b>${esc(transcriptSource)}</b>${transcriptWhen ? ` · ${esc(transcriptWhen)}` : ''}. Можно загрузить замену.` : 'Zoom не прислал текст? Добавьте его вручную.'}</span><div class="dp-transcript-actions"><button class="dp-open" data-transcript-paste>${transcriptReady ? 'Заменить текстом' : 'Вставить текст'}</button><button class="dp-open" data-transcript-file>Загрузить TXT/VTT</button><input data-transcript-input type="file" accept=".txt,.vtt,text/plain,text/vtt" hidden></div></div><div class="dp-transcript-editor"><textarea data-transcript-text maxlength="500000" placeholder="Вставьте сюда полный текст встречи. Желательно сохранить реплики, стоимость, сроки и условия оплаты."></textarea><div style="margin-top:7px"><button class="dp-open" data-transcript-save>Сохранить транскрипцию</button></div></div><div class="dp-transcript-status" role="status">${esc(transcriptFeedback)}</div></div>
       <div class="dp-list">${items.length ? items.map(item => `<div class="dp-item"><span class="dp-icon">${icon(item.kind)}</span><span class="dp-copy"><b>${esc(item.title)}</b><small>${item.amount != null ? new Intl.NumberFormat('ru-RU').format(item.amount) + ' ' + esc(item.currency || '') : esc(item.fileName || (item.kind === 'demo' ? 'Интерактивная ссылка' : 'PDF'))}</small>${item.error ? `<span class="dp-error">${esc(item.error)}</span>` : ''}</span>${statusBadge(item.status)}${item.status === 'ready' ? `<button class="dp-open" data-artifact="${esc(item.id)}">Открыть</button>` : ''}</div>`).join('') : '<div class="dp-empty">Документы ещё не запускались. Они появятся после перевода сделки на соответствующую стадию.</div>'}</div></div>`;
     const transcriptEditor = root.querySelector('.dp-transcript-editor');
     const transcriptText = root.querySelector('[data-transcript-text]');
@@ -120,8 +131,9 @@ export function mountDealProduction(root, { dealId, base, getToken, onChanged })
       buttons.forEach(button => { button.disabled = true; });
       transcriptStatus.textContent = 'Сохраняем транскрипцию…';
       try {
-        await uploadTranscript(file);
-        transcriptStatus.textContent = 'Транскрипция прикреплена к сделке';
+        const uploaded = await uploadTranscript(file);
+        transcriptFeedback = `✓ Загружено вручную: ${uploaded.recording?.name || file.name} · используется эта версия`;
+        transcriptStatus.textContent = transcriptFeedback;
         polls = 0;
         if (onChanged) onChanged();
         await load();
@@ -159,7 +171,9 @@ export function mountDealProduction(root, { dealId, base, getToken, onChanged })
       catch (error) { alert('Не удалось перезапустить: ' + error.message); retry.disabled = false; }
     };
     clearTimeout(timer);
-    if (!stopped && active && polls++ < 40) timer = setTimeout(load, 8000);
+    // Новая Zoom-транскрипция может появиться уже после открытия карточки.
+    // Обновляем блок и в спокойном состоянии, чтобы пользователь увидел её без перезагрузки.
+    if (!stopped && polls++ < 120) timer = setTimeout(load, active ? 8000 : 20000);
   };
   const load = async () => {
     try { draw(await request()); }

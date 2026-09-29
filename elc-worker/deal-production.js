@@ -75,7 +75,7 @@ export function isTranscriptRecord(row) {
 async function latestTranscript(env, dealId) {
   const rows = [];
   try {
-    const { results } = await env.DB.prepare(`SELECT id,r2_key,kind,extension,topic AS name,
+    const { results } = await env.DB.prepare(`SELECT id,r2_key,kind,extension,topic AS name,size,
       recording_start AS created_at,'zoom' AS source FROM zoom_files
       WHERE deal_id=? AND status='stored' AND r2_key IS NOT NULL ORDER BY recording_start DESC LIMIT 100`)
       .bind(dealId).all();
@@ -83,7 +83,7 @@ async function latestTranscript(env, dealId) {
   } catch {}
   try {
     const { results } = await env.DB.prepare(`SELECT id,r2_key,COALESCE(kind,'recording') AS kind,
-      name,content_type,uploaded_at AS created_at,'qualification' AS source
+      name,size,content_type,uploaded_at AS created_at,'manual' AS source
       FROM deal_qual_recordings WHERE deal_id=? ORDER BY uploaded_at DESC LIMIT 100`).bind(dealId).all();
     rows.push(...(results || []).filter(isTranscriptRecord));
   } catch {}
@@ -152,7 +152,10 @@ export async function dealProductionState(env, dealId) {
   const kp = items.find(item => item.kind === 'kp' && item.status === 'ready');
   const plan = Array.isArray(kp?.metadata?.paymentPlan) ? kp.metadata.paymentPlan : [];
   return {
-    transcript: { ready: Boolean(transcript), name: transcript?.name || null, createdAt: transcript?.created_at || null },
+    transcript: {
+      ready: Boolean(transcript), name: transcript?.name || null, createdAt: transcript?.created_at || null,
+      source: transcript?.source || null, size: transcript?.size == null ? null : Number(transcript.size),
+    },
     requisites: { ready: requisites.ready, files: requisites.files, updatedAt: requisites.updatedAt },
     commercial: { ready: Boolean(kp && plan.length), paymentCount: plan.length },
     summary: summarizeArtifacts(items), items,
