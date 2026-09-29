@@ -1,4 +1,4 @@
-import {get,num} from './cad.mjs?v=0.17.18';
+import {get,num} from './cad.mjs?v=0.17.19';
 export const isNew=r=>r?.id?.startsWith('new-');
 export function additions(doc){return doc.entities.filter(isNew).map(r=>{
  const color=num(r,62);const style=color>=1&&color<=255?{color}:{};if(r.pairs.some(p=>p[0]===370))style.lineweight=num(r,370);if(get(r,420)!=='')style.rgb=num(r,420);

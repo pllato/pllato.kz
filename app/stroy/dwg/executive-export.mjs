@@ -1,6 +1,6 @@
-import {executiveEntities} from './executive-project.mjs?v=0.17.18';
-import {paintShapes} from './renderer.mjs?v=0.17.18';
-import {aciColors} from './colors.mjs?v=0.17.18';
+import {executiveEntities} from './executive-project.mjs?v=0.17.19';
+import {paintShapes} from './renderer.mjs?v=0.17.19';
+import {aciColors} from './colors.mjs?v=0.17.19';
 
 export function executivePages(project,shapes,assigned){
  if(!project?.sheets.length)throw Error('Сначала создайте исполнительную');

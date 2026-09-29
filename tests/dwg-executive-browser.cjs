@@ -12,7 +12,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  await page.locator('#file').setInputFiles(fixture);await page.waitForFunction(()=>document.querySelector('#busy').hidden,null,{timeout:120000});
  assert.match(await page.locator('#status').textContent(),/Открыт/);
  await page.locator('#units').selectOption('.001');await control('#exArea').click();
- let b=await page.locator('#canvas').boundingBox();await page.mouse.click(b.x+3,b.y+3);await page.mouse.click(b.x+b.width-3,b.y+b.height-3);
+ let b=await page.locator('#canvas').boundingBox();await page.mouse.move(b.x+3,b.y+3);await page.mouse.down();await page.mouse.move(b.x+b.width-3,b.y+b.height-3,{steps:8});await page.mouse.up();
  assert.equal(await page.locator('#exCreate').isDisabled(),false);
  const sourceRight=await page.evaluate(()=>Math.max(...globalThis.__executiveTest.state().drawing.shapes.map(s=>s.bounds[2])));
  const failWorker=route=>route.fulfill({contentType:'application/javascript',body:'self.onmessage=()=>self.postMessage({error:"Проверочная ошибка копирования"});'});
