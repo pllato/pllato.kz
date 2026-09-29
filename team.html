@@ -11802,13 +11802,13 @@ function bindWaAttachButton(attachBtn, chatRefGetter, onSent) {
         close();
         const kind = opt.dataset.waAttach;
         const accept = kind === 'image' ? 'image/*' : kind === 'video' ? 'video/*' : '*/*';
+        const chatRef = chatRefGetter();
         const file = await pickWaFile(accept);
         if (!file) return;
         const orig = attachBtn.innerHTML;
         attachBtn.disabled = true;
         attachBtn.innerHTML = '⏳';
         try {
-          const chatRef = chatRefGetter();
           await sendWaMediaFile(chatRef, file, file.name, null, onSent);
           if (typeof showToast === 'function') showToast('Отправлено');
         } catch (e) {
@@ -11827,12 +11827,12 @@ function bindWaVoiceButton(voiceBtn, chatRefGetter, onSent) {
   if (!voiceBtn) return;
   voiceBtn.onclick = async () => {
     const orig = voiceBtn.innerHTML;
+    const chatRef = chatRefGetter();
     const blob = await recordWaVoice(voiceBtn);
     if (!blob) return;  // отмена или слишком короткая
     voiceBtn.innerHTML = '⏳';
     voiceBtn.disabled = true;
     try {
-      const chatRef = chatRefGetter();
       const ext = (blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm');
       const fileName = `voice-${Date.now()}.${ext}`;
       await sendWaMediaFile(chatRef, blob, fileName, null, onSent);
@@ -11991,7 +11991,7 @@ function renderWaMessageHtml(m, isGroup) {
 // ── Embedded WhatsApp pane внутри карточки сделки ───────────────────────
 // Подгружает историю по chatId (резолвится из phone через /api/wa/chats),
 // отрисовывает сообщения, навешивает send/attach, запускает polling каждые
-// 10 секунд пока сделка открыта. mark-read-by-deal при первом mount'е.
+// Личный и групповой чаты сделки используют отдельные получатели и черновики.
 async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, contactName) {
   const pane = modal.querySelector('#dc-wa-pane');
   const body = modal.querySelector('#dc-wa-body');
@@ -11999,73 +11999,98 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
   const sendBtn = modal.querySelector('#dc-wa-send');
   const attachBtn = modal.querySelector('#dc-wa-attach');
   const statusEl = modal.querySelector('#dc-wa-status');
+  const tabs = modal.querySelector('#dc-wa-tabs');
   if (!pane || !body) return;
-
-  // Нормализуем номер → chatId
+  const controls = [input, sendBtn, attachBtn, modal.querySelector('#dc-wa-voice')];
+  controls.forEach(el => { if (el) el.disabled = true; });
   const digits = String(contactPhone || '').replace(/\D/g, '').replace(/^8(\d{10})$/, '7$1');
-  if (!digits) {
-    body.innerHTML = '<div class="dc-wa-empty">Неверный номер</div>';
-    return;
-  }
-  const rawChatId = `${digits}@c.us`;
-
-  // Резолвим canonicalChatId через worker (нужен instanceId) — ищем существующий
-  // чат, иначе используем "wa::{phone}@c.us" как фолбэк. Send всё равно сработает —
-  // worker сам построит chatDocId из id_instance активного канала.
-  let canonicalChatId = null;
-  let instanceId = null;
-  try {
-    const idToken = await fbAuth.currentUser.getIdToken();
-    const list = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=500${digits ? `&phone=${encodeURIComponent(digits)}` : ''}`, {
-      headers: { 'Authorization': `Bearer ${idToken}` },
-    }).then(r => r.ok ? r.json() : null).catch(() => null);
-    const match = findWaRecipientChat(list?.items, rawChatId);
-    if (match) {
-      canonicalChatId = match.id;
-      instanceId = match.instanceId || null;
+  const states = [];
+  let groupsError = '';
+  const select = (state) => {
+    if (pane._waState) pane._waState.draft = input.value;
+    pane._waState = state;
+    pane._waGeneration = (pane._waGeneration || 0) + 1;
+    input.value = state?.draft || '';
+    input.placeholder = state?.isGroup ? 'Написать в группу…' : 'Написать клиенту лично…';
+    controls.forEach(el => { if (el) el.disabled = !state; });
+    sendBtn.disabled = !state || !!state.sending;
+    body.dataset.lastTs = '0';
+    body.innerHTML = '<div class="dc-wa-empty">Загружаем переписку…</div>';
+    statusEl.textContent = '';
+    drawTabs();
+    if (state) renderDealWaMessages(pane);
+    else body.innerHTML = '<div class="dc-wa-empty">Укажите телефон клиента или настройте создание группы по этапу воронки.</div>';
+  };
+  const drawTabs = () => {
+    tabs.replaceChildren();
+    for (const state of states) {
+      const button = document.createElement('button');
+      button.className = 'tbtn tbtn-sm';
+      button.textContent = state.isGroup ? '👥 ' + state.contactName : '💬 Личная переписка';
+      button.setAttribute('aria-pressed', String(pane._waState === state));
+      button.style.fontWeight = pane._waState === state ? '700' : '400';
+      button.style.borderColor = pane._waState === state ? '#25D366' : '';
+      button.onclick = () => select(state);
+      tabs.appendChild(button);
     }
-  } catch {}
-
-  // Сохраним state на pane для send/poll
-  pane._waState = { rawChatId, canonicalChatId, phone: digits, instanceId, contactName, dealId: deal.bitrixId };
-
-  // Первый рендер
-  await renderDealWaMessages(pane);
-
-  // Mark-read для всей сделки (обнуляет unread по всем привязанным чатам)
-  try {
-    const idToken = await fbAuth.currentUser.getIdToken();
-    fetch(`${WORKER_BASE_URL}/api/wa/mark-read-by-deal`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-      body: JSON.stringify({ dealId: deal.bitrixId }),
-    }).catch(() => {});
-  } catch {}
-  // Инвалидируем кеш активности — бейдж на канбане исчезнет при следующем рендере
-  const act = dealsState.activityByPipeline[dealsState.activePipelineId];
-  if (act?.wa?.[deal.bitrixId]) {
-    act.wa[deal.bitrixId].unreadCount = 0;
+    if (!states.some(s => s.isGroup)) {
+      const hint = document.createElement('span');
+      hint.style.cssText = 'font-size:12px;color:var(--t3)';
+      hint.textContent = groupsError || 'Группа появится после создания на настроенном этапе.';
+      tabs.appendChild(hint);
+    }
+  };
+  const loadGroups = async () => {
+    try {
+      const token = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/wa/stage-groups/deals/${encodeURIComponent(getDealRecordId(deal))}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error('Не удалось загрузить группы');
+      const data = await r.json();
+      if (!pane.isConnected) return;
+      for (const chat of data.chats || []) {
+        if (!states.some(s => s.canonicalChatId === chat.id)) states.push({rawChatId:chat.chat_id,canonicalChatId:chat.id,instanceId:chat.instance_id,phone:'',isGroup:true,contactName:chat.name || 'Группа сделки'});
+      }
+      groupsError = '';
+    } catch { groupsError = 'Группы временно недоступны. Повторяем загрузку…'; }
+    if (!pane.isConnected) return;
+    if (!pane._waState && states.length) select(states[0]);
+    else drawTabs();
+  };
+  if (digits) {
+    const state = {rawChatId:`${digits}@c.us`,canonicalChatId:null,phone:digits,instanceId:null,contactName,isGroup:false};
+    try {
+      const token = await fbAuth.currentUser.getIdToken();
+      const r = await fetch(`${WORKER_BASE_URL}/api/wa/chats?scope=all&limit=500&phone=${encodeURIComponent(digits)}`, {headers:{Authorization:`Bearer ${token}`}});
+      if (!r.ok) throw new Error('Не удалось загрузить личную переписку');
+      const list = await r.json();
+      const match = findWaRecipientChat(list.items, state.rawChatId);
+      if (match) { state.canonicalChatId = match.id; state.instanceId = match.instanceId; }
+      states.push(state);
+    } catch (e) { statusEl.textContent = e.message; }
   }
-
-  // Polling — обновление каждые 10 секунд пока модалка открыта
+  if (!pane.isConnected) return;
+  select(states[0] || null);
+  await loadGroups();
+  if (!pane.isConnected) return;
   if (window.__dcWaPollTimer) clearInterval(window.__dcWaPollTimer);
-  // 3 секунды — частый poll для ощущения реактивности. Delta-режим
-  // (since=lastTs) почти ничего не нагружает.
+  let ticks = 0, loadingGroups = false;
   window.__dcWaPollTimer = setInterval(() => {
-    // Проверяем что модалка ещё открыта
-    if (!document.body.contains(pane)) {
-      clearInterval(window.__dcWaPollTimer);
-      window.__dcWaPollTimer = null;
-      return;
-    }
+    if (!pane.isConnected) { clearInterval(window.__dcWaPollTimer); window.__dcWaPollTimer = null; return; }
     renderDealWaMessages(pane, { silent: true });
+    if (++ticks % 5 === 0 && !loadingGroups) {
+      loadingGroups = true;
+      loadGroups().finally(() => { loadingGroups = false; });
+    }
   }, 3000);
 
   // Handlers
   if (sendBtn && input) {
     const send = async (mediaUrl, fileName) => {
-      const text = input.value.trim();
-      if (!text && !mediaUrl) return;
+      const state = pane._waState;
+      const draft = input.value;
+      const text = draft.trim();
+      if (!state || state.sending || (!text && !mediaUrl)) return;
+      state.sending = true;
       sendBtn.disabled = true;
       try {
         const idToken = await fbAuth.currentUser.getIdToken();
@@ -12073,22 +12098,26 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
           body: JSON.stringify({
-            chatId: pane._waState.canonicalChatId || pane._waState.rawChatId,
-            phone: pane._waState.phone,
-            instanceId: pane._waState.instanceId,
+            chatId: state.canonicalChatId || state.rawChatId,
+            phone: state.phone,
+            instanceId: state.instanceId,
             text, mediaUrl, fileName,
           }),
         });
         const data = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
-        input.value = '';
-        if (data.chatId) pane._waState.canonicalChatId = data.chatId;
-        await renderDealWaMessages(pane);
+        if (state.draft === draft) state.draft = '';
+        if (data.chatId) state.canonicalChatId = data.chatId;
+        if (pane._waState === state) {
+          if (input.value === draft) input.value = '';
+          await renderDealWaMessages(pane);
+        }
       } catch (e) {
         if (statusEl) statusEl.textContent = '⚠ ' + e.message;
         alert('Ошибка отправки WhatsApp: ' + e.message);
       } finally {
-        sendBtn.disabled = false;
+        state.sending = false;
+        sendBtn.disabled = !pane._waState || !!pane._waState.sending;
       }
     };
     sendBtn.onclick = () => send('', '');
@@ -12111,6 +12140,9 @@ async function renderDealWaMessages(pane, opts = {}) {
   if (!body) return;
   const state = pane._waState;
   if (!state) return;
+  const generation = pane._waGeneration;
+  if (opts.silent && pane._waLoading === generation) return;
+  const current = () => pane.isConnected && pane._waState === state && pane._waGeneration === generation;
 
   if (!state.canonicalChatId) {
     // Чата ещё нет — покажем заглушку
@@ -12120,6 +12152,7 @@ async function renderDealWaMessages(pane, opts = {}) {
     return;
   }
 
+  pane._waLoading = generation;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
     // Реактивность: на silent-polling — only delta (since=lastTs).
@@ -12130,13 +12163,15 @@ async function renderDealWaMessages(pane, opts = {}) {
     const r = await fetch(url, { headers: { 'Authorization': `Bearer ${idToken}` } });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
+    if (!current()) return;
     const items = data.items || [];
+    fetch(`${WORKER_BASE_URL}/api/wa/mark-read`, {method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${idToken}`},body:JSON.stringify({chatId:state.canonicalChatId})}).catch(() => {});
 
     if (opts.silent && lastTs > 0) {
       // Delta-режим — добавляем только новые в конец
       if (!items.length) return;  // нет новых, тихо
       const wasAtBottom = (body.scrollHeight - body.scrollTop - body.clientHeight) < 50;
-      body.insertAdjacentHTML('beforeend', items.map(m => renderWaMessageHtml(m)).join(''));
+      body.insertAdjacentHTML('beforeend', items.map(m => renderWaMessageHtml(m, state.isGroup)).join(''));
       const newLastTs = items[items.length - 1].ts;
       if (newLastTs > lastTs) body.dataset.lastTs = String(newLastTs);
       if (wasAtBottom) body.scrollTop = body.scrollHeight;
@@ -12151,12 +12186,12 @@ async function renderDealWaMessages(pane, opts = {}) {
 
     // Full render
     if (!items.length) {
-      body.innerHTML = `<div class="dc-wa-empty">📭 Истории пока нет.<br>Напиши первое сообщение клиенту.</div>`;
+      body.innerHTML = `<div class="dc-wa-empty">📭 Истории пока нет.<br>Напиши первое сообщение в этот чат.</div>`;
       body.dataset.lastTs = '0';
       if (statusEl) statusEl.textContent = '';
       return;
     }
-    body.innerHTML = items.map(m => renderWaMessageHtml(m)).join('');
+    body.innerHTML = items.map(m => renderWaMessageHtml(m, state.isGroup)).join('');
     body.dataset.lastTs = String(items[items.length - 1].ts);
     body.scrollTop = body.scrollHeight;
     if (statusEl) {
@@ -12165,9 +12200,11 @@ async function renderDealWaMessages(pane, opts = {}) {
       statusEl.textContent = ago < 1 ? '· только что' : ago < 60 ? `· ${ago}м назад` : ago < 1440 ? `· ${Math.floor(ago / 60)}ч назад` : `· ${Math.floor(ago / 1440)}д назад`;
     }
   } catch (e) {
-    if (!opts.silent) {
+    if (current() && !opts.silent) {
       body.innerHTML = `<div class="dc-wa-empty" style="color:#c00">Ошибка: ${escapeHtml(e.message)}</div>`;
     }
+  } finally {
+    if (pane._waLoading === generation) pane._waLoading = null;
   }
 }
 
@@ -14389,13 +14426,14 @@ async function openDealCard(dealKey) {
             <span class="dc-wa-status" id="dc-wa-status" style="font-size:11px;color:var(--t3);font-weight:400"></span>
           </div>
           <div class="dc-wa-pane" id="dc-wa-pane" data-deal-id="${escapeHtml(dealPublicId)}" data-phone="${escapeHtml(contactPhone || '')}" data-contact-name="${escapeHtml(contactName || '')}">
+            <div id="dc-wa-tabs" style="display:flex;flex-wrap:wrap;gap:8px;padding:10px;background:var(--bg2)"></div>
             <div class="dc-wa-body" id="dc-wa-body"><div class="dc-wa-empty">${contactPhone ? '⏳ Загружаем историю…' : '📱 У контакта не указан телефон — WhatsApp недоступен.'}</div></div>
-            ${contactPhone ? `<div class="dc-wa-input-wrap">
+            <div class="dc-wa-input-wrap">
               <button class="dc-wa-attach" id="dc-wa-attach" title="Прикрепить фото/видео/файл">📎</button>
               <button class="dc-wa-attach" id="dc-wa-voice" title="Записать голосовое сообщение" style="margin-left:4px">🎙</button>
               <textarea class="dc-wa-input" id="dc-wa-input" placeholder="Написать в WhatsApp..." rows="1"></textarea>
               <button class="dc-wa-send" id="dc-wa-send">Отправить</button>
-            </div>` : ''}
+            </div>
           </div>
           ${latestOpenlinesActivity
             ? `<div class="dc-section-h" style="margin-top:18px">📜 Старая переписка Bitrix</div>
@@ -14532,9 +14570,7 @@ async function openDealCard(dealKey) {
   }
 
   // WhatsApp pane в правой колонке — embedded чат (история + отправка)
-  if (contactPhone) {
-    mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, contactName);
-  }
+  mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, contactName);
 
   // ── 🔁 Зеркало в другую воронку ─────────────────────────────────────
   const mirrorBtn = modal.querySelector('#dc-mirror-btn');

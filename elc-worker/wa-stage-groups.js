@@ -132,7 +132,8 @@ export async function handleStageGroups(request,env,deps){
     const group=await env.DB.prepare('SELECT name,group_id,invite_link,status FROM wa_deal_groups WHERE deal_id=?').bind(dealId).first();
     const {results:jobs}=await env.DB.prepare('SELECT event_id,status,error FROM wa_stage_group_jobs WHERE deal_id=? ORDER BY event_id DESC LIMIT 10').bind(dealId).all();
     const {results:people}=await env.DB.prepare('SELECT label,status,error FROM wa_group_people WHERE deal_id=?').bind(dealId).all();
-    return json({group,jobs,people,admin:me.role==='admin'},200,request);
+    const {results:chats}=await env.DB.prepare('SELECT id,chat_id,instance_id,name FROM wa_chats WHERE deal_id=? AND is_group=1 ORDER BY name').bind(dealId).all();
+    return json({group,jobs,people,chats,admin:me.role==='admin'},200,request);
    }
    if(me.role!=='admin')return json({error:'Только администратор'},403,request);
    if(request.method!=='POST')return json({error:'Method not allowed'},405,request);
