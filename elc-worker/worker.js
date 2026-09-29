@@ -1,3 +1,4 @@
+import { handleDealRequisites } from './deal-requisites.js';
 // ── ELC CRM Worker ───────────────────────────────────────
 // Phase 0: CORS + Firebase Auth verification + /health + /api/me
 // Phase 2.1: RTDB-proxy endpoint /api/rtdb/{path}.json (read + PATCH)
@@ -12215,6 +12216,9 @@ export default {
     if (dealTimelineMatch && request.method === "GET") {
       return handleDealTimeline(request, env, dealTimelineMatch[1]);
     }
+    const requisitesMatch=path.match(/^\/api\/deals\/([^/]+)\/requisites(?:\/files\/([^/]+))?$/);
+    if(requisitesMatch)return handleDealRequisites(request,env,{json,requireAuthFlexible,resolveCanonicalUser,dealAccessSql,canEditRecord,corsHeaders},decodeURIComponent(requisitesMatch[1]),requisitesMatch[2]?decodeURIComponent(requisitesMatch[2]):null);
+
     // /api/deals/{id}/qualification — форма квалификации (бриф первого звонка)
     const dealQualMatch = path.match(/^\/api\/deals\/([^/]+)\/qualification$/);
     if (dealQualMatch && request.method === "GET") {

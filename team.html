@@ -3417,6 +3417,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 
 <!-- Firebase SDK -->
 <script type="module">
+import { mountDealRequisites } from './app/deal-requisites.js?v=20260929';
 import { zoomClient } from './app/zoom-crm.js?v=20260929-inline-media';
 const crmZoom = zoomClient({ base: 'https://pllato-elc-worker.uurraa.workers.dev', getToken: () => fbAuth.currentUser.getIdToken() });
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
@@ -14343,6 +14344,9 @@ async function openDealCard(dealKey) {
           ${deal.comments ? `<div class="dc-section-h">Комментарии</div>
             <div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px;line-height:1.5">${escapeHtml(deal.comments)}</div>` : ''}
 
+          <div class="dc-section-h">Реквизиты</div>
+          <div id="dc-requisites" style="padding:12px 14px;background:var(--bg3);border-radius:8px"></div>
+
           ${cardFlags.showFirstZoom ? `<div class="dc-section-h">📹 Первый Zoom</div>
           <div style="background:var(--bg3);padding:12px 14px;border-radius:8px">
             <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Дата и время первой Zoom-встречи (попадёт в Календарь)</div>
@@ -14456,6 +14460,7 @@ async function openDealCard(dealKey) {
   document.body.appendChild(modal);
   document.body.style.overflow = 'hidden';
   mountDealSourceSelect(modal, deal);
+  mountDealRequisites(modal.querySelector('#dc-requisites'),{dealId:dealRecordId,canEdit:canEditDeal,base:WORKER_BASE_URL,getToken:()=>fbAuth.currentUser.getIdToken()});
   crmZoom.files(modal.querySelector("#dc-zoom-files"), dealRecordId, canEditDeal);
   crmZoom.dealMeetings(modal.querySelector("#dc-zoom-meetings"), dealRecordId);
   crmZoom.firstMeeting(modal.querySelector("#dc-first-zoom-link"), dealRecordId, deal.customFields?.firstZoomAt);
