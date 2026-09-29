@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <script src="/app/gate.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="description" content="Демонстрация единой CRM и операционной системы реабилитационного центра для Тимура">
+  <title>RECOVERY Control · демо для Тимура</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b5d5b'/%3E%3Cpath d='M9 17c3-8 11-8 14 0-3 8-11 8-14 0Zm4 0c1 3 5 3 6 0-1-3-5-3-6 0Z' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/app/rehab-timur.css?v=20260929a">
+</head>
+<body>
+  <div class="mobile-shade" id="mobileShade"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="brand-mark">RC</span>
+      <span><b>RECOVERY</b><small>CONTROL · ДЕМО</small></span>
+      <button class="side-close" id="sideClose" aria-label="Закрыть меню">×</button>
+    </div>
+    <button class="workplace" id="branchBtn">
+      <span class="branch-dot"></span>
+      <span><small>Рабочее пространство</small><b id="branchName">Вся сеть · 2 филиала</b></span>
+      <span>⌄</span>
+    </button>
+    <nav aria-label="Основное меню">
+      <div class="nav-group">Управление</div>
+      <button class="nav-item active" data-view="dashboard"><span data-icon="home"></span>Главная <i>6</i></button>
+      <button class="nav-item" data-view="attention"><span data-icon="bell"></span>Требует внимания <i class="danger">6</i></button>
+      <div class="nav-group">Клиенты</div>
+      <button class="nav-item" data-view="sales"><span data-icon="funnel"></span>Воронка обращений <i>14</i></button>
+      <button class="nav-item" data-view="calls"><span data-icon="phone"></span>Звонки и задачи <i>8</i></button>
+      <button class="nav-item" data-view="reactivation"><span data-icon="return"></span>Вернуть клиентов <i>37</i></button>
+      <button class="nav-item" data-view="clients"><span data-icon="users"></span>Клиенты и семьи</button>
+      <div class="nav-group">Центр</div>
+      <button class="nav-item" data-view="branches"><span data-icon="branch"></span>Филиалы и места</button>
+      <button class="nav-item" data-view="patients"><span data-icon="heart"></span>Пациенты <i>31</i></button>
+      <button class="nav-item" data-view="program"><span data-icon="plan"></span>Программы и встречи</button>
+      <button class="nav-item" data-view="schedule"><span data-icon="calendar"></span>Расписание</button>
+      <button class="nav-item" data-view="warehouse"><span data-icon="box"></span>Склад <i class="warn">4</i></button>
+      <div class="nav-group">Контроль</div>
+      <button class="nav-item" data-view="payments"><span data-icon="wallet"></span>Оплаты</button>
+      <button class="nav-item" data-view="analytics"><span data-icon="chart"></span>Аналитика</button>
+      <button class="nav-item" data-view="access"><span data-icon="shield"></span>Роли и журнал</button>
+    </nav>
+    <div class="side-note"><b>Демо-режим</b><span>Все имена и показатели вымышлены. Медицинские решения принимает специалист.</span></div>
+  </aside>
+
+  <main class="app-shell">
+    <header class="topbar">
+      <button class="mobile-menu" id="mobileMenu" aria-label="Открыть меню">☰</button>
+      <div class="crumb"><span id="crumbSection">RECOVERY Control</span><b id="crumbTitle">Главная</b></div>
+      <div class="top-actions">
+        <button class="search-btn" id="searchBtn"><span data-icon="search"></span><span>Найти клиента, пациента или звонок</span><kbd>⌘ K</kbd></button>
+        <button class="help-btn" id="tourBtn">? Как показать</button>
+        <button class="role-btn" id="roleBtn"><span class="avatar">Т</span><span><b id="roleName">Тимур</b><small>Собственник</small></span><span>⌄</span></button>
+      </div>
+    </header>
+
+    <section class="view active" data-page="dashboard">
+      <div class="intro-note"><span>1</span><div><b>С чего начать</b><p>Сначала просроченные звонки, затем новые обращения. Медицинские данные открываются только сотрудникам лечения.</p></div><button data-go="attention">Показать 6 сигналов</button></div>
+      <div class="page-head">
+        <div><small>ПУЛЬТ СОБСТВЕННИКА · 29 СЕНТЯБРЯ</small><h1>Доброе утро, Тимур</h1><p>В одной системе — реклама, звонки, заселение, программа восстановления, два филиала и деньги.</p></div>
+        <div class="head-actions"><button class="btn ghost" data-go="analytics">Отчёт за месяц</button><button class="btn primary" data-action="new-lead">+ Новое обращение</button></div>
+      </div>
+      <div class="kpi-grid">
+        <button class="kpi teal" data-go="sales"><small>Новые обращения сегодня</small><b>11</b><span>7 из Google Ads · 4 звонка</span></button>
+        <button class="kpi blue" data-go="calls"><small>Нужно позвонить</small><b>8</b><span class="red-text">3 уже просрочены</span></button>
+        <button class="kpi green" data-go="branches"><small>Пациенты в центре</small><b>31 / 40</b><span>Филиал 1 — 18 · Филиал 2 — 13</span></button>
+        <button class="kpi amber" data-go="payments"><small>Ожидается оплат</small><b>4,8 млн ₸</b><span>6 платежей до 5 октября</span></button>
+      </div>
+      <div class="dashboard-grid">
+        <article class="panel attention-panel">
+          <div class="panel-head"><div><small>СЕЙЧАС ВАЖНО</small><h2>Что требует решения</h2></div><button class="link-btn" data-go="attention">Все сигналы</button></div>
+          <div class="attention-list">
+            <button class="attention-row critical" data-open-lead="marina"><span class="signal">!</span><div><b>Марина: обещали перезвонить 42 минуты назад</b><small>Мама пациента · Google Ads · программа алкоголизм</small></div><strong>Позвонить</strong></button>
+            <button class="attention-row warning" data-open-patient="askar"><span class="signal">2</span><div><b>Аскар: плановая встреча семьи не назначена</b><small>12-й день программы · Филиал «Алатау»</small></div><strong>Назначить</strong></button>
+            <button class="attention-row info" data-go="warehouse"><span class="signal">4</span><div><b>Четыре позиции ниже минимального остатка</b><small>Гигиена, канцелярия, медицинские расходники</small></div><strong>На склад</strong></button>
+            <button class="attention-row warning" data-go="payments"><span class="signal">₸</span><div><b>Платёж 450 000 ₸ ожидается сегодня</b><small>Ответственный: Айгерим · напоминание ещё не отправлено</small></div><strong>Проверить</strong></button>
+          </div>
+        </article>
+        <article class="panel conversion-panel">
+          <div class="panel-head"><div><small>ОТ РЕКЛАМЫ ДО ЗАСЕЛЕНИЯ</small><h2>Воронка сентября</h2></div><button class="link-btn" data-go="analytics">Источники</button></div>
+          <div class="conversion-flow">
+            <button data-go="sales"><b>126</b><span>обращений</span><small>100%</small></button><i></i>
+            <button data-go="calls"><b>84</b><span>связались</span><small>67%</small></button><i></i>
+            <button data-go="sales"><b>39</b><span>консультаций</span><small>31%</small></button><i></i>
+            <button data-go="patients"><b>18</b><span>заселений</span><small>14%</small></button>
+          </div>
+          <div class="mini-chart"><div style="height:42%"></div><div style="height:56%"></div><div style="height:48%"></div><div style="height:74%"></div><div style="height:63%"></div><div style="height:82%"></div><div style="height:70%"></div><div class="today" style="height:91%"></div></div>
+          <div class="chart-legend"><span>22–29 сентября</span><b>14,3% стали пациентами <em>+2,1 п.п.</em></b></div>
+        </article>
+      </div>
+      <div class="dashboard-grid bottom-grid">
+        <article class="panel branches-panel"><div class="panel-head"><div><small>ДВА ФИЛИАЛА</small><h2>Заполняемость и события</h2></div><button class="link-btn" data-go="branches">Управлять</button></div>
+          <div class="branch-cards">
+            <button data-branch="Алатау"><span><b>Алатау</b><small>Алматы · 24 места</small></span><strong>18<small>/24</small></strong><div class="progress"><i style="width:75%"></i></div><em>2 заселения · 1 выписка</em></button>
+            <button data-branch="Сайран"><span><b>Сайран</b><small>Алматы · 16 мест</small></span><strong>13<small>/16</small></strong><div class="progress"><i style="width:81%"></i></div><em>1 заселение · 2 свободно после пятницы</em></button>
+          </div>
+        </article>
+        <article class="panel next-panel"><div class="panel-head"><div><small>БЛИЖАЙШИЕ 4 ЧАСА</small><h2>Расписание центра</h2></div><button class="link-btn" data-go="schedule">Календарь</button></div>
+          <div class="timeline"><div><time>10:00</time><span class="teal-dot"></span><p><b>Первичная консультация семьи</b><small>Марина и супруг · переговорная 2</small></p></div><div><time>11:30</time><span class="blue-dot"></span><p><b>Группа «Ответственность»</b><small>8 участников · психолог Дана</small></p></div><div><time>13:00</time><span class="amber-dot"></span><p><b>Плановая оценка программы</b><small>Аскар · междисциплинарная команда</small></p></div></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="view" data-page="attention"><div class="page-head"><div><small>ЕДИНАЯ ОЧЕРЕДЬ РЕШЕНИЙ</small><h1>Требует внимания</h1><p>Каждый сигнал сразу связан с клиентом, пациентом, оплатой или складом.</p></div><button class="btn primary" data-action="resolve-all">Распределить 6 задач</button></div><div class="signal-board" id="signalBoard"></div></section>
+
+    <section class="view" data-page="sales">
+      <div class="page-head"><div><small>ОТ ПЕРВОГО ЗВОНКА ДО ЗАСЕЛЕНИЯ</small><h1>Воронка обращений</h1><p>У каждого обращения есть ответственный, следующий шаг и причина задержки.</p></div><div class="head-actions"><button class="btn ghost" data-action="filters">Фильтры</button><button class="btn primary" data-action="new-lead">+ Обращение</button></div></div>
+      <div class="subtabs"><button class="active">Основная воронка</button><button data-go="reactivation">Отложенные и возврат</button><button data-go="analytics">Реклама и конверсия</button></div>
+      <div class="kanban-wrap"><div class="kanban" id="salesKanban"></div></div>
+    </section>
+
+    <section class="view" data-page="calls"><div class="page-head"><div><small>РЕКОМЕНДУЕМЫЙ СЛЕДУЮЩИЙ ШАГ</small><h1>Звонки и задачи</h1><p>Система поднимает наверх тех, кому обещали перезвонить или кто давно ждёт ответа.</p></div><button class="btn primary" data-action="start-calls">Начать очередь звонков</button></div><div class="calls-layout"><article class="panel"><div class="call-filters"><button class="active">Моя очередь · 8</button><button>Просрочено · 3</button><button>Сегодня · 5</button></div><div id="callQueue" class="call-queue"></div></article><aside class="panel script-panel" id="callScript"></aside></div></section>
+
+    <section class="view" data-page="reactivation"><div class="page-head"><div><small>НИКТО НЕ ТЕРЯЕТСЯ</small><h1>Вернуть клиентов в работу</h1><p>Отложенные обращения сегментируются по причине и возвращаются только с согласованным контактом.</p></div><button class="btn primary" data-action="reactivation-plan">Создать план возврата</button></div><div class="segment-grid" id="segmentGrid"></div><article class="panel table-panel"><div class="panel-head"><div><small>НА БЛИЖАЙШИЕ 7 ДНЕЙ</small><h2>План повторных контактов</h2></div><button class="link-btn">Экспорт списка</button></div><div class="data-table" id="returnTable"></div></article></section>
+
+    <section class="view" data-page="clients"><div class="page-head"><div><small>ЕДИНАЯ КАРТОЧКА ОБРАЩЕНИЯ</small><h1>Клиенты и семьи</h1><p>Контакты и продажи хранятся отдельно от ограниченной медицинской части.</p></div><button class="btn primary" data-action="new-lead">+ Добавить клиента</button></div><div class="toolbar"><label class="search-field"><span data-icon="search"></span><input value="" placeholder="Имя, телефон, источник или ответственный"></label><button class="btn ghost">Все статусы</button><button class="btn ghost">Все менеджеры</button></div><article class="panel table-panel"><div class="data-table" id="clientsTable"></div></article></section>
+
+    <section class="view" data-page="branches"><div class="page-head"><div><small>ОДНА СИСТЕМА · ДВА ФИЛИАЛА</small><h1>Филиалы и места</h1><p>Заселение, перевод, свободные места и загрузка команды видны в реальном времени.</p></div><button class="btn primary" data-action="new-admission">+ Плановое заселение</button></div><div class="branch-overview" id="branchOverview"></div><article class="panel"><div class="panel-head"><div><small>РАЗМЕЩЕНИЕ</small><h2>Карта мест и ближайшие движения</h2></div><div class="legend"><span><i class="lg occupied"></i>занято</span><span><i class="lg planned"></i>ожидается</span><span><i class="lg free"></i>свободно</span></div></div><div class="bed-map" id="bedMap"></div></article></section>
+
+    <section class="view" data-page="patients"><div class="page-head"><div><small>ТОЛЬКО ДЛЯ УПОЛНОМОЧЕННЫХ РОЛЕЙ</small><h1>Пациенты и этапы программы</h1><p>Статусы, ответственный специалист, план встреч и подготовка к выписке.</p></div><button class="btn primary" data-action="new-patient">+ Принять пациента</button></div><div class="status-strip" id="patientStatus"></div><article class="panel table-panel"><div class="data-table" id="patientsTable"></div></article></section>
+
+    <section class="view" data-page="program"><div class="page-head"><div><small>ИНДИВИДУАЛЬНЫЙ МАРШРУТ</small><h1>Программы и встречи</h1><p>Задачи команды, групповые занятия, встречи семьи и план выхода — без автоматических медицинских назначений.</p></div><button class="btn primary" data-action="new-session">+ Встреча</button></div><div class="program-layout"><article class="panel plan-panel" id="planPanel"></article><article class="panel"><div class="panel-head"><div><small>СЕГОДНЯ</small><h2>Командный план</h2></div><button class="link-btn" data-go="schedule">В календарь</button></div><div class="checklist" id="teamPlan"></div></article></div></section>
+
+    <section class="view" data-page="schedule"><div class="page-head"><div><small>ЗАНЯТИЯ · КОНСУЛЬТАЦИИ · СМЕНЫ</small><h1>Расписание центра</h1><p>Один календарь по двум филиалам, кабинетам и специалистам.</p></div><button class="btn primary" data-action="new-session">+ Событие</button></div><div class="calendar-toolbar"><button>‹</button><b>29 сентября — 5 октября</b><button>›</button><span></span><button class="active">Неделя</button><button>День</button></div><article class="panel calendar" id="calendar"></article></section>
+
+    <section class="view" data-page="warehouse"><div class="page-head"><div><small>ПРИХОД · ВЫДАЧА · СПИСАНИЕ · ИНВЕНТАРИЗАЦИЯ</small><h1>Склад двух филиалов</h1><p>Отдельно контролируются хозяйственные, гигиенические и медицинские расходные материалы.</p></div><div class="head-actions"><button class="btn ghost" data-action="inventory">Инвентаризация</button><button class="btn primary" data-action="receipt">+ Поступление</button></div></div><div class="kpi-grid warehouse-kpis"><button class="kpi"><small>Позиций</small><b>186</b><span>в двух филиалах</span></button><button class="kpi amber"><small>Ниже минимума</small><b>4</b><span>нужно заказать</span></button><button class="kpi"><small>На 30 дней</small><b>1,26 млн ₸</b><span>выдано и списано</span></button><button class="kpi blue"><small>Ближайшая ревизия</small><b>2 окт.</b><span>филиал «Сайран»</span></button></div><div class="warehouse-layout"><article class="panel table-panel"><div class="warehouse-tabs"><button class="active">Остатки</button><button>Поступления</button><button>Выдача</button><button>Списания</button><button>Инвентаризации</button></div><div class="data-table" id="warehouseTable"></div></article><aside class="panel low-stock" id="lowStock"></aside></div></section>
+
+    <section class="view" data-page="payments"><div class="page-head"><div><small>ДОГОВОР · ГРАФИК · ОПЛАТА</small><h1>Оплаты по программам</h1><p>Плательщик, пакет, график и задолженность — без смешивания с медицинской картой.</p></div><button class="btn primary" data-action="new-payment">+ Зафиксировать оплату</button></div><div class="kpi-grid"><button class="kpi green"><small>Получено в сентябре</small><b>18,4 млн ₸</b><span>92% от плана</span></button><button class="kpi amber"><small>Ожидается 7 дней</small><b>4,8 млн ₸</b><span>6 платежей</span></button><button class="kpi teal"><small>Средний чек программы</small><b>920 000 ₸</b><span>оба филиала</span></button><button class="kpi"><small>Просрочено</small><b>650 000 ₸</b><span class="red-text">2 графика</span></button></div><article class="panel table-panel"><div class="data-table" id="paymentsTable"></div></article></section>
+
+    <section class="view" data-page="analytics"><div class="page-head"><div><small>РЕКЛАМА · ПРОДАЖИ · ЗАГРУЗКА</small><h1>Аналитика собственника</h1><p>От клика Google Ads до консультации и фактического заселения.</p></div><button class="btn ghost">Сентябрь 2026⌄</button></div><div class="analytics-grid"><article class="panel source-chart"><div class="panel-head"><div><small>КАНАЛЫ ПРИВЛЕЧЕНИЯ</small><h2>Что даёт заселения</h2></div><span class="sync-ok">GA4 · обновлено 9 мин назад</span></div><div id="sourceChart"></div></article><article class="panel"><div class="panel-head"><div><small>ЭФФЕКТИВНОСТЬ</small><h2>Команда продаж</h2></div></div><div id="managerTable" class="manager-table"></div></article><article class="panel span-two"><div class="panel-head"><div><small>ОПЕРАЦИОННАЯ КАРТИНА</small><h2>Два филиала за 6 месяцев</h2></div><div class="legend"><span><i class="lg teal-bg"></i>загрузка</span><span><i class="lg blue-bg"></i>заселения</span></div></div><div class="line-chart" id="lineChart"></div></article></div></section>
+
+    <section class="view" data-page="access"><div class="page-head"><div><small>КОНФИДЕНЦИАЛЬНОСТЬ ПО УМОЛЧАНИЮ</small><h1>Роли и журнал действий</h1><p>Менеджер видит лиды, но не медицинские записи; специалист не видит рекламный бюджет.</p></div><button class="btn primary" data-action="new-user">+ Сотрудник</button></div><div class="access-grid"><article class="panel"><div class="panel-head"><div><small>МАТРИЦА ДОСТУПА</small><h2>Кто что видит</h2></div></div><div class="access-matrix" id="accessMatrix"></div></article><article class="panel"><div class="panel-head"><div><small>ПОСЛЕДНИЕ ДЕЙСТВИЯ</small><h2>Журнал аудита</h2></div><button class="link-btn">Выгрузить</button></div><div class="audit-list" id="auditList"></div></article></div></section>
+  </main>
+
+  <div class="drawer-shade" id="drawerShade"></div>
+  <aside class="drawer" id="drawer"><header><div><small id="drawerKicker">КАРТОЧКА</small><h2 id="drawerTitle">Клиент</h2></div><button id="drawerClose">×</button></header><div id="drawerBody"></div></aside>
+
+  <div class="popover branch-pop" id="branchPop"><small>Показывать данные</small><button data-set-branch="Вся сеть · 2 филиала"><span class="branch-dot"></span><b>Вся сеть</b><em>31 пациент</em></button><button data-set-branch="Филиал «Алатау»"><span class="branch-dot blue"></span><b>Алатау</b><em>18 пациентов</em></button><button data-set-branch="Филиал «Сайран»"><span class="branch-dot amber"></span><b>Сайран</b><em>13 пациентов</em></button></div>
+  <div class="popover role-pop" id="rolePop"><small>Посмотреть глазами роли</small><button data-role="Тимур|Собственник">Собственник</button><button data-role="Айгерим|Руководитель продаж">Руководитель продаж</button><button data-role="Дана|Психолог / куратор">Психолог / куратор</button><button data-role="Арман|Администратор филиала">Администратор филиала</button><button data-role="Мадина|Кладовщик">Кладовщик</button></div>
+
+  <div class="modal-shade" id="modalShade"><section class="modal" id="modal"><button class="modal-x" id="modalClose">×</button><div id="modalBody"></div></section></div>
+  <div class="toast" id="toast"></div>
+  <script src="/app/rehab-timur.js?v=20260929a"></script>
+</body>
+</html>
