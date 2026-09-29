@@ -1375,7 +1375,9 @@ class LibreEntityConverter {
         return this.convertWipeout(entity_tio, commonAttrs);
       } else if (fixedtype == Dwg_Object_Type.DWG_TYPE_XLINE) {
         return this.convertXline(entity_tio, commonAttrs);
-      } else if (fixedtype === Dwg_Object_Type.DWG_TYPE_UNKNOWN_ENT) {
+      } else if (![Dwg_Object_Type.DWG_TYPE_BLOCK,Dwg_Object_Type.DWG_TYPE_ENDBLK,Dwg_Object_Type.DWG_TYPE_SEQEND,Dwg_Object_Type.DWG_TYPE_ATTRIB,Dwg_Object_Type.DWG_TYPE_VERTEX_2D,Dwg_Object_Type.DWG_TYPE_VERTEX_3D,Dwg_Object_Type.DWG_TYPE_VERTEX_MESH,Dwg_Object_Type.DWG_TYPE_VERTEX_PFACE,Dwg_Object_Type.DWG_TYPE_VERTEX_PFACE_FACE].includes(fixedtype)) {
+        // Count every unconverted drawing entity, not only UNKNOWN_ENT.
+        // Structural records/owned attributes and vertices are handled by parents.
         this.unknownEntityCount++;
       }
     }

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import createModule from './vendor/libredwg-web.js';
-import {warningText} from './progress.mjs?v=0.17.10';
-import {LibreDwg} from './vendor/libredwg-sdk.js?v=0.17.10';
-import {nativeDocument} from './native-adapter.mjs?v=0.17.10';
-import {readExecutiveMetadata} from './executive-metadata.mjs?v=0.17.10';
+import {warningText} from './progress.mjs?v=0.17.11';
+import {LibreDwg} from './vendor/libredwg-sdk.js?v=0.17.11';
+import {nativeDocument} from './native-adapter.mjs?v=0.17.11';
+import {readExecutiveMetadata} from './executive-metadata.mjs?v=0.17.11';
 self.onmessage=async({data})=>{
  let sdk,pointer;
  try{
@@ -26,6 +26,8 @@ self.onmessage=async({data})=>{
   const doc=nativeDocument(database);
   doc.executiveProject=readExecutiveMetadata(database);
   doc.native=true;doc.nativeOps=[];doc.nativeUnknown=stats.unknownEntityCount||0;
+  const attached=new Set(database.entities.flatMap(e=>(e.attribs||[]).map(a=>a.handle)));
+  doc.exportRootHandles=database.entities.filter(e=>!attached.has(e.handle)).map(e=>e.handle);
   if(result.error)messages.unshift(warningText(result.error)+' (код '+result.error+')');
   self.postMessage({doc,messages});
  }catch(e){self.postMessage({error:e.message||String(e)});}
