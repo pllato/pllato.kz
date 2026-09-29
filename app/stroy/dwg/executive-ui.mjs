@@ -1,10 +1,11 @@
-import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.22';
-import * as projectAPI from './executive-project.mjs?v=0.17.22';
-import {routeLength} from './cable-ledger.mjs?v=0.17.22';
-import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.22';
-import {executivePlacement} from './executive-placement.mjs?v=0.17.22';
-import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.22';
-import {drawingPreset} from './drawing-presets.mjs?v=0.17.22';
+import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.23';
+import * as projectAPI from './executive-project.mjs?v=0.17.23';
+import {routeLength} from './cable-ledger.mjs?v=0.17.23';
+import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.23';
+import {executivePlacement} from './executive-placement.mjs?v=0.17.23';
+import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.23';
+import {drawingPreset} from './drawing-presets.mjs?v=0.17.23';
+import {parseCableTable} from './table-paste.mjs?v=0.17.23';
 export function mountExecutiveUI(api){
  const panel=document.createElement('section');panel.id='executives';
  panel.innerHTML=`<h2>Исполнительные</h2><button id="exArea">Выделить план рамкой</button><p id="exAreaInfo">Откройте DWG, выберите единицы и выделите план.</p><button id="exCreate" disabled>Создать рядом</button><label>Исполнительная<select id="exSheet"></select></label><label>Заголовок<input id="exTitle" maxlength="1000"></label><label>Поворот плана, °<input id="exAngle" type="number" value="0"></label><details><summary>Редактировать штамп</summary><div id="exStamp"></div></details><button id="exApply">Применить оформление</button><h3>Кабельные трассы</h3><label>Марка<input id="exBrand" value="ВВГнг(А)-LS"></label><label>Сечение<input id="exSection" value="3×2,5"></label><label>Дополнительная длина, м<input id="exExtra" type="number" min="0" value="0" step="any"></label><button id="exRoute">Рисовать трассу</button><button id="exFinish">Завершить трассу</button><label>Трасса<select id="exRouteList"></select></label><button id="exCable">Назначить кабель</button><button id="exLeader">Выноска · 3 точки</button><button id="exRemoveLeader">Удалить выноски</button><button id="exRemoveRoute">Удалить трассу</button><div class="pair"><label>Сдвиг X<input id="exDX" type="number" value="0"></label><label>Сдвиг Y<input id="exDY" type="number" value="0"></label></div><button id="exMoveRoute">Двигать трассу</button><button id="exDevice">Выбрать прибор</button><pre id="exLedger" style="white-space:pre-wrap;font-size:12px"></pre>`;
@@ -26,6 +27,7 @@ export function mountExecutiveUI(api){
   const p=project(),s=p.sheets.find(s=>s.id===active)||p.sheets[0];active=s?.id||'';
   $('exSheet').replaceChildren(...p.sheets.map(s=>new Option(s.title||s.id,s.id)));$('exSheet').value=active;$('exSheet').disabled=!s;showSheet.disabled=!s;
   $('exTitle').value=s?.title||'';$('exAngle').value=((s?.angle||0)*180/Math.PI).toFixed(3);
+  for(const [key,value]of Object.entries(s?.titleStyle||{x:210,y:275,height:5})){const input=$('title_'+key);if(input&&document.activeElement!==input)input.value=value;}
   for(const key of Object.keys(stampLabels))$('exStamp_'+key).value=s?.stamp[key]||'';
   $('exRouteList').replaceChildren(...(s?.routes||[]).map(r=>new Option(`${r.brand||'?'} ${r.section||'?'} · ${((r.paths?r.paths.reduce((n,p)=>n+routeLength(p,r.metresPerUnit),0):routeLength(r.points,r.metresPerUnit))+r.extraMetres).toFixed(2)} м`,r.id)));
   if(!s?.routes.some(r=>r.id===routeId))routeId='';$('exRouteList').value=routeId;
@@ -42,10 +44,10 @@ export function mountExecutiveUI(api){
    if(item.type==='LINE')pairs=[[10,item.values[0]],[20,item.values[1]],[11,item.values[2]],[21,item.values[3]]];
    else if(item.type==='TEXT')pairs=[[10,item.values[0]],[20,item.values[1]],[40,item.values[2]],[50,item.values[3]*180/Math.PI],[1,item.text]];
    else pairs=[[90,item.points.length/2],[70,item.closed?1:0],...item.points.flatMap((n,j)=>[[j%2?20:10,n]])];
-   if(item.color)pairs.push([62,item.color]);if(item.rgb!==undefined)pairs.push([420,item.rgb]);if(item.lineweight!==undefined)pairs.push([370,item.lineweight]);const r=addEntity(mini,item.type,pairs);r.id='executive-'+i++;if(item.routeId)r.routeId=item.routeId;
+   if(item.align)pairs.push([72,item.align],[11,item.values[0]],[21,item.values[1]]);if(item.color)pairs.push([62,item.color]);if(item.rgb!==undefined)pairs.push([420,item.rgb]);if(item.lineweight!==undefined)pairs.push([370,item.lineweight]);const r=addEntity(mini,item.type,pairs);r.id='executive-'+i++;if(item.routeId)r.routeId=item.routeId;
   }
   const entities=doc.entities.filter(r=>!r.id.startsWith('executive-')&&!removed.has(get(r,5)));
-  api.setDoc({...doc,records:[...records,...mini.entities],entities:[...entities,...mini.entities]});refresh();
+  doc.records=[...records,...mini.entities];doc.entities=[...entities,...mini.entities];refresh();
  }
  $('exArea').onclick=guard(()=>{if(!api.getDoc().native)throw Error('Исполнительные: откройте исходный DWG');points=[];mode='area';api.setTool('executive');api.status('Зажмите мышь, обведите нужный план рамкой и отпустите — исполнительная создастся автоматически. Включайте объекты целиком.');});
  $('exCreate').onclick=guard(async()=>{
@@ -89,7 +91,7 @@ export function mountExecutiveUI(api){
   if(mode==='leader'&&!points.length){const r=sheet()?.routes.find(r=>r.id===routeId);w=nearestCablePoint(r?.paths||[r?.points||[]],w)||w;}
   points.push(w);
   if(mode==='calibrate'&&points.length===2){try{mutate(p=>projectAPI.calibrateExecutive(p,active,points[0],points[1],Number($('exKnownMetres').value)));api.status('Масштаб метража обновлён для всех трасс этого листа.');}catch(e){api.status(e.message);}points=[];mode='';api.setTool('select');}
-  else if((['route3','broken'].includes(mode)&&points.length===3)||(mode==='straight'&&points.length===2)){createCable(points,mode==='route3');points=[];mode='';api.setTool('object');}
+  else if((['route3','broken'].includes(mode)&&points.length===4)||(mode==='straight'&&points.length===2)){createCable(points,mode==='route3');points=[];mode='';api.setTool('object');}
   else if((mode==='route'||mode==='route3')&&points.length>1)api.status('Длина трассы: '+routeLength(cableCurve(points,mode==='route3'),sheet().metresPerUnit).toFixed(3)+' м · точек '+points.length);
   else if(mode==='leader'&&points.length===3){const [anchor,elbow,label]=points;mutate(p=>projectAPI.addLeader(p,active,routeId,{id:crypto.randomUUID(),anchor,elbow,label}));points=[];mode='';api.setTool('select');}
   api.draw();
@@ -112,11 +114,16 @@ function assignSelection(){if(!sheet())throw Error('Выберите испол�
  function selectObject(id,ids){const record=api.getDoc().records.find(r=>r.id===id);for(const s of project().sheets){const r=s.routes.find(r=>r.id===record?.routeId||r.sourceIds?.some(source=>ids.includes(source)));if(r){active=s.id;routeId=r.id;refresh();cableFields();return;}}routeId='';$('exRouteList').value='';}
  function createCable(controls,smooth){if(!sheet())throw Error('Выберите исполнительную');const id=crypto.randomUUID();mutate(p=>projectAPI.addRoute(p,active,{id,points:cableCurve(controls,smooth),controls,smooth,...drawingPreset,extraMetres:0}));routeId=id;refresh();api.status('Кабель создан и включён в ведомость. Можно изменить марку, сечение и поставить выноску.');}
  const selectedRoute=()=>sheet()?.routes.find(r=>r.id===routeId);
+ const titleOptions=document.createElement('details');titleOptions.innerHTML='<summary>Положение и размер названия</summary><label>X от левого края, мм<input id="title_x" type="number" min="0" max="420" value="210"></label><label>Y от нижнего края, мм<input id="title_y" type="number" min="0" max="297" value="275"></label><label>Высота текста, мм<input id="title_height" type="number" min="0.2" max="50" step="0.2" value="5"></label><button id="titleApply">Применить название</button>';$('exTitle').parentElement.after(titleOptions);
+ $('titleApply').onclick=guard(()=>{const values=Object.fromEntries(['x','y','height'].map(k=>[k,Number($('title_'+k).value)]));if(!Object.values(values).every(Number.isFinite)||values.x<0||values.x>420||values.y<0||values.y>297||values.height<.2||values.height>50)throw Error('Проверьте положение и размер');if(!sheet())throw Error('Выберите исполнительную');const title=$('exTitle').value;mutate(p=>{const s=p.sheets.find(s=>s.id===active);s.title=title;s.titleStyle=values;});});
+ const tableOptions=document.createElement('details');tableOptions.innerHTML='<summary>Таблица из Excel</summary><p>Скопируйте три столбца: марка, сечение, длина в метрах. Таблица заменит расчётную ведомость этого листа.</p><textarea id="tablePaste" rows="5" aria-label="Таблица из Excel" placeholder="Марка&#9;Сечение&#9;Длина"></textarea><button id="tableApply">Вставить таблицу</button><button id="tableReset">Вернуть расчётную ведомость</button>';titleOptions.after(tableOptions);
+ $('tableApply').onclick=guard(()=>{if(!sheet())throw Error('Выберите исполнительную');const rows=parseCableTable($('tablePaste').value);mutate(p=>{p.sheets.find(s=>s.id===active).tableRows=rows;});api.status('Таблица вставлена в нижний левый угол. '+rows.length+' строк.');});
+ $('tableReset').onclick=guard(()=>{if(!sheet())throw Error('Выберите исполнительную');mutate(p=>{delete p.sheets.find(s=>s.id===active).tableRows;});});
  return {rebuild,tap,project,hover,selectObject,finishArea,startArea:w=>{if(mode==='area'){points=[w];hoverPoint=w;api.draw();}},clearArea:()=>{if(mode==='area'){points=[];hoverPoint=null;api.draw();}},preview:()=>({mode,points,hoverPoint}),cancel:()=>{points=[];hoverPoint=null;mode='';},sheet,route:selectedRoute,
   editLeader:(sheetId,route,leaderId,values)=>mutate(p=>{const s=p.sheets.find(s=>s.id===sheetId),r=s?.routes.find(r=>r.id===route),l=r?.leaders.find(l=>l.id===leaderId);if(!l)throw Error('Выноска не найдена');if(values.remove){r.leaders=r.leaders.filter(l=>l.id!==leaderId);return;}for(const key of ['label','elbow'])if(values[key]){if(!Array.isArray(values[key])||values[key].length!==2||!values[key].every(Number.isFinite))throw Error('Неверная точка');l[key]=[...values[key]];}if(values.textHeight!==undefined){if(!Number.isFinite(values.textHeight)||values.textHeight<.2||values.textHeight>50)throw Error('Высота текста: от 0,2 до 50 мм');l.textHeight=values.textHeight;}for(const key of ['brand','section'])if(values[key]!==undefined){if(typeof values[key]!=='string'||values[key].length>1000)throw Error('Слишком длинное название');r[key]=values[key].trim();}}),
   selectRoute:id=>{routeId=id;refresh();cableFields();},
   beginLeaderAt:(p,elbow,label)=>{if(!selectedRoute()&&!assignSelection())return;const r=selectedRoute();if(!r||!p)throw Error('Выберите кабель');const q=nearestCablePoint(r.paths||[r.points],p);mutate(next=>projectAPI.addLeader(next,active,routeId,{id:crypto.randomUUID(),anchor:q,elbow,label}));mode='';points=[];api.status('Выноска поставлена. Марку и сечение можно изменить рядом с кабелем.');},
-  beginCable:(kind='route3')=>{if(!sheet())throw Error('Выберите исполнительную');mode=kind;points=[];api.setTool('executive');api.status(kind==='straight'?'Укажите начало и конец кабеля.':'Три точки: начало → изгиб → конец. Длина показывается при рисовании.');},
+  beginCable:(kind='route3')=>{if(!sheet())throw Error('Выберите исполнительную');mode=kind;points=[];api.setTool('executive');api.status(kind==='straight'?'Укажите начало и конец кабеля.':'Четыре точки: начало → два изгиба → конец. Длина показывается при рисовании.');},
   cutRoute:(a,b)=>{const r=selectedRoute();if(!r||r.sourceIds)throw Error('Сначала включите редактирование формы');const parts=cutCable(r.points,a,b),ids=parts.map(()=>crypto.randomUUID());mutate(p=>{const s=p.sheets.find(s=>s.id===active);s.routes=s.routes.filter(item=>item.id!==r.id);parts.forEach((points,i)=>{const next={...structuredClone(r),id:ids[i],points,smooth:false,extraMetres:i===0?r.extraMetres:0,leaders:[]};delete next.controls;for(const l of r.leaders){const q=nearestCablePoint([points],l.anchor);if(q&&Math.hypot(q[0]-l.anchor[0],q[1]-l.anchor[1])<1e-6)next.leaders.push(l);}s.routes.push(next);});});routeId=ids[0]||'';refresh();api.status('Часть кабеля удалена. Остатки и ведомость обновлены; отмена доступна.');},
   editRoute:fn=>mutate(p=>{const r=p.sheets.find(s=>s.id===active)?.routes.find(r=>r.id===routeId);if(!r)throw Error('Выберите кабель');fn(r);}),
   duplicateRoute:delta=>{const r=structuredClone(selectedRoute());if(!r||r.sourceIds)throw Error('Выберите нарисованный кабель');r.id=crypto.randomUUID();r.leaders.forEach(l=>l.id=crypto.randomUUID());mutate(p=>{p.sheets.find(s=>s.id===active).routes.push(r);projectAPI.moveRoute(p,active,r.id,delta);});routeId=r.id;refresh();},

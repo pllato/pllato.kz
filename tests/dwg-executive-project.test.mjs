@@ -5,7 +5,7 @@ const fixture=()=>{const p=e.createExecutiveProject();e.createExecutive(p,{id:'a
 test('Moving a single leader keeps anchor, other leaders and cable quantities',()=>{
  const p=fixture();for(const id of ['l','other'])e.addLeader(p,'a','r',{id,anchor:[1,2],elbow:[3,4],label:[5,6]});const before=e.executiveLedger(p);
  e.moveLeader(p,'a','l',[10,20]);const [l,other]=p.sheets[0].routes[0].leaders;
- assert.deepEqual(l,{id:'l',anchor:[1,2],elbow:[13,24],label:[15,26]});assert.deepEqual(other.label,[5,6]);assert.deepEqual(e.executiveLedger(p),before);
+ assert.deepEqual(l,{id:'l',anchor:[1,2],elbow:[13,24],label:[15,26],textHeight:1.4});assert.deepEqual(other.label,[5,6]);assert.deepEqual(e.executiveLedger(p),before);
 });
 test('Calibration changes all route quantities, not geometry or extra metres',()=>{
  const p=fixture(),points=structuredClone(p.sheets[0].routes[0].points);p.sheets[0].routes[0].extraMetres=2;

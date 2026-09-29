@@ -1,5 +1,5 @@
-import {routeLength,rotatePoints,cableLedger} from './cable-ledger.mjs?v=0.17.22';
-import {executiveLayout} from './executive-layout.mjs?v=0.17.22';
+import {routeLength,rotatePoints,cableLedger} from './cable-ledger.mjs?v=0.17.23';
+import {executiveLayout} from './executive-layout.mjs?v=0.17.23';
 
 // Serializable editing model. Cable data belongs to a route, not its leaders.
 // Native block handles are retained; source geometry is never flattened here.
@@ -9,7 +9,7 @@ const sheet=(project,id)=>{const s=project.sheets.find(s=>s.id===id);if(!s)throw
 const route=(s,id)=>{const r=s.routes.find(r=>r.id===id);if(!r)throw Error('Трасса не найдена');return r;};
 const unique=(items,id)=>{if(typeof id!=='string'||!id||items.some(x=>x.id===id))throw Error('Идентификатор уже существует или пуст');};
 export const createExecutiveProject=()=>({version:1,sheets:[]});
-export function createExecutive(project,{id,title='',origin=[0,0],planCentre=[0,0],nativeHandles=[],metresPerUnit,paperUnit=.1/metresPerUnit}){
+export function createExecutive(project,{id,title='',titleStyle={x:210,y:275,height:5},tableRows,origin=[0,0],planCentre=[0,0],nativeHandles=[],metresPerUnit,paperUnit=.1/metresPerUnit}){
  unique(project.sheets,id);requirePoint(origin);requirePoint(planCentre);
  if(!Number.isFinite(metresPerUnit)||metresPerUnit<=0)throw Error('Укажите единицы чертежа');
  if(!Number.isFinite(paperUnit)||paperUnit<=0)throw Error('Неверный масштаб листа');
@@ -17,6 +17,8 @@ export function createExecutive(project,{id,title='',origin=[0,0],planCentre=[0,
  if(new Set(nativeHandles.map(h=>h.toUpperCase())).size!==nativeHandles.length)throw Error('Повторяющиеся ссылки CAD');
  // Caller supplies VERIFIED copied handles, never the original selection.
  const s={id,title:String(title),origin:[...origin],planCentre:[...planCentre],nativeHandles:[...nativeHandles],metresPerUnit,paperUnit,angle:0,stamp:{},routes:[],notes:[]};
+ if(![titleStyle.x,titleStyle.y,titleStyle.height].every(Number.isFinite)||titleStyle.height<.2||titleStyle.height>50||titleStyle.x<0||titleStyle.x>420||titleStyle.y<0||titleStyle.y>297)throw Error('Неверное положение или размер названия');s.titleStyle={...titleStyle};
+ if(tableRows!==undefined){if(!Array.isArray(tableRows)||tableRows.length>1000||tableRows.some(r=>typeof r.brand!=='string'||typeof r.section!=='string'||r.brand.length>1000||r.section.length>1000||!Number.isFinite(r.length)||r.length<0))throw Error('Неверная таблица');s.tableRows=structuredClone(tableRows);}
  project.sheets.push(s);return s;
 }
 export function addRoute(project,sheetId,{id,points,brand='',section='',extraMetres=0,paths,sourceIds,color=7,rgb,controls,smooth=false,lineweight}){
@@ -35,7 +37,7 @@ export function setCable(project,sheetId,routeId,{brand,section,extraMetres}){
  if(typeof brand!=='string'||typeof section!=='string'||!Number.isFinite(extraMetres)||extraMetres<0)throw Error('Неверные свойства кабеля');
  Object.assign(r,{brand:brand.trim(),section:section.trim(),extraMetres});
 }
-export function addLeader(project,sheetId,routeId,{id,anchor,elbow,label,textHeight}){
+export function addLeader(project,sheetId,routeId,{id,anchor,elbow,label,textHeight=1.4}){
  const s=sheet(project,sheetId),r=route(s,routeId);
  unique(s.routes.flatMap(r=>r.leaders),id);[anchor,elbow,label].forEach(requirePoint);
  if(textHeight!==undefined&&(!Number.isFinite(textHeight)||textHeight<.2||textHeight>50))throw Error('Высота текста: от 0,2 до 50 мм на листе');
@@ -82,16 +84,17 @@ export function executiveEntities(project,sheetId){
  const s=sheet(project,sheetId),ledger=executiveLedger(project,sheetId);
  // Layout is in paper mm. Default 1:100 physical scale; route geometry is not scaled.
  const unit=s.paperUnit;
- const layout=executiveLayout({origin:s.origin,title:s.title,stamp:s.stamp,rows:ledger.rows.slice(0,10),unit,northAngle:s.angle});
+ const rows=s.tableRows||ledger.rows;
+ const layout=executiveLayout({origin:s.origin,title:s.title,titleStyle:s.titleStyle,stamp:s.stamp,rows:rows.slice(0,10),unit,northAngle:s.angle});
  const items=[...layout.items];
- for(let i=10;i<ledger.rows.length;i+=10){const page=i/10;items.push(...executiveLayout({origin:[s.origin[0],s.origin[1]-page*310*unit],title:s.title+' — ведомость, продолжение '+page,stamp:s.stamp,rows:ledger.rows.slice(i,i+10),unit,northAngle:s.angle}).items);}
+ for(let i=10;i<rows.length;i+=10){const page=i/10;items.push(...executiveLayout({origin:[s.origin[0],s.origin[1]-page*310*unit],title:s.title+' — ведомость, продолжение '+page,titleStyle:s.titleStyle,stamp:s.stamp,rows:rows.slice(i,i+10),unit,northAngle:s.angle}).items);}
  for(const r of s.routes){
   if(!r.sourceIds)items.push({type:'LWPOLYLINE',points:r.points.flat(),closed:false,routeId:r.id,color:r.color||7,...(r.rgb===undefined?{}:{rgb:r.rgb}),...(r.lineweight===undefined?{}:{lineweight:r.lineweight})});
   for(const l of r.leaders){
    items.push({type:'LWPOLYLINE',points:[...l.anchor,...l.elbow,...l.label],closed:false});
    const dx=l.elbow[0]-l.anchor[0],dy=l.elbow[1]-l.anchor[1],length=Math.hypot(dx,dy);
    if(length){const size=Math.min(3*unit,length/3),ux=dx/length,uy=dy/length;for(const side of [-1,1])items.push({type:'LINE',values:[...l.anchor,l.anchor[0]+size*(ux+side*uy*.4),l.anchor[1]+size*(uy-side*ux*.4)]});}
-   const textHeight=l.textHeight??3;if(!Number.isFinite(textHeight)||textHeight<.2||textHeight>50)throw Error('Неверный размер текста выноски');
+   const textHeight=l.textHeight??1.4;if(!Number.isFinite(textHeight)||textHeight<.2||textHeight>50)throw Error('Неверный размер текста выноски');
    items.push({type:'TEXT',text:[r.brand,r.section].filter(Boolean).join(' ')||'Кабель не назначен',values:[...l.label,textHeight*unit,0]});
   }
  }

@@ -20,10 +20,10 @@ test('hidden and off-screen geometry is culled; subpixel text not drawn',()=>{
 test('Selecting an internal line does not highlight the whole executive',()=>{
  const c=context(),colors=[];c.stroke=()=>colors.push(c.strokeStyle);
  paintShapes(c,[{...shape('sheet'),entityKey:'one'},{...shape('sheet'),entityKey:'two'}],{...options,selected:'one'});
- assert.deepEqual(colors,['#ffbe6c','#111']);
+ assert.deepEqual(colors,['#c26b00','#111']);
 });
 test('Cable chain highlights every selected key but no neighbouring object',()=>{
  const c=context(),colors=[];c.stroke=()=>colors.push(c.strokeStyle);
  paintShapes(c,['a','b','c'].map(entityKey=>({...shape('sheet'),entityKey})),{...options,selected:new Set(['a','b'])});
- assert.deepEqual(colors,['#ffbe6c','#111']);
+ assert.deepEqual(colors,['#c26b00','#111']);
 });

@@ -1,6 +1,6 @@
 // Sheet decoration uses native editable LINE/TEXT entities, not a bitmap.
 // Coordinates are drawing units; scale never changes cable quantities.
-export function executiveLayout({origin=[0,0],width=420,height=297,title='',stamp={},rows=[],unit=1,northAngle=0}={}){
+export function executiveLayout({origin=[0,0],width=420,height=297,title='',titleStyle={x:210,y:275,height:5},stamp={},rows=[],unit=1,northAngle=0}={}){
  if(!origin.every(Number.isFinite)||origin.length!==2||!Number.isFinite(unit)||unit<=0||!Number.isFinite(northAngle)||width<300||height<200||![width,height].every(Number.isFinite))throw Error('Неверные размеры исполнительной');
  if(rows.length>10)throw Error('Ведомость требует дополнительного листа: больше 10 строк');
  const items=[],p=(x,y)=>[origin[0]+x*unit,origin[1]+y*unit];
@@ -8,7 +8,7 @@ export function executiveLayout({origin=[0,0],width=420,height=297,title='',stam
  const text=(x,y,value,size=3)=>items.push({type:'TEXT',text:String(value??''),values:[...p(x,y),size*unit,0]});
  const rect=(x,y,w,h)=>{line(x,y,x+w,y);line(x+w,y,x+w,y+h);line(x+w,y+h,x,y+h);line(x,y+h,x,y);};
  rect(0,0,width,height);rect(10,5,width-15,height-10);
- text(65,height-22,title,5);
+ text(titleStyle.x,titleStyle.y,title,titleStyle.height);items.at(-1).align=1;
  // Compass rotates with plan while text and sheet stay upright.
  const cx=32,cy=height-35,c=Math.cos(northAngle),s=Math.sin(northAngle);
  const cp=(x,y)=>[cx+x*c-y*s,cy+x*s+y*c];

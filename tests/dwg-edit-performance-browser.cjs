@@ -1,0 +1,12 @@
+// Opt-in private fixture. No drawing data is logged or committed.
+const {chromium}=require('playwright'),assert=require('node:assert/strict');
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1000}});page.setDefaultTimeout(180000);let readers=0;page.on('worker',w=>{if(w.url().includes('native-reader'))readers++;});
+ await page.route('**/app/gate.js',r=>r.fulfill({body:''}));
+ await page.route('**/editor.mjs*',async r=>{const response=await r.fetch();await r.fulfill({response,body:await response.text()+`\nglobalThis.perfTest={count:()=>drawing.shapes.length,choose:()=>{const record=doc.entities.find(r=>r.type==='LINE');if(!record)throw Error('Fixture needs a root LINE');selected=record.id;selectedChain=null;selectedShapeKey=null;pickedDevice=null;selectedMatrix=null;sharedSelectedId=null;draw();},remove:()=>applyObjectEdit({remove:true}),undo:()=>undo()};`});});
+ await page.goto('http://127.0.0.1:8817/app/stroy/dwg/');const openStart=Date.now();await page.locator('#file').setInputFiles(process.env.DWG_PERF_FIXTURE);await page.waitForFunction(()=>document.querySelector('#busy').hidden,null,{timeout:180000});const openMs=Date.now()-openStart,initialReaders=readers;
+ const cdp=await page.context().newCDPSession(page);await cdp.send('Profiler.enable');await cdp.send('Profiler.start');
+ const results=await page.evaluate(async()=>{const frame=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))),rows=[];for(let i=0;i<3;i++){perfTest.choose();await frame();let t=performance.now();perfTest.remove();await frame();const removeMs=performance.now()-t;t=performance.now();await perfTest.undo();await frame();rows.push({removeMs:Math.round(removeMs),undoMs:Math.round(performance.now()-t)});}return {shapes:perfTest.count(),rows};});
+ const {profile}=await cdp.send('Profiler.stop');console.log('CPU samples',JSON.stringify(profile.nodes.sort((a,b)=>(b.hitCount||0)-(a.hitCount||0)).slice(0,15).map(n=>({name:n.callFrame.functionName,line:n.callFrame.lineNumber,hits:n.hitCount}))));
+ assert.equal(readers,initialReaders,'Undo must not start a DWG reader');console.log(JSON.stringify({openMs,...results,undoReaderStarts:readers-initialReaders}));
+ }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

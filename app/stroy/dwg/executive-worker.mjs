@@ -1,7 +1,7 @@
-import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.22';
-import {writeAdditions} from './authoring.mjs?v=0.17.22';
-import {validateExecutiveProject} from './executive-metadata.mjs?v=0.17.22';
-import {executiveEntities} from './executive-project.mjs?v=0.17.22';
+import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.23';
+import {writeAdditions} from './authoring.mjs?v=0.17.23';
+import {validateExecutiveProject} from './executive-metadata.mjs?v=0.17.23';
+import {executiveEntities} from './executive-project.mjs?v=0.17.23';
 self.onmessage=async({data})=>{
  let m,diagnostic='';
  try{
@@ -9,11 +9,13 @@ self.onmessage=async({data})=>{
   const project=validateExecutiveProject(data.project);
   if(!(buffer instanceof ArrayBuffer)||!Array.isArray(ops)||ops.length>100000)throw Error('Неверный пакет изменений');
   self.postMessage({progress:'Готовлю DWG исполнительных…',percent:5});
-  m=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.22',import.meta.url).href,print:()=>{},printErr:s=>{if(/^(CLONE_REJECT|MOVE_REJECT|REMOVE_|ROOT_REJECT|SAVE_REJECT)/.test(s))diagnostic=s.slice(0,200);}});m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
+  m=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.23',import.meta.url).href,print:()=>{},printErr:s=>{if(/^(CLONE_REJECT|MOVE_REJECT|REMOVE_|ROOT_REJECT|SAVE_REJECT)/.test(s))diagnostic=s.slice(0,200);}});m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
   const opened=m.ccall('pllato_open','number',['string'],['/input.dwg']);if(opened>=128)throw Error('DWG не прочитан: '+opened);
   self.postMessage({progress:'Проверяю изменения и связи объектов DWG…',percent:15});
   const check=(code,label)=>{if(code){const reason=diagnostic.startsWith('CLONE_REJECT_ROOT')?'Выделен вложенный объект без его блока-владельца. Выделите блок целиком. '+diagnostic:diagnostic.includes('ACAD_TABLE')?'Исходная CAD-таблица пока не поддерживается безопасным копированием. Таблица не удалена, операция отменена целиком. '+diagnostic:diagnostic.includes('MULTILEADER')?'Связанная сложная выноска не прошла проверку точности копирования. Операция отменена целиком, выноска не удалена. '+diagnostic:diagnostic.includes('BLOCKSTRETCHACTION')?'Команда растяжения динамического блока не прошла проверку точности записи. Копирование отменено без упрощения CAD-структуры.':diagnostic;throw Error(label+' (код '+code+'). '+reason+' Исходный файл не изменён.');}};
   for(const op of ops){
+   if(op.layerOff!==undefined){if(typeof op.layerOff!=='boolean'||!/^([0-9a-f]+)$/i.test(op.handle))throw Error('Неверный слой');check(m.ccall('pllato_layer_off','number',['string','number'],[op.handle,Number(op.layerOff)]),'Слой не найден');continue;}
+   if(op.vertex){const {index,x,y}=op.vertex;if(!Number.isInteger(index)||![x,y].every(Number.isFinite))throw Error('Неверная вершина');check(m.ccall('pllato_vertex','number',['string','number','number','number'],[op.handle,index,x,y]),'Правка вершины отклонена');}
    if(!/^[0-9a-f]+$/i.test(op.handle)||!Number.isFinite(op.dx)||!Number.isFinite(op.dy))throw Error('Неверное изменение');
    if(op.node){const {index,x,y}=op.node;if(!Number.isInteger(index)||![x,y].every(Number.isFinite))throw Error('Неверная точка');check(m.ccall('pllato_spline_point','number',['string','number','number','number'],[op.handle,index,x,y]),'Правка управляющей точки SPLINE отклонена');}
    if(op.angle!==undefined){if(!Number.isFinite(op.angle))throw Error('Неверный угол');check(m.ccall('pllato_insert_angle','number',['string','number'],[op.handle,op.angle]),'Поворот прибора отклонён');}

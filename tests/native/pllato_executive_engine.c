@@ -559,6 +559,7 @@ API int pllato_move(const char *handle,double dx,double dy){
  return 0;
 }
 API int pllato_insert_angle(const char *handle,double angle){Dwg_Object *o=entity(handle);if(!o||o->fixedtype!=DWG_TYPE_INSERT||o->tio.entity->tio.INSERT->has_attribs||!isfinite(angle))return 1;o->tio.entity->tio.INSERT->rotation=angle;return 0;}
+API int pllato_text_center(const char *handle){Dwg_Object *o=entity(handle);if(!o||o->fixedtype!=DWG_TYPE_TEXT)return 1;Dwg_Entity_TEXT *t=o->tio.entity->tio.TEXT;t->alignment_pt=t->ins_pt;t->horiz_alignment=1;t->dataflags&=~(2|64);return 0;}
 
 API int pllato_spline_point(const char *handle,int index,double x,double y){
  Dwg_Object *o=entity(handle);if(!o||o->fixedtype!=DWG_TYPE_SPLINE||index<0||!isfinite(x)||!isfinite(y))return 1;
@@ -566,12 +567,23 @@ API int pllato_spline_point(const char *handle,int index,double x,double y){
  if(e->num_reactors||(e->xdicobjhandle&&e->xdicobjhandle->absolute_ref)||s->scenario!=1||s->num_fit_pts||index>=s->num_ctrl_pts||!s->ctrl_pts)return 2;
  s->ctrl_pts[index].x=x;s->ctrl_pts[index].y=y;return 0;
 }
+API int pllato_vertex(const char *handle,int index,double x,double y){
+ Dwg_Object *o=entity(handle);if(!o||index<0||!isfinite(x)||!isfinite(y))return 1;
+ Dwg_Object_Entity *e=o->tio.entity;if(e->num_reactors||(e->xdicobjhandle&&e->xdicobjhandle->absolute_ref))return 2;
+ if(o->fixedtype==DWG_TYPE_LINE){if(index>1)return 3;Dwg_Entity_LINE *l=e->tio.LINE;if(index){l->end.x=x;l->end.y=y;}else{l->start.x=x;l->start.y=y;}return 0;}
+ if(o->fixedtype==DWG_TYPE_LWPOLYLINE){Dwg_Entity_LWPOLYLINE *p=e->tio.LWPOLYLINE;if(index>=p->num_points||!p->points||p->extrusion.x||p->extrusion.y||p->extrusion.z!=1)return 3;p->points[index].x=x;p->points[index].y=y;return 0;}
+ return 4;
+}
 
 API int pllato_color(const char *handle,int color){
  Dwg_Object *o=entity(handle);if(!o||color<1||color>255)return 1;
  o->tio.entity->color.index=color;o->tio.entity->color.raw=color;
  o->tio.entity->color.flag=0;o->tio.entity->color.rgb=0;o->tio.entity->color.handle=NULL;
  return 0;
+}
+API int pllato_layer_off(const char *handle,int off){
+ Dwg_Object *o=dwg_resolve_handle(&drawing,strtoull(handle,NULL,16));if(!o||o->fixedtype!=DWG_TYPE_LAYER||(off!=0&&off!=1))return 1;
+ Dwg_Object_LAYER *l=o->tio.object->tio.LAYER;l->off=off;l->color.index=off?-abs(l->color.index):abs(l->color.index);return 0;
 }
 API int pllato_rgb(const char *handle,int rgb){
  Dwg_Object *o=entity(handle);if(!o||rgb<0||rgb>0xffffff||drawing.header.version<R_2004)return 1;
