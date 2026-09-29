@@ -101,7 +101,8 @@ function renderCert(s) {
 function renderRequisites(s) {
   const r = s.requisites?.data;
   if (!r || !Object.keys(r).length) return "";
-  const typeLabel = (s.signerType || s.requisites?.type) === "ip" ? "ИП" : (s.signerType || s.requisites?.type) === "individual" ? "Физлицо" : "";
+  const signerType = s.signerType || s.requisites?.type;
+  const typeLabel = signerType === "company" || signerType === "ip" ? "Компания" : signerType === "individual" ? "Физлицо" : "";
   const rows = [
     ["Тип", typeLabel],
     ["Наименование/ФИО", r.name],

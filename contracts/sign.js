@@ -242,7 +242,10 @@ async function render(data) {
        </div>`;
 
   const r = signer.requisites?.data || {};
-  const type = signer.signerType || signer.requisites?.type || "";
+  const storedType = signer.signerType || signer.requisites?.type || "";
+  // Старые записи сохранялись как `ip`. В интерфейсе объединяем ИП и
+  // юридические лица в понятный для подписанта вариант «Компания».
+  const type = storedType === "ip" ? "company" : storedType;
   const val = (k) => esc(r[k] || "");
 
   const partiesHtml = partiesBlock(data.parties, "Кто уже подписал");
@@ -264,7 +267,7 @@ async function render(data) {
       <h2 class="req-title">Шаг 1. Ваши реквизиты</h2>
       <p class="req-sub">Заполните данные, как вы будете указаны в договоре, затем переходите к подписанию.</p>
       <div class="seg" id="type-seg">
-        <button type="button" class="seg-btn ${type === "ip" ? "on" : ""}" data-type="ip">Индивидуальный предприниматель</button>
+        <button type="button" class="seg-btn ${type === "company" ? "on" : ""}" data-type="company">Компания</button>
         <button type="button" class="seg-btn ${type === "individual" ? "on" : ""}" data-type="individual">Физическое лицо</button>
       </div>
       <div class="req-grid">
@@ -293,11 +296,11 @@ async function render(data) {
   function applyType(t) {
     formEl.dataset.type = t;
     [...$("#type-seg").querySelectorAll(".seg-btn")].forEach((b) => b.classList.toggle("on", b.dataset.type === t));
-    $("#lbl-name").textContent = t === "ip" ? "Наименование ИП" : "ФИО";
-    $("#lbl-iin").textContent = t === "ip" ? "БИН / ИИН" : "ИИН";
+    $("#lbl-name").textContent = t === "company" ? "Наименование компании / ИП" : "ФИО";
+    $("#lbl-iin").textContent = t === "company" ? "БИН / ИИН" : "ИИН";
     const la = $("#lbl-address");
-    if (la) la.textContent = t === "ip" ? "Юридический адрес" : "Адрес жительства (прописки)";
-    formEl.classList.toggle("is-ip", t === "ip");
+    if (la) la.textContent = t === "company" ? "Юридический адрес" : "Адрес жительства (прописки)";
+    formEl.classList.toggle("is-company", t === "company");
   }
   $("#type-seg").addEventListener("click", (e) => {
     const b = e.target.closest(".seg-btn");
@@ -338,11 +341,14 @@ function collectRequisites() {
     const v = el.value.trim();
     if (v) data[el.dataset.f] = v;
   });
-  if (!signerType) throw new Error("Выберите тип: ИП или физическое лицо");
+  if (!signerType) throw new Error("Выберите, кто подписывает договор: компания или физическое лицо");
   if (!data.name) throw new Error("Укажите наименование / ФИО");
   if (!data.iinBin) throw new Error("Укажите ИИН / БИН");
-  if (!data.address) throw new Error(signerType === "ip" ? "Укажите юридический адрес" : "Укажите адрес жительства");
-  return { signerType, requisites: { data } };
+  if (!data.address) throw new Error(signerType === "company" ? "Укажите юридический адрес" : "Укажите адрес жительства");
+  // API прежних версий хранит организацию как `ip`; интерфейс при этом
+  // показывает пользователю более общее и понятное название «Компания».
+  const persistedSignerType = signerType === "company" ? "ip" : signerType;
+  return { signerType: persistedSignerType, requisites: { data } };
 }
 
 async function onSign(contract) {
