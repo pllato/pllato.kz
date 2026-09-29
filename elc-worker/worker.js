@@ -4099,6 +4099,10 @@ async function handleDealStageChange(request, env, dealId) {
     productionQueued: productionQueued?.jobId || null,
     productionStatus: productionQueued?.status || null,
     productionCount: productionQueued?.count || null,
+    productionKind: productionQueued ? (isDemoBuildStage ? 'demo_kp' : isInvoiceBuildStage ? 'invoice_pack' : null) : null,
+    productionLabel: productionQueued
+      ? (isDemoBuildStage ? 'В очереди на создание демо и КП' : 'В очереди на создание счетов')
+      : null,
   }, 200, request);
 }
 

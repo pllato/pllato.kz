@@ -3420,7 +3420,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 import { stageGroupsClient } from './app/wa-stage-groups.js?v=20260929-stage-rules';
 const waStageGroups=stageGroupsClient({base:'https://pllato-elc-worker.uurraa.workers.dev',getToken:()=>fbAuth.currentUser.getIdToken()});
 import { mountDealRequisites } from './app/deal-requisites.js?v=20260929-autosave';
-import { mountDealProduction, renderDealProductionBadges } from './app/deal-production.js?v=20260929-transcript-draft';
+import { mountDealProduction, renderDealProductionBadges } from './app/deal-production.js?v=20260929-live-production-progress';
 import { zoomClient } from './app/zoom-crm.js?v=20260929-inline-media';
 const crmZoom = zoomClient({ base: 'https://pllato-elc-worker.uurraa.workers.dev', getToken: () => fbAuth.currentUser.getIdToken() });
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
@@ -6935,6 +6935,82 @@ const dealsState = {
   // Структура: { [pipelineId]: { counts: {stageId: n}, total, at } }
   stageCountsByPipeline: {},
 };
+
+// Live-прогресс производства документов. Для каждой активной сделки держим
+// один лёгкий poller; он обновляет объект в кеше и поэтому канбан реагирует
+// без полной перезагрузки воронки и без сброса позиции пользователя.
+const dealProductionWatchers = new Map();
+
+function dealMatchesRecordId(deal, recordId) {
+  const wanted = String(recordId || '');
+  if (!deal || !wanted) return false;
+  return String(getDealRecordId(deal)) === wanted
+    || String(deal.id || '') === wanted
+    || `deal_${String(deal.bitrixId || '')}` === wanted;
+}
+
+function applyProductionStateToDeal(recordId, data) {
+  const summary = data?.summary || {};
+  let changed = false;
+  const seen = new Set();
+  const collections = [dealsState.deals, ...Object.values(dealsState.dealsByPipeline || {})];
+  for (const list of collections) {
+    if (!Array.isArray(list)) continue;
+    for (const deal of list) {
+      if (!dealMatchesRecordId(deal, recordId) || seen.has(deal)) continue;
+      seen.add(deal);
+      deal.customFields = deal.customFields && typeof deal.customFields === 'object' ? deal.customFields : {};
+      deal.customFields._production = { ...summary, updatedAt: new Date().toISOString() };
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+function watchDealProduction(recordId, pipelineId) {
+  recordId = String(recordId || '');
+  if (!recordId || dealProductionWatchers.has(recordId)) return;
+  const watcher = { timer: null, polls: 0, stopped: false, pipelineId };
+  dealProductionWatchers.set(recordId, watcher);
+  const poll = async () => {
+    if (watcher.stopped) return;
+    try {
+      const token = await fbAuth.currentUser.getIdToken();
+      const response = await fetch(`${WORKER_BASE_URL}/api/deals/${encodeURIComponent(recordId)}/production?_=${Date.now()}`, {
+        headers: { Authorization: `Bearer ${token}` }, cache: 'no-store',
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      if (applyProductionStateToDeal(recordId, data) && document.getElementById('kanban-wrap')) renderDealsContent();
+      const active = ['queued', 'building'].includes(data.activity?.status || data.summary?.activeStatus);
+      if (!active) {
+        watcher.stopped = true;
+        dealProductionWatchers.delete(recordId);
+        return;
+      }
+      watcher.polls++;
+      watcher.timer = setTimeout(poll, watcher.polls < 240 ? 3000 : 8000);
+    } catch (error) {
+      watcher.polls++;
+      if (watcher.polls > 300) {
+        watcher.stopped = true;
+        dealProductionWatchers.delete(recordId);
+        return;
+      }
+      watcher.timer = setTimeout(poll, 8000);
+    }
+  };
+  poll();
+}
+
+function resumeDealProductionWatchers(deals) {
+  for (const deal of deals || []) {
+    const p = deal?.customFields?._production;
+    if (['queued', 'building'].includes(p?.activeStatus)) {
+      watchDealProduction(getDealRecordId(deal), deal._viewPipelineId || deal.pipelineId || dealsState.activePipelineId);
+    }
+  }
+}
 
 // Новая сделка из внешнего источника (Meta Lead Ads и следующие интеграции)
 // появляется в открытой воронке сразу после WS-события, без ручного refresh.
@@ -10662,6 +10738,7 @@ function renderDealsContent() {
       const col = document.querySelector(`#kanban-wrap .kanban-col-cards[data-stage="${CSS.escape(stage)}"]`);
       if (col) col.scrollTop = top;
     }
+    resumeDealProductionWatchers(arr);
   }
 }
 
@@ -13674,6 +13751,24 @@ async function moveDealToStage(bitrixId, newStageId) {
     const okData = await r.json().catch(() => ({}));
     if (okData.productionQueued) {
       const suffix = okData.productionCount ? `: ${okData.productionCount}` : '';
+      deal.customFields = deal.customFields && typeof deal.customFields === 'object' ? deal.customFields : {};
+      const previous = deal.customFields._production || {};
+      const isDemoKp = okData.productionKind === 'demo_kp';
+      deal.customFields._production = {
+        ...previous,
+        ...(isDemoKp ? { demo: 'queued', kp: 'queued' } : {
+          invoiceStatus: 'queued', invoicesReady: 0,
+          invoicesTotal: Number(okData.productionCount || previous.invoicesTotal || 0),
+        }),
+        activeKind: okData.productionKind,
+        activeStatus: okData.productionStatus || 'queued',
+        activeStage: 'queued',
+        activeLabel: okData.productionLabel || (isDemoKp ? 'В очереди на создание демо и КП' : 'В очереди на создание счетов'),
+        activePercent: 5,
+        updatedAt: new Date().toISOString(),
+      };
+      renderDealsContent();
+      watchDealProduction(dealId, currentPipelineId);
       showToast(`✨ Создание документов запущено${suffix}`);
     } else {
       showToast(isMirror ? 'Стадия зеркала обновлена' : 'Стадия обновлена');
@@ -14516,12 +14611,8 @@ async function openDealCard(dealKey) {
     dealId: dealRecordId,
     base: WORKER_BASE_URL,
     getToken: () => fbAuth.currentUser.getIdToken(),
-    onChanged: async () => {
-      invalidateDealsCacheForPipeline(deal.pipelineId);
-      if (dealsState.activePipelineId === deal.pipelineId) {
-        await loadDealsForPipeline(deal.pipelineId, { force: true });
-        if (document.getElementById('kanban-wrap')) renderDealsContent();
-      }
+    onChanged: data => {
+      if (applyProductionStateToDeal(dealRecordId, data) && document.getElementById('kanban-wrap')) renderDealsContent();
     },
   });
   mountDealRequisites(modal.querySelector('#dc-requisites'),{dealId:dealRecordId,canEdit:canEditDeal,base:WORKER_BASE_URL,getToken:()=>fbAuth.currentUser.getIdToken()});
