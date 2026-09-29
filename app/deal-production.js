@@ -87,7 +87,7 @@ export function renderDealProductionBadges(customFields = {}) {
 export function mountDealProduction(root, { dealId, base, getToken, onChanged }) {
   if (!root) return () => {};
   addStyles();
-  let stopped = false, timer = null, polls = 0, transcriptFeedback = '', productionSignature = null;
+  let stopped = false, timer = null, polls = 0, transcriptFeedback = '', productionSignature = null, savingTranscript = false;
   const request = async (path = '', options = {}) => {
     const token = await getToken();
     const response = await fetch(`${base}/api/deals/${encodeURIComponent(dealId)}/production${path}`, {
@@ -130,7 +130,7 @@ export function mountDealProduction(root, { dealId, base, getToken, onChanged })
     ];
     root.innerHTML = `<div class="dp-wrap"><div class="dp-head"><div><b>Комплект сделки</b><p>Демо, КП и все счета создаются и хранятся здесь</p></div>${data.summary?.hasErrors ? '<button class="dp-retry">Повторить</button>' : ''}</div>
       <div class="dp-gates">${gates.map(g => `<div class="dp-gate ${g[1] ? 'ok' : 'miss'}"><strong>${g[1] ? '✓' : '○'} ${esc(g[0])}</strong>${esc(g[2])}</div>`).join('')}</div>
-      <div class="dp-transcript"><div class="dp-transcript-head"><span>${transcriptReady ? `Активная версия: <b>${esc(transcriptSource)}</b>${transcriptWhen ? ` · ${esc(transcriptWhen)}` : ''}. Можно загрузить замену.` : 'Zoom не прислал текст? Добавьте его вручную.'}</span><div class="dp-transcript-actions"><button class="dp-open" data-transcript-paste>${transcriptReady ? 'Заменить текстом' : 'Вставить текст'}</button><button class="dp-open" data-transcript-file>Загрузить TXT/VTT</button><input data-transcript-input type="file" accept=".txt,.vtt,text/plain,text/vtt" hidden></div></div><div class="dp-transcript-editor"><textarea data-transcript-text maxlength="500000" placeholder="Вставьте сюда полный текст встречи. Желательно сохранить реплики, стоимость, сроки и условия оплаты."></textarea><div style="margin-top:7px"><button class="dp-open" data-transcript-save>Сохранить транскрипцию</button></div></div><div class="dp-transcript-status" role="status">${esc(transcriptFeedback)}</div></div>
+      <div class="dp-transcript"><div class="dp-transcript-head"><span>${transcriptReady ? `Активная версия: <b>${esc(transcriptSource)}</b>${transcriptWhen ? ` · ${esc(transcriptWhen)}` : ''}. Можно загрузить замену.` : 'Транскрибацию можно добавить на любом этапе, в том числе после встречи вне CRM.'}</span><div class="dp-transcript-actions"><button class="dp-open" data-transcript-paste>${transcriptReady ? 'Заменить текстом' : 'Вставить текст'}</button><button class="dp-open" data-transcript-file>Загрузить TXT/VTT</button><input data-transcript-input type="file" accept=".txt,.vtt,text/plain,text/vtt" hidden></div></div><div class="dp-transcript-editor${transcriptReady ? '' : ' open'}"><textarea data-transcript-text maxlength="500000" placeholder="Вставьте сюда полный текст встречи. Желательно сохранить реплики, стоимость, сроки и условия оплаты."></textarea><div style="margin-top:7px"><button class="dp-open" data-transcript-save>Сохранить транскрипцию</button></div></div><div class="dp-transcript-status" role="status">${esc(transcriptFeedback)}</div></div>
       <div class="dp-list">${items.length ? items.map(item => `<div class="dp-item"><span class="dp-icon">${icon(item.kind)}</span><span class="dp-copy"><b>${esc(item.title)}</b><small>${item.amount != null ? new Intl.NumberFormat('ru-RU').format(item.amount) + ' ' + esc(item.currency || '') : esc(item.fileName || (item.kind === 'demo' ? 'Интерактивная ссылка' : 'PDF'))}</small>${item.error ? `<span class="dp-error">${esc(item.error)}</span>` : ''}</span>${statusBadge(item.status)}${item.status === 'ready' ? `<button class="dp-open" data-artifact="${esc(item.id)}">Открыть</button>` : ''}</div>`).join('') : '<div class="dp-empty">Документы ещё не запускались. Они появятся после перевода сделки на соответствующую стадию.</div>'}</div></div>`;
     const transcriptEditor = root.querySelector('.dp-transcript-editor');
     const transcriptText = root.querySelector('[data-transcript-text]');
@@ -142,18 +142,27 @@ export function mountDealProduction(root, { dealId, base, getToken, onChanged })
     };
     root.querySelector('[data-transcript-file]').onclick = () => transcriptInput.click();
     const saveTranscript = async file => {
+      if (savingTranscript) return;
+      savingTranscript = true;
       const buttons = root.querySelectorAll('[data-transcript-save],[data-transcript-file],[data-transcript-paste]');
       buttons.forEach(button => { button.disabled = true; });
+      transcriptText.disabled = true;
       transcriptStatus.textContent = 'Сохраняем транскрипцию…';
       try {
         const uploaded = await uploadTranscript(file);
         transcriptFeedback = `✓ Загружено вручную: ${uploaded.recording?.name || file.name} · используется эта версия`;
         transcriptStatus.textContent = transcriptFeedback;
         polls = 0;
+        transcriptText.value = '';
+        transcriptText.blur();
+        savingTranscript = false;
         await load();
       } catch (error) {
         transcriptStatus.textContent = error.message;
         buttons.forEach(button => { button.disabled = false; });
+      } finally {
+        savingTranscript = false;
+        transcriptText.disabled = false;
       }
     };
     root.querySelector('[data-transcript-save]').onclick = () => {
@@ -190,9 +199,18 @@ export function mountDealProduction(root, { dealId, base, getToken, onChanged })
     if (!stopped && polls++ < 120) timer = setTimeout(load, active ? 8000 : 20000);
     if (productionChanged && onChanged) Promise.resolve(onChanged()).catch(() => {});
   };
+  const editingTranscript = () => savingTranscript || Boolean(root.querySelector('[data-transcript-text]')?.value) || document.activeElement === root.querySelector('[data-transcript-text]');
+  const deferLoad = () => { clearTimeout(timer); if (!stopped) timer = setTimeout(load, 8000); };
   const load = async () => {
-    try { draw(await request()); }
-    catch (error) { root.innerHTML = `<div class="dp-wrap"><div class="dp-error">Не удалось загрузить документы: ${esc(error.message)}</div></div>`; }
+    if (stopped) return;
+    if (editingTranscript()) { deferLoad(); return; }
+    try {
+      const data = await request();
+      if (stopped) return;
+      if (editingTranscript()) { deferLoad(); return; }
+      draw(data);
+    }
+    catch (error) { if (editingTranscript()) { deferLoad(); return; } root.innerHTML = `<div class="dp-wrap"><div class="dp-error">Не удалось загрузить документы: ${esc(error.message)}</div></div>`; }
   };
   const refreshForRequisites = event => {
     if (!event.detail?.dealId || String(event.detail.dealId) === String(dealId)) load();
