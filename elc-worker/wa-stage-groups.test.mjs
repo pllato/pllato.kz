@@ -121,3 +121,9 @@ test('при потерянном ответе приветствие не ду�
  globalThis.fetch=async(url,opt)=>{if(String(url).includes('/sendMessage/')&&JSON.parse(opt.body).chatId.endsWith('@g.us')){welcomes++;throw new Error('timeout');}return f.fetch(url,opt);};
  try{await processStageGroups(f.env);f.db.exec("UPDATE wa_stage_group_jobs SET status='pending'");await processStageGroups(f.env);assert.equal(welcomes,1);assert.equal(f.db.prepare('SELECT status FROM wa_group_welcome').get().status,'sending');}finally{globalThis.fetch=prev;}
 });
+test('карточка показывает общие правила своей воронки с именами сотрудников',async()=>{
+ const f=await fixture();f.db.exec("ALTER TABLE deals ADD COLUMN pipeline_id TEXT; UPDATE deals SET pipeline_id='p'");
+ await f.request('PUT',{rules:f.rules});
+ const data=await (await f.request('GET',undefined,'deals/deal_1')).json();
+ assert.equal(data.pipeline.name,'Pllato');assert.deepEqual(data.stageRules.map(r=>({stage:r.stage,employees:r.employees})),[{stage:'Аванс',employees:[]},{stage:'Первый этап',employees:['Разработчик']}]);
+});
