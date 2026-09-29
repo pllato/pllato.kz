@@ -1,6 +1,6 @@
-import {executiveEntities} from './executive-project.mjs?v=0.17.15';
-import {paintShapes} from './renderer.mjs?v=0.17.15';
-import {aciColors} from './colors.mjs?v=0.17.15';
+import {executiveEntities} from './executive-project.mjs?v=0.17.16';
+import {paintShapes} from './renderer.mjs?v=0.17.16';
+import {aciColors} from './colors.mjs?v=0.17.16';
 
 export function executivePages(project,shapes,assigned){
  if(!project?.sheets.length)throw Error('Сначала создайте исполнительную');
@@ -35,7 +35,7 @@ export function imagePdf(pages){
  const xref=length;push(`xref\n0 ${offsets.length}\n0000000000 65535 f \n`);for(const n of offsets.slice(1))push(String(n).padStart(10,'0')+' 00000 n \n');push(`trailer\n<< /Size ${offsets.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);return new Blob(parts,{type:'application/pdf'});
 }
 
-export async function executivePdf(project,shapes,onProgress=()=>{}){
+export async function executivePdf(project,shapes,onProgress=()=>{},options={}){
  const measure=document.createElement('canvas').getContext('2d');
  // Screen text bounds are intentionally very generous for hit-testing. Use
  // font metrics here so those hit areas do not create enormous printed margins.
@@ -46,7 +46,10 @@ export async function executivePdf(project,shapes,onProgress=()=>{}){
   for(const x of [-metrics.actualBoundingBoxLeft,metrics.actualBoundingBoxRight])for(const y of [-metrics.actualBoundingBoxAscent,metrics.actualBoundingBoxDescent]){const X=(x-Math.tan(shape.oblique||0)*y)*k*(shape.textScale||1),Y=-y*k;points.push([origin[0]+X*c-Y*s,origin[1]+X*s+Y*c]);}
   return {...shape,bounds:[Math.min(...points.map(p=>p[0])),Math.min(...points.map(p=>p[1])),Math.max(...points.map(p=>p[0])),Math.max(...points.map(p=>p[1]))]};
  });
- const sheets=executivePages(project,printable,executiveLooseRoots(project,shapes));if(sheets.length>50)throw Error('Предел PDF: 50 исполнительных за выгрузку');
+ let sheets;
+ if(options.whole){const bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const s of printable){bounds[0]=Math.min(bounds[0],s.bounds[0]);bounds[1]=Math.min(bounds[1],s.bounds[1]);bounds[2]=Math.max(bounds[2],s.bounds[2]);bounds[3]=Math.max(bounds[3],s.bounds[3]);}if(!bounds.every(Number.isFinite))throw Error('Нет отображаемой геометрии для PDF');if(bounds[2]===bounds[0])bounds[2]++;if(bounds[3]===bounds[1])bounds[3]++;sheets=[{shapes:printable,bounds}];}
+ else sheets=executivePages(project,printable,executiveLooseRoots(project,shapes)).filter(p=>!options.ids||options.ids.includes(p.sheet.id));
+ if(!sheets.length)throw Error('Не выбраны исполнительные');if(sheets.length>50)throw Error('Предел PDF: 50 исполнительных за выгрузку');
  const pages=[],width=3508,height=2481,colors=aciColors.map(c=>c==='#ffffff'?'#000000':c);colors[256]='#000000';
  for(let i=0;i<sheets.length;i++){
   onProgress(i,sheets.length);await new Promise(r=>setTimeout(r,0));
