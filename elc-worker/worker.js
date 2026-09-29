@@ -13,6 +13,8 @@ import { handleZoomRequest, processZoomJobs, ensureZoomForTask, syncZoomTask } f
 import { canChangeAnyDealStage } from "./stage-permissions.js";
 import {
   dealProductionState,
+  updateDealProductionSummary,
+  syncTranscriptProductionSummaries,
   enqueueDemoAndKp,
   enqueueInvoicePack,
   processDealProductionJobs,
@@ -2912,6 +2914,7 @@ async function handleQualRecordingUpload(request, env, dealId) {
   await env.DB.prepare(
     "INSERT INTO deal_qual_recordings (id, deal_id, r2_key, name, size, content_type, uploaded_by, uploaded_at, kind) VALUES (?,?,?,?,?,?,?,?,?)"
   ).bind(id, dealId, r2Key, fileName, body.byteLength, contentType, by, nowIso, kind).run();
+  if (kind === 'transcript') await updateDealProductionSummary(env, dealId);
   return json({ ok: true, recording: {
     id, name: fileName, size: body.byteLength, contentType, uploadedBy: by, uploadedAt: nowIso, kind,
     url: `/api/deals/${encodeURIComponent(dealId)}/qualification/recording/${encodeURIComponent(id)}`,
@@ -2968,6 +2971,7 @@ async function handleQualRecordingDelete(request, env, dealId, recId) {
   if (!row) return json({ error: "not found" }, 404, request);
   try { if (env.FILES) await env.FILES.delete(row.r2_key); } catch {}
   await env.DB.prepare("DELETE FROM deal_qual_recordings WHERE id = ? AND deal_id = ?").bind(recId, dealId).run();
+  await updateDealProductionSummary(env, dealId);
   return json({ ok: true }, 200, request);
 }
 
@@ -12731,6 +12735,8 @@ export default {
     ctx.waitUntil(processStageGroups(env).catch(e=>console.error('[wa-stage-groups]',e.message)));
     CURRENT_CTX = ctx; // для фоновой рассылки Web Push из produceDeedReminders
     ctx.waitUntil(processZoomJobs(env, createNotification).catch(e => console.error("[zoom] job failed", e.message)));
+    ctx.waitUntil(syncTranscriptProductionSummaries(env, { limit: 50 })
+      .catch(e => console.error('[deal-production] transcript status sync failed', e.message)));
     ctx.waitUntil(processDealProductionJobs(env, { notify: createNotification, logStageEvent }, { limit: 1 })
       .catch(e => console.error('[deal-production] cron failed', e.message)));
     ctx.waitUntil((async () => {

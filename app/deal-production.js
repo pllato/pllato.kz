@@ -26,7 +26,7 @@ function addStyles() {
     .dp-open{border:1px solid var(--b1);background:var(--bg2);color:var(--ac2);border-radius:7px;padding:6px 9px;cursor:pointer;font-size:11px;font-weight:600}.dp-open:hover{border-color:var(--ac2)}
     .dp-empty{font-size:11px;color:var(--t3);padding:8px 1px}.dp-error{font-size:10px;color:#dc2626;margin-top:3px}.dp-retry{border:0;background:#dc2626;color:#fff;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:11px}
     .dp-transcript{margin:0 0 12px;padding:10px;background:var(--bg2);border:1px dashed var(--b1);border-radius:8px}.dp-transcript-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.dp-transcript-head span{font-size:11px;color:var(--t2)}.dp-transcript-actions{display:flex;gap:6px;flex-wrap:wrap}.dp-transcript-editor{display:none;margin-top:9px}.dp-transcript-editor.open{display:block}.dp-transcript-editor textarea{box-sizing:border-box;width:100%;min-height:150px;resize:vertical;border:1px solid var(--b1);border-radius:8px;padding:10px;background:var(--bg3);color:var(--t1);font:12px/1.5 inherit}.dp-transcript-status{min-height:16px;margin-top:6px;font-size:10px;color:var(--t3)}
-    .kanban-docs{display:flex;gap:4px;flex-wrap:wrap;margin-top:7px}.kanban-doc{font-size:10px;font-weight:700;border-radius:99px;padding:3px 7px;background:#eef2ff;color:#4338ca}.kanban-doc.ready{background:#dcfce7;color:#15803d}.kanban-doc.error{background:#fee2e2;color:#b91c1c}
+    .kanban-docs{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:10px;padding-top:9px;border-top:1px solid var(--b1)}.kanban-doc{min-width:0;display:flex;align-items:center;gap:6px;border:1px solid var(--b1);border-radius:8px;padding:6px 7px;background:var(--bg3);color:var(--t3)}.kanban-doc-icon{font-size:14px;line-height:1}.kanban-doc-copy{min-width:0}.kanban-doc-copy b,.kanban-doc-copy small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kanban-doc-copy b{font-size:9px;line-height:1.2;text-transform:uppercase;letter-spacing:.02em}.kanban-doc-copy small{font-size:10px;line-height:1.3;margin-top:2px}.kanban-doc.ready{background:#ecfdf5;border-color:#86efac;color:#15803d}.kanban-doc.queued,.kanban-doc.building{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8}.kanban-doc.error{background:#fef2f2;border-color:#fca5a5;color:#b91c1c}.kanban-doc.missing{background:var(--bg3);border-color:var(--b1);color:var(--t3)}
     @media(max-width:720px){.dp-gates{grid-template-columns:1fr}.dp-item{align-items:flex-start;flex-wrap:wrap}.dp-status{margin-left:auto}}
   `;
   document.head.appendChild(style);
@@ -68,17 +68,26 @@ export function renderDealProductionBadges(customFields = {}) {
   addStyles();
   const p = customFields?._production;
   if (!p || typeof p !== 'object') return '';
-  const parts = [];
-  if (p.demo && p.demo !== 'missing') parts.push(`<span class="kanban-doc ${esc(p.demo)}">✨ Демо ${p.demo === 'ready' ? '✓' : p.demo === 'error' ? '!' : '…'}</span>`);
-  if (p.kp && p.kp !== 'missing') parts.push(`<span class="kanban-doc ${esc(p.kp)}">📘 КП ${p.kp === 'ready' ? '✓' : p.kp === 'error' ? '!' : '…'}</span>`);
-  if (Number(p.invoicesTotal || 0)) parts.push(`<span class="kanban-doc ${p.invoicesReady === p.invoicesTotal ? 'ready' : ''}">🧾 ${Number(p.invoicesReady || 0)}/${Number(p.invoicesTotal)}</span>`);
-  return parts.length ? `<div class="kanban-docs">${parts.join('')}</div>` : '';
+  const normalize = value => ['ready', 'queued', 'building', 'error'].includes(value) ? value : 'missing';
+  const words = { ready: 'готово', queued: 'в очереди', building: 'создаётся', error: 'ошибка', missing: 'не создано' };
+  const tile = (icon, label, status, detail = '') => {
+    const state = normalize(status);
+    return `<div class="kanban-doc ${state}" title="${esc(label)}: ${esc(detail || words[state])}"><span class="kanban-doc-icon">${icon}</span><span class="kanban-doc-copy"><b>${esc(label)}</b><small>${state === 'ready' ? '✓ ' : state === 'error' ? '! ' : state === 'queued' || state === 'building' ? '● ' : '○ '}${esc(detail || words[state])}</small></span></div>`;
+  };
+  const total = Number(p.invoicesTotal || 0), ready = Number(p.invoicesReady || 0);
+  const invoiceStatus = p.invoiceStatus || (!total ? 'missing' : ready === total ? 'ready' : p.hasErrors ? 'error' : 'building');
+  return `<div class="kanban-docs" aria-label="Готовность материалов сделки">${[
+    tile('📝', 'Транскрипция', p.transcript, p.transcript === 'ready' ? 'готова' : ''),
+    tile('✨', 'Демо', p.demo),
+    tile('📘', 'КП', p.kp),
+    tile('🧾', 'Счета', invoiceStatus, total ? `${ready}/${total} готово` : ''),
+  ].join('')}</div>`;
 }
 
 export function mountDealProduction(root, { dealId, base, getToken, onChanged }) {
   if (!root) return () => {};
   addStyles();
-  let stopped = false, timer = null, polls = 0, transcriptFeedback = '';
+  let stopped = false, timer = null, polls = 0, transcriptFeedback = '', productionSignature = null;
   const request = async (path = '', options = {}) => {
     const token = await getToken();
     const response = await fetch(`${base}/api/deals/${encodeURIComponent(dealId)}/production${path}`, {
@@ -102,6 +111,12 @@ export function mountDealProduction(root, { dealId, base, getToken, onChanged })
   };
   const draw = data => {
     const items = data.items || [], active = items.some(x => x.status === 'queued' || x.status === 'building');
+    const nextSignature = JSON.stringify({
+      transcript: { ready: data.transcript?.ready, source: data.transcript?.source, createdAt: data.transcript?.createdAt },
+      summary: data.summary,
+    });
+    const productionChanged = productionSignature !== null && productionSignature !== nextSignature;
+    productionSignature = nextSignature;
     const transcriptReady = Boolean(data.transcript?.ready);
     const transcriptWhen = formatDateTime(data.transcript?.createdAt);
     const transcriptSource = data.transcript?.source === 'manual' ? 'Вручную' : 'Zoom';
@@ -135,7 +150,6 @@ export function mountDealProduction(root, { dealId, base, getToken, onChanged })
         transcriptFeedback = `✓ Загружено вручную: ${uploaded.recording?.name || file.name} · используется эта версия`;
         transcriptStatus.textContent = transcriptFeedback;
         polls = 0;
-        if (onChanged) onChanged();
         await load();
       } catch (error) {
         transcriptStatus.textContent = error.message;
@@ -174,6 +188,7 @@ export function mountDealProduction(root, { dealId, base, getToken, onChanged })
     // Новая Zoom-транскрипция может появиться уже после открытия карточки.
     // Обновляем блок и в спокойном состоянии, чтобы пользователь увидел её без перезагрузки.
     if (!stopped && polls++ < 120) timer = setTimeout(load, active ? 8000 : 20000);
+    if (productionChanged && onChanged) Promise.resolve(onChanged()).catch(() => {});
   };
   const load = async () => {
     try { draw(await request()); }
