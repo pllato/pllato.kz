@@ -77,3 +77,8 @@ test('нельзя запустить создание без WhatsApp у уча
  globalThis.fetch=async()=>Response.json({existsWhatsapp:false});
  try{await processStageGroups(f.env);assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM wa_deal_groups').get().n,0);assert.match(f.db.prepare('SELECT error FROM wa_stage_group_jobs').get().error,/не найден/);}finally{globalThis.fetch=prev;}
 });
+test('карточка возвращает только свои группы с точным каналом отправки',async()=>{
+ const f=await fixture();f.db.exec("INSERT INTO wa_chats(id,instance_id,chat_id,is_group,name,deal_id) VALUES('wa:123:11@g.us','123','11@g.us',1,'Своя','deal_1'),('wa:999:22@g.us','999','22@g.us',1,'Чужая','deal_2'),('wa:123:33@c.us','123','33@c.us',0,'Личная','deal_1')");
+ const data=await (await f.request('GET',undefined,'deals/deal_1')).json();assert.deepEqual(data.chats,[{id:'wa:123:11@g.us',chat_id:'11@g.us',instance_id:'123',name:'Своя'}]);
+ f.deps.dealAccessSql=()=>({where:' AND 0=1',params:[]});assert.equal((await f.request('GET',undefined,'deals/deal_1')).status,403);
+});
