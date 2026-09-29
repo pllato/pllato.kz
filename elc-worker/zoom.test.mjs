@@ -130,3 +130,24 @@ test('готовые материалы дают отметку и уведом�
   f.deps.dealAccessSql=()=>({where:' AND 0=1',params:[]});
   data=await(await f.request('/deal-status','POST',{ids:['deal_ready']})).json();assert.equal(data.deals.length,0);
 });
+
+test('плеер получает MIME и длину для полного файла и перемотки',async()=>{
+  const f=fixture();await f.request('/status');
+  f.db.prepare("INSERT INTO zoom_files(id,meeting_uuid,meeting_id,extension,status,r2_key) VALUES('media','uuid','123','MP4','stored','key')").run();
+  for(const partial of [false,true]){
+    f.env.FILES.get=async()=>({size:8,httpEtag:'"test"',body:new Uint8Array(partial?3:8),range:partial?{offset:2,length:3}:undefined,writeHttpMetadata:h=>h.set('Content-Type','application/octet-stream')});
+    const r=await f.request('/files/media');
+    assert.equal(r.status,partial?206:200);assert.equal(r.headers.get('Content-Type'),'video/mp4');
+    assert.equal(r.headers.get('Content-Length'),partial?'3':'8');assert.equal(r.headers.get('Content-Disposition'),'inline');
+    assert.equal(r.headers.get('Content-Range'),partial?'bytes 2-4/8':null);
+    assert.equal((await r.arrayBuffer()).byteLength,partial?3:8);
+  }
+  f.db.prepare("UPDATE zoom_files SET extension='M4A' WHERE id='media'").run();
+  assert.equal((await f.request('/files/media')).headers.get('Content-Type'),'audio/mp4');
+});
+
+test('копируемый транскрипт сохраняет речь без разметки VTT',async()=>{
+  const {transcriptText}=await import('../app/zoom-crm.js');
+  assert.equal(transcriptText('WEBVTT\n\n1\n00:00:00.000 --> 00:00:01.000\nПлатон: Привет &amp; пока\n\n2\n00:00:01.000 --> 00:00:02.000\nДа'), 'Платон: Привет & пока\n\nДа');
+  assert.equal(transcriptText('Обычный текст'), 'Обычный текст');
+});

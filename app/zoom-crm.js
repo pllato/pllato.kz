@@ -1,3 +1,11 @@
+export function transcriptText(raw) {
+  if(!/^\uFEFF?WEBVTT\b/.test(raw))return raw;
+  return raw.replace(/^\uFEFF/,'').split(/\r?\n\s*\r?\n/).flatMap(block=>{
+    const lines=block.split(/\r?\n/);const cue=lines.findIndex(line=>line.includes('-->'));
+    if(cue<0)return [];
+    return [lines.slice(cue+1).join('\n').replace(/<[^>]*>/g,'').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&')];
+  }).join('\n\n');
+}
 export function zoomInvitation(meeting) {
   const start=new Date(meeting.start_time);
   const time=meeting.start_time && !isNaN(start) ? new Intl.DateTimeFormat('ru-RU',{timeZone:'Asia/Almaty',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(start) : '';
@@ -91,21 +99,41 @@ export function zoomClient({ base, getToken }) {
       if(!container.isConnected)return;
       container.innerHTML=rows.length?rows.map(f=>`<div style="padding:10px 0;border-bottom:1px solid var(--b1)">
         <b>${esc(f.topic || 'Встреча Zoom')}</b><div style="font-size:12px;color:var(--t3)">${esc(f.recording_start)} · ${esc(f.kind)} · ${(f.size/1048576).toFixed(1)} МБ</div>
-        ${f.status==='stored'?`<button class="tbtn" data-open="${esc(f.id)}">${f.extension==='MP4'?'Смотреть':/VTT|TXT/.test(f.extension)?'Транскрипт / текст':'Открыть файл'}</button>${canDelete?` <button class="tbtn" data-del="${esc(f.id)}">Удалить файл</button>`:''}`:`<span>${f.status==='deleted'?'Файл удалён':'Ожидает переноса'}</span>`}
+        ${f.status==='stored'?`<button class="tbtn" data-open="${esc(f.id)}">${f.extension==='MP4'?'Смотреть видео':f.extension==='M4A'?'Слушать аудио':/VTT|TXT/.test(f.extension)?'Транскрипт / текст':'Открыть файл'}</button>${/^(VTT|TXT)$/.test(f.extension)?` <button type="button" class="tbtn" data-copy-text="${esc(f.id)}">Копировать текст</button>`:''}${canDelete?` <button class="tbtn" data-del="${esc(f.id)}">Удалить файл</button>`:''}`:`<span>${f.status==='deleted'?'Файл удалён':'Ожидает переноса'}</span>`}
         ${!dealId?`<button class="tbtn" data-link="${esc(f.id)}">Прикрепить к сделке</button>`:''}
         ${f.error?`<div style="color:var(--rd)">${esc(f.error)}</div>`:''}<div data-player="${esc(f.id)}"></div></div>`).join(''):'Материалов Zoom пока нет.';
-      container.querySelectorAll('[data-open]').forEach(b=>b.onclick=async()=>{
-        const f=rows.find(x=>x.id===b.dataset.open), box=Array.from(container.querySelectorAll('[data-player]')).find(x=>x.dataset.player===f.id);
+      async function preview(f, copyOnly=false) {
+        const ext=String(f.extension || '').toUpperCase();
+        const dialog=document.createElement('dialog');
+        dialog.style.cssText='width:min(900px,92vw);max-height:90vh;overflow:auto;padding:20px;background:var(--bg2,#fff);color:var(--t1,#111);border:1px solid var(--b1,#ccc);border-radius:12px';
+        dialog.innerHTML='<h3></h3><div data-content>Загрузка…</div><p data-status role="status"></p><button type="button" class="tbtn" data-close>Закрыть</button>';
+        dialog.querySelector('h3').textContent=f.topic || 'Встреча Zoom';
+        const box=dialog.querySelector('[data-content]'),status=dialog.querySelector('[data-status]');
+        document.body.append(dialog);dialog.showModal();
+        dialog.querySelector('[data-close]').onclick=()=>dialog.close();
+        dialog.onclose=()=>{const media=dialog.querySelector('video,audio');if(media){media.pause();media.removeAttribute('src');media.load();}dialog.remove();};
         try {
-          const url=base+'/api/zoom/files/'+encodeURIComponent(f.id)+'?auth='+encodeURIComponent(await getToken());
-          const tag=f.extension==='MP4'?'video':f.extension==='M4A'?'audio':null;
-          if(tag){box.innerHTML=`<${tag} controls preload="metadata" style="width:100%;max-height:360px" src="${esc(url)}"></${tag}>`;}
-          else if(/VTT|TXT/.test(f.extension)) {
-            const r=await fetch(url); if(!r.ok)throw new Error('Не удалось прочитать файл');
-            const pre=document.createElement('pre');pre.style.cssText='max-height:400px;overflow:auto;white-space:pre-wrap';pre.textContent=await r.text();box.replaceChildren(pre);
-          }else{const a=document.createElement('a');a.href=url;a.textContent='Скачать';a.target='_blank';a.rel='noopener noreferrer';box.replaceChildren(a);}
+          const token=await getToken(),path=base+'/api/zoom/files/'+encodeURIComponent(f.id);
+          if(!dialog.open)return;
+          const tag=ext==='MP4'?'video':/^(M4A|MP3|WAV)$/.test(ext)?'audio':null;
+          if(tag){
+            const player=document.createElement(tag);player.controls=true;player.preload='metadata';player.setAttribute('playsinline','');
+            player.style.cssText='display:block;width:100%;max-height:65vh;margin:12px 0';
+            player.onerror=()=>{status.textContent='Не удалось воспроизвести запись. Закройте окно и откройте снова, чтобы обновить доступ.';};
+            player.src=path+'?auth='+encodeURIComponent(token);box.replaceChildren(player);
+          }else if(/^(VTT|TXT)$/.test(ext)) {
+            const r=await fetch(path,{headers:{Authorization:'Bearer '+token}});if(!r.ok)throw new Error('Не удалось прочитать транскрипт');
+            const raw=await r.text();if(!dialog.open)return;
+            const text=ext==='VTT'?transcriptText(raw):raw;
+            const pre=document.createElement('pre');pre.style.cssText='max-height:55vh;overflow:auto;white-space:pre-wrap;user-select:text';pre.textContent=text;
+            const copy=document.createElement('button');copy.type='button';copy.className='tbtn';copy.textContent='Копировать текст';
+            copy.onclick=async()=>{try{await navigator.clipboard.writeText(text);status.textContent='Текст скопирован';}catch{status.textContent='Выделите текст ниже и скопируйте вручную.';const range=document.createRange();range.selectNodeContents(pre);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);}};
+            box.replaceChildren(copy,pre);if(copyOnly)await copy.onclick();
+          }else{const a=document.createElement('a');a.href=path+'?auth='+encodeURIComponent(token);a.textContent='Скачать файл';a.target='_blank';a.rel='noopener noreferrer';box.replaceChildren(a);}
         }catch(e){box.textContent=e.message;}
-      });
+      }
+      container.querySelectorAll('[data-open]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();preview(rows.find(x=>x.id===b.dataset.open));});
+      container.querySelectorAll('[data-copy-text]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();preview(rows.find(x=>x.id===b.dataset.copyText),true);});
       container.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
         if(!confirm('Удалить этот файл из CRM? Восстановить его здесь будет нельзя.'))return;
         b.disabled=true;
