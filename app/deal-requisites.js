@@ -24,7 +24,8 @@ export async function mountDealRequisites(container,{dealId,canEdit,base,getToke
   let savedText=text.value,saving=false,saveTimer;
   async function saveText(){
     clearTimeout(saveTimer);
-    if(!canEdit||saving||text.value===savedText)return;
+    if(!canEdit||saving)return;
+    if(text.value===savedText){saveStatus.textContent='Реквизиты сохранены';save.hidden=true;return;}
     saving=true;save.hidden=true;save.disabled=true;
     try{
       // Serialize writes: a slower earlier request must not replace newer text.
