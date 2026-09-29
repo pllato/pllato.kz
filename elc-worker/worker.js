@@ -7,6 +7,7 @@ import { ChannelRoom, UserNotifyRoom, handleChatRequest, handleChatWebSocket, br
 import { sendWebPush, VAPID_PUBLIC_KEY } from "./webpush.js";
 import { imapList, imapFetchMessage, imapFetchAttachment, smtpSend, mailTestConnection, imapFolders, imapUnreadCount } from "./mail.js";
 import { ensureWaHistorySchema, syncWaHistory, recoverWaHistory } from "./wa-history.js";
+import { handleZoomRequest, processZoomJobs, ensureZoomForTask, syncZoomTask } from "./zoom.js";
 import { canChangeAnyDealStage } from "./stage-permissions.js";
 
 // ctx последнего fetch/scheduled — чтобы фоновую рассылку пушей (несколько
@@ -1157,6 +1158,10 @@ async function handleRtdbDelete(env, request, parts, me) {
     }
   }
 
+  if (tableName === "tasks") {
+    try { await syncZoomTask(env, id, {}, true); }
+    catch(e) { return json({error:e.message}, e.status || 502, request); }
+  }
   await env.DB.prepare(`DELETE FROM ${tableName} WHERE ${keyCol} = ?`).bind(id).run();
   await auditLog(env, me, "record_delete", tableName, id, null);
   return json({ ok: true, deleted: true }, 200, request);
@@ -1619,6 +1624,10 @@ async function handleRtdbWrite(env, request, parts, me) {
       }
     }
 
+    if (tableName === "tasks") {
+      try { await syncZoomTask(env, id, body); }
+      catch(e) { return json({error:e.message}, e.status || 502, request); }
+    }
     // Подготовим columns/values из body (с snake_case + JSON-stringify)
     const cols = [];
     const vals = [];
@@ -2986,6 +2995,13 @@ async function handleCreateTask(request, env) {
       .filter((value) => value && value !== 'deal_null' && value !== 'deal_undefined' && value !== 'deal_'))];
     if (normalizedLinks.length) crmLinks = JSON.stringify(normalizedLinks);
   }
+  if (mark === 'zoom_meeting' && crmLinks) {
+    const access = dealAccessSql(me);
+    for (const linkedId of JSON.parse(crmLinks)) {
+      const allowed = await env.DB.prepare('SELECT id FROM deals WHERE id=?' + access.where).bind(linkedId, ...access.params).first();
+      if (!allowed) return json({error:'Нет доступа к выбранной сделке'},403,request);
+    }
+  }
   const calendarDealTitle = body.calendarDealTitle != null
     ? String(body.calendarDealTitle).trim().slice(0, 1000) || null
     : null;
@@ -2993,7 +3009,17 @@ async function handleCreateTask(request, env) {
   await ensureEventPublicColumn(env);
   await ensureCalendarDealTitleColumn(env);
   const nowIso = new Date().toISOString();
-  const id = 'task_local_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const zoomRequestId = mark === 'zoom_meeting' && /^[a-f0-9-]{36}$/.test(body.zoomRequestId || '') ? body.zoomRequestId : null;
+  const id = zoomRequestId ? 'task_zoom_' + zoomRequestId : 'task_local_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  if (zoomRequestId) {
+    const existing = await env.DB.prepare('SELECT created_by_uid FROM tasks WHERE id=?').bind(id).first();
+    if (existing) {
+      if (existing.created_by_uid !== uid) return json({error:'Недоступное событие'},403,request);
+      let zoom = null, zoomError = null;
+      try { zoom = await ensureZoomForTask(env,id); } catch(e) { zoomError=e.message; }
+      return json({ok:true,id,zoom,zoomError},200,request);
+    }
+  }
   await env.DB.prepare(`
     INSERT INTO tasks (id, title, description, status, priority, deadline,
       start_date_plan, end_date_plan, mark, crm_links, calendar_deal_title,
@@ -3007,7 +3033,12 @@ async function handleCreateTask(request, env) {
   await auditLog(env, me, 'record_create', 'tasks', id, {
     source: 'api_tasks', mark, crmLinks: crmLinks ? JSON.parse(crmLinks) : [], eventPublic: !!eventPublic,
   });
-  return json({ ok: true, id, task: {
+  let zoom = null, zoomError = null;
+  if (mark === 'zoom_meeting') {
+    try { zoom = await ensureZoomForTask(env, id); }
+    catch(e) { zoomError = e.message; }
+  }
+  return json({ ok: true, id, zoom, zoomError, task: {
     id, title, description, status, priority, deadline,
     startDatePlan, endDatePlan, mark, crmLinks: crmLinks ? JSON.parse(crmLinks) : [], calendarDealTitle,
     responsibleUid: responsible, createdByUid: uid, accomplices, auditors,
@@ -11926,6 +11957,10 @@ export default {
       return handlePublicPllatoLead(request, env);
     }
 
+    if (path.startsWith("/api/zoom/")) {
+      return handleZoomRequest(request, env, { json, corsHeaders, requireAuthFlexible, resolveCanonicalUser, dealAccessSql, canEditRecord });
+    }
+
     if (path === "/api/meta/lead-webhook") {
       return handleMetaLeadWebhook(request, env);
     }
@@ -12638,6 +12673,7 @@ export default {
   // ── Cron (каждую минуту) ──────────────────────────────────────────────
   // Обрабатываем отложенные WA-сообщения которые пора слать.
   async scheduled(event, env, ctx) {
+    ctx.waitUntil(processZoomJobs(env).catch(e => console.error("[zoom] job failed", e.message)));
     CURRENT_CTX = ctx; // для фоновой рассылки Web Push из produceDeedReminders
     ctx.waitUntil((async () => {
       try {

@@ -3417,6 +3417,8 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 
 <!-- Firebase SDK -->
 <script type="module">
+import { zoomClient } from './app/zoom-crm.js';
+const crmZoom = zoomClient({ base: 'https://pllato-elc-worker.uurraa.workers.dev', getToken: () => fbAuth.currentUser.getIdToken() });
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword,
@@ -12476,6 +12478,7 @@ function openAddMirrorModal(deal, onDone) {
 }
 
 function openAddDeedModal(deal, onDone) {
+  const zoomRequestId = crypto.randomUUID();
   const dealRecordId = getDealRecordId(deal);
   const dealPublicId = getDealPublicId(deal);
   if (!dealRecordId) {
@@ -12637,6 +12640,7 @@ function openAddDeedModal(deal, onDone) {
       const idToken = await fbAuth.currentUser.getIdToken();
       const body = {
         title,
+        zoomRequestId,
         description: desc || null,
         status: 2, // в работе
         deadline: dlIso,
@@ -12660,7 +12664,9 @@ function openAddDeedModal(deal, onDone) {
         const j = await r.json().catch(() => ({}));
         throw new Error(j.error || `HTTP ${r.status}`);
       }
+      const createdTask = await r.json();
       ov.remove();
+      if (mark === 'zoom_meeting') crmZoom.created(createdTask.id, createdTask.zoomError);
       const mkDone = calMeetingKind(mark);
       showToast(mkDone ? `${mkDone.emoji} ${mkDone.label} создана — смотри в Календаре` : 'Дело создано');
       if (typeof onDone === 'function') onDone();
@@ -14400,6 +14406,9 @@ async function openDealCard(dealKey) {
         <div style="padding:12px;color:var(--t3);font-size:12px;text-align:center">⏳ Загружаем дела…</div>
       </div>
 
+      <div class="dc-section-h" style="margin-top:24px">Встречи Zoom: видео и транскрипты</div>
+      <div id="dc-zoom-files"></div>
+
       <!-- Лента событий — комменты, звонки, статусы, WA -->
       <div class="dc-section-h" style="margin-top:24px;display:flex;align-items:center;gap:10px">
         <span>📜 Лента событий</span>
@@ -14444,6 +14453,7 @@ async function openDealCard(dealKey) {
   document.body.appendChild(modal);
   document.body.style.overflow = 'hidden';
   mountDealSourceSelect(modal, deal);
+  crmZoom.files(modal.querySelector("#dc-zoom-files"), dealRecordId, canEditDeal);
 
   // Квалификация (бриф первого звонка)
   const qualDealId = dealRecordId;
@@ -17238,6 +17248,10 @@ async function renderCalendar(el) {
     renderCalendarView();
   };
   const addEventButton = document.getElementById('cal-add-event');
+  if (addEventButton && !document.getElementById('cal-zoom-settings')) {
+    const b = document.createElement('button'); b.id = 'cal-zoom-settings'; b.className = 'tbtn'; b.textContent = 'Zoom';
+    b.onclick = () => crmZoom.settings(); addEventButton.after(b);
+  }
   if (addEventButton) addEventButton.onclick = () => openCalEventForm(new Date());
   el.querySelectorAll('.cal-view-btn[data-cal-kind]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -18050,6 +18064,7 @@ async function rescheduleEvent(uid, newStart) {
 
 // Форма создания события в календаре (встреча) с привязкой к сделке.
 function openCalEventForm(prefillDate) {
+  const zoomRequestId = crypto.randomUUID();
   document.getElementById('_cal-event-modal')?.remove();
   const start = prefillDate instanceof Date && !isNaN(prefillDate) ? prefillDate : new Date();
   const evUsers = (typeof orgSortedUsers === 'function') ? orgSortedUsers() : [];
@@ -18141,6 +18156,7 @@ function openCalEventForm(prefillDate) {
     const endDt = new Date(startDt.getTime() + dur * 60000);
     const kindKey = ov.querySelector('#ce-kind')?.value || 'zoom';
     const payload = {
+      zoomRequestId,
       title, status: 2, mark: CAL_MARK_BY_KEY[kindKey] || 'zoom_meeting',
       startDatePlan: startDt.toISOString(), endDatePlan: endDt.toISOString(),
       deadline: startDt.toISOString(),   // календарь тянет задачи по окну deadline
@@ -18165,6 +18181,7 @@ function openCalEventForm(prefillDate) {
       if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
       showToast?.('Событие создано');
       ov.remove();
+      if (payload.mark === 'zoom_meeting') crmZoom.created(j.id, j.zoomError);
       await loadCalendarEvents({ force: true });
       renderCalendarView();
     } catch (e) { err.textContent = 'Ошибка: ' + e.message; btn.disabled = false; btn.textContent = 'Создать'; }
@@ -18235,6 +18252,7 @@ function openCalEventEdit(uid) {
       </select>
       <select id="ee-people" multiple size="4" ${dis} style="width:100%;margin-top:6px;padding:8px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);display:${curVis === 'people' ? '' : 'none'}">${eePeopleOpts}</select>` : ''}
       ${editable ? '' : '<div style="font-size:12px;color:var(--yl);margin-top:10px">👁 Событие другого сотрудника — только просмотр.</div>'}
+      ${ev.mark === 'zoom_meeting' ? '<div id="ee-zoom-link" style="padding:12px 0"></div>' : ''}
       <div id="ee-err" style="color:var(--rd);font-size:12px;min-height:16px;margin-top:8px"></div>
     </div>
     <div style="padding:12px 18px;border-top:1px solid var(--b1);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
@@ -18249,6 +18267,7 @@ function openCalEventEdit(uid) {
     </div>
   </div>`;
   document.body.appendChild(ov);
+  if (ev.mark === 'zoom_meeting') crmZoom.event(ov.querySelector('#ee-zoom-link'), ev.taskId);
   ov.querySelector('#ee-x').onclick = () => ov.remove();
   ov.querySelector('#ee-cancel').onclick = () => ov.remove();
   const dealBtn = ov.querySelector('#ee-deal');
