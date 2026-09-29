@@ -21,7 +21,6 @@ Strict Mode включён. Подключаем единственного ор
 - `cloud_recording:read:list_user_recordings`
 - `cloud_recording:read:list_recording_files`
 - `cloud_recording:read:recording`
-- `cloud_recording:delete:recording_file`
 
 Webhook URL: `https://pllato-elc-worker.uurraa.workers.dev/api/zoom/webhook`
 События: `recording.completed`, `recording.transcript_completed`.
@@ -56,6 +55,9 @@ OAuth-токенов в отдельной таблице `zoom_private` (не �
 - Удаление календарного события отменяет Zoom meeting, но не стирает материалы.
 
 ## Хранение
+
+Очистка выключена; scope удаления не запрошен. Включать только после отдельного
+подтверждения владельца и добавления `cloud_recording:delete:recording_file`.
 
 `ZOOM_TRASH_AFTER_COPY=true`: после проверенной копии и привязки к карточке
 конкретный файл перемещается в корзину Zoom (`action=trash`). Не удаляется вся
