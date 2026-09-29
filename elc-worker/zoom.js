@@ -157,8 +157,26 @@ async function scan(env) {
   }
 }
 async function download(env, file) {
-  const meeting = await api(env, '/meetings/' + zoomMeetingPath(file.meeting_uuid) + '/recordings');
-  const remote = meeting.recording_files?.find(f => f.id === file.id);
+  let remote;
+  try {
+    const meeting=await api(env,'/meetings/'+zoomMeetingPath(file.meeting_uuid)+'/recordings');
+    remote=meeting.recording_files?.find(f=>f.id===file.id);
+  } catch(e) { if(e.zoomStatus!==404) throw e; }
+  // Some recurring instances appear in the user archive while their UUID
+  // endpoint returns 404. Refresh the download URL from the same day's list,
+  // matching the exact recording file ID, never just the recurring meeting ID.
+  if(!remote) {
+    const day=file.recording_start.slice(0,10);
+    let page='';
+    for(let i=0;i<10;i++) {
+      const q=new URLSearchParams({from:day,to:day,page_size:'100'});
+      if(page)q.set('next_page_token',page);
+      const data=await api(env,'/users/me/recordings?'+q);
+      remote=(data.meetings||[]).flatMap(m=>m.recording_files||[]).find(f=>f.id===file.id);
+      if(remote || !data.next_page_token)break;
+      page=data.next_page_token;
+    }
+  }
   if (!remote?.download_url || remote.status !== 'completed') throw fail('Файл Zoom пока недоступен', 502);
   let url = new URL(remote.download_url);
   const allowed = u => u.protocol === 'https:' && (u.hostname === 'zoom.us' || u.hostname.endsWith('.zoom.us') || u.hostname.endsWith('.zoom.com'));
