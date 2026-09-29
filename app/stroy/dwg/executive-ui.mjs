@@ -1,9 +1,10 @@
-import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.12';
-import * as projectAPI from './executive-project.mjs?v=0.17.12';
-import {routeLength} from './cable-ledger.mjs?v=0.17.12';
-import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.12';
-import {executivePlacement} from './executive-placement.mjs?v=0.17.12';
-import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.12';
+import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.13';
+import * as projectAPI from './executive-project.mjs?v=0.17.13';
+import {routeLength} from './cable-ledger.mjs?v=0.17.13';
+import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.13';
+import {executivePlacement} from './executive-placement.mjs?v=0.17.13';
+import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.13';
+import {drawingPreset} from './drawing-presets.mjs?v=0.17.13';
 export function mountExecutiveUI(api){
  const panel=document.createElement('section');panel.id='executives';
  panel.innerHTML=`<h2>Исполнительные</h2><button id="exArea">Выделить план · 2 угла</button><p id="exAreaInfo">Откройте DWG, выберите единицы и выделите план.</p><button id="exCreate" disabled>Создать рядом</button><label>Исполнительная<select id="exSheet"></select></label><label>Заголовок<input id="exTitle" maxlength="1000"></label><label>Поворот плана, °<input id="exAngle" type="number" value="0"></label><details><summary>Редактировать штамп</summary><div id="exStamp"></div></details><button id="exApply">Применить оформление</button><h3>Кабельные трассы</h3><label>Марка<input id="exBrand" value="ВВГнг(А)-LS"></label><label>Сечение<input id="exSection" value="3×2,5"></label><label>Дополнительная длина, м<input id="exExtra" type="number" min="0" value="0" step="any"></label><button id="exRoute">Рисовать трассу</button><button id="exFinish">Завершить трассу</button><label>Трасса<select id="exRouteList"></select></label><button id="exCable">Назначить кабель</button><button id="exLeader">Выноска · 3 точки</button><button id="exRemoveLeader">Удалить выноски</button><button id="exRemoveRoute">Удалить трассу</button><div class="pair"><label>Сдвиг X<input id="exDX" type="number" value="0"></label><label>Сдвиг Y<input id="exDY" type="number" value="0"></label></div><button id="exMoveRoute">Двигать трассу</button><button id="exDevice">Выбрать прибор</button><pre id="exLedger" style="white-space:pre-wrap;font-size:12px"></pre>`;
@@ -41,7 +42,7 @@ export function mountExecutiveUI(api){
    if(item.type==='LINE')pairs=[[10,item.values[0]],[20,item.values[1]],[11,item.values[2]],[21,item.values[3]]];
    else if(item.type==='TEXT')pairs=[[10,item.values[0]],[20,item.values[1]],[40,item.values[2]],[50,item.values[3]*180/Math.PI],[1,item.text]];
    else pairs=[[90,item.points.length/2],[70,item.closed?1:0],...item.points.flatMap((n,j)=>[[j%2?20:10,n]])];
-   if(item.color)pairs.push([62,item.color]);const r=addEntity(mini,item.type,pairs);r.id='executive-'+i++;if(item.routeId)r.routeId=item.routeId;
+   if(item.color)pairs.push([62,item.color]);if(item.lineweight!==undefined)pairs.push([370,item.lineweight]);const r=addEntity(mini,item.type,pairs);r.id='executive-'+i++;if(item.routeId)r.routeId=item.routeId;
   }
   const entities=doc.entities.filter(r=>!r.id.startsWith('executive-')&&!removed.has(get(r,5)));
   api.setDoc({...doc,records:[...records,...mini.entities],entities:[...entities,...mini.entities]});refresh();
@@ -106,7 +107,7 @@ function assignSelection(){if(!sheet())throw Error('Выберите испол�
  document.addEventListener('pointerdown',e=>{if(!toolbar.contains(e.target))for(const group of toolbar.children)group.open=false;});
  $('exMoveLeader').textContent='Сдвинуть выноску (X/Y в «Перемещение»)';$('exMoveRoute').textContent='Сдвинуть выбранную трассу';$('exApply').textContent='Применить поворот и оформление';
  function selectObject(id,ids){const record=api.getDoc().records.find(r=>r.id===id);for(const s of project().sheets){const r=s.routes.find(r=>r.id===record?.routeId||r.sourceIds?.some(source=>ids.includes(source)));if(r){active=s.id;routeId=r.id;refresh();cableFields();return;}}routeId='';$('exRouteList').value='';}
- function createCable(controls,smooth){if(!sheet())throw Error('Выберите исполнительную');const id=crypto.randomUUID();mutate(p=>projectAPI.addRoute(p,active,{id,points:cableCurve(controls,smooth),controls,smooth,color:Number(document.getElementById('cwColor')?.value)||7,brand:$('exBrand').value,section:$('exSection').value,extraMetres:Number($('exExtra').value)}));routeId=id;refresh();api.status('Кабель создан и включён в ведомость. Можно изменить марку, сечение и поставить выноску.');}
+ function createCable(controls,smooth){if(!sheet())throw Error('Выберите исполнительную');const id=crypto.randomUUID();mutate(p=>projectAPI.addRoute(p,active,{id,points:cableCurve(controls,smooth),controls,smooth,...drawingPreset,extraMetres:0}));routeId=id;refresh();api.status('Кабель создан и включён в ведомость. Можно изменить марку, сечение и поставить выноску.');}
  const selectedRoute=()=>sheet()?.routes.find(r=>r.id===routeId);
  return {rebuild,tap,project,hover,selectObject,preview:()=>({mode,points,hoverPoint}),cancel:()=>{points=[];mode='';},sheet,route:selectedRoute,
   editLeader:(sheetId,route,leaderId,values)=>mutate(p=>{const s=p.sheets.find(s=>s.id===sheetId),r=s?.routes.find(r=>r.id===route),l=r?.leaders.find(l=>l.id===leaderId);if(!l)throw Error('Выноска не найдена');if(values.remove){r.leaders=r.leaders.filter(l=>l.id!==leaderId);return;}for(const key of ['label','elbow'])if(values[key]){if(!Array.isArray(values[key])||values[key].length!==2||!values[key].every(Number.isFinite))throw Error('Неверная точка');l[key]=[...values[key]];}if(values.textHeight!==undefined){if(!Number.isFinite(values.textHeight)||values.textHeight<.2||values.textHeight>50)throw Error('Высота текста: от 0,2 до 50 мм');l.textHeight=values.textHeight;}for(const key of ['brand','section'])if(values[key]!==undefined){if(typeof values[key]!=='string'||values[key].length>1000)throw Error('Слишком длинное название');r[key]=values[key].trim();}}),

@@ -30,7 +30,7 @@ export function mountLeaderWorkbench(api){
  function positions(){const l=drag.leader,delta=drag.end.map((v,i)=>v-drag.start[i]);return Object.fromEntries(['elbow','label'].map(key=>[key,drag.part==='move'||drag.part===key?l[key].map((v,i)=>v+delta[i]):l[key]]));}
  function up(){if(!drag)return false;const delta=Math.hypot(...api.screen(drag.end).map((v,i)=>v-api.screen(drag.start)[i]));if(delta>=3)edit({...selected},positions());drag=null;api.draw();return true;}
  function paint(ctx){const state=resolve();panel.hidden=!state||!api.selecting()||api.busy();if(panel.hidden)return;
-  const {s,r,l}=state,key=JSON.stringify([s.id,r.id,l.id,r.brand,r.section,l.textHeight??3]);if(shown!==key){shown=key;$('lwBrand').value=r.brand;$('lwSection').value=r.section;$('lwHeight').value=l.textHeight??3;}
+  const {s,r,l}=state,key=JSON.stringify([s.id,r.id,l.id,r.brand,r.section,l.textHeight??3]);if(shown!==key){shown=key;for(const [id,value]of [['lwBrand',r.brand],['lwSection',r.section],['lwHeight',l.textHeight??3]])if(document.activeElement!==$(id))$(id).value=value;}
   const points=drag?{...l,...positions()}:l,base=api.screen(points.label),viewport=panel.parentElement;
   panel.style.left=Math.max(8,Math.min(viewport.clientWidth-panel.offsetWidth-8,base[0]+20))+'px';panel.style.top=Math.max(8,Math.min(viewport.clientHeight-panel.offsetHeight-8,base[1]+24))+'px';
   ctx.save();ctx.strokeStyle='#9edcff';ctx.fillStyle='#9edcff';ctx.lineWidth=2;ctx.beginPath();['anchor','elbow','label'].map(k=>api.screen(points[k])).forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.stroke();for(const k of ['elbow','label']){const p=api.screen(points[k]);ctx.fillRect(p[0]-4,p[1]-4,8,8);}

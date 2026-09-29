@@ -553,6 +553,10 @@ API int pllato_color(const char *handle,int color){
  o->tio.entity->color.flag=0;o->tio.entity->color.rgb=0;o->tio.entity->color.handle=NULL;
  return 0;
 }
+API int pllato_lineweight(const char *handle,int weight){
+ Dwg_Object *o=entity(handle);if(!o||weight<0||weight>211||dxf_cvt_lweight(dxf_revcvt_lweight(weight))!=weight)return 1;
+ o->tio.entity->linewt=dxf_revcvt_lweight(weight);return 0;
+}
 /* Delete only self-contained editable entities; dependency-bearing objects reject. */
 API int pllato_remove(const char *handle){
  Dwg_Object *o=entity(handle);if(!o)return 1;

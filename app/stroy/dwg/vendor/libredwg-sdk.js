@@ -3317,7 +3317,7 @@ class LibreEntityConverter {
     const ownerhandle = libredwg.dwg_object_entity_get_ownerhandle_object(entity);
     if (this.geometryOnly) return {
       handle: idToString(handle.value), ownerBlockRecordSoftId: idToString(ownerhandle.absolute_ref),
-      layer, colorIndex, color: rgbColor, recoveredBlockRecordId, isVisible: !libredwg.dwg_object_entity_get_invisible(entity)
+      layer, colorIndex, color: rgbColor, recoveredBlockRecordId, lineweight: libredwg.dwg_object_entity_get_line_weight(entity), isVisible: !libredwg.dwg_object_entity_get_invisible(entity)
     };
     const ownerDictionaryHardId = libredwg.dwg_object_entity_get_xdicobjhandle_object(entity);
     const lineType = this.getLtypeName(entity);

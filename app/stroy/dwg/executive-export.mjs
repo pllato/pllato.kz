@@ -1,6 +1,6 @@
-import {executiveEntities} from './executive-project.mjs?v=0.17.12';
-import {paintShapes} from './renderer.mjs?v=0.17.12';
-import {aciColors} from './colors.mjs?v=0.17.12';
+import {executiveEntities} from './executive-project.mjs?v=0.17.13';
+import {paintShapes} from './renderer.mjs?v=0.17.13';
+import {aciColors} from './colors.mjs?v=0.17.13';
 
 export function executivePages(project,shapes,assigned){
  if(!project?.sheets.length)throw Error('Сначала создайте исполнительную');
@@ -52,7 +52,7 @@ export async function executivePdf(project,shapes,onProgress=()=>{}){
   onProgress(i,sheets.length);await new Promise(r=>setTimeout(r,0));
   const {bounds:b,shapes}=sheets[i],canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,width,height);
   const s=Math.min((width-100)/(b[2]-b[0]),(height-100)/(b[3]-b[1])),view={s,x:width/2-(b[0]+b[2])*s/2,y:height/2+(b[1]+b[3])*s/2};
-  paintShapes(ctx,shapes.map(shape=>shape.rgb?.toLowerCase()==='#ffffff'?{...shape,rgb:'#000000'}:shape),{view,width,height,hidden:new Set(),selected:null,colors});
+  paintShapes(ctx,shapes.map(shape=>shape.rgb?.toLowerCase()==='#ffffff'?{...shape,rgb:'#000000'}:shape),{view,width,height,hidden:new Set(),selected:null,colors,pixelsPerMm:width/420});
   const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.97));if(!blob)throw Error('Не удалось подготовить страницу PDF');pages.push({width,height,bytes:new Uint8Array(await blob.arrayBuffer())});canvas.width=canvas.height=1;
  }
  return imagePdf(pages);
