@@ -3417,7 +3417,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 
 <!-- Firebase SDK -->
 <script type="module">
-import { stageGroupsClient } from './app/wa-stage-groups.js?v=20260929-stage-rules';
+import { stageGroupsClient } from './app/wa-stage-groups.js?v=20260929-any-stage';
 const waStageGroups=stageGroupsClient({base:'https://pllato-elc-worker.uurraa.workers.dev',getToken:()=>fbAuth.currentUser.getIdToken()});
 import { mountDealRequisites } from './app/deal-requisites.js?v=20260929-autosave';
 import { mountDealProduction, renderDealProductionBadges } from './app/deal-production.js?v=20260929-live-production-progress';
@@ -12390,12 +12390,10 @@ async function loadDealDeeds(modal, deal) {
   if (!wrap) return;
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
-    // Фильтр через worker — `crmLink=deal_X` — но такого фильтра нет.
-    // Делаем простой client-side: грузим status=active + ищем dealId в crm_links.
-    // Альтернатива: добавить crmLink в LIST_CONFIG.tasks (потом).
+    // Фильтруем по сделке на сервере до пагинации, чтобы её встречи не терялись среди чужих дел.
     const params = new URLSearchParams({
       page: '1', pageSize: '50', status: 'active', sort: 'activity',
-      scope: 'all', auth: idToken,
+      scope: 'all', auth: idToken, crmLink: getDealRecordId(deal),
     });
     const r = await fetch(`${WORKER_LIST_URL}/tasks?${params}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -12414,6 +12412,7 @@ async function loadDealDeeds(modal, deal) {
       return;
     }
     wrap.innerHTML = items.map(renderDeedRowHtml).join('');
+    mountDeedZoomLinks(wrap);
   } catch (e) {
     wrap.innerHTML = `<div style="padding:12px;color:#c00;font-size:12px">Ошибка: ${escapeHtml(e.message)}</div>`;
   }
@@ -12442,8 +12441,17 @@ function renderDeedRowHtml(t, opts = {}) {
         ${dlLabel ? `<span class="dc-deed-due ${overdue && !isDone ? 'overdue' : (dueToday ? 'today' : '')}">📅 ${escapeHtml(dlLabel)}</span>` : ''}
         ${link}
       </div>
+      ${t.mark === 'zoom_meeting' ? `<details data-deed-zoom="${escapeHtml(taskId)}" style="margin-top:8px"><summary style="cursor:pointer">Ссылка Zoom и приглашение</summary><div data-zoom-result style="padding:10px 0"></div></details>` : ''}
     </div>
   </div>`;
+}
+
+function mountDeedZoomLinks(wrap) {
+  wrap.querySelectorAll('[data-deed-zoom]').forEach(row=>{
+    row.addEventListener('toggle',()=>{
+      if(row.open&&!row.dataset.loaded){row.dataset.loaded='1';crmZoom.event(row.querySelector('[data-zoom-result]'),row.dataset.deedZoom);}
+    });
+  });
 }
 
 // Toggle done state у задачи через PATCH /api/rtdb/tasks/{id}
@@ -12597,7 +12605,7 @@ function openAddMirrorModal(deal, onDone) {
   };
 }
 
-function openAddDeedModal(deal, onDone) {
+function openAddDeedModal(deal, onDone, initialKind = 'task') {
   const zoomRequestId = crypto.randomUUID();
   const dealRecordId = getDealRecordId(deal);
   const dealPublicId = getDealPublicId(deal);
@@ -12729,6 +12737,10 @@ function openAddDeedModal(deal, onDone) {
     });
   });
 
+  if (initialKind === 'zoom') {
+    ov.querySelector('[data-kind="zoom"]').click();
+    ov.querySelector('#ad-title').value = 'Zoom: ' + (deal.title || 'Встреча с клиентом');
+  }
   document.getElementById('ad-save').onclick = async () => {
     const kind = ov.querySelector('input[name="ad-kind"]:checked')?.value || 'task';
     const title = document.getElementById('ad-title').value.trim();
@@ -14395,6 +14407,12 @@ async function openDealCard(dealKey) {
         </div>
       </div>
 
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0" aria-label="Действия на любом этапе сделки">
+        <button type="button" class="tbtn" data-quick-group>Общая группа WhatsApp</button>
+        <button type="button" class="tbtn" data-quick-transcript>Добавить транскрибацию</button>
+        <button type="button" class="tbtn" data-quick-requisites>Добавить реквизиты</button>
+        <button type="button" class="tbtn" data-quick-zoom>Создать Zoom-встречу</button>
+      </div>
       ${(() => {
         // Список воронок где сделка присутствует — основная + зеркала
         const mir = deal.mirroredIn || {};
@@ -14607,6 +14625,20 @@ async function openDealCard(dealKey) {
   document.body.style.overflow = 'hidden';
   mountDealSourceSelect(modal, deal);
   waStageGroups.deal(modal.querySelector('#dc-wa-stage-group'),dealRecordId);
+  const reveal = selector => {const el=modal.querySelector(selector);el?.scrollIntoView({behavior:'smooth',block:'center'});return el;};
+  modal.querySelector('[data-quick-group]').onclick=()=>{
+    const el=reveal('#dc-wa-stage-group');el?.querySelector('[data-manual]')?.click();
+  };
+  modal.querySelector('[data-quick-transcript]').onclick=()=>{
+    const el=reveal('#dc-production');
+    if(!el?.querySelector('.dp-transcript-editor.open'))el?.querySelector('[data-transcript-paste]')?.click();
+    el?.querySelector('[data-transcript-text]')?.focus({preventScroll:true});
+  };
+  modal.querySelector('[data-quick-requisites]').onclick=()=>reveal('#dc-requisites')?.querySelector('textarea')?.focus({preventScroll:true});
+  modal.querySelector('[data-quick-zoom]').onclick=()=>openAddDeedModal(deal,async()=>{
+    await loadDealDeeds(modal,deal);
+    crmZoom.dealMeetings(modal.querySelector('#dc-zoom-meetings'),dealRecordId);
+  },'zoom');
   mountDealProduction(modal.querySelector('#dc-production'), {
     dealId: dealRecordId,
     base: WORKER_BASE_URL,
@@ -17179,6 +17211,7 @@ function renderDeedsList() {
     return;
   }
   wrap.innerHTML = items.map(t => renderDeedRowHtml(t, { showDealLink: true })).join('');
+  mountDeedZoomLinks(wrap);
 }
 
 // ═════════════════════════════════════════════════════════════════════════
