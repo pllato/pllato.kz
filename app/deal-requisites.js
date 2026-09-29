@@ -1,5 +1,5 @@
 export async function mountDealRequisites(container,{dealId,canEdit,base,getToken}) {
-  container.innerHTML='<label style="display:block;margin-bottom:8px">Текст реквизитов<textarea data-text rows="5" maxlength="50000" placeholder="Вставьте реквизиты компании или ИП…" style="display:block;box-sizing:border-box;width:100%;padding:10px;margin-top:6px;border:1px solid var(--b1);border-radius:8px;background:var(--bg2);color:var(--t1);resize:vertical" disabled></textarea></label><div data-actions><button type="button" class="tbtn" data-save disabled>Сохранить текст</button> <button type="button" class="tbtn" data-upload disabled>Прикрепить файл / изображение</button><input type="file" data-input hidden accept="image/png,image/jpeg,image/webp,image/gif,.pdf,.doc,.docx,.xls,.xlsx,.txt"><div style="font-size:12px;color:var(--t3);margin:6px 0">PNG, JPG, WebP, GIF, PDF, Word, Excel, TXT · до 15 МБ</div></div><div data-status role="status">Загрузка реквизитов…</div><div data-files></div>';
+  container.innerHTML='<label style="display:block;margin-bottom:8px">Текст реквизитов<textarea data-text rows="5" maxlength="50000" placeholder="Вставьте реквизиты компании или ИП…" style="display:block;box-sizing:border-box;width:100%;padding:10px;margin-top:6px;border:1px solid var(--b1);border-radius:8px;background:var(--bg2);color:var(--t1);resize:vertical" disabled></textarea></label><div data-actions><button type="button" class="tbtn" data-save hidden>Повторить сохранение</button> <button type="button" class="tbtn" data-upload disabled>Прикрепить файл / изображение</button><input type="file" data-input hidden accept="image/png,image/jpeg,image/webp,image/gif,.pdf,.doc,.docx,.xls,.xlsx,.txt"><div style="font-size:12px;color:var(--t3);margin:6px 0">PNG, JPG, WebP, GIF, PDF, Word, Excel, TXT · до 15 МБ</div></div><div data-save-status role="status"></div><div data-status role="status">Загрузка реквизитов…</div><div data-files></div>';
   const text=container.querySelector('[data-text]'),save=container.querySelector('[data-save]'),upload=container.querySelector('[data-upload]'),input=container.querySelector('[data-input]'),status=container.querySelector('[data-status]'),files=container.querySelector('[data-files]');
   if(!canEdit)container.querySelector('[data-actions]').hidden=true;
   const path=base+'/api/deals/'+encodeURIComponent(dealId)+'/requisites';
@@ -20,8 +20,30 @@ export async function mountDealRequisites(container,{dealId,canEdit,base,getToke
   let rows=[];
   try{const data=await api();if(!container.isConnected)return;text.value=data.text;rows=data.files;await renderFiles(rows);text.disabled=false;text.readOnly=!canEdit;save.disabled=!canEdit;upload.disabled=!canEdit;status.textContent='';}
   catch(e){status.textContent=e.message;return;}
-  text.addEventListener('input',()=>{status.textContent='Есть несохранённые изменения';});
-  save.onclick=async()=>{save.disabled=true;try{await api('PUT',JSON.stringify({text:text.value}),{'Content-Type':'application/json'});status.textContent='Реквизиты сохранены';}catch(e){status.textContent=e.message;}finally{save.disabled=false;}};
+  const saveStatus=container.querySelector('[data-save-status]');
+  let savedText=text.value,saving=false,saveTimer;
+  async function saveText(){
+    clearTimeout(saveTimer);
+    if(!canEdit||saving||text.value===savedText)return;
+    saving=true;save.hidden=true;save.disabled=true;
+    try{
+      // Serialize writes: a slower earlier request must not replace newer text.
+      while(text.value!==savedText){
+        const value=text.value;saveStatus.textContent='Сохраняется…';
+        await api('PUT',JSON.stringify({text:value}),{'Content-Type':'application/json'});
+        savedText=value;
+      }
+      saveStatus.textContent='Реквизиты сохранены';
+    }catch(e){saveStatus.textContent='Не сохранено: '+e.message;save.hidden=false;}
+    finally{saving=false;save.disabled=false;}
+  }
+  text.addEventListener('input',()=>{
+    if(!canEdit)return;
+    saveStatus.textContent='Сохраняется…';clearTimeout(saveTimer);
+    saveTimer=setTimeout(saveText,500);
+  });
+  text.addEventListener('blur',saveText);
+  save.onclick=saveText;
   upload.onclick=()=>input.click();
   async function attach(file){
     if(!canEdit||!file)return;
