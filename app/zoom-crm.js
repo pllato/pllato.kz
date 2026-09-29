@@ -12,6 +12,26 @@ export function zoomClient({ base, getToken }) {
     if (!r.ok) throw new Error(data.error || 'Ошибка Zoom');
     return data;
   }
+  let badgeBusy=false,badgeChecked=0,badgeSignature='';
+  async function refreshBadges() {
+    if(document.hidden || badgeBusy)return;
+    const nodes=[...document.querySelectorAll('[data-zoom-deal]')];
+    if(!nodes.length)return;
+    const ids=[...new Set(nodes.map(n=>n.dataset.zoomDeal).filter(Boolean))];
+    const signature=ids.join(',');
+    if(signature===badgeSignature && Date.now()-badgeChecked<45000 && nodes.every(n=>n.dataset.zoomChecked))return;
+    badgeBusy=true;
+    try {
+      const statuses=new Map();
+      for(let i=0;i<ids.length;i+=100){const data=await api('/deal-status',{method:'POST',body:JSON.stringify({ids:ids.slice(i,i+100)})});for(const row of data.deals)statuses.set(row.deal_id,row);}
+      for(const node of nodes){const row=statuses.get(node.dataset.zoomDeal);node.dataset.zoomChecked='1';
+        node.style.display=row?'block':'none';
+        node.textContent=row ? 'Zoom: '+[row.videos?'запись готова':'',row.transcripts?'транскрипт готов':'',!row.videos&&!row.transcripts?'материалы готовы':''].filter(Boolean).join(' · ') : '';
+      }
+      badgeSignature=signature;badgeChecked=Date.now();
+    }catch{}finally{badgeBusy=false;}
+  }
+  setInterval(refreshBadges,10000);
   async function event(container, taskId, path = '/tasks/'+encodeURIComponent(taskId)) {
     if (!container) return;
     container.textContent = 'Проверяем ссылку Zoom…';

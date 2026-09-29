@@ -13222,6 +13222,7 @@ function buildDealCard(d, stageColor) {
   // Используем id с убранным префиксом 'deal_' — это и есть bitrixId по convention.
   const cardKey = d.bitrixId || (d.id ? String(d.id).replace(/^deal_/, '') : '');
   return `<div class="${cardClasses.join(' ')}" draggable="true" data-deal-id="${escapeHtml(cardKey)}" data-stage="${escapeHtml(d.stageId)}" style="border-left: 3px solid ${stageColor}">
+    <div data-zoom-deal="${escapeHtml(getDealRecordId(d))}" style="display:none;margin:6px 0;color:var(--gn);font-size:12px;font-weight:600"></div>
     ${activityBadges.length ? `<div class="kanban-card-activity">${activityBadges.join('')}</div>` : ''}
     ${isNew ? `<div class="kanban-card-markers"><span class="kanban-card-marker" title="Изменена за последние 24 часа">NEW</span></div>` : ''}
     <div class="kanban-card-title" title="${escapeHtml(d.title || '')}">${escapeHtml(d.title || '(без названия)')}</div>

@@ -12673,7 +12673,7 @@ export default {
   // ── Cron (каждую минуту) ──────────────────────────────────────────────
   // Обрабатываем отложенные WA-сообщения которые пора слать.
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(processZoomJobs(env).catch(e => console.error("[zoom] job failed", e.message)));
+    ctx.waitUntil(processZoomJobs(env, createNotification).catch(e => console.error("[zoom] job failed", e.message)));
     CURRENT_CTX = ctx; // для фоновой рассылки Web Push из produceDeedReminders
     ctx.waitUntil((async () => {
       try {
