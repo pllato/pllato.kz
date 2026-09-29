@@ -25,6 +25,7 @@ async function schema(env) {
       r2_key TEXT, status TEXT NOT NULL DEFAULT 'pending', imported_at TEXT, deleted_at TEXT,
       zoom_deleted_at TEXT, error TEXT, lease_until TEXT, retry_at TEXT, attempts INTEGER DEFAULT 0)`),
     env.DB.prepare('CREATE INDEX IF NOT EXISTS zoom_files_deal ON zoom_files(deal_id)'),
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS zoom_file_notified (file_id TEXT PRIMARY KEY, notified_at TEXT NOT NULL)'),
   ]);
 }
 async function get(env, k) { return (await env.DB.prepare('SELECT v FROM zoom_private WHERE k=?').bind(k).first())?.v; }
@@ -209,7 +210,28 @@ async function trashOriginal(env, file) {
   await api(env, '/meetings/' + zoomMeetingPath(file.meeting_uuid) + '/recordings/' + encodeURIComponent(file.id) + '?action=trash', 'DELETE');
   await env.DB.prepare('UPDATE zoom_files SET zoom_deleted_at=? WHERE id=?').bind(now(), file.id).run();
 }
-export async function processZoomJobs(env) {
+export async function notifyZoomFiles(env, notify) {
+  if (!notify) return;
+  const {results}=await env.DB.prepare(`SELECT f.*, d.title AS deal_title,d.responsible_uid,d.created_by_uid
+    FROM zoom_files f JOIN deals d ON d.id=f.deal_id
+    WHERE f.status='stored' AND NOT EXISTS (SELECT 1 FROM zoom_file_notified n WHERE n.file_id=f.id)
+    ORDER BY f.imported_at LIMIT 30`).all();
+  for (const f of results) {
+    const recipients=[...new Set([f.responsible_uid,f.created_by_uid].filter(Boolean))];
+    if(!recipients.length)continue;
+    const kind=/transcript/i.test(f.kind) ? 'transcript' : /MP4/i.test(f.extension) ? 'video' : 'files';
+    const title=kind==='transcript'?'Zoom: транскрипт готов':kind==='video'?'Zoom: запись готова':'Zoom: материалы готовы';
+    let done=true;
+    for(const uid of recipients) {
+      const id='zoom_ready:'+encodeURIComponent(f.meeting_uuid)+':'+kind+':'+uid;
+      const result=await notify(env,{id,uid,type:'zoom_ready',title,body:f.deal_title || f.topic,
+        link:'/team.html#deal/'+encodeURIComponent(f.deal_id.replace(/^deal_/,'')),entityType:'deals',entityId:f.deal_id});
+      if(!result)done=false;
+    }
+    if(done)await env.DB.prepare('INSERT OR IGNORE INTO zoom_file_notified VALUES(?,?)').bind(f.id,now()).run();
+  }
+}
+export async function processZoomJobs(env, notify) {
   if (!env.ZOOM_CLIENT_ID || !env.ZOOM_CLIENT_SECRET) return;
   await schema(env);
   if (!await get(env, 'tokens')) return;
@@ -230,6 +252,7 @@ export async function processZoomJobs(env) {
       try { await download(env, f); }
       catch(e) { await env.DB.prepare('UPDATE zoom_files SET error=?,attempts=attempts+1,retry_at=? WHERE id=?').bind(String(e.message).slice(0,250), new Date(Date.now() + Math.min(360, 2 ** Math.min(f.attempts,8)) * 60000).toISOString(),f.id).run(); }
     }
+    await notifyZoomFiles(env,notify);
     if (env.ZOOM_TRASH_AFTER_COPY === 'true') {
       const f = await env.DB.prepare("SELECT * FROM zoom_files WHERE status='stored' AND zoom_deleted_at IS NULL AND deal_id IS NOT NULL AND (retry_at IS NULL OR retry_at<=?) LIMIT 1").bind(now()).first();
       if (f) try { await trashOriginal(env, f); }
@@ -289,6 +312,18 @@ export async function handleZoomRequest(request, env, deps) {
       const access=dealAccessSql(me);
       return !!await env.DB.prepare('SELECT id FROM deals WHERE id=?'+access.where).bind(id,...access.params).first();
     };
+    if(path==='/deal-status' && request.method==='POST') {
+      const body=await request.json();
+      const ids=Array.isArray(body.ids)?[...new Set(body.ids.filter(x=>typeof x==='string'))].slice(0,100):[];
+      if(!ids.length)return json({deals:[]},200,request);
+      const access=dealAccessSql(me), placeholders=ids.map(()=>'?').join(',');
+      const {results}=await env.DB.prepare(`SELECT deal_id,COUNT(*) AS files,
+        SUM(CASE WHEN extension='MP4' THEN 1 ELSE 0 END) AS videos,
+        SUM(CASE WHEN kind LIKE '%transcript%' THEN 1 ELSE 0 END) AS transcripts
+        FROM zoom_files WHERE status='stored' AND deal_id IN
+        (SELECT id FROM deals WHERE id IN (${placeholders})${access.where}) GROUP BY deal_id`).bind(...ids,...access.params).all();
+      return json({deals:results},200,request);
+    }
     if (path === '/files' && request.method === 'GET') {
       const deal = url.searchParams.get('deal');
       if (deal ? !await canReadDeal(deal) : !admin) throw fail('Нет доступа',403);

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { handleZoomRequest, ensureZoomForTask, processZoomJobs, zoomMeetingPath } from './zoom.js';
+import { handleZoomRequest, ensureZoomForTask, processZoomJobs, notifyZoomFiles, zoomMeetingPath } from './zoom.js';
 
 function fixture() {
   const db=new DatabaseSync(':memory:');
@@ -113,4 +113,20 @@ test('архив использует точный file ID из списка п�
   };
   try{await processZoomJobs(f.env);assert.equal(f.db.prepare("SELECT status FROM zoom_files WHERE id='wanted'").get().status,'stored');}
   finally{globalThis.fetch=original;}
+});
+
+
+test('готовые материалы дают отметку и уведомления без дублей; pending не уведомляется',async()=>{
+  const f=fixture();await f.connect();
+  f.db.exec('ALTER TABLE deals ADD COLUMN title TEXT; ALTER TABLE deals ADD COLUMN responsible_uid TEXT; ALTER TABLE deals ADD COLUMN created_by_uid TEXT');
+  f.db.prepare('INSERT INTO deals(id,title,responsible_uid,created_by_uid) VALUES(?,?,?,?)').run('deal_ready','Тест','manager','creator');
+  for(const [id,status,ext,kind] of [['video','stored','MP4','speaker'],['text','pending','VTT','audio_transcript']])f.db.prepare("INSERT INTO zoom_files(id,meeting_uuid,meeting_id,deal_id,status,extension,kind) VALUES(?,'uuid','123','deal_ready',?,?,?)").run(id,status,ext,kind);
+  const sent=[];const notify=async(env,n)=>{sent.push(n);return n.id;};
+  await notifyZoomFiles(f.env,notify);await notifyZoomFiles(f.env,notify);
+  assert.equal(sent.length,2);assert.equal(sent[0].link,'/team.html#deal/ready');
+  let data=await(await f.request('/deal-status','POST',{ids:['deal_ready']})).json();assert.equal(data.deals[0].videos,1);assert.equal(data.deals[0].transcripts,0);
+  f.db.prepare("UPDATE zoom_files SET status='stored' WHERE id='text'").run();
+  await notifyZoomFiles(f.env,notify);assert.equal(sent.length,4);assert.match(sent[2].title,/транскрипт/);
+  f.deps.dealAccessSql=()=>({where:' AND 0=1',params:[]});
+  data=await(await f.request('/deal-status','POST',{ids:['deal_ready']})).json();assert.equal(data.deals.length,0);
 });
