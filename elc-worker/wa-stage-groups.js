@@ -14,6 +14,7 @@ export async function groupSchema(env){
   env.DB.prepare("CREATE TABLE IF NOT EXISTS wa_stage_group_jobs (event_id INTEGER PRIMARY KEY,deal_id TEXT NOT NULL,pipeline_id TEXT NOT NULL,stage_id TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',error TEXT,created_at INTEGER NOT NULL)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS wa_deal_groups (deal_id TEXT PRIMARY KEY,channel_id TEXT NOT NULL,group_id TEXT,invite_link TEXT,name TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',created_at INTEGER NOT NULL)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS wa_group_people (deal_id TEXT NOT NULL,chat_id TEXT NOT NULL,label TEXT,status TEXT NOT NULL,error TEXT,PRIMARY KEY(deal_id,chat_id))"),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS wa_manual_group_jobs (deal_id TEXT PRIMARY KEY,channel_id TEXT NOT NULL,employee_uids TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',error TEXT,created_at INTEGER NOT NULL)"),
   env.DB.prepare('CREATE TABLE IF NOT EXISTS wa_group_locks (id TEXT PRIMARY KEY,until_at INTEGER NOT NULL,owner TEXT)'),
   env.DB.prepare("INSERT OR IGNORE INTO wa_group_locks VALUES('runner',0,'')")
  ]);
@@ -106,6 +107,12 @@ export async function processStageGroups(env){
  const lease=await env.DB.prepare("UPDATE wa_group_locks SET owner=?,until_at=? WHERE id='runner' AND until_at<=?").bind(owner,now+1200000,now).run();
  if(!changed(lease))return;
  try{
+  const manual=await env.DB.prepare("SELECT * FROM wa_manual_group_jobs WHERE status='pending' ORDER BY created_at LIMIT 1").first();
+  if(manual){
+   try{if(await processJob(env,manual,manual))await env.DB.prepare("UPDATE wa_manual_group_jobs SET status='done',error=NULL WHERE deal_id=?").bind(manual.deal_id).run();}
+   catch(e){await env.DB.prepare("UPDATE wa_manual_group_jobs SET status='error',error=? WHERE deal_id=?").bind(e.message,manual.deal_id).run();}
+   return;
+  }
   // Only transitions recorded after rule activation; no mass creation for old deals.
   await env.DB.prepare(`INSERT OR IGNORE INTO wa_stage_group_jobs(event_id,deal_id,pipeline_id,stage_id,created_at) SELECT e.id,e.deal_id,e.pipeline_id,e.stage_id,? FROM deal_stage_events e JOIN wa_stage_group_rules r ON r.pipeline_id=e.pipeline_id AND r.stage_id=e.stage_id WHERE e.id>r.since_event`).bind(now).run();
   const {results}=await env.DB.prepare("SELECT * FROM wa_stage_group_jobs WHERE status='pending' ORDER BY event_id LIMIT 5").all();
@@ -133,11 +140,28 @@ export async function handleStageGroups(request,env,deps){
     const {results:jobs}=await env.DB.prepare('SELECT event_id,status,error FROM wa_stage_group_jobs WHERE deal_id=? ORDER BY event_id DESC LIMIT 10').bind(dealId).all();
     const {results:people}=await env.DB.prepare('SELECT label,status,error FROM wa_group_people WHERE deal_id=?').bind(dealId).all();
     const {results:chats}=await env.DB.prepare('SELECT id,chat_id,instance_id,name FROM wa_chats WHERE deal_id=? AND is_group=1 ORDER BY name').bind(dealId).all();
-    return json({group,jobs,people,chats,admin:me.role==='admin'},200,request);
+    const manual=await env.DB.prepare('SELECT status,error FROM wa_manual_group_jobs WHERE deal_id=?').bind(dealId).first();
+    let options;
+    if(url.searchParams.get('options')==='1'){
+     const {results:users}=await env.DB.prepare('SELECT uid,name,last_name,phone FROM users WHERE active=1 ORDER BY name').all();
+     const {results:channels}=await env.DB.prepare('SELECT id,display_name,id_instance FROM wa_channels WHERE active=1').all();
+     options={users,channels};
+    }
+    return json({group,jobs:manual?[manual,...jobs]:jobs,people,chats,options,admin:me.role==='admin'},200,request);
    }
-   if(me.role!=='admin')return json({error:'Только администратор'},403,request);
    if(request.method!=='POST')return json({error:'Method not allowed'},405,request);
    const body=await request.json(),group=await env.DB.prepare('SELECT * FROM wa_deal_groups WHERE deal_id=?').bind(dealId).first();
+   if(body.action==='create'){
+    if(group)return json({error:'Группа уже создана или создаётся. Используйте существующую группу.'},409,request);
+    if(!Array.isArray(body.employee_uids)||body.employee_uids.length>8)return json({error:'Выберите не больше 8 дополнительных сотрудников'},400,request);
+    if(!await env.DB.prepare('SELECT id FROM wa_channels WHERE id=? AND active=1').bind(body.channel_id||'').first())return json({error:'Выберите активный WhatsApp-номер'},400,request);
+    const deal=await env.DB.prepare('SELECT * FROM deals WHERE id=?').bind(dealId).first();
+    try{await participants(env,deal,body.employee_uids);}catch(e){return json({error:e.message},400,request);}
+    const inserted=await env.DB.prepare('INSERT OR IGNORE INTO wa_manual_group_jobs(deal_id,channel_id,employee_uids,created_at) VALUES(?,?,?,?)').bind(dealId,body.channel_id,JSON.stringify([...new Set(body.employee_uids)]),Date.now()).run();
+    if(!changed(inserted))return json({error:'Запрос на создание уже существует. Проверьте статус группы.'},409,request);
+    return json({ok:true,status:'pending'},202,request);
+   }
+   if(me.role!=='admin')return json({error:'Только администратор'},403,request);
    // Manual recovery validates the supplied group through the configured account.
    if(body.groupId){
     if(!group||!/^\d[\d-]*@g\.us$/.test(body.groupId))return json({error:'Нужен корректный ID группы WhatsApp'},400,request);
@@ -148,6 +172,7 @@ export async function handleStageGroups(request,env,deps){
     await env.DB.prepare("UPDATE wa_deal_groups SET group_id=?,invite_link=?,status='active' WHERE deal_id=?").bind(body.groupId,inviteUrl(data.groupInviteLink),dealId).run();
    }else if(group?.status==='creating')return json({error:'Сначала проверьте созданную группу в WhatsApp и укажите её ID'},409,request);
    await env.DB.prepare("UPDATE wa_stage_group_jobs SET status='pending',error=NULL WHERE deal_id=? AND status='error'").bind(dealId).run();
+   await env.DB.prepare("UPDATE wa_manual_group_jobs SET status='pending',error=NULL WHERE deal_id=? AND status='error'").bind(dealId).run();
    return json({ok:true},200,request);
   }
   if(me.role!=='admin')return json({error:'Настройки доступны администратору'},403,request);

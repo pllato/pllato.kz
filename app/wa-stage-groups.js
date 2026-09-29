@@ -23,13 +23,31 @@ export function stageGroupsClient({base,getToken}){
    };
   }catch(e){box.textContent=e.message;}
  }
+ async function manual(container,dealId){
+  const dialog=document.createElement('dialog');
+  dialog.style.cssText='width:min(600px,94vw);max-height:85vh;overflow:auto;padding:22px;background:var(--bg2,#fff);color:var(--t1,#111);border:1px solid var(--b1,#ccc);border-radius:12px';
+  dialog.innerHTML='<h3>Создать группу WhatsApp</h3><p>Клиент и ответственный менеджер добавятся автоматически. Если участника нельзя добавить, ему отправится приглашение в личный WhatsApp.</p><div data-content>Загрузка…</div><p data-status role="status"></p><button class="tbtn" data-create disabled>Создать группу</button> <button class="tbtn" data-close>Отмена</button>';
+  document.body.append(dialog);dialog.showModal();dialog.onclose=()=>dialog.remove();dialog.querySelector('[data-close]').onclick=()=>dialog.close();
+  const box=dialog.querySelector('[data-content]'),status=dialog.querySelector('[data-status]'),create=dialog.querySelector('[data-create]');
+  try{
+   const data=await api('deals/'+encodeURIComponent(dealId)+'?options=1');if(!dialog.open)return;
+   box.innerHTML=`<label>Рабочий WhatsApp-номер <select data-channel><option value="">Выберите номер</option>${data.options.channels.map(c=>`<option value="${esc(c.id)}" ${data.options.channels.length===1?'selected':''}>${esc(c.display_name||c.id_instance)}</option>`).join('')}</select></label><p>Дополнительные сотрудники (до 8):</p>${data.options.users.map(u=>`<label style="display:block;margin:8px 0"><input type="checkbox" data-uid="${esc(u.uid)}" ${u.phone?'':'disabled'}> ${esc([u.name,u.last_name].filter(Boolean).join(' '))}${u.phone?'':' — нет телефона'}</label>`).join('')}<p>Название: Pllato IT разработка - CRM - Имя контакта - дата создания.</p>`;
+   create.disabled=false;
+   create.onclick=async()=>{
+    create.disabled=true;status.textContent='Добавляем в очередь…';
+    try{await api('deals/'+encodeURIComponent(dealId),'POST',{action:'create',channel_id:box.querySelector('[data-channel]').value,employee_uids:[...box.querySelectorAll('[data-uid]:checked')].map(x=>x.dataset.uid)});dialog.close();await deal(container,dealId);}
+    catch(e){status.textContent=e.message;create.disabled=false;}
+   };
+  }catch(e){status.textContent=e.message;}
+ }
  async function deal(container,dealId){
   if(!container)return;
   try{
    const data=await api('deals/'+encodeURIComponent(dealId));if(!container.isConnected)return;
-   if(!data.group&&!data.jobs.length){container.replaceChildren();return;}
+   if(!data.group&&!data.jobs.length){container.innerHTML='<div class="dc-section-h">Рабочая группа WhatsApp</div><button type="button" class="tbtn" data-manual>Создать группу WhatsApp</button>';container.querySelector('[data-manual]').onclick=()=>manual(container,dealId);return;}
    const link=data.group?.invite_link,valid=/^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+$/.test(link||'');
    container.innerHTML=`<div class="dc-section-h">Рабочая группа WhatsApp</div><b>${esc(data.group?.name||'Создание группы')}</b>${valid?`<p><a href="${esc(link)}" target="_blank" rel="noopener noreferrer">Открыть группу WhatsApp</a> <button type="button" class="tbtn" data-copy>Копировать приглашение</button></p>`:''}<p>${data.jobs.map(j=>esc(labels[j.status]||j.status)+(j.error?': '+esc(j.error):'')).join('<br>')}</p>${data.people.map(p=>`<div>${esc(p.label)} — ${esc(labels[p.status]||p.status)}</div>`).join('')}<p data-status role="status"></p>${data.admin&&data.jobs.some(j=>j.status==='error')?`<input data-group-id placeholder="ID уже созданной группы (…@g.us)" aria-label="ID уже созданной группы"><button type="button" class="tbtn" data-retry>Проверить / повторить обработку</button>`:''}`;
+   if(data.jobs.some(j=>j.status==='pending')){clearTimeout(container._waGroupTimer);container._waGroupTimer=setTimeout(()=>{if(container.isConnected)deal(container,dealId);},5000);}
    const status=container.querySelector('[data-status]');
    const copy=container.querySelector('[data-copy]');if(copy)copy.onclick=async()=>{try{await navigator.clipboard.writeText(link);status.textContent='Ссылка скопирована';}catch{status.textContent='Скопируйте ссылку из кнопки открытия группы';}};
    const retry=container.querySelector('[data-retry]');if(retry)retry.onclick=async()=>{retry.disabled=true;try{await api('deals/'+encodeURIComponent(dealId),'POST',{groupId:container.querySelector('[data-group-id]').value.trim()||undefined});await deal(container,dealId);}catch(e){status.textContent=e.message;retry.disabled=false;}};

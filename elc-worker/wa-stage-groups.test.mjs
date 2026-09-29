@@ -82,3 +82,23 @@ test('карточка возвращает только свои группы �
  const data=await (await f.request('GET',undefined,'deals/deal_1')).json();assert.deepEqual(data.chats,[{id:'wa:123:11@g.us',chat_id:'11@g.us',instance_id:'123',name:'Своя'}]);
  f.deps.dealAccessSql=()=>({where:' AND 0=1',params:[]});assert.equal((await f.request('GET',undefined,'deals/deal_1')).status,403);
 });
+test('менеджер создаёт вручную без правил этапов; повторный запрос не создаёт дубль',async()=>{
+ const f=await fixture();f.deps.resolveCanonicalUser=async()=>({role:'agent'});
+ const body={action:'create',channel_id:'ch',employee_uids:['dev']};
+ assert.equal((await f.request('POST',body,'deals/deal_1')).status,202);
+ assert.equal((await f.request('POST',body,'deals/deal_1')).status,409);
+ const prev=globalThis.fetch;globalThis.fetch=f.fetch;
+ try{await processStageGroups(f.env);await processStageGroups(f.env);
+ assert.equal(f.calls.filter(c=>c.method==='createGroup').length,1);
+ assert.equal(f.db.prepare('SELECT status FROM wa_manual_group_jobs').get().status,'done');
+ assert.equal(f.db.prepare('SELECT deal_id FROM wa_chats').get().deal_id,'deal_1');
+ assert.equal((await f.request('POST',body,'deals/deal_1')).status,409);
+ }finally{globalThis.fetch=prev;}
+});
+test('ручное создание проверяет доступ, телефон менеджера и канал до постановки в очередь',async()=>{
+ const f=await fixture(),body={action:'create',channel_id:'ch',employee_uids:[]};
+ f.deps.dealAccessSql=()=>({where:' AND 0=1',params:[]});assert.equal((await f.request('POST',body,'deals/deal_1')).status,403);
+ f.deps.dealAccessSql=()=>({where:'',params:[]});assert.equal((await f.request('POST',{...body,channel_id:'missing'},'deals/deal_1')).status,400);
+ f.db.exec("UPDATE users SET phone='' WHERE uid='manager'");assert.equal((await f.request('POST',body,'deals/deal_1')).status,400);
+ assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM wa_manual_group_jobs').get().n,0);
+});
