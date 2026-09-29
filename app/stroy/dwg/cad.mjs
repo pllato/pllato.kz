@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {cadFont} from './fonts.mjs?v=0.17.12';
+import {cadFont} from './fonts.mjs?v=0.17.13';
 // DXF остаётся источником истины: неизвестные записи не вырезаются при экспорте.
 export const get=(r,c,d='')=>{const pairs=r._pairs||(r.raw===undefined?r.pairs:null);if(pairs){for(const p of pairs)if(p[0]===c)return p[1];}else{for(const p of groups(r.raw||''))if(p[0]===c)return p[1];}return d;};
 export const num=(r,c,d=0)=>Number(get(r,c,d));
@@ -60,7 +60,7 @@ export function scene(doc){
   for(let ri=0;ri<records.length;ri++){const r=records[ri];if(++visited>3000000){limited=true;return;}const root=owner||r,layer=get(r,8,'0')==='0'?inherited:get(r,8);
    if(num(r,60)===1)continue;
    const aci=Math.abs(num(r,62,256)),layerStyle=doc.layers.get(layer),trueColor=get(r,420);
-   const style=trueColor!==''?{rgb:'#'+(Number(trueColor)&0xffffff).toString(16).padStart(6,'0')}:aci===0?blockColor:aci===256?(layerStyle?.rgb!==undefined?{rgb:'#'+(layerStyle.rgb&0xffffff).toString(16).padStart(6,'0')}:{color:Math.abs(layerStyle?.color||7)}):{color:aci};
+   const style={...(trueColor!==''?{rgb:'#'+(Number(trueColor)&0xffffff).toString(16).padStart(6,'0')}:aci===0?blockColor:aci===256?(layerStyle?.rgb!==undefined?{rgb:'#'+(layerStyle.rgb&0xffffff).toString(16).padStart(6,'0')}:{color:Math.abs(layerStyle?.color||7)}):{color:aci}),lineweight:Math.max(0,num(r,370,0))};
    const ex=[num(r,210),num(r,220),num(r,230,1)],wcs=['LINE','POINT','ELLIPSE','3DFACE','SPLINE','DIMENSION'].includes(r.type)||(r.type==='POLYLINE'&&(num(r,70)&8));
    if(!wcs&&(ex[0]||ex[1]||![-1,1].includes(ex[2]))){skip(r.type+' наклонная OCS');continue;}
    if(ex[2]===-1&&['TEXT','MTEXT','ATTRIB','ATTDEF'].includes(r.type)){skip(r.type+' зеркальный текст OCS');continue;}

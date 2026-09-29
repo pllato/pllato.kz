@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Geometry view only. The original DWG remains the source for saving.
-import {fromRecords} from './cad.mjs?v=0.17.12';
-import {leaderParts} from './mleader.mjs?v=0.17.12';
-import {hatchGeometry} from './hatch.mjs?v=0.17.12';
+import {fromRecords} from './cad.mjs?v=0.17.13';
+import {leaderParts} from './mleader.mjs?v=0.17.13';
+import {hatchGeometry} from './hatch.mjs?v=0.17.13';
 export function nativeDocument(db){
  const blockNames=new Map(db.tables.BLOCK_RECORD.entries.map(b=>[b.handle,b.name||'@'+b.handle]));
  const textStyles=db.tables.STYLE?.entries||[],styleNames=new Map(textStyles.map(s=>[s.handle,s.name]));
@@ -14,6 +14,8 @@ export function nativeDocument(db){
   const type=e.type==='POLYLINE2D'||e.type==='POLYLINE3D'?'POLYLINE':e.type;
   const p=[[5,e.handle],[8,e.layer||'0'],[62,e.colorIndex??256],[330,e.ownerBlockRecordSoftId||'0']];
   if(Number.isInteger(e.color))p.push([420,e.color]);
+  // SDK exposes DWG's 5-bit enum; DXF 370 uses hundredths of a millimetre.
+  if(Number.isInteger(e.lineweight)&&e.lineweight>=0&&e.lineweight<32)p.push([370,[0,5,9,13,15,18,20,25,30,35,40,50,53,60,70,80,90,100,106,120,140,158,200,211,0,0,0,0,0,-1,-2,-3][e.lineweight]]);
   if(e.isVisible===false)p.push([60,1]);if(e.type!=='LWPOLYLINE'||(e.flag&1))point(p,210,e.extrusionDirection);
   switch(e.type){
    case 'LINE':point(p,10,e.startPoint);point(p,11,e.endPoint);break;
