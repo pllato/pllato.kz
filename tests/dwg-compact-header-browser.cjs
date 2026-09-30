@@ -16,6 +16,8 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');
     const box=s=>document.querySelector(s).getBoundingClientRect();
     return {width:innerWidth,header:box('header').height,tools:box('#drawingToolbar').height,top:box('#viewport').top,overflow:document.documentElement.scrollWidth>innerWidth};
    });rows.push(measure);
+   assert.equal(await page.locator('#buildVersion').isVisible(),true,'Build version must be visible on desktop and mobile');
+   assert.match(await page.locator('#buildVersion').innerText(),/^v\d+\.\d+\.\d+$/);
    assert.ok(measure.tools<=43,JSON.stringify(measure));
    if(width>=1280)assert.ok(measure.top<=86,JSON.stringify(measure));
    assert.equal(measure.overflow,false,JSON.stringify(measure));
