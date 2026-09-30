@@ -1,5 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {parseTable,tablePages} from '../app/stroy/dwg/table-paste.mjs';
+test('short Excel content keeps compact columns instead of stretching to 200 mm',()=>{const [p]=tablePages(parseTable('Кабель\tСечение\tДлина, м\nВВГнг(А)-LS\t3×2,5\t9.72'));assert.ok(p.width<60);assert.equal(p.width,p.widths.reduce((a,b)=>a+b,0));assert.equal(p.rows[1].lines[0][0],'ВВГнг(А)-LS');});
 import {createExecutiveProject,createExecutive,executiveEntities} from '../app/stroy/dwg/executive-project.mjs';
 import {validateExecutiveProject} from '../app/stroy/dwg/executive-metadata.mjs';
 test('arbitrary columns, Excel quoted newlines and tabs, safe plain text',()=>{const t=parseTable('№\tОписание\tЕд.\tКол.\n1\t"Строка\nс переносом"\tшт\t2\n2\t"a\tb"\tм\t3');assert.equal(t.cells[1][1],'Строка\nс переносом');assert.equal(t.cells[2][1],'a\tb');assert.equal(t.cells[0].length,4);assert.throws(()=>parseTable('"bad'));assert.equal(parseTable('<script>\t=1+1').cells[0][0],'<script>');});

@@ -1,4 +1,4 @@
-import {get} from './cad.mjs?v=0.17.48';
+import {get} from './cad.mjs?v=0.17.49';
 
 // INSERT and attached ATTRIBs form one selection unit, never separate roots.
 export function selectExecutiveRoots(doc,shapes,area){

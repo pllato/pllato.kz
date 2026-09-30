@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Geometry view only. The original DWG remains the source for saving.
-import {fromRecords} from './cad.mjs?v=0.17.48';
-import {leaderParts} from './mleader.mjs?v=0.17.48';
-import {hatchGeometry} from './hatch.mjs?v=0.17.48';
+import {fromRecords} from './cad.mjs?v=0.17.49';
+import {leaderParts} from './mleader.mjs?v=0.17.49';
+import {hatchGeometry} from './hatch.mjs?v=0.17.49';
 export function nativeDocument(db){
  const blockNames=new Map(db.tables.BLOCK_RECORD.entries.map(b=>[b.handle,b.name||'@'+b.handle]));
  const textStyles=db.tables.STYLE?.entries||[],styleNames=new Map(textStyles.map(s=>[s.handle,s.name]));
