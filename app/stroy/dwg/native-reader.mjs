@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import createModule from './vendor/libredwg-web.js?v=0.17.28';
-import {warningText} from './progress.mjs?v=0.17.28';
-import {LibreDwg} from './vendor/libredwg-sdk.js?v=0.17.28';
-import {nativeDocument} from './native-adapter.mjs?v=0.17.28';
-import {readExecutiveMetadata} from './executive-metadata.mjs?v=0.17.28';
+import createModule from './vendor/libredwg-web.js?v=0.17.29';
+import {warningText} from './progress.mjs?v=0.17.29';
+import {LibreDwg} from './vendor/libredwg-sdk.js?v=0.17.29';
+import {nativeDocument} from './native-adapter.mjs?v=0.17.29';
+import {readExecutiveMetadata} from './executive-metadata.mjs?v=0.17.29';
 self.onmessage=async({data})=>{
  let sdk,pointer;
  try{
   self.postMessage({progress:'Загружаю движок…',percent:5});
-  const messages=[],engine=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.28',import.meta.url).href,print:()=>{},printErr:s=>{if(messages.length<12)messages.push(String(s));}});
+  const messages=[],engine=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.29',import.meta.url).href,print:()=>{},printErr:s=>{if(messages.length<12)messages.push(String(s));}});
   engine.FS.writeFile('input.dwg',new Uint8Array(data));
   self.postMessage({progress:'Читаю DWG: движок не сообщает внутренний процент…',percent:15});
   const result=engine.dwg_read_file('input.dwg');pointer=result.data;

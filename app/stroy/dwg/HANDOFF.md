@@ -1,5 +1,18 @@
 # Передача разработки DWG-редактора
 
+## 0.17.29 — перенос розеток с атрибутами
+
+Удалён устаревший запрет editable для native INSERT с group 66 без исполнительной.
+На private DWG проверены отдельные model-space розетки слоя ЭЛ_Розетки:
+INSERT с атрибутами, одна отображаемая instance, обычная OCS. Shared-instance
+защита сохранена; editObjects по-прежнему сдвигает принадлежащие ATTRIB вместе
+с INSERT. Поворот с атрибутами остаётся отключён (не входит в этот fix).
+updatedRootScene пересобирает лишь root INSERT и его атрибуты, сохраняет порядок
+рисования и остальные shapes. Для nested/unsupported действует прежний fallback.
+121 unit PASS; synthetic browser attributed move/other INSERT unchanged/
+undo/redo/native DWG roundtrip PASS; private socket move/undo/redo PASS.
+Исходный private DWG не изменялся, независимой проверки AutoCAD нет.
+
 ## 0.17.28 — плавная линия без исполнительной
 
 Кнопка cwDraw прежде без активного листа выбрасывала «Выберите исполнительную».
