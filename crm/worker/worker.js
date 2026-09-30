@@ -2261,6 +2261,10 @@ function requireProjectFinanceAccess(actor) {
 function normalizeProjectFinance(payload) {
   const source = isObject(payload?.money) ? payload.money : {};
   const money = {};
+  const allowedPlanStages = new Map([
+    ["second", { label: "Второй платёж", percent: 45, weeks: 2 }],
+    ["final", { label: "Финальный платёж", percent: 45, weeks: 6 }],
+  ]);
   const projectIds = Object.keys(source).slice(0, 500);
   for (const rawId of projectIds) {
     const id = String(rawId || "").trim();
@@ -2279,7 +2283,33 @@ function normalizeProjectFinance(payload) {
     const completedAt = Number.isFinite(Number(item.completedAt))
       ? Math.max(0, Number(item.completedAt))
       : 0;
-    money[id] = { deal, cur, pays, orderCreatedAt, completedAt };
+    // Плановые платежи управляют автоматическими делами под финансовыми
+    // графиками. Раньше эти поля отбрасывались нормализатором: UI успешно
+    // переносил платёж на следующую неделю, PUT отвечал 200, но после новой
+    // загрузки план строился заново от первого платежа и дело возвращалось.
+    const paymentPlan = (Array.isArray(item.paymentPlan) ? item.paymentPlan : [])
+      .map((stage) => {
+        const stageId = String(stage?.id || "").trim();
+        const defaults = allowedPlanStages.get(stageId);
+        const dueAt = Number(stage?.dueAt);
+        if (!defaults || !Number.isFinite(dueAt) || dueAt <= 0) return null;
+        return {
+          id: stageId,
+          label: defaults.label,
+          percent: defaults.percent,
+          weeks: defaults.weeks,
+          dueAt: Math.max(0, dueAt),
+        };
+      })
+      .filter(Boolean);
+    const paymentPlanBaseAt = Number.isFinite(Number(item.paymentPlanBaseAt))
+      ? Math.max(0, Number(item.paymentPlanBaseAt))
+      : 0;
+    money[id] = {
+      deal, cur, pays, orderCreatedAt, completedAt,
+      paymentPlan,
+      paymentPlanBaseAt,
+    };
   }
   const rawVisibility = isObject(payload?.chartVisibility) ? payload.chartVisibility : {};
   const rawOverrides = isObject(payload?.chartOverrides) ? payload.chartOverrides : {};
