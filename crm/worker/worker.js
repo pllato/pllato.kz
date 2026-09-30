@@ -22,7 +22,7 @@ const DEFAULT_STORE_PULL_LIMIT = 5000;
 const MAX_STORE_OPS = 500;
 const PRIVATE_PROJECT_FINANCE_COLLECTION = "_project_finance_private";
 const PRIVATE_PROJECT_FINANCE_ID = "global";
-const BUILD_ID = "2026-07-24-project-finance-week-end-labels-v1";
+const BUILD_ID = "2026-09-30-finance-week-task-persist-v1";
 
 let googleKeysCache = {
   keys: null,
