@@ -1,7 +1,7 @@
 // Presentation only: never changes the drawing or recovery state.
-import './tool-help.mjs?v=0.17.30';
-import {mountSheetNavigator} from './sheet-navigator.mjs?v=0.17.30';
-import {mountCableCatalog} from './cable-catalog.mjs?v=0.17.30';
+import './tool-help.mjs?v=0.17.31';
+import {mountSheetNavigator} from './sheet-navigator.mjs?v=0.17.31';
+import {mountCableCatalog} from './cable-catalog.mjs?v=0.17.31';
 mountCableCatalog();
 mountSheetNavigator(document.getElementById('exSheet'));
 const panel=document.getElementById('panel'),sidebar=document.getElementById('sidebar');
