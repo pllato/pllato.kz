@@ -1,10 +1,10 @@
-import {overlapLinks} from './cable-overlap.mjs?v=0.17.43';
+import {overlapLinks} from './cable-overlap.mjs?v=0.17.44';
+import {cableCandidates} from './cable-components.mjs?v=0.17.44';
 // Selection only: never merge or explode the underlying CAD entities.
 export function cableChain(shapes,seed,hidden=new Set()){
  const eligible=s=>s.text===null&&!s.fill&&!s.hatch&&['LINE','ARC','LWPOLYLINE','POLYLINE','SPLINE'].includes(s.entityType)&&s.pts.length>1;
  if(!seed||!eligible(seed))return [];
- const scope=s=>s.deviceId?[s.id,s.deviceId,...(s.entityMatrix||[])].join('|'):null;
- const candidates=shapes.filter(s=>eligible(s)&&!hidden.has(s.layer)&&s.layer===seed.layer&&s.color===seed.color&&s.rgb===seed.rgb&&scope(s)===scope(seed));
+ const candidates=hidden.has(seed.layer)?[]:cableCandidates(shapes,seed);
  if(!candidates.includes(seed))return [seed];
  // Relative to geometry, never to its world position or the screen zoom.
  // 0.001% of the picked part accommodates CAD round-off, not visible gaps.
