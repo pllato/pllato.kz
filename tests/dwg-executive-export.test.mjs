@@ -4,6 +4,11 @@ import {createExecutiveProject,createExecutive,executiveEntities} from '../app/s
 import {executivePages,executiveLooseRoots,imagePdf} from '../app/stroy/dwg/executive-export.mjs';
 const fixture=()=>{const p=createExecutiveProject();for(const [id,x,h] of [['a',0,'AA'],['b',1000,'BB']])createExecutive(p,{id,origin:[x,0],nativeHandles:[h],metresPerUnit:1,paperUnit:1});return p;};
 const shape=(id,bounds)=>({id,bounds});
+test('Executive PDF bounds stay at the sheet edges even for overflowing native geometry',()=>{
+ const p=fixture(),pages=executivePages(p,[shape('dwg-AA',[-500,-500,900,900])]);
+ assert.deepEqual(pages[0].bounds,[0,0,420,297]);
+ assert.equal(pages[0].shapes.length,1);
+});
 test('Executive pages isolate native roots, decorations and standalone annotations',()=>{
  const p=fixture(),n=executiveEntities(p,'a').items.length,shapes=[shape('dwg-AA',[0,0,420,297]),shape('dwg-BB',[1000,0,1420,297]),shape('dwg-original',[-900,0,-500,300]),shape('executive-0',[0,0,1,1]),shape('executive-'+n,[1000,0,1001,1]),shape('new-text',[10,10,20,20])];
  const pages=executivePages(p,shapes);assert.equal(pages.length,2);assert.deepEqual(pages[0].shapes.map(s=>s.id),['dwg-AA','executive-0','new-text']);assert.deepEqual(pages[1].shapes.map(s=>s.id),['dwg-BB','executive-'+n]);
