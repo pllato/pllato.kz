@@ -1,6 +1,6 @@
-import {cableChain} from './cable-chain.mjs?v=0.17.35';
-import {pathLength} from './selection-metrics.mjs?v=0.17.35';
-import {midpoint} from './length-overlay.mjs?v=0.17.35';
+import {cableChain} from './cable-chain.mjs?v=0.17.36';
+import {pathLength} from './selection-metrics.mjs?v=0.17.36';
+import {midpoint} from './length-overlay.mjs?v=0.17.36';
 // Classification is for a read-only overlay, never changes cable assignments.
 export function cableLayer(name){
  if(/текст|вынос|размер|штамп|марки|лотк|оборуд|розет|щит|зазем|молни|гребен|отверст/i.test(name))return false;
