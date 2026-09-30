@@ -28,12 +28,30 @@ aside{display:none;position:absolute;right:0;top:0;bottom:0;width:min(300px,90vw
 #executiveExports{position:relative;margin:0;font-size:12px}#executiveExports>summary{cursor:pointer;padding:6px 9px;border:1px solid #526274;border-radius:4px}#executiveExports>div{position:absolute;right:0;top:100%;z-index:20;width:280px;max-width:95vw;max-height:75vh;overflow:auto;padding:10px;background:#142437;border:1px solid #8295a6}#executiveExports button{display:block;width:100%;margin-bottom:8px}#executiveExports small{display:block;font-size:11px}
 #drawingToolbar #exSheet{width:180px;max-width:180px;flex:none;min-height:32px;padding:4px 8px;font-size:12px}#exportSheets{max-height:220px;overflow:auto;margin:8px 0;border:1px solid #526274}#exportSheets label{display:flex;align-items:center;gap:8px}#exportSheets input{width:auto;margin:0}#exportScope{width:100%;font-size:13px;margin-bottom:8px}
 #drawingPresets{display:flex;align-items:center;gap:12px;padding:4px 10px;background:#142437;border-bottom:1px solid #526274;flex-shrink:0;overflow-x:auto;white-space:nowrap}#drawingPresets>span{font-size:12px;color:#dbad77}#drawingPresets label{display:flex;align-items:center;gap:5px;font-size:12px;flex:none}#drawingPresets input,#drawingPresets select{height:28px;min-height:28px;padding:3px 6px;margin:0;font-size:12px;width:105px}#drawingPresets #dpBrand{width:155px}#drawingPresets #dpSection{width:80px}
-#sheetNavigator{position:relative;flex:none;max-width:260px}
+#sheetNavigator{position:relative;flex:none;max-width:260px;margin:0}
 #sheetNavigator>summary{cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:8px 10px;border:1px solid #8295a6;border-radius:5px;background:#1e3447;font-size:12px}
 #sheetNavigator>summary[aria-disabled=true]{opacity:.5;cursor:default}
 .sheetNavigatorList{position:fixed;box-sizing:border-box;max-width:calc(100vw - 16px);max-height:50vh;overflow:auto;padding:4px;background:#142437;border:1px solid #8295a6;border-radius:5px;z-index:10}
 .sheetNavigatorList button{display:block;width:100%;text-align:left;font-size:12px;padding:8px}
 .sheetNavigatorList button[aria-current=true]{border-color:#deb17a}
+/* Two compact rows; a details margin must never stretch every tool button. */
+header{gap:5px;padding:4px 8px;flex-shrink:0}
+header strong{white-space:nowrap;font-size:14px}
+header strong small{display:none}
+header button,header .button{min-height:30px;padding:4px 7px;font-size:12px;white-space:nowrap}
+header #filename{min-width:0;max-width:170px}
+header #executiveToolbar{padding:0;border:0;flex-wrap:nowrap}
+header #executiveToolbar>details>summary{white-space:nowrap;padding:4px 7px;min-height:30px}
+header #executiveExports>summary{white-space:nowrap;padding:4px 7px;min-height:30px}
+header #guideButton{flex:none;width:30px;padding:4px;font-weight:bold;font-size:16px}
+#drawingToolbar>nav{align-items:center;padding:3px 6px}
+#drawingToolbar>nav>button{height:32px;min-height:32px}
+#sheetNavigator>summary{padding:5px 8px;min-height:32px;max-width:200px}
+footer{display:flex;align-items:center;gap:12px}
+footer #status{flex:1;min-width:0}
+footer #autosaveStatus{flex:0 1 280px;min-width:0;margin:0;padding:0;background:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px;line-height:15px}
+@media(max-width:1250px){header>strong{display:none}header #filename{max-width:100px}header{gap:4px}}
+@media(max-width:850px){footer{flex-wrap:wrap;gap:0}footer #autosaveStatus{flex-basis:100%}header #executiveToolbar>details>div{left:8px;right:8px}header #executiveExports>div{position:fixed;top:80px;right:8px}}
 /* Cable navigator stays one row; editable fields open above, never resize canvas. */
 #viewport #cableNavigator{width:330px;max-width:calc(100% - 20px)}
 .cnBar{display:flex;align-items:center;gap:6px;padding:4px 6px}
