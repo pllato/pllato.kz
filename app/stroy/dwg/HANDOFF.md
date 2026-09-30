@@ -2,6 +2,8 @@
 
 ## 0.17.25 — исправление порядка common handles, 30 сентября
 
+Release PR: https://github.com/pllato/pllato.kz/pull/863.
+
 Причина пропавших INSERT: color-book handle читался/писался ПЕРЕД владельцем,
 реакторами и xdictionary. По ODA 20.4.2 он идёт ПОСЛЕ них и ПЕРЕД LAYER.
 Безусловное исключение C0 в 0.17.24 было неверным: C0 может ссылаться на DBCOLOR.
