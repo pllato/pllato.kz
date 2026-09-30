@@ -4,9 +4,12 @@ const indexes=new WeakMap();
 // Filter-only edits retain painter order; generated decorations are appended.
 // Reuse the immutable broad phase instead of re-bucketing a million primitives.
 export function deriveSpatialIndex(previous,next,removed,added=[]){
- const base=indexes.get(previous);if(!base||(base.depth||0)>=8)return;
+ const base=indexes.get(previous);if(!base)return;
+ const root=base.root||base,rootShapes=base.rootShapes||previous;
+ const excluded=new Set([...(base.excluded||[]),...removed]);
+ const delta=[...(base.delta||[]).filter(s=>!removed.has(s)),...added];
  const intersects=(a,b)=>a[0]<=b[2]&&a[2]>=b[0]&&a[1]<=b[3]&&a[3]>=b[1];
- const index={depth:(base.depth||0)+1,query(b){return base.query(b).filter(s=>!removed.has(s)).concat(added.filter(s=>intersects(s.bounds,b)));},viewport(b){const candidates=base.viewport(b);return candidates===previous?next:candidates.filter(s=>!removed.has(s)).concat(added.filter(s=>intersects(s.bounds,b)));}};
+ const index={root,rootShapes,excluded,delta,query(b){return root.query(b).filter(s=>!excluded.has(s)).concat(delta.filter(s=>intersects(s.bounds,b)));},viewport(b){const candidates=root.viewport(b);return candidates===rootShapes?next:candidates.filter(s=>!excluded.has(s)).concat(delta.filter(s=>intersects(s.bounds,b)));}};
  indexes.set(next,index);
 }
 export function spatialIndex(shapes){

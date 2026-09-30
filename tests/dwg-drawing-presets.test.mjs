@@ -1,10 +1,14 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {drawingPreset,drawingPalette} from '../app/stroy/dwg/drawing-presets.mjs';
+import {drawingPreset,drawingPalette,extendDrawingPalette} from '../app/stroy/dwg/drawing-presets.mjs';
 import {createExecutiveProject,createExecutive,addRoute,executiveEntities} from '../app/stroy/dwg/executive-project.mjs';
 import {validateExecutiveProject} from '../app/stroy/dwg/executive-metadata.mjs';
 import {writeAdditions} from '../app/stroy/dwg/authoring.mjs';
 import {scene,fromRecords} from '../app/stroy/dwg/cad.mjs';
+test('appended palette equals full palette without rescanning existing shapes',()=>{
+ let reads=0;const before=[{get color(){reads++;return 5;}},{rgb:'#123456'}];drawingPalette(before);reads=0;
+ const added=[{color:3},{rgb:'#0000ff'}],next=before.concat(added);extendDrawingPalette(before,next,added);const result=drawingPalette(next);assert.equal(reads,0);assert.deepEqual(result,drawingPalette([...next]));assert.equal(drawingPalette(before).length,2);
+});
 test('Palette contains actual resolved entity/layer/block colors, with exact RGB and no duplicates',()=>{
  const rec=(type,pairs)=>({type,id:String(Math.random()),pairs});const d=fromRecords([rec('SECTION',[[2,'TABLES']]),rec('LAYER',[[2,'wire'],[62,140]]),rec('ENDSEC',[]),rec('SECTION',[[2,'BLOCKS']]),rec('BLOCK',[[2,'B']]),rec('LINE',[[62,0],[10,0],[20,0],[11,10],[21,10]]),rec('ENDBLK',[]),rec('ENDSEC',[]),rec('SECTION',[[2,'ENTITIES']]),rec('INSERT',[[2,'B'],[62,3]]),rec('LINE',[[8,'wire'],[10,0],[20,0],[11,10],[21,10]]),rec('LINE',[[420,0x123456],[10,0],[20,0],[11,10],[21,10]]),rec('ENDSEC',[])]);
  const palette=drawingPalette(scene(d).shapes);assert.deepEqual(new Set(palette.map(p=>p.value)),new Set(['3','140','#123456']));assert.equal(drawingPalette([{color:5},{color:5},{rgb:'#0000ff'}]).length,1);assert.deepEqual(drawingPalette([]),[]);
