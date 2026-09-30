@@ -602,6 +602,17 @@ API int pllato_layer_off(const char *handle,int off){
  Dwg_Object *o=dwg_resolve_handle(&drawing,strtoull(handle,NULL,16));if(!o||o->fixedtype!=DWG_TYPE_LAYER||(off!=0&&off!=1))return 1;
  Dwg_Object_LAYER *l=o->tio.object->tio.LAYER;l->off=off;l->color.index=off?-abs(l->color.index):abs(l->color.index);return 0;
 }
+API int pllato_style_font(const char *handle,const char *name){
+ if(!loaded||!handle||!name||strlen(name)>120||strchr(name,'/')||strchr(name,'\\'))return 1;
+ size_t len=strlen(name);if(len<5||strcasecmp(name+len-4,".shx"))return 1;
+ for(const unsigned char *p=(const unsigned char *)name;*p;p++)if(*p<32)return 1;
+ Dwg_Object *o=dwg_resolve_handle(&drawing,strtoull(handle,NULL,16));if(!o||o->fixedtype!=DWG_TYPE_STYLE)return 2;
+ Dwg_Object_STYLE *s=o->tio.object->tio.STYLE;
+ /* A Big Font pair cannot safely be replaced by one ordinary SHX. */
+ if(s->bigfont_file&&*(unsigned char *)s->bigfont_file)return 3;
+ BITCODE_T value=dwg_add_u8_input(&drawing,name);if(!value)return 4;
+ free(s->font_file);s->font_file=value;return 0;
+}
 API int pllato_rgb(const char *handle,int rgb){
  Dwg_Object *o=entity(handle);if(!o||rgb<0||rgb>0xffffff||drawing.header.version<R_2004)return 1;
  o->tio.entity->color.index=7;o->tio.entity->color.raw=0x8007;

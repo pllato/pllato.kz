@@ -1,5 +1,33 @@
 # Передача разработки DWG-редактора
 
+## 0.17.38 — локальные SHX и выбор текстового стиля
+
+Пользователь явно отказался от распространения файлов Autodesk: только локальная
+загрузка. Оригинальные SHX НЕ добавлять в repo/сервер. Кнопка «Шрифты» загружает
+несколько файлов, worker разбирает их с timeout 15 s и ограничениями размера/
+геометрии. IndexedDB pllato_local_shx хранит разобранные glyphs только устройства.
+Каталог показывает требуемые имена, отсутствующие шрифты/символы и удаление.
+Canvas/PDF подключают оригинал по filename (также имя без .shx). Штрихи PDF
+векторные, ActualText + невидимый текстовый якорь сохраняют извлечение Unicode.
+При отсутствии glyph на экране подстановка с предупреждением в каталоге;
+PDF при загруженном, но неполном SHX отклоняется, без молчаливой подмены.
+
+Выбор загруженного SHX для существующего STYLE меняет все тексты этого стиля:
+DXF group 3, nativeOps.styleFont, undo/recovery. Native pllato_style_font меняет
+только font_file; новые style handles теперь доступны через native-adapter.
+Big Font пары не редактируются. Inline MTEXT font имеет приоритет над STYLE.
+Для другого устройства/CAD SHX нужно предоставить отдельно, в DWG он не встроен.
+Нет отдельных селекторов шрифта у каждой выноски; смена идёт по стилю документа.
+
+Проверки: восемь предоставленных локальных SHX, upload/restore/remove, canvas
+stroke-only, PDF vector + text extraction, отсутствие кириллицы в ISO/isocp/isoct,
+STYLE выбор/undo/redo/UI download/reopen PASS; 129 unit PASS. Native STYLE readback и сравнение
+неизменных entities/BLOCK_RECORD PASS; native executive regression PASS.
+PDF проверен Poppler и визуально. Независимого AutoCAD audit нет.
+WASM/JS и corresponding GPL wrapper archive обновлены вместе. MIT parser
+@mlightcad/shx-parser 1.4.5 поставляется отдельно от шрифтов.
+Быстрое копирование исходных приборов этим выпуском НЕ исправлено.
+
 ## 0.17.37 — длины кабелей вместо кнопки обзора
 
 Кнопка pan («Рука · обзор») заменена существующим lengthToggle непосредственно

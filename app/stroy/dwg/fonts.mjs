@@ -4,7 +4,7 @@ export function cadFont(file='',inline=''){
  const name=(inline||file).split(/[\\/]/).pop().toLowerCase();
  const italic=/italic|oblique|\|i1/.test(name),bold=/bold|\|b1/.test(name);
  const family=/^arial(?:\.ttf|\||$)/.test(name)?'Arial':/^(?:times|times new roman)(?:\.ttf|\||$)/.test(name)?'Times New Roman':/courier/.test(name)?'Courier New':'Pllato CAD';
- return {family,italic,bold,substituted:family==='Pllato CAD',source:file||inline||'Standard'};
+ return {family,italic,bold,substituted:family==='Pllato CAD',source:inline||file||'Standard'};
 }
 export async function loadCadFont(){
  const font=new FontFace('Pllato CAD','url('+new URL('./vendor/osifont/osifont.ttf',import.meta.url)+')');

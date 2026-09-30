@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import create from '../app/stroy/dwg/vendor/pllato-executive-engine.mjs';
+import reader from '../app/stroy/dwg/vendor/libredwg-web.js';
+import {LibreDwg,Dwg_File_Type} from '../app/stroy/dwg/vendor/libredwg-sdk.js';
+const input=fs.readFileSync(process.env.DWG_CLONE_FIXTURE),m=await create({print:()=>{},printErr:()=>{}}),r=await reader({print:()=>{},printErr:()=>{}}),sdk=LibreDwg.createByWasmInstance(r);
+const read=bytes=>{const p=sdk.dwg_read_data(bytes,Dwg_File_Type.DWG);try{return sdk.convert(p);}finally{sdk.dwg_free(p);}};
+const original=read(input),style=original.tables.STYLE.entries[0];assert.ok(style.handle);
+m.FS.writeFile('/in.dwg',input);assert.ok(m.ccall('pllato_open','number',['string'],['/in.dwg'])<128);
+assert.equal(m.ccall('pllato_style_font','number',['string','string'],[style.handle,'../romans.shx']),1);
+assert.equal(m.ccall('pllato_style_font','number',['string','string'],[style.handle,'romans.shx']),0);
+assert.ok(m.ccall('pllato_save','number',['string'],['/out.dwg'])<128);const saved=read(m.FS.readFile('/out.dwg'));
+assert.equal(saved.tables.STYLE.entries.find(s=>s.handle===style.handle).font,'romans.shx');assert.deepEqual(saved.entities,original.entities);assert.deepEqual(saved.tables.BLOCK_RECORD.entries,original.tables.BLOCK_RECORD.entries);
+console.log('PASS native STYLE font roundtrip, unchanged CAD geometry and blocks');m._pllato_close();

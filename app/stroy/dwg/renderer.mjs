@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {paintHatch} from './hatch.mjs?v=0.17.37';
+import {paintHatch} from './hatch.mjs?v=0.17.38';
+import {shxLayout} from './shx-layout.mjs';
 export function previewTransform(current,cached){const scale=current.s/cached.s;return {scale,x:current.x-cached.x*scale,y:current.y-cached.y*scale};}
 export function textLines(text,width,measure){return text.split(/\r?\n/).flatMap(paragraph=>{if(!(width>0))return [paragraph];const lines=[];let line='';for(const word of paragraph.split(/\s+/)){const next=line?line+' '+word:word;if(line&&measure(next)>width){lines.push(line);line=word;}else line=next;}lines.push(line);return lines;});}
 // Последовательные линии одного цвета рисуем пачкой, сохраняя порядок цветов,
@@ -21,6 +22,8 @@ export function paintShapes(ctx,shapes,{view,width,height,hidden,selected,colors
    if(size<2||size>2000||x<-2000||x>width+2000||y<-2000||y>height+2000)continue;
    flush();ctx.save();ctx.fillStyle=nextColor;ctx.translate(x,y);ctx.rotate(-shape.angle);const f=shape.font;ctx.font=(f?.italic?'italic ':'')+(f?.bold?'bold ':'')+Math.max(2,size)+'px "'+(f?.family||'Arial')+'"';
    if(shape.textScale&&shape.textScale!==1)ctx.scale(shape.textScale,1);if(shape.oblique)ctx.transform(1,0,-Math.tan(shape.oblique),1,0,0);
+   let strokes=null;try{strokes=shxLayout(shape);}catch{/* The font catalog reports missing glyphs; PDF refuses this substitution. */}
+   if(strokes){ctx.strokeStyle=nextColor;ctx.lineWidth=Math.max(1,(shape.lineweight||0)/100*pixelsPerMm);ctx.beginPath();for(const path of strokes)for(let i=0;i<path.length;i++){const [px,py]=path[i];if(i)ctx.lineTo(px*size,py*size);else ctx.moveTo(px*size,py*size);}ctx.stroke();ctx.restore();continue;}
    if(shape.multiline){const lines=textLines(shape.text,shape.textWidth*scale,t=>ctx.measureText(t).width),anchor=Math.max(1,Math.min(9,shape.attachment||1)),row=Math.floor((anchor-1)/3),col=(anchor-1)%3,step=size*1.2,total=size+(lines.length-1)*step;ctx.textBaseline='top';ctx.textAlign=['left','center','right'][col];for(let i=0;i<lines.length;i++)ctx.fillText(lines[i],0,i*step-row*total/2);}
    else{ctx.textAlign=['left','center','right'][shape.halign]||'left';ctx.textBaseline=['alphabetic','bottom','middle','top'][shape.valign]||'alphabetic';ctx.fillText(shape.text,0,0);}ctx.restore();continue;
   }

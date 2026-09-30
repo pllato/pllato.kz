@@ -1,7 +1,8 @@
 // Vector PDF backend. Embedded OFL osifont; no canvas screenshot or JPEG.
-import {paintHatch} from './hatch.mjs?v=0.17.37';
-import {textLines} from './renderer.mjs?v=0.17.37';
-import {aciColors} from './colors.mjs?v=0.17.37';
+import {paintHatch} from './hatch.mjs?v=0.17.38';
+import {textLines} from './renderer.mjs?v=0.17.38';
+import {aciColors} from './colors.mjs?v=0.17.38';
+import {shxLayout} from './shx-layout.mjs';
 const enc=new TextEncoder(),n=v=>{if(!Number.isFinite(v))throw Error('Неверная координата PDF');return Number(v.toFixed(6)).toString();},hex=v=>v.toString(16).padStart(4,'0').toUpperCase();
 export function trueType(bytes){
  const d=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),u=o=>d.getUint16(o),s=o=>d.getInt16(o),l=o=>d.getUint32(o),tables={};
@@ -27,6 +28,8 @@ export async function vectorPdf(pages,onProgress=()=>{}){
    const a=shapes[j],c=color(a.rgb||aciColors[a.color]),layer=layerIds.get(a.layer||'0');if(layer!==activeLayer){if(activeLayer>=0)emit('EMC');emit(`/OC /L${layer} BDC`);activeLayer=layer;}emit(c+' RG '+c+' rg');emit(n(Math.max(.1,(a.lineweight||0)/100*72/25.4))+' w');
    if(a.hatch){paintHatch(hatchContext,a,{s,x,y},a.rgb||aciColors[a.color]||'#000000',w,h,true);continue;}
    if(a.text!==null){
+    const strokes=shxLayout(a);
+    if(strokes){const size=a.height*s,scale=a.textScale||1,angle=-a.angle,cs=Math.cos(angle),sn=Math.sin(angle);emit('q');emit([cs,sn,-sn,cs,a.pts[0][0]*s+x,y-a.pts[0][1]*s].map(n).join(' ')+' cm');emit([scale,0,-Math.tan(a.oblique||0)*scale,1,0,0].map(n).join(' ')+' cm');emit(n(a.lineweight>0?a.lineweight/100*72/25.4:.35)+' w');const actual=Array.from({length:a.text.length},(_,i)=>hex(a.text.charCodeAt(i))).join('');emit('/Span << /ActualText <FEFF'+actual+'> >> BDC');for(const points of strokes){path(points.map(([px,py])=>[px*size,py*size]));emit('S');}emit(`BT /F1 ${n(size)} Tf 3 Tr 1 0 0 -1 0 0 Tm <${textInfo(' ').encoded}> Tj ET`);emit('EMC');emit('Q');continue;}
     const size=a.height*s,scale=a.textScale||1,lines=a.multiline?textLines(a.text,(a.textWidth||0)*s,t=>textInfo(t).width*size/1000):[a.text],anchor=Math.max(1,Math.min(9,a.attachment||1)),row=Math.floor((anchor-1)/3),col=(anchor-1)%3;
     emit('q');const angle=-a.angle,cs=Math.cos(angle),sn=Math.sin(angle);emit([cs,sn,-sn,cs,a.pts[0][0]*s+x,y-a.pts[0][1]*s].map(n).join(' ')+' cm');emit([scale,0,-Math.tan(a.oblique||0)*scale,1,0,0].map(n).join(' ')+' cm');
     for(let k=0;k<lines.length;k++){const t=textInfo(lines[k]),align=a.multiline?col:(a.halign||0),dx=-(align===1?.5:align===2?1:0)*t.width*size/1000;
