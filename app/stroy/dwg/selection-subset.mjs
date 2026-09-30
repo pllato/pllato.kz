@@ -1,4 +1,4 @@
-import {cableChain} from './cable-chain.mjs?v=0.17.33';
+import {cableChain} from './cable-chain.mjs?v=0.17.34';
 
 // Refine selection at CAD entity boundaries, without changing geometry.
 export function selectionSubset(shapes,keys,universe=keys){
