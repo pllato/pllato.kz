@@ -1,4 +1,4 @@
-import {cableChain} from './cable-chain.mjs?v=0.17.45';
+import {cableChain} from './cable-chain.mjs?v=0.17.46';
 
 // Refine selection at CAD entity boundaries, without changing geometry.
 export function selectionSubset(shapes,keys,universe=keys){
@@ -15,9 +15,18 @@ export function selectionSubset(shapes,keys,universe=keys){
  return {keys:seen,measureKeys,paths,coincident,overlaps,manual:true,universe:new Set(universe)};
 }
 
+export function canRefinePart(seed,hit){
+ return !!seed&&!!hit&&hit.text===null&&!hit.fill&&!hit.hatch&&hit.pts.length>1&&
+ ['LINE','ARC','LWPOLYLINE','POLYLINE','SPLINE'].includes(hit.entityType)&&
+ !String(hit.id||'').startsWith('executive-')&&
+ String(seed.deviceId||'')===String(hit.deviceId||'')&&
+ (!seed.deviceId||(seed.id===hit.id&&String(seed.entityMatrix)===String(hit.entityMatrix)));
+}
 export function toggleSelectionPart(shapes,selection,hit){
- const universe=selection.universe||selection.keys;
- if(!hit||!universe.has(hit.entityKey))return selection;
+ const universe=new Set(selection.universe||selection.keys);
+ const seed=shapes.find(s=>selection.keys.has(s.entityKey));
+ if(!canRefinePart(seed,hit))return selection;
+ universe.add(hit.entityKey);
  const span=Math.hypot(hit.bounds[2]-hit.bounds[0],hit.bounds[3]-hit.bounds[1]),eps=Math.max(1e-7,span*1e-5);
  const same=s=>s.entityType===hit.entityType&&s.pts.length===hit.pts.length&&[false,true].some(reverse=>s.pts.every((p,i)=>Math.hypot(p[0]-hit.pts[reverse?hit.pts.length-1-i:i][0],p[1]-hit.pts[reverse?hit.pts.length-1-i:i][1])<=eps));
  const keys=new Set(selection.keys),remove=keys.has(hit.entityKey);
