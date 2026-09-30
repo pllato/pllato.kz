@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Geometry view only. The original DWG remains the source for saving.
-import {fromRecords} from './cad.mjs?v=0.17.37';
-import {leaderParts} from './mleader.mjs?v=0.17.37';
-import {hatchGeometry} from './hatch.mjs?v=0.17.37';
+import {fromRecords} from './cad.mjs?v=0.17.38';
+import {leaderParts} from './mleader.mjs?v=0.17.38';
+import {hatchGeometry} from './hatch.mjs?v=0.17.38';
 export function nativeDocument(db){
  const blockNames=new Map(db.tables.BLOCK_RECORD.entries.map(b=>[b.handle,b.name||'@'+b.handle]));
  const textStyles=db.tables.STYLE?.entries||[],styleNames=new Map(textStyles.map(s=>[s.handle,s.name]));
@@ -39,7 +39,7 @@ export function nativeDocument(db){
  });}
  const records=[record('SECTION',[[2,'HEADER'],[9,'$ACADVER'],[1,db.header.ACADVER],[9,'$INSUNITS'],[70,db.header.INSUNITS||0]]),record('ENDSEC'),record('SECTION',[[2,'TABLES']])];
  for(const l of db.tables.LAYER.entries)records.push(record('LAYER',[[5,l.handle],[2,l.name],[62,l.off?-Math.abs(l.colorIndex):l.colorIndex],[70,l.standardFlag],...(Number.isInteger(l.color)?[[420,l.color]]:[])]));
- for(const s of textStyles)records.push(record('STYLE',[[2,s.name],[3,s.font||''],[4,s.bigFont||''],[41,s.widthFactor||1],[50,degrees(s.obliqueAngle)]]));
+ for(const s of textStyles)records.push(record('STYLE',[[5,s.handle],[2,s.name],[3,s.font||''],[4,s.bigFont||''],[41,s.widthFactor||1],[50,degrees(s.obliqueAngle)]]));
  records.push(record('ENDSEC'),record('SECTION',[[2,'BLOCKS']]));
  const paper=new Set();
  for(const b of db.tables.BLOCK_RECORD.entries){

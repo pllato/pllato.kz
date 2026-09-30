@@ -1,0 +1,2 @@
+import {readShx} from './shx-font.mjs';
+self.onmessage=e=>{try{const font=readShx(e.data),glyphs={};let points=0;for(const code of font.codes){const g=font.glyph(code);if(!g)continue;points+=g.paths.reduce((n,p)=>n+p.length,0);if(points>1000000)throw Error('Шрифт содержит слишком много геометрии');glyphs[code]=g;}if(!glyphs[65]||!glyphs[32])throw Error('Этот SHX содержит фигуры, а не текстовый шрифт');self.postMessage({glyphs});}catch(error){self.postMessage({error:error.message||'Повреждённый SHX'});}};
