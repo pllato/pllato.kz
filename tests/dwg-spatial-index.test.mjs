@@ -1,6 +1,12 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spatialIndex,viewportShapes,deriveSpatialIndex} from '../app/stroy/dwg/spatial-index.mjs';
+test('repeated append does not rebuild the original broad phase after eight edits',()=>{
+ let reads=0;const original=Array.from({length:10000},(_,i)=>({get bounds(){reads++;return [i,i,i+1,i+1];}}));
+ spatialIndex(original);let shapes=original;reads=0;
+ for(let i=0;i<30;i++){const added=[{bounds:[-i-2,-2,-i-1,-1]}],next=shapes.concat(added);deriveSpatialIndex(shapes,next,new Set(),added);spatialIndex(next);shapes=next;}
+ assert.equal(reads,0);assert.equal(spatialIndex(original).query([-100,-10,-1,0]).length,0);assert.equal(spatialIndex(shapes).query([-100,-10,-1,0]).length,30);
+});
 test('incremental deletion and decorations preserve exact query order and bounds',()=>{
  let shapes=Array.from({length:1000},(_,i)=>({bounds:[i,i,i+1,i+1]}));spatialIndex(shapes);
  for(let step=0;step<12;step++){

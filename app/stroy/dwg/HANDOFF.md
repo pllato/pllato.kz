@@ -1,5 +1,29 @@
 # Передача разработки DWG-редактора
 
+## 0.17.27 — инкрементальное добавление линий
+
+Прямая и 4-точечная полилиния в model space больше не вызывают scene(doc)
+для всего DWG. Строится только новая сущность, остальные shapes разделяются
+между версиями undo; bitmap обновляется через repaintDamage. Сохраняются
+checkpoint/native additions, исходный DWG не изменяется. При добавлении также
+обновляются record lookup, selection cache и палитра без сканирования всей сцены.
+Spatial index использует плоскую immutable delta поверх исходного индекса:
+нет прежнего полного re-bucket после восьми правок. Старые индексы доступны undo.
+
+На private «Исполки квартиры» (983633 shapes) 12 линий: commit synchronous
+22–105 ms, до двух rAF 33–118 ms, undo 200 ms, redo 117 ms. Hover с двумя rAF
+обычно 33 ms (первый 57). Открытие 20.8 s — этот этап не ускорен данным patch.
+Baseline editor из HEAD 0.17.26: одна линия 9938 ms sync / 14409 ms до двух rAF;
+из-за memory/GC и инструментирования это не универсальный коэффициент ускорения.
+Baseline также заново разворачивал очищенные N1 labels при полном scene rebuild.
+
+Проверки: 120 unit, >8 incremental index edits без чтения исходных bounds,
+palette equivalence, browser pixel equivalence addition/deletion, synthetic
+full-scene equivalence и native LINE save/readback, workbench regression PASS.
+Native SDK/WASM не менялись. Private DWG не публиковался. Нет проверки AutoCAD.
+Остаются отдельные тяжёлые пути: первичное открытие, создание исполнительной,
+часть geometry edits и пересборка оформления. Не заявлять ускорение всех операций.
+
 ## 0.17.26 — компактный верх
 
 Статус локального сохранения перенесён в footer (полный текст — в title),
