@@ -1,10 +1,14 @@
-import {cableChain} from './cable-chain.mjs?v=0.17.42';
-import {pathLength} from './selection-metrics.mjs?v=0.17.42';
-import {midpoint} from './length-overlay.mjs?v=0.17.42';
+import {cableChain} from './cable-chain.mjs?v=0.17.43';
+import {pathLength} from './selection-metrics.mjs?v=0.17.43';
+import {midpoint} from './length-overlay.mjs?v=0.17.43';
 // Classification is for a read-only overlay, never changes cable assignments.
 export function cableLayer(name){
- if(/текст|вынос|размер|штамп|марки|лотк|оборуд|розет|щит|зазем|молни|гребен|отверст/i.test(name))return false;
- return /кабел|провод|cable|wiring|wire|^(?:ЭЛ|ЭО|ЭОА|ЭОМ)$/i.test(name);
+ if(/текст|вынос|размер|штамп|марки|лотк|оборуд|зазем|молни|гребен|отверст/i.test(name))return false;
+ // Electrical circuit layers often contain both device INSERTs and the wires
+ // connecting them (e.g. ЭЛ-розетки). Device geometry is excluded separately.
+ if(/^(?:ЭОМ|ЭОА|ЭЛ|ЭО)(?:$|[-_ .])/i.test(name))return true;
+ if(/розет|щит/i.test(name))return false;
+ return /кабел|провод|cable|wiring|wire/i.test(name);
 }
 const style=s=>JSON.stringify([s.layer,s.color,s.rgb]);
 const eligible=s=>s.text===null&&!s.fill&&!s.hatch&&['LINE','ARC','LWPOLYLINE','POLYLINE','SPLINE'].includes(s.entityType)&&s.pts.length>1;
