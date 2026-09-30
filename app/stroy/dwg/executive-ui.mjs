@@ -1,11 +1,11 @@
-import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.40';
-import * as projectAPI from './executive-project.mjs?v=0.17.40';
-import {routeLength} from './cable-ledger.mjs?v=0.17.40';
-import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.40';
-import {executivePlacement} from './executive-placement.mjs?v=0.17.40';
-import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.40';
-import {drawingPreset} from './drawing-presets.mjs?v=0.17.40';
-import {parseTable,tablePages} from './table-paste.mjs?v=0.17.40';
+import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.41';
+import * as projectAPI from './executive-project.mjs?v=0.17.41';
+import {routeLength} from './cable-ledger.mjs?v=0.17.41';
+import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.41';
+import {executivePlacement} from './executive-placement.mjs?v=0.17.41';
+import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.41';
+import {drawingPreset} from './drawing-presets.mjs?v=0.17.41';
+import {parseTable,tablePages} from './table-paste.mjs?v=0.17.41';
 export function mountExecutiveUI(api){
  const panel=document.createElement('section');panel.id='executives';
  panel.innerHTML=`<h2>Исполнительные</h2><button id="exArea">Выделить план рамкой</button><p id="exAreaInfo">Откройте DWG, выберите единицы и выделите план.</p><button id="exCreate" disabled>Создать рядом</button><label>Исполнительная<select id="exSheet"></select></label><label>Заголовок<input id="exTitle" maxlength="1000"></label><label>Поворот плана, °<input id="exAngle" type="number" value="0"></label><details><summary>Редактировать штамп</summary><div id="exStamp"></div></details><button id="exApply">Применить оформление</button><h3>Кабельные трассы</h3><label>Марка<input id="exBrand" value="ВВГнг(А)-LS"></label><label>Сечение<input id="exSection" value="3×2,5"></label><label>Дополнительная длина, м<input id="exExtra" type="number" min="0" value="0" step="any"></label><button id="exRoute">Рисовать трассу</button><button id="exFinish">Завершить трассу</button><label>Трасса<select id="exRouteList"></select></label><button id="exCable">Назначить кабель</button><button id="exLeader">Выноска · 3 точки</button><button id="exRemoveLeader">Удалить выноски</button><button id="exRemoveRoute">Удалить трассу</button><div class="pair"><label>Сдвиг X<input id="exDX" type="number" value="0"></label><label>Сдвиг Y<input id="exDY" type="number" value="0"></label></div><button id="exMoveRoute">Двигать трассу</button><button id="exDevice">Выбрать прибор</button><pre id="exLedger" style="white-space:pre-wrap;font-size:12px"></pre>`;

@@ -1,6 +1,8 @@
-import {get,num} from './cad.mjs?v=0.17.40';
+import {get,num} from './cad.mjs?v=0.17.41';
+import {deferredAddition} from './deferred-copy.mjs?v=0.17.41';
 export const isNew=r=>r?.id?.startsWith('new-');
 export function additions(doc){return doc.entities.filter(isNew).map(r=>{
+ if(r.deferredCopy)return deferredAddition(doc,r);
  const color=num(r,62);const style=color>=1&&color<=255?{color}:{};if(r.pairs.some(p=>p[0]===370))style.lineweight=num(r,370);if(get(r,420)!=='')style.rgb=num(r,420);
  if(r.type==='LINE')return {sourceId:r.id,...style,type:r.type,values:[10,20,11,21].map(c=>num(r,c))};
  if(r.type==='TEXT')return {sourceId:r.id,...style,type:r.type,text:get(r,1),values:[num(r,10),num(r,20),num(r,40),num(r,50)*Math.PI/180]};
