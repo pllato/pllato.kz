@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import createModule from './vendor/libredwg-web.js?v=0.17.39';
-import {warningText} from './progress.mjs?v=0.17.39';
-import {LibreDwg} from './vendor/libredwg-sdk.js?v=0.17.39';
-import {nativeDocument} from './native-adapter.mjs?v=0.17.39';
-import {readExecutiveMetadata} from './executive-metadata.mjs?v=0.17.39';
+import createModule from './vendor/libredwg-web.js?v=0.17.40';
+import {warningText} from './progress.mjs?v=0.17.40';
+import {LibreDwg} from './vendor/libredwg-sdk.js?v=0.17.40';
+import {nativeDocument} from './native-adapter.mjs?v=0.17.40';
+import {readExecutiveMetadata} from './executive-metadata.mjs?v=0.17.40';
 self.onmessage=async({data})=>{
  let sdk,pointer;
  try{
   self.postMessage({progress:'Загружаю движок…',percent:5});
-  const messages=[],engine=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.39',import.meta.url).href,print:()=>{},printErr:s=>{if(messages.length<12)messages.push(String(s));}});
+  const messages=[],engine=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.40',import.meta.url).href,print:()=>{},printErr:s=>{if(messages.length<12)messages.push(String(s));}});
   engine.FS.writeFile('input.dwg',new Uint8Array(data));
   self.postMessage({progress:'Читаю DWG: движок не сообщает внутренний процент…',percent:15});
   const result=engine.dwg_read_file('input.dwg');pointer=result.data;
+  // The parser owns the native drawing now; do not retain another full input
+  // in MEMFS throughout conversion and the large cross-thread handoff.
+  engine.FS.unlink('input.dwg');
   sdk=LibreDwg.createByWasmInstance(engine);
   // ACADVER lives in the file header, not the generic header-variable table.
   // The upstream dynamic binding can dereference an invalid value for R2018.
@@ -29,6 +32,7 @@ self.onmessage=async({data})=>{
   const attached=new Set(database.entities.flatMap(e=>(e.attribs||[]).map(a=>a.handle)));
   doc.exportRootHandles=database.entities.filter(e=>!attached.has(e.handle)).map(e=>e.handle);
   if(result.error)messages.unshift(warningText(result.error)+' (код '+result.error+')');
+  sdk.dwg_free(pointer);pointer=null;
   self.postMessage({doc,messages});
  }catch(e){self.postMessage({error:e.message||String(e)});}
  finally{if(sdk&&pointer)sdk.dwg_free(pointer);}
