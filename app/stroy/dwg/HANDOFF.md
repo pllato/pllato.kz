@@ -1,5 +1,48 @@
 # Передача разработки DWG-редактора
 
+## 0.17.24 — уточнения пользователя, 30 сентября
+
+N1 очищается у TEXT/ATTDEF в листовых блоках с ARC/CIRCLE и у их ATTRIB;
+геометрия прибора не удаляется. Это undoable правка при новом открытии,
+не повторяется при recovery. Native pllato_text поддерживает однострочные
+ATTDEF/ATTRIB, включая пустую строку; multiline отклоняется.
+Кабельный навигатор и ведомость показывают суммы только текущего листа.
+Excel TSV: 1–20 столбцов, до 1000 строк, quoted переносы/табы, plain text,
+предпросмотр и повтор заголовка, векторные LINE/TEXT, отдельные страницы
+продолжения в PDF и DWG. На первом листе таблица не выше 50 мм, чтобы не
+перекрывать существующий план. Формулы, merge и форматирование XLSX не импортируются.
+
+Проверено локально: 118 unit; native executive, vertices/layers, новый host
+socket-label-regression (blank ATTDEF/ATTRIB write/read, geometry count unchanged);
+browser empty-scope, workbench, executive-export, table-export. Таблица 4 столбца /
+40 строк / multiline сохранена и повторно прочитана в DWG, PDF 3 страницы.
+Poppler страницы просмотрены: рамки/текст без наложений, osifont embedded+Unicode,
+растровых Image XObject нет. Это не независимый AutoCAD audit.
+
+Native decoder/encoder: при color.flag==0xc0 не читать/писать отдельный color.handle
+в отложенном потоке handles (common_entity_data уже имел аналогичную проверку).
+В private edited fixture invalidRootOwners стало 0; в большом исходном осталось
+3888 MTEXT (было 9995 разных). Оба изменённых library файла, wrapper и GPL архив
+поставляются вместе. Reader/SDK оставлены прежними: экспериментальная пересборка
+читателя меняла состав сцены и НЕ включена в релиз.
+
+НЕ ЗАКРЫТО: отдельный DWG пользователя, пропавшие розетки, универсальная
+стабильность больших исполнительных. Эксперимент owned dictionary/XRECORD removal
+прошёл первые MTEXT/INSERT, но упёрся в динамический BLOCKREPRESENTATION с 88
+недекодированными битами. Этот эксперимент НЕ опубликован, сохранён локально
+в /private/tmp/dwg-export-research.oETlFn. Guards не ослаблены.
+Большой исходный файл: открытие ~19.9 с; создание частичной области [0.2,0.2,0.5,0.5]
+в 1600×1100 viewport завершилось без crash, с warnings; отдельный экспорт
+ROOT_REJECT MTEXT mode=0. Это не проверка всей области и не доказательство
+исправления всех memory crashes. >20000 выбранных roots теперь объясняется
+понятной ошибкой, лимит не увеличен. После native чтения worker освобождается
+до sceneAsync. Для продолжения нужны корректный декодер MTEXT/dynamic blocks и
+независимое CAD сравнение. AutoCAD UI был недоступен из-за заблокированного Mac.
+
+Команды: tests/dwg-table-export-browser.cjs и tests/dwg-user-workflow-browser.cjs
+(DWG_USER_FIXTURE, опционально DWG_CREATE_RECT). Частные файлы не публиковать.
+
+
 ## 0.17.23 — 30 сентября, feat/dwg-september-fixes
 
 PR: https://github.com/pllato/pllato.kz/pull/860. Локально PASS: 114 unit,

@@ -1,16 +1,14 @@
-import {executiveEntities} from './executive-project.mjs?v=0.17.23';
-import {vectorPdf} from './vector-pdf.mjs?v=0.17.23';
+import {executiveEntities} from './executive-project.mjs?v=0.17.24';
+import {vectorPdf} from './vector-pdf.mjs?v=0.17.24';
 
 export function executivePages(project,shapes,assigned){
  if(!project?.sheets.length)throw Error('Сначала создайте исполнительную');
  const loose=assigned||executiveLooseRoots(project,shapes);
  let offset=0;
- return project.sheets.map(sheet=>{
-  const count=executiveEntities(project,sheet.id).items.length,roots=new Set(sheet.nativeHandles.map(h=>'dwg-'+h)),start=offset;offset+=count;
+ return project.sheets.flatMap(sheet=>{
+  const layout=executiveEntities(project,sheet.id),count=layout.items.length,roots=new Set(sheet.nativeHandles.map(h=>'dwg-'+h)),start=offset;offset+=count;
   const selected=shapes.filter(s=>roots.has(s.id)||loose.get(s.id)===sheet.id||s.id.startsWith('executive-')&&Number(s.id.slice(10))>=start&&Number(s.id.slice(10))<offset);
-  const bounds=[...sheet.origin,sheet.origin[0]+420*sheet.paperUnit,sheet.origin[1]+297*sheet.paperUnit];
-  for(const s of selected){bounds[0]=Math.min(bounds[0],s.bounds[0]);bounds[1]=Math.min(bounds[1],s.bounds[1]);bounds[2]=Math.max(bounds[2],s.bounds[2]);bounds[3]=Math.max(bounds[3],s.bounds[3]);}
-  return {sheet,shapes:selected,bounds};
+  return layout.pageRanges.map((range,index)=>{const pageShapes=selected.filter(s=>{if(!s.id.startsWith('executive-'))return index===0;const n=Number(s.id.slice(10))-start;return n>=range.start&&n<range.end||index===0&&n>=layout.decorationEnd;});const bounds=[...range.origin,range.origin[0]+420*sheet.paperUnit,range.origin[1]+297*sheet.paperUnit];for(const s of pageShapes){bounds[0]=Math.min(bounds[0],s.bounds[0]);bounds[1]=Math.min(bounds[1],s.bounds[1]);bounds[2]=Math.max(bounds[2],s.bounds[2]);bounds[3]=Math.max(bounds[3],s.bounds[3]);}return {sheet,shapes:pageShapes,bounds};});
  });
 }
 

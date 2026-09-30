@@ -1,0 +1,16 @@
+// Opt-in private-file smoke test; never print geometry or copy fixtures to repo.
+const {chromium}=require('playwright'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1100}});page.on('pageerror',e=>console.log('PAGE_ERROR',e.message));page.on('crash',()=>console.log('CRASH'));page.on('dialog',d=>d.accept());
+ await page.route('**/app/gate.js',r=>r.fulfill({body:''}));await page.route('**/editor.mjs*',async r=>{const response=await r.fetch();await r.fulfill({response,body:await response.text()+'\nglobalThis.userTest={state:()=>doc,shapes:()=>drawing.shapes,commit:commitExecutive};'});});
+ await page.goto('http://127.0.0.1:8817/app/stroy/dwg/');const start=Date.now();await page.locator('#file').setInputFiles(process.env.DWG_USER_FIXTURE);await page.waitForFunction(()=>document.querySelector('#busy').hidden,null,{timeout:180000});
+ console.log('OPEN',Date.now()-start,await page.evaluate(()=>({records:userTest.state().records.length,shapes:userTest.shapes().length,unknown:userTest.state().nativeUnknown,sheets:userTest.state().executiveProject?.sheets.length||0})));
+ console.log('LABEL_TYPES',await page.evaluate(()=>{const counts={};for(const r of userTest.state().records)if(r.pairs.some(p=>p[0]===1&&p[1].trim()==='N1'))counts[r.type]=(counts[r.type]||0)+1;return counts;}));
+ if(!await page.locator('#exSheet option').count()){
+ await page.locator('#panel').click();await page.locator('#units').selectOption('.001');await page.locator('#exCreateIcon').click();const b=await page.locator('#canvas').boundingBox();const rect=JSON.parse(process.env.DWG_CREATE_RECT||'[0.002,0.002,0.998,0.998]');await page.mouse.move(b.x+b.width*rect[0],b.y+b.height*rect[1]);await page.mouse.down();await page.mouse.move(b.x+b.width*rect[2],b.y+b.height*rect[3],{steps:8});await page.mouse.up();await page.waitForFunction(()=>document.querySelector('#busy').hidden,null,{timeout:300000});console.log('CREATE',await page.locator('#status').textContent());
+ }
+ if(!await page.locator('#exSheet option').count())throw Error('No executive created');
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'dwg-private-check-'));let download;page.on('download',d=>download=d);
+ await page.locator('#executiveExports summary').click();await page.locator('#exportScope').selectOption('selected');await page.locator('#exportExecutivesDwg').click();await page.waitForFunction(()=>document.querySelector('#busy').hidden,null,{timeout:300000});await page.waitForTimeout(500);
+ console.log('EXPORT',await page.locator('#status').textContent());if(!download)throw Error('DWG not downloaded');const output=path.join(dir,'selected.dwg');await download.saveAs(output);await page.locator('#file').setInputFiles(output);await page.waitForFunction(()=>document.querySelector('#busy').hidden,null,{timeout:180000});console.log('READBACK',await page.evaluate(()=>({sheets:userTest.state().executiveProject?.sheets.length,shapes:userTest.shapes().length})),output);
+ }finally{await browser.close();}})().catch(e=>{console.error(e.message);process.exitCode=1;});
