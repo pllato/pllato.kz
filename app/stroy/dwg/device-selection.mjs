@@ -1,4 +1,4 @@
-import {get} from './cad.mjs?v=0.17.49';
+import {get} from './cad.mjs?v=0.17.50';
 // Only a real block instance may become a device. Do not group nearby strokes
 // or treat the plan/container (which contains other INSERTs) as one appliance.
 export function deviceInstances(doc){

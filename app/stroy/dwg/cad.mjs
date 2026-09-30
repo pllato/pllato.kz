@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {cadFont} from './fonts.mjs?v=0.17.49';
+import {cadFont} from './fonts.mjs?v=0.17.50';
 // DXF остаётся источником истины: неизвестные записи не вырезаются при экспорте.
 export const get=(r,c,d='')=>{const pairs=r._pairs||(r.raw===undefined?r.pairs:null);if(pairs){for(const p of pairs)if(p[0]===c)return p[1];}else{for(const p of groups(r.raw||''))if(p[0]===c)return p[1];}return d;};
 export const num=(r,c,d=0)=>Number(get(r,c,d));
@@ -109,6 +109,9 @@ function* sceneSteps(doc){
     if(ex[2]===-1){local[0]*=-1;local[2]*=-1;local[4]*=-1;}
     yield* walk(block.records,mul(m,local),root,layer,depth+1,style,{id:r.id,matrix:m},semantic);continue;
    }else {if(!['SEQEND','ENDBLK'].includes(r.type))skip(r.type);continue;}
+   // Empty attributes may retain far-away anchors and huge text heights in DWG.
+   // Keep the CAD records for export, but they have no visible/selectable geometry.
+   if(text!==null&&!text.trim())continue;
    if(!wcs&&ex[2]===-1)pts=pts.map(([x,y])=>[-x,y]);
    pts=pts.map(p=>apply(m,p));if(!pts.length||pts.some(p=>!p.every(Number.isFinite)))continue;
    const color=num(r,62,256),height=Math.abs(num(r,40,2.5)*Math.hypot(m[0],m[1]));

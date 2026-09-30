@@ -1,4 +1,4 @@
-import {lessons,questions,grade} from './training-content.mjs?v=0.17.49';
+import {lessons,questions,grade} from './training-content.mjs?v=0.17.50';
 const $=id=>document.getElementById(id),key='pllato_dwg_training_01748';
 let completed=new Set();try{completed=new Set(JSON.parse(localStorage.getItem(key)||'[]').filter(id=>lessons.some(l=>l.id===id)));}catch{}
 const progress=()=>{$('trainingProgress').textContent=`Прочитано ${completed.size} из ${lessons.length} разделов`;try{localStorage.setItem(key,JSON.stringify([...completed]));}catch{}};

@@ -14,3 +14,8 @@ test('Selecting only a label or cutting through its block does not detach it',()
 test('Generated decorations are not recloned as source objects',()=>{
  assert.deepEqual(selectExecutiveRoots(doc,[...shapes,{id:'executive-title',pts:[[0,0]]}],[-1,-1,31,11]),['AA','AC']);
 });
+test('Empty far-away attribute cannot exclude a complete socket; ownership remains intact',()=>{
+ const empty=shapes.map(s=>s.id==='dwg-AB'?{...s,text:'',pts:[[100000,100000]]}:s);
+ assert.deepEqual(selectExecutiveRoots(doc,empty,[-1,-1,11,11]),['AA']);
+ assert.deepEqual(doc.entities.map(r=>r.type),['INSERT','ATTRIB','LINE']);
+});
