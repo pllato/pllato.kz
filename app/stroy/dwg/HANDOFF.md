@@ -1,5 +1,159 @@
 # Передача разработки DWG-редактора
 
+## Точка продолжения — 30 сентября 2026, после 0.17.29
+
+Эта секция важнее исторических заметок ниже. Приложение:
+https://pllato.kz/app/stroy/dwg/ . Репозиторий: `pllato/pllato.kz`, рабочая копия
+на текущем Mac: `/Users/platontsay/Projects/pllato-dwg-prototype`.
+Не путать с CRM и другими рабочими деревьями. Сначала прочитать корневой
+`AGENTS.md`, `docs/HANDOFF.md`, DWG `AGENTS.md` и этот документ.
+
+### Что действительно опубликовано
+
+| Версия | PR | Результат |
+| --- | --- | --- |
+| 0.17.25 | #863 | Исправление common handles, отсутствующих INSERT; отдельный экспорт через native graph |
+| 0.17.26 | #864 | Компактная верхняя панель, autosave в footer |
+| 0.17.27 | #865 | Быстрое добавление model-space линий, кэш палитры, incremental spatial index |
+| 0.17.28 | #867 | Плавная линия по четырём точкам без исполнительной |
+| 0.17.29 | #868 | Перенос отдельного INSERT с атрибутами без исполнительной |
+
+Последняя проверенная публикация: merge `08e179c4c8d9d13de1379dc17f0e1f4381cfe180`,
+Pages run `36679651739` success; live index/editor/root-scene совпали с 0.17.29.
+Это историческая точка: перед новой работой проверить remote/main и живую версию.
+На последнем скриншоте пользователя всё ещё 0.17.25 — вкладка могла не обновиться.
+Не перезагружать её автоматически: там могут быть несохранённые изменения.
+
+### Главная незавершённая задача: экспорт DWG
+
+Последнее сообщение пользователя: выбраны две исполнительные, «Сохранить DWG»
+не скачивает файл. Скриншот 30 сентября 11:29, версия 0.17.25:
+
+```text
+Нельзя удалить связанный объект (код 3).
+REMOVE_REJECT type=INSERT reactors=1 dictionary=1
+Исходный файл не изменён.
+```
+
+**Этот случай НЕ исправлен.** Успешные предыдущие тесты экспорта не доказывают,
+что текущее изменённое состояние пользователя экспортируется.
+
+Установлено по коду:
+
+- `executive-worker.mjs` сначала применяет `ops`; для `op.remove` вызывает
+  `pllato_remove` с подписью «Нельзя удалить связанный объект». Только позже
+  выполняется `pllato_export_selection` для отдельного DWG.
+- `tests/native/pllato_executive_engine.c`, `pllato_remove`: код 3 возвращается,
+  если у entity есть reactors или extension dictionary. Это защитный отказ,
+  а не блокировка загрузок браузером.
+- Следовательно, сообщение указывает на применение записанного удаления;
+  конкретный handle, владелец, роль reactor/dictionary и попадание объекта
+  в выбранные исполнительные ещё НЕ установлены.
+- Пользователю задан вопрос, удалял ли он прибор перед выгрузкой; ответа
+  на момент передачи нет. Не выдавать эту гипотезу за подтверждённую причину.
+- Браузер Chrome DevTools MCP сейчас показывает локальные тестовые вкладки,
+  не подтверждено подключение к пользовательской production-вкладке.
+
+Следующий безопасный шаг: воспроизвести точное состояние (`sourceFile` +
+`nativeOps` + `executiveProject`), определить удаляемый INSERT и его связи.
+Если диагностике не хватает handle, добавить его в сообщение об ошибке.
+Не пропускать remove молча, не возвращать удалённую розетку незаметно и не
+отключать ownership/reactor/dictionary guards. Простое обновление версии
+не считать доказанным исправлением: 0.17.26–29 этот native guard не меняли.
+После исправления проверить selected/all/document exports, две исполнительные,
+повторное чтение DWG и точный состав объектов. Автокада на компьютере нет.
+
+### Архитектура, важная для продолжения
+
+- `editor.mjs`: состояние, жесты, selection, history, checkpoint, export dispatch.
+- `cad.mjs`: DXF-подобные records и развёртка блоков в экранные shapes.
+  Shapes — только отображение, НЕ замена CAD-данных для экспорта.
+- `native-reader.mjs` / `native-adapter.mjs`: native DWG → records/scene.
+- `executive-worker.mjs` / `native-writer.mjs`: применение nativeOps,
+  оформление, сохранение, повторное чтение. `native-writer` для обычного файла,
+  executive worker для исполнительных; проверять оба маршрута.
+- `executive-project.mjs`, `executive-metadata.mjs`, `executive-ui.mjs`:
+  листы, маршруты, ведомости, выноски и метаданные.
+- `object-edit.mjs`: правка реальных records и запись nativeOps;
+  связанные ATTRIB двигаются вместе с INSERT.
+- `root-scene.mjs`: локальная пересборка model-space INSERT после переноса.
+- `spatial-index.mjs`, `damage-preview.mjs`, `drawing-presets.mjs`:
+  viewport candidates, частичная перерисовка, палитра из цветов чертежа.
+- `view-history.mjs`, `recovery.mjs`: undo без повторного открытия native-файла
+  и IndexedDB `pllato_dwg_recovery` (`sources`, `revisions`). Ничего не очищать.
+- `tests/native/pllato_executive_engine.c`, `pllato_selected_export.h`,
+  `vendor/pllato-executive-engine.{mjs,wasm}`: native engine, closed-graph export.
+  Перед изменением обязательно читать `tests/native/BUILD_EXECUTIVE.md`.
+
+### Скорость: измеренное и оставшееся
+
+На приватном большом DWG около 983633 shapes. После 0.17.27 серия из 12 новых
+model-space линий: 33–118 ms до двух animation frames, undo 200 ms, redo 117 ms.
+Это локальный замер конкретного сценария, не обещание 2× для всех действий.
+Открытие около 21 s; плотная исполнительная ранее 51–54 s. Создание листов,
+часть nested edits и регенерация оформления ещё тяжёлые. Viewport culling уже
+есть — не предлагать его заново без профилирования. Не возвращать `scene(doc)`
+на каждый pointermove/новую линию. Shared shapes/indexes должны оставаться
+immutable, иначе ломается undo.
+
+### Проверки и публикация — короткий маршрут
+
+```sh
+node --test tests/dwg-*.test.mjs
+```
+
+Последний результат: 121 unit PASS. Браузерные тесты требуют Playwright,
+отдельный Chrome, локальную страницу на порту 8817 и синтетический DWG.
+На текущем Mac Playwright доступен через `NODE_PATH` из bundled Codex runtime;
+не устанавливать пакеты заново. Пути/сборка fixture и native toolchain ниже.
+
+Ключевые regression scripts:
+
+- `dwg-workbench-browser.cjs`: кабель, узлы, выноски, копии, ведомость, DWG readback.
+- `dwg-executive-export-browser.cjs`: selected/all/document, DWG/PDF.
+- `dwg-socket-move-browser.cjs`: INSERT + ATTRIB, соседние instances, undo/redo,
+  synthetic DWG readback; `DWG_PRIVATE_SOCKET` включает приватную проверку
+  без перезаписи исходника (в этом режиме не выполняет export/readback).
+- `dwg-free-curve-browser.cjs`: кнопка без листа, четыре точки, DWG readback.
+- `dwg-draw-performance-browser.cjs`: `DWG_PERF_FIXTURE`, `DWG_DRAW_ITERATIONS`;
+  `DWG_DRAW_VERIFY=1` для маленького fixture и export/full-scene equivalence.
+  `DWG_DRAW_BASELINE=1` читает editor из текущего HEAD, а не из фиксированной
+  старой версии: не использовать его как baseline 0.17.26 после коммитов.
+- `dwg-damage-preview-browser.cjs`: совпадение частичной/полной отрисовки.
+
+Тестовые обходы локального gate допустимы только в отдельном тестовом браузере;
+никогда не переносить их в production-код. Private DWG/screenshots/dumps не
+добавлять в git. Не запускать тяжёлые performance тесты одновременно, если
+сравниваются времена. Пользовательскую вкладку и локальную историю не трогать.
+
+Публиковать через feature branch → PR → attach PR к чату → merge → успешный
+Pages run → live version/hash check. Поднимать общий frontend cachebuster.
+Для native изменений одновременно пересобирать JS/WASM и corresponding GPL
+archive; один JS или один WASM не заменять. Ошибка `main is already used by
+worktree` после `gh pr merge --delete-branch` может возникнуть ПОСЛЕ успешного
+remote merge: проверить PR state, не повторять merge вслепую и не удалять worktree.
+
+### Требования пользователя, которые сохранять
+
+Белое поле, чёрные выноски, стандарт выноски 1.4 mm с предложением сохранить
+настройку файла; компактные панели и понятные tooltips; сразу редактируемое
+выделение; кривой кабель по четырём точкам; палитра из исходного чертежа;
+ведомость по текущему листу, суммы по марке + сечению; N1 убрать; Excel-таблицы
+произвольной структуры; hidden layers сохранять выключенными, не удалять;
+PDF векторный, исполнительные по отдельным страницам; DWG с CAD-структурой.
+Это требования, а не утверждение о полной проверке каждого сценария.
+Старые пункты ниже читать с учётом последних исправлений и текущего blocker.
+
+### Текст для запуска следующего агента
+
+> Продолжи DWG-редактор Pllato в `/Users/platontsay/Projects/pllato-dwg-prototype`.
+> Прочитай AGENTS.md и app/stroy/dwg/HANDOFF.md, начиная с «Точка продолжения».
+> Приоритет — воспроизвести и исправить отказ экспорта выбранных исполнительных:
+> REMOVE_REJECT type=INSERT reactors=1 dictionary=1. Не снимай проверки связей,
+> не меняй исходный DWG и не очищай рабочую вкладку/историю. Проверь свежий main,
+> учитывай опубликованные 0.17.27–29. Доведи исправление через regression tests,
+> PR и проверку публикации; отчитайся отдельно о проверенном и оставшихся рисках.
+
 ## 0.17.29 — перенос розеток с атрибутами
 
 Удалён устаревший запрет editable для native INSERT с group 66 без исполнительной.
