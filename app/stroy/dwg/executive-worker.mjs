@@ -1,7 +1,7 @@
-import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.24';
-import {writeAdditions} from './authoring.mjs?v=0.17.24';
-import {validateExecutiveProject} from './executive-metadata.mjs?v=0.17.24';
-import {executiveEntities} from './executive-project.mjs?v=0.17.24';
+import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.25';
+import {writeAdditions} from './authoring.mjs?v=0.17.25';
+import {validateExecutiveProject} from './executive-metadata.mjs?v=0.17.25';
+import {executiveEntities} from './executive-project.mjs?v=0.17.25';
 self.onmessage=async({data})=>{
  let m,diagnostic='';
  try{
@@ -9,7 +9,7 @@ self.onmessage=async({data})=>{
   const project=validateExecutiveProject(data.project);
   if(!(buffer instanceof ArrayBuffer)||!Array.isArray(ops)||ops.length>100000)throw Error('Неверный пакет изменений');
   self.postMessage({progress:'Готовлю DWG исполнительных…',percent:5});
-  m=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.24',import.meta.url).href,print:()=>{},printErr:s=>{if(/^(CLONE_REJECT|MOVE_REJECT|REMOVE_|ROOT_REJECT|SAVE_REJECT)/.test(s))diagnostic=s.slice(0,200);}});m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
+  m=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.25',import.meta.url).href,print:()=>{},printErr:s=>{if(/^(CLONE_REJECT|MOVE_REJECT|REMOVE_|ROOT_REJECT|SAVE_REJECT|EXPORT_REJECT|EXPORT_EDGE)/.test(s))diagnostic=s.slice(0,200);}});m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
   const opened=m.ccall('pllato_open','number',['string'],['/input.dwg']);if(opened>=128)throw Error('DWG не прочитан: '+opened);
   self.postMessage({progress:'Проверяю изменения и связи объектов DWG…',percent:15});
   const check=(code,label)=>{if(code){const reason=diagnostic.startsWith('CLONE_REJECT_ROOT')?'Выделен вложенный объект без его блока-владельца. Выделите блок целиком. '+diagnostic:diagnostic.includes('ACAD_TABLE')?'Исходная CAD-таблица пока не поддерживается безопасным копированием. Таблица не удалена, операция отменена целиком. '+diagnostic:diagnostic.includes('MULTILEADER')?'Связанная сложная выноска не прошла проверку точности копирования. Операция отменена целиком, выноска не удалена. '+diagnostic:diagnostic.includes('BLOCKSTRETCHACTION')?'Команда растяжения динамического блока не прошла проверку точности записи. Копирование отменено без упрощения CAD-структуры.':diagnostic;throw Error(label+' (код '+code+'). '+reason+' Исходный файл не изменён.');}};
@@ -28,20 +28,6 @@ self.onmessage=async({data})=>{
   for(const handle of project.generatedHandles||[])check(m.ccall('pllato_remove','number',['string'],[handle]),'Не удалось обновить оформление, объект '+handle);
   project.generatedHandles=[];
   let supportRoots=[];
-  if(data.exportOnly){
-   const keep=new Set(project.sheets.flatMap(s=>s.nativeHandles)),alreadyRemoved=new Set(ops.filter(o=>o.remove).map(o=>o.handle));
-   const keepExport=new Set(data.keepRoots||[]);for(const h of keep)keepExport.add(h);
-   check(m.ccall('pllato_root_manifest','number',[],[]),'Не удалось проверить полный состав DWG');
-   const rows=m.FS.readFile('/root-manifest.txt',{encoding:'utf8'}).trim().split(/\s+/).filter(Boolean);
-   // VIEWPORT is a layout view onto model space, not a plan entity. Keep the
-   // layout's view machinery intact; it can only show surviving model roots.
-   supportRoots=rows.filter(row=>row.endsWith(',viewport')).map(row=>row.split(',')[0]);
-   for(const h of supportRoots)keepExport.add(h);
-   const roots=rows.map(row=>row.split(',')[0]);
-   data.removeRoots=roots.filter(h=>!keepExport.has(h));
-   self.postMessage({progress:'Исключаю исходные планы из экспортной копии…',percent:25});
-   for(const handle of data.removeRoots)if(!alreadyRemoved.has(handle))check(m.ccall('pllato_remove','number',['string'],[handle]),'Экспорт только исполнительных остановлен: нельзя безопасно исключить исходный объект '+handle);
-  }
   const copies=new Map();
   for(const request of (copyRequest?(Array.isArray(copyRequest)?copyRequest:[copyRequest]):[])){const {handle,parent,transform}=request;if(!/^[0-9a-f]+$/i.test(handle)||!project.sheets.some(s=>s.nativeHandles[0]===parent)||!Array.isArray(transform)||transform.length!==5||!transform.every(Number.isFinite))throw Error('Неверные параметры копирования');const key=JSON.stringify([parent,transform]);const group=copies.get(key)||{parent,transform,handles:[]};group.handles.push(handle);copies.set(key,group);}
   for(const {parent,transform,handles} of copies.values()){self.postMessage({progress:'Копирую объект с CAD-структурой…',percent:30});check(m.ccall('pllato_copy_objects','number',['string','string',...Array(5).fill('number')],[handles.join(','),parent,...transform]),'Не удалось скопировать объект');}
@@ -64,6 +50,14 @@ self.onmessage=async({data})=>{
   const bytes=new TextEncoder().encode(JSON.stringify(project));
   if(bytes.length>4*1024*1024)throw Error('Данные исполнительных превышают 4 МБ');
   check(m.ccall('pllato_executive_metadata','number',['array','number'],[bytes,bytes.length]),'Не удалось сохранить связи исполнительных');
+  if(data.exportOnly){
+   const removed=new Set(ops.filter(o=>o.remove).map(o=>o.handle));
+   const roots=new Set([...(data.keepRoots||[]).filter(h=>!removed.has(h)),...project.sheets.flatMap(s=>s.nativeHandles),...project.generatedHandles,...addedHandles]);
+   if(!roots.size||[...roots].some(h=>!/^[0-9a-f]+$/i.test(h)))throw Error('Неверный состав выбранных исполнительных');
+   self.postMessage({progress:'Собираю отдельный DWG со всеми CAD-зависимостями…',percent:65});
+   check(m.ccall('pllato_export_selection','number',['string'],[[...roots].join(',')]),'Не удалось собрать отдельный DWG');
+   supportRoots=m.FS.readFile('/export-support.txt',{encoding:'utf8'}).trim().split(/\s+/).filter(Boolean);
+  }
   self.postMessage({progress:'Проверяю DWG повторным чтением…',percent:80});
   const saved=m.ccall('pllato_save','number',['string'],['/output.dwg']);if(saved>=128)throw Error('DWG не прошёл проверку сохранения: '+saved);
   const output=m.FS.readFile('/output.dwg');if(new Uint8Array(buffer,0,6).some((b,i)=>b!==output[i]))throw Error('Изменилась версия DWG');
@@ -72,7 +66,7 @@ self.onmessage=async({data})=>{
    const reopened=m.ccall('pllato_open','number',['string'],['/output.dwg']);if(reopened>=128)throw Error('Экспортный DWG не прочитан повторно');
    check(m.ccall('pllato_root_manifest','number',[],[]),'Не удалось проверить состав экспортного DWG');
    exportRootHandles=m.FS.readFile('/root-manifest.txt',{encoding:'utf8'}).trim().split(/\s+/).filter(Boolean).map(row=>row.split(',')[0]);
-   const removed=new Set(ops.filter(o=>o.remove).map(o=>o.handle)),expected=new Set([...(data.keepRoots||[]).filter(h=>!removed.has(h)),...project.generatedHandles,...addedHandles,...supportRoots]);
+   const removed=new Set(ops.filter(o=>o.remove).map(o=>o.handle)),expected=new Set([...(data.keepRoots||[]).filter(h=>!removed.has(h)),...project.sheets.flatMap(s=>s.nativeHandles),...project.generatedHandles,...addedHandles,...supportRoots]);
    if(exportRootHandles.length!==expected.size||exportRootHandles.some(h=>!expected.has(h)))throw Error('Состав экспортного DWG не совпал с выбранными исполнительными');
   }
   self.postMessage({buffer:output.buffer,project,addedHandles,exportRootHandles,supportRoots,warnings:opened|saved},[output.buffer]);

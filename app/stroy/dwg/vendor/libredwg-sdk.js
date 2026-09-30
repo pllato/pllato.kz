@@ -7071,6 +7071,13 @@ const _LibreDwg = class _LibreDwg {
     return wasmInstance.dwg_object_dictionary_get_texts(ptr).data;
   }
   static createByWasmInstance(wasmInstance) {
+    // Variable-class enum values are version-specific; use the decoded name
+    // instead of treating a newer class number as an unrelated old class.
+    if (!wasmInstance.pllatoTypeMap) {
+      const raw=wasmInstance.dwg_object_get_fixedtype.bind(wasmInstance),cache=new Map();
+      wasmInstance.dwg_object_get_fixedtype=ptr=>{const value=raw(ptr);if(value<500)return value;if(!cache.has(value)){const name=wasmInstance.dwg_object_get_name(ptr)?.data;cache.set(value,Dwg_Object_Type['DWG_TYPE_'+name]??-1);}return cache.get(value);};
+      wasmInstance.pllatoTypeMap=true;
+    }
     return this.instance == null ? new _LibreDwg(wasmInstance) : this.instance;
   }
   static async create(filepath) {

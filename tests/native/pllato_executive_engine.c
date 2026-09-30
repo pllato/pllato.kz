@@ -13,6 +13,7 @@
 #include "hash.h"
 extern int dwg_encode_add_object(Dwg_Object *,Bit_Chain *,size_t);
 extern size_t pllato_encoded_payload_end;
+static int selected_export_validated=0;
 API int pllato_text(const char *handle,const char *utf8){
  Dwg_Object *o=entity(handle);if(!o||!utf8)return 1;
  if(o->fixedtype==DWG_TYPE_TEXT)return pllato_legacy_text(handle,utf8);
@@ -24,6 +25,7 @@ API int pllato_text(const char *handle,const char *utf8){
 /* Older builds truncated large model-space owner lists during encoding.
    Recover only an absent list, using explicit native entity ownership. */
 API int pllato_open(const char *path){
+ selected_export_validated=0;
  int error=pllato_legacy_open(path);if(error>=128||!loaded)return error;
  Dwg_Object *model=dwg_model_space_object(&drawing);if(!model)return error;
  Dwg_Object_BLOCK_HEADER *b=model->tio.object->tio.BLOCK_HEADER;
@@ -237,8 +239,9 @@ static int raw_table(Dwg_Object *o){
   &&o->parent->header.version>=R_2010&&o->parent->header.version==o->parent->header.from_version
   &&o->unknown_bits&&o->num_unknown_bits&&!o->num_unknown_rest;
 }
-static int table_refs(Dwg_Object *o,BITCODE_HV original,TableRef **result,unsigned *count){
- *result=NULL;*count=0;if(!raw_table(o))return 0;
+static int opaque_handle_refs(Dwg_Object *o,BITCODE_HV original,TableRef **result,unsigned *count){
+ *result=NULL;*count=0;
+ if(!o||!o->unknown_bits||!o->num_unknown_bits||o->num_unknown_rest||o->parent->header.version<R_2010||o->parent->header.version!=o->parent->header.from_version)return 0;
  size_t end=(size_t)o->size*8;if(end<o->num_unknown_bits||end<o->bitsize)return 0;
  size_t start=end-o->num_unknown_bits,handleBits=end-o->bitsize;
  if(o->bitsize<start||handleBits!=o->handlestream_size||handleBits>800000){fprintf(stderr,"CLONE_TABLE_BOUNDARY bits=%u start=%zu handle=%zu/%llu\n",o->bitsize,start,handleBits,(unsigned long long)o->handlestream_size);return 0;}
@@ -261,6 +264,9 @@ static int table_refs(Dwg_Object *o,BITCODE_HV original,TableRef **result,unsign
  if(bit_position(&bits)!=limit)goto invalid;
  free(bits.chain);*result=refs;return 1;
  invalid:fprintf(stderr,"CLONE_TABLE_BAD_REF count=%u position=%zu limit=%zu code=%u size=%u value=%llX\n",*count,bit_position(&bits),limit,refs[*count<capacity?*count:0].encoded.code,refs[*count<capacity?*count:0].encoded.size,(unsigned long long)refs[*count<capacity?*count:0].value);free(bits.chain);free(refs);*count=0;return 0;
+}
+static int table_refs(Dwg_Object *o,BITCODE_HV original,TableRef **result,unsigned *count){
+ *result=NULL;*count=0;return raw_table(o)&&opaque_handle_refs(o,original,result,count);
 }
 static int relocate_table(Dwg_Object *o,BITCODE_HV original,dwg_inthash *seen,BITCODE_HV *mapped){
  TableRef *refs;unsigned count;if(!table_refs(o,original,&refs,&count))return 0;
@@ -294,6 +300,7 @@ API int pllato_probe_table(const char *handle){
  if(!o||!table_refs(o,o->handle.value,&refs,&count))return 1;
  fprintf(stderr,"CLONE_TABLE_REFS %s %u\n",handle,count);free(refs);return 0;
 }
+#include "pllato_selected_export.h"
 API int pllato_clone_selection(const char *roots,double cx,double cy,double x,double y,double angle)
 {
  /* Each source object can enter the dependency graph at most once. */
@@ -638,6 +645,9 @@ static int same_typed_record(Dwg_Object *a,Dwg_Object *b){
  for(unsigned i=0;i<2;i++){
   Dwg_Object *o=objects[i],saved=*o;bit_chain_init(&bits[i],65536);
   bits[i].version=o->parent->header.version;bits[i].from_version=o->parent->header.from_version;
+  /* Writer may use the canonical fixed code for a known variable class
+     (e.g. PLACEHOLDER). Compare fields under the same proven semantic type. */
+  if(i&&o->fixedtype==a->fixedtype)o->type=a->type;
   o->num_unknown_bits=0;pllato_encoded_payload_end=0;
   errors[i]=dwg_encode_add_object(o,&bits[i],16);ends[i]=pllato_encoded_payload_end;*o=saved;
  }
@@ -646,6 +656,7 @@ static int same_typed_record(Dwg_Object *a,Dwg_Object *b){
   &&ends[0]<=bit_position(&bits[0])&&ends[1]<=bit_position(&bits[1])
   &&!memcmp(bits[0].chain,bits[1].chain,n)
   &&(!partial||!((bits[0].chain[n]^bits[1].chain[n])&(0xffu<<(8-partial))));
+ if(!equal&&selected_export_validated){size_t first=0,limit=ends[0]<ends[1]?ends[0]:ends[1];while(first<limit&&((bits[0].chain[first/8]^(bits[1].chain[first/8]))&(1u<<(7-first%8)))==0)first++;fprintf(stderr,"EXPORT_FIELDS_DIFF %s ends=%zu/%zu errors=%d/%d first_bit=%zu types=%u/%u\n",a->name,ends[0],ends[1],errors[0],errors[1],first,a->type,b->type);}
  free(bits[0].chain);free(bits[1].chain);return equal;
 }
 API int pllato_save(const char *path){
@@ -655,9 +666,9 @@ API int pllato_save(const char *path){
     the in-memory document. Preserve it for validation and subsequent saves. */
  typedef struct {unsigned index,size,bitsize;BITCODE_UMC handles;} RawBoundary;
  unsigned boundaryCount=0;
- for(unsigned i=0;i<drawing.num_objects;i++)if(raw_table(&drawing.object[i]))boundaryCount++;
+ for(unsigned i=0;i<drawing.num_objects;i++)if(drawing.object[i].num_unknown_bits)boundaryCount++;
  RawBoundary *boundaries=calloc(boundaryCount?boundaryCount:1,sizeof(*boundaries));if(!boundaries)return DWG_ERR_OUTOFMEM;
- unsigned bi=0;for(unsigned i=0;i<drawing.num_objects;i++)if(raw_table(&drawing.object[i])){
+ unsigned bi=0;for(unsigned i=0;i<drawing.num_objects;i++)if(drawing.object[i].num_unknown_bits){
   Dwg_Object *o=&drawing.object[i];boundaries[bi++]=(RawBoundary){i,o->size,o->bitsize,o->handlestream_size};
  }
  int error=dwg_write_file(path,&drawing);
@@ -670,6 +681,31 @@ API int pllato_save(const char *path){
   Dwg_Object *a=&drawing.object[i],*b=dwg_resolve_handle(&check,a->handle.value);
   if(a->type==DWG_TYPE_FREED||a->type==DWG_TYPE_UNUSED){if(b)error|=DWG_ERR_INVALIDDWG;continue;}
   if(!b||b->fixedtype!=a->fixedtype){fprintf(stderr,"SAVE_REJECT_TYPE %llX %s\n",(unsigned long long)a->handle.value,a->name);error|=DWG_ERR_INVALIDDWG;break;}
+  if(selected_export_validated&&a->num_unknown_bits){
+   unsigned bytes=a->num_unknown_bits/8,tail=a->num_unknown_bits%8;
+   if(a->num_unknown_bits!=b->num_unknown_bits||a->handlestream_size!=b->handlestream_size||!b->unknown_bits
+      ||memcmp(a->unknown_bits,b->unknown_bits,bytes)||(tail&&((a->unknown_bits[bytes]^b->unknown_bits[bytes])&((1u<<tail)-1)))){
+    fprintf(stderr,"SAVE_REJECT_EXPORT_RAW %llX %s\n",(unsigned long long)a->handle.value,a->name);error|=DWG_ERR_INVALIDDWG;break;
+   }
+  }
+  if(selected_export_validated&&!a->num_unknown_bits&&!same_typed_record(a,b)){
+   fprintf(stderr,"SAVE_REJECT_EXPORT_FIELDS %llX %s\n",(unsigned long long)a->handle.value,a->name);error|=DWG_ERR_INVALIDDWG;break;
+  }
+  if(selected_export_validated){
+   unsigned ac=a->supertype==DWG_SUPERTYPE_ENTITY?a->tio.entity->num_reactors:a->tio.object->num_reactors,bc=b->supertype==DWG_SUPERTYPE_ENTITY?b->tio.entity->num_reactors:b->tio.object->num_reactors;
+   BITCODE_H *ar=a->supertype==DWG_SUPERTYPE_ENTITY?a->tio.entity->reactors:a->tio.object->reactors,*br=b->supertype==DWG_SUPERTYPE_ENTITY?b->tio.entity->reactors:b->tio.object->reactors;
+   if(ac!=bc)error|=DWG_ERR_INVALIDDWG;
+   for(unsigned j=0;error<128&&j<ac;j++)if(!ar[j]||!br[j]||ar[j]->absolute_ref!=br[j]->absolute_ref)error|=DWG_ERR_INVALIDDWG;
+   if(a->supertype==DWG_SUPERTYPE_OBJECT){BITCODE_H x[]={a->tio.object->ownerhandle,a->tio.object->xdicobjhandle},y[]={b->tio.object->ownerhandle,b->tio.object->xdicobjhandle};for(unsigned j=0;j<2;j++)if((x[j]?x[j]->absolute_ref:0)!=(y[j]?y[j]->absolute_ref:0))error|=DWG_ERR_INVALIDDWG;}
+   if(error>=128){fprintf(stderr,"SAVE_REJECT_EXPORT_REACTORS %llX %s\n",(unsigned long long)a->handle.value,a->name);break;}
+  }
+  if(a->supertype==DWG_SUPERTYPE_ENTITY&&b->supertype==DWG_SUPERTYPE_ENTITY){
+   Dwg_Object_Entity *x=a->tio.entity,*y=b->tio.entity;
+   BITCODE_H before[]={x->layer,x->color.handle,x->xdicobjhandle},after[]={y->layer,y->color.handle,y->xdicobjhandle};
+   for(unsigned j=0;j<3;j++)if((before[j]?before[j]->absolute_ref:0)!=(after[j]?after[j]->absolute_ref:0))error|=DWG_ERR_INVALIDDWG;
+   if(x->entmode!=y->entmode||(x->entmode==0&&(x->ownerhandle?x->ownerhandle->absolute_ref:0)!=(y->ownerhandle?y->ownerhandle->absolute_ref:0)))error|=DWG_ERR_INVALIDDWG;
+   if(error>=128){fprintf(stderr,"SAVE_REJECT_COMMON_HANDLES %llX %s\n",(unsigned long long)a->handle.value,a->name);break;}
+  }
   if(a->fixedtype==DWG_TYPE_BLOCK_HEADER){
    Dwg_Object_BLOCK_HEADER *x=a->tio.object->tio.BLOCK_HEADER,*y=b->tio.object->tio.BLOCK_HEADER;
    if(x->num_owned!=y->num_owned)error|=DWG_ERR_INVALIDDWG;
