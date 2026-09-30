@@ -1,8 +1,9 @@
 // Vector PDF backend. Embedded OFL osifont; no canvas screenshot or JPEG.
-import {paintHatch} from './hatch.mjs?v=0.17.48';
-import {textLines} from './renderer.mjs?v=0.17.48';
-import {aciColors} from './colors.mjs?v=0.17.48';
+import {paintHatch} from './hatch.mjs?v=0.17.49';
+import {textLines} from './renderer.mjs?v=0.17.49';
+import {aciColors} from './colors.mjs?v=0.17.49';
 import {shxLayout} from './shx-layout.mjs';
+import {printLineweight} from './print-lineweight.mjs';
 const enc=new TextEncoder(),n=v=>{if(!Number.isFinite(v))throw Error('Неверная координата PDF');return Number(v.toFixed(6)).toString();},hex=v=>v.toString(16).padStart(4,'0').toUpperCase();
 export function trueType(bytes){
  const d=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),u=o=>d.getUint16(o),s=o=>d.getInt16(o),l=o=>d.getUint32(o),tables={};
@@ -25,7 +26,7 @@ export async function vectorPdf(pages,onProgress=()=>{}){
   let activeLayer=-1;
   for(let j=0;j<shapes.length;j++){
    if(j&&j%2000===0){onProgress(pageIndex,pages.length);await new Promise(r=>setTimeout(r,0));}
-   const a=shapes[j],c=color(a.rgb||aciColors[a.color]),layer=layerIds.get(a.layer||'0');if(layer!==activeLayer){if(activeLayer>=0)emit('EMC');emit(`/OC /L${layer} BDC`);activeLayer=layer;}emit(c+' RG '+c+' rg');emit(n(Math.max(.1,(a.lineweight||0)/100*72/25.4))+' w');
+   const a=shapes[j],c=color(a.rgb||aciColors[a.color]),layer=layerIds.get(a.layer||'0');if(layer!==activeLayer){if(activeLayer>=0)emit('EMC');emit(`/OC /L${layer} BDC`);activeLayer=layer;}emit(c+' RG '+c+' rg');emit(n(printLineweight(a))+' w');
    if(a.hatch){paintHatch(hatchContext,a,{s,x,y},a.rgb||aciColors[a.color]||'#000000',w,h,true);continue;}
    if(a.text!==null){
     const strokes=shxLayout(a);

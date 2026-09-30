@@ -15,14 +15,14 @@ export function parseTable(text,{header=true}={}){
  if(cell||row.length) {row.push(cell);rows.push(row);}if(!rows.length)throw Error('Скопируйте ячейки из Excel и вставьте сюда');
  const columns=Math.max(...rows.map(r=>r.length));for(const r of rows)while(r.length<columns)r.push('');return validateTable({cells:rows,header});
 }
-export function tablePages(table){
- const {cells,header}=validateTable(table),width=200,font=2.2,padding=2;
- const weights=cells[0].map((_,i)=>Math.max(4,Math.min(30,Math.max(...cells.map(r=>Math.max(...r[i].split('\n').map(s=>s.length)))))));
- const sum=weights.reduce((a,b)=>a+b,0),widths=weights.map(w=>width*w/sum),wrap=(s,w)=>{const n=Math.max(1,Math.floor((w-2*padding)/(font*.65))),out=[];for(const line of s.split('\n')){if(!line)out.push('');else for(let i=0;i<line.length;i+=n)out.push(line.slice(i,i+n));}return out;};
+export function tablePages(table,{firstPageHeight=50}={}){
+ const {cells,header}=validateTable(table),font=2.2,padding=.8;
+ const desired=cells[0].map((_,i)=>Math.max(1,...cells.map(r=>Math.max(...r[i].split('\n').map(s=>s.length))))*font*.65+padding*2);
+ const sum=desired.reduce((a,b)=>a+b,0),width=Math.min(200,sum),widths=desired.map(w=>width*w/sum),wrap=(s,w)=>{const n=Math.max(1,Math.floor((w-2*padding+1e-9)/(font*.65))),out=[];for(const line of s.split('\n')){if(!line)out.push('');else for(let i=0;i<line.length;i+=n)out.push(line.slice(i,i+n));}return out;};
  const rows=cells.map(r=>{const lines=r.map((s,i)=>wrap(s,widths[i]));return {lines,height:Math.max(...lines.map(a=>a.length))*font*1.45+padding*2};});
  if(rows.some(r=>r.height>170))throw Error('Слишком высокая строка: сократите текст или разделите её на несколько строк');
  // The existing plan starts at 65 mm: keep the first table below it.
- const pages=[];let page=[],height=0,limit=50;
+ const pages=[];let page=[],height=0,limit=firstPageHeight;
  const push=()=>{pages.push({rows:page,widths,font,padding,height,width});page=header&&rows.length>1?[rows[0]]:[];height=page[0]?.height||0;limit=180;};
  for(let i=0;i<rows.length;i++){const r=rows[i];if(height+r.height>limit){push();if(i===0){page=[];height=0;}}if(height+r.height>180)throw Error('Строка не помещается вместе с заголовком');page.push(r);height+=r.height;}
  if(page.length)pages.push({rows:page,widths,font,padding,height,width});return pages;

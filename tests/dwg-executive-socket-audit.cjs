@@ -1,0 +1,8 @@
+// Local diagnostic only: never writes or uploads the input drawing.
+const {chromium}=require('playwright');
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});try{
+ const page=await browser.newPage();page.setDefaultTimeout(240000);await page.route('**/app/gate.js',r=>r.fulfill({body:''}));
+ await page.route('**/editor.mjs*',async r=>{const response=await r.fetch();await r.fulfill({response,body:await response.text()+`
+ globalThis.socketAudit=()=>{const instances=deviceInstances(doc),roots=new Map(),seen=new Set();for(const s of drawing.shapes){if(!instances.has(s.deviceId)||!/розет/i.test(s.layer))continue;const key=JSON.stringify([s.id,s.deviceId,s.deviceMatrix]);if(seen.has(key))continue;seen.add(key);const group=roots.get(s.id)||{root:s.id,count:0,layers:{}};group.count++;group.layers[s.layer]=(group.layers[s.layer]||0)+1;roots.set(s.id,group);}return {tilted:doc.records.filter(r=>r.type==='INSERT'&&(num(r,210)||num(r,220)||![-1,1].includes(num(r,230,1)))).map(r=>({id:r.id,block:get(r,2),layer:get(r,8),normal:[num(r,210),num(r,220),num(r,230,1)]})),shapes:drawing.shapes.length,unsupported:drawing.unsupported,sheets:doc.executiveProject?.sheets.map(s=>({id:s.id,handles:s.nativeHandles})),roots:[...roots.values()]};};`});});
+ await page.goto('http://127.0.0.1:8817/app/stroy/dwg/');await page.locator('#file').setInputFiles(process.env.DWG_TEST_FILE);await page.waitForFunction(()=>document.querySelector('#busy').hidden);console.log(JSON.stringify(await page.evaluate(()=>socketAudit())));
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

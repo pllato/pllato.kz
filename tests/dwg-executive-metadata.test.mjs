@@ -4,6 +4,8 @@ import {createExecutiveProject,createExecutive,addRoute,executiveEntities} from 
 test('Metadata validates shapes, Unicode and ignores unrecognised fields',()=>{
  const p=createExecutiveProject();createExecutive(p,{id:'a',title:'Квартира',metresPerUnit:.001,paperUnit:2,nativeHandles:['AB']});p.generatedHandles=['BC'];p.untrusted='not code';
  const valid=validateExecutiveProject(p);assert.equal(valid.untrusted,undefined);assert.equal(valid.sheets[0].paperUnit,2);
+ p.sheets[0].stamp={organization:'RLS',code:'ИД-01',stage:'ИД',checkedBy:'Проверяющий',approvedBy:'Согласующий'};
+ assert.deepEqual(validateExecutiveProject(p).sheets[0].stamp,p.sheets[0].stamp);
  assert.throws(()=>validateExecutiveProject({...p,generatedHandles:['../../bad']}));
  assert.throws(()=>validateExecutiveProject({...p,version:100}));
 });

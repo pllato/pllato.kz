@@ -1,6 +1,6 @@
-import {get,num,move,set} from './cad.mjs?v=0.17.48';
-import {localDelta} from './cable-edit.mjs?v=0.17.48';
-import {movableSpline,splineControls,setSplineControl} from './control-edit.mjs?v=0.17.48';
+import {get,num,move,set} from './cad.mjs?v=0.17.49';
+import {localDelta} from './cable-edit.mjs?v=0.17.49';
+import {movableSpline,splineControls,setSplineControl} from './control-edit.mjs?v=0.17.49';
 export function editObjects(doc,targets,{delta=[0,0],remove=false,color}={}){
  if(!targets.length||!delta.every(Number.isFinite))throw Error('Выберите объект');
  if(color!==undefined&&(!Number.isInteger(color)||color<1||color>255))throw Error('Неверный цвет');

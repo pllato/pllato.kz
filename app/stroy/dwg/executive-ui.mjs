@@ -1,17 +1,17 @@
-import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.48';
-import * as projectAPI from './executive-project.mjs?v=0.17.48';
-import {routeLength} from './cable-ledger.mjs?v=0.17.48';
-import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.48';
-import {executivePlacement} from './executive-placement.mjs?v=0.17.48';
-import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.48';
-import {drawingPreset} from './drawing-presets.mjs?v=0.17.48';
-import {parseTable,tablePages} from './table-paste.mjs?v=0.17.48';
+import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.49';
+import * as projectAPI from './executive-project.mjs?v=0.17.49';
+import {routeLength} from './cable-ledger.mjs?v=0.17.49';
+import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.49';
+import {executivePlacement} from './executive-placement.mjs?v=0.17.49';
+import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.49';
+import {drawingPreset} from './drawing-presets.mjs?v=0.17.49';
+import {parseTable,tablePages} from './table-paste.mjs?v=0.17.49';
 export function mountExecutiveUI(api){
  const panel=document.createElement('section');panel.id='executives';
  panel.innerHTML=`<h2>Исполнительные</h2><button id="exArea">Выделить план рамкой</button><p id="exAreaInfo">Откройте DWG, выберите единицы и выделите план.</p><button id="exCreate" disabled>Создать рядом</button><label>Исполнительная<select id="exSheet"></select></label><label>Заголовок<input id="exTitle" maxlength="1000"></label><label>Поворот плана, °<input id="exAngle" type="number" value="0"></label><details><summary>Редактировать штамп</summary><div id="exStamp"></div></details><button id="exApply">Применить оформление</button><h3>Кабельные трассы</h3><label>Марка<input id="exBrand" value="ВВГнг(А)-LS"></label><label>Сечение<input id="exSection" value="3×2,5"></label><label>Дополнительная длина, м<input id="exExtra" type="number" min="0" value="0" step="any"></label><button id="exRoute">Рисовать трассу</button><button id="exFinish">Завершить трассу</button><label>Трасса<select id="exRouteList"></select></label><button id="exCable">Назначить кабель</button><button id="exLeader">Выноска · 3 точки</button><button id="exRemoveLeader">Удалить выноски</button><button id="exRemoveRoute">Удалить трассу</button><div class="pair"><label>Сдвиг X<input id="exDX" type="number" value="0"></label><label>Сдвиг Y<input id="exDY" type="number" value="0"></label></div><button id="exMoveRoute">Двигать трассу</button><button id="exDevice">Выбрать прибор</button><pre id="exLedger" style="white-space:pre-wrap;font-size:12px"></pre>`;
  document.querySelector('#sidebar').prepend(panel);
  const advanced=document.createElement('div');advanced.innerHTML=`<label>Отдельная выноска<select id="exLeaderList"></select></label><button id="exMoveLeader">Сдвинуть подпись · X/Y выше</button><button id="exDeleteLeader">Удалить выбранную выноску</button><label>Известная длина, м<input id="exKnownMetres" type="number" min="0" step="any" value="1"></label><button id="exCalibrate">Калибровать · 2 точки</button>`;panel.append(advanced);
- const $=id=>document.getElementById(id),stampLabels={project:'Проект',object:'Объект',drawing:'Название схемы',contractor:'Исполнитель',date:'Дата',sheet:'Лист',sheets:'Листов'};
+ const $=id=>document.getElementById(id),stampLabels={code:'Обозначение документа',project:'Проект',object:'Объект',drawing:'Название схемы',organization:'Организация',stage:'Стадия',contractor:'Выполнил',checkedBy:'Проверил',approvedBy:'Согласовал',date:'Дата',sheet:'Лист',sheets:'Листов'};
  const showSheet=document.createElement('button');showSheet.id='exShow';showSheet.textContent='Показать исполнительную';$('exSheet').parentElement.after(showSheet);
  const operationError=document.createElement('p');operationError.id='exError';operationError.setAttribute('role','alert');operationError.hidden=true;operationError.style.cssText='color:#ffc38a;overflow-wrap:anywhere';$('exCreate').after(operationError);
  for(const [key,label] of Object.entries(stampLabels)){const l=document.createElement('label');l.textContent=label;const i=document.createElement('input');i.id='exStamp_'+key;i.maxLength=1000;l.append(i);$('exStamp').append(l);}
