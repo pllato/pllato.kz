@@ -1,4 +1,4 @@
-import {guideSteps} from './onboarding-steps.mjs?v=0.17.46';
+import {guideSteps} from './onboarding-steps.mjs?v=0.17.47';
 const storageKey='pllato_dwg_guide_v1';
 export function mountOnboarding(){
  const $=selector=>document.querySelector(selector);let index=0,seen=false;

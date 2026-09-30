@@ -1,7 +1,7 @@
 // Vector PDF backend. Embedded OFL osifont; no canvas screenshot or JPEG.
-import {paintHatch} from './hatch.mjs?v=0.17.46';
-import {textLines} from './renderer.mjs?v=0.17.46';
-import {aciColors} from './colors.mjs?v=0.17.46';
+import {paintHatch} from './hatch.mjs?v=0.17.47';
+import {textLines} from './renderer.mjs?v=0.17.47';
+import {aciColors} from './colors.mjs?v=0.17.47';
 import {shxLayout} from './shx-layout.mjs';
 const enc=new TextEncoder(),n=v=>{if(!Number.isFinite(v))throw Error('Неверная координата PDF');return Number(v.toFixed(6)).toString();},hex=v=>v.toString(16).padStart(4,'0').toUpperCase();
 export function trueType(bytes){
