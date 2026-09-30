@@ -1,16 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {paintHatch} from './hatch.mjs?v=0.17.39';
+import {paintHatch} from './hatch.mjs?v=0.17.40';
 import {shxLayout} from './shx-layout.mjs';
 export function previewTransform(current,cached){const scale=current.s/cached.s;return {scale,x:current.x-cached.x*scale,y:current.y-cached.y*scale};}
 export function textLines(text,width,measure){return text.split(/\r?\n/).flatMap(paragraph=>{if(!(width>0))return [paragraph];const lines=[];let line='';for(const word of paragraph.split(/\s+/)){const next=line?line+' '+word:word;if(line&&measure(next)>width){lines.push(line);line=word;}else line=next;}lines.push(line);return lines;});}
 // Последовательные линии одного цвета рисуем пачкой, сохраняя порядок цветов,
 // заливок и текста. Экранные координаты не создают временные массивы точек.
 export function paintShapes(ctx,shapes,{view,width,height,hidden,selected,colors,pixelsPerMm=96/25.4}){
+ const steps=paintShapeSteps(ctx,shapes,{view,width,height,hidden,selected,colors,pixelsPerMm});
+ while(!steps.next().done){}
+}
+// Keep the same path/batching state across yields: chunking must not change
+// painter order, overlapping strokes, hatches or text. Use a private context.
+export function* paintShapeSteps(ctx,shapes,{view,width,height,hidden,selected,colors,pixelsPerMm=96/25.4},budgetMs=8){
  const scale=view.s,ox=view.x,oy=view.y;
  const left=(-20-ox)/scale,right=(width+20-ox)/scale,bottom=(oy-height-20)/scale,top=(oy+20)/scale;
  let color=null,lineWidth=1,segments=0;
  const flush=()=>{if(segments){ctx.stroke();segments=0;}};
+ let checked=0,start=performance.now();
  for(const shape of shapes){
+  if(++checked%64===0&&performance.now()-start>=budgetMs){yield;start=performance.now();}
   const b=shape.bounds;
   if(hidden.has(shape.layer)||b[2]<left||b[0]>right||b[3]<bottom||b[1]>top)continue;
   const isSelected=selected instanceof Set?selected.has(shape.entityKey):shape.id===selected||shape.entityKey===selected||shape.deviceId===selected;

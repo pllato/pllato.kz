@@ -1,5 +1,38 @@
 # Передача разработки DWG-редактора
 
+## 0.17.40 — отзывчивая отрисовка и освобождение старых DWG
+
+renderer.paintShapeSteps сохраняет весь порядок и состояние Canvas-путей между
+порциями (~8 ms, проверка каждые 64 примитива). Синхронный paintShapes использует
+тот же итератор. Большой viewport рисуется в отдельный raster canvas через
+render-task; опубликованный preview остаётся до готовности нового кадра.
+Новый zoom отменяет старую работу. Проверяются документ/слои/view/размер/шрифты;
+скрытая вкладка и busy DWG не тратят время на фоновый raster. Это кооперативная
+отрисовка на main thread, НЕ OffscreenCanvas worker и НЕ уменьшение CAD-геометрии.
+Retina transform восстанавливается для дальнейшего repaintDamage.
+
+История после смены native doc освобождает obsolete viewState (полные records /
+scene), сохраняя file+recovery: такой undo и раньше требовал повторного чтения.
+adopt очищает индексы/selection/length caches предыдущего документа. В обычном
+undo убран лишний captureRecovery. Начало приложения использует IDB count,
+а не читает state каждой ревизии. История пользователя НЕ удаляется.
+native-reader удаляет MEMFS input после парсинга и освобождает DWG перед
+structured-clone передачей doc. Это освобождает native allocations, но WASM
+линейная память может оставаться выделенной до terminate worker.
+
+Проверено локально: 133 unit PASS; workbench (копия, undo/redo, титул, таблица,
+DWG download/readback) PASS. На приватном большом DWG 983633 shapes контрольный
+CPU raster: sync 1274 ms, cooperative max slice 13.5 ms, total 1620 ms; все CPU
+пиксели совпали. 146 timer ticks между порциями. Retina latest-view после rapid
+zoom проходит с допуском 0.2% каналов на GPU antialias/blit (наблюдалось 0.156%).
+Это уменьшение непрерывного блокирования, НЕ ускорение всей операции / файла.
+Тест: DWG_PERF_FIXTURE=... node tests/dwg-cooperative-render-browser.cjs.
+
+Остаётся: native copy / executive creation всё ещё write-read-scene, общий
+пик памяти convert+structuredClone, тяжёлые отдельные HATCH/geometry rebuild.
+Один сложный примитив может превысить 8 ms. Не обещать отсутствие зависаний всего
+компьютера или универсальное ускорение 2×. Шрифты и проверки DWG не упрощены.
+
 ## 0.17.39 — видимый номер сборки
 
 buildVersion рядом с названием редактора показывает v0.17.39, а не только

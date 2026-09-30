@@ -1,5 +1,11 @@
 // Structural sharing: unchanged CAD records and display primitives are reused.
 // Callers list every original record they will mutate before doing so.
+// After a native transaction those scenes can never take the fast undo path:
+// restoration uses file + recovery. Do not retain entire obsolete DWG graphs.
+export function releaseObsoleteViews(entries,currentDoc){
+ return entries.map(entry=>entry.viewState&&entry.viewState.doc!==currentDoc&&entry.recovery&&entry.file
+  ?{file:entry.file,name:entry.name,recovery:entry.recovery}:entry);
+}
 export function captureView(doc,drawing,records=[]){
  return {doc,drawing,textStyles:structuredClone(doc.textStyles),layers:structuredClone(doc.layers),records:[...doc.records],entities:[...doc.entities],blocks:[...doc.blocks.values()].map(b=>[b,b.records]),patches:records.map(r=>[r,structuredClone(r.pairs)]),ops:structuredClone(doc.nativeOps||[]),project:structuredClone(doc.executiveProject||null)};
 }

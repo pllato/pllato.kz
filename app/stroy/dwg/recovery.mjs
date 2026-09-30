@@ -1,5 +1,5 @@
-import {get,move,set,addEntity} from './cad.mjs?v=0.17.39';
-import {setSplineControl,setEntityVertex} from './control-edit.mjs?v=0.17.39';
+import {get,move,set,addEntity} from './cad.mjs?v=0.17.40';
+import {setSplineControl,setEntityVertex} from './control-edit.mjs?v=0.17.40';
 export function captureRecovery(doc){
  if(!doc.native)throw Error('Ожидается DWG');
  return {ops:structuredClone(doc.nativeOps||[]),added:doc.entities.filter(r=>r.id.startsWith('new-')).map(r=>({id:r.id,type:r.type,pairs:structuredClone(r.pairs)})),project:structuredClone(doc.executiveProject||null)};
@@ -25,6 +25,7 @@ export function recoveryStore(){
  let database;const sourceIds=new WeakMap();
  const open=()=>database??=new Promise((resolve,reject)=>{const r=indexedDB.open('pllato_dwg_recovery',1);r.onupgradeneeded=()=>{r.result.createObjectStore('sources');r.result.createObjectStore('revisions',{keyPath:'id'});};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
  return {
+  async hasRevisions(){const db=await open();return new Promise((resolve,reject)=>{const r=db.transaction('revisions').objectStore('revisions').count();r.onsuccess=()=>resolve(r.result>0);r.onerror=()=>reject(r.error);});},
   async save(file,state,meta){const db=await open();let sourceId=sourceIds.get(file),fresh=!sourceId;if(fresh)sourceId=crypto.randomUUID();
    const revision={...meta,id:crypto.randomUUID(),time:Date.now(),sourceId,state};
    await new Promise((resolve,reject)=>{const tx=db.transaction(['sources','revisions'],'readwrite');if(fresh)tx.objectStore('sources').put(file,sourceId);tx.objectStore('revisions').put(revision);tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error||Error('Автосохранение прервано'));tx.onerror=()=>{};});
