@@ -7,8 +7,8 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');
   page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/app/gate.js',r=>r.fulfill({body:''}));
   await page.goto((process.env.DWG_TEST_ORIGIN||'http://127.0.0.1:8817')+'/app/stroy/dwg/');
-  await page.locator('#guideButton').waitFor();
-  await page.evaluate(()=>{document.querySelector('#guideWelcome').hidden=true;document.querySelector('#filename').textContent='Очень длинное название чертежа с изменениями.dwg';document.querySelector('#autosaveStatus').textContent='Сохранено на устройстве · 11:02:49';});
+  await page.locator('#focusWorkspace').waitFor();
+  await page.evaluate(()=>{document.querySelector('#filename').textContent='Очень длинное название чертежа с изменениями.dwg';document.querySelector('#autosaveStatus').textContent='Сохранено на устройстве · 11:02:49';});
   const rows=[];
   for(const width of [1920,1440,1280,1024,850,390]){
    await page.setViewportSize({width,height:900});
@@ -28,7 +28,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');
    await page.locator('#executiveExports>summary').click();
   }
   await page.setViewportSize({width:1440,height:900});
-  await page.locator('#guideButton').click();assert.equal(await page.locator('#dwgGuide').isVisible(),true);await page.locator('#guideClose').click();
+  assert.equal(await page.locator('#guideButton,#dwgGuide,#guideWelcome').count(),0);
   await page.locator('#historyButton').click();await page.locator('#recoveryDialog').waitFor({state:'visible'});await page.locator('#recoveryDialog button').last().click();
   await page.locator('#panel').click();assert.equal(await page.locator('#sidebar').isVisible(),true);await page.locator('.sidebarClose').click();
   await page.locator('#focusWorkspace').click();assert.equal(await page.locator('header').isVisible(),false);await page.locator('#focusWorkspace').click();

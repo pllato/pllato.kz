@@ -6,7 +6,7 @@
   function update(a){
     if(!a)return;
     const u=new URL(a.getAttribute('href'),location.href);
-    if(u.origin!==location.origin||u.pathname!=='/app/stroy/dwg/')return;
+    if(u.origin!==location.origin||!['/app/stroy/dwg/','/app/stroy/dwg/guide.html'].includes(u.pathname))return;
     u.searchParams.set('k',key);a.href=u.href;
   }
   document.querySelectorAll('a[href]').forEach(update);
