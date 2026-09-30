@@ -10,7 +10,7 @@ int main(int argc,char **argv){
   Dwg_Object_Entity *e=o->tio.entity;if(!e||e->entmode)continue;
   Dwg_Object *owner=dwg_ref_object(&drawing,e->ownerhandle);if(owner&&owner->fixedtype==DWG_TYPE_BLOCK_HEADER)continue;
   if(membership[o->index]==1)owned++;
-  if(bad++<10)fprintf(stdout,"type=%s ownerType=%s memberships=%u\n",o->name,owner?owner->name:"missing",membership[o->index]);
+  if(bad++<10)fprintf(stdout,"type=%s ownerType=%s memberships=%u mode=%u colorFlag=%u ownerPresent=%u ownerCode=%u layerPresent=%u size=%u\n",o->name,owner?owner->name:"missing",membership[o->index],e->entmode,e->color.flag,e->ownerhandle!=NULL,e->ownerhandle?e->ownerhandle->handleref.code:0,e->layer!=NULL,o->size);
  }
  printf("invalidRootOwners=%u singleBlockMembership=%u\n",bad,owned);free(membership);pllato_close();return 0;
 }

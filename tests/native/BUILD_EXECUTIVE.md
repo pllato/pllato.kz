@@ -42,6 +42,11 @@ tests/native/pllato_executive_engine.c \
 
 ## Corresponding-source release checklist
 
+0.17.24 includes the deferred C0 color-handle condition in `src/decode.c`
+and `src/encode.c`, plus single-line ATTDEF/ATTRIB text editing in the wrapper.
+Do not rebuild from an older archive: it lacks those actual library changes.
+The owned-dictionary removal experiment is not released.
+
 - `app/stroy/dwg/vendor/pllato-executive-source.tar.gz` contains the patched
   LibreDWG tree and wrapper. Extract into a fresh temporary directory, never over
   another worktree. Reference patches here describe changes already present.

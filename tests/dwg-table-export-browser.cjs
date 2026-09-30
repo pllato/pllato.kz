@@ -1,0 +1,16 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1100}});page.on('dialog',d=>d.accept());await page.route('**/app/gate.js',r=>r.fulfill({body:''}));
+ await page.route('**/editor.mjs*',async r=>{const response=await r.fetch();await r.fulfill({response,body:await response.text()+'\nglobalThis.tableTest={state:()=>doc};'});});
+ await page.goto('http://127.0.0.1:8817/app/stroy/dwg/');await page.locator('#file').setInputFiles(process.env.DWG_CLONE_FIXTURE);await page.waitForFunction(()=>document.querySelector('#busy').hidden);
+ await page.locator('#panel').click();await page.locator('#units').selectOption('.001');await page.locator('#exCreateIcon').click();const b=await page.locator('#canvas').boundingBox();await page.mouse.move(b.x+3,b.y+3);await page.mouse.down();await page.mouse.move(b.x+b.width-3,b.y+b.height-3,{steps:8});await page.mouse.up();await page.waitForFunction(()=>document.querySelector('#exSheet option')&&document.querySelector('#busy').hidden);
+ const text='№\tНаименование материала\tЕд.\tКоличество\n'+Array.from({length:40},(_,i)=>`${i+1}\t${i===0?'"Кабель силовой\nВВГнг(А)-LS"':'Розетка с заземлением'}\t${i===0?'м':'шт'}\t${i+2}`).join('\n');
+ await page.evaluate(text=>{document.querySelector('#tablePaste').value=text;document.querySelector('#tablePaste').dispatchEvent(new Event('input'));document.querySelector('#tableApply').click();},text);
+ await page.waitForFunction(()=>tableTest.state().executiveProject.sheets[0].table?.cells.length===41);
+ const pages=await page.evaluate(async()=>{const {tablePages}=await import('./table-paste.mjs');return tablePages(tableTest.state().executiveProject.sheets[0].table).length;});assert.ok(pages>1);
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'dwg-table-export-'));
+ for(const [selector,file] of [['#exportExecutivesPdf','table.pdf'],['#exportExecutivesDwg','table.dwg']]){await page.locator('#executiveExports summary').click();await page.locator('#exportScope').selectOption('selected');const download=page.waitForEvent('download',{timeout:120000});await page.locator(selector).click();await(await download).saveAs(path.join(dir,file));await page.waitForFunction(()=>document.querySelector('#busy').hidden);}
+ const pdf=fs.readFileSync(path.join(dir,'table.pdf'));assert.ok(pdf.includes(Buffer.from('/Count '+pages)));assert.ok(!pdf.includes(Buffer.from('/Subtype /Image')));
+ await page.locator('#file').setInputFiles(path.join(dir,'table.dwg'));await page.waitForFunction(()=>document.querySelector('#busy').hidden);const cells=await page.evaluate(()=>tableTest.state().executiveProject.sheets[0].table.cells);assert.equal(cells.length,41);assert.equal(cells[1][1],'Кабель силовой\nВВГнг(А)-LS');assert.equal(cells[0].length,4);
+ console.log('PASS arbitrary 4-column multiline table, native DWG roundtrip, PDF pages='+pages,dir);
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

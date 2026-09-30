@@ -1,6 +1,6 @@
 // Sheet decoration uses native editable LINE/TEXT entities, not a bitmap.
 // Coordinates are drawing units; scale never changes cable quantities.
-export function executiveLayout({origin=[0,0],width=420,height=297,title='',titleStyle={x:210,y:275,height:5},stamp={},rows=[],unit=1,northAngle=0}={}){
+export function executiveLayout({origin=[0,0],width=420,height=297,title='',titleStyle={x:210,y:275,height:5},stamp={},rows=[],tablePage,unit=1,northAngle=0}={}){
  if(!origin.every(Number.isFinite)||origin.length!==2||!Number.isFinite(unit)||unit<=0||!Number.isFinite(northAngle)||width<300||height<200||![width,height].every(Number.isFinite))throw Error('Неверные размеры исполнительной');
  if(rows.length>10)throw Error('Ведомость требует дополнительного листа: больше 10 строк');
  const items=[],p=(x,y)=>[origin[0]+x*unit,origin[1]+y*unit];
@@ -25,6 +25,7 @@ export function executiveLayout({origin=[0,0],width=420,height=297,title='',titl
  text(sx+3,sy+8,stamp.contractor||'Исполнитель');
  text(sx+122,sy+28,stamp.date||'Дата');text(sx+122,sy+18,'Лист');text(sx+152,sy+18,'Листов');
  text(sx+122,sy+8,stamp.sheet||'1');text(sx+152,sy+8,stamp.sheets||'1');
+ if(tablePage){const t=tablePage,tx=15,ty=5;rect(tx,ty,t.width,t.height);let x=tx;for(const w of t.widths.slice(0,-1)){x+=w;line(x,ty,x,ty+t.height);}let y=ty+t.height;for(const row of t.rows){let x=tx;row.lines.forEach((lines,i)=>{lines.forEach((value,j)=>text(x+t.padding,y-t.padding-t.font-j*t.font*1.45,value,t.font));x+=t.widths[i];});y-=row.height;line(tx,y,tx+t.width,y);}return {items,planBounds:[...p(20,Math.max(65,t.height+15)),...p(width-20,height-55)]};}
  const tx=15,ty=5,tw=Math.min(150,sx-20),rh=7,th=(rows.length+1)*rh;
  rect(tx,ty,tw,th);line(tx+tw*.5,ty,tx+tw*.5,ty+th);line(tx+tw*.78,ty,tx+tw*.78,ty+th);
  text(tx+2,ty+th-5,'Кабель');text(tx+tw*.5+2,ty+th-5,'Сечение');text(tx+tw*.78+2,ty+th-5,'Длина, м');

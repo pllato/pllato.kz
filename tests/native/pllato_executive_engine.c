@@ -2,15 +2,25 @@
 #define pllato_save pllato_legacy_save
 #define pllato_move pllato_legacy_move
 #define pllato_open pllato_legacy_open
+#define pllato_text pllato_legacy_text
 #include "pllato_web.c"
 #undef pllato_save
 #undef pllato_move
 #undef pllato_open
+#undef pllato_text
 #include "encode.h"
 #include "decode.h"
 #include "hash.h"
 extern int dwg_encode_add_object(Dwg_Object *,Bit_Chain *,size_t);
 extern size_t pllato_encoded_payload_end;
+API int pllato_text(const char *handle,const char *utf8){
+ Dwg_Object *o=entity(handle);if(!o||!utf8)return 1;
+ if(o->fixedtype==DWG_TYPE_TEXT)return pllato_legacy_text(handle,utf8);
+ BITCODE_T *text=NULL;
+ if(o->fixedtype==DWG_TYPE_ATTDEF&&o->tio.entity->tio.ATTDEF->mtext_type<=1)text=&o->tio.entity->tio.ATTDEF->default_value;
+ if(o->fixedtype==DWG_TYPE_ATTRIB&&o->tio.entity->tio.ATTRIB->mtext_type<=1)text=&o->tio.entity->tio.ATTRIB->text_value;
+ if(!text)return 1;BITCODE_T replacement=dwg_add_u8_input(&drawing,utf8);if(!replacement)return 2;free(*text);*text=replacement;return 0;
+}
 /* Older builds truncated large model-space owner lists during encoding.
    Recover only an absent list, using explicit native entity ownership. */
 API int pllato_open(const char *path){
