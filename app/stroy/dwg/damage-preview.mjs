@@ -1,5 +1,5 @@
-import {paintShapes} from './renderer.mjs?v=0.17.34';
-import {spatialIndex} from './spatial-index.mjs?v=0.17.34';
+import {paintShapes} from './renderer.mjs?v=0.17.35';
+import {spatialIndex} from './spatial-index.mjs?v=0.17.35';
 // Screen cache only: redraw the entire painter stack in a small damaged area.
 // Never erase the selected line alone: crossing strokes/hatches must reappear.
 export function repaintDamage(ctx,shapes,damage,options){
