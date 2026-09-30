@@ -8,7 +8,7 @@ test('refinement removes and restores only the clicked CAD part; geometry untouc
  let selection=selectionSubset(shapes,new Set(['a','b','c']));
  selection=toggleSelectionPart(shapes,selection,shapes[1]);
  assert.deepEqual([...selection.keys],['a','c']);assert.equal(pathLength(selection.paths),20);
- assert.equal(toggleSelectionPart(shapes,selection,shapes[3]),selection);
+ const extended=toggleSelectionPart(shapes,selection,shapes[3]);assert.equal(extended.keys.has('other'),true);assert.equal(pathLength(extended.paths),30);
  selection=selectionSubset(shapes,selection.keys,selection.universe);
  assert.equal(selection.keys.has('b'),false);
  selection=toggleSelectionPart(shapes,selection,shapes[1]);assert.equal(selection.keys.size,3);assert.equal(pathLength(selection.paths),30);assert.equal(JSON.stringify(shapes),before);
@@ -18,4 +18,13 @@ test('coincident copies toggle together and never double the length',()=>{
  let selection=selectionSubset(shapes,new Set(['a','copy','b']));assert.equal(pathLength(selection.paths),20);
  selection=toggleSelectionPart(shapes,selection,shapes[0]);assert.deepEqual([...selection.keys],['b']);
  selection=toggleSelectionPart(shapes,selection,shapes[1]);assert.equal(selection.keys.size,3);assert.equal(pathLength(selection.paths),20);
+});
+test('explicitly adds missed continuation without guessing other branches; rejects text and other block instances',()=>{
+ const a=line('a',[0,0],[10,0]),b=line('b',[10.1,0],[20,0]),branch=line('branch',[10,0],[10,10]);
+ const shapes=[a,b,branch];let selection=selectionSubset(shapes,new Set(['a']));
+ selection=toggleSelectionPart(shapes,selection,b);assert.deepEqual([...selection.keys],['a','b']);
+ assert.equal(selection.universe.has('b'),true);
+ selection=toggleSelectionPart(shapes,selection,b);assert.deepEqual([...selection.keys],['a']);
+ assert.equal(toggleSelectionPart(shapes,selection,{...b,text:'label'}),selection);
+ assert.equal(toggleSelectionPart(shapes,selection,{...b,deviceId:'socket'}),selection);
 });

@@ -1,7 +1,7 @@
-import {cableCurve,nearestCablePoint,bendCable} from './cable-edit.mjs?v=0.17.45';
-import {mountCableNavigator} from './cable-navigator.mjs?v=0.17.45';
-import {mountDrawingPresets} from './drawing-presets.mjs?v=0.17.45';
-import {mountCableValues} from './cable-values.mjs?v=0.17.45';
+import {cableCurve,nearestCablePoint,bendCable} from './cable-edit.mjs?v=0.17.46';
+import {mountCableNavigator} from './cable-navigator.mjs?v=0.17.46';
+import {mountDrawingPresets} from './drawing-presets.mjs?v=0.17.46';
+import {mountCableValues} from './cable-values.mjs?v=0.17.46';
 export function mountCableWorkbench(api){
  const panel=document.createElement('section');panel.id='cableWorkbench';panel.innerHTML=`<h2>Кабель / объект</h2><p id="cwLength">Выберите кабель или прибор</p><div class="cwActions"><button id="cwDraw">Кабель · 4 точки</button><button id="cwMove">Перетащить</button><button id="cwShape">Изменить форму</button><button id="cwCopy">Копировать выбранное</button><button id="cwPaste">Вставить копию</button><button id="cwDelete">Удалить</button></div><label>Цвет линии<select id="cwColor"><option value="0">Исходный / по слою</option><option value="7">Белый</option><option value="1">Красный</option><option value="2">Жёлтый</option><option value="3">Зелёный</option><option value="4">Голубой</option><option value="5">Синий</option><option value="6">Фиолетовый</option><option value="8">Серый</option></select></label><button id="cwApplyColor">Применить цвет</button><div id="cwCableFields"></div><button id="cwAssign">Сохранить марку и сечение</button><button id="cwLeader">Поставить выноску</button><p id="cwHelp">Кабель учитывается в ведомости и без выноски. Цвет не меняет его марку.</p>`;
  const nav=document.querySelector('nav'),toolbar=document.createElement('div');toolbar.id='drawingToolbar';nav.before(toolbar);toolbar.append(panel,nav);
@@ -21,8 +21,8 @@ export function mountCableWorkbench(api){
  const quickCopy=document.createElement('button');quickCopy.id='cwQuickCopy';quickCopy.title='Копировать · сразу создать дубликат рядом';quickCopy.setAttribute('aria-label',quickCopy.title);quickCopy.innerHTML=$('cwCopy').innerHTML;quickCopy.hidden=true;quickDelete.after(quickCopy);
  icon('cwCut','Вырезать часть между двумя точками','<circle cx="5" cy="6" r="3"/><circle cx="5" cy="18" r="3"/><path d="M8 8l12 12M8 16L20 4"/>');
  const refine=document.createElement('button');refine.id='cwRefine';panel.querySelector('.cwActions').append(refine);
- icon('cwRefine','Уточнить выбор · Shift + клик убирает или возвращает участок','<path stroke-dasharray="3 3" d="M3 3h14v14H3z"/><path d="M13 20h9"/>');
- refine.onclick=()=>{lastKey=api.route()?.id||api.selectionKey();mode=mode==='refine'?'':'refine';api.status(mode?'Нажимайте лишние участки: выбор снимается, повторный клик возвращает. Геометрия не удаляется. Для редактирования выключите «Уточнить выбор».':'Уточнение выключено. Можно редактировать выбранные участки.');refresh();api.draw();};
+ icon('cwRefine','Добавить / убрать участок из выделения · Shift + клик','<path stroke-dasharray="3 3" d="M3 3h14v14H3z"/><path d="M13 20h9M20 3v8m-4-4h8"/>');
+ refine.onclick=()=>{lastKey=api.route()?.id||api.selectionKey();mode=mode==='refine'?'':'refine';api.status(mode?'Клик по невыбранному участку добавляет его, по выбранному — исключает. Геометрия не удаляется. Для редактирования выключите «Добавить / убрать участок».':'Уточнение выключено. Можно редактировать выбранные участки.');refresh();api.draw();};
  icon('cwLeader','Выноска · укажите точку на выбранном кабеле','<path d="M3 20l8-9h10M3 15v5h5M13 4h8M13 7h5"/>');
  panel.querySelector('.cwActions').append($('cwLeader'));
  summary.textContent='';summary.title='Марка, сечение и цвет';summary.setAttribute('aria-label','Марка, сечение и цвет');summary.innerHTML='<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16"/><circle cx="8" cy="5" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="19" r="2"/></svg>';
