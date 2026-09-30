@@ -1,8 +1,14 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {fromRecords,scene,move} from '../app/stroy/dwg/cad.mjs';
-import {translatedScene} from '../app/stroy/dwg/scene-translation.mjs';
+import {translatedScene,translatedDeviceScene} from '../app/stroy/dwg/scene-translation.mjs';
 import {editObjects} from '../app/stroy/dwg/object-edit.mjs';
 const record=(id,type,pairs)=>({id,type,pairs:[[0,type],...pairs].map(([c,v])=>[c,String(v)])});
+test('device translation reuses the drawing and matches full block expansion',()=>{
+ const doc=fromRecords([record('s','SECTION',[[2,'BLOCKS']]),record('block','BLOCK',[[2,'B']]),record('line','LINE',[[10,0],[20,0],[11,10],[21,20]]),record('text','TEXT',[[10,1],[20,2],[40,2],[1,'ABC']]),record('eb','ENDBLK',[]),record('end','ENDSEC',[]),record('entities','SECTION',[[2,'ENTITIES']]),record('insert','INSERT',[[2,'B'],[10,100],[20,200],[41,2],[42,3],[50,90]]),record('e','ENDSEC',[])]);
+ const before=scene(doc),target={id:'insert',matrix:before.shapes[0].deviceMatrix},delta=[12,-8];
+ const fast=translatedDeviceScene(doc,before,[target],delta);assert.ok(fast);editObjects(doc,[target],{delta});const full=scene(doc);
+ assert.deepEqual(fast,full);
+});
 test('incremental translation matches complete scene and preserves unaffected shapes',()=>{
  const doc=fromRecords([record('s','SECTION',[[2,'ENTITIES']]),record('a','LINE',[[10,0],[20,0],[11,10],[21,20]]),record('b','CIRCLE',[[10,50],[20,60],[40,4]]),record('e','ENDSEC',[])]);
  const before=scene(doc),r=doc.entities[0],fast=translatedScene(before,[{id:r.id}],[12,-8]);move(r,12,-8);

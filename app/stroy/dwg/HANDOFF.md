@@ -1,5 +1,27 @@
 # Передача разработки DWG-редактора
 
+## 0.17.44 — индекс цепочек и локальный перенос приборов
+
+cable-components.mjs кэширует группы по style/instance и консервативные
+компоненты endpoint/overlap. cableChain сохраняет точный seed epsilon,
+deduplication, junction и overlap rules, но сканирует компоненту, не весь слой.
+WeakMap привязан к immutable shapes. Дифференциальный unit сравнивает с прежним
+full-layer поиском на совпадениях, разрывах и ветвлениях.
+На большом «Исполки квартиры»: 11837 цепочек, из них 6251 socket layers,
+8.02 s вместо timeout >180 s; five zoom frames 153 ms; toggle PASS.
+
+translatedDeviceScene обновляет отображение leaf INSERT без полной scene,
+включая text/fill/HATCH matrices; ATTRIB, nested INSERT и неоднозначные матрицы
+остаются на прежнем безопасном пути. Spatial index наследуется с delta.
+executiveUI.rebuild не пересоздаёт оформление/records, когда project и массивы
+документа не изменились. Undo/recovery/DWG проверки не отключены.
+На private edited.dwg выбор прибора 49–110 ms, copy 191–201 ms, перенос
+566–632 ms (синхронный обработчик, НЕ input-to-present). Это ещё не мгновенно.
+Проверены copy/move/undo/redo/recovery/delete source/native DWG readback.
+139 unit PASS. Универсальная изоляция активного листа, полное устранение сканов
+records/shapes и быстрые все сложные приборы НЕ завершены. Первое построение
+компонент остаётся синхронным; отдельно нужны worker/порционное построение.
+
 ## 0.17.43 — длины проводки на слоях розеток
 
 source-cable-lengths распознаёт электрические слои с префиксами ЭЛ/ЭО/ЭОА/ЭОМ

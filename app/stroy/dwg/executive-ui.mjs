@@ -1,11 +1,11 @@
-import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.43';
-import * as projectAPI from './executive-project.mjs?v=0.17.43';
-import {routeLength} from './cable-ledger.mjs?v=0.17.43';
-import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.43';
-import {executivePlacement} from './executive-placement.mjs?v=0.17.43';
-import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.43';
-import {drawingPreset} from './drawing-presets.mjs?v=0.17.43';
-import {parseTable,tablePages} from './table-paste.mjs?v=0.17.43';
+import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.44';
+import * as projectAPI from './executive-project.mjs?v=0.17.44';
+import {routeLength} from './cable-ledger.mjs?v=0.17.44';
+import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.44';
+import {executivePlacement} from './executive-placement.mjs?v=0.17.44';
+import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.44';
+import {drawingPreset} from './drawing-presets.mjs?v=0.17.44';
+import {parseTable,tablePages} from './table-paste.mjs?v=0.17.44';
 export function mountExecutiveUI(api){
  const panel=document.createElement('section');panel.id='executives';
  panel.innerHTML=`<h2>Исполнительные</h2><button id="exArea">Выделить план рамкой</button><p id="exAreaInfo">Откройте DWG, выберите единицы и выделите план.</p><button id="exCreate" disabled>Создать рядом</button><label>Исполнительная<select id="exSheet"></select></label><label>Заголовок<input id="exTitle" maxlength="1000"></label><label>Поворот плана, °<input id="exAngle" type="number" value="0"></label><details><summary>Редактировать штамп</summary><div id="exStamp"></div></details><button id="exApply">Применить оформление</button><h3>Кабельные трассы</h3><label>Марка<input id="exBrand" value="ВВГнг(А)-LS"></label><label>Сечение<input id="exSection" value="3×2,5"></label><label>Дополнительная длина, м<input id="exExtra" type="number" min="0" value="0" step="any"></label><button id="exRoute">Рисовать трассу</button><button id="exFinish">Завершить трассу</button><label>Трасса<select id="exRouteList"></select></label><button id="exCable">Назначить кабель</button><button id="exLeader">Выноска · 3 точки</button><button id="exRemoveLeader">Удалить выноски</button><button id="exRemoveRoute">Удалить трассу</button><div class="pair"><label>Сдвиг X<input id="exDX" type="number" value="0"></label><label>Сдвиг Y<input id="exDY" type="number" value="0"></label></div><button id="exMoveRoute">Двигать трассу</button><button id="exDevice">Выбрать прибор</button><pre id="exLedger" style="white-space:pre-wrap;font-size:12px"></pre>`;
@@ -36,8 +36,11 @@ export function mountExecutiveUI(api){
   $('exLedger').textContent=s?'Этот лист:\n'+ledger.rows.map(r=>`${r.brand} ${r.section}: ${r.length.toFixed(2)} м`).join('\n')+`\nБез выносок: ${ledger.withoutLeaders.length}\nБез марки/сечения: ${ledger.unassigned.length}\nВсего по листу: ${ledger.rows.reduce((n,r)=>n+r.length,0).toFixed(2)} м`:'';
  }
  function refreshLeaders(){const previous=$('exLeaderList').value,r=sheet()?.routes.find(r=>r.id===routeId);$('exLeaderList').replaceChildren(...(r?.leaders||[]).map((l,i)=>new Option('Выноска '+(i+1),l.id)));if(r?.leaders.some(l=>l.id===previous))$('exLeaderList').value=previous;}
+ let decorationCache;
  function rebuild(){
-  const doc=api.getDoc(),p=doc.executiveProject;if(!p){refresh();return;}
+  const doc=api.getDoc(),p=doc.executiveProject;if(!p){refresh();return false;}
+  const signature=JSON.stringify(p);
+  if(decorationCache?.doc===doc&&decorationCache.records===doc.records&&decorationCache.entities===doc.entities&&decorationCache.signature===signature){refresh();return false;}
   const removed=new Set(p.generatedHandles||[]),records=doc.records.filter(r=>!r.id.startsWith('executive-')&&!removed.has(get(r,5)));
   const mini=fromRecords([{id:'section',type:'SECTION',pairs:[[2,'ENTITIES']]},{id:'end',type:'ENDSEC',pairs:[]}]);let i=0;
   for(const s of p.sheets)for(const item of projectAPI.executiveEntities(p,s.id).items){let pairs;
@@ -47,7 +50,7 @@ export function mountExecutiveUI(api){
    if(item.align)pairs.push([72,item.align],[11,item.values[0]],[21,item.values[1]]);if(item.color)pairs.push([62,item.color]);if(item.rgb!==undefined)pairs.push([420,item.rgb]);if(item.lineweight!==undefined)pairs.push([370,item.lineweight]);const r=addEntity(mini,item.type,pairs);r.id='executive-'+i++;if(item.routeId)r.routeId=item.routeId;
   }
   const entities=doc.entities.filter(r=>!r.id.startsWith('executive-')&&!removed.has(get(r,5)));
-  doc.records=[...records,...mini.entities];doc.entities=[...entities,...mini.entities];refresh();
+  doc.records=[...records,...mini.entities];doc.entities=[...entities,...mini.entities];decorationCache={doc,records:doc.records,entities:doc.entities,signature};refresh();return true;
  }
  $('exArea').onclick=guard(()=>{if(!api.getDoc().native)throw Error('Исполнительные: откройте исходный DWG');points=[];mode='area';api.setTool('executive');api.status('Зажмите мышь, обведите нужный план рамкой и отпустите — исполнительная создастся автоматически. Включайте объекты целиком.');});
  $('exCreate').onclick=guard(async()=>{
