@@ -2,6 +2,13 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {sourceCableLengths,cableLayer} from '../app/stroy/dwg/source-cable-lengths.mjs';
 const shape=(id,pts,extra={})=>({id,entityId:id,entityKey:id,entityType:'LINE',layer:'ЭЛ_кабель 0.4',color:5,text:null,pts,bounds:[Math.min(...pts.map(p=>p[0])),Math.min(...pts.map(p=>p[1])),Math.max(...pts.map(p=>p[0])),Math.max(...pts.map(p=>p[1]))],...extra});
+test('Untouched wiring on electrical socket layers is included without labelling devices',()=>{
+ for(const layer of ['ЭЛ-розетки','ЭЛ_Розетки','ЭО-Освещение']){
+  const shapes=[shape('wire',[[0,0],[3,4]],{layer}),shape('socket',[[0,0],[1,1]],{layer,deviceId:'device'})];
+  const rows=[...sourceCableLengths(shapes,{devices:new Set(['device'])})];assert.equal(rows.length,1);assert.equal(rows[0].length,5);
+ }
+ assert.equal(cableLayer('ЭЛ_Текст розеток'),false);assert.equal(cableLayer('Розетки'),false);
+});
 test('Untouched connected cables get one length, no duplicate geometry or wall/device labels',()=>{
  const shapes=[shape('a',[[0,0],[3,0]]),shape('b',[[3,0],[3,4]]),shape('copy',[[0,0],[3,0]]),shape('wall',[[0,10],[3,10]],{layer:'Стены'}),shape('socket',[[0,20],[3,20]],{deviceId:'socket'})];
  const rows=[...sourceCableLengths(shapes,{devices:new Set(['socket'])})];assert.equal(rows.length,1);assert.equal(rows[0].length,7);
