@@ -3,6 +3,13 @@ import {fromRecords,scene,move} from '../app/stroy/dwg/cad.mjs';
 import {translatedScene,translatedDeviceScene} from '../app/stroy/dwg/scene-translation.mjs';
 import {editObjects} from '../app/stroy/dwg/object-edit.mjs';
 const record=(id,type,pairs)=>({id,type,pairs:[[0,type],...pairs].map(([c,v])=>[c,String(v)])});
+test('empty device attributes do not force full scene reconstruction',()=>{
+ const doc=fromRecords([record('s','SECTION',[[2,'BLOCKS']]),record('block','BLOCK',[[2,'B']]),record('line','LINE',[[10,0],[20,0],[11,10],[21,20]]),record('eb','ENDBLK',[]),record('end','ENDSEC',[]),record('entities','SECTION',[[2,'ENTITIES']]),record('insert','INSERT',[[5,'A'],[2,'B'],[10,100],[20,200]]),record('attr','ATTRIB',[[330,'A'],[10,-50000],[20,-50000],[40,8000],[1,'']]),record('e','ENDSEC',[])]);
+ const before=scene(doc),target={id:'insert',matrix:before.shapes[0].deviceMatrix},delta=[12,-8];
+ const fast=translatedDeviceScene(doc,before,[target],delta);assert.ok(fast);editObjects(doc,[target],{delta});assert.deepEqual(fast,scene(doc));
+ doc.records.find(r=>r.id==='attr').pairs.find(p=>p[0]===1)[1]='visible';
+ assert.equal(translatedDeviceScene(doc,scene(doc),[target],delta),null);
+});
 test('device translation reuses the drawing and matches full block expansion',()=>{
  const doc=fromRecords([record('s','SECTION',[[2,'BLOCKS']]),record('block','BLOCK',[[2,'B']]),record('line','LINE',[[10,0],[20,0],[11,10],[21,20]]),record('text','TEXT',[[10,1],[20,2],[40,2],[1,'ABC']]),record('eb','ENDBLK',[]),record('end','ENDSEC',[]),record('entities','SECTION',[[2,'ENTITIES']]),record('insert','INSERT',[[2,'B'],[10,100],[20,200],[41,2],[42,3],[50,90]]),record('e','ENDSEC',[])]);
  const before=scene(doc),target={id:'insert',matrix:before.shapes[0].deviceMatrix},delta=[12,-8];
