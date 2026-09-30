@@ -1,5 +1,5 @@
-import {executiveEntities} from './executive-project.mjs?v=0.17.24';
-import {vectorPdf} from './vector-pdf.mjs?v=0.17.24';
+import {executiveEntities} from './executive-project.mjs?v=0.17.25';
+import {vectorPdf} from './vector-pdf.mjs?v=0.17.25';
 
 export function executivePages(project,shapes,assigned){
  if(!project?.sheets.length)throw Error('Сначала создайте исполнительную');

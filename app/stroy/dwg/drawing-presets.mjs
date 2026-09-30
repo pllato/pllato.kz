@@ -1,4 +1,4 @@
-import {aciColors,rgbHex} from './colors.mjs?v=0.17.24';
+import {aciColors,rgbHex} from './colors.mjs?v=0.17.25';
 export const drawingPreset={color:5,lineweight:25,brand:'ВВГнг(А)-LS',section:'3×2,5'};
 export function drawingPalette(shapes=[]){
  const entries=new Map(),names={1:'Красный',2:'Жёлтый',3:'Зелёный',4:'Голубой',5:'Синий',6:'Фиолетовый',7:'Белый',8:'Серый',9:'Светло-серый'};

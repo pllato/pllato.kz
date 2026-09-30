@@ -1,5 +1,62 @@
 # Передача разработки DWG-редактора
 
+## 0.17.25 — исправление порядка common handles, 30 сентября
+
+Причина пропавших INSERT: color-book handle читался/писался ПЕРЕД владельцем,
+реакторами и xdictionary. По ODA 20.4.2 он идёт ПОСЛЕ них и ПЕРЕД LAYER.
+Безусловное исключение C0 в 0.17.24 было неверным: C0 может ссылаться на DBCOLOR.
+В reader и writer исправлен порядок в common_entity_handle_data.spec; ссылки
+на настоящий DBCOLOR сохраняются. SDK сопоставляет variable class по имени,
+а не несовместимым между версиями enum-номерам. Обе пары JS/WASM и оба GPL
+source archive обновлены; воспроизводимая сборка читателя в build-reader.sh.
+Native save дополнительно сверяет common owner/layer/color/xdictionary handles.
+
+На private большом DWG 42.9 MB: 1922 INSERT без определения → 0; сцена
+964317 → 987383 примитивов (до очистки N1). Native проверка всех INSERT,
+включая вложенные, также 0 отсутствующих/неверных BLOCK_HEADER. Полная новая
+DWG-копия повторно прочитана: 521686 объектов, те же 987383 примитива,
+те же unsupported-счётчики. Это восстановление ссылок, не независимый CAD audit
+и не утверждение, что все неподдерживаемые типы теперь отображаются.
+
+Локально PASS: 118 unit; color-handle-regression (новый синтетический DBCOLOR,
+model + block-owned INSERT, owner/layer/color/block после записи); executive
+native на этом fixture; vertices/layers native; workbench browser;
+executive-export browser (цветной nested fixture, selected/all/document,
+DWG readback, PDF 1/2 pages). Исходные private DWG не изменены и не опубликованы.
+
+Большой файл: финальный open 17.8 s (не обещание 2× ускорения). Плотная область
+7767 roots / 1386 INSERT создана за 51–54 s без crash. Выделение всего вида: 221003 roots → понятный
+отказ по существующему лимиту 20000, вкладка остаётся responsive. Это НЕ
+поддержка создания исполнительной из 221003 объектов и не доказательство
+устранения любого memory crash на любом ноутбуке.
+
+Отдельный DWG исправлен через pllato_export_selection: замкнутый native graph
+выбранных roots вместо удаления всех исходных roots. Отсутствующие владельцы
+у исключённых исходных объектов не мешают отдельному экспорту; если такой
+объект входит в выбранный граф, экспорт по-прежнему отклоняется.
+Сохраняются исходные handles, блоки, EED, xdictionary, raw CAD records.
+Фильтруются только доказанные registry/backlink memberships. TABLESTYLE raw
+payload сохранён, меняется только проверенный common reactor segment;
+добавлены обратные ссылки новых ACAD_TABLE. Все оставшиеся исходящие связи
+проверены перед удалением исключённых records. Save/read сверяет все typed
+records через повторное кодирование, raw bits и common reactor handles.
+В browser выполнены скачивание и повторное открытие ОБОИХ private экспортов:
+edited: 1 sheet / 15586 shapes; плотная новая исполнительная: 1 / 56032.
+Native dense extraction: 54786 records; browser добавляет оформление листа.
+Нельзя заменять это отключением root/ownership/dependency guards.
+
+Финальные regressions: 118 unit; selected-export-regression (сохранение nested
+INSERT/color/xdict, отказ semantic cross-root reactor, исключение orphan вне
+выбора); selected-export-reactors (unaligned raw payload, 0/1/3/256 reactors,
+переходы ширины BL); browser selected/all/document DWG/PDF, table, workbench.
+Удаление большого файла 199–272 ms, undo 100–117 ms, reader starts=0.
+Node phase diagnostic: nativeRead 2.8 s, SDK convert 7.3 s, adapter 1.1 s,
+structuredClone 6.1 s, scene 6.6 s. Это НЕ browser end-to-end сумма и не
+доказательство 2× открытия. Следующий performance приоритет — SDK/transfer/scene,
+а не CSS: DevTools пустого интерфейса LCP 309 ms, render-blocking savings=0.
+AutoCAD НА КОМПЬЮТЕРЕ НЕТ (уточнение пользователя), не просить разблокировать
+Mac для якобы установленного AutoCAD. Полная копия не заменяет selected export.
+
 ## 0.17.24 — уточнения пользователя, 30 сентября
 
 N1 очищается у TEXT/ATTDEF в листовых блоках с ARC/CIRCLE и у их ATTRIB;

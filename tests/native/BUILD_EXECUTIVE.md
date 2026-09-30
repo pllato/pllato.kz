@@ -1,13 +1,13 @@
-# Executive DWG engine 0.15 — corresponding source
+# Executive DWG engine 0.17.25 — corresponding source
 
-GNU LibreDWG 0.14, GPL-3.0-or-later. No paid SDK. The source archive includes the already-patched library, `pllato_web.c` and `pllato_executive_engine.c`. Do not apply the reference patches a second time.
+GNU LibreDWG 0.14, GPL-3.0-or-later. No paid SDK. The source archive includes the already-patched library, `pllato_web.c`, `pllato_executive_engine.c` and `pllato_selected_export.h`. Do not apply the reference patches a second time.
 
 With Emscripten 6.0.10 activated and Python >=3.10:
 
 ```sh
 mkdir build-executive
 cd build-executive
-emconfigure ../configure --disable-shared --disable-docs --disable-python --disable-bindings CFLAGS=-O0
+emconfigure ../configure --disable-shared --disable-docs --disable-python --disable-bindings CFLAGS=-O1
 make -C src -j1 libredwg.la
 emcc ../pllato_executive_engine.c src/.libs/libredwg.a -I.. -I../include -I../src -Isrc -O1 -sMODULARIZE=1 -sEXPORT_ES6=1 -sENVIRONMENT=web,worker,node -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=67108864 -sMAXIMUM_MEMORY=4294967296 -sSTACK_SIZE=5242880 '-sEXPORTED_RUNTIME_METHODS=["ccall","FS"]' -o pllato-executive-engine.mjs
 ```
@@ -42,10 +42,38 @@ tests/native/pllato_executive_engine.c \
 
 ## Corresponding-source release checklist
 
-0.17.24 includes the deferred C0 color-handle condition in `src/decode.c`
-and `src/encode.c`, plus single-line ATTDEF/ATTRIB text editing in the wrapper.
-Do not rebuild from an older archive: it lacks those actual library changes.
-The owned-dictionary removal experiment is not released.
+0.17.25 supersedes the incorrect blanket C0 exclusion from 0.17.24.
+The color-book handle is read/written AFTER owner/reactors/extension dictionary
+and BEFORE layer, per ODA section 20.4.2. It is handled in
+`src/common_entity_handle_data.spec`, not before that spec in decode/encode.c.
+Genuine C0 DBCOLOR references are retained. Save/read-back also verifies common
+owner, layer, color and extension-dictionary handles. The owned-dictionary
+removal experiment is not used; ownership guards remain enabled.
+
+Selected export uses `pllato_selected_export.h` to extract a closed native graph
+while preserving record handles, nested blocks and opaque payloads. It does not
+delete all original roots one by one. `dwg_dynapi_header_fields()` is added in
+`src/dynapi.c`, its generator `src/gen-dynapi.pl` and `src/dynapi.h` so header
+dependencies are included. Registry memberships are filtered, semantic links
+to excluded roots are rejected. TABLESTYLE common reactor memberships have a
+bounded bit-preserving rewrite; its undecoded cell-style payload is retained.
+Every retained typed record is re-encoded and compared after save/read, raw
+records are compared bitwise, and common reactor arrays are checked separately.
+Run `selected-export-regression.c` with the color fixture and a new output path;
+run `selected-export-reactors.c` without arguments for bit-boundary tests.
+
+The reader uses the separately archived libredwg-web commit
+`1dd682f46339f37b67c5ff1085d10d04a8c16d7e` with the same handle-order correction.
+`build-reader.sh` and the exact Emscripten `pllato-build-config/config.h` accompany
+its archive. Run `tests/native/build-reader.sh EXTRACTED_SOURCE OUTPUT_DIR`.
+The SDK maps variable-class numbers by decoded class name, since those enum
+numbers differ between reader versions. Do not swap only one of the JS/WASM pair.
+
+Synthetic regression: build `color-handle-regression.c` like the other native
+tests, then run with the nested-block fixture and a NEW output path. It creates
+a DBCOLOR and tests model-space and block-owned INSERT color/owner/layer/block
+references through save/read. Use that output with `dwg-executive-native.mjs`
+and `dwg-executive-export-browser.cjs` for clone/export regressions.
 
 - `app/stroy/dwg/vendor/pllato-executive-source.tar.gz` contains the patched
   LibreDWG tree and wrapper. Extract into a fresh temporary directory, never over
