@@ -1,6 +1,7 @@
-import {cableCurve,nearestCablePoint,bendCable} from './cable-edit.mjs?v=0.17.29';
-import {mountCableNavigator} from './cable-navigator.mjs?v=0.17.29';
-import {mountDrawingPresets} from './drawing-presets.mjs?v=0.17.29';
+import {cableCurve,nearestCablePoint,bendCable} from './cable-edit.mjs?v=0.17.30';
+import {mountCableNavigator} from './cable-navigator.mjs?v=0.17.30';
+import {mountDrawingPresets} from './drawing-presets.mjs?v=0.17.30';
+import {mountCableValues} from './cable-values.mjs?v=0.17.30';
 export function mountCableWorkbench(api){
  const panel=document.createElement('section');panel.id='cableWorkbench';panel.innerHTML=`<h2>Кабель / объект</h2><p id="cwLength">Выберите кабель или прибор</p><div class="cwActions"><button id="cwDraw">Кабель · 4 точки</button><button id="cwMove">Перетащить</button><button id="cwShape">Изменить форму</button><button id="cwCopy">Копировать выбранное</button><button id="cwPaste">Вставить копию</button><button id="cwDelete">Удалить</button></div><label>Цвет линии<select id="cwColor"><option value="0">Исходный / по слою</option><option value="7">Белый</option><option value="1">Красный</option><option value="2">Жёлтый</option><option value="3">Зелёный</option><option value="4">Голубой</option><option value="5">Синий</option><option value="6">Фиолетовый</option><option value="8">Серый</option></select></label><button id="cwApplyColor">Применить цвет</button><div id="cwCableFields"></div><button id="cwAssign">Сохранить марку и сечение</button><button id="cwLeader">Поставить выноску</button><p id="cwHelp">Кабель учитывается в ведомости и без выноски. Цвет не меняет его марку.</p>`;
  const nav=document.querySelector('nav'),toolbar=document.createElement('div');toolbar.id='drawingToolbar';nav.before(toolbar);toolbar.append(panel,nav);
@@ -47,9 +48,11 @@ export function mountCableWorkbench(api){
  $('cwLeader').onclick=safe(()=>{lastKey=api.route()?.id||api.selectionKey();mode='leader-anchor';settings.open=false;api.status('Нажмите на выбранном кабеле точку начала выноски. Escape — отмена.');});
  cut.onclick=safe(()=>{let r=api.route();if(!r||r.sourceIds){if(!confirm('Вырезание части требует замены выбранной цепочки на приближённую полилинию. Продолжить?'))return;api.convert();}lastKey=api.route().id;mode='cut';cutStart=null;api.status('Укажите на кабеле начало и конец удаляемой части. Escape — отмена.');});
  const navigator=mountCableNavigator(api);
+ const quickValues=mountCableValues(api);
  const presets=mountDrawingPresets(api.draw);
  function refresh(){navigator.refresh();const r=api.route(),key=r?.id||api.selectionKey();if(key!==lastKey){mode='';lastKey=key;settings.open=false;$('cwColor').value=String(r?.color||api.colorValue()||0);}
   const drawing=api.drawing(),enabled=!api.busy()&&api.selecting(),cap=enabled?api.capabilities():{};presets.refresh(drawing,!!api.sheetId(),api.shapes());
+  quickValues.refresh(cap,drag);
   refine.disabled=!enabled||!api.canRefine();refine.setAttribute('aria-pressed',String(mode==='refine'));
   $('cwLength').textContent=enabled?api.length():'Выберите кабель или прибор';$('cwLength').title=$('cwLength').textContent;$('cwPaste').disabled=api.busy()||!clipboard;
   panel.hidden=false;rotate.hidden=false;panel.querySelector('.cwActions').hidden=false;$('cwLeader').hidden=false;

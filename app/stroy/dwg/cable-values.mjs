@@ -1,0 +1,15 @@
+import {cableBrands,cableSections} from './cable-catalog.mjs?v=0.17.30';
+export function mountCableValues(api){
+ const viewport=document.getElementById('viewport'),button=document.createElement('button'),panel=document.createElement('div');
+ button.id='cwQuickValues';button.hidden=true;button.title='Марка кабеля и сечение';button.setAttribute('aria-label',button.title);button.setAttribute('aria-expanded','false');button.innerHTML='<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 6h18M3 12h18M3 18h18"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/></svg>';
+ panel.id='cwQuickValuesPanel';panel.hidden=true;panel.setAttribute('role','group');panel.setAttribute('aria-label','Параметры выбранного кабеля');panel.innerHTML='<label>Кабель<select id="qvBrand"></select></label><label>Сечение<select id="qvSection"></select></label><small role="status">Выбор применяется сразу</small>';
+ viewport.append(button,panel);const brand=panel.querySelector('#qvBrand'),section=panel.querySelector('#qvSection'),message=panel.querySelector('small');let key='';
+ const selectionKey=()=>api.selectionKey()||api.route()?.id||'';
+ function close(){panel.hidden=true;button.setAttribute('aria-expanded','false');}
+ function fill(){const r=api.route(),routes=api.routes(false);for(const [field,property,defaults,fallback]of [[brand,'brand',cableBrands,'exBrand'],[section,'section',cableSections,'exSection']]){const value=r?.[property]??document.getElementById(fallback).value;field.replaceChildren(...[...new Set([...defaults,...routes.map(r=>r[property]),value].filter(Boolean))].map(v=>new Option(v,v)));field.value=value;}message.textContent='Выбор применяется сразу';}
+ button.onclick=()=>{if(!panel.hidden){close();return;}key=selectionKey();fill();panel.hidden=false;button.setAttribute('aria-expanded','true');brand.focus();};
+ for(const field of [brand,section])field.onchange=()=>{try{api.setCableValues({brand:brand.value,section:section.value});key=selectionKey();message.textContent='Сохранено · выноски и ведомость обновлены';api.draw();}catch(e){message.textContent=e.message;api.status(e.message);}};
+ document.addEventListener('pointerdown',e=>{if(!panel.contains(e.target)&&!button.contains(e.target))close();});
+ panel.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();close();button.focus();}});
+ return {refresh(cap,drag){const current=selectionKey();if(current!==key){close();key=current;}button.hidden=!!drag||!api.selecting()||!cap.leader||api.isDevice();button.disabled=api.busy();if(button.hidden){close();return;}const path=api.paths()[0];if(!path?.length){button.hidden=true;close();return;}const p=api.screen(path[Math.floor(path.length/2)]),x=Math.max(8,Math.min(viewport.clientWidth-38,p[0]+8)),y=Math.max(8,Math.min(viewport.clientHeight-38,p[1]-44));button.style.left=x+'px';button.style.top=y+'px';panel.style.left=Math.max(8,Math.min(viewport.clientWidth-248,x))+'px';panel.style.top=Math.max(8,Math.min(viewport.clientHeight-160,y+36))+'px';}};
+}
