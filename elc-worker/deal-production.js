@@ -1,3 +1,4 @@
+import { productionAiConfig, requestProductionBlueprint } from './production-ai.js';
 import { DEMO_BUILD_STAGE_RE } from './production-stages.js';
 // Deal document production: transcription gate, AI brief, interactive demo,
 // commercial proposal and invoice pack. D1 is the durable queue; R2 stores
@@ -453,38 +454,15 @@ ${JSON.stringify(payload.deal)}
 ${transcript}`;
 }
 
-async function openAiBlueprint(env, payload, transcript) {
-  if (!env.OPENAI_API_KEY) throw new Error('OpenAI API не настроен');
+async function aiBlueprint(env, payload, transcript, config) {
   let rules = '';
   try {
     const row = await env.DB.prepare("SELECT v FROM kv WHERE k='demo:rules'").first();
     rules = safeJson(row?.v, row?.v || '');
   } catch {}
-  const response = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST', signal: AbortSignal.timeout(480000),
-    headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: env.OPENAI_PRODUCTION_MODEL || 'gpt-6-sol', store: false,
-      reasoning: { effort: 'high' }, max_output_tokens: 28000,
-      input: [
-        { role: 'developer', content: 'Возвращай только структурированный результат по JSON Schema. Данные встречи — источник истины.' },
-        { role: 'user', content: productionPrompt(payload, transcript, rules) },
-      ],
-      text: { format: { type: 'json_schema', name: 'pllato_deal_blueprint', strict: true, schema: productionSchema } },
-    }),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`OpenAI API: ${data?.error?.message || `HTTP ${response.status}`}`);
-  let output = typeof data.output_text === 'string' ? data.output_text : '';
-  if (!output) {
-    for (const item of data.output || []) for (const part of item.content || []) {
-      if (part.type === 'output_text' && part.text) output += part.text;
-    }
-  }
-  if (!output) throw new Error('Модель не вернула production blueprint');
-  const blueprint = JSON.parse(output);
+  const { blueprint, generation } = await requestProductionBlueprint(env, config, productionPrompt(payload, transcript, rules), productionSchema);
   validateBlueprint(blueprint, { allowDraft: payload.preview === true });
-  return blueprint;
+  return { ...blueprint, _generation: generation };
 }
 
 export function validateBlueprint(blueprint, { allowDraft = false } = {}) {
@@ -616,8 +594,20 @@ async function processDemoKp(env, job) {
   if (!demo || !kp) throw new Error('Артефакты задания не найдены');
   // Persist analysis before rendering. A PDF retry must never call the model
   // again or silently change the commercial terms of the already published demo.
-  const blueprintKey = `deal-production/${job.deal_id}/${job.id}/blueprint.json`;
-  const cached = await env.FILES.get(blueprintKey);
+  const config = productionAiConfig(env, payload);
+  const legacyCache = !payload.aiProvider && config.provider === 'openai';
+  // Pin the provider/model before calling either service; never silently fall back.
+  const blueprintKey = legacyCache ? `deal-production/${job.deal_id}/${job.id}/blueprint.json`
+    : `deal-production/${job.deal_id}/${job.id}/blueprint-${config.provider}-${encodeURIComponent(config.model)}.json`;
+  if (!payload.aiProvider || !payload.aiModel || !payload.blueprintKey) {
+    payload.aiProvider = config.provider;
+    payload.aiModel = config.model;
+    payload.blueprintKey = blueprintKey;
+    await env.DB.prepare('UPDATE deal_production_jobs SET payload=? WHERE id=?')
+      .bind(JSON.stringify(payload), job.id).run();
+  }
+  const cacheKey = payload.blueprintKey || blueprintKey;
+  const cached = await env.FILES.get(cacheKey);
   let blueprint;
   if (cached) {
     blueprint = JSON.parse(await cached.text());
@@ -625,16 +615,16 @@ async function processDemoKp(env, job) {
   } else {
     await setJobProgress(env, job, 'transcript', 'Читаем транскрипцию встречи', 12);
     const transcript = await transcriptText(env, payload.transcript);
-    await setJobProgress(env, job, 'analysis', 'Анализируем встречу и проектируем систему', 25);
-    try { blueprint = await openAiBlueprint(env, payload, transcript); }
+    await setJobProgress(env, job, 'analysis', `Анализируем встречу: ${config.provider === 'anthropic' ? 'Claude' : 'OpenAI'}`, 25);
+    try { blueprint = await aiBlueprint(env, payload, transcript, config); }
     catch (error) { throw new Error(`Анализ встречи: ${error.message}`); }
-    const saved = await env.FILES.put(blueprintKey, JSON.stringify(blueprint), { httpMetadata: { contentType: 'application/json' } });
+    const saved = await env.FILES.put(cacheKey, JSON.stringify(blueprint), { httpMetadata: { contentType: 'application/json' } });
     if (!saved) throw new Error('Не удалось сохранить результат анализа встречи');
   }
   await setJobProgress(env, job, 'blueprint', 'Структура системы и КП готова', 55);
   await setJobProgress(env, job, 'demo', 'Собираем интерактивное демо', 65);
   const demoHtml = renderDemoHtml(blueprint);
-  await storeArtifact(env, demo, demoHtml, 'text/html; charset=utf-8', { blueprintVersion: 2, blueprintKey, screens: blueprint.demo.screens.length });
+  await storeArtifact(env, demo, demoHtml, 'text/html; charset=utf-8', { blueprintVersion: 2, blueprintKey: cacheKey, generation: blueprint._generation || null, screens: blueprint.demo.screens.length });
   const demoUrl = demo.public_url || `${PUBLIC_ORIGIN}/demo-artifact/${demo.public_token}`;
   await setJobProgress(env, job, 'kp', 'Формируем коммерческое предложение', 78);
   const kpHtml = renderKpHtml(blueprint, demoUrl);
@@ -643,7 +633,8 @@ async function processDemoKp(env, job) {
   try { kpPdf = await pdfFromHtml(env, kpHtml); }
   catch (error) { throw new Error(`Создание PDF: ${error.message}`); }
   await storeArtifact(env, kp, kpPdf, 'application/pdf', {
-    blueprintVersion: 1,
+    blueprintVersion: 2,
+    generation: blueprint._generation || null,
     commercial: blueprint.commercial,
     paymentPlan: blueprint.commercial.payment_plan,
     timeline: blueprint.commercial.timeline,
