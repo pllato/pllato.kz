@@ -1,6 +1,6 @@
-import {routeLength,rotatePoints,cableLedger} from './cable-ledger.mjs?v=0.17.51';
-import {executiveLayout} from './executive-layout.mjs?v=0.17.51';
-import {validateTable,tablePages} from './table-paste.mjs?v=0.17.51';
+import {routeLength,rotatePoints,cableLedger} from './cable-ledger.mjs?v=0.17.52';
+import {executiveLayout} from './executive-layout.mjs?v=0.17.52';
+import {validateTable,tablePages} from './table-paste.mjs?v=0.17.52';
 
 // Serializable editing model. Cable data belongs to a route, not its leaders.
 // Native block handles are retained; source geometry is never flattened here.

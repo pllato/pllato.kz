@@ -1,4 +1,4 @@
-import {overlapLinks} from './cable-overlap.mjs?v=0.17.51';
+import {overlapLinks} from './cable-overlap.mjs?v=0.17.52';
 // Conservative partition only: cableChain still performs all exact tests.
 const cache=new WeakMap();
 const eligible=s=>s.text===null&&!s.fill&&!s.hatch&&['LINE','ARC','LWPOLYLINE','POLYLINE','SPLINE'].includes(s.entityType)&&s.pts.length>1;
