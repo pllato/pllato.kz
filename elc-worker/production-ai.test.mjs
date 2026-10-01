@@ -30,6 +30,24 @@ assert.deepEqual(result.blueprint,value);
 assert.equal(result.generation.provider,'anthropic');
 assert.equal(result.generation.requestId,'msg_test');
 assert.equal(calls,1);
+let fallbackCalls = 0;
+const fallback = async (url, options) => {
+ fallbackCalls++;
+ const body = JSON.parse(options.body);
+ if (fallbackCalls === 1) return Response.json({error:{message:'Schema is too complex for compilation'}},{status:400});
+ assert.equal(body.output_config,undefined);
+ assert.equal(body.model,config.model);
+ assert.ok(body.system.includes(JSON.stringify(schema)));
+ return Response.json({model:config.model,stop_reason:'end_turn',content:[{type:'text',text:JSON.stringify(value)}]});
+};
+const fallbackResult=await requestProductionBlueprint(env,config,'test meeting',schema,fallback);
+assert.deepEqual(fallbackResult.blueprint,value);
+assert.equal(fallbackCalls,2);
+assert.equal(fallbackResult.generation.outputMode,'validated_json');
+let invalidCalls=0;
+await assert.rejects(()=>requestProductionBlueprint(env,config,'test',schema,async()=>++invalidCalls===1
+ ? Response.json({error:{message:'Invalid schema'}},{status:400})
+ : Response.json({stop_reason:'end_turn',content:[{type:'text',text:'{"screens":["only one"]}'}]})),/число/);
 await assert.rejects(()=>requestProductionBlueprint({},config,'',schema,()=>{throw Error('must not call');}),/ANTHROPIC_API_KEY/);
 await assert.rejects(()=>requestProductionBlueprint(env,config,'',schema,async()=>Response.json({error:{message:'secret body'}},{status:401})),e=>/401/.test(e.message)&&!e.message.includes('secret body'));
 for (const [message, hint] of [
