@@ -1,4 +1,4 @@
-import {get,num} from './cad.mjs?v=0.17.59';
+import {get,num} from './cad.mjs?v=0.17.60';
 const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
 export function copyTransform(doc,sheet,parentMatrix,centre,position){
  const r=doc.entities.find(r=>get(r,5)===sheet.nativeHandles[0]),block=r&&doc.blocks.get(get(r,2));if(!block)throw Error('Не найдена CAD-группа исполнительной');
