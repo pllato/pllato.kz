@@ -174,7 +174,7 @@ test('обновление входа не меняет уже идущую ко
  await f.request('/host-key','POST',{hostKey:'012345'});
  const original=globalThis.fetch;
  globalThis.fetch=async(url,options)=>{assert.equal(options.method,'GET');return Response.json({status:'started'});};
- try{assert.equal((await f.request('/meetings/789/host-access','POST')).status,409);}finally{globalThis.fetch=original;}
+ try{assert.equal((await f.request('/meetings/789/host-access','POST')).status,200);}finally{globalThis.fetch=original;}
 });
 test('приглашение клиенту не содержит код организатора',async()=>{
  const {zoomInvitation}=await import('../app/zoom-crm.js');

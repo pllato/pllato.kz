@@ -351,8 +351,9 @@ export async function handleZoomRequest(request, env, deps) {
       const saved=await get(env,'host_key');
       const hostKey=saved?(await unseal(env,saved)).value:env.ZOOM_HOST_KEY;
       if(!/^\d{6}$/.test(hostKey||'')) throw fail('Администратору нужно сохранить код организатора: Календарь → Zoom → Код организатора.',409);
-      const applied=await applyStaffAdmission(env,meetingId);
-      if(!applied) throw fail('Встреча уже идёт. Передать права может текущий организатор.',409);
+      // Guests may already be inside a join-before-host meeting. They still
+      // need the key to claim host, but we must not change a live meeting.
+      await applyStaffAdmission(env,meetingId);
       const response=json({hostKey},200,request);
       response.headers.set('Cache-Control','private, no-store');
       return response;
