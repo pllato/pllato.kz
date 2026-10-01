@@ -1,6 +1,7 @@
-import {get,num,set} from './cad.mjs?v=0.17.61';
+import {get,num,set} from './cad.mjs?v=0.17.62';
 const point=(r,c)=>[num(r,c,NaN),num(r,c+10,NaN)];
 const dot=(a,b)=>a[0]*b[0]+a[1]*b[1];
+export const dimensionAssociated=(doc,r)=>!!(r.dimensionEndLocked||r.dimensionMoveLocked)&&!doc.nativeOps?.some(op=>op.handle===get(r,5)&&op.detachDimension===true);
 export function dimensionDefinition(r){
  if(r?.type!=='DIMENSION'||num(r,70,-1)!==0||num(r,210)||num(r,220)||num(r,230,1)!==1)return null;
  const a=point(r,13),b=point(r,14),q=point(r,10),angle=num(r,50,NaN)*Math.PI/180,d=[Math.cos(angle),Math.sin(angle)],n=[-d[1],d[0]];
@@ -12,7 +13,7 @@ export function dimensionDefinition(r){
 // Glyphs and arrow blocks keep their size; no CAD entity is exploded/deleted.
 export function planDimensionEdit(doc,r,{length,offset,endNormal=0}){
  const f=dimensionDefinition(r);if(!f)throw Error('Поддерживаются плоские линейные размеры');
- if(r.dimensionEndLocked&&(Math.abs(length-f.length)>1e-8||Math.abs(endNormal)>1e-8))throw Error('Конец размера связан средствами AutoCAD. Изменение этой зависимости пока не поддерживается');
+ if(r.dimensionEndLocked&&dimensionAssociated(doc,r)&&(Math.abs(length-f.length)>1e-8||Math.abs(endNormal)>1e-8))throw Error('Конец размера связан средствами AutoCAD. Изменение этой зависимости пока не поддерживается');
  if(!Number.isFinite(length)||length<=1e-8||!Number.isFinite(offset)||!Number.isFinite(endNormal))throw Error('Введите положительную длину и конечный вынос');
  const block=doc.blocks.get(get(r,2));if(!block||!block.records.length)throw Error('Нет графического блока размера');
  if(doc.records.some(other=>other!==r&&['DIMENSION','INSERT'].includes(other.type)&&get(other,2)===get(r,2)))throw Error('Графика размера используется несколькими объектами');
@@ -36,10 +37,10 @@ export function planDimensionEdit(doc,r,{length,offset,endNormal=0}){
  return {patches,definition:[...f.a,...b,...q,...t,length]};
 }
 export function applyDimensionPlan(plan){for(const {record,changes}of plan.patches)for(const [code,value]of changes)set(record,code,value);}
-export function planDimensionMove(doc,r,delta){
+export function planDimensionMove(doc,r,delta,{detach=false}={}){
  if(!Array.isArray(delta)||delta.length!==2||!delta.every(Number.isFinite))throw Error('Некорректный сдвиг размера');
  const f=dimensionDefinition(r);if(!f)throw Error('Выберите линейный размер');
- if(r.dimensionEndLocked||r.dimensionMoveLocked)throw Error('Размер связан средствами AutoCAD; независимый перенос недоступен');
+ if(dimensionAssociated(doc,r)&&!detach)throw Error('Размер связан средствами AutoCAD; независимый перенос недоступен');
  // Reuse the private-cache/coordinate checks without applying a stretch.
  planDimensionEdit(doc,r,{length:f.length,offset:f.offset});
  const records=[r,...doc.blocks.get(get(r,2)).records];

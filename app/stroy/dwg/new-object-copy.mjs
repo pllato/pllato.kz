@@ -1,4 +1,4 @@
-import {move} from './cad.mjs?v=0.17.61';
+import {move} from './cad.mjs?v=0.17.62';
 // New model-space lines are already fully represented by editable CAD records.
 // Do not apply this path to imported DWG records or nested block geometry.
 export function prepareNewCopies(records,delta){

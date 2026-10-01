@@ -1,4 +1,4 @@
-import {get,set} from './cad.mjs?v=0.17.61';
+import {get,set} from './cad.mjs?v=0.17.62';
 export function documentFontRecords(doc){return doc.records.filter(r=>r.type==='STYLE'&&!get(r,4));}
 export function applyDocumentFont(doc,font,snapshot){
  if(!/^[^/\\\x00-\x1f]{1,116}\.(shx|ttf)$/i.test(font))throw Error('Выберите загруженный SHX или TTF');
