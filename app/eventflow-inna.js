@@ -658,7 +658,7 @@ SC.props=()=>`<div class="hd"><div><h2>Склад реквизита</h2><p>Ре
  ${said('«Один менеджер бронирует определённый объём реквизита на определённую дату… бывает, что пересекаются датой, и один менеджер может не знать, что забронировал другой»')}`;
 function bookProp(){const v=id=>document.getElementById(id).value;const p=v('bk_p'),q=+v('bk_q'),fr=v('bk_f'),to=v('bk_t')||fr,ref=v('bk_r');if(!q||q<1){toast('Укажите количество');return}
  const P=RP(p);let worst=P.ok,day=fr;for(let d=fr;d<=to;d=addDays(d,1)){const free=P.ok-bookedOn(p,d);if(free<worst){worst=free;day=d}}
- if(q>worst){document.getElementById('bk_res').innerHTML=`<div class="al r"><b>Не хватает ${q-worst} шт на ${dd(day)}</b><span>Исправно ${P.ok}, уже забронировано ${bookedOn(p,day)}: ${BOOK.filter(b=>b.p===p&&b.from<=day&&b.to>=day).map(b=>who(b.by)+' — '+b.q+' шт').join(', ')}. Возьмите меньше, другую позицию или договоритесь в чате.</span></div>`;return}
+ if(q>worst){document.getElementById('bk_res').innerHTML=`<div class="al r"><b>Нужно ${q} шт, свободно ${Math.max(0,worst)} на ${dd(day)}</b><span>Исправно ${P.ok}, уже забронировано ${bookedOn(p,day)}: ${BOOK.filter(b=>b.p===p&&b.from<=day&&b.to>=day).map(b=>who(b.by)+' — '+b.q+' шт').join(', ')}. Возьмите меньше, другую позицию или договоритесь в чате.</span></div>`;return}
  BOOK.push({id:'B'+(BOOK.length+1),p,q,from:fr,to,ref,by:myKey(),st:ref[0]==='P'?'confirmed':'tentative'});closeM();render();toast(`Забронировано: ${esc(P.n)} — ${q} шт, ${dd(fr)}${to!==fr?'–'+dd(to):''}. Остальные менеджеры видят бронь сразу.`)}
 SC.propcal=()=>{
  const days=[];for(let i=0;i<31;i++)days.push(addDays('2026-10-05',i));
