@@ -288,7 +288,7 @@ function pick(p){
  }
  if(whole&&hit){pickedDevice={id,root:hit.id,matrix:String(hit.deviceMatrix)};if(drawing.shapes.some(s=>s.deviceId===id&&!sameDevice(s)))sharedSelectedId=id;}
  if(!selected)executiveUI?.selectObject('',[]);
- if(leaf&&new Set(drawing.shapes.filter(s=>s.entityId===id).map(s=>s.entityKey)).size>1)sharedSelectedId=id;
+ if(leaf&&drawing.shapes.filter(s=>s.entityId===id&&(!isNote(current())||s.text!==null)).length>1)sharedSelectedId=id;
  if(tool==='object'&&hit&&!whole&&!current()?.deferredCopy){const chain=cableChain(drawing.shapes,hit,hidden);if(chain.length>=1||chain.coincident?.length){selectedChain={anchor:id,keys:new Set([...chain,...chain.coincident||[]].map(s=>s.entityKey)),measureKeys:new Set(chain.map(s=>s.entityKey)),paths:chain.paths,overlaps:chain.overlaps,coincident:chain.coincident?.length||0};sharedSelectedId=id;}}
  properties();draw();
  if(selected){const info=selectionPaths(),label=lengthLabel(info.paths);status(label);$('selection').textContent+=' · '+label+(info.coincident?' · без совпадающих копий':'');executiveUI.selectObject(selected,info.allIds);}
