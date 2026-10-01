@@ -1,13 +1,13 @@
 // Sheet decoration uses native editable LINE/TEXT entities, not a bitmap.
 // Coordinates are drawing units; scale never changes cable quantities.
-import {tablePages} from './table-paste.mjs?v=0.17.60';
-import {executiveStamp} from './executive-stamp.mjs?v=0.17.60';
+import {tablePages} from './table-paste.mjs?v=0.17.61';
+import {executiveStamp} from './executive-stamp.mjs?v=0.17.61';
 export function executiveLayout({origin=[0,0],width=420,height=297,title='',titleStyle={x:210,y:275,height:5},stamp={},rows=[],tablePage,unit=1,northAngle=0}={}){
  if(!origin.every(Number.isFinite)||origin.length!==2||!Number.isFinite(unit)||unit<=0||!Number.isFinite(northAngle)||width<300||height<200||![width,height].every(Number.isFinite))throw Error('Неверные размеры исполнительной');
  if(rows.length>10)throw Error('Ведомость требует дополнительного листа: больше 10 строк');
  const items=[],p=(x,y)=>[origin[0]+x*unit,origin[1]+y*unit];
  const line=(x,y,x2,y2)=>items.push({type:'LINE',values:[...p(x,y),...p(x2,y2)]});
- const text=(x,y,value,size=3)=>items.push({type:'TEXT',text:String(value??''),values:[...p(x,y),size*unit,0]});
+ const text=(x,y,value,size=3,align)=>items.push({type:'TEXT',text:String(value??''),values:[...p(x,y),size*unit,0],...(align==='center'?{align:1}:{})});
  const rect=(x,y,w,h)=>{line(x,y,x+w,y);line(x+w,y,x+w,y+h);line(x+w,y+h,x,y+h);line(x,y+h,x,y);};
  rect(0,0,width,height);rect(10,5,width-15,height-10);
  text(titleStyle.x,titleStyle.y,title,titleStyle.height);items.at(-1).align=1;
@@ -19,7 +19,7 @@ export function executiveLayout({origin=[0,0],width=420,height=297,title='',titl
  }
  const star=Array.from({length:16},(_,i)=>{const angle=i*Math.PI/8,r=i%2?2: i%4?6:9;return cp(Math.cos(angle)*r,Math.sin(angle)*r);});
  for(let i=0;i<star.length;i++)line(...star[i],...star[(i+1)%star.length]);
- executiveStamp({x:width-185,y:5,stamp,title,line,text,rect});
+ executiveStamp({x:width-190,y:5,stamp,title,line,text,rect});
  for(const row of rows)if(!Number.isFinite(row.length)||row.length<0)throw Error('Неверный метраж');
  const ledgerPages=tablePage?null:tablePages({cells:[['Кабель','Сечение','Длина, м'],...rows.map(r=>[r.brand,r.section,r.length.toFixed(2)])]},{firstPageHeight:60});
  if(ledgerPages?.length>1)throw Error('Ведомость не помещается: используйте вставку таблицы с переносом на дополнительные листы');
