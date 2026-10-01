@@ -19,9 +19,17 @@ API int pllato_text(const char *handle,const char *utf8){
  Dwg_Object *o=entity(handle);if(!o||!utf8)return 1;
  if(o->fixedtype==DWG_TYPE_TEXT)return pllato_legacy_text(handle,utf8);
  BITCODE_T *text=NULL;
+ if(o->fixedtype==DWG_TYPE_MTEXT)text=&o->tio.entity->tio.MTEXT->text;
  if(o->fixedtype==DWG_TYPE_ATTDEF&&o->tio.entity->tio.ATTDEF->mtext_type<=1)text=&o->tio.entity->tio.ATTDEF->default_value;
  if(o->fixedtype==DWG_TYPE_ATTRIB&&o->tio.entity->tio.ATTRIB->mtext_type<=1)text=&o->tio.entity->tio.ATTRIB->text_value;
  if(!text)return 1;BITCODE_T replacement=dwg_add_u8_input(&drawing,utf8);if(!replacement)return 2;free(*text);*text=replacement;return 0;
+}
+API int pllato_text_height(const char *handle,double height){
+ Dwg_Object *o=entity(handle);if(!o||!isfinite(height)||height<=0)return 1;
+ if(o->fixedtype==DWG_TYPE_TEXT)o->tio.entity->tio.TEXT->height=height;
+ else if(o->fixedtype==DWG_TYPE_MTEXT)o->tio.entity->tio.MTEXT->text_height=height;
+ else return 1;
+ return 0;
 }
 /* Older builds truncated large model-space owner lists during encoding.
    Recover only an absent list, using explicit native entity ownership. */

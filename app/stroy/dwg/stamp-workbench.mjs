@@ -1,4 +1,4 @@
-import {stampLabels,stampDefaults,stampChoices,stampDateKeys} from './stamp-fields.mjs?v=0.17.56';
+import {stampLabels,stampDefaults,stampChoices,stampDateKeys} from './stamp-fields.mjs?v=0.17.57';
 export function mountStampWorkbench(api){
  const viewport=document.getElementById('viewport'),button=document.createElement('button');
  button.id='editExecutiveStamp';button.textContent='Редактировать штамп';button.style.cssText='position:absolute;z-index:4;font-size:12px;padding:5px;min-height:28px';viewport.append(button);

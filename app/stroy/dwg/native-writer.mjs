@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.56';
-import {writeAdditions} from './authoring.mjs?v=0.17.56';
-import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.56';
+import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.57';
+import {writeAdditions} from './authoring.mjs?v=0.17.57';
+import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.57';
 self.onmessage=async({data})=>{
  try{
   const {buffer,ops,added=[]}=data;
   if(!(buffer instanceof ArrayBuffer)||!Array.isArray(ops)||ops.length>100000)throw Error('Неверный пакет изменений.');
   self.postMessage({progress:'Открываю исходный DWG для записи изменений…',percent:10});
-  const m=await createModule({locateFile:p=>new URL('./vendor/'+p+'?v=0.17.56',import.meta.url).href,print:()=>{},printErr:()=>{}});
+  const m=await createModule({locateFile:p=>new URL('./vendor/'+p+'?v=0.17.57',import.meta.url).href,print:()=>{},printErr:()=>{}});
   m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
   const opened=m.ccall('pllato_open','number',['string'],['/input.dwg']);
   if(opened>=128)throw Error('DWG не прочитан: '+opened);
@@ -26,6 +26,7 @@ self.onmessage=async({data})=>{
    if(op.color!==undefined){if(!Number.isInteger(op.color)||op.color<1||op.color>255)throw Error('Неверный цвет');const code=m.ccall('pllato_color','number',['string','number'],[op.handle,op.color]);if(code)throw Error('Нельзя изменить цвет '+op.handle+' (код '+code+').');}
    if(op.dx||op.dy){const code=m.ccall('pllato_move','number',['string','number','number'],[op.handle,op.dx,op.dy]);if(code)throw Error('Нельзя переместить объект '+op.handle+' (код '+code+').');}
    if(op.text!==undefined){if(typeof op.text!=='string'||op.text.length>2000||op.text.includes('\0'))throw Error('Недопустимый текст.');const code=m.ccall('pllato_text','number',['string','string'],[op.handle,op.text]);if(code)throw Error('Нельзя изменить текст '+op.handle+' (код '+code+').');}
+   if(op.textHeight!==undefined){if(!Number.isFinite(op.textHeight)||op.textHeight<=0)throw Error('Недопустимая высота текста');if(m.ccall('pllato_text_height','number',['string','number'],[op.handle,op.textHeight]))throw Error('Нельзя изменить высоту текста '+op.handle);}
   }
   writeAdditions(m,added.filter(i=>i.type!=='COPY'));
   self.postMessage({progress:'Записываю DWG и проверяю повторным чтением…',percent:60});
