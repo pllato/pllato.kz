@@ -6065,7 +6065,7 @@ function financeChartSvg(kind,series){
   const y=v=>top+(1-Math.min(1,(Number(v)||0)/max))*(vh-top-bottom);
   const completed=series.map((s,i)=>s.partial?null:`${x(i)},${y(s.value).toFixed(1)}`).filter(Boolean).join(' ');
   const color=FINANCE_CHART_META[kind].color;
-  const labelRows=series.map(point=>showTotal?[Math.max(10,y(point.value)-14)]:[]);
+  const labelRows=series.map(point=>showTotal && Number(point.value)!==0?[Math.max(10,y(point.value)-14)]:[]);
   const managerLabels=[];
   const managerLines=managers.map(manager=>{
     const color=managerColor(manager.email);
@@ -6076,14 +6076,16 @@ function financeChartSvg(kind,series){
       const end=Number(p.end)||Number(series[i]?.end)||0;
       const action=`openFinancePointDetails('${kind}',${start},${end},${Number(p.value)||0},${JSON.stringify(manager.email||'')})`;
       const interaction=`class="fc-point fc-manager-point" role="button" tabindex="0" aria-label="${mEsc(title)}. Показать состав" onclick="${mEsc(action)}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${mEsc(action)}}"`;
-      const occupied=labelRows[i]||(labelRows[i]=[]);
-      let labelY=y(p.value)-14;
-      for(let offset=0;offset<vh;offset+=24){
-        const candidate=[y(p.value)-14-offset,y(p.value)+24+offset].find(value=>value>=48 && value<=vh-10 && occupied.every(other=>Math.abs(other-value)>=22));
-        if(candidate!==undefined){labelY=candidate;break;}
+      if(Number(p.value)!==0){
+        const occupied=labelRows[i]||(labelRows[i]=[]);
+        let labelY=y(p.value)-14;
+        for(let offset=0;offset<vh;offset+=24){
+          const candidate=[y(p.value)-14-offset,y(p.value)+24+offset].find(value=>value>=48 && value<=vh-10 && occupied.every(other=>Math.abs(other-value)>=22));
+          if(candidate!==undefined){labelY=candidate;break;}
+        }
+        occupied.push(labelY);
+        managerLabels.push(`<g ${interaction}><text class="fc-manager-value" x="${x(i)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="${color}" font-size="18" font-weight="700" stroke="var(--surface)" stroke-width="3" paint-order="stroke" stroke-linejoin="round"><title>${mEsc(title)}</title>${mEsc(financeValue(kind,p.value))}</text></g>`);
       }
-      occupied.push(labelY);
-      managerLabels.push(`<g ${interaction}><text class="fc-manager-value" x="${x(i)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="${color}" font-size="18" font-weight="700" stroke="var(--surface)" stroke-width="3" paint-order="stroke" stroke-linejoin="round"><title>${mEsc(title)}</title>${mEsc(financeValue(kind,p.value))}</text></g>`);
       return `<g ${interaction}><circle class="fc-hit" cx="${x(i)}" cy="${y(p.value).toFixed(1)}" r="14"><title>${mEsc(title)} · нажмите, чтобы увидеть состав</title></circle><circle class="fc-dot" cx="${x(i)}" cy="${y(p.value).toFixed(1)}" r="4" fill="${p.partial?'var(--surface)':color}" stroke="${color}" stroke-width="2"><title>${mEsc(title)}</title></circle></g>`;
     }).join('');
   }).join('');
@@ -6100,7 +6102,7 @@ function financeChartSvg(kind,series){
       <circle class="fc-hit" cx="${x(i)}" cy="${y(s.value).toFixed(1)}" r="19"><title>${mEsc(title)} · нажмите, чтобы увидеть состав</title></circle>
       <circle class="fc-dot" cx="${x(i)}" cy="${y(s.value).toFixed(1)}" r="4.5" fill="${s.partial?'var(--surface)':color}" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"/>
       ${commentMarker}
-      <text x="${x(i)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="var(--text)" font-size="20" font-weight="700">${mEsc(value)}</text>
+      ${Number(s.value)!==0?`<text x="${x(i)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="var(--text)" font-size="20" font-weight="700">${mEsc(value)}</text>`:''}
     </g>`;
   }).join('');
   return `<svg viewBox="0 0 ${vw} ${vh}" preserveAspectRatio="xMidYMid meet" aria-label="${mEsc(FINANCE_CHART_META[kind].title)}">
@@ -7629,7 +7631,7 @@ function pxChartSvg(metric,series){
     const title=`${point.label}: ${metric.money?fmtT(point.value):point.value}${point.partial?' · текущий период':''}`;
     return `<g><circle cx="${x(i)}" cy="${y(point.value).toFixed(1)}" r="19" fill="transparent"><title>${mEsc(title)}</title></circle>
       <circle cx="${x(i)}" cy="${y(point.value).toFixed(1)}" r="4.5" fill="${point.partial?'var(--surface)':metric.color}" stroke="${metric.color}" stroke-width="2" vector-effect="non-scaling-stroke"/>
-      <text x="${x(i)}" y="${Math.max(10,y(point.value)-14).toFixed(1)}" text-anchor="middle" fill="var(--text)" font-size="20" font-weight="700">${mEsc(pxValue(metric,point.value))}</text></g>`;
+      ${Number(point.value)!==0?`<text x="${x(i)}" y="${Math.max(10,y(point.value)-14).toFixed(1)}" text-anchor="middle" fill="var(--text)" font-size="20" font-weight="700">${mEsc(pxValue(metric,point.value))}</text>`:''}</g>`;
   }).join('');
   return `<svg viewBox="0 0 ${vw} ${vh}" preserveAspectRatio="xMidYMid meet" aria-label="${mEsc(metric.title)}">
     <line x1="0" y1="${top}" x2="${vw}" y2="${top}" stroke="var(--line-2)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
