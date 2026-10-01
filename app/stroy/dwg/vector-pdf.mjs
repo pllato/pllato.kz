@@ -1,7 +1,7 @@
 // Vector PDF backend. Embedded OFL osifont; no canvas screenshot or JPEG.
-import {paintHatchSteps} from './hatch.mjs?v=0.17.58';
-import {textLines} from './renderer.mjs?v=0.17.58';
-import {aciColors} from './colors.mjs?v=0.17.58';
+import {paintHatchSteps} from './hatch.mjs?v=0.17.59';
+import {textLines} from './renderer.mjs?v=0.17.59';
+import {aciColors} from './colors.mjs?v=0.17.59';
 import {shxLayout} from './shx-layout.mjs';
 import {printLineweight} from './print-lineweight.mjs';
 import {localTtf} from './local-ttf.mjs';

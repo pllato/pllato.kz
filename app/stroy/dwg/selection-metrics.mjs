@@ -1,4 +1,4 @@
-import {cableChain} from './cable-chain.mjs?v=0.17.58';
+import {cableChain} from './cable-chain.mjs?v=0.17.59';
 export function shapePaths(shapes){return shapes.filter(s=>s.text===null&&!s.hatch&&!s.fill&&s.pts.length>1).map(s=>s.pts.map(p=>[...p]));}
 export function pathLength(paths){return paths.reduce((total,points)=>total+points.slice(1).reduce((n,p,i)=>n+Math.hypot(p[0]-points[i][0],p[1]-points[i][1]),0),0);}
 export function syncLinkedRoutes(project,shapes){
