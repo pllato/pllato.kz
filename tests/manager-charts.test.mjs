@@ -77,6 +77,13 @@ test('KEP SQL counts each deal once by conducting manager, leaves unassigned sep
  const data=await response.json();assert.equal(data.managers.length,2);
  assert.equal(data.managers.find(m=>m.email==='m@test.kz').series.reduce((n,p)=>n+p.value,0),1);
  assert.equal(data.managers.find(m=>m.email==='').series.reduce((n,p)=>n+p.value,0),1);
+ db.exec("ALTER TABLE deals ADD COLUMN title TEXT; ALTER TABLE deals ADD COLUMN responsible_uid TEXT;");
+ for(const name of ['parsePllatoChartDetailPeriod','handlePllatoChartDetails'])vm.runInContext(extract(name),ctx);
+ const now=Date.now();
+ for(const [manager,expected] of [['m@test.kz','one'],['','two']]){
+  const detail=await ctx.handlePllatoChartDetails(new Request(`https://test?kind=kep&start=${now-86400000}&end=${now+86400000}&manager=${encodeURIComponent(manager)}`),env);
+  const body=await detail.json();assert.equal(body.items.length,1);assert.equal(body.items[0].dealId,expected);
+ }
  ctx.requireAuth=async()=>({error:'unauthorized',status:401});
  assert.equal((await ctx.handlePllatoKepManagers(new Request('https://test'),env)).status,401);
 });
@@ -94,4 +101,23 @@ test('manager HTTP route loads actor for GET/PUT and rejects unauthenticated cal
  assert.equal(c.calls,2);
  vm.runInContext('loadActorContext=async()=>{throw new HttpError(401,"Сессия не найдена")}',c);
  assert.equal((await c.routeWorker.fetch(new Request('https://test/project-finance/managers'),{})).status,401);
+});
+
+test('personal point details filter exact manager including unassigned and enforce manager visibility',async()=>{
+ const c=setup(), now=Date.now();
+ const url=(kind,manager)=>new URL(`https://test?kind=${kind}&start=${now-86400000}&end=${now+86400000}&manager=${encodeURIComponent(manager)}`);
+ for(const kind of ['cash','orders','releases']){
+  const own=await c.handleProjectFinanceChartDetails({},{isRoot:true},url(kind,'a@test.kz'));
+  assert.equal(own.items.length,1);assert.equal(own.items[0].projectId,'a');
+  assert.equal(own.chartValue,kind==='cash'?100:1);
+ }
+ const other=await c.handleProjectFinanceChartDetails({},{isRoot:true},url('cash','b@test.kz'));
+ assert.equal(other.items.length,1);assert.equal(other.chartValue,50000);
+ const unassigned=await c.handleProjectFinanceChartDetails({},{isRoot:true},url('cash',''));
+ assert.equal(unassigned.items.length,1);assert.equal(unassigned.items[0].projectId,'c');
+ await assert.rejects(c.handleProjectFinanceChartDetails({},actor,url('cash','b@test.kz')));
+ c.stored.chartAccess.cash['a@test.kz'].total=true;
+ await assert.rejects(c.handleProjectFinanceChartDetails({},actor,url('cash','b@test.kz')));
+ const empty=await c.handleProjectFinanceChartDetails({},{isRoot:true},url('cash','missing@test.kz'));
+ assert.equal(empty.items.length,0);assert.equal(empty.chartValue,0);
 });

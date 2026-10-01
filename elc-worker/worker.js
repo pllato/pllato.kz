@@ -10050,7 +10050,7 @@ async function handlePllatoChartDetails(request, env) {
   if (kind === 'inquiries') {
     const result = await env.DB.prepare(`
       SELECT d.id, d.title, d.bitrix_date_create AS event_at,
-             d.responsible_uid, u.name AS responsible_name, u.last_name AS responsible_last_name
+             d.responsible_uid, COALESCE(NULLIF(u.email, ''), d.responsible_uid, '') AS manager_key, u.name AS responsible_name, u.last_name AS responsible_last_name
       FROM deals d
       LEFT JOIN users u ON u.uid = d.responsible_uid
       WHERE d.pipeline_id = ? AND d.bitrix_date_create >= ? AND d.bitrix_date_create < ?
@@ -10066,7 +10066,7 @@ async function handlePllatoChartDetails(request, env) {
     const stagePlaceholders = kepStages.stageIds.map(() => '?').join(', ');
     const result = await env.DB.prepare(`
       SELECT d.id, d.title, first_stage.first_entered_at AS event_at,
-             d.responsible_uid, u.name AS responsible_name, u.last_name AS responsible_last_name
+             d.responsible_uid, COALESCE(NULLIF(u.email, ''), json_extract(d.custom_fields, '$.kepManagerUid'), '') AS manager_key, u.name AS responsible_name, u.last_name AS responsible_last_name
       FROM (
         SELECT deal_id, MIN(entered_at) AS first_entered_at
         FROM deal_stage_events
@@ -10079,6 +10079,10 @@ async function handlePllatoChartDetails(request, env) {
       ORDER BY first_stage.first_entered_at ASC
     `).bind(pipeline.id, ...kepStages.stageIds, period.startIso, period.endIso).all();
     rows = result.results || [];
+  }
+  if (url.searchParams.has('manager')) {
+    const manager=String(url.searchParams.get('manager')||'').toLowerCase();
+    rows=rows.filter(row=>String(row.manager_key||'').toLowerCase()===manager);
   }
   const items = rows.map((row) => ({
     dealId: row.id,

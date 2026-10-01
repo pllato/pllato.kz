@@ -6072,6 +6072,10 @@ function financeChartSvg(kind,series){
     const values=manager.series;
     return `<polyline points="${values.map((p,i)=>p.partial?null:`${x(i)},${y(p.value).toFixed(1)}`).filter(Boolean).join(' ')}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="7 5" vector-effect="non-scaling-stroke"/>`+values.map((p,i)=>{
       const title=`${manager.name||managerName(manager.email)} · ${p.label}: ${financeValue(kind,p.value)}`;
+      const start=Number(p.start)||Number(series[i]?.start)||0;
+      const end=Number(p.end)||Number(series[i]?.end)||0;
+      const action=`openFinancePointDetails('${kind}',${start},${end},${Number(p.value)||0},${JSON.stringify(manager.email||'')})`;
+      const interaction=`class="fc-point fc-manager-point" role="button" tabindex="0" aria-label="${mEsc(title)}. Показать состав" onclick="${mEsc(action)}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${mEsc(action)}}"`;
       const occupied=labelRows[i]||(labelRows[i]=[]);
       let labelY=y(p.value)-14;
       for(let offset=0;offset<vh;offset+=24){
@@ -6079,8 +6083,8 @@ function financeChartSvg(kind,series){
         if(candidate!==undefined){labelY=candidate;break;}
       }
       occupied.push(labelY);
-      managerLabels.push(`<text class="fc-manager-value" x="${x(i)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="${color}" font-size="18" font-weight="700" stroke="var(--surface)" stroke-width="3" paint-order="stroke" stroke-linejoin="round"><title>${mEsc(title)}</title>${mEsc(financeValue(kind,p.value))}</text>`);
-      return `<circle cx="${x(i)}" cy="${y(p.value).toFixed(1)}" r="4" fill="${p.partial?'var(--surface)':color}" stroke="${color}" stroke-width="2"><title>${mEsc(title)}</title></circle>`;
+      managerLabels.push(`<g ${interaction}><text class="fc-manager-value" x="${x(i)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="${color}" font-size="18" font-weight="700" stroke="var(--surface)" stroke-width="3" paint-order="stroke" stroke-linejoin="round"><title>${mEsc(title)}</title>${mEsc(financeValue(kind,p.value))}</text></g>`);
+      return `<g ${interaction}><circle class="fc-hit" cx="${x(i)}" cy="${y(p.value).toFixed(1)}" r="14"><title>${mEsc(title)} · нажмите, чтобы увидеть состав</title></circle><circle class="fc-dot" cx="${x(i)}" cy="${y(p.value).toFixed(1)}" r="4" fill="${p.partial?'var(--surface)':color}" stroke="${color}" stroke-width="2"><title>${mEsc(title)}</title></circle></g>`;
     }).join('');
   }).join('');
   const points=series.map((s,i)=>{
@@ -6688,10 +6692,11 @@ function financeDetailRow(kind,item){
   }
   return `<div class="fc-detail-row"><div class="n">${mEsc(project)}</div><div class="d">${mEsc(meta)}</div>${amount?`<div class="s">${mEsc(amount)}</div>`:''}</div>`;
 }
-async function fetchCrmChartDetails(kind,start,end){
+async function fetchCrmChartDetails(kind,start,end,manager=null){
   const session=getSession();
   if(!session?.token) throw new Error('Сессия не найдена. Выполните вход заново.');
   const params=new URLSearchParams({kind,start:String(start),end:String(end)});
+  if(manager!==null) params.set('manager',manager);
   const response=await fetch(`https://pllato-elc-worker.uurraa.workers.dev/api/charts/pllato-details?${params}`,{
     headers:{Authorization:`Bearer ${session.token}`},
     cache:'no-store'
@@ -7085,19 +7090,22 @@ async function deleteFinanceComment(id){
     renderFinanceCharts();
   }catch(error){ alert('Не удалось удалить комментарий: '+error.message); }
 }
-async function openFinancePointDetails(kind,start,end,chartValue){
+async function openFinancePointDetails(kind,start,end,chartValue,manager=null){
   if(!FINANCE_CHART_META[kind]) return;
+  const personal=manager!==null;
+  const managerLabel=personal?((MANAGER_CHARTS[kind]||[]).find(item=>item.email===manager)?.name||managerName(manager)):'';
   document.getElementById('financeDetailOvl')?.remove();
   const ovl=document.createElement('div');
   ovl.id='financeDetailOvl';
   ovl.className='money-ovl show';
   ovl.addEventListener('click',event=>{if(event.target===ovl)ovl.remove();});
-  ovl.innerHTML=`<div class="money-modal fc-detail-modal"><div class="mm-h"><h3>${mEsc(FINANCE_CHART_META[kind].title)}</h3><span class="mm-x" onclick="document.getElementById('financeDetailOvl').remove()">✕</span></div><div class="mm-b"><div class="fc-empty">Загружаю состав точки…</div></div></div>`;
+  ovl.innerHTML=`<div class="money-modal fc-detail-modal"><div class="mm-h"><h3>${mEsc(FINANCE_CHART_META[kind].title)}${personal?' · '+mEsc(managerLabel):''}</h3><span class="mm-x" onclick="document.getElementById('financeDetailOvl').remove()">✕</span></div><div class="mm-b"><div class="fc-empty">Загружаю состав точки…</div></div></div>`;
   document.body.appendChild(ovl);
   try{
     const params=new URLSearchParams({kind,start:String(start),end:String(end)});
+    if(personal) params.set('manager',manager);
     const data=(kind==='inquiries'||kind==='kep')
-      ? await fetchCrmChartDetails(kind,start,end)
+      ? await fetchCrmChartDetails(kind,start,end,manager)
       : await apiFetch(`/project-finance/chart-details?${params}`);
     if(!document.body.contains(ovl)) return;
     const actualValue=Number(data.actualValue)||0;
@@ -7106,12 +7114,12 @@ async function openFinancePointDetails(kind,start,end,chartValue){
     const summaryValue=kind==='cash'?financeValue(kind,shownValue):String(shownValue);
     const actualLabel=kind==='cash'?financeValue(kind,actualValue):String(actualValue);
     ovl.querySelector('.mm-b').innerHTML=`<div class="fc-detail-summary"><div class="c"><div class="l">Период</div><div class="v">${mEsc(financeDetailPeriod(start,end))}</div></div><div class="c"><div class="l">Значение на графике</div><div class="v">${mEsc(summaryValue)}</div></div></div>`
-      +(different?`<div class="fc-detail-note">Значение на графике скорректировано вручную. По сохранённым сделкам и транзакциям найдено: <b>${mEsc(actualLabel)}</b>.</div>`:'')
+      +(different?`<div class="fc-detail-note">${personal?'Данные изменились после загрузки графика. Сейчас в списке:':'Значение на графике скорректировано вручную. По сохранённым сделкам и транзакциям найдено:'} <b>${mEsc(actualLabel)}</b>.</div>`:'')
       +(data.items?.length?`<div class="fc-detail-list">${data.items.map(item=>financeDetailRow(kind,item)).join('')}</div>`:'<div class="fc-detail-list"><div class="fc-detail-empty">За этот период сохранённых сделок или транзакций нет.</div></div>')
-      +financePointCommentsBlock(kind,start,end);
+      +(personal?'':financePointCommentsBlock(kind,start,end));
   }catch(error){
     if(!document.body.contains(ovl)) return;
-    ovl.querySelector('.mm-b').innerHTML=`<div class="fc-detail-empty">Не удалось загрузить список.<br>${mEsc(error.message||'Попробуйте ещё раз.')}</div>${financePointCommentsBlock(kind,start,end)}`;
+    ovl.querySelector('.mm-b').innerHTML=`<div class="fc-detail-empty">Не удалось загрузить список.<br>${mEsc(error.message||'Попробуйте ещё раз.')}</div>${personal?'':financePointCommentsBlock(kind,start,end)}`;
   }
 }
 async function openFinanceAccess(kind){
