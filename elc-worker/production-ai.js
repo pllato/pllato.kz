@@ -42,6 +42,51 @@ export function validateAiShape(value, schema, path = 'blueprint') {
   if (schema.enum && !schema.enum.includes(value)) throw new Error(`${path}: недопустимое значение`);
 }
 
+export async function readClaudeStream(response) {
+  const reader = response.body.getReader(), decoder = new TextDecoder();
+  let pending = '', eventData = [], message = null, complete = false, size = 0;
+  const content = [];
+  function event() {
+    if (!eventData.length) return;
+    let data;
+    try { data = JSON.parse(eventData.join('\n')); } catch { throw new Error('Claude: повреждённый поток ответа'); }
+    eventData = [];
+    if (data.type === 'error') throw new Error('Claude: ошибка провайдера внутри потока');
+    if (data.type === 'message_start') message = data.message;
+    if (data.type === 'content_block_start' && data.content_block?.type === 'text') content[data.index] = { ...data.content_block };
+    if (data.type === 'content_block_delta' && data.delta?.type === 'text_delta') {
+      if (!content[data.index]) throw new Error('Claude: повреждённый поток ответа');
+      content[data.index].text += data.delta.text;
+    }
+    if (data.type === 'message_delta' && message) {
+      Object.assign(message, data.delta);
+      message.usage = { ...message.usage, ...data.usage };
+    }
+    if (data.type === 'message_stop') complete = true;
+  }
+  try {
+    while (!complete) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > 8 * 1024 * 1024) throw new Error('Claude: слишком большой ответ');
+      pending += decoder.decode(value, { stream: true });
+      let end;
+      while ((end = pending.indexOf('\n')) !== -1) {
+        const line = pending.slice(0, end).replace(/\r$/, '');
+        pending = pending.slice(end + 1);
+        if (!line) event();
+        else if (line.startsWith('data:')) eventData.push(line.slice(5).trimStart());
+      }
+    }
+    if (!complete || !message) throw new Error('Claude: поток ответа оборвался до завершения');
+    return { ...message, content: content.filter(Boolean) };
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+}
+
 export async function requestProductionBlueprint(env, config, prompt, schema, fetcher = fetch) {
   const { provider, model } = config;
   const anthropic = provider === 'anthropic';
@@ -55,7 +100,7 @@ export async function requestProductionBlueprint(env, config, prompt, schema, fe
       ? { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }
       : { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(anthropic ? {
-      model, max_tokens: 28000, system,
+      model, max_tokens: 28000, stream: true, system,
       messages: [{ role: 'user', content: prompt }],
       output_config: { format: { type: 'json_schema', schema: claudeSchema(schema) } },
     } : {
@@ -96,7 +141,8 @@ export async function requestProductionBlueprint(env, config, prompt, schema, fe
     }
     throw new Error(`${label} API: HTTP ${response.status} — ${hint}`);
   }
-  const data = await response.json();
+  const data = anthropic && response.headers.get('content-type')?.includes('text/event-stream')
+    ? await readClaudeStream(response) : await response.json();
   if (anthropic && data.stop_reason !== 'end_turn') throw new Error(`${label}: ответ не завершён (${data.stop_reason === 'max_tokens' ? 'лимит длины' : 'остановка генерации'})`);
   if (!anthropic && data.status && data.status !== 'completed') throw new Error(`${label}: ответ не завершён`);
   const output = anthropic
