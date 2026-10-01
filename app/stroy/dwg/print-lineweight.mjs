@@ -1,4 +1,4 @@
-import {cableLayer} from './source-cable-lengths.mjs?v=0.17.50';
+import {cableLayer} from './source-cable-lengths.mjs?v=0.17.51';
 
 // Paper millimetres, independent of drawing units and viewport zoom.
 // Original electrical paths must not become hairlines beside newly drawn ones.

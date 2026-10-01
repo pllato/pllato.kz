@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+import {ttfMetadata} from '../app/stroy/dwg/local-ttf.mjs';
+test('local TTF validates real font and rejects restricted embedding and broken sfnt',()=>{const bytes=new Uint8Array(readFileSync(new URL('../app/stroy/dwg/vendor/osifont/osifont.ttf',import.meta.url)));assert.ok(ttfMetadata(bytes).postscript);const copy=bytes.slice(),d=new DataView(copy.buffer);let found=false;for(let i=0;i<d.getUint16(4);i++){const p=12+16*i;if(String.fromCharCode(...copy.slice(p,p+4))==='OS/2'){d.setUint16(d.getUint32(p+8)+8,2);found=true;}}assert.ok(found);assert.throws(()=>ttfMetadata(copy),/запрещает/);assert.throws(()=>ttfMetadata(bytes.slice(0,16)));});

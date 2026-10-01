@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import createModule from './vendor/libredwg-web.js?v=0.17.50';
-import {warningText} from './progress.mjs?v=0.17.50';
-import {LibreDwg} from './vendor/libredwg-sdk.js?v=0.17.50';
-import {nativeDocument} from './native-adapter.mjs?v=0.17.50';
-import {readExecutiveMetadata} from './executive-metadata.mjs?v=0.17.50';
+import createModule from './vendor/libredwg-web.js?v=0.17.51';
+import {warningText} from './progress.mjs?v=0.17.51';
+import {LibreDwg} from './vendor/libredwg-sdk.js?v=0.17.51';
+import {nativeDocument} from './native-adapter.mjs?v=0.17.51';
+import {readDimensionDefinitions} from './native-dimensions.mjs';
+import {readExecutiveMetadata} from './executive-metadata.mjs?v=0.17.51';
 self.onmessage=async({data})=>{
  let sdk,pointer;
  try{
   self.postMessage({progress:'Загружаю движок…',percent:5});
-  const messages=[],engine=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.50',import.meta.url).href,print:()=>{},printErr:s=>{if(messages.length<12)messages.push(String(s));}});
+  const messages=[],engine=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.51',import.meta.url).href,print:()=>{},printErr:s=>{if(messages.length<12)messages.push(String(s));}});
   engine.FS.writeFile('input.dwg',new Uint8Array(data));
   self.postMessage({progress:'Читаю DWG: движок не сообщает внутренний процент…',percent:15});
   const result=engine.dwg_read_file('input.dwg');pointer=result.data;
@@ -26,6 +27,7 @@ self.onmessage=async({data})=>{
   self.postMessage({progress:'Подготавливаю объекты DWG для отображения…'});
   const {database,stats}=sdk.convertEx(pointer,true,(done,total)=>self.postMessage({progress:'Подготавливаю объекты: '+done.toLocaleString('ru')+' / '+total.toLocaleString('ru'),percent:35+50*done/Math.max(1,total)}));
   self.postMessage({progress:'Собираю геометрию и подписи…',percent:85});
+  readDimensionDefinitions(sdk,pointer,database);
   const doc=nativeDocument(database);
   doc.executiveProject=readExecutiveMetadata(database);
   doc.native=true;doc.nativeOps=[];doc.nativeUnknown=stats.unknownEntityCount||0;

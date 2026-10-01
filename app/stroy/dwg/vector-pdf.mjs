@@ -1,9 +1,10 @@
 // Vector PDF backend. Embedded OFL osifont; no canvas screenshot or JPEG.
-import {paintHatch} from './hatch.mjs?v=0.17.50';
-import {textLines} from './renderer.mjs?v=0.17.50';
-import {aciColors} from './colors.mjs?v=0.17.50';
+import {paintHatch} from './hatch.mjs?v=0.17.51';
+import {textLines} from './renderer.mjs?v=0.17.51';
+import {aciColors} from './colors.mjs?v=0.17.51';
 import {shxLayout} from './shx-layout.mjs';
 import {printLineweight} from './print-lineweight.mjs';
+import {localTtf} from './local-ttf.mjs';
 const enc=new TextEncoder(),n=v=>{if(!Number.isFinite(v))throw Error('Неверная координата PDF');return Number(v.toFixed(6)).toString();},hex=v=>v.toString(16).padStart(4,'0').toUpperCase();
 export function trueType(bytes){
  const d=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),u=o=>d.getUint16(o),s=o=>d.getInt16(o),l=o=>d.getUint32(o),tables={};
@@ -15,7 +16,9 @@ export function trueType(bytes){
 }
 export async function vectorPdf(pages,onProgress=()=>{}){
  const response=await fetch(new URL('./vendor/osifont/osifont.ttf',import.meta.url));if(!response.ok)throw Error('Не загружен шрифт PDF');
- const font=trueType(new Uint8Array(await response.arrayBuffer())),used=new Map(),streams=[],layers=[...new Set(pages.flatMap(p=>p.shapes.map(s=>s.layer||'0')))],layerIds=new Map(layers.map((name,i)=>[name,i]));
+ const defaultFont={...trueType(new Uint8Array(await response.arrayBuffer())),name:'osifont',used:new Map(),resource:'F1'},fonts=[defaultFont],fontCache=new Map(),streams=[],layers=[...new Set(pages.flatMap(p=>p.shapes.map(s=>s.layer||'0')))],layerIds=new Map(layers.map((name,i)=>[name,i]));
+ const chooseFont=a=>{const source=a.font?.source||'',local=localTtf(source);if(!local){if(/^(times|times new roman)(\.ttf|\||$)/i.test(source))throw Error('Для точного PDF загрузите Times New Roman.ttf через «Шрифты»');return defaultFont;}if(!fontCache.has(local.name)){const f={...trueType(local.bytes),name:local.postscript,used:new Map(),resource:'F'+(fonts.length+1)};fontCache.set(local.name,f);fonts.push(f);}return fontCache.get(local.name);};
+ let font=defaultFont,used=font.used;
  const textInfo=text=>{let width=0,encoded='';for(const ch of text){const cp=ch.codePointAt(0),g=font.glyph(cp);if(!g&&cp!==32)throw Error('В шрифте PDF нет символа '+ch);used.set(g,ch);width+=font.width(g);encoded+=hex(g);}return {width,encoded};};
  const color=value=>{let c=value||'#000000';if(c.toLowerCase()==='#ffffff')c='#000000';return [1,3,5].map(i=>n(parseInt(c.slice(i,i+2),16)/255)).join(' ');};
  for(let pageIndex=0;pageIndex<pages.length;pageIndex++){
@@ -29,26 +32,28 @@ export async function vectorPdf(pages,onProgress=()=>{}){
    const a=shapes[j],c=color(a.rgb||aciColors[a.color]),layer=layerIds.get(a.layer||'0');if(layer!==activeLayer){if(activeLayer>=0)emit('EMC');emit(`/OC /L${layer} BDC`);activeLayer=layer;}emit(c+' RG '+c+' rg');emit(n(printLineweight(a))+' w');
    if(a.hatch){paintHatch(hatchContext,a,{s,x,y},a.rgb||aciColors[a.color]||'#000000',w,h,true);continue;}
    if(a.text!==null){
+    font=chooseFont(a);used=font.used;
     const strokes=shxLayout(a);
     if(strokes){const size=a.height*s,scale=a.textScale||1,angle=-a.angle,cs=Math.cos(angle),sn=Math.sin(angle);emit('q');emit([cs,sn,-sn,cs,a.pts[0][0]*s+x,y-a.pts[0][1]*s].map(n).join(' ')+' cm');emit([scale,0,-Math.tan(a.oblique||0)*scale,1,0,0].map(n).join(' ')+' cm');emit(n(a.lineweight>0?a.lineweight/100*72/25.4:.35)+' w');const actual=Array.from({length:a.text.length},(_,i)=>hex(a.text.charCodeAt(i))).join('');emit('/Span << /ActualText <FEFF'+actual+'> >> BDC');for(const points of strokes){path(points.map(([px,py])=>[px*size,py*size]));emit('S');}emit(`BT /F1 ${n(size)} Tf 3 Tr 1 0 0 -1 0 0 Tm <${textInfo(' ').encoded}> Tj ET`);emit('EMC');emit('Q');continue;}
     const size=a.height*s,scale=a.textScale||1,lines=a.multiline?textLines(a.text,(a.textWidth||0)*s,t=>textInfo(t).width*size/1000):[a.text],anchor=Math.max(1,Math.min(9,a.attachment||1)),row=Math.floor((anchor-1)/3),col=(anchor-1)%3;
     emit('q');const angle=-a.angle,cs=Math.cos(angle),sn=Math.sin(angle);emit([cs,sn,-sn,cs,a.pts[0][0]*s+x,y-a.pts[0][1]*s].map(n).join(' ')+' cm');emit([scale,0,-Math.tan(a.oblique||0)*scale,1,0,0].map(n).join(' ')+' cm');
     for(let k=0;k<lines.length;k++){const t=textInfo(lines[k]),align=a.multiline?col:(a.halign||0),dx=-(align===1?.5:align===2?1:0)*t.width*size/1000;
      let dy=0;if(a.multiline)dy=k*size*1.2-row*(size+(lines.length-1)*size*1.2)/2+font.ascent*size/1000;else if(a.valign===1)dy=font.descent*size/1000;else if(a.valign===2)dy=(font.ascent+font.descent)*size/2000;else if(a.valign===3)dy=font.ascent*size/1000;
-     emit(`BT /F1 ${n(size)} Tf 1 0 0 -1 ${n(dx)} ${n(dy)} Tm <${t.encoded}> Tj ET`);
+     emit(`BT /${font.resource} ${n(size)} Tf 1 0 0 -1 ${n(dx)} ${n(dy)} Tm <${t.encoded}> Tj ET`);
     }emit('Q');continue;
    }
    path(a.pts.map(p=>[p[0]*s+x,y-p[1]*s]));emit(a.fill?'f':'S');
   }if(activeLayer>=0)emit('EMC');emit('Q');streams.push(new Uint8Array(await new Response(new Blob([out.join('\n')]).stream().pipeThrough(new CompressionStream('deflate'))).arrayBuffer()));
  }
  const parts=[],offsets=[0];let length=0;const push=v=>{const b=typeof v==='string'?enc.encode(v):v;parts.push(b);length+=b.length;},obj=(id,body)=>{offsets[id]=length;push(`${id} 0 obj\n`);body();push('\nendobj\n');},stream=(id,bytes,extra='')=>obj(id,()=>{push(`<< /Length ${bytes.length} ${extra} >>\nstream\n`);push(bytes);push('\nendstream');});
- const layerStart=8+streams.length*2,refs=layers.map((_,i)=>`${layerStart+i} 0 R`).join(' ');
- push('%PDF-1.7\n');obj(1,()=>push(`<< /Type /Catalog /Pages 2 0 R /OCProperties << /OCGs [${refs}] /D << /Order [${refs}] /ON [${refs}] >> >> >>`));obj(2,()=>push(`<< /Type /Pages /Count ${streams.length} /Kids [${streams.map((_,i)=>`${8+i*2} 0 R`).join(' ')}] >>`));
- obj(3,()=>push('<< /Type /Font /Subtype /Type0 /BaseFont /osifont /Encoding /Identity-H /DescendantFonts [4 0 R] /ToUnicode 7 0 R >>'));
- obj(4,()=>push(`<< /Type /Font /Subtype /CIDFontType2 /BaseFont /osifont /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor 5 0 R /CIDToGIDMap /Identity /W [${[...used.keys()].map(g=>`${g} [${n(font.width(g))}]`).join(' ')}] >>`));
- obj(5,()=>push(`<< /Type /FontDescriptor /FontName /osifont /Flags 32 /FontBBox [${font.bbox.map(n).join(' ')}] /ItalicAngle 0 /Ascent ${n(font.ascent)} /Descent ${n(font.descent)} /CapHeight ${n(font.ascent)} /StemV 80 /FontFile2 6 0 R >>`));stream(6,font.bytes,`/Length1 ${font.bytes.length}`);
- const mappings=[...used].map(([g,ch])=>`<${hex(g)}> <${Array.from({length:ch.length},(_,i)=>hex(ch.charCodeAt(i))).join('')}>`),cmap=['/CIDInit /ProcSet findresource begin 12 dict begin begincmap','/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def','/CMapName /PllatoUnicode def /CMapType 2 def','1 begincodespacerange <0000> <FFFF> endcodespacerange'];for(let i=0;i<mappings.length;i+=100){const m=mappings.slice(i,i+100);cmap.push(`${m.length} beginbfchar`,...m,'endbfchar');}cmap.push('endcmap CMapName currentdict /CMap defineresource pop end end');stream(7,enc.encode(cmap.join('\n')));
- streams.forEach((bytes,i)=>{const id=8+i*2;obj(id,()=>push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 1190.551 841.89] /Resources << /Font << /F1 3 0 R >> /Properties << ${layers.map((_,k)=>`/L${k} ${layerStart+k} 0 R`).join(' ')} >> >> /Contents ${id+1} 0 R >>`));stream(id+1,bytes,'/Filter /FlateDecode');});
+ const pageStart=3+fonts.length*5,layerStart=pageStart+streams.length*2,refs=layers.map((_,i)=>`${layerStart+i} 0 R`).join(' ');
+ push('%PDF-1.7\n');obj(1,()=>push(`<< /Type /Catalog /Pages 2 0 R /OCProperties << /OCGs [${refs}] /D << /Order [${refs}] /ON [${refs}] >> >> >>`));obj(2,()=>push(`<< /Type /Pages /Count ${streams.length} /Kids [${streams.map((_,i)=>`${pageStart+i*2} 0 R`).join(' ')}] >>`));
+ for(let fi=0;fi<fonts.length;fi++){const font=fonts[fi],used=font.used,id=3+fi*5;
+ obj(id,()=>push(`<< /Type /Font /Subtype /Type0 /BaseFont /${font.name} /Encoding /Identity-H /DescendantFonts [${id+1} 0 R] /ToUnicode ${id+4} 0 R >>`));
+ obj(id+1,()=>push(`<< /Type /Font /Subtype /CIDFontType2 /BaseFont /${font.name} /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor ${id+2} 0 R /CIDToGIDMap /Identity /W [${[...used.keys()].map(g=>`${g} [${n(font.width(g))}]`).join(' ')}] >>`));
+ obj(id+2,()=>push(`<< /Type /FontDescriptor /FontName /${font.name} /Flags 32 /FontBBox [${font.bbox.map(n).join(' ')}] /ItalicAngle 0 /Ascent ${n(font.ascent)} /Descent ${n(font.descent)} /CapHeight ${n(font.ascent)} /StemV 80 /FontFile2 ${id+3} 0 R >>`));stream(id+3,font.bytes,`/Length1 ${font.bytes.length}`);
+ const mappings=[...used].map(([g,ch])=>`<${hex(g)}> <${Array.from({length:ch.length},(_,i)=>hex(ch.charCodeAt(i))).join('')}>`),cmap=['/CIDInit /ProcSet findresource begin 12 dict begin begincmap','/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def','/CMapName /PllatoUnicode def /CMapType 2 def','1 begincodespacerange <0000> <FFFF> endcodespacerange'];for(let i=0;i<mappings.length;i+=100){const m=mappings.slice(i,i+100);cmap.push(`${m.length} beginbfchar`,...m,'endbfchar');}cmap.push('endcmap CMapName currentdict /CMap defineresource pop end end');stream(id+4,enc.encode(cmap.join('\n')));}
+ streams.forEach((bytes,i)=>{const id=pageStart+i*2;obj(id,()=>push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 1190.551 841.89] /Resources << /Font << ${fonts.map((f,k)=>`/${f.resource} ${3+k*5} 0 R`).join(' ')} >> /Properties << ${layers.map((_,k)=>`/L${k} ${layerStart+k} 0 R`).join(' ')} >> >> /Contents ${id+1} 0 R >>`));stream(id+1,bytes,'/Filter /FlateDecode');});
  layers.forEach((name,i)=>obj(layerStart+i,()=>push(`<< /Type /OCG /Name <FEFF${Array.from({length:name.length},(_,i)=>hex(name.charCodeAt(i))).join('')}> >>`)));
  const xref=length;push(`xref\n0 ${offsets.length}\n0000000000 65535 f \n`);for(const offset of offsets.slice(1))push(String(offset).padStart(10,'0')+' 00000 n \n');push(`trailer\n<< /Size ${offsets.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);return new Blob(parts,{type:'application/pdf'});
 }

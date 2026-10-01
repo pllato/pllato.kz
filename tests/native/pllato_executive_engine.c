@@ -14,6 +14,7 @@
 extern int dwg_encode_add_object(Dwg_Object *,Bit_Chain *,size_t);
 extern size_t pllato_encoded_payload_end;
 static int selected_export_validated=0;
+#include "pllato_dimension_edit.h"
 API int pllato_text(const char *handle,const char *utf8){
  Dwg_Object *o=entity(handle);if(!o||!utf8)return 1;
  if(o->fixedtype==DWG_TYPE_TEXT)return pllato_legacy_text(handle,utf8);
@@ -604,7 +605,7 @@ API int pllato_layer_off(const char *handle,int off){
 }
 API int pllato_style_font(const char *handle,const char *name){
  if(!loaded||!handle||!name||strlen(name)>120||strchr(name,'/')||strchr(name,'\\'))return 1;
- size_t len=strlen(name);if(len<5||strcasecmp(name+len-4,".shx"))return 1;
+ size_t len=strlen(name);if(len<5||(strcasecmp(name+len-4,".shx")&&strcasecmp(name+len-4,".ttf")))return 1;
  for(const unsigned char *p=(const unsigned char *)name;*p;p++)if(*p<32)return 1;
  Dwg_Object *o=dwg_resolve_handle(&drawing,strtoull(handle,NULL,16));if(!o||o->fixedtype!=DWG_TYPE_STYLE)return 2;
  Dwg_Object_STYLE *s=o->tio.object->tio.STYLE;
@@ -612,6 +613,27 @@ API int pllato_style_font(const char *handle,const char *name){
  if(s->bigfont_file&&*(unsigned char *)s->bigfont_file)return 3;
  BITCODE_T value=dwg_add_u8_input(&drawing,name);if(!value)return 4;
  free(s->font_file);s->font_file=value;return 0;
+}
+static int font_style_name(const char *font,char *name){
+ if(!font||strlen(font)>120||strlen(font)<5||strchr(font,'/')||strchr(font,'\\'))return 1;
+ size_t n=strlen(font);if(strcasecmp(font+n-4,".ttf")&&strcasecmp(font+n-4,".shx"))return 1;
+ unsigned hash=2166136261u;for(const unsigned char *p=(const unsigned char *)font;*p;p++){if(*p<32)return 1;hash=(hash^*p)*16777619u;}
+ snprintf(name,40,"PLLATO_FONT_%08X",hash);return 0;
+}
+API int pllato_prepare_font(const char *font){
+ char name[40];if(!loaded||font_style_name(font,name))return 1;
+ BITCODE_H ref=dwg_find_tablehandle(&drawing,name,"STYLE");
+ Dwg_Object_STYLE *s=NULL;
+ if(ref){Dwg_Object *o=dwg_resolve_handle(&drawing,ref->absolute_ref);if(!o||o->fixedtype!=DWG_TYPE_STYLE)return 2;s=o->tio.object->tio.STYLE;}
+ else s=dwg_add_STYLE(&drawing,name);
+ if(!s)return 3;BITCODE_T value=dwg_add_u8_input(&drawing,font);if(!value)return 4;
+ free(s->font_file);s->font_file=value;return 0;
+}
+API int pllato_text_font(const char *handle,const char *font){
+ char name[40];if(font_style_name(font,name))return 1;
+ Dwg_Object *o=entity(handle);BITCODE_H ref=dwg_find_tablehandle(&drawing,name,"STYLE");
+ if(!o||o->fixedtype!=DWG_TYPE_TEXT||!ref)return 1;
+ o->tio.entity->tio.TEXT->style=dwg_add_handleref(&drawing,5,ref->absolute_ref,o);return 0;
 }
 API int pllato_rgb(const char *handle,int rgb){
  Dwg_Object *o=entity(handle);if(!o||rgb<0||rgb>0xffffff||drawing.header.version<R_2004)return 1;

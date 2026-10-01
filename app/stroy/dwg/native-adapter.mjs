@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Geometry view only. The original DWG remains the source for saving.
-import {fromRecords} from './cad.mjs?v=0.17.50';
-import {leaderParts} from './mleader.mjs?v=0.17.50';
-import {hatchGeometry} from './hatch.mjs?v=0.17.50';
+import {fromRecords} from './cad.mjs?v=0.17.51';
+import {leaderParts} from './mleader.mjs?v=0.17.51';
+import {hatchGeometry} from './hatch.mjs?v=0.17.51';
 export function nativeDocument(db){
  const blockNames=new Map(db.tables.BLOCK_RECORD.entries.map(b=>[b.handle,b.name||'@'+b.handle]));
  const textStyles=db.tables.STYLE?.entries||[],styleNames=new Map(textStyles.map(s=>[s.handle,s.name]));
@@ -19,6 +19,7 @@ export function nativeDocument(db){
   if(e.isVisible===false)p.push([60,1]);if(e.type!=='LWPOLYLINE'||(e.flag&1))point(p,210,e.extrusionDirection);
   switch(e.type){
    case 'LINE':point(p,10,e.startPoint);point(p,11,e.endPoint);break;
+   case 'POINT':point(p,10,e.position||e.point);break;
    case 'CIRCLE':case 'ARC':point(p,10,e.center);p.push([40,e.radius],[50,degrees(e.startAngle)],[51,degrees(e.endAngle)]);break;
    case 'LWPOLYLINE':p.push([70,(e.flag&512?1:0)|(e.flag&256?128:0)],[90,e.vertices.length]);for(const v of e.vertices){point(p,10,v);p.push([42,v.bulge||0]);}break;
    case 'TEXT':case 'ATTRIB':case 'ATTDEF':{const t=typeof e.text==='object'?e.text:e;point(p,10,t.startPoint);point(p,11,t.endPoint);p.push([1,t.text],[7,t.styleName||'Standard'],[40,t.textHeight],[41,t.xScale||1],[51,degrees(t.obliqueAngle)],[72,t.halign||0],[73,t.valign||0],[50,degrees(t.rotation)]);break;}
@@ -27,10 +28,17 @@ export function nativeDocument(db){
    case 'ELLIPSE':point(p,10,e.center);point(p,11,e.majorAxisEndPoint);p.push([40,e.axisRatio],[41,e.startAngle],[42,e.endAngle]);break;
    case 'SPLINE':p.push([71,e.degree],[74,e.fitPoints?.length||0]);for(const v of e.controlPoints)point(p,10,v);for(const n of e.knots)p.push([40,n]);for(const n of e.weights||[])p.push([41,n]);for(const v of e.fitPoints||[])point(p,11,v);break;
    case 'SOLID':case 'TRACE':case '3DFACE':for(let i=1;i<=4;i++)point(p,9+i,e['corner'+i]||e.corner3);break;
-   case 'DIMENSION':p.push([2,e.name]);break;
+   case 'DIMENSION':
+    p.push([2,e.name],[70,e.linearKind??e.dimensionType??-1],[1,e.text||''],[3,e.styleName||'Standard']);
+    point(p,10,e.definitionPoint);point(p,11,e.textPoint);
+    point(p,13,e.subDefinitionPoint1);point(p,14,e.subDefinitionPoint2);
+    if(Number.isFinite(e.measurement))p.push([42,e.measurement]);
+    if(Number.isFinite(e.dimensionRotation))p.push([50,degrees(e.dimensionRotation)]);
+    break;
    case 'POLYLINE2D':case 'POLYLINE3D':p.push([70,e.flag|(e.type==='POLYLINE3D'?8:0)]);break;
   }
   const result=[record(type,p,'dwg-'+e.handle)];
+  if(e.dimensionEndLocked)result[0].dimensionEndLocked=true;
   if(e.type==='MULTILEADER')result[0].parts=leaderParts({...e,textStyleName:styleNames.get(e.textStyleId)||'Standard'},record);
   if(e.type==='HATCH')result[0].hatch=hatchGeometry(e);
   if(type==='POLYLINE'){for(const v of e.vertices||[]){const q=[[42,v.bulge||0]];point(q,10,v);result.push(record('VERTEX',q));}result.push(record('SEQEND'));}

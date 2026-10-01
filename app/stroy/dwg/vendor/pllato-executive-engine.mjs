@@ -3740,7 +3740,7 @@ Module["FS"] = FS;
 // End JS library exports
 // end include: postlibrary.js
 // Imports from the Wasm binary.
-var _pllato_close, _pllato_legacy_open, _pllato_legacy_move, _pllato_legacy_text, _pllato_legacy_save, _pllato_count, _pllato_add_line, _pllato_add_text, _pllato_add_polyline, _pllato_text, _pllato_open, _pllato_root_manifest, _pllato_executive_metadata, _pllato_probe_opaque, _pllato_probe_table, _pllato_export_selection, _pllato_clone_selection, _pllato_copy_objects, _pllato_copy_object, _pllato_last_handle, _pllato_move, _pllato_insert_angle, _pllato_text_center, _pllato_spline_point, _pllato_vertex, _pllato_color, _pllato_layer_off, _pllato_style_font, _pllato_rgb, _pllato_lineweight, _pllato_remove, _pllato_save, _setThrew, __emscripten_stack_restore, __emscripten_stack_alloc, _emscripten_stack_get_current, memory, __indirect_function_table, wasmMemory;
+var _pllato_close, _pllato_legacy_open, _pllato_legacy_move, _pllato_legacy_text, _pllato_legacy_save, _pllato_count, _pllato_add_line, _pllato_add_text, _pllato_add_polyline, _pllato_dimension, _pllato_text, _pllato_open, _pllato_root_manifest, _pllato_executive_metadata, _pllato_probe_opaque, _pllato_probe_table, _pllato_export_selection, _pllato_clone_selection, _pllato_copy_objects, _pllato_copy_object, _pllato_last_handle, _pllato_move, _pllato_insert_angle, _pllato_text_center, _pllato_spline_point, _pllato_vertex, _pllato_color, _pllato_layer_off, _pllato_style_font, _pllato_prepare_font, _pllato_text_font, _pllato_rgb, _pllato_lineweight, _pllato_remove, _pllato_save, _setThrew, __emscripten_stack_restore, __emscripten_stack_alloc, _emscripten_stack_get_current, memory, __indirect_function_table, wasmMemory;
 
 function assignWasmExports(wasmExports) {
   _pllato_close = Module["_pllato_close"] = wasmExports["pllato_close"];
@@ -3752,6 +3752,7 @@ function assignWasmExports(wasmExports) {
   _pllato_add_line = Module["_pllato_add_line"] = wasmExports["pllato_add_line"];
   _pllato_add_text = Module["_pllato_add_text"] = wasmExports["pllato_add_text"];
   _pllato_add_polyline = Module["_pllato_add_polyline"] = wasmExports["pllato_add_polyline"];
+  _pllato_dimension = Module["_pllato_dimension"] = wasmExports["pllato_dimension"];
   _pllato_text = Module["_pllato_text"] = wasmExports["pllato_text"];
   _pllato_open = Module["_pllato_open"] = wasmExports["pllato_open"];
   _pllato_root_manifest = Module["_pllato_root_manifest"] = wasmExports["pllato_root_manifest"];
@@ -3771,6 +3772,8 @@ function assignWasmExports(wasmExports) {
   _pllato_color = Module["_pllato_color"] = wasmExports["pllato_color"];
   _pllato_layer_off = Module["_pllato_layer_off"] = wasmExports["pllato_layer_off"];
   _pllato_style_font = Module["_pllato_style_font"] = wasmExports["pllato_style_font"];
+  _pllato_prepare_font = Module["_pllato_prepare_font"] = wasmExports["pllato_prepare_font"];
+  _pllato_text_font = Module["_pllato_text_font"] = wasmExports["pllato_text_font"];
   _pllato_rgb = Module["_pllato_rgb"] = wasmExports["pllato_rgb"];
   _pllato_lineweight = Module["_pllato_lineweight"] = wasmExports["pllato_lineweight"];
   _pllato_remove = Module["_pllato_remove"] = wasmExports["pllato_remove"];
@@ -3851,3 +3854,4 @@ await run();
 
 // Export using a UMD style export, or ES6 exports if selected
 export default Module;
+

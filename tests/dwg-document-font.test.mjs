@@ -5,6 +5,7 @@ import {applyDocumentFont} from '../app/stroy/dwg/document-font.mjs';
 import {captureRecovery,replayRecovery} from '../app/stroy/dwg/recovery.mjs';
 import {captureView,restoreView} from '../app/stroy/dwg/view-history.mjs';
 const make=()=>{const doc=fromRecords([{type:'SECTION',pairs:[[2,'TABLES']]},...['Standard','Title','Big'].map((n,i)=>({type:'STYLE',pairs:[[5,String(i+10)],[2,n],[3,'old.shx'],[4,i===2?'big.shx':'']]})),{type:'ENDSEC',pairs:[]},{type:'SECTION',pairs:[[2,'ENTITIES']]},{type:'ENDSEC',pairs:[]}]);doc.native=true;return doc;};
+test('TTF choice applies to executive decoration and survives recovery',()=>{const doc=make();doc.executiveProject={sheets:[{id:'one'}]};applyDocumentFont(doc,'times new roman.ttf',()=>{});assert.equal(doc.executiveProject.sheets[0].font,'times new roman.ttf');const restored=replayRecovery(make(),captureRecovery(doc));assert.equal(restored.textStyles.get('Standard').font,'times new roman.ttf');assert.equal(restored.executiveProject.sheets[0].font,'times new roman.ttf');});
 test('document font updates every ordinary style atomically and survives recovery/undo',()=>{
  const doc=make();let state;assert.equal(applyDocumentFont(doc,'romans.shx',records=>state=captureView(doc,{},records)),2);
  assert.equal(doc.textStyles.get('Standard').font,'romans.shx');assert.equal(doc.textStyles.get('Title').font,'romans.shx');assert.equal(doc.textStyles.get('Big').font,'old.shx');
