@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Geometry view only. The original DWG remains the source for saving.
-import {fromRecords} from './cad.mjs?v=0.17.51';
-import {leaderParts} from './mleader.mjs?v=0.17.51';
-import {hatchGeometry} from './hatch.mjs?v=0.17.51';
-export function nativeDocument(db){
+import {fromRecords} from './cad.mjs?v=0.17.52';
+import {leaderParts} from './mleader.mjs?v=0.17.52';
+import {hatchGeometry} from './hatch.mjs?v=0.17.52';
+export function nativeDocument(db,index=true){
  const blockNames=new Map(db.tables.BLOCK_RECORD.entries.map(b=>[b.handle,b.name||'@'+b.handle]));
  const textStyles=db.tables.STYLE?.entries||[],styleNames=new Map(textStyles.map(s=>[s.handle,s.name]));
  let serial=0;
@@ -60,5 +60,5 @@ export function nativeDocument(db){
  records.push(record('ENDSEC'),record('SECTION',[[2,'ENTITIES']]));
  for(const r of entities(db.entities.filter(e=>!e.isInPaperSpace&&!paper.has(e.ownerBlockRecordSoftId))))records.push(r);
  records.push(record('ENDSEC'),record('EOF'));
- const doc=fromRecords(records);doc.recoveredBlocks=db.entities.filter(e=>e.type==='INSERT'&&e.recoveredBlockRecordId).length;return doc;
+ const doc=index?fromRecords(records):{records};doc.recoveredBlocks=db.entities.filter(e=>e.type==='INSERT'&&e.recoveredBlockRecordId).length;return doc;
 }
