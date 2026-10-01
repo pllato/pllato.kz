@@ -1,5 +1,5 @@
-import {get,num} from './cad.mjs?v=0.17.50';
-import {deferredAddition} from './deferred-copy.mjs?v=0.17.50';
+import {get,num} from './cad.mjs?v=0.17.51';
+import {deferredAddition} from './deferred-copy.mjs?v=0.17.51';
 export const isNew=r=>r?.id?.startsWith('new-');
 export function additions(doc){return doc.entities.filter(isNew).map(r=>{
  if(r.deferredCopy)return deferredAddition(doc,r);
@@ -11,6 +11,7 @@ export function additions(doc){return doc.entities.filter(isNew).map(r=>{
 });}
 export function writeAdditions(m,items,onCreated=()=>{}){
  if(!Array.isArray(items)||items.length>100000)throw Error('Слишком много новых объектов');
+ for(const font of new Set(items.map(i=>i.font).filter(Boolean)))if(!/^[^/\\\x00-\x1f]{1,116}\.(shx|ttf)$/i.test(font)||m.ccall('pllato_prepare_font','number',['string'],[font]))throw Error('Не удалось создать стиль шрифта');
  for(const item of items){let code;
   if(item.type==='LINE'||item.type==='TEXT'){
    if(!Array.isArray(item.values)||item.values.length!==4||!item.values.every(Number.isFinite))throw Error('Неверные координаты нового объекта');
@@ -23,6 +24,7 @@ export function writeAdditions(m,items,onCreated=()=>{}){
    code=m.ccall('pllato_add_polyline','number',['array','number','number'],[bytes,item.points.length/2,item.closed?1:0]);
   }else throw Error('Неизвестный тип добавляемого объекта');
   if(code)throw Error('Не удалось создать '+item.type+' (код '+code+')');
+  if(item.font){if(item.type!=='TEXT')throw Error('Неизвестный стиль нового текста');const handle=m.ccall('pllato_last_handle','string',[],[]);if(m.ccall('pllato_text_font','number',['string','string'],[handle,item.font]))throw Error('Не удалось назначить шрифт');}
   if(item.align!==undefined){if(item.type!=='TEXT'||item.align!==1)throw Error('Неверное выравнивание');const handle=m.ccall('pllato_last_handle','string',[],[]);if(m.ccall('pllato_text_center','number',['string'],[handle]))throw Error('Не удалось отцентрировать текст');}
   if(item.color!==undefined){if(!Number.isInteger(item.color)||item.color<1||item.color>255)throw Error('Неверный цвет');const handle=m.ccall('pllato_last_handle','string',[],[]);if(m.ccall('pllato_color','number',['string','number'],[handle,item.color]))throw Error('Не удалось записать цвет');}
   if(item.lineweight!==undefined){if(!Number.isInteger(item.lineweight)||item.lineweight<0||item.lineweight>211)throw Error('Неверная толщина');const handle=m.ccall('pllato_last_handle','string',[],[]);if(m.ccall('pllato_lineweight','number',['string','number'],[handle,item.lineweight]))throw Error('Не удалось записать толщину линии');}

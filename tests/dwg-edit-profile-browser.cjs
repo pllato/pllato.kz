@@ -1,0 +1,8 @@
+const {chromium}=require('playwright');
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});try{
+ const page=await browser.newPage();page.setDefaultTimeout(300000);await page.route('**/app/gate.js',r=>r.fulfill({body:''}));
+ await page.route('**/editor.mjs*',async r=>{const response=await r.fetch();await r.fulfill({response,body:await response.text()+`
+ const profileRebuild=rebuild;let profileStages=[];rebuild=(...args)=>{const t=performance.now();const result=profileRebuild(...args);profileStages.push({stage:'rebuild',kind:args[0],ms:performance.now()-t});return result;};
+ globalThis.editProfile=()=>{const root='dwg-'+doc.executiveProject.sheets[0].nativeHandles[0],s=drawing.shapes.find(s=>s.id===root&&s.deviceId!==root&&recordById(s.deviceId)?.type==='INSERT');selected=s.deviceId;selectedMatrix=s.deviceMatrix;selectedChain=pickedDevice=selectedShapeKey=sharedSelectedId=null;const r=current(),block=doc.blocks.get(get(r,2));properties();paint();profileStages=[];const start=performance.now();applyObjectEdit({delta:[17,29]});const editMs=performance.now()-start,t=performance.now();paint();return {editMs,paintMs:performance.now()-t,stages:profileStages,children:block.records.length,nested:block.records.filter(r=>r.type==='INSERT').length,attributes:doc.records.filter(a=>a.type==='ATTRIB'&&get(a,330)===get(r,5)).length};};`});});
+ await page.goto('http://127.0.0.1:8817/app/stroy/dwg/');await page.locator('#file').setInputFiles(process.env.DWG_TEST_FILE);await page.waitForFunction(()=>document.querySelector('#busy').hidden);console.log(await page.evaluate(()=>editProfile()));
+ }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

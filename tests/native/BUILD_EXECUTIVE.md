@@ -1,6 +1,6 @@
 # Executive DWG engine 0.17.25 — corresponding source
 
-GNU LibreDWG 0.14, GPL-3.0-or-later. No paid SDK. The source archive includes the already-patched library, `pllato_web.c`, `pllato_executive_engine.c` and `pllato_selected_export.h`. Do not apply the reference patches a second time.
+GNU LibreDWG 0.14, GPL-3.0-or-later. No paid SDK. The source archive includes the already-patched library, `pllato_web.c`, `pllato_executive_engine.c`, `pllato_dimension_edit.h` and `pllato_selected_export.h`. Do not apply the reference patches a second time.
 
 With Emscripten 6.0.10 activated and Python >=3.10:
 

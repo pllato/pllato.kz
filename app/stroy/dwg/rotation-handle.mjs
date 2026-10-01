@@ -1,5 +1,7 @@
 const map=(m,p)=>[m[0]*p[0]+m[2]*p[1]+m[4],m[1]*p[0]+m[3]*p[1]+m[5]];
 export function rotationFrame(pivot,matrix=[1,0,0,1,0,0]){
+ matrix=matrix||[1,0,0,1,0,0];
+ if(!Array.isArray(matrix)||matrix.length!==6||!matrix.every(Number.isFinite))return null;
  const [a,b,c,d,x,y]=matrix,det=a*d-b*c;if(Math.abs(det)<1e-12)return null;
  const inv=[d/det,-b/det,-c/det,a/det,(c*y-d*x)/det,(b*x-a*y)/det];
  return {pivot,matrix,inv,world:map(matrix,pivot)};

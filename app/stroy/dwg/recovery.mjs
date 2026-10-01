@@ -1,6 +1,7 @@
-import {get,move,set,addEntity} from './cad.mjs?v=0.17.50';
-import {installDeferredBlocks} from './deferred-copy.mjs?v=0.17.50';
-import {setSplineControl,setEntityVertex} from './control-edit.mjs?v=0.17.50';
+import {get,move,set,addEntity} from './cad.mjs?v=0.17.51';
+import {installDeferredBlocks} from './deferred-copy.mjs?v=0.17.51';
+import {setSplineControl,setEntityVertex} from './control-edit.mjs?v=0.17.51';
+import {planDimensionEdit,applyDimensionPlan} from './dimension-edit.mjs';
 export function captureRecovery(doc){
  if(!doc.native)throw Error('Ожидается DWG');
  return {ops:structuredClone(doc.nativeOps||[]),added:doc.entities.filter(r=>r.id.startsWith('new-')).map(r=>({id:r.id,type:r.type,pairs:structuredClone(r.pairs),...(r.deferredCopy?{deferredCopy:structuredClone(r.deferredCopy)}:{})})),project:structuredClone(doc.executiveProject||null)};
@@ -8,6 +9,7 @@ export function captureRecovery(doc){
 export function replayRecovery(doc,state){
  const byHandle=new Map(doc.records.map(r=>[get(r,5),r])),removed=new Set();
  for(const op of state.ops){const r=byHandle.get(op.handle);if(!r)throw Error('Восстановление: объект '+op.handle+' не найден');
+  if(op.dimension){applyDimensionPlan(planDimensionEdit(doc,r,op.dimension));continue;}
   if(op.styleFont!==undefined){if(r.type!=='STYLE'||typeof op.styleFont!=='string')throw Error('Восстановление: неверный стиль');set(r,3,op.styleFont);const style=doc.textStyles.get(get(r,2));if(!style)throw Error('Стиль не найден');style.font=op.styleFont;continue;}
   if(op.layerOff!==undefined){if(r.type!=='LAYER')throw Error('Восстановление: неверный слой');const color=Math.abs(Number(get(r,62,7)))||7;set(r,62,op.layerOff?-color:color);const layer=doc.layers.get(get(r,2));if(layer)layer.color=op.layerOff?-color:color;continue;}
   if(op.remove){removed.add(r);if(r.type==='INSERT')for(const a of doc.records)if(a.type==='ATTRIB'&&get(a,330)===op.handle)removed.add(a);continue;}

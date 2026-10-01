@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.50';
-import {writeAdditions} from './authoring.mjs?v=0.17.50';
-import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.50';
+import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.51';
+import {writeAdditions} from './authoring.mjs?v=0.17.51';
+import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.51';
 self.onmessage=async({data})=>{
  try{
   const {buffer,ops,added=[]}=data;
   if(!(buffer instanceof ArrayBuffer)||!Array.isArray(ops)||ops.length>100000)throw Error('Неверный пакет изменений.');
   self.postMessage({progress:'Открываю исходный DWG для записи изменений…',percent:10});
-  const m=await createModule({locateFile:p=>new URL('./vendor/'+p+'?v=0.17.50',import.meta.url).href,print:()=>{},printErr:()=>{}});
+  const m=await createModule({locateFile:p=>new URL('./vendor/'+p+'?v=0.17.51',import.meta.url).href,print:()=>{},printErr:()=>{}});
   m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
   const opened=m.ccall('pllato_open','number',['string'],['/input.dwg']);
   if(opened>=128)throw Error('DWG не прочитан: '+opened);
@@ -15,6 +15,7 @@ self.onmessage=async({data})=>{
   for(let opIndex=0;opIndex<=ops.length;opIndex++){
    writeDeferredCopies(m,added,opIndex);if(opIndex===ops.length)break;
    const op=ops[opIndex];
+   if(op.dimension){const {length,offset,endNormal=0}=op.dimension;if(!/^[0-9a-f]+$/i.test(op.handle)||![length,offset,endNormal].every(Number.isFinite))throw Error('Неверный размер');const code=m.ccall('pllato_dimension','number',['string','number','number','number'],[op.handle,length,offset,endNormal]);if(code)throw Error('Правка размера отклонена: '+code);continue;}
    if(op.styleFont!==undefined){if(typeof op.styleFont!=='string'||!/^([0-9a-f]+)$/i.test(op.handle))throw Error('Неверный стиль');const code=m.ccall('pllato_style_font','number',['string','string'],[op.handle,op.styleFont]);if(code)throw Error('Смена шрифта отклонена: '+code);continue;}
    if(op.layerOff!==undefined){if(typeof op.layerOff!=='boolean'||!/^([0-9a-f]+)$/i.test(op.handle))throw Error('Неверный слой');if(m.ccall('pllato_layer_off','number',['string','number'],[op.handle,Number(op.layerOff)]))throw Error('Слой не найден');continue;}
    if(op.vertex){const {index,x,y}=op.vertex;if(!Number.isInteger(index)||![x,y].every(Number.isFinite))throw Error('Неверная вершина');const code=m.ccall('pllato_vertex','number',['string','number','number','number'],[op.handle,index,x,y]);if(code)throw Error('Правка вершины отклонена: '+code);}
