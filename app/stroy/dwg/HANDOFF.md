@@ -2,7 +2,9 @@
 
 ## 0.17.52 — ограниченная передача DWG и повторное использование плана
 
-Подготовлено к публикации (ветка `perf/dwg-load-transfer`).
+Опубликовано через PR #895, merge `44f755e`. Pages run `36819136440` — success.
+Live index/editor/native-reader/native-transfer/scene-reuse/cad побайтно совпали
+с проверенной сборкой 0.17.52.
 `native-transfer.mjs` передаёт записи пакетами по 2048 с ACK: пары DXF идут
 lossless JSON, остальные поля — structured clone. Нельзя JSON-упрощать весь
 документ: parts/hatch/undefined/typed arrays должны сохраняться. Reader не
