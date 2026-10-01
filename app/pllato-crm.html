@@ -13954,6 +13954,11 @@ async function openDealCard(bitrixId) {
               type: 'number',
               placeholder: '—',
             })}%</div>
+            <div class="fl">Кто проводит КЭП</div>
+            <div class="fv"><select id="dc-kep-manager" class="cf-edit" ${canEditDeal?'':'disabled'} style="max-width:100%;padding:7px">
+              <option value="">Не назначен</option>
+              ${Object.entries(dealsState.users||{}).map(([uid,u])=>`<option value="${escapeHtml(uid)}"${uid===deal.customFields?.kepManagerUid?' selected':''}>${escapeHtml([u.name,u.lastName].filter(Boolean).join(' ')||u.email||uid)}</option>`).join('')}
+            </select></div>
             <div class="fl">Ответственный менеджер</div>
             <div class="fv">${canEditDeal
               ? `<span id="dc-resp-display" class="dc-resp-editable" title="Кликни — сменить ответственного" style="cursor:pointer;border-bottom:1px dashed var(--b2);padding-bottom:1px">${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}</span> <span class="dc-resp-pencil" style="cursor:pointer;opacity:.6;font-size:12px" title="Сменить ответственного">✏️</span>`
@@ -14236,6 +14241,22 @@ async function openDealCard(bitrixId) {
     });
   }
 
+  const kepManagerSelect=modal.querySelector('#dc-kep-manager');
+  if(kepManagerSelect && canEditDeal) kepManagerSelect.onchange=async()=>{
+    const before=deal.customFields?.kepManagerUid||'';
+    kepManagerSelect.disabled=true;
+    try{
+      const idToken=await fbAuth.currentUser.getIdToken();
+      const recordId=getDealRecordId(deal);
+      if(!recordId) throw new Error('Не найден ID сделки');
+      const customFields={...(deal.customFields||{}),kepManagerUid:kepManagerSelect.value};
+      const response=await fetch(`${WORKER_RTDB_URL}/deals/${encodeURIComponent(recordId)}.json?auth=${idToken}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({customFields})});
+      if(!response.ok) throw new Error((await response.json().catch(()=>({}))).error||'Не удалось сохранить');
+      deal.customFields=customFields;
+      showToast('Менеджер КЭП сохранён');
+    }catch(error){kepManagerSelect.value=before;showToast(error.message);}
+    finally{kepManagerSelect.disabled=false;}
+  };
   // Смена ответственного — клик по имени или по карандашу открывает select
   const respDisplay = modal.querySelector('#dc-resp-display');
   if (respDisplay) {

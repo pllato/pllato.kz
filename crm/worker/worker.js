@@ -866,6 +866,11 @@ async function handleStorePull(request, env, actor) {
   const data = {};
   for (const collection of collections) {
     data[collection] = await d1ListCollection(env, collection, limit, updatedSince);
+    if (collection === "chart_week_tasks") {
+      const finance = await financeForAccess(env);
+      data[collection] = data[collection].filter(task => financeTaskVisible(task, finance, actor))
+        .map(task => ({...task, managerEmail:financeTaskOwner(task, finance)}));
+    }
   }
 
   return {
@@ -891,6 +896,15 @@ async function handleStorePush(request, env, actor) {
     const collection = normalizeCollectionName(op.collection);
     if (collection === PRIVATE_PROJECT_FINANCE_COLLECTION && !canAccessProjectFinance(actor)) {
       throw new HttpError(403, "Финансы проектов доступны только Super Admin");
+    }
+    if (collection === "chart_week_tasks" && !canAccessProjectFinance(actor)) {
+      const finance = await financeForAccess(env);
+      const old = await d1GetDoc(env, collection, op.item?.id || op.id);
+      const mine = String(actor.email || "").toLowerCase();
+      if ((old && (financeTaskOwner(old, finance) !== mine || !financeTaskVisible(old, finance, actor)))
+          || (op.item && (financeTaskOwner(op.item, finance) !== mine || !financeTaskVisible(op.item, finance, actor)))) {
+        throw new HttpError(403, "Можно изменять только свои доступные дела");
+      }
     }
     const type = String(op.type || "").toLowerCase();
     if (type === "upsert") {
@@ -2307,6 +2321,7 @@ function normalizeProjectFinance(payload) {
       : 0;
     money[id] = {
       deal, cur, pays, orderCreatedAt, completedAt,
+      managerEmail: String(item.managerEmail || "").trim().toLowerCase(),
       paymentPlan,
       paymentPlanBaseAt,
     };
@@ -2362,6 +2377,7 @@ function normalizeProjectFinance(payload) {
       cash: normalizeViewers(rawVisibility.cash),
       releases: normalizeViewers(rawVisibility.releases),
     },
+    chartAccess: normalizeChartAccess(payload?.chartAccess),
     chartOverrides,
     chartScale: {
       inquiries: normalizeScale(rawScale.inquiries),
@@ -2387,6 +2403,7 @@ async function handleProjectFinancePut(request, env, actor) {
   const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
   const normalized = normalizeProjectFinance({
     ...body,
+    chartAccess: stored?.chartAccess,
     chartVisibility: body.chartVisibility ?? stored?.chartVisibility,
     chartOverrides: body.chartOverrides ?? stored?.chartOverrides,
     chartScale: body.chartScale ?? stored?.chartScale,
@@ -2494,6 +2511,58 @@ function financeChartAllowed(actor, viewers) {
   return Boolean(email && viewers.includes(email));
 }
 
+const FINANCE_KINDS = ["inquiries", "kep", "orders", "cash", "releases"];
+function normalizeChartAccess(raw) {
+  const result = {};
+  for (const kind of FINANCE_KINDS) {
+    result[kind] = {};
+    for (const [email, value] of Object.entries(raw?.[kind] || {}).slice(0, 200)) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !isObject(value)) continue;
+      result[kind][email.toLowerCase()] = {
+        total: value.total === true,
+        managers: ["own", "all"].includes(value.managers) ? value.managers : "none",
+        tasks: ["own", "all", "selected"].includes(value.tasks) ? value.tasks : "none",
+        taskManagers: Array.isArray(value.taskManagers) ? value.taskManagers.map(x => String(x).trim().toLowerCase()).slice(0, 200) : [],
+      };
+    }
+  }
+  return result;
+}
+function financeAccess(finance, actor, kind) {
+  if (canAccessProjectFinance(actor)) return { total:true, managers:"all", tasks:"all", taskManagers:[] };
+  const email = String(actor?.email || "").toLowerCase();
+  const configured = finance.chartAccess?.[kind]?.[email];
+  const legacy = financeChartAllowed(actor, finance.chartVisibility?.[kind] || []);
+  const access = configured || { total:legacy, managers:legacy ? "all" : "none", tasks:legacy ? "all" : "own", taskManagers:[] };
+  // КЭП — общий и личные графики доступны всем авторизованным сотрудникам.
+  return kind === "kep" ? { ...access, total:true, managers:"all" } : access;
+}
+function financeTaskOwner(task, finance) {
+  return String(task?.sourceProjectId ? finance.money?.[task.sourceProjectId]?.managerEmail || "" : task?.managerEmail ?? task?.author ?? "").toLowerCase();
+}
+function financeTaskVisible(task, finance, actor) {
+  const access = financeAccess(finance, actor, task.kind);
+  const owner = financeTaskOwner(task, finance);
+  return access.tasks === "all" || (access.tasks === "own" && owner === String(actor.email || "").toLowerCase())
+    || (access.tasks === "selected" && access.taskManagers.includes(owner));
+}
+async function financeForAccess(env) {
+  return normalizeProjectFinance(await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID) || {});
+}
+async function handleProjectManagers(request, env, actor) {
+  const finance = await financeForAccess(env);
+  if (request.method === "PUT") {
+    requireProjectFinanceAccess(actor);
+    const body = await readRequestBodyAsJson(request);
+    const id = String(body.projectId || "").trim();
+    const email = String(body.managerEmail || "").trim().toLowerCase();
+    if (!/^[a-zA-Z0-9_-]{1,80}$/.test(id) || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) throw new HttpError(400, "Некорректный менеджер или проект");
+    finance.money[id] = { ...(finance.money[id] || {deal:0,cur:"KZT",pays:[]}), managerEmail:email };
+    await d1UpsertDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, { id:PRIVATE_PROJECT_FINANCE_ID, ...finance, updatedAt:Date.now() }, actor.email);
+  }
+  return {ok:true, managers:Object.fromEntries(Object.entries(finance.money).map(([id,item])=>[id,item.managerEmail || ""]))};
+}
+
 function projectFinanceRelease(item) {
   let timestamp = Number(item?.completedAt) || 0;
   if (timestamp) return { timestamp, reason: "completed" };
@@ -2579,11 +2648,13 @@ async function handleProjectFinanceChartDetails(env, actor, url) {
   const { start, end } = projectFinanceDetailPeriod(url);
   const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
   const finance = normalizeProjectFinance(stored || {});
-  if (!financeChartAllowed(actor, finance.chartVisibility[kind])) {
+  const access = financeAccess(finance, actor, kind);
+  if (!access.total && access.managers === "none") {
     throw new HttpError(403, "Нет доступа к этому графику");
   }
   const items = [];
   for (const [projectId, item] of Object.entries(finance.money || {})) {
+    if (!access.total && access.managers !== "all" && item.managerEmail !== String(actor.email || "").toLowerCase()) continue;
     if (kind === "orders") {
       const firstPayment = (item.pays || [])
         .map((pay) => ({ pay, timestamp: projectFinanceEventTime(pay) }))
@@ -2636,7 +2707,7 @@ async function handleProjectFinanceChartDetails(env, actor, url) {
   const weekKey = isWeeklyPoint
     ? new Date(end + 5 * 60 * 60 * 1000).toISOString().slice(0, 10)
     : "";
-  const override = weekKey ? finance.chartOverrides?.[weekKey]?.[kind] : undefined;
+  const override = access.total && weekKey ? finance.chartOverrides?.[weekKey]?.[kind] : undefined;
   const chartValue = Number.isFinite(Number(override)) ? Number(override) : actualValue;
   return {
     ok: true,
@@ -2653,13 +2724,8 @@ async function handleProjectFinanceChartDetails(env, actor, url) {
 async function handleProjectFinanceChartsGet(env, actor, url) {
   const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
   const finance = normalizeProjectFinance(stored || {});
-  const visible = {
-    inquiries: financeChartAllowed(actor, finance.chartVisibility.inquiries),
-    kep: financeChartAllowed(actor, finance.chartVisibility.kep),
-    orders: financeChartAllowed(actor, finance.chartVisibility.orders),
-    cash: financeChartAllowed(actor, finance.chartVisibility.cash),
-    releases: financeChartAllowed(actor, finance.chartVisibility.releases),
-  };
+  const access = Object.fromEntries(FINANCE_KINDS.map(kind => [kind, financeAccess(finance, actor, kind)]));
+  const visible = Object.fromEntries(FINANCE_KINDS.map(kind => [kind, access[kind].total || access[kind].managers !== "none"]));
   const granularity = projectFinanceGranularity(url.searchParams.get("period"));
   const allSeries = projectFinanceChartSeries(finance, url.searchParams.get("points"), granularity);
   const charts = {};
@@ -2711,10 +2777,23 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
   if (visible.orders) charts.orders = allSeries.map(({ start, end, label, partial, orders }) => ({ start, end, label, partial, value: orders }));
   if (visible.cash) charts.cash = allSeries.map(({ start, end, label, partial, cash }) => ({ start, end, label, partial, value: cash }));
   if (visible.releases) charts.releases = allSeries.map(({ start, end, label, partial, releases }) => ({ start, end, label, partial, value: releases }));
+  const managerCharts = {};
+  const owners = [...new Set(Object.values(finance.money).map(item => item.managerEmail || ""))];
+  for (const kind of ["orders", "cash", "releases"]) {
+    if (!visible[kind]) continue;
+    managerCharts[kind] = owners.filter(email => access[kind].managers === "all" || (access[kind].managers === "own" && email === String(actor.email || "").toLowerCase()))
+      .map(email => ({email, series:projectFinanceChartSeries({...finance, chartOverrides:{}, money:Object.fromEntries(Object.entries(finance.money).filter(([,item])=>(item.managerEmail || "")===email))}, url.searchParams.get("points"), granularity)
+        .map(point => ({start:point.start,end:point.end,label:point.label,partial:point.partial,value:point[kind]}))}));
+    if (!access[kind].total) charts[kind] = allSeries.map(({start,end,label,partial}) => ({start,end,label,partial,value:null}));
+  }
+  if (charts.inquiries && !access.inquiries.total) charts.inquiries = charts.inquiries.map(point=>({...point,value:null}));
   const visibleKinds = Object.keys(visible).filter((kind) => visible[kind]);
   return {
     ok: true,
     charts,
+    managerCharts,
+    access,
+    chartAccess: canAccessProjectFinance(actor) ? finance.chartAccess : {},
     visible,
     chartVisibility: Object.fromEntries(visibleKinds.map((kind) => [kind, finance.chartVisibility[kind]])),
     chartScale: Object.fromEntries(visibleKinds.map((kind) => [kind, finance.chartScale[kind]])),
@@ -2864,7 +2943,8 @@ async function handleWidgetStats(env, url) {
   // к началу текущего периода и к виду графика.
   const tasks = {};
   try {
-    const rows = await d1ListCollection(env, "chart_week_tasks", 500, null);
+    const finance = await financeForAccess(env);
+    const rows = (await d1ListCollection(env, "chart_week_tasks", 500, null)).filter(task => financeTaskVisible(task, finance, actor));
     for (const [kind, series] of Object.entries(compact)) {
       const point = series.length ? series[series.length - 1] : null;
       if (!point?.start) continue;
@@ -2920,21 +3000,14 @@ async function handleProjectFinanceChartsPut(request, env, actor) {
   const body = await readRequestBodyAsJson(request);
   const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
   const current = normalizeProjectFinance(stored || {});
+  requireProjectFinanceAccess(actor);
   const kind = String(body.kind || "").trim();
-  const validKinds = new Set(["inquiries", "kep", "orders", "cash", "releases"]);
-  if (!canAccessProjectFinance(actor)) {
-    if (!validKinds.has(kind) || !financeChartAllowed(actor, current.chartVisibility[kind])) {
-      throw new HttpError(403, "Нет доступа к настройкам этого графика");
-    }
-  }
-  const nextVisibility = canAccessProjectFinance(actor)
-    ? body.chartVisibility
-    : { ...current.chartVisibility, [kind]: body.chartVisibility?.[kind] };
-  const nextScale = canAccessProjectFinance(actor)
-    ? body.chartScale
-    : { ...current.chartScale, [kind]: body.chartScale?.[kind] };
+  if (!FINANCE_KINDS.includes(kind)) throw new HttpError(400, "Неизвестный график");
+  const nextVisibility = { ...current.chartVisibility, [kind]: body.chartVisibility?.[kind] ?? current.chartVisibility[kind] };
+  const nextScale = { ...current.chartScale, [kind]: body.chartScale?.[kind] ?? current.chartScale[kind] };
   const normalized = normalizeProjectFinance({
     ...(stored || {}),
+    chartAccess: { ...current.chartAccess, [kind]: body.chartAccess?.[kind] ?? current.chartAccess[kind] },
     chartVisibility: nextVisibility,
     chartScale: nextScale,
   });
@@ -8697,6 +8770,9 @@ export default {
         return json(request, env, await handleChannelsDelete(request, env, actor));
       }
 
+      if (["GET", "PUT"].includes(request.method) && path === "/project-finance/managers") {
+        return json(request, env, await handleProjectManagers(request, env, actor));
+      }
       if (request.method === "GET" && path === "/project-finance") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleProjectFinanceGet(env, actor));
