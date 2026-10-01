@@ -5349,14 +5349,16 @@ async function injectProjectManagers(){
   });
 }
 function managerColor(email){
-  if(!email) return '#64748b';
-  const emails=[...new Set([...MANAGER_USERS.map(u=>String(u.email).toLowerCase()),...Object.values(MANAGER_CHARTS).flatMap(rows=>rows.map(row=>row.email))])].sort();
-  const index=Math.max(0,emails.indexOf(email));
-  return `hsl(${Math.round((index*137.508+200)%360)} 65% 42%)`;
+  const key=String(email||'').trim().toLowerCase();
+  if(!key) return '#64748b';
+  // Цвет зависит только от менеджера, а не от состава списка или прав просмотра.
+  let hash=2166136261;
+  for(const char of key) hash=Math.imul(hash^char.charCodeAt(0),16777619)>>>0;
+  return `hsl(${hash%360} 65% 42%)`;
 }
 function financeManagerLegend(kind){
-  const overall=CHART_EFFECTIVE_ACCESS[kind]?.total!==false?`<span><b style="color:${FINANCE_CHART_META[kind].color}">━━</b> Общая</span>`:'';
-  return `<div style="display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12px;margin:8px 0">${overall}${(MANAGER_CHARTS[kind]||[]).map(item=>`<span><b style="color:${managerColor(item.email)}">┄┄</b> ${mEsc(item.name||managerName(item.email))}</span>`).join('')}</div>`;
+  const overall=CHART_EFFECTIVE_ACCESS[kind]?.total!==false?`<span><span aria-hidden="true" style="display:inline-block;width:24px;border-top:3.5px solid ${FINANCE_CHART_META[kind].color};vertical-align:middle"></span> Общая</span>`:'';
+  return `<div style="display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12px;margin:8px 0">${overall}${(MANAGER_CHARTS[kind]||[]).map(item=>`<span><span aria-hidden="true" style="display:inline-block;width:24px;border-top:2px solid ${managerColor(item.email)};vertical-align:middle"></span> ${mEsc(item.name||managerName(item.email))}</span>`).join('')}</div>`;
 }
 function canEditFinanceTask(task){return canSeeProjectMoney()||String(task?.managerEmail??task?.author??'').toLowerCase()===String(CURRENT?.email||'').toLowerCase();}
 function financeTaskManagerLabel(task){return `<small style="display:block;color:var(--text-3);font-size:11px">${mEsc(managerName(task.managerEmail??PROJECT_MANAGERS[task.sourceProjectId]??task.author??''))}</small>`;}
@@ -6070,7 +6072,7 @@ function financeChartSvg(kind,series){
   const managerLines=managers.map(manager=>{
     const color=managerColor(manager.email);
     const values=manager.series;
-    return `<polyline points="${values.map((p,i)=>p.partial?null:`${x(i)},${y(p.value).toFixed(1)}`).filter(Boolean).join(' ')}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="7 5" vector-effect="non-scaling-stroke"/>`+values.map((p,i)=>{
+    return `<polyline points="${values.map((p,i)=>p.partial?null:`${x(i)},${y(p.value).toFixed(1)}`).filter(Boolean).join(' ')}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`+values.map((p,i)=>{
       const title=`${manager.name||managerName(manager.email)} · ${p.label}: ${financeValue(kind,p.value)}`;
       const start=Number(p.start)||Number(series[i]?.start)||0;
       const end=Number(p.end)||Number(series[i]?.end)||0;
@@ -6110,7 +6112,7 @@ function financeChartSvg(kind,series){
     <text x="${vw-8}" y="28" text-anchor="end" fill="var(--text-3)" font-size="18" font-weight="700">${mEsc(scaleLabel)}</text>
     <line x1="0" y1="${vh-bottom}" x2="${vw}" y2="${vh-bottom}" stroke="var(--line-2)" vector-effect="non-scaling-stroke"/>
     ${managerLines}
-    <polyline style="display:${showTotal?'block':'none'}" points="${completed}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    <polyline style="display:${showTotal?'block':'none'}" points="${completed}" fill="none" stroke="${color}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
     ${showTotal?points:''}${managerLabels.join('')}</svg>`;
 }
 function openChartFullscreen(button){
