@@ -1,8 +1,8 @@
-import {get,move,set,addEntity} from './cad.mjs?v=0.17.57';
-import {installDeferredBlocks} from './deferred-copy.mjs?v=0.17.57';
-import {setSplineControl,setEntityVertex} from './control-edit.mjs?v=0.17.57';
+import {get,move,set,addEntity} from './cad.mjs?v=0.17.58';
+import {installDeferredBlocks} from './deferred-copy.mjs?v=0.17.58';
+import {setSplineControl,setEntityVertex} from './control-edit.mjs?v=0.17.58';
 import {planDimensionEdit,applyDimensionPlan} from './dimension-edit.mjs';
-import {applyNotePatch} from './note-edit.mjs?v=0.17.57';
+import {applyNotePatch} from './note-edit.mjs?v=0.17.58';
 export function captureRecovery(doc){
  if(!doc.native)throw Error('Ожидается DWG');
  return {ops:structuredClone(doc.nativeOps||[]),added:doc.entities.filter(r=>r.id.startsWith('new-')).map(r=>({id:r.id,type:r.type,pairs:structuredClone(r.pairs),...(r.deferredCopy?{deferredCopy:structuredClone(r.deferredCopy)}:{})})),project:structuredClone(doc.executiveProject||null)};

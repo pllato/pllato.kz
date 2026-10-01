@@ -1,8 +1,8 @@
-import {cableCurve,nearestCablePoint,bendCable} from './cable-edit.mjs?v=0.17.57';
-import {mountCableNavigator} from './cable-navigator.mjs?v=0.17.57';
-import {mountDrawingPresets} from './drawing-presets.mjs?v=0.17.57';
-import {mountCableValues} from './cable-values.mjs?v=0.17.57';
-import {rotationFrame,rotationDelta,rotatedPoint} from './rotation-handle.mjs?v=0.17.57';
+import {cableCurve,nearestCablePoint,bendCable} from './cable-edit.mjs?v=0.17.58';
+import {mountCableNavigator} from './cable-navigator.mjs?v=0.17.58';
+import {mountDrawingPresets} from './drawing-presets.mjs?v=0.17.58';
+import {mountCableValues} from './cable-values.mjs?v=0.17.58';
+import {rotationFrame,rotationDelta,rotatedPoint} from './rotation-handle.mjs?v=0.17.58';
 export function mountCableWorkbench(api){
  const panel=document.createElement('section');panel.id='cableWorkbench';panel.innerHTML=`<h2>Кабель / объект</h2><p id="cwLength">Выберите кабель или прибор</p><div class="cwActions"><button id="cwDraw">Кабель · 4 точки</button><button id="cwMove">Перетащить</button><button id="cwShape">Изменить форму</button><button id="cwCopy">Копировать выбранное</button><button id="cwPaste">Вставить копию</button><button id="cwDelete">Удалить</button></div><label>Цвет линии<select id="cwColor"><option value="0">Исходный / по слою</option><option value="7">Белый</option><option value="1">Красный</option><option value="2">Жёлтый</option><option value="3">Зелёный</option><option value="4">Голубой</option><option value="5">Синий</option><option value="6">Фиолетовый</option><option value="8">Серый</option></select></label><button id="cwApplyColor">Применить цвет</button><div id="cwCableFields"></div><button id="cwAssign">Сохранить марку и сечение</button><button id="cwLeader">Поставить выноску</button><p id="cwHelp">Кабель учитывается в ведомости и без выноски. Цвет не меняет его марку.</p>`;
  const nav=document.querySelector('nav'),toolbar=document.createElement('div');toolbar.id='drawingToolbar';nav.before(toolbar);toolbar.append(panel,nav);
