@@ -1,4 +1,20 @@
 /* Native linear dimension: keep its definition, private cache and CAD owners. */
+API int pllato_add_dimension(const double *v,int count,const char *text){
+ if(!loaded||!v||count!=33||!text||strlen(text)>100)return 1;
+ for(int i=0;i<count;i++)if(!isfinite(v[i]))return 1;
+ double length=fabs((v[2]-v[0])*cos(v[8])+(v[3]-v[1])*sin(v[8]));if(length<1e-8||v[9]<=0)return 1;
+ char name[80];snprintf(name,sizeof(name),"*DPLL_%llX",(unsigned long long)dwg_next_handle(&drawing));
+ Dwg_Object_BLOCK_HEADER *b=dwg_add_BLOCK_HEADER(&drawing,name);if(!b||!dwg_add_BLOCK(b,name))return 2;b->anonymous=1;
+ int error=0;Dwg_Object *bo=dwg_obj_generic_to_object(b,&error);if(!bo||error)return 2;BITCODE_HV handle=bo->handle.value;
+ for(int i=11;i<31;i+=4){dwg_point_3d a={v[i],v[i+1],0},z={v[i+2],v[i+3],0};Dwg_Entity_LINE *l=dwg_add_LINE(b,&a,&z);if(!l)return 3;l->parent->color.index=0;}
+ dwg_point_3d tp={v[31],v[32],0};Dwg_Entity_TEXT *t=dwg_add_TEXT(b,text,&tp,v[9]);if(!t)return 3;t->rotation=v[10];t->parent->color.index=0;
+ if(!dwg_add_ENDBLK(b))return 3;
+ Dwg_Object *model=dwg_model_space_object(&drawing);if(!model)return 4;
+ dwg_point_3d a={v[0],v[1],0},z={v[2],v[3],0},q={v[4],v[5],0};
+ Dwg_Entity_DIMENSION_LINEAR *d=dwg_add_DIMENSION_LINEAR(model->tio.object->tio.BLOCK_HEADER,&a,&z,&q,v[8]);if(!d)return 4;
+ Dwg_Object *o=dwg_obj_generic_to_object(d,&error);if(!o||error)return 4;
+ d->block=dwg_add_handleref(&drawing,5,handle,o);d->text_midpt.x=v[6];d->text_midpt.y=v[7];d->act_measurement=length;new_entity_style(d->parent);return 0;
+}
 API int pllato_dimension_move(const char *handle,double dx,double dy){
  Dwg_Object *o=entity(handle);if(!o||o->fixedtype!=DWG_TYPE_DIMENSION_LINEAR||!isfinite(dx)||!isfinite(dy))return 1;
  Dwg_Entity_DIMENSION_LINEAR *d=o->tio.entity->tio.DIMENSION_LINEAR;

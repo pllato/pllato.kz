@@ -1,8 +1,10 @@
-import {get,num} from './cad.mjs?v=0.17.59';
-import {deferredAddition} from './deferred-copy.mjs?v=0.17.59';
+import {get,num} from './cad.mjs?v=0.17.60';
+import {deferredAddition} from './deferred-copy.mjs?v=0.17.60';
+import {dimensionAddition} from './dimension-create.mjs?v=0.17.60';
 export const isNew=r=>r?.id?.startsWith('new-');
 export function additions(doc){return doc.entities.filter(isNew).map(r=>{
  if(r.deferredCopy)return deferredAddition(doc,r);
+ if(r.type==='DIMENSION')return dimensionAddition(doc,r);
  const color=num(r,62);const style=color>=1&&color<=255?{color}:{};if(r.pairs.some(p=>p[0]===370))style.lineweight=num(r,370);if(get(r,420)!=='')style.rgb=num(r,420);
  if(r.type==='LINE')return {sourceId:r.id,...style,type:r.type,values:[10,20,11,21].map(c=>num(r,c))};
  if(r.type==='TEXT')return {sourceId:r.id,...style,type:r.type,text:get(r,1),values:[num(r,10),num(r,20),num(r,40),num(r,50)*Math.PI/180]};
@@ -13,7 +15,10 @@ export function writeAdditions(m,items,onCreated=()=>{}){
  if(!Array.isArray(items)||items.length>100000)throw Error('Слишком много новых объектов');
  for(const font of new Set(items.map(i=>i.font).filter(Boolean)))if(!/^[^/\\\x00-\x1f]{1,116}\.(shx|ttf)$/i.test(font)||m.ccall('pllato_prepare_font','number',['string'],[font]))throw Error('Не удалось создать стиль шрифта');
  for(const item of items){let code;
-  if(item.type==='LINE'||item.type==='TEXT'){
+  if(item.type==='DIMENSION'){
+   if(!Array.isArray(item.values)||item.values.length!==33||!item.values.every(Number.isFinite)||item.values[9]<=0||typeof item.text!=='string'||item.text.length>100||item.text.includes('\0'))throw Error('Неверный новый размер');
+   code=m.ccall('pllato_add_dimension','number',['array','number','string'],[new Uint8Array(new Float64Array(item.values).buffer),item.values.length,item.text]);
+  }else if(item.type==='LINE'||item.type==='TEXT'){
    if(!Array.isArray(item.values)||item.values.length!==4||!item.values.every(Number.isFinite))throw Error('Неверные координаты нового объекта');
    if(item.type==='LINE')code=m.ccall('pllato_add_line','number',Array(4).fill('number'),item.values);
    else {if(typeof item.text!=='string'||item.text.length>2000||item.text.includes('\0')||item.values[2]<=0)throw Error('Неверный новый текст');code=m.ccall('pllato_add_text','number',['string',...Array(4).fill('number')],[item.text,...item.values]);}

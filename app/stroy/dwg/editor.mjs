@@ -1,44 +1,46 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {parseDxfAsync,scene,sceneAsync,serializeChunks,cloneDoc,demo,get,num,set,decode,move,addEntity} from './cad.mjs?v=0.17.59';
-import {paintShapes,paintShapeSteps,previewTransform,textHitDistance} from './renderer.mjs?v=0.17.59';
-import {renderTask} from './render-task.mjs?v=0.17.59';
-import {nativeTransferReceiver} from './native-transfer.mjs?v=0.17.59';
-import {reusableScene,mergeReusedScene} from './scene-reuse.mjs?v=0.17.59';
-import {updatedRootScene} from './root-scene.mjs?v=0.17.59';
-import {translatedScene,translatedDeviceScene} from './scene-translation.mjs?v=0.17.59';
-import {captureView,restoreView,releaseObsoleteViews} from './view-history.mjs?v=0.17.59';
-import {socketLabels,clearSocketLabels} from './socket-labels.mjs?v=0.17.59';
-import {paintLength} from './length-overlay.mjs?v=0.17.59';
-import {mountTitleWorkbench} from './title-workbench.mjs?v=0.17.59';
-import {isNote,mountNoteEditor,applyNotePatch} from './note-edit.mjs?v=0.17.59';
-import {dimensionDefinition,planDimensionEdit,planDimensionMove,applyDimensionPlan} from './dimension-edit.mjs?v=0.17.59';
-import {mountDimensionWorkbench} from './dimension-workbench.mjs?v=0.17.59';
-import {sourceCableLengths} from './source-cable-lengths.mjs?v=0.17.59';
-import {repaintDamage} from './damage-preview.mjs?v=0.17.59';
-import {loadCadFont} from './fonts.mjs?v=0.17.59';
-import {shxCatalog} from './shx-catalog.mjs?v=0.17.59';
-import {applyDocumentFont} from './document-font.mjs?v=0.17.59';
-import {clampProgress,warningText} from './progress.mjs?v=0.17.59';
-import {isNew,additions} from './authoring.mjs?v=0.17.59';
-import {mountExecutiveUI} from './executive-ui.mjs?v=0.17.59';
-import {captureRecovery,replayRecovery,recoveryStore} from './recovery.mjs?v=0.17.59';
-import {shapePaths,pathLength,syncLinkedRoutes} from './selection-metrics.mjs?v=0.17.59';
-import {prepareNewCopies} from './new-object-copy.mjs?v=0.17.59';
-import {prepareDeferredCopy,addDeferredCopy} from './deferred-copy.mjs?v=0.17.59';
-import {cableChain} from './cable-chain.mjs?v=0.17.59';
-import {executivePdf,executiveLooseRoots} from './executive-export.mjs?v=0.17.59';
-import {selectionSubset,toggleSelectionPart,canRefinePart} from './selection-subset.mjs?v=0.17.59';
-import {drawingPreset,presetPairs,presetColor,extendDrawingPalette} from './drawing-presets.mjs?v=0.17.59';
-import {deviceInstances,wholeDevice} from './device-selection.mjs?v=0.17.59';
-import {mountExportMenu} from './export-menu.mjs?v=0.17.59';
-import {spatialIndex,viewportShapes,deriveSpatialIndex} from './spatial-index.mjs?v=0.17.59';
-import {RASTER_THRESHOLD,canvasResolution} from './render-policy.mjs?v=0.17.59';
-import {areaDrag} from './area-drag.mjs?v=0.17.59';
-import {boxedObjects,mountBoxSelection} from './box-selection.mjs?v=0.17.59';
+import {parseDxfAsync,scene,sceneAsync,serializeChunks,cloneDoc,demo,get,num,set,decode,move,addEntity} from './cad.mjs?v=0.17.60';
+import {paintShapes,paintShapeSteps,previewTransform,textHitDistance} from './renderer.mjs?v=0.17.60';
+import {renderTask} from './render-task.mjs?v=0.17.60';
+import {nativeTransferReceiver} from './native-transfer.mjs?v=0.17.60';
+import {reusableScene,mergeReusedScene} from './scene-reuse.mjs?v=0.17.60';
+import {updatedRootScene} from './root-scene.mjs?v=0.17.60';
+import {translatedScene,translatedDeviceScene} from './scene-translation.mjs?v=0.17.60';
+import {captureView,restoreView,releaseObsoleteViews} from './view-history.mjs?v=0.17.60';
+import {socketLabels,clearSocketLabels} from './socket-labels.mjs?v=0.17.60';
+import {paintLength} from './length-overlay.mjs?v=0.17.60';
+import {mountTitleWorkbench} from './title-workbench.mjs?v=0.17.60';
+import {isNote,mountNoteEditor,applyNotePatch} from './note-edit.mjs?v=0.17.60';
+import {dimensionDefinition,planDimensionEdit,planDimensionMove,applyDimensionPlan} from './dimension-edit.mjs?v=0.17.60';
+import {mountDimensionWorkbench} from './dimension-workbench.mjs?v=0.17.60';
+import {createOffsetDimension} from './dimension-create.mjs?v=0.17.60';
+import {mountOffsetTool} from './dimension-tool.mjs?v=0.17.60';
+import {sourceCableLengths} from './source-cable-lengths.mjs?v=0.17.60';
+import {repaintDamage} from './damage-preview.mjs?v=0.17.60';
+import {loadCadFont} from './fonts.mjs?v=0.17.60';
+import {shxCatalog} from './shx-catalog.mjs?v=0.17.60';
+import {applyDocumentFont} from './document-font.mjs?v=0.17.60';
+import {clampProgress,warningText} from './progress.mjs?v=0.17.60';
+import {isNew,additions} from './authoring.mjs?v=0.17.60';
+import {mountExecutiveUI} from './executive-ui.mjs?v=0.17.60';
+import {captureRecovery,replayRecovery,recoveryStore} from './recovery.mjs?v=0.17.60';
+import {shapePaths,pathLength,syncLinkedRoutes} from './selection-metrics.mjs?v=0.17.60';
+import {prepareNewCopies} from './new-object-copy.mjs?v=0.17.60';
+import {prepareDeferredCopy,addDeferredCopy} from './deferred-copy.mjs?v=0.17.60';
+import {cableChain} from './cable-chain.mjs?v=0.17.60';
+import {executivePdf,executiveLooseRoots} from './executive-export.mjs?v=0.17.60';
+import {selectionSubset,toggleSelectionPart,canRefinePart} from './selection-subset.mjs?v=0.17.60';
+import {drawingPreset,presetPairs,presetColor,extendDrawingPalette} from './drawing-presets.mjs?v=0.17.60';
+import {deviceInstances,wholeDevice} from './device-selection.mjs?v=0.17.60';
+import {mountExportMenu} from './export-menu.mjs?v=0.17.60';
+import {spatialIndex,viewportShapes,deriveSpatialIndex} from './spatial-index.mjs?v=0.17.60';
+import {RASTER_THRESHOLD,canvasResolution} from './render-policy.mjs?v=0.17.60';
+import {areaDrag} from './area-drag.mjs?v=0.17.60';
+import {boxedObjects,mountBoxSelection} from './box-selection.mjs?v=0.17.60';
 let boxSelection;
 let executiveUI;
 let titleWorkbench;
-let dimensionWorkbench;
+let dimensionWorkbench,offsetTool;
 let pendingDimensionLink=null;
 let rejectWorker=null;
 const $=id=>document.getElementById(id),canvas=$('canvas'),ctx=canvas.getContext('2d');
@@ -58,14 +60,14 @@ function refreshSourceLengths(){
  setTimeout(batch,0);
 }
 const renderSelection=()=>pickedDevice?.id===selected?new Set(selectedShapes().map(s=>s.entityKey)):selectedChain?.anchor===selected?selectedChain.keys:selectedShapeKey?.includes('|'+selected+'|')?selectedShapeKey:selected;
-import {aciColors as colors} from './colors.mjs?v=0.17.59';
-import {mountCableWorkbench} from './cable-workbench.mjs?v=0.17.59';
-import {mountLeaderWorkbench} from './leader-workbench.mjs?v=0.17.59';
-import {editObjects} from './object-edit.mjs?v=0.17.59';
-import {cableCurve,joinCablePaths} from './cable-edit.mjs?v=0.17.59';
-import {addRoute} from './executive-project.mjs?v=0.17.59';
-import {splineControls,setSplineControl,movableSpline,previewSpline} from './control-edit.mjs?v=0.17.59';
-import {entityControls,setEntityVertex,previewEntity} from './control-edit.mjs?v=0.17.59';
+import {aciColors as colors} from './colors.mjs?v=0.17.60';
+import {mountCableWorkbench} from './cable-workbench.mjs?v=0.17.60';
+import {mountLeaderWorkbench} from './leader-workbench.mjs?v=0.17.60';
+import {editObjects} from './object-edit.mjs?v=0.17.60';
+import {cableCurve,joinCablePaths} from './cable-edit.mjs?v=0.17.60';
+import {addRoute} from './executive-project.mjs?v=0.17.60';
+import {splineControls,setSplineControl,movableSpline,previewSpline} from './control-edit.mjs?v=0.17.60';
+import {entityControls,setEntityVertex,previewEntity} from './control-edit.mjs?v=0.17.60';
 let cableWorkbench,leaderWorkbench;
 const areaSelection=areaDrag({enabled:()=>tool==='executive'&&executiveUI?.preview().mode==='area'&&$('busy').hidden,start:p=>executiveUI.startArea(world(p)),move:p=>executiveUI.hover(world(p)),cancel:()=>executiveUI?.clearArea(),finish:(a,b)=>{try{executiveUI.finishArea(world(a),world(b));}catch(e){status(e.message);}}});
 const status=s=>{$('status').textContent=s;if(!$('busy').hidden)$('busy').querySelector('strong').textContent=s;};
@@ -212,6 +214,7 @@ function paint(){if(document.hidden||!$('busy').hidden){rasterTask.stop();return
  leaderWorkbench?.paint(ctx);
  boxSelection?.paint(ctx);
  dimensionWorkbench?.paint(ctx);
+ offsetTool?.paint(ctx);
  if($('showCableLengths')?.checked){
   refreshSourceLengths();
   const units=$('units').value,factor=units==='m'?1:Number(units);
@@ -231,13 +234,13 @@ function selectedDimensionInfo(){
 function changeDimension(values){
  if(!selectedDimensionInfo())throw Error('Выберите независимый линейный размер');
  const r=current(),plan=planDimensionEdit(doc,r,values);snapshot(plan.patches.map(p=>p.record));applyDimensionPlan(plan);
- if(doc.native)doc.nativeOps.push({handle:get(r,5),dimension:values});
+ if(doc.native&&!isNew(r))doc.nativeOps.push({handle:get(r,5),dimension:values});
  changed('geometry',updatedRootScene(doc,drawing,[{id:r.id}]));status('Размер изменён. Сохраните новую копию DWG.');
 }
 dimensionWorkbench=mountDimensionWorkbench({info:selectedDimensionInfo,apply:changeDimension,world,screen,draw,status,
  hit:p=>selectedShapes().some(s=>{if(s.text!==null)return textHitDistance(ctx,s,p,view)<10;const points=s.pts.map(screen);return points.some((b,i)=>i&&distance(p,points[i-1],b)<10);}),
  preview:(context,delta)=>{const shapes=selectedShapes();paintShapes(context,shapes,{view:{...view,x:view.x+delta[0]*view.s,y:view.y-delta[1]*view.s},width,height,hidden,selected:new Set(shapes.map(s=>s.entityKey)),colors});},
- translate:delta=>{const info=selectedDimensionInfo();if(!info)throw Error('Выберите независимый размер');const [a,b,c,d]=info.matrix,det=a*d-b*c;if(Math.abs(det)<1e-12)throw Error('Некорректный масштаб размера');const shift=[(d*delta[0]-c*delta[1])/det,(-b*delta[0]+a*delta[1])/det],r=current(),plan=planDimensionMove(doc,r,shift);snapshot(plan.patches.map(p=>p.record));applyDimensionPlan(plan);if(doc.native)doc.nativeOps.push({handle:get(r,5),dimensionMove:shift});changed('geometry',updatedRootScene(doc,drawing,[{id:r.id}]));status('Размер перенесён целиком, значение сохранено.');},
+ translate:delta=>{const info=selectedDimensionInfo();if(!info)throw Error('Выберите независимый размер');const [a,b,c,d]=info.matrix,det=a*d-b*c;if(Math.abs(det)<1e-12)throw Error('Некорректный масштаб размера');const shift=[(d*delta[0]-c*delta[1])/det,(-b*delta[0]+a*delta[1])/det],r=current(),plan=planDimensionMove(doc,r,shift);snapshot(plan.patches.map(p=>p.record));applyDimensionPlan(plan);if(doc.native&&!isNew(r))doc.nativeOps.push({handle:get(r,5),dimensionMove:shift});changed('geometry',updatedRootScene(doc,drawing,[{id:r.id}]));status('Размер перенесён целиком, значение сохранено.');},
  bind:()=>{const info=selectedDimensionInfo(),shape=selectedShapes()[0],sheet=doc.executiveProject?.sheets.find(s=>s.nativeHandles.includes(shape?.id.replace('dwg-','')));if(!info||!sheet)throw Error('Выберите размер внутри исполнительной');if(current().dimensionEndLocked)throw Error('Этот размер уже связан средствами AutoCAD');planDimensionEdit(doc,current(),{length:info.definition.length,offset:info.definition.offset});pendingDimensionLink={dimension:get(current(),5),sheetId:sheet.id,owner:get(current(),330)};status('Теперь выберите розетку: размер будет следовать за её перемещением.');}});
 boxSelection=mountBoxSelection({enabled:()=>tool==='box'&&$('busy').hidden,world,screen,draw,status,
  select:box=>{if(deviceCache?.drawing!==drawing)deviceCache={drawing,instances:deviceInstances(doc)};return boxedObjects(drawing.shapes,box,s=>wholeDevice(s,deviceCache.instances)?{id:s.deviceId,matrix:s.deviceMatrix}:{id:s.entityId||s.id,matrix:s.entityMatrix},hidden);},
@@ -301,7 +304,7 @@ function pick(p){
  if(tool==='object'&&noteEditable(current()))editNote(current());
 }
 function setTool(t){pendingDimensionLink=null;boxSelection?.reset();areaSelection.reset();dimensionWorkbench?.cancel();titleWorkbench?.cancel();pickedDevice=null;leaderWorkbench?.cancel();cableWorkbench?.cancel();if(t==='select')t='object';selectedChain=null;draftHover=null;tool=t;draft=null;polyPoints=[];selected=null;selectedMatrix=null;selectedShapeKey=null;sharedSelectedId=null;properties();const areaMode=t==='executive'&&executiveUI?.preview().mode==='area';canvas.style.cursor=areaMode||t==='box'?'crosshair':t==='pan'?'grab':'';$('exCreateIcon')?.setAttribute('aria-pressed',String(areaMode));document.querySelectorAll('[data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===t)));$('cwDraw')?.setAttribute('aria-pressed',String(t==='curve4'||t==='executive'&&executiveUI?.preview().mode==='route3'));$('hint').textContent=({box:'Обведите объекты рамкой целиком. Затем потяните внутри выделенной рамки: переместятся объекты, а не вид. Escape — снять выбор.',object:'Нажмите на провод: выбирается вся связанная линия с поворотами, до разветвления. Приборы и другие объекты выбираются целиком.',select:'Нажмите на отдельный объект исполнительной. Перемещение — в свойствах; перетаскивание двигает вид.',pan:'Перетаскивайте чертёж. Масштаб — колесом или двумя пальцами.',executive:'Указывайте точки на чертеже. Настройки и завершение — в панели исполнительных. Escape — отменить.',device:'Нажмите на любой штрих прибора: выбирается весь блок.', curve4:'Плавная линия: начало → два изгиба → конец. Escape — отменить.', poly3:'Укажите четыре точки полилинии. Escape — отменить.',line:'Укажите начало и конец линии. Escape — отменить.',text:'Нажмите в точке вставки текста.',measure:'Укажите две точки. Единицы выбираются в панели справа.'})[t]||'Выберите инструмент.';if(areaMode)$('hint').textContent='Зажмите мышь, обведите план рамкой и отпустите. Escape — отмена.';draw();}
-function tap(p){const w=world(p);if(!$('busy').hidden)return;if(tool==='executive'){try{executiveUI.tap(w);}catch(e){status(e.message);}return;}if(tool==='select'||tool==='device'||tool==='object'){pick(p);return;}if(tool==='pan')return;
+function tap(p){const w=world(p);if(!$('busy').hidden)return;if(offsetTool?.tap(w))return;if(tool==='executive'){try{executiveUI.tap(w);}catch(e){status(e.message);}return;}if(tool==='select'||tool==='device'||tool==='object'){pick(p);return;}if(tool==='pan')return;
  if(['poly3','curve4'].includes(tool)){
   polyPoints.push(w);draft=w;draw();
   if(polyPoints.length<4){status('Полилиния: точка '+polyPoints.length+' из 4');return;}
@@ -328,6 +331,9 @@ canvas.addEventListener('pointercancel',()=>boxSelection.reset(),{capture:true})
 canvas.addEventListener('lostpointercapture',()=>{if(boxSelection.active())boxSelection.reset();});
 canvas.addEventListener('wheel',e=>{if(boxSelection.active()){e.preventDefault();e.stopImmediatePropagation();}},{capture:true,passive:false});
 document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
+offsetTool=mountOffsetTool({active:()=>tool==='offset',activate:()=>setTool('offset'),screen,draw,status,height:()=>18/view.s,
+ create:(a,b,p,axis,height)=>{snapshot();const r=createOffsetDimension(doc,a,b,p,axis,height);setTool('object');selected=r.id;selectedMatrix=[1,0,0,1,0,0];addedEntity(r);status('Отступ создан. Укажите точное расстояние в панели или перетащите размер.');}});
+canvas.addEventListener('pointermove',e=>offsetTool?.hover(world(local(e))));
 $('fit').onclick=fit;$('plus').onclick=()=>zoom(1.3);$('minus').onclick=()=>zoom(1/1.3);$('panel').onclick=()=>$('sidebar').classList.toggle('open');$('undo').onclick=()=>undo();$('redo').onclick=()=>undo(true);
 $('grid').onclick=()=>{$('grid').setAttribute('aria-pressed',String($('grid').getAttribute('aria-pressed')!=='true'));draw();};
 $('props').onsubmit=e=>{e.preventDefault();if(!$('busy').hidden)return;const r=current();if(!r||!editable(r))return;if(r.type==='INSERT'){try{applyObjectEdit({delta:[Number($('dx').value),Number($('dy').value)]});status('Прибор и связанные размеры перемещены');}catch(e){status(e.message);}return;}let dx=Number($('dx').value),dy=Number($('dy').value);if(selectedMatrix){const [a,b,c,d]=selectedMatrix,det=a*d-b*c;if(Math.abs(det)<1e-12)return status('Невозможно преобразовать координаты прибора');[dx,dy]=[(d*dx-c*dy)/det,(-b*dx+a*dy)/det];}if(!Number.isFinite(dx)||!Number.isFinite(dy))return status('Введите числовой сдвиг.');const op={handle:get(r,5),dx,dy};if(r.type==='TEXT'&&$('text').value!==decode(get(r,1)))op.text=$('text').value;snapshot();try{move(r,dx,dy);if(r.type==='INSERT')for(const a of doc.records.filter(a=>a.type==='ATTRIB'&&get(a,330)===get(r,5)))move(a,dx,dy);if(op.text!==undefined)set(r,1,op.text);if(doc.native&&!isNew(r))doc.nativeOps.push(op);changed();status('Изменения внесены. Скачайте копию '+(doc.native?'DWG':'DXF')+' для сохранения.');}catch(e){undo();status(e.message);}};
@@ -342,7 +348,7 @@ async function openFile(file,restore=null){if(!restore&&dirty&&!confirm('Ест�
  try{const bytes=await file.arrayBuffer();if(token!==loadId)return;let text,warnings=[],next;$('save').disabled=true;
  if(/\.dwg$/i.test(file.name)){
   if(!/^AC10\d\d/.test(new TextDecoder().decode(bytes.slice(0,6))))throw Error('Это не распознанный DWG.');
-  const converted=await new Promise((resolve,reject)=>{rejectWorker=reject;worker=new Worker(new URL('./native-reader.mjs?v=0.17.59',import.meta.url),{type:'module'});const receive=nativeTransferReceiver(worker,progress);worker.onmessage=e=>{if(token!==loadId)return;try{if(e.data.progress)progress(e.data.progress,e.data.percent);else if(e.data.error)reject(Error(e.data.error));else{const result=receive(e.data);if(result)resolve(result);}}catch(error){reject(error);}};worker.onerror=()=>reject(Error('Не удалось запустить DWG-движок. Возможно, недостаточно памяти. Попробуйте меньший файл на компьютере.'));loadTimer=setTimeout(()=>reject(Error('Чтение заняло больше 5 минут. Попробуйте отдельный лист.')),300000);worker.postMessage({buffer:bytes,compact:true},[bytes]);});
+  const converted=await new Promise((resolve,reject)=>{rejectWorker=reject;worker=new Worker(new URL('./native-reader.mjs?v=0.17.60',import.meta.url),{type:'module'});const receive=nativeTransferReceiver(worker,progress);worker.onmessage=e=>{if(token!==loadId)return;try{if(e.data.progress)progress(e.data.progress,e.data.percent);else if(e.data.error)reject(Error(e.data.error));else{const result=receive(e.data);if(result)resolve(result);}}catch(error){reject(error);}};worker.onerror=()=>reject(Error('Не удалось запустить DWG-движок. Возможно, недостаточно памяти. Попробуйте меньший файл на компьютере.'));loadTimer=setTimeout(()=>reject(Error('Чтение заняло больше 5 минут. Попробуйте отдельный лист.')),300000);worker.postMessage({buffer:bytes,compact:true},[bytes]);});
   if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
   warnings=converted.messages;next=converted.doc;
  }else{try{text=new TextDecoder('utf-8',{fatal:true}).decode(bytes);}catch{text=new TextDecoder('windows-1251').decode(bytes);}}
@@ -358,7 +364,7 @@ $('file').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)openFile
 $('demo').onclick=()=>{if(!dirty||confirm('Заменить несохранённый чертёж демо?')){stopLoad();adopt(demo(),'demo');status('Демонстрационный чертёж.');}};
 $('save').onclick=()=>{$('exportReport').textContent=$('report').textContent;$('exportDialog').querySelector('h2').textContent='Сохранить копию в '+(doc.native?'DWG':'DXF')+'?';$('exportDescription').textContent=doc.native?'Записывается новая копия исходного DWG с изменениями. Проверка движком не заменяет проверку в AutoCAD. Новые линии, тексты и полилинии записываются в DWG. В исполнительных сохраняются оформление, трассы, выноски и поддерживаемые удаления. Исходный файл на диске не изменяется.':'Скачивается изменённый DXF. Проверьте результат в AutoCAD.';$('confirmExport').textContent='Скачать '+(doc.native?'DWG':'DXF');$('exportDialog').showModal();};
 function download(blob,extension){progress('Готово',100);const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name+'-edited.'+extension;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);dirty=false;$('filename').textContent=name;status(extension.toUpperCase()+' подготовлен к скачиванию. Проверьте копию в AutoCAD.');}
-$('confirmExport').onclick=async()=>{if(doc.executiveProject?.sheets.length){await commitExecutive(doc.executiveProject,null,true);return;}if(!doc.native){download(new Blob([...serializeChunks(doc)],{type:'application/dxf'}),'dxf');return;}if(!sourceFile)return status('Нет исходного DWG для сохранения.');stopLoad();const token=loadId,ops=doc.nativeOps.map(o=>({...o}));$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Готовлю сохранение DWG…');try{const buffer=await sourceFile.arrayBuffer();if(token!==loadId)return;const saved=await new Promise((resolve,reject)=>{rejectWorker=reject;worker=new Worker(new URL('./native-writer.mjs?v=0.17.59',import.meta.url),{type:'module'});worker.onmessage=e=>e.data.progress?progress(e.data.progress,e.data.percent):e.data.error?reject(Error(e.data.error)):resolve(e.data);worker.onerror=()=>reject(Error('Не удалось записать DWG. Возможно, недостаточно памяти.'));loadTimer=setTimeout(()=>reject(Error('Запись заняла больше 5 минут.')),300000);worker.postMessage({buffer,ops,added:additions(doc)},[buffer]);});if(token!==loadId)return;download(new Blob([saved.buffer],{type:'application/acad'}),'dwg');}catch(e){if(token===loadId)status(e.message);}finally{if(token===loadId)stopLoad();}};
+$('confirmExport').onclick=async()=>{if(doc.executiveProject?.sheets.length){await commitExecutive(doc.executiveProject,null,true);return;}if(!doc.native){download(new Blob([...serializeChunks(doc)],{type:'application/dxf'}),'dxf');return;}if(!sourceFile)return status('Нет исходного DWG для сохранения.');stopLoad();const token=loadId,ops=doc.nativeOps.map(o=>({...o}));$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Готовлю сохранение DWG…');try{const buffer=await sourceFile.arrayBuffer();if(token!==loadId)return;const saved=await new Promise((resolve,reject)=>{rejectWorker=reject;worker=new Worker(new URL('./native-writer.mjs?v=0.17.60',import.meta.url),{type:'module'});worker.onmessage=e=>e.data.progress?progress(e.data.progress,e.data.percent):e.data.error?reject(Error(e.data.error)):resolve(e.data);worker.onerror=()=>reject(Error('Не удалось записать DWG. Возможно, недостаточно памяти.'));loadTimer=setTimeout(()=>reject(Error('Запись заняла больше 5 минут.')),300000);worker.postMessage({buffer,ops,added:additions(doc)},[buffer]);});if(token!==loadId)return;download(new Blob([saved.buffer],{type:'application/acad'}),'dwg');}catch(e){if(token===loadId)status(e.message);}finally{if(token===loadId)stopLoad();}};
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;if(e.key==='Escape'){dimensionWorkbench?.cancel();cableWorkbench?.cancel();executiveUI?.cancel();draft=null;setTool('select');}if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo(e.shiftKey);}});
 new ResizeObserver(()=>{const r=canvas.parentElement.getBoundingClientRect(),initial=width===1;const [w,h]=canvasResolution(r.width,r.height,devicePixelRatio,matchMedia('(pointer:coarse)').matches);if(!initial&&width===r.width&&height===r.height&&canvas.width===w&&canvas.height===h)return;width=r.width;height=r.height;canvas.width=w;canvas.height=h;ctx.setTransform(w/Math.max(1,width),0,0,h/Math.max(1,height),0,0);initial?fit():draw();}).observe(canvas.parentElement);
@@ -383,10 +389,10 @@ async function commitExecutive(project,cloneRequest=null,exportFile=false,copyRe
   const keep=new Set([...project.sheets.flatMap(s=>s.nativeHandles),...(project.generatedHandles||[]),...[...loose.keys()].filter(id=>id.startsWith('dwg-')).map(id=>id.slice(4))]);
   const keepRoots=[...keep].filter(h=>!project.generatedHandles?.includes(h));
   const routeSources=new Set(project.sheets.flatMap(s=>s.routes.flatMap(r=>r.sourceIds||[])));
-  const saved=await run('./executive-worker.mjs?v=0.17.59',{buffer,ops:doc.nativeOps,added:additions(doc).filter(item=>!exportOnly||routeSources.has(item.sourceId)||loose.has(item.sourceId)||(item.type==='COPY'&&keep.has(item.parent))),project,cloneRequest,copyRequest,exportOnly,keepRoots},[buffer]);
+  const saved=await run('./executive-worker.mjs?v=0.17.60',{buffer,ops:doc.nativeOps,added:additions(doc).filter(item=>!exportOnly||routeSources.has(item.sourceId)||loose.has(item.sourceId)||(item.type==='COPY'&&keep.has(item.parent))),project,cloneRequest,copyRequest,exportOnly,keepRoots},[buffer]);
   if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
   const file=new File([saved.buffer],previousName+'.dwg',{type:'application/acad'}),readBuffer=saved.buffer;
-  const read=await run('./native-reader.mjs?v=0.17.59',{buffer:readBuffer,compact:true},[readBuffer]);
+  const read=await run('./native-reader.mjs?v=0.17.60',{buffer:readBuffer,compact:true},[readBuffer]);
   if(exportOnly){if(token!==loadId)return;const allowed=new Set(keepRoots.concat(saved.project.generatedHandles,saved.addedHandles||[],saved.supportRoots||[])),actual=new Set(saved.exportRootHandles),removed=new Set(doc.nativeOps.filter(o=>o.remove).map(o=>o.handle));if([...actual].some(h=>!allowed.has(h))||[...allowed].some(h=>!removed.has(h)&&!actual.has(h))||read.doc.executiveProject?.sheets.length!==project.sheets.length)throw Error('Проверка отдельного DWG не пройдена: состав объектов не совпал.');downloadExecutives(file,'dwg');status('DWG только исполнительных скачан. Рабочий чертёж не изменён. Проверьте копию в CAD.');return true;}
   if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
   const reuse=cloneRequest?reusableScene(doc,read.doc,drawing):null;
@@ -513,4 +519,4 @@ document.querySelector('[data-tool="line"]').onclick=()=>{if(executiveUI.sheet()
 document.querySelector('[data-tool="poly3"]').onclick=()=>{if(executiveUI.sheet())executiveUI.beginCable('broken');else setTool('poly3');};
 for(const [button,label,path]of [[cableDrawButton,'Плавный кабель · 4 точки','M3 19Q7 1 21 5'],[document.querySelector('[data-tool="line"]'),'Прямая · 2 точки','M3 19L21 5'],[document.querySelector('[data-tool="poly3"]'),'Полилиния · 4 точки','M3 19L10 5L21 13']]){button.title=label;button.setAttribute('aria-label',label);button.classList.add('drawingIcon');button.innerHTML=`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="${path}"/><circle cx="3" cy="19" r="2"/></svg>`;}
 window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)||!$('busy').hidden)return;if((e.ctrlKey||e.metaKey)&&['c','v'].includes(e.key.toLowerCase())){e.preventDefault();$(e.key.toLowerCase()==='c'?'cwCopy':'cwPaste').click();}else if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();if(leaderWorkbench?.active())leaderWorkbench.remove();else $('cwDelete').click();}});
-import('./workspace.mjs?v=0.17.59');
+import('./workspace.mjs?v=0.17.60');

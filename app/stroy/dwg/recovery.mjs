@@ -1,11 +1,12 @@
-import {get,move,set,addEntity} from './cad.mjs?v=0.17.59';
-import {installDeferredBlocks} from './deferred-copy.mjs?v=0.17.59';
-import {setSplineControl,setEntityVertex} from './control-edit.mjs?v=0.17.59';
-import {planDimensionEdit,planDimensionMove,applyDimensionPlan} from './dimension-edit.mjs?v=0.17.59';
-import {applyNotePatch} from './note-edit.mjs?v=0.17.59';
+import {get,move,set,addEntity} from './cad.mjs?v=0.17.60';
+import {installDeferredBlocks} from './deferred-copy.mjs?v=0.17.60';
+import {setSplineControl,setEntityVertex} from './control-edit.mjs?v=0.17.60';
+import {planDimensionEdit,planDimensionMove,applyDimensionPlan} from './dimension-edit.mjs?v=0.17.60';
+import {applyNotePatch} from './note-edit.mjs?v=0.17.60';
+import {installDimensionBlock} from './dimension-create.mjs?v=0.17.60';
 export function captureRecovery(doc){
  if(!doc.native)throw Error('Ожидается DWG');
- return {ops:structuredClone(doc.nativeOps||[]),added:doc.entities.filter(r=>r.id.startsWith('new-')).map(r=>({id:r.id,type:r.type,pairs:structuredClone(r.pairs),...(r.deferredCopy?{deferredCopy:structuredClone(r.deferredCopy)}:{})})),project:structuredClone(doc.executiveProject||null)};
+ return {ops:structuredClone(doc.nativeOps||[]),added:doc.entities.filter(r=>r.id.startsWith('new-')).map(r=>({id:r.id,type:r.type,pairs:structuredClone(r.pairs),...(r.type==='DIMENSION'?{dimensionBlock:structuredClone(doc.blocks.get(get(r,2)).records)}:{}),...(r.deferredCopy?{deferredCopy:structuredClone(r.deferredCopy)}:{})})),project:structuredClone(doc.executiveProject||null)};
 }
 export function replayRecovery(doc,state){
  const byHandle=new Map(doc.records.map(r=>[get(r,5),r])),removed=new Set();
@@ -23,7 +24,7 @@ export function replayRecovery(doc,state){
   if(op.color!==undefined){r.pairs=r.pairs.filter(p=>p[0]!==420);set(r,62,op.color);}
  }
  doc.records=doc.records.filter(r=>!removed.has(r));doc.entities=doc.entities.filter(r=>!removed.has(r));for(const b of doc.blocks.values())b.records=b.records.filter(r=>!removed.has(r));
- for(const r of state.added){const added=addEntity(doc,r.type,r.pairs);if(r.id)added.id=r.id;if(r.deferredCopy){added.deferredCopy=structuredClone(r.deferredCopy);installDeferredBlocks(doc,added.deferredCopy);}}
+ for(const r of state.added){const added=addEntity(doc,r.type,r.pairs);if(r.id)added.id=r.id;if(r.dimensionBlock)installDimensionBlock(doc,added,structuredClone(r.dimensionBlock));if(r.deferredCopy){added.deferredCopy=structuredClone(r.deferredCopy);installDeferredBlocks(doc,added.deferredCopy);}}
  doc.nativeOps=structuredClone(state.ops);doc.executiveProject=structuredClone(state.project);return doc;
 }
 export function recoveryStore(){
