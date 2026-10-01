@@ -151,3 +151,32 @@ test('копируемый транскрипт сохраняет речь бе
   assert.equal(transcriptText('WEBVTT\n\n1\n00:00:00.000 --> 00:00:01.000\nПлатон: Привет &amp; пока\n\n2\n00:00:01.000 --> 00:00:02.000\nДа'), 'Платон: Привет & пока\n\nДа');
   assert.equal(transcriptText('Обычный текст'), 'Обычный текст');
 });
+
+test('код организатора шифруется и выдаётся только редактору связанной сделки',async()=>{
+ const f=fixture();await f.connect();
+ f.db.prepare("INSERT INTO deals(id) VALUES('deal_staff')").run();
+ f.db.prepare("INSERT INTO zoom_meetings(task_id,meeting_id,deal_id,status,created_at) VALUES('tstaff','789','deal_staff','ready','2026-10-01')").run();
+ assert.equal((await f.request('/host-key','POST',{hostKey:'012345'})).status,200);
+ assert.ok(!f.db.prepare("SELECT v FROM zoom_private WHERE k='host_key'").get().v.includes('012345'));
+ const original=globalThis.fetch;let patches=0;
+ globalThis.fetch=async(url,options)=>{if(options.method==='PATCH'){patches++;assert.deepEqual(JSON.parse(options.body).settings,{waiting_room:false,join_before_host:true,jbh_time:0,auto_recording:'cloud'});return new Response(null,{status:204});}return Response.json({status:'waiting',settings:{waiting_room:false,join_before_host:true}});};
+ try {
+  const response=await f.request('/meetings/789/host-access','POST');assert.equal(response.status,200);assert.equal(response.headers.get('Cache-Control'),'private, no-store');assert.equal((await response.json()).hostKey,'012345');assert.equal(patches,1);
+  f.deps.resolveCanonicalUser=async()=>({role:'agent'});f.deps.canEditRecord=async()=>false;
+  assert.equal((await f.request('/meetings/789/host-access','POST')).status,403);assert.equal(patches,1);
+  assert.equal((await f.request('/host-key','POST',{hostKey:'654321'})).status,403);
+ }finally{globalThis.fetch=original;}
+});
+test('обновление входа не меняет уже идущую конференцию',async()=>{
+ const f=fixture();await f.connect();
+ f.db.prepare("INSERT INTO tasks(id) VALUES('live_task')").run();
+ f.db.prepare("INSERT INTO zoom_meetings(task_id,meeting_id,status,created_at) VALUES('live_task','789','ready','2026-10-01')").run();
+ await f.request('/host-key','POST',{hostKey:'012345'});
+ const original=globalThis.fetch;
+ globalThis.fetch=async(url,options)=>{assert.equal(options.method,'GET');return Response.json({status:'started'});};
+ try{assert.equal((await f.request('/meetings/789/host-access','POST')).status,200);}finally{globalThis.fetch=original;}
+});
+test('приглашение клиенту не содержит код организатора',async()=>{
+ const {zoomInvitation}=await import('../app/zoom-crm.js');
+ assert.ok(!zoomInvitation({topic:'test',join_url:'https://zoom.us/j/123',hostKey:'012345'}).includes('012345'));
+});
