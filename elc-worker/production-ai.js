@@ -66,7 +66,18 @@ export async function requestProductionBlueprint(env, config, prompt, schema, fe
   // Do not surface raw upstream errors: they may contain request/credential data.
   const label = anthropic ? 'Claude' : 'OpenAI';
   if (!response.ok) {
-    const hint = { 401: 'проверьте API-ключ', 403: 'нет доступа к модели', 429: 'лимит запросов или квота', 400: 'проверьте модель, баланс и параметры запроса' }[response.status] || 'ошибка провайдера';
+    let hint = { 401: 'проверьте API-ключ', 403: 'нет доступа к модели', 429: 'лимит запросов или квота', 400: 'проверьте модель, баланс и параметры запроса' }[response.status] || 'ошибка провайдера';
+    if (anthropic && response.status === 400) {
+      // Classify upstream validation errors, but never echo their contents.
+      const failure = await response.json().catch(() => ({}));
+      const message = String(failure.error?.message || '').toLowerCase();
+      if (/credit balance|insufficient.*credit|billing/.test(message)) hint = 'недостаточно API-кредитов';
+      else if (/stream/.test(message)) hint = 'для этого запроса требуется потоковый ответ';
+      else if (/schema|output_config|structured/.test(message)) hint = 'провайдер отклонил схему структурированного ответа';
+      else if (/max_tokens|token.*limit|too many tokens/.test(message)) hint = 'превышен допустимый размер запроса или ответа';
+      else if (/model/.test(message)) hint = 'модель недоступна или не поддерживает параметры запроса';
+      else if (/verif|organization/.test(message)) hint = 'требуется проверка организации в Claude Console';
+    }
     throw new Error(`${label} API: HTTP ${response.status} — ${hint}`);
   }
   const data = await response.json();

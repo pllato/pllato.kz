@@ -32,6 +32,15 @@ assert.equal(result.generation.requestId,'msg_test');
 assert.equal(calls,1);
 await assert.rejects(()=>requestProductionBlueprint({},config,'',schema,()=>{throw Error('must not call');}),/ANTHROPIC_API_KEY/);
 await assert.rejects(()=>requestProductionBlueprint(env,config,'',schema,async()=>Response.json({error:{message:'secret body'}},{status:401})),e=>/401/.test(e.message)&&!e.message.includes('secret body'));
+for (const [message, hint] of [
+ ['Streaming is required for this request: private prompt', 'потоковый'],
+ ['Your credit balance is too low: private account', 'API-кредитов'],
+ ['Invalid output_config schema: private data', 'схему'],
+ ['Unrecognized model: private model', 'модель недоступна'],
+ ['Unknown error with private data', 'параметры запроса'],
+]) {
+ await assert.rejects(()=>requestProductionBlueprint(env,config,'',schema,async()=>Response.json({error:{message}},{status:400})),e=>e.message.includes(hint)&&!e.message.includes('private'));
+}
 await assert.rejects(()=>requestProductionBlueprint(env,config,'',schema,async()=>Response.json({stop_reason:'max_tokens',content:[]})),/лимит длины/);
 await assert.rejects(()=>requestProductionBlueprint(env,config,'',schema,async()=>Response.json({stop_reason:'refusal',content:[]})),/не завершён/);
 const openai=await requestProductionBlueprint(env,{provider:'openai',model:'gpt-6-sol'},'test',schema,async(url,options)=>{
