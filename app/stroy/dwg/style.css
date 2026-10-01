@@ -72,3 +72,15 @@ footer #autosaveStatus{flex:0 1 280px;min-width:0;margin:0;padding:0;background:
 #cwQuickValues{position:absolute;z-index:4;width:30px;height:30px;min-height:30px;padding:4px;background:#142437ed;border-color:#bba080}
 #cwQuickValuesPanel{position:absolute;z-index:8;width:240px;max-width:calc(100% - 16px);padding:10px;box-sizing:border-box;border:1px solid #8295a6;border-radius:5px;background:#142437;box-shadow:0 4px 15px #0005}
 #cwQuickValuesPanel label{display:block;margin-bottom:7px;font-size:13px}#cwQuickValuesPanel select{display:block;width:100%;margin-top:4px;padding:6px}#cwQuickValuesPanel small{display:block;font-size:11px;color:#b8cad8}#cwQuickValues[hidden],#cwQuickValuesPanel[hidden]{display:none}
+/* The generic dialog form is a horizontal confirmation row, not a field editor. */
+#stampDialog{width:760px;max-width:calc(100vw - 24px);max-height:calc(100dvh - 32px);padding:0;overflow:hidden}
+#stampDialog form{display:flex;flex-direction:column;gap:0;margin:0;padding:20px;min-width:0;max-height:calc(100dvh - 34px)}
+#stampDialog h2{font-size:20px;line-height:1.3;margin:0 0 18px;flex-shrink:0}
+#stampDialog .stampFields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px;overflow:auto;min-height:0;padding:2px;overscroll-behavior:contain}
+#stampDialog label{min-width:0;line-height:1.4}
+#stampDialog input{min-width:0;max-width:100%;min-height:44px;margin:6px 0 0}
+#stampDialog input[type=date]{margin-top:6px}
+#stampDialog [role=alert]:empty{display:none}
+#stampDialog .stampActions{display:flex;flex-shrink:0;justify-content:flex-end;gap:10px;margin:18px -20px -20px;padding:12px 20px;background:#142437;border-top:1px solid #526274}
+#stampDialog .stampActions button{min-height:44px;flex:0 0 auto}
+@media(max-width:540px){#stampDialog .stampFields{grid-template-columns:minmax(0,1fr)}#stampDialog form{padding:16px}#stampDialog .stampActions{bottom:-16px;margin:16px -16px -16px;padding:12px 16px}#stampDialog .stampActions button{flex:1}}
