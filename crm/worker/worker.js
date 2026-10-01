@@ -2652,8 +2652,14 @@ async function handleProjectFinanceChartDetails(env, actor, url) {
   if (!access.total && access.managers === "none") {
     throw new HttpError(403, "Нет доступа к этому графику");
   }
+  const personal = url.searchParams.has("manager");
+  const manager = String(url.searchParams.get("manager") || "").trim().toLowerCase();
+  if (personal && access.managers !== "all" && !(access.managers === "own" && manager === String(actor.email || "").toLowerCase())) {
+    throw new HttpError(403, "Нет доступа к статистике этого менеджера");
+  }
   const items = [];
   for (const [projectId, item] of Object.entries(finance.money || {})) {
+    if (personal && (item.managerEmail || "") !== manager) continue;
     if (!access.total && access.managers !== "all" && item.managerEmail !== String(actor.email || "").toLowerCase()) continue;
     if (kind === "orders") {
       const firstPayment = (item.pays || [])
@@ -2707,7 +2713,7 @@ async function handleProjectFinanceChartDetails(env, actor, url) {
   const weekKey = isWeeklyPoint
     ? new Date(end + 5 * 60 * 60 * 1000).toISOString().slice(0, 10)
     : "";
-  const override = access.total && weekKey ? finance.chartOverrides?.[weekKey]?.[kind] : undefined;
+  const override = !personal && access.total && weekKey ? finance.chartOverrides?.[weekKey]?.[kind] : undefined;
   const chartValue = Number.isFinite(Number(override)) ? Number(override) : actualValue;
   return {
     ok: true,
