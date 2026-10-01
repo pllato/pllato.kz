@@ -15,19 +15,33 @@ extern int dwg_encode_add_object(Dwg_Object *,Bit_Chain *,size_t);
 extern size_t pllato_encoded_payload_end;
 static int selected_export_validated=0;
 #include "pllato_dimension_edit.h"
+API int pllato_probe_opaque(const char *handle);
+static int prepare_note_write(Dwg_Object *o,const char *handle){
+ if(!o->num_unknown_bits)return !o->num_unknown_rest;
+ /* Use typed data only after the existing bit-for-bit coverage gate proves
+    that it fully represents the original record (including preserved tails). */
+ if(o->fixedtype!=DWG_TYPE_MULTILEADER||pllato_probe_opaque(handle))return 0;
+ free(o->unknown_bits);o->unknown_bits=NULL;o->num_unknown_bits=0;return 1;
+}
 API int pllato_text(const char *handle,const char *utf8){
  Dwg_Object *o=entity(handle);if(!o||!utf8)return 1;
+ if(!prepare_note_write(o,handle))return 3;
  if(o->fixedtype==DWG_TYPE_TEXT)return pllato_legacy_text(handle,utf8);
  BITCODE_T *text=NULL;
  if(o->fixedtype==DWG_TYPE_MTEXT)text=&o->tio.entity->tio.MTEXT->text;
+ if(o->fixedtype==DWG_TYPE_MULTILEADER&&o->tio.entity->tio.MULTILEADER->ctx.has_content_txt&&!o->tio.entity->tio.MULTILEADER->ctx.has_content_blk)text=&o->tio.entity->tio.MULTILEADER->ctx.content.txt.default_text;
  if(o->fixedtype==DWG_TYPE_ATTDEF&&o->tio.entity->tio.ATTDEF->mtext_type<=1)text=&o->tio.entity->tio.ATTDEF->default_value;
  if(o->fixedtype==DWG_TYPE_ATTRIB&&o->tio.entity->tio.ATTRIB->mtext_type<=1)text=&o->tio.entity->tio.ATTRIB->text_value;
  if(!text)return 1;BITCODE_T replacement=dwg_add_u8_input(&drawing,utf8);if(!replacement)return 2;free(*text);*text=replacement;return 0;
 }
 API int pllato_text_height(const char *handle,double height){
  Dwg_Object *o=entity(handle);if(!o||!isfinite(height)||height<=0)return 1;
+ if(!prepare_note_write(o,handle))return 3;
  if(o->fixedtype==DWG_TYPE_TEXT)o->tio.entity->tio.TEXT->height=height;
  else if(o->fixedtype==DWG_TYPE_MTEXT)o->tio.entity->tio.MTEXT->text_height=height;
+ else if(o->fixedtype==DWG_TYPE_ATTRIB&&o->tio.entity->tio.ATTRIB->mtext_type<=1)o->tio.entity->tio.ATTRIB->height=height;
+ else if(o->fixedtype==DWG_TYPE_ATTDEF&&o->tio.entity->tio.ATTDEF->mtext_type<=1)o->tio.entity->tio.ATTDEF->height=height;
+ else if(o->fixedtype==DWG_TYPE_MULTILEADER&&o->tio.entity->tio.MULTILEADER->ctx.has_content_txt&&!o->tio.entity->tio.MULTILEADER->ctx.has_content_blk)o->tio.entity->tio.MULTILEADER->ctx.text_height=height;
  else return 1;
  return 0;
 }

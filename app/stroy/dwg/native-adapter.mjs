@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Geometry view only. The original DWG remains the source for saving.
-import {fromRecords} from './cad.mjs?v=0.17.57';
-import {leaderParts} from './mleader.mjs?v=0.17.57';
-import {hatchGeometry} from './hatch.mjs?v=0.17.57';
+import {fromRecords} from './cad.mjs?v=0.17.58';
+import {leaderParts} from './mleader.mjs?v=0.17.58';
+import {hatchGeometry} from './hatch.mjs?v=0.17.58';
 export function nativeDocument(db,index=true){
  const blockNames=new Map(db.tables.BLOCK_RECORD.entries.map(b=>[b.handle,b.name||'@'+b.handle]));
  const textStyles=db.tables.STYLE?.entries||[],styleNames=new Map(textStyles.map(s=>[s.handle,s.name]));
@@ -38,8 +38,9 @@ export function nativeDocument(db,index=true){
    case 'POLYLINE2D':case 'POLYLINE3D':p.push([70,e.flag|(e.type==='POLYLINE3D'?8:0)]);break;
   }
   const result=[record(type,p,'dwg-'+e.handle)];
+  if(['ATTRIB','ATTDEF'].includes(type)&&e.mtextFlag>1)result[0].noteReadOnly=true;
   if(e.dimensionEndLocked)result[0].dimensionEndLocked=true;
-  if(e.type==='MULTILEADER')result[0].parts=leaderParts({...e,textStyleName:styleNames.get(e.textStyleId)||'Standard'},record);
+  if(e.type==='MULTILEADER'){result[0].parts=leaderParts({...e,textStyleName:styleNames.get(e.textStyleId)||'Standard'},record);if(e.hasMText)result[0].pairs.push([1,e.textContent||''],[40,String(e.textHeight||1)]);}
   if(e.type==='HATCH')result[0].hatch=hatchGeometry(e);
   if(type==='POLYLINE'){for(const v of e.vertices||[]){const q=[[42,v.bulge||0]];point(q,10,v);result.push(record('VERTEX',q));}result.push(record('SEQEND'));}
   if(e.type==='INSERT'&&e.attribs?.length)result.push(...entities(e.attribs));
