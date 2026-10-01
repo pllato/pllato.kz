@@ -815,6 +815,12 @@ body {
 
 /* ===== Графики финансов: день / неделя / месяц ===== */
 .finance-charts { margin: -2px 0 26px; }
+.project-manager select, .fc-modal-list select, #financeTaskManager {
+  font:inherit; color:var(--text); background:var(--surface); border:1px solid var(--line-2); border-radius:7px; padding:6px 8px; max-width:100%;
+}
+.fc-modal-list input[type="checkbox"] { display:inline-block; width:auto; margin:0 6px 0 0; vertical-align:middle; }
+.fc-modal-list fieldset > label { margin:8px 0; }
+
 .search-hidden { display:none !important; }
 .fc-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
 .fc-head h2 { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
@@ -5222,6 +5228,57 @@ let RATE = 530; // ₸ за $1 (редактируется)
 let MONEY_LOADED = false;
 let MONEY_LOAD_PROMISE = null;
 let MONEY_SAVE_TIMER = null;
+let PROJECT_MANAGERS = {}, MANAGER_USERS = [], MANAGER_CHARTS = {}, CHART_ACCESS = {}, CHART_EFFECTIVE_ACCESS = {};
+let MANAGER_LOAD_PROMISE = null;
+async function loadProjectManagers(){
+  if(MANAGER_LOAD_PROMISE) return MANAGER_LOAD_PROMISE;
+  MANAGER_LOAD_PROMISE=Promise.all([apiFetch('/project-finance/managers'),apiFetch('/users/list')]).then(([data,users])=>{
+    PROJECT_MANAGERS=data.managers||{};
+    MANAGER_USERS=(users.users||[]).filter(u=>u.email);
+  }).catch(error=>{MANAGER_LOAD_PROMISE=null;throw error;});
+  return MANAGER_LOAD_PROMISE;
+}
+function managerName(email){ return MANAGER_USERS.find(u=>String(u.email).toLowerCase()===email)?.name||email||'Не назначен'; }
+function managerOptions(email=''){
+  const users=MANAGER_USERS.slice();
+  if(email&&!users.some(u=>String(u.email).toLowerCase()===email)) users.push({email,name:email});
+  return '<option value="">Не назначен</option>'+users.map(u=>{const key=String(u.email).toLowerCase();return `<option value="${mEsc(key)}"${key===email?' selected':''}>${mEsc(u.name||key)}</option>`;}).join('');
+}
+async function injectProjectManagers(){
+  try{ await loadProjectManagers(); }catch(error){console.warn('project managers:',error);return;}
+  document.querySelectorAll('.tool-card[data-app-id]').forEach(card=>{
+    if(card.dataset.group && card.dataset.group!=='Работа с клиентами') return;
+    let row=card.querySelector('.project-manager');
+    if(!row){row=document.createElement('label');row.className='project-manager';row.style.cssText='display:flex;gap:8px;align-items:center;padding:10px 14px;font-size:12px';card.appendChild(row);row.addEventListener('click',e=>e.stopPropagation());}
+    const id=card.dataset.appId,email=PROJECT_MANAGERS[id]||'';
+    row.innerHTML='<span>Ответственный</span>'+(canSeeProjectMoney()?`<select style="min-width:0;flex:1" aria-label="Ответственный менеджер">${managerOptions(email)}</select>`:`<strong>${mEsc(managerName(email))}</strong>`);
+    const select=row.querySelector('select');
+    if(select) select.onchange=async()=>{
+      select.disabled=true;
+      try{
+        await flushMoneySave();
+        await apiFetch('/project-finance/managers',{method:'PUT',body:{projectId:id,managerEmail:select.value}});
+        PROJECT_MANAGERS[id]=select.value;
+        MONEY[id]={...(MONEY[id]||{deal:0,cur:'KZT',pays:[]}),managerEmail:select.value};
+        FINANCE_WEEK_TASKS_LOADED=false;
+        await renderFinanceCharts();
+      }catch(error){select.value=email;alert('Не удалось сохранить менеджера: '+error.message);}
+      finally{select.disabled=false;}
+    };
+  });
+}
+function managerColor(email){
+  if(!email) return '#64748b';
+  const emails=[...new Set([...MANAGER_USERS.map(u=>String(u.email).toLowerCase()),...Object.values(MANAGER_CHARTS).flatMap(rows=>rows.map(row=>row.email))])].sort();
+  const index=Math.max(0,emails.indexOf(email));
+  return `hsl(${Math.round((index*137.508+200)%360)} 65% 42%)`;
+}
+function financeManagerLegend(kind){
+  const overall=CHART_EFFECTIVE_ACCESS[kind]?.total!==false?`<span><b style="color:${FINANCE_CHART_META[kind].color}">━━</b> Общая</span>`:'';
+  return `<div style="display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12px;margin:8px 0">${overall}${(MANAGER_CHARTS[kind]||[]).map(item=>`<span><b style="color:${managerColor(item.email)}">┄┄</b> ${mEsc(item.name||managerName(item.email))}</span>`).join('')}</div>`;
+}
+function canEditFinanceTask(task){return canSeeProjectMoney()||String(task?.managerEmail??task?.author??'').toLowerCase()===String(CURRENT?.email||'').toLowerCase();}
+function financeTaskManagerLabel(task){return `<small style="display:block;color:var(--text-3);font-size:11px">${mEsc(managerName(task.managerEmail??PROJECT_MANAGERS[task.sourceProjectId]??task.author??''))}</small>`;}
 let CHART_VISIBILITY = { inquiries: [], kep: [], orders: [], cash: [], releases: [] };
 function normalizeFinanceChartScale(raw={}){
   const normalized={};
@@ -5384,7 +5441,7 @@ function schedulePaymentPlanTaskSync(id){
 }
 function paymentPlanTaskNeedsUpdate(next,current){
   if(!current) return true;
-  const keys=['kind','start','end','text','amount','done','completedAt','dueAt','deleted','automatic','source','autoType','sourceProjectId','sourcePlanId'];
+  const keys=['managerEmail','kind','start','end','text','amount','done','completedAt','dueAt','deleted','automatic','source','autoType','sourceProjectId','sourcePlanId'];
   return keys.some(key=>String(next?.[key]??'')!==String(current?.[key]??''));
 }
 async function syncPaymentPlanTasks(id){
@@ -5406,7 +5463,7 @@ async function syncPaymentPlanTasks(id){
       ...(oldCash||{}),id:cashId,kind:'cash',start:bounds.start,end:bounds.end,
       text:`${projName(id)} · ${stage.label.toLowerCase()} ${stage.percent}%`,amount:toKZT(id,amount),
       done:Boolean(oldCash?.done)||reached,completedAt:(Boolean(oldCash?.done)||reached)?(Number(oldCash?.completedAt)||Date.now()):0,
-      automatic:true,source:'payment-plan',autoType:'planned-payment',sourceProjectId:id,sourcePlanId:stage.id,dueAt:Number(stage.dueAt),
+      managerEmail:item.managerEmail||'',automatic:true,source:'payment-plan',autoType:'planned-payment',sourceProjectId:id,sourcePlanId:stage.id,dueAt:Number(stage.dueAt),
       author:oldCash?.author||CURRENT?.email||'',authorName:oldCash?.authorName||CURRENT?.name||CURRENT?.email||'',
       createdAt:Number(oldCash?.createdAt)||Date.now(),updatedAt:Date.now(),updatedBy:CURRENT?.email||'',deleted:false,
       movedToStart:0,movedToEnd:0,movedToTaskId:''
@@ -5419,7 +5476,7 @@ async function syncPaymentPlanTasks(id){
         ...(oldRelease||{}),id:releaseId,kind:'releases',start:bounds.start,end:bounds.end,
         text:`${projName(id)} · плановый выпуск`,amount:0,
         done:Boolean(oldRelease?.done)||completed,completedAt:(Boolean(oldRelease?.done)||completed)?(Number(oldRelease?.completedAt)||Date.now()):0,
-        automatic:true,source:'payment-plan',autoType:'planned-release',sourceProjectId:id,sourcePlanId:stage.id,dueAt:Number(stage.dueAt),
+        managerEmail:item.managerEmail||'',automatic:true,source:'payment-plan',autoType:'planned-release',sourceProjectId:id,sourcePlanId:stage.id,dueAt:Number(stage.dueAt),
         author:oldRelease?.author||CURRENT?.email||'',authorName:oldRelease?.authorName||CURRENT?.name||CURRENT?.email||'',
         createdAt:Number(oldRelease?.createdAt)||Date.now(),updatedAt:Date.now(),updatedBy:CURRENT?.email||'',deleted:false,
         movedToStart:0,movedToEnd:0,movedToTaskId:''
@@ -5501,6 +5558,8 @@ async function injectMoney(){
   renderFinanceCharts().finally(()=>bootstrapPaymentPlans().catch(error=>console.warn('payment plan bootstrap:',error)));
 }
 function syncProjectMoneyVisibility(){
+  MANAGER_LOAD_PROMISE=null;
+  injectProjectManagers();
   if (canSeeProjectMoney()) {
     injectMoney();
     return;
@@ -5809,22 +5868,14 @@ let FINANCE_CHART_RETRY_TIMER = null;
 let LEAD_ANALYTICS_REQUEST = 0;
 let LEAD_ANALYTICS_FILTER = { mode:'week', from:'', to:'' };
 let LEAD_ANALYTICS_FILTER_OWNER = '';
-const FINANCE_CHART_CACHE_VERSION = 3;
+const FINANCE_CHART_CACHE_VERSION = 4;
 const FINANCE_CHART_KINDS = ['inquiries','kep','orders','cash','releases'];
 
 function financeChartCacheKey(){
   return `pllato_finance_charts_v${FINANCE_CHART_CACHE_VERSION}:${String(CURRENT?.email||'guest').toLowerCase()}:${FINANCE_CHART_PERIOD}`;
 }
-function readFinanceChartCache(){
-  try{
-    const cached=JSON.parse(localStorage.getItem(financeChartCacheKey())||'null');
-    return cached?.data && Date.now()-Number(cached.savedAt||0)<30*86400000 ? cached : null;
-  }catch(e){ return null; }
-}
-function saveFinanceChartCache(data){
-  try{ localStorage.setItem(financeChartCacheKey(),JSON.stringify({savedAt:Date.now(),data})); }
-  catch(e){}
-}
+function readFinanceChartCache(){ return null; }
+function saveFinanceChartCache(data){}
 function financeChartKinds(data){
   return FINANCE_CHART_KINDS.filter(kind=>Array.isArray(data?.charts?.[kind]));
 }
@@ -5878,6 +5929,7 @@ async function loadFinanceChartComments(){
 }
 async function loadFinanceWeekTasks(){
   if(FINANCE_WEEK_TASKS_LOADED) return;
+  FINANCE_WEEK_TASKS=[];
   const data=await apiFetch('/store/pull',{method:'POST',body:{collections:['chart_week_tasks'],limitPerCollection:500}});
   FINANCE_WEEK_TASKS=Array.isArray(data?.collections?.chart_week_tasks)?data.collections.chart_week_tasks:[];
   FINANCE_WEEK_TASKS_LOADED=true;
@@ -5922,14 +5974,21 @@ function financeValue(kind,n){
   return kind==='cash' ? cashChartValue(n)+' ₸' : String(Math.round(n||0));
 }
 function financeChartSvg(kind,series){
+  const managers=MANAGER_CHARTS[kind]||[];
+  const showTotal=CHART_EFFECTIVE_ACCESS[kind]?.total!==false;
   const count=series.length||1, vw=count*100, vh=650, top=66, bottom=32;
-  const autoMax=Math.max(1,...series.map(x=>Number(x.value)||0));
+  const autoMax=Math.max(1,...series.map(x=>Number(x.value)||0),...managers.flatMap(m=>m.series.map(x=>Number(x.value)||0)));
   const max=Math.max(1,financeChartScale(kind)||autoMax);
   const scaleLabel=`Максимум шкалы: ${financeValue(kind,max)}`;
   const x=i=>(i+.5)*100;
   const y=v=>top+(1-Math.min(1,(Number(v)||0)/max))*(vh-top-bottom);
   const completed=series.map((s,i)=>s.partial?null:`${x(i)},${y(s.value).toFixed(1)}`).filter(Boolean).join(' ');
   const color=FINANCE_CHART_META[kind].color;
+  const managerLines=managers.map(manager=>{
+    const color=managerColor(manager.email);
+    const values=manager.series;
+    return `<polyline points="${values.map((p,i)=>p.partial?null:`${x(i)},${y(p.value).toFixed(1)}`).filter(Boolean).join(' ')}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="7 5" vector-effect="non-scaling-stroke"/>`+values.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.value).toFixed(1)}" r="4" fill="${p.partial?'var(--surface)':color}" stroke="${color}" stroke-width="2"><title>${mEsc(manager.name||managerName(manager.email))} · ${mEsc(p.label)}: ${mEsc(financeValue(kind,p.value))}</title></circle>`).join('');
+  }).join('');
   const points=series.map((s,i)=>{
     const title=`${s.label}: ${kind==='cash'?fmtT(s.value):s.value}${s.partial?' · текущий период':''}`;
     const value=financeValue(kind,s.value);
@@ -5950,13 +6009,14 @@ function financeChartSvg(kind,series){
     <line x1="0" y1="${top}" x2="${vw}" y2="${top}" stroke="var(--line-2)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
     <text x="${vw-8}" y="28" text-anchor="end" fill="var(--text-3)" font-size="18" font-weight="700">${mEsc(scaleLabel)}</text>
     <line x1="0" y1="${vh-bottom}" x2="${vw}" y2="${vh-bottom}" stroke="var(--line-2)" vector-effect="non-scaling-stroke"/>
-    <polyline points="${completed}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
-    ${points}</svg>`;
+    ${managerLines}
+    <polyline style="display:${showTotal?'block':'none'}" points="${completed}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    ${showTotal?points:''}</svg>`;
 }
 function financeChartCard(kind,series){
   const meta=FINANCE_CHART_META[kind];
   const periodMeta=financeChartPeriodMeta();
-  const access=canConfigureFinanceChart(kind)?`<button class="fc-access" onclick="openFinanceAccess('${kind}')">Настройки</button>`:'';
+  const access=canSeeProjectMoney()?`<button class="fc-access" onclick="openFinanceAccess('${kind}')">Настройки</button>`:'';
   const unavailable=series.length>0 && series.every(point=>point?.unavailable);
   const noted=series.flatMap(point=>financePointComments(kind,point.start).map(comment=>({...comment,label:point.label,end:point.end,value:point.value})));
   const notes=noted.length
@@ -5964,6 +6024,7 @@ function financeChartCard(kind,series){
     : '';
   return `<article class="fc-card">
     <div class="fc-card-head"><div><div class="fc-card-title">${meta.title}</div><div class="fc-card-sub">${meta.sub} · ${periodMeta.suffix}</div></div>${access}</div>
+    ${financeManagerLegend(kind)}
     <div class="fc-plot">${unavailable?'<div class="fc-unavailable">Источник временно недоступен.<br>График останется на месте и обновится автоматически.</div>':financeChartSvg(kind,series)}</div>
     <div class="fc-labels">${series.map(s=>`<span>${mEsc(s.label)}</span>`).join('')}</div>
     ${notes}
@@ -6033,12 +6094,12 @@ function financeWeekTaskHistoryBlock(kind,currentPoint){
       ? financeWeekTaskAutoBadge(task)
       : moved
       ? `<span class="moved-badge">Перенесено ${mEsc(financeWeekShortDate(task.movedToStart))}</span>`
-      : (!task.done && canConfigureFinanceChart(kind) && !task._virtual
+      : (!task.done && canEditFinanceTask(task) && !task._virtual
         ? `<button class="carry" type="button" onclick="carryFinanceWeekTaskToCurrent('${mEsc(task.id)}')" title="Создать это дело в текущей неделе">В текущую →</button>`
         : '');
-    const remove=canConfigureFinanceChart(kind) && !task._virtual && !automatic ? `<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button>` : '';
+    const remove=canEditFinanceTask(task) && !task._virtual && !automatic ? `<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button>` : '';
     const openAction=automatic?` onclick="openPaymentPlanSource('${paymentPlanProjectToken(task.sourceProjectId)}')"`:'';
-    return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${moved?' moved':''}${automatic?' automatic':''}"><input type="checkbox"${task.done?' checked':''}${task._virtual||moved||!canConfigureFinanceChart(kind)?' disabled':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text"${openAction} title="${mEsc(task.text)}">${mEsc(task.text)}</span>${showAmounts?`<span class="amount"${openAction}>${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}<span class="fc-week-task-actions">${status}${remove}</span></div>`;
+    return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${moved?' moved':''}${automatic?' automatic':''}"><input type="checkbox"${task.done?' checked':''}${task._virtual||moved||!canEditFinanceTask(task)?' disabled':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text"${openAction} title="${mEsc(task.text)}">${mEsc(task.text)}${financeTaskManagerLabel(task)}</span>${showAmounts?`<span class="amount"${openAction}>${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}<span class="fc-week-task-actions">${status}${remove}</span></div>`;
   }).join('') : '<div class="fc-week-history-empty">В эту неделю дел не было.</div>';
   return `<div class="fc-week-history"><div class="fc-week-history-toolbar"><label for="financeWeekHistory-${kind}">Прошлая неделя</label><select id="financeWeekHistory-${kind}" onchange="selectFinanceWeekTaskHistory('${kind}',this.value)">${options}</select></div><div class="fc-week-history-list">${rows}</div><div class="fc-week-history-note">История открывается только по запросу. Перенос создаёт дело в текущей неделе и сохраняет исходную запись здесь.</div></div>`;
 }
@@ -6080,11 +6141,11 @@ function financeWeekTaskBlockForPoint(kind,point){
       const automatic=financeWeekTaskIsAutomatic(task);
       const openAction=financeWeekTaskOpenAction(task,kind,point.start,point.end);
       const actions=automatic
-        ? `<span class="fc-week-task-actions">${financeWeekTaskAutoBadge(task)}${task.done||!canConfigureFinanceChart(kind)?'':`<button class="move" type="button" onclick="moveFinanceWeekTaskForward('${mEsc(task.id)}')" aria-label="Перенести автоматическое дело на следующую неделю" title="Перенести плановый платёж на следующую неделю">→</button>`}</span>`
-        : canConfigureFinanceChart(kind)
+        ? `<span class="fc-week-task-actions">${financeWeekTaskAutoBadge(task)}${task.done||!canEditFinanceTask(task)?'':`<button class="move" type="button" onclick="moveFinanceWeekTaskForward('${mEsc(task.id)}')" aria-label="Перенести автоматическое дело на следующую неделю" title="Перенести плановый платёж на следующую неделю">→</button>`}</span>`
+        : canEditFinanceTask(task)
         ? `<span class="fc-week-task-actions">${task.done?'':`<button class="move" type="button" onclick="moveFinanceWeekTaskForward('${mEsc(task.id)}')" aria-label="Перенести дело на следующую неделю" title="Перенести на следующую неделю">→</button>`}<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button></span>`
         : '<span></span>';
-      return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${automatic?' automatic':''}"><input type="checkbox"${task.done?' checked':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="${openAction}" title="${mEsc(task.text)}">${mEsc(task.text)}</span>${showAmounts?`<span class="amount" onclick="${openAction}" title="${automatic?'Открыть план платежей':'Изменить сумму'}">${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}${actions}</div>`;
+      return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${automatic?' automatic':''}"><input type="checkbox"${task.done?' checked':''}${canEditFinanceTask(task)?'':' disabled'} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="${openAction}" title="${mEsc(task.text)}">${mEsc(task.text)}${financeTaskManagerLabel(task)}</span>${showAmounts?`<span class="amount" onclick="${openAction}" title="${automatic?'Открыть план платежей':'Изменить сумму'}">${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}${actions}</div>`;
     }).join('')
     : '<div class="fc-week-tasks-empty">На текущую неделю дел пока нет.</div>';
   const plan=showAmounts?`<span class="plan">План недели: ${mEsc(financeWeekTaskAmount(planTotal))}</span>`:'';
@@ -6098,6 +6159,7 @@ function refreshFinanceWeekTaskBlock(kind){
 function openFinanceWeekTaskEditor(kind,start,end,taskId=''){
   if(!canConfigureFinanceChart(kind)) return;
   const existing=FINANCE_WEEK_TASKS.find(item=>item.id===taskId && !item.deleted);
+  if(existing && !canEditFinanceTask(existing)) return;
   if(financeWeekTaskIsAutomatic(existing)){
     openPaymentPlanSource(paymentPlanProjectToken(existing.sourceProjectId));
     return;
@@ -6108,7 +6170,7 @@ function openFinanceWeekTaskEditor(kind,start,end,taskId=''){
   ovl.id='financeWeekTaskOvl'; ovl.className='money-ovl show';
   ovl.addEventListener('click',event=>{if(event.target===ovl)ovl.remove();});
   const amountField=showAmount?`<label for="financeWeekTaskAmount">Сумма, ₸<input id="financeWeekTaskAmount" type="number" min="0" step="1000" inputmode="numeric" value="${Math.max(0,Number(existing?.amount)||0)}" placeholder="0"></label>`:'';
-  ovl.innerHTML=`<div class="money-modal fc-detail-modal"><div class="mm-h"><h3>${existing?'Изменить':'Новое'} дело на неделю</h3><span class="mm-x" onclick="document.getElementById('financeWeekTaskOvl').remove()">✕</span></div><div class="mm-b fc-week-task-editor"><div class="fc-detail-summary"><div class="c"><div class="l">График</div><div class="v">${mEsc(FINANCE_CHART_META[kind]?.title||kind)}</div></div><div class="c"><div class="l">Текущая неделя</div><div class="v">${mEsc(financeWeekTaskPeriod({start,end}))}</div></div></div><div class="fc-week-task-fields${showAmount?'':' single'}"><label for="financeWeekTaskText">Запись<input id="financeWeekTaskText" maxlength="300" value="${mEsc(existing?.text||'')}" placeholder="Например: закрыть сделку с клиентом"></label>${amountField}</div></div><div class="mm-f"><button onclick="document.getElementById('financeWeekTaskOvl').remove()">Отмена</button><button style="background:var(--navy);color:#fff" onclick="saveFinanceWeekTask('${kind}',${Number(start)},${Number(end)},'${mEsc(taskId)}')">Сохранить</button></div></div>`;
+  ovl.innerHTML=`<div class="money-modal fc-detail-modal"><div class="mm-h"><h3>${existing?'Изменить':'Новое'} дело на неделю</h3><span class="mm-x" onclick="document.getElementById('financeWeekTaskOvl').remove()">✕</span></div><div class="mm-b fc-week-task-editor"><div class="fc-detail-summary"><div class="c"><div class="l">График</div><div class="v">${mEsc(FINANCE_CHART_META[kind]?.title||kind)}</div></div><div class="c"><div class="l">Текущая неделя</div><div class="v">${mEsc(financeWeekTaskPeriod({start,end}))}</div></div></div><div class="fc-week-task-fields${showAmount?'':' single'}"><label for="financeWeekTaskText">Запись<input id="financeWeekTaskText" maxlength="300" value="${mEsc(existing?.text||'')}" placeholder="Например: закрыть сделку с клиентом"></label>${amountField}<label>Ответственный менеджер<select id="financeTaskManager"${canSeeProjectMoney()?'':' disabled'}>${managerOptions(existing?.managerEmail||CURRENT?.email||'')}</select></label></div></div><div class="mm-f"><button onclick="document.getElementById('financeWeekTaskOvl').remove()">Отмена</button><button style="background:var(--navy);color:#fff" onclick="saveFinanceWeekTask('${kind}',${Number(start)},${Number(end)},'${mEsc(taskId)}')">Сохранить</button></div></div>`;
   document.body.appendChild(ovl);
   const input=document.getElementById('financeWeekTaskText');
   ovl.querySelectorAll('input').forEach(field=>field.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();saveFinanceWeekTask(kind,start,end,taskId);}}));
@@ -6128,6 +6190,7 @@ async function saveFinanceWeekTask(kind,start,end,taskId=''){
   const item=old
     ? {...old,text,amount,updatedAt:now,updatedBy:CURRENT?.email||''}
     : {id:`chart-task-${kind}-${Number(start)}-${now}`,kind,start:Number(start),end:Number(end),text,amount,done:false,author:CURRENT?.email||'',authorName:CURRENT?.name||CURRENT?.email||'',createdAt:now,updatedAt:now};
+  item.managerEmail=document.getElementById('financeTaskManager')?.value||'';
   try{
     await apiFetch('/store/push',{method:'POST',body:{ops:[{type:'upsert',collection:'chart_week_tasks',item}]}});
     const index=FINANCE_WEEK_TASKS.findIndex(entry=>entry.id===item.id);
@@ -6344,6 +6407,10 @@ function financeChartsHeader(){
   return `<div class="fc-head"><div><h2>${meta.heading}</h2><p>${meta.description}</p></div><div class="fc-head-actions"><div class="fc-period-switch" role="group" aria-label="Масштаб графиков">${periods}</div>${toggle}</div></div>`;
 }
 async function paintFinanceCharts(el,data,{cached=false}={}){
+  await loadProjectManagers().catch(()=>{});
+  MANAGER_CHARTS=data.managerCharts||{};
+  CHART_EFFECTIVE_ACCESS=data.access||{};
+  CHART_ACCESS=data.chartAccess||{};
   CHART_ALLOWED={...CHART_ALLOWED,...(data.visible||{})};
   if(data.chartVisibility) CHART_VISIBILITY={...CHART_VISIBILITY,...data.chartVisibility};
   if(data.chartScale) CHART_SCALE=normalizeFinanceChartScale({...CHART_SCALE,...data.chartScale});
@@ -6388,7 +6455,12 @@ async function renderFinanceCharts(){
   if(cached) await paintFinanceCharts(el,mergeFinanceChartData({},cached.data),{cached:true});
   else if(!el.querySelector('.fc-grid')) el.innerHTML=financeChartsHeader()+'<div class="fc-empty">Загружаю статистику…</div>';
   try{
+    FINANCE_WEEK_TASKS_LOADED=false;
     const data=await apiFetch(`/project-finance/charts?points=8&period=${FINANCE_CHART_PERIOD}`);
+    try{
+      const response=await fetch(`https://pllato-elc-worker.uurraa.workers.dev/api/charts/pllato-kep-managers?points=8&period=${FINANCE_CHART_PERIOD}`,{headers:{Authorization:`Bearer ${getSession()?.token||''}`},cache:'no-store'});
+      if(response.ok){const payload=await response.json();data.managerCharts={...(data.managerCharts||{}),kep:payload.managers||[]};}
+    }catch(error){console.warn('KEP managers:',error);}
     // Агрегат обращений живёт в CRM-базе. Если меж-worker запрос временно не
     // попал в основной ответ, забираем ту же обезличенную серию напрямую.
     // Доступ наследуется от уже видимого пользователю графика новых заказов.
@@ -6914,7 +6986,7 @@ async function openFinancePointDetails(kind,start,end,chartValue){
   }
 }
 async function openFinanceAccess(kind){
-  if(!canConfigureFinanceChart(kind) || !FINANCE_CHART_META[kind]) return;
+  if(!canSeeProjectMoney() || !FINANCE_CHART_META[kind]) return;
   let users=[];
   try{ users=(await apiFetch('/users/list')).users||[]; }
   catch(e){ alert('Не удалось загрузить сотрудников: '+e.message); return; }
@@ -6931,15 +7003,26 @@ async function openFinanceAccess(kind){
     +Object.entries(FINANCE_CHART_PERIOD_META).map(([period,item])=>'<label><span>'+mEsc(item.label)+'</span><input data-scale-period="'+period+'" type="number" min="0" step="1" value="'+(Number(scales[period])||'')+'" placeholder="'+scaleHint+'"></label>').join('')
     +'</div>'
     +'<div style="font-size:10.5px;color:var(--text-3);margin-top:4px">Оставьте пустым — масштаб будет рассчитываться автоматически.</div>'
-    +'<div style="font-size:12px;color:var(--text-2);margin-top:16px">Кто видит график. Super Admin видит его всегда.</div>'
-    +'<div class="fc-modal-list">'+(people.length?people.map(u=>{const email=String(u.email).toLowerCase();return '<label class="fc-person"><input type="checkbox" value="'+mEsc(email)+'" '+(selected.has(email)?'checked':'')+'><span><div class="n">'+mEsc(u.name||email)+'</div><div class="e">'+mEsc(email)+'</div></span></label>';}).join(''):'<div class="fc-empty" style="padding:14px">Других сотрудников пока нет.</div>')+'</div></div>'
+    +'<div style="font-size:12px;margin-top:16px">Доступ к графикам и делам. Super Admin видит всё.'+(kind==='kep'?' Графики КЭП доступны всем.':'')+'</div>'
+    +'<div class="fc-modal-list">'+people.map(u=>{
+      const email=String(u.email).toLowerCase(), policy=CHART_ACCESS[kind]?.[email]||{total:selected.has(email),managers:selected.has(email)?'all':'none',tasks:selected.has(email)?'all':'own',taskManagers:[]};
+      const options=(value,entries)=>entries.map(([key,label])=>`<option value="${key}"${value===key?' selected':''}>${label}</option>`).join('');
+      return `<fieldset data-access-email="${mEsc(email)}" style="margin:12px 0;padding:12px;border:1px solid var(--line-2)"><legend>${mEsc(u.name||email)}</legend>
+        <label><input type="checkbox" data-total ${policy.total||kind==='kep'?'checked':''} ${kind==='kep'?'disabled':''}> Общая линия</label>
+        <label style="display:block;margin:8px 0">Линии менеджеров <select data-managers ${kind==='kep'?'disabled':''}>${options(kind==='kep'?'all':policy.managers,kind==='inquiries'?[['none','Не показывать']]:[['none','Не показывать'],['own','Своя'],['all','Все']])}</select></label>
+        <label>Дела <select data-tasks>${options(policy.tasks,[['none','Не показывать'],['own','Свои'],['all','Всех'],['selected','Выбранных менеджеров']])}</select></label>
+        <details style="margin-top:8px"><summary>Выбрать менеджеров для дел</summary>${users.filter(x=>x.email).map(x=>{const key=String(x.email).toLowerCase();return `<label style="display:block"><input data-task-manager type="checkbox" value="${mEsc(key)}"${(policy.taskManagers||[]).includes(key)?' checked':''}> ${mEsc(x.name||key)}</label>`;}).join('')}</details></fieldset>`;
+    }).join('')+'</div></div>'
     +'<div class="mm-f"><button onclick="document.getElementById(\'financeAccessOvl\').remove()">Отмена</button><button style="background:var(--navy);color:#fff" onclick="saveFinanceAccess(\''+kind+'\')">Сохранить</button></div></div>';
   document.body.appendChild(ovl);
 }
 async function saveFinanceAccess(kind){
   const ovl=document.getElementById('financeAccessOvl');
   if(!ovl) return;
-  const viewers=[...ovl.querySelectorAll('.fc-person input:checked')].map(x=>x.value);
+  const policy={};
+  ovl.querySelectorAll('[data-access-email]').forEach(row=>{policy[row.dataset.accessEmail]={total:row.querySelector('[data-total]').checked,managers:row.querySelector('[data-managers]').value,tasks:row.querySelector('[data-tasks]').value,taskManagers:[...row.querySelectorAll('[data-task-manager]:checked')].map(x=>x.value)};});
+  CHART_ACCESS={...CHART_ACCESS,[kind]:policy};
+  const viewers=Object.keys(policy).filter(email=>policy[email].total||policy[email].managers!=='none');
   CHART_VISIBILITY={...CHART_VISIBILITY,[kind]:viewers};
   const scale={day:0,week:0,month:0};
   ovl.querySelectorAll('[data-scale-period]').forEach(input=>{
@@ -6947,7 +7030,8 @@ async function saveFinanceAccess(kind){
   });
   CHART_SCALE=normalizeFinanceChartScale({...CHART_SCALE,[kind]:scale});
   try{
-    await apiFetch('/project-finance/charts',{method:'PUT',body:{kind,chartVisibility:CHART_VISIBILITY,chartScale:CHART_SCALE}});
+    await apiFetch('/project-finance/charts',{method:'PUT',body:{kind,chartAccess:CHART_ACCESS,chartVisibility:CHART_VISIBILITY,chartScale:CHART_SCALE}});
+    FINANCE_WEEK_TASKS_LOADED=false;
     ovl.remove(); renderFinanceCharts();
   }catch(e){ alert('Не удалось сохранить доступ: '+e.message); }
 }

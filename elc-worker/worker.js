@@ -9977,6 +9977,37 @@ async function handlePublicPllatoKep(request, env) {
   }, 200, request);
 }
 
+// Имена и персональные ряды никогда не выдаются публичным маршрутом.
+async function handlePllatoKepManagers(request, env) {
+  const auth = await requireAuth(request, env);
+  if (auth.error) return json({ok:false,error:auth.error}, auth.status, request);
+  await resolveCanonicalUser(env, auth.claims);
+  const url = new URL(request.url);
+  const period = ['day','week','month'].includes(url.searchParams.get('period')) ? url.searchParams.get('period') : 'week';
+  const points = Math.min(16,Math.max(4,Number(url.searchParams.get('points'))||8));
+  await ensureStageEventsBackfill(env);
+  const pipeline = await env.DB.prepare("SELECT id, stages FROM pipelines WHERE name = ? LIMIT 1").bind('Pllato Старт').first();
+  const stages = resolvePllatoKepStages(safeJsonParse(pipeline?.stages, {}) || {});
+  if (!stages?.stageIds.length) return json({ok:false,error:'KEP stages not found'},404,request);
+  const buckets = buildChartBuckets(period, points);
+  const result = await env.DB.prepare(`
+    SELECT first_stage.d, COALESCE(json_extract(d.custom_fields, '$.kepManagerUid'), '') AS manager_uid,
+           u.email, u.name, u.last_name
+    FROM (SELECT deal_id, MIN(entered_at) AS d FROM deal_stage_events
+          WHERE pipeline_id = ? AND stage_id IN (${stages.stageIds.map(()=>'?').join(',')}) GROUP BY deal_id) first_stage
+    JOIN deals d ON d.id = first_stage.deal_id
+    LEFT JOIN users u ON u.uid = json_extract(d.custom_fields, '$.kepManagerUid')
+    WHERE first_stage.d >= ?
+  `).bind(pipeline.id,...stages.stageIds,buckets[0].start).all();
+  const groups = new Map();
+  for (const row of result.results || []) {
+    const key=row.manager_uid||'';
+    if (!groups.has(key)) groups.set(key,{email:row.email||key,name:[row.name,row.last_name].filter(Boolean).join(' ')||row.email||(key?'Менеджер недоступен':'Не назначен'),dates:[]});
+    groups.get(key).dates.push(row.d);
+  }
+  return json({ok:true,managers:[...groups.values()].map(({dates,...manager})=>({...manager,series:countIntoBuckets(dates,buckets,period)}))},200,request);
+}
+
 function parsePllatoChartDetailPeriod(request) {
   const url = new URL(request.url);
   const start = Number(url.searchParams.get('start'));
@@ -10043,7 +10074,7 @@ async function handlePllatoChartDetails(request, env) {
         GROUP BY deal_id
       ) first_stage
       JOIN deals d ON d.id = first_stage.deal_id
-      LEFT JOIN users u ON u.uid = d.responsible_uid
+      LEFT JOIN users u ON u.uid = json_extract(d.custom_fields, '$.kepManagerUid')
       WHERE first_stage.first_entered_at >= ? AND first_stage.first_entered_at < ?
       ORDER BY first_stage.first_entered_at ASC
     `).bind(pipeline.id, ...kepStages.stageIds, period.startIso, period.endIso).all();
@@ -12643,6 +12674,9 @@ export default {
     }
     if (path === "/api/public/pllato-inquiries" && request.method === "GET") {
       return handlePublicPllatoInquiries(request, env);
+    }
+    if (path === "/api/charts/pllato-kep-managers" && request.method === "GET") {
+      return handlePllatoKepManagers(request, env);
     }
     if (path === "/api/public/pllato-kep" && request.method === "GET") {
       return handlePublicPllatoKep(request, env);
