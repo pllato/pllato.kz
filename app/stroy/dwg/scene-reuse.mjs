@@ -1,7 +1,7 @@
 // Reuse a verified, unchanged base plan after native executive creation.
 // Any changed source record, block definition or display table falls back to
 // a complete build. This does not replace native save/read-back validation.
-import {deriveSpatialIndex} from './spatial-index.mjs?v=0.17.55';
+import {deriveSpatialIndex} from './spatial-index.mjs?v=0.17.56';
 function equal(a,b){
  if(Object.is(a,b))return true;
  if(!a||!b||typeof a!=='object'||typeof b!=='object')return false;
