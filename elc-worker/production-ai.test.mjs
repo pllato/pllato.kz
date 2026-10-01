@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {productionAiConfig,claudeSchema,requestProductionBlueprint,validateAiShape} from './production-ai.js';
+import {productionAiConfig,claudeSchema,requestProductionBlueprint,validateAiShape,readClaudeStream} from './production-ai.js';
 const schema={type:'object',additionalProperties:false,required:['screens'],properties:{screens:{type:'array',minItems:2,maxItems:3,items:{type:'string'}}}};
 const value={screens:['Обращения','Клиенты']};
 const env={ANTHROPIC_API_KEY:'fake-claude-key',OPENAI_API_KEY:'fake-openai-key'};
@@ -69,3 +69,27 @@ const openai=await requestProductionBlueprint(env,{provider:'openai',model:'gpt-
 });
 assert.deepEqual(openai.blueprint,value);
 console.log('production-ai tests passed');
+
+const streamEvents = [
+ {type:'message_start',message:{id:'msg_stream',model:config.model,usage:{input_tokens:11}}},
+ {type:'content_block_start',index:0,content_block:{type:'text',text:''}},
+ {type:'ping'},
+ {type:'content_block_delta',index:0,delta:{type:'text_delta',text:JSON.stringify(value)}},
+ {type:'content_block_stop',index:0},
+ {type:'message_delta',delta:{stop_reason:'end_turn'},usage:{output_tokens:22}},
+ {type:'message_stop'},
+];
+function sse(events) {
+ const bytes=new TextEncoder().encode(events.map(e=>'event: '+e.type+'\r\ndata: '+JSON.stringify(e)+'\r\n\r\n').join(''));
+ return new Response(new ReadableStream({start(c){for(let i=0;i<bytes.length;i+=7)c.enqueue(bytes.slice(i,i+7));c.close();}}),{headers:{'content-type':'text/event-stream'}});
+}
+const streamed=await requestProductionBlueprint(env,config,'test',schema,async(url,options)=>{
+ assert.equal(JSON.parse(options.body).stream,true);
+ return sse(streamEvents);
+});
+assert.deepEqual(streamed.blueprint,value);
+assert.equal(streamed.generation.usage.input_tokens,11);
+assert.equal(streamed.generation.usage.output_tokens,22);
+await assert.rejects(()=>readClaudeStream(sse(streamEvents.slice(0,-1))),/оборвался/);
+await assert.rejects(()=>readClaudeStream(sse([{type:'error',error:{message:'private secret'}}])),e=>e.message.includes('ошибка провайдера')&&!e.message.includes('private'));
+console.log('Claude streaming tests passed');
