@@ -1,7 +1,7 @@
 // Vector PDF backend. Embedded OFL osifont; no canvas screenshot or JPEG.
-import {paintHatch} from './hatch.mjs?v=0.17.54';
-import {textLines} from './renderer.mjs?v=0.17.54';
-import {aciColors} from './colors.mjs?v=0.17.54';
+import {paintHatchSteps} from './hatch.mjs?v=0.17.55';
+import {textLines} from './renderer.mjs?v=0.17.55';
+import {aciColors} from './colors.mjs?v=0.17.55';
 import {shxLayout} from './shx-layout.mjs';
 import {printLineweight} from './print-lineweight.mjs';
 import {localTtf} from './local-ttf.mjs';
@@ -15,7 +15,7 @@ export function trueType(bytes){
  return {bytes,glyph,width,ascent:s(hhea+4)*1000/units,descent:s(hhea+6)*1000/units,bbox:[36,38,40,42].map(o=>s(head+o)*1000/units)};
 }
 export async function vectorPdf(pages,onProgress=()=>{}){
- const response=await fetch(new URL('./vendor/osifont/osifont.ttf',import.meta.url));if(!response.ok)throw Error('Не загружен шрифт PDF');
+ const response=await fetch(new URL('./vendor/osifont/osifont.ttf',import.meta.url),{signal:AbortSignal.timeout(15000)});if(!response.ok)throw Error('Не загружен шрифт PDF');
  const defaultFont={...trueType(new Uint8Array(await response.arrayBuffer())),name:'osifont',used:new Map(),resource:'F1'},fonts=[defaultFont],fontCache=new Map(),streams=[],layers=[...new Set(pages.flatMap(p=>p.shapes.map(s=>s.layer||'0')))],layerIds=new Map(layers.map((name,i)=>[name,i]));
  const chooseFont=a=>{const source=a.font?.source||'',local=localTtf(source);if(!local){if(/^(times|times new roman)(\.ttf|\||$)/i.test(source))throw Error('Для точного PDF загрузите Times New Roman.ttf через «Шрифты»');return defaultFont;}if(!fontCache.has(local.name)){const f={...trueType(local.bytes),name:local.postscript,used:new Map(),resource:'F'+(fonts.length+1)};fontCache.set(local.name,f);fonts.push(f);}return fontCache.get(local.name);};
  let font=defaultFont,used=font.used;
@@ -26,11 +26,12 @@ export async function vectorPdf(pages,onProgress=()=>{}){
   const emit=t=>out.push(t),path=pts=>{for(let i=0;i<pts.length;i++)emit(n(pts[i][0])+' '+n(pts[i][1])+(i?' l':' m'));};
   // Canvas-compatible subset for the existing CAD hatch geometry/clip algorithm.
   const hatchContext={save:()=>emit('q'),restore:()=>emit('Q'),beginPath:()=>emit('n'),moveTo:(a,b)=>emit(`${n(a)} ${n(b)} m`),lineTo:(a,b)=>emit(`${n(a)} ${n(b)} l`),closePath:()=>emit('h'),fill:rule=>emit(rule==='evenodd'?'f*':'f'),clip:rule=>emit(rule==='evenodd'?'W* n':'W n'),stroke:()=>emit('S'),transform:(...m)=>emit(m.map(n).join(' ')+' cm'),set fillStyle(c){emit(color(c)+' rg');},set strokeStyle(c){emit(color(c)+' RG');},set lineWidth(v){emit(n(v)+' w');}};
-  let activeLayer=-1;
+  let activeLayer=-1,lastYield=performance.now();
+  const pause=async j=>{onProgress(pageIndex+j/Math.max(1,shapes.length),pages.length,'Формирование PDF');await new Promise(r=>setTimeout(r,0));onProgress(pageIndex+j/Math.max(1,shapes.length),pages.length,'Формирование PDF');lastYield=performance.now();};
   for(let j=0;j<shapes.length;j++){
-   if(j&&j%2000===0){onProgress(pageIndex,pages.length);await new Promise(r=>setTimeout(r,0));}
+   if(j%128===0&&performance.now()-lastYield>8)await pause(j);
    const a=shapes[j],c=color(a.rgb||aciColors[a.color]),layer=layerIds.get(a.layer||'0');if(layer!==activeLayer){if(activeLayer>=0)emit('EMC');emit(`/OC /L${layer} BDC`);activeLayer=layer;}emit(c+' RG '+c+' rg');emit(n(printLineweight(a))+' w');
-   if(a.hatch){paintHatch(hatchContext,a,{s,x,y},a.rgb||aciColors[a.color]||'#000000',w,h,true);continue;}
+   if(a.hatch){for(const step of paintHatchSteps(hatchContext,a,{s,x,y},a.rgb||aciColors[a.color]||'#000000',w,h,true)){if(performance.now()-lastYield>8)await pause(j);}continue;}
    if(a.text!==null){
     font=chooseFont(a);used=font.used;
     const strokes=shxLayout(a);

@@ -1,6 +1,6 @@
-import {get,move,set,addEntity} from './cad.mjs?v=0.17.54';
-import {installDeferredBlocks} from './deferred-copy.mjs?v=0.17.54';
-import {setSplineControl,setEntityVertex} from './control-edit.mjs?v=0.17.54';
+import {get,move,set,addEntity} from './cad.mjs?v=0.17.55';
+import {installDeferredBlocks} from './deferred-copy.mjs?v=0.17.55';
+import {setSplineControl,setEntityVertex} from './control-edit.mjs?v=0.17.55';
 import {planDimensionEdit,applyDimensionPlan} from './dimension-edit.mjs';
 export function captureRecovery(doc){
  if(!doc.native)throw Error('Ожидается DWG');

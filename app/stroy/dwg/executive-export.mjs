@@ -1,25 +1,30 @@
-import {executiveEntities} from './executive-project.mjs?v=0.17.54';
-import {vectorPdf} from './vector-pdf.mjs?v=0.17.54';
+import {executiveEntities} from './executive-project.mjs?v=0.17.55';
+import {vectorPdf} from './vector-pdf.mjs?v=0.17.55';
 
-export function executivePages(project,shapes,assigned){
+export function executivePages(project,shapes,assigned){const it=executivePageSteps(project,shapes,assigned);let next;do{next=it.next();}while(!next.done);return next.value;}
+export function* executivePageSteps(project,shapes,assigned,ids){
  if(!project?.sheets.length)throw Error('Сначала создайте исполнительную');
- const loose=assigned||executiveLooseRoots(project,shapes);
- let offset=0;
- return project.sheets.flatMap(sheet=>{
+ const loose=assigned||(yield* looseRootSteps(project,shapes));
+ let offset=0;const pages=[];
+ for(const sheet of project.sheets){
   const layout=executiveEntities(project,sheet.id),count=layout.items.length,roots=new Set(sheet.nativeHandles.map(h=>'dwg-'+h)),start=offset;offset+=count;
-  const selected=shapes.filter(s=>roots.has(s.id)||loose.get(s.id)===sheet.id||s.id.startsWith('executive-')&&Number(s.id.slice(10))>=start&&Number(s.id.slice(10))<offset);
+  if(ids&&!ids.includes(sheet.id))continue;
+  const selected=[];let visited=0;for(const s of shapes){if(roots.has(s.id)||loose.get(s.id)===sheet.id||s.id.startsWith('executive-')&&Number(s.id.slice(10))>=start&&Number(s.id.slice(10))<offset)selected.push(s);if(++visited%2048===0)yield;}
   // Executive PDF is a paper-space plot: content beyond the sheet is clipped,
   // never allowed to shrink its frame and create large blank margins.
-  return layout.pageRanges.map((range,index)=>{const pageShapes=selected.filter(s=>{if(!s.id.startsWith('executive-'))return index===0;const n=Number(s.id.slice(10))-start;return n>=range.start&&n<range.end||index===0&&n>=layout.decorationEnd;});const bounds=[...range.origin,range.origin[0]+420*sheet.paperUnit,range.origin[1]+297*sheet.paperUnit];return {sheet,shapes:pageShapes,bounds};});
- });
+  for(const [index,range] of layout.pageRanges.entries()){const pageShapes=[];visited=0;for(const s of selected){const n=Number(s.id.slice(10))-start;if(!s.id.startsWith('executive-')?index===0:n>=range.start&&n<range.end||index===0&&n>=layout.decorationEnd)pageShapes.push(s);if(++visited%2048===0)yield;}const bounds=[...range.origin,range.origin[0]+420*sheet.paperUnit,range.origin[1]+297*sheet.paperUnit];pages.push({sheet,shapes:pageShapes,bounds});}
+ }return pages;
 }
 
 // Standalone text/lines drawn inside exactly one sheet belong to that export.
 // Test the complete root bounds, never individual display fragments of a block.
 export function executiveLooseRoots(project,shapes){
+ const it=looseRootSteps(project,shapes);let next;do{next=it.next();}while(!next.done);return next.value;
+}
+function* looseRootSteps(project,shapes){
  const reserved=new Set([...project.sheets.flatMap(s=>s.nativeHandles),(project.generatedHandles||[])].flat().map(h=>'dwg-'+h)),bounds=new Map(),result=new Map();
- for(const s of shapes){if(reserved.has(s.id)||s.id.startsWith('executive-'))continue;const b=bounds.get(s.id);if(b){b[0]=Math.min(b[0],s.bounds[0]);b[1]=Math.min(b[1],s.bounds[1]);b[2]=Math.max(b[2],s.bounds[2]);b[3]=Math.max(b[3],s.bounds[3]);}else bounds.set(s.id,[...s.bounds]);}
- for(const [id,b] of bounds){const owners=project.sheets.filter(s=>b[0]>=s.origin[0]&&b[1]>=s.origin[1]&&b[2]<=s.origin[0]+420*s.paperUnit&&b[3]<=s.origin[1]+297*s.paperUnit);if(owners.length===1)result.set(id,owners[0].id);}
+ let visited=0;for(const s of shapes){if(++visited%2048===0)yield;if(reserved.has(s.id)||s.id.startsWith('executive-'))continue;const b=bounds.get(s.id);if(b){b[0]=Math.min(b[0],s.bounds[0]);b[1]=Math.min(b[1],s.bounds[1]);b[2]=Math.max(b[2],s.bounds[2]);b[3]=Math.max(b[3],s.bounds[3]);}else bounds.set(s.id,[...s.bounds]);}
+ for(const [id,b] of bounds){if(++visited%2048===0)yield;const owners=project.sheets.filter(s=>b[0]>=s.origin[0]&&b[1]>=s.origin[1]&&b[2]<=s.origin[0]+420*s.paperUnit&&b[3]<=s.origin[1]+297*s.paperUnit);if(owners.length===1)result.set(id,owners[0].id);}
  return result;
 }
 
@@ -35,20 +40,28 @@ export function imagePdf(pages){
 }
 
 export async function executivePdf(project,shapes,onProgress=()=>{},options={}){
+ const pause=async()=>{onProgress(0,1,'Подготовка выбранных листов');await new Promise(r=>setTimeout(r,0));onProgress(0,1,'Подготовка выбранных листов');};
+ await pause();
+ const hidden=new Set(options.hiddenLayers||[]);
+ if(!options.whole){
+  const iterator=executivePageSteps(project,shapes,undefined,options.ids);let next,start=performance.now();do{next=iterator.next();if(performance.now()-start>8){await pause();start=performance.now();}}while(!next.done);
+  const pages=next.value;if(!pages.length)throw Error('Не выбраны исполнительные');if(pages.length>50)throw Error('Предел PDF: 50 исполнительных за выгрузку');
+  for(const page of pages){const filtered=[];for(let i=0;i<page.shapes.length;i++){const shape=page.shapes[i];if(!hidden.has(shape.layer))filtered.push(shape);if(i%2048===0&&performance.now()-start>8){await pause();start=performance.now();}}page.shapes=filtered;}
+  return vectorPdf(pages,onProgress);
+ }
  const measure=document.createElement('canvas').getContext('2d');
  // Screen text bounds are intentionally very generous for hit-testing. Use
  // font metrics here so those hit areas do not create enormous printed margins.
- const hidden=new Set(options.hiddenLayers||[]);
- const printable=shapes.filter(shape=>!hidden.has(shape.layer)).map(shape=>{
+ const printable=[];let start=performance.now();
+ const measured=shape=>{
   if(shape.text===null||shape.multiline)return shape;
   const f=shape.font;measure.font=(f?.italic?'italic ':'')+(f?.bold?'bold ':'')+'100px "'+(f?.family||'Arial')+'"';measure.textAlign=['left','center','right'][shape.halign]||'left';measure.textBaseline=['alphabetic','bottom','middle','top'][shape.valign]||'alphabetic';
   const metrics=measure.measureText(shape.text),k=shape.height/100,c=Math.cos(shape.angle),s=Math.sin(shape.angle),origin=shape.pts[0],points=[];
   for(const x of [-metrics.actualBoundingBoxLeft,metrics.actualBoundingBoxRight])for(const y of [-metrics.actualBoundingBoxAscent,metrics.actualBoundingBoxDescent]){const X=(x-Math.tan(shape.oblique||0)*y)*k*(shape.textScale||1),Y=-y*k;points.push([origin[0]+X*c-Y*s,origin[1]+X*s+Y*c]);}
   return {...shape,bounds:[Math.min(...points.map(p=>p[0])),Math.min(...points.map(p=>p[1])),Math.max(...points.map(p=>p[0])),Math.max(...points.map(p=>p[1]))]};
- });
- let sheets;
- if(options.whole){const bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const s of printable){bounds[0]=Math.min(bounds[0],s.bounds[0]);bounds[1]=Math.min(bounds[1],s.bounds[1]);bounds[2]=Math.max(bounds[2],s.bounds[2]);bounds[3]=Math.max(bounds[3],s.bounds[3]);}if(!bounds.every(Number.isFinite))throw Error('Нет отображаемой геометрии для PDF');if(bounds[2]===bounds[0])bounds[2]++;if(bounds[3]===bounds[1])bounds[3]++;sheets=[{shapes:printable,bounds}];}
- else sheets=executivePages(project,printable,executiveLooseRoots(project,shapes)).filter(p=>!options.ids||options.ids.includes(p.sheet.id));
- if(!sheets.length)throw Error('Не выбраны исполнительные');if(sheets.length>50)throw Error('Предел PDF: 50 исполнительных за выгрузку');
- return vectorPdf(sheets,onProgress);
+ };
+ for(let i=0;i<shapes.length;i++){if(!hidden.has(shapes[i].layer))printable.push(measured(shapes[i]));if(i%128===0&&performance.now()-start>8){await pause();start=performance.now();}}
+ const bounds=[Infinity,Infinity,-Infinity,-Infinity];let visited=0;for(const s of printable){bounds[0]=Math.min(bounds[0],s.bounds[0]);bounds[1]=Math.min(bounds[1],s.bounds[1]);bounds[2]=Math.max(bounds[2],s.bounds[2]);bounds[3]=Math.max(bounds[3],s.bounds[3]);if(++visited%2048===0&&performance.now()-start>8){await pause();start=performance.now();}}
+ if(!bounds.every(Number.isFinite))throw Error('Нет отображаемой геометрии для PDF');if(bounds[2]===bounds[0])bounds[2]++;if(bounds[3]===bounds[1])bounds[3]++;
+ return vectorPdf([{shapes:printable,bounds}],onProgress);
 }
