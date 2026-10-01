@@ -1,6 +1,6 @@
-import {cableChain} from './cable-chain.mjs?v=0.17.53';
-import {pathLength} from './selection-metrics.mjs?v=0.17.53';
-import {midpoint} from './length-overlay.mjs?v=0.17.53';
+import {cableChain} from './cable-chain.mjs?v=0.17.54';
+import {pathLength} from './selection-metrics.mjs?v=0.17.54';
+import {midpoint} from './length-overlay.mjs?v=0.17.54';
 // Classification is for a read-only overlay, never changes cable assignments.
 export function cableLayer(name){
  if(/текст|вынос|размер|штамп|марки|лотк|оборуд|зазем|молни|гребен|отверст/i.test(name))return false;
@@ -12,10 +12,12 @@ export function cableLayer(name){
 }
 const style=s=>JSON.stringify([s.layer,s.color,s.rgb]);
 const eligible=s=>s.text===null&&!s.fill&&!s.hatch&&['LINE','ARC','LWPOLYLINE','POLYLINE','SPLINE'].includes(s.entityType)&&s.pts.length>1;
-export function* sourceCableLengths(shapes,{routes=[],devices=new Set(),hidden=new Set()}={}){
+export function* sourceCableLengths(shapes,{routes=[],devices=new Set(),hidden=new Set(),cooperative=false}={}){
  const assigned=new Set(routes.flatMap(r=>r.sourceIds||[])),known=new Set(),groups=new Map();
- for(const s of shapes)if(assigned.has(s.entityId||s.id)&&eligible(s))known.add(style(s));
+ let visited=0;
+ if(assigned.size)for(const s of shapes){if(cooperative&&++visited%1024===0)yield null;if(assigned.has(s.entityId||s.id)&&eligible(s))known.add(style(s));}
  for(const s of shapes){
+  if(cooperative&&++visited%1024===0)yield null;
   if(!eligible(s)||hidden.has(s.layer)||devices.has(s.deviceId)||assigned.has(s.entityId||s.id)||s.id.startsWith('executive-'))continue;
   if(!cableLayer(s.layer)&&!known.has(style(s))&&!s.id.startsWith('new-'))continue;
   const key=JSON.stringify([style(s),s.deviceId?[s.id,s.deviceId,...(s.entityMatrix||[])]:null]);

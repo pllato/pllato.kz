@@ -1,0 +1,13 @@
+// Opt-in local fixture; throttle is a stress test, NOT a Xiaomi hardware model.
+const {chromium}=require('playwright'),assert=require('node:assert/strict');
+(async()=>{if(!process.env.DWG_PERF_FIXTURE)throw Error('Set DWG_PERF_FIXTURE');const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});try{
+ const page=await browser.newPage({viewport:{width:1280,height:854},deviceScaleFactor:2.5,hasTouch:true,isMobile:true});page.setDefaultTimeout(180000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const cdp=await page.context().newCDPSession(page);await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});
+ await page.route('**/app/gate.js',r=>r.fulfill({body:''}));
+ await page.route('**/editor.mjs*',async r=>{const response=await r.fetch();await r.fulfill({response,body:await response.text()+`
+ globalThis.tabletProbe={stats:()=>({shapes:drawing.shapes.length,canvas:[canvas.width,canvas.height],busy:!$('busy').hidden,cached:cached?.drawing===drawing}),ready:()=>!rasterTask.key,paint:()=>{const t=performance.now();paint();return performance.now()-t;},select:()=>{const s=drawing.shapes.find(s=>s.text===null&&/розет/i.test(s.layer)&&s.pts.length>1);if(!s)throw Error('No wiring');const p=s.pts[0];view={s:1,x:width/2-p[0],y:height/2+p[1]};pick(screen(p));draw();},pan:()=>{view.x+=1;markInteraction();draw();}};`});});
+ await page.goto((process.env.DWG_TEST_ORIGIN||'http://127.0.0.1:8817')+'/app/stroy/dwg/');await page.locator('#file').setInputFiles(process.env.DWG_PERF_FIXTURE);await page.waitForFunction(()=>window.tabletProbe&&!tabletProbe.stats().busy&&tabletProbe.stats().cached&&tabletProbe.ready());await page.evaluate(()=>document.fonts.ready);const stats=await page.evaluate(()=>tabletProbe.stats());assert.ok(stats.cached);assert.ok(stats.canvas[0]*stats.canvas[1]<2404000);console.log('STATS',stats);
+ const sample=pan=>page.evaluate(async pan=>{const times=[];for(let i=0;i<25;i++){await new Promise(requestAnimationFrame);if(pan)tabletProbe.pan();times.push(tabletProbe.paint());}times.sort((a,b)=>a-b);return {p50:times[12],p95:times[23],max:times[24]};},pan);
+ console.log('IDLE',await sample(false));await page.evaluate(()=>tabletProbe.select());await page.waitForFunction(()=>tabletProbe.ready());console.log('SELECTED',await sample(false));console.log('PAN',await sample(true));assert.deepEqual(errors,[]);
+ console.log('PASS touch/high-DPI budget, responsive cached frames; timings are lab samples');
+ }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,4 +1,4 @@
-import {overlapLinks} from './cable-overlap.mjs?v=0.17.53';
+import {overlapLinks} from './cable-overlap.mjs?v=0.17.54';
 // Conservative partition only: cableChain still performs all exact tests.
 const cache=new WeakMap();
 const eligible=s=>s.text===null&&!s.fill&&!s.hatch&&['LINE','ARC','LWPOLYLINE','POLYLINE','SPLINE'].includes(s.entityType)&&s.pts.length>1;
@@ -20,6 +20,18 @@ function partition(group){
  for(const part of parts.values())for(const s of part)result.set(s,part);return result;
 }
 export function cableCandidates(shapes,seed){
- let entry=cache.get(shapes);if(!entry){const groups=new Map();for(const s of shapes)if(eligible(s)){const k=key(s);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(s);}cache.set(shapes,entry={groups,parts:new Map()});}
- const k=key(seed);if(!entry.parts.has(k))entry.parts.set(k,partition(entry.groups.get(k)||[]));return entry.parts.get(k).get(seed)||[];
+ let entry=cache.get(shapes);if(!entry)cache.set(shapes,entry=new Map());
+ const k=key(seed);if(!entry.has(k)){
+  // Only index the picked style/instance, not every wall, hatch and device in
+  // the whole file. Exact endpoint/overlap and branch rules remain unchanged.
+  const group=[],matrix=seed.entityMatrix||[];
+  for(const s of shapes){
+   if(s.layer!==seed.layer||s.color!==seed.color||s.rgb!==seed.rgb||!eligible(s))continue;
+   if(seed.deviceId){const m=s.entityMatrix||[];if(s.id!==seed.id||s.deviceId!==seed.deviceId||m.length!==matrix.length||m.some((n,i)=>n!==matrix[i]))continue;}
+   else if(s.deviceId)continue;
+   group.push(s);
+  }
+  entry.set(k,partition(group));
+ }
+ return entry.get(k).get(seed)||[];
 }
