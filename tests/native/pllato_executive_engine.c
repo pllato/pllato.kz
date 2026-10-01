@@ -14,8 +14,8 @@
 extern int dwg_encode_add_object(Dwg_Object *,Bit_Chain *,size_t);
 extern size_t pllato_encoded_payload_end;
 static int selected_export_validated=0;
-#include "pllato_dimension_edit.h"
 API int pllato_probe_opaque(const char *handle);
+#include "pllato_dimension_edit.h"
 static int prepare_note_write(Dwg_Object *o,const char *handle){
  if(!o->num_unknown_bits)return !o->num_unknown_rest;
  /* Use typed data only after the existing bit-for-bit coverage gate proves

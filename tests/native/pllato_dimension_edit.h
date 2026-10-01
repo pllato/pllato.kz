@@ -15,6 +15,28 @@ API int pllato_add_dimension(const double *v,int count,const char *text){
  Dwg_Object *o=dwg_obj_generic_to_object(d,&error);if(!o||error)return 4;
  d->block=dwg_add_handleref(&drawing,5,handle,o);d->text_midpt.x=v[6];d->text_midpt.y=v[7];d->act_measurement=length;new_entity_style(d->parent);return 0;
 }
+/* Explicit user-confirmed disassociation. Retain the DIMASSOC object, owner,
+   dictionary and reactors; clear only its now-inactive snap references. */
+API int pllato_dimension_detach(const char *handle){
+ Dwg_Object *o=entity(handle);if(!o||o->fixedtype!=DWG_TYPE_DIMENSION_LINEAR)return 1;
+ for(unsigned i=0;i<drawing.num_objects;i++){
+  Dwg_Object *a=&drawing.object[i];if(a->fixedtype!=DWG_TYPE_DIMASSOC)continue;
+  Dwg_Object_DIMASSOC *d=a->tio.object->tio.DIMASSOC;
+  if(!d->dimensionobj||d->dimensionobj->absolute_ref!=o->handle.value||!d->associativity)continue;
+  if(a->num_unknown_rest||!d->ref)return 2;
+  if(a->num_unknown_bits){char h[32];snprintf(h,sizeof(h),"%llX",(unsigned long long)a->handle.value);if(pllato_probe_opaque(h))return 2;}
+  for(unsigned j=0;j<6;j++)if(d->ref[j].num_xrefpaths||d->ref[j].num_intersec_xrefpaths)return 3;
+ }
+ for(unsigned i=0;i<drawing.num_objects;i++){
+  Dwg_Object *a=&drawing.object[i];if(a->fixedtype!=DWG_TYPE_DIMASSOC)continue;
+  Dwg_Object_DIMASSOC *d=a->tio.object->tio.DIMASSOC;
+  if(!d->dimensionobj||d->dimensionobj->absolute_ref!=o->handle.value||!d->associativity)continue;
+  free(a->unknown_bits);a->unknown_bits=NULL;a->num_unknown_bits=0;
+  for(unsigned j=0;j<6;j++){Dwg_DIMASSOC_Ref *r=&d->ref[j];free(r->classname);free(r->xrefs);free(r->intsectobj);memset(r,0,sizeof(*r));}
+  d->associativity=0;d->has_lastpt_ref=0;
+ }
+ return 0;
+}
 API int pllato_dimension_move(const char *handle,double dx,double dy){
  Dwg_Object *o=entity(handle);if(!o||o->fixedtype!=DWG_TYPE_DIMENSION_LINEAR||!isfinite(dx)||!isfinite(dy))return 1;
  Dwg_Entity_DIMENSION_LINEAR *d=o->tio.entity->tio.DIMENSION_LINEAR;
