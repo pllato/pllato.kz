@@ -1,8 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {paintHatch} from './hatch.mjs?v=0.17.56';
+import {paintHatch} from './hatch.mjs?v=0.17.57';
 import {shxLayout} from './shx-layout.mjs';
 export function previewTransform(current,cached){const scale=current.s/cached.s;return {scale,x:current.x-cached.x*scale,y:current.y-cached.y*scale};}
 export function textLines(text,width,measure){return text.split(/\r?\n/).flatMap(paragraph=>{if(!(width>0))return [paragraph];const lines=[];let line='';for(const word of paragraph.split(/\s+/)){const next=line?line+' '+word:word;if(line&&measure(next)>width){lines.push(line);line=word;}else line=next;}lines.push(line);return lines;});}
+export function textHitDistance(ctx,s,p,view){
+ const size=s.height*view.s;if(!(size>0))return Infinity;
+ const dx=p[0]-(s.pts[0][0]*view.s+view.x),dy=p[1]-(view.y-s.pts[0][1]*view.s),c=Math.cos(s.angle||0),sn=Math.sin(s.angle||0);
+ const y=dx*sn+dy*c,x=(dx*c-dy*sn+y*Math.tan(s.oblique||0))/(s.textScale||1);
+ ctx.save();const f=s.font;ctx.font=(f?.italic?'italic ':'')+(f?.bold?'bold ':'')+Math.max(2,size)+'px "'+(f?.family||'Arial')+'"';
+ const lines=s.multiline?textLines(s.text,s.textWidth*view.s,t=>ctx.measureText(t).width):[s.text];
+ const a=Math.max(1,Math.min(9,s.attachment||1)),col=s.multiline?(a-1)%3:s.halign||0,row=Math.floor((a-1)/3),total=size+(lines.length-1)*size*1.2;
+ const top=s.multiline?-row*total/2:({0:-size,1:-size,2:-size/2,3:0}[s.valign||0]);let best=Infinity;
+ for(let i=0;i<lines.length;i++){const width=ctx.measureText(lines[i]).width,left=-width*([0,.5,1][col]||0),t=top+i*size*1.2;best=Math.min(best,Math.hypot(Math.max(left-x,0,x-left-width),Math.max(t-y,0,y-t-size)));}
+ ctx.restore();return best;
+}
 // Последовательные линии одного цвета рисуем пачкой, сохраняя порядок цветов,
 // заливок и текста. Экранные координаты не создают временные массивы точек.
 export function paintShapes(ctx,shapes,{view,width,height,hidden,selected,colors,pixelsPerMm=96/25.4}){

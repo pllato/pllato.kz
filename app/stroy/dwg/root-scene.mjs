@@ -1,4 +1,4 @@
-import {scene,get} from './cad.mjs?v=0.17.56';
+import {scene,get} from './cad.mjs?v=0.17.57';
 // Re-expand only independently edited model-space INSERTs and their attributes.
 // Preserve painter order and every unaffected shape (including cleaned labels).
 export function updatedRootScene(doc,drawing,targets){
@@ -6,7 +6,7 @@ export function updatedRootScene(doc,drawing,targets){
  for(const s of drawing.shapes)if(requested.has(s.id)||requested.has(s.deviceId)||requested.has(s.entityId))roots.add(s.id);
  const records=doc.entities.filter(r=>roots.has(r.id));
  if(!roots.size)return null;
- if(drawing.limited||records.length!==roots.size||records.some(r=>r.type!=='INSERT'))return null;
+ if(drawing.limited||records.length!==roots.size||records.some(r=>!['INSERT','TEXT','MTEXT'].includes(r.type)))return null;
  const handles=new Set(records.map(r=>get(r,5)));
  for(const r of doc.entities)if(r.type==='ATTRIB'&&handles.has(get(r,330))){records.push(r);roots.add(r.id);}
  // A transform does not change entity types. Keep the document's existing
