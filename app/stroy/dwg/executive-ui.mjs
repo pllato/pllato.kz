@@ -1,17 +1,19 @@
-import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.52';
-import * as projectAPI from './executive-project.mjs?v=0.17.52';
-import {routeLength} from './cable-ledger.mjs?v=0.17.52';
-import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.52';
-import {executivePlacement} from './executive-placement.mjs?v=0.17.52';
-import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.52';
-import {drawingPreset} from './drawing-presets.mjs?v=0.17.52';
-import {parseTable,tablePages} from './table-paste.mjs?v=0.17.52';
+import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.53';
+import * as projectAPI from './executive-project.mjs?v=0.17.53';
+import {routeLength} from './cable-ledger.mjs?v=0.17.53';
+import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.53';
+import {executivePlacement} from './executive-placement.mjs?v=0.17.53';
+import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.53';
+import {drawingPreset} from './drawing-presets.mjs?v=0.17.53';
+import {parseTable,tablePages} from './table-paste.mjs?v=0.17.53';
+import {stampLabels} from './stamp-fields.mjs?v=0.17.53';
+import {mountStampWorkbench} from './stamp-workbench.mjs?v=0.17.53';
 export function mountExecutiveUI(api){
  const panel=document.createElement('section');panel.id='executives';
  panel.innerHTML=`<h2>Исполнительные</h2><button id="exArea">Выделить план рамкой</button><p id="exAreaInfo">Откройте DWG, выберите единицы и выделите план.</p><button id="exCreate" disabled>Создать рядом</button><label>Исполнительная<select id="exSheet"></select></label><label>Заголовок<input id="exTitle" maxlength="1000"></label><label>Поворот плана, °<input id="exAngle" type="number" value="0"></label><details><summary>Редактировать штамп</summary><div id="exStamp"></div></details><button id="exApply">Применить оформление</button><h3>Кабельные трассы</h3><label>Марка<input id="exBrand" value="ВВГнг(А)-LS"></label><label>Сечение<input id="exSection" value="3×2,5"></label><label>Дополнительная длина, м<input id="exExtra" type="number" min="0" value="0" step="any"></label><button id="exRoute">Рисовать трассу</button><button id="exFinish">Завершить трассу</button><label>Трасса<select id="exRouteList"></select></label><button id="exCable">Назначить кабель</button><button id="exLeader">Выноска · 3 точки</button><button id="exRemoveLeader">Удалить выноски</button><button id="exRemoveRoute">Удалить трассу</button><div class="pair"><label>Сдвиг X<input id="exDX" type="number" value="0"></label><label>Сдвиг Y<input id="exDY" type="number" value="0"></label></div><button id="exMoveRoute">Двигать трассу</button><button id="exDevice">Выбрать прибор</button><pre id="exLedger" style="white-space:pre-wrap;font-size:12px"></pre>`;
  document.querySelector('#sidebar').prepend(panel);
  const advanced=document.createElement('div');advanced.innerHTML=`<label>Отдельная выноска<select id="exLeaderList"></select></label><button id="exMoveLeader">Сдвинуть подпись · X/Y выше</button><button id="exDeleteLeader">Удалить выбранную выноску</button><label>Известная длина, м<input id="exKnownMetres" type="number" min="0" step="any" value="1"></label><button id="exCalibrate">Калибровать · 2 точки</button>`;panel.append(advanced);
- const $=id=>document.getElementById(id),stampLabels={code:'Обозначение документа',project:'Проект',object:'Объект',drawing:'Название схемы',organization:'Организация',stage:'Стадия',contractor:'Выполнил',checkedBy:'Проверил',approvedBy:'Согласовал',date:'Дата',sheet:'Лист',sheets:'Листов'};
+ const $=id=>document.getElementById(id);
  const showSheet=document.createElement('button');showSheet.id='exShow';showSheet.textContent='Показать исполнительную';$('exSheet').parentElement.after(showSheet);
  const operationError=document.createElement('p');operationError.id='exError';operationError.setAttribute('role','alert');operationError.hidden=true;operationError.style.cssText='color:#ffc38a;overflow-wrap:anywhere';$('exCreate').after(operationError);
  for(const [key,label] of Object.entries(stampLabels)){const l=document.createElement('label');l.textContent=label;const i=document.createElement('input');i.id='exStamp_'+key;i.maxLength=1000;l.append(i);$('exStamp').append(l);}
@@ -137,7 +139,8 @@ function assignSelection(){if(!sheet())throw Error('Выберите испол�
  // Position only: never rebuild geometry or parse the table on pointer movement.
  let tableAnchorSheet=null,tableHeight=14;
  function paintTableEntry(){const s=sheet(),viewport=$('viewport');if(!s||api.busy()){tableEntry.hidden=true;return;}if(tableAnchorSheet!==s){tableAnchorSheet=s;tableHeight=s.table?tablePages(s.table)[0].height:(Math.min(10,(s.tableRows||projectAPI.executiveLedger(project(),s.id).rows).length)+1)*7;}const [x,y]=api.screen([s.origin[0]+15*s.paperUnit,s.origin[1]+(5+tableHeight)*s.paperUnit]);tableEntry.hidden=x<0||x>viewport.clientWidth-160||y<35||y>viewport.clientHeight;if(!tableEntry.hidden){tableEntry.style.left=x+'px';tableEntry.style.top=Math.max(0,y-34)+'px';}}
- return {paintTableEntry,rebuild,tap,project,hover,selectObject,finishArea,startArea:w=>{if(mode==='area'){points=[w];hoverPoint=w;api.draw();}},clearArea:()=>{if(mode==='area'){points=[];hoverPoint=null;api.draw();}},preview:()=>({mode,points,hoverPoint}),cancel:()=>{points=[];hoverPoint=null;mode='';},sheet,route:selectedRoute,
+ const stampWorkbench=mountStampWorkbench({sheet,project,screen:api.screen,busy:api.busy,edit:(id,stamp)=>{if(!project().sheets.some(s=>s.id===id))throw Error('Исполнительная не найдена');mutate(p=>{p.sheets.find(s=>s.id===id).stamp=stamp;});api.status('Штамп сохранён. Изменения войдут в DWG и PDF.');}});
+ return {paintTableEntry:()=>{paintTableEntry();stampWorkbench.paint();},rebuild,tap,project,hover,selectObject,finishArea,startArea:w=>{if(mode==='area'){points=[w];hoverPoint=w;api.draw();}},clearArea:()=>{if(mode==='area'){points=[];hoverPoint=null;api.draw();}},preview:()=>({mode,points,hoverPoint}),cancel:()=>{points=[];hoverPoint=null;mode='';},sheet,route:selectedRoute,
   editLeader:(sheetId,route,leaderId,values)=>mutate(p=>{const s=p.sheets.find(s=>s.id===sheetId),r=s?.routes.find(r=>r.id===route),l=r?.leaders.find(l=>l.id===leaderId);if(!l)throw Error('Выноска не найдена');if(values.remove){r.leaders=r.leaders.filter(l=>l.id!==leaderId);return;}for(const key of ['label','elbow'])if(values[key]){if(!Array.isArray(values[key])||values[key].length!==2||!values[key].every(Number.isFinite))throw Error('Неверная точка');l[key]=[...values[key]];}if(values.textHeight!==undefined){if(!Number.isFinite(values.textHeight)||values.textHeight<.2||values.textHeight>50)throw Error('Высота текста: от 0,2 до 50 мм');l.textHeight=values.textHeight;}for(const key of ['brand','section'])if(values[key]!==undefined){if(typeof values[key]!=='string'||values[key].length>1000)throw Error('Слишком длинное название');r[key]=values[key].trim();}}),
   assignSelection,
   editTitle:(id,values)=>{const s=project().sheets.find(s=>s.id===id);if(!s)throw Error('Исполнительная не найдена');const style={x:210,y:275,height:5,...s.titleStyle,...Object.fromEntries(['x','y','height'].filter(k=>values[k]!==undefined).map(k=>[k,values[k]]))};if(!Object.values(style).every(Number.isFinite)||style.x<0||style.x>420||style.y<0||style.y>297||style.height<.2||style.height>50)throw Error('Размер: 0,2–50 мм; положение — внутри листа');if(values.title!==undefined&&(typeof values.title!=='string'||values.title.length>1000))throw Error('Название: до 1000 символов');active=id;mutate(p=>{const s=p.sheets.find(s=>s.id===id);s.titleStyle=style;if(values.title!==undefined)s.title=values.title;});},

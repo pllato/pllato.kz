@@ -1,4 +1,5 @@
-import {createExecutiveProject,createExecutive,addRoute,addLeader} from './executive-project.mjs?v=0.17.52';
+import {createExecutiveProject,createExecutive,addRoute,addLeader} from './executive-project.mjs?v=0.17.53';
+import {stampLabels} from './stamp-fields.mjs?v=0.17.53';
 const handles=a=>{if(!Array.isArray(a)||a.length>100000||a.some(h=>typeof h!=='string'||!/^[0-9a-f]{1,16}$/i.test(h)))throw Error('Повреждены ссылки исполнительной');return [...a];};
 export function validateExecutiveProject(value){
  if(!value||value.version!==1||!Array.isArray(value.sheets)||value.sheets.length>100)throw Error('Неподдерживаемые данные исполнительных');
@@ -7,7 +8,7 @@ export function validateExecutiveProject(value){
   const s=createExecutive(p,{...input,nativeHandles:handles(input.nativeHandles)});
   if(typeof input.title!=='string'||input.title.length>1000||!Number.isFinite(input.angle))throw Error('Повреждены параметры листа');
   s.angle=input.angle;
-  for(const key of ['code','project','object','drawing','organization','stage','contractor','checkedBy','approvedBy','date','sheet','sheets']){const text=input.stamp?.[key];if(text!==undefined){if(typeof text!=='string'||text.length>1000)throw Error('Повреждён штамп');s.stamp[key]=text;}}
+  for(const key of Object.keys(stampLabels)){const text=input.stamp?.[key];if(text!==undefined){if(typeof text!=='string'||text.length>1000)throw Error('Повреждён штамп');s.stamp[key]=text;}}
   if(!Array.isArray(input.routes)||input.routes.length>10000)throw Error('Слишком много трасс');
   for(const r of input.routes){
    if(!Array.isArray(r.points)||r.points.length>10000||!Array.isArray(r.leaders)||r.leaders.length>1000)throw Error('Повреждена трасса');

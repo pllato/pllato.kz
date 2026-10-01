@@ -5,11 +5,11 @@ export function executiveStamp({x,y,width=180,height=45,stamp={},title='',line,t
  const grid=(top,h,rows,fractions)=>{
   const widths=(fractions||rows[0].map(()=>1/rows[0].length)).map(f=>f*left),rh=h/rows.length;
   let px=x;for(const w of widths.slice(0,-1)){px+=w;line(px,top-h,px,top);}
-  rows.forEach((row,i)=>{if(i)line(x,top-i*rh,rx,top-i*rh);let px=x;row.forEach((v,j)=>{text(px+.6,top-(i+.7)*rh,v,1.8);px+=widths[j];});});
+  rows.forEach((row,i)=>{if(i)line(x,top-i*rh,rx,top-i*rh);let px=x;row.forEach((v,j)=>{text(px+.6,top-(i+.7)*rh,v,Math.min(1.8,(widths[j]-1.2)/Math.max(1,String(v).length)/.65));px+=widths[j];});});
  };
  grid(y+height,height*.30,[['Изм.','Кол.','Лист','№ док.','Подп.','Дата'],['','','','','',''],['','','','','','']]);
  line(x,y+height*.7,rx,y+height*.7);
- grid(y+height*.7,height*.7,[['Роль','ФИО','Подп.','Дата'],['Выполнил',stamp.contractor||'','',stamp.date||''],['Проверил',stamp.checkedBy||'','',''],['Согласовал',stamp.approvedBy||'','','']],[.30,.34,.18,.18]);
+ grid(y+height*.7,height*.7,[['Роль','ФИО','Подп.','Дата'],[stamp.contractorRole??'Выполнил',stamp.contractor||'',stamp.contractorSignature||'',stamp.date||''],[stamp.checkedRole??'Проверил',stamp.checkedBy||'',stamp.checkedSignature||'',stamp.checkedDate||''],[stamp.approvedRole??'Согласовал',stamp.approvedBy||'',stamp.approvedSignature||'',stamp.approvedDate||'']],[.30,.34,.18,.18]);
  for(const v of [.18,.51,.72])line(rx,y+height*(1-v),x+width,y+height*(1-v));
  line(rx+right*.76,y,rx+right*.76,y+height*.49);
  text(rx+2,y+height*.875,stamp.code||'',2.5);
@@ -18,6 +18,7 @@ export function executiveStamp({x,y,width=180,height=45,stamp={},title='',line,t
  lines.forEach((v,i)=>text(rx+2,y+height*.79-font*(i+1)*1.4,v,font));
  text(rx+2,y+height*.36,stamp.drawing||'Исполнительная схема',2.5);
  text(rx+right*.78,y+height*.36,'Лист '+(stamp.sheet||'1')+'/'+(stamp.sheets||'1'),2.3);
- text(rx+2,y+height*.11,stamp.organization||'Организация',2.8);
+ const organization=stamp.organization||'Организация';
+ text(rx+2,y+height*.11,organization,Math.min(2.8,(right*.76-4)/Math.max(1,organization.length)/.65));
  text(rx+right*.79,y+height*.11,stamp.stage||'ИД',2.8);
 }
