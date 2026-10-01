@@ -25,3 +25,8 @@ test('Branches and separate block instances are not merged',()=>{
  assert.equal([...sourceCableLengths(copies)].length,2);
  assert.equal(cableLayer('EL-SS_Марки кабельных лотков'),false);assert.equal(cableLayer('ЭЛ_Текст'),false);assert.equal(cableLayer('ЭЛ'),true);
 });
+test('cooperative discovery yields before scanning the whole drawing without losing lengths',()=>{
+ const shapes=Array.from({length:4096},(_,i)=>shape('wall'+i,[[i,0],[i,1]],{layer:'Стены'}));shapes.push(shape('wire',[[0,0],[3,4]]));
+ const it=sourceCableLengths(shapes,{cooperative:true});assert.equal(it.next().value,null);
+ assert.deepEqual([...it].filter(Boolean),[...sourceCableLengths(shapes)]);
+});

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.53';
-import {writeAdditions} from './authoring.mjs?v=0.17.53';
-import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.53';
+import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.54';
+import {writeAdditions} from './authoring.mjs?v=0.17.54';
+import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.54';
 self.onmessage=async({data})=>{
  try{
   const {buffer,ops,added=[]}=data;
   if(!(buffer instanceof ArrayBuffer)||!Array.isArray(ops)||ops.length>100000)throw Error('Неверный пакет изменений.');
   self.postMessage({progress:'Открываю исходный DWG для записи изменений…',percent:10});
-  const m=await createModule({locateFile:p=>new URL('./vendor/'+p+'?v=0.17.53',import.meta.url).href,print:()=>{},printErr:()=>{}});
+  const m=await createModule({locateFile:p=>new URL('./vendor/'+p+'?v=0.17.54',import.meta.url).href,print:()=>{},printErr:()=>{}});
   m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
   const opened=m.ccall('pllato_open','number',['string'],['/input.dwg']);
   if(opened>=128)throw Error('DWG не прочитан: '+opened);
