@@ -580,6 +580,12 @@ body {
 .done-toggle:hover { background:rgba(22,163,74,.1); color:var(--green); }
 .done-toggle.on { opacity:1; color:#fff; background:var(--green); border-color:var(--green); }
 .done-toggle.auto { cursor:default; }
+.project-controls { display:flex; align-items:flex-end; gap:8px; width:100%; margin:0 0 14px; position:relative; z-index:4; }
+.project-controls .done-toggle { position:static; flex:none; min-height:30px; }
+.project-controls .project-manager { display:flex; flex-direction:column; gap:4px; flex:1; min-width:0; font-size:10.5px; color:var(--text-3); }
+.project-controls .project-manager select { width:100%; min-height:30px; padding:5px 7px; font-size:11px; }
+.project-controls .project-manager strong { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); }
+
 .crm-tile-user { padding:12px; border-bottom:1px solid var(--line-2); }
 .crm-tile-user:last-child { border-bottom:none; }
 .crm-tile-user-head { display:flex; align-items:center; gap:9px; }
@@ -5244,14 +5250,27 @@ function managerOptions(email=''){
   if(email&&!users.some(u=>String(u.email).toLowerCase()===email)) users.push({email,name:email});
   return '<option value="">Не назначен</option>'+users.map(u=>{const key=String(u.email).toLowerCase();return `<option value="${mEsc(key)}"${key===email?' selected':''}>${mEsc(u.name||key)}</option>`;}).join('');
 }
+function projectControls(card){
+  let controls=card.querySelector('.project-controls');
+  if(!controls){
+    controls=document.createElement('div');
+    controls.className='project-controls';
+    const icon=card.querySelector('.tool-icon');
+    if(icon) icon.insertAdjacentElement('afterend',controls); else card.prepend(controls);
+  }
+  const done=card.querySelector('.done-toggle');
+  if(done && done.parentElement!==controls) controls.appendChild(done);
+  return controls;
+}
 async function injectProjectManagers(){
   try{ await loadProjectManagers(); }catch(error){console.warn('project managers:',error);return;}
   document.querySelectorAll('.tool-card[data-app-id]').forEach(card=>{
     if(card.dataset.group && card.dataset.group!=='Работа с клиентами') return;
     let row=card.querySelector('.project-manager');
-    if(!row){row=document.createElement('label');row.className='project-manager';row.style.cssText='display:flex;gap:8px;align-items:center;padding:10px 14px;font-size:12px';card.appendChild(row);row.addEventListener('click',e=>e.stopPropagation());}
+    if(!row){row=document.createElement('label');row.className='project-manager';row.addEventListener('click',e=>e.stopPropagation());}
+    projectControls(card).prepend(row);
     const id=card.dataset.appId,email=PROJECT_MANAGERS[id]||'';
-    row.innerHTML='<span>Ответственный</span>'+(canSeeProjectMoney()?`<select style="min-width:0;flex:1" aria-label="Ответственный менеджер">${managerOptions(email)}</select>`:`<strong>${mEsc(managerName(email))}</strong>`);
+    row.innerHTML='<span>Ответственный</span>'+(canSeeProjectMoney()?`<select aria-label="Ответственный менеджер">${managerOptions(email)}</select>`:`<strong>${mEsc(managerName(email))}</strong>`);
     const select=row.querySelector('select');
     if(select) select.onchange=async()=>{
       select.disabled=true;
@@ -5548,7 +5567,7 @@ async function injectMoney(){
       done.type='button';
       done.className='done-toggle';
       done.addEventListener('click',(event)=>{ event.preventDefault(); event.stopPropagation(); toggleProjectComplete(id); });
-      card.appendChild(done);
+      projectControls(card).appendChild(done);
     }
     renderProjectComplete(id);
   });
