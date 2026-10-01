@@ -80,3 +80,18 @@ test('KEP SQL counts each deal once by conducting manager, leaves unassigned sep
  ctx.requireAuth=async()=>({error:'unauthorized',status:401});
  assert.equal((await ctx.handlePllatoKepManagers(new Request('https://test'),env)).status,401);
 });
+
+test('manager HTTP route loads actor for GET/PUT and rejects unauthenticated calls',async()=>{
+ const c=setup();
+ c.calls=0;
+ vm.runInContext('loadActorContext=async(request,env,options)=>{calls++;if(!options.strictTeamCheck)throw Error("team check required");return {isRoot:true,email:"root@test.kz",user:{}}};globalThis.routeWorker=workerExport;',c);
+ const response=await c.routeWorker.fetch(new Request('https://test/project-finance/managers'),{});
+ assert.equal(response.status,200);
+ assert.equal((await response.json()).managers.a,'a@test.kz');
+ const updated=await c.routeWorker.fetch(new Request('https://test/project-finance/managers',{method:'PUT',body:JSON.stringify({projectId:'a',managerEmail:'b@test.kz'})}),{});
+ assert.equal(updated.status,200);
+ assert.equal((await updated.json()).managers.a,'b@test.kz');
+ assert.equal(c.calls,2);
+ vm.runInContext('loadActorContext=async()=>{throw new HttpError(401,"Сессия не найдена")}',c);
+ assert.equal((await c.routeWorker.fetch(new Request('https://test/project-finance/managers'),{})).status,401);
+});

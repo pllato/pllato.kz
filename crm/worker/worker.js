@@ -8771,6 +8771,7 @@ export default {
       }
 
       if (["GET", "PUT"].includes(request.method) && path === "/project-finance/managers") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleProjectManagers(request, env, actor));
       }
       if (request.method === "GET" && path === "/project-finance") {
