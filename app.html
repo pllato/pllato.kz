@@ -861,6 +861,15 @@ body {
 .fc-card-sub { color: var(--text-3); font-size: 11px; margin-top: 2px; }
 .fc-access { border: 1px solid var(--line-2); background: transparent; color: var(--text-2); border-radius: 8px; font: inherit; font-size: 11.5px; font-weight: 700; padding: 5px 8px; cursor: pointer; white-space: nowrap; }
 .fc-access:hover { color: var(--bronze-deep); border-color: var(--bronze-deep); }
+.fc-card-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; flex-shrink:0; max-width:48%; }
+.fc-fullscreen { position:fixed; inset:0; width:100vw; max-width:none; height:100dvh; max-height:none; margin:0; padding:clamp(12px,2vw,28px); border:0; box-sizing:border-box; background:var(--bg,var(--surface)); color:var(--text); }
+.fc-fullscreen::backdrop { background:rgba(0,0,0,.5); }
+.fc-fullscreen .fc-card { width:100%; height:100%; box-sizing:border-box; border:0; padding:0; }
+.fc-fullscreen .fc-card-title { font-size:clamp(18px,2vw,28px); }
+.fc-fullscreen .fc-card-sub { font-size:13px; }
+.fc-fullscreen .fc-labels span { font-size:12px; }
+.fc-fullscreen .fc-close { min-height:38px; padding:8px 14px; font-size:14px; }
+
 .fc-labels { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); }
 .fc-plot { flex: 1; min-height: 0; position: relative; margin-top: 12px; }
 .fc-plot svg { width: 100%; height: 100%; display: block; overflow: visible; }
@@ -6098,6 +6107,41 @@ function financeChartSvg(kind,series){
     <polyline style="display:${showTotal?'block':'none'}" points="${completed}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
     ${showTotal?points:''}${managerLabels.join('')}</svg>`;
 }
+function openChartFullscreen(button){
+  const source=button.closest('.fc-card');
+  if(!source || document.querySelector('.fc-fullscreen')) return;
+  const dialog=document.createElement('dialog');
+  dialog.className='fc-fullscreen';
+  dialog.setAttribute('aria-label',source.querySelector('.fc-card-title')?.textContent||'График');
+  const card=source.cloneNode(true);
+  card.querySelectorAll('.fc-card-actions,.fc-week-tasks,.fc-notes').forEach(node=>node.remove());
+  card.querySelectorAll('[id]').forEach(node=>node.removeAttribute('id'));
+  const close=document.createElement('button');
+  close.type='button';close.className='fc-access fc-close';close.textContent='Свернуть ✕';
+  close.setAttribute('aria-label','Закрыть полноэкранный график');
+  close.onclick=()=>dialog.close();
+  card.querySelector('.fc-card-head').appendChild(close);
+  dialog.appendChild(card);
+  const overflow=document.body.style.overflow;
+  document.body.appendChild(dialog);
+  document.body.style.overflow='hidden';
+  // Перед открытием состава точки убираем верхний слой dialog.
+  dialog.addEventListener('click',event=>{if(event.target.closest('.fc-point'))dialog.close();},true);
+  dialog.addEventListener('keydown',event=>{if(['Enter',' '].includes(event.key)&&event.target.closest('.fc-point'))dialog.close();},true);
+  const plot=card.querySelector('.fc-plot'),svg=plot?.querySelector('svg'),labels=card.querySelector('.fc-labels');
+  if(svg) svg.setAttribute('preserveAspectRatio','xMidYMax meet');
+  const resize=new ResizeObserver(()=>{
+    const box=svg?.viewBox?.baseVal;
+    if(box?.height && labels) labels.style.cssText=`width:${Math.min(plot.clientWidth,plot.clientHeight*box.width/box.height)}px;align-self:center`;
+  });
+  if(plot) resize.observe(plot);
+  dialog.addEventListener('close',()=>{resize.disconnect();dialog.remove();document.body.style.overflow=overflow;if(button.isConnected)button.focus();},{once:true});
+  dialog.showModal();
+  close.focus();
+}
+function chartFullscreenButton(){
+  return '<button type="button" class="fc-access" onclick="openChartFullscreen(this)" title="Развернуть график на весь экран">⛶ На весь экран</button>';
+}
 function financeChartCard(kind,series){
   const meta=FINANCE_CHART_META[kind];
   const periodMeta=financeChartPeriodMeta();
@@ -6108,7 +6152,7 @@ function financeChartCard(kind,series){
     ? `<div class="fc-notes">${noted.slice(-3).reverse().map(comment=>`<button class="fc-note-chip" onclick="openFinancePointDetails('${kind}',${Number(comment.start)},${Number(comment.end)||0},${Number(comment.value)||0})" title="${mEsc(comment.text)}"><span class="d">● ${mEsc(comment.label)}</span><span class="t">${mEsc(comment.text)}</span></button>`).join('')}</div>`
     : '';
   return `<article class="fc-card">
-    <div class="fc-card-head"><div><div class="fc-card-title">${meta.title}</div><div class="fc-card-sub">${meta.sub} · ${periodMeta.suffix}</div></div>${access}</div>
+    <div class="fc-card-head"><div><div class="fc-card-title">${meta.title}</div><div class="fc-card-sub">${meta.sub} · ${periodMeta.suffix}</div></div><div class="fc-card-actions">${chartFullscreenButton()}${access}</div></div>
     ${financeManagerLegend(kind)}
     <div class="fc-plot">${unavailable?'<div class="fc-unavailable">Источник временно недоступен.<br>График останется на месте и обновится автоматически.</div>':financeChartSvg(kind,series)}</div>
     <div class="fc-labels">${series.map(s=>`<span>${mEsc(s.label)}</span>`).join('')}</div>
@@ -7599,7 +7643,7 @@ function pxChartCard(metric){
   const labels=Array.isArray(state.series)?state.series.map(point=>`<span>${mEsc(point.label)}</span>`).join(''):'';
   return `<article class="fc-card${binding.stage?'':' px-unbound'}">
     <div class="fc-card-head"><div><div class="fc-card-title">${mEsc(metric.title)}</div>
-      <div class="fc-card-sub">${mEsc(pxStageName(binding.stage))} · ${mEsc(periodMeta.suffix)}</div></div>${settings}</div>
+      <div class="fc-card-sub">${mEsc(pxStageName(binding.stage))} · ${mEsc(periodMeta.suffix)}</div></div><div class="fc-card-actions">${chartFullscreenButton()}${settings}</div></div>
     <div class="fc-plot">${plot}</div>
     <div class="fc-labels">${labels}</div>
   </article>`;
@@ -7730,7 +7774,7 @@ function copyPixelHrLink(button,url){
 }
 
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { renderTodayCalendar, loadTodayCalendar, scheduleTodayCalendar, switchWorkspace, switchPixelTab, setPixelChartPeriod, openPixelChartSettings, savePixelChartSettings, openPixelCrm, copyPixelHrLink, openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, setPaymentPlanDate, resetPaymentPlanDates, openPaymentPlanSource, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTask, moveFinanceWeekTaskForward, carryFinanceWeekTaskToCurrent, toggleFinanceWeekTaskHistory, selectFinanceWeekTaskHistory, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, openLeadAnalyticsExternalAccess, copyLeadAnalyticsExternalLink, addLeadAnalyticsExternalViewer, removeLeadAnalyticsExternalViewer, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
+Object.assign(window, { openChartFullscreen, renderTodayCalendar, loadTodayCalendar, scheduleTodayCalendar, switchWorkspace, switchPixelTab, setPixelChartPeriod, openPixelChartSettings, savePixelChartSettings, openPixelCrm, copyPixelHrLink, openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, setPaymentPlanDate, resetPaymentPlanDates, openPaymentPlanSource, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTask, moveFinanceWeekTaskForward, carryFinanceWeekTaskToCurrent, toggleFinanceWeekTaskHistory, selectFinanceWeekTaskHistory, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, openLeadAnalyticsExternalAccess, copyLeadAnalyticsExternalLink, addLeadAnalyticsExternalViewer, removeLeadAnalyticsExternalViewer, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
 
 function applyProjectFilters(){
   sortProjectCards();
