@@ -238,7 +238,7 @@ SC.money=()=>{const need=CASH.open+cashIn()-cashOut();
   <tr class="total"><td></td><td>Должно быть в кассе</td><td class="r" colspan="2">${tg(need)}</td></tr></tbody></table></div>
   <div class="close"><label>Фактически в кассе <input id="cash_fact" class="qin w" value="${need}"></label><button class="bt p" onclick="closeShift(${need})">Закрыть смену</button></div></div>
  <div><div class="pan"><h3>Банк и Kaspi</h3>${BANK.map(b=>`<div class="kv"><span>${b[0]} · ${esc(b[1])}</span><b class="${b[2]<0?'neg':'pos'}">${b[2]<0?'− ':'+ '}${tg(Math.abs(b[2]))}</b></div>`).join('')}</div>
-  <div class="pan"><h3>Кто нам должен</h3>${ORDERS.filter(o=>['ready','rest','ship'].includes(o.st)).map(o=>`<div class="kv"><span>${clL(o.cl)} · ${ordL(o.id)}</span><b>${tg(oSum(o)-o.paid)}</b></div>`).join('')}</div>
+  <div class="pan"><h3>Кто нам должен</h3>${ORDERS.filter(o=>['ready','rest','ship'].includes(o.st)&&oSum(o)>o.paid).map(o=>`<div class="kv"><span>${clL(o.cl)} · ${ordL(o.id)}</span><b>${tg(oSum(o)-o.paid)}</b></div>`).join('')}</div>
   <div class="pan"><h3>Кому должны мы</h3>${PAYOUTS.filter(v=>v.st==='wait').map(v=>`<div class="kv"><span>${esc(v.who)}<span class="sub">${esc(v.how)}</span></span><b>${tg(v.sum||ptToday(v.to))}</b></div>`).join('')}</div></div></div>
  ${said('«Кассир — учёт денег, расчёт… Они должны видеть, кто сколько привёз и на какую сумму»')}`;};
 function closeShift(d){const f=+String(document.getElementById('cash_fact').value).replace(/\s/g,'');const r=f-d;toast(r===0?'Смена закрыта: касса сходится до тенге. Отчёт ушёл руководителю.':`Смена закрыта с расхождением ${r>0?'+':''}${fmt(r)} ₸ — руководитель получил уведомление, строку можно разобрать.`)}
