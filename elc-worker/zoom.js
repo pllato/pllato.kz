@@ -84,7 +84,26 @@ function meetingBody(task) {
   const duration = Math.ceil((end - start) / 60000);
   if (isNaN(start) || !Number.isFinite(duration) || duration < 1 || duration > 1440) throw fail('Укажите дату и длительность встречи (до 24 часов)');
   return { topic: String(task.title).slice(0, 200), type: 2, start_time: start.toISOString(), duration, timezone: 'UTC',
-    agenda: 'CRM event: ' + task.id, settings: { auto_recording: 'cloud', use_pmi: false, waiting_room: true, join_before_host: false } };
+    agenda: 'CRM event: ' + task.id, settings: { auto_recording: 'cloud', use_pmi: false, waiting_room: false, join_before_host: true, jbh_time: 0 } };
+}
+async function applyStaffAdmission(env, meetingId) {
+  const path='/meetings/'+encodeURIComponent(meetingId);
+  const meeting=await api(env,path);
+  if(meeting.status==='started') return false;
+  await api(env,path,'PATCH',{settings:{waiting_room:false,join_before_host:true,jbh_time:0,auto_recording:'cloud'}});
+  const checked=await api(env,path);
+  if(checked.settings?.waiting_room || !checked.settings?.join_before_host) throw fail('Zoom не разрешил вход без организатора. Проверьте ограничения аккаунта.',409);
+  await put(env,'staff_admission_v1:'+meetingId,'ready');
+  return true;
+}
+async function syncStaffAdmission(env) {
+  const {results}=await env.DB.prepare(`SELECT meeting_id FROM zoom_meetings m WHERE status='ready' AND meeting_id IS NOT NULL
+    AND NOT EXISTS(SELECT 1 FROM zoom_private p WHERE p.k='staff_admission_v1:'||m.meeting_id AND (p.v='ready' OR CAST(p.v AS INTEGER)>?))
+    ORDER BY created_at DESC LIMIT 3`).bind(Date.now()).all();
+  for(const row of results) {
+    try { if(!await applyStaffAdmission(env,row.meeting_id)) await put(env,'staff_admission_v1:'+row.meeting_id,String(Date.now()+3600000)); }
+    catch(e) { await put(env,'staff_admission_v1:'+row.meeting_id,e.zoomStatus===404?'ready':String(Date.now()+3600000)); }
+  }
 }
 export async function ensureZoomForTask(env, taskId) {
   await schema(env);
@@ -241,6 +260,7 @@ export async function processZoomJobs(env, notify) {
     DO UPDATE SET v=excluded.v WHERE CAST(zoom_private.v AS INTEGER) < ? RETURNING v`).bind(lease, Date.now()).first();
   if (!locked) return;
   try {
+    await syncStaffAdmission(env);
     if (Date.now() - Number(await get(env, 'last_scan') || 0) > 5 * 60000) {
       // Свежие записи проверяем независимо от движения по старому архиву.
       const recent = await api(env, '/users/me/recordings?' + new URLSearchParams({from:new Date(Date.now()-7*DAY).toISOString().slice(0,10),to:now().slice(0,10),page_size:'100'}));
@@ -312,6 +332,31 @@ export async function handleZoomRequest(request, env, deps) {
       const access=dealAccessSql(me);
       return !!await env.DB.prepare('SELECT id FROM deals WHERE id=?'+access.where).bind(id,...access.params).first();
     };
+    if(path==='/host-key' && request.method==='POST') {
+      if(!admin) throw fail('Только администратор может настроить код организатора',403);
+      const body=await request.json();
+      if(typeof body.hostKey!=='string' || !/^\d{6}$/.test(body.hostKey)) throw fail('Введите действующий шестизначный код организатора из профиля Zoom');
+      await put(env,'host_key',await seal(env,{value:body.hostKey}));
+      return json({ok:true},200,request);
+    }
+    const hostAccess=path.match(/^\/meetings\/([^/]+)\/host-access$/);
+    if(hostAccess && request.method==='POST') {
+      const meetingId=decodeURIComponent(hostAccess[1]);
+      const meeting=await env.DB.prepare("SELECT task_id,deal_id FROM zoom_meetings WHERE meeting_id=? AND status='ready'").bind(meetingId).first();
+      if(!meeting) throw fail('Встреча не найдена',404);
+      const allowed=meeting.deal_id
+        ? await canReadDeal(meeting.deal_id) && await canEditRecord(env,me,'deals',meeting.deal_id)
+        : await canEditRecord(env,me,'tasks',meeting.task_id);
+      if(!allowed) throw fail('Нет права управления этой встречей',403);
+      const saved=await get(env,'host_key');
+      const hostKey=saved?(await unseal(env,saved)).value:env.ZOOM_HOST_KEY;
+      if(!/^\d{6}$/.test(hostKey||'')) throw fail('Администратору нужно сохранить код организатора: Календарь → Zoom → Код организатора.',409);
+      const applied=await applyStaffAdmission(env,meetingId);
+      if(!applied) throw fail('Встреча уже идёт. Передать права может текущий организатор.',409);
+      const response=json({hostKey},200,request);
+      response.headers.set('Cache-Control','private, no-store');
+      return response;
+    }
     if(path==='/deal-status' && request.method==='POST') {
       const body=await request.json();
       const ids=Array.isArray(body.ids)?[...new Set(body.ids.filter(x=>typeof x==='string'))].slice(0,100):[];

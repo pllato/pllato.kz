@@ -50,11 +50,21 @@ export function zoomClient({ base, getToken }) {
         container.innerHTML = `<a class="tbtn tbtn-a" href="${esc(meeting.join_url)}" target="_blank" rel="noopener noreferrer">Открыть Zoom</a>
           <button type="button" class="tbtn" data-invite>Копировать приглашение</button>
           <button type="button" class="tbtn" data-copy>Копировать ссылку</button>
+          <button type="button" class="tbtn" data-host>Код организатора для сотрудника</button><div data-host-status role="status"></div>
           <div style="font-size:12px;overflow-wrap:anywhere;margin-top:8px">${esc(meeting.join_url)}</div>`;
         const invitation=zoomInvitation(meeting);
         const preview=document.createElement('div');preview.style.cssText='white-space:pre-wrap;font-size:12px;margin-top:8px';preview.textContent=invitation;container.append(preview);
         container.querySelector('[data-invite]').onclick=async e=>{try{await navigator.clipboard.writeText(invitation);e.target.textContent='Приглашение скопировано';}catch{e.target.textContent='Скопируйте приглашение ниже';}};
         container.querySelector('[data-copy]').onclick = async e => { try { await navigator.clipboard.writeText(meeting.join_url); e.target.textContent='Скопировано'; } catch { e.target.textContent='Скопируйте ссылку ниже'; } };
+        container.querySelector('[data-host]').onclick=async e=>{
+          const b=e.currentTarget,box=container.querySelector('[data-host-status]');b.disabled=true;
+          try {
+            const {hostKey}=await api('/meetings/'+encodeURIComponent(meeting.meeting_id)+'/host-access',{method:'POST'});
+            box.textContent='Код организатора: '+hostKey+'. В Zoom: Участники → Принять права организатора → введите код. Не отправляйте его клиентам.';
+            const copy=document.createElement('button');copy.type='button';copy.className='tbtn';copy.textContent='Копировать код';
+            copy.onclick=async()=>{try{await navigator.clipboard.writeText(hostKey);copy.textContent='Код скопирован';}catch{copy.textContent='Скопируйте код вручную';}};box.append(copy);
+          }catch(error){box.textContent=error.message;}finally{b.disabled=false;}
+        };
       } else {
         container.innerHTML = `<div>${esc(meeting?.error || 'Ссылка Zoom ещё не создана.')}</div><button type="button" class="tbtn" data-create>Создать ссылку Zoom</button>`;
         container.querySelector('[data-create]').onclick = async e => {
@@ -191,6 +201,10 @@ export function zoomClient({ base, getToken }) {
         <p>После проверенного переноса: ${s.trashAfterCopy?'оригиналы перемещаются в корзину Zoom':'очистка Zoom ещё не включена'}.</p>
         <p>Видео, транскрипты и другие материалы хранятся в архиве CRM бессрочно, независимо от этапа сделки. Удаление — только вручную из карточки.</p>`;
       const connect=box.querySelector('[data-connect]');if(connect)connect.onclick=async()=>{connect.disabled=true;try{const r=await api('/connect',{method:'POST'});location.assign(r.url);}catch(e){box.textContent=e.message;}};
+      if(s.admin){
+        const host=document.createElement('div');host.innerHTML='<h4>Код организатора для сотрудников</h4><p>Скопируйте действующий шестизначный код из профиля Zoom. Здесь сохраняется существующий код, а не создаётся новый. Он будет доступен сотрудникам с правом изменения сделки или встречи.</p><input type="password" inputmode="numeric" maxlength="6" autocomplete="off" aria-label="Код организатора Zoom"><button type="button" class="tbtn" data-save-host>Сохранить код</button><p data-host-result role="status"></p>';
+        box.append(host);host.querySelector('[data-save-host]').onclick=async e=>{const b=e.currentTarget;b.disabled=true;try{await api('/host-key',{method:'POST',body:JSON.stringify({hostKey:host.querySelector('input').value.trim()})});host.querySelector('input').value='';host.querySelector('[data-host-result]').textContent='Код сохранён в зашифрованном виде.';}catch(error){host.querySelector('[data-host-result]').textContent=error.message;}finally{b.disabled=false;}};
+      }
       if(s.admin){const archive=dialog.querySelector('[data-archive]');archive.innerHTML='<h4>Записи без привязки к сделке</h4><div data-files></div>';await files(archive.querySelector('[data-files]'),null,true);}
     }catch(e){box.textContent=e.message;}
   }
