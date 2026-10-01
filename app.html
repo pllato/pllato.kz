@@ -6052,10 +6052,23 @@ function financeChartSvg(kind,series){
   const y=v=>top+(1-Math.min(1,(Number(v)||0)/max))*(vh-top-bottom);
   const completed=series.map((s,i)=>s.partial?null:`${x(i)},${y(s.value).toFixed(1)}`).filter(Boolean).join(' ');
   const color=FINANCE_CHART_META[kind].color;
+  const labelRows=series.map(point=>showTotal?[Math.max(10,y(point.value)-14)]:[]);
+  const managerLabels=[];
   const managerLines=managers.map(manager=>{
     const color=managerColor(manager.email);
     const values=manager.series;
-    return `<polyline points="${values.map((p,i)=>p.partial?null:`${x(i)},${y(p.value).toFixed(1)}`).filter(Boolean).join(' ')}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="7 5" vector-effect="non-scaling-stroke"/>`+values.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.value).toFixed(1)}" r="4" fill="${p.partial?'var(--surface)':color}" stroke="${color}" stroke-width="2"><title>${mEsc(manager.name||managerName(manager.email))} · ${mEsc(p.label)}: ${mEsc(financeValue(kind,p.value))}</title></circle>`).join('');
+    return `<polyline points="${values.map((p,i)=>p.partial?null:`${x(i)},${y(p.value).toFixed(1)}`).filter(Boolean).join(' ')}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="7 5" vector-effect="non-scaling-stroke"/>`+values.map((p,i)=>{
+      const title=`${manager.name||managerName(manager.email)} · ${p.label}: ${financeValue(kind,p.value)}`;
+      const occupied=labelRows[i]||(labelRows[i]=[]);
+      let labelY=y(p.value)-14;
+      for(let offset=0;offset<vh;offset+=24){
+        const candidate=[y(p.value)-14-offset,y(p.value)+24+offset].find(value=>value>=48 && value<=vh-10 && occupied.every(other=>Math.abs(other-value)>=22));
+        if(candidate!==undefined){labelY=candidate;break;}
+      }
+      occupied.push(labelY);
+      managerLabels.push(`<text class="fc-manager-value" x="${x(i)}" y="${labelY.toFixed(1)}" text-anchor="middle" fill="${color}" font-size="18" font-weight="700" stroke="var(--surface)" stroke-width="3" paint-order="stroke" stroke-linejoin="round"><title>${mEsc(title)}</title>${mEsc(financeValue(kind,p.value))}</text>`);
+      return `<circle cx="${x(i)}" cy="${y(p.value).toFixed(1)}" r="4" fill="${p.partial?'var(--surface)':color}" stroke="${color}" stroke-width="2"><title>${mEsc(title)}</title></circle>`;
+    }).join('');
   }).join('');
   const points=series.map((s,i)=>{
     const title=`${s.label}: ${kind==='cash'?fmtT(s.value):s.value}${s.partial?' · текущий период':''}`;
@@ -6079,7 +6092,7 @@ function financeChartSvg(kind,series){
     <line x1="0" y1="${vh-bottom}" x2="${vw}" y2="${vh-bottom}" stroke="var(--line-2)" vector-effect="non-scaling-stroke"/>
     ${managerLines}
     <polyline style="display:${showTotal?'block':'none'}" points="${completed}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
-    ${showTotal?points:''}</svg>`;
+    ${showTotal?points:''}${managerLabels.join('')}</svg>`;
 }
 function financeChartCard(kind,series){
   const meta=FINANCE_CHART_META[kind];
