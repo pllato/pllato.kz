@@ -1,4 +1,29 @@
 /* Native linear dimension: keep its definition, private cache and CAD owners. */
+API int pllato_dimension_move(const char *handle,double dx,double dy){
+ Dwg_Object *o=entity(handle);if(!o||o->fixedtype!=DWG_TYPE_DIMENSION_LINEAR||!isfinite(dx)||!isfinite(dy))return 1;
+ Dwg_Entity_DIMENSION_LINEAR *d=o->tio.entity->tio.DIMENSION_LINEAR;
+ if(d->extrusion.x||d->extrusion.y||d->extrusion.z!=1||o->num_unknown_bits||o->num_unknown_rest)return 2;
+ Dwg_Object *bo=d->block?dwg_resolve_handle(&drawing,d->block->absolute_ref):NULL;if(!bo||bo->fixedtype!=DWG_TYPE_BLOCK_HEADER)return 3;
+ Dwg_Object_BLOCK_HEADER *b=bo->tio.object->tio.BLOCK_HEADER;
+ for(unsigned i=0;i<drawing.num_objects;i++){
+  Dwg_Object *other=&drawing.object[i];
+  if(other->fixedtype==DWG_TYPE_DIMASSOC){Dwg_Object_DIMASSOC *a=other->tio.object->tio.DIMASSOC;if(a->dimensionobj&&a->dimensionobj->absolute_ref==o->handle.value&&a->associativity)return 5;}
+  if(other!=o&&other->supertype==DWG_SUPERTYPE_ENTITY){BITCODE_H ref=NULL;if(other->fixedtype==DWG_TYPE_INSERT)ref=other->tio.entity->tio.INSERT->block_header;else if(other->fixedtype>=DWG_TYPE_DIMENSION_ORDINATE&&other->fixedtype<=DWG_TYPE_DIMENSION_DIAMETER)ref=other->tio.entity->tio.DIMENSION_common->block;if(ref&&ref->absolute_ref==bo->handle.value)return 6;}
+ }
+ for(unsigned i=0;i<b->num_owned;i++){Dwg_Object *c=dwg_resolve_handle(&drawing,b->entities[i]->absolute_ref);if(!c||c->supertype!=DWG_SUPERTYPE_ENTITY||c->num_unknown_bits||c->num_unknown_rest)return 7;switch(c->fixedtype){case DWG_TYPE_LINE:case DWG_TYPE_INSERT:case DWG_TYPE_MTEXT:case DWG_TYPE_TEXT:case DWG_TYPE_POINT:break;default:return 8;}}
+ for(unsigned i=0;i<b->num_owned;i++){
+  Dwg_Object *c=dwg_resolve_handle(&drawing,b->entities[i]->absolute_ref);Dwg_Object_Entity *e=c->tio.entity;
+  switch(c->fixedtype){
+   case DWG_TYPE_LINE:e->tio.LINE->start.x+=dx;e->tio.LINE->start.y+=dy;e->tio.LINE->end.x+=dx;e->tio.LINE->end.y+=dy;break;
+   case DWG_TYPE_INSERT:e->tio.INSERT->ins_pt.x+=dx;e->tio.INSERT->ins_pt.y+=dy;break;
+   case DWG_TYPE_POINT:e->tio.POINT->x+=dx;e->tio.POINT->y+=dy;break;
+   case DWG_TYPE_TEXT:e->tio.TEXT->ins_pt.x+=dx;e->tio.TEXT->ins_pt.y+=dy;e->tio.TEXT->alignment_pt.x+=dx;e->tio.TEXT->alignment_pt.y+=dy;break;
+   case DWG_TYPE_MTEXT:e->tio.MTEXT->ins_pt.x+=dx;e->tio.MTEXT->ins_pt.y+=dy;break;
+   default:return 8;
+  }
+ }
+ d->xline1_pt.x+=dx;d->xline1_pt.y+=dy;d->xline2_pt.x+=dx;d->xline2_pt.y+=dy;d->def_pt.x+=dx;d->def_pt.y+=dy;d->text_midpt.x+=dx;d->text_midpt.y+=dy;return 0;
+}
 static void dim_map(double *x,double *y,const double *v){
  double t=(*x*v[0]+*y*v[1]-v[4])/v[5];
  double base=(1-t)*v[6]+t*v[7],den=v[8]-base;

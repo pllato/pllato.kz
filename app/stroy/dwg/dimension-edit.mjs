@@ -1,4 +1,4 @@
-import {get,num,set} from './cad.mjs?v=0.17.58';
+import {get,num,set} from './cad.mjs?v=0.17.59';
 const point=(r,c)=>[num(r,c,NaN),num(r,c+10,NaN)];
 const dot=(a,b)=>a[0]*b[0]+a[1]*b[1];
 export function dimensionDefinition(r){
@@ -36,3 +36,14 @@ export function planDimensionEdit(doc,r,{length,offset,endNormal=0}){
  return {patches,definition:[...f.a,...b,...q,...t,length]};
 }
 export function applyDimensionPlan(plan){for(const {record,changes}of plan.patches)for(const [code,value]of changes)set(record,code,value);}
+export function planDimensionMove(doc,r,delta){
+ if(!Array.isArray(delta)||delta.length!==2||!delta.every(Number.isFinite))throw Error('Некорректный сдвиг размера');
+ const f=dimensionDefinition(r);if(!f)throw Error('Выберите линейный размер');
+ if(r.dimensionEndLocked||r.dimensionMoveLocked)throw Error('Размер связан средствами AutoCAD; независимый перенос недоступен');
+ // Reuse the private-cache/coordinate checks without applying a stretch.
+ planDimensionEdit(doc,r,{length:f.length,offset:f.offset});
+ const records=[r,...doc.blocks.get(get(r,2)).records];
+ return {patches:records.map(record=>{const codes=record===r?[10,11,13,14]:['LINE','TEXT'].includes(record.type)?[10,11]:[10],changes=[];
+  for(const c of codes)if(record.pairs.some(p=>p[0]===c)){const p=point(record,c);changes.push([c,p[0]+delta[0]],[c+10,p[1]+delta[1]]);}
+  if(changes.some(([,v])=>!Number.isFinite(v)))throw Error('Некорректные координаты размера');return {record,changes};})};
+}
