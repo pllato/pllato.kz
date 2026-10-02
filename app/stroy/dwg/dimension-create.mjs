@@ -1,4 +1,4 @@
-import {addEntity,get,num} from './cad.mjs?v=0.17.68';
+import {addEntity,get,num} from './cad.mjs?v=0.17.69';
 export function offsetGeometry(a,b,position,axis,height){
  if(!['horizontal','vertical'].includes(axis)||![...a,...b,...position,height].every(Number.isFinite)||height<=0)throw Error('Некорректные параметры отступа');
  const vertical=axis==='vertical',length=Math.abs(b[vertical?1:0]-a[vertical?1:0]);
