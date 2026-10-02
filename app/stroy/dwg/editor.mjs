@@ -1,43 +1,44 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {parseDxfAsync,scene,sceneAsync,serializeChunks,cloneDoc,demo,get,num,set,decode,move,addEntity} from './cad.mjs?v=0.17.66';
-import {paintShapes,paintShapeSteps,previewTransform,textHitDistance} from './renderer.mjs?v=0.17.66';
-import {renderTask} from './render-task.mjs?v=0.17.66';
-import {nativeTransferReceiver} from './native-transfer.mjs?v=0.17.66';
-import {reusableScene,mergeReusedScene} from './scene-reuse.mjs?v=0.17.66';
-import {updatedRootScene} from './root-scene.mjs?v=0.17.66';
-import {translatedScene,translatedDeviceScene} from './scene-translation.mjs?v=0.17.66';
-import {captureView,restoreView,releaseObsoleteViews} from './view-history.mjs?v=0.17.66';
-import {socketLabels,clearSocketLabels} from './socket-labels.mjs?v=0.17.66';
-import {paintLength} from './length-overlay.mjs?v=0.17.66';
-import {mountTitleWorkbench} from './title-workbench.mjs?v=0.17.66';
-import {isNote,mountNoteEditor,applyNotePatch} from './note-edit.mjs?v=0.17.66';
-import {dimensionDefinition,dimensionAssociated,planDimensionEdit,planDimensionMove,applyDimensionPlan} from './dimension-edit.mjs?v=0.17.66';
-import {normalizeDrops,dropsTotal} from './cable-drops.mjs?v=0.17.66';
-import {mountDimensionWorkbench} from './dimension-workbench.mjs?v=0.17.66';
-import {createOffsetDimension} from './dimension-create.mjs?v=0.17.66';
-import {mountOffsetTool} from './dimension-tool.mjs?v=0.17.66';
-import {sourceCableLengths} from './source-cable-lengths.mjs?v=0.17.66';
-import {repaintDamage} from './damage-preview.mjs?v=0.17.66';
-import {loadCadFont} from './fonts.mjs?v=0.17.66';
-import {shxCatalog} from './shx-catalog.mjs?v=0.17.66';
-import {applyDocumentFont} from './document-font.mjs?v=0.17.66';
-import {clampProgress,warningText} from './progress.mjs?v=0.17.66';
-import {isNew,additions} from './authoring.mjs?v=0.17.66';
-import {mountExecutiveUI} from './executive-ui.mjs?v=0.17.66';
-import {captureRecovery,replayRecovery,recoveryStore} from './recovery.mjs?v=0.17.66';
-import {shapePaths,pathLength,syncLinkedRoutes} from './selection-metrics.mjs?v=0.17.66';
-import {prepareNewCopies} from './new-object-copy.mjs?v=0.17.66';
-import {prepareDeferredCopy,addDeferredCopy} from './deferred-copy.mjs?v=0.17.66';
-import {cableChain} from './cable-chain.mjs?v=0.17.66';
-import {executivePdf,executiveLooseRoots} from './executive-export.mjs?v=0.17.66';
-import {selectionSubset,toggleSelectionPart,canRefinePart} from './selection-subset.mjs?v=0.17.66';
-import {drawingPreset,presetPairs,presetColor,extendDrawingPalette} from './drawing-presets.mjs?v=0.17.66';
-import {deviceInstances,wholeDevice} from './device-selection.mjs?v=0.17.66';
-import {mountExportMenu} from './export-menu.mjs?v=0.17.66';
-import {spatialIndex,viewportShapes,deriveSpatialIndex} from './spatial-index.mjs?v=0.17.66';
-import {RASTER_THRESHOLD,canvasResolution} from './render-policy.mjs?v=0.17.66';
-import {areaDrag} from './area-drag.mjs?v=0.17.66';
-import {boxedObjects,mountBoxSelection} from './box-selection.mjs?v=0.17.66';
+import {parseDxfAsync,scene,sceneAsync,serializeChunks,cloneDoc,demo,get,num,set,decode,move,addEntity} from './cad.mjs?v=0.17.67';
+import {paintShapes,paintShapeSteps,previewTransform,textHitDistance} from './renderer.mjs?v=0.17.67';
+import {renderTask} from './render-task.mjs?v=0.17.67';
+import {nativeTransferReceiver} from './native-transfer.mjs?v=0.17.67';
+import {reusableScene,mergeReusedScene} from './scene-reuse.mjs?v=0.17.67';
+import {updatedRootScene} from './root-scene.mjs?v=0.17.67';
+import {translatedScene,translatedDeviceScene} from './scene-translation.mjs?v=0.17.67';
+import {captureView,restoreView,releaseObsoleteViews} from './view-history.mjs?v=0.17.67';
+import {socketLabels,clearSocketLabels} from './socket-labels.mjs?v=0.17.67';
+import {paintLength} from './length-overlay.mjs?v=0.17.67';
+import {cableLengthLabel} from './cable-length-label.mjs?v=0.17.67';
+import {mountTitleWorkbench} from './title-workbench.mjs?v=0.17.67';
+import {isNote,mountNoteEditor,applyNotePatch} from './note-edit.mjs?v=0.17.67';
+import {dimensionDefinition,dimensionAssociated,planDimensionEdit,planDimensionMove,applyDimensionPlan} from './dimension-edit.mjs?v=0.17.67';
+import {normalizeDrops,dropsTotal} from './cable-drops.mjs?v=0.17.67';
+import {mountDimensionWorkbench} from './dimension-workbench.mjs?v=0.17.67';
+import {createOffsetDimension} from './dimension-create.mjs?v=0.17.67';
+import {mountOffsetTool} from './dimension-tool.mjs?v=0.17.67';
+import {sourceCableLengths} from './source-cable-lengths.mjs?v=0.17.67';
+import {repaintDamage} from './damage-preview.mjs?v=0.17.67';
+import {loadCadFont} from './fonts.mjs?v=0.17.67';
+import {shxCatalog} from './shx-catalog.mjs?v=0.17.67';
+import {applyDocumentFont} from './document-font.mjs?v=0.17.67';
+import {clampProgress,warningText} from './progress.mjs?v=0.17.67';
+import {isNew,additions} from './authoring.mjs?v=0.17.67';
+import {mountExecutiveUI} from './executive-ui.mjs?v=0.17.67';
+import {captureRecovery,replayRecovery,recoveryStore} from './recovery.mjs?v=0.17.67';
+import {shapePaths,pathLength,syncLinkedRoutes} from './selection-metrics.mjs?v=0.17.67';
+import {prepareNewCopies} from './new-object-copy.mjs?v=0.17.67';
+import {prepareDeferredCopy,addDeferredCopy} from './deferred-copy.mjs?v=0.17.67';
+import {cableChain} from './cable-chain.mjs?v=0.17.67';
+import {executivePdf,executiveLooseRoots} from './executive-export.mjs?v=0.17.67';
+import {selectionSubset,toggleSelectionPart,canRefinePart} from './selection-subset.mjs?v=0.17.67';
+import {drawingPreset,presetPairs,presetColor,extendDrawingPalette} from './drawing-presets.mjs?v=0.17.67';
+import {deviceInstances,wholeDevice} from './device-selection.mjs?v=0.17.67';
+import {mountExportMenu} from './export-menu.mjs?v=0.17.67';
+import {spatialIndex,viewportShapes,deriveSpatialIndex} from './spatial-index.mjs?v=0.17.67';
+import {RASTER_THRESHOLD,canvasResolution} from './render-policy.mjs?v=0.17.67';
+import {areaDrag} from './area-drag.mjs?v=0.17.67';
+import {boxedObjects,mountBoxSelection} from './box-selection.mjs?v=0.17.67';
 let boxSelection;
 let executiveUI;
 let titleWorkbench;
@@ -61,14 +62,14 @@ function refreshSourceLengths(){
  setTimeout(batch,0);
 }
 const renderSelection=()=>pickedDevice?.id===selected?new Set(selectedShapes().map(s=>s.entityKey)):selectedChain?.anchor===selected?selectedChain.keys:selectedShapeKey?.includes('|'+selected+'|')?selectedShapeKey:selected;
-import {aciColors as colors} from './colors.mjs?v=0.17.66';
-import {mountCableWorkbench} from './cable-workbench.mjs?v=0.17.66';
-import {mountLeaderWorkbench} from './leader-workbench.mjs?v=0.17.66';
-import {editObjects} from './object-edit.mjs?v=0.17.66';
-import {cableCurve,joinCablePaths} from './cable-edit.mjs?v=0.17.66';
-import {addRoute} from './executive-project.mjs?v=0.17.66';
-import {splineControls,setSplineControl,movableSpline,previewSpline} from './control-edit.mjs?v=0.17.66';
-import {entityControls,setEntityVertex,previewEntity} from './control-edit.mjs?v=0.17.66';
+import {aciColors as colors} from './colors.mjs?v=0.17.67';
+import {mountCableWorkbench} from './cable-workbench.mjs?v=0.17.67';
+import {mountLeaderWorkbench} from './leader-workbench.mjs?v=0.17.67';
+import {editObjects} from './object-edit.mjs?v=0.17.67';
+import {cableCurve,joinCablePaths} from './cable-edit.mjs?v=0.17.67';
+import {addRoute} from './executive-project.mjs?v=0.17.67';
+import {splineControls,setSplineControl,movableSpline,previewSpline} from './control-edit.mjs?v=0.17.67';
+import {entityControls,setEntityVertex,previewEntity} from './control-edit.mjs?v=0.17.67';
 let cableWorkbench,leaderWorkbench;
 const areaSelection=areaDrag({enabled:()=>tool==='executive'&&executiveUI?.preview().mode==='area'&&$('busy').hidden,start:p=>executiveUI.startArea(world(p)),move:p=>executiveUI.hover(world(p)),cancel:()=>executiveUI?.clearArea(),finish:(a,b)=>{try{executiveUI.finishArea(world(a),world(b));}catch(e){status(e.message);}}});
 const status=s=>{$('status').textContent=s;if(!$('busy').hidden)$('busy').querySelector('strong').textContent=s;};
@@ -221,9 +222,9 @@ function paint(){if(document.hidden||!$('busy').hidden){rasterTask.stop();return
   const units=$('units').value,factor=units==='m'?1:Number(units);
   for(const row of sourceLengthsCache?.rows||[]){const [x,y]=screen(row.point);if(x<0||y<0||x>width||y>height)continue;const owner=doc.executiveProject?.sheets.find(s=>s.nativeHandles.includes(row.root.replace('dwg-',''))),f=owner?.metresPerUnit||factor,key=f+'|'+!!owner+'|'+units;if(row.labelKey!==key){row.labelKey=key;row.label=(row.length*f).toLocaleString('ru',{maximumFractionDigits:2})+(owner||units!=='1'?' м':' ед.');}paintLength(ctx,[[row.point]],row.label,screen,width,height);}
   if(hidden.size&&(lengthVisibility?.drawing!==drawing||lengthVisibility.hiddenKey!==hiddenKey)){const ids=new Set();for(const s of drawing.shapes)if(!hidden.has(s.layer)){ids.add(s.entityId||s.id);ids.add(s.id);}lengthVisibility={drawing,hiddenKey,ids};}
-  for(const sheet of doc.executiveProject?.sheets||[])for(const r of sheet.routes){if(r.sourceIds?hidden.size&&!r.sourceIds.some(id=>lengthVisibility.ids.has(id)):hidden.has('0'))continue;const paths=r.paths||[r.points],length=pathLength(paths)*r.metresPerUnit+(r.extraMetres||0);paintLength(ctx,paths,length.toLocaleString('ru',{maximumFractionDigits:2})+' м',screen,width,height);}
+  for(const sheet of doc.executiveProject?.sheets||[])for(const r of sheet.routes){if(r.sourceIds?hidden.size&&!r.sourceIds.some(id=>lengthVisibility.ids.has(id)):hidden.has('0'))continue;paintLength(ctx,r.paths||[r.points],cableLengthLabel(r),screen,width,height);}
  }
- else if(selected&&['object','device'].includes(tool)&&!pickedDevice)paintLength(ctx,selectionPaths().paths,lengthLabel(selectionPaths().paths),screen,width,height);
+ else if((selected||executiveUI?.route())&&['object','device'].includes(tool)&&!pickedDevice){const r=workRoute();paintLength(ctx,r?(r.paths||[r.points]):selectionPaths().paths,r?cableLengthLabel(r):lengthLabel(selectionPaths().paths),screen,width,height);}
 }
 let dimensionInfoCache;
 function selectedDimensionInfo(){
@@ -349,7 +350,7 @@ async function openFile(file,restore=null){if(!restore&&dirty&&!confirm('Ест�
  try{const bytes=await file.arrayBuffer();if(token!==loadId)return;let text,warnings=[],next;$('save').disabled=true;
  if(/\.dwg$/i.test(file.name)){
   if(!/^AC10\d\d/.test(new TextDecoder().decode(bytes.slice(0,6))))throw Error('Это не распознанный DWG.');
-  const converted=await new Promise((resolve,reject)=>{rejectWorker=reject;worker=new Worker(new URL('./native-reader.mjs?v=0.17.66',import.meta.url),{type:'module'});const receive=nativeTransferReceiver(worker,progress);worker.onmessage=e=>{if(token!==loadId)return;try{if(e.data.progress)progress(e.data.progress,e.data.percent);else if(e.data.error)reject(Error(e.data.error));else{const result=receive(e.data);if(result)resolve(result);}}catch(error){reject(error);}};worker.onerror=()=>reject(Error('Не удалось запустить DWG-движок. Возможно, недостаточно памяти. Попробуйте меньший файл на компьютере.'));loadTimer=setTimeout(()=>reject(Error('Чтение заняло больше 5 минут. Попробуйте отдельный лист.')),300000);worker.postMessage({buffer:bytes,compact:true},[bytes]);});
+  const converted=await new Promise((resolve,reject)=>{rejectWorker=reject;worker=new Worker(new URL('./native-reader.mjs?v=0.17.67',import.meta.url),{type:'module'});const receive=nativeTransferReceiver(worker,progress);worker.onmessage=e=>{if(token!==loadId)return;try{if(e.data.progress)progress(e.data.progress,e.data.percent);else if(e.data.error)reject(Error(e.data.error));else{const result=receive(e.data);if(result)resolve(result);}}catch(error){reject(error);}};worker.onerror=()=>reject(Error('Не удалось запустить DWG-движок. Возможно, недостаточно памяти. Попробуйте меньший файл на компьютере.'));loadTimer=setTimeout(()=>reject(Error('Чтение заняло больше 5 минут. Попробуйте отдельный лист.')),300000);worker.postMessage({buffer:bytes,compact:true},[bytes]);});
   if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
   warnings=converted.messages;next=converted.doc;
  }else{try{text=new TextDecoder('utf-8',{fatal:true}).decode(bytes);}catch{text=new TextDecoder('windows-1251').decode(bytes);}}
@@ -365,7 +366,7 @@ $('file').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)openFile
 $('demo').onclick=()=>{if(!dirty||confirm('Заменить несохранённый чертёж демо?')){stopLoad();adopt(demo(),'demo');status('Демонстрационный чертёж.');}};
 $('save').onclick=()=>{$('exportReport').textContent=$('report').textContent;$('exportDialog').querySelector('h2').textContent='Сохранить копию в '+(doc.native?'DWG':'DXF')+'?';$('exportDescription').textContent=doc.native?'Записывается новая копия исходного DWG с изменениями. Проверка движком не заменяет проверку в AutoCAD. Новые линии, тексты и полилинии записываются в DWG. В исполнительных сохраняются оформление, трассы, выноски и поддерживаемые удаления. Исходный файл на диске не изменяется.':'Скачивается изменённый DXF. Проверьте результат в AutoCAD.';$('confirmExport').textContent='Скачать '+(doc.native?'DWG':'DXF');$('exportDialog').showModal();};
 function download(blob,extension){progress('Готово',100);const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name+'-edited.'+extension;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);dirty=false;$('filename').textContent=name;status(extension.toUpperCase()+' подготовлен к скачиванию. Проверьте копию в AutoCAD.');}
-$('confirmExport').onclick=async()=>{if(doc.executiveProject?.sheets.length){await commitExecutive(doc.executiveProject,null,true);return;}if(!doc.native){download(new Blob([...serializeChunks(doc)],{type:'application/dxf'}),'dxf');return;}if(!sourceFile)return status('Нет исходного DWG для сохранения.');stopLoad();const token=loadId,ops=doc.nativeOps.map(o=>({...o}));$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Готовлю сохранение DWG…');try{const buffer=await sourceFile.arrayBuffer();if(token!==loadId)return;const saved=await new Promise((resolve,reject)=>{rejectWorker=reject;worker=new Worker(new URL('./native-writer.mjs?v=0.17.66',import.meta.url),{type:'module'});worker.onmessage=e=>e.data.progress?progress(e.data.progress,e.data.percent):e.data.error?reject(Error(e.data.error)):resolve(e.data);worker.onerror=()=>reject(Error('Не удалось записать DWG. Возможно, недостаточно памяти.'));loadTimer=setTimeout(()=>reject(Error('Запись заняла больше 5 минут.')),300000);worker.postMessage({buffer,ops,added:additions(doc)},[buffer]);});if(token!==loadId)return;download(new Blob([saved.buffer],{type:'application/acad'}),'dwg');}catch(e){if(token===loadId)status(e.message);}finally{if(token===loadId)stopLoad();}};
+$('confirmExport').onclick=async()=>{if(doc.executiveProject?.sheets.length){await commitExecutive(doc.executiveProject,null,true);return;}if(!doc.native){download(new Blob([...serializeChunks(doc)],{type:'application/dxf'}),'dxf');return;}if(!sourceFile)return status('Нет исходного DWG для сохранения.');stopLoad();const token=loadId,ops=doc.nativeOps.map(o=>({...o}));$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Готовлю сохранение DWG…');try{const buffer=await sourceFile.arrayBuffer();if(token!==loadId)return;const saved=await new Promise((resolve,reject)=>{rejectWorker=reject;worker=new Worker(new URL('./native-writer.mjs?v=0.17.67',import.meta.url),{type:'module'});worker.onmessage=e=>e.data.progress?progress(e.data.progress,e.data.percent):e.data.error?reject(Error(e.data.error)):resolve(e.data);worker.onerror=()=>reject(Error('Не удалось записать DWG. Возможно, недостаточно памяти.'));loadTimer=setTimeout(()=>reject(Error('Запись заняла больше 5 минут.')),300000);worker.postMessage({buffer,ops,added:additions(doc)},[buffer]);});if(token!==loadId)return;download(new Blob([saved.buffer],{type:'application/acad'}),'dwg');}catch(e){if(token===loadId)status(e.message);}finally{if(token===loadId)stopLoad();}};
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;if(e.key==='Escape'){dimensionWorkbench?.cancel();cableWorkbench?.cancel();executiveUI?.cancel();draft=null;setTool('select');}if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo(e.shiftKey);}});
 new ResizeObserver(()=>{const r=canvas.parentElement.getBoundingClientRect(),initial=width===1;const [w,h]=canvasResolution(r.width,r.height,devicePixelRatio,matchMedia('(pointer:coarse)').matches);if(!initial&&width===r.width&&height===r.height&&canvas.width===w&&canvas.height===h)return;width=r.width;height=r.height;canvas.width=w;canvas.height=h;ctx.setTransform(w/Math.max(1,width),0,0,h/Math.max(1,height),0,0);initial?fit():draw();}).observe(canvas.parentElement);
@@ -390,10 +391,10 @@ async function commitExecutive(project,cloneRequest=null,exportFile=false,copyRe
   const keep=new Set([...project.sheets.flatMap(s=>s.nativeHandles),...(project.generatedHandles||[]),...[...loose.keys()].filter(id=>id.startsWith('dwg-')).map(id=>id.slice(4))]);
   const keepRoots=[...keep].filter(h=>!project.generatedHandles?.includes(h));
   const routeSources=new Set(project.sheets.flatMap(s=>s.routes.flatMap(r=>r.sourceIds||[])));
-  const saved=await run('./executive-worker.mjs?v=0.17.66',{buffer,ops:doc.nativeOps,added:additions(doc).filter(item=>!exportOnly||routeSources.has(item.sourceId)||loose.has(item.sourceId)||(item.type==='COPY'&&keep.has(item.parent))),project,cloneRequest,copyRequest,exportOnly,keepRoots},[buffer]);
+  const saved=await run('./executive-worker.mjs?v=0.17.67',{buffer,ops:doc.nativeOps,added:additions(doc).filter(item=>!exportOnly||routeSources.has(item.sourceId)||loose.has(item.sourceId)||(item.type==='COPY'&&keep.has(item.parent))),project,cloneRequest,copyRequest,exportOnly,keepRoots},[buffer]);
   if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
   const file=new File([saved.buffer],previousName+'.dwg',{type:'application/acad'}),readBuffer=saved.buffer;
-  const read=await run('./native-reader.mjs?v=0.17.66',{buffer:readBuffer,compact:true},[readBuffer]);
+  const read=await run('./native-reader.mjs?v=0.17.67',{buffer:readBuffer,compact:true},[readBuffer]);
   if(exportOnly){if(token!==loadId)return;const allowed=new Set(keepRoots.concat(saved.project.generatedHandles,saved.addedHandles||[],saved.supportRoots||[])),actual=new Set(saved.exportRootHandles),removed=new Set(doc.nativeOps.filter(o=>o.remove).map(o=>o.handle));if([...actual].some(h=>!allowed.has(h))||[...allowed].some(h=>!removed.has(h)&&!actual.has(h))||read.doc.executiveProject?.sheets.length!==project.sheets.length)throw Error('Проверка отдельного DWG не пройдена: состав объектов не совпал.');downloadExecutives(file,'dwg');status('DWG только исполнительных скачан. Рабочий чертёж не изменён. Проверьте копию в CAD.');return true;}
   if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
   const reuse=cloneRequest?reusableScene(doc,read.doc,drawing):null;
@@ -485,7 +486,7 @@ cableWorkbench=mountCableWorkbench({
  busy:()=>!$('busy').hidden,draw,status,world,screen,route:()=>workRoute(),beginCable:()=>executiveUI.sheet()?executiveUI.beginCable():toggleDraft('curve4'),selecting:()=>!titleWorkbench?.active()&&!leaderWorkbench?.active()&&['object','device'].includes(tool),drawing:()=>['line','poly3','curve4'].includes(tool)||(tool==='executive'&&['route','route3','straight','broken'].includes(executiveUI.preview().mode)),
  hasSelection:()=>!!selected,selectionKey:()=>selected||'',colorValue:()=>{const r=current(),c=r?num(r,62):0;return c>=1&&c<=8?c:0;},
  paths:()=>{const r=workRoute();return r?(r.paths||[r.points]):selectionPaths().paths;},
- length:paths=>{const r=workRoute();return paths?lengthLabel(paths):r?`${r.brand||'Без марки'} ${r.section||'Без сечения'} · ${lengthLabel(r.paths||[r.points])}${r.extraMetres?' + '+r.extraMetres+' м запас':''}`:selected?lengthLabel(selectionPaths().paths):'Выберите кабель или прибор';},
+ length:paths=>{const r=workRoute();return paths?lengthLabel(paths):r?`${r.brand||'Без марки'} ${r.section||'Без сечения'} · ${cableLengthLabel(r).replace('\n',' · ')}`:selected?lengthLabel(selectionPaths().paths):'Выберите кабель или прибор';},
  move:delta=>{const r=workRoute();if(r&&!r.sourceIds)executiveUI.moveRoute(delta);else applyObjectEdit({delta});},
  nodes:controls=>executiveUI.editRoute(r=>{if(r.controls)r.controls=controls;r.points=cableCurve(controls,r.smooth);}),
  cut:(a,b)=>executiveUI.cutRoute(a,b),
@@ -521,4 +522,4 @@ document.querySelector('[data-tool="line"]').onclick=()=>{if(executiveUI.sheet()
 document.querySelector('[data-tool="poly3"]').onclick=()=>{if(executiveUI.sheet())executiveUI.beginCable('broken');else toggleDraft('poly3');};
 for(const [button,label,path]of [[cableDrawButton,'Плавный кабель · точки / завершить','M3 19Q7 1 21 5'],[document.querySelector('[data-tool="line"]'),'Линия · точки / завершить','M3 19L21 5'],[document.querySelector('[data-tool="poly3"]'),'Полилиния · точки / завершить','M3 19L10 5L21 13']]){button.title=label;button.setAttribute('aria-label',label);button.classList.add('drawingIcon');button.innerHTML=`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="${path}"/><circle cx="3" cy="19" r="2"/></svg>`;}
 window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)||!$('busy').hidden)return;if((e.ctrlKey||e.metaKey)&&['c','v'].includes(e.key.toLowerCase())){e.preventDefault();$(e.key.toLowerCase()==='c'?'cwCopy':'cwPaste').click();}else if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();if(leaderWorkbench?.active())leaderWorkbench.remove();else $('cwDelete').click();}});
-import('./workspace.mjs?v=0.17.66');
+import('./workspace.mjs?v=0.17.67');

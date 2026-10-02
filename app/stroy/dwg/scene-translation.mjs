@@ -1,5 +1,5 @@
 // Pure translation only: CAD records are still edited by object-edit and saved
-import {get} from './cad.mjs?v=0.17.66';
+import {get} from './cad.mjs?v=0.17.67';
 export function translatedDeviceScene(doc,drawing,targets,delta,recordById=id=>doc.records.find(r=>r.id===id)){
  if(drawing.limited||!targets.length||delta.length!==2||!delta.every(Number.isFinite))return null;
  const wanted=new Map(),owners=new Map(),attributes=new Map();

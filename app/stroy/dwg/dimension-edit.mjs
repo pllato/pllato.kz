@@ -1,4 +1,4 @@
-import {get,num,set} from './cad.mjs?v=0.17.66';
+import {get,num,set} from './cad.mjs?v=0.17.67';
 const point=(r,c)=>[num(r,c,NaN),num(r,c+10,NaN)];
 const dot=(a,b)=>a[0]*b[0]+a[1]*b[1];
 export const dimensionAssociated=(doc,r)=>!!(r.dimensionEndLocked||r.dimensionMoveLocked)&&!doc.nativeOps?.some(op=>op.handle===get(r,5)&&op.detachDimension===true);
