@@ -1,6 +1,6 @@
-import {get,num} from './cad.mjs?v=0.17.65';
-import {deferredAddition} from './deferred-copy.mjs?v=0.17.65';
-import {dimensionAddition} from './dimension-create.mjs?v=0.17.65';
+import {get,num} from './cad.mjs?v=0.17.66';
+import {deferredAddition} from './deferred-copy.mjs?v=0.17.66';
+import {dimensionAddition} from './dimension-create.mjs?v=0.17.66';
 export const isNew=r=>r?.id?.startsWith('new-');
 export function additions(doc){return doc.entities.filter(isNew).map(r=>{
  if(r.deferredCopy)return deferredAddition(doc,r);

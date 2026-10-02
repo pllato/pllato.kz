@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {paintHatch} from './hatch.mjs?v=0.17.65';
+import {paintHatch} from './hatch.mjs?v=0.17.66';
 import {shxLayout} from './shx-layout.mjs';
 export function previewTransform(current,cached){const scale=current.s/cached.s;return {scale,x:current.x-cached.x*scale,y:current.y-cached.y*scale};}
 export function textLines(text,width,measure){return text.split(/\r?\n/).flatMap(paragraph=>{if(!(width>0))return [paragraph];const lines=[];let line='';for(const word of paragraph.split(/\s+/)){const next=line?line+' '+word:word;if(line&&measure(next)>width){lines.push(line);line=word;}else line=next;}lines.push(line);return lines;});}
