@@ -34,7 +34,7 @@ aside{display:none;position:absolute;right:0;top:0;bottom:0;width:min(300px,90vw
 .sheetNavigatorList{position:fixed;box-sizing:border-box;max-width:calc(100vw - 16px);max-height:50vh;overflow:auto;padding:4px;background:#142437;border:1px solid #8295a6;border-radius:5px;z-index:10}
 .sheetNavigatorList button{display:block;width:100%;text-align:left;font-size:12px;padding:8px}
 .sheetNavigatorList button[aria-current=true]{border-color:#deb17a}
-/* Two compact rows; a details margin must never stretch every tool button. */
+/* Compact controls; a details margin must never stretch every tool button. */
 header{gap:5px;padding:4px 8px;flex-shrink:0}
 header strong{white-space:nowrap;font-size:14px}
 header strong #buildVersion{display:inline-block;margin-left:4px;font-size:11px;font-weight:400;color:#d0dce8;vertical-align:middle;white-space:nowrap}
@@ -109,3 +109,20 @@ footer #autosaveStatus{flex:0 1 280px;min-width:0;margin:0;padding:0;background:
 #stampDialog textarea{min-height:72px;margin-top:6px}
 #stampDialog .stampActions{position:sticky;bottom:-20px}
 @media(max-width:540px){#stampDialog .stampFieldPicker{grid-template-columns:1fr;gap:8px}#stampDialog .stampActions{bottom:-16px}}
+/* Wrap tools instead of requiring horizontal scrolling, including on tablets. */
+#drawingToolbar{flex-wrap:wrap;align-items:center}
+#drawingToolbar>nav{flex:1 1 420px;flex-wrap:wrap;overflow:visible}
+#drawingToolbar #cableWorkbench{max-width:100%;flex-wrap:wrap;overflow:visible}
+#drawingToolbar #cableWorkbench .cwActions{flex-wrap:wrap}
+#historyActions{display:flex;gap:4px;padding:4px 6px;flex:none}
+#historyActions button{min-height:32px;padding:5px 8px;font-size:12px;white-space:nowrap}
+#moreTools{position:relative;margin:0;flex:none}
+#moreTools>summary{list-style:none;cursor:pointer;font-size:24px;line-height:24px;padding:0 12px;border:1px solid #8295a6;border-radius:5px;min-height:32px;background:#203448}
+#moreTools>summary::-webkit-details-marker{display:none}
+#moreTools>.moreToolsBody{position:fixed;right:8px;top:70px;width:290px;max-width:calc(100vw - 16px);max-height:65dvh;overflow:auto;padding:8px;z-index:30;background:#142437;border:1px solid #8295a6;border-radius:5px;box-shadow:0 6px 22px #0008}
+#moreTools:not([open])>.moreToolsBody{display:none}
+#moreTools .moreToolsBody>button,#moreTools .moreToolsBody>details{display:block;width:100%;margin:4px 0;text-align:left}
+#moreTools .moreToolsBody summary{padding:9px;cursor:pointer}
+#moreTools .moreToolsBody details>div{position:static;width:auto;max-height:none;padding:8px}
+#moreTools .moreToolsBody input,#moreTools .moreToolsBody select{width:100%;min-width:0}
+#moreTools .moreToolsBody label{display:block;margin:8px 0}
