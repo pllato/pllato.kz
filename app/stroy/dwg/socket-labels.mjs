@@ -1,4 +1,4 @@
-import {get,set} from './cad.mjs?v=0.17.71';
+import {get,set} from './cad.mjs?v=0.17.72';
 // Only N1 labels inside leaf symbol definitions (or their attached attributes).
 // Standalone text, circuit labels such as N12, and plan/container blocks stay intact.
 export function socketLabels(doc){
