@@ -1,5 +1,18 @@
 # Executive DWG engine 0.17.25 — corresponding source
 
+## 0.17.65 attribute and field correction
+
+The archive includes the corrected embedded MTEXT handle order and annotative
+payload, ATTRIB binary tail (no DXF duplicate byte), and FIELD value flags/inline
+Unicode bytes. Both the full customer source and executive pass ODA 27.9 read/write
+with AUDIT disabled and Recover NONE. This supersedes the full-source limitation
+below, not the requirement for independent checks on other drawings.
+
+Build `attribute-field-regression.c` against the patched library like the other
+native regressions; pass a synthetic `dwg-clone-fixture.c` DWG and a NEW output
+path. It checks multiline ATTDEF and FIELD numeric flags/string preservation.
+The test contains no customer content. The source archive and WASM must stay paired.
+
 ## 0.17.64 section framing correction
 
 `src/encode.c`: the extended Header/Classes byte-length prefix has two DWORDs.

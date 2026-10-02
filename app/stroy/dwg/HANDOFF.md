@@ -1,5 +1,27 @@
 # Передача разработки DWG-редактора
 
+## 0.17.65 — полный исходник: ATTRIB / embedded MTEXT / FIELD
+
+Закрыта ошибка полного исходника из 0.17.64. В соответствующем LibreDWG исправлены:
+порядок style/common handles вложенного MTEXT, его дополнительные annotative/column
+поля; убран отсутствующий бинарный is_really_locked; ATTRIB больше не пишет лишний
+байт keep_duplicate_records (у ATTDEF дополнительный version остаётся). FIELD value
+не пропускает double при format_flags=2; Unicode value хранится в основном потоке
+с BL-размером в байтах, а не в общем string stream. Новые embedded handles внесены
+в dwg.h/dynapi.c. Пересобран WASM и обновлён соответствующий GPL-архив.
+
+Проверено локальным официальным ODA 27.9, без AUDIT/RECOVER: исходник пользователя
+после нашего сохранения и исполнительная успешно прочитаны и записаны без .err.
+Наш save/read/save сохраняет 168486 и 16064 объектов соответственно. Исходник
+по-прежнему возвращает предупреждения LibreDWG 68; это не универсальная гарантия
+для всех типов DWG. Физический планшет и AutoCAD не проверялись.
+
+186 unit tests; native clone/rotation/ownership; браузерный сценарий 7 точек для
+трёх инструментов, спуски, undo/redo, clipboard, 390/800 px, DWG save/reopen — PASS.
+Добавлен synthetic attribute-field-regression.c: multiline ATTDEF, обычные ATTRIB,
+FIELD flags 0..3 и inline Unicode value. Частные файлы остаются только локально.
+
+
 ## 0.17.64 — независимая проверка DWG / исправление CRC
 
 Причина отказа приложенной исполнительной установлена через локальный официальный
