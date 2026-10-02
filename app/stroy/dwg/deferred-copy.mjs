@@ -1,5 +1,5 @@
-import {get,num,addEntity} from './cad.mjs?v=0.17.71';
-import {copyTransform} from './object-copy.mjs?v=0.17.71';
+import {get,num,addEntity} from './cad.mjs?v=0.17.72';
+import {copyTransform} from './object-copy.mjs?v=0.17.72';
 const identity=[1,0,0,1,0,0];
 const supported=new Set(['LINE','LWPOLYLINE','ARC','CIRCLE','TEXT','MTEXT','INSERT']);
 export function prepareDeferredCopy(doc,targets,sheet){
