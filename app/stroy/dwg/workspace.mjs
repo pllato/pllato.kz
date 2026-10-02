@@ -1,7 +1,7 @@
 // Presentation only: never changes the drawing or recovery state.
-import './tool-help.mjs?v=0.17.67';
-import {mountSheetNavigator} from './sheet-navigator.mjs?v=0.17.67';
-import {mountCableCatalog} from './cable-catalog.mjs?v=0.17.67';
+import './tool-help.mjs?v=0.17.68';
+import {mountSheetNavigator} from './sheet-navigator.mjs?v=0.17.68';
+import {mountCableCatalog} from './cable-catalog.mjs?v=0.17.68';
 mountCableCatalog();
 mountSheetNavigator(document.getElementById('exSheet'));
 const panel=document.getElementById('panel'),sidebar=document.getElementById('sidebar');
@@ -17,3 +17,14 @@ const recoveryStatus=document.getElementById('autosaveStatus');
 const recoveryTitle=()=>{recoveryStatus.title=recoveryStatus.textContent;};
 new MutationObserver(recoveryTitle).observe(recoveryStatus,{childList:true,characterData:true,subtree:true});recoveryTitle();
 document.querySelector('header strong').title=document.querySelector('header strong').textContent;
+// Move actual controls, preserving their handlers and current values.
+const toolbar=document.getElementById('drawingToolbar'),history=document.createElement('div');
+history.id='historyActions';history.setAttribute('aria-label','История изменений');history.append(document.getElementById('undo'),document.getElementById('redo'));toolbar.prepend(history);
+const more=document.createElement('details'),summary=document.createElement('summary'),body=document.createElement('div');
+more.id='moreTools';summary.textContent='⋯';summary.setAttribute('aria-label','Дополнительные инструменты');summary.title='Дополнительные инструменты';body.className='moreToolsBody';more.append(summary,body);document.querySelector('header').append(more);
+body.append(document.getElementById('shxFonts'));
+for(const group of document.querySelectorAll('#executiveToolbar>details'))if(['Лист','Калибровка длины','Масштаб'].includes(group.querySelector('summary').textContent))body.append(group);
+body.append(panel,document.querySelector('[data-tool="text"]'),document.querySelector('[data-tool="measure"]'));
+body.addEventListener('click',e=>{if(e.target.closest('button'))more.open=false;});
+document.addEventListener('pointerdown',e=>{if(!more.contains(e.target))more.open=false;});
+more.addEventListener('keydown',e=>{if(e.key==='Escape'){more.open=false;summary.focus();e.stopPropagation();}});
