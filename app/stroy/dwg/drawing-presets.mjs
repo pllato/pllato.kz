@@ -1,4 +1,4 @@
-import {aciColors,rgbHex} from './colors.mjs?v=0.17.69';
+import {aciColors,rgbHex} from './colors.mjs?v=0.17.70';
 export const drawingPreset={color:5,lineweight:25,brand:'ВВГнг(А)-LS',section:'3×2,5'};
 const palettes=new WeakMap();
 export function extendDrawingPalette(previous,next,added){

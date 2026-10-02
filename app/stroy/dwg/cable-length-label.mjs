@@ -1,4 +1,4 @@
-import {routeLength} from './cable-ledger.mjs?v=0.17.69';
+import {routeLength} from './cable-ledger.mjs?v=0.17.70';
 
 export function cableLengthLabel(route){
  const length=(route.paths||[route.points]).reduce((sum,path)=>sum+routeLength(path,route.metresPerUnit),0);

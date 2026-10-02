@@ -1,9 +1,9 @@
-import {get,move,set,addEntity} from './cad.mjs?v=0.17.69';
-import {installDeferredBlocks} from './deferred-copy.mjs?v=0.17.69';
-import {setSplineControl,setEntityVertex} from './control-edit.mjs?v=0.17.69';
-import {planDimensionEdit,planDimensionMove,applyDimensionPlan} from './dimension-edit.mjs?v=0.17.69';
-import {applyNotePatch} from './note-edit.mjs?v=0.17.69';
-import {installDimensionBlock} from './dimension-create.mjs?v=0.17.69';
+import {get,move,set,addEntity} from './cad.mjs?v=0.17.70';
+import {installDeferredBlocks} from './deferred-copy.mjs?v=0.17.70';
+import {setSplineControl,setEntityVertex} from './control-edit.mjs?v=0.17.70';
+import {planDimensionEdit,planDimensionMove,applyDimensionPlan} from './dimension-edit.mjs?v=0.17.70';
+import {applyNotePatch} from './note-edit.mjs?v=0.17.70';
+import {installDimensionBlock} from './dimension-create.mjs?v=0.17.70';
 export function captureRecovery(doc){
  if(!doc.native)throw Error('Ожидается DWG');
  return {ops:structuredClone(doc.nativeOps||[]),added:doc.entities.filter(r=>r.id.startsWith('new-')).map(r=>({id:r.id,type:r.type,pairs:structuredClone(r.pairs),...(r.type==='DIMENSION'?{dimensionBlock:structuredClone(doc.blocks.get(get(r,2)).records)}:{}),...(r.deferredCopy?{deferredCopy:structuredClone(r.deferredCopy)}:{})})),project:structuredClone(doc.executiveProject||null)};
@@ -11,6 +11,7 @@ export function captureRecovery(doc){
 export function replayRecovery(doc,state){
  const byHandle=new Map(doc.records.map(r=>[get(r,5),r])),removed=new Set();
  for(const op of state.ops){const r=byHandle.get(op.handle);if(!r)throw Error('Восстановление: объект '+op.handle+' не найден');
+  if(op.dimensionHidden===true){if(r.type!=='DIMENSION')throw Error('Восстановление: неверный размер');removed.add(r);continue;}
   if(op.dimension){applyDimensionPlan(planDimensionEdit({...doc,nativeOps:state.ops.slice(0,state.ops.indexOf(op))},r,op.dimension));continue;}
   if(op.dimensionMove){applyDimensionPlan(planDimensionMove(doc,r,op.dimensionMove,{detach:op.detachDimension===true||state.ops.slice(0,state.ops.indexOf(op)).some(p=>p.handle===op.handle&&p.detachDimension===true)}));continue;}
   if(op.styleFont!==undefined){if(r.type!=='STYLE'||typeof op.styleFont!=='string')throw Error('Восстановление: неверный стиль');set(r,3,op.styleFont);const style=doc.textStyles.get(get(r,2));if(!style)throw Error('Стиль не найден');style.font=op.styleFont;continue;}

@@ -3,6 +3,8 @@ export function mountDimensionWorkbench(api){
  panel.style.cssText='position:absolute;right:12px;top:48px;z-index:5;background:#14283a;color:white;padding:12px;border:1px solid #789;max-width:270px';
  panel.innerHTML='<strong>Размер до прибора</strong><label>Расстояние, ед. чертежа<input name="length" type="number" min="0.001" step="any" required></label><label>Вынос размерной линии<input name="offset" type="number" step="any" required></label><button type="submit">Применить размер</button><p style="font-size:12px">Перенос целиком: тяните число, линию или зелёную точку. Значение не меняется. Оранжевая точка меняет длину, голубая — вынос.</p>';
  const bind=document.createElement('button');bind.type='button';bind.textContent='Связать с прибором';bind.onclick=()=>{try{api.bind();}catch(e){api.status(e.message);}};panel.append(bind);
+ const actions=document.createElement('div');actions.style.cssText='display:flex;gap:6px;margin:10px 0';
+ for(const [id,text,action]of [['dimensionCopy','Копировать',()=>api.copy()],['dimensionDelete','Удалить',()=>api.remove()]]){const b=document.createElement('button');b.id=id;b.type='button';b.textContent=text;b.onclick=()=>{try{drag=null;action();key='';api.draw();}catch(e){api.status(e.message);}};actions.append(b);}panel.append(actions);
  document.getElementById('viewport').append(panel);let key='',drag=null;
  panel.addEventListener('keydown',e=>e.stopPropagation());
  function commit(values){try{api.apply(values);key='';api.draw();}catch(e){api.status(e.message);}}
