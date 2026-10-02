@@ -1,4 +1,4 @@
-import {scene,get} from './cad.mjs?v=0.17.68';
+import {scene,get} from './cad.mjs?v=0.17.69';
 // Re-expand only independently edited model-space INSERTs and their attributes.
 // Preserve painter order and every unaffected shape (including cleaned labels).
 export function updatedRootScene(doc,drawing,targets){

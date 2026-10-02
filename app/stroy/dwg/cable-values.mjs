@@ -1,4 +1,4 @@
-import {cableBrands,cableSections} from './cable-catalog.mjs?v=0.17.68';
+import {cableBrands,cableSections} from './cable-catalog.mjs?v=0.17.69';
 export function mountCableValues(api){
  const viewport=document.getElementById('viewport'),button=document.createElement('button'),panel=document.createElement('div');
  button.id='cwQuickValues';button.hidden=true;button.title='Марка кабеля и сечение';button.setAttribute('aria-label',button.title);button.setAttribute('aria-expanded','false');button.innerHTML='<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 6h18M3 12h18M3 18h18"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/></svg>';
