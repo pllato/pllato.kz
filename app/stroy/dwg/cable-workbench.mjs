@@ -1,10 +1,11 @@
-import {cableCurve,nearestCablePoint,bendCable} from './cable-edit.mjs?v=0.17.62';
-import {mountCableNavigator} from './cable-navigator.mjs?v=0.17.62';
-import {mountDrawingPresets} from './drawing-presets.mjs?v=0.17.62';
-import {mountCableValues} from './cable-values.mjs?v=0.17.62';
-import {rotationFrame,rotationDelta,rotatedPoint} from './rotation-handle.mjs?v=0.17.62';
+import {cableCurve,nearestCablePoint,bendCable} from './cable-edit.mjs?v=0.17.63';
+import {mountCableNavigator} from './cable-navigator.mjs?v=0.17.63';
+import {mountDrawingPresets} from './drawing-presets.mjs?v=0.17.63';
+import {mountCableValues} from './cable-values.mjs?v=0.17.63';
+import {mountCableDrops} from './cable-drops-ui.mjs?v=0.17.63';
+import {rotationFrame,rotationDelta,rotatedPoint} from './rotation-handle.mjs?v=0.17.63';
 export function mountCableWorkbench(api){
- const panel=document.createElement('section');panel.id='cableWorkbench';panel.innerHTML=`<h2>Кабель / объект</h2><p id="cwLength">Выберите кабель или прибор</p><div class="cwActions"><button id="cwDraw">Кабель · 4 точки</button><button id="cwMove">Перетащить</button><button id="cwShape">Изменить форму</button><button id="cwCopy">Копировать выбранное</button><button id="cwPaste">Вставить копию</button><button id="cwDelete">Удалить</button></div><label>Цвет линии<select id="cwColor"><option value="0">Исходный / по слою</option><option value="7">Белый</option><option value="1">Красный</option><option value="2">Жёлтый</option><option value="3">Зелёный</option><option value="4">Голубой</option><option value="5">Синий</option><option value="6">Фиолетовый</option><option value="8">Серый</option></select></label><button id="cwApplyColor">Применить цвет</button><div id="cwCableFields"></div><button id="cwAssign">Сохранить марку и сечение</button><button id="cwLeader">Поставить выноску</button><p id="cwHelp">Кабель учитывается в ведомости и без выноски. Цвет не меняет его марку.</p>`;
+ const panel=document.createElement('section');panel.id='cableWorkbench';panel.innerHTML=`<h2>Кабель / объект</h2><p id="cwLength">Выберите кабель или прибор</p><div class="cwActions"><button id="cwDraw">Кабель · точки / завершить</button><button id="cwMove">Перетащить</button><button id="cwShape">Изменить форму</button><button id="cwCopy">Копировать выбранное</button><button id="cwPaste">Вставить копию</button><button id="cwDelete">Удалить</button></div><label>Цвет линии<select id="cwColor"><option value="0">Исходный / по слою</option><option value="7">Белый</option><option value="1">Красный</option><option value="2">Жёлтый</option><option value="3">Зелёный</option><option value="4">Голубой</option><option value="5">Синий</option><option value="6">Фиолетовый</option><option value="8">Серый</option></select></label><button id="cwApplyColor">Применить цвет</button><div id="cwCableFields"></div><button id="cwAssign">Сохранить марку и сечение</button><button id="cwLeader">Поставить выноску</button><p id="cwHelp">Кабель учитывается в ведомости и без выноски. Цвет не меняет его марку.</p>`;
  const nav=document.querySelector('nav'),toolbar=document.createElement('div');toolbar.id='drawingToolbar';nav.before(toolbar);toolbar.append(panel,nav);
  panel.setAttribute('aria-label','Действия с выбранной линией');
  const cut=document.createElement('button');cut.id='cwCut';cut.textContent='Вырезать часть';panel.querySelector('.cwActions').append(cut);
@@ -50,6 +51,7 @@ export function mountCableWorkbench(api){
  cut.onclick=safe(()=>{let r=api.route();if(!r||r.sourceIds){if(!confirm('Вырезание части требует замены выбранной цепочки на приближённую полилинию. Продолжить?'))return;api.convert();}lastKey=api.route().id;mode='cut';cutStart=null;api.status('Укажите на кабеле начало и конец удаляемой части. Escape — отмена.');});
  const navigator=mountCableNavigator(api);
  const quickValues=mountCableValues(api);
+ const quickDrops=mountCableDrops(api);
  const presets=mountDrawingPresets(api.draw);
  function refresh(){navigator.refresh();const r=api.route(),key=r?.id||api.selectionKey();if(key!==lastKey){mode='';lastKey=key;settings.open=false;$('cwColor').value=String(r?.color||api.colorValue()||0);}
   const drawing=api.drawing(),enabled=!api.busy()&&api.selecting(),cap=enabled?api.capabilities():{};presets.refresh(drawing,!!api.sheetId(),api.shapes());
@@ -60,8 +62,9 @@ export function mountCableWorkbench(api){
   const configurable=!api.busy()&&!drawing&&(cap.color||cap.leader);summary.setAttribute('aria-disabled',String(!configurable));summary.tabIndex=configurable?0:-1;if(!configurable)settings.open=false;
   quickDelete.hidden=!cap.remove||!!drag;quickDelete.disabled=!cap.remove;
   quickCopy.hidden=!cap.copy||!!drag;quickCopy.disabled=!cap.copy||duplicating;
-  if(!quickDelete.hidden||!quickCopy.hidden){const viewport=document.querySelector('#viewport'),path=api.paths()[0],point=(anchorWorld?api.screen(anchorWorld):anchor)||(path?.length?api.screen(path[Math.floor(path.length/2)]):[20,20]);quickDelete.style.left=Math.max(8,Math.min(viewport.clientWidth-112,point[0]-44))+'px';quickDelete.style.top=Math.max(8,Math.min(viewport.clientHeight-40,point[1]-44))+'px';quickCopy.style.left=(parseFloat(quickDelete.style.left)+36)+'px';quickCopy.style.top=quickDelete.style.top;}
+  if(!quickDelete.hidden||!quickCopy.hidden){const viewport=document.querySelector('#viewport'),path=api.paths()[0],point=(anchorWorld?api.screen(anchorWorld):anchor)||(path?.length?api.screen(path[Math.floor(path.length/2)]):[20,20]);quickDelete.style.left=Math.max(8,Math.min(viewport.clientWidth-148,point[0]-44))+'px';quickDelete.style.top=Math.max(8,Math.min(viewport.clientHeight-40,point[1]-44))+'px';quickCopy.style.left=(parseFloat(quickDelete.style.left)+36)+'px';quickCopy.style.top=quickDelete.style.top;}
   quickValues.refresh(cap,drag,{x:parseFloat(quickDelete.style.left)+72,y:parseFloat(quickDelete.style.top)});
+  quickDrops.refresh(cap,drag,{x:parseFloat(quickDelete.style.left)+108,y:parseFloat(quickDelete.style.top)});
  }
  function down(p){if(api.busy())return false;if(mode==='leader-anchor'){const near=nearestCablePoint(api.paths(),api.world(p));if(!near||Math.hypot(...api.screen(near).map((v,i)=>v-p[i]))>14){api.status('Нажмите именно на выбранный кабель. Escape — отмена.');return true;}const q=api.screen(near);safe(()=>{api.leaderAt(near,api.world([q[0]+35,q[1]-35]),api.world([q[0]+100,q[1]-35]));mode='';lastKey=api.route()?.id||api.selectionKey();settings.open=true;})();return true;}if(mode==='refine'){api.refine(p);lastKey=api.selectionKey();mode='refine';refresh();api.draw();return true;}if(mode==='paste'){safe(()=>api.paste(api.world(p)))();mode='';return true;}
   if(mode==='move'){const origin=anchorWorld||api.paths()[0]?.[0];if(origin)safe(()=>api.move(api.world(p).map((v,i)=>v-origin[i])))();mode='';return true;}

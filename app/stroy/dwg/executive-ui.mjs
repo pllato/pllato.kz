@@ -1,13 +1,13 @@
-import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.62';
-import * as projectAPI from './executive-project.mjs?v=0.17.62';
-import {routeLength} from './cable-ledger.mjs?v=0.17.62';
-import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.62';
-import {executivePlacement} from './executive-placement.mjs?v=0.17.62';
-import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.62';
-import {drawingPreset} from './drawing-presets.mjs?v=0.17.62';
-import {parseTable,tablePages} from './table-paste.mjs?v=0.17.62';
-import {stampLabels} from './stamp-fields.mjs?v=0.17.62';
-import {mountStampWorkbench} from './stamp-workbench.mjs?v=0.17.62';
+import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.63';
+import * as projectAPI from './executive-project.mjs?v=0.17.63';
+import {routeLength} from './cable-ledger.mjs?v=0.17.63';
+import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.63';
+import {executivePlacement} from './executive-placement.mjs?v=0.17.63';
+import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.63';
+import {drawingPreset} from './drawing-presets.mjs?v=0.17.63';
+import {parseTable,tablePages} from './table-paste.mjs?v=0.17.63';
+import {stampLabels} from './stamp-fields.mjs?v=0.17.63';
+import {mountStampWorkbench} from './stamp-workbench.mjs?v=0.17.63';
 export function mountExecutiveUI(api){
  const panel=document.createElement('section');panel.id='executives';
  panel.innerHTML=`<h2>Исполнительные</h2><button id="exArea">Выделить план рамкой</button><p id="exAreaInfo">Откройте DWG, выберите единицы и выделите план.</p><button id="exCreate" disabled>Создать рядом</button><label>Исполнительная<select id="exSheet"></select></label><label>Заголовок<input id="exTitle" maxlength="1000"></label><label>Поворот плана, °<input id="exAngle" type="number" value="0"></label><details><summary>Редактировать штамп</summary><div id="exStamp"></div></details><button id="exApply">Применить оформление</button><h3>Кабельные трассы</h3><label>Марка<input id="exBrand" value="ВВГнг(А)-LS"></label><label>Сечение<input id="exSection" value="3×2,5"></label><label>Дополнительная длина, м<input id="exExtra" type="number" min="0" value="0" step="any"></label><button id="exRoute">Рисовать трассу</button><button id="exFinish">Завершить трассу</button><label>Трасса<select id="exRouteList"></select></label><button id="exCable">Назначить кабель</button><button id="exLeader">Выноска · 3 точки</button><button id="exRemoveLeader">Удалить выноски</button><button id="exRemoveRoute">Удалить трассу</button><div class="pair"><label>Сдвиг X<input id="exDX" type="number" value="0"></label><label>Сдвиг Y<input id="exDY" type="number" value="0"></label></div><button id="exMoveRoute">Двигать трассу</button><button id="exDevice">Выбрать прибор</button><pre id="exLedger" style="white-space:pre-wrap;font-size:12px"></pre>`;
@@ -98,7 +98,7 @@ export function mountExecutiveUI(api){
   if(mode==='leader'&&!points.length){const r=sheet()?.routes.find(r=>r.id===routeId);w=nearestCablePoint(r?.paths||[r?.points||[]],w)||w;}
   points.push(w);
   if(mode==='calibrate'&&points.length===2){try{mutate(p=>projectAPI.calibrateExecutive(p,active,points[0],points[1],Number($('exKnownMetres').value)));api.status('Масштаб метража обновлён для всех трасс этого листа.');}catch(e){api.status(e.message);}points=[];mode='';api.setTool('select');}
-  else if((['route3','broken'].includes(mode)&&points.length===4)||(mode==='straight'&&points.length===2)){createCable(points,mode==='route3');points=[];mode='';api.setTool('object');}
+  else if(['route3','broken','straight'].includes(mode)&&points.length>1)api.status('Точек: '+points.length+' · нажмите инструмент повторно, чтобы завершить кабель');
   else if((mode==='route'||mode==='route3')&&points.length>1)api.status('Длина трассы: '+routeLength(cableCurve(points,mode==='route3'),sheet().metresPerUnit).toFixed(3)+' м · точек '+points.length);
   else if(mode==='leader'&&points.length===3){const [anchor,elbow,label]=points;mutate(p=>projectAPI.addLeader(p,active,routeId,{id:crypto.randomUUID(),anchor,elbow,label}));points=[];mode='';api.setTool('select');}
   api.draw();
@@ -146,8 +146,8 @@ function assignSelection(){if(!sheet())throw Error('Выберите испол�
   editTitle:(id,values)=>{const s=project().sheets.find(s=>s.id===id);if(!s)throw Error('Исполнительная не найдена');const style={x:210,y:275,height:5,...s.titleStyle,...Object.fromEntries(['x','y','height'].filter(k=>values[k]!==undefined).map(k=>[k,values[k]]))};if(!Object.values(style).every(Number.isFinite)||style.x<0||style.x>420||style.y<0||style.y>297||style.height<.2||style.height>50)throw Error('Размер: 0,2–50 мм; положение — внутри листа');if(values.title!==undefined&&(typeof values.title!=='string'||values.title.length>1000))throw Error('Название: до 1000 символов');active=id;mutate(p=>{const s=p.sheets.find(s=>s.id===id);s.titleStyle=style;if(values.title!==undefined)s.title=values.title;});},
   selectRoute:id=>{routeId=id;refresh();cableFields();},
   beginLeaderAt:(p,elbow,label)=>{if(!selectedRoute()&&!assignSelection())return;const r=selectedRoute();if(!r||!p)throw Error('Выберите кабель');const q=nearestCablePoint(r.paths||[r.points],p);mutate(next=>projectAPI.addLeader(next,active,routeId,{id:crypto.randomUUID(),anchor:q,elbow,label}));mode='';points=[];api.status('Выноска поставлена. Марку и сечение можно изменить рядом с кабелем.');},
-  beginCable:(kind='route3')=>{if(!sheet())throw Error('Выберите исполнительную');mode=kind;points=[];api.setTool('executive');api.status(kind==='straight'?'Укажите начало и конец кабеля.':'Четыре точки: начало → два изгиба → конец. Длина показывается при рисовании.');},
-  cutRoute:(a,b)=>{const r=selectedRoute();if(!r||r.sourceIds)throw Error('Сначала включите редактирование формы');const parts=cutCable(r.points,a,b),ids=parts.map(()=>crypto.randomUUID());mutate(p=>{const s=p.sheets.find(s=>s.id===active);s.routes=s.routes.filter(item=>item.id!==r.id);parts.forEach((points,i)=>{const next={...structuredClone(r),id:ids[i],points,smooth:false,extraMetres:i===0?r.extraMetres:0,leaders:[]};delete next.controls;for(const l of r.leaders){const q=nearestCablePoint([points],l.anchor);if(q&&Math.hypot(q[0]-l.anchor[0],q[1]-l.anchor[1])<1e-6)next.leaders.push(l);}s.routes.push(next);});});routeId=ids[0]||'';refresh();api.status('Часть кабеля удалена. Остатки и ведомость обновлены; отмена доступна.');},
+  beginCable:(kind='route3')=>{if(!sheet())throw Error('Выберите исполнительную');if(mode===kind){if(points.length<2){api.status('Укажите минимум две точки');return;}createCable(points,kind==='route3');points=[];hoverPoint=null;mode='';api.setTool('object');return;}mode=kind;points=[];api.setTool('executive');api.status('Кликайте точки кабеля. Повторное нажатие этого инструмента завершает линию. Escape — отмена.');},
+  cutRoute:(a,b)=>{const r=selectedRoute();if(!r||r.sourceIds)throw Error('Сначала включите редактирование формы');const parts=cutCable(r.points,a,b),ids=parts.map(()=>crypto.randomUUID());mutate(p=>{const s=p.sheets.find(s=>s.id===active);s.routes=s.routes.filter(item=>item.id!==r.id);parts.forEach((points,i)=>{const next={...structuredClone(r),id:ids[i],points,smooth:false,extraMetres:i===0?r.extraMetres:0,...(r.drops?{drops:i===0?structuredClone(r.drops):[]}:{}),leaders:[]};delete next.controls;for(const l of r.leaders){const q=nearestCablePoint([points],l.anchor);if(q&&Math.hypot(q[0]-l.anchor[0],q[1]-l.anchor[1])<1e-6)next.leaders.push(l);}s.routes.push(next);});});routeId=ids[0]||'';refresh();api.status('Часть кабеля удалена. Остатки и ведомость обновлены; отмена доступна.');},
   editRoute:fn=>mutate(p=>{const r=p.sheets.find(s=>s.id===active)?.routes.find(r=>r.id===routeId);if(!r)throw Error('Выберите кабель');fn(r);}),
   duplicateRoute:delta=>{const r=structuredClone(selectedRoute());if(!r||r.sourceIds)throw Error('Выберите нарисованный кабель');r.id=crypto.randomUUID();r.leaders.forEach(l=>l.id=crypto.randomUUID());mutate(p=>{p.sheets.find(s=>s.id===active).routes.push(r);projectAPI.moveRoute(p,active,r.id,delta);});routeId=r.id;refresh();},
   moveRoute:delta=>mutate(p=>projectAPI.moveRoute(p,active,routeId,delta)),removeRoute:()=>mutate(p=>projectAPI.removeRoute(p,active,routeId))};

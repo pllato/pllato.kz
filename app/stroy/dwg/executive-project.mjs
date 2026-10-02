@@ -1,6 +1,7 @@
-import {routeLength,rotatePoints,cableLedger} from './cable-ledger.mjs?v=0.17.62';
-import {executiveLayout} from './executive-layout.mjs?v=0.17.62';
-import {validateTable,tablePages} from './table-paste.mjs?v=0.17.62';
+import {routeLength,rotatePoints,cableLedger} from './cable-ledger.mjs?v=0.17.63';
+import {executiveLayout} from './executive-layout.mjs?v=0.17.63';
+import {validateTable,tablePages} from './table-paste.mjs?v=0.17.63';
+import {normalizeDrops,dropsTotal} from './cable-drops.mjs?v=0.17.63';
 
 // Serializable editing model. Cable data belongs to a route, not its leaders.
 // Native block handles are retained; source geometry is never flattened here.
@@ -25,10 +26,11 @@ export function createExecutive(project,{id,title='',font='times.ttf',titleStyle
  if(dimensionLinks!==undefined){if(!Array.isArray(dimensionLinks)||dimensionLinks.length>10000||dimensionLinks.some(l=>!l||!['dimension','device'].every(k=>typeof l[k]==='string'&&/^[0-9a-f]{1,16}$/i.test(l[k])))||new Set(dimensionLinks.map(l=>l.dimension)).size!==dimensionLinks.length)throw Error('Неверные привязки размеров');s.dimensionLinks=dimensionLinks.map(({dimension,device})=>({dimension,device}));}
  project.sheets.push(s);return s;
 }
-export function addRoute(project,sheetId,{id,points,brand='',section='',extraMetres=0,paths,sourceIds,color=7,rgb,controls,smooth=false,lineweight}){
+export function addRoute(project,sheetId,{id,points,brand='',section='',extraMetres=0,drops,paths,sourceIds,color=7,rgb,controls,smooth=false,lineweight}){
  const s=sheet(project,sheetId);unique(project.sheets.flatMap(s=>s.routes),id);routeLength(points,s.metresPerUnit);
  if(!Number.isFinite(extraMetres)||extraMetres<0)throw Error('Неверная дополнительная длина');
  const r={id,sheetId,points:points.map(p=>[...p]),brand:String(brand).trim(),section:String(section).trim(),extraMetres,metresPerUnit:s.metresPerUnit,leaders:[]};
+ if(drops!==undefined){r.drops=normalizeDrops(drops);r.extraMetres=dropsTotal(r.drops);}
  if(paths){if(!Array.isArray(paths)||paths.length>10000||!Array.isArray(sourceIds)||sourceIds.some(id=>typeof id!=='string'))throw Error('Неверная привязка кабеля');for(const p of paths)routeLength(p,s.metresPerUnit);r.paths=structuredClone(paths);r.sourceIds=[...sourceIds];}
  if(!Number.isInteger(color)||color<1||color>255)throw Error('Неверный цвет кабеля');r.color=color;
  if(rgb!==undefined){if(!Number.isInteger(rgb)||rgb<0||rgb>0xffffff)throw Error('Неверный RGB цвет');r.rgb=rgb;}
@@ -40,6 +42,7 @@ export function setCable(project,sheetId,routeId,{brand,section,extraMetres}){
  const r=route(sheet(project,sheetId),routeId);
  if(typeof brand!=='string'||typeof section!=='string'||!Number.isFinite(extraMetres)||extraMetres<0)throw Error('Неверные свойства кабеля');
  Object.assign(r,{brand:brand.trim(),section:section.trim(),extraMetres});
+ if(r.drops&&dropsTotal(r.drops)!==extraMetres)delete r.drops;
 }
 export function addLeader(project,sheetId,routeId,{id,anchor,elbow,label,textHeight=1.4}){
  const s=sheet(project,sheetId),r=route(s,routeId);
