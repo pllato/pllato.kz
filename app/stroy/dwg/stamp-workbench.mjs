@@ -1,5 +1,5 @@
-import {stampLabels,stampDefaults,stampChoices,stampDateKeys} from './stamp-fields.mjs?v=0.17.66';
-import {stampCells,stampValue,fitStampText} from './executive-stamp.mjs?v=0.17.66';
+import {stampLabels,stampDefaults,stampChoices,stampDateKeys} from './stamp-fields.mjs?v=0.17.67';
+import {stampCells,stampValue,fitStampText} from './executive-stamp.mjs?v=0.17.67';
 export function mountStampWorkbench(api){
  const viewport=document.getElementById('viewport'),button=document.createElement('button');button.id='editExecutiveStamp';button.textContent='Редактировать штамп';button.style.cssText='position:absolute;z-index:4;font-size:12px;padding:5px;min-height:28px';viewport.append(button);
  const dialog=document.createElement('dialog');dialog.id='stampDialog';dialog.setAttribute('aria-labelledby','stampDialogTitle');

@@ -1,4 +1,4 @@
-import {get,num,set,decode} from './cad.mjs?v=0.17.66';
+import {get,num,set,decode} from './cad.mjs?v=0.17.67';
 export const isNote=r=>!!r&&(['TEXT','MTEXT','ATTRIB','ATTDEF'].includes(r.type)||r.type==='MULTILEADER'&&r.parts?.some(p=>p.type==='MTEXT'));
 const multiline=r=>['MTEXT','MULTILEADER'].includes(r.type);
 export function noteValue(r){return decode(r.pairs.filter(p=>p[0]===1||r.type==='MTEXT'&&p[0]===3).map(p=>p[1]).join('')).replace(/\\P/g,'\n');}
