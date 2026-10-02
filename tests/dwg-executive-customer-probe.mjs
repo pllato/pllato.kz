@@ -31,6 +31,8 @@ const handles=process.env.DWG_ROOT_COUNT?roots.map(r=>r.handle).join(','):roots[
 assert.equal(code,0,'Native clone must retain the complete dependency graph');
 const save=m.ccall('pllato_save','number',['string'],['/copy.dwg']);console.log('Save gate',save);
 assert.ok(save<128,'Native save/read-back structural gate must pass');
+// Opt-in local artifact for independent CAD validation; never overwrite input.
+if(process.env.DWG_OUTPUT_FILE)fs.writeFileSync(process.env.DWG_OUTPUT_FILE,m.FS.readFile('/copy.dwg'),{flag:'wx'});
 if(process.env.DWG_SAVE_TWICE){
  assert.ok(m.ccall('pllato_open','number',['string'],['/copy.dwg'])<128);
  const second=m.ccall('pllato_save','number',['string'],['/second.dwg']);console.log('Second save gate',second);

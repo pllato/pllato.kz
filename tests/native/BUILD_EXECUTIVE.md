@@ -1,5 +1,16 @@
 # Executive DWG engine 0.17.25 — corresponding source
 
+## 0.17.64 section framing correction
+
+`src/encode.c`: the extended Header/Classes byte-length prefix has two DWORDs.
+Neither belongs to the declared payload length; both belong to CRC16 coverage.
+The Classes high DWORD is zero, not `bitsize / 8`. The corresponding archive
+contains this fix. Test the emitted DWG2018 with
+`node tests/dwg-section-size-regression.mjs /absolute/local-output.dwg` and an
+independent reader. ODA 27.9 verified the customer executive and browser-edited
+executive without recovery. Full-source multiline ATTDEF compatibility remains
+an independent known issue; same-engine read-back alone is insufficient.
+
 GNU LibreDWG 0.14, GPL-3.0-or-later. No paid SDK. The source archive includes the already-patched library, `pllato_web.c`, `pllato_executive_engine.c`, `pllato_dimension_edit.h` and `pllato_selected_export.h`. Do not apply the reference patches a second time.
 
 With Emscripten 6.0.10 activated and Python >=3.10:
