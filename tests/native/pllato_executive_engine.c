@@ -677,6 +677,11 @@ API int pllato_lineweight(const char *handle,int weight){
  Dwg_Object *o=entity(handle);if(!o||weight<0||weight>211||dxf_cvt_lweight(dxf_revcvt_lweight(weight))!=weight)return 1;
  o->tio.entity->linewt=dxf_revcvt_lweight(weight);return 0;
 }
+/* Retain dimension association graph while removing its plotted occurrence. */
+API int pllato_dimension_hide(const char *handle){
+ Dwg_Object *o=entity(handle);if(!o||o->fixedtype!=DWG_TYPE_DIMENSION_LINEAR)return 1;
+ o->tio.entity->invisible|=1;return 0;
+}
 /* Delete only self-contained editable entities; dependency-bearing objects reject. */
 API int pllato_remove(const char *handle){
  Dwg_Object *o=entity(handle);if(!o)return 1;

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.69';
-import {writeAdditions} from './authoring.mjs?v=0.17.69';
-import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.69';
+import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.70';
+import {writeAdditions} from './authoring.mjs?v=0.17.70';
+import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.70';
 self.onmessage=async({data})=>{
  try{
   const {buffer,ops,added=[]}=data;
   if(!(buffer instanceof ArrayBuffer)||!Array.isArray(ops)||ops.length>100000)throw Error('Неверный пакет изменений.');
   self.postMessage({progress:'Открываю исходный DWG для записи изменений…',percent:10});
-  const m=await createModule({locateFile:p=>new URL('./vendor/'+p+'?v=0.17.69',import.meta.url).href,print:()=>{},printErr:()=>{}});
+  const m=await createModule({locateFile:p=>new URL('./vendor/'+p+'?v=0.17.70',import.meta.url).href,print:()=>{},printErr:()=>{}});
   m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
   const opened=m.ccall('pllato_open','number',['string'],['/input.dwg']);
   if(opened>=128)throw Error('DWG не прочитан: '+opened);
@@ -15,6 +15,7 @@ self.onmessage=async({data})=>{
   for(let opIndex=0;opIndex<=ops.length;opIndex++){
    writeDeferredCopies(m,added,opIndex);if(opIndex===ops.length)break;
    const op=ops[opIndex];
+   if(op.dimensionHidden===true){if(!/^[0-9a-f]+$/i.test(op.handle)||m.ccall('pllato_dimension_hide','number',['string'],[op.handle]))throw Error('Удаление размера отклонено');continue;}
    if(op.dimensionMove){const v=op.dimensionMove;if(!/^[0-9a-f]+$/i.test(op.handle)||!Array.isArray(v)||v.length!==2||!v.every(Number.isFinite))throw Error('Неверный сдвиг размера');if(op.detachDimension===true&&m.ccall('pllato_dimension_detach','number',['string'],[op.handle]))throw Error('Не удалось безопасно отключить привязку размера');if(m.ccall('pllato_dimension_move','number',['string','number','number'],[op.handle,...v]))throw Error('Перенос размера отклонён');continue;}
    if(op.dimension){const {length,offset,endNormal=0}=op.dimension;if(!/^[0-9a-f]+$/i.test(op.handle)||![length,offset,endNormal].every(Number.isFinite))throw Error('Неверный размер');const code=m.ccall('pllato_dimension','number',['string','number','number','number'],[op.handle,length,offset,endNormal]);if(code)throw Error('Правка размера отклонена: '+code);continue;}
    if(op.styleFont!==undefined){if(typeof op.styleFont!=='string'||!/^([0-9a-f]+)$/i.test(op.handle))throw Error('Неверный стиль');const code=m.ccall('pllato_style_font','number',['string','string'],[op.handle,op.styleFont]);if(code)throw Error('Смена шрифта отклонена: '+code);continue;}

@@ -1,5 +1,11 @@
 # Executive DWG engine 0.17.25 — corresponding source
 
+## 0.17.70 dimension removal
+
+pllato_dimension_hide removes a linear dimension from display through the native
+invisible bit, retaining its association graph and private graphics. Both writer
+paths support dimensionHidden. Rebuild wrapper and matching source archive.
+
 ## 0.17.66 dependency visibility
 
 The wrapper retains semantic dependency roots but marks those outside the explicit
