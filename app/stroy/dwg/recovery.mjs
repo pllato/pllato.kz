@@ -1,9 +1,9 @@
-import {get,move,set,addEntity} from './cad.mjs?v=0.17.65';
-import {installDeferredBlocks} from './deferred-copy.mjs?v=0.17.65';
-import {setSplineControl,setEntityVertex} from './control-edit.mjs?v=0.17.65';
-import {planDimensionEdit,planDimensionMove,applyDimensionPlan} from './dimension-edit.mjs?v=0.17.65';
-import {applyNotePatch} from './note-edit.mjs?v=0.17.65';
-import {installDimensionBlock} from './dimension-create.mjs?v=0.17.65';
+import {get,move,set,addEntity} from './cad.mjs?v=0.17.66';
+import {installDeferredBlocks} from './deferred-copy.mjs?v=0.17.66';
+import {setSplineControl,setEntityVertex} from './control-edit.mjs?v=0.17.66';
+import {planDimensionEdit,planDimensionMove,applyDimensionPlan} from './dimension-edit.mjs?v=0.17.66';
+import {applyNotePatch} from './note-edit.mjs?v=0.17.66';
+import {installDimensionBlock} from './dimension-create.mjs?v=0.17.66';
 export function captureRecovery(doc){
  if(!doc.native)throw Error('Ожидается DWG');
  return {ops:structuredClone(doc.nativeOps||[]),added:doc.entities.filter(r=>r.id.startsWith('new-')).map(r=>({id:r.id,type:r.type,pairs:structuredClone(r.pairs),...(r.type==='DIMENSION'?{dimensionBlock:structuredClone(doc.blocks.get(get(r,2)).records)}:{}),...(r.deferredCopy?{deferredCopy:structuredClone(r.deferredCopy)}:{})})),project:structuredClone(doc.executiveProject||null)};

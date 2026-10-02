@@ -1,5 +1,14 @@
 # Executive DWG engine 0.17.25 — corresponding source
 
+## 0.17.66 dependency visibility
+
+The wrapper retains semantic dependency roots but marks those outside the explicit
+selection prefix invisible (including owned INSERT attributes). Rebuild the wrapper
+and replace its matching archived source. Compile clone-dependency-visibility.c
+against the same host library; pass the synthetic clone fixture and a NEW output
+path. It checks retained references, visibility and source independence through
+write/read. This does not repair pre-existing malformed MTEXT payloads.
+
 ## 0.17.65 attribute and field correction
 
 The archive includes the corrected embedded MTEXT handle order and annotative

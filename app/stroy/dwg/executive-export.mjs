@@ -1,5 +1,5 @@
-import {executiveEntities} from './executive-project.mjs?v=0.17.65';
-import {vectorPdf} from './vector-pdf.mjs?v=0.17.65';
+import {executiveEntities} from './executive-project.mjs?v=0.17.66';
+import {vectorPdf} from './vector-pdf.mjs?v=0.17.66';
 
 export function executivePages(project,shapes,assigned){const it=executivePageSteps(project,shapes,assigned);let next;do{next=it.next();}while(!next.done);return next.value;}
 export function* executivePageSteps(project,shapes,assigned,ids){

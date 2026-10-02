@@ -512,6 +512,16 @@ API int pllato_clone_selection(const char *roots,double cx,double cy,double x,do
       if(o->supertype!=DWG_SUPERTYPE_ENTITY)continue;
       Dwg_Object_Entity *ent=o->tio.entity;
       if(ent->entmode==2||(ent->ownerhandle&&ent->ownerhandle->absolute_ref==modelHandle)){
+       /* A semantic dependency can lead back to another model-space entity
+          (for example an associated dimension on a different floor). Retain
+          its complete native graph, but do not plot it as selected content.
+          The immutable root prefix is the user's explicit selection. */
+       if(k>=rootsCount){
+        ent->invisible|=1;
+        if(o->fixedtype==DWG_TYPE_INSERT){Dwg_Entity_INSERT *in=ent->tio.INSERT;for(unsigned j=0;j<in->num_owned;j++){Dwg_Object *a=dwg_ref_object(&drawing,in->attribs[j]);if(!a||a->fixedtype!=DWG_TYPE_ATTRIB){error=17;break;}a->tio.entity->invisible|=1;}}
+        if(error)break;
+        fprintf(stderr,"CLONE_DEPENDENCY_NOT_PLOTTED %llX %s\n",(unsigned long long)o->handle.value,o->name);
+       }
        BITCODE_H *next=realloc(group->entities,(group->num_owned+1)*sizeof(BITCODE_H));if(!next){error=21;break;}
        group->entities=next;group->entities[group->num_owned++]=dwg_add_handleref(&drawing,4,o->handle.value,NULL);
        ent->ownerhandle=dwg_add_handleref(&drawing,4,groupHandle,NULL);ent->entmode=0;

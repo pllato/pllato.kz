@@ -1,4 +1,4 @@
-import {routeDrops,normalizeDrops,dropsTotal} from './cable-drops.mjs?v=0.17.65';
+import {routeDrops,normalizeDrops,dropsTotal} from './cable-drops.mjs?v=0.17.66';
 export function mountCableDrops(api){
  const viewport=document.getElementById('viewport'),button=document.createElement('button'),dialog=document.createElement('dialog');
  button.id='cwDrops';button.hidden=true;button.title='Отпуски / спуски кабеля';button.setAttribute('aria-label',button.title);button.textContent='↧+';
