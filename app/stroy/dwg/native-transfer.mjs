@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {fromRecords} from './cad.mjs?v=0.17.62';
+import {fromRecords} from './cad.mjs?v=0.17.63';
 
 // Millions of tiny DXF pair arrays are expensive to structured-clone. Only
 // their lossless [integer, string] payload uses JSON; all other CAD properties
