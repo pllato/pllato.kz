@@ -1,9 +1,10 @@
+import { signWithEgov, clearEgov } from './egov.js?v=20261003-1';
 import { requireSession } from "../pllato-kz-shared/pllato-api.js";
 import {
   listContracts, createContract, signOwner, sendContract, deleteContract, setContractMode,
   fetchContractFileBlob, fetchSignatureBlob, fileToBase64, signLinkForToken, contractLink,
 } from "./api.js?v=20260916-2";
-import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20260722-2";
+import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20261003-1";
 
 const session = requireSession({ redirectTo: "login.html" });
 
@@ -73,9 +74,10 @@ function fmtDate(ms) {
 async function refreshNcaBadge() {
   const badge = $("#nca-badge");
   const text = $("#nca-text");
+  if (/Android|iPhone|iPad/i.test(navigator.userAgent)) { text.textContent = "Подписание через eGov"; return; }
   const ok = await pingNcaLayer();
   badge.className = "nca-badge " + (ok ? "ok" : "bad");
-  text.textContent = ok ? "NCALayer подключён" : "NCALayer не найден";
+  text.textContent = ok ? "NCALayer подключён" : "Для телефона — eGov Mobile";
 }
 
 // ---- Render ----
@@ -123,7 +125,7 @@ function renderSigner(contract, s) {
     actions = `<button class="btn sm" data-act="dl-sig" data-id="${contract.id}" data-sid="${s.id}">Скачать подпись</button>`;
   } else if (s.status === "pending") {
     if (isOwner) {
-      actions = `<button class="btn bronze sm" data-act="sign-owner" data-id="${contract.id}">Подписать ЭЦП (компания)</button>`;
+      actions = `<button class="btn bronze sm" data-act="sign-owner-egov" data-id="${contract.id}">Подписать через eGov</button> <button class="btn sm" data-act="sign-owner" data-id="${contract.id}">Подписать через NCALayer</button>`;
     } else {
       const link = s.token ? signLinkForToken(s.token) : "";
       actions = `<div class="link-box"><input readonly value="${esc(link)}"><button class="btn sm" data-act="copy" data-link="${esc(link)}">Копировать</button></div>`;
@@ -236,12 +238,16 @@ async function submitCreate() {
 }
 
 // ---- Actions ----
-async function doSignOwner(id) {
+async function doSignOwner(id, egov = false) {
   const blob = await fetchContractFileBlob(id);
   const base64 = await blobToBase64(blob);
-  toast("Откройте NCALayer и выберите ключ ЭЦП…");
-  const { cms, signer, tsp } = await signBase64(base64);
+  if (!egov) toast("Откройте NCALayer и выберите ключ ЭЦП…");
+  const contract = contractsCache.find(c => c.id === id);
+  const { cms, signer, tsp } = egov
+    ? await signWithEgov({ context: "owner:" + id, base64, title: contract?.title || "Договор", mime: blob.type })
+    : await signBase64(base64);
   await signOwner(id, { cmsBase64: cms, signer, tsp });
+  if (egov) clearEgov("owner:" + id);
   toast("Вы подписали договор");
   await loadList();
 }
@@ -300,9 +306,9 @@ listEl.addEventListener("click", async (e) => {
       await deleteContract(id);
       toast("Договор удалён");
       await loadList();
-    } else if (act === "sign-owner") {
+    } else if (act === "sign-owner" || act === "sign-owner-egov") {
       btn.disabled = true;
-      await doSignOwner(id);
+      await doSignOwner(id, act === "sign-owner-egov");
     }
   } catch (err) {
     const msg = err instanceof NcaLayerError ? err.message : (err.message || String(err));

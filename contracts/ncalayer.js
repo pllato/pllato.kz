@@ -215,7 +215,7 @@ function readDerString(bytes, pos) {
   try { return new TextDecoder("utf-8").decode(slice); } catch { return String.fromCharCode(...slice); }
 }
 
-function extractSubjectFromCms(cmsBase64) {
+export function extractSubjectFromCms(cmsBase64) {
   const result = { cn: "", iin: "", serial: "" };
   let bytes;
   try { bytes = base64ToBytes(cmsBase64); } catch { return result; }
