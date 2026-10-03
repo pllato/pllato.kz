@@ -91,7 +91,8 @@ function partyChip(p) {
 }
 function partyTypeLabel(p) {
   if (p.role === "owner") return "компания";
-  if (p.signerType === "ip") return "ИП";
+  // `ip` — также прежний формат хранения выбора «Компания», не правовая форма.
+  if (p.signerType === "company" || p.signerType === "ip") return "компания";
   if (p.signerType === "individual") return "физлицо";
   return "подписант";
 }
