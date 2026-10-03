@@ -1,5 +1,26 @@
 # Executive DWG engine 0.17.25 — corresponding source
 
+## 0.17.74 proxy references and MTEXT backgrounds
+
+Decoded PROXY_OBJECT dependencies preserve their opaque payload bit-for-bit.
+Their explicit object-ID references are allocated independently (the library
+decoder interns them), then remapped with the normal dependency graph. Unknown
+tails and DXF-only envelopes remain rejected. Partial payload bytes use the
+least-significant-bit layout of bit_read_bits, not the stream bit order.
+proxy-clone-regression.c checks independent references, payloads, round-trip and
+rejection of incomplete envelopes/corrupted payload bits.
+
+MTEXT bg_fill_scale is BD, not BL: fractional background margins previously
+misaligned the following color/transparency data. include/dwg.h, src/dwg.spec
+and src/dynapi.c in the matching source archive contain the correction; the
+reference patch is explanatory (already applied). Rebuild the entire library
+after this structure change, not only the wrapper. mtext-background-regression.c
+checks a 1.5 margin and background color through write/read.
+
+Customer DWG converted locally with ODA to DWG2013: browser create/export and
+independent ODA read/write passed with Audit disabled and Recover NONE. This
+does not implement browser conversion of DWG2007 or universal proxy compatibility.
+
 ## 0.17.70 dimension removal
 
 pllato_dimension_hide removes a linear dimension from display through the native

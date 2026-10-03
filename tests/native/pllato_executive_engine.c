@@ -163,6 +163,29 @@ static int register_assoc_copy(Dwg_Object *source,Dwg_Object *copy)
  fprintf(stderr,"CLONE_ASSOC_REGISTER %llX -> %llX\n",(unsigned long long)copy->handle.value,(unsigned long long)parent->handle.value);
  return 1;
 }
+/* Proxy object data is an opaque bit payload; object IDs live in the separate
+   handle stream (PROXY_OBJECT in dwg.spec). Never interpret or drop the payload.
+   Only admit decoded DWG envelopes with bounded data and explicit references. */
+static int proxy_envelope(Dwg_Object *o){
+ if(!o||o->fixedtype!=DWG_TYPE_PROXY_OBJECT||o->num_unknown_bits||o->num_unknown_rest)return 0;
+ Dwg_Object_PROXY_OBJECT *p=o->tio.object->tio.PROXY_OBJECT;
+ if(p->from_dxf||p->data_numbits>128u*1024u*1024u||(p->data_numbits&&!p->data)||p->num_objids>100000||(p->num_objids&&!p->objids))return 0;
+ for(unsigned i=0;i<p->num_objids;i++)if(!p->objids[i])return 0;
+ return 1;
+}
+static int same_proxy(Dwg_Object *a,Dwg_Object *b){
+ if(!proxy_envelope(a)||!proxy_envelope(b))return 0;
+ Dwg_Object_PROXY_OBJECT *x=a->tio.object->tio.PROXY_OBJECT,*y=b->tio.object->tio.PROXY_OBJECT;
+ if(x->proxy_id!=y->proxy_id||x->from_dxf!=y->from_dxf||x->data_numbits!=y->data_numbits||x->num_objids!=y->num_objids)return 0;
+ if(a->parent->header.version>=R_2018){if(x->dwg_version!=y->dwg_version||x->maint_version!=y->maint_version)return 0;}
+ else if(x->version!=y->version)return 0;
+ unsigned n=x->data_numbits/8,tail=x->data_numbits%8;
+ if(n&&memcmp(x->data,y->data,n))return 0;
+ /* bit_read_bits stores the partial byte least-significant-bit first. */
+ if(tail&&((x->data[n]^y->data[n])&((1u<<tail)-1)))return 0;
+ for(unsigned i=0;i<x->num_objids;i++)if(x->objids[i]->absolute_ref!=y->objids[i]->absolute_ref)return 0;
+ return 1;
+}
 static int clone_shared(Dwg_Object *o)
 {
  if(global_assoc_network(o))return 1; /* Register cloned local networks after remapping. */
@@ -386,7 +409,7 @@ API int pllato_clone_selection(const char *roots,double cx,double cy,double x,do
   if(typedWipeout){Dwg_Entity_WIPEOUT *w=source->tio.entity->tio.WIPEOUT;if(w->class_version>10||!w->clip_verts||w->num_clip_verts<2||w->num_clip_verts>5000){error=25;break;}}
   int blockDependency=source->name&&strncmp(source->name,"BLOCK",5)==0;
   if(source->name&&strncmp(source->name,"ASSOC",5)==0)blockDependency=1;
-  if(!typedBackup&&!blockDependency&&source->supertype!=DWG_SUPERTYPE_ENTITY && source->fixedtype!=DWG_TYPE_BLOCK_HEADER
+  if(!typedBackup&&!blockDependency&&!proxy_envelope(source)&&source->supertype!=DWG_SUPERTYPE_ENTITY && source->fixedtype!=DWG_TYPE_BLOCK_HEADER
      &&source->fixedtype!=DWG_TYPE_DICTIONARY&&source->fixedtype!=DWG_TYPE_XRECORD&&source->fixedtype!=DWG_TYPE_IMAGEDEF_REACTOR&&source->fixedtype!=DWG_TYPE_BLOCKREPRESENTATION&&source->fixedtype!=DWG_TYPE_EVALUATION_GRAPH&&source->fixedtype!=DWG_TYPE_SORTENTSTABLE&&source->fixedtype!=DWG_TYPE_FIELD){fprintf(stderr,"CLONE_REJECT_TYPE %s\n",source->name);error=11;break;}
   unsigned originalIndex=source->index,newIndex=drawing.num_objects,refs=drawing.num_object_refs;
   unsigned originalHandleSize=source->handle.size;
@@ -400,6 +423,13 @@ API int pllato_clone_selection(const char *roots,double cx,double cy,double x,do
   free(bits.chain);
   if(e>=128||drawing.num_objects!=newIndex+1){error=12;break;}
   Dwg_Object *copy=&drawing.object[newIndex];
+  if(drawing.object[originalIndex].fixedtype==DWG_TYPE_PROXY_OBJECT&&!same_proxy(&drawing.object[originalIndex],copy)){fprintf(stderr,"CLONE_REJECT_PROXY_PAYLOAD %llX\n",(unsigned long long)queue[done]);error=32;break;}
+  if(copy->fixedtype==DWG_TYPE_PROXY_OBJECT){
+   /* The proxy decoder interns object IDs; a clone needs independent refs. */
+   Dwg_Object_PROXY_OBJECT *p=copy->tio.object->tio.PROXY_OBJECT;
+   for(unsigned j=0;j<p->num_objids;j++){BITCODE_H ref=dwg_new_ref(&drawing);if(!ref){error=12;break;}*ref=*p->objids[j];ref->obj=NULL;p->objids[j]=ref;}
+   if(error)break;
+  }
   if(typedBackup){free(copy->unknown_bits);copy->unknown_bits=NULL;copy->num_unknown_bits=0;}
   copy->handle.value=handle;copy->handle.size=0;for(BITCODE_HV h=handle;h;h>>=8)copy->handle.size++;
   if((rawLookup||rawTable)&&copy->handle.size!=originalHandleSize){error=26;break;}
@@ -804,6 +834,12 @@ API int pllato_save(const char *path){
   }
   if(a->fixedtype==DWG_TYPE_INSERT){BITCODE_H ar=a->tio.entity->tio.INSERT->block_header,br=b->tio.entity->tio.INSERT->block_header;if(!ar||!br||ar->absolute_ref!=br->absolute_ref)error|=DWG_ERR_INVALIDDWG;}
   if(a->fixedtype==DWG_TYPE_MULTILEADER&&!same_typed_record(a,b))error|=DWG_ERR_INVALIDDWG;
+  if(a->fixedtype==DWG_TYPE_PROXY_OBJECT){
+   if(!same_proxy(a,b))error|=DWG_ERR_INVALIDDWG;
+   Dwg_Object_Object *x=a->tio.object,*y=b->tio.object;
+   if((x->ownerhandle?x->ownerhandle->absolute_ref:0)!=(y->ownerhandle?y->ownerhandle->absolute_ref:0)||(x->xdicobjhandle?x->xdicobjhandle->absolute_ref:0)!=(y->xdicobjhandle?y->xdicobjhandle->absolute_ref:0)||x->num_reactors!=y->num_reactors)error|=DWG_ERR_INVALIDDWG;
+   for(unsigned j=0;error<128&&j<x->num_reactors;j++)if(!x->reactors[j]||!y->reactors[j]||x->reactors[j]->absolute_ref!=y->reactors[j]->absolute_ref)error|=DWG_ERR_INVALIDDWG;
+  }
   if(a->fixedtype==DWG_TYPE_ASSOCNETWORK&&!same_typed_record(a,b))error|=DWG_ERR_INVALIDDWG;
   if(a->fixedtype==DWG_TYPE_DIMASSOC){
    Dwg_Object_DIMASSOC *ar=a->tio.object->tio.DIMASSOC,*br=b->tio.object->tio.DIMASSOC;
