@@ -90,7 +90,7 @@ function partyChip(p) {
   return `<span class="s-status pending">⏳ ожидает</span>`;
 }
 function partyTypeLabel(p) {
-  if (p.role === "owner") return "компания";
+  if (p.role === "owner") return "отправитель";
   // `ip` — также прежний формат хранения выбора «Компания», не правовая форма.
   if (p.signerType === "company" || p.signerType === "ip") return "компания";
   if (p.signerType === "individual") return "физлицо";
@@ -264,6 +264,7 @@ async function render(data) {
       ${contract.fileHash ? `<div><span>SHA-256 документа</span><b class="hash">${esc(contract.fileHash)}</b></div>` : ""}
     </div>
     ${partiesHtml}
+    ${data.parties?.some(p => p.role === "owner" && p.status === "pending") ? `<div class="hint" style="margin-bottom:16px">Вы отправитель договора? <a href="/contracts.html">Подпишите свою сторону в реестре договоров</a>. Эта общая форма добавляет подпись другого участника; выбор «Компания» указывает тип участника.</div>` : ""}
     ${universal ? `<div class="hint one-link">🔗 Эта ссылка — одна на весь договор и на всех участников: здесь видно, кто и какой ЭЦП уже подписал, отсюда же скачиваются сам договор и файлы подписей всех сторон. Здесь же вы подписываете своей ЭЦП. Ссылка работает всегда — по ней в любой момент можно вернуться и посмотреть статус.</div>` : ""}
     ${contract.note ? `<div class="hint" style="margin-bottom:16px">${esc(contract.note)}</div>` : ""}
     ${preview}
