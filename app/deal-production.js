@@ -1,6 +1,7 @@
 const transcriptDrafts = new Map();
 const LABELS = {
   queued: ['В очереди', 'queued'], building: ['Создаётся', 'building'], ready: ['Готово', 'ready'],
+  paused: ['Автосборка отключена', 'missing'],
   error: ['Ошибка', 'error'], missing: ['Не создано', 'missing'],
 };
 
@@ -68,10 +69,11 @@ async function openPrivateFile(item, base, getToken) {
 
 export function renderDealProductionBadges(customFields = {}) {
   addStyles();
-  const p = customFields?._production;
+  const stored = customFields?._production;
+  const p = stored && { ...stored, activeStatus: null, ...Object.fromEntries(['demo', 'kp', 'invoiceStatus'].map(key => [key, ['queued', 'building'].includes(stored[key]) ? 'paused' : stored[key]])) };
   if (!p || typeof p !== 'object') return '';
-  const normalize = value => ['ready', 'queued', 'building', 'error'].includes(value) ? value : 'missing';
-  const words = { ready: 'готово', queued: 'в очереди', building: 'создаётся', error: 'ошибка', missing: 'не создано' };
+  const normalize = value => ['ready', 'queued', 'building', 'error', 'paused'].includes(value) ? value : 'missing';
+  const words = { paused: 'автосборка отключена', ready: 'готово', queued: 'в очереди', building: 'создаётся', error: 'ошибка', missing: 'не создано' };
   const tile = (icon, label, status, detail = '') => {
     const state = normalize(status);
     return `<div class="kanban-doc ${state}" title="${esc(label)}: ${esc(detail || words[state])}"><span class="kanban-doc-icon">${icon}</span><span class="kanban-doc-copy"><b>${esc(label)}</b><small>${state === 'ready' ? '✓ ' : state === 'error' ? '! ' : state === 'queued' || state === 'building' ? '● ' : '○ '}${esc(detail || words[state])}</small></span></div>`;
@@ -115,11 +117,9 @@ export function mountDealProduction(root, { dealId, base, getToken, onChanged })
     return data;
   };
   const draw = data => {
-    const items = data.items || [];
-    const activity = data.activity || (data.summary?.activeStatus ? {
-      status: data.summary.activeStatus, label: data.summary.activeLabel, percent: data.summary.activePercent,
-    } : null);
-    const active = ['queued', 'building'].includes(activity?.status) || items.some(x => x.status === 'queued' || x.status === 'building');
+    const items = (data.items || []).map(item => ['queued', 'building'].includes(item.status) ? { ...item, status: 'paused' } : item);
+    const activity = null;
+    const active = false;
     const nextSignature = JSON.stringify({
       transcript: { ready: data.transcript?.ready, source: data.transcript?.source, createdAt: data.transcript?.createdAt },
       summary: data.summary, activity,
@@ -135,14 +135,14 @@ export function mountDealProduction(root, { dealId, base, getToken, onChanged })
     const gates = [
       ['Транскрипция', transcriptReady, transcriptDetail],
       ['Реквизиты', data.requisites?.ready, data.requisites?.ready ? (data.requisites.files ? `Файлов: ${data.requisites.files}` : 'Заполнены') : 'Нужны для счетов'],
-      ['График оплат', data.commercial?.ready, data.commercial?.ready ? `${data.commercial.paymentCount} платежей` : 'Появится из КП'],
+      ['График оплат', data.commercial?.ready, data.commercial?.ready ? `${data.commercial.paymentCount} платежей` : 'Заполняется вручную'],
     ];
     const percent = Math.max(0, Math.min(100, Number(activity?.percent || 0)));
     const activityHtml = active && activity?.label ? `<div class="dp-active ${esc(activity.status)}" aria-live="polite"><div class="dp-active-top"><span>${activity.status === 'queued' ? 'В очереди на запуск' : 'Создание документов идёт сейчас'}</span><span>${percent}%</span></div><strong>${esc(activity.label)}</strong><div class="dp-progress"><span style="width:${Math.max(3, percent)}%"></span></div></div>` : '';
-    root.innerHTML = `<div class="dp-wrap"><div class="dp-head"><div><b>Комплект сделки</b><p>Демо, КП и все счета создаются и хранятся здесь</p></div>${data.summary?.hasErrors ? '<button class="dp-retry">Повторить</button>' : data.canStartDemo && !items.some(x=>x.kind==='demo') ? '<button class="dp-retry">Создать демо и КП</button>' : ''}</div>${activityHtml}
+    root.innerHTML = `<div class="dp-wrap"><div class="dp-head"><div><b>Комплект сделки</b><p>Автосборка отключена. Zoom и транскрипции сохраняются; демо, КП, ТЗ и договоры готовятся вручную.</p></div></div>${activityHtml}
       <div class="dp-gates">${gates.map(g => `<div class="dp-gate ${g[1] ? 'ok' : 'miss'}"><strong>${g[1] ? '✓' : '○'} ${esc(g[0])}</strong>${esc(g[2])}</div>`).join('')}</div>
       <div class="dp-transcript"><div class="dp-transcript-head"><span>${transcriptReady ? `Активная версия: <b>${esc(transcriptSource)}</b>${transcriptWhen ? ` · ${esc(transcriptWhen)}` : ''}. Можно загрузить замену.` : 'Транскрибацию можно добавить на любом этапе, в том числе после встречи вне CRM.'}</span><div class="dp-transcript-actions"><button class="dp-open" data-transcript-paste>${transcriptReady ? 'Заменить текстом' : 'Вставить текст'}</button><button class="dp-open" data-transcript-file>Загрузить TXT/VTT</button><input data-transcript-input type="file" accept=".txt,.vtt,text/plain,text/vtt" hidden></div></div><div class="dp-transcript-editor${!transcriptReady || transcriptDrafts.has(dealId) ? ' open' : ''}"><textarea data-transcript-text maxlength="500000" placeholder="Вставьте сюда полный текст встречи. Желательно сохранить реплики, стоимость, сроки и условия оплаты."></textarea><div style="margin-top:7px"><button class="dp-open" data-transcript-save>Сохранить транскрипцию</button></div></div><div class="dp-transcript-status" role="status">${esc(transcriptFeedback)}</div></div>
-      <div class="dp-list">${items.length ? items.map(item => `<div class="dp-item"><span class="dp-icon">${icon(item.kind)}</span><span class="dp-copy"><b>${esc(item.title)}</b><small>${item.amount != null ? new Intl.NumberFormat('ru-RU').format(item.amount) + ' ' + esc(item.currency || '') : esc(item.fileName || (item.kind === 'demo' ? 'Интерактивная ссылка' : 'PDF'))}</small>${item.error ? `<span class="dp-error">${esc(item.error)}</span>` : ''}</span>${statusBadge(item.status)}${item.status === 'ready' ? `<button class="dp-open" data-artifact="${esc(item.id)}">Открыть</button>` : ''}</div>`).join('') : '<div class="dp-empty">Документы ещё не запускались. Они появятся после перевода сделки на соответствующую стадию.</div>'}</div></div>`;
+      <div class="dp-list">${items.length ? items.map(item => `<div class="dp-item"><span class="dp-icon">${icon(item.kind)}</span><span class="dp-copy"><b>${esc(item.title)}</b><small>${item.amount != null ? new Intl.NumberFormat('ru-RU').format(item.amount) + ' ' + esc(item.currency || '') : esc(item.fileName || (item.kind === 'demo' ? 'Интерактивная ссылка' : 'PDF'))}</small>${item.error ? `<span class="dp-error">${esc(item.error)}</span>` : ''}</span>${statusBadge(item.status)}${item.status === 'ready' ? `<button class="dp-open" data-artifact="${esc(item.id)}">Открыть</button>` : ''}</div>`).join('') : '<div class="dp-empty">Автоматическое создание документов отключено. Готовьте материалы вручную и добавляйте их в карточку сделки.</div>'}</div></div>`;
     const transcriptEditor = root.querySelector('.dp-transcript-editor');
     const transcriptText = root.querySelector('[data-transcript-text]');
     transcriptText.value = transcriptDrafts.get(dealId) || '';
@@ -204,12 +204,6 @@ export function mountDealProduction(root, { dealId, base, getToken, onChanged })
         finally { button.disabled = false; }
       };
     });
-    const retry = root.querySelector('.dp-retry');
-    if (retry) retry.onclick = async () => {
-      retry.disabled = true;
-      try { await request('/retry', { method: 'POST' }); await load(); if (onChanged) onChanged(); }
-      catch (error) { alert('Не удалось перезапустить: ' + error.message); retry.disabled = false; }
-    };
     clearTimeout(timer);
     // Новая Zoom-транскрипция может появиться уже после открытия карточки.
     // Обновляем блок и в спокойном состоянии, чтобы пользователь увидел её без перезагрузки.
