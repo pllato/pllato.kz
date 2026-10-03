@@ -1,3 +1,4 @@
+import { AUTOMATIC_PRODUCTION_ENABLED, PRODUCTION_DISABLED_MESSAGE, requireAutomaticProduction } from './production-policy.js';
 import { productionAiConfig, requestProductionBlueprint } from './production-ai.js';
 import { DEMO_BUILD_STAGE_RE } from './production-stages.js';
 // Deal document production: transcription gate, AI brief, interactive demo,
@@ -157,7 +158,7 @@ function summarizeArtifacts(items) {
 }
 
 function summarizeProduction(items, transcript, jobs = []) {
-  const active = jobs.find(job => job.status === 'building') || jobs.find(job => job.status === 'queued') || null;
+  const active = AUTOMATIC_PRODUCTION_ENABLED ? jobs.find(job => job.status === 'building') || jobs.find(job => job.status === 'queued') || null : null;
   return {
     ...summarizeArtifacts(items),
     transcript: transcript ? 'ready' : 'missing',
@@ -218,6 +219,8 @@ export async function dealProductionState(env, dealId) {
   const plan = Array.isArray(kp?.metadata?.paymentPlan) ? kp.metadata.paymentPlan : [];
   const summary = summarizeProduction(items, transcript, jobs);
   return {
+    automationEnabled: AUTOMATIC_PRODUCTION_ENABLED,
+    mode: AUTOMATIC_PRODUCTION_ENABLED ? 'automatic' : 'manual',
     transcript: {
       ready: Boolean(transcript), name: transcript?.name || null, createdAt: transcript?.created_at || null,
       source: transcript?.source || null, size: transcript?.size == null ? null : Number(transcript.size),
@@ -228,7 +231,7 @@ export async function dealProductionState(env, dealId) {
       kind: summary.activeKind, status: summary.activeStatus, stage: summary.activeStage,
       label: summary.activeLabel, percent: summary.activePercent,
     } : null,
-    summary, items,
+    summary, items: AUTOMATIC_PRODUCTION_ENABLED ? items : items.map(item => ['queued', 'building'].includes(item.status) ? { ...item, status: 'paused' } : item),
   };
 }
 
@@ -277,6 +280,7 @@ async function upsertArtifact(env, row) {
 }
 
 export async function enqueueDemoAndKp(env, dealId, actorUid, pipelineId, stageId, deps = {}) {
+  requireAutomaticProduction();
   await ensureDealProductionSchema(env);
   const transcript = await latestTranscript(env, dealId);
   if (!transcript) throw Object.assign(new Error('Добавьте транскрипцию встречи в карточку сделки.'), { code: 'TRANSCRIPT_REQUIRED' });
@@ -314,6 +318,7 @@ export async function enqueueDemoAndKp(env, dealId, actorUid, pipelineId, stageI
 }
 
 export async function enqueueInvoicePack(env, dealId, actorUid, pipelineId, stageId, deps = {}) {
+  requireAutomaticProduction();
   await ensureDealProductionSchema(env);
   const [snapshot, req, items] = await Promise.all([dealSnapshot(env, dealId), requisitesState(env, dealId), artifactsFor(env, dealId)]);
   if (!req.ready) throw Object.assign(new Error('Заполните реквизиты заказчика или прикрепите файл с реквизитами.'), { code: 'REQUISITES_REQUIRED' });
@@ -736,6 +741,7 @@ async function failJob(env, job, error, deps) {
 }
 
 export async function processDealProductionJobs(env, deps = {}, options = {}) {
+  if (!AUTOMATIC_PRODUCTION_ENABLED) return { processed: [], disabled: true };
   await ensureDealProductionSchema(env);
   // A Worker can be stopped while awaiting the model/browser. Expired leases
   // are returned to the queue so a cron invocation can safely resume them.
@@ -793,7 +799,7 @@ export async function handleDealProductionStatus(request, env, deps, dealId) {
   const me = await deps.resolveCanonicalUser(env, auth.claims), access = deps.dealAccessSql(me);
   const deal = await env.DB.prepare('SELECT id FROM deals WHERE id=?' + access.where).bind(dealId, ...access.params).first();
   if (!deal) return deps.json({ error: 'Нет доступа к сделке' }, 403, request);
-  return deps.json({ ok: true, ...(await dealProductionState(env, dealId)), canStartDemo:Boolean(await demoStartStage(env,dealId)) }, 200, request);
+  return deps.json({ ok: true, ...(await dealProductionState(env, dealId)), canStartDemo:AUTOMATIC_PRODUCTION_ENABLED && Boolean(await demoStartStage(env,dealId)) }, 200, request);
 }
 
 export async function handleDealProductionRetry(request, env, deps, dealId) {
@@ -801,6 +807,7 @@ export async function handleDealProductionRetry(request, env, deps, dealId) {
   if (auth.error) return deps.json({ error: auth.error }, auth.status, request);
   const me = await deps.resolveCanonicalUser(env, auth.claims);
   if (!await deps.canEditRecord(env, me, 'deals', dealId)) return deps.json({ error: 'Нет права изменения сделки' }, 403, request);
+  if (!AUTOMATIC_PRODUCTION_ENABLED) return deps.json({ error: PRODUCTION_DISABLED_MESSAGE, code: 'PRODUCTION_DISABLED' }, 409, request);
   await ensureDealProductionSchema(env);
   const existing=await env.DB.prepare("SELECT id FROM deal_production_jobs WHERE deal_id=? AND kind='demo_kp'").bind(dealId).first();
   if(!existing){

@@ -1,3 +1,4 @@
+import { AUTOMATIC_PRODUCTION_ENABLED } from './production-policy.js';
 import { DEMO_BUILD_STAGE_RE, INVOICE_BUILD_STAGE_RE } from './production-stages.js';
 import { handleStageGroups, processStageGroups } from './wa-stage-groups.js';
 import { handleDealRequisites } from './deal-requisites.js';
@@ -3964,7 +3965,7 @@ async function handleDealStageChange(request, env, dealId) {
       }, 422, request);
     }
   }
-  if (isDemoBuildStage && isMainMove) {
+  if (AUTOMATIC_PRODUCTION_ENABLED && isDemoBuildStage && isMainMove) {
     const production = await dealProductionState(env, dealId);
     if (!production.transcript.ready) {
       return json({
@@ -3973,7 +3974,7 @@ async function handleDealStageChange(request, env, dealId) {
       }, 422, request);
     }
   }
-  if (isInvoiceBuildStage && isMainMove && stageActuallyChanged) {
+  if (AUTOMATIC_PRODUCTION_ENABLED && isInvoiceBuildStage && isMainMove && stageActuallyChanged) {
     const production = await dealProductionState(env, dealId);
     const missing = [];
     if (!production.requisites.ready) missing.push('реквизиты заказчика');
@@ -4024,7 +4025,7 @@ async function handleDealStageChange(request, env, dealId) {
   let productionQueued = null;
   let productionError = null;
   let completedStageId = stageId;
-  if (isDemoBuildStage && isMainMove) {
+  if (AUTOMATIC_PRODUCTION_ENABLED && isDemoBuildStage && isMainMove) {
     try {
       productionQueued = await enqueueDemoAndKp(
         env, dealId, me.canonicalUid || me.firebaseUid || '', pipelineId, stageId,
@@ -4036,7 +4037,7 @@ async function handleDealStageChange(request, env, dealId) {
       console.error('enqueueDemoAndKp:', e);
     }
   }
-  if (isInvoiceBuildStage && isMainMove && stageActuallyChanged) {
+  if (AUTOMATIC_PRODUCTION_ENABLED && isInvoiceBuildStage && isMainMove && stageActuallyChanged) {
     try {
       productionQueued = await enqueueInvoicePack(
         env, dealId, me.canonicalUid || me.firebaseUid || '', pipelineId, stageId,
