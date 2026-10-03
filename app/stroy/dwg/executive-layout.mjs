@@ -1,7 +1,7 @@
 // Sheet decoration uses native editable LINE/TEXT entities, not a bitmap.
 // Coordinates are drawing units; scale never changes cable quantities.
-import {tablePages} from './table-paste.mjs?v=0.17.73';
-import {executiveStamp} from './executive-stamp.mjs?v=0.17.73';
+import {tablePages} from './table-paste.mjs?v=0.17.74';
+import {executiveStamp} from './executive-stamp.mjs?v=0.17.74';
 export function executiveLayout({origin=[0,0],width=420,height=297,title='',titleStyle={x:210,y:275,height:5},stamp={},rows=[],tablePage,unit=1,northAngle=0}={}){
  if(!origin.every(Number.isFinite)||origin.length!==2||!Number.isFinite(unit)||unit<=0||!Number.isFinite(northAngle)||width<300||height<200||![width,height].every(Number.isFinite))throw Error('Неверные размеры исполнительной');
  if(rows.length>10)throw Error('Ведомость требует дополнительного листа: больше 10 строк');
