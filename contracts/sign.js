@@ -1,7 +1,8 @@
+import { signWithEgov, pendingEgov, clearEgov } from './egov.js?v=20261003-1';
 // Публичная страница договора (без логина).
 // ЕДИНАЯ ссылка на договор: по ней видно документ и кто уже подписал,
 // и по ней же подписывают. Старые ссылки-просмотры (?v=) ведут сюда же.
-import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20260722-2";
+import { signBase64, pingNcaLayer, NcaLayerError } from "./ncalayer.js?v=20261003-1";
 
 const $ = (s) => document.querySelector(s);
 const root = $("#root");
@@ -172,9 +173,12 @@ async function fileBlobUrl() {
 }
 
 async function refreshNcaBadge() {
+  if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+    $("#nca-text").textContent = "Подписание через eGov"; return;
+  }
   const ok = await pingNcaLayer();
   $("#nca-badge").className = "nca-badge " + (ok ? "ok" : "bad");
-  $("#nca-text").textContent = ok ? "NCALayer подключён" : "NCALayer не найден";
+  $("#nca-text").textContent = ok ? "NCALayer подключён" : "Для телефона — eGov Mobile";
 }
 
 let currentBlob = null;
@@ -283,11 +287,12 @@ async function render(data) {
     </div>
 
     <div class="hint" style="margin-top:18px">
-      <b>Шаг 2.</b> Для подписания нужен <a href="https://pki.gov.kz/" target="_blank" rel="noopener">NCALayer</a> и ваш ключ ЭЦП.
-      Запустите NCALayer, затем нажмите «Подписать ЭЦП» и выберите ключ.
+      <b>Шаг 2.</b> На телефоне выберите «Подписать через eGov». На компьютере можно отсканировать QR из eGov или использовать <a href="https://pki.gov.kz/" target="_blank" rel="noopener">NCALayer</a> и ваш ключ ЭЦП.
+      Для NCALayer запустите программу на компьютере, нажмите «Подписать через NCALayer» и выберите ключ.
     </div>
     <div class="sign-actions">
-      <button class="btn bronze" id="btn-sign">Подписать ЭЦП</button>
+      <button class="btn bronze" id="btn-egov">Подписать через eGov</button>
+      <button class="btn" id="btn-sign">Подписать через NCALayer</button>
       <button class="btn" id="btn-download">Скачать договор</button>
       ${universal ? "" : `<button class="btn danger" id="btn-decline">Отказаться</button>`}
     </div>`;
@@ -314,6 +319,11 @@ async function render(data) {
   const declineBtn = $("#btn-decline");
   if (declineBtn) declineBtn.addEventListener("click", () => onDecline());
   $("#btn-sign").addEventListener("click", () => onSign(contract));
+  $("#btn-egov").addEventListener("click", () => onSign(contract, true));
+  if (pendingEgov(signApi())) {
+    $("#btn-egov").textContent = "Продолжить подписание eGov";
+    toast("Вернулись из eGov? Нажмите «Продолжить подписание eGov».");
+  }
 
   function downloadFile() {
     if (!fileInfo) return toast("Файл недоступен", true);
@@ -351,28 +361,35 @@ function collectRequisites() {
   return { signerType: persistedSignerType, requisites: { data } };
 }
 
-async function onSign(contract) {
-  const btn = $("#btn-sign");
+async function onSign(contract, egov = false) {
+  const btn = $(egov ? "#btn-egov" : "#btn-sign");
   let reqs;
-  try { reqs = collectRequisites(); }
+  try { reqs = (egov && pendingEgov(signApi())?.metadata) || collectRequisites(); }
   catch (e) { return toast(e.message, true); }
-  btn.disabled = true; btn.textContent = "Подключаюсь к NCALayer…";
+  $("#btn-sign").disabled = true; $("#btn-egov").disabled = true;
+  if ($("#btn-decline")) $("#btn-decline").disabled = true;
+  btn.textContent = egov ? "Подписание через eGov…" : "Подключаюсь к NCALayer…";
   try {
     if (!currentBlob) {
       const f = await fileBlobUrl(); currentBlob = f.blob;
     }
     const base64 = await blobToBase64(currentBlob);
-    toast("Выберите ключ ЭЦП в окне NCALayer…");
-    const { cms, signer, tsp } = await signBase64(base64);
+    if (!egov) toast("Выберите ключ ЭЦП в окне NCALayer…");
+    const { cms, signer, tsp } = egov
+      ? await signWithEgov({ context: signApi(), base64, title: contract.title, mime: currentBlob.type, metadata: reqs })
+      : await signBase64(base64);
     btn.textContent = "Сохраняю подпись…";
     const res = await apiPost({ cmsBase64: cms, signer, tsp, signerType: reqs.signerType, requisites: reqs.requisites });
+    if (egov) clearEgov(signApi());
     let parties;
     try { parties = (await apiGet()).parties; } catch (_) { /* список подтянем позже */ }
     renderDone(res.signer, contract, parties);
   } catch (e) {
     const msg = e instanceof NcaLayerError ? e.message : (e.message || String(e));
     toast(msg, true);
-    btn.disabled = false; btn.textContent = "Подписать ЭЦП";
+    $("#btn-sign").disabled = false; $("#btn-egov").disabled = false;
+    if ($("#btn-decline")) $("#btn-decline").disabled = false;
+    btn.textContent = egov ? "Продолжить подписание eGov" : "Подписать через NCALayer";
   }
 }
 
