@@ -1,16 +1,18 @@
-import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.72';
-import {writeAdditions} from './authoring.mjs?v=0.17.72';
-import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.72';
-import {validateExecutiveProject} from './executive-metadata.mjs?v=0.17.72';
-import {executiveEntities} from './executive-project.mjs?v=0.17.72';
+import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.73';
+import {requireWritableVersion} from './dwg-version.mjs?v=0.17.73';
+import {writeAdditions} from './authoring.mjs?v=0.17.73';
+import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.73';
+import {validateExecutiveProject} from './executive-metadata.mjs?v=0.17.73';
+import {executiveEntities} from './executive-project.mjs?v=0.17.73';
 self.onmessage=async({data})=>{
  let m,diagnostic='';
  try{
   const {buffer,ops=[],added=[],cloneRequest,copyRequest}=data;
   const project=validateExecutiveProject(data.project);
   if(!(buffer instanceof ArrayBuffer)||!Array.isArray(ops)||ops.length>100000)throw Error('Неверный пакет изменений');
+  requireWritableVersion(buffer);
   self.postMessage({progress:'Готовлю DWG исполнительных…',percent:5});
-  m=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.72',import.meta.url).href,print:()=>{},printErr:s=>{if(/^(CLONE_REJECT|MOVE_REJECT|REMOVE_|ROOT_REJECT|SAVE_REJECT|EXPORT_REJECT|EXPORT_EDGE)/.test(s))diagnostic=s.slice(0,200);}});m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
+  m=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.73',import.meta.url).href,print:()=>{},printErr:s=>{if(/^(CLONE_REJECT|MOVE_REJECT|REMOVE_|ROOT_REJECT|SAVE_REJECT|EXPORT_REJECT|EXPORT_EDGE)/.test(s))diagnostic=s.slice(0,200);}});m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
   const opened=m.ccall('pllato_open','number',['string'],['/input.dwg']);if(opened>=128)throw Error('DWG не прочитан: '+opened);
   self.postMessage({progress:'Проверяю изменения и связи объектов DWG…',percent:15});
   const check=(code,label)=>{if(code){const reason=diagnostic.startsWith('CLONE_REJECT_ROOT')?'Выделен вложенный объект без его блока-владельца. Выделите блок целиком. '+diagnostic:diagnostic.includes('ACAD_TABLE')?'Исходная CAD-таблица пока не поддерживается безопасным копированием. Таблица не удалена, операция отменена целиком. '+diagnostic:diagnostic.includes('MULTILEADER')?'Связанная сложная выноска не прошла проверку точности копирования. Операция отменена целиком, выноска не удалена. '+diagnostic:diagnostic.includes('BLOCKSTRETCHACTION')?'Команда растяжения динамического блока не прошла проверку точности записи. Копирование отменено без упрощения CAD-структуры.':diagnostic;throw Error(label+' (код '+code+'). '+reason+' Исходный файл не изменён.');}};
@@ -69,7 +71,7 @@ self.onmessage=async({data})=>{
    supportRoots=m.FS.readFile('/export-support.txt',{encoding:'utf8'}).trim().split(/\s+/).filter(Boolean);
   }
   self.postMessage({progress:'Проверяю DWG повторным чтением…',percent:80});
-  const saved=m.ccall('pllato_save','number',['string'],['/output.dwg']);if(saved>=128)throw Error('DWG не прошёл проверку сохранения: '+saved);
+  const saved=m.ccall('pllato_save','number',['string'],['/output.dwg']);if(saved>=128)throw Error('DWG не прошёл проверку сохранения: '+saved+(diagnostic?' · '+diagnostic:'')+'. Новая копия не выдана, исходник не изменён.');
   const output=m.FS.readFile('/output.dwg');if(new Uint8Array(buffer,0,6).some((b,i)=>b!==output[i]))throw Error('Изменилась версия DWG');
   let exportRootHandles;
   if(data.exportOnly){
