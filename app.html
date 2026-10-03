@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
+<link rel="stylesheet" href="/app/contracts/panel.css?v=20261003-1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Панель команды — Pllato</title>
 <meta name="robots" content="noindex,nofollow">
@@ -4140,6 +4141,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 
 <script src="app.config.js"></script>
 <script type="module">
+import { installProjectContracts } from "/app/contracts/panel.js?v=20261003-1";
 import {
   getSession,
   signOut as localSignOut,
@@ -5240,6 +5242,7 @@ function initProjectGroups(){
     card.appendChild(accessBtn);
   });
   buildProjectTabs();
+  installProjectContracts();
   injectMoney();
   restoreWorkspace();
   // Виджет встреч запускаем ПОСЛЕ того, как портал отрисовал свои данные:
