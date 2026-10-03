@@ -1,4 +1,4 @@
 const names={AC1009:'R12',AC1012:'R13',AC1014:'R14',AC1015:'2000–2002',AC1018:'2004–2006',AC1021:'2007–2009',AC1024:'2010–2012',AC1027:'2013–2017',AC1032:'2018+'};
 export function dwgVersion(bytes){const signature=new TextDecoder().decode(new Uint8Array(bytes,0,Math.min(6,bytes.byteLength)));return {signature,name:names[signature]||signature,needsConversion:signature==='AC1021'};}
-export const conversionMessage='DWG 2007–2009: просмотр доступен, но этот движок не записывает данный формат. Создайте отдельную копию DWG 2018 в CAD-конвертере и откройте её здесь. Простое переименование файла не меняет формат. Исходник не изменён.';
+export const conversionMessage='DWG 2007–2009: просмотр доступен, но этот движок не записывает данный формат. Для дальнейшей проверки нужна отдельная копия DWG 2013 или 2018 из CAD-конвертера. Смена версии не гарантирует поддержку специальных объектов. Простое переименование файла не меняет формат. Исходник не изменён.';
 export function requireWritableVersion(bytes){if(dwgVersion(bytes).needsConversion)throw Error(conversionMessage);}
