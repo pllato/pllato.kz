@@ -1,3 +1,4 @@
+import { visibleParticipants, participantTypeLabel, signatureCountLabel } from './participants.js?v=20261003-4';
 import { signWithEgov, pendingEgov, clearEgov } from './egov.js?v=20261003-1';
 // Публичная страница договора (без логина).
 // ЕДИНАЯ ссылка на договор: по ней видно документ и кто уже подписал,
@@ -89,13 +90,7 @@ function partyChip(p) {
   if (p.status === "declined") return `<span class="s-status declined">✕ отклонил${p.declineReason ? " · " + esc(p.declineReason) : ""}</span>`;
   return `<span class="s-status pending">⏳ ожидает</span>`;
 }
-function partyTypeLabel(p) {
-  if (p.role === "owner") return "отправитель";
-  // `ip` — также прежний формат хранения выбора «Компания», не правовая форма.
-  if (p.signerType === "company" || p.signerType === "ip") return "компания";
-  if (p.signerType === "individual") return "физлицо";
-  return "подписант";
-}
+
 function partyCert(p) {
   if (p.status !== "signed") return "";
   const rows = [
@@ -113,19 +108,18 @@ function partyCert(p) {
     </div>`;
 }
 function partiesBlock(parties, title = "Кто подписал") {
-  const list = Array.isArray(parties) ? parties : [];
+  const list = visibleParticipants(parties, universal);
   if (!list.length) return "";
-  const signed = list.filter((p) => p.status === "signed").length;
   const rows = list.map((p) => `<div class="party${p.status === "signed" ? " is-signed" : ""}">
       <div class="party-row">
-        <div class="party-who">${esc(p.fullName || p.signerCn || (p.role === "owner" ? "Компания" : "Вторая сторона"))} <span class="role-tag">${esc(partyTypeLabel(p))}</span></div>
+        <div class="party-who">${esc(p.fullName || p.signerCn || (p.role === "owner" ? "Компания" : "Вторая сторона"))} <span class="role-tag">${esc(participantTypeLabel(p))}</span></div>
         ${partyChip(p)}
       </div>
       ${partyCert(p)}
     </div>`).join("");
   const anySig = list.some((p) => p.status === "signed" && p.hasSignature);
   return `<div class="parties card">
-      <div class="parties-h">${esc(title)} <span class="parties-count">${signed} из ${list.length}</span></div>
+      <div class="parties-h">${esc(title)} <span class="parties-count">${signatureCountLabel(parties, universal)}</span></div>
       ${rows}
       ${anySig ? `<div class="parties-note">Подпись — отдельный файл <b>.p7s</b> к этому же документу. Скачайте договор и подпись и проверьте их в любом сервисе проверки ЭЦП или в NCALayer: там будут видны сертификат подписанта, издатель (НУЦ РК) и точное время.</div>` : ""}
     </div>`;
@@ -264,7 +258,6 @@ async function render(data) {
       ${contract.fileHash ? `<div><span>SHA-256 документа</span><b class="hash">${esc(contract.fileHash)}</b></div>` : ""}
     </div>
     ${partiesHtml}
-    ${data.parties?.some(p => p.role === "owner" && p.status === "pending") ? `<div class="hint" style="margin-bottom:16px">Вы отправитель договора? <a href="/contracts.html">Подпишите свою сторону в реестре договоров</a>. Эта общая форма добавляет подпись другого участника; выбор «Компания» указывает тип участника.</div>` : ""}
     ${universal ? `<div class="hint one-link">🔗 Эта ссылка — одна на весь договор и на всех участников: здесь видно, кто и какой ЭЦП уже подписал, отсюда же скачиваются сам договор и файлы подписей всех сторон. Здесь же вы подписываете своей ЭЦП. Ссылка работает всегда — по ней в любой момент можно вернуться и посмотреть статус.</div>` : ""}
     ${contract.note ? `<div class="hint" style="margin-bottom:16px">${esc(contract.note)}</div>` : ""}
     ${preview}
@@ -426,7 +419,7 @@ async function renderView(data) {
     <h1 style="font-size:24px;margin:6px 0 4px">${esc(contract.title)}</h1>
     <div class="summary">
       <div><span>Файл</span><b>${esc(contract.fileName)} · ${fmtSize(contract.fileSize)}</b></div>
-      <div><span>Подписей</span><b>${data.signedCount || 0} из ${data.total || 0}</b></div>
+      <div><span>Подписей</span><b>${signatureCountLabel(data.parties, universal)}</b></div>
       ${contract.fileHash ? `<div><span>SHA-256 документа</span><b class="hash">${esc(contract.fileHash)}</b></div>` : ""}
     </div>
     ${contract.note ? `<div class="hint" style="margin-bottom:14px">${esc(contract.note)}</div>` : ""}

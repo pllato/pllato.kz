@@ -1,3 +1,4 @@
+import { visibleParticipants, participantTypeLabel, signatureCountLabel } from './participants.js?v=20261003-4';
 import { signWithEgov, clearEgov } from './egov.js?v=20261003-1';
 import { requireSession } from "../pllato-kz-shared/pllato-api.js";
 import {
@@ -133,7 +134,7 @@ function renderSigner(contract, s) {
   }
   return `<div class="signer">
     <div class="signer-main">
-      <div class="who">${esc(s.fullName)} <span class="role-tag">${isOwner ? "компания" : "подписант"}</span></div>
+      <div class="who">${esc(s.fullName)} <span class="role-tag">${participantTypeLabel(s)}</span></div>
       <div class="sub">${s.iin ? "ИИН " + esc(s.iin) + " · " : ""}${signerStatusText(s)}${s.signedAt ? " · " + fmtDate(s.signedAt) : ""}</div>
       ${renderCert(s)}
       ${renderRequisites(s)}
@@ -143,13 +144,14 @@ function renderSigner(contract, s) {
 }
 
 function renderContract(c) {
-  const total = c.signersTotal || (c.signers ? c.signers.length : 0);
-  const signed = c.signersSigned ?? (c.signers ? c.signers.filter((s) => s.status === "signed").length : 0);
+  const named = c.linkMode === "named";
+  const participants = visibleParticipants(c.signers, !named);
+  const total = participants.length;
+  const signed = participants.filter(s => s.status === "signed").length;
   const pct = total ? Math.round((signed / total) * 100) : 0;
-  const signers = (c.signers || []).map((s) => renderSigner(c, s)).join("");
-  const canSend = c.status === "draft";
+  const signers = participants.map((s) => renderSigner(c, s)).join("");
+  const canSend = named && c.status === "draft";
   // Одна ссылка на договор — для всех и навсегда: по ней видно, кто подписал, и по ней же подписывают.
-  const named = c.linkMode === "named";          // старый режим именных ссылок
   const link = !named && c.publicToken ? contractLink(c.publicToken) : "";
   const linkRow = link
     ? `<div class="viewlink-row">
@@ -157,7 +159,7 @@ function renderContract(c) {
         <div class="link-box">
           <input readonly value="${esc(link)}">
           <button class="btn sm bronze" data-act="copy" data-link="${esc(link)}">Копировать</button>
-          <a class="btn sm" href="${esc(link)}" target="_blank" rel="noopener">Открыть</a>
+          <a class="btn sm" href="${esc(link)}" target="_blank" rel="noopener">Открыть и подписать</a>
         </div>
       </div>`
     : `<div class="viewlink-row">
@@ -170,18 +172,18 @@ function renderContract(c) {
         <p class="contract-title">${esc(c.title)}</p>
         <div class="contract-meta">${esc(c.fileName)} · ${fmtSize(c.fileSize)} · создан ${fmtDate(c.createdAt)}</div>
       </div>
-      <span class="badge ${c.status}">${STATUS_LABEL[c.status] || c.status}</span>
+      <span class="badge ${!named && c.status !== "cancelled" ? "in_progress" : c.status}">${!named && c.status !== "cancelled" ? "Общая ссылка" : STATUS_LABEL[c.status] || c.status}</span>
     </div>
     <div class="progress">
-      <div class="bar"><i style="width:${pct}%"></i></div>
-      <span>${signed} из ${total} подписали</span>
+      ${named ? `<div class="bar"><i style="width:${pct}%"></i></div>` : ""}
+      <span>${signatureCountLabel(c.signers, !named)}</span>
       <span style="flex:1"></span>
       <button class="btn sm" data-act="download" data-id="${c.id}">Скачать оригинал</button>
       ${canSend ? `<button class="btn sm" data-act="send" data-id="${c.id}">Отправить</button>` : ""}
       <button class="btn sm danger" data-act="delete" data-id="${c.id}">Удалить</button>
     </div>
     ${linkRow}
-    <div class="signers">${signers}</div>
+    <div class="signers">${signers || '<p class="hint">Подписей пока нет. Откройте общую ссылку сами или отправьте её другой стороне.</p>'}</div>
   </div>`;
 }
 
