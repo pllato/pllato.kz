@@ -1,4 +1,4 @@
-import {offsetGeometry} from './dimension-create.mjs?v=0.17.75';
+import {offsetGeometry} from './dimension-create.mjs?v=0.17.76';
 export function mountOffsetTool(api){
  const button=document.createElement('button');button.textContent='Отступ';button.title='Поставить горизонтальный или вертикальный размер';button.onclick=()=>{api.activate();points=[];hover=null;api.draw();};
  document.querySelector('[data-tool="measure"]').before(button);
