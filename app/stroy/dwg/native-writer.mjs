@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.74';
-import {requireWritableVersion} from './dwg-version.mjs?v=0.17.74';
-import {writeAdditions} from './authoring.mjs?v=0.17.74';
-import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.74';
+import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.75';
+import {requireWritableVersion} from './dwg-version.mjs?v=0.17.75';
+import {writeAdditions} from './authoring.mjs?v=0.17.75';
+import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.75';
 self.onmessage=async({data})=>{
  try{
   const {buffer,ops,added=[]}=data;
   if(!(buffer instanceof ArrayBuffer)||!Array.isArray(ops)||ops.length>100000)throw Error('Неверный пакет изменений.');
   requireWritableVersion(buffer);
   self.postMessage({progress:'Открываю исходный DWG для записи изменений…',percent:10});
-  const m=await createModule({locateFile:p=>new URL('./vendor/'+p+'?v=0.17.74',import.meta.url).href,print:()=>{},printErr:()=>{}});
+  let diagnostic='';
+  const m=await createModule({locateFile:p=>new URL('./vendor/'+p+'?v=0.17.75',import.meta.url).href,print:()=>{},printErr:s=>{if(s.startsWith('SAVE_REJECT_TEXT_WIDTH'))diagnostic=s;}});
   m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
   const opened=m.ccall('pllato_open','number',['string'],['/input.dwg']);
   if(opened>=128)throw Error('DWG не прочитан: '+opened);
@@ -35,7 +36,7 @@ self.onmessage=async({data})=>{
   writeAdditions(m,added.filter(i=>i.type!=='COPY'));
   self.postMessage({progress:'Записываю DWG и проверяю повторным чтением…',percent:60});
   const saved=m.ccall('pllato_save','number',['string'],['/output.dwg']);
-  if(saved>=128)throw Error('Проверка сохранения DWG не пройдена (код '+saved+'). Исходный файл не изменён.');
+  if(saved>=128)throw Error(diagnostic?'В исходном DWG обнаружена недопустимая ширина текста ('+diagnostic.split(' ').at(-1)+'). Требуется исправление файла; исходник не изменён.':'Проверка сохранения DWG не пройдена (код '+saved+'). Исходный файл не изменён.');
   const bytes=m.FS.readFile('/output.dwg');
   const original=new Uint8Array(buffer,0,6);if(original.some((v,i)=>bytes[i]!==v))throw Error('Движок изменил версию DWG: выдача файла отменена.');
   m._pllato_close();self.postMessage({buffer:bytes.buffer,warnings:opened|saved},[bytes.buffer]);

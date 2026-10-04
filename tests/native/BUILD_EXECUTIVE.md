@@ -1,5 +1,16 @@
 # Executive DWG engine 0.17.25 — corresponding source
 
+## 0.17.75 TEXT width
+
+`src/dwg_api.c`: dwg_add_TEXT initializes width_factor to 1.0, not calloc's zero.
+Actual AutoCAD AUDIT of a customer copy reported 22 generated TEXT handles twice
+(44 errors). Local inspection confirmed width_factor=0 at every listed handle.
+The wrapper rejects nonfinite/nonpositive TEXT widths before writing, without
+silently changing imported text. text-width-regression.c tests creation, invalid
+width rejection and preservation of a custom 0.75 width through save/read.
+Rebuild both host and WASM libraries and wrapper; matching source is included.
+This fixes the observed width defect, NOT all AutoCAD compatibility issues.
+
 ## 0.17.74 proxy references and MTEXT backgrounds
 
 Decoded PROXY_OBJECT dependencies preserve their opaque payload bit-for-bit.
