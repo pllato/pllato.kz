@@ -1,5 +1,14 @@
 # Executive DWG engine 0.17.25 — corresponding source
 
+## 0.17.76 empty draw-order owner repair
+
+The wrapper validates SORTENTSTABLE ownership before writing. Only an empty,
+fully decoded table with a null block reference can be repaired, and only when
+dictionary membership, dictionary owner and block extension dictionary agree.
+Nonempty/mismatched cases fail closed. sort-owner-regression.c covers repair,
+idempotence, invalid membership, nonempty tables, wrong references and round-trip.
+Only rebuild the wrapper; no new library changes. Ship matching source archive.
+
 ## 0.17.75 TEXT width
 
 `src/dwg_api.c`: dwg_add_TEXT initializes width_factor to 1.0, not calloc's zero.

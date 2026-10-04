@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.75';
-import {requireWritableVersion} from './dwg-version.mjs?v=0.17.75';
-import {writeAdditions} from './authoring.mjs?v=0.17.75';
-import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.75';
+import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.76';
+import {requireWritableVersion} from './dwg-version.mjs?v=0.17.76';
+import {writeAdditions} from './authoring.mjs?v=0.17.76';
+import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.76';
 self.onmessage=async({data})=>{
  try{
   const {buffer,ops,added=[]}=data;
@@ -10,7 +10,7 @@ self.onmessage=async({data})=>{
   requireWritableVersion(buffer);
   self.postMessage({progress:'Открываю исходный DWG для записи изменений…',percent:10});
   let diagnostic='';
-  const m=await createModule({locateFile:p=>new URL('./vendor/'+p+'?v=0.17.75',import.meta.url).href,print:()=>{},printErr:s=>{if(s.startsWith('SAVE_REJECT_TEXT_WIDTH'))diagnostic=s;}});
+  const m=await createModule({locateFile:p=>new URL('./vendor/'+p+'?v=0.17.76',import.meta.url).href,print:()=>{},printErr:s=>{if(s.startsWith('SAVE_REJECT_TEXT_WIDTH'))diagnostic=s;}});
   m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
   const opened=m.ccall('pllato_open','number',['string'],['/input.dwg']);
   if(opened>=128)throw Error('DWG не прочитан: '+opened);

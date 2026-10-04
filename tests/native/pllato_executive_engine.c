@@ -759,8 +759,33 @@ static int same_typed_record(Dwg_Object *a,Dwg_Object *b){
  if(!equal&&selected_export_validated){size_t first=0,limit=ends[0]<ends[1]?ends[0]:ends[1];while(first<limit&&((bits[0].chain[first/8]^(bits[1].chain[first/8]))&(1u<<(7-first%8)))==0)first++;fprintf(stderr,"EXPORT_FIELDS_DIFF %s ends=%zu/%zu errors=%d/%d first_bit=%zu types=%u/%u\n",a->name,ends[0],ends[1],errors[0],errors[1],first,a->type,b->type);}
  free(bits[0].chain);free(bits[1].chain);return equal;
 }
+/* Recover only a provably owned EMPTY draw-order table. Never guess the block
+   for populated tables or replace a nonzero/dangling/conflicting reference. */
+static int validate_sort_owners(void){
+ for(unsigned i=0;i<drawing.num_objects;i++){
+  Dwg_Object *o=&drawing.object[i];
+  if(o->type==DWG_TYPE_FREED||o->type==DWG_TYPE_UNUSED||o->fixedtype!=DWG_TYPE_SORTENTSTABLE)continue;
+  Dwg_Object_SORTENTSTABLE *s=o->tio.object->tio.SORTENTSTABLE;
+  Dwg_Object *dict=dwg_ref_object(&drawing,o->tio.object->ownerhandle);
+  Dwg_Object *block=dict&&dict->fixedtype==DWG_TYPE_DICTIONARY?dwg_ref_object(&drawing,dict->tio.object->ownerhandle):NULL;
+  int member=0;
+  if(dict&&dict->fixedtype==DWG_TYPE_DICTIONARY){Dwg_Object_DICTIONARY *d=dict->tio.object->tio.DICTIONARY;for(unsigned j=0;j<d->numitems;j++)if(d->itemhandles&&d->itemhandles[j]&&d->itemhandles[j]->absolute_ref==o->handle.value)member++;}
+  if(!block||block->fixedtype!=DWG_TYPE_BLOCK_HEADER||member!=1||dwg_ref_object(&drawing,block->tio.object->xdicobjhandle)!=dict)goto invalid;
+  if(!s->block_owner||!s->block_owner->absolute_ref){
+   if(s->num_ents||o->num_unknown_bits||o->num_unknown_rest)goto invalid;
+   s->block_owner=dwg_add_handleref(&drawing,4,block->handle.value,o);
+   if(!s->block_owner)return DWG_ERR_OUTOFMEM;
+   fprintf(stderr,"SAVE_REPAIR_EMPTY_SORT_OWNER %llX -> %llX\n",(unsigned long long)o->handle.value,(unsigned long long)block->handle.value);
+  }
+  if(dwg_ref_object(&drawing,s->block_owner)!=block)goto invalid;
+  continue;
+ invalid:fprintf(stderr,"SAVE_REJECT_SORT_OWNER %llX\n",(unsigned long long)o->handle.value);return DWG_ERR_INVALIDDWG;
+ }
+ return 0;
+}
 API int pllato_save(const char *path){
  if(!loaded||drawing.header.version==R_2007||drawing.header.version!=drawing.header.from_version)return DWG_ERR_INVALIDDWG;
+ int sortError=validate_sort_owners();if(sortError)return sortError;
  /* Same-reader round-trip does not detect semantically invalid TEXT widths.
     AutoCAD AUDIT rejects zero; never silently rewrite imported text. */
  for(unsigned i=0;i<drawing.num_objects;i++)if(drawing.object[i].type!=DWG_TYPE_FREED&&drawing.object[i].type!=DWG_TYPE_UNUSED&&drawing.object[i].fixedtype==DWG_TYPE_TEXT){
