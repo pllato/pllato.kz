@@ -761,6 +761,12 @@ static int same_typed_record(Dwg_Object *a,Dwg_Object *b){
 }
 API int pllato_save(const char *path){
  if(!loaded||drawing.header.version==R_2007||drawing.header.version!=drawing.header.from_version)return DWG_ERR_INVALIDDWG;
+ /* Same-reader round-trip does not detect semantically invalid TEXT widths.
+    AutoCAD AUDIT rejects zero; never silently rewrite imported text. */
+ for(unsigned i=0;i<drawing.num_objects;i++)if(drawing.object[i].type!=DWG_TYPE_FREED&&drawing.object[i].type!=DWG_TYPE_UNUSED&&drawing.object[i].fixedtype==DWG_TYPE_TEXT){
+  double width=drawing.object[i].tio.entity->tio.TEXT->width_factor;
+  if(!isfinite(width)||width<=0){fprintf(stderr,"SAVE_REJECT_TEXT_WIDTH %llX\n",(unsigned long long)drawing.object[i].handle.value);return DWG_ERR_INVALIDDWG;}
+ }
  unsigned expected=0;for(unsigned i=0;i<drawing.num_objects;i++)if(drawing.object[i].type!=DWG_TYPE_FREED&&drawing.object[i].type!=DWG_TYPE_UNUSED)expected++;
  /* Encoder scratch fields must not erase the raw handle-stream boundary in
     the in-memory document. Preserve it for validation and subsequent saves. */
