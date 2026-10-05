@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="stylesheet" href="./app/deal-card-focus.css?v=20261005">
 <title>ELC — English Lifestyle Communication</title>
 <link rel="icon" type="image/png" href="/elc-favicon-source.png?v=3">
 
@@ -19,7 +20,7 @@
   // Для Meta-лидов это особенно опасно: старый код использовал отсутствующий
   // bitrixId и показывал «сохранено», хотя запись уходила в deal_null/deal_.
   // При выпуске новой team.html одновременно обновить team-build.json.
-  const TEAM_APP_BUILD = '2026-10-03.manual-production';
+  const TEAM_APP_BUILD = '2026-10-05.deal-focus';
   window.__TEAM_APP_BUILD__ = TEAM_APP_BUILD;
   let teamAppReloading = false;
 
@@ -3417,6 +3418,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 
 <!-- Firebase SDK -->
 <script type="module">
+import { mountDealCardNavigation } from './app/deal-card-navigation.js?v=20261005';
 import { stageGroupsClient } from './app/wa-stage-groups.js?v=20260929-any-stage';
 const waStageGroups=stageGroupsClient({base:'https://pllato-elc-worker.uurraa.workers.dev',getToken:()=>fbAuth.currentUser.getIdToken()});
 import { mountDealRequisites } from './app/deal-requisites.js?v=20260929-autosave';
@@ -14378,11 +14380,11 @@ async function openDealCard(dealKey) {
     </button>`;
   }).join('');
 
-  let html = `<div class="modal-overlay" onclick="if(event.target===this)closeDealCard()">
-    <div class="modal modal-xl">
+  let html = `<div class="modal-overlay dc-focus-overlay" onclick="if(event.target===this)closeDealCard()">
+    <div class="modal modal-xl dc-focus" role="dialog" aria-modal="true" aria-labelledby="dc-card-title">
       <div class="dc-head">
         <div style="flex:1;min-width:0">
-          <h2 style="margin:0">${makeInlineEditableHtml({
+          <h2 id="dc-card-title" style="margin:0">${makeInlineEditableHtml({
             value: deal.title || '',
             recordId: dealRecordId,
             recordCollection: 'deals',
@@ -14391,28 +14393,198 @@ async function openDealCard(dealKey) {
             placeholder: '(без названия)',
             extraClass: 'inline-edit-h2 inline-edit-wide',
           })} ${deal.archived ? '<span class="dc-archived-badge">🗄 в архиве</span>' : ''}</h2>
-          <div class="modal-sub" style="margin-top:4px">
-            ID: <code>${escapeHtml(dealPublicId)}</code> ·
-            ${bitrixUrl ? `<a href="${bitrixUrl}" target="_blank" style="color:var(--ac2)">Открыть в Битриксе ↗</a> ·` : ''}
-            <button class="tbtn-xs dc-copy-link" data-deal-id="${escapeHtml(dealPublicId)}" style="background:none;border:none;color:var(--ac2);cursor:pointer;font-size:11px;padding:0">🔗 Копировать ссылку</button>
-          </div>
         </div>
         <div class="dc-head-actions">
-          <button class="tbtn tbtn-xs" onclick="closeDealCard();navigate('calendar')" title="Открыть календарь встреч">📅 Календарь</button>
+          <details class="dc-more"><summary>Ещё</summary><div class="dc-more-menu">          <button class="tbtn tbtn-xs" onclick="closeDealCard();navigate('calendar')" title="Открыть календарь встреч">📅 Календарь</button>
           <button class="tbtn tbtn-xs dc-mirror-btn" id="dc-mirror-btn" title="Добавить эту сделку в ещё одну воронку (зеркало)">🔁 В воронку</button>
           <button class="tbtn tbtn-xs dc-archive-btn" id="dc-archive-btn" data-archived="${deal.archived ? 1 : 0}" title="${deal.archived ? 'Восстановить из архива' : 'В архив (soft-delete)'}">
             ${deal.archived ? '↩ Восстановить' : '🗄 В архив'}
           </button>
-          <button class="close-x" onclick="closeDealCard()">×</button>
+</div></details>
+          <button aria-label="Закрыть карточку" class="close-x" onclick="closeDealCard()">×</button>
         </div>
       </div>
 
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0" aria-label="Действия на любом этапе сделки">
-        <button type="button" class="tbtn" data-quick-group>Общая группа WhatsApp</button>
-        <button type="button" class="tbtn" data-quick-transcript>Добавить транскрибацию</button>
-        <button type="button" class="tbtn" data-quick-requisites>Добавить реквизиты</button>
-        <button type="button" class="tbtn" data-quick-zoom>Создать Zoom-встречу</button>
+      <div class="dc-context">
+        <details class="dc-stage-picker"><summary><span>Этап</span> ${escapeHtml(stageName)} <span class="dc-stage-change">Изменить</span></summary>
+          <div class="dc-stagebar">${stageBarHtml}</div>
+        </details>
+        <button type="button" class="tbtn" data-quick-zoom>+ Zoom-встреча</button>
       </div>
+      <div class="dc-nav" role="tablist" aria-label="Разделы карточки">
+        <button type="button" role="tab" id="dc-tab-overview" aria-controls="dc-panel-overview" data-card-tab="overview" aria-selected="true">Обзор</button>
+        <button type="button" role="tab" id="dc-tab-materials" aria-controls="dc-panel-materials" data-card-tab="materials" aria-selected="false" tabindex="-1">Встречи и материалы</button>
+        <button type="button" role="tab" id="dc-tab-details" aria-controls="dc-panel-details" data-card-tab="details" aria-selected="false" tabindex="-1">Данные клиента</button>
+        <button type="button" role="tab" id="dc-tab-history" aria-controls="dc-panel-history" data-card-tab="history" aria-selected="false" tabindex="-1">История</button>
+      </div>
+      <section id="dc-panel-overview" role="tabpanel" aria-labelledby="dc-tab-overview" data-card-panel="overview">
+        <div class="dc-grid">
+          <div class="dc-left">
+            <div class="dc-section-h">Сделка</div>
+            <div class="field-grid dc-key-fields">
+            <div class="fl">Сумма</div>
+            <div class="fv">${makeInlineEditableHtml({
+              value: deal.opportunity || '',
+              recordId: dealRecordId,
+              recordCollection: 'deals',
+              field: 'opportunity',
+              type: 'money',
+              placeholder: 'не указана',
+            })} ${escapeHtml(deal.currency || '₸')}</div>
+            <div class="fl">Кто проводит КЭП</div>
+            <div class="fv"><select id="dc-kep-manager" class="cf-edit" ${canEditDeal?'':'disabled'} style="max-width:100%;padding:7px">
+              <option value="">Не назначен</option>
+              ${Object.entries(dealsState.users||{}).map(([uid,u])=>`<option value="${escapeHtml(uid)}"${uid===deal.customFields?.kepManagerUid?' selected':''}>${escapeHtml([u.name,u.lastName].filter(Boolean).join(' ')||u.email||uid)}</option>`).join('')}
+            </select></div>
+            <div class="fl">Ответственный</div>
+            <div class="fv">${canEditDeal
+              ? `<span id="dc-resp-display" class="dc-resp-editable" title="Кликни — сменить ответственного" style="cursor:pointer;border-bottom:1px dashed var(--b2);padding-bottom:1px">${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}</span> <span class="dc-resp-pencil" style="cursor:pointer;opacity:.6;font-size:12px" title="Сменить ответственного">✏️</span>`
+              : `${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}`}</div>
+</div>
+          ${contact ? `<div class="dc-section-h">Контакт</div>
+            <div class="dc-contact-card">
+              <div class="dc-contact-name">${escapeHtml(contactName || '(без имени)')}</div>
+              ${contactPhone ? `<div class="dc-contact-phone">${escapeHtml(contactPhone)}</div>
+                <div class="dc-contact-actions">
+                  <button class="tbtn tbtn-xs call-btn-inline" data-call-phone="${escapeHtml(contactPhone)}" data-call-contactid="${escapeHtml(deal.contactId || '')}" data-call-dealid="${escapeHtml(dealPublicId)}" data-call-contactname="${escapeHtml(contactName || '')}">Позвонить</button>
+                  <button class="tbtn tbtn-xs" onclick="navigator.clipboard.writeText('${escapeHtml(contactPhone)}');showToast('Телефон скопирован')">Копировать</button>
+                </div>` : ''}
+              ${asArray(contact.emails)[0]?.value ? `<div class="dc-contact-email"><a href="mailto:${escapeHtml(contact.emails[0].value)}">${escapeHtml(contact.emails[0].value)}</a></div>` : ''}
+              <button class="tbtn tbtn-xs" style="margin-top:8px" onclick="closeDealCard();setTimeout(()=>openContactCard('${escapeHtml(deal.contactId)}'),100)">Открыть карточку контакта →</button>
+            </div>` : ''}
+
+          ${company ? `<div class="dc-section-h">Компания</div>
+            <div class="dc-contact-card">
+              <div class="dc-contact-name">${escapeHtml(company.title || '—')}</div>
+            </div>` : ''}
+
+      <div style="margin:10px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button class="tbtn tbtn-sm" id="dc-qual-btn">Бриф клиента</button>
+        <span id="dc-qual-status" style="font-size:12px;color:var(--t3)"></span>
+      </div>
+
+<div class="dc-overview-deeds">      <!-- Дела по сделке: задачи привязанные через crm_links deal_X -->
+      <div class="dc-section-h" style="margin-top:0;display:flex;align-items:center;gap:10px">
+        <span>Дела</span>
+        <span id="dc-deeds-count" style="font-size:11px;color:var(--t3);font-weight:400"></span>
+        <button class="tbtn tbtn-xs" id="dc-add-deed-btn" style="margin-left:auto">+ Дело</button>
+      </div>
+      <div class="dc-deeds-wrap" id="dc-deeds-wrap" data-deal-id="${escapeHtml(dealPublicId)}">
+        <div style="padding:12px;color:var(--t3);font-size:12px;text-align:center">⏳ Загружаем дела…</div>
+      </div>
+
+</div>
+          </div>
+        <div class="dc-right">
+          <div class="dc-section-h" style="display:flex;align-items:center;gap:8px">
+            <span>Переписка · WhatsApp</span>
+            <span class="dc-wa-status" id="dc-wa-status" style="font-size:11px;color:var(--t3);font-weight:400"></span>
+          </div>
+          <div class="dc-wa-pane" id="dc-wa-pane" data-deal-id="${escapeHtml(dealPublicId)}" data-phone="${escapeHtml(contactPhone || '')}" data-contact-name="${escapeHtml(contactName || '')}">
+            <div id="dc-wa-tabs" style="display:flex;flex-wrap:wrap;gap:8px;padding:10px;background:var(--bg2)"></div>
+            <div class="dc-wa-body" id="dc-wa-body"><div class="dc-wa-empty">${contactPhone ? '⏳ Загружаем историю…' : '📱 У контакта не указан телефон — WhatsApp недоступен.'}</div></div>
+            <div class="dc-wa-input-wrap">
+              <button class="dc-wa-attach" id="dc-wa-attach" title="Прикрепить фото/видео/файл">📎</button>
+              <button class="dc-wa-attach" id="dc-wa-voice" title="Записать голосовое сообщение" style="margin-left:4px">🎙</button>
+              <textarea class="dc-wa-input" id="dc-wa-input" placeholder="Написать в WhatsApp..." rows="1"></textarea>
+              <button class="dc-wa-send" id="dc-wa-send">Отправить</button>
+            </div>
+          </div>
+        </div>
+        </div>
+      </section>
+      <section id="dc-panel-materials" role="tabpanel" aria-labelledby="dc-tab-materials" data-card-panel="materials" hidden>
+        <div class="dc-material-actions">
+          <button type="button" class="tbtn" data-quick-transcript>Добавить транскрипцию</button>
+          <button type="button" class="tbtn" data-quick-requisites>Реквизиты</button>
+          <button type="button" class="tbtn" data-quick-group>Группа WhatsApp</button>
+        </div>
+          ${cardFlags.showFirstZoom ? `<div class="dc-section-h">Первая встреча</div>
+          <div style="background:var(--bg3);padding:12px 14px;border-radius:8px">
+            <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Дата и время первой Zoom-встречи (попадёт в Календарь)</div>
+            <input class="cf-edit"
+              type="datetime-local"
+              data-field="firstZoomAt"
+              data-deal-id="${escapeHtml(dealRecordId)}"
+              data-type="datetime-local"
+              value="${escapeHtml(deal.customFields?.firstZoomAt || '')}"
+              style="padding:6px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none">
+            <div id="dc-first-zoom-link" style="margin-top:10px"></div>
+            ${deal.customFields?.firstZoomAt ? `<button class="tbtn tbtn-xs" style="margin-left:8px" onclick="navigate('calendar')">📅 Открыть календарь</button>` : ''}
+          </div>` : ''}
+
+          ${cardFlags.showTrialLesson ? `<div class="dc-section-h">Пробный урок</div>
+          <div style="background:var(--bg3);padding:12px 14px;border-radius:8px">
+            <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Дата и время пробного урока (попадёт в Календарь)</div>
+            <input class="cf-edit"
+              type="datetime-local"
+              data-field="trialLessonAt"
+              data-deal-id="${escapeHtml(dealRecordId)}"
+              data-type="datetime-local"
+              value="${escapeHtml(deal.customFields?.trialLessonAt || '')}"
+              style="padding:6px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none">
+            ${deal.customFields?.trialLessonAt ? `<button class="tbtn tbtn-xs" style="margin-left:8px" onclick="navigate('calendar')">📅 Открыть календарь</button>` : ''}
+          </div>` : ''}
+
+      <div class="dc-section-h" style="margin-top:24px">Встречи Zoom: видео и транскрипты</div>
+      <div id="dc-zoom-meetings"></div>
+      <div id="dc-zoom-files"></div>
+
+
+        <details class="dc-disclosure" id="dc-documents-section" open><summary>Транскрипции и документы</summary><div class="dc-disclosure-body"><div id="dc-production"></div></div></details>
+        <details class="dc-disclosure"><summary>Реквизиты</summary><div class="dc-disclosure-body" id="dc-requisites"></div></details>
+        <details class="dc-disclosure"><summary>Общая группа WhatsApp</summary><div class="dc-disclosure-body" id="dc-wa-stage-group"></div></details>
+      ${(() => {
+        // Сводный блок Файлы по сделке: все file ids из всех активностей
+        const allFids = new Set();
+        for (const a of timeline) {
+          for (const f of asArray(a.bitrixFileIds)) allFids.add(String(f));
+          if (a.recordFileId) allFids.add(String(a.recordFileId));
+        }
+        if (allFids.size === 0) return '';
+        const fids = Array.from(allFids).join(',');
+        return `<details class="dc-files-summary" style="margin-top:24px;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;padding:14px 16px">
+          <summary style="cursor:pointer;font-size:14px;font-weight:600;color:var(--t1);user-select:none;list-style:none;display:flex;align-items:center;gap:8px">
+            <span>📎</span> Все файлы по сделке (${allFids.size})
+            <span style="margin-left:auto;font-size:11px;color:var(--t3);font-weight:400">кликни чтобы развернуть</span>
+          </summary>
+          <div class="deal-files-list" id="deal-files-${escapeHtml(dealPublicId)}" data-fids="${escapeHtml(fids)}" style="display:flex;flex-direction:column;gap:6px;margin-top:14px"></div>
+        </details>`;
+      })()}
+
+
+      </section>
+      <section id="dc-panel-details" role="tabpanel" aria-labelledby="dc-tab-details" data-card-panel="details" hidden>
+        <div class="dc-section-h">О сделке</div><div class="field-grid">
+            <div class="fl">Вероятность</div>
+            <div class="fv">${makeInlineEditableHtml({
+              value: deal.probability != null ? deal.probability : '',
+              recordId: dealRecordId,
+              recordCollection: 'deals',
+              field: 'probability',
+              type: 'number',
+              placeholder: '—',
+            })}%</div>
+            <div class="fl">Создал</div>
+            <div class="fv">${escapeHtml(createdByName)}</div>
+            <div class="fl">Создана</div>
+            <div class="fv">${deal.bitrixDateCreate ? new Date(deal.bitrixDateCreate).toLocaleString('ru') : '—'}</div>
+            <div class="fl">Изменена</div>
+            <div class="fv">${deal.bitrixDateModify ? new Date(deal.bitrixDateModify).toLocaleString('ru') : '—'}</div>
+            <div class="fl">Закрыто</div>
+            <div class="fv">${deal.closed ? '<span style="color:var(--gn)">✓ Да</span> ' + (deal.closeDate ? new Date(deal.closeDate).toLocaleDateString('ru') : '') : '<span class="muted">Нет</span>'}</div>
+            <div class="fl">Источник</div>
+            <div class="fv">
+              <select id="dc-source-select" class="cf-edit" style="width:100%;max-width:520px;padding:7px 9px;border:1px solid var(--b1);border-radius:7px;background:var(--bg2);color:var(--t1);font-size:12px">
+                <option>${escapeHtml(deal.metaAdId ? metaAdSourceLabel(deal.metaAdId, deal.metaAdAttribution) : (deal.sourceDescription || getSourceName(deal.sourceId) || 'Загрузка источников…'))}</option>
+              </select>
+            </div>
+</div>
+          ${deal.comments ? `<div class="dc-section-h">Комментарии</div>
+            <div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px;line-height:1.5">${escapeHtml(deal.comments)}</div>` : ''}
+
+          ${renderMetaLeadFormBlock(deal.customFields)}
+          ${renderCustomFieldsBlock(deal.customFields, { dealId: dealRecordId, editable: true })}
       ${(() => {
         // Список воронок где сделка присутствует — основная + зеркала
         const mir = deal.mirroredIn || {};
@@ -14433,161 +14605,16 @@ async function openDealCard(dealKey) {
         return `<div class="dc-pipes-row">📌 Воронки: ${chips}</div>`;
       })()}
 
-      <div class="dc-stagebar">${stageBarHtml}</div>
-
-      <div style="margin:10px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <button class="tbtn tbtn-sm tbtn-a" id="dc-qual-btn">📋 Квалификация (бриф)</button>
-        <span id="dc-qual-status" style="font-size:12px;color:var(--t3)"></span>
-      </div>
-
-      <div class="dc-grid">
-        <div class="dc-left">
-          <div class="dc-section-h">Основное</div>
-          <div class="field-grid">
-            <div class="fl">Сумма</div>
-            <div class="fv">${makeInlineEditableHtml({
-              value: deal.opportunity || '',
-              recordId: dealRecordId,
-              recordCollection: 'deals',
-              field: 'opportunity',
-              type: 'money',
-              placeholder: 'не указана',
-            })} ${escapeHtml(deal.currency || '₸')}</div>
-            <div class="fl">Вероятность</div>
-            <div class="fv">${makeInlineEditableHtml({
-              value: deal.probability != null ? deal.probability : '',
-              recordId: dealRecordId,
-              recordCollection: 'deals',
-              field: 'probability',
-              type: 'number',
-              placeholder: '—',
-            })}%</div>
-            <div class="fl">Кто проводит КЭП</div>
-            <div class="fv"><select id="dc-kep-manager" class="cf-edit" ${canEditDeal?'':'disabled'} style="max-width:100%;padding:7px">
-              <option value="">Не назначен</option>
-              ${Object.entries(dealsState.users||{}).map(([uid,u])=>`<option value="${escapeHtml(uid)}"${uid===deal.customFields?.kepManagerUid?' selected':''}>${escapeHtml([u.name,u.lastName].filter(Boolean).join(' ')||u.email||uid)}</option>`).join('')}
-            </select></div>
-            <div class="fl">Ответственный менеджер</div>
-            <div class="fv">${canEditDeal
-              ? `<span id="dc-resp-display" class="dc-resp-editable" title="Кликни — сменить ответственного" style="cursor:pointer;border-bottom:1px dashed var(--b2);padding-bottom:1px">${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}</span> <span class="dc-resp-pencil" style="cursor:pointer;opacity:.6;font-size:12px" title="Сменить ответственного">✏️</span>`
-              : `${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}`}</div>
-            <div class="fl">Создал</div>
-            <div class="fv">${escapeHtml(createdByName)}</div>
-            <div class="fl">Создана</div>
-            <div class="fv">${deal.bitrixDateCreate ? new Date(deal.bitrixDateCreate).toLocaleString('ru') : '—'}</div>
-            <div class="fl">Изменена</div>
-            <div class="fv">${deal.bitrixDateModify ? new Date(deal.bitrixDateModify).toLocaleString('ru') : '—'}</div>
-            <div class="fl">Закрыто</div>
-            <div class="fv">${deal.closed ? '<span style="color:var(--gn)">✓ Да</span> ' + (deal.closeDate ? new Date(deal.closeDate).toLocaleDateString('ru') : '') : '<span class="muted">Нет</span>'}</div>
-            <div class="fl">Источник</div>
-            <div class="fv">
-              <select id="dc-source-select" class="cf-edit" style="width:100%;max-width:520px;padding:7px 9px;border:1px solid var(--b1);border-radius:7px;background:var(--bg2);color:var(--t1);font-size:12px">
-                <option>${escapeHtml(deal.metaAdId ? metaAdSourceLabel(deal.metaAdId, deal.metaAdAttribution) : (deal.sourceDescription || getSourceName(deal.sourceId) || 'Загрузка источников…'))}</option>
-              </select>
-            </div>
+<details class="dc-disclosure"><summary>Служебная информация</summary><div class="dc-disclosure-body">          <div class="modal-sub" style="margin-top:4px">
+            ID: <code>${escapeHtml(dealPublicId)}</code> ·
+            ${bitrixUrl ? `<a href="${bitrixUrl}" target="_blank" style="color:var(--ac2)">Открыть в Битриксе ↗</a> ·` : ''}
+            <button class="tbtn-xs dc-copy-link" data-deal-id="${escapeHtml(dealPublicId)}" style="background:none;border:none;color:var(--ac2);cursor:pointer;font-size:11px;padding:0">🔗 Копировать ссылку</button>
           </div>
-
-          ${contact ? `<div class="dc-section-h">Контакт</div>
-            <div class="dc-contact-card">
-              <div class="dc-contact-name">${escapeHtml(contactName || '(без имени)')}</div>
-              ${contactPhone ? `<div class="dc-contact-phone">📱 ${escapeHtml(contactPhone)}</div>
-                <div class="dc-contact-actions">
-                  <button class="tbtn tbtn-xs call-btn-inline" data-call-phone="${escapeHtml(contactPhone)}" data-call-contactid="${escapeHtml(deal.contactId || '')}" data-call-dealid="${escapeHtml(dealPublicId)}" data-call-contactname="${escapeHtml(contactName || '')}">📞 Позвонить</button>
-                  <button class="tbtn tbtn-xs" onclick="navigator.clipboard.writeText('${escapeHtml(contactPhone)}');showToast('Телефон скопирован')">📋 Копировать</button>
-                </div>` : ''}
-              ${asArray(contact.emails)[0]?.value ? `<div class="dc-contact-email">📧 <a href="mailto:${escapeHtml(contact.emails[0].value)}">${escapeHtml(contact.emails[0].value)}</a></div>` : ''}
-              <button class="tbtn tbtn-xs" style="margin-top:8px" onclick="closeDealCard();setTimeout(()=>openContactCard('${escapeHtml(deal.contactId)}'),100)">Открыть карточку контакта →</button>
-            </div>` : ''}
-
-          ${company ? `<div class="dc-section-h">Компания</div>
-            <div class="dc-contact-card">
-              <div class="dc-contact-name">${escapeHtml(company.title || '—')}</div>
-            </div>` : ''}
-
-          ${deal.comments ? `<div class="dc-section-h">Комментарии</div>
-            <div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px;line-height:1.5">${escapeHtml(deal.comments)}</div>` : ''}
-
-          <div id="dc-wa-stage-group"></div>
-
-          <div class="dc-section-h">Документы сделки</div>
-          <div id="dc-production"></div>
-
-          <div class="dc-section-h">Реквизиты</div>
-          <div id="dc-requisites" style="padding:12px 14px;background:var(--bg3);border-radius:8px"></div>
-
-          ${cardFlags.showFirstZoom ? `<div class="dc-section-h">📹 Первый Zoom</div>
-          <div style="background:var(--bg3);padding:12px 14px;border-radius:8px">
-            <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Дата и время первой Zoom-встречи (попадёт в Календарь)</div>
-            <input class="cf-edit"
-              type="datetime-local"
-              data-field="firstZoomAt"
-              data-deal-id="${escapeHtml(dealRecordId)}"
-              data-type="datetime-local"
-              value="${escapeHtml(deal.customFields?.firstZoomAt || '')}"
-              style="padding:6px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none">
-            <div id="dc-first-zoom-link" style="margin-top:10px"></div>
-            ${deal.customFields?.firstZoomAt ? `<button class="tbtn tbtn-xs" style="margin-left:8px" onclick="navigate('calendar')">📅 Открыть календарь</button>` : ''}
-          </div>` : ''}
-
-          ${cardFlags.showTrialLesson ? `<div class="dc-section-h">📚 Дата пробного урока</div>
-          <div style="background:var(--bg3);padding:12px 14px;border-radius:8px">
-            <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Дата и время пробного урока (попадёт в Календарь)</div>
-            <input class="cf-edit"
-              type="datetime-local"
-              data-field="trialLessonAt"
-              data-deal-id="${escapeHtml(dealRecordId)}"
-              data-type="datetime-local"
-              value="${escapeHtml(deal.customFields?.trialLessonAt || '')}"
-              style="padding:6px 10px;border:1px solid var(--b1);border-radius:6px;background:var(--bg2);color:var(--t1);font-size:13px;outline:none">
-            ${deal.customFields?.trialLessonAt ? `<button class="tbtn tbtn-xs" style="margin-left:8px" onclick="navigate('calendar')">📅 Открыть календарь</button>` : ''}
-          </div>` : ''}
-
-          ${renderMetaLeadFormBlock(deal.customFields)}
-          ${renderCustomFieldsBlock(deal.customFields, { dealId: dealRecordId, editable: true })}
-        </div>
-
-        <div class="dc-right">
-          <div class="dc-section-h" style="display:flex;align-items:center;gap:8px">
-            <span style="color:#25D366">💬 WhatsApp</span>
-            <span class="dc-wa-status" id="dc-wa-status" style="font-size:11px;color:var(--t3);font-weight:400"></span>
-          </div>
-          <div class="dc-wa-pane" id="dc-wa-pane" data-deal-id="${escapeHtml(dealPublicId)}" data-phone="${escapeHtml(contactPhone || '')}" data-contact-name="${escapeHtml(contactName || '')}">
-            <div id="dc-wa-tabs" style="display:flex;flex-wrap:wrap;gap:8px;padding:10px;background:var(--bg2)"></div>
-            <div class="dc-wa-body" id="dc-wa-body"><div class="dc-wa-empty">${contactPhone ? '⏳ Загружаем историю…' : '📱 У контакта не указан телефон — WhatsApp недоступен.'}</div></div>
-            <div class="dc-wa-input-wrap">
-              <button class="dc-wa-attach" id="dc-wa-attach" title="Прикрепить фото/видео/файл">📎</button>
-              <button class="dc-wa-attach" id="dc-wa-voice" title="Записать голосовое сообщение" style="margin-left:4px">🎙</button>
-              <textarea class="dc-wa-input" id="dc-wa-input" placeholder="Написать в WhatsApp..." rows="1"></textarea>
-              <button class="dc-wa-send" id="dc-wa-send">Отправить</button>
-            </div>
-          </div>
-          ${latestOpenlinesActivity
-            ? `<div class="dc-section-h" style="margin-top:18px">📜 Старая переписка Bitrix</div>
-              <div class="dc-chat-wrap" id="dc-chat-wrap" data-session-id="${escapeHtml(latestOpenlinesActivity.openlinesSessionId)}">
-                <div style="padding:14px;color:var(--t3);font-size:12px;text-align:center">⏳ Загружаем переписку...</div>
-              </div>`
-            : ''
-          }
-        </div>
-      </div>
-
-      <!-- Дела по сделке: задачи привязанные через crm_links deal_X -->
+</div></details>
+      </section>
+      <section id="dc-panel-history" role="tabpanel" aria-labelledby="dc-tab-history" data-card-panel="history" hidden>      <!-- Лента событий — комменты, звонки, статусы, WA -->
       <div class="dc-section-h" style="margin-top:24px;display:flex;align-items:center;gap:10px">
-        <span>✅ Дела</span>
-        <span id="dc-deeds-count" style="font-size:11px;color:var(--t3);font-weight:400"></span>
-        <button class="tbtn tbtn-xs" id="dc-add-deed-btn" style="margin-left:auto">+ Дело</button>
-      </div>
-      <div class="dc-deeds-wrap" id="dc-deeds-wrap" data-deal-id="${escapeHtml(dealPublicId)}">
-        <div style="padding:12px;color:var(--t3);font-size:12px;text-align:center">⏳ Загружаем дела…</div>
-      </div>
-
-      <div class="dc-section-h" style="margin-top:24px">Встречи Zoom: видео и транскрипты</div>
-      <div id="dc-zoom-meetings"></div>
-      <div id="dc-zoom-files"></div>
-
-      <!-- Лента событий — комменты, звонки, статусы, WA -->
-      <div class="dc-section-h" style="margin-top:24px;display:flex;align-items:center;gap:10px">
-        <span>📜 Лента событий</span>
+        <span>Лента событий</span>
         <span id="dc-tl-count" style="font-size:11px;color:var(--t3);font-weight:400"></span>
       </div>
       <div class="dc-comment-form">
@@ -14598,28 +14625,19 @@ async function openDealCard(dealKey) {
         <div style="padding:12px;color:var(--t3);font-size:12px;text-align:center">⏳ Загружаем ленту…</div>
       </div>
 
-      ${(() => {
-        // Сводный блок Файлы по сделке: все file ids из всех активностей
-        const allFids = new Set();
-        for (const a of timeline) {
-          for (const f of asArray(a.bitrixFileIds)) allFids.add(String(f));
-          if (a.recordFileId) allFids.add(String(a.recordFileId));
-        }
-        if (allFids.size === 0) return '';
-        const fids = Array.from(allFids).join(',');
-        return `<details class="dc-files-summary" style="margin-top:24px;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;padding:14px 16px">
-          <summary style="cursor:pointer;font-size:14px;font-weight:600;color:var(--t1);user-select:none;list-style:none;display:flex;align-items:center;gap:8px">
-            <span>📎</span> Все файлы по сделке (${allFids.size})
-            <span style="margin-left:auto;font-size:11px;color:var(--t3);font-weight:400">кликни чтобы развернуть</span>
-          </summary>
-          <div class="deal-files-list" id="deal-files-${escapeHtml(dealPublicId)}" data-fids="${escapeHtml(fids)}" style="display:flex;flex-direction:column;gap:6px;margin-top:14px"></div>
-        </details>`;
-      })()}
-
+          ${latestOpenlinesActivity
+            ? `<div class="dc-section-h" style="margin-top:18px">📜 Старая переписка Bitrix</div>
+              <div class="dc-chat-wrap" id="dc-chat-wrap" data-session-id="${escapeHtml(latestOpenlinesActivity.openlinesSessionId)}">
+                <div style="padding:14px;color:var(--t3);font-size:12px;text-align:center">⏳ Загружаем переписку...</div>
+              </div>`
+            : ''
+          }
       ${latestOpenlinesActivity && timeline.length > 0 ? `
         <div class="dc-section-h">Все события (${timeline.length})</div>
         ${renderTimelineBlock(timeline)}
       ` : ''}
+
+      </section>
     </div>
   </div>`;
 
@@ -14630,7 +14648,7 @@ async function openDealCard(dealKey) {
   document.body.style.overflow = 'hidden';
   mountDealSourceSelect(modal, deal);
   waStageGroups.deal(modal.querySelector('#dc-wa-stage-group'),dealRecordId);
-  const reveal = selector => {const el=modal.querySelector(selector);el?.scrollIntoView({behavior:'smooth',block:'center'});return el;};
+  const { reveal } = mountDealCardNavigation(modal);
   modal.querySelector('[data-quick-group]').onclick=()=>{
     const el=reveal('#dc-wa-stage-group');el?.querySelector('[data-manual]')?.click();
   };
