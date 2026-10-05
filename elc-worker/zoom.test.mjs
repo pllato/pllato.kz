@@ -59,6 +59,7 @@ test('ошибка копии не удаляет оригинал; успешн
     await processZoomJobs(f.env);assert.equal(deletes,0);assert.equal(f.objects.size,0);
     assert.equal(f.db.prepare("SELECT status FROM zoom_files WHERE id='f1'").get().status,'pending');
     wrong=false;f.db.prepare("UPDATE zoom_files SET retry_at=NULL WHERE id='f1'").run();
+    await processZoomJobs(f.env);assert.equal(deletes,0);
     await processZoomJobs(f.env);assert.equal(deletes,1);
     assert.ok(f.db.prepare("SELECT zoom_deleted_at FROM zoom_files WHERE id='f1'").get().zoom_deleted_at);
   }finally{globalThis.fetch=original;}
@@ -179,4 +180,24 @@ test('обновление входа не меняет уже идущую ко
 test('приглашение клиенту не содержит код организатора',async()=>{
  const {zoomInvitation}=await import('../app/zoom-crm.js');
  assert.ok(!zoomInvitation({topic:'test',join_url:'https://zoom.us/j/123',hostKey:'012345'}).includes('012345'));
+});
+
+
+test('очистка архива: только проверенные копии, включая непривязанные; ошибка файла не блокирует остальные',async()=>{
+  const f=fixture();await f.connect();f.env.ZOOM_TRASH_AFTER_COPY='true';
+  const add=(id,status='stored',imported='2026-09-29',deleted=null)=>f.db.prepare("INSERT INTO zoom_files(id,meeting_uuid,meeting_id,size,status,r2_key,imported_at,deleted_at) VALUES(?,'uuid','123',4,?,?,?,?)").run(id,status,id,imported,deleted);
+  for(const id of ['good','missing','wrong','failed','unverified','deleted','pending'])add(id,id==='pending'?'pending':'stored',id==='unverified'?null:'2026-09-29',id==='deleted'?'2026-10-01':null);
+  for(const id of ['good','failed','unverified','deleted','pending'])f.objects.set(id,{size:4});
+  f.objects.set('wrong',{size:3});
+  f.db.prepare("UPDATE zoom_files SET retry_at='2099-01-01' WHERE id='pending'").run();
+  const original=globalThis.fetch,calls=[];
+  globalThis.fetch=async(url,opts)=>{assert.equal(opts.method,'DELETE');assert.ok(String(url).endsWith('?action=trash'));calls.push(String(url));return String(url).includes('/failed?')?new Response(null,{status:403}):new Response(null,{status:204});};
+  try{
+    await processZoomJobs(f.env);
+    assert.equal(calls.length,2);
+    assert.ok(f.db.prepare("SELECT zoom_deleted_at FROM zoom_files WHERE id='good'").get().zoom_deleted_at);
+    for(const id of ['missing','wrong','failed','unverified','deleted','pending'])assert.equal(f.db.prepare('SELECT zoom_deleted_at FROM zoom_files WHERE id=?').get(id).zoom_deleted_at,null);
+    assert.equal(f.objects.size,6);
+    await processZoomJobs(f.env);assert.equal(calls.length,2);
+  }finally{globalThis.fetch=original;}
 });
