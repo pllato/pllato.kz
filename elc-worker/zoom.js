@@ -380,6 +380,22 @@ export async function handleZoomRequest(request, env, deps) {
         (SELECT id FROM deals WHERE id IN (${placeholders})${access.where}) GROUP BY deal_id`).bind(...ids,...access.params).all();
       return json({deals:results},200,request);
     }
+    if (path === '/archive' && request.method === 'GET') {
+      const access=dealAccessSql(me);
+      const q=(url.searchParams.get('q')||'').trim().slice(0,150);
+      const page=Math.max(1,Math.min(100000,parseInt(url.searchParams.get('page')||'1',10)||1));
+      const params=admin?[]:[...access.params];
+      const visible=admin?'1=1':`f.deal_id IN (SELECT id FROM deals WHERE 1=1${access.where})`;
+      const search=q?" AND (instr(lower(f.topic),lower(?))>0 OR instr(lower(d.title),lower(?))>0 OR instr(f.meeting_id,?)>0 OR instr(f.recording_start,?)>0)":'';
+      if(q)params.push(q,q,q,q);
+      const source=`FROM zoom_files f LEFT JOIN deals d ON d.id=f.deal_id WHERE f.deleted_at IS NULL AND ${visible}${search}`;
+      const total=await env.DB.prepare(`SELECT COUNT(*) AS total FROM (SELECT f.meeting_uuid,f.deal_id ${source} GROUP BY f.meeting_uuid,f.deal_id)`).bind(...params).first();
+      const {results}=await env.DB.prepare(`SELECT f.meeting_uuid,f.meeting_id,f.deal_id,MAX(f.topic) AS topic,MAX(d.title) AS deal_title,MIN(f.recording_start) AS recording_start,
+        json_group_array(json_object('id',f.id,'extension',f.extension,'kind',f.kind,'status',f.status,'size',f.size)) AS files
+        ${source} GROUP BY f.meeting_uuid,f.deal_id ORDER BY recording_start DESC,f.meeting_uuid DESC LIMIT 25 OFFSET ?`).bind(...params,(page-1)*25).all();
+      const response=json({meetings:results.map(row=>({...row,files:parse(row.files,[])})),total:total.total,page,pageSize:25},200,request);
+      response.headers.set('Cache-Control','private, no-store');return response;
+    }
     if (path === '/files' && request.method === 'GET') {
       const deal = url.searchParams.get('deal');
       if (deal ? !await canReadDeal(deal) : !admin) throw fail('Нет доступа',403);

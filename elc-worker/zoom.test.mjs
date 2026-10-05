@@ -201,3 +201,16 @@ test('очистка архива: только проверенные копи�
     await processZoomJobs(f.env);assert.equal(calls.length,2);
   }finally{globalThis.fetch=original;}
 });
+
+test('общий архив группирует встречи, ищет клиента и скрывает чужие и непривязанные файлы от сотрудников',async()=>{
+  const f=fixture();await f.connect();f.db.exec('ALTER TABLE deals ADD COLUMN title TEXT');
+  f.db.prepare('INSERT INTO deals(id,title) VALUES(?,?)').run('deal_1','Клиент А');
+  f.db.prepare('INSERT INTO deals(id,title) VALUES(?,?)').run('deal_2','Клиент Б');
+  const add=(id,uuid,deal,status='stored',deleted=null)=>f.db.prepare('INSERT INTO zoom_files(id,meeting_uuid,meeting_id,deal_id,topic,recording_start,extension,kind,status,deleted_at) VALUES(?,?,?,?,?,?,?,?,?,?)').run(id,uuid,'123',deal,'Zoom','2026-10-01T10:00:00Z','VTT','audio_transcript',status,deleted);
+  add('one','u1','deal_1');add('two','u1','deal_1');add('other','u2','deal_2');add('unlinked','u3',null);add('deleted','u4','deal_1','deleted','2026-10-02');
+  let r=await f.request('/archive');assert.equal(r.headers.get('Cache-Control'),'private, no-store');let data=await r.json();assert.equal(data.total,3);assert.equal(data.meetings.find(x=>x.meeting_uuid==='u1').files.length,2);
+  data=await (await f.request('/archive?q='+encodeURIComponent('Клиент А'))).json();assert.equal(data.total,1);
+  f.deps.resolveCanonicalUser=async()=>({role:'agent'});f.deps.dealAccessSql=()=>({where:' AND id=?',params:['deal_1']});
+  data=await (await f.request('/archive')).json();assert.equal(data.total,1);assert.equal(data.meetings[0].deal_id,'deal_1');
+  data=await (await f.request('/archive?page=2')).json();assert.equal(data.meetings.length,0);
+});
