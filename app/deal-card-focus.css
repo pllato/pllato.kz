@@ -1,0 +1,67 @@
+/* A focused workspace for the client card; scoped away from other CRM dialogs. */
+.dc-focus-overlay .dc-focus{max-width:1180px;width:100%;box-sizing:border-box;padding:26px 30px;border-radius:12px}
+.dc-focus [hidden]{display:none!important}
+.dc-focus .dc-head{align-items:flex-start;margin-bottom:14px;gap:20px}
+.dc-focus .dc-head h2{font-size:22px;line-height:1.35;padding-right:0;overflow-wrap:anywhere}
+.dc-focus .dc-head-actions{flex-wrap:nowrap;gap:16px;padding-top:3px;flex-shrink:0}
+.dc-focus .dc-head-actions .close-x{width:30px;height:30px;display:grid;place-items:center}
+.dc-focus .dc-more{position:relative;font-size:13px}
+.dc-focus .dc-more>summary{cursor:pointer;list-style:none;padding:6px 10px;color:var(--t2);border:1px solid var(--b1);border-radius:6px}
+.dc-focus .dc-more>summary::-webkit-details-marker{display:none}
+.dc-focus .dc-more-menu{position:absolute;right:0;top:38px;width:200px;display:grid;gap:4px;background:var(--bg2);padding:8px;border:1px solid var(--b1);border-radius:8px;box-shadow:0 8px 24px #0002;z-index:5}
+.dc-focus .dc-more-menu .tbtn{text-align:left;justify-content:flex-start;padding:10px;border:0;background:transparent}
+.dc-focus .dc-context{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px}
+.dc-focus .dc-context>.tbtn{flex-shrink:0;min-height:36px}
+.dc-focus .dc-stage-picker{min-width:0;flex:1}
+.dc-focus .dc-stage-picker>summary{cursor:pointer;line-height:1.5;padding:8px 0;font-size:13px;color:var(--t1)}
+.dc-focus .dc-stage-picker>summary>span:first-child{color:var(--t3);margin-right:8px}
+.dc-focus .dc-stage-change{font-size:11px;color:var(--ac2);margin-left:12px}
+.dc-focus .dc-stagebar{margin:8px 0 0;border-radius:6px;gap:4px;border:0}
+.dc-focus .dc-stage-btn{flex:0 1 auto;max-width:100%;white-space:normal;background:var(--bg3)!important;color:var(--t2)!important;border:1px solid var(--b1)!important;border-radius:4px}
+.dc-focus .dc-stage-btn.active{background:var(--ac2)!important;color:var(--bg1,#fff)!important;box-shadow:none}
+.dc-focus .dc-nav{display:flex;gap:22px;border-bottom:1px solid var(--b1);margin:0 0 24px;overflow-x:auto}
+.dc-focus .dc-nav button{font:inherit;font-size:13px;white-space:nowrap;background:none;border:0;border-bottom:2px solid transparent;color:var(--t3);padding:12px 0;cursor:pointer}
+.dc-focus .dc-nav button[aria-selected=true]{color:var(--t1);border-bottom-color:var(--ac2);font-weight:600}
+.dc-focus :is(button,summary,select,textarea,a):focus-visible{outline:2px solid var(--ac2);outline-offset:3px}
+.dc-focus .dc-grid{grid-template-columns:minmax(280px,.85fr) minmax(340px,1.15fr);gap:32px;margin:0}
+.dc-focus .dc-section-h{font-size:12px;text-transform:none;letter-spacing:0;color:var(--t2);font-weight:600;margin:22px 0 12px}
+.dc-focus .dc-section-h:first-child{margin-top:0}
+.dc-focus .field-grid{grid-template-columns:145px minmax(0,1fr);gap:4px 14px}
+.dc-focus .dc-key-fields{font-size:13px;line-height:1.55}
+.dc-focus .dc-key-fields select{width:100%;font-family:inherit;border:1px solid var(--b1);background:var(--bg2);color:var(--t1);border-radius:5px}
+.dc-focus .dc-resp-editable .muted{display:none}
+.dc-focus .dc-contact-card{background:transparent;border:0;border-top:1px solid var(--b1);border-radius:0;padding:12px 0}
+.dc-focus .dc-contact-actions{gap:8px}
+.dc-focus .dc-contact-name{font-size:14px}
+.dc-focus .dc-overview-deeds{border-top:1px solid var(--b1);padding-top:18px;margin-top:18px}
+.dc-focus .dc-wa-pane{border-radius:8px;box-shadow:none}
+.dc-focus .dc-wa-body{height:clamp(260px,45vh,520px);max-height:520px}
+.dc-focus .dc-wa-input-wrap{flex-wrap:wrap}
+.dc-focus .dc-wa-input{min-width:120px}
+.dc-focus .dc-material-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
+.dc-focus .dc-disclosure{border-top:1px solid var(--b1);margin-top:20px}
+.dc-focus .dc-disclosure>summary{padding:16px 0;cursor:pointer;font-size:13px;font-weight:600;color:var(--t1)}
+.dc-focus .dc-disclosure-body{padding:0 0 16px}
+.dc-focus .dc-disclosure .modal-sub{margin:0}
+.dc-focus .dp-wrap{background:transparent;border:0;padding:0}
+.dc-focus .dp-head p{max-width:600px;line-height:1.5}
+.dc-focus .dp-gates{display:none}
+.dc-focus #dc-panel-details{max-width:850px}
+.dc-focus .dc-feed{max-height:none}
+@media(max-width:900px){
+  .dc-focus .dc-grid{grid-template-columns:1fr;gap:26px}
+  .dc-focus .dc-right{border-top:1px solid var(--b1);padding-top:22px}
+}
+@media(max-width:640px){
+  .dc-focus-overlay{padding:0!important}
+  .dc-focus-overlay .dc-focus{width:100%;margin:0;min-height:100dvh;border-radius:0;border:0;padding:20px 16px}
+  .dc-focus .dc-head{flex-direction:row;gap:10px}
+  .dc-focus .dc-head h2{font-size:18px}
+  .dc-focus .dc-head-actions{width:auto;gap:6px}
+  .dc-focus .dc-context{flex-direction:column;gap:6px}
+  .dc-focus .dc-nav{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;margin-bottom:20px;overflow:visible}
+  .dc-focus .dc-nav button{text-align:left;font-size:12px;padding:11px 0}
+  .dc-focus .field-grid{grid-template-columns:115px minmax(0,1fr);gap:6px 10px}
+  .dc-focus .field-grid .fl,.dc-focus .field-grid .fv{padding:4px 0;font-size:12px}
+  .dc-focus .dc-wa-body{height:340px}
+}
