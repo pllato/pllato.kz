@@ -71,7 +71,13 @@ async function api(env, path, method = 'GET', body) {
     method, headers: { Authorization: 'Bearer ' + await token(env), 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(25000),
   });
-  if (!r.ok) throw Object.assign(fail(`Zoom API: HTTP ${r.status}. Проверьте права приложения и подключение.`, 502), { zoomStatus: r.status });
+  if (!r.ok) {
+    const detail=await r.json().catch(()=>({}));
+    const code=Number.isFinite(Number(detail.code)) ? Number(detail.code) : 'unknown';
+    // Classify errors without persisting Zoom response bodies or credentials.
+    const reason=/scope/i.test(String(detail.message||'')) ? 'Недостаточно прав Zoom API (scope); обновите права приложения и подключите Zoom повторно.' : 'Проверьте права приложения и подключение.';
+    throw Object.assign(fail(`Zoom API: HTTP ${r.status}, code ${code}. ${reason}`,502),{zoomStatus:r.status,zoomCode:code});
+  }
   return r.status === 204 ? {} : r.json();
 }
 function taskDeal(task) {
