@@ -224,10 +224,11 @@ async function download(env, file) {
 }
 async function trashOriginal(env, file) {
   // Удаляем конкретный файл, а не всю встречу: транскрипт может появиться позже.
+  if (file.status !== 'stored' || file.deleted_at || !file.imported_at || !file.r2_key || !(file.size > 0)) throw fail('Перенос не подтверждён: оригинал оставлен в Zoom');
   const object = await env.FILES.head(file.r2_key);
   if (!object || object.size !== file.size) throw fail('Копия отсутствует: оригинал оставлен в Zoom');
   await api(env, '/meetings/' + zoomMeetingPath(file.meeting_uuid) + '/recordings/' + encodeURIComponent(file.id) + '?action=trash', 'DELETE');
-  await env.DB.prepare('UPDATE zoom_files SET zoom_deleted_at=? WHERE id=?').bind(now(), file.id).run();
+  await env.DB.prepare('UPDATE zoom_files SET zoom_deleted_at=?,error=NULL,retry_at=NULL WHERE id=?').bind(now(), file.id).run();
 }
 export async function notifyZoomFiles(env, notify) {
   if (!notify) return;
@@ -260,6 +261,13 @@ export async function processZoomJobs(env, notify) {
     DO UPDATE SET v=excluded.v WHERE CAST(zoom_private.v AS INTEGER) < ? RETURNING v`).bind(lease, Date.now()).first();
   if (!locked) return;
   try {
+    if (env.ZOOM_TRASH_AFTER_COPY === 'true') {
+      const {results}=await env.DB.prepare("SELECT * FROM zoom_files WHERE status='stored' AND deleted_at IS NULL AND imported_at IS NOT NULL AND r2_key IS NOT NULL AND size>0 AND zoom_deleted_at IS NULL AND (retry_at IS NULL OR retry_at<=?) ORDER BY size DESC,id LIMIT 10").bind(now()).all();
+      for (const f of results) {
+        try { await trashOriginal(env, f); }
+        catch(e) { await env.DB.prepare('UPDATE zoom_files SET error=?,retry_at=? WHERE id=?').bind(String(e.message).slice(0,250), new Date(Date.now()+3600000).toISOString(),f.id).run(); }
+      }
+    }
     await syncStaffAdmission(env);
     if (Date.now() - Number(await get(env, 'last_scan') || 0) > 5 * 60000) {
       // Свежие записи проверяем независимо от движения по старому архиву.
@@ -273,11 +281,7 @@ export async function processZoomJobs(env, notify) {
       catch(e) { await env.DB.prepare('UPDATE zoom_files SET error=?,attempts=attempts+1,retry_at=? WHERE id=?').bind(String(e.message).slice(0,250), new Date(Date.now() + Math.min(360, 2 ** Math.min(f.attempts,8)) * 60000).toISOString(),f.id).run(); }
     }
     await notifyZoomFiles(env,notify);
-    if (env.ZOOM_TRASH_AFTER_COPY === 'true') {
-      const f = await env.DB.prepare("SELECT * FROM zoom_files WHERE status='stored' AND zoom_deleted_at IS NULL AND deal_id IS NOT NULL AND (retry_at IS NULL OR retry_at<=?) LIMIT 1").bind(now()).first();
-      if (f) try { await trashOriginal(env, f); }
-      catch(e) { await env.DB.prepare('UPDATE zoom_files SET error=?,retry_at=? WHERE id=?').bind(String(e.message).slice(0,250), new Date(Date.now()+3600000).toISOString(),f.id).run(); }
-    }
+
 
   } finally { await env.DB.prepare("DELETE FROM zoom_private WHERE k='job_lock' AND v=?").bind(lease).run(); }
 }
