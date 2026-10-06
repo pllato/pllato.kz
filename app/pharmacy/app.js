@@ -1520,6 +1520,22 @@ function sendMsg(tid){
 // Запись и отправка голосового в WhatsApp (тап — старт, тап ещё раз — стоп+отправка)
 let _waRec=null,_waChunks=[];
 function blobToB64(blob){ return new Promise(res=>{ const fr=new FileReader(); fr.onloadend=()=>res(String(fr.result).split(',')[1]||''); fr.readAsDataURL(blob); }); }
+// Предпросмотр записанного голосового: прослушать → отправить / перезаписать / удалить.
+// Blob-ссылку обязательно отзываем на выходе, иначе запись висит в памяти вкладки до перезагрузки.
+function voicePreview(blob, onSend, onRetake){
+  const url=URL.createObjectURL(blob);
+  const bg=openModal(`<div class="modal-h"><div><h3>Голосовое сообщение</h3><div class="mh-sub">прослушайте перед отправкой</div></div><button class="x" data-vp="close">${ic('i-x')}</button></div>
+    <div class="modal-b"><audio src="${url}" controls autoplay style="width:100%;display:block"></audio>
+      <div class="muted2" style="font-size:12px;margin-top:8px">Размер ${(blob.size/1024).toFixed(0)} КБ. Клиенту пока ничего не ушло.</div></div>
+    <div class="modal-f"><button class="btn" data-vp="close">Удалить</button>
+      <button class="btn" data-vp="retake">${ic('i-mic','sm')} Записать заново</button>
+      <button class="btn primary" data-vp="send">${ic('i-send','sm')} Отправить</button></div>`);
+  const done=()=>{ try{ URL.revokeObjectURL(url); }catch(e){} closeModal(); };
+  bg.addEventListener('click',e=>{ if(e.target===bg) try{ URL.revokeObjectURL(url); }catch(_){} });  // клик по фону закрывает мимо done()
+  bg.querySelectorAll('[data-vp=close]').forEach(b=>b.onclick=done);
+  bg.querySelector('[data-vp=retake]').onclick=()=>{ done(); onRetake&&onRetake(); };
+  bg.querySelector('[data-vp=send]').onclick=()=>{ done(); onSend&&onSend(); };
+}
 async function micToggle(audioUrl, btn, onSent, extraBody){
   if(_waRec && _waRec.state==='recording'){ _waRec.stop(); return; }
   if(!navigator.mediaDevices || !window.MediaRecorder){ toast('Запись не поддерживается браузером','i-x','#dc2626'); return; }
@@ -1531,12 +1547,17 @@ async function micToggle(audioUrl, btn, onSent, extraBody){
     stream.getTracks().forEach(t=>t.stop()); btn.style.color='';
     const blob=new Blob(_waChunks,{type:(_waRec.mimeType||'audio/webm')});
     if(!blob.size){ toast('Пустая запись','i-info','#d97706'); return; }
-    const b64=await blobToB64(blob); const old=btn.innerHTML; btn.innerHTML=ic('i-sync','sm'); btn.disabled=true;
-    const extra = typeof extraBody==='function'?(extraBody()||{}):(extraBody||{});
-    const r=await api(audioUrl,{method:'POST',body:JSON.stringify({audio_b64:b64,mime:blob.type,...extra})});
-    btn.disabled=false; btn.innerHTML=old;
-    if(!r.ok){ toast((r.data&&r.data.error)||'Не удалось отправить','i-x','#dc2626'); return; }
-    toast((r.data&&r.data.whatsapp&&r.data.whatsapp.sent)?'Голосовое отправлено в WhatsApp':'Записано (доставка при подключённом WhatsApp)','i-check2'); onSent&&onSent();
+    // Раньше запись уходила клиенту сразу по второму тапу — услышать её можно было только
+    // у клиента в WhatsApp. Теперь сначала даём прослушать и решить: отправить, перезаписать
+    // или удалить. Отменённая запись не уходит никуда.
+    voicePreview(blob, async()=>{
+      const b64=await blobToB64(blob); const old=btn.innerHTML; btn.innerHTML=ic('i-sync','sm'); btn.disabled=true;
+      const extra = typeof extraBody==='function'?(extraBody()||{}):(extraBody||{});
+      const r=await api(audioUrl,{method:'POST',body:JSON.stringify({audio_b64:b64,mime:blob.type,...extra})});
+      btn.disabled=false; btn.innerHTML=old;
+      if(!r.ok){ toast((r.data&&r.data.error)||'Не удалось отправить','i-x','#dc2626'); return; }
+      toast((r.data&&r.data.whatsapp&&r.data.whatsapp.sent)?'Голосовое отправлено в WhatsApp':'Записано (доставка при подключённом WhatsApp)','i-check2'); onSent&&onSent();
+    }, ()=>micToggle(audioUrl, btn, onSent, extraBody));   // «Записать заново» — сразу новая запись
   };
   try{ _waRec.start(); }catch(e){ stream.getTracks().forEach(t=>t.stop()); toast('Не удалось начать запись','i-x','#dc2626'); return; }
   btn.style.color='#ef4444'; toast('Запись… тап по микрофону ещё раз — отправить','i-mic');
