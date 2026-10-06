@@ -1,5 +1,5 @@
 // Presentation only: never changes the drawing or recovery state.
-import './tool-help.mjs?v=0.17.78';
+import './tool-help.mjs?v=0.17.83';
 import {mountSheetNavigator} from './sheet-navigator.mjs?v=0.17.78';
 import {mountCableCatalog} from './cable-catalog.mjs?v=0.17.78';
 mountCableCatalog();
