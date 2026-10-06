@@ -200,6 +200,13 @@ API int pllato_export_selection(const char *roots){
   g.roots[o->index]=1;p=*end?end+1:end;
  }
  for(unsigned i=0;i<n;i++)if(g.roots[i])export_mark(&g,drawing.object[i].handle.value,2);
+ /* AutoCAD requires the ACAD registration even without surviving EED users. */
+ BITCODE_H acad=dwg_find_tablehandle(&drawing,"ACAD","APPID");
+ if(!acad){fprintf(stderr,"EXPORT_REJECT missing mandatory ACAD registration\n");g.error=2;goto done;}
+ export_mark(&g,acad->absolute_ref,2);
+ /* Viewport context depends on drawing scales and persisted system variables. */
+ const char *systemDictionaries[]={"ACAD_SCALELIST","AcDbVariableDictionary"};
+ for(unsigned i=0;i<2;i++){BITCODE_H ref=dwg_find_dictionary(&drawing,systemDictionaries[i]);if(ref)export_mark(&g,ref->absolute_ref,2);}
  /* Header defaults and global registries are retained as containers. Their
     unreferenced contents do not make an unselected plan part of the export. */
  for(const Dwg_DYNAPI_field *f=dwg_dynapi_header_fields();f->name;f++){

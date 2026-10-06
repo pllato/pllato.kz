@@ -56,8 +56,9 @@ const moved=updated.tables.BLOCK_RECORD.entries.flatMap(b=>b.entities||[]).find(
 assert.equal(moved.insertionPoint.x,device.insertionPoint.x+12);
 for(let i=0;i<device.attribs.length;i++){assert.equal(moved.attribs[i].text.startPoint.x,device.attribs[i].text.startPoint.x+12);assert.equal(moved.attribs[i].text.startPoint.y,device.attribs[i].text.startPoint.y+34);}
 assert.ok(!updated.entities.some(e=>e.handle===added));
-assert.equal(updated.objects.XRECORD.length,1);
-const stored=new TextDecoder().decode(Uint8Array.from(updated.objects.XRECORD[0].data.flatMap(x=>Array.from(x.value))));
+assert.equal(updated.objects.XRECORD.length,(original.objects.XRECORD||[]).length+1);
+for(const record of original.objects.XRECORD||[])assert.deepEqual(updated.objects.XRECORD.find(r=>r.handle===record.handle),record);
+const stored=new TextDecoder().decode(Uint8Array.from(updated.objects.XRECORD.find(r=>!(original.objects.XRECORD||[]).some(o=>o.handle===r.handle)).data.flatMap(x=>Array.from(x.value))));
 assert.equal(JSON.parse(stored).title,'Второй');
 assert.equal(m.ccall('pllato_remove','number',['string'],[device.handle]),0);
 assert.ok(m.ccall('pllato_save','number',['string'],['/removed.dwg'])<128);
