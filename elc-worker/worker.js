@@ -1,3 +1,4 @@
+import {processClientGroupRefresh} from './wa-client-groups.js';
 import { AUTOMATIC_PRODUCTION_ENABLED } from './production-policy.js';
 import { DEMO_BUILD_STAGE_RE, INVOICE_BUILD_STAGE_RE } from './production-stages.js';
 import { handleStageGroups, processStageGroups } from './wa-stage-groups.js';
@@ -12837,6 +12838,7 @@ export default {
   // ── Cron (каждую минуту) ──────────────────────────────────────────────
   // Обрабатываем отложенные WA-сообщения которые пора слать.
   async scheduled(event, env, ctx) {
+    ctx.waitUntil(processClientGroupRefresh(env).catch(e=>console.error('[wa-group-discovery]',e.message)));
     ctx.waitUntil(processStageGroups(env).catch(e=>console.error('[wa-stage-groups]',e.message)));
     CURRENT_CTX = ctx; // для фоновой рассылки Web Push из produceDeedReminders
     ctx.waitUntil(processZoomJobs(env, createNotification).catch(e => console.error("[zoom] job failed", e.message)));
