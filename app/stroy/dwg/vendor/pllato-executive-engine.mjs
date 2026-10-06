@@ -3740,7 +3740,7 @@ Module["FS"] = FS;
 // End JS library exports
 // end include: postlibrary.js
 // Imports from the Wasm binary.
-var _pllato_legacy_close, _pllato_legacy_open, _pllato_legacy_move, _pllato_legacy_text, _pllato_legacy_save, _pllato_count, _pllato_add_line, _pllato_add_text, _pllato_add_polyline, _pllato_preserve_source, _pllato_close, _pllato_add_dimension, _pllato_dimension_detach, _pllato_probe_opaque, _pllato_dimension_move, _pllato_dimension, _pllato_text, _pllato_text_height, _pllato_open, _pllato_root_manifest, _pllato_executive_metadata, _pllato_probe_table, _pllato_export_selection, _pllato_clone_selection, _pllato_copy_objects, _pllato_copy_object, _pllato_last_handle, _pllato_move, _pllato_insert_angle, _pllato_text_center, _pllato_spline_point, _pllato_vertex, _pllato_color, _pllato_layer_off, _pllato_style_font, _pllato_prepare_font, _pllato_text_font, _pllato_rgb, _pllato_lineweight, _pllato_dimension_hide, _pllato_remove, _pllato_save, _setThrew, __emscripten_stack_restore, __emscripten_stack_alloc, _emscripten_stack_get_current, memory, __indirect_function_table, wasmMemory;
+var _pllato_legacy_close, _pllato_legacy_open, _pllato_legacy_move, _pllato_legacy_text, _pllato_legacy_save, _pllato_count, _pllato_add_line, _pllato_add_text, _pllato_add_polyline, _pllato_preserve_source, _pllato_close, _pllato_add_dimension, _pllato_dimension_detach, _pllato_probe_opaque, _pllato_dimension_move, _pllato_dimension, _pllato_text, _pllato_text_height, _pllato_open, _pllato_root_manifest, _pllato_executive_metadata, _pllato_probe_table, _pllato_export_selection, _pllato_clone_selection, _pllato_copy_objects, _pllato_copy_object, _pllato_last_handle, _pllato_move, _pllato_insert_angle, _pllato_text_center, _pllato_spline_point, _pllato_vertex, _pllato_color, _pllato_layer_off, _pllato_style_font, _pllato_prepare_font, _pllato_text_font, _pllato_rgb, _pllato_lineweight, _pllato_dimension_hide, _pllato_remove, _pllato_separate_sheet, _pllato_group_sheet, _pllato_save, _setThrew, __emscripten_stack_restore, __emscripten_stack_alloc, _emscripten_stack_get_current, memory, __indirect_function_table, wasmMemory;
 
 function assignWasmExports(wasmExports) {
   _pllato_legacy_close = Module["_pllato_legacy_close"] = wasmExports["pllato_legacy_close"];
@@ -3784,6 +3784,8 @@ function assignWasmExports(wasmExports) {
   _pllato_lineweight = Module["_pllato_lineweight"] = wasmExports["pllato_lineweight"];
   _pllato_dimension_hide = Module["_pllato_dimension_hide"] = wasmExports["pllato_dimension_hide"];
   _pllato_remove = Module["_pllato_remove"] = wasmExports["pllato_remove"];
+  _pllato_separate_sheet = Module["_pllato_separate_sheet"] = wasmExports["pllato_separate_sheet"];
+  _pllato_group_sheet = Module["_pllato_group_sheet"] = wasmExports["pllato_group_sheet"];
   _pllato_save = Module["_pllato_save"] = wasmExports["pllato_save"];
   _setThrew = wasmExports["setThrew"];
   __emscripten_stack_restore = wasmExports["_emscripten_stack_restore"];

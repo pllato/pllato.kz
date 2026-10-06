@@ -745,6 +745,7 @@ API int pllato_remove(const char *handle){
  b->first_entity=b->num_owned?b->entities[0]:NULL;b->last_entity=b->num_owned?b->entities[b->num_owned-1]:NULL;
  dwg_free_object(o);return 0;
 }
+#include "pllato_separate_sheet.h"
 /* Compare every typed semantic bit, including preserved data-stream tails and
    remapped handles, after a save/read cycle. Padding and CRC are not fields. */
 static int same_typed_record(Dwg_Object *a,Dwg_Object *b){

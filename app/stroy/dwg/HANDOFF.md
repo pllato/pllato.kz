@@ -1,5 +1,52 @@
 # Передача разработки DWG-редактора
 
+## 0.17.81 — separate executive CAD roots, local old-format conversion and save UX
+
+Whole-DWG executive downloads unwrap only the generated PLL_SHEET wrapper into
+individual Model-space CAD roots. LINE, MTEXT, dimensions and device INSERTs
+keep their types; nested device blocks are not recursively exploded. Root
+membership, affine coordinates, attributes, dimension graphics, hatch paths and
+text leaders are updated with preflight and existing owner/fidelity guards.
+Unsupported geometry fails the whole save. The opaque typed-coverage probe is
+required before rewriting opaque roots. LWPOLYLINE's omitted extrusion means
+implicit +Z; numerical normal residuals up to 1e-15 are accepted for planar
+geometry. Arbitrary 3D planes remain unsupported. Metadata records separated
+roots and the saved base angle; reopening in the editor creates an in-memory
+identity wrapper, and later downloads separate it again. Working browser state
+is retained during download; originals are never overwritten.
+
+The duplicate save button is consolidated into one menu: whole DWG/DXF and
+PDF print sheets. The create-executive button has a visible label. A first-drag
+selection awaiting units resumes when units are chosen, without redrawing.
+198 unit tests pass. The menu was visually inspected locally. Browser native
+file-upload end-to-end tests remain blocked by the browser approval gate;
+independent real reader/writer worker API tests are used, without bypassing it.
+
+For DWG2007, an optional loopback-only Python adapter uses installed AutoCAD
+2027 Core Console to open a temporary copy, AUDIT No and SAVEAS DWG2018.
+The editor detects it automatically when opening AC1021. The helper accepts
+only allowed origins, bounded DWG bytes and fixed commands, has no arbitrary
+file/path endpoint, and never changes the GUI session or original file.
+It requires AutoCAD on that computer and potentially browser local-network
+permission. Without it the old-format guard remains. This is not a hosted
+universal converter. See tools/dwg/README.md.
+
+Verified: actual native workers separated 1988 private large plan roots,
+read back their Model membership, regrouped for editor editing and re-exported
+separate roots. AutoCAD ordinary open, AUDIT No, individual LINE/MTEXT/DIMENSION/
+INSERT edits, separate save, close/reopen and AUDIT No passed; all four edited
+colors survived as 3. Both audits retained the source's 2 hatch errors, 0 fixed,
+0 erased. A private DWG2007 was converted with AutoCAD AUDIT 0/0/0, then actual
+workers created an executive from 2097 selected roots and saved 2109 roots.
+AutoCAD opened that generated old-file output, AUDIT No returned 0/0/0,
+LINE/MTEXT/DIMENSION/INSERT edits were saved separately and reopened; the
+second AUDIT No returned 0/0/0 and all four edited colors survived.
+
+The rebuilt native JS/WASM and matched GPL source archive ship together.
+Private drawings, logs, font assets and screenshots remain outside the repository.
+Do not claim lossless universal compatibility, repair of baseline hatch errors,
+or successful end-to-end browser upload while that permission remains blocked.
+
 ## 0.17.80 — source-record preservation for full DWG2018 saves
 
 Full-document AC1032 saves cache source records before edits, preserve unchanged

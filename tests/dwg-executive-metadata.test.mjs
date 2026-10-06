@@ -20,3 +20,9 @@ test('More than ten cable groups receive editable continuation sheets',()=>{
  for(let i=0;i<23;i++)addRoute(p,'a',{id:'r'+i,points:[[0,0],[1,0]],brand:'Кабель '+i,section:'3×2,5'});
  const result=executiveEntities(p,'a');assert.equal(result.ledger.rows.length,23);assert.equal(result.items.filter(i=>i.text?.includes('— ведомость, продолжение')).length,2);
 });
+test('Separated CAD root metadata retains angle and rejects invalid flags',()=>{
+ const p=createExecutiveProject();const s=createExecutive(p,{id:'separate',metresPerUnit:.001,nativeHandles:['A','B']});
+ s.nativeSeparated=true;s.nativeBaseAngle=.15;
+ const next=validateExecutiveProject(p).sheets[0];assert.equal(next.nativeSeparated,true);assert.equal(next.nativeBaseAngle,.15);
+ s.nativeSeparated='yes';assert.throws(()=>validateExecutiveProject(p));s.nativeSeparated=true;s.nativeBaseAngle=Infinity;assert.throws(()=>validateExecutiveProject(p));
+});
