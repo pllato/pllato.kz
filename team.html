@@ -3261,6 +3261,25 @@ textarea.inline-edit-input.inline-edit-h2, .inline-edit-h2 textarea { min-width:
   .chat-bubble { max-width: 90%; font-size: 12px; }
   .tl-chat-thread { padding: 10px; }
 }
+
+.dc-wa-later{border:1px solid var(--b1);border-radius:7px;background:var(--bg2);color:var(--t1);padding:8px 10px;cursor:pointer;font:inherit;font-size:12px;white-space:nowrap;}
+.dc-wa-later:disabled{opacity:.5;cursor:not-allowed;}
+.dc-wa-input-wrap{flex-wrap:wrap;}
+.dc-wa-input{min-width:150px;}
+.dc-wa-scheduled{padding:10px 12px;max-height:180px;overflow:auto;background:var(--bg2);border-top:1px solid var(--b1);font-size:12px;}
+.dc-wa-scheduled-item{display:flex;justify-content:space-between;align-items:start;gap:10px;padding:8px 0;border-bottom:1px solid var(--b1);}
+.dc-wa-scheduled-item>div{min-width:0;overflow-wrap:anywhere;white-space:pre-wrap;}
+.dc-wa-scheduled-item small{color:#b45309;}
+.dc-wa-draft-file{padding:8px 12px;background:var(--bg2);font-size:12px;overflow-wrap:anywhere;}
+.dc-wa-draft-file button{margin-left:10px;}
+.wa-sched-modal-backdrop .wa-sched-modal{background:var(--bg2,#fff);color:var(--t1,#222);max-height:90dvh;overflow:auto;width:min(420px,calc(100vw - 32px));box-sizing:border-box;}
+.wa-sched-modal select,.wa-sched-modal input[type=number]{padding:8px;border:1px solid var(--b1);border-radius:7px;background:var(--bg2);color:var(--t1);}
+#wa-sched-mode{width:100%;margin-bottom:12px;}
+.wa-sched-delay-row{display:flex;gap:8px;}.wa-sched-delay-row input{width:100px;}
+.wa-sched-preview{white-space:pre-wrap;overflow-wrap:anywhere;max-height:120px;overflow:auto;padding:10px;background:var(--bg3);border-radius:7px;margin:10px 0 14px;font-size:13px;}
+.wa-sched-hint,.wa-sched-recipient{font-size:12px;color:var(--t3);}
+#wa-sched-error{font-size:12px;color:#b91c1c;}
+
 </style>
 <!-- Google Tag Manager -->
 <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -7932,76 +7951,106 @@ async function loadWaScheduledMessages() {
 }
 
 // Модалка выбора времени отложенной отправки.
-function openWaScheduleModal(chat, text, onDone) {
-  const existing = document.getElementById('wa-sched-modal-root');
-  if (existing) existing.remove();
+function openWaScheduleModal(chat, text, onDone, options = {}) {
+  ensureWaWidgetStyles();
+  document.getElementById('wa-sched-modal-root')?.remove();
+  const previousFocus = document.activeElement;
   const root = document.createElement('div');
   root.id = 'wa-sched-modal-root';
   root.className = 'wa-sched-modal-backdrop';
-  // дефолт: через 1 час, округлённо до минут, в локальном формате для input
-  const fmtLocal = (d) => {
-    const p = (n) => String(n).padStart(2, '0');
+  const fmtLocal = d => {
+    const p = n => String(n).padStart(2,'0');
     return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
   };
-  const def = new Date(Date.now() + 60 * 60 * 1000);
-  def.setSeconds(0, 0);
-  const minVal = fmtLocal(new Date(Date.now() + 60 * 1000));
-  root.innerHTML = `<div class="wa-sched-modal">
-    <h3>⏰ Отправить позже</h3>
-    <div class="preset-row">
-      <button data-min="60">+1 час</button>
-      <button data-min="180">+3 часа</button>
-      <button data-tomorrow="9">Завтра 9:00</button>
-      <button data-tomorrow="10">Завтра 10:00</button>
-    </div>
-    <label>Дата и время отправки</label>
-    <input type="datetime-local" id="wa-sched-input" value="${fmtLocal(def)}" min="${minVal}">
-    <div class="actions">
-      <button class="btn-cancel" id="wa-sched-cancel">Отмена</button>
-      <button class="btn-ok" id="wa-sched-ok">Запланировать</button>
-    </div>
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const file = options.file;
+  let uploaded = null, busy = false;
+  root.innerHTML = `<div class="wa-sched-modal" role="dialog" aria-modal="true" aria-labelledby="wa-sched-title">
+    <h3 id="wa-sched-title">Отправить позже</h3>
+    <p class="wa-sched-recipient">${escapeHtml(chat.contactName || chat.phone || chat.chatId)}</p>
+    <div class="wa-sched-preview">${escapeHtml(text || 'Без подписи')}${file ? `<br><strong>Файл: ${escapeHtml(file.name)}</strong>` : ''}</div>
+    <div class="preset-row"><button data-min="60">Через час</button><button data-min="180">Через 3 часа</button><button data-tomorrow="9">Завтра в 09:00</button></div>
+    <label for="wa-sched-mode">Когда отправить</label>
+    <select id="wa-sched-mode"><option value="date">Дата и время</option><option value="delay">Через интервал</option></select>
+    <div id="wa-sched-date"><label for="wa-sched-input">Дата и время</label><input type="datetime-local" id="wa-sched-input" value="${fmtLocal(new Date(Date.now()+3600000))}" min="${fmtLocal(new Date())}"></div>
+    <div id="wa-sched-delay" hidden><label for="wa-sched-amount">Отправить через</label><div class="wa-sched-delay-row"><input id="wa-sched-amount" type="number" min="1" max="525600" step="1" value="1" aria-label="Интервал"><select id="wa-sched-unit" aria-label="Единица интервала"><option value="60000">минут</option><option value="3600000" selected>часов</option><option value="86400000">дней</option></select></div></div>
+    <p class="wa-sched-hint">Время: ${escapeHtml(timezone)}. CRM отправит сообщение даже при закрытой вкладке. Возможна задержка до минуты.</p>
+    <p id="wa-sched-error" role="alert"></p>
+    <div class="actions"><button class="btn-cancel" id="wa-sched-cancel">Отмена</button><button class="btn-ok" id="wa-sched-ok">Запланировать</button></div>
   </div>`;
   document.body.appendChild(root);
-  const inputEl = root.querySelector('#wa-sched-input');
-  root.querySelectorAll('.preset-row button').forEach(b => {
-    b.onclick = () => {
-      let d;
-      if (b.dataset.min) {
-        d = new Date(Date.now() + parseInt(b.dataset.min, 10) * 60 * 1000);
-      } else if (b.dataset.tomorrow) {
-        d = new Date(); d.setDate(d.getDate() + 1);
-        d.setHours(parseInt(b.dataset.tomorrow, 10), 0, 0, 0);
-      }
-      d.setSeconds(0, 0);
-      inputEl.value = fmtLocal(d);
-    };
-  });
-  const close = () => root.remove();
-  root.onclick = (e) => { if (e.target === root) close(); };
-  root.querySelector('#wa-sched-cancel').onclick = close;
-  const okBtn = root.querySelector('#wa-sched-ok');
-  okBtn.onclick = async () => {
-    const val = inputEl.value;
-    if (!val) { alert('Выберите дату и время'); return; }
-    const scheduledAt = new Date(val).getTime();
-    if (isNaN(scheduledAt)) { alert('Некорректное время'); return; }
-    if (scheduledAt < Date.now() - 30000) { alert('Время уже прошло'); return; }
-    okBtn.disabled = true;
-    try {
-      const idToken = await fbAuth.currentUser.getIdToken();
-      const r = await fetch(`${WORKER_BASE_URL}/api/wa/schedule`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-        body: JSON.stringify({ chatId: chat.chatId, phone: chat.phone, instanceId: chat.instanceId || undefined, text, scheduledAt }),
-      });
-      if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || `HTTP ${r.status}`); }
-      close();
-      if (typeof onDone === 'function') onDone();
-    } catch (e) {
-      alert('Ошибка планирования: ' + e.message);
-      okBtn.disabled = false;
-    }
+  const mode=root.querySelector('#wa-sched-mode'), date=root.querySelector('#wa-sched-input');
+  mode.onchange=()=>{
+    root.querySelector('#wa-sched-date').hidden=mode.value!=='date';
+    root.querySelector('#wa-sched-delay').hidden=mode.value!=='delay';
   };
+  root.querySelectorAll('.preset-row button').forEach(b=>b.onclick=()=>{
+    const d=new Date();
+    if(b.dataset.min)d.setTime(Date.now()+Number(b.dataset.min)*60000);
+    else {d.setDate(d.getDate()+1);d.setHours(9,0,0,0);}
+    date.value=fmtLocal(d);mode.value='date';mode.onchange();
+  });
+  const close=()=>{if(busy)return;root.remove();previousFocus?.focus();};
+  root.onclick=e=>{if(e.target===root)close();};
+  root.querySelector('#wa-sched-cancel').onclick=close;
+  root.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){e.stopPropagation();close();}
+    if(e.key==='Tab'){
+      const controls=[...root.querySelectorAll('button,input,select')].filter(el=>!el.disabled&&el.getClientRects().length);
+      const first=controls[0],last=controls[controls.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+      else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  const ok=root.querySelector('#wa-sched-ok'),error=root.querySelector('#wa-sched-error');
+  ok.onclick=async()=>{
+    if(busy)return;
+    const amount=Number(root.querySelector('#wa-sched-amount').value);
+    const scheduledAt=mode.value==='delay'?Date.now()+amount*Number(root.querySelector('#wa-sched-unit').value):new Date(date.value).getTime();
+    if(mode.value==='delay'&&(!Number.isInteger(amount)||amount<1||amount>525600)){error.textContent='Укажите положительное целое число.';return;}
+    if(!Number.isSafeInteger(scheduledAt)||scheduledAt<=Date.now()){error.textContent='Выберите время в будущем.';return;}
+    busy=true;error.textContent='';ok.textContent=file?'Загружаю файл…':'Сохраняю…';
+    root.querySelectorAll('button,input,select').forEach(el=>el.disabled=true);
+    try {
+      if(file&&!uploaded)uploaded=await uploadWaMediaFile(file,file.name);
+      ok.textContent='Сохраняю…';
+      const token=await fbAuth.currentUser.getIdToken();
+      const r=await fetch(`${WORKER_BASE_URL}/api/wa/schedule`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({chatId:chat.chatId,phone:chat.phone,instanceId:chat.instanceId||undefined,text,scheduledAt,mediaUrl:uploaded?.publicUrl,fileName:uploaded?.fileName})});
+      const data=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(data.error||`HTTP ${r.status}`);
+      busy=false;close();
+      if(typeof onDone==='function')onDone(data);
+    } catch(e){error.textContent='Не удалось запланировать: '+e.message;}
+    finally {busy=false;root.querySelectorAll('button,input,select').forEach(el=>el.disabled=false);ok.textContent='Запланировать';}
+  };
+  date.focus();
+}
+
+async function loadDealWaScheduled(pane) {
+  const state=pane._waState,box=pane.querySelector('#dc-wa-scheduled');
+  if(!state||!box)return;
+  const current=()=>pane.isConnected&&pane._waState===state;
+  try {
+    const token=await fbAuth.currentUser.getIdToken();
+    const query=new URLSearchParams({chatId:state.canonicalChatId||state.rawChatId,status:'active'});
+    if(state.instanceId)query.set('instanceId',state.instanceId);
+    const r=await fetch(`${WORKER_BASE_URL}/api/wa/schedule?${query}`,{headers:{Authorization:`Bearer ${token}`}});
+    if(!r.ok)throw new Error('Не удалось загрузить отложенные сообщения');
+    const data=await r.json();if(!current())return;
+    const items=data.items||[],sig=JSON.stringify(items);
+    if(box.dataset.sig===sig)return;
+    box.dataset.sig=sig;box.hidden=!items.length;
+    box.innerHTML=`<strong>Отложенные сообщения · ${items.length}</strong>`+items.map(item=>`<div class="dc-wa-scheduled-item"><div><strong>${escapeHtml(new Date(item.scheduledAt).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))}</strong> · ${item.status==='failed'?'Ошибка отправки':item.status==='sending'?'Отправляется':'Ожидает отправки'}<div>${escapeHtml(item.text||'')}${item.fileName?`<br>Файл: ${escapeHtml(item.fileName)}`:''}</div>${item.error?`<small role="status">${escapeHtml(item.error)}</small>`:''}</div>${item.status==='pending'?`<button class="tbtn tbtn-sm" data-cancel="${escapeHtml(item.id)}">Отменить</button>`:''}</div>`).join('');
+    box.querySelectorAll('[data-cancel]').forEach(btn=>btn.onclick=async()=>{
+      btn.disabled=true;
+      try {
+        const token=await fbAuth.currentUser.getIdToken();
+        const r=await fetch(`${WORKER_BASE_URL}/api/wa/schedule/${encodeURIComponent(btn.dataset.cancel)}`,{method:'DELETE',headers:{Authorization:`Bearer ${token}`}});
+        const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||'Не удалось отменить');
+        if(current())await loadDealWaScheduled(pane);
+      }catch(e){alert(e.message);btn.disabled=false;}
+    });
+  }catch(e){if(current()){box.hidden=false;box.dataset.sig='';box.textContent=e.message;}}
 }
 
 async function loadWaWidgetMessages(opts = {}) {
@@ -12078,10 +12127,13 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
   const input = modal.querySelector('#dc-wa-input');
   const sendBtn = modal.querySelector('#dc-wa-send');
   const attachBtn = modal.querySelector('#dc-wa-attach');
+  const laterBtn=modal.querySelector('#dc-wa-later');
+  const fileBox=modal.querySelector('#dc-wa-draft-file');
+  const drawFile=()=>{const state=pane._waState;fileBox.hidden=!state?.file;fileBox.replaceChildren();if(!state?.file)return;const label=document.createElement('span');label.textContent='Файл: '+state.file.name;const remove=document.createElement('button');remove.className='tbtn tbtn-sm';remove.textContent='Убрать';remove.onclick=()=>{state.file=null;drawFile();};fileBox.append(label,remove);};
   const statusEl = modal.querySelector('#dc-wa-status');
   const tabs = modal.querySelector('#dc-wa-tabs');
   if (!pane || !body) return;
-  const controls = [input, sendBtn, attachBtn, modal.querySelector('#dc-wa-voice')];
+  const controls = [input, sendBtn, attachBtn, laterBtn, modal.querySelector('#dc-wa-voice')];
   controls.forEach(el => { if (el) el.disabled = true; });
   const digits = String(contactPhone || '').replace(/\D/g, '').replace(/^8(\d{10})$/, '7$1');
   const states = [];
@@ -12094,10 +12146,14 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
     input.placeholder = state?.isGroup ? 'Написать в группу…' : 'Написать клиенту лично…';
     controls.forEach(el => { if (el) el.disabled = !state; });
     sendBtn.disabled = !state || !!state.sending;
+    laterBtn.disabled = sendBtn.disabled;
     body.dataset.lastTs = '0';
     body.innerHTML = '<div class="dc-wa-empty">Загружаем переписку…</div>';
     statusEl.textContent = '';
+    const queue=pane.querySelector('#dc-wa-scheduled');queue.hidden=true;queue.dataset.sig='';
+    drawFile();
     drawTabs();
+    if(state)loadDealWaScheduled(pane);
     if (state) renderDealWaMessages(pane);
     else body.innerHTML = '<div class="dc-wa-empty">Укажите телефон клиента или настройте создание группы по этапу воронки.</div>';
   };
@@ -12157,6 +12213,7 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
   window.__dcWaPollTimer = setInterval(() => {
     if (!pane.isConnected) { clearInterval(window.__dcWaPollTimer); window.__dcWaPollTimer = null; return; }
     renderDealWaMessages(pane, { silent: true });
+    if(ticks % 5 === 0)loadDealWaScheduled(pane);
     if (++ticks % 5 === 0 && !loadingGroups) {
       loadingGroups = true;
       loadGroups().finally(() => { loadingGroups = false; });
@@ -12169,10 +12226,13 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
       const state = pane._waState;
       const draft = input.value;
       const text = draft.trim();
-      if (!state || state.sending || (!text && !mediaUrl)) return;
+      const file=state?.file;
+      if (!state || state.sending || (!text && !mediaUrl && !file)) return;
       state.sending = true;
       sendBtn.disabled = true;
+      laterBtn.disabled = true;
       try {
+        if(file){const upload=await uploadWaMediaFile(file,file.name);mediaUrl=upload.publicUrl;fileName=upload.fileName;}
         const idToken = await fbAuth.currentUser.getIdToken();
         const r = await fetch(`${WORKER_BASE_URL}/api/wa/send`, {
           method: 'POST',
@@ -12187,9 +12247,11 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
         const data = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
         if (state.draft === draft) state.draft = '';
+        if(state.file===file)state.file=null;
         if (data.chatId) state.canonicalChatId = data.chatId;
         if (pane._waState === state) {
           if (input.value === draft) input.value = '';
+          drawFile();
           await renderDealWaMessages(pane);
         }
       } catch (e) {
@@ -12198,6 +12260,7 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
       } finally {
         state.sending = false;
         sendBtn.disabled = !pane._waState || !!pane._waState.sending;
+        laterBtn.disabled = sendBtn.disabled;
       }
     };
     sendBtn.onclick = () => send('', '');
@@ -12209,9 +12272,22 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
   const chatRefGetter = () => ({ rawChatId: pane._waState.rawChatId, phone: pane._waState.phone, instanceId: pane._waState.instanceId });
   const onSentRefresh = async () => { await renderDealWaMessages(pane); };
   bindWaVoiceButton(voiceBtn, chatRefGetter, onSentRefresh);
-  if (attachBtn) {
-    bindWaAttachButton(attachBtn, chatRefGetter, onSentRefresh);
-  }
+  if(attachBtn)attachBtn.onclick=async()=>{
+    const state=pane._waState;if(!state||state.sending)return;
+    const file=await pickWaFile('*/*');if(!file)return;
+    if(file.size>50*1024*1024){alert('Максимальный размер файла — 50 МБ');return;}
+    state.file=file;if(pane._waState===state)drawFile();
+  };
+  laterBtn.onclick=()=>{
+    const state=pane._waState,draft=input.value,file=state?.file;
+    if(!state||state.sending)return;
+    if(!draft.trim()&&!file){statusEl.textContent='Напишите сообщение или прикрепите файл.';input.focus();return;}
+    openWaScheduleModal({chatId:state.canonicalChatId||state.rawChatId,phone:state.phone,instanceId:state.instanceId,contactName:state.contactName},draft.trim(),data=>{
+      state.instanceId=data.instanceId||state.instanceId;
+      if(state.draft===draft)state.draft='';if(state.file===file)state.file=null;
+      if(pane._waState===state){if(input.value===draft)input.value='';drawFile();loadDealWaScheduled(pane);}
+    },{file});
+  };
 }
 
 async function renderDealWaMessages(pane, opts = {}) {
@@ -12224,7 +12300,8 @@ async function renderDealWaMessages(pane, opts = {}) {
   if (opts.silent && pane._waLoading === generation) return;
   const current = () => pane.isConnected && pane._waState === state && pane._waGeneration === generation;
 
-  if (!state.canonicalChatId) {
+  const requestChatId=state.canonicalChatId || (state.instanceId ? `wa:${state.instanceId}:${state.rawChatId}` : null);
+  if (!requestChatId) {
     // Чата ещё нет — покажем заглушку
     if (!opts.silent) {
       body.innerHTML = `<div class="dc-wa-empty">📭 Истории пока нет.<br>Напиши первое сообщение — оно создаст диалог.</div>`;
@@ -12238,14 +12315,15 @@ async function renderDealWaMessages(pane, opts = {}) {
     // Реактивность: на silent-polling — only delta (since=lastTs).
     // На full render — все 200 last messages.
     const lastTs = parseInt(body.dataset.lastTs || '0', 10);
-    let url = `${WORKER_BASE_URL}/api/wa/messages?chatId=${encodeURIComponent(state.canonicalChatId)}&limit=200`;
+    let url = `${WORKER_BASE_URL}/api/wa/messages?chatId=${encodeURIComponent(requestChatId)}&limit=200`;
     if (opts.silent && lastTs > 0) url += `&since=${lastTs}`;
     const r = await fetch(url, { headers: { 'Authorization': `Bearer ${idToken}` } });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     if (!current()) return;
     const items = data.items || [];
-    fetch(`${WORKER_BASE_URL}/api/wa/mark-read`, {method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${idToken}`},body:JSON.stringify({chatId:state.canonicalChatId})}).catch(() => {});
+    if(items.length)state.canonicalChatId=requestChatId;
+    fetch(`${WORKER_BASE_URL}/api/wa/mark-read`, {method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${idToken}`},body:JSON.stringify({chatId:requestChatId})}).catch(() => {});
 
     if (opts.silent && lastTs > 0) {
       // Delta-режим — добавляем только новые в конец
@@ -14483,11 +14561,12 @@ async function openDealCard(dealKey) {
           <div class="dc-wa-pane" id="dc-wa-pane" data-deal-id="${escapeHtml(dealPublicId)}" data-phone="${escapeHtml(contactPhone || '')}" data-contact-name="${escapeHtml(contactName || '')}">
             <div id="dc-wa-tabs" style="display:flex;flex-wrap:wrap;gap:8px;padding:10px;background:var(--bg2)"></div>
             <div class="dc-wa-body" id="dc-wa-body"><div class="dc-wa-empty">${contactPhone ? '⏳ Загружаем историю…' : '📱 У контакта не указан телефон — WhatsApp недоступен.'}</div></div>
+            <div id="dc-wa-scheduled" class="dc-wa-scheduled" hidden></div><div id="dc-wa-draft-file" class="dc-wa-draft-file" hidden></div>
             <div class="dc-wa-input-wrap">
               <button class="dc-wa-attach" id="dc-wa-attach" title="Прикрепить фото/видео/файл">📎</button>
               <button class="dc-wa-attach" id="dc-wa-voice" title="Записать голосовое сообщение" style="margin-left:4px">🎙</button>
               <textarea class="dc-wa-input" id="dc-wa-input" placeholder="Написать в WhatsApp..." rows="1"></textarea>
-              <button class="dc-wa-send" id="dc-wa-send">Отправить</button>
+              <button class="dc-wa-send" id="dc-wa-send">Отправить</button><button class="dc-wa-later" id="dc-wa-later" title="Выбрать время отправки">Отправить позже</button>
             </div>
           </div>
         </div>
