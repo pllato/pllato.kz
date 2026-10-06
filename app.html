@@ -886,6 +886,37 @@ body {
 .fc-fullscreen .fc-labels span { font-size:12px; }
 .fc-fullscreen .fc-close { min-height:38px; padding:8px 14px; font-size:14px; }
 
+
+/* Full-screen workspace: a persistent task sidebar and an independent chart. */
+.fc-fullscreen .fc-card{gap:18px;}
+.fc-fullscreen-workspace{flex:1;min-height:0;display:grid;grid-template-columns:minmax(340px,40%) minmax(0,1fr);gap:24px;}
+.fc-fullscreen-chart{min-width:0;min-height:0;display:flex;flex-direction:column;padding:0 8px 8px;}
+.fc-fullscreen .fc-fullscreen-workspace>.fc-week-tasks{min-height:0;max-height:none;height:100%;box-sizing:border-box;margin:0;padding:0 16px 14px;border:1px solid var(--line-2);border-radius:12px;display:block;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;}
+.fc-fullscreen-workspace .fc-week-tasks-head{display:grid;grid-template-columns:minmax(0,1fr) auto auto;position:sticky;top:0;z-index:1;background:var(--surface);padding:14px 0 12px;margin-bottom:2px;border-bottom:1px solid var(--line-2);gap:8px;}
+.fc-fullscreen-workspace .fc-week-tasks-head strong{grid-column:1/3;}
+.fc-fullscreen-workspace .fc-week-tasks-head .plan{grid-column:1;grid-row:2;margin:0;font-size:12px;white-space:normal;}
+.fc-fullscreen-workspace .fc-week-tasks-head .history{grid-column:2;grid-row:2;margin:0;}
+.fc-fullscreen-workspace .fc-week-tasks-head button:not(.history){grid-column:3;grid-row:2;margin:0;}
+.fc-fullscreen-workspace .fc-week-tasks-head button{min-height:32px;padding:6px 9px;font-size:12px;}
+.fc-fullscreen-workspace .fc-week-tasks-head .period{grid-column:3;grid-row:1;font-size:11px;text-align:right;}
+.fc-fullscreen-workspace .fc-week-task,.fc-fullscreen-workspace .fc-week-task.with-amount{grid-template-columns:20px minmax(0,1fr) auto;gap:6px 9px;padding:12px 0;align-items:start;}
+.fc-fullscreen-workspace .fc-week-task input{width:18px;height:18px;margin-top:2px;}
+.fc-fullscreen-workspace .fc-week-task .text{grid-column:2/-1;line-height:1.45;overflow-wrap:anywhere;}
+.fc-fullscreen-workspace .fc-week-task .amount{grid-column:2;align-self:center;}
+.fc-fullscreen-workspace .fc-week-task .fc-week-task-actions{grid-column:2/-1;justify-content:flex-start;flex-wrap:wrap;}
+.fc-fullscreen-workspace .fc-week-task.with-amount .fc-week-task-actions{grid-column:3;justify-content:flex-end;}
+.fc-fullscreen-workspace .fc-week-task .fc-week-task-actions button{min-height:28px;min-width:28px;}
+.fc-fullscreen-workspace .fc-week-task.overdue{padding-left:8px;}
+.fc-fullscreen-workspace .fc-week-history-list{max-height:none;overflow:visible;}
+@media(max-width:850px){
+  .fc-fullscreen .fc-card{gap:12px;}
+  .fc-fullscreen-workspace{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(180px,40%) minmax(0,1fr);gap:12px;}
+  .fc-fullscreen-chart{grid-row:1;}
+  .fc-fullscreen-workspace>.fc-week-tasks{grid-row:2;}
+  .fc-fullscreen .fc-card-title{font-size:18px;}
+  .fc-fullscreen .fc-card-sub{font-size:11px;}
+}
+
 .fc-labels { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); }
 .fc-plot { flex: 1; min-height: 0; position: relative; margin-top: 12px; }
 .fc-plot svg { width: 100%; height: 100%; display: block; overflow: visible; }
@@ -6371,14 +6402,24 @@ function openChartFullscreen(button){
   close.type='button';close.className='fc-access fc-close';close.textContent='Свернуть ✕';
   close.setAttribute('aria-label','Закрыть полноэкранный график');
   close.onclick=()=>dialog.close();
-  card.querySelector('.fc-card-head').appendChild(close);
+  const head=card.querySelector('.fc-card-head');
+  head.appendChild(close);
+  const tasks=card.querySelector('.fc-week-tasks');
+  if(tasks){
+    const workspace=document.createElement('div');
+    workspace.className='fc-fullscreen-workspace';
+    const chart=document.createElement('section');
+    chart.className='fc-fullscreen-chart';
+    chart.setAttribute('aria-label','График и менеджеры');
+    [...card.children].forEach(node=>{if(node!==head && node!==tasks)chart.appendChild(node);});
+    workspace.append(tasks,chart);
+    card.appendChild(workspace);
+  }
   dialog.appendChild(card);
   const overflow=document.body.style.overflow;
   document.body.appendChild(dialog);
   document.body.style.overflow='hidden';
-  // Перед открытием состава точки убираем верхний слой dialog.
-  dialog.addEventListener('click',event=>{if(event.target.closest('.fc-point'))dialog.close();},true);
-  dialog.addEventListener('keydown',event=>{if(['Enter',' '].includes(event.key)&&event.target.closest('.fc-point'))dialog.close();},true);
+  // Point details and task editors use the overlay layer above this workspace.
   const plot=card.querySelector('.fc-plot'),svg=plot?.querySelector('svg'),labels=card.querySelector('.fc-labels');
   if(svg) svg.setAttribute('preserveAspectRatio','xMidYMax meet');
   const resize=new ResizeObserver(()=>{
