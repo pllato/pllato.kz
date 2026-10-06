@@ -1,3 +1,18 @@
+## 0.17.85 mirrored INSERT and SPLINE separation
+
+Negative-Z planar INSERTs retain OCS normal and scale; translation and sheet
+rotation are converted to their mirrored OCS, including attached attributes.
+Angles are normalized into [0, 2π). SPLINE transforms control and fit points and
+tangent vectors while retaining knots, weights, degree and flags. Tilted planes
+remain guarded. `pllato_check_separate_sheet` performs the same non-mutating
+preflight before accepting executive creation, so unsupported roots do not
+first fail only when downloading. Existing opaque/owner/fidelity guards remain.
+
+Private fixtures stay outside Git. Run `node tests/dwg-mirrored-insert-native.mjs
+input.dwg mirrored-handle` and `node tests/dwg-separated-spline-native.mjs
+input.dwg`. Both exercise translated and 90-degree rotated copies and SDK reread.
+Ship generated JS/WASM and matching source tar together.
+
 ## 0.17.81 separate executive roots
 
 `pllato_separate_sheet.h` is included after removal support and before save
