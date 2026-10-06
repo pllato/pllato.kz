@@ -8,6 +8,10 @@ export function validateExecutiveProject(value){
   const s=createExecutive(p,{...input,nativeHandles:handles(input.nativeHandles)});
   if(typeof input.title!=='string'||input.title.length>1000||!Number.isFinite(input.angle))throw Error('Повреждены параметры листа');
   s.angle=input.angle;
+  if(input.nativeSeparated!==undefined&&typeof input.nativeSeparated!=='boolean')throw Error('Повреждён режим CAD-объектов');
+  if(input.nativeBaseAngle!==undefined&&!Number.isFinite(input.nativeBaseAngle))throw Error('Повреждён сохранённый угол плана');
+  if(input.nativeSeparated!==undefined)s.nativeSeparated=input.nativeSeparated;
+  if(input.nativeBaseAngle!==undefined)s.nativeBaseAngle=input.nativeBaseAngle;
   for(const key of Object.keys(stampLabels)){const text=input.stamp?.[key];if(text!==undefined){if(typeof text!=='string'||text.length>1000)throw Error('Повреждён штамп');s.stamp[key]=text;}}
   if(!Array.isArray(input.routes)||input.routes.length>10000)throw Error('Слишком много трасс');
   for(const r of input.routes){

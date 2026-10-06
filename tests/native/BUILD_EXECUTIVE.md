@@ -1,3 +1,13 @@
+## 0.17.81 separate executive roots
+
+`pllato_separate_sheet.h` is included after removal support and before save
+validation. Export unwraps only PLL_SHEET blocks; import temporarily regroups
+verified Model roots. Rebuild JS/WASM and the corresponding source tar together.
+`node tests/dwg-separated-workers.mjs private-input.dwg private-output.dwg`
+exercises actual worker save/read/import/re-export without browser UI. Input
+must contain an executive; it and outputs stay private. The existing source
+preservation, opaque coverage, owner, field and inventory guards remain active.
+
 ## 0.17.78 reader and large-page repair
 
 Data-page decompressed size excludes the physical 32-byte header. Verify with
