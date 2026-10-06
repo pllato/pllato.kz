@@ -1,4 +1,4 @@
-import {cableLayer} from './source-cable-lengths.mjs?v=0.17.77';
+import {cableLayer} from './source-cable-lengths.mjs?v=0.17.78';
 
 export const markingComplete=route=>!!(String(route.brand||'').trim()&&String(route.section||'').trim());
 // Only recognized cable geometry is checked, never dimensions or device symbols.

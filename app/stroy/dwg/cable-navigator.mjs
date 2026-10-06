@@ -1,5 +1,5 @@
-import {routeLength,cableGroups} from './cable-ledger.mjs?v=0.17.77';
-import {ledgerClipboard} from './cable-drops.mjs?v=0.17.77';
+import {routeLength,cableGroups} from './cable-ledger.mjs?v=0.17.78';
+import {ledgerClipboard} from './cable-drops.mjs?v=0.17.78';
 export function mountCableNavigator(api){
  const panel=document.createElement('div');panel.id='cableNavigator';
  panel.innerHTML='<div class="cnBar"><span id="cnCount" title="Количество марок и сечений на листе"></span><div id="cnList"></div><details id="cnSettings"><summary title="Параметры кабеля: марка, сечение, цвет и выпуски" aria-label="Параметры кабеля"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/></svg></summary><div class="cnBody"><p id="cnLength"></p><div class="cnFields"><label>Марка<input id="cnBrand" maxlength="1000"></label><label>Сечение<input id="cnSection" maxlength="1000"></label></div><label>Добавочная длина, м<input id="cnExtra" type="number" min="0" step="any"></label><div class="cnActions"><button id="cnApply">Применить</button><button id="cnShow">Показать</button></div><small id="cnHint"></small></div></details></div>';

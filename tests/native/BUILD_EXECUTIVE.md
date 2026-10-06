@@ -1,3 +1,13 @@
+## 0.17.78 reader and large-page repair
+
+Data-page decompressed size excludes the physical 32-byte header. Verify with
+`node tests/dwg-section-size-regression.mjs /local/native-saved.dwg`. A private
+102071-record round trip passed, including 951 physical pages and AutoCAD AUDIT No.
+The separately rebuilt reader now uses BD for MTEXT background fill scale in
+dwg.spec, dwg.h and dynapi.c, matching the writer. This prevents column-array
+misalignment and a WASM bounds failure on AutoCAD-saved DWG2018. Both generated
+JS/WASM and both corresponding GPL source archives must be shipped together.
+
 # Executive DWG engine 0.17.25 — corresponding source
 
 ## 0.17.77 — DWG container and anonymous-block export repair

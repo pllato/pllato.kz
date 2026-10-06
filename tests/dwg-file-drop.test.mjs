@@ -1,0 +1,8 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {mountFileDrop} from '../app/stroy/dwg/file-drop.mjs';
+function setup(){const handlers={},opened=[],messages=[],shown=[];let busy=false;mountFileDrop({addEventListener:(n,f)=>handlers[n]=f},{open:f=>opened.push(f),busy:()=>busy,status:s=>messages.push(s),highlight:b=>shown.push(b)});return {handlers,opened,messages,shown,setBusy:b=>busy=b};}
+function event(names,types=['Files']){return {dataTransfer:{types,files:names.map(name=>({name}))},preventDefault(){this.prevented=true;}};}
+test('DWG and DXF drops go through the shared opener',()=>{const s=setup();for(const n of ['plan.DWG','plan.dxf']){const e=event([n]);s.handlers.drop(e);assert.equal(e.prevented,true);}assert.deepEqual(s.opened.map(f=>f.name),['plan.DWG','plan.dxf']);});
+test('invalid or multiple files and busy operations keep the current drawing',()=>{const s=setup();for(const n of [[],['a.dwg','b.dwg'],['photo.png']])s.handlers.drop(event(n));s.setBusy(true);s.handlers.drop(event(['a.dwg']));assert.equal(s.opened.length,0);assert.equal(s.messages.length,4);});
+test('file drag feedback does not hijack text drags or navigate away',()=>{const s=setup();const text=event([],['text/plain']);s.handlers.dragover(text);assert.equal(text.prevented,undefined);const e=event(['a.dwg']);s.handlers.dragenter(e);s.handlers.dragover(e);assert.equal(e.dataTransfer.dropEffect,'copy');s.handlers.dragleave(e);assert.deepEqual(s.shown,[true,false]);});

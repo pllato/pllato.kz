@@ -1,5 +1,32 @@
 # Передача разработки DWG-редактора
 
+## 0.17.78 — drop opening, visible creation errors, large data pages
+
+DWG/DXF file drops use the existing openFile path, including unsaved-work
+confirmation and busy/size limits. Non-file drags remain unchanged; multiple
+and unsupported files are rejected without replacing the drawing.
+Creation failures remain visible above the canvas. Empty sheet export menus
+explain how to save the current drawing and why there are no separate sheets.
+
+Large uncompressed data pages now record the decompressed payload size in the
+page header, excluding the 32-byte physical header. The previous size caused
+readback bounds errors once hundreds of pages accumulated. A private 102071
+record / 2440 block DWG2018 copy passed native write/read and ordinary AutoCAD
+opening plus AUDIT No (0 found/fixed/erased). Original DWG2007 remains read-only;
+a separate CAD conversion was made without touching its source. It contains
+6 Windows OLE objects, a missing SHX and an unresolved external reference.
+These dependencies are retained; missing assets are not claimed restored.
+
+
+The reader was rebuilt with the MTEXT background scale BD correction in the
+field decoder, public struct and dynamic API. The previous reader crashed while
+converting column heights on a CAD-saved DWG2018; corrected conversion passes
+with zero unknown entity types. Browser create/export/edit/re-read on a selected
+block from the private converted drawing also passed. CAD-saved DWG2013 copy
+closed/reopened and AUDIT No again reports 0 errors. No RECOVER was used.
+DWG2007 automatic conversion is not implemented: use an independently checked
+CAD-saved DWG2013/2018 copy; original-format write rejection remains mandatory.
+
 ## 0.17.77 — DWG container and anonymous-block export repair
 
 Fixed nonminimal UMC handle-map offsets, R2004+ Classes trailer, mandatory
