@@ -82,3 +82,11 @@ crons = ["* * * * *"]
 # ── Observability ──
 [observability]
 enabled = true
+
+[[durable_objects.bindings]]
+name = "WA_SCHEDULED"
+class_name = "WaScheduledDelivery"
+
+[[migrations]]
+tag = "v2-wa-scheduled-delivery"
+new_sqlite_classes = ["WaScheduledDelivery"]

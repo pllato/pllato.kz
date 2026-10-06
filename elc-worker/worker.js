@@ -1,3 +1,4 @@
+import { DurableObject } from 'cloudflare:workers';
 import {processClientGroupRefresh} from './wa-client-groups.js';
 import { AUTOMATIC_PRODUCTION_ENABLED } from './production-policy.js';
 import { DEMO_BUILD_STAGE_RE, INVOICE_BUILD_STAGE_RE } from './production-stages.js';
@@ -5571,14 +5572,14 @@ async function deliverWaMessage(env, { channel, chatId, text, mediaUrl, fileName
   let providerText = '';
   if (mediaUrl) {
     const r = await fetch(`${baseUrl}/sendFileByUrl/${apiToken}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(20000),
       body: JSON.stringify({ chatId, urlFile: mediaUrl, fileName, caption: text || undefined }),
     });
     providerStatus = r.status;
     providerText = (await r.text()).slice(0, 500);
   } else if (text) {
     const r = await fetch(`${baseUrl}/sendMessage/${apiToken}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(20000),
       body: JSON.stringify({ chatId, message: text }),
     });
     providerStatus = r.status;
@@ -5699,7 +5700,33 @@ async function handleWaSend(request, env) {
 
 // ── Отложенные WhatsApp-сообщения ──────────────────────────────────────
 // Сотрудник пишет сообщение и ставит время → строка в wa_scheduled_messages
-// со status='pending'. Cron (каждую минуту) находит due и отправляет.
+// со status='pending'. Durable Object запускает отправку; cron страхует сбои.
+// One persistent timer per message; CRM tabs and unrelated cron jobs are not involved.
+export class WaScheduledDelivery extends DurableObject {
+  async schedule(id, at) {
+    await this.ctx.storage.put('messageId', id);
+    await this.ctx.storage.setAlarm(Math.max(Date.now()+1, at));
+  }
+  async alarm() {
+    const id=await this.ctx.storage.get('messageId');
+    if(!id)return;
+    const row=await this.env.DB.prepare('SELECT status,scheduled_at FROM wa_scheduled_messages WHERE id=?').bind(id).first();
+    if(!row||row.status!=='pending'){await this.ctx.storage.deleteAll();return;}
+    if(row.scheduled_at>Date.now()){await this.ctx.storage.setAlarm(row.scheduled_at);return;}
+    await processScheduledWaMessages(this.env,id);
+    await this.ctx.storage.deleteAll();
+  }
+}
+async function armScheduledWaMessage(env,id,at){
+  if(!env.WA_SCHEDULED)throw new Error('Сервис точного планирования недоступен. Повторите позже.');
+  await env.WA_SCHEDULED.get(env.WA_SCHEDULED.idFromName(id)).schedule(id,at);
+}
+async function repairScheduledWaTimers(env){
+  if(!env.WA_SCHEDULED)return;
+  const {results}=await env.DB.prepare("SELECT id,scheduled_at FROM wa_scheduled_messages WHERE status='pending' AND scheduled_at>? AND scheduled_at<=? ORDER BY scheduled_at LIMIT 100").bind(Date.now(),Date.now()+120000).all();
+  await Promise.all((results||[]).map(r=>armScheduledWaMessage(env,r.id,r.scheduled_at)));
+}
+
 function genScheduleId() {
   return 'sch_' + crypto.randomUUID();
 }
@@ -5789,6 +5816,11 @@ async function handleWaScheduleCreate(request, env) {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
   `).bind(id, channelId, chatId, phone || phoneDigits, text || null, mediaUrl, fileName, scheduledAt, me.canonicalUid || me.uid || 'unknown', now).run();
 
+  try { await armScheduledWaMessage(env,id,scheduledAt); }
+  catch(e){
+    const rollback=await env.DB.prepare("UPDATE wa_scheduled_messages SET status='cancelled' WHERE id=? AND status='pending'").bind(id).run();
+    if(rollback.meta.changes)return json({error:e.message||'Не удалось установить таймер. Повторите планирование.'},503,request);
+  }
   await auditLog(env, me, "wa_schedule_create", "wa_scheduled", id, { scheduledAt, hasMedia: !!mediaUrl });
   return json({ ok: true, id, scheduledAt, status: 'pending', chatId: waChatDocId(channel.id_instance, chatId), instanceId: channel.id_instance }, 200, request);
 }
@@ -5812,7 +5844,8 @@ async function handleWaScheduleList(request, env) {
   const params = [];
   if (chatId) { where.push("chat_id = ?"); params.push(chatId); }
   if (instanceId) { where.push('channel_id IN (SELECT id FROM wa_channels WHERE id_instance = ?)'); params.push(instanceId); }
-  if (status === 'active') where.push("status IN ('pending','sending','failed')");
+  if (status === 'activity') { where.push("(status IN ('pending','sending','failed') OR (status='sent' AND sent_at>=?))");params.push(Date.now()-15*60*1000); }
+  else if (status === 'active') where.push("status IN ('pending','sending','failed')");
   else if (status && status !== 'all') { where.push("status = ?"); params.push(status); }
   const whereSQL = where.length ? "WHERE " + where.join(" AND ") : "";
 
@@ -5849,15 +5882,15 @@ async function handleWaScheduleCancel(request, env, id) {
 }
 
 // Cron-обработчик: найти все due pending и отправить. Вызывается из scheduled().
-async function processScheduledWaMessages(env) {
+async function processScheduledWaMessages(env, onlyId = null) {
   const now = Date.now();
   // Never retry an ambiguous provider result automatically: that could send twice.
   await env.DB.prepare("UPDATE wa_scheduled_messages SET status = 'failed', error = 'Не удалось подтвердить отправку. Проверьте переписку перед повторной отправкой.' WHERE status = 'sending' AND sent_at < ?").bind(now - 15 * 60 * 1000).run();
   const { results } = await env.DB.prepare(`
     SELECT * FROM wa_scheduled_messages
-    WHERE status = 'pending' AND scheduled_at <= ?
+    WHERE status = 'pending' AND scheduled_at <= ? ${onlyId ? 'AND id = ?' : ''}
     ORDER BY scheduled_at ASC LIMIT 50
-  `).bind(now).all();
+  `).bind(...(onlyId?[now,onlyId]:[now])).all();
 
   if (!results || results.length === 0) return { processed: 0, sent: 0, failed: 0 };
 
@@ -12838,6 +12871,7 @@ export default {
   // ── Cron (каждую минуту) ──────────────────────────────────────────────
   // Обрабатываем отложенные WA-сообщения которые пора слать.
   async scheduled(event, env, ctx) {
+    ctx.waitUntil(repairScheduledWaTimers(env).catch(e=>console.error('[wa-timer-repair]',e.message)));
     ctx.waitUntil(processClientGroupRefresh(env).catch(e=>console.error('[wa-group-discovery]',e.message)));
     ctx.waitUntil(processStageGroups(env).catch(e=>console.error('[wa-stage-groups]',e.message)));
     CURRENT_CTX = ctx; // для фоновой рассылки Web Push из produceDeedReminders
