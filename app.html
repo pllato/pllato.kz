@@ -857,6 +857,10 @@ body {
 .fc-status button { border:1px solid currentColor; border-radius:7px; background:transparent; color:inherit; padding:5px 8px; font:700 11px/1.2 inherit; cursor:pointer; white-space:nowrap; }
 .fc-grid { display:flex; flex-wrap:nowrap; gap:14px; overflow-x:auto; padding:0 0 8px; scroll-snap-type:x proximity; scrollbar-width:thin; }
 .fc-card { background:var(--surface); border:1px solid var(--line-2); border-radius:14px; padding:16px 18px 14px; flex:0 0 max(290px,calc((100% - 100px) / 3)); min-width:0; height:clamp(560px,36vw,660px); display:flex; flex-direction:column; scroll-snap-align:start; }
+/* Task count must not determine the plot size. Cards grow to fit their content. */
+.fc-grid > .fc-card { height:auto; }
+.fc-grid > .fc-card > .fc-plot { flex:none; width:100%; height:auto; aspect-ratio:16 / 13; }
+.fc-grid > .fc-card > .fc-plot svg { position:absolute; inset:0; }
 .fc-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .fc-card-title { font-size: 14px; font-weight: 800; }
 .fc-card-sub { color: var(--text-3); font-size: 11px; margin-top: 2px; }
