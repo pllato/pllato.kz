@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.78';
-import {requireWritableVersion} from './dwg-version.mjs?v=0.17.78';
-import {writeAdditions} from './authoring.mjs?v=0.17.78';
-import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.78';
+import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.80';
+import {requireWritableVersion} from './dwg-version.mjs?v=0.17.80';
+import {writeAdditions} from './authoring.mjs?v=0.17.80';
+import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.80';
 self.onmessage=async({data})=>{
  try{
   const {buffer,ops,added=[]}=data;
@@ -10,10 +10,11 @@ self.onmessage=async({data})=>{
   requireWritableVersion(buffer);
   self.postMessage({progress:'Открываю исходный DWG для записи изменений…',percent:10});
   let diagnostic='';
-  const m=await createModule({locateFile:p=>new URL('./vendor/'+p+'?v=0.17.78',import.meta.url).href,print:()=>{},printErr:s=>{if(s.startsWith('SAVE_REJECT_TEXT_WIDTH'))diagnostic=s;}});
+  const m=await createModule({locateFile:p=>new URL('./vendor/'+p+'?v=0.17.80',import.meta.url).href,print:()=>{},printErr:s=>{if(s.startsWith('SAVE_REJECT'))diagnostic=s;}});
   m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
   const opened=m.ccall('pllato_open','number',['string'],['/input.dwg']);
   if(opened>=128)throw Error('DWG не прочитан: '+opened);
+  if(new TextDecoder().decode(new Uint8Array(buffer,0,6))==='AC1032'){const cached=m.ccall('pllato_preserve_source','number',['string'],['/input.dwg']);if(cached)throw Error('Исходные записи DWG не прошли проверку сохранения: '+cached);}
   if(added.some(i=>i.type==='COPY'&&(!Number.isInteger(i.opIndex)||i.opIndex<0||i.opIndex>ops.length)))throw Error('Неверный порядок копии');
   for(let opIndex=0;opIndex<=ops.length;opIndex++){
    writeDeferredCopies(m,added,opIndex);if(opIndex===ops.length)break;
