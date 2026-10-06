@@ -1,9 +1,9 @@
-import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.81';
-import {requireWritableVersion} from './dwg-version.mjs?v=0.17.81';
-import {writeAdditions} from './authoring.mjs?v=0.17.81';
-import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.81';
-import {validateExecutiveProject} from './executive-metadata.mjs?v=0.17.81';
-import {executiveEntities} from './executive-project.mjs?v=0.17.81';
+import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.85';
+import {requireWritableVersion} from './dwg-version.mjs?v=0.17.85';
+import {writeAdditions} from './authoring.mjs?v=0.17.85';
+import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.85';
+import {validateExecutiveProject} from './executive-metadata.mjs?v=0.17.85';
+import {executiveEntities} from './executive-project.mjs?v=0.17.85';
 self.onmessage=async({data})=>{
  let m,diagnostic='';
  try{
@@ -12,7 +12,7 @@ self.onmessage=async({data})=>{
   if(!(buffer instanceof ArrayBuffer)||!Array.isArray(ops)||ops.length>100000)throw Error('Неверный пакет изменений');
   requireWritableVersion(buffer);
   self.postMessage({progress:'Готовлю DWG исполнительных…',percent:5});
-  m=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.81',import.meta.url).href,print:()=>{},printErr:s=>{if(/^(CLONE_REJECT|MOVE_REJECT|REMOVE_|ROOT_REJECT|SAVE_REJECT|EXPORT_REJECT|EXPORT_EDGE|UNGROUP_)/.test(s))diagnostic=s.slice(0,200);}});m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
+  m=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.85',import.meta.url).href,print:()=>{},printErr:s=>{if(/^(CLONE_REJECT|MOVE_REJECT|REMOVE_|ROOT_REJECT|SAVE_REJECT|EXPORT_REJECT|EXPORT_EDGE|UNGROUP_)/.test(s))diagnostic=s.slice(0,200);}});m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
   const opened=m.ccall('pllato_open','number',['string'],['/input.dwg']);if(opened>=128)throw Error('DWG не прочитан: '+opened);
   if(new TextDecoder().decode(new Uint8Array(buffer,0,6))==='AC1032'&&!data.exportOnly){const cached=m.ccall('pllato_preserve_source','number',['string'],['/input.dwg']);if(cached)throw Error('Исходные записи DWG не прошли проверку сохранения: '+cached);}
   self.postMessage({progress:'Проверяю изменения и связи объектов DWG…',percent:15});
@@ -62,6 +62,7 @@ self.onmessage=async({data})=>{
   for(const s of project.sheets){
    if(s.nativeHandles.length!==1)throw Error('Не создана CAD-группа исполнительной');
    check(m.ccall('pllato_insert_angle','number',['string','number'],[s.nativeHandles[0],s.angle-(s.nativeBaseAngle||0)]),'Не удалось повернуть план');
+   check(m.ccall('pllato_check_separate_sheet','number',['string'],[s.nativeHandles[0]]),'Выбранный план не прошёл проверку сохранения отдельными CAD-объектами');
    writeAdditions(m,executiveEntities(project,s.id).items,()=>project.generatedHandles.push(m.ccall('pllato_last_handle','string',[],[])));
   }
   if(data.separateFull)for(const s of project.sheets){

@@ -17,18 +17,20 @@ static int shifted(Dwg_Object*o,double dx,double dy,int apply,unsigned depth){
  /* LWPOLYLINE omits extrusion unless flag 1 is set; its implicit OCS is +Z. */
  if(o->fixedtype==DWG_TYPE_LWPOLYLINE&&!(e->tio.LWPOLYLINE->flag&1))normal=(BITCODE_3BD){0,0,1};
  if(fabs(normal.x)>1e-15||fabs(normal.y)>1e-15||fabs(fabs(normal.z)-1)>1e-15)return 12;
+ double worldDx=dx,worldDy=dy;
  double ua=sheetAngle,uc=sheetCos,us=sheetSin;
- if(normal.z<0){if(o->fixedtype!=DWG_TYPE_LWPOLYLINE&&o->fixedtype!=DWG_TYPE_TEXT&&o->fixedtype!=DWG_TYPE_ATTRIB&&o->fixedtype!=DWG_TYPE_ARC&&o->fixedtype!=DWG_TYPE_CIRCLE)return 12;dx=-dx;ua=-sheetAngle;uc=cos(ua);us=sin(ua);}
+ if(normal.z<0){if(o->fixedtype!=DWG_TYPE_INSERT&&o->fixedtype!=DWG_TYPE_LWPOLYLINE&&o->fixedtype!=DWG_TYPE_TEXT&&o->fixedtype!=DWG_TYPE_ATTRIB&&o->fixedtype!=DWG_TYPE_ARC&&o->fixedtype!=DWG_TYPE_CIRCLE)return 12;dx=-dx;ua=-sheetAngle;uc=cos(ua);us=sin(ua);}
  switch(o->fixedtype){
  case DWG_TYPE_LINE:if(apply){P2(e->tio.LINE->start);P2(e->tio.LINE->end);}break;
  case DWG_TYPE_ARC:if(apply){P2(e->tio.ARC->center);e->tio.ARC->start_angle+=ua;e->tio.ARC->end_angle+=ua;}break;
  case DWG_TYPE_CIRCLE:if(apply)P2(e->tio.CIRCLE->center);break;
  case DWG_TYPE_POINT:if(apply){double px=e->tio.POINT->x,py=e->tio.POINT->y;e->tio.POINT->x=uc*px-us*py+dx;e->tio.POINT->y=us*px+uc*py+dy;}break;
  case DWG_TYPE_TEXT:if(apply){P2(e->tio.TEXT->ins_pt);P2(e->tio.TEXT->alignment_pt);e->tio.TEXT->rotation+=ua;}break;
+ case DWG_TYPE_SPLINE:{Dwg_Entity_SPLINE*s=e->tio.SPLINE;if((s->num_ctrl_pts&&!s->ctrl_pts)||(s->num_fit_pts&&!s->fit_pts)||(s->num_knots&&!s->knots))return 13;if(apply){for(unsigned i=0;i<s->num_ctrl_pts;i++)P2(s->ctrl_pts[i]);for(unsigned i=0;i<s->num_fit_pts;i++)P2(s->fit_pts[i]);V2(s->beg_tan_vec);V2(s->end_tan_vec);}break;}
  case DWG_TYPE_MTEXT:if(apply){P2(e->tio.MTEXT->ins_pt);V2(e->tio.MTEXT->x_axis_dir);}break;
  case DWG_TYPE_ATTRIB:if(e->tio.ATTRIB->mtext_type>1)return 3;if(apply){P2(e->tio.ATTRIB->ins_pt);P2(e->tio.ATTRIB->alignment_pt);e->tio.ATTRIB->rotation+=ua;}break;
  case DWG_TYPE_LWPOLYLINE:if(apply)for(unsigned i=0;i<e->tio.LWPOLYLINE->num_points;i++)P2(e->tio.LWPOLYLINE->points[i]);break;
- case DWG_TYPE_INSERT:{Dwg_Entity_INSERT*in=e->tio.INSERT;for(unsigned i=0;i<in->num_owned;i++)if(shifted(dwg_ref_object(&drawing,in->attribs[i]),dx,dy,apply,depth+1))return 4;if(apply){P2(in->ins_pt);in->rotation+=ua;}break;}
+ case DWG_TYPE_INSERT:{Dwg_Entity_INSERT*in=e->tio.INSERT;for(unsigned i=0;i<in->num_owned;i++)if(shifted(dwg_ref_object(&drawing,in->attribs[i]),worldDx,worldDy,apply,depth+1))return 4;if(apply){P2(in->ins_pt);in->rotation=fmod(in->rotation+ua,2*M_PI);if(in->rotation<0)in->rotation+=2*M_PI;}break;}
  case DWG_TYPE_DIMENSION_LINEAR:{Dwg_Entity_DIMENSION_LINEAR*d=e->tio.DIMENSION_LINEAR;Dwg_Object*bo=dwg_ref_object(&drawing,d->block);if(!bo||bo->fixedtype!=DWG_TYPE_BLOCK_HEADER)return 5;Dwg_Object_BLOCK_HEADER*b=bo->tio.object->tio.BLOCK_HEADER;for(unsigned i=0;i<b->num_owned;i++)if(shifted(dwg_ref_object(&drawing,b->entities[i]),dx,dy,apply,depth+1))return 6;if(apply){P2(d->def_pt);P2(d->text_midpt);P2(d->xline1_pt);P2(d->xline2_pt);d->dim_rotation+=ua;d->text_rotation+=ua;d->horiz_dir+=ua;}break;}
  case DWG_TYPE_HATCH:{Dwg_Entity_HATCH*h=e->tio.HATCH;if(fabs(h->extrusion.x)>1e-15||fabs(h->extrusion.y)>1e-15||fabs(h->extrusion.z-1)>1e-15)return 7;
  for(unsigned i=0;i<h->num_paths;i++){Dwg_HATCH_Path*p=h->paths+i;if(p->flag&2){if(apply)for(unsigned j=0;j<p->num_segs_or_paths;j++)P2(p->polyline_paths[j].point);}else for(unsigned j=0;j<p->num_segs_or_paths;j++){Dwg_HATCH_PathSeg*s=p->segs+j;if(s->curve_type<1||s->curve_type>4)return 8;if(apply)switch(s->curve_type){case 1:P2(s->first_endpoint);P2(s->second_endpoint);break;case 2:P2(s->center);s->start_angle+=ua;s->end_angle+=ua;break;case 3:P2(s->center);V2(s->endpoint);break;case 4:for(unsigned k=0;k<s->num_control_points;k++)P2(s->control_points[k].point);for(unsigned k=0;k<s->num_fitpts;k++)P2(s->fitpts[k]);V2(s->start_tangent);V2(s->end_tangent);break;}}}
@@ -37,7 +39,7 @@ static int shifted(Dwg_Object*o,double dx,double dy,int apply,unsigned depth){
  default:fprintf(stderr,"UNGROUP_REJECT %s %llX\n",o->name,(unsigned long long)o->handle.value);return 10;
  }return uf?11:0;
 }
-API int pllato_separate_sheet(const char *handle){
+static int separate_sheet(const char *handle,int checkOnly){
  Dwg_Object *o=entity(handle);if(!o||o->fixedtype!=DWG_TYPE_INSERT)return 1;
  Dwg_Entity_INSERT *in=o->tio.entity->tio.INSERT;
  Dwg_Object *bo=dwg_ref_object(&drawing,in->block_header);
@@ -48,6 +50,7 @@ API int pllato_separate_sheet(const char *handle){
  double dx=in->ins_pt.x-(sheetCos*b->base_pt.x-sheetSin*b->base_pt.y),dy=in->ins_pt.y-(sheetSin*b->base_pt.x+sheetCos*b->base_pt.y);
  if(!isfinite(dx)||!isfinite(dy))return 4;
  for(unsigned i=0;i<b->num_owned;i++){Dwg_Object *r=dwg_ref_object(&drawing,b->entities[i]);if(!r||r->supertype!=DWG_SUPERTYPE_ENTITY||dwg_obj_is_subentity(r)||!r->tio.entity->ownerhandle||r->tio.entity->ownerhandle->absolute_ref!=bo->handle.value)return 5;int e=shifted(r,dx,dy,0,0);if(e){fprintf(stderr,"UNGROUP_REJECT %s %llX code=%d\n",r->name,(unsigned long long)r->handle.value,e);return e;}}
+ if(checkOnly)return 0;
  Dwg_Object *model=dwg_model_space_object(&drawing);Dwg_Object_BLOCK_HEADER *mb=model->tio.object->tio.BLOCK_HEADER;
  BITCODE_H *roots=realloc(mb->entities,(mb->num_owned+b->num_owned)*sizeof(*roots));if(!roots)return 6;mb->entities=roots;
  uv=calloc(drawing.num_objects,1);if(!uv)return 6;
@@ -59,6 +62,8 @@ API int pllato_separate_sheet(const char *handle){
 }
 /* Reopen a separated download as an identity wrapper for browser editing.
    Export unwraps it again; roots are reused, never cloned or rasterized. */
+API int pllato_separate_sheet(const char *handle){return separate_sheet(handle,0);}
+API int pllato_check_separate_sheet(const char *handle){return separate_sheet(handle,1);}
 API int pllato_group_sheet(const char *handles,double x,double y){
  if(!loaded||!handles||strlen(handles)>340000||!isfinite(x)||!isfinite(y))return 1;
  BITCODE_HV ids[20000];unsigned count=0;char *list=strdup(handles);if(!list)return 2;
