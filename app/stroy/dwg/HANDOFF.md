@@ -1,5 +1,21 @@
 # Передача разработки DWG-редактора
 
+## 0.17.79 — whole drawing DWG and PDF sheet selection
+
+The save menu offers whole-drawing DWG only. PDF retains whole drawing,
+all sheets and selected sheets for printing. The DWG button routes to the
+existing full-source save confirmation without reading the PDF selection;
+empty sheet selection cannot trigger a selected-object DWG export.
+Onboarding text describes the same separation. Native writer and guards are
+unchanged in this release. Unit checks: 195 passed.
+
+This UI change does not fix native write refusal on every imported file.
+A private apartment drawing has orphan SORTENTSTABLE references and existing
+AUDIT errors. Whole-file native serialization is not independently accepted
+in AutoCAD yet; lossless raw-record and auxiliary-section preservation remains
+private experimental work. Do not claim this drawing repaired, do not disable
+ownership/fidelity guards, and do not publish customer files or diagnostic data.
+
 ## 0.17.78 — drop opening, visible creation errors, large data pages
 
 DWG/DXF file drops use the existing openFile path, including unsaved-work
