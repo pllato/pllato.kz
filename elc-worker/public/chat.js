@@ -232,6 +232,11 @@
   }
 
   function handleWsMessage(msg) {
+    if (['message_new', 'message_edited', 'message_deleted', 'channel_added',
+         'channel_removed', 'channel_renamed', 'channel_icon', 'role_changed',
+         'user_joined', 'user_left', 'read', 'notification'].includes(msg.kind)) {
+      window.dispatchEvent(new CustomEvent('elc:chat-updated', { detail: { kind: msg.kind } }));
+    }
     switch (msg.kind) {
       case 'connected': break;
       case 'pong': break;

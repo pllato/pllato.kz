@@ -19,7 +19,9 @@ export async function groupSchema(env){
   env.DB.prepare("CREATE TABLE IF NOT EXISTS wa_manual_group_jobs (deal_id TEXT PRIMARY KEY,channel_id TEXT NOT NULL,employee_uids TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',error TEXT,created_at INTEGER NOT NULL)"),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS wa_group_welcome (deal_id TEXT PRIMARY KEY,status TEXT NOT NULL DEFAULT 'pending',message_id TEXT)"),
   env.DB.prepare('CREATE TABLE IF NOT EXISTS wa_group_locks (id TEXT PRIMARY KEY,until_at INTEGER NOT NULL,owner TEXT)'),
-  env.DB.prepare("INSERT OR IGNORE INTO wa_group_locks VALUES('runner',0,'')")
+  env.DB.prepare("INSERT OR IGNORE INTO wa_group_locks VALUES('runner',0,'')"),
+  env.DB.prepare('CREATE TABLE IF NOT EXISTS wa_stage_group_scan (id INTEGER PRIMARY KEY CHECK(id=1), event_id INTEGER NOT NULL)'),
+  env.DB.prepare('INSERT OR IGNORE INTO wa_stage_group_scan VALUES(1,0)')
  ]);
 }
 async function provider(channel,method,body){
@@ -117,6 +119,22 @@ async function processJob(env,job,rule){
  if(issues.length)throw new Error(issues.join('; '));
  return true;
 }
+// Scan each event only once. The queue and cursor commit together in D1's
+// transactional batch; a failure retries the same range without losing jobs.
+// A bounded primary-key range also caps the first scan of an existing account.
+export async function discoverStageGroupJobs(env, now = Date.now()) {
+ const cursor = await env.DB.prepare('SELECT event_id FROM wa_stage_group_scan WHERE id=1').first();
+ const after = Number(cursor?.event_id || 0);
+ const end = await env.DB.prepare('SELECT MAX(id) AS id FROM (SELECT id FROM deal_stage_events WHERE id>? ORDER BY id LIMIT 10000)').bind(after).first();
+ if (end?.id == null) return;
+ await env.DB.batch([
+  env.DB.prepare(`INSERT OR IGNORE INTO wa_stage_group_jobs(event_id,deal_id,pipeline_id,stage_id,created_at)
+    SELECT e.id,e.deal_id,e.pipeline_id,e.stage_id,? FROM deal_stage_events e
+    JOIN wa_stage_group_rules r ON r.pipeline_id=e.pipeline_id AND r.stage_id=e.stage_id
+    WHERE e.id>? AND e.id<=? AND e.id>r.since_event`).bind(now,after,end.id),
+  env.DB.prepare('UPDATE wa_stage_group_scan SET event_id=MAX(event_id,?) WHERE id=1').bind(end.id)
+ ]);
+}
 export async function processStageGroups(env){
  await groupSchema(env);
  const owner=crypto.randomUUID(),now=Date.now();
@@ -129,8 +147,7 @@ export async function processStageGroups(env){
    catch(e){await env.DB.prepare("UPDATE wa_manual_group_jobs SET status='error',error=? WHERE deal_id=?").bind(e.message,manual.deal_id).run();}
    return;
   }
-  // Only transitions recorded after rule activation; no mass creation for old deals.
-  await env.DB.prepare(`INSERT OR IGNORE INTO wa_stage_group_jobs(event_id,deal_id,pipeline_id,stage_id,created_at) SELECT e.id,e.deal_id,e.pipeline_id,e.stage_id,? FROM deal_stage_events e JOIN wa_stage_group_rules r ON r.pipeline_id=e.pipeline_id AND r.stage_id=e.stage_id WHERE e.id>r.since_event`).bind(now).run();
+  await discoverStageGroupJobs(env, now);
   const {results}=await env.DB.prepare("SELECT * FROM wa_stage_group_jobs WHERE status='pending' ORDER BY event_id LIMIT 5").all();
   for(const job of results){
    const rule=await env.DB.prepare('SELECT * FROM wa_stage_group_rules WHERE pipeline_id=? AND stage_id=?').bind(job.pipeline_id,job.stage_id).first();
