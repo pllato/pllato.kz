@@ -1,4 +1,3 @@
-import {convertOldDwg} from './local-conversion.mjs?v=0.17.81';
 import {mountFileDrop} from './file-drop.mjs?v=0.17.81';
 // SPDX-License-Identifier: GPL-3.0-or-later
 import {parseDxfAsync,scene,sceneAsync,serializeChunks,cloneDoc,demo,get,num,set,decode,move,addEntity} from './cad.mjs?v=0.17.81';
@@ -41,7 +40,7 @@ import {mountExportMenu} from './export-menu.mjs?v=0.17.81';
 import {spatialIndex,viewportShapes,deriveSpatialIndex} from './spatial-index.mjs?v=0.17.81';
 import {RASTER_THRESHOLD,canvasResolution} from './render-policy.mjs?v=0.17.81';
 import {areaDrag} from './area-drag.mjs?v=0.17.81';
-import {dwgVersion,conversionMessage} from './dwg-version.mjs?v=0.17.81';
+import {dwgVersion,conversionMessage,checkOpeningVersion} from './dwg-version.mjs?v=0.17.82';
 import {boxedObjects,mountBoxSelection} from './box-selection.mjs?v=0.17.81';
 let boxSelection;
 let executiveUI;
@@ -373,12 +372,11 @@ async function runOpeningWorker(path,data,token){
   worker.onerror=()=>reject(Error('Не удалось подготовить CAD-объекты'));loadTimer=setTimeout(()=>reject(Error('Подготовка CAD-объектов превысила 5 минут')),300000);worker.postMessage(data,[data.buffer]);
  });
 }
-async function openFile(file,restore=null){if(!restore&&dirty&&!confirm('Есть несохранённые изменения. Открыть другой файл?'))return;const limit=/\.dwg$/i.test(file.name)?128:256;if(file.size>limit*1024*1024)return status('Предел: DWG 128 МБ, DXF 256 МБ. На телефоне объём зависит от доступной памяти.');stopLoad();const token=loadId;$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Читаю файл…');
+async function openFile(file,restore=null){try{await checkOpeningVersion(file);}catch(e){versionNotice.hidden=false;versionNotice.textContent=e.message;status(e.message);return false;}if(!restore&&dirty&&!confirm('Есть несохранённые изменения. Открыть другой файл?'))return;const limit=/\.dwg$/i.test(file.name)?128:256;if(file.size>limit*1024*1024)return status('Предел: DWG 128 МБ, DXF 256 МБ. На телефоне объём зависит от доступной памяти.');stopLoad();const token=loadId;$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Читаю файл…');
  try{let bytes=await file.arrayBuffer();if(token!==loadId)return;let text,warnings=[],next;$('save').disabled=true;
  if(/\.dwg$/i.test(file.name)){
   if(!/^AC10\d\d/.test(new TextDecoder().decode(bytes.slice(0,6))))throw Error('Это не распознанный DWG.');
   let sourceVersion=dwgVersion(bytes);
-  if(sourceVersion.needsConversion){const prepared=await convertOldDwg(bytes,{progress});if(token!==loadId)return;if(prepared){bytes=prepared;file=new File([prepared],file.name.replace(/\.dwg$/i,'-DWG2018.dwg'),{type:'application/acad'});sourceVersion=dwgVersion(bytes);}}
   const converted=await new Promise((resolve,reject)=>{rejectWorker=reject;worker=new Worker(new URL('./native-reader.mjs?v=0.17.81',import.meta.url),{type:'module'});const receive=nativeTransferReceiver(worker,progress);worker.onmessage=e=>{if(token!==loadId)return;try{if(e.data.progress)progress(e.data.progress,e.data.percent);else if(e.data.error)reject(Error(e.data.error));else{const result=receive(e.data);if(result)resolve(result);}}catch(error){reject(error);}};worker.onerror=()=>reject(Error('Не удалось запустить DWG-движок. Возможно, недостаточно памяти. Попробуйте меньший файл на компьютере.'));loadTimer=setTimeout(()=>reject(Error('Чтение заняло больше 5 минут. Попробуйте отдельный лист.')),300000);worker.postMessage({buffer:bytes,compact:true},[bytes]);});
   if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
   warnings=converted.messages;next=converted.doc;next.dwgVersion=sourceVersion;
