@@ -1,5 +1,36 @@
 # Передача разработки DWG-редактора
 
+## 0.17.80 — source-record preservation for full DWG2018 saves
+
+Full-document AC1032 saves cache source records before edits, preserve unchanged
+serialized records at their original logical addresses, retain auxiliary sections
+and inactive object-section bytes, and update only changed/new records and required
+header/maps. Final readback checks exact retained bytes, record CRC, complete handle
+inventory and changed/new typed fields. The corresponding GPL header, wrapper and
+rebuilt JS/WASM ship together. No ownership/fidelity guard was removed.
+An unchanged empty SORTENTSTABLE is retained only with a verified registered owner
+chain or a missing owner with no incoming references. Other cases retain rejection.
+Encrypted sections fail closed except the library's exact empty dependency stub.
+
+Verified locally: 195 unit tests; native changed-record growth, source immutability,
+CRC rejection and byte-retention regression; actual WASM full-save and clone.
+Verified through the browser: an executive sheet was created in a private large
+DWG, appeared in selected PDF sheets, printed as one vector A3 page with embedded
+font, and whole DWG saved independently of PDF selection (530664 native records).
+The actual browser download passed ordinary AutoCAD 2027 open, AUDIT No, separate
+LINE/TEXT/DIMENSION/INSERT edits, new DWG2018 copy save, close/reopen and AUDIT No.
+Both audits reported 2 found / 0 fixed / 0 erased, identical to the source's existing
+hatch associativity errors. Edited fields and executive metadata survived reopening.
+RECOVER was not run. This proves the tested cycle, not universal lossless export.
+
+Limitations: source-preserving data pages are uncompressed; the tested file grew
+from about 43 MB to 110 MB and needs substantial browser memory. Existing AUDIT
+errors are not repaired. Missing fonts and platform-specific/proxy objects remain
+warnings. PDF contains supported displayed geometry and can omit unsupported
+objects with a visible report. DWG2007 still needs separate CAD conversion to a
+supported writing version; its source is never overwritten. Private files, logs,
+fonts and screenshots stay outside the public repository.
+
 ## 0.17.79 — whole drawing DWG and PDF sheet selection
 
 The save menu offers whole-drawing DWG only. PDF retains whole drawing,
@@ -11,9 +42,8 @@ unchanged in this release. Unit checks: 195 passed.
 
 This UI change does not fix native write refusal on every imported file.
 A private apartment drawing has orphan SORTENTSTABLE references and existing
-AUDIT errors. Whole-file native serialization is not independently accepted
-in AutoCAD yet; lossless raw-record and auxiliary-section preservation remains
-private experimental work. Do not claim this drawing repaired, do not disable
+AUDIT errors. At the time of 0.17.79, whole-file native serialization had not been accepted
+in AutoCAD. The source-preserving 0.17.80 cycle above supersedes that result. Do not claim this drawing repaired, do not disable
 ownership/fidelity guards, and do not publish customer files or diagnostic data.
 
 ## 0.17.78 — drop opening, visible creation errors, large data pages

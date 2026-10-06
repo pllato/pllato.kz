@@ -219,3 +219,27 @@ and `dwg-executive-export-browser.cjs` for clone/export regressions.
 - Ship generated `.mjs`, `.wasm` and corresponding source together. Never hand-edit
   generated engine logic. Run native write/re-read and browser export regressions.
 - See [DWG handoff](../../app/stroy/dwg/HANDOFF.md) for test commands and release state.
+
+## 0.17.80: original record layout for full DWG 2018 saves
+
+The corresponding-source archive also contains `pllato_source_preserve.h`.
+Call `pllato_preserve_source(inputPath)` immediately after `pllato_open`, before
+editing, for full-document AC1032 operations. Cache failures abort the operation.
+Selected-object export keeps its separate validator and does not enable this mode.
+Unchanged records retain their original bytes and logical addresses; changed
+records replace their bounded slot or append when they grow. The Handles map is
+rebuilt in handle order only when needed. All source auxiliary sections, including
+AcDs and inactive object-section bytes, are retained. Header is regenerated;
+Classes is regenerated when new classes appear. Final retained record bytes and
+changed/new typed fields are checked independently on readback.
+
+A narrowly bounded empty SORTENTSTABLE exception requires unchanged source bytes
+and either a verified registered owner chain or an unreachable missing owner.
+Populated, changed, new, conflicting, or incompletely decoded tables keep the
+existing rejection/repair checks. Encrypted sections are rejected except the
+upstream writer's byte-exact eight-zero empty FileDepList stub. Data pages use
+verified uncompressed encoding; saves can grow and need memory. This is not a
+universal repair operation and does not fix pre-existing AutoCAD AUDIT errors.
+
+Regression: `tests/native/source-preservation-regression.c` exercises changed
+record growth, retention, readback, source immutability and CRC rejection.
