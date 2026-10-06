@@ -2,7 +2,7 @@
 /* ===== Продажи ===== */
 const myOrders=()=>role==='Менеджер'?ORDERS.filter(o=>o.mgr==='AG'):ORDERS;
 SC.funnel=()=>{const L=myOrders();
- return `<div class="hd"><div><h2>Воронка заказов${role==='Менеджер'?' · мои':''}</h2><p>Ваши этапы: заявка → первичный замер → эскиз → договор → контрольный замер → конструкторская документация → запуск → подрядчики → цех → ждёт монтажа → монтаж → сдача. На каждой карточке — шкала готовности.</p></div><div class="btns"><button class="bt p" onclick="card('newlead')">+ Заявка</button></div></div>
+ return `<div class="hd"><div><h2>Воронка заказов${role==='Менеджер'?' · мои':''}</h2><p>Этапы по вашему ТЗ: новая заявка → сбор информации → первичная отрисовка → корректировка → согласование → договор → замер и техпроект → модерация менеджером → запуск → производство и подрядчики → сборка → готово к вывозу → доставка и монтаж → качество и АВР → оплата → закрыт. Одна карточка проекта на весь путь, шкала готовности на каждой.</p></div><div class="btns"><button class="bt p" onclick="card('newlead')">+ Заявка</button></div></div>
  <div class="kb">${ST.map(s=>{const X=L.filter(o=>o.st===s.k);return `<div class="kc" style="--sc:${s.c}"><div class="kh"><b>${s.n}</b><span>${X.length}</span></div>${X.map(o=>`<div class="kd ${jobsOf(o.id).some(jLate)?'alarm':''}" onclick="openOrd('${o.id}')"><div class="kt"><b>${o.id}</b><span class="tag">${KIND[o.kind]}</span></div><div class="kr">${esc(CL(o.cl).n)}</div><div class="km">${esc(o.t)}</div>${rbar(o)}<div class="kf"><span>${STAFF[o.mgr]}${o.kon?' · '+STAFF[o.kon]:''}</span><b class="mono">${mln(o.sum)}</b></div></div>`).join('')||'<div class="kempty">—</div>'}</div>`}).join('')}</div>
  ${said('«Нужно, чтобы эта карточка дальше двигалась по этапам и этапы были разграничены: продажа, после договора — дизайнеры и конструкторы, потом снабжение и подрядные работы, сборка и монтаж».')}`};
 
@@ -10,7 +10,7 @@ function openOrd(id){if(!allowed('order')){toast('Карточка заказа 
 function zoneChk(o){const z=STN(o.st).z;if(z==='m')return {k:'m',key:'chM',L:CHK.m};if(z==='k')return {k:o.kind,key:'chK',L:CHK[o.kind]};return null}
 SC.order=()=>{const o=OR(curOrd)||ORDERS[0];const c=CL(o.cl);const si=STI(o.st);const z=zoneChk(o);const J=jobsOf(o.id);const R=REQS.find(r=>r.ord===o.id);const blk=nextBlock(o);
  return `<div class="hd"><div><div class="crumb"><a onclick="go('funnel')">Воронка</a> / ${o.id}</div><h2>${o.id} · ${esc(o.t)}</h2><p>${esc(c.n)} · ${esc(c.addr)} · менеджер ${STAFF[o.mgr]}${o.kon?' · конструктор '+STAFF[o.kon]:''}${o.br?' · '+BRIG[o.br].n:''}</p></div>
-  <div class="btns">${o.st!=='done'?`<button class="bt ${blk?'':'p'}" onclick="nextSt('${o.id}')">→ ${ST[si+1].n}</button>`:''}</div></div>
+  <div class="btns">${si<=STI('agree')?`<button class="bt" onclick="card('lostq','${o.id}')">Отказ</button>`:''}${o.st!=='done'?`<button class="bt ${blk?'':'p'}" onclick="nextSt('${o.id}')">→ ${ST[si+1].n}</button>`:''}</div></div>
  <div class="stp">${ST.map((s,i)=>`<div class="${i<si?'ok':i===si?'on':''}" style="--sc:${s.c}" title="${s.n}"><i>${i<si?'✓':i+1}</i><span>${s.n}</span></div>`).join('')}</div>
  <div class="rdbig">${rbar(o)}<span>готовность заказа</span></div>
  ${blk?`<div class="note" style="--tone:var(--bad)"><b>Дальше не двигается: ${blk}</b><p>Так задумано: пока ответственный не прошёл свой чек-лист или не выполнено условие этапа, карточка стоит.</p></div>`:''}
@@ -23,6 +23,7 @@ SC.order=()=>{const o=OR(curOrd)||ORDERS[0];const c=CL(o.cl);const si=STI(o.st);
  ${STN(o.st).z==='k'?`<div class="pan"><h3>Подрядчики по этому заказу — отмечает конструктор</h3><div class="cog">${CONTR.map(p=>`<label class="coc ${o.podr.includes(p.id)?'on':''}"><input type="checkbox" ${o.podr.includes(p.id)?'checked':''} onchange="togPodr('${o.id}','${p.id}')"><b>${esc(p.n)}</b><span>${esc(p.w)}</span></label>`).join('')}</div><p class="mini">Когда конструктор закроет чек-лист и передаст в производство, на доске каждого отмеченного подрядчика появится своя карточка с документами и сроком.</p></div>`:''}
  ${J.length?`<div class="pan"><h3>Подрядчики · ${J.filter(j=>j.st==='done').length} из ${J.length} сдали</h3><div class="tw"><table class="t"><thead><tr><th>Подрядчик</th><th>Работа</th><th>Передано</th><th>Срок</th><th>Статус</th><th class="r">Цена</th><th class="r">Оплачено</th></tr></thead><tbody>${J.map(j=>`<tr class="${jLate(j)?'rowbad':''}"><td><b>${esc(CO(j.p).n)}</b></td><td>${esc(j.w)}</td><td class="mono">${dd(j.sent)}</td><td class="mono">${dd(j.due)}</td><td>${jst(j)}</td><td class="r mono">${j.sum?fmt(j.sum):'свои'}</td><td class="r mono">${fmt(j.paid)}</td></tr>`).join('')}</tbody></table></div></div>`:''}
  ${R?`<div class="pan"><h3>Заявка на склад · ${R.st==='done'?'<span class="tag g">отгружено</span>':'<span class="tag w">ждёт склад</span>'}</h3>${R.lines.map(([s,q])=>`<div class="kv"><span>${esc(SK(s).n)} · ячейка ${SK(s).cell}</span><b class="mono">${q} ${SK(s).u}</b></div>`).join('')}</div>`:''}
+ ${ordExtra(o)}
  <div class="g2"><div class="pan"><h3>WhatsApp с клиентом</h3>${waThread(o).slice(-3).map(m=>`<div class="msg ${m[0]}"><small>${m[1]}</small>${esc(m[2])}</div>`).join('')}<button class="bt sm" onclick="curOrd='${o.id}';go('wa')">Вся переписка →</button></div>
  <div class="pan"><h3>Ход заказа</h3><div class="tl">${ordLog(o).map(x=>`<div class="tli ${x[2]||'ok'}"><span class="who">${x[0]}</span><b>${x[1]}</b></div>`).join('')}</div></div></div>`};
 const jst=j=>j.st==='done'?'<span class="tag g">сдал</span>':jLate(j)?`<span class="tag r">просрочка ${daysBetween(j.due,TODAY)} дн.</span>`:j.st==='work'?'<span class="tag w">в работе</span>':'<span class="tag i">передано</span>';
@@ -30,17 +31,25 @@ function ordLog(o){const si=STI(o.st);const L=[[dd(o.d)+' · '+STAFF[o.mgr],'З�
 function nextBlock(o){const si=STI(o.st);const n=ST[si+1];if(!n)return '';
  if(o.st==='dog'&&o.chM.some(x=>!x))return 'чек-лист менеджера не закрыт — '+o.chM.filter(x=>!x).length+' пункта';
  if(o.st==='dog'&&!o.paid)return 'нет предоплаты';
- if(o.st==='kd'&&o.chK.some(x=>!x))return 'чек-лист конструктора не закрыт — '+o.chK.filter(x=>!x).length+' пункта';
+ if(o.st==='zam2'&&o.chK.some(x=>!x))return 'техпроект не готов: чек-лист конструктора — '+o.chK.filter(x=>!x).length+' пункта';
+ if(o.st==='kd'&&o.moder!=='final')return 'запуск запрещён: менеджер не подтвердил финальный технический проект';
  if(o.st==='kd'&&!o.podr.length)return 'конструктор не отметил подрядчиков';
+ if(o.st==='start'&&o.pkg.some(x=>!x))return 'пакет запуска неполный — нет: '+PKG.filter((x,i)=>!o.pkg[i]).join(', ');
  if(o.st==='start'){const R=REQS.find(r=>r.ord===o.id);if(R&&R.st!=='done')return 'склад ещё не собрал заявку — закупщик отгружает или дозаказывает'}
  if(o.st==='podr'&&jobsOf(o.id).some(j=>j.st!=='done'))return 'не все подрядчики сдали работу: '+jobsOf(o.id).filter(j=>j.st!=='done').map(j=>CO(j.p).n).join(', ');
+ if(o.st==='qa'&&!o.avr)return 'АВР не подписан клиентом';
+ if(o.st==='pay'&&(o.paid<o.sum||!o.closed))return o.paid<o.sum?'остаток не оплачен: '+tg(o.sum-o.paid):'закрывающие документы не сданы';
  return ''}
 function nextSt(id){const o=OR(id);const b=nextBlock(o);if(b){toast('Карточка не двигается: '+b+'.');return}
  const was=o.st;o.st=ST[STI(o.st)+1].k;let msg=`${o.id} → «${STN(o.st).n}».`;
- if(was==='kd'){let n=0;o.podr.forEach(p=>{if(!JOBS.some(j=>j.ord===o.id&&j.p===p)){JOBS.push({id:'J'+(JOBS.length+1),ord:o.id,p,w:CO(p).w+' по '+o.id,sent:TODAY,due:addDays(TODAY,7),st:'sent',sum:0,paid:0,docs:['Чертежи '+o.id+'.pdf']});n++}});if(!REQS.some(r=>r.ord===o.id))REQS.unshift({ord:o.id,by:o.kon||'TM',d:TODAY,st:'new',lines:[['S1',8],['S6',90],['S8',18],['S13',12]]});msg+=` Карточка размножилась: ${o.podr.length} ${plural(o.podr.length,['подрядчик','подрядчика','подрядчиков'])} получили свои карточки, на склад ушла заявка.`}
+ if(was==='kd'){o.pkg=o.pkg||PKG.map(()=>0);let n=0;o.podr.forEach(p=>{if(!JOBS.some(j=>j.ord===o.id&&j.p===p)){JOBS.push({id:'J'+(JOBS.length+1),ord:o.id,p,w:CO(p).w+' по '+o.id,sent:TODAY,due:addDays(TODAY,7),st:'sent',sum:0,paid:0,docs:['Чертежи '+o.id+'.pdf']});n++}});if(!REQS.some(r=>r.ord===o.id))REQS.unshift({ord:o.id,by:o.kon||'TM',d:TODAY,st:'new',lines:[['S1',8],['S6',90],['S8',18],['S13',12]]});msg+=` Карточка размножилась: ${o.podr.length} ${plural(o.podr.length,['подрядчик','подрядчика','подрядчиков'])} получили свои карточки, на склад ушла заявка.`}
  if(o.st==='wait')msg+=` Менеджеру ${STAFF[o.mgr]} пришло уведомление: «Заказ готов — сообщите клиенту и договоритесь о монтаже».`;
- if(o.st==='done')msg+=' Акт подписан, бригаде начислена сдельная часть.';
- if(o.st==='zam2')msg+=' Конструктору пришёл пакет документов от менеджера.';
+ if(o.st==='mont')msg+=' Создана задача доставки: водитель и ответственный менеджер.';
+ if(o.st==='qa')msg+=' Создана задача контроля качества и АВР.';
+ if(o.st==='pay')msg+=' АВР подписан — проект переведён в оплату.';
+ if(o.st==='done')msg+=' Оплачено, документы закрыты — проект закрыт. Бригаде начислена сдельная часть.';
+ if(o.st==='kd')msg+=' Техпроект отправлен менеджеру на модерацию.';
+ if(o.st==='zam2')msg+=' Дата передачи зафиксирована, конструктору создана задача и пришёл пакет от менеджера.';
  o.log.push(['сейчас · '+ROLES[role].n,'Этап: '+STN(o.st).n]);render();toast(msg)}
 function togChk(id,key,i){const o=OR(id);if(key==='chM'&&!['Собственник','Менеджер'].includes(role)){toast('Этот чек-лист отмечает менеджер.');return}if(key==='chK'&&!['Собственник','Конструктор'].includes(role)){toast('Этот чек-лист отмечает конструктор.');return}o[key][i]=o[key][i]?0:1;render()}
 function togPodr(id,p){const o=OR(id);o.podr=o.podr.includes(p)?o.podr.filter(x=>x!==p):o.podr.concat(p);render()}

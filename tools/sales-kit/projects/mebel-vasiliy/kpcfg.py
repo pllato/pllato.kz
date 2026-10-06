@@ -11,6 +11,7 @@ h1{font-weight:600;font-size:32px;text-transform:none}.cover h1{font-size:28px}h
 td.r,.cvs b,.strip b,.pay b{font-variant-numeric:tabular-nums}
 .cover:after{right:-30px;top:-40px;width:200px;height:300px;border-radius:4px;background:none;border:22px solid rgba(217,163,91,.13)}
 .paytab tr.cur td{background:#f5ece1}
+.paytab tr.gift td{background:#e7f2e5;color:#2d5e2d}.paytab tr.gift s{color:#8a8a8a;font-weight:400;margin-right:4px}
 th.r{text-align:right}
 .paytab td span{display:block;font-size:8px;color:var(--muted)}
 .card,.shot,.pay div,.strip,.quote,.said,.compare{border-radius:4px}

@@ -37,14 +37,14 @@ gate=f'''<section class="gate" id="gate">
    <div><b class="gname">КОРПУС</b><small class="gsub">МЕБЕЛЬ НА ЗАКАЗ · АЛМАТЫ · ПРОИЗВОДСТВО И МОНТАЖ</small></div>
   </div>
   <h1>Заказ — от замера до акта в одной карточке.<br>Каждый видит свой этап и идёт по чек-листу.<br><em>Подрядчики, склад и деньги — в той же карточке, а не в восемнадцати таблицах.</em></h1>
-  <span class="gtag">макет по встрече 3 октября · всё кликается</span>
+  <span class="gtag">макет по встрече 3 октября и вашему ТЗ · всё кликается</span>
   <p style="margin-top:15px">Вы рассказали: 18 человек — 4 менеджера, 3 конструктора, 2 руководителя, 6 сборщиков. После договора заказ идёт к конструкторам, потом снабжение и подрядчики — малярка, металл, камень, стекло, алюминий, шпон, распил, — сборка в цеху и монтаж корпуса и фасадов. Сейчас это Битрикс, МойСклад и около восемнадцати Google-таблиц.</p>
   <p style="color:#d9a35b">Здесь — воронка с вашими этапами и шкалой готовности, конструкторская воронка с чек-листами, карточка, которая размножается на доски подрядчиков со сроками и сальдо, склад с ячейками и заявками, загрузка бригад и отпуска, рейсы водителя, WhatsApp в карточке, расчёт по вашей таблице, КП и договор с ЭЦП, приходы, расходы и зарплаты.</p>
   <div class="gstat">
-   <div><small>Экранов</small><b class="a">25</b></div>
-   <div><small>Ролей</small><b>8</b></div>
+   <div><small>Экранов</small><b class="a">33</b></div>
+   <div><small>Ролей</small><b>9</b></div>
    <div><small>Подрядчиков</small><b>9</b></div>
-   <div><small>Стоимость</small><b>от 2,2 млн ₸</b></div>
+   <div><small>Стоимость</small><b>2,2 млн ₸</b></div>
   </div>
  </div>
  <div class="gate-r">
@@ -67,6 +67,6 @@ rep('<script src="/app/uss.js"></script>','<script src="/app/mebel-vasiliy.js"><
 css=open(os.path.join(D,'style.css'),encoding='utf-8').read()
 rep('</style>',css+'\n</style>')
 open(ROOT+'/app/mebel-vasiliy.html','w',encoding='utf-8').write(s)
-js=''.join(open(os.path.join(D,f'f{i}.js'),encoding='utf-8').read() for i in range(1,6))
+js=''.join(open(os.path.join(D,f'f{i}.js'),encoding='utf-8').read() for i in (1,2,3,4,6,5))
 open(ROOT+'/app/mebel-vasiliy.js','w',encoding='utf-8').write(js)
 print('ok',len(s),len(js))

@@ -13,12 +13,12 @@ const daysBetween=(a,b)=>Math.round((new Date(D(b)+'T00:00:00Z')-new Date(D(a)+'
 const dayOf=s=>['вс','пн','вт','ср','чт','пт','сб'][new Date(D(s)+'T00:00:00Z').getUTCDay()];
 
 const SEC=[
- {k:'own',n:'Собственник',sub:[['today','Пульт'],['money','Приходы и расходы'],['debts','Долги клиентов и подрядчикам'],['salary','Зарплаты'],['analytics','Аналитика']]},
- {k:'sales',n:'Продажи',sub:[['funnel','Воронка заказов'],['order','Карточка заказа'],['clients','Клиенты'],['calc','Расчёт заказа'],['kp','КП, договор, ЭЦП'],['wa','WhatsApp']]},
+ {k:'own',n:'Собственник',sub:[['today','Пульт'],['money','Приходы и расходы'],['debts','Долги клиентов и подрядчикам'],['salary','Зарплаты'],['analytics','Аналитика'],['reports8','Отчёты руководителя']]},
+ {k:'sales',n:'Продажи',sub:[['funnel','Воронка заказов'],['order','Карточка заказа'],['clients','Клиенты'],['calc','Расчёт заказа'],['kp','КП, договор, ЭЦП'],['wa','WhatsApp'],['lost','Причины отказа'],['payclose','Оплата и закрытие']]},
  {k:'kon',n:'Конструкторы',sub:[['kboard','Конструкторская воронка'],['checklists','Чек-листы этапов'],['cload','Загрузка и отпуска']]},
- {k:'prod',n:'Производство',sub:[['prod','Цех и бригады'],['contractors','Подрядчики'],['contractor','Кабинет подрядчика'],['install','Доставка и монтаж'],['brig','Мои заказы · бригада'],['drive','Мои рейсы · водитель']]},
- {k:'wh',n:'Склад',sub:[['stock','Остатки и ячейки'],['requests','Заявки и закупка'],['prices','Прайсы поставщиков']]},
- {k:'sys',n:'Система',sub:[['roles','Роли и права'],['launch','Запуск и стоимость']]}
+ {k:'prod',n:'Производство',sub:[['prod','Цех и бригады'],['contractors','Подрядчики'],['contractor','Кабинет подрядчика'],['calendar','Календарь дедлайнов'],['install','Доставка и монтаж'],['brig','Мои заказы · бригада'],['drive','Мои рейсы · водитель']]},
+ {k:'wh',n:'Склад',sub:[['stock','Остатки и ячейки'],['requests','Заявки и закупка'],['supply','Снабжение: наличие и заказ'],['prices','Прайсы поставщиков']]},
+ {k:'sys',n:'Система',sub:[['tzmap','Соответствие ТЗ'],['questions','Вопросы до разработки'],['autom','Автоматизации'],['roles','Роли и права'],['launch','Запуск и стоимость']]}
 ];
 const SECOF={},SUBN={};
 SEC.forEach(s=>s.sub.forEach(x=>{SECOF[x[0]]=s.k;SUBN[x[0]]=x[1]}));
@@ -26,16 +26,17 @@ const ALL=[];SEC.forEach(s=>s.sub.forEach(x=>ALL.push(x[0])));
 
 const ROLES={
  'Собственник':{av:'ВС',p:'VS',n:'Василий',note:'Всё: заказы на всех этапах, подрядчики, склад, деньги, зарплаты, аналитика. Права сотрудникам выдаёт сам',s:ALL.slice()},
- 'Менеджер':{av:'АГ',p:'AG',n:'Айгерим',note:'Свои заказы: замер, эскиз, расчёт, КП и договор, WhatsApp с клиентом, чек-лист передачи конструктору',s:['funnel','order','clients','calc','kp','wa','install']},
+ 'Менеджер':{av:'АГ',p:'AG',n:'Айгерим',note:'Свои заказы: замер, эскиз, расчёт, КП и договор, WhatsApp с клиентом, чек-лист передачи конструктору',s:['funnel','order','clients','calc','kp','wa','lost','payclose','supply','install']},
  'Конструктор':{av:'ТМ',p:'TM',n:'Тимур',note:'Контрольный замер, документация по чек-листу, выбор подрядчиков, заявка на склад',s:['kboard','order','checklists','cload','calc']},
- 'Начальник производства':{av:'ОЛ',p:'OL',n:'Олег',note:'Цех и бригады, подрядчики и дедлайны, склад, доставка и монтаж, загрузка',s:['prod','contractors','contractor','install','cload','funnel','order','stock','requests']},
- 'Склад и закупка':{av:'ЕР',p:'ER',n:'Ерлан',note:'Только склад: остатки по ячейкам, заявки из заказов — отгрузить или дозаказать, прайсы',s:['requests','stock','prices']},
+ 'Начальник производства':{av:'ОЛ',p:'OL',n:'Олег',note:'Цех и бригады, подрядчики и дедлайны, склад, доставка и монтаж, загрузка',s:['calendar','prod','contractors','contractor','supply','install','cload','funnel','order','stock','requests']},
+ 'Склад и закупка':{av:'ЕР',p:'ER',n:'Ерлан',note:'Только склад: остатки по ячейкам, заявки из заказов — отгрузить или дозаказать, прайсы',s:['supply','requests','stock','prices']},
+ 'Финансы':{av:'ЖА',p:'FN',n:'Жанна',note:'Оплаты и остатки по договорам, закрывающие документы, приходы и расходы',s:['payclose','money','debts','order','salary']},
  'Сборщик':{av:'Б1',p:'B1',n:'Бригада 1 · Сергей',note:'Только свои заказы: чертежи, детали, что готово, когда монтаж — с телефона',s:['brig']},
  'Водитель':{av:'ЖД',p:'DR',n:'Жандос · сторонний',note:'Только свои рейсы: откуда, куда, когда, что везти',s:['drive']},
  'Подрядчик':{av:'СМ',p:'P5',n:'«Стекло-Мастер»',note:'Свой кабинет: заказы от вас, документы для скачивания, дедлайны, сверка оплат',s:['contractor']}
 };
 let role='Собственник',cur='today',theme='light',curOrd='К-1501';
-const STAFF={VS:'Василий',YU:'Юрий',OL:'Олег',AG:'Айгерим',DN:'Дина',MK:'Максат',OG:'Ольга',TM:'Тимур',SA:'Сауле',AR:'Артём',ER:'Ерлан',DR:'Жандос'};
+const STAFF={VS:'Василий',YU:'Юрий',OL:'Олег',AG:'Айгерим',DN:'Дина',MK:'Максат',OG:'Ольга',TM:'Тимур',SA:'Сауле',AR:'Артём',ER:'Ерлан',DR:'Жандос',FN:'Жанна'};
 const BRIG={B1:{n:'Бригада 1',p:'Сергей, Алмас'},B2:{n:'Бригада 2',p:'Руслан, Даурен'},B3:{n:'Бригада 3',p:'Виктор, Нурик'}};
 
 const CLIENTS=[
@@ -53,24 +54,30 @@ const CLIENTS=[
  {id:'C12',n:'Светлана Волкова',ph:'+7 701 *** 95 57',addr:'ул. Тимирязева, 42',src:'Сарафан',note:'—'},
  {id:'C13',n:'Нурлан Сарсенов',ph:'+7 777 *** 23 86',addr:'ЖК «Комфорт Сити», кв. 77',src:'Сарафан',note:'Остаток 200 000 ₸ после монтажа — не оплачен.'},
  {id:'C14',n:'Гульнара Тлеуова',ph:'+7 702 *** 14 50',addr:'ул. Шевченко, 118',src:'Повторный',note:'—'},
+ {id:'C16',n:'Руслан Ибраев',ph:'+7 701 *** 52 18',addr:'ЖК «Хайвил», кв. 204',src:'Instagram',note:'Попросил уменьшить глубину шкафа — корректировка КП.'},
+ {id:'C17',n:'Айнур Омарова',ph:'+7 777 *** 09 41',addr:'мкр. Аксай-4, 91',src:'Сарафан',note:'—'},
  {id:'C15',n:'Роман Ковалёв',ph:'+7 707 *** 71 03',addr:'КГ «Березовая роща»',src:'Instagram',note:'—'}
 ];
 const CL=id=>CLIENTS.find(c=>c.id===id);
 
 /* Этапы основной воронки — как вы их назвали */
 const ST=[
- {k:'lead',n:'Заявка',c:'#7b7368',r:2,z:'m'},
- {k:'zam1',n:'Первичный замер',c:'#8a6d4a',r:6,z:'m'},
- {k:'sketch',n:'Эскиз и согласование',c:'#a0703c',r:12,z:'m'},
- {k:'dog',n:'Договор и предоплата',c:'#8a5a2e',r:18,z:'m'},
- {k:'zam2',n:'Контрольный замер',c:'#3f6f6a',r:25,z:'k'},
- {k:'kd',n:'Конструкторская документация',c:'#2f5d7a',r:35,z:'k'},
- {k:'start',n:'Запуск: склад и подрядчики',c:'#5a4f86',r:45,z:'p'},
- {k:'podr',n:'У подрядчиков',c:'#7a4f86',r:55,z:'p'},
- {k:'ceh',n:'Сборка в цеху',c:'#b0532a',r:72,z:'p'},
- {k:'wait',n:'Готово · ждёт монтажа',c:'#b57d14',r:85,z:'p'},
- {k:'mont',n:'Монтаж',c:'#2e7d63',r:93,z:'p'},
- {k:'done',n:'Сдан · акт',c:'#3d7a3d',r:100,z:'p'}
+ {k:'lead',n:'Новая заявка',c:'#7b7368',r:2,z:'m'},
+ {k:'info',n:'Сбор информации',c:'#8a6d4a',r:5,z:'m'},
+ {k:'sketch',n:'Первичная отрисовка',c:'#a0703c',r:9,z:'m'},
+ {k:'fix',n:'Корректировка',c:'#a3653a',r:12,z:'m'},
+ {k:'agree',n:'Согласование',c:'#97582f',r:15,z:'m'},
+ {k:'dog',n:'Договор',c:'#8a5a2e',r:18,z:'m'},
+ {k:'zam2',n:'Замер и техпроект',c:'#3f6f6a',r:26,z:'k'},
+ {k:'kd',n:'Модерация менеджером',c:'#2f5d7a',r:34,z:'k'},
+ {k:'start',n:'Запуск в производство',c:'#5a4f86',r:42,z:'p'},
+ {k:'podr',n:'Производство и подрядчики',c:'#7a4f86',r:55,z:'p'},
+ {k:'ceh',n:'Сборка',c:'#b0532a',r:70,z:'p'},
+ {k:'wait',n:'Готово к вывозу',c:'#b57d14',r:80,z:'p'},
+ {k:'mont',n:'Доставка и монтаж',c:'#2e7d63',r:88,z:'p'},
+ {k:'qa',n:'Качество и АВР',c:'#3d6f8a',r:94,z:'p'},
+ {k:'pay',n:'Оплата',c:'#6a7a2e',r:97,z:'p'},
+ {k:'done',n:'Закрыт',c:'#3d7a3d',r:100,z:'p'}
 ];
 const STI=k=>ST.findIndex(s=>s.k===k);
 const STN=k=>ST[STI(k)];
@@ -94,32 +101,34 @@ const ORDERS=[
  {id:'К-1501',cl:'C1',kind:'kitchen',t:'Кухня угловая 3,4 м · фасады МДФ эмаль · столешница кварц',sum:3480000,paid:1740000,mgr:'AG',kon:'TM',st:'podr',br:'B1',mont:'10-16',podr:['P1','P2','P4'],d:'09-12'},
  {id:'К-1502',cl:'C2',kind:'kitchen',t:'Кухня прямая 2,8 м · ЛДСП Egger · ящики Blum',sum:1650000,paid:825000,mgr:'DN',kon:'SA',st:'ceh',br:'B2',mont:'10-09',podr:['P1'],d:'09-08'},
  {id:'К-1503',cl:'C3',kind:'wardrobe',t:'Шкаф-купе 2,4 м · зеркало · алюминиевый профиль',sum:890000,paid:445000,mgr:'MK',kon:'AR',st:'podr',br:'B3',mont:'10-10',podr:['P1','P5','P6'],d:'09-15'},
- {id:'К-1504',cl:'C4',kind:'other',t:'Барная стойка и витрины · шпон дуба · металлокаркас',sum:4200000,paid:2100000,mgr:'OG',kon:'TM',st:'kd',kst:'spec',br:null,mont:null,podr:['P1','P3','P7','P4'],d:'09-22'},
- {id:'К-1505',cl:'C5',kind:'wardrobe',t:'Гардеробная 6 м² · наполнение Hettich',sum:1280000,paid:1280000,mgr:'AG',kon:'SA',st:'mont',br:'B3',mont:'10-05',podr:['P1','P6'],d:'08-28'},
+ {id:'К-1504',cl:'C4',kind:'other',t:'Барная стойка и витрины · шпон дуба · металлокаркас',sum:4200000,paid:2100000,mgr:'OG',kon:'TM',st:'kd',kst:'moder',br:null,mont:null,podr:['P1','P3','P7','P4'],d:'09-22'},
+ {id:'К-1505',cl:'C5',kind:'wardrobe',t:'Гардеробная 6 м² · наполнение Hettich',sum:1280000,paid:1280000,mgr:'AG',kon:'SA',st:'qa',br:'B3',mont:'10-05',podr:['P1','P6'],d:'08-28'},
  {id:'К-1506',cl:'C6',kind:'kitchen',t:'Кухня П-образная · фасады шпон · встроенная техника',sum:4950000,paid:2475000,mgr:'DN',kon:'TM',st:'zam2',kst:'zamer',br:null,mont:null,podr:[],d:'09-29'},
  {id:'К-1507',cl:'C7',kind:'other',t:'Детская: шкаф, стол, кровать-чердак',sum:1120000,paid:0,mgr:'MK',kon:null,st:'dog',br:null,mont:null,podr:[],d:'10-02'},
  {id:'К-1508',cl:'C8',kind:'kitchen',t:'Кухня 3 м · ЛДСП + стекло',sum:1780000,paid:0,mgr:'OG',kon:null,st:'sketch',br:null,mont:null,podr:[],d:'10-01'},
  {id:'К-1509',cl:'C9',kind:'other',t:'Ресепшн и шкафы · металлокаркас',sum:2300000,paid:1150000,mgr:'AG',kon:'AR',st:'start',br:'B1',mont:'10-23',podr:['P1','P3'],d:'09-18'},
  {id:'К-1510',cl:'C10',kind:'wardrobe',t:'Прихожая и ТВ-зона',sum:960000,paid:480000,mgr:'DN',kon:'SA',st:'wait',br:'B2',mont:'10-08',podr:['P1'],d:'09-05'},
- {id:'К-1511',cl:'C11',kind:'kitchen',t:'Кухня 2,6 м',sum:1390000,paid:0,mgr:'MK',kon:null,st:'zam1',br:null,mont:null,podr:[],d:'10-03'},
+ {id:'К-1511',cl:'C11',kind:'kitchen',t:'Кухня 2,6 м',sum:1390000,paid:0,mgr:'MK',kon:null,st:'info',br:null,mont:null,podr:[],d:'10-03'},
  {id:'К-1512',cl:'C12',kind:'wardrobe',t:'Гардероб распашной 2 м',sum:720000,paid:0,mgr:'OG',kon:null,st:'lead',br:null,mont:null,podr:[],d:'10-05'},
- {id:'К-1513',cl:'C14',kind:'wardrobe',t:'Шкаф в прихожую 1,8 м',sum:640000,paid:320000,mgr:'AG',kon:'AR',st:'kd',kst:'draw',br:null,mont:null,podr:[],d:'09-26'},
- {id:'К-1514',cl:'C15',kind:'kitchen',t:'Кухня с островом · фасады эмаль',sum:3150000,paid:1575000,mgr:'DN',kon:'SA',st:'kd',kst:'agree',br:null,mont:null,podr:[],d:'09-24'},
- {id:'К-1493',cl:'C13',kind:'kitchen',t:'Кухня 3,2 м',sum:2100000,paid:1900000,mgr:'MK',kon:'TM',st:'done',br:'B2',mont:'09-26',podr:['P1','P4'],d:'08-10'},
+ {id:'К-1513',cl:'C14',kind:'wardrobe',t:'Шкаф в прихожую 1,8 м',sum:640000,paid:320000,mgr:'AG',kon:'AR',st:'zam2',kst:'draw',br:null,mont:null,podr:[],d:'09-26'},
+ {id:'К-1514',cl:'C15',kind:'kitchen',t:'Кухня с островом · фасады эмаль',sum:3150000,paid:1575000,mgr:'DN',kon:'SA',st:'zam2',kst:'agree',br:null,mont:null,podr:[],d:'09-24'},
+ {id:'К-1515',cl:'C16',kind:'wardrobe',t:'Шкаф-купе 3 м · фасады зеркало + ЛДСП',sum:980000,paid:0,mgr:'DN',kon:null,st:'fix',br:null,mont:null,podr:[],d:'09-30'},
+ {id:'К-1516',cl:'C17',kind:'kitchen',t:'Кухня угловая 2,9 м · фасады МДФ плёнка',sum:1840000,paid:0,mgr:'AG',kon:null,st:'agree',br:null,mont:null,podr:[],d:'09-27'},
+ {id:'К-1493',cl:'C13',kind:'kitchen',t:'Кухня 3,2 м',sum:2100000,paid:1900000,mgr:'MK',kon:'TM',st:'pay',br:'B2',mont:'09-26',podr:['P1','P4'],d:'08-10'},
  {id:'К-1498',cl:'C1',kind:'wardrobe',t:'Гардероб в спальню',sum:1160000,paid:1160000,mgr:'AG',kon:'TM',st:'done',br:'B1',mont:'09-19',podr:['P1','P5'],d:'08-18'}
 ].map(o=>({...o,mont:o.mont?D(o.mont):null,d:D(o.d),log:[],wa:[]}));
 const OR=id=>ORDERS.find(o=>o.id===id);
 
 /* Чек-листы этапов — шаблоны по типу изделия */
 const CHK={
- m:{n:'Менеджер → конструктору',items:['Договор подписан (бумага или ЭЦП)','Предоплата получена','Предварительный эскиз согласован с клиентом','Замеры первичного замера приложены','Материалы и цвета выбраны: корпус, фасады, кромка','Фурнитура выбрана: петли, ящики, подъёмники','Техника: модели и размеры (для кухни)','Адрес, этаж, лифт, срок монтажа','Особые пожелания клиента записаны']},
+ m:{n:'Менеджер → конструктору',items:['Все изделия указаны','Количество изделий указано','Материалы утверждены','Фасады утверждены','Фурнитура утверждена','Встроенная техника указана','Мойка и смеситель указаны','Столешница указана','Освещение указано','Декоративные элементы указаны','Особые требования клиента указаны','Фото объекта загружены','Эскиз загружен','Коммуникации проверены','ТЗ строителям сформировано']},
  kitchen:{n:'Конструктор · кухня',items:['Контрольный замер: стены, углы, коммуникации','Привязка техники по паспортам','Схема мойки, вытяжки, розеток','Карта раскроя ЛДСП','Кромка по деталям','Спецификация фурнитуры: петли, ящики, подъёмники','Фасады: тип, цвет — подрядчик отмечен','Столешница: материал и раскрой — подрядчик отмечен','Чертежи сборки для цеха','Заявка на склад сформирована']},
  wardrobe:{n:'Конструктор · шкаф, гардероб',items:['Замер ниши: перепады пола и потолка','Система дверей: профиль, количество полотен','Стекло или зеркало — подрядчик отмечен','Наполнение: штанги, ящики, полки','Карта раскроя ЛДСП','Кромка по деталям','Спецификация фурнитуры','Чертежи сборки для цеха','Заявка на склад сформирована']},
  other:{n:'Конструктор · прочее изделие',items:['Контрольный замер','Чертёж общего вида согласован','Металл, камень, шпон — подрядчики отмечены','Карта раскроя ЛДСП','Кромка по деталям','Спецификация фурнитуры','Чертежи сборки для цеха','Заявка на склад сформирована']}
 };
-ORDERS.forEach(o=>{const si=STI(o.st);o.chM=CHK.m.items.map((x,i)=>si>STI('dog')?1:o.st==='dog'?(i<5&&i!==1?1:0):0);if(o.id==='К-1507')o.chM=[0,0,1,1,1,1,0,1,1];
- const n=CHK[o.kind].items.length;o.chK=Array(n).fill(0).map((x,i)=>si>STI('kd')?1:o.st==='kd'?(o.kst==='spec'?(i<n-2?1:0):o.kst==='agree'?(i<4?1:0):(i<2?1:0)):0)});
-const KST=[['zamer','Контрольный замер'],['draw','Отрисовка'],['agree','Согласование изменений'],['spec','Спецификация и раскрой'],['sent','Передано в производство']];
+ORDERS.forEach(o=>{const si=STI(o.st);o.chM=CHK.m.items.map((x,i)=>si>STI('dog')?1:o.st==='dog'?(i<11?1:0):0);if(o.id==='К-1507')o.chM=[1,1,1,1,1,0,0,1,1,1,1,1,1,0,0];
+ const n=CHK[o.kind].items.length;o.chK=Array(n).fill(0).map((x,i)=>si>=STI('kd')?1:o.st==='zam2'?(o.kst==='spec'?(i<n-2?1:0):o.kst==='agree'?(i<4?1:0):(i<2?1:0)):0)});
+const KST=[['zamer','Замер'],['draw','Техпроект'],['agree','Изменения клиента'],['spec','Спецификация и раскрой'],['moder','На модерации'],['sent','Запущено']];
 
 /* Работы подрядчиков по заказам */
 const JOBS=[
@@ -253,7 +262,7 @@ SC.analytics=()=>{const mx=Math.max(...MONTHS.map(m=>m[2]));
 /* ===== Продажи ===== */
 const myOrders=()=>role==='Менеджер'?ORDERS.filter(o=>o.mgr==='AG'):ORDERS;
 SC.funnel=()=>{const L=myOrders();
- return `<div class="hd"><div><h2>Воронка заказов${role==='Менеджер'?' · мои':''}</h2><p>Ваши этапы: заявка → первичный замер → эскиз → договор → контрольный замер → конструкторская документация → запуск → подрядчики → цех → ждёт монтажа → монтаж → сдача. На каждой карточке — шкала готовности.</p></div><div class="btns"><button class="bt p" onclick="card('newlead')">+ Заявка</button></div></div>
+ return `<div class="hd"><div><h2>Воронка заказов${role==='Менеджер'?' · мои':''}</h2><p>Этапы по вашему ТЗ: новая заявка → сбор информации → первичная отрисовка → корректировка → согласование → договор → замер и техпроект → модерация менеджером → запуск → производство и подрядчики → сборка → готово к вывозу → доставка и монтаж → качество и АВР → оплата → закрыт. Одна карточка проекта на весь путь, шкала готовности на каждой.</p></div><div class="btns"><button class="bt p" onclick="card('newlead')">+ Заявка</button></div></div>
  <div class="kb">${ST.map(s=>{const X=L.filter(o=>o.st===s.k);return `<div class="kc" style="--sc:${s.c}"><div class="kh"><b>${s.n}</b><span>${X.length}</span></div>${X.map(o=>`<div class="kd ${jobsOf(o.id).some(jLate)?'alarm':''}" onclick="openOrd('${o.id}')"><div class="kt"><b>${o.id}</b><span class="tag">${KIND[o.kind]}</span></div><div class="kr">${esc(CL(o.cl).n)}</div><div class="km">${esc(o.t)}</div>${rbar(o)}<div class="kf"><span>${STAFF[o.mgr]}${o.kon?' · '+STAFF[o.kon]:''}</span><b class="mono">${mln(o.sum)}</b></div></div>`).join('')||'<div class="kempty">—</div>'}</div>`}).join('')}</div>
  ${said('«Нужно, чтобы эта карточка дальше двигалась по этапам и этапы были разграничены: продажа, после договора — дизайнеры и конструкторы, потом снабжение и подрядные работы, сборка и монтаж».')}`};
 
@@ -261,7 +270,7 @@ function openOrd(id){if(!allowed('order')){toast('Карточка заказа 
 function zoneChk(o){const z=STN(o.st).z;if(z==='m')return {k:'m',key:'chM',L:CHK.m};if(z==='k')return {k:o.kind,key:'chK',L:CHK[o.kind]};return null}
 SC.order=()=>{const o=OR(curOrd)||ORDERS[0];const c=CL(o.cl);const si=STI(o.st);const z=zoneChk(o);const J=jobsOf(o.id);const R=REQS.find(r=>r.ord===o.id);const blk=nextBlock(o);
  return `<div class="hd"><div><div class="crumb"><a onclick="go('funnel')">Воронка</a> / ${o.id}</div><h2>${o.id} · ${esc(o.t)}</h2><p>${esc(c.n)} · ${esc(c.addr)} · менеджер ${STAFF[o.mgr]}${o.kon?' · конструктор '+STAFF[o.kon]:''}${o.br?' · '+BRIG[o.br].n:''}</p></div>
-  <div class="btns">${o.st!=='done'?`<button class="bt ${blk?'':'p'}" onclick="nextSt('${o.id}')">→ ${ST[si+1].n}</button>`:''}</div></div>
+  <div class="btns">${si<=STI('agree')?`<button class="bt" onclick="card('lostq','${o.id}')">Отказ</button>`:''}${o.st!=='done'?`<button class="bt ${blk?'':'p'}" onclick="nextSt('${o.id}')">→ ${ST[si+1].n}</button>`:''}</div></div>
  <div class="stp">${ST.map((s,i)=>`<div class="${i<si?'ok':i===si?'on':''}" style="--sc:${s.c}" title="${s.n}"><i>${i<si?'✓':i+1}</i><span>${s.n}</span></div>`).join('')}</div>
  <div class="rdbig">${rbar(o)}<span>готовность заказа</span></div>
  ${blk?`<div class="note" style="--tone:var(--bad)"><b>Дальше не двигается: ${blk}</b><p>Так задумано: пока ответственный не прошёл свой чек-лист или не выполнено условие этапа, карточка стоит.</p></div>`:''}
@@ -274,6 +283,7 @@ SC.order=()=>{const o=OR(curOrd)||ORDERS[0];const c=CL(o.cl);const si=STI(o.st);
  ${STN(o.st).z==='k'?`<div class="pan"><h3>Подрядчики по этому заказу — отмечает конструктор</h3><div class="cog">${CONTR.map(p=>`<label class="coc ${o.podr.includes(p.id)?'on':''}"><input type="checkbox" ${o.podr.includes(p.id)?'checked':''} onchange="togPodr('${o.id}','${p.id}')"><b>${esc(p.n)}</b><span>${esc(p.w)}</span></label>`).join('')}</div><p class="mini">Когда конструктор закроет чек-лист и передаст в производство, на доске каждого отмеченного подрядчика появится своя карточка с документами и сроком.</p></div>`:''}
  ${J.length?`<div class="pan"><h3>Подрядчики · ${J.filter(j=>j.st==='done').length} из ${J.length} сдали</h3><div class="tw"><table class="t"><thead><tr><th>Подрядчик</th><th>Работа</th><th>Передано</th><th>Срок</th><th>Статус</th><th class="r">Цена</th><th class="r">Оплачено</th></tr></thead><tbody>${J.map(j=>`<tr class="${jLate(j)?'rowbad':''}"><td><b>${esc(CO(j.p).n)}</b></td><td>${esc(j.w)}</td><td class="mono">${dd(j.sent)}</td><td class="mono">${dd(j.due)}</td><td>${jst(j)}</td><td class="r mono">${j.sum?fmt(j.sum):'свои'}</td><td class="r mono">${fmt(j.paid)}</td></tr>`).join('')}</tbody></table></div></div>`:''}
  ${R?`<div class="pan"><h3>Заявка на склад · ${R.st==='done'?'<span class="tag g">отгружено</span>':'<span class="tag w">ждёт склад</span>'}</h3>${R.lines.map(([s,q])=>`<div class="kv"><span>${esc(SK(s).n)} · ячейка ${SK(s).cell}</span><b class="mono">${q} ${SK(s).u}</b></div>`).join('')}</div>`:''}
+ ${ordExtra(o)}
  <div class="g2"><div class="pan"><h3>WhatsApp с клиентом</h3>${waThread(o).slice(-3).map(m=>`<div class="msg ${m[0]}"><small>${m[1]}</small>${esc(m[2])}</div>`).join('')}<button class="bt sm" onclick="curOrd='${o.id}';go('wa')">Вся переписка →</button></div>
  <div class="pan"><h3>Ход заказа</h3><div class="tl">${ordLog(o).map(x=>`<div class="tli ${x[2]||'ok'}"><span class="who">${x[0]}</span><b>${x[1]}</b></div>`).join('')}</div></div></div>`};
 const jst=j=>j.st==='done'?'<span class="tag g">сдал</span>':jLate(j)?`<span class="tag r">просрочка ${daysBetween(j.due,TODAY)} дн.</span>`:j.st==='work'?'<span class="tag w">в работе</span>':'<span class="tag i">передано</span>';
@@ -281,17 +291,25 @@ function ordLog(o){const si=STI(o.st);const L=[[dd(o.d)+' · '+STAFF[o.mgr],'З�
 function nextBlock(o){const si=STI(o.st);const n=ST[si+1];if(!n)return '';
  if(o.st==='dog'&&o.chM.some(x=>!x))return 'чек-лист менеджера не закрыт — '+o.chM.filter(x=>!x).length+' пункта';
  if(o.st==='dog'&&!o.paid)return 'нет предоплаты';
- if(o.st==='kd'&&o.chK.some(x=>!x))return 'чек-лист конструктора не закрыт — '+o.chK.filter(x=>!x).length+' пункта';
+ if(o.st==='zam2'&&o.chK.some(x=>!x))return 'техпроект не готов: чек-лист конструктора — '+o.chK.filter(x=>!x).length+' пункта';
+ if(o.st==='kd'&&o.moder!=='final')return 'запуск запрещён: менеджер не подтвердил финальный технический проект';
  if(o.st==='kd'&&!o.podr.length)return 'конструктор не отметил подрядчиков';
+ if(o.st==='start'&&o.pkg.some(x=>!x))return 'пакет запуска неполный — нет: '+PKG.filter((x,i)=>!o.pkg[i]).join(', ');
  if(o.st==='start'){const R=REQS.find(r=>r.ord===o.id);if(R&&R.st!=='done')return 'склад ещё не собрал заявку — закупщик отгружает или дозаказывает'}
  if(o.st==='podr'&&jobsOf(o.id).some(j=>j.st!=='done'))return 'не все подрядчики сдали работу: '+jobsOf(o.id).filter(j=>j.st!=='done').map(j=>CO(j.p).n).join(', ');
+ if(o.st==='qa'&&!o.avr)return 'АВР не подписан клиентом';
+ if(o.st==='pay'&&(o.paid<o.sum||!o.closed))return o.paid<o.sum?'остаток не оплачен: '+tg(o.sum-o.paid):'закрывающие документы не сданы';
  return ''}
 function nextSt(id){const o=OR(id);const b=nextBlock(o);if(b){toast('Карточка не двигается: '+b+'.');return}
  const was=o.st;o.st=ST[STI(o.st)+1].k;let msg=`${o.id} → «${STN(o.st).n}».`;
- if(was==='kd'){let n=0;o.podr.forEach(p=>{if(!JOBS.some(j=>j.ord===o.id&&j.p===p)){JOBS.push({id:'J'+(JOBS.length+1),ord:o.id,p,w:CO(p).w+' по '+o.id,sent:TODAY,due:addDays(TODAY,7),st:'sent',sum:0,paid:0,docs:['Чертежи '+o.id+'.pdf']});n++}});if(!REQS.some(r=>r.ord===o.id))REQS.unshift({ord:o.id,by:o.kon||'TM',d:TODAY,st:'new',lines:[['S1',8],['S6',90],['S8',18],['S13',12]]});msg+=` Карточка размножилась: ${o.podr.length} ${plural(o.podr.length,['подрядчик','подрядчика','подрядчиков'])} получили свои карточки, на склад ушла заявка.`}
+ if(was==='kd'){o.pkg=o.pkg||PKG.map(()=>0);let n=0;o.podr.forEach(p=>{if(!JOBS.some(j=>j.ord===o.id&&j.p===p)){JOBS.push({id:'J'+(JOBS.length+1),ord:o.id,p,w:CO(p).w+' по '+o.id,sent:TODAY,due:addDays(TODAY,7),st:'sent',sum:0,paid:0,docs:['Чертежи '+o.id+'.pdf']});n++}});if(!REQS.some(r=>r.ord===o.id))REQS.unshift({ord:o.id,by:o.kon||'TM',d:TODAY,st:'new',lines:[['S1',8],['S6',90],['S8',18],['S13',12]]});msg+=` Карточка размножилась: ${o.podr.length} ${plural(o.podr.length,['подрядчик','подрядчика','подрядчиков'])} получили свои карточки, на склад ушла заявка.`}
  if(o.st==='wait')msg+=` Менеджеру ${STAFF[o.mgr]} пришло уведомление: «Заказ готов — сообщите клиенту и договоритесь о монтаже».`;
- if(o.st==='done')msg+=' Акт подписан, бригаде начислена сдельная часть.';
- if(o.st==='zam2')msg+=' Конструктору пришёл пакет документов от менеджера.';
+ if(o.st==='mont')msg+=' Создана задача доставки: водитель и ответственный менеджер.';
+ if(o.st==='qa')msg+=' Создана задача контроля качества и АВР.';
+ if(o.st==='pay')msg+=' АВР подписан — проект переведён в оплату.';
+ if(o.st==='done')msg+=' Оплачено, документы закрыты — проект закрыт. Бригаде начислена сдельная часть.';
+ if(o.st==='kd')msg+=' Техпроект отправлен менеджеру на модерацию.';
+ if(o.st==='zam2')msg+=' Дата передачи зафиксирована, конструктору создана задача и пришёл пакет от менеджера.';
  o.log.push(['сейчас · '+ROLES[role].n,'Этап: '+STN(o.st).n]);render();toast(msg)}
 function togChk(id,key,i){const o=OR(id);if(key==='chM'&&!['Собственник','Менеджер'].includes(role)){toast('Этот чек-лист отмечает менеджер.');return}if(key==='chK'&&!['Собственник','Конструктор'].includes(role)){toast('Этот чек-лист отмечает конструктор.');return}o[key][i]=o[key][i]?0:1;render()}
 function togPodr(id,p){const o=OR(id);o.podr=o.podr.includes(p)?o.podr.filter(x=>x!==p):o.podr.concat(p);render()}
@@ -350,9 +368,9 @@ SC.wa=()=>{const o=OR(curOrd)||ORDERS[0];const T=Object.keys(WA).map(OR);
 function waSend(id){const el=document.getElementById('wa_t');if(!el)return;const t=el.value.trim();if(!t)return;WA[id]=waThread(OR(id)).concat([['out',NOW+' · '+ROLES[role].n,t]]);render();toast('Сообщение отправлено клиенту в WhatsApp и сохранено в карточке.')}
 
 /* ===== Конструкторы ===== */
-SC.kboard=()=>{const L=ORDERS.filter(o=>['zam2','kd'].includes(o.st)||(o.st==='start'&&o.kon)).filter(o=>role!=='Конструктор'||o.kon==='TM');const ks=o=>o.st==='zam2'?'zamer':o.st==='start'?'sent':o.kst;
+SC.kboard=()=>{const L=ORDERS.filter(o=>['zam2','kd'].includes(o.st)||(o.st==='start'&&o.kon)).filter(o=>role!=='Конструктор'||o.kon==='TM');const ks=o=>o.st==='kd'?'moder':o.st==='start'?'sent':o.kst;
  return `<div class="hd"><div><h2>Конструкторская воронка${role==='Конструктор'?' · мои':''}</h2><p>Своя доска со своими этапами. Внутри карточки — чек-лист под тип изделия: кухня, шкаф, другое. Конструктор не вспоминает, что сделать, а идёт по пунктам; пока не отмечено всё — в производство не уйдёт.</p></div></div>
- <div class="kb k5">${KST.map(([k,n])=>{const X=L.filter(o=>ks(o)===k);return `<div class="kc" style="--sc:#2f5d7a"><div class="kh"><b>${n}</b><span>${X.length}</span></div>${X.map(o=>{const c=o.chK,d=c.filter(Boolean).length;return `<div class="kd" onclick="openOrd('${o.id}')"><div class="kt"><b>${o.id}</b><span class="tag">${KIND[o.kind]}</span></div><div class="kr">${esc(CL(o.cl).n)}</div><div class="km">${esc(o.t)}</div><div class="ckp"><i style="width:${pct(d,c.length)}%"></i></div><div class="kf"><span>${STAFF[o.kon]||'—'}</span><span>чек-лист ${d}/${c.length}</span></div></div>`}).join('')||'<div class="kempty">—</div>'}</div>`}).join('')}</div>
+ <div class="kb k6">${KST.map(([k,n])=>{const X=L.filter(o=>ks(o)===k);return `<div class="kc" style="--sc:#2f5d7a"><div class="kh"><b>${n}</b><span>${X.length}</span></div>${X.map(o=>{const c=o.chK,d=c.filter(Boolean).length;return `<div class="kd" onclick="openOrd('${o.id}')"><div class="kt"><b>${o.id}</b><span class="tag">${KIND[o.kind]}</span></div><div class="kr">${esc(CL(o.cl).n)}</div><div class="km">${esc(o.t)}</div><div class="ckp"><i style="width:${pct(d,c.length)}%"></i></div><div class="kf"><span>${STAFF[o.kon]||'—'}</span><span>чек-лист ${d}/${c.length}</span></div></div>`}).join('')||'<div class="kempty">—</div>'}</div>`}).join('')}</div>
  <div class="g2"><div class="note"><b>К-1514 · согласование изменений</b><p>Клиент поменял модель духового шкафа после договора — дополнительное согласование, как у вас: изменения → подпись клиента → дальше.</p></div><div class="note"><b>Пакет от менеджера</b><p>Конструктор получает карточку с договором, эскизом, замерами, материалами и фурнитурой — менеджер не передаст без своего чек-листа.</p></div></div>
  ${said('«Конструкторская — отдельная воронка, свои этапы, с чек-листами, чтобы конструктор не придумывал и не вспоминал… Это кухня — там свои действия, шкаф — свои».')}`};
 SC.checklists=()=>`<div class="hd"><div><h2>Чек-листы этапов</h2><p>Шаблоны, по которым идут менеджер и конструктор. Пункты добавляете и меняете сами — новые карточки сразу получают новый список.</p></div></div>
@@ -418,20 +436,105 @@ SC.prices=()=>`<div class="hd"><div><h2>Прайсы поставщиков</h2>
  <div class="tw"><table class="t"><thead><tr><th>Поставщик</th><th>Что</th><th>Обновлён</th><th class="r">Артикулов</th><th>Изменения</th></tr></thead><tbody>${[['«Blum Казахстан»','петли, ящики, подъёмники','03.10',612,'+4 % на Legrabox'],['«Мебельные материалы KZ»','ЛДСП Egger, кромка','03.10',1240,'без изменений'],['«ДСП-Центр»','Kronospan, МДФ, ХДФ','28.09',860,'+2 % на МДФ'],['«Hettich Алматы»','петли, направляющие, штанги','25.09',540,'—'],['«Фурнитура-Опт»','ножки, навесы, профили, ручки','01.10',2100,'3 позиции сняты с продажи']].map(r=>`<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td class="mono">${r[2]}</td><td class="r mono">${fmt(r[3])}</td><td class="mini">${r[4]}</td></tr>`).join('')}</tbody></table></div>
  ${said('«Мы берём у поставщика прайс со всеми ценами, и наша таблица подтягивается — если артикул совпадает».')}`;
 
+/* ===== v2 по ТЗ Василия: модерация, пакет запуска, изделия и коммуникации, календарь, снабжение, оплата и закрытие, отказы, автоматизации, отчёты, соответствие ТЗ ===== */
+const PKG=['Общий вид','Вид для монтажа','Сборочные чертежи','Подрядные таблицы','Подрядные чертежи','Закупочная заявка','Спецификация','Все необходимые файлы'];
+const COMMS=[['Электрика','розетки, выводы, мощность, высоты'],['Вода','точки подключения, высоты'],['Канализация','точка, диаметр, уклон'],['Вентиляция','канал, размеры, ограничения'],['Газ','точка подключения, ограничения'],['Техника','посудомойка, духовой шкаф, холодильник, вытяжка']];
+const LOSTR=['Цена','Конкурент','Срок','Изменились планы','Нет бюджета','Не можем изготовить','Не выходит на связь','Другое'];
+let LOSTS=[{n:'Гульмира С.',t:'Кухня 3,4 м',r:'Цена',m:'OG',d:'02.10',c:'Выбрала предложение дешевле на 380 тыс.'},{n:'ТОО «Арман Девелопмент»',t:'Шкафы в 12 квартир',r:'Срок',m:'AG',d:'29.09',c:'Нужно за 14 дней'},{n:'Олжас К.',t:'Гардеробная',r:'Не выходит на связь',m:'MK',d:'27.09',c:'3 попытки за 5 дней'},{n:'Елена П.',t:'Кухня с островом',r:'Изменились планы',m:'DN',d:'24.09',c:'Отложила ремонт до весны'},{n:'Марат Б.',t:'Кухня 2,4 м',r:'Конкурент',m:'OG',d:'22.09',c:''},{n:'Сабина Т.',t:'Детская',r:'Нет бюджета',m:'MK',d:'20.09',c:''},{n:'Кафе «Тюбетейка»',t:'Барная стойка из камня',r:'Не можем изготовить',m:'AG',d:'18.09',c:'Гнутый камень — не берёт ни один подрядчик'}];
+ORDERS.forEach(o=>{const si=STI(o.st);
+ o.moder=si>STI('kd')?'final':o.st==='kd'?'remarks':'none';
+ o.remarks=o.id==='К-1504'?[['03.10','Ольга','Высота барной стойки 1100 вместо 1050 — по ТЗ клиента'],['04.10','Ольга','Добавить розетку USB в витрину']]:[];
+ o.pkg=PKG.map((x,i)=>si>STI('start')?1:o.st==='start'?(i<6?1:0):0);
+ o.avr=si>STI('qa');o.closed=o.st==='done';
+ o.items=o.kind==='kitchen'?[['Нижние модули','ЛДСП + МДФ эмаль','распил · малярка'],['Верхние модули','ЛДСП + стекло','распил · стекло'],['Столешница','кварц','камень'],['Остров','МДФ эмаль','распил · малярка']]:o.kind==='wardrobe'?[['Корпус','ЛДСП','распил'],['Двери-купе','алюминий + зеркало','профиль · стекло'],['Наполнение','штанги, ящики','склад']]:[['Каркас','металл','металл'],['Облицовка','шпон дуба','шпон'],['Столешница','камень','камень']];
+ o.com=COMMS.map((x,i)=>si>STI('dog')?1:o.st==='dog'?(i<4?1:0):0);
+ o.hist=[[dd(o.d),STAFF[o.mgr],'Создана заявка','—','Новая заявка'],[dd(addDays(o.d,2)),STAFF[o.mgr],'Ответственный','—',STAFF[o.mgr]],[dd(addDays(o.d,5)),STAFF[o.mgr],'Версия КП','v1','v2 · '+tg(o.sum)]];
+});
+const PST={wait:'Ожидает',work:'В работе',done:'Готово',got:'Получено',late:'Просрочено'};
+function ordExtra(o){const si=STI(o.st);let h='';
+ h+=`<div class="g2"><div class="pan"><h3>Изделия проекта · ${o.items.length}</h3><p class="mini">1 проект → много изделий → у каждого свои производственные и подрядные задачи.</p>${o.items.map(it=>`<div class="kv"><span><b>${it[0]}</b> · ${it[1]}</span><b class="mini">${it[2]}</b></div>`).join('')}</div>
+ <div class="pan"><h3>ТЗ по коммуникациям · ${o.com.filter(Boolean).length} из ${COMMS.length}</h3><div class="chk">${COMMS.map((c,i)=>`<div class="ci"><span class="bx ${o.com[i]?'on':''}" onclick="OR('${o.id}').com[${i}]=OR('${o.id}').com[${i}]?0:1;render()">${o.com[i]?'✓':''}</span><span class="nm"><b>${c[0]}</b> — ${c[1]}</span></div>`).join('')}</div><button class="bt sm" onclick="toast('ТЗ строителям сформировано PDF и отправлено клиенту в WhatsApp.')">ТЗ строителям · PDF</button></div></div>`;
+ if(si>=STI('zam2')&&si<=STI('kd'))h+=`<div class="pan mod ${o.moder}"><h3>Модерация техпроекта менеджером · ${o.moder==='final'?'финальная — запуск разрешён':o.moder==='remarks'?'есть замечания':'ещё не отправлено'}</h3>${o.remarks.map(r=>`<div class="kv"><span>${r[0]} · ${r[1]}</span><b class="mini">${esc(r[2])}</b></div>`).join('')||'<p class="mini">Замечаний нет.</p>'}${o.st==='kd'?`<div class="btns l" style="margin-top:8px"><button class="bt" onclick="card('remark','${o.id}')">Замечания → вернуть конструктору</button><button class="bt p" onclick="modFinal('${o.id}')">Финальная модерация</button></div>`:''}<p class="mini">Пока менеджер не подтвердил финальный технический проект, запуск производства невозможен. Все замечания сохраняются в истории.</p></div>`;
+ if(si>=STI('kd'))h+=`<div class="pan"><h3>Пакет запуска в производство · ${o.pkg.filter(Boolean).length} из ${PKG.length}</h3><div class="chk c2">${PKG.map((x,i)=>`<div class="ci"><span class="bx ${o.pkg[i]?'on':''}" onclick="OR('${o.id}').pkg[${i}]=OR('${o.id}').pkg[${i}]?0:1;render()">${o.pkg[i]?'✓':''}</span><span class="nm">${x}</span><span class="who">обязателен</span></div>`).join('')}</div></div>`;
+ if(si>=STI('qa'))h+=`<div class="pan"><h3>Качество, АВР, закрытие</h3><div class="kv"><span>Контроль качества — менеджер + начальник производства</span><b>${si>STI('qa')?'принято':'<span class="tag w">в работе</span>'}</b></div><div class="kv"><span>АВР</span><b>${o.avr?'<span class="tag g">подписан</span>':`<button class="bt sm p" onclick="OR('${o.id}').avr=true;render();toast('АВР подписан — проект можно переводить в оплату.')">АВР подписан</button>`}</b></div><div class="kv"><span>Закрывающие документы</span><b>${o.closed?'<span class="tag g">сданы</span>':`<button class="bt sm" onclick="OR('${o.id}').closed=true;render();toast('Закрывающие документы приложены.')">Документы сданы</button>`}</b></div></div>`;
+ h+=`<div class="pan"><h3>История изменений</h3><div class="tw"><table class="t"><thead><tr><th>Когда</th><th>Кто</th><th>Что</th><th>Было</th><th>Стало</th></tr></thead><tbody>${o.hist.concat(o.remarks.map(r=>[r[0],r[1],'Замечание модерации','—',r[2]])).map(x=>`<tr><td class="mono">${x[0]}</td><td>${x[1]}</td><td>${x[2]}</td><td class="mini">${esc(x[3])}</td><td>${esc(x[4])}</td></tr>`).join('')}</tbody></table></div></div>`;
+ return h}
+function modFinal(id){const o=OR(id);o.moder='final';o.hist.push([dd(TODAY),ROLES[role].n,'Модерация','замечания','финальная']);render();toast('Финальная модерация — запуск производства разрешён.')}
+
+/* ---------- календарь начальника производства ---------- */
+SC.calendar=()=>{const rows=JOBS.map(j=>({p:j.ord,w:CO(j.p).w,who:CO(j.p).n,a:j.sent,b:j.due,st:j.st==='done'?'got':D(j.due)<TODAY?'late':j.st==='work'?'work':'wait'})).concat([{p:'К-1502',w:'Сборка в цеху',who:'Бригада 2',a:'2026-10-03',b:'2026-10-07',st:'work'},{p:'К-1509',w:'Распил',who:'Цех',a:'2026-10-05',b:'2026-10-08',st:'work'},{p:'К-1501',w:'Сборка корпуса',who:'Бригада 1',a:'2026-10-12',b:'2026-10-15',st:'wait'},{p:'К-1501',w:'Поставка: ящики Legrabox (заказ)',who:'«Blum Казахстан»',a:'2026-10-02',b:'2026-10-09',st:'wait'}]).map(r=>({...r,a:D(r.a),b:D(r.b)})).sort((x,y)=>x.b<y.b?-1:1);
+ return `<div class="hd"><div><h2>Календарь начальника производства</h2><p>Все производственные, подрядные и снабженческие дедлайны — в одном календаре. Просроченное выделяется само и не теряется внутри карточек.</p></div></div>
+ <div class="wid"><div><small>Работ в календаре</small><b>${rows.length}</b><span>цех, подрядчики, поставки</span></div><div><small>Просрочено</small><b class="r">${rows.filter(r=>r.st==='late').length}</b><span>уведомлены исполнитель и руководитель</span></div><div><small>Дедлайн завтра</small><b class="w">${rows.filter(r=>r.b===addDays(TODAY,1)).length}</b><span>исполнитель + руководитель</span></div><div><small>Через 2 рабочих дня</small><b>${rows.filter(r=>r.b===addDays(TODAY,2)).length}</b><span>напоминание исполнителю</span></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Проект</th><th>Работа</th><th>Исполнитель</th><th>Начало</th><th>Дедлайн</th><th>Статус</th></tr></thead><tbody>${rows.map(r=>`<tr class="${r.st==='late'?'rowbad':''}"><td><a class="lk" onclick="openOrd('${r.p}')">${r.p}</a> · ${esc(CL(OR(r.p).cl).n)}</td><td>${esc(r.w)}</td><td>${esc(r.who)}</td><td class="mono">${dd(r.a)}</td><td class="mono"><b>${dd(r.b)}</b></td><td><span class="tag ${r.st==='late'?'r':r.st==='got'?'g':r.st==='work'?'w':''}">${PST[r.st]}</span></td></tr>`).join('')}</tbody></table></div>
+ ${tzRef('7.2, 15','Начальник производства видит в одном календаре все производственные и подрядные дедлайны; просроченные выделяются автоматически.')}`};
+
+/* ---------- снабжение: в наличии / на заказ ---------- */
+const pd=s=>'2026-'+s.split('.')[1]+'-'+s.split('.')[0];
+let SUP=[{o:'К-1509',it:'ЛДСП Egger W980 · 16 мм',art:'EG-W980-16',q:'9 листов',type:'stock',sup:'склад, ячейка А-02',ord:'05.10',plan:'—',fact:'05.10',who:'Ерлан',aff:false},{o:'К-1509',it:'ЛДСП Egger W980 · 16 мм (недостача)',art:'EG-W980-16',q:'3 листа',type:'order',sup:'«Мебельные материалы KZ»',ord:'05.10',plan:'08.10',fact:'',who:'Ерлан',aff:false},{o:'К-1501',it:'Ящик Blum Legrabox M 500 антрацит',art:'770M5002S',q:'2 компл',type:'order',sup:'«Blum Казахстан»',ord:'02.10',plan:'09.10',fact:'',who:'Ерлан',aff:true},{o:'К-1503',it:'Профиль купе, направляющие',art:'ALU-K2',q:'1 компл',type:'order',sup:'«AluSystem»',ord:'29.09',plan:'03.10',fact:'',who:'Ерлан',aff:true},{o:'К-1502',it:'Петля Blum Clip Top Blumotion',art:'71B3550',q:'24 шт',type:'stock',sup:'склад, ячейка Ф-03',ord:'26.09',plan:'—',fact:'26.09',who:'Ерлан',aff:false}];
+SC.supply=()=>`<div class="hd"><div><h2>Снабжение: в наличии и на заказ</h2><p>Каждая позиция связана с проектом и изделием. Для заказных позиций плановая дата поставки — обязательное поле, без неё позиция не сохраняется. Если поставка влияет на дату монтажа — она видна начальнику производства и в карточке сборщика.</p></div><div class="btns"><button class="bt p" onclick="card('supnew')">+ Позиция</button></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Проект</th><th>Позиция</th><th>Артикул</th><th>Кол-во</th><th>Тип</th><th>Поставщик</th><th>Заказ</th><th>План поставки</th><th>Факт</th><th>Ответств.</th></tr></thead><tbody>${SUP.map(r=>{const late=r.type==='order'&&!r.fact&&r.plan.includes('.')&&pd(r.plan)<TODAY;return `<tr class="${late?'rowbad':''}"><td><a class="lk" onclick="openOrd('${r.o}')">${r.o}</a></td><td>${esc(r.it)}${r.aff?'<div class="sub neg">влияет на дату монтажа</div>':''}</td><td class="mono">${r.art}</td><td>${r.q}</td><td>${r.type==='order'?'<span class="tag w">на заказ</span>':'<span class="tag g">в наличии</span>'}</td><td>${esc(r.sup)}</td><td class="mono">${r.ord}</td><td class="mono"><b>${r.plan}</b></td><td class="mono">${r.fact||(late?'<span class="neg">просрочено</span>':'—')}</td><td>${r.who}</td></tr>`}).join('')}</tbody></table></div>
+ <div class="note" style="--tone:var(--bad)"><b>Просрочена поставка, влияющая на монтаж</b><p>Профиль купе для К-1503: план 03.10, не пришёл. Уведомление снабжению, начальнику производства и менеджеру Максату — клиенту обещан монтаж 10.10.</p></div>
+ ${tzRef('8','Для заказных позиций дата обещанной поставки обязательна; плановая и фактическая; видна начальнику производства и сборщику.')}`;
+
+/* ---------- оплата и закрытие ---------- */
+SC.payclose=()=>{const L=ORDERS.filter(o=>STI(o.st)>=STI('dog'));const ps=o=>o.paid>=o.sum?'Оплачено':o.paid>0?'Частично':'Ожидается';
+ return `<div class="hd"><div><h2>Оплата и закрытие</h2><p>По каждому проекту: сумма договора, оплачено, остаток (считается сам), даты платежей, статус оплаты и закрывающие документы. АВР подписан → проект в оплате; оплачено и документы закрыты → проект закрыт.</p></div></div>
+ <div class="wid"><div><small>Договоров</small><b>${L.length}</b><span>на ${mln(L.reduce((a,o)=>a+o.sum,0))}</span></div><div><small>Оплачено</small><b class="g">${mln(L.reduce((a,o)=>a+o.paid,0))}</b><span>фактически</span></div><div><small>Остаток</small><b class="w">${mln(L.reduce((a,o)=>a+o.sum-o.paid,0))}</b><span>к получению</span></div><div><small>Ждут закрытия</small><b>${ORDERS.filter(o=>o.st==='pay').length}</b><span>в статусе «Оплата»</span></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Проект</th><th>Клиент</th><th>Этап</th><th class="r">Договор</th><th class="r">Оплачено</th><th class="r">Остаток</th><th>Статус оплаты</th><th>АВР</th><th>Документы</th></tr></thead><tbody>${L.map(o=>`<tr class="clk" onclick="openOrd('${o.id}')"><td><b>${o.id}</b></td><td>${esc(CL(o.cl).n)}</td><td>${stg(o.st)}</td><td class="r mono">${fmt(o.sum)}</td><td class="r mono">${fmt(o.paid)}</td><td class="r mono ${o.sum-o.paid?'neg':''}">${fmt(o.sum-o.paid)}</td><td><span class="tag ${ps(o)==='Оплачено'?'g':ps(o)==='Частично'?'w':''}">${ps(o)}</span></td><td>${o.avr?'✓':'—'}</td><td>${o.closed?'✓':'—'}</td></tr>`).join('')}</tbody></table></div>
+ ${tzRef('11','Сумма договора, оплачено, остаток — автоматически, дата по каждой операции, статус Ожидается / Частично / Оплачено, закрывающие документы.')}`};
+
+/* ---------- причины отказа ---------- */
+SC.lost=()=>{const cnt=LOSTR.map(r=>[r,LOSTS.filter(x=>x.r===r).length+({'Цена':9,'Срок':5,'Конкурент':4,'Изменились планы':3,'Не выходит на связь':6,'Нет бюджета':2,'Не можем изготовить':1,'Другое':1}[r]||0)]);const mx=Math.max(...cnt.map(c=>c[1]));
+ return `<div class="hd"><div><h2>Причины отказа</h2><p>Если заявка слетает до договора, система требует выбрать причину из списка. Свободный комментарий — дополнительно, но не вместо причины; для «Другое» он обязателен.</p></div></div>
+ <div class="g2"><div class="pan"><h3>Причины · сентябрь – октябрь</h3>${cnt.map(c=>`<div class="hb"><span>${c[0]}</span><i style="width:${Math.round(c[1]/mx*100)}%;background:var(--bad)"></i><b class="mono">${c[1]}</b></div>`).join('')}</div>
+ <div class="pan"><h3>Последние отказы</h3>${LOSTS.map(x=>`<div class="kv"><span><b>${esc(x.n)}</b> · ${esc(x.t)}<br><span class="mini">${x.d} · ${STAFF[x.m]}${x.c?' · '+esc(x.c):''}</span></span><b><span class="tag r">${x.r}</span></b></div>`).join('')}</div></div>
+ ${tzRef('4.1','Обязательная классифицированная причина отказа: цена, конкурент, срок, изменились планы, нет бюджета, не можем изготовить, не выходит на связь, другое (с комментарием).')}`};
+
+/* ---------- автоматизации и уведомления ---------- */
+const AUTOS=[['Создана новая заявка','Назначить ответственного менеджера'],['Дедлайн установлен','Показать в календаре ответственного'],['Заявка закрыта как отказ','Требовать причину отказа'],['Передача конструктору','Зафиксировать дату, создать задачу конструктору'],['Модерация с замечаниями','Вернуть проект конструктору, сохранить замечания'],['Финальная модерация','Разрешить запуск производства'],['Запуск в производство','Создать связанные производственные и подрядные карточки по направлениям'],['Создана заказная закупка','Требовать плановую дату поставки'],['Поставка просрочена','Предупреждение снабжению и начальнику производства'],['Назначен сборщик','Создать карточку в воронке сборщика'],['Готово к вывозу','Предложить задачу доставки'],['Монтаж завершён','Задача контроля качества и АВР'],['АВР подписан','Перевести проект в оплату'],['Оплачено и документы закрыты','Перевести проект в «Закрыт»']];
+const NOTI=[['Дедлайн через 2 рабочих дня','Исполнитель'],['Дедлайн завтра','Исполнитель + руководитель процесса'],['Дедлайн просрочен','Исполнитель + руководитель процесса'],['Просрочена поставка, влияющая на монтаж','Снабжение + начальник производства + менеджер'],['Замечания на модерации','Конструктор + менеджер']];
+SC.autom=()=>`<div class="hd"><div><h2>Автоматизации и уведомления</h2><p>Все 14 автоматических действий из вашего ТЗ и правила уведомлений: о приближении и просрочке дедлайна узнаёт не только исполнитель, но и руководитель процесса.</p></div></div>
+ <div class="pan"><h3>Событие → действие</h3><div class="tw"><table class="t"><thead><tr><th>№</th><th>Событие</th><th>Автоматическое действие</th><th>Вкл.</th></tr></thead><tbody>${AUTOS.map((a,i)=>`<tr><td class="mono">${i+1}</td><td><b>${a[0]}</b></td><td>${a[1]}</td><td><span class="sw on" onclick="this.classList.toggle('on')"></span></td></tr>`).join('')}</tbody></table></div></div>
+ <div class="pan"><h3>Уведомления и просрочки</h3>${NOTI.map(n=>`<div class="kv"><span>${n[0]}</span><b>${n[1]}</b></div>`).join('')}</div>
+ ${tzRef('14–15','Автоматизации CRM и логика уведомлений о дедлайнах и просрочках.')}`;
+
+/* ---------- отчёты руководителя ---------- */
+SC.reports8=()=>`<div class="hd"><div><h2>Отчёты руководителя</h2><p>Восемь отчётов из вашего ТЗ. Главная идея — видно не только этап заказа, но и почему он на этом этапе, кто отвечает за следующий шаг, какой дедлайн и что блокирует движение.</p></div></div>
+ <div class="g2">${[['Продажи','38 заявок · конверсия в договор 34 % · 21,6 млн · главная причина отказа — цена','funnel'],['Проекты','15 активных проектов и их текущие этапы','funnel'],['Просрочки','2 просрочки: «Стекло-Мастер» (Максат), поставка профиля (Ерлан)','calendar'],['Производство','загрузка бригад 72 %, сроки по цеху','cload'],['Подрядчики','6 работ в процессе, 81 % в срок','contractors'],['Снабжение','3 заказные позиции, 1 просрочена','supply'],['Монтаж','4 запланировано на 2 недели, 1 сегодня','install'],['Финансы','договоры, оплаты, остатки, закрывающие документы','payclose']].map(r=>`<div class="pan clk" onclick="go('${r[2]}')"><h3>${r[0]}</h3><p class="mini">${r[1]}</p></div>`).join('')}</div>
+ <div class="pan"><h3>Почему заказ стоит</h3><div class="tw"><table class="t"><thead><tr><th>Проект</th><th>Этап</th><th>Что блокирует</th><th>Следующий шаг</th><th>Дедлайн</th></tr></thead><tbody>${ORDERS.filter(o=>!['done','lead'].includes(o.st)).map(o=>{const b=nextBlock(o);return `<tr class="clk" onclick="openOrd('${o.id}')"><td><b>${o.id}</b></td><td>${stg(o.st)}</td><td class="mini ${b?'neg':''}">${b||'ничего — можно двигать'}</td><td>${STAFF[STN(o.st).z==='k'?(o.kon||'TM'):STN(o.st).z==='m'?o.mgr:'OL']}</td><td class="mono">${o.mont?dd(o.mont):'—'}</td></tr>`}).join('')}</tbody></table></div></div>
+ ${tzRef('19–20','Ключевые отчёты руководителя и главная идея CRM: почему заказ на этапе, кто отвечает, дедлайн, что блокирует.')}`;
+
+/* ---------- соответствие ТЗ ---------- */
+const TZV=[['1','Принцип: одна карточка проекта, дочерние карточки','order','Карточка заказа'],['2','Единая модель карточки','order','Карточка заказа'],['3','Универсальная логика этапа: обязательные поля, причина возврата','order','Блок перехода'],['4','Воронка отдела продаж — 6 этапов','funnel','Воронка'],['4.1','Причины потери заявки','lost','Причины отказа'],['5','Работа менеджера: чек-лист 15 пунктов, ТЗ по коммуникациям','order','Карточка заказа'],['6','Воронка конструктора, модерация, пакет запуска','kboard','Конструкторская воронка'],['7','Дробление на производство и подрядчиков','contractors','Подрядчики'],['7.2','Календарь начальника производства','calendar','Календарь'],['8','Снабжение: в наличии / на заказ, даты поставки','supply','Снабжение'],['9','Сборка: карточка сборщика','brig','Мои заказы · бригада'],['10','Доставка и установка','install','Доставка и монтаж'],['11','Оплата и закрытие','payclose','Оплата и закрытие'],['12','Роли и зоны ответственности','roles','Роли и права'],['13','Матрица видимости','roles','Роли и права'],['14','Автоматизации CRM','autom','Автоматизации'],['15','Уведомления и просрочки','autom','Автоматизации'],['16','Связи сущностей: клиент → проекты → изделия → задачи','order','Изделия в карточке'],['17','История изменений','order','История в карточке'],['18','Приоритет разработки: MVP P0','launch','Запуск и стоимость'],['19','Ключевые отчёты руководителя','reports8','Отчёты руководителя'],['21','Вопросы до разработки','questions','Вопросы до разработки']];
+SC.tzmap=()=>`<div class="hd"><div><h2>Соответствие вашему ТЗ</h2><p>Функциональное ТЗ «CRM для мебельного производства» v1.0 по разделам → где это в демо. Клик — открыть экран. Все разделы P0 из раздела 18 — в ядре.</p></div></div>
+ <div class="tw"><table class="t"><thead><tr><th>Раздел</th><th>Что в ТЗ</th><th>Где в демо</th><th>Статус</th></tr></thead><tbody>${TZV.map(r=>`<tr><td class="mono">${r[0]}</td><td><b>${r[1]}</b></td><td><a class="lk" onclick="go('${r[2]}')">${r[3]}</a></td><td><span class="tag g">входит</span></td></tr>`).join('')}</tbody></table></div>`;
+const QS=[['Какие роли и права доступа?','Предлагаем 9 ролей демо: собственник, менеджер, конструктор, начальник производства, снабжение, сборщик, водитель, подрядчик, финансы; права «смотреть / менять» по матрице раздела 13.'],['Какие статусы и причины отказа утвердить?','Этапы и 8 причин — как в вашем ТЗ, уже в демо. Правим на шлифовке без доплаты.'],['Какие документы генерируются, какие прикрепляются?','Генерируем: КП, договор, ТЗ строителям, заявку на склад, АВР. Прикрепляем: эскизы, замеры, чертежи, подрядные таблицы.'],['Дедлайны — рабочие или календарные дни?','По умолчанию рабочие (Пн–Пт), монтаж — календарные; настраивается.'],['Какие уведомления и за сколько?','За 2 рабочих дня, за 1 день и при просрочке — по разделу 15 ТЗ.'],['Плановая загрузка производственных участков?','Да — календарь загрузки бригад и цеха уже в демо.'],['Себестоимость и маржа по проекту и изделию?','Да, по проекту — из расчёта и подрядчиков; по изделию — на шлифовке.'],['Что передавать в бухгалтерию?','Оплаты, договоры, АВР — выгрузкой в Excel; интеграция с 1С — по API отдельно.'],['Отдельная карточка для каждого изделия?','Да: изделие внутри проекта, у него свои производственные и подрядные задачи.'],['Что видят подрядчики со своим доступом?','Только свои работы: файлы, дедлайн, статус, сверку оплат — кабинет подрядчика.']];
+SC.questions=()=>`<div class="hd"><div><h2>Вопросы до разработки · наши предложения</h2><p>Раздел 21 вашего ТЗ. На каждый вопрос — как мы предлагаем сделать; финально утверждаем вместе на старте.</p></div></div>
+ ${QS.map((q,i)=>`<div class="pan qa"><b>${i+1}. ${q[0]}</b><p>${q[1]}</p></div>`).join('')}`;
+const tzRef=(n,t)=>`<div class="tzref"><b>ТЗ · раздел ${n}</b><span>${t}</span></div>`;
+
+function mebCards(){
+ CARD.lostq=id=>['Отказ по заявке '+id,'Причина обязательна — без неё заявку не закрыть',`<div class="form"><label>Причина<select id="lq_r">${LOSTR.map(r=>`<option>${r}</option>`).join('')}</select></label><label>Комментарий<input id="lq_c" placeholder="обязателен для «Другое»"></label></div><button class="bt p" onclick="lostDo('${id}')">Закрыть как отказ</button>`];
+ CARD.remark=id=>['Замечания модерации',id+' вернётся конструктору',`<div class="form"><label>Замечание<input id="rm_t" value="Уточнить вылет столешницы над посудомойкой"></label></div><button class="bt p" onclick="const o=OR('${id}');o.remarks.push(['${dd(TODAY)}',ROLES[role].n,document.getElementById('rm_t').value]);o.st='zam2';o.moder='remarks';closeM();render();toast('Проект возвращён конструктору, замечание сохранено в истории. Уведомлены конструктор и менеджер.')">Вернуть конструктору</button>`];
+ CARD.supnew=()=>['Новая позиция снабжения','Для заказной позиции дата поставки обязательна',`<div class="form"><label>Проект<select id="sn_o">${ORDERS.filter(o=>STI(o.st)>=STI('start')&&o.st!=='done').map(o=>`<option>${o.id}</option>`).join('')}</select></label><label>Позиция<input id="sn_i" value="Подъёмник Aventos HK-S"></label><label>Тип<select id="sn_t"><option value="order">на заказ</option><option value="stock">в наличии</option></select></label><label>Плановая дата поставки<input id="sn_p" placeholder="дд.мм"></label></div><button class="bt p" onclick="supAdd()">Добавить</button>`];
+}
+function lostDo(id){const r=document.getElementById('lq_r').value,c=document.getElementById('lq_c').value.trim();if(r==='Другое'&&!c){toast('Для «Другое» комментарий обязателен.');return}const o=OR(id);LOSTS.unshift({n:CL(o.cl).n,t:o.t,r,m:o.mgr,d:dd(TODAY),c});ORDERS.splice(ORDERS.indexOf(o),1);closeM();go('lost');toast(`${id} закрыт как отказ: «${r}». Причина попала в аналитику.`)}
+function supAdd(){const v=i=>document.getElementById(i).value.trim();if(v('sn_t')==='order'&&!v('sn_p')){toast('Для заказной позиции плановая дата поставки обязательна.');return}SUP.unshift({o:v('sn_o'),it:v('sn_i'),art:'—',q:'1',type:v('sn_t'),sup:'поставщик',ord:dd(TODAY),plan:v('sn_p')||'—',fact:v('sn_t')==='stock'?dd(TODAY):'',who:'Ерлан',aff:false});closeM();render();toast('Позиция добавлена, связана с проектом.')}
+
 /* ===== Система ===== */
-SC.roles=()=>{const A=[['Воронка и карточки заказов',{VS:2,AG:2,TM:1,OL:1}],['Чек-лист менеджера',{VS:2,AG:2,TM:1}],['Чек-лист конструктора, подрядчики',{VS:2,TM:2,OL:1}],['Расчёт, КП, договор',{VS:2,AG:2,TM:1}],['WhatsApp с клиентами',{VS:1,AG:2}],['Подрядчики и сроки',{VS:2,OL:2,TM:1,P5:1}],['Склад и закупка',{VS:2,OL:1,ER:2}],['Цех, монтаж',{VS:2,OL:2,B1:1}],['Рейсы',{VS:2,OL:2,DR:1}],['Деньги, долги, зарплаты',{VS:2}]];const R=Object.entries(ROLES);
+SC.roles=()=>{const A=[['Воронка и карточки заказов',{VS:2,AG:2,TM:1,OL:1}],['Чек-лист менеджера',{VS:2,AG:2,TM:1}],['Чек-лист конструктора, подрядчики',{VS:2,TM:2,OL:1}],['Расчёт, КП, договор',{VS:2,AG:2,TM:1}],['WhatsApp с клиентами',{VS:1,AG:2}],['Подрядчики и сроки',{VS:2,OL:2,TM:1,P5:1}],['Склад и закупка',{VS:2,OL:1,ER:2}],['Цех, монтаж',{VS:2,OL:2,B1:1}],['Модерация техпроекта',{VS:2,AG:2,TM:1,OL:1}],['Календарь дедлайнов',{VS:1,OL:2,TM:1,AG:1}],['Снабжение: даты поставки',{VS:1,OL:1,ER:2,AG:1,B1:1}],['Рейсы',{VS:2,OL:2,DR:1}],['Оплата и закрытие',{VS:2,AG:1,FN:2}],['Деньги, долги, зарплаты',{VS:2,FN:2}]];const R=Object.entries(ROLES);
  return `<div class="hd"><div><h2>Роли и права</h2><p>Каждый заходит под своим логином и сразу попадает в свою часть — выбирать роль не нужно, это только для показа. Права двух уровней: смотреть или менять. Собственник может всё и сам раздаёт права.</p></div></div>
  <div class="tw"><table class="t mx"><thead><tr><th>Раздел</th>${R.map(([k,v])=>`<th class="c">${esc(v.av)}<span>${esc(k)}</span></th>`).join('')}</tr></thead><tbody>${A.map(a=>`<tr><td>${a[0]}</td>${R.map(([k,v])=>`<td class="c">${a[1][v.p]===2?'<b class="pos" title="меняет">●</b>':a[1][v.p]===1?'<b class="mini" title="смотрит">○</b>':'<span class="mini">—</span>'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
  <p class="mini">● — меняет · ○ — только смотрит · — — не видит</p>
  <div class="g2">${R.map(([k,v])=>`<div class="pan"><h3>${esc(k)} · ${esc(v.n)}</h3><p class="mini">${esc(v.note)}</p></div>`).join('')}</div>
  ${said('«У каждого на своём этапе… у кладовщика только к складу, у сборщика — к своему заказу, чтобы он все заказы не видел» · «Что-то он может только смотреть, что-то корректировать, а собственник может всё».')}`};
-SC.launch=()=>`<div class="hd"><div><h2>Запуск и стоимость</h2><p>Своя система — один раз, без абонентской платы. Код и данные ваши, работает на вашем сервере. Точную цену зафиксируем после вашей таблицы с этапами: допуск — 100–200 тысяч, не полмиллиона.</p></div></div>
- <div class="pk"><div><small>Основной пакет</small><b>2 200 000 ₸</b><span>всё в демо, расчёт — пока в вашей Google-таблице, сумма заносится в карточку</span></div><div class="on"><small>Полный пакет</small><b>2 500 000 ₸</b><span>+ ваш калькулятор (≈50 пунктов, 200 вариантов) внутри системы с прайсами поставщиков</span></div></div>
- <div class="pay3"><div><small>Старт · 10 %</small><b>220 / 250 тыс.</b><span>собираем вашу таблицу этапов и первичку</span></div><div><small>Ядро · 45 %</small><b>990 тыс. / 1,125 млн</b><span>после того, как вы приняли ядро</span></div><div><small>Шлифовка · 45 %</small><b>990 тыс. / 1,125 млн</b><span>после приёмки всей системы</span></div></div>
- <div class="g2"><div class="pan"><h3>Ядро — 2–3 недели</h3>${['Воронка заказов с вашими этапами, карточка, готовность','Чек-листы менеджера и конструктора, блок перехода','Подрядчики: карточка размножается, доски, сроки, сальдо','Склад с ячейками, заявки и закупка','Роли, логины, права'].map(x=>`<div class="li"><i>✓</i><span>${x}</span></div>`).join('')}</div>
- <div class="pan"><h3>Шлифовка — до сдачи, 4–8 недель всего</h3>${['КП и договор из карточки, подписание ЭЦП','WhatsApp в карточке и авто-сообщения','Календарь загрузки и отпусков, монтаж, рейсы водителя','Кабинет подрядчика, приходы и расходы, зарплаты, аналитика','Калькулятор — в полном пакете'].map(x=>`<div class="li n"><i>→</i><span>${x}</span></div>`).join('')}</div></div>
+SC.launch=()=>`<div class="hd"><div><h2>Запуск и стоимость</h2><p>Одна фиксированная цена за всю систему по вашему ТЗ — один раз, без абонентской платы. Код и данные ваши, работает на вашем сервере.</p></div></div>
+ <div class="pk"><div class="on"><small>Система целиком · по вашему ТЗ</small><b>2 200 000 ₸</b><span>все 21 раздел ТЗ: воронки, модерация, производство и подрядчики, снабжение, монтаж, оплата и закрытие, роли, автоматизации, отчёты</span></div><div class="gift"><small>Подарок от нас</small><b><s>≈ 300 000 ₸</s> 0 ₸</b><span>ваш калькулятор (≈50 пунктов, 200 вариантов) внутри системы с прайсами поставщиков — входит в 2,2 млн</span></div></div>
+ <div class="pay3"><div><small>Старт · 10 %</small><b>220 000 ₸</b><span>сверяем ТЗ и вопросы раздела 21, первичка</span></div><div><small>Ядро · 45 %</small><b>990 000 ₸</b><span>после того, как вы приняли ядро</span></div><div><small>Шлифовка · 45 %</small><b>990 000 ₸</b><span>после приёмки всей системы</span></div></div>
+ <div class="g2"><div class="pan"><h3>Ядро — 2–3 недели</h3>${['Воронка продаж и проектов по ТЗ, карточка с изделиями, история изменений','Чек-лист менеджера 15 пунктов, ТЗ по коммуникациям, причины отказа','Конструкторская воронка, модерация, пакет запуска','Подрядчики: карточка размножается, доски, сроки, сальдо','Склад с ячейками, заявки и закупка','Роли, логины, матрица видимости'].map(x=>`<div class="li"><i>✓</i><span>${x}</span></div>`).join('')}</div>
+ <div class="pan"><h3>Шлифовка — до сдачи, 4–8 недель всего</h3>${['КП и договор из карточки, подписание ЭЦП','WhatsApp в карточке и авто-сообщения','Календарь дедлайнов, снабжение с датами поставки, монтаж, рейсы','Кабинет подрядчика, оплата и закрытие, автоматизации и уведомления, 8 отчётов','Калькулятор — подарок, входит в цену'].map(x=>`<div class="li n"><i>→</i><span>${x}</span></div>`).join('')}</div></div>
  <div class="g2"><div class="pan"><h3>Ваши расходы потом</h3><div class="kv"><span>Сервер</span><b>до 10 000 ₸ в месяц</b></div><div class="kv"><span>WhatsApp, казахстанский провайдер</span><b>≈ 5 000 ₸ за номер</b></div><div class="kv"><span>Битрикс и МойСклад</span><b class="neg">больше не нужны · −108 000 ₸ в месяц</b></div></div>
- <div class="pan"><h3>Следующий шаг</h3><p class="mini" style="font-size:12.4px">Вы с Юрием готовите таблицу этапов: что в каждом этапе, как карточка размножается и как собирается обратно. Мы сверяем с демо, называем фиксированную цену — и после 10 % начинаем ядро.</p></div></div>
+ <div class="pan"><h3>Следующий шаг</h3><p class="mini" style="font-size:12.4px">Ваше ТЗ v1.0 получено и разложено по экранам демо. Цена зафиксирована — 2 200 000 ₸. Отвечаем на вопросы раздела 21, 10 % — и начинаем ядро.</p></div></div>
  ${said('«Чтобы мы дали полную информацию, вы сказали: это будет стоить столько-то, фиксированная стоимость» · «Два — приемлемо, два с половиной — надо подумать».')}`;
 
 /* ===== Карточки ===== */
@@ -445,6 +548,7 @@ CARD.newco=()=>['Новый подрядчик','Или свой участок 
 CARD.trip=()=>['Новый рейс','Водителю придёт уведомление',`<div class="form"><label>Заказ<select id="tr_o">${ORDERS.filter(o=>!['lead','done'].includes(o.st)).map(o=>`<option>${o.id}</option>`).join('')}</select></label><label>Что<input id="tr_n" value="Забрать фасады из малярки"></label><label>Дата<input id="tr_d" type="date" value="2026-10-07"></label><label>Время<input id="tr_t" value="10:00"></label></div><button class="bt p" onclick="const v=i=>document.getElementById(i).value;TRIPS.push({d:v('tr_d'),t:v('tr_t'),k:'drive',o:v('tr_o'),n:v('tr_n'),who:'Жандос',to:'→ цех'});TRIPS.sort((a,b)=>a.d<b.d?-1:1);closeM();render();toast('Рейс добавлен — Жандосу пришло уведомление.')">Добавить</button>`];
 CARD.inv=()=>['Инвентаризация','Факт по ячейкам — разница спишется с причиной',`<div class="form">${STOCK.slice(0,6).map(s=>`<label>${s.cell} · ${esc(s.n.split(' · ')[0])} · по учёту ${s.q}<input id="iv_${s.id}" value="${s.q}"></label>`).join('')}</div><button class="bt p" onclick="STOCK.slice(0,6).forEach(s=>{const n=+document.getElementById('iv_'+s.id).value;if(n>=0)s.q=n});closeM();render();toast('Инвентаризация проведена.')">Провести</button>`];
 CARD.cash=()=>['Расход','Административный или любой другой',`<div class="form"><label>Что<input id="cs_n" value="Кофе-машина в шоурум"></label><label>Сумма, ₸<input id="cs_s" value="120000"></label><label>Статья<select id="cs_c"><option>Административные</option><option>Материалы</option><option>Аренда</option><option>Подрядчики</option></select></label></div><button class="bt p" onclick="const v=i=>document.getElementById(i).value;CASH.push({d:TODAY,k:'out',n:v('cs_n'),s:+v('cs_s')||0,c:v('cs_c')});closeM();render();toast('Расход записан.')">Записать</button>`];
+mebCards();
 function card(k,id){const f=CARD[k];if(!f)return;let r;try{r=f(id)}catch(e){toast('Карточка не найдена');return}openM(r[0],r[1],r[2])}
 function act(k){toast('Готово.')}
 function searchDemo(v){if(!v)return;const q=v.toLowerCase().trim();const o=ORDERS.find(x=>(x.id+' '+x.t+' '+CL(x.cl).n).toLowerCase().includes(q));if(o&&allowed('order')){openOrd(o.id);return}const c=CLIENTS.find(x=>x.n.toLowerCase().includes(q));if(c){card('cl',c.id);return}const s=STOCK.find(x=>(x.n+x.art+x.cell).toLowerCase().includes(q));if(s&&allowed('stock')){go('stock');toast(`${s.n} — ячейка ${s.cell}, свободно ${s.q-s.res} ${s.u}.`);return}toast('Не найдено: попробуйте «К-1501», «Сейтова», «Blum», «Ф-03».')}
@@ -484,7 +588,12 @@ const TOUR=[
  ['wa','13 · WhatsApp внутри карточки и авто-сообщения клиенту.'],
  ['money','14 · Приходы и расходы, включая административные.'],
  ['roles','15 · Роли: каждый по своему логину, смотреть или менять.'],
- ['launch','16 · Стоимость: 2,2 или 2,5 млн один раз, 10 / 45 / 45.']
+ ['tzmap','16 · Ваше ТЗ по разделам — где каждый пункт в демо.'],
+ ['calendar','17 · Календарь начальника производства: все дедлайны и просрочки.'],
+ ['supply','18 · Снабжение: в наличии или на заказ, дата поставки обязательна.'],
+ ['payclose','19 · Оплата и закрытие: остаток, АВР, документы.'],
+ ['autom','20 · 14 автоматизаций и правила уведомлений.'],
+ ['launch','21 · Стоимость: 2,2 млн один раз, калькулятор — подарок. 10 / 45 / 45.']
 ];
 let ti=-1,tRun=false;
 function tour(){if(tRun){stopTour();return}tRun=true;ti=-1;document.getElementById('tourBtn').textContent='■';step()}
