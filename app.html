@@ -6542,10 +6542,13 @@ function financeWeekTaskBlockForPoint(kind,point){
 function refreshFinanceWeekTaskBlock(kind){
   document.querySelectorAll('.fc-week-tasks[data-task-kind]').forEach(current=>{
     if(current.dataset.taskKind!==kind)return;
+    const position=captureFinanceChartPosition(current);
     const holder=document.createElement('div');
     holder.innerHTML=financeWeekTaskBlockForPoint(kind,{start:Number(current.dataset.start),end:Number(current.dataset.end)});
     if(current.closest('.fc-fullscreen'))namespaceFullscreenTaskIds(holder);
-    current.replaceWith(holder.firstElementChild);
+    const replacement=holder.firstElementChild;
+    current.replaceWith(replacement);
+    restoreFinanceChartPosition(replacement,position);
   });
 }
 function openFinanceWeekTaskEditor(kind,start,end,taskId=''){
@@ -6801,6 +6804,29 @@ function financeChartsHeader(){
   const toggle=financeChartsPinnedOpen()?'':'<button class="fc-toggle" onclick="toggleFinanceCharts()"></button>';
   return `<div class="fc-head"><div><h2>${meta.heading}</h2><p>${meta.description}</p></div><div class="fc-head-actions"><div class="fc-period-switch" role="group" aria-label="Масштаб графиков">${periods}</div>${toggle}</div></div>`;
 }
+// Capture immediately before replacing DOM, after pending requests finish.
+function captureFinanceChartPosition(root){
+  const grid=root.querySelector('.fc-grid');
+  const sections=root.matches('.fc-week-tasks')?[root]:[...root.querySelectorAll('.fc-week-tasks')];
+  return {x:window.scrollX,y:window.scrollY,left:grid?.scrollLeft||0,hasGrid:!!grid,
+    tasks:sections.map(section=>({kind:section.dataset.taskKind,top:section.scrollTop,
+      list:section.querySelector('.fc-week-tasks-list')?.scrollTop||0,
+      history:section.querySelector('.fc-week-history-list')?.scrollTop||0}))};
+}
+function restoreFinanceChartPosition(root,position){
+  const grid=root.querySelector('.fc-grid');
+  if(grid)grid.scrollLeft=position.left;
+  const sections=root.matches('.fc-week-tasks')?[root]:[...root.querySelectorAll('.fc-week-tasks')];
+  sections.forEach(section=>{
+    const saved=position.tasks.find(item=>item.kind===section.dataset.taskKind);
+    if(!saved)return;
+    section.scrollTop=saved.top;
+    const list=section.querySelector('.fc-week-tasks-list'),history=section.querySelector('.fc-week-history-list');
+    if(list)list.scrollTop=saved.list;
+    if(history)history.scrollTop=saved.history;
+  });
+  window.scrollTo({left:position.x,top:position.y,behavior:'instant'});
+}
 async function paintFinanceCharts(el,data,{cached=false}={}){
   await loadProjectManagers().catch(()=>{});
   MANAGER_CHARTS=data.managerCharts||{};
@@ -6825,12 +6851,11 @@ async function paintFinanceCharts(el,data,{cached=false}={}){
         : 'Часть источников временно недоступна. Все графики сохранены и обновятся автоматически.')
       +'</span><button type="button" onclick="renderFinanceCharts()">Обновить</button></div>'
     : '';
+  const position=captureFinanceChartPosition(el);
   el.innerHTML='<div class="sales-quick-link" id="salesQuickLink"></div>'
     +status
     +financeChartsHeader()
     +'<div class="fc-grid">'+kinds.map(kind=>financeChartCard(kind,data.charts[kind])).join('')+'</div>';
-  const chartGrid=el.querySelector('.fc-grid');
-  if(chartGrid) chartGrid.scrollLeft=0;
   const analyticsSlot=document.getElementById('leadAnalyticsSlot');
   if(analyticsSlot){
     analyticsSlot.innerHTML=kinds.includes('inquiries')&&kinds.includes('kep')?leadAnalyticsShell():'';
@@ -6838,7 +6863,8 @@ async function paintFinanceCharts(el,data,{cached=false}={}){
   const analyticsEl=analyticsSlot?.querySelector('#leadAnalytics');
   if(analyticsEl) renderLeadAnalytics(analyticsEl);
   applyFinanceChartsFold();
-  restorePortalPosition();
+  if(position.hasGrid)restoreFinanceChartPosition(el,position);
+  else restorePortalPosition();
   return true;
 }
 async function renderFinanceCharts(){
