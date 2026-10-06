@@ -16,3 +16,17 @@ for(const [name,start,end] of [
  assert.equal(b.readUInt16LE(crcAt),crc16(b.subarray(i+16,crcAt)),name+' CRC includes both size DWORDs');
 }
 console.log('PASS DWG2018 Header/Classes size and CRC framing');
+
+// Data-page masking depends on physical address. Validate every uncompressed
+// page, including drawings with enough pages to exhaust the old byte counter.
+let pages=0;
+for(let offset=0x100;offset+32<=b.length;offset+=32){
+ const mask=(0x4164536b^offset)>>>0;
+ if(((b.readUInt32LE(offset)^mask)>>>0)!==0x4163043b)continue;
+ const h=Array.from({length:8},(_,i)=>(b.readUInt32LE(offset+i*4)^mask)>>>0);
+ assert.ok(h[1]>0&&h[1]<100,'section type');
+ assert.equal(h[3],h[2],'decompressed payload excludes physical page header');
+ assert.ok(offset+32+h[2]<=b.length,'page payload bounds');pages++;
+}
+assert.ok(pages>0,'data pages found');
+console.log('PASS uncompressed data-page payload sizes',pages);

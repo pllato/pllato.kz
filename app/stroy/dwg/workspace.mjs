@@ -1,7 +1,7 @@
 // Presentation only: never changes the drawing or recovery state.
-import './tool-help.mjs?v=0.17.77';
-import {mountSheetNavigator} from './sheet-navigator.mjs?v=0.17.77';
-import {mountCableCatalog} from './cable-catalog.mjs?v=0.17.77';
+import './tool-help.mjs?v=0.17.78';
+import {mountSheetNavigator} from './sheet-navigator.mjs?v=0.17.78';
+import {mountCableCatalog} from './cable-catalog.mjs?v=0.17.78';
 mountCableCatalog();
 mountSheetNavigator(document.getElementById('exSheet'));
 const panel=document.getElementById('panel'),sidebar=document.getElementById('sidebar');
@@ -28,5 +28,5 @@ body.append(panel,document.querySelector('[data-tool="text"]'),document.querySel
 body.addEventListener('click',e=>{if(e.target.closest('button'))more.open=false;});
 document.addEventListener('pointerdown',e=>{if(!more.contains(e.target))more.open=false;});
 more.addEventListener('keydown',e=>{if(e.key==='Escape'){more.open=false;summary.focus();e.stopPropagation();}});
-import {mountPhoneWorkspace} from './phone-workspace.mjs?v=0.17.77';
+import {mountPhoneWorkspace} from './phone-workspace.mjs?v=0.17.78';
 mountPhoneWorkspace();
