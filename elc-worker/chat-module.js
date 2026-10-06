@@ -331,23 +331,32 @@ async function isChannelAdmin(env, channelId, me) {
 // Воркер сам добавляет колонку через биндинг env.DB (тот же приём, что в
 // /api/admin/deals/migrate-rejects). Флаг модуля гасит повтор в пределах
 // изолята; сам ALTER идемпотентен (повторный падает «duplicate column» → ok).
-// Бэкфилл: создатель канала становится админом.
-let _rolesMigrated = false;
-async function ensureRolesColumn(env) {
-  if (_rolesMigrated) return;
-  try {
-    await env.DB.prepare("ALTER TABLE team_chat_members ADD COLUMN role TEXT").run();
-  } catch (e) { /* duplicate column — колонка уже есть, это норма */ }
-  try {
-    await env.DB.prepare(`
-      UPDATE team_chat_members SET role = 'admin'
-      WHERE (role IS NULL OR role = '')
-        AND channel_id IN (
-          SELECT id FROM team_chat_channels c WHERE c.created_by = team_chat_members.user_id
-        )
-    `).run();
-  } catch (e) { /* бэкфилл best-effort */ }
-  _rolesMigrated = true;
+// Бэкфилл: создатель канала становится админом. Постоянный маркер в D1
+// предотвращает повторный обход участников при каждом холодном старте.
+const rolesMigrations = new WeakMap();
+export async function ensureRolesColumn(env) {
+  if (rolesMigrations.has(env.DB)) return rolesMigrations.get(env.DB);
+  const migration = (async () => {
+    try {
+      await env.DB.prepare('ALTER TABLE team_chat_members ADD COLUMN role TEXT').run();
+    } catch (e) {
+      if (!/duplicate column/i.test(String(e.message))) throw e;
+    }
+    await env.DB.prepare('CREATE TABLE IF NOT EXISTS app_schema_migrations (name TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)').run();
+    const name = 'team-chat-creator-roles-v1';
+    if (await env.DB.prepare('SELECT 1 FROM app_schema_migrations WHERE name=?').bind(name).first()) return;
+    await env.DB.batch([
+      env.DB.prepare(`UPDATE team_chat_members SET role='admin'
+        WHERE (role IS NULL OR role='')
+          AND NOT EXISTS (SELECT 1 FROM app_schema_migrations WHERE name=?)
+          AND EXISTS (SELECT 1 FROM team_chat_channels c
+                      WHERE c.id=team_chat_members.channel_id AND c.created_by=team_chat_members.user_id)`
+      ).bind(name),
+      env.DB.prepare('INSERT OR IGNORE INTO app_schema_migrations(name,applied_at) VALUES(?,?)').bind(name,Date.now()),
+    ]);
+  })();
+  rolesMigrations.set(env.DB, migration);
+  try { await migration; } catch (e) { rolesMigrations.delete(env.DB); throw e; }
 }
 
 // Ленивая миграция: колонка pinned_at в team_chat_members (закрепление чата
@@ -435,7 +444,7 @@ async function isMessageAuthor(env, messageId, me) {
 
 // GET /api/chat/channels?archived=1 — список каналов юзера + unread counts.
 // archived=1 — показать архивные вместо активных.
-async function listChannels(env, me, url) {
+export async function listChannels(env, me, url) {
   const ids = meIds(me);
   const wantArchived = !!(url && (url.searchParams.get('archived') === '1' || url.searchParams.get('archived') === 'true'));
   // Derived-таблица cm схлопывает membership-строки юзера к ОДНОЙ на канал —
@@ -445,18 +454,21 @@ async function listChannels(env, me, url) {
     SELECT
       c.id, c.type, c.name, c.description, c.created_by, c.created_at, c.archived_at, c.icon,
       cm.last_read_message_id, cm.muted, cm.is_admin, cm.pinned_at,
-      (SELECT COUNT(*) FROM team_chat_msgs m
-         WHERE m.channel_id = c.id
-           AND m.deleted_at IS NULL
-           AND (cm.last_read_message_id IS NULL
-                OR m.created_at > (SELECT created_at FROM team_chat_msgs WHERE id = cm.last_read_message_id))
-      ) AS unread_count,
+      CASE WHEN cm.last_read_message_id IS NULL THEN
+        (SELECT COUNT(*) FROM team_chat_msgs m WHERE m.channel_id=c.id AND m.deleted_at IS NULL)
+      ELSE
+        (SELECT COUNT(*) FROM team_chat_msgs m WHERE m.channel_id=c.id AND m.deleted_at IS NULL
+          AND m.created_at > (SELECT created_at FROM team_chat_msgs WHERE id=cm.last_read_message_id))
+      END AS unread_count,
       (SELECT created_at FROM team_chat_msgs
          WHERE channel_id = c.id ORDER BY created_at DESC LIMIT 1
       ) AS last_message_at,
       (SELECT text FROM team_chat_msgs
          WHERE channel_id = c.id ORDER BY created_at DESC LIMIT 1
-      ) AS last_message_text
+      ) AS last_message_text,
+      CASE WHEN c.type='dm' THEN
+        (SELECT user_id FROM team_chat_members WHERE channel_id=c.id AND user_id NOT IN (${phList(ids)}) LIMIT 1)
+      END AS other_user_id
     FROM team_chat_channels c
     JOIN (
       SELECT channel_id, MAX(last_read_message_id) AS last_read_message_id, MAX(muted) AS muted,
@@ -470,19 +482,14 @@ async function listChannels(env, me, url) {
       ? '(cm.archived_at IS NOT NULL OR c.archived_at IS NOT NULL)'
       : '(c.archived_at IS NULL AND cm.archived_at IS NULL)'}
     ORDER BY last_message_at DESC NULLS LAST, c.created_at DESC
-  `).bind(...ids).all();
+  `).bind(...ids, ...ids).all();
 
   // Для DM подтянем имя собеседника. Портальному админу/директору проставим
   // is_admin=1 на всех группах — чтобы UI показывал управление даже там, где
   // он не отмечен админом в team_chat_members (legacy без admin'а).
   const portalAdmin = !!(me?.role === 'admin' || me?.isDirector);
   for (const ch of results) {
-    if (ch.type === 'dm') {
-      const other = await env.DB.prepare(
-        `SELECT user_id FROM team_chat_members WHERE channel_id = ? AND user_id NOT IN (${phList(ids)}) LIMIT 1`
-      ).bind(ch.id, ...ids).first();
-      ch.other_user_id = other?.user_id || null;
-    } else if (portalAdmin) {
+    if (ch.type !== 'dm' && portalAdmin) {
       ch.is_admin = 1;
     }
   }

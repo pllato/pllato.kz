@@ -19,7 +19,7 @@
   // Для Meta-лидов это особенно опасно: старый код использовал отсутствующий
   // bitrixId и показывал «сохранено», хотя запись уходила в deal_null/deal_.
   // При выпуске новой team.html одновременно обновить team-build.json.
-  const TEAM_APP_BUILD = '2026-10-05.deal-focus';
+  const TEAM_APP_BUILD = '2026-10-07.cost-optimization';
   window.__TEAM_APP_BUILD__ = TEAM_APP_BUILD;
   let teamAppReloading = false;
 
@@ -3442,6 +3442,7 @@ import { stageGroupsClient } from './app/wa-stage-groups.js?v=20260929-any-stage
 const waStageGroups=stageGroupsClient({base:'https://pllato-elc-worker.uurraa.workers.dev',getToken:()=>fbAuth.currentUser.getIdToken()});
 import { mountDealRequisites } from './app/deal-requisites.js?v=20260929-autosave';
 import { mountDealProduction, renderDealProductionBadges } from './app/deal-production.js?v=20261003-manual';
+import { createTeamReadCache } from './app/team-request-cache.js?v=20261007';
 import { zoomClient } from './app/zoom-crm.js?v=20261001-staff-host';
 const crmZoom = zoomClient({ base: 'https://pllato-elc-worker.uurraa.workers.dev', getToken: () => fbAuth.currentUser.getIdToken() });
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
@@ -3466,6 +3467,17 @@ const firebaseConfig = {
 };
 const WORKER_URL = 'https://pllato-crm-worker.uurraa.workers.dev';
 const WORKER_RTDB_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/rtdb';
+// The widget and full chat reuse identical authenticated list reads.
+const teamReadCache = createTeamReadCache(window.fetch.bind(window), {
+  baseURL: window.location.href,
+  origin: 'https://pllato-elc-worker.uurraa.workers.dev',
+});
+window.fetch = teamReadCache.fetch;
+window.addEventListener('elc:chat-updated', () => teamReadCache.invalidate());
+window.addEventListener('elc:notification', () => teamReadCache.invalidate());
+window.addEventListener('elc:notif-read', () => teamReadCache.invalidate());
+window.addEventListener('elc:visible', () => teamReadCache.invalidate());
+
 
 // ── Экономия запросов: на скрытой вкладке не опрашиваем сервер ──────────────
 // Когда вкладку свернули/ушли в другую, нет смысла раз в несколько секунд
@@ -3479,7 +3491,13 @@ const WORKER_RTDB_URL = 'https://pllato-elc-worker.uurraa.workers.dev/api/rtdb';
   window.setInterval = function (fn, delay) {
     const extra = Array.prototype.slice.call(arguments, 2);
     if (typeof fn === 'function' && typeof delay === 'number' && delay >= 3000) {
-      const gated = function () { if (document.hidden) return; return fn.apply(this, extra); };
+      let running = false;
+      const gated = async function () {
+        if (document.hidden || running) return;
+        running = true;
+        try { return await fn.apply(this, extra); }
+        finally { running = false; }
+      };
       return _origSetInterval(gated, delay);
     }
     return _origSetInterval.apply(window, arguments);
@@ -4765,7 +4783,7 @@ async function notifFetchCount() {
 function notifStartPolling() {
   if (notifState.pollTimer) return;
   notifFetchCount();
-  notifState.pollTimer = setInterval(notifFetchCount, 25000);
+  notifState.pollTimer = setInterval(notifFetchCount, 60000);
 }
 
 // Realtime: WS-событие → бэйдж +1, звук, foreground-баннер, добавление в список.
@@ -5183,7 +5201,7 @@ async function renderTeamChat(el) {
     return;
   }
   const s = document.createElement('script');
-  s.src = `${WORKER_BASE_URL}/chat.js?v=23`;
+  s.src = `${WORKER_BASE_URL}/chat.js?v=24`;
   s.onload = () => {
     _teamChatScriptLoaded = true;
     if (window.TeamChat?.mount) window.TeamChat.mount('#team-chat-mount');
@@ -7152,7 +7170,7 @@ function initWaFloatingWidget() {
   waWidget.pollTimer = setInterval(() => {
     refreshWaWidgetChats();
     refreshTeamChannels();
-  }, 7000);
+  }, 15000);
   // Показываем permission banner если уведомления не разрешены
   maybeShowNotificationBanner();
 }
@@ -8112,7 +8130,7 @@ function recomputeWaWidgetUnread() {
   } catch (e) {}
 
   // Сайдбар-бэйдж «Чаты»: считаем только командные каналы, капаем на 99+.
-  // Глобальный поллинг (каждые 7с) держит бэйдж корректным, даже если chat.js не смонтирован.
+  // Резервный поллинг (15с, общий кэш списка на 30с) держит бэйдж корректным, даже если chat.js не смонтирован.
   try {
     let teamUnread = 0;
     for (const c of (waWidget.teamChannels || [])) teamUnread += c.unread_count || 0;
@@ -8129,7 +8147,7 @@ function recomputeWaWidgetUnread() {
   } catch {}
 }
 
-// Загрузка командных каналов в виджет (rotates 7 сек вместе с WA)
+// Загрузка командных каналов; общий кэш объединяет запросы с полным чатом.
 async function refreshTeamChannels() {
   try {
     const idToken = await fbAuth.currentUser.getIdToken();
@@ -21360,7 +21378,7 @@ async function loadAndRenderUnifiedChats() {
     const scroll = document.getElementById('unified-list-scroll');
     if (scroll) scroll.innerHTML = `<div style="padding:14px;color:var(--rd);font-size:12px">Ошибка: ${escapeHtml(e.message)}</div>`;
   }
-  // Polling — обновляем список каждые 10 сек
+  // Резервное обновление списка; одинаковые запросы разделяют один fetch.
   if (_unifiedPollTimer) clearInterval(_unifiedPollTimer);
   _unifiedPollTimer = setInterval(async () => {
     if (chatsState.tab !== 'group' || !document.getElementById('chats-list')) {
@@ -21379,7 +21397,7 @@ async function loadAndRenderUnifiedChats() {
       if (teamR.ok) _teamChannelsCache.items = (await teamR.json()).items || [];
       renderUnifiedList();
     } catch {}
-  }, 10000);
+  }, 30000);
 }
 
 function renderUnifiedList() {
@@ -21940,7 +21958,7 @@ async function loadAndRenderWaChats({ silent = false } = {}) {
         return;
       }
       loadAndRenderWaChats({ silent: true });
-    }, 10000);
+    }, 30000);
   }
 }
 

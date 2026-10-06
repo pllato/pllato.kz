@@ -1918,7 +1918,11 @@ async function handleList(request, env, entity) {
     // совпадает, но в mirrored_in JSON содержат этот pipelineId как ключ.
     // mirrored_in хранится как {"pipeline_yrs00p":"STAGE_X", ...}.
     if (entity === "deals") {
-      whereParts.push(`(${cfg.pipelineField} = ? OR mirrored_in LIKE ?)`);
+      whereParts.push(`id IN (
+        SELECT id FROM deals WHERE pipeline_id = ?
+        UNION ALL SELECT id FROM deals
+          WHERE mirrored_in IS NOT NULL AND mirrored_in != '{}' AND mirrored_in LIKE ?
+      )`);
       whereParams.push(pipeline, `%"${pipeline}":%`);
     } else {
       whereParts.push(`${cfg.pipelineField} = ?`);
