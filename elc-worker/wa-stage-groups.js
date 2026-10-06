@@ -1,3 +1,4 @@
+import {clientGroupSchema,clientGroupPhones,readClientGroups,requestClientGroupRefresh} from './wa-client-groups.js';
 export const groupWelcome = 'Добро пожаловать в Pllato! 👋\nМы — студия разработки программного обеспечения. Создаём CRM-системы, сайты и приложения для бизнеса.\n\nВ этом чате будем обсуждать ваш проект, согласовывать задачи и материалы, делиться результатами и решать рабочие вопросы.\n\nРады сотрудничеству!';
 const parse=(s,fallback)=>{try{return JSON.parse(s)||fallback;}catch{return fallback;}};
 const changed=r=>Number(r.meta?.changes ?? r.changes ?? 0)>0;
@@ -152,10 +153,15 @@ export async function handleStageGroups(request,env,deps){
    const dealRecord=await env.DB.prepare('SELECT * FROM deals WHERE id=?'+access.where).bind(dealId,...access.params).first();
    if(!dealRecord)return json({error:'Нет доступа к сделке'},403,request);
    if(request.method==='GET'){
+    await clientGroupSchema(env);
+    const phones=await clientGroupPhones(env,dealRecord.contact_id);
+    const found=await readClientGroups(env,phones);
+    await requestClientGroupRefresh(env,phones,url.searchParams.get('refreshGroups')==='1');
     const group=await env.DB.prepare('SELECT name,group_id,invite_link,status FROM wa_deal_groups WHERE deal_id=?').bind(dealId).first();
     const {results:jobs}=await env.DB.prepare('SELECT event_id,status,error FROM wa_stage_group_jobs WHERE deal_id=? ORDER BY event_id DESC LIMIT 10').bind(dealId).all();
     const {results:people}=await env.DB.prepare('SELECT label,status,error FROM wa_group_people WHERE deal_id=?').bind(dealId).all();
     const {results:chats}=await env.DB.prepare('SELECT id,chat_id,instance_id,name FROM wa_chats WHERE deal_id=? AND is_group=1 ORDER BY name').bind(dealId).all();
+    for(const chat of found.chats)if(!chats.some(c=>c.id===chat.id))chats.push(chat);
     const manual=await env.DB.prepare('SELECT status,error FROM wa_manual_group_jobs WHERE deal_id=?').bind(dealId).first();
     let options;
     if(url.searchParams.get('options')==='1'){
@@ -175,7 +181,7 @@ export async function handleStageGroups(request,env,deps){
      stageRules.push({stage:stages[rule.stage_id]?.name||rule.stage_id,sort:stages[rule.stage_id]?.sort||0,employees});
     }
     stageRules.sort((a,b)=>a.sort-b.sort);
-    return json({group,jobs:manual?[manual,...jobs]:jobs,people,chats,options,pipeline:pipeline?{id:pipeline.id,name:pipeline.name}:null,stageRules,admin:me.role==='admin'},200,request);
+    return json({group,jobs:manual?[manual,...jobs]:jobs,people,chats,discovery:found.discovery,options,pipeline:pipeline?{id:pipeline.id,name:pipeline.name}:null,stageRules,admin:me.role==='admin'},200,request);
    }
    if(request.method!=='POST')return json({error:'Method not allowed'},405,request);
    const body=await request.json(),group=await env.DB.prepare('SELECT * FROM wa_deal_groups WHERE deal_id=?').bind(dealId).first();

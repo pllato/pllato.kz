@@ -12137,7 +12137,7 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
   controls.forEach(el => { if (el) el.disabled = true; });
   const digits = String(contactPhone || '').replace(/\D/g, '').replace(/^8(\d{10})$/, '7$1');
   const states = [];
-  let groupsError = '';
+  let groupsError = '', discovery=null, refreshing=false;
   const select = (state) => {
     if (pane._waState) pane._waState.draft = input.value;
     pane._waState = state;
@@ -12172,22 +12172,30 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
     if (!states.some(s => s.isGroup)) {
       const hint = document.createElement('span');
       hint.style.cssText = 'font-size:12px;color:var(--t3)';
-      hint.textContent = groupsError || 'Группа появится после создания на настроенном этапе.';
+      hint.textContent = groupsError || (discovery?.hasPhone===false?'Для поиска групп укажите телефон клиента.':discovery&&!discovery.channels?'Нет подключённых рабочих номеров WhatsApp.':discovery?.catalogReady&&discovery.checked===discovery.total?'Группы с этим клиентом не найдены.':'Проверяем существующие группы клиента…');
       tabs.appendChild(hint);
     }
+    const refresh=document.createElement('button');refresh.className='tbtn tbtn-sm';refresh.textContent=refreshing?'Обновляем…':'Обновить группы';refresh.disabled=refreshing;refresh.onclick=()=>loadGroups(true);tabs.appendChild(refresh);
+    if(discovery){const hint=document.createElement('small');hint.style.cssText='flex-basis:100%;color:var(--t3)';hint.textContent=groupsError||(discovery.errors?'Часть групп недоступна. Повторим проверку.':!discovery.catalogReady?'Поиск групп поставлен в очередь.':discovery.checked<discovery.total?'Проверено групп: '+discovery.checked+' из '+discovery.total:'Показаны группы, доступные рабочим номерам WhatsApp.');tabs.appendChild(hint);}
   };
-  const loadGroups = async () => {
+  const loadGroups = async (force=false) => {
+    if(force){refreshing=true;drawTabs();}
     try {
       const token = await fbAuth.currentUser.getIdToken();
-      const r = await fetch(`${WORKER_BASE_URL}/api/wa/stage-groups/deals/${encodeURIComponent(getDealRecordId(deal))}`, { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch(`${WORKER_BASE_URL}/api/wa/stage-groups/deals/${encodeURIComponent(getDealRecordId(deal))}${force?'?refreshGroups=1':''}`, { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) throw new Error('Не удалось загрузить группы');
       const data = await r.json();
       if (!pane.isConnected) return;
+      discovery=data.discovery||null;
+      const available=new Set((data.chats||[]).map(c=>c.id));
+      for(let i=states.length-1;i>=0;i--)if(states[i].isGroup&&!available.has(states[i].canonicalChatId))states.splice(i,1);
+      if(pane._waState?.isGroup&&!available.has(pane._waState.canonicalChatId))select(states[0]||null);
       for (const chat of data.chats || []) {
         if (!states.some(s => s.canonicalChatId === chat.id)) states.push({rawChatId:chat.chat_id,canonicalChatId:chat.id,instanceId:chat.instance_id,phone:'',isGroup:true,contactName:chat.name || 'Группа сделки'});
       }
-      groupsError = '';
+      groupsError = force?'Поиск запущен. Найденные группы появятся автоматически.':'';
     } catch { groupsError = 'Группы временно недоступны. Повторяем загрузку…'; }
+    refreshing=false;
     if (!pane.isConnected) return;
     if (!pane._waState && states.length) select(states[0]);
     else drawTabs();
