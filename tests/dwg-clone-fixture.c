@@ -6,7 +6,15 @@
 #include "dwg_api.h"
 int main(int argc,char **argv){
  assert(argc==2&&access(argv[1],F_OK)!=0);
- Dwg_Data *d=dwg_new_Document(R_2018,0,0);assert(d);
+ const char *reference=getenv("DWG_REFERENCE_FIXTURE");
+ Dwg_Data *d;
+ if(reference){d=calloc(1,sizeof(*d));assert(d&&dwg_read_file(reference,d)<DWG_ERR_CRITICAL);}
+ else d=dwg_new_Document(R_2018,0,0);
+ assert(d);
+ if(!reference){
+  Dwg_Object_LAYER *layer=NULL;for(unsigned i=0;i<d->num_objects;i++)if(d->object[i].fixedtype==DWG_TYPE_LAYER){layer=d->object[i].tio.object->tio.LAYER;break;}assert(layer);
+  layer->color.index=256;layer->color.rgb=0xC3000007;layer->color.method=0xC3;
+ }
  dwg_point_3d a={0,0,0},b={100,0,0};
  Dwg_Object_BLOCK_HEADER *inner=dwg_add_BLOCK_HEADER(d,"DEVICE");assert(inner);
  assert(dwg_add_BLOCK(inner,"DEVICE"));assert(dwg_add_LINE(inner,&a,&b));assert(dwg_add_TEXT(inner,"Прибор",&a,5));

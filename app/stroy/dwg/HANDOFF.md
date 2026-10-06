@@ -1,5 +1,48 @@
 # Передача разработки DWG-редактора
 
+## 0.17.77 — DWG container and anonymous-block export repair
+
+Fixed nonminimal UMC handle-map offsets, R2004+ Classes trailer, mandatory
+empty INFO descriptor, and plaintext AppInfo encryption flag in LibreDWG.
+The exporter now raises HANDSEED above every allocated handle and writes the
+anonymous BLOCK_HEADER prefix separately from the full BLOCK entity name.
+Malformed or inconsistent names are rejected; ownership, dependency, text-width,
+same-version and retained-record fidelity checks remain enabled.
+Writer JS/WASM and corresponding GPL source were rebuilt together (Emscripten
+6.0.10). The source contains the patched library, not only wrapper changes.
+
+Additional repair: cloned relative soft references retain code 4 instead of
+being converted to hard-pointer code 5. The latter caused AutoCAD
+`eWrongObjectType` on cloned block table records. Selected exports retain the
+mandatory ACAD APPID, scale dictionary and persisted variable dictionary.
+ATTRIB/ATTDEF constructors initialize width_factor=1; invalid imported widths
+are rejected, never silently repaired.
+
+The current browser workers (create, export, re-export, add TEXT, save again)
+produced a nested-block DWG that independently passed ordinary AutoCAD 2027
+opening and AUDIT / No (0 found/fixed/erased). A nested LINE, TEXT and top-level
+INSERT were individually edited, a separate DWG2018 copy saved, closed and
+reopened; the second AUDIT / No also reported 0/0/0. This is a synthetic fixture
+seeded from an AutoCAD reference, not a claim of universal lossless export.
+Native regressions cover cloned owner reference semantics, system dictionaries,
+attribute widths and export identifiers. Current unit tests: 192 passed.
+
+Verified locally: 192 unit tests; native identifier regression (low/high seed,
+anonymous prefix/full name, inconsistent-definition refusal); WASM executive
+clone/rotation/ownership regression; browser workers create/export/re-export,
+add TEXT and save again on a synthetic nested-block fixture. A direct WASM
+write of a private large candidate was independently opened in AutoCAD 2027:
+AUDIT / No: 16100 active objects, 395 blocks, 0 errors, 0 fixed, 0 erased.
+The direct WASM large output also passed LINE editing, separate DWG2018
+save/reopen and a second AUDIT / No with 0 errors.
+The previously isolated corrected large candidate additionally passed individual
+LINE, TEXT, DIMENSION and device-block editing plus save/reopen/AUDIT / No.
+These checks do not establish byte identity or full fidelity to the initial
+browser project. Fonts absent on the test Mac were substituted. DWG2007 writing
+still requires a separate CAD conversion; arbitrary dynamic/proxy graphs are
+not universally supported. Customer files and private logs are not distributed.
+
+
 ## 0.17.76 — ссылка пустой SORTENTSTABLE на блок
 
 После исправления TEXT пользовательский AutoCAD AUDIT сообщил одну ошибку:

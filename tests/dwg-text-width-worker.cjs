@@ -17,7 +17,7 @@ const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),asse
    const m=await create({print:()=>{},printErr:()=>{}});m.FS.writeFile('/in.dwg',new Uint8Array(buffer));
    if(m.ccall('pllato_open','number',['string'],['/in.dwg'])>=128)throw Error('Open failed');
    if(m.ccall('pllato_root_manifest','number',[],[]))throw Error('Manifest failed');
-   const handles=m.FS.readFile('/root-manifest.txt',{encoding:'utf8'}).trim().split('\n').map(x=>x.split(',')[0]);m._pllato_close();
+   const handles=m.FS.readFile('/root-manifest.txt',{encoding:'utf8'}).trim().split('\n').filter(x=>!x.includes(',viewport')).map(x=>x.split(',')[0]);m._pllato_close();
    const {createExecutiveProject,createExecutive}=await import('./executive-project.mjs');
    const project=createExecutiveProject();createExecutive(project,{id:'test',title:'Width test',metresPerUnit:.001,origin:[1000,1000],planCentre:[1000,1000]});
    const created=await run('executive-worker.mjs',{buffer,project,cloneRequest:{sheetId:'test',handles,centre:[0,0],position:[1000,1000]},exportOnly:true});

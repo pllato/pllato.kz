@@ -201,7 +201,9 @@ static int clone_shared(Dwg_Object *o)
 static void clone_ref_value(BITCODE_H r,BITCODE_HV value)
 {
  r->absolute_ref=value;r->obj=NULL;
- if(r->handleref.code>=6)r->handleref.code=5;
+ /* Relative handles encode soft references; code 5 would incorrectly
+    turn block owners into hard pointers rejected by AutoCAD. */
+ if(r->handleref.code>=6)r->handleref.code=4;
  r->handleref.value=value;r->handleref.size=0;
  for(BITCODE_HV h=value;h;h>>=8)r->handleref.size++;
 }
@@ -514,7 +516,9 @@ API int pllato_clone_selection(const char *roots,double cx,double cy,double x,do
     Dwg_Object_BLOCK_HEADER *b=o->tio.object->tio.BLOCK_HEADER;
     char name[80];unsigned long long suffix=o->handle.value;
     do{snprintf(name,sizeof(name),b->anonymous?"*U%llu":"PLL_COPY_%llu",suffix++);}while(dwg_find_tablehandle(&drawing,name,"BLOCK"));
-    free(b->name);b->name=dwg_add_u8_input(&drawing,name);
+    /* Anonymous table records hold the prefix, not the full BLOCK name.
+       AutoCAD appends its anonymous index and rejects a numeric prefix. */
+    free(b->name);b->name=dwg_add_u8_input(&drawing,b->anonymous?"*U":name);
     Dwg_Object *begin=dwg_ref_object(&drawing,b->block_entity);
     if(!begin||begin->fixedtype!=DWG_TYPE_BLOCK){error=18;break;}
     free(begin->tio.entity->tio.BLOCK->name);
@@ -783,13 +787,48 @@ static int validate_sort_owners(void){
  }
  return 0;
 }
+static int prepare_export_identifiers(void){
+ BITCODE_HV maximum=0;
+ for(unsigned i=0;i<drawing.num_objects;i++){
+  Dwg_Object *o=&drawing.object[i];if(o->handle.value>maximum)maximum=o->handle.value;
+  if(o->type==DWG_TYPE_FREED||o->type==DWG_TYPE_UNUSED||o->fixedtype!=DWG_TYPE_BLOCK_HEADER)continue;
+  Dwg_Object_BLOCK_HEADER *b=o->tio.object->tio.BLOCK_HEADER;if(!b->anonymous)continue;
+  int owned=0;char *name=dwg_ent_get_UTF8(b,"name",&owned);
+  if(!name||name[0]!='*'||!name[1]||!strchr("UDAXTE",name[1])){if(owned)free(name);return DWG_ERR_INVALIDDWG;}
+  if(name[2]){
+   Dwg_Object *start=dwg_ref_object(&drawing,b->block_entity);int fresh=0;
+   char *full=start&&start->fixedtype==DWG_TYPE_BLOCK?dwg_ent_get_UTF8(start->tio.entity->tio.BLOCK,"name",&fresh):NULL;
+   int valid=full&&!strcmp(name,full);
+   if(fresh)free(full);
+   if(!valid){if(owned)free(name);return DWG_ERR_INVALIDDWG;}
+   char prefix[3]={name[0],name[1],0};BITCODE_T replacement=dwg_add_u8_input(&drawing,prefix);
+   if(!replacement){if(owned)free(name);return DWG_ERR_OUTOFMEM;}
+   free(b->name);b->name=replacement;
+  }
+  if(owned)free(name);
+ }
+ if(maximum==UINT64_MAX)return DWG_ERR_INVALIDDWG;
+ BITCODE_H seed=drawing.header_vars.HANDSEED;
+ if(!seed)seed=drawing.header_vars.HANDSEED=dwg_add_handleref(&drawing,0,maximum+1,NULL);
+ if(!seed)return DWG_ERR_OUTOFMEM;
+ if(seed->absolute_ref<=maximum||seed->handleref.value<=maximum){
+  seed->absolute_ref=seed->handleref.value=maximum+1;seed->handleref.code=0;seed->obj=NULL;
+  seed->handleref.size=0;for(BITCODE_HV v=maximum+1;v;v>>=8)seed->handleref.size++;
+ }
+ return 0;
+}
 API int pllato_save(const char *path){
  if(!loaded||drawing.header.version==R_2007||drawing.header.version!=drawing.header.from_version)return DWG_ERR_INVALIDDWG;
+ int idError=prepare_export_identifiers();if(idError){fprintf(stderr,"SAVE_REJECT_IDENTIFIERS code=%d\n",idError);return idError;}
  int sortError=validate_sort_owners();if(sortError)return sortError;
  /* Same-reader round-trip does not detect semantically invalid TEXT widths.
     AutoCAD AUDIT rejects zero; never silently rewrite imported text. */
- for(unsigned i=0;i<drawing.num_objects;i++)if(drawing.object[i].type!=DWG_TYPE_FREED&&drawing.object[i].type!=DWG_TYPE_UNUSED&&drawing.object[i].fixedtype==DWG_TYPE_TEXT){
-  double width=drawing.object[i].tio.entity->tio.TEXT->width_factor;
+ for(unsigned i=0;i<drawing.num_objects;i++)if(drawing.object[i].type!=DWG_TYPE_FREED&&drawing.object[i].type!=DWG_TYPE_UNUSED){
+  Dwg_Object *o=&drawing.object[i];double width;
+  if(o->fixedtype==DWG_TYPE_TEXT)width=o->tio.entity->tio.TEXT->width_factor;
+  else if(o->fixedtype==DWG_TYPE_ATTRIB)width=o->tio.entity->tio.ATTRIB->width_factor;
+  else if(o->fixedtype==DWG_TYPE_ATTDEF)width=o->tio.entity->tio.ATTDEF->width_factor;
+  else continue;
   if(!isfinite(width)||width<=0){fprintf(stderr,"SAVE_REJECT_TEXT_WIDTH %llX\n",(unsigned long long)drawing.object[i].handle.value);return DWG_ERR_INVALIDDWG;}
  }
  unsigned expected=0;for(unsigned i=0;i<drawing.num_objects;i++)if(drawing.object[i].type!=DWG_TYPE_FREED&&drawing.object[i].type!=DWG_TYPE_UNUSED)expected++;
