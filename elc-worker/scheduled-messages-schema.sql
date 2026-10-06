@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS wa_scheduled_messages (
   media_url      TEXT,                          -- опционально
   file_name      TEXT,
   scheduled_at   INTEGER NOT NULL,              -- unix ms когда отправить
-  status         TEXT NOT NULL DEFAULT 'pending',  -- pending | sent | failed | cancelled
+  status         TEXT NOT NULL DEFAULT 'pending',  -- pending | sending | sent | failed | cancelled
   error          TEXT,                           -- если failed
   sent_message_id TEXT,                          -- idMessage от Green-API после отправки
   created_by     TEXT NOT NULL,                  -- uid сотрудника

@@ -5700,7 +5700,62 @@ async function handleWaSend(request, env) {
 // Сотрудник пишет сообщение и ставит время → строка в wa_scheduled_messages
 // со status='pending'. Cron (каждую минуту) находит due и отправляет.
 function genScheduleId() {
-  return 'sch_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+  return 'sch_' + crypto.randomUUID();
+}
+
+async function resolveScheduledWaRecipient(env, body) {
+  const channelId=String(body.channelId || '').trim();
+  let instanceId=String(body.instanceId || '').trim();
+  let chatId=String(body.chatId || '').trim();
+  const phone=String(body.phone || '').trim();
+  // Фронтенд может прислать canonical id вида wa:{instance}:{chatId}.
+  // В Green-API нужен именно исходный chat_id; заодно из строки чата
+  // восстанавливаем instance, чтобы ответ всегда уходил с того же номера.
+  if (chatId.startsWith('wa:')) {
+    const saved = await env.DB.prepare(
+      "SELECT instance_id, chat_id FROM wa_chats WHERE id = ? LIMIT 1"
+    ).bind(chatId).first();
+    if (!saved?.chat_id) throw Object.assign(new Error('Чат не найден. Обновите страницу и откройте получателя заново.'), { status: 409 });
+    if (instanceId && instanceId !== String(saved.instance_id)) {
+      throw Object.assign(new Error('Канал не совпадает с выбранным чатом.'), { status: 409 });
+    }
+    chatId = saved.chat_id;
+    instanceId = String(saved.instance_id || '');
+  }
+  // Also protect stale frontends: never send to a chat that differs from the displayed phone.
+  if (phone && chatId && !chatId.endsWith('@g.us') && chatId !== waChatIdFromPhone(phone)) {
+    throw Object.assign(new Error('Номер получателя не совпадает с чатом. Обновите страницу и откройте карточку заново.'), { status: 409 });
+  }
+  if (!chatId && phone) chatId = waChatIdFromPhone(phone);
+  if (!chatId) throw Object.assign(new Error("chatId or phone required"), { status: 400 });
+
+  let channel = channelId ? await getWaChannel(env, channelId) : null;
+  if (channelId && !channel) throw Object.assign(new Error('Выбранный канал WhatsApp не найден.'),{status:409});
+  if (!channel && instanceId) channel = await getWaChannelByInstance(env, instanceId);
+  if (!channel) {
+    // Старые версии фронтенда не передавали instanceId. Находим его по
+    // сохранённому чату, а не выбираем первый активный канал наугад.
+    const saved = await env.DB.prepare(
+      "SELECT c.instance_id FROM wa_chats c JOIN wa_channels ch ON ch.id_instance = c.instance_id WHERE c.chat_id = ? AND ch.active = 1 ORDER BY CASE WHEN ch.conn_state = 'up' THEN 0 ELSE 1 END, c.updated_at DESC LIMIT 1"
+    ).bind(chatId).first();
+    if (saved?.instance_id) channel = await getWaChannelByInstance(env, saved.instance_id);
+  }
+  if (!channel) {
+    // Если чат ещё не сохранён, берём прежде всего реально подключённый
+    // канал. Раньше первым мог выбираться active=1, но conn_state='down'.
+    channel = await env.DB.prepare(`
+      SELECT * FROM wa_channels
+      WHERE active = 1
+      ORDER BY CASE WHEN conn_state = 'up' THEN 0 ELSE 1 END, created_at ASC
+      LIMIT 1
+    `).first();
+  }
+  if (!channel) throw Object.assign(new Error("no active WhatsApp channel configured"), { status: 503 });
+
+  if (!channel.active) throw Object.assign(new Error('Выбранный канал WhatsApp отключён.'), { status: 503 });
+  if (instanceId && String(channel.id_instance) !== instanceId) throw Object.assign(new Error('Канал не совпадает с выбранным чатом.'), { status: 409 });
+
+  return { channel, chatId, phone };
 }
 
 // POST /api/wa/schedule { chatId|phone, text, scheduledAt (unix ms), channelId?, mediaUrl?, fileName? }
@@ -5711,27 +5766,17 @@ async function handleWaScheduleCreate(request, env) {
 
   let body;
   try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
-  let channelId = body.channelId || null;
-  const instanceId = body.instanceId || null;
-  let chatId = body.chatId || '';
-  const phone = body.phone || '';
-  const text = (body.text || '').trim();
+  const text = String(body.text || '').trim();
   const mediaUrl = body.mediaUrl || null;
   const fileName = body.fileName || null;
-  const scheduledAt = parseInt(body.scheduledAt, 10);
-
-  if (!chatId && phone) chatId = waChatIdFromPhone(phone);
-  if (!chatId) return json({ error: "chatId or phone required" }, 400, request);
-  if (!text && !mediaUrl) return json({ error: "text or mediaUrl required" }, 400, request);
-  if (!scheduledAt || isNaN(scheduledAt)) return json({ error: "scheduledAt (unix ms) required" }, 400, request);
-  if (scheduledAt < Date.now() - 60000) return json({ error: "scheduledAt is in the past" }, 400, request);
-
-  // Если фронт прислал instanceId (Green-API instance чата) — резолвим в wa_channels.id,
-  // чтобы отложенное ушло с того же канала, что и сам чат. Иначе cron возьмёт active.
-  if (!channelId && instanceId) {
-    const ch = await getWaChannelByInstance(env, instanceId);
-    if (ch) channelId = ch.id;
-  }
+  const scheduledAt = Number(body.scheduledAt);
+  if (!text && !mediaUrl) return json({ error: 'Добавьте сообщение или файл.' }, 400, request);
+  if (!Number.isSafeInteger(scheduledAt) || scheduledAt <= Date.now()) return json({ error: 'Выберите время в будущем.' }, 400, request);
+  let recipient;
+  try { recipient = await resolveScheduledWaRecipient(env, body); }
+  catch (e) { return json({ error: e.message }, e.status || 503, request); }
+  const { channel, chatId, phone } = recipient;
+  const channelId = channel.id;
 
   const id = genScheduleId();
   const now = Date.now();
@@ -5744,7 +5789,7 @@ async function handleWaScheduleCreate(request, env) {
   `).bind(id, channelId, chatId, phone || phoneDigits, text || null, mediaUrl, fileName, scheduledAt, me.canonicalUid || me.uid || 'unknown', now).run();
 
   await auditLog(env, me, "wa_schedule_create", "wa_scheduled", id, { scheduledAt, hasMedia: !!mediaUrl });
-  return json({ ok: true, id, scheduledAt, status: 'pending' }, 200, request);
+  return json({ ok: true, id, scheduledAt, status: 'pending', chatId: waChatDocId(channel.id_instance, chatId), instanceId: channel.id_instance }, 200, request);
 }
 
 // GET /api/wa/schedule?chatId=...&status=pending  — список отложенных по чату
@@ -5753,13 +5798,21 @@ async function handleWaScheduleList(request, env) {
   if (auth.error) return json({ error: auth.error }, auth.status, request);
 
   const url = new URL(request.url);
-  const chatId = (url.searchParams.get("chatId") || "").trim();
+  let chatId = (url.searchParams.get("chatId") || "").trim();
+  let instanceId = (url.searchParams.get('instanceId') || '').trim();
+  if (chatId.startsWith('wa:')) {
+    const saved=await env.DB.prepare('SELECT instance_id, chat_id FROM wa_chats WHERE id = ? LIMIT 1').bind(chatId).first();
+    if (!saved) return json({items:[],total:0},200,request);
+    chatId=saved.chat_id; instanceId=String(saved.instance_id);
+  }
   const status = (url.searchParams.get("status") || "pending").trim();
 
   const where = [];
   const params = [];
   if (chatId) { where.push("chat_id = ?"); params.push(chatId); }
-  if (status && status !== 'all') { where.push("status = ?"); params.push(status); }
+  if (instanceId) { where.push('channel_id IN (SELECT id FROM wa_channels WHERE id_instance = ?)'); params.push(instanceId); }
+  if (status === 'active') where.push("status IN ('pending','sending','failed')");
+  else if (status && status !== 'all') { where.push("status = ?"); params.push(status); }
   const whereSQL = where.length ? "WHERE " + where.join(" AND ") : "";
 
   const { results } = await env.DB.prepare(`
@@ -5788,7 +5841,8 @@ async function handleWaScheduleCancel(request, env, id) {
   if (!row) return json({ error: "not found" }, 404, request);
   if (row.status !== 'pending') return json({ error: "already " + row.status }, 409, request);
 
-  await env.DB.prepare("UPDATE wa_scheduled_messages SET status = 'cancelled' WHERE id = ?").bind(id).run();
+  const cancelled = await env.DB.prepare("UPDATE wa_scheduled_messages SET status = 'cancelled' WHERE id = ? AND status = 'pending'").bind(id).run();
+  if (!cancelled.meta.changes) return json({error:'Сообщение уже отправляется. Отмена недоступна.'},409,request);
   await auditLog(env, me, "wa_schedule_cancel", "wa_scheduled", id, {});
   return json({ ok: true, id, status: 'cancelled' }, 200, request);
 }
@@ -5796,6 +5850,8 @@ async function handleWaScheduleCancel(request, env, id) {
 // Cron-обработчик: найти все due pending и отправить. Вызывается из scheduled().
 async function processScheduledWaMessages(env) {
   const now = Date.now();
+  // Never retry an ambiguous provider result automatically: that could send twice.
+  await env.DB.prepare("UPDATE wa_scheduled_messages SET status = 'failed', error = 'Не удалось подтвердить отправку. Проверьте переписку перед повторной отправкой.' WHERE status = 'sending' AND sent_at < ?").bind(now - 15 * 60 * 1000).run();
   const { results } = await env.DB.prepare(`
     SELECT * FROM wa_scheduled_messages
     WHERE status = 'pending' AND scheduled_at <= ?
@@ -5806,16 +5862,18 @@ async function processScheduledWaMessages(env) {
 
   let sent = 0, failed = 0;
   for (const row of results) {
+    const claimed = await env.DB.prepare("UPDATE wa_scheduled_messages SET status = 'sending', sent_at = ? WHERE id = ? AND status = 'pending'").bind(Date.now(),row.id).run();
+    if (!claimed.meta.changes) continue;
     try {
       let channel = row.channel_id ? await getWaChannel(env, row.channel_id) : null;
-      if (!channel) {
+      if (!channel && !row.channel_id) {
         channel = await env.DB.prepare(`
           SELECT * FROM wa_channels WHERE active = 1
           ORDER BY CASE WHEN conn_state = 'up' THEN 0 ELSE 1 END, created_at ASC
           LIMIT 1
         `).first();
       }
-      if (!channel) throw new Error("no active WhatsApp channel configured");
+      if (!channel || !channel.active) throw new Error("Канал WhatsApp недоступен. Сообщение не отправлено.");
 
       const result = await deliverWaMessage(env, {
         channel, chatId: row.chat_id,
