@@ -11,13 +11,14 @@ CREATE TABLE wa_chats(id TEXT,instance_id TEXT,chat_id TEXT,updated_at TEXT);
 INSERT INTO wa_channels VALUES('a','line-a',1,'up','1'),('b','line-b',1,'up','2');
 INSERT INTO wa_chats VALUES('wa:line-b:70000000001@c.us','line-b','70000000001@c.us','1');`);
 const env={DB:{prepare(sql){const stmt=db.prepare(sql);const make=params=>({first:async()=>stmt.get(...params),all:async()=>({results:stmt.all(...params)}),run:async()=>({meta:stmt.run(...params)})});return {...make([]),bind:(...params)=>make(params)};}}};
-const deliveries=[];
-const context=vm.createContext({URL,crypto:webcrypto,requireAuthFlexible:async()=>({claims:{}}),resolveCanonicalUser:async()=>({uid:'employee'}),json:(data,status)=>({data,status}),auditLog:async()=>{},getWaChannel:async(_,id)=>db.prepare('SELECT * FROM wa_channels WHERE id=?').get(id),getWaChannelByInstance:async(_,id)=>db.prepare('SELECT * FROM wa_channels WHERE id_instance=?').get(id),waChatDocId:(i,c)=>`wa:${i}:${c}`,waChatIdFromPhone:p=>`${p}@c.us`,deliverWaMessage:async(_,message)=>{deliveries.push(message);await new Promise(r=>setTimeout(r,5));return{idMessage:'sent-'+deliveries.length};}});
+const deliveries=[];const timers=[];
+const context=vm.createContext({URL,crypto:webcrypto,armScheduledWaMessage:async(_,id,at)=>timers.push({id,at}),requireAuthFlexible:async()=>({claims:{}}),resolveCanonicalUser:async()=>({uid:'employee'}),json:(data,status)=>({data,status}),auditLog:async()=>{},getWaChannel:async(_,id)=>db.prepare('SELECT * FROM wa_channels WHERE id=?').get(id),getWaChannelByInstance:async(_,id)=>db.prepare('SELECT * FROM wa_channels WHERE id_instance=?').get(id),waChatDocId:(i,c)=>`wa:${i}:${c}`,waChatIdFromPhone:p=>`${p}@c.us`,deliverWaMessage:async(_,message)=>{deliveries.push(message);await new Promise(r=>setTimeout(r,5));return{idMessage:'sent-'+deliveries.length};}});
 const a=source.indexOf('function genScheduleId()'),b=source.indexOf('// Ленивая миграция: колонка archived',a);vm.runInContext(source.slice(a,b),context);
 const request=(path,body,method='POST')=>new Request('https://test'+path,{method,body:body?JSON.stringify(body):undefined});
 const create=body=>context.handleWaScheduleCreate(request('/api/wa/schedule',body),env);
 const payload={chatId:'wa:line-b:70000000001@c.us',phone:'70000000001',text:'Test',mediaUrl:'https://example.test/file.pdf',fileName:'file.pdf',scheduledAt:Date.now()+3600000};
 const made=await create(payload);assert.equal(made.status,200);
+assert.equal(timers[0].at,payload.scheduledAt,'timer receives exact requested timestamp');
 const row=db.prepare('SELECT * FROM wa_scheduled_messages WHERE id=?').get(made.data.id);assert.equal(row.channel_id,'b');assert.equal(row.chat_id,'70000000001@c.us');assert.equal(row.media_url,payload.mediaUrl);
 assert.equal((await create({...payload,phone:'70000000002'})).status,409);
 assert.equal((await create({...payload,instanceId:'line-a'})).status,409);
@@ -33,3 +34,16 @@ assert.equal(deliveries.length,1,'concurrent ticks and cancelled rows cannot dup
 assert.equal((await context.handleWaScheduleCancel(request('/api/wa/schedule/x',null,'DELETE'),env,made.data.id)).status,409);
 const failed=await create(payload);db.exec("UPDATE wa_scheduled_messages SET scheduled_at=0; UPDATE wa_channels SET active=0 WHERE id='b'");await context.processScheduledWaMessages(env);assert.equal(deliveries.length,1,'disabled pinned line must not fall back to another sender');assert.equal(db.prepare('SELECT status FROM wa_scheduled_messages WHERE id=?').get(failed.data.id).status,'failed');
 console.log('Scheduled WhatsApp: text + file, future/past, recipient/channel isolation, cancellation, concurrency and disabled channel passed; no real messages sent.');
+
+// Registration failures must not leave an unarmed message in the queue.
+const arm=context.armScheduledWaMessage;
+context.armScheduledWaMessage=async()=>{throw new Error('Timer unavailable');};
+db.exec("UPDATE wa_channels SET active=1");
+const refused=await create({...payload,text:'No timer'});assert.equal(refused.status,503);
+assert.equal(db.prepare("SELECT status FROM wa_scheduled_messages WHERE text='No timer'").get().status,'cancelled');
+context.armScheduledWaMessage=arm;
+const first=await create({...payload,text:'Timer one'}),second=await create({...payload,text:'Timer two'});
+db.exec("UPDATE wa_scheduled_messages SET scheduled_at=0");
+await context.processScheduledWaMessages(env,first.data.id);
+assert.equal(db.prepare('SELECT status FROM wa_scheduled_messages WHERE id=?').get(second.data.id).status,'pending');
+console.log('Timer registration rollback and isolated alarm dispatch passed.');
