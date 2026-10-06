@@ -40,7 +40,7 @@ import {mountExportMenu} from './export-menu.mjs?v=0.17.81';
 import {spatialIndex,viewportShapes,deriveSpatialIndex} from './spatial-index.mjs?v=0.17.81';
 import {RASTER_THRESHOLD,canvasResolution} from './render-policy.mjs?v=0.17.81';
 import {areaDrag} from './area-drag.mjs?v=0.17.81';
-import {dwgVersion,conversionMessage,checkOpeningVersion} from './dwg-version.mjs?v=0.17.82';
+import {dwgVersion,conversionMessage,checkOpeningVersion} from './dwg-version.mjs?v=0.17.83';
 import {boxedObjects,mountBoxSelection} from './box-selection.mjs?v=0.17.81';
 let boxSelection;
 let executiveUI;
@@ -54,7 +54,8 @@ let width=1,height=1,pointers=new Map(),gesture=null,sourceFile=null;
 let polyPoints=[],selectedMatrix=null,selectedShapeKey=null,sharedSelectedId=null,pickedDevice=null;
 let draftHover=null,selectedChain=null;
 let lengthVisibility;
-const versionNotice=document.createElement('div');versionNotice.id='versionNotice';versionNotice.hidden=true;versionNotice.setAttribute('role','status');document.querySelector('header').after(versionNotice);
+$('formatClose').onclick=()=>$('formatDialog').close();
+$('formatOpen').onclick=()=>{$('formatDialog').close();$('file').value='';$('file').click();};
 let markingCache;
 let sourceLengthsCache,sourceLengthsJob=0;
 function refreshSourceLengths(){
@@ -362,7 +363,7 @@ $('delete').onclick=()=>{const r=current();if(!$('busy').hidden||!r||!deletable(
 function adopt(next,fileName,file=null,prepared=null){
  rasterTask.stop();cached=null;recordIndex=null;selectedShapeCache=deviceCache=overlayCache=selectionCache=null;
  sourceLengthsJob++;sourceLengthsCache=lengthVisibility=null;workCopy=null;
- doc=next;versionNotice.hidden=!doc.dwgVersion?.needsConversion;versionNotice.textContent=doc.dwgVersion?.needsConversion?conversionMessage:'';doc.sourceFile=file;sourceFile=file;name=fileName;history=[];future=[];hidden=new Set([...doc.layers].filter(([,l])=>l.color<0).map(([n])=>n));selected=null;draft=null;dirty=false;$('filename').textContent=name;$('save').textContent='Скачать весь '+(doc.native?'DWG':'DXF');for(const b of document.querySelectorAll('[data-tool="line"],[data-tool="text"]')){b.disabled=false;b.title="";}setTool('select');syncUndo();if(prepared)drawing=prepared;rebuild(prepared?'decoration':'geometry');fit();const h=doc.records.find(r=>r.type==='SECTION'&&get(r,2)==='HEADER'),i=h?.pairs.findIndex(p=>p[0]===9&&p[1]==='$INSUNITS');const u=i>=0?Number(h.pairs[i+1]?.[1]):0;$('units').value=({4:'.001',5:'.01',6:'m'})[u]||'1';}
+ doc=next;doc.sourceFile=file;sourceFile=file;name=fileName;history=[];future=[];hidden=new Set([...doc.layers].filter(([,l])=>l.color<0).map(([n])=>n));selected=null;draft=null;dirty=false;$('filename').textContent=name;$('save').textContent='Скачать весь '+(doc.native?'DWG':'DXF');for(const b of document.querySelectorAll('[data-tool="line"],[data-tool="text"]')){b.disabled=false;b.title="";}setTool('select');syncUndo();if(prepared)drawing=prepared;rebuild(prepared?'decoration':'geometry');fit();const h=doc.records.find(r=>r.type==='SECTION'&&get(r,2)==='HEADER'),i=h?.pairs.findIndex(p=>p[0]===9&&p[1]==='$INSUNITS');const u=i>=0?Number(h.pairs[i+1]?.[1]):0;$('units').value=({4:'.001',5:'.01',6:'m'})[u]||'1';}
 function stopLoad(){loadId++;if(worker)worker.terminate();worker=null;clearTimeout(loadTimer);clearInterval(progressClock);const reject=rejectWorker;rejectWorker=null;reject?.(Error('Операция отменена'));$('busy').hidden=true;$('file').disabled=false;$('save').disabled=false;draw();}
 $('cancel').onclick=()=>{stopLoad();status('Загрузка отменена. Предыдущий чертёж сохранён.');};
 async function runOpeningWorker(path,data,token){
@@ -372,7 +373,7 @@ async function runOpeningWorker(path,data,token){
   worker.onerror=()=>reject(Error('Не удалось подготовить CAD-объекты'));loadTimer=setTimeout(()=>reject(Error('Подготовка CAD-объектов превысила 5 минут')),300000);worker.postMessage(data,[data.buffer]);
  });
 }
-async function openFile(file,restore=null){try{await checkOpeningVersion(file);}catch(e){versionNotice.hidden=false;versionNotice.textContent=e.message;status(e.message);return false;}if(!restore&&dirty&&!confirm('Есть несохранённые изменения. Открыть другой файл?'))return;const limit=/\.dwg$/i.test(file.name)?128:256;if(file.size>limit*1024*1024)return status('Предел: DWG 128 МБ, DXF 256 МБ. На телефоне объём зависит от доступной памяти.');stopLoad();const token=loadId;$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Читаю файл…');
+async function openFile(file,restore=null){try{await checkOpeningVersion(file);}catch(e){$('formatMessage').textContent=e.message;if(!$('formatDialog').open)$('formatDialog').showModal();return false;}if(!restore&&dirty&&!confirm('Есть несохранённые изменения. Открыть другой файл?'))return;const limit=/\.dwg$/i.test(file.name)?128:256;if(file.size>limit*1024*1024)return status('Предел: DWG 128 МБ, DXF 256 МБ. На телефоне объём зависит от доступной памяти.');stopLoad();const token=loadId;$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Читаю файл…');
  try{let bytes=await file.arrayBuffer();if(token!==loadId)return;let text,warnings=[],next;$('save').disabled=true;
  if(/\.dwg$/i.test(file.name)){
   if(!/^AC10\d\d/.test(new TextDecoder().decode(bytes.slice(0,6))))throw Error('Это не распознанный DWG.');
@@ -566,4 +567,4 @@ for(const [button,label,path]of [[cableDrawButton,'Плавный кабель �
 window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)||!$('busy').hidden)return;if((e.ctrlKey||e.metaKey)&&['c','v'].includes(e.key.toLowerCase())){e.preventDefault();$(e.key.toLowerCase()==='c'?'cwCopy':'cwPaste').click();}else if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();if(leaderWorkbench?.active())leaderWorkbench.remove();else $('cwDelete').click();}});
 const markingToggle=document.createElement('label');markingToggle.className='lengthToggle';markingToggle.innerHTML='<input id="showCableMarking" type="checkbox"> Маркированность';markingToggle.title='Проверка распознанных кабелей: зелёный — марка и сечение заполнены, красный пунктир — не хватает марки или сечения. Не изменяет DWG/PDF.';
 const markingLegend=document.createElement('span');markingLegend.hidden=true;markingLegend.textContent='Зелёный — заполнено · Красный пунктир — нет марки / сечения';markingLegend.style.fontSize='12px';lengthToggle.after(markingToggle,markingLegend);markingToggle.querySelector('input').onchange=e=>{markingLegend.hidden=!e.target.checked;draw();};
-import('./workspace.mjs?v=0.17.81');
+import('./workspace.mjs?v=0.17.83');
