@@ -2,6 +2,13 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
+<!-- Start authentication dependencies before parsing the full workspace. -->
+<link rel="modulepreload" href="./app/deal-card-navigation.js?v=20261005">
+<link rel="modulepreload" href="./app/wa-stage-groups.js?v=20260929-any-stage">
+<link rel="modulepreload" href="./app/deal-requisites.js?v=20260929-autosave">
+<link rel="modulepreload" href="./app/deal-production.js?v=20261003-manual">
+<link rel="modulepreload" href="./app/team-request-cache.js?v=20261007">
+<link rel="modulepreload" href="./app/zoom-crm.js?v=20261001-staff-host">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>ELC — English Lifestyle Communication</title>
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -25,7 +32,7 @@
   // Для Meta-лидов это особенно опасно: старый код использовал отсутствующий
   // bitrixId и показывал «сохранено», хотя запись уходила в deal_null/deal_.
   // При выпуске новой team.html одновременно обновить team-build.json.
-  const TEAM_APP_BUILD = '2026-10-07.workflow-v2';
+  const TEAM_APP_BUILD = '2026-10-07.auth-startup-v3';
   window.__TEAM_APP_BUILD__ = TEAM_APP_BUILD;
   let teamAppReloading = false;
 
