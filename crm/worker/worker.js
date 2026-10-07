@@ -1,3 +1,4 @@
+import { PAYOUT_COLLECTION, handleProjectPayouts } from './project-payouts.js';
 import { connect } from "cloudflare:sockets";
 import { ODataClient, ODataError } from "./integrations/1c/odata-client.js";
 import { encryptPassword, decryptPassword } from "./integrations/1c/crypto.js";
@@ -854,6 +855,7 @@ async function d1GetDoc(env, collection, id) {
 async function handleStorePull(request, env, actor) {
   const body = await readRequestBodyAsJson(request);
   const collections = normalizeCollectionList(body.collections || []);
+  if(collections.includes(PAYOUT_COLLECTION))throw new HttpError(403,"Используйте раздел выплат проекта");
   const limit = Number(body.limitPerCollection) || DEFAULT_STORE_PULL_LIMIT;
   const updatedSince = body.updatedSince != null ? Number(body.updatedSince) : null;
   if (collections.length === 0) {
@@ -894,6 +896,7 @@ async function handleStorePush(request, env, actor) {
   for (const op of ops) {
     if (!isObject(op)) continue;
     const collection = normalizeCollectionName(op.collection);
+    if(collection === PAYOUT_COLLECTION)throw new HttpError(403,"Используйте раздел выплат проекта");
     if (collection === PRIVATE_PROJECT_FINANCE_COLLECTION && !canAccessProjectFinance(actor)) {
       throw new HttpError(403, "Финансы проектов доступны только Super Admin");
     }
@@ -8825,6 +8828,19 @@ export default {
       if (request.method === "PUT" && path === "/project-finance/charts") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleProjectFinanceChartsPut(request, env, actor));
+      }
+
+      if (path === "/project-payouts" || path === "/project-payouts/access") {
+        const actor = await loadActorContext(request, env, { strictTeamCheck: true });
+        return json(request, env, await handleProjectPayouts(request, env, actor, {
+          get:d1GetDoc, put:d1UpsertDoc, HttpError,
+          list:async (env,kind,projectId) => {
+            await ensureD1Schema(env);
+            const {results}=await requireStoreDb(env).prepare("SELECT data FROM store WHERE team_id=? AND collection=? AND json_extract(data,'$.kind')=?"+(projectId?" AND json_extract(data,'$.projectId')=?":""))
+              .bind(TEAM_ID,PAYOUT_COLLECTION,kind,...(projectId?[projectId]:[])).all();
+            return (results||[]).map(r=>JSON.parse(r.data));
+          }
+        }));
       }
 
       if (request.method === "POST" && path === "/store/pull") {
