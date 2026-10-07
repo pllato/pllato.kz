@@ -40,6 +40,7 @@ import {mountExportMenu} from './export-menu.mjs?v=0.17.81';
 import {spatialIndex,viewportShapes,deriveSpatialIndex} from './spatial-index.mjs?v=0.17.81';
 import {RASTER_THRESHOLD,canvasResolution} from './render-policy.mjs?v=0.17.81';
 import {areaDrag} from './area-drag.mjs?v=0.17.81';
+import {latestOpeningPreflight} from './opening-preflight.mjs?v=0.17.86';
 import {dwgVersion,conversionMessage,checkOpeningVersion} from './dwg-version.mjs?v=0.17.83';
 import {boxedObjects,mountBoxSelection} from './box-selection.mjs?v=0.17.81';
 let boxSelection;
@@ -373,7 +374,8 @@ async function runOpeningWorker(path,data,token){
   worker.onerror=()=>reject(Error('Не удалось подготовить CAD-объекты'));loadTimer=setTimeout(()=>reject(Error('Подготовка CAD-объектов превысила 5 минут')),300000);worker.postMessage(data,[data.buffer]);
  });
 }
-async function openFile(file,restore=null){try{await checkOpeningVersion(file);}catch(e){$('formatMessage').textContent=e.message;if(!$('formatDialog').open)$('formatDialog').showModal();return false;}if(!restore&&dirty&&!confirm('Есть несохранённые изменения. Открыть другой файл?'))return;const limit=/\.dwg$/i.test(file.name)?128:256;if(file.size>limit*1024*1024)return status('Предел: DWG 128 МБ, DXF 256 МБ. На телефоне объём зависит от доступной памяти.');stopLoad();const token=loadId;$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Читаю файл…');
+const openingPreflight=latestOpeningPreflight(checkOpeningVersion,()=>loadId);
+async function openFile(file,restore=null){try{if(!await openingPreflight(file))return false;}catch(e){$('formatMessage').textContent=e.message;if(!$('formatDialog').open)$('formatDialog').showModal();return false;}if(!restore&&dirty&&!confirm('Есть несохранённые изменения. Открыть другой файл?'))return;const limit=/\.dwg$/i.test(file.name)?128:256;if(file.size>limit*1024*1024)return status('Предел: DWG 128 МБ, DXF 256 МБ. На телефоне объём зависит от доступной памяти.');stopLoad();const token=loadId;$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Читаю файл…');
  try{let bytes=await file.arrayBuffer();if(token!==loadId)return;let text,warnings=[],next;$('save').disabled=true;
  if(/\.dwg$/i.test(file.name)){
   if(!/^AC10\d\d/.test(new TextDecoder().decode(bytes.slice(0,6))))throw Error('Это не распознанный DWG.');
