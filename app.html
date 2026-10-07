@@ -929,6 +929,17 @@ body {
   .fc-fullscreen .fc-card-sub{font-size:11px;}
 }
 
+/* Current work stays prominent; future plans remain readable and editable. */
+.fc-fullscreen .fc-week-tasks[data-week-view="current"]{border-color:#cbb99e;box-shadow:0 0 0 1px #cbb99e33;background:var(--surface);}
+.fc-fullscreen .fc-week-tasks[data-week-view="next"],
+.fc-fullscreen [data-week-view="next"] .fc-week-tasks-head{background:#f7f6f2;}
+.fc-fullscreen [data-week-view="next"] .fc-week-tasks-head strong,
+.fc-fullscreen [data-week-view="next"] .fc-week-tasks-head .plan,
+.fc-fullscreen [data-week-view="next"] .fc-week-task:not(.done) .amount{color:#626b78;}
+.fc-fullscreen [data-week-view="next"] .fc-week-task:not(.done) .text{color:#626b78;}
+.fc-fullscreen [data-week-view="next"] .auto-badge{background:#edf1eb;border-color:#d7dfd5;color:#59745e;}
+.fc-fullscreen-chart .fc-plot{flex:0 1 auto;width:100%;aspect-ratio:var(--fc-plot-ratio,800 / 650);}
+
 /* Keep this and next week side by side while working with the chart. */
 .fc-fullscreen-workspace{grid-template-columns:minmax(280px,1fr) minmax(280px,1fr) minmax(340px,1.35fr);gap:16px;}
 .fc-fullscreen-workspace .fc-week-tasks-head strong{font-size:13px;}
@@ -6524,7 +6535,11 @@ function openChartFullscreen(button){
   document.body.style.overflow='hidden';
   // Point details and task editors use the overlay layer above this workspace.
   const plot=card.querySelector('.fc-plot'),svg=plot?.querySelector('svg'),labels=card.querySelector('.fc-labels');
-  if(svg) svg.setAttribute('preserveAspectRatio','xMidYMax meet');
+  if(svg){
+    svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+    const box=svg.viewBox?.baseVal;
+    if(box?.width && box?.height)plot.style.setProperty('--fc-plot-ratio',`${box.width} / ${box.height}`);
+  }
   const resize=new ResizeObserver(()=>{
     const box=svg?.viewBox?.baseVal;
     if(box?.height && labels) labels.style.cssText=`width:${Math.min(plot.clientWidth,plot.clientHeight*box.width/box.height)}px;align-self:center`;
