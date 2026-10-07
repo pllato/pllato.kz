@@ -2,6 +2,10 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
+<!-- Start authentication dependencies before parsing the full workspace. -->
+<link rel="modulepreload" href="./pllato-kz-shared/pllato-api.js?v=20260813-access-timeout">
+<link rel="modulepreload" href="./app/project-payouts.js?v=20261007">
+<link rel="modulepreload" href="./app/project-recordings.js?v=20260923">
 <link rel="stylesheet" href="/app/contracts/panel.css?v=20261003-1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Панель команды — Pllato</title>
@@ -4442,17 +4446,21 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 
 <script src="app.config.js"></script>
 <script type="module">
-import { installProjectContracts } from "/app/contracts/panel.js?v=20261003-1";
+let contractsModule;
+function installProjectContracts(){
+  contractsModule ||= import('/app/contracts/panel.js?v=20261003-1').catch(error=>{contractsModule=null;throw error;});
+  contractsModule.then(module=>module.installProjectContracts()).catch(error=>console.warn('Договоры временно недоступны:',error));
+}
 import {
   getSession,
   signOut as localSignOut,
   apiFetch,
   requireSession,
 } from './pllato-kz-shared/pllato-api.js?v=20260813-access-timeout';
-import { openEmployeeDocumentsDialog } from './documents/share_dialog.js?v=20260812-app-boot';
-import { normalizeDocument } from './documents/registry.js?v=20260812-app-boot';
-import { mountZoomArchive } from './app/zoom-archive.js?v=20261005-previews';
-document.getElementById('openZoomArchive').addEventListener('click', () => {
+
+
+
+document.getElementById('openZoomArchive').addEventListener('click', async () => {
   let panel = document.getElementById('zoomArchiveDialog');
   if (!panel) {
     panel = document.createElement('dialog');
@@ -4464,7 +4472,14 @@ document.getElementById('openZoomArchive').addEventListener('click', () => {
     document.body.append(panel);
   }
   panel.showModal();
-  mountZoomArchive(panel.querySelector('#zoomArchive'), { getToken: () => getSession()?.token });
+  const archive=panel.querySelector('#zoomArchive');
+  if(archive.dataset.mounted)return;
+  archive.hidden=false;
+  archive.textContent='Загружаем архив…';
+  try {
+    const { mountZoomArchive }=await import('./app/zoom-archive.js?v=20261005-previews');
+    mountZoomArchive(archive, { getToken: () => getSession()?.token });
+  } catch(error) { archive.textContent='Не удалось загрузить архив. Закройте и откройте его снова.'; }
 });
 
 import { initProjectPayouts } from './app/project-payouts.js?v=20261007';
@@ -4691,6 +4706,7 @@ async function set(pathRef, value) {
     return;
   }
   if (parts[0] === 'documents' && parts[1]) {
+    const { normalizeDocument } = await import('./documents/registry.js?v=20260812-app-boot');
     const item = normalizeDocument({ ...(value || {}), id: String(parts[1]) }, String(parts[1]));
     await apiFetch('/store/push', {
       method: 'POST',
@@ -4726,6 +4742,7 @@ async function update(pathRef, patch) {
   if (parts[0] === 'documents' && parts[1]) {
     const docsMap = await loadDocumentsMap();
     const current = docsMap[String(parts[1])] || { id: String(parts[1]) };
+    const { normalizeDocument } = await import('./documents/registry.js?v=20260812-app-boot');
     const next = normalizeDocument({ ...current, ...(patch || {}), id: String(parts[1]) }, String(parts[1]));
     await apiFetch('/store/push', {
       method: 'POST',
@@ -8730,6 +8747,7 @@ function normalizeInternalLine(value) {
 }
 
 async function loadDocumentsNormalized() {
+  const { normalizeDocument } = await import('./documents/registry.js?v=20260812-app-boot');
   const snap = await get(ref(db, 'documents'));
   const raw = snap.exists() ? snap.val() : {};
   const docs = [];
@@ -8748,6 +8766,7 @@ async function openEmployeeDocsAccess(uid) {
   try {
     const docs = await loadDocumentsNormalized();
     showAdminMsg('');
+    const { openEmployeeDocumentsDialog } = await import('./documents/share_dialog.js?v=20260812-app-boot');
     openEmployeeDocumentsDialog({
       employee: { ...employee, id: uid },
       documents: docs,
