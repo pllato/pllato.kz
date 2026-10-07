@@ -33,3 +33,10 @@ test('automatic overdue payment moves to current week preserving weekday and tim
  let writes=0,syncs=0;c.flushMoneySave=async()=>{writes++;};c.syncPaymentPlanTasks=async()=>{syncs++;};
  await c.carryFinanceWeekTaskToCurrent('auto');assert.equal(stage.dueAt,point.start+offset);assert.equal(writes,1);assert.equal(syncs,1);
 });
+test('next-week column contains only that week and totals its own plan',()=>{
+ const c=setup(),point=c.financeCurrentWeekPoint([]),week=7*86400000;
+ c.FINANCE_WEEK_TASKS=[{id:'old',text:'old task',start:point.start-week,amount:500},{id:'now',text:'current task',start:point.start,amount:100},{id:'next',text:'next task',start:point.end,amount:250},{id:'later',text:'later task',start:point.end+week,amount:900}].map(t=>({...t,kind:'cash',end:t.start+week}));
+ const html=c.financeWeekTaskBlockForPoint('cash',{start:point.end,end:point.end+week},'next');
+ assert.match(html,/Следующая неделя/);assert.match(html,/next task/);assert.match(html,/План недели: 250/);assert.match(html,/data-week-view="next"/);assert.match(html,/id="financeWeekTasks-cash-next"/);
+ for(const text of ['old task','current task','later task','toggleFinanceWeekTaskHistory','В текущую'])assert.ok(!html.includes(text),text);
+});

@@ -929,6 +929,19 @@ body {
   .fc-fullscreen .fc-card-sub{font-size:11px;}
 }
 
+/* Keep this and next week side by side while working with the chart. */
+.fc-fullscreen-workspace{grid-template-columns:minmax(280px,1fr) minmax(280px,1fr) minmax(340px,1.35fr);gap:16px;}
+.fc-fullscreen-workspace .fc-week-tasks-head strong{font-size:13px;}
+.fc-fullscreen-workspace .fc-week-task .fc-week-task-actions{max-width:110px;}
+@media(max-width:1150px){
+  .fc-fullscreen-workspace{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,55%) minmax(0,1fr);gap:12px;}
+  .fc-fullscreen-workspace>.fc-week-tasks{grid-row:1;}
+  .fc-fullscreen-chart{grid-column:1/-1;grid-row:2;}
+}
+@media(max-width:600px){
+  .fc-fullscreen-workspace{overflow:auto;grid-template-columns:repeat(2,minmax(260px,1fr));grid-template-rows:minmax(300px,65%) minmax(240px,1fr);}
+}
+
 .fc-labels { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); }
 .fc-plot { flex: 1; min-height: 0; position: relative; margin-top: 12px; }
 .fc-plot svg { width: 100%; height: 100%; display: block; overflow: visible; }
@@ -6481,7 +6494,6 @@ function openChartFullscreen(button){
   dialog.setAttribute('aria-label',source.querySelector('.fc-card-title')?.textContent||'График');
   const card=source.cloneNode(true);
   card.querySelectorAll('.fc-card-actions,.fc-notes').forEach(node=>node.remove());
-  namespaceFullscreenTaskIds(card);
   const close=document.createElement('button');
   close.type='button';close.className='fc-access fc-close';close.textContent='Свернуть ✕';
   close.setAttribute('aria-label','Закрыть полноэкранный график');
@@ -6496,9 +6508,16 @@ function openChartFullscreen(button){
     chart.className='fc-fullscreen-chart';
     chart.setAttribute('aria-label','График и менеджеры');
     [...card.children].forEach(node=>{if(node!==head && node!==tasks)chart.appendChild(node);});
-    workspace.append(tasks,chart);
+    tasks.dataset.weekView='current';
+    const taskTitle=tasks.querySelector('.fc-week-tasks-head strong');
+    taskTitle.textContent=taskTitle.textContent.replace(/^Дела недели/,'Текущая неделя');
+    const nextHolder=document.createElement('div');
+    const nextStart=Number(tasks.dataset.end);
+    nextHolder.innerHTML=financeWeekTaskBlockForPoint(tasks.dataset.taskKind,{start:nextStart,end:nextStart+7*86400000},'next');
+    workspace.append(tasks,nextHolder.firstElementChild,chart);
     card.appendChild(workspace);
   }
+  namespaceFullscreenTaskIds(card);
   dialog.appendChild(card);
   const overflow=document.body.style.overflow;
   document.body.appendChild(dialog);
@@ -6641,16 +6660,17 @@ function financeWeekTaskOpenAction(task,kind,start,end){
 function financeWeekTaskBlock(kind,series){
   return financeWeekTaskBlockForPoint(kind,financeCurrentWeekPoint(series));
 }
-function financeWeekTaskBlockForPoint(kind,point){
+function financeWeekTaskBlockForPoint(kind,point,weekView=''){
+  const next=weekView==='next';
   const currentTasks=financeWeekTasks(kind,point.start);
-  const overdue=FINANCE_WEEK_TASKS.filter(task=>!task.deleted && !task.done && !Number(task.movedToStart) && task.kind===kind && Number(task.start)>0 && Number(task.start)<Number(point.start) && String(task.text||'').trim()).sort((a,b)=>Number(a.start)-Number(b.start));
+  const overdue=next?[]:FINANCE_WEEK_TASKS.filter(task=>!task.deleted && !task.done && !Number(task.movedToStart) && task.kind===kind && Number(task.start)>0 && Number(task.start)<Number(point.start) && String(task.text||'').trim()).sort((a,b)=>Number(a.start)-Number(b.start));
   const tasks=[...overdue,...currentTasks];
   const showAmounts=kind==='cash';
   const planTotal=showAmounts ? currentTasks.reduce((sum,task)=>sum+Math.max(0,Number(task.amount)||0),0) : 0;
   const add=canConfigureFinanceChart(kind)
     ? `<button type="button" onclick="openFinanceWeekTaskEditor('${kind}',${Number(point.start)},${Number(point.end)})">＋ Дело</button>`
     : '';
-  const history=`<button class="history" type="button" onclick="toggleFinanceWeekTaskHistory('${kind}')">${FINANCE_WEEK_TASK_HISTORY_OPEN.has(kind)?'Скрыть историю':'История'}</button>`;
+  const history=next?'':`<button class="history" type="button" onclick="toggleFinanceWeekTaskHistory('${kind}')">${FINANCE_WEEK_TASK_HISTORY_OPEN.has(kind)?'Скрыть историю':'История'}</button>`;
   const rows=tasks.length
     ? tasks.map(task=>{
       const automatic=financeWeekTaskIsAutomatic(task);
@@ -6664,16 +6684,16 @@ function financeWeekTaskBlockForPoint(kind,point){
         : '<span></span>';
       return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${automatic?' automatic':''}${past?' overdue':''}"><input type="checkbox"${task.done?' checked':''}${canEditFinanceTask(task)?'':' disabled'} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="${openAction}" title="${mEsc(task.text)}"><span class="fc-week-task-title">${mEsc(task.text)}</span>${financeTaskManagerLabel(task)}${past?`<small class="fc-overdue-label">Не завершено · ${mEsc(financeWeekTaskPeriod(task))}</small>`:''}</span>${showAmounts?`<span class="amount" onclick="${openAction}" title="${automatic?'Открыть план платежей':'Изменить сумму'}">${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}${actions}</div>`;
     }).join('')
-    : '<div class="fc-week-tasks-empty">На текущую неделю дел пока нет.</div>';
+    : `<div class="fc-week-tasks-empty">${next?'На следующую неделю дел пока нет.':'На текущую неделю дел пока нет.'}</div>`;
   const plan=showAmounts?`<span class="plan">План недели: ${mEsc(financeWeekTaskAmount(planTotal))}</span>`:'';
-  return `<section class="fc-week-tasks" id="financeWeekTasks-${kind}" data-task-kind="${kind}" data-start="${Number(point.start)}" data-end="${Number(point.end)}"><div class="fc-week-tasks-head"><strong>Дела${overdue.length?` · ${overdue.length} с прошлых недель`:" недели"}</strong><span class="period">${mEsc(financeWeekTaskPeriod(point))}</span>${plan}${history}${add}</div><div class="fc-week-tasks-list">${rows}</div>${financeWeekTaskHistoryBlock(kind,point)}</section>`;
+  return `<section class="fc-week-tasks" id="financeWeekTasks-${kind}${next?'-next':''}" data-week-view="${weekView}" data-task-kind="${kind}" data-start="${Number(point.start)}" data-end="${Number(point.end)}"><div class="fc-week-tasks-head"><strong>${next?'Следующая неделя':weekView==='current'?'Текущая неделя':'Дела недели'}${overdue.length?` · ${overdue.length} с прошлых недель`:''}</strong><span class="period">${mEsc(financeWeekTaskPeriod(point))}</span>${plan}${history}${add}</div><div class="fc-week-tasks-list">${rows}</div>${next?'':financeWeekTaskHistoryBlock(kind,point)}</section>`;
 }
 function refreshFinanceWeekTaskBlock(kind){
   document.querySelectorAll('.fc-week-tasks[data-task-kind]').forEach(current=>{
     if(current.dataset.taskKind!==kind)return;
     const position=captureFinanceChartPosition(current);
     const holder=document.createElement('div');
-    holder.innerHTML=financeWeekTaskBlockForPoint(kind,{start:Number(current.dataset.start),end:Number(current.dataset.end)});
+    holder.innerHTML=financeWeekTaskBlockForPoint(kind,{start:Number(current.dataset.start),end:Number(current.dataset.end)},current.dataset.weekView||'');
     if(current.closest('.fc-fullscreen'))namespaceFullscreenTaskIds(holder);
     const replacement=holder.firstElementChild;
     current.replaceWith(replacement);
@@ -6938,7 +6958,7 @@ function captureFinanceChartPosition(root){
   const grid=root.querySelector('.fc-grid');
   const sections=root.matches('.fc-week-tasks')?[root]:[...root.querySelectorAll('.fc-week-tasks')];
   return {x:window.scrollX,y:window.scrollY,left:grid?.scrollLeft||0,hasGrid:!!grid,
-    tasks:sections.map(section=>({kind:section.dataset.taskKind,top:section.scrollTop,
+    tasks:sections.map(section=>({kind:section.dataset.taskKind,start:section.dataset.start,top:section.scrollTop,
       list:section.querySelector('.fc-week-tasks-list')?.scrollTop||0,
       history:section.querySelector('.fc-week-history-list')?.scrollTop||0}))};
 }
@@ -6947,7 +6967,7 @@ function restoreFinanceChartPosition(root,position){
   if(grid)grid.scrollLeft=position.left;
   const sections=root.matches('.fc-week-tasks')?[root]:[...root.querySelectorAll('.fc-week-tasks')];
   sections.forEach(section=>{
-    const saved=position.tasks.find(item=>item.kind===section.dataset.taskKind);
+    const saved=position.tasks.find(item=>item.kind===section.dataset.taskKind && item.start===section.dataset.start);
     if(!saved)return;
     section.scrollTop=saved.top;
     const list=section.querySelector('.fc-week-tasks-list'),history=section.querySelector('.fc-week-history-list');
