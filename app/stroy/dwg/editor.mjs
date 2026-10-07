@@ -1,8 +1,10 @@
+import {offerDownload} from './download.mjs?v=0.17.87';
+import {resizeView,usableViewport} from './viewport-size.mjs?v=0.17.87';
 import {mountFileDrop} from './file-drop.mjs?v=0.17.81';
 // SPDX-License-Identifier: GPL-3.0-or-later
 import {parseDxfAsync,scene,sceneAsync,serializeChunks,cloneDoc,demo,get,num,set,decode,move,addEntity} from './cad.mjs?v=0.17.81';
 import {paintShapes,paintShapeSteps,previewTransform,textHitDistance} from './renderer.mjs?v=0.17.81';
-import {renderTask} from './render-task.mjs?v=0.17.81';
+import {renderTask} from './render-task.mjs?v=0.17.87';
 import {nativeTransferReceiver} from './native-transfer.mjs?v=0.17.81';
 import {reusableScene,mergeReusedScene} from './scene-reuse.mjs?v=0.17.81';
 import {updatedRootScene} from './root-scene.mjs?v=0.17.81';
@@ -208,10 +210,10 @@ function paint(){if(document.hidden||!$('busy').hidden){rasterTask.stop();return
      if(!same(target))return;
      if(preview.width!==target.w||preview.height!==target.h){preview.width=target.w;preview.height=target.h;}else{previewContext.setTransform(1,0,0,1,0,0);previewContext.clearRect(0,0,preview.width,preview.height);}previewContext.drawImage(raster,0,0);previewContext.setTransform(canvas.width/width,0,0,canvas.height/height,0,0);
      cached={drawing:target.drawing,hiddenKey:target.hiddenKey,view:target.view};draw();
-    },error=>status('Ошибка отрисовки: '+error.message));
+    },error=>status('Ошибка отрисовки: '+error.message),()=>{if(same(target))draw();});
    }
   }
-  if(cached){const transform=previewTransform(view,cached.view);ctx.save();ctx.translate(transform.x,transform.y);ctx.scale(transform.scale,transform.scale);ctx.drawImage(preview,0,0,width,height);ctx.restore();}const overlay=selectedOverlay();if(overlay.shapes.length)paintShapes(ctx,overlay.shapes,{view,width,height,hidden,selected:overlay.selection,colors});
+  if(cached){const transform=previewTransform(view,cached.view);ctx.save();ctx.translate(transform.x,transform.y);ctx.scale(transform.scale,transform.scale);ctx.drawImage(preview,0,0,width,height);ctx.restore();}if(rasterTask.key?.drawing===drawing&&rasterTask.key.view.x===view.x&&rasterTask.key.view.y===view.y&&rasterTask.key.view.s===view.s){ctx.drawImage(raster,0,0,width,height);}const overlay=selectedOverlay();if(overlay.shapes.length)paintShapes(ctx,overlay.shapes,{view,width,height,hidden,selected:overlay.selection,colors});
  }else{rasterTask.stop();cached=null;paintShapes(ctx,drawing?.shapes||[],{view,width,height,hidden,selected:renderSelection(),colors});}
  if(tool==='executive'){const preview=executiveUI?.preview();if(preview?.points.length){let pts=[...preview.points];if(preview.hoverPoint)pts.push(preview.hoverPoint);if(preview.mode==='area'&&pts.length>1){const a=pts[0],b=pts.at(-1);pts=[a,[b[0],a[1]],b,[a[0],b[1]],a];}const cable=['route3','straight','broken'].includes(preview.mode);ctx.save();ctx.strokeStyle=cable?presetColor():'#ffbe6c';ctx.lineWidth=cable?Math.max(1,drawingPreset.lineweight/100*96/25.4):2;ctx.setLineDash(cable?[]:[6,4]);ctx.beginPath();(preview.mode==='route3'?cableCurve(pts):pts).map(screen).forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));if(preview.mode==='area'){ctx.fillStyle='#ffbe6c22';ctx.fill();}ctx.stroke();ctx.restore();}}
  if(draft){const p=screen(draft);ctx.fillStyle='#ffbe6c';ctx.beginPath();ctx.arc(...p,5,0,7);ctx.fill();if(draftHover&&['line','poly3','curve4','measure'].includes(tool)){const pts=cableCurve(['line','poly3','curve4'].includes(tool)?[...polyPoints,draftHover]:[draft,draftHover],tool==='curve4').map(screen);ctx.save();ctx.strokeStyle=tool==='measure'?'#ffbe6c':presetColor();ctx.lineWidth=tool==='measure'?1:Math.max(1,drawingPreset.lineweight/100*96/25.4);ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.stroke();ctx.restore();}}
@@ -406,11 +408,11 @@ mountFileDrop(document,{open:openFile,busy:()=>!$('busy').hidden,status,highligh
 $('file').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)openFile(f);};
 $('demo').onclick=()=>{if(!dirty||confirm('Заменить несохранённый чертёж демо?')){stopLoad();adopt(demo(),'demo');status('Демонстрационный чертёж.');}};
 $('save').onclick=()=>{if(!$('busy').hidden)return;exportsMenu.open=false;if(!doc.native){$('file').click();return;}return saveDwg();};
-function download(blob,extension){progress('Готово',100);const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name+'-edited.'+extension;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);dirty=false;$('filename').textContent=name;status(extension.toUpperCase()+' подготовлен к скачиванию. Проверьте копию в AutoCAD.');}
+function download(blob,extension){progress('Готово',100);offerDownload(blob,name+'-edited.'+extension,{onStart:()=>{dirty=false;$('filename').textContent=name;status('Скачивание '+extension.toUpperCase()+' начато.');}});status(extension.toUpperCase()+' готов. На телефоне или планшете нажмите «Скачать файл».');}
 async function saveDwg(){if(doc.executiveProject?.sheets.length){await commitExecutive(doc.executiveProject,null,true);return;}if(!doc.native)return status('Откройте DWG для сохранения.');if(!sourceFile)return status('Нет исходного DWG для сохранения.');stopLoad();const token=loadId,ops=doc.nativeOps.map(o=>({...o}));$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Готовлю сохранение DWG…');try{const buffer=await sourceFile.arrayBuffer();if(token!==loadId)return;const saved=await new Promise((resolve,reject)=>{rejectWorker=reject;worker=new Worker(new URL('./native-writer.mjs?v=0.17.85',import.meta.url),{type:'module'});worker.onmessage=e=>e.data.progress?progress(e.data.progress,e.data.percent):e.data.error?reject(Error(e.data.error)):resolve(e.data);worker.onerror=()=>reject(Error('Не удалось записать DWG. Возможно, недостаточно памяти.'));loadTimer=setTimeout(()=>reject(Error('Запись заняла больше 5 минут.')),300000);worker.postMessage({buffer,ops,added:additions(doc)},[buffer]);});if(token!==loadId)return;download(new Blob([saved.buffer],{type:'application/acad'}),'dwg');}catch(e){if(token===loadId)status(e.message);}finally{if(token===loadId)stopLoad();}};
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;if(e.key==='Escape'){dimensionWorkbench?.cancel();cableWorkbench?.cancel();executiveUI?.cancel();draft=null;setTool('select');}if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo(e.shiftKey);}});
-new ResizeObserver(()=>{const r=canvas.parentElement.getBoundingClientRect(),initial=width===1;const [w,h]=canvasResolution(r.width,r.height,devicePixelRatio,matchMedia('(pointer:coarse)').matches);if(!initial&&width===r.width&&height===r.height&&canvas.width===w&&canvas.height===h)return;width=r.width;height=r.height;canvas.width=w;canvas.height=h;ctx.setTransform(w/Math.max(1,width),0,0,h/Math.max(1,height),0,0);initial?fit():draw();}).observe(canvas.parentElement);
+new ResizeObserver(()=>{const r=canvas.parentElement.getBoundingClientRect();if(!usableViewport(r.width,r.height))return;const initial=width<=1||height<=1;const [w,h]=canvasResolution(r.width,r.height,devicePixelRatio,matchMedia('(pointer:coarse)').matches);if(!initial&&width===r.width&&height===r.height&&canvas.width===w&&canvas.height===h)return;if(!initial)Object.assign(view,resizeView(view,width,height,r.width,r.height));width=r.width;height=r.height;canvas.width=w;canvas.height=h;ctx.setTransform(w/Math.max(1,width),0,0,h/Math.max(1,height),0,0);initial?fit():draw();}).observe(canvas.parentElement);
 async function commitExecutive(project,cloneRequest=null,exportFile=false,copyRequest=null,exportOnly=false){
  if(!$('busy').hidden)return false;if(!sourceFile){status('Откройте исходный DWG');return false;}
  const checkpointToken=loadId;$('busy').hidden=false;
@@ -438,7 +440,7 @@ async function commitExecutive(project,cloneRequest=null,exportFile=false,copyRe
   const read=await run('./native-reader.mjs?v=0.17.81',{buffer:readBuffer,compact:true},[readBuffer]);
   if(exportOnly){if(token!==loadId)return;const allowed=new Set(keepRoots.concat(saved.project.generatedHandles,saved.addedHandles||[],saved.supportRoots||[])),actual=new Set(saved.exportRootHandles),removed=new Set(doc.nativeOps.filter(o=>o.remove).map(o=>o.handle));if([...actual].some(h=>!allowed.has(h))||[...allowed].some(h=>!removed.has(h)&&!actual.has(h))||read.doc.executiveProject?.sheets.length!==project.sheets.length)throw Error('Проверка отдельного DWG не пройдена: состав объектов не совпал.');downloadExecutives(file,'dwg');status('DWG только исполнительных скачан. Рабочий чертёж не изменён. Проверьте копию в CAD.');return true;}
   if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
-  if(exportFile){download(file,'dwg');dirty=false;status('Скачан весь DWG: элементы исполнительных сохранены отдельно, приборы сохраняют свои блоки. Проверьте копию в AutoCAD.'+(saved.warnings?' Движок сообщил предупреждения: '+saved.warnings:''));return true;}
+  if(exportFile){download(file,'dwg');status('Весь DWG подготовлен: элементы исполнительных сохранены отдельно, приборы сохраняют свои блоки.'+(saved.warnings?' Движок сообщил предупреждения: '+saved.warnings:''));return true;}
   const reuse=cloneRequest?reusableScene(doc,read.doc,drawing):null;
   const built=read.doc.records.length>20000?await sceneAsync(reuse?.doc||read.doc,n=>progress('Строю исполнительную: '+n.toLocaleString('ru')+' объектов',95),()=>token!==loadId):null;
   const prepared=built&&reuse?mergeReusedScene(reuse,built):built;
@@ -450,7 +452,7 @@ async function commitExecutive(project,cloneRequest=null,exportFile=false,copyRe
   return true;
  }catch(e){if(token===loadId)status(e.message);return false;}finally{if(token===loadId)stopLoad();}
 }
-function downloadExecutives(blob,extension,suffix='executives'){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name+'-'+suffix+'.'+extension;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
+function downloadExecutives(blob,extension,suffix='executives'){offerDownload(blob,name+'-'+suffix+'.'+extension);}
 const exportControls=mountExportMenu(()=>doc.executiveProject),exportsMenu=exportControls.menu;
 function exportFailure(message){status(message);let error=$('exportFailure');if(!error){error=document.createElement('p');error.id='exportFailure';error.setAttribute('role','alert');exportsMenu.querySelector('div').append(error);}error.textContent=message;exportsMenu.open=true;}
 
