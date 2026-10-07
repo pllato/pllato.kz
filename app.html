@@ -908,14 +908,17 @@ body {
 .fc-fullscreen-workspace .fc-week-tasks-head button:not(.history){grid-column:3;grid-row:2;margin:0;}
 .fc-fullscreen-workspace .fc-week-tasks-head button{min-height:32px;padding:6px 9px;font-size:12px;}
 .fc-fullscreen-workspace .fc-week-tasks-head .period{grid-column:3;grid-row:1;font-size:11px;text-align:right;}
-.fc-fullscreen-workspace .fc-week-task,.fc-fullscreen-workspace .fc-week-task.with-amount{grid-template-columns:20px minmax(0,1fr) auto;gap:6px 9px;padding:12px 0;align-items:start;}
-.fc-fullscreen-workspace .fc-week-task input{width:18px;height:18px;margin-top:2px;}
-.fc-fullscreen-workspace .fc-week-task .text{grid-column:2/-1;line-height:1.45;overflow-wrap:anywhere;}
-.fc-fullscreen-workspace .fc-week-task .amount{grid-column:2;align-self:center;}
-.fc-fullscreen-workspace .fc-week-task .fc-week-task-actions{grid-column:2/-1;justify-content:flex-start;flex-wrap:wrap;}
-.fc-fullscreen-workspace .fc-week-task.with-amount .fc-week-task-actions{grid-column:3;justify-content:flex-end;}
-.fc-fullscreen-workspace .fc-week-task .fc-week-task-actions button{min-height:28px;min-width:28px;}
-.fc-fullscreen-workspace .fc-week-task.overdue{padding-left:8px;}
+.fc-fullscreen-workspace .fc-week-task,.fc-fullscreen-workspace .fc-week-task.with-amount{grid-template-columns:18px minmax(0,1fr) auto;gap:2px 8px;padding:7px 0;align-items:start;}
+.fc-fullscreen-workspace .fc-week-task input{width:17px;height:17px;margin-top:2px;grid-row:1/3;}
+.fc-fullscreen-workspace .fc-week-task .text{grid-column:2;grid-row:1/3;min-width:0;font-size:12px;line-height:1.3;white-space:normal;overflow-wrap:anywhere;}
+.fc-fullscreen-workspace .fc-week-task-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;}
+.fc-fullscreen-workspace .fc-week-task .text small{line-height:1.3;font-size:10px!important;margin-top:2px;}
+.fc-fullscreen-workspace .fc-week-task .amount{grid-column:3;grid-row:1;align-self:start;text-align:right;font-size:12px;line-height:1.4;}
+.fc-fullscreen-workspace .fc-week-task .fc-week-task-actions{grid-column:3;grid-row:1/3;justify-content:flex-end;flex-wrap:wrap;max-width:140px;align-self:center;}
+.fc-fullscreen-workspace .fc-week-task.with-amount .fc-week-task-actions{grid-column:3;grid-row:2;align-self:start;}
+.fc-fullscreen-workspace .fc-week-task .fc-week-task-actions button{min-height:24px;min-width:24px;padding:2px 4px;}
+.fc-fullscreen-workspace .fc-week-task .auto-badge{font-size:9px;padding:2px 5px;}
+.fc-fullscreen-workspace .fc-week-task.overdue{padding-left:6px;}
 .fc-fullscreen-workspace .fc-week-history-list{max-height:none;overflow:visible;}
 @media(max-width:850px){
   .fc-fullscreen .fc-card{gap:12px;}
@@ -6547,7 +6550,7 @@ function financeWeekTaskHistoryBlock(kind,currentPoint){
         : '');
     const remove=canEditFinanceTask(task) && !task._virtual && !automatic ? `<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button>` : '';
     const openAction=automatic?` onclick="openPaymentPlanSource('${paymentPlanProjectToken(task.sourceProjectId)}')"`:'';
-    return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${moved?' moved':''}${automatic?' automatic':''}"><input type="checkbox"${task.done?' checked':''}${task._virtual||moved||!canEditFinanceTask(task)?' disabled':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text"${openAction} title="${mEsc(task.text)}">${mEsc(task.text)}${financeTaskManagerLabel(task)}</span>${showAmounts?`<span class="amount"${openAction}>${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}<span class="fc-week-task-actions">${status}${remove}</span></div>`;
+    return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${moved?' moved':''}${automatic?' automatic':''}"><input type="checkbox"${task.done?' checked':''}${task._virtual||moved||!canEditFinanceTask(task)?' disabled':''} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text"${openAction} title="${mEsc(task.text)}"><span class="fc-week-task-title">${mEsc(task.text)}</span>${financeTaskManagerLabel(task)}</span>${showAmounts?`<span class="amount"${openAction}>${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}<span class="fc-week-task-actions">${status}${remove}</span></div>`;
   }).join('') : '<div class="fc-week-history-empty">В эту неделю дел не было.</div>';
   return `<div class="fc-week-history"><div class="fc-week-history-toolbar"><label for="financeWeekHistory-${kind}">Прошлая неделя</label><select id="financeWeekHistory-${kind}" onchange="selectFinanceWeekTaskHistory('${kind}',this.value)">${options}</select></div><div class="fc-week-history-list">${rows}</div><div class="fc-week-history-note">История открывается только по запросу. Перенос создаёт дело в текущей неделе и сохраняет исходную запись здесь.</div></div>`;
 }
@@ -6597,7 +6600,7 @@ function financeWeekTaskBlockForPoint(kind,point){
         : canEditFinanceTask(task)
         ? `<span class="fc-week-task-actions">${carry}${task.done?'':`<button class="move" type="button" onclick="moveFinanceWeekTaskForward('${mEsc(task.id)}')" aria-label="Перенести дело на следующую неделю" title="Перенести на следующую неделю">→</button>`}<button class="del" type="button" onclick="deleteFinanceWeekTask('${mEsc(task.id)}')" aria-label="Удалить дело" title="Удалить">✕</button></span>`
         : '<span></span>';
-      return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${automatic?' automatic':''}${past?' overdue':''}"><input type="checkbox"${task.done?' checked':''}${canEditFinanceTask(task)?'':' disabled'} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="${openAction}" title="${mEsc(task.text)}">${mEsc(task.text)}${financeTaskManagerLabel(task)}${past?`<small class="fc-overdue-label">Не завершено · ${mEsc(financeWeekTaskPeriod(task))}</small>`:''}</span>${showAmounts?`<span class="amount" onclick="${openAction}" title="${automatic?'Открыть план платежей':'Изменить сумму'}">${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}${actions}</div>`;
+      return `<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${automatic?' automatic':''}${past?' overdue':''}"><input type="checkbox"${task.done?' checked':''}${canEditFinanceTask(task)?'':' disabled'} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="${openAction}" title="${mEsc(task.text)}"><span class="fc-week-task-title">${mEsc(task.text)}</span>${financeTaskManagerLabel(task)}${past?`<small class="fc-overdue-label">Не завершено · ${mEsc(financeWeekTaskPeriod(task))}</small>`:''}</span>${showAmounts?`<span class="amount" onclick="${openAction}" title="${automatic?'Открыть план платежей':'Изменить сумму'}">${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}${actions}</div>`;
     }).join('')
     : '<div class="fc-week-tasks-empty">На текущую неделю дел пока нет.</div>';
   const plan=showAmounts?`<span class="plan">План недели: ${mEsc(financeWeekTaskAmount(planTotal))}</span>`:'';
