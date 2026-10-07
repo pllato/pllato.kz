@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>ELC — Урок</title>
+<style>
+  /* Фирменный стиль ELC: синий #373D8D, красный #E31E24, жёлтый #FFCC00, белый фон */
+  :root{--bg:#eef1f8;--card:#ffffff;--card2:#f7f9fd;--line:#dfe4f1;--txt:#1c2247;--muted:#6b7299;
+    --accent:#373D8D;--accent2:#2a3070;--ok:#1f9d57;--bad:#E31E24;--gold:#FFCC00;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Trebuchet MS",Tahoma,Verdana,-apple-system,Helvetica,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%,#ffffff,#eef1f8);color:var(--txt);min-height:100vh}
+  .wrap{max-width:560px;margin:0 auto;padding:18px 16px 60px}
+  .brand{display:flex;align-items:baseline;gap:9px;margin-bottom:16px}
+  .brand .logo{font-weight:800;font-size:22px;letter-spacing:1px;color:var(--accent)}
+  .brand .logo .c{color:var(--bad)}
+  .brand .sub{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .card{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);
+    border-radius:18px;padding:22px;box-shadow:0 10px 30px rgba(55,61,141,.10)}
+  h1{font-size:22px;margin:0 0 8px}
+  h2{font-size:18px;margin:0 0 10px}
+  p.lead{color:var(--muted);line-height:1.6;margin:0 0 16px}
+  .btn{appearance:none;border:0;cursor:pointer;font-size:16px;font-weight:600;color:#fff;width:100%;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));padding:15px 20px;border-radius:12px;margin-top:8px}
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+  .btn.ok{background:linear-gradient(135deg,#2ecc8f,#15a06a)}
+  .steps{display:flex;gap:5px;margin:0 0 16px}
+  .steps .s{flex:1;height:6px;border-radius:99px;background:#f1f4fc;border:1px solid var(--line)}
+  .steps .s.done{background:linear-gradient(90deg,var(--ok),#15a06a);border-color:transparent}
+  .steps .s.cur{background:linear-gradient(90deg,var(--accent),var(--accent2));border-color:transparent}
+  .badge{display:inline-block;font-size:12px;font-weight:700;padding:4px 10px;border-radius:99px;
+    background:#f1f4fc;border:1px solid var(--line);color:var(--muted)}
+  .stepname{font-size:13px;color:var(--muted);margin:0 0 12px}
+  .stepname b{color:var(--txt)}
+  /* карточки слов */
+  .flash{perspective:1000px;margin:10px 0}
+  .flash .inner{position:relative;width:100%;min-height:150px;transition:transform .4s;transform-style:preserve-3d;cursor:pointer}
+  .flash.flip .inner{transform:rotateY(180deg)}
+  .flash .face{position:absolute;inset:0;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;
+    background:#f1f4fc;border:1px solid var(--line);border-radius:14px;padding:18px}
+  .flash .back{transform:rotateY(180deg)}
+  .flash .card-img{max-height:110px;max-width:80%;object-fit:contain;border-radius:10px;background:#fff}
+  .flash .en{font-size:30px;font-weight:800;color:var(--accent)}
+  .flash .ru{font-size:24px;font-weight:700;color:var(--bad)}
+  .cardnav{display:flex;justify-content:space-between;align-items:center;margin-top:10px;color:var(--muted);font-size:14px}
+  .cardnav button{background:#f1f4fc;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:10px 16px;font-size:18px;cursor:pointer}
+  .wgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 4px}
+  .wchip{background:#f1f4fc;border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:14px}
+  .wchip b{display:block;font-size:15px}
+  .wchip span{color:var(--muted);font-size:13px}
+  /* спид-тест */
+  .speed-img{width:100%;height:38vh;max-height:300px;min-height:140px;object-fit:contain;border-radius:14px;border:1px solid var(--line);background:#fff}
+  .timer{font-size:32px;font-weight:800;text-align:center;font-variant-numeric:tabular-nums;margin:2px 0 6px}
+  .timer.over{color:var(--bad)}
+  .speed-en{text-align:center;font-size:14px;color:var(--muted);margin-top:6px}
+  .struct{background:#f1f4fc;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:0 0 14px;line-height:1.6}
+  .rrow{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #e2e6f2;font-size:14px}
+  .rrow:last-child{border-bottom:0}
+  .rrow span{color:var(--muted)}
+  .struct .t{font-weight:700;margin-bottom:6px}
+  .gtbl{width:100%;border-collapse:collapse;margin:0 0 14px;font-size:14px;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .gtbl th,.gtbl td{text-align:left;padding:9px 11px;border-bottom:1px solid #e2e6f2;vertical-align:top}
+  .gtbl thead th{background:#f1f4fc;font-weight:700;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.02em}
+  .gtbl tbody tr:last-child td{border-bottom:0}
+  .gtbl td:first-child{font-weight:700;white-space:nowrap}
+  .reading{font-size:18px;line-height:1.7;margin:6px 0 14px}
+  ul.q{margin:6px 0 14px;padding-left:18px;color:var(--muted);line-height:1.8}
+  .opts{display:grid;gap:10px;margin-top:8px}
+  .opt{text-align:left;background:#f1f4fc;border:1px solid var(--line);color:var(--txt);padding:14px 15px;border-radius:12px;font-size:16px;cursor:pointer}
+  .opt.sel{border-color:var(--accent);background:#e7edfb}
+  .opt.good{border-color:var(--ok);background:#e6f6ee}
+  .opt.bad{border-color:var(--bad);background:#fdeaea}
+  .wait{text-align:center;padding:18px 6px}
+  .spin{width:42px;height:42px;border-radius:50%;border:4px solid #dfe4f1;border-top-color:var(--accent);
+    margin:6px auto 14px;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .rework{background:#fff6e0;border:1px solid #ffe0a0;color:#9a6a00;border-radius:12px;padding:12px 14px;margin:0 0 12px;font-size:14px;line-height:1.5}
+  .small{font-size:13px;color:var(--muted)}
+  .center{text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><span class="logo">EL<span class="c">C</span></span><span class="sub">English Lifestyle Communication</span></div>
+  <div class="card" id="app"><div class="wait"><div class="spin"></div><p class="small">Загрузка…</p></div></div>
+</div>
+
+<script src="dict-words.js"></script>
+<script src="lessons.js"></script>
+<script>
+const API = 'https://elc-lesson-worker.uurraa.workers.dev';
+const app = document.getElementById('app');
+let sessionId = null, sess = null, level = null, L = null;
+let lastSig = '', poll = null, busy = false;
+// локальные состояния активностей
+let cardIdx = 0, cardFlip = false;
+let autoReqWords = false; // авто-направление в Класс Слов при входе на задание
+let autoReqLevel = false; // авто-запрос разговора для выставления уровня
+let autoReqTour = false;  // авто-запрос тура по школе
+let speed = null;   // {i, t0, timer, total}
+let mt = null;      // мини-тест {i, correct, answered}
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function api(path, body){
+  const opt = body ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {};
+  return fetch(API+path, opt).then(r=>r.json());
+}
+
+/* ---------- старт ---------- */
+function init(){
+  const p = new URLSearchParams(location.search);
+  sessionId = p.get('id');
+  if(sessionId){ startPolling(); return; }
+  // старт нового урока: ?level=N (&name=...&last=...&phone=...&email=...&branch=CODE&branchLabel=...&contactId=...)
+  const lv = parseInt(p.get('level'),10);
+  if(!lv){ app.innerHTML = `<h1>Нет данных урока</h1><p class="lead">Ссылку на урок выдаёт система после теста на уровень.</p>`; return; }
+  const score = parseInt(p.get('score'),10), total = parseInt(p.get('total'),10);
+  const params = {
+    level: lv,
+    student:{ name:p.get('name')||'', lastName:p.get('last')||'', phone:p.get('phone')||'', email:p.get('email')||'', contactId:p.get('contactId')||'' },
+    branch: p.get('branch') ? { code:p.get('branch'), label:p.get('branchLabel')||p.get('branch') } : null,
+    cefr: p.get('cefr') || '',
+    testResult: (Number.isFinite(score) && Number.isFinite(total)) ? { score:score, total:total } : null,
+  };
+  if(params.student.name){ startLesson(params); }   // данные уже есть (из теста/филиала)
+  else renderIdentify(params);                       // открыли по ссылке — спросим контакты
+}
+
+function renderIdentify(params){
+  const lv = window.ELC_LEVELS.find(x=>x.n===params.level);
+  app.innerHTML = `
+    <h1>Перед началом урока</h1>
+    <p class="lead">Заполните контакты, и начнём урок.</p>
+    <p class="small">Имя*</p><input id="i_name" class="inp" placeholder="Имя" autocomplete="given-name" style="width:100%;background:#ffffff;border:1px solid var(--line);color:var(--txt);padding:13px 14px;border-radius:11px;font-size:16px;margin-bottom:10px">
+    <p class="small">Телефон</p><input id="i_phone" class="inp" type="tel" placeholder="+7 (___) ___-____" autocomplete="tel" style="width:100%;background:#ffffff;border:1px solid var(--line);color:var(--txt);padding:13px 14px;border-radius:11px;font-size:16px;margin-bottom:10px">
+    <p class="small">Email</p><input id="i_email" class="inp" type="email" placeholder="you@mail.com" autocomplete="email" style="width:100%;background:#ffffff;border:1px solid var(--line);color:var(--txt);padding:13px 14px;border-radius:11px;font-size:16px;margin-bottom:10px">
+    <p id="i_err" class="small" style="color:var(--bad);min-height:16px"></p>
+    <button class="btn" onclick="submitIdentify()">Начать урок →</button>`;
+  window._idp = params;
+}
+function submitIdentify(){
+  const v = id => (document.getElementById(id).value||'').trim();
+  const name = v('i_name');
+  if(!name){ document.getElementById('i_err').textContent='Укажите имя.'; return; }
+  const params = window._idp;
+  params.student.name = name;
+  params.student.phone = v('i_phone');
+  params.student.email = v('i_email');
+  startLesson(params);
+}
+function startLesson(body){
+  app.innerHTML = `<div class="wait"><div class="spin"></div><p class="small">Готовим урок…</p></div>`;
+  api('/api/start', body).then(j=>{
+    if(j.ok){ sessionId=j.id; history.replaceState(null,'',location.pathname+'?id='+j.id); startPolling(); }
+    else app.innerHTML = `<h1>Ошибка</h1><p class="lead">${esc(j.error||'')}</p>`;
+  });
+}
+function startPolling(){
+  fetchState();
+  clearInterval(poll);
+  poll = setInterval(()=>{ if(!busy) fetchState(); }, 1500);
+}
+function fetchState(){
+  return api('/api/session?id='+encodeURIComponent(sessionId)).then(j=>{
+    if(!j.ok){ return; }
+    sess = j.session; level = sess.level; L = window.ELC_LESSONS[level];
+    const cs = j.curStep;
+    const st = cs ? sess.steps[cs].status : 'done';
+    const sig = sess.status+'|'+cs+'|'+st;
+    if(sig!==lastSig){ lastSig=sig; render(); }
+  });
+}
+
+/* ---------- прогресс сверху ---------- */
+function stepsBar(){
+  const order = window.ELC_STEPS;
+  const curIdx = sess.stepIndex;
+  return `<div class="steps">${order.map((s,i)=>`<div class="s ${i<curIdx?'done':(i===curIdx?'cur':'')}"></div>`).join('')}</div>`;
+}
+function head(stepTitle){
+  const lv = window.ELC_LEVELS.find(x=>x.n===level);
+  return stepsBar()
+    + `<div class="stepname">Тема «${esc(L.theme)}»</div>`
+    + (stepTitle?`<div class="meta"><span class="badge">${esc(stepTitle)}</span></div>`:'');
+}
+
+/* ---------- главный рендер ---------- */
+function render(){
+  if(sess.status==='done') return renderDone();
+  const cs = window.ELC_STEPS[sess.stepIndex];
+  const st = sess.steps[cs.key];
+  // ожидание (для слов-карточек, разговора и чтения показываем сам экран, не пустой —
+  // текст чтения должен оставаться у ученика, пока преподаватель проверяет)
+  if(st.status==='pending' && cs.key!=='words-cards' && cs.key!=='level-set' && cs.key!=='tour' && cs.key!=='reading') return renderWaiting(cs);
+  // риворк — показать комментарий и дать повторить
+  // (для каждого экрана учитываем status==='rework')
+  switch(cs.key){
+    case 'level-set':   return renderLevelSet(st);
+    case 'tour':        return renderTour(st);
+    case 'words-cards': return renderWordsCards(st);
+    case 'grammar':     return renderGrammar(st);
+    case 'reading':     return renderReading(st);
+    case 'speaking':    return renderSpeaking(st);
+    case 'registrar':   return renderRegistrar(st);
+  }
+}
+
+/* Полная сводка результатов студента (тест + все задания) */
+const STEP_NAMES = {
+  'words-cards':'Слова — переводы',
+  'grammar':'Грамматика',
+  'reading':'Чтение', 'speaking':'Спикинг',
+};
+function resultsHtml(){
+  const lv = window.ELC_LEVELS.find(x=>x.n===level);
+  const rows = Object.keys(STEP_NAMES).map(k=>{
+    const st = sess.steps[k]; if(!st) return '';
+    const ok = st.status==='passed' || st.verdict==='pass';
+    let extra = '';
+    if(k==='words-speed' && sess.speed) extra = ` · ${sess.speed.secs} сек`;
+    return `<div class="rrow"><span>${STEP_NAMES[k]}${extra}</span><b style="color:${ok?'var(--ok)':'var(--muted)'}">${ok?'✓ зачёт':'—'}</b></div>`;
+  }).join('');
+  return `<div class="struct" style="text-align:left">
+      <div class="rrow"><span>Тема урока</span><b>${esc(L.theme)}</b></div>
+      <div style="height:8px"></div>
+      ${rows}
+    </div>`;
+}
+function reworkBox(st, role){
+  if(st.status!=='rework') return '';
+  return `<div class="rework">↺ Преподаватель (${window.ROLE_LABELS[role]||role}) просит повторить.${st.comment?'<br>Комментарий: «'+esc(st.comment)+'»':''}</div>`;
+}
+
+/* ===== Этап 2: Разговор с преподавателем — он выставляет уровень ===== */
+function renderLevelSet(st){
+  const footer = st.status==='pending'
+    ? `<div class="rework" style="background:#e6f6ee;border-color:#bfe6cf;color:#15803d">🟢 Преподаватель уведомлён. Подойдите для короткого разговора — он определит и выставит ваш уровень.</div>`
+    : `<button class="btn" onclick="requestCheck('level-set')">Ready →</button>`;
+  app.innerHTML = head('Этап 2 · Разговор с преподавателем')
+    + `<h1>Разговор с преподавателем</h1>
+       <p class="lead">Теория пройдена. Подойдите к преподавателю для короткого разговора — он определит ваш уровень. Когда будете у преподавателя, нажмите <b>Ready</b>.</p>
+       ${footer}`;
+}
+
+/* ===== Знакомство: Тур по школе (преподаватель проводит, ставит зачёт) ===== */
+function renderTour(st){
+  const footer = st.status==='pending'
+    ? `<div class="rework" style="background:#e6f6ee;border-color:#bfe6cf;color:#15803d">🟢 Преподаватель уведомлён. Он подойдёт и проведёт вам тур по школе и классам.</div>`
+    : `<button class="btn" onclick="requestCheck('tour')">Ready →</button>`;
+  app.innerHTML = head('Знакомство · Тур по школе')
+    + reworkBox(st,'tour')
+    + `<h1>Обратитесь к преподавателю</h1>
+       <p class="lead">Ваш уровень определён. Сейчас преподаватель <b>проведёт вам тур</b> — покажет школу и классы (Класс Слов, Класс Грамматики, Класс Conversation). Когда подойдёте к преподавателю, нажмите <b>Ready</b>.</p>
+       ${footer}`;
+}
+
+/* ===== 1. Слова — карточки ===== */
+function renderWordsCards(st){
+  cardIdx = Math.min(cardIdx, L.words.length-1);
+  const w = L.words[cardIdx];
+  const pending = st.status==='pending';
+  const footer = pending
+    ? `<div class="rework" style="background:#e6f6ee;border-color:#bfe6cf;color:var(--ok)">🟢 Преподаватель в <b>Классе Слов</b> уведомлён. Повторяйте слова — он подойдёт и проверит переводы.</div>`
+    : `<button class="btn" onclick="requestCheck('words-cards')">Ready →</button>`;
+  app.innerHTML = head('Задание 1 · Слова')
+    + reworkBox(st,'words')
+    + `<h1>Класс Слов</h1>
+       <div class="stepname">📕 Словарь ELC: <b>${esc(window.dictLabel(level))}</b> · ${L.words.length} слов</div>
+       <p class="lead">Выучите слова на карточках (нажмите на картинку, чтобы перевернуть). Подойдите в <b>Класс Слов</b> и, когда будете готовы, нажмите <b>Ready</b> — преподаватель проверит переводы.</p>
+       <div class="flash ${cardFlip?'flip':''}" id="flash" onclick="flip()">
+         <div class="inner">
+           <div class="face">
+             <img class="card-img" src="${window.wordImageFor(w)}" onerror="this.onerror=null;this.src=window.wordImage('${esc(w.en)}')" alt="">
+             <div class="en">${esc(w.en)}</div>
+           </div>
+           <div class="face back"><div class="ru">${esc(w.ru)}</div></div>
+         </div>
+       </div>
+       <div class="cardnav">
+         <button onclick="cardPrev(event)">←</button>
+         <span>${cardIdx+1} / ${L.words.length}</span>
+         <button onclick="cardNext(event)">→</button>
+       </div>
+       <div class="wgrid" style="margin-top:14px">${L.words.map(x=>`<div class="wchip"><b>${esc(x.en)}</b><span>${esc(x.ru)}</span></div>`).join('')}</div>
+       ${footer}`;
+}
+function flip(){ cardFlip=!cardFlip; document.getElementById('flash').classList.toggle('flip'); }
+function cardPrev(e){ e.stopPropagation(); cardIdx=(cardIdx-1+L.words.length)%L.words.length; cardFlip=false; renderWordsCards(sess.steps['words-cards']); }
+function cardNext(e){ e.stopPropagation(); cardIdx=(cardIdx+1)%L.words.length; cardFlip=false; renderWordsCards(sess.steps['words-cards']); }
+
+/* ===== 2. Слова — на скорость ===== */
+function renderWordsSpeedIntro(st){
+  const target = L.words.length; // 1 сек/слово
+  app.innerHTML = head('Задание 1 · Слова на скорость')
+    + reworkBox(st,'words')
+    + `<h1>Назовите слова на скорость</h1>
+       <p class="lead">Покажется картинка — назовите слово <b>по-английски</b> вслух и жмите «Сказал».
+       Норматив: <b>${target} слов за ${target} сек</b> (1 сек на слово). Это в <b>Классе Слов</b> — преподаватель смотрит и ставит зачёт.</p>
+       <div class="stepname">📕 Словарь ELC: <b>${esc(window.dictLabel(level))}</b></div>
+       <div class="struct"><div class="t">Слова этого задания</div>${L.words.map(x=>esc(x.en)).join(' · ')}</div>
+       <button class="btn" onclick="speedStart()">Начать на скорость →</button>`;
+}
+function speedStart(){
+  busy = true;
+  // перемешаем порядок
+  const order = L.words.map((w,i)=>i);
+  for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
+  speed = { order, pos:0, t0:Date.now(), timer:null };
+  speedRender();
+  speed.timer = setInterval(speedTick, 100);
+}
+function speedRender(){
+  const total = L.words.length;
+  const w = L.words[speed.order[speed.pos]];
+  app.innerHTML = head('Слова на скорость')
+    + `<div class="timer" id="tm">0.0</div>
+       <img class="speed-img" id="simg" src="${window.wordImageFor(w)}" onerror="this.onerror=null;this.src=window.wordImage('${esc(w.en)}')" alt="">
+       <div class="speed-en">слово ${speed.pos+1} / ${total} · норматив ${total}.0 сек</div>
+       <button class="btn ok" onclick="speedNext()">Готово →</button>
+       <button class="btn ghost" onclick="speedAbort()">Прервать</button>`;
+}
+function speedTick(){
+  const el=document.getElementById('tm'); if(!el) return;
+  const s=(Date.now()-speed.t0)/1000;
+  el.textContent=s.toFixed(1);
+  if(s > L.words.length) el.classList.add('over');
+}
+function speedNext(){
+  speed.pos++;
+  if(speed.pos>=L.words.length){ return speedFinish(); }
+  // быстрая подгрузка след. картинки
+  const w = L.words[speed.order[speed.pos]];
+  const im = document.getElementById('simg');
+  im.onerror = function(){ im.onerror=null; im.src=window.wordImage(w.en); };
+  im.src = window.wordImageFor(w);
+  document.querySelector('.speed-en').textContent = `слово ${speed.pos+1} / ${L.words.length} · норматив ${L.words.length}.0 сек`;
+}
+function speedAbort(){ clearInterval(speed.timer); busy=false; speed=null; render(); }
+function speedFinish(){
+  clearInterval(speed.timer);
+  const secs = (Date.now()-speed.t0)/1000;
+  const target = L.words.length;
+  const ok = secs<=target;
+  app.innerHTML = head('Слова на скорость')
+    + `<div class="center">
+        <div class="timer ${ok?'':'over'}">${secs.toFixed(1)} сек</div>
+        <p class="lead">Норматив ${target}.0 сек — ${ok?'<b style="color:var(--ok)">Вы уложились!</b>':'<b style="color:#c98a00">чуть медленнее норматива</b>'}.
+        Покажите результат преподавателю в <b>Классе Слов</b> — он поставит зачёт или попросит повторить.</p>
+       </div>
+       <button class="btn" onclick="speedSubmit(${secs.toFixed(2)})">Готово — в Класс Слов →</button>
+       <button class="btn ghost" onclick="speedStart()">↺ Ещё раз</button>`;
+}
+function speedSubmit(secs){
+  busy=false;
+  api('/api/speed',{id:sessionId,step:'words-speed',total:L.words.length,secs:secs}).then(()=>{ lastSig=''; fetchState(); });
+}
+
+/* ===== 3. Грамматика — к преподавателю ===== */
+function renderGrammar(st){
+  const g=L.grammar;
+  const gtable = (g.table && g.table.length)
+    ? `<table class="gtbl"><thead><tr><th>Правило</th><th>Формула</th><th>Пример</th></tr></thead><tbody>`
+      + g.table.map(r=>`<tr><td>${esc(r.rule)}</td><td>${esc(r.form)}</td><td>${esc(r.example)}</td></tr>`).join('')
+      + `</tbody></table>`
+    : '';
+  app.innerHTML = head('Задание 2 · Грамматика')
+    + reworkBox(st,'grammar')
+    + `<h1>Грамматика</h1>
+       <div class="struct"><div class="t">${esc(g.title)}</div>${esc(g.form)}</div>
+       ${gtable}
+       <p class="small">Примеры:</p>
+       <div class="struct">${g.examples.map(e=>esc(e)).join('<br>')}</div>
+       <p class="lead">Прочитайте и подойдите в <b>Класс Грамматики</b> — преподаватель потренирует и поставит зачёт. После — мини-тест.</p>
+       <button class="btn" onclick="requestCheck('grammar')">Ready →</button>`;
+}
+
+/* ===== 4. Грамматика — мини-тест (авто) ===== */
+function renderGrammarTest(){
+  if(!mt){ mt = { i:0, correct:0, order:null, answered:false }; }
+  busy = true;
+  const qs = L.grammar.test;
+  const Q = qs[mt.i];
+  // перемешаем варианты
+  if(!mt.order){
+    mt.order = Q.o.map((t,i)=>({t,correct:i===Q.a}));
+    for(let i=mt.order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[mt.order[i],mt.order[j]]=[mt.order[j],mt.order[i]];}
+  }
+  const opts = mt.order.map((o,i)=>`<button class="opt" id="o${i}" onclick="mtAnswer(${i})">${esc(o.t)}</button>`).join('');
+  app.innerHTML = head('Грамматика · мини-тест')
+    + `<h1>Мини-тест</h1>
+       <p class="lead">Вопрос ${mt.i+1} из ${qs.length}. Закрепите только что пройденную грамматику.</p>
+       <div class="struct" style="font-size:18px">${esc(Q.q).replace('___','<b style="color:#c98a00">▁▁▁</b>')}</div>
+       <div class="opts">${opts}</div>`;
+}
+function mtAnswer(i){
+  if(mt.answered) return;
+  mt.answered=true;
+  const right = mt.order.findIndex(o=>o.correct);
+  document.getElementById('o'+right).classList.add('good');
+  if(i!==right){ document.getElementById('o'+i).classList.add('bad'); } else { mt.correct++; }
+  setTimeout(()=>{
+    mt.i++; mt.order=null; mt.answered=false;
+    if(mt.i < L.grammar.test.length){ renderGrammarTest(); }
+    else { mtFinish(); }
+  }, 850);
+}
+function mtFinish(){
+  const total=L.grammar.test.length, sc=mt.correct;
+  const need=Math.ceil(total*0.75);
+  const pass=sc>=need;
+  app.innerHTML = head('Грамматика · мини-тест')
+    + `<div class="center"><div class="timer ${pass?'':'over'}">${sc} / ${total}</div>
+       <p class="lead">${pass?'<b style="color:var(--ok)">Зачёт!</b> Переходим к чтению.':'Нужно минимум '+need+' из '+total+'. Повторите грамматику и попробуйте снова.'}</p></div>`
+    + (pass
+        ? `<button class="btn ok" onclick="mtSubmit()">Дальше · Чтение →</button>`
+        : `<button class="btn" onclick="mtRetry()">↺ Пройти мини-тест заново</button>`);
+}
+function mtRetry(){ mt=null; renderGrammarTest(); }
+function mtSubmit(){
+  busy=false; mt=null;
+  api('/api/minitest',{id:sessionId,step:'grammar-test',passed:true}).then(()=>{ lastSig=''; fetchState(); });
+}
+
+/* ===== 5. Чтение ===== */
+function renderReading(st){
+  const r=L.reading;
+  const pending = st.status==='pending';
+  const footer = pending
+    ? `<div class="rework" style="background:#e6f6ee;border-color:#bfe6cf;color:var(--ok)">🟢 Преподаватель в <b>Классе Conversation</b> уведомлён. Текст остаётся у вас — читайте его вслух со своего экрана, пока преподаватель проверяет.</div>`
+    : `<button class="btn" onclick="requestCheck('reading')">Ready →</button>`;
+  app.innerHTML = head('Задание 3 · Чтение')
+    + reworkBox(st,'reading')
+    + `<h1>Чтение</h1>
+       <div class="reading">${esc(r.text)}</div>
+       <p class="small">Вопросы к тексту:</p>
+       <ul class="q">${r.q.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+       <p class="lead">Подойдите в <b>Класс Conversation</b> — прочитайте текст вслух и разберите непонятное с преподавателем. Он поставит зачёт.</p>
+       ${footer}`;
+}
+
+/* ===== 6. Спикинг ===== */
+function renderSpeaking(st){
+  const s=L.speaking;
+  app.innerHTML = head('Задание 4 · Спикинг')
+    + reworkBox(st,'speaking')
+    + `<h1>Спикинг</h1>
+       <div class="struct"><div class="t">Задание</div>${esc(s.task)}</div>
+       <p class="small">Опорные фразы:</p>
+       <div class="struct">${s.opory.map(x=>esc(x)).join('<br>')}</div>
+       <p class="lead">Подойдите в <b>Класс Conversation</b> — расскажите монолог преподавателю. Он поставит зачёт.</p>
+       <button class="btn" onclick="requestCheck('speaking')">Ready →</button>`;
+}
+
+/* ===== Финальное задание: Регистратор (полные итоги) ===== */
+function renderRegistrar(st){
+  app.innerHTML = head('Регистрация')
+    + (st.status==='rework' ? `<div class="rework">↺ Регистратор просит уточнить.${st.comment?'<br>«'+esc(st.comment)+'»':''}</div>` : '')
+    + `<h1>Подойдите к Регистратору</h1>
+       <p class="lead">Все задания зачтены! Покажите эти итоги <b>Регистратору (менеджеру)</b> — он подтвердит и оформит следующий этап.</p>
+       <h2 style="font-size:16px;color:var(--muted);margin:6px 0 8px">Ваши результаты</h2>
+       ${resultsHtml()}
+       <button class="btn" onclick="requestCheck('registrar')">Ready →</button>`;
+}
+
+/* ===== ожидание ===== */
+function renderWaiting(cs){
+  const role = cs.teacherRole || cs.role;
+  if(role==='registrar'){
+    app.innerHTML = head()
+      + `<div class="wait">
+           <div class="spin"></div>
+           <h2>Ожидаем Регистратора</h2>
+           <p class="lead">Подойдите к <b>Регистратору (менеджеру)</b> и покажите итоги — он подтвердит завершение.</p>
+         </div>`
+      + resultsHtml();
+    return;
+  }
+  const sp = (cs.key==='words-speed' && sess.speed) ? `<p class="small">Ваш результат на скорость: <b>${sess.speed.secs} сек</b> / норматив ${sess.speed.total}.0 сек.</p>` : '';
+  const cls = (window.ROLE_CLASS && window.ROLE_CLASS[role]) || ('Класс ' + (window.ROLE_LABELS[role]||role));
+  app.innerHTML = head()
+    + `<div class="wait">
+         <div class="spin"></div>
+         <h2>Ожидаем преподавателя</h2>
+         <p class="lead">Подойдите в <b>${esc(cls)}</b> (или подождите, если Вы уже там).
+            Преподаватель проверит задание и поставит зачёт — экран обновится сам.</p>
+         ${sp}
+       </div>`;
+}
+
+/* ===== финал (после подтверждения Регистратора) ===== */
+function renderDone(){
+  clearInterval(poll);
+  app.innerHTML = `<div class="center">
+      <div class="timer" style="color:var(--ok);font-size:30px">✓ Пробное занятие завершено!</div>
+    </div>
+    <h2 style="text-align:center;margin:4px 0 10px">Итоги</h2>
+    ${resultsHtml()}
+    <button class="btn" onclick="studentCertificate()">📜 Скачать сертификат (PDF)</button>
+    <div class="struct center" style="margin-top:12px">Регистратор оформит следующий этап.<br><span class="small">Код занятия: ${esc(sessionId)}</span></div>`;
+}
+
+/* Мини-сертификат ELC: новое окно → «Сохранить как PDF» (на телефоне — через «Поделиться → Печать»). */
+function studentCertificate(){
+  const e = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const lv = window.ELC_LEVELS.find(x=>x.n===level);
+  const name = ((sess.student.lastName||'') + ' ' + (sess.student.name||'')).trim() || 'Студент';
+  const SN = {'words-cards':'Словарный запас','grammar':'Грамматика','reading':'Чтение','speaking':'Разговорная речь'};
+  const passed = [], seen = new Set();
+  Object.keys(SN).forEach(k => { const s = sess.steps[k]; if (s && (s.status==='passed' || s.verdict==='pass') && !seen.has(SN[k])) { seen.add(SN[k]); passed.push(SN[k]); } });
+  const date = new Date().toLocaleDateString('ru', { day:'2-digit', month:'long', year:'numeric' });
+  const ach = (passed.length ? passed : ['Пробное занятие']).map(p => `<span class="ach">✓ ${e(p)}</span>`).join('');
+  const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Сертификат ELC — ${e(name)}</title>
+  <style>
+    @page{size:A4 landscape;margin:0}*{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Georgia,'Times New Roman',serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .cert{width:297mm;height:210mm;padding:13mm}
+    .frame{width:100%;height:100%;border:3px solid #1e3a8a;border-radius:8px;position:relative;padding:13mm 18mm;display:flex;flex-direction:column;align-items:center;text-align:center;background:#fff}
+    .frame:before{content:'';position:absolute;inset:6px;border:1px solid #c0392b;border-radius:5px;pointer-events:none}
+    .brand{font-size:30px;font-weight:800;letter-spacing:1px;color:#1e3a8a}.brand b{color:#c0392b}
+    .tag{font-size:11px;letter-spacing:3px;color:#64748b;text-transform:uppercase;margin-top:2px}
+    .title{font-size:38px;font-weight:800;color:#1e3a8a;letter-spacing:4px;margin:18mm 0 5mm;text-transform:uppercase}
+    .sub{font-size:15px;color:#475569}
+    .name{font-size:34px;font-weight:700;color:#0f172a;margin:6mm 0 4mm;border-bottom:2px solid #c0392b;padding:0 14mm 4mm}
+    .lvl{display:inline-block;background:#1e3a8a;color:#fff;font-size:16px;font-weight:700;padding:7px 20px;border-radius:999px;margin-top:3mm;font-family:Arial,sans-serif}
+    .achs{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:6mm;max-width:200mm}
+    .ach{background:#ecfdf5;color:#047857;border:1px solid #6ee7b7;border-radius:999px;padding:5px 14px;font-size:13px;font-weight:600;font-family:Arial,sans-serif}
+    .test{font-size:13px;color:#475569;margin-top:4mm;font-family:Arial,sans-serif}
+    .foot{margin-top:auto;width:100%;display:flex;justify-content:space-between;align-items:flex-end;font-family:Arial,sans-serif;font-size:12px;color:#475569}
+    .sig{text-align:center}.sig .line{width:55mm;border-top:1px solid #94a3b8;margin-bottom:4px}
+  </style></head>
+  <body><div class="cert"><div class="frame">
+    <div class="brand">EL<b>C</b></div>
+    <div class="tag">English Lifestyle Communication</div>
+    <div class="title">Сертификат</div>
+    <div class="sub">Настоящим подтверждается, что</div>
+    <div class="name">${e(name)}</div>
+    <div class="sub">успешно прошёл(а) пробное занятие по английскому языку</div>
+    <div class="achs">${ach}</div>
+    <div class="foot">
+      <div class="sig"><div class="line"></div>Дата<br><b>${e(date)}</b></div>
+      <div style="font-weight:700;color:#1e3a8a;font-size:14px">ELC · English Lifestyle Communication</div>
+      <div class="sig"><div class="line"></div>Преподаватель</div>
+    </div>
+  </div></div>
+  <script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>
+  </body></html>`;
+  const w = window.open('', '_blank');
+  if (!w) { alert('Разрешите всплывающие окна, чтобы открыть сертификат.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
+/* ===== запрос проверки ===== */
+function requestCheck(step){
+  busy=false;
+  api('/api/request',{id:sessionId,step}).then(j=>{ lastSig=''; fetchState(); });
+}
+
+init();
+</script>
+</body>
+</html>

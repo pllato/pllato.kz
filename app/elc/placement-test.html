@@ -302,7 +302,7 @@ function renderQuestion(){
   const stem = Q.q.replace('___','<span class="blank">▁▁▁</span>');
   const hasVerb = /\([A-Za-z/ ]+\)/.test(Q.q);
   app.innerHTML = `
-    <div class="meta"><span>Вопрос ${answers.length+1} из ${QUESTIONS.length}</span><span class="badge">${lvl.name} · ${lvl.cefr}</span></div>
+    <div class="meta"><span>Вопрос ${answers.length+1} из ${QUESTIONS.length}</span></div>
     <div class="progress"><i style="width:${pct}%"></i></div>
     <div class="q">${stem}</div>
     <div class="hint">${Q.ru}${hasVerb ? ' · впишите глагол из скобок в правильной форме' : ''}</div>
@@ -387,55 +387,15 @@ function computePlacement(){
 function renderResult(){
   releaseRecorder();
   const { rec, graduated } = computePlacement();
-  const m = levelAgg();
-  const correctTotal = answers.filter(a=>a.correct).length;
-  placedLevel = graduated ? 7 : rec; // тему монолога берём по уровню теории
-
-  // разбивка по уровням (только те, что реально проверялись)
-  const statsRows = LEVELS.filter(l=>m[l.n].total>0).map(l=>{
-    const s = m[l.n];
-    const pass = s.ok/s.total >= PASS;
-    const col = pass ? 'var(--ok)' : (s.ok===0 ? 'var(--bad)' : '#c98a00');
-    return `<tr><td>${l.name} <span style="color:var(--muted)">· ${l.cefr}</span></td>
-            <td class="score" style="color:${col}">${s.ok}/${s.total}</td></tr>`;
-  }).join('');
-
-  let lessonBlock, headline;
-  if(graduated){
-    headline = `Студент уверенно прошёл все 7 уровней теста.`;
-    lessonBlock = `
-      <div class="lesson" style="color:#c98a00">Выше Upper-Intermediate 3.0</div>
-      <p class="lead">Грамматика программы 201 освоена полностью — можно ставить на выпускной модуль /
-        повторение верхних уровней или на следующую ступень.</p>`;
-  } else {
-    const L = levelByN(rec);
-    headline = `Предварительный уровень (определит преподаватель):`;
-    lessonBlock = `
-      <div class="lesson">${L.name}</div>
-      <span class="badge lvl" style="color:var(--accent)">CEFR: ${L.cefr}</span>
-      <div class="struct">
-        <div class="s-name">${L.desc}</div>
-        <div class="s-sub">Рекомендуем начать с этого уровня. Финальный уровень подтвердит
-          преподаватель в коротком разговоре. Грамматика: уроки ${L.lessons} программы 201.</div>
-      </div>`;
-  }
-
+  placedLevel = graduated ? 7 : rec;
   app.innerHTML = `
     <div class="result">
       <div class="steps"><span class="step">1 · Теория ✓</span><span class="step">2 · Разговор</span></div>
-      <p class="big">Часть 1 (теория) · верных ответов: ${correctTotal} из ${answers.length}</p>
-      <h2 style="margin-bottom:6px">${headline}</h2>
-      ${lessonBlock}
-      <h2 style="font-size:16px;color:var(--muted);margin:10px 0 4px">Разбивка по уровням</h2>
-      <table><thead><tr><th>Уровень</th><th class="score">Верно</th></tr></thead><tbody>${statsRows}</tbody></table>
-      <p class="small">Уровень считается освоенным при ≥60% верных ответов (одиночная ошибка не понижает уровень).</p>
+      <h1>Теоретическая часть завершена</h1>
+      <p class="lead">Спасибо! Продолжите разговорную часть. Ответы проверит преподаватель.</p>
       <div class="row">
-        ${BRANCH ? '' : `<button class="btn" onclick="startConversation(this)">К разговору с преподавателем →</button>`}
-        ${BRANCH ? `<button class="btn" onclick="renderSpeaking()">Перейти к части 2 · Разговор →</button>` : ''}
-        <button class="btn ghost" onclick="goHome()">${BRANCH ? '← К началу' : '← На главную'}</button>
-        ${BRANCH ? '' : '<button class="btn ghost" onclick="start()">Пройти заново</button>'}
+        ${BRANCH ? '<button class="btn" onclick="renderSpeaking()">Перейти к части 2 · Разговор →</button>' : '<button class="btn" onclick="startConversation(this)">К разговору с преподавателем →</button>'}
       </div>
-      ${BRANCH ? '' : '<p class="small center" style="margin-top:8px">Вы перейдёте к преподавателю — он определит ваш уровень и откроет нужную программу.</p>'}
     </div>`;
 }
 
@@ -449,10 +409,9 @@ function renderSpeaking(){
   const tips = sp.tips.map(t=>`<li>${t}</li>`).join('');
   app.innerHTML = `
     <div class="steps"><span class="step">1 · Теория ✓</span><span class="step on">2 · Разговор</span></div>
-    <div class="meta"><span>Часть 2 · Разговорная речь</span><span class="badge">${L.name} · ${L.cefr}</span></div>
+    <div class="meta"><span>Часть 2 · Разговорная речь</span></div>
     <h1 style="font-size:22px;margin-bottom:6px">Запиши монолог</h1>
-    <p class="lead">По итогам теории твой уровень — <b>${L.name} (${L.cefr})</b>. Тема подобрана под него.
-       Говори ${sp.minutes}, не спеши. Запись можно прослушать и переписать.</p>
+    <p class="lead">Говори ${sp.minutes}, не спеши. Запись можно прослушать и переписать.</p>
     <div class="struct">
       <div class="s-name">🎙 ${sp.topic}</div>
       <div class="s-sub" style="margin-top:6px;line-height:1.6">${sp.prompt}</div>
@@ -461,7 +420,7 @@ function renderSpeaking(){
     <ul class="tips">${tips}</ul>
     <div id="rec"></div>
     <div class="row" style="margin-top:18px">
-      <button class="btn ghost" onclick="renderResult()">← К результату теста</button>
+      <button class="btn ghost" onclick="renderResult()">← Назад</button>
     </div>`;
   const box = document.getElementById('rec');
   if(!supported){
@@ -521,8 +480,7 @@ function stopRec(){
 function showPlayback(){
   const L = levelByN(placedLevel);
   const date = new Date().toISOString().slice(0,10);
-  const safe = L.name.replace(/[^A-Za-z0-9]+/g,'_');
-  const fname = `ELC_speaking_${safe}_${date}.webm`;
+  const fname = `ELC_speaking_${date}.webm`;
   const actions = CRM()
     ? `<div class="row">
          <button class="btn" onclick="sendResults(true)">✓ Отправить преподавателю</button>
@@ -703,18 +661,10 @@ async function sendResults(withAudio){
 
 function renderSubmitted(withAudio){
   try{sessionStorage.removeItem(PROGRESS_KEY);}catch{}
-  const L = levelByN(placedLevel);
-  const { graduated } = computePlacement();
-  const lvlLine = graduated ? 'Выше Upper-Intermediate 3.0' : `${L.name} · ${L.cefr}`;
   app.innerHTML = `
     <div class="result center">
-      <div class="lesson" style="color:var(--ok);font-size:26px">✓ Результат отправлен</div>
-      <p class="lead" style="margin-top:10px">Спасибо, ${esc(student.name)}! Результат теста${withAudio ? ' и запись монолога' : ''}
-        подшиты в вашу карточку в CRM филиала «${esc(BRANCH.label)}».</p>
-      <div class="struct" style="text-align:left">
-        <div class="s-name">Рекомендуемый уровень: ${esc(lvlLine)}</div>
-        <div class="s-sub" style="margin-top:4px">Преподаватель свяжется с вами и подтвердит зачисление.</div>
-      </div>
+      <h1>✓ Тест завершён</h1>
+      <p class="lead">Спасибо, ${esc(student.name)}! Ваши ответы${withAudio ? ' и запись монолога' : ''} переданы преподавателю.</p>
       <p class="small">Можно закрыть страницу.</p>
     </div>`;
 }

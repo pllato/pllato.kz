@@ -10,7 +10,7 @@ function fixture(fetch=async()=>Response.json({ok:true,resultId:'r1'})){
  vm.runInContext(code,c);return {c,nodes,storage,run:s=>vm.runInContext(s,c)};
 }
 test('all 28 answers reach results; completed progress restores after reload',()=>{
- const f=fixture();f.run("student.name='Тест';start();while(idx<QUESTIONS.length)gradeTyped(QUESTIONS[idx].accept[0]);");assert.equal(f.run('idx'),28);assert.equal(f.run('computePlacement().graduated'),true);assert.match(f.nodes.get('app').innerHTML,/28 из 28/);
+ const f=fixture();f.run("student.name='Тест';start();while(idx<QUESTIONS.length)gradeTyped(QUESTIONS[idx].accept[0]);");assert.equal(f.run('idx'),28);assert.equal(f.run('computePlacement().graduated'),true);assert.match(f.nodes.get('app').innerHTML,/Теоретическая часть завершена/);
  f.run('idx=0;answers=[]');assert.equal(f.run('resumeProgress()'),true);assert.equal(f.run('answers.length'),28);
 });
 test('all wrong answers complete without crashing; invalid saved progress is rejected',()=>{
@@ -26,4 +26,18 @@ test('denied microphone leaves a retry action instead of an unhandled rejection'
 });
 test('a stalled request times out with a retry message and preserves answers',async()=>{
  const f=fixture((url,opts)=>new Promise((resolve,reject)=>opts.signal.addEventListener('abort',()=>{const e=new Error('aborted');e.name='AbortError';reject(e);})));f.c.setTimeout=fn=>setTimeout(fn,1);f.run("student.name='Тест';start();gradeTyped('am')");await assert.rejects(f.run("placementFetch('/fixture')"),/ответы сохранены/);assert.equal(f.run('answers.length'),1);
+});
+
+test('student screens hide scores and placement while staff payload retains the full result',()=>{
+ const f=fixture();f.run("student.name='Тест';start();while(idx<QUESTIONS.length)gradeTyped(QUESTIONS[idx].accept[0]);");
+ const privateResult=/28 из 28|Upper-Intermediate|CEFR|Предварительный уровень|Рекомендуемый уровень|Разбивка по уровням|Верно|Выше Upper/;
+ assert.doesNotMatch(f.nodes.get('app').innerHTML,privateResult);
+ assert.equal(f.run('buildTheoryPayload().correct'),28);assert.equal(f.run('buildTheoryPayload().levelN'),8);assert.equal(f.run('Object.keys(buildTheoryPayload().breakdown).length'),7);
+ f.run('renderSpeaking()');assert.doesNotMatch(f.nodes.get('app').innerHTML,privateResult);
+ f.run('renderSubmitted(true)');assert.doesNotMatch(f.nodes.get('app').innerHTML,privateResult);assert.match(f.nodes.get('app').innerHTML,/переданы преподавателю/);
+});
+test('downstream student lesson and certificate never render placement results',()=>{
+ const lesson=readFileSync(new URL('../elc-lesson-assets/lesson.html',import.meta.url),'utf8');
+ assert.doesNotMatch(lesson,/theoryBox|\$\{th\.correct\}|\$\{testLine\}|\$\{e\(levelStr\)\}|Ваш уровень —|Предварительный уровень|\$\{tr\.score\}/);
+ assert.match(lesson,/requestCheck\('level-set'\)/);
 });
