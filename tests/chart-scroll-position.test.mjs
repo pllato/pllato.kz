@@ -30,3 +30,7 @@ test('task-only replacement preserves list/history/fullscreen panel offsets',()=
  c.restoreFinanceChartPosition(section,saved);
  assert.equal(section.scrollTop,90);assert.equal(list.scrollTop,260);assert.equal(history.scrollTop,45);assert.equal(window.scrollY,420);
 });
+test('current and next week retain independent scroll positions for the same chart',()=>{
+ const {c,root,section}=setup();section.dataset.start='100';const next={...section,dataset:{taskKind:'cash',start:'200'},scrollTop:170,querySelector:()=>null};root.querySelectorAll=()=>[section,next];
+ const saved=c.captureFinanceChartPosition(root);section.scrollTop=0;next.scrollTop=0;c.restoreFinanceChartPosition(root,saved);assert.equal(section.scrollTop,90);assert.equal(next.scrollTop,170);
+});
