@@ -1235,6 +1235,7 @@ fbq('track', 'PageView');
 src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 /></noscript>
 <!-- End Meta Pixel Code -->
+<link rel="stylesheet" href="./app/project-payouts.css?v=20261007">
 </head>
 <body>
 
@@ -4385,6 +4386,7 @@ document.getElementById('openZoomArchive').addEventListener('click', () => {
   mountZoomArchive(panel.querySelector('#zoomArchive'), { getToken: () => getSession()?.token });
 });
 
+import { initProjectPayouts } from './app/project-payouts.js?v=20261007';
 import { initProjectRecordings } from './app/project-recordings.js?v=20260923';
 
 initProjectRecordings({ getSession });
@@ -5147,6 +5149,7 @@ function applyPermissionsAndAdminUI() {
   syncCurrentAccessToSession();
   initProjectGroups();
   syncProjectMoneyVisibility();
+  initProjectPayouts({api:apiFetch,current:()=>CURRENT});
   applyProjectFilters();
 }
 
