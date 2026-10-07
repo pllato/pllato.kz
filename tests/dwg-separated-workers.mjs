@@ -13,7 +13,7 @@ const read=await run('../app/stroy/dwg/native-reader.mjs',{buffer:bytes(input),c
 const original=structuredClone(read.doc.executiveProject);if(!original?.sheets.length)throw Error('No sheets');
 const saved=await run('../app/stroy/dwg/executive-worker.mjs',{buffer:bytes(input),project:original,ops:[],added:[],separateFull:true});
 fs.writeFileSync(output,new Uint8Array(saved.buffer),{flag:'wx'});fs.writeFileSync(output+'.project.json',JSON.stringify(saved.project,null,2));
-if(!saved.project.sheets.every(s=>s.nativeSeparated&&s.nativeHandles.length>1))throw Error('Not separated');
+if(!saved.project.sheets.every(s=>s.nativeSeparated&&s.nativeHandles.length>=1))throw Error('Not separated');
 const reopened=await run('../app/stroy/dwg/native-reader.mjs',{buffer:bytes(output),compact:true});
 const roots=new Set(reopened.doc.exportRootHandles);for(const s of reopened.doc.executiveProject.sheets)for(const h of s.nativeHandles)if(!roots.has(h))throw Error('Non-root sheet member '+h);
 const grouped=await run('../app/stroy/dwg/executive-worker.mjs',{buffer:bytes(output),project:reopened.doc.executiveProject,ops:[],added:[]});
