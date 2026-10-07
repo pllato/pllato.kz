@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>ELC — English Lifestyle Communication</title>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://pllato-elc-worker.uurraa.workers.dev" crossorigin>
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js">
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js">
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js">
+<link rel="preload" as="script" href="https://pllato-elc-worker.uurraa.workers.dev/chat.js?v=25">
 <link rel="icon" type="image/png" href="/elc-favicon-source.png?v=3">
 
 <!-- ── PWA: установка на домашний экран + push ── -->
@@ -19,7 +25,7 @@
   // Для Meta-лидов это особенно опасно: старый код использовал отсутствующий
   // bitrixId и показывал «сохранено», хотя запись уходила в deal_null/deal_.
   // При выпуске новой team.html одновременно обновить team-build.json.
-  const TEAM_APP_BUILD = '2026-10-07.cost-optimization';
+  const TEAM_APP_BUILD = '2026-10-07.workflow-v2';
   window.__TEAM_APP_BUILD__ = TEAM_APP_BUILD;
   let teamAppReloading = false;
 
@@ -4066,6 +4072,8 @@ function renderSuspendedScreen(user) {
 }
 
 async function initApp(user) {
+  window.currentUser=null;
+  document.getElementById('main').innerHTML='<div class="empty-state">Открываем рабочее пространство…</div>';
   console.log('[initApp] start, uid=', user.uid, 'email=', user.email);
   const profile = {
     email: user.email,
@@ -4080,8 +4088,8 @@ async function initApp(user) {
   try {
     const idToken = await user.getIdToken();
     const me = await fetch('https://pllato-elc-worker.uurraa.workers.dev/api/me', {
-      headers: { 'Authorization': `Bearer ${idToken}` },
-    }).then(r => r.ok ? r.json() : null);
+      headers: { 'Authorization': `Bearer ${idToken}` },signal:AbortSignal.timeout(15000),
+    }).then(r => {if(!r.ok)throw new Error('Не удалось проверить доступ');return r.json();});
     if (me && me.ok) {
       window.currentUser = me;
       console.log('[initApp] role:', me.role, 'canonicalUid:', me.canonicalUid, 'linked:', me.isLinked);
@@ -4119,10 +4127,12 @@ async function initApp(user) {
         try { localStorage.removeItem('elc:pendingInvite'); } catch {}
       }
     } else {
-      console.error('[initApp] /api/me не отдал — без роли');
+      throw new Error('Не удалось проверить доступ');
     }
   } catch (e) {
     console.error('[initApp] /api/me fetch failed:', e);
+    document.getElementById('main').innerHTML='<div class="empty-state"><p>Не удалось загрузить профиль. Проверьте соединение.</p><button id="retry-team-login">Повторить</button></div>';
+    document.getElementById('retry-team-login').onclick=()=>initApp(user);return;
   }
 
   // Непривязанный аккаунт (вошёл через Google, но ещё не сотрудник) — показываем
@@ -5183,9 +5193,9 @@ async function renderTeamChat(el) {
       </div>
     </div>
   `;
-  // Подгружаем справочник сотрудников до монтирования — нужен для имён в DM/группах.
-  try { await ensureUsersLoaded(); } catch {}
+  // Справочник имён загружается параллельно с чатом и не задерживает вход.
   bridgeUsersForChat();
+  ensureUsersLoaded().then(()=>{bridgeUsersForChat();window.TeamChat?.refreshNames?.();}).catch(()=>{});
 
   // Открыть конкретный чат, если пришли по deep-link (?channel=<id>).
   const openPendingChannel = () => {
@@ -5201,7 +5211,7 @@ async function renderTeamChat(el) {
     return;
   }
   const s = document.createElement('script');
-  s.src = `${WORKER_BASE_URL}/chat.js?v=24`;
+  s.src = `${WORKER_BASE_URL}/chat.js?v=25`;
   s.onload = () => {
     _teamChatScriptLoaded = true;
     if (window.TeamChat?.mount) window.TeamChat.mount('#team-chat-mount');
@@ -8941,7 +8951,7 @@ try {
 // Сохраняем view при каждом переключении
 function setDealsView(v) {
   dealsState.view = v;
-  if (v !== 'list') clearDealsBulkSelection();
+  clearDealsBulkSelection();
   try { localStorage.setItem(DEALS_VIEW_LS_KEY, v); } catch {}
 }
 
@@ -10281,10 +10291,12 @@ function renderDealsLayoutPaged(el) {
       </select>
     </div>
 
+    <button class="tb-select" id="deal-list-columns" style="margin-bottom:10px">Настройки списка</button>
     <div id="deals-bulk-actions"></div>
     <div id="deals-content"></div>
     <div id="deals-pager" class="pager"></div>
   `;
+  document.getElementById('deal-list-columns').onclick=openDealListSettings;
   attachPipelineTabHandlers(el);
   attachScopeToggle(el, () => renderDeals(el));
 
@@ -10332,6 +10344,34 @@ function renderDealsLayoutPaged(el) {
   renderDealsPagedPager();
 }
 
+function dealListColumnOptions(){
+  return [['title','Название'],['stageId','Стадия'],['opportunity','Сумма'],['responsibleUid','Ответственный'],['bitrixDateCreate','Создано'],['bitrixDateModify','Изменено'],['id','ID сделки'],['comments','Комментарий'],...Object.entries(dealsState.customSchema||{}).filter(([key])=>!key.startsWith('_')).map(([key,meta])=>['cf:'+key,meta.label||meta.name||key])];
+}
+function dealListColumnsKey(){return 'elc:dealColumns:'+(window.currentUser?.canonicalUid||fbAuth.currentUser?.uid)+':'+dealsState.activePipelineId;}
+function dealListColumns(){let saved;try{saved=JSON.parse(localStorage.getItem(dealListColumnsKey()));}catch{}const valid=new Set(dealListColumnOptions().map(c=>c[0]));const cols=(Array.isArray(saved)?saved:['title','stageId','opportunity','responsibleUid','bitrixDateCreate']).filter(k=>valid.has(k));return cols.length?cols:['title'];}
+function dealListCell(d,key){
+  let value=d[key];
+  if(['title','opportunity','comments'].includes(key))return '<td style="min-width:150px;max-width:320px">'+makeInlineEditableHtml({value,recordId:getDealRecordId(d),recordCollection:'deals',field:key,type:key==='opportunity'?'money':key==='comments'?'textarea':'text'})+'</td>';
+  if(key.startsWith('cf:')){
+    const field=key.slice(3),meta=dealsState.customSchema?.[field]||{},raw=d.customFields?.[field];
+    if(!Array.isArray(raw)&&(!raw||typeof raw!=='object')&&['string','text','integer','double','number','money','boolean','enumeration','date','datetime','user','checklist'].includes(meta.type||meta.dataType||'string'))return '<td style="min-width:160px;max-width:320px">'+renderCfEditableCell(field,raw,meta,getDealRecordId(d))+'</td>';
+  }
+  if(key==='stageId')value=dealsState.pipeline?.stages?.[d.stageId]?.name||d.stageId;
+  if(key==='responsibleUid'){const u=dealsState.users[d.responsibleUid];value=u?`${u.lastName||''} ${u.name||u.email||''}`.trim():'Не назначен';}
+  if(key==='opportunity')value=d.opportunity!=null?Number(d.opportunity).toLocaleString('ru')+' '+(d.currency||'₸'):'';
+  if(key==='bitrixDateCreate'||key==='bitrixDateModify')value=value?new Date(value).toLocaleDateString('ru'):'';
+  if(key.startsWith('cf:')){const field=key.slice(3),meta=dealsState.customSchema?.[field];value=d.customFields?.[field];if(meta?.type==='enumeration'){const opts=asArray(meta.list);const label=v=>opts.find(o=>String(o.ID)===String(v))?.VALUE||v;value=Array.isArray(value)?value.map(label):label(value);}}
+  if(Array.isArray(value))value=value.map(v=>typeof v==='object'?JSON.stringify(v):v).join(', ');else if(value&&typeof value==='object')value=JSON.stringify(value);
+  return `<td title="${escapeHtml(String(value??''))}" style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(String(value??'—'))}</td>`;
+}
+function openDealListSettings(){
+  document.getElementById('deal-list-settings')?.remove();const dlg=document.createElement('dialog');dlg.id='deal-list-settings';dlg.style.cssText='margin:auto;width:min(520px,90vw);max-height:85vh;overflow:auto;padding:20px;background:var(--bg2);color:var(--t1);border:1px solid var(--b1);border-radius:12px';
+  const selected=dealListColumns(),all=dealListColumnOptions(),ordered=[...selected.map(k=>all.find(c=>c[0]===k)),...all.filter(c=>!selected.includes(c[0]))];
+  dlg.innerHTML='<h3>Настройки списка</h3><p style="color:var(--t3);margin:8px 0">Поля и порядок колонок сохраняются для вас в этой воронке. Название, сумму и комментарий можно править двойным нажатием; дополнительные поля — прямо в ячейке. Стрелка открывает карточку.</p><div data-cols>'+ordered.map(([key,label])=>`<div data-col="${escapeHtml(key)}" style="display:flex;align-items:center;gap:8px;padding:6px 0"><label style="flex:1"><input type="checkbox" ${selected.includes(key)?'checked':''}> ${escapeHtml(label)}</label><button class="tbtn tbtn-sm" data-up aria-label="Поднять поле">↑</button><button class="tbtn tbtn-sm" data-down aria-label="Опустить поле">↓</button></div>`).join('')+'</div><button class="tbtn tbtn-a" data-save style="margin-top:14px">Сохранить</button> <button class="tbtn" data-close>Отмена</button>';
+  document.body.append(dlg);dlg.showModal();dlg.querySelector('[data-close]').onclick=()=>dlg.close();dlg.onclose=()=>dlg.remove();dlg.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>{const row=b.parentElement;if(row.previousElementSibling)row.before(row.previousElementSibling);});dlg.querySelectorAll('[data-down]').forEach(b=>b.onclick=()=>{const row=b.parentElement;if(row.nextElementSibling)row.nextElementSibling.after(row);});
+  dlg.querySelector('[data-save]').onclick=()=>{const cols=[...dlg.querySelectorAll('[data-col]')].filter(r=>r.querySelector('input').checked).map(r=>r.dataset.col);if(!cols.length){showToast('Выберите хотя бы одно поле',true);return;}try{localStorage.setItem(dealListColumnsKey(),JSON.stringify(cols));}catch{showToast('Не удалось сохранить настройки браузера',true);return;}dlg.close();renderDealsPagedTable();};
+}
+
 function renderDealsPagedTable() {
   const c = document.getElementById('deals-content');
   if (!c) return;
@@ -10346,15 +10386,12 @@ function renderDealsPagedTable() {
     return;
   }
 
+  const columns=dealListColumns(), labels=new Map(dealListColumnOptions());
   let html = `<div class="dtable-wrap" style="overflow-x:auto">
     <table class="dtable">
       <thead><tr>
         <th class="deal-select-cell"><input type="checkbox" class="deal-select-checkbox" id="deals-select-page" title="Выделить все сделки на этой странице" aria-label="Выделить все сделки на этой странице"></th>
-        <th style="width:38%">Название</th>
-        <th style="width:18%">Стадия</th>
-        <th style="width:14%">Сумма</th>
-        <th style="width:18%">Ответственный менеджер</th>
-        <th style="width:8%">Создано</th>
+        ${columns.map(key=>`<th>${escapeHtml(labels.get(key)||key)}</th>`).join('')}<th aria-label="Карточка"></th>
       </tr></thead>
       <tbody>`;
   for (const d of dealsPagedState.items) {
@@ -10370,11 +10407,7 @@ function renderDealsPagedTable() {
     const date = d.bitrixDateCreate ? new Date(d.bitrixDateCreate).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
     html += `<tr class="row ${isSelected ? 'deal-row-selected' : ''}" data-deal-id="${escapeHtml(publicId)}" data-deal-record-id="${escapeHtml(recordId)}">
       <td class="deal-select-cell"><input type="checkbox" class="deal-select-checkbox deal-select-row" data-deal-record-id="${escapeHtml(recordId)}" ${isSelected ? 'checked' : ''} aria-label="Выбрать сделку ${escapeHtml(d.title || '(без названия)')}"></td>
-      <td class="name-cell" style="width:38%">${escapeHtml(d.title || '(без названия)')}</td>
-      <td style="width:18%"><span class="badge" style="color:${stageColor};border-color:${stageColor}55;background:${stageColor}22">${escapeHtml(stageName)}</span></td>
-      <td style="width:14%;color:${opp ? 'var(--gn)' : 'var(--t3)'};font-variant-numeric:tabular-nums;font-weight:600">${opp ? opp.toLocaleString('ru') + ' ' + (d.currency || '') : '—'}</td>
-      <td style="width:18%;color:var(--ac2)">${escapeHtml(respName)}</td>
-      <td style="width:8%;color:var(--t3);font-size:11px">${date}</td>
+      ${columns.map(key=>dealListCell(d,key)).join('')}<td><button class="tbtn" data-open-deal aria-label="Открыть карточку">→</button></td>
     </tr>`;
   }
   html += `</tbody></table></div>`;
@@ -10406,16 +10439,20 @@ function renderDealsPagedTable() {
   });
   c.querySelectorAll('tr.row').forEach(r => {
     r.addEventListener('click', e => {
-      if (e.target.closest('.deal-select-cell')) return;
+      if (e.target.closest('.deal-select-cell,.inline-edit,.inline-edit-active,.cf-edit,input,select,textarea,label')) return;
       openDealCard(r.dataset.dealId);
     });
   });
+  wireUpCustomFieldsEditing(c);
   renderDealsBulkActions();
 }
 
 function clearDealsBulkSelection() {
+  dealsPagedState.selectionVersion=(dealsPagedState.selectionVersion||0)+1;
   if (!(dealsPagedState.selectedIds instanceof Set)) dealsPagedState.selectedIds = new Set();
   dealsPagedState.selectedIds.clear();
+  dealsPagedState.stageSelections={};
+  document.querySelectorAll('[data-select-stage]').forEach(cb=>cb.checked=false);
   document.querySelectorAll('.deal-select-row, #deals-select-page').forEach(cb => {
     cb.checked = false;
     cb.indeterminate = false;
@@ -10436,6 +10473,7 @@ function syncDealsBulkSelectionUi() {
 }
 
 function renderDealsBulkActions() {
+  document.querySelectorAll('[data-select-stage]').forEach(cb=>{cb.disabled=dealsPagedState.bulkBusy;cb.checked=!!dealsPagedState.stageSelections?.[cb.dataset.selectStage];});
   const host = document.getElementById('deals-bulk-actions');
   if (!host) return;
   const count = dealsPagedState.selectedIds.size;
@@ -10445,10 +10483,8 @@ function renderDealsBulkActions() {
   }
   const users = getUsersForAssignment();
   const stages = getStagesSorted();
-  const canSelectMore = count < dealsPagedState.total;
-  const selectFilteredLabel = dealsPagedState.total > 200
-    ? 'Выбрать первые 200 по фильтру'
-    : `Выбрать все по фильтру (${dealsPagedState.total.toLocaleString('ru')})`;
+  const canSelectMore = dealsState.view==='list'&&count < dealsPagedState.total;
+  const selectFilteredLabel = `Выбрать все по фильтру (${dealsPagedState.total.toLocaleString('ru')})`;
   host.innerHTML = `<div class="deals-bulk-bar">
     <span class="deals-bulk-count">Выбрано: ${count.toLocaleString('ru')}</span>
     ${canSelectMore ? `<button class="deals-bulk-clear" id="deals-bulk-select-filtered" ${dealsPagedState.bulkBusy ? 'disabled' : ''}>${selectFilteredLabel}</button>` : ''}
@@ -10469,40 +10505,30 @@ function renderDealsBulkActions() {
   document.getElementById('deals-bulk-clear')?.addEventListener('click', clearDealsBulkSelection);
 }
 
-async function selectAllFilteredDeals() {
-  if (dealsPagedState.bulkBusy) return;
-  dealsPagedState.bulkBusy = true;
-  renderDealsBulkActions();
-  try {
-    const idToken = await fbAuth.currentUser.getIdToken();
-    const params = new URLSearchParams({
-      page: '1',
-      pageSize: '200',
-      sort: 'modified',
-      auth: idToken,
-      scope: effectiveScope(),
-    });
-    if (dealsState.search) params.set('q', dealsState.search);
-    if (dealsState.stageFilter) params.set('stage', dealsState.stageFilter);
-    if (dealsState.responsibleFilter) params.set('assignee', dealsState.responsibleFilter);
-    if (dealsState.activePipelineId) params.set('pipeline', dealsState.activePipelineId);
-    const response = await fetch(`${WORKER_LIST_URL}/deals?${params}`);
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
-    for (const deal of (result.items || [])) {
-      const recordId = getDealRecordId(deal);
-      if (recordId) dealsPagedState.selectedIds.add(recordId);
+async function selectAllFilteredDeals(stageOverride,checked=true) {
+  if(dealsPagedState.bulkBusy)return;
+  const stage=typeof stageOverride==='string'?stageOverride:dealsState.stageFilter;
+  if(!checked&&dealsPagedState.stageSelections?.[stage]){for(const id of dealsPagedState.stageSelections[stage])dealsPagedState.selectedIds.delete(id);delete dealsPagedState.stageSelections[stage];renderDealsBulkActions();return;}
+  dealsPagedState.bulkBusy=true;renderDealsBulkActions();
+  const pipeline=dealsState.activePipelineId, search=dealsState.search, version=dealsPagedState.selectionVersion||0, ids=[];
+  try{
+    const token=await fbAuth.currentUser.getIdToken(),scope=dealsState.view==='kanban'?computeKanbanScope():{scope:effectiveScope(),assignee:dealsState.responsibleFilter};
+    for(let page=1;;page++){
+      if((pipeline!==dealsState.activePipelineId||version!==(dealsPagedState.selectionVersion||0)))throw new Error('Воронка изменилась. Повторите выделение.');
+      const params=new URLSearchParams({page:String(page),pageSize:'200',sort:'created',auth:token,scope:scope.scope,pipeline});
+      if(stage)params.set('stage',stage);if(scope.assignee)params.set('assignee',scope.assignee);if(search)params.set('q',search);
+      const response=await fetch(`${WORKER_LIST_URL}/deals?${params}`,{signal:AbortSignal.timeout(30000)});const result=await response.json();if(!response.ok)throw new Error(result.error||'Ошибка загрузки');
+      ids.push(...(result.items||[]).map(getDealRecordId).filter(Boolean));
+      showToast(`Выделение: загружено ${ids.length} из ${result.total||ids.length}`);
+      if(!Number.isFinite(Number(result.total)))throw new Error('Сервер не сообщил количество сделок');
+      if(!result.items?.length||page*200>=Number(result.total))break;
     }
-    renderDealsPagedTable();
-    if (Number(result.total || 0) > 200) {
-      showToast('Выбраны первые 200 сделок. Уточните фильтр, чтобы обработать остальные.');
-    }
-  } catch (error) {
-    showToast('Не удалось выделить сделки: ' + (error.message || error), true);
-  } finally {
-    dealsPagedState.bulkBusy = false;
-    renderDealsBulkActions();
-  }
+    if((pipeline!==dealsState.activePipelineId||version!==(dealsPagedState.selectionVersion||0)))throw new Error('Воронка изменилась');
+    ids.forEach(id=>dealsPagedState.selectedIds.add(id));
+    if(typeof stageOverride==='string'){dealsPagedState.stageSelections||={};dealsPagedState.stageSelections[stage]=ids;}
+    if(dealsState.view==='list')renderDealsPagedTable();
+  }catch(e){showToast('Не удалось выделить сделки: '+e.message,true);document.querySelectorAll('[data-select-stage]').forEach(cb=>cb.checked=!!dealsPagedState.stageSelections?.[cb.dataset.selectStage]);}
+  finally{dealsPagedState.bulkBusy=false;renderDealsBulkActions();}
 }
 
 async function applyDealsBulkUpdate() {
@@ -10538,16 +10564,21 @@ async function applyDealsBulkUpdate() {
       if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
       updated += Number(result.updated || 0);
       if (Array.isArray(result.failed)) failed.push(...result.failed);
+      const rejected=new Set((result.failed||[]).map(f=>getDealRecordId({id:f.dealId})));
+      selectedIds.slice(offset,offset+50).forEach(id=>{if(!rejected.has(id))dealsPagedState.selectedIds.delete(id);});
     }
-    clearDealsBulkSelection();
+    dealsPagedState.stageSelections={};
     dealsState.loaded = false;
     delete dealsState.dealsByPipeline[dealsState.activePipelineId];
+    if(dealsState.view==='kanban'){await loadDealsData();renderDealsLayout(document.getElementById('main'));}
+    else {
     await loadDealsPage(dealsPagedState.page || 1);
     if (!dealsPagedState.items.length && dealsPagedState.page > 1) {
       await loadDealsPage(dealsPagedState.page - 1);
     }
     renderDealsPagedTable();
     renderDealsPagedPager();
+    }
     if (failed.length) {
       showToast(`Обновлено ${updated}, не удалось ${failed.length}: ${failed[0].error || 'ошибка'}`, true);
     } else {
@@ -10630,13 +10661,14 @@ function renderDealsLayout(el) {
       })()}
     </div>
 
-    <div id="deals-content"></div>
+    <div id="deals-bulk-actions"></div><div id="deals-content"></div>
   `;
   attachPipelineTabHandlers(el);
   attachScopeToggle(el, () => renderDeals(el));
 
   document.getElementById('deal-search').addEventListener('input', e => {
     dealsState.search = e.target.value;
+    clearDealsBulkSelection();
     dealsState.page = 0;
     // Поиск по телефону — через сервер (надёжно ищет по цифрам номеров контактов,
     // не завися от того, подгрузились ли телефоны в кеш канбана).
@@ -10652,12 +10684,14 @@ function renderDealsLayout(el) {
   });
   document.getElementById('stage-filter').addEventListener('change', e => {
     dealsState.stageFilter = e.target.value;
+    clearDealsBulkSelection();
     dealsState.page = 0;
     updateDealsCount();
     renderDealsContent();
   });
   document.getElementById('resp-filter').addEventListener('change', async e => {
     const v = e.target.value;
+    clearDealsBulkSelection();
     if (window.currentUser?.role === 'admin') {
       // admin: «Мои / Все / сотрудник» → перезагрузка воронки с нужным
       // scope/assignee (server-side, force в обход кеша).
@@ -10982,6 +11016,7 @@ function renderDealsKanban(c, arr) {
 
     html += `<div class="kanban-col" data-stage="${escapeHtml(s.statusId)}" style="--stage-color: ${stageColor}">
       <div class="kanban-col-header">
+        <input type="checkbox" class="deal-stage-select" data-select-stage="${escapeHtml(s.statusId)}" aria-label="Выбрать все сделки стадии ${escapeHtml(s.name)}" title="Выбрать все сделки стадии с текущими фильтрами">
         <span class="stage-dot"></span>
         <span class="stage-title" style="color:${stageColor}">${escapeHtml(s.name)}</span>
         <span class="col-count" style="color:${stageColor};background:${stageColor}22;border:1px solid ${stageColor}55">${colTotal.toLocaleString('ru')}</span>
@@ -11005,6 +11040,8 @@ function renderDealsKanban(c, arr) {
 
   c.innerHTML = html;
 
+  c.querySelectorAll('[data-select-stage]').forEach(cb=>{cb.checked=!!dealsPagedState.stageSelections?.[cb.dataset.selectStage];cb.disabled=dealsPagedState.bulkBusy;cb.onchange=()=>selectAllFilteredDeals(cb.dataset.selectStage,cb.checked);});
+  renderDealsBulkActions();
   initKanbanDragDrop();
 
   // Кнопки действий внутри карточек — нужны event delegation

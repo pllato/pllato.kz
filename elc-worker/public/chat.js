@@ -1300,16 +1300,13 @@
       if (av) { av.style.cursor = 'pointer'; av.onclick = openProf; }
     }
     const back = head.querySelector('.tc-back');
-    if (back) back.onclick = () => {
-      state.activeChannelId = null;
-      const r = state.rootEl?.querySelector('.tc-root');
-      if (r) r.classList.remove('tc-show-main');
-      syncViewport();
-      renderChannelList();
-      renderMainHead();
-      renderMessages();
-      renderComposer();
-    };
+    if(back) back.onclick=backToChatList;
+  }
+  function backToChatList(){
+    if(!state.editingMsg)saveDraft(state.activeChannelId,state.composerDraft||'');
+    state.activeChannelId=null;
+    state.rootEl?.querySelector('.tc-root')?.classList.remove('tc-show-main');
+    syncViewport();renderChannelList();renderMainHead();renderMessages();renderComposer();
   }
 
   function pluralMembers(n) {
@@ -2669,6 +2666,11 @@
       </section>
     </div>`;
 
+    let swipeStart=null;
+    const main=el.querySelector('.tc-main');
+    main.addEventListener('touchstart',e=>{swipeStart=null;if(e.touches.length!==1||e.target.closest('input,textarea,button,a,audio,video')||!el.querySelector('.tc-root.tc-narrow.tc-show-main'))return;const t=e.touches[0];swipeStart={x:t.clientX,y:t.clientY,time:Date.now()};},{passive:true});
+    main.addEventListener('touchend',e=>{const start=swipeStart;swipeStart=null;if(!start||!e.changedTouches.length)return;const t=e.changedTouches[0],dx=t.clientX-start.x,dy=t.clientY-start.y;if(dx>90&&Math.abs(dy)<Math.min(50,dx/2)&&Date.now()-start.time<700)backToChatList();},{passive:true});
+    main.addEventListener('touchcancel',()=>{swipeStart=null;},{passive:true});
     el.querySelector('#tc-new-ch-btn').onclick = openNewChatModal;
 
     const archToggle = el.querySelector('#tc-archive-toggle');
@@ -2763,5 +2765,5 @@
       .catch(e => alert(e.message));
   }
 
-  window.TeamChat = { mount, suspend, resume, openDmWith, openChannel: openChannelExternal };
+  window.TeamChat = { mount, suspend, resume, openDmWith, openChannel: openChannelExternal, refreshNames(){if(state.rootEl){renderChannelList();renderMainHead();}} };
 })();
