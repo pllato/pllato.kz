@@ -200,12 +200,19 @@ const API = 'https://pllato-elc-worker.uurraa.workers.dev';
 let BRANCH = null;                 // {code,label} — если открыто по ссылке филиала
 let student = { contactId:'', name:'', lastName:'', phone:'', email:'', birthdate:'', maskedPhone:'' };
 let rosterList = [];
-let rosterTimer = null;
+let rosterTimer = null, rosterRequest=0;
 let resultId = null;
 let submitting = false;
+const PROGRESS_KEY='elc:placement-progress:v1';
+function saveProgress(){try{sessionStorage.setItem(PROGRESS_KEY,JSON.stringify({time:Date.now(),branch:BRANCH?.code||'',student,idx,answers,resultId}));}catch{}}
+function resumeProgress(){try{const p=JSON.parse(sessionStorage.getItem(PROGRESS_KEY)||'null');if(!p||Date.now()-p.time>86400000||p.branch!==(new URLSearchParams(location.search).get('branch')||'')||!p.student||typeof p.student.name!=='string'||!Array.isArray(p.answers)||p.answers.some((a,i)=>!a||a.level!==QUESTIONS[i]?.level||typeof a.correct!=='boolean')||!Number.isInteger(p.idx)||p.idx<0||p.idx!==p.answers.length||p.idx>QUESTIONS.length)return false;student=p.student;answers=p.answers;idx=p.idx;resultId=p.resultId||null;renderQuestion();return true;}catch{return false;}}
+function offerResume(){try{const p=JSON.parse(sessionStorage.getItem(PROGRESS_KEY)||'null');if(p&&p.idx>0&&Date.now()-p.time<86400000&&p.branch===(BRANCH?.code||'')){const b=document.createElement('button');b.className='btn ghost';b.textContent='Продолжить сохранённый тест';b.onclick=()=>resumeProgress();app.prepend(b);}}catch{}}
+async function placementFetch(url,options={}){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);try{const r=await fetch(url,{...options,signal:controller.signal});if(!r.ok)throw new Error('Сервер временно недоступен ('+r.status+'). Повторите попытку.');return r;}catch(e){if(e.name==='AbortError')throw new Error('Сервер не ответил за 25 секунд. Ваши ответы сохранены — повторите отправку.');throw e;}finally{clearTimeout(timer);}}
+function releaseRecorder(){if(recTimer){clearInterval(recTimer);recTimer=null;}if(mr&&mr.state!=='inactive'){mr.onstop=null;try{mr.stop();}catch{}}recStream?.getTracks().forEach(t=>t.stop());recStream=null;}
+window.addEventListener('pagehide',releaseRecorder);
 function CRM(){ return !!(BRANCH && student.contactId); }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function goHome(){ if(BRANCH){ student={contactId:'',name:'',lastName:'',phone:'',email:'',birthdate:'',maskedPhone:''}; resultId=null; renderIdentify(); } else { renderStart(); } }
+function goHome(){ releaseRecorder(); if(BRANCH){ student={contactId:'',name:'',lastName:'',phone:'',email:'',birthdate:'',maskedPhone:''}; resultId=null; renderIdentify(); } else { renderStart(); } }
 
 /* раннее завершение: студент упёрся в потолок (3 ошибки из последних 4, после минимум 6 ответов).
    Вопросы идут по нарастанию сложности, поэтому устойчивые ошибки = достигнут предел. */
@@ -215,7 +222,7 @@ function shouldStop(){
   return last4.filter(a=>!a.correct).length >= 3;
 }
 
-function start(){ idx=0; answers=[]; renderQuestion(); }
+function start(){ releaseRecorder();if(recBlobUrl)URL.revokeObjectURL(recBlobUrl);recBlobUrl=null;recBlob=null;recChunks=[];recSecs=0;idx=0; answers=[];resultId=null;saveProgress();renderQuestion(); }
 
 function renderStart(){
   app.innerHTML = `
@@ -246,11 +253,11 @@ function startConversation(btn){
     theory: buildTheoryPayload(),
     branch: BRANCH ? { code:BRANCH.code, label:BRANCH.label } : null,
   };
-  fetch(LESSON_BASE + '/api/start', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
+  placementFetch(LESSON_BASE + '/api/start', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
     .then(r=>r.json())
     .then(j=>{ if(j && j.ok){ location.href = LESSON_BASE + '/lesson?id=' + j.id; }
                else { if(btn){ btn.disabled=false; btn.textContent='К разговору с преподавателем →'; } alert('Не удалось создать заявку. Попробуйте ещё раз.'); } })
-    .catch(()=>{ if(btn){ btn.disabled=false; btn.textContent='К разговору с преподавателем →'; } alert('Сеть недоступна. Попробуйте ещё раз.'); });
+    .catch(e=>{ if(btn){ btn.disabled=false; btn.textContent='К разговору с преподавателем →'; } alert(e.message||'Сеть недоступна. Попробуйте ещё раз.'); });
 }
 
 /* Ссылка на пробный урок по итогам теста (lesson-воркер) — с результатами теста */
@@ -332,10 +339,12 @@ function submitTyped(){
 function skipTyped(){ gradeTyped(''); }
 function gradeTyped(val){
   const Q = QUESTIONS[idx];
+  if(!Q)return;
   const v = normAns(val);
   const ok = !!v && (Q.accept||[]).some(a=>normAns(a)===v);
   answers.push({ level:Q.level, correct: ok });
   idx++;
+  saveProgress();
   renderQuestion();
 }
 
@@ -376,6 +385,7 @@ function computePlacement(){
 }
 
 function renderResult(){
+  releaseRecorder();
   const { rec, graduated } = computePlacement();
   const m = levelAgg();
   const correctTotal = answers.filter(a=>a.correct).length;
@@ -466,20 +476,28 @@ function renderSpeaking(){
 
 function recBtnHtml(){ return `<button class="btn rec" onclick="startRec()">🎙 Записать монолог</button>`; }
 
+let recStarting=false;
 async function startRec(){
+  if(recStarting||mr?.state==='recording')return;
+  recStarting=true;
   const box = document.getElementById('rec');
   try{
     recStream = await navigator.mediaDevices.getUserMedia({audio:true});
+    recStarting=false;
+    if(!box.isConnected){releaseRecorder();return;}
   }catch(e){
+    recStarting=false;
     box.innerHTML = `<p class="hint" style="color:var(--bad)">Не удалось получить доступ к микрофону.
       Разреши доступ в браузере и попробуй снова.</p>` + recBtnHtml();
     return;
   }
   recChunks = [];
   try{ mr = new MediaRecorder(recStream); }
-  catch(e){ mr = new MediaRecorder(recStream, {}); }
+  catch(e){ recStarting=false;releaseRecorder();box.innerHTML='<p class="hint">Этот браузер не смог начать запись. Откройте тест в Safari или Chrome.</p>'+recBtnHtml();return; }
   mr.ondataavailable = e=>{ if(e.data && e.data.size) recChunks.push(e.data); };
+  mr.onerror=()=>{releaseRecorder();if(box.isConnected)box.innerHTML='<p class="hint">Запись прервалась. Повторите попытку.</p>'+recBtnHtml();};
   mr.onstop = ()=>{
+    if(recTimer){clearInterval(recTimer);recTimer=null;}
     const blob = new Blob(recChunks, {type:(mr && mr.mimeType) || 'audio/webm'});
     recBlob = blob;
     if(recBlobUrl) URL.revokeObjectURL(recBlobUrl);
@@ -487,12 +505,12 @@ async function startRec(){
     if(recStream) recStream.getTracks().forEach(t=>t.stop());
     showPlayback();
   };
-  mr.start();
+  try{mr.start(1000);}catch(e){releaseRecorder();box.innerHTML='<p class="hint">Не удалось начать запись. Повторите попытку.</p>'+recBtnHtml();return;}
   recSecs = 0;
   box.innerHTML = `
     <div class="rec-live"><span class="rec-dot"></span> Идёт запись… <b id="rtime">0:00</b></div>
     <button class="btn rec" onclick="stopRec()">■ Остановить запись</button>`;
-  recTimer = setInterval(()=>{ recSecs++; const el=document.getElementById('rtime'); if(el) el.textContent=fmt(recSecs); }, 1000);
+  recTimer = setInterval(()=>{ recSecs++; if(recSecs>=300){stopRec();return;}const el=document.getElementById('rtime'); if(el) el.textContent=fmt(recSecs); }, 1000);
 }
 
 function stopRec(){
@@ -544,6 +562,7 @@ function renderIdentify(){
 }
 
 function onRosterInput(e){
+  const requestId=++rosterRequest;
   const v = e.target.value.trim();
   clearTimeout(rosterTimer);
   const box = document.getElementById('roster');
@@ -551,10 +570,10 @@ function onRosterInput(e){
   box.innerHTML = `<p class="small">Поиск…</p>`;
   rosterTimer = setTimeout(async ()=>{
     try{
-      const r = await fetch(`${API}/api/placement/roster?branch=${encodeURIComponent(BRANCH.code)}&q=${encodeURIComponent(v)}`);
+      const r = await placementFetch(`${API}/api/placement/roster?branch=${encodeURIComponent(BRANCH.code)}&q=${encodeURIComponent(v)}`);
       const j = await r.json();
-      renderRoster(j.results || [], !!j.capped);
-    }catch(err){ box.innerHTML = `<p class="small" style="color:var(--bad)">Ошибка поиска. Попробуйте ещё раз.</p>`; }
+      if(requestId===rosterRequest&&box.isConnected)renderRoster(j.results || [], !!j.capped);
+    }catch(err){ if(requestId!==rosterRequest||!box.isConnected)return;box.innerHTML = `<p class="small" style="color:var(--bad)">Ошибка поиска. Попробуйте ещё раз.</p>`; }
   }, 300);
 }
 
@@ -647,14 +666,16 @@ async function submitToCRM(withAudio){
     student: { name:student.name, lastName:student.lastName, phone:student.phone, email:student.email, birthdate:student.birthdate },
     theory: buildTheoryPayload(),
   };
-  const r = await fetch(`${API}/api/placement/submit`, {
+  if(!resultId){
+  const r = await placementFetch(`${API}/api/placement/submit`, {
     method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload),
   });
   const j = await r.json();
   if(!j || !j.ok) throw new Error((j && j.error) || 'submit failed');
-  resultId = j.resultId;
+  resultId = j.resultId;saveProgress();
+  }
   if(withAudio && recBlob){
-    await fetch(`${API}/api/placement/audio/${resultId}`, {
+    await placementFetch(`${API}/api/placement/audio/${resultId}`, {
       method:'POST',
       headers:{ 'Content-Type': recBlob.type || 'audio/webm', 'X-Audio-Secs': String(recSecs||0) },
       body: recBlob,
@@ -681,6 +702,7 @@ async function sendResults(withAudio){
 }
 
 function renderSubmitted(withAudio){
+  try{sessionStorage.removeItem(PROGRESS_KEY);}catch{}
   const L = levelByN(placedLevel);
   const { graduated } = computePlacement();
   const lvlLine = graduated ? 'Выше Upper-Intermediate 3.0' : `${L.name} · ${L.cefr}`;
@@ -700,15 +722,15 @@ function renderSubmitted(withAudio){
 // Точка входа: режим филиала vs standalone
 function init(){
   const code = new URLSearchParams(location.search).get('branch');
-  if(!code){ renderStart(); return; } // обычный тест без CRM
+  if(!code){ renderStart();offerResume();return; } // обычный тест без CRM
   app.innerHTML = `<p class="lead">Загрузка…</p>`;
-  fetch(`${API}/api/placement/branch/${encodeURIComponent(code)}`)
+  placementFetch(`${API}/api/placement/branch/${encodeURIComponent(code)}`)
     .then(r=>r.json())
     .then(j=>{
-      if(j && j.ok){ BRANCH = { code:j.code, label:j.label }; renderIdentify(); }
+      if(j && j.ok){ BRANCH = { code:j.code, label:j.label }; renderIdentify();offerResume(); }
       else { renderStart(); } // неизвестный филиал → обычный режим
     })
-    .catch(()=>renderStart());
+    .catch(e=>{app.innerHTML=`<p class="lead">${esc(e.message)}</p><button class="btn" onclick="init()">Повторить загрузку</button>`;});
 }
 
 init();
