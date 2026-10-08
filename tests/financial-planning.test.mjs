@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {defaultPlan,migratePlan,movePlanRow,remapPlanRows,weekStart,weeksFrom,WEEK,planCalculator,planningIncome} from '../crm/worker/financial-model.js';
+import {withProjectPayoutRows,payoutTotals,defaultPlan,migratePlan,movePlanRow,remapPlanRows,weekStart,weeksFrom,WEEK,planCalculator,planningIncome} from '../crm/worker/financial-model.js';
 import {handleFinancialPlanning,PLAN_COLLECTION} from '../crm/worker/financial-planning.js';
 const boundary=Date.parse('2026-10-08T14:00:00+05:00');
 assert.equal(weekStart(boundary),boundary);assert.equal(weekStart(boundary-1),boundary-WEEK);
@@ -14,8 +14,9 @@ const moved=movePlanRow(p,'sales',-1);assert.equal(value(moved,'profit'),710);as
 const childMoved=movePlanRow(moved,'seller2',-1);assert.equal(value(childMoved,'formula'),before);assert.equal(childMoved.rows[childMoved.rows.findIndex(r=>r.id==='sales')+1].id,'seller2');
 const old={revision:4,start:boundary,cells:{advertising:{[boundary]:'=R1*5%'},custom:{[boundary]:'=R2'}},rows:[{id:'income',kind:'income',name:'Доход',unit:'₸'},{id:'paid',kind:'paid'},{id:'planned',kind:'planned'},{id:'advertising',kind:'expense',name:'Реклама',unit:'₸'},{id:'promotion',kind:'expense'},{id:'tax',kind:'tax'},{id:'profit',kind:'profit',name:'Прибыль',unit:'₸'},{id:'forecast',kind:'forecast'},{id:'role',kind:'payoutPaid'},{id:'custom',kind:'formula',name:'Расчёт',unit:'₸'}]};
 const migrated=migratePlan(old);assert.equal(migrated.revision,4);assert.ok(!migrated.rows.some(r=>['paid','planned','forecast','payoutPaid'].includes(r.kind)));assert.equal(value(migrated,'advertising'),50);assert.equal(value(migrated,'profit'),830);assert.equal(migrated.cells.custom[boundary],'=#REF!');assert.deepEqual(migratePlan(migrated),migrated);assert.equal(migrated.legacyRows.length,10);
+p=withProjectPayoutRows(p);
 class HttpError extends Error{constructor(status,message){super(message);this.status=status;}}
-let stored=null,reads=0;const deps={HttpError,get:async()=>stored,save:async(_,next,revision)=>{if((stored?.revision||0)!==revision)return false;stored=structuredClone(next);return true;},income:async()=>{reads++;return [1000];},payouts:async()=>{throw Error('Payout ledger must not be read');}};
+let stored=null,reads=0;const deps={HttpError,get:async()=>stored,save:async(_,next,revision)=>{if((stored?.revision||0)!==revision)return false;stored=structuredClone(next);return true;},income:async()=>{reads++;return [1000];},payouts:async()=>[]};
 const root={email:'uurraa@gmail.com'},viewer={email:'viewer@test.kz'},editor={email:'editor@test.kz'},admin={email:'admin@test.kz',isRoot:true,user:{isSuperAdmin:true}};
 const call=(actor,method='GET',path='/financial-planning',body)=>handleFinancialPlanning(new Request('https://test'+path,{method,...(body?{body:JSON.stringify(body)}:{})}),{},actor,deps);
 await assert.rejects(()=>call(admin),e=>e.status===403);assert.equal(reads,0);
@@ -27,7 +28,7 @@ await assert.rejects(()=>call(editor,'PUT',undefined,{revision:1,rows:p.rows,cel
 await assert.rejects(()=>call(editor,'PUT',undefined,{revision:2,rows:p.rows.map(r=>r.id==='tax'?{...r,rate:3}:r),cells:p.cells}),e=>e.status===400);
 await assert.rejects(()=>call(editor,'PUT',undefined,{revision:2,rows:p.rows.map(r=>r.id==='seller1'?{...r,parentId:'income'}:r),cells:p.cells}),e=>e.status===400);
 await call(root,'PUT','/financial-planning/access',{revision:2,viewers:[],editors:[]});await assert.rejects(()=>call(viewer),e=>e.status===403);
-console.log('Planning v2: migration, fixed percentages, no payout reads, sales rollup, profit, hierarchy, formula-safe reorder, ACL and conflict tests passed.');
+console.log('Planning v2: migration, fixed percentages, sales rollup, profit, hierarchy, formula-safe reorder, ACL and conflict tests passed.');
 const {setPlanRule,effectiveRule}=await import('../crm/worker/financial-model.js');
 let recurring=defaultPlan(boundary);recurring.start=boundary-2*WEEK;
 recurring.cells.advertising={[boundary-WEEK]:'77'};
@@ -61,3 +62,12 @@ const manualApi=await call(root);manualApi.plan=setPlanRule(manualApi.plan,'sale
 await call(root,'PUT',undefined,{revision:manualApi.plan.revision,rows:manualApi.plan.rows,cells:manualApi.plan.cells,rules:manualApi.plan.rules});
 assert.equal((await call(root)).plan.rules.sales[manualApi.plan.start].value,'200');
 console.log('Manual group amount/percentage adds children, deducts once and persists through API.');
+
+let grouped=withProjectPayoutRows(defaultPlan(boundary));grouped.start=boundary;
+grouped=setPlanRule(grouped,'sales',boundary,{mode:'amount',value:'20'});
+grouped.rows.push({id:'s',name:'Seller',kind:'expense',unit:'₸',parentId:'sales'});grouped.cells.s={[boundary]:'30'};
+const totals=payoutTotals([{role:'Продажи',status:'paid',amount:100,date:'2026-10-09'},{role:'Агент',status:'paid',amount:50,date:'2026-10-09'},{role:'Дизайнер',status:'planned',amount:70,date:'2026-10-09'},{role:'Программист',status:'paid',amount:999,date:'2026-10-09',deleted:true}],weeksFrom(boundary));
+const gv=id=>planCalculator(grouped,[1000],totals)(grouped.rows.findIndex(r=>r.id===id),1);
+assert.equal(gv('sales'),150);assert.equal(gv('payout_agents'),50);assert.equal(gv('payout_designers'),0);assert.equal(gv('profit'),680);assert.equal(totals[0].byRole['Дизайнер'].planned,70);
+assert.deepEqual(withProjectPayoutRows(grouped),grouped);
+console.log('Project roles: paid plus manual plus children, planned separate, deleted ignored, profit once.');
