@@ -23,3 +23,11 @@ test('repeated curve definitions share samples while retaining distinct instance
  assert.equal(a._pointData,b._pointData);assert.deepEqual(a.pts,points);
  assert.deepEqual(b.pts,points.map(([x,y])=>[100-3*y,200+2*x]));
 });
+
+test('large-scene repeated LINE paths share exact samples without merging objects',()=>{
+ const pts=[[1.23456789012345,9],[6,7]],key={},cache=new WeakMap();
+ const a=compactShapePoints({id:'a',entityKey:'a',pts,bounds:[1,7,6,9]},pts,[1,0,0,1,0,0],cache,key);
+ const b=compactShapePoints({id:'b',entityKey:'b',pts,bounds:[11,7,16,9]},pts,[1,0,0,1,10,0],cache,key);
+ assert.ok(a._pointData instanceof Float64Array);assert.equal(a._pointData,b._pointData);assert.deepEqual(a.pts,pts);
+ assert.deepEqual(b.pts,pts.map(([x,y])=>[x+10,y]));assert.notEqual(a.entityKey,b.entityKey);a.pts=[[0,0],[1,1]];assert.deepEqual(b.pts,pts.map(([x,y])=>[x+10,y]));
+});

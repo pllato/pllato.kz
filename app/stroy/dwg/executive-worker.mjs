@@ -1,7 +1,7 @@
 import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.85';
 import {requireWritableVersion} from './dwg-version.mjs?v=0.17.85';
-import {writeAdditions} from './authoring.mjs?v=0.17.89';
-import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.89';
+import {writeAdditions} from './authoring.mjs?v=0.17.90';
+import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.90';
 import {validateExecutiveProject} from './executive-metadata.mjs?v=0.17.85';
 import {executiveEntities} from './executive-project.mjs?v=0.17.85';
 self.onmessage=async({data})=>{

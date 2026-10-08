@@ -9,7 +9,7 @@ const points={enumerable:true,configurable:true,get(){
 },set(value){this._points=value;this._pointData=undefined;this._pointMatrix=undefined;}};
 const pointPrototype={};Object.defineProperty(pointPrototype,'pts',points);
 export function compactShapePoints(shape,localPoints=null,matrix=null,cache=null,key=null){
- const path=localPoints||shape.pts;if(path.length<16)return shape;
+ const path=localPoints||shape.pts;if(path.length<(cache?2:16))return shape;
  let data=cache?.get(key);if(!data){data=new Float64Array(path.length*2);
  for(let i=0;i<path.length;i++){data[i*2]=path[i][0];data[i*2+1]=path[i][1];}if(cache)cache.set(key,data);}
  if(shape.entityKey&&shape.hatch===undefined){

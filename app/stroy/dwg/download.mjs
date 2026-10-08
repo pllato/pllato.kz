@@ -1,4 +1,11 @@
 let releasePrevious=()=>{};
+// Keep a retryable output, but never offer it during a new CAD operation.
+export function preparingOutput(doc=globalThis.document){
+ for(const node of doc.querySelectorAll('.downloadReady,.downloadRetry,#executiveSaveNotice')){if(node.open)node.close();node.hidden=true;}
+}
+export function preparedOutput(doc=globalThis.document){
+ for(const node of doc.querySelectorAll('.downloadRetry'))node.hidden=false;
+}
 export function downloadLink(blob,name,{document:doc=globalThis.document,url=URL}={}){
  // Use a generic download MIME instead of a CAD application association.
  // Change only the transport MIME, never the DWG bytes or filename.
@@ -9,9 +16,10 @@ export function downloadLink(blob,name,{document:doc=globalThis.document,url=URL
 }
 export function shareFile(blob,name,{navigator:nav=globalThis.navigator,File:FileType=globalThis.File}={}){
  if(!nav?.share||!nav.canShare||!FileType)return null;
- const file=new FileType([blob],name,{type:'application/octet-stream'});
- try{if(!nav.canShare({files:[file]}))return null;}catch{return null;}
- return ()=>nav.share({files:[file]});
+ // Capability probe is tiny. Allocate the large system-share File only on
+ // the explicit user gesture, not alongside DWG validation/preparation.
+ try{if(!nav.canShare({files:[new FileType([],name,{type:'application/octet-stream'})]}))return null;}catch{return null;}
+ return ()=>{const file=new FileType([blob],name,{type:'application/octet-stream'});if(!nav.canShare({files:[file]}))throw Error('Системное меню не принимает этот файл. Используйте «Скачать файл».');return nav.share({files:[file]});};
 }
 // Fresh user gesture after asynchronous CAD preparation; retain output for retry.
 export function offerDownload(blob,name,{onStart=()=>{},touch=matchMedia('(pointer:coarse)').matches||navigator.maxTouchPoints>0}={}){
@@ -23,7 +31,7 @@ export function offerDownload(blob,name,{onStart=()=>{},touch=matchMedia('(point
  const help=document.createElement('p');help.setAttribute('role','status');help.textContent='Подготовка завершена. Файл ещё не сохранён на устройстве. Нажмите «Скачать файл» и проверьте загрузки браузера.';
  const close=document.createElement('button');close.textContent='×';close.className='formatClose';close.setAttribute('aria-label','Закрыть');close.onclick=()=>dialog.close();
  file.anchor.className='downloadReadyLink';file.anchor.onclick=()=>{help.textContent='Запрос скачивания передан браузеру. Если файла нет в загрузках, '+(share?'используйте системное меню ниже или повторите скачивание.':'проверьте разрешение загрузок в браузере и повторите скачивание.');onStart();};
- const retry=document.createElement('button');retry.className='downloadRetry';retry.textContent='Готовый файл · сохранить';retry.onclick=()=>{if(!dialog.open)dialog.showModal();};
+ const retry=document.createElement('button');retry.className='downloadRetry';retry.textContent='Готовый файл · сохранить';retry.hidden=true;retry.onclick=()=>{dialog.hidden=false;if(!dialog.open)dialog.showModal();};
  dialog.append(close,title,text,help,file.anchor);
  const share=shareFile(blob,name);
  if(share){const button=document.createElement('button');button.textContent='Сохранить через системное меню';button.className='downloadReadyShare';button.onclick=async()=>{
@@ -32,6 +40,7 @@ export function offerDownload(blob,name,{onStart=()=>{},touch=matchMedia('(point
   catch(error){help.textContent=error.name==='AbortError'?'Сохранение отменено. Готовый файл остаётся доступен.':'Системное сохранение не выполнено: '+error.message+'. Можно повторить скачивание.';}
   finally{button.disabled=false;}
  };dialog.append(button);}
+ dialog.addEventListener('close',()=>{retry.hidden=false;});
  document.body.append(dialog,retry);
  let released=false;releasePrevious=()=>{if(released)return;released=true;file.release();dialog.remove();retry.remove();};
  // Closing the dialog must not discard a large output or revoke an ongoing download.

@@ -1,6 +1,6 @@
 import {cloneRecord,restoreCompactRecord} from './compact-record.mjs?v=0.17.89';
-import {get,num,addEntity} from './cad.mjs?v=0.17.89';
-import {copyTransform} from './object-copy.mjs?v=0.17.89';
+import {get,num,addEntity} from './cad.mjs?v=0.17.90';
+import {copyTransform} from './object-copy.mjs?v=0.17.90';
 const identity=[1,0,0,1,0,0];
 const supported=new Set(['LINE','LWPOLYLINE','ARC','CIRCLE','TEXT','MTEXT','INSERT']);
 export function prepareDeferredCopy(doc,targets,sheet){

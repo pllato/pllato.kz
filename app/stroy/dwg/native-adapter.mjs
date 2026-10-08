@@ -1,7 +1,7 @@
 import {compactRecord} from './compact-record.mjs?v=0.17.89';
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Geometry view only. The original DWG remains the source for saving.
-import {fromRecords} from './cad.mjs?v=0.17.89';
+import {fromRecords} from './cad.mjs?v=0.17.90';
 import {leaderParts} from './mleader.mjs?v=0.17.78';
 import {hatchGeometry} from './hatch.mjs?v=0.17.78';
 export function nativeDocument(db,index=true,{consume=false,compact=false}={}){

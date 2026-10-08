@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.85';
 import {requireWritableVersion} from './dwg-version.mjs?v=0.17.80';
-import {writeAdditions} from './authoring.mjs?v=0.17.89';
-import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.89';
+import {writeAdditions} from './authoring.mjs?v=0.17.90';
+import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.90';
 self.onmessage=async({data})=>{
  try{
   const {buffer,ops,added=[]}=data;

@@ -1,4 +1,4 @@
-import {compactShapePoints} from './compact-points.mjs?v=0.17.89';
+import {compactShapePoints} from './compact-points.mjs?v=0.17.90';
 import {pairsOf,compactRecord,restoreCompactRecord} from './compact-record.mjs?v=0.17.89';
 // SPDX-License-Identifier: GPL-3.0-or-later
 import {cadFont} from './fonts.mjs?v=0.17.78';
