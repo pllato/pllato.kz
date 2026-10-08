@@ -21,17 +21,18 @@ async function fixture(){
  const request=(method='GET',body,path='rules?pipeline=p')=>handleStageGroups(new Request('https://crm.test/api/wa/stage-groups/'+path,{method,body:body?JSON.stringify(body):undefined}),env,deps);
  const rules=[{stage_id:'a',channel_id:'ch',employee_uids:[]},{stage_id:'b',channel_id:'ch',employee_uids:['dev']}];
  const stage=(s='a')=>db.prepare('INSERT INTO deal_stage_events(deal_id,pipeline_id,stage_id,entered_at) VALUES(?,?,?,?)').run('deal_1','p',s,new Date().toISOString());
- const calls=[];let members=new Set(['77010000002@c.us']);
+ const calls=[];let members=new Set(['77010000002@c.us']),admins=new Set();
  const fetch=async(url,opt)=>{
   const method=new URL(url).pathname.split('/')[2],body=JSON.parse(opt.body);calls.push({method,body});
   if(method==='checkWhatsapp')return Response.json({existsWhatsapp:true,chatId:body.chatId});
   if(method==='createGroup')return Response.json({created:true,chatId:'123456@g.us',groupInviteLink:'https://chat.whatsapp.com/testinvite'});
-  if(method==='getGroupData')return Response.json({participants:[...members].map(id=>({id})),groupInviteLink:'https://chat.whatsapp.com/testinvite'});
+  if(method==='getGroupData')return Response.json({participants:[...members].map(id=>({id,isAdmin:admins.has(id)})),groupInviteLink:'https://chat.whatsapp.com/testinvite'});
   if(method==='addGroupParticipant'){if(body.participantChatId==='77010000003@c.us'){members.add(body.participantChatId);return Response.json({addParticipant:true});}return Response.json({addParticipant:false});}
+  if(method==='setGroupAdmin'){admins.add(body.participantChatId);return Response.json({setGroupAdmin:true});}
   if(method==='sendMessage')return Response.json({idMessage:'sent'});
   throw new Error('Unexpected method '+method);
  };
- return {db,env,deps,request,rules,stage,calls,fetch};
+ return {db,env,deps,request,rules,stage,calls,fetch,members,admins};
 }
 test('имя группы: контакт и дата Алматы, ограничение 100 символов',()=>{assert.equal(groupName('Иван',new Date('2026-09-29T20:00:00Z')),'Pllato IT разработка - CRM - Иван - 30.09.2026');assert.equal(groupName('я'.repeat(200)).length,100);assert.equal(groupPhone('8 (701) 000-00-01'),'77010000001');assert.equal(groupPhone('123'),null);});
 test('только будущие переходы, группа одна, личное приглашение один раз, следующий этап добавляет сотрудника',async()=>{
@@ -126,4 +127,25 @@ test('карточка показывает общие правила своей
  await f.request('PUT',{rules:f.rules});
  const data=await (await f.request('GET',undefined,'deals/deal_1')).json();
  assert.equal(data.pipeline.name,'Pllato');assert.deepEqual(data.stageRules.map(r=>({stage:r.stage,employees:r.employees})),[{stage:'Аванс',employees:[]},{stage:'Первый этап',employees:['Разработчик']}]);
+});
+
+test('опция назначает всех присутствующих и поздних участников, повторно админов не трогает',async()=>{
+ const f=await fixture();await f.request('POST',{action:'create',channel_id:'ch',employee_uids:['dev'],all_admins:true},'deals/deal_1');
+ const previous=globalThis.fetch;globalThis.fetch=f.fetch;
+ try{await processStageGroups(f.env);assert.ok(f.admins.has('77010000002@c.us'));assert.ok(f.admins.has('77010000003@c.us'));assert.ok(!f.admins.has('77010000001@c.us'));
+ const before=f.calls.filter(c=>c.method==='setGroupAdmin').length;
+ f.members.add('77010000001@c.us');f.db.exec('UPDATE wa_group_admin_policy SET checked_at=0');await processStageGroups(f.env);
+ assert.ok(f.admins.has('77010000001@c.us'));assert.equal(f.calls.filter(c=>c.method==='setGroupAdmin').length,before+1);
+ f.db.exec('UPDATE wa_group_admin_policy SET checked_at=0');await processStageGroups(f.env);assert.equal(f.calls.filter(c=>c.method==='setGroupAdmin').length,before+1);
+ assert.equal((await (await f.request('GET',undefined,'deals/deal_1')).json()).adminPolicy.status,'active');
+ }finally{globalThis.fetch=previous;}
+});
+test('правило этапа сохраняет опцию; ошибка назначения видна и повтор не создаёт новую группу',async()=>{
+ const f=await fixture();f.rules[0].all_admins=true;await f.request('PUT',{rules:f.rules});assert.equal((await (await f.request()).json()).rules[0].all_admins,true);f.stage();
+ const previous=globalThis.fetch;globalThis.fetch=async(url,opt)=>String(url).includes('/setGroupAdmin/')?Response.json({setGroupAdmin:false}):f.fetch(url,opt);
+ try{await processStageGroups(f.env);assert.equal(f.db.prepare('SELECT status FROM wa_group_admin_policy').get().status,'error');globalThis.fetch=f.fetch;f.db.exec('UPDATE wa_group_admin_policy SET checked_at=0');await processStageGroups(f.env);assert.equal(f.db.prepare('SELECT status FROM wa_group_admin_policy').get().status,'active');assert.equal(f.calls.filter(c=>c.method==='createGroup').length,1);}finally{globalThis.fetch=previous;}
+});
+test('без включения нет автоматического расширения прав',async()=>{
+ const f=await fixture();await f.request('POST',{action:'create',channel_id:'ch',employee_uids:[]},'deals/deal_1');const previous=globalThis.fetch;globalThis.fetch=f.fetch;
+ try{await processStageGroups(f.env);assert.equal(f.calls.filter(c=>c.method==='setGroupAdmin').length,0);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM wa_group_admin_policy').get().n,0);}finally{globalThis.fetch=previous;}
 });
