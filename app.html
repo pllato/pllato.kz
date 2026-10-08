@@ -1246,7 +1246,7 @@ body {
 }
 .tool-dd-menu a.is-pdf .dot { background: var(--orange); }
 </style>
-<link rel="stylesheet" href="/app/mobile-workspace.css?v=20261008-2">
+<link rel="stylesheet" href="/app/mobile-workspace.css?v=20261008-3">
 <!-- Meta Pixel Code -->
 <script>
 !function(f,b,e,v,n,t,s)
@@ -6528,10 +6528,11 @@ function financeChartSvg(kind,series){
     <polyline style="display:${showTotal?'block':'none'}" points="${completed}" fill="none" stroke="${color}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
     ${showTotal?points:''}${managerLabels.join('')}</svg>`;
 }
-function openChartFullscreen(button,{mobileView='current'}={}){
+function openChartFullscreen(button,{mobileView='current',miniPosition=null}={}){
   const source=button.closest('.fc-card');
   if(!source || document.querySelector('.fc-fullscreen')) return;
   let switching=false;
+  let positionMini=()=>{};
   const dialog=document.createElement('dialog');
   dialog.className='fc-fullscreen';
   dialog.setAttribute('aria-label',source.querySelector('.fc-card-title')?.textContent||'График');
@@ -6575,7 +6576,8 @@ function openChartFullscreen(button,{mobileView='current'}={}){
     const mini=document.createElement('button');
     mini.type='button';mini.className='fc-mini-chart';
     mini.setAttribute('aria-label','Увеличить график');
-    mini.innerHTML='<span class="fc-mini-caption">Динамика <span>Увеличить ↗</span></span>';
+    mini.innerHTML='<span class="fc-mini-caption">⠿ Передвинуть <span>↗</span></span>';
+    mini.title='Перетащите, чтобы передвинуть. Нажмите, чтобы увеличить. Стрелки клавиатуры перемещают окно.';
     const miniSvg=chart.querySelector('svg')?.cloneNode(true);
     if(miniSvg){
       miniSvg.querySelectorAll('text,title').forEach(node=>node.remove());
@@ -6583,11 +6585,51 @@ function openChartFullscreen(button,{mobileView='current'}={}){
         ['id','onclick','onkeydown','tabindex','role','aria-label'].forEach(attr=>node.removeAttribute(attr));
       });
       miniSvg.setAttribute('aria-hidden','true');
-      miniSvg.setAttribute('preserveAspectRatio','none');
+      miniSvg.setAttribute('preserveAspectRatio','xMidYMid meet');
+      const bounds=miniSvg.viewBox.baseVal;
+      if(bounds.width&&bounds.height)miniSvg.style.aspectRatio=`${bounds.width} / ${bounds.height}`;
       mini.appendChild(miniSvg);
     }
-    mini.onclick=()=>mobileNav.querySelector('[data-view="chart"]').click();
-    const updateMini=()=>{mini.dataset.expanded=String(workspace.dataset.mobileView==='chart');};
+    let drag=null,dragged=false;
+    const moveMini=(left,top)=>{
+      const maxX=Math.max(8,dialog.clientWidth-mini.offsetWidth-8);
+      const maxY=Math.max(8,dialog.clientHeight-mini.offsetHeight-8);
+      left=Math.max(8,Math.min(maxX,left));top=Math.max(8,Math.min(maxY,top));
+      mini.style.left=`${left}px`;mini.style.top=`${top}px`;mini.style.right='auto';
+      miniPosition={x:maxX>8?(left-8)/(maxX-8):0,y:maxY>8?(top-8)/(maxY-8):0};
+    };
+    positionMini=()=>{
+      if(!mini.offsetWidth)return;
+      const maxX=Math.max(8,dialog.clientWidth-mini.offsetWidth-8);
+      const maxY=Math.max(8,dialog.clientHeight-mini.offsetHeight-8);
+      const top=workspace.getBoundingClientRect().top-dialog.getBoundingClientRect().top+(tasks.querySelector('.fc-week-tasks-head')?.offsetHeight||80)+20;
+      moveMini(miniPosition?8+miniPosition.x*(maxX-8):maxX,
+        miniPosition?8+miniPosition.y*(maxY-8):top);
+    };
+    mini.onpointerdown=event=>{
+      if(event.button!==0)return;
+      dragged=false;drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:mini.offsetLeft,top:mini.offsetTop};
+      mini.setPointerCapture(event.pointerId);
+    };
+    mini.onpointermove=event=>{
+      if(!drag||event.pointerId!==drag.id)return;
+      const dx=event.clientX-drag.x,dy=event.clientY-drag.y;
+      if(Math.hypot(dx,dy)>5)dragged=true;
+      if(dragged)moveMini(drag.left+dx,drag.top+dy);
+    };
+    const endDrag=event=>{
+      if(!drag||event.pointerId!==drag.id)return;
+      if(mini.hasPointerCapture(event.pointerId))mini.releasePointerCapture(event.pointerId);
+      drag=null;
+    };
+    mini.onpointerup=endDrag;mini.onpointercancel=endDrag;
+    mini.onkeydown=event=>{
+      const directions={ArrowLeft:[-16,0],ArrowRight:[16,0],ArrowUp:[0,-16],ArrowDown:[0,16]};
+      const delta=directions[event.key];if(!delta)return;
+      event.preventDefault();moveMini(mini.offsetLeft+delta[0],mini.offsetTop+delta[1]);
+    };
+    mini.onclick=()=>{if(dragged){dragged=false;return;}mobileNav.querySelector('[data-view="chart"]').click();};
+    const updateMini=()=>{mini.dataset.expanded=String(workspace.dataset.mobileView==='chart');positionMini();};
     mobileNav.addEventListener('click',updateMini);updateMini();
     card.append(mini,mobileNav,workspace);
   }
@@ -6611,7 +6653,7 @@ function openChartFullscreen(button,{mobileView='current'}={}){
       if(!trigger)return;
       const view=card.querySelector('.fc-fullscreen-workspace')?.dataset.mobileView||'current';
       switching=true;
-      dialog.addEventListener('close',()=>openChartFullscreen(trigger,{mobileView:view}),{once:true});
+      dialog.addEventListener('close',()=>openChartFullscreen(trigger,{mobileView:view,miniPosition}),{once:true});
       dialog.close();
     };
     picker.onchange=()=>switchTo(Number(picker.value));
@@ -6649,6 +6691,9 @@ function openChartFullscreen(button,{mobileView='current'}={}){
   document.addEventListener('keydown',onEscape);
   dialog.addEventListener('close',()=>document.removeEventListener('keydown',onEscape),{once:true});
   dialog.show();
+  positionMini();
+  window.addEventListener('resize',positionMini);
+  dialog.addEventListener('close',()=>window.removeEventListener('resize',positionMini),{once:true});
   close.focus();
 }
 function namespaceFullscreenTaskIds(root){
