@@ -36,6 +36,19 @@ export async function handleFinancialPlanning(request,env,actor,deps){
   const cells=body.cells;if(!cells||typeof cells!=='object'||Array.isArray(cells))fail(400,'Проверьте ячейки');
   const keys=new Set(['benchmark',...weeksFrom(plan.start).map(w=>String(w.start))]);
   for(const [id,values]of Object.entries(cells)){if(!ids.has(id)||!values||typeof values!=='object'||Array.isArray(values))fail(400,'Некорректная строка');for(const [key,v]of Object.entries(values)){if(!keys.has(key)||typeof v!=='string'||v.length>500)fail(400,'Некорректная ячейка');}}
+  if(body.rules===undefined&&Object.keys(plan.rules||{}).length)fail(409,'Обновите страницу: доступна новая версия финансового планирования');
+  const rules=body.rules||{};
+  if(typeof rules!=='object'||Array.isArray(rules))fail(400,'Проверьте правила статей');
+  for(const [id,values]of Object.entries(rules)){
+   const row=body.rows.find(r=>r.id===id);
+   if(!row||['income','profit','expenseGroup'].includes(row.kind)||!values||typeof values!=='object'||Array.isArray(values))fail(400,'Некорректная статья правила');
+   for(const [key,rule]of Object.entries(values)){
+    if(key==='benchmark'||!keys.has(key)||!rule||!['amount','percent','formula'].includes(rule.mode)||typeof rule.value!=='string'||rule.value.length>500)fail(400,'Некорректное правило');
+    if(rule.mode!=='formula'){const v=Number(rule.value.replace(',','.'));if(!rule.value.trim()||!Number.isFinite(v)||v<0||v>(rule.mode==='percent'?100:1e12))fail(400,'Проверьте сумму или процент');}
+    else if(!rule.value.startsWith('='))fail(400,'Формула должна начинаться с =');
+   }
+  }
+  next.rules=rules;
   next.rows=body.rows.map(({id,name,unit,kind,rate,parentId})=>({id,name:name.trim(),unit,kind,...(parentId?{parentId}:{}),...(kind==='percentage'?{rate}:{})}));next.cells=cells;
  }
  next={...next,id:'plan',revision:plan.revision+1,updatedAt:Date.now(),updatedBy:email};

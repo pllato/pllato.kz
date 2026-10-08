@@ -45,3 +45,24 @@
 
 .fp-scroll .fp-child th{background:#fafaf7}.fp-child .fp-row-title button{font-weight:400}.fp-kind-expenseGroup .fp-row-title button{font-weight:800}.fp-editor button:disabled{opacity:.4;cursor:default}
 @media(max-width:700px){.fp-scroll td,.fp-scroll thead th:not(:first-child){min-width:calc((100vw - 156px)/2);width:calc((100vw - 156px)/2)}.fp-scroll thead th:not(:first-child){font-size:11px;white-space:nowrap}.fp-scroll td button{font-size:11px}}
+/* The reference column stays in the calculation model for existing formulas. */
+.fp-scroll .fp-benchmark{display:none}
+.fp-toolbar [hidden]{display:none}
+.fp-toolbar [data-week]{max-width:250px}
+.fp-rule-editor{align-items:end}
+.fp-rule-heading{align-self:center;min-width:160px;max-width:260px}
+.fp-rule-heading strong{font-size:13px}.fp-rule-heading small{margin-top:4px}
+.fp-rule-editor input{min-width:130px;width:170px}
+.fp-rule-editor label{font-size:11px}
+.fp-rule-editor [data-cell-error]:empty{display:none}
+.fp-scroll td button:disabled{color:inherit;opacity:1;cursor:default}
+@media(max-width:700px){
+ .fp-toolbar [data-week]{flex:1 1 calc(100% - 88px);max-width:none;min-width:0}
+ .fp-toolbar [data-status]{width:auto;margin-left:auto}
+ .fp-rule-editor{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:230px}
+ .fp-rule-heading{grid-column:1/-1;max-width:none;display:flex;justify-content:space-between;gap:8px}
+ .fp-rule-editor label:first-child{width:auto}
+ .fp-rule-editor input,.fp-rule-editor select{box-sizing:border-box;min-width:0;width:100%;font-size:16px;min-height:38px}
+ .fp-rule-editor button{min-height:38px}.fp-rule-editor [data-cell-error]{grid-column:1/-1;font-size:12px}
+ .fp-scroll{min-height:80px}
+}
