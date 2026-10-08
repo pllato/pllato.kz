@@ -130,7 +130,7 @@ test('карточка показывает общие правила своей
 });
 
 test('опция назначает всех присутствующих и поздних участников, повторно админов не трогает',async()=>{
- const f=await fixture();await f.request('POST',{action:'create',channel_id:'ch',employee_uids:['dev'],all_admins:true},'deals/deal_1');
+ const f=await fixture();await f.request('POST',{action:'create',channel_id:'ch',employee_uids:['dev']},'deals/deal_1');
  const previous=globalThis.fetch;globalThis.fetch=f.fetch;
  try{await processStageGroups(f.env);assert.ok(f.admins.has('77010000002@c.us'));assert.ok(f.admins.has('77010000003@c.us'));assert.ok(!f.admins.has('77010000001@c.us'));
  const before=f.calls.filter(c=>c.method==='setGroupAdmin').length;
@@ -141,11 +141,11 @@ test('опция назначает всех присутствующих и п�
  }finally{globalThis.fetch=previous;}
 });
 test('правило этапа сохраняет опцию; ошибка назначения видна и повтор не создаёт новую группу',async()=>{
- const f=await fixture();f.rules[0].all_admins=true;await f.request('PUT',{rules:f.rules});assert.equal((await (await f.request()).json()).rules[0].all_admins,true);f.stage();
+ const f=await fixture();await f.request('PUT',{rules:f.rules});assert.equal((await (await f.request()).json()).rules[0].all_admins,true);f.stage();
  const previous=globalThis.fetch;globalThis.fetch=async(url,opt)=>String(url).includes('/setGroupAdmin/')?Response.json({setGroupAdmin:false}):f.fetch(url,opt);
  try{await processStageGroups(f.env);assert.equal(f.db.prepare('SELECT status FROM wa_group_admin_policy').get().status,'error');globalThis.fetch=f.fetch;f.db.exec('UPDATE wa_group_admin_policy SET checked_at=0');await processStageGroups(f.env);assert.equal(f.db.prepare('SELECT status FROM wa_group_admin_policy').get().status,'active');assert.equal(f.calls.filter(c=>c.method==='createGroup').length,1);}finally{globalThis.fetch=previous;}
 });
-test('без включения нет автоматического расширения прав',async()=>{
- const f=await fixture();await f.request('POST',{action:'create',channel_id:'ch',employee_uids:[]},'deals/deal_1');const previous=globalThis.fetch;globalThis.fetch=f.fetch;
+test('явное отключение сохраняет обычные права участников',async()=>{
+ const f=await fixture();await f.request('POST',{action:'create',channel_id:'ch',employee_uids:[],all_admins:false},'deals/deal_1');const previous=globalThis.fetch;globalThis.fetch=f.fetch;
  try{await processStageGroups(f.env);assert.equal(f.calls.filter(c=>c.method==='setGroupAdmin').length,0);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM wa_group_admin_policy').get().n,0);}finally{globalThis.fetch=previous;}
 });
