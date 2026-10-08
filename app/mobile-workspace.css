@@ -68,9 +68,11 @@
  .fc-chart-navigation select{grid-column:1/-1;grid-row:1;font-size:14px!important;min-height:38px}
  .fc-chart-navigation button{grid-row:2;min-height:36px;font-size:11px;padding:6px}
  .fc-chart-navigation button:last-child{grid-column:2}
- .fc-mini-chart{display:block;flex:none;width:100%;min-height:0;padding:6px 10px;border:1px solid var(--line-2);border-radius:9px;background:var(--surface);color:var(--text-2);text-align:left;cursor:pointer}
+ .fc-mini-chart{display:block;position:absolute;z-index:6;right:8px;top:180px;width:min(150px,42vw);box-sizing:border-box;min-height:0;padding:6px 8px;touch-action:none;user-select:none;box-shadow:0 4px 18px #0a162826;border:1px solid var(--line-2);border-radius:9px;background:var(--surface);color:var(--text-2);text-align:left;cursor:pointer}
  .fc-mini-caption{display:flex;justify-content:space-between;gap:8px;font:600 11px var(--sans);margin-bottom:4px}.fc-mini-caption>span{color:var(--bronze-deep)}
- .fc-mini-chart svg{display:block;width:100%;height:clamp(56px,10dvh,90px);overflow:visible}
+ .fc-mini-chart svg{display:block;width:100%;height:auto;aspect-ratio:800 / 650;overflow:visible}
  .fc-mini-chart[data-expanded=true]{display:none}
  .fc-mobile-nav{padding:3px}.fc-mobile-nav button{min-height:40px}
 }
+
+@media(max-width:600px){.fc-mini-chart svg polyline{stroke-width:1.5}.fc-mini-chart:active{cursor:grabbing}.fc-mini-chart:focus-visible{outline:2px solid var(--blue);outline-offset:2px}}
