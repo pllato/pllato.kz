@@ -10,7 +10,7 @@ export async function initProjectPayouts(config){
     const access=await config.api('/project-payouts/access');
     if(config.current()?.email!==who)return;
     document.querySelectorAll('.tool-card[data-app-id]').forEach(card=>{
-      if(card.querySelector('.project-payouts-button'))return;
+      if(card.dataset.appId==='financial_planning'||card.querySelector('.project-payouts-button'))return;
       const id=card.dataset.appId;
       if(!access.admin&&!access.projects.includes(id))return;
       const button=document.createElement('button');button.type='button';button.className='project-payouts-button';button.textContent='Выплаты';

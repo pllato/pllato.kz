@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <!-- Start authentication dependencies before parsing the full workspace. -->
 <link rel="modulepreload" href="./pllato-kz-shared/pllato-api.js?v=20260813-access-timeout">
-<link rel="modulepreload" href="./app/project-payouts.js?v=20261007">
+<link rel="modulepreload" href="./app/project-payouts.js?v=20261008">
 <link rel="modulepreload" href="./app/project-recordings.js?v=20260923">
 <link rel="stylesheet" href="/app/contracts/panel.css?v=20261003-1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -1265,6 +1265,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 /></noscript>
 <!-- End Meta Pixel Code -->
 <link rel="stylesheet" href="./app/project-payouts.css?v=20261007">
+<link rel="stylesheet" href="./app/financial-planning.css?v=20261008">
 </head>
 <body>
 
@@ -4200,6 +4201,12 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 
     </div>
 
+    <div class="section-title">7 Отделение — Админ</div>
+    <div class="tools-grid"><div class="tool-card" data-app-id="financial_planning" data-allowed="false" style="display:none">
+      <h3>Финансовое планирование</h3><p>Доходы, выплаты проектов и расходы по неделям. Планирование прибыли и налогов.</p>
+      <button type="button" class="btn" data-plan-open>Открыть планирование →</button>
+      <button type="button" class="btn" data-plan-settings hidden>Настройки доступа</button>
+    </div></div>
     <div class="section-title">Инструменты для продаж</div>
     <div class="tools-grid">
       <div class="tool-card" data-app-id="pllato_zoom_archive">
@@ -4500,7 +4507,8 @@ document.getElementById('openZoomArchive').addEventListener('click', async () =>
   } catch(error) { archive.textContent='Не удалось загрузить архив. Закройте и откройте его снова.'; }
 });
 
-import { initProjectPayouts } from './app/project-payouts.js?v=20261007';
+import { initFinancialPlanning } from './app/financial-planning.js?v=20261008';
+import { initProjectPayouts } from './app/project-payouts.js?v=20261008';
 import { initProjectRecordings } from './app/project-recordings.js?v=20260923';
 
 initProjectRecordings({ getSession });
@@ -5269,6 +5277,7 @@ function applyPermissionsAndAdminUI() {
   initProjectGroups();
   syncProjectMoneyVisibility();
   initProjectPayouts({api:apiFetch,current:()=>CURRENT});
+  initFinancialPlanning({api:apiFetch,refresh:()=>{buildProjectTabs();applyProjectFilters();}});
   applyProjectFilters();
 }
 
@@ -5399,6 +5408,7 @@ window.addEventListener('scroll',()=>{
 },{passive:true});
 function cardAllowed(card){
   const id = card.dataset.appId;
+  if(id === 'financial_planning') return card.dataset.allowed === 'true';
   // Общие фирменные материалы доступны каждому авторизованному сотруднику App.
   if(id === 'pllato_brand_materials') return true;
   return !!(CURRENT?.isAdmin || CURRENT?.apps?.[id]);

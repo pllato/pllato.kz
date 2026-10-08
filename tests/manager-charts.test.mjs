@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import fs from 'node:fs';
 const source=fs.readFileSync(new URL('../crm/worker/worker.js',import.meta.url),'utf8').replace(/^import[\s\S]*?;\n/gm,'').replace('export default','const workerExport =');
 function setup(){
- const sandbox={console,URL,URLSearchParams,Request,Response,TextEncoder,TextDecoder,crypto:globalThis.crypto,fetch:async()=>Response.json({series:[]})};
+ const sandbox={PLAN_COLLECTION:"_financial_planning_private",PAYOUT_COLLECTION:"_project_payouts_private",console,URL,URLSearchParams,Request,Response,TextEncoder,TextDecoder,crypto:globalThis.crypto,fetch:async()=>Response.json({series:[]})};
  const ctx=vm.createContext(sandbox);vm.runInContext(source,ctx);
  const now=Date.now();
  const stored={money:{a:{deal:100,cur:'KZT',managerEmail:'a@test.kz',pays:[{sum:100,at:now-10000}]},b:{deal:200,cur:'USD',managerEmail:'b@test.kz',pays:[{sum:100,at:now-10000}]},c:{deal:50,cur:'KZT',pays:[{sum:10,at:now-10000}]}},rate:500,chartVisibility:{cash:['a@test.kz'],orders:['a@test.kz'],releases:['a@test.kz']},chartAccess:{cash:{'a@test.kz':{total:false,managers:'own',tasks:'own'}}}};

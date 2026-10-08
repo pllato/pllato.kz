@@ -1,0 +1,89 @@
+// Shared, deterministic planning arithmetic. Never evaluates JavaScript from cells.
+export const WEEK = 7 * 86400000;
+export function weekStart(now=Date.now()) {
+  const d=new Date(now+5*3600000); d.setUTCHours(14,0,0,0);
+  d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+3)%7));
+  let t=d.getTime()-5*3600000; if(t>now)t-=WEEK; return t;
+}
+export function weeksFrom(start,count=52){return Array.from({length:count},(_,i)=>({start:start+i*WEEK,end:start+(i+1)*WEEK}));}
+export function defaultPlan(now=Date.now()) { return {revision:0,start:weekStart(now)-8*WEEK,viewers:[],editors:[],cells:{},rows:[
+  {id:'income',name:'Доход из кассы',unit:'₸',kind:'income'},
+  {id:'paid',name:'Выплаты проектов · оплачено',unit:'₸',kind:'paid'},
+  {id:'planned',name:'Выплаты проектов · запланировано',unit:'₸',kind:'planned'},
+  {id:'advertising',name:'Реклама',unit:'₸',kind:'expense'},
+  {id:'promotion',name:'Продвижение',unit:'₸',kind:'expense'},
+  {id:'tax',name:'Налоги',unit:'%',kind:'tax'},
+  {id:'profit',name:'Чистая прибыль',unit:'₸',kind:'profit'},
+  {id:'forecast',name:'Остаток после плановых выплат',unit:'₸',kind:'forecast'}
+]}; }
+export function payoutTotals(items,weeks){
+  return weeks.map(w=>items.filter(p=>!p.deleted && Date.parse(p.date+'T00:00:00+05:00')>=w.start && Date.parse(p.date+'T00:00:00+05:00')<w.end)
+    .reduce((a,p)=>{if(p.status==='paid'||p.status==='planned'){a[p.status]+=Number(p.amount)||0;const role=p.role||'Прочие выплаты';a.byRole??={};a.byRole[role]??={paid:0,planned:0};a.byRole[role][p.status]+=Number(p.amount)||0;}return a;},{paid:0,planned:0}));
+}
+export function columnName(index){let out='';for(let n=index+1;n;n=Math.floor((n-1)/26))out=String.fromCharCode(65+(n-1)%26)+out;return out;}
+export function formulaValue(raw,resolve){
+  if(raw==null||raw==='')return 0;
+  if(typeof raw==='number')return raw;
+  let source=String(raw).trim();
+  if(!source.startsWith('=')){const n=Number(source.replace(/\s/g,'').replace(',','.'));if(!Number.isFinite(n))throw Error('Введите число или формулу');return n;}
+  source=source.slice(1).toUpperCase().replace(/\s/g,'');
+  const tokens=source.match(/(?:\d+(?:\.\d*)?|\.\d+)|[A-Z]+[1-9]\d*|SUM|[+*/():,;%-]/g)||[];
+  if(tokens.join('')!==source||tokens.length>200)throw Error('Некорректная формула');
+  let i=0;
+  const take=t=>tokens[i]===t?(i++,true):false;
+  const expr=()=>{let n=term();while(tokens[i]==='+'||tokens[i]==='-'){const op=tokens[i++],v=term();n=op==='+'?n+v:n-v;}return n;};
+  const term=()=>{let n=factor();while(tokens[i]==='*'||tokens[i]==='/'){const op=tokens[i++],v=factor();if(op==='/'&&v===0)throw Error('Деление на ноль');n=op==='*'?n*v:n/v;}return n;};
+  const factor=()=>{let n;if(take('+'))n=factor();else if(take('-'))n=-factor();else if(take('(')){n=expr();if(!take(')'))throw Error('Закройте скобку');}
+    else if(take('SUM')){if(!take('('))throw Error('SUM(...)');n=0;do{const a=tokens[i],b=tokens[i+2];if(tokens[i+1]===':'&&/^[A-Z]+\d+$/.test(a||'')&&/^[A-Z]+\d+$/.test(b||'')){i+=3;const x=a.match(/^([A-Z]+)(\d+)$/),y=b.match(/^([A-Z]+)(\d+)$/);if(x[1]!==y[1]||+y[2]<+x[2]||+y[2]-x[2]>200)throw Error('Диапазон должен быть в одном столбце');for(let r=+x[2];r<=+y[2];r++)n+=resolve(x[1]+r);}else n+=expr();}while(take(',')||take(';'));if(!take(')'))throw Error('Закройте SUM');}
+    else {const t=tokens[i++];if(/^[A-Z]+[1-9]\d*$/.test(t||''))n=resolve(t);else if(t!=null&&/^\d|^\./.test(t))n=Number(t);else throw Error('Ожидалось число или ссылка');}
+    if(take('%'))n/=100;return n;};
+  const value=expr();if(i!==tokens.length||!Number.isFinite(value)||Math.abs(value)>1e15)throw Error('Некорректный результат');return value;
+}
+export function planCalculator(plan, income, payouts){
+  const cache=new Map(),active=new Set();
+  function value(rowIndex,col){
+    const key=rowIndex+':'+col;if(cache.has(key))return cache.get(key);
+    if(active.has(key)||active.size>200)throw Error('Циклическая формула');
+    const row=plan.rows[rowIndex];if(!row||col<0||col>52)throw Error('Ссылка вне таблицы');active.add(key);
+    try {let n=0;const cellKey=col===0?'benchmark':String(plan.start+(col-1)*WEEK);
+      const raw=plan.cells[row.id]?.[cellKey];
+      const resolve=ref=>{const [,letters,num]=ref.match(/^([A-Z]+)(\d+)$/);let c=0;for(const l of letters)c=c*26+l.charCodeAt(0)-64;return value(+num-1,letters==='R'?col:c-2);};
+      if(col===0)n=formulaValue(raw,resolve);
+      else if(row.kind==='income')n=income[col-1]||0;
+      else if(row.kind==='paid'||row.kind==='planned')n=payouts[col-1]?.[row.kind]||0;
+      else if(row.kind==='payoutPaid'||row.kind==='payoutPlanned')n=payouts[col-1]?.byRole?.[row.sourceRole]?.[row.kind==='payoutPaid'?'paid':'planned']||0;
+      else if(row.kind==='profit'||row.kind==='forecast'){
+        n=value(plan.rows.findIndex(r=>r.kind==='income'),col)-value(plan.rows.findIndex(r=>r.kind==='paid'),col);
+        plan.rows.forEach((r,i)=>{if(r.kind==='expense'||r.kind==='tax')n-=value(i,col);else if(r.kind==='extraIncome')n+=value(i,col);});
+        if(row.kind==='forecast')n-=value(plan.rows.findIndex(r=>r.kind==='planned'),col);
+      }else {n=formulaValue(raw==null&&row.kind==='tax'?plan.cells[row.id]?.benchmark:raw,resolve);
+        if(row.kind==='tax')n=value(plan.rows.findIndex(r=>r.kind==='income'),col)*n/100;}
+      if(!Number.isFinite(n)||Math.abs(n)>1e15)throw Error('Некорректный результат');cache.set(key,n);return n;
+    } finally{active.delete(key);}
+  }return value;
+}
+
+export function appendPayoutArticles(plan,entries){
+ const rows=[...plan.rows];
+ for(const role of [...new Set(entries.filter(e=>!e.deleted).map(e=>e.role||'Прочие выплаты'))].sort()){
+  let hash=2166136261;for(const c of role)hash=Math.imul(hash^c.codePointAt(0),16777619)>>>0;
+  for(const kind of ['payoutPaid','payoutPlanned'])if(!rows.some(r=>r.kind===kind&&r.sourceRole===role)&&rows.length<150)rows.push({id:kind+'_'+hash.toString(36),name:role+' · '+(kind==='payoutPaid'?'оплачено':'план'),unit:'₸',kind,sourceRole:role});
+ }return {...plan,rows};
+}
+
+// Cash calculation mirrors the portal: paid receipts, USD rate and weekly overrides.
+export function planningIncome(raw={},weeks){
+ const sums=weeks.map(()=>0),rate=Math.max(1,Math.min(Number(raw.rate)||530,1000000));
+ for(const [id,item] of Object.entries(raw.money||{}).slice(0,500)){
+  if(!/^[a-zA-Z0-9_-]{1,80}$/.test(id.trim()))continue;
+  for(const pay of (Array.isArray(item?.pays)?item.pays:[]).slice(0,1000)){
+   const amount=Math.max(0,Math.min(Number(pay?.sum)||0,1e12));
+   const exact=Number.isFinite(Number(pay?.at))?Math.max(0,Number(pay.at)):0;
+   const time=exact||(/^\d{4}-\d{2}-\d{2}$/.test(pay?.d||'')?Date.parse(pay.d+'T12:00:00+05:00'):0);
+   const i=weeks.findIndex(w=>time>=w.start&&time<w.end);
+   if(i>=0)sums[i]+=Math.round(amount*(item.cur==='USD'?rate:1));
+  }
+ }
+ const overrides=Object.fromEntries(Object.entries(raw.chartOverrides||{}).slice(0,100));
+ return weeks.map((w,i)=>{const key=new Date(w.end+5*3600000).toISOString().slice(0,10),v=overrides[key]?.cash;return Number.isFinite(Number(v))?Math.max(0,Math.round(Number(v))):sums[i];});
+}

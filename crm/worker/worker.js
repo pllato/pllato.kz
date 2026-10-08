@@ -1,3 +1,4 @@
+import { PLAN_COLLECTION, handleFinancialPlanning } from './financial-planning.js';
 import { PAYOUT_COLLECTION, handleProjectPayouts } from './project-payouts.js';
 import { connect } from "cloudflare:sockets";
 import { ODataClient, ODataError } from "./integrations/1c/odata-client.js";
@@ -855,6 +856,7 @@ async function d1GetDoc(env, collection, id) {
 async function handleStorePull(request, env, actor) {
   const body = await readRequestBodyAsJson(request);
   const collections = normalizeCollectionList(body.collections || []);
+  if(collections.includes(PLAN_COLLECTION))throw new HttpError(403,"Используйте финансовое планирование");
   if(collections.includes(PAYOUT_COLLECTION))throw new HttpError(403,"Используйте раздел выплат проекта");
   const limit = Number(body.limitPerCollection) || DEFAULT_STORE_PULL_LIMIT;
   const updatedSince = body.updatedSince != null ? Number(body.updatedSince) : null;
@@ -896,6 +898,7 @@ async function handleStorePush(request, env, actor) {
   for (const op of ops) {
     if (!isObject(op)) continue;
     const collection = normalizeCollectionName(op.collection);
+    if(collection === PLAN_COLLECTION)throw new HttpError(403,"Используйте финансовое планирование");
     if(collection === PAYOUT_COLLECTION)throw new HttpError(403,"Используйте раздел выплат проекта");
     if (collection === PRIVATE_PROJECT_FINANCE_COLLECTION && !canAccessProjectFinance(actor)) {
       throw new HttpError(403, "Финансы проектов доступны только Super Admin");
@@ -2585,9 +2588,9 @@ function projectFinanceRelease(item) {
   return { timestamp, reason: timestamp ? "paid" : "" };
 }
 
-function projectFinanceChartSeries(finance, points = 8, granularity = "week") {
+function projectFinanceChartSeries(finance, points = 8, granularity = "week", customBuckets = null) {
   const period = projectFinanceGranularity(granularity);
-  const buckets = projectFinanceChartBuckets(period, points);
+  const buckets = customBuckets || projectFinanceChartBuckets(period, points);
   const orders = buckets.map(() => 0);
   const cash = buckets.map(() => 0);
   const releases = buckets.map(() => 0);
@@ -8828,6 +8831,21 @@ export default {
       if (request.method === "PUT" && path === "/project-finance/charts") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleProjectFinanceChartsPut(request, env, actor));
+      }
+
+      if (path === "/financial-planning" || path === "/financial-planning/access") {
+        const actor=await loadActorContext(request,env,{strictTeamCheck:true});
+        return json(request,env,await handleFinancialPlanning(request,env,actor,{
+          get:d1GetDoc,HttpError,
+          income:async(env,weeks)=>projectFinanceChartSeries(await financeForAccess(env),8,"week",weeks).map(w=>w.cash),
+          payouts:async(env)=>{await ensureD1Schema(env);const {results}=await requireStoreDb(env).prepare("SELECT data FROM store WHERE team_id=? AND collection=? AND json_extract(data,'$.kind')='entry'").bind(TEAM_ID,PAYOUT_COLLECTION).all();return (results||[]).map(r=>JSON.parse(r.data));},
+          save:async(env,plan,revision)=>{
+            await ensureD1Schema(env);
+            const result=await requireStoreDb(env).prepare("INSERT INTO store (team_id,collection,id,data,created_at,updated_at) VALUES (?,?,?,?,?,?) ON CONFLICT(team_id,collection,id) DO UPDATE SET data=excluded.data,updated_at=excluded.updated_at WHERE json_extract(store.data,'$.revision')=?")
+              .bind(TEAM_ID,PLAN_COLLECTION,'plan',JSON.stringify(plan),plan.updatedAt,plan.updatedAt,revision).run();
+            return result.meta.changes>0;
+          }
+        }));
       }
 
       if (path === "/project-payouts" || path === "/project-payouts/access") {
