@@ -1246,7 +1246,7 @@ body {
 }
 .tool-dd-menu a.is-pdf .dot { background: var(--orange); }
 </style>
-<link rel="stylesheet" href="/app/mobile-workspace.css?v=20261008-1">
+<link rel="stylesheet" href="/app/mobile-workspace.css?v=20261008-2">
 <!-- Meta Pixel Code -->
 <script>
 !function(f,b,e,v,n,t,s)
@@ -6528,9 +6528,10 @@ function financeChartSvg(kind,series){
     <polyline style="display:${showTotal?'block':'none'}" points="${completed}" fill="none" stroke="${color}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
     ${showTotal?points:''}${managerLabels.join('')}</svg>`;
 }
-function openChartFullscreen(button){
+function openChartFullscreen(button,{mobileView='current'}={}){
   const source=button.closest('.fc-card');
   if(!source || document.querySelector('.fc-fullscreen')) return;
+  let switching=false;
   const dialog=document.createElement('dialog');
   dialog.className='fc-fullscreen';
   dialog.setAttribute('aria-label',source.querySelector('.fc-card-title')?.textContent||'График');
@@ -6546,7 +6547,7 @@ function openChartFullscreen(button){
   if(tasks){
     const workspace=document.createElement('div');
     workspace.className='fc-fullscreen-workspace';
-    workspace.dataset.mobileView='current';
+    workspace.dataset.mobileView=mobileView;
     const chart=document.createElement('section');
     chart.className='fc-fullscreen-chart';
     chart.setAttribute('aria-label','График и менеджеры');
@@ -6564,14 +6565,66 @@ function openChartFullscreen(button){
     for(const [view,label] of [['current','Текущая'],['next','Следующая'],['chart','График']]){
       const tab=document.createElement('button');
       tab.type='button';tab.textContent=label;tab.dataset.view=view;
-      tab.setAttribute('aria-pressed',String(view==='current'));
+      tab.setAttribute('aria-pressed',String(view===mobileView));
       tab.onclick=()=>{
         workspace.dataset.mobileView=view;
         mobileNav.querySelectorAll('button').forEach(item=>item.setAttribute('aria-pressed',String(item===tab)));
       };
       mobileNav.appendChild(tab);
     }
-    card.append(mobileNav,workspace);
+    const mini=document.createElement('button');
+    mini.type='button';mini.className='fc-mini-chart';
+    mini.setAttribute('aria-label','Увеличить график');
+    mini.innerHTML='<span class="fc-mini-caption">Динамика <span>Увеличить ↗</span></span>';
+    const miniSvg=chart.querySelector('svg')?.cloneNode(true);
+    if(miniSvg){
+      miniSvg.querySelectorAll('text,title').forEach(node=>node.remove());
+      [miniSvg,...miniSvg.querySelectorAll('*')].forEach(node=>{
+        ['id','onclick','onkeydown','tabindex','role','aria-label'].forEach(attr=>node.removeAttribute(attr));
+      });
+      miniSvg.setAttribute('aria-hidden','true');
+      miniSvg.setAttribute('preserveAspectRatio','none');
+      mini.appendChild(miniSvg);
+    }
+    mini.onclick=()=>mobileNav.querySelector('[data-view="chart"]').click();
+    const updateMini=()=>{mini.dataset.expanded=String(workspace.dataset.mobileView==='chart');};
+    mobileNav.addEventListener('click',updateMini);updateMini();
+    card.append(mini,mobileNav,workspace);
+  }
+  const grid=source.closest('.fc-grid');
+  const containerId=source.closest('.finance-charts')?.id;
+  const siblings=[...(grid?.querySelectorAll(':scope > .fc-card')||[])];
+  const index=siblings.indexOf(source);
+  if(siblings.length>1){
+    const navigation=document.createElement('nav');
+    navigation.className='fc-chart-navigation';navigation.setAttribute('aria-label','Переключение графиков');
+    const picker=document.createElement('select');picker.setAttribute('aria-label','Выбрать график');
+    siblings.forEach((item,i)=>{
+      const option=document.createElement('option');option.value=String(i);
+      option.textContent=item.querySelector('.fc-card-title')?.textContent||`График ${i+1}`;
+      option.selected=i===index;picker.appendChild(option);
+    });
+    const switchTo=i=>{
+      const liveGrid=containerId?document.getElementById(containerId)?.querySelector('.fc-grid'):grid;
+      const target=liveGrid?.querySelectorAll(':scope > .fc-card')[i];
+      const trigger=target?.querySelector('.fc-card-actions button');
+      if(!trigger)return;
+      const view=card.querySelector('.fc-fullscreen-workspace')?.dataset.mobileView||'current';
+      switching=true;
+      dialog.addEventListener('close',()=>openChartFullscreen(trigger,{mobileView:view}),{once:true});
+      dialog.close();
+    };
+    picker.onchange=()=>switchTo(Number(picker.value));
+    navigation.appendChild(picker);
+    for(const [offset,arrow] of [[-1,'←'],[1,'→']]){
+      const i=index+offset;const neighbour=siblings[i];
+      const link=document.createElement('button');link.type='button';link.disabled=!neighbour;
+      const title=neighbour?.querySelector('.fc-card-title')?.textContent||'';
+      link.textContent=offset<0?`${arrow} ${title||'Начало'}`:`${title||'Конец'} ${arrow}`;
+      link.title=title;link.setAttribute('aria-label',`${offset<0?'Предыдущий':'Следующий'} график${title?': '+title:''}`);
+      link.onclick=()=>switchTo(i);navigation.appendChild(link);
+    }
+    head.after(navigation);
   }
   namespaceFullscreenTaskIds(card);
   dialog.appendChild(card);
@@ -6590,7 +6643,7 @@ function openChartFullscreen(button){
     if(box?.height && labels) labels.style.cssText=`width:${Math.min(plot.clientWidth,plot.clientHeight*box.width/box.height)}px;align-self:center`;
   });
   if(plot) resize.observe(plot);
-  dialog.addEventListener('close',()=>{resize.disconnect();dialog.remove();document.body.style.overflow=overflow;if(button.isConnected)button.focus();},{once:true});
+  dialog.addEventListener('close',()=>{resize.disconnect();dialog.remove();document.body.style.overflow=overflow;if(!switching&&button.isConnected)button.focus({preventScroll:true});},{once:true});
   // Non-modal layer lets existing task/payment editors open above the chart.
   const onEscape=event=>{if(event.key==='Escape' && !document.querySelector('.money-ovl.show'))dialog.close();};
   document.addEventListener('keydown',onEscape);
