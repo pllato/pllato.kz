@@ -27,7 +27,7 @@ console.log('Payout tests passed: save/retry, status, amounts, dates, ACL isolat
 // Generic sync must not bypass project-scoped permissions, even for admins.
 const {readFileSync}=await import('node:fs');const vm=await import('node:vm');
 const source=readFileSync(new URL('../crm/worker/worker.js',import.meta.url),'utf8');
-const ctx=vm.createContext({PAYOUT_COLLECTION,HttpError,readRequestBodyAsJson:r=>r.json(),normalizeCollectionList:x=>x,normalizeCollectionName:x=>x,isObject:x=>!!x,DEFAULT_STORE_PULL_LIMIT:1000,MAX_STORE_OPS:100});
+const ctx=vm.createContext({PLAN_COLLECTION:"_financial_planning_private",PAYOUT_COLLECTION,HttpError,readRequestBodyAsJson:r=>r.json(),normalizeCollectionList:x=>x,normalizeCollectionName:x=>x,isObject:x=>!!x,DEFAULT_STORE_PULL_LIMIT:1000,MAX_STORE_OPS:100});
 for(const name of ['handleStorePull','handleStorePush']){const start=source.indexOf('async function '+name+'(');vm.runInContext(source.slice(start,source.indexOf('\n}',start)+2),ctx);}
 await denied(()=>ctx.handleStorePull(new Request('https://test/store/pull',{method:'POST',body:JSON.stringify({collections:[PAYOUT_COLLECTION]})}),{},admin),403);
 await denied(()=>ctx.handleStorePush(new Request('https://test/store/push',{method:'POST',body:JSON.stringify({ops:[{type:'upsert',collection:PAYOUT_COLLECTION,item:{id:'any'}}]})}),{},admin),403);
