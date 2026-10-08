@@ -28,7 +28,7 @@ test('touch output waits for user click and permits retry before URL cleanup',as
  globalThis.URL={createObjectURL:()=> 'blob:cad',revokeObjectURL:x=>revoked.push(x)};
  try{offerDownload(new Blob(['AC1032']),'plan.dwg',{touch:true,onStart:()=>clicks++});
  const link=nodes.find(n=>n.tag==='a'),dialog=nodes.find(n=>n.tag==='dialog');
- assert.equal(clicks,0);assert.equal(dialog.open,true);link.click();link.click();assert.equal(clicks,2);assert.deepEqual(revoked,[]);dialog.close();assert.deepEqual(revoked,[]);nodes.find(n=>n.className==='downloadRetry').click();assert.equal(dialog.open,true);
+ assert.equal(clicks,0);assert.equal(dialog.open,true);assert.equal(nodes.find(n=>n.className==='downloadRetry').hidden,true);link.click();link.click();assert.equal(clicks,2);assert.deepEqual(revoked,[]);dialog.close();assert.deepEqual(revoked,[]);nodes.find(n=>n.className==='downloadRetry').click();assert.equal(dialog.open,true);
  }finally{Object.assign(globalThis,original);}
 });
 
@@ -44,4 +44,17 @@ test('creating an executive offers export without claiming a device download',as
  const {notifyExecutiveCreated}=await import('../app/stroy/dwg/download.mjs');const original=globalThis.document;const nodes=[];let called=0;
  globalThis.document={getElementById:()=>null,createElement(tag){const n={tag,append(){},setAttribute(){},remove(){this.removed=true;}};nodes.push(n);return n;},body:{append(){}}};
  try{notifyExecutiveCreated(()=>called++,{touch:true});assert.equal(called,0);assert.match(nodes.find(n=>n.tag==='strong').textContent,/ещё не скачан/);const button=nodes.find(n=>n.textContent==='Скачать весь DWG');button.onclick();assert.equal(called,1);assert.equal(nodes[0].removed,true);}finally{globalThis.document=original;}
+});
+
+test('preparation hides stale download actions without discarding retry bytes',async()=>{
+ const {preparingOutput,preparedOutput}=await import('../app/stroy/dwg/download.mjs');
+ const retry={hidden:false},notice={hidden:false},dialog={open:true,close(){this.open=false;retry.hidden=false;}};
+ const doc={querySelectorAll(selector){return selector==='.downloadRetry'?[retry]:[dialog,retry,notice];}};
+ preparingOutput(doc);assert.equal(dialog.open,false);assert.equal(dialog.hidden,true);assert.equal(retry.hidden,true);assert.equal(notice.hidden,true);
+ preparedOutput(doc);assert.equal(retry.hidden,false);assert.equal(dialog.hidden,true);
+});
+test('large system-share File is allocated only by the explicit save gesture',async()=>{
+ const sizes=[];class LazyFile extends Blob{constructor(parts,name,opts){super(parts,opts);this.name=name;sizes.push(this.size);}}
+ let received;const blob=new Blob(['AC1032']);const nav={canShare:()=>true,share:async({files})=>{received=files[0];}};
+ const share=shareFile(blob,'plan.dwg',{navigator:nav,File:LazyFile});assert.deepEqual(sizes,[0]);await share();assert.deepEqual(sizes,[0,6]);assert.equal(await received.text(),'AC1032');
 });

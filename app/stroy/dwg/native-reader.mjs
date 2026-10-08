@@ -2,10 +2,10 @@
 import createModule from './vendor/libredwg-web.js?v=0.17.78';
 import {warningText} from './progress.mjs?v=0.17.78';
 import {LibreDwg} from './vendor/libredwg-sdk.js?v=0.17.78';
-import {nativeDocument} from './native-adapter.mjs?v=0.17.89';
+import {nativeDocument} from './native-adapter.mjs?v=0.17.90';
 import {readDimensionDefinitions} from './native-dimensions.mjs?v=0.17.78';
 import {readExecutiveMetadata} from './executive-metadata.mjs?v=0.17.81';
-import {sendNativeDocument} from './native-transfer.mjs?v=0.17.89';
+import {sendNativeDocument} from './native-transfer.mjs?v=0.17.90';
 self.onmessage=async({data:request})=>{
  if(request?.nativeAck!==undefined)return;
  const compact=request?.compact===true,data=compact?request.buffer:request;
@@ -28,6 +28,13 @@ self.onmessage=async({data:request})=>{
    ?version
    :field==='INSUNITS'?headerData(p,field):undefined;
   if(result.error>=128||!pointer)throw Error('Ошибка чтения DWG: '+result.error);
+  // Export does not replace the active editor document. Keep the independent
+  // native reread/error checks without building a second JS database/scene.
+  if(request?.verifyOnly===true){
+   sdk.dwg_free(pointer);pointer=null;
+   if(result.error)messages.unshift(warningText(result.error)+' (код '+result.error+')');
+   self.postMessage({verified:true,messages,buffer:data},[data]);return;
+  }
   self.postMessage({progress:'Подготавливаю объекты DWG для отображения…'});
   let lastProgress=-Infinity;
   let {database,stats}=sdk.convertEx(pointer,true,(done,total)=>{const now=performance.now();if(done===total||now-lastProgress>=80){lastProgress=now;self.postMessage({progress:'Подготавливаю объекты: '+done.toLocaleString('ru')+' / '+total.toLocaleString('ru'),percent:35+50*done/Math.max(1,total)});}});
