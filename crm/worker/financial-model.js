@@ -6,7 +6,7 @@ export function weekStart(now=Date.now()) {
   let t=d.getTime()-5*3600000; if(t>now)t-=WEEK; return t;
 }
 export function weeksFrom(start,count=52){return Array.from({length:count},(_,i)=>({start:start+i*WEEK,end:start+(i+1)*WEEK}));}
-export function defaultPlan(now=Date.now()) {return {revision:0,schemaVersion:2,start:weekStart(now)-8*WEEK,viewers:[],editors:[],cells:{},rows:[
+export function defaultPlan(now=Date.now()) {return {revision:0,schemaVersion:2,start:weekStart(now)-8*WEEK,viewers:[],editors:[],cells:{},rules:{},rows:[
  {id:'income',name:'Доход из кассы',unit:'₸',kind:'income'},
  {id:'advertising',name:'Реклама',unit:'₸',kind:'expense'},
  {id:'promotion',name:'Продвижение',unit:'%',kind:'percentage',rate:10},
@@ -31,7 +31,10 @@ export function remapPlanRows(plan,rows){
    }).replace(/([A-Z]+)([1-9]\d*)/g,(_,col,n)=>reference(col,n));
    cells[row.id][key]=formula.replace(/@(\d+)@/g,(_,i)=>ranges[+i]);
   }
- }return {...plan,rows,cells};
+ }const ruleCells=Object.fromEntries(Object.entries(plan.rules||{}).map(([id,values])=>[id,Object.fromEntries(Object.entries(values).map(([key,rule])=>[key,rule.mode==='formula'?rule.value:'']))]));
+ const remappedRules=Object.keys(ruleCells).length?remapPlanRows({...plan,rules:{},cells:ruleCells},rows).cells:{};
+ const rules=Object.fromEntries(rows.filter(r=>plan.rules?.[r.id]).map(r=>[r.id,Object.fromEntries(Object.entries(plan.rules[r.id]).map(([key,rule])=>[key,{...rule,...(rule.mode==='formula'?{value:remappedRules[r.id]?.[key]??rule.value}:{})}]))]));
+ return {...plan,rows,cells,rules};
 }
 export function migratePlan(plan){
  if(plan.schemaVersion===2)return plan;
@@ -73,7 +76,9 @@ export function planCalculator(plan, income, payouts){
     try {let n=0;const cellKey=col===0?'benchmark':String(plan.start+(col-1)*WEEK);
       const raw=plan.cells[row.id]?.[cellKey];
       const resolve=ref=>{const [,letters,num]=ref.match(/^([A-Z]+)(\d+)$/);let c=0;for(const l of letters)c=c*26+l.charCodeAt(0)-64;return value(+num-1,letters==='R'?col:c-2);};
-      if(row.kind==='percentage')n=col===0?row.rate:(income[col-1]||0)*row.rate/100;
+      const rule=col>0?effectiveRule(plan,row.id,+cellKey):null;
+      if(rule){n=formulaValue(rule.value,resolve);if(rule.mode==='percent')n=(income[col-1]||0)*n/100;}
+      else if(row.kind==='percentage')n=col===0?row.rate:(income[col-1]||0)*row.rate/100;
       else if(col===0)n=formulaValue(raw,resolve);
       else if(row.kind==='expenseGroup'){plan.rows.forEach((r,i)=>{if(r.parentId===row.id)n+=value(i,col);});}
       else if(row.kind==='income')n=income[col-1]||0;
@@ -125,3 +130,10 @@ export function movePlanRow(plan,id,direction){
  const rows=top.flatMap(r=>[r,...(r.id===row.parentId?siblings:plan.rows.filter(c=>c.parentId===r.id))]);
  return remapPlanRows(plan,rows);
 }
+
+// Change points apply forward only; later rules form the next boundary.
+export function effectiveRule(plan,rowId,start){
+ const times=Object.keys(plan.rules?.[rowId]||{}).map(Number).filter(t=>t<=start).sort((a,b)=>b-a);
+ return times.length?{...plan.rules[rowId][times[0]],start:times[0]}:null;
+}
+export function setPlanRule(plan,rowId,start,rule){return {...plan,rules:{...(plan.rules||{}),[rowId]:{...(plan.rules?.[rowId]||{}),[start]:rule}}};}
