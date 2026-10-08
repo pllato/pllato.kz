@@ -1,5 +1,6 @@
-import {get,num,addEntity} from './cad.mjs?v=0.17.78';
-import {copyTransform} from './object-copy.mjs?v=0.17.78';
+import {cloneRecord,restoreCompactRecord} from './compact-record.mjs?v=0.17.89';
+import {get,num,addEntity} from './cad.mjs?v=0.17.89';
+import {copyTransform} from './object-copy.mjs?v=0.17.89';
 const identity=[1,0,0,1,0,0];
 const supported=new Set(['LINE','LWPOLYLINE','ARC','CIRCLE','TEXT','MTEXT','INSERT']);
 export function prepareDeferredCopy(doc,targets,sheet){
@@ -11,7 +12,7 @@ export function prepareDeferredCopy(doc,targets,sheet){
  const prefix='COPY_'+crypto.randomUUID(),blocks=new Map();let count=0;
  function clone(records){return records.map(r=>{
   if(++count>20000)throw Error('Слишком большой объект для быстрого копирования');
-  const next=structuredClone(r);next.id=prefix+'_'+count;
+  const next=cloneRecord(r);next.id=prefix+'_'+count;
   if(r.type==='INSERT'){
    const name=get(r,2),key=prefix+'_'+name;
    if(!blocks.has(key)){const b=doc.blocks.get(name);if(!b)throw Error('Не найден блок '+name);blocks.set(key,{...b,records:[]});blocks.get(key).records=clone(b.records);}
@@ -26,7 +27,7 @@ export function prepareDeferredCopy(doc,targets,sheet){
  blocks.set(prefix,{base:[0,0,0],records:clone(records.concat(attached))});
  return {handles,parent:sheet.nativeHandles[0],opIndex:doc.nativeOps.length,blocks:[...blocks],name:prefix,matrix:[...matrix]};
 }
-export function installDeferredBlocks(doc,data){for(const [name,block] of data.blocks)doc.blocks.set(name,block);}
+export function installDeferredBlocks(doc,data){for(const [name,block] of data.blocks){for(const r of block.records)restoreCompactRecord(r);doc.blocks.set(name,block);}}
 export function addDeferredCopy(doc,data,delta){
  if(!delta.every(Number.isFinite))throw Error('Неверный сдвиг');
  const [a,b,c,d,x,y]=data.matrix,sx=Math.hypot(a,b),sy=(a*d-b*c)/sx;

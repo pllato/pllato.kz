@@ -1,16 +1,20 @@
+import {compactRecord} from './compact-record.mjs?v=0.17.89';
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Geometry view only. The original DWG remains the source for saving.
-import {fromRecords} from './cad.mjs?v=0.17.78';
+import {fromRecords} from './cad.mjs?v=0.17.89';
 import {leaderParts} from './mleader.mjs?v=0.17.78';
 import {hatchGeometry} from './hatch.mjs?v=0.17.78';
-export function nativeDocument(db,index=true){
+export function nativeDocument(db,index=true,{consume=false,compact=false}={}){
  const blockNames=new Map(db.tables.BLOCK_RECORD.entries.map(b=>[b.handle,b.name||'@'+b.handle]));
  const textStyles=db.tables.STYLE?.entries||[],styleNames=new Map(textStyles.map(s=>[s.handle,s.name]));
  let serial=0;
- const record=(type,pairs=[],id)=>({type,id:id||'native-'+serial++,pairs:[[0,type],...pairs].map(([c,v])=>[c,String(v)])});
+ const record=(type,pairs=[],id)=>{id=id||'native-'+serial++;const values=[[0,type],...pairs].map(([c,v])=>[c,String(v)]);return compact?compactRecord(type,id,JSON.stringify(values)):{type,id,pairs:values};};
  const point=(pairs,code,p)=>{if(p){pairs.push([code,p.x],[code+10,p.y]);if(p.z!==undefined)pairs.push([code+20,p.z]);}};
  const degrees=r=>(r||0)*180/Math.PI;
- function entities(list){const attached=new Set(list.flatMap(e=>(e.attribs||[]).map(a=>a.handle)));return list.filter(e=>!attached.has(e.handle)).flatMap(e=>{
+ function entities(list,append,include=()=>true){
+  const attached=new Set();for(const e of list)for(const a of e.attribs||[])attached.add(a.handle);
+  for(let i=0;i<list.length;i++){const e=list[i];if(consume)list[i]=null;
+  if(attached.has(e.handle)||!include(e))continue;
   const type=e.type==='POLYLINE2D'||e.type==='POLYLINE3D'?'POLYLINE':e.type;
   const p=[[5,e.handle],[8,e.layer||'0'],[62,e.colorIndex??256],[330,e.ownerBlockRecordSoftId||'0']];
   if(Number.isInteger(e.color))p.push([420,e.color]);
@@ -44,23 +48,26 @@ export function nativeDocument(db,index=true){
   if(e.type==='MULTILEADER'){result[0].parts=leaderParts({...e,textStyleName:styleNames.get(e.textStyleId)||'Standard'},record);if(e.hasMText)result[0].pairs.push([1,e.textContent||''],[40,String(e.textHeight||1)]);}
   if(e.type==='HATCH')result[0].hatch=hatchGeometry(e);
   if(type==='POLYLINE'){for(const v of e.vertices||[]){const q=[[42,v.bulge||0]];point(q,10,v);result.push(record('VERTEX',q));}result.push(record('SEQEND'));}
-  if(e.type==='INSERT'&&e.attribs?.length)result.push(...entities(e.attribs));
-  return result;
- });}
+  for(const r of result)append(r);
+  if(e.type==='INSERT'&&e.attribs?.length)entities(e.attribs,append);
+ }if(consume)list.length=0;}
  const records=[record('SECTION',[[2,'HEADER'],[9,'$ACADVER'],[1,db.header.ACADVER],[9,'$INSUNITS'],[70,db.header.INSUNITS||0]]),record('ENDSEC'),record('SECTION',[[2,'TABLES']])];
  for(const l of db.tables.LAYER.entries)records.push(record('LAYER',[[5,l.handle],[2,l.name],[62,l.off?-Math.abs(l.colorIndex):l.colorIndex],[70,l.standardFlag],...(Number.isInteger(l.color)?[[420,l.color]]:[])]));
  for(const s of textStyles)records.push(record('STYLE',[[5,s.handle],[2,s.name],[3,s.font||''],[4,s.bigFont||''],[41,s.widthFactor||1],[50,degrees(s.obliqueAngle)]]));
  records.push(record('ENDSEC'),record('SECTION',[[2,'BLOCKS']]));
- const paper=new Set();
+ const paper=new Set(),recoveredBlocks=db.entities.filter(e=>e.type==='INSERT'&&e.recoveredBlockRecordId).length;
+ // Model/paper lists alias entries in db.entities. Release their duplicate
+ // references before consuming each entity, without changing painter order.
+ if(consume)for(const b of db.tables.BLOCK_RECORD.entries)if(/^\*(model_space|paper_space)/i.test(b.name))b.entities=[];
  for(const b of db.tables.BLOCK_RECORD.entries){
   if(/^\*paper_space/i.test(b.name))paper.add(b.handle);
   // Model entities are already supplied below; paper space is not displayed.
   if(/^\*(model_space|paper_space)/i.test(b.name))continue;
   const p=[[2,blockNames.get(b.handle)],[70,b.flags]];point(p,10,b.basePoint);
-  records.push(record('BLOCK',p));for(const r of entities(b.entities))records.push(r);records.push(record('ENDBLK'));
+  records.push(record('BLOCK',p));entities(b.entities,r=>records.push(r));records.push(record('ENDBLK'));
  }
  records.push(record('ENDSEC'),record('SECTION',[[2,'ENTITIES']]));
- for(const r of entities(db.entities.filter(e=>!e.isInPaperSpace&&!paper.has(e.ownerBlockRecordSoftId))))records.push(r);
+ entities(db.entities,r=>records.push(r),e=>!e.isInPaperSpace&&!paper.has(e.ownerBlockRecordSoftId));
  records.push(record('ENDSEC'),record('EOF'));
- const doc=index?fromRecords(records):{records};doc.recoveredBlocks=db.entities.filter(e=>e.type==='INSERT'&&e.recoveredBlockRecordId).length;return doc;
+ const doc=index?fromRecords(records):{records};doc.recoveredBlocks=recoveredBlocks;return doc;
 }

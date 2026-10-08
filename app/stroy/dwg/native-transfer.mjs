@@ -1,12 +1,16 @@
+import {compactRecord,pairsOf,restoreCompactRecord} from './compact-record.mjs?v=0.17.89';
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {fromRecords} from './cad.mjs?v=0.17.78';
+import {fromRecords} from './cad.mjs?v=0.17.89';
 
 // Millions of tiny DXF pair arrays are expensive to structured-clone. Only
 // their lossless [integer, string] payload uses JSON; all other CAD properties
 // (including undefined, typed arrays and hatch/leader data) retain native clone.
 export function packRecords(records){
  const headers=[],pairs=[];
- for(const record of records){const {pairs:values,...header}=record;headers.push(header);pairs.push(values);}
+ for(const record of records){
+  if(record._encoded!==undefined){const header={};for(const key of Object.keys(record))if(key!=='pairs'&&key!=='_pairs')header[key]=record[key];headers.push(header);pairs.push(null);}
+  else{const {pairs:values,_encoded,_pairs,...header}=record;headers.push(header);pairs.push(values);}
+ }
  return {headers,pairs:JSON.stringify(pairs)};
 }
 export function unpackRecords(chunk){
@@ -15,9 +19,9 @@ export function unpackRecords(chunk){
  return chunk.headers.map((header,i)=>{
   // Keep the same stable object layout as native-adapter. A spread followed
   // by `pairs` makes property access costly across millions of scene visits.
-  const record={type:header.type,id:header.id,pairs:pairs[i]};
-  for(const key of Object.keys(header))if(key!=='type'&&key!=='id')record[key]=header[key];
-  return record;
+  const record=header._encoded!==undefined?compactRecord(header.type,header.id,header._encoded):{type:header.type,id:header.id,pairs:pairs[i]};
+  for(const key of Object.keys(header))if(key!=='type'&&key!=='id'&&key!=='_encoded')record[key]=header[key];
+  return restoreCompactRecord(record);
  });
 }
 export function equalNativeRecord(a,b){
@@ -25,6 +29,10 @@ export function equalNativeRecord(a,b){
  if(!a||!b||typeof a!=='object'||typeof b!=='object')return false;
  if(Array.isArray(a)){if(!Array.isArray(b)||a.length!==b.length)return false;for(let i=0;i<a.length;i++)if(!equalNativeRecord(a[i],b[i]))return false;return true;}
  if(ArrayBuffer.isView(a)){if(a.constructor!==b.constructor||a.byteLength!==b.byteLength)return false;const x=new Uint8Array(a.buffer,a.byteOffset,a.byteLength),y=new Uint8Array(b.buffer,b.byteOffset,b.byteLength);for(let i=0;i<x.length;i++)if(x[i]!==y[i])return false;return true;}
+ if(a.type&&b.type&&(a._encoded!==undefined||b._encoded!==undefined)){
+  const keys=o=>Object.keys(o).filter(k=>!['pairs','_pairs','_encoded'].includes(k));
+  const x=keys(a),y=keys(b);return x.length===y.length&&x.every(k=>Object.hasOwn(b,k)&&equalNativeRecord(a[k],b[k]))&&(a._encoded!==undefined&&a._encoded===b._encoded||equalNativeRecord(pairsOf(a),pairsOf(b)));
+ }
  const keys=Object.keys(a);
  return keys.length===Object.keys(b).length&&keys.every(k=>Object.hasOwn(b,k)&&equalNativeRecord(a[k],b[k]));
 }
@@ -41,12 +49,12 @@ export function nativeTransferReceiver(worker,progress=()=>{},previous=null){
   }
   if(message.nativeComplete){
    if(records.length!==message.total)throw Error('Неполная передача DWG');
-   return {doc:Object.assign(fromRecords(records),message.metadata),messages:message.messages};
+   return {doc:Object.assign(fromRecords(records),message.metadata),messages:message.messages,...(message.buffer?{buffer:message.buffer}:{})};
   }
   return message;
  };
 }
-export async function sendNativeDocument(doc,messages,port){
+export async function sendNativeDocument(doc,messages,port,buffer=null){
  const {records,entities,blocks,layers,textStyles,...metadata}=doc;
  // Consumes a disposable reader result, never the editor's active document.
  // The compact reader deliberately has no duplicate entity/block indexes.
@@ -58,5 +66,5 @@ export async function sendNativeDocument(doc,messages,port){
   await ack;
   records.fill(null,start,Math.min(total,start+size));
  }
- port.postMessage({nativeComplete:true,total,metadata,messages});
+ port.postMessage({nativeComplete:true,total,metadata,messages,...(buffer?{buffer}:{})},buffer?[buffer]:[]);
 }

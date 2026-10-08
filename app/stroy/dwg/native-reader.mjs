@@ -2,10 +2,10 @@
 import createModule from './vendor/libredwg-web.js?v=0.17.78';
 import {warningText} from './progress.mjs?v=0.17.78';
 import {LibreDwg} from './vendor/libredwg-sdk.js?v=0.17.78';
-import {nativeDocument} from './native-adapter.mjs?v=0.17.78';
+import {nativeDocument} from './native-adapter.mjs?v=0.17.89';
 import {readDimensionDefinitions} from './native-dimensions.mjs?v=0.17.78';
 import {readExecutiveMetadata} from './executive-metadata.mjs?v=0.17.81';
-import {sendNativeDocument} from './native-transfer.mjs?v=0.17.78';
+import {sendNativeDocument} from './native-transfer.mjs?v=0.17.89';
 self.onmessage=async({data:request})=>{
  if(request?.nativeAck!==undefined)return;
  const compact=request?.compact===true,data=compact?request.buffer:request;
@@ -22,9 +22,10 @@ self.onmessage=async({data:request})=>{
   sdk=LibreDwg.createByWasmInstance(engine);
   // ACADVER lives in the file header, not the generic header-variable table.
   // The upstream dynamic binding can dereference an invalid value for R2018.
+  const version=new TextDecoder().decode(new Uint8Array(data,0,6));
   const headerData=sdk.dwg_dynapi_header_data.bind(sdk);
   sdk.dwg_dynapi_header_data=(p,field)=>field==='ACADVER'
-   ?new TextDecoder().decode(new Uint8Array(data,0,6))
+   ?version
    :field==='INSUNITS'?headerData(p,field):undefined;
   if(result.error>=128||!pointer)throw Error('Ошибка чтения DWG: '+result.error);
   self.postMessage({progress:'Подготавливаю объекты DWG для отображения…'});
@@ -32,15 +33,17 @@ self.onmessage=async({data:request})=>{
   let {database,stats}=sdk.convertEx(pointer,true,(done,total)=>{const now=performance.now();if(done===total||now-lastProgress>=80){lastProgress=now;self.postMessage({progress:'Подготавливаю объекты: '+done.toLocaleString('ru')+' / '+total.toLocaleString('ru'),percent:35+50*done/Math.max(1,total)});}});
   self.postMessage({progress:'Собираю геометрию и подписи…',percent:85});
   readDimensionDefinitions(sdk,pointer,database);
-  const doc=nativeDocument(database,!compact);
-  doc.executiveProject=readExecutiveMetadata(database);
-  doc.native=true;doc.nativeOps=[];doc.nativeUnknown=stats.unknownEntityCount||0;
+  const executiveProject=readExecutiveMetadata(database);
   const attached=new Set(database.entities.flatMap(e=>(e.attribs||[]).map(a=>a.handle)));
-  doc.exportRootHandles=database.entities.filter(e=>!attached.has(e.handle)).map(e=>e.handle);
-  database=null;
-  if(result.error)messages.unshift(warningText(result.error)+' (код '+result.error+')');
+  const exportRootHandles=database.entities.filter(e=>!attached.has(e.handle)).map(e=>e.handle);
+  // Dimensions and metadata are detached now: release native objects before
+  // allocating DXF records. Consume only this disposable worker database.
   sdk.dwg_free(pointer);pointer=null;
-  if(compact)await sendNativeDocument(doc,messages,self);
+  const doc=nativeDocument(database,!compact,{consume:true,compact:true});database=null;
+  doc.executiveProject=executiveProject;doc.exportRootHandles=exportRootHandles;
+  doc.native=true;doc.nativeOps=[];doc.nativeUnknown=stats.unknownEntityCount||0;
+  if(result.error)messages.unshift(warningText(result.error)+' (код '+result.error+')');
+  if(compact)await sendNativeDocument(doc,messages,self,request.returnBuffer?data:null);
   else self.postMessage({doc,messages});
  }catch(e){self.postMessage({error:e.message||String(e)});}
  finally{if(sdk&&pointer)sdk.dwg_free(pointer);}

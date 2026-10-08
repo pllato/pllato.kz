@@ -1,8 +1,8 @@
-import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.78';
+import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.89';
 import * as projectAPI from './executive-project.mjs?v=0.17.78';
 import {routeLength} from './cable-ledger.mjs?v=0.17.78';
-import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.78';
-import {executivePlacement} from './executive-placement.mjs?v=0.17.78';
+import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.89';
+import {executivePlacement} from './executive-placement.mjs?v=0.17.89';
 import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.78';
 import {drawingPreset} from './drawing-presets.mjs?v=0.17.78';
 import {parseTable,tablePages} from './table-paste.mjs?v=0.17.78';

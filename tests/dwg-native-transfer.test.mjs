@@ -36,3 +36,10 @@ test('native sender bounds the queue and releases acknowledged records',async()=
  await sendNativeDocument({records,native:true},[],port);
  assert.equal(chunks,3);assert.equal(result.doc.entities.length,5000);assert.ok(records.every(r=>r===null));assert.equal(listeners.size,0);
 });
+test('source buffer returns separately after all record acknowledgements',async()=>{
+ const buffer=new Uint8Array([65,67,49,48,51,50]).buffer,listeners=new Set();let result,returned;
+ const receiver=nativeTransferReceiver({postMessage:m=>queueMicrotask(()=>{for(const f of [...listeners])f({data:m});})});
+ const port={addEventListener:(_,f)=>listeners.add(f),removeEventListener:(_,f)=>listeners.delete(f),postMessage(m,transfer=[]){if(m.nativeComplete){assert.equal(transfer[0],buffer);returned=m.buffer;}const r=receiver(m);if(r)result=r;}};
+ await sendNativeDocument({records:[{type:'SECTION',id:'s',pairs:[[2,'ENTITIES']]},{type:'ENDSEC',id:'e',pairs:[]}],native:true},[],port,buffer);
+ assert.equal(returned,buffer);assert.equal(result.buffer,buffer);assert.equal(result.doc.buffer,undefined);
+});

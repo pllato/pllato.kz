@@ -5,6 +5,8 @@ export function executivePlacement(shapes,ids){
  let right=-Infinity;
  for(const shape of shapes){
   if(shape.bounds?.every(Number.isFinite))right=Math.max(right,shape.bounds[2]);
+  const geometry=shape.geometryBounds||(shape.text===null?shape.bounds:null);
+  if(geometry?.every(Number.isFinite)){right=Math.max(right,geometry[2]);if(selected.has(shape.id)){bounds[0]=Math.min(bounds[0],geometry[0]);bounds[1]=Math.min(bounds[1],geometry[1]);bounds[2]=Math.max(bounds[2],geometry[2]);bounds[3]=Math.max(bounds[3],geometry[3]);}continue;}
   for(const [x,y] of shape.pts){
    if(!Number.isFinite(x)||!Number.isFinite(y))continue;
    right=Math.max(right,x);
