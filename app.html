@@ -7,7 +7,7 @@
 <link rel="modulepreload" href="./app/project-payouts.js?v=20261007">
 <link rel="modulepreload" href="./app/project-recordings.js?v=20260923">
 <link rel="stylesheet" href="/app/contracts/panel.css?v=20261003-1">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Панель команды — Pllato</title>
 <meta name="robots" content="noindex,nofollow">
 <link rel="icon" type="image/svg+xml" href="/pllato_favicon_64.svg?v=20260724">
@@ -1246,6 +1246,7 @@ body {
 }
 .tool-dd-menu a.is-pdf .dot { background: var(--orange); }
 </style>
+<link rel="stylesheet" href="/app/mobile-workspace.css?v=20261008-1">
 <!-- Meta Pixel Code -->
 <script>
 !function(f,b,e,v,n,t,s)
@@ -6532,6 +6533,7 @@ function openChartFullscreen(button){
   if(tasks){
     const workspace=document.createElement('div');
     workspace.className='fc-fullscreen-workspace';
+    workspace.dataset.mobileView='current';
     const chart=document.createElement('section');
     chart.className='fc-fullscreen-chart';
     chart.setAttribute('aria-label','График и менеджеры');
@@ -6543,7 +6545,20 @@ function openChartFullscreen(button){
     const nextStart=Number(tasks.dataset.end);
     nextHolder.innerHTML=financeWeekTaskBlockForPoint(tasks.dataset.taskKind,{start:nextStart,end:nextStart+7*86400000},'next');
     workspace.append(tasks,nextHolder.firstElementChild,chart);
-    card.appendChild(workspace);
+    const mobileNav=document.createElement('nav');
+    mobileNav.className='fc-mobile-nav';
+    mobileNav.setAttribute('aria-label','Разделы графика');
+    for(const [view,label] of [['current','Текущая'],['next','Следующая'],['chart','График']]){
+      const tab=document.createElement('button');
+      tab.type='button';tab.textContent=label;tab.dataset.view=view;
+      tab.setAttribute('aria-pressed',String(view==='current'));
+      tab.onclick=()=>{
+        workspace.dataset.mobileView=view;
+        mobileNav.querySelectorAll('button').forEach(item=>item.setAttribute('aria-pressed',String(item===tab)));
+      };
+      mobileNav.appendChild(tab);
+    }
+    card.append(mobileNav,workspace);
   }
   namespaceFullscreenTaskIds(card);
   dialog.appendChild(card);

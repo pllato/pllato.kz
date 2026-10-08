@@ -1,5 +1,27 @@
 // Panels stay mounted: switching sections must preserve drafts and existing handlers.
 export function mountDealCardNavigation(root) {
+  const overview = root.querySelector('[data-card-panel="overview"] .dc-grid');
+  let mobileSections;
+  const setOverview = name => {
+    if (!overview) return;
+    overview.dataset.mobileSection = name;
+    mobileSections?.querySelectorAll('button').forEach(button => {
+      button.setAttribute('aria-pressed', String(button.dataset.section === name));
+    });
+  };
+  if (overview && !root.querySelector('.dc-mobile-overview')) {
+    mobileSections = document.createElement('nav');
+    mobileSections.className = 'dc-mobile-overview';
+    mobileSections.setAttribute('aria-label', 'Обзор клиента');
+    for (const [name, label] of [['client', 'Клиент и дела'], ['chat', 'Переписка']]) {
+      const button = document.createElement('button');
+      button.type = 'button'; button.textContent = label; button.dataset.section = name;
+      button.onclick = () => setOverview(name);
+      mobileSections.appendChild(button);
+    }
+    overview.before(mobileSections);
+    setOverview('client');
+  }
   const tabs = [...root.querySelectorAll('[data-card-tab]')];
   const panels = [...root.querySelectorAll('[data-card-panel]')];
   const activate = name => {
@@ -41,6 +63,8 @@ export function mountDealCardNavigation(root) {
       if (!element) return null;
       const panel = element.closest('[data-card-panel]');
       if (panel) activate(panel.dataset.cardPanel);
+      if (element.closest('.dc-right')) setOverview('chat');
+      else if (element.closest('.dc-left')) setOverview('client');
       for (let parent = element; parent && parent !== root; parent = parent.parentElement) {
         if (parent.tagName === 'DETAILS') parent.open = true;
       }
