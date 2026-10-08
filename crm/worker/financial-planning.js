@@ -1,17 +1,18 @@
-import {defaultPlan,weeksFrom,migratePlan} from './financial-model.js';
+import {defaultPlan,weeksFrom,migratePlan,withProjectPayoutRows,payoutTotals,PROJECT_PAYOUT_ROLES} from './financial-model.js';
 export const PLAN_COLLECTION='_financial_planning_private';
 export async function handleFinancialPlanning(request,env,actor,deps){
  const {get,save,income,payouts,HttpError}=deps, path=new URL(request.url).pathname;
  const fail=(status,message)=>{throw new HttpError(status,message);};
  const email=String(actor.email||'').toLowerCase(),admin=email==='uurraa@gmail.com';
- const plan=migratePlan(await get(env,PLAN_COLLECTION,'plan')||defaultPlan());
+ const plan=withProjectPayoutRows(migratePlan(await get(env,PLAN_COLLECTION,'plan')||defaultPlan()));
  const allowed=admin||(plan.viewers||[]).includes(email),editable=admin||(plan.editors||[]).includes(email);
  if(path.endsWith('/access')&&request.method==='GET')return {allowed,admin,editable};
  if(!allowed)fail(403,'Нет доступа к финансовому планированию');
  if(request.method==='GET'){
-  const cash=await income(env,weeksFrom(plan.start));
+  const weeks=weeksFrom(plan.start);
+  const [cash,entries]=await Promise.all([income(env,weeks),payouts(env)]);
   const {legacyRows,legacyCells,...publicPlan}=plan;
-  return {plan:{...publicPlan,viewers:admin?plan.viewers:[],editors:admin?plan.editors:[]},admin,editable,income:cash,payouts:[],payoutDetails:[]};
+  return {plan:{...publicPlan,viewers:admin?plan.viewers:[],editors:admin?plan.editors:[]},admin,editable,income:cash,payouts:payoutTotals(entries,weeks),payoutDetails:[]};
  }
  if(request.method!=='PUT')fail(405,'Метод не поддерживается');
  if(Number(request.headers.get('content-length'))>250000)fail(413,'Слишком много данных');
@@ -33,6 +34,8 @@ export async function handleFinancialPlanning(request,env,actor,deps){
   for(const [id,rate] of [['promotion',10],['tax',2]]){const row=body.rows.find(r=>r.id===id);if(!row||row.kind!=='percentage'||row.rate!==rate)fail(400,'Продвижение — 10%, налоги — 2%');}
   if(body.rows.some(r=>r.kind==='percentage'&&!['promotion','tax'].includes(r.id)))fail(400,'Неизвестная процентная статья');
   for(const r of body.rows)if(r.parentId&&(r.kind!=='expense'||!body.rows.some(p=>p.id===r.parentId&&p.kind==='expenseGroup'&&!p.parentId)))fail(400,'Подстатья должна быть расходом внутри статьи-группы');
+  for(const [id,,role] of PROJECT_PAYOUT_ROLES){const row=body.rows.find(r=>r.id===id);if(!row||row.kind!=='expenseGroup'||row.sourceRole!==role)fail(409,'Обновите страницу: доступны статьи выплат проектов');}
+  if(body.rows.some(r=>r.sourceRole&&!PROJECT_PAYOUT_ROLES.some(([id,,role])=>id===r.id&&role===r.sourceRole)))fail(400,'Неизвестная статья выплат');
   const cells=body.cells;if(!cells||typeof cells!=='object'||Array.isArray(cells))fail(400,'Проверьте ячейки');
   const keys=new Set(['benchmark',...weeksFrom(plan.start).map(w=>String(w.start))]);
   for(const [id,values]of Object.entries(cells)){if(!ids.has(id)||!values||typeof values!=='object'||Array.isArray(values))fail(400,'Некорректная строка');for(const [key,v]of Object.entries(values)){if(!keys.has(key)||typeof v!=='string'||v.length>500)fail(400,'Некорректная ячейка');}}
@@ -49,7 +52,7 @@ export async function handleFinancialPlanning(request,env,actor,deps){
    }
   }
   next.rules=rules;
-  next.rows=body.rows.map(({id,name,unit,kind,rate,parentId})=>({id,name:name.trim(),unit,kind,...(parentId?{parentId}:{}),...(kind==='percentage'?{rate}:{})}));next.cells=cells;
+  next.rows=body.rows.map(({id,name,unit,kind,rate,parentId,sourceRole})=>({id,name:name.trim(),unit,kind,...(sourceRole?{sourceRole}:{}),...(parentId?{parentId}:{}),...(kind==='percentage'?{rate}:{})}));next.cells=cells;
  }
  next={...next,id:'plan',revision:plan.revision+1,updatedAt:Date.now(),updatedBy:email};
  if(!await save(env,next,plan.revision))fail(409,'Таблица изменена другим сотрудником. Обновите данные.');

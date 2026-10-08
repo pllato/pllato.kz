@@ -46,7 +46,7 @@ export function migratePlan(plan){
 }
 export function payoutTotals(items,weeks){
   return weeks.map(w=>items.filter(p=>!p.deleted && Date.parse(p.date+'T00:00:00+05:00')>=w.start && Date.parse(p.date+'T00:00:00+05:00')<w.end)
-    .reduce((a,p)=>{if(p.status==='paid'||p.status==='planned'){a[p.status]+=Number(p.amount)||0;const role=p.role||'Прочие выплаты';a.byRole??={};a.byRole[role]??={paid:0,planned:0};a.byRole[role][p.status]+=Number(p.amount)||0;}return a;},{paid:0,planned:0}));
+    .reduce((a,p)=>{if(p.status==='paid'||p.status==='planned'){a[p.status]+=Number(p.amount)||0;const role=['Программист','Продажи','Агент','Дизайнер'].includes(p.role)?p.role:'Другое';a.byRole??={};a.byRole[role]??={paid:0,planned:0};a.byRole[role][p.status]+=Number(p.amount)||0;}return a;},{paid:0,planned:0}));
 }
 export function columnName(index){let out='';for(let n=index+1;n;n=Math.floor((n-1)/26))out=String.fromCharCode(65+(n-1)%26)+out;return out;}
 export function formulaValue(raw,resolve){
@@ -77,7 +77,7 @@ export function planCalculator(plan, income, payouts){
       const raw=plan.cells[row.id]?.[cellKey];
       const resolve=ref=>{const [,letters,num]=ref.match(/^([A-Z]+)(\d+)$/);let c=0;for(const l of letters)c=c*26+l.charCodeAt(0)-64;return value(+num-1,letters==='R'?col:c-2);};
       const rule=col>0?effectiveRule(plan,row.id,+cellKey):null;
-      if(row.kind==='expenseGroup'&&col>0){n=rule?formulaValue(rule.value,resolve):formulaValue(raw,resolve);if(rule?.mode==='percent')n=(income[col-1]||0)*n/100;plan.rows.forEach((r,i)=>{if(r.parentId===row.id)n+=value(i,col);});}
+      if(row.kind==='expenseGroup'&&col>0){n=rule?formulaValue(rule.value,resolve):formulaValue(raw,resolve);if(rule?.mode==='percent')n=(income[col-1]||0)*n/100;n+=payouts?.[col-1]?.byRole?.[row.sourceRole]?.paid||0;plan.rows.forEach((r,i)=>{if(r.parentId===row.id)n+=value(i,col);});}
       else if(rule){n=formulaValue(rule.value,resolve);if(rule.mode==='percent')n=(income[col-1]||0)*n/100;}
       else if(row.kind==='percentage')n=col===0?row.rate:(income[col-1]||0)*row.rate/100;
       else if(col===0)n=formulaValue(raw,resolve);
@@ -138,3 +138,10 @@ export function effectiveRule(plan,rowId,start){
  return times.length?{...plan.rules[rowId][times[0]],start:times[0]}:null;
 }
 export function setPlanRule(plan,rowId,start,rule){return {...plan,rules:{...(plan.rules||{}),[rowId]:{...(plan.rules?.[rowId]||{}),[start]:rule}}};}
+
+export const PROJECT_PAYOUT_ROLES=[['sales','Выплаты продавцам','Продажи'],['payout_developers','Выплаты программистам','Программист'],['payout_agents','Выплаты агентам','Агент'],['payout_designers','Выплаты дизайнерам','Дизайнер'],['payout_other','Другие выплаты','Другое']];
+export function withProjectPayoutRows(plan){
+ const rows=plan.rows.map(r=>({...r}));
+ for(const [id,name,role] of PROJECT_PAYOUT_ROLES){const row=rows.find(r=>r.id===id);if(row){row.kind='expenseGroup';row.sourceRole=role;}else{const index=rows.findIndex(r=>r.kind==='profit');rows.splice(index<0?rows.length:index,0,{id,name,unit:'₸',kind:'expenseGroup',sourceRole:role});}}
+ return remapPlanRows(plan,rows);
+}
