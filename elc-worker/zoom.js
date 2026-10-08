@@ -203,7 +203,13 @@ async function download(env, file) {
       page=data.next_page_token;
     }
   }
-  if (!remote?.download_url || remote.status !== 'completed') throw fail('Файл Zoom пока недоступен', 502);
+  if (!remote?.download_url || remote.status !== 'completed') {
+    // Recover only the exact pending file; never recreate meetings or recover user-deleted CRM files.
+    await api(env, '/meetings/' + zoomMeetingPath(file.meeting_uuid) + '/recordings/' + encodeURIComponent(file.id) + '/status', 'PUT', {action:'recover'});
+    const recovered = await api(env, '/meetings/' + zoomMeetingPath(file.meeting_uuid) + '/recordings');
+    remote = recovered.recording_files?.find(f=>f.id===file.id);
+    if (!remote?.download_url || remote.status !== 'completed') throw fail('Восстановление запрошено; ожидаем доступность файла Zoom', 502);
+  }
   let url = new URL(remote.download_url);
   const allowed = u => u.protocol === 'https:' && (u.hostname === 'zoom.us' || u.hostname.endsWith('.zoom.us') || u.hostname.endsWith('.zoom.com'));
   if (!allowed(url)) throw fail('Неожиданный адрес файла Zoom', 502);
@@ -227,6 +233,22 @@ async function download(env, file) {
   if (!verified || verified.size !== size || verified.etag !== stored.etag) throw fail('Копия не прошла проверку', 502);
   await env.DB.prepare("UPDATE zoom_files SET r2_key=?,size=?,status='stored',imported_at=?,error=NULL,lease_until=NULL WHERE id=? AND deleted_at IS NULL")
     .bind(r2Key, size, now(), file.id).run();
+}
+async function meetingSafeToTrash(env, file) {
+  // Zoom can move a recording container to Trash after its media files are removed.
+  // Require a durable transcript and every known file before removing any original.
+  const remote = await api(env, '/meetings/' + zoomMeetingPath(file.meeting_uuid) + '/recordings');
+  await ingest(env, {...remote, id:file.meeting_id, uuid:file.meeting_uuid});
+  if ((remote.recording_files || []).some(f=>f.status && f.status!=='completed')) return false;
+  const {results:files}=await env.DB.prepare('SELECT * FROM zoom_files WHERE meeting_uuid=?').bind(file.meeting_uuid).all();
+  if (!files.some(f=>/transcript/i.test(f.kind || '') && f.status==='stored' && !f.deleted_at)) return false;
+  for (const f of files) {
+    if (f.deleted_at || f.status==='deleted') return false;
+    if (f.status!=='stored' || !f.r2_key || !f.imported_at || !(f.size>0)) return false;
+    const saved=await env.FILES.head(f.r2_key);
+    if (!saved || saved.size!==f.size) return false;
+  }
+  return true;
 }
 async function trashOriginal(env, file) {
   // Удаляем конкретный файл, а не всю встречу: транскрипт может появиться позже.
@@ -269,8 +291,12 @@ export async function processZoomJobs(env, notify) {
   try {
     if (env.ZOOM_TRASH_AFTER_COPY === 'true') {
       const {results}=await env.DB.prepare("SELECT * FROM zoom_files WHERE status='stored' AND deleted_at IS NULL AND imported_at IS NOT NULL AND r2_key IS NOT NULL AND size>0 AND zoom_deleted_at IS NULL AND (retry_at IS NULL OR retry_at<=?) ORDER BY size DESC,id LIMIT 10").bind(now()).all();
+      const verifiedMeetings=new Map();
       for (const f of results) {
-        try { await trashOriginal(env, f); }
+        try {
+          if(!verifiedMeetings.has(f.meeting_uuid))verifiedMeetings.set(f.meeting_uuid,await meetingSafeToTrash(env,f));
+          if(verifiedMeetings.get(f.meeting_uuid))await trashOriginal(env, f);
+        }
         catch(e) { await env.DB.prepare('UPDATE zoom_files SET error=?,retry_at=? WHERE id=?').bind(String(e.message).slice(0,250), new Date(Date.now()+3600000).toISOString(),f.id).run(); }
       }
     }
@@ -281,7 +307,7 @@ export async function processZoomJobs(env, notify) {
       for (const meeting of recent.meetings || []) await ingest(env,meeting);
       await scan(env); await put(env, 'last_scan', String(Date.now()));
     }
-    const f = await env.DB.prepare("SELECT * FROM zoom_files WHERE status='pending' AND (retry_at IS NULL OR retry_at<=?) ORDER BY recording_start DESC LIMIT 1").bind(now()).first();
+    const f = await env.DB.prepare("SELECT * FROM zoom_files WHERE status='pending' AND (retry_at IS NULL OR retry_at<=?) ORDER BY CASE WHEN kind LIKE '%transcript%' THEN 0 ELSE 1 END, COALESCE(retry_at,'') ASC, recording_start DESC LIMIT 1").bind(now()).first();
     if (f) {
       try { await download(env, f); }
       catch(e) { await env.DB.prepare('UPDATE zoom_files SET error=?,attempts=attempts+1,retry_at=? WHERE id=?').bind(String(e.message).slice(0,250), new Date(Date.now() + Math.min(360, 2 ** Math.min(f.attempts,8)) * 60000).toISOString(),f.id).run(); }
@@ -332,6 +358,20 @@ export async function handleZoomRequest(request, env, deps) {
     const me = await resolveCanonicalUser(env,auth.claims);
     const admin = me.role === 'admin';
     if (path === '/status') return json({configured:!!(env.ZOOM_CLIENT_ID && env.ZOOM_CLIENT_SECRET),connected:!!await get(env,'tokens'),admin,trashAfterCopy:env.ZOOM_TRASH_AFTER_COPY==='true',archivePolicy:'indefinite'},200,request);
+    if(path==='/transfer-audit' && ['GET','POST'].includes(request.method)) {
+      if(!admin)throw fail('Проверка архива доступна администратору',403);
+      if(request.method==='POST') {
+        await env.DB.prepare("UPDATE zoom_files SET retry_at=NULL WHERE status='pending' AND deleted_at IS NULL").run();
+        await put(env,'last_scan','0');
+      }
+      const {results}=await env.DB.prepare(`SELECT f.meeting_uuid,f.meeting_id,f.deal_id,MAX(f.topic) AS topic,
+        SUM(CASE WHEN f.status='pending' THEN 1 ELSE 0 END) AS pending,
+        SUM(CASE WHEN f.kind LIKE '%transcript%' AND f.status='stored' AND f.deleted_at IS NULL THEN 1 ELSE 0 END) AS transcripts,
+        MAX(CASE WHEN f.status='pending' THEN f.error END) AS error
+        FROM zoom_files f WHERE f.deleted_at IS NULL GROUP BY f.meeting_uuid,f.deal_id
+        HAVING pending>0 OR transcripts=0 ORDER BY MAX(f.recording_start) DESC LIMIT 500`).all();
+      return json({meetings:results,queued:request.method==='POST'},200,request);
+    }
     if (path === '/connect' && request.method === 'POST') {
       if (!admin) throw fail('Подключение доступно администратору',403);
       if (!env.ZOOM_CLIENT_ID || !env.ZOOM_CLIENT_SECRET) throw fail('Администратору нужно настроить ключи Zoom',503);

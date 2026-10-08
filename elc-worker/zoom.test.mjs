@@ -48,7 +48,8 @@ test('таймаут создания не вызывает повторный P
 });
 test('ошибка копии не удаляет оригинал; успешная копия проверяется перед trash',async()=>{
   const f=fixture();await f.connect();f.env.ZOOM_TRASH_AFTER_COPY='true';
-  f.db.prepare("INSERT INTO zoom_files(id,meeting_uuid,meeting_id,deal_id,extension,size) VALUES('f1','uuid','123','deal_1','MP4',4)").run();
+  f.db.prepare("INSERT INTO zoom_files(id,meeting_uuid,meeting_id,deal_id,extension,size) VALUES('f1','uuid','123','deal_1','VTT',4)").run();
+  f.db.exec("UPDATE zoom_files SET kind='audio_transcript' WHERE id='f1'");
   const original=globalThis.fetch;let deletes=0,wrong=true;
   globalThis.fetch=async(url,options)=>{
     if(options.method==='DELETE'){deletes++;assert.equal(f.objects.size,1);return new Response(null,{status:204});}
@@ -185,13 +186,14 @@ test('приглашение клиенту не содержит код орг�
 
 test('очистка архива: только проверенные копии, включая непривязанные; ошибка файла не блокирует остальные',async()=>{
   const f=fixture();await f.connect();f.env.ZOOM_TRASH_AFTER_COPY='true';
-  const add=(id,status='stored',imported='2026-09-29',deleted=null)=>f.db.prepare("INSERT INTO zoom_files(id,meeting_uuid,meeting_id,size,status,r2_key,imported_at,deleted_at) VALUES(?,'uuid','123',4,?,?,?,?)").run(id,status,id,imported,deleted);
+  const add=(id,status='stored',imported='2026-09-29',deleted=null)=>f.db.prepare("INSERT INTO zoom_files(id,meeting_uuid,meeting_id,size,status,r2_key,imported_at,deleted_at) VALUES(?,?,'123',4,?,?,?,?)").run(id,id,status,id,imported,deleted);
   for(const id of ['good','missing','wrong','failed','unverified','deleted','pending'])add(id,id==='pending'?'pending':'stored',id==='unverified'?null:'2026-09-29',id==='deleted'?'2026-10-01':null);
   for(const id of ['good','failed','unverified','deleted','pending'])f.objects.set(id,{size:4});
   f.objects.set('wrong',{size:3});
   f.db.prepare("UPDATE zoom_files SET retry_at='2099-01-01' WHERE id='pending'").run();
+  f.db.exec("UPDATE zoom_files SET kind='audio_transcript'");
   const original=globalThis.fetch,calls=[];
-  globalThis.fetch=async(url,opts)=>{assert.equal(opts.method,'DELETE');assert.ok(String(url).endsWith('?action=trash'));calls.push(String(url));return String(url).includes('/failed?')?new Response(null,{status:403}):new Response(null,{status:204});};
+  globalThis.fetch=async(url,opts)=>{if(opts.method==='GET')return Response.json({recording_files:[]});assert.equal(opts.method,'DELETE');assert.ok(String(url).endsWith('?action=trash'));calls.push(String(url));return String(url).includes('/failed?')?new Response(null,{status:403}):new Response(null,{status:204});};
   try{
     await processZoomJobs(f.env);
     assert.equal(calls.length,2);
@@ -213,4 +215,29 @@ test('общий архив группирует встречи, ищет кли
   f.deps.resolveCanonicalUser=async()=>({role:'agent'});f.deps.dealAccessSql=()=>({where:' AND id=?',params:['deal_1']});
   data=await (await f.request('/archive')).json();assert.equal(data.total,1);assert.equal(data.meetings[0].deal_id,'deal_1');
   data=await (await f.request('/archive?page=2')).json();assert.equal(data.meetings.length,0);
+});
+
+
+test('оригиналы остаются до транскрипта и копии всех файлов встречи',async()=>{
+ const f=fixture();await f.connect();f.env.ZOOM_TRASH_AFTER_COPY='true';
+ f.db.exec("INSERT INTO zoom_files(id,meeting_uuid,meeting_id,kind,status,size,r2_key,imported_at) VALUES('video','uuid','123','shared_screen','stored',4,'video','2026-10-08')");f.objects.set('video',{size:4});
+ const original=globalThis.fetch;let deletes=0;
+ globalThis.fetch=async(url,opt)=>{if(opt.method==='DELETE'){deletes++;return new Response(null,{status:204});}return Response.json({recording_files:[]});};
+ try{await processZoomJobs(f.env);assert.equal(deletes,0);
+ f.db.exec("INSERT INTO zoom_files(id,meeting_uuid,meeting_id,kind,status,size,r2_key,imported_at) VALUES('text','uuid','123','audio_transcript','stored',4,'text','2026-10-08')");
+ await processZoomJobs(f.env);assert.equal(deletes,0);
+ f.objects.set('text',{size:4});await processZoomJobs(f.env);assert.equal(deletes,2);
+ }finally{globalThis.fetch=original;}
+});
+test('недоступный транскрипт восстанавливается по точному ID и сохраняется',async()=>{
+ const f=fixture();await f.connect();f.db.exec("INSERT INTO zoom_files(id,meeting_uuid,meeting_id,kind,extension,status,size) VALUES('text','uuid','123','audio_transcript','VTT','pending',4)");f.db.exec("UPDATE zoom_files SET recording_start='2026-10-08T06:04:50Z'");
+ const original=globalThis.fetch;let recovered=false;
+ globalThis.fetch=async(url,opt)=>{const u=String(url);if(opt.method==='PUT'){assert.ok(u.endsWith('/recordings/text/status'));assert.deepEqual(JSON.parse(opt.body),{action:'recover'});recovered=true;return new Response(null,{status:204});}if(u==='https://zoom.us/file')return new Response('test');if(u.includes('/users/'))return Response.json({meetings:[]});return Response.json({recording_files:recovered?[{id:'text',status:'completed',download_url:'https://zoom.us/file',file_size:4}]:[]});};
+ try{await processZoomJobs(f.env);assert.ok(recovered);assert.equal(f.db.prepare("SELECT status FROM zoom_files WHERE id='text'").get().status,'stored');}finally{globalThis.fetch=original;}
+});
+test('аудит переносов доступен только администратору, повтор не затрагивает удалённое',async()=>{
+ const f=fixture();await f.connect();f.db.exec("INSERT INTO zoom_files(id,meeting_uuid,meeting_id,status,retry_at) VALUES('one','u','1','pending','2099-01-01'); INSERT INTO zoom_files(id,meeting_uuid,meeting_id,status,retry_at,deleted_at) VALUES('gone','u','1','deleted','2099-01-01','2026-10-01')");
+ assert.equal((await (await f.request('/transfer-audit')).json()).meetings.length,1);
+ await f.request('/transfer-audit','POST');assert.equal(f.db.prepare("SELECT retry_at FROM zoom_files WHERE id='one'").get().retry_at,null);assert.equal(f.db.prepare("SELECT retry_at FROM zoom_files WHERE id='gone'").get().retry_at,'2099-01-01');
+ f.deps.resolveCanonicalUser=async()=>({role:'agent'});assert.equal((await f.request('/transfer-audit')).status,403);assert.equal((await f.request('/transfer-audit','POST')).status,403);
 });
