@@ -77,7 +77,8 @@ export function planCalculator(plan, income, payouts){
       const raw=plan.cells[row.id]?.[cellKey];
       const resolve=ref=>{const [,letters,num]=ref.match(/^([A-Z]+)(\d+)$/);let c=0;for(const l of letters)c=c*26+l.charCodeAt(0)-64;return value(+num-1,letters==='R'?col:c-2);};
       const rule=col>0?effectiveRule(plan,row.id,+cellKey):null;
-      if(rule){n=formulaValue(rule.value,resolve);if(rule.mode==='percent')n=(income[col-1]||0)*n/100;}
+      if(row.kind==='expenseGroup'&&col>0){n=rule?formulaValue(rule.value,resolve):formulaValue(raw,resolve);if(rule?.mode==='percent')n=(income[col-1]||0)*n/100;plan.rows.forEach((r,i)=>{if(r.parentId===row.id)n+=value(i,col);});}
+      else if(rule){n=formulaValue(rule.value,resolve);if(rule.mode==='percent')n=(income[col-1]||0)*n/100;}
       else if(row.kind==='percentage')n=col===0?row.rate:(income[col-1]||0)*row.rate/100;
       else if(col===0)n=formulaValue(raw,resolve);
       else if(row.kind==='expenseGroup'){plan.rows.forEach((r,i)=>{if(r.parentId===row.id)n+=value(i,col);});}
