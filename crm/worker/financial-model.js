@@ -6,16 +6,41 @@ export function weekStart(now=Date.now()) {
   let t=d.getTime()-5*3600000; if(t>now)t-=WEEK; return t;
 }
 export function weeksFrom(start,count=52){return Array.from({length:count},(_,i)=>({start:start+i*WEEK,end:start+(i+1)*WEEK}));}
-export function defaultPlan(now=Date.now()) { return {revision:0,start:weekStart(now)-8*WEEK,viewers:[],editors:[],cells:{},rows:[
-  {id:'income',name:'Доход из кассы',unit:'₸',kind:'income'},
-  {id:'paid',name:'Выплаты проектов · оплачено',unit:'₸',kind:'paid'},
-  {id:'planned',name:'Выплаты проектов · запланировано',unit:'₸',kind:'planned'},
-  {id:'advertising',name:'Реклама',unit:'₸',kind:'expense'},
-  {id:'promotion',name:'Продвижение',unit:'₸',kind:'expense'},
-  {id:'tax',name:'Налоги',unit:'%',kind:'tax'},
-  {id:'profit',name:'Чистая прибыль',unit:'₸',kind:'profit'},
-  {id:'forecast',name:'Остаток после плановых выплат',unit:'₸',kind:'forecast'}
-]}; }
+export function defaultPlan(now=Date.now()) {return {revision:0,schemaVersion:2,start:weekStart(now)-8*WEEK,viewers:[],editors:[],cells:{},rows:[
+ {id:'income',name:'Доход из кассы',unit:'₸',kind:'income'},
+ {id:'advertising',name:'Реклама',unit:'₸',kind:'expense'},
+ {id:'promotion',name:'Продвижение',unit:'%',kind:'percentage',rate:10},
+ {id:'tax',name:'Налоги',unit:'%',kind:'percentage',rate:2},
+ {id:'accounting',name:'Бухгалтерское обслуживание',unit:'₸',kind:'expense'},
+ {id:'ai_subscriptions',name:'Закупка подписок ИИ',unit:'₸',kind:'expense'},
+ {id:'servers',name:'Сервера',unit:'₸',kind:'expense'},
+ {id:'sales',name:'Выплаты продавцам',unit:'₸',kind:'expenseGroup'},
+ {id:'profit',name:'Чистая прибыль',unit:'₸',kind:'profit'}]};}
+// Rewrite references by row identity, including SUM ranges, when rows move.
+export function remapPlanRows(plan,rows){
+ const map=new Map(plan.rows.map((r,i)=>[i+1,rows.findIndex(n=>n.id===r.id)+1]));
+ const reference=(col,n)=>map.get(+n)?col+map.get(+n):'#REF!';
+ const cells={};for(const row of rows){const values=plan.cells[row.id];if(!values)continue;cells[row.id]={};
+  for(const [key,raw] of Object.entries(values)){
+   if(!String(raw).startsWith('=')){cells[row.id][key]=raw;continue;}
+   const ranges=[];
+   let formula=raw.toUpperCase().replace(/([A-Z]+)([1-9]\d*):\1([1-9]\d*)/g,(_,col,from,to)=>{
+    if(+to<+from||+to-from>200)return '#REF!';
+    const refs=[];for(let i=+from;i<=+to;i++)refs.push(reference(col,i));
+    ranges.push(refs.join(','));return '@'+(ranges.length-1)+'@';
+   }).replace(/([A-Z]+)([1-9]\d*)/g,(_,col,n)=>reference(col,n));
+   cells[row.id][key]=formula.replace(/@(\d+)@/g,(_,i)=>ranges[+i]);
+  }
+ }return {...plan,rows,cells};
+}
+export function migratePlan(plan){
+ if(plan.schemaVersion===2)return plan;
+ const defaults=defaultPlan().rows,removed=new Set(['paid','planned','forecast','payoutPaid','payoutPlanned']);
+ let rows=plan.rows.filter(r=>!removed.has(r.kind)).map(r=>['promotion','tax'].includes(r.id)?defaults.find(d=>d.id===r.id):r);
+ for(const id of ['accounting','ai_subscriptions','servers','sales'])if(!rows.some(r=>r.id===id)){const i=rows.findIndex(r=>r.kind==='profit');rows.splice(i<0?rows.length:i,0,defaults.find(r=>r.id===id));}
+ const next=remapPlanRows(plan,rows);delete next.cells.promotion;delete next.cells.tax;
+ return {...next,schemaVersion:2,legacyRows:plan.rows,legacyCells:plan.cells};
+}
 export function payoutTotals(items,weeks){
   return weeks.map(w=>items.filter(p=>!p.deleted && Date.parse(p.date+'T00:00:00+05:00')>=w.start && Date.parse(p.date+'T00:00:00+05:00')<w.end)
     .reduce((a,p)=>{if(p.status==='paid'||p.status==='planned'){a[p.status]+=Number(p.amount)||0;const role=p.role||'Прочие выплаты';a.byRole??={};a.byRole[role]??={paid:0,planned:0};a.byRole[role][p.status]+=Number(p.amount)||0;}return a;},{paid:0,planned:0}));
@@ -48,13 +73,16 @@ export function planCalculator(plan, income, payouts){
     try {let n=0;const cellKey=col===0?'benchmark':String(plan.start+(col-1)*WEEK);
       const raw=plan.cells[row.id]?.[cellKey];
       const resolve=ref=>{const [,letters,num]=ref.match(/^([A-Z]+)(\d+)$/);let c=0;for(const l of letters)c=c*26+l.charCodeAt(0)-64;return value(+num-1,letters==='R'?col:c-2);};
-      if(col===0)n=formulaValue(raw,resolve);
+      if(row.kind==='percentage')n=col===0?row.rate:(income[col-1]||0)*row.rate/100;
+      else if(col===0)n=formulaValue(raw,resolve);
+      else if(row.kind==='expenseGroup'){plan.rows.forEach((r,i)=>{if(r.parentId===row.id)n+=value(i,col);});}
       else if(row.kind==='income')n=income[col-1]||0;
       else if(row.kind==='paid'||row.kind==='planned')n=payouts[col-1]?.[row.kind]||0;
       else if(row.kind==='payoutPaid'||row.kind==='payoutPlanned')n=payouts[col-1]?.byRole?.[row.sourceRole]?.[row.kind==='payoutPaid'?'paid':'planned']||0;
       else if(row.kind==='profit'||row.kind==='forecast'){
-        n=value(plan.rows.findIndex(r=>r.kind==='income'),col)-value(plan.rows.findIndex(r=>r.kind==='paid'),col);
-        plan.rows.forEach((r,i)=>{if(r.kind==='expense'||r.kind==='tax')n-=value(i,col);else if(r.kind==='extraIncome')n+=value(i,col);});
+        n=value(plan.rows.findIndex(r=>r.kind==='income'),col);
+        const paidIndex=plan.rows.findIndex(r=>r.kind==='paid');if(paidIndex>=0)n-=value(paidIndex,col);
+        plan.rows.forEach((r,i)=>{if(r.parentId)return;if(r.kind==='expense'||r.kind==='tax'||r.kind==='percentage'||r.kind==='expenseGroup')n-=value(i,col);else if(r.kind==='extraIncome')n+=value(i,col);});
         if(row.kind==='forecast')n-=value(plan.rows.findIndex(r=>r.kind==='planned'),col);
       }else {n=formulaValue(raw==null&&row.kind==='tax'?plan.cells[row.id]?.benchmark:raw,resolve);
         if(row.kind==='tax')n=value(plan.rows.findIndex(r=>r.kind==='income'),col)*n/100;}
@@ -86,4 +114,14 @@ export function planningIncome(raw={},weeks){
  }
  const overrides=Object.fromEntries(Object.entries(raw.chartOverrides||{}).slice(0,100));
  return weeks.map((w,i)=>{const key=new Date(w.end+5*3600000).toISOString().slice(0,10),v=overrides[key]?.cash;return Number.isFinite(Number(v))?Math.max(0,Math.round(Number(v))):sums[i];});
+}
+
+export function movePlanRow(plan,id,direction){
+ const row=plan.rows.find(r=>r.id===id);if(!row)return plan;
+ const siblings=plan.rows.filter(r=>(r.parentId||'')===(row.parentId||''));
+ const i=siblings.findIndex(r=>r.id===id),j=i+direction;if(j<0||j>=siblings.length)return plan;
+ [siblings[i],siblings[j]]=[siblings[j],siblings[i]];
+ const top=row.parentId?plan.rows.filter(r=>!r.parentId):siblings;
+ const rows=top.flatMap(r=>[r,...(r.id===row.parentId?siblings:plan.rows.filter(c=>c.parentId===r.id))]);
+ return remapPlanRows(plan,rows);
 }
