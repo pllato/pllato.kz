@@ -50,3 +50,14 @@ await assert.rejects(()=>call(root,'PUT',undefined,{revision:stored.revision,row
 await assert.rejects(()=>call(root,'PUT',undefined,{revision:stored.revision,rows:apiPlan.rows,cells:apiPlan.cells,rules:{advertising:{[apiPlan.start]:{mode:'percent',value:'101'}}}}),e=>e.status===400);
 await assert.rejects(()=>call(root,'PUT',undefined,{revision:stored.revision,rows:apiPlan.rows,cells:apiPlan.cells}),e=>e.status===409);
 console.log('Forward rules: preserve past, future boundary, inserted change, zero stop, percentage override, formulas on reorder, persistence and API validation passed.');
+let manual=defaultPlan(boundary);manual.start=boundary;
+manual.rows.push({id:'seller',name:'Seller',kind:'expense',unit:'₸',parentId:'sales'});
+manual.cells.seller={[boundary]:'100'};
+manual=setPlanRule(manual,'sales',boundary,{mode:'amount',value:'200'});
+assert.equal(value(manual,'sales'),300);assert.equal(value(manual,'profit'),580);
+manual=setPlanRule(manual,'sales',boundary,{mode:'percent',value:'5'});
+assert.equal(value(manual,'sales'),150);assert.equal(value(manual,'profit'),730);
+const manualApi=await call(root);manualApi.plan=setPlanRule(manualApi.plan,'sales',manualApi.plan.start,{mode:'amount',value:'200'});
+await call(root,'PUT',undefined,{revision:manualApi.plan.revision,rows:manualApi.plan.rows,cells:manualApi.plan.cells,rules:manualApi.plan.rules});
+assert.equal((await call(root)).plan.rules.sales[manualApi.plan.start].value,'200');
+console.log('Manual group amount/percentage adds children, deducts once and persists through API.');

@@ -41,7 +41,7 @@ export async function handleFinancialPlanning(request,env,actor,deps){
   if(typeof rules!=='object'||Array.isArray(rules))fail(400,'Проверьте правила статей');
   for(const [id,values]of Object.entries(rules)){
    const row=body.rows.find(r=>r.id===id);
-   if(!row||['income','profit','expenseGroup'].includes(row.kind)||!values||typeof values!=='object'||Array.isArray(values))fail(400,'Некорректная статья правила');
+   if(!row||['income','profit'].includes(row.kind)||!values||typeof values!=='object'||Array.isArray(values))fail(400,'Некорректная статья правила');
    for(const [key,rule]of Object.entries(values)){
     if(key==='benchmark'||!keys.has(key)||!rule||!['amount','percent','formula'].includes(rule.mode)||typeof rule.value!=='string'||rule.value.length>500)fail(400,'Некорректное правило');
     if(rule.mode!=='formula'){const v=Number(rule.value.replace(',','.'));if(!rule.value.trim()||!Number.isFinite(v)||v<0||v>(rule.mode==='percent'?100:1e12))fail(400,'Проверьте сумму или процент');}
