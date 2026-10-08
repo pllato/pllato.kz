@@ -75,7 +75,7 @@ async function processJob(env,job,rule){
   await env.DB.prepare("UPDATE wa_deal_groups SET status='creating',name=?,created_at=? WHERE deal_id=?").bind(group.name,Date.now(),deal.id).run();
   const optionId=job.event_id?adminOptionKey(job.pipeline_id,job.stage_id):JSON.stringify(['manual',deal.id]);
   const adminOption=await env.DB.prepare('SELECT enabled FROM wa_group_admin_options WHERE id=?').bind(optionId).first();
-  if(adminOption?.enabled)await env.DB.prepare('INSERT OR IGNORE INTO wa_group_admin_policy(deal_id) VALUES(?)').bind(deal.id).run();
+  if(!adminOption||adminOption.enabled)await env.DB.prepare('INSERT OR IGNORE INTO wa_group_admin_policy(deal_id) VALUES(?)').bind(deal.id).run();
   const result=await provider(channel,'createGroup',{groupName:group.name,chatIds:people.map(x=>x.chatId)});
   if(!result.created||!/^\d[\d-]*@g\.us$/.test(result.chatId||''))throw new Error('WhatsApp не подтвердил создание. Проверьте группу перед повторной попыткой.');
   group.group_id=result.chatId;group.invite_link=inviteUrl(result.groupInviteLink);
@@ -216,7 +216,7 @@ export async function handleStageGroups(request,env,deps){
     const deal=await env.DB.prepare('SELECT * FROM deals WHERE id=?').bind(dealId).first();
     try{await participants(env,deal,body.employee_uids);}catch(e){return json({error:e.message},400,request);}
     if(body.all_admins!==undefined&&typeof body.all_admins!=='boolean')return json({error:'Проверьте настройку администраторов'},400,request);
-    const [inserted]=await env.DB.batch([env.DB.prepare('INSERT OR IGNORE INTO wa_manual_group_jobs(deal_id,channel_id,employee_uids,created_at) VALUES(?,?,?,?)').bind(dealId,body.channel_id,JSON.stringify([...new Set(body.employee_uids)]),Date.now()),env.DB.prepare('INSERT OR IGNORE INTO wa_group_admin_options(id,enabled) VALUES(?,?)').bind(JSON.stringify(['manual',dealId]),body.all_admins===true?1:0)]);
+    const [inserted]=await env.DB.batch([env.DB.prepare('INSERT OR IGNORE INTO wa_manual_group_jobs(deal_id,channel_id,employee_uids,created_at) VALUES(?,?,?,?)').bind(dealId,body.channel_id,JSON.stringify([...new Set(body.employee_uids)]),Date.now()),env.DB.prepare('INSERT OR IGNORE INTO wa_group_admin_options(id,enabled) VALUES(?,?)').bind(JSON.stringify(['manual',dealId]),body.all_admins!==false?1:0)]);
     if(!changed(inserted))return json({error:'Запрос на создание уже существует. Проверьте статус группы.'},409,request);
     return json({ok:true,status:'pending'},202,request);
    }
@@ -243,7 +243,7 @@ export async function handleStageGroups(request,env,deps){
    const {results:users}=await env.DB.prepare('SELECT uid,name,last_name,phone FROM users WHERE active=1 ORDER BY name').all();
    const {results:channels}=await env.DB.prepare('SELECT id,display_name,id_instance FROM wa_channels WHERE active=1').all();
    const {results:jobs}=await env.DB.prepare("SELECT j.deal_id,j.status,j.error,d.title FROM wa_stage_group_jobs j JOIN deals d ON d.id=j.deal_id WHERE j.pipeline_id=? AND j.status IN ('error','pending') ORDER BY j.event_id DESC LIMIT 20").bind(pipelineId).all();
-   for(const r of rules){const option=await env.DB.prepare('SELECT enabled FROM wa_group_admin_options WHERE id=?').bind(adminOptionKey(pipelineId,r.stage_id)).first();r.all_admins=!!option?.enabled;}
+   for(const r of rules){const option=await env.DB.prepare('SELECT enabled FROM wa_group_admin_options WHERE id=?').bind(adminOptionKey(pipelineId,r.stage_id)).first();r.all_admins=option?!!option.enabled:true;}
    return json({pipeline:{...pipeline,stages:parse(pipeline.stages,{})},rules:rules.map(r=>({...r,employee_uids:parse(r.employee_uids,[])})),users,channels,jobs},200,request);
   }
   if(request.method!=='PUT')return json({error:'Method not allowed'},405,request);
@@ -264,7 +264,7 @@ export async function handleStageGroups(request,env,deps){
    env.DB.prepare('DELETE FROM wa_stage_group_rules WHERE pipeline_id=?').bind(pipelineId),
    // Cancel pending work when rules are changed; new transitions use new settings.
    env.DB.prepare("UPDATE wa_stage_group_jobs SET status='cancelled' WHERE pipeline_id=? AND status='pending'").bind(pipelineId),
-   ...rules.map(r=>env.DB.prepare('INSERT OR REPLACE INTO wa_group_admin_options(id,enabled) VALUES(?,?)').bind(adminOptionKey(pipelineId,r.stage_id),r.all_admins===true?1:0)),
+   ...rules.map(r=>env.DB.prepare('INSERT OR REPLACE INTO wa_group_admin_options(id,enabled) VALUES(?,?)').bind(adminOptionKey(pipelineId,r.stage_id),r.all_admins!==false?1:0)),
    ...rules.map(r=>env.DB.prepare('INSERT INTO wa_stage_group_rules VALUES(?,?,?,?,?)').bind(pipelineId,r.stage_id,r.channel_id,r.employee_uids,max.id))
   ]);
   return json({ok:true},200,request);
