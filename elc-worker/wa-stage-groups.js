@@ -11,6 +11,8 @@ export function groupName(name,date=new Date()){
 }
 export async function groupSchema(env){
  await env.DB.batch([
+  env.DB.prepare('CREATE TABLE IF NOT EXISTS wa_group_admin_options (id TEXT PRIMARY KEY,enabled INTEGER NOT NULL DEFAULT 0)'),
+  env.DB.prepare("CREATE TABLE IF NOT EXISTS wa_group_admin_policy (deal_id TEXT PRIMARY KEY,checked_at INTEGER NOT NULL DEFAULT 0,status TEXT NOT NULL DEFAULT 'pending',error TEXT)"),
   env.DB.prepare('CREATE TABLE IF NOT EXISTS deal_stage_events (id INTEGER PRIMARY KEY AUTOINCREMENT,deal_id TEXT,pipeline_id TEXT,stage_id TEXT,entered_at TEXT)'),
   env.DB.prepare('CREATE TABLE IF NOT EXISTS wa_stage_group_rules (pipeline_id TEXT NOT NULL, stage_id TEXT NOT NULL, channel_id TEXT NOT NULL, employee_uids TEXT NOT NULL, since_event INTEGER NOT NULL, PRIMARY KEY(pipeline_id,stage_id))'),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS wa_stage_group_jobs (event_id INTEGER PRIMARY KEY,deal_id TEXT NOT NULL,pipeline_id TEXT NOT NULL,stage_id TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',error TEXT,created_at INTEGER NOT NULL)"),
@@ -44,6 +46,7 @@ async function participants(env,deal,uids){
  }
  return people;
 }
+const adminOptionKey=(pipeline,stage)=>JSON.stringify(['stage',pipeline,stage]);
 async function processJob(env,job,rule){
  const deal=await env.DB.prepare('SELECT * FROM deals WHERE id=?').bind(job.deal_id).first();
  if(!deal)throw new Error('Сделка не найдена');
@@ -70,6 +73,9 @@ async function processJob(env,job,rule){
   // Save intent before external POST; an ambiguous response must never repeat it.
   group.name=groupName(people[0].label);
   await env.DB.prepare("UPDATE wa_deal_groups SET status='creating',name=?,created_at=? WHERE deal_id=?").bind(group.name,Date.now(),deal.id).run();
+  const optionId=job.event_id?adminOptionKey(job.pipeline_id,job.stage_id):JSON.stringify(['manual',deal.id]);
+  const adminOption=await env.DB.prepare('SELECT enabled FROM wa_group_admin_options WHERE id=?').bind(optionId).first();
+  if(adminOption?.enabled)await env.DB.prepare('INSERT OR IGNORE INTO wa_group_admin_policy(deal_id) VALUES(?)').bind(deal.id).run();
   const result=await provider(channel,'createGroup',{groupName:group.name,chatIds:people.map(x=>x.chatId)});
   if(!result.created||!/^\d[\d-]*@g\.us$/.test(result.chatId||''))throw new Error('WhatsApp не подтвердил создание. Проверьте группу перед повторной попыткой.');
   group.group_id=result.chatId;group.invite_link=inviteUrl(result.groupInviteLink);
@@ -156,7 +162,7 @@ export async function processStageGroups(env){
    catch(e){await env.DB.prepare("UPDATE wa_stage_group_jobs SET status='error',error=? WHERE event_id=?").bind(e.message,job.event_id).run();}
    break;
   }
- }finally{await env.DB.prepare("UPDATE wa_group_locks SET until_at=0 WHERE id='runner' AND owner=?").bind(owner).run();}
+ }finally{try{await reconcileGroupAdmins(env);}finally{await env.DB.prepare("UPDATE wa_group_locks SET until_at=0 WHERE id='runner' AND owner=?").bind(owner).run();}}
 }
 export async function handleStageGroups(request,env,deps){
  const {json,requireAuthFlexible,resolveCanonicalUser,dealAccessSql}=deps;
@@ -179,6 +185,7 @@ export async function handleStageGroups(request,env,deps){
     const {results:people}=await env.DB.prepare('SELECT label,status,error FROM wa_group_people WHERE deal_id=?').bind(dealId).all();
     const {results:chats}=await env.DB.prepare('SELECT id,chat_id,instance_id,name FROM wa_chats WHERE deal_id=? AND is_group=1 ORDER BY name').bind(dealId).all();
     for(const chat of found.chats)if(!chats.some(c=>c.id===chat.id))chats.push(chat);
+    const adminPolicy=await env.DB.prepare('SELECT status,error FROM wa_group_admin_policy WHERE deal_id=?').bind(dealId).first();
     const manual=await env.DB.prepare('SELECT status,error FROM wa_manual_group_jobs WHERE deal_id=?').bind(dealId).first();
     let options;
     if(url.searchParams.get('options')==='1'){
@@ -198,7 +205,7 @@ export async function handleStageGroups(request,env,deps){
      stageRules.push({stage:stages[rule.stage_id]?.name||rule.stage_id,sort:stages[rule.stage_id]?.sort||0,employees});
     }
     stageRules.sort((a,b)=>a.sort-b.sort);
-    return json({group,jobs:manual?[manual,...jobs]:jobs,people,chats,discovery:found.discovery,options,pipeline:pipeline?{id:pipeline.id,name:pipeline.name}:null,stageRules,admin:me.role==='admin'},200,request);
+    return json({adminPolicy,group,jobs:manual?[manual,...jobs]:jobs,people,chats,discovery:found.discovery,options,pipeline:pipeline?{id:pipeline.id,name:pipeline.name}:null,stageRules,admin:me.role==='admin'},200,request);
    }
    if(request.method!=='POST')return json({error:'Method not allowed'},405,request);
    const body=await request.json(),group=await env.DB.prepare('SELECT * FROM wa_deal_groups WHERE deal_id=?').bind(dealId).first();
@@ -208,7 +215,8 @@ export async function handleStageGroups(request,env,deps){
     if(!await env.DB.prepare('SELECT id FROM wa_channels WHERE id=? AND active=1').bind(body.channel_id||'').first())return json({error:'Выберите активный WhatsApp-номер'},400,request);
     const deal=await env.DB.prepare('SELECT * FROM deals WHERE id=?').bind(dealId).first();
     try{await participants(env,deal,body.employee_uids);}catch(e){return json({error:e.message},400,request);}
-    const inserted=await env.DB.prepare('INSERT OR IGNORE INTO wa_manual_group_jobs(deal_id,channel_id,employee_uids,created_at) VALUES(?,?,?,?)').bind(dealId,body.channel_id,JSON.stringify([...new Set(body.employee_uids)]),Date.now()).run();
+    if(body.all_admins!==undefined&&typeof body.all_admins!=='boolean')return json({error:'Проверьте настройку администраторов'},400,request);
+    const [inserted]=await env.DB.batch([env.DB.prepare('INSERT OR IGNORE INTO wa_manual_group_jobs(deal_id,channel_id,employee_uids,created_at) VALUES(?,?,?,?)').bind(dealId,body.channel_id,JSON.stringify([...new Set(body.employee_uids)]),Date.now()),env.DB.prepare('INSERT OR IGNORE INTO wa_group_admin_options(id,enabled) VALUES(?,?)').bind(JSON.stringify(['manual',dealId]),body.all_admins===true?1:0)]);
     if(!changed(inserted))return json({error:'Запрос на создание уже существует. Проверьте статус группы.'},409,request);
     return json({ok:true,status:'pending'},202,request);
    }
@@ -235,6 +243,7 @@ export async function handleStageGroups(request,env,deps){
    const {results:users}=await env.DB.prepare('SELECT uid,name,last_name,phone FROM users WHERE active=1 ORDER BY name').all();
    const {results:channels}=await env.DB.prepare('SELECT id,display_name,id_instance FROM wa_channels WHERE active=1').all();
    const {results:jobs}=await env.DB.prepare("SELECT j.deal_id,j.status,j.error,d.title FROM wa_stage_group_jobs j JOIN deals d ON d.id=j.deal_id WHERE j.pipeline_id=? AND j.status IN ('error','pending') ORDER BY j.event_id DESC LIMIT 20").bind(pipelineId).all();
+   for(const r of rules){const option=await env.DB.prepare('SELECT enabled FROM wa_group_admin_options WHERE id=?').bind(adminOptionKey(pipelineId,r.stage_id)).first();r.all_admins=!!option?.enabled;}
    return json({pipeline:{...pipeline,stages:parse(pipeline.stages,{})},rules:rules.map(r=>({...r,employee_uids:parse(r.employee_uids,[])})),users,channels,jobs},200,request);
   }
   if(request.method!=='PUT')return json({error:'Method not allowed'},405,request);
@@ -242,6 +251,7 @@ export async function handleStageGroups(request,env,deps){
   if(!Array.isArray(body.rules)||body.rules.length>100)return json({error:'Некорректные правила'},400,request);
   const rules=[],seen=new Set();
   for(const r of body.rules){
+   if(r.all_admins!==undefined&&typeof r.all_admins!=='boolean')return json({error:'Проверьте настройку администраторов'},400,request);
    if(!stages[r.stage_id]||seen.has(r.stage_id)||!Array.isArray(r.employee_uids)||r.employee_uids.length>8)return json({error:'Проверьте этапы и сотрудников (до 8 дополнительных на этап)'},400,request);
    seen.add(r.stage_id);
    if(!await env.DB.prepare('SELECT id FROM wa_channels WHERE id=? AND active=1').bind(r.channel_id||'').first())return json({error:'Выберите активный WhatsApp-номер'},400,request);
@@ -254,8 +264,31 @@ export async function handleStageGroups(request,env,deps){
    env.DB.prepare('DELETE FROM wa_stage_group_rules WHERE pipeline_id=?').bind(pipelineId),
    // Cancel pending work when rules are changed; new transitions use new settings.
    env.DB.prepare("UPDATE wa_stage_group_jobs SET status='cancelled' WHERE pipeline_id=? AND status='pending'").bind(pipelineId),
+   ...rules.map(r=>env.DB.prepare('INSERT OR REPLACE INTO wa_group_admin_options(id,enabled) VALUES(?,?)').bind(adminOptionKey(pipelineId,r.stage_id),r.all_admins===true?1:0)),
    ...rules.map(r=>env.DB.prepare('INSERT INTO wa_stage_group_rules VALUES(?,?,?,?,?)').bind(pipelineId,r.stage_id,r.channel_id,r.employee_uids,max.id))
   ]);
   return json({ok:true},200,request);
  }catch(e){return json({error:e.message||'Ошибка настройки WhatsApp-групп'},500,request);}
+}
+
+// One opted-in group per run, capped work; new invitees are picked up on subsequent checks.
+export async function reconcileGroupAdmins(env){
+ const group=await env.DB.prepare("SELECT g.*,p.checked_at FROM wa_group_admin_policy p JOIN wa_deal_groups g ON g.deal_id=p.deal_id WHERE g.group_id IS NOT NULL AND g.status='active' AND p.checked_at<=? ORDER BY p.checked_at LIMIT 1").bind(Date.now()-60000).first();
+ if(!group)return;
+ try{
+  const channel=await env.DB.prepare('SELECT * FROM wa_channels WHERE id=? AND active=1').bind(group.channel_id).first();
+  if(!channel)throw Error('Рабочий WhatsApp-номер отключён');
+  const data=await provider(channel,'getGroupData',{groupId:group.group_id});
+  if(!Array.isArray(data.participants))throw Error('Не удалось проверить администраторов');
+  const pending=data.participants.filter(p=>!p.isAdmin&&!p.isSuperAdmin);
+  const issues=[];
+  for(const person of pending.slice(0,10)){
+   const id=person.id||person.chatId||person.phoneNumber||person.lid;
+   if(!id){issues.push('Не получен ID участника');continue;}
+   try{const result=await provider(channel,'setGroupAdmin',{groupId:group.group_id,participantChatId:id});
+    if(result.setGroupAdmin!==true){const check=await provider(channel,'getGroupData',{groupId:group.group_id});if(!check.participants?.some(p=>(p.id===id||p.chatId===id||p.phoneNumber===id||p.lid===id)&&(p.isAdmin||p.isSuperAdmin)))throw Error('WhatsApp не подтвердил назначение');}
+   }catch(e){issues.push(e.message);}
+  }
+  await env.DB.prepare('UPDATE wa_group_admin_policy SET checked_at=?,status=?,error=? WHERE deal_id=?').bind(Date.now(),issues.length?'error':pending.length>10?'pending':'active',issues.length?issues.join('; ').slice(0,1000):null,group.deal_id).run();
+ }catch(e){await env.DB.prepare("UPDATE wa_group_admin_policy SET checked_at=?,status='error',error=? WHERE deal_id=?").bind(Date.now(),e.message,group.deal_id).run();}
 }
