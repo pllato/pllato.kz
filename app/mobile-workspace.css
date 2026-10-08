@@ -54,3 +54,23 @@
  .pp-entry-right{flex-wrap:wrap}.pp-entry-right button{min-height:40px}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto} .tool-card,.ptab{transition:none}}
+/* Keep neighbouring metrics discoverable in fullscreen, with a persistent phone preview. */
+.fc-chart-navigation{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr) minmax(0,1fr);gap:8px;flex:none;align-items:center}
+.fc-chart-navigation select{grid-column:2;grid-row:1;min-width:0;width:100%;min-height:44px;border:1px solid var(--line-2);background:var(--surface);color:var(--text);border-radius:8px;padding:8px;font:600 14px var(--sans)}
+.fc-chart-navigation button{grid-row:1;min-height:44px;min-width:0;border:1px solid var(--line-2);border-radius:8px;padding:7px 10px;background:var(--surface);color:var(--text-2);font:600 12px var(--sans);text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fc-chart-navigation button:first-of-type{grid-column:1}.fc-chart-navigation button:last-child{grid-column:3;text-align:right}
+.fc-chart-navigation button:disabled{opacity:.4;cursor:default}
+.fc-mini-chart{display:none}
+@media(max-width:600px){
+ .fc-fullscreen .fc-card{gap:7px}
+ .fc-fullscreen .fc-card-title{font-size:15px;line-height:1.3}.fc-fullscreen .fc-card-sub{display:none}
+ .fc-chart-navigation{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px}
+ .fc-chart-navigation select{grid-column:1/-1;grid-row:1;font-size:14px!important;min-height:38px}
+ .fc-chart-navigation button{grid-row:2;min-height:36px;font-size:11px;padding:6px}
+ .fc-chart-navigation button:last-child{grid-column:2}
+ .fc-mini-chart{display:block;flex:none;width:100%;min-height:0;padding:6px 10px;border:1px solid var(--line-2);border-radius:9px;background:var(--surface);color:var(--text-2);text-align:left;cursor:pointer}
+ .fc-mini-caption{display:flex;justify-content:space-between;gap:8px;font:600 11px var(--sans);margin-bottom:4px}.fc-mini-caption>span{color:var(--bronze-deep)}
+ .fc-mini-chart svg{display:block;width:100%;height:clamp(56px,10dvh,90px);overflow:visible}
+ .fc-mini-chart[data-expanded=true]{display:none}
+ .fc-mobile-nav{padding:3px}.fc-mobile-nav button{min-height:40px}
+}
