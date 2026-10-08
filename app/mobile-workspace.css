@@ -1,0 +1,56 @@
+/* Mobile workspace: one focused pane, full-size touch controls. */
+.fc-mobile-nav{display:none}
+@media(max-width:600px){
+ body{padding:12px 12px calc(24px + env(safe-area-inset-bottom))}
+ .top-bar{flex-wrap:wrap;gap:12px}.user-block{gap:8px;flex-wrap:wrap}.user-info{max-width:150px;overflow-wrap:anywhere}
+ .welcome{margin-bottom:20px}.welcome h1{font-size:25px}
+ .tools-grid{grid-template-columns:minmax(0,1fr)}
+ .tool-card{padding:18px;min-width:0}.tool-card h3{font-size:19px;line-height:1.35}.tool-card p{font-size:14px}
+ .project-tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;padding-bottom:6px}.ptab{flex-shrink:0;min-height:44px}
+ .fav-star{width:44px;height:44px;opacity:1}.tool-icon{margin-right:34px}
+ .project-search-wrap input,.date-filter-toggle,.btn-admin,.btn-logout,.lnk-btn,.tile-access-btn,.project-payouts-button{min-height:44px}
+ input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px!important;max-width:100%;box-sizing:border-box}
+ .fc-head{flex-wrap:wrap;gap:10px}
+ .fc-grid.fc-aligned-grid{grid-auto-columns:calc(100% - 18px);column-gap:12px;scroll-snap-type:x mandatory}
+ .fc-card{min-width:0;padding:14px;scroll-snap-align:start}.fc-card-title{font-size:17px}.fc-card-sub{font-size:12px}
+ .fc-card-head{gap:8px}.fc-card-actions{gap:6px}.fc-access{min-height:44px;padding:8px;font-size:12px}
+ .fc-legend{gap:10px;font-size:12px}.fc-week-tasks-list{max-height:300px}
+ .fc-week-tasks-head strong{font-size:14px}.fc-week-tasks-head .period,.fc-week-tasks-head .plan{font-size:12px}
+ .fc-week-tasks-head button{min-height:44px;font-size:12px}
+ .fc-week-task,.fc-week-task.with-amount{grid-template-columns:24px minmax(0,1fr) auto;gap:4px 8px;padding:10px 0;align-items:start}
+ .fc-week-task input{width:22px;height:22px;grid-row:1/3;margin-top:2px}
+ .fc-week-task .text{grid-column:2;grid-row:1/3;font-size:13px;white-space:normal;overflow-wrap:anywhere}
+ .fc-week-task-title{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+ .fc-week-task .amount{grid-column:3;grid-row:1;font-size:12px}
+ .fc-week-task-actions{grid-column:3;grid-row:2;flex-wrap:wrap;max-width:104px}
+ .fc-week-task-actions button{min-width:40px;min-height:40px}.fc-week-task-actions .auto-badge{font-size:9px}
+ .fc-fullscreen{padding:calc(10px + env(safe-area-inset-top)) 12px calc(10px + env(safe-area-inset-bottom));overflow:hidden}
+ .fc-fullscreen .fc-card{gap:10px;min-height:0;display:flex;flex-direction:column}
+ .fc-fullscreen .fc-card-head{flex:none;align-items:flex-start}.fc-fullscreen .fc-card-title{font-size:18px}
+ .fc-fullscreen .fc-card-sub{font-size:11px}.fc-fullscreen .fc-close{min-height:44px;padding:8px;white-space:nowrap}
+ .fc-mobile-nav{display:flex;flex:none;gap:4px;background:var(--surface-2);padding:4px;border-radius:10px}
+ .fc-mobile-nav button{flex:1;min-width:0;min-height:44px;border:0;background:transparent;color:var(--text-2);font:600 13px var(--sans);border-radius:7px}
+ .fc-mobile-nav button[aria-pressed=true]{background:var(--navy);color:white}
+ .fc-fullscreen-workspace{display:block;overflow:hidden;min-height:0}
+ .fc-fullscreen .fc-fullscreen-workspace>.fc-week-tasks{display:none;padding:0 10px 12px;height:100%;overflow-y:auto}
+ .fc-fullscreen-workspace>.fc-fullscreen-chart{display:none;height:100%;overflow-y:auto;padding:4px 0 12px;box-sizing:border-box}
+ .fc-fullscreen-workspace[data-mobile-view=current]>[data-week-view=current],
+ .fc-fullscreen-workspace[data-mobile-view=next]>[data-week-view=next]{display:block}
+ .fc-fullscreen-workspace[data-mobile-view=chart]>.fc-fullscreen-chart{display:flex}
+ .fc-fullscreen-workspace .fc-week-tasks-head{gap:6px;padding-top:10px}.fc-fullscreen-workspace .fc-week-tasks-head button{min-height:40px}
+ .fc-fullscreen-workspace .fc-week-task input{width:22px;height:22px}.fc-fullscreen-workspace .fc-week-task{grid-template-columns:24px minmax(0,1fr) auto;padding:9px 0}
+ .fc-fullscreen-workspace .fc-week-task .text{font-size:13px}.fc-fullscreen-workspace .fc-week-task .text small{font-size:11px!important}
+ .fc-fullscreen-workspace .fc-week-task .fc-week-task-actions button{min-width:40px;min-height:40px}
+ .fc-fullscreen-chart .fc-plot{flex:none}.fc-fullscreen .fc-labels span{font-size:11px}
+ .money-ovl{padding:10px!important;align-items:center}
+ .money-modal{max-height:calc(100dvh - 20px);display:flex;flex-direction:column}
+ .money-modal .mm-h,.money-modal .mm-f{flex:none;padding:12px}.money-modal .mm-b{padding:12px;overflow-y:auto;min-height:0}
+ .mm-x{min-width:40px;min-height:40px;display:grid;place-items:center}.mm-f button{min-height:44px}
+ .mm-grid{gap:6px}.mm-grid .c{padding:8px}.mm-grid .c .v{font-size:13px}
+ .mm-plan-row{grid-template-columns:minmax(0,1fr) auto}.mm-plan-row input{grid-column:1/-1;width:100%}
+ .fc-week-task-fields{grid-template-columns:1fr}.fc-week-history-toolbar{flex-wrap:wrap}
+ .admin-overlay{padding:8px}.admin-modal{max-width:100%;box-sizing:border-box}
+ .project-payout-dialog{max-height:calc(100dvh - 16px)}.project-payout-dialog button{min-height:44px}
+ .pp-entry-right{flex-wrap:wrap}.pp-entry-right button{min-height:40px}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto} .tool-card,.ptab{transition:none}}
