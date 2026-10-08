@@ -1,4 +1,4 @@
-import {num,spline,set,scene} from './cad.mjs?v=0.17.78';
+import {num,spline,set,scene} from './cad.mjs?v=0.17.89';
 export function entityControls(record,matrix=[1,0,0,1,0,0]){
  if(record?.type==='SPLINE')return splineControls(record,matrix);
  if(!['LINE','LWPOLYLINE'].includes(record?.type)||num(record,210)||num(record,220)||num(record,230,1)!==1)return [];

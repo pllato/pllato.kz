@@ -1,4 +1,4 @@
-import {get} from './cad.mjs?v=0.17.78';
+import {get} from './cad.mjs?v=0.17.89';
 
 // INSERT and attached ATTRIBs form one selection unit, never separate roots.
 export function selectExecutiveRoots(doc,shapes,area){
@@ -13,7 +13,9 @@ export function selectExecutiveRoots(doc,shapes,area){
    if(parent?.type==='INSERT')root=parent;
   }
   const b=bounds.get(root.id)||[Infinity,Infinity,-Infinity,-Infinity];
-  for(const [x,y] of shape.pts){b[0]=Math.min(b[0],x);b[1]=Math.min(b[1],y);b[2]=Math.max(b[2],x);b[3]=Math.max(b[3],y);}
+  const geometry=shape.geometryBounds||(shape.text===null?shape.bounds:null);
+  if(geometry){b[0]=Math.min(b[0],geometry[0]);b[1]=Math.min(b[1],geometry[1]);b[2]=Math.max(b[2],geometry[2]);b[3]=Math.max(b[3],geometry[3]);}
+  else for(const [x,y] of shape.pts){b[0]=Math.min(b[0],x);b[1]=Math.min(b[1],y);b[2]=Math.max(b[2],x);b[3]=Math.max(b[3],y);}
   bounds.set(root.id,b);
  }
  return doc.entities.filter(r=>{

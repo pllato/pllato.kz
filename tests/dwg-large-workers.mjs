@@ -1,0 +1,31 @@
+// Optional private fixture: bounded worker lifetimes, full base geometry, 503 roots,
+// native creation, interleaved painter order, full export, reopen and LINE edit.
+import fs from 'node:fs';import {Worker} from 'node:worker_threads';import {createHash} from 'node:crypto';import assert from 'node:assert/strict';
+import {nativeTransferReceiver} from '../app/stroy/dwg/native-transfer.mjs';
+import {sceneAsync,get} from '../app/stroy/dwg/cad.mjs';
+import {reusableScene,mergeReusedScene} from '../app/stroy/dwg/scene-reuse.mjs';
+import {createExecutiveProject,createExecutive} from '../app/stroy/dwg/executive-project.mjs';
+import {executivePlacement} from '../app/stroy/dwg/executive-placement.mjs';
+const sourcePath=process.argv[2],dir=process.argv[3];if(!sourcePath||!dir)throw Error('Usage: node --expose-gc tests/dwg-large-workers.mjs private-input.dwg private-output-directory');fs.mkdirSync(dir,{recursive:true});
+const hash=b=>createHash('sha256').update(b).digest('hex'),originalHash=hash(fs.readFileSync(sourcePath));
+const mb=()=>Object.fromEntries(Object.entries(process.memoryUsage()).map(([k,v])=>[k,Math.round(v/1048576)]));
+async function run(module,data,previous=null){const worker=new Worker(new URL('./dwg-worker-host.mjs',import.meta.url),{workerData:{module:new URL('../app/stroy/dwg/'+module,import.meta.url).href}});const receiver=nativeTransferReceiver(worker,()=>{},previous);return new Promise((resolve,reject)=>{worker.on('error',reject);worker.on('message',async m=>{try{if(m.ready)return worker.postMessage(data,[data.buffer]);if(m.progress){if(process.env.DWG_LARGE_PROGRESS)console.log(module,m.progress,mb());return;}if(m.error)throw Error(m.error);const r=receiver(m);if(r){await worker.terminate();resolve(r);}}catch(e){await worker.terminate();reject(e);}});});}
+const source=fs.readFileSync(sourcePath);let current=source.buffer.slice(source.byteOffset,source.byteOffset+source.byteLength);
+let {doc}=await run('native-reader.mjs',{buffer:current,compact:true});assert.ok(!doc.executiveProject?.sheets.length,'Use an original without executive metadata');const originalRoots=new Set(doc.exportRootHandles);let drawing=await sceneAsync(doc);globalThis.gc?.();console.log('INITIAL',doc.records.length,drawing.shapes.length,mb());
+const roots=new Map(doc.entities.map(r=>[r.id,r])),counts=new Map();for(const s of drawing.shapes)counts.set(s.id,(counts.get(s.id)||0)+1);
+const candidates=[...counts].filter(([id])=>roots.get(id)?.type==='INSERT').sort((a,b)=>b[1]-a[1]);console.log('Largest display root',candidates[0]?.[1]||0,'primitives');
+const chosen=candidates.slice(0,3).map(([id])=>id).concat(doc.entities.filter(r=>r.type==='LINE').slice(0,500).map(r=>r.id));assert.ok(chosen.length);const handles=chosen.map(id=>get(roots.get(id),5)),{origin,centre,position,unit}=executivePlacement(drawing.shapes,chosen);
+let project=createExecutiveProject();createExecutive(project,{id:'tablet-check',title:'Проверка планшета',origin,planCentre:position,metresPerUnit:.001,paperUnit:unit});
+current=fs.readFileSync(sourcePath);current=current.buffer.slice(current.byteOffset,current.byteOffset+current.byteLength);
+const saved=await run('executive-worker.mjs',{buffer:current,ops:[],added:[],project,cloneRequest:{sheetId:'tablet-check',handles,centre,position}});
+fs.writeFileSync(dir+'/created.dwg',new Uint8Array(saved.buffer),{flag:'wx'});
+const reread=await run('native-reader.mjs',{buffer:saved.buffer,compact:true,returnBuffer:true},doc);assert.equal(reread.doc.executiveProject.sheets.length,1);
+const reuse=reusableScene(doc,reread.doc,drawing);assert.ok(reuse,'Unchanged source plan must be reused');const delta=await sceneAsync(reuse.doc);drawing=mergeReusedScene(reuse,delta);doc=reread.doc;globalThis.gc?.();console.log('CREATED',doc.records.length,drawing.shapes.length,'delta',delta.shapes.length,mb());
+current=fs.readFileSync(dir+'/created.dwg');current=current.buffer.slice(current.byteOffset,current.byteOffset+current.byteLength);
+const exported=await run('executive-worker.mjs',{buffer:current,ops:[],added:[],project:doc.executiveProject,separateFull:true});fs.writeFileSync(dir+'/whole.dwg',new Uint8Array(exported.buffer),{flag:'wx'});
+const reopened=await run('native-reader.mjs',{buffer:exported.buffer,compact:true},doc);assert.equal(reopened.doc.executiveProject.sheets.length,1);assert.ok(reopened.doc.executiveProject.sheets[0].nativeSeparated);const expectedRoots=new Set([...originalRoots,...exported.project.generatedHandles,...exported.project.sheets.flatMap(s=>s.nativeHandles)]);assert.deepEqual(new Set(reopened.doc.exportRootHandles),expectedRoots,'Whole DWG root inventory changed');assert.equal(hash(fs.readFileSync(sourcePath)),originalHash);console.log('PASS source unchanged, creation, full DWG save/reopen, separate objects',mb());
+
+const copied=new Set(reopened.doc.executiveProject.sheets[0].nativeHandles),line=reopened.doc.records.find(r=>r.type==='LINE'&&copied.has(get(r,5)));assert.ok(line);const handle=get(line,5),x=Number(get(line,10)),y=Number(get(line,20));
+current=fs.readFileSync(dir+'/whole.dwg');current=current.buffer.slice(current.byteOffset,current.byteOffset+current.byteLength);
+const edited=await run('executive-worker.mjs',{buffer:current,ops:[{handle,dx:1,dy:2,color:3}],added:[],project:reopened.doc.executiveProject,separateFull:true});fs.writeFileSync(dir+'/edited.dwg',new Uint8Array(edited.buffer),{flag:'wx'});
+const checked=await run('native-reader.mjs',{buffer:edited.buffer,compact:true},reopened.doc);const r=checked.doc.records.find(r=>get(r,5)===handle);assert.ok(r);assert.ok(Math.abs(Number(get(r,10))-x-1)<1e-7);assert.ok(Math.abs(Number(get(r,20))-y-2)<1e-7);assert.equal(get(r,62),'3');assert.equal(hash(fs.readFileSync(sourcePath)),originalHash);console.log('PASS independent LINE edit, color, save/reopen, original SHA256 unchanged');

@@ -32,7 +32,7 @@ test('a changed nested block invalidates reuse',()=>{
  const old=fixture();old.blocks.set('device',{base:[0,0],flags:0,records:[{id:'dwg-b',type:'LINE',pairs:[[10,'0'],[11,'1']]}]});
  const next={...old,blocks:structuredClone(old.blocks)};next.blocks.get('device').records[0].pairs[1][1]='5';assert.equal(reusableScene(old,next,scene(old)),null);
 });
-test('reordered or interleaved entities cannot reuse painter order',()=>{
+test('reordered sources are rejected; new interleaved roots retain native painter order',()=>{
  const old=fixture(),before=scene(old),next=copy(old);next.entities.reverse();assert.equal(reusableScene(old,next,before),null);
- const interleaved=copy(old);interleaved.entities.splice(1,0,{id:'dwg-new',type:'LINE',pairs:[[10,'0'],[11,'9']]});assert.equal(reusableScene(old,interleaved,before),null);
+ const interleaved=copy(old);interleaved.entities.splice(1,0,{id:'dwg-new',type:'LINE',pairs:[[10,'0'],[11,'9']]});const reuse=reusableScene(old,interleaved,before);assert.ok(reuse);const actual=mergeReusedScene(reuse,scene(reuse.doc));assert.deepEqual(actual,scene(interleaved));assert.equal(actual.shapes[0],before.shapes[0]);assert.equal(actual.shapes[2],before.shapes[1]);
 });

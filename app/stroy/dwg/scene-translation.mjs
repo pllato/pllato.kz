@@ -1,12 +1,12 @@
 // Pure translation only: CAD records are still edited by object-edit and saved
-import {get} from './cad.mjs?v=0.17.78';
+import {get} from './cad.mjs?v=0.17.89';
 export function translatedDeviceScene(doc,drawing,targets,delta,recordById=id=>doc.records.find(r=>r.id===id)){
  if(drawing.limited||!targets.length||delta.length!==2||!delta.every(Number.isFinite))return null;
  const wanted=new Map(),owners=new Map(),attributes=new Map();
  for(const t of targets){const r=recordById(t.id),block=r?.type==='INSERT'&&doc.blocks.get(get(r,2));if(!block||block.records.some(r=>r.type==='INSERT'))return null;wanted.set(t.id,t);owners.set(get(r,5),t);}
  for(const r of doc.records)if(r.type==='ATTRIB'&&owners.has(get(r,330)))attributes.set(r.id,owners.get(get(r,330)));
  const shifted=m=>[...m.slice(0,4),m[4]+delta[0],m[5]+delta[1]],seen=new Set();let valid=true;
- const shapes=drawing.shapes.map(s=>{const attribute=attributes.get(s.entityId||s.id),t=attribute||wanted.get(s.deviceId);if(!t)return s;const parent=t.matrix||[1,0,0,1,0,0],matrix=attribute?s.entityMatrix:s.deviceMatrix;if(!matrix||parent.some((v,i)=>v!==matrix[i])||!s.entityMatrix){valid=false;return s;}seen.add(t.id);const entityMatrix=attribute?s.entityMatrix:shifted(s.entityMatrix);return {...s,entityMatrix,entityKey:s.id+'|'+s.entityId+'|'+entityMatrix.join(','),pts:s.pts.map(p=>[p[0]+delta[0],p[1]+delta[1]]),bounds:s.bounds.map((v,i)=>v+delta[i%2]),...(s.matrix?{matrix:shifted(s.matrix)}:{})};});
+ const shapes=drawing.shapes.map(s=>{const attribute=attributes.get(s.entityId||s.id),t=attribute||wanted.get(s.deviceId);if(!t)return s;const parent=t.matrix||[1,0,0,1,0,0],matrix=attribute?s.entityMatrix:s.deviceMatrix;if(!matrix||parent.some((v,i)=>v!==matrix[i])||!s.entityMatrix){valid=false;return s;}seen.add(t.id);const entityMatrix=attribute?s.entityMatrix:shifted(s.entityMatrix);return {...s,entityMatrix,entityKey:s.id+'|'+s.entityId+'|'+entityMatrix.join(','),pts:s.pts.map(p=>[p[0]+delta[0],p[1]+delta[1]]),bounds:s.bounds.map((v,i)=>v+delta[i%2]),...(s.geometryBounds?{geometryBounds:s.geometryBounds.map((v,i)=>v+delta[i%2])}:{}),...(s.matrix?{matrix:shifted(s.matrix)}:{})};});
  return valid&&seen.size===wanted.size?{...drawing,shapes}:null;
 }
 // by the native writer. Reuse unaffected display geometry, never approximate it.

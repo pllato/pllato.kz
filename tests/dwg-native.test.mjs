@@ -28,3 +28,16 @@ test('attribute geometry uses nested text and is not duplicated',()=>{
 test('overflowing movement is rejected before any coordinate changes',()=>{
  const r={type:'LINE',pairs:[[10,'1'],[20,'2'],[11,'1e308'],[21,'4']]};assert.throws(()=>move(r,1e308,0));assert.equal(num(r,10),1);
 });
+test('disposable database consumption preserves blocks, painter order and shared attributes',()=>{
+ const attr={type:'ATTRIB',handle:'2',text:{text:'Номер',startPoint:{x:10,y:20},textHeight:3}};
+ const insert={type:'INSERT',handle:'1',name:'B',recoveredBlockRecordId:'B1',insertionPoint:{x:0,y:0},attribs:[attr]};
+ const line={type:'LINE',handle:'3',startPoint:{x:1,y:2},endPoint:{x:3,y:4}};
+ const paper={type:'LINE',handle:'4',isInPaperSpace:true};
+ const db=database([insert,attr,line,paper]);
+ db.tables.BLOCK_RECORD.entries=[{name:'*Model_Space',handle:'M',entities:[insert,line]},{name:'*Paper_Space',handle:'P',entities:[paper]},{name:'B',handle:'B1',entities:[{...line,handle:'5'}]}];
+ const expected=nativeDocument(structuredClone(db));
+ const actual=nativeDocument(db,true,{consume:true});
+ assert.deepEqual(actual,expected);assert.equal(actual.recoveredBlocks,1);
+ assert.equal(db.entities.length,0);assert.ok(db.tables.BLOCK_RECORD.entries.every(b=>b.entities.length===0));
+ assert.deepEqual(scene(actual),scene(expected));
+});

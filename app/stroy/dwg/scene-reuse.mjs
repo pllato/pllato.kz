@@ -1,3 +1,4 @@
+import {pairsOf} from './compact-record.mjs?v=0.17.89';
 // Reuse a verified, unchanged base plan after native executive creation.
 // Any changed source record, block definition or display table falls back to
 // a complete build. This does not replace native save/read-back validation.
@@ -11,18 +12,18 @@ function equal(a,b){
 }
 // VERTEX/SEQEND and MULTILEADER display parts have adapter-local serial IDs;
 // inserting a STYLE can renumber them without changing any CAD geometry.
-function sameRecord(a,b){return a===b||!!b&&(a.id===b.id||a.id.startsWith('native-')&&b.id.startsWith('native-'))&&a.type===b.type&&equal(a.pairs,b.pairs)&&((!a.parts&&!b.parts)||a.parts?.length===b.parts?.length&&a.parts.every((r,i)=>sameRecord(r,b.parts[i])))&&equal(a.hatch,b.hatch);}
+function sameRecord(a,b){return a===b||!!b&&(a.id===b.id||a.id.startsWith('native-')&&b.id.startsWith('native-'))&&a.type===b.type&&(a._encoded!==undefined&&a._encoded===b._encoded||equal(pairsOf(a),pairsOf(b)))&&((!a.parts&&!b.parts)||a.parts?.length===b.parts?.length&&a.parts.every((r,i)=>sameRecord(r,b.parts[i])))&&equal(a.hatch,b.hatch);}
 export function reusableScene(previous,next,drawing){
  if(!previous.native||!next.native||!drawing||drawing.limited)return null;
  for(const field of ['layers','textStyles']){
   for(const [name,value] of previous[field]){
-   if(field==='textStyles'&&name.startsWith('PLLATO_DISPLAY_')&&!previous.records.some(r=>!r.id.startsWith('executive-')&&r.pairs.some(([c,v])=>c===7&&v===name)))continue;
+   if(field==='textStyles'&&name.startsWith('PLLATO_DISPLAY_')&&!previous.records.some(r=>!r.id.startsWith('executive-')&&pairsOf(r).some(([c,v])=>c===7&&v===name)))continue;
    if(!next[field].has(name)||!equal(value,next[field].get(name)))return null;
   }
   const added=new Set([...next[field].keys()].filter(name=>!previous[field].has(name)));
   // A new decoration style/layer is harmless unless an existing record used
   // that formerly undefined name (which would change its resolved appearance).
-  if(added.size){const code=field==='layers'?8:7;for(const r of previous.records)for(const [c,value] of r.pairs)if(c===code&&added.has(value))return null;}
+  if(added.size){const code=field==='layers'?8:7;for(const r of previous.records)for(const [c,value] of pairsOf(r))if(c===code&&added.has(value))return null;}
  }
  // New independent block definitions are allowed; existing ones must match.
  for(const [name,block] of previous.blocks){const target=next.blocks.get(name);
@@ -40,14 +41,19 @@ export function reusableScene(previous,next,drawing){
    if(previous.entities[i+1]?.type==='SEQEND'){if(!sameRecord(previous.entities[++i],next.entities[j]))return null;consumed.add(j);}
   }
  }
- // Reusing the base and appending a delta must preserve native painter order.
- for(let i=0;i<lastTarget;i++)if(!consumed.has(i))return null;
+ // Native enumeration can insert new roots between unchanged source roots.
+ // Preserve that painter order explicitly instead of expanding the whole base.
+ let interleaved=false;for(let i=0;i<lastTarget;i++)if(!consumed.has(i)){interleaved=true;break;}
  const base=[],removed=new Set();for(const shape of drawing.shapes)if(retained.has(shape.id))base.push(shape);else removed.add(shape);
- return {previous:drawing.shapes,removed,base,doc:{...next,entities:next.entities.filter((r,i)=>!consumed.has(i))},unsupported:drawing.unsupported};
+ return {previous:drawing.shapes,removed,base,doc:{...next,entities:next.entities.filter((r,i)=>!consumed.has(i))},unsupported:drawing.unsupported,order:interleaved?next.entities.map(r=>r.id):null};
 }
 export function mergeReusedScene(reuse,added){
  const unsupported=new Map(reuse.unsupported);
  for(const [type,count] of added.unsupported)unsupported.set(type,(unsupported.get(type)||0)+count);
- const shapes=reuse.base.concat(added.shapes);deriveSpatialIndex(reuse.previous,shapes,reuse.removed,added.shapes);
+ let shapes;
+ if(reuse.order){const groups=new Map();for(const shape of reuse.base.concat(added.shapes)){const list=groups.get(shape.id);if(list)list.push(shape);else groups.set(shape.id,[shape]);}
+  shapes=[];for(const id of reuse.order){const group=groups.get(id);if(group){for(const shape of group)shapes.push(shape);groups.delete(id);}}
+  if(groups.size)throw Error('Нарушен порядок геометрии DWG');
+ }else{shapes=reuse.base.concat(added.shapes);deriveSpatialIndex(reuse.previous,shapes,reuse.removed,added.shapes);}
  return {shapes,unsupported:[...unsupported],limited:added.limited};
 }
