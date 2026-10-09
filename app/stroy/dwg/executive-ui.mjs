@@ -1,3 +1,4 @@
+import {previewRecords} from './executive-preview.mjs?v=0.17.96';
 import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.90';
 import * as projectAPI from './executive-project.mjs?v=0.17.78';
 import {routeLength} from './cable-ledger.mjs?v=0.17.78';
@@ -15,6 +16,8 @@ export function mountExecutiveUI(api){
  const advanced=document.createElement('div');advanced.innerHTML=`<label>Отдельная выноска<select id="exLeaderList"></select></label><button id="exMoveLeader">Сдвинуть подпись · X/Y выше</button><button id="exDeleteLeader">Удалить выбранную выноску</button><label>Известная длина, м<input id="exKnownMetres" type="number" min="0" step="any" value="1"></label><button id="exCalibrate">Калибровать · 2 точки</button>`;panel.append(advanced);
  const $=id=>document.getElementById(id);
  const showSheet=document.createElement('button');showSheet.id='exShow';showSheet.textContent='Показать исполнительную';$('exSheet').parentElement.after(showSheet);
+ const materialize=document.createElement('button');materialize.id='exMaterialize';materialize.textContent='Редактировать CAD-объекты плана';showSheet.after(materialize);
+ materialize.onclick=async()=>{if(api.busy()||acting)return;acting=true;try{await api.commit(structuredClone(project()));}finally{acting=false;}};
  const operationError=document.createElement('p');operationError.id='exError';operationError.setAttribute('role','alert');operationError.hidden=true;operationError.style.cssText='color:#ffc38a;overflow-wrap:anywhere';document.querySelector('nav').after(operationError);
  for(const [key,label] of Object.entries(stampLabels)){const l=document.createElement('label');l.textContent=label;const i=document.createElement('input');i.id='exStamp_'+key;i.maxLength=1000;l.append(i);$('exStamp').append(l);}
  let active='',chosen=[],area=null,points=[],mode='',routeId='',selectionSource=null,hoverPoint=null,waitingForUnits=false;
@@ -27,7 +30,7 @@ export function mountExecutiveUI(api){
  function refresh(){
   if(selectionSource&&selectionSource!==api.getDoc().sourceFile){chosen=[];area=null;points=[];mode='';selectionSource=null;$('exCreate').disabled=true;operationError.hidden=true;$('exAreaInfo').textContent='Выделите план в текущем DWG.';}
   const p=project(),s=p.sheets.find(s=>s.id===active)||p.sheets[0];active=s?.id||'';
-  $('exSheet').replaceChildren(...p.sheets.map(s=>new Option(s.title||s.id,s.id)));$('exSheet').value=active;$('exSheet').disabled=!s;showSheet.disabled=!s;
+  $('exSheet').replaceChildren(...p.sheets.map(s=>new Option(s.title||s.id,s.id)));$('exSheet').value=active;$('exSheet').disabled=!s;showSheet.disabled=!s;materialize.hidden=!s?.sourcePlan;
   $('exTitle').value=s?.title||'';$('exAngle').value=((s?.angle||0)*180/Math.PI).toFixed(3);
   for(const [key,value]of Object.entries(s?.titleStyle||{x:210,y:275,height:5})){const input=$('title_'+key);if(input&&document.activeElement!==input)input.value=value;}
   for(const key of Object.keys(stampLabels))$('exStamp_'+key).value=s?.stamp[key]||'';
@@ -53,6 +56,7 @@ export function mountExecutiveUI(api){
    else pairs=[[90,item.points.length/2],[70,item.closed?1:0],...item.points.flatMap((n,j)=>[[j%2?20:10,n]])];
    if(item.align)pairs.push([72,item.align],[11,item.values[0]],[21,item.values[1]]);if(item.color)pairs.push([62,item.color]);if(item.rgb!==undefined)pairs.push([420,item.rgb]);if(item.lineweight!==undefined)pairs.push([370,item.lineweight]);const r=addEntity(mini,item.type,pairs);r.id='executive-'+i++;if(item.routeId)r.routeId=item.routeId;
   }
+  const preview=previewRecords(doc,p);mini.entities.push(...preview);
   const entities=doc.entities.filter(keep);
   doc.records=[...records,...mini.entities];doc.entities=[...entities,...mini.entities];decorationCache={doc,records:doc.records,entities:doc.entities,signature};refresh();return true;
  }

@@ -1,3 +1,31 @@
+# 0.17.96 — deferred executive plans and export regressions
+
+Creating an executive stores validated source handles and a centre/placement in
+project metadata. Preview blocks reference existing source records instead of
+cloning a complete native graph for each gesture. Undo and recovery retain this
+sourcePlan. PDF includes each preview only on its own sheet. CAD geometry of the
+preview is read-only until “Редактировать CAD-объекты плана” materializes it using
+the existing guarded native worker. Full DWG download materializes every pending
+plan, separates sheet objects, validates and reads back the new copy. Failure
+retains the visible working sheets; it never supplies an unchecked DWG.
+
+Bounded osnap envelopes accept a nonzero sibling reference only when it resolves
+to the same exact class under the same association owner, with exact decoded/raw
+reference agreement. ELLIPSE centre, axis and normal and inclined LINE endpoints
+use rigid WCS transforms; ellipse ratio and arc parameters remain unchanged.
+Previous ready-file links are released when a new operation begins.
+
+Verified private fixtures: five pending plans exported together; independent
+LINE edit/save/reopen; second ellipse-rich fixture create/export/edit/reopen.
+AutoCAD 2027 isolated console on both outputs: AUDIT No zero errors, SAVEAS new
+DWG2018 copy, reopen and AUDIT No zero errors. Original hashes unchanged.
+231 unit tests; 639 exact ellipse transforms including invalid-ratio refusal.
+Browser regressions use only generated synthetic DWG, isolated localhost tabs,
+multiple viewport sizes, repeated creation, PDF, simulated worker refusal,
+retained sheets, removal of stale output, undo and actual full DWG download.
+Physical Android/iOS device memory limits are not established by emulation.
+PDF test loads a local Times font as required by the existing PDF workflow.
+
 # 0.17.95 — complete association envelopes and database registry boundaries
 
 Reproduced the exact ACDBASSOCROTATEDDIMACTIONBODY refusal on the private fixture.

@@ -327,3 +327,12 @@ universal repair operation and does not fix pre-existing AutoCAD AUDIT errors.
 
 Regression: `tests/native/source-preservation-regression.c` exercises changed
 record growth, retention, readback, source immutability and CRC rejection.
+
+## 0.17.96 regression additions
+
+Build the executive source with the same DEBUG_CLASSES configuration and patched
+library objects. OSNAP sibling envelopes preserve bounded raw payload and remap
+all references; no generic class/owner/stream guard is bypassed. The standalone
+ellipse-transform-regression.c checks exact WCS rotation/translation, unchanged
+Z, ratio and arc parameters, and invalid ratio rejection on a supplied fixture.
+Browser pending-plan tests use generated training data, never customer drawings.

@@ -1,8 +1,8 @@
-import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.95';
+import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.96';
 import {requireWritableVersion} from './dwg-version.mjs?v=0.17.85';
 import {writeAdditions} from './authoring.mjs?v=0.17.90';
 import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.90';
-import {validateExecutiveProject} from './executive-metadata.mjs?v=0.17.85';
+import {validateExecutiveProject} from './executive-metadata.mjs?v=0.17.96';
 import {executiveEntities} from './executive-project.mjs?v=0.17.85';
 self.onmessage=async({data})=>{
  let m,diagnostic='';
@@ -12,7 +12,7 @@ self.onmessage=async({data})=>{
   if(!(buffer instanceof ArrayBuffer)||!Array.isArray(ops)||ops.length>100000)throw Error('Неверный пакет изменений');
   requireWritableVersion(buffer);
   self.postMessage({progress:'Готовлю DWG исполнительных…',percent:5});
-  m=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.95',import.meta.url).href,print:()=>{},printErr:s=>{if(/^(CLONE_REJECT|MOVE_REJECT|REMOVE_|ROOT_REJECT|SAVE_REJECT|EXPORT_REJECT|EXPORT_EDGE|UNGROUP_)/.test(s))diagnostic=s.slice(0,200);}});m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
+  m=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.96',import.meta.url).href,print:()=>{},printErr:s=>{if(/^(CLONE_REJECT|MOVE_REJECT|REMOVE_|ROOT_REJECT|SAVE_REJECT|EXPORT_REJECT|EXPORT_EDGE|UNGROUP_)/.test(s))diagnostic=s.slice(0,200);}});m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
   const opened=m.ccall('pllato_open','number',['string'],['/input.dwg']);if(opened>=128)throw Error('DWG не прочитан: '+opened);
   if(new TextDecoder().decode(new Uint8Array(buffer,0,6))==='AC1032'&&!data.exportOnly){const cached=m.ccall('pllato_preserve_source','number',['string'],['/input.dwg']);if(cached)throw Error('Исходные записи DWG не прошли проверку сохранения: '+cached);}
   // Native preservation owns its source sections now; release the MEMFS copy.
@@ -59,6 +59,12 @@ self.onmessage=async({data})=>{
    self.postMessage({progress:'Копирую CAD-структуру выбранного плана…',percent:25});
    check(m.ccall('pllato_clone_selection','number',['string',...Array(5).fill('number')],[handles.join(','),...centre,...position,s.angle]),'Не удалось безопасно скопировать выбранный план');
    s.nativeHandles=[m.FS.readFile('/clone-result.txt',{encoding:'utf8'})];
+  }
+  for(const s of project.sheets)if(s.sourcePlan){
+   const {handles,centre}=s.sourcePlan;
+   self.postMessage({progress:'Записываю CAD-объекты листа '+s.title+'…',percent:35});
+   check(m.ccall('pllato_clone_selection','number',['string',...Array(5).fill('number')],[handles.join(','),...centre,...s.planCentre,0]),'Лист создан, но его CAD-объекты не прошли проверку DWG');
+   s.nativeHandles=[m.FS.readFile('/clone-result.txt',{encoding:'utf8'})];delete s.sourcePlan;
   }
   self.postMessage({progress:'Записываю оформление, трассы и ведомости…',percent:55});
   for(const s of project.sheets){

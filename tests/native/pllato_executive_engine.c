@@ -361,7 +361,18 @@ static int table_refs(Dwg_Object *o,BITCODE_HV original,TableRef **result,unsign
   int valid=!c->num_reactors&&c->is_xdic_missing&&!c->has_ds_data&&b->num_params<=100&&*count>=1+b->num_params;
   if(!valid||!c->ownerhandle||(*result)[0].value!=c->ownerhandle->absolute_ref)valid=0;
   for(unsigned i=0;valid&&i<b->num_params;i++)if(!b->params||!b->params[i]||(*result)[i+1].value!=b->params[i]->absolute_ref)valid=0;
-  for(unsigned i=1+b->num_params;valid&&i<*count;i++)if((*result)[i].value)valid=0;
+  /* The final hard-pointer may name a sibling osnap parameter owned by
+     the same action. Keep the whole stream and traverse that dependency;
+     never infer a null reference from the partial typed payload. */
+  if(valid&&*count!=2+b->num_params)valid=0;
+  for(unsigned i=1+b->num_params;valid&&i<*count;i++){
+   TableRef*r=*result+i;
+   if(r->encoded.code!=4){valid=0;break;}
+   if(r->value){Dwg_Object*t=dwg_resolve_handle(o->parent,r->value);
+    if(!t||t==o||t->fixedtype!=DWG_TYPE_ASSOCOSNAPPOINTREFACTIONPARAM
+       ||!t->tio.object->ownerhandle||t->tio.object->ownerhandle->absolute_ref!=c->ownerhandle->absolute_ref)valid=0;
+   }
+  }
   Dwg_Object*owner=dwg_ref_object(o->parent,c->ownerhandle);if(!owner||owner->fixedtype!=DWG_TYPE_ASSOCACTION)valid=0;
   if(!valid){free(*result);*result=NULL;*count=0;return 0;}
  }
