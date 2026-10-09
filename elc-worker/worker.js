@@ -1,3 +1,4 @@
+import { assignLeadManagers, handleLeadDistribution } from './lead-distribution.js';
 import { DurableObject } from 'cloudflare:workers';
 import {processClientGroupRefresh} from './wa-client-groups.js';
 import { AUTOMATIC_PRODUCTION_ENABLED } from './production-policy.js';
@@ -1646,6 +1647,18 @@ async function handleRtdbWrite(env, request, parts, me) {
       try { await syncZoomTask(env, id, body); }
       catch(e) { return json({error:e.message}, e.status || 502, request); }
     }
+    if(tableName==='deals' && request.method==='PUT') {
+      const exists=await env.DB.prepare('SELECT id FROM deals WHERE id=?').bind(id).first();
+      if(!exists) {
+        const managers=await assignLeadManagers(env,body.pipelineId||body.pipeline_id,body.stageId||body.stage_id,id);
+        if(managers) {
+          const previousCustom=safeJsonParse(body.customFields||body.custom_fields,{});
+          delete body.responsible_uid; delete body.custom_fields;
+          body.responsibleUid=managers.leadUid;
+          body.customFields={...(previousCustom&&typeof previousCustom==='object'?previousCustom:{}),kepManagerUid:managers.kepUid};
+        }
+      }
+    }
     // Подготовим columns/values из body (с snake_case + JSON-stringify)
     const cols = [];
     const vals = [];
@@ -1688,7 +1701,7 @@ async function handleRtdbWrite(env, request, parts, me) {
             source: body.sourceDescription || body.source_description || body.sourceId || body.source_id || "CRM",
           });
         }
-        return json({ ok: true, created: true }, 200, request);
+        return json({ ok: true, created: true, ...(tableName === "deals" ? {managers:{leadUid:body.responsibleUid,kepUid:body.customFields?.kepManagerUid||null}} : {}) }, 200, request);
       }
     }
 
@@ -5059,18 +5072,20 @@ async function ensureDealForWaContact(env, channel, contactId, contactName, phon
   if (!stageId) {
     try { stageId = await getFirstStageId(env, channel.default_pipeline_id); } catch {}
   }
+  const managers=await assignLeadManagers(env,channel.default_pipeline_id,stageId,newId);
+  if(managers) responsibleUid=managers.leadUid;
   await ensureStageChangedAtColumn(env);
   await env.DB.prepare(`
     INSERT INTO deals (
       id, title, pipeline_id, stage_id, responsible_uid,
       contact_id, source_description, closed, bitrix_id,
-      bitrix_date_create, bitrix_date_modify, stage_changed_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
+      bitrix_date_create, bitrix_date_modify, stage_changed_at, custom_fields
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
   `).bind(
     newId, title,
     channel.default_pipeline_id, stageId,
     responsibleUid,
-    contactId, sourceDescription, bitrixKey, nowIso, nowIso, nowIso,
+    contactId, sourceDescription, bitrixKey, nowIso, nowIso, nowIso, JSON.stringify(managers?{kepManagerUid:managers.kepUid}:{}),
   ).run();
   await logStageEvent(env, newId, channel.default_pipeline_id, stageId, nowIso);
   await notifyPllatoStartNewLead(env, {
@@ -9433,8 +9448,10 @@ async function handlePublicPllatoLead(request, env) {
   if (recent?.id) return json({ ok: true, dealId: recent.id, contactId, duplicate: true }, 200, request);
 
   const dealId = 'deal_site_' + crypto.randomUUID();
-  const responsibleUid = await resolveInboundResponsibleUid(env, pipeline.id, null);
+  const managers = await assignLeadManagers(env,pipeline.id,stageId,dealId);
+  const responsibleUid = managers?.leadUid || await resolveInboundResponsibleUid(env, pipeline.id, null);
   const details = {
+    ...(managers?{kepManagerUid:managers.kepUid}:{}),
     attribution,
     form: String(body.form || '').slice(0, 120),
     page: String(body.page || '').slice(0, 1000),
@@ -9699,7 +9716,8 @@ async function processMetaLeadEvent(env, value, rawEvent) {
     const fields = metaFieldMap(lead.field_data);
     const nowIso = lead.created_time ? new Date(lead.created_time).toISOString() : receivedAt;
     const contactId = await findOrCreateMetaLeadContact(env, lead, fields, nowIso, source);
-    const responsibleUid = await resolveInboundResponsibleUid(
+    const managers = await assignLeadManagers(env,source.pipelineId,source.stageId,`deal_meta_${leadgenId}`);
+    const responsibleUid = managers?.leadUid || await resolveInboundResponsibleUid(
       env,
       source.pipelineId,
       source.responsibleUid || await pickNextMetaLeadUid(env, formId),
@@ -9714,6 +9732,7 @@ async function processMetaLeadEvent(env, value, rawEvent) {
     const dealTitle = [source.dealTitlePrefix, 'Facebook Lead', name]
       .filter(Boolean).join(' · ').slice(0, 240);
     const details = {
+      ...(managers?{kepManagerUid:managers.kepUid}:{}),
       metaLeadId: leadgenId,
       metaLeadSourceId: source.id,
       pageId,
@@ -12133,6 +12152,8 @@ export default {
       return handlePublicPllatoLead(request, env);
     }
 
+    const leadDistributionMatch=path.match(/^\/api\/pipelines\/([^/]+)\/lead-distribution$/);
+    if(leadDistributionMatch) return handleLeadDistribution(request,env,{json,requireAdmin},decodeURIComponent(leadDistributionMatch[1]));
     if (path.startsWith('/api/wa/stage-groups/')) return handleStageGroups(request,env,{json,requireAuthFlexible,resolveCanonicalUser,dealAccessSql});
 
     if (path.startsWith("/api/zoom/")) {
