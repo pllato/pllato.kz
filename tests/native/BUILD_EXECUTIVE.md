@@ -1,3 +1,19 @@
+## 0.17.92 DIMASSOC referenced-object paths
+
+DIMASSOC subentity/path fields are present when num_xrefs is nonzero, including
+osnap_type=0. Conditioning these fields on the snap type misaligned the record
+and produced CLONE_REJECT_CLASS DIMASSOC. The decoder and typed encoder now use
+the same path-count condition. No opaque coverage, ownership or fidelity guard
+was removed. dimassoc-paths.patch is already applied to the corresponding source.
+Rebuild with `sh build-executive.sh extracted-source output-directory` using
+Emscripten 6.0.10 on PATH; bundled pllato-build-config/config.h matches the build.
+
+Private regression: `node --expose-gc tests/dwg-dimassoc-workers.mjs input.dwg
+output-directory dimension-handle`. It includes the associated dimension in five
+consecutive creates, reads each result, and exports/reopens the complete DWG.
+The native dimassoc-paths-regression.c checks exact typed payload coverage of all
+DIMASSOC records. Ship generated JS/WASM with the corresponding source archive.
+
 ## 0.17.85 mirrored INSERT and SPLINE separation
 
 Negative-Z planar INSERTs retain OCS normal and scale; translation and sheet

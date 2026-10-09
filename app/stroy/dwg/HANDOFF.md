@@ -1,3 +1,20 @@
+# 0.17.92 — DIMASSOC cloning regression
+
+Fixed a decoded DIMASSOC object-path layout that rejected repeated executive
+creation (code 10). Subentity fields depend on num_xrefs, including osnap_type 0.
+The writer retains every coverage/owner/reference guard; associations are not
+silently deleted or disassociated. Generated writer JS/WASM and corresponding
+patched GPL sources are updated together; both worker and WASM cache keys advance.
+
+Local: 224 unit tests; private fixture 605/605 DIMASSOC exact typed payload probes;
+five consecutive native worker creates, each save/read, full DWG export/reopen,
+five separate executive sheets, original SHA256 unchanged. AutoCAD 2027 isolated
+AcCoreConsole: full output AUDIT No 0/0; SAVEAS DWG2018 to a separate file, close,
+reopen, AUDIT No 0/0. Physical tablet interaction has not been independently
+retested; this fixes the exact DIMASSOC failure supplied in the photo.
+Regression test takes the private file and associated dimension handle as arguments.
+Private fixtures, images and output logs stay outside the public repository.
+
 # Передача разработки DWG-редактора
 
 ## 0.17.91 — новое выделение после неудачного создания

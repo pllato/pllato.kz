@@ -1,0 +1,12 @@
+--- a/src/dwg2.spec
++++ b/src/dwg2.spec
+@@ -3713,7 +3713,9 @@
+       SUB_FIELD_BL (ref[rcount1], num_xrefs, 0);
+       SUB_HANDLE_VECTOR (ref[rcount1], xrefs, num_xrefs, 4, 331);
+ 
+-      if (FIELD_VALUE (ref[rcount1].osnap_type) != 0)
++      // Subentity paths belong to a nonempty referenced-object path,
++      // including osnap type 0 (no snap). They are absent without a path.
++      if (FIELD_VALUE (ref[rcount1].num_xrefs) != 0)
+         {
+           SUB_FIELD_BL (ref[rcount1], main_subent_type, 73);

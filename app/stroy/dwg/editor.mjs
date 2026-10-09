@@ -28,7 +28,7 @@ import {shxCatalog} from './shx-catalog.mjs?v=0.17.81';
 import {applyDocumentFont} from './document-font.mjs?v=0.17.90';
 import {clampProgress,warningText} from './progress.mjs?v=0.17.81';
 import {isNew,additions} from './authoring.mjs?v=0.17.90';
-import {mountExecutiveUI} from './executive-ui.mjs?v=0.17.91';
+import {mountExecutiveUI} from './executive-ui.mjs?v=0.17.92';
 import {captureRecovery,replayRecovery,recoveryStore} from './recovery.mjs?v=0.17.90';
 import {shapePaths,pathLength,syncLinkedRoutes} from './selection-metrics.mjs?v=0.17.81';
 import {prepareNewCopies} from './new-object-copy.mjs?v=0.17.90';
@@ -388,7 +388,7 @@ async function openFile(file,restore=null){try{if(!await openingPreflight(file))
   if(next.executiveProject?.sheets.some(s=>s.nativeSeparated)){
    progress('Подготавливаю отдельные CAD-объекты к редактированию…',65);
    const raw=await file.arrayBuffer();if(token!==loadId)return;
-   const grouped=await runOpeningWorker('./executive-worker.mjs?v=0.17.90',{buffer:raw,project:next.executiveProject,ops:[],added:[]},token);
+   const grouped=await runOpeningWorker('./executive-worker.mjs?v=0.17.92',{buffer:raw,project:next.executiveProject,ops:[],added:[]},token);
    if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
    file=new File([grouped.buffer],file.name,{type:'application/acad'});
    const reread=await runOpeningWorker('./native-reader.mjs?v=0.17.90',{buffer:grouped.buffer,compact:true},token);
@@ -434,7 +434,7 @@ async function commitExecutive(project,cloneRequest=null,exportFile=false,copyRe
   const keep=new Set([...project.sheets.flatMap(s=>s.nativeHandles),...(project.generatedHandles||[]),...[...loose.keys()].filter(id=>id.startsWith('dwg-')).map(id=>id.slice(4))]);
   const keepRoots=[...keep].filter(h=>!project.generatedHandles?.includes(h));
   const routeSources=new Set(project.sheets.flatMap(s=>s.routes.flatMap(r=>r.sourceIds||[])));
-  const saved=await run('./executive-worker.mjs?v=0.17.90',{buffer,ops:doc.nativeOps,added:additions(doc).filter(item=>!exportOnly||routeSources.has(item.sourceId)||loose.has(item.sourceId)||(item.type==='COPY'&&keep.has(item.parent))),project,cloneRequest,copyRequest,exportOnly,keepRoots,separateFull:exportFile&&!exportOnly},[buffer]);
+  const saved=await run('./executive-worker.mjs?v=0.17.92',{buffer,ops:doc.nativeOps,added:additions(doc).filter(item=>!exportOnly||routeSources.has(item.sourceId)||loose.has(item.sourceId)||(item.type==='COPY'&&keep.has(item.parent))),project,cloneRequest,copyRequest,exportOnly,keepRoots,separateFull:exportFile&&!exportOnly},[buffer]);
   if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
   if(exportFile&&!exportOnly){
    const verified=await run('./native-reader.mjs?v=0.17.90',{buffer:saved.buffer,compact:true,verifyOnly:true},[saved.buffer]);

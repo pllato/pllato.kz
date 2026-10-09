@@ -1,0 +1,2 @@
+#include "pllato_executive_engine.c"
+int main(int n,char**v){if(n<2||pllato_open(v[1])>=128)return 1;unsigned count=0,bad=0;for(unsigned i=0;i<drawing.num_objects;i++){Dwg_Object*o=&drawing.object[i];if(o->fixedtype!=DWG_TYPE_DIMASSOC)continue;char h[32];snprintf(h,32,"%llX",(unsigned long long)o->handle.value);count++;int e=pllato_probe_opaque(h);if(e){bad++;fprintf(stderr,"FAILED %s\n",h);}}fprintf(stderr,"SUMMARY count=%u bad=%u\n",count,bad);return count&&bad==0?0:1;}
