@@ -13874,6 +13874,19 @@ async function moveDealToStage(bitrixId, newStageId) {
   // (это зеркало). _viewPipelineId проставлен worker'ом для зеркал.
   const currentPipelineId = deal._viewPipelineId || dealsState.activePipelineId || deal.pipelineId;
   const isMirror = !!deal._mirror || (deal.pipelineId !== currentPipelineId);
+  const pipelineName=dealsState.pipelines?.[currentPipelineId]?.name || dealsState.pipeline?.name || '';
+  if(String(pipelineName).trim().toLowerCase()==='pllato старт') {
+    const missing=[];
+    if(!String(deal.responsibleUid||'').trim()) missing.push('Менеджер по лидам');
+    if(!String(deal.customFields?.kepManagerUid||'').trim()) missing.push('Менеджер КЭПов');
+    if(missing.length) {
+      renderDealsContent();
+      showToast('Для смены стадии назначьте: '+missing.join(' и ')+'.',true);
+      await openDealCard(getDealPublicId(deal));
+      return;
+    }
+  }
+
 
   // Если переход в стадию REJECT — спросить причину ДО optimistic update.
   // Для зеркал не спрашиваем — причина живёт только в основной воронке.
