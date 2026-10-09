@@ -3451,6 +3451,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 
 <!-- Firebase SDK -->
 <script type="module">
+import { openLeadDistribution } from './app/lead-distribution.js?v=20261009';
 import { mountDealCardNavigation } from './app/deal-card-navigation.js?v=20261008';
 import { stageGroupsClient } from './app/wa-stage-groups.js?v=20261008-admins-default';
 const waStageGroups=stageGroupsClient({base:'https://pllato-elc-worker.uurraa.workers.dev',getToken:()=>fbAuth.currentUser.getIdToken()});
@@ -10353,7 +10354,7 @@ function renderDealsLayoutPaged(el) {
 }
 
 function dealListColumnOptions(){
-  return [['title','Название'],['stageId','Стадия'],['opportunity','Сумма'],['responsibleUid','Ответственный'],['bitrixDateCreate','Создано'],['bitrixDateModify','Изменено'],['id','ID сделки'],['comments','Комментарий'],...Object.entries(dealsState.customSchema||{}).filter(([key])=>!key.startsWith('_')).map(([key,meta])=>['cf:'+key,meta.label||meta.name||key])];
+  return [['title','Название'],['stageId','Стадия'],['opportunity','Сумма'],['responsibleUid','Менеджер по лидам'],['kepManagerUid','Менеджер КЭПов'],['bitrixDateCreate','Создано'],['bitrixDateModify','Изменено'],['id','ID сделки'],['comments','Комментарий'],...Object.entries(dealsState.customSchema||{}).filter(([key])=>!key.startsWith('_')).map(([key,meta])=>['cf:'+key,meta.label||meta.name||key])];
 }
 function dealListColumnsKey(){return 'elc:dealColumns:'+(window.currentUser?.canonicalUid||fbAuth.currentUser?.uid)+':'+dealsState.activePipelineId;}
 function dealListColumns(){let saved;try{saved=JSON.parse(localStorage.getItem(dealListColumnsKey()));}catch{}const valid=new Set(dealListColumnOptions().map(c=>c[0]));const cols=(Array.isArray(saved)?saved:['title','stageId','opportunity','responsibleUid','bitrixDateCreate']).filter(k=>valid.has(k));return cols.length?cols:['title'];}
@@ -10365,6 +10366,7 @@ function dealListCell(d,key){
     if(!Array.isArray(raw)&&(!raw||typeof raw!=='object')&&['string','text','integer','double','number','money','boolean','enumeration','date','datetime','user','checklist'].includes(meta.type||meta.dataType||'string'))return '<td style="min-width:160px;max-width:320px">'+renderCfEditableCell(field,raw,meta,getDealRecordId(d))+'</td>';
   }
   if(key==='stageId')value=dealsState.pipeline?.stages?.[d.stageId]?.name||d.stageId;
+  if(key==='kepManagerUid') value=(d.customFields?.kepManagerUid?getUserDisplayName(d.customFields.kepManagerUid):'Не назначен');
   if(key==='responsibleUid'){const u=dealsState.users[d.responsibleUid];value=u?`${u.lastName||''} ${u.name||u.email||''}`.trim():'Не назначен';}
   if(key==='opportunity')value=d.opportunity!=null?Number(d.opportunity).toLocaleString('ru')+' '+(d.currency||'₸'):'';
   if(key==='bitrixDateCreate'||key==='bitrixDateModify')value=value?new Date(value).toLocaleDateString('ru'):'';
@@ -11027,6 +11029,7 @@ function renderDealsKanban(c, arr) {
         <input type="checkbox" class="deal-stage-select" data-select-stage="${escapeHtml(s.statusId)}" aria-label="Выбрать все сделки стадии ${escapeHtml(s.name)}" title="Выбрать все сделки стадии с текущими фильтрами">
         <span class="stage-dot"></span>
         <span class="stage-title" style="color:${stageColor}">${escapeHtml(s.name)}</span>
+        ${window.currentUser?.role==='admin' && s.statusId===(stages.find(st=>/^нов(ая|ые|ый)$/i.test(st.name?.trim()))||stages[0]).statusId ? `<button type="button" class="tbtn tbtn-sm" data-lead-distribution="${escapeHtml(s.statusId)}" title="Распределение лидов" aria-label="Настройки распределения лидов" style="padding:4px 7px;min-height:32px">⚙</button>`:''}
         <span class="col-count" style="color:${stageColor};background:${stageColor}22;border:1px solid ${stageColor}55">${colTotal.toLocaleString('ru')}</span>
       </div>
       <button class="kanban-add-deal" data-stage="${escapeHtml(s.statusId)}" title="Создать сделку в этой стадии">+ Сделка</button>
@@ -11048,6 +11051,7 @@ function renderDealsKanban(c, arr) {
 
   c.innerHTML = html;
 
+  c.querySelectorAll('[data-lead-distribution]').forEach(button=>button.onclick=()=>openLeadDistribution({pipelineId:dealsState.activePipelineId,stageId:button.dataset.leadDistribution,stageName:stages.find(s=>s.statusId===button.dataset.leadDistribution)?.name||'Новая',users:dealsState.users,baseUrl:WORKER_BASE_URL,getToken:()=>fbAuth.currentUser.getIdToken()}));
   c.querySelectorAll('[data-select-stage]').forEach(cb=>{cb.checked=!!dealsPagedState.stageSelections?.[cb.dataset.selectStage];cb.disabled=dealsPagedState.bulkBusy;cb.onchange=()=>selectAllFilteredDeals(cb.dataset.selectStage,cb.checked);});
   renderDealsBulkActions();
   initKanbanDragDrop();
@@ -13255,6 +13259,11 @@ function openQuickAddDealModal(stageId) {
         throw new Error(`Сделка: HTTP ${dr.status}: ${t.slice(0, 200)}`);
       }
 
+      const savedDeal=await dr.json();
+      if(savedDeal.managers) {
+        dealBody.responsibleUid=savedDeal.managers.leadUid;
+        dealBody.customFields={kepManagerUid:savedDeal.managers.kepUid};
+      }
       // 3. Локально добавляем в state — если канбан загружен
       if (Array.isArray(dealsState.deals)) {
         dealsState.deals.unshift(dealBody);
@@ -13523,12 +13532,13 @@ function buildDealCard(d, stageColor) {
       <div class="kanban-card-resp" title="${escapeHtml(respName || 'Без ответственного')}">
         <span class="kanban-av">${escapeHtml(respShort)}</span>
         <span class="kanban-card-resp-copy">
-          <span class="kanban-card-resp-label">Ответственный</span>
+          <span class="kanban-card-resp-label">Менеджер по лидам</span>
           <span class="kanban-card-resp-name">${escapeHtml(respName || 'Не назначен')}</span>
         </span>
       </div>
       ${staleWarn ? `<span class="kanban-stale">${daysSince}д</span>` : (dateLabel ? `<span class="${dateLabelClass}">${dateLabel}</span>` : '')}
     </div>
+    <div style="font-size:11px;padding:4px 0 8px;color:var(--t2)"><span class="kanban-card-resp-label">Менеджер КЭПов</span> · ${escapeHtml((d.customFields?.kepManagerUid?getUserDisplayName(d.customFields.kepManagerUid):'Не назначен'))}</div>
     <div class="kanban-card-actions">
       <button class="kca-btn kca-wa" data-action="wa" data-phone="${escapeHtml(phone || '')}" data-deal-id="${escapeHtml(cardKey)}" title="${phone ? 'Открыть WhatsApp' : 'У контакта нет телефона — добавь в карточке'}" ${!phone ? 'data-no-phone="1" style="opacity:0.45"' : ''}>💬</button>
       <button class="kca-btn kca-call" data-action="call" data-phone="${escapeHtml(phone || '')}" data-deal-id="${escapeHtml(cardKey)}" title="${phone ? 'Позвонить' : 'У контакта нет телефона — добавь в карточке'}" ${!phone ? 'data-no-phone="1" style="opacity:0.45"' : ''}>📞</button>
@@ -14580,15 +14590,15 @@ async function openDealCard(dealKey) {
               type: 'money',
               placeholder: 'не указана',
             })} ${escapeHtml(deal.currency || '₸')}</div>
-            <div class="fl">Кто проводит КЭП</div>
+            <div class="fl">Менеджер по лидам</div>
+            <div class="fv">${canEditDeal
+              ? `<span id="dc-resp-display" class="dc-resp-editable" title="Кликни — сменить ответственного" style="cursor:pointer;border-bottom:1px dashed var(--b2);padding-bottom:1px">${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}</span> <span class="dc-resp-pencil" style="cursor:pointer;opacity:.6;font-size:12px" title="Сменить ответственного">✏️</span>`
+              : `${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}`}</div>
+            <div class="fl">Менеджер КЭПов</div>
             <div class="fv"><select id="dc-kep-manager" class="cf-edit" ${canEditDeal?'':'disabled'} style="max-width:100%;padding:7px">
               <option value="">Не назначен</option>
               ${Object.entries(dealsState.users||{}).map(([uid,u])=>`<option value="${escapeHtml(uid)}"${uid===deal.customFields?.kepManagerUid?' selected':''}>${escapeHtml([u.name,u.lastName].filter(Boolean).join(' ')||u.email||uid)}</option>`).join('')}
             </select></div>
-            <div class="fl">Ответственный</div>
-            <div class="fv">${canEditDeal
-              ? `<span id="dc-resp-display" class="dc-resp-editable" title="Кликни — сменить ответственного" style="cursor:pointer;border-bottom:1px dashed var(--b2);padding-bottom:1px">${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}</span> <span class="dc-resp-pencil" style="cursor:pointer;opacity:.6;font-size:12px" title="Сменить ответственного">✏️</span>`
-              : `${escapeHtml(respName)} ${respEmail ? `<span class="muted">· ${escapeHtml(respEmail)}</span>` : ''}`}</div>
 </div>
           ${contact ? `<div class="dc-section-h">Контакт</div>
             <div class="dc-contact-card">
