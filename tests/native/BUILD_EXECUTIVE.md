@@ -1,3 +1,20 @@
+## 0.17.95 bounded association envelopes
+
+Admit exact class/owner/reference envelopes for rotated-dimension action bodies,
+osnap/edge params and centerline bodies. Preserve raw non-handle payload and padding,
+relocate the complete bounded handle stream, then validate all references.
+Global registries require exact bounded dictionary membership to NOD or canonical
+Model extension dictionary; copied local actions/networks register independently.
+SORTENTSTABLE sort_ents are arbitrary ordering keys, not object dependencies:
+https://help.autodesk.com/cloudhelp/2018/ENU/AutoCAD-DXF/files/GUID-462F4378-F850-4E89-90F2-3C1880F55779.htm
+Paired ents still follow every reference/owner validation.
+
+assoc-envelope-regression.c takes input.dwg selected-root-handles new-output.dwg.
+It checks negative boundary/owner cases, exact payload/padding and sort keys,
+resolvable remapped references, duplicate registration refusal, save/reopen.
+dwg-large-workers.mjs accepts an optional additional-root CSV for private fixtures.
+Rebuild writer WASM and matching GPL source archive together.
+
 ## 0.17.94 typed-record source preservation
 
 Restore size/bitsize/handlestream_size for all records after full encoding and
