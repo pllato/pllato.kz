@@ -1,3 +1,4 @@
+import {boundedUndo} from './undo-budget.mjs?v=0.17.93';
 import {preparingOutput,preparedOutput,offerDownload,outputFailure,notifyExecutiveCreated} from './download.mjs?v=0.17.90';
 import {resizeView,usableViewport} from './viewport-size.mjs?v=0.17.87';
 import {mountFileDrop} from './file-drop.mjs?v=0.17.81';
@@ -28,7 +29,7 @@ import {shxCatalog} from './shx-catalog.mjs?v=0.17.81';
 import {applyDocumentFont} from './document-font.mjs?v=0.17.90';
 import {clampProgress,warningText} from './progress.mjs?v=0.17.81';
 import {isNew,additions} from './authoring.mjs?v=0.17.90';
-import {mountExecutiveUI} from './executive-ui.mjs?v=0.17.92';
+import {mountExecutiveUI} from './executive-ui.mjs?v=0.17.93';
 import {captureRecovery,replayRecovery,recoveryStore} from './recovery.mjs?v=0.17.90';
 import {shapePaths,pathLength,syncLinkedRoutes} from './selection-metrics.mjs?v=0.17.81';
 import {prepareNewCopies} from './new-object-copy.mjs?v=0.17.90';
@@ -166,7 +167,7 @@ function snapshot(records=[]){
  }else history.push(remember());
  while(history.length>(doc.records.length>200000?5:15))history.shift();future=[];syncUndo();
 }
-function syncUndo(){history=releaseObsoleteViews(history,doc);future=releaseObsoleteViews(future,doc);$('undo').disabled=!history.length;$('redo').disabled=!future.length;}
+function syncUndo(){const budget={bytes:(matchMedia('(pointer:coarse)').matches||navigator.maxTouchPoints>0?96:256)*1024*1024,count:doc.records.length>200000?5:15};history=boundedUndo(releaseObsoleteViews(history,doc),budget);future=boundedUndo(releaseObsoleteViews(future,doc),budget);$('undo').disabled=!history.length;$('redo').disabled=!future.length;}
 async function undo(redo=false){if(!$('busy').hidden)return;const src=redo?future:history,dest=redo?history:future;if(!src.length)return;pendingDimensionLink=null;const saved=src.at(-1),oldHistory=history,oldFuture=future;
  boxSelection?.reset();
  if(saved.viewState?.doc===doc&&saved.file===sourceFile){
@@ -388,7 +389,7 @@ async function openFile(file,restore=null){try{if(!await openingPreflight(file))
   if(next.executiveProject?.sheets.some(s=>s.nativeSeparated)){
    progress('Подготавливаю отдельные CAD-объекты к редактированию…',65);
    const raw=await file.arrayBuffer();if(token!==loadId)return;
-   const grouped=await runOpeningWorker('./executive-worker.mjs?v=0.17.92',{buffer:raw,project:next.executiveProject,ops:[],added:[]},token);
+   const grouped=await runOpeningWorker('./executive-worker.mjs?v=0.17.93',{buffer:raw,project:next.executiveProject,ops:[],added:[]},token);
    if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
    file=new File([grouped.buffer],file.name,{type:'application/acad'});
    const reread=await runOpeningWorker('./native-reader.mjs?v=0.17.90',{buffer:grouped.buffer,compact:true},token);
@@ -434,7 +435,7 @@ async function commitExecutive(project,cloneRequest=null,exportFile=false,copyRe
   const keep=new Set([...project.sheets.flatMap(s=>s.nativeHandles),...(project.generatedHandles||[]),...[...loose.keys()].filter(id=>id.startsWith('dwg-')).map(id=>id.slice(4))]);
   const keepRoots=[...keep].filter(h=>!project.generatedHandles?.includes(h));
   const routeSources=new Set(project.sheets.flatMap(s=>s.routes.flatMap(r=>r.sourceIds||[])));
-  const saved=await run('./executive-worker.mjs?v=0.17.92',{buffer,ops:doc.nativeOps,added:additions(doc).filter(item=>!exportOnly||routeSources.has(item.sourceId)||loose.has(item.sourceId)||(item.type==='COPY'&&keep.has(item.parent))),project,cloneRequest,copyRequest,exportOnly,keepRoots,separateFull:exportFile&&!exportOnly},[buffer]);
+  const saved=await run('./executive-worker.mjs?v=0.17.93',{buffer,ops:doc.nativeOps,added:additions(doc).filter(item=>!exportOnly||routeSources.has(item.sourceId)||loose.has(item.sourceId)||(item.type==='COPY'&&keep.has(item.parent))),project,cloneRequest,copyRequest,exportOnly,keepRoots,separateFull:exportFile&&!exportOnly},[buffer]);
   if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
   if(exportFile&&!exportOnly){
    const verified=await run('./native-reader.mjs?v=0.17.90',{buffer:saved.buffer,compact:true,verifyOnly:true},[saved.buffer]);
@@ -451,7 +452,7 @@ async function commitExecutive(project,cloneRequest=null,exportFile=false,copyRe
   const reuse=cloneRequest?reusableScene(doc,read.doc,drawing):null;
   const built=read.doc.records.length>20000?await sceneAsync(reuse?.doc||read.doc,n=>progress('Строю исполнительную: '+n.toLocaleString('ru')+' объектов',95),()=>token!==loadId):null;
   const prepared=built&&reuse?mergeReusedScene(reuse,built):built;
-  if(token!==loadId)return;adopt(read.doc,previousName,file,prepared);history=[...previousHistory,before].slice(-15);future=[];syncUndo();dirty=true;await checkpoint('Операция DWG завершена');
+  if(token!==loadId)return;adopt(read.doc,previousName,file,prepared);history=[...previousHistory,before];future=[];syncUndo();dirty=true;await checkpoint('Операция DWG завершена');
   if(exportFile)download(file,'dwg');else status('Исполнительная создана. Локальная копия сохранена. Для архива скачайте DWG.');
   const notices=[warningText(saved.warnings||0),...(read.messages||[])].filter(Boolean);
   if(notices.length)status((exportFile?'DWG подготовлен к скачиванию. ':'Исполнительная создана; скачайте DWG для сохранения. ')+'Предупреждения: '+[...new Set(notices)].join(' · '));

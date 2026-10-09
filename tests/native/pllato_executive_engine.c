@@ -320,23 +320,40 @@ static int opaque_handle_refs(Dwg_Object *o,BITCODE_HV original,TableRef **resul
 static int table_refs(Dwg_Object *o,BITCODE_HV original,TableRef **result,unsigned *count){
  *result=NULL;*count=0;return raw_table(o)&&opaque_handle_refs(o,original,result,count);
 }
+/* Rewrite only the independently delimited handle stream. Object payload and
+   padding remain bit-identical; references may grow when allocated IDs grow. */
 static int relocate_table(Dwg_Object *o,BITCODE_HV original,dwg_inthash *seen,BITCODE_HV *mapped){
- TableRef *refs;unsigned count;if(!table_refs(o,original,&refs,&count))return 0;
- Bit_Chain bits={0};bits.chain=raw_chain(o);if(!bits.chain){free(refs);return 0;}bits.size=(o->num_unknown_bits+7)/8;bits.version=bits.from_version=o->parent->header.version;
+ TableRef *refs=NULL;unsigned count=0;if(!table_refs(o,original,&refs,&count))return 0;
+ Bit_Chain input={0},output={0};input.chain=raw_chain(o);if(!input.chain){free(refs);return 0;}
+ input.size=(o->num_unknown_bits+7)/8;input.version=input.from_version=o->parent->header.version;
+ bit_chain_init(&output,input.size+count*8+16);if(!output.chain)goto invalid;output.version=output.from_version=input.version;
+ size_t oldCount=o->num_unknown_bits,oldHandle=o->handlestream_size;
+ size_t prefix=oldCount-oldHandle,end=oldCount-oldHandle%8;
+ for(size_t i=0;i<prefix;i++)bit_write_B(&output,bit_read_B(&input));
  for(unsigned i=0;i<count;i++){
-  TableRef r=refs[i];Dwg_Handle h=r.encoded;BITCODE_HV value=r.value;
+  Dwg_Handle h=refs[i].encoded;BITCODE_HV value=refs[i].value;
   uint64_t found=hash_get(seen,value);if(found!=HASH_NOT_FOUND)value=mapped[found-1];
   if(h.code<=5)h.value=value;
   else if(h.code==6){if(value!=o->handle.value+1)goto invalid;}
   else if(h.code==8){if(!o->handle.value||value!=o->handle.value-1)goto invalid;}
   else {h.code=value>=o->handle.value?10:12;h.value=value>=o->handle.value?value-o->handle.value:o->handle.value-value;}
-  if(h.size<8&&(h.value>>(h.size*8)))goto invalid;
-  bit_set_position(&bits,r.offset);bit_write_H(&bits,&h);
-  if(bit_position(&bits)!=r.offset+8+8*r.encoded.size)goto invalid;
+  while(h.size<8&&(h.value>>(h.size*8)))h.size++;
+  bit_write_H(&output,&h);
  }
- pack_raw_tail(bits.chain,o->num_unknown_bits);
- memcpy(o->unknown_bits,bits.chain,(o->num_unknown_bits+7)/8);free(bits.chain);bits.chain=NULL;
- TableRef *verified;unsigned verifiedCount;
+ bit_set_position(&input,end);
+ for(size_t i=end;i<oldCount;i++)bit_write_B(&output,bit_read_B(&input));
+ size_t newCount=bit_position(&output);
+ if(newCount<oldCount||(newCount-oldCount)%8||newCount>UINT32_MAX)goto invalid;
+ size_t growth=newCount-oldCount;
+ /* Exact non-handle prefix and padding comparison, independent of refs parser. */
+ for(size_t i=0;i<prefix;i++)if(((input.chain[i/8]^output.chain[i/8])>>(7-i%8))&1)goto invalid;
+ for(size_t i=end;i<oldCount;i++)if(((input.chain[i/8]>>(7-i%8))&1)!=((output.chain[(i+growth)/8]>>(7-(i+growth)%8))&1))goto invalid;
+ if(o->size>UINT32_MAX-growth/8)goto invalid;
+ pack_raw_tail(output.chain,newCount);
+ free(o->unknown_bits);o->unknown_bits=output.chain;output.chain=NULL;
+ o->num_unknown_bits=newCount;o->size+=growth/8;o->handlestream_size+=growth;
+ free(input.chain);input.chain=NULL;
+ TableRef *verified=NULL;unsigned verifiedCount=0;
  if(!table_refs(o,o->handle.value,&verified,&verifiedCount))goto invalid;
  int equal=verifiedCount==count;
  for(unsigned i=0;equal&&i<count;i++){
@@ -345,7 +362,7 @@ static int relocate_table(Dwg_Object *o,BITCODE_HV original,dwg_inthash *seen,BI
   if(verified[i].value!=expected)equal=0;
  }
  free(verified);free(refs);return equal;
- invalid:free(bits.chain);free(refs);return 0;
+ invalid:free(input.chain);free(output.chain);free(refs);return 0;
 }
 API int pllato_probe_table(const char *handle){
  Dwg_Object *o=dwg_resolve_handle(&drawing,strtoull(handle,NULL,16));TableRef *refs;unsigned count;
@@ -419,7 +436,7 @@ API int pllato_clone_selection(const char *roots,double cx,double cy,double x,do
      &&source->fixedtype!=DWG_TYPE_DICTIONARY&&source->fixedtype!=DWG_TYPE_XRECORD&&source->fixedtype!=DWG_TYPE_IMAGEDEF_REACTOR&&source->fixedtype!=DWG_TYPE_BLOCKREPRESENTATION&&source->fixedtype!=DWG_TYPE_EVALUATION_GRAPH&&source->fixedtype!=DWG_TYPE_SORTENTSTABLE&&source->fixedtype!=DWG_TYPE_FIELD){fprintf(stderr,"CLONE_REJECT_TYPE %s\n",source->name);error=11;break;}
   unsigned originalIndex=source->index,newIndex=drawing.num_objects,refs=drawing.num_object_refs;
   unsigned originalHandleSize=source->handle.size;
-  if(queue[done]>UINT64_MAX-nextHandle){error=26;break;}
+  if(queue[done]>UINT64_MAX-nextHandle){fprintf(stderr,"CLONE_REJECT_HANDLE_OVERFLOW %llX offset=%llX\n",(unsigned long long)queue[done],(unsigned long long)nextHandle);error=26;break;}
   BITCODE_HV handle=nextHandle+queue[done]; /* Preserve relative offsets within the cloned graph. */
   Bit_Chain bits={0},hdl={0};bit_chain_init(&bits,65536);
   bits.version=drawing.header.version;bits.from_version=drawing.header.from_version;
@@ -438,7 +455,14 @@ API int pllato_clone_selection(const char *roots,double cx,double cy,double x,do
   }
   if(typedBackup){free(copy->unknown_bits);copy->unknown_bits=NULL;copy->num_unknown_bits=0;}
   copy->handle.value=handle;copy->handle.size=0;for(BITCODE_HV h=handle;h;h>>=8)copy->handle.size++;
-  if((rawLookup||rawTable)&&copy->handle.size!=originalHandleSize){error=26;break;}
+  if(rawLookup||rawTable){
+   /* Opaque payload starts after the common header. Growing its own handle
+      shifts both payload and handle-stream boundaries equally, by whole bytes. */
+   int growth=(int)copy->handle.size-(int)originalHandleSize;
+   if(growth<0||copy->size>UINT32_MAX-growth||copy->bitsize>UINT32_MAX-growth*8){error=26;break;}
+   copy->size+=growth;copy->bitsize+=growth*8;copy->common_size+=growth*8;
+   if(copy->hdlpos)copy->hdlpos+=growth*8;
+  }
   hash_set(drawing.object_map,queue[done],originalIndex);hash_set(drawing.object_map,handle,newIndex);
   mapped[done]=handle;indices[done]=newIndex;
   for(unsigned j=refs;!rawTable&&j<drawing.num_object_refs;j++){
