@@ -1,3 +1,15 @@
+## 0.17.94 typed-record source preservation
+
+Restore size/bitsize/handlestream_size for all records after full encoding and
+before pp_merge_save. Typed records can also have encoder scratch boundaries;
+otherwise unchanged incomplete typed decoding can be rewritten unnecessarily.
+All fidelity/owner guards remain. source-preservation-regression.c takes an
+optional fourth argument: an unchanged handle required to remain byte-exact.
+DWG_PRESERVE_SOURCE=1 enables the matching full-file path in the customer probe.
+dwg-varied-workers.mjs selects different real areas through selectExecutiveRoots,
+creates each consecutively and checks full export/reopen/root inventory/hash.
+Rebuild the generated writer and its corresponding source archive together.
+
 ## 0.17.93 opaque handle-width growth
 
 Opaque table/ASSOCARRAYACTIONBODY cloning supports larger object IDs. Update

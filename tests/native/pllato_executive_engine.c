@@ -862,14 +862,15 @@ API int pllato_save(const char *path){
   if(!isfinite(width)||width<=0){fprintf(stderr,"SAVE_REJECT_TEXT_WIDTH %llX\n",(unsigned long long)drawing.object[i].handle.value);return DWG_ERR_INVALIDDWG;}
  }
  unsigned expected=0;for(unsigned i=0;i<drawing.num_objects;i++)if(drawing.object[i].type!=DWG_TYPE_FREED&&drawing.object[i].type!=DWG_TYPE_UNUSED)expected++;
- /* Encoder scratch fields must not erase the raw handle-stream boundary in
-    the in-memory document. Preserve it for validation and subsequent saves. */
+ /* Typed encoders also overwrite size/bit/handle-stream boundaries. Restore
+    these scratch fields for EVERY record before source comparison, not only
+    opaque classes: an unedited partially decoded record must retain its exact
+    serialized source bytes, rather than become a spurious changed record. */
  typedef struct {unsigned index,size,bitsize;BITCODE_UMC handles;} RawBoundary;
- unsigned boundaryCount=0;
- for(unsigned i=0;i<drawing.num_objects;i++)if(drawing.object[i].num_unknown_bits)boundaryCount++;
+ unsigned boundaryCount=drawing.num_objects;
  RawBoundary *boundaries=calloc(boundaryCount?boundaryCount:1,sizeof(*boundaries));if(!boundaries)return DWG_ERR_OUTOFMEM;
- unsigned bi=0;for(unsigned i=0;i<drawing.num_objects;i++)if(drawing.object[i].num_unknown_bits){
-  Dwg_Object *o=&drawing.object[i];boundaries[bi++]=(RawBoundary){i,o->size,o->bitsize,o->handlestream_size};
+ for(unsigned i=0;i<boundaryCount;i++){
+  Dwg_Object *o=&drawing.object[i];boundaries[i]=(RawBoundary){i,o->size,o->bitsize,o->handlestream_size};
  }
  int error=dwg_write_file(path,&drawing);
  for(unsigned i=0;i<boundaryCount;i++){RawBoundary b=boundaries[i];Dwg_Object *o=&drawing.object[b.index];o->size=b.size;o->bitsize=b.bitsize;o->handlestream_size=b.handles;}
