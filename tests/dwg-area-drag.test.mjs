@@ -10,3 +10,10 @@ test('rectangle selection requires drag; supports reverse; cancels click, reset 
  g.down(1,[10,10]);g.down(2,[20,20]);g.up(2,[100,100]);g.up(1,[100,100]);assert.equal(completed.length,1);assert.equal(g.active(),false);
  enabled=false;assert.equal(g.down(1,[0,0]),false);enabled=true;g.down(1,[0,0],2);assert.equal(g.active(),false);
 });
+
+test('failed finish and interrupted drag permit a fresh independent rectangle',()=>{
+ let attempts=0;const g=areaDrag({enabled:()=>true,start:()=>{},move:()=>{},cancel:()=>{},finish:()=>{attempts++;if(attempts===1)throw Error('engine failure');}});
+ g.down(1,[0,0]);assert.throws(()=>g.up(1,[100,100]),/engine failure/);assert.equal(g.active(),false);
+ g.reset();g.down(2,[0,0]);g.up(2,[50,50]);assert.equal(attempts,2);assert.equal(g.active(),false);
+ g.down(3,[0,0]);g.reset();g.down(4,[0,0]);g.up(4,[80,80]);assert.equal(attempts,3);
+});

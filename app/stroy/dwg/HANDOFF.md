@@ -1,5 +1,27 @@
 # Передача разработки DWG-редактора
 
+## 0.17.91 — новое выделение после неудачного создания
+
+На фото пользователя первая попытка завершается generic worker error, затем
+кнопка использовала сохранённые chosen roots и запускала exCreate вместо новой
+рамки. Верхняя «Исполнительная +» теперь всегда начинает новое выделение;
+старые chosen/area/waiting-for-units/error очищаются при запуске. Отказ commit
+и исключение создания сбрасывают выбор/режим/pressed; ошибка выбора области
+не оставляет активный инструмент, поскольку режим завершается перед запросом
+roots. При ожидаемом выборе единиц сохранённая область по-прежнему создаётся
+автоматически после units change. Ошибка worker сообщает доступный message;
+при пустом сообщении предлагает меньшую область, а не утверждает причину.
+
+224 unit tests. CUA diagnostic production mountExecutiveUI + areaDrag:
+synthetic commit false → button unpressed → click activates NEW rectangle →
+second drag commit true, button unpressed. Reusable synthetic manual page:
+/tests/dwg-area-retry.html. Она намеренно отклоняет первое создание, не
+проверяет native exporter. Отдельно actual private pllato6 worker cycle:
+503 roots (включая 3 сложных INSERT), native creation/full save/reopen/LINE
+edit/save/reopen/root inventory/source hash — passed. Первую ошибку native
+на физическом планшете локально не воспроизвели; нельзя заявлять её устранение.
+Частный файл/фото/логи не публиковались; AutoCAD и RECOVER не запускались.
+
 ## 0.17.90 — меньше памяти сцены и последовательное скачивание
 
 Короткие LINE/COMPOSITE пути больших native-сцен теперь также используют
