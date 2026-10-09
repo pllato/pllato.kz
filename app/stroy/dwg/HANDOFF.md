@@ -1,3 +1,28 @@
+# 0.17.95 — complete association envelopes and database registry boundaries
+
+Reproduced the exact ACDBASSOCROTATEDDIMACTIONBODY refusal on the private fixture.
+Copy bounded raw payloads for rotated dimension bodies, osnap/edge action params
+and centerline bodies, remapping every independently parsed handle. Class names,
+common flags, owner types and complete decoded/raw reference agreement gate this
+path. Partial decoded geometry is never used to reconstruct these payloads.
+Payload/padding remain bit-identical; negative boundary and ownership tests fail.
+
+Recognize shared association registries only through an exact dictionary
+membership/ownership chain to NOD or canonical Model extension dictionary.
+Register copied local actions/networks without traversing the whole database.
+SORTENTSTABLE sort keys retain their arbitrary ordering values; paired entity
+references still undergo full graph validation. No fidelity guard was removed.
+
+Private regression: 18 source envelopes / 15 copied envelopes, five duplicate
+registry registrations rejected, nine sort tables preserved, save/reopen PASS.
+Production workers: six consecutive creates with linked dimensions and centerline,
+plus three repeats on the final hardened build; three old array/DIMASSOC repeats;
+full separated-sheet export/root inventory; independent LINE move/color/save/read.
+AutoCAD 2027 isolated console: association regression and full three-sheet
+production output AUDIT No 0 errors, SAVEAS DWG2018, close/reopen AUDIT No
+0 errors. Final unit suite: 227 passed. Source hashes unchanged.
+Physical Android tablet testing remains unverified.
+
 # 0.17.94 — unchanged typed-record boundaries
 
 Reproduced SAVE_REJECT_COMMON_HANDLES on an original HATCH even in a whole-file
@@ -23,8 +48,8 @@ No 0 errors. Six-sheet output AUDIT No 0 errors; separate SAVEAS DWG2018, close/
 and AUDIT No 0 errors.
 
 Remaining: this does not implement the HATCH contour decoder or promise arbitrary
-unsupported-class cloning. Earlier ACDBASSOCROTATEDDIMACTIONBODY reproducer remains
-missing; it was not present in this source. Physical Android tablet memory and
+unsupported-class cloning. The initial name-only inventory missed UNKNOWN_OBJ records. The class-table
+lookup subsequently found the exact rotated-dimension reproducer; see 0.17.95. Physical Android tablet memory and
 interaction are not independently validated by these Mac worker tests.
 
 # 0.17.93 — array cloning and bounded undo memory
