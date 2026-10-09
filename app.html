@@ -4248,6 +4248,12 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
     </div></div>
     <div class="section-title">Инструменты для продаж</div>
     <div class="tools-grid">
+      <div class="tool-card" data-app-id="pllato_briefs">
+        <div class="tool-icon" style="background:#1f6b55;color:#fff;font-size:12px;font-weight:900;letter-spacing:.04em">ТЗ</div>
+        <h3>Анкета для ТЗ клиента</h3>
+        <p>Универсальный опросник о бизнесе клиента: подстраивается под тип бизнеса, в каждом разделе — место для того, что мы не учли. Отправьте ссылку клиенту, заявки появятся в списке — подшейте их к карточке клиента.</p>
+        <button type="button" class="tool-cta" id="openBriefs" style="border:0;background:none;text-align:left;cursor:pointer">Ссылка и заявки →</button>
+      </div>
       <div class="tool-card" data-app-id="pllato_zoom_archive">
         <div class="tool-icon color-indigo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3M7 9h5M7 13h5"/></svg></div>
         <h3>Архив Zoom</h3>
@@ -4524,6 +4530,28 @@ import {
 
 
 
+document.getElementById('openBriefs')?.addEventListener('click', async () => {
+  let panel = document.getElementById('briefsDialog');
+  if (!panel) {
+    panel = document.createElement('dialog');
+    panel.id = 'briefsDialog';
+    panel.setAttribute('aria-label', 'Анкеты клиентов для ТЗ');
+    panel.style.cssText = 'width:min(1200px,94vw);max-height:90vh;overflow:auto;border:1px solid #d8dde5;border-radius:14px;padding:18px;background:#fafaf7';
+    panel.innerHTML = '<button type="button" data-close style="padding:9px 16px;cursor:pointer">← Вернуться к инструментам</button><section id="briefsAdmin"></section>';
+    panel.querySelector('[data-close]').onclick = () => panel.close();
+    document.body.append(panel);
+  }
+  panel.showModal();
+  const box = panel.querySelector('#briefsAdmin');
+  box.textContent = 'Загружаю…';
+  try {
+    const { mountBriefs } = await import('./app/briefs-admin.js?v=20261009');
+    mountBriefs(box, { getToken: () => getSession()?.token, userName: getSession()?.user?.name || getSession()?.user?.email || '' });
+  } catch (e) { box.textContent = 'Не удалось открыть: ' + (e.message || e); }
+});
+// Подшитые анкеты — сводка прямо в карточках клиентов.
+setTimeout(() => { import('./app/briefs-admin.js?v=20261009').then(({ paintLinkedBriefs }) => paintLinkedBriefs({ getToken: () => getSession()?.token })).catch(() => {}); }, 1500);
+
 document.getElementById('openZoomArchive').addEventListener('click', async () => {
   let panel = document.getElementById('zoomArchiveDialog');
   if (!panel) {
@@ -4634,6 +4662,7 @@ const APPS_CATALOG = [
   { id: "pllato_sales_crm", label: "CRM Pllato — Старт и Производство" },
   { id: "pllato_shared_calendar", label: "Общий календарь Pllato" },
   { id: "pllato_zoom_archive", label: "Архив Zoom — записи и транскрипты" },
+  { id: "pllato_briefs", label: "Анкета для ТЗ клиента — ссылка и заявки" },
   { id: "ukolova_call_trainer", label: "Тренажёр звонков · база LANDPR" },
   { id: "esmotors",         label: "ES Motors · CRM отдела продаж автосалона — Демо + КП" },
   { id: "kazmeddez",        label: "Казахстан-Мед Дез · Единый портал вместо Битрикса — Демо" },

@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Анкета для ТЗ · Pllato</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231f4d3f'/><path d='M50 30v40M30 50h40' stroke='%23d08a52' stroke-width='10' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Literata:opsz,wght@7..72,500;7..72,600;7..72,700&family=Commissioner:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--g:#1f4d3f;--g2:#1f6b55;--gl:#e7f1ec;--cu:#d08a52;--cul:#fbefe3;--bg:#f4f1ea;--card:#fffdf9;--t:#1d2a25;--m:#5d6b64;--m2:#8d998f;--ln:#e4ded2;--ln2:#d0c8b9}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111a17;--card:#17221e;--t:#e8efeb;--m:#a3b2aa;--m2:#71827a;--ln:#26352f;--ln2:#344840;--gl:#1a3a2f;--cul:#33261a}}
+*{box-sizing:border-box}html,body{margin:0}body{background:var(--bg);color:var(--t);font:15px/1.55 'Commissioner',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:'Literata',Georgia,serif;font-weight:600;letter-spacing:-.01em;margin:0}
+a{cursor:pointer;color:inherit;text-decoration:none}
+.hb{position:sticky;top:0;z-index:20;background:var(--g);color:#f4efe6;display:flex;align-items:center;justify-content:space-between;padding:12px 22px;gap:12px;flex-wrap:wrap}
+.lg{display:flex;align-items:center;gap:9px}.lg b{font:600 17px 'Literata',serif;letter-spacing:.06em}.lg span{color:#c8d6cf;font-size:13px}
+.hr{display:flex;gap:10px;align-items:center}
+.topbar{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.12)}.topbar i{display:block;height:100%;background:var(--cu);transition:width .5s}
+.sv{font-size:12px;color:#c8d6cf;display:flex;align-items:center;gap:6px}.sv i{width:8px;height:8px;border-radius:50%;background:#7f9a8f}.sv.ok i{background:#5fbf9a}.sv.pending i{background:var(--cu);animation:pl 1s infinite}.sv.local i{background:#e3a877}
+@keyframes pl{50%{opacity:.3}}
+.bt{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ln2);background:var(--card);color:var(--t);border-radius:999px;padding:10px 18px;font-weight:600;font-size:14px;transition:.15s}
+.bt:hover{border-color:var(--g2)}.bt.p{background:var(--g2);border-color:var(--g2);color:#fff}.bt.p:hover{filter:brightness(1.08)}
+.hb .bt.ghost{background:transparent;color:#f4efe6;border-color:rgba(255,255,255,.3);padding:7px 14px;font-size:13px}
+.sec .bt.ghost{padding:8px 14px;font-size:13px}
+.kick{display:block;font:500 11px 'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--cu);margin-bottom:8px}
+/* главная */
+.home{max-width:1180px;margin:0 auto;padding:30px 22px 60px}
+.hero{display:grid;grid-template-columns:1fr 260px;gap:30px;align-items:center;background:linear-gradient(130deg,var(--g),#2a5f4f);color:#f4efe6;border-radius:24px;padding:36px 38px;position:relative;overflow:hidden}
+.hero:after{content:'';position:absolute;right:-80px;top:-80px;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,rgba(208,138,82,.35),transparent 65%)}
+.hero h1{font-size:34px;line-height:1.18;margin-bottom:14px}.hero h1 em{font-style:normal;color:#e3a877}.hero p{color:#c8d6cf;max-width:640px}
+.hs{display:flex;gap:26px;margin:18px 0 22px;flex-wrap:wrap}.hs b{display:block;font:600 26px 'Literata',serif}.hs span{font-size:12px;color:#c8d6cf}
+.hbtns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.hr2{position:relative;display:grid;place-items:center;z-index:1}.hr2 .ring .rb{stroke:rgba(255,255,255,.15)}.hr2 .ring .rf{stroke:var(--cu)}
+.big{position:absolute;text-align:center}.big b{display:block;font:600 40px 'Literata',serif}.big span{font-size:12px;color:#c8d6cf}
+.mh{font-size:24px;margin:34px 0 4px}.mp{color:var(--m);margin:0 0 16px}
+.map{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.mc{background:var(--card);border:1px solid var(--ln);border-radius:18px;padding:16px 18px;cursor:pointer;transition:.18s;display:flex;flex-direction:column;gap:4px}
+.mc:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(31,77,63,.12);border-color:var(--g2)}.mc.full{background:var(--gl);border-color:#bcd8cb}
+.mt{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}.mi{width:40px;height:40px;border-radius:12px;background:var(--cul);color:var(--cu);display:grid;place-items:center;font-size:19px}
+.mc>b{font-size:15.5px}.mc>span{font-size:12.5px;color:var(--m)}.fw{font-size:12.5px;color:var(--g2);font-weight:600;margin-top:6px}
+.rg{position:relative;display:inline-grid;place-items:center}.rg b{position:absolute;font:500 10.5px 'JetBrains Mono',monospace}
+.ring{transform:rotate(-90deg)}.ring circle{fill:none;stroke-width:4}.ring .rb{stroke:var(--ln)}.ring .rf{stroke:var(--g2);stroke-linecap:round;transition:stroke-dashoffset .6s}
+/* раздел */
+.wrap{display:grid;grid-template-columns:270px 1fr 360px;gap:22px;max-width:1500px;margin:0 auto;padding:22px}
+.nv{position:sticky;top:76px;align-self:start;max-height:calc(100vh - 96px);overflow:auto;background:var(--card);border:1px solid var(--ln);border-radius:18px;padding:12px}
+.nvh{display:flex;justify-content:space-between;align-items:baseline;padding:4px 6px 10px}.nvh span{font-size:12px;color:var(--m)}.nvh span b{color:var(--g2)}
+.ni{display:flex;gap:10px;align-items:center;padding:7px 6px;border-radius:12px}.ni:hover{background:var(--bg)}.ni.on{background:var(--gl)}
+.ni .rg{flex:none;width:30px;height:30px}.ni .rg b{font-size:8.5px}.nt b{display:block;font-size:13px;font-weight:600}.nt em{font-style:normal;font-size:11px;color:var(--m2)}.ni.fin .rg{color:var(--cu);font-size:18px}
+.sec{min-width:0}.sh{margin-bottom:16px}.sh h1{font-size:30px;margin-bottom:8px}.sh p{color:var(--m);max-width:760px;margin:0 0 12px}.shb{display:flex;align-items:center;gap:14px}.shb .rg b{font-size:11px}
+.qc{display:grid;grid-template-columns:46px 1fr;gap:12px;background:var(--card);border:1px solid var(--ln);border-radius:18px;padding:18px 20px;margin-bottom:12px;transition:border-color .2s}
+.qc.done{border-color:#bcd8cb}.qn b{font:500 13px 'JetBrains Mono',monospace;color:var(--m2)}.qn i{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--g2);color:#fff;font-style:normal;font-size:13px;margin-top:6px}
+.qb h3{font-size:17.5px;margin-bottom:6px}.why{font-size:12.5px;color:var(--m);margin:0 0 8px}
+.pre{background:var(--cul);border-radius:12px;padding:9px 12px;margin:6px 0 10px;font-size:13px}.pre span{font:500 10px 'JetBrains Mono',monospace;text-transform:uppercase;color:var(--cu);letter-spacing:.06em}.pre p{margin:3px 0}.pre a{font-weight:600;color:var(--g2)}
+.in{width:100%;border:1px solid var(--ln2);background:var(--bg);color:var(--t);border-radius:12px;padding:11px 13px;font:inherit;outline:none;transition:border .15s}.in:focus{border-color:var(--g2);background:var(--card)}
+.ta{resize:vertical;min-height:84px}.in.sm{max-width:200px}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px}.chip{border:1px solid var(--ln2);border-radius:999px;padding:7px 13px;font-size:13.5px;background:var(--bg);transition:.12s}.chip:hover{border-color:var(--g2)}.chip.on{background:var(--g2);border-color:var(--g2);color:#fff}
+.in.other{width:auto;flex:1;min-width:160px;padding:7px 12px;border-radius:999px}
+.tblw{overflow-x:auto}.tb{width:100%;border-collapse:collapse;font-size:13px}.tb th{text-align:left;font:500 10.5px 'JetBrains Mono',monospace;text-transform:uppercase;color:var(--m2);padding:6px 6px;border-bottom:1px solid var(--ln)}
+.tb td{padding:3px}.tb td input{width:100%;border:1px solid transparent;background:var(--bg);border-radius:8px;padding:8px 9px;font:inherit;color:var(--t);min-width:90px}.tb td input:focus{border-color:var(--g2);outline:none;background:var(--card)}
+.tb td.x a{color:var(--m2);font-size:18px;padding:0 6px}.addrow{display:inline-block;margin-top:6px;font-size:13px;font-weight:600;color:var(--g2)}
+.nx{display:flex;justify-content:space-between;gap:10px;margin:18px 0 40px}
+.lv{position:sticky;top:76px;align-self:start;max-height:calc(100vh - 96px);overflow:auto;background:#fffefb;border:1px solid var(--ln);border-radius:18px;padding:16px 18px;box-shadow:0 10px 30px rgba(31,77,63,.06);color:#1d2a25}
+.lvh{display:flex;align-items:center;gap:8px;font:500 11px 'JetBrains Mono',monospace;text-transform:uppercase;color:var(--g2);margin-bottom:10px}.dot{width:8px;height:8px;border-radius:50%;background:#5fbf9a;animation:pl 1.6s infinite}
+#live h3,.tzsec h3{font-size:18px;margin:4px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--g)}
+.tzi{margin-bottom:10px;font-size:13px;animation:fi .4s}.tzi>b{display:block;color:#5d6b64;font-weight:600;font-size:12px;margin-bottom:2px}.tzi p{margin:0}.tzi ul{margin:2px 0;padding-left:18px}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}}
+.tzt{width:100%;border-collapse:collapse;font-size:12px;margin-top:3px}.tzt th,.tzt td{border:1px solid #e4ded2;padding:4px 6px;text-align:left;vertical-align:top}.tzt th{background:#f4f1ea}
+.emp{color:#8d998f;font-size:13px}
+/* ТЗ */
+.tzw{max-width:900px;margin:0 auto;padding:26px 22px 60px}.tzd{background:#fffefb;color:#1d2a25;border:1px solid var(--ln);border-radius:20px;padding:36px 44px;box-shadow:0 16px 40px rgba(31,77,63,.08)}
+.tzc h1{font-size:30px;margin-bottom:6px}.tzc p{color:#5d6b64;margin:0 0 12px}.tzs{display:flex;gap:28px;margin:12px 0;flex-wrap:wrap}.tzs b{display:block;font:600 24px 'Literata',serif;color:#1f6b55}.tzs span{font-size:12px;color:#5d6b64}
+.tzsec{margin-top:22px;break-inside:avoid-page}
+#mod{position:fixed;inset:0;background:rgba(17,26,23,.5);display:none;place-items:center;z-index:50;padding:16px}#mod.show{display:grid}.mbx{background:var(--card);border-radius:20px;padding:22px 24px;max-width:520px;width:100%}.mbx h3{margin-bottom:6px}.mbx p{color:var(--m);font-size:14px}
+#tst{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--g);color:#fff;padding:12px 18px;border-radius:14px;opacity:0;transition:.3s;z-index:60;max-width:90vw}#tst.show{opacity:1;transform:translateX(-50%)}
+@media(max-width:1200px){.wrap{grid-template-columns:240px 1fr}.lv{display:none}}
+@media(max-width:820px){.wrap{grid-template-columns:1fr;padding:12px}.nv{position:static;max-height:none;display:flex;overflow-x:auto;gap:6px;padding:8px}.nvh{display:none}.ni{flex:none}.ni .nt em{display:none}
+ .hero{grid-template-columns:1fr;padding:26px 20px}.hero h1{font-size:26px}.hr2{display:none}.qc{grid-template-columns:1fr;padding:14px}.qn{display:none}.home{padding:16px 12px 40px}.tzd{padding:22px 18px}.hb{padding:10px 14px}.lg span{display:none}}
+@media print{.hb,.np,.nv,#mod,#tst{display:none!important}body{background:#fff}.tzd{border:0;box-shadow:none;padding:0}.tzw{padding:0}}
+.stf{background:var(--card);border:1px solid var(--ln);border-radius:22px;padding:26px 28px;margin-top:16px;position:relative}
+.stf h3{font-size:19px;margin:20px 0 8px}.stf label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--m);font-weight:600}
+.f2{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin:8px 0}
+.md{display:flex;align-items:center;gap:10px;border:1px solid var(--ln2);border-radius:14px;padding:11px 13px;background:var(--bg);font-weight:600;font-size:14px;transition:.15s}
+.md i{width:22px;height:22px;border-radius:7px;border:1.5px solid var(--ln2);display:grid;place-items:center;font-style:normal;font-size:12px;flex:none}
+.md.on{border-color:var(--g2);background:var(--gl)}.md.on i{background:var(--g2);border-color:var(--g2);color:#fff}
+.bt.big{padding:14px 26px;font-size:16px}
+.hero.st{grid-template-columns:1fr}
+.qc.auto{background:var(--cul);border-style:dashed;border-color:#e3c3a3}.qc.auto .qn b{color:var(--cu);font-size:18px}
+.mc.own{border-style:dashed;border-color:var(--cu)}
+.tzi.add{border-left:3px solid #d08a52;padding-left:8px}
+@media(max-width:820px){.f2{grid-template-columns:1fr}.stf{padding:18px}}
+</style>
+</head>
+<body>
+<div id="root"></div><div id="mod"></div><div id="tst"></div>
+<script>
+const LOGO='<svg width="26" height="26" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#d08a52"/><path d="M50 28v44M28 50h44" stroke="#fff" stroke-width="11" stroke-linecap="round"/></svg>';
+/* Универсальный опросник для ТЗ. Общие разделы (core) — для всех; модули (mods) включаются по типу бизнеса (kinds) или галочкой.
+   К каждому разделу движок сам добавляет «Что мы не учли» и «+ свои вопросы»; в конце — «Свои разделы». */
+const BRIEFU = {
+ title: 'Техническое задание · опросник',
+ kinds: [
+  ['Производство',['prod','stock','b2b']],['Оптовая торговля',['trade','stock','b2b','logi']],['Розница / магазины',['trade','stock']],['Интернет-магазин',['trade','stock','logi','cabinet']],
+  ['Услуги по записи',['service']],['Клиника / медицина',['service','med','stock']],['Стройка / подряд',['proj','stock','field']],['Проектная компания / агентство',['proj','b2b']],
+  ['Обучение / школа',['edu','service']],['Общепит / HoReCa',['horeca','stock']],['Логистика / доставка',['logi']],['Сервис, ремонт, монтаж',['field','stock']],
+  ['Недвижимость',['b2b','proj']],['Финансы / МФО / страхование',['b2b']],['Туризм / отели',['service','cabinet']],['Другое',[]]
+ ],
+ core: [
+ {k:'about',n:'О компании и целях',ic:'◎',who:'Собственник',intro:'Общая картина: чем занимается компания, кто в команде и зачем вам система.',qs:[
+  {id:'name',q:'Название компании, юридическое лицо, город',t:'t'},
+  {id:'what',q:'Чем занимается компания — своими словами, как рассказали бы новому сотруднику',t:'ta'},
+  {id:'scale',q:'Масштаб',t:'tbl',cols:['Показатель','Сейчас','Через год'],rows:[['Сотрудников',''],['Клиентов / заказов в месяц',''],['Оборот в месяц, ₸',''],['Точек / филиалов','']]},
+  {id:'pain',q:'Три главные проблемы, которые система должна решить в первую очередь',t:'ta'},
+  {id:'goal',q:'Что должно измениться через 6 месяцев работы в системе? В цифрах, если можно',t:'ta'},
+  {id:'success',q:'По каким признакам вы поймёте, что система удалась?',t:'mu',o:['Всё в одной системе вместо нескольких программ и таблиц','Видно, где теряем клиентов и деньги','Сотрудники под контролем','Отчёты собираются сами','Меньше ручной работы','Быстрее обслуживаем клиентов','Можно масштабироваться без хаоса']},
+  {id:'decider',q:'Кто принимает решения по системе и принимает работу?',t:'t'}
+ ]},
+ {k:'org',n:'Структура, отделы и роли',ic:'☷',who:'Собственник',intro:'Отделы, люди и кто что делает — по этому строятся роли, права и задачи.',qs:[
+  {id:'deps',q:'Отделы и сколько в них людей',t:'tbl',cols:['Отдел','Сколько человек','Руководитель','Удалённо?'],rows:[['Продажи','','',''],['Маркетинг','','',''],['Производство / услуги','','',''],['Склад / закупки','','',''],['Бухгалтерия / финансы','','',''],['HR','','','']]},
+  {id:'roles',q:'Должности и что каждая должна видеть и менять в системе',t:'tbl',cols:['Должность','Видит','Меняет','Не должна видеть'],rows:[['Руководитель','всё','всё',''],['Менеджер','','',''],['','','','']]},
+  {id:'hide',q:'Какие данные скрывать от сотрудников?',t:'mu',o:['Выручку и прибыль','Зарплаты других','Закупочные цены','Телефоны клиентов','Чужих клиентов','Финансовые отчёты']},
+  {id:'remote',q:'Кто работает удалённо или в разъездах и что нужно контролировать?',t:'ta'}
+ ]},
+ {k:'clients',n:'Клиенты и путь клиента',ic:'→',who:'Собственник + РОП',intro:'Сквозной путь клиента от первого контакта до повторной покупки — скелет всей системы.',qs:[
+  {id:'who',q:'Кто ваши клиенты?',t:'mu',o:['Частные лица','Компании (B2B)','Госзаказчики','Дилеры / оптовики','Маркетплейсы','Партнёры / агенты']},
+  {id:'path',q:'Этапы пути клиента — от заявки до повторной покупки',t:'tbl',cols:['Этап','Что происходит','Кто отвечает','Сколько длится'],rows:[['Заявка','','',''],['Первый контакт','','',''],['Расчёт / КП','','',''],['Договор / оплата','','',''],['Выполнение','','',''],['Сдача / получение','','',''],['Повторно / рекомендация','','','']]},
+  {id:'card',q:'Что нужно знать о клиенте в карточке?',t:'ta',ph:'Контакты, реквизиты, история, предпочтения, документы…'},
+  {id:'lost',q:'Где теряете больше всего клиентов и почему? Причины отказа',t:'ta'},
+  {id:'repeat',q:'Как работаете с клиентом после покупки?',t:'ta'}
+ ]},
+ {k:'sales',n:'Продажи',ic:'☎',who:'РОП',intro:'Команда продаж, воронка, расчёт и КП, договоры, план и мотивация.',qs:[
+  {id:'team',q:'Как устроен отдел продаж?',t:'ta',ph:'РОП, менеджеры, кто ищет клиентов, кто закрывает…'},
+  {id:'distrib',q:'Как распределять заявки?',t:'ch',o:['По очереди','Свободному','По направлению / продукту','По региону','Вручную руководитель']},
+  {id:'calc',q:'Как считаете стоимость для клиента? Есть калькулятор, прайс, таблица?',t:'ta',why:'Если расчёт сложный — делаем калькулятор внутри системы.'},
+  {id:'kp',q:'Что входит в КП и договор? Пришлите образцы, если есть',t:'ta'},
+  {id:'plan',q:'План продаж и мотивация менеджеров',t:'tbl',cols:['Составляющая','Как считается'],rows:[['План',''],['Оклад',''],['Процент',''],['Бонусы',''],['Штрафы','']]},
+  {id:'control',q:'Что контролировать у менеджеров?',t:'mu',o:['Звонки и их записи','Скорость ответа','Переписку','Оценку разговоров по скрипту','Выход на работу','Выполнение плана','Задачи и сроки']}
+ ]},
+ {k:'mkt',n:'Маркетинг',ic:'✦',who:'Маркетолог',intro:'Откуда приходят клиенты и сколько они стоят.',qs:[
+  {id:'channels',q:'Каналы привлечения и бюджеты',t:'tbl',cols:['Канал','Бюджет в месяц','Заявок в месяц','Кто ведёт'],rows:[['Instagram','','',''],['2ГИС','','',''],['Сайт','','',''],['Сарафан','','','']]},
+  {id:'forms',q:'Как приходят заявки?',t:'mu',o:['Формы рекламы','WhatsApp','Звонки','Сайт','Директ','Маркетплейсы','Тендеры']},
+  {id:'report',q:'Какие цифры маркетинга видеть каждую неделю?',t:'mu',o:['Заявки по каналам','Цена заявки','Цена клиента','ROMI','Конверсия по этапам','Выручка по каналам']}
+ ]},
+ {k:'comms',n:'Каналы связи',ic:'✉',who:'РОП',intro:'Телефония, мессенджеры, почта — всё, через что вы говорите с клиентами.',qs:[
+  {id:'tools',q:'Чем пользуетесь?',t:'mu',o:['WhatsApp','Telegram','Instagram Direct','Телефония (АТС)','Почта','Сайт-чат']},
+  {id:'phone',q:'Какая телефония? Нравится ли?',t:'t',ph:'Binotel, Sipuni, Zadarma, обычные мобильные…'},
+  {id:'numbers',q:'Сколько номеров WhatsApp и кто на них отвечает?',t:'ta'},
+  {id:'auto',q:'Какие сообщения клиенту отправлять автоматически?',t:'ta',ph:'Подтверждение, напоминание, статус заказа, оценка…'}
+ ]},
+ {k:'money',n:'Деньги и финансы',ic:'₸',who:'Финдиректор / бухгалтер',intro:'Как принимаете оплату, расходы, отчёты и что вести в системе.',qs:[
+  {id:'pay',q:'Способы оплаты',t:'mu',o:['Kaspi','Наличные','Терминал','Безнал по счёту','Рассрочка','Предоплата / постоплата','Отсрочка B2B']},
+  {id:'flow',q:'Как идут деньги: предоплата, этапы, остаток? Кто контролирует долги?',t:'ta'},
+  {id:'expenses',q:'Статьи расходов',t:'tbl',cols:['Статья','Примерно в месяц'],rows:[['Зарплата',''],['Аренда',''],['Закупки / материалы',''],['Реклама',''],['Прочее','']]},
+  {id:'reports',q:'Какие финансовые отчёты нужны?',t:'mu',o:['Доходы и расходы','ДДС (движение денег)','Прибыль по направлениям','Дебиторка','Кредиторка','Себестоимость','Платёжный календарь','Зарплатный фонд']},
+  {id:'acc',q:'Бухгалтерия: 1С, другая программа, аутсорс? Что передавать?',t:'ta'}
+ ]},
+ {k:'docs',n:'Документы',ic:'▤',who:'Собственник',intro:'Какие документы создаются и подписываются.',qs:[
+  {id:'gen',q:'Какие документы система должна формировать сама?',t:'mu',o:['КП','Договор','Счёт','Акт выполненных работ','Накладная','Доверенность','Заявка поставщику','Внутренние документы']},
+  {id:'sign',q:'Как подписываете документы?',t:'mu',o:['ЭЦП','На бумаге','Сканы в WhatsApp','По-разному']},
+  {id:'store',q:'Где хранить файлы (фото, чертежи, сканы) и сколько их?',t:'ta'}
+ ]},
+ {k:'tasks',n:'Задачи, регламенты и контроль',ic:'☑',who:'Собственник',intro:'Задачи отделов, регламенты, сроки и контроль исполнения.',qs:[
+  {id:'types',q:'Какие задачи повторяются регулярно?',t:'ta'},
+  {id:'deadline',q:'Что происходит, когда сотрудник срывает срок?',t:'ta'},
+  {id:'meet',q:'Планёрки и отчёты сотрудников: кто, когда, о чём',t:'ta'}
+ ]},
+ {k:'reports',n:'Отчёты и пульт руководителя',ic:'▦',who:'Собственник',intro:'Что вы хотите видеть каждый день, неделю и месяц — без звонков сотрудникам.',qs:[
+  {id:'daily',q:'Каждый день',t:'ta'},
+  {id:'weekly',q:'Каждую неделю',t:'ta'},
+  {id:'monthly',q:'Каждый месяц',t:'ta'},
+  {id:'where',q:'Где удобнее смотреть?',t:'mu',o:['Компьютер','Телефон','Сводка в WhatsApp / Telegram каждое утро']}
+ ]},
+ {k:'auto',n:'Автоматизации и уведомления',ic:'⟳',who:'Собственник + руководители',intro:'Что система должна делать сама, чтобы люди не держали это в голове.',qs:[
+  {id:'rules',q:'События и что должно происходить автоматически',t:'tbl',cols:['Когда (событие)','Что сделать','Кому сообщить'],rows:[['Новая заявка','',''],['Просрочена задача','',''],['Оплата получена','',''],['','','']]},
+  {id:'notify',q:'Куда присылать уведомления?',t:'mu',o:['В системе','WhatsApp','Telegram','Почта','Push на телефон']}
+ ]},
+ {k:'ai',n:'Искусственный интеллект',ic:'✧',who:'Собственник',intro:'Где ИИ принесёт пользу именно вам.',qs:[
+  {id:'where',q:'Где нужен ИИ?',t:'mu',o:['Оценка звонков менеджеров','Краткое содержание разговоров','Помощник руководителя (вопросы своими словами)','Ответы клиентам в чате','Разбор документов и фото','Прогнозы и аналитика','Подготовка КП и писем']},
+  {id:'q',q:'Какие вопросы вы бы задали ИИ-помощнику в первую неделю?',t:'ta'}
+ ]},
+ {k:'integr',n:'Текущие программы и переезд',ic:'⇄',who:'Собственник + IT',intro:'Что используете сейчас, что переносим и с чем интегрируемся.',qs:[
+  {id:'now',q:'Программы и таблицы сейчас',t:'tbl',cols:['Программа','Для чего','Что нравится','Что не устраивает'],rows:[['','','',''],['','','','']]},
+  {id:'need',q:'С чем нужна интеграция?',t:'mu',o:['1С','Kaspi','Банк','Сайт','Маркетплейсы','Телефония','WhatsApp','Почта','ЭСФ / ЭЦП','Госзакупки']},
+  {id:'migr',q:'Какие данные переносим и сколько истории?',t:'ta'},
+  {id:'parallel',q:'Сколько готовы работать параллельно в старых программах?',t:'ch',o:['1 неделю','2 недели','Месяц','Переходим сразу']}
+ ]}
+ ],
+ mods: {
+ prod:{k:'prod',n:'Производство',ic:'⚙',who:'Начальник производства',intro:'Как заказ превращается в продукт: участки, техкарты, сырьё, загрузка.',qs:[
+  {id:'flow',q:'Этапы производства заказа',t:'tbl',cols:['Этап / участок','Кто','Сколько длится'],rows:[['','',''],['','','']]},
+  {id:'tech',q:'Есть ли техкарты / спецификации? Как считается расход сырья?',t:'ta'},
+  {id:'load',q:'Как планируете загрузку участков и людей?',t:'ta'},
+  {id:'cost',q:'Как считаете себестоимость продукции?',t:'ta'},
+  {id:'qc',q:'Контроль качества и брак',t:'ta'},
+  {id:'sub',q:'Работаете с подрядчиками на отдельные операции?',t:'yn'}
+ ]},
+ stock:{k:'stock',n:'Склад и закупки',ic:'▣',who:'Склад / снабжение',intro:'Номенклатура, остатки, поставщики, закупки.',qs:[
+  {id:'count',q:'Сколько наименований, складов и мест хранения?',t:'ta'},
+  {id:'track',q:'Что учитывать по позиции?',t:'mu',o:['Партии','Сроки годности','Серийные номера','Ячейки','Минимальный остаток','Резерв под заказы','Себестоимость']},
+  {id:'buy',q:'Как устроены закупки: кто заказывает, у кого, согласование?',t:'ta'},
+  {id:'inv',q:'Как часто инвентаризация и как сейчас?',t:'ta'}
+ ]},
+ trade:{k:'trade',n:'Торговля и точки продаж',ic:'◫',who:'Руководитель продаж',intro:'Точки, кассы, цены, маркетплейсы.',qs:[
+  {id:'points',q:'Точки продаж, кассы, маркетплейсы',t:'ta'},
+  {id:'prices',q:'Цены: прайс-листы, скидки, акции, разные цены для разных клиентов',t:'ta'},
+  {id:'mp',q:'На каких площадках продаёте?',t:'mu',o:['Kaspi','Wildberries','Ozon','Свой сайт','Instagram','Оптовые клиенты']},
+  {id:'returns',q:'Возвраты и обмены — как сейчас?',t:'ta'}
+ ]},
+ service:{k:'service',n:'Услуги и запись',ic:'◷',who:'Администратор',intro:'Специалисты, расписание, кабинеты, пакеты и абонементы.',qs:[
+  {id:'specs',q:'Специалисты, кабинеты / места и расписание',t:'tbl',cols:['Специалист / ресурс','Услуги','Дни и часы'],rows:[['','',''],['','','']]},
+  {id:'services',q:'Услуги, пакеты, абонементы — как продаются?',t:'ta',why:'Если набор услуг каждый раз свой — делаем конструктор из прайса.'},
+  {id:'book',q:'Как клиент записывается и как переносит?',t:'ta'},
+  {id:'noshow',q:'Что делаете с неявками и опозданиями?',t:'ta'}
+ ]},
+ med:{k:'med',n:'Медицина',ic:'✚',who:'Главный врач',intro:'Медицинская карта, назначения, лицензии и требования к данным.',qs:[
+  {id:'card',q:'Что вносится в медкарту?',t:'mu',o:['Жалобы','Анамнез','Осмотр','Анализы','Диагноз','Назначения','Противопоказания','Документы и согласия']},
+  {id:'rules',q:'Требования к хранению медицинских данных и доступу',t:'ta'},
+  {id:'docs',q:'Обязательные документы и формы',t:'ta'}
+ ]},
+ proj:{k:'proj',n:'Проекты и объекты',ic:'⌂',who:'Руководитель проектов',intro:'Объекты, стадии, сметы, подрядчики, сдача.',qs:[
+  {id:'stages',q:'Стадии проекта / объекта',t:'tbl',cols:['Стадия','Что сдаём','Кто отвечает'],rows:[['','',''],['','','']]},
+  {id:'est',q:'Сметы и бюджет проекта: как считаете, как контролируете план/факт?',t:'ta'},
+  {id:'subs',q:'Подрядчики: как выбираете, как платите, как контролируете сроки?',t:'ta'},
+  {id:'acts',q:'Документы сдачи: акты, исполнительная документация',t:'ta'}
+ ]},
+ logi:{k:'logi',n:'Логистика и доставка',ic:'⇢',who:'Логист',intro:'Рейсы, водители, маршруты и статусы доставки.',qs:[
+  {id:'fleet',q:'Свой транспорт, наёмный, курьерские службы?',t:'ta'},
+  {id:'routes',q:'Как планируете рейсы и маршруты?',t:'ta'},
+  {id:'status',q:'Какие статусы доставки видит клиент?',t:'ta'}
+ ]},
+ edu:{k:'edu',n:'Обучение',ic:'✎',who:'Руководитель учебной части',intro:'Курсы, группы, расписание, посещаемость.',qs:[
+  {id:'courses',q:'Курсы, группы, индивидуальные занятия',t:'ta'},
+  {id:'att',q:'Как отмечаете посещаемость и прогресс ученика?',t:'ta'},
+  {id:'teachers',q:'Как считается оплата преподавателям?',t:'ta'}
+ ]},
+ horeca:{k:'horeca',n:'Общепит',ic:'◒',who:'Управляющий',intro:'Меню, кухня, зал, доставка, техкарты.',qs:[
+  {id:'menu',q:'Меню, техкарты и себестоимость блюд',t:'ta'},
+  {id:'hall',q:'Зал, бронь, доставка — как сейчас?',t:'ta'},
+  {id:'pos',q:'Какая кассовая программа (iiko, R-Keeper, Poster…)?',t:'t'}
+ ]},
+ field:{k:'field',n:'Выездные работы и сервис',ic:'⚒',who:'Руководитель сервиса',intro:'Выезды, монтаж, ремонт, бригады.',qs:[
+  {id:'jobs',q:'Какие выезды бывают и как назначаются бригады?',t:'ta'},
+  {id:'mobile',q:'Что мастер делает с телефона на объекте?',t:'mu',o:['Видит задание и адрес','Фото до / после','Список материалов','Подпись клиента','Отметка начала и конца','Оплата на месте']},
+  {id:'warranty',q:'Гарантия и повторные выезды',t:'ta'}
+ ]},
+ b2b:{k:'b2b',n:'B2B, тендеры и дилеры',ic:'⇆',who:'Коммерческий директор',intro:'Работа с компаниями: тендеры, дилеры, договоры, отсрочки.',qs:[
+  {id:'tenders',q:'Участвуете в тендерах? Какие площадки?',t:'ta'},
+  {id:'dealers',q:'Дилеры / партнёры / агенты: условия и как работаете',t:'ta'},
+  {id:'terms',q:'Отсрочки платежа, лимиты, дебиторка — как контролируете?',t:'ta'}
+ ]},
+ branches:{k:'branches',n:'Филиалы и масштаб',ic:'⌘',who:'Собственник',intro:'Несколько точек, филиалов или франшиза.',qs:[
+  {id:'list',q:'Филиалы и их особенности',t:'tbl',cols:['Филиал','Город','Что отличается'],rows:[['','',''],['','','']]},
+  {id:'see',q:'Что должен видеть руководитель филиала и что — собственник по всей сети?',t:'ta'}
+ ]},
+ hr:{k:'hr',n:'HR и персонал',ic:'☺',who:'HR',intro:'Найм, адаптация, табель, зарплата.',qs:[
+  {id:'hire',q:'Кого нанимаете чаще всего и как проходит найм?',t:'ta'},
+  {id:'tests',q:'Нужны ли тесты кандидатам до собеседования?',t:'yn'},
+  {id:'time',q:'Табель, графики смен, учёт рабочего времени',t:'ta'},
+  {id:'salary',q:'Как считается зарплата сотрудников?',t:'ta'}
+ ]},
+ cabinet:{k:'cabinet',n:'Кабинет клиента, сайт, приложение',ic:'▢',who:'Собственник',intro:'Что видит ваш клиент: личный кабинет, сайт, мобильное приложение.',qs:[
+  {id:'see',q:'Что клиент должен видеть и делать сам?',t:'mu',o:['Свои заказы и статусы','Запись / бронь','Оплаты и документы','Чат с компанией','Каталог и цены','Бонусы и скидки','Отзывы']},
+  {id:'site',q:'Есть ли сайт? Что с ним делать?',t:'ta'},
+  {id:'app',q:'Нужно ли мобильное приложение в App Store / Google Play? Зачем именно?',t:'ta'}
+ ]}
+ },
+ modNames: {prod:'Производство',stock:'Склад и закупки',trade:'Торговля и точки',service:'Услуги и запись',med:'Медицина',proj:'Проекты и объекты',logi:'Логистика',edu:'Обучение',horeca:'Общепит',field:'Выезды и сервис',b2b:'B2B и тендеры',branches:'Филиалы',hr:'HR и персонал',cabinet:'Кабинет клиента и приложение'},
+ tail: {k:'prio',n:'Приоритеты, сроки и приёмка',ic:'★',who:'Собственник',intro:'Что важно в первую очередь, сроки и как принимаем работу.',qs:[
+  {id:'core',q:'Что должно заработать в первую очередь? Перечислите до 5 пунктов',t:'ta'},
+  {id:'later',q:'Что можно сделать потом?',t:'ta'},
+  {id:'deadline',q:'Есть ли жёсткий срок запуска? Почему?',t:'t'},
+  {id:'accept',q:'Как вы будете проверять, что система работает?',t:'ta'},
+  {id:'calls',q:'Удобное время для созвонов',t:'t'}
+ ]}
+};
+
+/* Движок универсальной анкеты: старт (компания и тип бизнеса) → разделы по модулям → итоговое ТЗ.
+   Хранение: браузер + сервер Pllato (id и ключ выдаются при старте, ссылка с ключом — единственный доступ). */
+const WB='https://pllato-elc-worker.uurraa.workers.dev/api/public/';
+const QS=new URLSearchParams(location.search);
+let ID=QS.get('id')||'',KEY=QS.get('key')||'';const REF=QS.get('ref')||'';
+if(!ID){try{const l=JSON.parse(localStorage.getItem('briefu:last')||'null');if(l&&l.id){ID=l.id;KEY=l.key||''}}catch(e){}}
+const LS=()=>'briefu:'+(ID||'new');
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const js=s=>JSON.stringify(s).replace(/"/g,'&quot;');
+let A={},META={},dirty={},saveT=null,srvOK=null,lastSave=null,SECS=[];
+let view=ID?(QS.get('s')?'sec':(location.hash==='#tz'?'tz':'home')):'start',cur=QS.get('s')||'about';
+const AUTOQ=[{id:'extra',q:'Что мы не учли в этом разделе? Опишите своими словами',t:'ta',auto:1,ph:'Всё, что важно для вашей компании и о чём не спросили выше'},{id:'custom',q:'Добавьте свои вопросы и ответы',t:'tbl',cols:['Ваш вопрос / тема','Ответ'],rows:[['','']],auto:1}];
+const OWN={k:'own',n:'Свои разделы и дополнения',ic:'+',who:'Собственник',intro:'Если в вашей компании есть процессы или отделы, которых нет в анкете, — опишите их здесь. Всё попадёт в ТЗ.',qs:[{id:'secs',q:'Разделы и процессы, которые мы не учли',t:'tbl',cols:['Раздел / процесс','Что в нём происходит и что должна делать система'],rows:[['',''],['','']]},{id:'free',q:'Всё, что ещё важно знать о вашем бизнесе',t:'ta'}]};
+function mods(){const m=A['_mods']||META.mods||[];return Array.isArray(m)?m:[]}
+function buildSecs(){const ms=mods();SECS=[...BRIEFU.core.slice(0,7),...ms.filter(k=>BRIEFU.mods[k]).map(k=>BRIEFU.mods[k]),...BRIEFU.core.slice(7),BRIEFU.tail,OWN].map(s=>({...s,qs:s.k==='own'?s.qs:[...s.qs,...AUTOQ]}))}
+const S=k=>SECS.find(s=>s.k===k)||SECS[0],Q=(sk,id)=>S(sk).qs.find(q=>q.id===id),qk=(s,q)=>s.k+'.'+q.id;
+function initVal(s,q){if(q.t==='tbl')return (q.rows||[['']]).map(r=>r.slice());if(q.t==='mu')return [];if(q.t==='yn')return {v:'',c:''};return ''}
+function val(s,q){const k=qk(s,q);return A[k]!==undefined?A[k]:initVal(s,q)}
+function filled(s,q){const v=A[qk(s,q)];if(v===undefined||v===null)return false;if(q.t==='tbl')return v.some(r=>(q.cols.length>2?r.slice(1):r).some(c=>String(c).trim()));if(q.t==='mu')return v.length>0;if(q.t==='yn')return !!v.v;return String(v).trim().length>0}
+const base=s=>s.qs.filter(q=>!q.auto);
+function secPct(s){const b=base(s);return b.length?Math.round(b.filter(q=>filled(s,q)).length/b.length*100):0}
+function totPct(){let a=0,b=0;SECS.forEach(s=>base(s).forEach(q=>{b++;if(filled(s,q))a++}));return b?Math.round(a/b*100):0}
+const totQ=()=>SECS.reduce((a,s)=>a+base(s).length,0);
+const extras=()=>SECS.reduce((a,s)=>a+s.qs.filter(q=>q.auto&&filled(s,q)).length,0);
+const who=()=>{try{return localStorage.getItem('briefu:who')||''}catch(e){return ''}};
+/* хранение */
+function loadLocal(){try{const r=JSON.parse(localStorage.getItem(LS())||'{}');A=r.answers||{};META=r.meta||META}catch(e){}}
+function saveLocal(){try{localStorage.setItem(LS(),JSON.stringify({answers:A,meta:META}));if(ID)localStorage.setItem('briefu:last',JSON.stringify({id:ID,key:KEY,company:META.company||''}))}catch(e){}}
+async function loadServer(){if(!ID||!KEY||ID==='local')return;try{const r=await fetch(WB+'brief/'+ID+'?key='+encodeURIComponent(KEY));if(!r.ok)throw 0;const d=await r.json();srvOK=true;Object.entries(d.answers||{}).forEach(([k,v])=>{if(A[k]===undefined)A[k]=v});META=Object.assign({},d.meta||{},META);lastSave=d.updatedAt;saveLocal()}catch(e){srvOK=false}}
+async function create(){try{const r=await fetch(WB+'brief-new',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({company:META.company,contact:META.contact,phone:META.phone,kinds:META.kinds,mods:mods(),ref:META.ref||REF})});if(!r.ok)throw 0;const d=await r.json();
+ const old=LS();ID=d.id;KEY=d.key;try{localStorage.removeItem(old)}catch(e){}dirty=Object.assign({},A);saveLocal();return true}catch(e){return false}}
+function setA(k,v){A[k]=v;dirty[k]=v;saveLocal();status('pending');clearTimeout(saveT);saveT=setTimeout(push,1200);live();const[sk,id]=k.split('.');ring(sk);const q=SECS.length&&Q(sk,id),el=document.getElementById('q_'+sk+'_'+id);if(q&&el)el.classList.toggle('done',filled(S(sk),q))}
+async function push(extra){if(ID==='local'){if(!(await create())){status('local');return}render()}
+ if(!ID||!KEY){status('local');return}const patch=dirty;dirty={};
+ try{const r=await fetch(WB+'brief/'+ID,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,answers:patch,meta:Object.assign({lastBy:who(),lastSection:cur,company:META.company,contact:META.contact,phone:META.phone,kinds:META.kinds,mods:mods(),ref:META.ref||REF},extra||{})})});if(!r.ok)throw 0;const d=await r.json();srvOK=true;lastSave=d.updatedAt;status('ok')}
+ catch(e){Object.assign(dirty,patch);srvOK=false;status('local')}}
+function status(st){const el=document.getElementById('sv');if(!el)return;const t=lastSave?new Date(lastSave).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}):'';el.className='sv '+st;el.innerHTML=st==='pending'?'<i></i>Сохраняю…':st==='ok'?`<i></i>Сохранено в Pllato · ${t}`:st==='local'?'<i></i>Сохранено на этом устройстве':'<i></i>Готово к работе'}
+/* поля */
+function field(s,q){const k=qk(s,q),v=val(s,q),a=`'${s.k}','${q.id}'`;
+ if(q.t==='t')return `<input class="in" value="${esc(v)}" placeholder="${esc(q.ph||'')}" oninput="setA('${k}',this.value)">`;
+ if(q.t==='ta')return `<textarea class="in ta" rows="3" placeholder="${esc(q.ph||'')}" oninput="setA('${k}',this.value);grow(this)">${esc(v)}</textarea>`;
+ if(q.t==='ch')return `<div class="chips">${q.o.map(o=>`<a class="chip ${v===o?'on':''}" onclick="setA('${k}',${js(o)});rq(${a})">${esc(o)}</a>`).join('')}<input class="in other" placeholder="Свой вариант" value="${q.o.includes(v)?'':esc(v)}" onchange="setA('${k}',this.value);rq(${a})"></div>`;
+ if(q.t==='mu'){const arr=Array.isArray(v)?v:[];return `<div class="chips">${q.o.map(o=>`<a class="chip ${arr.includes(o)?'on':''}" onclick="tg('${k}',${js(o)},${a})">${arr.includes(o)?'✓ ':''}${esc(o)}</a>`).join('')}${arr.filter(x=>!q.o.includes(x)).map(x=>`<a class="chip on" onclick="tg('${k}',${js(x)},${a})">✓ ${esc(x)}</a>`).join('')}<input class="in other" placeholder="+ своё, Enter" onkeydown="if(event.key==='Enter'&&this.value.trim()){tg('${k}',this.value.trim(),${a})}"></div>`}
+ if(q.t==='yn'){const o=v||{};return `<div class="chips">${['Да','Нет','Пока не знаю'].map(x=>`<a class="chip ${o.v===x?'on':''}" onclick="setA('${k}',{v:'${x}',c:(A['${k}']||{}).c||''});rq(${a})">${x}</a>`).join('')}</div><input class="in" placeholder="Комментарий" value="${esc(o.c||'')}" oninput="setA('${k}',{v:(A['${k}']||{}).v||'',c:this.value})">`}
+ if(q.t==='tbl')return `<div class="tblw"><table class="tb"><thead><tr>${q.cols.map(c=>`<th>${esc(c)}</th>`).join('')}<th></th></tr></thead><tbody>${v.map((r,i)=>`<tr>${q.cols.map((c,j)=>`<td><input value="${esc(r[j]||'')}" oninput="tc('${k}',${i},${j},this.value,${a})"></td>`).join('')}<td class="x"><a onclick="trw('${k}',${i},${a})">×</a></td></tr>`).join('')}</tbody></table><a class="addrow" onclick="tad('${k}',${a})">+ строка</a></div>`;
+ return ''}
+function tg(k,o,sk,id){const x=Array.isArray(A[k])?A[k].slice():[];const i=x.indexOf(o);if(i>=0)x.splice(i,1);else x.push(o);setA(k,x);rq(sk,id)}
+function tc(k,i,j,v,sk,id){const s=S(sk),q=Q(sk,id);const rows=val(s,q).map(r=>r.slice());while(rows[i].length<q.cols.length)rows[i].push('');rows[i][j]=v;setA(k,rows)}
+function tad(k,sk,id){const s=S(sk),q=Q(sk,id);const rows=val(s,q).map(r=>r.slice());rows.push(q.cols.map(()=>''));setA(k,rows);rq(sk,id)}
+function trw(k,i,sk,id){const s=S(sk),q=Q(sk,id);const rows=val(s,q).map(r=>r.slice());rows.splice(i,1);setA(k,rows.length?rows:[q.cols.map(()=>'')]);rq(sk,id)}
+function rq(sk,id){const s=S(sk),q=Q(sk,id);const el=document.getElementById('q_'+sk+'_'+id);if(el)el.outerHTML=qcard(s,q,s.qs.indexOf(q));ring(sk)}
+function grow(t){t.style.height='auto';t.style.height=Math.min(420,t.scrollHeight+2)+'px'}
+function qcard(s,q,i){const f=filled(s,q);return `<div class="qc ${f?'done':''} ${q.auto?'auto':''}" id="q_${s.k}_${q.id}"><div class="qn">${q.auto?'<b>+</b>':`<b>${String(i+1).padStart(2,'0')}</b>`}${f?'<i>✓</i>':''}</div><div class="qb"><h3>${esc(q.q)}</h3>${q.why?`<p class="why">Зачем: ${esc(q.why)}</p>`:''}${field(s,q)}</div></div>`}
+/* экраны */
+function ringSvg(p,sz){const r=(sz-6)/2,c=2*Math.PI*r;return `<svg class="ring" width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}"><circle cx="${sz/2}" cy="${sz/2}" r="${r}" class="rb"/><circle cx="${sz/2}" cy="${sz/2}" r="${r}" class="rf" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-p/100)}"/></svg>`}
+function ring(sk){const s=SECS.find(x=>x.k===sk);if(!s)return;const p=secPct(s);document.querySelectorAll(`[data-ring="${sk}"]`).forEach(el=>{el.innerHTML=ringSvg(p,+el.dataset.sz||34)+`<b>${p}</b>`});const t=totPct();document.querySelectorAll('[data-tot]').forEach(el=>el.textContent=t+'%');const b=document.getElementById('topbar');if(b)b.style.width=t+'%'}
+function hdr(){return `<header class="hb"><div class="lg">${LOGO}<b>Pllato</b><span>· ${esc(META.company||BRIEFU.title)}</span></div><div class="hr"><span id="sv" class="sv"></span>${ID?'<a class="bt ghost" onclick="openHome()">Карта компании</a>':''}</div><div class="topbar"><i id="topbar" style="width:${ID?totPct():0}%"></i></div></header>`}
+function nav(){return `<aside class="nv"><div class="nvh"><b>Разделы</b><span><b data-tot>${totPct()}%</b> описано</span></div>${SECS.map((s,i)=>`<a class="ni ${s.k===cur&&view==='sec'?'on':''}" onclick="openSec('${s.k}')"><span class="rg" data-ring="${s.k}" data-sz="30">${ringSvg(secPct(s),30)}<b>${secPct(s)}</b></span><span class="nt"><b>${i+1}. ${esc(s.n)}</b><em>${esc(s.who)}</em></span></a>`).join('')}<a class="ni fin ${view==='tz'?'on':''}" onclick="openTz()"><span class="rg">★</span><span class="nt"><b>Итоговое ТЗ</b><em>собирается из ответов</em></span></a></aside>`}
+let ST={kinds:[],mods:[]};
+function start(){return `${hdr()}<main class="home"><section class="hero st"><div class="hl"><span class="kick">Опросник для технического задания · Pllato</span><h1>Опишите ваш бизнес — <em>а мы соберём систему под него</em></h1><p>Около часа, можно частями. Анкета подстроится под тип вашего бизнеса: вопросы только про то, что у вас есть. В каждом разделе можно дописать то, что мы не учли, и добавить свои вопросы. По ответам мы соберём техническое задание.</p></div></section>
+ <section class="stf"><div class="f2"><label>Компания<input class="in" id="st_c" placeholder="Название компании"></label><label>Ваше имя и должность<input class="in" id="st_n" placeholder="Имя, должность"></label><label>Телефон<input class="in" id="st_p" placeholder="+7 …"></label><input id="st_w" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true"></div>
+ <h3>Чем занимается компания? Можно несколько</h3><div class="chips">${BRIEFU.kinds.map(([n])=>`<a class="chip ${ST.kinds.includes(n)?'on':''}" onclick="stKind(${js(n)})">${ST.kinds.includes(n)?'✓ ':''}${esc(n)}</a>`).join('')}</div>
+ <h3>Какие блоки включить в анкету</h3><p class="why">Отмечены по типу бизнеса — поправьте, если нужно. Общие разделы (клиенты, продажи, деньги, отчёты и др.) будут в любом случае.</p><div class="mods">${Object.entries(BRIEFU.modNames).map(([k,n])=>`<a class="md ${ST.mods.includes(k)?'on':''}" onclick="stMod('${k}')"><i>${ST.mods.includes(k)?'✓':''}</i>${esc(n)}</a>`).join('')}</div>
+ <div class="hbtns"><a class="bt p big" onclick="stGo()">Начать анкету →</a></div></section></main>`}
+function stKind(n){const i=ST.kinds.indexOf(n);if(i>=0)ST.kinds.splice(i,1);else{ST.kinds.push(n);(BRIEFU.kinds.find(x=>x[0]===n)||[0,[]])[1].forEach(m=>{if(!ST.mods.includes(m))ST.mods.push(m)})}keepStart(render)}
+function stMod(k){const i=ST.mods.indexOf(k);if(i>=0)ST.mods.splice(i,1);else ST.mods.push(k);keepStart(render)}
+function keepStart(fn){const v={c:document.getElementById('st_c')?.value,n:document.getElementById('st_n')?.value,p:document.getElementById('st_p')?.value};fn();['c','n','p'].forEach(x=>{const el=document.getElementById('st_'+x);if(el&&v[x])el.value=v[x]})}
+async function stGo(){const c=document.getElementById('st_c').value.trim(),n=document.getElementById('st_n').value.trim(),p=document.getElementById('st_p').value.trim();if(document.getElementById('st_w').value)return;if(!c&&!n){toastB('Укажите компанию или ваше имя');return}
+ META={company:c,contact:n,phone:p,kinds:ST.kinds.slice(),mods:ST.mods.slice(),ref:REF};A={'_mods':ST.mods.slice(),'about.name':c};try{localStorage.setItem('briefu:who',n)}catch(e){}
+ ID='local';const ok=await create();if(!ok){ID='local';saveLocal()}else{await push()}buildSecs();view='home';render();
+ modal(`<h3>Ваша личная ссылка на анкету</h3><p>Ответы сохраняются сами. По этой ссылке можно вернуться в любой момент и с любого устройства — сохраните её.</p><textarea class="in ta" rows="3" readonly>${esc(myLink())}</textarea><div class="hbtns"><a class="bt p" onclick="try{navigator.clipboard.writeText(myLink())}catch(e){};closeMod();toastB('Ссылка скопирована')">Скопировать и продолжить</a></div>`)}
+const myLink=()=>location.origin+location.pathname+(ID&&ID!=='local'?'?id='+ID+'&key='+KEY:'');
+function home(){const t=totPct();return `${hdr()}<main class="home"><section class="hero"><div class="hl"><span class="kick">Опросник для технического задания</span><h1>${esc(META.contact?META.contact.split(/[ ,]/)[0]+', ':'')}опишем <em>${esc(META.company||'вашу компанию')}</em> отдел за отделом</h1><p>Ответы сохраняются сами — можно делать перерывы и возвращаться по своей ссылке. Разделы можно переслать руководителям отделов. В каждом разделе есть место для того, что мы не учли.</p><div class="hs"><div><b>${SECS.length}</b><span>разделов</span></div><div><b>${totQ()}</b><span>вопросов</span></div><div><b>${extras()}</b><span>ваших дополнений</span></div><div><b data-tot>${t}%</b><span>описано</span></div></div><div class="hbtns"><a class="bt p" onclick="openSec('${(SECS.find(s=>secPct(s)<100)||SECS[0]).k}')">${t?'Продолжить':'Начать'} →</a><a class="bt" onclick="openTz()">Посмотреть ТЗ</a><a class="bt" onclick="cfgMods()">Настроить блоки</a><a class="bt" onclick="try{navigator.clipboard.writeText(myLink())}catch(e){};toastB('Ваша ссылка скопирована')">Моя ссылка</a></div></div><div class="hr2">${ringSvg(t,190)}<div class="big"><b data-tot>${t}%</b><span>бизнеса описано</span></div></div></section>
+ <h2 class="mh">Карта вашей компании</h2><p class="mp">Нажмите на блок, чтобы ответить, или перешлите раздел тому, кто знает лучше.</p>
+ <div class="map">${SECS.map((s,i)=>`<div class="mc ${secPct(s)===100?'full':''} ${s.k==='own'?'own':''}" onclick="openSec('${s.k}')"><div class="mt"><span class="mi">${s.ic}</span><span class="rg" data-ring="${s.k}" data-sz="40">${ringSvg(secPct(s),40)}<b>${secPct(s)}</b></span></div><b>${i+1}. ${esc(s.n)}</b><span>${base(s).length} вопросов · отвечает: ${esc(s.who)}</span><a class="fw" onclick="event.stopPropagation();share('${s.k}')">Переслать раздел ↗</a></div>`).join('')}</div></main>`}
+function cfgMods(){modal(`<h3>Блоки анкеты</h3><p>Включите блоки, которые есть в вашей компании. Ответы в выключенных блоках сохраняются.</p><div class="mods">${Object.entries(BRIEFU.modNames).map(([k,n])=>`<a class="md ${mods().includes(k)?'on':''}" onclick="tgMod('${k}')"><i>${mods().includes(k)?'✓':''}</i>${esc(n)}</a>`).join('')}</div><div class="hbtns"><a class="bt p" onclick="closeMod()">Готово</a></div>`)}
+function tgMod(k){const m=mods().slice();const i=m.indexOf(k);if(i>=0)m.splice(i,1);else m.push(k);setA('_mods',m);META.mods=m;buildSecs();render();cfgMods()}
+function secView(){const s=S(cur),i=SECS.indexOf(s),nx=SECS[i+1];return `${hdr()}<div class="wrap">${nav()}<main class="sec"><div class="sh"><span class="kick">Раздел ${i+1} из ${SECS.length} · отвечает: ${esc(s.who)}</span><h1>${s.ic} ${esc(s.n)}</h1><p>${esc(s.intro)}</p><div class="shb"><span class="rg" data-ring="${s.k}" data-sz="44">${ringSvg(secPct(s),44)}<b>${secPct(s)}</b></span><a class="bt ghost" onclick="share('${s.k}')">Переслать раздел ↗</a></div></div>
+ ${s.qs.map((q,j)=>qcard(s,q,j)).join('')}
+ <div class="nx">${i>0?`<a class="bt" onclick="openSec('${SECS[i-1].k}')">← ${esc(SECS[i-1].n)}</a>`:'<span></span>'}${nx?`<a class="bt p" onclick="push();openSec('${nx.k}')">Дальше: ${esc(nx.n)} →</a>`:`<a class="bt p" onclick="push({done:true});openTz()">Собрать итоговое ТЗ ★</a>`}</div></main>
+ <aside class="lv"><div class="lvh"><span class="dot"></span>ТЗ собирается в реальном времени</div><div id="live">${tzSec(s)}</div></aside></div>`}
+function fmtAns(q,v){if(v===undefined||v===null)return '';if(q.t==='tbl'){const rows=v.filter(r=>r.some(c=>String(c).trim()));if(!rows.length)return '';return `<table class="tzt"><tr>${q.cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr>${rows.map(r=>`<tr>${q.cols.map((c,j)=>`<td>${esc(r[j]||'')}</td>`).join('')}</tr>`).join('')}</table>`}
+ if(q.t==='mu')return (v||[]).length?`<ul>${v.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'';if(q.t==='yn')return v.v?`<p>${esc(v.v)}${v.c?' — '+esc(v.c):''}</p>`:'';return String(v).trim()?`<p>${esc(v).replace(/\n/g,'<br>')}</p>`:''}
+function tzSec(s){const i=SECS.indexOf(s);const items=s.qs.map(q=>{if(!filled(s,q))return '';const a=fmtAns(q,A[qk(s,q)]);return a?`<div class="tzi ${q.auto?'add':''}"><b>${q.auto?'Дополнение клиента':esc(q.q)}</b>${a}</div>`:''}).join('');return `<h3>${i+1}. ${esc(s.n)}</h3>${items||'<p class="emp">Пока пусто — начните отвечать, и раздел ТЗ появится здесь.</p>'}`}
+function live(){const el=document.getElementById('live');if(el&&view==='sec')el.innerHTML=tzSec(S(cur))}
+function tz(){const t=totPct();return `${hdr()}<main class="tzw"><div class="tzd"><div class="tzc"><span class="kick">Техническое задание · черновик из опросника</span><h1>${esc(META.company||'Компания')}</h1><p>${esc([META.contact,META.phone].filter(Boolean).join(' · '))} · Исполнитель: Pllato · ${new Date().toLocaleDateString('ru-RU')}</p><p>${esc((META.kinds||[]).join(', '))}</p><div class="tzs"><div><b>${t}%</b><span>описано</span></div><div><b>${SECS.reduce((a,s)=>a+base(s).filter(q=>filled(s,q)).length,0)} / ${totQ()}</b><span>ответов</span></div><div><b>${extras()}</b><span>дополнений клиента</span></div></div><div class="hbtns np"><a class="bt p" onclick="window.print()">Печать / PDF</a><a class="bt" onclick="push({done:true});toastB('Анкета отправлена в Pllato. Спасибо! Мы вернёмся с вопросами, если что-то уточнить.')">Отправить в Pllato</a></div></div>
+ ${SECS.map(s=>`<section class="tzsec">${tzSec(s)}</section>`).join('')}</div></main>`}
+function render(){if(view!=='start')buildSecs();document.getElementById('root').innerHTML=view==='start'?start():view==='home'?home():view==='tz'?tz():secView();status(srvOK===false||ID==='local'?'local':srvOK?'ok':'idle');document.querySelectorAll('textarea').forEach(grow);
+ try{const q=[];if(ID&&ID!=='local'){q.push('id='+ID,'key='+KEY)}if(REF&&!ID)q.push('ref='+encodeURIComponent(REF));if(view==='sec')q.push('s='+cur);history.replaceState(null,'',location.pathname+(q.length?'?'+q.join('&'):'')+(view==='tz'?'#tz':''))}catch(e){}}
+function openSec(k){cur=k;view='sec';render();scrollTo(0,0)}
+function openHome(){view='home';render();scrollTo(0,0)}
+function openTz(){view='tz';render();scrollTo(0,0)}
+function share(sk){const s=S(sk);const u=location.origin+location.pathname+'?'+(ID&&ID!=='local'?'id='+ID+'&key='+KEY+'&':'')+'s='+sk;const txt=`Здравствуйте! Помогите, пожалуйста, заполнить раздел «${s.n}» для техзадания нашей новой системы: ${u}`;try{navigator.clipboard.writeText(txt)}catch(e){}
+ modal(`<h3>Переслать раздел «${esc(s.n)}»</h3><p>Ссылка ведёт сразу в этот раздел. Ответы появятся в общей анкете.</p><textarea class="in ta" rows="4" readonly>${esc(txt)}</textarea><div class="hbtns"><a class="bt p" href="https://wa.me/?text=${encodeURIComponent(txt)}" target="_blank" rel="noopener">Отправить в WhatsApp</a><a class="bt" onclick="closeMod()">Скопировано ✓</a></div>`)}
+function modal(h){const m=document.getElementById('mod');m.innerHTML=`<div class="mbx">${h}</div>`;m.classList.add('show');m.onclick=e=>{if(e.target===m)closeMod()}}
+function closeMod(){document.getElementById('mod').classList.remove('show')}
+function toastB(t){const el=document.getElementById('tst');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),4500)}
+function askWho(){if(who())return;modal(`<h3>Кто заполняет раздел?</h3><p>Чтобы в ТЗ было видно, кто описал раздел.</p><input class="in" id="whoin" placeholder="Имя и должность"><div class="hbtns"><a class="bt p" onclick="try{localStorage.setItem('briefu:who',document.getElementById('whoin').value.trim()||'—')}catch(e){};closeMod()">Начать</a></div>`)}
+window.addEventListener('beforeunload',()=>{if(Object.keys(dirty).length&&ID&&KEY&&ID!=='local'){try{fetch(WB+'brief/'+ID,{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,answers:dirty,meta:{lastBy:who()}})})}catch(e){}}});
+(async function(){if(view==='start'){render();return}loadLocal();buildSecs();render();await loadServer();buildSecs();render();if(QS.get('s'))askWho()})();
+
+</script>
+</body>
+</html>

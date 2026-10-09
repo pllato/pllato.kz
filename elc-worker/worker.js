@@ -9415,8 +9415,6 @@ async function sha256Hex(text) {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 async function handlePublicBrief(request, env, id) {
-  const expected = PUBLIC_BRIEFS[id];
-  if (!expected) return json({ ok: false, error: 'not found' }, 404, request);
   const url = new URL(request.url);
   let body = null;
   if (request.method === 'POST') {
@@ -9429,11 +9427,13 @@ async function handlePublicBrief(request, env, id) {
     try { body = JSON.parse(raw); } catch { return json({ ok: false, error: 'invalid json' }, 400, request); }
   }
   const key = String((body && body.key) || url.searchParams.get('key') || '');
-  if (!key || (await sha256Hex(key)) !== expected) return json({ ok: false, error: 'forbidden' }, 403, request);
   const kvKey = 'brief:' + id;
   const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind(kvKey).first();
   let rec = {};
   try { rec = row?.v ? JSON.parse(row.v) : {}; } catch { rec = {}; }
+  // Ключ: либо SHA-256 из PUBLIC_BRIEFS (анкеты, созданные вручную), либо ключ, выданный при создании анкеты.
+  const ok = key && (PUBLIC_BRIEFS[id] ? (await sha256Hex(key)) === PUBLIC_BRIEFS[id] : (rec.key && rec.key === key));
+  if (!ok) return json({ ok: false, error: 'forbidden' }, 403, request);
   if (request.method === 'GET') {
     return json({ ok: true, answers: rec.answers || {}, meta: rec.meta || {}, updatedAt: rec.updatedAt || null, saves: rec.saves || 0 }, 200, request);
   }
@@ -9445,11 +9445,76 @@ async function handlePublicBrief(request, env, id) {
   }
   const now = new Date().toISOString();
   const meta = { ...(rec.meta || {}), ...(body.meta && typeof body.meta === 'object' ? body.meta : {}) };
-  const next = { answers, meta, createdAt: rec.createdAt || now, updatedAt: now, saves: (rec.saves || 0) + 1 };
+  delete meta.appId;
+  if (rec.meta && rec.meta.appId) meta.appId = rec.meta.appId;
+  const next = { ...(rec.key ? { key: rec.key } : (PUBLIC_BRIEFS[id] ? { key } : {})), answers, meta, createdAt: rec.createdAt || now, updatedAt: now, saves: (rec.saves || 0) + 1 };
   const out = JSON.stringify(next);
   if (out.length > 900000) return json({ ok: false, error: 'too large' }, 413, request);
   await env.DB.prepare('INSERT INTO kv (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v').bind(kvKey, out).run();
   return json({ ok: true, updatedAt: now, saves: next.saves }, 200, request);
+}
+
+function randomHex(bytes) {
+  const a = new Uint8Array(bytes); crypto.getRandomValues(a);
+  return [...a].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+const briefStr = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
+// POST /api/public/brief-new — клиент начинает универсальную анкету (app/brief.html): выдаём id и ключ.
+async function handlePublicBriefNew(request, env) {
+  const origin = String(request.headers.get('Origin') || '');
+  if (origin && !['https://pllato.kz', 'https://www.pllato.kz'].includes(origin)) {
+    return json({ ok: false, error: 'origin not allowed' }, 403, request);
+  }
+  const raw = await request.text();
+  if (raw.length > 20000) return json({ ok: false, error: 'too large' }, 413, request);
+  let body; try { body = JSON.parse(raw); } catch { return json({ ok: false, error: 'invalid json' }, 400, request); }
+  if (briefStr(body.website, 10)) return json({ ok: true, ignored: true }, 200, request);
+  const company = briefStr(body.company, 160), contact = briefStr(body.contact, 120), phone = briefStr(body.phone, 40);
+  if (!company && !contact) return json({ ok: false, error: 'company or contact required' }, 422, request);
+  const id = 'u' + randomHex(6), key = randomHex(16), now = new Date().toISOString();
+  const kinds = Array.isArray(body.kinds) ? body.kinds.slice(0, 30).map((x) => briefStr(x, 40)) : [];
+  const mods = Array.isArray(body.mods) ? body.mods.slice(0, 30).map((x) => briefStr(x, 20)) : [];
+  const rec = { key, answers: {}, meta: { company, contact, phone, kinds, mods, ref: briefStr(body.ref, 80), template: 'universal' }, createdAt: now, updatedAt: now, saves: 0 };
+  await env.DB.prepare('INSERT INTO kv (k, v) VALUES (?, ?)').bind('brief:' + id, JSON.stringify(rec)).run();
+  return json({ ok: true, id, key }, 201, request);
+}
+function briefFilled(v) {
+  if (v == null) return false;
+  if (Array.isArray(v)) return v.some((x) => Array.isArray(x) ? x.slice(1).some((c) => String(c).trim()) : String(x).trim());
+  if (typeof v === 'object') return !!v.v;
+  return String(v).trim().length > 0;
+}
+// GET /api/briefs — все анкеты (для сотрудников App): без ответов, только сводка.
+async function handleBriefsList(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ ok: false, error: auth.error }, auth.status, request);
+  const { results } = await env.DB.prepare("SELECT k, v FROM kv WHERE k LIKE 'brief:%' LIMIT 500").all();
+  const items = (results || []).map((row) => {
+    let rec = {}; try { rec = JSON.parse(row.v || '{}'); } catch {}
+    const id = row.k.slice(6), answers = rec.answers || {};
+    const bySec = {};
+    let answered = 0;
+    for (const [k, v] of Object.entries(answers)) { if (briefFilled(v)) { answered++; const s = k.split('.')[0]; bySec[s] = (bySec[s] || 0) + 1; } }
+    const m = rec.meta || {};
+    return { id, key: rec.key || null, company: m.company || answers['about.name'] || '', contact: m.contact || '', phone: m.phone || '', ref: m.ref || '', kinds: m.kinds || [], mods: m.mods || [], template: m.template || (PUBLIC_BRIEFS[id] ? 'custom' : 'universal'), appId: m.appId || '', done: !!m.done, lastBy: m.lastBy || '', answered, bySec, createdAt: rec.createdAt || null, updatedAt: rec.updatedAt || null };
+  }).sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+  return json({ ok: true, items }, 200, request);
+}
+// POST /api/briefs/:id/link { appId } — подшить анкету к карточке app.html (пустой appId — отвязать).
+async function handleBriefLink(request, env, id) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ ok: false, error: auth.error }, auth.status, request);
+  let body; try { body = await request.json(); } catch { return json({ ok: false, error: 'invalid json' }, 400, request); }
+  const appId = briefStr(body.appId, 60);
+  if (appId && !/^[a-z0-9_]{2,60}$/.test(appId)) return json({ ok: false, error: 'bad appId' }, 400, request);
+  const kvKey = 'brief:' + id;
+  const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind(kvKey).first();
+  if (!row) return json({ ok: false, error: 'not found' }, 404, request);
+  let rec = {}; try { rec = JSON.parse(row.v || '{}'); } catch {}
+  rec.meta = { ...(rec.meta || {}), appId, linkedBy: auth.email || '', linkedAt: new Date().toISOString() };
+  if (!appId) delete rec.meta.appId;
+  await env.DB.prepare('UPDATE kv SET v = ? WHERE k = ?').bind(JSON.stringify(rec), kvKey).run();
+  return json({ ok: true, id, appId }, 200, request);
 }
 
 async function handlePublicPllatoLead(request, env) {
@@ -12227,6 +12292,17 @@ export default {
     const publicBriefMatch = path.match(/^\/api\/public\/brief\/([a-z0-9_-]{3,40})$/);
     if (publicBriefMatch && (request.method === "GET" || request.method === "POST")) {
       return handlePublicBrief(request, env, publicBriefMatch[1]);
+    }
+    if (path === "/api/public/brief-new" && request.method === "POST") {
+      return handlePublicBriefNew(request, env);
+    }
+    // Список анкет для команды (вкладка «Инструменты для продаж») и привязка к карточке app.html.
+    if (path === "/api/briefs" && request.method === "GET") {
+      return handleBriefsList(request, env);
+    }
+    const briefLinkMatch = path.match(/^\/api\/briefs\/([a-z0-9_-]{3,40})\/link$/);
+    if (briefLinkMatch && request.method === "POST") {
+      return handleBriefLink(request, env, briefLinkMatch[1]);
     }
 
     const leadDistributionMatch=path.match(/^\/api\/pipelines\/([^/]+)\/lead-distribution$/);
