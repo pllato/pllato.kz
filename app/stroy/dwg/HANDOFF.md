@@ -1,3 +1,32 @@
+# 0.17.94 — unchanged typed-record boundaries
+
+Reproduced SAVE_REJECT_COMMON_HANDLES on an original HATCH even in a whole-file
+save without creating an executive. The full encoder resets typed record size,
+bitsize and handle-stream boundaries. Restoring these scratch fields only for
+opaque records made the unchanged HATCH falsely appear modified, re-encoding an
+incompletely decoded contour and dropping its owner/layer. Restore the boundaries
+for every record before source comparison. Unchanged serialized records are
+retained and verified byte-for-byte. Edited records still use the typed field,
+owner, reactor, reference, inventory and source-CRC gates. No guard was removed.
+Writer WASM and corresponding GPL source, plus cache keys, advance together.
+
+Local: exact refusal before / successful save and second preserved save after;
+source-preservation regression checks unchanged HATCH retention, independently
+edited LINE/TEXT relocation, reopen and deliberate CRC rejection. 227 unit tests.
+Production workers: create/full export/reopen, separate LINE move/color/save/read;
+six different selected source areas created consecutively, each save/read, full
+export with six separated sheets, exact root inventory and unchanged source hash.
+Old fixture array + DIMASSOC: three consecutive create/save/read, full export
+and exact root inventory also passed. AutoCAD2027 isolated AcCoreConsole:
+baseline output AUDIT No 0 errors, separate SAVEAS DWG2018, close/reopen AUDIT
+No 0 errors. Six-sheet output AUDIT No 0 errors; separate SAVEAS DWG2018, close/reopen
+and AUDIT No 0 errors.
+
+Remaining: this does not implement the HATCH contour decoder or promise arbitrary
+unsupported-class cloning. Earlier ACDBASSOCROTATEDDIMACTIONBODY reproducer remains
+missing; it was not present in this source. Physical Android tablet memory and
+interaction are not independently validated by these Mac worker tests.
+
 # 0.17.93 — array cloning and bounded undo memory
 
 Code 26 reproduced on a selected associative array: its raw action body had a

@@ -21,6 +21,7 @@ sdk.dwg_free(p);
 if(rootsFile&&!fs.existsSync(rootsFile))fs.writeFileSync(rootsFile,JSON.stringify({digest,handles:roots.map(r=>r.handle)}),{flag:'wx'});
 const m=await engine({print:()=>{},printErr:s=>{if(process.env.DWG_TRACE||/^(CLONE_|OPAQUE|SAVE_)/.test(s))console.log(s);}});m.FS.writeFile('/in.dwg',bytes);
 console.log('Native open',m.ccall('pllato_open','number',['string'],['/in.dwg']));
+if(process.env.DWG_PRESERVE_SOURCE)assert.equal(m.ccall('pllato_preserve_source','number',['string'],['/in.dwg']),0);
 if(process.env.DWG_TABLE_PROBE)console.log('Table stream',m.ccall('pllato_probe_table','number',['string'],[process.env.DWG_TABLE_PROBE]));
 for(const handle of (process.env.DWG_PROBE_HANDLES||process.env.DWG_PROBE_HANDLE||'').split(',').filter(Boolean)){
  const result=m.ccall('pllato_probe_opaque','number',['string'],[handle]);console.log('Opaque coverage',handle,result);
@@ -35,6 +36,7 @@ assert.ok(save<128,'Native save/read-back structural gate must pass');
 if(process.env.DWG_OUTPUT_FILE)fs.writeFileSync(process.env.DWG_OUTPUT_FILE,m.FS.readFile('/copy.dwg'),{flag:'wx'});
 if(process.env.DWG_SAVE_TWICE){
  assert.ok(m.ccall('pllato_open','number',['string'],['/copy.dwg'])<128);
+ if(process.env.DWG_PRESERVE_SOURCE)assert.equal(m.ccall('pllato_preserve_source','number',['string'],['/copy.dwg']),0);
  const second=m.ccall('pllato_save','number',['string'],['/second.dwg']);console.log('Second save gate',second);
  assert.ok(second<128,'Reopened DWG must survive a second save');
 }
