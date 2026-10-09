@@ -22,7 +22,7 @@ export function mountExecutiveUI(api){
  const sheet=()=>project().sheets.find(s=>s.id===active);
  const showCanvas=()=>{if(matchMedia('(max-width:850px)').matches)$('sidebar').classList.remove('open');for(const group of document.querySelectorAll('#executiveToolbar>details'))group.open=false;};
  let acting=false;
- const guard=(fn,persist=false)=>async()=>{if(api.busy()||acting)return;acting=true;try{await fn();if(mode)showCanvas();}catch(e){api.status(e.message);if(persist){operationError.textContent=e.message;operationError.hidden=false;}}finally{acting=false;}};
+ const guard=(fn,persist=false)=>async()=>{if(api.busy()||acting)return;acting=true;try{await fn();if(mode)showCanvas();}catch(e){api.status(e.message);if(persist){if(!waitingForUnits){chosen=[];area=null;$('exCreate').disabled=true;mode='';api.setTool('select');}operationError.textContent=e.message;operationError.hidden=false;}}finally{acting=false;}};
  function mutate(fn,geometry=false,afterSnapshot=()=>{}){const next=projectAPI.executiveTransaction(project(),fn);for(const s of next.sheets)projectAPI.executiveEntities(next,s.id);api.snapshot();afterSnapshot();api.getDoc().executiveProject=next;api.changed(geometry?'geometry':'decoration');}
  function refresh(){
   if(selectionSource&&selectionSource!==api.getDoc().sourceFile){chosen=[];area=null;points=[];mode='';selectionSource=null;$('exCreate').disabled=true;operationError.hidden=true;$('exAreaInfo').textContent='Выделите план в текущем DWG.';}
@@ -56,21 +56,21 @@ export function mountExecutiveUI(api){
   const entities=doc.entities.filter(keep);
   doc.records=[...records,...mini.entities];doc.entities=[...entities,...mini.entities];decorationCache={doc,records:doc.records,entities:doc.entities,signature};refresh();return true;
  }
- $('exArea').onclick=guard(()=>{if(!api.getDoc().native)throw Error('Исполнительные: откройте исходный DWG');waitingForUnits=false;points=[];mode='area';api.setTool('executive');api.status('Зажмите мышь, обведите нужный план рамкой и отпустите — исполнительная создастся автоматически. Включайте объекты целиком.');});
+ $('exArea').onclick=guard(()=>{if(!api.getDoc().native)throw Error('Исполнительные: откройте исходный DWG');waitingForUnits=false;chosen=[];area=null;selectionSource=api.getDoc().sourceFile;$('exCreate').disabled=true;operationError.hidden=true;points=[];hoverPoint=null;mode='area';api.setTool('executive');api.status('Зажмите мышь, обведите нужный план рамкой и отпустите — исполнительная создастся автоматически. Включайте объекты целиком.');});
  $('exCreate').onclick=guard(async()=>{
   if(!chosen.length||!area||selectionSource!==api.getDoc().sourceFile)throw Error('Сначала выделите план в текущем DWG');const metres=api.metresPerUnit();if(!metres){waitingForUnits=true;$('sidebar').classList.add('open');$('panel').setAttribute('aria-expanded','true');$('units').scrollIntoView({block:'nearest'});$('units').focus();throw Error('Выберите единицы измерения: выделенная область сохранена, исполнительная создастся автоматически.');}
   waitingForUnits=false;const p=structuredClone(project()),{unit,origin,centre,position}=executivePlacement(api.shapes(),chosen.map(h=>'dwg-'+h));
   const id=crypto.randomUUID();projectAPI.createExecutive(p,{id,title:'Исполнительная схема '+(p.sheets.length+1),origin,planCentre:position,metresPerUnit:metres,paperUnit:unit});
   operationError.hidden=true;operationError.textContent='';
   const previous=active;active=id;const created=await api.commit(p,{sheetId:id,handles:chosen,centre,position});
-  if(!created){active=previous;operationError.textContent=api.lastStatus();operationError.hidden=false;return;}
+  if(!created){active=previous;chosen=[];area=null;waitingForUnits=false;$('exCreate').disabled=true;mode='';api.setTool('select');operationError.textContent=api.lastStatus()+' Нажмите «Исполнительная +» и выделите область заново.';operationError.hidden=false;return;}
   chosen=[];area=null;$('exCreate').disabled=true;mode='';$('exAreaInfo').textContent='Исполнительная создана на свободном месте справа от всех чертежей и показана на экране.';
  },true);
  $('units').addEventListener('change',()=>{if(waitingForUnits&&chosen.length&&selectionSource===api.getDoc().sourceFile&&api.metresPerUnit()&&!api.busy())$('exCreate').click();});
  const createIcon=document.createElement('button');createIcon.id='exCreateIcon';createIcon.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3H4v18h16V10M14 2v8h8M17 13v6M14 16h6"/></svg><span class="createLabel">Исполнительная +</span>';
  document.querySelector('nav').prepend(createIcon);
- const updateCreateIcon=()=>{const ready=!$('exCreate').disabled;createIcon.disabled=api.busy();createIcon.title=ready?'Создать исполнительную из выделенного плана':'Создать исполнительную · обведите план рамкой';createIcon.setAttribute('aria-label',createIcon.title);createIcon.classList.toggle('ready',ready);};
- createIcon.onclick=()=>{if(api.busy()||acting)return;$('sidebar').classList.remove('open');$('panel').setAttribute('aria-expanded','false');($('exCreate').disabled?$('exArea'):$('exCreate')).click();};
+ const updateCreateIcon=()=>{createIcon.disabled=api.busy();createIcon.title='Создать исполнительную · обведите план рамкой';createIcon.setAttribute('aria-label',createIcon.title);createIcon.classList.remove('ready');};
+ createIcon.onclick=()=>{if(api.busy()||acting)return;$('sidebar').classList.remove('open');$('panel').setAttribute('aria-expanded','false');$('exArea').click();};
  const createObserver=new MutationObserver(updateCreateIcon);createObserver.observe($('exCreate'),{attributes:true,attributeFilter:['disabled']});createObserver.observe($('busy'),{attributes:true,attributeFilter:['hidden']});updateCreateIcon();
  showSheet.onclick=guard(()=>{api.focus(sheet());showCanvas();});
  function cableFields(){const r=sheet()?.routes.find(r=>r.id===routeId);if(r){$('exBrand').value=r.brand;$('exSection').value=r.section;$('exExtra').value=r.extraMetres;}refreshLeaders();}
@@ -89,9 +89,10 @@ export function mountExecutiveUI(api){
  $('exDevice').onclick=()=>{if(api.busy())return;api.setTool('device');showCanvas();api.status('Нажмите на любой штрих прибора — выберется весь блок.');};
  function finishArea(a,w){
   if(mode!=='area'||api.busy())return;
+  points=[];hoverPoint=null;mode='';api.setTool('select');
   area=[Math.min(a[0],w[0]),Math.min(a[1],w[1]),Math.max(a[0],w[0]),Math.max(a[1],w[1])];
   chosen=selectExecutiveRoots(api.getDoc(),api.shapes(),area);selectionSource=api.getDoc().sourceFile;
-  $('exAreaInfo').textContent=`Выбрано объектов: ${chosen.length}. Исходник останется на месте.`;$('exCreate').disabled=!chosen.length;points=[];hoverPoint=null;mode='';api.setTool('select');
+  $('exAreaInfo').textContent=`Выбрано объектов: ${chosen.length}. Исходник останется на месте.`;$('exCreate').disabled=!chosen.length;
   if(chosen.length)$('exCreate').click();else api.status('В рамке нет целых объектов. Если план — один блок, обведите его целиком. Нажмите лист с плюсом и повторите выделение.');
  }
  function tap(w){

@@ -28,7 +28,7 @@ import {shxCatalog} from './shx-catalog.mjs?v=0.17.81';
 import {applyDocumentFont} from './document-font.mjs?v=0.17.90';
 import {clampProgress,warningText} from './progress.mjs?v=0.17.81';
 import {isNew,additions} from './authoring.mjs?v=0.17.90';
-import {mountExecutiveUI} from './executive-ui.mjs?v=0.17.90';
+import {mountExecutiveUI} from './executive-ui.mjs?v=0.17.91';
 import {captureRecovery,replayRecovery,recoveryStore} from './recovery.mjs?v=0.17.90';
 import {shapePaths,pathLength,syncLinkedRoutes} from './selection-metrics.mjs?v=0.17.81';
 import {prepareNewCopies} from './new-object-copy.mjs?v=0.17.90';
@@ -425,7 +425,7 @@ async function commitExecutive(project,cloneRequest=null,exportFile=false,copyRe
   worker=new Worker(new URL(url,import.meta.url),{type:'module'});
   const receive=nativeTransferReceiver(worker,progress,data?.compact&&!data.verifyOnly?doc:null);
   worker.onmessage=e=>{if(token!==loadId)return;try{if(e.data.progress)progress(e.data.progress,e.data.percent);else if(e.data.error)reject(Error(e.data.error));else{const result=receive(e.data);if(result)resolve(result);}}catch(error){reject(error);}};
-  worker.onerror=()=>reject(Error('Ошибка DWG-движка; изменения не применены'));
+  worker.onerror=e=>reject(Error('Ошибка DWG-движка; изменения не применены.'+(e.message?' '+e.message:' Возможно, устройству не хватило памяти. Попробуйте меньшую область.')));
   loadTimer=setTimeout(()=>reject(Error('Операция превысила 5 минут')),300000);worker.postMessage(data,transfer);
  });
  try{
