@@ -8,6 +8,11 @@ export function validateExecutiveProject(value){
   const s=createExecutive(p,{...input,nativeHandles:handles(input.nativeHandles)});
   if(typeof input.title!=='string'||input.title.length>1000||!Number.isFinite(input.angle))throw Error('Повреждены параметры листа');
   s.angle=input.angle;
+  if(input.sourcePlan!==undefined){
+   const source=input.sourcePlan,refs=handles(source?.handles);
+   if(!refs.length||refs.length>20000||s.nativeHandles.length||input.nativeSeparated||new Set(refs).size!==refs.length||!Array.isArray(source.centre)||source.centre.length!==2||!source.centre.every(Number.isFinite))throw Error('Повреждена выбранная область исполнительной');
+   s.sourcePlan={handles:refs,centre:[...source.centre]};
+  }
   if(input.nativeSeparated!==undefined&&typeof input.nativeSeparated!=='boolean')throw Error('Повреждён режим CAD-объектов');
   if(input.nativeBaseAngle!==undefined&&!Number.isFinite(input.nativeBaseAngle))throw Error('Повреждён сохранённый угол плана');
   if(input.nativeSeparated!==undefined)s.nativeSeparated=input.nativeSeparated;

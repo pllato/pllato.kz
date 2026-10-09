@@ -7,12 +7,12 @@ export function* executivePageSteps(project,shapes,assigned,ids){
  const loose=assigned||(yield* looseRootSteps(project,shapes));
  let offset=0;const pages=[];
  for(const sheet of project.sheets){
-  const layout=executiveEntities(project,sheet.id),count=layout.items.length,roots=new Set(sheet.nativeHandles.map(h=>'dwg-'+h)),start=offset;offset+=count;
+  const layout=executiveEntities(project,sheet.id),count=layout.items.length,roots=new Set(sheet.nativeHandles.map(h=>'dwg-'+h).concat(sheet.sourcePlan?['executive-preview-'+sheet.id]:[])),start=offset;offset+=count;
   if(ids&&!ids.includes(sheet.id))continue;
   const selected=[];let visited=0;for(const s of shapes){if(roots.has(s.id)||loose.get(s.id)===sheet.id||s.id.startsWith('executive-')&&Number(s.id.slice(10))>=start&&Number(s.id.slice(10))<offset)selected.push(s);if(++visited%2048===0)yield;}
   // Executive PDF is a paper-space plot: content beyond the sheet is clipped,
   // never allowed to shrink its frame and create large blank margins.
-  for(const [index,range] of layout.pageRanges.entries()){const pageShapes=[];visited=0;for(const s of selected){const n=Number(s.id.slice(10))-start;if(!s.id.startsWith('executive-')?index===0:n>=range.start&&n<range.end||index===0&&n>=layout.decorationEnd)pageShapes.push(s);if(++visited%2048===0)yield;}const bounds=[...range.origin,range.origin[0]+420*sheet.paperUnit,range.origin[1]+297*sheet.paperUnit];pages.push({sheet,shapes:pageShapes,bounds});}
+  for(const [index,range] of layout.pageRanges.entries()){const pageShapes=[];visited=0;for(const s of selected){const n=Number(s.id.slice(10))-start;if(roots.has(s.id)||!s.id.startsWith('executive-')?index===0:n>=range.start&&n<range.end||index===0&&n>=layout.decorationEnd)pageShapes.push(s);if(++visited%2048===0)yield;}const bounds=[...range.origin,range.origin[0]+420*sheet.paperUnit,range.origin[1]+297*sheet.paperUnit];pages.push({sheet,shapes:pageShapes,bounds});}
  }return pages;
 }
 

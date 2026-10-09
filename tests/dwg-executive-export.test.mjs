@@ -24,3 +24,9 @@ test('Cooperative page preparation preserves selection and full-root ownership',
 test('PDF emits independent pages with byte-accurate xref offsets',async()=>{
  const pdf=imagePdf([1,2].map(()=>({width:1,height:1,bytes:new Uint8Array([255,216,255,217])}))),bytes=new Uint8Array(await pdf.arrayBuffer()),text=new TextDecoder().decode(bytes);assert.equal(pdf.type,'application/pdf');assert.match(text,/\/Count 2/);assert.equal((text.match(/\/Type \/Page /g)||[]).length,2);const rows=text.split('xref\n')[1].split('\n').slice(2,10);for(let i=0;i<rows.length;i++){const offset=Number(rows[i].slice(0,10));assert.equal(new TextDecoder().decode(bytes.slice(offset,offset+7)),`${i+1} 0 obj`);}
 });
+
+test('pending plan appears on its own first PDF page, never on another sheet',()=>{
+ const p=fixture();p.sheets[0].nativeHandles=[];p.sheets[0].sourcePlan={handles:['AA'],centre:[0,0]};
+ const preview=shape('executive-preview-a',[10,10,200,200]),pages=executivePages(p,[preview,shape('dwg-BB',[1000,0,1420,297])]);
+ assert.equal(pages[0].shapes.includes(preview),true);assert.equal(pages[1].shapes.includes(preview),false);
+});

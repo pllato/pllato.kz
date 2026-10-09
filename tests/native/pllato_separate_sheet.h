@@ -16,12 +16,17 @@ static int shifted(Dwg_Object*o,double dx,double dy,int apply,unsigned depth){
  dwg_dynapi_entity_value(e->tio.LINE,o->name,"extrusion",&normal,NULL);
  /* LWPOLYLINE omits extrusion unless flag 1 is set; its implicit OCS is +Z. */
  if(o->fixedtype==DWG_TYPE_LWPOLYLINE&&!(e->tio.LWPOLYLINE->flag&1))normal=(BITCODE_3BD){0,0,1};
- if(fabs(normal.x)>1e-15||fabs(normal.y)>1e-15||fabs(fabs(normal.z)-1)>1e-15)return 12;
+ if(o->fixedtype!=DWG_TYPE_LINE&&o->fixedtype!=DWG_TYPE_ELLIPSE&&(fabs(normal.x)>1e-15||fabs(normal.y)>1e-15||fabs(fabs(normal.z)-1)>1e-15))return 12;
  double worldDx=dx,worldDy=dy;
  double ua=sheetAngle,uc=sheetCos,us=sheetSin;
- if(normal.z<0){if(o->fixedtype!=DWG_TYPE_INSERT&&o->fixedtype!=DWG_TYPE_LWPOLYLINE&&o->fixedtype!=DWG_TYPE_TEXT&&o->fixedtype!=DWG_TYPE_ATTRIB&&o->fixedtype!=DWG_TYPE_ARC&&o->fixedtype!=DWG_TYPE_CIRCLE)return 12;dx=-dx;ua=-sheetAngle;uc=cos(ua);us=sin(ua);}
+ if(normal.z<0&&o->fixedtype!=DWG_TYPE_LINE&&o->fixedtype!=DWG_TYPE_ELLIPSE){if(o->fixedtype!=DWG_TYPE_INSERT&&o->fixedtype!=DWG_TYPE_LWPOLYLINE&&o->fixedtype!=DWG_TYPE_TEXT&&o->fixedtype!=DWG_TYPE_ATTRIB&&o->fixedtype!=DWG_TYPE_ARC&&o->fixedtype!=DWG_TYPE_CIRCLE)return 12;dx=-dx;ua=-sheetAngle;uc=cos(ua);us=sin(ua);}
  switch(o->fixedtype){
- case DWG_TYPE_LINE:if(apply){P2(e->tio.LINE->start);P2(e->tio.LINE->end);}break;
+ case DWG_TYPE_LINE:if(apply){P2(e->tio.LINE->start);P2(e->tio.LINE->end);V2(e->tio.LINE->extrusion);}break;
+ /* ELLIPSE center/major axis are WCS, not OCS. Rigid Z rotation
+    transforms center, axis and normal, preserving Z/ratio/arc parameters. */
+ case DWG_TYPE_ELLIPSE:{Dwg_Entity_ELLIPSE*q=e->tio.ELLIPSE;
+  if(!isfinite(q->center.x)||!isfinite(q->center.y)||!isfinite(q->center.z)||!isfinite(q->sm_axis.x)||!isfinite(q->sm_axis.y)||!isfinite(q->sm_axis.z)||!isfinite(q->extrusion.x)||!isfinite(q->extrusion.y)||!isfinite(q->extrusion.z)||!isfinite(q->axis_ratio)||q->axis_ratio<=0||q->axis_ratio>1||!isfinite(q->start_angle)||!isfinite(q->end_angle))return 13;
+  if(apply){P2(q->center);V2(q->sm_axis);V2(q->extrusion);}break;}
  case DWG_TYPE_ARC:if(apply){P2(e->tio.ARC->center);e->tio.ARC->start_angle+=ua;e->tio.ARC->end_angle+=ua;}break;
  case DWG_TYPE_CIRCLE:if(apply)P2(e->tio.CIRCLE->center);break;
  case DWG_TYPE_POINT:if(apply){double px=e->tio.POINT->x,py=e->tio.POINT->y;e->tio.POINT->x=uc*px-us*py+dx;e->tio.POINT->y=us*px+uc*py+dy;}break;

@@ -1,6 +1,7 @@
 let releasePrevious=()=>{};
 // Keep a retryable output, but never offer it during a new CAD operation.
 export function preparingOutput(doc=globalThis.document){
+ releasePrevious();releasePrevious=()=>{};
  for(const node of doc.querySelectorAll('.downloadReady,.downloadRetry,#executiveSaveNotice')){if(node.open)node.close();node.hidden=true;}
 }
 export function preparedOutput(doc=globalThis.document){

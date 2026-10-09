@@ -4,7 +4,7 @@ import {warningText} from './progress.mjs?v=0.17.78';
 import {LibreDwg} from './vendor/libredwg-sdk.js?v=0.17.78';
 import {nativeDocument} from './native-adapter.mjs?v=0.17.90';
 import {readDimensionDefinitions} from './native-dimensions.mjs?v=0.17.78';
-import {readExecutiveMetadata} from './executive-metadata.mjs?v=0.17.81';
+import {readExecutiveMetadata} from './executive-metadata.mjs?v=0.17.96';
 import {sendNativeDocument} from './native-transfer.mjs?v=0.17.90';
 self.onmessage=async({data:request})=>{
  if(request?.nativeAck!==undefined)return;

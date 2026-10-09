@@ -1,5 +1,6 @@
-import {boundedUndo} from './undo-budget.mjs?v=0.17.95';
-import {preparingOutput,preparedOutput,offerDownload,outputFailure,notifyExecutiveCreated} from './download.mjs?v=0.17.90';
+import {deferPlan} from './executive-preview.mjs?v=0.17.96';
+import {boundedUndo} from './undo-budget.mjs?v=0.17.96';
+import {preparingOutput,preparedOutput,offerDownload,outputFailure,notifyExecutiveCreated} from './download.mjs?v=0.17.96';
 import {resizeView,usableViewport} from './viewport-size.mjs?v=0.17.87';
 import {mountFileDrop} from './file-drop.mjs?v=0.17.81';
 // SPDX-License-Identifier: GPL-3.0-or-later
@@ -29,13 +30,13 @@ import {shxCatalog} from './shx-catalog.mjs?v=0.17.81';
 import {applyDocumentFont} from './document-font.mjs?v=0.17.90';
 import {clampProgress,warningText} from './progress.mjs?v=0.17.81';
 import {isNew,additions} from './authoring.mjs?v=0.17.90';
-import {mountExecutiveUI} from './executive-ui.mjs?v=0.17.95';
+import {mountExecutiveUI} from './executive-ui.mjs?v=0.17.96';
 import {captureRecovery,replayRecovery,recoveryStore} from './recovery.mjs?v=0.17.90';
 import {shapePaths,pathLength,syncLinkedRoutes} from './selection-metrics.mjs?v=0.17.81';
 import {prepareNewCopies} from './new-object-copy.mjs?v=0.17.90';
 import {prepareDeferredCopy,addDeferredCopy} from './deferred-copy.mjs?v=0.17.90';
 import {cableChain} from './cable-chain.mjs?v=0.17.81';
-import {executivePdf,executiveLooseRoots} from './executive-export.mjs?v=0.17.81';
+import {executivePdf,executiveLooseRoots} from './executive-export.mjs?v=0.17.96';
 import {selectionSubset,toggleSelectionPart,canRefinePart} from './selection-subset.mjs?v=0.17.81';
 import {drawingPreset,presetPairs,presetColor,extendDrawingPalette} from './drawing-presets.mjs?v=0.17.81';
 import {deviceInstances,wholeDevice} from './device-selection.mjs?v=0.17.90';
@@ -307,7 +308,9 @@ function pick(p){
   const pts=s.pts.map(screen);let d=Infinity;
   if(s.text!==null){d=textHitDistance(ctx,s,p,view);}
   else for(let i=1;i<pts.length;i++)d=Math.min(d,distance(p,pts[i-1],pts[i]));
-  if(d<best){hit=s;best=d;const note=s.text!==null&&isNote(recordById(s.entityId));whole=!note&&!pendingCopy&&recordById(s.entityId)?.type!=='DIMENSION'&&wholeDevice(s,devices);leaf=!whole&&(executive||note)&&!!s.entityId;id=whole?s.deviceId:leaf?s.entityId:s.id;selectedMatrix=whole?s.deviceMatrix:leaf?s.entityMatrix:null;selectedShapeKey=leaf?s.entityKey:null;}
+  if(d<best){hit=s;best=d;const note=s.text!==null&&isNote(recordById(s.entityId));whole=!note&&!pendingCopy&&recordById(s.entityId)?.type!=='DIMENSION'&&wholeDevice(s,devices);leaf=!whole&&(executive||note)&&!!s.entityId;id=whole?s.deviceId:leaf?s.entityId:s.id;selectedMatrix=whole?s.deviceMatrix:leaf?s.entityMatrix:null;selectedShapeKey=leaf?s.entityKey:null;
+   if(s.id.startsWith('executive-preview-')){whole=false;leaf=false;id=s.id;selectedMatrix=null;selectedShapeKey=null;}
+  }
  }
  selected=id;
  if(pendingDimensionLink&&current()?.type==='INSERT'){
@@ -383,16 +386,16 @@ async function openFile(file,restore=null){try{if(!await openingPreflight(file))
  if(/\.dwg$/i.test(file.name)){
   if(!/^AC10\d\d/.test(new TextDecoder().decode(bytes.slice(0,6))))throw Error('Это не распознанный DWG.');
   let sourceVersion=dwgVersion(bytes);
-  const converted=await new Promise((resolve,reject)=>{rejectWorker=reject;worker=new Worker(new URL('./native-reader.mjs?v=0.17.90',import.meta.url),{type:'module'});const receive=nativeTransferReceiver(worker,progress);worker.onmessage=e=>{if(token!==loadId)return;try{if(e.data.progress)progress(e.data.progress,e.data.percent);else if(e.data.error)reject(Error(e.data.error));else{const result=receive(e.data);if(result)resolve(result);}}catch(error){reject(error);}};worker.onerror=()=>reject(Error('Не удалось запустить DWG-движок. Возможно, недостаточно памяти. Попробуйте меньший файл на компьютере.'));loadTimer=setTimeout(()=>reject(Error('Чтение заняло больше 5 минут. Попробуйте отдельный лист.')),300000);worker.postMessage({buffer:bytes,compact:true},[bytes]);});
+  const converted=await new Promise((resolve,reject)=>{rejectWorker=reject;worker=new Worker(new URL('./native-reader.mjs?v=0.17.96',import.meta.url),{type:'module'});const receive=nativeTransferReceiver(worker,progress);worker.onmessage=e=>{if(token!==loadId)return;try{if(e.data.progress)progress(e.data.progress,e.data.percent);else if(e.data.error)reject(Error(e.data.error));else{const result=receive(e.data);if(result)resolve(result);}}catch(error){reject(error);}};worker.onerror=()=>reject(Error('Не удалось запустить DWG-движок. Возможно, недостаточно памяти. Попробуйте меньший файл на компьютере.'));loadTimer=setTimeout(()=>reject(Error('Чтение заняло больше 5 минут. Попробуйте отдельный лист.')),300000);worker.postMessage({buffer:bytes,compact:true},[bytes]);});
   if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
   warnings=converted.messages;next=converted.doc;next.dwgVersion=sourceVersion;
   if(next.executiveProject?.sheets.some(s=>s.nativeSeparated)){
    progress('Подготавливаю отдельные CAD-объекты к редактированию…',65);
    const raw=await file.arrayBuffer();if(token!==loadId)return;
-   const grouped=await runOpeningWorker('./executive-worker.mjs?v=0.17.95',{buffer:raw,project:next.executiveProject,ops:[],added:[]},token);
+   const grouped=await runOpeningWorker('./executive-worker.mjs?v=0.17.96',{buffer:raw,project:next.executiveProject,ops:[],added:[]},token);
    if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
    file=new File([grouped.buffer],file.name,{type:'application/acad'});
-   const reread=await runOpeningWorker('./native-reader.mjs?v=0.17.90',{buffer:grouped.buffer,compact:true},token);
+   const reread=await runOpeningWorker('./native-reader.mjs?v=0.17.96',{buffer:grouped.buffer,compact:true},token);
    if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
    next=reread.doc;next.dwgVersion=sourceVersion;warnings=[...warnings,...reread.messages];
   }
@@ -416,6 +419,20 @@ window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(
 new ResizeObserver(()=>{const r=canvas.parentElement.getBoundingClientRect();if(!usableViewport(r.width,r.height))return;const initial=width<=1||height<=1;const [w,h]=canvasResolution(r.width,r.height,devicePixelRatio,matchMedia('(pointer:coarse)').matches);if(!initial&&width===r.width&&height===r.height&&canvas.width===w&&canvas.height===h)return;if(!initial)Object.assign(view,resizeView(view,width,height,r.width,r.height));width=r.width;height=r.height;canvas.width=w;canvas.height=h;ctx.setTransform(w/Math.max(1,width),0,0,h/Math.max(1,height),0,0);initial?fit():draw();}).observe(canvas.parentElement);
 async function commitExecutive(project,cloneRequest=null,exportFile=false,copyRequest=null,exportOnly=false){
  if(!$('busy').hidden)return false;if(!sourceFile){status('Откройте исходный DWG');return false;}
+ if(cloneRequest&&!exportFile&&!copyRequest){
+  const previewToken=loadId;preparingOutput();$('busy').hidden=false;$('file').disabled=true;$('save').disabled=true;beginProgress();progress('Создаю лист…',20);
+  try{
+   await checkpoint('Перед созданием исполнительной');
+   if(previewToken!==loadId)return false;
+   deferPlan(project,cloneRequest);snapshot();doc.executiveProject=project;
+   changed('decoration');
+   let stored=true;try{await checkpoint('Исполнительная создана');}catch(e){stored=false;}
+   focusExecutive(project.sheets.find(s=>s.id===cloneRequest.sheetId));
+   status(stored?'Исполнительная создана и сохранена в истории. Скачать DWG — через «Сохранить».':'Исполнительная создана, но история недоступна. Скачайте DWG или PDF перед закрытием вкладки.');
+   notifyExecutiveCreated(saveDwg);return true;
+  }catch(e){status(e.message);return false;}finally{if(previewToken===loadId)stopLoad();}
+ }
+
  const checkpointToken=loadId;preparingOutput();$('busy').hidden=false;
  try{await checkpoint('Перед операцией DWG');}catch(e){$('busy').hidden=true;preparedOutput();status('Операция остановлена: не удалось сохранить контрольную точку. '+e.message);if(exportFile)outputFailure('Не удалось сохранить контрольную точку: '+e.message);return false;}
  if(checkpointToken!==loadId)return false;
@@ -435,16 +452,16 @@ async function commitExecutive(project,cloneRequest=null,exportFile=false,copyRe
   const keep=new Set([...project.sheets.flatMap(s=>s.nativeHandles),...(project.generatedHandles||[]),...[...loose.keys()].filter(id=>id.startsWith('dwg-')).map(id=>id.slice(4))]);
   const keepRoots=[...keep].filter(h=>!project.generatedHandles?.includes(h));
   const routeSources=new Set(project.sheets.flatMap(s=>s.routes.flatMap(r=>r.sourceIds||[])));
-  const saved=await run('./executive-worker.mjs?v=0.17.95',{buffer,ops:doc.nativeOps,added:additions(doc).filter(item=>!exportOnly||routeSources.has(item.sourceId)||loose.has(item.sourceId)||(item.type==='COPY'&&keep.has(item.parent))),project,cloneRequest,copyRequest,exportOnly,keepRoots,separateFull:exportFile&&!exportOnly},[buffer]);
+  const saved=await run('./executive-worker.mjs?v=0.17.96',{buffer,ops:doc.nativeOps,added:additions(doc).filter(item=>!exportOnly||routeSources.has(item.sourceId)||loose.has(item.sourceId)||(item.type==='COPY'&&keep.has(item.parent))),project,cloneRequest,copyRequest,exportOnly,keepRoots,separateFull:exportFile&&!exportOnly},[buffer]);
   if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
   if(exportFile&&!exportOnly){
-   const verified=await run('./native-reader.mjs?v=0.17.90',{buffer:saved.buffer,compact:true,verifyOnly:true},[saved.buffer]);
+   const verified=await run('./native-reader.mjs?v=0.17.96',{buffer:saved.buffer,compact:true,verifyOnly:true},[saved.buffer]);
    if(token!==loadId)return;if(!verified.verified)throw Error('Повторное чтение DWG не подтверждено');
    const file=new File([verified.buffer],previousName+'.dwg',{type:'application/acad'});
    download(file,'dwg');status('Весь DWG готов к скачиванию. Элементы исполнительных сохранены отдельно.'+(saved.warnings?' Предупреждения движка: '+saved.warnings:''));return true;
   }
   const readBuffer=saved.buffer;
-  const read=await run('./native-reader.mjs?v=0.17.90',{buffer:readBuffer,compact:true,returnBuffer:true},[readBuffer]);
+  const read=await run('./native-reader.mjs?v=0.17.96',{buffer:readBuffer,compact:true,returnBuffer:true},[readBuffer]);
   const file=new File([read.buffer],previousName+'.dwg',{type:'application/acad'});
   if(exportOnly){if(token!==loadId)return;const allowed=new Set(keepRoots.concat(saved.project.generatedHandles,saved.addedHandles||[],saved.supportRoots||[])),actual=new Set(saved.exportRootHandles),removed=new Set(doc.nativeOps.filter(o=>o.remove).map(o=>o.handle));if([...actual].some(h=>!allowed.has(h))||[...allowed].some(h=>!removed.has(h)&&!actual.has(h))||read.doc.executiveProject?.sheets.length!==project.sheets.length)throw Error('Проверка отдельного DWG не пройдена: состав объектов не совпал.');downloadExecutives(file,'dwg');status('DWG только исполнительных подготовлен. Рабочий чертёж не изменён. Проверьте копию в CAD.');return true;}
   if(token!==loadId)return;worker.terminate();worker=null;clearTimeout(loadTimer);
