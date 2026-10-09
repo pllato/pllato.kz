@@ -1,3 +1,29 @@
+# 0.17.93 — array cloning and bounded undo memory
+
+Code 26 reproduced on a selected associative array: its raw action body had a
+three-byte own handle but a cloned ID required four bytes. Clone updates common
+header boundaries; remaps the independently delimited handle stream with width
+growth; checks exact non-handle payload/padding and every resulting reference.
+Class/ownership/dependency checks remain intact. Generated writer WASM, worker
+cache keys, matching GPL sources and rebuild instructions are updated together.
+
+Undo retains at most 96 MiB of unique source File snapshots on touch devices,
+256 MiB on desktop; always keeps the latest operation. Shared-file patch states
+are counted once; obsolete rendered views still use the existing release path.
+
+Local: 227 unit tests; exact code-26 reproduction followed by native array
+clone/save/reopen; 30 consecutive production worker creates, each containing
+array + DIMASSOC + other roots, save/read each, full export/reopen with 30 separated
+sheets and original source SHA256 unchanged. Final parameterized test also checks
+exact full root inventory. AutoCAD2027 isolated AcCoreConsole full 30-sheet output:
+AUDIT No 0 errors, separate DWG2018 SAVEAS, close/reopen, AUDIT No 0 errors.
+No physical tablet validation claimed.
+
+OPEN: user's second screenshot reports code 10, ACDBASSOCROTATEDDIMACTIONBODY.
+Exact source DWG is requested. This class/handle is absent from earlier supplied
+fixtures inspected so far; no speculative support or dropped association added.
+Do not announce this separate failure fixed without its reproducer and checks.
+
 # 0.17.92 — DIMASSOC cloning regression
 
 Fixed a decoded DIMASSOC object-path layout that rejected repeated executive

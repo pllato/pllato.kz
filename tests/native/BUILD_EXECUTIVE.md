@@ -1,3 +1,17 @@
+## 0.17.93 opaque handle-width growth
+
+Opaque table/ASSOCARRAYACTIONBODY cloning supports larger object IDs. Update
+common-header boundaries for the new own-handle width; rebuild only the separately
+bounded handle stream when referenced IDs require additional bytes. Verify every
+remapped reference, exact non-handle prefix and trailing padding; never discard
+opaque payload or weaken dependency/owner guards. lookup owner payload stays fixed.
+
+Private regression: `node --expose-gc tests/dwg-repeat-workers.mjs input.dwg
+output-directory associated-dimension-handle additional-root-handles cycles`.
+The native opaque-handle-growth-regression.c takes input, selected root, new output;
+checks a 3-to-4-byte opaque body handle boundary, references and save/reopen.
+Generated writer WASM and corresponding source archive must be shipped together.
+
 ## 0.17.92 DIMASSOC referenced-object paths
 
 DIMASSOC subentity/path fields are present when num_xrefs is nonzero, including
