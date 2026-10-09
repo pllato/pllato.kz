@@ -1,3 +1,4 @@
+import { managerStageError, managerPatchError } from './manager-stage-gate.js';
 import { assignLeadManagers, handleLeadDistribution } from './lead-distribution.js';
 import { DurableObject } from 'cloudflare:workers';
 import {processClientGroupRefresh} from './wa-client-groups.js';
@@ -1657,6 +1658,13 @@ async function handleRtdbWrite(env, request, parts, me) {
           body.responsibleUid=managers.leadUid;
           body.customFields={...(previousCustom&&typeof previousCustom==='object'?previousCustom:{}),kepManagerUid:managers.kepUid};
         }
+      }
+    }
+    if(tableName==='deals') {
+      const previous=await env.DB.prepare('SELECT pipeline_id,stage_id,mirrored_in,responsible_uid,custom_fields FROM deals WHERE id=?').bind(id).first();
+      if(previous) {
+        const error=await managerPatchError(env,previous,body);
+        if(error) return json(error,422,request);
       }
     }
     // Подготовим columns/values из body (с snake_case + JSON-stringify)
@@ -3934,9 +3942,12 @@ async function handleDealStageChange(request, env, dealId) {
   if (!allowed) return json({ error: "no permission to edit this deal", role: me.role }, 403, request);
 
   const deal = await env.DB.prepare(
-    "SELECT id, pipeline_id, stage_id, mirrored_in, custom_fields FROM deals WHERE id = ? LIMIT 1"
+    "SELECT id, pipeline_id, stage_id, mirrored_in, responsible_uid, custom_fields FROM deals WHERE id = ? LIMIT 1"
   ).bind(dealId).first();
   if (!deal) return json({ error: "deal not found", id: dealId }, 404, request);
+
+  const managerError=await managerStageError(env,deal,pipelineId,stageId);
+  if(managerError) return json(managerError,422,request);
 
   const nowIso = new Date().toISOString();
   await ensureStageChangedAtColumn(env);
@@ -4183,6 +4194,12 @@ async function handleDealsBulkUpdate(request, env) {
         continue;
       }
 
+      if(stageId && setResponsible) {
+        const deal=await env.DB.prepare('SELECT pipeline_id,stage_id,mirrored_in,responsible_uid,custom_fields FROM deals WHERE id=?').bind(dealId).first();
+        const error=deal && await managerStageError(env,deal,pipelineId,stageId,{responsibleUid});
+        if(error) { failed.push({dealId,error:error.error}); continue; }
+      }
+
       if (stageId) {
         const stageRequest = new Request(request.url, {
           method: 'PATCH',
@@ -4238,7 +4255,7 @@ async function handleDealAddMirror(request, env, dealId) {
   if (!pipelineId) return json({ error: "pipelineId required" }, 400, request);
 
   const deal = await env.DB.prepare(
-    "SELECT id, pipeline_id, mirrored_in FROM deals WHERE id = ? LIMIT 1"
+    "SELECT id, pipeline_id, stage_id, mirrored_in, responsible_uid, custom_fields FROM deals WHERE id = ? LIMIT 1"
   ).bind(dealId).first();
   if (!deal) return json({ error: "deal not found", id: dealId }, 404, request);
   if (deal.pipeline_id === pipelineId) {
@@ -4262,6 +4279,8 @@ async function handleDealAddMirror(request, env, dealId) {
   let mir = {};
   try { mir = deal.mirrored_in ? JSON.parse(deal.mirrored_in) : {}; } catch {}
   if (!mir || typeof mir !== 'object' || Array.isArray(mir)) mir = {};
+  const managerError=await managerStageError(env,deal,pipelineId,stageId);
+  if(managerError) return json(managerError,422,request);
   mir[pipelineId] = stageId;
 
   await env.DB.prepare(
@@ -4963,7 +4982,7 @@ async function maybeReviveDealsFromFailByPhone(env, pipelineId, phone) {
   if (!phoneDigits) return 0;
   // Все сделки в воронке у которых хоть один контакт с этим телефоном
   const { results: deals } = await env.DB.prepare(`
-    SELECT d.id, d.stage_id, d.closed FROM deals d
+    SELECT d.id, d.pipeline_id, d.stage_id, d.closed, d.responsible_uid, d.custom_fields FROM deals d
     JOIN contacts c ON c.id = d.contact_id
     WHERE d.pipeline_id = ? AND c.phones LIKE ?
   `).bind(pipelineId, `%${phoneDigits}%`).all();
@@ -4983,6 +5002,7 @@ async function maybeReviveDealsFromFailByPhone(env, pipelineId, phone) {
   for (const deal of deals) {
     const currentStage = stages.find(s => (s.statusId || s.id) === deal.stage_id);
     if (currentStage && currentStage.semantics === 'F') {
+      if(await managerStageError(env,deal,pipelineId,newStageId)) continue;
       const nowIso = new Date().toISOString();
       await env.DB.prepare(`
         UPDATE deals SET stage_id = ?, closed = 0, bitrix_date_modify = ?, stage_changed_at = ? WHERE id = ?
