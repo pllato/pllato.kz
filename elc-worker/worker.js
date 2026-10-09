@@ -9402,6 +9402,56 @@ async function handlePublicPllatoInquiries(request, env) {
 // POST /api/public/pllato-lead — заявка с корпоративного сайта сразу в CRM.
 // Endpoint публичный намеренно: персональные данные принимает только с pllato.kz,
 // не возвращает содержимое CRM и не требует браузерной сессии сотрудника.
+// ════════════════════════════════════════════════════════════════════════
+// Публичные анкеты для ТЗ: id анкеты → SHA-256 секретного ключа из ссылки.
+// Ответы лежат в kv под 'brief:<id>'. POST сливает присланные ответы с уже
+// сохранёнными (несколько человек заполняют разные разделы параллельно).
+// ════════════════════════════════════════════════════════════════════════
+const PUBLIC_BRIEFS = {
+  'daru-kunduzay': 'c58443737c64c355ae3199ba599f868b19cf2563fdebf338cda669b3635df94f',
+};
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+async function handlePublicBrief(request, env, id) {
+  const expected = PUBLIC_BRIEFS[id];
+  if (!expected) return json({ ok: false, error: 'not found' }, 404, request);
+  const url = new URL(request.url);
+  let body = null;
+  if (request.method === 'POST') {
+    const origin = String(request.headers.get('Origin') || '');
+    if (origin && !['https://pllato.kz', 'https://www.pllato.kz'].includes(origin)) {
+      return json({ ok: false, error: 'origin not allowed' }, 403, request);
+    }
+    const raw = await request.text();
+    if (raw.length > 400000) return json({ ok: false, error: 'too large' }, 413, request);
+    try { body = JSON.parse(raw); } catch { return json({ ok: false, error: 'invalid json' }, 400, request); }
+  }
+  const key = String((body && body.key) || url.searchParams.get('key') || '');
+  if (!key || (await sha256Hex(key)) !== expected) return json({ ok: false, error: 'forbidden' }, 403, request);
+  const kvKey = 'brief:' + id;
+  const row = await env.DB.prepare('SELECT v FROM kv WHERE k = ?').bind(kvKey).first();
+  let rec = {};
+  try { rec = row?.v ? JSON.parse(row.v) : {}; } catch { rec = {}; }
+  if (request.method === 'GET') {
+    return json({ ok: true, answers: rec.answers || {}, meta: rec.meta || {}, updatedAt: rec.updatedAt || null, saves: rec.saves || 0 }, 200, request);
+  }
+  const patch = body.answers && typeof body.answers === 'object' && !Array.isArray(body.answers) ? body.answers : {};
+  const answers = { ...(rec.answers || {}) };
+  for (const [k, v] of Object.entries(patch).slice(0, 500)) {
+    if (!/^[a-z0-9_.:-]{1,60}$/i.test(k)) continue;
+    if (v === null) delete answers[k]; else answers[k] = v;
+  }
+  const now = new Date().toISOString();
+  const meta = { ...(rec.meta || {}), ...(body.meta && typeof body.meta === 'object' ? body.meta : {}) };
+  const next = { answers, meta, createdAt: rec.createdAt || now, updatedAt: now, saves: (rec.saves || 0) + 1 };
+  const out = JSON.stringify(next);
+  if (out.length > 900000) return json({ ok: false, error: 'too large' }, 413, request);
+  await env.DB.prepare('INSERT INTO kv (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v').bind(kvKey, out).run();
+  return json({ ok: true, updatedAt: now, saves: next.saves }, 200, request);
+}
+
 async function handlePublicPllatoLead(request, env) {
   const origin = String(request.headers.get('Origin') || '');
   if (origin && !['https://pllato.kz', 'https://www.pllato.kz'].includes(origin)) {
@@ -12170,6 +12220,13 @@ export default {
     // from swallowing form submissions and returning a misleading 404.
     if (path === "/api/public/pllato-lead" && request.method === "POST") {
       return handlePublicPllatoLead(request, env);
+    }
+
+    // Анкеты клиентов для ТЗ (app/brief-*.html): без логина, доступ по секретному
+    // ключу из ссылки; в коде хранится только SHA-256 ключа (PUBLIC_BRIEFS).
+    const publicBriefMatch = path.match(/^\/api\/public\/brief\/([a-z0-9_-]{3,40})$/);
+    if (publicBriefMatch && (request.method === "GET" || request.method === "POST")) {
+      return handlePublicBrief(request, env, publicBriefMatch[1]);
     }
 
     const leadDistributionMatch=path.match(/^\/api\/pipelines\/([^/]+)\/lead-distribution$/);
