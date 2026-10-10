@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {groupSchema,migrateGroupNames,groupName,groupPhone,processStageGroups,handleStageGroups} from './wa-stage-groups.js';
+import {groupSchema,groupName,groupPhone,processStageGroups,handleStageGroups} from './wa-stage-groups.js';
 async function fixture(){
  const db=new DatabaseSync(':memory:');
  db.exec(`CREATE TABLE pipelines(id TEXT PRIMARY KEY,name TEXT,stages TEXT);
@@ -148,32 +148,4 @@ test('правило этапа сохраняет опцию; ошибка на
 test('явное отключение сохраняет обычные права участников',async()=>{
  const f=await fixture();await f.request('POST',{action:'create',channel_id:'ch',employee_uids:[],all_admins:false},'deals/deal_1');const previous=globalThis.fetch;globalThis.fetch=f.fetch;
  try{await processStageGroups(f.env);assert.equal(f.calls.filter(c=>c.method==='setGroupAdmin').length,0);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM wa_group_admin_policy').get().n,0);}finally{globalThis.fetch=previous;}
-});
-
-test('старое название переносит имя вперёд, сохраняет дату, подтверждает WhatsApp и не повторяется',async()=>{
- const f=await fixture(),old='Pllato IT разработка - CRM - Азат - 29.09.2026',name='Азат - Pllato IT разработка - CRM - 29.09.2026';
- f.db.prepare('INSERT INTO wa_deal_groups(deal_id,channel_id,group_id,name,created_at) VALUES(?,?,?,?,?)').run('deal_1','ch','123456@g.us',old,123);
- f.db.prepare('INSERT INTO wa_chats(id,instance_id,chat_id,is_group,name,deal_id) VALUES(?,?,?,?,?,?)').run('chat','123','123456@g.us',1,old,'deal_1');
- let subject=old,updates=0;const prev=globalThis.fetch;
- globalThis.fetch=async(url,opt)=>{const body=JSON.parse(opt.body);assert.equal(body.groupId,'123456@g.us');if(url.includes('/updateGroupName/')){updates++;subject=body.groupName;return Response.json({updateGroupName:true});}return Response.json({subject});};
- try{await migrateGroupNames(f.env);await migrateGroupNames(f.env);
- assert.equal(updates,1);assert.equal(subject,name);assert.equal(f.db.prepare('SELECT name FROM wa_chats').get().name,name);
- assert.deepEqual({...f.db.prepare('SELECT name,created_at,group_id FROM wa_deal_groups').get()},{name,created_at:123,group_id:'123456@g.us'});
- }finally{globalThis.fetch=prev;}
-});
-test('отказ WhatsApp оставляет старое имя; повтор проверяет результат до нового POST',async()=>{
- const f=await fixture(),old='Pllato IT разработка - CRM - Азат - 29.09.2026',name='Азат - Pllato IT разработка - CRM - 29.09.2026';
- f.db.prepare('INSERT INTO wa_deal_groups(deal_id,channel_id,group_id,name,created_at) VALUES(?,?,?,?,?)').run('deal_1','ch','123456@g.us',old,123);
- const prev=globalThis.fetch;let subject=old,updates=0;
- globalThis.fetch=async(url)=>{if(url.includes('/updateGroupName/')){updates++;return Response.json({updateGroupName:false});}return Response.json({subject});};
- try{await migrateGroupNames(f.env,1000);assert.equal(f.db.prepare('SELECT name FROM wa_deal_groups').get().name,old);
- assert.match(f.db.prepare('SELECT error FROM wa_group_name_migration').get().error,/не подтвердил/);
- await migrateGroupNames(f.env,2000);assert.equal(updates,1);
- subject=name;await migrateGroupNames(f.env,3601001);assert.equal(updates,1);assert.equal(f.db.prepare('SELECT name FROM wa_deal_groups').get().name,name);
- }finally{globalThis.fetch=prev;}
-});
-test('ручное название WhatsApp не перезаписывается миграцией',async()=>{
- const f=await fixture();f.db.prepare('INSERT INTO wa_deal_groups(deal_id,channel_id,group_id,name,created_at) VALUES(?,?,?,?,?)').run('deal_1','ch','123456@g.us','Pllato IT разработка - CRM - Азат - 29.09.2026',123);
- const prev=globalThis.fetch;globalThis.fetch=async(url)=>{assert.ok(url.includes('/getGroupData/'));return Response.json({subject:'Личное название'});};
- try{await migrateGroupNames(f.env);assert.match(f.db.prepare('SELECT error FROM wa_group_name_migration').get().error,/вручную/);}finally{globalThis.fetch=prev;}
 });

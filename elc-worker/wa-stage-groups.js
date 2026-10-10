@@ -11,7 +11,6 @@ export function groupName(name,date=new Date()){
 }
 export async function groupSchema(env){
  await env.DB.batch([
-  env.DB.prepare('CREATE TABLE IF NOT EXISTS wa_group_name_migration (deal_id TEXT PRIMARY KEY,retry_at INTEGER NOT NULL DEFAULT 0,error TEXT)'),
   env.DB.prepare('CREATE TABLE IF NOT EXISTS wa_group_admin_options (id TEXT PRIMARY KEY,enabled INTEGER NOT NULL DEFAULT 0)'),
   env.DB.prepare("CREATE TABLE IF NOT EXISTS wa_group_admin_policy (deal_id TEXT PRIMARY KEY,checked_at INTEGER NOT NULL DEFAULT 0,status TEXT NOT NULL DEFAULT 'pending',error TEXT)"),
   env.DB.prepare('CREATE TABLE IF NOT EXISTS deal_stage_events (id INTEGER PRIMARY KEY AUTOINCREMENT,deal_id TEXT,pipeline_id TEXT,stage_id TEXT,entered_at TEXT)'),
@@ -126,39 +125,6 @@ async function processJob(env,job,rule){
  if(issues.length)throw new Error(issues.join('; '));
  return true;
 }
-// Меняем только старый стандартный шаблон, сохраняя имя и дату из него.
-export function migratedGroupName(name){
- const match=/^Pllato IT разработка - CRM - (.+) - (\d{2}\.\d{2}\.\d{4})$/.exec(name||'');
- return match ? match[1]+' - Pllato IT разработка - CRM - '+match[2] : null;
-}
-export async function migrateGroupNames(env,now=Date.now()){
- const group=await env.DB.prepare(`SELECT g.* FROM wa_deal_groups g
- LEFT JOIN wa_group_name_migration m ON m.deal_id=g.deal_id
- WHERE g.group_id IS NOT NULL AND g.name LIKE 'Pllato IT разработка - CRM - %'
- AND COALESCE(m.retry_at,0)<=? ORDER BY COALESCE(m.retry_at,0),g.created_at LIMIT 1`).bind(now).first();
- if(!group)return;
- try{
-  const name=migratedGroupName(group.name);
-  if(!name)throw new Error('Название не соответствует старому шаблону');
-  const channel=await env.DB.prepare('SELECT * FROM wa_channels WHERE id=? AND active=1').bind(group.channel_id).first();
-  if(!channel)throw new Error('Рабочий WhatsApp-номер отключён');
-  const current=await provider(channel,'getGroupData',{groupId:group.group_id});
-  if(current.subject!==name){
-   if(current.subject!==group.name)throw new Error('Название в WhatsApp изменено вручную; требуется проверка');
-   const result=await provider(channel,'updateGroupName',{groupId:group.group_id,groupName:name});
-   if(result.updateGroupName!==true)throw new Error('WhatsApp не подтвердил переименование');
-   const verified=await provider(channel,'getGroupData',{groupId:group.group_id});
-   if(verified.subject!==name)throw new Error('Новое название пока не подтверждено в WhatsApp');
-  }
-  await env.DB.batch([
-   env.DB.prepare('UPDATE wa_deal_groups SET name=? WHERE deal_id=? AND name=?').bind(name,group.deal_id,group.name),
-   env.DB.prepare('UPDATE wa_chats SET name=? WHERE instance_id=? AND chat_id=? AND is_group=1').bind(name,channel.id_instance,group.group_id),
-   env.DB.prepare('DELETE FROM wa_group_name_migration WHERE deal_id=?').bind(group.deal_id)
-  ]);
- }catch(e){
-  await env.DB.prepare('INSERT INTO wa_group_name_migration(deal_id,retry_at,error) VALUES(?,?,?) ON CONFLICT(deal_id) DO UPDATE SET retry_at=excluded.retry_at,error=excluded.error').bind(group.deal_id,now+(e.message==='Новое название пока не подтверждено в WhatsApp'?60000:3600000),e.message).run();
- }
-}
 // Scan each event only once. The queue and cursor commit together in D1's
 // transactional batch; a failure retries the same range without losing jobs.
 // A bounded primary-key range also caps the first scan of an existing account.
@@ -181,7 +147,6 @@ export async function processStageGroups(env){
  const lease=await env.DB.prepare("UPDATE wa_group_locks SET owner=?,until_at=? WHERE id='runner' AND until_at<=?").bind(owner,now+1200000,now).run();
  if(!changed(lease))return;
  try{
-  for(let i=0;i<5;i++)await migrateGroupNames(env,now);
   const manual=await env.DB.prepare("SELECT * FROM wa_manual_group_jobs WHERE status='pending' ORDER BY created_at LIMIT 1").first();
   if(manual){
    try{if(await processJob(env,manual,manual))await env.DB.prepare("UPDATE wa_manual_group_jobs SET status='done',error=NULL WHERE deal_id=?").bind(manual.deal_id).run();}
