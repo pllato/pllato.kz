@@ -1,5 +1,5 @@
-// Native file drops use the same opener and unsaved-work confirmation as Browse.
-export function mountFileDrop(target,{open,busy,status,highlight=()=>{}}){
+// Drops share the same opener or disk-backed batch as Browse.
+export function mountFileDrop(target,{open,openMany,busy,status,highlight=()=>{}}){
  let depth=0;
  const files=e=>Array.from(e.dataTransfer?.types||[]).includes('Files');
  const reset=()=>{depth=0;highlight(false);};
@@ -10,6 +10,7 @@ export function mountFileDrop(target,{open,busy,status,highlight=()=>{}}){
   if(!files(e))return;e.preventDefault();reset();
   if(busy())return status('Дождитесь завершения текущей операции перед открытием файла.');
   const selected=Array.from(e.dataTransfer.files||[]);
+  if(openMany&&selected.length>1)return openMany(selected);
   if(selected.length!==1)return status('Перетащите один файл DWG или DXF.');
   const file=selected[0];
   if(!/\.(dwg|dxf)$/i.test(file.name))return status('Поддерживаются файлы DWG и DXF.');

@@ -1,10 +1,12 @@
+import {fileBatch} from './file-batch.mjs?v=0.17.98';
+import {mountFileBatchUI} from './file-batch-ui.mjs?v=0.17.98';
 import {deferPlan} from './executive-preview.mjs?v=0.17.96';
 import {boundedUndo} from './undo-budget.mjs?v=0.17.96';
 import {preparingOutput,preparedOutput,offerDownload,outputFailure,notifyExecutiveCreated} from './download.mjs?v=0.17.96';
 import {resizeView,usableViewport} from './viewport-size.mjs?v=0.17.87';
-import {mountFileDrop} from './file-drop.mjs?v=0.17.81';
+import {mountFileDrop} from './file-drop.mjs?v=0.17.98';
 // SPDX-License-Identifier: GPL-3.0-or-later
-import {parseDxfAsync,scene,sceneAsync,serializeChunks,cloneDoc,demo,get,num,set,decode,move,addEntity} from './cad.mjs?v=0.17.90';
+import {fromRecords,parseDxfAsync,scene,sceneAsync,serializeChunks,cloneDoc,demo,get,num,set,decode,move,addEntity} from './cad.mjs?v=0.17.90';
 import {paintShapes,paintShapeSteps,previewTransform,textHitDistance} from './renderer.mjs?v=0.17.81';
 import {renderTask} from './render-task.mjs?v=0.17.87';
 import {nativeTransferReceiver} from './native-transfer.mjs?v=0.17.90';
@@ -84,14 +86,16 @@ import {entityControls,setEntityVertex,previewEntity} from './control-edit.mjs?v
 let cableWorkbench,leaderWorkbench;
 const areaSelection=areaDrag({enabled:()=>tool==='executive'&&executiveUI?.preview().mode==='area'&&$('busy').hidden,start:p=>executiveUI.startArea(world(p)),move:p=>executiveUI.hover(world(p)),cancel:()=>executiveUI?.clearArea(),finish:(a,b)=>{try{executiveUI.finishArea(world(a),world(b));}catch(e){status(e.message);}}});
 const status=s=>{$('status').textContent=s;if(!$('busy').hidden)$('busy').querySelector('strong').textContent=s;};
+let batches,batchUI;
 const recovery=recoveryStore();let recoveryQueue=Promise.resolve(),recoveryReady=false,recoveryRevision=0;
 function checkpoint(label='Изменение'){
  if(!recoveryReady)return Promise.resolve();
  const file=sourceFile||new File([...serializeChunks(doc)],name+'.dxf'),state=doc.native?captureRecovery(doc):null;
- const meta={name,label,units:$('units').value,view:{...view}};
+ const batchTarget=batches?.loading()||batches?.active();
+ const meta={name,label,fileName:sourceFile?.name||name+'.dxf',dirty,hiddenLayers:[...hidden],viewport:{width,height},units:$('units').value,view:{...view}};
  const revision=++recoveryRevision;$('autosaveStatus').textContent='Сохраняю локально…';
  const job=recoveryQueue.catch(()=>{}).then(()=>recovery.save(file,state,meta));recoveryQueue=job;
- job.then(()=>{if(revision===recoveryRevision)$('autosaveStatus').textContent='Сохранено на устройстве · '+new Date().toLocaleTimeString();},e=>{$('autosaveStatus').textContent='НЕ СОХРАНЕНО: '+e.message+' — скачайте DWG';});return job;
+ job.then(saved=>{batches?.remember(saved,batchTarget);if(revision===recoveryRevision)$('autosaveStatus').textContent='Сохранено на устройстве · '+new Date().toLocaleTimeString();},e=>{$('autosaveStatus').textContent='НЕ СОХРАНЕНО: '+e.message+' — скачайте DWG';});return job;
 }
 const remember=()=>doc.native?{recovery:captureRecovery(doc),file:sourceFile,name}:cloneDoc(doc);
 let progressStarted=0,progressClock;
@@ -371,7 +375,7 @@ function adopt(next,fileName,file=null,prepared=null){
  rasterTask.stop();cached=null;recordIndex=null;selectedShapeCache=deviceCache=overlayCache=selectionCache=null;
  sourceLengthsJob++;sourceLengthsCache=lengthVisibility=null;workCopy=null;
  doc=next;doc.sourceFile=file;sourceFile=file;name=fileName;history=[];future=[];hidden=new Set([...doc.layers].filter(([,l])=>l.color<0).map(([n])=>n));selected=null;draft=null;dirty=false;$('filename').textContent=name;$('save').textContent=doc.native?'Скачать весь DWG':'Откройте DWG для сохранения';for(const b of document.querySelectorAll('[data-tool="line"],[data-tool="text"]')){b.disabled=false;b.title="";}setTool('select');syncUndo();if(prepared)drawing=prepared;rebuild(prepared?'decoration':'geometry');fit();const h=doc.records.find(r=>r.type==='SECTION'&&get(r,2)==='HEADER'),i=h?.pairs.findIndex(p=>p[0]===9&&p[1]==='$INSUNITS');const u=i>=0?Number(h.pairs[i+1]?.[1]):0;$('units').value=({4:'.001',5:'.01',6:'m'})[u]||'1';}
-function stopLoad(){loadId++;if(worker)worker.terminate();worker=null;clearTimeout(loadTimer);clearInterval(progressClock);const reject=rejectWorker;rejectWorker=null;reject?.(Error('Операция отменена'));$('busy').hidden=true;preparedOutput();$('file').disabled=false;$('save').disabled=false;draw();}
+function stopLoad(){loadId++;if(worker)worker.terminate();worker=null;clearTimeout(loadTimer);clearInterval(progressClock);const reject=rejectWorker;rejectWorker=null;reject?.(Error('Операция отменена'));$('busy').hidden=true;preparedOutput();$('file').disabled=false;$('save').disabled=false;batchUI?.refresh();draw();}
 $('cancel').onclick=()=>{stopLoad();status('Загрузка отменена. Предыдущий чертёж сохранён.');};
 async function runOpeningWorker(path,data,token){
  return new Promise((resolve,reject)=>{
@@ -381,7 +385,7 @@ async function runOpeningWorker(path,data,token){
  });
 }
 const openingPreflight=latestOpeningPreflight(checkOpeningVersion,()=>loadId);
-async function openFile(file,restore=null){try{if(!await openingPreflight(file))return false;}catch(e){$('formatMessage').textContent=e.message;if(!$('formatDialog').open)$('formatDialog').showModal();return false;}if(!restore&&dirty&&!confirm('Есть несохранённые изменения. Открыть другой файл?'))return;const limit=/\.dwg$/i.test(file.name)?128:256;if(file.size>limit*1024*1024)return status('Предел: DWG 128 МБ, DXF 256 МБ. На телефоне объём зависит от доступной памяти.');stopLoad();const token=loadId;$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Читаю файл…');
+async function openFile(file,restore=null,managed=false){try{if(!await openingPreflight(file))return false;}catch(e){$('formatMessage').textContent=e.message;if(!$('formatDialog').open)$('formatDialog').showModal();return false;}if(!managed&&!restore&&dirty&&!confirm('Есть несохранённые изменения. Открыть другой файл?'))return;const limit=/\.dwg$/i.test(file.name)?128:256;if(file.size>limit*1024*1024)return status('Предел: DWG 128 МБ, DXF 256 МБ. На телефоне объём зависит от доступной памяти.');stopLoad();const token=loadId;$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Читаю файл…');
  try{let bytes=await file.arrayBuffer();if(token!==loadId)return;let text,warnings=[],next;$('save').disabled=true;
  if(/\.dwg$/i.test(file.name)){
   if(!/^AC10\d\d/.test(new TextDecoder().decode(bytes.slice(0,6))))throw Error('Это не распознанный DWG.');
@@ -404,13 +408,24 @@ async function openFile(file,restore=null){try{if(!await openingPreflight(file))
  if(restore?.state)replayRecovery(next,restore.state);
  const prepared=next.records.length>20000?await sceneAsync(next,n=>progress('Строю изображение: '+n.toLocaleString('ru')+' объектов',95),()=>token!==loadId):null;if(token!==loadId)return;
  adopt(next,restore?.name||file.name.replace(/\.(dwg|dxf)$/i,''),next.native?file:null,prepared);recoveryReady=true;
- if(restore?.units)$('units').value=restore.units;if(restore?.view){view={...restore.view};draw();}dirty=!!restore;
+ if(restore?.units)$('units').value=restore.units;if(restore?.view){view=restore.viewport?resizeView(restore.view,restore.viewport.width,restore.viewport.height,width,height):{...restore.view};draw();}if(restore?.hiddenLayers){hidden=new Set(restore.hiddenLayers);renderLayers();}dirty=restore?(restore.dirty??true):false;
  if(!restore){const labels=socketLabels(doc);if(labels.length){snapshot(labels);clearSocketLabels(doc,labels);const ids=new Set(labels.map(r=>r.id)),previous=drawing.shapes,removed=new Set();const shapes=previous.filter(s=>{const keep=!ids.has(s.entityId||s.id);if(!keep)removed.add(s);return keep;});deriveSpatialIndex(previous,shapes,removed);changed('decoration',{...drawing,shapes});}}
  await checkpoint(restore?'Восстановление':'Открытие файла');progress('Готово',100);status('Открыт '+file.name+'. '+(warnings.length?'Движок сообщил предупреждения: '+warnings.slice(0,2).join(' · '):'Проверьте список неподдерживаемых объектов справа.'));return true;
  }catch(e){if(token===loadId)status('Не удалось открыть: '+e.message);}finally{if(token===loadId)stopLoad();}}
-mountFileDrop(document,{open:openFile,busy:()=>!$('busy').hidden,status,highlight:active=>document.getElementById('fileDropHint').hidden=!active});
-$('file').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)openFile(f);};
-$('demo').onclick=()=>{if(!dirty||confirm('Заменить несохранённый чертёж демо?')){stopLoad();adopt(demo(),'demo');status('Демонстрационный чертёж.');}};
+let batchRows=[];try{batchRows=JSON.parse(localStorage.getItem('pllato_dwg_batch_v1')||'[]');if(!Array.isArray(batchRows))batchRows=[];}catch{}
+batches=fileBatch({store:recovery,initial:batchRows,busy:()=>!$('busy').hidden,changed:()=>batchUI?.refresh(),status,
+ persist:rows=>{try{localStorage.setItem('pllato_dwg_batch_v1',JSON.stringify(rows));}catch{status('Список файлов не сохранён. Версии чертежей доступны в истории.');}},
+ saveCurrent:()=>doc.native||doc.entities.length?checkpoint('Перед переключением файла'):null,
+ freeze:phase=>{$('busy').hidden=false;$('file').disabled=true;$('save').disabled=true;beginProgress();status(phase==='add'?'Добавляю файлы в список…':'Сохраняю рабочую версию…');},thaw:()=>stopLoad(),
+ release:()=>{preparingOutput();stopLoad();$('busy').hidden=false;adopt(fromRecords([{id:'section',type:'SECTION',pairs:[[2,'ENTITIES']]},{id:'end',type:'ENDSEC',pairs:[]}]),'Выберите файл');},
+ failure:()=>$('formatDialog').open?$('formatMessage').textContent:$('status').textContent,
+ open:(file,revision)=>openFile(file,revision,true)
+});
+batchUI=mountFileBatchUI({batch:batches,openPicker:()=>{$('file').value='';$('file').click();},busy:()=>!$('busy').hidden,status});
+mountFileDrop(document,{open:file=>batches.add([file]),openMany:files=>batches.add(files),busy:()=>!$('busy').hidden,status,highlight:active=>document.getElementById('fileDropHint').hidden=!active});
+$('file').multiple=true;
+$('file').onchange=e=>{const files=[...e.target.files];e.target.value='';if(files.length)batches.add(files);};
+$('demo').onclick=async()=>{if(await batches.detach()){stopLoad();adopt(demo(),'demo');status('Демонстрационный чертёж. Файлы остались в списке.');}};
 $('save').onclick=()=>{if(!$('busy').hidden)return;exportsMenu.open=false;if(!doc.native){$('file').click();return;}return saveDwg();};
 function download(blob,extension){stopLoad();progress('Готово',100);offerDownload(blob,name+'-edited.'+extension,{onStart:()=>{$('filename').textContent=name;status('Браузеру передан запрос скачивания '+extension.toUpperCase()+'. Проверьте загрузки.');}});status(extension.toUpperCase()+' готов. На телефоне или планшете нажмите «Скачать файл».');}
 async function saveDwg(){if(doc.executiveProject?.sheets.length){await commitExecutive(doc.executiveProject,null,true);return;}if(!doc.native)return status('Откройте DWG для сохранения.');if(!sourceFile)return status('Нет исходного DWG для сохранения.');stopLoad();const token=loadId,ops=doc.nativeOps.map(o=>({...o}));$('busy').hidden=false;beginProgress();$('file').disabled=true;$('save').disabled=true;status('Готовлю сохранение DWG…');try{const buffer=await sourceFile.arrayBuffer();if(token!==loadId)return;const saved=await new Promise((resolve,reject)=>{rejectWorker=reject;worker=new Worker(new URL('./native-writer.mjs?v=0.17.90',import.meta.url),{type:'module'});worker.onmessage=e=>e.data.progress?progress(e.data.progress,e.data.percent):e.data.error?reject(Error(e.data.error)):resolve(e.data);worker.onerror=()=>reject(Error('Не удалось записать DWG. Возможно, недостаточно памяти.'));loadTimer=setTimeout(()=>reject(Error('Запись заняла больше 5 минут.')),300000);worker.postMessage({buffer,ops,added:additions(doc)},[buffer]);});if(token!==loadId)return;download(new Blob([saved.buffer],{type:'application/acad'}),'dwg');}catch(e){if(token===loadId){status(e.message);outputFailure(e.message);}}finally{if(token===loadId)stopLoad();}};
@@ -497,7 +512,7 @@ executiveUI=mountExecutiveUI({
 titleWorkbench=mountTitleWorkbench({project:()=>doc.executiveProject,context:()=>ctx,screen,world,draw,busy:()=>!$('busy').hidden,selecting:()=>tool==='object'&&!cableWorkbench?.exclusive(),clearSelection:()=>{selected=null;selectedChain=null;selectedShapeKey=null;selectedMatrix=null;pickedDevice=null;leaderWorkbench?.cancel();cableWorkbench?.cancel();},edit:(id,values)=>executiveUI.editTitle(id,values)});
 rebuild();
 const objectButton=document.createElement('button');objectButton.title='Выбор · Escape';objectButton.setAttribute('aria-label','Выбор · Escape');objectButton.className='drawingIcon';objectButton.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 3l14 10-7 1-3 7z"/></svg>';objectButton.dataset.tool='object';objectButton.onclick=()=>setTool('object');document.querySelector('nav').prepend(objectButton);document.querySelector('[data-tool="select"]').remove();setTool('object');
-$('historyButton').onclick=async()=>{try{await recoveryQueue.catch(()=>{});const rows=await recovery.list(),list=$('recoveryList');list.replaceChildren();for(const row of rows){const button=document.createElement('button');button.textContent=row.name+' · '+new Date(row.time).toLocaleString()+' · '+row.label;button.onclick=async()=>{if(!$('busy').hidden)return;if(dirty&&!confirm('Восстановить эту версию? Текущие правки останутся в истории.'))return;try{await checkpoint('Перед восстановлением');const file=await recovery.source(row.sourceId);if(!file)throw Error('Исходный файл не найден');$('recoveryDialog').close();await openFile(file,await recovery.revision(row.id));}catch(e){status(e.message);}};list.append(button);}if(!rows.length)list.textContent='Сохранённых версий пока нет.';$('recoveryDialog').showModal();}catch(e){status('История недоступна: '+e.message);}};
+$('historyButton').onclick=async()=>{try{await recoveryQueue.catch(()=>{});const rows=await recovery.list(),list=$('recoveryList');list.replaceChildren();for(const row of rows){const button=document.createElement('button');button.textContent=row.name+' · '+new Date(row.time).toLocaleString()+' · '+row.label;button.onclick=async()=>{if(!$('busy').hidden)return;if(dirty&&!confirm('Восстановить эту версию? Текущие правки останутся в истории.'))return;try{await checkpoint('Перед восстановлением');const file=await recovery.source(row.sourceId);if(!file)throw Error('Исходный файл не найден');$('recoveryDialog').close();await batches.openRevision(await recovery.revision(row.id));}catch(e){status(e.message);}};list.append(button);}if(!rows.length)list.textContent='Сохранённых версий пока нет.';$('recoveryDialog').showModal();}catch(e){status('История недоступна: '+e.message);}};
 recovery.hasRevisions().then(has=>{if(has)$('autosaveStatus').textContent='Есть сохранённая работа — откройте «История / восстановить»';}).catch(e=>{$('autosaveStatus').textContent='Локальное сохранение недоступно: '+e.message;});
 
 function editTargets(removing=false){

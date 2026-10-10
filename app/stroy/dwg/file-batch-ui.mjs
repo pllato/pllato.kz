@@ -1,0 +1,12 @@
+export function mountFileBatchUI({batch,openPicker,busy,status}){
+ const bar=document.createElement('section');bar.id='fileBatchBar';bar.setAttribute('aria-label','Открытые файлы');
+ const label=document.createElement('strong');label.textContent='Файлы';
+ const tabs=document.createElement('div');tabs.className='fileBatchTabs';
+ const menu=document.createElement('details');menu.id='fileBatchMenu';const summary=document.createElement('summary'),list=document.createElement('div');list.className='fileBatchList';const help=document.createElement('p');help.className='fileBatchHelp';help.textContent='Правки сохраняются локально при переключении. DWG скачивайте отдельно для каждого файла.';menu.append(summary,list);bar.title=help.textContent;
+ const add=document.createElement('button');add.id='fileBatchAdd';add.textContent='+ Добавить';add.title='Выберите один или несколько DWG / DXF';add.onclick=openPicker;
+ bar.append(label,tabs,menu,add);document.querySelector('header').after(bar);
+ const action=fn=>async()=>{if(batch.locked()||busy())return status('Дождитесь завершения текущей операции.');menu.open=false;await fn();};
+ function item(r){const wrap=document.createElement('div');wrap.className='fileBatchItem';const button=document.createElement('button');button.dataset.fileId=r.id;button.className='fileBatchSelect';button.textContent=r.name+(r.dirty?' •':'')+(r.error?' · не открыт':'');button.title=r.message||r.name+(r.dirty?' — есть правки, сохранённые локально':'');button.setAttribute('aria-current',String(batch.active()===r.id));button.disabled=batch.locked()||busy();button.onclick=action(()=>batch.activate(r.id));const close=document.createElement('button');close.textContent='×';close.className='fileBatchClose';close.setAttribute('aria-label','Закрыть вкладку '+r.name);close.title='Закрыть вкладку. Локальная история останется.';close.disabled=button.disabled;close.onclick=action(()=>batch.remove(r.id));wrap.append(button,close);return wrap;}
+ function refresh(){const rows=batch.rows();bar.hidden=!rows.length;tabs.replaceChildren(...rows.map(item));list.replaceChildren(help,...rows.map(item));const active=rows.find(r=>r.id===batch.active());summary.textContent='Файлы ('+rows.length+') · '+(active?.name||'Выбрать файл');summary.title=active?.name||'';add.disabled=batch.locked()||busy();const current=tabs.querySelector('[aria-current="true"]');current?.scrollIntoView({block:'nearest',inline:'nearest'});}
+ refresh();return {refresh};
+}
