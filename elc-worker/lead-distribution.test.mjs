@@ -17,3 +17,12 @@ test('выключено, другая стадия и другая воронк
 test('неактивные сотрудники пропускаются',async()=>{const f=fixture();await f.req(f.config);f.db.exec("UPDATE users SET active=0 WHERE uid IN ('a','k')");assert.deepEqual(await f.assign('1'),{leadUid:'b',kepUid:null});f.db.exec("UPDATE users SET active=0 WHERE uid='b'");assert.equal(await f.assign('2'),null);});
 test('правила меняются только для следующих лидов',async()=>{const f=fixture();await f.req(f.config);await f.assign('1');await f.req({...f.config,rows:[{leadUid:'b',kepUid:'b',weight:1}]});assert.deepEqual(await f.assign('1'),{leadUid:'a',kepUid:'k'});assert.deepEqual(await f.assign('2'),{leadUid:'b',kepUid:'b'});});
 test('сохранение доступно только админу; проверяет сотрудников и доли',async()=>{const f=fixture();assert.equal((await f.req(f.config,'agent')).status,403);assert.equal((await f.req(null,'agent')).status,403);for(const patch of [{rows:[]},{rows:[{leadUid:'off'}]},{rows:[{leadUid:'missing'}]},{rows:[{leadUid:'a',kepUid:'missing'}]},{rows:[{leadUid:'a'},{leadUid:'a'}]},{stageId:'missing'},{mode:'weighted',rows:[{leadUid:'a',weight:0}]},{mode:'weighted',rows:[{leadUid:'a',weight:1.5}]}])assert.equal((await f.req({...f.config,...patch})).status,400);});
+
+test('один менеджер лидов и два менеджера КЭПов: строгое чередование, включая повторы',async()=>{
+ const f=fixture();const config={...f.config,rows:[{leadUid:'a',kepUid:'a',weight:1},{leadUid:'a',kepUid:'b',weight:1}]};
+ assert.equal((await f.req(config)).status,200);
+ const actual=[];for(let i=0;i<10;i++){actual.push(await f.assign('rotation-'+i));await f.assign('rotation-'+i);}
+ assert.deepEqual(actual.map(x=>x.leadUid),Array(10).fill('a'));
+ assert.deepEqual(actual.map(x=>x.kepUid),['a','b','a','b','a','b','a','b','a','b']);
+ assert.deepEqual((await(await f.req()).json()).config,config);
+});
