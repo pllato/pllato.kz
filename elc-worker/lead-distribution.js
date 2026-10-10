@@ -58,8 +58,10 @@ export async function handleLeadDistribution(request,env,deps,pipelineId) {
   if(body.enabled && !body.rows.length) return fail('Добавьте менеджера по лидам');
   const rows=[],seen=new Set();
   for(const r of body.rows) {
-    if(!r||typeof r.leadUid!=='string'||!r.leadUid||seen.has(r.leadUid)) return fail('Выберите разных менеджеров по лидам');
-    seen.add(r.leadUid);
+    if(!r||typeof r.leadUid!=='string'||!r.leadUid) return fail('Выберите менеджера по лидам');
+    const pair=JSON.stringify([r.leadUid,r.kepUid||null]);
+    if(seen.has(pair)) return fail('Эта пара менеджеров уже добавлена');
+    seen.add(pair);
     const weight=body.mode==='equal'?1:Number(r.weight);
     if(!Number.isInteger(weight)||weight<1||weight>100) return fail('Доля должна быть целым числом от 1 до 100');
     for(const uid of [r.leadUid,r.kepUid].filter(Boolean)) {

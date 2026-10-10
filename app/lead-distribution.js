@@ -25,8 +25,8 @@ export async function openLeadDistribution({pipelineId,stageId,stageName,users,b
     dialog.querySelector('[data-content]').innerHTML=`<label><input type="checkbox" data-enabled ${config.enabled?'checked':''}> Автоматически назначать менеджеров новым лидам</label>
       <p>В каждой строке выберите менеджера по лидам и менеджера КЭПов, который будет назначаться вместе с ним. Правило применяется к новым карточкам в этой стадии из всех источников. Старые назначения не меняются.</p>
       <label>Распределение <select data-mode><option value="equal">Поровну, по очереди</option><option value="weighted">По пропорциям</option></select></label>
-      <div data-rows></div><button data-add style="margin-top:12px">+ Менеджер по лидам</button>
-      <p>Доли — относительные: например, 2 и 1 означают ⅔ и ⅓ новых лидов. Один менеджер КЭПов может быть указан у нескольких менеджеров по лидам.</p>
+      <div data-rows></div><button data-add style="margin-top:12px">+ Вариант назначения</button>
+      <p>Можно указать одного менеджера по лидам в нескольких строках с разными менеджерами КЭПов. В режиме «Поровну» пары назначаются по очереди. Доли 2 и 1 означают ⅔ и ⅓ новых лидов.</p>
       <div class="ld-error" role="status" data-status></div><div class="ld-footer"><button data-cancel>Отмена</button><button data-save>Сохранить настройки</button></div>`;
     const mode=dialog.querySelector('[data-mode]');mode.value=config.mode;
     const rowsEl=dialog.querySelector('[data-rows]');
