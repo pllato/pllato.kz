@@ -1,8 +1,9 @@
+import {selectionContour} from './contour.mjs?v=0.17.99';
 import {previewRecords} from './executive-preview.mjs?v=0.17.96';
 import {fromRecords,addEntity,get} from './cad.mjs?v=0.17.90';
 import * as projectAPI from './executive-project.mjs?v=0.17.78';
 import {routeLength} from './cable-ledger.mjs?v=0.17.78';
-import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.90';
+import {selectExecutiveRoots} from './executive-selection.mjs?v=0.17.99';
 import {executivePlacement} from './executive-placement.mjs?v=0.17.89';
 import {cableCurve,nearestCablePoint,cutCable} from './cable-edit.mjs?v=0.17.78';
 import {drawingPreset} from './drawing-presets.mjs?v=0.17.78';
@@ -72,7 +73,21 @@ export function mountExecutiveUI(api){
   const entities=doc.entities.filter(keep);
   doc.records=[...records,...mini.entities];doc.entities=[...entities,...mini.entities];decorationCache={doc,records:doc.records,entities:doc.entities,signature};refresh();return true;
  }
- $('exArea').onclick=guard(()=>{if(!api.getDoc().native)throw Error('Исполнительные: откройте исходный DWG');waitingForUnits=false;chosen=[];area=null;selectionSource=api.getDoc().sourceFile;$('exCreate').disabled=true;operationError.hidden=true;points=[];hoverPoint=null;mode='area';api.setTool('executive');api.status('Зажмите мышь, обведите нужный план рамкой и отпустите — исполнительная создастся автоматически. Включайте объекты целиком.');});
+ const areaTools=document.createElement('div');areaTools.id='executiveAreaTools';areaTools.className='executiveAreaTools';areaTools.hidden=true;
+ areaTools.innerHTML='<label>Область <select id="exAreaMode"><option value="area">Рамкой</option><option value="polygon">По точкам</option></select></label><span>Пересекающие границу объекты включаются целиком.</span><button id="exContourBack">Убрать точку</button><button id="exContourFinish">Завершить контур</button><button id="exContourCancel">Отмена</button>';
+ document.querySelector('nav').after(areaTools);
+ function updateAreaTools(){const polygon=mode==='polygon';areaTools.hidden=!['area','polygon'].includes(mode);$('exAreaMode').value=polygon?'polygon':'area';$('exContourBack').hidden=$('exContourFinish').hidden=!polygon;$('exContourBack').disabled=!points.length;$('exContourFinish').disabled=points.length<3;}
+ $('exAreaMode').onchange=()=>{points=[];hoverPoint=null;mode=$('exAreaMode').value;api.setTool('executive');updateAreaTools();api.status(mode==='polygon'?'Отмечайте точки контура. Затем нажмите «Завершить контур». Двумя пальцами можно двигать и увеличивать план.':'Протяните рамку вокруг плана. Пересекающие границу объекты включаются целиком.');};
+ $('exContourBack').onclick=()=>{points.pop();hoverPoint=null;updateAreaTools();api.draw();};
+ $('exContourCancel').onclick=()=>{mode='';points=[];hoverPoint=null;updateAreaTools();api.setTool('object');api.status('Создание исполнительной отменено.');};
+ $('exContourFinish').onclick=()=>{try{if(mode!=='polygon'||api.busy())return;const contour=selectionContour(points);finishSelection(contour);}catch(e){api.status(e.message);}};
+ function finishSelection(region){
+  chosen=selectExecutiveRoots(api.getDoc(),api.shapes(),region,{crossing:true});selectionSource=api.getDoc().sourceFile;area=region;
+  if(!chosen.length){api.status('В области нет объектов. Измените контур или повторите выделение.');return;}
+  points=[];hoverPoint=null;mode='';updateAreaTools();api.setTool('select');
+  $('exAreaInfo').textContent=`Выбрано целых объектов: ${chosen.length}. Пересекающие границу включены целиком. Исходник останется на месте.`;$('exCreate').disabled=false;$('exCreate').click();
+ }
+ $('exArea').onclick=guard(()=>{if(!api.getDoc().native)throw Error('Исполнительные: откройте исходный DWG');waitingForUnits=false;chosen=[];area=null;selectionSource=api.getDoc().sourceFile;$('exCreate').disabled=true;operationError.hidden=true;points=[];hoverPoint=null;mode='area';api.setTool('executive');updateAreaTools();api.status('Обведите план рамкой или выберите «По точкам». Пересекающие границу объекты включаются целиком.');});
  $('exCreate').onclick=guard(async()=>{
   if(!chosen.length||!area||selectionSource!==api.getDoc().sourceFile)throw Error('Сначала выделите план в текущем DWG');const metres=api.metresPerUnit();if(!metres){waitingForUnits=true;$('sidebar').classList.add('open');$('panel').setAttribute('aria-expanded','true');$('units').scrollIntoView({block:'nearest'});$('units').focus();throw Error('Выберите единицы измерения: выделенная область сохранена, исполнительная создастся автоматически.');}
   waitingForUnits=false;const p=structuredClone(project()),{unit,origin,centre,position}=executivePlacement(api.shapes(),chosen.map(h=>'dwg-'+h));
@@ -85,7 +100,7 @@ export function mountExecutiveUI(api){
  $('units').addEventListener('change',()=>{if(waitingForUnits&&chosen.length&&selectionSource===api.getDoc().sourceFile&&api.metresPerUnit()&&!api.busy())$('exCreate').click();});
  const createIcon=document.createElement('button');createIcon.id='exCreateIcon';createIcon.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3H4v18h16V10M14 2v8h8M17 13v6M14 16h6"/></svg><span class="createLabel">Исполнительная +</span>';
  document.querySelector('nav').prepend(createIcon);
- const updateCreateIcon=()=>{createIcon.disabled=api.busy();createIcon.title='Создать исполнительную · обведите план рамкой';createIcon.setAttribute('aria-label',createIcon.title);createIcon.classList.remove('ready');};
+ const updateCreateIcon=()=>{createIcon.disabled=api.busy();createIcon.title='Создать исполнительную · рамкой или по точкам';createIcon.setAttribute('aria-label',createIcon.title);createIcon.classList.remove('ready');};
  createIcon.onclick=()=>{if(api.busy()||acting)return;$('sidebar').classList.remove('open');$('panel').setAttribute('aria-expanded','false');$('exArea').click();};
  const createObserver=new MutationObserver(updateCreateIcon);createObserver.observe($('exCreate'),{attributes:true,attributeFilter:['disabled']});createObserver.observe($('busy'),{attributes:true,attributeFilter:['hidden']});updateCreateIcon();
  showSheet.onclick=guard(()=>{api.focus(sheet());showCanvas();});
@@ -105,13 +120,10 @@ export function mountExecutiveUI(api){
  $('exDevice').onclick=()=>{if(api.busy())return;api.setTool('device');showCanvas();api.status('Нажмите на любой штрих прибора — выберется весь блок.');};
  function finishArea(a,w){
   if(mode!=='area'||api.busy())return;
-  points=[];hoverPoint=null;mode='';api.setTool('select');
-  area=[Math.min(a[0],w[0]),Math.min(a[1],w[1]),Math.max(a[0],w[0]),Math.max(a[1],w[1])];
-  chosen=selectExecutiveRoots(api.getDoc(),api.shapes(),area);selectionSource=api.getDoc().sourceFile;
-  $('exAreaInfo').textContent=`Выбрано объектов: ${chosen.length}. Исходник останется на месте.`;$('exCreate').disabled=!chosen.length;
-  if(chosen.length)$('exCreate').click();else api.status('В рамке нет целых объектов. Если план — один блок, обведите его целиком. Нажмите лист с плюсом и повторите выделение.');
+  finishSelection([Math.min(a[0],w[0]),Math.min(a[1],w[1]),Math.max(a[0],w[0]),Math.max(a[1],w[1])]);
  }
  function tap(w){
+  if(mode==='polygon'){if(points.length>=256){api.status('Предел контура: 256 точек. Завершите контур.');return;}if(points.length&&Math.hypot(w[0]-points.at(-1)[0],w[1]-points.at(-1)[1])<1e-8)return;points.push([...w]);hoverPoint=null;updateAreaTools();api.status('Контур: '+points.length+' точек · нажмите «Завершить контур»');api.draw();return;}
   if(mode==='area'){api.status('Зажмите мышь и протяните рамку вокруг плана. Отдельные клики не создают исполнительную.');return;}
   if(mode==='leader'&&!points.length){const r=sheet()?.routes.find(r=>r.id===routeId);w=nearestCablePoint(r?.paths||[r?.points||[]],w)||w;}
   points.push(w);
@@ -158,7 +170,7 @@ function assignSelection(){if(!sheet())throw Error('Выберите испол�
  let tableAnchorSheet=null,tableHeight=14;
  function paintTableEntry(){const s=sheet(),viewport=$('viewport');if(!s||api.busy()){tableEntry.hidden=true;return;}if(tableAnchorSheet!==s){tableAnchorSheet=s;tableHeight=s.table?tablePages(s.table)[0].height:(Math.min(10,(s.tableRows||projectAPI.executiveLedger(project(),s.id).rows).length)+1)*7;}const [x,y]=api.screen([s.origin[0]+15*s.paperUnit,s.origin[1]+(5+tableHeight)*s.paperUnit]);tableEntry.hidden=x<0||x>viewport.clientWidth-160||y<35||y>viewport.clientHeight;if(!tableEntry.hidden){tableEntry.style.left=x+'px';tableEntry.style.top=Math.max(0,y-34)+'px';}}
  const stampWorkbench=mountStampWorkbench({sheet,project,screen:api.screen,busy:api.busy,edit:(id,stamp)=>{if(!project().sheets.some(s=>s.id===id))throw Error('Исполнительная не найдена');mutate(p=>{p.sheets.find(s=>s.id===id).stamp=stamp;});api.status('Штамп сохранён. Изменения войдут в DWG и PDF.');}});
- return {paintTableEntry:()=>{paintTableEntry();stampWorkbench.paint();},rebuild,tap,project,hover,selectObject,showPreviewEdit,finishArea,startArea:w=>{if(mode==='area'){points=[w];hoverPoint=w;api.draw();}},clearArea:()=>{if(mode==='area'){points=[];hoverPoint=null;api.draw();}},preview:()=>({mode,points,hoverPoint}),cancel:()=>{waitingForUnits=false;points=[];hoverPoint=null;mode='';},sheet,route:selectedRoute,
+ return {paintTableEntry:()=>{paintTableEntry();stampWorkbench.paint();},rebuild,tap,project,hover,selectObject,showPreviewEdit,finishArea,startArea:w=>{if(mode==='area'){points=[w];hoverPoint=w;api.draw();}},clearArea:()=>{if(mode==='area'){points=[];hoverPoint=null;api.draw();}},preview:()=>({mode,points,hoverPoint}),cancel:()=>{waitingForUnits=false;points=[];hoverPoint=null;mode='';updateAreaTools();},sheet,route:selectedRoute,
   editLeader:(sheetId,route,leaderId,values)=>mutate(p=>{const s=p.sheets.find(s=>s.id===sheetId),r=s?.routes.find(r=>r.id===route),l=r?.leaders.find(l=>l.id===leaderId);if(!l)throw Error('Выноска не найдена');if(values.remove){r.leaders=r.leaders.filter(l=>l.id!==leaderId);return;}for(const key of ['label','elbow'])if(values[key]){if(!Array.isArray(values[key])||values[key].length!==2||!values[key].every(Number.isFinite))throw Error('Неверная точка');l[key]=[...values[key]];}if(values.textHeight!==undefined){if(!Number.isFinite(values.textHeight)||values.textHeight<.2||values.textHeight>50)throw Error('Высота текста: от 0,2 до 50 мм');l.textHeight=values.textHeight;}for(const key of ['brand','section'])if(values[key]!==undefined){if(typeof values[key]!=='string'||values[key].length>1000)throw Error('Слишком длинное название');r[key]=values[key].trim();}}),
   assignSelection,
   editTitle:(id,values)=>{const s=project().sheets.find(s=>s.id===id);if(!s)throw Error('Исполнительная не найдена');const style={x:210,y:275,height:5,...s.titleStyle,...Object.fromEntries(['x','y','height'].filter(k=>values[k]!==undefined).map(k=>[k,values[k]]))};if(!Object.values(style).every(Number.isFinite)||style.x<0||style.x>420||style.y<0||style.y>297||style.height<.2||style.height>50)throw Error('Размер: 0,2–50 мм; положение — внутри листа');if(values.title!==undefined&&(typeof values.title!=='string'||values.title.length>1000))throw Error('Название: до 1000 символов');active=id;mutate(p=>{const s=p.sheets.find(s=>s.id===id);s.titleStyle=style;if(values.title!==undefined)s.title=values.title;});},

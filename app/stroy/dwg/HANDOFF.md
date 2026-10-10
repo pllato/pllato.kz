@@ -1,3 +1,42 @@
+# 0.17.99 — contours, pencil, complete boundary roots
+
+Executive selection offers rectangle or point contour (3–256 vertices), with
+back/finish/cancel and touch controls. Crossing selection copies whole CAD roots
+including attached attributes; it never clips a block at the boundary. This fixes
+architectural INSERTs omitted when a rectangle trimmed their outer geometry.
+The pencil samples a bounded screen stroke and simplifies it to one editable
+LWPOLYLINE, with cancel, undo and whole-DWG persistence; no raster replacement.
+
+Native changes: aligned dimension rigid transforms; mixed typed/raw EED sections
+emit in original APPID order; new model roots use hard ownership; relative clone
+references retain their kinds. Source container cache accepts strictly aligned
+sparse AcDs pages and CRC-checked Handles terminators/inactive tails. Unchanged
+source orphan SORTENTSTABLE records are retained only under exact source guards.
+LEADER and block move/scale actions clone their complete CRC-checked source body,
+relocating only the bounded handle stream. Their complete body is compared again
+after writing, independently of incomplete typed decoding. Writer WASM and matching
+GPL source archive are updated together; no dependency/fidelity guard was removed.
+
+Validation: 246 DWG unit tests; synthetic actual browser touch runs at 390x844,
+1024x1366 and desktop 1440x900, contour/back/create/cancel, pencil/cancel/undo,
+actual DWG download/reopen. PDF desktop/tablet: selected, all, entire document,
+repeat and tablet retry bytes, progress cleanup; A3 page counts verified.
+Private fixture offline: 469 roots including architectural block, exact 6,262
+visible primitives/layer inventory in preview and separated output, five consecutive
+creation/save/read cycles, final whole DWG roots and unchanged original hash.
+Independent AutoCAD 2027 AcCoreConsole copies: opening, AUDIT No, line move/back,
+SaveAs 2018 and reopen/AUDIT No. Eight records previously silently discarded now
+survive native opening and resaving, confirmed by handles on final reopen.
+
+Limits: original private fixture already causes AutoCAD to fix 82 source errors
+and discard 236 pre-existing objects on ordinary opening. Final candidate adds
+no discarded records in this check; explicit AUDIT and resaved reopen report zero.
+This is not proof of universal lossless compatibility. A distinct malformed source
+region contains a LINE owned by a non-model block; copying that root is still
+refused rather than guessed or omitted. Physical tablet memory limits remain
+unverified; browser runs emulate touch/viewport, not the device's RAM. Private
+files/logs/geometry stayed outside the public repository. No RECOVER used.
+
 # 0.17.98 — disk-backed file batch
 
 Browse and drag/drop accept multiple DWG/DXF. Desktop shows a horizontal file

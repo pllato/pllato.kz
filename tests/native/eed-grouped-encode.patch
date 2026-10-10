@@ -1,0 +1,316 @@
+--- a/src/encode.c
++++ b/src/encode.c
+@@ -6165,26 +6165,31 @@
+   int error;
+   Bit_Chain _hdl_dat = { 0 };
+   Bit_Chain *hdl_dat = &_hdl_dat;
+-  Bit_Chain *str_dat = dat;
++  Bit_Chain _str_dat = {0};
++  Bit_Chain *str_dat = &_str_dat;
+ 
+   LOG_INFO ("Encode entity UNKNOWN_ENT\n");
+   bit_chain_init_dat (hdl_dat, 128, dat);
++  bit_chain_init_dat (str_dat, 128, dat);
+   error = dwg_encode_entity (obj, dat, hdl_dat, str_dat);
+   if (error)
+     {
+       if (hdl_dat != dat && hdl_dat->chain != dat->chain)
+         bit_chain_free (hdl_dat);
++      bit_chain_free(str_dat);
+       return error;
+     }
+   if (!dwg_encode_unknown_bits (dat, obj))
+     {
+       if (hdl_dat != dat && hdl_dat->chain != dat->chain)
+         bit_chain_free (hdl_dat);
++      bit_chain_free(str_dat);
+       return DWG_ERR_UNHANDLEDCLASS;
+     }
+   dwg_encode_unknown_rest (dat, obj);
+   if (hdl_dat != dat && hdl_dat->chain != dat->chain)
+     bit_chain_free (hdl_dat);
++  bit_chain_free(str_dat);
+   return 0;
+ }
+ 
+@@ -6194,26 +6199,31 @@
+   int error;
+   Bit_Chain _hdl_dat = { 0 };
+   Bit_Chain *hdl_dat = &_hdl_dat;
+-  Bit_Chain *str_dat = dat;
++  Bit_Chain _str_dat = {0};
++  Bit_Chain *str_dat = &_str_dat;
+ 
+   LOG_INFO ("Encode object UNKNOWN_OBJ\n");
+   bit_chain_init_dat (hdl_dat, 128, dat);
++  bit_chain_init_dat (str_dat, 128, dat);
+   error = dwg_encode_object (obj, dat, hdl_dat, str_dat);
+   if (error)
+     {
+       if (hdl_dat != dat && hdl_dat->chain != dat->chain)
+         bit_chain_free (hdl_dat);
++      bit_chain_free(str_dat);
+       return error;
+     }
+   if (!dwg_encode_unknown_bits (dat, obj))
+     {
+       if (hdl_dat != dat && hdl_dat->chain != dat->chain)
+         bit_chain_free (hdl_dat);
++      bit_chain_free(str_dat);
+       return DWG_ERR_UNHANDLEDCLASS;
+     }
+   dwg_encode_unknown_rest (dat, obj);
+   if (hdl_dat != dat && hdl_dat->chain != dat->chain)
+     bit_chain_free (hdl_dat);
++  bit_chain_free(str_dat);
+   return 0;
+ }
+ 
+@@ -6285,7 +6295,7 @@
+               obj->size, obj->handlestream_size, obj->type, obj->address);
+     // clear stale bitsize and handlestream_size from JSON/DXF import,
+     // will be recalculated in START_HANDLE_STREAM and the fixup
+-    if (!(obj->fixedtype == DWG_TYPE_BLOCKLOOKUPACTION
++    if (!((obj->fixedtype == DWG_TYPE_BLOCKLOOKUPACTION||obj->fixedtype==DWG_TYPE_LEADER||obj->fixedtype==DWG_TYPE_BLOCKSCALEACTION||obj->fixedtype==DWG_TYPE_BLOCKMOVEACTION)
+           && can_emit_raw_unknown (dwg, obj)))
+       {
+         obj->bitsize = 0;
+@@ -6432,7 +6442,7 @@
+       error = dwg_encode_MTEXT (dat, obj);
+       break;
+     case DWG_TYPE_LEADER:
+-      error = dwg_encode_LEADER (dat, obj);
++      error = can_emit_raw_unknown(dwg,obj)?dwg_encode_raw_UNKNOWN_ENT(dat,obj):dwg_encode_LEADER (dat, obj);
+       break;
+     case DWG_TYPE_TOLERANCE:
+       error = dwg_encode_TOLERANCE (dat, obj);
+@@ -6591,6 +6601,8 @@
+           error = dwg_encode_LAYOUT (dat, obj);
+           (void)dwg_encode_get_class (dwg, obj);
+         }
++      else if ((obj->fixedtype==DWG_TYPE_BLOCKSCALEACTION||obj->fixedtype==DWG_TYPE_BLOCKMOVEACTION)&&can_emit_raw_unknown(dwg,obj))
++        error=dwg_encode_raw_UNKNOWN_OBJ(dat,obj);
+       else if (dwg != NULL
+                && (error = dwg_encode_variable_type (dwg, dat, obj))
+                       & DWG_ERR_UNHANDLEDCLASS)
+@@ -7038,169 +7050,59 @@
+ static int
+ dwg_encode_eed (Bit_Chain *restrict dat, Dwg_Object *restrict obj)
+ {
+-  // size_t off = obj->address;
+-  // unsigned dat_size = 0;
+-  Dwg_Handle *last_handle = NULL;
+-  Bit_Chain dat1 = { 0 };
+-  int i, num_eed = obj->tio.object->num_eed;
+-  BITCODE_BS size = 0;
+-  BITCODE_RS last_size = 0;
+-  BITCODE_RS new_size = 0;
+-  int did_raw = 0;
+-  int need_recalc = does_cross_unicode_datversion (dat);
+-
+-  bit_chain_init (&dat1, 1024);
+-  dat1.from_version = dat->from_version;
+-  dat1.version = dat->version;
+-  dat1.opts = dat->opts;
+-
+-  // Skip DICTIONARY AE3 AcDsRecords/AcDsSchemas 1070 . 2, wrong ACIS version
+-  if (dat->opts & DWG_OPTS_INDXF && dat->version < R_2007
+-      && obj->fixedtype == DWG_TYPE_DICTIONARY && num_eed == 1)
+-    {
+-      Dwg_Eed *eed = &obj->tio.object->eed[0];
+-      if (eed->handle.value == 0x12 && eed->data->code == 70
+-          && eed->data->u.eed_70.rs > 1)
+-        {
+-          LOG_TRACE ("skip AcDs DICTIONARY EED to use ACIS ver 2\n");
+-          num_eed = 0;
+-        }
+-    }
+-
+-  for (i = 0; i < num_eed; i++)
+-    {
+-      Dwg_Eed *eed = &obj->tio.object->eed[i];
+-      if (eed->size) // start of a new EED appid section
+-        {
+-          size = eed->size;
+-          if (eed->raw && !need_recalc)
++  Dwg_Object_Object *common = obj->tio.object;
++  Bit_Chain payload = {0};
++  int need_recalc = does_cross_unicode_datversion (dat), error = 0;
++  bit_chain_init (&payload, 1024);
++  payload.version = dat->version;
++  payload.from_version = dat->from_version;
++  payload.opts = dat->opts;
++  if ((dat->opts & DWG_OPTS_INDXF) && dat->version < R_2007
++      && obj->fixedtype == DWG_TYPE_DICTIONARY && common->num_eed == 1
++      && common->eed[0].handle.value == 0x12 && common->eed[0].data
++      && common->eed[0].data->code == 70 && common->eed[0].data->u.eed_70.rs > 1)
++    { bit_write_BS (dat, 0); bit_chain_free (&payload); return 0; }
++  /* EED is a sequence of complete APPID groups. Flush each group before
++     starting the next, regardless of whether its payload is raw or typed.
++     Never let pending typed bytes drift behind a later raw group. */
++  for (unsigned i = 0; i < common->num_eed; )
++    {
++      Dwg_Eed *first = &common->eed[i];
++      unsigned end = i + 1;
++      while (end < common->num_eed && !common->eed[end].size) end++;
++      if (!first->size) { error = DWG_ERR_INVALIDDWG; break; }
++      if ((dat->opts & DWG_OPTS_INDXF) && first->handle.value == 0x12
++          && obj->fixedtype == DWG_TYPE_BLOCK_HEADER)
++        { i = end; continue; }
++      if (first->raw && !need_recalc)
++        {
++          if (dat->version > R_12) { bit_write_BS (dat, first->size); bit_write_H (dat, &first->handle); }
++          else bit_write_RS (dat, first->size);
++          bit_write_TF (dat, first->raw, first->size);
++        }
++      else
++        {
++          bit_set_position (&payload, 0);
++          for (unsigned j = i; j < end; j++)
+             {
+-              did_raw = 1;
+-              if (dat->version > R_12)
+-                {
+-                  bit_write_BS (dat, size);
+-                  LOG_TRACE ("EED[%d] size: " FORMAT_BS " [BS]", i, size);
+-                  LOG_POS
+-                  bit_write_H (dat, &eed->handle);
+-                  LOG_TRACE ("EED[%d] handle: " FORMAT_H " [H]", i,
+-                             ARGS_H (eed->handle));
+-                  LOG_POS
+-                }
+-              else
+-                {
+-                  bit_write_RS (dat, size);
+-                  LOG_TRACE ("EED[%d] size: " FORMAT_RS " [RS]", i, size);
+-                  LOG_POS
+-                }
+-              LOG_TRACE ("EED[%d] raw [TF %d]\n", i, size);
+-              bit_write_TF (dat, eed->raw, size);
+-              LOG_TRACE_TF (eed->raw, size);
+-              new_size = 0;
++              Dwg_Eed_Data *data = common->eed[j].data;
++              if (!data || !((data->code <= 5) || (data->code >= 10 && data->code <= 15)
++                  || (data->code >= 40 && data->code <= 42) || data->code == 70 || data->code == 71)
++                  || dwg_encode_eed_data (&payload, data, j) <= 0)
++                { error = DWG_ERR_INVALIDDWG; break; }
+             }
+-          // indxf
+-          else if (eed->data)
+-            {
+-              did_raw = 0;
+-              if (new_size) // flush old
+-                {
+-
+-// FIXME DXF import of ACAD EED crashes (GH #244)
+-// on BLOCK_HEADER with 0 . "DesignCenter Data"
+-#define EED_ALLOWED                                                           \
+-  !(dat->opts & DWG_OPTS_INDXF) || last_handle->value != 0x12                 \
+-      || obj->fixedtype != DWG_TYPE_BLOCK_HEADER
+-
+-                  if (EED_ALLOWED)
+-                    {
+-                      eed->size = new_size;
+-                      if (dat->version <= R_12)
+-                        {
+-                          bit_write_RS (dat, new_size);
+-                          LOG_TRACE ("EED[%d] size: %d [RS]", last_size,
+-                                     new_size);
+-                        }
+-                      else
+-                        {
+-                          bit_write_BS (dat, new_size);
+-                          LOG_TRACE ("EED[%d] size: %d [BS]", last_size,
+-                                     new_size);
+-                          LOG_POS;
+-                          bit_write_H (dat, last_handle);
+-                          LOG_TRACE ("EED[%d] handle: " FORMAT_H " [H]",
+-                                     last_size, ARGS_H (*last_handle));
+-                        }
+-                      LOG_POS;
+-                      LOG_TRACE ("flush eed_data %" PRIuSIZE ".%d\n",
+-                                 dat1.byte, dat1.bit);
+-                      dat_flush (dat, &dat1);
+-                    }
+-                  else
+-                    {
+-                      LOG_WARN ("skip EED[%d] handle: " FORMAT_H
+-                                " [H] for DesignCenter Data",
+-                                last_size, ARGS_H (*last_handle));
+-                      LOG_POS;
+-                      dat1.byte = 0;
+-                    }
+-                  new_size = 0;
+-                }
+-              new_size = dwg_encode_eed_data (&dat1, eed->data, i);
+-              LOG_POS;
+-            }
+-          last_size = i;
+-          last_handle = &eed->handle;
+-        }
+-      // and if not already written by the previous raw (this has size=0)
+-      else if (!did_raw && eed->data)
+-        {
+-          new_size += dwg_encode_eed_data (&dat1, eed->data, i);
+-          LOG_POS;
+-        }
+-    }
+-  if (new_size && last_handle) // flush remaining rest
+-    {
+-      // FIXME HACK, see above
+-      if (EED_ALLOWED)
+-        {
+-          if (dat->version <= R_12)
+-            {
+-              bit_write_RS (dat, new_size);
+-              LOG_TRACE ("EED[%d] size: %d [RS]", last_size, new_size);
+-              LOG_POS;
+-            }
+-          else
+-            {
+-              bit_write_BS (dat, new_size);
+-              LOG_TRACE ("EED[%d] size: %d [BS]", last_size, new_size);
+-              LOG_POS;
+-              bit_write_H (dat, last_handle);
+-              LOG_TRACE ("EED[%d] handle: " FORMAT_H " [H]", last_size,
+-                         ARGS_H (*last_handle));
+-              LOG_POS;
+-            }
+-          last_handle = NULL;
+-        }
+-      else
+-        {
+-          LOG_TRACE ("skip EED[%d] handle: " FORMAT_H
+-                     " [H] for DesignCenter Data",
+-                     last_size, ARGS_H (*last_handle));
+-          LOG_POS;
+-          dat1.byte = 0;
+-        }
+-    }
+-  if (dat1.byte)
+-    LOG_TRACE ("flush eed_data %" PRIuSIZE ".%d\n", dat1.byte, dat1.bit);
+-  dat_flush (dat, &dat1);
+-  if (dat->version > R_12)
+-    {
+-      bit_write_BS (dat, 0);
+-      if (i)
+-        LOG_TRACE ("EED[%d] size: 0 [BS] (end)\n", i);
+-    }
+-  LOG_TRACE ("num_eed: %d\n", num_eed);
+-  bit_chain_free (&dat1);
+-  return 0;
++          if (error) break;
++          if (payload.bit || !payload.byte || payload.byte > UINT16_MAX)
++            { error = DWG_ERR_INVALIDDWG; break; }
++          if (dat->version > R_12) { bit_write_BS (dat, payload.byte); bit_write_H (dat, &first->handle); }
++          else bit_write_RS (dat, payload.byte);
++          bit_copy_chain (dat, &payload);
++        }
++      i = end;
++    }
++  if (dat->version > R_12) bit_write_BS (dat, 0);
++  bit_chain_free (&payload);
++  return error;
+ }
+ 
+ /* The first common part of every entity.
