@@ -75,9 +75,19 @@ export async function syncWaHistory(db, chatId, fetcher = fetch, now = Date.now(
         media_url, media_file_name, media_mime_type, caption, sender_name, meta_ad_id, meta_ad_attribution, ts)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
+        text = COALESCE(NULLIF(wa_messages.text,''), excluded.text),
+        media_kind = COALESCE(wa_messages.media_kind, excluded.media_kind),
+        media_url = COALESCE(NULLIF(wa_messages.media_url,''), excluded.media_url),
+        media_file_name = COALESCE(wa_messages.media_file_name, excluded.media_file_name),
+        media_mime_type = COALESCE(wa_messages.media_mime_type, excluded.media_mime_type),
+        caption = COALESCE(NULLIF(wa_messages.caption,''), excluded.caption),
+        sender_name = COALESCE(wa_messages.sender_name, excluded.sender_name),
         meta_ad_id = COALESCE(excluded.meta_ad_id, wa_messages.meta_ad_id),
         meta_ad_attribution = COALESCE(excluded.meta_ad_attribution, wa_messages.meta_ad_attribution)
-      WHERE excluded.meta_ad_attribution IS NOT NULL AND wa_messages.meta_ad_attribution IS NULL
+      WHERE (excluded.meta_ad_attribution IS NOT NULL AND wa_messages.meta_ad_attribution IS NULL)
+        OR (NULLIF(wa_messages.text,'') IS NULL AND NULLIF(excluded.text,'') IS NOT NULL)
+        OR (NULLIF(wa_messages.media_url,'') IS NULL AND NULLIF(excluded.media_url,'') IS NOT NULL)
+        OR (NULLIF(wa_messages.caption,'') IS NULL AND NULLIF(excluded.caption,'') IS NOT NULL)
     `).bind(m.id, m.chatId, m.providerId, m.direction, m.text, m.mediaKind, m.mediaUrl,
       m.fileName, m.mimeType, m.caption, m.senderName, m.ad?.adId || null, m.ad ? JSON.stringify(m.ad) : null, m.ts)));
     imported += result.reduce((sum, r) => sum + Number(r.meta.changes || 0), 0);
@@ -115,7 +125,11 @@ export async function recoverWaHistory(db) {
     FROM wa_chats c JOIN wa_channels ch ON ch.id_instance = c.instance_id
     LEFT JOIN wa_history_sync s ON s.chat_id = c.id
     WHERE ch.active = 1 AND ch.conn_state = 'up'
-      AND c.last_message_text LIKE '%не синхронизировано%'
+      AND (c.last_message_text LIKE '%не синхронизировано%' OR EXISTS (
+        SELECT 1 FROM wa_messages m WHERE m.chat_id=c.id
+        AND m.ts > (strftime('%s','now')-14*86400)*1000
+        AND NULLIF(m.text,'') IS NULL AND NULLIF(m.caption,'') IS NULL
+        AND NULLIF(m.media_url,'') IS NULL))
       AND COALESCE(s.retry_at, 0) <= ?
   ) WHERE rank = 1`).bind(Date.now()).all();
   for (const chat of results) await syncWaHistory(db, chat.id);
