@@ -211,8 +211,34 @@ static int same_proxy(Dwg_Object *a,Dwg_Object *b){
  for(unsigned i=0;i<x->num_objids;i++)if(x->objids[i]->absolute_ref!=y->objids[i]->absolute_ref)return 0;
  return 1;
 }
+/* Annotation scales are shared only through canonical NOD membership. */
+static int dictionary_member(Dwg_Object*dict,Dwg_Object*child){
+ if(!dict||dict->fixedtype!=DWG_TYPE_DICTIONARY||!child)return 0;
+ Dwg_Object_DICTIONARY*d=dict->tio.object->tio.DICTIONARY;if(d->numitems>100000)return 0;unsigned count=0;
+ for(unsigned i=0;i<d->numitems;i++)if(d->itemhandles&&d->itemhandles[i]&&d->itemhandles[i]->absolute_ref==child->handle.value)count++;
+ return count==1;
+}
+static int canonical_scale(Dwg_Object*o){
+ if(!o||o->fixedtype!=DWG_TYPE_SCALE||o->num_unknown_rest)return 0;
+ Dwg_Object*nod=dwg_ref_object(o->parent,o->parent->header_vars.DICTIONARY_NAMED_OBJECT);
+ if(!nod)return 0;BITCODE_H ref=dwg_find_dicthandle(o->parent,o->parent->header_vars.DICTIONARY_NAMED_OBJECT,"ACAD_SCALELIST");
+ Dwg_Object*dict=dwg_ref_object(o->parent,ref);
+ return dictionary_member(nod,dict)&&dictionary_member(dict,o)&&dwg_ref_object(o->parent,dict->tio.object->ownerhandle)==nod&&dwg_ref_object(o->parent,o->tio.object->ownerhandle)==dict;
+}
+static Dwg_Object* annotation_text_owner(Dwg_Object*o){
+ if(!o||o->fixedtype!=DWG_TYPE_MTEXTOBJECTCONTEXTDATA||o->num_unknown_rest)return NULL;
+ Dwg_Object_MTEXTOBJECTCONTEXTDATA*c=o->tio.object->tio.MTEXTOBJECTCONTEXTDATA;
+ if((c->class_version!=3&&c->class_version!=4)||c->column_type>2||!canonical_scale(dwg_ref_object(o->parent,c->scale)))return NULL;
+ Dwg_Object*child=o;for(unsigned depth=0;depth<16;depth++){
+  Dwg_Object*dict=dwg_ref_object(o->parent,child->tio.object->ownerhandle);if(!dictionary_member(dict,child))return NULL;
+  Dwg_Object*owner=dwg_ref_object(o->parent,dict->tio.object->ownerhandle);
+  if(owner&&owner->fixedtype==DWG_TYPE_MTEXT)return dwg_ref_object(o->parent,owner->tio.entity->xdicobjhandle)==dict?owner:NULL;
+  child=dict;
+ }return NULL;
+}
 static int clone_shared(Dwg_Object *o)
 {
+ if(canonical_scale(o))return 1;
  if(global_assoc_network(o))return 1; /* Register cloned local networks after remapping. */
  switch(o->fixedtype){
  case DWG_TYPE_LAYER:case DWG_TYPE_STYLE:case DWG_TYPE_LTYPE:
@@ -529,7 +555,7 @@ API int pllato_clone_selection(const char *roots,double cx,double cy,double x,do
   if(typedWipeout){Dwg_Entity_WIPEOUT *w=source->tio.entity->tio.WIPEOUT;if(w->class_version>10||!w->clip_verts||w->num_clip_verts<2||w->num_clip_verts>5000){free(sourceBackup);error=25;break;}}
   int blockDependency=source->name&&strncmp(source->name,"BLOCK",5)==0;
   if(source->name&&strncmp(source->name,"ASSOC",5)==0)blockDependency=1;
-  if(!typedBackup&&!rawTable&&!blockDependency&&!proxy_envelope(source)&&source->supertype!=DWG_SUPERTYPE_ENTITY && source->fixedtype!=DWG_TYPE_BLOCK_HEADER
+  if(!typedBackup&&!rawTable&&!blockDependency&&!proxy_envelope(source)&&!annotation_text_owner(source)&&source->supertype!=DWG_SUPERTYPE_ENTITY && source->fixedtype!=DWG_TYPE_BLOCK_HEADER
      &&source->fixedtype!=DWG_TYPE_DICTIONARY&&source->fixedtype!=DWG_TYPE_XRECORD&&source->fixedtype!=DWG_TYPE_IMAGEDEF_REACTOR&&source->fixedtype!=DWG_TYPE_BLOCKREPRESENTATION&&source->fixedtype!=DWG_TYPE_EVALUATION_GRAPH&&source->fixedtype!=DWG_TYPE_SORTENTSTABLE&&source->fixedtype!=DWG_TYPE_FIELD){fprintf(stderr,"CLONE_REJECT_TYPE %s\n",source->name);free(sourceBackup);error=11;break;}
   unsigned originalIndex=source->index,newIndex=drawing.num_objects,refs=drawing.num_object_refs;
   unsigned originalHandleSize=source->handle.size;

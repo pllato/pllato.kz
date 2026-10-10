@@ -1,4 +1,4 @@
-import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.99';
+import createModule from './vendor/pllato-executive-engine.mjs?v=0.17.100';
 import {requireWritableVersion} from './dwg-version.mjs?v=0.17.85';
 import {writeAdditions} from './authoring.mjs?v=0.17.90';
 import {writeDeferredCopies} from './deferred-copy.mjs?v=0.17.90';
@@ -12,7 +12,7 @@ self.onmessage=async({data})=>{
   if(!(buffer instanceof ArrayBuffer)||!Array.isArray(ops)||ops.length>100000)throw Error('Неверный пакет изменений');
   requireWritableVersion(buffer);
   self.postMessage({progress:'Готовлю DWG исполнительных…',percent:5});
-  m=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.99',import.meta.url).href,print:()=>{},printErr:s=>{if(/^(CLONE_REJECT|MOVE_REJECT|REMOVE_|ROOT_REJECT|SAVE_REJECT|EXPORT_REJECT|EXPORT_EDGE|UNGROUP_)/.test(s))diagnostic=s.slice(0,200);}});m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
+  m=await createModule({locateFile:path=>new URL('./vendor/'+path+'?v=0.17.100',import.meta.url).href,print:()=>{},printErr:s=>{if(/^(CLONE_REJECT|MOVE_REJECT|REMOVE_|ROOT_REJECT|SAVE_REJECT|EXPORT_REJECT|EXPORT_EDGE|UNGROUP_)/.test(s))diagnostic=s.slice(0,200);}});m.FS.writeFile('/input.dwg',new Uint8Array(buffer));
   const opened=m.ccall('pllato_open','number',['string'],['/input.dwg']);if(opened>=128)throw Error('DWG не прочитан: '+opened);
   if(new TextDecoder().decode(new Uint8Array(buffer,0,6))==='AC1032'&&!data.exportOnly){const cached=m.ccall('pllato_preserve_source','number',['string'],['/input.dwg']);if(cached)throw Error('Исходные записи DWG не прошли проверку сохранения: '+cached);}
   // Native preservation owns its source sections now; release the MEMFS copy.

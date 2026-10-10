@@ -6,6 +6,26 @@ static unsigned char *uv=NULL;
 static int uf=0;
 #define P2(p) do{double ux=(p).x,uy=(p).y;(p).x=uc*ux-us*uy+dx;(p).y=us*ux+uc*uy+dy;if(!isfinite((p).x)||!isfinite((p).y))uf=1;}while(0)
 #define V2(p) do{double ux=(p).x,uy=(p).y;(p).x=uc*ux-us*uy;(p).y=us*ux+uc*uy;}while(0)
+/* Context geometry follows its directly transformed MTEXT; nested block
+   definitions remain in their local coordinates. Traverse only owned dictionaries. */
+static int shifted_mtext_context(Dwg_Object *dict,Dwg_Object *text,double dx,double dy,int apply,unsigned depth){
+ if(!dict)return 0;
+ if(depth>16)return 13;
+ if(dict->fixedtype!=DWG_TYPE_DICTIONARY)return 0;
+ Dwg_Object_DICTIONARY*d=dict->tio.object->tio.DICTIONARY;
+ if(d->numitems>100000||(d->numitems&&!d->itemhandles))return 13;
+ double uc=sheetCos,us=sheetSin;
+ for(unsigned i=0;i<d->numitems;i++){
+  Dwg_Object*c=dwg_ref_object(&drawing,d->itemhandles[i]);if(!c) return 13;
+  if(c->fixedtype==DWG_TYPE_DICTIONARY){if(dwg_ref_object(&drawing,c->tio.object->ownerhandle)!=dict)return 13;int rc=shifted_mtext_context(c,text,dx,dy,apply,depth+1);if(rc)return rc;}
+  else if(c->fixedtype==DWG_TYPE_MTEXTOBJECTCONTEXTDATA){
+   if(c->num_unknown_bits||annotation_text_owner(c)!=text)return 13;
+   Dwg_Object_MTEXTOBJECTCONTEXTDATA*q=c->tio.object->tio.MTEXTOBJECTCONTEXTDATA;
+   if(!isfinite(q->ins_pt.x)||!isfinite(q->ins_pt.y)||!isfinite(q->x_axis_dir.x)||!isfinite(q->x_axis_dir.y))return 13;
+   if(apply){P2(q->ins_pt);V2(q->x_axis_dir);}
+  }
+ }return 0;
+}
 static int shifted(Dwg_Object*o,double dx,double dy,int apply,unsigned depth){
  if(depth>12||!o||o->supertype!=DWG_SUPERTYPE_ENTITY||o->num_unknown_rest)return 1;
  if(o->num_unknown_bits){char h[32];snprintf(h,sizeof(h),"%llX",(unsigned long long)o->handle.value);if(pllato_probe_opaque(h))return 2;if(apply){free(o->unknown_bits);o->unknown_bits=NULL;o->num_unknown_bits=0;}}
@@ -32,7 +52,7 @@ static int shifted(Dwg_Object*o,double dx,double dy,int apply,unsigned depth){
  case DWG_TYPE_POINT:if(apply){double px=e->tio.POINT->x,py=e->tio.POINT->y;e->tio.POINT->x=uc*px-us*py+dx;e->tio.POINT->y=us*px+uc*py+dy;}break;
  case DWG_TYPE_TEXT:if(apply){P2(e->tio.TEXT->ins_pt);P2(e->tio.TEXT->alignment_pt);e->tio.TEXT->rotation+=ua;}break;
  case DWG_TYPE_SPLINE:{Dwg_Entity_SPLINE*s=e->tio.SPLINE;if((s->num_ctrl_pts&&!s->ctrl_pts)||(s->num_fit_pts&&!s->fit_pts)||(s->num_knots&&!s->knots))return 13;if(apply){for(unsigned i=0;i<s->num_ctrl_pts;i++)P2(s->ctrl_pts[i]);for(unsigned i=0;i<s->num_fit_pts;i++)P2(s->fit_pts[i]);V2(s->beg_tan_vec);V2(s->end_tan_vec);}break;}
- case DWG_TYPE_MTEXT:if(apply){P2(e->tio.MTEXT->ins_pt);V2(e->tio.MTEXT->x_axis_dir);}break;
+ case DWG_TYPE_MTEXT:{int rc=shifted_mtext_context(dwg_ref_object(&drawing,e->xdicobjhandle),o,dx,dy,apply,0);if(rc)return rc;if(apply){P2(e->tio.MTEXT->ins_pt);V2(e->tio.MTEXT->x_axis_dir);}break;}
  case DWG_TYPE_ATTRIB:if(e->tio.ATTRIB->mtext_type>1)return 3;if(apply){P2(e->tio.ATTRIB->ins_pt);P2(e->tio.ATTRIB->alignment_pt);e->tio.ATTRIB->rotation+=ua;}break;
  case DWG_TYPE_LWPOLYLINE:if(apply)for(unsigned i=0;i<e->tio.LWPOLYLINE->num_points;i++)P2(e->tio.LWPOLYLINE->points[i]);break;
  case DWG_TYPE_INSERT:{Dwg_Entity_INSERT*in=e->tio.INSERT;for(unsigned i=0;i<in->num_owned;i++)if(shifted(dwg_ref_object(&drawing,in->attribs[i]),worldDx,worldDy,apply,depth+1))return 4;if(apply){P2(in->ins_pt);in->rotation=fmod(in->rotation+ua,2*M_PI);if(in->rotation<0)in->rotation+=2*M_PI;}break;}
