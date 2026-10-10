@@ -81,4 +81,13 @@ assert.equal(duplicate.data.duplicate,true);
 assert.equal(sql.prepare('SELECT unread_count FROM wa_chats').get().unread_count,3);
 const unauthorized=await webhookContext.handleWaWebhook(new Request('https://test/api/wa/webhook?token=wrong',{method:'POST',body:'{}'}),{DB:db});
 assert.equal(unauthorized.status,401,'duplicate guard must not bypass webhook authentication');
+// Existing blank webhook rows must be repaired by history without overwriting content.
+sql.exec("UPDATE wa_history_sync SET retry_at=0; UPDATE wa_messages SET text=NULL WHERE wa_message_id='in1'");
+await syncWaHistory(db,'wa:1:chat',provider,5000000);
+assert.equal(sql.prepare("SELECT text FROM wa_messages WHERE wa_message_id='in1'").get().text,'Сколько стоит?');
+const envelopeStart=source.indexOf('function extractWaWebhookEnvelope(');
+const envelopeEnd=source.indexOf('// Ленивая идемпотентная миграция: колонка sender_name',envelopeStart);
+const envContext=vm.createContext({});vm.runInContext(source.slice(envelopeStart,envelopeEnd),envContext);
+const quoted=envContext.extractWaWebhookEnvelope({typeWebhook:'incomingMessageReceived',instanceData:{idInstance:1},senderData:{chatId:'123@g.us',senderName:'Клиент'},idMessage:'quote',timestamp:100,messageData:{typeMessage:'quotedMessage',extendedTextMessageData:{text:'Ответ клиента'},quotedMessage:{textMessage:'Исходное сообщение'}}});
+assert.equal(quoted.text,'Ответ клиента');
 console.log('WhatsApp recovery + 200-contact phone loading: all tests passed');

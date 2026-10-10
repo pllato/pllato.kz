@@ -8100,7 +8100,7 @@ async function loadWaWidgetMessages(opts = {}) {
     if (!r.ok) return;
     const data = await r.json();
     const items = data.items || [];
-    if (opts.silent && items.length === waWidget.messages.length) return;
+    if (opts.silent && JSON.stringify(items) === JSON.stringify(waWidget.messages)) return;
     waWidget.messages = items;
     if (waWidget.view === 'chat') {
       const body = document.getElementById('wa-w-msgs');
@@ -11796,10 +11796,10 @@ async function renderWaMessages(chatId, opts = {}) {
     const data = await r.json();
     let items = data.items || [];
 
-    // Silent polling: если кол-во не изменилось — не перерисовываем (не ломаем scroll)
-    const prevCount = parseInt(body.dataset.msgCount || '0', 10);
-    if (opts.silent && items.length === prevCount) return;
-    body.dataset.msgCount = String(items.length);
+    // Сравниваем содержимое: при лимите 200 число сообщений не меняется.
+    const signature = JSON.stringify(items);
+    if (opts.silent && body.dataset.msgSignature === signature) return;
+    body.dataset.msgSignature = signature;
 
     if (searchQuery) {
       items = items.filter(m =>
@@ -12179,7 +12179,7 @@ function renderWaMessageHtml(m, isGroup) {
     ${senderHtml}
     ${renderMetaAdAttributionHtml(m.metaAdAttribution, { adId: m.metaAdId, compact: true })}
     ${mediaHtml}
-    ${text ? escapeHtml(text).replace(/\n/g, '<br>') : ''}
+    ${text ? escapeHtml(text).replace(/\n/g, '<br>') : (!mediaHtml ? '<span class="wa-content-unavailable">Содержимое сообщения пока недоступно</span>' : '')}
     <span class="wa-ts">${ts} ${tick}</span>
   </div>`;
 }
@@ -12396,6 +12396,7 @@ async function renderDealWaMessages(pane, opts = {}) {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     if (!current()) return;
+    if (opts.silent && data.historySync?.imported > 0) return renderDealWaMessages(pane);
     const items = data.items || [];
     if(items.length)state.canonicalChatId=requestChatId;
     fetch(`${WORKER_BASE_URL}/api/wa/mark-read`, {method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${idToken}`},body:JSON.stringify({chatId:requestChatId})}).catch(() => {});
@@ -22235,6 +22236,7 @@ async function loadAndRenderWaThreadMessages({ silent = false } = {}) {
     const r = await fetch(url, { headers: { 'Authorization': `Bearer ${idToken}` } });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
+    if (silent && data.historySync?.imported > 0) return loadAndRenderWaThreadMessages();
     const items = data.items || [];
 
     if (silent && lastTs > 0) {

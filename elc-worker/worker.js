@@ -5386,7 +5386,7 @@ function extractWaWebhookEnvelope(body) {
     receivedAt: new Date(ts).toISOString(),
   } : null;
   let text = '', mediaKind = null, mediaUrl = null, mediaFileName = null, mediaMimeType = null, caption = null;
-  if (md.typeMessage === 'textMessage' || md.typeMessage === 'extendedTextMessage') {
+  if (md.typeMessage === 'textMessage' || md.typeMessage === 'extendedTextMessage' || md.typeMessage === 'quotedMessage') {
     text = md.textMessageData?.textMessage || md.extendedTextMessageData?.text || '';
   } else if (md.typeMessage === 'imageMessage' || md.fileMessageData?.mimeType?.startsWith?.('image/')) {
     mediaKind = 'image';
