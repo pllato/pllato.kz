@@ -1,3 +1,24 @@
+# 0.17.100 — owned MTEXT annotation contexts
+
+Fixes CLONE_REJECT_TYPE MTEXTOBJECTCONTEXTDATA for complete annotation data.
+Each context must have a bounded owned dictionary chain to its MTEXT and a
+version 3/4 typed payload. Annotation SCALE is shared only when its canonical
+ACAD_SCALELIST membership and both owners are verified. No source objects or
+unsupported payloads are silently removed. Direct MTEXT separation transforms
+its annotation geometry too; opaque contexts and depth exhaustion fail closed.
+
+Verified: 246 unit tests; 11 real contexts with negative version, column, scale,
+membership and owner tests, transform dry-run/application, opaque and depth
+refusal tests. Exact failing private root now creates an executive, saves whole
+DWG, reopens and separately edits a planar LINE, then saves/reopens again.
+The test avoids OCS-incompatible lines rather than weakening the move guard.
+AutoCAD 2027 Core Console independently opens and saves the candidate; all
+22 annotation contexts retain owner, scale and geometry after AutoCAD save.
+AUDIT No reports the same 300 source XData errors before and after export;
+this fixture is not claimed error-free. Original SHA256 is unchanged.
+WASM and matching GPL source archive must ship together. Physical tablet RAM
+limits and untested CAD classes remain outside this verified result.
+
 ## 0.17.99 source-body and container fidelity
 
 Rebuild with build-executive.sh and accompanying source archive. The grouped EED
