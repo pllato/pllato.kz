@@ -1,3 +1,19 @@
+# 0.17.97 — direct activation of plan editing
+
+Selecting a deferred executive preview shows an accessible message above the
+canvas explaining why objects cannot yet be edited and a direct “Включить
+редактирование” action. It invokes the existing guarded materialization flow,
+with disabled controls and preparation state. Success selects the object tool,
+focuses the selected sheet and tells the user to select a line/device. Failure
+retains the plan and a retry action. Clearing selection hides the notice; stale
+notice disappears after materialization. The sidebar action uses the same flow.
+No CAD writer or validation changes. Native materialization currently prepares
+all pending sheets in the project, as before.
+
+Regression: generated training drawing only, original refusal reproduced before
+fix; direct action, injected failure/retry, successful native materialization,
+individual object move capability, whole DWG download. 231 unit tests.
+
 # 0.17.96 — deferred executive plans and export regressions
 
 Creating an executive stores validated source handles and a centre/placement in
