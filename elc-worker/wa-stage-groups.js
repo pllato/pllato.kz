@@ -156,7 +156,7 @@ export async function migrateGroupNames(env,now=Date.now()){
    env.DB.prepare('DELETE FROM wa_group_name_migration WHERE deal_id=?').bind(group.deal_id)
   ]);
  }catch(e){
-  await env.DB.prepare('INSERT INTO wa_group_name_migration(deal_id,retry_at,error) VALUES(?,?,?) ON CONFLICT(deal_id) DO UPDATE SET retry_at=excluded.retry_at,error=excluded.error').bind(group.deal_id,now+3600000,e.message).run();
+  await env.DB.prepare('INSERT INTO wa_group_name_migration(deal_id,retry_at,error) VALUES(?,?,?) ON CONFLICT(deal_id) DO UPDATE SET retry_at=excluded.retry_at,error=excluded.error').bind(group.deal_id,now+(e.message==='Новое название пока не подтверждено в WhatsApp'?60000:3600000),e.message).run();
  }
 }
 // Scan each event only once. The queue and cursor commit together in D1's
@@ -181,7 +181,7 @@ export async function processStageGroups(env){
  const lease=await env.DB.prepare("UPDATE wa_group_locks SET owner=?,until_at=? WHERE id='runner' AND until_at<=?").bind(owner,now+1200000,now).run();
  if(!changed(lease))return;
  try{
-  await migrateGroupNames(env,now);
+  for(let i=0;i<5;i++)await migrateGroupNames(env,now);
   const manual=await env.DB.prepare("SELECT * FROM wa_manual_group_jobs WHERE status='pending' ORDER BY created_at LIMIT 1").first();
   if(manual){
    try{if(await processJob(env,manual,manual))await env.DB.prepare("UPDATE wa_manual_group_jobs SET status='done',error=NULL WHERE deal_id=?").bind(manual.deal_id).run();}
