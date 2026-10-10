@@ -1,3 +1,31 @@
+# 0.17.98 — disk-backed file batch
+
+Browse and drag/drop accept multiple DWG/DXF. Desktop shows a horizontal file
+strip; phone shows a compact Files menu. Add, activate, close and per-file DWG
+save operate on one active drawing. Inactive rows contain revision IDs/names,
+not File blobs, parsed CAD documents or scenes. Sources/revisions use existing
+IndexedDB recovery; localStorage holds only the bounded manifest (100 entries).
+Before switching, await a checkpoint; storage refusal leaves current drawing
+open. Release the current scene/caches before reading the next file. On reading
+failure restore the prior disk revision. Bad entries remain marked for retry or
+close. Closing tabs leaves the existing local history intact. Reload restores
+the list without eagerly loading every file; select one to resume.
+
+Per-file recovery includes native ops, additions, pending executive project,
+units, viewport and hidden layers. Resize saved view for current viewport. Undo
+stacks are reset when switching; local history remains available. Local recovery
+is not a downloaded archive: use Save separately for each active DWG. Browser
+storage quota and OS memory still impose limits; this does not promise arbitrary
+file/device capacity. Original files and native writer guards are unchanged.
+
+239 unit tests. Synthetic real-browser runs at 1280x800 and 390x844: multiple
+selection reads only first file, distinct sheets on two files, six switches,
+injected storage refusal with no new reader, malformed DWG rollback, list and
+sheet restoration after reload, actual active-only DWG download, close all and
+open another file. Existing quick-edit activation/PDF/export regression passed.
+Physical tablet memory testing remains unverified. Private drawings were not
+uploaded or added to the repository.
+
 # 0.17.97 — direct activation of plan editing
 
 Selecting a deferred executive preview shows an accessible message above the

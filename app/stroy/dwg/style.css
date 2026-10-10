@@ -147,3 +147,27 @@ footer #autosaveStatus{flex:0 1 280px;min-width:0;margin:0;padding:0;background:
 .previewEditNotice span{flex:1 1 220px;font-size:15px;line-height:1.4}
 .previewEditNotice button{flex:0 1 auto;min-height:44px;padding:10px 16px;background:#dbac73;color:#102233;font-weight:600;border:1px solid #dbac73;border-radius:5px}
 .previewEditNotice button:disabled{opacity:.65;cursor:wait}
+/* Only the active drawing has a scene; inactive files are disk-backed tabs. */
+#fileBatchBar:not([hidden]){display:flex;align-items:center;gap:10px;padding:6px 12px;background:#102233;color:#eef4fa;border-bottom:1px solid #425c70;min-width:0}
+#fileBatchBar>strong{font-size:13px;font-weight:500;color:#acbdcc}
+.fileBatchTabs{display:flex;gap:6px;overflow-x:auto;min-width:0;flex:1;scrollbar-width:thin}
+.fileBatchItem{display:flex;flex-shrink:0;max-width:280px;border:1px solid #50687b;border-radius:5px;overflow:hidden;background:#192f41}
+.fileBatchSelect,.fileBatchClose,#fileBatchAdd{min-height:38px;color:#eef4fa;background:transparent;border:0;padding:8px 10px;cursor:pointer}
+.fileBatchSelect{white-space:nowrap;text-overflow:ellipsis;overflow:hidden;min-width:0;text-align:left}
+.fileBatchSelect[aria-current="true"]{background:#dbac73;color:#102233;font-weight:600}
+.fileBatchClose{flex-shrink:0;min-width:36px;font-size:20px;border-left:1px solid #50687b}
+#fileBatchAdd{white-space:nowrap;border:1px solid #50687b;border-radius:5px;flex-shrink:0}
+#fileBatchMenu{display:none;margin:0;padding:0}
+@media(max-width:600px){
+ #fileBatchBar:not([hidden]){padding:4px 6px;gap:6px;position:relative}
+ #fileBatchBar>strong,.fileBatchTabs{display:none}
+ #fileBatchMenu{display:block;flex:1;min-width:0}
+ #fileBatchMenu>summary{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:44px;padding:12px 8px;border:1px solid #50687b;border-radius:5px;box-sizing:border-box;cursor:pointer;font-size:13px}
+ #fileBatchMenu:not([open])>.fileBatchList,#fileBatchMenu:not([open])>.fileBatchHelp{display:none}
+ .fileBatchList{position:absolute;left:6px;right:6px;top:100%;z-index:36;max-height:50dvh;overflow:auto;padding:8px;background:#102233;border:1px solid #8295a6;box-shadow:0 5px 20px #0008;overscroll-behavior:contain}
+ .fileBatchList .fileBatchItem{margin:6px 0;max-width:none}
+ .fileBatchList .fileBatchSelect{flex:1;min-height:44px}
+ .fileBatchList .fileBatchClose,#fileBatchAdd{min-height:44px;min-width:44px}
+}
+
+.fileBatchHelp{font-size:12px;line-height:1.4;color:#acbdcc;margin:0;padding:8px}
