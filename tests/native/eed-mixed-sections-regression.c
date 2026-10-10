@@ -1,0 +1,8 @@
+/* A typed EED section followed by raw and typed sections must not reorder. */
+#include <assert.h>
+#include "pllato_executive_engine.c"
+int main(int n,char**a){assert(n==2&&pllato_open(a[1])<128);Dwg_Object*model=dwg_model_space_object(&drawing);dwg_point_3d x={0,0,0},y={100,0,0};Dwg_Entity_LINE*l=dwg_add_LINE(model->tio.object->tio.BLOCK_HEADER,&x,&y);assert(l);Dwg_Object_Entity*c=l->parent;c->num_eed=3;c->eed=calloc(3,sizeof(Dwg_Eed));assert(c->eed);
+for(unsigned i=0;i<3;i++){c->eed[i].size=i==2?9:3;c->eed[i].handle=(Dwg_Handle){.code=5,.size=1,.value=0x12};c->eed[i].data=calloc(1,sizeof(Dwg_Eed_Data));assert(c->eed[i].data);c->eed[i].data->code=i==2?5:70;if(i<2)c->eed[i].data->u.eed_70.rs=100+i;else c->eed[i].data->u.eed_5.entity=model->handle.value;}
+c->eed[1].raw=malloc(3);memcpy(c->eed[1].raw,(unsigned char[]){70,101,0},3);int error=0;Dwg_Object*o=dwg_obj_generic_to_object(l,&error);assert(o);
+for(unsigned repeat=0;repeat<3;repeat++){Bit_Chain bits={0},hdl;bit_chain_init(&bits,65536);bits.version=bits.from_version=drawing.header.version;assert(pp_encode_record(o,&bits)<128);hdl=bits;unsigned index=drawing.num_objects;assert(dwg_decode_add_object(&drawing,&bits,&hdl,16)<128);Dwg_Object*copy=drawing.object+index;assert(copy->fixedtype==DWG_TYPE_LINE&&copy->tio.entity->num_eed==3);for(unsigned i=0;i<3;i++){Dwg_Eed*e=copy->tio.entity->eed+i;assert(e->size==(i==2?9:3)&&e->data&&e->data->code==(i==2?5:70));if(i<2)assert(e->data->u.eed_70.rs==100+i);else assert(e->data->u.eed_5.entity==model->handle.value);}assert(c->eed[0].size==3&&c->eed[1].size==3&&c->eed[2].size==9);free(bits.chain);}
+puts("PASS mixed typed/raw EED preserves section order, sizes and handles over three encodes");return 0;}

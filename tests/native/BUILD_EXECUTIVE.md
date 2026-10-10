@@ -1,3 +1,18 @@
+## 0.17.99 source-body and container fidelity
+
+Rebuild with build-executive.sh and accompanying source archive. The grouped EED
+encoder patch is already applied; do not apply it a second time. Raw LEADER and
+block move/scale dispatch uses independent scratch string/handle buffers: retaining
+source bitsize must never let obj_string_stream reposition the output buffer.
+source-body-backup-regression checks source frame bounds and rejects CRC corruption.
+source-container-layout-regression checks sparse AcDs pages, Handles active
+terminator/tail, negative corruption, source SORT guards and exact auxiliary bytes.
+aligned-transform-regression checks real dimensions; model-owned-handles-regression
+and relative-clone-ref-regression check reference kinds; eed-mixed-sections-regression
+checks three APPID groups over repeated encodes. An old native library is insufficient
+for current full-class integration: use the complete accompanying DEBUG_CLASSES build.
+Independent AutoCAD testing remains necessary in addition to round-trip validation.
+
 ## 0.17.95 bounded association envelopes
 
 Admit exact class/owner/reference envelopes for rotated-dimension action bodies,

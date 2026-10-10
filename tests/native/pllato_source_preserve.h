@@ -34,7 +34,11 @@ static int pp_load_sections(Dwg_Data*d,const unsigned char*file,size_t filesize,
   size_t covered=0;
   for(unsigned j=0;j<info->num_sections;j++){
    Dwg_Section*p=info->sections[j];if(!p||p->address>filesize||filesize-p->address<32)return 0;size_t at=p->address;unsigned mask=0x4164536b^(unsigned)at,n=pp_u32(file+at+8)^mask;uint64_t off=(pp_u32(file+at+16)^mask)|((uint64_t)(pp_u32(file+at+20)^mask)<<32);
-   if(off!=covered||off>s->size||n>filesize-at-32)return 0;size_t take=s->size-covered;if(take>s->max)take=s->max;
+   /* ACIS storage has intentionally absent, zero-filled logical pages. Accept
+      only forward page-aligned gaps in this section; object/handle maps still
+      require contiguous complete coverage. Never admit overlap or truncation. */
+   int sparse=!strcmp(s->name,"AcDb:AcDsPrototype_1b")&&info->fixedtype==SECTION_ACDS;
+   if((off!=covered&&!(sparse&&off>covered&&off%s->max==0))||off>=s->size||n>filesize-at-32)return 0;covered=off;size_t take=s->size-covered;if(take>s->max)take=s->max;
    if(s->compressed==1){if(n<take)return 0;memcpy(s->bytes+covered,file+at+32,take);}
    else {Bit_Chain src={0},dec={0};src.chain=(unsigned char*)file+at+32;src.size=n;dec.size=s->max;dec.chain=calloc(dec.size+16,1);if(!dec.chain)return 0;int e=decompress_R2004_section(&src,&dec);if(!e)memcpy(s->bytes+covered,dec.chain,take);free(dec.chain);if(e)return 0;}
    covered+=take;
@@ -56,7 +60,10 @@ static int pp_map_source(PP_Section*map,PP_Section*objects){
  Bit_Chain b={0};b.chain=map->bytes;b.size=map->size;unsigned index=0;
  while(b.byte+4<=b.size){size_t start=b.byte;unsigned n=bit_read_RS_BE(&b);if(n<2||n>2040||n>b.size-start-2)return 0;BITCODE_HV handle=0;int64_t address=0;
   while(b.byte-start<n){size_t before=b.byte;handle+=bit_read_UMC(&b);address+=bit_read_MC(&b);if(b.byte<=before||b.byte-start>n||index>=pp_source.nrecords||address<0)return 0;Dwg_Object*o=drawing.object+index;PP_Record*r=pp_source.records+index++;if(handle!=o->handle.value||o->index!=index-1||!handle)return 0;r->handle=handle;r->address=address;if(!pp_frame(objects,r->address,drawing.header.version,&r->length))return 0;}
-  unsigned crc=bit_calc_CRC(0xc0c1,map->bytes+start,n);if(bit_read_RS_BE(&b)!=crc)return 0;if(n==2)return index==pp_source.nrecords&&b.byte==b.size;
+  unsigned crc=bit_calc_CRC(0xc0c1,map->bytes+start,n);if(bit_read_RS_BE(&b)!=crc)return 0;/* A CRC-checked empty page terminates the active map (ODA section 23).
+     Allocated tail bytes are not additional handles. Preserve them in the
+     source section; require exact active inventory, not physical EOF. */
+  if(n==2)return index==pp_source.nrecords;
  }
  return 0;
 }
@@ -155,12 +162,21 @@ static int pp_verify_map(PP_Section*map,PP_Section*objects){
  Bit_Chain b={0};b.chain=map->bytes;b.size=map->size;
  while(b.byte+4<=b.size){size_t start=b.byte;unsigned n=bit_read_RS_BE(&b);if(n<2||n>2040||n>b.size-start-2)goto end;BITCODE_HV handle=0;int64_t address=0;
   while(b.byte-start<n){size_t before=b.byte;BITCODE_HV delta=bit_read_UMC(&b);if(!delta||delta>UINT64_MAX-handle)goto end;handle+=delta;address+=bit_read_MC(&b);Dwg_Object*o=dwg_resolve_handle(&drawing,handle);size_t length;if(b.byte<=before||b.byte-start>n||address<0||!o||o->index>=drawing.num_objects||seen[o->index]||o->type==DWG_TYPE_FREED||o->type==DWG_TYPE_UNUSED||pp_addresses[o->index]!=(size_t)address||!pp_frame(objects,address,drawing.header.version,&length))goto end;seen[o->index]=1;found++;}
-  unsigned crc=bit_calc_CRC(0xc0c1,map->bytes+start,n);if(bit_read_RS_BE(&b)!=crc)goto end;if(n==2){ok=found==expected&&b.byte==b.size;goto end;}
+  unsigned crc=bit_calc_CRC(0xc0c1,map->bytes+start,n);if(bit_read_RS_BE(&b)!=crc)goto end;if(n==2){ok=found==expected;goto end;}
  }end:free(seen);return ok;
 }
 static int pp_verify_retained(Dwg_Data*check,const char*path){unsigned char*file=NULL;size_t n=0;PP_Section sections[PP_SECTIONS]={0};unsigned count=0;int ok=0;if(!pp_file(path,&file,&n)||!pp_load_sections(check,file,n,sections,&count))goto end;PP_Section*objects=pp_find(sections,count,"AcDb:AcDbObjects"),*source=pp_find(pp_source.sections,pp_source.nsections,"AcDb:AcDbObjects");PP_Section*map=pp_find(sections,count,"AcDb:Handles");if(!objects||!source||!map||!pp_verify_map(map,objects))goto end;
  for(unsigned i=0;i<pp_source.nrecords;i++)if(pp_retained[i]){PP_Record*r=pp_source.records+i;Dwg_Object*b=dwg_resolve_handle(check,r->handle);/* Decoder address is the body start, not the map prefix. */if(!b||b->address<r->address||b->address-r->address>16||r->address+r->length>objects->size||memcmp(objects->bytes+r->address,source->bytes+r->address,r->length))goto end;}ok=1;
  end:free(file);pp_clear_sections(sections,count);if(!ok)fprintf(stderr,"SAVE_REJECT_SOURCE_BYTES\n");return ok;}
-static int pp_keep_empty_sort(Dwg_Object*o){if(!pp_source.ready||selected_export_validated||o->num_unknown_bits||o->num_unknown_rest||!pp_unchanged(o))return 0;Dwg_Object_SORTENTSTABLE*s=o->tio.object->tio.SORTENTSTABLE;if(s->num_ents||(s->block_owner&&s->block_owner->absolute_ref))return 0;Dwg_Object*dict=dwg_ref_object(&drawing,o->tio.object->ownerhandle);
- if(!dict){for(unsigned i=0;i<drawing.num_object_refs;i++)if(drawing.object_ref[i]&&drawing.object_ref[i]->absolute_ref==o->handle.value)return 0;return 1;}
- if(dict->fixedtype!=DWG_TYPE_DICTIONARY)return 0;Dwg_Object*block=dwg_ref_object(&drawing,dict->tio.object->ownerhandle);if(!block||block->fixedtype!=DWG_TYPE_BLOCK_HEADER||dwg_ref_object(&drawing,block->tio.object->xdicobjhandle)!=dict)return 0;unsigned member=0;Dwg_Object_DICTIONARY*d=dict->tio.object->tio.DICTIONARY;for(unsigned j=0;j<d->numitems;j++)if(d->itemhandles&&d->itemhandles[j]&&d->itemhandles[j]->absolute_ref==o->handle.value)member++;return member==1;}
+static int pp_keep_source_sort(Dwg_Object*o){if(!pp_source.ready||selected_export_validated||o->num_unknown_bits||o->num_unknown_rest||!pp_unchanged(o))return 0;Dwg_Object_SORTENTSTABLE*s=o->tio.object->tio.SORTENTSTABLE;Dwg_Object*dict=dwg_ref_object(&drawing,o->tio.object->ownerhandle);
+ if(!dict){if(s->num_ents)return 0;if(s->block_owner&&s->block_owner->absolute_ref)return 0;for(unsigned i=0;i<drawing.num_object_refs;i++)if(drawing.object_ref[i]&&drawing.object_ref[i]->absolute_ref==o->handle.value)return 0;return 1;}
+ if(dict->fixedtype!=DWG_TYPE_DICTIONARY)return 0;unsigned member=0;Dwg_Object_DICTIONARY*d=dict->tio.object->tio.DICTIONARY;for(unsigned j=0;j<d->numitems;j++)if(d->itemhandles&&d->itemhandles[j]&&d->itemhandles[j]->absolute_ref==o->handle.value)member++;if(member!=1)return 0;
+ Dwg_Object*block=dwg_ref_object(&drawing,dict->tio.object->ownerhandle);
+ /* Original tables can refer to an erased block. Preserve only when
+    all unchanged records agree on the same absent owner; never repair it. */
+ if(!block){
+  if(!s->block_owner||!s->block_owner->absolute_ref||!dict->tio.object->ownerhandle||dict->tio.object->ownerhandle->absolute_ref!=s->block_owner->absolute_ref||dwg_ref_object(&drawing,s->block_owner)||!pp_unchanged(dict)||(s->num_ents&&!s->ents))return 0;
+  for(unsigned i=0;i<s->num_ents;i++){Dwg_Object*e=dwg_ref_object(&drawing,s->ents[i]);if(!e){for(unsigned j=0;j<pp_source.nrecords;j++)if(pp_source.records[j].handle==s->ents[i]->absolute_ref)return 0;continue;}if(e->supertype!=DWG_SUPERTYPE_ENTITY||!e->tio.entity->ownerhandle||e->tio.entity->ownerhandle->absolute_ref!=s->block_owner->absolute_ref||!pp_unchanged(e))return 0;}
+  return 1;
+ }
+ return !s->num_ents&&(!s->block_owner||!s->block_owner->absolute_ref)&&block->fixedtype==DWG_TYPE_BLOCK_HEADER&&dwg_ref_object(&drawing,block->tio.object->xdicobjhandle)==dict;}

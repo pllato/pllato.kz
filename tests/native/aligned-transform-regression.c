@@ -1,0 +1,6 @@
+/* Aligned dimensions: rigid placement preserves lengths and oblique angle. */
+#include <assert.h>
+#include "pllato_executive_engine.c"
+static int near(double a,double b){return fabs(a-b)<1e-7;}
+int main(int n,char**a){assert(n==2&&pllato_open(a[1])<128);uv=calloc(drawing.num_objects,1);sheetAngle=M_PI/2;sheetCos=0;sheetSin=1;unsigned count=0;
+for(unsigned i=0;i<drawing.num_objects;i++){Dwg_Object*o=drawing.object+i;if(o->fixedtype!=DWG_TYPE_DIMENSION_ALIGNED||o->num_unknown_bits||o->num_unknown_rest)continue;Dwg_Entity_DIMENSION_ALIGNED*q=o->tio.entity->tio.DIMENSION_ALIGNED,b=*q;if(shifted(o,12,34,0,0))continue;assert(!shifted(o,12,34,1,0));assert(near(q->def_pt.x,12-b.def_pt.y)&&near(q->def_pt.y,34+b.def_pt.x));assert(near(q->xline1_pt.x,12-b.xline1_pt.y)&&near(q->xline1_pt.y,34+b.xline1_pt.x));assert(near(q->xline2_pt.x,12-b.xline2_pt.y)&&near(q->xline2_pt.y,34+b.xline2_pt.x));assert(near(hypot(q->xline1_pt.x-q->xline2_pt.x,q->xline1_pt.y-q->xline2_pt.y),hypot(b.xline1_pt.x-b.xline2_pt.x,b.xline1_pt.y-b.xline2_pt.y)));assert(q->oblique_angle==b.oblique_angle&&q->act_measurement==b.act_measurement&&q->def_pt.z==b.def_pt.z);count++;}assert(count);printf("PASS %u aligned dimensions: exact rotation, translation, unchanged measurement/oblique angle/Z\n",count);free(uv);pllato_close();}
