@@ -101,7 +101,10 @@ const PAGE_META = {
   catalog:['Каталог · остатки 1С','Зеркало 4 000 SKU в реальном времени'],
   marketing:['Промокоды и акции','Живут в CRM · в 1С уходит итоговая цена'],
   bloggers:['Блогеры и креаторы','Персональные коды · KPI · ROI'],
-  doctors:['Врачи-партнёры','Промокоды врачей · пациенты · кэшбек · сводная по врачу'],
+  // Было «пациенты», хотя пациентов раздел не считает: продажа привязывается к врачу по контрагенту
+  // документа, то есть это покупки САМОГО врача. Клиент читал подпись буквально и ждал учёта
+  // пациентов по рекомендации — такого механизма нет.
+  doctors:['Врачи-партнёры','Промокоды врачей · продажи врачу · кэшбек · сводная по врачу'],
   loyalty:['Накопительная система','Карта постоянного клиента · уровни и % кэшбека по сумме покупок из 1С'],
   analytics:['Аналитика','Классическая вороночная аналитика'],
   tasks:['Задачи и дела','Привязанные к сделкам и функциональные'],
@@ -208,6 +211,40 @@ function dashKpi(icn,col,lbl,val,sub,dir){
 }
 function dashDelta(p){ return p==null?'нет базы для сравнения':(p>0?'▲ ':p<0?'▼ ':'')+Math.abs(p)+'% к пред. периоду'; }
 function dashBars(rows){ const max=Math.max(...rows.map(x=>x.revenue||0),1); return barList(rows.map((x,i)=>[esc(x.name||'—'),x.revenue||0,DASH_COLORS[i%DASH_COLORS.length]]),max,true); }
+// ── Склад — не магазин. Его оборот это отгрузки опта, а не розничная торговля, и в одном списке
+// с торговыми точками он выглядел самым крупным «магазином». Из-за этого клиент сверял оборот
+// склада (5,8 млн за сентябрь) с отгрузками одного оптового менеджера (3,5 млн) и не сходился:
+// со склада отгружают четверо. Бэкенд помечает точки kind='warehouse'/'retail' (настройка
+// store_labels, у клиента заполнена верно), но фронт это поле не читал. Теперь читает.
+const isWarehouse=(x)=>String(x&&x.kind||'')==='warehouse';
+// Окно «N дней» считается от СЕГОДНЯ (так ожидает человек). Побочный эффект: если 1С отстала,
+// в хвост окна попадают дни без выгрузки и выручка выглядит заниженной — на графике это читается
+// как падение продаж. Предупреждаем явно и только когда отставание есть.
+function lagNote(d){
+  const last=d&&(d.dmax||d.asOf), to=d&&d.to;
+  if(!last||!to||last>=to) return '';
+  const days=Math.round((Date.parse(to)-Date.parse(last))/86400000);
+  if(days<1) return '';
+  return `<div class="note amber section-gap" style="display:block;line-height:1.5">${ic('i-info','sm')} <b>1С выгружена по ${esc(last)}</b> — это ${days} ${plural(days,'день','дня','дней')} назад. `
+    +`Последние дни периода пока без данных, поэтому выручка и прибыль за окно ниже фактических. `
+    +`Как только синхронизация догонит, цифры выровняются.</div>`;
+}
+
+function splitStores(rows){ const r=rows||[]; return { retail:r.filter(x=>!isWarehouse(x)), wh:r.filter(isWarehouse) }; }
+// Панель дашборда: торговые точки графиком, склад — отдельным блоком под ними.
+function storeBarsPanel(rows,title){
+  const {retail,wh}=splitStores(rows);
+  const body=retail.length?dashBars(retail):'<div class="muted2">Нет данных</div>';
+  const whSum=wh.reduce((s,x)=>s+(x.revenue||0),0);
+  const whBlock=wh.length?`<div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12.5px">
+        <span class="tag">склад</span>
+        <span style="flex:1;min-width:0">${wh.map(x=>esc(x.name||'Склад')).join(', ')}</span>
+        <b>${money(whSum)}</b></div>
+      <div class="muted2" style="font-size:11px;margin-top:4px">Отгрузки опта, не розничные продажи — в сумму по точкам не входит</div>
+    </div>`:'';
+  return `<div class="panel"><div class="panel-h"><h3>${esc(title)}</h3></div><div class="panel-b">${body}${whBlock}</div></div>`;
+}
 function topProductsModal(periodQs){
   let limit=20, sort='revenue', lastRows=[], lastFrom='', lastTo='', brands=new Set();
   const bg=openModal(`<div class="modal-h"><div><h3>${ic('i-box','sm')} Топ товаров — подробно</h3><div class="mh-sub" id="tpmSub">загрузка…</div></div><button class="x" onclick="closeModal()">${ic('i-x')}</button></div>
@@ -321,7 +358,7 @@ async function loadDash(wrap,qs){
     </div>
     <div class="grid-2 section-gap">
       <div class="panel"><div class="panel-h"><h3 id="dashTopMore" style="cursor:pointer" title="Открыть подробно">Топ товаров · ${n} дн <span style="opacity:.55;font-weight:400;font-size:12px">подробнее →</span></h3></div><div class="panel-b">${d.topProducts.length?dashBars(d.topProducts):'<div class="muted2">Нет данных</div>'}</div></div>
-      <div class="panel"><div class="panel-h"><h3>Выручка по магазинам · ${n} дн</h3></div><div class="panel-b">${d.byStore.length?dashBars(d.byStore):'<div class="muted2">Нет данных</div>'}</div></div>
+      ${storeBarsPanel(d.byStore,'Выручка по торговым точкам · '+n+' дн')}
     </div>
     <div class="grid-2 section-gap">
       <div class="panel"><div class="panel-h"><h3>${ic('i-target','sm')} Топ продавцов · ${n} дн</h3></div><div class="panel-b">${(d.topSellers&&d.topSellers.length)?dashBars(d.topSellers):'<div class="muted2">Нет данных</div>'}</div></div>
@@ -331,6 +368,7 @@ async function loadDash(wrap,qs){
     <div class="panel section-gap"><div class="panel-h"><h3>${ic('i-funnel','sm')} Источники сделок (лиды) · ${n} дн</h3><span class="ph-sub" style="margin-left:auto">откуда приходят сделки</span></div><div class="panel-b" id="dashSources"><div class="muted2" style="padding:14px">Загрузка…</div></div></div>
     <div class="panel section-gap"><div class="panel-h"><h3>Воронка продаж · конверсия по этапам</h3><select class="sel" id="dashFunnelSel" style="margin-left:auto">${FUNNELS.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('')}</select><select class="sel" id="dashSrcSel" style="margin-left:8px"><option value="">все источники</option></select></div><div class="panel-b" id="dashFunnelBody"><div class="muted2" style="padding:14px">Загрузка…</div></div></div>
     ${hasSection('integrations')?`<div class="panel section-gap"><div class="panel-h"><h3>💾 Хранилище</h3><span class="ph-sub" style="margin-left:auto" id="dashStorageAt"></span></div><div class="panel-b" id="dashStorageBody"><div class="muted2" style="padding:14px">Загрузка…</div></div></div>`:''}
+    ${lagNote(d)}
     <div class="note section-gap">${ic('i-info','sm')} Период ${esc(d.from||'')} — ${esc(d.to||d.asOf||'')} (${n} дн), сравнение — с предыдущим периодом такой же длины. Данные 1С на ${esc(d.dmax||d.asOf||'')}. Синхронизация раз в 30 мин. Воронка — из сделок CRM (накопительный охват этапов).</div>`;
   // Топ товаров: клик по заголовку «подробнее →» → модал с полной таблицей (N + сортировка с сервера)
   const tpMore=wrap.querySelector('#dashTopMore'); if(tpMore) tpMore.onclick=()=>topProductsModal(qs||'');
@@ -1870,9 +1908,11 @@ PAGES.sales=async(c)=>{ if(noRevAccess()){ noRevBlock(c); return; }
   }
   function storeHTML(rows){
     const named=rows.some(s=>s.name);
-    const body=rows.length?rows.map((s,i)=>`<tr><td>${esc(s.name||('Магазин '+(i+1)))}</td><td class="num">${money(s.revenue||0)}</td><td class="num">${fmtN(s.docs)}</td></tr>`).join(''):'<tr><td colspan="3" class="muted2" style="padding:16px">Нет данных</td></tr>';
+    // Склад — после торговых точек и с пометкой (см. splitStores): это отгрузки опта, не розница.
+    const _sp=splitStores(rows), _all=_sp.retail.concat(_sp.wh);
+    const body=_all.length?_all.map((s,i)=>`<tr${isWarehouse(s)?' style="background:var(--bg2)"':''}><td>${esc(s.name||('Магазин '+(i+1)))}${isWarehouse(s)?' <span class="tag">склад</span>':''}</td><td class="num">${money(s.revenue||0)}</td><td class="num">${fmtN(s.docs)}</td></tr>`).join(''):'<tr><td colspan="3" class="muted2" style="padding:16px">Нет данных</td></tr>';
     const hint=(!named&&rows.length)?`<div class="muted2" style="padding:8px 14px;font-size:11px">${ic('i-info','sm')} Названия магазинов появятся после добавления справочника «Склады» в выгрузку 1С OData</div>`:'';
-    return `<div class="panel"><div class="panel-h"><h3>${ic('i-truck','sm')} Выручка по магазинам</h3></div><table class="tbl"><thead><tr><th>Магазин</th><th class="num">Выручка</th><th class="num">Док-тов</th></tr></thead><tbody>${body}</tbody></table>${hint}</div>`;
+    return `<div class="panel"><div class="panel-h"><h3>${ic('i-truck','sm')} Выручка по торговым точкам</h3></div><table class="tbl"><thead><tr><th>Точка</th><th class="num">Выручка</th><th class="num">Док-тов</th></tr></thead><tbody>${body}</tbody></table>${hint}</div>`;
   }
   function storeSellersHTML(rows){
     if(!rows||!rows.length) return `<div class="panel"><div class="panel-h"><h3>${ic('i-users','sm')} Точки → продавцы внутри</h3></div><div class="panel-b muted2" style="padding:16px">Нет данных за период</div></div>`;
@@ -3023,7 +3063,11 @@ async function loadAnalytics(host,from,to,store,org){
   const tp=d.topProducts||[],bs=d.byStore||[],bo=d.byOrg||[];
   const maxTP=Math.max(...tp.map(x=>x.revenue),1);
   const prodRows=tp.length?tp.map((x,i)=>`<tr><td class="muted2">${i+1}</td><td>${esc(x.name||'—')}</td><td class="num">${fmt(x.qty)}</td><td class="num"><div style="font-weight:600">${money(x.revenue)}</div><div style="height:3px;background:var(--line);border-radius:3px;margin-top:3px;overflow:hidden"><div style="height:100%;width:${Math.max(2,Math.round(x.revenue/maxTP*100))}%;background:var(--accent2)"></div></div></td><td class="num">${money(x.profit)}</td><td class="num">${anMargin(x)}%</td></tr>`).join(''):`<tr><td colspan="6" class="muted2" style="padding:14px">Нет данных за период</td></tr>`;
-  const chRows=(rows,empty)=>rows.length?rows.map(x=>`<tr><td>${esc(x.name||'—')}</td><td class="num">${money(x.revenue)}</td><td class="num">${money(x.profit)}</td><td class="num">${anMargin(x)}%</td><td class="num">${fmt(x.docs)}</td></tr>`).join(''):`<tr><td colspan="5" class="muted2" style="padding:14px">${empty}</td></tr>`;
+  // Склад выводим ПОСЛЕ торговых точек и с пометкой — иначе он первой строкой выглядит
+  // крупнейшим магазином (см. splitStores).
+  const chRow=(x)=>`<tr${isWarehouse(x)?' style="background:var(--bg2)"':''}><td>${esc(x.name||'—')}${isWarehouse(x)?' <span class="tag">склад</span>':''}</td><td class="num">${money(x.revenue)}</td><td class="num">${money(x.profit)}</td><td class="num">${anMargin(x)}%</td><td class="num">${fmt(x.docs)}</td></tr>`;
+  const chRows=(rows,empty)=>{ const {retail,wh}=splitStores(rows); const all=retail.concat(wh);
+    return all.length?all.map(chRow).join(''):`<tr><td colspan="5" class="muted2" style="padding:14px">${empty}</td></tr>`; };
   // По продавцам — данные уже приходят в sales/summary (bySeller), выводим таблицей.
   const bsel=d.bySeller||[], totRev=(t.revenue||0)||1;
   const selRows=bsel.length?bsel.map(s=>`<tr><td><div class="cell-name"><span class="avatar-xs" style="background:${avBg(s.name||s.key||'?')}">${initials(s.name||'П')}</span><div>${esc(s.name||('продавец '+String(s.key||'').slice(0,8)))}${s.crm_name?` <span class="muted2" style="font-size:11px">· ${esc(s.crm_name)}</span>`:''}</div></div></td><td class="num">${money(s.revenue)}</td><td class="num">${money(s.profit)}</td><td class="num">${anMargin(s)}%</td><td class="num">${fmt(s.qty)}</td><td class="num">${fmt(s.docs)}</td><td class="num">${Math.round((s.revenue||0)/totRev*100)}%</td></tr>`).join(''):`<tr><td colspan="7" class="muted2" style="padding:14px">Нет данных за период</td></tr>`;
@@ -3040,7 +3084,7 @@ async function loadAnalytics(host,from,to,store,org){
     <div class="panel section-gap"><div class="panel-h"><h3>Топ-20 товаров</h3><span class="ph-sub">по выручке · с прибылью и маржой</span></div>
       <table class="tbl"><thead><tr><th style="width:30px">#</th><th>Товар</th><th class="num">Продано</th><th class="num">Выручка</th><th class="num">Прибыль</th><th class="num">Маржа</th></tr></thead><tbody>${prodRows}</tbody></table></div>
     <div class="grid-2 section-gap">
-      <div class="panel"><div class="panel-h"><h3>По магазинам</h3></div>
+      <div class="panel"><div class="panel-h"><h3>По торговым точкам</h3><span class="ph-sub" style="margin-left:auto">склад показан отдельно</span></div>
         <table class="tbl"><thead><tr><th>Магазин</th><th class="num">Выручка</th><th class="num">Прибыль</th><th class="num">Маржа</th><th class="num">Чеки</th></tr></thead><tbody>${chRows(bs,'Нет данных')}</tbody></table></div>
       <div class="panel"><div class="panel-h"><h3>По организациям</h3></div>
         <table class="tbl"><thead><tr><th>Организация</th><th class="num">Выручка</th><th class="num">Прибыль</th><th class="num">Маржа</th><th class="num">Чеки</th></tr></thead><tbody>${chRows(bo,'Нет данных')}</tbody></table></div>
