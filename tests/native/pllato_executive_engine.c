@@ -824,7 +824,11 @@ API int pllato_vertex(const char *handle,int index,double x,double y){
  Dwg_Object *o=entity(handle);if(!o||index<0||!isfinite(x)||!isfinite(y))return 1;
  Dwg_Object_Entity *e=o->tio.entity;if(e->num_reactors||(e->xdicobjhandle&&e->xdicobjhandle->absolute_ref))return 2;
  if(o->fixedtype==DWG_TYPE_LINE){if(index>1)return 3;Dwg_Entity_LINE *l=e->tio.LINE;if(index){l->end.x=x;l->end.y=y;}else{l->start.x=x;l->start.y=y;}return 0;}
- if(o->fixedtype==DWG_TYPE_LWPOLYLINE){Dwg_Entity_LWPOLYLINE *p=e->tio.LWPOLYLINE;if(index>=p->num_points||!p->points||p->extrusion.x||p->extrusion.y||p->extrusion.z!=1)return 3;p->points[index].x=x;p->points[index].y=y;return 0;}
+ if(o->fixedtype==DWG_TYPE_LWPOLYLINE){Dwg_Entity_LWPOLYLINE *p=e->tio.LWPOLYLINE;
+  /* Flag 1 means the extrusion is present. Its absence implies (0,0,1),
+     although the decoder leaves the unused structure zero-initialized. */
+  if(index>=p->num_points||!p->points||((p->flag&1)&&(p->extrusion.x||p->extrusion.y||p->extrusion.z!=1)))return 3;
+  p->points[index].x=x;p->points[index].y=y;return 0;}
  return 4;
 }
 
