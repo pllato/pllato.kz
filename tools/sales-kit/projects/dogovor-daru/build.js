@@ -3,7 +3,7 @@ const fs = require('fs'), path = require('path');
 const D = require('docx');
 const { B, NUM } = require('./content');
 const ROOT = path.resolve(__dirname, '../../../..');
-const OUT = path.join(ROOT, 'app');
+const OUT = process.env.PRIVATE ? path.join(__dirname, 'private') : path.join(ROOT, 'app'); fs.mkdirSync(OUT, { recursive: true });
 const FONT = 'Arial', SZ = 20; // 10pt
 const W = 9638; // ширина текста A4 при полях 2 см
 const runs = (s, o = {}) => s.split(/(<b>.*?<\/b>)/).filter(Boolean).map(t => t.startsWith('<b>') ? new D.TextRun({ text: t.slice(3, -4), bold: true, font: FONT, size: o.size || SZ }) : new D.TextRun({ text: t, bold: !!o.bold, font: FONT, size: o.size || SZ, color: o.color }));
