@@ -1,3 +1,4 @@
+import { greenApiHost } from './green-api-host.js';
 // Read-only discovery through connected WhatsApp accounts. Never creates groups,
 // adds members or changes wa_chats.deal_id (one group may contain several clients).
 const TTL=30*60*1000;
@@ -17,7 +18,7 @@ export async function clientGroupSchema(env){
  ]);
 }
 async function api(channel,method,body){
- const url=`${String(channel.api_url||'https://api.green-api.com').replace(/\/$/,'')}/waInstance${channel.id_instance}/${method}/${channel.api_token_instance}`;
+ const url=`${greenApiHost(channel.api_url)}/waInstance${channel.id_instance}/${method}/${channel.api_token_instance}`;
  const r=await fetch(url,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(10000)});
  if(!r.ok)throw new Error(method+': HTTP '+r.status);
  return r.json();

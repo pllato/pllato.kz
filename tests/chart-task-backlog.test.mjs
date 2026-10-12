@@ -40,3 +40,13 @@ test('next-week column contains only that week and totals its own plan',()=>{
  assert.match(html,/Следующая неделя/);assert.match(html,/next task/);assert.match(html,/План недели: 250/);assert.match(html,/data-week-view="next"/);assert.match(html,/id="financeWeekTasks-cash-next"/);
  for(const text of ['old task','current task','later task','toggleFinanceWeekTaskHistory','В текущую'])assert.ok(!html.includes(text),text);
 });
+test('starred manual and automatic tasks lead the list; completed tasks stay below',()=>{
+ const c=setup(),point=c.financeCurrentWeekPoint([]);
+ c.FINANCE_WEEK_TASKS=[{id:'regular',text:'REGULAR'},{id:'star',text:'PRIORITY',starred:true},{id:'auto',text:'AUTO_PRIORITY',starred:true,automatic:true,source:'payment-plan'},{id:'done',text:'COMPLETED',starred:true,done:true}].map(t=>({...t,kind:'cash',start:point.start,end:point.end}));
+ const html=c.financeWeekTaskBlockForPoint('cash',point);
+ assert.ok(html.indexOf('PRIORITY')<html.indexOf('REGULAR'));
+ assert.ok(html.indexOf('AUTO_PRIORITY')<html.indexOf('REGULAR'));
+ assert.ok(html.indexOf('Остальные дела')<html.indexOf('COMPLETED'));
+ assert.match(html,/aria-pressed="true"/);
+ assert.match(html,/toggleFinanceWeekTaskStar/);
+});
