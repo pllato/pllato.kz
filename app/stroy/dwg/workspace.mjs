@@ -28,5 +28,5 @@ body.append(panel,document.querySelector('[data-tool="text"]'),document.querySel
 body.addEventListener('click',e=>{if(e.target.closest('button'))more.open=false;});
 document.addEventListener('pointerdown',e=>{if(!more.contains(e.target))more.open=false;});
 more.addEventListener('keydown',e=>{if(e.key==='Escape'){more.open=false;summary.focus();e.stopPropagation();}});
-import {mountPhoneWorkspace} from './phone-workspace.mjs?v=0.17.78';
+import {mountPhoneWorkspace} from './phone-workspace.mjs?v=0.17.103';
 mountPhoneWorkspace();
