@@ -806,6 +806,14 @@ body {
 .mm-plan-row .name span { display:block; margin-top:3px; color:var(--text-3); font-size:10px; }
 .mm-plan-row .sum { font-size:12px; font-weight:800; color:var(--green); white-space:nowrap; }
 .mm-plan-row input { padding:7px 9px; font-size:11.5px; }
+.mm-plan-row.cp { grid-template-columns:minmax(0,1fr) 120px minmax(170px,.6fr) 24px; }
+.mm-plan-row.cp .name input { width:100%; font-weight:700; }
+.mm-plan-row.cp .amt { text-align:right; font-weight:800; color:var(--green); }
+.cp-del { border:0; background:transparent; color:var(--text-3); cursor:pointer; font-size:13px; }
+.cp-foot { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:10px 12px; border-top:1px solid var(--line-2); font-size:11.5px; }
+.cp-foot button { border:1px solid var(--line-2); background:transparent; border-radius:8px; padding:6px 10px; font:700 11px/1.2 inherit; cursor:pointer; color:var(--bronze-deep); }
+.cp-ok { color:#15803d; font-weight:700; } .cp-warn { color:#b45309; font-weight:700; }
+@media (max-width:640px){ .mm-plan-row.cp { grid-template-columns:1fr 1fr; } .mm-plan-row.cp .name { grid-column:1/-1; } }
 .mm-plan-empty { padding:12px; color:var(--text-3); font-size:11px; line-height:1.45; }
 .mm-f { padding: 12px 20px; border-top: 1px solid var(--line-2); display: flex; gap: 8px; justify-content: flex-end; }
 .mm-f button { font-weight: 700; font-size: 13px; padding: 9px 16px; border-radius: 9px; border: 1px solid var(--line-2); background: var(--surface); color: var(--text); cursor: pointer; }
@@ -3442,7 +3450,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
             <a class="is-pdf" href="app/okna-service/Pllato_KP_Okna_Service.pdf" target="_blank" rel="noopener"><span class="dot"></span>Коммерческое предложение — PDF</a>
             <a href="app/schet-okna-2.html" target="_blank" rel="noopener"><span class="dot"></span>Счёт № OKNA-С-2026-02 · согласование ядра + доп. работы — 764 560 ₸</a>
             <a class="is-pdf" href="app/schet-okna-2.pdf" target="_blank" rel="noopener"><span class="dot"></span>Счёт № OKNA-С-2026-02 · PDF</a>
-            <a href="app/schet-okna-3.html" target="_blank" rel="noopener"><span class="dot"></span>Счёт № OKNA-С-2026-03 · остаток 1-го этапа (MVP 675 000) + 2-й этап, 1-й платёж (273 750) — 948 750 ₸</a>
+            <a href="app/schet-okna-3.html" target="_blank" rel="noopener"><span class="dot"></span>Счёт № OKNA-С-2026-03 · остаток 1-го этапа — сдача MVP — 675 000 ₸ (дальше 6 × 273 750 ₸ по графику в «Деньгах» проекта)</a>
             <a class="is-pdf" href="app/schet-okna-3.pdf" target="_blank" rel="noopener"><span class="dot"></span>Счёт № OKNA-С-2026-03 · PDF</a>
             <a href="app/okna-service/Pllato_KP_Okna_Service.docx" target="_blank" rel="noopener"><span class="dot"></span>Коммерческое предложение — DOCX</a>
           </div>
@@ -5993,6 +6001,20 @@ const PAYMENT_PLAN_STAGES = [
   {id:'second',label:'Второй платёж',percent:45,weeks:2},
   {id:'final',label:'Финальный платёж',percent:45,weeks:6}
 ];
+// Графики платежей из договоров: «свой график» вместо автоматических 45% + 45%.
+// Применяются один раз, пока у проекта не выбран режим; дальше правятся в окне денег проекта.
+const PRESET_PAYMENT_PLANS = {
+  okna_crm_aziz: [
+    {id:'mvp',label:'Первый этап · сдача MVP (45%)',amount:675000,due:'2026-10-16T14:00'},
+    {id:'m1',label:'Следующие этапы · 1-й месяц',amount:273750,due:'2026-11-16T14:00'},
+    {id:'m2',label:'Следующие этапы · 2-й месяц',amount:273750,due:'2026-12-16T14:00'},
+    {id:'m3',label:'Следующие этапы · 3-й месяц',amount:273750,due:'2027-01-16T14:00'},
+    {id:'m4',label:'Следующие этапы · 4-й месяц',amount:273750,due:'2027-02-16T14:00'},
+    {id:'m5',label:'Следующие этапы · 5-й месяц',amount:273750,due:'2027-03-16T14:00'},
+    {id:'m6',label:'Следующие этапы · 6-й месяц',amount:273750,due:'2027-04-16T14:00',final:true}
+  ]
+};
+function planIsCustom(id){ return MONEY[id]?.planMode==='custom'; }
 const PAYMENT_PLAN_SYNC_TIMERS = {};
 let PAYMENT_PLANS_BOOTSTRAPPED = false;
 function firstProjectPayment(id){
@@ -6004,9 +6026,18 @@ function firstProjectPaymentAt(id){
   return Number(pay.at)||Date.parse(String(pay.d||'')+'T14:00:00+05:00')||0;
 }
 function paymentPlanStage(id,stageId){ return (MONEY[id]?.paymentPlan||[]).find(stage=>stage.id===stageId); }
-function paymentPlanAmount(id,stage){ return Math.max(0,Math.round(mDeal(id)*(Number(stage?.percent)||0)/100)); }
+function paymentPlanAmount(id,stage){
+  if(stage && stage.amount!=null && stage.amount!=='') return Math.max(0,Math.round(Number(stage.amount)||0));
+  return Math.max(0,Math.round(mDeal(id)*(Number(stage?.percent)||0)/100));
+}
 function ensurePaymentPlan(id,{resetDates=false}={}){
   const item=MONEY[id];
+  if(item && item.planMode==='custom') return false;
+  if(item && !item.planMode && PRESET_PAYMENT_PLANS[id]){
+    item.planMode='custom';
+    item.paymentPlan=PRESET_PAYMENT_PLANS[id].map(s=>({id:s.id,label:s.label,amount:s.amount,final:!!s.final,dueAt:almatyAtFromInput(s.due)||0}));
+    return true;
+  }
   const baseAt=firstProjectPaymentAt(id);
   if(!item || !baseAt || mDeal(id)<=0){
     if(item && Array.isArray(item.paymentPlan) && item.paymentPlan.length){ item.paymentPlan=[]; return true; }
@@ -6059,22 +6090,25 @@ async function syncPaymentPlanTasks(id){
   const desired=[];
   const firstPay=firstProjectPayment(id);
   const received=mRecv(id);
-  stages.forEach(stage=>{
+  const custom=planIsCustom(id);
+  stages.forEach((stage,index)=>{
     const bounds=financeWeekBoundsAt(stage.dueAt);
     const amount=paymentPlanAmount(id,stage);
     const cashId=paymentPlanTaskId(id,'cash',stage.id);
     const oldCash=FINANCE_WEEK_TASKS.find(task=>task.id===cashId);
-    const reached=stage.id==='final' ? projectIsAutoComplete(id) : received>=(Number(firstPay?.sum)||0)+amount;
+    // Свой график: платёж считается полученным, когда поступлений хватает на всё, кроме следующих платежей графика.
+    const later=custom?stages.slice(index+1).reduce((sum,next)=>sum+paymentPlanAmount(id,next),0):0;
+    const reached=custom ? received>=mDeal(id)-later : (stage.id==='final' ? projectIsAutoComplete(id) : received>=(Number(firstPay?.sum)||0)+amount);
     desired.push({
       ...(oldCash||{}),id:cashId,kind:'cash',start:bounds.start,end:bounds.end,
-      text:`${projName(id)} · ${stage.label.toLowerCase()} ${stage.percent}%`,amount:toKZT(id,amount),
+      text:custom?`${projName(id)} · ${String(stage.label||'платёж').toLowerCase()}`:`${projName(id)} · ${stage.label.toLowerCase()} ${stage.percent}%`,amount:toKZT(id,amount),
       done:Boolean(oldCash?.done)||reached,completedAt:(Boolean(oldCash?.done)||reached)?(Number(oldCash?.completedAt)||Date.now()):0,
       managerEmail:item.managerEmail||'',automatic:true,source:'payment-plan',autoType:'planned-payment',sourceProjectId:id,sourcePlanId:stage.id,dueAt:Number(stage.dueAt),
       author:oldCash?.author||CURRENT?.email||'',authorName:oldCash?.authorName||CURRENT?.name||CURRENT?.email||'',
       createdAt:Number(oldCash?.createdAt)||Date.now(),updatedAt:Date.now(),updatedBy:CURRENT?.email||'',deleted:false,
       movedToStart:0,movedToEnd:0,movedToTaskId:''
     });
-    if(stage.id==='final'){
+    if(custom ? stage.final : stage.id==='final'){
       const releaseId=paymentPlanTaskId(id,'releases',stage.id);
       const oldRelease=FINANCE_WEEK_TASKS.find(task=>task.id===releaseId);
       const completed=projectIsComplete(id);
@@ -6356,6 +6390,7 @@ function paymentPlanMarkup(id){
   if(!stages.length && projectIsAutoComplete(id)){
     return '<div class="mm-plan" id="mmPlan"><div class="mm-plan-head"><strong>План платежей</strong></div><div class="mm-plan-empty">Сделка уже оплачена полностью — новых плановых платежей нет.</div></div>';
   }
+  if(planIsCustom(id)) return customPlanMarkup(id,stages);
   const rows=stages.map(stage=>{
     const amount=paymentPlanAmount(id,stage);
     const detail=stage.id==='final'?'Создаёт дело в кассе и плановый выпуск':'Создаёт дело в недельном плане кассы';
@@ -6363,8 +6398,59 @@ function paymentPlanMarkup(id){
       +'<div class="sum">'+mEsc(fmtCur(id,amount))+(curOf(id)==='USD'?'<span class="ke2"> ≈ '+mEsc(fmtT(toKZT(id,amount)))+'</span>':'')+'</div>'
       +'<input type="datetime-local" value="'+mEsc(almatyInputFromAt(stage.dueAt))+'" onchange="setPaymentPlanDate(\''+mEsc(stage.id)+'\',this.value)" aria-label="Дата: '+mEsc(stage.label)+'"></div>';
   }).join('');
-  return '<div class="mm-plan" id="mmPlan"><div class="mm-plan-head"><strong>План платежей</strong><span class="mm-auto-badge">Автоматически</span><button type="button" onclick="resetPaymentPlanDates()">Вернуть даты +2 / +6 недель</button></div>'
+  return '<div class="mm-plan" id="mmPlan"><div class="mm-plan-head"><strong>План платежей</strong><span class="mm-auto-badge">Автоматически</span><button type="button" onclick="setPlanMode(\'custom\')">Свой график</button><button type="button" style="margin-left:6px" onclick="resetPaymentPlanDates()">Вернуть даты +2 / +6 недель</button></div>'
     +'<div class="mm-plan-note">Даты можно менять. Плановые суммы и дела недели обновляются автоматически без дублей.</div>'+rows+'</div>';
+}
+function customPlanMarkup(id,stages){
+  const total=stages.reduce((sum,stage)=>sum+paymentPlanAmount(id,stage),0), debt=mDebt(id);
+  const diff=debt-total;
+  const rows=stages.map(stage=>'<div class="mm-plan-row cp"><div class="name"><input value="'+mEsc(stage.label||'')+'" onchange="setPlanField(\''+mEsc(stage.id)+'\',\'label\',this.value)" aria-label="Название платежа"><span>'+(stage.final?'Создаёт дело в кассе и плановый выпуск':'Создаёт дело в недельном плане кассы')+'</span></div>'
+    +'<input class="amt" type="number" min="0" value="'+paymentPlanAmount(id,stage)+'" onchange="setPlanField(\''+mEsc(stage.id)+'\',\'amount\',this.value)" aria-label="Сумма платежа">'
+    +'<input type="datetime-local" value="'+mEsc(almatyInputFromAt(stage.dueAt))+'" onchange="setPaymentPlanDate(\''+mEsc(stage.id)+'\',this.value)" aria-label="Дата платежа">'
+    +'<button type="button" class="cp-del" title="Убрать платёж" onclick="delPlanStage(\''+mEsc(stage.id)+'\')">✕</button></div>').join('');
+  const check=Math.abs(diff)<1?'<span class="cp-ok">График = остатку по сделке</span>':'<span class="cp-warn">'+(diff>0?'Не хватает ':'Лишнее ')+mEsc(fmtCur(id,Math.abs(diff)))+' до остатка '+mEsc(fmtCur(id,debt))+'</span>';
+  return '<div class="mm-plan" id="mmPlan"><div class="mm-plan-head"><strong>План платежей</strong><span class="mm-auto-badge">Свой график</span><button type="button" onclick="setPlanMode(\'auto\')">Вернуть автоматический</button></div>'
+    +'<div class="mm-plan-note">Суммы, даты и названия можно менять. По каждому платежу создаётся дело в недельном плане кассы; последний — ещё и плановый выпуск.</div>'+rows
+    +'<div class="cp-foot"><button type="button" onclick="addPlanStage()">＋ Платёж</button><span>Итого по графику: <b>'+mEsc(fmtCur(id,total))+'</b></span>'+check+'</div></div>';
+}
+function savePlanAndRender(projectId){
+  saveMoney(); schedulePaymentPlanTaskSync(projectId);
+  const plan=document.getElementById('mmPlan'); if(plan && _mmId===projectId) plan.outerHTML=paymentPlanMarkup(projectId);
+}
+function setPlanMode(mode){
+  if(!canSeeProjectMoney()||!_mmId) return;
+  const item=MONEY[_mmId];
+  if(mode==='custom'){
+    const stages=Array.isArray(item.paymentPlan)?item.paymentPlan:[];
+    item.paymentPlan=stages.map(stage=>({id:stage.id,label:stage.label+(stage.percent?' · '+stage.percent+'%':''),amount:paymentPlanAmount(_mmId,stage),final:stage.id==='final',dueAt:Number(stage.dueAt)||0}));
+    if(!item.paymentPlan.length) item.paymentPlan=[{id:'p'+Date.now(),label:'Платёж',amount:mDebt(_mmId),final:true,dueAt:Date.now()+14*864e5}];
+    item.planMode='custom';
+  } else {
+    if(!confirm('Вернуть автоматический план 45% + 45%? Свой график будет удалён.')) return;
+    item.planMode='auto'; item.paymentPlan=[]; ensurePaymentPlan(_mmId);
+  }
+  savePlanAndRender(_mmId);
+}
+function setPlanField(stageId,field,value){
+  if(!canSeeProjectMoney()||!_mmId) return;
+  const stage=paymentPlanStage(_mmId,stageId); if(!stage) return;
+  if(field==='amount') stage.amount=Math.max(0,parseInt(value)||0); else stage.label=String(value||'').trim().slice(0,120)||'Платёж';
+  savePlanAndRender(_mmId);
+}
+function addPlanStage(){
+  if(!canSeeProjectMoney()||!_mmId) return;
+  const item=MONEY[_mmId], plan=item.paymentPlan||(item.paymentPlan=[]);
+  const last=plan[plan.length-1];
+  plan.forEach(stage=>{ stage.final=false; });
+  plan.push({id:'p'+Date.now(),label:'Платёж',amount:0,final:true,dueAt:(Number(last?.dueAt)||Date.now())+30*864e5});
+  savePlanAndRender(_mmId);
+}
+function delPlanStage(stageId){
+  if(!canSeeProjectMoney()||!_mmId) return;
+  const item=MONEY[_mmId];
+  item.paymentPlan=(item.paymentPlan||[]).filter(stage=>stage.id!==stageId);
+  if(item.paymentPlan.length && !item.paymentPlan.some(stage=>stage.final)) item.paymentPlan[item.paymentPlan.length-1].final=true;
+  savePlanAndRender(_mmId);
 }
 function moneyGrid(id){ const usd=curOf(id)==='USD';
   const cell=(cls,label,nat,kzt)=>'<div class="c '+cls+'"><div class="l">'+label+'</div><div class="v">'+nat+'</div>'+(usd?'<div class="ke">≈ '+fmtT(kzt)+'</div>':'')+'</div>';
