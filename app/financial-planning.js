@@ -19,23 +19,31 @@ export async function openFinancialPlanning(options=config,settings=false){
  document.body.append(dialog);dialog.showModal();let data,dirty=false,commitEditor=null,editorPending=false,saveConflict=false,renderedWeek=null,notesOpen=false;
  const autosave=createPlanAutosave({snapshot:()=>({revision:data.plan.revision,rows:data.plan.rows,cells:data.plan.cells,rules:data.plan.rules||{}}),write:payload=>options.api('/financial-planning',{method:'PUT',body:payload}),accepted:result=>{data.plan.revision=result.revision;},onState:(state,error)=>{dirty=state!=='saved';saveConflict=state==='error'&&error?.status===409;const retry=body.querySelector('[data-retry-save]');if(retry)retry.textContent=saveConflict?'Загрузить актуальную версию':'Повторить сохранение';status({saved:'Сохранено',saving:'Сохраняю…',pending:'Сохраняю…',error:error?.message||'Не удалось сохранить'}[state],state==='error');body.querySelector('[data-retry-save]')?.toggleAttribute('hidden',state!=='error');}});
  const body=dialog.querySelector('.fp-body');
- async function close(){if(commitEditor&&!commitEditor())return;try{await autosave.flush();}catch{if(!confirm('Не удалось сохранить изменения. Закрыть без сохранения?'))return;}autosave.stop();clearInterval(refreshTimer);dialog.close();dialog.remove();window.removeEventListener('beforeunload',unload);window.removeEventListener('resize',resize);window.removeEventListener('online',retrySave);window.removeEventListener('focus',refreshIncome);}
+ async function close(){hideNotePreview();if(commitEditor&&!commitEditor())return;try{await autosave.flush();}catch{if(!confirm('Не удалось сохранить изменения. Закрыть без сохранения?'))return;}autosave.stop();clearInterval(refreshTimer);dialog.close();dialog.remove();window.removeEventListener('beforeunload',unload);window.removeEventListener('resize',resize);window.removeEventListener('online',retrySave);window.removeEventListener('focus',refreshIncome);}
  const retrySave=async()=>{if(saveConflict){if(!confirm('На сервере есть изменения другого сотрудника. Загрузить их и отменить ваши несохранённые правки?'))return;autosave.reset();commitEditor=null;editorPending=false;await load();return;}autosave.flush().catch(()=>{});};window.addEventListener('online',retrySave);
  async function refreshIncome(){if(notesOpen||!data||dirty||autosave.isBusy()||document.hidden||body.querySelector('[data-editor]')?.children.length)return;try{const fresh=await options.api('/financial-planning');if(dirty||autosave.isBusy()||body.querySelector('[data-editor]')?.children.length||!dialog.isConnected)return;const changedVersion=fresh.plan.revision!==data.plan.revision||renderedWeek!==weekStart();const scroll=body.querySelector('.fp-scroll'),left=scroll?.scrollLeft||0,top=scroll?.scrollTop||0;data=fresh;if(changedVersion){render();requestAnimationFrame(()=>{body.querySelector('.fp-scroll').scrollLeft=left;body.querySelector('.fp-scroll').scrollTop=top;});}else updateCells();}catch{/* Keep the last confirmed data; writes show their own errors. */}}
  const refreshTimer=setInterval(refreshIncome,60000);window.addEventListener('focus',refreshIncome);
- const resize=()=>{const selected=body.querySelector('[data-week]');if(selected)requestAnimationFrame(()=>go(+selected.value));};window.addEventListener('resize',resize);
+ const resize=()=>{hideNotePreview();const selected=body.querySelector('[data-week]');if(selected)requestAnimationFrame(()=>go(+selected.value));};window.addEventListener('resize',resize);
  const unload=e=>{if(dirty||editorPending||dialog.querySelector('.fp-notes textarea')?.value.trim()){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',unload);
  dialog.querySelector('[data-close]').onclick=close;dialog.addEventListener('cancel',e=>{e.preventDefault();close();});
  function status(text,error=false){const e=body.querySelector('[data-status]');if(e){e.textContent=text;e.classList.toggle('fp-error',error);}}
  async function load(){try{data=await options.api('/financial-planning');if(!dialog.isConnected)return;dirty=false;render();if(settings){settings=false;access();}}catch(e){body.innerHTML=`<p role="alert">${esc(e.message)}</p><button data-retry>Повторить</button>`;body.querySelector('button').onclick=load;}}
  function render(){
+ hideNotePreview();
  commitEditor=null;editorPending=false;
  const p=data.plan,current=weekStart(),weeks=weeksFrom(p.start).filter(w=>w.start<=current+WEEK);renderedWeek=current;
  body.innerHTML=`<div class="fp-toolbar"><button data-prev aria-label="Предыдущая неделя">←</button><select data-week aria-label="Выбрать неделю">${weeks.map(w=>`<option value="${w.start}"${w.start===current?' selected':''}>${label(w.start)}–${label(w.end)} · ${date(w.start).slice(0,4)}${w.start===current?' · текущая':''}</option>`).join('')}</select><button data-next aria-label="Следующая неделя">→</button>${data.editable?'<button data-add>+ Статья</button>':''}${data.admin?'<button data-access>Доступ</button>':''}<button data-retry-save hidden>Повторить сохранение</button><span data-status role="status">${data.editable?(dirty?'Сохраняю…':'Сохранено'):'Только просмотр'}</span></div>
  <details class="fp-help"><summary>Правила расчёта</summary><p>Изменения сохраняются автоматически. Выберите ячейку и укажите сумму или процент от валового дохода кассы. Правило действует с выбранной недели вперёд до следующего изменения. Показана одна следующая неделя. Её значения появятся только после начала недели. Прошлые недели не меняются; ноль останавливает расход с выбранной недели.</p><p>По умолчанию продвижение — 10%, налоги — 2%. Доход кассы обновляется автоматически. Нажмите название статьи, чтобы переименовать, переместить или добавить подстатью. Статьи выплат суммируют оплаченные выплаты проектов, ручное дополнение и подстатьи. Плановые выплаты показаны отдельно и не вычитаются из прибыли.</p><p>В режиме «Формула» доступны арифметика, проценты и SUM: <code>=R1*3%</code>. R означает этот столбец; ссылки следуют за статьями при перемещении. Неделя: четверг 14:00 → четверг 14:00, Алматы.</p></details><div data-editor></div>
  <div class="fp-scroll" tabindex="0" aria-label="Недельная финансовая таблица"><table><thead><tr><th>Статья / единица</th><th class="fp-benchmark">B · Показательный</th>${weeks.map((w,i)=>`<th data-start="${w.start}" class="${w.start===current?'fp-current':''}"><small>${columnName(i+2)} · ${date(w.start).slice(0,4)}${w.start===current?' · сейчас':''}</small>${label(w.start)}–${label(w.end)}</th>`).join('')}</tr></thead><tbody>${p.rows.map((r,i)=>`<tr class="fp-kind-${r.kind}${r.parentId?' fp-child':''}"><th><div class="fp-row-title"><small>${i+1}</small><button data-row="${i}" title="${esc(r.name)}${['income','paid','planned','payoutPaid','payoutPlanned'].includes(r.kind)?' · автоматически':''}"${data.editable?'':' disabled'}>${r.parentId?'↳ ':''}${esc(r.name)}</button><small>${['percentage','tax'].includes(r.kind)?'₸':esc(r.unit)}</small></div></th>${Array.from({length:weeks.length+1},(_,c)=>`<td class="${c===0?'fp-benchmark':p.start+(c-1)*WEEK===current?'fp-current':''}"><button data-cell="${i}:${c}"></button>${c?`<button class="fp-note-button" data-note="${i}:${c}" aria-label="Примечания"></button>`:''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
  updateCells();
- body.querySelectorAll('[data-note]').forEach(b=>b.onclick=()=>openNotes(...b.dataset.note.split(':').map(Number)));
+ body.querySelectorAll('[data-note]').forEach(b=>{
+  b.onclick=()=>openNotes(...b.dataset.note.split(':').map(Number));
+  b.onpointerenter=e=>{if(e.pointerType==='mouse')showNotePreview(b);};
+  b.onpointerleave=scheduleHideNotePreview;
+  b.onfocus=()=>{if(b.matches(':focus-visible'))showNotePreview(b);};
+  b.onblur=scheduleHideNotePreview;
+ });
+ body.querySelector('.fp-scroll').addEventListener('scroll',hideNotePreview);
  body.querySelector('[data-week]').onchange=e=>go(+e.target.value);
  body.querySelector('[data-prev]').onclick=()=>go(+body.querySelector('[data-week]').value-WEEK);
  body.querySelector('[data-next]').onclick=()=>go(+body.querySelector('[data-week]').value+WEEK);
@@ -48,8 +56,25 @@ export async function openFinancialPlanning(options=config,settings=false){
  }
  function pStart(){return data.plan.start;}
  function go(start){const select=body.querySelector('[data-week]');if(![...select.options].some(o=>+o.value===start))return;select.value=String(start);body.querySelector('[data-prev]').disabled=select.selectedIndex===0;body.querySelector('[data-next]').disabled=select.selectedIndex===select.options.length-1;const scroll=body.querySelector('.fp-scroll'),th=scroll.querySelector(`[data-start="${Math.max(pStart(),start-WEEK)}"]`);scroll.scrollLeft+=th.getBoundingClientRect().left-scroll.getBoundingClientRect().left-scroll.querySelector('th').offsetWidth-1;}
- function updateNotes(){body.querySelectorAll('[data-note]').forEach(b=>{const [r,c]=b.dataset.note.split(':').map(Number),row=data.plan.rows[r],week=data.plan.start+(c-1)*WEEK,count=(data.plan.comments||[]).filter(n=>n.rowId===row.id&&n.week===week).length;b.innerHTML=`<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-6 4V6a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>${count?`<span>${count}</span>`:''}`;b.classList.toggle('fp-has-notes',count>0);b.setAttribute('aria-label',`${row.name} · ${label(week)} · Примечания: ${count}`);b.title=`Примечания: ${count}`;});}
+ function updateNotes(){body.querySelectorAll('[data-note]').forEach(b=>{const [r,c]=b.dataset.note.split(':').map(Number),row=data.plan.rows[r],week=data.plan.start+(c-1)*WEEK,count=(data.plan.comments||[]).filter(n=>n.rowId===row.id&&n.week===week).length;b.innerHTML=`<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-6 4V6a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>${count?`<span>${count}</span>`:''}`;b.classList.toggle('fp-has-notes',count>0);b.setAttribute('aria-label',`${row.name} · ${label(week)} · Примечания: ${count}`);b.removeAttribute('title');});}
+ let notePreview=null,notePreviewAnchor=null,notePreviewTimer;
+ function hideNotePreview(){clearTimeout(notePreviewTimer);notePreviewAnchor?.removeAttribute('aria-describedby');notePreview?.remove();notePreview=null;notePreviewAnchor=null;}
+ function scheduleHideNotePreview(){clearTimeout(notePreviewTimer);notePreviewTimer=setTimeout(hideNotePreview,180);}
+ function showNotePreview(button){
+  hideNotePreview();if(notesOpen)return;
+  const [r,c]=button.dataset.note.split(':').map(Number),row=data.plan.rows[r],week=data.plan.start+(c-1)*WEEK;
+  const entries=(data.plan.comments||[]).filter(n=>n.rowId===row.id&&n.week===week);
+  notePreview=document.createElement('div');notePreview.className='fp-note-preview';notePreview.id='fp-note-preview';notePreview.setAttribute('role','tooltip');
+  notePreview.innerHTML=`<strong>${esc(row.name)} · ${label(week)}–${label(week+WEEK)}</strong><div class="fp-note-preview-list">${entries.length?entries.map(n=>`<article><small>${esc(n.author)} · ${esc(new Date(n.createdAt).toLocaleString('ru-RU',{timeZone:'Asia/Almaty',dateStyle:'short',timeStyle:'short'}))} (Алматы)</small><p>${esc(n.text)}</p></article>`).join(''):'<p>Пока нет примечаний</p>'}</div><small>Нажмите значок, чтобы добавить примечание</small>`;
+  dialog.append(notePreview);notePreviewAnchor=button;button.setAttribute('aria-describedby',notePreview.id);
+  notePreview.onpointerenter=()=>clearTimeout(notePreviewTimer);notePreview.onpointerleave=scheduleHideNotePreview;
+  const a=button.getBoundingClientRect(),box=notePreview.getBoundingClientRect();
+  notePreview.style.left=Math.max(8,Math.min(a.left,innerWidth-box.width-8))+'px';
+  notePreview.style.top=Math.max(8,a.top-box.height-8>=8?a.top-box.height-8:Math.min(a.bottom+8,innerHeight-box.height-8))+'px';
+ }
+ dialog.addEventListener('keydown',e=>{if(e.key==='Escape'&&notePreview){e.preventDefault();e.stopPropagation();hideNotePreview();}},true);
  async function openNotes(r,c){
+ hideNotePreview();
   if(commitEditor&&!commitEditor())return;
   try{await autosave.flush();}catch{return;}
   const row=data.plan.rows[r],week=data.plan.start+(c-1)*WEEK;
