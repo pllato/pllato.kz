@@ -19,6 +19,19 @@ export async function handleFinancialPlanning(request,env,actor,deps){
  const text=await request.text();if(text.length>250000)fail(413,'Слишком много данных');
  let body;try{body=JSON.parse(text);}catch{fail(400,'Некорректные данные');}
  if(!body||typeof body!=='object'||Array.isArray(body))fail(400,'Некорректные данные');
+ if(path.endsWith('/comments')){
+  if(!editable)fail(403,'Только просмотр');
+  const {id,rowId,week,text:note}=body;
+  if(typeof id!=='string'||!/^[a-zA-Z0-9_-]{16,60}$/.test(id)||!plan.rows.some(r=>r.id===rowId)||!weeksFrom(plan.start).some(w=>w.start===week)||typeof note!=='string'||!note.trim()||note.length>4000)fail(400,'Проверьте ячейку и текст примечания (до 4000 символов)');
+  const comments=plan.comments||[];
+  const existing=comments.find(c=>c.id===id);
+  if(existing){if(existing.author!==email||existing.rowId!==rowId||existing.week!==week||existing.text!==note.trim())fail(409,'Идентификатор примечания уже использован');return {ok:true,revision:plan.revision,comments};}
+  if(body.revision!==plan.revision)fail(409,'Таблица изменена. Обновите историю и повторите добавление.');
+  if(comments.length>=10000)fail(400,'Достигнут лимит истории примечаний');
+  const next={...plan,comments:[...comments,{id,rowId,week,text:note.trim(),author:email,createdAt:Date.now()}],id:'plan',revision:plan.revision+1,updatedAt:Date.now(),updatedBy:email};
+  if(!await save(env,next,plan.revision))fail(409,'Таблица изменена. Повторите добавление.');
+  return {ok:true,revision:next.revision,comments:next.comments};
+ }
  if(body.revision!==plan.revision)fail(409,'Таблица изменена другим сотрудником. Обновите данные перед сохранением.');
  let next={...plan};
  if(path.endsWith('/access')){

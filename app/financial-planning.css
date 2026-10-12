@@ -68,3 +68,14 @@
 }
 
 .fp-source-note{width:100%;grid-column:1/-1;line-height:1.4}
+
+/* Cell notes do not change the value button or the week calculation. */
+.fp-scroll td{position:relative;padding-bottom:24px}
+.fp-scroll td .fp-note-button{position:absolute;bottom:2px;left:5px;width:auto;min-height:20px;display:flex;align-items:center;gap:3px;padding:2px 4px;color:#8a9099;font-size:10px;line-height:1}
+.fp-scroll td .fp-has-notes{color:#90683e;background:#f6f0e6}
+.fp-notes{box-sizing:border-box;width:min(480px,calc(100vw - 24px));max-height:85dvh;border:1px solid #e5dfd2;border-radius:14px;padding:16px;color:#111923;background:#fff;font:inherit}
+.fp-notes[open]{display:flex;flex-direction:column;gap:12px}.fp-notes::backdrop{background:#0b182850}
+.fp-notes header{display:flex;justify-content:space-between;align-items:start;gap:12px}.fp-notes h3{margin:0 0 8px;font-size:18px}.fp-notes small{display:block;color:#747c89;font-size:11px;overflow-wrap:anywhere}.fp-notes header strong{display:block;font-size:14px}.fp-notes header button{min-width:40px;min-height:40px}
+.fp-note-history{overflow:auto;min-height:60px;flex:1}.fp-note-history article{border-bottom:1px solid #eee7dd;padding:10px 0}.fp-note-history p{white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0;font-size:14px;line-height:1.45}
+.fp-notes form{border-top:1px solid #e5dfd2;padding-top:12px}.fp-notes textarea{display:block;box-sizing:border-box;width:100%;resize:vertical;max-height:180px;margin:6px 0 10px;border:1px solid #ccc;border-radius:8px;padding:10px;font:inherit}.fp-notes form>div{display:flex;align-items:center;justify-content:space-between;gap:12px}.fp-notes [role=alert]{color:#b02a29;font-size:12px;margin:6px 0 0}.fp-notes [role=alert]:empty{display:none}
+@media(max-width:700px){.fp-notes{width:100vw;max-height:90dvh;margin:auto 0 0;border-radius:16px 16px 0 0;padding:14px;padding-bottom:max(14px,env(safe-area-inset-bottom))}.fp-notes textarea{font-size:16px}.fp-notes button{min-height:44px}.fp-scroll td .fp-note-button{min-height:24px;min-width:28px}}

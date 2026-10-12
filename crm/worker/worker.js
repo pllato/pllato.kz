@@ -8833,7 +8833,7 @@ export default {
         return json(request, env, await handleProjectFinanceChartsPut(request, env, actor));
       }
 
-      if (path === "/financial-planning" || path === "/financial-planning/access") {
+      if (path === "/financial-planning" || path === "/financial-planning/access" || path === "/financial-planning/comments") {
         const actor=await loadActorContext(request,env,{strictTeamCheck:true});
         return json(request,env,await handleFinancialPlanning(request,env,actor,{
           get:d1GetDoc,HttpError,

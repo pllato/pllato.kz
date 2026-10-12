@@ -71,3 +71,20 @@ const gv=id=>planCalculator(grouped,[1000],totals)(grouped.rows.findIndex(r=>r.i
 assert.equal(gv('sales'),150);assert.equal(gv('payout_agents'),50);assert.equal(gv('payout_designers'),0);assert.equal(gv('profit'),680);assert.equal(totals[0].byRole['Дизайнер'].planned,70);
 assert.deepEqual(withProjectPayoutRows(grouped),grouped);
 console.log('Project roles: paid plus manual plus children, planned separate, deleted ignored, profit once.');
+
+// Notes are append-only, scoped to an exact row/week, and authored by the server.
+const note={revision:stored.revision,id:'test-note-00000001',rowId:'advertising',week:stored.start,text:'Расход согласован',author:'forged@test.kz'};
+await assert.rejects(()=>call(viewer,'PUT','/financial-planning/comments',note),e=>e.status===403);
+const noteResult=await call(root,'PUT','/financial-planning/comments',note);
+assert.equal(noteResult.comments.length,1);assert.equal(noteResult.comments[0].author,root.email);assert.ok(noteResult.comments[0].createdAt);
+assert.equal((await call(root,'PUT','/financial-planning/comments',note)).comments.length,1);
+await assert.rejects(()=>call(root,'PUT','/financial-planning/comments',{...note,id:'test-note-00000002'}),e=>e.status===409);
+await assert.rejects(()=>call(root,'PUT','/financial-planning/comments',{...note,revision:stored.revision,week:stored.start+1}),e=>e.status===400);
+await assert.rejects(()=>call(root,'PUT','/financial-planning/comments',{...note,revision:stored.revision,text:' '}),e=>e.status===400);
+const current=structuredClone(stored);
+await call(root,'PUT',undefined,{revision:current.revision,rows:current.rows,cells:current.cells,rules:current.rules,comments:[]});
+assert.equal(stored.comments.length,1);assert.equal(stored.comments[0].week,note.week);
+await call(root,'PUT','/financial-planning/access',{revision:stored.revision,viewers:[viewer.email],editors:[]});
+assert.equal((await call(viewer)).plan.comments.length,1);
+await assert.rejects(()=>call(viewer,'PUT','/financial-planning/comments',{...note,id:'test-note-00000003',revision:stored.revision}),e=>e.status===403);
+console.log('Cell notes: ACL, immutable history, exact week, server authorship, retry deduplication, conflict and validation passed.');
