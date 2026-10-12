@@ -15,3 +15,15 @@ test('one oversized undo remains available and input history is unchanged',()=>{
  assert.deepEqual(boundedUndo(entries),[entries[1]]);assert.deepEqual(entries,original);
  assert.deepEqual(boundedUndo([]),[]);
 });
+test('mobile budget counts retained scenes even when DWG File is shared',()=>{
+ const file={size:MiB};const scene=()=>({shapes:Array(100000).fill({pts:[[0,0],[1,1]]})});
+ const entries=Array.from({length:6},(_,i)=>({file,i,viewState:{drawing:scene(),records:[],entities:[],blocks:[]}}));
+ assert.ok(boundedUndo(entries,{bytes:96*MiB}).length<entries.length);
+ assert.equal(boundedUndo(entries,{bytes:MiB}).length,1);
+});
+test('shared scene is charged once and restoration arrays are still charged',()=>{
+ const file={size:MiB},drawing={shapes:Array(1000).fill({pts:[[0,0],[1,1]]})};
+ const entries=Array.from({length:8},(_,i)=>({file,i,viewState:{drawing,records:Array(100000),entities:Array(100000),blocks:[]}}));
+ assert.equal(boundedUndo(entries,{bytes:16*MiB}).length,8);
+ assert.ok(boundedUndo(entries,{bytes:4*MiB}).length<8);
+});

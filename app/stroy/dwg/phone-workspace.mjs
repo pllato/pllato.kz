@@ -9,7 +9,7 @@ export function mountPhoneWorkspace(){
   for(const [el,slot]of slots){slot.replaceWith(el);}slots.length=0;menu.open=false;
   if(!media.matches)return;
   for(const el of [...nav.children])if(el!==menu&&!el.matches('[data-tool="object"]'))move(el,body);
-  for(const id of ['historyButton','save'])move(document.getElementById(id),more);
+  for(const id of ['historyButton'])move(document.getElementById(id),more);
   move(document.querySelector('.notice'),more);
  }
  media.addEventListener('change',layout);layout();
