@@ -1,3 +1,4 @@
+import { greenApiHost } from './green-api-host.js';
 // Восстановление истории не должно повторно создавать лиды, менять стадии
 // или рассылать уведомления. Только сообщения уже существующего чата.
 export async function ensureWaHistorySchema(db) {
@@ -54,7 +55,7 @@ export async function syncWaHistory(db, chatId, fetcher = fetch, now = Date.now(
     .bind(chatId, now + 60000).run();
   let history;
   try {
-    const base = String(chat.api_url || 'https://api.green-api.com').replace(/\/$/, '');
+    const base = greenApiHost(chat.api_url);
     const response = await fetcher(`${base}/waInstance${chat.instance_id}/getChatHistory/${chat.api_token_instance}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chatId: chat.chat_id, count: 100 }), signal: AbortSignal.timeout(10000),

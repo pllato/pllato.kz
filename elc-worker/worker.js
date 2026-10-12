@@ -1,3 +1,4 @@
+import { greenApiHost } from './green-api-host.js';
 import { managerStageError, managerPatchError } from './manager-stage-gate.js';
 import { assignLeadManagers, handleLeadDistribution } from './lead-distribution.js';
 import { DurableObject } from 'cloudflare:workers';
@@ -5151,7 +5152,7 @@ async function ensureWaChatDiscoverySchema(env) {
 }
 
 async function fetchWaProviderChats(channel) {
-  const baseUrl = String(channel.api_url || 'https://api.green-api.com').replace(/\/$/, '');
+  const baseUrl = greenApiHost(channel.api_url);
   const response = await fetch(
     `${baseUrl}/waInstance${channel.id_instance}/getChats/${channel.api_token_instance}`,
     { method: 'GET' },
@@ -5601,7 +5602,7 @@ async function handleWaWebhook(request, env) {
 // Бросает Error при сбое Green-API, чтобы вызывающий мог пометить failed.
 // Возвращает { idMessage, chatDocId }.
 async function deliverWaMessage(env, { channel, chatId, text, mediaUrl, fileName }) {
-  const baseUrl = `${channel.api_url}/waInstance${channel.id_instance}`;
+  const baseUrl = `${greenApiHost(channel.api_url)}/waInstance${channel.id_instance}`;
   const apiToken = channel.api_token_instance;
   text = (text || '').trim();
   fileName = fileName || 'file';
@@ -6328,7 +6329,7 @@ async function handleWaListChannelsPublic(request, env) {
 // Возвращает {ok, configured, response, error}. Не бросает — caller разбирает.
 async function applyWaWebhookSetupToGreenApi({ apiUrl, idInstance, apiToken, webhookUrl }) {
   try {
-    const url = `${apiUrl}/waInstance${idInstance}/setSettings/${apiToken}`;
+    const url = `${greenApiHost(apiUrl)}/waInstance${idInstance}/setSettings/${apiToken}`;
     const settingsBody = {
       webhookUrl,
       webhookUrlToken: '',  // мы используем query-token внутри webhookUrl
@@ -6536,8 +6537,9 @@ async function handleWaChannelState(request, env, channelId) {
   const channel = await getWaChannel(env, channelId);
   if (!channel) return json({ error: "channel not found" }, 404, request);
   try {
-    const r = await fetch(`${channel.api_url}/waInstance${channel.id_instance}/getStateInstance/${channel.api_token_instance}`);
+    const r = await fetch(`${greenApiHost(channel.api_url)}/waInstance${channel.id_instance}/getStateInstance/${channel.api_token_instance}`, {signal:AbortSignal.timeout(10000)});
     const data = await r.json().catch(() => ({}));
+    if (!r.ok) return json({error: `Green-API HTTP ${r.status}`}, 502, request);
     return json({ ok: true, ...data }, 200, request);
   } catch (e) {
     return json({ error: "green-api fetch failed: " + e.message }, 502, request);
@@ -6550,8 +6552,9 @@ async function handleWaChannelQr(request, env, channelId) {
   const channel = await getWaChannel(env, channelId);
   if (!channel) return json({ error: "channel not found" }, 404, request);
   try {
-    const r = await fetch(`${channel.api_url}/waInstance${channel.id_instance}/qr/${channel.api_token_instance}`);
+    const r = await fetch(`${greenApiHost(channel.api_url)}/waInstance${channel.id_instance}/qr/${channel.api_token_instance}`);
     const data = await r.json().catch(() => ({}));
+    if (!r.ok) return json({error: `Green-API HTTP ${r.status}`}, 502, request);
     return json({ ok: true, ...data }, 200, request);
   } catch (e) {
     return json({ error: "green-api fetch failed: " + e.message }, 502, request);
@@ -6602,7 +6605,7 @@ async function getAdminUids(env) {
 
 // Опрос состояния одного Green-API инстанса. Возвращает {up, raw}.
 async function probeGreenApiState(apiUrl, idInstance, apiToken) {
-  const base = apiUrl || 'https://api.green-api.com';
+  const base = greenApiHost(apiUrl);
   try {
     const ctrl = new AbortController();
     const to = setTimeout(() => ctrl.abort(), 10000);
@@ -6855,7 +6858,7 @@ async function getNotifierConfig(env) {
 // Низкоуровневая отправка через Green-API. НЕ пишет в wa_chats/wa_messages.
 async function deliverNotifierRaw(cfg, phone, text) {
   const chatId = waChatIdFromPhone(phone);
-  const url = `${cfg.api_url}/waInstance${cfg.id_instance}/sendMessage/${cfg.api_token_instance}`;
+  const url = `${greenApiHost(cfg.api_url)}/waInstance${cfg.id_instance}/sendMessage/${cfg.api_token_instance}`;
   const r = await fetch(url, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chatId, message: text }),
@@ -7021,8 +7024,9 @@ async function handleNotifierState(request, env) {
   const n = await getNotifierRow(env);
   if (!n || !n.id_instance || !n.api_token_instance) return json({ error: "notifier not configured" }, 400, request);
   try {
-    const r = await fetch(`${n.api_url || 'https://api.green-api.com'}/waInstance${n.id_instance}/getStateInstance/${n.api_token_instance}`);
+    const r = await fetch(`${greenApiHost(n.api_url)}/waInstance${n.id_instance}/getStateInstance/${n.api_token_instance}`);
     const data = await r.json().catch(() => ({}));
+    if (!r.ok) return json({error: `Green-API HTTP ${r.status}`}, 502, request);
     return json({ ok: true, ...data }, 200, request);
   } catch (e) {
     return json({ error: "green-api fetch failed: " + e.message }, 502, request);
@@ -7036,8 +7040,9 @@ async function handleNotifierQr(request, env) {
   const n = await getNotifierRow(env);
   if (!n || !n.id_instance || !n.api_token_instance) return json({ error: "notifier not configured" }, 400, request);
   try {
-    const r = await fetch(`${n.api_url || 'https://api.green-api.com'}/waInstance${n.id_instance}/qr/${n.api_token_instance}`);
+    const r = await fetch(`${greenApiHost(n.api_url)}/waInstance${n.id_instance}/qr/${n.api_token_instance}`);
     const data = await r.json().catch(() => ({}));
+    if (!r.ok) return json({error: `Green-API HTTP ${r.status}`}, 502, request);
     return json({ ok: true, ...data }, 200, request);
   } catch (e) {
     return json({ error: "green-api fetch failed: " + e.message }, 502, request);
@@ -7142,7 +7147,7 @@ async function handleWaSyncGroups(request, env) {
   const errors = [];
   for (const channel of channels) {
     try {
-      const r = await fetch(`${channel.api_url}/waInstance${channel.id_instance}/getContacts/${channel.api_token_instance}`);
+      const r = await fetch(`${greenApiHost(channel.api_url)}/waInstance${channel.id_instance}/getContacts/${channel.api_token_instance}`);
       if (!r.ok) { errors.push(`channel ${channel.id_instance}: HTTP ${r.status}`); continue; }
       const contacts = await r.json().catch(() => []);
       if (!Array.isArray(contacts)) { errors.push(`channel ${channel.id_instance}: bad response`); continue; }

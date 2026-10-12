@@ -1,3 +1,4 @@
+import { greenApiHost } from './green-api-host.js';
 import {clientGroupSchema,clientGroupPhones,readClientGroups,requestClientGroupRefresh} from './wa-client-groups.js';
 export const groupWelcome = 'Добро пожаловать в Pllato! 👋\nМы — студия разработки программного обеспечения. Создаём CRM-системы, сайты и приложения для бизнеса.\n\nВ этом чате будем обсуждать ваш проект, согласовывать задачи и материалы, делиться результатами и решать рабочие вопросы.\n\nРады сотрудничеству!';
 const parse=(s,fallback)=>{try{return JSON.parse(s)||fallback;}catch{return fallback;}};
@@ -27,7 +28,7 @@ export async function groupSchema(env){
  ]);
 }
 async function provider(channel,method,body){
- const base=String(channel.api_url||'https://api.green-api.com').replace(/\/$/,'');
+ const base=greenApiHost(channel.api_url);
  let r;try{r=await fetch(`${base}/waInstance${channel.id_instance}/${method}/${channel.api_token_instance}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(20000)});}catch{throw new Error(method+': ответ не получен');}
  if(!r.ok)throw new Error(method+': HTTP '+r.status);
  try{return await r.json();}catch{throw new Error(method+': некорректный ответ');}
