@@ -3458,6 +3458,7 @@ const waStageGroups=stageGroupsClient({base:'https://pllato-elc-worker.uurraa.wo
 import { mountDealRequisites } from './app/deal-requisites.js?v=20260929-autosave';
 import { mountDealProduction, renderDealProductionBadges } from './app/deal-production.js?v=20261003-manual';
 import { createTeamReadCache } from './app/team-request-cache.js?v=20261007';
+import { mountDealTranscripts } from './app/deal-transcripts.js?v=20261012';
 import { zoomClient } from './app/zoom-crm.js?v=20261008-transcript-recovery';
 const crmZoom = zoomClient({ base: 'https://pllato-elc-worker.uurraa.workers.dev', getToken: () => fbAuth.currentUser.getIdToken() });
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
@@ -14591,6 +14592,7 @@ async function openDealCard(dealKey) {
         <button type="button" role="tab" id="dc-tab-history" aria-controls="dc-panel-history" data-card-tab="history" aria-selected="false" tabindex="-1">История</button>
       </div>
       <section id="dc-panel-overview" role="tabpanel" aria-labelledby="dc-tab-overview" data-card-panel="overview">
+        <div id="dc-transcripts" style="padding:14px;background:var(--bg3);border:1px solid var(--b1);border-radius:10px;margin-bottom:18px"></div>
         <div class="dc-grid">
           <div class="dc-left">
             <div class="dc-section-h">Сделка</div>
@@ -14836,11 +14838,13 @@ async function openDealCard(dealKey) {
     await loadDealDeeds(modal,deal);
     crmZoom.dealMeetings(modal.querySelector('#dc-zoom-meetings'),dealRecordId);
   },'zoom');
+  const transcriptPanel = mountDealTranscripts(modal.querySelector('#dc-transcripts'), {dealId:dealRecordId,base:WORKER_BASE_URL,getToken:()=>fbAuth.currentUser.getIdToken(),onAdd:()=>modal.querySelector('[data-quick-transcript]').click()});
   mountDealProduction(modal.querySelector('#dc-production'), {
     dealId: dealRecordId,
     base: WORKER_BASE_URL,
     getToken: () => fbAuth.currentUser.getIdToken(),
     onChanged: data => {
+      transcriptPanel.refresh();
       if (applyProductionStateToDeal(dealRecordId, data) && document.getElementById('kanban-wrap')) renderDealsContent();
     },
   });
