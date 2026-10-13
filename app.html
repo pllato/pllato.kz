@@ -523,6 +523,7 @@ body {
   .date-filter-toggle { width:100%; }
   .project-date-filters { grid-template-columns:1fr; }
 }
+.social-daily{border-top:1px solid var(--line-2);padding-top:12px;margin-top:12px}.social-daily-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.social-daily button{border:1px solid var(--line-2);background:var(--surface);border-radius:8px;padding:6px 9px;color:var(--text-2);cursor:pointer}.social-daily-list{max-height:180px;overflow:auto}.social-daily table,.social-access{width:100%;border-collapse:collapse;font-size:12px}.social-daily th,.social-daily td,.social-access td,.social-access th{padding:7px;text-align:left;border-bottom:1px solid var(--line-2)}.social-daily small{color:var(--text-3);font-size:10px}.social-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.social-form{display:grid;gap:14px}.social-form label{display:grid;gap:6px}.social-form input:not([type="checkbox"]){width:100%;min-width:0;padding:10px;border:1px solid var(--line-2);border-radius:8px}.social-form p{font-size:12px;color:var(--text-2)}.social-access input{width:20px;height:20px}.social-form [role="status"]{color:#b42318}
 .development-star{position:absolute;top:10px;right:11px;width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:var(--text-3);font-size:17px;cursor:pointer;z-index:3}.development-star:hover{background:#eaf2ff;color:#2466bb}.development-star.on{color:#2466bb;background:#eaf2ff}.development-star:disabled{cursor:wait;opacity:.5}
 .client-marker{align-self:flex-start;display:inline-flex;align-items:center;gap:5px;margin:0 0 8px;padding:3px 7px;border-radius:5px;background:#eaf7ee;color:#20733e;font-size:12px;font-weight:700;line-height:1.3}.client-marker[hidden]{display:none}
 .lnk-btn {
@@ -5896,6 +5897,7 @@ async function injectProjectManagers(){
 }
 function managerColor(email){
   const key=String(email||'').trim().toLowerCase();
+  if(key==='stories')return '#d17a12';if(key==='reels')return '#2563eb';
   if(!key) return '#64748b';
   // Цвет зависит только от менеджера, а не от состава списка или прав просмотра.
   let hash=2166136261;
@@ -5911,7 +5913,7 @@ function financeTaskManagerLabel(task){return `<small style="display:block;color
 let CHART_VISIBILITY = { inquiries: [], kep: [], demos: [], orders: [], cash: [], releases: [] };
 function normalizeFinanceChartScale(raw={}){
   const normalized={};
-  ['inquiries','kep','demos','orders','cash','releases'].forEach(kind=>{
+  ['social','inquiries','kep','demos','orders','cash','releases'].forEach(kind=>{
     const value=raw?.[kind];
     normalized[kind]=value && typeof value==='object' && !Array.isArray(value)
       ? {
@@ -5926,7 +5928,7 @@ function normalizeFinanceChartScale(raw={}){
 let CHART_SCALE = normalizeFinanceChartScale();
 let CHART_ALLOWED = { inquiries: false, kep: false, demos: false, orders: false, cash: false, releases: false };
 function canSeeProjectMoney(){ return CURRENT?.isSuperAdmin === true; }
-function canConfigureFinanceChart(kind){ return canSeeProjectMoney() || CHART_ALLOWED[kind] === true; }
+function canConfigureFinanceChart(kind){ if(kind==='social')return false; return canSeeProjectMoney() || CHART_ALLOWED[kind] === true; }
 async function persistMoney(){
   if(!canSeeProjectMoney() || !MONEY_LOADED) return;
   await apiFetch('/project-finance',{method:'PUT',body:{money:MONEY,rate:RATE,chartVisibility:CHART_VISIBILITY,chartScale:CHART_SCALE}});
@@ -6548,7 +6550,59 @@ function resetPaymentPlanDates(){
   renderMoneyModal();
 }
 
+let SOCIAL_DAYS=[];
+let SOCIAL_DAY_REQUEST=0;
+function socialToday(){return new Date(Date.now()+5*3600000).toISOString().slice(0,10);}
+function socialDailyBlock(){
+ const edit=CHART_EFFECTIVE_ACCESS.social?.edit;
+ return `<section class="social-daily"><div class="social-daily-head"><strong>Данные по дням</strong><button type="button" onclick="openSocialDay()">${edit?'Внести за день':'Выбрать дату'}</button></div><div class="social-daily-list">${SOCIAL_DAYS.length?`<table><thead><tr><th>Дата</th><th>Сторис</th><th>Рилс</th><th></th></tr></thead><tbody>${SOCIAL_DAYS.map(r=>`<tr><td>${mEsc(r.date.split('-').reverse().join('.'))}</td><td>${r.stories}</td><td>${r.reels}</td><td><button type="button" aria-label="${edit?'Изменить':'Посмотреть'} ${r.date}" onclick="openSocialDay('${r.date}')">${edit?'✎':'→'}</button></td></tr>`).join('')}</tbody></table>`:'<p>Данные ещё не внесены.</p>'}</div><small>Ручной учёт. Автосбор Instagram пока не подключён.</small></section>`;
+}
+async function openSocialDay(date=socialToday()){
+ const request=++SOCIAL_DAY_REQUEST;
+ let ovl=document.getElementById('socialDayOvl');
+ if(!ovl){ovl=document.createElement('div');ovl.id='socialDayOvl';ovl.className='money-ovl show';document.body.appendChild(ovl);}
+ ovl.innerHTML='<div class="money-modal"><div class="mm-h"><h3>Публикации за день</h3><button type="button" onclick="document.getElementById(\'socialDayOvl\').remove()">×</button></div><div class="mm-b">Загрузка…</div></div>';
+ try{
+  const data=await apiFetch('/social-publications/day?date='+encodeURIComponent(date));
+  if(request!==SOCIAL_DAY_REQUEST||!ovl.isConnected)return;
+  const r=data.item,edit=data.access.edit,thu=new Date(date).getUTCDay()===4;
+  ovl.innerHTML=`<form class="money-modal" onsubmit="event.preventDefault();saveSocialDay(this)"><div class="mm-h"><h3>Публикации за день</h3><button type="button" onclick="document.getElementById('socialDayOvl').remove()">×</button></div><div class="mm-b social-form"><label>Дата · Алматы<input type="date" name="date" max="${socialToday()}" value="${date}" required onchange="openSocialDay(this.value)"></label><div class="social-fields">${[['stories','Сторис'],['reels','Рилс']].map(([key,label])=>`<label>${label} · всего за день<input name="${key}" type="number" inputmode="numeric" min="0" max="10000" step="1" value="${r[key]}" required ${edit?'':'readonly'}></label>`).join('')}</div>${thu?`<p>В четверг неделя меняется в 14:00. Укажите, сколько из общего количества вышло до 14:00; остаток попадёт в новую неделю.</p><div class="social-fields"><label>Сторис до 14:00<input name="storiesBefore" type="number" inputmode="numeric" min="0" step="1" value="${r.storiesBefore||0}" required ${edit?'':'readonly'}></label><label>Рилс до 14:00<input name="reelsBefore" type="number" inputmode="numeric" min="0" step="1" value="${r.reelsBefore||0}" required ${edit?'':'readonly'}></label></div>`:''}<input type="hidden" name="revision" value="${r.revision}"><p>${r.updatedAt?'Изменено '+mEsc(new Date(r.updatedAt).toLocaleString('ru-RU',{timeZone:'Asia/Almaty'}))+' · '+mEsc(r.updatedBy):'За этот день данных ещё нет. Введите общее количество, а не прибавку.'}</p>${r.history?.length?`<details><summary>История изменений</summary>${r.history.slice().reverse().map(h=>`<p>${mEsc(new Date(h.at).toLocaleString('ru-RU',{timeZone:'Asia/Almaty'}))} · ${mEsc(h.by)}<br>До изменения: сторис ${h.stories??'—'}, рилс ${h.reels??'—'}</p>`).join('')}</details>`:''}<p data-social-status role="status"></p></div><div class="mm-f"><button type="button" onclick="document.getElementById('socialDayOvl').remove()">Закрыть</button>${edit?'<button type="submit">Сохранить</button>':''}</div></form>`;
+ }catch(error){if(ovl.isConnected)ovl.querySelector('.mm-b').textContent=error.message;}
+}
+async function saveSocialDay(form){
+ const fields=new FormData(form),date=fields.get('date'),body={};
+ for(const key of ['stories','reels','storiesBefore','reelsBefore','revision'])body[key]=Number(fields.get(key)||0);
+ const status=form.querySelector('[data-social-status]'),button=form.querySelector('[type="submit"]');button.disabled=true;
+ try{
+  await apiFetch('/social-publications/day?date='+date,{method:'PUT',body});
+  document.getElementById('socialDayOvl')?.remove();
+  // Fullscreen is a snapshot of its card; reopen it with the saved values.
+  const fullscreen=document.querySelector('.fc-fullscreen');const socialOpen=fullscreen?.getAttribute('aria-label')===FINANCE_CHART_META.social.title;
+  if(socialOpen)fullscreen.close();
+  await renderFinanceCharts();
+  if(socialOpen){const card=[...document.querySelectorAll('.fc-grid>.fc-card')].find(c=>c.querySelector('.fc-card-title')?.textContent===FINANCE_CHART_META.social.title);if(card)openChartFullscreen(card.querySelector('.fc-card-actions button'));}
+ }catch(error){status.textContent=error.message;button.disabled=false;}
+}
+async function openSocialAccess(){
+ document.getElementById('socialAccessOvl')?.remove();
+ const ovl=document.createElement('div');ovl.id='socialAccessOvl';ovl.className='money-ovl show';ovl.innerHTML='<div class="money-modal"><div class="mm-h"><h3>Настройки публикаций</h3><button type="button" onclick="document.getElementById(\'socialAccessOvl\').remove()">×</button></div><div class="mm-b">Загрузка…</div></div>';document.body.appendChild(ovl);
+ try{
+  await loadProjectManagers();const cfg=await apiFetch('/social-publications/access');if(!ovl.isConnected)return;
+  const people=new Map(MANAGER_USERS.map(u=>[String(u.email).toLowerCase(),u.name||u.email]));for(const email of [...(cfg.viewers||[]),...(cfg.editors||[])])if(!people.has(email))people.set(email,email);
+  ovl.innerHTML=`<form class="money-modal" onsubmit="event.preventDefault();saveSocialAccess(this)"><div class="mm-h"><h3>Настройки публикаций</h3><button type="button" onclick="document.getElementById('socialAccessOvl').remove()">×</button></div><div class="mm-b social-form"><p>Супер-админ имеет полный доступ. Право ввода включает просмотр.</p><input type="hidden" name="revision" value="${cfg.revision||0}"><table class="social-access"><thead><tr><th>Сотрудник</th><th>Просмотр</th><th>Ввод</th></tr></thead><tbody>${[...people].map(([email,name])=>`<tr data-social-email="${mEsc(email)}"><td>${mEsc(name)}</td><td><input type="checkbox" name="view" aria-label="Просмотр: ${mEsc(name)}" ${(cfg.viewers||[]).includes(email)?'checked':''}></td><td><input type="checkbox" name="edit" aria-label="Ввод: ${mEsc(name)}" ${(cfg.editors||[]).includes(email)?'checked':''}></td></tr>`).join('')}</tbody></table><details><summary>Максимум шкалы</summary><div class="social-fields">${['day','week','month'].map(period=>`<label>${FINANCE_CHART_PERIOD_META[period].label}<input name="scale-${period}" type="number" min="0" step="1" value="${cfg.scale?.[period]||0}"></label>`).join('')}</div><small>0 — автоматический масштаб.</small></details><p data-social-status role="status"></p></div><div class="mm-f"><button type="button" onclick="document.getElementById('socialAccessOvl').remove()">Отмена</button><button type="submit">Сохранить</button></div></form>`;
+ }catch(error){ovl.querySelector('.mm-b').textContent=error.message;}
+}
+async function saveSocialAccess(form){
+ const body={viewers:[],editors:[],scale:{},revision:Number(form.elements.revision.value)};
+ form.querySelectorAll('[data-social-email]').forEach(row=>{if(row.querySelector('[name="view"]').checked)body.viewers.push(row.dataset.socialEmail);if(row.querySelector('[name="edit"]').checked)body.editors.push(row.dataset.socialEmail);});
+ for(const period of ['day','week','month'])body.scale[period]=Number(form.elements['scale-'+period].value)||0;
+ const btn=form.querySelector('[type="submit"]');btn.disabled=true;
+ try{await apiFetch('/social-publications/access',{method:'PUT',body});document.getElementById('socialAccessOvl').remove();await renderFinanceCharts();}
+ catch(error){form.querySelector('[data-social-status]').textContent=error.message;btn.disabled=false;}
+}
+
 const FINANCE_CHART_META = {
+  social: { title:'Количество исходящих постов', sub:'Instagram @pllato.kz · ежедневный учёт', color:'#e28b26' },
   inquiries: { title:'Количество новых обращений', sub:'Pllato Старт · стадия «Новая»', color:'#373d8d' },
   kep: { title:'Количество людей на КЭП', sub:'От «Создание Демо» до «Аванса» включительно', color:'#7c3aed' },
   demos: { title:'Количество проведённых Демо', sub:'Pllato Старт · первый вход в «Показ Демо»', color:'#0891b2' },
@@ -6596,7 +6650,7 @@ let LEAD_ANALYTICS_REQUEST = 0;
 let LEAD_ANALYTICS_FILTER = { mode:'week', from:'', to:'' };
 let LEAD_ANALYTICS_FILTER_OWNER = '';
 const FINANCE_CHART_CACHE_VERSION = 4;
-const FINANCE_CHART_KINDS = ['inquiries','kep','demos','orders','cash','releases'];
+const FINANCE_CHART_KINDS = ['social','inquiries','kep','demos','orders','cash','releases'];
 
 function financeChartCacheKey(){
   return `pllato_finance_charts_v${FINANCE_CHART_CACHE_VERSION}:${String(CURRENT?.email||'guest').toLowerCase()}:${FINANCE_CHART_PERIOD}`;
@@ -6937,7 +6991,7 @@ function chartFullscreenButton(){
 function financeChartCard(kind,series){
   const meta=FINANCE_CHART_META[kind];
   const periodMeta=financeChartPeriodMeta();
-  const access=canSeeProjectMoney()?`<button class="fc-access" onclick="openFinanceAccess('${kind}')">Настройки</button>`:'';
+  const access=canSeeProjectMoney()?`<button class="fc-access" onclick="${kind==='social'?'openSocialAccess()':`openFinanceAccess('${kind}')`}">Настройки</button>`:'';
   const unavailable=series.length>0 && series.every(point=>point?.unavailable);
   const noted=series.flatMap(point=>financePointComments(kind,point.start).map(comment=>({...comment,label:point.label,end:point.end,value:point.value})));
   const notes=noted.length
@@ -6949,7 +7003,7 @@ function financeChartCard(kind,series){
     <div class="fc-plot">${unavailable?'<div class="fc-unavailable">Источник временно недоступен.<br>График останется на месте и обновится автоматически.</div>':financeChartSvg(kind,series)}</div>
     <div class="fc-labels">${series.map(s=>`<span>${mEsc(s.label)}</span>`).join('')}</div>
     ${notes}
-    ${financeWeekTaskBlock(kind,series)}
+    ${kind==='social'?socialDailyBlock():financeWeekTaskBlock(kind,series)}
   </article>`;
 }
 
@@ -7383,6 +7437,7 @@ async function paintFinanceCharts(el,data,{cached=false}={}){
   await loadProjectManagers().catch(()=>{});
   MANAGER_CHARTS=data.managerCharts||{};
   CHART_EFFECTIVE_ACCESS=data.access||{};
+  SOCIAL_DAYS=data.socialDays||[];
   CHART_ACCESS=data.chartAccess||{};
   CHART_ALLOWED={...CHART_ALLOWED,...(data.visible||{})};
   if(data.chartVisibility) CHART_VISIBILITY={...CHART_VISIBILITY,...data.chartVisibility};
@@ -7519,7 +7574,7 @@ function financeDetailAmount(value,currency){
   return currency==='USD' ? `$ ${amount}` : `${amount} ₸`;
 }
 function financeDetailRow(kind,item){
-  const project=['inquiries','kep','demos'].includes(kind)
+  const project=['social','inquiries','kep','demos'].includes(kind)
     ? (item.title||'(без названия)')
     : projName(item.projectId);
   let meta=financeDetailDate(item.timestamp);
@@ -7948,7 +8003,9 @@ async function openFinancePointDetails(kind,start,end,chartValue,manager=null){
   try{
     const params=new URLSearchParams({kind,start:String(start),end:String(end)});
     if(personal) params.set('manager',manager);
-    const data=(['inquiries','kep','demos'].includes(kind))
+    const data=kind==='social'
+      ? await apiFetch(`/social-publications/details?start=${start}&end=${end}&metric=${encodeURIComponent(manager||'stories')}`)
+      : (['inquiries','kep','demos'].includes(kind))
       ? await fetchCrmChartDetails(kind,start,end,manager)
       : await apiFetch(`/project-finance/chart-details?${params}`);
     if(!document.body.contains(ovl)) return;
@@ -7959,7 +8016,7 @@ async function openFinancePointDetails(kind,start,end,chartValue,manager=null){
     const actualLabel=kind==='cash'?financeValue(kind,actualValue):String(actualValue);
     ovl.querySelector('.mm-b').innerHTML=`<div class="fc-detail-summary"><div class="c"><div class="l">Период</div><div class="v">${mEsc(financeDetailPeriod(start,end))}</div></div><div class="c"><div class="l">Значение на графике</div><div class="v">${mEsc(summaryValue)}</div></div></div>`
       +(different?`<div class="fc-detail-note">${personal?'Данные изменились после загрузки графика. Сейчас в списке:':'Значение на графике скорректировано вручную. По сохранённым сделкам и транзакциям найдено:'} <b>${mEsc(actualLabel)}</b>.</div>`:'')
-      +(data.items?.length?`<div class="fc-detail-list">${data.items.map(item=>financeDetailRow(kind,item)).join('')}</div>`:'<div class="fc-detail-list"><div class="fc-detail-empty">За этот период сохранённых сделок или транзакций нет.</div></div>')
+      +(data.items?.length?`<div class="fc-detail-list">${data.items.map(item=>financeDetailRow(kind,item)).join('')}</div>`:`<div class="fc-detail-list"><div class="fc-detail-empty">${kind==='social'?'За этот период публикации не внесены.':'За этот период сохранённых сделок или транзакций нет.'}</div></div>`)
       +(personal?'':financePointCommentsBlock(kind,start,end));
   }catch(error){
     if(!document.body.contains(ovl)) return;
@@ -8642,7 +8699,7 @@ function copyPixelHrLink(button,url){
 }
 
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { setMoneyTitle, setReceivedPay, setPlanField, setPlanMode, addPlanStage, delPlanStage, openChartFullscreen, renderTodayCalendar, loadTodayCalendar, scheduleTodayCalendar, switchWorkspace, switchPixelTab, setPixelChartPeriod, openPixelChartSettings, savePixelChartSettings, openPixelCrm, copyPixelHrLink, openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, setPaymentPlanDate, resetPaymentPlanDates, openPaymentPlanSource, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTaskStar, toggleFinanceWeekTask, moveFinanceWeekTaskForward, carryFinanceWeekTaskToCurrent, toggleFinanceWeekTaskHistory, selectFinanceWeekTaskHistory, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, openLeadAnalyticsExternalAccess, copyLeadAnalyticsExternalLink, addLeadAnalyticsExternalViewer, removeLeadAnalyticsExternalViewer, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
+Object.assign(window, { openSocialDay, saveSocialDay, openSocialAccess, saveSocialAccess, setMoneyTitle, setReceivedPay, setPlanField, setPlanMode, addPlanStage, delPlanStage, openChartFullscreen, renderTodayCalendar, loadTodayCalendar, scheduleTodayCalendar, switchWorkspace, switchPixelTab, setPixelChartPeriod, openPixelChartSettings, savePixelChartSettings, openPixelCrm, copyPixelHrLink, openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, setPaymentPlanDate, resetPaymentPlanDates, openPaymentPlanSource, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTaskStar, toggleFinanceWeekTask, moveFinanceWeekTaskForward, carryFinanceWeekTaskToCurrent, toggleFinanceWeekTaskHistory, selectFinanceWeekTaskHistory, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, openLeadAnalyticsExternalAccess, copyLeadAnalyticsExternalLink, addLeadAnalyticsExternalViewer, removeLeadAnalyticsExternalViewer, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
 
 function applyProjectFilters(){
   sortProjectCards();
