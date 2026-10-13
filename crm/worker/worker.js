@@ -1,3 +1,4 @@
+import {fetchDemoChartSeries} from './demo-chart.js';
 import {paidProjectIds,developmentChange} from './portal-project-lists.js';
 import {paymentCardTitle,paymentLabel} from './payment-card-fields.js';
 import { PLAN_COLLECTION, handleFinancialPlanning } from './financial-planning.js';
@@ -2382,6 +2383,7 @@ function normalizeProjectFinance(payload) {
           ? rawVisibility.kep
           : rawVisibility.inquiries
       ),
+      demos: normalizeViewers(rawVisibility.demos),
       orders: normalizeViewers(rawVisibility.orders),
       cash: normalizeViewers(rawVisibility.cash),
       releases: normalizeViewers(rawVisibility.releases),
@@ -2391,6 +2393,7 @@ function normalizeProjectFinance(payload) {
     chartScale: {
       inquiries: normalizeScale(rawScale.inquiries),
       kep: normalizeScale(rawScale.kep),
+      demos: normalizeScale(rawScale.demos),
       orders: normalizeScale(rawScale.orders),
       cash: normalizeScale(rawScale.cash),
       releases: normalizeScale(rawScale.releases),
@@ -2520,7 +2523,7 @@ function financeChartAllowed(actor, viewers) {
   return Boolean(email && viewers.includes(email));
 }
 
-const FINANCE_KINDS = ["inquiries", "kep", "orders", "cash", "releases"];
+const FINANCE_KINDS = ["inquiries", "kep", "demos", "orders", "cash", "releases"];
 function normalizeChartAccess(raw) {
   const result = {};
   for (const kind of FINANCE_KINDS) {
@@ -2544,7 +2547,7 @@ function financeAccess(finance, actor, kind) {
   const legacy = financeChartAllowed(actor, finance.chartVisibility?.[kind] || []);
   const access = configured || { total:legacy, managers:legacy ? "all" : "none", tasks:legacy ? "all" : "own", taskManagers:[] };
   // КЭП — общий и личные графики доступны всем авторизованным сотрудникам.
-  return kind === "kep" ? { ...access, total:true, managers:"all" } : access;
+  return ["kep","demos"].includes(kind) ? { ...access, total:true, managers:"all" } : access;
 }
 function financeTaskOwner(task, finance) {
   return String(task?.sourceProjectId ? finance.money?.[task.sourceProjectId]?.managerEmail || "" : task?.managerEmail ?? task?.author ?? "").toLowerCase();
@@ -2788,6 +2791,12 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
     } catch (error) {
       console.warn("pllato KEP chart unavailable", error?.message || error);
     }
+  }
+  if (visible.demos) {
+    try {
+      const series=await fetchDemoChartSeries(url.searchParams.get('points'),granularity);
+      charts.demos=series.map((point,index)=>({...point,start:allSeries[index]?.start,end:allSeries[index]?.end}));
+    } catch(error) { console.warn('pllato demos chart unavailable',error?.message||error); }
   }
   if (visible.orders) charts.orders = allSeries.map(({ start, end, label, partial, orders }) => ({ start, end, label, partial, value: orders }));
   if (visible.cash) charts.cash = allSeries.map(({ start, end, label, partial, cash }) => ({ start, end, label, partial, value: cash }));
