@@ -524,6 +524,7 @@ body {
   .project-date-filters { grid-template-columns:1fr; }
 }
 .development-star{position:absolute;top:10px;right:11px;width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:var(--text-3);font-size:17px;cursor:pointer;z-index:3}.development-star:hover{background:#eaf2ff;color:#2466bb}.development-star.on{color:#2466bb;background:#eaf2ff}.development-star:disabled{cursor:wait;opacity:.5}
+.client-marker{align-self:flex-start;display:inline-flex;align-items:center;gap:5px;margin:0 0 8px;padding:3px 7px;border-radius:5px;background:#eaf7ee;color:#20733e;font-size:12px;font-weight:700;line-height:1.3}.client-marker[hidden]{display:none}
 .lnk-btn {
   position:relative; align-self:flex-start; margin-top:10px;
   min-height:30px; border-radius:9px; padding:6px 10px;
@@ -5495,7 +5496,10 @@ let PORTAL_SCROLL_TIMER = null;
 
 function refreshFavsUi(){
  document.querySelectorAll('.tool-card[data-app-id]').forEach(card=>{
-  const id=card.dataset.appId,dev=DEVELOPMENT.has(id);
+  const id=card.dataset.appId,dev=DEVELOPMENT.has(id),paid=FAVS.has(id);
+  let marker=card.querySelector('.client-marker');
+  if(paid&&!marker){marker=document.createElement('span');marker.className='client-marker';marker.textContent='✓ Клиент';marker.title='Есть оплата · проект в Избранном';const heading=card.querySelector('h3');if(heading)heading.before(marker);else card.prepend(marker);}
+  if(marker)marker.hidden=!paid;
   const button=card.querySelector('.development-star');if(button){button.classList.toggle('on',dev);button.disabled=!FAVS_SYNCED||DEVELOPMENT_PENDING.has(id);button.setAttribute('aria-pressed',String(dev));button.title=dev?'Убрать из разработки':'В разработку';button.setAttribute('aria-label',button.title);}
  });
  if(GROUPS_INIT)applyProjectFilters();
