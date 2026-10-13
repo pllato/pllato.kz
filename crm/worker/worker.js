@@ -1,4 +1,4 @@
-import {SOCIAL_COLLECTION,socialAccess,socialSeries,handleSocialPublications} from './social-publications.js';
+import {SOCIAL_COLLECTION,socialAccess,socialSeries,socialTotalSeries,handleSocialPublications} from './social-publications.js';
 import {fetchDemoChartSeries} from './demo-chart.js';
 import {paidProjectIds,developmentChange} from './portal-project-lists.js';
 import {paymentCardTitle,paymentLabel} from './payment-card-fields.js';
@@ -2831,9 +2831,9 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
   if(social.view){
     const first=allSeries[0],last=allSeries[allSeries.length-1];
     const records=await listSocialDays(env,new Date(first.start+5*3600000).toISOString().slice(0,10),new Date(last.end+5*3600000).toISOString().slice(0,10));
-    charts.social=allSeries.map(({start,end,label,partial})=>({start,end,label,partial,value:null}));
     managerCharts.social=socialSeries(records,allSeries);
-    access.social={total:false,managers:'all',tasks:'none',edit:social.edit};
+    charts.social=socialTotalSeries(managerCharts.social);
+    access.social={total:true,managers:'all',tasks:'none',edit:social.edit};
     finance.chartScale.social=socialConfig.scale||{};
   }
   const visibleKinds = Object.keys(visible).filter((kind) => visible[kind]);
