@@ -6603,7 +6603,7 @@ async function saveSocialAccess(form){
 }
 
 const FINANCE_CHART_META = {
-  social: { title:'Количество исходящих постов', sub:'Instagram @pllato.kz · ежедневный учёт', color:'#e28b26' },
+  social: { title:'Количество исходящих постов', sub:'Instagram @pllato.kz · ежедневный учёт', color:'#16a34a' },
   inquiries: { title:'Количество новых обращений', sub:'Pllato Старт · стадия «Новая»', color:'#373d8d' },
   kep: { title:'Количество людей на КЭП', sub:'От «Создание Демо» до «Аванса» включительно', color:'#7c3aed' },
   demos: { title:'Количество проведённых Демо', sub:'Pllato Старт · первый вход в «Показ Демо»', color:'#0891b2' },
@@ -8005,7 +8005,7 @@ async function openFinancePointDetails(kind,start,end,chartValue,manager=null){
     const params=new URLSearchParams({kind,start:String(start),end:String(end)});
     if(personal) params.set('manager',manager);
     const data=kind==='social'
-      ? await apiFetch(`/social-publications/details?start=${start}&end=${end}&metric=${encodeURIComponent(manager||'stories')}`)
+      ? await apiFetch(`/social-publications/details?start=${start}&end=${end}&metric=${encodeURIComponent(manager||'total')}`)
       : (['inquiries','kep','demos'].includes(kind))
       ? await fetchCrmChartDetails(kind,start,end,manager)
       : await apiFetch(`/project-finance/chart-details?${params}`);

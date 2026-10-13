@@ -33,6 +33,9 @@ export function socialSeries(records,buckets){
  const entries=socialEntries(records);
  return ['stories','reels'].map(metric=>({email:metric,name:metric==='stories'?'Сторис':'Рилс',series:buckets.map(({start,end,label,partial})=>({start,end,label,partial,value:entries.filter(r=>r.timestamp>=start&&r.timestamp<end).reduce((n,r)=>n+(Number(r[metric])||0),0)}))}));
 }
+export function socialTotalSeries(lines){
+ return (lines[0]?.series||[]).map((point,index)=>({...point,value:lines.reduce((sum,line)=>sum+(Number(line.series[index]?.value)||0),0)}));
+}
 export async function handleSocialPublications(request,env,actor,deps){
  const {get,list,save,HttpError}=deps,url=new URL(request.url),config=await get(env,SOCIAL_COLLECTION,'access')||{},access=socialAccess(config,actor);
  const fail=(status,text)=>{throw new HttpError(status,text)};
@@ -54,9 +57,11 @@ export async function handleSocialPublications(request,env,actor,deps){
  if(!access.view)fail(403,'Нет доступа к графику публикаций');
  if(url.pathname.endsWith('/details')&&request.method==='GET'){
   const start=Number(url.searchParams.get('start')),end=Number(url.searchParams.get('end')),metric=url.searchParams.get('metric');
-  if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start||end-start>32*86400000||!['stories','reels'].includes(metric))fail(400,'Некорректный период');
+  if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start||end-start>32*86400000||!['stories','reels','total'].includes(metric))fail(400,'Некорректный период');
   const from=new Date(start+5*3600000).toISOString().slice(0,10),to=new Date(end+5*3600000).toISOString().slice(0,10);
-  const records=await list(env,from,to),items=socialEntries(records).filter(r=>r.timestamp>=start&&r.timestamp<end&&r[metric]>0).map(r=>({title:`${metric==='stories'?'Сторис':'Рилс'}: ${r[metric]}${r.slot?' · '+r.slot:''}`,timestamp:r.timestamp,count:r[metric],responsible:r.updatedBy}));
+  const records=await list(env,from,to),entries=socialEntries(records);
+  const measured=metric==='total'?entries.map(r=>({...r,total:r.stories+r.reels})):entries;
+  const items=measured.filter(r=>r.timestamp>=start&&r.timestamp<end&&r[metric]>0).map(r=>({title:`${metric==='total'?'Общая':metric==='stories'?'Сторис':'Рилс'}: ${r[metric]}${r.slot?' · '+r.slot:''}`,timestamp:r.timestamp,count:r[metric],responsible:r.updatedBy}));
   return {ok:true,items,actualValue:items.reduce((n,r)=>n+r.count,0)};
  }
  const date=url.searchParams.get('date')||'';

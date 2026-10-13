@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {socialAccess,normalizeSocialDay,socialSeries,handleSocialPublications} from '../crm/worker/social-publications.js';
+import {socialAccess,normalizeSocialDay,socialSeries,socialTotalSeries,handleSocialPublications} from '../crm/worker/social-publications.js';
 const admin={email:'owner@test.kz',isRoot:true},viewer={email:'view@test.kz'},editor={email:'edit@test.kz'},outsider={email:'other@test.kz'};
 assert.equal(socialAccess({},outsider).view,false);
 assert.equal(socialAccess({},admin).edit,true);
@@ -30,3 +30,7 @@ assert.equal((await handleSocialPublications(req('/social-publications/day?date=
 const detail=await handleSocialPublications(req(`/social-publications/details?start=${buckets[1].start}&end=${buckets[1].end}&metric=stories`),{},viewer,deps);
 assert.equal(detail.actualValue,6);
 console.log('Social publications: separate view/edit/admin ACL, validation, Thursday split, Almaty daily total, persisted daily replacement, revision conflicts, drilldown totals.');
+
+assert.deepEqual(socialTotalSeries(socialSeries([day],buckets)).map(p=>p.value),[5,8]);
+const totalDetail=await handleSocialPublications(req(`/social-publications/details?start=${buckets[1].start}&end=${buckets[1].end}&metric=total`),{},viewer,deps);
+assert.equal(totalDetail.actualValue,8);
