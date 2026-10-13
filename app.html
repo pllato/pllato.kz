@@ -436,6 +436,8 @@ body {
 .cal-widget .cw-list::-webkit-scrollbar-track{background:transparent}
 .cw-chip{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid var(--line-2);
   border-radius:9px;background:var(--surface-2);text-decoration:none;color:var(--text);max-width:320px}
+.cw-entry{display:flex;align-items:center;gap:6px;max-width:100%;min-width:0}.cw-entry .cw-chip{min-width:0;flex:1}.cw-zoom{flex-shrink:0;padding:7px 9px;border:1px solid var(--line-2);border-radius:8px;color:var(--bronze-deep);font-size:11.5px;font-weight:700;text-decoration:none;white-space:nowrap}.cw-zoom:hover{background:var(--bronze-tint);border-color:var(--bronze)}
+@media(max-width:700px){.cw-entry{width:100%}.cw-zoom{min-height:40px;display:flex;align-items:center;padding:6px 8px;box-sizing:border-box}}
 .cw-chip:hover{border-color:var(--bronze);background:var(--bronze-tint)}
 .cw-chip .t{font:800 12px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--bronze-deep);white-space:nowrap}
 .cw-chip .n{font-size:11.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -8044,10 +8046,10 @@ function calSaveCache(items){
   try{ localStorage.setItem(calCacheKey(),JSON.stringify({savedAt:Date.now(),items})); }catch(e){}
 }
 
-function calFetch(url,ms=12000){
+function calFetch(url,ms=12000,options={}){
   const ctrl=new AbortController();
   const timer=setTimeout(()=>ctrl.abort(),ms);
-  return fetch(url,{cache:'no-store',signal:ctrl.signal}).finally(()=>clearTimeout(timer));
+  return fetch(url,{...options,cache:'no-store',signal:ctrl.signal}).finally(()=>clearTimeout(timer));
 }
 /* Ссылка на сделку из crm_links задачи. Форматы встречаются разные:
    "deal_353226", "deal_local_abc123", "D_353226", "353226",
@@ -8117,7 +8119,7 @@ async function calFetchToday(){
         const book=pipeBook[deal.pipelineId]||null;
         events.push({ at:when.getTime(), end:when.getTime()+60*60000,
           title:'Zoom: '+(deal.title||'сделка'), src:'первый Zoom', kind:'meet',
-          deal:recordId,
+          deal:recordId, zoomPath:'/deals/'+encodeURIComponent(recordId)+'/first-meeting',
           pipe:book?book.name:'', stage:(book&&book.stages&&book.stages[deal.stageId]&&book.stages[deal.stageId].name)||'',
           sum:Number(deal.opportunity)||0,
           href:`team.html?page=calendar#deal/${encodeURIComponent(deal.recordId||deal.id||'')}` });
@@ -8147,6 +8149,7 @@ async function calFetchToday(){
         title:dealTitle?('Сделка: '+dealTitle):(task.title||(isMeet?'Встреча':'Задача')),
         note:dealTitle&&task.title?task.title:'',
         src:isMeet?'встреча':'задача', kind:isMeet?'meet':'task',
+        zoomPath:isMeet?'/tasks/'+encodeURIComponent(task.id||task.bitrixKey||''):'',
         deal:deal?calDealRecordId(deal):'',
         pipe:book?book.name:'', stage:(book&&book.stages&&book.stages[deal.stageId]&&book.stages[deal.stageId].name)||'',
         sum:deal?Number(deal.opportunity)||0:0,
@@ -8211,8 +8214,8 @@ function renderTodayCalendar(){
     const mins=Math.round((item.at-now)/60000);
     const mark=isNow?'<span class="mk">идёт</span>'
       :isNext&&mins<=90?`<span class="mk">через ${mins<1?'минуту':mins+' мин'}</span>`:'';
-    return `<a class="cw-chip${item.kind==='task'?' task':''}${isNow?' now':isNext?' next':isPast?' past':''}" href="${escapeHtml(item.href)}" data-cw="${i}">
-      <span class="t">${calTimeLabel(item.at)}</span><span class="n">${escapeHtml(item.title)}</span>${mark}</a>`;
+    return `<div class="cw-entry"><a class="cw-chip${item.kind==='task'?' task':''}${isNow?' now':isNext?' next':isPast?' past':''}" href="${escapeHtml(item.href)}" data-cw="${i}">
+      <span class="t">${calTimeLabel(item.at)}</span><span class="n">${escapeHtml(item.title)}</span>${mark}</a>${calZoomUrl(item.zoomUrl)?`<a class="cw-zoom" href="${escapeHtml(calZoomUrl(item.zoomUrl))}" target="_blank" rel="noopener noreferrer" aria-label="Войти в Zoom: ${escapeHtml(item.title)}">Войти в Zoom ↗</a>`:''}</div>`;
   }).join('');
   const word=n=>n%10===1&&n%100!==11?'встреча':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'встречи':'встреч');
   const tword=n=>n%10===1&&n%100!==11?'дело':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'дела':'дел');
@@ -8277,6 +8280,20 @@ function calBindTips(box){
   const list=box.querySelector('.cw-list');
   if(list) list.addEventListener('scroll',calHideTip);
 }
+function calZoomUrl(value){
+  try{const u=new URL(value);return u.protocol==='https:'&&/(^|\.)zoom\.(us|com)$/.test(u.hostname)&&!u.username&&!u.password?u.href:'';}catch{return '';}
+}
+async function calLoadZoomLinks(items){
+  const token=getSession()?.token;if(!token)return;
+  const meetings=items.filter(e=>e.kind==='meet'&&e.zoomPath);
+  for(let i=0;i<meetings.length;i+=2){
+    await Promise.all(meetings.slice(i,i+2).map(async item=>{
+      try{const r=await calFetch(CAL_WORKER+'/api/zoom'+item.zoomPath,8000,{headers:{Authorization:'Bearer '+token}});if(!r.ok)return;const {meeting}=await r.json();if(meeting?.status==='cancelled')return;item.zoomUrl=calZoomUrl(meeting?.join_url);}catch{/* The CRM card remains available when Zoom cannot be loaded. */}
+    }));
+    if(CAL_EVENTS!==items)return;
+    calSaveCache(items);renderTodayCalendar();
+  }
+}
 async function loadTodayCalendar(){
   if(!calCanSee()) return;
   const cached=calReadCache();
@@ -8291,6 +8308,7 @@ async function loadTodayCalendar(){
     if(CAL_EVENTS===null) CAL_EVENTS=[];
   }
   renderTodayCalendar();
+  void calLoadZoomLinks(CAL_EVENTS);
   clearInterval(CAL_TICK);
   CAL_TICK=setInterval(renderTodayCalendar,60000);          // «идёт» и «через N мин» — без новых запросов
   clearTimeout(CAL_TIMER);
