@@ -532,7 +532,7 @@ body {
 }
 .tool-card:hover .fav-star { opacity:.85; }
 .fav-star:hover { background:var(--bronze-tint); color:#e8a726; opacity:1; }
-.fav-star.on { opacity:1; color:#e8a726; }
+.development-star{position:absolute;top:10px;right:46px;width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:var(--text-3);font-size:17px;cursor:pointer;z-index:3}.development-star.on{color:#2466bb;background:#eaf2ff}.development-star:disabled{cursor:wait;opacity:.5}.fav-star:disabled{cursor:default}.fav-star.on { opacity:1; color:#e8a726; }
 .lnk-btn {
   position:relative; align-self:flex-start; margin-top:10px;
   min-height:30px; border-radius:9px; padding:6px 10px;
@@ -5484,21 +5484,9 @@ function applyPermissionsAndAdminUI() {
 }
 
 /* ===== группы-вкладки проектов + избранное ===== */
-const FAV_LEGACY_KEY = 'pllato_fav_projects';
-const FAV_ACCOUNT_ID = String(session?.user?.id || session?.user?.email || 'guest').toLowerCase();
-const FAV_KEY = FAV_LEGACY_KEY + ':' + FAV_ACCOUNT_ID;
-let FAVS = new Set((()=>{
-  try {
-    // Первый вход после обновления подхватывает уже отмеченные в этом браузере
-    // карточки. Дальше кэш разделён по аккаунтам.
-    const own = localStorage.getItem(FAV_KEY);
-    return JSON.parse(own !== null ? own : (localStorage.getItem(FAV_LEGACY_KEY) || '[]'));
-  } catch(e){ return []; }
-})());
-let FAVS_LOCAL_CHANGED = false;
-let FAVS_SYNCED = false;
-let FAVS_SYNC_PROMISE = null;
-let FAVS_SAVE_TIMER = null;
+let FAVS=new Set(),DEVELOPMENT=new Set(),FAVS_SYNCED=false,FAVS_SYNC_PROMISE=null;
+const DEVELOPMENT_PENDING=new Set();
+let PROJECT_LIST_GENERATION=0;
 const PORTAL_VIEW_KEY = 'pllato_portal_view_v1';
 let PORTAL_VIEW = (()=>{ try { return JSON.parse(localStorage.getItem(PORTAL_VIEW_KEY)||'{}')||{}; } catch(e){ return {}; } })();
 let ACTIVE_TAB = PORTAL_VIEW.tab || 'fav';
@@ -5514,76 +5502,27 @@ let PROJECT_DATE_FILTERS = {
 let GROUPS_INIT = false;
 let PORTAL_SCROLL_TIMER = null;
 
-function saveFavs(){ try { localStorage.setItem(FAV_KEY, JSON.stringify([...FAVS])); } catch(e){} }
-function favServerRecordId(){ return 'portal_favorites_' + FAV_ACCOUNT_ID; }
 function refreshFavsUi(){
-  document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
-    card.querySelector('.fav-star')?.classList.toggle('on', FAVS.has(card.dataset.appId));
-  });
-  if (GROUPS_INIT) {
-    if (ACTIVE_TAB === 'fav') applyProjectFilters();
-    else updateTabCounts();
-  }
+ document.querySelectorAll('.tool-card[data-app-id]').forEach(card=>{
+  const id=card.dataset.appId,paid=FAVS.has(id),dev=DEVELOPMENT.has(id);
+  const star=card.querySelector('.fav-star');if(star){star.classList.toggle('on',paid);star.title=paid?'Избранное · есть оплата':'Избранное · появится после оплаты';star.setAttribute('aria-label',star.title);}
+  const button=card.querySelector('.development-star');if(button){button.classList.toggle('on',dev);button.disabled=!FAVS_SYNCED||DEVELOPMENT_PENDING.has(id);button.setAttribute('aria-pressed',String(dev));button.title=dev?'Убрать из разработки':'В разработку';button.setAttribute('aria-label',button.title);}
+ });
+ if(GROUPS_INIT)applyProjectFilters();
 }
-async function pushFavsToServer(){
-  if (!session?.user || !FAVS_SYNCED) return;
-  const favorites = [...FAVS];
-  await apiFetch('/store/push', {
-    method: 'POST',
-    body: {
-      ops: [{
-        type: 'upsert',
-        collection: 'portal_user_preferences',
-        item: {
-          id: favServerRecordId(),
-          ownerId: FAV_ACCOUNT_ID,
-          favorites,
-          updatedAt: Date.now(),
-        },
-      }],
-    },
-  });
-  FAVS_LOCAL_CHANGED = false;
+async function syncFavsFromServer(){
+ if(!session?.user)return;if(FAVS_SYNC_PROMISE)return FAVS_SYNC_PROMISE;
+ FAVS_SYNC_PROMISE=(async()=>{try{const generation=PROJECT_LIST_GENERATION;const data=await apiFetch('/portal-project-lists');FAVS=new Set(data.favorites||[]);const next=new Set(data.development||[]);for(const id of DEVELOPMENT_PENDING){if(DEVELOPMENT.has(id))next.add(id);else next.delete(id);}if(generation===PROJECT_LIST_GENERATION)DEVELOPMENT=next;FAVS_SYNCED=true;refreshFavsUi();}catch(error){console.warn('shared project lists:',error);}finally{FAVS_SYNC_PROMISE=null;}})();
+ return FAVS_SYNC_PROMISE;
 }
-function scheduleFavsServerSave(){
-  clearTimeout(FAVS_SAVE_TIMER);
-  FAVS_SAVE_TIMER = setTimeout(() => {
-    pushFavsToServer().catch(error => console.warn('favorites save:', error));
-  }, 180);
+async function toggleDevelopment(id){
+ if(!FAVS_SYNCED||DEVELOPMENT_PENDING.has(id))return;
+ const enabled=!DEVELOPMENT.has(id);PROJECT_LIST_GENERATION++;DEVELOPMENT_PENDING.add(id);if(enabled)DEVELOPMENT.add(id);else DEVELOPMENT.delete(id);refreshFavsUi();
+ try{await apiFetch('/portal-project-lists',{method:'PUT',body:{projectId:id,enabled}});}
+ catch(error){if(enabled)DEVELOPMENT.delete(id);else DEVELOPMENT.add(id);alert('Не удалось сохранить отметку «Разработка»: '+error.message);}
+ finally{PROJECT_LIST_GENERATION++;DEVELOPMENT_PENDING.delete(id);refreshFavsUi();}
 }
-async function syncFavsFromServer({ refresh = false } = {}){
-  if (!session?.user) return;
-  if (FAVS_SYNC_PROMISE) return FAVS_SYNC_PROMISE;
-  if (refresh && FAVS_LOCAL_CHANGED) return;
-  FAVS_SYNC_PROMISE = (async () => {
-    try {
-      const data = await apiFetch('/store/pull', {
-        method: 'POST',
-        body: { collections: ['portal_user_preferences'], limitPerCollection: 5000 },
-      });
-      const items = Array.isArray(data?.collections?.portal_user_preferences)
-        ? data.collections.portal_user_preferences : [];
-      const saved = items.find(item => item?.id === favServerRecordId() && item?.ownerId === FAV_ACCOUNT_ID);
-      if (saved && !FAVS_LOCAL_CHANGED) {
-        FAVS = new Set(Array.isArray(saved.favorites) ? saved.favorites.map(String) : []);
-        saveFavs();
-        refreshFavsUi();
-      }
-      FAVS_SYNCED = true;
-      // Если серверной записи ещё нет, переносим старые локальные звёздочки.
-      // Если пользователь успел нажать звезду во время загрузки — сохраняем
-      // именно его последнее локальное состояние.
-      if (!saved || FAVS_LOCAL_CHANGED) await pushFavsToServer();
-    } catch (error) {
-      console.warn('favorites sync:', error);
-      // При недоступном API избранное продолжает работать из локального кэша.
-      FAVS_SYNCED = false;
-    } finally {
-      FAVS_SYNC_PROMISE = null;
-    }
-  })();
-  return FAVS_SYNC_PROMISE;
-}
+setInterval(()=>{if(!document.hidden)syncFavsFromServer();},30000);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     syncFavsFromServer({ refresh: true }).catch(() => {});
@@ -5714,13 +5653,14 @@ function initProjectGroups(){
     if (card.querySelector('.fav-star')) return;
     const id = card.dataset.appId;
     const star = document.createElement('button');
-    star.type = 'button';
+    star.type = 'button';star.disabled=true;
     star.className = 'fav-star' + (FAVS.has(id) ? ' on' : '');
     star.innerHTML = '★';
-    star.title = 'В избранное';
-    star.setAttribute('aria-label', 'В избранное');
-    star.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggleFav(id, star); });
+    star.title = 'Избранное · автоматически по оплате';
+    star.setAttribute('aria-label', 'Избранное · автоматически по оплате');
+    star.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();});
     card.appendChild(star);
+    const dev=document.createElement('button');dev.type='button';dev.className='development-star';dev.textContent='★';dev.disabled=!FAVS_SYNCED;dev.title='В разработку';dev.setAttribute('aria-label','В разработку');dev.setAttribute('aria-pressed',String(DEVELOPMENT.has(id)));dev.classList.toggle('on',DEVELOPMENT.has(id));dev.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();toggleDevelopment(id);});card.appendChild(dev);
   });
   // Длинные описания занимают две строки и раскрываются по запросу.
   document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
@@ -5835,10 +5775,10 @@ function buildProjectTabs(){
   if (!bar) return;
   const groups = [...new Set([...document.querySelectorAll('.tool-card[data-app-id]')].map(c => c.dataset.group).filter(Boolean))]
     .filter(group => group !== 'Работа с клиентами');
-  const validTabs=new Set(['all','fav',...groups.map(g=>'g:'+g)]);
+  const validTabs=new Set(['all','fav','development',...groups.map(g=>'g:'+g)]);
   if(!validTabs.has(ACTIVE_TAB)) ACTIVE_TAB='fav';
   const tab = (id, label, cls) => `<button class="ptab${cls||''}${id===ACTIVE_TAB?' on':''}" data-tab="${id}">${label}<span class="pt-c" data-c="${id}"></span></button>`;
-  bar.innerHTML = tab('all','Все') + tab('fav','★ Избранное',' fav') + groups.map(g => tab('g:'+g, g)).join('');
+  bar.innerHTML = tab('all','Все') + tab('fav','★ Избранное',' fav') + tab('development','★ Разработка') + groups.map(g => tab('g:'+g, g)).join('');
   bar.querySelectorAll('.ptab').forEach(b => b.addEventListener('click', () => {
     PORTAL_VIEW.scroll=PORTAL_VIEW.scroll||{};
     PORTAL_VIEW.scroll[ACTIVE_TAB]=Math.max(0,Math.round(window.scrollY));
@@ -5853,16 +5793,6 @@ function buildProjectTabs(){
     restorePortalPosition();
   }));
   savePortalView();
-}
-
-function toggleFav(id, star){
-  if (FAVS.has(id)) { FAVS.delete(id); star && star.classList.remove('on'); }
-  else { FAVS.add(id); star && star.classList.add('on'); }
-  FAVS_LOCAL_CHANGED = true;
-  saveFavs();
-  if (FAVS_SYNCED) scheduleFavsServerSave();
-  else syncFavsFromServer().catch(() => {});
-  if (ACTIVE_TAB === 'fav') applyProjectFilters(); else updateTabCounts();
 }
 
 // ===== Выдача временного доступа прямо с плашки =====
@@ -6014,6 +5944,7 @@ function canConfigureFinanceChart(kind){ return canSeeProjectMoney() || CHART_AL
 async function persistMoney(){
   if(!canSeeProjectMoney() || !MONEY_LOADED) return;
   await apiFetch('/project-finance',{method:'PUT',body:{money:MONEY,rate:RATE,chartVisibility:CHART_VISIBILITY,chartScale:CHART_SCALE}});
+  void syncFavsFromServer();
   renderFinanceCharts();
 }
 let MONEY_SAVE_PENDING = false;
@@ -8732,6 +8663,7 @@ function applyProjectFilters(){
     if(show) availableCount++;
     if(show) show=cardMatchesProjectDates(card);
     if (show && !searchTokens.length && ACTIVE_TAB === 'fav') show = FAVS.has(card.dataset.appId);
+    else if(show && !searchTokens.length && ACTIVE_TAB==='development')show=DEVELOPMENT.has(card.dataset.appId);
     else if (show && !searchTokens.length && ACTIVE_TAB.startsWith('g:')) show = card.dataset.group === ACTIVE_TAB.slice(2);
     if (show && searchTokens.length) {
       const index=card.dataset.searchIndex||normalizeProjectSearch(card.textContent);
@@ -8758,6 +8690,7 @@ function updateTabCounts(){
     const t = sp.dataset.c;
     let n = t === 'all' ? cards.length
       : t === 'fav' ? cards.filter(c => FAVS.has(c.dataset.appId)).length
+      : t === 'development' ? cards.filter(c=>DEVELOPMENT.has(c.dataset.appId)).length
       : cards.filter(c => ('g:' + c.dataset.group) === t).length;
     sp.textContent = n ? n : '';
   });

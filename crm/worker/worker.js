@@ -1,3 +1,4 @@
+import {paidProjectIds,developmentChange} from './portal-project-lists.js';
 import {paymentCardTitle,paymentLabel} from './payment-card-fields.js';
 import { PLAN_COLLECTION, handleFinancialPlanning } from './financial-planning.js';
 import { PAYOUT_COLLECTION, handleProjectPayouts } from './project-payouts.js';
@@ -8782,6 +8783,23 @@ export default {
       if (request.method === "POST" && path === "/channels/delete") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleChannelsDelete(request, env, actor));
+      }
+
+      if(path === "/portal-project-lists"){
+        const actor=await loadActorContext(request,env,{strictTeamCheck:true});
+        if(request.method==='PUT'){
+          const raw=await request.text();if(raw.length>2000)throw new HttpError(413,'Слишком много данных');
+          let body;try{body=JSON.parse(raw);}catch{throw new HttpError(400,'Некорректные данные');}
+          const change=developmentChange(body);if(!change)throw new HttpError(400,'Проверьте проект');
+          await d1UpsertDoc(env,PRIVATE_PROJECT_FINANCE_COLLECTION,{...change,updatedAt:Date.now(),updatedBy:actor.email},actor.email);
+          return json(request,env,{ok:true,...change});
+        }
+        if(request.method!=='GET')throw new HttpError(405,'Метод не поддерживается');
+        const finance=await d1GetDoc(env,PRIVATE_PROJECT_FINANCE_COLLECTION,PRIVATE_PROJECT_FINANCE_ID);
+        await ensureD1Schema(env);
+        const {results}=await requireStoreDb(env).prepare("SELECT data FROM store WHERE team_id=? AND collection=? AND id LIKE 'development_%'").bind(TEAM_ID,PRIVATE_PROJECT_FINANCE_COLLECTION).all();
+        const development=(results||[]).map(r=>JSON.parse(r.data)).filter(r=>r.enabled).map(r=>r.projectId);
+        return json(request,env,{favorites:paidProjectIds(finance),development});
       }
 
       if (["GET", "PUT"].includes(request.method) && path === "/project-finance/managers") {
