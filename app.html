@@ -1260,6 +1260,8 @@ body {
   background: var(--bronze); flex-shrink: 0;
 }
 .tool-dd-menu a.is-pdf .dot { background: var(--orange); }
+.mm-title-editor{flex:1;min-width:0;font-size:12px;color:var(--text-3)}.mm-title-editor textarea{box-sizing:border-box;display:block;width:100%;font-family:inherit;font-size:18px;font-weight:700;line-height:1.4;color:var(--text);border:1px solid var(--line-2);border-radius:8px;padding:8px;resize:vertical;background:var(--surface)}.mm-pay-edit{display:grid!important;grid-template-columns:minmax(120px,1fr) minmax(160px,1fr) 120px 24px;gap:8px}.mm-pay-edit input{min-width:0;width:100%;box-sizing:border-box}.mm-plan-row .name input{width:100%;min-width:0;box-sizing:border-box;padding:7px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface);color:var(--text);font:inherit}
+@media(max-width:700px){.mm-pay-edit{grid-template-columns:1fr 1fr 24px}.mm-pay-edit input:first-child{grid-column:1/-1}.mm-title-editor textarea{font-size:16px}.mm-pay-edit input{font-size:16px}}
 </style>
 <link rel="stylesheet" href="/app/mobile-workspace.css?v=20261008-3">
 <!-- Meta Pixel Code -->
@@ -6090,7 +6092,7 @@ function fmtPayWhen(p){
   return new Date(Number(p.at)).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
 }
 function mCard(id){ return document.querySelector('.tool-card[data-app-id="'+CSS.escape(id)+'"]'); }
-function projName(id){ const c=mCard(id); return ((c && c.querySelector('h3') && c.querySelector('h3').textContent) || id).trim(); }
+function projName(id){ if(MONEY[id]?.title)return MONEY[id].title;const c=mCard(id); return ((c && c.querySelector('h3') && c.querySelector('h3').textContent) || id).trim(); }
 
 const PAYMENT_PLAN_STAGES = [
   {id:'second',label:'Второй платёж',percent:45,weeks:2},
@@ -6145,7 +6147,7 @@ function ensurePaymentPlan(id,{resetDates=false}={}){
     const current=old.find(stage=>stage.id===def.id)||{};
     const defaultDueAt=baseAt+def.weeks*7*24*60*60*1000;
     const dueAt=!resetDates && Number(current.dueAt)>0 ? Number(current.dueAt) : defaultDueAt;
-    const next={id:def.id,label:def.label,percent:def.percent,weeks:def.weeks,dueAt};
+    const next={id:def.id,label:String(current.label||def.label).trim().slice(0,120),percent:def.percent,weeks:def.weeks,dueAt};
     if(current.id!==next.id || current.label!==next.label || Number(current.percent)!==next.percent || Number(current.weeks)!==next.weeks || Number(current.dueAt)!==next.dueAt) changed=true;
     return next;
   });
@@ -6312,7 +6314,7 @@ function syncProjectMoneyVisibility(){
 }
 function renderMoneyStrip(id){
   if (!canSeeProjectMoney()) return;
-  const card = mCard(id); const strip = card && card.querySelector('.money-strip');
+  const card = mCard(id); if(card&&MONEY[id]?.title){const h=card.querySelector('h3');if(h)h.textContent=MONEY[id].title;} const strip = card && card.querySelector('.money-strip');
   if (!strip) return;
   const moneyVisible=financeChartsAreOpen();
   strip.classList.toggle('finance-folded',!moneyVisible);
@@ -6458,9 +6460,9 @@ function renderMoneyModal(){
   if (!canSeeProjectMoney()) return;
   const id=_mmId, ovl=document.getElementById('moneyOvl'); if(!id||!ovl) return;
   const usd = curOf(id)==='USD';
-  const pays=(MONEY[id].pays||[]).map((p,i)=>({d:p.d,sum:p.sum,at:p.at,i})).sort((a,b)=>(Number(b.at)||0)-(Number(a.at)||0)||String(b.d||'').localeCompare(String(a.d||'')));
+  const pays=(MONEY[id].pays||[]).map((p,i)=>({d:p.d,sum:p.sum,at:p.at,label:p.label,i})).sort((a,b)=>(Number(b.at)||0)-(Number(a.at)||0)||String(b.d||'').localeCompare(String(a.d||'')));
   ovl.innerHTML = '<div class="money-modal payment-plan-modal">'
-    + '<div class="mm-h"><h3>💰 '+mEsc(projName(id))+'</h3><span class="mm-x" onclick="closeMoney()">✕</span></div>'
+    + '<div class="mm-h"><label class="mm-title-editor">Название проекта<textarea maxlength="500" rows="2" aria-label="Название проекта" onchange="setMoneyTitle(this.value)">'+mEsc(projName(id))+'</textarea></label><span class="mm-x" onclick="closeMoney()">✕</span></div>'
     + '<div class="mm-b">'
     + '<div class="mm-cur"><span class="l">Валюта проекта</span>'
       + '<button class="'+(!usd?'on':'')+'" onclick="setMoneyCur(\'KZT\')">₸ тенге</button>'
@@ -6470,7 +6472,7 @@ function renderMoneyModal(){
     + '<label>Сумма сделки, '+symOf(id)+'</label><input id="mmDeal" type="number" min="0" step="'+(usd?'50':'1000')+'" value="'+mDeal(id)+'" oninput="setMoneyDeal(this.value)">'
     + '<div class="mm-pt">Платежи · что когда зашло</div>'
     + '<div class="mm-pays">'
-    + (pays.length ? pays.map(p=>'<div class="mm-pay"><span class="pd">'+fmtPayWhen(p)+'</span><span class="psum">+ '+fmtCur(id,p.sum)+(usd?' <span class="ke2">≈ '+fmtT(toKZT(id,p.sum))+'</span>':'')+'</span><span class="pdel" title="удалить" onclick="delMoneyPay('+p.i+')">✕</span></div>').join('')
+    + (pays.length ? pays.map(p=>'<div class="mm-pay mm-pay-edit"><input aria-label="Название поступившего платежа" maxlength="120" placeholder="Название платежа" value="'+mEsc(p.label||'')+'" onchange="setReceivedPay('+p.i+',\'label\',this.value)"><input aria-label="Дата поступившего платежа" type="datetime-local" value="'+mEsc(almatyInputFromAt(Number(p.at)||Date.parse(p.d+'T14:00:00+05:00')))+'" onchange="setReceivedPay('+p.i+',\'date\',this.value)"><input aria-label="Сумма поступившего платежа" type="number" min="0.01" step="0.01" value="'+p.sum+'" onchange="setReceivedPay('+p.i+',\'sum\',this.value)"><span class="pdel" title="удалить" onclick="delMoneyPay('+p.i+')">✕</span></div>').join('')
         : '<div class="mm-pay empty">Платежей ещё не было — добавьте первый.</div>')
     + '</div>'
     + '<div class="mm-add"><input id="mmPaySum" type="number" min="0" placeholder="сумма, '+symOf(id)+'"><input id="mmPayDate" type="datetime-local" value="'+nowLocalInput()+'"><button onclick="addMoneyPay()">＋ Платёж</button></div>'
@@ -6490,7 +6492,7 @@ function paymentPlanMarkup(id){
   const rows=stages.map(stage=>{
     const amount=paymentPlanAmount(id,stage);
     const detail=stage.id==='final'?'Создаёт дело в кассе и плановый выпуск':'Создаёт дело в недельном плане кассы';
-    return '<div class="mm-plan-row"><div class="name"><strong>'+mEsc(stage.label)+' · '+Number(stage.percent)+'%</strong><span>'+mEsc(detail)+'</span></div>'
+    return '<div class="mm-plan-row"><div class="name"><input aria-label="Название автоплатежа" maxlength="120" value="'+mEsc(stage.label)+'" onchange="setPlanField(\''+mEsc(stage.id)+'\',\'label\',this.value)"><strong>'+Number(stage.percent)+'%</strong><span>'+mEsc(detail)+'</span></div>'
       +'<div class="sum">'+mEsc(fmtCur(id,amount))+(curOf(id)==='USD'?'<span class="ke2"> ≈ '+mEsc(fmtT(toKZT(id,amount)))+'</span>':'')+'</div>'
       +'<input type="datetime-local" value="'+mEsc(almatyInputFromAt(stage.dueAt))+'" onchange="setPaymentPlanDate(\''+mEsc(stage.id)+'\',this.value)" aria-label="Дата: '+mEsc(stage.label)+'"></div>';
   }).join('');
@@ -6526,6 +6528,23 @@ function setPlanMode(mode){
     item.planMode='auto'; item.paymentPlan=[]; ensurePaymentPlan(_mmId);
   }
   savePlanAndRender(_mmId);
+}
+async function setMoneyTitle(value){
+ if(!canSeeProjectMoney()||!_mmId)return;
+ const id=_mmId,title=String(value||'').trim().slice(0,500),previous=MONEY[id].title;
+ if(!title){alert('Укажите название проекта');renderMoneyModal();return;}
+ MONEY[id].title=title;
+ try{await flushMoneySave();renderMoneyStrip(id);schedulePaymentPlanTaskSync(id);}
+ catch(error){MONEY[id].title=previous;renderMoneyModal();alert('Название не сохранено: '+error.message);}
+}
+function setReceivedPay(index,field,value){
+ if(!canSeeProjectMoney()||!_mmId)return;
+ const id=_mmId,pay=MONEY[id].pays[index];if(!pay)return;
+ if(field==='label')pay.label=String(value||'').trim().slice(0,120);
+ else if(field==='sum'){const amount=Number(value);if(!Number.isFinite(amount)||amount<=0){alert('Укажите сумму больше нуля');renderMoneyModal();return;}pay.sum=amount;}
+ else if(field==='date'){const at=almatyAtFromInput(value);if(!at){alert('Укажите корректную дату');renderMoneyModal();return;}pay.at=at;pay.d=new Date(at+5*3600000).toISOString().slice(0,10);}
+ else return;
+ ensurePaymentPlan(id);saveMoney();schedulePaymentPlanTaskSync(id);renderMoneyModal();renderMoneyStrip(id);renderMoneySummary();renderProjectComplete(id);renderFinanceCharts();
 }
 function setPlanField(stageId,field,value){
   if(!canSeeProjectMoney()||!_mmId) return;
@@ -8699,7 +8718,7 @@ function copyPixelHrLink(button,url){
 }
 
 // модуль → выносим обработчики inline onclick в global-скоуп
-Object.assign(window, { openChartFullscreen, renderTodayCalendar, loadTodayCalendar, scheduleTodayCalendar, switchWorkspace, switchPixelTab, setPixelChartPeriod, openPixelChartSettings, savePixelChartSettings, openPixelCrm, copyPixelHrLink, openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, setPaymentPlanDate, resetPaymentPlanDates, openPaymentPlanSource, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTaskStar, toggleFinanceWeekTask, moveFinanceWeekTaskForward, carryFinanceWeekTaskToCurrent, toggleFinanceWeekTaskHistory, selectFinanceWeekTaskHistory, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, openLeadAnalyticsExternalAccess, copyLeadAnalyticsExternalLink, addLeadAnalyticsExternalViewer, removeLeadAnalyticsExternalViewer, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
+Object.assign(window, { setMoneyTitle, setReceivedPay, setPlanField, setPlanMode, addPlanStage, delPlanStage, openChartFullscreen, renderTodayCalendar, loadTodayCalendar, scheduleTodayCalendar, switchWorkspace, switchPixelTab, setPixelChartPeriod, openPixelChartSettings, savePixelChartSettings, openPixelCrm, copyPixelHrLink, openMoneyModal, closeMoney, openMoneySummaryDetails, closeMoneySummaryDetails, setMoneyCur, setMoneyDeal, addMoneyPay, delMoneyPay, setPaymentPlanDate, resetPaymentPlanDates, openPaymentPlanSource, editRate, openFinancePointDetails, openFinanceCommentEditor, saveFinanceComment, deleteFinanceComment, openFinanceWeekTaskEditor, saveFinanceWeekTask, toggleFinanceWeekTaskStar, toggleFinanceWeekTask, moveFinanceWeekTaskForward, carryFinanceWeekTaskToCurrent, toggleFinanceWeekTaskHistory, selectFinanceWeekTaskHistory, deleteFinanceWeekTask, openFinanceAccess, saveFinanceAccess, toggleFinanceCharts, setFinanceChartPeriod, renderFinanceCharts, setLeadAnalyticsPeriod, applyLeadAnalyticsCustomPeriod, renderLeadAnalytics, openLeadAnalyticsExternalAccess, copyLeadAnalyticsExternalLink, addLeadAnalyticsExternalViewer, removeLeadAnalyticsExternalViewer, configureSalesQuickLink, saveSalesQuickLink, renderSalesQuickLink, copySalesQuickLink, toggleProjectComplete, filterProjects, toggleDateFilters, setProjectDateFilters, resetProjectDateFilters });
 
 function applyProjectFilters(){
   sortProjectCards();

@@ -1,3 +1,4 @@
+import {paymentCardTitle,paymentLabel} from './payment-card-fields.js';
 import { PLAN_COLLECTION, handleFinancialPlanning } from './financial-planning.js';
 import { PAYOUT_COLLECTION, handleProjectPayouts } from './project-payouts.js';
 import { connect } from "cloudflare:sockets";
@@ -2293,6 +2294,7 @@ function normalizeProjectFinance(payload) {
     const deal = Math.max(0, Math.min(Number(item.deal) || 0, 1_000_000_000_000));
     const cur = item.cur === "USD" ? "USD" : "KZT";
     const pays = (Array.isArray(item.pays) ? item.pays : []).slice(0, 1000).map((p) => ({
+      label: paymentLabel(p?.label),
       d: /^\d{4}-\d{2}-\d{2}$/.test(String(p?.d || "")) ? String(p.d) : "",
       sum: Math.max(0, Math.min(Number(p?.sum) || 0, 1_000_000_000_000)),
       at: Number.isFinite(Number(p?.at)) ? Math.max(0, Number(p.at)) : 0,
@@ -2315,7 +2317,7 @@ function normalizeProjectFinance(payload) {
         if (!defaults || !Number.isFinite(dueAt) || dueAt <= 0) return null;
         return {
           id: stageId,
-          label: defaults.label,
+          label: paymentLabel(stage?.label,defaults.label),
           percent: defaults.percent,
           weeks: defaults.weeks,
           dueAt: Math.max(0, dueAt),
@@ -2326,7 +2328,7 @@ function normalizeProjectFinance(payload) {
       ? Math.max(0, Number(item.paymentPlanBaseAt))
       : 0;
     money[id] = {
-      deal, cur, pays, orderCreatedAt, completedAt,
+      deal, cur, pays, orderCreatedAt, completedAt, title: paymentCardTitle(item.title),
       managerEmail: String(item.managerEmail || "").trim().toLowerCase(),
       paymentPlan,
       paymentPlanBaseAt,

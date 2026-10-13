@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import {paymentCardTitle,paymentLabel} from '../crm/worker/payment-card-fields.js';
+const worker=fs.readFileSync(new URL('../crm/worker/worker.js',import.meta.url),'utf8');
+const start=worker.indexOf('function normalizeProjectFinance('),end=worker.indexOf('\nfunction ',start+1);
+const context={normalizeChartAccess:v=>v||{},paymentCardTitle,paymentLabel,isObject:v=>v&&typeof v==='object'&&!Array.isArray(v)};vm.createContext(context);vm.runInContext(worker.slice(start,end),context);
+const original={money:{demo:{title:'Новое название',deal:1000,pays:[{sum:100,d:'2026-10-13',at:1791882000000,label:'Аванс'}],paymentPlan:[{id:'second',label:'После согласования',dueAt:1792486800000},{id:'final',label:'Сдача проекта',dueAt:1794906000000}]}}};
+const result=context.normalizeProjectFinance(original);const again=context.normalizeProjectFinance(result);
+assert.equal(again.money.demo.title,'Новое название');assert.equal(again.money.demo.pays[0].label,'Аванс');assert.equal(again.money.demo.pays[0].sum,100);assert.equal(again.money.demo.paymentPlan[0].label,'После согласования');assert.equal(again.money.demo.paymentPlan[0].percent,45);assert.equal(again.money.demo.paymentPlan[0].dueAt,1792486800000);
+const app=fs.readFileSync(new URL('../app.html',import.meta.url),'utf8');
+const a=app.indexOf('function ensurePaymentPlan('),b=app.indexOf('function paymentPlanTaskId',a);
+Object.assign(context,{MONEY:again.money,PAYMENT_PLAN_STAGES:[{id:'second',label:'Второй платёж',percent:45,weeks:2},{id:'final',label:'Финальный платёж',percent:45,weeks:6}],PRESET_PAYMENT_PLANS:{},firstProjectPaymentAt:()=>1791882000000,mDeal:()=>1000,projectIsAutoComplete:()=>false});
+vm.runInContext(app.slice(a,b),context);context.ensurePaymentPlan('demo');assert.equal(context.MONEY.demo.paymentPlan[0].label,'После согласования');assert.equal(context.MONEY.demo.paymentPlan[0].dueAt,1792486800000);
+console.log('Payment title, received label/amount/date and auto stage name survive server normalization and reopening.');
