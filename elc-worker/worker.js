@@ -1,3 +1,4 @@
+import {resolvePllatoDemoStages} from './demo-chart.js';
 import { greenApiHost } from './green-api-host.js';
 import { managerStageError, managerPatchError } from './manager-stage-gate.js';
 import { assignLeadManagers, handleLeadDistribution } from './lead-distribution.js';
@@ -10186,7 +10187,7 @@ function resolvePllatoKepStages(stages) {
 
 // Публичная обезличенная серия для КЭП: уникальная сделка учитывается один раз
 // по первому входу в «Создание Демо» или любой следующий этап продаж до «Аванса».
-async function handlePublicPllatoKep(request, env) {
+async function handlePublicPllatoKep(request, env, kind = 'kep') {
   const url = new URL(request.url);
   const points = Math.min(16, Math.max(4, parseInt(url.searchParams.get('points') || '8', 10) || 8));
   const period = ['day', 'week', 'month'].includes(url.searchParams.get('period'))
@@ -10199,8 +10200,8 @@ async function handlePublicPllatoKep(request, env) {
   if (!pipeline?.id) return json({ ok: false, error: "pipeline not found" }, 404, request);
   let stages = {};
   try { stages = JSON.parse(pipeline.stages || '{}'); } catch {}
-  const kepStages = resolvePllatoKepStages(stages);
-  if (!kepStages?.stageIds.length) return json({ ok: false, error: "KEP stages not found" }, 404, request);
+  const kepStages = kind==='demos'?resolvePllatoDemoStages(stages):resolvePllatoKepStages(stages);
+  if (!kepStages?.stageIds.length) return json({ ok: false, error: "Chart stages not found" }, 404, request);
   const stagePlaceholders = kepStages.stageIds.map(() => '?').join(', ');
   const buckets = buildChartBuckets(period, points);
   const minDate = buckets[0].start;
@@ -10213,7 +10214,7 @@ async function handlePublicPllatoKep(request, env) {
     )
     WHERE first_entered_at >= ?
   `).bind(pipeline.id, ...kepStages.stageIds, minDate).all();
-  const manualOverrides = { '2026-07-09': 12 };
+  const manualOverrides = kind==='kep'?{ '2026-07-09': 12 }:{};
   const series = countIntoBuckets((result.results || []).map((row) => row.d), buckets, period)
     .map((point, index) => {
       const bucket = buckets[index];
@@ -10234,7 +10235,7 @@ async function handlePublicPllatoKep(request, env) {
 }
 
 // Имена и персональные ряды никогда не выдаются публичным маршрутом.
-async function handlePllatoKepManagers(request, env) {
+async function handlePllatoKepManagers(request, env, kind = 'kep') {
   const auth = await requireAuth(request, env);
   if (auth.error) return json({ok:false,error:auth.error}, auth.status, request);
   await resolveCanonicalUser(env, auth.claims);
@@ -10243,8 +10244,8 @@ async function handlePllatoKepManagers(request, env) {
   const points = Math.min(16,Math.max(4,Number(url.searchParams.get('points'))||8));
   await ensureStageEventsBackfill(env);
   const pipeline = await env.DB.prepare("SELECT id, stages FROM pipelines WHERE name = ? LIMIT 1").bind('Pllato Старт').first();
-  const stages = resolvePllatoKepStages(safeJsonParse(pipeline?.stages, {}) || {});
-  if (!stages?.stageIds.length) return json({ok:false,error:'KEP stages not found'},404,request);
+  const stages = (kind==='demos'?resolvePllatoDemoStages:resolvePllatoKepStages)(safeJsonParse(pipeline?.stages, {}) || {});
+  if (!stages?.stageIds.length) return json({ok:false,error:'Chart stages not found'},404,request);
   const buckets = buildChartBuckets(period, points);
   const result = await env.DB.prepare(`
     SELECT first_stage.d, COALESCE(json_extract(d.custom_fields, '$.kepManagerUid'), '') AS manager_uid,
@@ -10288,7 +10289,7 @@ async function handlePllatoChartDetails(request, env) {
   const me = await resolveCanonicalUser(env, auth.claims);
   const url = new URL(request.url);
   const kind = String(url.searchParams.get('kind') || '');
-  if (!['inquiries', 'kep'].includes(kind)) {
+  if (!['inquiries', 'kep', 'demos'].includes(kind)) {
     return json({ ok: false, error: 'unknown chart' }, 400, request);
   }
   const period = parsePllatoChartDetailPeriod(request);
@@ -10317,8 +10318,8 @@ async function handlePllatoChartDetails(request, env) {
     await ensureStageEventsBackfill(env);
     let stages = {};
     try { stages = JSON.parse(pipeline.stages || '{}'); } catch {}
-    const kepStages = resolvePllatoKepStages(stages);
-    if (!kepStages?.stageIds.length) return json({ ok: false, error: "KEP stages not found" }, 404, request);
+    const kepStages = (kind==='demos'?resolvePllatoDemoStages:resolvePllatoKepStages)(stages);
+    if (!kepStages?.stageIds.length) return json({ ok: false, error: "Chart stages not found" }, 404, request);
     const stagePlaceholders = kepStages.stageIds.map(() => '?').join(', ');
     const result = await env.DB.prepare(`
       SELECT d.id, d.title, first_stage.first_entered_at AS event_at,
@@ -10729,7 +10730,7 @@ async function handlePllatoLeadSourceAnalytics(request, env, { skipInternalAuth 
   let stages = {};
   try { stages = JSON.parse(pipeline.stages || '{}'); } catch {}
   const kepStages = resolvePllatoKepStages(stages);
-  if (!kepStages?.stageIds.length) return json({ ok: false, error: 'KEP stages not found' }, 404, request);
+  if (!kepStages?.stageIds.length) return json({ ok: false, error: 'Chart stages not found' }, 404, request);
   const stagePlaceholders = kepStages.stageIds.map(() => '?').join(', ');
 
   const result = await env.DB.prepare(`
@@ -12954,6 +12955,12 @@ export default {
     }
     if (path === "/api/public/pllato-inquiries" && request.method === "GET") {
       return handlePublicPllatoInquiries(request, env);
+    }
+    if (path === "/api/public/pllato-demos" && request.method === "GET") {
+      return handlePublicPllatoKep(request, env, 'demos');
+    }
+    if (path === "/api/charts/pllato-demos-managers" && request.method === "GET") {
+      return handlePllatoKepManagers(request, env, 'demos');
     }
     if (path === "/api/charts/pllato-kep-managers" && request.method === "GET") {
       return handlePllatoKepManagers(request, env);
