@@ -523,16 +523,7 @@ body {
   .date-filter-toggle { width:100%; }
   .project-date-filters { grid-template-columns:1fr; }
 }
-.fav-star {
-  position:absolute; top:10px; right:11px;
-  width:28px; height:28px; border-radius:8px;
-  border:none; background:transparent; color:var(--text-3);
-  font-size:17px; line-height:1; cursor:pointer;
-  display:grid; place-items:center; z-index:3; opacity:.45; transition:.14s;
-}
-.tool-card:hover .fav-star { opacity:.85; }
-.fav-star:hover { background:var(--bronze-tint); color:#e8a726; opacity:1; }
-.development-star{position:absolute;top:10px;right:46px;width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:var(--text-3);font-size:17px;cursor:pointer;z-index:3}.development-star.on{color:#2466bb;background:#eaf2ff}.development-star:disabled{cursor:wait;opacity:.5}.fav-star:disabled{cursor:default}.fav-star.on { opacity:1; color:#e8a726; }
+.development-star{position:absolute;top:10px;right:11px;width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:var(--text-3);font-size:17px;cursor:pointer;z-index:3}.development-star:hover{background:#eaf2ff;color:#2466bb}.development-star.on{color:#2466bb;background:#eaf2ff}.development-star:disabled{cursor:wait;opacity:.5}
 .lnk-btn {
   position:relative; align-self:flex-start; margin-top:10px;
   min-height:30px; border-radius:9px; padding:6px 10px;
@@ -5504,8 +5495,7 @@ let PORTAL_SCROLL_TIMER = null;
 
 function refreshFavsUi(){
  document.querySelectorAll('.tool-card[data-app-id]').forEach(card=>{
-  const id=card.dataset.appId,paid=FAVS.has(id),dev=DEVELOPMENT.has(id);
-  const star=card.querySelector('.fav-star');if(star){star.classList.toggle('on',paid);star.title=paid?'Избранное · есть оплата':'Избранное · появится после оплаты';star.setAttribute('aria-label',star.title);}
+  const id=card.dataset.appId,dev=DEVELOPMENT.has(id);
   const button=card.querySelector('.development-star');if(button){button.classList.toggle('on',dev);button.disabled=!FAVS_SYNCED||DEVELOPMENT_PENDING.has(id);button.setAttribute('aria-pressed',String(dev));button.title=dev?'Убрать из разработки':'В разработку';button.setAttribute('aria-label',button.title);}
  });
  if(GROUPS_INIT)applyProjectFilters();
@@ -5648,18 +5638,10 @@ function initProjectGroups(){
   sortProjectCards();
   syncProjectDateFilterControls();
   if(PORTAL_VIEW.dateFiltersOpen) toggleDateFilters(true);
-  // звёзды «в избранное»
+  // Единственная звезда карточки управляет общим списком «Разработка».
   document.querySelectorAll('.tool-card[data-app-id]').forEach(card => {
-    if (card.querySelector('.fav-star')) return;
+    if (card.querySelector('.development-star')) return;
     const id = card.dataset.appId;
-    const star = document.createElement('button');
-    star.type = 'button';star.disabled=true;
-    star.className = 'fav-star' + (FAVS.has(id) ? ' on' : '');
-    star.innerHTML = '★';
-    star.title = 'Избранное · автоматически по оплате';
-    star.setAttribute('aria-label', 'Избранное · автоматически по оплате');
-    star.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();});
-    card.appendChild(star);
     const dev=document.createElement('button');dev.type='button';dev.className='development-star';dev.textContent='★';dev.disabled=!FAVS_SYNCED;dev.title='В разработку';dev.setAttribute('aria-label','В разработку');dev.setAttribute('aria-pressed',String(DEVELOPMENT.has(id)));dev.classList.toggle('on',DEVELOPMENT.has(id));dev.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();toggleDevelopment(id);});card.appendChild(dev);
   });
   // Длинные описания занимают две строки и раскрываются по запросу.
@@ -5778,7 +5760,7 @@ function buildProjectTabs(){
   const validTabs=new Set(['all','fav','development',...groups.map(g=>'g:'+g)]);
   if(!validTabs.has(ACTIVE_TAB)) ACTIVE_TAB='fav';
   const tab = (id, label, cls) => `<button class="ptab${cls||''}${id===ACTIVE_TAB?' on':''}" data-tab="${id}">${label}<span class="pt-c" data-c="${id}"></span></button>`;
-  bar.innerHTML = tab('all','Все') + tab('fav','★ Избранное',' fav') + tab('development','★ Разработка') + groups.map(g => tab('g:'+g, g)).join('');
+  bar.innerHTML = tab('all','Все') + tab('development','★ Разработка') + tab('fav','Избранное',' fav') + groups.map(g => tab('g:'+g, g)).join('');
   bar.querySelectorAll('.ptab').forEach(b => b.addEventListener('click', () => {
     PORTAL_VIEW.scroll=PORTAL_VIEW.scroll||{};
     PORTAL_VIEW.scroll[ACTIVE_TAB]=Math.max(0,Math.round(window.scrollY));
