@@ -1,3 +1,4 @@
+import {SOCIAL_COLLECTION,socialAccess,socialSeries,handleSocialPublications} from './social-publications.js';
 import {fetchDemoChartSeries} from './demo-chart.js';
 import {paidProjectIds,developmentChange} from './portal-project-lists.js';
 import {paymentCardTitle,paymentLabel} from './payment-card-fields.js';
@@ -859,6 +860,7 @@ async function d1GetDoc(env, collection, id) {
 async function handleStorePull(request, env, actor) {
   const body = await readRequestBodyAsJson(request);
   const collections = normalizeCollectionList(body.collections || []);
+  if(collections.includes(SOCIAL_COLLECTION))throw new HttpError(403,"Используйте график публикаций");
   if(collections.includes(PLAN_COLLECTION))throw new HttpError(403,"Используйте финансовое планирование");
   if(collections.includes(PAYOUT_COLLECTION))throw new HttpError(403,"Используйте раздел выплат проекта");
   const limit = Number(body.limitPerCollection) || DEFAULT_STORE_PULL_LIMIT;
@@ -901,6 +903,7 @@ async function handleStorePush(request, env, actor) {
   for (const op of ops) {
     if (!isObject(op)) continue;
     const collection = normalizeCollectionName(op.collection);
+    if(collection === SOCIAL_COLLECTION)throw new HttpError(403,"Используйте график публикаций");
     if(collection === PLAN_COLLECTION)throw new HttpError(403,"Используйте финансовое планирование");
     if(collection === PAYOUT_COLLECTION)throw new HttpError(403,"Используйте раздел выплат проекта");
     if (collection === PRIVATE_PROJECT_FINANCE_COLLECTION && !canAccessProjectFinance(actor)) {
@@ -2401,6 +2404,17 @@ function normalizeProjectFinance(payload) {
   };
 }
 
+async function listSocialDays(env,from,to){
+  await ensureD1Schema(env);
+  const {results}=await requireStoreDb(env).prepare('SELECT data FROM store WHERE team_id=? AND collection=? AND id>=? AND id<=? ORDER BY id LIMIT 6000').bind(TEAM_ID,SOCIAL_COLLECTION,'day:'+from,'day:'+to).all();
+  return (results||[]).map(row=>JSON.parse(row.data));
+}
+async function saveSocialRecord(env,item,revision){
+  await ensureD1Schema(env);
+  const result=await requireStoreDb(env).prepare(`INSERT INTO store(team_id,collection,id,data,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(team_id,collection,id) DO UPDATE SET data=excluded.data,updated_at=excluded.updated_at WHERE COALESCE(json_extract(store.data,'$.revision'),0)=?`)
+    .bind(TEAM_ID,SOCIAL_COLLECTION,item.id,JSON.stringify(item),item.createdAt||item.updatedAt,item.updatedAt,revision).run();
+  return result.meta.changes>0;
+}
 async function handleProjectFinanceGet(env, actor) {
   requireProjectFinanceAccess(actor);
   const stored = await d1GetDoc(env, PRIVATE_PROJECT_FINANCE_COLLECTION, PRIVATE_PROJECT_FINANCE_ID);
@@ -2811,12 +2825,24 @@ async function handleProjectFinanceChartsGet(env, actor, url) {
     if (!access[kind].total) charts[kind] = allSeries.map(({start,end,label,partial}) => ({start,end,label,partial,value:null}));
   }
   if (charts.inquiries && !access.inquiries.total) charts.inquiries = charts.inquiries.map(point=>({...point,value:null}));
+  const socialConfig=await d1GetDoc(env,SOCIAL_COLLECTION,'access')||{};
+  const social= socialAccess(socialConfig,actor);
+  visible.social=social.view;
+  if(social.view){
+    const first=allSeries[0],last=allSeries[allSeries.length-1];
+    const records=await listSocialDays(env,new Date(first.start+5*3600000).toISOString().slice(0,10),new Date(last.end+5*3600000).toISOString().slice(0,10));
+    charts.social=allSeries.map(({start,end,label,partial})=>({start,end,label,partial,value:null}));
+    managerCharts.social=socialSeries(records,allSeries);
+    access.social={total:false,managers:'all',tasks:'none',edit:social.edit};
+    finance.chartScale.social=socialConfig.scale||{};
+  }
   const visibleKinds = Object.keys(visible).filter((kind) => visible[kind]);
   return {
     ok: true,
     charts,
     managerCharts,
     access,
+    socialDays:social.view ? (await listSocialDays(env,new Date(Date.now()-30*86400000).toISOString().slice(0,10),new Date(Date.now()+5*3600000).toISOString().slice(0,10))).slice(-14).reverse() : [],
     chartAccess: canAccessProjectFinance(actor) ? finance.chartAccess : {},
     visible,
     chartVisibility: Object.fromEntries(visibleKinds.map((kind) => [kind, finance.chartVisibility[kind]])),
@@ -8847,6 +8873,10 @@ export default {
         return json(request, env, await handleWidgetKeyRevoke(env, actor, widgetKeyMatch[1]));
       }
 
+      if(['/social-publications/day','/social-publications/access','/social-publications/details'].includes(path)){
+        const actor=await loadActorContext(request,env,{strictTeamCheck:true});
+        return json(request,env,await handleSocialPublications(request,env,actor,{get:d1GetDoc,list:listSocialDays,save:saveSocialRecord,HttpError}));
+      }
       if (request.method === "GET" && path === "/project-finance/charts") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
         return json(request, env, await handleProjectFinanceChartsGet(env, actor, url));
