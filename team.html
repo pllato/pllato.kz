@@ -3293,6 +3293,13 @@ textarea.inline-edit-input.inline-edit-h2, .inline-edit-h2 textarea { min-width:
 .wa-sched-hint,.wa-sched-recipient{font-size:12px;color:var(--t3);}
 #wa-sched-error{font-size:12px;color:#b91c1c;}
 
+
+/* WhatsApp: дата и время читаются в карточке, виджете и полном чате. */
+.wa-day-divider { display:flex;justify-content:center;align-self:stretch;flex-shrink:0;margin:12px 0 8px;clear:both; }
+.wa-day-divider span { background:var(--bg2,#fff);color:var(--t2,#555);border:1px solid var(--b1,#ddd);border-radius:8px;padding:5px 10px;font-size:12px;line-height:1.4;font-weight:600; }
+.wa-msg .wa-ts,.dc-wa-body .wa-msg .wa-ts { display:block;float:none;clear:both;margin:5px 0 0;text-align:right;font-size:11px;line-height:1.4;font-variant-numeric:tabular-nums;color:#59665d;opacity:1; }
+html[data-theme="dark"] .wa-msg .wa-ts,html:not([data-theme="light"]) .wa-msg .wa-ts { color:#bcc9c3; }
+
 </style>
 <!-- Google Tag Manager -->
 <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -7816,7 +7823,7 @@ function renderWaWidgetChat(root) {
   const isGroup = chat.isGroup === true;
   const name = chat.name && chat.name.trim() ? chat.name : (chat.phone ? '+' + chat.phone : (isGroup ? 'Группа' : '?'));
   const msgsHtml = waWidget.messages.length
-    ? waWidget.messages.map(m => renderWaMessageHtml(m, isGroup)).join('')
+    ? renderWaTimeline(waWidget.messages, isGroup)
     : '<div class="wa-w-empty">📭 История пуста</div>';
   // Поиск deal для контакта (если есть) — для групп не показываем (не привязаны)
   const dealId = !isGroup && chat.dealId;
@@ -8107,7 +8114,7 @@ async function loadWaWidgetMessages(opts = {}) {
       const body = document.getElementById('wa-w-msgs');
       if (body) {
         const isGroup = waWidget.activeChatMeta?.isGroup === true;
-        body.innerHTML = items.length ? items.map(m => renderWaMessageHtml(m, isGroup)).join('') : '<div class="wa-w-empty">📭 История пуста</div>';
+        body.innerHTML = items.length ? renderWaTimeline(items, isGroup) : '<div class="wa-w-empty">📭 История пуста</div>';
         body.scrollTop = body.scrollHeight;
       }
     }
@@ -11433,14 +11440,13 @@ document.addEventListener('click', (e) => {
     html[data-theme="dark"] .wa-msg.out,
     html:not([data-theme="light"]) .wa-msg.out { background: #005c4b; color: #e9edef; }
     .wa-msg .wa-ts {
-      font-size: 10px;
-      color: rgba(0,0,0,.45);
-      margin-left: 8px;
-      float: right;
-      margin-top: 2px;
+      display: block; float: none; clear: both;
+      font-size: 11px; color: #59665d;
+      margin: 5px 0 0; text-align: right; line-height: 1.4;
+      font-variant-numeric: tabular-nums;
     }
     html[data-theme="dark"] .wa-msg .wa-ts,
-    html:not([data-theme="light"]) .wa-msg .wa-ts { color: rgba(255,255,255,.55); }
+    html:not([data-theme="light"]) .wa-msg .wa-ts { color: #bcc9c3; }
     .wa-msg .wa-tick { color: #4FC3F7; font-size: 11px; }
     .wa-msg .wa-media-img {
       max-width: 100%;
@@ -11836,18 +11842,7 @@ async function renderWaMessages(chatId, opts = {}) {
     // Группа определяется по chatId (…@g.us) — тогда показываем автора сообщений.
     const isGroup = String(chatId || '').includes('@g.us');
     // Группируем по дням → вставляем day-divider'ы
-    const html = [];
-    let lastDayKey = '';
-    for (const m of items) {
-      const dt = new Date(m.ts);
-      const dayKey = `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
-      if (dayKey !== lastDayKey) {
-        html.push(`<div class="wa-day-divider"><span>${formatWaDayLabel(dt)}</span></div>`);
-        lastDayKey = dayKey;
-      }
-      html.push(renderWaMessageHtml(m, isGroup));
-    }
-    body.innerHTML = html.join('');
+    body.innerHTML = renderWaTimeline(items, String(chatId).includes('@g.us'));
     body.scrollTop = body.scrollHeight;
   } catch (e) {
     if (!opts.silent) {
@@ -11856,16 +11851,33 @@ async function renderWaMessages(chatId, opts = {}) {
   }
 }
 
+// Единая дата для всех окон WhatsApp: часовой пояс офиса, включая границу суток.
+function waMessageDate(value) {
+  if (value == null || value === '') return null;
+  const numeric = typeof value === 'number' || /^\d+$/.test(String(value));
+  const n = numeric ? Number(value) : value;
+  const date = new Date(numeric && n > 0 && n < 1e12 ? n * 1000 : n);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+function waDayKey(value) {
+  const date = waMessageDate(value);
+  return date ? date.toLocaleDateString('en-CA', {timeZone:'Asia/Almaty'}) : '';
+}
 function formatWaDayLabel(dt) {
-  const today = new Date();
-  const yesterday = new Date(today.getTime() - 86400000);
-  const isSameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-  if (isSameDay(dt, today)) return 'Сегодня';
-  if (isSameDay(dt, yesterday)) return 'Вчера';
-  // "18 мая" — для текущего года, "18 мая 2024" — если другой
-  const months = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
-  const dayName = `${dt.getDate()} ${months[dt.getMonth()]}`;
-  return dt.getFullYear() === today.getFullYear() ? dayName : `${dayName} ${dt.getFullYear()}`;
+  const date = waMessageDate(dt);
+  if (!date) return 'Дата не указана';
+  const full = date.toLocaleDateString('ru-RU', {timeZone:'Asia/Almaty',day:'numeric',month:'long',year:'numeric'});
+  const day = waDayKey(date), today = waDayKey(Date.now()), yesterday = waDayKey(Date.now()-86400000);
+  return (day === today ? 'Сегодня · ' : day === yesterday ? 'Вчера · ' : '') + full;
+}
+function renderWaTimeline(items, isGroup = false, previousTs = null) {
+  let lastDay = waDayKey(previousTs);
+  return items.map(m => {
+    const day = waDayKey(m.ts);
+    const divider = day && day !== lastDay ? `<div class="wa-day-divider"><span>${formatWaDayLabel(m.ts)}</span></div>` : '';
+    lastDay = day;
+    return divider + renderWaMessageHtml(m, isGroup);
+  }).join('');
 }
 
 // Загружает Blob/File в R2 через worker, возвращает {publicUrl, fileName, contentType}.
@@ -12168,7 +12180,8 @@ async function mountDealSourceSelect(modal, deal) {
 
 function renderWaMessageHtml(m, isGroup) {
   const cls = m.direction === 'in' ? 'in' : 'out';
-  const ts = new Date(m.ts).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+  const messageDate = waMessageDate(m.ts);
+  const ts = messageDate ? messageDate.toLocaleString('ru-RU', {timeZone:'Asia/Almaty',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}) : 'Дата не указана';
   // В группе над входящим сообщением показываем, КТО написал (цвет на автора).
   const senderHtml = (isGroup && m.direction === 'in' && m.senderName)
     ? `<div class="wa-msg-sender" style="color:${waSenderColor(m.senderName)}">${escapeHtml(m.senderName)}</div>`
@@ -12200,7 +12213,7 @@ function renderWaMessageHtml(m, isGroup) {
     ${renderMetaAdAttributionHtml(m.metaAdAttribution, { adId: m.metaAdId, compact: true })}
     ${mediaHtml}
     ${text ? escapeHtml(text).replace(/\n/g, '<br>') : (!mediaHtml ? '<span class="wa-content-unavailable">Содержимое сообщения пока недоступно</span>' : '')}
-    <span class="wa-ts">${ts} ${tick}</span>
+    <span class="wa-ts" title="Время Алматы">${ts} ${tick}</span>
   </div>`;
 }
 
@@ -12447,7 +12460,7 @@ async function renderDealWaMessages(pane, opts = {}) {
       // Delta-режим — добавляем только новые в конец
       if (!items.length) return;  // нет новых, тихо
       const wasAtBottom = (body.scrollHeight - body.scrollTop - body.clientHeight) < 50;
-      body.insertAdjacentHTML('beforeend', items.map(m => renderWaMessageHtml(m, state.isGroup)).join(''));
+      body.insertAdjacentHTML('beforeend', renderWaTimeline(items, state.isGroup, lastTs));
       const newLastTs = items[items.length - 1].ts;
       if (newLastTs > lastTs) body.dataset.lastTs = String(newLastTs);
       if (wasAtBottom) body.scrollTop = body.scrollHeight;
@@ -12467,7 +12480,7 @@ async function renderDealWaMessages(pane, opts = {}) {
       if (statusEl) statusEl.textContent = '';
       return;
     }
-    body.innerHTML = items.map(m => renderWaMessageHtml(m, state.isGroup)).join('');
+    body.innerHTML = renderWaTimeline(items, state.isGroup);
     body.dataset.lastTs = String(items[items.length - 1].ts);
     body.scrollTop = body.scrollHeight;
     if (statusEl) {
@@ -22287,9 +22300,8 @@ async function loadAndRenderWaThreadMessages({ silent = false } = {}) {
     if (silent && lastTs > 0) {
       if (!items.length) return;
       const wasAtBottom = (body.scrollHeight - body.scrollTop - body.clientHeight) < 50;
-      // Простой append (без day-divider для inкрементов — на следующем full render
-      // правильно перерасставится)
-      body.insertAdjacentHTML('beforeend', items.map(m => renderWaMessageHtml(m)).join(''));
+      // Новый день отделяется сразу, в том числе при тихом обновлении.
+      body.insertAdjacentHTML('beforeend', renderWaTimeline(items, String(chatId).includes('@g.us'), lastTs));
       const newLastTs = items[items.length - 1].ts;
       if (newLastTs > lastTs) body.dataset.lastTs = String(newLastTs);
       if (wasAtBottom) body.scrollTop = body.scrollHeight;
@@ -22302,18 +22314,7 @@ async function loadAndRenderWaThreadMessages({ silent = false } = {}) {
       return;
     }
     // Full render — группируем по дням
-    const html = [];
-    let lastDayKey = '';
-    for (const m of items) {
-      const dt = new Date(m.ts);
-      const dayKey = `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
-      if (dayKey !== lastDayKey) {
-        html.push(`<div class="wa-day-divider"><span>${formatWaDayLabel(dt)}</span></div>`);
-        lastDayKey = dayKey;
-      }
-      html.push(renderWaMessageHtml(m));
-    }
-    body.innerHTML = html.join('');
+    body.innerHTML = renderWaTimeline(items, String(chatId).includes('@g.us'));
     body.dataset.lastTs = String(items[items.length - 1].ts);
     body.scrollTop = body.scrollHeight;
   } catch (e) {
