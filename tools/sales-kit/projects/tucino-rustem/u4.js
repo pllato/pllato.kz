@@ -58,7 +58,10 @@ const TOUR=[
  ['clients','8 · Своя бонусная система вместо SAGI.'],
  ['mailing','9 · Рассылки: новая коллекция, день рождения.'],
  ['orders','10 · Заявки Kaspi, WhatsApp, Instagram.'],
- ['launch','11 · 1,8 млн один раз: система + касса + бонусы.']
+ ['purchase','11 · Закупки: что и сколько заказать по размерам.'],
+ ['finance','12 · Финансы: настоящая прибыль, движение денег, деньги в товаре.'],
+ ['ai','13 · ИИ-помощник отвечает по вашим цифрам.'],
+ ['launch','14 · Стоимость и запуск.']
 ];
 let ti=-1,tRun=false;
 function tour(){if(tRun){stopTour();return}tRun=true;ti=-1;document.getElementById('tourBtn').textContent='■';step()}

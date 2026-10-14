@@ -41,7 +41,7 @@ gate=f'''<section class="gate" id="gate">
   <p style="margin-top:15px">Модель заводится один раз — карточки и штрихкоды на все размеры создаются сами. Продавцы работают на кассе под своим кодом, бонусы клиента начисляются сами. Приём новинок, перемещения, инвентаризация со сканером, рассылки по базе, заявки из WhatsApp, Instagram и Kaspi.</p>
   <p style="color:#ff8a93">Платите один раз — без подписки. Новый магазин — кнопкой.</p>
   <div class="gstat">
-   <div><small>Экранов</small><b class="a">16</b></div>
+   <div><small>Экранов</small><b class="a">25</b></div>
    <div><small>Должностей</small><b>6</b></div>
    <div><small>Срок</small><b>4–6 недель</b></div>
    <div><small>Стоимость</small><b>1,8 млн ₸</b></div>
@@ -66,6 +66,6 @@ rep('<script src="/app/uss.js"></script>','<script src="/app/tucino-rustem.js"><
 css=open(os.path.join(D,'style.css'),encoding='utf-8').read()
 rep('</style>',css+'\n</style>')
 open(ROOT+'/app/tucino-rustem.html','w',encoding='utf-8').write(s)
-js=''.join(open(os.path.join(D,f'u{i}.js'),encoding='utf-8').read() for i in range(1,5))
+js=''.join(open(os.path.join(D,f'u{i}.js'),encoding='utf-8').read() for i in range(1,6))
 open(ROOT+'/app/tucino-rustem.js','w',encoding='utf-8').write(js)
 print('ok',len(s),len(js))
