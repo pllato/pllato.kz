@@ -11141,17 +11141,17 @@ function startMissedCallsPolling() {
 
 async function renderTelephony(main) {
   main.innerHTML = `<div class="section-head"><div><h2>☎️ Телефония</h2><p>Входящие, исходящие и пропущенные звонки</p></div><button class="btn" id="tel-refresh">↻ Обновить</button></div>
-    <div class="card" style="padding:16px"><div style="display:flex;gap:8px;margin-bottom:14px">
-      <button class="btn btn-sm" data-tel-filter="all">Все</button><button class="btn btn-sm" data-tel-filter="missed">🔴 Пропущенные</button>
+    <div class="card" style="padding:16px"><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+      <button class="btn btn-sm" data-tel-filter="all">Все</button><button class="btn btn-sm" data-tel-filter="missed">🔴 Пропущенные</button><button class="btn btn-sm" data-tel-filter="recordings">🎧 Записи разговоров</button>
     </div><div id="telephony-list"><div class="empty">Загрузка…</div></div></div>`;
   document.getElementById('tel-refresh').onclick = () => renderTelephony(main);
-  main.querySelectorAll('[data-tel-filter]').forEach(b => b.onclick = () => { telephonyState.filter = b.dataset.telFilter; paintTelephonyList(); });
+  main.querySelectorAll('[data-tel-filter]').forEach(b => b.onclick = () => { telephonyState.filter = b.dataset.telFilter; if(telephonyState.filter==='recordings')loadRecordingPage(true);else paintTelephonyList(); });
   try {
     await loadTelephonyCalls();
     const maxMissedId = Math.max(0, ...telephonyState.items.filter(x => x.direction === 'in' && CALL_MISSED_STATUSES.has(x.status)).map(x => Number(x.id) || 0));
     localStorage.setItem('elc:telephonySeenId', String(maxMissedId));
     await updateMissedCallsBadge();
-    paintTelephonyList();
+    if(telephonyState.filter==='recordings')await loadRecordingPage(true);else paintTelephonyList();
   } catch (e) {
     document.getElementById('telephony-list').innerHTML = `<div class="empty">Не удалось загрузить звонки: ${escapeHtml(e.message)}</div>`;
   }
@@ -11161,19 +11161,38 @@ function paintTelephonyList() {
   const el = document.getElementById('telephony-list'); if (!el) return;
   const items = telephonyState.filter === 'missed'
     ? telephonyState.items.filter(x => x.direction === 'in' && CALL_MISSED_STATUSES.has(x.status))
-    : telephonyState.items;
-  if (!items.length) { el.innerHTML = '<div class="empty">Звонков пока нет</div>'; return; }
+    : telephonyState.filter==='recordings' ? (telephonyState.recordings||[]) : telephonyState.items;
+  document.querySelectorAll('[data-tel-filter]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.telFilter===telephonyState.filter)));
+  if (!items.length) { el.innerHTML = '<div class="empty">'+(telephonyState.filter==='recordings'?'Записей разговоров пока нет':'Звонков пока нет')+'</div>'; return; }
   el.innerHTML = items.map(x => {
     const missed = x.direction === 'in' && CALL_MISSED_STATUSES.has(x.status);
     const dt = new Date(x.startedAt); const when = isNaN(dt) ? '' : dt.toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-    return `<div style="display:grid;grid-template-columns:34px minmax(150px,1fr) 130px 110px auto;gap:10px;align-items:center;padding:11px 8px;border-bottom:1px solid var(--b1);${missed?'background:rgba(239,68,68,.07)':''}">
+    return `<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:11px 8px;border-bottom:1px solid var(--b1);${missed?'background:rgba(239,68,68,.07)':''}">
       <div style="font-size:20px">${x.direction === 'in' ? (missed?'↙️':'📲') : '↗️'}</div>
       <div><b style="color:${missed?'#dc2626':'var(--t1)'}">${escapeHtml(x.phone)}</b><div style="font-size:11px;color:var(--t3)">${escapeHtml(when)}</div></div>
       <div style="font-weight:${missed?'700':'500'};color:${missed?'#dc2626':'var(--t2)'}">${escapeHtml(callStatusLabel(x.status))}</div>
       <div style="font-size:12px;color:var(--t3)">${x.durationSec ? Math.floor(x.durationSec/60)+':'+String(x.durationSec%60).padStart(2,'0') : '—'}</div>
-      <div style="display:flex;align-items:center;gap:8px">${x.recordingUrl ? `<audio controls preload="metadata" src="${escapeHtml(x.recordingUrl)}" style="width:210px;height:34px"></audio>` : ''}<button class="btn btn-sm" onclick="placeCall({phone:'${escapeHtml(x.phone)}',contactId:'${escapeHtml(x.contactId||'')}',dealId:'${escapeHtml(x.dealId||'')}'})">📞 Перезвонить</button></div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;max-width:100%">${x.recordingUrl ? `<audio controls preload="none" src="${escapeHtml(x.recordingUrl)}" style="width:210px;max-width:100%;height:34px"></audio>` : ''}<button class="btn btn-sm" onclick="placeCall({phone:'${escapeHtml(x.phone)}',contactId:'${escapeHtml(x.contactId||'')}',dealId:'${escapeHtml(x.dealId||'')}'})">📞 Перезвонить</button></div>
     </div>`;
   }).join('');
+  if(telephonyState.filter==='recordings' && telephonyState.recordingsMore){
+    const more=document.createElement('button');more.className='btn';more.textContent='Ещё записи';
+    more.onclick=()=>loadRecordingPage(false);el.append(more);
+  }
+}
+async function loadRecordingPage(reset=false){
+  const el=document.getElementById('telephony-list');if(!el||telephonyState.recordingsLoading)return;
+  telephonyState.recordingsLoading=true;
+  try{
+    const token=await fbAuth.currentUser.getIdToken();
+    const offset=reset?0:(telephonyState.recordings||[]).length;
+    const r=await fetch(`${WORKER_CALL_URL}/log?recordingsOnly=1&limit=100&offset=${offset}`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    const data=await r.json();telephonyState.recordings=reset?(data.items||[]):[...(telephonyState.recordings||[]),...(data.items||[])];
+    telephonyState.recordingsMore=(data.items||[]).length===100;
+    if(telephonyState.filter==='recordings')paintTelephonyList();
+  }catch(e){if(telephonyState.filter==='recordings')el.innerHTML=`<div class="empty">Не удалось загрузить записи: ${escapeHtml(e.message)}</div>`;}
+  finally{telephonyState.recordingsLoading=false;}
 }
 // Глобальный alias — нужен для inline onclick в .call-btn-inline
 window.placeCall = placeCall;
@@ -12201,6 +12220,27 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
   const statusEl = modal.querySelector('#dc-wa-status');
   const tabs = modal.querySelector('#dc-wa-tabs');
   if (!pane || !body) return;
+  const recordings=document.createElement('details');recordings.open=true;
+  recordings.style.cssText='padding:10px 12px;border-bottom:1px solid var(--b1);background:var(--bg1);max-height:220px;overflow:auto';
+  recordings.innerHTML='<summary style="cursor:pointer;font-weight:600">🎧 Записи IP-звонков</summary><div data-call-recordings style="padding-top:8px">Загрузка записей…</div>';
+  pane.before(recordings);
+  const loadCalls=async()=>{
+    if(recordings._loading)return;recordings._loading=true;
+    try{
+      const token=await fbAuth.currentUser.getIdToken();
+      const r=await fetch(`${WORKER_CALL_URL}/log?dealId=${encodeURIComponent(getDealRecordId(deal))}&recordingsOnly=1&limit=200`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
+      if(!r.ok)throw new Error(`HTTP ${r.status}`);
+      const data=await r.json();if(!pane.isConnected)return;
+      const items=data.items||[],sig=JSON.stringify(items.map(x=>[x.id,x.recordingUrl]));
+      const list=recordings.querySelector('[data-call-recordings]');
+      if(recordings.dataset.sig===sig)return;
+      if([...list.querySelectorAll('audio')].some(a=>!a.paused))return;
+      recordings.dataset.sig=sig;
+      list.innerHTML=items.length?items.map(x=>`<div style="padding:6px 0;border-bottom:1px solid var(--b1)"><div style="font-size:12px;margin-bottom:4px">${x.direction==='out'?'↗ Исходящий':'↙ Входящий'} · ${escapeHtml(new Date(x.startedAt).toLocaleString('ru-RU'))} · ${escapeHtml(x.phone)}</div><audio controls preload="none" style="width:100%;height:34px" src="${escapeHtml(x.recordingUrl)}"></audio></div>`).join(''):'Записей звонков пока нет. Все доступные записи — в разделе «Телефония → Записи разговоров».';
+    }catch{if(!recordings.dataset.sig)recordings.querySelector('[data-call-recordings]').textContent='Не удалось загрузить записи. Повторяем проверку…';}
+    finally{recordings._loading=false;}
+  };
+  loadCalls();
   const controls = [input, sendBtn, attachBtn, laterBtn, modal.querySelector('#dc-wa-voice')];
   controls.forEach(el => { if (el) el.disabled = true; });
   const digits = String(contactPhone || '').replace(/\D/g, '').replace(/^8(\d{10})$/, '7$1');
@@ -12290,6 +12330,7 @@ async function mountWhatsappPaneInDeal(modal, deal, contact, contactPhone, conta
     if (!pane.isConnected) { clearInterval(window.__dcWaPollTimer); window.__dcWaPollTimer = null; return; }
     renderDealWaMessages(pane, { silent: true });
     loadDealWaScheduled(pane);
+    if(ticks % 5===0)loadCalls();
     if (++ticks % 5 === 0 && !loadingGroups) {
       loadingGroups = true;
       loadGroups().finally(() => { loadingGroups = false; });
@@ -21377,7 +21418,7 @@ async function renderChats(el) {
   el.innerHTML = `
     <div class="page-title">💬 Чаты</div>
     <div class="page-sub">Переписка с клиентами в WhatsApp + внутренний чат сотрудников + архив старых чатов.</div>
-    <div style="display:flex;gap:8px;margin-bottom:14px">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
       <button class="vt-btn ${chatsState.tab === 'whatsapp' ? 'active' : ''}" data-tab="whatsapp">💬 WhatsApp</button>
       <button class="vt-btn ${chatsState.tab === 'group' ? 'active' : ''}" data-tab="group">👥 Сотрудники</button>
       <button class="vt-btn ${chatsState.tab === 'openlines' ? 'active' : ''}" data-tab="openlines">🗄 Архив (Bitrix)</button>
@@ -23790,7 +23831,7 @@ async function renderSettings(el) {
   el.innerHTML = `
     <div class="page-title">⚙️ Настройки</div>
     <div class="page-sub">Управление сотрудниками, каналами коммуникаций и просмотр истории изменений.</div>
-    <div style="display:flex;gap:8px;margin-bottom:14px">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
       <button class="vt-btn ${settingsState.tab === 'users' ? 'active' : ''}" data-stab="users">🧑‍💼 Сотрудники</button>
       <button class="vt-btn ${settingsState.tab === 'pipelines' ? 'active' : ''}" data-stab="pipelines">🗄 Воронки</button>
       <button class="vt-btn ${settingsState.tab === 'permissions' ? 'active' : ''}" data-stab="permissions">🔒 Права доступа</button>

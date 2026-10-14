@@ -1,3 +1,4 @@
+import { normalPhone, findRecordingCall, recordingToken, lookupRecordingLinks } from './call-recordings.js';
 import {resolvePllatoDemoStages} from './demo-chart.js';
 import { greenApiHost } from './green-api-host.js';
 import { managerStageError, managerPatchError } from './manager-stage-gate.js';
@@ -2351,13 +2352,26 @@ async function handleCallLog(request, env) {
   const where = [];
   const params = [];
   if (contactId) { where.push("contact_id = ?"); params.push(contactId); }
-  if (dealId)    { where.push("deal_id = ?");    params.push(dealId); }
+  if (dealId) {
+    const contact=await env.DB.prepare('SELECT c.id,c.phones FROM contacts c JOIN deals d ON d.contact_id=c.id WHERE d.id=?').bind(dealId).first();
+    let values=[];try{values=JSON.parse(contact?.phones||'[]');}catch{}
+    const phones=[...new Set((Array.isArray(values)?values:[]).flatMap(p=>{
+      const n=normalPhone(typeof p==='string'?p:p.value||p.VALUE);
+      return n.length>=7 ? (/^7\d{10}$/.test(n)?[n,'8'+n.slice(1)]:[n]):[];
+    }))];
+    const stripped="replace(replace(replace(replace(replace(phone,'+',''),' ',''),'-',''),'(',''),')','')";
+    const phoneMatch=phones.length?` OR (contact_id IS NULL AND ${stripped} IN (${phones.map(()=>'?').join(',')}))`:'';
+    where.push(`(deal_id=? OR (deal_id IS NULL AND (contact_id=?${phoneMatch})))`);
+    params.push(dealId,contact?.id||'',...phones);
+  }
+  if(url.searchParams.get('recordingsOnly')==='1')where.push("recording_url IS NOT NULL AND recording_url != ''");
+  const offset=Math.max(0,parseInt(url.searchParams.get('offset')||'0',10)||0);
   if (phone)     { where.push("phone LIKE ?");   params.push("%" + phone + "%"); }
   const whereSQL = where.length ? " WHERE " + where.join(" AND ") : "";
 
   const { results } = await env.DB.prepare(
-    `SELECT * FROM call_log${whereSQL} ORDER BY started_at DESC LIMIT ?`
-  ).bind(...params, limit).all();
+    `SELECT * FROM call_log${whereSQL} ORDER BY started_at DESC, id DESC LIMIT ? OFFSET ?`
+  ).bind(...params, limit, offset).all();
 
   return json({
     items: results.map(r => ({
@@ -8816,6 +8830,24 @@ remove_existing=yes
 static=yes
 writeprotect=no
 `;
+  // StopMixMonitor runs on either party hanging up; HTTP runs outside the hangup path.
+  ext += `
+[crm-record-start]
+exten => s,1,Set(CRM_PHONE=\${FILTER(0-9,\${ARG1})})
+ same => n,Set(CRM_DIRECTION=\${ARG2})
+ same => n,Set(CRM_STARTED=\${EPOCH})
+ same => n,Set(CRM_CALL_KEY=\${FILTER(0-9a-zA-Z.-,\${UNIQUEID})})
+ same => n,Set(CRM_REC_FILE=/var/spool/asterisk/monitor/\${CRM_CALL_KEY}.wav)
+ same => n,Set(CHANNEL(hangup_handler_push)=crm-record-finish,s,1)
+ same => n,MixMonitor(\${CRM_REC_FILE},b)
+ same => n,Return()
+
+[crm-record-finish]
+exten => s,1,StopMixMonitor()
+ same => n,Set(CRM_DURATION=\${FILTER(0-9,\${CDR(billsec)})})
+ same => n,System(/usr/local/sbin/pllato-recording-queue "\${CRM_REC_FILE}" "\${CRM_PHONE}" "\${CRM_DIRECTION}" "\${CRM_STARTED}" "\${CRM_DURATION}" "\${CRM_CALL_KEY}" "${workerOrigin}/api/sip/recording?secret=${encodeURIComponent(secret)}")
+ same => n,Return()
+`;
   // Исходящие: контекст на линию → набор через её транк с её Caller ID
   for (const l of lines) {
     const cid = (l.caller_id || l.number || '').replace(/[^\d+]/g, '');
@@ -8823,6 +8855,7 @@ writeprotect=no
 ;=== Исходящие через линию ${l.number} ===
 [${lineCtx(l)}]
 exten => _X.,1,NoOp(Out via line ${l.number}: \${EXTEN})
+ same => n,Gosub(crm-record-start,s,1(\${EXTEN},out))
 ${cid ? ` same => n,Set(CALLERID(num)=${cid})\n` : ''} same => n,Dial(PJSIP/\${EXTEN}@line-${l.number},60)
  same => n,Hangup()
 `;
@@ -8836,8 +8869,7 @@ ${cid ? ` same => n,Set(CALLERID(num)=${cid})\n` : ''} same => n,Dial(PJSIP/\${E
 [${lineIn(l)}]
 exten => _X.,1,NoOp(In on line ${l.number} from \${CALLERID(num)})
  same => n,Set(CRM_PHONE=\${FILTER(0-9,\${CALLERID(num)})})
- same => n,Set(CRM_REC_FILE=/var/spool/asterisk/monitor/\${UNIQUEID}.wav)
- same => n,MixMonitor(\${CRM_REC_FILE},b)
+ same => n,Gosub(crm-record-start,s,1(\${CRM_PHONE},in))
  same => n,Set(CRM_TARGETS=\${CURL(${workerOrigin}/api/sip/route?phone=\${CRM_PHONE}&format=dial&route_v=20260731b&secret=${secret})})
  same => n,GotoIf(\$["\${CRM_TARGETS}"=""]?mobile)
  same => n,Dial(\${CRM_TARGETS},25)
@@ -8846,10 +8878,7 @@ exten => _X.,1,NoOp(In on line ${l.number} from \${CALLERID(num)})
  same => n,GotoIf(\$["\${CRM_MOBILE}"=""]?done)
  same => n,NoOp(CRM responsible unavailable (\${DIALSTATUS}); fallback to mobile \${CRM_MOBILE})
  same => n,Dial(PJSIP/\${CRM_MOBILE}@line-${l.number},45)
- same => n(done),StopMixMonitor()
- same => n,Set(CRM_DURATION=\${CDR(billsec)})
- same => n,System(test ! -s "\${CRM_REC_FILE}" || (curl -fsS --retry 2 -H "Content-Type: audio/wav" --data-binary @"\${CRM_REC_FILE}" "${workerOrigin}/api/sip/recording?phone=\${CRM_PHONE}&duration=\${CRM_DURATION}&secret=${secret}" && rm -f "\${CRM_REC_FILE}"))
- same => n,Hangup()
+ same => n(done),Hangup()
 
 exten => s,1,Goto(${l.number},1)
 `;
@@ -8858,6 +8887,7 @@ exten => s,1,Goto(${l.number},1)
   ext += `
 [from-internal]
 exten => _X.,1,NoOp(Outbound legacy: \${EXTEN})
+ same => n,Gosub(crm-record-start,s,1(\${EXTEN},out))
 ${defaultLine ? ` same => n,Dial(PJSIP/\${EXTEN}@line-${defaultLine.number},60)` : ' same => n,Hangup()'}
  same => n,Hangup()
 `;
@@ -11050,34 +11080,37 @@ async function handleSipRecordingUpload(request, env) {
   const size = Number(request.headers.get('content-length') || 0);
   if (size > 80 * 1024 * 1024) return json({ error: 'recording too large' }, 413, request);
   const phone = String(url.searchParams.get('phone') || '').replace(/\D/g, '');
-  const duration = Math.max(0, Number(url.searchParams.get('duration') || 0) || 0);
+  const duration = Math.min(86400, Math.max(0, Number(url.searchParams.get('duration') || 0) || 0));
   if (!phone || !request.body) return json({ error: 'phone and audio required' }, 400, request);
 
-  const token = crypto.randomUUID();
+  const direction = url.searchParams.get('direction') === 'out' ? 'out' : 'in';
+  const callKey = String(url.searchParams.get('callKey') || '').slice(0,160);
+  const epoch = Number(url.searchParams.get('started') || 0);
+  const startedAt = new Date(epoch > 0 && epoch < Date.now()/1000+60 ? epoch*1000 : Date.now()-duration*1000).toISOString();
+  const endedAt = new Date(Date.parse(startedAt)+duration*1000).toISOString();
+  const token = callKey ? await recordingToken(callKey,env.SIP_ROUTE_SECRET) : crypto.randomUUID();
   const key = `call-recordings/${token}.wav`;
-  await env.FILES.put(key, request.body, {
-    httpMetadata: { contentType: request.headers.get('content-type') || 'audio/wav' },
-    customMetadata: { phoneTail: phone.slice(-4), duration: String(duration) },
-  });
   const recordingUrl = `${url.origin}/api/call/recording/${token}`;
-  const tail = phone.slice(-10);
-  const recent = await env.DB.prepare(`
-    SELECT id FROM call_log
-    WHERE direction = 'in' AND phone LIKE ? AND (recording_url IS NULL OR recording_url = '')
-    ORDER BY started_at DESC LIMIT 1
-  `).bind(`%${tail}%`).first();
-  const status = duration > 0 ? 'connected' : 'missed';
-  if (recent?.id) {
-    await env.DB.prepare(`UPDATE call_log SET recording_url = ?, recording_r2_key = ?,
-      duration_sec = CASE WHEN ? > 0 THEN ? ELSE duration_sec END,
-      status = CASE WHEN ? > 0 THEN 'connected' ELSE status END,
-      ended_at = COALESCE(ended_at, ?) WHERE id = ?`)
-      .bind(recordingUrl, key, duration, duration, duration, new Date().toISOString(), recent.id).run();
-  } else {
-    await env.DB.prepare(`INSERT INTO call_log
-      (caller_uid, direction, phone, started_at, ended_at, duration_sec, status, provider, recording_url, recording_r2_key, note)
-      VALUES ('asterisk', 'in', ?, ?, ?, ?, ?, 'asterisk-binotel', ?, ?, 'Запись Asterisk')`)
-      .bind(phone, new Date(Date.now() - duration * 1000).toISOString(), new Date().toISOString(), duration, status, recordingUrl, key).run();
+  const previous = await env.DB.prepare('SELECT id FROM call_log WHERE recording_r2_key=?').bind(key).first();
+  if(previous)return json({ok:true,recordingUrl},200,request);
+  const audio = await request.arrayBuffer();
+  if(audio.byteLength>80*1024*1024)return json({error:'recording too large'},413,request);
+  if(audio.byteLength<=44)return json({error:'empty recording'},400,request);
+  await env.FILES.put(key,audio,{httpMetadata:{contentType:'audio/wav'},customMetadata:{phoneTail:phone.slice(-4),duration:String(duration)}});
+  const {results:candidates}=await env.DB.prepare("SELECT * FROM call_log WHERE direction=? AND started_at BETWEEN ? AND ? AND (recording_url IS NULL OR recording_url='')")
+    .bind(direction,new Date(Date.parse(startedAt)-120000).toISOString(),new Date(Date.parse(startedAt)+120000).toISOString()).all();
+  const recent=findRecordingCall(candidates,{phone,direction,startedAt});
+  const links=await lookupRecordingLinks(env,phone);
+  if(recent){
+    await env.DB.prepare(`UPDATE call_log SET recording_url=?,recording_r2_key=?,duration_sec=?,status='connected',
+      ended_at=COALESCE(ended_at,?),contact_id=COALESCE(contact_id,?),deal_id=COALESCE(deal_id,?) WHERE id=? AND (recording_url IS NULL OR recording_url='')`)
+      .bind(recordingUrl,key,duration,endedAt,links.contactId,links.dealId,recent.id).run();
+  }
+  { // The conditional UPDATE may lose a concurrent claim; always ensure this object has a row.
+    await env.DB.prepare(`INSERT INTO call_log(caller_uid,direction,phone,started_at,ended_at,duration_sec,status,provider,recording_url,recording_r2_key,contact_id,deal_id,note)
+      SELECT 'asterisk',?,?,?,?,?,'connected','asterisk-binotel',?,?,?,?, 'Запись IP-телефонии'
+      WHERE NOT EXISTS(SELECT 1 FROM call_log WHERE recording_r2_key=?)`)
+      .bind(direction,phone,startedAt,endedAt,duration,recordingUrl,key,links.contactId,links.dealId,key).run();
   }
   return json({ ok: true, recordingUrl }, 200, request);
 }
