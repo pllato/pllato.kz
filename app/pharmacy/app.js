@@ -1666,7 +1666,7 @@ PAGES.orders=async(c)=>{
   }
   function renderList(){
     const items=visible(); const tb=panel.querySelector('tbody'); cnt.textContent=items.length+' заказов';
-    tb.innerHTML=items.length?items.map(o=>`<tr class="clickable" data-id="${esc(o.id)}"><td><div style="font-weight:600">${esc(o.client_name||'—')}</div><div class="muted2" style="font-size:11px">${esc(o.phone||'')}</div></td><td class="muted" style="font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ordItemsText(o.items))||'—'}</td><td class="num">${ordPriceHtml(o,true)}</td><td><span class="tag">${esc(o.stage||'Новый')}</span> <span class="tag ${o.pay_status&&PAY_ST[o.pay_status]?PAY_ST[o.pay_status][1]:''}">${o.pay_status&&PAY_ST[o.pay_status]?PAY_ST[o.pay_status][0]:'Не оплачено'}</span></td><td class="muted2" style="font-size:12px">${o.origin==='1c'?'<span class="tag cyan" style="font-size:9px">из 1С</span> ':''}${o.ext_id?esc(o.ext_id):(o.status==='queued_1c'?'очередь':'—')}</td></tr>`).join(''):'<tr><td colspan="5" class="muted2" style="padding:16px">Заказов нет</td></tr>';
+    tb.innerHTML=items.length?items.map(o=>`<tr class="clickable" data-id="${esc(o.id)}"><td><div style="font-weight:600">${esc(o.client_name||'—')}</div><div class="muted2" style="font-size:11px">${esc(o.phone||'')}</div></td><td class="muted" style="font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ordItemsText(o.items))||'—'}</td><td class="num">${ordPriceHtml(o,true)}</td><td>${(o.status==='cancelled'||o.status==='cancel_queued')?'<span class="tag red">отменён</span>':`<span class="tag">${esc(o.stage||'Новый')}</span> <span class="tag ${o.pay_status&&PAY_ST[o.pay_status]?PAY_ST[o.pay_status][1]:''}">${o.pay_status&&PAY_ST[o.pay_status]?PAY_ST[o.pay_status][0]:'Не оплачено'}</span>`}</td><td class="muted2" style="font-size:12px">${o.origin==='1c'?'<span class="tag cyan" style="font-size:9px">из 1С</span> ':''}${o.ext_id?esc(o.ext_id):(o.status==='queued_1c'?'очередь':'—')}</td></tr>`).join(''):'<tr><td colspan="5" class="muted2" style="padding:16px">Заказов нет</td></tr>';
     tb.querySelectorAll('[data-id]').forEach(tr=>tr.onclick=()=>{ const o=allOrders.find(x=>x.id===tr.dataset.id); if(o)orderModalLive(o,load); });
   }
   function render(){ if(view==='board'){ boardWrap.style.display=''; panel.style.display='none'; renderBoard(); } else { boardWrap.style.display='none'; panel.style.display=''; renderList(); } }
@@ -1737,6 +1737,7 @@ async function orderModalLive(o,onSaved){
     <div class="fld-row"><div class="fld"><label>Ответственный</label>${userSelectHtml(users,o.mgr,'data-om="mgr"')}</div><div class="fld"><label>Точка (магазин)</label>${storeSelectHtml(omStores,o.store_key,'data-om="store_key"','— точка —')}</div></div>
     <div class="note ${o.ext_id?'':'blue'}" style="margin-top:2px">${ic('i-info','sm')} 1С: ${o.ext_id?('записан, № '+esc(o.ext_id)):(o.status==='queued_1c'?'в очереди на запись':'не отправлен — кнопка «В 1С» ниже')}</div>
     <div class="fld"><label>Состав заказа</label><div id="omItems"></div></div>
+    ${init.length?'':`<div class="fld"><label>Сумма заказа, с <span class="muted2" style="font-weight:400">— состав не заполнен, сумма перенесена из сделки; добавьте товары, и она посчитается сама</span></label><input data-om="total" type="number" min="0" value="${Number(o.total)||0}"></div>`}
     <div class="fld"><label>Промокод (скидка для онлайн-заказа)</label><select data-om="promo"><option value="">— без промокода —</option>${activePromos.map(p=>`<option value="${esc(p.code)}" ${p.code===(o.promo_code||'')?'selected':''}>${esc(p.code)} · −${p.value||0}${p.kind==='fixed'?' с':'%'}</option>`).join('')}</select><div data-om="discline" style="margin-top:6px"></div></div>
     <div class="fld"><label>Доставка (расход), с <span class="muted2">— наш расход, на сумму клиента не влияет</span></label><input data-om="delivery" type="number" min="0" value="${Number(o.delivery)||0}"></div>
     <div data-om="econ" class="note blue" style="margin-top:2px;font-size:12px"></div>
@@ -1761,7 +1762,9 @@ async function orderModalLive(o,onSaved){
   if(oaFile) oaFile.onchange=async()=>{ const f=oaFile.files[0]; if(!f)return; if(f.size>15*1024*1024){ toast('Файл больше 15 МБ','i-info'); oaFile.value=''; return; } toast('Загрузка…','i-sync'); const r=await uploadOrderFile(o.id,f); oaFile.value=''; if(r.ok&&r.data.attachment){ atts=[...atts,r.data.attachment]; renderOAtt(); logLoaded=false; toast('Файл загружен','i-check2'); onSaved&&onSaved(); } else toast((r.data&&r.data.error)||'Не удалось загрузить','i-x','#dc2626'); };
   const g=s=>bg.querySelector('[data-om='+s+']');
   const promoSel=g('promo');
-  recalc=function(){ const code=promoSel?promoSel.value:''; const promo=activePromos.find(p=>p.code===code); const items=ed.getItems(); const sub=items.reduce((a,x)=>a+(x.price||0)*(x.qty||1),0); curDisc=computePromoDiscount(items,promo);
+  recalc=function(){ const code=promoSel?promoSel.value:''; const promo=activePromos.find(p=>p.code===code); const items=ed.getItems(); const manual=g('total');
+    // без состава сумма берётся из поля «Сумма заказа» (заказ пришёл из сделки одной цифрой)
+    const sub=items.length?items.reduce((a,x)=>a+(x.price||0)*(x.qty||1),0):(manual?Number(manual.value)||0:0); curDisc=computePromoDiscount(items,promo);
     { const deliv=Number((g('delivery')||{}).value)||0, payable=Math.max(0,sub-curDisc), econ=bg.querySelector('[data-om=econ]'); if(econ) econ.innerHTML='Товары: <b>'+money(sub)+'</b>'+(curDisc>0?(' · скидка −'+money(curDisc)):'')+' · к оплате: <b>'+money(payable)+'</b>'+(deliv>0?(' · доставка (расход): <b style="color:#dc2626">−'+money(deliv)+'</b> · после доставки: <b>'+money(payable-deliv)+'</b>'):''); }
     const line=bg.querySelector('[data-om=discline]'); if(!line)return;
     if(!code){ line.innerHTML=''; return; }
@@ -1769,8 +1772,12 @@ async function orderModalLive(o,onSaved){
     else { line.innerHTML='<div class="note amber" style="margin:0;font-size:12px">'+ic('i-info','sm')+' Промокод не действует на эти товары (вне области действия)</div>'; } };
   if(promoSel) promoSel.onchange=recalc;
   { const dv=g('delivery'); if(dv) dv.oninput=recalc; }
+  { const tv=g('total'); if(tv) tv.oninput=recalc; }
   recalc();
-  const collect=()=>({client_name:g('client_name').value.trim(),phone:g('phone').value.trim(),mgr:g('mgr').value.trim(),store_key:g('store_key').value||null,note:g('note').value.trim(),items:ed.getItems(),promo_code:(promoSel&&promoSel.value)||null,discount:curDisc,delivery:Number((g('delivery')||{}).value)||0});
+  const collect=()=>{ const items=ed.getItems(), manual=g('total');
+    const body={client_name:g('client_name').value.trim(),phone:g('phone').value.trim(),mgr:g('mgr').value.trim(),store_key:g('store_key').value||null,note:g('note').value.trim(),items,promo_code:(promoSel&&promoSel.value)||null,discount:curDisc,delivery:Number((g('delivery')||{}).value)||0};
+    if(!items.length&&manual) body.total=Number(manual.value)||0; // состав пуст — сумму ведём вручную
+    return body; };
   bg.querySelector('#omSave').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{stage:g('stage').value,pay_status:g('pay').value}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Сохранено','i-check2'); onSaved&&onSaved(); };
   bg.querySelector('#omSend').onclick=async()=>{ const r=await api('/api/orders/'+o.id,{method:'POST',body:JSON.stringify(Object.assign(collect(),{status:'queued_1c'}))}); if(!r.ok){toast('Ошибка','i-x','#dc2626');return;} closeModal(); toast('Заказ в очереди на запись в 1С','i-sync','#d97706'); onSaved&&onSaved(); };
   bg.querySelector('#omDel').onclick=async()=>{ if(!confirm('Удалить заказ?'))return; const r=await api('/api/orders/'+o.id,{method:'DELETE'}); if(r.ok){closeModal();toast('Удалено','i-check2');onSaved&&onSaved();} else toast('Ошибка','i-x','#dc2626'); };
