@@ -8880,9 +8880,9 @@ export default {
         return json(request, env, await handleWidgetKeyRevoke(env, actor, widgetKeyMatch[1]));
       }
 
-      if(['/production-activity','/production-activity/ingest'].includes(path)){
-        const actor=path.endsWith('/ingest')?null:await loadActorContext(request,env,{strictTeamCheck:true});
-        return json(request,env,await handleProductionActivity(request,env,actor,{get:d1GetDoc,save:d1UpsertDoc,HttpError,sources:productionSources}));
+      if(['/production-activity','/production-activity/ingest','/production-activity/register'].includes(path)){
+        const actor=(path.endsWith('/ingest')||path.endsWith('/register'))?null:await loadActorContext(request,env,{strictTeamCheck:true});
+        return json(request,env,await handleProductionActivity(request,env,actor,{get:d1GetDoc,save:d1UpsertDoc,list:d1ListCollection,HttpError,sources:productionSources}));
       }
       if(['/social-publications/day','/social-publications/access','/social-publications/details'].includes(path)){
         const actor=await loadActorContext(request,env,{strictTeamCheck:true});
