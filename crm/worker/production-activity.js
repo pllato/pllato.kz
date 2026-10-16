@@ -13,31 +13,57 @@ export function normalizeActivity(body,now=Date.now()){
  }).sort((a,b)=>a.at-b.at);
  return {observedAt,coverageStart,available:true,buckets};
 }
-export async function handleProductionActivity(request,env,actor,{get,save,HttpError,sources}){
+async function digest(token){
+ const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token));
+ return Array.from(new Uint8Array(bytes),v=>v.toString(16).padStart(2,'0')).join('');
+}
+async function readBody(request,fail,limit=400000){
+ const reader=request.body?.getReader();if(!reader)fail(400,'Нет данных');let size=0;const chunks=[];
+ while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>limit){await reader.cancel();fail(413,'Слишком большой снимок');}chunks.push(value);}
+ const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
+ try{return JSON.parse(new TextDecoder().decode(bytes));}catch{fail(400,'Некорректный JSON');}
+}
+export async function handleProductionActivity(request,env,actor,{get,save,list,HttpError,sources}){
  const fail=(status,text)=>{throw new HttpError(status,text)},path=new URL(request.url).pathname;
+ const token=(request.headers.get('Authorization')||'').replace(/^Bearer /,'');
+ if(path.endsWith('/register')){
+  if(request.method!=='POST')fail(405,'Метод не поддерживается');
+  if(token.length<32||token.length>128)fail(401,'Нет доступа');
+  const hash=await digest(token),issuer=sources.find(d=>d.enrollment&&d.tokenHash===hash);
+  if(!issuer)fail(401,'Нет доступа');
+  const b=await readBody(request,fail,4096);
+  if(!/^[a-f0-9-]{36}$/.test(b.machineId||'')||!['codex','claude'].includes(b.source)||!/^device_[a-f0-9-]{36}_(codex|claude)$/.test(b.id||'')||b.id!==`device_${b.machineId}_${b.source}`||!/^[a-f0-9]{64}$/.test(b.tokenHash||''))fail(400,'Некорректное устройство');
+  const name=typeof b.name==='string'?b.name.trim():'';
+  if(!name||name.length>80||/[\x00-\x1f]/.test(name))fail(400,'Укажите имя компьютера');
+  const existing=await get(env,PRODUCTION_COLLECTION,'key_'+b.id);
+  if(existing){
+   if(existing.tokenHash!==b.tokenHash)fail(409,'Устройство уже зарегистрировано с другим ключом');
+   return {ok:true,id:b.id};
+  }
+  await save(env,PRODUCTION_COLLECTION,{id:'key_'+b.id,deviceId:b.id,machineId:b.machineId,name,source:b.source,tokenHash:b.tokenHash,createdAt:Date.now()},'activity-enrollment');
+  return {ok:true,id:b.id};
+ }
  if(path.endsWith('/ingest')){
   if(request.method!=='POST')fail(405,'Метод не поддерживается');
-  const id=request.headers.get('X-Activity-Device'),device=sources.find(d=>d.id===id);
-  const token=(request.headers.get('Authorization')||'').replace(/^Bearer /,'');
-  if(!device||token.length<32||token.length>128)fail(401,'Нет доступа');
-  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token));
-  const hash=Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,'0')).join('');
-  if(hash!==device.tokenHash)fail(401,'Нет доступа');
-  // Stream with a hard limit before JSON parsing.
-  const reader=request.body?.getReader();if(!reader)fail(400,'Нет данных');let size=0;const chunks=[];
-  while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>400000){await reader.cancel();fail(413,'Слишком большой снимок');}chunks.push(value);}
-  const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
-  let next;try{next=normalizeActivity(JSON.parse(new TextDecoder().decode(bytes)));}catch(e){fail(400,e.message);}
+  const id=request.headers.get('X-Activity-Device');
+  if(!/^[a-zA-Z0-9_-]{1,100}$/.test(id||'')||token.length<32||token.length>128)fail(401,'Нет доступа');
+  const device=sources.find(d=>d.id===id&&!d.enrollment)||await get(env,PRODUCTION_COLLECTION,'key_'+id);
+  if(!device||await digest(token)!==device.tokenHash)fail(401,'Нет доступа');
+  const body=await readBody(request,fail);let next;
+  try{next=normalizeActivity(body);}catch(e){fail(400,e.message);}
   const old=await get(env,PRODUCTION_COLLECTION,id);
   if(old?.observedAt>next.observedAt)return {ok:true,ignored:true};
-  await save(env,PRODUCTION_COLLECTION,{...(old||{}),...next,id,source:device.source,updatedAt:Date.now()},'activity-collector');
+  // A missing journal must not extend the time range of known counts.
+  await save(env,PRODUCTION_COLLECTION,{...(old||{}),...next,id,machineId:device.machineId||id,name:device.name||id,source:device.source,dataObservedAt:next.available?next.observedAt:(old?.dataObservedAt||old?.observedAt||0),updatedAt:Date.now()},'activity-collector');
   return {ok:true,source:device.source,observedAt:next.observedAt};
  }
  if(request.method!=='GET')fail(405,'Метод не поддерживается');
  if(!(actor?.isRoot||actor?.user?.isSuperAdmin))fail(403,'График доступен супер-администратору');
- const result=await Promise.all(sources.map(async device=>{
+ const all=list?await list(env,PRODUCTION_COLLECTION,10000):[];
+ const devices=[...sources.filter(d=>!d.enrollment),...all.filter(r=>r.id.startsWith('key_')).map(r=>({...r,id:r.deviceId}))];
+ const result=await Promise.all(devices.map(async device=>{
   const r=await get(env,PRODUCTION_COLLECTION,device.id);
-  return {source:device.source,connected:!!r,available:r?.available===true,observedAt:r?.observedAt||0,coverageStart:r?.coverageStart||0,buckets:r?.buckets||[]};
+  return {id:device.id,machineId:device.machineId||device.id,name:device.name||device.id,source:device.source,connected:!!r,available:r?.available===true,observedAt:r?.observedAt||0,dataObservedAt:r?.dataObservedAt||r?.observedAt||0,coverageStart:r?.coverageStart||0,buckets:r?.buckets||[]};
  }));
  return {ok:true,sources:result};
 }

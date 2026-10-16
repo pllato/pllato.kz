@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import {handleProductionActivity} from '../crm/worker/production-activity.js';
+const hash=async t=>Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t))).toString('hex');
+const records=new Map();class HttpError extends Error{constructor(status,msg){super(msg);this.status=status;}}
+const enrollment='a'.repeat(64),deps={sources:[{enrollment:true,tokenHash:await hash(enrollment)}],HttpError,get:async(_,c,id)=>records.get(id),save:async(_,c,r)=>records.set(r.id,r),list:async()=>[...records.values()]};
+const request=(route,token,body,device)=>new Request('https://test/production-activity'+route,{method:'POST',headers:{Authorization:'Bearer '+token,...(device?{'X-Activity-Device':device}:{})},body:JSON.stringify(body)});
+const a=crypto.randomUUID(),b=crypto.randomUUID(),ta='b'.repeat(64),tb='c'.repeat(64);
+const body=async(id,t)=>({id:`device_${id}_claude`,machineId:id,source:'claude',name:'Mac '+id.slice(0,5),tokenHash:await hash(t)});
+const ba=await body(a,ta),bb=await body(b,tb);
+await assert.rejects(handleProductionActivity(request('/register',ta,ba),{},null,deps),e=>e.status===401);
+for(const r of [ba,bb,ba])await handleProductionActivity(request('/register',enrollment,r),{},null,deps);
+assert.equal(records.size,2);
+await assert.rejects(handleProductionActivity(request('/register',enrollment,{...ba,tokenHash:await hash(tb)}),{},null,deps),e=>e.status===409);
+const now=Date.now(),at=Math.floor(now/3600000)*3600000;
+for(const [r,t,n] of [[ba,ta,3],[bb,tb,7],[ba,ta,3]])await handleProductionActivity(request('/ingest',t,{observedAt:now,available:true,coverageStart:at,buckets:[{at,count:n}]},r.id),{},null,deps);
+await assert.rejects(handleProductionActivity(request('/ingest',ta,{},bb.id),{},null,deps),e=>e.status===401);
+const view=await handleProductionActivity(new Request('https://test/production-activity'),{},{isRoot:true},deps);
+assert.equal(view.sources.length,2);assert.equal(view.sources.reduce((n,s)=>n+s.buckets[0].count,0),10);assert(!JSON.stringify(view).includes('tokenHash'));
+await handleProductionActivity(request('/ingest',ta,{observedAt:now+1,available:false},ba.id),{},null,deps);
+assert.equal(records.get(ba.id).dataObservedAt,now);
+console.log('PASS: two devices, separate secrets, idempotent registration/snapshots, isolation, safe read, offline coverage');

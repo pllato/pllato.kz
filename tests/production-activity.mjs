@@ -22,3 +22,8 @@ const periods=[{start:hour-3600000,end:hour,label:'before'},{start:hour,end:hour
 const lines=c.window.productionActivity.series({sources:[{source:'codex',coverageStart:hour,observedAt:now,buckets:[{at:hour,count:7}]}]},periods);
 assert.equal(lines[0].points[0].value,null);assert.equal(lines[0].points[1].value,7);assert.equal(lines[2].points[1].value,null);assert.equal(lines[0].points[1].incomplete,true);
 console.log('PASS validation, authentication, idempotence, secret exclusion, disconnected source, missing history and totals');
+
+const multi=c.window.productionActivity.series({sources:[{source:'claude',machineId:'a',coverageStart:hour,observedAt:now,buckets:[{at:hour,count:3}]},{source:'claude',machineId:'b',coverageStart:hour,observedAt:now,buckets:[{at:hour,count:7}]}]},periods);
+assert.equal(multi[0].points[1].value,10);assert.equal(multi[2].points[1].value,10);
+assert.equal(c.window.productionActivity.computers({sources:[{id:'device_a',machineId:'a',source:'claude'},{id:'device_b',machineId:'b',source:'claude'},{id:'device_c',machineId:'a',source:'codex'}]}).length,2);
+console.log('PASS multi-computer totals and grouping');
