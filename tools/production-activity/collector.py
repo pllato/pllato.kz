@@ -74,7 +74,7 @@ def main():
         # Fixed service allowlist; a modified config cannot send credentials elsewhere.
         endpoint=cfg['endpoint']
         if endpoint!='https://pllato-comm.uurraa.workers.dev/production-activity/ingest':raise ValueError('Unexpected endpoint')
-        req=urllib.request.Request(endpoint,json.dumps(body).encode(),headers={'Content-Type':'application/json','Authorization':'Bearer '+cfg['token'],'X-Activity-Device':cfg['device']},method='POST')
+        req=urllib.request.Request(endpoint,json.dumps(body).encode(),headers={'User-Agent':'PllatoActivity/1.0 (macOS)','Content-Type':'application/json','Authorization':'Bearer '+cfg['token'],'X-Activity-Device':cfg['device']},method='POST')
         with urllib.request.urlopen(req,timeout=30) as response:result=json.load(response)
         if not result.get('ok'):raise RuntimeError('Sync failed')
         print(datetime.datetime.now().isoformat(timespec='seconds'),cfg['source'],'sync OK',sum(b['count'] for b in body.get('buckets',[])))
