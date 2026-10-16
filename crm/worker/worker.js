@@ -1,3 +1,5 @@
+import {PRODUCTION_COLLECTION,handleProductionActivity} from './production-activity.js';
+import productionSources from './production-sources.json';
 import { normalizeCustomPaymentPlan } from './payment-plan.js';
 import {SOCIAL_COLLECTION,socialAccess,socialSeries,socialTotalSeries,handleSocialPublications} from './social-publications.js';
 import {fetchDemoChartSeries} from './demo-chart.js';
@@ -861,6 +863,7 @@ async function d1GetDoc(env, collection, id) {
 async function handleStorePull(request, env, actor) {
   const body = await readRequestBodyAsJson(request);
   const collections = normalizeCollectionList(body.collections || []);
+  if(collections.includes(PRODUCTION_COLLECTION))throw new HttpError(403,"Используйте график активности");
   if(collections.includes(SOCIAL_COLLECTION))throw new HttpError(403,"Используйте график публикаций");
   if(collections.includes(PLAN_COLLECTION))throw new HttpError(403,"Используйте финансовое планирование");
   if(collections.includes(PAYOUT_COLLECTION))throw new HttpError(403,"Используйте раздел выплат проекта");
@@ -904,6 +907,7 @@ async function handleStorePush(request, env, actor) {
   for (const op of ops) {
     if (!isObject(op)) continue;
     const collection = normalizeCollectionName(op.collection);
+    if(collection === PRODUCTION_COLLECTION)throw new HttpError(403,"Используйте график активности");
     if(collection === SOCIAL_COLLECTION)throw new HttpError(403,"Используйте график публикаций");
     if(collection === PLAN_COLLECTION)throw new HttpError(403,"Используйте финансовое планирование");
     if(collection === PAYOUT_COLLECTION)throw new HttpError(403,"Используйте раздел выплат проекта");
@@ -8876,6 +8880,10 @@ export default {
         return json(request, env, await handleWidgetKeyRevoke(env, actor, widgetKeyMatch[1]));
       }
 
+      if(['/production-activity','/production-activity/ingest'].includes(path)){
+        const actor=path.endsWith('/ingest')?null:await loadActorContext(request,env,{strictTeamCheck:true});
+        return json(request,env,await handleProductionActivity(request,env,actor,{get:d1GetDoc,save:d1UpsertDoc,HttpError,sources:productionSources}));
+      }
       if(['/social-publications/day','/social-publications/access','/social-publications/details'].includes(path)){
         const actor=await loadActorContext(request,env,{strictTeamCheck:true});
         return json(request,env,await handleSocialPublications(request,env,actor,{get:d1GetDoc,list:listSocialDays,save:saveSocialRecord,HttpError}));
