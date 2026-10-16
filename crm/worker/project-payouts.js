@@ -5,24 +5,27 @@ const email = value => String(value || '').trim().toLowerCase();
 export async function handleProjectPayouts(request, env, actor, deps) {
   const {get, put, list, HttpError} = deps;
   const url = new URL(request.url), admin = payoutAdmin(actor);
+  // Scoped ledger editors, configured separately for each deployment.
+  const canManage = admin || String(env.PAYOUT_MANAGER_EMAILS || '').split(',').map(email).filter(Boolean).includes(email(actor.email));
   const fail = (status, message) => { throw new HttpError(status, message); };
   if (url.pathname === '/project-payouts/access' && request.method === 'GET') {
-    if (admin) return {admin:true, projects:[]};
+    if (canManage) return {admin, canManage, projects:[]};
     const settings = await list(env, 'access');
-    return {admin:false, projects:settings.filter(s=>(s.viewers||[]).includes(email(actor.email))).map(s=>s.projectId)};
+    return {admin:false, canManage:false, projects:settings.filter(s=>(s.viewers||[]).includes(email(actor.email))).map(s=>s.projectId)};
   }
   const projectId = url.searchParams.get('projectId') || '';
   if (!/^[a-zA-Z0-9_-]{1,80}$/.test(projectId)) fail(400,'Некорректный проект');
   const accessId = 'access:'+projectId;
   const access = await get(env,PAYOUT_COLLECTION,accessId);
   if (request.method === 'GET') {
-    if (!admin && !(access?.viewers||[]).includes(email(actor.email))) fail(403,'Нет доступа к выплатам этого проекта');
+    if (!canManage && !(access?.viewers||[]).includes(email(actor.email))) fail(403,'Нет доступа к выплатам этого проекта');
     const items = await list(env,'entry',projectId);
-    return {admin, items:items.filter(i=>!i.deleted), viewers:admin?(access?.viewers||[]):[]};
+    return {admin, canManage, items:items.filter(i=>!i.deleted), viewers:admin?(access?.viewers||[]):[]};
   }
-  if (!admin) fail(403,'Вести выплаты и менять доступ может только супер-админ');
+  if (!canManage) fail(403,'Нет права ведения выплат');
   const body = await request.json();
   if (request.method === 'PUT' && url.pathname === '/project-payouts/access') {
+    if (!admin) fail(403,'Менять доступ может только супер-админ');
     if (!Array.isArray(body.viewers) || body.viewers.length>200) fail(400,'Укажите список сотрудников');
     const viewers = [...new Set(body.viewers.map(email))];
     if(viewers.some(v=>!/^\S+@\S+\.\S+$/.test(v)||v.length>254))fail(400,'Некорректный email');
