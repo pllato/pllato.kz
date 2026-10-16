@@ -1,3 +1,4 @@
+import {ensureActiveChatMemberships} from './chat-membership-lifecycle.js';
 import { normalPhone, findRecordingCall, recordingToken, lookupRecordingLinks } from './call-recordings.js';
 import {resolvePllatoDemoStages} from './demo-chart.js';
 import { greenApiHost } from './green-api-host.js';
@@ -4596,6 +4597,7 @@ async function handleCfSchemaDelete(request, env, entity, fieldName) {
 async function handleAdminListUsers(request, env) {
   const guard = await requireAdmin(request, env);
   if (guard.error) return json({ error: guard.error }, guard.status, request);
+  await ensureActiveChatMemberships(env);
 
   await ensureUserPhonesColumn(env);
   // LEFT JOIN users + user_roles + COUNT задач (для удобства видеть нагрузку)
@@ -4717,6 +4719,7 @@ async function handleAdminSetUserActive(request, env, targetUid) {
   ).bind(targetUid).first();
   if (!before) return json({ error: "user not found", uid: targetUid }, 404, request);
 
+  await ensureActiveChatMemberships(env);
   await env.DB.prepare(
     "UPDATE users SET active = ? WHERE uid = ?"
   ).bind(active, targetUid).run();
