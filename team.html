@@ -5388,7 +5388,7 @@ async function openEmployeeProfile(uid) {
       <div id="ep-avatar" style="width:96px;height:96px;border-radius:50%;margin:0 auto 10px;overflow:hidden;background:var(--ac);display:flex;align-items:center;justify-content:center;color:#fff;font-size:34px;font-weight:700"></div>
       ${data.isSelf ? `<input type="file" id="ep-file" accept="image/*" style="display:none"><button class="qad-btn qad-btn-ghost" id="ep-photo" style="padding:6px 14px;font-size:12px">📷 Изменить фото</button>` : ''}
       <div id="ep-name" style="font-weight:700;font-size:17px;color:var(--t1);margin-top:6px">${escapeHtml(fullName)}${data.canEdit ? ` <button id="ep-edit-name" title="Изменить имя" style="border:none;background:none;cursor:pointer;font-size:14px;vertical-align:middle">✏️</button>` : ''}</div>
-      <div style="font-size:13px;color:var(--t3)">${escapeHtml(p.position || '')}${p.active ? '' : ' · ⏸ неактивен'}</div>
+      <div style="font-size:13px;color:var(--t3)">${escapeHtml(p.position || '')}<span id="ep-active-status">${p.active ? '' : ' · ⏸ неактивен'}</span></div>
     </div>
     <div>
       ${row('📞 Телефон', phonesHtml)}
@@ -5404,6 +5404,29 @@ async function openEmployeeProfile(uid) {
            <span id="ep-bio-status" style="font-size:12px;margin-left:8px"></span>`
         : `<div style="font-size:13px;color:var(--t1);white-space:pre-wrap">${p.bio ? escapeHtml(p.bio) : '<span style="color:var(--t3)">—</span>'}</div>`}
     </div>`;
+  if (window.currentUser?.role === 'admin') {
+    const actions = document.createElement('div');
+    actions.style.cssText = 'margin-top:20px;padding-top:16px;border-top:1px solid var(--b1)';
+    const activeButton = document.createElement('button');
+    activeButton.type = 'button';
+    activeButton.id = 'ep-toggle-active';
+    activeButton.className = 'qad-btn qad-btn-ghost';
+    const updateActiveLabel = () => {
+      activeButton.textContent = p.active ? 'Деактивировать сотрудника' : 'Восстановить сотрудника';
+      activeButton.style.color = p.active ? 'var(--rd)' : 'var(--gn)';
+      body.querySelector('#ep-active-status').textContent = p.active ? '' : ' · ⏸ неактивен';
+    };
+    updateActiveLabel();
+    activeButton.onclick = async () => {
+      if (await toggleUserActive(p.uid || uid, Boolean(p.active), activeButton)) {
+        p.active = !p.active;
+        updateActiveLabel();
+      }
+      activeButton.disabled = false;
+    };
+    actions.append(activeButton);
+    body.append(actions);
+  }
   paintAvatarEl(body.querySelector('#ep-avatar'), p.photoUrl, fullName);
 
   const mgrLink = body.querySelector('#ep-mgr');
@@ -25800,6 +25823,7 @@ function _renderUsersTable() {
 }
 
 async function toggleUserActive(uid, currentlyActive, btn) {
+  if (window.currentUser?.role !== 'admin') return false;
   const verb = currentlyActive ? 'деактивировать' : 'восстановить';
   if (!confirm(`Точно ${verb} сотрудника?`)) return;
   btn.disabled = true;
@@ -25820,6 +25844,7 @@ async function toggleUserActive(uid, currentlyActive, btn) {
       headers: { 'Authorization': `Bearer ${idToken}` },
     }).then(r => r.ok ? r.json() : null).catch(() => null);
     if (fresh && fresh.items) renderUsersAdminTable(fresh.items);
+    return true;
   } catch (e) {
     alert('Ошибка: ' + e.message);
     btn.disabled = false;
