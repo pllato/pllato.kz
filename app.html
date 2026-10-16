@@ -7629,7 +7629,7 @@ async function paintFinanceCharts(el,data,{cached=false}={}){
   el.innerHTML='<div class="sales-quick-link" id="salesQuickLink"></div>'
     +status
     +financeChartsHeader()
-    +'<div class="fc-grid fc-aligned-grid">'+kinds.map(kind=>financeChartCard(kind,data.charts[kind])).join('')+(canSeeProjectMoney()&&window.productionActivity?productionActivity.card(data.productionActivity,Object.values(data.charts).find(Array.isArray)||[]):'')+'</div>';
+    +'<div class="fc-grid fc-aligned-grid">'+kinds.filter(kind=>kind!=='releases').map(kind=>financeChartCard(kind,data.charts[kind])).join('')+(canSeeProjectMoney()&&window.productionActivity?productionActivity.card(data.productionActivity,Object.values(data.charts).find(Array.isArray)||[]):'')+(kinds.includes('releases')?financeChartCard('releases',data.charts.releases):'')+'</div>';
   const analyticsSlot=document.getElementById('leadAnalyticsSlot');
   if(analyticsSlot){
     analyticsSlot.innerHTML=kinds.includes('inquiries')&&kinds.includes('kep')?leadAnalyticsShell():'';
