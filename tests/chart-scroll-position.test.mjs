@@ -14,7 +14,7 @@ function setup(){
  const root={matches:()=>false,querySelector:s=>s==='.fc-grid'?grid:null,querySelectorAll:()=>[section]};
  Object.defineProperty(root,'innerHTML',{set(){grid.scrollLeft=0;section.scrollTop=0;list.scrollTop=0;history.scrollTop=0;}});
  const window={scrollX:0,scrollY:420,scrollTo({left,top}){this.scrollX=left;this.scrollY=top;}};
- const c=vm.createContext({window,console,document:{getElementById:()=>null},CHART_ALLOWED:{},CHART_VISIBILITY:{},CHART_SCALE:{},FINANCE_CHART_PERIOD:'week',financeChartKinds:()=>['cash'],loadProjectManagers:async()=>{},loadFinanceChartComments:async()=>{},loadFinanceWeekTasks:async()=>{},ensureInitialFinanceComment:async()=>{},loadGlobalSalesQuickLink:async()=>{},financeChartsHeader:()=>'',financeChartCard:()=>'',applyFinanceChartsFold:()=>{},restorePortalPosition:()=>{throw Error('Must not restore stale portal position during edit');}});
+ const c=vm.createContext({window,console,document:{getElementById:()=>null},CHART_ALLOWED:{},CHART_VISIBILITY:{},CHART_SCALE:{},FINANCE_CHART_PERIOD:'week',applyAppDemoChart:()=>{},financeChartKinds:()=>['cash'],loadProjectManagers:async()=>{},loadFinanceChartComments:async()=>{},loadFinanceWeekTasks:async()=>{},ensureInitialFinanceComment:async()=>{},loadGlobalSalesQuickLink:async()=>{},financeChartsHeader:()=>'',financeChartCard:()=>'',applyFinanceChartsFold:()=>{},restorePortalPosition:()=>{throw Error('Must not restore stale portal position during edit');}});
  vm.runInContext(code,c);return {c,root,section,list,history,grid,window};
 }
 test('full chart repaint preserves latest horizontal, page and task scroll after async loading',async()=>{
@@ -33,4 +33,10 @@ test('task-only replacement preserves list/history/fullscreen panel offsets',()=
 test('current and next week retain independent scroll positions for the same chart',()=>{
  const {c,root,section}=setup();section.dataset.start='100';const next={...section,dataset:{taskKind:'cash',start:'200'},scrollTop:170,querySelector:()=>null};root.querySelectorAll=()=>[section,next];
  const saved=c.captureFinanceChartPosition(root);section.scrollTop=0;next.scrollTop=0;c.restoreFinanceChartPosition(root,saved);assert.equal(section.scrollTop,90);assert.equal(next.scrollTop,170);
+});
+
+test('first chart paint does not restore persisted page position',async()=>{
+ const {c,root,window}=setup();root.querySelector=()=>null;
+ await c.paintFinanceCharts(root,{charts:{cash:[]}});
+ assert.equal(window.scrollY,420);
 });

@@ -2,6 +2,13 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
+<script>
+// A fresh visit starts at the top; asynchronous data must not restore an old offset.
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+window.addEventListener('pageshow', event => {
+  if (!event.persisted && !location.hash) window.scrollTo({top:0,left:0,behavior:'instant'});
+});
+</script>
 <!-- Start authentication dependencies before parsing the full workspace. -->
 <link rel="modulepreload" href="./pllato-kz-shared/pllato-api.js?v=20260813-access-timeout">
 <link rel="modulepreload" href="./app/project-payouts.js?v=20261016-access">
@@ -477,6 +484,27 @@ body {
   .cw-chip{max-width:100%}
   #cwTip{display:none}
 }
+
+/* Calendar has the same footprint before and after its requests finish. */
+.cal-widget.on{display:grid;grid-template-columns:minmax(180px,1fr) minmax(240px,1.5fr) auto;min-height:142px;box-sizing:border-box}
+.cal-widget .cw-head{white-space:normal;flex-wrap:wrap;align-content:center;min-width:0}
+.cal-widget .cw-list{height:118px;max-height:118px;overflow-y:auto;align-content:flex-start;flex:none}
+.cal-widget .cw-entry{width:100%}
+.cw-actions{display:flex;gap:8px;align-items:center}
+.cal-widget .cw-actions .cw-open{margin:0}
+@media(max-width:1100px){
+ .cal-widget.on{grid-template-columns:minmax(0,1fr) auto;grid-template-rows:44px 118px}
+ .cal-widget .cw-list{grid-column:1/-1;grid-row:2}
+ .cw-actions{grid-column:2;grid-row:1}
+}
+@media(max-width:720px){
+ .cal-widget.on{grid-template-columns:minmax(0,1fr);grid-template-rows:52px 144px 44px;gap:8px}
+ .cal-widget .cw-head{align-content:start;overflow:hidden}
+ .cal-widget .cw-list{height:144px;max-height:144px;overflow-y:auto;grid-column:1;grid-row:2}
+ .cw-actions{grid-column:1;grid-row:3;min-width:0}
+ .cal-widget .cw-actions .cw-open{width:auto;flex:1;min-width:0;font-size:11px;padding:9px 6px}
+}
+
 /* ===== Рабочие пространства: Pllato и Pixel English ===== */
 .ws-bar { display:flex; gap:4px; align-items:flex-end; margin:0 0 22px; border-bottom:1px solid var(--line); }
 .ws-tab {
@@ -857,7 +885,7 @@ body {
 .sales-quick-link button, .sales-quick-link .sql-open { border:1px solid var(--line-2); background:transparent; color:var(--text-2); border-radius:8px; padding:6px 9px; font:700 11px/1.2 inherit; cursor:pointer; white-space:nowrap; text-decoration:none; }
 .sales-quick-link button:hover, .sales-quick-link .sql-open:hover { border-color:var(--bronze-deep); color:var(--bronze-deep); text-decoration:none; }
 .finance-charts.folded { margin-bottom: 18px; }
-.finance-charts.folded .fc-grid { display: none; }
+.finance-charts.folded .fc-grid, .finance-charts.folded > .fc-empty, .finance-charts.folded > .fc-status { display: none; }
 .lead-analytics-slot { margin:28px 0 8px; }
 .lead-analytics-slot:empty { display:none; }
 .lead-analytics-slot.finance-folded { display:none; }
@@ -5595,6 +5623,8 @@ let PROJECT_DATE_FILTERS = {
 };
 let GROUPS_INIT = false;
 let PORTAL_SCROLL_TIMER = null;
+// Keep tab offsets only for this visit, never across reloads/devices.
+PORTAL_VIEW.scroll = {};
 
 function refreshFavsUi(){
  document.querySelectorAll('.tool-card[data-app-id]').forEach(card=>{
@@ -5846,6 +5876,9 @@ function initProjectGroups(){
   });
   buildProjectTabs();
   installProjectContracts();
+  const charts=ensureFinanceCharts();
+  if(charts&&!charts.innerHTML)charts.innerHTML=financeChartsHeader();
+  applyFinanceChartsFold();
   injectMoney();
   restoreWorkspace();
   // Виджет встреч запускаем ПОСЛЕ того, как портал отрисовал свои данные:
@@ -5853,6 +5886,7 @@ function initProjectGroups(){
   scheduleTodayCalendar();
 }
 function scheduleTodayCalendar(){
+  renderTodayCalendar(); // Reserve the calendar layout before starting deferred requests.
   const start=()=>{ loadTodayCalendar().catch(e=>console.warn('виджет встреч:',e)); };
   if(document.readyState==='complete') setTimeout(start,1500);
   else window.addEventListener('load',()=>setTimeout(start,1500),{once:true});
@@ -7545,7 +7579,7 @@ function toggleFinanceCharts(){
 function financeChartsHeader(){
   const meta=financeChartPeriodMeta();
   const periods=Object.entries(FINANCE_CHART_PERIOD_META).map(([key,item])=>`<button type="button" class="${key===FINANCE_CHART_PERIOD?'active':''}" onclick="setFinanceChartPeriod('${key}')" aria-pressed="${key===FINANCE_CHART_PERIOD}">${item.label}</button>`).join('');
-  const toggle=financeChartsPinnedOpen()?'':'<button class="fc-toggle" onclick="toggleFinanceCharts()"></button>';
+  const toggle=financeChartsPinnedOpen()?'':`<button class="fc-toggle" onclick="toggleFinanceCharts()" aria-expanded="${financeChartsAreOpen()}">${financeChartsAreOpen()?'Свернуть':'Развернуть'}</button>`;
   return `<div class="fc-head"><div><h2>${meta.heading}</h2><p>${meta.description}</p></div><div class="fc-head-actions"><div class="fc-period-switch" role="group" aria-label="Масштаб графиков">${periods}</div>${toggle}</div></div>`;
 }
 // Capture immediately before replacing DOM, after pending requests finish.
@@ -7662,7 +7696,7 @@ async function paintFinanceCharts(el,data,{cached=false}={}){
   if(analyticsEl) renderLeadAnalytics(analyticsEl);
   applyFinanceChartsFold();
   if(position.hasGrid)restoreFinanceChartPosition(el,position);
-  else restorePortalPosition();
+
   return true;
 }
 async function renderFinanceCharts(){
@@ -7672,7 +7706,7 @@ async function renderFinanceCharts(){
   const requestId=++FINANCE_CHART_REQUEST;
   const cached=readFinanceChartCache();
   if(cached) await paintFinanceCharts(el,mergeFinanceChartData({},cached.data),{cached:true});
-  else if(!el.querySelector('.fc-grid')) el.innerHTML=financeChartsHeader()+'<div class="fc-empty">Загружаю статистику…</div>';
+  else if(!el.querySelector('.fc-grid')) {el.innerHTML=financeChartsHeader()+'<div class="fc-empty">Загружаю статистику…</div>';applyFinanceChartsFold();}
   try{
     FINANCE_WEEK_TASKS_LOADED=false;
     const data=await apiFetch(`/project-finance/charts?points=8&period=${FINANCE_CHART_PERIOD}`);
@@ -8428,13 +8462,13 @@ function renderTodayCalendar(){
   const box=document.getElementById('calWidget');
   if(!box) return;
   if(!calCanSee()){ box.classList.remove('on'); return; }
-  const open=(calCanSeeWidget()
+  const open='<div class="cw-actions">'+(calCanSeeWidget()
       ? '<a class="cw-open" href="ios-widget.html" title="Тот же список виджетом на домашнем экране iPhone">📱 На iPhone</a>'
       : '')
-    +'<a class="cw-open" href="team.html?page=calendar">Открыть календарь →</a>';
+    +'<a class="cw-open" href="team.html?page=calendar">Открыть календарь →</a></div>';
   if(CAL_EVENTS===null){
     box.className='cal-widget on empty';
-    box.innerHTML='<div class="cw-head"><span class="cw-title">📅 Сегодня</span><span class="cw-sub">загружаю встречи…</span></div>'+open;
+    box.innerHTML='<div class="cw-head"><span class="cw-title">📅 Сегодня</span><span class="cw-sub">загружаю встречи…</span></div><div class="cw-list"></div>'+open;
     return;
   }
   const now=Date.now();
@@ -8446,7 +8480,7 @@ function renderTodayCalendar(){
   if(!CAL_EVENTS.length){
     box.className='cal-widget on empty';
     box.innerHTML='<div class="cw-head"><span class="cw-title">📅 Сегодня встреч нет</span>'
-      +'<span class="cw-sub">календарь свободен</span></div>'+open;
+      +'<span class="cw-sub">календарь свободен</span></div><div class="cw-list"></div>'+open;
     return;
   }
   const nextItem=upcoming[0];
