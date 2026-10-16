@@ -801,8 +801,9 @@ body {
 .mm-plan-row .name span { display:block; margin-top:3px; color:var(--text-3); font-size:10px; }
 .mm-plan-row .sum { font-size:12px; font-weight:800; color:var(--green); white-space:nowrap; }
 .mm-plan-row input { padding:7px 9px; font-size:11.5px; }
-.mm-plan-row.cp { grid-template-columns:minmax(0,1fr) 120px minmax(170px,.6fr) 24px; }
+.mm-plan-row.cp { grid-template-columns:minmax(0,1fr) minmax(150px,.55fr) minmax(170px,.6fr) 24px; }
 .mm-plan-row.cp .name input { width:100%; font-weight:700; }
+.cp-value { display:grid; gap:6px; min-width:0; } .cp-value select,.cp-value input { width:100%; min-width:0; } .cp-value small { color:var(--green); }
 .mm-plan-row.cp .amt { text-align:right; font-weight:800; color:var(--green); }
 .cp-del { border:0; background:transparent; color:var(--text-3); cursor:pointer; font-size:13px; }
 .cp-foot { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:10px 12px; border-top:1px solid var(--line-2); font-size:11.5px; }
@@ -6210,9 +6211,8 @@ async function syncPaymentPlanTasks(id){
     const amount=paymentPlanAmount(id,stage);
     const cashId=paymentPlanTaskId(id,'cash',stage.id);
     const oldCash=FINANCE_WEEK_TASKS.find(task=>task.id===cashId);
-    // Свой график: платёж считается полученным, когда поступлений хватает на всё, кроме следующих платежей графика.
-    const later=custom?stages.slice(index+1).reduce((sum,next)=>sum+paymentPlanAmount(id,next),0):0;
-    const reached=custom ? (mDeal(id)>0 && received>=mDeal(id)-later) : (stage.id==='final' ? projectIsAutoComplete(id) : received>=(Number(firstPay?.sum)||0)+amount);
+    // Считаем поступления сверх уже полученного при настройке плана; незапланированный остаток не мешает закрыть транш.
+    const reached=custom ? (amount>0 && received>=(Number(item.planPaidBase ?? Math.max(0,mDeal(id)-stages.reduce((sum,next)=>sum+paymentPlanAmount(id,next),0)))+stages.slice(0,index+1).reduce((sum,next)=>sum+paymentPlanAmount(id,next),0))) : (stage.id==='final' ? projectIsAutoComplete(id) : received>=(Number(firstPay?.sum)||0)+amount);
     desired.push({
       ...(oldCash||{}),id:cashId,kind:'cash',start:bounds.start,end:bounds.end,
       text:custom?`${projName(id)} · ${String(stage.label||'платёж').toLowerCase()}`:`${projName(id)} · ${stage.label.toLowerCase()} ${stage.percent}%`,amount:toKZT(id,amount),
@@ -6499,7 +6499,7 @@ function renderMoneyModal(){
 function paymentPlanMarkup(id){
   const stages=Array.isArray(MONEY[id]?.paymentPlan)?MONEY[id].paymentPlan:[];
   if(planIsCustom(id)) return customPlanMarkup(id,stages);
-  const own='<button type="button" onclick="setPlanMode(\'custom\')">Свой график</button>';
+  const own='<button type="button" onclick="setPlanMode(\'custom\')">Настроить транши и проценты</button>';
   if(!firstProjectPaymentAt(id) || mDeal(id)<=0){
     return '<div class="mm-plan" id="mmPlan"><div class="mm-plan-head"><strong>План платежей</strong>'+own+'</div><div class="mm-plan-empty">Автоматический план 45% + 45% появится, когда указана сумма сделки и добавлен первый платёж. Или составьте свой график — суммы и даты по договору.</div></div>';
   }
@@ -6513,20 +6513,25 @@ function paymentPlanMarkup(id){
       +'<div class="sum">'+mEsc(fmtCur(id,amount))+(curOf(id)==='USD'?'<span class="ke2"> ≈ '+mEsc(fmtT(toKZT(id,amount)))+'</span>':'')+'</div>'
       +'<input type="datetime-local" value="'+mEsc(almatyInputFromAt(stage.dueAt))+'" onchange="setPaymentPlanDate(\''+mEsc(stage.id)+'\',this.value)" aria-label="Дата: '+mEsc(stage.label)+'"></div>';
   }).join('');
-  return '<div class="mm-plan" id="mmPlan"><div class="mm-plan-head"><strong>План платежей</strong><span class="mm-auto-badge">Автоматически</span><button type="button" onclick="setPlanMode(\'custom\')">Свой график</button><button type="button" style="margin-left:6px" onclick="resetPaymentPlanDates()">Вернуть даты +2 / +6 недель</button></div>'
+  return '<div class="mm-plan" id="mmPlan"><div class="mm-plan-head"><strong>План платежей</strong><span class="mm-auto-badge">Автоматически</span><button type="button" onclick="setPlanMode(\'custom\')">Настроить транши и проценты</button><button type="button" style="margin-left:6px" onclick="resetPaymentPlanDates()">Вернуть даты +2 / +6 недель</button></div>'
     +'<div class="mm-plan-note">Даты можно менять. Плановые суммы и дела недели обновляются автоматически без дублей.</div>'+rows+'</div>';
 }
 function customPlanMarkup(id,stages){
-  const total=stages.reduce((sum,stage)=>sum+paymentPlanAmount(id,stage),0), debt=mDebt(id);
-  const diff=debt-total;
-  const rows=stages.map(stage=>'<div class="mm-plan-row cp"><div class="name"><input value="'+mEsc(stage.label||'')+'" onchange="setPlanField(\''+mEsc(stage.id)+'\',\'label\',this.value)" aria-label="Название платежа"><span>'+(stage.final?'Создаёт дело в кассе и плановый выпуск':'Создаёт дело в недельном плане кассы')+'</span></div>'
-    +'<input class="amt" type="number" min="0" value="'+paymentPlanAmount(id,stage)+'" onchange="setPlanField(\''+mEsc(stage.id)+'\',\'amount\',this.value)" aria-label="Сумма платежа">'
-    +'<input type="datetime-local" value="'+mEsc(almatyInputFromAt(stage.dueAt))+'" onchange="setPaymentPlanDate(\''+mEsc(stage.id)+'\',this.value)" aria-label="Дата платежа">'
-    +'<button type="button" class="cp-del" title="Убрать платёж" onclick="delPlanStage(\''+mEsc(stage.id)+'\')">✕</button></div>').join('');
-  const check=Math.abs(diff)<1?'<span class="cp-ok">График = остатку по сделке</span>':'<span class="cp-warn">'+(diff>0?'Не хватает ':'Лишнее ')+mEsc(fmtCur(id,Math.abs(diff)))+' до остатка '+mEsc(fmtCur(id,debt))+'</span>';
-  return '<div class="mm-plan" id="mmPlan"><div class="mm-plan-head"><strong>План платежей</strong><span class="mm-auto-badge">Свой график</span><button type="button" onclick="setPlanMode(\'auto\')">Вернуть автоматический</button></div>'
-    +'<div class="mm-plan-note">Суммы, даты и названия можно менять. По каждому платежу создаётся дело в недельном плане кассы; последний — ещё и плановый выпуск.</div>'+rows
-    +'<div class="cp-foot"><button type="button" onclick="addPlanStage()">＋ Платёж</button><span>Итого по графику: <b>'+mEsc(fmtCur(id,total))+'</b></span>'+check+'</div></div>';
+  const total=stages.reduce((sum,stage)=>sum+paymentPlanAmount(id,stage),0);
+  const base=Number(MONEY[id].planPaidBase ?? Math.max(0,mDeal(id)-total));
+  const diff=mDeal(id)-base-total;
+  const rows=stages.map(stage=>{
+    const pct=stage.amount==null||stage.amount==='';
+    const token=mEsc(stage.id);
+    return '<div class="mm-plan-row cp"><div class="name"><input maxlength="120" value="'+mEsc(stage.label||'')+'" onchange="setPlanField(\''+token+'\',\'label\',this.value)" aria-label="Название транша"><span>'+(stage.final?'Последний транш · плановый выпуск':'Транш · недельный план кассы')+'</span></div>'
+      +'<div class="cp-value"><select aria-label="Способ расчёта транша" onchange="setPlanField(\''+token+'\',\'mode\',this.value)"><option value="percent"'+(pct?' selected':'')+'>% от суммы сделки</option><option value="amount"'+(!pct?' selected':'')+'>Сумма, '+(curOf(id)==='USD'?'$':'₸')+'</option></select><input class="amt" type="number" min="0" '+(pct?'max="100"':'')+' step="0.01" value="'+Number(pct?stage.percent:stage.amount)+'" onchange="setPlanField(\''+token+'\',\''+(pct?'percent':'amount')+'\',this.value)" aria-label="'+(pct?'Процент транша':'Сумма транша')+'"><small>'+mEsc(fmtCur(id,paymentPlanAmount(id,stage)))+'</small></div>'
+      +'<input type="datetime-local" value="'+mEsc(almatyInputFromAt(stage.dueAt))+'" onchange="setPaymentPlanDate(\''+token+'\',this.value)" aria-label="Дата транша">'
+      +'<button type="button" class="cp-del" title="Убрать транш" onclick="delPlanStage(\''+token+'\')">✕</button></div>';
+  }).join('');
+  const check=Math.abs(diff)<1?'<span class="cp-ok">Вся сумма распределена</span>':'<span class="cp-warn">'+(diff>0?'Не запланировано: ':'Сверх суммы сделки: ')+mEsc(fmtCur(id,Math.abs(diff)))+'</span>';
+  return '<div class="mm-plan" id="mmPlan"><div class="mm-plan-head"><strong>План платежей</strong><button type="button" onclick="setPlanMode(\'auto\')">Вернуть 45% + 45%</button></div>'
+    +'<div class="mm-plan-note">Проценты — от всей суммы сделки. Добавляйте оставшиеся транши: поступившие платежи уже учтены отдельно. Изменения сохраняются автоматически.</div>'+rows
+    +'<div class="cp-foot"><button type="button" onclick="addPlanStage()">＋ Транш</button><span>По плану: <b>'+mEsc(fmtCur(id,total))+'</b></span>'+check+'</div></div>';
 }
 function savePlanAndRender(projectId){
   saveMoney(); schedulePaymentPlanTaskSync(projectId);
@@ -6537,8 +6542,9 @@ function setPlanMode(mode){
   const item=MONEY[_mmId];
   if(mode==='custom'){
     const stages=Array.isArray(item.paymentPlan)?item.paymentPlan:[];
-    item.paymentPlan=stages.map(stage=>({id:stage.id,label:stage.label+(stage.percent?' · '+stage.percent+'%':''),amount:paymentPlanAmount(_mmId,stage),final:stage.id==='final',dueAt:Number(stage.dueAt)||0}));
+    item.paymentPlan=stages.map(stage=>({id:stage.id,label:stage.label,...(stage.amount!=null?{amount:stage.amount}:{percent:Number(stage.percent)||0}),final:stage.id==='final',dueAt:Number(stage.dueAt)||0}));
     if(!item.paymentPlan.length) item.paymentPlan=[{id:'p'+Date.now(),label:'Платёж',amount:mDebt(_mmId),final:true,dueAt:Date.now()+14*864e5}];
+    item.planPaidBase=mRecv(_mmId);
     item.planMode='custom';
   } else {
     if(!confirm('Вернуть автоматический план 45% + 45%? Свой график будет удалён.')) return;
@@ -6566,15 +6572,26 @@ function setReceivedPay(index,field,value){
 function setPlanField(stageId,field,value){
   if(!canSeeProjectMoney()||!_mmId) return;
   const stage=paymentPlanStage(_mmId,stageId); if(!stage) return;
-  if(field==='amount') stage.amount=Math.max(0,parseInt(value)||0); else stage.label=String(value||'').trim().slice(0,120)||'Платёж';
+  if(field==='mode'){
+    const amount=paymentPlanAmount(_mmId,stage);
+    if(value==='percent' && amount>mDeal(_mmId) && mDeal(_mmId)>0){ alert('Сумма транша больше суммы сделки. Уменьшите её перед переводом в проценты.'); savePlanAndRender(_mmId); return; }
+    if(value==='percent') { stage.percent=mDeal(_mmId)>0?Math.round(amount/mDeal(_mmId)*10000)/100:0; delete stage.amount; }
+    else { stage.amount=amount; delete stage.percent; }
+  } else if(field==='amount'||field==='percent'){
+    const n=Number(String(value).replace(',','.'));
+    if(!String(value).trim() || !Number.isFinite(n)||n<0||(field==='percent'&&n>100)){ alert('Укажите корректное неотрицательное значение'+(field==='percent'?' до 100%':'')); savePlanAndRender(_mmId); return; }
+    stage[field]=n; delete stage[field==='amount'?'percent':'amount'];
+  } else if(field==='label') stage.label=String(value||'').trim().slice(0,120)||'Платёж';
+  else return;
   savePlanAndRender(_mmId);
 }
 function addPlanStage(){
   if(!canSeeProjectMoney()||!_mmId) return;
   const item=MONEY[_mmId], plan=item.paymentPlan||(item.paymentPlan=[]);
+  if(plan.length>=100){alert('В одном плане можно создать до 100 траншей.');return;}
   const last=plan[plan.length-1];
   plan.forEach(stage=>{ stage.final=false; });
-  plan.push({id:'p'+Date.now(),label:'Платёж',amount:0,final:true,dueAt:(Number(last?.dueAt)||Date.now())+30*864e5});
+  plan.push({id:'p'+crypto.randomUUID(),label:'Платёж',percent:0,final:true,dueAt:(Number(last?.dueAt)||Date.now())+30*864e5});
   savePlanAndRender(_mmId);
 }
 function delPlanStage(stageId){
@@ -6618,7 +6635,7 @@ function addMoneyPay(){
 function delMoneyPay(i){
   if(!canSeeProjectMoney()||!_mmId) return;
   MONEY[_mmId].pays.splice(i,1);
-  if(!MONEY[_mmId].pays.length){ MONEY[_mmId].orderCreatedAt=0; MONEY[_mmId].paymentPlan=[]; }
+  if(!MONEY[_mmId].pays.length){ MONEY[_mmId].orderCreatedAt=0; if(!planIsCustom(_mmId)) MONEY[_mmId].paymentPlan=[]; }
   else ensurePaymentPlan(_mmId);
   saveMoney(); schedulePaymentPlanTaskSync(_mmId); renderMoneyModal(); renderMoneyStrip(_mmId); renderProjectComplete(_mmId); renderMoneySummary(); renderFinanceCharts();
 }
