@@ -19,3 +19,16 @@ assert.equal(view.sources.length,2);assert.equal(view.sources.reduce((n,s)=>n+s.
 await handleProductionActivity(request('/ingest',ta,{observedAt:now+1,available:false},ba.id),{},null,deps);
 assert.equal(records.get(ba.id).dataObservedAt,now);
 console.log('PASS: two devices, separate secrets, idempotent registration/snapshots, isolation, safe read, offline coverage');
+const endpoint='https://test/production-activity/settings';
+const settingsReq=body=>new Request(endpoint,{method:'PUT',body:JSON.stringify(body)});
+const config={viewers:['Reader@Example.com'],scales:{day:10,week:100,month:null}};
+await assert.rejects(handleProductionActivity(settingsReq(config),{},{email:'reader@example.com'},deps),e=>e.status===403);
+await handleProductionActivity(settingsReq(config),{},{isRoot:true,email:'admin@example.com'},deps);
+const read=new Request('https://test/production-activity');
+const permitted=await handleProductionActivity(read,{},{email:'reader@example.com'},deps);
+assert.equal(permitted.canManage,false);assert.equal(permitted.settings.scales.week,100);assert.equal(permitted.settings.viewers,undefined);
+await assert.rejects(handleProductionActivity(read,{},{email:'other@example.com'},deps),e=>e.status===403);
+await assert.rejects(handleProductionActivity(settingsReq({...config,scales:{week:-1}}),{},{isRoot:true},deps),e=>e.status===400);
+await handleProductionActivity(settingsReq({...config,viewers:[]}),{},{isRoot:true},deps);
+await assert.rejects(handleProductionActivity(read,{},{email:'reader@example.com'},deps),e=>e.status===403);
+console.log('PASS access grants/revocation, settings authorization, scale persistence and validation');

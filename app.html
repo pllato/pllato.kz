@@ -1280,7 +1280,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 <!-- End Meta Pixel Code -->
 <link rel="stylesheet" href="./app/project-payouts.css?v=20261007">
 <link rel="stylesheet" href="./app/financial-planning.css?v=20261012-notes-hover">
-<script src="/app/production-activity.js?v=4"></script>
+<script src="/app/production-activity.js?v=5"></script>
 </head>
 <body>
 
@@ -6946,7 +6946,7 @@ function openChartFullscreen(button,{mobileView='current',miniPosition=null}={})
   const head=card.querySelector('.fc-card-head');
   head.appendChild(close);
   const tasks=card.querySelector('.fc-week-tasks');
-  if(tasks){
+  if(tasks?.querySelector('.fc-week-tasks-head')){
     const workspace=document.createElement('div');
     workspace.className='fc-fullscreen-workspace';
     workspace.dataset.mobileView=mobileView;
@@ -7631,7 +7631,7 @@ async function paintFinanceCharts(el,data,{cached=false}={}){
   el.innerHTML='<div class="sales-quick-link" id="salesQuickLink"></div>'
     +status
     +financeChartsHeader()
-    +'<div class="fc-grid fc-aligned-grid">'+kinds.filter(kind=>kind!=='releases').map(kind=>financeChartCard(kind,data.charts[kind])).join('')+(canSeeProjectMoney()&&window.productionActivity?productionActivity.card(data.productionActivity,Object.values(data.charts).find(Array.isArray)||[]):'')+(kinds.includes('releases')?financeChartCard('releases',data.charts.releases):'')+'</div>';
+    +'<div class="fc-grid fc-aligned-grid">'+kinds.filter(kind=>kind!=='releases').map(kind=>financeChartCard(kind,data.charts[kind])).join('')+(data.productionActivity&&window.productionActivity?productionActivity.card(data.productionActivity,Object.values(data.charts).find(Array.isArray)||[],{period:FINANCE_CHART_PERIOD,suffix:financeChartPeriodMeta().suffix,api:apiFetch,refresh:renderFinanceCharts}):'')+(kinds.includes('releases')?financeChartCard('releases',data.charts.releases):'')+'</div>';
   const analyticsSlot=document.getElementById('leadAnalyticsSlot');
   if(analyticsSlot){
     analyticsSlot.innerHTML=kinds.includes('inquiries')&&kinds.includes('kep')?leadAnalyticsShell():'';
@@ -7705,7 +7705,7 @@ async function renderFinanceCharts(){
       });
     }
     if(requestId!==FINANCE_CHART_REQUEST) return;
-    if(canSeeProjectMoney()){try{data.productionActivity=await apiFetch('/production-activity');}catch(error){data.productionActivity={error:true,sources:[]};}}
+    try{data.productionActivity=await apiFetch('/production-activity');}catch(error){data.productionActivity=null;}
     if(requestId!==FINANCE_CHART_REQUEST)return;
     const completeData=mergeFinanceChartData(data,cached?.data);
     if(!financeChartKinds(completeData).length) throw new Error('Сервер не вернул данные графиков');
