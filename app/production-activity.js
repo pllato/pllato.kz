@@ -41,11 +41,18 @@
    return segments.map(s=>`<polyline points="${s.join(' ')}" fill="none" stroke="${colors[l.key]}" stroke-width="${l.key==='total'?3.5:1.5}" ${l.key==='total'?'':'stroke-dasharray="6 5" stroke-opacity=".55"'} vector-effect="non-scaling-stroke"/>`).join('')+l.points.map((p,i)=>p.value===null?'':`<g role="button" tabindex="0" onclick="productionActivity.details(${i})" onkeydown="if(event.key==='Enter')productionActivity.details(${i})"><title>${esc(l.name)}: ${p.value}${p.incomplete?' · неполные данные':''}</title><circle cx="${i*100+50}" cy="${y(p.value)}" r="${l.key==='total'?5:3}" opacity="${l.key==='total'?1:.6}" fill="${p.partial||p.end>Date.now()?'var(--surface)':colors[l.key]}" stroke="${colors[l.key]}" stroke-width="2"/>${l.key==='total'?`<text x="${i*100+50}" y="${y(p.value)-15}" text-anchor="middle" font-size="20" fill="var(--text)">${p.value}${p.incomplete?'*':''}</text>`:''}</g>`).join('');
   }).join('')}</svg>`;
  }
- function statuses(data){return (data?.sources||[]).map(r=>{
-  const name=(r.name?esc(r.name)+' · ':'')+(r.source==='codex'?'Codex':'Claude');
-  if(!r.connected)return `<p><b>${name}</b> · ещё не подключён</p>`;
-  return `<p><b>${name}</b> · ${!r.available?'журнал недоступен':Date.now()-r.observedAt>30*60000?'ожидает синхронизации':'подключён'}<br><small>Последняя синхронизация: ${date(r.observedAt)}${r.coverageStart?' · история с '+date(r.coverageStart):''}</small></p>`;
- }).join('');}
+ function connection(r,now=Date.now()){
+  if(!r.connected||!r.observedAt)return {late:false,text:'Ожидает первой связи'};
+  const age=Math.max(0,now-r.observedAt),days=Math.floor(age/86400000),hours=Math.floor(age/3600000)%24;
+  if(age>86400000)return {late:true,text:`Нет связи ${days} сут.${hours?' '+hours+' ч.':''}`};
+  if(age>30*60000)return {late:false,text:'Нет связи '+(age>=3600000?Math.floor(age/3600000)+' ч.':Math.floor(age/60000)+' мин.')};
+  return {late:false,text:r.available?'На связи':'На связи · журнал недоступен'};
+ }
+ function deviceList(data){return `<div data-pa-connections style="margin-top:10px">${(data?.sources||[]).map(r=>{
+  const state=connection(r),name=r.name||r.machineId||r.id||'Компьютер',agent=r.source==='codex'?'Codex':'Claude';
+  return `<div style="padding:7px 8px;margin-top:4px;border-left:3px solid ${state.late?'#c2410c':'transparent'};background:${state.late?'#fff3e8':'transparent'};color:${state.late?'#9a3412':'var(--text-2)'};font-size:12px;line-height:1.4;overflow-wrap:anywhere" title="${r.observedAt?'Последняя связь: '+esc(date(r.observedAt)):'Данные ещё не поступали'}"><span style="font-weight:600">${esc(name)} · ${agent}</span><br><span>${state.late?'⚠ ':''}${state.text}</span></div>`;
+ }).join('')||'<small>Компьютеры ещё не подключены</small>'}</div>`;}
+ function statuses(data){return deviceList(data);}
  function deviceCharts(data,periods){return computers(data).map(g=>`<section class="pa-device"><h4>${esc(g.name)}</h4><div class="pa-device-plot">${svg(series(g,periods))}</div><div style="display:flex;justify-content:space-around;font-size:11px;color:var(--text-3)">${periods.map(p=>`<span>${esc(p.label)}</span>`).join('')}</div>${statuses(g)}</section>`).join('');}
  function compactStatus(data){
   const sources=data?.sources||[],active=sources.filter(r=>r.connected&&r.available&&Date.now()-r.observedAt<=30*60000).length;
@@ -54,7 +61,7 @@
  }
  function card(data,periods,options={}){
   const lines=series(data,periods);last={data,periods,lines,options};
-  return `<article class="fc-card" id="productionActivityCard"><div class="fc-card-head"><div><div class="fc-card-title">Активность Производства</div><div class="fc-card-sub">Обращения к Codex и Claude · ${esc(options.suffix||'нагрузка')}</div></div><div class="fc-card-actions"><button class="fc-access" onclick="openChartFullscreen(this)">⛶ На весь экран</button>${data?.canManage?'<button class="fc-access" onclick="productionActivity.settings()">Настройки</button>':''}</div></div><div class="fc-manager-legend" style="display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12px;margin:8px 0">${lines.map(l=>`<span style="display:inline-flex;align-items:center;gap:5px"><i style="width:24px;border-top:${l.key==='total'?'3px solid':'1.5px dashed'} ${colors[l.key]};opacity:${l.key==='total'?1:.65}"></i>${l.name}</span>`).join('')}</div><div class="fc-plot">${data?.error?'<p class="fc-empty">Не удалось загрузить активность</p>':svg(lines,data?.settings?.scales?.[options.period||'week'])}</div><div class="fc-labels">${periods.map(p=>`<span>${esc(p.label)}</span>`).join('')}</div><div class="fc-notes"><small style="font-size:12px;color:var(--text-3)">${lines[0].points.some(p=>p.value!==null&&p.incomplete)?'* Неполные данные':''}</small></div><div class="fc-week-tasks" style="font-size:12px;color:var(--text-3)"><button class="fc-access" onclick="productionActivity.details()">По компьютерам</button><small style="display:block;margin-top:8px">${compactStatus(data)}</small></div></article>`;
+  return `<article class="fc-card" id="productionActivityCard"><div class="fc-card-head"><div><div class="fc-card-title">Активность Производства</div><div class="fc-card-sub">Обращения к Codex и Claude · ${esc(options.suffix||'нагрузка')}</div></div><div class="fc-card-actions"><button class="fc-access" onclick="openChartFullscreen(this)">⛶ На весь экран</button>${data?.canManage?'<button class="fc-access" onclick="productionActivity.settings()">Настройки</button>':''}</div></div><div class="fc-manager-legend" style="display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12px;margin:8px 0">${lines.map(l=>`<span style="display:inline-flex;align-items:center;gap:5px"><i style="width:24px;border-top:${l.key==='total'?'3px solid':'1.5px dashed'} ${colors[l.key]};opacity:${l.key==='total'?1:.65}"></i>${l.name}</span>`).join('')}</div><div class="fc-plot">${data?.error?'<p class="fc-empty">Не удалось загрузить активность</p>':svg(lines,data?.settings?.scales?.[options.period||'week'])}</div><div class="fc-labels">${periods.map(p=>`<span>${esc(p.label)}</span>`).join('')}</div><div class="fc-notes"><small style="font-size:12px;color:var(--text-3)">${lines[0].points.some(p=>p.value!==null&&p.incomplete)?'* Неполные данные':''}</small></div><div class="fc-week-tasks" style="font-size:12px;color:var(--text-3)"><button class="fc-access" onclick="productionActivity.details()">По компьютерам</button><small style="display:block;margin-top:8px">${compactStatus(data)}</small>${deviceList(data)}</div></article>`;
  }
  function details(index){
   if(!last)return;document.getElementById('productionDetail')?.remove();const d=document.createElement('div');d.id='productionDetail';d.className='money-ovl show';
@@ -75,5 +82,5 @@
    try{await last.options.api('/production-activity/settings',{method:'PUT',body:{scales,viewers}});document.querySelector('.fc-fullscreen')?.close();ovl.remove();await last.options.refresh();}catch(error){form.querySelector('[role=status]').textContent='Не удалось сохранить: '+error.message;}finally{button.disabled=false;}
   };document.body.appendChild(ovl);
  }
- window.productionActivity={card,details,series,computers,settings};
+ window.productionActivity={card,details,series,computers,settings,connection,deviceList};
 })();
