@@ -27,3 +27,10 @@ const multi=c.window.productionActivity.series({sources:[{source:'claude',machin
 assert.equal(multi[0].points[1].value,10);assert.equal(multi[2].points[1].value,10);
 assert.equal(c.window.productionActivity.computers({sources:[{id:'device_a',machineId:'a',source:'claude'},{id:'device_b',machineId:'b',source:'claude'},{id:'device_c',machineId:'a',source:'codex'}]}).length,2);
 console.log('PASS multi-computer totals and grouping');
+const preview=c.window.productionActivity.card({canManage:true,settings:{scales:{week:100}},sources:[{source:'codex',coverageStart:hour-3600000,observedAt:now,buckets:[{at:hour-3600000,count:20},{at:hour,count:10}]}]},[{start:hour-3600000,end:hour,label:'past'},{start:hour,end:hour+3600000,label:'current',partial:true}],{period:'week'});
+assert(preview.includes('y1="618" y2="618"'));
+assert(preview.includes('Максимум шкалы: 100'));
+assert(preview.includes('openChartFullscreen(this)'));
+assert(preview.includes('productionActivity.settings()'));
+for(const line of preview.matchAll(/<polyline points="([^"]*)"/g))assert(!line[1].includes('150,'),'current period must stay disconnected');
+console.log('PASS baseline, configured scale, controls, isolated current period');

@@ -57,13 +57,31 @@ export async function handleProductionActivity(request,env,actor,{get,save,list,
   await save(env,PRODUCTION_COLLECTION,{...(old||{}),...next,id,machineId:device.machineId||id,name:device.name||id,source:device.source,dataObservedAt:next.available?next.observedAt:(old?.dataObservedAt||old?.observedAt||0),updatedAt:Date.now()},'activity-collector');
   return {ok:true,source:device.source,observedAt:next.observedAt};
  }
+ const admin=!!(actor?.isRoot||actor?.user?.isSuperAdmin);
+ const settings=await get(env,PRODUCTION_COLLECTION,'settings')||{viewers:[],scales:{}};
+ if(path.endsWith('/settings')){
+  if(!admin)fail(403,'Настройки доступны супер-администратору');
+  if(request.method!=='PUT')fail(405,'Метод не поддерживается');
+  const b=await readBody(request,fail,40000),scales={};
+  if(!Array.isArray(b.viewers)||b.viewers.length>500)fail(400,'Некорректный список сотрудников');
+  const viewers=[...new Set(b.viewers.map(v=>typeof v==='string'?v.trim().toLowerCase():''))];
+  if(viewers.some(v=>!/^\S+@\S+\.\S+$/.test(v)||v.length>254))fail(400,'Некорректный email');
+  for(const period of ['day','week','month']){
+   const value=b.scales?.[period];
+   if(value==null||value===''){scales[period]=null;continue;}
+   if(!Number.isSafeInteger(value)||value<1||value>100000000)fail(400,'Максимум должен быть положительным целым числом');
+   scales[period]=value;
+  }
+  await save(env,PRODUCTION_COLLECTION,{id:'settings',viewers,scales,updatedAt:Date.now()},actor.email);
+  return {ok:true};
+ }
  if(request.method!=='GET')fail(405,'Метод не поддерживается');
- if(!(actor?.isRoot||actor?.user?.isSuperAdmin))fail(403,'График доступен супер-администратору');
+ if(!admin&&!(settings.viewers||[]).includes(String(actor?.email||'').toLowerCase()))fail(403,'Нет доступа к графику');
  const all=list?await list(env,PRODUCTION_COLLECTION,10000):[];
  const devices=[...sources.filter(d=>!d.enrollment),...all.filter(r=>r.id.startsWith('key_')).map(r=>({...r,id:r.deviceId}))];
  const result=await Promise.all(devices.map(async device=>{
   const r=await get(env,PRODUCTION_COLLECTION,device.id);
   return {id:device.id,machineId:device.machineId||device.id,name:device.name||device.id,source:device.source,connected:!!r,available:r?.available===true,observedAt:r?.observedAt||0,dataObservedAt:r?.dataObservedAt||r?.observedAt||0,coverageStart:r?.coverageStart||0,buckets:r?.buckets||[]};
  }));
- return {ok:true,sources:result};
+ return {ok:true,sources:result,canManage:admin,settings:{scales:settings.scales||{},...(admin?{viewers:settings.viewers||[]}: {})}};
 }
