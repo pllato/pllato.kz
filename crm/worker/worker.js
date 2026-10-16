@@ -1,3 +1,4 @@
+import { normalizeCustomPaymentPlan } from './payment-plan.js';
 import {SOCIAL_COLLECTION,socialAccess,socialSeries,socialTotalSeries,handleSocialPublications} from './social-publications.js';
 import {fetchDemoChartSeries} from './demo-chart.js';
 import {paidProjectIds,developmentChange} from './portal-project-lists.js';
@@ -2314,7 +2315,7 @@ function normalizeProjectFinance(payload) {
     // графиками. Раньше эти поля отбрасывались нормализатором: UI успешно
     // переносил платёж на следующую неделю, PUT отвечал 200, но после новой
     // загрузки план строился заново от первого платежа и дело возвращалось.
-    const paymentPlan = (Array.isArray(item.paymentPlan) ? item.paymentPlan : [])
+    const paymentPlan = item.planMode === 'custom' ? normalizeCustomPaymentPlan(item.paymentPlan) : (Array.isArray(item.paymentPlan) ? item.paymentPlan : [])
       .map((stage) => {
         const stageId = String(stage?.id || "").trim();
         const defaults = allowedPlanStages.get(stageId);
@@ -2337,6 +2338,8 @@ function normalizeProjectFinance(payload) {
       managerEmail: String(item.managerEmail || "").trim().toLowerCase(),
       paymentPlan,
       paymentPlanBaseAt,
+      planMode: item.planMode === "custom" ? "custom" : "auto",
+      ...(Number.isFinite(Number(item.planPaidBase)) && item.planPaidBase != null ? {planPaidBase: Math.max(0, Number(item.planPaidBase))} : {}),
     };
   }
   const rawVisibility = isObject(payload?.chartVisibility) ? payload.chartVisibility : {};
