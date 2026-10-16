@@ -1,3 +1,4 @@
+import {handleProjectProgrammers} from './project-programmers.js';
 import {PRODUCTION_COLLECTION,handleProductionActivity} from './production-activity.js';
 import productionSources from './production-sources.json';
 import { normalizeCustomPaymentPlan } from './payment-plan.js';
@@ -8918,9 +8919,9 @@ export default {
         }));
       }
 
-      if (path === "/project-payouts" || path === "/project-payouts/access") {
+      if (path === "/project-payouts" || path === "/project-payouts/access" || path === "/project-programmers") {
         const actor = await loadActorContext(request, env, { strictTeamCheck: true });
-        return json(request, env, await handleProjectPayouts(request, env, actor, {
+        return json(request, env, await (path === "/project-programmers" ? handleProjectProgrammers : handleProjectPayouts)(request, env, actor, {
           get:d1GetDoc, put:d1UpsertDoc, HttpError,
           list:async (env,kind,projectId) => {
             await ensureD1Schema(env);

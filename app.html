@@ -580,7 +580,8 @@ body {
 .done-toggle:hover { background:rgba(22,163,74,.1); color:var(--green); }
 .done-toggle.on { opacity:1; color:#fff; background:var(--green); border-color:var(--green); }
 .done-toggle.auto { cursor:default; }
-.project-controls { display:flex; align-items:flex-end; gap:8px; width:100%; margin:0 0 14px; position:relative; z-index:4; }
+.project-controls { display:flex; flex-wrap:wrap; align-items:flex-end; gap:8px; width:100%; margin:0 0 14px; position:relative; z-index:4; }
+.project-controls .project-programmer { flex-basis:100%; order:2; }
 .project-controls .done-toggle { position:static; flex:none; min-height:30px; }
 .project-controls .project-manager { display:flex; flex-direction:column; gap:4px; flex:1; min-width:0; font-size:10.5px; color:var(--text-3); }
 .project-controls .project-manager select { width:100%; min-height:30px; padding:5px 7px; font-size:11px; }
@@ -5975,7 +5976,7 @@ async function injectProjectManagers(){
   try{ await loadProjectManagers(); }catch(error){console.warn('project managers:',error);return;}
   document.querySelectorAll('.tool-card[data-app-id]').forEach(card=>{
     if(card.dataset.group && card.dataset.group!=='Работа с клиентами') return;
-    let row=card.querySelector('.project-manager');
+    let row=card.querySelector('.project-manager:not(.project-programmer)');
     if(!row){row=document.createElement('label');row.className='project-manager';row.addEventListener('click',e=>e.stopPropagation());}
     projectControls(card).prepend(row);
     const id=card.dataset.appId,email=PROJECT_MANAGERS[id]||'';
@@ -5994,6 +5995,26 @@ async function injectProjectManagers(){
       finally{select.disabled=false;}
     };
   });
+}
+async function injectProjectProgrammers(){
+  try{
+    const [data]=await Promise.all([apiFetch('/project-programmers'),loadProjectManagers()]);
+    document.querySelectorAll('.tool-card[data-app-id]').forEach(card=>{
+      if(card.dataset.group && card.dataset.group!=='Работа с клиентами')return;
+      const id=card.dataset.appId;
+      let email=data.programmers[id]||'';
+      let row=card.querySelector('.project-programmer');
+      if(!row){row=document.createElement('label');row.className='project-manager project-programmer';row.addEventListener('click',e=>e.stopPropagation());projectControls(card).append(row);}
+      row.innerHTML='<span>Программист</span>'+(data.canManage?`<select aria-label="Ответственный программист">${managerOptions(email)}</select>`:`<strong>${mEsc(managerName(email))}</strong>`);
+      const select=row.querySelector('select');
+      if(select)select.onchange=async()=>{
+        select.disabled=true;
+        try{await apiFetch('/project-programmers',{method:'PUT',body:{projectId:id,programmerEmail:select.value}});email=select.value;}
+        catch(error){select.value=email;alert('Не удалось сохранить программиста: '+error.message);}
+        finally{select.disabled=false;}
+      };
+    });
+  }catch(error){console.warn('project programmers:',error);}
 }
 function managerColor(email){
   const key=String(email||'').trim().toLowerCase();
@@ -6317,6 +6338,7 @@ async function injectMoney(){
 function syncProjectMoneyVisibility(){
   MANAGER_LOAD_PROMISE=null;
   injectProjectManagers();
+  injectProjectProgrammers();
   if (canSeeProjectMoney()) {
     injectMoney();
     return;
