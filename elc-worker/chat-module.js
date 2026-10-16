@@ -1,3 +1,4 @@
+import {ensureActiveChatMemberships,isInactiveChatUser} from './chat-membership-lifecycle.js';
 // ════════════════════════════════════════════════════════════════════════
 // Chat module: внутренний чат сотрудников портала.
 // Адаптация ppb-crm chat (см. docs/CHAT-MODULE-EXTRACTION.md).
@@ -504,6 +505,7 @@ async function createChannel(env, me, body) {
   const desc = String(body.description || '').trim() || null;
   const members = Array.isArray(body.members) ? body.members.filter(u => typeof u === 'string') : [];
   if (!members.includes(me.uid)) members.push(me.uid);
+  for(const uid of members)if(await isInactiveChatUser(env,uid))return errRes('Нельзя добавить деактивированного сотрудника',400);
 
   const id = uuid();
   const ts = now();
@@ -529,6 +531,7 @@ async function createChannel(env, me, body) {
 async function openDm(env, me, body) {
   const otherUid = String(body.user_id || '').trim();
   if (!otherUid || otherUid === me.uid) return errRes('user_id required');
+  if(await isInactiveChatUser(env,otherUid))return errRes('Сотрудник деактивирован',400);
   // Существующий DM?
   const existing = await env.DB.prepare(`
     SELECT c.id FROM team_chat_channels c
@@ -929,6 +932,7 @@ async function addMembers(env, me, channelId, body) {
   if (!(await isChannelAdmin(env, channelId, me))) return errRes('только администратор может добавлять участников', 403);
   const userIds = Array.isArray(body.user_ids) ? body.user_ids.filter(u => typeof u === 'string') : [];
   if (userIds.length === 0) return errRes('user_ids required');
+  for(const uid of userIds)if(await isInactiveChatUser(env,uid))return errRes('Нельзя добавить деактивированного сотрудника',400);
   const ts = now();
   for (const uid of userIds) {
     const r = await env.DB.prepare(
@@ -1199,6 +1203,8 @@ export async function downloadFile(request, env, fileKey) {
 // где me — уже-валидированный объект юзера ({uid, name, email, role}),
 // ctx — execution context запроса (для ctx.waitUntil фоновой рассылки push).
 export async function handleChatRequest(request, env, url, me, ctx) {
+  await ensureActiveChatMemberships(env);
+  if(await isInactiveChatUser(env,me.uid))return errRes('Сотрудник деактивирован',403);
   _chatCtx = ctx || null;
   const p = url.pathname;
   const m = request.method;
@@ -1303,6 +1309,9 @@ export async function handleChatWebSocket(request, env, url) {
   }
   if (!uid) uid = claims?.user_id || claims?.sub || claims?.uid;
   if (!uid) return new Response('uid not in token', { status: 401 });
+
+  await ensureActiveChatMemberships(env);
+  if(await isInactiveChatUser(env,uid))return new Response('Сотрудник деактивирован',{status:403});
 
   // Проксируем в UserNotifyRoom
   const id = env.USER_NOTIFY.idFromName(uid);
