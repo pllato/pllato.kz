@@ -5980,7 +5980,7 @@ async function injectProjectManagers(){
     if(!row){row=document.createElement('label');row.className='project-manager';row.addEventListener('click',e=>e.stopPropagation());}
     projectControls(card).prepend(row);
     const id=card.dataset.appId,email=PROJECT_MANAGERS[id]||'';
-    row.innerHTML='<span>Ответственный</span>'+(canSeeProjectMoney()?`<select aria-label="Ответственный менеджер">${managerOptions(email)}</select>`:`<strong>${mEsc(managerName(email))}</strong>`);
+    row.innerHTML='<span>Ответственный менеджер</span>'+(canSeeProjectMoney()?`<select aria-label="Ответственный менеджер">${managerOptions(email)}</select>`:`<strong>${mEsc(managerName(email))}</strong>`);
     const select=row.querySelector('select');
     if(select) select.onchange=async()=>{
       select.disabled=true;
@@ -6005,7 +6005,7 @@ async function injectProjectProgrammers(){
       let email=data.programmers[id]||'';
       let row=card.querySelector('.project-programmer');
       if(!row){row=document.createElement('label');row.className='project-manager project-programmer';row.addEventListener('click',e=>e.stopPropagation());projectControls(card).append(row);}
-      row.innerHTML='<span>Программист</span>'+(data.canManage?`<select aria-label="Ответственный программист">${managerOptions(email)}</select>`:`<strong>${mEsc(managerName(email))}</strong>`);
+      row.innerHTML='<span>Ответственный программист</span>'+(data.canManage?`<select aria-label="Ответственный программист">${managerOptions(email)}</select>`:`<strong>${mEsc(managerName(email))}</strong>`);
       const select=row.querySelector('select');
       if(select)select.onchange=async()=>{
         select.disabled=true;
