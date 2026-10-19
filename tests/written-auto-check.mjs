@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {ANSWER_KEY,assess,normalize} from '../elc-worker/written-answer-key.js';
+import {SECTIONS} from '../elc-worker/written-test-data.js';
+assert.deepEqual(Object.keys(ANSWER_KEY),SECTIONS.flatMap(s=>s.questions.map(q=>q.id)));
+for(const [id,variants] of Object.entries(ANSWER_KEY))for(const variant of variants)assert.equal(assess({[id]:variant}).marks[id].status,'correct');
+let a=assess({s1q1:'  NOSE.  ',s2q2:"I WON’T go to the cinema today!",s3q1:"I'm driving a car",s5q2:'У меня книга Джона по математике в кожаном переплете',s7q3:'I have worked for this company for five years'});
+assert.equal(a.correct,5);assert.equal(a.skipped,42);assert.equal(a.percent,11);assert.equal(a.answeredPercent,100);assert.equal(a.level,undefined);
+for(const [id,value] of [['s1q14','man'],['s2q1','I eat an apple yesterday'],['s2q2','I will go to the cinema today'],['s7q3','I work for this company for five years'],['s1q1','.']])assert.equal(assess({[id]:value}).marks[id].status,'review');
+a=assess();assert.equal(a.skipped,47);assert.equal(a.percent,0);assert.equal(a.answeredPercent,null);
+assert.equal(normalize("I don't go"),'i do not go');
+console.log('PASS: complete key, variants, normalization, tense/negation mismatches, denominator and no automatic level');
