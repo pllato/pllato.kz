@@ -4442,7 +4442,7 @@ window.lcSwitch = function(tab){
   else if (tab === 'history') lcLoadHistory();
   else if (tab === 'written') {
     c.innerHTML = '<p>Загрузка…</p>';
-    import('./app/elc/written-review.js?v=20261019-design').then(({renderWrittenReview}) => {
+    import('./app/elc/written-review.js?v=20261019-compact').then(({renderWrittenReview}) => {
       if(lcTab !== 'written') return;
       renderWrittenReview(c, async (suffix, options={}) => {
         const token=await fbAuth.currentUser.getIdToken();
