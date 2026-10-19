@@ -1,3 +1,4 @@
+import {assess} from './written-answer-key.js';
 import {VERSION,SECTIONS} from './written-test-data.js';
 const questions=SECTIONS.flatMap(s=>s.questions),keys=new Set(questions.map(q=>q.id));
 let ready;
@@ -41,7 +42,7 @@ export async function writtenPlacement(request,env,actor){
  }
  const match=path.match(/^\/api\/written-placement\/([\w-]{16,80})$/);if(!match)return reply({error:'Не найдено'},404);
  const row=await env.DB.prepare('SELECT * FROM written_placement WHERE id=?').bind(match[1]).first();if(!row)return reply({error:'Не найдено'},404);
- if(method==='GET')return reply({...row,student:JSON.parse(row.student),answers:JSON.parse(row.answers),review:row.review?JSON.parse(row.review):null,sections:SECTIONS});
+ if(method==='GET')return reply({...row,student:JSON.parse(row.student),answers:JSON.parse(row.answers),review:row.review?JSON.parse(row.review):null,automatic:assess(JSON.parse(row.answers)),sections:SECTIONS});
  if(method==='PUT'){
   const raw=await request.text();if(raw.length>150000)return reply({error:'Комментарий слишком длинный'},413);
   let body;try{body=JSON.parse(raw);}catch{return reply({error:'Некорректные данные'},400);}
