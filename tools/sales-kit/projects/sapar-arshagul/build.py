@@ -43,8 +43,8 @@ gate=f'''<section class="gate" id="gate">
   <div class="gstat">
    <div><small>Экранов</small><b class="a">15</b></div>
    <div><small>Ролей</small><b>4</b></div>
-   <div><small>Срок</small><b>4–6 недель</b></div>
-   <div><small>Стоимость</small><b>2 млн ₸</b></div>
+   <div><small>Срок</small><b>6–8 недель</b></div>
+   <div><small>Стоимость</small><b>5 млн ₸</b></div>
   </div>
  </div>
  <div class="gate-r">

@@ -18,13 +18,14 @@ SC.integr=()=>`<div class="hd"><div><h2>Что заменяем, что подк
 SC.costs=()=>`<div class="hd"><div><h2>Расходы в месяц: сейчас и после</h2><p>Система ваша — без абонплаты и без доплат за менеджеров. Остаются только сервисы, которые нужны в любом случае.</p></div></div>
  <div class="g2"><div class="pan cmp bad"><h3>Сейчас · ≈ 256 000 ₸ в месяц на 3 менеджеров</h3><div class="kv"><span>amoCRM</span><b>по счёту</b></div><div class="kv"><span>U-ON.Travel</span><b>≈ 27 000 ₸</b></div><div class="kv"><span>WhatsApp</span><b>36 000 ₸</b></div><div class="kv"><span>Телефония Altel</span><b>11 400 ₸</b></div><div class="kv"><span>Прочие сервисы</span><b>≈ 18 000 ₸</b></div><div class="kv"><span>TrustMe — за каждую подпись</span><b>по факту</b></div><div class="kv on"><span><strong>Всего, по вашим словам</strong></span><b>≈ 256 000 ₸</b></div></div>
  <div class="pan cmp good"><h3>После</h3><div class="kv"><span>Своя система — без абонплаты</span><b>0 ₸</b></div><div class="kv"><span>Сервер</span><b>бесплатно до 10 ГБ · потом 5–10 $</b></div><div class="kv"><span>WhatsApp через Green API</span><b>≈ 5 000 ₸ за номер</b></div><div class="kv"><span>Instagram Direct</span><b>≈ 5 000 ₸</b></div><div class="kv"><span>Телефония Altel</span><b>11 400 ₸ — ваш тариф</b></div><div class="kv"><span>Подпись договоров</span><b>0 ₸ через WhatsApp</b></div><div class="kv"><span>Турвизор, Кви-Кво</span><b>по их тарифам, если оставляете</b></div><div class="kv"><span>Менеджеров</span><b>сколько угодно, до 50 без доработок</b></div></div></div>
- ${said('Два миллиона — а ежемесячно дополнительная оплата какая будет?','Только сервер — 5–10 $ в месяц, WhatsApp 5 000 ₸ за номер и ваша телефония.')}`;
+ ${said('А ежемесячно дополнительная оплата какая будет?','Только сервер — 5–10 $ в месяц, WhatsApp 5 000 ₸ за номер и ваша телефония.')}`;
 
 /* Стоимость */
-SC.launch=()=>`<div class="hd"><div><h2>Стоимость и запуск</h2><p>Стандартный пакет разработки: воронка и РОП вместо amoCRM, туры, договоры, подпись и оплаты вместо U-ON, подключение WhatsApp, Instagram, телефонии, Турвизора и Кви-Кво. Договор и счета — от ТОО.</p></div></div>
- <div class="pk1"><div><small>Стандартный пакет</small><b>2 000 000 ₸</b><span>один раз · без абонплаты</span></div><div><small>Срок</small><b>4–6 недель</b><span>2 больших этапа</span></div></div>
- <div class="pay3"><div><small>Старт · 10%</small><b>200 000 ₸</b><span>при подписании</span></div><div><small>Ядро · 45%</small><b>900 000 ₸</b><span>после утверждения основного</span></div><div><small>Сдача · 45%</small><b>900 000 ₸</b><span>после полировки и запуска</span></div></div>
- <div class="pan"><h3>Отдельно, по желанию</h3><div class="kv"><span>Обучение всей команды: 3–5 занятий в Zoom</span><b>200 000 ₸</b></div><div class="kv"><span>Доработки после запуска</span><b>20 $ в час · 5 часов ≈ 100 $</b></div><div class="kv"><span>Своё расширение вместо Кви-Кво</span><b>оценим отдельно</b></div><p class="hint">3 месяца после сдачи — бесплатно исправляем ошибки. Справочник по системе для сотрудников — входит.</p></div>`;
+SC.launch=()=>`<div class="hd"><div><h2>Стоимость и запуск</h2><p>Пакет под ключ: единая система вместо amoCRM, U-ON и TrustMe, интеграция с 1С, сайт агентства с заявками прямо в воронку, внедрение и обучение персонала. Договор и счета — от ТОО.</p></div></div>
+ <div class="pk1"><div><small>Пакет под ключ</small><b>5 000 000 ₸</b><span>один раз · без абонплаты</span></div><div><small>Срок</small><b>6–8 недель</b><span>ядро → полировка и запуск</span></div></div>
+ <div class="pay3"><div><small>Старт · 10%</small><b>500 000 ₸</b><span>при подписании</span></div><div><small>Ядро · 45%</small><b>2 250 000 ₸</b><span>после утверждения основного</span></div><div><small>Сдача · 45%</small><b>2 250 000 ₸</b><span>после полировки и запуска</span></div></div>
+ <div class="g2"><div class="pan"><h3>Что входит</h3><div class="kv"><span>Единая система: воронка, туры, договор и подпись, оплаты, отчёты, Турвизор, Кви-Кво, телефония, WhatsApp, Instagram, перенос из U-ON и amoCRM</span><b>2 900 000 ₸</b></div><div class="kv"><span>Интеграция с 1С — оплаты, контрагенты, документы по турам</span><b>800 000 ₸</b></div><div class="kv"><span>Сайт агентства — туры, поиск через Турвизор, заявки сразу в воронку</span><b>800 000 ₸</b></div><div class="kv"><span>Внедрение и обучение — 10 занятий в Zoom, 2 недели сопровождения</span><b>500 000 ₸</b></div></div>
+ <div class="pan"><h3>Отдельно</h3><div class="kv"><span>Доработки после запуска</span><b>20 $ в час · 5 часов ≈ 100 $</b></div><div class="kv"><span>Своё расширение вместо Кви-Кво</span><b>оценим отдельно</b></div><div class="kv"><span>Домен и хостинг сайта</span><b>по тарифам</b></div><p class="hint">3 месяца после сдачи — бесплатно исправляем ошибки. Справочник и записи занятий — входят.</p></div></div>`;
 
 /* Каркас */
 const CARD={};
@@ -58,7 +59,7 @@ const TOUR=[
  ['rop','8 · Контроль РОПа.'],
  ['integr','9 · Что заменяем и что подключаем.'],
  ['costs','10 · Расходы: было ≈256 тыс. в месяц — станет в разы меньше.'],
- ['launch','11 · Стоимость: 2 млн один раз, 10 / 45 / 45.']
+ ['launch','11 · Стоимость: 5 млн под ключ — система, 1С, сайт, обучение; 10 / 45 / 45.']
 ];
 let ti=-1,tRun=false;
 function tour(){if(tRun){stopTour();return}tRun=true;ti=-1;document.getElementById('tourBtn').textContent='■';step()}
