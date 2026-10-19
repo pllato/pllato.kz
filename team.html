@@ -4433,6 +4433,8 @@ function renderLessonChecks(main){
 
 window.lcSwitch = function(tab){
   lcTab = tab;
+  const writtenRoot=document.getElementById('lc-content');
+  if(writtenRoot){writtenRoot.classList.remove('written-review');writtenRoot.parentElement.style.maxWidth=tab==='written'?'1120px':'760px';}
   ['check','history','links','written'].forEach(t => {
     const el = document.getElementById('lc-tab-' + t);
     if (el) { el.style.background = t===tab ? 'var(--acbg)' : 'transparent'; el.style.color = t===tab ? 'var(--ac2)' : 'var(--t3)'; }
@@ -4442,7 +4444,7 @@ window.lcSwitch = function(tab){
   else if (tab === 'history') lcLoadHistory();
   else if (tab === 'written') {
     c.innerHTML = '<p>Загрузка…</p>';
-    import('./app/elc/written-review.js?v=20261019-auto').then(({renderWrittenReview}) => {
+    import('./app/elc/written-review.js?v=20261019-visible').then(({renderWrittenReview}) => {
       if(lcTab !== 'written') return;
       renderWrittenReview(c, async (suffix, options={}) => {
         const token=await fbAuth.currentUser.getIdToken();
