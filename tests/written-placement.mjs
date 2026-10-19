@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {writtenPlacement} from '../elc-worker/written-placement.js';
+const db=new DatabaseSync(':memory:');const env={DB:{prepare(sql){return {bind(...v){this.v=v;return this},async run(){return db.prepare(sql).run(...(this.v||[]))},async all(){return {results:db.prepare(sql).all(...(this.v||[]))}},async first(){return db.prepare(sql).get(...(this.v||[]))}}}}};
+const call=(path,method='GET',body,actor=null)=>writtenPlacement(new Request('https://test/api/written-placement'+path,{method,...(body!==undefined?{body:JSON.stringify(body)}:{})}),env,actor);
+const q=await (await call('/questions')).json();assert.equal(q.sections.length,8);assert.equal(q.sections.flatMap(s=>s.questions).length,47);
+assert.equal((await call('')).status,403);
+const body={id:'12345678-1234-1234-1234-123456789abc',version:q.version,student:{name:'Test',phone:'77010000000'},answers:{s1q1:'nose'},level:'C2'};
+assert.equal((await call('/submit','POST',body)).status,200);
+const actor={name:'Teacher'};let result=await(await call('/'+body.id,'GET',undefined,actor)).json();assert.equal(result.answers.s1q1,'nose');assert.equal(result.answers.s1q2,'');assert.equal(result.level,undefined);assert.equal(result.review,null);
+await call('/submit','POST',{...body,answers:{s1q1:'changed'}});result=await(await call('/'+body.id,'GET',undefined,actor)).json();assert.equal(result.answers.s1q1,'nose');
+assert.equal((await call('/'+body.id,'PUT',null,actor)).status,400);
+assert.equal((await call('/'+body.id,'PUT',{complete:true},actor)).status,400);
+assert.equal((await call('/'+body.id,'PUT',{level:'B1',comment:'Teacher assessment',marks:{s1q1:{verdict:'correct',comment:'Good'}},complete:true},actor)).status,200);
+result=await(await call('/'+body.id,'GET',undefined,actor)).json();assert.equal(result.status,'reviewed');assert.equal(result.review.level,'B1');assert.equal(result.review.marks.s1q1.verdict,'correct');
+console.log('PASS: 47 questions, skipped answers, authentication gate, idempotency and manual assessment');

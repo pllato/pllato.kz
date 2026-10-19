@@ -1,3 +1,4 @@
+import {writtenPlacement} from './written-placement.js';
 import {ensureActiveChatMemberships} from './chat-membership-lifecycle.js';
 import { normalPhone, findRecordingCall, recordingToken, lookupRecordingLinks } from './call-recordings.js';
 import {resolvePllatoDemoStages} from './demo-chart.js';
@@ -12371,6 +12372,20 @@ export default {
     }
     if (path === "/api/me/phone" && request.method === "POST") {
       return handleSetMyPhone(request, env);
+    }
+
+    if (path === '/api/written-placement' || path.startsWith('/api/written-placement/')) {
+      const isPublic = (path === '/api/written-placement/questions' && request.method === 'GET') || (path === '/api/written-placement/submit' && request.method === 'POST');
+      let actor = null;
+      if (!isPublic) {
+        const auth = await requireAuth(request, env);
+        if (auth.error) return json({error:auth.error},auth.status,request);
+        const me = await resolveCanonicalUser(env,auth.claims);
+        if (!me.userRecord || me.userRecord.active === 0) return json({error:'Нет доступа'},403,request);
+        actor={uid:me.canonicalUid,email:auth.email,name:[me.userRecord.name,me.userRecord.last_name].filter(Boolean).join(' ')};
+      }
+      const response=await writtenPlacement(request,env,actor);
+      return json(await response.json(),response.status,request);
     }
 
     // ── /api/placement/* — тест на уровень (студент без логина в CRM) ──────

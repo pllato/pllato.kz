@@ -4417,8 +4417,8 @@ function renderLessonChecks(main){
       <div style="padding:18px 20px;max-width:760px;margin:0 auto">
         <h2 style="margin:0 0 4px">📝 Пробные Занятия</h2>
         <div style="color:var(--t3);font-size:13px;margin-bottom:14px">«Проверка» — запросы от студентов. «История» — завершённые занятия с результатами. «Ссылки» — выдать студенту тест или урок нужного уровня.</div>
-        <div style="display:flex;gap:6px;background:var(--bg2);border:1px solid var(--b1);border-radius:11px;padding:4px;margin-bottom:14px;width:max-content">
-          ${tabBtn('check','Проверка')}${tabBtn('history','История')}${tabBtn('links','Ссылки')}
+        <div style="display:flex;gap:6px;background:var(--bg2);border:1px solid var(--b1);border-radius:11px;padding:4px;margin-bottom:14px;flex-wrap:wrap">
+          ${tabBtn('check','Проверка')}${tabBtn('history','История')}${tabBtn('links','Ссылки')}${tabBtn('written','Письменный тест')}
         </div>
         <div id="lc-content"></div>
       </div>`;
@@ -4433,13 +4433,26 @@ function renderLessonChecks(main){
 
 window.lcSwitch = function(tab){
   lcTab = tab;
-  ['check','history','links'].forEach(t => {
+  ['check','history','links','written'].forEach(t => {
     const el = document.getElementById('lc-tab-' + t);
     if (el) { el.style.background = t===tab ? 'var(--acbg)' : 'transparent'; el.style.color = t===tab ? 'var(--ac2)' : 'var(--t3)'; }
   });
   const c = document.getElementById('lc-content');
   if (tab === 'check') { lcLastSig = null; c.innerHTML = `<div id="lc-root"><div style="color:var(--t3);padding:20px;text-align:center">Загрузка…</div></div>`; lcPoll(); }
   else if (tab === 'history') lcLoadHistory();
+  else if (tab === 'written') {
+    c.innerHTML = '<p>Загрузка…</p>';
+    import('./app/elc/written-review.js?v=20261019').then(({renderWrittenReview}) => {
+      if(lcTab !== 'written') return;
+      renderWrittenReview(c, async (suffix, options={}) => {
+        const token=await fbAuth.currentUser.getIdToken();
+        const response=await fetch(WORKER_BASE_URL+'/api/written-placement'+suffix,{...options,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'}});
+        const result=await response.json();
+        if(!response.ok)throw new Error(result.error||'Не удалось загрузить данные');
+        return result;
+      });
+    }).catch(()=>{if(lcTab==='written')c.textContent='Не удалось загрузить письменный тест. Откройте вкладку повторно.';});
+  }
   else lcShowLinks();
 };
 
@@ -4467,6 +4480,7 @@ function lcShowLinks(){
   c.innerHTML = `
     <div style="font-size:13px;color:var(--t3);margin-bottom:12px">В начале любой ссылки — анкета (имя, телефон, почта). Результат подшивается в «Историю».</div>
     <div style="font-weight:700;margin:6px 0 8px">Тест на уровень (основная ссылка)</div>
+    ${linkRow('Письменный тест → проверка преподавателем', 'Все 8 разделов, можно пропускать. Результаты во вкладке «Письменный тест».', 'https://pllato.kz/app/elc/written-placement-test.html')}
     ${linkRow('Placement-тест → урок по результату', 'Студент проходит тест, затем урок своего уровня', TEST)}
     <div style="font-weight:700;margin:18px 0 6px">Прямые ссылки на урок по уровню</div>
     <div style="font-size:12px;color:var(--t3);margin-bottom:10px">Если тест дал не тот уровень — дайте студенту ссылку нужного уровня напрямую (без теста).</div>
