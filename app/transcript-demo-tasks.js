@@ -1,3 +1,4 @@
+import {initProposalWhatsApp} from './proposal-whatsapp.js?v=20261020-send';
 import {transcriptText} from './zoom-crm.js?v=20261008-transcript-recovery';
 const BASE='https://pllato-elc-worker.uurraa.workers.dev';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -5,6 +6,7 @@ const when=v=>v?new Date(v).toLocaleString('ru-RU',{timeZone:'Asia/Almaty',dateS
 const crm=id=>'https://pllato.kz/team.html#deal/'+encodeURIComponent(id);
 export function initTranscriptDemoTasks({getToken}){
  let items=[],loaded=false,busy=false,error='',history=false,olderOpen=false;const texts=new Map();
+ initProposalWhatsApp({getToken,getDeals:card=>{const deals=items.filter(t=>t.project_id===card.dataset.appId).map(t=>({id:t.deal_id,title:t.client}));if(card.dataset.crmDealId&&!deals.some(d=>d.id===card.dataset.crmDealId))deals.push({id:card.dataset.crmDealId,title:'Связанная сделка'});return deals;}});
  const roots=()=>[...document.querySelectorAll('[data-transcript-tasks]')];
  async function request(path,options={}){const token=getToken();if(!token)throw Error('Войдите в App');const r=await fetch(BASE+path,{...options,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},cache:'no-store'});if(!r.ok){const e=await r.json().catch(()=>({}));throw Error(e.error||'Ошибка загрузки '+r.status);}return r;}
  function cards(){return [...document.querySelectorAll('.tool-card[data-app-id]')];}
