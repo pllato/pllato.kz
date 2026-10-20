@@ -1,3 +1,4 @@
+import {transcriptDemoTasks} from './transcript-demo-tasks.js';
 // Zoom General App: один подключённый организатор, приватные материалы в R2.
 // Секреты — только env; OAuth-токены в отдельной таблице, зашифрованы AES-GCM.
 const CALLBACK = 'https://pllato-elc-worker.uurraa.workers.dev/api/zoom/callback';
@@ -161,6 +162,9 @@ async function ingest(env, meeting) {
   const linked = await env.DB.prepare('SELECT deal_id FROM zoom_meetings WHERE meeting_id=?').bind(String(meeting.id)).first();
   for (const f of meeting.recording_files || []) {
     if (!f.id || f.status !== 'completed') continue;
+    const seconds=(Date.parse(f.recording_end)-Date.parse(f.recording_start))/1000;
+    if(Number.isFinite(seconds)&&seconds>0)await put(env,'duration:'+f.id,String(Math.round(seconds)));
+    else if(Number(meeting.duration)>0)await put(env,'duration:'+f.id,String(Math.round(Number(meeting.duration)*60)));
     await env.DB.prepare(`INSERT INTO zoom_files(id,meeting_uuid,meeting_id,deal_id,topic,recording_start,kind,extension,size)
       VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET deal_id=COALESCE(zoom_files.deal_id,excluded.deal_id)`)
       .bind(f.id, meeting.uuid, String(meeting.id), linked?.deal_id || null, meeting.topic || '', f.recording_start || meeting.start_time || '', f.recording_type || f.file_type || '', f.file_extension || f.file_type || '', Number(f.file_size || 0)).run();
@@ -210,6 +214,8 @@ async function download(env, file) {
     remote = recovered.recording_files?.find(f=>f.id===file.id);
     if (!remote?.download_url || remote.status !== 'completed') throw fail('Восстановление запрошено; ожидаем доступность файла Zoom', 502);
   }
+  const duration=(Date.parse(remote.recording_end)-Date.parse(remote.recording_start))/1000;
+  if(Number.isFinite(duration)&&duration>0)await put(env,'duration:'+file.id,String(Math.round(duration)));
   let url = new URL(remote.download_url);
   const allowed = u => u.protocol === 'https:' && (u.hostname === 'zoom.us' || u.hostname.endsWith('.zoom.us') || u.hostname.endsWith('.zoom.com'));
   if (!allowed(url)) throw fail('Неожиданный адрес файла Zoom', 502);
@@ -357,6 +363,7 @@ export async function handleZoomRequest(request, env, deps) {
     if (auth.error) return json({error:auth.error},auth.status,request);
     const me = await resolveCanonicalUser(env,auth.claims);
     const admin = me.role === 'admin';
+    if(path==='/demo-tasks'){await deps.ensureQualRecordingsTable(env);const result=await transcriptDemoTasks(request,env,{me,dealAccessSql,canEditRecord});return json(await result.json(),result.status,request);}
     if (path === '/status') return json({configured:!!(env.ZOOM_CLIENT_ID && env.ZOOM_CLIENT_SECRET),connected:!!await get(env,'tokens'),admin,trashAfterCopy:env.ZOOM_TRASH_AFTER_COPY==='true',archivePolicy:'indefinite'},200,request);
     if(path==='/transfer-audit' && ['GET','POST'].includes(request.method)) {
       if(!admin)throw fail('Проверка архива доступна администратору',403);

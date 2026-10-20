@@ -4906,6 +4906,9 @@ document.getElementById('openZoomArchive').addEventListener('click', async () =>
 import { initFinancialPlanning } from './app/financial-planning.js?v=20261012-notes-hover';
 import { initProjectPayouts } from './app/project-payouts.js?v=20261016-access';
 import { initProjectRecordings } from './app/project-recordings.js?v=20260923';
+let transcriptDemoController;
+function mountTranscriptDemoTasks(){if(transcriptDemoController)return;transcriptDemoController={loading:true};import('./app/transcript-demo-tasks.js?v=20261020').then(m=>{transcriptDemoController=m.initTranscriptDemoTasks({getToken:()=>getSession()?.token});}).catch(e=>{transcriptDemoController=null;console.warn(e);});}
+
 
 initProjectRecordings({ getSession });
 
@@ -7387,9 +7390,9 @@ function financeWeekTaskBlockForPoint(kind,point,weekView=''){
         : '<span></span>';
       return `${divider}<div class="fc-week-task${showAmounts?' with-amount':''}${task.done?' done':''}${automatic?' automatic':''}${past?' overdue':''}${starred?' starred':''}"><input type="checkbox"${task.done?' checked':''}${canEditFinanceTask(task)?'':' disabled'} onchange="toggleFinanceWeekTask('${mEsc(task.id)}',this.checked)" aria-label="Отметить дело выполненным"><span class="text" onclick="${openAction}" title="${mEsc(task.text)}"><span class="fc-week-task-title">${mEsc(task.text)}</span>${financeTaskManagerLabel(task)}${past?`<small class="fc-overdue-label">Не завершено · ${mEsc(financeWeekTaskPeriod(task))}</small>`:''}</span>${showAmounts?`<span class="amount" onclick="${openAction}" title="${automatic?'Открыть план платежей':'Изменить сумму'}">${mEsc(financeWeekTaskAmount(task.amount))}</span>`:''}${actions.replace('<span class="fc-week-task-actions">','<span class="fc-week-task-actions">'+star)}</div>`;
     }).join('')
-    : `<div class="fc-week-tasks-empty">${next?'На следующую неделю дел пока нет.':'На текущую неделю дел пока нет.'}</div>`;
+    : kind==='demos'&&!next?'':`<div class="fc-week-tasks-empty">${next?'На следующую неделю дел пока нет.':'На текущую неделю дел пока нет.'}</div>`;
   const plan=showAmounts?`<span class="plan">План недели: ${mEsc(financeWeekTaskAmount(planTotal))}</span>`:'';
-  return `<section class="fc-week-tasks" id="financeWeekTasks-${kind}${next?'-next':''}" data-week-view="${weekView}" data-task-kind="${kind}" data-start="${Number(point.start)}" data-end="${Number(point.end)}"><div class="fc-week-tasks-head"><strong>${next?'Следующая неделя':weekView==='current'?'Текущая неделя':'Дела недели'}${overdue.length?` · ${overdue.length} с прошлых недель`:''}</strong><span class="period">${mEsc(financeWeekTaskPeriod(point))}</span>${plan}${history}${add}</div><div class="fc-week-tasks-list">${rows}</div>${next?'':financeWeekTaskHistoryBlock(kind,point)}</section>`;
+  return `<section class="fc-week-tasks" id="financeWeekTasks-${kind}${next?'-next':''}" data-week-view="${weekView}" data-task-kind="${kind}" data-start="${Number(point.start)}" data-end="${Number(point.end)}"><div class="fc-week-tasks-head"><strong>${next?'Следующая неделя':weekView==='current'?'Текущая неделя':'Дела недели'}${overdue.length?` · ${overdue.length} с прошлых недель`:''}</strong><span class="period">${mEsc(financeWeekTaskPeriod(point))}</span>${plan}${history}${add}</div><div class="fc-week-tasks-list">${rows}</div>${kind==='demos'&&!next?'<div data-transcript-tasks></div>':''}${next?'':financeWeekTaskHistoryBlock(kind,point)}</section>`;
 }
 function refreshFinanceWeekTaskBlock(kind){
   document.querySelectorAll('.fc-week-tasks[data-task-kind]').forEach(current=>{
@@ -7779,6 +7782,7 @@ async function paintFinanceCharts(el,data,{cached=false}={}){
   const analyticsEl=analyticsSlot?.querySelector('#leadAnalytics');
   if(analyticsEl) renderLeadAnalytics(analyticsEl);
   applyFinanceChartsFold();
+  mountTranscriptDemoTasks();
   if(position.hasGrid)restoreFinanceChartPosition(el,position);
 
   return true;
