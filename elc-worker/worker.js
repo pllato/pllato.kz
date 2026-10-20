@@ -12353,7 +12353,7 @@ export default {
     if (path.startsWith('/api/wa/stage-groups/')) return handleStageGroups(request,env,{json,requireAuthFlexible,resolveCanonicalUser,dealAccessSql});
 
     if (path.startsWith("/api/zoom/")) {
-      return handleZoomRequest(request, env, { json, corsHeaders, requireAuthFlexible, resolveCanonicalUser, dealAccessSql, canEditRecord });
+      return handleZoomRequest(request, env, { json, corsHeaders, requireAuthFlexible, resolveCanonicalUser, dealAccessSql, canEditRecord, ensureQualRecordingsTable });
     }
 
     if (path === "/api/meta/lead-webhook") {
