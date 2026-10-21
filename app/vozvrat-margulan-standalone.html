@@ -1,0 +1,1077 @@
+<!doctype html>
+<!--
+  Автономная версия демо «ВОЗВРАТ · CRM взыскания: должники, портфели, звонки, платежи · демо».
+  Один файл: разметка, стили, логика и картинки внутри. Интернет не нужен —
+  шрифты подгружаются при наличии сети, иначе берутся системные.
+  Собирается скриптом tools/sales-kit/scripts/standalone.py из app/vozvrat-margulan.html.
+-->
+<html lang="ru">
+<head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>ВОЗВРАТ · CRM взыскания: должники, портфели, звонки, платежи · демо (автономный файл)</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2317324d'/><path d='M34 52l11 11 22-24' fill='none' stroke='%232fb67c' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Golos+Text:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+ --rail:#17324d;--rail2:#10263b;--rail-h:#21425f;--rail-a:#2fb67c;
+ --brand:#17324d;--brand2:#2fb67c;--brandl:#e8f0f6;--steel:#8b96a3;
+ --bg:#f2f5f8;--card:#fff;--card2:#f7f9fb;--card3:#e4eaf0;
+ --text:#142233;--muted:#55657a;--muted2:#8796a8;--line:#e0e7ee;--line2:#c9d4df;
+ --acc:#17324d;--acc2:#2fb67c;--accl:#e8f0f6;
+ --ok:#1f8a5b;--ok-l:#e2f4ea;--bad:#d2412c;--bad-l:#fce8e4;--warn:#c27a0e;--warn-l:#fdf1dc;
+ --info:#0a6bb0;--info-l:#e4f1fb;--violet:#5d5fa8;--violet-l:#ecedf8;
+ --r:14px;--sh:0 1px 3px rgba(20,34,51,.06);--sh2:0 14px 40px rgba(23,50,77,.22);
+}
+body.dark{
+ --bg:#0d1520;--card:#142030;--card2:#1a283a;--card3:#243548;
+ --text:#e8eef5;--muted:#a3b2c3;--muted2:#71839a;--line:#243548;--line2:#33475e;
+ --accl:#1c3048;--ok-l:#13261a;--bad-l:#2e1613;--warn-l:#2e2210;--info-l:#13283a;--violet-l:#1e1e30;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Golos Text',system-ui,sans-serif;-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden;font-size:13px}
+button,select,input{font-family:inherit;color:inherit;cursor:pointer}
+button{border:0;background:none;padding:0}
+a{text-decoration:none;color:inherit}
+.hidden{display:none!important}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.num{font-variant-numeric:tabular-nums}
+
+/* ====== ВХОД ====== */
+.gate{height:100vh;display:grid;grid-template-columns:1.05fr .95fr;background:var(--rail);color:#dce7ec;overflow:auto}
+.gate-l{padding:44px 48px;display:flex;flex-direction:column;justify-content:center}
+.glogo{display:flex;align-items:center;gap:18px;align-self:flex-start}
+.gate h1{font-size:33px;line-height:1.1;letter-spacing:-.028em;margin:22px 0 12px;color:#fff;font-weight:800}
+.gate h1 em{font-style:normal;color:#7fe0b0}
+.gate p{font-size:12.6px;line-height:1.75;color:#94a7b4;max-width:580px;margin:0 0 10px}
+.gtag{display:inline-block;align-self:flex-start;font:700 8.6px 'JetBrains Mono',monospace;letter-spacing:.15em;color:#e2c877;text-transform:uppercase;border:1px solid #5a4a22;background:#2a2414;padding:5px 11px;border-radius:4px}
+.gstat{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:24px;border-top:1px solid #24404f;padding-top:18px}
+.gstat small{display:block;font:600 7.4px 'JetBrains Mono',monospace;color:#7d92a0;letter-spacing:.1em;text-transform:uppercase}
+.gstat b{display:block;font-size:17px;margin-top:5px;color:#fff;font-variant-numeric:tabular-nums}
+.gstat b.a{color:var(--brand2)}
+.gate-r{background:#f2f5f6;padding:38px 36px;overflow:auto;display:flex;flex-direction:column;justify-content:center}
+.lform{background:#fff;border-radius:10px;box-shadow:0 6px 28px rgba(14,24,32,.18);padding:26px 28px;max-width:480px;width:100%;margin:0 auto}
+.lform h2{font-size:17px;margin:0 0 4px;color:var(--text);font-weight:800;letter-spacing:-.015em}
+.lform>p{font-size:11.6px;color:var(--muted);margin:0 0 17px;line-height:1.6}
+.roles{display:grid;gap:7px}
+.role{text-align:left;background:#fff;border:1px solid var(--line2);border-radius:7px;padding:11px 13px;transition:.13s;display:flex;align-items:center;gap:12px;cursor:pointer}
+.role:hover{border-color:var(--brand);background:var(--brandl);transform:translateX(2px)}
+.role .rav{width:32px;height:32px;border-radius:8px;background:var(--rail);color:var(--brand2);display:grid;place-items:center;font:700 10px 'JetBrains Mono',monospace;flex:none}
+.role b{display:block;font-size:12.6px;color:var(--text)}
+.role span{display:block;font-size:10.4px;color:var(--muted);margin-top:2px;line-height:1.45}
+.lnote{margin-top:15px;padding-top:13px;border-top:1px solid var(--line);font-size:10.4px;color:var(--muted);line-height:1.62}
+.lnote b{display:block;color:var(--text);font-size:11.2px;margin-bottom:3px}
+
+/* ====== КАРКАС ====== */
+.app{height:100vh;display:grid;grid-template-columns:74px auto 1fr}
+.rail{background:var(--rail);padding:0 0 9px;overflow-y:auto;display:flex;flex-direction:column;align-items:center}
+.rail::-webkit-scrollbar{width:0}
+.rail-logo{width:100%;height:56px;display:grid;place-items:center;background:var(--rail2);flex:none;margin-bottom:6px}
+.ri{width:60px;padding:8px 4px 7px;border-radius:7px;display:grid;place-items:center;gap:3px;color:#8b9dab;cursor:pointer;position:relative;margin-bottom:2px;transition:.12s}
+.ri i{font-size:15px;font-style:normal;line-height:1}
+.ri span{font-size:8.2px;font-weight:700;letter-spacing:.01em;text-align:center;line-height:1.15}
+.ri:hover{background:var(--rail-h);color:#fff}
+.ri.on{background:var(--rail-h);color:#fff}
+.ri.on:before{content:'';position:absolute;left:-7px;top:7px;bottom:7px;width:3px;border-radius:0 3px 3px 0;background:var(--brand2)}
+.ri .cnt{position:absolute;top:2px;right:4px;background:var(--brand);color:#fff;font:700 8px 'JetBrains Mono',monospace;padding:1px 4px;border-radius:7px}
+.rail-bot{margin-top:auto;padding-top:9px}
+.me{width:34px;height:34px;border-radius:9px;background:var(--acc);color:#fff;display:grid;place-items:center;font:700 10px 'JetBrains Mono',monospace}
+#sub{width:214px;background:var(--card);border-right:1px solid var(--line);padding:14px 0;overflow-y:auto;flex:none}
+#sub h4{font:700 9.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.1em;margin:0 0 8px;padding:0 17px}
+#sub a{display:flex;align-items:center;gap:8px;padding:8px 17px;font-size:12.2px;color:var(--text);cursor:pointer;border-left:3px solid transparent}
+#sub a:hover{background:var(--card2)}
+#sub a.on{background:var(--brandl);border-left-color:var(--brand);color:var(--brand);font-weight:700}
+#sub .shint{margin:14px 17px 0;padding-top:12px;border-top:1px solid var(--line);font-size:10.2px;color:var(--muted);line-height:1.58}
+.main{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.top{height:52px;border-bottom:1px solid var(--line);background:var(--card);display:flex;align-items:center;padding:0 18px;gap:13px;flex:none}
+.top h1{font-size:16px;margin:0;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.top-r{margin-left:auto;display:flex;align-items:center;gap:8px}
+.srch{display:flex;align-items:center;gap:7px;background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:0 10px;height:32px}
+.srch i{color:var(--muted2);font-style:normal;font-size:12px}
+.srch input{border:0;background:none;outline:0;font-size:11.4px;width:200px}
+.ab{background:var(--brand);color:#fff;border-radius:6px;padding:0 14px;height:32px;font-size:11px;font-weight:800;letter-spacing:.03em;white-space:nowrap}
+.ab:hover{background:#6e4620}
+.ib{width:32px;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--card2);font-size:13px}
+.ib:hover{border-color:var(--brand);color:var(--brand)}
+.rsel{height:32px;border:1px solid var(--line);border-radius:6px;background:var(--card2);font-size:11.4px;padding:0 8px;font-weight:700}
+.content{flex:1;overflow-y:auto;padding:17px 18px 26px}
+.screen{max-width:1460px}
+
+/* ====== ОБЩИЕ БЛОКИ ====== */
+.hd{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:13px}
+.hd h2{font-size:19px;margin:0 0 4px;font-weight:800;letter-spacing:-.025em}
+.hd p{margin:0;font-size:11.6px;color:var(--muted);line-height:1.6;max-width:960px}
+.btns{display:flex;gap:7px;flex:none;flex-wrap:wrap;justify-content:flex-end}
+.bt{border:1px solid var(--line2);background:var(--card);border-radius:6px;padding:7px 12px;font-size:11.2px;font-weight:700;white-space:nowrap}
+.bt:hover{border-color:var(--brand);color:var(--brand)}
+.bt.p{background:var(--brand);border-color:var(--brand);color:#fff}.bt.p:hover{background:#6e4620;border-color:#6e4620;color:#fff}
+.bt.g{background:var(--ok);border-color:var(--ok);color:#fff}.bt.g:hover{color:#fff;border-color:var(--ok)}
+.bt.v{background:var(--acc);border-color:var(--acc);color:#fff}.bt.v:hover{color:#fff;border-color:var(--acc)}
+.bt.w{background:var(--warn);border-color:var(--warn);color:#fff}.bt.w:hover{color:#fff;border-color:var(--warn)}
+.pan{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:15px 17px;margin-bottom:12px;box-shadow:var(--sh)}
+.pan>h3{font-size:13.4px;margin:0 0 4px;font-weight:800;letter-spacing:-.015em}
+.pan>p{margin:0 0 11px;font-size:11px;color:var(--muted);line-height:1.6}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.g21{display:grid;grid-template-columns:1.7fr 1fr;gap:12px;margin-bottom:12px}
+.g12{display:grid;grid-template-columns:1fr 1.7fr;gap:12px;margin-bottom:12px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+@media(max-width:1300px){.g2,.g21,.g12,.g3{grid-template-columns:1fr}}
+.mini{font-size:11px;color:var(--muted);line-height:1.6}
+.sub,.sub2{font-size:10.2px;color:var(--muted);margin-top:2px;font-weight:400;line-height:1.45;display:block}
+
+/* метрики */
+.wid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px}
+@media(max-width:1180px){.wid{grid-template-columns:repeat(2,1fr)}}
+.wid>div{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:12px 14px;box-shadow:var(--sh)}
+.wid small{display:block;font:700 8.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.07em}
+.wid b{display:block;font-size:21px;margin-top:6px;font-weight:800;letter-spacing:-.028em;font-variant-numeric:tabular-nums}
+.wid b.a{color:var(--brand)}.wid b.g{color:var(--ok)}.wid b.r{color:var(--bad)}.wid b.i{color:var(--info)}.wid b.w{color:var(--warn)}.wid b.v{color:var(--violet)}
+.wid span{display:block;font-size:10.2px;color:var(--muted);margin-top:3px;line-height:1.45}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:11.6px;align-items:flex-start}
+.kv:last-child{border:0}
+.kv>span:first-child{color:var(--muted);flex:1}
+.kv b{font-weight:800;font-variant-numeric:tabular-nums;text-align:right;flex:none}
+.bar{height:9px;background:var(--card3);border-radius:5px;overflow:hidden}
+.bar i{display:block;height:100%;width:var(--w);background:var(--acc);border-radius:5px}
+.bar i.g{background:var(--ok)}.bar i.r{background:var(--bad)}.bar i.w{background:var(--warn)}.bar i.b{background:var(--brand)}.bar i.v{background:var(--violet)}
+.fr{display:grid;grid-template-columns:215px 1fr 155px;gap:11px;align-items:center;margin-bottom:9px;font-size:11.6px}
+.fr b{text-align:right;font-weight:700;font-size:11.4px;font-variant-numeric:tabular-nums}
+@media(max-width:900px){.fr{grid-template-columns:1fr;gap:4px}.fr b{text-align:left}}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}
+table.t{width:100%;border-collapse:collapse}
+table.t th{text-align:left;font:700 9.6px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.05em;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card2)}
+table.t td{padding:10px 12px;border-bottom:1px solid var(--line);font-size:11.8px;vertical-align:middle}
+table.t tbody tr:last-child td{border-bottom:0}
+table.t tbody tr{cursor:pointer}
+table.t tbody tr:hover{background:var(--card2)}
+table.t td.r,table.t th.r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+table.t tr.total td{border-top:1.5px solid var(--line2);font-weight:800;background:var(--card2)}
+.tag{display:inline-block;font:700 9px 'JetBrains Mono',monospace;padding:3px 7px;border-radius:4px;background:var(--card3);color:var(--muted);white-space:nowrap}
+.tag.g{background:var(--ok-l);color:var(--ok)}.tag.r{background:var(--bad-l);color:var(--bad)}
+.tag.w{background:var(--warn-l);color:var(--warn)}.tag.i{background:var(--info-l);color:var(--info)}
+.tag.a{background:var(--accl);color:var(--acc)}.tag.b{background:var(--brandl);color:var(--brand)}
+.tag.v{background:var(--violet-l);color:var(--violet)}
+.av{width:24px;height:24px;border-radius:6px;background:var(--rail);color:var(--brand2);display:inline-grid;place-items:center;font:700 8.6px 'JetBrains Mono',monospace;flex:none;vertical-align:-7px}
+.av.a{background:var(--acc);color:#fff}.av.i{background:var(--info);color:#fff}.av.v{background:var(--violet);color:#fff}.av.g{background:var(--ok);color:#fff}.av.w{background:var(--warn);color:#fff}
+.note{border-left:3px solid var(--tone,var(--brand));background:var(--card2);border-radius:0 5px 5px 0;padding:10px 13px;margin-top:11px}
+.note b{font-size:11.4px;display:block;margin-bottom:3px}
+.note p{margin:0;font-size:10.8px;color:var(--muted);line-height:1.62}
+.hint{background:var(--accl);border-left:3px solid var(--acc);border-radius:0 5px 5px 0;padding:11px 14px;font-size:11.2px;line-height:1.65;margin-top:12px}
+.said{background:var(--brandl);border-left:3px solid var(--brand);border-radius:0 5px 5px 0;padding:11px 14px;font-size:11.2px;line-height:1.65;margin-top:12px}
+.said b{display:block;font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);margin-bottom:4px}
+.said i{font-style:italic;color:var(--text)}
+.li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+.li:last-child{border:0}
+.li i{width:19px;height:19px;border-radius:5px;display:grid;place-items:center;font-size:10px;font-style:normal;color:#fff;flex:none;background:var(--ok);font-weight:700}
+.li.no i{background:var(--muted2)}.li.n i{background:var(--acc)}.li.w i{background:var(--warn)}.li.b i{background:var(--brand)}.li.r i{background:var(--bad)}.li.v i{background:var(--violet)}
+.li>span{font-size:11.4px;line-height:1.58;flex:1;min-width:0}
+.tl{border-left:2px solid var(--line2);margin-left:8px;padding-left:16px}
+.tli{position:relative;padding:8px 0 10px}
+.tli:before{content:'';position:absolute;left:-23px;top:12px;width:11px;height:11px;border-radius:50%;background:var(--line2);border:2px solid var(--bg)}
+.tli.on:before{background:var(--brand)}
+.tli.ok:before{background:var(--ok)}
+.tli.bad:before{background:var(--bad)}
+.tli b{font-size:12.2px;display:block}
+.tli p{margin:3px 0 0;font-size:11px;color:var(--muted);line-height:1.6}
+.tli .who{font:700 8.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.07em}
+
+/* поток шагов */
+.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:11px 0}
+@media(max-width:1100px){.flow{grid-template-columns:repeat(2,1fr)}}
+.fbx{border:1px solid var(--line);border-radius:var(--r);padding:12px;background:var(--card)}
+.fbx.on{background:var(--rail);border-color:var(--rail);color:#fff}
+.fbx.done{border-color:var(--ok);background:var(--ok-l)}
+.fbx code{font:700 8.6px 'JetBrains Mono',monospace;color:var(--brand);letter-spacing:.09em}
+.fbx.on code{color:var(--brand2)}
+.fbx b{display:block;font-size:15px;margin:6px 0 3px;font-weight:800;font-variant-numeric:tabular-nums}
+.fbx p{margin:0;font-size:9.8px;line-height:1.5;color:var(--muted)}
+.fbx.on p{color:#9fb2bf}
+
+/* воронка */
+.pipe{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(200px,1fr);gap:9px;overflow-x:auto;padding-bottom:7px;margin-bottom:12px}
+.phead{border-radius:6px 6px 0 0;padding:8px 11px;color:#fff;font-size:10.6px;font-weight:800}
+.pmeta{display:flex;justify-content:space-between;font-size:9.6px;color:var(--muted);padding:6px 3px}
+.pmeta b{font-variant-numeric:tabular-nums}
+.pbody{min-height:130px;border-radius:0 0 6px 6px;padding:2px}
+.pbody.over{background:var(--brandl);outline:2px dashed var(--brand)}
+.pc{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:9px 10px;margin-bottom:6px;cursor:grab;box-shadow:var(--sh)}
+.pc:hover{border-color:var(--brand)}
+.pc.drag{opacity:.42}
+.pc.new{animation:pop .5s ease}
+@keyframes pop{0%{transform:scale(.9);background:var(--brandl)}100%{transform:none}}
+.pc b{display:block;font-size:11.4px}
+.pc .pn{font-size:10px;color:var(--muted);margin-top:2px;display:block}
+.pc .pp{font-size:12px;font-weight:800;margin-top:5px;font-variant-numeric:tabular-nums;display:block}
+.pc .prow{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap}
+.pc .prow .tag{font-size:8.2px;padding:2px 5px}
+.ptabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+.ptab{border:1px solid var(--line2);background:var(--card);border-radius:20px;padding:6px 13px;font-size:11.2px;font-weight:700}
+.ptab.on{background:var(--rail);border-color:var(--rail);color:#fff}
+.ptab.add{border-style:dashed;color:var(--brand);border-color:var(--brand)}
+
+/* календарь отчётности */
+.cal{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:11px 0}
+@media(max-width:1200px){.cal{grid-template-columns:repeat(3,1fr)}}
+.mo{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:10px 11px;box-shadow:var(--sh)}
+.mo h4{margin:0 0 6px;font:700 9.4px 'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2)}
+.mo .ev{font-size:10px;line-height:1.35;padding:4px 6px;border-radius:4px;margin-bottom:4px;background:var(--card2);border-left:3px solid var(--c,var(--acc))}
+.mo .ev b{display:block;font-size:10.2px;font-variant-numeric:tabular-nums}
+.mo.now{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.dl{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-left:4px solid var(--c,var(--acc));background:var(--card);border-radius:var(--r);padding:11px 13px;margin-bottom:7px;box-shadow:var(--sh)}
+.dl .dt{text-align:center;flex:none;width:44px}
+.dl .dt b{display:block;font-size:17px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.dl .dt small{font:700 8px 'JetBrains Mono',monospace;color:var(--muted2);letter-spacing:.06em}
+.dl .dn{flex:1;min-width:0}
+.dl .dn b{font-size:12.2px;display:block}
+.dl .prg{width:120px;flex:none}
+.dl .prg .bar{height:7px}
+.dl .prg span{display:block;font:700 9px 'JetBrains Mono',monospace;color:var(--muted);margin-top:4px;text-align:right}
+
+/* чек-лист готовности */
+.chk{border:1px solid var(--line);border-radius:var(--r);background:var(--card);overflow:hidden}
+.chk .ci{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);font-size:11.6px}
+.chk .ci:last-child{border:0}
+.chk .ci .bx{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--line2);display:grid;place-items:center;font-size:11px;flex:none;cursor:pointer;background:var(--card2)}
+.chk .ci .bx.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.chk .ci .nm{flex:1}
+.chk .ci .who{font:700 8.6px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase}
+
+/* матрица обязанностей */
+.mx{overflow-x:auto}
+.mxg{display:grid;grid-template-columns:200px repeat(var(--c,4),1fr);gap:5px;min-width:700px}
+.mxg .h{font:700 9.2px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;padding:6px 4px;text-align:center;border-bottom:1px solid var(--line)}
+.mxg .rw{font-size:11px;padding:8px 8px 0 0;font-weight:700;line-height:1.35}
+.mxg .cellm{border:1px dashed var(--line2);border-radius:5px;min-height:38px;padding:3px;background:var(--card)}
+.mxg .cellm.over{background:var(--brandl);border-color:var(--brand)}
+.chip{border-radius:5px;padding:4px 7px;font-size:10px;color:#fff;cursor:grab;margin-bottom:3px;line-height:1.3}
+.chip b{display:block;font-size:10.2px}
+.chip.drag{opacity:.4}
+
+/* WhatsApp */
+.chat{display:flex;flex-direction:column;gap:8px}
+.msg{max-width:84%;padding:8px 11px;border-radius:9px;font-size:11.2px;line-height:1.52}
+.msg small{display:block;font:600 8.4px 'JetBrains Mono',monospace;opacity:.66;margin-top:4px}
+.msg.out{align-self:flex-end;background:var(--ok-l);border:1px solid #cbe6da}
+.msg.in{align-self:flex-start;background:var(--card2);border:1px solid var(--line)}
+.msg.sys{align-self:center;background:var(--brandl);border:1px solid #c5e5d6;font-size:10.4px;text-align:center;max-width:94%}
+.tpl{border:1px solid var(--line);border-radius:6px;padding:9px 11px;margin-bottom:6px;background:var(--card);cursor:pointer}
+.tpl:hover{border-color:var(--brand);background:var(--brandl)}
+.tpl b{display:block;font-size:11.4px}
+.tpl span{display:block;font-size:10.2px;color:var(--muted);margin-top:3px;line-height:1.45}
+
+/* калькулятор */
+.calc{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:1100px){.calc{grid-template-columns:1fr}}
+.crow{margin-bottom:14px}
+.crow label{display:flex;justify-content:space-between;font-size:11.4px;margin-bottom:6px}
+.crow label b{font-weight:800;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--brand);height:4px}
+.res{border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.res .rr{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;font-size:11.8px;border-bottom:1px solid var(--line);background:var(--card)}
+.res .rr:last-child{border:0}
+.res .rr.hi{background:var(--brandl);font-weight:800;font-size:13px}
+.res .rr b{font-variant-numeric:tabular-nums;text-align:right}
+.srow{display:flex;align-items:center;gap:11px;padding:9px 11px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;background:var(--card2);font-size:11.8px}
+.srow .nm{flex:1}
+.sw{width:34px;height:19px;border-radius:10px;background:var(--line2);position:relative;transition:.14s;flex:none;cursor:pointer}
+.sw:after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:.14s}
+.sw.on{background:var(--ok)}.sw.on:after{left:17px}
+
+/* карточки-этапы */
+.bays{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin:11px 0}
+@media(max-width:1200px){.bays{grid-template-columns:repeat(2,1fr)}}
+.bay{border:1px solid var(--line);border-top:4px solid var(--c,var(--line2));border-radius:var(--r);background:var(--card);padding:12px 13px;box-shadow:var(--sh)}
+.bay small{display:block;font:700 8.4px 'JetBrains Mono',monospace;color:var(--muted2);letter-spacing:.07em;text-transform:uppercase}
+.bay b{display:block;font-size:13.6px;margin-top:6px;font-weight:800}
+.bay .who{font-size:10.4px;color:var(--muted);margin-top:3px}
+.bay .prg{height:6px;background:var(--card3);border-radius:4px;margin-top:9px;overflow:hidden}
+.bay .prg i{display:block;height:100%;width:var(--w);background:var(--c,var(--acc))}
+.bay .tm{display:flex;justify-content:space-between;font-size:9.8px;color:var(--muted);margin-top:5px;font-variant-numeric:tabular-nums}
+
+/* документ */
+.doc{background:#fff;color:#142430;border:1px solid var(--line2);border-radius:4px;padding:22px 26px;box-shadow:var(--sh2);max-width:700px;margin:0 auto}
+body.dark .doc{background:#f7fafb}
+.doc .dh{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #8a5a2b;padding-bottom:11px;margin-bottom:13px}
+.doc .dl{font-size:19px;font-weight:800;letter-spacing:.04em;color:#16232e}
+.doc .dl small{display:block;font:600 8px 'JetBrains Mono',monospace;letter-spacing:.16em;color:#1f7a5a;margin-top:3px}
+.doc h4{font-size:15px;margin:0 0 4px;font-weight:800}
+.doc .drow{display:grid;grid-template-columns:22px 1fr 78px 92px;gap:8px;padding:6px 0;border-bottom:1px dotted #c5d2da;font-size:10.6px}
+.doc .drow.h{font:700 8.2px 'JetBrains Mono',monospace;letter-spacing:.05em;text-transform:uppercase;color:#7b8c96;border-bottom:1px solid #c5d2da}
+.doc .drow span.r{text-align:right;font-variant-numeric:tabular-nums}
+.doc .dsum{display:flex;justify-content:space-between;padding:9px 0;font-size:13px;font-weight:800;border-top:2px solid #16232e;margin-top:4px}
+.doc .dfoot{display:flex;justify-content:space-between;gap:18px;margin-top:18px;padding-top:11px;border-top:1px solid #c5d2da;font-size:9.6px;color:#5e7280;line-height:1.6}
+.doc .sgn{margin-top:14px;display:flex;gap:26px;font-size:10.2px}
+.doc .sgn u{display:inline-block;width:104px;border-bottom:1px solid #92a5b1;text-decoration:none}
+
+/* телефон */
+.phone{width:292px;border:10px solid #16232e;border-radius:30px;overflow:hidden;background:var(--card);box-shadow:var(--sh2)}
+.phone .pht{background:var(--rail);color:#fff;padding:13px 15px}
+.phone .pht b{font-size:12.6px;display:block}
+.phone .pht small{font-size:9.6px;opacity:.72}
+.phone .pb{padding:13px 15px}
+.phone .pi{padding:10px 0;border-bottom:1px solid var(--line);font-size:11.4px;display:flex;justify-content:space-between;gap:10px}
+.phone .pi:last-child{border:0}
+.phone .pi b{font-variant-numeric:tabular-nums;text-align:right}
+.phone .pbtn{background:var(--brand);color:#fff;border-radius:7px;padding:11px;text-align:center;font-weight:800;font-size:12px;margin-top:12px;cursor:pointer}
+
+/* одометр */
+.gauge{width:128px;height:128px;border-radius:50%;display:grid;place-items:center;position:relative;
+ background:conic-gradient(var(--gc,var(--ok)) calc(var(--p,50)*1%),var(--card3) 0)}
+.gauge:after{content:'';position:absolute;inset:13px;border-radius:50%;background:var(--card)}
+.gauge div{position:relative;z-index:1;text-align:center}
+.gauge b{display:block;font-size:20px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.gauge small{display:block;font-size:9px;color:var(--muted);margin-top:2px}
+.odo{display:grid;grid-template-columns:132px 1fr;gap:16px;align-items:center}
+@media(max-width:760px){.odo{grid-template-columns:1fr}}
+
+/* шкала-полоса */
+.yld{display:flex;height:42px;border-radius:7px;overflow:hidden;margin:12px 0 6px;box-shadow:var(--sh)}
+.yld div{display:grid;place-items:center;color:#fff;font-weight:800;font-size:11.4px;position:relative;transition:.2s;overflow:hidden;white-space:nowrap}
+.yld div small{position:absolute;bottom:3px;font:600 8px 'JetBrains Mono',monospace;opacity:.85}
+.yld-l{display:flex;gap:14px;flex-wrap:wrap;font-size:10.8px;color:var(--muted)}
+.yld-l i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+/* задача-цепочка */
+.tsk{border:1px solid var(--line);border-left:4px solid var(--c,var(--acc));border-radius:var(--r);background:var(--card);padding:12px 14px;margin-bottom:8px;box-shadow:var(--sh)}
+.tsk .th{display:flex;align-items:flex-start;gap:10px}
+.tsk .th b{flex:1;font-size:12.6px}
+.tsk .meta{display:flex;gap:9px;flex-wrap:wrap;font-size:10.2px;color:var(--muted);margin-top:6px}
+.tsk .chain{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line2);display:grid;gap:6px}
+.tsk .chain div{display:flex;align-items:center;gap:8px;font-size:11px}
+.tsk .chain .st{font:700 8.2px 'JetBrains Mono',monospace;padding:2px 6px;border-radius:4px;background:var(--card3);color:var(--muted);white-space:nowrap}
+.tsk .chain .st.ok{background:var(--ok-l);color:var(--ok)}
+.tsk .chain .st.go{background:var(--warn-l);color:var(--warn)}
+
+/* окно */
+.mbg{position:fixed;inset:0;background:rgba(14,24,32,.55);z-index:60;opacity:0;pointer-events:none;transition:.16s}
+.mbg.show{opacity:1;pointer-events:auto}
+.modal{position:absolute;right:0;top:0;bottom:0;width:min(920px,95vw);background:var(--bg);box-shadow:-8px 0 34px rgba(14,24,32,.3);overflow-y:auto;transform:translateX(26px);transition:.18s}
+.mbg.show .modal{transform:none}
+.mh{background:var(--card);border-bottom:1px solid var(--line);padding:15px 19px;display:flex;justify-content:space-between;align-items:flex-start;gap:14px;position:sticky;top:0;z-index:2}
+.mh h3{margin:0;font-size:15.4px;font-weight:800;letter-spacing:-.02em}
+.mh p{margin:3px 0 0;font-size:11px;color:var(--muted)}
+.mxb{width:28px;height:28px;border-radius:6px;border:1px solid var(--line);font-size:15px;color:var(--muted);flex:none}
+.mb{padding:15px 19px 26px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,14px);background:var(--rail);color:#fff;padding:12px 18px;border-radius:8px;font-size:11.8px;max-width:min(800px,92vw);line-height:1.55;opacity:0;pointer-events:none;transition:.2s;z-index:80;box-shadow:var(--sh2)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast b{color:var(--brand2)}
+.spark{position:fixed;width:8px;height:8px;top:-12px;z-index:90;pointer-events:none;animation:fall 2.1s linear forwards}
+@keyframes fall{to{transform:translateY(104vh) rotate(560deg);opacity:0}}
+
+
+/* ====== РЕЕСТР 01 и вглубь ====== */
+.lk{color:var(--acc);cursor:pointer;border-bottom:1px dotted var(--acc2)}
+.lk:hover{color:var(--brand);border-bottom-color:var(--brand)}
+.crumb{font-size:10.6px;color:var(--muted);margin-bottom:5px}
+.crumb a{cursor:pointer;color:var(--acc)}
+.neg{color:var(--bad)}.pos{color:var(--ok)}.warnt{color:var(--warn)}
+td .sub{display:block;font-size:10px;color:var(--muted);margin-top:2px;font-weight:400;white-space:normal;max-width:320px}
+.regw{max-height:calc(100vh - 330px);overflow:auto}
+table.reg th,table.reg td{padding:7px 9px;font-size:11.2px;white-space:nowrap}
+table.reg th{position:sticky;top:0;z-index:2}
+table.reg tr.grp th{top:0;background:var(--rail);color:#c9a24d;text-align:center;font-size:8.6px;letter-spacing:.09em;border-bottom:1px solid #3a3e45;padding:5px 8px}
+table.reg tr.grp+tr th{top:25px}
+table.reg th.stick,table.reg td.stick{position:sticky;left:0;background:var(--card);z-index:1;min-width:230px;box-shadow:2px 0 0 var(--line)}
+table.reg th.stick{z-index:3;background:var(--card2)}
+table.reg tr.total td.stick{background:var(--card2)}
+table.reg tbody tr:hover td.stick{background:var(--card2)}
+table.reg td.stick .sub{max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.dark table.reg th.stick,body.dark table.reg td.stick{background:var(--card)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:13px;flex-wrap:wrap}
+.tab{padding:8px 13px;font-size:11.6px;font-weight:700;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--brand);border-bottom-color:var(--brand)}
+.days{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(96px,1fr);gap:6px;overflow-x:auto;padding-bottom:4px}
+.day{border:1px solid var(--line);border-radius:6px;background:var(--card);padding:8px 9px;cursor:pointer;box-shadow:var(--sh)}
+.day small{display:block;font:700 8.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em}
+.day span{display:block;font-size:10.2px;margin-top:4px;font-variant-numeric:tabular-nums;min-height:13px}
+.day span i{font-style:normal;color:var(--warn);font-weight:800}
+.day b{display:block;font-size:12.6px;margin-top:5px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.day.warn{border-color:var(--warn);background:var(--warn-l)}
+.day.bad{border-color:var(--bad);background:var(--bad-l)}.day.bad b{color:var(--bad)}
+.ogrid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+@media(max-width:1250px){.ogrid{grid-template-columns:repeat(2,1fr)}}
+.ocard{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:13px 15px;cursor:pointer;box-shadow:var(--sh);transition:.12s}
+.ocard:hover{border-color:var(--brand);transform:translateY(-1px)}
+.ocard .oh{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.ocard .oh b{font-size:13.2px;letter-spacing:-.01em}
+.ocard p{margin:3px 0 8px;font-size:10.6px;color:var(--muted);line-height:1.5}
+.ocard .kv{padding:5px 0;font-size:11px}
+.ocard .om{display:flex;justify-content:space-between;font-size:9.8px;color:var(--muted);margin-top:6px;gap:8px}
+.bgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+@media(max-width:1250px){.bgrid{grid-template-columns:repeat(2,1fr)}}
+.bcard{border:1px solid var(--line);border-top:4px solid var(--c,var(--line2));border-radius:var(--r);background:var(--card);padding:12px 14px;cursor:pointer;box-shadow:var(--sh)}
+.bcard:hover{border-color:var(--c)}
+.bcard .bh{display:flex;gap:10px;align-items:flex-start;margin-bottom:6px}
+.bcard .bh b{font-size:12.6px;display:block}
+.bcard .kv{padding:5px 0;font-size:11px}
+.folders{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-bottom:12px}
+@media(max-width:1200px){.folders{grid-template-columns:repeat(3,1fr)}}
+.folder{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:12px;cursor:pointer;box-shadow:var(--sh);text-align:center}
+.folder:hover{border-color:var(--brand)}
+.folder i{display:block;font-size:22px;font-style:normal;color:var(--brand);margin-bottom:6px}
+.folder b{display:block;font-size:11.4px}
+.folder span{display:block;font-size:10px;color:var(--muted);margin-top:3px;line-height:1.4}
+td.ph{font-size:20px;color:var(--brand);text-align:center;width:34px}
+.ph.big{width:96px;height:96px;border:1px solid var(--line2);border-radius:8px;background:var(--card2);display:grid;place-items:center;font-size:40px;color:var(--brand);flex:none}
+.wid b.v{color:var(--violet)}
+
+@media(max-width:980px){
+ .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
+ .rail{width:100%;flex-direction:row;height:60px;padding:0 7px;align-items:center;overflow-x:auto}
+ .rail-logo{width:52px;height:100%;margin:0 7px 0 0;background:none}
+ .ri{width:auto;min-width:58px;padding:6px 9px;margin:0 2px 0 0}
+ .ri.on:before{left:3px;right:3px;top:auto;bottom:-3px;width:auto;height:3px;border-radius:3px 3px 0 0}
+ .rail-bot{margin:0 0 0 auto;padding:0 4px}
+ #sub{width:100%;border-right:0;border-bottom:1px solid var(--line);padding:7px 0;display:flex;overflow-x:auto}
+ #sub h4,#sub .shint{display:none}
+ #sub a{border-left:0;border-bottom:2px solid transparent;white-space:nowrap;padding:7px 13px}
+ #sub a.on{border-left:0;border-bottom-color:var(--brand)}
+ .top{flex-wrap:wrap;height:auto;padding:9px 12px}
+ .srch{display:none}
+ .content{padding:13px 12px 24px}
+ .gate{grid-template-columns:1fr}
+ .modal{width:100vw}
+}
+
+@media(max-width:980px){.gate-r{overflow:visible}}
+/* ===== ВОЗВРАТ: синий и зелёный, одна колонка слева, нижняя панель на телефоне ===== */
+body{font-size:13.6px}
+h1,h2,h3,.hd h2,.pan>h3,.lform h2,.gate h1,.mh h3,.top h1{font-family:'Golos Text',sans-serif;font-weight:700;letter-spacing:-.015em}
+.hd h2{font-size:24px}.hd p{max-width:920px}
+.gate h1{font-size:30px;line-height:1.18}
+.gname{font:700 40px 'Golos Text',sans-serif;color:#e8edf2;display:block;letter-spacing:.16em;line-height:1}
+.gsub{display:block;font:500 9.6px 'JetBrains Mono',monospace;color:#9aa6b1;letter-spacing:.08em;margin-top:7px}
+.gtag{color:var(--brand2);border-color:#5a4a1a;background:#2a2a22}
+.gate p{color:#b9c3cc}.gstat b.a{color:var(--brand2)}
+.gate-r{background:var(--bg)}
+.role .rav{background:var(--brand);color:var(--brand2)}
+.role:hover{border-color:var(--brand);background:var(--brandl)}
+.me{background:var(--brand2);color:var(--brand)}
+.ab{background:var(--brand2);color:var(--brand)}
+.bt.p{background:var(--brand);border-color:var(--brand);color:var(--brand2)}.bt.p:hover{filter:brightness(1.25);color:var(--brand2)}
+body.dark .bt.p{background:var(--brand2);border-color:var(--brand2);color:var(--brand)}
+.bt:hover{border-color:var(--brand);color:var(--brand)}
+.bt.sm{padding:4px 10px;font-size:11.8px;margin-top:8px}
+.btns.l{justify-content:flex-start}
+.clk{cursor:pointer}.wid>div.clk:hover{border-color:var(--brand)}
+.wid>div{border-top:3px solid var(--line2)}
+.pos{color:var(--ok)}.neg{color:var(--bad)}
+.said-a{margin-top:6px;font-size:11.6px;color:var(--muted)}
+.stg{display:inline-block;font:600 11.2px 'Golos Text',sans-serif;padding:2px 8px;background:color-mix(in srgb,var(--sc) 12%,transparent);color:var(--sc);border-left:3px solid var(--sc)}
+.pf{position:relative;height:9px;background:var(--card3);border-radius:1px;overflow:hidden}
+.pf i{position:absolute;left:0;top:0;bottom:0;border-right:2px solid var(--text);opacity:.35}
+.pf b{position:absolute;left:0;top:2px;bottom:2px;background:var(--brand2)}
+.osw{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.osw a{border:1px solid var(--line2);background:var(--card);padding:7px 12px;cursor:pointer;min-width:170px}
+.osw a b{display:block;font-size:12.6px}.osw a span{font-size:10.6px;color:var(--muted)}
+.osw a.on{border-color:var(--brand);box-shadow:inset 0 -3px 0 var(--brand2)}
+.aib{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--brand2);padding:14px 16px;margin-bottom:12px}
+.aih{display:flex;gap:9px;align-items:center;margin-bottom:8px}
+.aih i{font:700 10px 'JetBrains Mono',monospace;font-style:normal;background:var(--brand);color:var(--brand2);padding:3px 6px}
+.aih b{font-size:14px}
+.aib p{font-size:12.4px;line-height:1.6;margin:0 0 8px}
+.ol{margin:0 0 8px;padding-left:20px;font-size:12.4px;line-height:1.65}
+.rf{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer}.rf:last-child{border:0}
+.rf i{width:8px;height:8px;margin-top:6px;flex:none;background:var(--warn)}.rf.bad i{background:var(--bad)}
+.rf b{display:block;font-size:12.6px}.rf span{display:block;font-size:11.2px;color:var(--muted);margin-top:2px}
+.hb{display:grid;grid-template-columns:190px 1fr 70px;gap:10px;align-items:center;padding:5px 0;font-size:12.2px}
+.hb i{display:block;height:11px;background:var(--brand2)}.hb b{text-align:right;font-weight:500}
+.fc{border-left:3px solid var(--line2);padding:6px 10px;margin-bottom:6px;background:var(--card2)}
+.fc.r{border-color:var(--bad)}.fc.w{border-color:var(--warn)}.fc.g{border-color:var(--ok)}
+.fc b{display:block;font-size:12.4px}.fc span{display:block;font-size:12px;font-weight:600}.fc.r span{color:var(--bad)}.fc.w span{color:var(--warn)}.fc.g span{color:var(--ok)}
+.fc em{display:block;font-style:normal;font-size:11px;color:var(--muted);margin-top:2px}
+.chatai{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.qq{align-self:flex-end;max-width:70%;background:var(--brand);color:#eef1f3;padding:10px 14px;font-size:13px}
+.qq b{display:block;font:500 10px 'JetBrains Mono',monospace;color:var(--brand2);margin-bottom:3px}
+.qa{display:flex;gap:10px;max-width:82%;background:var(--card);border:1px solid var(--line);padding:12px 14px;font-size:13px;line-height:1.6}
+.qa i{font:700 10px 'JetBrains Mono',monospace;font-style:normal;background:var(--brand2);color:var(--brand);padding:3px 6px;height:fit-content}
+.qsug{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.qsug a{border:1px dashed var(--line2);padding:6px 10px;font-size:12px;cursor:pointer;background:var(--card)}.qsug a:hover{border-color:var(--brand);color:var(--brand)}
+.qin{display:flex;gap:8px;margin-top:10px}.qin input{flex:1;border:1px solid var(--line2);padding:9px 10px;font-size:13px;background:var(--card);color:var(--text);cursor:text}
+.seg{display:inline-flex;border:1px solid var(--line2);overflow:hidden;flex-wrap:wrap;margin-bottom:10px}
+.seg a{padding:5px 12px;font-size:11.8px;cursor:pointer;color:var(--muted)}.seg a.on{background:var(--brand);color:var(--brand2)}
+.tl2{display:flex;flex-direction:column;gap:6px}
+.tk{display:grid;grid-template-columns:54px 1fr 200px;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line2);padding:9px 12px}
+.tk.hot{border-left-color:var(--bad)}.tk.high{border-left-color:var(--warn)}
+.tk-n{display:flex;align-items:center;gap:6px}.tk-n b{font:600 20px 'JetBrains Mono',monospace;width:26px}
+.tk-n span{display:flex;flex-direction:column}.tk-n a{cursor:pointer;font-size:11px;line-height:1.2;color:var(--muted);padding:1px 4px;border:1px solid var(--line)}.tk-n a:hover{color:var(--brand);border-color:var(--brand)}
+.tk-t{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.tk-t b{font-size:13.2px;margin-right:4px}
+.tk-m{font-size:11.2px;color:var(--muted);margin-top:3px}.tk-w{font-size:11.2px;color:var(--warn);margin-top:2px}
+.tk-r{display:grid;grid-template-columns:1fr 40px;gap:4px 8px;align-items:center;font-size:11px}.tk-r select{grid-column:1/3;border:1px solid var(--line2);padding:4px;font-size:11.6px;background:var(--card);color:var(--text)}
+.msgs{display:flex;flex-direction:column;gap:7px;max-height:420px;overflow:auto;margin-bottom:6px}
+.mg{max-width:80%;background:var(--card2);border:1px solid var(--line);padding:7px 10px;font-size:12.4px;line-height:1.45}
+.mg small{display:block;font-size:9.8px;color:var(--muted2);margin-bottom:2px;font-family:'JetBrains Mono',monospace}
+.mg.me{align-self:flex-end;background:var(--brandl)}.mg.ai{border-left:3px solid var(--brand2)}
+.evt{display:grid;grid-template-columns:44px 70px 1fr;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px}.evt em{font-style:normal;color:var(--muted)}
+.voice{background:var(--card2);border-left:3px solid var(--acc);padding:12px 14px;font-style:italic;font-size:13px;line-height:1.6;margin-bottom:8px}
+.jl{grid-template-columns:330px 1fr}
+.kv.on{background:var(--brandl);margin:0 -8px;padding-left:8px;padding-right:8px}
+.phs{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.ph{display:grid;grid-template-columns:220px 1fr;background:var(--card);border:1px solid var(--line)}
+.ph svg{width:220px;height:100%;min-height:150px;display:block}
+.ph-b{padding:11px 14px}.ph-b>b{display:block;font-size:13.4px}
+.pk{font-size:12px;padding:4px 0 4px 8px;margin-top:4px;border-left:3px solid}.pk.ok{border-color:var(--ok)}.pk.bad{border-color:var(--bad);color:var(--bad);font-weight:600}
+.upl{border:2px dashed var(--line2);padding:14px;margin-bottom:10px}.upl b{display:block}.upl span{font-size:11.4px;color:var(--muted)}
+.prt{background:#fff;color:#111;border:1px solid #bbb;padding:16px;font-family:'Golos Text',sans-serif;margin-bottom:10px}
+.prt-h{text-align:center;margin-bottom:10px}.prt-h b{display:block;font-size:14px;letter-spacing:.06em}.prt-h span{font-size:11px}
+.prt table{width:100%;border-collapse:collapse;font-size:10.8px}.prt th,.prt td{border:1px solid #777;padding:4px 6px;text-align:left;vertical-align:top}
+.prt p{font-size:11px;margin:10px 0 0}
+.pk1{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:12px}
+.pk1>div{background:var(--card);border:1px solid var(--line);padding:16px 18px}.pk1>div:first-child{border:2px solid var(--brand);box-shadow:inset 0 -4px 0 var(--brand2)}
+.pk1 small{display:block;font:600 10.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase}
+.pk1 b{display:block;font:700 30px 'Golos Text',sans-serif;margin:5px 0 4px}.pk1 span{font-size:12px;color:var(--muted)}
+.li.n i{background:var(--acc)}
+tr.rowbad td{background:var(--bad-l)}tr.rowwarn td{background:var(--warn-l)}
+.kb{display:grid;grid-template-columns:repeat(7,minmax(180px,1fr));gap:8px;overflow-x:auto;padding-bottom:8px}
+.kb.k5{grid-template-columns:repeat(5,minmax(200px,1fr))}
+.kc{background:var(--card2);border-top:3px solid var(--sc);min-height:170px;padding:0 6px 8px;border-radius:0 0 6px 6px}
+.kh{display:flex;justify-content:space-between;align-items:center;padding:9px 4px 7px}
+.kh b{font:700 12.2px 'Golos Text',sans-serif;color:var(--sc)}.kh span{font:500 11px 'JetBrains Mono',monospace;color:var(--muted)}
+.kd{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--sc);padding:8px 9px;margin-bottom:6px;cursor:pointer;font-size:11.6px;border-radius:5px}
+.kd:hover{border-color:var(--brand)}
+.kd.alarm{border-left-color:var(--bad)}
+.kt{display:flex;justify-content:space-between;align-items:center}.kt b{font-family:'JetBrains Mono',monospace;font-size:11.4px}
+.src{font-size:10px;color:var(--muted2)}
+.kr{font-weight:700;margin:4px 0 2px;font-size:12.4px}
+.km{color:var(--muted);font-size:11.2px;line-height:1.35}
+.kf{display:flex;gap:6px;align-items:center;margin-top:6px;font-size:10.8px;color:var(--muted2)}.kf b{margin-left:auto;color:var(--text);font-weight:500}
+.lack{margin-top:6px;font-size:10.6px;color:var(--bad);font-weight:700}
+.kempty{color:var(--muted2);text-align:center;padding:10px}
+.stp{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:12px}
+.stp>div{display:flex;align-items:center;gap:6px;padding:8px 9px;background:var(--card);border:1px solid var(--line);font-size:11px;color:var(--muted)}
+.stp i{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font:500 10px 'JetBrains Mono',monospace;font-style:normal;background:var(--card3);flex:none}
+.stp .ok i,.stp .on i{background:var(--sc);color:#fff}
+.stp .on{border-color:var(--sc);color:var(--text);font-weight:700;box-shadow:inset 0 -3px 0 var(--sc)}
+.mvs{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px}
+.mv{background:var(--card);border:1px solid var(--line);padding:12px;border-radius:6px}
+.mv i{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:500 11px 'JetBrains Mono',monospace;font-style:normal;background:var(--card3);margin-bottom:7px}
+.mv.ok i{background:var(--ok);color:#fff}.mv.on{border-color:var(--brand)}.mv.on i{background:var(--brand);color:#fff}
+.mv b{display:block;font-size:12.6px}.mv span{font-size:11px;color:var(--muted)}
+.pay3{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);background:var(--card);margin-bottom:12px;border-radius:6px}
+.pay3>div{padding:13px 16px;border-right:1px solid var(--line)}.pay3>div:last-child{border:0}
+.pay3 small{display:block;font:500 10.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase}
+.pay3 b{display:block;font:700 22px 'Golos Text',sans-serif;margin:5px 0 3px}.pay3 span{font-size:11.4px;color:var(--muted)}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:12px}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:700}
+.form input,.form select{border:1px solid var(--line2);background:var(--card);padding:8px 9px;font-size:13.2px;color:var(--text);cursor:text;border-radius:6px}
+.mx th.c{text-align:center;font-size:10px;white-space:normal;vertical-align:bottom}.mx th.c span{display:block;font-weight:400;text-transform:none;color:var(--muted);margin-top:3px}.mx td.c{text-align:center}
+.kd .pf{margin-top:7px}
+h1,h2,h3,.hd h2,.pan>h3,.lform h2,.gate h1,.top h1{font-family:'Golos Text',sans-serif;font-weight:600;letter-spacing:-.01em}
+.gate{background:var(--brand);background-image:radial-gradient(circle at 85% 15%,rgba(208,138,82,.18),transparent 45%)}
+.gname{font-family:'Golos Text',sans-serif;letter-spacing:.2em;color:#f4efe6}
+.gtag{color:#e3a877;border-color:#4d6a52;background:#28574a}
+.gate p{color:#c8d6cf}
+.me{background:var(--brand2);color:#fff}.ab{background:var(--brand2);color:#fff}
+.bt.p{background:var(--brand);border-color:var(--brand);color:#fff}.bt.p:hover{color:#fff;filter:brightness(1.1)}
+body.dark .bt.p{background:var(--brand2);border-color:var(--brand2);color:#111a17}
+.pan,.wid>div,.kd,.aib{border-radius:12px}
+.wid>div{border-top:1px solid var(--line)}
+/* экраны */
+.fn{display:grid;grid-template-columns:130px 1fr 40px;gap:8px;align-items:center;padding:4px 0;font-size:12.2px}.fn i{display:block;height:12px;background:linear-gradient(90deg,var(--brand),var(--brand2));border-radius:6px}.fn b{text-align:right;font-family:'JetBrains Mono',monospace;font-weight:500}
+.pbr{height:7px;background:var(--card3);border-radius:4px;overflow:hidden;margin:4px 0 2px}.pbr i{display:block;height:100%;background:var(--brand)}
+.kb{display:grid;grid-template-columns:repeat(9,minmax(170px,1fr));gap:8px;overflow-x:auto;padding-bottom:8px}.kb.k6{grid-template-columns:repeat(6,minmax(190px,1fr))}
+.kc{background:var(--card2);border-radius:12px;padding:0 6px 8px;min-height:160px;border-top:3px solid var(--brand)}
+.kc.s-new{border-top-color:#b26a1f}.kc.s-treat{border-top-color:#2f6f8f}.kc.s-done,.kc.s-rep{border-top-color:#2e7a4f}
+.kh{display:flex;justify-content:space-between;padding:9px 4px 7px}.kh b{font-size:12px}.kh span{font:500 11px 'JetBrains Mono',monospace;color:var(--muted)}
+.kd{background:var(--card);border:1px solid var(--line);padding:8px 9px;margin-bottom:6px;cursor:pointer;font-size:11.6px}.kd:hover{border-color:var(--brand)}.kd.alarm{border-color:var(--bad);background:var(--bad-l)}
+.kt{display:flex;justify-content:space-between;gap:6px}.kt b{font-size:12.2px}.src{font-size:10px;color:var(--muted2)}
+.kr{font-weight:600;font-size:12.2px}.km{color:var(--muted);margin-top:3px;line-height:1.35}.kf{display:flex;justify-content:space-between;margin-top:6px;font-size:10.8px;color:var(--muted2)}.kf b{color:var(--text);font-weight:600}
+.lack{margin-top:5px;font-size:10.6px;color:var(--bad);font-weight:700}.kempty{color:var(--muted2);text-align:center;padding:10px}
+.stps{display:grid;grid-template-columns:repeat(9,1fr);gap:4px;margin-bottom:12px}.stps>div{display:flex;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:7px 8px;font-size:10.8px;color:var(--muted)}
+.stps i{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font:500 10px 'JetBrains Mono',monospace;font-style:normal;background:var(--card3);flex:none}
+.stps .ok i{background:var(--brand);color:#fff}.stps .on{border-color:var(--brand);color:var(--text);font-weight:600}.stps .on i{background:var(--brand2);color:#fff}
+.cl{padding:7px 0;border-bottom:1px solid var(--line);font-size:12px}.cl b{display:block}.cl span{display:block;color:var(--muted)}.cl em{font-style:normal;font-size:11px;color:var(--ok);font-weight:600}
+.pan.call{padding:12px 16px}.ch{display:flex;gap:12px;align-items:center;margin-bottom:6px}.ch b{flex:1}.sc{font:700 15px 'JetBrains Mono',monospace;padding:4px 10px;border-radius:8px}.sc.g{background:var(--ok-l);color:var(--ok)}.sc.w{background:var(--warn-l);color:var(--warn)}.sc.r{background:var(--bad-l);color:var(--bad)}
+.act{display:flex;gap:2px}.act i{display:block;width:10px;height:16px;background:var(--brand);border-radius:2px}
+.bld{display:grid;grid-template-columns:1.4fr 1fr;gap:12px;align-items:start}
+.bh{display:flex;justify-content:space-between;align-items:center;gap:10px}.bh select,.bsum select{border:1px solid var(--line2);border-radius:8px;padding:5px 8px;background:var(--card);color:var(--text)}
+.tpls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 6px}.tpls a{border:1px dashed var(--line2);border-radius:20px;padding:4px 11px;font-size:11.8px;cursor:pointer}.tpls a:hover{border-color:var(--brand);color:var(--brand)}
+.pg{margin-top:10px}.pg>b{display:block;font:500 10px 'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2);margin-bottom:4px}
+.pi{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 10px;border:1px solid var(--line);border-radius:10px;margin-bottom:5px;font-size:12.6px}.pi.on{border-color:var(--brand);background:var(--brandl)}
+.pi em{display:block;font-style:normal;font-size:11px;color:var(--muted)}
+.qty{display:flex;align-items:center;gap:8px}.qty a{width:26px;height:26px;border-radius:50%;border:1px solid var(--line2);display:grid;place-items:center;cursor:pointer;font-weight:700;background:var(--card)}.qty a:hover{border-color:var(--brand);color:var(--brand)}.qty b{min-width:18px;text-align:center;font-family:'JetBrains Mono',monospace}
+.bsum{position:sticky;top:0}.tot{display:flex;justify-content:space-between;align-items:baseline;border-top:2px solid var(--text);margin-top:8px;padding-top:9px}.tot b{font:600 24px 'Golos Text',sans-serif;color:var(--brand)}
+.sel{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.sel a{border:1px solid var(--line2);border-radius:10px;padding:6px 12px;cursor:pointer;font-size:12.4px;background:var(--card)}.sel a em{font-style:normal;color:var(--muted);font-size:11px;margin-left:6px}.sel a.on{border-color:var(--brand);background:var(--brandl)}
+.cdays{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px}
+.cdy{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;min-height:96px}.cdy>b{display:block;font:500 11px 'JetBrains Mono',monospace;color:var(--muted);margin-bottom:5px}
+.cdy.past{opacity:.7}.cdy.now{border-color:var(--brand2);box-shadow:inset 0 3px 0 var(--brand2)}
+.pr{display:block;font-size:11.2px;padding:3px 6px;margin-bottom:3px;background:var(--card2);border-radius:6px}.pr.ok{color:var(--ok)}
+table.grid td{font-size:11px;text-align:center}table.grid td.busy{background:var(--brandl)}table.grid td.full{background:var(--warn-l);font-weight:600}table.grid td.free{background:repeating-linear-gradient(45deg,transparent 0 6px,var(--card2) 6px 12px)}
+.phones{display:grid;grid-template-columns:repeat(3,260px);gap:20px;justify-content:center;margin:6px 0 14px}
+.mob{border:10px solid #1d2a25;border-radius:32px;background:var(--card);overflow:hidden;min-height:440px}.phh{background:var(--brand);color:#fff;padding:16px 16px 12px}.phh b{display:block;font-family:'Golos Text',sans-serif;font-size:16px}.phh span{font-size:11px;color:#c8d6cf}
+.phb{padding:12px 14px}.phb small{display:block;font:500 10px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase}.phb .big{display:block;font:600 20px 'Golos Text',sans-serif;margin:3px 0}
+.pl{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.4px}.pl span{font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:11px;min-width:40px}
+.pbtn{display:block;text-align:center;background:var(--brand);color:#fff;border-radius:10px;padding:10px;margin-top:10px;font-weight:600;font-size:12.6px}.stars{color:var(--brand2);font-size:22px;letter-spacing:3px}
+.site{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card)}.sh{display:flex;align-items:center;gap:20px;padding:14px 20px;border-bottom:1px solid var(--line)}.sh b{font-family:'Golos Text',sans-serif;letter-spacing:.18em;color:var(--brand)}.sh span{flex:1;font-size:12.4px;color:var(--muted)}.sh a,.shero a{background:var(--brand2);color:#fff;border-radius:20px;padding:7px 16px;font-size:12.4px;font-weight:600}
+.shero{padding:34px 24px;background:linear-gradient(120deg,var(--brand),var(--rail-h));color:#fff}.shero h3{font-size:24px;max-width:620px;margin:0 0 8px}.shero p{max-width:620px;color:#c8d6cf;margin:0 0 16px}
+.sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:16px}.sgrid div{background:var(--card2);border-radius:10px;padding:18px 14px;font-weight:600;font-size:13px}
+.pk3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}.pk3>div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 16px}.pk3>div.on{border:2px solid var(--brand)}
+.pk3 small{display:block;font:500 10.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase}.pk3 b{display:block;font:600 26px 'Golos Text',sans-serif;margin:5px 0 4px}.pk3 span{font-size:11.8px;color:var(--muted)}
+.tot2{display:flex;gap:16px;align-items:baseline;flex-wrap:wrap;background:var(--brandl);border-radius:12px;padding:12px 16px;margin-bottom:10px}.tot2 b{font:600 26px 'Golos Text',sans-serif;color:var(--brand)}.tot2 em{font-style:normal;color:#b26a1f;font-weight:600}
+.pay3{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);background:var(--card);margin-bottom:12px;border-radius:12px}.pay3>div{padding:13px 16px;border-right:1px solid var(--line)}.pay3>div:last-child{border:0}.pay3 small{display:block;font:500 10.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase}.pay3 b{display:block;font:600 20px 'JetBrains Mono',monospace;margin:5px 0 3px}.pay3 span{font-size:11.4px;color:var(--muted)}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:12px}.form label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:600}.form input,.form select{border:1px solid var(--line2);background:var(--card);padding:8px 9px;font-size:13px;color:var(--text);border-radius:8px;cursor:text}
+.mx th.c{text-align:center;font-size:10px;white-space:normal;vertical-align:bottom}.mx th.c span{display:block;font-weight:400;text-transform:none;color:var(--muted);margin-top:3px}.mx td.c{text-align:center}
+.wtx{color:var(--warn)}
+.mob .mg{display:block;width:fit-content;max-width:88%;margin:6px 0;font-size:12px}.mob .mg.me{margin-left:auto}
+.mob .mg.me{background:var(--brand);color:#fff;height:auto;border-color:var(--brand)}.mob .mg.me small{color:#c8e6d8}
+.mg.me{font-family:'Golos Text',sans-serif}
+
+h1,h2,h3,.hd h2,.pan>h3,.lform h2,.gate h1,.top h1{font-family:'Golos Text',sans-serif;font-weight:600;letter-spacing:-.02em}
+.hd h2{font-size:22px}.pan>h3{font-size:14px}.gate h1{font-size:28px}
+.gname{font-family:'Golos Text',sans-serif;letter-spacing:.16em;color:#fff}
+.gate{background:var(--brand);background-image:radial-gradient(circle at 85% 10%,rgba(47,182,124,.25),transparent 45%),radial-gradient(circle at 10% 90%,rgba(255,255,255,.08),transparent 40%)}
+.gtag{color:#ffd2c6;border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.08)}.gate p{color:#cfe2ea}
+.me{background:var(--brand2);color:#fff}.ab{background:var(--brand2);color:#fff}
+.bt.p{background:var(--brand);border-color:var(--brand);color:#fff}
+/* одна колонка слева */
+.app{grid-template-columns:250px 1fr}
+.rail{display:none}
+#sub{width:250px;background:var(--brand);color:#fff;border-right:0;padding:0 0 20px}
+#sub .sbh{display:flex;align-items:center;gap:10px;padding:16px 18px 12px;color:#fff}.sbh b{font:600 15px 'Golos Text',sans-serif}
+.blogo{display:inline-grid;place-items:center;color:#fff}.blogo img{width:28px;height:28px;object-fit:contain;border-radius:6px;background:#fff}
+#sub h4{color:rgba(255,255,255,.55);font:500 10px 'JetBrains Mono',monospace;letter-spacing:.1em;text-transform:uppercase;margin:14px 18px 4px}
+#sub a{display:flex;justify-content:space-between;align-items:center;color:rgba(255,255,255,.86);padding:8px 18px;margin:1px 10px;border-radius:10px;font-size:13.5px}
+#sub a:hover{background:rgba(255,255,255,.1);color:#fff}#sub a.on{background:#fff;color:var(--brand);font-weight:600}
+#sub a em{font-style:normal;background:var(--brand2);color:#fff;border-radius:9px;font-size:10.5px;padding:1px 7px;font-weight:700}
+#bnav{display:none}
+/* экраны */
+.g21{grid-template-columns:1.5fr 1fr}
+.lc{width:100%;height:190px}.lc .la{fill:var(--brandl)}.lc .ll{fill:none;stroke:var(--brand);stroke-width:3;vector-effect:non-scaling-stroke}.lc .lp{fill:var(--brand2)}.lc text{font:11px 'JetBrains Mono',monospace;fill:var(--muted2)}
+.hb{display:grid;grid-template-columns:120px 1fr 70px;gap:10px;align-items:center;padding:4px 0;font-size:12.5px}.hb i{display:block;height:10px;border-radius:5px;background:linear-gradient(90deg,var(--brand),var(--brand2))}.hb b{text-align:right;font-family:'JetBrains Mono',monospace;font-weight:500}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:10px;overflow:hidden;background:var(--card);margin-bottom:10px}.seg a{padding:7px 14px;font-size:12.6px;cursor:pointer;color:var(--muted)}.seg a.on{background:var(--brand);color:#fff}
+.saved{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.saved a{border:1px solid var(--line2);background:var(--card);border-radius:20px;padding:6px 12px;font-size:12.6px;cursor:pointer}.saved a em{font-style:normal;margin-left:6px;color:var(--muted2);font-family:'JetBrains Mono',monospace}.saved a.on{background:var(--brand);border-color:var(--brand);color:#fff}.saved a.on em{color:#fff}.saved a.add{border-style:dashed;color:var(--brand)}
+.flt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}.flt input,.flt select{border:1px solid var(--line2);background:var(--card);border-radius:10px;padding:7px 10px;font:inherit;font-size:12.8px;color:var(--text)}.flt input{min-width:240px;flex:1}
+.bulk{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--brandl);border:1px solid var(--line2);border-radius:12px;padding:8px 12px;margin-bottom:10px}.bulk .bt.sm{margin-top:0}
+table.ord tr.sel td{background:var(--brandl)}
+.dd{display:inline-flex;gap:2px}.dd i{font:500 9.5px 'JetBrains Mono',monospace;font-style:normal;padding:2px 4px;border-radius:4px;background:var(--card3);color:var(--muted2)}.dd i.on{background:var(--ok-l);color:var(--ok)}
+.ostp{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:12px}.ostp>div{display:flex;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:7px 8px;font-size:11px;color:var(--muted)}.ostp i{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-style:normal;font:500 10px 'JetBrains Mono',monospace;background:var(--card3)}.ostp .ok i{background:var(--brand);color:#fff}.ostp .on{border-color:var(--brand);color:var(--text);font-weight:600}.ostp .on i{background:var(--brand2);color:#fff}
+.doc{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}.doc i{font:500 9.5px 'JetBrains Mono',monospace;font-style:normal;width:38px;text-align:center;padding:6px 0;border-radius:8px;background:var(--brand);color:#fff}.doc.no i{background:var(--card3);color:var(--muted2)}.doc span{flex:1}.doc b{display:block;font-size:12.8px}.doc em{font-style:normal;font-size:11px;color:var(--muted)}
+.cms{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto;margin-bottom:6px}.cm{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:12.6px}.cm small{display:block;font-size:10px;color:var(--muted2);margin-bottom:2px;font-family:'JetBrains Mono',monospace}
+.pin{margin-top:9px;padding:8px 10px;font-size:12px;background:var(--warn-l);border-left:3px solid var(--warn);border-radius:0 8px 8px 0}
+.pushw{display:grid;grid-template-columns:1fr 300px;gap:14px;align-items:start}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;margin-bottom:10px}.form.one{grid-template-columns:1fr}.form label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:600}.form input,.form select,.form textarea{border:1px solid var(--line2);background:var(--card);padding:8px 10px;font:inherit;font-size:13px;color:var(--text);border-radius:10px}.form input[type=color]{padding:2px;height:38px}
+.rcp{display:flex;gap:12px;align-items:baseline;background:var(--brandl);border-radius:12px;padding:12px 14px;margin:6px 0 14px}.rcp b{font:600 26px 'Golos Text',sans-serif;color:var(--brand)}.rcp span{font-size:12px;color:var(--muted)}
+.tpls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 0 12px}.tpls a{border:1px dashed var(--line2);border-radius:20px;padding:4px 11px;font-size:11.8px;cursor:pointer}.tpls a:hover{border-color:var(--brand);color:var(--brand)}
+.inp{border:1px solid var(--line2);border-radius:10px;padding:7px 10px;font:inherit}
+.phonew{position:sticky;top:0}.phone{width:270px;height:520px;margin:0 auto;border:10px solid #111;border-radius:38px;background:linear-gradient(160deg,var(--brand),#173040);padding:12px;color:#fff;overflow:hidden}
+.ph-top{display:flex;justify-content:space-between;font-size:11px;opacity:.8}.ph-lock{text-align:center;margin:26px 0 22px}.ph-lock b{display:block;font:500 52px 'Golos Text',sans-serif}.ph-lock span{font-size:12px;opacity:.8}
+.ntf{background:rgba(255,255,255,.92);color:#122430;border-radius:16px;padding:10px 12px;font-size:12.4px;box-shadow:0 8px 20px rgba(0,0,0,.25)}.ntf-h{display:flex;gap:6px;align-items:center;font-size:11px;color:#516573;margin-bottom:4px}.ntf-h i{width:18px;height:18px;border-radius:5px;background:var(--brand);color:#fff;font-style:normal;display:grid;place-items:center;font-size:10px;font-weight:700}.ntf-h span{margin-left:auto}.ntf-t{display:block;font-size:13px}.ntf p{margin:2px 0 0;line-height:1.35}
+.ck{display:flex;gap:8px;align-items:center;font-size:13px;margin:4px 0 8px}
+.dest .pr{display:block;font:600 16px 'Golos Text',sans-serif;color:var(--brand2);margin-top:6px}
+.rep{display:flex;flex-direction:column}.rep p{flex:1}
+.lg2{display:flex;gap:6px;align-items:center;font-size:11.5px;color:var(--muted)}.lg2 i{width:12px;height:4px;border-radius:2px;display:inline-block;margin-left:8px}.lg2 .c1{background:var(--brand)}.lg2 .c2{background:var(--brand2)}
+.presets{display:flex;flex-wrap:wrap;gap:8px}.presets a{display:flex;align-items:center;gap:4px;border:1px solid var(--line2);border-radius:12px;padding:7px 11px;cursor:pointer;font-size:12.6px;background:var(--card)}.presets a i{width:16px;height:16px;border-radius:50%;display:inline-block}.presets a.on{border-color:var(--brand);box-shadow:0 0 0 2px var(--brandl)}
+.bp{border:1px solid var(--line);border-radius:14px;overflow:hidden}.bp-h{display:flex;gap:10px;align-items:center;background:var(--brand);color:#fff;padding:12px 14px}.bp-h b{font:600 14px 'Golos Text',sans-serif}.bp-b{padding:14px}.bp-w{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px}.bp-w small{display:block;font-size:10px;color:var(--muted2);text-transform:uppercase}.bp-w b{font:600 20px 'Golos Text',sans-serif;color:var(--brand)}
+.phones3{display:grid;grid-template-columns:repeat(3,250px);gap:22px;justify-content:center;margin:8px 0 14px}
+.mphone{border:10px solid #111;border-radius:34px;background:var(--bg);overflow:hidden;height:480px;display:flex;flex-direction:column}.mp-h{display:flex;gap:8px;align-items:center;background:var(--brand);color:#fff;padding:12px 14px}.mp-h b{font:600 13px 'Golos Text',sans-serif}.mp-b{flex:1;padding:10px;overflow:hidden}
+.m-s{font-size:11.5px;background:var(--brand);color:#fff;border-radius:14px;padding:5px 10px;display:inline-block;margin-bottom:8px}.m-c{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 10px;margin-bottom:6px;font-size:12px}.m-c b{display:block}.m-c span{display:block;color:var(--muted)}.m-c em{font-style:normal;color:var(--brand2);font-weight:600;font-size:11.5px}.m-c.big b{font-size:16px}
+.m-r{display:flex;justify-content:space-between;font-size:12.4px;padding:7px 2px;border-bottom:1px solid var(--line)}.m-btn{background:var(--brand2);color:#fff;text-align:center;border-radius:12px;padding:11px;margin-top:10px;font-weight:600;font-size:12.6px}
+.mp-nav{display:flex;justify-content:space-around;border-top:1px solid var(--line);background:var(--card);padding:8px 0}.mp-nav i{font-style:normal;font-size:10.5px;color:var(--muted2)}.mp-nav i.on{color:var(--brand);font-weight:700}
+.pk1{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:10px}.pk1>div{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}.pk1>div:first-child{border:2px solid var(--brand)}.pk1 small{display:block;font:500 10.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase}.pk1 b{display:block;font:600 28px 'Golos Text',sans-serif;margin:5px 0 4px}.pk1 span{font-size:12px;color:var(--muted)}
+.li.n i{background:var(--brand2)}
+@media(max-width:980px){
+ .app{grid-template-columns:1fr;padding-bottom:62px}#sub{display:none}
+ #bnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);border-top:1px solid var(--line);justify-content:space-around;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+ #bnav a{flex:1;text-align:center;font-size:11.5px;padding:8px 2px;border-radius:10px;color:var(--muted);font-weight:600}#bnav a.on{color:#fff;background:var(--brand)}
+ .g21,.pushw,.pk1,.pay3,.form,.phones3{grid-template-columns:1fr}.phones3{justify-items:center}.ostp{grid-template-columns:repeat(2,1fr)}.hb{grid-template-columns:90px 1fr 56px}
+ table.ord thead{display:none}table.ord tr{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;border-bottom:1px solid var(--line);padding:6px 0}table.ord td{border:0;padding:2px 4px}
+}
+.lcl{display:flex;justify-content:space-between;font:11px 'JetBrains Mono',monospace;color:var(--muted2);margin-top:4px}.lc{height:170px}
+/* ===== ДАЛА ===== */
+.gate{background:var(--brand);background-image:radial-gradient(circle at 85% 10%,rgba(47,182,124,.25),transparent 45%),repeating-linear-gradient(170deg,transparent 0 46px,rgba(255,255,255,.035) 46px 48px)}
+.gtag{color:#bdf0d6;border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.08)}.gate p{color:#cddbe8}
+.me,.ab{background:var(--brand2);color:#0d2a1c}
+#sub a em{color:#0d2a1c}
+.wid{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.wid.w3{grid-template-columns:repeat(3,1fr)}
+.fbar{height:9px;background:var(--card3);border-radius:5px;overflow:hidden}.fbar i{display:block;height:100%;background:linear-gradient(90deg,var(--brand),var(--brand2));border-radius:5px}
+.srow2{display:grid;grid-template-columns:minmax(0,1.3fr) 1fr 74px;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.4px}.srow2:last-child{border:0}.srow2 em{font-style:normal;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px}
+.stg2{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-bottom:12px}.stg2.s3{grid-template-columns:repeat(3,1fr)}
+.sto{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}.sto-h{display:flex;justify-content:space-between;align-items:baseline}.sto-h b{font-size:13.6px}.sto-h span{font-size:11px;color:var(--muted2)}
+.sto-c{font-size:12px;color:var(--muted);margin:2px 0 6px}.sto-v{font:700 22px 'Golos Text',sans-serif;margin-bottom:6px}.sto-v small{font-size:12px;font-weight:500;color:var(--muted)}
+.sto-m{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11.2px;color:var(--muted);margin-top:7px}
+.fmap{width:100%;height:auto;display:block;border-radius:10px}.fp{cursor:pointer}.fp polygon{stroke:#fff;stroke-width:2.5;transition:filter .15s}.fp:hover polygon{filter:brightness(1.08)}.fp.on polygon:first-child{stroke:var(--text);stroke-width:4}
+.fpl{font:700 13px 'JetBrains Mono',monospace;fill:#1d241c;text-anchor:middle;pointer-events:none}.fps{font:500 10.5px 'Golos Text',sans-serif;fill:#2d3527;text-anchor:middle;pointer-events:none}
+.poi rect{fill:var(--brand);opacity:.9}.poi text{fill:#fff;font:600 11px 'Golos Text',sans-serif;text-anchor:middle}
+.lg3{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11.6px;color:var(--muted);margin-top:8px}.lg3 i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px}.lg3 i.hz{background:repeating-linear-gradient(45deg,#bbb 0 3px,#fff 3px 6px)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
+.seg{flex-wrap:wrap}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;margin-bottom:12px}.mcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:12px}.mcard:hover{border-color:var(--brand)}
+.kv span small{display:block;font-size:10.6px;color:var(--muted2)}.kv.low{background:var(--bad-l)}
+.kb.k4{grid-template-columns:repeat(4,minmax(200px,1fr))}.kb.k5{grid-template-columns:repeat(5,minmax(180px,1fr))}
+.kd .bt.sm{margin-top:7px;width:100%}
+.tabw{display:grid;grid-template-columns:230px 1fr;gap:16px;align-items:start;margin-bottom:12px}
+.tabl{display:flex;flex-direction:column;gap:6px}.tabl a{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer}.tabl a b{display:block;font-size:13px}.tabl a span{font-size:11px;color:var(--muted)}.tabl a.on{border-color:var(--brand);box-shadow:inset 4px 0 0 var(--brand2)}
+.tabdev{border:12px solid #1b1f19;border-radius:26px;background:var(--bg);max-width:640px;overflow:hidden}
+.tabbar{display:flex;justify-content:space-between;background:var(--brand);color:#fff;padding:12px 16px;font-weight:600;font-size:14px}.tabbar span:last-child{font:500 11px 'JetBrains Mono',monospace;opacity:.8}
+.tabbody{padding:18px}.tabbody .form input,.tabbody .form select{padding:12px;font-size:15px}
+.bt.big{width:100%;padding:14px;font-size:15px;margin-top:4px}
+.mh4{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted2);margin:14px 0 4px}
+.evt{grid-template-columns:52px 130px 1fr}
+.hint{font-size:11.8px;color:var(--muted);margin:8px 0 0;line-height:1.5}
+.mvs{grid-template-columns:repeat(5,1fr)}
+@media(max-width:980px){.tabw,.stg2.s3,.wid.w3{grid-template-columns:1fr}.mvs{grid-template-columns:1fr 1fr}.srow2{grid-template-columns:1fr 70px}.srow2 .fbar{grid-column:1/-1;order:3}.kb.k4,.kb.k5{grid-template-columns:repeat(4,minmax(200px,1fr))}.evt{grid-template-columns:44px 1fr}.evt span:last-child{grid-column:1/-1}}
+.lform p{color:var(--muted)}
+/* ===== ВОЗВРАТ ===== */
+.me,.ab{background:var(--brand2);color:#fff}#sub a em{color:#fff}
+.stg{display:inline-block;font:600 11px 'Golos Text',sans-serif;padding:2px 8px;border-radius:6px;background:color-mix(in srgb,var(--sc) 13%,transparent);color:var(--sc);white-space:nowrap}
+.kb.k10{grid-template-columns:repeat(10,minmax(190px,1fr))}.kc{border-top-color:var(--sc)}.kh b{color:var(--sc)}
+.stp{display:grid;grid-template-columns:repeat(9,1fr);gap:4px;margin-bottom:12px}.stp>div{display:flex;gap:6px;align-items:center;padding:7px 8px;background:var(--card);border:1px solid var(--line);border-radius:8px;font-size:11px;color:var(--muted);cursor:pointer}
+.stp i{width:10px;height:10px;border-radius:50%;background:var(--sc);flex:none;opacity:.45}.stp .on{border-color:var(--sc);color:var(--text);font-weight:700;box-shadow:inset 0 -3px 0 var(--sc)}.stp .on i{opacity:1}
+table.dlist td.cmt{max-width:280px;font-size:11.6px;color:var(--muted)}
+.play{color:var(--brand2);font-weight:600;cursor:pointer;margin-left:6px}
+.doc{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.4px}.doc i{font:600 9.5px 'JetBrains Mono',monospace;font-style:normal;padding:5px 6px;border-radius:6px;background:var(--brand);color:#fff}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.rep p.mini{font-size:12px;color:var(--muted);flex:1}
+@media(max-width:980px){.stp{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:1fr}.kb.k10{grid-template-columns:repeat(10,minmax(190px,1fr))}}
+
+</style>
+</head>
+<body>
+
+<section class="gate" id="gate">
+ <div class="gate-l">
+  <div class="glogo"><svg width="58" height="58" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 12a38 38 0 1 0 38 38" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round"/><path d="M70 10l20 4-6 19" fill="none" stroke="#2fb67c" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M36 52l10 10 20-22" fill="none" stroke="#2fb67c" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+   <div><b class="gname">ВОЗВРАТ</b><small class="gsub">CRM КОЛЛЕКТОРСКОГО АГЕНТСТВА · ПОРТФЕЛИ · ДОЛЖНИКИ · ЗВОНКИ · ПЛАТЕЖИ · EXCEL</small></div>
+  </div>
+  <h1>Все 10 000 должников — в одной системе, а не в Excel.<br>Остаток долга, комментарий, звонок с записью и обещание — в карточке.<br><em>Сколько зашло сегодня против плана — с телефона.</em></h1>
+  <span class="gtag">демо по встрече 13 октября · всё кликается</span>
+  <p style="margin-top:15px">Ваши слова: «видеть всех должников и чтобы комментарий по ним можно было забивать — по суммам, по остаткам задолженности», «по Excel тяжеловато и нам, и аналитикам», «всё должно в Excel выгружаться — мы его зашиваем в Нацбанк».</p>
+  <p style="color:#7fe0b0">Портфели, выкупленные у МФО · должники и карточка · воронка взыскания · обещания оплаты · IP-телефония с записью и WhatsApp · разноска платежей · план коллекторов · Excel и Нацбанк · загрузка нового портфеля.</p>
+  <div class="gstat">
+   <div><small>Экранов</small><b class="a">15</b></div>
+   <div><small>Ролей</small><b>6</b></div>
+   <div><small>Срок</small><b>4–6 недель</b></div>
+   <div><small>Стоимость</small><b>1,5 млн ₸</b></div>
+  </div>
+ </div>
+ <div class="gate-r">
+  <div class="lform">
+   <h2>Вход в систему</h2>
+   <p>Каждый — под своим логином: коллектор видит своих должников, руководитель — всё. Для показа выберите роль:</p>
+   <div class="roles" id="roles"></div>
+   <div class="lnote"><b>Демо-макет на вымышленных данных</b>
+    Должники, ИИН, телефоны, портфели и суммы придуманы для примера. Внешний вид подстроим по видео CRM, которая вам нравится. Кнопка ▶ сверху — сценарий показа.</div>
+  </div>
+ </div>
+</section>
+
+<div class="app hidden" id="app">
+ <aside class="rail">
+  <div class="rail-logo" title="Возврат"><svg width="30" height="30" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 12a38 38 0 1 0 38 38" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round"/><path d="M70 10l20 4-6 19" fill="none" stroke="#2fb67c" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M36 52l10 10 20-22" fill="none" stroke="#2fb67c" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg><b>ВОЗВРАТ</b></div>
+  <nav id="rail" style="display:flex;flex-direction:column;align-items:center"></nav>
+  <div class="rail-bot"><div class="me" id="me">АЛ</div></div>
+ </aside>
+ <aside id="sub"></aside>
+ <main class="main">
+  <header class="top">
+   <h1 id="ttl">Возврат</h1>
+   <div class="top-r">
+    <div class="srch"><i>⌕</i><input placeholder="ФИО, ИИН, телефон, номер займа" onkeydown="if(event.key==='Enter')searchDemo(this.value)"></div>
+    <button class="ab" id="addBtn" onclick="go('debtors')">ДОЛЖНИКИ</button>
+    <button class="ib" id="themeBtn" onclick="toggleTheme()" title="Тема">◐</button>
+    <button class="ib" id="tourBtn" onclick="tour()" title="Сценарий показа">▶</button>
+    <select class="rsel" id="rsel"></select>
+   </div>
+  </header>
+  <div class="content" id="content"></div>
+ </main>
+</div>
+
+<div class="mbg" id="mbg" onclick="if(event.target===this)closeM()">
+ <aside class="modal">
+  <div class="mh"><div><h3 id="mt">—</h3><p id="ms">—</p></div><button class="mxb" onclick="closeM()">×</button></div>
+  <div class="mb" id="mbody"></div>
+ </aside>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+/* ВОЗВРАТ — CRM коллекторского агентства: выкупленные портфели, должники с остатками и комментариями, воронка взыскания, звонки с записью и WhatsApp, обещания оплаты, платежи с разноской, коллекторы и план, отчёты в Excel для Нацбанка, загрузка портфеля, обучение новичков. Все имена, ИИН, телефоны и суммы вымышленные. */
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const fmt=n=>new Intl.NumberFormat('ru-RU').format(Math.round(n));
+const fmt1=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(n);
+const tg=n=>fmt(n)+' ₸';
+const mln=n=>fmt1(n/1e6)+' млн ₸';
+const TODAY='13.10.2026',NOW='15:20';
+const LOGO_I='<svg width="28" height="28" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 12a38 38 0 1 0 38 38" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><path d="M70 10l20 4-6 19" fill="none" stroke="var(--brand2,#2fb67c)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M36 52l10 10 20-22" fill="none" stroke="var(--brand2,#2fb67c)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const said=(q,a)=>`<div class="said"><b>Вы сказали на встрече</b><i>«${q}»</i>${a?`<div class="said-a">${a}</div>`:''}</div>`;
+
+const SEC=[
+ {k:'top',n:'Пульт',sub:[['dash','Пульт руководителя'],['plan','План и коллекторы']]},
+ {k:'db',n:'Должники',sub:[['debtors','Все должники'],['card','Карточка должника'],['funnel','Воронка взыскания'],['promises','Обещания и графики']]},
+ {k:'cm',n:'Связь',sub:[['calls','Звонки и записи'],['wa','WhatsApp и рассылки']]},
+ {k:'mn',n:'Деньги',sub:[['payments','Платежи и разноска'],['portfolios','Портфели']]},
+ {k:'rp',n:'Отчёты',sub:[['reports','Отчёты в Excel · Нацбанк'],['import','Загрузка портфеля']]},
+ {k:'sys',n:'Система',sub:[['learn','Обучение новичков'],['audit','Роли и журнал'],['launch','Запуск и стоимость']]}
+];
+const SECOF={},SUBN={};SEC.forEach(s=>s.sub.forEach(x=>{SECOF[x[0]]=s.k;SUBN[x[0]]=x[1]}));
+const ALL=[];SEC.forEach(s=>s.sub.forEach(x=>ALL.push(x[0])));
+const ROLES={
+ 'Руководитель':{av:'МС',n:'Маргулан',note:'Всё: портфели, сборы за день, коллекторы, отчёты, настройки',s:ALL.slice()},
+ 'Руководитель взыскания':{av:'РВ',n:'Айгерим',note:'Распределение должников, план, контроль звонков и обещаний',s:['dash','plan','debtors','card','funnel','promises','calls','wa','payments','reports','learn']},
+ 'Коллектор':{av:'КЛ',n:'Ержан',note:'Свои должники, звонки, WhatsApp, комментарии, обещания',s:['debtors','card','funnel','promises','calls','wa','learn']},
+ 'Аналитик':{av:'АН',n:'Дина',note:'Портфели, платежи, отчёты в Excel и для Нацбанка',s:['dash','portfolios','payments','reports','import','debtors','card']},
+ 'Юрист':{av:'ЮР',n:'Рустем',note:'Претензии, исполнительные надписи, суд',s:['debtors','card','funnel']},
+ 'Бухгалтер':{av:'БХ',n:'Сауле',note:'Поступления, разноска по должникам, выписки',s:['payments','portfolios','reports']}
+};
+let role='Руководитель',cur='dash',theme='light';
+
+/* Коллекторы */
+const COLL=[['ER','Ержан'],['AS','Асель'],['DM','Дамир'],['ZH','Жанар'],['NR','Нурлан'],['KM','Камила'],['TL','Талгат'],['AL','Алина']];
+const CN=k=>(COLL.find(c=>c[0]===k)||['','—'])[1];
+/* Портфели, выкупленные у МФО */
+let PORTS=[
+ {id:'PF-07',seller:'МФО «Быстрый займ»',d:'02.09.2026',n:2840,nom:228400000,price:18270000,coll:21860000},
+ {id:'PF-06',seller:'МФО «Kaz Credit Plus»',d:'15.07.2026',n:3120,nom:241900000,price:19350000,coll:48720000},
+ {id:'PF-05',seller:'МФО «Деньги сразу»',d:'28.05.2026',n:1960,nom:152300000,price:13710000,coll:44110000},
+ {id:'PF-04',seller:'МФО «Быстрый займ»',d:'10.03.2026',n:2480,nom:203600000,price:16290000,coll:79640000}
+];
+const PO=id=>PORTS.find(p=>p.id===id);
+/* Этапы взыскания */
+const ST=[['new','Новый, после выкупа','#7c8aa5'],['notice','Уведомлён о цессии','#5b7fc7'],['contact','Контакт есть','#2f9bb6'],['promise','Обещание оплаты','#c58a1b'],['sched','Платит по графику','#2fb67c'],['restr','Реструктуризация','#7a62c4'],['claim','Досудебная претензия','#d06a2b'],['court','Суд / исп. надпись','#c2413b'],['nocont','Нет контакта','#8c8c8c'],['closed','Взыскан, закрыт','#1d8a57']];
+const STN=k=>(ST.find(s=>s[0]===k)||['',k])[1];
+const STC=k=>(ST.find(s=>s[0]===k)||['','','#999'])[2];
+/* Должники — генерируются детерминированно */
+const FN=['Ерлан','Айгуль','Бауыржан','Динара','Серик','Гульмира','Нуржан','Асем','Марат','Жанна','Ринат','Салтанат','Арман','Алия','Тимур','Мадина','Данияр','Карлыгаш','Руслан','Айжан'];
+const LN=['Ахметов','Байжанова','Касымов','Нурланова','Жумабаев','Сейткали','Омаров','Ибраева','Тулеуов','Абдиева','Мусин','Кенжебекова','Бекенов','Сулейменова','Нуртаев','Ермекова','Садыков','Жаксылыкова','Утепов','Калиева'];
+const CITY=['Караганда','Темиртау','Алматы','Астана','Шымкент','Жезказган','Балхаш','Павлодар'];
+const STW=['new','notice','notice','contact','contact','promise','promise','sched','sched','sched','restr','claim','court','nocont','nocont','closed'];
+let DEBT=[];
+(function(){for(let i=0;i<64;i++){const r=k=>((i*7919+k*104729)%1000)/1000;const male=i%2===0;const fn=FN[(i*3+Math.floor(i/20)*2)%20],ln=LN[(i*7+Math.floor(i/20)*6)%20];
+ const nm=(male?ln.replace(/ова$/,'ов').replace(/ева$/,'ев').replace(/ина$/,'ин'):ln)+' '+fn;
+ const body=Math.round((40000+r(1)*90000)/1000)*1000,pct=Math.round(body*(0.18+r(2)*0.4)/100)*100,pen=Math.round(body*(0.05+r(3)*0.15)/100)*100;
+ const st=STW[Math.floor(r(4)*STW.length)],tot=body+pct+pen,paid=st==='closed'?tot:st==='sched'?Math.round(tot*(0.2+r(5)*0.5)/100)*100:st==='promise'||st==='restr'?Math.round(tot*r(6)*0.25/100)*100:0;
+ DEBT.push({id:'Д-'+(10240+i*37),nm,iin:String(850000000000+Math.floor(r(7)*149999999999)).slice(0,6)+'******',ph:'+7 7'+['01','02','05','07','47','77'][i%6]+' *** '+String(10+(i*13)%89)+' '+String(10+(i*29)%89),city:CITY[i%8],port:PORTS[i%4].id,
+  body,pct,pen,tot,paid,dpd:120+Math.floor(r(8)*600),st,col:COLL[i%8][0],last:['13.10','13.10','12.10','12.10','11.10','09.10','07.10','02.10'][i%8],
+  prom:st==='promise'?{d:['13.10','13.10','14.10','15.10','16.10','12.10'][i%6],s:Math.round(tot*0.3/1000)*1000}:null,cont:'Займ № '+(54000+i*211)+' от '+['12.01','04.02','19.11','27.12'][i%4]+'.2025'})}})();
+DEBT[0]=Object.assign(DEBT[0],{nm:'Ахметов Ерлан',st:'promise',body:86000,pct:31200,pen:9400,tot:126600,paid:20000,dpd:214,col:'ER',prom:{d:'13.10',s:40000},city:'Караганда',port:'PF-06'});
+const DB=id=>DEBT.find(d=>d.id===id);
+const rest=d=>Math.max(0,d.tot-d.paid);
+let curDebt=DEBT[0].id;
+/* Комментарии, звонки, платежи по должнику */
+let COMM={};let CALLS={};let PAYS={};
+DEBT.forEach((d,i)=>{COMM[d.id]=[[d.last+' 11:'+String(10+i%40),CN(d.col),{new:'Портфель загружен, телефоны проверяются.',notice:'Уведомление о переуступке отправлено SMS и WhatsApp, доставлено.',contact:'Дозвонился, должник признаёт долг, просит время до зарплаты.',promise:'Обещал оплатить '+(d.prom?d.prom.d+' — '+tg(d.prom.s):'частично')+'. Напомнить за день в WhatsApp.',sched:'Платит по графику, платёж 15-го числа.',restr:'Согласовали реструктуризацию на 6 месяцев, пени списаны частично.',claim:'На связь не выходит 45 дней. Направлена досудебная претензия.',court:'Документы переданы нотариусу на исполнительную надпись.',nocont:'Номер не обслуживается, второй номер — не отвечает. Нужен поиск контактов.',closed:'Долг погашен полностью, справка об отсутствии задолженности выдана.'}[d.st]]]});
+COMM[DEBT[0].id]=[['13.10 10:42','Ержан','Позвонил, подтвердил обещание: 40 000 ₸ сегодня до 18:00 через Kaspi. Ссылку на оплату отправил в WhatsApp.'],['06.10 16:05','Ержан','Договорились: 20 000 ₸ сразу, остаток — 40 000 ₸ 13.10 и далее по 25 000 ₸ раз в две недели.'],['02.10 12:20','Айгерим','Передан Ержану из нераспределённых PF-06.'],['30.09 09:15','Система','Уведомление о цессии доставлено в WhatsApp, прочитано.']];
+CALLS[DEBT[0].id]=[['13.10 10:38','исходящий','3:42','Подтвердил обещание','rec'],['06.10 15:58','исходящий','6:15','Обещание, первый платёж','rec'],['04.10 11:02','исходящий','0:00','Не ответил',''],['30.09 17:40','входящий','2:10','Спросил, откуда долг','rec']];
+PAYS[DEBT[0].id]=[['06.10','Kaspi',20000,'по номеру договора']];
+/* Журнал звонков за сегодня */
+let CALLLOG=[];DEBT.slice(0,18).forEach((d,i)=>CALLLOG.push([['15:12','15:05','14:51','14:40','14:22','14:03','13:48','13:30','12:55','12:41','12:10','11:58','11:40','11:22','10:58','10:38','10:20','09:44'][i],d.id,CN(d.col),i%5===2?'0:00':(1+i%6)+':'+String(10+(i*17)%49),['Обещание оплаты','Не ответил','Нет связи','Отказ платить','Платит по графику','Перезвонить','Признаёт долг'][i%7],i%5!==2]));
+/* Платежи за сегодня */
+let PAYTODAY=[];
+DEBT.slice(1,26).forEach((d,i)=>{const s=[15000,25000,40000,12000,30000,50000,20000,18000,35000,22000][i%10];PAYTODAY.push({t:['15:14','15:02','14:47','14:30','14:12','13:55','13:40','13:21','13:02','12:44','12:20','12:01','11:46','11:22','11:05','10:48','10:30','10:12','09:58','09:40','09:31','09:20','09:12','09:05','09:01'][i],src:['Kaspi','Kaspi','Halyk','Kaspi','Наличные в кассе','Kaspi','Forte','Kaspi'][i%8],s,id:i%9===4?'':d.id,ref:i%9===4?'Перевод без назначения, отправитель Нуртаев А.':'договор '+d.cont.split(' ')[2]})});
+const PLAN_DAY=2500000;
+let AUDIT=[
+ ['13.10 15:14','Система','—','Платежи','Разнесён платёж Kaspi','25 000 ₸ → '+DEBT[1].id,'выписка'],
+ ['13.10 14:58','Айгерим','Рук. взыскания','Должники','Переназначила 120 должников PF-07','Нурлан → Камила','компьютер'],
+ ['13.10 13:10','Дина','Аналитик','Отчёты','Выгрузила «Остатки задолженности по портфелям»','10 400 строк','компьютер'],
+ ['13.10 10:42','Ержан','Коллектор','Должники','Комментарий '+DEBT[0].id,'обещание 40 000 ₸ на 13.10','компьютер'],
+ ['12.10 18:20','Рустем','Юрист','Должники','Претензия по 34 должникам','этап → Досудебная претензия','компьютер'],
+ ['12.10 17:05','Ержан','Коллектор','Должники','Изменил телефон должника','+7 701 *** → +7 747 ***','компьютер']
+];
+
+const SC={};
+const tag=(t,c)=>`<span class="tag ${c||''}">${t}</span>`;
+const stTag=k=>`<span class="stg" style="--sc:${STC(k)}">${STN(k)}</span>`;
+function bars(rows){const mx=Math.max(...rows.map(r=>r[1]),1);return rows.map(r=>`<div class="hb"><span>${r[0]}</span><i style="width:${r[1]/mx*100}%"></i><b>${r[2]||fmt(r[1])}</b></div>`).join('')}
+function lineChart(pts,lbl){const w=600,h=150,mx=Math.max(...pts)*1.1,step=w/(pts.length-1),P=pts.map((v,i)=>[i*step,h-v/mx*h]);const d=P.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+ return `<svg class="lc" viewBox="0 -10 ${w} ${h+12}" preserveAspectRatio="none"><path d="${d} L ${w} ${h} L 0 ${h} Z" class="la"/><path d="${d}" class="ll"/>${P.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3.5" class="lp"/>`).join('')}</svg><div class="lcl">${lbl.map(l=>`<span>${l}</span>`).join('')}</div>`}
+/* Итоги по всей базе: в демо показаны 64 должника, итоги — по 10 400 */
+const BASE_N=10400,BASE_REST=1042600000;
+const EARLY_PAY=1236000;
+const payToday=()=>EARLY_PAY+PAYTODAY.reduce((a,p)=>a+p.s,0);
+const promToday=()=>DEBT.filter(d=>d.prom&&d.prom.d==='13.10');
+
+SC.dash=()=>{const pt=payToday(),pc=Math.round(pt/PLAN_DAY*100),pr=promToday();
+ return `<div class="hd"><div><h2>Пульт руководителя · ${TODAY}, ${NOW}</h2><p>Сколько зашло на счета сегодня против плана, сколько должников и остаток по всем портфелям, кто из коллекторов работает и какие обещания горят. Всё, что сейчас приходится собирать из Excel.</p></div><div class="btns"><button class="bt" onclick="exportXls('rest')">⇩ Excel</button></div></div>
+ <div class="wid">
+  <div class="clk" onclick="go('payments')"><small>Поступило сегодня</small><b class="g">${mln(pt)}</b><span>${pc}% от плана ${mln(PLAN_DAY)} в день</span></div>
+  <div class="clk" onclick="go('debtors')"><small>Должников в работе</small><b>${fmt(BASE_N)}</b><span>4 портфеля · средний остаток ${tg(BASE_REST/BASE_N)}</span></div>
+  <div class="clk" onclick="go('portfolios')"><small>Остаток задолженности</small><b>${(BASE_REST/1e9).toFixed(2).replace(".",",")} млрд ₸</b><span>основной долг, вознаграждение, пеня</span></div>
+  <div class="clk" onclick="go('promises')"><small>Обещания на сегодня</small><b class="a">${pr.length+38}</b><span>на ${mln(pr.reduce((a,d)=>a+d.prom.s,0)+1520000)} · выполнено 21</span></div>
+  <div class="clk" onclick="go('calls')"><small>Звонков сегодня</small><b>1 846</b><span>дозвон 41% · 9 ч 20 мин разговоров</span></div>
+ </div>
+ <div class="g2 g21"><div class="pan"><h3>Поступления за 14 дней, млн ₸ · план 2,5 млн в день</h3>${lineChart([2.1,2.6,2.4,1.2,0.6,2.7,2.9,2.3,2.5,1.4,0.7,2.8,3.1,pt/1e6],['30.09','','','','','','06.10','','','','','','','13.10'])}</div>
+ <div class="pan"><h3>Требует внимания</h3>
+  <div class="rf bad" onclick="go('promises')"><i></i><div><b>14 обещаний вчера не выполнено</b><span>на 486 000 ₸ · коллекторам ушли задачи «перезвонить до 12:00»</span></div></div>
+  <div class="rf bad" onclick="go('payments')"><i></i><div><b>${PAYTODAY.filter(p=>!p.id).length} платежа без должника</b><span>перевод без назначения — разнести вручную</span></div></div>
+  <div class="rf" onclick="go('debtors')"><i></i><div><b>1 120 должников из PF-07 без контакта</b><span>номера не отвечают — нужен поиск контактов</span></div></div>
+  <div class="rf" onclick="go('plan')"><i></i><div><b>Нурлан: 62 звонка при норме 220</b><span>начал смену в 11:40</span></div></div>
+  <div class="rf" onclick="go('reports')"><i></i><div><b>Отчёт в Нацбанк за сентябрь — до 15.10</b><span>выгрузка готова, проверить и отправить</span></div></div></div></div>
+ <div class="g2"><div class="pan"><h3>Сборы сегодня по коллекторам</h3>${bars(COLL.map((c,i)=>[c[1],[412000,356000,298000,274000,96000,318000,241000,188000][i],tg([412000,356000,298000,274000,96000,318000,241000,188000][i])]))}</div>
+ <div class="pan"><h3>Должники по этапам</h3>${bars(ST.map((s,i)=>[s[1],[860,1240,1980,720,2310,410,640,190,1650,400][i]]))}</div></div>
+ ${said('Чтобы видеть этих всех должников, их видеть, и комментарий по ним можно было забивать — по суммам, по остаткам задолженности')}`};
+
+SC.plan=()=>`<div class="hd"><div><h2>План и коллекторы</h2><p>План сборов на день и месяц делится по коллекторам. Видно, кто сколько звонит, дозванивается, берёт обещаний и сколько из них превращается в деньги. Новичок сразу виден по цифрам.</p></div></div>
+ <div class="wid"><div><small>План октября</small><b>${mln(PLAN_DAY*22)}</b><span>${mln(PLAN_DAY)} в рабочий день</span></div><div><small>Собрано с 1 октября</small><b class="g">${mln(19840000+payToday())}</b><span>${Math.round((19840000+payToday())/(PLAN_DAY*22)*100)}% плана · день 9 из 22</span></div><div><small>Прогноз на месяц</small><b>${mln(52600000)}</b><span>96% плана при текущем темпе</span></div></div>
+ <div class="pan"><div class="tw"><table class="t"><thead><tr><th>Коллектор</th><th>Должников</th><th>Звонков сегодня</th><th>Дозвон</th><th>Обещаний</th><th>Выполнено обещаний, мес.</th><th>Собрано сегодня</th><th>Собрано за месяц</th></tr></thead><tbody>${COLL.map((c,i)=>{const calls=[248,231,226,214,62,219,204,197][i];return `<tr class="${calls<150?'rowbad':''}"><td><b>${c[1]}</b></td><td class="mono">${fmt([1310,1290,1300,1280,1320,1310,1300,1290][i])}</td><td class="mono">${calls}</td><td class="mono">${[44,42,39,41,28,43,38,40][i]}%</td><td class="mono">${[9,8,6,7,2,8,5,4][i]}</td><td class="mono">${[78,74,66,69,41,72,63,58][i]}%</td><td class="mono">${tg([412000,356000,298000,274000,96000,318000,241000,188000][i])}</td><td class="mono">${mln([3.42,3.18,2.71,2.64,1.32,2.96,2.31,1.88][i]*1e6)}</td></tr>`}).join('')}</tbody></table></div></div>
+ ${said('Нашим аналитикам тоже тяжеловато по Excel работать')}`;
+
+/* Все должники */
+let F={q:'',port:'',st:'',col:'',sum:'',city:''};
+function fDebt(){return DEBT.filter(d=>{const t=(d.id+' '+d.nm+' '+d.iin+' '+d.ph+' '+d.cont).toLowerCase();
+ if(F.q&&!t.includes(F.q.toLowerCase()))return false;if(F.port&&d.port!==F.port)return false;if(F.st&&d.st!==F.st)return false;if(F.col&&d.col!==F.col)return false;if(F.city&&d.city!==F.city)return false;
+ const r=rest(d);if(F.sum==='s'&&r>=60000)return false;if(F.sum==='m'&&(r<60000||r>=120000))return false;if(F.sum==='l'&&r<120000)return false;return true})}
+const sel=(k,opts,ph)=>`<select onchange="F.${k}=this.value;render()"><option value="">${ph}</option>${opts.map(o=>`<option value="${o[0]}" ${F[k]===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select>`;
+SC.debtors=()=>{const L=fDebt();
+ return `<div class="hd"><div><h2>Все должники</h2><p>Вся база в одном списке вместо Excel: портфель, остаток долга, этап, коллектор, последний контакт и комментарий. Фильтры, поиск по ФИО, ИИН, телефону и номеру займа. Любой список — в Excel одной кнопкой.</p></div><div class="btns"><button class="bt" onclick="exportXls('list')">⇩ Excel по фильтру</button><button class="bt p" onclick="go('import')">⇧ Загрузить портфель</button></div></div>
+ <div class="flt"><input placeholder="ФИО, ИИН, телефон, номер займа" value="${esc(F.q)}" onchange="F.q=this.value;render()">${sel('port',PORTS.map(p=>[p.id,p.id+' · '+p.seller]),'Все портфели')}${sel('st',ST.map(s=>[s[0],s[1]]),'Все этапы')}${sel('col',COLL,'Все коллекторы')}${sel('sum',[['s','до 60 000 ₸'],['m','60–120 тыс. ₸'],['l','больше 120 000 ₸']],'Любой остаток')}${sel('city',CITY.map(c=>[c,c]),'Все города')}${Object.values(F).some(Boolean)?`<a class="bt sm" onclick="F={q:'',port:'',st:'',col:'',sum:'',city:''};render()">Сбросить</a>`:''}</div>
+ <div class="bulk"><span>Показано ${L.length} из ${fmt(BASE_N)} · остаток по выборке <b>${tg(L.reduce((a,d)=>a+rest(d),0))}</b></span><button class="bt sm" onclick="act('Выбранные должники переданы другому коллектору — у каждого в журнале запись «кто и когда переназначил».')">Переназначить</button><button class="bt sm" onclick="go('wa')">WhatsApp по выборке</button></div>
+ <div class="pan"><div class="tw"><table class="t dlist"><thead><tr><th>Должник</th><th>Портфель · займ</th><th>Долг</th><th>Оплачено</th><th>Остаток</th><th>Просрочка</th><th>Этап</th><th>Коллектор</th><th>Последний комментарий</th></tr></thead><tbody>${L.map(d=>`<tr class="clk" onclick="openDebt('${d.id}')"><td><b>${esc(d.nm)}</b><br><small>${d.id} · ${d.city}</small></td><td>${d.port}<br><small>${d.cont}</small></td><td class="mono">${fmt(d.tot)}</td><td class="mono pos">${d.paid?fmt(d.paid):'—'}</td><td class="mono"><b>${fmt(rest(d))}</b></td><td class="mono">${d.dpd} дн.</td><td>${stTag(d.st)}</td><td>${CN(d.col)}</td><td class="cmt"><small>${d.last}</small> ${esc((COMM[d.id][0]||['','',''])[2]).slice(0,70)}…</td></tr>`).join('')}</tbody></table></div></div>
+ ${said('Именно по суммам, по задолженностям обязательно в Excel')}`};
+function openDebt(id){curDebt=id;go('card')}
+
+/* Карточка должника */
+SC.card=()=>{const d=DB(curDebt),r=rest(d);
+ return `<div class="hd"><div><h2>${esc(d.nm)} · ${d.id}</h2><p>${d.cont} · портфель ${d.port} (${esc(PO(d.port).seller)}) · ${d.city} · просрочка ${d.dpd} дней</p></div><div class="btns"><button class="bt" onclick="go('debtors')">← К списку</button><button class="bt" onclick="act('Звонок через IP-телефонию: номер набран, разговор записывается и попадёт в карточку.')">☎ Позвонить</button><button class="bt p" onclick="card('prom','${d.id}')">+ Обещание</button></div></div>
+ <div class="stp">${ST.filter(s=>s[0]!=='nocont').map(s=>`<div class="${s[0]===d.st?'on':''}" style="--sc:${s[2]}" onclick="setSt('${d.id}','${s[0]}')"><i></i>${s[1]}</div>`).join('')}</div>
+ <div class="g2 g21"><div>
+  <div class="pan"><h3>Задолженность</h3><div class="kv"><span>Основной долг</span><b>${tg(d.body)}</b></div><div class="kv"><span>Вознаграждение</span><b>${tg(d.pct)}</b></div><div class="kv"><span>Пеня</span><b>${tg(d.pen)}</b></div><div class="kv"><span>Итого по договору цессии</span><b>${tg(d.tot)}</b></div><div class="kv"><span>Оплачено</span><b class="pos">${tg(d.paid)}</b></div><div class="kv on"><span><strong>Остаток</strong></span><b>${tg(r)}</b></div>${d.prom?`<div class="pin">Обещание: <b>${tg(d.prom.s)}</b> до ${d.prom.d}</div>`:''}</div>
+  <div class="pan"><h3>Комментарии</h3><div class="cms">${COMM[d.id].map(c=>`<div class="cm"><small>${c[0]} · ${esc(c[1])}</small>${esc(c[2])}</div>`).join('')}</div><div class="qin"><input id="cmIn" placeholder="Комментарий: о чём договорились, что дальше"><button class="bt p" onclick="addCm('${d.id}')">Добавить</button></div>
+   <div class="tpls">${['Не берёт трубку','Обещал оплатить','Просит реструктуризацию','Номер не обслуживается','Отказ платить','Перезвонить вечером'].map(t=>`<a onclick="document.getElementById('cmIn').value='${t}. '">${t}</a>`).join('')}</div></div>
+ </div><div>
+  <div class="pan"><h3>Контакты</h3><div class="kv"><span>ИИН</span><b class="mono">${d.iin}</b></div><div class="kv"><span>Телефон</span><b class="mono">${d.ph}</b></div><div class="kv"><span>Город</span><b>${d.city}</b></div><div class="kv"><span>Коллектор</span><b>${CN(d.col)}</b></div></div>
+  <div class="pan"><h3>Звонки с записью</h3>${(CALLS[d.id]||[[d.last+' 11:20','исходящий','2:31','Разговор','rec']]).map(c=>`<div class="evt"><span class="mono">${c[0]}</span><b>${c[1]} · ${c[2]}</b><span>${esc(c[3])} ${c[4]?`<a class="play" onclick="act('Запись разговора воспроизводится прямо в карточке.')">▶ запись</a>`:''}</span></div>`).join('')}</div>
+  <div class="pan"><h3>Платежи</h3>${(PAYS[d.id]||(d.paid?[['15.09','Kaspi',d.paid,'по номеру договора']]:[])).map(p=>`<div class="evt"><span class="mono">${p[0]}</span><b>${tg(p[2])}</b><span>${p[1]} · ${p[3]}</span></div>`).join('')||'<p class="hint">Платежей ещё не было.</p>'}</div>
+  <div class="pan"><h3>Документы</h3>${['Договор займа (от продавца)','Договор цессии и реестр','Уведомление о переуступке','Досудебная претензия'].map((x,i)=>`<div class="doc"><i>${i<3?'PDF':'DOCX'}</i><span>${x}</span></div>`).join('')}</div>
+ </div></div>`};
+function addCm(id){const v=(document.getElementById('cmIn').value||'').trim();if(!v){toast('Напишите комментарий.');return}COMM[id].unshift([TODAY.slice(0,5)+' '+NOW,ROLES[role].n,v]);const d=DB(id);d.last=TODAY.slice(0,5);AUDIT.unshift([TODAY.slice(0,5)+' '+NOW,ROLES[role].n,role,'Должники','Комментарий '+id,v.slice(0,40),'компьютер']);render();toast('Комментарий сохранён — его видят руководитель и следующий коллектор.')}
+function setSt(id,k){const d=DB(id);d.st=k;AUDIT.unshift([TODAY.slice(0,5)+' '+NOW,ROLES[role].n,role,'Должники','Этап '+id,STN(k),'компьютер']);render();toast('Этап: '+STN(k)+'.')}
+
+/* Воронка */
+SC.funnel=()=>`<div class="hd"><div><h2>Воронка взыскания</h2><p>Этапы — как вы ведёте должника сейчас в Excel: от выкупа и уведомления о цессии до оплаты, реструктуризации, претензии и суда. Этапы и правила переходов настраиваем под вас. Нажмите на карточку — откроется должник.</p></div></div>
+ <div class="kb k10">${ST.map(s=>{const L=DEBT.filter(d=>d.st===s[0]);return `<div class="kc" style="--sc:${s[2]}"><div class="kh"><b>${s[1]}</b><span>${L.length}</span></div>${L.slice(0,6).map(d=>`<div class="kd" onclick="openDebt('${d.id}')"><div class="kt"><b>${esc(d.nm)}</b><span class="src">${CN(d.col)}</span></div><div class="km">${d.port} · ${d.dpd} дн.</div><div class="kf"><span>остаток</span><b>${tg(rest(d))}</b></div></div>`).join('')}${L.length>6?`<div class="kempty">ещё ${L.length-6}</div>`:''}${!L.length?'<div class="kempty">пусто</div>':''}</div>`}).join('')}</div>`;
+
+/* Обещания */
+SC.promises=()=>{const P=DEBT.filter(d=>d.prom).sort((a,b)=>a.prom.d.localeCompare(b.prom.d));
+ return `<div class="hd"><div><h2>Обещания и графики</h2><p>Каждое обещание — сумма и дата. Накануне должнику уходит напоминание в WhatsApp со ссылкой на оплату. Пришёл платёж — обещание закрывается само; не пришёл — коллектору задача «перезвонить».</p></div></div>
+ <div class="wid"><div><small>Обещаний на сегодня</small><b class="a">${promToday().length+38}</b><span>выполнено 21 · ждём до 23:59</span></div><div><small>Выполнение обещаний</small><b class="g">68%</b><span>за 30 дней</span></div><div><small>Не выполнено вчера</small><b class="w">14</b><span>486 000 ₸ · задачи созданы</span></div><div><small>Платят по графику</small><b>2 310</b><span>реструктуризация — 410</span></div></div>
+ <div class="pan"><div class="tw"><table class="t"><thead><tr><th>Дата</th><th>Должник</th><th>Сумма</th><th>Остаток долга</th><th>Коллектор</th><th>Напоминание</th><th>Статус</th></tr></thead><tbody>${P.map(d=>`<tr class="clk" onclick="openDebt('${d.id}')"><td class="mono">${d.prom.d}</td><td><b>${esc(d.nm)}</b><br><small>${d.id}</small></td><td class="mono">${tg(d.prom.s)}</td><td class="mono">${tg(rest(d))}</td><td>${CN(d.col)}</td><td>${tag('WhatsApp накануне ✓','g')}</td><td>${d.prom.d==='12.10'?tag('не выполнено','r'):d.prom.d==='13.10'?tag('сегодня','w'):tag('ждём','i')}</td></tr>`).join('')}</tbody></table></div></div>`};
+
+/* Звонки */
+SC.calls=()=>`<div class="hd"><div><h2>Звонки и записи</h2><p>Звонки идут через IP-телефонию прямо из карточки должника — Битрикс для звонков больше не нужен. Каждый разговор записывается и лежит в карточке: руководитель слушает спорные, новичок учится на удачных.</p></div></div>
+ <div class="wid"><div><small>Звонков сегодня</small><b>1 846</b><span>исходящих 1 712 · входящих 134</span></div><div><small>Дозвон</small><b>41%</b><span>757 разговоров</span></div><div><small>Время разговоров</small><b>9 ч 20 мин</b><span>в среднем 0:44</span></div><div><small>Пропущенные входящие</small><b class="w">7</b><span>перезвонить</span></div></div>
+ <div class="pan"><h3>Последние звонки</h3><div class="tw"><table class="t"><thead><tr><th>Время</th><th>Должник</th><th>Коллектор</th><th>Длительность</th><th>Итог</th><th>Запись</th></tr></thead><tbody>${CALLLOG.map(c=>{const d=DB(c[1]);return `<tr class="clk" onclick="openDebt('${c[1]}')"><td class="mono">${c[0]}</td><td>${esc(d.nm)}<br><small>${c[1]}</small></td><td>${c[2]}</td><td class="mono">${c[3]}</td><td>${c[4]}</td><td>${c[5]?'<a class="play">▶ слушать</a>':'—'}</td></tr>`}).join('')}</tbody></table></div></div>
+ <p class="hint">IP-телефония — около 30–35 тыс. ₸ в месяц оператору, номера и тарифы ваши.</p>`;
+
+/* WhatsApp */
+let WA={st:'promise',tpl:0};
+const WTPL=[['Напоминание об обещании','{имя}, напоминаем: вы обещали оплатить {сумма} до {дата}. Оплатить через Kaspi: {ссылка}'],['Уведомление о цессии','{имя}, право требования по займу {займ} перешло к нам. Остаток {остаток}. Свяжитесь с нами, чтобы договориться об удобном графике.'],['Предложение реструктуризации','{имя}, можем разбить остаток {остаток} на 6 платежей. Ответьте «да», и коллектор перезвонит.']];
+SC.wa=()=>{const n=DEBT.filter(d=>!WA.st||d.st===WA.st).length*162;
+ return `<div class="hd"><div><h2>WhatsApp и рассылки</h2><p>Переписка с должником — в его карточке, рядом со звонками. Массовые сообщения по этапу или портфелю: уведомление о цессии, напоминание об обещании, предложение графика. Ответ попадает коллектору, за которым закреплён должник.</p></div></div>
+ <div class="g2"><div class="pan"><h3>Рассылка</h3><div class="form"><label>Кому — этап<select onchange="WA.st=this.value;render()"><option value="">Все в работе</option>${ST.map(s=>`<option value="${s[0]}" ${WA.st===s[0]?'selected':''}>${s[1]}</option>`).join('')}</select></label><label>Шаблон<select onchange="WA.tpl=+this.value;render()">${WTPL.map((t,i)=>`<option value="${i}" ${WA.tpl===i?'selected':''}>${t[0]}</option>`).join('')}</select></label></div>
+  <div class="rcp"><b>${fmt(n)}</b><span>получателей · подставятся имя, сумма, дата и ссылка на оплату</span></div><div class="voice">${esc(WTPL[WA.tpl][1])}</div><button class="bt p" onclick="act('Рассылка поставлена в очередь: ${fmt(n)} сообщений, по 20 в минуту — чтобы номер не заблокировали.')">Отправить</button></div>
+ <div class="pan"><h3>Переписка · ${esc(DB(curDebt).nm)}</h3><div class="msgs"><div class="mg"><small>30.09 09:15 · система</small>Здравствуйте! Право требования по вашему займу перешло к нам. Остаток 126 600 ₸.</div><div class="mg me"><small>30.09 17:32 · должник</small>А откуда долг? Я в МФО всё платил</div><div class="mg"><small>06.10 16:10 · Ержан</small>Отправил вам выписку по займу. Как договорились: 20 000 ₸ сегодня и 40 000 ₸ 13.10.</div><div class="mg"><small>12.10 18:00 · напоминание</small>Ерлан, напоминаем: завтра оплата 40 000 ₸. Оплатить через Kaspi: ссылка</div><div class="mg me"><small>13.10 10:45 · должник</small>Сегодня до шести оплачу</div></div></div></div>
+ <p class="hint">Официальный WhatsApp-провайдер — около 10 тыс. ₸ в месяц.</p>`};
+
+/* Платежи */
+SC.payments=()=>{const pt=payToday();
+ return `<div class="hd"><div><h2>Платежи и разноска</h2><p>Выписки Kaspi и банков загружаются файлом или подтягиваются автоматически. Платёж сам находит должника по номеру займа, ИИН или телефону, уменьшает остаток и закрывает обещание. Что не нашлось — в «Неразнесённые».</p></div><div class="btns"><button class="bt" onclick="act('Выписка загружена: 41 платёж, 39 разнесены автоматически, 2 — вручную.')">⇧ Загрузить выписку</button><button class="bt" onclick="exportXls('pay')">⇩ Excel</button></div></div>
+ <div class="wid"><div><small>Сегодня</small><b class="g">${tg(pt)}</b><span>${PAYTODAY.length+71} платёж · план ${mln(PLAN_DAY)}</span></div><div><small>Разнесено автоматически</small><b>${PAYTODAY.length+71-PAYTODAY.filter(p=>!p.id).length}</b><span>по номеру займа и ИИН</span></div><div><small>Без должника</small><b class="w">${PAYTODAY.filter(p=>!p.id).length}</b><span>разнести вручную</span></div><div><small>Средний платёж</small><b>${tg(pt/(PAYTODAY.length+71))}</b><span>долг в среднем 70–80 тыс.</span></div></div>
+ <div class="pan"><h3>Последние платежи</h3><div class="tw"><table class="t"><thead><tr><th>Время</th><th>Источник</th><th>Сумма</th><th>Должник</th><th>Основание</th><th></th></tr></thead><tbody>${PAYTODAY.map((p,i)=>`<tr class="${p.id?'':'rowwarn'}"><td class="mono">${p.t}</td><td>${p.src}</td><td class="mono pos">${tg(p.s)}</td><td>${p.id?`<a class="clk" onclick="openDebt('${p.id}')">${esc(DB(p.id).nm)}</a>`:'—'}</td><td>${esc(p.ref)}</td><td>${p.id?tag('разнесён','g'):`<button class="bt sm" onclick="manualPay(${i})">Разнести</button>`}</td></tr>`).join('')}</tbody></table></div></div>
+ ${said('Два с половиной миллиона в день на счета заходит')}`};
+function manualPay(i){const p=PAYTODAY[i],d=DEBT.find(x=>x.nm.startsWith('Нуртаев'))||DEBT[5];p.id=d.id;d.paid=Math.min(d.tot,d.paid+p.s);AUDIT.unshift([TODAY.slice(0,5)+' '+NOW,ROLES[role].n,role,'Платежи','Ручная разноска',tg(p.s)+' → '+d.id,'компьютер']);render();toast(`Платёж ${tg(p.s)} разнесён на ${esc(d.nm)}. Остаток уменьшился.`)}
+
+/* Портфели */
+SC.portfolios=()=>`<div class="hd"><div><h2>Портфели</h2><p>Каждый выкупленный у МФО портфель: сколько должников, номинал долга, цена выкупа, сколько уже собрано и окупился ли. Видно, какие продавцы дают портфели, по которым платят лучше.</p></div><div class="btns"><button class="bt p" onclick="go('import')">⇧ Новый портфель</button></div></div>
+ <div class="pan"><div class="tw"><table class="t"><thead><tr><th>Портфель</th><th>Продавец</th><th>Выкуплен</th><th>Должников</th><th>Номинал</th><th>Цена выкупа</th><th>Собрано</th><th>Окупаемость</th></tr></thead><tbody>${PORTS.map(p=>`<tr class="clk" onclick="F.port='${p.id}';go('debtors')"><td><b>${p.id}</b></td><td>${esc(p.seller)}</td><td class="mono">${p.d}</td><td class="mono">${fmt(p.n)}</td><td class="mono">${mln(p.nom)}</td><td class="mono">${mln(p.price)} · ${fmt1(p.price/p.nom*100)}%</td><td class="mono pos">${mln(p.coll)}</td><td><div class="fbar"><i style="width:${Math.min(100,p.coll/p.price/5*100)}%"></i></div><small>${fmt1(p.coll/p.price)}× цены выкупа</small></td></tr>`).join('')}</tbody></table></div></div>
+ <div class="g2"><div class="pan"><h3>Собрано по месяцам после выкупа, % номинала</h3>${bars([['1-й месяц',3.1,'3,1%'],['2-й',5.4,'5,4%'],['3-й',6.2,'6,2%'],['4-й',5.8,'5,8%'],['5-й',4.9,'4,9%'],['6-й',4.1,'4,1%']])}</div>
+ <div class="pan"><h3>Платят лучше</h3>${bars([['МФО «Деньги сразу»',29,'29% номинала'],['МФО «Быстрый займ»',27,'27%'],['МФО «Kaz Credit Plus»',20,'20%']])}<p class="hint">Помогает решать, какой следующий портфель и по какой цене брать.</p></div></div>
+ ${said('Мы выкупаем у других микрофинансовых организаций должников — сразу портфель там десять тысяч, двадцать тысяч должников')}`;
+
+/* Отчёты */
+const REPS=[['rest','Остатки задолженности по портфелям','по каждому должнику: основной долг, вознаграждение, пеня, оплачено, остаток'],['nb','Отчётность для Нацбанка','форма по портфелю в формате, который вы сдаёте — настроим по вашему образцу'],['pay','Платежи за период','дата, источник, сумма, должник, займ'],['coll','Работа коллекторов','звонки, дозвон, обещания, выполнение, собрано'],['list','Должники по текущему фильтру','то, что отфильтровано в списке'],['prom','Обещания и выполнение','кто обещал, сколько, когда, оплатил ли']];
+SC.reports=()=>`<div class="hd"><div><h2>Отчёты в Excel · Нацбанк</h2><p>Любой отчёт — в Excel одной кнопкой: файл скачивается по-настоящему, попробуйте. Отчётность для Нацбанка собирается по вашей форме, без ручного сведения таблиц.</p></div></div>
+ <div class="g3">${REPS.map(r=>`<div class="pan rep"><h3>${r[1]}</h3><p class="mini">${r[2]}</p><button class="bt p sm" onclick="exportXls('${r[0]}')">⇩ Скачать Excel</button></div>`).join('')}</div>
+ ${said('Это всё должно в Excel выгружаться — по суммам, по задолженностям обязательно, потому что мы этот Excel потом будем зашивать в Нацбанк')}`;
+function exportXls(k){let head=[],rows=[],name='otchet';
+ const dRow=d=>[d.id,d.nm,d.iin,d.port,d.cont,d.body,d.pct,d.pen,d.tot,d.paid,rest(d),d.dpd,STN(d.st),CN(d.col)];
+ const dHead=['ID','ФИО','ИИН','Портфель','Займ','Основной долг','Вознаграждение','Пеня','Итого','Оплачено','Остаток','Дней просрочки','Этап','Коллектор'];
+ if(k==='rest'||k==='nb'){head=dHead;rows=DEBT.map(dRow);name=k==='nb'?'nacbank_forma':'ostatki_zadolzhennosti'}
+ else if(k==='list'){head=dHead;rows=fDebt().map(dRow);name='dolzhniki_filtr'}
+ else if(k==='pay'){head=['Время','Источник','Сумма','Должник','Основание'];rows=PAYTODAY.map(p=>[p.t,p.src,p.s,p.id?DB(p.id).nm:'—',p.ref]);name='platezhi'}
+ else if(k==='coll'){head=['Коллектор','Звонков','Дозвон %','Обещаний','Собрано сегодня'];rows=COLL.map((c,i)=>[c[1],[248,231,226,214,62,219,204,197][i],[44,42,39,41,28,43,38,40][i],[9,8,6,7,2,8,5,4][i],[412000,356000,298000,274000,96000,318000,241000,188000][i]]);name='kollektory'}
+ else {head=['Дата','Должник','Сумма','Коллектор'];rows=DEBT.filter(d=>d.prom).map(d=>[d.prom.d,d.nm,d.prom.s,CN(d.col)]);name='obeshchaniya'}
+ const x='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><table border="1"><tr>'+head.map(h=>`<th style="background:#17324d;color:#fff">${esc(h)}</th>`).join('')+'</tr>'+rows.map(r=>'<tr>'+r.map(c=>`<td>${esc(c)}</td>`).join('')+'</tr>').join('')+'</table></body></html>';
+ try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+x],{type:'application/vnd.ms-excel'}));a.download=name+'_'+TODAY.replace(/\./g,'-')+'.xls';document.body.appendChild(a);a.click();a.remove()}catch(e){}
+ AUDIT.unshift([TODAY.slice(0,5)+' '+NOW,ROLES[role].n,role,'Отчёты','Выгрузка «'+name+'»',rows.length+' строк','компьютер']);toast(`Excel скачан: ${rows.length} строк. В рабочей системе — все ${fmt(BASE_N)} должников.`)}
+
+/* Загрузка портфеля */
+let IMP=0;
+SC.import=()=>`<div class="hd"><div><h2>Загрузка портфеля</h2><p>Продавец передаёт реестр в Excel. Загружаете файл, сопоставляете колонки один раз — шаблон запоминается для этого продавца. Система проверяет дубли и пустые телефоны и распределяет должников по коллекторам поровну или по правилам.</p></div></div>
+ <div class="mvs">${['Файл реестра','Колонки','Проверка','Распределение','Готово'].map((s,i)=>`<div class="mv ${i<IMP?'ok':i===IMP?'on':''}"><i>${i+1}</i><b>${s}</b><span>${['Excel от продавца','ФИО, ИИН, займ, суммы','дубли, пустые поля','по 8 коллекторам','в работе'][i]}</span></div>`).join('')}</div>
+ <div class="pan">${IMP===0?`<div class="upl"><b>reestr_cessii_PF-08.xlsx</b><span>МФО «Деньги сразу» · 4 120 строк · 1,8 МБ</span></div><button class="bt p" onclick="IMP=1;render()">Загрузить →</button>`:
+ IMP===1?`<div class="tw"><table class="t"><thead><tr><th>Колонка в файле</th><th>Поле в системе</th></tr></thead><tbody>${[['ФИО заемщика','ФИО'],['ИИН','ИИН'],['№ договора','Займ'],['Сумма ОД','Основной долг'],['Начисл. вознагр.','Вознаграждение'],['Неустойка','Пеня'],['Тел. моб.','Телефон'],['Адрес регистрации','Адрес']].map(r=>`<tr><td>${r[0]}</td><td>${tag(r[1],'g')}</td></tr>`).join('')}</tbody></table></div><button class="bt p" onclick="IMP=2;render()">Проверить →</button>`:
+ IMP===2?`<div class="kv"><span>Строк в файле</span><b>4 120</b></div><div class="kv"><span>Уже есть в базе (дубли по ИИН)</span><b class="neg">37</b></div><div class="kv"><span>Без телефона</span><b class="neg">214</b></div><div class="kv on"><span><strong>Будет загружено</strong></span><b>4 083 · номинал 318,4 млн ₸</b></div><button class="bt p" onclick="IMP=3;render()">Распределить →</button>`:
+ IMP===3?`${COLL.map(c=>`<div class="kv"><span>${c[1]}</span><b>510 должников</b></div>`).join('')}<button class="bt p" onclick="IMP=4;render();toast('Портфель PF-08 загружен и распределён. Уведомления о цессии поставлены в очередь WhatsApp.')">Загрузить в работу →</button>`:
+ `<div class="pin">Портфель PF-08 в работе: 4 083 должника, распределены по 8 коллекторам. Уведомления о переуступке отправляются.</div><button class="bt" onclick="IMP=0;render()">Ещё раз</button>`}</div>`;
+
+/* Обучение */
+SC.learn=()=>`<div class="hd"><div><h2>Обучение новичков</h2><p>Всё, что делал опытный коллектор, остаётся в системе: звонки с записью, переписка, комментарии. Новичку — подборка закрытых дел: «изучи десять должников, которые полностью погасили, и послушай, как с ними говорили».</p></div></div>
+ <div class="g3">${[['Закрытые дела: полностью погасили','10 должников · звонки и переписка от первого контакта до оплаты'],['Сложные: «не признаю долг»','8 разговоров, где должник сначала отказывался платить'],['Реструктуризация','как предлагать график, чтобы платили'],['Скрипт первого звонка','уведомление о цессии, проверка личности, что говорить нельзя'],['Ошибки','5 записей, где разговор пошёл не так — с разбором руководителя'],['Тест после обучения','12 вопросов, результат видит руководитель']].map(x=>`<div class="pan rep"><h3>${x[0]}</h3><p class="mini">${x[1]}</p><button class="bt sm" onclick="act('Подборка открыта: записи, переписка и комментарии по каждому делу.')">Открыть</button></div>`).join('')}</div>`;
+
+/* Роли и журнал */
+SC.audit=()=>`<div class="hd"><div><h2>Роли и журнал действий</h2><p>Коллектор видит только своих должников, юрист — претензии и суд, бухгалтер — платежи. Персональные данные должников открыты только тем, кому нужны. Каждое действие записывается: кто, когда, что изменил — телефон, сумму, этап.</p></div></div>
+ <div class="g2 g21"><div class="pan"><h3>Журнал</h3><div class="tw"><table class="t"><thead><tr><th>Когда</th><th>Кто</th><th>Раздел</th><th>Что сделал</th><th>Значение</th></tr></thead><tbody>${AUDIT.map(a=>`<tr><td class="mono">${a[0]}</td><td>${a[1]}<br><small>${a[2]}</small></td><td>${a[3]}</td><td>${esc(a[4])}</td><td>${esc(a[5])}</td></tr>`).join('')}</tbody></table></div></div>
+ <div class="pan"><h3>Роли</h3>${Object.entries(ROLES).map(([k,v])=>`<div class="kv"><span><b>${k}</b><small>${esc(v.note)}</small></span><b>${v.s.length} разд.</b></div>`).join('')}</div></div>`;
+
+/* Запуск и стоимость */
+SC.launch=()=>`<div class="hd"><div><h2>Запуск и стоимость</h2><p>Стандартный пакет разработки. Один платёж — система ставится на ваш сервер и становится вашей, ежегодной оплаты как у коробочных CRM нет. Ядро — около 10 дней, дальше полировка вместе с вами.</p></div></div>
+ <div class="pk1"><div><small>Стандартный пакет</small><b>1 500 000 ₸</b><span>при решении в течение недели — скидка 5% за скорость: <b>1 425 000 ₸</b></span></div><div><small>Срок</small><b>4–6 недель</b><span>ядро — около 10 дней</span></div></div>
+ <div class="pay3"><div><small>Старт · 10%</small><b>150 000 ₸</b><span>при подписании · со скидкой 142 500 ₸</span></div><div><small>Ядро · 45%</small><b>675 000 ₸</b><span>после приёмки ядра · 641 250 ₸</span></div><div><small>Сдача · 45%</small><b>675 000 ₸</b><span>после всех правок · 641 250 ₸</span></div></div>
+ <div class="mvs"><div class="mv ok"><i>1</i><b>Видео вашей любимой CRM</b><span>до среды 14.10 · вкладки и глубина</span></div><div class="mv on"><i>2</i><b>Ядро · 10 дней</b><span>должники, карточка, комментарии, воронка, Excel</span></div><div class="mv"><i>3</i><b>Полировка</b><span>сборки каждые 1–2 дня, ваши правки</span></div><div class="mv"><i>4</i><b>Перенос из Excel</b><span>10 000 должников, платежи, комментарии</span></div><div class="mv"><i>5</i><b>Запуск</b><span>телефония, WhatsApp, обучение команды</span></div></div>
+ <div class="pan"><h3>Ежемесячно — напрямую сервисам</h3><div class="kv"><span>IP-телефония с записью разговоров</span><b>≈ 30–35 тыс. ₸</b></div><div class="kv"><span>WhatsApp-провайдер</span><b>≈ 10 тыс. ₸</b></div><div class="kv"><span>Сервер</span><b>≈ 10–15 тыс. ₸</b></div></div>
+ ${said('Главное, чтобы удобство было, и всё — больше ничего нам не нужно','Внешний вид сделаем по видео CRM, которая вам понравилась: поменять дизайн для нас — сутки, бесплатно.')}`;
+
+/* Карточки */
+const CARD={};
+CARD.prom=id=>{const d=DB(id);return ['Обещание оплаты · '+esc(d.nm),'Остаток '+tg(rest(d)),`<div class="form"><label>Сумма, ₸<input id="pr_s" type="number" value="${Math.round(rest(d)*0.3/1000)*1000}"></label><label>Дата<select id="pr_d">${['13.10','14.10','15.10','16.10','20.10'].map(x=>`<option>${x}</option>`).join('')}</select></label></div><label class="ck"><input type="checkbox" checked> Напомнить в WhatsApp накануне со ссылкой на оплату</label><button class="bt p" onclick="promDo('${id}')">Сохранить</button>`]};
+function promDo(id){const d=DB(id),s=+document.getElementById('pr_s').value||0,dt=document.getElementById('pr_d').value;if(!s){toast('Сумма?');return}d.prom={d:dt,s};d.st='promise';COMM[id].unshift([TODAY.slice(0,5)+' '+NOW,ROLES[role].n,'Обещание: '+tg(s)+' до '+dt+'.']);AUDIT.unshift([TODAY.slice(0,5)+' '+NOW,ROLES[role].n,role,'Должники','Обещание '+id,tg(s)+' до '+dt,'компьютер']);closeM();render();toast('Обещание сохранено. Накануне должнику уйдёт напоминание, платёж закроет обещание сам.')}
+function card(k,id){const f=CARD[k];if(!f)return;let r;try{r=f(id)}catch(e){toast('Карточка не найдена');return}openM(r[0],r[1],r[2])}
+function act(m){toast(m||'В рабочей системе здесь откроется форма.')}
+function searchDemo(v){if(!v)return;F.q=v;go('debtors')}
+
+/* Каркас */
+function renderRoles(){const r=document.getElementById('roles');if(r)r.innerHTML=Object.entries(ROLES).map(([k,v])=>`<div class="role" onclick="enter('${esc(k)}')"><div class="rav">${esc(v.av)}</div><div><b>${esc(k)}</b><span>${esc(v.n)} · ${esc(v.note)}</span></div></div>`).join('');
+ const s=document.getElementById('rsel');if(s)s.innerHTML=Object.keys(ROLES).map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join('');}
+const allowed=k=>ROLES[role].s.indexOf(k)>=0;
+function enter(k){role=ROLES[k]?k:'Руководитель';document.getElementById('gate').classList.add('hidden');document.getElementById('app').classList.remove('hidden');const s=document.getElementById('rsel');if(s)s.value=role;document.getElementById('me').textContent=ROLES[role].av;if(role==='Коллектор')F.col='ER';if(!allowed(cur))cur=ROLES[role].s[0];build();toast(`Вы вошли как «${esc(role)}» · ${esc(ROLES[role].n)}.`)}
+function switchRole(k){role=k;F.col=role==='Коллектор'?'ER':'';document.getElementById('me').textContent=ROLES[role].av;const s=document.getElementById('rsel');if(s)s.value=role;if(!allowed(cur))cur=ROLES[role].s[0];build();toast(`Роль: ${esc(role)}. ${esc(ROLES[role].note)}.`)}
+function buildRail(){document.getElementById('rail').innerHTML=''}
+function buildSub(){document.getElementById('sub').innerHTML=`<div class="sbh"><span class="blogo">${LOGO_I}</span><b class="bname">ВОЗВРАТ</b></div>`+SEC.filter(s=>s.sub.some(x=>allowed(x[0]))).map(s=>`<h4>${s.n}</h4>`+s.sub.filter(x=>allowed(x[0])).map(x=>`<a class="${x[0]===cur?'on':''}" onclick="go('${x[0]}')">${esc(x[1])}${x[0]==='promises'?'<em>'+(promToday().length+38)+'</em>':''}</a>`).join('')).join('');
+ let bn=document.getElementById('bnav');if(!bn){bn=document.createElement('nav');bn.id='bnav';document.getElementById('app').appendChild(bn)}bn.innerHTML=[['dash','Пульт'],['debtors','Должники'],['promises','Обещания'],['payments','Платежи'],['reports','Excel']].filter(x=>allowed(x[0])).map(x=>`<a class="${cur===x[0]?'on':''}" onclick="go('${x[0]}')">${x[1]}</a>`).join('')}
+function build(){buildRail();buildSub();render()}
+function render(){const f=SC[cur]||SC.dash;document.getElementById('ttl').textContent=SUBN[cur]||'Возврат';document.getElementById('content').innerHTML=`<div class="screen">${f()}</div>`;buildSub();try{history.replaceState(null,'','?s='+cur)}catch(e){}}
+function go(k){if(!allowed(k)){toast('Этой роли раздел недоступен — так работают права. Переключите роль справа вверху.');return}cur=k;build();const c=document.querySelector('.content');if(c)c.scrollTop=0}
+function openM(t,s,b){document.getElementById('mt').innerHTML=t;document.getElementById('ms').innerHTML=s;document.getElementById('mbody').innerHTML=b;document.getElementById('mbg').classList.add('show');document.querySelector('.modal').scrollTop=0}
+function closeM(){document.getElementById('mbg').classList.remove('show')}
+let tt=null;function toast(m){const t=document.getElementById('toast');t.innerHTML=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),6400)}
+function applyTheme(){document.body.classList.toggle('dark',theme==='dark')}
+function toggleTheme(){theme=theme==='dark'?'light':'dark';applyTheme();toast(theme==='dark'?'Тёмная тема.':'Светлая тема.')}
+const TOUR=[
+ ['dash','1 · Пульт: сколько зашло сегодня против плана 2,5 млн, должники, остаток, обещания.'],
+ ['debtors','2 · Все должники вместо Excel: фильтры, поиск, остатки, комментарии.'],
+ ['card','3 · Карточка должника: долг по частям, комментарии, звонки с записью, платежи.'],
+ ['funnel','4 · Воронка взыскания — этапы как у вас.'],
+ ['promises','5 · Обещания: напоминание накануне, платёж закрывает обещание сам.'],
+ ['calls','6 · Звонки через IP-телефонию, все записи в карточке.'],
+ ['payments','7 · Платежи разносятся по должникам автоматически.'],
+ ['portfolios','8 · Портфели: цена выкупа, собрано, окупаемость.'],
+ ['reports','9 · Excel и отчётность для Нацбанка — файл скачивается.'],
+ ['plan','10 · План и коллекторы.'],
+ ['launch','11 · Стоимость: 1,5 млн, 4–6 недель, 10 / 45 / 45.']
+];
+let ti=-1,tRun=false;
+function tour(){if(tRun){stopTour();return}tRun=true;ti=-1;document.getElementById('tourBtn').textContent='■';step()}
+function step(){if(!tRun)return;ti++;if(ti>=TOUR.length){stopTour();toast('Сценарий закончен. Всё кликается.');return}const [k,m]=TOUR[ti];if(!allowed(k)){step();return}cur=k;build();toast(m);setTimeout(step,ti===0?6500:7200)}
+function stopTour(){tRun=false;ti=-1;const b=document.getElementById('tourBtn');if(b)b.textContent='▶'}
+(function(){renderRoles();applyTheme();const s=document.getElementById('rsel');if(s)s.addEventListener('change',e=>switchRole(e.target.value));document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeM();stopTour()}});
+ let q='';try{q=new URLSearchParams(location.search).get('s')||''}catch(e){}
+ if(q&&SECOF[q]){const r=Object.keys(ROLES).find(k=>ROLES[k].s.indexOf(q)>=0);if(r){cur=q;enter(r)}}})();
+
+</script>
+</body>
+</html>

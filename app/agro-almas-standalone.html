@@ -1,0 +1,1250 @@
+<!doctype html>
+<!--
+  Автономная версия демо «ДАЛА · цифровое хозяйство: поля, склады, ГСМ, техника, скот · демо».
+  Один файл: разметка, стили, логика и картинки внутри. Интернет не нужен —
+  шрифты подгружаются при наличии сети, иначе берутся системные.
+  Собирается скриптом tools/sales-kit/scripts/standalone.py из app/agro-almas.html.
+-->
+<html lang="ru">
+<head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>ДАЛА · цифровое хозяйство: поля, склады, ГСМ, техника, скот · демо (автономный файл)</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231f3d2b'/><path d='M50 84V34' stroke='%23fff' stroke-width='7'/><path d='M50 42c-12-2-19-10-19-21 12 2 19 10 19 21zm0 0c12-2 19-10 19-21-12 2-19 10-19 21zM50 60c-12-2-19-10-19-21 12 2 19 10 19 21zm0 0c12-2 19-10 19-21-12 2-19 10-19 21z' fill='%23e0a530'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Golos+Text:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+ --rail:#1f3d2b;--rail2:#16301f;--rail-h:#2a5039;--rail-a:#e0a530;
+ --brand:#1f3d2b;--brand2:#e0a530;--brandl:#edf3e8;--mapbg:#efe9d8;--steel:#8b96a3;
+ --bg:#f5f4ee;--card:#fff;--card2:#f8f7f1;--card3:#e9e7dc;
+ --text:#1d241c;--muted:#5a6355;--muted2:#8b9285;--line:#e3e1d5;--line2:#cfccbc;
+ --acc:#1f3d2b;--acc2:#e0a530;--accl:#edf3e8;
+ --ok:#1f8a5b;--ok-l:#e2f4ea;--bad:#d2412c;--bad-l:#fce8e4;--warn:#c27a0e;--warn-l:#fdf1dc;
+ --info:#0a6bb0;--info-l:#e4f1fb;--violet:#5d5fa8;--violet-l:#ecedf8;
+ --r:14px;--sh:0 1px 3px rgba(29,36,28,.06);--sh2:0 14px 40px rgba(31,61,43,.22);
+}
+body.dark{
+ --bg:#11160f;--card:#181f16;--card2:#1e271b;--card3:#2a3526;--mapbg:#2a2a20;
+ --text:#ecefe6;--muted:#aab3a2;--muted2:#78826f;--line:#2a3526;--line2:#3a4834;
+ --accl:#22331f;--ok-l:#13261a;--bad-l:#2e1613;--warn-l:#2e2210;--info-l:#13283a;--violet-l:#1e1e30;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Golos Text',system-ui,sans-serif;-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden;font-size:13px}
+button,select,input{font-family:inherit;color:inherit;cursor:pointer}
+button{border:0;background:none;padding:0}
+a{text-decoration:none;color:inherit}
+.hidden{display:none!important}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.num{font-variant-numeric:tabular-nums}
+
+/* ====== ВХОД ====== */
+.gate{height:100vh;display:grid;grid-template-columns:1.05fr .95fr;background:var(--rail);color:#dce7ec;overflow:auto}
+.gate-l{padding:44px 48px;display:flex;flex-direction:column;justify-content:center}
+.glogo{display:flex;align-items:center;gap:18px;align-self:flex-start}
+.gate h1{font-size:33px;line-height:1.1;letter-spacing:-.028em;margin:22px 0 12px;color:#fff;font-weight:800}
+.gate h1 em{font-style:normal;color:#f0c46a}
+.gate p{font-size:12.6px;line-height:1.75;color:#94a7b4;max-width:580px;margin:0 0 10px}
+.gtag{display:inline-block;align-self:flex-start;font:700 8.6px 'JetBrains Mono',monospace;letter-spacing:.15em;color:#e2c877;text-transform:uppercase;border:1px solid #5a4a22;background:#2a2414;padding:5px 11px;border-radius:4px}
+.gstat{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:24px;border-top:1px solid #24404f;padding-top:18px}
+.gstat small{display:block;font:600 7.4px 'JetBrains Mono',monospace;color:#7d92a0;letter-spacing:.1em;text-transform:uppercase}
+.gstat b{display:block;font-size:17px;margin-top:5px;color:#fff;font-variant-numeric:tabular-nums}
+.gstat b.a{color:var(--brand2)}
+.gate-r{background:#f2f5f6;padding:38px 36px;overflow:auto;display:flex;flex-direction:column;justify-content:center}
+.lform{background:#fff;border-radius:10px;box-shadow:0 6px 28px rgba(14,24,32,.18);padding:26px 28px;max-width:480px;width:100%;margin:0 auto}
+.lform h2{font-size:17px;margin:0 0 4px;color:var(--text);font-weight:800;letter-spacing:-.015em}
+.lform>p{font-size:11.6px;color:var(--muted);margin:0 0 17px;line-height:1.6}
+.roles{display:grid;gap:7px}
+.role{text-align:left;background:#fff;border:1px solid var(--line2);border-radius:7px;padding:11px 13px;transition:.13s;display:flex;align-items:center;gap:12px;cursor:pointer}
+.role:hover{border-color:var(--brand);background:var(--brandl);transform:translateX(2px)}
+.role .rav{width:32px;height:32px;border-radius:8px;background:var(--rail);color:var(--brand2);display:grid;place-items:center;font:700 10px 'JetBrains Mono',monospace;flex:none}
+.role b{display:block;font-size:12.6px;color:var(--text)}
+.role span{display:block;font-size:10.4px;color:var(--muted);margin-top:2px;line-height:1.45}
+.lnote{margin-top:15px;padding-top:13px;border-top:1px solid var(--line);font-size:10.4px;color:var(--muted);line-height:1.62}
+.lnote b{display:block;color:var(--text);font-size:11.2px;margin-bottom:3px}
+
+/* ====== КАРКАС ====== */
+.app{height:100vh;display:grid;grid-template-columns:74px auto 1fr}
+.rail{background:var(--rail);padding:0 0 9px;overflow-y:auto;display:flex;flex-direction:column;align-items:center}
+.rail::-webkit-scrollbar{width:0}
+.rail-logo{width:100%;height:56px;display:grid;place-items:center;background:var(--rail2);flex:none;margin-bottom:6px}
+.ri{width:60px;padding:8px 4px 7px;border-radius:7px;display:grid;place-items:center;gap:3px;color:#8b9dab;cursor:pointer;position:relative;margin-bottom:2px;transition:.12s}
+.ri i{font-size:15px;font-style:normal;line-height:1}
+.ri span{font-size:8.2px;font-weight:700;letter-spacing:.01em;text-align:center;line-height:1.15}
+.ri:hover{background:var(--rail-h);color:#fff}
+.ri.on{background:var(--rail-h);color:#fff}
+.ri.on:before{content:'';position:absolute;left:-7px;top:7px;bottom:7px;width:3px;border-radius:0 3px 3px 0;background:var(--brand2)}
+.ri .cnt{position:absolute;top:2px;right:4px;background:var(--brand);color:#fff;font:700 8px 'JetBrains Mono',monospace;padding:1px 4px;border-radius:7px}
+.rail-bot{margin-top:auto;padding-top:9px}
+.me{width:34px;height:34px;border-radius:9px;background:var(--acc);color:#fff;display:grid;place-items:center;font:700 10px 'JetBrains Mono',monospace}
+#sub{width:214px;background:var(--card);border-right:1px solid var(--line);padding:14px 0;overflow-y:auto;flex:none}
+#sub h4{font:700 9.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.1em;margin:0 0 8px;padding:0 17px}
+#sub a{display:flex;align-items:center;gap:8px;padding:8px 17px;font-size:12.2px;color:var(--text);cursor:pointer;border-left:3px solid transparent}
+#sub a:hover{background:var(--card2)}
+#sub a.on{background:var(--brandl);border-left-color:var(--brand);color:var(--brand);font-weight:700}
+#sub .shint{margin:14px 17px 0;padding-top:12px;border-top:1px solid var(--line);font-size:10.2px;color:var(--muted);line-height:1.58}
+.main{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.top{height:52px;border-bottom:1px solid var(--line);background:var(--card);display:flex;align-items:center;padding:0 18px;gap:13px;flex:none}
+.top h1{font-size:16px;margin:0;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.top-r{margin-left:auto;display:flex;align-items:center;gap:8px}
+.srch{display:flex;align-items:center;gap:7px;background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:0 10px;height:32px}
+.srch i{color:var(--muted2);font-style:normal;font-size:12px}
+.srch input{border:0;background:none;outline:0;font-size:11.4px;width:200px}
+.ab{background:var(--brand);color:#fff;border-radius:6px;padding:0 14px;height:32px;font-size:11px;font-weight:800;letter-spacing:.03em;white-space:nowrap}
+.ab:hover{background:#6e4620}
+.ib{width:32px;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--card2);font-size:13px}
+.ib:hover{border-color:var(--brand);color:var(--brand)}
+.rsel{height:32px;border:1px solid var(--line);border-radius:6px;background:var(--card2);font-size:11.4px;padding:0 8px;font-weight:700}
+.content{flex:1;overflow-y:auto;padding:17px 18px 26px}
+.screen{max-width:1460px}
+
+/* ====== ОБЩИЕ БЛОКИ ====== */
+.hd{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:13px}
+.hd h2{font-size:19px;margin:0 0 4px;font-weight:800;letter-spacing:-.025em}
+.hd p{margin:0;font-size:11.6px;color:var(--muted);line-height:1.6;max-width:960px}
+.btns{display:flex;gap:7px;flex:none;flex-wrap:wrap;justify-content:flex-end}
+.bt{border:1px solid var(--line2);background:var(--card);border-radius:6px;padding:7px 12px;font-size:11.2px;font-weight:700;white-space:nowrap}
+.bt:hover{border-color:var(--brand);color:var(--brand)}
+.bt.p{background:var(--brand);border-color:var(--brand);color:#fff}.bt.p:hover{background:#6e4620;border-color:#6e4620;color:#fff}
+.bt.g{background:var(--ok);border-color:var(--ok);color:#fff}.bt.g:hover{color:#fff;border-color:var(--ok)}
+.bt.v{background:var(--acc);border-color:var(--acc);color:#fff}.bt.v:hover{color:#fff;border-color:var(--acc)}
+.bt.w{background:var(--warn);border-color:var(--warn);color:#fff}.bt.w:hover{color:#fff;border-color:var(--warn)}
+.pan{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:15px 17px;margin-bottom:12px;box-shadow:var(--sh)}
+.pan>h3{font-size:13.4px;margin:0 0 4px;font-weight:800;letter-spacing:-.015em}
+.pan>p{margin:0 0 11px;font-size:11px;color:var(--muted);line-height:1.6}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.g21{display:grid;grid-template-columns:1.7fr 1fr;gap:12px;margin-bottom:12px}
+.g12{display:grid;grid-template-columns:1fr 1.7fr;gap:12px;margin-bottom:12px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+@media(max-width:1300px){.g2,.g21,.g12,.g3{grid-template-columns:1fr}}
+.mini{font-size:11px;color:var(--muted);line-height:1.6}
+.sub,.sub2{font-size:10.2px;color:var(--muted);margin-top:2px;font-weight:400;line-height:1.45;display:block}
+
+/* метрики */
+.wid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px}
+@media(max-width:1180px){.wid{grid-template-columns:repeat(2,1fr)}}
+.wid>div{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:12px 14px;box-shadow:var(--sh)}
+.wid small{display:block;font:700 8.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.07em}
+.wid b{display:block;font-size:21px;margin-top:6px;font-weight:800;letter-spacing:-.028em;font-variant-numeric:tabular-nums}
+.wid b.a{color:var(--brand)}.wid b.g{color:var(--ok)}.wid b.r{color:var(--bad)}.wid b.i{color:var(--info)}.wid b.w{color:var(--warn)}.wid b.v{color:var(--violet)}
+.wid span{display:block;font-size:10.2px;color:var(--muted);margin-top:3px;line-height:1.45}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:11.6px;align-items:flex-start}
+.kv:last-child{border:0}
+.kv>span:first-child{color:var(--muted);flex:1}
+.kv b{font-weight:800;font-variant-numeric:tabular-nums;text-align:right;flex:none}
+.bar{height:9px;background:var(--card3);border-radius:5px;overflow:hidden}
+.bar i{display:block;height:100%;width:var(--w);background:var(--acc);border-radius:5px}
+.bar i.g{background:var(--ok)}.bar i.r{background:var(--bad)}.bar i.w{background:var(--warn)}.bar i.b{background:var(--brand)}.bar i.v{background:var(--violet)}
+.fr{display:grid;grid-template-columns:215px 1fr 155px;gap:11px;align-items:center;margin-bottom:9px;font-size:11.6px}
+.fr b{text-align:right;font-weight:700;font-size:11.4px;font-variant-numeric:tabular-nums}
+@media(max-width:900px){.fr{grid-template-columns:1fr;gap:4px}.fr b{text-align:left}}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}
+table.t{width:100%;border-collapse:collapse}
+table.t th{text-align:left;font:700 9.6px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.05em;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--card2)}
+table.t td{padding:10px 12px;border-bottom:1px solid var(--line);font-size:11.8px;vertical-align:middle}
+table.t tbody tr:last-child td{border-bottom:0}
+table.t tbody tr{cursor:pointer}
+table.t tbody tr:hover{background:var(--card2)}
+table.t td.r,table.t th.r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+table.t tr.total td{border-top:1.5px solid var(--line2);font-weight:800;background:var(--card2)}
+.tag{display:inline-block;font:700 9px 'JetBrains Mono',monospace;padding:3px 7px;border-radius:4px;background:var(--card3);color:var(--muted);white-space:nowrap}
+.tag.g{background:var(--ok-l);color:var(--ok)}.tag.r{background:var(--bad-l);color:var(--bad)}
+.tag.w{background:var(--warn-l);color:var(--warn)}.tag.i{background:var(--info-l);color:var(--info)}
+.tag.a{background:var(--accl);color:var(--acc)}.tag.b{background:var(--brandl);color:var(--brand)}
+.tag.v{background:var(--violet-l);color:var(--violet)}
+.av{width:24px;height:24px;border-radius:6px;background:var(--rail);color:var(--brand2);display:inline-grid;place-items:center;font:700 8.6px 'JetBrains Mono',monospace;flex:none;vertical-align:-7px}
+.av.a{background:var(--acc);color:#fff}.av.i{background:var(--info);color:#fff}.av.v{background:var(--violet);color:#fff}.av.g{background:var(--ok);color:#fff}.av.w{background:var(--warn);color:#fff}
+.note{border-left:3px solid var(--tone,var(--brand));background:var(--card2);border-radius:0 5px 5px 0;padding:10px 13px;margin-top:11px}
+.note b{font-size:11.4px;display:block;margin-bottom:3px}
+.note p{margin:0;font-size:10.8px;color:var(--muted);line-height:1.62}
+.hint{background:var(--accl);border-left:3px solid var(--acc);border-radius:0 5px 5px 0;padding:11px 14px;font-size:11.2px;line-height:1.65;margin-top:12px}
+.said{background:var(--brandl);border-left:3px solid var(--brand);border-radius:0 5px 5px 0;padding:11px 14px;font-size:11.2px;line-height:1.65;margin-top:12px}
+.said b{display:block;font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);margin-bottom:4px}
+.said i{font-style:italic;color:var(--text)}
+.li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+.li:last-child{border:0}
+.li i{width:19px;height:19px;border-radius:5px;display:grid;place-items:center;font-size:10px;font-style:normal;color:#fff;flex:none;background:var(--ok);font-weight:700}
+.li.no i{background:var(--muted2)}.li.n i{background:var(--acc)}.li.w i{background:var(--warn)}.li.b i{background:var(--brand)}.li.r i{background:var(--bad)}.li.v i{background:var(--violet)}
+.li>span{font-size:11.4px;line-height:1.58;flex:1;min-width:0}
+.tl{border-left:2px solid var(--line2);margin-left:8px;padding-left:16px}
+.tli{position:relative;padding:8px 0 10px}
+.tli:before{content:'';position:absolute;left:-23px;top:12px;width:11px;height:11px;border-radius:50%;background:var(--line2);border:2px solid var(--bg)}
+.tli.on:before{background:var(--brand)}
+.tli.ok:before{background:var(--ok)}
+.tli.bad:before{background:var(--bad)}
+.tli b{font-size:12.2px;display:block}
+.tli p{margin:3px 0 0;font-size:11px;color:var(--muted);line-height:1.6}
+.tli .who{font:700 8.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.07em}
+
+/* поток шагов */
+.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:11px 0}
+@media(max-width:1100px){.flow{grid-template-columns:repeat(2,1fr)}}
+.fbx{border:1px solid var(--line);border-radius:var(--r);padding:12px;background:var(--card)}
+.fbx.on{background:var(--rail);border-color:var(--rail);color:#fff}
+.fbx.done{border-color:var(--ok);background:var(--ok-l)}
+.fbx code{font:700 8.6px 'JetBrains Mono',monospace;color:var(--brand);letter-spacing:.09em}
+.fbx.on code{color:var(--brand2)}
+.fbx b{display:block;font-size:15px;margin:6px 0 3px;font-weight:800;font-variant-numeric:tabular-nums}
+.fbx p{margin:0;font-size:9.8px;line-height:1.5;color:var(--muted)}
+.fbx.on p{color:#9fb2bf}
+
+/* воронка */
+.pipe{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(200px,1fr);gap:9px;overflow-x:auto;padding-bottom:7px;margin-bottom:12px}
+.phead{border-radius:6px 6px 0 0;padding:8px 11px;color:#fff;font-size:10.6px;font-weight:800}
+.pmeta{display:flex;justify-content:space-between;font-size:9.6px;color:var(--muted);padding:6px 3px}
+.pmeta b{font-variant-numeric:tabular-nums}
+.pbody{min-height:130px;border-radius:0 0 6px 6px;padding:2px}
+.pbody.over{background:var(--brandl);outline:2px dashed var(--brand)}
+.pc{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:9px 10px;margin-bottom:6px;cursor:grab;box-shadow:var(--sh)}
+.pc:hover{border-color:var(--brand)}
+.pc.drag{opacity:.42}
+.pc.new{animation:pop .5s ease}
+@keyframes pop{0%{transform:scale(.9);background:var(--brandl)}100%{transform:none}}
+.pc b{display:block;font-size:11.4px}
+.pc .pn{font-size:10px;color:var(--muted);margin-top:2px;display:block}
+.pc .pp{font-size:12px;font-weight:800;margin-top:5px;font-variant-numeric:tabular-nums;display:block}
+.pc .prow{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap}
+.pc .prow .tag{font-size:8.2px;padding:2px 5px}
+.ptabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+.ptab{border:1px solid var(--line2);background:var(--card);border-radius:20px;padding:6px 13px;font-size:11.2px;font-weight:700}
+.ptab.on{background:var(--rail);border-color:var(--rail);color:#fff}
+.ptab.add{border-style:dashed;color:var(--brand);border-color:var(--brand)}
+
+/* календарь отчётности */
+.cal{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:11px 0}
+@media(max-width:1200px){.cal{grid-template-columns:repeat(3,1fr)}}
+.mo{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:10px 11px;box-shadow:var(--sh)}
+.mo h4{margin:0 0 6px;font:700 9.4px 'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2)}
+.mo .ev{font-size:10px;line-height:1.35;padding:4px 6px;border-radius:4px;margin-bottom:4px;background:var(--card2);border-left:3px solid var(--c,var(--acc))}
+.mo .ev b{display:block;font-size:10.2px;font-variant-numeric:tabular-nums}
+.mo.now{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.dl{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-left:4px solid var(--c,var(--acc));background:var(--card);border-radius:var(--r);padding:11px 13px;margin-bottom:7px;box-shadow:var(--sh)}
+.dl .dt{text-align:center;flex:none;width:44px}
+.dl .dt b{display:block;font-size:17px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.dl .dt small{font:700 8px 'JetBrains Mono',monospace;color:var(--muted2);letter-spacing:.06em}
+.dl .dn{flex:1;min-width:0}
+.dl .dn b{font-size:12.2px;display:block}
+.dl .prg{width:120px;flex:none}
+.dl .prg .bar{height:7px}
+.dl .prg span{display:block;font:700 9px 'JetBrains Mono',monospace;color:var(--muted);margin-top:4px;text-align:right}
+
+/* чек-лист готовности */
+.chk{border:1px solid var(--line);border-radius:var(--r);background:var(--card);overflow:hidden}
+.chk .ci{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);font-size:11.6px}
+.chk .ci:last-child{border:0}
+.chk .ci .bx{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--line2);display:grid;place-items:center;font-size:11px;flex:none;cursor:pointer;background:var(--card2)}
+.chk .ci .bx.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.chk .ci .nm{flex:1}
+.chk .ci .who{font:700 8.6px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase}
+
+/* матрица обязанностей */
+.mx{overflow-x:auto}
+.mxg{display:grid;grid-template-columns:200px repeat(var(--c,4),1fr);gap:5px;min-width:700px}
+.mxg .h{font:700 9.2px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em;padding:6px 4px;text-align:center;border-bottom:1px solid var(--line)}
+.mxg .rw{font-size:11px;padding:8px 8px 0 0;font-weight:700;line-height:1.35}
+.mxg .cellm{border:1px dashed var(--line2);border-radius:5px;min-height:38px;padding:3px;background:var(--card)}
+.mxg .cellm.over{background:var(--brandl);border-color:var(--brand)}
+.chip{border-radius:5px;padding:4px 7px;font-size:10px;color:#fff;cursor:grab;margin-bottom:3px;line-height:1.3}
+.chip b{display:block;font-size:10.2px}
+.chip.drag{opacity:.4}
+
+/* WhatsApp */
+.chat{display:flex;flex-direction:column;gap:8px}
+.msg{max-width:84%;padding:8px 11px;border-radius:9px;font-size:11.2px;line-height:1.52}
+.msg small{display:block;font:600 8.4px 'JetBrains Mono',monospace;opacity:.66;margin-top:4px}
+.msg.out{align-self:flex-end;background:var(--ok-l);border:1px solid #cbe6da}
+.msg.in{align-self:flex-start;background:var(--card2);border:1px solid var(--line)}
+.msg.sys{align-self:center;background:var(--brandl);border:1px solid #c5e5d6;font-size:10.4px;text-align:center;max-width:94%}
+.tpl{border:1px solid var(--line);border-radius:6px;padding:9px 11px;margin-bottom:6px;background:var(--card);cursor:pointer}
+.tpl:hover{border-color:var(--brand);background:var(--brandl)}
+.tpl b{display:block;font-size:11.4px}
+.tpl span{display:block;font-size:10.2px;color:var(--muted);margin-top:3px;line-height:1.45}
+
+/* калькулятор */
+.calc{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:1100px){.calc{grid-template-columns:1fr}}
+.crow{margin-bottom:14px}
+.crow label{display:flex;justify-content:space-between;font-size:11.4px;margin-bottom:6px}
+.crow label b{font-weight:800;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--brand);height:4px}
+.res{border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.res .rr{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;font-size:11.8px;border-bottom:1px solid var(--line);background:var(--card)}
+.res .rr:last-child{border:0}
+.res .rr.hi{background:var(--brandl);font-weight:800;font-size:13px}
+.res .rr b{font-variant-numeric:tabular-nums;text-align:right}
+.srow{display:flex;align-items:center;gap:11px;padding:9px 11px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;background:var(--card2);font-size:11.8px}
+.srow .nm{flex:1}
+.sw{width:34px;height:19px;border-radius:10px;background:var(--line2);position:relative;transition:.14s;flex:none;cursor:pointer}
+.sw:after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:.14s}
+.sw.on{background:var(--ok)}.sw.on:after{left:17px}
+
+/* карточки-этапы */
+.bays{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin:11px 0}
+@media(max-width:1200px){.bays{grid-template-columns:repeat(2,1fr)}}
+.bay{border:1px solid var(--line);border-top:4px solid var(--c,var(--line2));border-radius:var(--r);background:var(--card);padding:12px 13px;box-shadow:var(--sh)}
+.bay small{display:block;font:700 8.4px 'JetBrains Mono',monospace;color:var(--muted2);letter-spacing:.07em;text-transform:uppercase}
+.bay b{display:block;font-size:13.6px;margin-top:6px;font-weight:800}
+.bay .who{font-size:10.4px;color:var(--muted);margin-top:3px}
+.bay .prg{height:6px;background:var(--card3);border-radius:4px;margin-top:9px;overflow:hidden}
+.bay .prg i{display:block;height:100%;width:var(--w);background:var(--c,var(--acc))}
+.bay .tm{display:flex;justify-content:space-between;font-size:9.8px;color:var(--muted);margin-top:5px;font-variant-numeric:tabular-nums}
+
+/* документ */
+.doc{background:#fff;color:#142430;border:1px solid var(--line2);border-radius:4px;padding:22px 26px;box-shadow:var(--sh2);max-width:700px;margin:0 auto}
+body.dark .doc{background:#f7fafb}
+.doc .dh{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #8a5a2b;padding-bottom:11px;margin-bottom:13px}
+.doc .dl{font-size:19px;font-weight:800;letter-spacing:.04em;color:#16232e}
+.doc .dl small{display:block;font:600 8px 'JetBrains Mono',monospace;letter-spacing:.16em;color:#1f7a5a;margin-top:3px}
+.doc h4{font-size:15px;margin:0 0 4px;font-weight:800}
+.doc .drow{display:grid;grid-template-columns:22px 1fr 78px 92px;gap:8px;padding:6px 0;border-bottom:1px dotted #c5d2da;font-size:10.6px}
+.doc .drow.h{font:700 8.2px 'JetBrains Mono',monospace;letter-spacing:.05em;text-transform:uppercase;color:#7b8c96;border-bottom:1px solid #c5d2da}
+.doc .drow span.r{text-align:right;font-variant-numeric:tabular-nums}
+.doc .dsum{display:flex;justify-content:space-between;padding:9px 0;font-size:13px;font-weight:800;border-top:2px solid #16232e;margin-top:4px}
+.doc .dfoot{display:flex;justify-content:space-between;gap:18px;margin-top:18px;padding-top:11px;border-top:1px solid #c5d2da;font-size:9.6px;color:#5e7280;line-height:1.6}
+.doc .sgn{margin-top:14px;display:flex;gap:26px;font-size:10.2px}
+.doc .sgn u{display:inline-block;width:104px;border-bottom:1px solid #92a5b1;text-decoration:none}
+
+/* телефон */
+.phone{width:292px;border:10px solid #16232e;border-radius:30px;overflow:hidden;background:var(--card);box-shadow:var(--sh2)}
+.phone .pht{background:var(--rail);color:#fff;padding:13px 15px}
+.phone .pht b{font-size:12.6px;display:block}
+.phone .pht small{font-size:9.6px;opacity:.72}
+.phone .pb{padding:13px 15px}
+.phone .pi{padding:10px 0;border-bottom:1px solid var(--line);font-size:11.4px;display:flex;justify-content:space-between;gap:10px}
+.phone .pi:last-child{border:0}
+.phone .pi b{font-variant-numeric:tabular-nums;text-align:right}
+.phone .pbtn{background:var(--brand);color:#fff;border-radius:7px;padding:11px;text-align:center;font-weight:800;font-size:12px;margin-top:12px;cursor:pointer}
+
+/* одометр */
+.gauge{width:128px;height:128px;border-radius:50%;display:grid;place-items:center;position:relative;
+ background:conic-gradient(var(--gc,var(--ok)) calc(var(--p,50)*1%),var(--card3) 0)}
+.gauge:after{content:'';position:absolute;inset:13px;border-radius:50%;background:var(--card)}
+.gauge div{position:relative;z-index:1;text-align:center}
+.gauge b{display:block;font-size:20px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.gauge small{display:block;font-size:9px;color:var(--muted);margin-top:2px}
+.odo{display:grid;grid-template-columns:132px 1fr;gap:16px;align-items:center}
+@media(max-width:760px){.odo{grid-template-columns:1fr}}
+
+/* шкала-полоса */
+.yld{display:flex;height:42px;border-radius:7px;overflow:hidden;margin:12px 0 6px;box-shadow:var(--sh)}
+.yld div{display:grid;place-items:center;color:#fff;font-weight:800;font-size:11.4px;position:relative;transition:.2s;overflow:hidden;white-space:nowrap}
+.yld div small{position:absolute;bottom:3px;font:600 8px 'JetBrains Mono',monospace;opacity:.85}
+.yld-l{display:flex;gap:14px;flex-wrap:wrap;font-size:10.8px;color:var(--muted)}
+.yld-l i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+/* задача-цепочка */
+.tsk{border:1px solid var(--line);border-left:4px solid var(--c,var(--acc));border-radius:var(--r);background:var(--card);padding:12px 14px;margin-bottom:8px;box-shadow:var(--sh)}
+.tsk .th{display:flex;align-items:flex-start;gap:10px}
+.tsk .th b{flex:1;font-size:12.6px}
+.tsk .meta{display:flex;gap:9px;flex-wrap:wrap;font-size:10.2px;color:var(--muted);margin-top:6px}
+.tsk .chain{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line2);display:grid;gap:6px}
+.tsk .chain div{display:flex;align-items:center;gap:8px;font-size:11px}
+.tsk .chain .st{font:700 8.2px 'JetBrains Mono',monospace;padding:2px 6px;border-radius:4px;background:var(--card3);color:var(--muted);white-space:nowrap}
+.tsk .chain .st.ok{background:var(--ok-l);color:var(--ok)}
+.tsk .chain .st.go{background:var(--warn-l);color:var(--warn)}
+
+/* окно */
+.mbg{position:fixed;inset:0;background:rgba(14,24,32,.55);z-index:60;opacity:0;pointer-events:none;transition:.16s}
+.mbg.show{opacity:1;pointer-events:auto}
+.modal{position:absolute;right:0;top:0;bottom:0;width:min(920px,95vw);background:var(--bg);box-shadow:-8px 0 34px rgba(14,24,32,.3);overflow-y:auto;transform:translateX(26px);transition:.18s}
+.mbg.show .modal{transform:none}
+.mh{background:var(--card);border-bottom:1px solid var(--line);padding:15px 19px;display:flex;justify-content:space-between;align-items:flex-start;gap:14px;position:sticky;top:0;z-index:2}
+.mh h3{margin:0;font-size:15.4px;font-weight:800;letter-spacing:-.02em}
+.mh p{margin:3px 0 0;font-size:11px;color:var(--muted)}
+.mxb{width:28px;height:28px;border-radius:6px;border:1px solid var(--line);font-size:15px;color:var(--muted);flex:none}
+.mb{padding:15px 19px 26px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,14px);background:var(--rail);color:#fff;padding:12px 18px;border-radius:8px;font-size:11.8px;max-width:min(800px,92vw);line-height:1.55;opacity:0;pointer-events:none;transition:.2s;z-index:80;box-shadow:var(--sh2)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast b{color:var(--brand2)}
+.spark{position:fixed;width:8px;height:8px;top:-12px;z-index:90;pointer-events:none;animation:fall 2.1s linear forwards}
+@keyframes fall{to{transform:translateY(104vh) rotate(560deg);opacity:0}}
+
+
+/* ====== РЕЕСТР 01 и вглубь ====== */
+.lk{color:var(--acc);cursor:pointer;border-bottom:1px dotted var(--acc2)}
+.lk:hover{color:var(--brand);border-bottom-color:var(--brand)}
+.crumb{font-size:10.6px;color:var(--muted);margin-bottom:5px}
+.crumb a{cursor:pointer;color:var(--acc)}
+.neg{color:var(--bad)}.pos{color:var(--ok)}.warnt{color:var(--warn)}
+td .sub{display:block;font-size:10px;color:var(--muted);margin-top:2px;font-weight:400;white-space:normal;max-width:320px}
+.regw{max-height:calc(100vh - 330px);overflow:auto}
+table.reg th,table.reg td{padding:7px 9px;font-size:11.2px;white-space:nowrap}
+table.reg th{position:sticky;top:0;z-index:2}
+table.reg tr.grp th{top:0;background:var(--rail);color:#c9a24d;text-align:center;font-size:8.6px;letter-spacing:.09em;border-bottom:1px solid #3a3e45;padding:5px 8px}
+table.reg tr.grp+tr th{top:25px}
+table.reg th.stick,table.reg td.stick{position:sticky;left:0;background:var(--card);z-index:1;min-width:230px;box-shadow:2px 0 0 var(--line)}
+table.reg th.stick{z-index:3;background:var(--card2)}
+table.reg tr.total td.stick{background:var(--card2)}
+table.reg tbody tr:hover td.stick{background:var(--card2)}
+table.reg td.stick .sub{max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.dark table.reg th.stick,body.dark table.reg td.stick{background:var(--card)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:13px;flex-wrap:wrap}
+.tab{padding:8px 13px;font-size:11.6px;font-weight:700;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--brand);border-bottom-color:var(--brand)}
+.days{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(96px,1fr);gap:6px;overflow-x:auto;padding-bottom:4px}
+.day{border:1px solid var(--line);border-radius:6px;background:var(--card);padding:8px 9px;cursor:pointer;box-shadow:var(--sh)}
+.day small{display:block;font:700 8.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase;letter-spacing:.06em}
+.day span{display:block;font-size:10.2px;margin-top:4px;font-variant-numeric:tabular-nums;min-height:13px}
+.day span i{font-style:normal;color:var(--warn);font-weight:800}
+.day b{display:block;font-size:12.6px;margin-top:5px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.day.warn{border-color:var(--warn);background:var(--warn-l)}
+.day.bad{border-color:var(--bad);background:var(--bad-l)}.day.bad b{color:var(--bad)}
+.ogrid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+@media(max-width:1250px){.ogrid{grid-template-columns:repeat(2,1fr)}}
+.ocard{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:13px 15px;cursor:pointer;box-shadow:var(--sh);transition:.12s}
+.ocard:hover{border-color:var(--brand);transform:translateY(-1px)}
+.ocard .oh{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.ocard .oh b{font-size:13.2px;letter-spacing:-.01em}
+.ocard p{margin:3px 0 8px;font-size:10.6px;color:var(--muted);line-height:1.5}
+.ocard .kv{padding:5px 0;font-size:11px}
+.ocard .om{display:flex;justify-content:space-between;font-size:9.8px;color:var(--muted);margin-top:6px;gap:8px}
+.bgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+@media(max-width:1250px){.bgrid{grid-template-columns:repeat(2,1fr)}}
+.bcard{border:1px solid var(--line);border-top:4px solid var(--c,var(--line2));border-radius:var(--r);background:var(--card);padding:12px 14px;cursor:pointer;box-shadow:var(--sh)}
+.bcard:hover{border-color:var(--c)}
+.bcard .bh{display:flex;gap:10px;align-items:flex-start;margin-bottom:6px}
+.bcard .bh b{font-size:12.6px;display:block}
+.bcard .kv{padding:5px 0;font-size:11px}
+.folders{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-bottom:12px}
+@media(max-width:1200px){.folders{grid-template-columns:repeat(3,1fr)}}
+.folder{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:12px;cursor:pointer;box-shadow:var(--sh);text-align:center}
+.folder:hover{border-color:var(--brand)}
+.folder i{display:block;font-size:22px;font-style:normal;color:var(--brand);margin-bottom:6px}
+.folder b{display:block;font-size:11.4px}
+.folder span{display:block;font-size:10px;color:var(--muted);margin-top:3px;line-height:1.4}
+td.ph{font-size:20px;color:var(--brand);text-align:center;width:34px}
+.ph.big{width:96px;height:96px;border:1px solid var(--line2);border-radius:8px;background:var(--card2);display:grid;place-items:center;font-size:40px;color:var(--brand);flex:none}
+.wid b.v{color:var(--violet)}
+
+@media(max-width:980px){
+ .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
+ .rail{width:100%;flex-direction:row;height:60px;padding:0 7px;align-items:center;overflow-x:auto}
+ .rail-logo{width:52px;height:100%;margin:0 7px 0 0;background:none}
+ .ri{width:auto;min-width:58px;padding:6px 9px;margin:0 2px 0 0}
+ .ri.on:before{left:3px;right:3px;top:auto;bottom:-3px;width:auto;height:3px;border-radius:3px 3px 0 0}
+ .rail-bot{margin:0 0 0 auto;padding:0 4px}
+ #sub{width:100%;border-right:0;border-bottom:1px solid var(--line);padding:7px 0;display:flex;overflow-x:auto}
+ #sub h4,#sub .shint{display:none}
+ #sub a{border-left:0;border-bottom:2px solid transparent;white-space:nowrap;padding:7px 13px}
+ #sub a.on{border-left:0;border-bottom-color:var(--brand)}
+ .top{flex-wrap:wrap;height:auto;padding:9px 12px}
+ .srch{display:none}
+ .content{padding:13px 12px 24px}
+ .gate{grid-template-columns:1fr}
+ .modal{width:100vw}
+}
+
+@media(max-width:980px){.gate-r{overflow:visible}}
+/* ===== ДАЛА: поле и пшеница, одна колонка слева, нижняя панель на телефоне ===== */
+body{font-size:13.6px}
+h1,h2,h3,.hd h2,.pan>h3,.lform h2,.gate h1,.mh h3,.top h1{font-family:'Golos Text',sans-serif;font-weight:700;letter-spacing:-.015em}
+.hd h2{font-size:24px}.hd p{max-width:920px}
+.gate h1{font-size:30px;line-height:1.18}
+.gname{font:700 40px 'Golos Text',sans-serif;color:#e8edf2;display:block;letter-spacing:.16em;line-height:1}
+.gsub{display:block;font:500 9.6px 'JetBrains Mono',monospace;color:#9aa6b1;letter-spacing:.08em;margin-top:7px}
+.gtag{color:var(--brand2);border-color:#5a4a1a;background:#2a2a22}
+.gate p{color:#b9c3cc}.gstat b.a{color:var(--brand2)}
+.gate-r{background:var(--bg)}
+.role .rav{background:var(--brand);color:var(--brand2)}
+.role:hover{border-color:var(--brand);background:var(--brandl)}
+.me{background:var(--brand2);color:var(--brand)}
+.ab{background:var(--brand2);color:var(--brand)}
+.bt.p{background:var(--brand);border-color:var(--brand);color:var(--brand2)}.bt.p:hover{filter:brightness(1.25);color:var(--brand2)}
+body.dark .bt.p{background:var(--brand2);border-color:var(--brand2);color:var(--brand)}
+.bt:hover{border-color:var(--brand);color:var(--brand)}
+.bt.sm{padding:4px 10px;font-size:11.8px;margin-top:8px}
+.btns.l{justify-content:flex-start}
+.clk{cursor:pointer}.wid>div.clk:hover{border-color:var(--brand)}
+.wid>div{border-top:3px solid var(--line2)}
+.pos{color:var(--ok)}.neg{color:var(--bad)}
+.said-a{margin-top:6px;font-size:11.6px;color:var(--muted)}
+.stg{display:inline-block;font:600 11.2px 'Golos Text',sans-serif;padding:2px 8px;background:color-mix(in srgb,var(--sc) 12%,transparent);color:var(--sc);border-left:3px solid var(--sc)}
+.pf{position:relative;height:9px;background:var(--card3);border-radius:1px;overflow:hidden}
+.pf i{position:absolute;left:0;top:0;bottom:0;border-right:2px solid var(--text);opacity:.35}
+.pf b{position:absolute;left:0;top:2px;bottom:2px;background:var(--brand2)}
+.osw{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.osw a{border:1px solid var(--line2);background:var(--card);padding:7px 12px;cursor:pointer;min-width:170px}
+.osw a b{display:block;font-size:12.6px}.osw a span{font-size:10.6px;color:var(--muted)}
+.osw a.on{border-color:var(--brand);box-shadow:inset 0 -3px 0 var(--brand2)}
+.aib{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--brand2);padding:14px 16px;margin-bottom:12px}
+.aih{display:flex;gap:9px;align-items:center;margin-bottom:8px}
+.aih i{font:700 10px 'JetBrains Mono',monospace;font-style:normal;background:var(--brand);color:var(--brand2);padding:3px 6px}
+.aih b{font-size:14px}
+.aib p{font-size:12.4px;line-height:1.6;margin:0 0 8px}
+.ol{margin:0 0 8px;padding-left:20px;font-size:12.4px;line-height:1.65}
+.rf{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer}.rf:last-child{border:0}
+.rf i{width:8px;height:8px;margin-top:6px;flex:none;background:var(--warn)}.rf.bad i{background:var(--bad)}
+.rf b{display:block;font-size:12.6px}.rf span{display:block;font-size:11.2px;color:var(--muted);margin-top:2px}
+.hb{display:grid;grid-template-columns:190px 1fr 70px;gap:10px;align-items:center;padding:5px 0;font-size:12.2px}
+.hb i{display:block;height:11px;background:var(--brand2)}.hb b{text-align:right;font-weight:500}
+.fc{border-left:3px solid var(--line2);padding:6px 10px;margin-bottom:6px;background:var(--card2)}
+.fc.r{border-color:var(--bad)}.fc.w{border-color:var(--warn)}.fc.g{border-color:var(--ok)}
+.fc b{display:block;font-size:12.4px}.fc span{display:block;font-size:12px;font-weight:600}.fc.r span{color:var(--bad)}.fc.w span{color:var(--warn)}.fc.g span{color:var(--ok)}
+.fc em{display:block;font-style:normal;font-size:11px;color:var(--muted);margin-top:2px}
+.chatai{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.qq{align-self:flex-end;max-width:70%;background:var(--brand);color:#eef1f3;padding:10px 14px;font-size:13px}
+.qq b{display:block;font:500 10px 'JetBrains Mono',monospace;color:var(--brand2);margin-bottom:3px}
+.qa{display:flex;gap:10px;max-width:82%;background:var(--card);border:1px solid var(--line);padding:12px 14px;font-size:13px;line-height:1.6}
+.qa i{font:700 10px 'JetBrains Mono',monospace;font-style:normal;background:var(--brand2);color:var(--brand);padding:3px 6px;height:fit-content}
+.qsug{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.qsug a{border:1px dashed var(--line2);padding:6px 10px;font-size:12px;cursor:pointer;background:var(--card)}.qsug a:hover{border-color:var(--brand);color:var(--brand)}
+.qin{display:flex;gap:8px;margin-top:10px}.qin input{flex:1;border:1px solid var(--line2);padding:9px 10px;font-size:13px;background:var(--card);color:var(--text);cursor:text}
+.seg{display:inline-flex;border:1px solid var(--line2);overflow:hidden;flex-wrap:wrap;margin-bottom:10px}
+.seg a{padding:5px 12px;font-size:11.8px;cursor:pointer;color:var(--muted)}.seg a.on{background:var(--brand);color:var(--brand2)}
+.tl2{display:flex;flex-direction:column;gap:6px}
+.tk{display:grid;grid-template-columns:54px 1fr 200px;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line2);padding:9px 12px}
+.tk.hot{border-left-color:var(--bad)}.tk.high{border-left-color:var(--warn)}
+.tk-n{display:flex;align-items:center;gap:6px}.tk-n b{font:600 20px 'JetBrains Mono',monospace;width:26px}
+.tk-n span{display:flex;flex-direction:column}.tk-n a{cursor:pointer;font-size:11px;line-height:1.2;color:var(--muted);padding:1px 4px;border:1px solid var(--line)}.tk-n a:hover{color:var(--brand);border-color:var(--brand)}
+.tk-t{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.tk-t b{font-size:13.2px;margin-right:4px}
+.tk-m{font-size:11.2px;color:var(--muted);margin-top:3px}.tk-w{font-size:11.2px;color:var(--warn);margin-top:2px}
+.tk-r{display:grid;grid-template-columns:1fr 40px;gap:4px 8px;align-items:center;font-size:11px}.tk-r select{grid-column:1/3;border:1px solid var(--line2);padding:4px;font-size:11.6px;background:var(--card);color:var(--text)}
+.msgs{display:flex;flex-direction:column;gap:7px;max-height:420px;overflow:auto;margin-bottom:6px}
+.mg{max-width:80%;background:var(--card2);border:1px solid var(--line);padding:7px 10px;font-size:12.4px;line-height:1.45}
+.mg small{display:block;font-size:9.8px;color:var(--muted2);margin-bottom:2px;font-family:'JetBrains Mono',monospace}
+.mg.me{align-self:flex-end;background:var(--brandl)}.mg.ai{border-left:3px solid var(--brand2)}
+.evt{display:grid;grid-template-columns:44px 70px 1fr;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px}.evt em{font-style:normal;color:var(--muted)}
+.voice{background:var(--card2);border-left:3px solid var(--acc);padding:12px 14px;font-style:italic;font-size:13px;line-height:1.6;margin-bottom:8px}
+.jl{grid-template-columns:330px 1fr}
+.kv.on{background:var(--brandl);margin:0 -8px;padding-left:8px;padding-right:8px}
+.phs{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.ph{display:grid;grid-template-columns:220px 1fr;background:var(--card);border:1px solid var(--line)}
+.ph svg{width:220px;height:100%;min-height:150px;display:block}
+.ph-b{padding:11px 14px}.ph-b>b{display:block;font-size:13.4px}
+.pk{font-size:12px;padding:4px 0 4px 8px;margin-top:4px;border-left:3px solid}.pk.ok{border-color:var(--ok)}.pk.bad{border-color:var(--bad);color:var(--bad);font-weight:600}
+.upl{border:2px dashed var(--line2);padding:14px;margin-bottom:10px}.upl b{display:block}.upl span{font-size:11.4px;color:var(--muted)}
+.prt{background:#fff;color:#111;border:1px solid #bbb;padding:16px;font-family:'Golos Text',sans-serif;margin-bottom:10px}
+.prt-h{text-align:center;margin-bottom:10px}.prt-h b{display:block;font-size:14px;letter-spacing:.06em}.prt-h span{font-size:11px}
+.prt table{width:100%;border-collapse:collapse;font-size:10.8px}.prt th,.prt td{border:1px solid #777;padding:4px 6px;text-align:left;vertical-align:top}
+.prt p{font-size:11px;margin:10px 0 0}
+.pk1{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:12px}
+.pk1>div{background:var(--card);border:1px solid var(--line);padding:16px 18px}.pk1>div:first-child{border:2px solid var(--brand);box-shadow:inset 0 -4px 0 var(--brand2)}
+.pk1 small{display:block;font:600 10.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase}
+.pk1 b{display:block;font:700 30px 'Golos Text',sans-serif;margin:5px 0 4px}.pk1 span{font-size:12px;color:var(--muted)}
+.li.n i{background:var(--acc)}
+tr.rowbad td{background:var(--bad-l)}tr.rowwarn td{background:var(--warn-l)}
+.kb{display:grid;grid-template-columns:repeat(7,minmax(180px,1fr));gap:8px;overflow-x:auto;padding-bottom:8px}
+.kb.k5{grid-template-columns:repeat(5,minmax(200px,1fr))}
+.kc{background:var(--card2);border-top:3px solid var(--sc);min-height:170px;padding:0 6px 8px;border-radius:0 0 6px 6px}
+.kh{display:flex;justify-content:space-between;align-items:center;padding:9px 4px 7px}
+.kh b{font:700 12.2px 'Golos Text',sans-serif;color:var(--sc)}.kh span{font:500 11px 'JetBrains Mono',monospace;color:var(--muted)}
+.kd{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--sc);padding:8px 9px;margin-bottom:6px;cursor:pointer;font-size:11.6px;border-radius:5px}
+.kd:hover{border-color:var(--brand)}
+.kd.alarm{border-left-color:var(--bad)}
+.kt{display:flex;justify-content:space-between;align-items:center}.kt b{font-family:'JetBrains Mono',monospace;font-size:11.4px}
+.src{font-size:10px;color:var(--muted2)}
+.kr{font-weight:700;margin:4px 0 2px;font-size:12.4px}
+.km{color:var(--muted);font-size:11.2px;line-height:1.35}
+.kf{display:flex;gap:6px;align-items:center;margin-top:6px;font-size:10.8px;color:var(--muted2)}.kf b{margin-left:auto;color:var(--text);font-weight:500}
+.lack{margin-top:6px;font-size:10.6px;color:var(--bad);font-weight:700}
+.kempty{color:var(--muted2);text-align:center;padding:10px}
+.stp{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:12px}
+.stp>div{display:flex;align-items:center;gap:6px;padding:8px 9px;background:var(--card);border:1px solid var(--line);font-size:11px;color:var(--muted)}
+.stp i{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font:500 10px 'JetBrains Mono',monospace;font-style:normal;background:var(--card3);flex:none}
+.stp .ok i,.stp .on i{background:var(--sc);color:#fff}
+.stp .on{border-color:var(--sc);color:var(--text);font-weight:700;box-shadow:inset 0 -3px 0 var(--sc)}
+.mvs{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px}
+.mv{background:var(--card);border:1px solid var(--line);padding:12px;border-radius:6px}
+.mv i{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:500 11px 'JetBrains Mono',monospace;font-style:normal;background:var(--card3);margin-bottom:7px}
+.mv.ok i{background:var(--ok);color:#fff}.mv.on{border-color:var(--brand)}.mv.on i{background:var(--brand);color:#fff}
+.mv b{display:block;font-size:12.6px}.mv span{font-size:11px;color:var(--muted)}
+.pay3{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);background:var(--card);margin-bottom:12px;border-radius:6px}
+.pay3>div{padding:13px 16px;border-right:1px solid var(--line)}.pay3>div:last-child{border:0}
+.pay3 small{display:block;font:500 10.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase}
+.pay3 b{display:block;font:700 22px 'Golos Text',sans-serif;margin:5px 0 3px}.pay3 span{font-size:11.4px;color:var(--muted)}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:12px}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:700}
+.form input,.form select{border:1px solid var(--line2);background:var(--card);padding:8px 9px;font-size:13.2px;color:var(--text);cursor:text;border-radius:6px}
+.mx th.c{text-align:center;font-size:10px;white-space:normal;vertical-align:bottom}.mx th.c span{display:block;font-weight:400;text-transform:none;color:var(--muted);margin-top:3px}.mx td.c{text-align:center}
+.kd .pf{margin-top:7px}
+h1,h2,h3,.hd h2,.pan>h3,.lform h2,.gate h1,.top h1{font-family:'Golos Text',sans-serif;font-weight:600;letter-spacing:-.01em}
+.gate{background:var(--brand);background-image:radial-gradient(circle at 85% 15%,rgba(208,138,82,.18),transparent 45%)}
+.gname{font-family:'Golos Text',sans-serif;letter-spacing:.2em;color:#f4efe6}
+.gtag{color:#e3a877;border-color:#4d6a52;background:#28574a}
+.gate p{color:#c8d6cf}
+.me{background:var(--brand2);color:#fff}.ab{background:var(--brand2);color:#fff}
+.bt.p{background:var(--brand);border-color:var(--brand);color:#fff}.bt.p:hover{color:#fff;filter:brightness(1.1)}
+body.dark .bt.p{background:var(--brand2);border-color:var(--brand2);color:#111a17}
+.pan,.wid>div,.kd,.aib{border-radius:12px}
+.wid>div{border-top:1px solid var(--line)}
+/* экраны */
+.fn{display:grid;grid-template-columns:130px 1fr 40px;gap:8px;align-items:center;padding:4px 0;font-size:12.2px}.fn i{display:block;height:12px;background:linear-gradient(90deg,var(--brand),var(--brand2));border-radius:6px}.fn b{text-align:right;font-family:'JetBrains Mono',monospace;font-weight:500}
+.pbr{height:7px;background:var(--card3);border-radius:4px;overflow:hidden;margin:4px 0 2px}.pbr i{display:block;height:100%;background:var(--brand)}
+.kb{display:grid;grid-template-columns:repeat(9,minmax(170px,1fr));gap:8px;overflow-x:auto;padding-bottom:8px}.kb.k6{grid-template-columns:repeat(6,minmax(190px,1fr))}
+.kc{background:var(--card2);border-radius:12px;padding:0 6px 8px;min-height:160px;border-top:3px solid var(--brand)}
+.kc.s-new{border-top-color:#b26a1f}.kc.s-treat{border-top-color:#2f6f8f}.kc.s-done,.kc.s-rep{border-top-color:#2e7a4f}
+.kh{display:flex;justify-content:space-between;padding:9px 4px 7px}.kh b{font-size:12px}.kh span{font:500 11px 'JetBrains Mono',monospace;color:var(--muted)}
+.kd{background:var(--card);border:1px solid var(--line);padding:8px 9px;margin-bottom:6px;cursor:pointer;font-size:11.6px}.kd:hover{border-color:var(--brand)}.kd.alarm{border-color:var(--bad);background:var(--bad-l)}
+.kt{display:flex;justify-content:space-between;gap:6px}.kt b{font-size:12.2px}.src{font-size:10px;color:var(--muted2)}
+.kr{font-weight:600;font-size:12.2px}.km{color:var(--muted);margin-top:3px;line-height:1.35}.kf{display:flex;justify-content:space-between;margin-top:6px;font-size:10.8px;color:var(--muted2)}.kf b{color:var(--text);font-weight:600}
+.lack{margin-top:5px;font-size:10.6px;color:var(--bad);font-weight:700}.kempty{color:var(--muted2);text-align:center;padding:10px}
+.stps{display:grid;grid-template-columns:repeat(9,1fr);gap:4px;margin-bottom:12px}.stps>div{display:flex;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:7px 8px;font-size:10.8px;color:var(--muted)}
+.stps i{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font:500 10px 'JetBrains Mono',monospace;font-style:normal;background:var(--card3);flex:none}
+.stps .ok i{background:var(--brand);color:#fff}.stps .on{border-color:var(--brand);color:var(--text);font-weight:600}.stps .on i{background:var(--brand2);color:#fff}
+.cl{padding:7px 0;border-bottom:1px solid var(--line);font-size:12px}.cl b{display:block}.cl span{display:block;color:var(--muted)}.cl em{font-style:normal;font-size:11px;color:var(--ok);font-weight:600}
+.pan.call{padding:12px 16px}.ch{display:flex;gap:12px;align-items:center;margin-bottom:6px}.ch b{flex:1}.sc{font:700 15px 'JetBrains Mono',monospace;padding:4px 10px;border-radius:8px}.sc.g{background:var(--ok-l);color:var(--ok)}.sc.w{background:var(--warn-l);color:var(--warn)}.sc.r{background:var(--bad-l);color:var(--bad)}
+.act{display:flex;gap:2px}.act i{display:block;width:10px;height:16px;background:var(--brand);border-radius:2px}
+.bld{display:grid;grid-template-columns:1.4fr 1fr;gap:12px;align-items:start}
+.bh{display:flex;justify-content:space-between;align-items:center;gap:10px}.bh select,.bsum select{border:1px solid var(--line2);border-radius:8px;padding:5px 8px;background:var(--card);color:var(--text)}
+.tpls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 6px}.tpls a{border:1px dashed var(--line2);border-radius:20px;padding:4px 11px;font-size:11.8px;cursor:pointer}.tpls a:hover{border-color:var(--brand);color:var(--brand)}
+.pg{margin-top:10px}.pg>b{display:block;font:500 10px 'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2);margin-bottom:4px}
+.pi{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 10px;border:1px solid var(--line);border-radius:10px;margin-bottom:5px;font-size:12.6px}.pi.on{border-color:var(--brand);background:var(--brandl)}
+.pi em{display:block;font-style:normal;font-size:11px;color:var(--muted)}
+.qty{display:flex;align-items:center;gap:8px}.qty a{width:26px;height:26px;border-radius:50%;border:1px solid var(--line2);display:grid;place-items:center;cursor:pointer;font-weight:700;background:var(--card)}.qty a:hover{border-color:var(--brand);color:var(--brand)}.qty b{min-width:18px;text-align:center;font-family:'JetBrains Mono',monospace}
+.bsum{position:sticky;top:0}.tot{display:flex;justify-content:space-between;align-items:baseline;border-top:2px solid var(--text);margin-top:8px;padding-top:9px}.tot b{font:600 24px 'Golos Text',sans-serif;color:var(--brand)}
+.sel{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.sel a{border:1px solid var(--line2);border-radius:10px;padding:6px 12px;cursor:pointer;font-size:12.4px;background:var(--card)}.sel a em{font-style:normal;color:var(--muted);font-size:11px;margin-left:6px}.sel a.on{border-color:var(--brand);background:var(--brandl)}
+.cdays{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px}
+.cdy{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;min-height:96px}.cdy>b{display:block;font:500 11px 'JetBrains Mono',monospace;color:var(--muted);margin-bottom:5px}
+.cdy.past{opacity:.7}.cdy.now{border-color:var(--brand2);box-shadow:inset 0 3px 0 var(--brand2)}
+.pr{display:block;font-size:11.2px;padding:3px 6px;margin-bottom:3px;background:var(--card2);border-radius:6px}.pr.ok{color:var(--ok)}
+table.grid td{font-size:11px;text-align:center}table.grid td.busy{background:var(--brandl)}table.grid td.full{background:var(--warn-l);font-weight:600}table.grid td.free{background:repeating-linear-gradient(45deg,transparent 0 6px,var(--card2) 6px 12px)}
+.phones{display:grid;grid-template-columns:repeat(3,260px);gap:20px;justify-content:center;margin:6px 0 14px}
+.mob{border:10px solid #1d2a25;border-radius:32px;background:var(--card);overflow:hidden;min-height:440px}.phh{background:var(--brand);color:#fff;padding:16px 16px 12px}.phh b{display:block;font-family:'Golos Text',sans-serif;font-size:16px}.phh span{font-size:11px;color:#c8d6cf}
+.phb{padding:12px 14px}.phb small{display:block;font:500 10px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase}.phb .big{display:block;font:600 20px 'Golos Text',sans-serif;margin:3px 0}
+.pl{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.4px}.pl span{font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:11px;min-width:40px}
+.pbtn{display:block;text-align:center;background:var(--brand);color:#fff;border-radius:10px;padding:10px;margin-top:10px;font-weight:600;font-size:12.6px}.stars{color:var(--brand2);font-size:22px;letter-spacing:3px}
+.site{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card)}.sh{display:flex;align-items:center;gap:20px;padding:14px 20px;border-bottom:1px solid var(--line)}.sh b{font-family:'Golos Text',sans-serif;letter-spacing:.18em;color:var(--brand)}.sh span{flex:1;font-size:12.4px;color:var(--muted)}.sh a,.shero a{background:var(--brand2);color:#fff;border-radius:20px;padding:7px 16px;font-size:12.4px;font-weight:600}
+.shero{padding:34px 24px;background:linear-gradient(120deg,var(--brand),var(--rail-h));color:#fff}.shero h3{font-size:24px;max-width:620px;margin:0 0 8px}.shero p{max-width:620px;color:#c8d6cf;margin:0 0 16px}
+.sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:16px}.sgrid div{background:var(--card2);border-radius:10px;padding:18px 14px;font-weight:600;font-size:13px}
+.pk3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}.pk3>div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 16px}.pk3>div.on{border:2px solid var(--brand)}
+.pk3 small{display:block;font:500 10.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase}.pk3 b{display:block;font:600 26px 'Golos Text',sans-serif;margin:5px 0 4px}.pk3 span{font-size:11.8px;color:var(--muted)}
+.tot2{display:flex;gap:16px;align-items:baseline;flex-wrap:wrap;background:var(--brandl);border-radius:12px;padding:12px 16px;margin-bottom:10px}.tot2 b{font:600 26px 'Golos Text',sans-serif;color:var(--brand)}.tot2 em{font-style:normal;color:#b26a1f;font-weight:600}
+.pay3{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);background:var(--card);margin-bottom:12px;border-radius:12px}.pay3>div{padding:13px 16px;border-right:1px solid var(--line)}.pay3>div:last-child{border:0}.pay3 small{display:block;font:500 10.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase}.pay3 b{display:block;font:600 20px 'JetBrains Mono',monospace;margin:5px 0 3px}.pay3 span{font-size:11.4px;color:var(--muted)}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:12px}.form label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:600}.form input,.form select{border:1px solid var(--line2);background:var(--card);padding:8px 9px;font-size:13px;color:var(--text);border-radius:8px;cursor:text}
+.mx th.c{text-align:center;font-size:10px;white-space:normal;vertical-align:bottom}.mx th.c span{display:block;font-weight:400;text-transform:none;color:var(--muted);margin-top:3px}.mx td.c{text-align:center}
+.wtx{color:var(--warn)}
+.mob .mg{display:block;width:fit-content;max-width:88%;margin:6px 0;font-size:12px}.mob .mg.me{margin-left:auto}
+.mob .mg.me{background:var(--brand);color:#fff;height:auto;border-color:var(--brand)}.mob .mg.me small{color:#c8e6d8}
+.mg.me{font-family:'Golos Text',sans-serif}
+
+h1,h2,h3,.hd h2,.pan>h3,.lform h2,.gate h1,.top h1{font-family:'Golos Text',sans-serif;font-weight:600;letter-spacing:-.02em}
+.hd h2{font-size:22px}.pan>h3{font-size:14px}.gate h1{font-size:28px}
+.gname{font-family:'Golos Text',sans-serif;letter-spacing:.16em;color:#fff}
+.gate{background:var(--brand);background-image:radial-gradient(circle at 85% 10%,rgba(224,165,48,.28),transparent 45%),radial-gradient(circle at 10% 90%,rgba(255,255,255,.08),transparent 40%)}
+.gtag{color:#ffd2c6;border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.08)}.gate p{color:#cfe2ea}
+.me{background:var(--brand2);color:#fff}.ab{background:var(--brand2);color:#fff}
+.bt.p{background:var(--brand);border-color:var(--brand);color:#fff}
+/* одна колонка слева */
+.app{grid-template-columns:250px 1fr}
+.rail{display:none}
+#sub{width:250px;background:var(--brand);color:#fff;border-right:0;padding:0 0 20px}
+#sub .sbh{display:flex;align-items:center;gap:10px;padding:16px 18px 12px;color:#fff}.sbh b{font:600 15px 'Golos Text',sans-serif}
+.blogo{display:inline-grid;place-items:center;color:#fff}.blogo img{width:28px;height:28px;object-fit:contain;border-radius:6px;background:#fff}
+#sub h4{color:rgba(255,255,255,.55);font:500 10px 'JetBrains Mono',monospace;letter-spacing:.1em;text-transform:uppercase;margin:14px 18px 4px}
+#sub a{display:flex;justify-content:space-between;align-items:center;color:rgba(255,255,255,.86);padding:8px 18px;margin:1px 10px;border-radius:10px;font-size:13.5px}
+#sub a:hover{background:rgba(255,255,255,.1);color:#fff}#sub a.on{background:#fff;color:var(--brand);font-weight:600}
+#sub a em{font-style:normal;background:var(--brand2);color:#fff;border-radius:9px;font-size:10.5px;padding:1px 7px;font-weight:700}
+#bnav{display:none}
+/* экраны */
+.g21{grid-template-columns:1.5fr 1fr}
+.lc{width:100%;height:190px}.lc .la{fill:var(--brandl)}.lc .ll{fill:none;stroke:var(--brand);stroke-width:3;vector-effect:non-scaling-stroke}.lc .lp{fill:var(--brand2)}.lc text{font:11px 'JetBrains Mono',monospace;fill:var(--muted2)}
+.hb{display:grid;grid-template-columns:120px 1fr 70px;gap:10px;align-items:center;padding:4px 0;font-size:12.5px}.hb i{display:block;height:10px;border-radius:5px;background:linear-gradient(90deg,var(--brand),var(--brand2))}.hb b{text-align:right;font-family:'JetBrains Mono',monospace;font-weight:500}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:10px;overflow:hidden;background:var(--card);margin-bottom:10px}.seg a{padding:7px 14px;font-size:12.6px;cursor:pointer;color:var(--muted)}.seg a.on{background:var(--brand);color:#fff}
+.saved{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.saved a{border:1px solid var(--line2);background:var(--card);border-radius:20px;padding:6px 12px;font-size:12.6px;cursor:pointer}.saved a em{font-style:normal;margin-left:6px;color:var(--muted2);font-family:'JetBrains Mono',monospace}.saved a.on{background:var(--brand);border-color:var(--brand);color:#fff}.saved a.on em{color:#fff}.saved a.add{border-style:dashed;color:var(--brand)}
+.flt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}.flt input,.flt select{border:1px solid var(--line2);background:var(--card);border-radius:10px;padding:7px 10px;font:inherit;font-size:12.8px;color:var(--text)}.flt input{min-width:240px;flex:1}
+.bulk{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--brandl);border:1px solid var(--line2);border-radius:12px;padding:8px 12px;margin-bottom:10px}.bulk .bt.sm{margin-top:0}
+table.ord tr.sel td{background:var(--brandl)}
+.dd{display:inline-flex;gap:2px}.dd i{font:500 9.5px 'JetBrains Mono',monospace;font-style:normal;padding:2px 4px;border-radius:4px;background:var(--card3);color:var(--muted2)}.dd i.on{background:var(--ok-l);color:var(--ok)}
+.ostp{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:12px}.ostp>div{display:flex;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:7px 8px;font-size:11px;color:var(--muted)}.ostp i{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-style:normal;font:500 10px 'JetBrains Mono',monospace;background:var(--card3)}.ostp .ok i{background:var(--brand);color:#fff}.ostp .on{border-color:var(--brand);color:var(--text);font-weight:600}.ostp .on i{background:var(--brand2);color:#fff}
+.doc{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}.doc i{font:500 9.5px 'JetBrains Mono',monospace;font-style:normal;width:38px;text-align:center;padding:6px 0;border-radius:8px;background:var(--brand);color:#fff}.doc.no i{background:var(--card3);color:var(--muted2)}.doc span{flex:1}.doc b{display:block;font-size:12.8px}.doc em{font-style:normal;font-size:11px;color:var(--muted)}
+.cms{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto;margin-bottom:6px}.cm{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:12.6px}.cm small{display:block;font-size:10px;color:var(--muted2);margin-bottom:2px;font-family:'JetBrains Mono',monospace}
+.pin{margin-top:9px;padding:8px 10px;font-size:12px;background:var(--warn-l);border-left:3px solid var(--warn);border-radius:0 8px 8px 0}
+.pushw{display:grid;grid-template-columns:1fr 300px;gap:14px;align-items:start}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;margin-bottom:10px}.form.one{grid-template-columns:1fr}.form label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:600}.form input,.form select,.form textarea{border:1px solid var(--line2);background:var(--card);padding:8px 10px;font:inherit;font-size:13px;color:var(--text);border-radius:10px}.form input[type=color]{padding:2px;height:38px}
+.rcp{display:flex;gap:12px;align-items:baseline;background:var(--brandl);border-radius:12px;padding:12px 14px;margin:6px 0 14px}.rcp b{font:600 26px 'Golos Text',sans-serif;color:var(--brand)}.rcp span{font-size:12px;color:var(--muted)}
+.tpls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 0 12px}.tpls a{border:1px dashed var(--line2);border-radius:20px;padding:4px 11px;font-size:11.8px;cursor:pointer}.tpls a:hover{border-color:var(--brand);color:var(--brand)}
+.inp{border:1px solid var(--line2);border-radius:10px;padding:7px 10px;font:inherit}
+.phonew{position:sticky;top:0}.phone{width:270px;height:520px;margin:0 auto;border:10px solid #111;border-radius:38px;background:linear-gradient(160deg,var(--brand),#173040);padding:12px;color:#fff;overflow:hidden}
+.ph-top{display:flex;justify-content:space-between;font-size:11px;opacity:.8}.ph-lock{text-align:center;margin:26px 0 22px}.ph-lock b{display:block;font:500 52px 'Golos Text',sans-serif}.ph-lock span{font-size:12px;opacity:.8}
+.ntf{background:rgba(255,255,255,.92);color:#122430;border-radius:16px;padding:10px 12px;font-size:12.4px;box-shadow:0 8px 20px rgba(0,0,0,.25)}.ntf-h{display:flex;gap:6px;align-items:center;font-size:11px;color:#516573;margin-bottom:4px}.ntf-h i{width:18px;height:18px;border-radius:5px;background:var(--brand);color:#fff;font-style:normal;display:grid;place-items:center;font-size:10px;font-weight:700}.ntf-h span{margin-left:auto}.ntf-t{display:block;font-size:13px}.ntf p{margin:2px 0 0;line-height:1.35}
+.ck{display:flex;gap:8px;align-items:center;font-size:13px;margin:4px 0 8px}
+.dest .pr{display:block;font:600 16px 'Golos Text',sans-serif;color:var(--brand2);margin-top:6px}
+.rep{display:flex;flex-direction:column}.rep p{flex:1}
+.lg2{display:flex;gap:6px;align-items:center;font-size:11.5px;color:var(--muted)}.lg2 i{width:12px;height:4px;border-radius:2px;display:inline-block;margin-left:8px}.lg2 .c1{background:var(--brand)}.lg2 .c2{background:var(--brand2)}
+.presets{display:flex;flex-wrap:wrap;gap:8px}.presets a{display:flex;align-items:center;gap:4px;border:1px solid var(--line2);border-radius:12px;padding:7px 11px;cursor:pointer;font-size:12.6px;background:var(--card)}.presets a i{width:16px;height:16px;border-radius:50%;display:inline-block}.presets a.on{border-color:var(--brand);box-shadow:0 0 0 2px var(--brandl)}
+.bp{border:1px solid var(--line);border-radius:14px;overflow:hidden}.bp-h{display:flex;gap:10px;align-items:center;background:var(--brand);color:#fff;padding:12px 14px}.bp-h b{font:600 14px 'Golos Text',sans-serif}.bp-b{padding:14px}.bp-w{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px}.bp-w small{display:block;font-size:10px;color:var(--muted2);text-transform:uppercase}.bp-w b{font:600 20px 'Golos Text',sans-serif;color:var(--brand)}
+.phones3{display:grid;grid-template-columns:repeat(3,250px);gap:22px;justify-content:center;margin:8px 0 14px}
+.mphone{border:10px solid #111;border-radius:34px;background:var(--bg);overflow:hidden;height:480px;display:flex;flex-direction:column}.mp-h{display:flex;gap:8px;align-items:center;background:var(--brand);color:#fff;padding:12px 14px}.mp-h b{font:600 13px 'Golos Text',sans-serif}.mp-b{flex:1;padding:10px;overflow:hidden}
+.m-s{font-size:11.5px;background:var(--brand);color:#fff;border-radius:14px;padding:5px 10px;display:inline-block;margin-bottom:8px}.m-c{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 10px;margin-bottom:6px;font-size:12px}.m-c b{display:block}.m-c span{display:block;color:var(--muted)}.m-c em{font-style:normal;color:var(--brand2);font-weight:600;font-size:11.5px}.m-c.big b{font-size:16px}
+.m-r{display:flex;justify-content:space-between;font-size:12.4px;padding:7px 2px;border-bottom:1px solid var(--line)}.m-btn{background:var(--brand2);color:#fff;text-align:center;border-radius:12px;padding:11px;margin-top:10px;font-weight:600;font-size:12.6px}
+.mp-nav{display:flex;justify-content:space-around;border-top:1px solid var(--line);background:var(--card);padding:8px 0}.mp-nav i{font-style:normal;font-size:10.5px;color:var(--muted2)}.mp-nav i.on{color:var(--brand);font-weight:700}
+.pk1{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:10px}.pk1>div{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}.pk1>div:first-child{border:2px solid var(--brand)}.pk1 small{display:block;font:500 10.4px 'JetBrains Mono',monospace;color:var(--muted2);text-transform:uppercase}.pk1 b{display:block;font:600 28px 'Golos Text',sans-serif;margin:5px 0 4px}.pk1 span{font-size:12px;color:var(--muted)}
+.li.n i{background:var(--brand2)}
+@media(max-width:980px){
+ .app{grid-template-columns:1fr;padding-bottom:62px}#sub{display:none}
+ #bnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);border-top:1px solid var(--line);justify-content:space-around;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+ #bnav a{flex:1;text-align:center;font-size:11.5px;padding:8px 2px;border-radius:10px;color:var(--muted);font-weight:600}#bnav a.on{color:#fff;background:var(--brand)}
+ .g21,.pushw,.pk1,.pay3,.form,.phones3{grid-template-columns:1fr}.phones3{justify-items:center}.ostp{grid-template-columns:repeat(2,1fr)}.hb{grid-template-columns:90px 1fr 56px}
+ table.ord thead{display:none}table.ord tr{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;border-bottom:1px solid var(--line);padding:6px 0}table.ord td{border:0;padding:2px 4px}
+}
+.lcl{display:flex;justify-content:space-between;font:11px 'JetBrains Mono',monospace;color:var(--muted2);margin-top:4px}.lc{height:170px}
+/* ===== ДАЛА ===== */
+.gate{background:var(--brand);background-image:radial-gradient(circle at 85% 10%,rgba(224,165,48,.28),transparent 45%),repeating-linear-gradient(170deg,transparent 0 46px,rgba(255,255,255,.035) 46px 48px)}
+.gtag{color:#f6dca0;border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.08)}.gate p{color:#d3dccd}
+.me,.ab{background:var(--brand2);color:#1f2a17}
+#sub a em{color:#1f2a17}
+.wid{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.wid.w3{grid-template-columns:repeat(3,1fr)}
+.fbar{height:9px;background:var(--card3);border-radius:5px;overflow:hidden}.fbar i{display:block;height:100%;background:linear-gradient(90deg,var(--brand),var(--brand2));border-radius:5px}
+.srow2{display:grid;grid-template-columns:minmax(0,1.3fr) 1fr 74px;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.4px}.srow2:last-child{border:0}.srow2 em{font-style:normal;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px}
+.stg2{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-bottom:12px}.stg2.s3{grid-template-columns:repeat(3,1fr)}
+.sto{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}.sto-h{display:flex;justify-content:space-between;align-items:baseline}.sto-h b{font-size:13.6px}.sto-h span{font-size:11px;color:var(--muted2)}
+.sto-c{font-size:12px;color:var(--muted);margin:2px 0 6px}.sto-v{font:700 22px 'Golos Text',sans-serif;margin-bottom:6px}.sto-v small{font-size:12px;font-weight:500;color:var(--muted)}
+.sto-m{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11.2px;color:var(--muted);margin-top:7px}
+.fmap{width:100%;height:auto;display:block;border-radius:10px}.fp{cursor:pointer}.fp polygon{stroke:#fff;stroke-width:2.5;transition:filter .15s}.fp:hover polygon{filter:brightness(1.08)}.fp.on polygon:first-child{stroke:var(--text);stroke-width:4}
+.fpl{font:700 13px 'JetBrains Mono',monospace;fill:#1d241c;text-anchor:middle;pointer-events:none}.fps{font:500 10.5px 'Golos Text',sans-serif;fill:#2d3527;text-anchor:middle;pointer-events:none}
+.poi rect{fill:var(--brand);opacity:.9}.poi text{fill:#fff;font:600 11px 'Golos Text',sans-serif;text-anchor:middle}
+.lg3{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11.6px;color:var(--muted);margin-top:8px}.lg3 i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px}.lg3 i.hz{background:repeating-linear-gradient(45deg,#bbb 0 3px,#fff 3px 6px)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
+.seg{flex-wrap:wrap}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;margin-bottom:12px}.mcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:12px}.mcard:hover{border-color:var(--brand)}
+.kv span small{display:block;font-size:10.6px;color:var(--muted2)}.kv.low{background:var(--bad-l)}
+.kb.k4{grid-template-columns:repeat(4,minmax(200px,1fr))}.kb.k5{grid-template-columns:repeat(5,minmax(180px,1fr))}
+.kd .bt.sm{margin-top:7px;width:100%}
+.tabw{display:grid;grid-template-columns:230px 1fr;gap:16px;align-items:start;margin-bottom:12px}
+.tabl{display:flex;flex-direction:column;gap:6px}.tabl a{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer}.tabl a b{display:block;font-size:13px}.tabl a span{font-size:11px;color:var(--muted)}.tabl a.on{border-color:var(--brand);box-shadow:inset 4px 0 0 var(--brand2)}
+.tabdev{border:12px solid #1b1f19;border-radius:26px;background:var(--bg);max-width:640px;overflow:hidden}
+.tabbar{display:flex;justify-content:space-between;background:var(--brand);color:#fff;padding:12px 16px;font-weight:600;font-size:14px}.tabbar span:last-child{font:500 11px 'JetBrains Mono',monospace;opacity:.8}
+.tabbody{padding:18px}.tabbody .form input,.tabbody .form select{padding:12px;font-size:15px}
+.bt.big{width:100%;padding:14px;font-size:15px;margin-top:4px}
+.mh4{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted2);margin:14px 0 4px}
+.evt{grid-template-columns:52px 130px 1fr}
+.hint{font-size:11.8px;color:var(--muted);margin:8px 0 0;line-height:1.5}
+.mvs{grid-template-columns:repeat(5,1fr)}
+@media(max-width:980px){.tabw,.stg2.s3,.wid.w3{grid-template-columns:1fr}.mvs{grid-template-columns:1fr 1fr}.srow2{grid-template-columns:1fr 70px}.srow2 .fbar{grid-column:1/-1;order:3}.kb.k4,.kb.k5{grid-template-columns:repeat(4,minmax(200px,1fr))}.evt{grid-template-columns:44px 1fr}.evt span:last-child{grid-column:1/-1}}
+.lform p{color:var(--muted)}
+
+</style>
+</head>
+<body>
+
+<section class="gate" id="gate">
+ <div class="gate-l">
+  <div class="glogo"><svg width="58" height="58" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 90V30" stroke="#ffffff" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M50 38c-14-2-22-12-22-24 14 2 22 12 22 24zm0 0c14-2 22-12 22-24-14 2-22 12-22 24zM50 58c-14-2-22-12-22-24 14 2 22 12 22 24zm0 0c14-2 22-12 22-24-14 2-22 12-22 24z" fill="#e0a530"/><path d="M14 90h72" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/></svg>
+   <div><b class="gname">ДАЛА</b><small class="gsub">ЦИФРОВОЕ ХОЗЯЙСТВО · РАСТЕНИЕВОДСТВО · ЖИВОТНОВОДСТВО · СКЛАДЫ · ГСМ · ТЕХНИКА</small></div>
+  </div>
+  <h1>Всё хозяйство — онлайн, а не в конце месяца на бумаге.<br>Сколько зерна в каждом ангаре, сколько топлива в ёмкостях, какая запчасть на какой машине.<br><em>И где именно расходится, когда после уборки недостача.</em></h1>
+  <span class="gtag">демо по встрече 12 октября · всё кликается</span>
+  <p style="margin-top:15px">Ваши слова: «это всё на бумаге — от отчётов до начисления зарплат», «я вижу это, либо мне скидывают в WhatsApp, но не в онлайн-режиме», «столкнулись после уборки с недостачей — нет должного контроля за дизелем, за запчастями, за складом».</p>
+  <p style="color:#f0c46a">20 000 га полей и история каждой клетки · склады зерна и сеновал · рейсы на элеватор · АЗС · запчасти и МТП · убойный цех → бухгалтерия → магазины · выдача населению · отчёты 20 ответственных · зарплата · 1С.</p>
+  <div class="gstat">
+   <div><small>Экранов</small><b class="a">19</b></div>
+   <div><small>Ролей</small><b>9</b></div>
+   <div><small>Срок</small><b>4–6 недель</b></div>
+   <div><small>Стоимость</small><b>2,5 млн + 1С</b></div>
+  </div>
+ </div>
+ <div class="gate-r">
+  <div class="lform">
+   <h2>Вход в систему</h2>
+   <p>Каждый — под своим логином и видит свой участок. Для показа выберите роль:</p>
+   <div class="roles" id="roles"></div>
+   <div class="lnote"><b>Демо-макет на вымышленных данных</b>
+    Поля, склады, техника, люди и цифры придуманы для примера. Кнопка ▶ сверху — сценарий показа.</div>
+  </div>
+ </div>
+</section>
+
+<div class="app hidden" id="app">
+ <aside class="rail">
+  <div class="rail-logo" title="Дала"><svg width="30" height="30" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 90V30" stroke="#ffffff" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M50 38c-14-2-22-12-22-24 14 2 22 12 22 24zm0 0c14-2 22-12 22-24-14 2-22 12-22 24zM50 58c-14-2-22-12-22-24 14 2 22 12 22 24zm0 0c14-2 22-12 22-24-14 2-22 12-22 24z" fill="#e0a530"/><path d="M14 90h72" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/></svg><b>ДАЛА</b></div>
+  <nav id="rail" style="display:flex;flex-direction:column;align-items:center"></nav>
+  <div class="rail-bot"><div class="me" id="me">АЛ</div></div>
+ </aside>
+ <aside id="sub"></aside>
+ <main class="main">
+  <header class="top">
+   <h1 id="ttl">Дала</h1>
+   <div class="top-r">
+    <div class="srch"><i>⌕</i><input placeholder="поле П-07, машина 512 ABC, склад" onkeydown="if(event.key==='Enter')searchDemo(this.value)"></div>
+    <button class="ab" id="addBtn" onclick="go('tablet')">ПЛАНШЕТ</button>
+    <button class="ib" id="themeBtn" onclick="toggleTheme()" title="Тема">◐</button>
+    <button class="ib" id="tourBtn" onclick="tour()" title="Сценарий показа">▶</button>
+    <select class="rsel" id="rsel"></select>
+   </div>
+  </header>
+  <div class="content" id="content"></div>
+ </main>
+</div>
+
+<div class="mbg" id="mbg" onclick="if(event.target===this)closeM()">
+ <aside class="modal">
+  <div class="mh"><div><h3 id="mt">—</h3><p id="ms">—</p></div><button class="mxb" onclick="closeM()">×</button></div>
+  <div class="mb" id="mbody"></div>
+ </aside>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+/* ДАЛА — цифровое хозяйство: растениеводство (карта полей, агрооперации), склады зерна и сеновал, отгрузка на элеваторы, ГСМ и АЗС, запчасти и МТП, поголовье, убойный цех → бухгалтерия → магазины, выдача населению, ежедневные отчёты, табель и зарплата, сверка и недостачи, обмен с 1С. Все имена, номера, поля и суммы вымышленные. */
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const fmt=n=>new Intl.NumberFormat('ru-RU').format(Math.round(n));
+const fmt1=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(n);
+const tg=n=>fmt(n)+' ₸';
+const TODAY='12.10.2026',NOW='16:40';
+const LOGO_I='<svg width="28" height="28" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 90V30" stroke="currentColor" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M50 38c-14-2-22-12-22-24 14 2 22 12 22 24zm0 0c14-2 22-12 22-24-14 2-22 12-22 24zM50 58c-14-2-22-12-22-24 14 2 22 12 22 24zm0 0c14-2 22-12 22-24-14 2-22 12-22 24z" fill="var(--brand2,#e0a530)"/><path d="M14 90h72" stroke="currentColor" stroke-width="7" stroke-linecap="round"/></svg>';
+const said=(q,a)=>`<div class="said"><b>Вы сказали на встрече</b><i>«${q}»</i>${a?`<div class="said-a">${a}</div>`:''}</div>`;
+
+const SEC=[
+ {k:'top',n:'Пульт',sub:[['dash','Пульт директора'],['loss','Сверка и недостачи']]},
+ {k:'pl',n:'Растениеводство',sub:[['fields','Карта полей'],['agro','Агрооперации и агроном']]},
+ {k:'st',n:'Склады',sub:[['grain','Зерно, ангары, сеновал'],['ship','Отгрузка на элеваторы'],['village','Выдача населению']]},
+ {k:'mt',n:'Техника и ГСМ',sub:[['fuel','ГСМ и АЗС'],['parts','Запчасти: приход и выдача'],['fleet','Техника и дефектовка'],['tablet','Планшет учётчика']]},
+ {k:'an',n:'Животноводство',sub:[['herd','Поголовье'],['slaughter','Убойный цех → магазины']]},
+ {k:'pp',n:'Люди',sub:[['daily','Ежедневные отчёты'],['payroll','Табель и зарплата']]},
+ {k:'sys',n:'Система',sub:[['flows','Воронки и заявки'],['sync','Обмен с 1С'],['audit','Роли и журнал'],['launch','Запуск и стоимость']]}
+];
+const SECOF={},SUBN={};SEC.forEach(s=>s.sub.forEach(x=>{SECOF[x[0]]=s.k;SUBN[x[0]]=x[1]}));
+const ALL=[];SEC.forEach(s=>s.sub.forEach(x=>ALL.push(x[0])));
+const ROLES={
+ 'Директор':{av:'АЛ',n:'Алмас',note:'Всё хозяйство онлайн: поля, склады, ГСМ, техника, скот, деньги, сверки',s:ALL.slice()},
+ 'Финансовый директор':{av:'ФД',n:'Нурлан',note:'Сверки и недостачи, ГСМ, запчасти, зарплата, обмен с 1С',s:['dash','loss','grain','ship','fuel','parts','fleet','slaughter','village','payroll','daily','sync','audit','flows']},
+ 'Агроном':{av:'АГ',n:'Ерлан',note:'Карта полей, операции, визиты с планшета',s:['fields','agro','grain','daily']},
+ 'Учётчик склада запчастей':{av:'УЧ',n:'Гульнар',note:'Приход, выдача на технику с планшета, дефектовка',s:['tablet','parts','fleet','daily']},
+ 'Заправщик АЗС':{av:'ЗП',n:'Бахыт',note:'Приход топлива, заправки техники, остатки в ёмкостях',s:['fuel','tablet','daily']},
+ 'Заведующий зерноскладом':{av:'ЗС',n:'Данияр',note:'Ангары, приход с полей, отгрузка на элеваторы, выдача населению',s:['grain','ship','village','tablet','daily']},
+ 'Зоотехник и убойный цех':{av:'ЗТ',n:'Айдос',note:'Поголовье, забой и взвешивание, отправка в бухгалтерию и магазины',s:['herd','slaughter','tablet','daily']},
+ 'Бухгалтер':{av:'БХ',n:'Сауле',note:'Приходы, списания, накладные, зарплата, 1С',s:['slaughter','parts','fuel','village','payroll','sync','grain','ship']},
+ 'Продавец магазина':{av:'МГ',n:'Жанар',note:'Приём мяса из убойного цеха, остатки магазина',s:['slaughter']}
+};
+let role='Директор',cur='dash',theme='light';
+
+/* Культуры и поля: 24 поля, ≈ 20 000 га */
+const CROPS={w3:['Пшеница 3 кл.','#d9a43a',17.2],w4:['Пшеница 4 кл.','#e9c76c',15.1],fl:['Лён','#6f8fc4',10.4],ba:['Ячмень','#b49a52',16.3],pe:['Горох','#86a861',12.6],par:['Пар','#b8a690',0]};
+const HA=[1020,640,910,760,1220,580,700,880,450,990,620,840,760,530,1100,690,810,940,900,820,980,1400,660,1000];
+const CR=['w3','w3','fl','w4','w4','ba','fl','w3','pe','w4','par','w3','ba','pe','w4','fl','w3','w4','w3','ba','fl','w4','par','w3'];
+const AGR=['Ерлан','Ерлан','Самат','Самат'];
+const FIELDS=HA.map((ha,i)=>{const c=CR[i],row=Math.floor(i/6),y=c==='par'?0:+(CROPS[c][2]*(0.86+((i*37)%29)/100)).toFixed(1);
+ const st=c==='par'?'par':(c==='fl'&&(i===15||i===20))?'harv':'done';
+ return {id:'П-'+String(i+1).padStart(2,'0'),n:['Ащысай','Бирлик','Жалпак','Карасу','Кызылжар','Сарыбулак'][i%6]+' '+(row+1),ha,c,y,st,prog:st==='harv'?(i===16?64:38):100,
+  agr:AGR[row],visit:['10.10','11.10','08.10','12.10','05.10','09.10','29.09','11.10','07.10','12.10','02.10','10.10'][i%12]}});
+const FD=id=>FIELDS.find(f=>f.id===id);
+const harvT=f=>f.c==='par'?0:Math.round(f.ha*f.y/10*f.prog/100);
+/* Агрооперации по полям */
+const OPS={};
+FIELDS.forEach((f,i)=>{if(f.c==='par'){OPS[f.id]=[['14.07','Обработка пара','Гербицид сплошного действия · 2,0 л/га','МТЗ-1221 №4 · Опрыскиватель',f.agr,'gps'],['02.06','Дискование пара','на 10–12 см','К-744 №2',f.agr,'gps']];return}
+ const sow={w3:'12.05',w4:'15.05',fl:'20.05',ba:'08.05',pe:'05.05'}[f.c];
+ OPS[f.id]=[
+  ...(f.st==='done'?[[ ['28.08','03.09','06.09','11.09','16.09'][i%5],'Уборка',fmt(harvT(f))+' т · урожайность '+fmt1(f.y)+' ц/га','Комбайн Acros 595 №'+(1+i%4),f.agr,'gps']]:[[TODAY.slice(0,5),'Уборка идёт','убрано '+f.prog+'% · '+fmt(harvT(f))+' т','Комбайн Acros 595 №'+(1+i%4),f.agr,'gps']]),
+  [f.visit,'Визит агронома','осмотр, фото 6 шт., отметка с планшета в границах поля',' — ',f.agr,'gps'],
+  ['24.06','Фунгицид','Фунгицид системный · 0,5 л/га','МТЗ-1221 №4 · Опрыскиватель',f.agr,'gps'],
+  ['09.06','Гербицид','Гербицид против двудольных · 0,8 л/га','МТЗ-1221 №3 · Опрыскиватель',f.agr,i%7===3?'nogps':'gps'],
+  [sow,'Посев',{w3:'пшеница 3 кл. · 120 кг/га',w4:'пшеница 4 кл. · 120 кг/га',fl:'лён · 45 кг/га',ba:'ячмень · 110 кг/га',pe:'горох · 220 кг/га'}[f.c],'К-744 №'+(1+i%3)+' · посевной комплекс',f.agr,'gps'],
+  [sow,'Удобрение','Аммофос при посеве · 50 кг/га','с посевом',f.agr,'gps']]});
+const FIELD_NOTE={'П-07':'Лён полёг на северном краю, около 60 га — убирать в последнюю очередь, влажность 16%.','П-16':'Лён: уборка 64%, остановились из-за дождя 10.10. Возобновление 13.10.','П-10':'Гербицид 09.06 — отметки трактора за пределами поля нет: проверить, обработано ли поле полностью.'};
+let curField='П-07';
+
+/* Склады зерна и сеновал */
+let STORES=[
+ {id:'S1',n:'Склад №1',t:'ангар',cr:'Пшеница 3 кл.',cap:9000,bal:6420,inT:0,outT:180,moist:13.8},
+ {id:'S2',n:'Склад №2',t:'ангар',cr:'Лён',cap:4000,bal:1980,inT:146,outT:0,moist:9.6},
+ {id:'S3',n:'Склад №3',t:'ангар',cr:'Пшеница 4 кл.',cap:12000,bal:8350,inT:0,outT:250,moist:14.1},
+ {id:'S4',n:'Склад №4',t:'напольный',cr:'Ячмень',cap:5000,bal:2760,inT:0,outT:0,moist:13.2},
+ {id:'S5',n:'Склад №5',t:'напольный',cr:'Горох',cap:2500,bal:1120,inT:0,outT:0,moist:12.9},
+ {id:'S6',n:'Склад №6',t:'зерноотходы',cr:'Зерноотходы',cap:1500,bal:614,inT:12,outT:6.4,moist:0},
+ {id:'S7',n:'Сеновал',t:'открытый',cr:'Сено, тюки 450 кг',cap:3600,bal:2870,inT:0,outT:24,moist:0}
+];
+const STO=id=>STORES.find(s=>s.id===id);
+const ELEV={E1:'Элеватор «Есиль-Астык»',E2:'ХПП «Сарыарка»'};
+let TRIPS=[
+ {n:'Р-4418',t:'07:12',tr:'КамАЗ 45143 · 512 ABC 11',drv:'Серик Ахметов',s:'S3',e:'E1',farm:24.36,elev:24.30,st:'ok'},
+ {n:'Р-4419',t:'07:40',tr:'КамАЗ 45143 · 517 ABC 11',drv:'Марат Касымов',s:'S3',e:'E1',farm:24.12,elev:24.08,st:'ok'},
+ {n:'Р-4420',t:'08:25',tr:'КамАЗ 65115 · 233 ADK 11',drv:'Руслан Ибраев',s:'S1',e:'E2',farm:25.04,elev:23.82,st:'diff'},
+ {n:'Р-4421',t:'09:10',tr:'КамАЗ 45143 · 512 ABC 11',drv:'Серик Ахметов',s:'S3',e:'E1',farm:24.40,elev:24.36,st:'ok'},
+ {n:'Р-4422',t:'10:05',tr:'КамАЗ 45143 · 517 ABC 11',drv:'Марат Касымов',s:'S1',e:'E2',farm:24.88,elev:24.81,st:'ok'},
+ {n:'Р-4423',t:'11:30',tr:'КамАЗ 65115 · 233 ADK 11',drv:'Руслан Ибраев',s:'S3',e:'E1',farm:25.10,elev:null,st:'road'},
+ {n:'Р-4424',t:'12:50',tr:'КамАЗ 45143 · 512 ABC 11',drv:'Серик Ахметов',s:'S1',e:'E2',farm:24.52,elev:null,st:'road'}
+];
+const TST={ok:['Принят','g'],diff:['Расхождение','r'],road:['В пути','i']};
+
+/* ГСМ */
+let TANKS=[{k:'dt',n:'ДТ летнее',cap:60000,bal:41200,inL:0,outL:1460},{k:'dtw',n:'ДТ зимнее',cap:40000,bal:18600,inL:12000,outL:320},{k:'ai',n:'АИ-92',cap:10000,bal:6450,inL:0,outL:110}];
+const TK=k=>TANKS.find(t=>t.k===k);
+let FILLS=[
+ ['06:40','КамАЗ 45143 · 512 ABC 11','Серик Ахметов','dt',180,'Вывоз зерна на элеватор','468 км за сутки (GPS)','38,5 л/100 км','34 л/100 км','warn'],
+ ['06:55','КамАЗ 45143 · 517 ABC 11','Марат Касымов','dt',160,'Вывоз зерна на элеватор','472 км (GPS)','33,9 л/100 км','34 л/100 км','ok'],
+ ['07:10','КамАЗ 65115 · 233 ADK 11','Руслан Ибраев','dt',190,'Вывоз зерна на элеватор','461 км (GPS)','41,2 л/100 км','35 л/100 км','bad'],
+ ['07:35','МТЗ-82 №6','Ахмет Сулейменов','dtw',60,'Животноводство: раздача кормов','9,5 моточаса','6,3 л/моточас','6 л/моточас','ok'],
+ ['08:20','К-744 №2','Ержан Нуртаев','dt',320,'Сеновал: вывоз тюков','24 моточаса','13,3 л/моточас','13 л/моточас','ok'],
+ ['09:05','ГАЗель · 088 BCD 11','Канат Омаров','ai',55,'Магазины: доставка мяса','212 км (GPS)','25,9 л/100 км','16 л/100 км','bad'],
+ ['10:40','Комбайн Acros 595 №2','Нурбол Жаксылыков','dt',610,'Уборка льна, П-16','28 моточасов','21,8 л/моточас','22 л/моточас','ok']
+];
+const FUELN={dt:'ДТ летнее',dtw:'ДТ зимнее',ai:'АИ-92'};
+
+/* Техника и запчасти */
+const MACH=[
+ {id:'M1',n:'КамАЗ 45143 · 512 ABC 11',t:'Грузовик',drv:'Серик Ахметов',run:'186 400 км',st:'work',to:'ТО-2 через 1 600 км'},
+ {id:'M2',n:'КамАЗ 45143 · 517 ABC 11',t:'Грузовик',drv:'Марат Касымов',run:'204 900 км',st:'work',to:'ТО-2 через 3 100 км'},
+ {id:'M3',n:'КамАЗ 65115 · 233 ADK 11',t:'Грузовик',drv:'Руслан Ибраев',run:'241 300 км',st:'work',to:'расход выше нормы 18%'},
+ {id:'M4',n:'Комбайн Acros 595 №1',t:'Комбайн',drv:'Талгат Бекенов',run:'3 420 м/ч',st:'repair',to:'ремонт: вариатор барабана'},
+ {id:'M5',n:'Комбайн Acros 595 №2',t:'Комбайн',drv:'Нурбол Жаксылыков',run:'2 980 м/ч',st:'work',to:'уборка льна П-16'},
+ {id:'M6',n:'К-744 №2',t:'Трактор',drv:'Ержан Нуртаев',run:'8 760 м/ч',st:'work',to:'ТО-3 через 140 м/ч'},
+ {id:'M7',n:'МТЗ-1221 №4',t:'Трактор',drv:'Асхат Мусин',run:'6 120 м/ч',st:'idle',to:'на базе'},
+ {id:'M8',n:'МТЗ-82 №6',t:'Трактор',drv:'Ахмет Сулейменов',run:'11 040 м/ч',st:'work',to:'животноводство'},
+ {id:'M9',n:'ГАЗель · 088 BCD 11',t:'Фургон',drv:'Канат Омаров',run:'312 800 км',st:'work',to:'расход выше нормы 62%'}
+];
+const MC=id=>MACH.find(m=>m.id===id);
+const MST={work:['В работе','g'],repair:['В ремонте','r'],idle:['На базе','']};
+let PARTS=[
+ {c:'ФМ-740',n:'Фильтр масляный КамАЗ 740',u:'шт',bal:18,min:10,pr:4800},
+ {c:'ФТ-740',n:'Фильтр топливный тонкой очистки',u:'шт',bal:6,min:10,pr:3900},
+ {c:'РВ-595',n:'Ремень вариатора барабана Acros',u:'шт',bal:0,min:2,pr:186000},
+ {c:'ПЖ-595',n:'Палец жатки (сегмент), к-т 10 шт',u:'к-т',bal:14,min:6,pr:12400},
+ {c:'КД-744',n:'Колодки тормозные К-744',u:'к-т',bal:3,min:2,pr:48600},
+ {c:'АКБ-190',n:'Аккумулятор 190 А·ч',u:'шт',bal:2,min:2,pr:96000},
+ {c:'ШН-1220',n:'Шина 1220×400 КамАЗ',u:'шт',bal:5,min:4,pr:214000},
+ {c:'МС-15',n:'Масло моторное 15W-40, 20 л',u:'кан',bal:22,min:12,pr:38500},
+ {c:'ГШ-12',n:'Гидрошланг РВД 1,2 м',u:'шт',bal:9,min:6,pr:7200}
+];
+const PT=c=>PARTS.find(p=>p.c===c);
+let ISSUES=[
+ {d:'12.10 09:20',c:'ФМ-740',q:2,m:'M3',who:'Руслан Ибраев',by:'Гульнар',st:'set',c1:'ok'},
+ {d:'12.10 08:05',c:'ГШ-12',q:1,m:'M6',who:'Ержан Нуртаев',by:'Гульнар',st:'set',c1:'ok'},
+ {d:'11.10 17:40',c:'ПЖ-595',q:3,m:'M5',who:'Нурбол Жаксылыков',by:'Гульнар',st:'set',c1:'ok'},
+ {d:'11.10 15:10',c:'АКБ-190',q:1,m:'M7',who:'Асхат Мусин',by:'Гульнар',st:'given',c1:'wait'},
+ {d:'10.10 11:00',c:'МС-15',q:2,m:'M1',who:'Серик Ахметов',by:'Гульнар',st:'set',c1:'ok'},
+ {d:'09.10 16:30',c:'ШН-1220',q:2,m:'M2',who:'Марат Касымов',by:'Гульнар',st:'set',c1:'ok'}
+];
+let DEFECT=[
+ ['РВ-595','Ремень вариатора барабана Acros',2,'Комбайн Acros 595 №1 стоит','Талгат Бекенов','срочно'],
+ ['ФТ-740','Фильтр топливный тонкой очистки',12,'остаток 6 при минимуме 10','система','план'],
+ ['ПК-595','Подшипник ступицы мотовила',4,'износ при ТО','Талгат Бекенов','план'],
+ ['ЩС-744','Щётки стеклоочистителя К-744',2,'к зиме','Ержан Нуртаев','план']
+];
+
+/* Животноводство */
+let HERD=[['Коровы','голов',418,421,'+3 перевод нетелей'],['Нетели','голов',92,96,'−3 перевод, −1 продажа'],['Телята до 6 мес.','голов',196,188,'+11 приплод, −3 падёж'],['Бычки на откорме','голов',241,286,'−46 забой, +1 перевод'],['Быки-производители','голов',12,12,''],['Овцы','голов',634,646,'−12 забой']];
+let SLAUGHTER=[
+ {n:'З-1088',d:'12.10',tag:'KZ 0412 7781',k:'Бычок',live:518,carc:286,st:'weigh',shop:''},
+ {n:'З-1087',d:'12.10',tag:'KZ 0412 7765',k:'Бычок',live:496,carc:271,st:'acc',shop:''},
+ {n:'З-1086',d:'12.10',tag:'KZ 0412 7702',k:'Бычок',live:540,carc:298,st:'sent',shop:'Магазин №1 · село'},
+ {n:'З-1085',d:'11.10',tag:'KZ 0412 7690',k:'Бычок',live:505,carc:276,st:'shop',shop:'Магазин №2 · райцентр'},
+ {n:'З-1084',d:'11.10',tag:'KZ 0412 7688',k:'Бычок',live:488,carc:262,st:'shop',shop:'Магазин №1 · село'},
+ {n:'З-1083',d:'11.10',tag:'овцы, 6 голов',k:'Овцы',live:312,carc:148,st:'shop',shop:'Магазин №2 · райцентр'}
+];
+const SLST=[['weigh','Взвешено в цехе'],['acc','Приход в бухгалтерии'],['sent','Отправлено в магазин'],['shop','Принято магазином']];
+const SLN=k=>(SLST.find(x=>x[0]===k)||['',k])[1];
+let SHOPS=[{n:'Магазин №1 · село',meat:612,sold:148,price:3400},{n:'Магазин №2 · райцентр',meat:438,sold:206,price:3600}];
+
+/* Выдача населению */
+let VIL=[
+ ['12.10 10:15','Сейтказы Б.','ул. Абая, 14','Зерноотходы',400,'кг','в счёт зарплаты','Н-2231','Данияр'],
+ ['12.10 09:40','Омарова Р.','ул. Целинная, 3','Сено, тюки',4,'тюка','за наличные','Н-2230','Данияр'],
+ ['11.10 16:20','Кадыров А.','ул. Школьная, 7','Пшеница фуражная',500,'кг','в счёт зарплаты','Н-2229','Данияр'],
+ ['11.10 15:05','Байжанов Е. (пенсионер)','ул. Абая, 22','Зерноотходы',300,'кг','льгота','Н-2228','Данияр'],
+ ['11.10 11:30','Мусина Г.','ул. Мира, 9','Комбикорм',200,'кг','за наличные','Н-2227','Данияр']
+];
+
+/* Ежедневные отчёты: 20 ответственных */
+const DAILY=[
+ ['Ерлан','Агроном','Поля: уборка, визиты','18:10','ok'],['Самат','Агроном','Поля: уборка, визиты','18:25','ok'],['Данияр','Зав. зерноскладом','Приход, отгрузка, остатки','17:55','ok'],
+ ['Гульнар','Учётчик запчастей','Выдача, установка, остатки','17:30','ok'],['Бахыт','Заправщик АЗС','Приход и заправки ГСМ','онлайн','ok'],['Айдос','Зоотехник','Поголовье, движение','17:40','ok'],
+ ['Мейрам','Бригадир МТП','Техника: в работе / в ремонте','18:05','ok'],['Талгат','Механик','Ремонты, дефектовка','—','no'],['Асель','Весовщица','Рейсы и вес','онлайн','ok'],
+ ['Нурлыбек','Бригадир фермы №1','Корма, падёж, приплод','17:20','ok'],['Бекзат','Бригадир фермы №2','Корма, падёж, приплод','—','no'],['Айжан','Убойный цех','Забой, вес, выход','16:50','ok'],
+ ['Жанар','Магазин №1','Приход, продажи, остатки','19:00 ожид.','wait'],['Алия','Магазин №2','Приход, продажи, остатки','19:00 ожид.','wait'],['Ринат','Сеновал','Заготовка и вывоз','17:15','ok'],
+ ['Мухтар','Охрана','Въезд и выезд техники','18:00','ok'],['Камила','Кадры','Явка, сезонные','12:00','ok'],['Олжас','Энергетик','Сушилка, электрика','—','no'],['Сабина','Касса','Наличные, магазины','18:30','ok'],['Берик','Зам по производству','Сводка за день','18:40','ok']
+];
+let AUDIT=[
+ ['12.10 12:51','Асель','Весовщица','Отгрузка','Рейс Р-4424 · взвешен на выезде','24,52 т нетто','планшет'],
+ ['12.10 09:21','Гульнар','Учётчик','Запчасти','Выдача ФМ-740 ×2 → КамАЗ 233 ADK','установлено, фото','планшет'],
+ ['12.10 09:05','Бахыт','Заправщик','ГСМ','Заправка ГАЗель 088 BCD · АИ-92','55 л','планшет'],
+ ['12.10 08:44','Сауле','Бухгалтер','Убойный цех','Приход туши З-1087 на склад','271 кг','компьютер'],
+ ['12.10 08:30','Данияр','Зав. складом','Население','Накладная Н-2231 · зерноотходы','400 кг, в счёт зарплаты','планшет'],
+ ['11.10 18:12','Ерлан','Агроном','Поля','Визит П-04 · отметка в границах поля','фото 6 шт.','планшет'],
+ ['11.10 17:02','Нурлан','Фин. директор','Сверка','Открыл расхождение по рейсу Р-4420','−1,22 т','компьютер']
+];
+
+const SC={};
+const tag=(t,c)=>`<span class="tag ${c||''}">${t}</span>`;
+function bars(rows){const mx=Math.max(...rows.map(r=>r[1]),1);return rows.map(r=>`<div class="hb"><span>${r[0]}</span><i style="width:${r[1]/mx*100}%"></i><b>${r[2]||fmt(r[1])}</b></div>`).join('')}
+const fillBar=(v,cap,c)=>`<div class="fbar"><i style="width:${Math.min(100,v/cap*100)}%;${c?'background:'+c:''}"></i></div>`;
+/* Баланс зерна за сезон: собрано − норматив подработки − отгружено − населению = должно лежать; сравниваем с замером складов */
+const GRAIN_IDS=['S1','S2','S3','S4','S5'];
+const harvAll=()=>FIELDS.reduce((a,f)=>a+harvT(f),0);
+const storesNow=()=>GRAIN_IDS.reduce((a,k)=>a+STO(k).bal,0);
+const tripsToday=()=>TRIPS.reduce((a,t)=>a+t.farm,0);
+let VIL_SEASON=186;
+const SHIP_BEFORE=harvAll()-Math.round(harvAll()*0.018)-VIL_SEASON-storesNow()-438-tripsToday();
+function grainBal(){const H=harvAll(),norm=Math.round(H*0.018),S=SHIP_BEFORE+tripsToday(),exp=H-norm-S-VIL_SEASON,act=storesNow();return {H,norm,S,V:VIL_SEASON,exp,act,diff:act-exp}}
+
+SC.dash=()=>{const g=grainBal(),fuel=TANKS.reduce((a,t)=>a+t.bal,0),herd=HERD.slice(0,5).reduce((a,h)=>a+h[2],0),work=MACH.filter(m=>m.st==='work').length,dl=DAILY.filter(d=>d[4]==='ok').length;
+ const flax=FIELDS.filter(f=>f.c==='fl'),fp=Math.round(flax.reduce((a,f)=>a+f.ha*f.prog,0)/flax.reduce((a,f)=>a+f.ha,0));
+ return `<div class="hd"><div><h2>Пульт директора · ${TODAY}, ${NOW}</h2><p>Всё хозяйство онлайн, а не в конце месяца на бумаге: сколько зерна в каждом ангаре, сколько ушло на элеватор, сколько топлива в ёмкостях и кто сколько заправил, какая техника стоит, сколько мяса пришло в магазины.</p></div></div>
+ <div class="wid">
+  <div class="clk" onclick="go('grain')"><small>Зерно на складах</small><b>${fmt(g.act)} т</b><span>5 складов · ${fmt(STO('S7').bal)} т сена</span></div>
+  <div class="clk" onclick="go('ship')"><small>Отгружено сегодня</small><b class="a">${fmt1(tripsToday())} т</b><span>${TRIPS.length} рейсов · ${TRIPS.filter(t=>t.st==='road').length} в пути</span></div>
+  <div class="clk" onclick="go('fuel')"><small>ГСМ в ёмкостях</small><b>${fmt(fuel)} л</b><span>заправлено сегодня ${fmt(FILLS.reduce((a,f)=>a+f[4],0))} л</span></div>
+  <div class="clk" onclick="go('herd')"><small>Поголовье КРС</small><b>${fmt(herd)}</b><span>овцы ${HERD[5][2]} · забой сегодня ${SLAUGHTER.filter(s=>s.d===TODAY.slice(0,5)).length}</span></div>
+  <div class="clk" onclick="go('fields')"><small>Уборка льна</small><b class="g">${fp}%</b><span>остальное убрано · ${fmt(FIELDS.reduce((a,f)=>a+f.ha,0))} га</span></div>
+  <div class="clk" onclick="go('fleet')"><small>Техника в работе</small><b>${work} из ${MACH.length}</b><span>${MACH.filter(m=>m.st==='repair').length} в ремонте</span></div>
+ </div>
+ <div class="g2 g21"><div class="pan"><h3>Склады · заполнение и остаток сейчас</h3>${STORES.map(s=>`<div class="srow2 clk" onclick="go('grain')"><span><b>${s.n}</b> · ${esc(s.cr)}</span>${fillBar(s.bal,s.cap)}<em>${fmt(s.bal)} т</em></div>`).join('')}</div>
+ <div class="pan"><h3>Требует внимания</h3>
+  <div class="rf bad" onclick="go('loss')"><i></i><div><b>Зерно: по учёту должно быть на ${fmt(-g.diff)} т больше, чем на складах</b><span>сверка сезона: собрано − отгружено − выдано − норматив подработки</span></div></div>
+  <div class="rf bad" onclick="go('ship')"><i></i><div><b>Рейс Р-4420: элеватор принял на 1,22 т меньше</b><span>КамАЗ 233 ADK · Руслан Ибраев · Склад №1 → ХПП «Сарыарка»</span></div></div>
+  <div class="rf bad" onclick="go('fuel')"><i></i><div><b>ГАЗель 088 BCD: расход 25,9 л/100 км при норме 16</b><span>по пробегу GPS — 34 л лишних за сутки</span></div></div>
+  <div class="rf" onclick="go('fleet')"><i></i><div><b>Комбайн Acros №1 стоит: нет ремня вариатора</b><span>в дефектовке, заявка на закуп создана</span></div></div>
+  <div class="rf" onclick="go('parts')"><i></i><div><b>Аккумулятор на МТЗ-1221 №4 выдан, но не отмечен как установленный</b><span>выдан 11.10 · Асхат Мусин</span></div></div>
+  <div class="rf" onclick="go('daily')"><i></i><div><b>Ежедневные отчёты: сдали ${dl} из ${DAILY.length}</b><span>нет отчёта: механик, бригадир фермы №2, энергетик</span></div></div></div></div>
+ <div class="g2"><div class="pan"><h3>Убойный цех → бухгалтерия → магазины, сегодня</h3>${SLST.map(x=>`<div class="kv"><span>${x[1]}</span><b>${SLAUGHTER.filter(s=>s.st===x[0]).length} · ${fmt(SLAUGHTER.filter(s=>s.st===x[0]).reduce((a,s)=>a+s.carc,0))} кг</b></div>`).join('')}<button class="bt sm" onclick="go('slaughter')">Открыть убойный цех →</button></div>
+ <div class="pan"><h3>Урожай по культурам, т</h3>${bars(Object.keys(CROPS).filter(k=>k!=='par').map(k=>[CROPS[k][0],FIELDS.filter(f=>f.c===k).reduce((a,f)=>a+harvT(f),0)]))}</div></div>
+ ${said('Я хотел бы это видеть в онлайне. Склад номер три — у меня там пять тысяч пшеницы, вывезли столько-то','Сейчас это приносят в конце месяца на бумаге. В системе каждая цифра появляется в момент события: взвесили рейс, заправили машину, выдали запчасть.')}`};
+
+SC.loss=()=>{const g=grainBal();
+ const fuelOver=FILLS.filter(f=>f[9]!=='ok').map(f=>{const a=parseFloat(f[7].replace(',','.')),n=parseFloat(f[8]);return [f[1],f[7],f[8],Math.round(f[4]*(a-n)/a)]});
+ return `<div class="hd"><div><h2>Сверка и недостачи</h2><p>То, с чем вы столкнулись после уборки: недостача есть, а где именно — непонятно. Система каждый день сводит баланс по зерну, топливу и запчастям и показывает, на каком шаге расходится.</p></div><div class="btns"><button class="bt" onclick="act('Сверка выгружена в Excel.')">⇩ Excel</button></div></div>
+ <div class="g2"><div class="pan"><h3>Зерно за сезон, т</h3>
+  <div class="kv"><span>Собрано с полей (бункерный вес, по рейсам с поля)</span><b>${fmt(g.H)}</b></div>
+  <div class="kv"><span>− Норматив подработки и усушки 1,8%</span><b>${fmt(g.norm)}</b></div>
+  <div class="kv"><span>− Отгружено на элеваторы (вес на выезде)</span><b>${fmt(g.S)}</b></div>
+  <div class="kv"><span>− Выдано населению по накладным</span><b>${fmt(g.V)}</b></div>
+  <div class="kv on"><span><strong>Должно лежать на складах</strong></span><b>${fmt(g.exp)}</b></div>
+  <div class="kv"><span>Лежит по замеру складов</span><b>${fmt(g.act)}</b></div>
+  <div class="kv on"><span><strong>Расхождение</strong></span><b class="neg">−${fmt(Math.abs(g.diff))} т · ${fmt1(Math.abs(g.diff)/g.H*100)}%</b></div>
+  <p class="hint">Где искать: по складам — Склад №1 (−236 т), Склад №3 (−202 т); по рейсам — 6 рейсов с расхождением с элеватором больше 0,5 т; по полям — 3 поля, где бункерный вес ниже урожайности соседних полей на 20%.</p></div>
+ <div class="pan"><h3>Где расходится — по шагам</h3>
+  <div class="fc r"><b>Поле → склад</b><span>−112 т</span><em>рейсы с поля без взвешивания на въезде: 9 за сезон</em></div>
+  <div class="fc r"><b>Склад → элеватор</b><span>−164 т</span><em>разница веса на выезде и в квитанции элеватора, 38 рейсов</em></div>
+  <div class="fc w"><b>Склад: хранение</b><span>−162 т</span><em>Склад №1 и №3 — после зачистки сверить с замером</em></div>
+  <div class="fc g"><b>Выдача населению</b><span>0 т</span><em>все выдачи по накладным, остатки сходятся</em></div></div></div>
+ <div class="g2"><div class="pan"><h3>ГСМ сегодня: перерасход против нормы по пробегу GPS</h3><div class="tw"><table class="t"><thead><tr><th>Техника</th><th>Факт</th><th>Норма</th><th>Лишние литры</th></tr></thead><tbody>${fuelOver.map(r=>`<tr class="clk" onclick="go('fuel')"><td>${esc(r[0])}</td><td class="mono">${r[1]}</td><td class="mono">${r[2]}</td><td class="mono neg">${r[3]} л</td></tr>`).join('')}</tbody></table></div><p class="hint">За октябрь: перерасход 1 840 л ≈ ${tg(1840*318)} по цене ДТ.</p></div>
+ <div class="pan"><h3>Запчасти: выдано ↔ установлено</h3>
+  <div class="kv"><span>Выдано со склада в октябре</span><b>146 позиций</b></div><div class="kv"><span>Отмечено «установлено» с фото</span><b>138</b></div>
+  <div class="kv on"><span><strong>Выдано, но не установлено</strong></span><b class="neg">8 позиций · ${tg(312400)}</b></div>
+  <div class="kv"><span>Списано в 1С автоматически</span><b>138 · без ручного «крыжения»</b></div>
+  <button class="bt sm" onclick="go('parts')">Открыть выдачи →</button></div></div>
+ ${said('Столкнулись после уборки с определённым количеством недостачи. Это как раз упущения того, что нету должного контроля — за дизелем, за запчастями, за складом')}`};
+
+/* Карта полей */
+let mapCrop='';
+function vtx(c,r){const W=640,H=420,x0=20,y0=20,dx=(W-40)/6,dy=(H-40)/4;const inner=c>0&&c<6&&r>0&&r<4;const jx=inner?(((c*53+r*31)%23)-11)*2.4:0,jy=inner?(((c*29+r*47)%19)-9)*2.2:0;return [x0+c*dx+jx,y0+r*dy+jy]}
+function fieldMap(sel){return `<svg class="fmap" viewBox="0 0 640 420" role="img" aria-label="Карта полей">
+ <rect x="0" y="0" width="640" height="420" fill="var(--mapbg)"/>
+ <path d="M0 214 C120 196 180 240 300 222 S520 190 640 206" stroke="#8fb4d6" stroke-width="7" fill="none" opacity=".55"/>
+ ${FIELDS.map((f,i)=>{const c=i%6,r=Math.floor(i/6),p=[vtx(c,r),vtx(c+1,r),vtx(c+1,r+1),vtx(c,r+1)];const cx=p.reduce((a,v)=>a+v[0],0)/4,cy=p.reduce((a,v)=>a+v[1],0)/4;const dim=mapCrop&&mapCrop!==f.c;
+  return `<g class="fp${sel===f.id?' on':''}" onclick="card('field','${f.id}')" style="opacity:${dim?.25:1}"><polygon points="${p.map(v=>v.join(',')).join(' ')}" fill="${CROPS[f.c][1]}"/>${f.st==='harv'?`<polygon points="${p.map(v=>v.join(',')).join(' ')}" fill="url(#hatch)"/>`:''}<text x="${cx}" y="${cy-3}" class="fpl">${f.id}</text><text x="${cx}" y="${cy+11}" class="fps">${fmt(f.ha)} га</text></g>`}).join('')}
+ <defs><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="8" fill="rgba(255,255,255,.45)"/></pattern></defs>
+ <g class="poi"><rect x="296" y="200" width="46" height="26" rx="4"/><text x="319" y="217">База</text></g>
+</svg>`}
+SC.fields=()=>{const tot=FIELDS.reduce((a,f)=>a+f.ha,0);
+ return `<div class="hd"><div><h2>Карта полей · ${fmt(tot)} га · ${FIELDS.length} полей</h2><p>Каждое поле — клетка со своей историей: что посеяно, когда была химобработка, когда вносили удобрения, когда приезжал агроном и сколько собрали. Нажмите на поле.</p></div><div class="btns"><button class="bt" onclick="act('Контуры полей загружаются из файла KML / Shape — тех, что у вас уже есть в агросервисе или у кадастра.')">⇧ Загрузить контуры</button></div></div>
+ <div class="seg"><a class="${!mapCrop?'on':''}" onclick="mapCrop='';render()">Все</a>${Object.keys(CROPS).map(k=>`<a class="${mapCrop===k?'on':''}" onclick="mapCrop='${k}';render()"><i class="dot" style="background:${CROPS[k][1]}"></i>${CROPS[k][0]}</a>`).join('')}</div>
+ <div class="g2 g21"><div class="pan">${fieldMap(curField)}<div class="lg3">${Object.keys(CROPS).map(k=>`<span><i style="background:${CROPS[k][1]}"></i>${CROPS[k][0]} · ${fmt(FIELDS.filter(f=>f.c===k).reduce((a,f)=>a+f.ha,0))} га</span>`).join('')}<span><i class="hz"></i>уборка идёт</span></div></div>
+ <div class="pan"><h3>Поля${mapCrop?' · '+CROPS[mapCrop][0]:''}</h3><div class="tw"><table class="t"><thead><tr><th>Поле</th><th>Га</th><th>Культура</th><th>Ц/га</th><th>Агроном был</th></tr></thead><tbody>${FIELDS.filter(f=>!mapCrop||f.c===mapCrop).map(f=>`<tr class="clk" onclick="card('field','${f.id}')"><td><b>${f.id}</b> ${esc(f.n)}</td><td class="mono">${fmt(f.ha)}</td><td><i class="dot" style="background:${CROPS[f.c][1]}"></i>${CROPS[f.c][0]}${f.st==='harv'?' · '+f.prog+'%':''}</td><td class="mono">${f.y?fmt1(f.y):'—'}</td><td class="mono">${f.visit}</td></tr>`).join('')}</tbody></table></div></div></div>
+ ${said('Мне нужно, чтобы у меня агроном — ему вручается планшет — я знаю, когда он посещал ту или иную клетку, когда в той клетке происходила химобработка, когда мы вносили удобрение','Карту полей не надо рисовать заново: контуры загружаются из файлов, которые у вас уже есть.')}`};
+
+/* Агрооперации */
+let opF='';
+SC.agro=()=>{const all=[];FIELDS.forEach(f=>OPS[f.id].forEach(o=>all.push([f,...o])));
+ const L=all.filter(r=>!opF||r[2]===opF).sort((a,b)=>{const d=s=>{const [dd,mm]=s.split('.');return +mm*100+ +dd};return d(b[1])-d(a[1])}).slice(0,22);
+ const types=['Визит агронома','Уборка','Уборка идёт','Гербицид','Фунгицид','Посев','Удобрение'];
+ return `<div class="hd"><div><h2>Агрооперации и агроном</h2><p>Агроном вносит операцию с планшета прямо в поле: тип, препарат и норма, техника, фото. Планшет ставит отметку места — видно, что он действительно был на этом поле. Каждая операция сразу попадает в историю поля.</p></div><div class="btns"><button class="bt p" onclick="card('op','${curField}')">+ Операция</button></div></div>
+ <div class="wid"><div><small>Визитов агронома за неделю</small><b>31</b><span>все поля, кроме П-11 и П-23 (пар)</span></div><div><small>Обработано гербицидом</small><b>${fmt(FIELDS.filter(f=>f.c!=='par').reduce((a,f)=>a+f.ha,0))} га</b><span>расход препарата сходится со складом</span></div><div><small>Операций без отметки трактора на поле</small><b class="w">${FIELDS.filter((f,i)=>i%7===3&&f.c!=='par').length}</b><span>проверить — обработано ли поле</span></div></div>
+ <div class="seg"><a class="${!opF?'on':''}" onclick="opF='';render()">Все</a>${types.map(t=>`<a class="${opF===t?'on':''}" onclick="opF='${t}';render()">${t}</a>`).join('')}</div>
+ <div class="pan"><div class="tw"><table class="t"><thead><tr><th>Дата</th><th>Поле</th><th>Операция</th><th>Что и норма</th><th>Техника</th><th>Агроном</th><th>Место</th></tr></thead><tbody>${L.map(r=>`<tr class="clk" onclick="card('field','${r[0].id}')"><td class="mono">${r[1]}</td><td><b>${r[0].id}</b></td><td>${r[2]}</td><td>${esc(r[3])}</td><td>${esc(r[4])}</td><td>${r[5]}</td><td>${r[6]==='gps'?tag('в поле ✓','g'):tag('нет отметки','w')}</td></tr>`).join('')}</tbody></table></div></div>
+ ${said('Я знаю, когда он посещал ту или иную клетку')}`};
+
+/* Склады зерна */
+SC.grain=()=>`<div class="hd"><div><h2>Зерно, ангары и сеновал</h2><p>Остаток каждого склада в реальном времени: приход с полей по весовой, расход по рейсам на элеватор и накладным населению. Склад добавляется кнопкой — с типом, вместимостью и культурой.</p></div><div class="btns"><button class="bt" onclick="card('newstore')">+ Склад</button><button class="bt p" onclick="card('trip')">+ Рейс на элеватор</button></div></div>
+ <div class="stg2">${STORES.map(s=>`<div class="sto"><div class="sto-h"><b>${s.n}</b><span>${s.t}</span></div><div class="sto-c">${esc(s.cr)}</div><div class="sto-v">${fmt(s.bal)} <small>т из ${fmt(s.cap)}</small></div>${fillBar(s.bal,s.cap)}<div class="sto-m"><span>сегодня приход <b class="pos">+${fmt1(s.inT)}</b></span><span>расход <b class="neg">−${fmt1(s.outT)}</b></span>${s.moist?`<span>влажность ${fmt1(s.moist)}%</span>`:''}</div></div>`).join('')}</div>
+ <div class="pan"><h3>Движение сегодня</h3><div class="tw"><table class="t"><thead><tr><th>Время</th><th>Документ</th><th>Склад</th><th>Откуда / куда</th><th>Тонн</th></tr></thead><tbody>
+ ${TRIPS.map(t=>`<tr><td class="mono">${t.t}</td><td>Рейс ${t.n}</td><td>${STO(t.s).n}</td><td>→ ${ELEV[t.e]}</td><td class="mono neg">−${fmt1(t.farm)}</td></tr>`).join('')}
+ <tr><td class="mono">14:10</td><td>С поля П-16</td><td>Склад №2</td><td>← Комбайн Acros №2, 6 бункеров</td><td class="mono pos">+146</td></tr>
+ <tr><td class="mono">10:15</td><td>Накладная Н-2231</td><td>Склад №6</td><td>→ население, Сейтказы Б.</td><td class="mono neg">−0,4</td></tr></tbody></table></div></div>
+ ${said('У нас есть склады, где мы храним свою продукцию, есть сеновал, где хранится готовый объём сена. У меня есть остатки, что сейчас там хранится')}`;
+
+/* Отгрузка на элеваторы */
+SC.ship=()=>{const ok=TRIPS.filter(t=>t.elev!=null);
+ return `<div class="hd"><div><h2>Отгрузка на элеваторы</h2><p>Каждый рейс взвешивается на выезде: весовщица вносит вес в планшет, машина и водитель выбираются из списка. Элеватор присылает квитанцию — её вес вносится в тот же рейс, и разница видна сразу, а не через месяц.</p></div><div class="btns"><button class="bt p" onclick="card('trip')">+ Рейс</button></div></div>
+ <div class="wid"><div><small>Рейсов сегодня</small><b>${TRIPS.length}</b><span>${TRIPS.filter(t=>t.st==='road').length} в пути</span></div><div><small>Отгружено сегодня</small><b class="a">${fmt1(tripsToday())} т</b><span>по весу на выезде</span></div><div><small>Принято элеваторами</small><b>${fmt1(ok.reduce((a,t)=>a+t.elev,0))} т</b><span>из ${fmt1(ok.reduce((a,t)=>a+t.farm,0))} т отправленных</span></div><div><small>Расхождение</small><b class="w">${fmt1(ok.reduce((a,t)=>a+t.elev-t.farm,0))} т</b><span>норма — до 0,3% на рейс</span></div></div>
+ <div class="pan"><div class="tw"><table class="t"><thead><tr><th>Рейс</th><th>Выезд</th><th>Машина и водитель</th><th>Склад → элеватор</th><th>Наш вес</th><th>Элеватор</th><th>Разница</th><th></th></tr></thead><tbody>${TRIPS.map(t=>{const d=t.elev==null?null:t.elev-t.farm;return `<tr class="${t.st==='diff'?'rowbad':''}"><td><b>${t.n}</b></td><td class="mono">${t.t}</td><td>${esc(t.tr)}<br><small>${esc(t.drv)}</small></td><td>${STO(t.s).n} → ${ELEV[t.e]}</td><td class="mono">${fmt1(t.farm)} т</td><td class="mono">${t.elev==null?'—':fmt1(t.elev)+' т'}</td><td class="mono ${d!=null&&d<-0.3?'neg':''}">${d==null?'—':fmt1(d)}</td><td>${t.st==='road'?`<button class="bt sm" onclick="card('elev','${t.n}')">Квитанция</button>`:tag(TST[t.st][0],TST[t.st][1])}</td></tr>`}).join('')}</tbody></table></div></div>
+ ${said('Мне несут выписки — в день столько-то КамАЗов загрузилось, 500 тонн ушло на элеватор. Я это вижу, либо мне скидывают в WhatsApp, но не в онлайн-режиме')}`};
+
+/* Выдача населению */
+SC.village=()=>`<div class="hd"><div><h2>Выдача населению</h2><p>Жители села получают корма, зерно и зерноотходы. Каждая выдача — накладная из планшета: кто, что, сколько, на каком основании. В счёт зарплаты — удержание уходит в расчёт зарплаты автоматически.</p></div><div class="btns"><button class="bt p" onclick="card('vissue')">+ Выдача</button></div></div>
+ <div class="wid"><div><small>Выдано в октябре</small><b>38,6 т</b><span>146 накладных</span></div><div><small>В счёт зарплаты</small><b>21,2 т</b><span>${tg(1272000)} — удержано в расчёте</span></div><div><small>За наличные</small><b>${tg(486000)}</b><span>сдано в кассу</span></div><div><small>Льгота пенсионерам</small><b>4,1 т</b><span>лимит 300 кг на двор в месяц</span></div></div>
+ <div class="pan"><div class="tw"><table class="t"><thead><tr><th>Когда</th><th>Житель</th><th>Что</th><th>Сколько</th><th>Основание</th><th>Накладная</th><th>Выдал</th></tr></thead><tbody>${VIL.map(v=>`<tr><td class="mono">${v[0]}</td><td>${esc(v[1])}<br><small>${esc(v[2])}</small></td><td>${v[3]}</td><td class="mono">${fmt(v[4])} ${v[5]}</td><td>${tag(v[6],v[6]==='льгота'?'i':v[6]==='за наличные'?'g':'w')}</td><td class="mono">${v[7]}</td><td>${v[8]}</td></tr>`).join('')}</tbody></table></div></div>
+ ${said('Порядка восьмисот человек здесь живёт, мы градообразующая компания. Обеспечиваем их кормами, зерном, зерноотходами. Бухгалтерия выписывает накладные')}`;
+
+/* ГСМ и АЗС */
+SC.fuel=()=>`<div class="hd"><div><h2>ГСМ и АЗС</h2><p>Остаток в каждой ёмкости — сейчас, а не по отчёту месяца. Заправщик отмечает заправку в планшете: машина, водитель, литры, на какую работу. Система сравнивает литры с пробегом по GPS или моточасами и нормой расхода.</p></div><div class="btns"><button class="bt" onclick="card('fuelin')">+ Приход топлива</button><button class="bt p" onclick="card('refuel')">+ Заправка</button></div></div>
+ <div class="stg2 s3">${TANKS.map(t=>`<div class="sto"><div class="sto-h"><b>${t.n}</b><span>ёмкость ${fmt(t.cap)} л</span></div><div class="sto-v">${fmt(t.bal)} <small>л</small></div>${fillBar(t.bal,t.cap)}<div class="sto-m"><span>сегодня приход <b class="pos">+${fmt(t.inL)}</b></span><span>выдано <b class="neg">−${fmt(t.outL)}</b></span></div></div>`).join('')}</div>
+ <div class="pan"><h3>Заправки сегодня</h3><div class="tw"><table class="t"><thead><tr><th>Время</th><th>Техника · водитель</th><th>Топливо</th><th>Литров</th><th>Работа</th><th>Пробег / моточасы</th><th>Расход</th><th>Норма</th></tr></thead><tbody>${FILLS.map(f=>`<tr class="${f[9]==='bad'?'rowbad':f[9]==='warn'?'rowwarn':''}"><td class="mono">${f[0]}</td><td>${esc(f[1])}<br><small>${esc(f[2])}</small></td><td>${FUELN[f[3]]}</td><td class="mono">${fmt(f[4])}</td><td>${esc(f[5])}</td><td>${f[6]}</td><td class="mono ${f[9]!=='ok'?'neg':''}">${f[7]}</td><td class="mono">${f[8]}</td></tr>`).join('')}</tbody></table></div></div>
+ <div class="g2"><div class="pan"><h3>Куда ушло топливо в октябре, л</h3>${bars([['Вывоз зерна',18640],['Уборка',14220],['Сеновал',6380],['Животноводство',3110],['Магазины, доставка',1240]])}</div>
+ <div class="pan"><h3>Баланс октября, л</h3><div class="kv"><span>Остаток на 01.10</span><b>52 400</b></div><div class="kv"><span>+ Пришло (накладные, 1С)</span><b>58 000</b></div><div class="kv"><span>− Заправлено по ведомости</span><b>43 590</b></div><div class="kv on"><span><strong>Должно быть в ёмкостях</strong></span><b>66 810</b></div><div class="kv"><span>По замеру метрштоком</span><b>${fmt(TANKS.reduce((a,t)=>a+t.bal,0))}</b></div></div></div>
+ ${said('Мне это надо видеть: сегодня там у нас есть сто семьдесят, из них бензина, дизеля, зимнего топлива; сегодня с утра заправили те-то машины на такое-то количество, на сколько они проехали','Машины уже под GPS — пробег берём оттуда, если у навигационного сервиса есть выгрузка. Если нет — водитель вводит пробег по одометру.')}`;
+
+/* Запчасти */
+SC.parts=()=>`<div class="hd"><div><h2>Запчасти: приход и выдача</h2><p>Приход приходит из 1С — как сейчас его видит финансовый директор. Учётчик выдаёт деталь в планшете и выбирает технику. Механизатор отмечает «установлено» с фото старой детали — и списание сразу уходит в 1С. В конце сезона крыжить нечего.</p></div><div class="btns"><button class="bt" onclick="act('Приход из 1С подтянут: накладная №1С-00418 от 12.10, 6 позиций.')">⇩ Приход из 1С</button><button class="bt p" onclick="card('issue')">+ Выдать</button></div></div>
+ <div class="g2 g21"><div class="pan"><h3>Выдачи</h3><div class="tw"><table class="t"><thead><tr><th>Когда</th><th>Деталь</th><th>Кол-во</th><th>На технику · кто ставил</th><th>Статус</th><th>1С</th></tr></thead><tbody>${ISSUES.map(x=>{const p=PT(x.c)||{n:x.c,u:'шт'};return `<tr class="${x.st==='given'?'rowwarn':''}"><td class="mono">${x.d}</td><td>${esc(p.n)}<br><small>${x.c}</small></td><td class="mono">${x.q} ${p.u}</td><td>${esc(MC(x.m).n)}<br><small>${esc(x.who)}</small></td><td>${x.st==='set'?tag('установлено · фото','g'):`<button class="bt sm" onclick="setInst('${x.d}','${x.c}')">Отметить установку</button>`}</td><td>${x.c1==='ok'?tag('списано','g'):tag('ждёт установки','w')}</td></tr>`}).join('')}</tbody></table></div></div>
+ <div class="pan"><h3>Склад запчастей</h3>${PARTS.map(p=>`<div class="kv ${p.bal<p.min?'low':''}"><span>${esc(p.n)}<small>${p.c} · мин. ${p.min}</small></span><b class="${p.bal<p.min?'neg':''}">${p.bal} ${p.u}</b></div>`).join('')}<button class="bt sm" onclick="go('fleet')">Дефектовка и заявка →</button></div></div>
+ ${said('Пришёл он на склад, у меня там учётчики сидят, которые выдают запчасти — они в планшет нажали, что оно установилось, и запчасть списалась. И это сразу же моя бухгалтерия видела')}`;
+function setInst(d,c){const x=ISSUES.find(i=>i.d===d&&i.c===c);if(!x)return;x.st='set';x.c1='ok';AUDIT.unshift([TODAY.slice(0,5)+' '+NOW,ROLES[role].n,role,'Запчасти','Установка '+c+' отмечена','фото старой детали','планшет']);render();toast('Установка отмечена. Списание ушло в 1С, бухгалтерия видит сразу.')}
+
+/* Техника и дефектовка */
+SC.fleet=()=>`<div class="hd"><div><h2>Техника и дефектовка</h2><p>Карточка каждой машины: кто на ней работает, что на неё ставили, сколько она заправила и проехала. Дефектовка собирается сама — из ремонтов и минимальных остатков склада — и одной кнопкой становится заявкой на закуп.</p></div><div class="btns"><button class="bt" onclick="act('Новая единица техники: тип, номер, водитель, норма расхода.')">+ Техника</button></div></div>
+ <div class="mgrid">${MACH.map(m=>`<div class="mcard clk" onclick="card('mach','${m.id}')"><div class="kt"><b>${esc(m.n)}</b>${tag(MST[m.st][0],MST[m.st][1])}</div><div class="km">${m.t} · ${esc(m.drv)}</div><div class="kf"><span>${m.run}</span><span class="${/расход|ремонт/.test(m.to)?'neg':''}">${esc(m.to)}</span></div></div>`).join('')}</div>
+ <div class="pan"><h3>Дефектовка: чего не хватает</h3><div class="tw"><table class="t"><thead><tr><th>Код</th><th>Деталь</th><th>Нужно</th><th>Почему</th><th>Кто</th><th></th></tr></thead><tbody>${DEFECT.map((d,i)=>`<tr class="${d[5]==='срочно'?'rowbad':''}"><td class="mono">${d[0]}</td><td>${esc(d[1])}</td><td class="mono">${d[2]}</td><td>${esc(d[3])}</td><td>${esc(d[4])}</td><td>${tag(d[5],d[5]==='срочно'?'r':'')}</td></tr>`).join('')}</tbody></table></div><button class="bt sm p" onclick="defOrder()">Создать заявку на закуп →</button></div>
+ ${said('В конце месяца или сезона приходят с бумагами, начинают садиться, списывать с 1С те позиции, начинают крыжить. После этого составляем дефектовку, чего у нас нету, и отправляем заказ на склад')}`;
+function defOrder(){FLOWS.buy.cards.unshift({n:'ЗК-'+(219+FLOWS.buy.cards.length),t:'Дефектовка '+TODAY.slice(0,5)+': '+DEFECT.length+' позиций',m:'Гульнар',sum:'≈ 512 000 ₸',st:'new'});flowK='buy';go('flows');toast('Заявка на закуп создана из дефектовки и стоит в воронке «Закуп запчастей».')}
+
+/* Планшет: то, что делают люди на местах */
+let tabMode='issue';
+const TABM=[['issue','Выдать запчасть','Учётчик'],['refuel','Заправка','Заправщик'],['trip','Рейс на элеватор','Весовщица'],['weigh','Взвешивание туши','Убойный цех'],['op','Операция в поле','Агроном'],['vissue','Выдача населению','Зав. складом']];
+SC.tablet=()=>`<div class="hd"><div><h2>Планшет учётчика</h2><p>То, что раньше писали на бумаге, люди на местах вносят в планшет: три-четыре поля и большая кнопка. Работает без связи — отправит, когда появится интернет. Попробуйте: остатки в разделах меняются сразу.</p></div></div>
+ <div class="tabw"><div class="tabl">${TABM.map(t=>`<a class="${tabMode===t[0]?'on':''}" onclick="tabMode='${t[0]}';render()"><b>${t[1]}</b><span>${t[2]}</span></a>`).join('')}</div>
+ <div class="tabdev"><div class="tabbar"><span>${TABM.find(t=>t[0]===tabMode)[1]}</span><span>${NOW} · сеть есть</span></div><div class="tabbody">${FORMS[tabMode]('tb')}</div></div></div>
+ ${said('Учётчики, которые выдают эти запчасти — они условно в планшет нажали, что оно установилось')}`;
+
+/* Поголовье */
+SC.herd=()=>`<div class="hd"><div><h2>Поголовье</h2><p>Склад текущего поголовья: группы, движение за месяц — приплод, перевод, падёж, забой, продажа. Бригадиры ферм сдают ежедневный отчёт с планшета: корма, приплод, падёж.</p></div><div class="btns"><button class="bt" onclick="act('Движение: приплод, перевод между группами, падёж (с актом и фото бирки), продажа.')">+ Движение</button></div></div>
+ <div class="pan"><div class="tw"><table class="t"><thead><tr><th>Группа</th><th>На 01.10</th><th>Сейчас</th><th>Движение за октябрь</th></tr></thead><tbody>${HERD.map(h=>`<tr><td><b>${h[0]}</b></td><td class="mono">${fmt(h[3])}</td><td class="mono"><b>${fmt(h[2])}</b></td><td>${esc(h[4])}</td></tr>`).join('')}</tbody></table></div></div>
+ <div class="g2"><div class="pan"><h3>Движение КРС за октябрь, голов</h3>${bars([['Приплод',11],['Забой',46],['Продажа',1],['Падёж',3]])}</div>
+ <div class="pan"><h3>Корма со складов за октябрь</h3><div class="kv"><span>Сено, тюки (Сеновал)</span><b>212 т</b></div><div class="kv"><span>Зерноотходы (Склад №6)</span><b>96 т</b></div><div class="kv"><span>Ячмень дроблёный (Склад №4)</span><b>148 т</b></div><p class="hint">Корма списываются со склада по раздаче — те же остатки, что видит зав. складом.</p></div></div>
+ ${said('Есть животноводство — мы его там тоже должны видеть. Склад текущего поголовья')}`;
+
+/* Убойный цех → бухгалтерия → магазин */
+SC.slaughter=()=>`<div class="hd"><div><h2>Убойный цех → бухгалтерия → магазины</h2><p>Раньше: бухгалтер едет взвешивать, привозит бумажки, в головном офисе выписывают. Теперь: цех взвешивает в планшете → бухгалтерия одной кнопкой ставит на приход → накладная уходит в магазин → магазин подтверждает приём. Каждый видит свой шаг.</p></div><div class="btns"><button class="bt p" onclick="card('weigh')">+ Взвесить</button></div></div>
+ <div class="kb k4">${SLST.map((s,i)=>`<div class="kc"><div class="kh"><b>${s[1]}</b><span>${SLAUGHTER.filter(x=>x.st===s[0]).length}</span></div>${SLAUGHTER.filter(x=>x.st===s[0]).map(x=>`<div class="kd"><div class="kt"><b>${x.n}</b><span class="src">${x.d}</span></div><div class="kr">${x.k} · туша ${x.carc} кг</div><div class="km">живой вес ${x.live} кг · выход ${fmt1(x.carc/x.live*100)}% · ${esc(x.tag)}${x.shop?'<br>'+esc(x.shop):''}</div>${i<3?`<button class="bt sm" onclick="slNext('${x.n}')">${['Поставить на приход','Отправить в магазин','Принять в магазине'][i]} →</button>`:''}</div>`).join('')||'<div class="kempty">пусто</div>'}</div>`).join('')}</div>
+ <div class="g2"><div class="pan"><h3>Магазины · мясо</h3><div class="tw"><table class="t"><thead><tr><th>Магазин</th><th>Остаток</th><th>Продано сегодня</th><th>Цена за кг</th></tr></thead><tbody>${SHOPS.map(s=>`<tr><td>${esc(s.n)}</td><td class="mono">${fmt(s.meat)} кг</td><td class="mono">${fmt(s.sold)} кг · ${tg(s.sold*s.price)}</td><td class="mono">${tg(s.price)}</td></tr>`).join('')}</tbody></table></div></div>
+ <div class="pan"><h3>Выход за октябрь</h3><div class="kv"><span>Забито</span><b>46 бычков · 12 овец</b></div><div class="kv"><span>Живой вес → туши</span><b>23,4 т → 12,8 т · 54,7%</b></div><div class="kv"><span>Принято магазинами</span><b>12,6 т</b></div><div class="kv on"><span><strong>Цех → магазин, разница</strong></span><b class="neg">−0,2 т</b></div></div></div>
+ ${said('Хотелось бы, чтобы убойный цех электронно отправлял в бухгалтерию, бухгалтерия ставила себе на приход, также электронно отправляла в наш магазин')}`;
+function slNext(n){const x=SLAUGHTER.find(s=>s.n===n);if(!x)return;const o=SLST.findIndex(s=>s[0]===x.st);if(o>=3)return;x.st=SLST[o+1][0];
+ if(x.st==='sent')x.shop=x.shop||SHOPS[0].n;if(x.st==='shop'){const s=SHOPS.find(s=>s.n===x.shop)||SHOPS[0];s.meat+=x.carc}
+ AUDIT.unshift([TODAY.slice(0,5)+' '+NOW,ROLES[role].n,role,'Убойный цех',n+' → '+SLN(x.st),x.carc+' кг','компьютер']);render();toast(`${n}: ${SLN(x.st).toLowerCase()}. Следующий шаг видит ${['','бухгалтерия','магазин','директор'][o+1]}.`)}
+
+/* Ежедневные отчёты */
+SC.daily=()=>{const ok=DAILY.filter(d=>d[4]==='ok').length;
+ return `<div class="hd"><div><h2>Ежедневные отчёты · ${TODAY}</h2><p>Двадцать ответственных сдают отчёт за день с планшета или телефона. Большая часть цифр уже в системе из их работы — отчёт добавляет то, чего не видно: проблемы, планы на завтра, фото. Кто не сдал до 19:00 — директору приходит напоминание.</p></div><div class="btns"><button class="bt" onclick="act('Напоминание ушло троим, кто не сдал отчёт.')">Напомнить не сдавшим</button></div></div>
+ <div class="wid"><div><small>Сдали</small><b class="g">${ok} из ${DAILY.length}</b><span>ждём до 19:00: ${DAILY.filter(d=>d[4]==='wait').length}</span></div><div><small>Не сдали</small><b class="w">${DAILY.filter(d=>d[4]==='no').length}</b><span>механик, бригадир фермы №2, энергетик</span></div><div><small>Людей в системе</small><b>~150</b><span>100 постоянных · 50 сезонных</span></div></div>
+ <div class="pan"><div class="tw"><table class="t"><thead><tr><th>Кто</th><th>Должность</th><th>Что сдаёт</th><th>Сдал</th></tr></thead><tbody>${DAILY.map(d=>`<tr class="${d[4]==='no'?'rowbad':''}"><td><b>${d[0]}</b></td><td>${d[1]}</td><td>${d[2]}</td><td>${d[4]==='ok'?tag(d[3],'g'):d[4]==='wait'?tag(d[3],'i'):tag('не сдан','r')}</td></tr>`).join('')}</tbody></table></div></div>
+ ${said('Постоянных сто человек, в сезон сто пятьдесят. Мне нужно, чтобы от них в ежедневном режиме отчётность — порядка двадцати человек')}`};
+
+/* Табель и зарплата */
+SC.payroll=()=>`<div class="hd"><div><h2>Табель и зарплата · октябрь</h2><p>Начисление считается из того, что уже есть в системе: явки, рейсы и тонны водителей, намолот комбайнёров, гектары трактористов. Удержания — выдача населению в счёт зарплаты. Бухгалтерии не надо собирать бумажки.</p></div><div class="btns"><button class="bt" onclick="act('Ведомость выгружена в Excel и отправлена в 1С.')">⇩ Ведомость в 1С</button></div></div>
+ <div class="wid"><div><small>Постоянные</small><b>100</b><span>оклад + премия</span></div><div><small>Сезонные</small><b>50</b><span>сдельно до 31.10</span></div><div><small>Начислено за октябрь</small><b>${tg(31480000)}</b><span>на 12.10, нарастающим итогом</span></div><div><small>Удержано за выдачу</small><b class="w">${tg(1272000)}</b><span>зерно, корма, зерноотходы</span></div></div>
+ <div class="pan"><div class="tw"><table class="t"><thead><tr><th>Сотрудник</th><th>Как считается</th><th>Выработка</th><th>Начислено</th><th>Удержано</th><th>К выплате</th></tr></thead><tbody>
+ ${[['Нурбол Жаксылыков','Комбайнёр, сезонный','2 400 ₸ за тонну намолота','612 т',1468800,0],['Серик Ахметов','Водитель КамАЗа','18 ₸ за тонно-км','4 860 т·км ×18',87480*4,24000],['Ержан Нуртаев','Тракторист К-744','1 100 ₸ за га / 2 500 ₸ за рейс тюков','214 га + 38 рейсов',330400,0],['Гульнар Ахметова','Учётчик','оклад','22 дня из 22',260000,0],['Айжан Сейтова','Убойный цех','оклад + 600 ₸ за голову','58 голов',245000+34800,12000],['Ахмет Сулейменов','Механизатор фермы','оклад','12 дней из 12',140000,18000]].map(r=>`<tr><td><b>${r[0]}</b><br><small>${r[1]}</small></td><td>${r[2]}</td><td class="mono">${r[3]}</td><td class="mono">${tg(r[4])}</td><td class="mono ${r[5]?'neg':''}">${r[5]?tg(r[5]):'—'}</td><td class="mono"><b>${tg(r[4]-r[5])}</b></td></tr>`).join('')}</tbody></table></div></div>
+ ${said('От отчётов, заканчивая начислением зарплат — это всё на бумаге')}`;
+
+/* Воронки */
+let flowK='sale';
+let FLOWS={
+ sale:{n:'Продажа зерна',st:[['new','Запрос'],['price','Цена согласована'],['contract','Контракт'],['ship','Отгрузка'],['paid','Оплата']],cards:[{n:'ПЗ-031',t:'Лён 1 500 т · экспорт',m:'Алмас',sum:'≈ 330 млн ₸',st:'contract'},{n:'ПЗ-032',t:'Пшеница 3 кл. 3 000 т',m:'Нурлан',sum:'≈ 285 млн ₸',st:'ship'},{n:'ПЗ-034',t:'Ячмень 1 200 т',m:'Нурлан',sum:'≈ 86 млн ₸',st:'price'},{n:'ПЗ-035',t:'Горох 600 т',m:'Алмас',sum:'≈ 72 млн ₸',st:'new'},{n:'ПЗ-028',t:'Пшеница 4 кл. 2 000 т',m:'Нурлан',sum:'164 млн ₸',st:'paid'}]},
+ buy:{n:'Закуп запчастей',st:[['new','Заявка'],['ok','Согласовано'],['pay','Оплачено'],['road','В пути'],['in','На складе']],cards:[{n:'ЗК-218',t:'Шины КамАЗ ×4',m:'Гульнар',sum:'856 000 ₸',st:'road'},{n:'ЗК-217',t:'Масло 15W-40 ×20',m:'Гульнар',sum:'770 000 ₸',st:'in'}]},
+ rep:{n:'Ремонт техники',st:[['new','Поломка'],['diag','Дефектовка'],['wait','Ждёт запчасть'],['work','В ремонте'],['done','Готово']],cards:[{n:'РМ-064',t:'Acros №1 · вариатор барабана',m:'Талгат',sum:'стоит 3 дня',st:'wait'},{n:'РМ-063',t:'МТЗ-1221 №4 · АКБ',m:'Асхат',sum:'',st:'work'},{n:'РМ-061',t:'КамАЗ 517 · шины',m:'Мейрам',sum:'',st:'done'}]}
+};
+SC.flows=()=>{const F=FLOWS[flowK];
+ return `<div class="hd"><div><h2>Воронки и заявки</h2><p>Воронки вы настраиваете сами: название, этапы, кто отвечает. Сейчас три — продажа зерна, закуп запчастей, ремонт техники. Нужна ещё одна — кнопка «+ Воронка».</p></div><div class="btns"><button class="bt" onclick="addFlow()">+ Воронка</button></div></div>
+ <div class="seg">${Object.keys(FLOWS).map(k=>`<a class="${flowK===k?'on':''}" onclick="flowK='${k}';render()">${esc(FLOWS[k].n)} · ${FLOWS[k].cards.length}</a>`).join('')}</div>
+ <div class="kb k5">${F.st.map((s,i)=>`<div class="kc"><div class="kh"><b>${s[1]}</b><span>${F.cards.filter(c=>c.st===s[0]).length}</span></div>${F.cards.filter(c=>c.st===s[0]).map(c=>`<div class="kd" onclick="flowNext('${c.n}')"><div class="kt"><b>${c.n}</b><span class="src">${esc(c.m)}</span></div><div class="kr">${esc(c.t)}</div><div class="km">${esc(c.sum)}</div>${i<F.st.length-1?'<div class="kf"><span>нажмите — дальше по этапу</span></div>':''}</div>`).join('')||'<div class="kempty">пусто</div>'}</div>`).join('')}</div>
+ ${said('Должны быть разные виды канбан-воронок под разные деятельности, разные виды складов','Это Платон на встрече: стандартный функционал — воронки и склады добавляете сами, аналитика строится по ним.')}`};
+function flowNext(n){const F=FLOWS[flowK],c=F.cards.find(x=>x.n===n);if(!c)return;const i=F.st.findIndex(s=>s[0]===c.st);if(i<F.st.length-1){c.st=F.st[i+1][0];render();toast(n+' → '+F.st[i+1][1])}}
+function addFlow(){const n=prompt('Название воронки','Сезонный найм');if(!n)return;const k='f'+Date.now();FLOWS[k]={n,st:[['new','Новая'],['work','В работе'],['done','Готово']],cards:[]};flowK=k;render();toast('Воронка «'+esc(n)+'» добавлена. Этапы переименовываются в настройках.')}
+
+/* Обмен с 1С */
+SC.sync=()=>`<div class="hd"><div><h2>Обмен с 1С</h2><p>1С остаётся у бухгалтерии и финансового директора. Система забирает из 1С приходы и отдаёт обратно то, что происходит на местах: списания, накладные, приходы продукции, ведомость зарплаты. Двойного ввода нет.</p></div><div class="btns"><button class="bt" onclick="act('Обмен выполнен: 4 документа ушло в 1С, 1 пришло.')">Обменяться сейчас</button></div></div>
+ <div class="g2"><div class="pan"><h3>Из 1С → в систему</h3><div class="kv"><span>Приход запчастей (накладные поставщиков)</span><b>12.10 · 6 позиций</b></div><div class="kv"><span>Приход ГСМ</span><b>12.10 · 12 000 л</b></div><div class="kv"><span>Номенклатура, контрагенты</span><b>ежедневно</b></div><div class="kv"><span>Сотрудники</span><b>ежедневно</b></div></div>
+ <div class="pan"><h3>Из системы → в 1С</h3><div class="kv"><span>Списание запчастей по установке</span><b>сразу · 138 за октябрь</b></div><div class="kv"><span>Расход ГСМ по ведомости заправок</span><b>ежедневно</b></div><div class="kv"><span>Приход мяса из убойного цеха, накладные в магазины</span><b>сразу</b></div><div class="kv"><span>Реализация зерна, накладные населению</span><b>сразу</b></div><div class="kv"><span>Ведомость зарплаты</span><b>раз в месяц</b></div></div></div>
+ <p class="hint">Интеграция с 1С — отдельной строкой: 800 000 ₸. Без неё система работает так же, а документы выгружаются в 1С файлами.</p>
+ ${said('Финансовый директор сидит в 1С и видит приход','Интеграция полностью — 800 тысяч, отдельно от стандартного пакета (Платон на встрече).')}`;
+
+/* Роли и журнал */
+SC.audit=()=>`<div class="hd"><div><h2>Роли и журнал действий</h2><p>Каждый видит свой участок: заправщик — АЗС, учётчик — запчасти, агроном — поля, продавец — приём мяса. Директор и финансовый директор — всё. Любое действие записывается: кто, когда, что и с какого устройства.</p></div></div>
+ <div class="g2 g21"><div class="pan"><h3>Журнал</h3><div class="tw"><table class="t"><thead><tr><th>Когда</th><th>Кто</th><th>Раздел</th><th>Что сделал</th><th>Значение</th><th>Где</th></tr></thead><tbody>${AUDIT.map(a=>`<tr><td class="mono">${a[0]}</td><td>${a[1]}<br><small>${a[2]}</small></td><td>${a[3]}</td><td>${esc(a[4])}</td><td>${esc(a[5])}</td><td>${a[6]}</td></tr>`).join('')}</tbody></table></div></div>
+ <div class="pan"><h3>Роли</h3>${Object.entries(ROLES).map(([k,v])=>`<div class="kv"><span><b>${k}</b><small>${esc(v.note)}</small></span><b>${v.s.length} разд.</b></div>`).join('')}</div></div>`;
+
+/* Запуск и стоимость */
+SC.launch=()=>`<div class="hd"><div><h2>Запуск и стоимость</h2><p>Стандартный пакет разработки плюс интеграция с 1С. Сначала ядро — через 10 дней, потом полировка вместе с вашей командой: встречи через день, правки, утверждение. Абонплаты нет, система и код — ваши.</p></div></div>
+ <div class="pk1"><div><small>Стандартный пакет + 1С</small><b>3 300 000 ₸</b><span>2 500 000 ₸ система · 800 000 ₸ интеграция с 1С</span></div><div><small>Срок</small><b>4–6 недель</b><span>ядро — около 10 дней</span></div></div>
+ <div class="pay3"><div><small>Старт · 10%</small><b>330 000 ₸</b><span>при подписании</span></div><div><small>Ядро · 45%</small><b>1 485 000 ₸</b><span>после приёмки ядра</span></div><div><small>Сдача · 45%</small><b>1 485 000 ₸</b><span>после полировки и запуска</span></div></div>
+ <div class="mvs"><div class="mv ok"><i>1</i><b>Встреча с командой</b><span>19.10, 17:00 · Zoom · демо по экранам</span></div><div class="mv on"><i>2</i><b>Ядро · 10 дней</b><span>поля, склады, ГСМ, запчасти, убойный цех, роли</span></div><div class="mv"><i>3</i><b>Полировка · 3–4 недели</b><span>встречи через день, правки и утверждение</span></div><div class="mv"><i>4</i><b>Перенос и обучение</b><span>склады, техника, люди, остатки</span></div><div class="mv"><i>5</i><b>Запуск</b><span>планшеты на местах, отчёты онлайн</span></div></div>
+ <div class="pan"><h3>Не входит</h3><div class="kv"><span>Прикладные программы (спутниковый мониторинг посевов, расчёты по снимкам)</span><b>считаются отдельно</b></div><div class="kv"><span>Планшеты, сервер (~15 000 ₸/мес), GPS-сервис</span><b>оплачиваете напрямую</b></div></div>
+ ${said('Мне интересно, сколько это будет стоить, во-вторых, сколько времени займёт, и в-третьих — насколько это эффективно')}`;
+
+/* Формы: одни и те же — в планшете и во всплывающем окне */
+const opt=(arr,v)=>arr.map(o=>`<option value="${esc(o[0])}" ${o[0]===v?'selected':''}>${esc(o[1])}</option>`).join('');
+const gv=(p,k)=>{const e=document.getElementById(p+'_'+k);return e?(e.type==='checkbox'?e.checked:e.value.trim()):''};
+const FORMS={
+ issue:p=>`<div class="form"><label>Запчасть<select id="${p}_c">${opt(PARTS.filter(x=>x.bal>0).map(x=>[x.c,x.n+' · ост. '+x.bal]))}</select></label><label>Количество<input id="${p}_q" type="number" min="1" value="1"></label><label>На технику<select id="${p}_m">${opt(MACH.map(m=>[m.id,m.n]))}</select></label><label>Механизатор<input id="${p}_w" value="Серик Ахметов"></label></div><label class="ck"><input type="checkbox" id="${p}_set" checked> Установлено, фото старой детали прикреплено</label><button class="bt p big" onclick="doIssue('${p}')">Выдать</button>`,
+ refuel:p=>`<div class="form"><label>Техника<select id="${p}_m">${opt(MACH.map(m=>[m.n,m.n]))}</select></label><label>Топливо<select id="${p}_f">${opt(TANKS.map(t=>[t.k,t.n+' · ост. '+fmt(t.bal)+' л']))}</select></label><label>Литров<input id="${p}_l" type="number" min="1" value="150"></label><label>На какую работу<select id="${p}_w">${opt([['Вывоз зерна на элеватор','Вывоз зерна'],['Уборка','Уборка'],['Сеновал','Сеновал'],['Животноводство','Животноводство'],['Магазины','Магазины']])}</select></label></div><button class="bt p big" onclick="doFill('${p}')">Заправить</button>`,
+ trip:p=>`<div class="form"><label>Склад<select id="${p}_s">${opt(GRAIN_IDS.map(k=>[k,STO(k).n+' · '+STO(k).cr]))}</select></label><label>Элеватор<select id="${p}_e">${opt(Object.entries(ELEV))}</select></label><label>Машина<select id="${p}_t">${opt(MACH.filter(m=>m.t==='Грузовик').map(m=>[m.id,m.n]))}</select></label><label>Вес нетто на выезде, т<input id="${p}_w" type="number" step="0.01" value="24.60"></label></div><button class="bt p big" onclick="doTrip('${p}')">Отправить рейс</button>`,
+ weigh:p=>`<div class="form"><label>Животное<select id="${p}_k">${opt([['Бычок','Бычок'],['Корова','Корова'],['Овцы','Овцы']])}</select></label><label>Бирка<input id="${p}_tag" value="KZ 0412 7790"></label><label>Живой вес, кг<input id="${p}_l" type="number" value="502"></label><label>Туша, кг<input id="${p}_c" type="number" value="275"></label></div><button class="bt p big" onclick="doWeigh('${p}')">Сохранить вес</button>`,
+ op:p=>`<div class="form"><label>Поле<select id="${p}_f">${opt(FIELDS.map(f=>[f.id,f.id+' · '+f.n+' · '+CROPS[f.c][0]]),curField)}</select></label><label>Операция<select id="${p}_t">${opt(['Визит агронома','Гербицид','Фунгицид','Удобрение','Посев','Уборка'].map(x=>[x,x]))}</select></label><label>Что и норма<input id="${p}_w" value="осмотр, фото"></label><label>Техника<input id="${p}_m" value=" — "></label></div><button class="bt p big" onclick="doOp('${p}')">Сохранить с отметкой места</button>`,
+ vissue:p=>`<div class="form"><label>Житель<input id="${p}_n" value="Ахметова З."></label><label>Адрес<input id="${p}_a" value="ул. Абая, 5"></label><label>Что<select id="${p}_s">${opt([['S6','Зерноотходы'],['S3','Пшеница фуражная'],['S7','Сено, тюки'],['S4','Ячмень']])}</select></label><label>Сколько, кг<input id="${p}_q" type="number" value="300"></label><label>Основание<select id="${p}_b">${opt([['в счёт зарплаты','в счёт зарплаты'],['за наличные','за наличные'],['льгота','льгота']])}</select></label></div><button class="bt p big" onclick="doVil('${p}')">Выдать по накладной</button>`
+};
+const stamp=()=>TODAY.slice(0,5)+' '+NOW;
+const logA=(sec,what,val)=>AUDIT.unshift([stamp(),ROLES[role].n,role,sec,what,val,'планшет']);
+function doIssue(p){const pt=PT(gv(p,'c')),q=+gv(p,'q')||1,m=gv(p,'m');if(!pt||pt.bal<q){toast('На складе не хватает.');return}pt.bal-=q;const set=gv(p,'set');ISSUES.unshift({d:stamp(),c:pt.c,q,m,who:gv(p,'w')||'—',by:ROLES[role].n,st:set?'set':'given',c1:set?'ok':'wait'});logA('Запчасти','Выдача '+pt.c+' ×'+q+' → '+MC(m).n,set?'установлено':'выдано');closeM();render();toast(`${esc(pt.n)} ×${q} → ${esc(MC(m).n)}. ${set?'Списано, ушло в 1С — бухгалтерия видит.':'Ждёт отметки об установке.'} Остаток ${pt.bal}.`)}
+function doFill(p){const t=TK(gv(p,'f')),l=+gv(p,'l')||0;if(!l||t.bal<l){toast('Проверьте литры.');return}t.bal-=l;t.outL+=l;FILLS.unshift([NOW,gv(p,'m'),'—',t.k,l,gv(p,'w'),'пробег подтянется из GPS','—','—','ok']);logA('ГСМ','Заправка '+gv(p,'m'),l+' л');closeM();render();toast(`Заправлено ${l} л. В ёмкости «${t.n}» осталось ${fmt(t.bal)} л — директор видит сразу.`)}
+function doTrip(p){const s=STO(gv(p,'s')),w=+gv(p,'w')||0,m=MC(gv(p,'t'));if(!w||s.bal<w){toast('Проверьте вес.');return}s.bal-=w;s.outT+=w;const n='Р-'+(4418+TRIPS.length);TRIPS.push({n,t:NOW,tr:m.n,drv:m.drv,s:s.id,e:gv(p,'e'),farm:w,elev:null,st:'road'});logA('Отгрузка','Рейс '+n+' · '+s.n,fmt1(w)+' т');closeM();render();toast(`Рейс ${n}: ${fmt1(w)} т со склада ${s.n}. Остаток ${fmt(s.bal)} т. Когда придёт квитанция элеватора — внесите её вес.`)}
+function doWeigh(p){const l=+gv(p,'l'),c=+gv(p,'c');if(!l||!c){toast('Нужен вес.');return}const n='З-'+(1089+SLAUGHTER.length-6);SLAUGHTER.unshift({n,d:TODAY.slice(0,5),tag:gv(p,'tag'),k:gv(p,'k'),live:l,carc:c,st:'weigh',shop:''});logA('Убойный цех','Взвешено '+n,c+' кг');closeM();render();toast(`${n}: туша ${c} кг, выход ${fmt1(c/l*100)}%. Бухгалтерия видит и ставит на приход.`)}
+function doOp(p){const f=FD(gv(p,'f'));OPS[f.id].unshift([TODAY.slice(0,5),gv(p,'t'),gv(p,'w'),gv(p,'m'),ROLES[role].n==='Ерлан'?'Ерлан':f.agr,'gps']);if(gv(p,'t')==='Визит агронома')f.visit=TODAY.slice(0,5);curField=f.id;logA('Поля',gv(p,'t')+' · '+f.id,'отметка в границах поля');closeM();render();toast(`${f.id}: «${esc(gv(p,'t'))}» в истории поля. Отметка места — в границах поля ✓`)}
+function doVil(p){const s=STO(gv(p,'s')),q=+gv(p,'q')||0;if(!q){toast('Сколько выдать?');return}const t=s.id==='S7'?Math.round(q/450):q;s.bal-=q/1000;s.outT+=q/1000;if(GRAIN_IDS.includes(s.id))VIL_SEASON+=q/1000;const n='Н-'+(2232+VIL.length-5);VIL.unshift([stamp(),gv(p,'n'),gv(p,'a'),s.cr,s.id==='S7'?t:q,s.id==='S7'?'тюка':'кг',gv(p,'b'),n,ROLES[role].n]);logA('Население','Накладная '+n,q+' кг, '+gv(p,'b'));closeM();render();toast(`Накладная ${n}. ${gv(p,'b')==='в счёт зарплаты'?'Удержание попадёт в расчёт зарплаты.':'Остаток склада обновлён.'}`)}
+
+/* Карточки */
+const CARD={};
+CARD.field=id=>{const f=FD(id);curField=id;return [`${f.id} · ${esc(f.n)}`,`${fmt(f.ha)} га · ${CROPS[f.c][0]} · агроном ${f.agr}`,`<div class="wid w3"><div><small>Урожайность</small><b>${f.y?fmt1(f.y)+' ц/га':'пар'}</b><span>${f.st==='harv'?'убрано '+f.prog+'%':f.c==='par'?'отдыхает':'убрано'}</span></div><div><small>Собрано</small><b>${fmt(harvT(f))} т</b><span>по рейсам с поля</span></div><div><small>Агроном был</small><b>${f.visit}</b><span>отметка в поле ✓</span></div></div>${FIELD_NOTE[id]?`<div class="pin">${FIELD_NOTE[id]}</div>`:''}<h4 class="mh4">История поля</h4>${OPS[id].map(o=>`<div class="evt"><span class="mono">${o[0]}</span><b>${o[1]}</b><span>${esc(o[2])}<em> · ${esc(o[3])} · ${o[4]}</em> ${o[5]==='gps'?'':tag('нет отметки','w')}</span></div>`).join('')}<div class="btns l" style="margin-top:10px"><button class="bt p" onclick="closeM();tabMode='op';card('op','${id}')">+ Операция</button></div>`]};
+CARD.op=id=>{curField=id||curField;return ['Операция в поле','Агроном вносит с планшета — место отмечается автоматически',FORMS.op('md')]};
+CARD.issue=()=>['Выдать запчасть','Учётчик · склад запчастей',FORMS.issue('md')];
+CARD.refuel=()=>['Заправка','Заправщик · АЗС',FORMS.refuel('md')];
+CARD.trip=()=>['Рейс на элеватор','Весовщица · вес на выезде',FORMS.trip('md')];
+CARD.weigh=()=>['Взвешивание туши','Убойный цех',FORMS.weigh('md')];
+CARD.vissue=()=>['Выдача населению','Накладная из планшета',FORMS.vissue('md')];
+CARD.fuelin=()=>['Приход топлива','Накладная поставщика — или подтянется из 1С',`<div class="form"><label>Топливо<select id="fi_f">${opt(TANKS.map(t=>[t.k,t.n]))}</select></label><label>Литров<input id="fi_l" type="number" value="10000"></label></div><button class="bt p" onclick="fuelIn()">Принять</button>`];
+function fuelIn(){const t=TK(gv('fi','f')),l=+gv('fi','l')||0;if(t.bal+l>t.cap){toast('Не поместится в ёмкость.');return}t.bal+=l;t.inL+=l;logA('ГСМ','Приход '+t.n,fmt(l)+' л');closeM();render();toast(`Принято ${fmt(l)} л. В ёмкости ${fmt(t.bal)} л.`)}
+CARD.newstore=()=>['Новый склад','Тип, вместимость, что хранится',`<div class="form"><label>Название<input id="ns_n" value="Склад №8"></label><label>Тип<select id="ns_t">${opt([['ангар','ангар'],['напольный','напольный'],['силос','силос'],['открытый','открытый']])}</select></label><label>Что хранится<input id="ns_c" value="Подсолнечник"></label><label>Вместимость, т<input id="ns_cap" type="number" value="3000"></label></div><button class="bt p" onclick="newStore()">Добавить</button>`];
+function newStore(){STORES.push({id:'S'+(STORES.length+1),n:gv('ns','n'),t:gv('ns','t'),cr:gv('ns','c'),cap:+gv('ns','cap')||1000,bal:0,inT:0,outT:0,moist:0});closeM();render();toast('Склад добавлен — появился на пульте и в отчётах.')}
+CARD.elev=n=>{const t=TRIPS.find(x=>x.n===n);return ['Квитанция элеватора · '+n,`${esc(t.tr)} · отправлено ${fmt1(t.farm)} т`,`<div class="form"><label>Принято элеватором, т<input id="el_w" type="number" step="0.01" value="${(t.farm-0.04).toFixed(2)}"></label><label>№ квитанции<input id="el_n" value="КВ-77${n.slice(-2)}"></label></div><button class="bt p" onclick="elevDo('${n}')">Сохранить</button>`]};
+function elevDo(n){const t=TRIPS.find(x=>x.n===n),w=+gv('el','w');t.elev=w;t.st=t.farm-w>0.3?'diff':'ok';logA('Отгрузка','Квитанция по '+n,fmt1(w)+' т');closeM();render();toast(t.st==='diff'?`Расхождение ${fmt1(w-t.farm)} т — финансовый директор получил уведомление.`:'Вес сошёлся. Рейс закрыт.')}
+CARD.mach=id=>{const m=MC(id),is=ISSUES.filter(x=>x.m===id),fl=FILLS.filter(f=>f[1]===m.n);return [esc(m.n),`${m.t} · ${esc(m.drv)} · ${m.run}`,`<div class="pin">${esc(m.to)}</div><h4 class="mh4">Запчасти</h4>${is.map(x=>`<div class="evt"><span class="mono">${x.d}</span><b>${esc((PT(x.c)||{n:x.c}).n)} ×${x.q}</b><span>${x.st==='set'?'установлено, фото':'выдано, ждёт установки'}</span></div>`).join('')||'<p class="hint">В этом месяце не ставили.</p>'}<h4 class="mh4">Заправки сегодня</h4>${fl.map(f=>`<div class="evt"><span class="mono">${f[0]}</span><b>${f[4]} л ${FUELN[f[3]]}</b><span>${esc(f[5])} · ${f[7]} при норме ${f[8]}</span></div>`).join('')||'<p class="hint">Сегодня не заправлялась.</p>'}`]};
+function card(k,id){const f=CARD[k];if(!f)return;let r;try{r=f(id)}catch(e){toast('Карточка не найдена');return}openM(r[0],r[1],r[2])}
+function act(m){toast(m||'В рабочей системе здесь откроется форма.')}
+function searchDemo(v){v=(v||'').toLowerCase();if(!v)return;const f=FIELDS.find(x=>(x.id+' '+x.n).toLowerCase().includes(v));if(f){go('fields');card('field',f.id);return}const m=MACH.find(x=>x.n.toLowerCase().includes(v));if(m){go('fleet');card('mach',m.id);return}toast('Ищите поле (П-07), машину (512 ABC), склад или накладную.')}
+
+/* Каркас */
+function renderRoles(){const r=document.getElementById('roles');if(r)r.innerHTML=Object.entries(ROLES).map(([k,v])=>`<div class="role" onclick="enter('${esc(k)}')"><div class="rav">${esc(v.av)}</div><div><b>${esc(k)}</b><span>${esc(v.n)} · ${esc(v.note)}</span></div></div>`).join('');
+ const s=document.getElementById('rsel');if(s)s.innerHTML=Object.keys(ROLES).map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join('');}
+const allowed=k=>ROLES[role].s.indexOf(k)>=0;
+function enter(k){role=ROLES[k]?k:'Директор';document.getElementById('gate').classList.add('hidden');document.getElementById('app').classList.remove('hidden');const s=document.getElementById('rsel');if(s)s.value=role;document.getElementById('me').textContent=ROLES[role].av;if(!allowed(cur))cur=ROLES[role].s[0];build();toast(`Вы вошли как «${esc(role)}» · ${esc(ROLES[role].n)}.`)}
+function switchRole(k){role=k;document.getElementById('me').textContent=ROLES[role].av;const s=document.getElementById('rsel');if(s)s.value=role;if(!allowed(cur))cur=ROLES[role].s[0];build();toast(`Роль: ${esc(role)}. ${esc(ROLES[role].note)}.`)}
+function buildRail(){document.getElementById('rail').innerHTML=''}
+function buildSub(){document.getElementById('sub').innerHTML=`<div class="sbh"><span class="blogo">${LOGO_I}</span><b class="bname">ДАЛА</b></div>`+SEC.filter(s=>s.sub.some(x=>allowed(x[0]))).map(s=>`<h4>${s.n}</h4>`+s.sub.filter(x=>allowed(x[0])).map(x=>`<a class="${x[0]===cur?'on':''}" onclick="go('${x[0]}')">${esc(x[1])}${x[0]==='loss'?'<em>3</em>':''}</a>`).join('')).join('');
+ let bn=document.getElementById('bnav');if(!bn){bn=document.createElement('nav');bn.id='bnav';document.getElementById('app').appendChild(bn)}bn.innerHTML=[['dash','Пульт'],['grain','Склады'],['fuel','ГСМ'],['tablet','Планшет'],['fields','Поля']].filter(x=>allowed(x[0])).map(x=>`<a class="${cur===x[0]?'on':''}" onclick="go('${x[0]}')">${x[1]}</a>`).join('')}
+function build(){buildRail();buildSub();render()}
+function render(){const f=SC[cur]||SC.dash;document.getElementById('ttl').textContent=SUBN[cur]||'Дала';document.getElementById('content').innerHTML=`<div class="screen">${f()}</div>`;buildSub();try{history.replaceState(null,'','?s='+cur)}catch(e){}}
+function go(k){if(!allowed(k)){toast('Этой роли раздел недоступен — так работают права. Переключите роль справа вверху.');return}cur=k;build();const c=document.querySelector('.content');if(c)c.scrollTop=0}
+function openM(t,s,b){document.getElementById('mt').innerHTML=t;document.getElementById('ms').innerHTML=s;document.getElementById('mbody').innerHTML=b;document.getElementById('mbg').classList.add('show');document.querySelector('.modal').scrollTop=0}
+function closeM(){document.getElementById('mbg').classList.remove('show')}
+let tt=null;function toast(m){const t=document.getElementById('toast');t.innerHTML=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),6400)}
+function applyTheme(){document.body.classList.toggle('dark',theme==='dark')}
+function toggleTheme(){theme=theme==='dark'?'light':'dark';applyTheme();toast(theme==='dark'?'Тёмная тема.':'Светлая тема.')}
+const TOUR=[
+ ['dash','1 · Пульт директора: зерно по складам, отгрузка, ГСМ, скот, техника — онлайн.'],
+ ['loss','2 · Сверка: где расходится зерно, топливо и запчасти — по шагам.'],
+ ['fields','3 · Карта полей: у каждого поля своя история. Нажмите на клетку.'],
+ ['agro','4 · Агроном вносит операции с планшета, место отмечается.'],
+ ['grain','5 · Склады, ангары, сеновал — остаток сейчас. Склад добавляется кнопкой.'],
+ ['ship','6 · Рейсы на элеватор: наш вес против квитанции элеватора.'],
+ ['fuel','7 · ГСМ: остаток в ёмкостях, заправки, расход против нормы по GPS.'],
+ ['parts','8 · Запчасти: выдал → установил → списано в 1С.'],
+ ['tablet','9 · Планшет на местах: попробуйте выдать запчасть или заправить машину.'],
+ ['slaughter','10 · Убойный цех → бухгалтерия → магазин без бумажек.'],
+ ['village','11 · Выдача населению по накладным, удержание из зарплаты.'],
+ ['daily','12 · Ежедневные отчёты 20 ответственных.'],
+ ['launch','13 · Стоимость: 2,5 млн + 1С 800 тыс., 4–6 недель, 10 / 45 / 45.']
+];
+let ti=-1,tRun=false;
+function tour(){if(tRun){stopTour();return}tRun=true;ti=-1;document.getElementById('tourBtn').textContent='■';step()}
+function step(){if(!tRun)return;ti++;if(ti>=TOUR.length){stopTour();toast('Сценарий закончен. Всё кликается.');return}const [k,m]=TOUR[ti];if(!allowed(k)){step();return}cur=k;build();toast(m);setTimeout(step,ti===0?6500:7200)}
+function stopTour(){tRun=false;ti=-1;const b=document.getElementById('tourBtn');if(b)b.textContent='▶'}
+(function(){renderRoles();applyTheme();const s=document.getElementById('rsel');if(s)s.addEventListener('change',e=>switchRole(e.target.value));document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeM();stopTour()}});
+ let q='';try{q=new URLSearchParams(location.search).get('s')||''}catch(e){}
+ if(q&&SECOF[q]){const r=Object.keys(ROLES).find(k=>ROLES[k].s.indexOf(q)>=0);if(r){cur=q;enter(r)}}})();
+
+</script>
+</body>
+</html>
