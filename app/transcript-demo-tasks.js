@@ -1,4 +1,4 @@
-import {initProposalWhatsApp} from './proposal-whatsapp.js?v=20261021-ernar';
+import {initProposalWhatsApp} from './proposal-whatsapp.js?v=20261021-adddev';
 import {transcriptText} from './zoom-crm.js?v=20261008-transcript-recovery';
 const BASE='https://pllato-elc-worker.uurraa.workers.dev';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

@@ -5757,6 +5757,51 @@ async function handleWaSend(request, env) {
   return json({ ok: true, idMessage: result.idMessage, chatId: result.chatDocId }, 200, request);
 }
 
+// POST /api/wa/group/add-admin { chatId: "wa:{instance}:{groupId}@g.us", instanceId, phone }
+// Добавляет участника в WhatsApp-группу клиента и назначает администратором (Green-API
+// addGroupParticipant + setGroupAdmin). Нужен, например, чтобы при отправке демо после
+// предоплаты в рабочую группу сразу попадал глава разработки. Наш номер должен быть админом группы.
+async function handleWaGroupAddAdmin(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+  let chatId = String(body.chatId || '').trim();
+  let instanceId = String(body.instanceId || '').trim();
+  const participant = waChatIdFromPhone(body.phone || '');
+  if (!participant) return json({ error: 'phone required' }, 400, request);
+  if (chatId.startsWith('wa:')) {
+    const saved = await env.DB.prepare("SELECT instance_id, chat_id FROM wa_chats WHERE id = ? LIMIT 1").bind(chatId).first();
+    if (!saved?.chat_id) return json({ error: 'Группа не найдена. Обновите группы и выберите заново.' }, 409, request);
+    if (instanceId && instanceId !== String(saved.instance_id)) return json({ error: 'Канал не совпадает с выбранной группой.' }, 409, request);
+    chatId = saved.chat_id; instanceId = String(saved.instance_id || '');
+  }
+  if (!chatId.endsWith('@g.us')) return json({ error: 'Это не группа WhatsApp.' }, 400, request);
+  const channel = instanceId ? await getWaChannelByInstance(env, instanceId) : null;
+  if (!channel || !channel.active) return json({ error: 'Канал WhatsApp не найден или отключён.' }, 503, request);
+  const baseUrl = `${greenApiHost(channel.api_url)}/waInstance${channel.id_instance}`;
+  const call = async (method, payload) => {
+    const r = await fetch(`${baseUrl}/${method}/${channel.api_token_instance}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(20000), body: JSON.stringify(payload) });
+    const t = (await r.text()).slice(0, 500);
+    let d; try { d = t ? JSON.parse(t) : {}; } catch { d = { raw: t }; }
+    if (r.status < 200 || r.status >= 300) throw new Error(`${method} HTTP ${r.status}: ${t.slice(0, 200)}`);
+    return d;
+  };
+  let added = false, admin = false;
+  try {
+    const a = await call('addGroupParticipant', { groupId: chatId, participantChatId: participant });
+    added = !!a.addParticipant;
+    // Если участник уже в группе, addParticipant=false — всё равно пробуем назначить админом.
+    const b = await call('setGroupAdmin', { groupId: chatId, participantChatId: participant });
+    admin = !!b.setGroupAdmin;
+  } catch (e) {
+    return json({ error: 'green-api: ' + e.message, added, admin }, 502, request);
+  }
+  await auditLog(env, me, "wa_group_add_admin", "wa_chat", waChatDocId(channel.id_instance, chatId), { participant, added, admin });
+  return json({ ok: added || admin, added, admin }, 200, request);
+}
+
 // ── Отложенные WhatsApp-сообщения ──────────────────────────────────────
 // Сотрудник пишет сообщение и ставит время → строка в wa_scheduled_messages
 // со status='pending'. Durable Object запускает отправку; cron страхует сбои.
@@ -12736,6 +12781,9 @@ export default {
     }
     if (path === "/api/wa/send" && request.method === "POST") {
       return handleWaSend(request, env);
+    }
+    if (path === "/api/wa/group/add-admin" && request.method === "POST") {
+      return handleWaGroupAddAdmin(request, env);
     }
     // /api/wa/schedule — отложенные сообщения
     if (path === "/api/wa/schedule" && request.method === "POST") {
