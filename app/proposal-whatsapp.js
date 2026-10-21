@@ -1,5 +1,6 @@
 const BASE = 'https://pllato-elc-worker.uurraa.workers.dev';
 const CAPTION = 'В продолжение встречи, высылаем вам подготовленное КП.';
+const CAPTION_DEMO = 'Демо системы одним файлом: скачайте и откройте в браузере — работает без интернета. Выберите роль на входе и прокликайте все экраны.';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 export function initProposalWhatsApp({getToken, getDeals}) {
@@ -16,24 +17,26 @@ export function initProposalWhatsApp({getToken, getDeals}) {
     for (const card of document.querySelectorAll('.tool-card[data-app-id]')) {
       for (const link of card.querySelectorAll('a[href]')) {
         const url = new URL(link.href);
-        if (link.dataset.proposalMounted || url.origin !== 'https://pllato.kz' || !/\.pdf$/i.test(url.pathname)) continue;
-        if (!/(?:\bkp\b|[_/-]kp[_/.-]|КП|Коммерческое предложение)/i.test(decodeURIComponent(url.pathname) + ' ' + link.textContent)) continue;
+        if (link.dataset.proposalMounted || url.origin !== 'https://pllato.kz') continue;
+        const demo = /-standalone\.html$/i.test(url.pathname);
+        if (!demo && !/\.pdf$/i.test(url.pathname)) continue;
+        if (!demo && !/(?:\bkp\b|[_/-]kp[_/.-]|КП|Коммерческое предложение)/i.test(decodeURIComponent(url.pathname) + ' ' + link.textContent)) continue;
         link.dataset.proposalMounted = '1';
         const button = document.createElement('button');
         button.type = 'button'; button.dataset.proposalWa = ''; button.className = 'proposal-wa-button';
         button.textContent = 'Отправить в WhatsApp';
-        button.onclick = () => open(card, url);
+        button.onclick = () => open(card, url, demo);
         link.after(button);
       }
     }
   }
-  function open(card, url) {
+  function open(card, url, demo) {
     if (document.querySelector('.proposal-wa-dialog')) return;
     const deals = [...new Map(getDeals(card).filter(d => d.id).map(d => [d.id, d])).values()];
     const dialog = document.createElement('dialog');
     dialog.className = 'proposal-wa-dialog';
     const fileName = decodeURIComponent(url.pathname.split('/').pop());
-    dialog.innerHTML = `<form><header><h3>Отправить КП в WhatsApp</h3><button type="button" data-close aria-label="Закрыть">×</button></header><p class="proposal-wa-project">${esc(card.querySelector('h3')?.textContent || '')}</p><a class="proposal-wa-file" href="${esc(url.href)}" target="_blank" rel="noopener">${esc(fileName)} ↗</a><label>Сделка CRM<select name="deal"><option value="">Выберите сделку</option>${deals.map(d => `<option value="${esc(d.id)}">${esc(d.title || d.id)}</option>`).join('')}</select></label><label>Группа клиента · рабочий канал<select name="recipient" disabled><option value="">Загрузка…</option></select></label><button type="button" data-refresh>Обновить группы</button><label>Подпись<textarea name="caption" rows="3">${CAPTION}</textarea></label><p role="status" aria-live="polite"></p><footer><button type="button" data-close>Отмена</button><button type="submit" data-send disabled>Отправить PDF</button></footer></form>`;
+    dialog.innerHTML = `<form><header><h3>${demo ? 'Отправить демо в WhatsApp' : 'Отправить КП в WhatsApp'}</h3><button type="button" data-close aria-label="Закрыть">×</button></header><p class="proposal-wa-project">${esc(card.querySelector('h3')?.textContent || '')}</p><a class="proposal-wa-file" href="${esc(url.href)}" target="_blank" rel="noopener">${esc(fileName)} ↗</a><label>Сделка CRM<select name="deal"><option value="">Выберите сделку</option>${deals.map(d => `<option value="${esc(d.id)}">${esc(d.title || d.id)}</option>`).join('')}</select></label><label>Группа клиента · рабочий канал<select name="recipient" disabled><option value="">Загрузка…</option></select></label><button type="button" data-refresh>Обновить группы</button><label>Подпись<textarea name="caption" rows="3">${demo ? CAPTION_DEMO : CAPTION}</textarea></label><p role="status" aria-live="polite"></p><footer><button type="button" data-close>Отмена</button><button type="submit" data-send disabled>${demo ? 'Отправить файл' : 'Отправить PDF'}</button></footer></form>`;
     document.body.append(dialog);
     const form = dialog.querySelector('form'), deal = form.elements.deal, recipient = form.elements.recipient;
     const send = dialog.querySelector('[data-send]'), status = dialog.querySelector('[role=status]'), refresh = dialog.querySelector('[data-refresh]');
@@ -42,7 +45,7 @@ export function initProposalWhatsApp({getToken, getDeals}) {
     function update() {
       const receipt = sent.get(key());
       send.disabled = sending || !chats.some(c => c.id === recipient.value) || !!receipt;
-      send.textContent = receipt ? 'Отправлено ✓' : 'Отправить PDF';
+      send.textContent = receipt ? 'Отправлено ✓' : (demo ? 'Отправить файл' : 'Отправить PDF');
       status.textContent = receipt ? 'Отправлено в эту группу · ' + receipt : '';
     }
     async function load(force = false) {
@@ -76,7 +79,7 @@ export function initProposalWhatsApp({getToken, getDeals}) {
       if (sending || !chat || sent.has(key())) return;
       sending = true; const receiptKey = key();
       for (const control of form.querySelectorAll('button,select,textarea')) control.disabled = true;
-      status.textContent = 'Отправляем PDF…';
+      status.textContent = demo ? 'Отправляем файл демо…' : 'Отправляем PDF…';
       try {
         const result = await request('/api/wa/send', {method: 'POST', body: JSON.stringify({chatId: chat.id, instanceId: String(chat.instance_id), mediaUrl: url.href, fileName, text: form.elements.caption.value.trim()})});
         if (!result.ok || !result.idMessage) throw Error('Сервис не подтвердил отправку. Проверьте переписку перед повтором.');
