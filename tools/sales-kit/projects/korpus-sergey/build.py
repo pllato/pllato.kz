@@ -41,7 +41,7 @@ gate=f'''<section class="gate" id="gate">
   <p style="margin-top:15px">Все лиды из звонков, WhatsApp, Telegram, MAX, Instagram и сайта — в одной программе. Сделка не перейдёт на следующий этап, пока не заполнено обязательное. Просрочка — уведомление менеджеру до, руководителю после, и обязательное объяснение. С нужного этапа заявка уходит в производство или закупку и возвращается с ответом. Счета, реализации и остатки — в обмене с 1С, без повторного ввода.</p>
   <p style="color:#ff8a7a">Система ваша: без подписки за каждого из 50–70 пользователей.</p>
   <div class="gstat">
-   <div><small>Экранов</small><b class="a">16</b></div>
+   <div><small>Экранов</small><b class="a">17</b></div>
    <div><small>Ролей</small><b>5</b></div>
    <div><small>Срок</small><b>4–6 недель</b></div>
    <div><small>С 1С</small><b>3,3 млн ₸</b></div>
@@ -66,6 +66,6 @@ rep('<script src="/app/uss.js"></script>','<script src="/app/korpus-sergey.js"><
 css=open(os.path.join(D,'style.css'),encoding='utf-8').read()
 rep('</style>',css+'\n</style>')
 open(ROOT+'/app/korpus-sergey.html','w',encoding='utf-8').write(s)
-js=''.join(open(os.path.join(D,f'k{i}.js'),encoding='utf-8').read() for i in range(1,5))
+js=''.join(open(os.path.join(D,f),encoding='utf-8').read() for f in ['k1.js','k2.js','k3.js','k3x.js','k4.js'])
 open(ROOT+'/app/korpus-sergey.js','w',encoding='utf-8').write(js)
 print('ok',len(s),len(js))
