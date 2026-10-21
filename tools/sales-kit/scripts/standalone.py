@@ -63,8 +63,10 @@ def link(name):
     j = s.find('<div class="tool-dd-menu">', i)
     if j < 0:
         return 'нет блока материалов'
-    j += len('<div class="tool-dd-menu">')
-    line = '\n          <a href="%s" download target="_blank" rel="noopener"><span class="dot"></span>⬇ Автономный файл демо (один HTML, без интернета)</a>' % href
+    j = s.find('</div></details>', j)  # в конец списка материалов, рядом с файлами КП и договоров
+    if j < 0:
+        return 'нет конца блока материалов'
+    line = '          <a href="%s" download target="_blank" rel="noopener"><span class="dot"></span>⬇ Автономный файл демо (один HTML, без интернета)</a>\n' % href
     s = s[:j] + line + s[j:]
     open(p, 'w', encoding='utf-8').write(s)
     return 'ссылка добавлена'
