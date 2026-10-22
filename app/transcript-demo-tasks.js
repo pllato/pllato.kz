@@ -6,14 +6,14 @@ const when=v=>v?new Date(v).toLocaleString('ru-RU',{timeZone:'Asia/Almaty',dateS
 const crm=id=>'https://pllato.kz/team.html#deal/'+encodeURIComponent(id);
 export function initTranscriptDemoTasks({getToken}){
  let items=[],loaded=false,busy=false,error='',history=false,olderOpen=false;const texts=new Map();
- initProposalWhatsApp({getToken,getDeals:card=>{const deals=items.filter(t=>t.project_id===card.dataset.appId).map(t=>({id:t.deal_id,title:t.client}));if(card.dataset.crmDealId&&!deals.some(d=>d.id===card.dataset.crmDealId))deals.push({id:card.dataset.crmDealId,title:'Связанная сделка'});return deals;}});
+ initProposalWhatsApp({getToken,getDeals:card=>{const deals=items.filter(t=>t.project_id===card.dataset.appId).map(t=>({id:t.deal_id,title:t.client}));if(card.dataset.crmDealId&&!deals.some(d=>d.id===card.dataset.crmDealId))deals.push({id:card.dataset.crmDealId,title:card.dataset.crmDealTitle||'Связанная сделка'});return deals;}});
  const roots=()=>[...document.querySelectorAll('[data-transcript-tasks]')];
  async function request(path,options={}){const token=getToken();if(!token)throw Error('Войдите в App');const r=await fetch(BASE+path,{...options,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},cache:'no-store'});if(!r.ok){const e=await r.json().catch(()=>({}));throw Error(e.error||'Ошибка загрузки '+r.status);}return r;}
  function cards(){return [...document.querySelectorAll('.tool-card[data-app-id]')];}
  function paintLinks(){for(const card of cards()){
    card.querySelector('[data-transcript-crm-link]')?.remove();
    const linked=items.filter(t=>t.project_id===card.dataset.appId);const id=card.dataset.crmDealId;
-   const deals=new Map(linked.map(t=>[t.deal_id,t.client]));if(id&&!deals.has(id))deals.set(id,'Связанная сделка');if(!deals.size)continue;
+   const deals=new Map(linked.map(t=>[t.deal_id,t.client]));if(id&&!deals.has(id))deals.set(id,card.dataset.crmDealTitle||'Связанная сделка');if(!deals.size)continue;
    const block=document.createElement('div');block.dataset.transcriptCrmLink='';block.className='project-crm-links';
    block.innerHTML=[...deals].map(([id,title])=>`<div class="project-crm-row"><details><summary title="${esc(title)}"><span>${esc(title)}</span></summary><div class="project-crm-title">${esc(title)}</div></details><a href="${esc(crm(id))}" target="_blank" rel="noopener" aria-label="Открыть сделку CRM: ${esc(title)}">CRM ↗</a></div>`).join('');card.append(block);
  }}
