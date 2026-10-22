@@ -2529,6 +2529,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
             <a class="is-pdf" href="app/kp-uss.pdf" target="_blank" rel="noopener"><span class="dot"></span>КП · 2 500 000 ₸ · 10/45/45 · PDF 12 страниц</a>
             <a href="app/schet-uss-1.html" target="_blank" rel="noopener"><span class="dot"></span>Счёт № USS-С-2026-01 от 23.09 · предоплата 10% · 250 000 ₸ · ИП USS Алина, реквизиты заполнены</a>
             <a class="is-pdf" href="app/schet-uss-1.pdf" target="_blank" rel="noopener"><span class="dot"></span>Счёт на предоплату · PDF</a>
+            <a href="app/uss-standalone.html" download target="_blank" rel="noopener"><span class="dot"></span>⬇ Автономный файл демо (один HTML, без интернета)</a>
           </div>
         </details>
       </div>
@@ -8292,8 +8293,7 @@ function leadAnalyticsMarketingRows(marketing){
           return `<details class="la-creative"><summary class="la-level-summary"><div class="la-level-name"><div class="eyebrow">Креатив</div><div class="name">${mEsc(creative.label||'Креатив не определён')}</div><div class="meta">${mEsc(creativeMeta||'Нажмите, чтобы увидеть лиды')}</div></div>${leadAnalyticsLevelNumbers(creative)}</summary>${leadAnalyticsDealRows(creative)}</details>`;
         }).join('');
         const campaignMeta=[campaign.campaignId&&`ID: ${campaign.campaignId}`].filter(Boolean).join(' · ');
-        return `<details class="la-campaign"><summary class="la-level-summary"><div class="la-level-name"><div class="eyebrow">Кампания</div><div class="name">${mEsc(campaign.label||'Кампания не определена')}</div><div class="meta">${mEsc(campaignMeta||'Креативы и результаты кампании')}</div></div>${leadAnalyticsLevelNumbers(campaign)}</summary><div class="la-campaign-body">${creatives||'<div class="la-zero">Креативов в выбранном периоде нет.</div>'}          <a href="app/uss-standalone.html" download target="_blank" rel="noopener"><span class="dot"></span>⬇ Автономный файл демо (один HTML, без интернета)</a>
-</div></details>`;
+        return `<details class="la-campaign"><summary class="la-level-summary"><div class="la-level-name"><div class="eyebrow">Кампания</div><div class="name">${mEsc(campaign.label||'Кампания не определена')}</div><div class="meta">${mEsc(campaignMeta||'Креативы и результаты кампании')}</div></div>${leadAnalyticsLevelNumbers(campaign)}</summary><div class="la-campaign-body">${creatives||'<div class="la-zero">Креативов в выбранном периоде нет.</div>'}</div></details>`;
       }).join('');
       const accountMeta=account.accountId?`ID кабинета: ${account.accountId}`:'Кампании и креативы кабинета';
       return `<details class="la-account" open><summary class="la-level-summary"><div class="la-level-name"><div class="eyebrow">Рекламный кабинет</div><div class="name">${mEsc(account.label||'Кабинет не определён')}</div><div class="meta">${mEsc(accountMeta)}</div></div>${leadAnalyticsLevelNumbers(account)}</summary><div class="la-account-body">${campaigns||'<div class="la-zero">В выбранном периоде лидов из этого кабинета нет.</div>'}</div></details>`;

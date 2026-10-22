@@ -63,9 +63,11 @@ def link(name):
     j = s.find('<div class="tool-dd-menu">', i)
     if j < 0:
         return 'нет блока материалов'
-    j = s.find('</div></details>', j)  # в конец списка материалов, рядом с файлами КП и договоров
-    if j < 0:
+    m = re.compile(r'</div>\s*</details>').search(s, j)  # конец списка материалов (в старых карточках — с переносом строки)
+    nxt = s.find('class="tool-card"', i)
+    if not m or (nxt > 0 and m.start() > nxt):
         return 'нет конца блока материалов'
+    j = s.rfind('\n', 0, m.start()) + 1 if s[s.rfind('\n', 0, m.start()) + 1:m.start()].strip() == '' else m.start()
     line = '          <a href="%s" download target="_blank" rel="noopener"><span class="dot"></span>⬇ Автономный файл демо (один HTML, без интернета)</a>\n' % href
     s = s[:j] + line + s[j:]
     open(p, 'w', encoding='utf-8').write(s)
