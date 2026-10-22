@@ -5761,6 +5761,37 @@ async function handleWaSend(request, env) {
 // Добавляет участника в WhatsApp-группу клиента и назначает администратором (Green-API
 // addGroupParticipant + setGroupAdmin). Нужен, например, чтобы при отправке демо после
 // предоплаты в рабочую группу сразу попадал глава разработки. Наш номер должен быть админом группы.
+// GET /api/wa/groups/search?q= — группы WhatsApp активных каналов по названию (для ручной привязки к сделке).
+async function handleWaGroupSearch(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const q = String(new URL(request.url).searchParams.get('q') || '').trim().slice(0, 80);
+  const { results } = await env.DB.prepare(
+    `SELECT c.id, c.chat_id, c.instance_id, c.name, c.deal_id FROM wa_chats c JOIN wa_channels ch ON CAST(ch.id_instance AS TEXT) = CAST(c.instance_id AS TEXT) AND ch.active = 1
+     WHERE c.is_group = 1 AND c.chat_id LIKE '%@g.us' AND (? = '' OR c.name LIKE ?) ORDER BY c.last_message_at DESC LIMIT 30`
+  ).bind(q, '%' + q + '%').all();
+  return json({ items: results || [] }, 200, request);
+}
+
+// POST /api/wa/chats/link-deal { chatId: "wa:…", dealId } — привязать группу WhatsApp к сделке (dealId пустой — отвязать).
+async function handleWaLinkChatDeal(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({ error: auth.error }, auth.status, request);
+  const me = await resolveCanonicalUser(env, auth.claims);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "invalid json body" }, 400, request); }
+  const chatId = String(body.chatId || '').trim(), dealId = String(body.dealId || '').trim();
+  const chat = await env.DB.prepare("SELECT id, chat_id, deal_id FROM wa_chats WHERE id = ? AND is_group = 1 LIMIT 1").bind(chatId).first();
+  if (!chat?.chat_id?.endsWith('@g.us')) return json({ error: 'Группа не найдена.' }, 404, request);
+  for (const id of [dealId, chat.deal_id].filter(Boolean)) {
+    const access = dealAccessSql(me);
+    const deal = await env.DB.prepare('SELECT id FROM deals WHERE id = ?' + access.where).bind(id, ...access.params).first();
+    if (!deal) return json({ error: 'Нет доступа к сделке ' + id }, 403, request);
+  }
+  await env.DB.prepare("UPDATE wa_chats SET deal_id = ?, updated_at = datetime('now') WHERE id = ?").bind(dealId || null, chatId).run();
+  return json({ ok: true, chatId, dealId: dealId || null }, 200, request);
+}
+
 async function handleWaGroupAddAdmin(request, env) {
   const auth = await requireAuthFlexible(request, env);
   if (auth.error) return json({ error: auth.error }, auth.status, request);
@@ -12781,6 +12812,12 @@ export default {
     }
     if (path === "/api/wa/send" && request.method === "POST") {
       return handleWaSend(request, env);
+    }
+    if (path === "/api/wa/groups/search" && request.method === "GET") {
+      return handleWaGroupSearch(request, env);
+    }
+    if (path === "/api/wa/chats/link-deal" && request.method === "POST") {
+      return handleWaLinkChatDeal(request, env);
     }
     if (path === "/api/wa/group/add-admin" && request.method === "POST") {
       return handleWaGroupAddAdmin(request, env);
