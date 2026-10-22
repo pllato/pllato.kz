@@ -1,4 +1,11 @@
-# CF Pages склеивает совпадающие правила, поэтому без /* — перечисляем пути явно.
+# Запрет встраивания CRM в чужие страницы (кликджекинг: сессия в localStorage работает и внутри iframe).
+# 'self' — свои фреймы разрешены. Правило /* склеивается с остальными, но заголовки тут другие —
+# Cache-Control ниже это не задевает.
+/*
+  X-Frame-Options: SAMEORIGIN
+  Content-Security-Policy: frame-ancestors 'self'
+
+# CF Pages склеивает совпадающие правила, поэтому Cache-Control — без /*, пути перечислены явно.
 # Не-versioned (должны быть свежими, чтобы подхватывать изменения):
 /
   Cache-Control: public, max-age=0, must-revalidate

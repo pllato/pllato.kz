@@ -17,6 +17,9 @@ const el = (h)=>{const t=document.createElement('template');t.innerHTML=h.trim()
 const ic = (id,cls='')=>`<svg class="svg-i ${cls}"><use href="#${id}"/></svg>`;
 // экранирование пользовательских/1С-данных при вставке в HTML (текст и атрибуты в "")
 const esc = (s)=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// Адрес из данных для href/src: только http(s). esc() экранирует кавычки, но javascript:/data: пропускает —
+// а ссылки в рекламной плашке и в посте Instagram приходят от отправителя сообщения.
+const httpUrl = (u)=>{ const s=String(u==null?'':u).trim(); return /^https?:\/\//i.test(s)?s:''; };
 function money(kgs){const v=Math.round(kgs*DB.fx[state.cur]);return v.toLocaleString('ru-RU')+' '+DB.curSym[state.cur];}
 function initials(n){return n.split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();}
 function avBg(seed){const c=['#10b981','#2563eb','#7c3aed','#db2777','#0891b2','#d97706','#16a34a','#e1306c'];let h=0;for(const ch of seed)h=ch.charCodeAt(0)+((h<<5)-h);return c[Math.abs(h)%c.length];}
@@ -1233,8 +1236,8 @@ function chatReconcile(box, fresh, opts){
 }
 // Бейдж «комментарий» + ссылка на пост Instagram (если сообщение — коммент под постом; ig_post = ссылка).
 function igCommentHtml(m, esc){
-  if(!m || !m.ig_post) return '';
-  return `<a href="${esc(String(m.ig_post))}" target="_blank" rel="noopener" title="Открыть пост в Instagram" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:7px;background:rgba(225,48,108,.14);color:var(--ig,#e1306c);margin-bottom:5px;text-decoration:none;white-space:nowrap">💬 комментарий · открыть пост ↗</a><br>`;
+  const post=httpUrl(m&&m.ig_post); if(!post) return '';
+  return `<a href="${esc(post)}" target="_blank" rel="noopener" title="Открыть пост в Instagram" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:7px;background:rgba(225,48,108,.14);color:var(--ig,#e1306c);margin-bottom:5px;text-decoration:none;white-space:nowrap">💬 комментарий · открыть пост ↗</a><br>`;
 }
 function ibMsgBubble(m, t, byE){
   try{
@@ -4812,8 +4815,9 @@ function adRefHtml(m){
   let a; try{ a=JSON.parse(m.ad_ref); }catch(e){ return ''; }
   if(!a||(!a.url&&!a.title)) return '';
   const app=a.app==='instagram'?'Instagram':a.app==='facebook'?'Facebook':'';
-  const thumb=a.thumb?`<img src="${esc(a.thumb)}" loading="lazy" style="width:34px;height:34px;border-radius:6px;object-fit:cover;flex:none" onerror="this.style.display='none'">`:'';
-  const link=a.url?`<a href="${esc(a.url)}" target="_blank" rel="noopener" style="color:#e1306c;font-weight:700;text-decoration:none;white-space:nowrap">Открыть пост ↗</a>`:'';
+  const th=httpUrl(a.thumb), href=httpUrl(a.url);
+  const thumb=th?`<img src="${esc(th)}" loading="lazy" style="width:34px;height:34px;border-radius:6px;object-fit:cover;flex:none" onerror="this.style.display='none'">`:'';
+  const link=href?`<a href="${esc(href)}" target="_blank" rel="noopener" style="color:#e1306c;font-weight:700;text-decoration:none;white-space:nowrap">Открыть пост ↗</a>`:'';
   return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;padding:6px 8px;border-radius:9px;background:linear-gradient(135deg,rgba(245,133,41,.12),rgba(221,42,123,.12));border:1px solid rgba(221,42,123,.35);font-size:11.5px">${thumb}<span style="flex:1;min-width:0"><b>🔗 Пришёл с рекламы${app?(' '+app):''}</b>${a.title?(' · '+esc(a.title)):''}</span>${link}</div>`;
 }
 function cwFmtTime(ts){
