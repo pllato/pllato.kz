@@ -41,10 +41,10 @@ gate=f'''<section class="gate" id="gate">
   <p style="margin-top:15px">Доходы из кассы и эквайринга, расходы — по безналу из выписок банков, по наличным из кассы и по снятиям со счёта — сходятся в одном отчёте по каждому клубу. Инвестор и франчайзи видят свои цифры в своём кабинете. Клиент по одному QR проходит в любой из 18 клубов, продлевает абонемент и записывается на групповые занятия из приложения. Тренер ведёт вес, питание и программу клиента.</p>
   <p style="color:#ffd0d6">Своё ядро без абонплаты: модули добавляются к нему по очереди.</p>
   <div class="gstat">
-   <div><small>Экранов</small><b class="a">16</b></div>
+   <div><small>Экранов</small><b class="a">22</b></div>
    <div><small>Ролей</small><b>5</b></div>
-   <div><small>Блоков</small><b>4</b></div>
-   <div><small>Первый блок</small><b>4–6 недель</b></div>
+   <div><small>Этап 1</small><b>3 млн ₸</b></div>
+   <div><small>Вся система</small><b>6,5 млн ₸</b></div>
   </div>
  </div>
  <div class="gate-r">
@@ -66,6 +66,6 @@ rep('<script src="/app/uss.js"></script>','<script src="/app/blitz-murat.js"></s
 css=open(os.path.join(D,'style.css'),encoding='utf-8').read()
 rep('</style>',css+'\n</style>')
 open(ROOT+'/app/blitz-murat.html','w',encoding='utf-8').write(s)
-js=''.join(open(os.path.join(D,f'f{i}.js'),encoding='utf-8').read() for i in range(1,5))
+js=''.join(open(os.path.join(D,f),encoding='utf-8').read() for f in ['f1.js','f2.js','f3.js','f5.js','f4.js'])
 open(ROOT+'/app/blitz-murat.js','w',encoding='utf-8').write(js)
 print('ok',len(s),len(js))
