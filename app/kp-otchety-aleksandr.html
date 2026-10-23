@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ru"><head>
+<script src="/app/gate.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Коммерческое предложение · портал отчётности из 1С · Pllato</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2310202b'/><path d='M50 14C40 30 32 42 32 56a18 18 0 0036 0c0-14-8-26-18-42z' fill='%23fff'/><path d='M40 60h6l4-9 5 15 4-6h5' stroke='%23f2a20c' stroke-width='4' fill='none' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#10202b;--ink2:#1c3140;--y:#e08e00;--y2:#b06f00;--y3:#ffd98a;--red:#c33c32;--steel:#8b96a3;--white:#fff;--text:#161a20;--muted:#5b6673;--line:#e1e5ea;--green:#1f8a5b;--blue:#2f6f9e;--violet:#6b4ea8;--warn:#cf8a22}
+*{box-sizing:border-box}body{margin:0;background:#e1e8ed;font-family:'Golos Text',system-ui,sans-serif;color:var(--text);-webkit-font-smoothing:antialiased}
+.page{width:210mm;min-height:297mm;margin:0 auto 8mm;background:var(--white);padding:15mm 16mm 12mm;position:relative;box-shadow:0 12px 40px rgba(32,36,43,.18);display:flex;flex-direction:column}
+.mono{font-family:'JetBrains Mono',monospace}
+h1{font-size:31px;line-height:1.05;letter-spacing:-.03em;margin:0 0 10px;font-weight:800}
+h2{font-size:16px;margin:0 0 9px;letter-spacing:-.02em;font-weight:800}
+h3{font-size:11.5px;margin:0 0 5px;font-weight:800}
+p{font-size:10.2px;line-height:1.6;margin:0 0 8px}
+.lead{font-size:11.2px;line-height:1.64;color:#2c343f}
+.kicker{font:700 8.4px 'JetBrains Mono',monospace;color:var(--y2);letter-spacing:.15em;text-transform:uppercase}
+.wmk{display:inline-block;border:2.4px solid var(--y3);padding:6px 13px 7px;background:#fff;text-align:center;line-height:1}
+.wmk b{display:block;font-weight:800;color:var(--ink);letter-spacing:.08em;font-size:15px}
+.wmk hr{border:0;height:1.6px;background:var(--steel);margin:5px 0 4px}
+.wmk span{display:block;font-size:8.2px;color:var(--ink);letter-spacing:.05em;font-weight:500}
+.lg{display:flex;align-items:center;gap:12px}
+.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--ink);padding-bottom:11px;margin-bottom:14px}
+.hd small{display:block;font:600 7.2px 'JetBrains Mono',monospace;color:var(--muted);letter-spacing:.1em;margin-top:5px}
+.hd-r{text-align:right;font-size:9px;color:var(--muted);line-height:1.55}
+.cover{background:var(--ink);color:#fff;margin:-15mm -16mm 0;padding:16mm 16mm 13mm;position:relative;overflow:hidden}
+.cover:after{content:"";position:absolute;right:-30px;top:14px;width:300px;height:200px;background:repeating-linear-gradient(90deg,rgba(224,142,0,.14) 0 9px,transparent 9px 26px);border-radius:4px}
+.cover .lg{margin-bottom:14px;position:relative;z-index:1}
+.cover h1{color:#fff;font-size:29px;max-width:152mm;position:relative;z-index:1}
+.cover h1 span{color:var(--y3)}
+.cover .lead{color:#c3d1da;max-width:142mm;position:relative;z-index:1}
+.cover .kicker{color:var(--y3)}
+.cvs{display:grid;grid-template-columns:repeat(4,1fr);margin-top:15px;border-top:1px solid rgba(255,255,255,.15);padding-top:12px;position:relative;z-index:1}
+.cvs div{border-left:1px solid rgba(255,255,255,.15);padding-left:11px}
+.cvs div:first-child{border:0;padding-left:0}
+.cvs small{display:block;font:700 6.8px 'JetBrains Mono',monospace;color:#87a0b0;letter-spacing:.08em}
+.cvs b{display:block;font-size:15px;margin-top:5px}
+.cvs div:first-child b{color:var(--y3)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.card{border:1px solid var(--line);background:#f4f6f8;padding:11px 12px;border-radius:4px}
+.card.dark{background:var(--ink);border-color:var(--ink);color:#fff}
+.card.dark p{color:#c3d1da}
+.card.y{background:#fdf3e0;border-color:#f6e0b4}
+.card.l{background:#fbf3e1;border-color:#efdcae}
+.card code{font:700 7px 'JetBrains Mono',monospace;color:var(--y2);letter-spacing:.1em}
+.card.dark code{color:var(--y3)}
+.card p{font-size:9.4px;line-height:1.52;margin:4px 0 0;color:#38414c}
+.num{display:flex;gap:11px;margin-bottom:9px}
+.num i{width:24px;height:24px;flex:none;background:var(--ink);color:var(--y3);display:grid;place-items:center;font:800 8.4px 'JetBrains Mono',monospace;font-style:normal;border-radius:3px}
+.num b{font-size:10.6px;display:block}
+.num p{font-size:9.4px;margin:3px 0 0;color:#38414c;line-height:1.5}
+table{width:100%;border-collapse:collapse;margin:9px 0}
+th{text-align:left;font:700 7.4px 'JetBrains Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:7px 8px;border-bottom:1.5px solid var(--ink)}
+td{padding:7px 8px;border-bottom:1px solid #e9edf1;font-size:9.5px;vertical-align:top;line-height:1.5}
+td.r{text-align:right;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+tr.total td{border-top:1.5px solid var(--ink);border-bottom:0;font-weight:800;font-size:11.2px;padding-top:9px}
+tr.total td.r{font-size:14px;color:var(--y2)}
+.badge{display:inline-block;font:700 7px 'JetBrains Mono',monospace;padding:3px 6px;background:#e8ebef;color:#5b6673;border-radius:3px}
+.badge.g{background:#e6f4ee;color:var(--green)}
+.pay{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:10px 0}
+.pay div{border:1px solid var(--line);padding:11px;background:#f4f6f8;border-radius:4px}
+.pay div:first-child{border-color:var(--y);background:#fdf3e0}
+.pay small{font:700 7px 'JetBrains Mono',monospace;color:var(--muted);letter-spacing:.06em}
+.pay b{display:block;font-size:19px;margin:5px 0 2px;letter-spacing:-.02em}
+.pay span{font-size:8.8px;color:#38414c;line-height:1.45;display:block}
+.strip{background:var(--ink);color:#fff;padding:13px 15px;margin:11px 0;display:grid;grid-template-columns:repeat(4,1fr);border-radius:4px}
+.strip div{border-left:1px solid rgba(255,255,255,.15);padding-left:12px}
+.strip div:first-child{border:0;padding-left:0}
+.strip small{display:block;font:700 6.8px 'JetBrains Mono',monospace;color:#87a0b0}
+.strip b{display:block;font-size:14px;margin-top:4px}
+.strip div:first-child b{color:var(--y3)}
+.quote{border-left:3px solid var(--y);background:#fdf3e0;padding:10px 12px;margin:10px 0;border-radius:0 4px 4px 0}
+.quote p{font-size:9.6px;margin:0;line-height:1.58}
+.quote b{color:var(--y2)}
+.said{border-left:3px solid #b8613a;background:#fbf3e4;padding:9px 12px;margin:9px 0;border-radius:0 4px 4px 0}
+.said p{font-size:9.6px;margin:0;line-height:1.58;font-style:italic;color:#2c343f}
+.foot{margin-top:auto;padding-top:11px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-end;font-size:8.4px;color:var(--muted)}
+.foot b{color:var(--text);font-size:9.4px}
+.pnum{font:700 7.4px 'JetBrains Mono',monospace;color:var(--muted)}
+.chk{display:flex;gap:7px;align-items:flex-start;margin-bottom:5px}
+.chk i{color:var(--green);font-style:normal;font-weight:800;font-size:10px;line-height:1.5}
+.chk.no i{color:var(--muted)}
+.chk.r i{color:var(--red)}
+.chk span{font-size:9.4px;line-height:1.5}
+.shots{display:grid;gap:8px;margin:9px 0 5px}
+.shots.two{grid-template-columns:1fr 1fr}
+.shot{border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#f4f6f8;break-inside:avoid}
+.shot img{width:100%;display:block}
+.shot.big img{height:330px;object-fit:cover;object-position:left top}
+.shot.sm2 img{height:300px;object-fit:cover;object-position:left top}
+.shot.sm img{height:215px;object-fit:cover;object-position:left top}
+.shot.xs img{height:190px;object-fit:cover;object-position:left top}
+.shot.xxs img{height:160px;object-fit:cover;object-position:left top}
+.shot .cap{font-size:8.4px;color:var(--muted);padding:6px 10px;border-top:1px solid var(--line);line-height:1.45;background:#fff}
+.shot .cap b{color:var(--text)}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:4px;overflow:hidden;margin:10px 0}
+.compare>div{padding:11px 13px}
+.compare .was{background:#f4f6f8;border-right:1px solid var(--line)}
+.compare .now{background:#fdf3e0}
+.compare h4{font:700 7.4px 'JetBrains Mono',monospace;letter-spacing:.08em;margin:0 0 7px;color:var(--muted)}
+.compare .now h4{color:var(--y2)}
+.compare .row{font-size:9.3px;padding:4.4px 0;border-bottom:1px solid #e9edf1;line-height:1.45}
+.compare .row:last-child{border:0}
+.tl{border-left:2px solid var(--line);margin-left:9px;padding-left:15px}
+.tli{position:relative;padding:6px 0 7px}
+.tli:before{content:'';position:absolute;left:-21px;top:11px;width:9px;height:9px;border-radius:50%;background:var(--ink);border:2px solid #fff}
+.tli b{font-size:10.6px;display:block}
+.tli p{margin:2px 0 0;font-size:9.4px;color:#38414c;line-height:1.5}
+.formula{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:9.2px;line-height:1.5;margin:6px 0}
+.formula code{font:700 8.4px 'JetBrains Mono',monospace;color:var(--y2);white-space:nowrap;padding-top:1px}
+.page.dense td{padding:4.6px 7px;font-size:9.1px}
+@media print{
+ @page{size:A4;margin:0}
+ body{background:#fff}
+ .page{margin:0;box-shadow:none;min-height:auto;padding:12mm 14mm 9mm;page-break-after:always}
+ .page:last-child{page-break-after:auto}
+ p,.chk span{font-size:9.3px;line-height:1.5}
+ .card p{font-size:8.7px}
+ h1{font-size:28px}.cover h1{font-size:26px}h2{font-size:15px;margin-bottom:7px}
+ td{font-size:8.9px;padding:4.6px 7px;line-height:1.45}
+ .page.dense td{padding:3.4px 6px;font-size:8.6px}
+ .pay div{padding:9px}.pay b{font-size:17px}.pay span{font-size:8.3px}
+ .quote{padding:9px 11px;margin:8px 0}.quote p{font-size:9.1px}
+ .grid3 .card p{font-size:8.5px}
+}
+h1,h2,.wmk b{font-family:'Golos Text','Golos Text',sans-serif;letter-spacing:-.005em}
+h1{font-weight:700}h2{font-weight:600}
+.shot.xxs img{height:150px;object-fit:cover;object-position:left top}
+.chk i{min-width:10px}
+
+h1{font-weight:700;font-size:28px;text-transform:none;letter-spacing:-.015em}.cover h1{font-size:24px}h2{font-weight:700;font-size:19px}
+td.r,.cvs b,.strip b,.pay b{font-variant-numeric:tabular-nums}
+.cover:after{right:-40px;top:-40px;width:240px;height:240px;border-radius:0;background:repeating-linear-gradient(135deg,transparent 0 20px,rgba(255,255,255,.10) 20px 27px);border:0}
+.paytab tr.cur td{background:#fdf3e0}
+th.r{text-align:right}
+.paytab td span{display:block;font-size:8px;color:var(--muted)}
+.card,.shot,.pay div,.strip,.quote,.said,.compare{border-radius:8px}
+@media print{h1{font-size:27px}.cover h1{font-size:22px}}
+</style>
+</head><body>
+
+<section class="page">
+ <div class="cover">
+  <div class="lg"><svg width="48" height="48" viewBox="0 0 100 100" aria-hidden="true" style="border-radius:8px;border:2px solid #fff;background:#10202b"><path d="M50 14C40 30 32 42 32 56a18 18 0 0036 0c0-14-8-26-18-42z" fill="#fff"/><path d="M40 60h6l4-9 5 15 4-6h5" stroke="#f2a20c" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+   <div class="wmk"><b>ПОРТАЛ ОТЧЁТНОСТИ ПОВЕРХ 1С</b><hr><span>пульт руководителя в телефоне · остатки и движение по 11 складам · оборачиваемость и запас в днях · ABC/XYZ · план-факт по филиалам и менеджерам · дебиторка · конструктор ваших отчётов · права на каждый отчёт · отчёты задачами в Битрикс24 · Excel</span></div>
+  </div>
+  <div class="kicker">Коммерческое предложение · 23 октября 2026 · по встрече · Александр</div>
+  <h1>Отчёты из 1С за секунду: <span>в телефоне у руководителя и задачей в Битрикс24 у сотрудников — без замены Битрикс</span></h1>
+  <p class="lead">Александр, вы дистрибьютор масел и техжидкостей: 11 филиалов, около 200 сотрудников, 1С и Битрикс24. Бизнес-процессы в Битрикс работают, уходить с него вы не хотите. Не хватает отчётности: движения остатков по складам, ABC-анализа и гибких отчётов из 1С — сейчас они формируются по пять минут и неудобны на телефоне. Предлагаем отдельный портал отчётов поверх 1С: гибче Power BI, с правами на каждый отчёт и рассылкой задачами в Битрикс24.</p>
+  <div class="cvs">
+   <div><small>ПАКЕТ С 1С</small><b>1 000 000 ₸</b></div>
+   <div><small>СРОК</small><b>3–4 недели</b></div>
+   <div><small>ОТЧЁТОВ</small><b>15–20</b></div>
+   <div><small>АБОНПЛАТА</small><b>нет</b></div>
+  </div>
+ </div>
+ <h2 style="margin-top:16px">Что вы получаете</h2>
+ <div class="grid3"><div class="card y"><code>БЫСТРО</code><h3 style="margin-top:4px">Отчёт открывается сразу</h3><p>Данные из 1С уже лежат в портале и обновляются сами — без пятиминутного формирования.</p></div><div class="card"><code>ГИБКО</code><h3 style="margin-top:4px">Ваши отчёты</h3><p>Нестандартные отчёты переносим, новые собираете в конструкторе, выгрузка в Excel.</p></div><div class="card"><code>БЕЗ ЛОМКИ</code><h3 style="margin-top:4px">Битрикс остаётся</h3><p>Сотрудникам отчёты приходят задачей в Битрикс24 — без новых логинов.</p></div></div>
+ <div class="strip">
+  <div><small>СТАРТ · 10 %</small><b>100 000 ₸</b></div>
+  <div><small>ТЕСТОВАЯ БАЗА · 45 %</small><b>450 000 ₸</b></div>
+  <div><small>СДАЧА · 45 %</small><b>450 000 ₸</b></div>
+  <div><small>АБОНПЛАТА</small><b>нет</b></div>
+ </div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">01</span></div>
+</section>
+<section class="page">
+ <div class="hd"><div><div class="kicker">Что мы услышали</div><h2 style="margin:4px 0 0">Ваши слова на встрече → что сделано в демо</h2><small>ДИСТРИБУЦИЯ МАСЕЛ · 11 ФИЛИАЛОВ · 200 СОТРУДНИКОВ · 1С + БИТРИКС24</small></div><div class="hd-r">Отчёты из 1С · портал отчётности<br>Коммерческое предложение</div></div>
+ <table>
+  <tr><th style="width:44%">Вы сказали</th><th>Что сделано в демо</th><th style="width:13%">Раздел</th></tr>
+  <tr><td>«Хотели отчётность автоматизировать со стороны 1С, думали про Power BI — у него свои ограничения»</td><td>Портал отчётов поверх 1С: пульт, склады, продажи, дебиторка, конструктор</td><td>Отчёты</td></tr>
+  <tr><td>«Движение остатков по складам, качественные отчёты, ABC-анализ»</td><td>Остатки и движение по 11 складам, запас в днях, ABC/XYZ</td><td>Склады</td></tr>
+  <tr><td>«Вытаскивать отчёты из 1С неудобно, формирование по пять минут; хочется мобильно»</td><td>Данные заранее в портале, отчёт открывается сразу, в том числе с телефона</td><td>Скорость</td></tr>
+  <tr><td>«Можно ли выгружать в Excel, есть ли ограничения кастомизации?»</td><td>Excel из любого отчёта; ограничений по отчётам нет</td><td>Отчёты</td></tr>
+  <tr><td>«Мы не хотим уходить с Битрикса — много бизнес-процессов, которые неплохо работают»</td><td>Битрикс остаётся; отчёты сотрудникам — задачей в Битрикс24 по расписанию</td><td>Битрикс24</td></tr>
+  <tr><td>«15–20 отчётов, разграничение прав: эти пять видят одни, эти — другие»</td><td>Права на каждый отчёт: руководитель филиала — свой склад, менеджер — свои цифры</td><td>Права</td></tr>
+  <tr><td>«Отчёты у нас не шаблонные, описать тяжело»</td><td>Пришлите названия и примеры — переносим каждый и согласуем на тестовой базе</td><td>Внедрение</td></tr>
+  <tr><td>«Начальная цена примерно какая?»</td><td>Пакет отчётности с подключением к 1С — 1 000 000 ₸, 3–4 недели</td><td>Стоимость</td></tr>
+ </table>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">02</span></div>
+</section>
+<section class="page">
+ <div class="hd"><div><div class="kicker">Руководителю</div><h2 style="margin:4px 0 0">Пульт руководителя</h2><small>ВЫРУЧКА · МАРЖА · ОСТАТКИ · ОБОРАЧИВАЕМОСТЬ · ДЕБИТОРКА · ЧТО ТРЕБУЕТ ВНИМАНИЯ</small></div><div class="hd-r">Отчёты из 1С · портал отчётности<br>Коммерческое предложение</div></div>
+ <div class="shots"><div class="shot big"><img src="/app/img/kp-otchety/dash-c.jpg" alt="" style="height:auto"><div class="cap"><b>Пульт руководителя.</b> Выручка и маржа против плана, остатки на складах в деньгах и тоннах, оборачиваемость, дебиторка с просрочкой, выручка по 11 филиалам. Справа — что требует внимания: товар кончается, деньги заморожены, клиент в просрочке, филиал отстаёт. Каждая цифра открывает подробный отчёт.</div></div></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">03</span></div>
+</section>
+<section class="page">
+ <div class="hd"><div><div class="kicker">Склады</div><h2 style="margin:4px 0 0">Остатки и движение по 11 складам</h2><small>ОСТАТОК НА НАЧАЛО · ПРИХОД · ПЕРЕМЕЩЕНИЯ · ОТГРУЗКИ · ОСТАТОК НА КОНЕЦ</small></div><div class="hd-r">Отчёты из 1С · портал отчётности<br>Коммерческое предложение</div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-otchety/stock-c.jpg" alt=""><div class="cap"><b>Остатки.</b> Каждый товар на каждом складе — в литрах и деньгах, в резерве и свободно; фильтр по складу, выгрузка в Excel.</div></div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-otchety/moves-c.jpg" alt=""><div class="cap"><b>Движение по складам.</b> Приход от брендодержателей, перемещения между филиалами, отгрузки — за любой период, с остатком на начало и конец.</div></div></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">04</span></div>
+</section>
+<section class="page">
+ <div class="hd"><div><div class="kicker">Склады</div><h2 style="margin:4px 0 0">Оборачиваемость и ABC/XYZ</h2><small>ЗАПАС В ДНЯХ · ЧТО КОНЧАЕТСЯ · ГДЕ ЗАМОРОЖЕНЫ ДЕНЬГИ · ЧТО ДЕРЖАТЬ ВСЕГДА</small></div><div class="hd-r">Отчёты из 1С · портал отчётности<br>Коммерческое предложение</div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-otchety/turn-c.jpg" alt=""><div class="cap"><b>Оборачиваемость.</b> Сколько дней продаж лежит на складе по каждому товару: что скоро кончится и что переместить с центрального склада, а где деньги заморожены.</div></div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-otchety/abc-c.jpg" alt=""><div class="cap"><b>ABC/XYZ.</b> Какие товары дают 80 % выручки и насколько стабильно продаются: что держать на всех складах, а что возить под заказ.</div></div></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">05</span></div>
+</section>
+<section class="page">
+ <div class="hd"><div><div class="kicker">Продажи</div><h2 style="margin:4px 0 0">План-факт и отчёт в телефоне</h2><small>ФИЛИАЛЫ · МЕНЕДЖЕРЫ · НОВЫЕ КЛИЕНТЫ · СРЕДНИЙ ЧЕК · С ТЕЛЕФОНА</small></div><div class="hd-r">Отчёты из 1С · портал отчётности<br>Коммерческое предложение</div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-otchety/sales-c.jpg" alt=""><div class="cap"><b>План-факт по филиалам.</b> Выручка, маржа, новые клиенты и средний чек по филиалам; дальше — по менеджерам, группам товаров и каналам.</div></div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-otchety/phone-c.jpg" alt=""><div class="cap"><b>Отчёт в телефоне.</b> Без отдельного приложения: портал открывается в браузере, иконку можно вынести на экран, выгрузка в Excel одной кнопкой.</div></div></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">06</span></div>
+</section>
+<section class="page">
+ <div class="hd"><div><div class="kicker">Отчёты</div><h2 style="margin:4px 0 0">Конструктор, права и Битрикс24</h2><small>ВАШИ ОТЧЁТЫ · КТО ЧТО ВИДИТ · РАССЫЛКА ЗАДАЧАМИ В БИТРИКС24</small></div><div class="hd-r">Отчёты из 1С · портал отчётности<br>Коммерческое предложение</div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-otchety/rights-c.jpg" alt=""><div class="cap"><b>Права на отчёты.</b> Для каждого отчёта — кто его видит: руководитель филиала — только свой склад и продажи, маржа и закупочные цены скрыты от тех, кому не положено.</div></div></div>
+ <div class="shots"><div class="shot sm2"><img src="/app/img/kp-otchety/bitrix-c.jpg" alt=""><div class="cap"><b>Отчёты в задачи Битрикс24.</b> По расписанию отчёт формируется и приходит сотруднику задачей в Битрикс24 — в Excel или PDF. Новые логины не нужны, ваши процессы не меняются.</div></div></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">07</span></div>
+</section>
+<section class="page">
+ <div class="hd"><div><div class="kicker">Стоимость и следующий шаг</div><h2 style="margin:4px 0 0">Пакет отчётности с 1С — 1 000 000 ₸</h2><small>3–4 НЕДЕЛИ · ТЕСТОВАЯ БАЗА → 3–5 ВЕРСИЙ → РАБОЧАЯ БАЗА · 10 · 45 · 45</small></div><div class="hd-r">Отчёты из 1С · портал отчётности<br>Коммерческое предложение</div></div>
+ <table class="paytab">
+  <tr><th>Состав</th><th class="r">Срок</th><th class="r">Стоимость</th></tr>
+  <tr class="cur"><td><b>Портал отчётности</b><span>пульт руководителя и мобильная версия; остатки, движение, оборачиваемость, ABC/XYZ; план-факт, менеджеры, дебиторка; конструктор и ваши 15–20 отчётов; права на отчёты; рассылка задачами в Битрикс24; Excel</span></td><td class="r">3–4 нед.</td><td class="r"><b>800 000 ₸</b></td></tr>
+  <tr><td><b>Подключение к 1С</b><span>OData, тестовая база, затем рабочая; обновление данных автоматически</span></td><td class="r">вместе</td><td class="r"><b>200 000 ₸</b></td></tr>
+  <tr class="total"><td>Итого</td><td class="r">3–4 нед.</td><td class="r">1 000 000 ₸</td></tr>
+ </table>
+ <div class="grid2">
+  <div><h3>Как идём</h3><div class="chk"><i>✓</i><span>Старт 10 % — 100 000 ₸; вы выдаёте тестовую базу 1С и список отчётов</span></div><div class="chk"><i>✓</i><span>45 % — 450 000 ₸: отчёты работают на тестовой базе</span></div><div class="chk"><i>✓</i><span>3–5 версий с вашими правками, приёмка бухгалтером, переход на рабочую базу; сдача 45 % — 450 000 ₸</span></div><div class="chk"><i>✓</i><span>3 месяца сопровождения бесплатно; код и данные — ваши</span></div></div>
+  <div><h3>Отдельно</h3><div class="chk no"><i>—</i><span>Сервер — 5–15 $ в месяц</span></div><div class="chk no"><i>—</i><span>Новые отчёты после сдачи — по часам</span></div><div class="chk no"><i>—</i><span>Если решите заменить Битрикс24 своим порталом — стандартный пакет 2 000 000 ₸</span></div></div>
+ </div>
+ <div class="card dark" style="margin-top:8px"><code>СЛЕДУЮЩИЙ ШАГ</code><h3 style="margin-top:5px;color:#fff">Список отчётов → согласование с генеральным директором → договор и 100 000 ₸ → тестовая база</h3><p>Демо: pllato.kz/app/otchety-aleksandr.html — зайдите руководителем, генеральным директором, руководителем филиала, логистом и менеджером. Пришлите названия отчётов, которыми пользуетесь, — уточним объём. Предложение действительно до 30 ноября 2026.</p></div>
+ <div class="foot"><div><b>Pllato</b> · студия разработки · pllato.kz</div><span class="pnum">08</span></div>
+</section>
+</body></html>
