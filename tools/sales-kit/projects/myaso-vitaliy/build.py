@@ -66,6 +66,7 @@ rep('<script src="/app/uss.js"></script>','<script src="/app/myaso-vitaliy.js"><
 css=open(os.path.join(D,'style.css'),encoding='utf-8').read()
 rep('</style>',css+'\n</style>')
 open(ROOT+'/app/myaso-vitaliy.html','w',encoding='utf-8').write(s)
-js=''.join(open(os.path.join(D,f'm{i}.js'),encoding='utf-8').read() for i in range(1,4))
+_m3=open(os.path.join(D,'m3.js'),encoding='utf-8').read();_k=_m3.index('/* Каркас */')
+js=''.join(open(os.path.join(D,f),encoding='utf-8').read() for f in ['m1.js','m2.js'])+_m3[:_k]+open(os.path.join(D,'m4.js'),encoding='utf-8').read()+_m3[_k:]
 open(ROOT+'/app/myaso-vitaliy.js','w',encoding='utf-8').write(js)
 print('ok',len(s),len(js))
