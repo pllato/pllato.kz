@@ -522,7 +522,7 @@ export async function handleZoomRequest(request, env, deps) {
         headers.set('Cache-Control','private, no-store');headers.set('Accept-Ranges','bytes');headers.set('ETag',object.httpEtag);
         headers.set('X-Content-Type-Options','nosniff');
         const ext=String(f.extension || '').toUpperCase();
-        const mime={MP4:'video/mp4',M4A:'audio/mp4',MP3:'audio/mpeg',WAV:'audio/wav',VTT:'text/plain; charset=utf-8',TXT:'text/plain; charset=utf-8'}[ext];
+        const mime={WEBM:'video/webm',JSON:'application/json; charset=utf-8',MP4:'video/mp4',M4A:'audio/mp4',MP3:'audio/mpeg',WAV:'audio/wav',VTT:'text/plain; charset=utf-8',TXT:'text/plain; charset=utf-8'}[ext];
         if(mime)headers.set('Content-Type',mime);
         headers.set('Content-Disposition','inline');
         headers.set('Content-Length',String(object.range?.length ?? object.size));

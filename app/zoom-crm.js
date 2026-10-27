@@ -143,12 +143,12 @@ export function zoomClient({ base, getToken }) {
           const box=[...container.querySelectorAll('[data-player]')].find(x=>x.dataset.player===f.id);
           const video=/^(MP4|WEBM)$/i.test(f.extension);
           const player=document.createElement(video?'video':'audio');
-          player.controls=true;player.preload='none';player.setAttribute('playsinline','');
+          player.controls=true;player.preload='metadata';player.setAttribute('playsinline','');
           player.setAttribute('aria-label',video?'Видеозапись встречи':'Аудиозапись встречи');
           player.style.cssText=video?'display:block;width:100%;max-width:720px;aspect-ratio:16/9;object-fit:contain;background:#111;border-radius:8px;margin:12px 0':'display:block;width:100%;max-width:720px;margin:12px 0';
           const status=document.createElement('div');status.setAttribute('role','status');
           player.onerror=()=>{status.textContent='Не удалось загрузить превью. Откройте запись кнопкой выше.';};
-          if(video)player.addEventListener('loadedmetadata',()=>{if(player.duration>0)player.currentTime=Math.min(0.1,player.duration/2);},{once:true});
+
           player.addEventListener('click',e=>e.stopPropagation());
           player.src=base+'/api/zoom/files/'+encodeURIComponent(f.id)+'?auth='+encodeURIComponent(token);
           box.replaceChildren(player,status);
@@ -169,7 +169,7 @@ export function zoomClient({ base, getToken }) {
           if(!dialog.open)return;
           const tag=/^(MP4|WEBM)$/.test(ext)?'video':/^(M4A|MP3|WAV)$/.test(ext)?'audio':null;
           if(tag){
-            const player=document.createElement(tag);player.controls=true;player.preload='none';player.setAttribute('playsinline','');
+            const player=document.createElement(tag);player.controls=true;player.preload='metadata';player.setAttribute('playsinline','');
             player.style.cssText='display:block;width:100%;max-height:65vh;margin:12px 0';
             player.onerror=()=>{status.textContent='Не удалось воспроизвести запись. Закройте окно и откройте снова, чтобы обновить доступ.';};
             player.src=path+'?auth='+encodeURIComponent(token);box.replaceChildren(player);
