@@ -1,3 +1,13 @@
+export function groupMeetingFiles(rows=[]){
+  const groups=new Map();
+  for(const f of rows){
+    const key=f.meeting_uuid||f.id;
+    if(!groups.has(key))groups.set(key,{id:key,title:f.topic||'Видеовстреча',date:f.recording_start,files:[],hasTranscript:false});
+    const group=groups.get(key);group.files.push(f);
+    if(f.status==='stored' && !f.deleted_at && /^(VTT|TXT)$/i.test(f.extension))group.hasTranscript=true;
+  }
+  return [...groups.values()].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+}
 export function meetingUrl(value) {
   try { const u=new URL(value); return u.protocol==='https:' && !u.username && !u.password &&
     ((/(^|\.)zoom\.(us|com)$/.test(u.hostname)) || (u.hostname==='pllato.kz' && u.pathname==='/meet.html' && /^crm-[a-f0-9-]{36}$/.test(u.searchParams.get('room')||''))) ? u.href : ''; } catch { return ''; }
@@ -45,19 +55,19 @@ export function zoomClient({ base, getToken }) {
     }catch{}finally{badgeBusy=false;}
   }
   setInterval(refreshBadges,10000);
-  async function event(container, taskId, path = '/tasks/'+encodeURIComponent(taskId)) {
+  async function event(container, taskId, path = '/tasks/'+encodeURIComponent(taskId), suppliedMeeting) {
     if (!container) return;
     container.textContent = 'Проверяем ссылку встречи…';
     try {
-      const {meeting} = await api(path);
+      const {meeting} = suppliedMeeting ? {meeting:suppliedMeeting} : await api(path);
       if (!container.isConnected) return;
       if(meeting?.status==='cancelled'){container.textContent='Встреча отменена';return;}
       if (meetingUrl(meeting?.join_url)) {
-        container.innerHTML = `<a class="tbtn tbtn-a" href="${esc(meeting.join_url)}" target="_blank" rel="noopener noreferrer">${isMeet(meeting)?'Войти как гость':'Открыть Zoom'}</a>
+        container.innerHTML = ` ${isMeet(meeting)?'':`<a class="tbtn tbtn-a" href="${esc(meeting.join_url)}" target="_blank" rel="noopener noreferrer">Открыть Zoom</a>`}
           <button type="button" class="tbtn" data-invite>Копировать приглашение</button>
           <button type="button" class="tbtn" data-copy>Копировать ссылку</button>
-          <button type="button" class="tbtn" data-host>${isMeet(meeting)?'Начать встречу как ведущий':'Код организатора для сотрудника'}</button><div data-host-status role="status"></div>
-          <div style="font-size:12px;overflow-wrap:anywhere;margin-top:8px">${esc(meeting.join_url)}</div>`;
+          <button type="button" class="tbtn tbtn-a" data-host>${isMeet(meeting)?'Войти как организатор':'Код организатора для сотрудника'}</button><div data-host-status role="status"></div>
+          <div style="font-size:12px;overflow-wrap:anywhere;margin-top:8px">Ссылка для клиента: <span data-client-link>${esc(meeting.join_url)}</span></div>`;
         const invitation=zoomInvitation(meeting);
         const preview=document.createElement('div');preview.style.cssText='white-space:pre-wrap;font-size:12px;margin-top:8px';preview.textContent=invitation;container.append(preview);
         container.querySelector('[data-invite]').onclick=async e=>{try{await navigator.clipboard.writeText(invitation);e.target.textContent='Приглашение скопировано';}catch{e.target.textContent='Скопируйте приглашение ниже';}};
@@ -90,16 +100,19 @@ export function zoomClient({ base, getToken }) {
     }catch(e){container.textContent=e.message;}
   }
   async function syncFirst(dealId){await api('/deals/'+encodeURIComponent(dealId)+'/first-meeting',{method:'POST'});}
+  async function dealRoom(container,dealId){
+    if(!container)return;
+    const path='/deals/'+encodeURIComponent(dealId)+'/room';
+    container.textContent='Загружаем постоянную ссылку…';
+    try{
+      let {meeting}=await api(path);
+      if(!meeting)({meeting}=await api(path,{method:'POST'}));
+      await event(container,null,path,meeting);
+    }catch(e){container.textContent=e.message;}
+  }
   async function firstMeeting(container, dealId, date, sync = false) {
-    if (!container) return;
-    if (!date) { container.textContent='Укажите дату — ссылка встречи появится здесь.'; return; }
-    const path='/deals/'+encodeURIComponent(dealId)+'/first-meeting';
-    if (sync) {
-      container.textContent='Создаём ссылку Pllato Meet…';
-      try { await api(path,{method:'POST'}); }
-      catch(e) { container.textContent=e.message; return; }
-    }
-    await event(container,null,path);
+    if(sync && date){try{await syncFirst(dealId);}catch(e){if(container)container.textContent=e.message;return;}}
+    return dealRoom(container,dealId);
   }
   function created(taskId, error) {
     const dialog=document.createElement('dialog');
@@ -113,10 +126,11 @@ export function zoomClient({ base, getToken }) {
     if(!container) return;
     container.textContent='Загружаем материалы встреч…';
     try {
-      const {files:rows}=await api('/files'+(dealId?'?deal='+encodeURIComponent(dealId):''));
+      const {files:loadedRows}=await api('/files'+(dealId?'?deal='+encodeURIComponent(dealId):''));
       if(!container.isConnected)return;
-      container.innerHTML=rows.length?rows.map(f=>`<div style="padding:10px 0;border-bottom:1px solid var(--b1)">
-        <b>${esc(f.topic || 'Встреча Zoom')}</b><div style="font-size:12px;color:var(--t3)">${esc(f.recording_start)} · ${esc(f.kind)} · ${(f.size/1048576).toFixed(1)} МБ</div>
+      const rows=groupMeetingFiles(loadedRows).flatMap(g=>g.files.map((f,i)=>({...f,groupHeading:i===0?g:null})));
+      container.innerHTML=rows.length?rows.map(f=>`${f.groupHeading?`<h4>${esc(f.groupHeading.title)} · ${esc(f.groupHeading.date)}</h4>${f.groupHeading.hasTranscript?'':'<p style="font-size:12px">Расшифровка этой встречи пока не получена.</p>'}`:''}<div style="padding:10px 0;border-bottom:1px solid var(--b1)">
+        <b>${esc(f.topic || 'Видеовстреча')}</b><div style="font-size:12px;color:var(--t3)">${esc(f.recording_start)} · ${esc(f.kind)} · ${(f.size/1048576).toFixed(1)} МБ</div>
         ${f.status==='stored'?`<button class="tbtn" data-open="${esc(f.id)}">${/^(MP4|WEBM)$/i.test(f.extension)?'Смотреть видео':f.extension==='M4A'?'Слушать аудио':/VTT|TXT/.test(f.extension)?'Транскрипт / текст':f.extension==='JSON'?'Чат и сведения':'Открыть файл'}</button>${/^(VTT|TXT)$/.test(f.extension)?` <button type="button" class="tbtn" data-copy-text="${esc(f.id)}">Копировать текст</button>`:''}${canDelete?` <button class="tbtn" data-del="${esc(f.id)}">Удалить файл</button>`:''}`:`<span>${f.status==='deleted'?'Файл удалён':'Ожидает переноса'}</span>`}
         ${!dealId?`<button class="tbtn" data-link="${esc(f.id)}">Прикрепить к сделке</button>`:''}
         ${f.error?`<div style="color:var(--rd)">${esc(f.error)}</div>`:''}<div data-player="${esc(f.id)}"></div></div>`).join(''):'Материалов встреч пока нет.';
@@ -129,8 +143,8 @@ export function zoomClient({ base, getToken }) {
           const box=[...container.querySelectorAll('[data-player]')].find(x=>x.dataset.player===f.id);
           const video=/^(MP4|WEBM)$/i.test(f.extension);
           const player=document.createElement(video?'video':'audio');
-          player.controls=true;player.preload='metadata';player.setAttribute('playsinline','');
-          player.setAttribute('aria-label',video?'Видеозапись Zoom':'Аудиозапись Zoom');
+          player.controls=true;player.preload='none';player.setAttribute('playsinline','');
+          player.setAttribute('aria-label',video?'Видеозапись встречи':'Аудиозапись встречи');
           player.style.cssText=video?'display:block;width:100%;max-width:720px;aspect-ratio:16/9;object-fit:contain;background:#111;border-radius:8px;margin:12px 0':'display:block;width:100%;max-width:720px;margin:12px 0';
           const status=document.createElement('div');status.setAttribute('role','status');
           player.onerror=()=>{status.textContent='Не удалось загрузить превью. Откройте запись кнопкой выше.';};
@@ -145,7 +159,7 @@ export function zoomClient({ base, getToken }) {
         const dialog=document.createElement('dialog');
         dialog.style.cssText='width:min(900px,92vw);max-height:90vh;overflow:auto;padding:20px;background:var(--bg2,#fff);color:var(--t1,#111);border:1px solid var(--b1,#ccc);border-radius:12px';
         dialog.innerHTML='<h3></h3><div data-content>Загрузка…</div><p data-status role="status"></p><button type="button" class="tbtn" data-close>Закрыть</button>';
-        dialog.querySelector('h3').textContent=f.topic || 'Встреча Zoom';
+        dialog.querySelector('h3').textContent=f.topic || 'Видеовстреча';
         const box=dialog.querySelector('[data-content]'),status=dialog.querySelector('[data-status]');
         document.body.append(dialog);dialog.showModal();
         dialog.querySelector('[data-close]').onclick=()=>dialog.close();
@@ -155,7 +169,7 @@ export function zoomClient({ base, getToken }) {
           if(!dialog.open)return;
           const tag=/^(MP4|WEBM)$/.test(ext)?'video':/^(M4A|MP3|WAV)$/.test(ext)?'audio':null;
           if(tag){
-            const player=document.createElement(tag);player.controls=true;player.preload='metadata';player.setAttribute('playsinline','');
+            const player=document.createElement(tag);player.controls=true;player.preload='none';player.setAttribute('playsinline','');
             player.style.cssText='display:block;width:100%;max-height:65vh;margin:12px 0';
             player.onerror=()=>{status.textContent='Не удалось воспроизвести запись. Закройте окно и откройте снова, чтобы обновить доступ.';};
             player.src=path+'?auth='+encodeURIComponent(token);box.replaceChildren(player);
@@ -221,5 +235,5 @@ export function zoomClient({ base, getToken }) {
       if(s.admin){const archive=dialog.querySelector('[data-archive]');archive.innerHTML='<h4>Записи без привязки к сделке</h4><div data-files></div>';await files(archive.querySelector('[data-files]'),null,true);}
     }catch(e){box.textContent=e.message;}
   }
-  return {event,firstMeeting,syncFirst,dealMeetings,created,files,settings};
+  return {event,firstMeeting,dealRoom,syncFirst,dealMeetings,created,files,settings};
 }

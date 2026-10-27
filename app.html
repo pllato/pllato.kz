@@ -5234,10 +5234,11 @@ import { initFinancialPlanning } from './app/financial-planning.js?v=20261012-no
 import { initProjectPayouts } from './app/project-payouts.js?v=20261016-access';
 import { initProjectRecordings } from './app/project-recordings.js?v=20260923';
 let transcriptDemoController;
-function mountTranscriptDemoTasks(){if(transcriptDemoController)return;transcriptDemoController={loading:true};import('./app/transcript-demo-tasks.js?v=20261022-zoom').then(m=>{transcriptDemoController=m.initTranscriptDemoTasks({getToken:()=>getSession()?.token});}).catch(e=>{transcriptDemoController=null;console.warn(e);});}
+function mountTranscriptDemoTasks(){if(transcriptDemoController)return;transcriptDemoController={loading:true};import('./app/transcript-demo-tasks.js?v=20261027-deal-room').then(m=>{transcriptDemoController=m.initTranscriptDemoTasks({getToken:()=>getSession()?.token});}).catch(e=>{transcriptDemoController=null;console.warn(e);});}
 
 
 initProjectRecordings({ getSession });
+setTimeout(()=>{if(getSession()?.token)mountTranscriptDemoTasks();},1500);
 
 window.__PLLATO_APP_BOOT_STARTED__ = true;
 
@@ -8984,9 +8985,9 @@ function calBindTips(box){
       if(popup)popup.opener=null;
       try{
         const r=await calFetch(CAL_WORKER+'/api/zoom/meetings/'+encodeURIComponent(room)+'/host-access',8000,{method:'POST',headers:{Authorization:'Bearer '+(getSession()?.token||'')}});
-        const data=await r.json();const target=r.ok&&calZoomUrl(data.hostUrl)?data.hostUrl:link.href;
+        const data=await r.json();if(!r.ok||!calZoomUrl(data.hostUrl))throw Error(data.error||'Нет доступа организатора');const target=data.hostUrl;
         if(popup)popup.location.replace(target);else location.href=target;
-      }catch{if(popup)popup.location.replace(link.href);else location.href=link.href;}
+      }catch(error){popup?.close();link.textContent='Повторить вход';link.title=error.message;}
     };
   });
   box.querySelectorAll('.cw-chip[data-cw]').forEach(chip=>{
@@ -9008,7 +9009,13 @@ async function calLoadZoomLinks(items){
   const meetings=items.filter(e=>e.kind==='meet'&&e.zoomPath);
   for(let i=0;i<meetings.length;i+=2){
     await Promise.all(meetings.slice(i,i+2).map(async item=>{
-      try{const r=await calFetch(CAL_WORKER+'/api/zoom'+item.zoomPath,8000,{headers:{Authorization:'Bearer '+token}});if(!r.ok)return;const {meeting}=await r.json();if(meeting?.status==='cancelled')return;item.zoomUrl=calZoomUrl(meeting?.join_url);}catch{/* The CRM card remains available when Zoom cannot be loaded. */}
+      try{
+        const path=item.deal?'/deals/'+encodeURIComponent(item.deal)+'/room':item.zoomPath;
+        let r=await calFetch(CAL_WORKER+'/api/zoom'+path,8000,{headers:{Authorization:'Bearer '+token}});
+        if(!r.ok)return;let {meeting}=await r.json();
+        if(!meeting&&item.deal){r=await calFetch(CAL_WORKER+'/api/zoom'+path,8000,{method:'POST',headers:{Authorization:'Bearer '+token}});if(!r.ok)return;({meeting}=await r.json());}
+        if(meeting?.status==='cancelled')return;item.zoomUrl=calZoomUrl(meeting?.join_url);
+      }catch{/* Keep the CRM card accessible when meeting lookup fails. */}
     }));
     if(CAL_EVENTS!==items)return;
     calSaveCache(items);renderTodayCalendar();
