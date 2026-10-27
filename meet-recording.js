@@ -1,22 +1,30 @@
-import {finalizeWebmHeader} from './meet-webm.js';
+import {finalizeWebmHeader} from './meet-webm.js?v=20261027-delivery';
 // Локальная копия хранится до подтверждения видео И метаданных сервером.
 const PART_SIZE = 5 * 1024 * 1024;
 let database;
 function db(){
   if(!database) database=new Promise((resolve,reject)=>{
-    const request=indexedDB.open('pllato-meet-recordings',2);
+    const request=indexedDB.open('pllato-meet-recordings',1);
     request.onupgradeneeded=()=>{
       if(!request.result.objectStoreNames.contains('meetings'))request.result.createObjectStore('meetings',{keyPath:'id'});
       if(!request.result.objectStoreNames.contains('chunks'))request.result.createObjectStore('chunks',{keyPath:['id','seq']});
-      if(!request.result.objectStoreNames.contains('audio'))request.result.createObjectStore('audio',{keyPath:['id','seq']});
     };
     request.onsuccess=()=>resolve(request.result);
     request.onerror=()=>reject(request.error);
   });
   return database;
 }
-async function transaction(stores, mode, run){
-  const database=await db();
+let audioDatabase;
+function audioDb(){
+  if(!audioDatabase)audioDatabase=new Promise((resolve,reject)=>{
+    const request=indexedDB.open('pllato-meet-audio',1);
+    request.onupgradeneeded=()=>request.result.createObjectStore('audio',{keyPath:['id','seq']});
+    request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+  });
+  return audioDatabase;
+}
+async function transaction(stores, mode, run, source=db){
+  const database=await source();
   return new Promise((resolve,reject)=>{
     const tx=database.transaction(stores,mode);
     let result;
@@ -33,11 +41,11 @@ const localStore={
     tx.objectStore('meetings').put(meta);
     tx.objectStore('chunks').put({id:meta.id,seq,blob});
   }),
-  audio:(id,seq,blob)=>transaction(['audio'],'readwrite',tx=>{tx.objectStore('audio').put({id,seq,blob});}),
-  audios:id=>transaction(['audio'],'readonly',tx=>{const r=tx.objectStore('audio').getAll(chunkRange(id));return ()=>r.result;}),
-  remove:id=>transaction(['meetings','chunks','audio'],'readwrite',tx=>{
-    tx.objectStore('audio').delete(chunkRange(id));tx.objectStore('meetings').delete(id); tx.objectStore('chunks').delete(chunkRange(id));
-  }),
+  audio:(id,seq,blob)=>transaction(['audio'],'readwrite',tx=>{tx.objectStore('audio').put({id,seq,blob});},audioDb),
+  audios:id=>transaction(['audio'],'readonly',tx=>{const r=tx.objectStore('audio').getAll(chunkRange(id));return ()=>r.result;},audioDb),
+  remove:async id=>{await transaction(['audio'],'readwrite',tx=>{tx.objectStore('audio').delete(chunkRange(id));},audioDb);return transaction(['meetings','chunks'],'readwrite',tx=>{
+    tx.objectStore('meetings').delete(id); tx.objectStore('chunks').delete(chunkRange(id));
+  });},
 };
 export async function pendingRecordings(owner){
   return transaction(['meetings'],'readonly',tx=>{
