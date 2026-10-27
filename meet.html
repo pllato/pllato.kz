@@ -73,7 +73,7 @@ button{font-family:inherit;cursor:pointer}
 .join-row .input{flex:1}
 
 /* ====== Pre-join (lobby preview) ====== */
-.prejoin{width:100%;max-width:920px;display:grid;grid-template-columns:1.3fr 1fr;gap:26px;align-items:center}
+.prejoin{width:100%;max-width:520px;display:grid;grid-template-columns:1fr;gap:26px;align-items:center}
 @media(max-width:780px){.prejoin{grid-template-columns:1fr;gap:18px}}
 .preview-box{position:relative;background:#000;border-radius:var(--radius);overflow:hidden;aspect-ratio:16/9;border:1px solid var(--line)}
 .preview-box video,.preview-box canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
@@ -326,7 +326,7 @@ button{font-family:inherit;cursor:pointer}
 <section class="screen" id="screen-prejoin">
   <div class="center-wrap">
     <div class="prejoin">
-      <div class="preview-box" id="pre-box">
+      <div class="preview-box hidden" id="pre-box">
         <video id="pre-video" autoplay playsinline muted></video>
         <canvas id="pre-canvas" class="hidden"></canvas>
         <div class="preview-novid hidden" id="pre-novid">
@@ -340,15 +340,14 @@ button{font-family:inherit;cursor:pointer}
       <div class="prejoin-form">
         <h2>Готовы к встрече?</h2>
         <div class="room-name" id="pre-roomname"></div>
-        <p class="sub" style="font-size:12px" id="pre-background-label"></p>
-        <p class="sub" style="font-size:12px">Вход с включённой камерой. Без видео можно войти, только если камера отсутствует.</p>
-        <button class="btn btn-ghost" id="pre-invite" style="margin-bottom:12px">Скопировать приглашение</button>
-        <a class="btn btn-ghost hidden" id="pre-login">Вход организатора через Google</a>
-        <p class="sub" style="font-size:12px">Организатор записывает встречу. Запись, чат и доступная расшифровка сохраняются в его архиве.</p>
+        <p class="sub hidden" id="pre-background-label"></p>
+        <button class="hidden" id="pre-invite">Скопировать приглашение</button>
+        <a class="hidden" id="pre-login">Вход организатора</a>
         <div class="field">
-          <label class="label">Ваше имя</label>
+          <label class="label" for="pre-name">Ваше имя</label>
           <input class="input" id="pre-name" placeholder="Как вас представить" maxlength="40">
         </div>
+        <details id="pre-devices" style="margin:12px 0"><summary>Настройки камеры и микрофона</summary>
         <div class="field">
           <label class="label">Камера</label>
           <select class="select" id="sel-cam"></select>
@@ -357,7 +356,9 @@ button{font-family:inherit;cursor:pointer}
           <label class="label">Микрофон</label>
           <select class="select" id="sel-mic"></select>
         </div>
-        <button class="btn btn-primary" style="width:100%" id="btn-enter">Войти во встречу</button>
+        </details>
+        <button class="btn btn-primary" style="width:100%" id="btn-enter">Разрешить камеру и микрофон и войти</button>
+        <p class="sub" style="font-size:12px;margin-top:12px">Встреча записывается. Запись, чат и доступная расшифровка сохраняются. Если камеры нет, вы сможете войти без видео.</p>
         <div id="pre-error"></div>
       </div>
     </div>
@@ -474,6 +475,8 @@ button{font-family:inherit;cursor:pointer}
 <div id="toast"></div>
 
 <script type="module">
+import { createMeetStorage } from "/meet-storage.js";
+const meetStorage=createMeetStorage(()=>window.localStorage,()=>window.sessionStorage);
 import { EdgeMaskRenderer } from '/meet-edge-mask.js';
 import { FloatingParticipants } from '/meet-floating.js';
 import { getSession } from '/pllato-kz-shared/pllato-api.js';
@@ -519,8 +522,8 @@ function archiveOwner(){
   if(state.roomId?.startsWith('crm-')) return 'crm';
   const user=sessionUser();
   if(user?.email) return meetSlug(user.email);
-  let o = localStorage.getItem(LS.archiveOwner);
-  if(!o || !o.startsWith('g_')){ o='g_'+crypto.randomUUID(); localStorage.setItem(LS.archiveOwner,o); }
+  let o = meetStorage.getItem(LS.archiveOwner);
+  if(!o || !o.startsWith('g_')){ o='g_'+crypto.randomUUID(); meetStorage.setItem(LS.archiveOwner,o); }
   return o;
 }
 function rndRoom(){ const c='abcdefghijkmnpqrstuvwxyz23456789'; let s=''; for(let i=0;i<9;i++){ s+=c[Math.floor(Math.random()*c.length)]; if(i===2||i===5)s+='-'; } return s; }
@@ -543,7 +546,7 @@ const state = {
   roomId: null,
   isHost: false,
   hostKey: null,
-  name: localStorage.getItem(LS.name) || '',
+  name: meetStorage.getItem(LS.name) || '',
   micOn: true, camOn: true, bgMode: deviceBackground('office-client'), // role-specific office background on every entry
   sharing: false, captioning: false, recording: false, locked: false,
   rawStream: null,        // camera+mic from getUserMedia
@@ -572,48 +575,50 @@ function parseRoomFromInput(v){
 function gotoPrejoin(roomId){
   state.roomId = roomId;
   // host key per room (persisted) — the creator/owner of this room on this browser
-  state.hostKey = localStorage.getItem(LS.hostKeyPrefix+roomId) || null;
+  state.hostKey = meetStorage.getItem(LS.hostKeyPrefix+roomId) || null;
   // keep short /m/<slug> URLs in the bar; otherwise normalise to ?room=
   if(!location.pathname.startsWith('/m/')) history.replaceState(null,'', '/meet.html?room='+encodeURIComponent(roomId));
-  $('pre-roomname').textContent = 'Комната: '+roomId;
+
   const host=!!state.hostKey || myMeetSlug()===roomId;
   state.bgMode=deviceBackground(host?'office-host':'office-client'); state.camOn=true; state.noCameraConfirmed=false;
-  $('btn-enter').textContent=host?'Начать как организатор':'Войти во встречу';
+  $('pre-roomname').textContent=host?'Вы входите как организатор':'Введите имя, чтобы присоединиться';
+  $('btn-enter').textContent='Разрешить камеру и микрофон и войти';
+  $('pre-name').value=state.name;
+  $('btn-enter').disabled=false;
   $('pre-invite').onclick=()=>shareInvite(shortLink(roomId));
-  $('pre-login').classList.toggle('hidden', !!sessionUser());
+  $('pre-login').classList.add('hidden');
   $('pre-login').href='/login.html?next='+encodeURIComponent('/meet.html?room='+roomId);
   showScreen('screen-prejoin');
-  startPreview();
 }
 
 function slugify(v){ return String(v||'').toLowerCase().replace(/[^a-z0-9\-]/g,'').slice(0,24); }
 function shortLink(slug){ return location.origin+'/meet.html?room='+encodeURIComponent(slug); }
-function ensureHostKey(room){ let k=localStorage.getItem(LS.hostKeyPrefix+room); if(!k){ k='hk_'+crypto.randomUUID(); localStorage.setItem(LS.hostKeyPrefix+room,k); } return k; }
+function ensureHostKey(room){ let k=meetStorage.getItem(LS.hostKeyPrefix+room); if(!k){ k='hk_'+crypto.randomUUID(); meetStorage.setItem(LS.hostKeyPrefix+room,k); } return k; }
 // личный видеокабинет менеджера из email — тот же алгоритм, что в meet-worker
 function meetSlug(email){ return 'u-'+String(email||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40); }
 function sessionUser(){ try{ return getSession()?.user || null; }catch{ return null; } }
-function archiveToken(){ return state.roomId?.startsWith('crm-') ? localStorage.getItem(LS.hostKeyPrefix+state.roomId) : sessionToken(); }
+function archiveToken(){ return state.roomId?.startsWith('crm-') ? meetStorage.getItem(LS.hostKeyPrefix+state.roomId) : sessionToken(); }
 function sessionToken(){ try{ return getSession()?.token || null; }catch{ return null; } }
 // личный slug текущего залогиненного менеджера (или null для гостя)
 function myMeetSlug(){ const u=sessionUser(); return u?.email ? meetSlug(u.email) : null; }
 
 $('btn-new-meeting').onclick = ()=>{ const r=rndRoom(); ensureHostKey(r); gotoPrejoin(r); };
 $('btn-my-room').onclick = ()=>{
-  let r = slugify($('my-slug').value) || localStorage.getItem(LS.myroom);
+  let r = slugify($('my-slug').value) || meetStorage.getItem(LS.myroom);
   if(!r){ r = rndRoom().replace(/-/g,'').slice(0,5); }
-  localStorage.setItem(LS.myroom, r);
+  meetStorage.setItem(LS.myroom, r);
   // owner of "my room" is host on this device (persistent host across all future visits)
-  if(!localStorage.getItem(LS.hostKeyPrefix+r)) localStorage.setItem(LS.hostKeyPrefix+r, 'hk_'+crypto.randomUUID());
+  if(!meetStorage.getItem(LS.hostKeyPrefix+r)) meetStorage.setItem(LS.hostKeyPrefix+r, 'hk_'+crypto.randomUUID());
   gotoPrejoin(r);
 };
 $('my-slug').addEventListener('keydown',e=>{ if(e.key==='Enter') $('btn-my-room').click(); });
 $('my-slug').addEventListener('input',e=>{ e.target.value=slugify(e.target.value); renderMyRoomLink(); });
 function renderMyRoomLink(){
-  const slug = slugify($('my-slug').value) || localStorage.getItem(LS.myroom);
+  const slug = slugify($('my-slug').value) || meetStorage.getItem(LS.myroom);
   const box=$('my-room-link');
   if(!slug){ box.innerHTML=''; return; }
   box.innerHTML=`<div class="copy-link"><span class="lnk">${shortLink(slug)}</span><button class="btn btn-ghost" id="copy-my" style="padding:6px 10px;font-size:12px">Пригласить</button></div>`;
-  $('copy-my').onclick=()=> shareInvite(shortLink(slug), localStorage.getItem(LS.name)||'');
+  $('copy-my').onclick=()=> shareInvite(shortLink(slug), meetStorage.getItem(LS.name)||'');
 }
 $('btn-join-code').onclick = ()=>{ const r=parseRoomFromInput($('join-code').value); if(r) gotoPrejoin(r); else toast('Введите код комнаты'); };
 $('join-code').addEventListener('keydown',e=>{ if(e.key==='Enter') $('btn-join-code').click(); });
@@ -710,7 +715,7 @@ function canEnterWithCamera(){
 }
 // Permission denial, a busy camera, and missing hardware are distinct states.
 function showMediaStatus(info){
-  $('btn-enter').disabled=!canEnterWithCamera();
+  $('btn-enter').disabled=false;
   const box=$('pre-error'); if(!box) return;
   if(info && info.hasAudio && info.hasVideo){ box.innerHTML=''; return; }
   const miss=[];
@@ -725,7 +730,7 @@ function showMediaStatus(info){
   box.innerHTML=`<div class="alert">Недоступно: ${miss.join(', ')}.<br>${tip}<br>
     <button class="btn btn-ghost" id="btn-retry-media" style="margin-top:8px;padding:7px 12px;font-size:12.5px">↻ Повторить</button>
     <span style="font-size:12px;color:var(--text-2);margin-left:8px">${canEnterWithCamera()?'Можно войти кнопкой ниже.':'Для входа включите камеру и разрешите доступ к ней.'}</span></div>`;
-  const rb=$('btn-retry-media'); if(rb) rb.onclick=()=> startPreview();
+  const rb=$('btn-retry-media'); if(rb) rb.onclick=()=> $('btn-enter').click();
 }
 
 async function populateDevices(){
@@ -744,7 +749,7 @@ $('sel-mic').onchange = async (e)=>{ state.selMic=e.target.value; const info=awa
 navigator.mediaDevices?.addEventListener?.('devicechange', async ()=>{
   try{ await populateDevices(); }catch{}
   if(state._joined) toast('Список устройств обновился — выберите наушники/микрофон в «Настройках»');
-  else if($('screen-prejoin').classList.contains('active')) startPreview();
+  else if(state.mediaReady && $('screen-prejoin').classList.contains('active')) startPreview();
 });
 
 function updatePreMicCam(){
@@ -764,7 +769,7 @@ function applyBgUI(){
   document.querySelectorAll('.bg-opt').forEach(b=>{b.disabled=MOBILE_MEDIA && b.dataset.bg!=='none';});
   const d=$('bg-desc'); if(d) d.textContent = MOBILE_MEDIA?'— лёгкий режим, без обработки фона':state.bgMode==='blur'?'— размыто':(state.bgMode==='logo'?'— логотип Pllato':(state.bgMode==='office-host'?'— ресепшен Pllato':(state.bgMode==='office-client'?'— офис Pllato':'')));
 }
-document.querySelectorAll('#bg-options .bg-opt').forEach(b=> b.onclick=()=>{ state.bgMode=deviceBackground(b.dataset.bg); localStorage.setItem(LS.bg,state.bgMode); applyBgUI(); renderPreview(); });
+document.querySelectorAll('#bg-options .bg-opt').forEach(b=> b.onclick=()=>{ state.bgMode=deviceBackground(b.dataset.bg); meetStorage.setItem(LS.bg,state.bgMode); applyBgUI(); renderPreview(); });
 
 function renderPreview(){
   const v=$('pre-video'), c=$('pre-canvas'), nov=$('pre-novid');
@@ -782,7 +787,6 @@ function renderPreview(){
 }
 
 $('btn-enter').onclick = async ()=>{
-  if(!canEnterWithCamera()){ toast('Для входа нужна включённая камера. Разрешите доступ и нажмите «Повторить».'); return; }
   const u=sessionUser();
   const typed=$('pre-name').value.trim();
   // клиент (без Gmail-сессии) ОБЯЗАН вписать имя
@@ -792,15 +796,22 @@ $('btn-enter').onclick = async ()=>{
     return;
   }
   state.name = typed || u?.name || ('Гость-'+peerId.slice(2,5));
-  localStorage.setItem(LS.name, state.name);
+  meetStorage.setItem(LS.name, state.name);
   const btn=$('btn-enter'); btn.disabled=true;
   try{
-    if(!state.rawStream) await getLocalMedia();
+    if(!canEnterWithCamera()){
+      const info=await getLocalMedia();
+      if(!canEnterWithCamera()){ showMediaStatus(info); return; }
+    }
+    btn.textContent='Подключаемся…';
     await getMixAudioContext().resume();
     await buildOutStream();
     enterRoom();
-  }catch(e){ btn.disabled=false; toast('Не удалось войти: '+e.message); }
+  }catch(e){ toast('Не удалось войти: '+e.message); }
+  finally{btn.disabled=false;btn.textContent='Разрешить камеру и микрофон и войти';}
 };
+$('pre-name').addEventListener('keydown',e=>{if(e.key==='Enter' && !$('btn-enter').disabled)$('btn-enter').click();});
+$('pre-devices').addEventListener('toggle',()=>{if($('pre-devices').open){$('pre-box').classList.remove('hidden');startPreview();}});
 $('pre-name').addEventListener('input', e=>{ e.target.style.borderColor=''; });
 
 /* ============================================================
@@ -1034,7 +1045,7 @@ function currentCamVideoTrack(){
 // сменить фон во время встречи
 async function setBgRuntime(mode){
   mode=deviceBackground(mode);
-  state.bgMode=mode; localStorage.setItem(LS.bg,mode); applyBgUI();
+  state.bgMode=mode; meetStorage.setItem(LS.bg,mode); applyBgUI();
   if(mode!=='none'){
     if(!outCanvas) outCanvas=document.createElement('canvas');
     if(!outBg) outBg=new BgPipeline(state.rawStream, outCanvas, mode); else { outBg.setMode(mode); outBg.update(state.rawStream); }
@@ -1107,7 +1118,7 @@ function enterRoom(){ wsClosedByUser=false; connectWS(); }
 
 function connectWS(){
   const rid=state.roomId;
-  const hostKey=localStorage.getItem(LS.hostKeyPrefix+rid)||null;
+  const hostKey=meetStorage.getItem(LS.hostKeyPrefix+rid)||null;
   try{ ws=new WebSocket(`${MEET_WS}/room/${encodeURIComponent(rid)}`); }
   catch(e){ showSignalError(); return; }
 
@@ -1678,7 +1689,7 @@ function openPane(name){
 
 /* invite link */
 function inviteText(link, who){
-  const name=(who||state.name||localStorage.getItem(LS.name)||'').trim();
+  const name=(who||state.name||meetStorage.getItem(LS.name)||'').trim();
   const lead = name ? `${name} приглашает вас на видеоконференцию Pllato.` : `Вас приглашают на видеоконференцию Pllato.`;
   return `${lead}\nПрисоединиться по ссылке: ${link}`;
 }
@@ -2009,12 +2020,12 @@ async function loadArchive(){
 }
 async function renderPendingRecordings(box){
   try{
-    const pending=(await pendingRecordings()).filter(m=>m.owner===archiveOwner() || (m.owner==='crm' && localStorage.getItem(LS.hostKeyPrefix+m.room)));
+    const pending=(await pendingRecordings()).filter(m=>m.owner===archiveOwner() || (m.owner==='crm' && meetStorage.getItem(LS.hostKeyPrefix+m.room)));
     for(const meta of pending){
       const el=document.createElement('div'); el.className='arch-item';
       const label=document.createElement('div'); label.textContent='Незавершённое сохранение: '+meta.room+' · '+new Date(meta.date).toLocaleString('ru-RU');
       const retry=document.createElement('button'); retry.className='btn'; retry.textContent='Сохранить в облако';
-      retry.onclick=async()=>{retry.disabled=true; retry.textContent='Сохраняю…'; try{await recoverRecording(MEET_API,meta,()=>meta.owner==='crm'?localStorage.getItem(LS.hostKeyPrefix+meta.room):sessionToken()); await loadArchive();}catch(e){toast(e.message,8000); retry.disabled=false; retry.textContent='Повторить сохранение';}};
+      retry.onclick=async()=>{retry.disabled=true; retry.textContent='Сохраняю…'; try{await recoverRecording(MEET_API,meta,()=>meta.owner==='crm'?meetStorage.getItem(LS.hostKeyPrefix+meta.room):sessionToken()); await loadArchive();}catch(e){toast(e.message,8000); retry.disabled=false; retry.textContent='Повторить сохранение';}};
       const download=document.createElement('button'); download.className='btn btn-ghost'; download.textContent='Скачать копию';
       download.onclick=async()=>{try{downloadBlob(await localRecordingBlob(meta),meta.id+'.webm'); downloadBlob(new Blob([JSON.stringify(meta,null,2)],{type:'application/json'}),meta.id+'.json');}catch(e){toast(e.message);}};
       el.append(label,retry,download); box.prepend(el);
@@ -2070,13 +2081,13 @@ function showTranscriptModal(it){
     const sess=getSession();
     if(sess?.user){
       const email=String(sess.user.email||'');
-      if(!state.name){ state.name = sess.user.name || email.split('@')[0] || ''; localStorage.setItem(LS.name, state.name); }
+      if(!state.name){ state.name = sess.user.name || email.split('@')[0] || ''; meetStorage.setItem(LS.name, state.name); }
       if(email){
         // персональный видеокабинет и владелец архива — детерминированы из email (u-<slug>).
         // Хост определяется по личности на сервере, поэтому hostKey для персональной комнаты НЕ ставим.
         const mslug = meetSlug(email);
-        localStorage.setItem(LS.archiveOwner, mslug);
-        localStorage.setItem(LS.myroom, mslug);
+        meetStorage.setItem(LS.archiveOwner, mslug);
+        meetStorage.setItem(LS.myroom, mslug);
       }
     }
   }catch{}
@@ -2086,7 +2097,7 @@ function showTranscriptModal(it){
   if(room){
     const host=new URLSearchParams(location.hash.slice(1)).get('host');
     if(/^crm-[a-f0-9-]{36}$/.test(room) && /^hk_[a-f0-9-]{36}$/.test(host||'')){
-      localStorage.setItem(LS.hostKeyPrefix+room,host);
+      meetStorage.setItem(LS.hostKeyPrefix+room,host);
       history.replaceState(null,'',location.pathname+location.search);
     }
     gotoPrejoin(room);
@@ -2095,7 +2106,7 @@ function showTranscriptModal(it){
     showScreen(location.hash==='#archive'?'screen-archive':'screen-landing');
     if(location.hash==='#archive') loadArchive();
     renderCabinet();
-    const my=localStorage.getItem(LS.myroom);
+    const my=meetStorage.getItem(LS.myroom);
     if(my){ $('my-slug').value=my; renderMyRoomLink(); }
   }
 })();
