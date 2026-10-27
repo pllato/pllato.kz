@@ -1,4 +1,4 @@
-import {mountProjectMeetings} from './project-meetings.js?v=20261027-deal-room';
+import {mountProjectMeetings} from './project-meetings.js?v=20261027-unified-meet';
 import {initProposalWhatsApp} from './proposal-whatsapp.js?v=20261022-zoom';
 import {transcriptText} from './zoom-crm.js?v=20261008-transcript-recovery';
 const BASE='https://pllato-elc-worker.uurraa.workers.dev';

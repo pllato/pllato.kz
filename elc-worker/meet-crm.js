@@ -10,14 +10,15 @@ export async function createPllatoMeeting(env, task, dealId) {
   ]);
   const saved=await env.DB.prepare('SELECT * FROM zoom_meetings WHERE task_id=?').bind(task.id).first();
   if(saved.meeting_id!==room) await env.DB.prepare('DELETE FROM zoom_private WHERE k=?').bind('pmeet-host:'+room).run();
-  return saved;
+  return withShortLink(env,saved);
 }
 
 // One immutable room pointer per deal. Existing invitations keep working;
 // the earliest ready Pllato room is adopted instead of replacing its URL.
 export async function dealRoom(env,dealId){
-  return env.DB.prepare("SELECT m.* FROM zoom_private p JOIN zoom_meetings m ON m.meeting_id=p.v WHERE p.k=? AND m.deal_id=? AND m.status='ready'")
+  const meeting=await env.DB.prepare("SELECT m.* FROM zoom_private p JOIN zoom_meetings m ON m.meeting_id=p.v WHERE p.k=? AND m.deal_id=? AND m.status='ready'")
     .bind('pmeet-deal:'+dealId,dealId).first();
+  return withShortLink(env,meeting);
 }
 export async function ensureDealRoom(env,dealId,title='Встреча по сделке'){
   const saved=await dealRoom(env,dealId);if(saved)return saved;
@@ -36,4 +37,20 @@ export async function ensureDealRoom(env,dealId,title='Встреча по сд�
   const result=await dealRoom(env,dealId);
   if(!result)throw new Error('Постоянная комната сделки недоступна');
   return result;
+}
+
+// Unique, immutable public aliases. Collision checks extend the code rather than reuse a room.
+export async function withShortLink(env,meeting){
+  if(!isPllatoMeeting(meeting?.meeting_id) || /^https:\/\/pllato.kz\/m\/d[a-f0-9]{12,32}$/.test(meeting.join_url||''))return meeting;
+  const hex=meeting.meeting_id.slice(4).replaceAll('-','');
+  for(let length=12;length<=32;length+=2){
+    const code='d'+hex.slice(0,length),key='pmeet-link:'+code;
+    await env.DB.prepare('INSERT INTO zoom_private(k,v) VALUES(?,?) ON CONFLICT(k) DO NOTHING').bind(key,meeting.meeting_id).run();
+    const saved=await env.DB.prepare('SELECT v FROM zoom_private WHERE k=?').bind(key).first();
+    if(saved?.v!==meeting.meeting_id)continue;
+    const link='https://pllato.kz/m/'+code;
+    await env.DB.prepare('UPDATE zoom_meetings SET join_url=? WHERE meeting_id=?').bind(link,meeting.meeting_id).run();
+    return {...meeting,join_url:link};
+  }
+  throw new Error('Не удалось создать короткую ссылку');
 }

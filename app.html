@@ -5234,7 +5234,7 @@ import { initFinancialPlanning } from './app/financial-planning.js?v=20261012-no
 import { initProjectPayouts } from './app/project-payouts.js?v=20261016-access';
 import { initProjectRecordings } from './app/project-recordings.js?v=20260923';
 let transcriptDemoController;
-function mountTranscriptDemoTasks(){if(transcriptDemoController)return;transcriptDemoController={loading:true};import('./app/transcript-demo-tasks.js?v=20261027-deal-room').then(m=>{transcriptDemoController=m.initTranscriptDemoTasks({getToken:()=>getSession()?.token});}).catch(e=>{transcriptDemoController=null;console.warn(e);});}
+function mountTranscriptDemoTasks(){if(transcriptDemoController)return;transcriptDemoController={loading:true};import('./app/transcript-demo-tasks.js?v=20261027-unified-meet').then(m=>{transcriptDemoController=m.initTranscriptDemoTasks({getToken:()=>getSession()?.token});}).catch(e=>{transcriptDemoController=null;console.warn(e);});}
 
 
 initProjectRecordings({ getSession });
@@ -9002,7 +9002,7 @@ function calBindTips(box){
   if(list) list.addEventListener('scroll',calHideTip);
 }
 function calZoomUrl(value){
-  try{const u=new URL(value);return u.protocol==='https:'&&(/(^|\.)zoom\.(us|com)$/.test(u.hostname)||(u.hostname==='pllato.kz'&&u.pathname==='/meet.html'))&&!u.username&&!u.password?u.href:'';}catch{return '';}
+  try{const u=new URL(value);return u.protocol==='https:'&&(/(^|\.)zoom\.(us|com)$/.test(u.hostname)||(u.hostname==='pllato.kz'&&(u.pathname==='/meet.html'||/^\/m\/d[a-f0-9]{12,32}$/.test(u.pathname))))&&!u.username&&!u.password?u.href:'';}catch{return '';}
 }
 async function calLoadZoomLinks(items){
   const token=getSession()?.token;if(!token)return;

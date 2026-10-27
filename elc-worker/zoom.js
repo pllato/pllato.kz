@@ -1,4 +1,4 @@
-import {createPllatoMeeting,isPllatoMeeting,dealRoom,ensureDealRoom} from './meet-crm.js';
+import {createPllatoMeeting,isPllatoMeeting,dealRoom,ensureDealRoom,withShortLink} from './meet-crm.js';
 import {transcriptDemoTasks} from './transcript-demo-tasks.js';
 // Zoom General App: один подключённый организатор, приватные материалы в R2.
 // Секреты — только env; OAuth-токены в отдельной таблице, зашифрованы AES-GCM.
@@ -344,6 +344,11 @@ export async function handleZoomRequest(request, env, deps) {
   const url = new URL(request.url), path = url.pathname.replace('/api/zoom','');
   try {
     await schema(env);
+    const publicRoom=path.match(/^\/public-room\/(d[a-f0-9]{12,32})$/);
+    if(publicRoom && request.method==='GET'){
+      const row=await env.DB.prepare("SELECT m.meeting_id FROM zoom_private p JOIN zoom_meetings m ON m.meeting_id=p.v WHERE p.k=? AND m.status='ready'").bind('pmeet-link:'+publicRoom[1]).first();
+      return json(row?{room:row.meeting_id}:{error:'Встреча не найдена'},row?200:404,request);
+    }
     if (path === '/webhook' && request.method === 'POST') return await webhook(request,env);
     if (path === '/callback') {
       const state = url.searchParams.get('state');
@@ -393,7 +398,7 @@ export async function handleZoomRequest(request, env, deps) {
     const hostAccess=path.match(/^\/meetings\/([^/]+)\/host-access$/);
     if(hostAccess && request.method==='POST') {
       const meetingId=decodeURIComponent(hostAccess[1]);
-      const meeting=await env.DB.prepare("SELECT task_id,deal_id FROM zoom_meetings WHERE meeting_id=? AND status='ready'").bind(meetingId).first();
+      const meeting=await env.DB.prepare("SELECT * FROM zoom_meetings WHERE meeting_id=? AND status='ready'").bind(meetingId).first();
       if(!meeting) throw fail('Встреча не найдена',404);
       const allowed=meeting.deal_id
         ? await canReadDeal(meeting.deal_id) && (isPllatoMeeting(meetingId) ? ['admin','manager','agent'].includes(me.role) : await canEditRecord(env,me,'deals',meeting.deal_id))
@@ -402,7 +407,8 @@ export async function handleZoomRequest(request, env, deps) {
       if(isPllatoMeeting(meetingId)){
         const hostKey=await get(env,'pmeet-host:'+meetingId);
         if(!hostKey) throw fail('Не найден доступ ведущего',409);
-        const response=json({hostUrl:'https://pllato.kz/meet.html?room='+meetingId+'#host='+encodeURIComponent(hostKey)},200,request);
+        const linked=await withShortLink(env,meeting);
+        const response=json({hostUrl:linked.join_url,hostKey},200,request);
         response.headers.set('Cache-Control','private, no-store');return response;
       }
       const saved=await get(env,'host_key');

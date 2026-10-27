@@ -38,7 +38,7 @@ test('повторное создание события возвращает о
   f.db.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?)').run('t1','Встреча','zoom_meeting','2026-10-01T10:00:00Z','2026-10-01T11:00:00Z',null,'["deal_1"]',1);
   let posts=0;const original=globalThis.fetch;
   globalThis.fetch=async(url,options)=>{assert.equal(options.method,'POST');posts++;return Response.json({id:123,join_url:'https://zoom.us/j/123'});};
-  try{const a=await ensureZoomForTask(f.env,'t1'),b=await ensureZoomForTask(f.env,'t1');assert.equal(posts,0);assert.equal(a.meeting_id,b.meeting_id);assert.match(a.join_url,/pllato.kz\/meet.html/);}finally{globalThis.fetch=original;}
+  try{const a=await ensureZoomForTask(f.env,'t1'),b=await ensureZoomForTask(f.env,'t1');assert.equal(posts,0);assert.equal(a.meeting_id,b.meeting_id);assert.match(a.join_url,/pllato.kz\/m\/d[a-f0-9]{12}$/);}finally{globalThis.fetch=original;}
 });
 test('неопределённый результат старого Zoom не создаёт дубликат',async()=>{
   const f=fixture();await f.connect();
@@ -98,7 +98,7 @@ test('Первый Zoom из карточки создаёт одну встре
     assert.equal((await f.request('/deals/deal_first/first-meeting','POST')).status,200);
     assert.equal((await f.request('/deals/deal_first/first-meeting','POST')).status,200);
     const data=await (await f.request('/deals/deal_first/first-meeting')).json();
-    assert.match(data.meeting.join_url,/^https:\/\/pllato.kz\/meet.html\?room=crm-/);
+    assert.match(data.meeting.join_url,/^https:\/\/pllato.kz\/m\/d[a-f0-9]{12}$/);
     assert.equal(data.meeting.deal_id,'deal_first');assert.equal(posts,0);assert.equal(patches,0);
     f.deps.canEditRecord=async()=>false;
     assert.equal((await f.request('/deals/deal_first/first-meeting','POST')).status,403);
@@ -252,7 +252,8 @@ test('Pllato Meet: private host access, CRM attachment and idempotent archive',a
   const m=await ensureZoomForTask(f.env,'t1');
   const response=await f.request('/meetings/'+m.meeting_id+'/host-access','POST');
   assert.equal(response.status,200);
-  const {hostUrl}=await response.json(),key=new URLSearchParams(new URL(hostUrl).hash.slice(1)).get('host');
+  const {hostUrl,hostKey:key}=await response.json();
+  assert.equal(hostUrl,m.join_url);assert.equal(new URL(hostUrl).hash,'');
   assert.ok(key);assert.ok(!m.join_url.includes(key));
   assert.equal(response.headers.get('cache-control'),'private, no-store');
   f.deps.canEditRecord=async()=>false;
@@ -355,4 +356,22 @@ test('Separate sessions on the same room remain distinct in deal history',async(
   assert.equal(files.length,6);assert.equal(new Set(files.map(f=>f.meeting_uuid)).size,2);
   const {groupMeetingFiles}=await import('../app/zoom-crm.js');const groups=groupMeetingFiles(files);
   assert.equal(groups.length,2);assert.ok(groups.every(g=>g.files.length===3&&g.hasTranscript));
+});
+
+
+test('short public link resolves only room, remains stable and handles alias collisions',async()=>{
+ const {ensureDealRoom,withShortLink}=await import('./meet-crm.js');
+ const f=fixture();await f.request('/status');
+ const first=await ensureDealRoom(f.env,'short-deal');
+ const code=new URL(first.join_url).pathname.split('/').pop();
+ f.deps.requireAuthFlexible=async()=>({error:'Unauthorized',status:401});
+ const publicResponse=await f.request('/public-room/'+code);
+ assert.equal(publicResponse.status,200);assert.deepEqual(await publicResponse.json(),{room:first.meeting_id});
+ assert.equal((await f.request('/meetings/'+first.meeting_id+'/host-access','POST')).status,401);
+ assert.equal((await ensureDealRoom(f.env,'short-deal')).join_url,first.join_url);
+ assert.equal((await f.request('/public-room/d000000000000')).status,404);
+ const room='crm-aaaaaaaa-aaaa-4000-8000-000000000000';
+ f.db.prepare('INSERT INTO zoom_private(k,v) VALUES(?,?)').run('pmeet-link:daaaaaaaaaaaa',first.meeting_id);
+ const collision=await withShortLink(f.env,{meeting_id:room,join_url:''});
+ assert.equal(new URL(collision.join_url).pathname,'/m/daaaaaaaaaaaa40');
 });
