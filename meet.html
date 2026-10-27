@@ -572,12 +572,13 @@ function parseRoomFromInput(v){
   }catch{ return ''; }
   return /^[a-z0-9_-]{1,64}$/i.test(v) ? v.toLowerCase() : '';
 }
-function gotoPrejoin(roomId){
+async function gotoPrejoin(roomId){
   state.roomId = roomId;
   // host key per room (persisted) — the creator/owner of this room on this browser
-  state.hostKey = meetStorage.getItem(LS.hostKeyPrefix+roomId) || null;
+  state.hostKey = roomId.startsWith('crm-')?null:meetStorage.getItem(LS.hostKeyPrefix+roomId) || null;
   // keep short /m/<slug> URLs in the bar; otherwise normalise to ?room=
-  if(!location.pathname.startsWith('/m/')) history.replaceState(null,'', '/meet.html?room='+encodeURIComponent(roomId));
+  if(state.publicLink)history.replaceState(null,'',state.publicLink);
+  else if(!location.pathname.startsWith('/m/')) history.replaceState(null,'', '/meet.html?room='+encodeURIComponent(roomId));
 
   const host=!!state.hostKey || myMeetSlug()===roomId;
   state.bgMode=deviceBackground(host?'office-host':'office-client'); state.camOn=true; state.noCameraConfirmed=false;
@@ -589,15 +590,38 @@ function gotoPrejoin(roomId){
   $('pre-login').classList.add('hidden');
   $('pre-login').href='/login.html?next='+encodeURIComponent('/meet.html?room='+roomId);
   showScreen('screen-prejoin');
+  if(roomId.startsWith('crm-')){
+    $('btn-enter').disabled=true;
+    try{await resolveStaffAccess();}catch(e){$('pre-error').textContent=e.message;}
+    finally{$('btn-enter').disabled=false;}
+  }
+}
+const CRM_MEET_API='https://pllato-elc-worker.uurraa.workers.dev/api/zoom';
+async function resolveStaffAccess(){
+  state.hostKey=null;
+  const token=sessionToken();
+  if(token){
+    const response=await fetch(CRM_MEET_API+'/meetings/'+encodeURIComponent(state.roomId)+'/host-access',{
+      method:'POST',headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(8000),cache:'no-store'
+    });
+    if(response.ok){
+      const access=await response.json();
+      if(!/^hk_[a-f0-9-]{36}$/.test(access.hostKey||''))throw Error('Обновляется доступ встречи. Повторите вход через минуту.');
+      state.hostKey=access.hostKey;state.publicLink=access.hostUrl;
+    }else if(![401,403].includes(response.status))throw Error('Не удалось проверить права сотрудника. Повторите вход.');
+  }
+  state.bgMode=deviceBackground(state.hostKey?'office-host':'office-client');
+  $('pre-roomname').textContent=state.hostKey?'Вы входите как организатор':'Введите имя, чтобы присоединиться';
 }
 
+
 function slugify(v){ return String(v||'').toLowerCase().replace(/[^a-z0-9\-]/g,'').slice(0,24); }
-function shortLink(slug){ return location.origin+'/meet.html?room='+encodeURIComponent(slug); }
+function shortLink(slug){ return slug===state.roomId && state.publicLink ? state.publicLink : location.origin+'/meet.html?room='+encodeURIComponent(slug); }
 function ensureHostKey(room){ let k=meetStorage.getItem(LS.hostKeyPrefix+room); if(!k){ k='hk_'+crypto.randomUUID(); meetStorage.setItem(LS.hostKeyPrefix+room,k); } return k; }
 // личный видеокабинет менеджера из email — тот же алгоритм, что в meet-worker
 function meetSlug(email){ return 'u-'+String(email||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40); }
 function sessionUser(){ try{ return getSession()?.user || null; }catch{ return null; } }
-function archiveToken(){ return state.roomId?.startsWith('crm-') ? meetStorage.getItem(LS.hostKeyPrefix+state.roomId) : sessionToken(); }
+function archiveToken(){ return state.roomId?.startsWith('crm-') ? state.hostKey : sessionToken(); }
 function sessionToken(){ try{ return getSession()?.token || null; }catch{ return null; } }
 // личный slug текущего залогиненного менеджера (или null для гостя)
 function myMeetSlug(){ const u=sessionUser(); return u?.email ? meetSlug(u.email) : null; }
@@ -799,6 +823,7 @@ $('btn-enter').onclick = async ()=>{
   meetStorage.setItem(LS.name, state.name);
   const btn=$('btn-enter'); btn.disabled=true;
   try{
+    if(state.roomId?.startsWith('crm-'))await resolveStaffAccess();
     if(!canEnterWithCamera()){
       const info=await getLocalMedia();
       if(!canEnterWithCamera()){ showMediaStatus(info); return; }
@@ -1118,7 +1143,7 @@ function enterRoom(){ wsClosedByUser=false; connectWS(); }
 
 function connectWS(){
   const rid=state.roomId;
-  const hostKey=meetStorage.getItem(LS.hostKeyPrefix+rid)||null;
+  const hostKey=rid.startsWith('crm-')?state.hostKey:meetStorage.getItem(LS.hostKeyPrefix+rid)||null;
   try{ ws=new WebSocket(`${MEET_WS}/room/${encodeURIComponent(rid)}`); }
   catch(e){ showSignalError(); return; }
 
@@ -2073,7 +2098,7 @@ function showTranscriptModal(it){
 /* ============================================================
    BOOT
    ============================================================ */
-(function boot(){
+(async function boot(){
   document.documentElement.classList.toggle('mobile-light',MOBILE_MEDIA);
   loadLogo();
   // если сотрудник вошёл в Pllato — берём имя и личную постоянную ссылку из аккаунта
@@ -2093,13 +2118,19 @@ function showTranscriptModal(it){
   }catch{}
   const params=new URLSearchParams(location.search);
   const pathMatch=location.pathname.match(/^\/m\/([a-z0-9\-]+)/i);
-  const room=parseRoomFromInput(params.get('room') || (pathMatch && pathMatch[1]));
+  let room=parseRoomFromInput(params.get('room') || (pathMatch && pathMatch[1]));
+  if(/^d[a-f0-9]{12,32}$/.test(room||'')){
+    state.publicLink=location.origin+'/m/'+room;
+    showScreen('screen-prejoin');$('btn-enter').disabled=true;
+    try{
+      const response=await fetch(CRM_MEET_API+'/public-room/'+room,{signal:AbortSignal.timeout(8000)});
+      if(!response.ok)throw Error('Встреча не найдена. Проверьте ссылку.');
+      room=(await response.json()).room;
+    }catch(e){$('pre-error').textContent=e.message;return;}
+  }
   if(room){
-    const host=new URLSearchParams(location.hash.slice(1)).get('host');
-    if(/^crm-[a-f0-9-]{36}$/.test(room) && /^hk_[a-f0-9-]{36}$/.test(host||'')){
-      meetStorage.setItem(LS.hostKeyPrefix+room,host);
-      history.replaceState(null,'',location.pathname+location.search);
-    }
+    // Older organizer URLs still open the room; staff rights now come from authenticated CRM access.
+    if(location.hash)history.replaceState(null,'',location.pathname+location.search);
     gotoPrejoin(room);
   }
   else{

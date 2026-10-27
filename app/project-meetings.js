@@ -1,4 +1,4 @@
-import {zoomClient} from './zoom-crm.js?v=20261027-deal-room';
+import {zoomClient} from './zoom-crm.js?v=20261027-unified-meet';
 const BASE='https://pllato-elc-worker.uurraa.workers.dev';
 const panels=new Set(),queue=[],clients=new WeakMap();let active=0;
 // Only visible cards fetch links, at most two at a time. Videos load on play.

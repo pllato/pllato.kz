@@ -10,7 +10,7 @@ export function groupMeetingFiles(rows=[]){
 }
 export function meetingUrl(value) {
   try { const u=new URL(value); return u.protocol==='https:' && !u.username && !u.password &&
-    ((/(^|\.)zoom\.(us|com)$/.test(u.hostname)) || (u.hostname==='pllato.kz' && u.pathname==='/meet.html' && /^crm-[a-f0-9-]{36}$/.test(u.searchParams.get('room')||''))) ? u.href : ''; } catch { return ''; }
+    ((/(^|\.)zoom\.(us|com)$/.test(u.hostname)) || (u.hostname==='pllato.kz' && ((u.pathname==='/meet.html' && /^crm-[a-f0-9-]{36}$/.test(u.searchParams.get('room')||'')) || /^\/m\/d[a-f0-9]{12,32}$/.test(u.pathname)))) ? u.href : ''; } catch { return ''; }
 }
 const isMeet = meeting => String(meeting?.meeting_id||'').startsWith('crm-');
 export function transcriptText(raw) {
@@ -67,7 +67,7 @@ export function zoomClient({ base, getToken }) {
           <button type="button" class="tbtn" data-invite>Копировать приглашение</button>
           <button type="button" class="tbtn" data-copy>Копировать ссылку</button>
           <button type="button" class="tbtn tbtn-a" data-host>${isMeet(meeting)?'Войти как организатор':'Код организатора для сотрудника'}</button><div data-host-status role="status"></div>
-          <div style="font-size:12px;overflow-wrap:anywhere;margin-top:8px">Ссылка для клиента: <span data-client-link>${esc(meeting.join_url)}</span></div>`;
+          <div style="font-size:12px;overflow-wrap:anywhere;margin-top:8px">Ссылка встречи: <span data-client-link>${esc(meeting.join_url)}</span></div>`;
         const invitation=zoomInvitation(meeting);
         const preview=document.createElement('div');preview.style.cssText='white-space:pre-wrap;font-size:12px;margin-top:8px';preview.textContent=invitation;container.append(preview);
         container.querySelector('[data-invite]').onclick=async e=>{try{await navigator.clipboard.writeText(invitation);e.target.textContent='Приглашение скопировано';}catch{e.target.textContent='Скопируйте приглашение ниже';}};
