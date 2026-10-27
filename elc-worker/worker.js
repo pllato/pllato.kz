@@ -1,3 +1,4 @@
+import {waDeliveryStatus} from './wa-delivery-status.js';
 import {writtenPlacement} from './written-placement.js';
 import {ensureActiveChatMemberships} from './chat-membership-lifecycle.js';
 import { normalPhone, findRecordingCall, recordingToken, lookupRecordingLinks } from './call-recordings.js';
@@ -5754,7 +5755,22 @@ async function handleWaSend(request, env) {
   }
 
   await auditLog(env, me, "wa_send", "wa_chat", result.chatDocId, { hasMedia: !!mediaUrl });
-  return json({ ok: true, idMessage: result.idMessage, chatId: result.chatDocId }, 200, request);
+  return json({ ok: true, idMessage: result.idMessage, chatId: result.chatDocId, status: "pending" }, 200, request);
+}
+
+// Read-only status for a message already accepted by this CRM channel.
+async function handleWaDeliveryStatus(request, env) {
+  const auth = await requireAuthFlexible(request, env);
+  if (auth.error) return json({error:auth.error}, auth.status, request);
+  await resolveCanonicalUser(env, auth.claims);
+  const url=new URL(request.url), chatId=url.searchParams.get('chatId'), messageId=url.searchParams.get('messageId');
+  if(!chatId || !messageId) return json({error:'chatId and messageId required'},400,request);
+  const row=await env.DB.prepare(`SELECT c.chat_id,c.instance_id FROM wa_messages m JOIN wa_chats c ON c.id=m.chat_id
+    WHERE c.id=? AND m.wa_message_id=? AND m.direction='out' LIMIT 1`).bind(chatId,messageId).first();
+  if(!row)return json({error:'Сообщение не найдено'},404,request);
+  const channel=await getWaChannelByInstance(env,row.instance_id);
+  if(!channel?.active)return json({ok:true,status:'disconnected'},200,request);
+  return json({ok:true,...await waDeliveryStatus(channel,row.chat_id,messageId)},200,request);
 }
 
 // POST /api/wa/group/add-admin { chatId: "wa:{instance}:{groupId}@g.us", instanceId, phone }
@@ -12809,6 +12825,9 @@ export default {
     // /api/wa/* — WhatsApp Green-API
     if (path === "/api/wa/webhook" && request.method === "POST") {
       return handleWaWebhook(request, env);
+    }
+    if (path === "/api/wa/delivery-status" && request.method === "GET") {
+      return handleWaDeliveryStatus(request, env);
     }
     if (path === "/api/wa/send" && request.method === "POST") {
       return handleWaSend(request, env);

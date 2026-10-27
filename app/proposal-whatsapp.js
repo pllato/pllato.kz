@@ -42,12 +42,23 @@ export function initProposalWhatsApp({getToken, getDeals}) {
     const form = dialog.querySelector('form'), deal = form.elements.deal, recipient = form.elements.recipient;
     const send = dialog.querySelector('[data-send]'), status = dialog.querySelector('[role=status]'), refresh = dialog.querySelector('[data-refresh]');
     let chats = [], sending = false, generation = 0;
+    const check = document.createElement('button'); check.type='button'; check.textContent='Проверить отправку'; check.hidden=true; status.after(check);
+    const receiptText = r => ({pending:'Файл принят в очередь WhatsApp. Отправка ещё не подтверждена.',unknown:'Пока не удалось проверить отправку. Не отправляйте повторно.',blocked:'Рабочее подключение WhatsApp заблокировано (blocked). Файл не отправлен, он может оставаться в очереди. Повторно не отправляйте.',disconnected:'Нет подключения WhatsApp. Файл может оставаться в очереди. Повторно не отправляйте.',restricted:'WhatsApp временно ограничил отправку. Файл остаётся в очереди.',failed:'WhatsApp сообщил об ошибке отправки файла.',sent:'WhatsApp подтвердил отправку файла.',delivered:'Файл доставлен в WhatsApp.',read:'Файл прочитан в WhatsApp.'}[r.status] || 'Отправка не подтверждена.');
+    const receiptButton = r => ['sent','delivered','read'].includes(r.status) ? (r.status==='sent'?'Отправлено ✓':'Доставлено ✓') : r.status==='failed'?'Ошибка отправки':'Ожидает отправки';
+    async function checkReceipt() {
+      const r=sent.get(key()); if(!r)return;
+      check.disabled=true;
+      try { const result=await request('/api/wa/delivery-status?chatId='+encodeURIComponent(r.chatId)+'&messageId='+encodeURIComponent(r.idMessage)); r.status=result.status||'unknown'; } catch {r.status='unknown';}
+      finally {if(dialog.isConnected){check.disabled=false;update();}}
+    }
+    check.onclick=checkReceipt;
     const key = () => url.href + '|' + recipient.value;
     function update() {
       const receipt = sent.get(key());
       send.disabled = sending || !chats.some(c => c.id === recipient.value) || !!receipt;
-      send.textContent = receipt ? 'Отправлено ✓' : (demo ? 'Отправить файл' : 'Отправить PDF');
-      status.textContent = receipt ? 'Отправлено в эту группу · ' + receipt : '';
+      send.textContent = receipt ? receiptButton(receipt) : (demo ? 'Отправить файл' : 'Отправить PDF');
+      status.textContent = receipt ? (receipt.devNote||'') + receiptText(receipt) : '';
+      check.hidden=!receipt;
     }
     async function load(force = false) {
       const current = ++generation;
@@ -112,15 +123,16 @@ export function initProposalWhatsApp({getToken, getDeals}) {
           const r = await request('/api/wa/group/add-admin', {method: 'POST', body: JSON.stringify({chatId: chat.id, instanceId: String(chat.instance_id), phone: LEAD_DEV.phone})});
           devNote = r.admin ? LEAD_DEV.name + ' добавлен администратором. ' : r.added ? LEAD_DEV.name + ' добавлен в группу (админа назначьте вручную). ' : LEAD_DEV.name + ' уже в группе. ';
         } catch (error) {
-          devNote = 'Не удалось добавить ' + LEAD_DEV.acc + ' (' + error.message + ') — добавьте вручную. ';
+          devNote = 'Не удалось подтвердить права ' + LEAD_DEV.name + '. Проверьте состав группы: добавление могло выполниться. ';
         }
       }
       status.textContent = demo ? devNote + 'Отправляем файл демо…' : 'Отправляем PDF…';
       try {
         const result = await request('/api/wa/send', {method: 'POST', body: JSON.stringify({chatId: chat.id, instanceId: String(chat.instance_id), mediaUrl: url.href, fileName, text: form.elements.caption.value.trim()})});
         if (!result.ok || !result.idMessage) throw Error('Сервис не подтвердил отправку. Проверьте переписку перед повтором.');
-        sent.set(receiptKey, new Date().toLocaleTimeString('ru-RU', {hour:'2-digit',minute:'2-digit',timeZone:'Asia/Almaty'}));
-        status.textContent = (devNote || '') + 'Отправлено в «' + (chat.name || 'Группа клиента') + '» ✓'; send.textContent = 'Отправлено ✓';
+        sent.set(receiptKey, {idMessage:result.idMessage,chatId:chat.id,status:'pending',devNote});
+        update();
+        await checkReceipt();
       } catch (error) {
         status.textContent = error.message + ' Перед повторной отправкой проверьте переписку в CRM.';
       } finally {
