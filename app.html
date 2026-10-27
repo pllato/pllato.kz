@@ -899,7 +899,7 @@ body {
 .fc-grid > .fc-card > .fc-plot { flex:none; width:100%; height:auto; aspect-ratio:16 / 13; }
 .fc-grid > .fc-card > .fc-plot svg { position:absolute; inset:0; }
 /* Shared rows keep every baseline and date axis aligned across the rail. */
-.fc-grid.fc-aligned-grid { display:grid; grid-auto-flow:column; grid-auto-columns:max(290px,calc((100% - 100px) / 3)); grid-template-rows:auto auto auto auto auto auto; column-gap:14px; row-gap:0; }
+.fc-grid.fc-aligned-grid { display:grid; grid-auto-flow:column; grid-auto-columns:max(290px,calc((100% - 100px) / 3)); grid-template-rows:max-content max-content auto auto auto auto; align-content:start; column-gap:14px; row-gap:0; }
 .fc-aligned-grid > .fc-card { display:grid; grid-template-rows:subgrid; grid-row:1 / 7; row-gap:0; }
 .fc-aligned-grid > .fc-card > .fc-card-head { grid-row:1; }
 .fc-aligned-grid > .fc-card > .fc-manager-legend { grid-row:2; align-content:start; }
@@ -909,12 +909,20 @@ body {
 .fc-week-tasks { min-width:0; max-width:100%; box-sizing:border-box; }
 .fc-aligned-grid > .fc-card > .fc-week-tasks,
 .fc-aligned-grid > .fc-card > .social-daily { grid-row:6; align-self:start; }
-.fc-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-.fc-card-title { font-size: 14px; font-weight: 800; }
+.fc-card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; padding-bottom:6px; }
+.fc-card-head > div:first-child { min-width:0; flex:1; }
+.fc-card-title { font-size:14px; font-weight:800; line-height:1.3; }
 .fc-card-sub { color: var(--text-3); font-size: 11px; margin-top: 2px; }
 .fc-access { border: 1px solid var(--line-2); background: transparent; color: var(--text-2); border-radius: 8px; font: inherit; font-size: 11.5px; font-weight: 700; padding: 5px 8px; cursor: pointer; white-space: nowrap; }
 .fc-access:hover { color: var(--bronze-deep); border-color: var(--bronze-deep); }
-.fc-card-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; flex-shrink:0; max-width:48%; }
+.fc-card-actions { display:flex; flex-wrap:nowrap; justify-content:flex-end; gap:4px; flex-shrink:0; }
+.fc-card-actions .fc-access { display:grid;place-items:center;width:30px;height:30px;padding:0;font-size:0;border-radius:7px; }
+.fc-card-actions .fc-access::before { content:"";width:18px;height:18px;background:currentColor;mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%207h9m4%200h3M4%2017h3m4%200h9%22%2F%3E%3Ccircle%20cx%3D%2215%22%20cy%3D%227%22%20r%3D%222%22%2F%3E%3Ccircle%20cx%3D%229%22%20cy%3D%2217%22%20r%3D%222%22%2F%3E%3C%2Fsvg%3E") center / contain no-repeat; }
+.fc-card-actions .fc-expand::before { content:"";width:18px;height:18px;background:currentColor;mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M8%203H3v5m13-5h5v5M3%2016v5h5m13-5v5h-5%22%2F%3E%3C%2Fsvg%3E") center / contain no-repeat; }
+.fc-card-actions .fc-access:focus-visible { outline:2px solid var(--bronze-deep);outline-offset:2px; }
+.fc-manager-legend { display:flex;flex-wrap:wrap;align-items:center;align-content:start;gap:4px 12px;font-size:11px;line-height:18px;margin:2px 0 8px;max-height:40px;overflow:auto;scrollbar-width:thin; }
+.fc-manager-legend > span { display:inline-flex;align-items:center;gap:4px;white-space:nowrap; }
+@media(pointer:coarse){.fc-card-actions .fc-access{width:36px;height:36px;}}
 .fc-fullscreen { z-index:250; position:fixed; inset:0; width:100vw; max-width:none; height:100dvh; max-height:none; margin:0; padding:clamp(12px,2vw,28px); border:0; box-sizing:border-box; background:var(--bg,var(--surface)); color:var(--text); }
 .fc-fullscreen .fc-week-tasks{max-height:40vh;display:flex;flex-direction:column;min-height:120px;overflow:auto;}
 .fc-fullscreen .fc-week-tasks-list{max-height:none;overflow:visible;}
@@ -6499,8 +6507,8 @@ function managerColor(email){
   return `hsl(${hash%360} 65% 42%)`;
 }
 function financeManagerLegend(kind){
-  const overall=CHART_EFFECTIVE_ACCESS[kind]?.total!==false?`<span><span aria-hidden="true" style="display:inline-block;width:24px;border-top:3.5px solid ${FINANCE_CHART_META[kind].color};vertical-align:middle"></span> Общая</span>`:'';
-  return `<div class="fc-manager-legend" style="display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12px;margin:8px 0">${overall}${(MANAGER_CHARTS[kind]||[]).map(item=>`<span><span aria-hidden="true" style="display:inline-block;width:24px;border-top:1.5px dashed ${managerColor(item.email)};opacity:.65;vertical-align:middle"></span> ${mEsc(item.name||managerName(item.email))}</span>`).join('')}</div>`;
+  const overall=CHART_EFFECTIVE_ACCESS[kind]?.total!==false?`<span><span aria-hidden="true" style="display:inline-block;width:18px;border-top:3.5px solid ${FINANCE_CHART_META[kind].color};vertical-align:middle"></span> Общая</span>`:'';
+  return `<div class="fc-manager-legend">${overall}${(MANAGER_CHARTS[kind]||[]).map(item=>`<span><span aria-hidden="true" style="display:inline-block;width:18px;border-top:1.5px dashed ${managerColor(item.email)};opacity:.65;vertical-align:middle"></span> ${mEsc(item.name||managerName(item.email))}</span>`).join('')}</div>`;
 }
 function canEditFinanceTask(task){return canSeeProjectMoney()||String(task?.managerEmail??task?.author??'').toLowerCase()===String(CURRENT?.email||'').toLowerCase();}
 function financeTaskManagerLabel(task){return `<small style="display:block;color:var(--text-3);font-size:11px">${mEsc(managerName(task.managerEmail??PROJECT_MANAGERS[task.sourceProjectId]??task.author??''))}</small>`;}
@@ -7598,12 +7606,12 @@ function namespaceFullscreenTaskIds(root){
   root.querySelectorAll('[for]').forEach(node=>{node.htmlFor+='-fullscreen';});
 }
 function chartFullscreenButton(){
-  return '<button type="button" class="fc-access" onclick="openChartFullscreen(this)" title="Развернуть график на весь экран">⛶ На весь экран</button>';
+  return '<button type="button" class="fc-access fc-expand" aria-label="Развернуть график на весь экран" onclick="openChartFullscreen(this)" title="Развернуть график на весь экран">⛶ На весь экран</button>';
 }
 function financeChartCard(kind,series){
   const meta=FINANCE_CHART_META[kind];
   const periodMeta=financeChartPeriodMeta();
-  const access=canSeeProjectMoney()?`<button class="fc-access" onclick="${kind==='social'?'openSocialAccess()':`openFinanceAccess('${kind}')`}">Настройки</button>`:'';
+  const access=canSeeProjectMoney()?`<button class="fc-access" title="Настройки графика" aria-label="Настройки графика" onclick="${kind==='social'?'openSocialAccess()':`openFinanceAccess('${kind}')`}">Настройки</button>`:'';
   const unavailable=series.length>0 && series.every(point=>point?.unavailable);
   const noted=series.flatMap(point=>financePointComments(kind,point.start).map(comment=>({...comment,label:point.label,end:point.end,value:point.value})));
   const notes=noted.length
