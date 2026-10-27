@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const html=readFileSync(new URL('../meet.html',import.meta.url),'utf8');
-const leave=html.slice(html.indexOf('async function leaveRoom(){'),html.indexOf("window.addEventListener('beforeunload'"));
+const leave=html.slice(html.indexOf('async function leaveRoom(options={}){'),html.indexOf("window.addEventListener('beforeunload'"));
 function setup(){
  let resolve,reject;const upload=new Promise((a,b)=>{resolve=a;reject=b;});const events=[];
  const ctx={state:{isHost:true,recording:true},wsSend:m=>events.push(m.t),showMeetingEnding:()=>events.push('countdown'),showHostExit:()=>events.push('hidden'),showHostExitError:()=>events.push('error'),stopMeetingMedia:()=>events.push('media-stopped'),
@@ -19,4 +19,9 @@ test('host hides call and starts final upload immediately; closes only after ack
 test('failed final upload retains page and offers retry',async()=>{
  const s=setup();const done=s.ctx.leaveRoom();s.reject(new Error('offline'));await done;
  assert.ok(!s.events.includes('closed'));assert.equal(s.ctx.location.href,undefined);assert.ok(s.events.includes('error'));assert.equal(s.ctx.state._leaving,false);
+});
+test('previous recorder can leave without ending the meeting after handoff',async()=>{
+ const s=setup();const done=s.ctx.leaveRoom({keepMeeting:true});
+ assert.ok(!s.events.includes('end-meeting'));assert.ok(s.events.includes('upload'));
+ s.resolve();await done;assert.ok(s.events.includes('closed'));
 });

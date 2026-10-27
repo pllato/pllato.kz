@@ -1,4 +1,4 @@
-import {zoomClient} from './zoom-crm.js?v=20261027-clear';
+import {zoomClient} from './zoom-crm.js?v=20261027-recorder';
 const BASE='https://pllato-elc-worker.uurraa.workers.dev';
 const panels=new Set(),queue=[],clients=new WeakMap();let active=0;
 // Only visible cards fetch links, at most two at a time. Videos load on play.

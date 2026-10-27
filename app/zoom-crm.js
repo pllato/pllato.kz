@@ -1,3 +1,4 @@
+import {storeMeetStaffAccess} from '../meet-staff-access.js';
 import {meetingProgress} from './meeting-progress.js?v=20261027-progress';
 export function materialStatus(f){
  if(f.status==='stored')return 'Готово';
@@ -98,7 +99,7 @@ export function zoomClient({ base, getToken, compact = false }) {
           const popup=isMeet(meeting)?window.open('about:blank','_blank'):null;
           try {
             const {hostKey,hostUrl}=await api('/meetings/'+encodeURIComponent(meeting.meeting_id)+'/host-access',{method:'POST'});
-            if(hostUrl && meetingUrl(hostUrl)){ if(popup){popup.opener=null;popup.location.replace(hostUrl);}else{const a=document.createElement('a');a.href=hostUrl;a.target='_blank';a.rel='noopener';a.textContent='Войти ведущим';box.replaceChildren(a);} return; }
+            if(hostUrl && meetingUrl(hostUrl)){ if(popup){storeMeetStaffAccess(popup.sessionStorage,meeting.meeting_id,{hostKey,hostUrl});popup.opener=null;popup.location.replace(hostUrl);}else{storeMeetStaffAccess(sessionStorage,meeting.meeting_id,{hostKey,hostUrl});const a=document.createElement('a');a.href=hostUrl;a.textContent='Войти ведущим';box.replaceChildren(a);} return; }
             box.textContent='Код организатора: '+hostKey+'. В Zoom: Участники → Принять права организатора → введите код. Не отправляйте его клиентам.';
             const copy=document.createElement('button');copy.type='button';copy.className='tbtn';copy.textContent='Копировать код';
             copy.onclick=async()=>{try{await navigator.clipboard.writeText(hostKey);copy.textContent='Код скопирован';}catch{copy.textContent='Скопируйте код вручную';}};box.append(copy);
