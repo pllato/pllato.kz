@@ -2095,12 +2095,20 @@ async function loadArchive(){
 const attemptedRecoveries=new Set();
 async function renderPendingRecordings(box){
   try{
-    const pending=(await pendingRecordings()).filter(m=>m.owner===archiveOwner() || (m.owner==='crm' && meetStorage.getItem(LS.hostKeyPrefix+m.room)));
+    const pending=(await pendingRecordings()).filter(m=>m.owner===archiveOwner() || (m.owner==='crm' && m.ownerEmail && m.ownerEmail===sessionUser()?.email));
     for(const meta of pending){
       const el=document.createElement('div'); el.className='arch-item';
       const label=document.createElement('div'); label.textContent='Незавершённое сохранение: '+meta.room+' · '+new Date(meta.date).toLocaleString('ru-RU');
       const retry=document.createElement('button'); retry.className='btn'; retry.textContent='Сохранить в облако';
-      retry.onclick=async()=>{retry.disabled=true; retry.textContent='Сохраняю…'; try{await recoverRecording(MEET_API,meta,()=>meta.owner==='crm'?meetStorage.getItem(LS.hostKeyPrefix+meta.room):sessionToken()); await loadArchive();}catch(e){toast(e.message,8000); retry.disabled=false; retry.textContent='Повторить сохранение';}};
+      retry.onclick=async()=>{retry.disabled=true; retry.textContent='Сохраняю…'; try{
+        let token=sessionToken();
+        if(meta.owner==='crm'){
+          const response=await fetch(CRM_MEET_API+'/meetings/'+encodeURIComponent(meta.room)+'/host-access',{method:'POST',headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(8000),cache:'no-store'});
+          if(!response.ok)throw Error('Для восстановления войдите в аккаунт сотрудника с доступом к сделке.');
+          const access=await response.json();token=access.hostKey;
+          if(!/^hk_[a-f0-9-]{36}$/.test(token||''))throw Error('Не подтверждён доступ к записи.');
+        }
+        await recoverRecording(MEET_API,meta,()=>token); await loadArchive();}catch(e){toast(e.message,8000); retry.disabled=false; retry.textContent='Повторить сохранение';}};
       const download=document.createElement('button'); download.className='btn btn-ghost'; download.textContent='Скачать копию';
       download.onclick=async()=>{try{downloadBlob(await localRecordingBlob(meta),meta.id+'.webm'); downloadBlob(new Blob([JSON.stringify(meta,null,2)],{type:'application/json'}),meta.id+'.json');}catch(e){toast(e.message);}};
       el.append(label,retry,download); box.prepend(el);
