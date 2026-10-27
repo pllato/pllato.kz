@@ -479,6 +479,7 @@ import {containRect,recordingLayout} from '/meet-recording-layout.js?v=20261027-
 import { createMeetStorage } from "/meet-storage.js";
 const meetStorage=createMeetStorage(()=>window.localStorage,()=>window.sessionStorage);
 import { EdgeMaskRenderer } from '/meet-edge-mask.js';
+import { TemporalPersonMask } from '/meet-temporal-mask.js?v=20261027-stable';
 import { FloatingParticipants } from '/meet-floating.js';
 import { getSession } from '/pllato-kz-shared/pllato-api.js';
 import {captureTranscriptAudio} from '/meet-audio.js?v=20261027-delivery';
@@ -943,6 +944,7 @@ function smoothPersonEdge(rgba, width, height, scratch){
 class BgPipeline{
   constructor(stream, canvas, mode){
     this.canvas=canvas; this.ctx=canvas.getContext('2d'); this.running=true; this.stream=stream; this.mode=mode||'blur';
+    this.temporalMask=new TemporalPersonMask();
     this.mask=document.createElement('canvas'); this.mctx=this.mask.getContext('2d', {willReadFrequently:true});
     try{ this.edgeRenderer=new EdgeMaskRenderer(); }catch{ this.edgeRenderer=null; }
     this.video=document.createElement('video'); this.video.muted=true; this.video.playsInline=true; this.video.autoplay=true;
@@ -961,7 +963,7 @@ class BgPipeline{
     this.seg.onResults(r=>this.onResults(r));
     this.loop();
   }
-  update(stream){ if(stream && stream!==this.stream){ this.stream=stream; this.video.srcObject=stream; this.video.play().catch(()=>{}); } }
+  update(stream){ if(stream && stream!==this.stream){ this.temporalMask.reset(); this.stream=stream; this.video.srcObject=stream; this.video.play().catch(()=>{}); } }
   async loop(){
     if(!this.running) return;
     if(this.stream.getVideoTracks().some(t=>t.enabled && t.readyState!=='ended') && this.video.readyState>=2 && this.seg){ try{ await this.seg.send({image:this.video}); }catch{} }
@@ -994,6 +996,7 @@ class BgPipeline{
     mctx.imageSmoothingEnabled=true; mctx.imageSmoothingQuality='high';
     mctx.drawImage(results.segmentationMask,0,0,mw,mh);
     const maskPixels=mctx.getImageData(0,0,mw,mh);
+    this.temporalMask.apply(maskPixels.data,mw,mh,performance.now());
     refinePersonAlpha(maskPixels.data,mw,mh,this.maskWork);
     // The GPU aligns alpha to source colour boundaries; do not pre-blur its input.
     if(!this.edgeRenderer) smoothPersonEdge(maskPixels.data,mw,mh,this.maskWork.edge);
@@ -1047,6 +1050,7 @@ class BgPipeline{
   getStream(fps=MEDIA_PROFILE.backgroundFps){ if(!this._cs) this._cs=this.canvas.captureStream(fps); return this._cs; }
   stop(){
     this.running=false; clearTimeout(this.timer);
+    this.temporalMask.reset();
     this.edgeRenderer?.dispose(); this.edgeRenderer=null;
     try{ Promise.resolve(this.seg?.close()).catch(()=>{}); }catch{}
     this._cs?.getTracks().forEach(t=>t.stop());
