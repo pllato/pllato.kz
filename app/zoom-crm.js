@@ -1,3 +1,4 @@
+import {meetingProgress} from './meeting-progress.js?v=20261027-progress';
 export function materialStatus(f){
  if(f.status==='stored')return 'Готово';
  if(f.status==='processing')return f.kind==='transcript'?'Расшифровка в обработке':'Видео записывается / загружается';
@@ -137,7 +138,7 @@ export function zoomClient({ base, getToken }) {
       const {files:loadedRows}=await api('/files'+(dealId?'?deal='+encodeURIComponent(dealId):''));
       if(!container.isConnected)return;
       const rows=groupMeetingFiles(loadedRows).flatMap(g=>g.files.map((f,i)=>({...f,groupHeading:i===0?g:null})));
-      container.innerHTML=rows.length?rows.map(f=>`${f.groupHeading?`<h4>${esc(f.groupHeading.title)} · ${esc(f.groupHeading.date)}</h4>${f.groupHeading.hasTranscript || f.groupHeading.files.some(x=>x.kind==='transcript'&&x.status!=='deleted')?'':'<p style="font-size:12px">Расшифровка этой встречи пока не получена.</p>'}`:''}<div style="padding:10px 0;border-bottom:1px solid var(--b1)">
+      container.innerHTML=rows.length?rows.map(f=>`${f.groupHeading?`<h4>${esc(f.groupHeading.title)} · ${esc(f.groupHeading.date)}</h4><p role="status"><b>${esc(meetingProgress(f.groupHeading.files))}</b></p>${f.groupHeading.hasTranscript || f.groupHeading.files.some(x=>x.kind==='transcript'&&x.status!=='deleted')?'':'<p style="font-size:12px">Расшифровка этой встречи пока не получена.</p>'}`:''}<div style="padding:10px 0;border-bottom:1px solid var(--b1)">
         <b>${esc(f.topic || 'Видеовстреча')}</b><div style="font-size:12px;color:var(--t3)">${esc(f.recording_start)} · ${esc(f.kind)} · ${(f.size/1048576).toFixed(1)} МБ</div>
         ${f.status==='stored'?`<button class="tbtn" data-open="${esc(f.id)}">${/^(MP4|WEBM)$/i.test(f.extension)?'Смотреть видео':f.extension==='M4A'?'Слушать аудио':/VTT|TXT/.test(f.extension)?'Транскрипт / текст':f.extension==='JSON'?'Чат и сведения':'Открыть файл'}</button>${/^(VTT|TXT)$/.test(f.extension)?` <button type="button" class="tbtn" data-copy-text="${esc(f.id)}">Копировать текст</button>`:''}${canDelete?` <button class="tbtn" data-del="${esc(f.id)}">Удалить файл</button>`:''}`:`<span>${materialStatus(f)}</span>`}
         ${!dealId?`<button class="tbtn" data-link="${esc(f.id)}">Прикрепить к сделке</button>`:''}

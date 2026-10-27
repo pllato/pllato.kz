@@ -1,4 +1,5 @@
-import {mountProjectMeetings} from './project-meetings.js?v=20261027-delivery';
+import {initMeetingProgress} from './meeting-progress.js?v=20261027-progress';
+import {mountProjectMeetings} from './project-meetings.js?v=20261027-progress';
 import {initProposalWhatsApp} from './proposal-whatsapp.js?v=20261022-zoom';
 import {transcriptText} from './zoom-crm.js?v=20261008-transcript-recovery';
 const BASE='https://pllato-elc-worker.uurraa.workers.dev';
@@ -6,6 +7,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const when=v=>v?new Date(v).toLocaleString('ru-RU',{timeZone:'Asia/Almaty',dateStyle:'short',timeStyle:'short'}):'Дата не указана';
 const crm=id=>'https://pllato.kz/team.html#deal/'+encodeURIComponent(id);
 export function initTranscriptDemoTasks({getToken}){
+ initMeetingProgress({getToken});
  let items=[],loaded=false,busy=false,error='',history=false,olderOpen=false;const texts=new Map();
  initProposalWhatsApp({getToken,getDeals:card=>{const deals=items.filter(t=>t.project_id===card.dataset.appId).map(t=>({id:t.deal_id,title:t.client}));if(card.dataset.crmDealId&&!deals.some(d=>d.id===card.dataset.crmDealId))deals.push({id:card.dataset.crmDealId,title:card.dataset.crmDealTitle||'Связанная сделка'});return deals;}});
  const roots=()=>[...document.querySelectorAll('[data-transcript-tasks]')];
