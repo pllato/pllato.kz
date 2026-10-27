@@ -9472,8 +9472,8 @@ async function handleChartsSeries(request, env) {
     // времени (граница четверг 14:00). Для day/month countIntoBuckets режет сам.
     if (usesCreated) {
       const r = metric === 'sum'
-        ? await env.DB.prepare("SELECT bitrix_date_create AS d, opportunity AS a FROM deals WHERE pipeline_id = ? AND bitrix_date_create >= ?").bind(pipeline, minDate).all()
-        : await env.DB.prepare("SELECT bitrix_date_create AS d FROM deals WHERE pipeline_id = ? AND bitrix_date_create >= ?").bind(pipeline, minDate).all();
+        ? await env.DB.prepare("SELECT bitrix_date_create AS d, opportunity AS a FROM deals WHERE COALESCE(json_extract(custom_fields, '$.analyticsExcluded'), 0) = 0 AND pipeline_id = ? AND bitrix_date_create >= ?").bind(pipeline, minDate).all()
+        : await env.DB.prepare("SELECT bitrix_date_create AS d FROM deals WHERE COALESCE(json_extract(custom_fields, '$.analyticsExcluded'), 0) = 0 AND pipeline_id = ? AND bitrix_date_create >= ?").bind(pipeline, minDate).all();
       rows = r.results || [];
     } else {
       const r = metric === 'sum'
@@ -9504,7 +9504,7 @@ async function handlePublicPllatoInquiries(request, env) {
   const buckets = buildChartBuckets(period, points);
   const minDate = buckets[0].start;
   const result = await env.DB.prepare(
-    "SELECT bitrix_date_create AS d FROM deals WHERE pipeline_id = ? AND bitrix_date_create >= ?"
+    "SELECT bitrix_date_create AS d FROM deals WHERE COALESCE(json_extract(custom_fields, '$.analyticsExcluded'), 0) = 0 AND pipeline_id = ? AND bitrix_date_create >= ?"
   ).bind(pipeline.id, minDate).all();
   const series = countIntoBuckets((result.results || []).map((row) => row.d), buckets, period);
   return json({
@@ -10420,7 +10420,7 @@ async function handlePllatoChartDetails(request, env) {
              d.responsible_uid, COALESCE(NULLIF(u.email, ''), d.responsible_uid, '') AS manager_key, u.name AS responsible_name, u.last_name AS responsible_last_name
       FROM deals d
       LEFT JOIN users u ON u.uid = d.responsible_uid
-      WHERE d.pipeline_id = ? AND d.bitrix_date_create >= ? AND d.bitrix_date_create < ?
+      WHERE COALESCE(json_extract(d.custom_fields, '$.analyticsExcluded'), 0) = 0 AND d.pipeline_id = ? AND d.bitrix_date_create >= ? AND d.bitrix_date_create < ?
       ORDER BY d.bitrix_date_create ASC
     `).bind(pipeline.id, period.startIso, period.endIso).all();
     rows = result.results || [];
@@ -10854,7 +10854,7 @@ async function handlePllatoLeadSourceAnalytics(request, env, { skipInternalAuth 
       WHERE pipeline_id = ? AND stage_id IN (${stagePlaceholders})
       GROUP BY deal_id
     ) kep ON kep.deal_id = d.id
-    WHERE d.pipeline_id = ? AND d.bitrix_date_create >= ? AND d.bitrix_date_create < ?
+    WHERE COALESCE(json_extract(d.custom_fields, '$.analyticsExcluded'), 0) = 0 AND d.pipeline_id = ? AND d.bitrix_date_create >= ? AND d.bitrix_date_create < ?
     ORDER BY d.bitrix_date_create DESC
     LIMIT 10000
   `).bind(

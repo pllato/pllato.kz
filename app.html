@@ -1309,7 +1309,7 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 <!-- End Meta Pixel Code -->
 <link rel="stylesheet" href="./app/project-payouts.css?v=20261007">
 <link rel="stylesheet" href="./app/financial-planning.css?v=20261012-notes-hover">
-<script src="/app/production-activity.js?v=6"></script>
+<script src="/app/production-activity.js?v=7"></script>
 <link rel="stylesheet" href="./app/project-cards.css?v=20261020-compact">
 </head>
 <body>
@@ -7251,7 +7251,7 @@ let FINANCE_CHART_RETRY_TIMER = null;
 let LEAD_ANALYTICS_REQUEST = 0;
 let LEAD_ANALYTICS_FILTER = { mode:'week', from:'', to:'' };
 let LEAD_ANALYTICS_FILTER_OWNER = '';
-const FINANCE_CHART_CACHE_VERSION = 5;
+const FINANCE_CHART_CACHE_VERSION = 6;
 const FINANCE_CHART_KINDS = ['social','inquiries','kep','demos','orders','cash','releases'];
 
 function financeChartCacheKey(){
@@ -7361,8 +7361,9 @@ function financeChartSvg(kind,series){
   const showTotal=CHART_EFFECTIVE_ACCESS[kind]?.total!==false;
   const count=series.length||1, vw=count*100, vh=650, top=66, bottom=32;
   const autoMax=Math.max(1,...series.map(x=>Number(x.value)||0),...managers.flatMap(m=>m.series.map(x=>Number(x.value)||0)));
-  const max=Math.max(1,financeChartScale(kind)||autoMax);
-  const scaleLabel=`Максимум шкалы: ${financeValue(kind,max)}`;
+  const guide=Math.max(1,financeChartScale(kind)||autoMax);
+  const max=Math.max(guide,autoMax);
+  const scaleLabel=`Максимум шкалы: ${financeValue(kind,guide)}`;
   const x=i=>(i+.5)*100;
   const y=v=>top+(1-Math.min(1,(Number(v)||0)/max))*(vh-top-bottom);
   const completed=series.map((s,i)=>s.partial?null:`${x(i)},${y(s.value).toFixed(1)}`).filter(Boolean).join(' ');
@@ -7408,8 +7409,8 @@ function financeChartSvg(kind,series){
     </g>`;
   }).join('');
   return `<svg viewBox="0 0 ${vw} ${vh}" preserveAspectRatio="xMidYMid meet" aria-label="${mEsc(FINANCE_CHART_META[kind].title)}">
-    <line x1="0" y1="${top}" x2="${vw}" y2="${top}" stroke="var(--line-2)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
-    <text x="${vw-8}" y="28" text-anchor="end" fill="var(--text-3)" font-size="18" font-weight="700">${mEsc(scaleLabel)}</text>
+    <line x1="0" y1="${y(guide)}" x2="${vw}" y2="${y(guide)}" stroke="var(--line-2)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
+    <text x="${vw-8}" y="${y(guide)-38}" text-anchor="end" fill="var(--text-3)" font-size="18" font-weight="700">${mEsc(scaleLabel)}</text>
     <line x1="0" y1="${vh-bottom}" x2="${vw}" y2="${vh-bottom}" stroke="var(--line-2)" vector-effect="non-scaling-stroke"/>
     ${managerLines}
     <polyline style="display:${showTotal?'block':'none'}" points="${completed}" fill="none" stroke="${color}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
@@ -9218,7 +9219,8 @@ function pxChartSvg(metric,series){
   const count=series.length||1, vw=count*100, vh=650, top=66, bottom=32;
   const binding=pxBinding(metric.key);
   const autoMax=Math.max(1,...series.map(point=>Number(point.value)||0));
-  const max=Math.max(1,binding.max||autoMax);
+  const guide=Math.max(1,Number(binding.max)||autoMax);
+  const max=Math.max(guide,autoMax);
   const x=i=>(i+.5)*100;
   const y=value=>top+(1-Math.min(1,(Number(value)||0)/max))*(vh-top-bottom);
   const completed=series.map((point,i)=>point.partial?null:`${x(i)},${y(point.value).toFixed(1)}`).filter(Boolean).join(' ');
@@ -9229,8 +9231,8 @@ function pxChartSvg(metric,series){
       ${Number(point.value)!==0?`<text x="${x(i)}" y="${Math.max(10,y(point.value)-14).toFixed(1)}" text-anchor="middle" fill="var(--text)" font-size="20" font-weight="700">${mEsc(pxValue(metric,point.value))}</text>`:''}</g>`;
   }).join('');
   return `<svg viewBox="0 0 ${vw} ${vh}" preserveAspectRatio="xMidYMid meet" aria-label="${mEsc(metric.title)}">
-    <line x1="0" y1="${top}" x2="${vw}" y2="${top}" stroke="var(--line-2)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
-    <text x="${vw-8}" y="28" text-anchor="end" fill="var(--text-3)" font-size="18" font-weight="700">${mEsc('Максимум шкалы: '+pxValue(metric,max))}</text>
+    <line x1="0" y1="${y(guide)}" x2="${vw}" y2="${y(guide)}" stroke="var(--line-2)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
+    <text x="${vw-8}" y="${y(guide)-38}" text-anchor="end" fill="var(--text-3)" font-size="18" font-weight="700">${mEsc('Максимум шкалы: '+pxValue(metric,guide))}</text>
     <line x1="0" y1="${vh-bottom}" x2="${vw}" y2="${vh-bottom}" stroke="var(--line-2)" vector-effect="non-scaling-stroke"/>
     <polyline points="${completed}" fill="none" stroke="${metric.color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
     ${dots}</svg>`;
