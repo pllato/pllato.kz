@@ -106,7 +106,7 @@ button{font-family:inherit;cursor:pointer}
 /* ====== Meeting room ====== */
 .room{background:var(--bg)}
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--surface);gap:12px}
-.topbar .meta{display:flex;align-items:center;gap:12px;min-width:0}
+.topbar .meta{display:flex;align-items:center;gap:12px;min-width:0;flex-wrap:wrap}
 .topbar .room-pill{font-size:12.5px;color:var(--text-2);background:var(--surface-2);border:1px solid var(--line-2);padding:5px 11px;border-radius:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
 .rec-dot{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--red)}
 .rec-dot .dot{width:9px;height:9px;border-radius:50%;background:var(--red);animation:pulse 1.4s infinite}
@@ -259,6 +259,13 @@ button{font-family:inherit;cursor:pointer}
 .arch-meta{font-size:12px;color:var(--text-3);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .arch-actions{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap}
 @media(max-width:560px){.arch-item{flex-direction:column;align-items:stretch}.arch-actions{justify-content:flex-end}}
+@media(max-width:700px){
+  .stage.presenting .screen-area{bottom:110px}
+  .stage.presenting .grid{left:0;right:0;bottom:0;transform:none;max-width:100%;height:104px;box-sizing:border-box;justify-content:flex-start}
+  .stage.presenting .grid .tile{width:132px;height:88px}
+  .stage.presenting .grid .tile.host{order:-1}
+  .stage.presenting #caption-bar{bottom:114px}
+}
 .mobile-light .stage.presenting .grid{backdrop-filter:none;box-shadow:none}
 </style>
 </head>
@@ -378,6 +385,8 @@ button{font-family:inherit;cursor:pointer}
       <span class="room-pill" id="room-pill"></span>
       <span class="room-pill" id="timer-pill" style="font-variant-numeric:tabular-nums">00:00</span>
       <span class="rec-dot hidden" id="rec-indicator"><span class="dot"></span>Запись</span>
+      <button class="btn hidden" id="playback-retry">Включить звук и видео</button>
+      <button class="btn hidden" id="rec-retry" role="alert" style="color:#ff7777">Запись не идёт — повторить</button>
     </div>
     <div class="tools">
       <!-- только «Участники» (для впуска гостей ведущим); ссылка/чат/транскрипция — в «Настройках» -->
@@ -1152,7 +1161,7 @@ function handleWsMessage(m){
       if(m.info.admitted) participantNames.add(m.info.name);
       presenceCache.set(m.peer, m.info);
       if(m.info.admitted && state.admitted && !peers.has(m.peer)) ensurePeer(m.peer, m.info);
-      if(peers.has(m.peer)){ const p=peers.get(m.peer); p.info=m.info; updatePeerTileInfo(m.peer, m.info); if(m.info.sharing===false) removeScreenTile(p); }
+      if(peers.has(m.peer)){ const p=peers.get(m.peer); p.info=m.info; updatePeerTileInfo(m.peer, m.info); syncRemoteScreen(m.peer,p); }
       renderPeopleList(); updateBadges(); break;
     }
     case 'peer-leave': removePeer(m.peer); break;
@@ -1186,7 +1195,7 @@ function onAdmitted(){
 function removePeer(id){
   presenceCache.delete(id);
   const peer=peers.get(id);
-  if(peer){ try{peer.pc.close();}catch{} peer.tile?.remove(); peer.screenTile?.remove(); peers.delete(id); }
+  if(peer){ [peer.videoEl,peer.screenVideoEl,peer.screenAudioEl].forEach(detachMedia); try{peer.pc.close();}catch{} peer.tile?.remove(); peer.screenTile?.remove(); peers.delete(id); }
   relayoutGrid();
   renderPeopleList(); updateBadges();
 }
@@ -1232,28 +1241,29 @@ function updateBadges(){
 function ensurePeer(id, info){
   if(peers.has(id)) return peers.get(id);
   const pc=new RTCPeerConnection({ iceServers: ICE_SERVERS });
-  const peer={ pc, makingOffer:false, ignoreOffer:false, polite: peerId>id,
+  const peer={ pc, makingOffer:false, settingRemoteAnswer:false, ignoreOffer:false, polite: peerId>id,
     tile:null, videoEl:null, camStream:new MediaStream(),
     screenTile:null, screenVideoEl:null, screenStream:new MediaStream(),
     camSender:null, audioSender:null, screenSender:null, hasCamVideo:false, info };
   peers.set(id, peer);
 
-  // исходящие дорожки: видео камеры (с фоном) + аудио (в потоке outStream)
-  const vTrack = currentCamVideoTrack();
-  const aTrack = state.outStream.getAudioTracks()[0];
-  if(vTrack) peer.camSender = pc.addTrack(vTrack, state.outStream);
-  if(aTrack) peer.audioSender = pc.addTrack(aTrack, state.outStream);
-  // если уже идёт показ экрана — добавляем отдельной дорожкой (свой поток)
-  if(state.sharing && state.screenStream){
-    const sv=state.screenStream.getVideoTracks()[0];
-    if(sv) peer.screenSender = pc.addTrack(sv, state.screenStream);
-    const sa=state.screenStream.getAudioTracks()[0];
-    if(sa) peer.screenAudioSender = pc.addTrack(sa, state.screenStream);
-  }
+  // Reserve all media slots before the first offer. Screen start/stop then
+  // replaces tracks without renegotiation (including camera-less callers).
+  const slot=(track,kind,stream)=>pc.addTransceiver(track||kind,{
+    direction:'sendrecv', ...(stream?{streams:[stream]}:{})
+  });
+  peer.camTransceiver=slot(currentCamVideoTrack(),'video',state.outStream);
+  peer.camSender=peer.camTransceiver.sender;
+  peer.audioSender=slot(state.outStream.getAudioTracks()[0],'audio',state.outStream).sender;
+  peer.screenTransceiver=slot(state.screenStream?.getVideoTracks()[0],'video',state.screenStream);
+  peer.screenSender=peer.screenTransceiver.sender;
+  peer.screenAudioTransceiver=slot(state.screenStream?.getAudioTracks()[0],'audio',state.screenStream);
+  peer.screenAudioSender=peer.screenAudioTransceiver.sender;
+  peer.screenAudioStream=new MediaStream();
 
   pc.onnegotiationneeded = async ()=>{
-    try{ peer.makingOffer=true; await pc.setLocalDescription(); sendSignal(id, { description: pc.localDescription }); }
-    catch(e){} finally{ peer.makingOffer=false; }
+    try{ peer.makingOffer=true; await pc.setLocalDescription(); sendDescription(id,peer); }
+    catch(e){ console.warn('Meet negotiation failed',e); } finally{ peer.makingOffer=false; }
   };
   pc.onicecandidate = ({candidate})=>{ if(candidate) sendSignal(id, { candidate }); };
   pc.ontrack = (ev)=>{ handleRemoteTrack(id, peer, ev); };
@@ -1270,22 +1280,69 @@ function ensurePeer(id, info){
   return peer;
 }
 
-// разбор входящих дорожек: камера vs демонстрация экрана (по msid потока)
-function handleRemoteTrack(id, peer, ev){
-  const track=ev.track, stream=ev.streams[0];
-  if(track.kind==='audio'){ peer.camStream.addTrack(track); connectRecordingAudio(peer.camStream); attachPeerTile(id, peer); return; }
-  // видео: экран, если id потока совпал с заявленным screenStreamId, либо это второе видео
-  const isScreen = (peer.info?.screenStreamId && stream && stream.id===peer.info.screenStreamId) || peer.hasCamVideo;
+// MIDs are sent with the SDP before ontrack runs; track order is not identity.
+function sendDescription(id,peer){
+  sendSignal(id,{description:peer.pc.localDescription,mediaSlots:{
+    screen:peer.screenTransceiver.mid,screenAudio:peer.screenAudioTransceiver.mid
+  }});
+}
+function syncRemoteScreen(id,peer){
+  if(peer.info?.sharing && peer.screenStream.getVideoTracks().some(t=>t.readyState==='live')) attachScreenTile(id,peer);
+  else removeScreenTile(peer);
+}
+function handleRemoteTrack(id,peer,ev){
+  const track=ev.track,stream=ev.streams[0],mid=ev.transceiver?.mid;
+  if(track.kind==='audio'){
+    if(mid!=null && mid===peer.remoteSlots?.screenAudio){
+      peer.screenAudioStream.addTrack(track);
+      if(!peer.screenAudioEl){peer.screenAudioEl=document.createElement('audio');peer.screenAudioEl.autoplay=true;}
+      peer.screenAudioEl.srcObject=peer.screenAudioStream;
+      keepMediaPlaying(peer.screenAudioEl);
+      connectRecordingAudio(peer.screenAudioStream);
+    }else{
+      peer.camStream.addTrack(track);connectRecordingAudio(peer.camStream);attachPeerTile(id,peer);
+    }
+    return;
+  }
+  const isScreen=peer.remoteSlots
+    ? mid===peer.remoteSlots.screen
+    : (peer.info?.screenStreamId && stream?.id===peer.info.screenStreamId)||peer.hasCamVideo;
   if(isScreen){
     peer.screenStream.addTrack(track);
-    attachScreenTile(id, peer);
-    track.onended=()=>{ removeScreenTile(peer); };
-    track.onmute=()=>{ /* временно */ };
+    track.onunmute=()=>syncRemoteScreen(id,peer);
+    track.onended=()=>{peer.screenStream.removeTrack(track);syncRemoteScreen(id,peer);};
+    syncRemoteScreen(id,peer);
   }else{
-    peer.hasCamVideo=true;
-    peer.camStream.addTrack(track);
-    attachPeerTile(id, peer);
+    peer.hasCamVideo=true;peer.camStream.addTrack(track);attachPeerTile(id,peer);
   }
+}
+
+// No native pause controls on live media. Resume browser interruptions without
+// timers; if autoplay is blocked, the next user gesture retries audio/video.
+const blockedMedia=new Set();
+function keepMediaPlaying(video){
+  video.controls=false;video.autoplay=true;video.playsInline=true;
+  const play=()=>{
+    if(!video.srcObject || state._leaving) return;
+    video.play().then(()=>{blockedMedia.delete(video);updatePlaybackPrompt();}).catch(()=>{blockedMedia.add(video);updatePlaybackPrompt();});
+  };
+  video.onpause=play;video.onloadedmetadata=play;
+  play();
+}
+function updatePlaybackPrompt(){ $('playback-retry').classList.toggle('hidden',blockedMedia.size===0); }
+document.addEventListener('pointerdown',()=>{
+  for(const video of blockedMedia){
+    if(!video.srcObject){blockedMedia.delete(video);continue;}
+    keepMediaPlaying(video);
+  }
+});
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden) return;
+  for(const peer of peers.values()) for(const video of [peer.videoEl,peer.screenVideoEl,peer.screenAudioEl]) if(video) keepMediaPlaying(video);
+});
+function detachMedia(video){
+  if(!video)return;
+  video.onpause=null;video.onloadedmetadata=null;blockedMedia.delete(video);video.srcObject=null;updatePlaybackPrompt();
 }
 
 function sendSignal(toId, payload){ wsSend({ t:'signal', to:toId, data:payload }); }
@@ -1298,15 +1355,17 @@ async function handleSignal(from, data){
   try{
     if(data.description){
       const desc=data.description;
-      const collision = desc.type==='offer' && (peer.makingOffer || pc.signalingState!=='stable');
+      const collision = desc.type==='offer' && (peer.makingOffer || (pc.signalingState!=='stable' && !peer.settingRemoteAnswer));
       peer.ignoreOffer = !peer.polite && collision;
       if(peer.ignoreOffer) return;
-      await pc.setRemoteDescription(desc);
-      if(desc.type==='offer'){ await pc.setLocalDescription(); sendSignal(from, { description: pc.localDescription }); }
+      peer.remoteSlots=data.mediaSlots||null;
+      peer.settingRemoteAnswer=desc.type==='answer';
+      try{await pc.setRemoteDescription(desc);}finally{peer.settingRemoteAnswer=false;}
+      if(desc.type==='offer'){ await pc.setLocalDescription(); sendDescription(from,peer); }
     }else if(data.candidate){
       try{ await pc.addIceCandidate(data.candidate); }catch(e){ if(!peer.ignoreOffer){} }
     }
-  }catch(e){ /* ignore */ }
+  }catch(e){ console.warn('Meet signal failed',e); }
 }
 
 /* ============================================================
@@ -1324,7 +1383,8 @@ function createPeerTile(id, peer, info){
 }
 function attachPeerTile(id, peer){
   if(!peer.tile) return;
-  peer.videoEl.srcObject=peer.camStream;
+  if(peer.videoEl.srcObject!==peer.camStream) peer.videoEl.srcObject=peer.camStream;
+  keepMediaPlaying(peer.videoEl);
   const camActive = (peer.info?.camOn!==false) && peer.camStream.getVideoTracks().length>0;
   peer.tile.querySelector('.tile-noimg').style.display=camActive?'none':'flex';
   peer.tile.classList.toggle('cam-off', !camActive); // в оверлее презентации прячем «без видео»
@@ -1342,11 +1402,11 @@ function attachScreenTile(id, peer){
   const v=peer.screenVideoEl;
   v.muted=true;
   if(v.srcObject!==peer.screenStream) v.srcObject=peer.screenStream;
-  v.play().catch(()=>{}); // явный play() для iOS
+  keepMediaPlaying(v);
   relayoutGrid();
 }
 function removeScreenTile(peer){
-  if(peer.screenTile){ peer.screenTile.remove(); peer.screenTile=null; peer.screenVideoEl=null; peer.screenStream=new MediaStream(); }
+  if(peer.screenTile){ detachMedia(peer.screenVideoEl); peer.screenTile.remove(); peer.screenTile=null; peer.screenVideoEl=null; }
   relayoutGrid();
 }
 function updatePeerTileInfo(id, info){
@@ -1536,10 +1596,10 @@ async function toggleShare(){
       selfPatch({ sharing:true, screenStreamId: state.screenStream.id });
       for(const peer of peers.values()){
         try{
-          peer.screenSender = peer.pc.addTrack(st, state.screenStream);
+          await peer.screenSender.replaceTrack(st);
           tuneScreenSender(peer.screenSender,peer);
-          if(sa) peer.screenAudioSender = peer.pc.addTrack(sa, state.screenStream);
-        }catch{}
+          await peer.screenAudioSender.replaceTrack(sa||null);
+        }catch(e){ console.warn('Screen delivery failed',e); toast('Не удалось передать экран одному из участников. Переподключите участника.',8000); }
       }
       setLocalTileStream();
     }catch(e){
@@ -1554,8 +1614,8 @@ async function toggleShare(){
     state.sharing=false;
     floatingParticipants.close();
     for(const peer of peers.values()){
-      if(peer.screenSender){ try{ peer.pc.removeTrack(peer.screenSender); }catch{} peer.screenSender=null; }
-      if(peer.screenAudioSender){ try{ peer.pc.removeTrack(peer.screenAudioSender); }catch{} peer.screenAudioSender=null; }
+      if(peer.screenSender) await peer.screenSender.replaceTrack(null).catch(()=>{});
+      if(peer.screenAudioSender) await peer.screenAudioSender.replaceTrack(null).catch(()=>{});
     }
     state.screenStream?.getTracks().forEach(t=>t.stop()); state.screenStream=null;
     selfPatch({ sharing:false, screenStreamId:null });
@@ -1580,6 +1640,7 @@ function startTimer(){
 async function leaveRoom(){
   if(state._leaving) return;
   state._leaving=true;
+  clearTimeout(recordingRetryTimer);
   floatingParticipants.close();
   const btn=$('cb-leave'); btn.disabled=true;
   clearInterval(timerInt); clearTimeout(wsReconnectTimer);
@@ -1752,7 +1813,31 @@ function getMixAudioContext(){ if(!mixAC) mixAC=new (window.AudioContext||window
 let recMixed=null;
 let mediaRecorder=null, recCanvas=null, recRAF=null, recStartTs=0, recMime='video/webm';
 let recUpload=null, recStarting=null, recSaving=null, recordingSaved=false;
-function toggleRecording(){ if(!state.recording) startRecording(); else stopRecording().catch(e=>toast(e.message)); }
+let recordingRetryTimer=null,recordingRetryCount=0;
+function recordingProblem(message){
+  $('rec-indicator').classList.add('hidden');
+  $('rec-retry').classList.remove('hidden');
+  $('rec-retry').title=message;
+  toast(message,10000);
+}
+function scheduleRecordingRetry(){
+  if(state._leaving || recordingRetryCount>=3) return;
+  clearTimeout(recordingRetryTimer);
+  recordingRetryTimer=setTimeout(()=>retryRecording(),5000*++recordingRetryCount);
+}
+async function retryRecording(){
+  clearTimeout(recordingRetryTimer);
+  if(state._leaving || state.recording || recStarting || recSaving) return;
+  try{
+    // Never discard an unfinished upload when restarting the recorder.
+    if(recUpload){
+      recSaving=finalizeRecording().finally(()=>{recSaving=null;});
+      await recSaving;
+    }
+    await startRecording();
+  }catch(e){recordingProblem('Не удалось сохранить запись: '+e.message);}
+}
+$('rec-retry').onclick=()=>{recordingRetryCount=0;retryRecording();};
 
 function drawRecTile(ctx, tile, x,y,w,h, contain){
   const v=tile.querySelector('video'); const name=tile.querySelector('.nm')?.textContent||'';
@@ -1810,7 +1895,7 @@ async function beginRecording(){
     const ac=getMixAudioContext(); await ac.resume(); recDest=ac.createMediaStreamDestination();
     const addAudio=connectRecordingAudio;
     addAudio(state.rawStream); addAudio(state.screenStream);
-    for(const peer of peers.values()) addAudio(peer.camStream);
+    for(const peer of peers.values()){addAudio(peer.camStream);addAudio(peer.screenAudioStream);}
 
     const mixed=new MediaStream([...canvasStream.getVideoTracks(), ...recDest.stream.getAudioTracks()]);
     recMixed=mixed;
@@ -1823,18 +1908,31 @@ async function beginRecording(){
     mediaRecorder=new MediaRecorder(mixed,{mimeType:recMime,...(MOBILE_MEDIA?{videoBitsPerSecond:600_000,audioBitsPerSecond:48_000}:{})});
     mediaRecorder.ondataavailable=e=>{
       if(e.data.size) recUpload.append(e.data, buildMeta(id)).catch(e=>{
-        toast('Запись остановлена: '+e.message,10000);
+        recordingProblem('Запись остановлена: '+e.message);
         if(state.recording) stopRecording().catch(()=>{});
       });
     };
-    mediaRecorder.onerror=()=>toast('Ошибка записи. Нажмите выход, чтобы сохранить полученную часть.',10000);
+    mediaRecorder.onerror=()=>recordingProblem('Ошибка записи. Сохраняем полученную часть.');
+    mediaRecorder.onpause=()=>{
+      if(state.recording && mediaRecorder.state==='paused') mediaRecorder.resume();
+    };
+    mediaRecorder.onstop=()=>{
+      // Browser/device interruption, not the normal leave flow (which replaces
+      // this handler). Save this segment before starting another recording.
+      if(!state.recording)return;
+      state.recording=false;releaseRecordingMedia();
+      recordingProblem('Запись прервалась. Сохраняем часть и возобновляем запись.');
+      recSaving=finalizeRecording().finally(()=>{recSaving=null;scheduleRecordingRetry();});
+      recSaving.catch(e=>recordingProblem('Не удалось сохранить часть: '+e.message));
+    };
     mediaRecorder.start(2000); state.recording=true;
-    $('rec-indicator').classList.remove('hidden'); refreshControlIcons();
+    $('rec-indicator').classList.remove('hidden'); $('rec-retry').classList.add('hidden'); refreshControlIcons();
     toast('Запись включена. После выхода встреча появится в архиве.');
   }catch(e){
     releaseRecordingMedia();
     recUpload=null;
-    toast('Запись не началась: '+e.message+'. Чат и расшифровка сохранятся при выходе.',15000);
+    recordingProblem('Запись не началась: '+e.message);
+    scheduleRecordingRetry();
   }
 }
 function stopRecording(){
