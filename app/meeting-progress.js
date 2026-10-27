@@ -16,7 +16,7 @@ export function needsTranscriptProcessing(meeting){
  if(transcripts.some(f=>f.status==='stored'))return false;
  return transcripts.length>0||files.some(f=>/^(MP4|WEBM)$/i.test(f.extension||''));
 }
-export function visibleMeetings(meetings,expanded=false){return expanded?meetings:meetings.filter(needsTranscriptProcessing);}
+export function visibleMeetings(meetings,expanded=false){return expanded?meetings:[];}
 export function initMeetingProgress({getToken}){
  let meetings=[],loaded=false,busy=false,error='',checked=0,expanded=false;
  const roots=()=>[...document.querySelectorAll('[data-meeting-progress]')];
@@ -24,7 +24,7 @@ export function initMeetingProgress({getToken}){
   const scrollTop=root.querySelector('[data-meeting-list]')?.scrollTop||0;
   const shown=visibleMeetings(meetings,expanded);
   root.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">${expanded||shown.length?`<h4 style="font-size:13px;line-height:1.4;margin:0">${expanded?'История встреч':'Расшифровки: ожидают обработки'}</h4>`:''}<button type="button" data-meeting-expand aria-expanded="${expanded}" style="flex-shrink:0;font:inherit;font-size:12px;color:#86603e;background:none;border:1px solid #ddd6c9;border-radius:6px;padding:7px 10px;cursor:pointer">${expanded?'Скрыть историю':'Просмотреть историю встреч'}</button></div>`+
-   (error?'<p role="status" style="font-size:12px;margin:6px 0">'+esc(error)+'</p>':'')+
+   (error&&expanded?'<p role="status" style="font-size:12px;margin:6px 0">'+esc(error)+'</p>':'')+
    `<div data-meeting-list style="max-height:320px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain">`+
    (!loaded?(expanded?'<p>Загружаем статусы встреч…</p>':''):!shown.length?(expanded?'<p>Сохранённых встреч пока нет.</p>':''):shown.map(m=>{
     const title=m.deal_title||m.topic||'Видеовстреча';
