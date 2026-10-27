@@ -20,3 +20,15 @@ const edge=new Uint8ClampedArray([0,0,0,160,0,0,0,190,0,0,0,220]);
 context.refinePersonAlpha(edge);
 assert.ok(edge[3]>0 && edge[3]<edge[7] && edge[7]<edge[11] && edge[11]<255,'soft edge, not a binary cutout');
 console.log('PASS: chair confidence, isolated fragments, connected fine edges, RGB and antialiasing');
+
+// A hard staircase gets subpixel coverage while interior and RGB stay exact.
+const size=16, step=new Uint8ClampedArray(size*size*4);
+for(let y=0;y<size;y++) for(let x=0;x<size;x++){
+ const i=(y*size+x)*4; step[i]=77; step[i+3]=x>=8?255:0;
+}
+context.smoothPersonEdge(step,size,size,new Float32Array(size*size));
+assert.equal(step[(8*size+4)*4+3],0);
+assert.equal(step[(8*size+12)*4+3],255);
+assert.ok(step[(8*size+7)*4+3]>0 && step[(8*size+8)*4+3]<255);
+assert.equal(step[(8*size+8)*4],77,'smoothing never touches skin colours');
+console.log('PASS: subpixel edge coverage, opaque interior, transparent exterior, unchanged RGB');
