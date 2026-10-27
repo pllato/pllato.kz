@@ -125,6 +125,7 @@ button{font-family:inherit;cursor:pointer}
 .tile{position:relative;background:#0d1322;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);min-height:120px}
 .tile video{width:100%;height:100%;object-fit:cover}
 .tile.local video{transform:scaleX(-1)}
+.tile.local.office-background video{transform:none}
 .tile.screen video{transform:none} /* демонстрация экрана НИКОГДА не зеркалится (в т.ч. свой превью) */
 .tile.host{box-shadow:0 0 0 2px var(--bronze)} /* ведущий — бронзовая рамка */
 .tile.speaking{border-color:var(--green);box-shadow:0 0 0 3px var(--green)} /* говорит сейчас — зелёная (перебивает host) */
@@ -333,6 +334,8 @@ button{font-family:inherit;cursor:pointer}
       <div class="prejoin-form">
         <h2>Готовы к встрече?</h2>
         <div class="room-name" id="pre-roomname"></div>
+        <p class="sub" style="font-size:12px" id="pre-background-label"></p>
+        <p class="sub" style="font-size:12px">Вход с включённой камерой. Без видео можно войти, только если камера отсутствует.</p>
         <button class="btn btn-ghost" id="pre-invite" style="margin-bottom:12px">Скопировать приглашение</button>
         <a class="btn btn-ghost hidden" id="pre-login">Вход организатора через Google</a>
         <p class="sub" style="font-size:12px">Организатор записывает встречу. Запись, чат и доступная расшифровка сохраняются в его архиве.</p>
@@ -454,6 +457,8 @@ button{font-family:inherit;cursor:pointer}
       <button class="bg-opt" data-bg="none">Нет</button>
       <button class="bg-opt" data-bg="blur">Размытие</button>
       <button class="bg-opt" data-bg="logo">Лого Pllato</button>
+      <button class="bg-opt" data-bg="office-host">Ресепшен</button>
+      <button class="bg-opt" data-bg="office-client">Офис</button>
     </div>
   </div>
 </section>
@@ -475,7 +480,7 @@ const MEET_API = 'https://pllato-meet.uurraa.workers.dev';
 const MOBILE_MEDIA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const MEDIA_PROFILE = MOBILE_MEDIA
   ? { width:960, height:540, cameraFps:24, backgroundFps:15, recordingFps:15, bitrate:1_200_000 }
-  : { width:1280, height:720, cameraFps:30, backgroundFps:24, recordingFps:25, bitrate:2_000_000 };
+  : { width:1280, height:720, cameraFps:30, backgroundFps:20, recordingFps:25, bitrate:2_000_000 };
 const LOGO_URL = '/pllato_logo_transparent_navy.svg'; // тёмный логотип Pllato на СВЕТЛОМ фоне
 
 const ICE_SERVERS = [
@@ -523,7 +528,7 @@ const state = {
   isHost: false,
   hostKey: null,
   name: localStorage.getItem(LS.name) || '',
-  micOn: true, camOn: true, bgMode: localStorage.getItem(LS.bg) || 'logo', // none | blur | logo — по умолчанию логотип Pllato
+  micOn: true, camOn: true, bgMode: 'office-client', // role-specific office background on every entry
   sharing: false, captioning: false, recording: false, locked: false,
   rawStream: null,        // camera+mic from getUserMedia
   outStream: null,        // what we send (processed video + mic audio)
@@ -556,6 +561,7 @@ function gotoPrejoin(roomId){
   if(!location.pathname.startsWith('/m/')) history.replaceState(null,'', '/meet.html?room='+encodeURIComponent(roomId));
   $('pre-roomname').textContent = 'Комната: '+roomId;
   const host=!!state.hostKey || myMeetSlug()===roomId;
+  state.bgMode=host?'office-host':'office-client'; state.camOn=true; state.noCameraConfirmed=false;
   $('btn-enter').textContent=host?'Начать как организатор':'Войти во встречу';
   $('pre-invite').onclick=()=>shareInvite(shortLink(roomId));
   $('pre-login').classList.toggle('hidden', !!sessionUser());
@@ -622,18 +628,20 @@ function renderCabinet(){
 let previewBg = null;
 
 async function startPreview(){
+  $('btn-enter').disabled=true; state.camOn=true;
   $('pre-name').value = state.name;
   applyBgUI();
   const info = await getLocalMedia();   // никогда не бросает
   try{ await populateDevices(); }catch{}
   updatePreMicCam();
   renderPreview();
-  showMediaStatus(info);                 // предупреждение, но вход НЕ блокируем
+  showMediaStatus(info);
 }
 
 // Устойчивый захват: пробуем оба устройства сразу, при сбое — по отдельности,
 // чтобы отсутствие/занятость микрофона НЕ мешала камере (и наоборот). Никогда не бросает.
 async function getLocalMedia(){
+  state.mediaReady=false; state.noCameraConfirmed=false;
   if(state.rawStream){ state.rawStream.getTracks().forEach(t=>t.stop()); }
   const vBase = { width:{ideal:MEDIA_PROFILE.width}, height:{ideal:MEDIA_PROFILE.height}, frameRate:{ideal:MEDIA_PROFILE.cameraFps, max:MEDIA_PROFILE.cameraFps} };
   const vc = state.selCam ? { deviceId:{exact:state.selCam}, ...vBase } : vBase;
@@ -644,13 +652,25 @@ async function getLocalMedia(){
   }catch(e){
     // разбираем по отдельности — какое устройство подвело
     stream = new MediaStream();
-    try{ const v=await navigator.mediaDevices.getUserMedia({ video:vc }); v.getVideoTracks().forEach(t=>stream.addTrack(t)); }catch(e2){ camErr=e2; }
+    try{ const v=await navigator.mediaDevices.getUserMedia({ video:vc }); v.getVideoTracks().forEach(t=>stream.addTrack(t)); }catch(e2){
+      camErr=e2;
+      // A removed saved camera or unsupported constraints are not proof that
+      // the device has no camera. Retry the default camera with basic constraints.
+      if(['NotFoundError','DevicesNotFoundError','OverconstrainedError'].includes(e2.name)){
+        try{ const v=await navigator.mediaDevices.getUserMedia({video:true}); v.getVideoTracks().forEach(t=>stream.addTrack(t)); camErr=null; state.selCam=null; }catch(e3){camErr=e3;}
+      }
+    }
     try{ const a=await navigator.mediaDevices.getUserMedia({ audio:ac }); a.getAudioTracks().forEach(t=>stream.addTrack(t)); }catch(e2){ micErr=e2; }
   }
   state.rawStream = stream || new MediaStream();
   const hasAudio = state.rawStream.getAudioTracks().length>0;
   const hasVideo = state.rawStream.getVideoTracks().length>0;
   state.hasMic = hasAudio; state.hasCam = hasVideo;
+  if(!hasVideo && ['NotFoundError','DevicesNotFoundError'].includes(camErr?.name)){
+    try{ state.noCameraConfirmed=!(await navigator.mediaDevices.enumerateDevices()).some(d=>d.kind==='videoinput'); }catch{}
+  }
+  state.mediaReady=true;
+  if(hasVideo && !state._joined) state.camOn=true;
   if(!hasAudio) state.micOn=false;      // нет устройства — кнопка выключена
   if(!hasVideo) state.camOn=false;
   state.rawStream.getAudioTracks().forEach(t=> t.enabled = state.micOn);
@@ -668,8 +688,12 @@ function mediaErrText(e){
   if(n==='NotReadableError'||n==='TrackStartError'||n==='AbortError') return 'устройство занято другим приложением';
   return (e&&e.message)||'ошибка доступа';
 }
-// Предупреждение о недоступных устройствах — но войти по-прежнему МОЖНО (как слушатель/без камеры)
+function canEnterWithCamera(){
+  return state.mediaReady && (state.noCameraConfirmed || (state.camOn && state.rawStream?.getVideoTracks().some(t=>t.readyState==='live' && t.enabled)));
+}
+// Permission denial, a busy camera, and missing hardware are distinct states.
 function showMediaStatus(info){
+  $('btn-enter').disabled=!canEnterWithCamera();
   const box=$('pre-error'); if(!box) return;
   if(info && info.hasAudio && info.hasVideo){ box.innerHTML=''; return; }
   const miss=[];
@@ -680,10 +704,10 @@ function showMediaStatus(info){
   let tip='';
   if(denied) tip='Нажмите на значок 🔒/камеры слева в адресной строке и разрешите доступ, затем «Повторить».';
   else if(busy) tip='Закройте Zoom и другие приложения/вкладки, которые используют микрофон или камеру, затем «Повторить».';
-  else tip='Проверьте, что устройство подключено. Можно войти и без него — включите позже в «Настройках».';
+  else tip=state.noCameraConfirmed?'Камера на устройстве не обнаружена — можно войти без видео.':'Проверьте подключение устройств и повторите проверку.';
   box.innerHTML=`<div class="alert">Недоступно: ${miss.join(', ')}.<br>${tip}<br>
     <button class="btn btn-ghost" id="btn-retry-media" style="margin-top:8px;padding:7px 12px;font-size:12.5px">↻ Повторить</button>
-    <span style="font-size:12px;color:var(--text-2);margin-left:8px">Войти всё равно можно — кнопкой ниже.</span></div>`;
+    <span style="font-size:12px;color:var(--text-2);margin-left:8px">${canEnterWithCamera()?'Можно войти кнопкой ниже.':'Для входа включите камеру и разрешите доступ к ней.'}</span></div>`;
   const rb=$('btn-retry-media'); if(rb) rb.onclick=()=> startPreview();
 }
 
@@ -703,6 +727,7 @@ $('sel-mic').onchange = async (e)=>{ state.selMic=e.target.value; const info=awa
 navigator.mediaDevices?.addEventListener?.('devicechange', async ()=>{
   try{ await populateDevices(); }catch{}
   if(state._joined) toast('Список устройств обновился — выберите наушники/микрофон в «Настройках»');
+  else if($('screen-prejoin').classList.contains('active')) startPreview();
 });
 
 function updatePreMicCam(){
@@ -716,19 +741,21 @@ $('pre-mic').onclick=async ()=>{
 };
 $('pre-cam').onclick=async ()=>{
   if(!state.hasCam){ state.camOn=true; state.selCam=null; const info=await getLocalMedia(); updatePreMicCam(); renderPreview(); showMediaStatus(info); return; }
-  state.camOn=!state.camOn; state.rawStream?.getVideoTracks().forEach(t=>t.enabled=state.camOn); updatePreMicCam(); renderPreview();
+  state.camOn=true; state.rawStream?.getVideoTracks().forEach(t=>t.enabled=true); updatePreMicCam(); renderPreview(); toast('Для входа камера должна быть включена');
 };
 $('pre-name').oninput = (e)=>{ state.name=e.target.value; };
 
 // background mode UI (используется и в превью, и в комнате)
 function applyBgUI(){
+  const label=$('pre-background-label'); if(label) label.textContent=state.bgMode==='office-host'?'Фон ведущего: ресепшен Pllato':(state.bgMode==='office-client'?'Фон клиента: офис Pllato':'');
   document.querySelectorAll('#bg-options .bg-opt, #r-bg-options .bg-opt').forEach(b=> b.classList.toggle('active', b.dataset.bg===state.bgMode));
-  const d=$('bg-desc'); if(d) d.textContent = state.bgMode==='blur'?'— размыто':(state.bgMode==='logo'?'— логотип Pllato':'');
+  const d=$('bg-desc'); if(d) d.textContent = state.bgMode==='blur'?'— размыто':(state.bgMode==='logo'?'— логотип Pllato':(state.bgMode==='office-host'?'— ресепшен Pllato':(state.bgMode==='office-client'?'— офис Pllato':'')));
 }
 document.querySelectorAll('#bg-options .bg-opt').forEach(b=> b.onclick=()=>{ state.bgMode=b.dataset.bg; localStorage.setItem(LS.bg,state.bgMode); applyBgUI(); renderPreview(); });
 
 function renderPreview(){
   const v=$('pre-video'), c=$('pre-canvas'), nov=$('pre-novid');
+  c.style.transform=state.bgMode.startsWith('office-')?'none':'scaleX(-1)';
   if(!state.camOn){ v.classList.add('hidden'); c.classList.add('hidden'); nov.classList.remove('hidden'); $('pre-avatar').textContent=initials(state.name); if(previewBg){previewBg.stop();previewBg=null;} return; }
   nov.classList.add('hidden');
   if(state.bgMode!=='none'){
@@ -742,6 +769,7 @@ function renderPreview(){
 }
 
 $('btn-enter').onclick = async ()=>{
+  if(!canEnterWithCamera()){ toast('Для входа нужна включённая камера. Разрешите доступ и нажмите «Повторить».'); return; }
   const u=sessionUser();
   const typed=$('pre-name').value.trim();
   // клиент (без Gmail-сессии) ОБЯЗАН вписать имя
@@ -765,13 +793,16 @@ $('pre-name').addEventListener('input', e=>{ e.target.style.borderColor=''; });
 /* ============================================================
    BACKGROUND (MediaPipe Selfie Segmentation) — blur / logo
    ============================================================ */
-let mpReady=false, mpFailed=false;
-async function ensureMediaPipe(){
-  if(mpReady) return true; if(mpFailed) return false;
-  try{
-    await new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
-    mpReady=true; return true;
-  }catch(e){ mpFailed=true; return false; }
+let mpReady=false, mpFailed=false, mpLoading=null;
+function ensureMediaPipe(){
+  if(mpReady) return Promise.resolve(true); if(mpFailed) return Promise.resolve(false);
+  if(!mpLoading) mpLoading=(async()=>{
+    try{
+      await new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
+      mpReady=true; return true;
+    }catch(e){ mpFailed=true; return false; }
+  })();
+  return mpLoading;
 }
 
 // логотип для фона (грузим как data-URL с явным размером, чтобы корректно рисовался на canvas)
@@ -784,6 +815,16 @@ async function loadLogo(){
     await new Promise((res)=>{ const img=new Image(); img.onload=()=>{ logoImg=img; res(); }; img.onerror=res; img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg); });
   }catch{}
   return logoImg;
+}
+
+const officeImages=new Map();
+function loadOfficeBackground(mode){
+  if(!mode.startsWith('office-')) return Promise.resolve(null);
+  if(!officeImages.has(mode)) officeImages.set(mode,new Promise(resolve=>{
+    const img=new Image(); img.onload=()=>resolve(img); img.onerror=()=>{officeImages.delete(mode);resolve(null);};
+    img.src=mode==='office-host'?'/assets/meet/office-reception.jpg':'/assets/meet/office-neutral.jpg';
+  }));
+  return officeImages.get(mode);
 }
 
 // Smoothstep сохраняет антиалиасинг, но убирает слабую примесь старого фона.
@@ -802,8 +843,10 @@ class BgPipeline{
     this.video.srcObject=stream; this.video.play().catch(()=>{});
     this.init();
   }
-  setMode(m){ this.mode=m; }
+  setMode(m){ this.mode=m; loadOfficeBackground(m); }
   async init(){
+    await loadOfficeBackground(this.mode);
+    if(!this.running) return;
     const ok=await ensureMediaPipe();
     if(!this.running) return;
     if(!ok){ this.fallbackLoop(); return; }
@@ -852,7 +895,21 @@ class BgPipeline{
     ctx.drawImage(results.image,0,0,w,h);
     // 3) фон позади человека
     ctx.globalCompositeOperation='destination-over';
-    if(this.mode==='logo'){
+    if(this.mode.startsWith('office-')){
+      ctx.filter='none';
+      if(!this.officeCanvas || this.officeKey!==`${this.mode}:${w}:${h}`){
+        this.officeCanvas=document.createElement('canvas'); this.officeCanvas.width=w; this.officeCanvas.height=h;
+        this.officeKey=`${this.mode}:${w}:${h}`;
+        const bgctx=this.officeCanvas.getContext('2d'); bgctx.fillStyle='#e9e4db'; bgctx.fillRect(0,0,w,h);
+        const key=this.officeKey, target=this.officeCanvas, mode=this.mode;
+        loadOfficeBackground(mode).then(img=>{
+          if(!this.running || !img || this.officeKey!==key) return;
+          const scale=Math.max(w/img.naturalWidth,h/img.naturalHeight),dw=img.naturalWidth*scale,dh=img.naturalHeight*scale;
+          target.getContext('2d').drawImage(img,(w-dw)/2,(h-dh)/2,dw,dh);
+        });
+      }
+      ctx.drawImage(this.officeCanvas,0,0,w,h);
+    }else if(this.mode==='logo'){
       ctx.filter='none';
       // СВЕТЛЫЙ фон (белый с лёгким градиентом) + тёмный логотип Pllato по центру.
       const g=ctx.createLinearGradient(0,0,0,h); g.addColorStop(0,'#ffffff'); g.addColorStop(1,'#e9edf3');
@@ -1002,6 +1059,9 @@ function handleWsMessage(m){
       clearTimeout(wsConnectTimeout); $('btn-enter').disabled=false;
       state._everConnected=true;
       state.isHost=m.self.isHost; state.admitted=m.self.admitted;
+      if(state.bgMode.startsWith('office-')){
+        state.bgMode=state.isHost?'office-host':'office-client'; outBg?.setMode(state.bgMode); applyBgUI();
+      }
       for(const id of [...peers.keys()]){ if(!(m.peers||[]).some(p=>p.peer===id)) removePeer(id); }
       presenceCache.clear();
       for(const p of (m.peers||[])) presenceCache.set(p.peer, p.info);
@@ -1254,6 +1314,7 @@ function monitorLocalAudio(){
 }
 function setLocalTileStream(){
   if(!localTile) return;
+  localTile.classList.toggle('office-background',state.bgMode.startsWith('office-'));
   const v=localTile.querySelector('video');
   const ms=new MediaStream();
   // своё видео показываем С ФОНОМ (как видят собеседники). Канвас крутится на 30 fps,
@@ -1610,7 +1671,7 @@ function toggleRecording(){ if(!state.recording) startRecording(); else stopReco
 
 function drawRecTile(ctx, tile, x,y,w,h, contain){
   const v=tile.querySelector('video'); const name=tile.querySelector('.nm')?.textContent||'';
-  const mirrored=tile.classList.contains('local') && tile.dataset.kind!=='screen';
+  const mirrored=tile.classList.contains('local') && !tile.classList.contains('office-background') && tile.dataset.kind!=='screen';
   const hasVid=v && v.srcObject && v.srcObject.getVideoTracks().length;
   ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
   try{
