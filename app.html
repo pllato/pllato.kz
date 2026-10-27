@@ -5183,6 +5183,7 @@ function installProjectContracts(){
   contractsModule ||= import('/app/contracts/panel.js?v=20261003-1').catch(error=>{contractsModule=null;throw error;});
   contractsModule.then(module=>module.installProjectContracts()).catch(error=>console.warn('Договоры временно недоступны:',error));
 }
+import {storeMeetStaffAccess} from '/meet-staff-access.js';
 import {
   getSession,
   signOut as localSignOut,
@@ -5240,7 +5241,7 @@ import { initFinancialPlanning } from './app/financial-planning.js?v=20261012-no
 import { initProjectPayouts } from './app/project-payouts.js?v=20261016-access';
 import { initProjectRecordings } from './app/project-recordings.js?v=20260923';
 let transcriptDemoController;
-function mountTranscriptDemoTasks(){if(transcriptDemoController)return;transcriptDemoController={loading:true};import('./app/transcript-demo-tasks.js?v=20261027-history').then(m=>{transcriptDemoController=m.initTranscriptDemoTasks({getToken:()=>getSession()?.token});}).catch(e=>{transcriptDemoController=null;console.warn(e);});}
+function mountTranscriptDemoTasks(){if(transcriptDemoController)return;transcriptDemoController={loading:true};import('./app/transcript-demo-tasks.js?v=20261027-recorder').then(m=>{transcriptDemoController=m.initTranscriptDemoTasks({getToken:()=>getSession()?.token});}).catch(e=>{transcriptDemoController=null;console.warn(e);});}
 
 
 initProjectRecordings({ getSession });
@@ -9000,7 +9001,7 @@ function calBindTips(box){
       try{
         const r=await calFetch(CAL_WORKER+'/api/zoom/meetings/'+encodeURIComponent(room)+'/host-access',8000,{method:'POST',headers:{Authorization:'Bearer '+(getSession()?.token||'')}});
         const data=await r.json();if(!r.ok||!calZoomUrl(data.hostUrl))throw Error(data.error||'Нет доступа организатора');const target=data.hostUrl;
-        if(popup)popup.location.replace(target);else location.href=target;
+        if(popup){storeMeetStaffAccess(popup.sessionStorage,room,data);popup.location.replace(target);}else{storeMeetStaffAccess(sessionStorage,room,data);location.href=target;}
       }catch(error){popup?.close();link.textContent='Повторить вход';link.title=error.message;}
     };
   });

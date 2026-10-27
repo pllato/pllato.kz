@@ -305,6 +305,32 @@ export class MeetRoom {
         this.broadcast({ t: 'room-update', status: room.status, locked: room.locked }, null);
         return;
       }
+      case 'recording-status': {
+        const room=await this.getRoom();
+        if(self?.info.role!=='host'||room.recorderPeer!==self.peer)return;
+        room.recordingActive=m.active===true;await this.saveRoom(room);
+        this.broadcast({t:'recording-status',active:room.recordingActive},null);return;
+      }
+      case 'recording-transfer': {
+        const room=await this.getRoom(),target=this.sockFor(m.target);
+        if(self?.info.role!=='host'||room.recorderPeer!==self.peer||room.endAt||room.pendingRecorder)return;
+        if(!target||this.attOf(target)?.info.role!=='host'||!this.attOf(target)?.info.admitted||m.target===self.peer)return;
+        room.pendingRecorder=m.target;room.transferAt=Date.now()+20000;await this.saveRoom(room);await this.ctx.storage.setAlarm(room.transferAt);
+        this.send(target,{t:'recording-prepare'});return;
+      }
+      case 'recording-ready': {
+        const room=await this.getRoom();
+        if(self?.info.role!=='host'||room.pendingRecorder!==self.peer||room.endAt)return;
+        room.recorderPeer=self.peer;room.pendingRecorder=null;room.transferAt=null;room.recordingActive=true;await this.saveRoom(room);await this.ctx.storage.deleteAlarm();
+        this.broadcast({t:'recording-owner',peer:room.recorderPeer,active:!!room.recordingActive},null);return;
+      }
+      case 'recording-failed': {
+        const room=await this.getRoom();
+        if(room.pendingRecorder!==self?.peer)return;
+        room.pendingRecorder=null;room.transferAt=null;await this.saveRoom(room);if(!room.endAt)await this.ctx.storage.deleteAlarm();
+        this.broadcast({t:'recording-owner',peer:room.recorderPeer,active:!!room.recordingActive},null);
+        this.broadcast({t:'recording-transfer-failed'},null);return;
+      }
       case 'end-meeting': {
         if(self?.info.role==='host')await this.scheduleEnd(true);
         return;
@@ -352,6 +378,8 @@ export class MeetRoom {
     if(!hostPresent && !isHost && !room.endAt)room.status='waiting';
     if(isHost && !room.explicitEnd){room.status='open';room.locked=false;}
 
+    const recorderChanged=isHost&&!room.explicitEnd&&!this.sockFor(room.recorderPeer);
+    if(recorderChanged){room.recorderPeer=peer;room.recordingActive=false;}
     await this.saveRoom(room);
 
     const admitted = !room.explicitEnd && (isHost || (hostPresent && room.status === 'open' && !room.locked));
@@ -372,12 +400,13 @@ export class MeetRoom {
     this.send(ws, {
       t: 'welcome',
       self: { peer, role: info.role, admitted, isHost },
-      room: { status: room.status, locked: room.locked },
+      room: { status: room.status, locked: room.locked, recorderPeer:room.recorderPeer||null,recordingActive:!!room.recordingActive },
       peers: this.peersList(peer),
     });
     if(room.endAt)this.send(ws,{t:'meeting-ending',endAt:room.endAt});
     // tell everyone else
     this.broadcast({ t: 'peer-join', peer, info }, peer);
+    if(recorderChanged)this.broadcast({t:'recording-owner',peer:room.recorderPeer,active:!!room.recordingActive},peer);
 
     // if a host just arrived and room is open → admit anyone waiting
     if (isHost && room.status === 'open' && !room.locked) await this.openAll();
@@ -421,6 +450,12 @@ export class MeetRoom {
   }
   async alarm(){
     const room=await this.getRoom();
+    if(room.transferAt&&!room.endAt){
+      if(room.transferAt>Date.now()){await this.ctx.storage.setAlarm(room.transferAt);return;}
+      room.pendingRecorder=null;room.transferAt=null;await this.saveRoom(room);
+      this.broadcast({t:'recording-owner',peer:room.recorderPeer,active:!!room.recordingActive},null);
+      this.broadcast({t:'recording-transfer-failed'},null);return;
+    }
     if(!room.endAt)return;
     if(room.endAt>Date.now()){await this.ctx.storage.setAlarm(room.endAt);return;}
     this.broadcast({t:'meeting-ended'},null);
@@ -429,7 +464,7 @@ export class MeetRoom {
       this.setAtt(socket,null);
       try{socket.close(1000,'Meeting ended');}catch{}
     }
-    room.status='waiting';room.locked=false;room.endAt=null;room.explicitEnd=false;
+    room.status='waiting';room.locked=false;room.endAt=null;room.explicitEnd=false;room.recorderPeer=null;room.pendingRecorder=null;room.transferAt=null;room.recordingActive=false;
     await this.saveRoom(room);
   }
 
@@ -440,6 +475,13 @@ export class MeetRoom {
     if (!a?.peer) return;
     this.setAtt(ws, null);
     this.broadcast({ t: 'peer-leave', peer: a.peer }, a.peer);
+    const room=await this.getRoom();
+    if(room.pendingRecorder===a.peer){room.pendingRecorder=null;room.transferAt=null;await this.saveRoom(room);this.broadcast({t:'recording-transfer-failed'},null);}
+    if(room.recorderPeer===a.peer&&!room.explicitEnd){
+      const next=this.sockets().map(s=>this.attOf(s)).find(p=>p?.info.role==='host'&&p.info.admitted);
+      room.recorderPeer=next?.peer||null;room.recordingActive=false;room.pendingRecorder=null;room.transferAt=null;await this.saveRoom(room);
+      this.broadcast({t:'recording-owner',peer:room.recorderPeer,active:!!room.recordingActive},null);
+    }
     if (a.info.role==='host' && !this.sockets().some(s => this.attOf(s)?.info.role === 'host' && s.readyState===1)) await this.scheduleEnd(false);
   }
 }

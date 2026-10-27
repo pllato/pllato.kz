@@ -28,9 +28,16 @@ async function check({name='Client',allowed=true,throws=false}={}){
 const resolveSource=source.slice(source.indexOf('async function resolveStaffAccess(){'),source.indexOf('function slugify'));
 (async()=>{
  for(const [token,status,key] of [[null,0,null],['staff',200,'hk_22222222-2222-2222-2222-222222222222'],['guest',403,null],['expired',401,null]]){
-  const state={roomId:'crm-11111111-1111-1111-1111-111111111111',hostKey:'stale'};let requests=0;const label={};
-  const context=vm.createContext({state,sessionToken:()=>token,CRM_MEET_API:'https://test',AbortSignal,$:()=>label,deviceBackground:v=>v,fetch:async()=>{requests++;return {ok:status===200,status,json:async()=>({hostKey:key,hostUrl:'https://pllato.kz/m/d111111111111'})}}});
+  const state={roomId:'crm-11111111-1111-1111-1111-111111111111',hostKey:'stale'};let requests=0;const label={classList:{toggle(){}}};
+  const context=vm.createContext({state,sessionStorage:{},readMeetStaffAccess:()=>null,sessionToken:()=>token,CRM_MEET_API:'https://test',AbortSignal,$:()=>label,deviceBackground:v=>v,fetch:async()=>{requests++;return {ok:status===200,status,json:async()=>({hostKey:key,hostUrl:'https://pllato.kz/m/d111111111111'})}}});
   vm.runInContext(resolveSource,context);await context.resolveStaffAccess();assert.equal(state.hostKey,key);assert.equal(requests,token?1:0);
  }
  console.log('PASS: staff authorization, guest, expired session and stale key rejection');
+})();
+(async()=>{
+ const access={hostKey:'hk_22222222-2222-2222-2222-222222222222',hostUrl:'https://pllato.kz/m/d111111111111'};
+ const state={roomId:'crm-11111111-1111-1111-1111-111111111111'};
+ const context=vm.createContext({state,sessionStorage:{},readMeetStaffAccess:()=>access,sessionToken:()=>null,$:()=>({classList:{toggle(){}}}),deviceBackground:v=>v,fetch:()=>{throw Error('CRM access must not depend on a separate app session');}});
+ vm.runInContext(resolveSource,context);await context.resolveStaffAccess();assert.equal(state.hostKey,access.hostKey);
+ console.log('PASS: authenticated CRM launch works without pllato_session');
 })();

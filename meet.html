@@ -475,6 +475,7 @@ button{font-family:inherit;cursor:pointer}
 <div id="toast"></div>
 
 <script type="module">
+import {readMeetStaffAccess} from '/meet-staff-access.js';
 import {containRect,recordingLayout} from '/meet-recording-layout.js?v=20261027-ratio';
 import { createMeetStorage } from "/meet-storage.js";
 const meetStorage=createMeetStorage(()=>window.localStorage,()=>window.sessionStorage);
@@ -549,6 +550,7 @@ function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.class
 const state = {
   roomId: null,
   isHost: false,
+  recorderPeer:null,
   hostKey: null,
   name: meetStorage.getItem(LS.name) || '',
   micOn: true, camOn: true, bgMode: deviceBackground('office-client'), // role-specific office background on every entry
@@ -603,8 +605,10 @@ async function gotoPrejoin(roomId){
 const CRM_MEET_API='https://pllato-elc-worker.uurraa.workers.dev/api/zoom';
 async function resolveStaffAccess(){
   state.hostKey=null;
+  const passed=readMeetStaffAccess(sessionStorage,state.roomId);
+  if(passed){state.hostKey=passed.hostKey;state.publicLink=passed.hostUrl;}
   const token=sessionToken();
-  if(token){
+  if(token&&!passed){
     const response=await fetch(CRM_MEET_API+'/meetings/'+encodeURIComponent(state.roomId)+'/host-access',{
       method:'POST',headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(8000),cache:'no-store'
     });
@@ -616,6 +620,7 @@ async function resolveStaffAccess(){
   }
   state.bgMode=deviceBackground(state.hostKey?'office-host':'office-client');
   $('pre-roomname').textContent=state.hostKey?'Вы входите как организатор':'Введите имя, чтобы присоединиться';
+  $('pre-login').classList.toggle('hidden',!!state.hostKey);
 }
 
 
@@ -1194,6 +1199,8 @@ function handleWsMessage(m){
       clearTimeout(wsConnectTimeout); $('btn-enter').disabled=false;
       state._everConnected=true;
       state.isHost=m.self.isHost; state.admitted=m.self.admitted;
+      state.recorderPeer=m.room?.recorderPeer||null;state.remoteRecording=!!m.room?.recordingActive;
+      $('rec-indicator').classList.toggle('hidden',!state.remoteRecording);
       if(state.bgMode.startsWith('office-')){
         state.bgMode=state.isHost?'office-host':'office-client'; outBg?.setMode(state.bgMode); applyBgUI();
       }
@@ -1203,7 +1210,7 @@ function handleWsMessage(m){
       presenceCache.set(peerId, { name:state.name, role:state.isHost?'host':'guest', admitted:state.admitted, micOn:state.micOn, camOn:state.camOn });
       for(const p of m.peers||[]) if(p.info.admitted) participantNames.add(p.info.name);
       participantNames.add(state.name);
-      if(state.admitted){ onAdmitted(); connectToAdmittedPeers(); }
+      if(state.admitted){ onAdmitted(); connectToAdmittedPeers();if(state.isHost&&state.recorderPeer===peerId)startRecording(); }
       else{ showWaitingPreview(); }
       break;
     }
@@ -1215,6 +1222,21 @@ function handleWsMessage(m){
       if(peers.has(m.peer)){ const p=peers.get(m.peer); p.info=m.info; updatePeerTileInfo(m.peer, m.info); syncRemoteScreen(m.peer,p); }
       renderPeopleList(); updateBadges(); break;
     }
+    case 'recording-status':
+      state.remoteRecording=!!m.active;$('rec-indicator').classList.toggle('hidden',!state.remoteRecording);break;
+    case 'recording-prepare':
+      if(state.isHost)prepareRecordingTransfer();
+      break;
+    case 'recording-owner': {
+      state.recorderPeer=m.peer;state.remoteRecording=!!m.active;
+      $('rec-indicator').classList.toggle('hidden',!state.remoteRecording);
+      if(state.isHost&&state.admitted){
+        if(m.peer===peerId)startRecording();
+        else {clearTimeout(recordingRetryTimer);Promise.resolve(recStarting).then(()=>{if(state.recording&&state.recorderPeer!==peerId)return stopRecording();}).catch(e=>recordingProblem('Не удалось сохранить свою часть: '+e.message));}
+      }
+      renderPeopleList();break;
+    }
+    case 'recording-transfer-failed':toast('Передача записи не состоялась. Прежний администратор продолжает запись.',8000);break;
     case 'peer-leave': removePeer(m.peer); break;
     case 'you-admitted': if(!state.admitted){ state.admitted=true; const me=presenceCache.get(peerId); if(me) me.admitted=true; onAdmitted(); connectToAdmittedPeers(); } break;
     case 'meeting-ending': showMeetingEnding(m.endAt); break;
@@ -1232,6 +1254,10 @@ function showWaitingPreview(){
   showScreen('screen-room');
   $('room-pill').textContent='Ожидаем администратора';
   $('timer-pill').textContent='Без записи';
+  if(state.roomId?.startsWith('crm-')&&!$('waiting-staff-login')){
+    const link=document.createElement('a');link.id='waiting-staff-login';link.className='btn';link.textContent='Я сотрудник — войти в аккаунт';
+    link.href='/login.html?next='+encodeURIComponent(shortLink(state.roomId));$('room-pill').after(link);
+  }
   setupLocalTile();
   initControls();
   renderPeopleList();updateBadges();
@@ -1239,6 +1265,7 @@ function showWaitingPreview(){
 }
 function onAdmitted(){
   if(state._joined) return; state._joined=true;
+  $('waiting-staff-login')?.remove();
   state.startedAt=Date.now();
   $('timer-pill').textContent='00:00';
   showScreen('screen-room');
@@ -1250,7 +1277,7 @@ function onAdmitted(){
   // субтитры (транскрипция) включаются у всех — чтобы записывалась речь каждого
   setTimeout(()=>{ if(state._joined && !state._leaving) startCaptions(true); }, 700);
   // запись ведёт организатор (требование: встреча идёт с записью)
-  if(state.isHost){ startRecording(); }
+  if(state.isHost && state.recorderPeer===peerId){ startRecording(); }
 }
 
 /* ============================================================
@@ -1282,7 +1309,17 @@ function renderPeopleList(){
     const me = id===peerId ? ' (вы)' : '';
     html+=`<div class="person"><div class="avatar" style="width:34px;height:34px;font-size:13px">${initials(i.name)}</div><div style="flex:1;min-width:0"><div class="nm">${escapeHtml(i.name)}${me}</div><div class="rl">${i.role==='host'?'организатор':'участник'} · ${i.micOn?'микр.вкл':'микр.выкл'}</div></div></div>`;
   }
+  if(state.isHost){
+    const recorder=presenceCache.get(state.recorderPeer);
+    html+=`<p role="status">Ответственный за запись: ${escapeHtml(recorder?.name||'ожидаем администратора')}</p>`;
+    if(state.recorderPeer===peerId)for(const [id,i] of admitted){
+      if(id!==peerId&&i.role==='host')html+=`<button class="btn transfer-recording" data-id="${escapeHtml(id)}" style="margin:6px 0">Передать запись: ${escapeHtml(i.name)}</button>`;
+    }
+  }
+  if(state.isHost&&state.recorderPeer!==peerId&&admitted.some(([id,i])=>id!==peerId&&i.role==='host'))html+='<button class="btn leave-only">Выйти, оставив встречу</button>';
   list.innerHTML=html;
+  const leaveOnly=list.querySelector('.leave-only');if(leaveOnly)leaveOnly.onclick=()=>leaveRoom({keepMeeting:true});
+  list.querySelectorAll('.transfer-recording').forEach(b=>b.onclick=()=>{b.disabled=true;b.textContent='Запускаем запись у другого администратора…';wsSend({t:'recording-transfer',target:b.dataset.id});});
   list.querySelectorAll('.person-admit').forEach(b=> b.onclick=()=> admitGuest(b.dataset.id));
   const aa=list.querySelector('.admit-all'); if(aa) aa.onclick=()=> wsSend({ t:'open' });
   // waiting banner for host
@@ -1750,10 +1787,10 @@ function stopMeetingMedia(){
   outBg?.stop();previewBg?.stop();
 }
 
-async function leaveRoom(){
+async function leaveRoom(options={}){
   if(state._leaving) return;
   state._leaving=true;
-  if(state.isHost){wsSend({t:'end-meeting'});showHostExit();}
+  if(state.isHost){if(!options.keepMeeting)wsSend({t:'end-meeting'});showHostExit();}
   clearTimeout(recordingRetryTimer);
   floatingParticipants.close();
   const btn=$('cb-leave'); btn.disabled=true;
@@ -1766,7 +1803,7 @@ async function leaveRoom(){
       if(state.recording) await stopRecording();
       else if(recSaving) await recSaving;
       else if(recUpload) await finalizeRecording();
-      else if(!recordingSaved) await saveMeetingMeta(state.roomId+'-'+state.startedAt, {recording:false});
+      else if(!recordingSaved && state.recorderPeer===peerId) await saveMeetingMeta(state.roomId+'-'+state.startedAt, {recording:false});
     }
     wsClosedByUser=true; wsSend({t:'bye'}); ws?.close();
     for(const {pc} of peers.values()) pc.close();
@@ -1934,17 +1971,19 @@ let recAudio=null, recAudioStop=null;
 let recUpload=null, recStarting=null, recSaving=null, recordingSaved=false;
 let recordingRetryTimer=null,recordingRetryCount=0;
 function recordingProblem(message){
+  if(state.recorderPeer===peerId)wsSend({t:'recording-status',active:false});
   $('rec-indicator').classList.add('hidden');
   $('rec-retry').classList.remove('hidden');
   $('rec-retry').title=message;
   toast(message,10000);
 }
 function scheduleRecordingRetry(){
-  if(state._leaving || recordingRetryCount>=3) return;
+  if(state._leaving || state.recorderPeer!==peerId || recordingRetryCount>=3) return;
   clearTimeout(recordingRetryTimer);
   recordingRetryTimer=setTimeout(()=>retryRecording(),5000*++recordingRetryCount);
 }
 async function retryRecording(){
+  if(state.recorderPeer!==peerId)return;
   clearTimeout(recordingRetryTimer);
   if(state._leaving || state.recording || recStarting || recSaving) return;
   try{
@@ -1972,6 +2011,10 @@ function drawRecTile(ctx, tile, x,y,w,h){
   ctx.restore();
 }
 
+async function prepareRecordingTransfer(){
+  try{await (recStarting||startRecording());wsSend({t:state.recording?'recording-ready':'recording-failed'});}
+  catch{wsSend({t:'recording-failed'});}
+}
 function startRecording(){
   if(state.recording || recStarting || recSaving || recUpload || state._leaving) return;
   recStarting=beginRecording().finally(()=>{recStarting=null;});
@@ -2039,6 +2082,7 @@ async function beginRecording(){
       recSaving.catch(e=>recordingProblem('Не удалось сохранить часть: '+e.message));
     };
     mediaRecorder.start(2000); state.recording=true;
+    wsSend({t:'recording-status',active:true});
     $('rec-indicator').classList.remove('hidden'); $('rec-retry').classList.add('hidden'); refreshControlIcons();
     toast('Запись включена. После выхода встреча появится в архиве.');
   }catch(e){
@@ -2057,7 +2101,8 @@ function stopRecording(){
     try{ mediaRecorder.stop(); }catch(e){ reject(e); }
   }).finally(()=>{recSaving=null;});
   if(recRAF)clearTimeout(recRAF);
-  $('rec-indicator').classList.add('hidden'); refreshControlIcons();
+  if(state.recorderPeer===peerId)wsSend({t:'recording-status',active:false});
+  $('rec-indicator').classList.toggle('hidden',!state.remoteRecording); refreshControlIcons();
   return recSaving;
 }
 function releaseRecordingMedia(){

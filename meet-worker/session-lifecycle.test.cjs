@@ -20,5 +20,38 @@ const socket=()=>{const s={readyState:1,messages:[],a:null,send(v){this.messages
  await room.alarm(); // Idempotent alarm retry.
  const nextGuest=socket();await room.onJoin(nextGuest,{peer:'nextGuest'});assert.equal(nextGuest.a.info.admitted,false);
  const nextHost=socket();await room.onJoin(nextHost,{peer:'nextHost',hostKey:'secret'});assert.equal(nextGuest.a.info.admitted,true);assert.equal(nextHost.a.info.admitted,true);
+ // Only the first admitted host owns the recorder; guest cannot transfer it.
+ assert.equal((await room.getRoom()).recorderPeer,'nextHost');
+ const second=socket();await room.onJoin(second,{peer:'second',hostKey:'secret'});
+ assert.equal((await room.getRoom()).recorderPeer,'nextHost');
+ const send=(sock,m)=>room.webSocketMessage(sock,JSON.stringify(m));
+ await send(nextGuest,{t:'recording-transfer',target:'second'});
+ assert.equal((await room.getRoom()).pendingRecorder,null);
+ await send(nextHost,{t:'recording-transfer',target:'nextGuest'});
+ assert.equal((await room.getRoom()).recorderPeer,'nextHost');
+ await send(nextHost,{t:'recording-transfer',target:'second'});
+ assert.equal((await room.getRoom()).recorderPeer,'nextHost');
+ assert.equal(second.messages.at(-1).t,'recording-prepare');
+ await send(nextGuest,{t:'recording-ready'});
+ assert.equal((await room.getRoom()).recorderPeer,'nextHost');
+ await send(second,{t:'recording-ready'});
+ assert.equal((await room.getRoom()).recorderPeer,'second');
+ assert.equal((await room.getRoom()).recordingActive,true);
+ // Failed/late preparation leaves the old recorder running.
+ await send(second,{t:'recording-transfer',target:'nextHost'});
+ now+=20001;await room.alarm();
+ assert.equal((await room.getRoom()).recorderPeer,'second');
+ assert.equal((await room.getRoom()).pendingRecorder,null);
+ await send(nextHost,{t:'recording-ready'});
+ assert.equal((await room.getRoom()).recorderPeer,'second');
+ await send(second,{t:'recording-transfer',target:'nextHost'});
+ await send(nextHost,{t:'recording-failed'});
+ assert.equal((await room.getRoom()).recorderPeer,'second');
+ // Abrupt departure promotes the remaining admin and does not end the room.
+ second.close();await room.onGone(second);
+ assert.equal((await room.getRoom()).recorderPeer,'nextHost');
+ assert.equal((await room.getRoom()).recordingActive,false);
+ assert.equal((await room.getRoom()).endAt,null);
+ console.log('PASS: sole recorder, host-only acknowledged transfer, timeout, failure and automatic takeover');
  console.log('PASS: waiting without host, automatic admission, reconnect grace, explicit 30s end, alarm retry, reusable room');
 })().catch(e=>{console.error(e);process.exitCode=1});
