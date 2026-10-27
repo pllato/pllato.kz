@@ -15,8 +15,13 @@ export function initMeetingProgress({getToken}){
  const roots=()=>[...document.querySelectorAll('[data-meeting-progress]')];
  function paint(root){
   const scrollTop=root.querySelector('[data-meeting-list]')?.scrollTop||0;
-  const shown=expanded?meetings:meetings.slice(0,3);
-  root.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px"><h4 style="font-size:13px;line-height:1.4;margin:0">Встречи · записи и расшифровки</h4>${meetings.length>3?`<button type="button" data-meeting-expand aria-expanded="${expanded}" style="flex-shrink:0;font:inherit;font-size:12px;background:none;border:1px solid #ddd6c9;border-radius:6px;padding:4px 8px;cursor:pointer">${expanded?'Свернуть':'Все · '+meetings.length}</button>`:''}</div>`+
+  if(!expanded){
+    root.innerHTML='<button type="button" data-meeting-expand aria-expanded="false" style="font:inherit;font-size:12px;color:#86603e;border:1px solid #ddd6c9;background:transparent;border-radius:6px;padding:7px 10px;cursor:pointer">Просмотреть историю встреч</button>';
+    root.querySelector('[data-meeting-expand]').onclick=()=>{expanded=true;for(const r of roots())paint(r);refresh();};
+    return;
+  }
+  const shown=meetings;
+  root.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px"><h4 style="font-size:13px;line-height:1.4;margin:0">История встреч</h4><button type="button" data-meeting-expand aria-expanded="${expanded}" style="flex-shrink:0;font:inherit;font-size:12px;background:none;border:1px solid #ddd6c9;border-radius:6px;padding:4px 8px;cursor:pointer">Скрыть историю</button></div>`+
    (error?'<p role="status" style="font-size:12px;margin:6px 0">'+esc(error)+'</p>':'')+
    `<div data-meeting-list style="max-height:320px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain">`+
    (!loaded?'<p>Загружаем статусы встреч…</p>':!meetings.length?'<p>Сохранённых встреч пока нет.</p>':shown.map(m=>{
@@ -33,7 +38,7 @@ export function initMeetingProgress({getToken}){
  }
  async function refresh(){
   const visible=roots().some(r=>r.getClientRects().length);
-  if(busy||document.hidden||!visible||Date.now()-checked<30000)return;
+  if(!expanded||busy||document.hidden||!visible||Date.now()-checked<30000)return;
   const token=await getToken();if(!token)return;busy=true;checked=Date.now();
   try{const r=await fetch('https://pllato-elc-worker.uurraa.workers.dev/api/zoom/archive',{headers:{Authorization:'Bearer '+token},cache:'no-store'});if(!r.ok)throw Error('Не удалось обновить статусы встреч. Повторим автоматически.');const data=await r.json();meetings=data.meetings;loaded=true;error='';}catch(e){error=e.message;}finally{busy=false;for(const root of roots())paint(root);}
  }
