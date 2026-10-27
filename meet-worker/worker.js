@@ -1,3 +1,4 @@
+import {beginDelivery,acceptAudio,finishDelivery,processDelivery} from './delivery.js';
 import {crmMeeting,authorizeCrmArchive,indexCrmArchive} from './crm-archive.js';
 /**
  * Pllato Meet — сигналинг-воркер (Cloudflare Worker + Durable Object).
@@ -48,6 +49,7 @@ async function verifyUser(token) {
 }
 
 export default {
+  async scheduled(event,env,ctx){ctx.waitUntil(processDelivery(env));},
   async fetch(request, env) {
     const url = new URL(request.url);
 
@@ -59,6 +61,16 @@ export default {
       });
     }
 
+    const delivery=url.pathname.match(/^\/archive\/(session|audio)\/crm\/([^/]+)(?:\/(\d+))?$/);
+    if(delivery && request.method==='PUT'){
+      const meeting=await authorizeCrmArchive(request,env,delivery[2]);
+      if(!meeting)return json({error:'forbidden'},403);
+      try{
+        if(delivery[1]==='audio')await acceptAudio(env,meeting,delivery[2],Number(delivery[3]),request);
+        else await beginDelivery(env,meeting,delivery[2]);
+        return json({ok:true});
+      }catch(e){return json({error:String(e.message)},500);}
+    }
     // ===== Архив встреч (Cloudflare R2) =====
     const aRec = url.pathname.match(/^\/archive\/rec\/([^/]+)\/([^/]+)$/);
     const aMeta = url.pathname.match(/^\/archive\/meta\/([^/]+)\/([^/]+)$/);
@@ -126,6 +138,8 @@ async function handleArchive(request, env, { aRec, aMeta, aList, aDel, aRecInit,
   // ---- потоковая запись через R2 multipart ----
   if (aRecInit && request.method === 'POST') {
     const [, owner, id] = aRecInit; if (!SAFE.test(owner) || !SAFE.test(id)) return json({ error: 'bad key' }, 400);
+    const existing=await env.ARCHIVE.head(`rec/${owner}/${id}.webm`);
+    if(existing)return json({complete:true,size:existing.size});
     const up = await env.ARCHIVE.createMultipartUpload(`rec/${owner}/${id}.webm`, { httpMetadata: { contentType: request.headers.get('Content-Type') || 'video/webm' } });
     return json({ uploadId: up.uploadId });
   }
@@ -176,7 +190,11 @@ async function handleArchive(request, env, { aRec, aMeta, aList, aDel, aRecInit,
     const [, owner, id] = aMeta; if (!SAFE.test(owner) || !SAFE.test(id)) return json({ error: 'bad key' }, 400);
     const raw=await request.text();
     if(raw.length>2_000_000)return json({error:'metadata too large'},413);
-    if(linkedMeeting) await indexCrmArchive(env,linkedMeeting,id,JSON.parse(raw));
+    if(linkedMeeting){
+      const meta=JSON.parse(raw);
+      await indexCrmArchive(env,linkedMeeting,id,meta);
+      if(Number.isInteger(meta.audioChunks))await finishDelivery(env,id,meta.audioChunks);
+    }
     await env.ARCHIVE.put(`meta/${owner}/${id}.json`, raw, { httpMetadata: { contentType: 'application/json' } });
     return json({ ok: true });
   }

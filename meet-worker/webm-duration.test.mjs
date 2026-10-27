@@ -13,9 +13,9 @@ test('finalization adds finite duration and preserves media bytes',async()=>{
 });
 test('multipart complete uses the corrected first-part etag',async()=>{
  const meta={id:'record',owner:'crm',mime:'video/webm',durationSec:63};
- const upload=new RecordingUpload('',meta,()=>null,{async meta(){},async append(){},async remove(){}});
+ const upload=new RecordingUpload('',meta,()=>null,{async meta(){},async append(){},async remove(){},async audios(){return []}});
  const calls=[];upload.request=async(path,options)=>{calls.push({path,body:options.body});if(path.includes('rec-init'))return {uploadId:'u'};if(path.includes('rec-part'))return {partNumber:Number(path.split('/').pop()),etag:'etag-'+calls.length};return {ok:true,size:123};};
  await upload.append(new Blob([head,new Uint8Array(5*1024*1024)]),meta);await upload.finish(meta);
- const writes=calls.filter(c=>c.path.endsWith('/1'));assert.equal(writes.length,2);assert.equal(writes[1].body.size,writes[0].body.size+11);
+ const writes=calls.filter(c=>c.path.endsWith('/1'));assert.equal(writes.length,2);assert.equal(writes[1].body.size,writes[0].body.size);
  const complete=JSON.parse(calls.find(c=>c.path.includes('rec-complete')).body);assert.equal(complete[0].etag,upload.parts[0].etag);
 });

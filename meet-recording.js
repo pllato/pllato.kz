@@ -1,4 +1,4 @@
-import {finalizeWebmHeader} from './meet-webm.js';
+import {finalizeWebmHeader} from './meet-webm.js?v=20261027-delivery';
 // Локальная копия хранится до подтверждения видео И метаданных сервером.
 const PART_SIZE = 5 * 1024 * 1024;
 let database;
@@ -6,16 +6,25 @@ function db(){
   if(!database) database=new Promise((resolve,reject)=>{
     const request=indexedDB.open('pllato-meet-recordings',1);
     request.onupgradeneeded=()=>{
-      request.result.createObjectStore('meetings',{keyPath:'id'});
-      request.result.createObjectStore('chunks',{keyPath:['id','seq']});
+      if(!request.result.objectStoreNames.contains('meetings'))request.result.createObjectStore('meetings',{keyPath:'id'});
+      if(!request.result.objectStoreNames.contains('chunks'))request.result.createObjectStore('chunks',{keyPath:['id','seq']});
     };
     request.onsuccess=()=>resolve(request.result);
     request.onerror=()=>reject(request.error);
   });
   return database;
 }
-async function transaction(stores, mode, run){
-  const database=await db();
+let audioDatabase;
+function audioDb(){
+  if(!audioDatabase)audioDatabase=new Promise((resolve,reject)=>{
+    const request=indexedDB.open('pllato-meet-audio',1);
+    request.onupgradeneeded=()=>request.result.createObjectStore('audio',{keyPath:['id','seq']});
+    request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+  });
+  return audioDatabase;
+}
+async function transaction(stores, mode, run, source=db){
+  const database=await source();
   return new Promise((resolve,reject)=>{
     const tx=database.transaction(stores,mode);
     let result;
@@ -32,9 +41,11 @@ const localStore={
     tx.objectStore('meetings').put(meta);
     tx.objectStore('chunks').put({id:meta.id,seq,blob});
   }),
-  remove:id=>transaction(['meetings','chunks'],'readwrite',tx=>{
+  audio:(id,seq,blob)=>transaction(['audio'],'readwrite',tx=>{tx.objectStore('audio').put({id,seq,blob});},audioDb),
+  audios:id=>transaction(['audio'],'readonly',tx=>{const r=tx.objectStore('audio').getAll(chunkRange(id));return ()=>r.result;},audioDb),
+  remove:async id=>{await transaction(['audio'],'readwrite',tx=>{tx.objectStore('audio').delete(chunkRange(id));},audioDb);return transaction(['meetings','chunks'],'readwrite',tx=>{
     tx.objectStore('meetings').delete(id); tx.objectStore('chunks').delete(chunkRange(id));
-  }),
+  });},
 };
 export async function pendingRecordings(owner){
   return transaction(['meetings'],'readonly',tx=>{
@@ -52,7 +63,7 @@ export class RecordingUpload{
     this.base=base; this.meta=meta; this.token=token; this.store=store;
     this.buffer=new Blob([]); this.parts=[]; this.uploadId=null; this.seq=0;
     this.chain=Promise.resolve(); this.persistChain=Promise.resolve(); this.completed=false;
-    this.localError=null;
+    this.localError=null;this.audioCount=0;this.audioChain=Promise.resolve();this.audioUploaded=new Set();
   }
   async request(path,options={}){
     let failure;
@@ -66,7 +77,19 @@ export class RecordingUpload{
     throw failure;
   }
   get key(){return encodeURIComponent(this.meta.owner)+'/'+encodeURIComponent(this.meta.id);}
-  async init(){await this.store.meta(this.meta);}
+  async init(){
+    await this.store.meta(this.meta);
+    if(this.meta.owner==='crm')await this.request('/archive/session/'+this.key,{method:'PUT'});
+  }
+  appendAudio(blob){
+    const seq=this.audioCount++;
+    this.audioChain=this.audioChain.catch(()=>{}).then(async()=>{
+      await this.store.audio(this.meta.id,seq,blob);
+      await this.request('/archive/audio/'+this.key+'/'+seq,{method:'PUT',body:blob});
+      this.audioUploaded.add(seq);
+    });
+    this.audioChain.catch(()=>{});
+  }
   append(blob,meta){
     this.meta={...meta};
     const seq=this.seq++;
@@ -84,8 +107,13 @@ export class RecordingUpload{
   }
   async flush(final){
     if(!this.buffer.size || (!final && this.buffer.size<PART_SIZE)) return;
+    if(!this.headerReserved && /webm/i.test(this.meta.mime||'')){
+      // Reserve Duration before splitting: every non-final R2 part stays exactly 5 MiB.
+      this.buffer=await finalizeWebmHeader(this.buffer,1);this.headerReserved=true;
+    }
     if(!this.uploadId){
       const j=await this.request('/archive/rec-init/'+this.key,{method:'POST',headers:{'Content-Type':this.meta.mime}});
+      if(j.complete){this.completed=true;this.meta.size=j.size;this.buffer=new Blob([]);return;}
       if(!j.uploadId) throw new Error('Сервер не начал загрузку');
       this.uploadId=j.uploadId;
     }
@@ -101,13 +129,14 @@ export class RecordingUpload{
     }
   }
   async finish(meta){
-    this.meta={...meta};
+    this.meta={...meta,...(this.meta.owner==='crm'?{audioChunks:this.audioCount}: {})};
     await this.persistChain;
     if(this.localError) throw new Error('Не удалось записать локальную копию: '+this.localError.message);
     await this.chain.catch(()=>{});
     await this.store.meta(this.meta);
     if(!this.completed){
       await this.flush(true);
+      if(!this.completed){
       if(!this.parts.length) throw new Error('Запись пока пуста');
       if(this.firstPart && /webm/i.test(this.meta.mime||'')){
         const finalized=await finalizeWebmHeader(this.firstPart,(this.meta.durationSec+1)*1000);
@@ -118,6 +147,13 @@ export class RecordingUpload{
       const result=await this.request('/archive/rec-complete/'+this.key+'/'+encodeURIComponent(this.uploadId),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(this.parts)});
       if(!result.ok) throw new Error('Видео не подтверждено сервером');
       this.completed=true; this.meta.size=result.size;
+      }
+    }
+    if(this.meta.owner==='crm'){
+      await this.audioChain.catch(()=>{});
+      const audio=await this.store.audios(this.meta.id);
+      if(audio.length!==this.audioCount)throw new Error('Не все фрагменты звука сохранены локально');
+      for(const part of audio){if(!this.audioUploaded.has(part.seq))await this.request('/archive/audio/'+this.key+'/'+part.seq,{method:'PUT',body:part.blob});}
     }
     const saved=await this.request('/archive/meta/'+this.key,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(this.meta)});
     if(!saved.ok) throw new Error('Сведения о встрече не сохранены');
@@ -128,6 +164,8 @@ export async function recoverRecording(base,meta,token){
   const blob=await localRecordingBlob(meta);
   if(!blob.size) throw new Error('В локальной копии нет видео');
   const upload=new RecordingUpload(base,meta,token);
+  await upload.init();
   upload.buffer=blob;
+  if(meta.owner==='crm')upload.audioCount=(await localStore.audios(meta.id)).length;
   await upload.finish(meta);
 }

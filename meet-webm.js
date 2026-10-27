@@ -18,12 +18,18 @@ export async function finalizeWebmHeader(blob,durationMs){
     at=id.value===0x18538067?data:data+size.value;
   }
   if(!info || info.data+info.size.value>bytes.length)throw Error('Не найден блок времени WebM');
-  let scale=1000000;
+  let scale=1000000,existing;
   for(let p=info.data;p<info.data+info.size.value;){
     const id=vint(p,true),size=vint(p+id.width),data=p+id.width+size.width;
-    if(id.value===0x4489)return blob; // Already finalized.
+    if(id.value===0x4489)existing={data,size:size.value};
     if(id.value===0x2ad7b1){scale=0;for(let i=0;i<size.value;i++)scale=scale*256+bytes[data+i];}
     p=data+size.value;
+  }
+  if(existing){
+    if(existing.size!==4&&existing.size!==8)throw Error('Неверная длительность WebM');
+    const value=new Uint8Array(existing.size),view=new DataView(value.buffer);
+    if(existing.size===8)view.setFloat64(0,durationMs*1000000/scale);else view.setFloat32(0,durationMs*1000000/scale);
+    return new Blob([blob.slice(0,existing.data),value,blob.slice(existing.data+existing.size)],{type:blob.type});
   }
   const duration=new Uint8Array(11);duration.set([0x44,0x89,0x88]);new DataView(duration.buffer).setFloat64(3,durationMs*1000000/scale);
   let width=info.size.width,length=info.size.value+duration.length;
