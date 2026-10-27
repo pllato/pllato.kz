@@ -1,3 +1,4 @@
+import {finalizeWebmHeader} from './meet-webm.js';
 // Локальная копия хранится до подтверждения видео И метаданных сервером.
 const PART_SIZE = 5 * 1024 * 1024;
 let database;
@@ -93,6 +94,7 @@ export class RecordingUpload{
       const partNumber=this.parts.length+1;
       const part=await this.request('/archive/rec-part/'+this.key+'/'+encodeURIComponent(this.uploadId)+'/'+partNumber,{method:'PUT',body:blob});
       if(!part.etag || part.partNumber!==partNumber) throw new Error('Не подтверждён фрагмент записи');
+      if(partNumber===1)this.firstPart=blob;
       this.parts.push(part);
       // Только после подтверждения; повтор запроса использует тот же номер части.
       this.buffer=this.buffer.slice(blob.size);
@@ -107,6 +109,12 @@ export class RecordingUpload{
     if(!this.completed){
       await this.flush(true);
       if(!this.parts.length) throw new Error('Запись пока пуста');
+      if(this.firstPart && /webm/i.test(this.meta.mime||'')){
+        const finalized=await finalizeWebmHeader(this.firstPart,(this.meta.durationSec+1)*1000);
+        const part=await this.request('/archive/rec-part/'+this.key+'/'+encodeURIComponent(this.uploadId)+'/1',{method:'PUT',body:finalized});
+        if(!part.etag || part.partNumber!==1)throw new Error('Не подтверждён заголовок записи');
+        this.parts[0]=part;
+      }
       const result=await this.request('/archive/rec-complete/'+this.key+'/'+encodeURIComponent(this.uploadId),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(this.parts)});
       if(!result.ok) throw new Error('Видео не подтверждено сервером');
       this.completed=true; this.meta.size=result.size;
