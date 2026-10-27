@@ -436,6 +436,7 @@ button{font-family:inherit;cursor:pointer}
     <button class="cb" id="cb-mic"><span id="cb-mic-ic"></span><span>Звук</span></button>
     <button class="cb" id="cb-cam"><span id="cb-cam-ic"></span><span>Видео</span></button>
     <button class="cb hidden" id="cb-share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Экран</span></button>
+    <button class="cb" id="cb-floating" title="Собеседники поверх других окон" aria-label="Собеседники поверх других окон" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><rect x="11" y="11" width="8" height="7" rx="1"/></svg><span>Поверх</span></button>
     <button class="cb" id="cb-settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Настр.</span><span class="badge hidden" id="settings-badge">0</span></button>
     <button class="cb btn-danger" id="cb-leave" style="background:var(--red);border-color:var(--red);color:#fff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>Выйти</span></button>
   </div>
@@ -466,6 +467,7 @@ button{font-family:inherit;cursor:pointer}
 <div id="toast"></div>
 
 <script type="module">
+import { FloatingParticipants } from '/meet-floating.js';
 import { getSession } from '/pllato-kz-shared/pllato-api.js';
 import { RecordingUpload, pendingRecordings, recoverRecording, localRecordingBlob } from '/meet-recording.js';
 /* ============================================================
@@ -491,7 +493,13 @@ const ICE_SERVERS = [
 ];
 
 /* ---------- small helpers ---------- */
-const $ = (id) => document.getElementById(id);
+const meetingGrid = document.getElementById('video-grid');
+const $ = (id) => id === 'video-grid' ? meetingGrid : document.getElementById(id);
+const floatingParticipants = new FloatingParticipants(meetingGrid, () => {
+  $('cb-floating').classList.toggle('on', floatingParticipants.active);
+  $('cb-floating').setAttribute('aria-pressed', String(floatingParticipants.active));
+  relayoutGrid();
+});
 const peerId = 'p_' + Math.random().toString(36).slice(2, 11);
 const LS = {
   name: 'pmeet_name', bg: 'pmeet_bg', myroom: 'pmeet_myroom',
@@ -1369,7 +1377,7 @@ function setLocalTileStream(){
   relayoutGrid();
 }
 // раскладка: обычная сетка лиц, либо «презентация» (экран крупно сверху + лица полосой снизу).
-// Экран всегда живёт в #screen-area, лица — всегда в #video-grid. Никаких наложений и плавающих окон.
+// Экран всегда живёт в #screen-area, лица — всегда в #video-grid. Сетка лиц может находиться в отдельном Picture-in-Picture окне.
 function relayoutGrid(){
   const stage=document.querySelector('.stage');
   const grid=$('video-grid'), area=$('screen-area');
@@ -1385,7 +1393,7 @@ function relayoutGrid(){
   if(presenting){
     // несколько экранов делят область поровну; лица идут полосой (управляется CSS)
     area.style.gridTemplateColumns = screens.length>1 ? `repeat(${screens.length},1fr)` : '1fr';
-    grid.style.gridTemplateColumns=''; // полоса задаётся CSS (.stage.presenting .grid)
+    grid.style.gridTemplateColumns = floatingParticipants.active ? `repeat(${Math.ceil(Math.sqrt(cams.length||1))},1fr)` : ''; // полоса в основной вкладке
   }else{
     const n=cams.length||1, cols=Math.ceil(Math.sqrt(n));
     grid.style.gridTemplateColumns=`repeat(${cols}, 1fr)`;
@@ -1415,6 +1423,12 @@ function initControls(){
   $('cb-mic').onclick=toggleMic;
   $('cb-cam').onclick=toggleCam;
   $('cb-share').onclick=toggleShare;
+  $('cb-floating').onclick=async()=>{
+    try {
+      const supported = await floatingParticipants.toggle();
+      if(supported === false) toast('Окно поверх приложений доступно в Chrome и Edge на компьютере. В этом браузере лица остаются в окне встречи.', 7000);
+    } catch { toast('Не удалось открыть окно. Нажмите «Поверх» ещё раз или разрешите Picture-in-Picture в браузере.', 6000); }
+  };
   $('cb-leave').onclick=leaveRoom;
   $('cb-settings').onclick=toggleSettings;
   // «Экран» на панели — только у ведущего; остальные шарят из «Настроек» (доступно всем)
@@ -1503,6 +1517,7 @@ async function toggleShare(){
     }
   }else{
     state.sharing=false;
+    floatingParticipants.close();
     for(const peer of peers.values()){
       if(peer.screenSender){ try{ peer.pc.removeTrack(peer.screenSender); }catch{} peer.screenSender=null; }
       if(peer.screenAudioSender){ try{ peer.pc.removeTrack(peer.screenAudioSender); }catch{} peer.screenAudioSender=null; }
@@ -1512,7 +1527,7 @@ async function toggleShare(){
     setLocalTileStream();
   }
   refreshControlIcons();
-  if(state.sharing) toast('Показ экрана включён — экран крупно, лица видны полосой снизу');
+  if(state.sharing) toast('Экран включён. Нажмите «Поверх», чтобы видеть собеседников при переходе в другое приложение.', 7000);
   else toast('Показ экрана выключен');
 }
 
@@ -1530,6 +1545,7 @@ function startTimer(){
 async function leaveRoom(){
   if(state._leaving) return;
   state._leaving=true;
+  floatingParticipants.close();
   const btn=$('cb-leave'); btn.disabled=true;
   clearInterval(timerInt); clearTimeout(wsReconnectTimer);
   try{ if(document.pictureInPictureElement) document.exitPictureInPicture(); }catch{}
@@ -1558,6 +1574,7 @@ window.addEventListener('beforeunload', e=>{
   if(state.recording || recStarting || recSaving || recUpload){ e.preventDefault(); e.returnValue=''; }
 });
 window.addEventListener('pagehide', ()=>{
+  floatingParticipants.close();
   wsClosedByUser=true; try{ ws?.close(); }catch{}
   // Незавершённую запись восстанавливаем из локальной копии в архиве.
   // Не завершаем multipart через beacon: хвост записи ещё может быть в браузере.
@@ -1735,7 +1752,7 @@ async function beginRecording(){
     ctx.scale(recCanvas.width/1280,recCanvas.height/720);
     const draw=()=>{
       ctx.fillStyle='#0b0f1a'; ctx.fillRect(0,0,1280,720);
-      const tiles=[...document.querySelectorAll('#screen-area .tile, #video-grid .tile')];
+      const tiles=[...$('screen-area').children, ...meetingGrid.children].filter(tile=>tile.classList.contains('tile'));
       const screens=tiles.filter(t=>t.dataset.kind==='screen');
       const cams=tiles.filter(t=>t.dataset.kind!=='screen');
       if(screens.length){ // презентация: экран крупно + лица снизу
