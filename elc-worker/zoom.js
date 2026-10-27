@@ -427,9 +427,10 @@ export async function handleZoomRequest(request, env, deps) {
       if(!ids.length)return json({deals:[]},200,request);
       const access=dealAccessSql(me), placeholders=ids.map(()=>'?').join(',');
       const {results}=await env.DB.prepare(`SELECT deal_id,COUNT(*) AS files,
-        SUM(CASE WHEN extension IN ('MP4','WEBM') THEN 1 ELSE 0 END) AS videos,
-        SUM(CASE WHEN kind LIKE '%transcript%' THEN 1 ELSE 0 END) AS transcripts
-        FROM zoom_files WHERE status='stored' AND deal_id IN
+        SUM(CASE WHEN status='stored' AND extension IN ('MP4','WEBM') THEN 1 ELSE 0 END) AS videos,
+        SUM(CASE WHEN status='stored' AND kind LIKE '%transcript%' THEN 1 ELSE 0 END) AS transcripts,
+        SUM(CASE WHEN status='processing' THEN 1 ELSE 0 END) AS processing
+        FROM zoom_files WHERE status IN ('stored','processing') AND deal_id IN
         (SELECT id FROM deals WHERE id IN (${placeholders})${access.where}) GROUP BY deal_id`).bind(...ids,...access.params).all();
       return json({deals:results},200,request);
     }

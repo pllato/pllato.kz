@@ -480,7 +480,8 @@ const meetStorage=createMeetStorage(()=>window.localStorage,()=>window.sessionSt
 import { EdgeMaskRenderer } from '/meet-edge-mask.js';
 import { FloatingParticipants } from '/meet-floating.js';
 import { getSession } from '/pllato-kz-shared/pllato-api.js';
-import { RecordingUpload, pendingRecordings, recoverRecording, localRecordingBlob } from '/meet-recording.js?v=20261027-duration';
+import {captureTranscriptAudio} from '/meet-audio.js?v=20261027-delivery';
+import { RecordingUpload, pendingRecordings, recoverRecording, localRecordingBlob } from '/meet-recording.js?v=20261027-delivery';
 /* ============================================================
    Pllato Meet — WebRTC mesh + Cloudflare Worker (Durable Object) signaling
    Single-link rooms · waiting room · recording · live transcript
@@ -1881,6 +1882,7 @@ function connectRecordingAudio(stream){
 function getMixAudioContext(){ if(!mixAC) mixAC=new (window.AudioContext||window.webkitAudioContext)(); return mixAC; }
 let recMixed=null;
 let mediaRecorder=null, recCanvas=null, recRAF=null, recStartTs=0, recMime='video/webm';
+let recAudio=null, recAudioStop=null;
 let recUpload=null, recStarting=null, recSaving=null, recordingSaved=false;
 let recordingRetryTimer=null,recordingRetryCount=0;
 function recordingProblem(message){
@@ -1974,6 +1976,7 @@ async function beginRecording(){
     const id=state.roomId+'-'+recStartTs;
     recUpload=new RecordingUpload(MEET_API, buildMeta(id), archiveToken);
     await recUpload.init();
+    if(archiveOwner()==='crm')recAudio=await captureTranscriptAudio(ac,recDest.stream,blob=>recUpload?.appendAudio(blob));
     mediaRecorder=new MediaRecorder(mixed,{mimeType:recMime,...(MOBILE_MEDIA?{videoBitsPerSecond:600_000,audioBitsPerSecond:48_000}:{})});
     mediaRecorder.ondataavailable=e=>{
       if(e.data.size) recUpload.append(e.data, buildMeta(id)).catch(e=>{
@@ -2017,6 +2020,7 @@ function stopRecording(){
   return recSaving;
 }
 function releaseRecordingMedia(){
+  if(recAudio){recAudioStop=recAudio.stop();recAudioStop.catch(()=>{});recAudio=null;}
   clearTimeout(recRAF); recRAF=null;
   recMixed?.getTracks().forEach(t=>t.stop()); recMixed=null;
   for(const src of recordingAudioSources.values()) src.disconnect();
@@ -2024,11 +2028,12 @@ function releaseRecordingMedia(){
 }
 async function finalizeRecording(){
   if(!recUpload) return;
+  if(recAudioStop){await recAudioStop;recAudioStop=null;}
   await recUpload.finish(buildMeta(recUpload.meta.id));
   recordingSaved=true; recUpload=null;
   for(const src of recordingAudioSources.values()) src.disconnect();
   recordingAudioSources.clear(); recDest=null;
-  toast(state.roomId?.startsWith('crm-')?'Материалы встречи сохранены в карточке CRM':'Запись, чат и расшифровка сохранены в архиве');
+  toast(state.roomId?.startsWith('crm-')?'Видео сохранено. Расшифровка обрабатывается и появится в карточке сделки.':'Запись, чат и расшифровка сохранены в архиве');
 }
 // собрать метаданные встречи (+ владелец-менеджер для командного архива)
 function buildMeta(id, extra){
@@ -2087,6 +2092,7 @@ async function loadArchive(){
   }catch(e){ box.innerHTML='<div class="trn-empty">Не удалось загрузить архив. Проверьте интернет и попробуйте снова.</div>'; }
   finally{ await renderPendingRecordings(box); }
 }
+const attemptedRecoveries=new Set();
 async function renderPendingRecordings(box){
   try{
     const pending=(await pendingRecordings()).filter(m=>m.owner===archiveOwner() || (m.owner==='crm' && meetStorage.getItem(LS.hostKeyPrefix+m.room)));
@@ -2098,6 +2104,9 @@ async function renderPendingRecordings(box){
       const download=document.createElement('button'); download.className='btn btn-ghost'; download.textContent='Скачать копию';
       download.onclick=async()=>{try{downloadBlob(await localRecordingBlob(meta),meta.id+'.webm'); downloadBlob(new Blob([JSON.stringify(meta,null,2)],{type:'application/json'}),meta.id+'.json');}catch(e){toast(e.message);}};
       el.append(label,retry,download); box.prepend(el);
+      if(navigator.onLine && !recUpload && !attemptedRecoveries.has(meta.id)){
+        attemptedRecoveries.add(meta.id);await retry.onclick();
+      }
     }
   }catch(e){toast('Локальное восстановление недоступно: '+e.message);}
 }

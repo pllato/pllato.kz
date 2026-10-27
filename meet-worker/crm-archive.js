@@ -17,12 +17,12 @@ export async function indexCrmArchive(env, meeting, id, meta){
   const video=meta.recording ? await env.CRM_FILES.head(`rec/crm/${id}.webm`) : null;
   if(meta.recording && !video) throw new Error('CRM recording not complete');
   if(video)files.push({kind:'recording',extension:meta.mime?.includes('mp4')?'MP4':'WEBM',key:`rec/crm/${id}.webm`,size:video.size});
-  if(transcript.some(line=>String(line.text||'').trim())){
+  if(!Number.isInteger(meta.audioChunks) && transcript.some(line=>String(line.text||'').trim())){
     const body=transcript.map(line=>`${String(line.name||'Участник')}: ${String(line.text||'')}`).join('\n');
     const key=`crm-meet/${id}/transcript.txt`;await env.CRM_FILES.put(key,body,{httpMetadata:{contentType:'text/plain;charset=utf-8'}});
     files.push({kind:'transcript',extension:'TXT',key,size:new TextEncoder().encode(body).length});
   }
-  const body=JSON.stringify({room:meeting.meeting_id,participants:meta.participants||[],durationSec:meta.durationSec,chat,transcriptStatus:transcript.length?'available':'unavailable'});
+  const body=JSON.stringify({room:meeting.meeting_id,participants:meta.participants||[],durationSec:meta.durationSec,chat,transcriptStatus:Number.isInteger(meta.audioChunks)?'processing':transcript.length?'available':'unavailable'});
   const key=`crm-meet/${id}/meeting.json`;await env.CRM_FILES.put(key,body,{httpMetadata:{contentType:'application/json'}});
   files.push({kind:'chat_metadata',extension:'JSON',key,size:new TextEncoder().encode(body).length});
   await env.CRM_DB.batch(files.map(file=>env.CRM_DB.prepare(`INSERT INTO zoom_files(id,meeting_uuid,meeting_id,deal_id,topic,recording_start,kind,extension,size,r2_key,status,imported_at)

@@ -1,3 +1,10 @@
+export function materialStatus(f){
+ if(f.status==='stored')return 'Готово';
+ if(f.status==='processing')return f.kind==='transcript'?'Расшифровка в обработке':'Видео записывается / загружается';
+ if(f.status==='interrupted')return 'Загрузка прервана — требуется восстановление';
+ if(f.status==='failed')return 'Ошибка обработки';
+ return f.status==='deleted'?'Файл удалён':'Ожидает переноса';
+}
 export function groupMeetingFiles(rows=[]){
   const groups=new Map();
   for(const f of rows){
@@ -49,7 +56,7 @@ export function zoomClient({ base, getToken }) {
       for(let i=0;i<ids.length;i+=100){const data=await api('/deal-status',{method:'POST',body:JSON.stringify({ids:ids.slice(i,i+100)})});for(const row of data.deals)statuses.set(row.deal_id,row);}
       for(const node of nodes){const row=statuses.get(node.dataset.zoomDeal);node.dataset.zoomChecked='1';
         node.style.display=row?'block':'none';
-        node.textContent=row ? 'Встречи: '+[row.videos?'запись готова':'',row.transcripts?'транскрипт готов':'',!row.videos&&!row.transcripts?'материалы готовы':''].filter(Boolean).join(' · ') : '';
+        node.textContent=row ? 'Встречи: '+[row.videos?'запись готова':'',row.transcripts?'транскрипт готов':'',row.processing?'в обработке':!row.videos&&!row.transcripts?'материалы готовы':''].filter(Boolean).join(' · ') : '';
       }
       badgeSignature=signature;badgeChecked=Date.now();
     }catch{}finally{badgeBusy=false;}
@@ -124,14 +131,15 @@ export function zoomClient({ base, getToken }) {
   }
   async function files(container, dealId, canDelete = false) {
     if(!container) return;
+    clearTimeout(container._meetRefresh);
     container.textContent='Загружаем материалы встреч…';
     try {
       const {files:loadedRows}=await api('/files'+(dealId?'?deal='+encodeURIComponent(dealId):''));
       if(!container.isConnected)return;
       const rows=groupMeetingFiles(loadedRows).flatMap(g=>g.files.map((f,i)=>({...f,groupHeading:i===0?g:null})));
-      container.innerHTML=rows.length?rows.map(f=>`${f.groupHeading?`<h4>${esc(f.groupHeading.title)} · ${esc(f.groupHeading.date)}</h4>${f.groupHeading.hasTranscript?'':'<p style="font-size:12px">Расшифровка этой встречи пока не получена.</p>'}`:''}<div style="padding:10px 0;border-bottom:1px solid var(--b1)">
+      container.innerHTML=rows.length?rows.map(f=>`${f.groupHeading?`<h4>${esc(f.groupHeading.title)} · ${esc(f.groupHeading.date)}</h4>${f.groupHeading.hasTranscript || f.groupHeading.files.some(x=>x.kind==='transcript'&&x.status!=='deleted')?'':'<p style="font-size:12px">Расшифровка этой встречи пока не получена.</p>'}`:''}<div style="padding:10px 0;border-bottom:1px solid var(--b1)">
         <b>${esc(f.topic || 'Видеовстреча')}</b><div style="font-size:12px;color:var(--t3)">${esc(f.recording_start)} · ${esc(f.kind)} · ${(f.size/1048576).toFixed(1)} МБ</div>
-        ${f.status==='stored'?`<button class="tbtn" data-open="${esc(f.id)}">${/^(MP4|WEBM)$/i.test(f.extension)?'Смотреть видео':f.extension==='M4A'?'Слушать аудио':/VTT|TXT/.test(f.extension)?'Транскрипт / текст':f.extension==='JSON'?'Чат и сведения':'Открыть файл'}</button>${/^(VTT|TXT)$/.test(f.extension)?` <button type="button" class="tbtn" data-copy-text="${esc(f.id)}">Копировать текст</button>`:''}${canDelete?` <button class="tbtn" data-del="${esc(f.id)}">Удалить файл</button>`:''}`:`<span>${f.status==='deleted'?'Файл удалён':'Ожидает переноса'}</span>`}
+        ${f.status==='stored'?`<button class="tbtn" data-open="${esc(f.id)}">${/^(MP4|WEBM)$/i.test(f.extension)?'Смотреть видео':f.extension==='M4A'?'Слушать аудио':/VTT|TXT/.test(f.extension)?'Транскрипт / текст':f.extension==='JSON'?'Чат и сведения':'Открыть файл'}</button>${/^(VTT|TXT)$/.test(f.extension)?` <button type="button" class="tbtn" data-copy-text="${esc(f.id)}">Копировать текст</button>`:''}${canDelete?` <button class="tbtn" data-del="${esc(f.id)}">Удалить файл</button>`:''}`:`<span>${materialStatus(f)}</span>`}
         ${!dealId?`<button class="tbtn" data-link="${esc(f.id)}">Прикрепить к сделке</button>`:''}
         ${f.error?`<div style="color:var(--rd)">${esc(f.error)}</div>`:''}<div data-player="${esc(f.id)}"></div></div>`).join(''):'Материалов встреч пока нет.';
       // Show playable previews immediately, without opening a separate window.
@@ -143,7 +151,7 @@ export function zoomClient({ base, getToken }) {
           const box=[...container.querySelectorAll('[data-player]')].find(x=>x.dataset.player===f.id);
           const video=/^(MP4|WEBM)$/i.test(f.extension);
           const player=document.createElement(video?'video':'audio');
-          player.controls=true;player.preload='metadata';player.setAttribute('playsinline','');
+          player.controls=true;player.preload='none';player.setAttribute('playsinline','');
           player.setAttribute('aria-label',video?'Видеозапись встречи':'Аудиозапись встречи');
           player.style.cssText=video?'display:block;width:100%;max-width:720px;aspect-ratio:16/9;object-fit:contain;background:#111;border-radius:8px;margin:12px 0':'display:block;width:100%;max-width:720px;margin:12px 0';
           const status=document.createElement('div');status.setAttribute('role','status');
@@ -153,6 +161,22 @@ export function zoomClient({ base, getToken }) {
           player.src=base+'/api/zoom/files/'+encodeURIComponent(f.id)+'?auth='+encodeURIComponent(token);
           box.replaceChildren(player,status);
         }
+      }
+      if(dealId){
+        const signature=JSON.stringify(loadedRows);
+        const poll=async()=>{
+          if(!container.isConnected)return;
+          if(document.hidden){container._meetRefresh=setTimeout(poll,rows.some(f=>f.status==='processing')?15000:30000);return;}
+          try{
+            const next=await api('/files'+(dealId?'?deal='+encodeURIComponent(dealId):''));
+            if(JSON.stringify(next.files)!==signature){
+              const playing=[...container.querySelectorAll('video,audio')].some(v=>!v.paused);
+              if(!playing){await files(container,dealId,canDelete);return;}
+            }
+          }catch{}
+          container._meetRefresh=setTimeout(poll,rows.some(f=>f.status==='processing')?15000:30000);
+        };
+        container._meetRefresh=setTimeout(poll,rows.some(f=>f.status==='processing')?15000:30000);
       }
       async function preview(f, copyOnly=false) {
         const ext=String(f.extension || '').toUpperCase();
@@ -177,7 +201,7 @@ export function zoomClient({ base, getToken }) {
             const r=await fetch(path,{headers:{Authorization:'Bearer '+token}});if(!r.ok)throw new Error('Не удалось прочитать транскрипт');
             const raw=await r.text();if(!dialog.open)return;
             const metadata=ext==='JSON'?JSON.parse(raw):null;
-            const text=metadata ? ['Участники: '+(metadata.participants||[]).join(', '), 'Расшифровка: '+(metadata.transcriptStatus==='available'?'сохранена отдельным файлом':'не получена браузером'), '', 'Чат:', ...(metadata.chat||[]).map(m=>m.name+': '+m.text)].join('\n') : ext==='VTT'?transcriptText(raw):raw;
+            const text=metadata ? ['Участники: '+(metadata.participants||[]).join(', '), 'Расшифровка: '+(metadata.transcriptStatus==='available'?'сохранена отдельным файлом':metadata.transcriptStatus==='no_speech'?'речь в аудиодорожке не обнаружена':metadata.transcriptStatus==='processing'?'в обработке':'не получена'), '', 'Чат:', ...(metadata.chat||[]).map(m=>m.name+': '+m.text)].join('\n') : ext==='VTT'?transcriptText(raw):raw;
             const pre=document.createElement('pre');pre.style.cssText='max-height:55vh;overflow:auto;white-space:pre-wrap;user-select:text';pre.textContent=text;
             const copy=document.createElement('button');copy.type='button';copy.className='tbtn';copy.textContent='Копировать текст';
             copy.onclick=async()=>{try{await navigator.clipboard.writeText(text);status.textContent='Текст скопирован';}catch{status.textContent='Выделите текст ниже и скопируйте вручную.';const range=document.createRange();range.selectNodeContents(pre);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);}};
