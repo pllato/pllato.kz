@@ -481,8 +481,8 @@ const MEET_WS = 'wss://pllato-meet.uurraa.workers.dev';
 const MEET_API = 'https://pllato-meet.uurraa.workers.dev';
 const MOBILE_MEDIA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const MEDIA_PROFILE = MOBILE_MEDIA
-  ? { width:960, height:540, cameraFps:24, backgroundFps:15, recordingFps:15, bitrate:1_200_000 }
-  : { width:1280, height:720, cameraFps:30, backgroundFps:20, recordingFps:25, bitrate:2_000_000 };
+  ? { width:960, height:540, cameraFps:24, backgroundFps:15, maskWidth:384, recordingFps:15, bitrate:1_200_000 }
+  : { width:1280, height:720, cameraFps:30, backgroundFps:20, maskWidth:512, recordingFps:25, bitrate:2_000_000 };
 const LOGO_URL = '/pllato_logo_transparent_navy.svg'; // тёмный логотип Pllato на СВЕТЛОМ фоне
 
 const ICE_SERVERS = [
@@ -847,7 +847,7 @@ function refinePersonAlpha(rgba, width, height, work){
   if(!count || !work) return;
   const {visited,queue}=work; visited.fill(0);
   // Remove only tiny detached islands, not thin edges attached to the person.
-  // Reuse scratch arrays; at 256x144 this scans only 36,864 mask pixels.
+  // Scale the island area with mask resolution; reuse all scratch arrays.
   for(let seed=0;seed<count;seed++){
     if(visited[seed] || rgba[seed*4+3]===0) continue;
     let head=0,tail=1; queue[0]=seed; visited[seed]=1;
@@ -869,7 +869,19 @@ function refinePersonAlpha(rgba, width, height, work){
         if(right){next=index+width+1;if(!visited[next]&&rgba[next*4+3]){visited[next]=1;queue[tail++]=next;}}
       }
     }
-    if(tail<12) for(let i=0;i<tail;i++) rgba[queue[i]*4+3]=0;
+    if(tail<Math.max(12,Math.round(12*(width/256)**2))) for(let i=0;i<tail;i++) rgba[queue[i]*4+3]=0;
+  }
+}
+
+// A narrow separable tent smooths alpha only. Reused scratch, no video readback.
+function smoothPersonEdge(rgba, width, height, scratch){
+  for(let y=0;y<height;y++) for(let x=0;x<width;x++){
+    const i=y*width+x, left=x?i-1:i, right=x+1<width?i+1:i;
+    scratch[i]=(rgba[left*4+3]+6*rgba[i*4+3]+rgba[right*4+3])/8;
+  }
+  for(let y=0;y<height;y++) for(let x=0;x<width;x++){
+    const i=y*width+x, up=y?i-width:i, down=y+1<height?i+width:i;
+    rgba[i*4+3]=Math.round((scratch[up]+6*scratch[i]+scratch[down])/8);
   }
 }
 
@@ -912,21 +924,22 @@ class BgPipeline{
     if(!this.running) return;
     const w=results.image.width, h=results.image.height; if(!w) return;
     if(this.canvas.width!==w || this.canvas.height!==h){ this.canvas.width=w; this.canvas.height=h; }
-    const mw=Math.min(256,w), mh=Math.max(1,Math.round(h*mw/w));
+    const mw=Math.min(MEDIA_PROFILE.maskWidth,w), mh=Math.max(1,Math.round(h*mw/w));
     if(this.mask.width!==mw || this.mask.height!==mh){
       this.mask.width=mw; this.mask.height=mh;
-      this.maskWork={visited:new Uint8Array(mw*mh),queue:new Int32Array(mw*mh)};
+      this.maskWork={visited:new Uint8Array(mw*mh),queue:new Int32Array(mw*mh),edge:new Float32Array(mw*mh)};
     }
     const ctx=this.ctx, mctx=this.mctx;
     // Маска хранит вероятность человека в alpha. CSS brightness/contrast
     // меняют RGB, но не alpha: вместе с blur(11px) это давало широкий ореол.
-    // Уточняем alpha на маске шириной 256px, затем плавно масштабируем.
+    // Уточняем alpha на маске 384/512px и сглаживаем только край, затем масштабируем.
     // Пиксели самого человека берём из исходного видео без уменьшения.
     mctx.clearRect(0,0,mw,mh);
     mctx.imageSmoothingEnabled=true; mctx.imageSmoothingQuality='high';
     mctx.drawImage(results.segmentationMask,0,0,mw,mh);
     const maskPixels=mctx.getImageData(0,0,mw,mh);
     refinePersonAlpha(maskPixels.data,mw,mh,this.maskWork);
+    smoothPersonEdge(maskPixels.data,mw,mh,this.maskWork.edge);
     mctx.putImageData(maskPixels,0,0);
     // 2) человек по маске
     ctx.save(); ctx.clearRect(0,0,w,h);

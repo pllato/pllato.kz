@@ -41,3 +41,19 @@ Validated in Chromium with a synthetic live video: native PiP opens, the same
 video and stream keep playing, added peers appear, the recording canvas can
 draw the adopted video, and closing restores the grid without stopping tracks.
 Real-device battery use and sustained multi-party calls remain manual checks.
+
+### Skin-edge aliasing correction
+
+Mask refinement now uses 384 px width on mobile and 512 px on desktop instead
+of 256 px. This avoids expanding the sharpened coarse mask into visible blocks.
+A separable [1,6,1]/8 alpha-only filter provides narrow subpixel coverage; video
+RGB is never filtered. Scratch storage is reused and the existing 15/20 fps
+background limits are unchanged. Detached-island area scales with resolution.
+This increases mask processing work (up to 147,456 pixels at 16:9 desktop), not
+camera resolution or model inference rate.
+
+Chromium synthetic circular confidence-mask comparison at 1280x720: boundary
+RMSE 27.10 before, 17.36 after (~36% lower). This is an antialiasing regression
+check, not a claim of perfect segmentation or measured mobile battery savings.
+Actual hair, hands, chair discrimination and thermals still require live-camera
+checks. The current model can still misclassify background objects.
