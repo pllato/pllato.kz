@@ -80,3 +80,36 @@ test('changed document invalidates cached signature', async () => {
   await signWithEgov({...args, base64: btoa('different original')});
   assert.equal(registered, true); clearEgov('test');
 });
+
+test('inactive SIGEX operation is cleared so next attempt registers a fresh QR', async () => {
+  clearEgov('test');
+  globalThis.fetch = async url => json(url.endsWith('/data') ? {message:'QR signing operation is not active',requestID:123} : operation());
+  await assert.rejects(signWithEgov(args), /ссылка.*недействительна/i);
+  assert.equal(pendingEgov('test'), null);
+  let registered = false;
+  globalThis.fetch = async url => {
+    if (url === 'https://sigex.kz/api/egovQr') registered = true;
+    return json(url.endsWith('/sign') ? signed : url.endsWith('/data') ? {signURL: operation().signURL} : operation());
+  };
+  assert.equal((await signWithEgov(args)).cms, cms);
+  assert.equal(registered, true);
+  clearEgov('test');
+});
+
+test('upload expiry replaces QR expiry for resumed signature retrieval', async () => {
+  clearEgov('test');
+  const expires = Date.now() + 1200000;
+  globalThis.fetch = async url => {
+    if (url.endsWith('/sign')) throw new TypeError('Network disconnected');
+    return json(url.endsWith('/data') ? {signURL: operation().signURL,expireAt:expires} : operation());
+  };
+  await assert.rejects(signWithEgov(args), /Network disconnected/);
+  assert.equal(pendingEgov('test').expireAt, expires);
+  clearEgov('test');
+});
+
+test('provider errors identify stage and include safe provider reason', async () => {
+  clearEgov('test');
+  globalThis.fetch = async () => json({message:'Service temporarily unavailable',requestID:123});
+  await assert.rejects(signWithEgov(args), /создание ссылки.*Service temporarily unavailable/s);
+});

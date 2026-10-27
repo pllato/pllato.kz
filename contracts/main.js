@@ -1,5 +1,5 @@
 import { visibleParticipants, participantTypeLabel, signatureCountLabel } from './participants.js?v=20261003-4';
-import { signWithEgov, clearEgov } from './egov.js?v=20261003-1';
+import { signWithEgov, clearEgov } from './egov.js?v=20261027-recovery';
 import { requireSession } from "../pllato-kz-shared/pllato-api.js";
 import {
   listContracts, createContract, signOwner, sendContract, deleteContract, setContractMode,

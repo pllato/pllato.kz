@@ -37,11 +37,20 @@ export function cmsFromResponse(value) {
       atob(cms)[0] !== '0') throw new Error('eGov не вернул CMS-подпись');
   return cms;
 }
-async function request(url, options, signal) {
+async function request(url, options, signal, stage) {
   const response = await fetch(url, { ...options, signal, credentials: 'omit', referrerPolicy: 'no-referrer' });
   if (!response.ok) throw new Error(`Сервис eGov / SIGEX недоступен (${response.status}). Попробуйте ещё раз.`);
   const data = await response.json();
-  if (data.message) throw new Error('SIGEX не смог выполнить запрос. Попробуйте ещё раз.');
+  if (data.message) {
+    const inactive = data.message === 'QR signing operation is not active';
+    // Only show plain, bounded text. Session URLs must never enter diagnostics.
+    const reason = String(data.message).replace(/https?:\/\/\S+/g, '[адрес скрыт]').replace(/[<>\x00-\x1f]/g, '').slice(0, 180);
+    const error = new Error(inactive
+      ? 'Ссылка eGov недействительна. Нажмите eGov Mobile ещё раз, чтобы получить новую.'
+      : `SIGEX — ${stage}: ${reason}`);
+    error.inactiveOperation = inactive;
+    throw error;
+  }
   return data;
 }
 async function fingerprint(base64) {
@@ -102,7 +111,7 @@ export async function signWithEgov({ context, base64, title, mime, metadata = {}
       const operation = await request('https://sigex.kz/api/egovQr', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description: title, whenDone: { backUrl: back.href } }),
-      }, signal);
+      }, signal, 'создание ссылки');
       clearTimeout(timer);
       session = { ...operation, hash, metadata, uploaded: false };
       providerUrl(session.dataURL); providerUrl(session.signURL);
@@ -129,17 +138,21 @@ export async function signWithEgov({ context, base64, title, mime, metadata = {}
           id: 1, nameRu: title, nameKz: title, nameEn: title, meta: [],
           document: { file: { mime: mime === 'application/pdf' ? '@file/pdf' : mime, data: base64 } },
         }] }),
-      }, signal);
+      }, signal, 'передача документа');
       session.signURL = providerUrl(uploaded.signURL || session.signURL);
+      if (Number.isFinite(uploaded.expireAt)) session.expireAt = uploaded.expireAt;
+      clearTimeout(timer);
+      timer = setTimeout(() => controller.abort(), Math.max(0, Math.min(session.expireAt - Date.now(), 600000)));
       session.uploaded = true; save(context, session);
     }
     status.textContent = 'Ожидаю подтверждения в eGov…';
-    const response = await request(providerUrl(session.signURL), {}, signal);
+    const response = await request(providerUrl(session.signURL), {}, signal, 'получение подписи');
     if (response.status === 'CANCELED') clearEgov(context);
     session.cms = cmsFromResponse(response);
     save(context, session);
     return { cms: session.cms, signer: extractSubjectFromCms(session.cms), tsp: false, metadata: session.metadata };
   } catch (e) {
+    if (e.inactiveOperation) clearEgov(context);
     if (signal.aborted) throw new Error('Подписание прервано или время ожидания истекло. Вернитесь на страницу договора и нажмите eGov повторно.');
     throw e;
   } finally {
