@@ -1684,6 +1684,7 @@ function startTimer(){
 
 let meetingEndTimer=null;
 function showMeetingEnding(endAt){
+  if(state.isHost) return; // The server countdown belongs to guests only.
   clearInterval(meetingEndTimer);
   let banner=$('meeting-ending');
   if(!banner){banner=document.createElement('div');banner.id='meeting-ending';banner.style.cssText='position:fixed;top:12px;left:10%;width:80%;z-index:10000;padding:12px;background:#9b342d;color:white;text-align:center;border-radius:12px';document.body.append(banner);}
@@ -1705,10 +1706,35 @@ async function finishRemoteMeeting(){
   location.href=shortLink(state.roomId);
 }
 
+function showHostExit(){
+  clearInterval(meetingEndTimer);$('meeting-ending')?.remove();
+  let screen=$('screen-host-exit');
+  if(!screen){
+    screen=document.createElement('section');screen.id='screen-host-exit';screen.className='screen';
+    screen.style.cssText='align-items:center;justify-content:center;text-align:center;padding:32px';
+    screen.innerHTML='<div><h2>Встреча завершена</h2><p id="host-exit-status" role="status">Отправляем последние фрагменты записи…</p><button id="host-exit-retry" class="btn hidden">Повторить сохранение</button></div>';
+    document.body.append(screen);$('host-exit-retry').onclick=leaveRoom;
+  }
+  $('host-exit-status').textContent='Отправляем последние фрагменты записи…';
+  $('host-exit-retry').classList.add('hidden');
+  showScreen('screen-host-exit');
+}
+function showHostExitError(error){
+  $('host-exit-status').textContent='Не удалось отправить последние фрагменты: '+error.message+'. Локальная копия сохранена. Проверьте интернет и повторите сохранение.';
+  $('host-exit-retry').classList.remove('hidden');
+}
+function stopMeetingMedia(){
+  for(const {pc} of peers.values())pc.close();
+  state._joined=false;
+  state.rawStream?.getTracks().forEach(t=>t.stop());
+  state.screenStream?.getTracks().forEach(t=>t.stop());
+  outBg?.stop();previewBg?.stop();
+}
+
 async function leaveRoom(){
   if(state._leaving) return;
   state._leaving=true;
-  if(state.isHost){wsSend({t:'end-meeting'});showMeetingEnding(Date.now()+30000);}
+  if(state.isHost){wsSend({t:'end-meeting'});showHostExit();}
   clearTimeout(recordingRetryTimer);
   floatingParticipants.close();
   const btn=$('cb-leave'); btn.disabled=true;
@@ -1716,10 +1742,8 @@ async function leaveRoom(){
   try{ if(document.pictureInPictureElement) document.exitPictureInPicture(); }catch{}
   stopRecognition();
   try{
-    if(state.isHost && !wsClosedByUser)await new Promise(resolve=>setTimeout(resolve,30000));
     if(recStarting) await recStarting;
     if(state.isHost){
-      toast('Сохраняю встречу. Не закрывайте вкладку…', 10000);
       if(state.recording) await stopRecording();
       else if(recSaving) await recSaving;
       else if(recUpload) await finalizeRecording();
@@ -1730,10 +1754,14 @@ async function leaveRoom(){
     state._joined=false;
     state.rawStream?.getTracks().forEach(t=>t.stop());
     state.screenStream?.getTracks().forEach(t=>t.stop());
+    stopMeetingMedia();
+    if(state.isHost)window.close();
+    // Tabs opened manually cannot be closed by script; the archive is the fallback.
     location.href=state.isHost?'/meet.html#archive':'/meet.html';
   }catch(e){
     state._leaving=false; btn.disabled=false;
-    toast('Встреча ещё не сохранена: '+e.message+'. Проверьте интернет и нажмите выход повторно.', 15000);
+    if(state.isHost)showHostExitError(e);
+    else toast('Встреча ещё не сохранена: '+e.message+'. Проверьте интернет и нажмите выход повторно.', 15000);
   }
 }
 window.addEventListener('beforeunload', e=>{
@@ -2025,6 +2053,7 @@ function releaseRecordingMedia(){
   recMixed?.getTracks().forEach(t=>t.stop()); recMixed=null;
   for(const src of recordingAudioSources.values()) src.disconnect();
   recordingAudioSources.clear(); recDest=null;
+  if(state._leaving)stopMeetingMedia();
 }
 async function finalizeRecording(){
   if(!recUpload) return;
