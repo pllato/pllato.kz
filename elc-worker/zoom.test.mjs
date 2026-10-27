@@ -33,18 +33,19 @@ test('OAuth state одноразовый, токены не хранятся о�
   assert.ok(!stored.includes('test-token'));assert.ok(!stored.includes('test-refresh'));
   assert.equal((await f.request('/callback?state=test&code=test')).status,403);
 });
-test('повторное создание события не создаёт второй Zoom',async()=>{
+test('повторное создание события возвращает одну Pllato Meet без Zoom API',async()=>{
   const f=fixture();await f.connect();
   f.db.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?)').run('t1','Встреча','zoom_meeting','2026-10-01T10:00:00Z','2026-10-01T11:00:00Z',null,'["deal_1"]',1);
   let posts=0;const original=globalThis.fetch;
   globalThis.fetch=async(url,options)=>{assert.equal(options.method,'POST');posts++;return Response.json({id:123,join_url:'https://zoom.us/j/123'});};
-  try{await ensureZoomForTask(f.env,'t1');await ensureZoomForTask(f.env,'t1');assert.equal(posts,1);}finally{globalThis.fetch=original;}
+  try{const a=await ensureZoomForTask(f.env,'t1'),b=await ensureZoomForTask(f.env,'t1');assert.equal(posts,0);assert.equal(a.meeting_id,b.meeting_id);assert.match(a.join_url,/pllato.kz\/meet.html/);}finally{globalThis.fetch=original;}
 });
-test('таймаут создания не вызывает повторный POST',async()=>{
+test('неопределённый результат старого Zoom не создаёт дубликат',async()=>{
   const f=fixture();await f.connect();
   f.db.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?)').run('t1','Встреча','zoom_meeting','2026-10-01T10:00:00Z','2026-10-01T11:00:00Z',null,'[]',1);
+  f.db.prepare("INSERT INTO zoom_meetings(task_id,status,created_at) VALUES('t1','uncertain','2026-01-01')").run();
   let posts=0;const original=globalThis.fetch;globalThis.fetch=async()=>{posts++;throw new Error('timeout');};
-  try{await assert.rejects(ensureZoomForTask(f.env,'t1'));await assert.rejects(ensureZoomForTask(f.env,'t1'));assert.equal(posts,1);}finally{globalThis.fetch=original;}
+  try{await assert.rejects(ensureZoomForTask(f.env,'t1'));await assert.rejects(ensureZoomForTask(f.env,'t1'));assert.equal(posts,0);}finally{globalThis.fetch=original;}
 });
 test('ошибка копии не удаляет оригинал; успешная копия проверяется перед trash',async()=>{
   const f=fixture();await f.connect();f.env.ZOOM_TRASH_AFTER_COPY='true';
@@ -97,8 +98,8 @@ test('Первый Zoom из карточки создаёт одну встре
     assert.equal((await f.request('/deals/deal_first/first-meeting','POST')).status,200);
     assert.equal((await f.request('/deals/deal_first/first-meeting','POST')).status,200);
     const data=await (await f.request('/deals/deal_first/first-meeting')).json();
-    assert.equal(data.meeting.join_url,'https://zoom.us/j/456');
-    assert.equal(data.meeting.deal_id,'deal_first');assert.equal(posts,1);assert.equal(patches,1);
+    assert.match(data.meeting.join_url,/^https:\/\/pllato.kz\/meet.html\?room=crm-/);
+    assert.equal(data.meeting.deal_id,'deal_first');assert.equal(posts,0);assert.equal(patches,0);
     f.deps.canEditRecord=async()=>false;
     assert.equal((await f.request('/deals/deal_first/first-meeting','POST')).status,403);
   }finally{globalThis.fetch=original;}
@@ -240,4 +241,70 @@ test('аудит переносов доступен только админис
  assert.equal((await (await f.request('/transfer-audit')).json()).meetings.length,1);
  await f.request('/transfer-audit','POST');assert.equal(f.db.prepare("SELECT retry_at FROM zoom_files WHERE id='one'").get().retry_at,null);assert.equal(f.db.prepare("SELECT retry_at FROM zoom_files WHERE id='gone'").get().retry_at,'2099-01-01');
  f.deps.resolveCanonicalUser=async()=>({role:'agent'});assert.equal((await f.request('/transfer-audit')).status,403);assert.equal((await f.request('/transfer-audit','POST')).status,403);
+});
+
+
+test('Pllato Meet: private host access, CRM attachment and idempotent archive',async()=>{
+  const {authorizeCrmArchive,indexCrmArchive}=await import('../meet-worker/crm-archive.js');
+  const f=fixture();await f.request('/status');
+  f.db.prepare('INSERT INTO deals(id) VALUES(?)').run('deal_1');
+  f.db.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?)').run('t1','Встреча','zoom_meeting','2026-10-01T10:00:00Z','2026-10-01T11:00:00Z',null,'["deal_1"]',1);
+  const m=await ensureZoomForTask(f.env,'t1');
+  const response=await f.request('/meetings/'+m.meeting_id+'/host-access','POST');
+  assert.equal(response.status,200);
+  const {hostUrl}=await response.json(),key=new URLSearchParams(new URL(hostUrl).hash.slice(1)).get('host');
+  assert.ok(key);assert.ok(!m.join_url.includes(key));
+  assert.equal(response.headers.get('cache-control'),'private, no-store');
+  f.deps.canEditRecord=async()=>false;
+  assert.equal((await f.request('/meetings/'+m.meeting_id+'/host-access','POST')).status,403);
+  const env={CRM_DB:f.env.DB,CRM_FILES:f.env.FILES},id=m.meeting_id+'-1234567890';
+  assert.equal(await authorizeCrmArchive(new Request('https://test'),env,id),null);
+  const linked=await authorizeCrmArchive(new Request('https://test',{headers:{Authorization:'Bearer '+key}}),env,id);
+  assert.equal(linked.deal_id,'deal_1');
+  const meta={date:Date.now(),recording:true,mime:'video/webm',transcript:[{name:'Клиент',text:'Тестовая речь'}],chat:[{name:'Клиент',text:'Вопрос'}],dealId:'deal_other'};
+  await assert.rejects(indexCrmArchive(env,linked,id,meta),/not complete/);
+  await f.env.FILES.put('rec/crm/'+id+'.webm','test-video');
+  await indexCrmArchive(env,linked,id,meta);await indexCrmArchive(env,linked,id,meta);
+  const rows=f.db.prepare('SELECT * FROM zoom_files').all();
+  assert.equal(rows.length,3);assert.ok(rows.every(row=>row.deal_id==='deal_1'&&row.status==='stored'));
+  assert.ok(rows.some(row=>row.extension==='WEBM'));assert.ok(rows.some(row=>row.kind==='transcript'));
+  f.deps.dealAccessSql=()=>({where:' AND id=?',params:['deal_other']});
+  assert.equal((await f.request('/files/'+rows[0].id)).status,403);
+});
+
+test('CRM room cannot be claimed by the first guest; only issued key grants host',async()=>{
+  const {MeetRoom}=await import('../meet-worker/worker.js');
+  const f=fixture();await f.request('/status');
+  f.db.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?)').run('t1','Встреча','zoom_meeting','2026-10-01T10:00:00Z','2026-10-01T11:00:00Z',null,'[]',1);
+  const meeting=await ensureZoomForTask(f.env,'t1');
+  const values=new Map([['roomId',meeting.meeting_id]]),messages=[];
+  const socket={send:s=>messages.push(JSON.parse(s)),serializeAttachment(a){this.a=a},deserializeAttachment(){return this.a}};
+  const room=new MeetRoom({storage:{get:async k=>values.get(k),put:async(k,v)=>values.set(k,v)},getWebSockets:()=>[socket]},{CRM_DB:f.env.DB});
+  await room.onJoin(socket,{peer:'guest',name:'Guest',hostKey:'hk_attacker'});
+  assert.equal(messages.find(m=>m.t==='welcome').self.isHost,false);
+  assert.equal(socket.a.info.admitted,false);
+  messages.length=0;
+  const key=f.db.prepare('SELECT v FROM zoom_private WHERE k=?').get('pmeet-host:'+meeting.meeting_id).v;
+  await room.onJoin(socket,{peer:'host',name:'Manager',hostKey:key});
+  assert.equal(messages.find(m=>m.t==='welcome').self.isHost,true);
+  f.db.prepare("UPDATE zoom_meetings SET status='cancelled'").run();
+  let closed=false;socket.close=()=>closed=true;
+  await room.onJoin(socket,{peer:'late',name:'Guest',hostKey:key});assert.equal(closed,true);
+});
+
+test('CRM archive HTTP blocks public reads, foreign keys and publishes only after complete upload',async()=>{
+  const worker=(await import('../meet-worker/worker.js')).default;
+  const f=fixture();await f.request('/status');
+  f.db.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?)').run('t1','Встреча','zoom_meeting','2026-10-01T10:00:00Z','2026-10-01T11:00:00Z',null,'[]',1);
+  const m=await ensureZoomForTask(f.env,'t1'),id=m.meeting_id+'-1234567890';
+  const key=f.db.prepare('SELECT v FROM zoom_private WHERE k=?').get('pmeet-host:'+m.meeting_id).v;
+  const env={ARCHIVE:f.env.FILES,CRM_DB:f.env.DB,CRM_FILES:f.env.FILES};
+  const call=(path,method='GET',token='',body)=>worker.fetch(new Request('https://meet.test'+path,{method,headers:{Authorization:'Bearer '+token},body:body?JSON.stringify(body):undefined}),env);
+  assert.equal((await call('/archive/rec/crm/'+id)).status,403);
+  assert.equal((await call('/archive/list/crm')).status,403);
+  assert.equal((await call('/archive/meta/crm/'+id,'PUT','wrong',{recording:false})).status,403);
+  assert.equal((await call('/archive/meta/crm/'+id,'PUT',key,{recording:true})).status,500);
+  assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM zoom_files').get().n,0);
+  assert.equal((await call('/archive/meta/crm/'+id,'PUT',key,{recording:false,transcript:[]})).status,200);
+  assert.equal(f.db.prepare('SELECT kind FROM zoom_files').get().kind,'chat_metadata');
 });

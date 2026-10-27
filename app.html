@@ -8918,7 +8918,7 @@ function renderTodayCalendar(){
     const mark=isNow?'<span class="mk">идёт</span>'
       :isNext&&mins<=90?`<span class="mk">через ${mins<1?'минуту':mins+' мин'}</span>`:'';
     return `<div class="cw-entry"><a class="cw-chip${item.kind==='task'?' task':''}${isNow?' now':isNext?' next':isPast?' past':''}" href="${escapeHtml(item.href)}" data-cw="${i}">
-      <span class="t">${calTimeLabel(item.at)}</span><span class="n">${escapeHtml(item.title)}</span>${mark}</a>${calZoomUrl(item.zoomUrl)?`<a class="cw-zoom" href="${escapeHtml(calZoomUrl(item.zoomUrl))}" target="_blank" rel="noopener noreferrer" aria-label="Войти в Zoom: ${escapeHtml(item.title)}">Войти в Zoom ↗</a>`:''}</div>`;
+      <span class="t">${calTimeLabel(item.at)}</span><span class="n">${escapeHtml(item.title)}</span>${mark}</a>${calZoomUrl(item.zoomUrl)?`<a class="cw-zoom" href="${escapeHtml(calZoomUrl(item.zoomUrl))}" target="_blank" rel="noopener noreferrer" aria-label="Войти во встречу: ${escapeHtml(item.title)}">Войти во встречу ↗</a>`:''}</div>`;
   }).join('');
   const word=n=>n%10===1&&n%100!==11?'встреча':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'встречи':'встреч');
   const tword=n=>n%10===1&&n%100!==11?'дело':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'дела':'дел');
@@ -8972,6 +8972,19 @@ function calShowTip(chip,item){
   tip.style.top=top+'px';
 }
 function calBindTips(box){
+  box.querySelectorAll('a.cw-zoom').forEach(link=>{
+    const url=new URL(link.href),room=url.searchParams.get('room');
+    if(url.hostname!=='pllato.kz'||!/^crm-[a-f0-9-]{36}$/.test(room||''))return;
+    link.onclick=async e=>{
+      e.preventDefault();const popup=window.open('about:blank','_blank');
+      if(popup)popup.opener=null;
+      try{
+        const r=await calFetch(CAL_WORKER+'/api/zoom/meetings/'+encodeURIComponent(room)+'/host-access',8000,{method:'POST',headers:{Authorization:'Bearer '+(getSession()?.token||'')}});
+        const data=await r.json();const target=r.ok&&calZoomUrl(data.hostUrl)?data.hostUrl:link.href;
+        if(popup)popup.location.replace(target);else location.href=target;
+      }catch{if(popup)popup.location.replace(link.href);else location.href=link.href;}
+    };
+  });
   box.querySelectorAll('.cw-chip[data-cw]').forEach(chip=>{
     const item=(CAL_EVENTS||[])[Number(chip.dataset.cw)];
     if(!item) return;
@@ -8984,7 +8997,7 @@ function calBindTips(box){
   if(list) list.addEventListener('scroll',calHideTip);
 }
 function calZoomUrl(value){
-  try{const u=new URL(value);return u.protocol==='https:'&&/(^|\.)zoom\.(us|com)$/.test(u.hostname)&&!u.username&&!u.password?u.href:'';}catch{return '';}
+  try{const u=new URL(value);return u.protocol==='https:'&&(/(^|\.)zoom\.(us|com)$/.test(u.hostname)||(u.hostname==='pllato.kz'&&u.pathname==='/meet.html'))&&!u.username&&!u.password?u.href:'';}catch{return '';}
 }
 async function calLoadZoomLinks(items){
   const token=getSession()?.token;if(!token)return;

@@ -1,3 +1,4 @@
+import {crmMeeting,authorizeCrmArchive,indexCrmArchive} from './crm-archive.js';
 /**
  * Pllato Meet — сигналинг-воркер (Cloudflare Worker + Durable Object).
  *
@@ -112,6 +113,16 @@ function json(data, status = 200) {
 
 // Архив в R2: rec/<owner>/<id>.webm  +  meta/<owner>/<id>.json
 async function handleArchive(request, env, { aRec, aMeta, aList, aDel, aRecInit, aRecPart, aRecDone }) {
+  const match=aRec||aMeta||aList||aDel||aRecInit||aRecPart||aRecDone;
+  let linkedMeeting=null;
+  if(match?.[1]==='crm'){
+    // CRM media is private. Reads/deletes go through CRM deal access checks.
+    if(aList || request.method==='GET' || request.method==='DELETE') return json({error:'Use CRM archive'},403);
+    linkedMeeting=await authorizeCrmArchive(request,env,match[2]);
+    if(!linkedMeeting || !env.CRM_FILES) return json({error:'forbidden'},403);
+    env={...env,ARCHIVE:env.CRM_FILES};
+  }
+
   // ---- потоковая запись через R2 multipart ----
   if (aRecInit && request.method === 'POST') {
     const [, owner, id] = aRecInit; if (!SAFE.test(owner) || !SAFE.test(id)) return json({ error: 'bad key' }, 400);
@@ -163,7 +174,10 @@ async function handleArchive(request, env, { aRec, aMeta, aList, aDel, aRecInit,
   if (aMeta && (request.method === 'PUT' || request.method === 'POST')) {
     // POST — чтобы navigator.sendBeacon (только POST) мог сохранить метаданные при закрытии вкладки
     const [, owner, id] = aMeta; if (!SAFE.test(owner) || !SAFE.test(id)) return json({ error: 'bad key' }, 400);
-    await env.ARCHIVE.put(`meta/${owner}/${id}.json`, request.body, { httpMetadata: { contentType: 'application/json' } });
+    const raw=await request.text();
+    if(raw.length>2_000_000)return json({error:'metadata too large'},413);
+    if(linkedMeeting) await indexCrmArchive(env,linkedMeeting,id,JSON.parse(raw));
+    await env.ARCHIVE.put(`meta/${owner}/${id}.json`, raw, { httpMetadata: { contentType: 'application/json' } });
     return json({ ok: true });
   }
   if (aDel && request.method === 'DELETE') {
@@ -282,19 +296,26 @@ export class MeetRoom {
   async onJoin(ws, m) {
     const me = m.token ? await verifyUser(m.token) : null;
     const room = await this.getRoom();
+    const crmRoom=(await this.roomId())?.startsWith('crm-');
+    if(crmRoom){
+      const linked=await crmMeeting(this.env,await this.roomId());
+      if(!linked){this.send(ws,{t:'error',msg:'Встреча отменена или не найдена'});ws.close(1008,'Meeting unavailable');return;}
+      room.hostKey=linked.host_key;
+    }
     const peer = String(m.peer || '').slice(0, 40);
     if (!peer) { this.send(ws, { t: 'error', msg: 'no peer id' }); return; }
 
     // 1) СТРОГО: хост по личности — Gmail-владелец персональной комнаты (u-<slug email>)
     let isHost = false;
     let verifiedName = '';
-    if (me) {
+    if (me && !crmRoom) {
       const rid = await this.roomId();
       if (rid && (meetSlug(me.email) === rid || room.hostEmail === me.email.toLowerCase())) { isHost = true; verifiedName = me.name; }
     }
     // 2) fallback для ad-hoc комнат (Новая встреча): первый валидный hostKey владеет комнатой
     const rid = await this.roomId();
-    if (!isHost && m.hostKey && !room.hostEmail && !rid?.startsWith('u-')) {
+    if(crmRoom) isHost=!!m.hostKey && m.hostKey===room.hostKey;
+    if (!crmRoom && !isHost && m.hostKey && !room.hostEmail && !rid?.startsWith('u-')) {
       if (!room.hostKey) room.hostKey = String(m.hostKey).slice(0, 80);
       isHost = room.hostKey === String(m.hostKey);
     }

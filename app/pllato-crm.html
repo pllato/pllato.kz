@@ -3296,6 +3296,10 @@ src="https://www.facebook.com/tr?id=893448113078273&ev=PageView&noscript=1"
 
 <!-- Firebase SDK -->
 <script type="module">
+import {zoomClient} from './zoom-crm.js?v=20261027-meet';
+import {mountDealTranscripts} from './deal-transcripts.js?v=20261027-meet';
+const crmMeet=zoomClient({base:'https://pllato-elc-worker.uurraa.workers.dev',getToken:()=>fbAuth.currentUser.getIdToken()});
+
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword,
@@ -9843,7 +9847,7 @@ function renderPipelineTabs() {
     const isArchived = p.isActive === false || p.isActive === 0;
     const archivedBadge = isArchived ? ' <span style="background:rgba(0,0,0,0.15);font-size:9px;padding:1px 5px;border-radius:3px;vertical-align:middle;text-transform:uppercase">архив</span>' : '';
     const archiveBtn = isAdmin && !isArchived ? `<span class="pipe-tab-archive" data-archive-pipeline="${escapeHtml(p.id)}" data-archive-name="${escapeHtml(p.name)}" title="В архив" style="display:inline-block;margin-left:6px;opacity:0.4;cursor:pointer;font-size:11px">🗄</span>` : '';
-    const cfgBtn = isAdmin && isActive ? `<span class="pipe-tab-cfg" data-cfg-pipeline="${escapeHtml(p.id)}" title="Настройка полей на карточках (Первый Zoom, Дата пробного урока)" style="display:inline-block;margin-left:6px;opacity:0.55;cursor:pointer;font-size:11px">⚙</span>` : '';
+    const cfgBtn = isAdmin && isActive ? `<span class="pipe-tab-cfg" data-cfg-pipeline="${escapeHtml(p.id)}" title="Настройка полей на карточках (Первая видеовстреча, Дата пробного урока)" style="display:inline-block;margin-left:6px;opacity:0.55;cursor:pointer;font-size:11px">⚙</span>` : '';
     html += `<button class="pipe-tab ${isActive ? 'active' : ''}" data-pipeline-id="${escapeHtml(p.id)}" draggable="true" title="${escapeHtml(p.name)} · перетащи влево/вправо чтобы поменять порядок">${escapeHtml(p.name)}${archivedBadge}${cfgBtn}${archiveBtn}</button>`;
   }
   html += `<button class="pipe-tab pipe-tab-new" data-action="new-pipeline" title="Создать новую воронку">+</button>`;
@@ -9865,7 +9869,7 @@ function pipelineCardFieldFlags(pipelineId) {
 }
 
 // Модал «⚙ Поля на карточках» для конкретной воронки (шестерёнка на активной
-// вкладке). Управляет видимостью «📹 Первый Zoom» и «📚 Дата пробного урока».
+// вкладке). Управляет видимостью «📹 Первая видеовстреча» и «📚 Дата пробного урока».
 function openPipelineCardFieldsModal(pipelineId) {
   if (!pipelineId) { alert('Сначала открой воронку'); return; }
   document.getElementById('_pcf-modal')?.remove();
@@ -9882,7 +9886,7 @@ function openPipelineCardFieldsModal(pipelineId) {
         <div style="font-size:12px;color:var(--t3);margin-bottom:14px">Выбери, какие поля показывать в карточке сделки этой воронки. Дата подхватится в Календарь.</div>
         <label style="display:flex;align-items:center;gap:10px;padding:11px 0;cursor:pointer;font-size:14px;color:var(--t1);border-bottom:1px solid var(--b2)">
           <input type="checkbox" id="pcf-zoom" ${flags.showFirstZoom ? 'checked' : ''} style="width:17px;height:17px">
-          <span>📹 Первый Zoom <span style="color:var(--t3);font-size:12px">— дата и время</span></span>
+          <span>📹 Первая видеовстреча <span style="color:var(--t3);font-size:12px">— дата и время</span></span>
         </label>
         <label style="display:flex;align-items:center;gap:10px;padding:11px 0;cursor:pointer;font-size:14px;color:var(--t1)">
           <input type="checkbox" id="pcf-trial" ${flags.showTrialLesson ? 'checked' : ''} style="width:17px;height:17px">
@@ -12214,6 +12218,7 @@ function openAddDeedModal(deal, onDone) {
       }
       ov.remove();
       const mkDone = calMeetingKind(mark);
+      if(mark==='zoom_meeting') crmMeet.created(id);
       showToast(mkDone ? `${mkDone.emoji} ${mkDone.label} создана — смотри в Календаре` : 'Дело создано');
       if (typeof onDone === 'function') onDone();
     } catch (e) {
@@ -12607,7 +12612,7 @@ function buildDealCard(d, stageColor) {
   // Флаги видимости спец-полей для активной воронки (канбан — всегда активная).
   const kanbanFlags = pipelineCardFieldFlags(dealsState.activePipelineId);
 
-  // 1) Zoom-встреча
+  // 1) Видеовстреча
   const zoomAt = kanbanFlags.showFirstZoom ? d.customFields?.firstZoomAt : null;
   if (zoomAt) {
     const zd = new Date(zoomAt);
@@ -13812,7 +13817,7 @@ async function openDealCard(bitrixId) {
   const respName = respUser ? `${respUser.lastName || ''} ${respUser.name || ''}`.trim() : '—';
   const respEmail = respUser?.email || '';
   const canEditDeal = canEditDealFront(deal);
-  // Видимость спец-полей (Первый Zoom / Дата пробного урока) — по воронке, в
+  // Видимость спец-полей (Первая видеовстреча / Дата пробного урока) — по воронке, в
   // которой просматривается сделка (учитываем зеркала через _viewPipelineId).
   const cardFlags = pipelineCardFieldFlags(deal._viewPipelineId || deal.pipelineId || dealsState.activePipelineId);
   const createdByUser = getUserById(deal.createdByUid);
@@ -13995,9 +14000,9 @@ async function openDealCard(bitrixId) {
           ${deal.comments ? `<div class="dc-section-h">Комментарии</div>
             <div style="font-size:13px;color:var(--t2);white-space:pre-wrap;background:var(--bg3);padding:12px 14px;border-radius:8px;line-height:1.5">${escapeHtml(deal.comments)}</div>` : ''}
 
-          ${cardFlags.showFirstZoom ? `<div class="dc-section-h">📹 Первый Zoom</div>
+          ${cardFlags.showFirstZoom ? `<div class="dc-section-h">📹 Первая видеовстреча</div>
           <div style="background:var(--bg3);padding:12px 14px;border-radius:8px">
-            <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Дата и время первой Zoom-встречи (попадёт в Календарь)</div>
+            <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Дата и время первой видеовстречи (попадёт в Календарь)</div>
             <input class="cf-edit"
               type="datetime-local"
               data-field="firstZoomAt"
@@ -14008,6 +14013,10 @@ async function openDealCard(bitrixId) {
             ${deal.customFields?.firstZoomAt ? `<button class="tbtn tbtn-xs" style="margin-left:8px" onclick="navigate('calendar')">📅 Открыть календарь</button>` : ''}
           </div>` : ''}
 
+          <div class="dc-section-h">Видеовстречи Pllato Meet</div>
+          <div id="dc-meet-first"></div><div id="dc-meet-events"></div>
+          <button class="tbtn" id="dc-meet-refresh">Обновить материалы</button>
+          <div id="dc-meet-transcripts"></div><div id="dc-meet-files"></div>
           ${cardFlags.showTrialLesson ? `<div class="dc-section-h">📚 Дата пробного урока</div>
           <div style="background:var(--bg3);padding:12px 14px;border-radius:8px">
             <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Дата и время пробного урока (попадёт в Календарь)</div>
@@ -14198,6 +14207,15 @@ async function openDealCard(bitrixId) {
 
   // Квалификация (бриф первого звонка)
   const qualDealId = 'deal_' + deal.bitrixId;
+  const refreshMeet=()=>{
+    crmMeet.firstMeeting(modal.querySelector('#dc-meet-first'),qualDealId,deal.customFields?.firstZoomAt);
+    const events=modal.querySelector('#dc-meet-events');events.replaceChildren();crmMeet.dealMeetings(events,qualDealId);
+    crmMeet.files(modal.querySelector('#dc-meet-files'),qualDealId,canEditDeal);
+    mountDealTranscripts(modal.querySelector('#dc-meet-transcripts'),{dealId:qualDealId,base:WORKER_BASE_URL,getToken:()=>fbAuth.currentUser.getIdToken()});
+  };
+  modal.querySelector('#dc-meet-refresh').onclick=refreshMeet;refreshMeet();
+  const onMeetReturn=()=>{if(modal.isConnected)refreshMeet();else window.removeEventListener('focus',onMeetReturn);};
+  window.addEventListener('focus',onMeetReturn);
   const qualBtn = modal.querySelector('#dc-qual-btn');
   if (qualBtn) {
     qualBtn.onclick = () => openQualificationForm(qualDealId, deal, { readOnly: !canEditDeal });
@@ -15248,6 +15266,7 @@ function wireUpCustomFieldsEditing(modal, opts = {}) {
           rec.customFields = cf;
           rec.bitrixDateModify = new Date().toISOString();
         }
+        if(entity==='deal' && field==='firstZoomAt') await crmMeet.firstMeeting(modal.querySelector('#dc-meet-first'),recordId,value,true);
         el.style.background = 'rgba(63, 216, 142, 0.18)';
         setTimeout(() => { el.style.background = ''; }, 1200);
       } catch (e) {
@@ -16721,7 +16740,7 @@ function renderDeedsList() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════
-//   КАЛЕНДАРЬ — месячная сетка событий (задачи с дедлайном + Первый Zoom)
+//   КАЛЕНДАРЬ — месячная сетка событий (задачи с дедлайном + Первая видеовстреча)
 // ═════════════════════════════════════════════════════════════════════════
 const CAL_VIEW_LS_KEY = 'elc:calendarView';
 const calendarState = {
@@ -16975,7 +16994,7 @@ function renderCalendarView() {
 // Виды встреч в календаре: mark задачи → тип события, подпись, эмодзи, цвет.
 // Три категории встреч + обычное дело; цвета одинаковые во всех видах календаря.
 const CAL_MEETING_KINDS = {
-  zoom_meeting:    { key: 'zoom', label: 'Zoom-встреча',       emoji: '📹', color: '#2563eb' },
+  zoom_meeting:    { key: 'zoom', label: 'Видеовстреча',       emoji: '📹', color: '#2563eb' },
   offline_meeting: { key: 'meet', label: 'Физическая встреча', emoji: '🤝', color: '#16a34a' },
   demo_meeting:    { key: 'demo', label: 'Показ демо',         emoji: '🖥', color: '#ea580c' },
 };
@@ -17095,7 +17114,7 @@ async function loadCalendarEvents(opts = {}) {
         .then(r => r.ok ? r.json() : { items: [] })
         .catch(() => ({ items: [] }));
       // Сделки: ВСЕГДА тянем свежие данные из ВСЕХ воронок параллельно,
-      // чтобы Zoom-встреча показалась даже если активная воронка СРМ
+      // чтобы Видеовстреча показалась даже если активная воронка СРМ
       // указывает на другую. Без этого календарь не видел firstZoomAt
       // сделок из неактивных воронок и in-memory dealsState.deals мог
       // быть устаревшим (если карточка обновлена в другой вкладке).
@@ -17195,7 +17214,7 @@ async function loadCalendarEvents(opts = {}) {
     }
       for (const d of dealsForCalendar) {
         const flags = pipelineCardFieldFlags(d.pipelineId);
-        // Первый Zoom
+        // Первая видеовстреча
         const zt = flags.showFirstZoom ? d.customFields?.firstZoomAt : null;
         if (zt) {
           const dt = new Date(zt);
@@ -17208,7 +17227,7 @@ async function loadCalendarEvents(opts = {}) {
               date: dt,
               endDate: endDt,
               title: 'Zoom: ' + (d.title || d.bitrixId),
-              rawTitle: 'Первый Zoom',
+              rawTitle: 'Первая видеовстреча',
               dealTitle: d.title || `Сделка #${d.bitrixId}`,
               scheduledByUid,
               scheduledByName: calCalendarUserLabel(scheduledByUid),
@@ -17352,7 +17371,7 @@ function renderCalendarGrid() {
   }
   grid.innerHTML = `
     <div class="cal-grid">${html}</div>
-    ${calendarState.events && calendarState.events.length === 0 ? '<div style="margin-top:14px;color:var(--t3);font-size:12px;text-align:center;line-height:1.6">Событий не найдено.<br>Проставь дату «Первого Zoom» в сделке или создай Zoom-встречу через «+ Дело» → 📹 Zoom-встреча.</div>' : ''}
+    ${calendarState.events && calendarState.events.length === 0 ? '<div style="margin-top:14px;color:var(--t3);font-size:12px;text-align:center;line-height:1.6">Событий не найдено.<br>Проставь дату «Первого Zoom» в сделке или создай Zoom-встречу через «+ Дело» → 📹 Видеовстреча.</div>' : ''}
   `;
   // Счётчик в тулбаре: сколько событий всего загружено и сколько в этом месяце
   const stats = document.getElementById('cal-stats');
@@ -17738,7 +17757,7 @@ function openCalEventForm(prefillDate) {
       <label style="font-size:12px;color:var(--t3)">Тип встречи</label>
       <select id="ce-kind" style="width:100%;margin:5px 0 12px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)">${calKindOptionsHtml('zoom')}</select>
       <label style="font-size:12px;color:var(--t3)">Название события</label>
-      <input id="ce-title" placeholder="Напр. Zoom с клиентом" style="width:100%;margin:5px 0 12px;padding:10px 12px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);font-size:14px">
+      <input id="ce-title" placeholder="Напр. Видеовстреча с клиентом" style="width:100%;margin:5px 0 12px;padding:10px 12px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);font-size:14px">
       <div style="display:flex;gap:10px;margin-bottom:12px">
         <div style="flex:1"><label style="font-size:12px;color:var(--t3)">Дата</label>
           <input id="ce-date" type="date" value="${calYMD(start)}" style="width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1)"></div>
@@ -17833,6 +17852,7 @@ function openCalEventForm(prefillDate) {
       });
       const j = await r.json();
       if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
+      if(payload.mark==='zoom_meeting') crmMeet.created(j.id);
       showToast?.('Событие создано');
       ov.remove();
       await loadCalendarEvents({ force: true });
@@ -17905,7 +17925,7 @@ function openCalEventEdit(uid) {
       </select>
       <select id="ee-people" multiple size="4" ${dis} style="width:100%;margin-top:6px;padding:8px;border:1px solid var(--b1);border-radius:8px;background:var(--bg);color:var(--t1);display:${curVis === 'people' ? '' : 'none'}">${eePeopleOpts}</select>` : ''}
       ${editable ? '' : `<div style="font-size:12px;color:var(--yl);margin-top:10px">👁 ${canManageSharedCalendar() ? 'Событие другого сотрудника' : 'Календарь доступен только для просмотра'}.</div>`}
-      <div id="ee-err" style="color:var(--rd);font-size:12px;min-height:16px;margin-top:8px"></div>
+      <div id="ee-meet-link"></div><div id="ee-err" style="color:var(--rd);font-size:12px;min-height:16px;margin-top:8px"></div>
     </div>
     <div style="padding:12px 18px;border-top:1px solid var(--b1);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
       <div style="display:flex;gap:8px">
@@ -17920,6 +17940,8 @@ function openCalEventEdit(uid) {
   </div>`;
   document.body.appendChild(ov);
   ov.querySelector('#ee-x').onclick = () => ov.remove();
+  if(ev.field==='firstZoomAt') crmMeet.firstMeeting(ov.querySelector('#ee-meet-link'),'deal_'+ev.dealBitrixId,ev.date);
+  if(ev.mark==='zoom_meeting') crmMeet.event(ov.querySelector('#ee-meet-link'),ev.taskId);
   ov.querySelector('#ee-cancel').onclick = () => ov.remove();
   const dealBtn = ov.querySelector('#ee-deal');
   if (dealBtn) dealBtn.onclick = () => { ov.remove(); openDealCard(ev.dealBitrixId); };

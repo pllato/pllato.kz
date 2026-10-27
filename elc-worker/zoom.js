@@ -1,3 +1,4 @@
+import {createPllatoMeeting,isPllatoMeeting} from './meet-crm.js';
 import {transcriptDemoTasks} from './transcript-demo-tasks.js';
 // Zoom General App: один подключённый организатор, приватные материалы в R2.
 // Секреты — только env; OAuth-токены в отдельной таблице, зашифрованы AES-GCM.
@@ -104,7 +105,7 @@ async function applyStaffAdmission(env, meetingId) {
   return true;
 }
 async function syncStaffAdmission(env) {
-  const {results}=await env.DB.prepare(`SELECT meeting_id FROM zoom_meetings m WHERE status='ready' AND meeting_id IS NOT NULL
+  const {results}=await env.DB.prepare(`SELECT meeting_id FROM zoom_meetings m WHERE status='ready' AND meeting_id IS NOT NULL AND meeting_id NOT LIKE 'crm-%'
     AND NOT EXISTS(SELECT 1 FROM zoom_private p WHERE p.k='staff_admission_v1:'||m.meeting_id AND (p.v='ready' OR CAST(p.v AS INTEGER)>?))
     ORDER BY created_at DESC LIMIT 3`).bind(Date.now()).all();
   for(const row of results) {
@@ -122,29 +123,19 @@ async function ensureZoomMeeting(env, task) {
   const taskId = task.id;
   const existing = await env.DB.prepare('SELECT * FROM zoom_meetings WHERE task_id=?').bind(taskId).first();
   if (existing?.meeting_id) return existing;
-  if (existing?.status === 'creating' || existing?.status === 'uncertain') throw fail('Результат создания Zoom требует проверки администратором; повторная встреча не создаётся.', 409);
-  const body = meetingBody(task);
-  await token(env); // До резервирования проверяем, что подключение есть.
-  const claimed = await env.DB.prepare(`INSERT INTO zoom_meetings(task_id,deal_id,topic,status,created_at)
-    VALUES(?,?,?,'creating',?) ON CONFLICT(task_id) DO UPDATE SET status='creating',error=NULL
-    WHERE zoom_meetings.status='pending' RETURNING task_id`).bind(taskId, taskDeal(task), task.title, now()).first();
-  if (!claimed) throw fail('Встреча уже создаётся', 409);
-  try {
-    const z = await api(env, '/users/me/meetings', 'POST', body);
-    await env.DB.prepare("UPDATE zoom_meetings SET meeting_id=?,join_url=?,status='ready' WHERE task_id=?")
-      .bind(String(z.id), z.join_url, taskId).run();
-    return { meeting_id: String(z.id), join_url: z.join_url, status: 'ready' };
-  } catch (e) {
-    // Безопаснее не повторять POST после таймаута: Zoom мог уже создать встречу.
-    await env.DB.prepare("UPDATE zoom_meetings SET status=?,error=? WHERE task_id=?").bind([400,401,403,404,429].includes(e.zoomStatus) ? 'pending' : 'uncertain', String(e.message).slice(0, 250), taskId).run();
-    throw e;
-  }
+  meetingBody(task); // Retain calendar validation.
+  if(existing) throw fail('Существующая встреча требует проверки; повторная ссылка не создаётся.',409);
+  return createPllatoMeeting(env,task,taskDeal(task));
 }
 export async function syncZoomTask(env, taskId, patch, remove = false) {
-  if (!env.ZOOM_CLIENT_ID) return;
   await schema(env);
   const m = await env.DB.prepare('SELECT * FROM zoom_meetings WHERE task_id=?').bind(taskId).first();
   if (!m?.meeting_id || m.status === 'cancelled') return;
+  if(isPllatoMeeting(m.meeting_id)){
+    if(remove) await env.DB.prepare("UPDATE zoom_meetings SET status='cancelled' WHERE task_id=?").bind(taskId).run();
+    else if(patch.title) await env.DB.prepare('UPDATE zoom_meetings SET topic=? WHERE task_id=?').bind(patch.title,taskId).run();
+    return;
+  }
   if (remove) {
     await api(env, '/meetings/' + m.meeting_id, 'DELETE');
     await env.DB.prepare("UPDATE zoom_meetings SET status='cancelled' WHERE task_id=?").bind(taskId).run();
@@ -268,13 +259,14 @@ export async function notifyZoomFiles(env, notify) {
   if (!notify) return;
   const {results}=await env.DB.prepare(`SELECT f.*, d.title AS deal_title,d.responsible_uid,d.created_by_uid
     FROM zoom_files f JOIN deals d ON d.id=f.deal_id
-    WHERE f.status='stored' AND NOT EXISTS (SELECT 1 FROM zoom_file_notified n WHERE n.file_id=f.id)
+    WHERE f.status='stored' AND f.kind!='chat_metadata' AND NOT EXISTS (SELECT 1 FROM zoom_file_notified n WHERE n.file_id=f.id)
     ORDER BY f.imported_at LIMIT 30`).all();
   for (const f of results) {
     const recipients=[...new Set([f.responsible_uid,f.created_by_uid].filter(Boolean))];
     if(!recipients.length)continue;
-    const kind=/transcript/i.test(f.kind) ? 'transcript' : /MP4/i.test(f.extension) ? 'video' : 'files';
-    const title=kind==='transcript'?'Zoom: транскрипт готов':kind==='video'?'Zoom: запись готова':'Zoom: материалы готовы';
+    const kind=/transcript/i.test(f.kind) ? 'transcript' : /MP4|WEBM/i.test(f.extension) ? 'video' : 'files';
+    const provider=isPllatoMeeting(f.meeting_id)?'Pllato Meet':'Zoom';
+    const title=kind==='transcript'?provider+': транскрипт готов':kind==='video'?provider+': запись готова':provider+': материалы готовы';
     let done=true;
     for(const uid of recipients) {
       const id='zoom_ready:'+encodeURIComponent(f.meeting_uuid)+':'+kind+':'+uid;
@@ -286,9 +278,8 @@ export async function notifyZoomFiles(env, notify) {
   }
 }
 export async function processZoomJobs(env, notify) {
-  if (!env.ZOOM_CLIENT_ID || !env.ZOOM_CLIENT_SECRET) return;
   await schema(env);
-  if (!await get(env, 'tokens')) return;
+  if (!env.ZOOM_CLIENT_ID || !env.ZOOM_CLIENT_SECRET || !await get(env,'tokens')) { await notifyZoomFiles(env,notify); return; }
   // Общая аренда защищает перенос/удаление от двух параллельных cron.
   const lease = String(Date.now() + 20 * 60000);
   const locked = await env.DB.prepare(`INSERT INTO zoom_private(k,v) VALUES('job_lock',?) ON CONFLICT(k)
@@ -296,7 +287,7 @@ export async function processZoomJobs(env, notify) {
   if (!locked) return;
   try {
     if (env.ZOOM_TRASH_AFTER_COPY === 'true') {
-      const {results}=await env.DB.prepare("SELECT * FROM zoom_files WHERE status='stored' AND deleted_at IS NULL AND imported_at IS NOT NULL AND r2_key IS NOT NULL AND size>0 AND zoom_deleted_at IS NULL AND (retry_at IS NULL OR retry_at<=?) ORDER BY size DESC,id LIMIT 10").bind(now()).all();
+      const {results}=await env.DB.prepare("SELECT * FROM zoom_files WHERE status='stored' AND deleted_at IS NULL AND imported_at IS NOT NULL AND r2_key IS NOT NULL AND size>0 AND zoom_deleted_at IS NULL AND meeting_id NOT LIKE 'crm-%' AND (retry_at IS NULL OR retry_at<=?) ORDER BY size DESC,id LIMIT 10").bind(now()).all();
       const verifiedMeetings=new Map();
       for (const f of results) {
         try {
@@ -405,6 +396,12 @@ export async function handleZoomRequest(request, env, deps) {
         ? await canReadDeal(meeting.deal_id) && await canEditRecord(env,me,'deals',meeting.deal_id)
         : await canEditRecord(env,me,'tasks',meeting.task_id);
       if(!allowed) throw fail('Нет права управления этой встречей',403);
+      if(isPllatoMeeting(meetingId)){
+        const hostKey=await get(env,'pmeet-host:'+meetingId);
+        if(!hostKey) throw fail('Не найден доступ ведущего',409);
+        const response=json({hostUrl:'https://pllato.kz/meet.html?room='+meetingId+'#host='+encodeURIComponent(hostKey)},200,request);
+        response.headers.set('Cache-Control','private, no-store');return response;
+      }
       const saved=await get(env,'host_key');
       const hostKey=saved?(await unseal(env,saved)).value:env.ZOOM_HOST_KEY;
       if(!/^\d{6}$/.test(hostKey||'')) throw fail('Администратору нужно сохранить код организатора: Календарь → Zoom → Код организатора.',409);
@@ -421,7 +418,7 @@ export async function handleZoomRequest(request, env, deps) {
       if(!ids.length)return json({deals:[]},200,request);
       const access=dealAccessSql(me), placeholders=ids.map(()=>'?').join(',');
       const {results}=await env.DB.prepare(`SELECT deal_id,COUNT(*) AS files,
-        SUM(CASE WHEN extension='MP4' THEN 1 ELSE 0 END) AS videos,
+        SUM(CASE WHEN extension IN ('MP4','WEBM') THEN 1 ELSE 0 END) AS videos,
         SUM(CASE WHEN kind LIKE '%transcript%' THEN 1 ELSE 0 END) AS transcripts
         FROM zoom_files WHERE status='stored' AND deal_id IN
         (SELECT id FROM deals WHERE id IN (${placeholders})${access.where}) GROUP BY deal_id`).bind(...ids,...access.params).all();
@@ -465,7 +462,7 @@ export async function handleZoomRequest(request, env, deps) {
       if (request.method === 'GET') {
         const deal=await env.DB.prepare('SELECT title,custom_fields FROM deals WHERE id=?').bind(dealId).first();
         const date=parse(deal.custom_fields).firstZoomAt;
-        return json({meeting:existing ? {...existing,topic:'Первый Zoom: '+deal.title,start_time:date ? (/(?:Z|[+-]\d{2}:\d{2})$/.test(date)?date:date+'+05:00') : null} : null},200,request);
+        return json({meeting:existing ? {...existing,topic:'Первая видеовстреча: '+deal.title,start_time:date ? (/(?:Z|[+-]\d{2}:\d{2})$/.test(date)?date:date+'+05:00') : null} : null},200,request);
       }
       if (request.method !== 'POST') throw fail('Method not allowed',405);
       if (!await canEditRecord(env,me,'deals',dealId)) throw fail('Нет права изменения сделки',403);
@@ -475,10 +472,10 @@ export async function handleZoomRequest(request, env, deps) {
       // Legacy CRM date fields use Almaty wall time without an offset.
       const start = new Date(/(?:Z|[+-]\d{2}:\d{2})$/.test(date) ? date : date + '+05:00');
       if (isNaN(start)) throw fail('Некорректная дата встречи');
-      const task = {id:taskId,title:'Первый Zoom: '+deal.title,mark:'zoom_meeting',crmLinks:[dealId],
+      const task = {id:taskId,title:'Первая видеовстреча: '+deal.title,mark:'zoom_meeting',crmLinks:[dealId],
         start_date_plan:start.toISOString(),end_date_plan:new Date(+start+3600000).toISOString()};
       if (existing?.meeting_id) {
-        await api(env,'/meetings/'+existing.meeting_id,'PATCH',meetingBody(task));
+        if(!isPllatoMeeting(existing.meeting_id)) await api(env,'/meetings/'+existing.meeting_id,'PATCH',meetingBody(task));
         return json({meeting:existing},200,request);
       }
       return json({meeting:await ensureZoomMeeting(env,task)},200,request);
