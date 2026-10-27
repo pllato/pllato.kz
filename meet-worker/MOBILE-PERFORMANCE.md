@@ -17,3 +17,9 @@ Host: `assets/meet/office-reception.jpg`; client: `assets/meet/office-neutral.jp
 Entry requires a live enabled camera, except when a default-camera retry fails with NotFound/DevicesNotFound and device enumeration confirms no video inputs. Permission denial, busy hardware, constraint failures, and ended tracks do not qualify. Saved missing devices fall back to the default camera. Camera is enabled on prejoin/retry; users can still switch it off during the meeting.
 
 Validation: `node meet-worker/camera-entry.test.cjs`; browser checks with synthetic camera verified host/client role assets, enabled entry, office canvas pixels, and 31 processing frames in two seconds on desktop (cap 40). Physical device battery/thermal behavior remains unmeasured.
+
+## Stricter foreground cleanup
+
+After chair/ear-side leakage in a real call, alpha now uses a 0.60–0.90 confidence transition instead of 0.35–0.75. Eight-connected foreground islands smaller than 12 mask pixels are removed; attached fine edges are retained. Scratch arrays are allocated only when the mask dimensions change. The model and FPS caps are unchanged.
+
+`node meet-worker/person-mask.test.cjs` covers uncertain attached chair pixels, detached fragments, diagonal fine edges, unchanged RGB, and soft alpha transitions. Chrome microbenchmark on a 256×144 synthetic mask: 60 passes ~111 ms (~1.85 ms/pass). This is mask cleanup only, not a full-call performance measurement. A composited screenshot does not expose the original camera frame or raw confidence mask: removal of the specific chair, hair preservation in motion, and mobile thermal impact still need live-device validation. A large chair region confidently classified as a person can survive this cleanup.

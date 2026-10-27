@@ -828,10 +828,40 @@ function loadOfficeBackground(mode){
 }
 
 // Smoothstep сохраняет антиалиасинг, но убирает слабую примесь старого фона.
-function refinePersonAlpha(rgba){
+function refinePersonAlpha(rgba, width, height, work){
+  // Prefer confident foreground: uncertain chair/background pixels must not
+  // become almost opaque. Keep a smooth transition for hair and ear edges.
   for(let i=3;i<rgba.length;i+=4){
-    const t=Math.max(0,Math.min(1,(rgba[i]/255-0.35)/0.40));
+    const t=Math.max(0,Math.min(1,(rgba[i]/255-0.60)/0.30));
     rgba[i]=Math.round(255*t*t*(3-2*t));
+  }
+  const count=width*height;
+  if(!count || !work) return;
+  const {visited,queue}=work; visited.fill(0);
+  // Remove only tiny detached islands, not thin edges attached to the person.
+  // Reuse scratch arrays; at 256x144 this scans only 36,864 mask pixels.
+  for(let seed=0;seed<count;seed++){
+    if(visited[seed] || rgba[seed*4+3]===0) continue;
+    let head=0,tail=1; queue[0]=seed; visited[seed]=1;
+    while(head<tail){
+      const index=queue[head++], x=index%width;
+      const left=x>0, right=x+1<width, up=index>=width, down=index+width<count;
+      // Explicit neighbours avoid nested loops and coordinate division per pixel.
+      let next;
+      if(left){next=index-1;if(!visited[next]&&rgba[next*4+3]){visited[next]=1;queue[tail++]=next;}}
+      if(right){next=index+1;if(!visited[next]&&rgba[next*4+3]){visited[next]=1;queue[tail++]=next;}}
+      if(up){
+        next=index-width;if(!visited[next]&&rgba[next*4+3]){visited[next]=1;queue[tail++]=next;}
+        if(left){next=index-width-1;if(!visited[next]&&rgba[next*4+3]){visited[next]=1;queue[tail++]=next;}}
+        if(right){next=index-width+1;if(!visited[next]&&rgba[next*4+3]){visited[next]=1;queue[tail++]=next;}}
+      }
+      if(down){
+        next=index+width;if(!visited[next]&&rgba[next*4+3]){visited[next]=1;queue[tail++]=next;}
+        if(left){next=index+width-1;if(!visited[next]&&rgba[next*4+3]){visited[next]=1;queue[tail++]=next;}}
+        if(right){next=index+width+1;if(!visited[next]&&rgba[next*4+3]){visited[next]=1;queue[tail++]=next;}}
+      }
+    }
+    if(tail<12) for(let i=0;i<tail;i++) rgba[queue[i]*4+3]=0;
   }
 }
 
@@ -875,7 +905,10 @@ class BgPipeline{
     const w=results.image.width, h=results.image.height; if(!w) return;
     if(this.canvas.width!==w || this.canvas.height!==h){ this.canvas.width=w; this.canvas.height=h; }
     const mw=Math.min(256,w), mh=Math.max(1,Math.round(h*mw/w));
-    if(this.mask.width!==mw || this.mask.height!==mh){ this.mask.width=mw; this.mask.height=mh; }
+    if(this.mask.width!==mw || this.mask.height!==mh){
+      this.mask.width=mw; this.mask.height=mh;
+      this.maskWork={visited:new Uint8Array(mw*mh),queue:new Int32Array(mw*mh)};
+    }
     const ctx=this.ctx, mctx=this.mctx;
     // Маска хранит вероятность человека в alpha. CSS brightness/contrast
     // меняют RGB, но не alpha: вместе с blur(11px) это давало широкий ореол.
@@ -885,7 +918,7 @@ class BgPipeline{
     mctx.imageSmoothingEnabled=true; mctx.imageSmoothingQuality='high';
     mctx.drawImage(results.segmentationMask,0,0,mw,mh);
     const maskPixels=mctx.getImageData(0,0,mw,mh);
-    refinePersonAlpha(maskPixels.data);
+    refinePersonAlpha(maskPixels.data,mw,mh,this.maskWork);
     mctx.putImageData(maskPixels,0,0);
     // 2) человек по маске
     ctx.save(); ctx.clearRect(0,0,w,h);
