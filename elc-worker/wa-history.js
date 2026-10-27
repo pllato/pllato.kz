@@ -65,10 +65,10 @@ export async function syncWaHistory(db, chatId, fetcher = fetch, now = Date.now(
     if (!Array.isArray(history)) throw new Error('invalid_history');
   } catch {
     await db.prepare("UPDATE wa_history_sync SET checked_at = ?, retry_at = ?, status = 'error' WHERE chat_id = ?")
-      .bind(now, now + 60000, chatId).run();
+      .bind(now, now + 3600000, chatId).run();
     return { status: 'error', imported: 0 };
   }
-  const messages = history.map(m => historyMessage(m, chat)).filter(Boolean).sort((a, b) => a.ts - b.ts);
+  const messages = history.slice(0, 100).map(m => historyMessage(m, chat)).filter(Boolean).sort((a, b) => a.ts - b.ts);
   let imported = 0;
   for (let offset = 0; offset < messages.length; offset += 25) {
     const result = await db.batch(messages.slice(offset, offset + 25).map(m => db.prepare(`
@@ -116,9 +116,15 @@ export async function syncWaHistory(db, chatId, fetcher = fetch, now = Date.now(
   return { status, imported };
 }
 
-export async function recoverWaHistory(db) {
+export async function recoverWaHistory(db, fetcher = fetch, now = Date.now()) {
+  // Shared across cron deliveries and isolates; claim BEFORE the expensive scan.
+  // Keep the lease on errors so a provider outage cannot cause a retry storm.
+  const lease = await db.prepare(`INSERT INTO kv(k, v) VALUES ('wa:history:recovery-next', ?)
+    ON CONFLICT(k) DO UPDATE SET v = excluded.v WHERE CAST(kv.v AS INTEGER) <= ?`)
+    .bind(String(now + 15 * 60000), now).run();
+  if (!lease.meta.changes) return { skipped: true, checked: 0 };
   await ensureWaHistorySchema(db);
-  // One eligible chat per connected instance per minute. Oldest attempt first
+  // One eligible chat per connected instance per 15 minutes, at most 8 total. Oldest attempt first
   // ensures that empty histories do not starve the remaining chats.
   const { results } = await db.prepare(`SELECT id FROM (
     SELECT c.id, ROW_NUMBER() OVER (PARTITION BY c.instance_id
@@ -132,6 +138,7 @@ export async function recoverWaHistory(db) {
         AND NULLIF(m.text,'') IS NULL AND NULLIF(m.caption,'') IS NULL
         AND NULLIF(m.media_url,'') IS NULL))
       AND COALESCE(s.retry_at, 0) <= ?
-  ) WHERE rank = 1`).bind(Date.now()).all();
-  for (const chat of results) await syncWaHistory(db, chat.id);
+  ) WHERE rank = 1 ORDER BY id LIMIT 8`).bind(now).all();
+  for (const chat of results) await syncWaHistory(db, chat.id, fetcher, now);
+  return { skipped: false, checked: results.length };
 }

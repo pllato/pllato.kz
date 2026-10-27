@@ -51,6 +51,7 @@ assert.equal(sql.prepare('SELECT count(*) n FROM wa_messages').get().n,2,'empty 
 sql.exec("UPDATE wa_history_sync SET retry_at=0");
 assert.equal((await syncWaHistory(db,'wa:1:chat',async()=>new Response('',{status:429}),4000000)).status,'error');
 assert.ok(sql.prepare('SELECT retry_at FROM wa_history_sync').get().retry_at>4000000);
+assert.equal(sql.prepare('SELECT retry_at FROM wa_history_sync').get().retry_at, 4000000 + 3600000, 'provider failures cool down for one hour');
 sql.exec("UPDATE wa_history_sync SET retry_at=0");
 assert.equal((await syncWaHistory(db,'wa:1:chat',provider,4000100)).status,'pending','shared instance rate limit');
 assert.equal(historyMessage({...history[0],chatId:'other'}, {id:'wa:1:chat',chat_id:'chat'}),null);
@@ -90,4 +91,8 @@ const envelopeEnd=source.indexOf('// Ленивая идемпотентная �
 const envContext=vm.createContext({});vm.runInContext(source.slice(envelopeStart,envelopeEnd),envContext);
 const quoted=envContext.extractWaWebhookEnvelope({typeWebhook:'incomingMessageReceived',instanceData:{idInstance:1},senderData:{chatId:'123@g.us',senderName:'Клиент'},idMessage:'quote',timestamp:100,messageData:{typeMessage:'quotedMessage',extendedTextMessageData:{text:'Ответ клиента'},quotedMessage:{textMessage:'Исходное сообщение'}}});
 assert.equal(quoted.text,'Ответ клиента');
+sql.exec('UPDATE wa_history_sync SET retry_at=0');
+const oversized = Array.from({length: 150}, (_, i) => ({...history[0], idMessage: `bounded-${i}`}));
+await syncWaHistory(db, 'wa:1:chat', async () => Response.json(oversized), 6000000);
+assert.equal(sql.prepare("SELECT count(*) n FROM wa_messages WHERE wa_message_id LIKE 'bounded-%'").get().n, 100, 'provider response cannot exceed the requested import batch');
 console.log('WhatsApp recovery + 200-contact phone loading: all tests passed');

@@ -13235,14 +13235,9 @@ export default {
       } catch (e) {
         console.error("[cron] maybeWeeklyChannelDigest failed:", e.message);
       }
-      try {
-        const shells = await syncWaChatShells(env);
-        if (shells.created > 0 || shells.existing > 0 || shells.failed > 0) {
-          console.log(`[cron] wa_chat_shells scanned=${shells.scanned} created=${shells.created} existing=${shells.existing} failed=${shells.failed}`);
-        }
-      } catch (e) {
-        console.error("[cron] syncWaChatShells failed:", e.message);
-      }
+      // getChats is not an inbound-event feed: reconnections replay historical
+      // chats and caused unbounded shell/deal creation. Only authenticated live
+      // webhooks create inbound leads; existing chats recover history below.
       try {
         await ensureWaSenderColumn(env);
         await ensureWaMetaAdColumns(env);

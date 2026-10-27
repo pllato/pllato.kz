@@ -81,8 +81,13 @@ new_sqlite_classes = ["ChannelRoom", "UserNotifyRoom"]
 crons = ["* * * * *"]
 
 # ── Observability ──
+[limits]
+# Bound CPU cost of a single runaway invocation (network wait is not CPU time).
+cpu_ms = 10000
+
 [observability]
 enabled = true
+head_sampling_rate = 0.1
 
 [[durable_objects.bindings]]
 name = "WA_SCHEDULED"
