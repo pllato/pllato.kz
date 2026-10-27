@@ -1198,7 +1198,7 @@ function handleWsMessage(m){
       for(const p of m.peers||[]) if(p.info.admitted) participantNames.add(p.info.name);
       participantNames.add(state.name);
       if(state.admitted){ onAdmitted(); connectToAdmittedPeers(); }
-      else{ showScreen('screen-waiting'); $('waiting-text').textContent='Встреча ещё не началась. Как только организатор откроет её — вы войдёте автоматически.'; }
+      else{ showWaitingPreview(); }
       break;
     }
     case 'peer-join': { if(m.info.admitted) participantNames.add(m.info.name); presenceCache.set(m.peer, m.info); if(m.info.admitted && state.admitted) ensurePeer(m.peer, m.info); renderPeopleList(); updateBadges(); break; }
@@ -1222,9 +1222,19 @@ function handleWsMessage(m){
 }
 function connectToAdmittedPeers(){ for(const [id,info] of presenceCache){ if(id!==peerId && info.admitted) ensurePeer(id, info); } }
 
+function showWaitingPreview(){
+  showScreen('screen-room');
+  $('room-pill').textContent='Ожидаем администратора';
+  $('timer-pill').textContent='Без записи';
+  setupLocalTile();
+  initControls();
+  renderPeopleList();updateBadges();
+  // Local preview only: admission, peer connections and recording remain server-gated.
+}
 function onAdmitted(){
   if(state._joined) return; state._joined=true;
   state.startedAt=Date.now();
+  $('timer-pill').textContent='00:00';
   showScreen('screen-room');
   $('room-pill').textContent = state.roomId + (state.isHost?' · вы организатор':'');
   setupLocalTile();
@@ -1471,6 +1481,7 @@ function updatePeerTileInfo(id, info){
 
 let localTile=null, localScreenTile=null;
 function setupLocalTile(){
+  if(localTile){detachMedia(localTile.querySelector('video'));localTile.remove();}
   localTile=document.createElement('div'); localTile.className='tile local'+(state.isHost?' host':''); localTile.id='tile_local'; localTile.dataset.kind='camera';
   localTile.innerHTML=`<video autoplay playsinline muted></video>
     <div class="tile-noimg"><div class="avatar" style="width:64px;height:64px;font-size:26px">${initials(state.name)}</div></div>
@@ -1579,7 +1590,7 @@ function initControls(){
   $('btn-people').onclick=()=>openPane('people');
   document.querySelectorAll('.side-tab').forEach(t=> t.onclick=()=>openPane(t.dataset.pane));
   $('chat-send').onclick=sendChat;
-  $('chat-input').addEventListener('keydown',e=>{ if(e.key==='Enter') sendChat(); });
+  $('chat-input').onkeydown=e=>{ if(e.key==='Enter') sendChat(); };
   $('trn-download').onclick=downloadTranscript;
   $('trn-toggle').onclick=toggleCaptions;
   $('trn-lang').value=recogLang; $('trn-lang').onchange=e=>{ recogLang=e.target.value; if(state.captioning){ stopRecognition(); startRecognition(); } };
@@ -1619,6 +1630,7 @@ async function cycleBackground(){
 
 // показ экрана отдельной дорожкой — камера (лицо) продолжает идти
 async function toggleShare(){
+  if(!state.admitted){toast("Демонстрация станет доступна, когда войдёт администратор.");return;}
   if(!state.sharing){
     // iOS Safari (и любой мобильный браузер) не даёт getDisplayMedia — честно предупреждаем
     if(!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia!=='function'){
@@ -1853,6 +1865,7 @@ function toggleCaptions(){
   if(!state.captioning){ startCaptions(false); } else { state.captioning=false; stopRecognition(); toast('Субтитры выключены'); refreshControlIcons(); }
 }
 function startCaptions(silent){
+  if(!state.admitted)return;
   if(state.captioning) return;
   state.captioning=true; startRecognition();
   if(!silent){ openPane('transcript'); toast('Субтитры включены — ваша речь распознаётся'); }
