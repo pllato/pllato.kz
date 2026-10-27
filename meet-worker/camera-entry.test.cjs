@@ -10,7 +10,7 @@ function track(kind){return{kind,enabled:true,readyState:'live',stop(){this.read
 class Stream{constructor(tracks=[]){this.tracks=tracks}addTrack(t){this.tracks.push(t)}getTracks(){return this.tracks}getVideoTracks(){return this.tracks.filter(t=>t.kind==='video')}getAudioTracks(){return this.tracks.filter(t=>t.kind==='audio')}}
 async function check(name,fail,devices,expected,defaultSucceeds=false){
   const state={camOn:false,micOn:true,selCam:'stale',rawStream:null,_joined:true};let defaultCalls=0;
-  const context=vm.createContext({state,MediaStream:Stream,MOBILE_MEDIA:false,MEDIA_PROFILE:{width:1280,height:720,cameraFps:30},navigator:{mediaDevices:{
+  const context=vm.createContext({state,captureMedia:c=>context.navigator.mediaDevices.getUserMedia(c),MediaStream:Stream,MOBILE_MEDIA:false,MEDIA_PROFILE:{width:1280,height:720,cameraFps:30},navigator:{mediaDevices:{
     async getUserMedia(c){if(c.video){if(c.video===true){defaultCalls++;if(defaultSucceeds)return new Stream([track('video')])}throw error(fail)}return new Stream([track('audio')])},
     async enumerateDevices(){return devices.map(kind=>({kind}))},
   }}});
